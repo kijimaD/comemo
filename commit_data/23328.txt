@@ -13,9 +13,170 @@ Date:   Tue May 5 18:19:28 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9790
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/cgo/ast.go  |  8 ++++++++
  src/cmd/cgo/doc.go  |  3 +++
  src/cmd/cgo/main.go |  5 ++++-
  src/cmd/cgo/out.go  | 37 +++++++++++++++++++++++++++++++------
  4 files changed, 46 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 10e2278a1d..8bbd1cc52e 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -235,9 +235,17 @@ func (f *File) saveExport(x interface{}, context string) {
+ 			error_(c.Pos(), "export comment has wrong name %q, want %q", name, n.Name.Name)
+ 		}
+ 
++		doc := ""
++		for _, c1 := range n.Doc.List {
++			if c1 != c {
++				doc += c1.Text + "\n"
++			}
++		}
++
+ 		f.ExpFunc = append(f.ExpFunc, &ExpFunc{
+ 			Func:    n,
+ 			ExpName: name,
++			Doc:     doc,
+ 		})
+ 		break
+ 	}
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 77092dd2cd..df16ae3c7f 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -239,6 +239,9 @@ The following options are available when running cgo directly:
+ 		syscall package when bootstrapping a new target.
+ 	-objdir directory
+ 		Put all generated files in directory.
++	-importpath string
++		The import path for the Go package. Optional; used for
++		nicer comments in the generated files.
+ 	-gccgo
+ 		Generate output for the gccgo compiler rather than the
+ 		gc compiler.
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 13ab9659d7..3d2f7df8b9 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -99,6 +99,7 @@ func (n *Name) IsVar() bool {
+ type ExpFunc struct {
+ 	Func    *ast.FuncDecl
+ 	ExpName string // name to use from C
++	Doc     string
+ }
+ 
+ // A TypeRepr contains the string representation of a type.
+@@ -161,11 +162,13 @@ var dynout = flag.String("dynout", "", "write -dynimport output to this file")
+ var dynpackage = flag.String("dynpackage", "main", "set Go package for -dynimport output")
+ var dynlinker = flag.Bool("dynlinker", false, "record dynamic linker information in -dynimport mode")
+ 
+-// These flags are for bootstrapping a new Go implementation,
++// This flag is for bootstrapping a new Go implementation,
+ // to generate Go types that match the data layout and
+ // constant values used in the host's C libraries and system calls.
+ var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for C file to standard output")
++
+ var objDir = flag.String("objdir", "", "object directory")
++var importPath = flag.String("importpath", "", "import path of package being built (for comments in generated files)")
+ 
+ var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
+ var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 9601d96448..22217a7b77 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -638,9 +638,7 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
+ 	fgcc := creat(*objDir + "_cgo_export.c")
+ 	fgcch := creat(*objDir + "_cgo_export.h")
+ 
+-	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n/*  This file is arch-specific.  */\n")
+-	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+-	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
++	p.writeExportHeader(fgcch)
+ 
+ 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
+ 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n\n")
+@@ -737,6 +735,10 @@ func (p *Package) writeExports(fgo2, fm io.Writer) {
+ 				s += fmt.Sprintf("%s p%d", p.cgoType(atype).C, i)
+ 			})
+ 		s += ")"
++
++		if len(exp.Doc) > 0 {
++			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
++		}
+ 		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
+ 
+ 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
+@@ -833,9 +835,7 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
+ 
+ 	gccgoSymbolPrefix := p.gccgoSymbolPrefix()
+ 
+-	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
+-	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+-	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
++	p.writeExportHeader(fgcch)
+ 
+ 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
+ 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
+@@ -861,6 +861,7 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
+ 				})
+ 		default:
+ 			// Declare a result struct.
++			fmt.Fprintf(fgcch, "\n/* Return type for %s */\n", exp.ExpName)
+ 			fmt.Fprintf(fgcch, "struct %s_result {\n", exp.ExpName)
+ 			forFieldList(fntype.Results,
+ 				func(i int, atype ast.Expr) {
+@@ -890,6 +891,10 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
+ 		fmt.Fprintf(cdeclBuf, ")")
+ 		cParams := cdeclBuf.String()
+ 
++		if len(exp.Doc) > 0 {
++			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
++		}
++
+ 		// We need to use a name that will be exported by the
+ 		// Go code; otherwise gccgo will make it static and we
+ 		// will not be able to link against it from the C
+@@ -989,6 +994,22 @@ func (p *Package) writeGccgoExports(fgo2, fm io.Writer) {
+ 	}
+ }
+ 
++// writeExportHeader writes out the start of the _cgo_export.h file.
++func (p *Package) writeExportHeader(fgcch io.Writer) {
++	fmt.Fprintf(fgcch, "/* Created by \"go tool cgo\" - DO NOT EDIT. */\n\n")
++	pkg := *importPath
++	if pkg == "" {
++		pkg = p.PackagePath
++	}
++	fmt.Fprintf(fgcch, "/* package %s */\n\n", pkg)
++
++	fmt.Fprintf(fgcch, "/* Start of preamble from import \"C\" comments.  */\n\n")
++	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
++	fmt.Fprintf(fgcch, "\n/* End of preamble from import \"C\" comments.  */\n\n")
++
++	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
++}
++
+ // Return the package prefix when using gccgo.
+ func (p *Package) gccgoSymbolPrefix() string {
+ 	if !*gccgo {
+@@ -1302,6 +1323,8 @@ func (p *Package) gccExportHeaderProlog() string {
+ }
+ 
+ const gccExportHeaderProlog = `
++/* Start of boilerplate cgo prologue.  */
++
+ typedef signed char GoInt8;
+ typedef unsigned char GoUint8;
+ typedef short GoInt16;
+@@ -1327,6 +1350,8 @@ typedef void *GoMap;
+ typedef void *GoChan;
+ typedef struct { void *t; void *v; } GoInterface;
+ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
++
++/* End of boilerplate cgo prologue.  */
+ `
+ 
+ // gccgoExportFileProlog is written to the _cgo_export.c file when

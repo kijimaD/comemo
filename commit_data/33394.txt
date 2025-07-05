@@ -11,6 +11,18 @@ Date:   Fri Aug 4 17:38:46 2017 -0400
     Change-Id: I0c93d9a3f7edff095fbe0c7a53b06c92b391c970
     Reviewed-on: https://go-review.googlesource.com/53770
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .gitignore | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/.gitignore b/.gitignore
+index 8b2f36b9f1..c56cad7f2d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -43,3 +43,6 @@ _testmain.go
+ /test/pass.out
+ /test/run.out
+ /test/times.out
++
++# IntelliJ-based editors
++/.idea/

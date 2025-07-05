@@ -7,7 +7,7 @@ Date:   Fri Sep 4 01:34:36 2015 +0000
     Change-Id: Iab669b2a9dd0510c0e54f9ec1cbe2b83b991bceb
     Reviewed-on: https://go-review.googlesource.com/14283
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/progs/run.go                               |   0
  src/cmd/dist/test.go                           |   0
  src/debug/dwarf/testdata/line-clang.elf        | Bin
@@ -19,3 +19,34 @@ Date:   Fri Sep 4 01:34:36 2015 +0000
  src/debug/plan9obj/testdata/386-plan9-exec     | Bin
  src/debug/plan9obj/testdata/amd64-plan9-exec   | Bin
  10 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/progs/run.go b/doc/progs/run.go
+old mode 100755
+new mode 100644
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+old mode 100755
+new mode 100644
+diff --git a/src/debug/dwarf/testdata/line-clang.elf b/src/debug/dwarf/testdata/line-clang.elf
+old mode 100755
+new mode 100644
+diff --git a/src/debug/dwarf/testdata/line-gcc.elf b/src/debug/dwarf/testdata/line-gcc.elf
+old mode 100755
+new mode 100644
+diff --git a/src/debug/elf/testdata/gcc-386-freebsd-exec b/src/debug/elf/testdata/gcc-386-freebsd-exec
+old mode 100755
+new mode 100644
+diff --git a/src/debug/elf/testdata/gcc-amd64-linux-exec b/src/debug/elf/testdata/gcc-amd64-linux-exec
+old mode 100755
+new mode 100644
+diff --git a/src/debug/macho/testdata/gcc-386-darwin-exec b/src/debug/macho/testdata/gcc-386-darwin-exec
+old mode 100755
+new mode 100644
+diff --git a/src/debug/macho/testdata/gcc-amd64-darwin-exec b/src/debug/macho/testdata/gcc-amd64-darwin-exec
+old mode 100755
+new mode 100644
+diff --git a/src/debug/plan9obj/testdata/386-plan9-exec b/src/debug/plan9obj/testdata/386-plan9-exec
+old mode 100755
+new mode 100644
+diff --git a/src/debug/plan9obj/testdata/amd64-plan9-exec b/src/debug/plan9obj/testdata/amd64-plan9-exec
+old mode 100755
+new mode 100644

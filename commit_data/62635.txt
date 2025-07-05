@@ -47,7 +47,81 @@ Date:   Wed Mar 19 20:07:38 2025 +0000
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/strings/strings.go      | 27 +++++++++++++++------------
  src/strings/strings_test.go | 16 ++++++++++++++++
  2 files changed, 31 insertions(+), 12 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index fb53b59f2c..d07a064228 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1158,19 +1158,22 @@ func Replace(s, old, new string, n int) string {
+ 	var b Builder
+ 	b.Grow(len(s) + n*(len(new)-len(old)))
+ 	start := 0
+-	for i := 0; i < n; i++ {
+-		j := start
+-		if len(old) == 0 {
+-			if i > 0 {
+-				_, wid := utf8.DecodeRuneInString(s[start:])
+-				j += wid
+-			}
+-		} else {
+-			j += Index(s[start:], old)
+-		}
+-		b.WriteString(s[start:j])
++	if len(old) > 0 {
++		for range n {
++			j := start + Index(s[start:], old)
++			b.WriteString(s[start:j])
++			b.WriteString(new)
++			start = j + len(old)
++		}
++	} else { // len(old) == 0
+ 		b.WriteString(new)
+-		start = j + len(old)
++		for range n - 1 {
++			_, wid := utf8.DecodeRuneInString(s[start:])
++			j := start + wid
++			b.WriteString(s[start:j])
++			b.WriteString(new)
++			start = j
++		}
+ 	}
+ 	b.WriteString(s[start:])
+ 	return b.String()
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index aa3458c5c9..3f228b703f 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1473,6 +1473,10 @@ var ReplaceTests = []struct {
+ 
+ func TestReplace(t *testing.T) {
+ 	for _, tt := range ReplaceTests {
++		allocs := testing.AllocsPerRun(10, func() { Replace(tt.in, tt.old, tt.new, tt.n) })
++		if allocs > 1 {
++			t.Errorf("Replace(%q, %q, %q, %d) allocates %.2f objects", tt.in, tt.old, tt.new, tt.n, allocs)
++		}
+ 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
+ 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
+ 		}
+@@ -1531,6 +1535,18 @@ func FuzzReplace(f *testing.F) {
+ 	})
+ }
+ 
++func BenchmarkReplace(b *testing.B) {
++	for _, tt := range ReplaceTests {
++		desc := fmt.Sprintf("%q %q %q %d", tt.in, tt.old, tt.new, tt.n)
++		b.Run(desc, func(b *testing.B) {
++			b.ReportAllocs()
++			for b.Loop() {
++				Replace(tt.in, tt.old, tt.new, tt.n)
++			}
++		})
++	}
++}
++
+ var TitleTests = []struct {
+ 	in, out string
+ }{

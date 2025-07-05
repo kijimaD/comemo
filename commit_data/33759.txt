@@ -16,7 +16,47 @@ Date:   Sat Sep 2 17:32:58 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 3 +++
  src/runtime/hashmap.go                 | 7 +++----
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index c5730dbcb8..c4ab1df62d 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -171,6 +171,9 @@ func bmap(t *types.Type) *types.Type {
+ 	dowidth(bucket)
+ 
+ 	// Check invariants that map code depends on.
++	if !IsComparable(t.Key()) {
++		Fatalf("unsupported map key type for %v", t)
++	}
+ 	if BUCKETSIZE < 8 {
+ 		Fatalf("bucket size too small for proper alignment")
+ 	}
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index cbb1f0defc..bf5d51ab8f 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -296,10 +296,6 @@ func makemap(t *maptype, hint int, h *hmap) *hmap {
+ 		hint = 0
+ 	}
+ 
+-	if !ismapkey(t.key) {
+-		throw("runtime.makemap: unsupported map key type")
+-	}
+-
+ 	if evacuatedX+1 != evacuatedY {
+ 		// evacuate relies on this relationship
+ 		throw("bad evacuatedN")
+@@ -1157,6 +1153,9 @@ func reflect_makemap(t *maptype, cap int) *hmap {
+ 		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
+ 		throw("bad hmap size")
+ 	}
++	if !ismapkey(t.key) {
++		throw("runtime.reflect_makemap: unsupported map key type")
++	}
+ 	if t.key.size > maxKeySize && (!t.indirectkey || t.keysize != uint8(sys.PtrSize)) ||
+ 		t.key.size <= maxKeySize && (t.indirectkey || t.keysize != uint8(t.key.size)) {
+ 		throw("key size wrong")

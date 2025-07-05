@@ -11,6 +11,20 @@ Date:   Wed May 21 22:41:54 2025 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/tls/handshake_messages.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index ad3e5fa352..d9a475aab1 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -1790,7 +1790,7 @@ func (m *certificateRequestMsg) unmarshal(data []byte) bool {
+ 		}
+ 		sigAndHashLen := uint16(data[0])<<8 | uint16(data[1])
+ 		data = data[2:]
+-		if sigAndHashLen&1 != 0 {
++		if sigAndHashLen&1 != 0 || sigAndHashLen == 0 {
+ 			return false
+ 		}
+ 		if len(data) < int(sigAndHashLen) {

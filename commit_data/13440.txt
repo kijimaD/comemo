@@ -8,6 +8,20 @@ Date:   Tue Jul 3 10:05:27 2012 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/6348067
-
+---
  src/pkg/encoding/gob/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/type.go b/src/pkg/encoding/gob/type.go
+index 0dd7a0a770..908cc9ce1c 100644
+--- a/src/pkg/encoding/gob/type.go
++++ b/src/pkg/encoding/gob/type.go
+@@ -755,7 +755,7 @@ func Register(value interface{}) {
+ 	if rt.Name() == "" {
+ 		if pt := rt; pt.Kind() == reflect.Ptr {
+ 			star = "*"
+-			rt = pt
++			rt = pt.Elem()
+ 		}
+ 	}
+ 	if rt.Name() != "" {

@@ -9,7 +9,41 @@ Date:   Wed Nov 28 17:01:59 2012 +1100
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6858079
-
+---
  src/pkg/os/os_test.go      | 12 ++++++++++++
  src/pkg/os/stat_windows.go |  2 +-
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 1940f562de..ecae0f2029 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -1095,3 +1095,15 @@ func TestLargeWriteToConsole(t *testing.T) {
+ 		t.Errorf("Write to os.Stderr should return %d; got %d", len(b), n)
+ 	}
+ }
++
++func TestStatDirModeExec(t *testing.T) {
++	const mode = 0111
++	const path = "."
++	dir, err := Stat(path)
++	if err != nil {
++		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
++	}
++	if dir.Mode()&mode != mode {
++		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode(), mode)
++	}
++}
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index 4fc6f457e3..c0441a42ae 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -190,7 +190,7 @@ func mkModTime(mtime syscall.Filetime) time.Time {
+ 
+ func mkMode(fa uint32) (m FileMode) {
+ 	if fa&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+-		m |= ModeDir
++		m |= ModeDir | 0111
+ 	}
+ 	if fa&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+ 		m |= 0444

@@ -11,6 +11,28 @@ Date:   Wed Oct 17 01:10:14 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/aes/aes_test.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/aes/aes_test.go b/src/crypto/aes/aes_test.go
+index bedc2da946..1e8bac4bb5 100644
+--- a/src/crypto/aes/aes_test.go
++++ b/src/crypto/aes/aes_test.go
+@@ -231,12 +231,10 @@ L:
+ 				continue L
+ 			}
+ 		}
+-		if dec != nil {
+-			for j, v := range dec {
+-				if v != tt.dec[j] {
+-					t.Errorf("key %d: dec[%d] = %#x, want %#x", i, j, v, tt.dec[j])
+-					continue L
+-				}
++		for j, v := range dec {
++			if v != tt.dec[j] {
++				t.Errorf("key %d: dec[%d] = %#x, want %#x", i, j, v, tt.dec[j])
++				continue L
+ 			}
+ 		}
+ 	}

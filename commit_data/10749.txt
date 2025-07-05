@@ -10,6 +10,21 @@ Date:   Tue Dec 13 14:20:38 2011 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5477081
-
+---
  src/Make.inc | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index 7b4ccd0aee..9dc7b8c1c6 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -142,6 +142,9 @@ endif
+ ifeq ($(GOOS),netbsd)  # ... and not on NetBSD
+ CGO_ENABLED:=0
+ endif
++ifeq ($(GOOS)$(GOARCH),windowsamd64)  # ... and not on Windows/amd64
++CGO_ENABLED:=0
++endif
+ endif
+ 
+ # Make environment more standard.

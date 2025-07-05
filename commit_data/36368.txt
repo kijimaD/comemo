@@ -11,6 +11,20 @@ Date:   Mon Apr 23 16:20:32 2018 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/md5/md5.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index fb2cbf4011..88d914d22c 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -64,7 +64,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b = appendUint32(b, d.s[2])
+ 	b = appendUint32(b, d.s[3])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
++	b = b[:len(b)+len(d.x)-d.nx] // already zero
+ 	b = appendUint64(b, d.len)
+ 	return b, nil
+ }

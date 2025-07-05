@@ -11,6 +11,29 @@ Date:   Tue Jun 5 16:57:49 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/reflect/all_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 077220ac7f..63d068cd78 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4399,6 +4399,17 @@ func TestStructOf(t *testing.T) {
+ 	})
+ 	// check that type already in binary is found
+ 	checkSameType(t, StructOf(fields[2:3]), struct{ Y uint64 }{})
++
++	// gccgo used to fail this test.
++	type structFieldType interface{}
++	checkSameType(t,
++		StructOf([]StructField{
++			StructField{
++				Name: "F",
++				Type: TypeOf((*structFieldType)(nil)).Elem(),
++			},
++		}),
++		struct{ F structFieldType }{})
+ }
+ 
+ func TestStructOfExportRules(t *testing.T) {

@@ -9,7 +9,7 @@ Date:   Sun Dec 6 21:25:24 2015 -0600
     Change-Id: I021a6450e6d644ec1042594730a9c64d695949a1
     Reviewed-on: https://go-review.googlesource.com/17500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/append_ssa.go |   7 +-
  .../internal/gc/testdata/arithBoundary_ssa.go      | 159 ++++++++++-----------
  src/cmd/compile/internal/gc/testdata/arith_ssa.go  |  48 +++----
@@ -22,3 +22,807 @@ Date:   Sun Dec 6 21:25:24 2015 -0600
  src/cmd/compile/internal/gc/testdata/short_ssa.go  |   2 +-
  src/cmd/compile/internal/gc/testdata/string_ssa.go |  18 +--
  11 files changed, 138 insertions(+), 188 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/append_ssa.go b/src/cmd/compile/internal/gc/testdata/append_ssa.go
+index dba81736c8..03cd219c32 100644
+--- a/src/cmd/compile/internal/gc/testdata/append_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/append_ssa.go
+@@ -9,14 +9,13 @@ import "fmt"
+ 
+ var failed = false
+ 
++//go:noinline
+ func appendOne_ssa(a []int, x int) []int {
+-	switch { // prevent inlining
+-	}
+ 	return append(a, x)
+ }
++
++//go:noinline
+ func appendThree_ssa(a []int, x, y, z int) []int {
+-	switch { // prevent inlining
+-	}
+ 	return append(a, x, y, z)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/arithBoundary_ssa.go b/src/cmd/compile/internal/gc/testdata/arithBoundary_ssa.go
+index 9f1b9a4a60..929e4e1f0b 100644
+--- a/src/cmd/compile/internal/gc/testdata/arithBoundary_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arithBoundary_ssa.go
+@@ -35,204 +35,203 @@ type itd8 struct {
+ 	add, sub, mul, div, mod int8
+ }
+ 
++//go:noinline
+ func add_uint64_ssa(a, b uint64) uint64 {
+-	switch {
+-	} // prevent inlining
+ 	return a + b
+ }
++
++//go:noinline
+ func sub_uint64_ssa(a, b uint64) uint64 {
+-	switch {
+-	} // prevent inlining
+ 	return a - b
+ }
++
++//go:noinline
+ func div_uint64_ssa(a, b uint64) uint64 {
+-	switch {
+-	} // prevent inlining
+ 	return a / b
+ }
++
++//go:noinline
+ func mod_uint64_ssa(a, b uint64) uint64 {
+-	switch {
+-	} // prevent inlining
+ 	return a % b
+ }
++
++//go:noinline
+ func mul_uint64_ssa(a, b uint64) uint64 {
+-	switch {
+-	} // prevent inlining
+ 	return a * b
+ }
++
++//go:noinline
+ func add_int64_ssa(a, b int64) int64 {
+-	switch {
+-	} // prevent inlining
+ 	return a + b
+ }
++
++//go:noinline
+ func sub_int64_ssa(a, b int64) int64 {
+-	switch {
+-	} // prevent inlining
+ 	return a - b
+ }
++
++//go:noinline
+ func div_int64_ssa(a, b int64) int64 {
+-	switch {
+-	} // prevent inlining
+ 	return a / b
+ }
++
++//go:noinline
+ func mod_int64_ssa(a, b int64) int64 {
+-	switch {
+-	} // prevent inlining
+ 	return a % b
+ }
++
++//go:noinline
+ func mul_int64_ssa(a, b int64) int64 {
+-	switch {
+-	} // prevent inlining
+ 	return a * b
+ }
++
++//go:noinline
+ func add_uint32_ssa(a, b uint32) uint32 {
+-	switch {
+-	} // prevent inlining
+ 	return a + b
+ }
++
++//go:noinline
+ func sub_uint32_ssa(a, b uint32) uint32 {
+-	switch {
+-	} // prevent inlining
+ 	return a - b
+ }
++
++//go:noinline
+ func div_uint32_ssa(a, b uint32) uint32 {
+-	switch {
+-	} // prevent inlining
+ 	return a / b
+ }
++
++//go:noinline
+ func mod_uint32_ssa(a, b uint32) uint32 {
+-	switch {
+-	} // prevent inlining
+ 	return a % b
+ }
++
++//go:noinline
+ func mul_uint32_ssa(a, b uint32) uint32 {
+-	switch {
+-	} // prevent inlining
+ 	return a * b
+ }
++
++//go:noinline
+ func add_int32_ssa(a, b int32) int32 {
+-	switch {
+-	} // prevent inlining
+ 	return a + b
+ }
++
++//go:noinline
+ func sub_int32_ssa(a, b int32) int32 {
+-	switch {
+-	} // prevent inlining
+ 	return a - b
+ }
++
++//go:noinline
+ func div_int32_ssa(a, b int32) int32 {
+-	switch {
+-	} // prevent inlining
+ 	return a / b
+ }
++
++//go:noinline
+ func mod_int32_ssa(a, b int32) int32 {
+-	switch {
+-	} // prevent inlining
+ 	return a % b
+ }
++
++//go:noinline
+ func mul_int32_ssa(a, b int32) int32 {
+-	switch {
+-	} // prevent inlining
+ 	return a * b
+ }
++
++//go:noinline
+ func add_uint16_ssa(a, b uint16) uint16 {
+-	switch {
+-	} // prevent inlining
+ 	return a + b
+ }
++
++//go:noinline
+ func sub_uint16_ssa(a, b uint16) uint16 {
+-	switch {
+-	} // prevent inlining
+ 	return a - b
+ }
++
++//go:noinline
+ func div_uint16_ssa(a, b uint16) uint16 {
+-	switch {
+-	} // prevent inlining
+ 	return a / b
+ }
++
++//go:noinline
+ func mod_uint16_ssa(a, b uint16) uint16 {
+-	switch {
+-	} // prevent inlining
+ 	return a % b
+ }
++
++//go:noinline
+ func mul_uint16_ssa(a, b uint16) uint16 {
+-	switch {
+-	} // prevent inlining
+ 	return a * b
+ }
++
++//go:noinline
+ func add_int16_ssa(a, b int16) int16 {
+-	switch {
+-	} // prevent inlining
+ 	return a + b
+ }
++
++//go:noinline
+ func sub_int16_ssa(a, b int16) int16 {
+-	switch {
+-	} // prevent inlining
+ 	return a - b
+ }
++
++//go:noinline
+ func div_int16_ssa(a, b int16) int16 {
+-	switch {
+-	} // prevent inlining
+ 	return a / b
+ }
++
++//go:noinline
+ func mod_int16_ssa(a, b int16) int16 {
+-	switch {
+-	} // prevent inlining
+ 	return a % b
+ }
++
++//go:noinline
+ func mul_int16_ssa(a, b int16) int16 {
+-	switch {
+-	} // prevent inlining
+ 	return a * b
+ }
++
++//go:noinline
+ func add_uint8_ssa(a, b uint8) uint8 {
+-	switch {
+-	} // prevent inlining
+ 	return a + b
+ }
++
++//go:noinline
+ func sub_uint8_ssa(a, b uint8) uint8 {
+-	switch {
+-	} // prevent inlining
+ 	return a - b
+ }
++
++//go:noinline
+ func div_uint8_ssa(a, b uint8) uint8 {
+-	switch {
+-	} // prevent inlining
+ 	return a / b
+ }
++
++//go:noinline
+ func mod_uint8_ssa(a, b uint8) uint8 {
+-	switch {
+-	} // prevent inlining
+ 	return a % b
+ }
++
++//go:noinline
+ func mul_uint8_ssa(a, b uint8) uint8 {
+-	switch {
+-	} // prevent inlining
+ 	return a * b
+ }
++
++//go:noinline
+ func add_int8_ssa(a, b int8) int8 {
+-	switch {
+-	} // prevent inlining
+ 	return a + b
+ }
++
++//go:noinline
+ func sub_int8_ssa(a, b int8) int8 {
+-	switch {
+-	} // prevent inlining
+ 	return a - b
+ }
++
++//go:noinline
+ func div_int8_ssa(a, b int8) int8 {
+-	switch {
+-	} // prevent inlining
+ 	return a / b
+ }
++
++//go:noinline
+ func mod_int8_ssa(a, b int8) int8 {
+-	switch {
+-	} // prevent inlining
+ 	return a % b
+ }
++
++//go:noinline
+ func mul_int8_ssa(a, b int8) int8 {
+-	switch {
+-	} // prevent inlining
+ 	return a * b
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index f6f123c0be..af31245505 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -17,9 +17,9 @@ func test64BitConstMult() {
+ 		failed = true
+ 	}
+ }
++
++//go:noinline
+ func test64BitConstMult_ssa(a, b int64) int64 {
+-	switch { // prevent inlining
+-	}
+ 	return 34359738369*a + b*34359738370
+ }
+ 
+@@ -32,9 +32,9 @@ func test64BitConstAdd() {
+ 		failed = true
+ 	}
+ }
++
++//go:noinline
+ func test64BitConstAdd_ssa(a, b int64) int64 {
+-	switch { // prevent inlining
+-	}
+ 	return a + 575815584948629622 + b + 2991856197886747025
+ }
+ 
+@@ -47,9 +47,9 @@ func testRegallocCVSpill() {
+ 		failed = true
+ 	}
+ }
++
++//go:noinline
+ func testRegallocCVSpill_ssa(a, b, c, d int8) int8 {
+-	switch { // prevent inlining
+-	}
+ 	return a + -32 + b + 63*c*-87*d
+ }
+ 
+@@ -105,45 +105,38 @@ func testBitwiseLogic() {
+ 	}
+ }
+ 
++//go:noinline
+ func testBitwiseAnd_ssa(a, b uint32) uint32 {
+-	switch { // prevent inlining
+-	}
+ 	return a & b
+ }
+ 
++//go:noinline
+ func testBitwiseOr_ssa(a, b uint32) uint32 {
+-	switch { // prevent inlining
+-	}
+ 	return a | b
+ }
+ 
++//go:noinline
+ func testBitwiseXor_ssa(a, b uint32) uint32 {
+-	switch { // prevent inlining
+-	}
+ 	return a ^ b
+ }
+ 
++//go:noinline
+ func testBitwiseLsh_ssa(a int32, b, c uint32) int32 {
+-	switch { // prevent inlining
+-	}
+ 	return a << b << c
+ }
+ 
++//go:noinline
+ func testBitwiseRsh_ssa(a int32, b, c uint32) int32 {
+-	switch { // prevent inlining
+-	}
+ 	return a >> b >> c
+ }
+ 
++//go:noinline
+ func testBitwiseRshU_ssa(a uint32, b, c uint32) uint32 {
+-	switch { // prevent inlining
+-	}
+ 	return a >> b >> c
+ }
+ 
++//go:noinline
+ func testShiftCX_ssa() int {
+-	switch {
+-	} // prevent inlining
+ 	v1 := uint8(3)
+ 	v4 := (v1 * v1) ^ v1 | v1 - v1 - v1&v1 ^ uint8(3+2) + v1*1>>0 - v1 | 1 | v1<<(2*3|0-0*0^1)
+ 	v5 := v4>>(3-0-uint(3)) | v1 | v1 + v1 ^ v4<<(0+1|3&1)<<(uint64(1)<<0*2*0<<0) ^ v1
+@@ -172,9 +165,8 @@ func testSubqToNegq() {
+ 	}
+ }
+ 
++//go:noinline
+ func testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k int64) int64 {
+-	switch { // prevent inlining
+-	}
+ 	return a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
+ }
+ 
+@@ -187,9 +179,8 @@ func testOcom() {
+ 	}
+ }
+ 
++//go:noinline
+ func testOcom_ssa(a, b int32) (int32, int32) {
+-	switch { // prevent inlining
+-	}
+ 	return ^^^^a, ^^^^^b
+ }
+ 
+@@ -201,21 +192,19 @@ func lrot1_ssa(w uint8, x uint16, y uint32, z uint64) (a uint8, b uint16, c uint
+ 	return
+ }
+ 
++//go:noinline
+ func lrot2_ssa(w, n uint32) uint32 {
+ 	// Want to be sure that a "rotate by 32" which
+ 	// is really 0 | (w >> 0) == w
+ 	// is correctly compiled.
+-	switch { // prevents inlining
+-	}
+ 	return (w << n) | (w >> (32 - n))
+ }
+ 
++//go:noinline
+ func lrot3_ssa(w uint32) uint32 {
+ 	// Want to be sure that a "rotate by 32" which
+ 	// is really 0 | (w >> 0) == w
+ 	// is correctly compiled.
+-	switch { // prevents inlining
+-	}
+ 	return (w << 32) | (w >> (32 - 32))
+ }
+ 
+@@ -244,9 +233,8 @@ func testLrot() {
+ 
+ }
+ 
++//go:noinline
+ func sub1_ssa() uint64 {
+-	switch {
+-	} // prevent inlining
+ 	v1 := uint64(3) // uint64
+ 	return v1*v1 - (v1&v1)&v1
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/array_ssa.go b/src/cmd/compile/internal/gc/testdata/array_ssa.go
+index d7004ff26a..0334339d43 100644
+--- a/src/cmd/compile/internal/gc/testdata/array_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/array_ssa.go
+@@ -2,23 +2,20 @@ package main
+ 
+ var failed = false
+ 
++//go:noinline
+ func testSliceLenCap12_ssa(a [10]int, i, j int) (int, int) {
+-	switch { // prevent inlining
+-	}
+ 	b := a[i:j]
+ 	return len(b), cap(b)
+ }
+ 
++//go:noinline
+ func testSliceLenCap1_ssa(a [10]int, i, j int) (int, int) {
+-	switch { // prevent inlining
+-	}
+ 	b := a[i:]
+ 	return len(b), cap(b)
+ }
+ 
++//go:noinline
+ func testSliceLenCap2_ssa(a [10]int, i, j int) (int, int) {
+-	switch { // prevent inlining
+-	}
+ 	b := a[:j]
+ 	return len(b), cap(b)
+ }
+@@ -55,9 +52,8 @@ func testSliceLenCap() {
+ 	}
+ }
+ 
++//go:noinline
+ func testSliceGetElement_ssa(a [10]int, i, j, p int) int {
+-	switch { // prevent inlining
+-	}
+ 	return a[i:j][p]
+ }
+ 
+@@ -81,9 +77,8 @@ func testSliceGetElement() {
+ 	}
+ }
+ 
++//go:noinline
+ func testSliceSetElement_ssa(a *[10]int, i, j, p, x int) {
+-	switch { // prevent inlining
+-	}
+ 	(*a)[i:j][p] = x
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/chan_ssa.go b/src/cmd/compile/internal/gc/testdata/chan_ssa.go
+index c527ba95be..0766fcda5b 100644
+--- a/src/cmd/compile/internal/gc/testdata/chan_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/chan_ssa.go
+@@ -9,16 +9,13 @@ import "fmt"
+ 
+ var failed = false
+ 
++//go:noinline
+ func lenChan_ssa(v chan int) int {
+-	switch { // prevent inlining
+-
+-	}
+ 	return len(v)
+ }
+-func capChan_ssa(v chan int) int {
+-	switch { // prevent inlining
+ 
+-	}
++//go:noinline
++func capChan_ssa(v chan int) int {
+ 	return cap(v)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/closure_ssa.go b/src/cmd/compile/internal/gc/testdata/closure_ssa.go
+index ac1e51a23e..70181bc24b 100644
+--- a/src/cmd/compile/internal/gc/testdata/closure_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/closure_ssa.go
+@@ -9,9 +9,8 @@ import "fmt"
+ 
+ var failed = false
+ 
++//go:noinline
+ func testCFunc_ssa() int {
+-	switch { // prevent inlining
+-	}
+ 	a := 0
+ 	b := func() {
+ 		switch {
+diff --git a/src/cmd/compile/internal/gc/testdata/fp_ssa.go b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+index e7480a1138..cfbdcda251 100644
+--- a/src/cmd/compile/internal/gc/testdata/fp_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+@@ -1466,118 +1466,99 @@ func expectCx64(s string, x, expected complex64) int {
+ 	return 0
+ }
+ 
++//go:noinline
+ func cx128sum_ssa(a, b complex128) complex128 {
+-	switch { // prevent inlining
+-	}
+ 	return a + b
+ }
+ 
++//go:noinline
+ func cx128diff_ssa(a, b complex128) complex128 {
+-	switch { // prevent inlining
+-	}
+ 	return a - b
+ }
+ 
++//go:noinline
+ func cx128prod_ssa(a, b complex128) complex128 {
+-	switch { // prevent inlining
+-	}
+ 	return a * b
+ }
+ 
++//go:noinline
+ func cx128quot_ssa(a, b complex128) complex128 {
+-	switch { // prevent inlining
+-	}
+ 	return a / b
+ }
+ 
++//go:noinline
+ func cx128neg_ssa(a complex128) complex128 {
+-	switch { // prevent inlining
+-	}
+ 	return -a
+ }
+ 
++//go:noinline
+ func cx128real_ssa(a complex128) float64 {
+-	switch { // prevent inlining
+-	}
+ 	return real(a)
+ }
+ 
++//go:noinline
+ func cx128imag_ssa(a complex128) float64 {
+-	switch { // prevent inlining
+-	}
+ 	return imag(a)
+ }
+ 
++//go:noinline
+ func cx128cnst_ssa(a complex128) complex128 {
+-	switch { // prevent inlining
+-	}
+ 	b := 2 + 3i
+ 	return a * b
+ }
+ 
++//go:noinline
+ func cx64sum_ssa(a, b complex64) complex64 {
+-	switch { // prevent inlining
+-	}
+ 	return a + b
+ }
+ 
++//go:noinline
+ func cx64diff_ssa(a, b complex64) complex64 {
+-	switch { // prevent inlining
+-	}
+ 	return a - b
+ }
+ 
++//go:noinline
+ func cx64prod_ssa(a, b complex64) complex64 {
+-	switch { // prevent inlining
+-	}
+ 	return a * b
+ }
+ 
++//go:noinline
+ func cx64quot_ssa(a, b complex64) complex64 {
+-	switch { // prevent inlining
+-	}
+ 	return a / b
+ }
+ 
++//go:noinline
+ func cx64neg_ssa(a complex64) complex64 {
+-	switch { // prevent inlining
+-	}
+ 	return -a
+ }
+ 
++//go:noinline
+ func cx64real_ssa(a complex64) float32 {
+-	switch { // prevent inlining
+-	}
+ 	return real(a)
+ }
+ 
++//go:noinline
+ func cx64imag_ssa(a complex64) float32 {
+-	switch { // prevent inlining
+-	}
+ 	return imag(a)
+ }
+ 
++//go:noinline
+ func cx128eq_ssa(a, b complex128) bool {
+-	switch { // prevent inlining
+-	}
+ 	return a == b
+ }
+ 
++//go:noinline
+ func cx128ne_ssa(a, b complex128) bool {
+-	switch { // prevent inlining
+-	}
+ 	return a != b
+ }
+ 
++//go:noinline
+ func cx64eq_ssa(a, b complex64) bool {
+-	switch { // prevent inlining
+-	}
+ 	return a == b
+ }
+ 
++//go:noinline
+ func cx64ne_ssa(a, b complex64) bool {
+-	switch { // prevent inlining
+-	}
+ 	return a != b
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/gen/arithBoundaryGen.go b/src/cmd/compile/internal/gc/testdata/gen/arithBoundaryGen.go
+index 19bb04b6f1..7c7d721a23 100644
+--- a/src/cmd/compile/internal/gc/testdata/gen/arithBoundaryGen.go
++++ b/src/cmd/compile/internal/gc/testdata/gen/arithBoundaryGen.go
+@@ -109,8 +109,8 @@ func main() {
+ 
+ 	// the function being tested
+ 	testFunc, err := template.New("testFunc").Parse(
+-		`func {{.Name}}_{{.Stype}}_ssa(a, b {{.Stype}}) {{.Stype}} {
+-	switch{} // prevent inlining
++		`//go:noinline
++		func {{.Name}}_{{.Stype}}_ssa(a, b {{.Stype}}) {{.Stype}} {
+ 	return a {{.SymFirst}} b
+ }
+ `)
+diff --git a/src/cmd/compile/internal/gc/testdata/map_ssa.go b/src/cmd/compile/internal/gc/testdata/map_ssa.go
+index 41c949a9f2..4a466003c7 100644
+--- a/src/cmd/compile/internal/gc/testdata/map_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/map_ssa.go
+@@ -9,10 +9,8 @@ import "fmt"
+ 
+ var failed = false
+ 
++//go:noinline
+ func lenMap_ssa(v map[int]int) int {
+-	switch { // prevent inlining
+-
+-	}
+ 	return len(v)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/short_ssa.go b/src/cmd/compile/internal/gc/testdata/short_ssa.go
+index 1aa7d3e677..fcec1baf09 100644
+--- a/src/cmd/compile/internal/gc/testdata/short_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/short_ssa.go
+@@ -18,10 +18,10 @@ func or_ssa(arg1, arg2 bool) bool {
+ 
+ var rightCalled bool
+ 
++//go:noinline
+ func rightCall(v bool) bool {
+ 	rightCalled = true
+ 	return v
+-	select {} // hack to prevent inlining
+ 	panic("unreached")
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/string_ssa.go b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+index 0ff6ce1a12..a949fbcefb 100644
+--- a/src/cmd/compile/internal/gc/testdata/string_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+@@ -7,21 +7,18 @@ package main
+ 
+ var failed = false
+ 
++//go:noinline
+ func testStringSlice1_ssa(a string, i, j int) string {
+-	switch { // prevent inlining
+-	}
+ 	return a[i:]
+ }
+ 
++//go:noinline
+ func testStringSlice2_ssa(a string, i, j int) string {
+-	switch { // prevent inlining
+-	}
+ 	return a[:j]
+ }
+ 
++//go:noinline
+ func testStringSlice12_ssa(a string, i, j int) string {
+-	switch { // prevent inlining
+-	}
+ 	return a[i:j]
+ }
+ 
+@@ -91,9 +88,8 @@ const _Accuracy_name = "BelowExactAbove"
+ 
+ var _Accuracy_index = [...]uint8{0, 5, 10, 15}
+ 
++//go:noinline
+ func testSmallIndexType_ssa(i int) string {
+-	switch { // prevent inlining
+-	}
+ 	return _Accuracy_name[_Accuracy_index[i]:_Accuracy_index[i+1]]
+ }
+ 
+@@ -115,9 +111,8 @@ func testSmallIndexType() {
+ 	}
+ }
+ 
++//go:noinline
+ func testStringElem_ssa(s string, i int) byte {
+-	switch { // prevent inlining
+-	}
+ 	return s[i]
+ }
+ 
+@@ -139,9 +134,8 @@ func testStringElem() {
+ 	}
+ }
+ 
++//go:noinline
+ func testStringElemConst_ssa(i int) byte {
+-	switch { // prevent inlining
+-	}
+ 	s := "foobar"
+ 	return s[i]
+ }

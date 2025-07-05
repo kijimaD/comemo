@@ -19,9 +19,144 @@ Date:   Tue Nov 9 23:46:41 2021 +0800
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go                       | 10 +++++-----
  .../compile/internal/types2/testdata/fixedbugs/issue45985.go2  |  5 ++---
  src/go/types/infer.go                                          | 10 +++++-----
  src/go/types/testdata/fixedbugs/issue45985.go2                 |  5 ++---
  4 files changed, 14 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 4f85a5894c..b203985b8d 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -60,7 +60,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// If we have type arguments, see how far we get with constraint type inference.
+ 	if len(targs) > 0 && useConstraintTypeInference {
+ 		var index int
+-		targs, index = check.inferB(tparams, targs)
++		targs, index = check.inferB(pos, tparams, targs)
+ 		if targs == nil || index < 0 {
+ 			return targs
+ 		}
+@@ -171,7 +171,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// Note that even if we don't have any type arguments, constraint type inference
+ 	// may produce results for constraints that explicitly specify a type.
+ 	if useConstraintTypeInference {
+-		targs, index = check.inferB(tparams, targs)
++		targs, index = check.inferB(pos, tparams, targs)
+ 		if targs == nil || index < 0 {
+ 			return targs
+ 		}
+@@ -209,7 +209,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 
+ 	// Again, follow up with constraint type inference.
+ 	if useConstraintTypeInference {
+-		targs, index = check.inferB(tparams, targs)
++		targs, index = check.inferB(pos, tparams, targs)
+ 		if targs == nil || index < 0 {
+ 			return targs
+ 		}
+@@ -360,7 +360,7 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
+ // first type argument in that list that couldn't be inferred (and thus is nil). If all
+ // type arguments were inferred successfully, index is < 0. The number of type arguments
+ // provided may be less than the number of type parameters, but there must be at least one.
+-func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, index int) {
++func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type) (types []Type, index int) {
+ 	assert(len(tparams) >= len(targs) && len(targs) > 0)
+ 
+ 	// Setup bidirectional unification between constraints
+@@ -388,7 +388,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 			if !u.unify(tpar, sbound) {
+ 				// TODO(gri) improve error message by providing the type arguments
+ 				//           which we know already
+-				check.errorf(tpar.obj, "%s does not match %s", tpar, sbound)
++				check.errorf(pos, "%s does not match %s", tpar, sbound)
+ 				return nil, 0
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go2
+index 9963d2ee00..cea8c14983 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go2
+@@ -4,11 +4,10 @@
+ 
+ package issue45985
+ 
+-// TODO(gri): this error should be on app[int] below.
+-func app[S /* ERROR "S does not match" */ interface{ ~[]T }, T any](s S, e T) S {
++func app[S interface{ ~[]T }, T any](s S, e T) S {
+     return append(s, e)
+ }
+ 
+ func _() {
+-	_ = app[int]
++	_ = app[/* ERROR "S does not match" */int]
+ }
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 909042219c..a5088f2705 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -59,7 +59,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	// If we have type arguments, see how far we get with constraint type inference.
+ 	if len(targs) > 0 {
+ 		var index int
+-		targs, index = check.inferB(tparams, targs)
++		targs, index = check.inferB(posn, tparams, targs)
+ 		if targs == nil || index < 0 {
+ 			return targs
+ 		}
+@@ -174,7 +174,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	// See how far we get with constraint type inference.
+ 	// Note that even if we don't have any type arguments, constraint type inference
+ 	// may produce results for constraints that explicitly specify a type.
+-	targs, index = check.inferB(tparams, targs)
++	targs, index = check.inferB(posn, tparams, targs)
+ 	if targs == nil || index < 0 {
+ 		return targs
+ 	}
+@@ -210,7 +210,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	}
+ 
+ 	// Again, follow up with constraint type inference.
+-	targs, index = check.inferB(tparams, targs)
++	targs, index = check.inferB(posn, tparams, targs)
+ 	if targs == nil || index < 0 {
+ 		return targs
+ 	}
+@@ -359,7 +359,7 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
+ // first type argument in that list that couldn't be inferred (and thus is nil). If all
+ // type arguments were inferred successfully, index is < 0. The number of type arguments
+ // provided may be less than the number of type parameters, but there must be at least one.
+-func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, index int) {
++func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type) (types []Type, index int) {
+ 	assert(len(tparams) >= len(targs) && len(targs) > 0)
+ 
+ 	// Setup bidirectional unification between constraints
+@@ -387,7 +387,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 			if !u.unify(tpar, sbound) {
+ 				// TODO(gri) improve error message by providing the type arguments
+ 				//           which we know already
+-				check.errorf(tpar.obj, _InvalidTypeArg, "%s does not match %s", tpar, sbound)
++				check.errorf(posn, _InvalidTypeArg, "%s does not match %s", tpar, sbound)
+ 				return nil, 0
+ 			}
+ 		}
+diff --git a/src/go/types/testdata/fixedbugs/issue45985.go2 b/src/go/types/testdata/fixedbugs/issue45985.go2
+index 637e2cad5e..9a0f5e3697 100644
+--- a/src/go/types/testdata/fixedbugs/issue45985.go2
++++ b/src/go/types/testdata/fixedbugs/issue45985.go2
+@@ -4,11 +4,10 @@
+ 
+ package issue45985
+ 
+-// TODO(rFindley): this error should be on app[int] below.
+-func app[S /* ERROR "S does not match" */ interface{ ~[]T }, T any](s S, e T) S {
++func app[S interface{ ~[]T }, T any](s S, e T) S {
+     return append(s, e)
+ }
+ 
+ func _() {
+-	_ = app[int]
++	_ = app/* ERROR "S does not match" */[int]
+ }

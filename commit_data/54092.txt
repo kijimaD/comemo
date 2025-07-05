@@ -15,7 +15,7 @@ Date:   Thu Sep 22 16:39:11 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../x/tools/go/analysis/passes/inspect/inspect.go  |   2 +-
@@ -27,3 +27,459 @@ Date:   Thu Sep 22 16:39:11 2022 -0700
  .../x/tools/internal/analysisinternal/analysis.go  |   7 +-
  src/cmd/vendor/modules.txt                         |   2 +-
  10 files changed, 177 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 326992ddd2..2945ff07b5 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+ 	golang.org/x/sys v0.0.0-20220804214406-8e32c043e418
+ 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
+-	golang.org/x/tools v0.1.13-0.20220804200503-81c7dc4e4efa
++	golang.org/x/tools v0.1.13-0.20220922232058-1877b5f33c7f
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index dd5852ef76..4800501264 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,5 +14,5 @@ golang.org/x/sys v0.0.0-20220804214406-8e32c043e418 h1:9vYwv7OjYaky/tlAeD7C4oC9E
+ golang.org/x/sys v0.0.0-20220804214406-8e32c043e418/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 h1:Q5284mrmYTpACcm+eAKjKJH48BBwSyfJqmmGDTtT8Vc=
+ golang.org/x/term v0.0.0-20220722155259-a9ba230a4035/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.13-0.20220804200503-81c7dc4e4efa h1:uKcci2q7Qtp6nMTC/AAvfNUAldFtJuHWV9/5QWiypts=
+-golang.org/x/tools v0.1.13-0.20220804200503-81c7dc4e4efa/go.mod h1:hNGJHUnrk76NpqgfD5Aqm5Crs+Hm0VOH/i9J2+nxYbc=
++golang.org/x/tools v0.1.13-0.20220922232058-1877b5f33c7f h1:mTrFBVZhq3rTiuk/CdagUwzG4lM63g0boQ8kFNOBYlY=
++golang.org/x/tools v0.1.13-0.20220922232058-1877b5f33c7f/go.mod h1:VsjNM1dMo+Ofkp5d7y7fOdQZD8MTXSQ4w3EPk65AvKU=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+index c1c1127d08..165c70cbd3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+@@ -24,7 +24,7 @@
+ //		inspect.Preorder(nil, func(n ast.Node) {
+ //			...
+ //		})
+-//		return nil
++//		return nil, nil
+ //	}
+ package inspect
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+index 98de9a9bac..645e5895bb 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+@@ -14,15 +14,20 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
++	"golang.org/x/tools/internal/analysisinternal"
+ )
+ 
+ const Doc = `check references to loop variables from within nested functions
+ 
+-This analyzer checks for references to loop variables from within a
+-function literal inside the loop body. It checks only instances where
+-the function literal is called in a defer or go statement that is the
+-last statement in the loop body, as otherwise we would need whole
+-program analysis.
++This analyzer checks for references to loop variables from within a function
++literal inside the loop body. It checks for patterns where access to a loop
++variable is known to escape the current loop iteration:
++ 1. a call to go or defer at the end of the loop body
++ 2. a call to golang.org/x/sync/errgroup.Group.Go at the end of the loop body
++
++The analyzer only considers references in the last statement of the loop body
++as it is not deep enough to understand the effects of subsequent statements
++which might render the reference benign.
+ 
+ For example:
+ 
+@@ -34,6 +39,10 @@ For example:
+ 
+ See: https://golang.org/doc/go_faq.html#closures_and_goroutines`
+ 
++// TODO(rfindley): enable support for checking parallel subtests, pending
++// investigation, adding:
++// 3. a call testing.T.Run where the subtest body invokes t.Parallel()
++
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "loopclosure",
+ 	Doc:      Doc,
+@@ -50,10 +59,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	}
+ 	inspect.Preorder(nodeFilter, func(n ast.Node) {
+ 		// Find the variables updated by the loop statement.
+-		var vars []*ast.Ident
++		var vars []types.Object
+ 		addVar := func(expr ast.Expr) {
+-			if id, ok := expr.(*ast.Ident); ok {
+-				vars = append(vars, id)
++			if id, _ := expr.(*ast.Ident); id != nil {
++				if obj := pass.TypesInfo.ObjectOf(id); obj != nil {
++					vars = append(vars, obj)
++				}
+ 			}
+ 		}
+ 		var body *ast.BlockStmt
+@@ -79,52 +90,70 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			return
+ 		}
+ 
+-		// Inspect a go or defer statement
+-		// if it's the last one in the loop body.
+-		// (We give up if there are following statements,
+-		// because it's hard to prove go isn't followed by wait,
+-		// or defer by return.)
+-		if len(body.List) == 0 {
+-			return
+-		}
+-		// The function invoked in the last return statement.
+-		var fun ast.Expr
+-		switch s := body.List[len(body.List)-1].(type) {
+-		case *ast.GoStmt:
+-			fun = s.Call.Fun
+-		case *ast.DeferStmt:
+-			fun = s.Call.Fun
+-		case *ast.ExprStmt: // check for errgroup.Group.Go()
+-			if call, ok := s.X.(*ast.CallExpr); ok {
+-				fun = goInvokes(pass.TypesInfo, call)
+-			}
+-		}
+-		lit, ok := fun.(*ast.FuncLit)
+-		if !ok {
+-			return
+-		}
+-		ast.Inspect(lit.Body, func(n ast.Node) bool {
+-			id, ok := n.(*ast.Ident)
+-			if !ok || id.Obj == nil {
+-				return true
++		// Inspect statements to find function literals that may be run outside of
++		// the current loop iteration.
++		//
++		// For go, defer, and errgroup.Group.Go, we ignore all but the last
++		// statement, because it's hard to prove go isn't followed by wait, or
++		// defer by return.
++		//
++		// We consider every t.Run statement in the loop body, because there is
++		// no such commonly used mechanism for synchronizing parallel subtests.
++		// It is of course theoretically possible to synchronize parallel subtests,
++		// though such a pattern is likely to be exceedingly rare as it would be
++		// fighting against the test runner.
++		lastStmt := len(body.List) - 1
++		for i, s := range body.List {
++			var fun ast.Expr // if non-nil, a function that escapes the loop iteration
++			switch s := s.(type) {
++			case *ast.GoStmt:
++				if i == lastStmt {
++					fun = s.Call.Fun
++				}
++
++			case *ast.DeferStmt:
++				if i == lastStmt {
++					fun = s.Call.Fun
++				}
++
++			case *ast.ExprStmt: // check for errgroup.Group.Go and testing.T.Run (with T.Parallel)
++				if call, ok := s.X.(*ast.CallExpr); ok {
++					if i == lastStmt {
++						fun = goInvoke(pass.TypesInfo, call)
++					}
++					if fun == nil && analysisinternal.LoopclosureParallelSubtests {
++						fun = parallelSubtest(pass.TypesInfo, call)
++					}
++				}
+ 			}
+-			if pass.TypesInfo.Types[id].Type == nil {
+-				// Not referring to a variable (e.g. struct field name)
+-				return true
++
++			lit, ok := fun.(*ast.FuncLit)
++			if !ok {
++				continue
+ 			}
+-			for _, v := range vars {
+-				if v.Obj == id.Obj {
+-					pass.ReportRangef(id, "loop variable %s captured by func literal",
+-						id.Name)
++
++			ast.Inspect(lit.Body, func(n ast.Node) bool {
++				id, ok := n.(*ast.Ident)
++				if !ok {
++					return true
+ 				}
+-			}
+-			return true
+-		})
++				obj := pass.TypesInfo.Uses[id]
++				if obj == nil {
++					return true
++				}
++				for _, v := range vars {
++					if v == obj {
++						pass.ReportRangef(id, "loop variable %s captured by func literal", id.Name)
++					}
++				}
++				return true
++			})
++		}
+ 	})
+ 	return nil, nil
+ }
+ 
+-// goInvokes returns a function expression that would be called asynchronously
++// goInvoke returns a function expression that would be called asynchronously
+ // (but not awaited) in another goroutine as a consequence of the call.
+ // For example, given the g.Go call below, it returns the function literal expression.
+ //
+@@ -133,33 +162,89 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ //	g.Go(func() error { ... })
+ //
+ // Currently only "golang.org/x/sync/errgroup.Group()" is considered.
+-func goInvokes(info *types.Info, call *ast.CallExpr) ast.Expr {
+-	f := typeutil.StaticCallee(info, call)
+-	// Note: Currently only supports: golang.org/x/sync/errgroup.Go.
+-	if f == nil || f.Name() != "Go" {
++func goInvoke(info *types.Info, call *ast.CallExpr) ast.Expr {
++	if !isMethodCall(info, call, "golang.org/x/sync/errgroup", "Group", "Go") {
+ 		return nil
+ 	}
+-	recv := f.Type().(*types.Signature).Recv()
+-	if recv == nil {
++	return call.Args[0]
++}
++
++// parallelSubtest returns a function expression that would be called
++// asynchronously via the go test runner, as t.Run has been invoked with a
++// function literal that calls t.Parallel.
++//
++//		import "testing"
++//
++//		func TestFoo(t *testing.T) {
++//			tests := []int{0, 1, 2}
++//			for i, t := range tests {
++//			 	t.Run("subtest", func(t *testing.T) {
++//	 				t.Parallel()
++//			 		println(i, t)
++//			 	})
++//		 	}
++//		}
++func parallelSubtest(info *types.Info, call *ast.CallExpr) ast.Expr {
++	if !isMethodCall(info, call, "testing", "T", "Run") {
+ 		return nil
+ 	}
+-	rtype, ok := recv.Type().(*types.Pointer)
++
++	lit, ok := call.Args[1].(*ast.FuncLit)
+ 	if !ok {
+ 		return nil
+ 	}
+-	named, ok := rtype.Elem().(*types.Named)
++
++	for _, stmt := range lit.Body.List {
++		exprStmt, ok := stmt.(*ast.ExprStmt)
++		if !ok {
++			continue
++		}
++		if isMethodCall(info, exprStmt.X, "testing", "T", "Parallel") {
++			return lit
++		}
++	}
++
++	return nil
++}
++
++// isMethodCall reports whether expr is a method call of
++// <pkgPath>.<typeName>.<method>.
++func isMethodCall(info *types.Info, expr ast.Expr, pkgPath, typeName, method string) bool {
++	call, ok := expr.(*ast.CallExpr)
+ 	if !ok {
+-		return nil
++		return false
+ 	}
+-	if named.Obj().Name() != "Group" {
+-		return nil
++
++	// Check that we are calling a method <method>
++	f := typeutil.StaticCallee(info, call)
++	if f == nil || f.Name() != method {
++		return false
++	}
++	recv := f.Type().(*types.Signature).Recv()
++	if recv == nil {
++		return false
++	}
++
++	// Check that the receiver is a <pkgPath>.<typeName> or
++	// *<pkgPath>.<typeName>.
++	rtype := recv.Type()
++	if ptr, ok := recv.Type().(*types.Pointer); ok {
++		rtype = ptr.Elem()
++	}
++	named, ok := rtype.(*types.Named)
++	if !ok {
++		return false
++	}
++	if named.Obj().Name() != typeName {
++		return false
+ 	}
+ 	pkg := f.Pkg()
+ 	if pkg == nil {
+-		return nil
++		return false
+ 	}
+-	if pkg.Path() != "golang.org/x/sync/errgroup" {
+-		return nil
++	if pkg.Path() != pkgPath {
++		return false
+ 	}
+-	return call.Args[0]
++
++	return true
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index c4ccc95b4f..19ca4527af 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -583,7 +583,6 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 	argNum := firstArg
+ 	maxArgNum := firstArg
+ 	anyIndex := false
+-	anyW := false
+ 	for i, w := 0, 0; i < len(format); i += w {
+ 		w = 1
+ 		if format[i] != '%' {
+@@ -606,11 +605,6 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", state.name)
+ 				return
+ 			}
+-			if anyW {
+-				pass.Reportf(call.Pos(), "%s call has more than one error-wrapping directive %%w", state.name)
+-				return
+-			}
+-			anyW = true
+ 		}
+ 		if len(state.argNums) > 0 {
+ 			// Continue with the next sequential argument.
+@@ -672,12 +666,13 @@ func (s *formatState) parseIndex() bool {
+ 	s.scanNum()
+ 	ok := true
+ 	if s.nbytes == len(s.format) || s.nbytes == start || s.format[s.nbytes] != ']' {
+-		ok = false
+-		s.nbytes = strings.Index(s.format, "]")
++		ok = false // syntax error is either missing "]" or invalid index.
++		s.nbytes = strings.Index(s.format[start:], "]")
+ 		if s.nbytes < 0 {
+ 			s.pass.ReportRangef(s.call, "%s format %s is missing closing ]", s.name, s.format)
+ 			return false
+ 		}
++		s.nbytes = s.nbytes + start
+ 	}
+ 	arg32, err := strconv.ParseInt(s.format[start:s.nbytes], 10, 32)
+ 	if err != nil || !ok || arg32 <= 0 || arg32 > int64(len(s.call.Args)-s.firstArg) {
+@@ -915,7 +910,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 		if reason != "" {
+ 			details = " (" + reason + ")"
+ 		}
+-		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
++		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s, see also https://pkg.go.dev/fmt#hdr-Printing", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
+ 		return false
+ 	}
+ 	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+index 270e917c80..7cbb0bdbf5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+@@ -299,13 +299,3 @@ func isConvertibleToString(typ types.Type) bool {
+ 
+ 	return false
+ }
+-
+-// hasBasicType reports whether x's type is a types.Basic with the given kind.
+-func hasBasicType(pass *analysis.Pass, x ast.Expr, kind types.BasicKind) bool {
+-	t := pass.TypesInfo.Types[x].Type
+-	if t != nil {
+-		t = t.Underlying()
+-	}
+-	b, ok := t.(*types.Basic)
+-	return ok && b.Kind() == kind
+-}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+index cc9497179d..41f455d100 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+@@ -134,6 +134,19 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
+ 		}
+ 	}
+ 
++	// Special case: Unwrap has two possible signatures.
++	// Check for Unwrap() []error here.
++	if id.Name == "Unwrap" {
++		if args.Len() == 0 && results.Len() == 1 {
++			t := typeString(results.At(0).Type())
++			if t == "error" || t == "[]error" {
++				return
++			}
++		}
++		pass.ReportRangef(id, "method Unwrap() should have signature Unwrap() error or Unwrap() []error")
++		return
++	}
++
+ 	// Do the =s (if any) all match?
+ 	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
+ 		return
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+index 11ab2bc85a..703c813954 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+@@ -11,6 +11,7 @@ package inspector
+ 
+ import (
+ 	"go/ast"
++	"math"
+ 
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+@@ -218,7 +219,7 @@ func typeOf(n ast.Node) uint64 {
+ 
+ func maskOf(nodes []ast.Node) uint64 {
+ 	if nodes == nil {
+-		return 1<<64 - 1 // match all node types
++		return math.MaxUint64 // match all node types
+ 	}
+ 	var mask uint64
+ 	for _, n := range nodes {
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index e32152ac22..d538e07403 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -14,9 +14,14 @@ import (
+ 	"strconv"
+ )
+ 
+-// Flag to gate diagnostics for fuzz tests in 1.18.
++// DiagnoseFuzzTests controls whether the 'tests' analyzer diagnoses fuzz tests
++// in Go 1.18+.
+ var DiagnoseFuzzTests bool = false
+ 
++// LoopclosureParallelSubtests controls whether the 'loopclosure' analyzer
++// diagnoses loop variables references in parallel subtests.
++var LoopclosureParallelSubtests = false
++
+ var (
+ 	GetTypeErrors func(p interface{}) []types.Error
+ 	SetTypeErrors func(p interface{}, errors []types.Error)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 5dd6bfaadd..8c2624e794 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -49,7 +49,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.13-0.20220804200503-81c7dc4e4efa
++# golang.org/x/tools v0.1.13-0.20220922232058-1877b5f33c7f
+ ## explicit; go 1.18
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

@@ -16,7 +16,34 @@ Date:   Thu Jan 14 14:38:55 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/sub_test.go | 2 +-
  src/testing/testing.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 5b226f85ad..6c7d83aac2 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -822,7 +822,7 @@ func TestLogAfterComplete(t *T) {
+ 						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
+ 						return
+ 					}
+-					const want = "Log in goroutine after TestLateLog has completed"
++					const want = "Log in goroutine after TestLateLog has completed: log after test"
+ 					if !strings.Contains(s, want) {
+ 						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, want)
+ 					}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 80354d5ce8..466dd96981 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -762,7 +762,7 @@ func (c *common) logDepth(s string, depth int) {
+ 				return
+ 			}
+ 		}
+-		panic("Log in goroutine after " + c.name + " has completed")
++		panic("Log in goroutine after " + c.name + " has completed: " + s)
+ 	} else {
+ 		if c.chatty != nil {
+ 			if c.bench {

@@ -16,7 +16,34 @@ Date:   Wed Jul 10 17:02:34 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/597595
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
  src/cmd/internal/obj/arm64/asm7.go        | 3 +++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index f12cdaf921..14a1c9141d 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -1777,6 +1777,7 @@ next:
+ 	MSR	R17, ZCR_EL1                       // 111218d5
+ 	SYS	$32768, R1                         // 018008d5
+ 	SYS	$32768                             // 1f8008d5
++	MSR	$1, DIT                            // 5f4103d5
+ 
+ // TLBI instruction
+ 	TLBI	VMALLE1IS                          // 1f8308d5
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index c6601cb49e..178c83c0bc 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -4229,6 +4229,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		// PSTATEfield can be special registers and special operands.
+ 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SPSel {
+ 			v = 0<<16 | 4<<12 | 5<<5
++		} else if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_DIT {
++			// op1 = 011 (3) op2 = 010 (2)
++			v = 3<<16 | 2<<5
+ 		} else if p.To.Type == obj.TYPE_SPECIAL {
+ 			opd := SpecialOperand(p.To.Offset)
+ 			for _, pf := range pstatefield {

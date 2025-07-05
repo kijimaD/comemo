@@ -11,9 +11,344 @@ Date:   Tue Feb 21 16:38:01 2012 +1100
     R=golang-dev, r
     CC=golang-dev, remy
     https://golang.org/cl/5683052
-
+---
  src/cmd/5g/ggen.c        |   4 +-
  src/cmd/6g/ggen.c        |   4 +-
  src/cmd/8g/ggen.c        |   4 +-
  test/fixedbugs/bug423.go | 277 +++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 283 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 832767e862..de100620be 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -29,10 +29,10 @@ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
+ 		if (p->from.name == D_AUTO && p->from.node)
+-			p->from.node->used++;
++			p->from.node->used = 1;
+ 
+ 		if (p->to.name == D_AUTO && p->to.node)
+-			p->to.node->used++;
++			p->to.node->used = 1;
+ 	}
+ }
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 2f68885bd3..02e67d6d41 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -26,10 +26,10 @@ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
+ 		if (p->from.type == D_AUTO && p->from.node)
+-			p->from.node->used++;
++			p->from.node->used = 1;
+ 
+ 		if (p->to.type == D_AUTO && p->to.node)
+-			p->to.node->used++;
++			p->to.node->used = 1;
+ 	}
+ }
+ 
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index c4f2823680..6a45701990 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -28,10 +28,10 @@ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
+ 		if (p->from.type == D_AUTO && p->from.node)
+-			p->from.node->used++;
++			p->from.node->used = 1;
+ 
+ 		if (p->to.type == D_AUTO && p->to.node)
+-			p->to.node->used++;
++			p->to.node->used = 1;
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/bug423.go b/test/fixedbugs/bug423.go
+new file mode 100644
+index 0000000000..4a04c77f62
+--- /dev/null
++++ b/test/fixedbugs/bug423.go
+@@ -0,0 +1,277 @@
++// run
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gc used to overflow a counter when a variable was
++// mentioned 256 times, and generate stack corruption.
++
++package main
++
++func main() {
++	F(1)
++}
++
++func F(arg int) {
++	var X int64
++	_ = X // used once
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0 // used 32 times
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0 // used 64 times
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0 // used 96 times
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0 // used 128 times
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0 // used 200 times
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0
++	X = 0 // used 256 times
++	if arg != 0 {
++		panic("argument was changed")
++	}
++}

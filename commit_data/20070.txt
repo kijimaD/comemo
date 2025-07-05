@@ -8,6 +8,20 @@ Date:   Wed Aug 13 15:50:06 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/122520043
-
+---
  src/pkg/runtime/malloc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index d56d0dcf31..1e133168b1 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -21,7 +21,7 @@ MHeap runtime·mheap;
+ #pragma dataflag NOPTR
+ MStats runtime·memstats;
+ 
+-void runtime·cmallocgc(uintptr size, Type *typ, uint32 flag, void **ret);
++void runtime·cmallocgc(uintptr size, Type *typ, intgo flag, void **ret);
+ 
+ void*
+ runtime·mallocgc(uintptr size, Type *typ, uint32 flag)

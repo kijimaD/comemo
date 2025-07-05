@@ -9,7 +9,39 @@ Date:   Sun Oct 21 20:50:31 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6737053
-
+---
  src/cmd/gc/typecheck.c      |  2 +-
  test/fixedbugs/issue3783.go | 12 ++++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 9869d560cb..e5bcabca0d 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -476,7 +476,7 @@ reswitch:
+ 			n->left = N;
+ 			goto ret;
+ 		}
+-		if(!isptr[t->etype]) {
++		if((top & Erv) && !isptr[t->etype]) {
+ 			yyerror("invalid indirect of %lN", n->left);
+ 			goto error;
+ 		}
+diff --git a/test/fixedbugs/issue3783.go b/test/fixedbugs/issue3783.go
+new file mode 100644
+index 0000000000..35df5d8f65
+--- /dev/null
++++ b/test/fixedbugs/issue3783.go
+@@ -0,0 +1,12 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++
++var i int
++
++func (*i) bar() // ERROR "not a type"
++

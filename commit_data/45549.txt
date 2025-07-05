@@ -12,6 +12,31 @@ Date:   Mon Oct 5 16:00:08 2020 -0700
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/contribute.html | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 09d43313ff..f297477fe0 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -947,10 +947,18 @@ The Gerrit voting system involves an integer in the range -2 to +2:
+ 	</li>
+ </ul>
+ 
++<p>
++At least two maintainers must approve of the change, and at least one
++of those maintainers must +2 the change.
++The second maintainer may cast a vote of Trust+1, meaning that the
++change looks basically OK, but that the maintainer hasn't done the
++detailed review required for a +2 vote.
++</p>
++
+ <h3 id="submit">Submitting an approved change</h3>
+ 
+ <p>
+-After the code has been +2'ed, an approver will
++After the code has been +2'ed and Trust+1'ed, an approver will
+ apply it to the master branch using the Gerrit user interface.
+ This is called "submitting the change".
+ </p>

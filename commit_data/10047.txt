@@ -9,7 +9,95 @@ Date:   Tue Oct 18 15:52:49 2011 -0700
     R=golang-dev, dsymonds, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5307043
-
+---
  src/pkg/rpc/client.go      | 23 ++++++++++++-----------
  src/pkg/rpc/server_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index c77901c6dc..3dc6df1c4b 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -85,7 +85,8 @@ func (client *Client) send(c *Call) {
+ 	client.request.Seq = c.seq
+ 	client.request.ServiceMethod = c.ServiceMethod
+ 	if err := client.codec.WriteRequest(&client.request, c.Args); err != nil {
+-		panic("rpc: client encode error: " + err.String())
++		c.Error = err
++		c.done()
+ 	}
+ }
+ 
+@@ -251,10 +252,10 @@ func (client *Client) Close() os.Error {
+ // the same Call object.  If done is nil, Go will allocate a new channel.
+ // If non-nil, done must be buffered or Go will deliberately crash.
+ func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
+-	c := new(Call)
+-	c.ServiceMethod = serviceMethod
+-	c.Args = args
+-	c.Reply = reply
++	call := new(Call)
++	call.ServiceMethod = serviceMethod
++	call.Args = args
++	call.Reply = reply
+ 	if done == nil {
+ 		done = make(chan *Call, 10) // buffered.
+ 	} else {
+@@ -266,14 +267,14 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
+ 			log.Panic("rpc: done channel is unbuffered")
+ 		}
+ 	}
+-	c.Done = done
++	call.Done = done
+ 	if client.shutdown {
+-		c.Error = ErrShutdown
+-		c.done()
+-		return c
++		call.Error = ErrShutdown
++		call.done()
++		return call
+ 	}
+-	client.send(c)
+-	return c
++	client.send(call)
++	return call
+ }
+ 
+ // Call invokes the named function, waits for it to complete, and returns its error status.
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index cb2db2a65d..029741b28b 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -467,6 +467,32 @@ func TestCountMallocsOverHTTP(t *testing.T) {
+ 	fmt.Printf("mallocs per HTTP rpc round trip: %d\n", countMallocs(dialHTTP, t))
+ }
+ 
++type writeCrasher struct{}
++
++func (writeCrasher) Close() os.Error {
++	return nil
++}
++
++func (writeCrasher) Read(p []byte) (int, os.Error) {
++	return 0, os.EOF
++}
++
++func (writeCrasher) Write(p []byte) (int, os.Error) {
++	return 0, os.NewError("fake write failure")
++}
++
++func TestClientWriteError(t *testing.T) {
++	c := NewClient(writeCrasher{})
++	res := false
++	err := c.Call("foo", 1, &res)
++	if err == nil {
++		t.Fatal("expected error")
++	}
++	if err.String() != "fake write failure" {
++		t.Error("unexpected value of error:", err)
++	}
++}
++
+ func benchmarkEndToEnd(dial func() (*Client, os.Error), b *testing.B) {
+ 	b.StopTimer()
+ 	once.Do(startServer)

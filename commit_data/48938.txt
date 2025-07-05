@@ -12,9 +12,81 @@ Date:   Mon Jun 28 11:50:26 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/transform.go     | 14 +++++++++++++-
  src/cmd/compile/internal/typecheck/stmt.go      |  2 +-
  src/cmd/compile/internal/typecheck/typecheck.go |  6 +++---
  test/run.go                                     |  1 -
  4 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index c3fa8042f2..7a685c4b47 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -329,8 +329,20 @@ assignOK:
+ 		r.Use = ir.CallUseList
+ 		rtyp := r.Type()
+ 
++		mismatched := false
++		failed := false
+ 		for i := range lhs {
+-			checkLHS(i, rtyp.Field(i).Type)
++			result := rtyp.Field(i).Type
++			checkLHS(i, result)
++
++			if lhs[i].Type() == nil || result == nil {
++				failed = true
++			} else if lhs[i] != ir.BlankNode && !types.Identical(lhs[i].Type(), result) {
++				mismatched = true
++			}
++		}
++		if mismatched && !failed {
++			typecheck.RewriteMultiValueCall(stmt, r)
+ 		}
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 54cf508acc..f1275f29c0 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -217,7 +217,7 @@ assignOK:
+ 			}
+ 		}
+ 		if mismatched && !failed {
+-			rewriteMultiValueCall(stmt, r)
++			RewriteMultiValueCall(stmt, r)
+ 		}
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index f7de43c79f..232c0e66ef 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -962,12 +962,12 @@ func typecheckargs(n ir.InitNode) {
+ 	}
+ 
+ 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
+-	rewriteMultiValueCall(n, list[0])
++	RewriteMultiValueCall(n, list[0])
+ }
+ 
+-// rewriteMultiValueCall rewrites multi-valued f() to use temporaries,
++// RewriteMultiValueCall rewrites multi-valued f() to use temporaries,
+ // so the backend wouldn't need to worry about tuple-valued expressions.
+-func rewriteMultiValueCall(n ir.InitNode, call ir.Node) {
++func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
+ 	// If we're outside of function context, then this call will
+ 	// be executed during the generated init function. However,
+ 	// init.go hasn't yet created it. Instead, associate the
+diff --git a/test/run.go b/test/run.go
+index ad92d8bb79..d04f7d20ed 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2131,7 +2131,6 @@ var excludedFiles = map[string]bool{
+ 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4510.go":   true, // types2 reports different (but ok) line numbers
+-	"fixedbugs/issue46725.go":  true, // fix applied to typecheck needs to be ported to irgen/transform
+ 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+ 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise

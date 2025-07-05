@@ -13,9 +13,75 @@ Date:   Mon Nov 6 16:42:27 2023 -0800
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/62605.txt       |  1 +
  src/go/types/api.go      | 11 ++++++-----
  src/go/types/api_test.go |  8 +-------
  src/go/types/check.go    |  2 +-
  4 files changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/api/next/62605.txt b/api/next/62605.txt
+new file mode 100644
+index 0000000000..1b0e533d02
+--- /dev/null
++++ b/api/next/62605.txt
+@@ -0,0 +1 @@
++pkg go/types, type Info struct, FileVersions map[*ast.File]string #62605
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 33633ea83c..81a98f7e66 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -286,11 +286,12 @@ type Info struct {
+ 	// appear in this list.
+ 	InitOrder []*Initializer
+ 
+-	// _FileVersions maps a file to the file's Go version string.
+-	// If the file doesn't specify a version and Config.GoVersion
+-	// is not given, the reported version is the empty string.
+-	// TODO(gri) should this be "go0.0" instead in that case?
+-	_FileVersions map[*ast.File]string
++	// FileVersions maps a file to its Go version string.
++	// If the file doesn't specify a version, the reported
++	// string is Config.GoVersion.
++	// Version strings begin with “go”, like “go1.21”, and
++	// are suitable for use with the [go/version] package.
++	FileVersions map[*ast.File]string
+ }
+ 
+ func (info *Info) recordTypes() bool {
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index f3719ddf6d..0769890101 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2796,7 +2796,7 @@ func TestFileVersions(t *testing.T) {
+ 		conf := Config{GoVersion: test.moduleVersion}
+ 		versions := make(map[*ast.File]string)
+ 		var info Info
+-		*_FileVersionsAddr(&info) = versions
++		info.FileVersions = versions
+ 		mustTypecheck(src, &conf, &info)
+ 
+ 		n := 0
+@@ -2812,9 +2812,3 @@ func TestFileVersions(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-// _FileVersionsAddr(conf) returns the address of the field info._FileVersions.
+-func _FileVersionsAddr(info *Info) *map[*ast.File]string {
+-	v := reflect.Indirect(reflect.ValueOf(info))
+-	return (*map[*ast.File]string)(v.FieldByName("_FileVersions").Addr().UnsafePointer())
+-}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 99696de496..89b8ee07a2 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -634,7 +634,7 @@ func (check *Checker) recordScope(node ast.Node, scope *Scope) {
+ }
+ 
+ func (check *Checker) recordFileVersion(file *ast.File, version string) {
+-	if m := check._FileVersions; m != nil {
++	if m := check.FileVersions; m != nil {
+ 		m[file] = version
+ 	}
+ }

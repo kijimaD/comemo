@@ -10,7 +10,171 @@ Date:   Thu Mar 6 11:24:28 2014 -0800
     R=golang-codereviews, rsc
     CC=golang-codereviews, iant
     https://golang.org/cl/69970052
-
+---
  src/pkg/net/http/cgi/host.go            | 12 +++++
  src/pkg/net/http/cgi/matryoshka_test.go | 93 ++++++++++++++++++++++++++++++++-
  2 files changed, 104 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/cgi/host.go b/src/pkg/net/http/cgi/host.go
+index d27cc4dc9a..7802014526 100644
+--- a/src/pkg/net/http/cgi/host.go
++++ b/src/pkg/net/http/cgi/host.go
+@@ -214,6 +214,9 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		internalError(err)
+ 		return
+ 	}
++	if hook := testHookStartProcess; hook != nil {
++		hook(cmd.Process)
++	}
+ 	defer cmd.Wait()
+ 	defer stdoutRead.Close()
+ 
+@@ -292,6 +295,13 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	_, err = io.Copy(rw, linebody)
+ 	if err != nil {
+ 		h.printf("cgi: copy error: %v", err)
++		// And kill the child CGI process so we don't hang on
++		// the deferred cmd.Wait above if the error was just
++		// the client (rw) going away. If it was a read error
++		// (because the child died itself), then the extra
++		// kill of an already-dead process is harmless (the PID
++		// won't be reused until the Wait above).
++		cmd.Process.Kill()
+ 	}
+ }
+ 
+@@ -348,3 +358,5 @@ func upperCaseAndUnderscore(r rune) rune {
+ 	// TODO: other transformations in spec or practice?
+ 	return r
+ }
++
++var testHookStartProcess func(*os.Process) // nil except for some tests
+diff --git a/src/pkg/net/http/cgi/matryoshka_test.go b/src/pkg/net/http/cgi/matryoshka_test.go
+index e1a78c8f62..89146b6829 100644
+--- a/src/pkg/net/http/cgi/matryoshka_test.go
++++ b/src/pkg/net/http/cgi/matryoshka_test.go
+@@ -9,10 +9,15 @@
+ package cgi
+ 
+ import (
++	"bytes"
++	"errors"
+ 	"fmt"
++	"io"
+ 	"net/http"
++	"net/http/httptest"
+ 	"os"
+ 	"testing"
++	"time"
+ )
+ 
+ // This test is a CGI host (testing host.go) that runs its own binary
+@@ -51,7 +56,78 @@ func TestHostingOurselves(t *testing.T) {
+ 	}
+ }
+ 
+-// Test that a child handler only writing headers works.
++type customWriterRecorder struct {
++	w io.Writer
++	*httptest.ResponseRecorder
++}
++
++func (r *customWriterRecorder) Write(p []byte) (n int, err error) {
++	return r.w.Write(p)
++}
++
++type limitWriter struct {
++	w io.Writer
++	n int
++}
++
++func (w *limitWriter) Write(p []byte) (n int, err error) {
++	if len(p) > w.n {
++		p = p[:w.n]
++	}
++	if len(p) > 0 {
++		n, err = w.w.Write(p)
++		w.n -= n
++	}
++	if w.n == 0 {
++		err = errors.New("past write limit")
++	}
++	return
++}
++
++// If there's an error copying the child's output to the parent, test
++// that we kill the child.
++func TestKillChildAfterCopyError(t *testing.T) {
++	defer func() { testHookStartProcess = nil }()
++	proc := make(chan *os.Process, 1)
++	testHookStartProcess = func(p *os.Process) {
++		proc <- p
++	}
++
++	h := &Handler{
++		Path: os.Args[0],
++		Root: "/test.go",
++		Args: []string{"-test.run=TestBeChildCGIProcess"},
++	}
++	req, _ := http.NewRequest("GET", "http://example.com/test.cgi?write-forever=1", nil)
++	rec := httptest.NewRecorder()
++	var out bytes.Buffer
++	const writeLen = 50 << 10
++	rw := &customWriterRecorder{&limitWriter{&out, writeLen}, rec}
++
++	donec := make(chan bool, 1)
++	go func() {
++		h.ServeHTTP(rw, req)
++		donec <- true
++	}()
++
++	select {
++	case <-donec:
++		if out.Len() != writeLen || out.Bytes()[0] != 'a' {
++			t.Errorf("unexpected output: %q", out.Bytes())
++		}
++	case <-time.After(5 * time.Second):
++		t.Errorf("timeout. ServeHTTP hung and didn't kill the child process?")
++		select {
++		case p := <-proc:
++			p.Kill()
++			t.Logf("killed process")
++		default:
++			t.Logf("didn't kill process")
++		}
++	}
++}
++
++// Test that a child handler writing only headers works.
+ func TestChildOnlyHeaders(t *testing.T) {
+ 	h := &Handler{
+ 		Path: os.Args[0],
+@@ -67,6 +143,15 @@ func TestChildOnlyHeaders(t *testing.T) {
+ 	}
+ }
+ 
++type neverEnding byte
++
++func (b neverEnding) Read(p []byte) (n int, err error) {
++	for i := range p {
++		p[i] = byte(b)
++	}
++	return len(p), nil
++}
++
+ // Note: not actually a test.
+ func TestBeChildCGIProcess(t *testing.T) {
+ 	if os.Getenv("REQUEST_METHOD") == "" {
+@@ -79,6 +164,12 @@ func TestBeChildCGIProcess(t *testing.T) {
+ 		if req.FormValue("no-body") == "1" {
+ 			return
+ 		}
++		if req.FormValue("write-forever") == "1" {
++			io.Copy(rw, neverEnding('a'))
++			for {
++				time.Sleep(5 * time.Second) // hang forever, until killed
++			}
++		}
+ 		fmt.Fprintf(rw, "test=Hello CGI-in-CGI\n")
+ 		for k, vv := range req.Form {
+ 			for _, v := range vv {

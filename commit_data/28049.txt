@@ -13,10 +13,127 @@ Date:   Tue Apr 26 15:17:56 2016 -0400
     Change-Id: Iad84131572422190f5fa036e7d71910dc155f155
     Reviewed-on: https://go-review.googlesource.com/22461
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/build.go                   |  5 +++++
  src/cmd/link/internal/arm/asm.go      | 30 ++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/data.go      |  3 +++
  src/cmd/link/internal/ld/macho.go     |  7 +++++--
  src/runtime/cgo/signal_darwin_armx.go |  6 +++++-
  5 files changed, 48 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 4aaad04b3a..b8c12db196 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -334,6 +334,11 @@ func buildModeInit() {
+ 			}
+ 			return p
+ 		}
++		switch platform {
++		case "darwin/arm":
++			codegenArg = "-shared"
++		default:
++		}
+ 		exeSuffix = ".a"
+ 		ldBuildmode = "c-archive"
+ 	case "c-shared":
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 069812fcef..aafdd9bc3d 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -330,6 +330,36 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
+ 
+ 	rs := r.Xsym
+ 
++	if r.Type == obj.R_PCREL {
++		if rs.Type == obj.SHOSTOBJ {
++			ld.Diag("pc-relative relocation of external symbol is not supported")
++			return -1
++		}
++		if r.Siz != 4 {
++			return -1
++		}
++
++		// emit a pair of "scattered" relocations that
++		// resolve to the difference of section addresses of
++		// the symbol and the instruction
++		// this value is added to the field being relocated
++		o1 := uint32(sectoff)
++		o1 |= 1 << 31 // scattered bit
++		o1 |= ld.MACHO_ARM_RELOC_SECTDIFF << 24
++		o1 |= 2 << 28 // size = 4
++
++		o2 := uint32(0)
++		o2 |= 1 << 31 // scattered bit
++		o2 |= ld.MACHO_ARM_RELOC_PAIR << 24
++		o2 |= 2 << 28 // size = 4
++
++		ld.Thearch.Lput(o1)
++		ld.Thearch.Lput(uint32(ld.Symaddr(rs)))
++		ld.Thearch.Lput(o2)
++		ld.Thearch.Lput(uint32(ld.Ctxt.Cursym.Value + int64(r.Off)))
++		return 0
++	}
++
+ 	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_CALLARM {
+ 		if rs.Dynid < 0 {
+ 			ld.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index dbd5ad0b75..8964757846 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -560,6 +560,9 @@ func relocsym(s *LSym) {
+ 							o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
+ 						}
+ 						o -= int64(r.Off) // relative to section offset, not symbol
++					} else if SysArch.Family == sys.ARM {
++						// see ../arm/asm.go:/machoreloc1
++						o += Symaddr(rs) - int64(Ctxt.Cursym.Value) - int64(r.Off)
+ 					} else {
+ 						o += int64(r.Siz)
+ 					}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 310435e49e..53cc96275d 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -79,6 +79,8 @@ const (
+ 	MACHO_X86_64_RELOC_SIGNED_2   = 7
+ 	MACHO_X86_64_RELOC_SIGNED_4   = 8
+ 	MACHO_ARM_RELOC_VANILLA       = 0
++	MACHO_ARM_RELOC_PAIR          = 1
++	MACHO_ARM_RELOC_SECTDIFF      = 2
+ 	MACHO_ARM_RELOC_BR24          = 5
+ 	MACHO_ARM64_RELOC_UNSIGNED    = 0
+ 	MACHO_ARM64_RELOC_BRANCH26    = 2
+@@ -350,8 +352,9 @@ func machoshbits(mseg *MachoSeg, sect *Section, segname string) {
+ 
+ 	var msect *MachoSect
+ 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (SysArch.Family == sys.ARM64 ||
+-		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive))) {
+-		// Darwin external linker on arm64 and on amd64 in c-shared/c-archive buildmode
++		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive)) ||
++		(SysArch.Family == sys.ARM && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive))) {
++		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
+ 		// complains about absolute relocs in __TEXT, so if the section is not
+ 		// executable, put it in __DATA segment.
+ 		msect = newMachoSect(mseg, buf, "__DATA")
+diff --git a/src/runtime/cgo/signal_darwin_armx.go b/src/runtime/cgo/signal_darwin_armx.go
+index 9c1ba5dee1..9f6741eb08 100644
+--- a/src/runtime/cgo/signal_darwin_armx.go
++++ b/src/runtime/cgo/signal_darwin_armx.go
+@@ -13,10 +13,14 @@ import "unsafe"
+ //go:linkname x_cgo_panicmem x_cgo_panicmem
+ var x_cgo_panicmem uintptr
+ 
++// use a pointer to avoid relocation of external symbol in __TEXT
++// make linker happy
++var _cgo_panicmem = &x_cgo_panicmem
++
+ // TODO(crawshaw): move this into x_cgo_init, it will not run until
+ // runtime has finished loading, which may be after its use.
+ func init() {
+-	x_cgo_panicmem = funcPC(panicmem)
++	*_cgo_panicmem = funcPC(panicmem)
+ }
+ 
+ func funcPC(f interface{}) uintptr {

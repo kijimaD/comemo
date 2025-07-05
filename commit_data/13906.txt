@@ -9,7 +9,7 @@ Date:   Sat Sep 22 20:42:11 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6542058
-
+---
  src/cmd/5g/cgen.c        | 15 +++++++++++++++
  src/cmd/6g/cgen.c        | 14 ++++++++++++++
  src/cmd/6g/gsubr.c       |  7 +++++++
@@ -17,3 +17,152 @@ Date:   Sat Sep 22 20:42:11 2012 -0400
  src/cmd/8g/gsubr.c       |  6 ++++++
  test/fixedbugs/bug444.go | 19 ++++++++++++++++++-
  6 files changed, 74 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 4f56cccbd3..bb4b894641 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -554,6 +554,21 @@ agen(Node *n, Node *res)
+ 	while(n->op == OCONVNOP)
+ 		n = n->left;
+ 
++	if(isconst(n, CTNIL) && n->type->width > widthptr) {
++		// Use of a nil interface or nil slice.
++		// Create a temporary we can take the address of and read.
++		// The generated code is just going to panic, so it need not
++		// be terribly efficient. See issue 3670.
++		tempname(&n1, n->type);
++		clearfat(&n1);
++		regalloc(&n2, types[tptr], res);
++		gins(ALEAQ, &n1, &n2);
++		gmove(&n2, res);
++		regfree(&n2);
++		goto ret;
++	}
++		
++
+ 	if(n->addable) {
+ 		memset(&n1, 0, sizeof n1);
+ 		n1.op = OADDR;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 891d0bab03..89d35450e0 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -518,6 +518,20 @@ agen(Node *n, Node *res)
+ 	while(n->op == OCONVNOP)
+ 		n = n->left;
+ 
++	if(isconst(n, CTNIL) && n->type->width > widthptr) {
++		// Use of a nil interface or nil slice.
++		// Create a temporary we can take the address of and read.
++		// The generated code is just going to panic, so it need not
++		// be terribly efficient. See issue 3670.
++		tempname(&n1, n->type);
++		clearfat(&n1);
++		regalloc(&n2, types[tptr], res);
++		gins(ALEAQ, &n1, &n2);
++		gmove(&n2, res);
++		regfree(&n2);
++		goto ret;
++	}
++		
+ 	if(n->addable) {
+ 		regalloc(&n1, types[tptr], res);
+ 		gins(ALEAQ, n, &n1);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 0b50b4f43e..ea64b8821d 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -990,6 +990,13 @@ gins(int as, Node *f, Node *t)
+ 	case AMOVSD:
+ 		if(f != N && t != N && samaddr(f, t))
+ 			return nil;
++		break;
++	
++	case ALEAQ:
++		if(f != N && isconst(f, CTNIL)) {
++			fatal("gins LEAQ nil %T", f->type);
++		}
++		break;
+ 	}
+ 
+ 	memset(&af, 0, sizeof af);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index fb0f441b35..f3990d736b 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -509,6 +509,20 @@ agen(Node *n, Node *res)
+ 	while(n->op == OCONVNOP)
+ 		n = n->left;
+ 
++	if(isconst(n, CTNIL) && n->type->width > widthptr) {
++		// Use of a nil interface or nil slice.
++		// Create a temporary we can take the address of and read.
++		// The generated code is just going to panic, so it need not
++		// be terribly efficient. See issue 3670.
++		tempname(&n1, n->type);
++		clearfat(&n1);
++		regalloc(&n2, types[tptr], res);
++		gins(ALEAL, &n1, &n2);
++		gmove(&n2, res);
++		regfree(&n2);
++		return;
++	}
++		
+ 	// addressable var is easy
+ 	if(n->addable) {
+ 		if(n->op == OREGISTER)
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 4e4261804c..dcbd6dbcfa 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1732,6 +1732,12 @@ gins(int as, Node *f, Node *t)
+ 	case AMOVL:
+ 		if(f != N && t != N && samaddr(f, t))
+ 			return nil;
++		break;
++	
++	case ALEAL:
++		if(f != N && isconst(f, CTNIL))
++			fatal("gins LEAQ nil %T", f->type);
++		break;
+ 	}
+ 
+ 	memset(&af, 0, sizeof af);
+diff --git a/test/fixedbugs/bug444.go b/test/fixedbugs/bug444.go
+index 0bbd16faed..b54fb4f581 100644
+--- a/test/fixedbugs/bug444.go
++++ b/test/fixedbugs/bug444.go
+@@ -6,6 +6,7 @@
+ 
+ // The no-op conversion here used to confuse the compiler
+ // into doing a load-effective-address of nil.
++// See issue 3670.
+ 
+ package main
+ 
+@@ -13,7 +14,23 @@ import "reflect"
+ 
+ type T interface {}
+ 
++var x bool
++
+ func main() {
+         reflect.TypeOf(nil)
+-        reflect.TypeOf(T(nil)) // used to fail
++        reflect.TypeOf(T(nil)) // used to miscompile
++        shouldPanic()
++}
++
++func f() byte {
++	return []byte(nil)[0] // used to miscompile
++}
++
++func shouldPanic() {
++	defer func() {
++		if recover() == nil {
++			panic("not panicking")
++		}
++	}()
++	f()
+ }

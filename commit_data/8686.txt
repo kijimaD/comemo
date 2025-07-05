@@ -7,7 +7,7 @@ Date:   Fri Jun 10 15:05:51 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4605041
-
+---
  doc/GoCourseDay1.pdf | Bin 801121 -> 265989 bytes
  doc/GoCourseDay2.pdf | Bin 806917 -> 268707 bytes
  doc/GoCourseDay3.pdf | Bin 530749 -> 178003 bytes
@@ -15,3 +15,72 @@ Date:   Fri Jun 10 15:05:51 2011 +1000
  doc/go_tutorial.html |   3 +--
  doc/go_tutorial.txt  |   3 +--
  6 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/doc/GoCourseDay1.pdf b/doc/GoCourseDay1.pdf
+index bae12d2adc..6d884979a8 100644
+Binary files a/doc/GoCourseDay1.pdf and b/doc/GoCourseDay1.pdf differ
+diff --git a/doc/GoCourseDay2.pdf b/doc/GoCourseDay2.pdf
+index d05486e308..0d82ba4d32 100644
+Binary files a/doc/GoCourseDay2.pdf and b/doc/GoCourseDay2.pdf differ
+diff --git a/doc/GoCourseDay3.pdf b/doc/GoCourseDay3.pdf
+index 8f95806b2a..5a5463ba2b 100644
+Binary files a/doc/GoCourseDay3.pdf and b/doc/GoCourseDay3.pdf differ
+diff --git a/doc/docs.html b/doc/docs.html
+index f6ff05c256..9fd3dcebed 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -23,6 +23,17 @@ concepts: syntax, types, allocation, constants, I/O, sorting, printing,
+ goroutines, and channels.
+ </p>
+ 
++<h3 id="course_notes">Course Notes</h3>
++<p>
++Slides from a 3-day course about the Go programming language.
++A more thorough introduction than the tutorial.
++</p>
++<ul>
++<li><a href="GoCourseDay1.pdf">Day 1: Basics</a> <small>[270KB PDF]</small>
++<li><a href="GoCourseDay2.pdf">Day 2: Types, Methods, Interfaces</a> <small>[270KB PDF]</small>
++<li><a href="GoCourseDay3.pdf">Day 3: Concurrency and Communication</a> <small>[180KB PDF]</small>
++</ul>
++
+ <h3 id="effective_go"><a href="effective_go.html">Effective Go</a></h3>
+ <p>
+ A document that gives tips for writing clear, idiomatic Go code.
+@@ -209,7 +220,7 @@ from Hoare’s 1978 paper to Go provides insight into how and why Go works as it
+ does.
+ </i></p>
+ 
+-<h3 id="emerging_go"><a href="talks/gofrontend-gcc-summit-2010.pdf">The Go frontend for GCC</a></h3>
++<h3 id="go_frontend_gcc"><a href="talks/gofrontend-gcc-summit-2010.pdf">The Go frontend for GCC</a></h3>
+ <p>
+ A description of the Go language frontend for gcc.
+ Ian Lance Taylor's paper delivered at the GCC Summit 2010.
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index d200036b07..aa85134b37 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -10,8 +10,7 @@ After you've read this tutorial, you should look at
+ which digs deeper into how the language is used and
+ talks about the style and idioms of programming in Go.
+ Also, slides from a 3-day course about Go are available.
+-Although they're badly out of date, they provide some
+-background and a lot of examples:
++They provide some background and a lot of examples:
+ <a href='/doc/GoCourseDay1.pdf'>Day 1</a>,
+ <a href='/doc/GoCourseDay2.pdf'>Day 2</a>,
+ <a href='/doc/GoCourseDay3.pdf'>Day 3</a>.
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index ebf58eca6c..513190ef2c 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -11,8 +11,7 @@ After you've read this tutorial, you should look at
+ which digs deeper into how the language is used and
+ talks about the style and idioms of programming in Go.
+ Also, slides from a 3-day course about Go are available.
+-Although they're badly out of date, they provide some
+-background and a lot of examples:
++They provide some background and a lot of examples:
+ <a href='/doc/GoCourseDay1.pdf'>Day 1</a>,
+ <a href='/doc/GoCourseDay2.pdf'>Day 2</a>,
+ <a href='/doc/GoCourseDay3.pdf'>Day 3</a>.

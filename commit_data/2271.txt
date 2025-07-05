@@ -8,7 +8,7 @@ Date:   Thu May 21 13:46:07 2009 -0700
     R=r
     OCL=29190
     CL=29190
-
+---
  src/cmd/6g/gen.c    |   4 +
  src/cmd/gc/Makefile |   1 +
  src/cmd/gc/const.c  |  23 ++++
@@ -18,3 +18,924 @@ Date:   Thu May 21 13:46:07 2009 -0700
  src/cmd/gc/sinit.c  | 346 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gc/walk.c   | 112 ++++++++++++-----
  8 files changed, 473 insertions(+), 264 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 61d25184e8..1b7505e610 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -786,6 +786,10 @@ gen_as_init(Node *nr, Node *nl)
+ 		goto yes;
+ 	}
+ 
++	if(nr->op == OCOMPMAP) {
++		goto yes;
++	}
++
+ 	if(nr->type == T ||
+ 	   !eqtype(nl->type, nr->type))
+ 		goto no;
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 0fc15deaa8..e5cabbb37f 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -19,6 +19,7 @@ OFILES=\
+ 	lex.$O\
+ 	subr.$O\
+ 	dcl.$O\
++	sinit.$O\
+ 	export.$O\
+ 	walk.$O\
+ 	swt.$O\
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 50b5823945..5dbacece7e 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -773,3 +773,26 @@ smallintconst(Node *n)
+ 	}
+ 	return 0;
+ }
++
++long
++nonnegconst(Node *n)
++{
++	if(n->op == OLITERAL)
++	switch(simtype[n->type->etype]) {
++	case TINT8:
++	case TUINT8:
++	case TINT16:
++	case TUINT16:
++	case TINT32:
++	case TUINT32:
++	case TINT64:
++	case TUINT64:
++	case TIDEAL:
++		// check negative and 2^31
++		if(mpcmpfixfix(n->val.u.xval, minintval[TUINT32]) < 0
++		|| mpcmpfixfix(n->val.u.xval, maxintval[TINT32]) > 0)
++			break;
++		return mpgetfix(n->val.u.xval);
++	}
++	return -1;
++}
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 6025b425df..67a53df4a0 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1322,238 +1322,6 @@ anyinit(Node *n)
+ 	return 0;
+ }
+ 
+-/*
+- * the init code (thru initfix) reformats the
+- *	var = ...
+- * statements, rewriting the automatic
+- * variables with the static variables.
+- * this allows the code generator to
+- * generate DATA statements instead
+- * of assignment statements.
+- * it is quadradic, may need to change.
+- * it is extremely fragile knowing exactly
+- * how the code from (struct|array|map)lit
+- * will look. ideally the lit routines could
+- * write the code in this form, but ...
+- */
+-
+-static	Node*	xxx;
+-
+-void
+-initlin(Node* n)
+-{
+-	if(n == N)
+-		return;
+-	initlin(n->ninit);
+-	switch(n->op) {
+-	default:
+-		print("o = %O\n", n->op);
+-		n->ninit = N;
+-		xxx = list(xxx, n);
+-		break;
+-
+-	case OCALL:
+-		// call to mapassign1
+-		if(n->left->op != ONAME ||
+-		   n->right->op != OLIST ||
+-		   n->right->left->op != OAS ||
+-		   n->right->right->op != OLIST ||
+-		   n->right->right->left->op != OAS ||
+-		   n->right->right->right->op != OAS ||
+-		   strcmp(n->left->sym->name, "mapassign1") != 0)
+-			dump("o=call", n);
+-		n->ninit = N;
+-		xxx = list(xxx, n);
+-		break;
+-
+-	case OAS:
+-		n->ninit = N;
+-		xxx = list(xxx, n);
+-		break;
+-
+-	case OLIST:
+-		initlin(n->left);
+-		initlin(n->right);
+-		break;
+-	}
+-}
+-
+-int
+-inittmp(Node *n)
+-{
+-	if(n != N)
+-	if(n->op == ONAME)
+-	if(n->sym != S)
+-	if(n->class == PAUTO)
+-	if(strcmp(n->sym->name, "!tmpname!") == 0)
+-		return 1;
+-	return 0;
+-}
+-
+-int
+-sametmp(Node *n1, Node *n2)
+-{
+-	if(inittmp(n1))
+-	if(n1->xoffset == n2->xoffset)
+-		return 1;
+-	return 0;
+-}
+-
+-int
+-indsametmp(Node *n1, Node *n2)
+-{
+-	if(n1->op == OIND)
+-	if(inittmp(n1->left))
+-	if(n1->left->xoffset == n2->xoffset)
+-		return 1;
+-	return 0;
+-}
+-
+-Node*
+-slicerewrite(Node *n)
+-{
+-	Iter param;
+-	Node *a, *wid, *nel;
+-	Type *t;
+-	int b;
+-
+-	if(n == N || n->op != OCALL || !isslice(n->type) ||
+-	   n->left == N || n->left->sym == S ||
+-	   strcmp(n->left->sym->name, "newarray") != 0)
+-		goto no;
+-
+-	// call to newarray - find width and nel
+-	wid = N;
+-	nel = N;
+-	a = listfirst(&param, &n->right);
+-	while(a != N) {
+-		if(a->op == OAS &&
+-		   a->left != N && a->right != N &&
+-		   a->left->op == OINDREG && a->right->op == OLITERAL &&
+-		   a->left->sym != S) {
+-			if(strcmp(a->left->sym->name, "nel") == 0)
+-				nel = a->right;
+-			if(strcmp(a->left->sym->name, "width") == 0)
+-				wid = a->right;
+-		}
+-		a = listnext(&param);
+-	}
+-	if(wid == N || nel == N)
+-		goto no;
+-
+-	b = mpgetfix(nel->val.u.xval);
+-	if(b == 0)
+-		goto no;
+-
+-	t = shallow(n->type);
+-	t->bound = b;
+-	a = staticname(t);
+-	a = nod(OCOMPSLICE, a, N);
+-	a->type = n->type;
+-	return a;
+-
+-no:
+-	return N;
+-}
+-
+-int
+-initsub(Node *n, Node *nam)
+-{
+-	Iter iter, param;
+-	Node *r, *w;
+-	int any;
+-
+-	any = 0;
+-	r = listfirst(&iter, &xxx);
+-	while(r != N) {
+-		switch(r->op) {
+-		case OAS:
+-		case OEMPTY:
+-			if(r->left != N)
+-			switch(r->left->op) {
+-			case ONAME:
+-				if(sametmp(r->left, nam)) {
+-					any = 1;
+-					w = slicerewrite(r->right);
+-					r->left = n;
+-					if(w != N) {
+-						n = w->left;	// from now on use fixed array
+-						r->right = w;
+-						break;
+-					}
+-				}
+-				break;
+-			case ODOT:
+-				if(sametmp(r->left->left, nam)) {
+-					any = 1;
+-					r->left->left = n;
+-				}
+-				if(indsametmp(r->left->left, nam)) {
+-					any = 1;
+-					r->left->left->left = n;
+-				}
+-				break;
+-			case OINDEX:
+-				if(sametmp(r->left->left, nam)) {
+-					any = 1;
+-					r->left->left = n;
+-				}
+-				if(indsametmp(r->left->left, nam)) {
+-					any = 1;
+-					r->left->left->left = n;
+-				}
+-				break;
+-			}
+-			break;
+-		case OCALL:
+-			// call to mapassign1
+-			// look through the parameters
+-			w = listfirst(&param, &r->right);
+-			while(w != N) {
+-				if(sametmp(w->right, nam)) {
+-					any = 1;
+-					w->right = n;
+-				}
+-				if(indsametmp(w->right, nam)) {
+-					any = 1;
+-					w->right->left = n;
+-				}
+-				w = listnext(&param);
+-			}
+-			break;
+-		}
+-		r = listnext(&iter);
+-	}
+-	return any;
+-}
+-
+-Node*
+-initfix(Node* n)
+-{
+-	Iter iter;
+-	Node *r;
+-
+-//dump("prelin", n);
+-
+-	xxx = N;
+-	initlin(n);
+-	xxx = rev(xxx);
+-
+-//dump("preinitfix", xxx);
+-	// look for the copy-out reference
+-	r = listfirst(&iter, &xxx);
+-	while(r != N) {
+-		if(r->op == OAS)
+-		if(inittmp(r->right)) {
+-			if(initsub(r->left, r->right))
+-				r->op = OEMPTY;
+-		}
+-		r = listnext(&iter);
+-	}
+-//dump("postinitfix", xxx);
+-	return xxx;
+-}
+-
+ void
+ fninit(Node *n)
+ {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 856b986371..4d4ff3ef30 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -849,6 +849,12 @@ void	funclit0(Type*);
+ Node*	funclit1(Type*, Node*);
+ Node*	unsafenmagic(Node*, Node*);
+ 
++/*
++ * sinit.c
++ */
++
++Node*	initfix(Node*);
++
+ /*
+  *	export.c
+  */
+@@ -939,6 +945,7 @@ void	convlit(Node*, Type*);
+ void	evconst(Node*);
+ int	cmpslit(Node *l, Node *r);
+ int	smallintconst(Node*);
++long	nonnegconst(Node*);
+ int	consttype(Node*);
+ int	isconst(Node*, int);
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 7dc6352522..0841d5d90e 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1786,12 +1786,20 @@ hidden_interfacedcl_list:
+ 		$$ = rev($1);
+ 	}
+ 
++/*
++ * list of combo of keyval and val
++ */
+ keyval_list_r:
+ 	keyval
++|	expr
+ |	keyval_list_r ',' keyval
+ 	{
+ 		$$ = nod(OLIST, $1, $3);
+ 	}
++|	keyval_list_r ',' expr
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
+ 
+ /*
+  * have to spell this out using _r lists to avoid yacc conflict
+@@ -1804,10 +1812,6 @@ braced_keyexpr_list:
+ 	{
+ 		$$ = rev($1);
+ 	}
+-|	expr_list_r ocomma
+-	{
+-		$$ = rev($1);
+-	}
+ 
+ 
+ /*
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+new file mode 100644
+index 0000000000..2567151f1b
+--- /dev/null
++++ b/src/cmd/gc/sinit.c
+@@ -0,0 +1,346 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include	"go.h"
++
++static struct
++{
++	Node*	list;
++	Node*	mapname;
++	Type*	type;
++} xxx;
++
++/*
++ * the init code (thru initfix) reformats the
++ *	var = ...
++ * statements, rewriting the automatic
++ * variables with the static variables.
++ * this allows the code generator to
++ * generate DATA statements instead
++ * of assignment statements.
++ * it is quadradic, may need to change.
++ * it is extremely fragile knowing exactly
++ * how the code from (struct|array|map)lit
++ * will look. ideally the lit routines could
++ * write the code in this form, but ...
++ */
++
++void
++initlin(Node* n)
++{
++	if(n == N)
++		return;
++	initlin(n->ninit);
++	switch(n->op) {
++	default:
++		print("o = %O\n", n->op);
++		n->ninit = N;
++		xxx.list = list(xxx.list, n);
++		break;
++
++	case OCALL:
++		// call to mapassign1
++		if(n->left->op != ONAME ||
++		   n->right->op != OLIST ||
++		   n->right->left->op != OAS ||
++		   n->right->right->op != OLIST ||
++		   n->right->right->left->op != OAS ||
++		   n->right->right->right->op != OAS ||
++		   strcmp(n->left->sym->name, "mapassign1") != 0)
++			dump("o=call", n);
++		n->ninit = N;
++		xxx.list = list(xxx.list, n);
++		break;
++
++	case OAS:
++		n->ninit = N;
++		xxx.list = list(xxx.list, n);
++		break;
++
++	case OLIST:
++		initlin(n->left);
++		initlin(n->right);
++		break;
++	}
++}
++
++int
++inittmp(Node *n)
++{
++	if(n != N)
++	if(n->op == ONAME)
++	if(n->sym != S)
++	if(n->class == PAUTO)
++	if(strcmp(n->sym->name, "!tmpname!") == 0)
++		return 1;
++	return 0;
++}
++
++int
++sametmp(Node *n1, Node *n2)
++{
++	if(inittmp(n1))
++	if(n1->xoffset == n2->xoffset)
++		return 1;
++	return 0;
++}
++
++int
++indsametmp(Node *n1, Node *n2)
++{
++	if(n1->op == OIND)
++	if(inittmp(n1->left))
++	if(n1->left->xoffset == n2->xoffset)
++		return 1;
++	return 0;
++}
++
++Node*
++findarg(Node *n, char *arg, char *fn)
++{
++	Iter param;
++	Node *a;
++
++	if(n == N || n->op != OCALL ||
++	   n->left == N || n->left->sym == S ||
++	   strcmp(n->left->sym->name, fn) != 0)
++		return N;
++
++	a = listfirst(&param, &n->right);
++	while(a != N) {
++		if(a->op == OAS &&
++		   a->left != N && a->right != N &&
++		   a->left->op == OINDREG &&
++		   a->left->sym != S)
++			if(strcmp(a->left->sym->name, arg) == 0)
++				return a->right;
++		a = listnext(&param);
++	}
++	return N;
++}
++
++Node*
++slicerewrite(Node *n)
++{
++	Node *nel;
++	Type *t;
++	int b;
++	Node *a;
++
++	// call to newarray - find nel argument
++	nel = findarg(n, "nel", "newarray");
++	if(nel == N || !isslice(n->type))
++		goto no;
++
++	b = mpgetfix(nel->val.u.xval);
++	t = shallow(n->type);
++	t->bound = b;
++
++	// special hack for zero-size array
++	// invent an l-value to point at
++	if(b == 0)
++		a = staticname(types[TBOOL]);
++	else
++		a = staticname(t);
++
++	a = nod(OCOMPSLICE, a, N);
++	a->type = n->type;
++	return a;
++
++no:
++	return N;
++}
++
++Node*
++maprewrite(Node *n)
++{
++	Node *nel;
++	Type *ta, *tb;
++	Node *a;
++
++	// call to newarray - find nel argument
++	nel = findarg(n, "hint", "newmap");
++	if(nel == N)
++		goto no;
++	ta = n->type;
++	if(ta->etype != TMAP)
++		goto no;
++
++	// create a new type from map[index]value
++	//	[0]struct { a index; b value) }
++
++	tb = typ(TFIELD);
++	tb->type = ta->down;
++	tb->sym = lookup("key");
++	tb->nname = newname(tb->sym);
++	tb->down = typ(TFIELD);
++	tb->down->type = ta->type;
++	tb->down->sym = lookup("val");
++	tb->down->nname = newname(tb->down->sym);
++
++	ta = typ(TSTRUCT);
++	ta->type = tb;
++
++	tb = typ(TARRAY);
++	tb->type = ta;
++	tb->bound = 0;
++
++	dowidth(tb);
++
++	a = staticname(tb);
++	a = nod(OCOMPMAP, a, N);
++	a->type = n->type;
++
++	// save stuff for this iteration
++	xxx.mapname = a->left;
++	xxx.type = tb;
++
++	return a;
++
++no:
++	return N;
++}
++
++// convert the call to mapassign1
++// into static[i].key = k, static[i].val = v
++Node*
++mapindex(Node *n)
++{
++	Node *index, *val, *key, *a, *b;
++
++	// pull all the primatives
++	key = findarg(n, "key", "mapassign1");
++	val = findarg(n, "val", "mapassign1");
++	index = nodintconst(xxx.type->bound);
++	xxx.type->bound++;
++	dowidth(xxx.type);
++
++	// build tree
++	a = nod(OINDEX, xxx.mapname, index);
++	a = nod(ODOT, a, newname(lookup("key")));
++	a = nod(OAS, a, key);
++
++	b = nod(OINDEX, xxx.mapname, index);
++	b = nod(ODOT, b, newname(lookup("val")));
++	b = nod(OAS, b, val);
++
++	a = nod(OLIST, a, b);
++	walktype(a, Etop);
++
++	return a;
++}
++
++// for a copy out reference, A = B,
++// look through the whole structure
++// and substitute references of B to A.
++// some rewrite goes on also.
++int
++initsub(Node *n, Node *nam)
++{
++	Iter iter;
++	Node *r, *w;
++	int any;
++
++	any = 0;
++	r = listfirst(&iter, &xxx.list);
++	while(r != N) {
++		switch(r->op) {
++		case OAS:
++		case OEMPTY:
++			if(r->left != N)
++			switch(r->left->op) {
++			case ONAME:
++				if(sametmp(r->left, nam)) {
++					any = 1;
++					r->left = n;
++
++					w = slicerewrite(r->right);
++					if(w != N) {
++						n = w->left;	// from now on use fixed array
++						r->right = w;
++						break;
++					}
++
++					w = maprewrite(r->right);
++					if(w != N) {
++						n = w->left;	// from now on use fixed array
++						r->right = w;
++						break;
++					}
++				}
++				break;
++			case ODOT:
++				if(sametmp(r->left->left, nam)) {
++					any = 1;
++					r->left->left = n;
++				}
++				if(indsametmp(r->left->left, nam)) {
++					any = 1;
++					r->left->left->left = n;
++				}
++				break;
++			case OINDEX:
++				if(sametmp(r->left->left, nam)) {
++					any = 1;
++					r->left->left = n;
++				}
++				if(indsametmp(r->left->left, nam)) {
++					any = 1;
++					r->left->left->left = n;
++				}
++				break;
++			}
++			break;
++		case OCALL:
++			// call to mapassign1
++			// look through the parameters
++			w = findarg(r, "hmap", "mapassign1");
++			if(w == N)
++				break;
++			if(sametmp(w, nam)) {
++				any = 1;
++				*r = *mapindex(r);
++			}
++			if(indsametmp(w, nam)) {
++fatal("indirect map index");
++				any = 1;
++				w->right->left = n;
++			}
++			break;
++		}
++		r = listnext(&iter);
++	}
++	return any;
++}
++
++Node*
++initfix(Node* n)
++{
++	Iter iter;
++	Node *r;
++
++//dump("prelin", n);
++
++	xxx.list = N;
++	initlin(n);
++	xxx.list = rev(xxx.list);
++
++return xxx.list;
++if(debug['A'])
++dump("preinitfix", xxx.list);
++
++	// look for the copy-out reference
++	r = listfirst(&iter, &xxx.list);
++	while(r != N) {
++		if(r->op == OAS)
++		if(inittmp(r->right)) {
++			if(initsub(r->left, r->right))
++				r->op = OEMPTY;
++		}
++		r = listnext(&iter);
++	}
++if(debug['A'])
++dump("postinitfix", xxx.list);
++	return xxx.list;
++}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 0f160a8a4c..b1c1c2d229 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -637,7 +637,7 @@ loop:
+ 			break;
+ 		}
+ 		indir(n, r);
+-		walktype(l, Erv);
++//		walktype(l, Erv);
+ 		goto ret;
+ 
+ 	case ORETURN:
+@@ -988,7 +988,7 @@ loop:
+ 				goto badlit;
+ 			}
+ 
+-			walktype(n->left->left, Erv);
++//			walktype(n->left->left, Erv);
+ 			indir(n, nvar);
+ 			goto ret;
+ 		}
+@@ -3911,6 +3911,7 @@ structlit(Node *n, Node *var)
+ 	Iter savel, saver;
+ 	Type *l, *t;
+ 	Node *r, *a;
++	int mixflag;
+ 
+ 	t = n->type;
+ 	if(t->etype != TSTRUCT)
+@@ -3921,30 +3922,66 @@ structlit(Node *n, Node *var)
+ 		tempname(var, t);
+ 	}
+ 
+-	l = structfirst(&savel, &n->type);
+ 	r = listfirst(&saver, &n->left);
+ 	if(r != N && r->op == OEMPTY)
+ 		r = N;
+ 
+-loop:
++	mixflag = 0;
++	if(r != N && r->op == OKEY) {
++		a = nod(OAS, var, N);
++		addtop = list(addtop, a);
++		goto loop2;
++	}
++	l = structfirst(&savel, &n->type);
++
++loop1:
++	// assignment to every field
+ 	if(l == T || r == N) {
+ 		if(l != T)
+ 			yyerror("struct literal expect expr of type %T", l);
+ 		if(r != N)
+ 			yyerror("struct literal too many expressions");
++		if(mixflag)
++			yyerror("mixture of field:value initializers");
+ 		return var;
+ 	}
++	if(r->op == OKEY) {
++		mixflag = 1;
++		goto incr1;
++	}
+ 
+ 	// build list of var.field = expr
+-
+ 	a = nod(ODOT, var, newname(l->sym));
+ 	a = nod(OAS, a, r);
+-	walktype(a, Etop);	// add any assignments in r to addtop
++	walktype(a, Etop);
+ 	addtop = list(addtop, a);
+ 
++incr1:
+ 	l = structnext(&savel);
+ 	r = listnext(&saver);
+-	goto loop;
++	goto loop1;
++
++loop2:
++	// assignment to field:value elements
++	if(r == N) {
++		if(mixflag)
++			yyerror("mixture of field:value initializers");
++		return var;
++	}
++	if(r->op != OKEY) {
++		mixflag = 1;
++		goto incr2;
++	}
++
++	// build list of var.field = expr
++	a = nod(ODOT, var, newname(r->left->sym));
++	a = nod(OAS, a, r->right);
++	walktype(a, Etop);
++	addtop = list(addtop, a);
++
++incr2:
++	r = listnext(&saver);
++	goto loop2;
+ }
+ 
+ Node*
+@@ -3953,19 +3990,28 @@ arraylit(Node *n, Node *var)
+ 	Iter saver;
+ 	Type *t;
+ 	Node *r, *a;
+-	int ninit, b;
++	long ninit, b;
+ 
+ 	t = n->type;
+ 	if(t->etype != TARRAY)
+ 		fatal("arraylit: not array");
+ 
+-	// count initializers
++	// find max index
+ 	ninit = 0;
++	b = 0;
++
+ 	r = listfirst(&saver, &n->left);
+ 	if(r != N && r->op == OEMPTY)
+ 		r = N;
++
+ 	while(r != N) {
+-		ninit++;
++		b++;
++		if(r->op == OKEY) {
++			evconst(r->left);
++			b = nonnegconst(r->left);
++		}
++		if(b > ninit)
++			ninit = b;
+ 		r = listnext(&saver);
+ 	}
+ 
+@@ -3998,18 +4044,28 @@ arraylit(Node *n, Node *var)
+ 		}
+ 	}
+ 
+-	ninit = 0;
++	b = 0;
+ 	r = listfirst(&saver, &n->left);
+ 	if(r != N && r->op == OEMPTY)
+ 		r = N;
+ 	while(r != N) {
+ 		// build list of var[c] = expr
+-		a = nodintconst(ninit);
++		if(r->op == OKEY) {
++			b = nonnegconst(r->left);
++			if(b < 0) {
++				yyerror("array index must be non-negative integer");
++				break;
++			}
++			r = r->right;
++		}
++		a = nodintconst(b);
+ 		a = nod(OINDEX, var, a);
+ 		a = nod(OAS, a, r);
++
+ 		walktype(a, Etop);	// add any assignments in r to addtop
+ 		addtop = list(addtop, a);
+-		ninit++;
++		b++;
++
+ 		r = listnext(&saver);
+ 	}
+ 	return var;
+@@ -4041,24 +4097,24 @@ maplit(Node *n, Node *var)
+ 		r = N;
+ 
+ loop:
+-	if(r == N) {
+-		return var;
+-	}
+-
+-	if(r->op != OKEY) {
+-		yyerror("map literal must have key:value pairs");
+-		return var;
+-	}
++	while(r != N) {
++		if(r == N)
++			break;
+ 
+-	// build list of var[c] = expr
++		if(r->op != OKEY) {
++			yyerror("map literal must have key:value pairs");
++			break;
++		}
+ 
+-	a = nod(OINDEX, var, r->left);
+-	a = nod(OAS, a, r->right);
+-	walktype(a, Etop);	// add any assignments in r to addtop
+-	addtop = list(addtop, a);
++		// build list of var[c] = expr
++		a = nod(OINDEX, var, r->left);
++		a = nod(OAS, a, r->right);
++		walktype(a, Etop);	// add any assignments in r to addtop
++		addtop = list(addtop, a);
+ 
+-	r = listnext(&saver);
+-	goto loop;
++		r = listnext(&saver);
++	}
++	return var;
+ }
+ 
+ /*

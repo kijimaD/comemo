@@ -22,10 +22,634 @@ Date:   Fri Apr 30 18:09:01 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go.mod                                  |   2 +-
  src/cmd/go.sum                                  |   4 +-
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 250 ++++++++++++++++--------
  src/cmd/vendor/golang.org/x/mod/modfile/work.go | 234 ++++++++++++++++++++++
  src/cmd/vendor/modules.txt                      |   2 +-
  5 files changed, 407 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index cd03968eed..21d7d8b75a 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,7 +7,7 @@ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+ 	golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e
+ 	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e // indirect
+-	golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a
++	golang.org/x/mod v0.4.3-0.20210723200715-e41a6a4f3b61
+ 	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
+ 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+ 	golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index d728acaec9..529b152b77 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -13,8 +13,8 @@ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8U
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
+ golang.org/x/mod v0.4.2/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a h1:e8qnjKz4EE6OjRki9wTadWSIogINvq10sMcuBRORxMY=
+-golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
++golang.org/x/mod v0.4.3-0.20210723200715-e41a6a4f3b61 h1:gQY3CVezomIImcWCpxp6Mhj+fXCOZ+gD8/88326LVqw=
++golang.org/x/mod v0.4.3-0.20210723200715-e41a6a4f3b61/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 78f83fa714..d6a2d3879e 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -423,68 +423,12 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 		}
+ 
+ 	case "replace":
+-		arrow := 2
+-		if len(args) >= 2 && args[1] == "=>" {
+-			arrow = 1
+-		}
+-		if len(args) < arrow+2 || len(args) > arrow+3 || args[arrow] != "=>" {
+-			errorf("usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory", verb, verb)
+-			return
+-		}
+-		s, err := parseString(&args[0])
+-		if err != nil {
+-			errorf("invalid quoted string: %v", err)
+-			return
+-		}
+-		pathMajor, err := modulePathMajor(s)
+-		if err != nil {
+-			wrapModPathError(s, err)
+-			return
+-		}
+-		var v string
+-		if arrow == 2 {
+-			v, err = parseVersion(verb, s, &args[1], fix)
+-			if err != nil {
+-				wrapError(err)
+-				return
+-			}
+-			if err := module.CheckPathMajor(v, pathMajor); err != nil {
+-				wrapModPathError(s, err)
+-				return
+-			}
+-		}
+-		ns, err := parseString(&args[arrow+1])
+-		if err != nil {
+-			errorf("invalid quoted string: %v", err)
++		replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args, fix)
++		if wrappederr != nil {
++			*errs = append(*errs, *wrappederr)
+ 			return
+ 		}
+-		nv := ""
+-		if len(args) == arrow+2 {
+-			if !IsDirectoryPath(ns) {
+-				errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
+-				return
+-			}
+-			if filepath.Separator == '/' && strings.Contains(ns, `\`) {
+-				errorf("replacement directory appears to be Windows path (on a non-windows system)")
+-				return
+-			}
+-		}
+-		if len(args) == arrow+3 {
+-			nv, err = parseVersion(verb, ns, &args[arrow+2], fix)
+-			if err != nil {
+-				wrapError(err)
+-				return
+-			}
+-			if IsDirectoryPath(ns) {
+-				errorf("replacement module directory path %q cannot have version", ns)
+-				return
+-			}
+-		}
+-		f.Replace = append(f.Replace, &Replace{
+-			Old:    module.Version{Path: s, Version: v},
+-			New:    module.Version{Path: ns, Version: nv},
+-			Syntax: line,
+-		})
++		f.Replace = append(f.Replace, replace)
+ 
+ 	case "retract":
+ 		rationale := parseDirectiveComment(block, line)
+@@ -515,6 +459,83 @@ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, a
+ 	}
+ }
+ 
++func parseReplace(filename string, line *Line, verb string, args []string, fix VersionFixer) (*Replace, *Error) {
++	wrapModPathError := func(modPath string, err error) *Error {
++		return &Error{
++			Filename: filename,
++			Pos:      line.Start,
++			ModPath:  modPath,
++			Verb:     verb,
++			Err:      err,
++		}
++	}
++	wrapError := func(err error) *Error {
++		return &Error{
++			Filename: filename,
++			Pos:      line.Start,
++			Err:      err,
++		}
++	}
++	errorf := func(format string, args ...interface{}) *Error {
++		return wrapError(fmt.Errorf(format, args...))
++	}
++
++	arrow := 2
++	if len(args) >= 2 && args[1] == "=>" {
++		arrow = 1
++	}
++	if len(args) < arrow+2 || len(args) > arrow+3 || args[arrow] != "=>" {
++		return nil, errorf("usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory", verb, verb)
++	}
++	s, err := parseString(&args[0])
++	if err != nil {
++		return nil, errorf("invalid quoted string: %v", err)
++	}
++	pathMajor, err := modulePathMajor(s)
++	if err != nil {
++		return nil, wrapModPathError(s, err)
++
++	}
++	var v string
++	if arrow == 2 {
++		v, err = parseVersion(verb, s, &args[1], fix)
++		if err != nil {
++			return nil, wrapError(err)
++		}
++		if err := module.CheckPathMajor(v, pathMajor); err != nil {
++			return nil, wrapModPathError(s, err)
++		}
++	}
++	ns, err := parseString(&args[arrow+1])
++	if err != nil {
++		return nil, errorf("invalid quoted string: %v", err)
++	}
++	nv := ""
++	if len(args) == arrow+2 {
++		if !IsDirectoryPath(ns) {
++			return nil, errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
++		}
++		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
++			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
++		}
++	}
++	if len(args) == arrow+3 {
++		nv, err = parseVersion(verb, ns, &args[arrow+2], fix)
++		if err != nil {
++			return nil, wrapError(err)
++		}
++		if IsDirectoryPath(ns) {
++			return nil, errorf("replacement module directory path %q cannot have version", ns)
++
++		}
++	}
++	return &Replace{
++		Old:    module.Version{Path: s, Version: v},
++		New:    module.Version{Path: ns, Version: nv},
++		Syntax: line,
++	}, nil
++}
++
+ // fixRetract applies fix to each retract directive in f, appending any errors
+ // to errs.
+ //
+@@ -556,6 +577,63 @@ func (f *File) fixRetract(fix VersionFixer, errs *ErrorList) {
+ 	}
+ }
+ 
++func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string, fix VersionFixer) {
++	wrapError := func(err error) {
++		*errs = append(*errs, Error{
++			Filename: f.Syntax.Name,
++			Pos:      line.Start,
++			Err:      err,
++		})
++	}
++	errorf := func(format string, args ...interface{}) {
++		wrapError(fmt.Errorf(format, args...))
++	}
++
++	switch verb {
++	default:
++		errorf("unknown directive: %s", verb)
++
++	case "go":
++		if f.Go != nil {
++			errorf("repeated go statement")
++			return
++		}
++		if len(args) != 1 {
++			errorf("go directive expects exactly one argument")
++			return
++		} else if !GoVersionRE.MatchString(args[0]) {
++			errorf("invalid go version '%s': must match format 1.23", args[0])
++			return
++		}
++
++		f.Go = &Go{Syntax: line}
++		f.Go.Version = args[0]
++
++	case "directory":
++		if len(args) != 1 {
++			errorf("usage: %s local/dir", verb)
++			return
++		}
++		s, err := parseString(&args[0])
++		if err != nil {
++			errorf("invalid quoted string: %v", err)
++			return
++		}
++		f.Directory = append(f.Directory, &Directory{
++			Path:   s,
++			Syntax: line,
++		})
++
++	case "replace":
++		replace, wrappederr := parseReplace(f.Syntax.Name, line, verb, args, fix)
++		if wrappederr != nil {
++			*errs = append(*errs, *wrappederr)
++			return
++		}
++		f.Replace = append(f.Replace, replace)
++	}
++}
++
+ // IsDirectoryPath reports whether the given path should be interpreted
+ // as a directory path. Just like on the go command line, relative paths
+ // and rooted paths are directory paths; the rest are module paths.
+@@ -1165,6 +1243,10 @@ func (f *File) DropExclude(path, vers string) error {
+ }
+ 
+ func (f *File) AddReplace(oldPath, oldVers, newPath, newVers string) error {
++	return addReplace(f.Syntax, &f.Replace, oldPath, oldVers, newPath, newVers)
++}
++
++func addReplace(syntax *FileSyntax, replace *[]*Replace, oldPath, oldVers, newPath, newVers string) error {
+ 	need := true
+ 	old := module.Version{Path: oldPath, Version: oldVers}
+ 	new := module.Version{Path: newPath, Version: newVers}
+@@ -1178,12 +1260,12 @@ func (f *File) AddReplace(oldPath, oldVers, newPath, newVers string) error {
+ 	}
+ 
+ 	var hint *Line
+-	for _, r := range f.Replace {
++	for _, r := range *replace {
+ 		if r.Old.Path == oldPath && (oldVers == "" || r.Old.Version == oldVers) {
+ 			if need {
+ 				// Found replacement for old; update to use new.
+ 				r.New = new
+-				f.Syntax.updateLine(r.Syntax, tokens...)
++				syntax.updateLine(r.Syntax, tokens...)
+ 				need = false
+ 				continue
+ 			}
+@@ -1196,7 +1278,7 @@ func (f *File) AddReplace(oldPath, oldVers, newPath, newVers string) error {
+ 		}
+ 	}
+ 	if need {
+-		f.Replace = append(f.Replace, &Replace{Old: old, New: new, Syntax: f.Syntax.addLine(hint, tokens...)})
++		*replace = append(*replace, &Replace{Old: old, New: new, Syntax: syntax.addLine(hint, tokens...)})
+ 	}
+ 	return nil
+ }
+@@ -1282,30 +1364,36 @@ func (f *File) SortBlocks() {
+ // retract directives are not de-duplicated since comments are
+ // meaningful, and versions may be retracted multiple times.
+ func (f *File) removeDups() {
++	removeDups(f.Syntax, &f.Exclude, &f.Replace)
++}
++
++func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace) {
+ 	kill := make(map[*Line]bool)
+ 
+ 	// Remove duplicate excludes.
+-	haveExclude := make(map[module.Version]bool)
+-	for _, x := range f.Exclude {
+-		if haveExclude[x.Mod] {
+-			kill[x.Syntax] = true
+-			continue
++	if exclude != nil {
++		haveExclude := make(map[module.Version]bool)
++		for _, x := range *exclude {
++			if haveExclude[x.Mod] {
++				kill[x.Syntax] = true
++				continue
++			}
++			haveExclude[x.Mod] = true
+ 		}
+-		haveExclude[x.Mod] = true
+-	}
+-	var excl []*Exclude
+-	for _, x := range f.Exclude {
+-		if !kill[x.Syntax] {
+-			excl = append(excl, x)
++		var excl []*Exclude
++		for _, x := range *exclude {
++			if !kill[x.Syntax] {
++				excl = append(excl, x)
++			}
+ 		}
++		*exclude = excl
+ 	}
+-	f.Exclude = excl
+ 
+ 	// Remove duplicate replacements.
+ 	// Later replacements take priority over earlier ones.
+ 	haveReplace := make(map[module.Version]bool)
+-	for i := len(f.Replace) - 1; i >= 0; i-- {
+-		x := f.Replace[i]
++	for i := len(*replace) - 1; i >= 0; i-- {
++		x := (*replace)[i]
+ 		if haveReplace[x.Old] {
+ 			kill[x.Syntax] = true
+ 			continue
+@@ -1313,18 +1401,18 @@ func (f *File) removeDups() {
+ 		haveReplace[x.Old] = true
+ 	}
+ 	var repl []*Replace
+-	for _, x := range f.Replace {
++	for _, x := range *replace {
+ 		if !kill[x.Syntax] {
+ 			repl = append(repl, x)
+ 		}
+ 	}
+-	f.Replace = repl
++	*replace = repl
+ 
+ 	// Duplicate require and retract directives are not removed.
+ 
+ 	// Drop killed statements from the syntax tree.
+ 	var stmts []Expr
+-	for _, stmt := range f.Syntax.Stmt {
++	for _, stmt := range syntax.Stmt {
+ 		switch stmt := stmt.(type) {
+ 		case *Line:
+ 			if kill[stmt] {
+@@ -1344,7 +1432,7 @@ func (f *File) removeDups() {
+ 		}
+ 		stmts = append(stmts, stmt)
+ 	}
+-	f.Syntax.Stmt = stmts
++	syntax.Stmt = stmts
+ }
+ 
+ // lineLess returns whether li should be sorted before lj. It sorts
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/work.go b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+new file mode 100644
+index 0000000000..b1fabff51b
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/work.go
+@@ -0,0 +1,234 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package modfile
++
++import (
++	"fmt"
++	"sort"
++	"strings"
++)
++
++// A WorkFile is the parsed, interpreted form of a go.work file.
++type WorkFile struct {
++	Go        *Go
++	Directory []*Directory
++	Replace   []*Replace
++
++	Syntax *FileSyntax
++}
++
++// A Directory is a single directory statement.
++type Directory struct {
++	Path       string // Directory path of module.
++	ModulePath string // Module path in the comment.
++	Syntax     *Line
++}
++
++// ParseWork parses and returns a go.work file.
++//
++// file is the name of the file, used in positions and errors.
++//
++// data is the content of the file.
++//
++// fix is an optional function that canonicalizes module versions.
++// If fix is nil, all module versions must be canonical (module.CanonicalVersion
++// must return the same string).
++func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
++	fs, err := parse(file, data)
++	if err != nil {
++		return nil, err
++	}
++	f := &WorkFile{
++		Syntax: fs,
++	}
++	var errs ErrorList
++
++	for _, x := range fs.Stmt {
++		switch x := x.(type) {
++		case *Line:
++			f.add(&errs, x, x.Token[0], x.Token[1:], fix)
++
++		case *LineBlock:
++			if len(x.Token) > 1 {
++				errs = append(errs, Error{
++					Filename: file,
++					Pos:      x.Start,
++					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
++				})
++				continue
++			}
++			switch x.Token[0] {
++			default:
++				errs = append(errs, Error{
++					Filename: file,
++					Pos:      x.Start,
++					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
++				})
++				continue
++			case "directory", "replace":
++				for _, l := range x.Line {
++					f.add(&errs, l, x.Token[0], l.Token, fix)
++				}
++			}
++		}
++	}
++
++	if len(errs) > 0 {
++		return nil, errs
++	}
++	return f, nil
++}
++
++// Cleanup cleans up the file f after any edit operations.
++// To avoid quadratic behavior, modifications like DropRequire
++// clear the entry but do not remove it from the slice.
++// Cleanup cleans out all the cleared entries.
++func (f *WorkFile) Cleanup() {
++	w := 0
++	for _, r := range f.Directory {
++		if r.Path != "" {
++			f.Directory[w] = r
++			w++
++		}
++	}
++	f.Directory = f.Directory[:w]
++
++	w = 0
++	for _, r := range f.Replace {
++		if r.Old.Path != "" {
++			f.Replace[w] = r
++			w++
++		}
++	}
++	f.Replace = f.Replace[:w]
++
++	f.Syntax.Cleanup()
++}
++
++func (f *WorkFile) AddGoStmt(version string) error {
++	if !GoVersionRE.MatchString(version) {
++		return fmt.Errorf("invalid language version string %q", version)
++	}
++	if f.Go == nil {
++		stmt := &Line{Token: []string{"go", version}}
++		f.Go = &Go{
++			Version: version,
++			Syntax:  stmt,
++		}
++		// Find the first non-comment-only block that's and add
++		// the go statement before it. That will keep file comments at the top.
++		i := 0
++		for i = 0; i < len(f.Syntax.Stmt); i++ {
++			if _, ok := f.Syntax.Stmt[i].(*CommentBlock); !ok {
++				break
++			}
++		}
++		f.Syntax.Stmt = append(append(f.Syntax.Stmt[:i:i], stmt), f.Syntax.Stmt[i:]...)
++	} else {
++		f.Go.Version = version
++		f.Syntax.updateLine(f.Go.Syntax, "go", version)
++	}
++	return nil
++}
++
++func (f *WorkFile) AddDirectory(diskPath, modulePath string) error {
++	need := true
++	for _, d := range f.Directory {
++		if d.Path == diskPath {
++			if need {
++				d.ModulePath = modulePath
++				f.Syntax.updateLine(d.Syntax, "directory", AutoQuote(diskPath))
++				need = false
++			} else {
++				d.Syntax.markRemoved()
++				*d = Directory{}
++			}
++		}
++	}
++
++	if need {
++		f.AddNewDirectory(diskPath, modulePath)
++	}
++	return nil
++}
++
++func (f *WorkFile) AddNewDirectory(diskPath, modulePath string) {
++	line := f.Syntax.addLine(nil, "directory", AutoQuote(diskPath))
++	f.Directory = append(f.Directory, &Directory{Path: diskPath, ModulePath: modulePath, Syntax: line})
++}
++
++func (f *WorkFile) SetDirectory(dirs []*Directory) {
++	need := make(map[string]string)
++	for _, d := range dirs {
++		need[d.Path] = d.ModulePath
++	}
++
++	for _, d := range f.Directory {
++		if modulePath, ok := need[d.Path]; ok {
++			d.ModulePath = modulePath
++		} else {
++			d.Syntax.markRemoved()
++			*d = Directory{}
++		}
++	}
++
++	// TODO(#45713): Add module path to comment.
++
++	for diskPath, modulePath := range need {
++		f.AddNewDirectory(diskPath, modulePath)
++	}
++	f.SortBlocks()
++}
++
++func (f *WorkFile) DropDirectory(path string) error {
++	for _, d := range f.Directory {
++		if d.Path == path {
++			d.Syntax.markRemoved()
++			*d = Directory{}
++		}
++	}
++	return nil
++}
++
++func (f *WorkFile) AddReplace(oldPath, oldVers, newPath, newVers string) error {
++	return addReplace(f.Syntax, &f.Replace, oldPath, oldVers, newPath, newVers)
++}
++
++func (f *WorkFile) DropReplace(oldPath, oldVers string) error {
++	for _, r := range f.Replace {
++		if r.Old.Path == oldPath && r.Old.Version == oldVers {
++			r.Syntax.markRemoved()
++			*r = Replace{}
++		}
++	}
++	return nil
++}
++
++func (f *WorkFile) SortBlocks() {
++	f.removeDups() // otherwise sorting is unsafe
++
++	for _, stmt := range f.Syntax.Stmt {
++		block, ok := stmt.(*LineBlock)
++		if !ok {
++			continue
++		}
++		sort.SliceStable(block.Line, func(i, j int) bool {
++			return lineLess(block.Line[i], block.Line[j])
++		})
++	}
++}
++
++// removeDups removes duplicate replace directives.
++//
++// Later replace directives take priority.
++//
++// require directives are not de-duplicated. That's left up to higher-level
++// logic (MVS).
++//
++// retract directives are not de-duplicated since comments are
++// meaningful, and versions may be retracted multiple times.
++func (f *WorkFile) removeDups() {
++	removeDups(f.Syntax, nil, &f.Replace)
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 34dbdaf5dd..beceef5392 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-# golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a
++# golang.org/x/mod v0.4.3-0.20210723200715-e41a6a4f3b61
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

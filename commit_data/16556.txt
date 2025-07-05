@@ -8,8 +8,129 @@ Date:   Wed Jun 12 18:47:16 2013 +0400
     R=golang-dev, dave, daniel.morsing, iant
     CC=golang-dev, kcc
     https://golang.org/cl/10126044
-
+---
  misc/cgo/testasan/main.go  | 49 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/malloc.goc | 18 ++++++++++++-----
  src/run.bash               |  6 ++++++
  3 files changed, 68 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/testasan/main.go b/misc/cgo/testasan/main.go
+new file mode 100644
+index 0000000000..1837c6cc81
+--- /dev/null
++++ b/misc/cgo/testasan/main.go
+@@ -0,0 +1,49 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <sys/mman.h>
++#include <pthread.h>
++#include <unistd.h>
++
++void ctor(void) __attribute__((constructor));
++static void* thread(void*);
++
++void
++ctor(void)
++{
++	// occupy memory where Go runtime would normally map heap
++	mmap((void*)0x00c000000000, 64<<10, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
++
++	// allocate 4K every 10us
++	pthread_t t;
++	pthread_create(&t, 0, thread, 0);
++}
++
++static void*
++thread(void *p)
++{
++	for(;;) {
++		usleep(10000);
++		mmap(0, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
++	}
++	return 0;
++}
++*/
++import "C"
++
++import (
++	"time"
++)
++
++func main() {
++	// ensure that we can function normally
++	var v [][]byte
++	for i := 0; i < 1000; i++ {
++		time.Sleep(10 * time.Microsecond)
++		v = append(v, make([]byte, 64<<10))
++	}
++}
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index a1db66e1ad..f85a582bb8 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -303,6 +303,7 @@ runtime·mallocinit(void)
+ 	extern byte end[];
+ 	byte *want;
+ 	uintptr limit;
++	uint64 i;
+ 
+ 	p = nil;
+ 	arena_size = 0;
+@@ -330,15 +331,17 @@ runtime·mallocinit(void)
+ 		// 128 GB (MaxMem) should be big enough for now.
+ 		//
+ 		// The code will work with the reservation at any address, but ask
+-		// SysReserve to use 0x000000c000000000 if possible.
++		// SysReserve to use 0x0000XXc000000000 if possible (XX=00...7f).
+ 		// Allocating a 128 GB region takes away 37 bits, and the amd64
+ 		// doesn't let us choose the top 17 bits, so that leaves the 11 bits
+ 		// in the middle of 0x00c0 for us to choose.  Choosing 0x00c0 means
+-		// that the valid memory addresses will begin 0x00c0, 0x00c1, ..., 0x0x00df.
++		// that the valid memory addresses will begin 0x00c0, 0x00c1, ..., 0x00df.
+ 		// In little-endian, that's c0 00, c1 00, ..., df 00. None of those are valid
+ 		// UTF-8 sequences, and they are otherwise as far away from 
+-		// ff (likely a common byte) as possible. An earlier attempt to use 0x11f8 
+-		// caused out of memory errors on OS X during thread allocations.
++		// ff (likely a common byte) as possible.  If that fails, we try other 0xXXc0
++		// addresses.  An earlier attempt to use 0x11f8 caused out of memory errors
++		// on OS X during thread allocations.  0x00c0 causes conflicts with
++		// AddressSanitizer which reserves all memory up to 0x0100.
+ 		// These choices are both for debuggability and to reduce the
+ 		// odds of the conservative garbage collector not collecting memory
+ 		// because some non-pointer block of memory had a bit pattern
+@@ -353,7 +356,12 @@ runtime·mallocinit(void)
+ 		spans_size = arena_size / PageSize * sizeof(runtime·mheap.spans[0]);
+ 		// round spans_size to pages
+ 		spans_size = (spans_size + ((1<<PageShift) - 1)) & ~((1<<PageShift) - 1);
+-		p = runtime·SysReserve((void*)(0x00c0ULL<<32), bitmap_size + spans_size + arena_size);
++		for(i = 0; i <= 0x7f; i++) {
++			p = (void*)(i<<40 | 0x00c0ULL<<32);
++			p = runtime·SysReserve(p, bitmap_size + spans_size + arena_size);
++			if(p != nil)
++				break;
++		}
+ 	}
+ 	if (p == nil) {
+ 		// On a 32-bit machine, we can't typically get away
+diff --git a/src/run.bash b/src/run.bash
+index 03570ab328..685bc8279c 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -108,6 +108,12 @@ esac
+ ./test.bash
+ ) || exit $?
+ 
++[ "$CGO_ENABLED" != 1 ] ||
++[ "$GOHOSTOS-$GOARCH" != linux-amd64 ] ||
++(xcd ../misc/cgo/testasan
++go run main.go
++) || exit $?
++
+ (xcd ../doc/progs
+ time ./run
+ ) || exit $?

@@ -12,6 +12,19 @@ Date:   Sun Jan 20 19:14:58 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cgo/godefs.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/cgo/godefs.go b/src/cmd/cgo/godefs.go
+index 7185ea0de7..64384a606b 100644
+--- a/src/cmd/cgo/godefs.go
++++ b/src/cmd/cgo/godefs.go
+@@ -151,7 +151,6 @@ var gofmtLineReplacer = strings.NewReplacer(
+ 	"<\n", "<",
+ 	">\n", ">",
+ 	"=\n", "=",
+-	",\n", ",",
+ 	"\n", ";",
+ )
+ 

@@ -16,10 +16,100 @@ Date:   Thu Feb 6 15:32:40 2020 -0800
     Change-Id: Ic3f101bba50f58e3a1d9b29645066634631f2d61
     Reviewed-on: https://go-review.googlesource.com/c/go/+/218337
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go               | 11 ++++++++---
  src/cmd/compile/internal/syntax/testdata/issue23385.src |  9 +++++++--
  test/fixedbugs/issue18915.go                            |  6 +++---
  test/syntax/chan1.go                                    |  2 +-
  test/syntax/typesw.go                                   |  2 +-
  5 files changed, 20 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index f3c2c60ec8..469d9ad69b 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1886,11 +1886,16 @@ done:
+ 		// which turns an expression into an assignment. Provide
+ 		// a more explicit error message in that case to prevent
+ 		// further confusion.
+-		str := String(s)
++		var str string
+ 		if as, ok := s.(*AssignStmt); ok && as.Op == 0 {
+-			str = "assignment " + str
++			// Emphasize Lhs and Rhs of assignment with parentheses to highlight '='.
++			// Do it always - it's not worth going through the trouble of doing it
++			// only for "complex" left and right sides.
++			str = "assignment (" + String(as.Lhs) + ") = (" + String(as.Rhs) + ")"
++		} else {
++			str = String(s)
+ 		}
+-		p.syntaxError(fmt.Sprintf("%s used as value", str))
++		p.syntaxErrorAt(s.Pos(), fmt.Sprintf("cannot use %s as value", str))
+ 	}
+ 
+ 	p.xnest = outer
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue23385.src b/src/cmd/compile/internal/syntax/testdata/issue23385.src
+index 44abcd7e23..2459a7369b 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue23385.src
++++ b/src/cmd/compile/internal/syntax/testdata/issue23385.src
+@@ -6,7 +6,12 @@
+ 
+ package p
+ 
+-func f() {
+-	if true || 0 = 1 /* ERROR assignment .* used as value */ {
++func _() {
++	if true || 0 /* ERROR cannot use assignment .* as value */ = 1 {
++	}
++}
++
++func _(a, b string) {
++	if a == "a" && b /* ERROR cannot use assignment .* as value */ = "b" {
+ 	}
+ }
+diff --git a/test/fixedbugs/issue18915.go b/test/fixedbugs/issue18915.go
+index a432bbc17c..66e31e2556 100644
+--- a/test/fixedbugs/issue18915.go
++++ b/test/fixedbugs/issue18915.go
+@@ -10,12 +10,12 @@
+ package p
+ 
+ func _() {
+-	if a := 10 { // ERROR "a := 10 used as value"
++	if a := 10 { // ERROR "cannot use a := 10 as value"
+ 	}
+ 
+-	for b := 10 { // ERROR "b := 10 used as value"
++	for b := 10 { // ERROR "cannot use b := 10 as value"
+ 	}
+ 
+-	switch c := 10 { // ERROR "c := 10 used as value"
++	switch c := 10 { // ERROR "cannot use c := 10 as value"
+ 	}
+ }
+diff --git a/test/syntax/chan1.go b/test/syntax/chan1.go
+index 4eb63796ac..56103d1d79 100644
+--- a/test/syntax/chan1.go
++++ b/test/syntax/chan1.go
+@@ -10,7 +10,7 @@ var c chan int
+ var v int
+ 
+ func main() {
+-	if c <- v { // ERROR "used as value"
++	if c <- v { // ERROR "cannot use c <- v as value"
+ 	}
+ }
+ 
+diff --git a/test/syntax/typesw.go b/test/syntax/typesw.go
+index f9120e8851..3781933978 100644
+--- a/test/syntax/typesw.go
++++ b/test/syntax/typesw.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	switch main() := interface{}(nil).(type) {	// ERROR "invalid variable name|used as value"
++	switch main() := interface{}(nil).(type) {	// ERROR "invalid variable name|cannot use .* as value"
+ 	default:
+ 	}
+ }

@@ -8,7 +8,77 @@ Date:   Tue Mar 2 13:21:53 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/297931
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/goobj/builtinlist.go | 7 ++++---
  src/cmd/internal/goobj/mkbuiltin.go   | 4 ++--
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/builtinlist.go b/src/cmd/internal/goobj/builtinlist.go
+index 0cca752332..9f248137da 100644
+--- a/src/cmd/internal/goobj/builtinlist.go
++++ b/src/cmd/internal/goobj/builtinlist.go
+@@ -41,6 +41,7 @@ var builtins = [...]struct {
+ 	{"runtime.printcomplex", 1},
+ 	{"runtime.printstring", 1},
+ 	{"runtime.printpointer", 1},
++	{"runtime.printuintptr", 1},
+ 	{"runtime.printiface", 1},
+ 	{"runtime.printeface", 1},
+ 	{"runtime.printslice", 1},
+@@ -61,7 +62,6 @@ var builtins = [...]struct {
+ 	{"runtime.stringtoslicebyte", 1},
+ 	{"runtime.stringtoslicerune", 1},
+ 	{"runtime.slicecopy", 1},
+-	{"runtime.slicestringcopy", 1},
+ 	{"runtime.decoderune", 1},
+ 	{"runtime.countrunes", 1},
+ 	{"runtime.convI2I", 1},
+@@ -122,7 +122,6 @@ var builtins = [...]struct {
+ 	{"runtime.typedslicecopy", 1},
+ 	{"runtime.selectnbsend", 1},
+ 	{"runtime.selectnbrecv", 1},
+-	{"runtime.selectnbrecv2", 1},
+ 	{"runtime.selectsetpc", 1},
+ 	{"runtime.selectgo", 1},
+ 	{"runtime.block", 1},
+@@ -172,8 +171,9 @@ var builtins = [...]struct {
+ 	{"runtime.uint64tofloat64", 1},
+ 	{"runtime.uint32tofloat64", 1},
+ 	{"runtime.complex128div", 1},
++	{"runtime.getcallerpc", 1},
++	{"runtime.getcallersp", 1},
+ 	{"runtime.racefuncenter", 1},
+-	{"runtime.racefuncenterfp", 1},
+ 	{"runtime.racefuncexit", 1},
+ 	{"runtime.raceread", 1},
+ 	{"runtime.racewrite", 1},
+@@ -181,6 +181,7 @@ var builtins = [...]struct {
+ 	{"runtime.racewriterange", 1},
+ 	{"runtime.msanread", 1},
+ 	{"runtime.msanwrite", 1},
++	{"runtime.msanmove", 1},
+ 	{"runtime.checkptrAlignment", 1},
+ 	{"runtime.checkptrArithmetic", 1},
+ 	{"runtime.libfuzzerTraceCmp1", 1},
+diff --git a/src/cmd/internal/goobj/mkbuiltin.go b/src/cmd/internal/goobj/mkbuiltin.go
+index 4e46970648..18b969586c 100644
+--- a/src/cmd/internal/goobj/mkbuiltin.go
++++ b/src/cmd/internal/goobj/mkbuiltin.go
+@@ -5,7 +5,7 @@
+ //go:build ignore
+ // +build ignore
+ 
+-// Generate builtinlist.go from cmd/compile/internal/gc/builtin/runtime.go.
++// Generate builtinlist.go from cmd/compile/internal/typecheck/builtin/runtime.go.
+ 
+ package main
+ 
+@@ -54,7 +54,7 @@ func main() {
+ func mkbuiltin(w io.Writer) {
+ 	pkg := "runtime"
+ 	fset := token.NewFileSet()
+-	path := filepath.Join("..", "..", "compile", "internal", "gc", "builtin", "runtime.go")
++	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "builtin", "runtime.go")
+ 	f, err := parser.ParseFile(fset, path, nil, 0)
+ 	if err != nil {
+ 		log.Fatal(err)

@@ -20,7 +20,7 @@ Date:   Fri Sep 9 17:34:07 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/obj.go  |  29 -----
  src/cmd/link/internal/arm/obj.go    |  23 ----
  src/cmd/link/internal/arm64/obj.go  |  24 ----
@@ -35,3 +35,799 @@ Date:   Fri Sep 9 17:34:07 2016 -0400
  src/cmd/link/internal/s390x/obj.go  |   6 -
  src/cmd/link/internal/x86/obj.go    |  26 ----
  13 files changed, 250 insertions(+), 338 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 5f85b0b2b3..056f07d567 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -35,7 +35,6 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"fmt"
+-	"log"
+ )
+ 
+ // Reading object files.
+@@ -84,34 +83,6 @@ func linkarchinit() {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
+-	// Go was built; see ../../make.bash.
+-	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
+-		ld.Linkmode = ld.LinkInternal
+-	}
+-
+-	switch ld.Headtype {
+-	default:
+-		if ld.Linkmode == ld.LinkAuto {
+-			ld.Linkmode = ld.LinkInternal
+-		}
+-		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+-		}
+-
+-	case obj.Hdarwin,
+-		obj.Hdragonfly,
+-		obj.Hfreebsd,
+-		obj.Hlinux,
+-		obj.Hnacl,
+-		obj.Hnetbsd,
+-		obj.Hopenbsd,
+-		obj.Hsolaris,
+-		obj.Hwindows,
+-		obj.Hwindowsgui:
+-		break
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.Headtype)
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index d82c5a2583..9e365fd342 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -35,7 +35,6 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"fmt"
+-	"log"
+ )
+ 
+ // Reading object files.
+@@ -79,28 +78,6 @@ func linkarchinit() {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
+-	// Go was built; see ../../make.bash.
+-	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
+-		ld.Linkmode = ld.LinkInternal
+-	}
+-
+-	switch ld.Headtype {
+-	default:
+-		if ld.Linkmode == ld.LinkAuto {
+-			ld.Linkmode = ld.LinkInternal
+-		}
+-		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+-		}
+-
+-	case obj.Hlinux,
+-		obj.Hfreebsd,
+-		obj.Hnacl,
+-		obj.Hdarwin:
+-		break
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.Headtype)
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index c1d2ff5cc8..17ea9b1309 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -35,7 +35,6 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"fmt"
+-	"log"
+ )
+ 
+ // Reading object files.
+@@ -80,29 +79,6 @@ func linkarchinit() {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
+-	// Go was built; see ../../make.bash.
+-	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
+-		ld.Linkmode = ld.LinkInternal
+-	}
+-
+-	// Darwin/arm64 only supports external linking
+-	if ld.Headtype == obj.Hdarwin {
+-		ld.Linkmode = ld.LinkExternal
+-	}
+-
+-	switch ld.Headtype {
+-	default:
+-		if ld.Linkmode == ld.LinkAuto {
+-			ld.Linkmode = ld.LinkInternal
+-		}
+-		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+-		}
+-	case obj.Hlinux, obj.Hdarwin:
+-		break
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.Headtype)
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+new file mode 100644
+index 0000000000..ff6ec10d77
+--- /dev/null
++++ b/src/cmd/link/internal/ld/config.go
+@@ -0,0 +1,242 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/obj"
++	"cmd/internal/sys"
++	"fmt"
++	"log"
++)
++
++var (
++	Linkmode  LinkMode
++	Buildmode BuildMode
++)
++
++// A BuildMode indicates the sort of object we are building.
++//
++// Possible build modes are the same as those for the -buildmode flag
++// in cmd/go, and are documented in 'go help buildmode'.
++type BuildMode uint8
++
++const (
++	BuildmodeUnset BuildMode = iota
++	BuildmodeExe
++	BuildmodePIE
++	BuildmodeCArchive
++	BuildmodeCShared
++	BuildmodeShared
++	BuildmodePlugin
++)
++
++func (mode *BuildMode) Set(s string) error {
++	badmode := func() error {
++		return fmt.Errorf("buildmode %s not supported on %s/%s", s, obj.GOOS, obj.GOARCH)
++	}
++	switch s {
++	default:
++		return fmt.Errorf("invalid buildmode: %q", s)
++	case "exe":
++		*mode = BuildmodeExe
++	case "pie":
++		switch obj.GOOS {
++		case "android", "linux":
++		default:
++			return badmode()
++		}
++		*mode = BuildmodePIE
++	case "c-archive":
++		switch obj.GOOS {
++		case "darwin", "linux":
++		case "windows":
++			switch obj.GOARCH {
++			case "amd64", "386":
++			default:
++				return badmode()
++			}
++		default:
++			return badmode()
++		}
++		*mode = BuildmodeCArchive
++	case "c-shared":
++		switch obj.GOARCH {
++		case "386", "amd64", "arm", "arm64":
++		default:
++			return badmode()
++		}
++		*mode = BuildmodeCShared
++	case "shared":
++		switch obj.GOOS {
++		case "linux":
++			switch obj.GOARCH {
++			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
++			default:
++				return badmode()
++			}
++		default:
++			return badmode()
++		}
++		*mode = BuildmodeShared
++	case "plugin":
++		switch obj.GOOS {
++		case "linux":
++			switch obj.GOARCH {
++			case "386", "amd64", "arm", "arm64":
++			default:
++				return badmode()
++			}
++		default:
++			return badmode()
++		}
++		*mode = BuildmodePlugin
++	}
++	return nil
++}
++
++func (mode *BuildMode) String() string {
++	switch *mode {
++	case BuildmodeUnset:
++		return "" // avoid showing a default in usage message
++	case BuildmodeExe:
++		return "exe"
++	case BuildmodePIE:
++		return "pie"
++	case BuildmodeCArchive:
++		return "c-archive"
++	case BuildmodeCShared:
++		return "c-shared"
++	case BuildmodeShared:
++		return "shared"
++	case BuildmodePlugin:
++		return "plugin"
++	}
++	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
++}
++
++// LinkMode indicates whether an external linker is used for the final link.
++type LinkMode uint8
++
++const (
++	LinkAuto LinkMode = iota
++	LinkInternal
++	LinkExternal
++)
++
++func (mode *LinkMode) Set(s string) error {
++	switch s {
++	default:
++		return fmt.Errorf("invalid linkmode: %q", s)
++	case "auto":
++		*mode = LinkAuto
++	case "internal":
++		*mode = LinkInternal
++	case "external":
++		*mode = LinkExternal
++	}
++	return nil
++}
++
++func (mode *LinkMode) String() string {
++	switch *mode {
++	case LinkAuto:
++		return "auto"
++	case LinkInternal:
++		return "internal"
++	case LinkExternal:
++		return "external"
++	}
++	return fmt.Sprintf("LinkMode(%d)", uint8(*mode))
++}
++
++// mustLinkExternal reports whether the program being linked requires
++// the external linker be used to complete the link.
++func mustLinkExternal(ctxt *Link) (res bool, reason string) {
++	if ctxt.Debugvlog > 1 {
++		defer func() {
++			if res {
++				log.Printf("external linking is forced by: %s\n", reason)
++			}
++		}()
++	}
++
++	switch obj.GOOS {
++	case "android":
++		return true, "android"
++	case "darwin":
++		if SysArch.InFamily(sys.ARM, sys.ARM64) {
++			return true, "iOS"
++		}
++	}
++
++	if *flagMsan {
++		return true, "msan"
++	}
++
++	// Internally linking cgo is incomplete on some architectures.
++	// https://golang.org/issue/10373
++	// https://golang.org/issue/14449
++	if iscgo && SysArch.InFamily(sys.ARM64, sys.MIPS64) {
++		return true, obj.GOARCH + " does not support internal cgo"
++	}
++
++	// Some build modes require work the internal linker cannot do (yet).
++	switch Buildmode {
++	case BuildmodeCArchive:
++		return true, "buildmode=c-archive"
++	case BuildmodeCShared:
++		return true, "buildmode=c-shared"
++	case BuildmodePIE:
++		switch obj.GOOS + "/" + obj.GOARCH {
++		case "linux/amd64":
++		default:
++			// Internal linking does not support TLS_IE.
++			return true, "buildmode=pie"
++		}
++	case BuildmodeShared:
++		return true, "buildmode=shared"
++	}
++	if *FlagLinkshared {
++		return true, "dynamically linking with a shared library"
++	}
++
++	return false, ""
++}
++
++// determineLinkMode sets Linkmode.
++//
++// It is called after flags are processed and inputs are processed,
++// so the Linkmode variable has an initial value from the -linkmode
++// flag and the iscgo externalobj variables are set.
++func determineLinkMode(ctxt *Link) {
++	switch Linkmode {
++	case LinkAuto:
++		// The environment variable GO_EXTLINK_ENABLED controls the
++		// default value of -linkmode. If it is not set when the
++		// linker is called we take the value it was set to when
++		// cmd/link was compiled. (See make.bash.)
++		switch obj.Getgoextlinkenabled() {
++		case "0":
++			if needed, reason := mustLinkExternal(ctxt); needed {
++				Exitf("internal linking requested via GO_EXTLINK_ENABLED, but external linking required: %s", reason)
++			}
++			Linkmode = LinkInternal
++		case "1":
++			Linkmode = LinkExternal
++		default:
++			if needed, _ := mustLinkExternal(ctxt); needed {
++				Linkmode = LinkExternal
++			} else if iscgo && externalobj {
++				Linkmode = LinkExternal
++			} else {
++				Linkmode = LinkInternal
++			}
++		}
++	case LinkInternal:
++		if needed, reason := mustLinkExternal(ctxt); needed {
++			Exitf("internal linking requested but external linking required: %s", reason)
++		}
++	}
++}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 89fc8ddca6..5e95774c03 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -419,15 +419,3 @@ func importcycles() {
+ 		p.cycle()
+ 	}
+ }
+-
+-func setlinkmode(arg string) {
+-	if arg == "internal" {
+-		Linkmode = LinkInternal
+-	} else if arg == "external" {
+-		Linkmode = LinkExternal
+-	} else if arg == "auto" {
+-		Linkmode = LinkAuto
+-	} else {
+-		Exitf("unknown link mode -linkmode %s", arg)
+-	}
+-}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index dada4cb7a7..95f8969274 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -198,7 +198,6 @@ var (
+ 	Headtype obj.HeadType
+ 
+ 	nerrors  int
+-	Linkmode int
+ 	liveness int64
+ )
+ 
+@@ -441,49 +440,12 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
+-	if Linkmode == LinkAuto {
+-		if iscgo && externalobj {
+-			Linkmode = LinkExternal
+-		} else {
+-			Linkmode = LinkInternal
+-		}
+-
+-		// Force external linking for android.
+-		if obj.GOOS == "android" {
+-			Linkmode = LinkExternal
+-		}
+-
+-		// These build modes depend on the external linker
+-		// to handle some relocations (such as TLS IE) not
+-		// yet supported by the internal linker.
+-		switch Buildmode {
+-		case BuildmodeCArchive, BuildmodeCShared, BuildmodePIE, BuildmodePlugin, BuildmodeShared:
+-			Linkmode = LinkExternal
+-		}
+-		if *FlagLinkshared {
+-			Linkmode = LinkExternal
+-		}
+-
+-		// cgo on Darwin must use external linking
+-		// we can always use external linking, but then there will be circular
+-		// dependency problems when compiling natively (external linking requires
+-		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
+-		// compiled using external linking.)
+-		if SysArch.InFamily(sys.ARM, sys.ARM64) && Headtype == obj.Hdarwin && iscgo {
+-			Linkmode = LinkExternal
+-		}
+-
+-		// Force external linking for msan.
+-		if *flagMsan {
+-			Linkmode = LinkExternal
+-		}
+-	}
++	// We now have enough information to determine the link mode.
++	determineLinkMode(ctxt)
+ 
+-	// cmd/7l doesn't support cgo internal linking
+-	// This is https://golang.org/issue/10373.
+-	// mips64x doesn't support cgo internal linking either (golang.org/issue/14449)
+-	if iscgo && (obj.GOARCH == "arm64" || obj.GOARCH == "mips64" || obj.GOARCH == "mips64le") {
+-		Linkmode = LinkExternal
++	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
++		toc := Linklookup(ctxt, ".TOC.", 0)
++		toc.Type = obj.SDYNIMPORT
+ 	}
+ 
+ 	if Linkmode == LinkExternal && !iscgo {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 9b93e0336a..7fd436fd97 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -159,6 +159,8 @@ type Shlib struct {
+ 	gcdataAddresses map[*Symbol]uint64
+ }
+ 
++// Link holds the context for writing object code from a compiler
++// or for reading that input into the linker.
+ type Link struct {
+ 	Arch      *sys.Arch
+ 	Debugvlog int
+@@ -265,17 +267,3 @@ const (
+ 	RV_CHECK_OVERFLOW = 1 << 8
+ 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
+ )
+-
+-// Pcdata iterator.
+-//	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+-
+-// Link holds the context for writing object code from a compiler
+-// to be linker input or for reading that input into the linker.
+-
+-// LinkArch is the definition of a single architecture.
+-
+-const (
+-	LinkAuto = 0 + iota
+-	LinkInternal
+-	LinkExternal
+-)
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index c480cc531a..a0486e6cd6 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -48,6 +48,7 @@ var (
+ )
+ 
+ func init() {
++	flag.Var(&Linkmode, "linkmode", "set link `mode`")
+ 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
+ 	flag.Var(&Headtype, "H", "set header `type`")
+ 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
+@@ -59,7 +60,6 @@ var (
+ 
+ 	flagOutfile    = flag.String("o", "", "write output to `file`")
+ 	FlagLinkshared = flag.Bool("linkshared", false, "link against installed Go shared libraries")
+-	Buildmode      BuildMode
+ 
+ 	flagInstallSuffix = flag.String("installsuffix", "", "set package directory `suffix`")
+ 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
+@@ -120,7 +120,6 @@ func Main() {
+ 	obj.Flagfn0("V", "print version and exit", doversion)
+ 	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
+ 	obj.Flagcount("v", "print link trace", &ctxt.Debugvlog)
+-	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
+ 
+ 	obj.Flagparse(usage)
+ 
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 319a69e364..88b82e62e1 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -34,7 +34,6 @@ package ld
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+-	"fmt"
+ 	"log"
+ )
+ 
+@@ -166,107 +165,3 @@ func Linklookup(ctxt *Link, name string, v int) *Symbol {
+ func Linkrlookup(ctxt *Link, name string, v int) *Symbol {
+ 	return ctxt.Hash[v][name]
+ }
+-
+-// A BuildMode indicates the sort of object we are building:
+-//   "exe": build a main package and everything it imports into an executable.
+-//   "c-shared": build a main package, plus all packages that it imports, into a
+-//     single C shared library. The only callable symbols will be those functions
+-//     marked as exported.
+-//   "shared": combine all packages passed on the command line, and their
+-//     dependencies, into a single shared library that will be used when
+-//     building with the -linkshared option.
+-type BuildMode uint8
+-
+-const (
+-	BuildmodeUnset BuildMode = iota
+-	BuildmodeExe
+-	BuildmodePIE
+-	BuildmodeCArchive
+-	BuildmodeCShared
+-	BuildmodeShared
+-	BuildmodePlugin
+-)
+-
+-func (mode *BuildMode) Set(s string) error {
+-	badmode := func() error {
+-		return fmt.Errorf("buildmode %s not supported on %s/%s", s, obj.GOOS, obj.GOARCH)
+-	}
+-	switch s {
+-	default:
+-		return fmt.Errorf("invalid buildmode: %q", s)
+-	case "exe":
+-		*mode = BuildmodeExe
+-	case "pie":
+-		switch obj.GOOS {
+-		case "android", "linux":
+-		default:
+-			return badmode()
+-		}
+-		*mode = BuildmodePIE
+-	case "c-archive":
+-		switch obj.GOOS {
+-		case "darwin", "linux":
+-		case "windows":
+-			switch obj.GOARCH {
+-			case "amd64", "386":
+-			default:
+-				return badmode()
+-			}
+-		default:
+-			return badmode()
+-		}
+-		*mode = BuildmodeCArchive
+-	case "c-shared":
+-		switch obj.GOARCH {
+-		case "386", "amd64", "arm", "arm64":
+-		default:
+-			return badmode()
+-		}
+-		*mode = BuildmodeCShared
+-	case "shared":
+-		switch obj.GOOS {
+-		case "linux":
+-			switch obj.GOARCH {
+-			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+-			default:
+-				return badmode()
+-			}
+-		default:
+-			return badmode()
+-		}
+-		*mode = BuildmodeShared
+-	case "plugin":
+-		switch obj.GOOS {
+-		case "linux":
+-			switch obj.GOARCH {
+-			case "386", "amd64", "arm", "arm64":
+-			default:
+-				return badmode()
+-			}
+-		default:
+-			return badmode()
+-		}
+-		*mode = BuildmodePlugin
+-	}
+-	return nil
+-}
+-
+-func (mode *BuildMode) String() string {
+-	switch *mode {
+-	case BuildmodeUnset:
+-		return "" // avoid showing a default in usage message
+-	case BuildmodeExe:
+-		return "exe"
+-	case BuildmodePIE:
+-		return "pie"
+-	case BuildmodeCArchive:
+-		return "c-archive"
+-	case BuildmodeCShared:
+-		return "c-shared"
+-	case BuildmodeShared:
+-		return "shared"
+-	case BuildmodePlugin:
+-		return "plugin"
+-	}
+-	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
+-}
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 0750242b76..ddb30d25ed 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -35,7 +35,6 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"fmt"
+-	"log"
+ )
+ 
+ // Reading object files.
+@@ -93,25 +92,6 @@ func linkarchinit() {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
+-	// Go was built; see ../../make.bash.
+-	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
+-		ld.Linkmode = ld.LinkInternal
+-	}
+-
+-	switch ld.Headtype {
+-	default:
+-		if ld.Linkmode == ld.LinkAuto {
+-			ld.Linkmode = ld.LinkInternal
+-		}
+-		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+-		}
+-
+-	case obj.Hlinux:
+-		break
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.Headtype)
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 6dd18096ef..caaa3b87aa 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -35,7 +35,6 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"fmt"
+-	"log"
+ )
+ 
+ // Reading object files.
+@@ -94,39 +93,6 @@ func linkarchinit() {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
+-	// Go was built; see ../../make.bash.
+-	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
+-		ld.Linkmode = ld.LinkInternal
+-	}
+-
+-	switch ld.Buildmode {
+-	case ld.BuildmodePIE, ld.BuildmodeShared:
+-		ld.Linkmode = ld.LinkExternal
+-	}
+-
+-	if *ld.FlagLinkshared {
+-		ld.Linkmode = ld.LinkExternal
+-	}
+-
+-	if ld.Linkmode == ld.LinkExternal {
+-		toc := ld.Linklookup(ctxt, ".TOC.", 0)
+-		toc.Type = obj.SDYNIMPORT
+-	}
+-
+-	switch ld.Headtype {
+-	default:
+-		if ld.Linkmode == ld.LinkAuto {
+-			ld.Linkmode = ld.LinkInternal
+-		}
+-		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+-		}
+-
+-	case obj.Hlinux:
+-		break
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.Headtype)
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 67ad3b70ae..721f2ce5e8 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -80,12 +80,6 @@ func linkarchinit() {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
+-	// Go was built; see ../../make.bash.
+-	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
+-		ld.Linkmode = ld.LinkInternal
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.Headtype)
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 088a446b33..49475a7ee6 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -35,7 +35,6 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+ 	"fmt"
+-	"log"
+ )
+ 
+ // Reading object files.
+@@ -79,31 +78,6 @@ func linkarchinit() {
+ }
+ 
+ func archinit(ctxt *ld.Link) {
+-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
+-	// Go was built; see ../../make.bash.
+-	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
+-		ld.Linkmode = ld.LinkInternal
+-	}
+-
+-	switch ld.Headtype {
+-	default:
+-		if ld.Linkmode == ld.LinkAuto {
+-			ld.Linkmode = ld.LinkInternal
+-		}
+-		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+-			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
+-		}
+-
+-	case obj.Hdarwin,
+-		obj.Hfreebsd,
+-		obj.Hlinux,
+-		obj.Hnetbsd,
+-		obj.Hopenbsd,
+-		obj.Hwindows,
+-		obj.Hwindowsgui:
+-		break
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.Headtype)

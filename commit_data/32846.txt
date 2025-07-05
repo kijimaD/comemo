@@ -13,9 +13,62 @@ Date:   Wed May 24 20:37:53 2017 +0300
     Change-Id: If3f5703d3f60abd96482b58ca43450d02a9e645a
     Reviewed-on: https://go-review.googlesource.com/44071
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/sync/atomic/value.go | 1 -
  src/sync/cond.go         | 1 -
  src/sync/mutex.go        | 3 +--
  src/sync/rwmutex.go      | 3 +--
  4 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/sync/atomic/value.go b/src/sync/atomic/value.go
+index 30abf72634..1fc1f681f2 100644
+--- a/src/sync/atomic/value.go
++++ b/src/sync/atomic/value.go
+@@ -9,7 +9,6 @@ import (
+ )
+ 
+ // A Value provides an atomic load and store of a consistently typed value.
+-// Values can be created as part of other data structures.
+ // The zero value for a Value returns nil from Load.
+ // Once Store has been called, a Value must not be copied.
+ //
+diff --git a/src/sync/cond.go b/src/sync/cond.go
+index c070d9d84e..14e2f6b24d 100644
+--- a/src/sync/cond.go
++++ b/src/sync/cond.go
+@@ -17,7 +17,6 @@ import (
+ // which must be held when changing the condition and
+ // when calling the Wait method.
+ //
+-// A Cond can be created as part of other structures.
+ // A Cond must not be copied after first use.
+ type Cond struct {
+ 	noCopy noCopy
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 506b23f6ff..1232c629b1 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -19,8 +19,7 @@ import (
+ func throw(string) // provided by runtime
+ 
+ // A Mutex is a mutual exclusion lock.
+-// Mutexes can be created as part of other structures;
+-// the zero value for a Mutex is an unlocked mutex.
++// The zero value for a Mutex is an unlocked mutex.
+ //
+ // A Mutex must not be copied after first use.
+ type Mutex struct {
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 55b69f2bb8..a8607d9167 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -12,8 +12,7 @@ import (
+ 
+ // An RWMutex is a reader/writer mutual exclusion lock.
+ // The lock can be held by an arbitrary number of readers or a single writer.
+-// RWMutexes can be created as part of other structures;
+-// the zero value for a RWMutex is an unlocked mutex.
++// The zero value for a RWMutex is an unlocked mutex.
+ //
+ // An RWMutex must not be copied after first use.
+ //

@@ -12,7 +12,50 @@ Date:   Mon Jul 30 13:57:30 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6442061
-
+---
  src/pkg/net/http/fs.go      |  3 ++-
  src/pkg/net/http/fs_test.go | 17 +++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 396bffe9c9..208d6cabb2 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -28,7 +28,8 @@ import (
+ type Dir string
+ 
+ func (d Dir) Open(name string) (File, error) {
+-	if filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 {
++	if filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 ||
++		strings.Contains(name, "\x00") {
+ 		return nil, errors.New("http: invalid character in file path")
+ 	}
+ 	dir := string(d)
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 35c6ba617e..0ebec8ce57 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -389,6 +389,23 @@ func TestServeIndexHtml(t *testing.T) {
+ 	}
+ }
+ 
++func TestFileServerZeroByte(t *testing.T) {
++	ts := httptest.NewServer(FileServer(Dir(".")))
++	defer ts.Close()
++
++	res, err := Get(ts.URL + "/..\x00")
++	if err != nil {
++		t.Fatal(err)
++	}
++	b, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Fatal("reading Body:", err)
++	}
++	if res.StatusCode == 200 {
++		t.Errorf("got status 200; want an error. Body is:\n%s", string(b))
++	}
++}
++
+ type fakeFileInfo struct {
+ 	dir      bool
+ 	basename string

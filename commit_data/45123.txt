@@ -15,10 +15,103 @@ Date:   Fri Oct 2 15:48:50 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/test/testdata/issue41761.go    | 20 ++++++++++++++++++++
  misc/cgo/test/testdata/issue41761a/a.go | 14 ++++++++++++++
  src/cmd/compile/internal/gc/iexport.go  |  2 ++
  src/cmd/compile/internal/gc/iimport.go  |  2 +-
  src/cmd/compile/internal/gc/lex.go      |  2 +-
  5 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/testdata/issue41761.go b/misc/cgo/test/testdata/issue41761.go
+new file mode 100644
+index 0000000000..919c749251
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue41761.go
+@@ -0,0 +1,20 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++   typedef struct S S;
++*/
++import "C"
++
++import (
++	"cgotest/issue41761a"
++	"testing"
++)
++
++func test41761(t *testing.T) {
++	var x issue41761a.T
++	_ = (*C.struct_S)(x.X)
++}
+diff --git a/misc/cgo/test/testdata/issue41761a/a.go b/misc/cgo/test/testdata/issue41761a/a.go
+new file mode 100644
+index 0000000000..ca5c18191e
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue41761a/a.go
+@@ -0,0 +1,14 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue41761a
++
++/*
++   typedef struct S S;
++*/
++import "C"
++
++type T struct {
++	X *C.S
++}
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index b3f50b63af..3be3b0a213 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1017,6 +1017,8 @@ func (w *exportWriter) symIdx(s *types.Sym) {
+ }
+ 
+ func (w *exportWriter) typeExt(t *types.Type) {
++	// Export whether this type is marked notinheap.
++	w.bool(t.NotInHeap())
+ 	// For type T, export the index of type descriptor symbols of T and *T.
+ 	if i, ok := typeSymIdx[t]; ok {
+ 		w.int64(i[0])
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 4169222c14..0c5e469c57 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -596,7 +596,6 @@ func (r *importReader) typ1() *types.Type {
+ 
+ 		// Ensure we expand the interface in the frontend (#25055).
+ 		checkwidth(t)
+-
+ 		return t
+ 	}
+ }
+@@ -711,6 +710,7 @@ func (r *importReader) symIdx(s *types.Sym) {
+ }
+ 
+ func (r *importReader) typeExt(t *types.Type) {
++	t.SetNotInHeap(r.bool())
+ 	i, pi := r.int64(), r.int64()
+ 	if i != -1 && pi != -1 {
+ 		typeSymIdx[t] = [2]int64{i, pi}
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 1a344c6566..25bc0399ce 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -48,7 +48,7 @@ const (
+ 	Nowritebarrierrec  // error on write barrier in this or recursive callees
+ 	Yeswritebarrierrec // cancels Nowritebarrierrec in this function and callees
+ 
+-	// Runtime-only type pragmas
++	// Runtime and cgo type pragmas
+ 	NotInHeap // values of this type must not be heap allocated
+ )
+ 

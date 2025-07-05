@@ -20,6 +20,27 @@ Date:   Tue May 14 08:56:12 2024 +0200
     Run-TryBot: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/netip/inlining_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/netip/inlining_test.go b/src/net/netip/inlining_test.go
+index 6098c9619b..f5eb30df90 100644
+--- a/src/net/netip/inlining_test.go
++++ b/src/net/netip/inlining_test.go
+@@ -31,7 +31,6 @@ func TestInlining(t *testing.T) {
+ 	})
+ 	wantInlinable := []string{
+ 		"(*uint128).halves",
+-		"Addr.AsSlice",
+ 		"Addr.BitLen",
+ 		"Addr.hasZone",
+ 		"Addr.Is4",
+@@ -81,6 +80,7 @@ func TestInlining(t *testing.T) {
+ 	case "amd64", "arm64":
+ 		// These don't inline on 32-bit.
+ 		wantInlinable = append(wantInlinable,
++			"Addr.AsSlice",
+ 			"Addr.Next",
+ 			"Addr.Prev",
+ 		)

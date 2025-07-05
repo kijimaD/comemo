@@ -7,6 +7,24 @@ Date:   Fri May 27 09:52:15 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4515142
-
+---
  src/pkg/os/path_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 483bb63953..1aabe46fb7 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -29,10 +29,11 @@ func TestMkdirAll(t *testing.T) {
+ 
+ 	// Make file.
+ 	fpath := path + "/file"
+-	_, err = Create(fpath)
++	f, err := Create(fpath)
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err)
+ 	}
++	defer f.Close()
+ 
+ 	// Can't make directory named after file.
+ 	err = MkdirAll(fpath, 0777)

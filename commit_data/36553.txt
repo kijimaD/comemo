@@ -12,6 +12,23 @@ Date:   Fri May 4 16:44:05 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/111636
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 7379b886cc..c839438ba3 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1622,6 +1622,11 @@ func (b *Builder) Mkdir(dir string) error {
+ 
+ // symlink creates a symlink newname -> oldname.
+ func (b *Builder) Symlink(oldname, newname string) error {
++	// It's not an error to try to recreate an existing symlink.
++	if link, err := os.Readlink(newname); err == nil && link == oldname {
++		return nil
++	}
++
+ 	if cfg.BuildN || cfg.BuildX {
+ 		b.Showcmd("", "ln -s %s %s", oldname, newname)
+ 		if cfg.BuildN {

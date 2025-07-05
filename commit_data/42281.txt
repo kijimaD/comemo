@@ -17,7 +17,41 @@ Date:   Thu Nov 21 12:50:14 2019 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/list.go        | 4 ++--
  src/cmd/go/testdata/script/mod_outside.txt | 7 +++++++
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index c4327276bf..9400793bcb 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -57,8 +57,8 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
+ 		if search.IsRelativePath(arg) {
+ 			base.Fatalf("go: cannot use relative path %s to specify module", arg)
+ 		}
+-		if !HasModRoot() && arg == "all" {
+-			base.Fatalf(`go: cannot match "all": working directory is not part of a module`)
++		if !HasModRoot() && (arg == "all" || strings.Contains(arg, "...")) {
++			base.Fatalf("go: cannot match %q: working directory is not part of a module", arg)
+ 		}
+ 		if i := strings.Index(arg, "@"); i >= 0 {
+ 			path := arg[:i]
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 34570c76c2..03ef576168 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -56,6 +56,13 @@ stderr 'go: cannot match "all": working directory is not part of a module'
+ stderr 'go: cannot match "all": working directory is not part of a module'
+ ! stdout 'example.com/version'
+ 
++# 'go list -m' with wildcards should fail. Wildcards match modules in the
++# build list, so they aren't meaningful outside a module.
++! go list -m ...
++stderr 'go: cannot match "...": working directory is not part of a module'
++! go list -m rsc.io/quote/...
++stderr 'go: cannot match "rsc.io/quote/...": working directory is not part of a module'
++
+ 
+ # 'go clean' should skip the current directory if it isn't in a module.
+ go clean -n

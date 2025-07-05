@@ -13,6 +13,19 @@ Date:   Tue Feb 24 11:11:56 2015 -0500
     Change-Id: Id1a8edae104d974fcf5f9333274f958625467f79
     Reviewed-on: https://go-review.googlesource.com/5752
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/malloc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index fac5ca49ce..6a2c85aa9f 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -292,6 +292,7 @@ func mallocinit() {
+ 		arenaSizes := []uintptr{
+ 			512 << 20,
+ 			256 << 20,
++			128 << 20,
+ 		}
+ 
+ 		for _, arenaSize := range arenaSizes {

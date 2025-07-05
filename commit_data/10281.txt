@@ -7,7 +7,49 @@ Date:   Tue Nov 8 10:11:07 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5364041
-
+---
  src/cmd/gotest/doc.go    | 1 +
  src/cmd/gotest/gotest.go | 9 +++++++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index aedc55f11e..c0a972af8c 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -37,6 +37,7 @@ os.Stdout and os.Stderr is compared against their doc comment.
+ 
+ Multiple example functions may be provided for a given name XXX if they are
+ discriminated by a distinct suffix starting with "_", such as ExampleXXX_2.
++Example functions without doc comments are compiled but not executed.
+ 
+ See the documentation of the testing package for more information.
+ 
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 9a4d2e916d..e8e2ec892f 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -231,9 +231,14 @@ func getTestNames() {
+ 			} else if isTest(name, "Benchmark") {
+ 				f.benchmarks = append(f.benchmarks, name)
+ 			} else if isTest(name, "Example") {
++				output := doc.CommentText(n.Doc)
++				if output == "" {
++					// Don't run examples with no output.
++					continue
++				}
+ 				f.examples = append(f.examples, example{
+ 					name:   name,
+-					output: doc.CommentText(n.Doc),
++					output: output,
+ 				})
+ 			}
+ 			// TODO: worth checking the signature? Probably not.
+@@ -372,7 +377,7 @@ func writeTestmainGo() {
+ 	insideTests := false
+ 	for _, f := range files {
+ 		//println(f.name, f.pkg)
+-		if len(f.tests) == 0 && len(f.benchmarks) == 0 {
++		if len(f.tests) == 0 && len(f.benchmarks) == 0 && len(f.examples) == 0 {
+ 			continue
+ 		}
+ 		if isOutsideTest(f.pkg) {

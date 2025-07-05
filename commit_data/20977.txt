@@ -8,7 +8,32 @@ Date:   Fri Oct 31 09:37:11 2014 -0700
     R=adg, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/162580043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 3caf870358..cea02ac3ec 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -167,6 +167,7 @@ Francisco Souza <franciscossouza@gmail.com>
+ Frederick Kelly Mayle III <frederickmayle@gmail.com>
+ Fredrik Enestad <fredrik.enestad@soundtrackyourbrand.com>
+ Frithjof Schulze <schulze@math.uni-hannover.de> <sfrithjof@gmail.com>
++Gabriel Aszalos <gabriel.aszalos@gmail.com>
+ Gary Burd <gary@beagledreams.com>
+ Gautham Thambidorai <gautham.dorai@gmail.com>
+ Georg Reinke <guelfey@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b4435b0e6d..8c5ceea8a6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -241,6 +241,7 @@ Fredrik Enestad <fredrik.enestad@soundtrackyourbrand.com>
+ Frithjof Schulze <schulze@math.uni-hannover.de> <sfrithjof@gmail.com>
+ Fumitoshi Ukai <ukai@google.com>
+ Gaal Yahas <gaal@google.com>
++Gabriel Aszalos <gabriel.aszalos@gmail.com>
+ Gary Burd <gary@beagledreams.com> <gary.burd@gmail.com>
+ Gautham Thambidorai <gautham.dorai@gmail.com>
+ Georg Reinke <guelfey@gmail.com>

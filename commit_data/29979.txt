@@ -63,10 +63,441 @@ Date:   Wed Oct 19 10:31:15 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/request.go           | 60 ++++++++--------------------
  src/net/http/request_test.go      | 38 ++++++++++++++----
  src/net/http/requestwrite_test.go | 82 ++++++++++++++++++++++++---------------
  src/net/http/transfer.go          |  3 +-
  src/net/http/transport_test.go    |  8 +---
  5 files changed, 101 insertions(+), 90 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index c29af7fbe5..83d6c81de9 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -742,6 +742,15 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+ 			req.ContentLength = int64(v.Len())
+ 		case *strings.Reader:
+ 			req.ContentLength = int64(v.Len())
++		default:
++			req.ContentLength = -1 // unknown
++		}
++		// For client requests, Request.ContentLength of 0
++		// means either actually 0, or unknown. The only way
++		// to explicitly say that the ContentLength is zero is
++		// to set the Body to nil.
++		if req.ContentLength == 0 {
++			req.Body = nil
+ 		}
+ 	}
+ 
+@@ -1216,49 +1225,14 @@ func (r *Request) isReplayable() bool {
+ 	return false
+ }
+ 
+-// bodyAndLength reports the request's body and content length, with
+-// the difference from r.ContentLength being that 0 means actually
+-// zero, and -1 means unknown.
+-func (r *Request) bodyAndLength() (body io.Reader, contentLen int64) {
+-	body = r.Body
+-	if body == nil {
+-		return nil, 0
++// outgoingLength reports the Content-Length of this outgoing (Client) request.
++// It maps 0 into -1 (unknown) when the Body is non-nil.
++func (r *Request) outgoingLength() int64 {
++	if r.Body == nil {
++		return 0
+ 	}
+ 	if r.ContentLength != 0 {
+-		return body, r.ContentLength
+-	}
+-
+-	// Don't try to sniff the request body if,
+-	// * they're using a custom transfer encoding (or specified
+-	//   chunked themselves)
+-	// * they're not using HTTP/1.1 and can't chunk anyway (even
+-	//   though this is basically irrelevant, since this package
+-	//   only sends minimum 1.1 requests)
+-	// * they're sending an "Expect: 100-continue" request, because
+-	//   they might get denied or redirected and try to use the same
+-	//   body elsewhere, so we shoudn't consume it.
+-	if len(r.TransferEncoding) != 0 ||
+-		!r.ProtoAtLeast(1, 1) ||
+-		r.Header.Get("Expect") == "100-continue" {
+-		return body, -1
+-	}
+-
+-	// Test to see if it's actually zero or just unset.
+-	var buf [1]byte
+-	n, err := io.ReadFull(body, buf[:])
+-	if err != nil && err != io.EOF {
+-		return errorReader{err}, -1
+-	}
+-
+-	if n == 1 {
+-		// Oh, guess there is data in this Body Reader after all.
+-		// The ContentLength field just wasn't set.
+-		// Stich the Body back together again, re-attaching our
+-		// consumed byte.
+-		// TODO(bradfitz): switch to stitchByteAndReader
+-		return io.MultiReader(bytes.NewReader(buf[:]), body), -1
+-	}
+-
+-	// Body is actually empty.
+-	return nil, 0
++		return r.ContentLength
++	}
++	return -1
+ }
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index c52eb81f03..f12b41cf1b 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -497,18 +497,22 @@ func TestNewRequestContentLength(t *testing.T) {
+ 		{bytes.NewReader([]byte("123")), 3},
+ 		{bytes.NewBuffer([]byte("1234")), 4},
+ 		{strings.NewReader("12345"), 5},
++		{strings.NewReader(""), 0},
+ 		// Not detected:
+-		{struct{ io.Reader }{strings.NewReader("xyz")}, 0},
+-		{io.NewSectionReader(strings.NewReader("x"), 0, 6), 0},
+-		{readByte(io.NewSectionReader(strings.NewReader("xy"), 0, 6)), 0},
++		{struct{ io.Reader }{strings.NewReader("xyz")}, -1},
++		{io.NewSectionReader(strings.NewReader("x"), 0, 6), -1},
++		{readByte(io.NewSectionReader(strings.NewReader("xy"), 0, 6)), -1},
+ 	}
+-	for _, tt := range tests {
++	for i, tt := range tests {
+ 		req, err := NewRequest("POST", "http://localhost/", tt.r)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		if req.ContentLength != tt.want {
+-			t.Errorf("ContentLength(%T) = %d; want %d", tt.r, req.ContentLength, tt.want)
++			t.Errorf("test[%d]: ContentLength(%T) = %d; want %d", i, tt.r, req.ContentLength, tt.want)
++		}
++		if (req.ContentLength == 0) != (req.Body == nil) {
++			t.Errorf("test[%d]: ContentLength = %d but Body non-nil is %v", i, req.ContentLength, req.Body != nil)
+ 		}
+ 	}
+ }
+@@ -667,11 +671,31 @@ func TestStarRequest(t *testing.T) {
+ 	if err != nil {
+ 		return
+ 	}
++	if req.ContentLength != 0 {
++		t.Errorf("ContentLength = %d; want 0", req.ContentLength)
++	}
++	if req.Body == nil {
++		t.Errorf("Body = nil; want non-nil")
++	}
++
++	// Request.Write has Client semantics for Body/ContentLength,
++	// where ContentLength 0 means unknown if Body is non-nil, and
++	// thus chunking will happen unless we change semantics and
++	// signal that we want to serialize it as exactly zero.  The
++	// only way to do that for outbound requests is with a nil
++	// Body:
++	clientReq := *req
++	clientReq.Body = nil
++
+ 	var out bytes.Buffer
+-	if err := req.Write(&out); err != nil {
++	if err := clientReq.Write(&out); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	back, err := ReadRequest(bufio.NewReader(&out))
++
++	if strings.Contains(out.String(), "chunked") {
++		t.Error("wrote chunked request; want no body")
++	}
++	back, err := ReadRequest(bufio.NewReader(bytes.NewReader(out.Bytes())))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/net/http/requestwrite_test.go b/src/net/http/requestwrite_test.go
+index 2545f6f4c2..d13e37aba0 100644
+--- a/src/net/http/requestwrite_test.go
++++ b/src/net/http/requestwrite_test.go
+@@ -28,7 +28,7 @@ type reqWriteTest struct {
+ 
+ var reqWriteTests = []reqWriteTest{
+ 	// HTTP/1.1 => chunked coding; no body; no trailer
+-	{
++	0: {
+ 		Req: Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+@@ -75,7 +75,7 @@ var reqWriteTests = []reqWriteTest{
+ 			"Proxy-Connection: keep-alive\r\n\r\n",
+ 	},
+ 	// HTTP/1.1 => chunked coding; body; empty trailer
+-	{
++	1: {
+ 		Req: Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+@@ -104,7 +104,7 @@ var reqWriteTests = []reqWriteTest{
+ 			chunk("abcdef") + chunk(""),
+ 	},
+ 	// HTTP/1.1 POST => chunked coding; body; empty trailer
+-	{
++	2: {
+ 		Req: Request{
+ 			Method: "POST",
+ 			URL: &url.URL{
+@@ -137,7 +137,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// HTTP/1.1 POST with Content-Length, no chunking
+-	{
++	3: {
+ 		Req: Request{
+ 			Method: "POST",
+ 			URL: &url.URL{
+@@ -172,7 +172,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// HTTP/1.1 POST with Content-Length in headers
+-	{
++	4: {
+ 		Req: Request{
+ 			Method: "POST",
+ 			URL:    mustParseURL("http://example.com/"),
+@@ -201,7 +201,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// default to HTTP/1.1
+-	{
++	5: {
+ 		Req: Request{
+ 			Method: "GET",
+ 			URL:    mustParseURL("/search"),
+@@ -215,7 +215,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Request with a 0 ContentLength and a 0 byte body.
+-	{
++	6: {
+ 		Req: Request{
+ 			Method:        "POST",
+ 			URL:           mustParseURL("/"),
+@@ -227,9 +227,32 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 		Body: func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
+ 
+-		// RFC 2616 Section 14.13 says Content-Length should be specified
+-		// unless body is prohibited by the request method.
+-		// Also, nginx expects it for POST and PUT.
++		WantWrite: "POST / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"Transfer-Encoding: chunked\r\n" +
++			"\r\n0\r\n\r\n",
++
++		WantProxy: "POST / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"Transfer-Encoding: chunked\r\n" +
++			"\r\n0\r\n\r\n",
++	},
++
++	// Request with a 0 ContentLength and a nil body.
++	7: {
++		Req: Request{
++			Method:        "POST",
++			URL:           mustParseURL("/"),
++			Host:          "example.com",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 0, // as if unset by user
++		},
++
++		Body: func() io.ReadCloser { return nil },
++
+ 		WantWrite: "POST / HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+ 			"User-Agent: Go-http-client/1.1\r\n" +
+@@ -244,7 +267,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Request with a 0 ContentLength and a 1 byte body.
+-	{
++	8: {
+ 		Req: Request{
+ 			Method:        "POST",
+ 			URL:           mustParseURL("/"),
+@@ -270,7 +293,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Request with a ContentLength of 10 but a 5 byte body.
+-	{
++	9: {
+ 		Req: Request{
+ 			Method:        "POST",
+ 			URL:           mustParseURL("/"),
+@@ -284,7 +307,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Request with a ContentLength of 4 but an 8 byte body.
+-	{
++	10: {
+ 		Req: Request{
+ 			Method:        "POST",
+ 			URL:           mustParseURL("/"),
+@@ -298,7 +321,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Request with a 5 ContentLength and nil body.
+-	{
++	11: {
+ 		Req: Request{
+ 			Method:        "POST",
+ 			URL:           mustParseURL("/"),
+@@ -311,7 +334,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Request with a 0 ContentLength and a body with 1 byte content and an error.
+-	{
++	12: {
+ 		Req: Request{
+ 			Method:        "POST",
+ 			URL:           mustParseURL("/"),
+@@ -331,7 +354,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Request with a 0 ContentLength and a body without content and an error.
+-	{
++	13: {
+ 		Req: Request{
+ 			Method:        "POST",
+ 			URL:           mustParseURL("/"),
+@@ -352,7 +375,7 @@ var reqWriteTests = []reqWriteTest{
+ 
+ 	// Verify that DumpRequest preserves the HTTP version number, doesn't add a Host,
+ 	// and doesn't add a User-Agent.
+-	{
++	14: {
+ 		Req: Request{
+ 			Method:     "GET",
+ 			URL:        mustParseURL("/foo"),
+@@ -373,7 +396,7 @@ var reqWriteTests = []reqWriteTest{
+ 	// an empty Host header, and don't use
+ 	// Request.Header["Host"]. This is just testing that
+ 	// we don't change Go 1.0 behavior.
+-	{
++	15: {
+ 		Req: Request{
+ 			Method: "GET",
+ 			Host:   "",
+@@ -395,7 +418,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Opaque test #1 from golang.org/issue/4860
+-	{
++	16: {
+ 		Req: Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+@@ -414,7 +437,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Opaque test #2 from golang.org/issue/4860
+-	{
++	17: {
+ 		Req: Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+@@ -433,7 +456,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Testing custom case in header keys. Issue 5022.
+-	{
++	18: {
+ 		Req: Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+@@ -457,7 +480,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Request with host header field; IPv6 address with zone identifier
+-	{
++	19: {
+ 		Req: Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+@@ -472,7 +495,7 @@ var reqWriteTests = []reqWriteTest{
+ 	},
+ 
+ 	// Request with optional host header field; IPv6 address with zone identifier
+-	{
++	20: {
+ 		Req: Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+@@ -553,14 +576,14 @@ func (rc *closeChecker) Close() error {
+ 	return nil
+ }
+ 
+-// TestRequestWriteClosesBody tests that Request.Write does close its request.Body.
++// TestRequestWriteClosesBody tests that Request.Write closes its request.Body.
+ // It also indirectly tests NewRequest and that it doesn't wrap an existing Closer
+ // inside a NopCloser, and that it serializes it correctly.
+ func TestRequestWriteClosesBody(t *testing.T) {
+ 	rc := &closeChecker{Reader: strings.NewReader("my body")}
+ 	req, _ := NewRequest("POST", "http://foo.com/", rc)
+-	if req.ContentLength != 0 {
+-		t.Errorf("got req.ContentLength %d, want 0", req.ContentLength)
++	if req.ContentLength != -1 {
++		t.Errorf("got req.ContentLength %d, want -1", req.ContentLength)
+ 	}
+ 	buf := new(bytes.Buffer)
+ 	req.Write(buf)
+@@ -571,12 +594,7 @@ func TestRequestWriteClosesBody(t *testing.T) {
+ 		"Host: foo.com\r\n" +
+ 		"User-Agent: Go-http-client/1.1\r\n" +
+ 		"Transfer-Encoding: chunked\r\n\r\n" +
+-		// TODO: currently we don't buffer before chunking, so we get a
+-		// single "m" chunk before the other chunks, as this was the 1-byte
+-		// read from our MultiReader where we stitched the Body back together
+-		// after sniffing whether the Body was 0 bytes or not.
+-		chunk("m") +
+-		chunk("y body") +
++		chunk("my body") +
+ 		chunk("")
+ 	if buf.String() != expected {
+ 		t.Errorf("write:\n got: %s\nwant: %s", buf.String(), expected)
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index b6446486ee..f34c703110 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -64,7 +64,8 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 		t.Trailer = rr.Trailer
+ 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
+ 
+-		t.Body, t.ContentLength = rr.bodyAndLength()
++		t.Body = rr.Body
++		t.ContentLength = rr.outgoingLength()
+ 		if t.Body != nil {
+ 			t.BodyCloser = rr.Body
+ 		}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index f31c858f6b..cef2acc456 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2904,14 +2904,8 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
+ 	defer res.Body.Close()
+ 
+ 	want := []string{
+-		// Because Request.ContentLength = 0, the body is sniffed for 1 byte to determine whether there's content.
+-		// That explains the initial "num0" being split into "n" and "um0".
+-		// The first byte is included with the request headers Write. Perhaps in the future
+-		// we will want to flush the headers out early if the first byte of the request body is
+-		// taking a long time to arrive. But not yet.
+ 		"POST / HTTP/1.1\r\nHost: localhost:8080\r\nUser-Agent: x\r\nTransfer-Encoding: chunked\r\nAccept-Encoding: gzip\r\n\r\n" +
+-			"1\r\nn\r\n",
+-		"4\r\num0\n\r\n",
++			"5\r\nnum0\n\r\n",
+ 		"5\r\nnum1\n\r\n",
+ 		"5\r\nnum2\n\r\n",
+ 		"0\r\n\r\n",

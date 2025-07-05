@@ -12,6 +12,25 @@ Date:   Mon Oct 27 14:12:54 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/164010043
-
+---
  test/maplinear.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/maplinear.go b/test/maplinear.go
+index 06da968ef0..2494becb89 100644
+--- a/test/maplinear.go
++++ b/test/maplinear.go
+@@ -45,11 +45,11 @@ func checkLinear(typ string, tries int, f func(n int)) {
+ 			return
+ 		}
+ 		fails++
+-		if fails == 6 {
++		if fails == 12 {
+ 			panic(fmt.Sprintf("%s: too slow: %d inserts: %v; %d inserts: %v\n",
+ 				typ, n, t1, 2*n, t2))
+ 		}
+-		if fails < 4 {
++		if fails < 10 {
+ 			n *= 2
+ 		}
+ 	}

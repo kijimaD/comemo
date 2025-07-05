@@ -13,8 +13,99 @@ Date:   Sun Aug 20 14:27:27 2023 -0700
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go | 15 +++++++--------
  src/cmd/compile/internal/ssagen/ssa.go   |  7 -------
  src/cmd/compile/internal/types/type.go   | 16 +---------------
  3 files changed, 8 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index f8e4e8ae0d..78094d4ae9 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -445,19 +445,18 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResul
+ }
+ 
+ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn, setNname bool) {
++	if f.Offset != types.BADWIDTH {
++		base.Fatalf("field offset for %s at %s has been set to %d", f.Sym.Name, base.FmtPos(f.Pos), f.Offset)
++	}
++
+ 	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
+ 	if !isReturn || len(a.Registers) == 0 {
+ 		// The type frame offset DOES NOT show effects of minimum frame size.
+ 		// Getting this wrong breaks stackmaps, see liveness/plive.go:WriteFuncMap and typebits/typebits.go:Set
+ 		off := a.FrameOffset(result)
+-		fOffset := f.Offset
+-		if fOffset == types.BOGUS_FUNARG_OFFSET {
+-			if setNname && f.Nname != nil {
+-				f.Nname.(*ir.Name).SetFrameOffset(off)
+-				f.Nname.(*ir.Name).SetIsOutputParamInRegisters(false)
+-			}
+-		} else {
+-			base.Fatalf("field offset for %s at %s has been set to %d", f.Sym.Name, base.FmtPos(f.Pos), fOffset)
++		if setNname && f.Nname != nil {
++			f.Nname.(*ir.Name).SetFrameOffset(off)
++			f.Nname.(*ir.Name).SetIsOutputParamInRegisters(false)
+ 		}
+ 	} else {
+ 		if setNname && f.Nname != nil {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 89e14786b0..9b93b599f3 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -306,13 +306,6 @@ func (s *state) emitOpenDeferInfo() {
+ 	off = dvarint(x, off, -firstOffset)
+ }
+ 
+-func okOffset(offset int64) int64 {
+-	if offset == types.BOGUS_FUNARG_OFFSET {
+-		panic(fmt.Errorf("Bogus offset %d", offset))
+-	}
+-	return offset
+-}
+-
+ // buildssa builds an SSA function for fn.
+ // worker indicates which of the backend workers is doing the processing.
+ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 343cc69c18..f03aabe430 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -409,8 +409,7 @@ type Field struct {
+ 	Nname Object
+ 
+ 	// Offset in bytes of this field or method within its enclosing struct
+-	// or interface Type.  Exception: if field is function receiver, arg or
+-	// result, then this is BOGUS_FUNARG_OFFSET; types does not know the Abi.
++	// or interface Type. For parameters, this is BADWIDTH.
+ 	Offset int64
+ }
+ 
+@@ -1686,14 +1685,6 @@ func NewInterface(methods []*Field) *Type {
+ 	return t
+ }
+ 
+-const BOGUS_FUNARG_OFFSET = -1000000000
+-
+-func unzeroFieldOffsets(f []*Field) {
+-	for i := range f {
+-		f[i].Offset = BOGUS_FUNARG_OFFSET // This will cause an explosion if it is not corrected
+-	}
+-}
+-
+ // NewSignature returns a new function type for the given receiver,
+ // parameters, and results, any of which may be nil.
+ func NewSignature(recv *Field, params, results []*Field) *Type {
+@@ -1711,11 +1702,6 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
+ 		return s
+ 	}
+ 
+-	if recv != nil {
+-		recv.Offset = BOGUS_FUNARG_OFFSET
+-	}
+-	unzeroFieldOffsets(params)
+-	unzeroFieldOffsets(results)
+ 	ft.Receiver = funargs(recvs)
+ 	ft.Params = funargs(params)
+ 	ft.Results = funargs(results)

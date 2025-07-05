@@ -31,6 +31,19 @@ Date:   Fri Jun 22 11:00:13 2018 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/sync/rwmutex.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 9dbebfeed7..16a2f9227c 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -114,7 +114,6 @@ func (rw *RWMutex) Unlock() {
+ 	if race.Enabled {
+ 		_ = rw.w.state
+ 		race.Release(unsafe.Pointer(&rw.readerSem))
+-		race.Release(unsafe.Pointer(&rw.writerSem))
+ 		race.Disable()
+ 	}
+ 

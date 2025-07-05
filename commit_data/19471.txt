@@ -9,10 +9,112 @@ Date:   Sat May 31 01:09:48 2014 -0700
     R=alex.brainman, khr, bradfitz, rsc
     CC=golang-codereviews
     https://golang.org/cl/93640044
-
+---
  src/pkg/runtime/debug/heapdump_test.go | 29 +++++++++++++++++++++++++++++
  src/pkg/runtime/os_plan9.c             |  4 ++--
  src/pkg/runtime/os_solaris.c           |  2 +-
  src/pkg/runtime/os_windows.c           |  6 ++++--
  src/pkg/runtime/runtime.h              |  2 +-
  5 files changed, 37 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/debug/heapdump_test.go b/src/pkg/runtime/debug/heapdump_test.go
+new file mode 100644
+index 0000000000..6ded7e9900
+--- /dev/null
++++ b/src/pkg/runtime/debug/heapdump_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package debug
++
++import (
++	"io/ioutil"
++	"os"
++	"testing"
++)
++
++func TestWriteHeapDumpNonempty(t *testing.T) {
++	f, err := ioutil.TempFile("", "heapdumptest")
++	if err != nil {
++		t.Fatalf("TempFile failed: %v", err)
++	}
++	defer os.Remove(f.Name())
++	defer f.Close()
++	WriteHeapDump(f.Fd())
++	fi, err := f.Stat()
++	if err != nil {
++		t.Fatalf("Stat failed: %v", err)
++	}
++	const minSize = 1
++	if size := fi.Size(); size < minSize {
++		t.Fatalf("Heap dump size %d bytes, expected at least %d bytes", size, minSize)
++	}
++}
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index ec88738c38..14d4fae486 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -394,9 +394,9 @@ runtime·read(int32 fd, void *buf, int32 nbytes)
+ }
+ 
+ int32
+-runtime·write(int32 fd, void *buf, int32 nbytes)
++runtime·write(uintptr fd, void *buf, int32 nbytes)
+ {
+-	return runtime·pwrite(fd, buf, nbytes, -1LL);
++	return runtime·pwrite((int32)fd, buf, nbytes, -1LL);
+ }
+ 
+ uintptr
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index 3575f693db..75e7c18f4f 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -570,7 +570,7 @@ runtime·usleep(uint32 us)
+ }
+ 
+ int32
+-runtime·write(int32 fd, void* buf, int32 nbyte)
++runtime·write(uintptr fd, void* buf, int32 nbyte)
+ {
+ 	return runtime·sysvicall6(libc·write, 3, (uintptr)fd, (uintptr)buf, (uintptr)nbyte);
+ }
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 4d5ea3bf45..0dd44ed1b9 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -166,7 +166,7 @@ runtime·exit(int32 code)
+ }
+ 
+ int32
+-runtime·write(int32 fd, void *buf, int32 n)
++runtime·write(uintptr fd, void *buf, int32 n)
+ {
+ 	void *handle;
+ 	uint32 written;
+@@ -180,7 +180,9 @@ runtime·write(int32 fd, void *buf, int32 n)
+ 		handle = runtime·stdcall(runtime·GetStdHandle, 1, (uintptr)-12);
+ 		break;
+ 	default:
+-		return -1;
++		// assume fd is real windows handle.
++		handle = (void*)fd;
++		break;
+ 	}
+ 	runtime·stdcall(runtime·WriteFile, 5, handle, buf, (uintptr)n, &written, (uintptr)0);
+ 	return written;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 39a849c805..fa6b6ffa04 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -838,7 +838,7 @@ int32	runtime·gotraceback(bool *crash);
+ void	runtime·goroutineheader(G*);
+ int32	runtime·open(int8*, int32, int32);
+ int32	runtime·read(int32, void*, int32);
+-int32	runtime·write(int32, void*, int32);
++int32	runtime·write(uintptr, void*, int32); // use uintptr to accommodate windows.
+ int32	runtime·close(int32);
+ int32	runtime·mincore(void*, uintptr, byte*);
+ void	runtime·jmpdefer(FuncVal*, void*);

@@ -7,6 +7,19 @@ Date:   Thu Aug 12 00:04:17 2010 -0700
     R=imkrasin, rsc
     CC=golang-dev
     https://golang.org/cl/1943042
-
+---
  lib/codereview/codereview.py | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 84fbee61fa..509c8b6d40 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -338,6 +338,7 @@ def ParseCL(text, name):
+ 		i = line.find('#')
+ 		if i >= 0:
+ 			line = line[0:i].rstrip()
++		line = line.strip()
+ 		if line == '':
+ 			continue
+ 		cl.files.append(line)

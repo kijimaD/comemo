@@ -14,6 +14,42 @@ Date:   Sat Sep 25 15:29:52 2021 +0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/typeparam/issue48617.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/test/typeparam/issue48617.go b/test/typeparam/issue48617.go
+new file mode 100644
+index 0000000000..4b00570ba6
+--- /dev/null
++++ b/test/typeparam/issue48617.go
+@@ -0,0 +1,29 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Foo[T any] interface {
++	CreateBar() Bar[T]
++}
++
++type Bar[T any] func() Bar[T]
++
++func (f Bar[T]) CreateBar() Bar[T] {
++	return f
++}
++
++func abc[T any]() {
++	var b Bar[T] = func() Bar[T] {
++		var b Bar[T]
++		return b
++	}
++	var _ Foo[T] = b()
++}
++
++func main() {
++	abc[int]()
++}

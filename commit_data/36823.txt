@@ -7,6 +7,33 @@ Date:   Wed May 30 20:07:41 2018 +0100
     Change-Id: I5f78fe3286bf4667b6922c57c5701c09bf56e182
     Reviewed-on: https://go-review.googlesource.com/115355
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/unixsock.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index bd7dc39848..06beaecc28 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -317,8 +317,8 @@ func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
+ 	if laddr == nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
+ 	}
+-	sa := &sysListener{network: network, address: laddr.String()}
+-	ln, err := sa.listenUnix(context.Background(), laddr)
++	sl := &sysListener{network: network, address: laddr.String()}
++	ln, err := sl.listenUnix(context.Background(), laddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}
+@@ -337,8 +337,8 @@ func ListenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {
+ 	if laddr == nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: nil, Err: errMissingAddress}
+ 	}
+-	sa := &sysListener{network: network, address: laddr.String()}
+-	c, err := sa.listenUnixgram(context.Background(), laddr)
++	sl := &sysListener{network: network, address: laddr.String()}
++	c, err := sl.listenUnixgram(context.Background(), laddr)
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}

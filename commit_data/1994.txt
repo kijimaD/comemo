@@ -7,6 +7,20 @@ Date:   Sun Apr 12 16:13:34 2009 -0700
     R=ken
     OCL=27342
     CL=27342
-
+---
  src/runtime/string.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index 37f6ff0a1b..4d89e96001 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -193,7 +193,7 @@ static	int32	chartorune(int32 *rune, byte *str);
+ enum
+ {
+ 	Runeself	= 0x80,
+-	Runeerror	= 0xfff8,	// fffd in plan9
++	Runeerror	= 0xfffd,
+ };
+ 
+ // func	stringiter(string, int) (retk int);

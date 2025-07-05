@@ -10,6 +10,23 @@ Date:   Fri Nov 9 03:41:43 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6813100
-
+---
  src/pkg/runtime/crash_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 465b2d7096..0abc531537 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -22,10 +22,8 @@ type crashTest struct {
+ // both main (m0) and non-main threads (m).
+ 
+ func testCrashHandler(t *testing.T, ct *crashTest) {
+-	if runtime.GOOS == "freebsd" || runtime.GOOS == "netbsd" {
++	if runtime.GOOS == "freebsd" {
+ 		// TODO(brainman): do not know why this test fails on freebsd
+-		// TODO(jsing): figure out why this causes delayed failures
+-		// on NetBSD - http://golang.org/issue/3954
+ 		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}

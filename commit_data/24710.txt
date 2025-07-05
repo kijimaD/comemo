@@ -22,6 +22,20 @@ Date:   Tue Aug 25 13:12:32 2015 +1000
     Change-Id: Id7125c31957eff1ddb78897d4511bd50e79af3f7
     Reviewed-on: https://go-review.googlesource.com/13885
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/asm_arm64.s | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 9aff9c7e6c..703ceea97a 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -870,6 +870,8 @@ TEXT bytes·Compare(SB),NOSPLIT,$-4-56
+ // On exit:
+ // R4, R5, and R6 are clobbered
+ TEXT runtime·cmpbody<>(SB),NOSPLIT,$-4-0
++	CMP	R2, R3
++	BEQ	samebytes // same starting pointers; compare lengths
+ 	CMP	R0, R1
+ 	CSEL    LT, R1, R0, R6 // R6 is min(R0, R1)
+ 

@@ -27,9 +27,251 @@ Date:   Fri Mar 23 10:28:39 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/ar.go       |  2 +-
  src/cmd/link/internal/ld/go.go       | 30 ++------------
  src/cmd/link/internal/ld/lib.go      | 77 +++++++++++++++++-------------------
  src/cmd/link/internal/sym/library.go |  2 +
  4 files changed, 44 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 4b513041a3..ae7554c929 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -124,7 +124,7 @@ func hostArchive(ctxt *Link, name string) {
+ 			l = atolwhex(arhdr.size)
+ 
+ 			libgcc := sym.Library{Pkg: "libgcc"}
+-			h := ldobj(ctxt, f, &libgcc, l, pname, name, ArchiveObj)
++			h := ldobj(ctxt, f, &libgcc, l, pname, name)
+ 			f.Seek(h.off, 0)
+ 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
+ 		}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 7210ebbf38..9bbfe23119 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -29,7 +29,7 @@ func expandpkg(t0 string, pkg string) string {
+ //	once the dust settles, try to move some code to
+ //		libmach, so that other linkers and ar can share.
+ 
+-func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string, whence int) {
++func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename string) {
+ 	if *flagG {
+ 		return
+ 	}
+@@ -42,12 +42,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ 		return
+ 	}
+ 
+-	// In a __.PKGDEF, we only care about the package name.
+-	// Don't read all the export data.
+-	if length > 1000 && whence == Pkgdef {
+-		length = 1000
+-	}
+-
+ 	bdata := make([]byte, length)
+ 	if _, err := io.ReadFull(f, bdata); err != nil {
+ 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
+@@ -59,8 +53,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ 	data := string(bdata)
+ 
+ 	// process header lines
+-	isSafe := false
+-	isMain := false
+ 	for data != "" {
+ 		var line string
+ 		if i := strings.Index(data, "\n"); i >= 0 {
+@@ -69,30 +61,16 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ 			line, data = data, ""
+ 		}
+ 		if line == "safe" {
+-			isSafe = true
++			lib.Safe = true
+ 		}
+ 		if line == "main" {
+-			isMain = true
++			lib.Main = true
+ 		}
+ 		if line == "" {
+ 			break
+ 		}
+ 	}
+ 
+-	if whence == Pkgdef || whence == FileObj {
+-		if pkg == "main" && !isMain {
+-			Exitf("%s: not package main", filename)
+-		}
+-		if *flagU && whence != ArchiveObj && !isSafe {
+-			Exitf("load of unsafe package %s", filename)
+-		}
+-	}
+-
+-	// __.PKGDEF has no cgo section - those are in the C compiler-generated object files.
+-	if whence == Pkgdef {
+-		return
+-	}
+-
+ 	// look for cgo section
+ 	p0 := strings.Index(data, "\n$$  // cgo")
+ 	var p1 int
+@@ -121,7 +99,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
+ 		}
+ 		p1 += p0
+ 
+-		loadcgo(ctxt, filename, pkg, data[p0:p1])
++		loadcgo(ctxt, filename, objabi.PathToPrefix(lib.Pkg), data[p0:p1])
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index fe21e635dc..d3f5e7e640 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -185,13 +185,6 @@ var (
+ 	Segdwarf     sym.Segment
+ )
+ 
+-/* whence for ldpkg */
+-const (
+-	FileObj = 0 + iota
+-	ArchiveObj
+-	Pkgdef
+-)
+-
+ const pkgdef = "__.PKGDEF"
+ 
+ var (
+@@ -779,6 +772,27 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
+ 	if err != nil {
+ 		Exitf("cannot open file %s: %v", lib.File, err)
+ 	}
++	defer f.Close()
++	defer func() {
++		if pkg == "main" && !lib.Main {
++			Exitf("%s: not package main", lib.File)
++		}
++
++		// Ideally, we'd check that *all* object files within
++		// the archive were marked safe, but here we settle
++		// for *any*.
++		//
++		// Historically, cmd/link only checked the __.PKGDEF
++		// file, which in turn came from the first object
++		// file, typically produced by cmd/compile. The
++		// remaining object files are normally produced by
++		// cmd/asm, which doesn't support marking files as
++		// safe anyway. So at least in practice, this matches
++		// how safe mode has always worked.
++		if *flagU && !lib.Safe {
++			Exitf("%s: load of unsafe package %s", lib.File, pkg)
++		}
++	}()
+ 
+ 	for i := 0; i < len(ARMAG); i++ {
+ 		if c, err := f.ReadByte(); err == nil && c == ARMAG[i] {
+@@ -787,34 +801,11 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
+ 
+ 		/* load it as a regular file */
+ 		l := f.Seek(0, 2)
+-
+ 		f.Seek(0, 0)
+-		ldobj(ctxt, f, lib, l, lib.File, lib.File, FileObj)
+-		f.Close()
+-
++		ldobj(ctxt, f, lib, l, lib.File, lib.File)
+ 		return
+ 	}
+ 
+-	/* process __.PKGDEF */
+-	off := f.Offset()
+-
+-	var arhdr ArHdr
+-	l := nextar(f, off, &arhdr)
+-	var pname string
+-	if l <= 0 {
+-		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
+-		goto out
+-	}
+-
+-	if !strings.HasPrefix(arhdr.name, pkgdef) {
+-		Errorf(nil, "%s: cannot find package header", lib.File)
+-		goto out
+-	}
+-
+-	off += l
+-
+-	ldpkg(ctxt, f, pkg, atolwhex(arhdr.size), lib.File, Pkgdef)
+-
+ 	/*
+ 	 * load all the object files from the archive now.
+ 	 * this gives us sequential file access and keeps us
+@@ -827,24 +818,30 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
+ 	 * loading every object will also make it possible to
+ 	 * load foreign objects not referenced by __.PKGDEF.
+ 	 */
++	var arhdr ArHdr
++	off := f.Offset()
+ 	for {
+-		l = nextar(f, off, &arhdr)
++		l := nextar(f, off, &arhdr)
+ 		if l == 0 {
+ 			break
+ 		}
+ 		if l < 0 {
+ 			Exitf("%s: malformed archive", lib.File)
+ 		}
+-
+ 		off += l
+ 
+-		pname = fmt.Sprintf("%s(%s)", lib.File, arhdr.name)
++		// __.PKGDEF isn't a real Go object file, and it's
++		// absent in -linkobj builds anyway. Skipping it
++		// ensures consistency between -linkobj and normal
++		// build modes.
++		if arhdr.name == pkgdef {
++			continue
++		}
++
++		pname := fmt.Sprintf("%s(%s)", lib.File, arhdr.name)
+ 		l = atolwhex(arhdr.size)
+-		ldobj(ctxt, f, lib, l, pname, lib.File, ArchiveObj)
++		ldobj(ctxt, f, lib, l, pname, lib.File)
+ 	}
+-
+-out:
+-	f.Close()
+ }
+ 
+ type Hostobj struct {
+@@ -1382,7 +1379,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
+ // ldobj loads an input object. If it is a host object (an object
+ // compiled by a non-Go compiler) it returns the Hostobj pointer. If
+ // it is a Go object, it returns nil.
+-func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string, file string, whence int) *Hostobj {
++func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string, file string) *Hostobj {
+ 	pkg := objabi.PathToPrefix(lib.Pkg)
+ 
+ 	eof := f.Offset() + length
+@@ -1513,7 +1510,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	import1 := f.Offset()
+ 
+ 	f.Seek(import0, 0)
+-	ldpkg(ctxt, f, pkg, import1-import0-2, pn, whence) // -2 for !\n
++	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
+ 	f.Seek(import1, 0)
+ 
+ 	objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
+diff --git a/src/cmd/link/internal/sym/library.go b/src/cmd/link/internal/sym/library.go
+index ee96f4aaa9..54b9dfe7a2 100644
+--- a/src/cmd/link/internal/sym/library.go
++++ b/src/cmd/link/internal/sym/library.go
+@@ -15,6 +15,8 @@ type Library struct {
+ 	Imports       []*Library
+ 	Textp         []*Symbol // text symbols defined in this library
+ 	DupTextSyms   []*Symbol // dupok text symbols defined in this library
++	Main          bool
++	Safe          bool
+ }
+ 
+ func (l Library) String() string {

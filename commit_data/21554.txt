@@ -16,7 +16,82 @@ Date:   Mon Jan 12 13:58:30 2015 -0800
     Change-Id: I1eff3f441b0566966a2d279631901ad9287c917d
     Reviewed-on: https://go-review.googlesource.com/2255
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/x509.go      | 23 ++++++++++++++++++++++-
  src/crypto/x509/x509_test.go | 22 ++++++++++++++++++++++
  2 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 3fa5b3d757..fd5b8da1cf 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1135,6 +1135,26 @@ func reverseBitsInAByte(in byte) byte {
+ 	return b3
+ }
+ 
++// asn1BitLength returns the bit-length of bitString by considering the
++// most-significant bit in a byte to be the "first" bit. This convention
++// matches ASN.1, but differs from almost everything else.
++func asn1BitLength(bitString []byte) int {
++	bitLen := len(bitString) * 8
++
++	for i := range bitString {
++		b := bitString[len(bitString)-i-1]
++
++		for bit := uint(0); bit < 8; bit++ {
++			if (b>>bit)&1 == 1 {
++				return bitLen
++			}
++			bitLen--
++		}
++	}
++
++	return 0
++}
++
+ var (
+ 	oidExtensionSubjectKeyId          = []int{2, 5, 29, 14}
+ 	oidExtensionKeyUsage              = []int{2, 5, 29, 15}
+@@ -1203,7 +1223,8 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
+ 			l = 2
+ 		}
+ 
+-		ret[n].Value, err = asn1.Marshal(asn1.BitString{Bytes: a[0:l], BitLength: l * 8})
++		bitString := a[:l]
++		ret[n].Value, err = asn1.Marshal(asn1.BitString{Bytes: bitString, BitLength: asn1BitLength(bitString)})
+ 		if err != nil {
+ 			return
+ 		}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 4f5173fb5d..f275375ba7 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1016,6 +1016,28 @@ func TestMaxPathLen(t *testing.T) {
+ 	}
+ }
+ 
++func TestASN1BitLength(t *testing.T) {
++	tests := []struct {
++		bytes  []byte
++		bitLen int
++	}{
++		{nil, 0},
++		{[]byte{0x00}, 0},
++		{[]byte{0x00, 0x00}, 0},
++		{[]byte{0xf0}, 4},
++		{[]byte{0x88}, 5},
++		{[]byte{0xff}, 8},
++		{[]byte{0xff, 0x80}, 9},
++		{[]byte{0xff, 0x81}, 16},
++	}
++
++	for i, test := range tests {
++		if got := asn1BitLength(test.bytes); got != test.bitLen {
++			t.Errorf("#%d: calculated bit-length of %d for %x, wanted %d", i, got, test.bytes, test.bitLen)
++		}
++	}
++}
++
+ // This CSR was generated with OpenSSL:
+ //  openssl req -out CSR.csr -new -newkey rsa:2048 -nodes -keyout privateKey.key -config openssl.cnf
+ //

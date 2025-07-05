@@ -10,7 +10,85 @@ Date:   Sun May 11 14:46:44 2014 -0700
     R=golang-codereviews, bradfitz, r, rsc
     CC=golang-codereviews
     https://golang.org/cl/91230045
-
+---
  src/pkg/net/rpc/client.go      | 14 ++++++++------
  src/pkg/net/rpc/client_test.go | 36 ++++++++++++++++++++++++++++++++++++
  2 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index c524d0a0a2..21f79b0684 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -39,14 +39,16 @@ type Call struct {
+ // with a single Client, and a Client may be used by
+ // multiple goroutines simultaneously.
+ type Client struct {
+-	mutex    sync.Mutex // protects pending, seq, request
+-	sending  sync.Mutex
++	codec ClientCodec
++
++	sending sync.Mutex
++
++	mutex    sync.Mutex // protects following
+ 	request  Request
+ 	seq      uint64
+-	codec    ClientCodec
+ 	pending  map[uint64]*Call
+-	closing  bool
+-	shutdown bool
++	closing  bool // user has called Close
++	shutdown bool // server has told us to stop
+ }
+ 
+ // A ClientCodec implements writing of RPC requests and
+@@ -274,7 +276,7 @@ func Dial(network, address string) (*Client, error) {
+ 
+ func (client *Client) Close() error {
+ 	client.mutex.Lock()
+-	if client.shutdown || client.closing {
++	if client.closing {
+ 		client.mutex.Unlock()
+ 		return ErrShutdown
+ 	}
+diff --git a/src/pkg/net/rpc/client_test.go b/src/pkg/net/rpc/client_test.go
+new file mode 100644
+index 0000000000..bbfc1ec3a3
+--- /dev/null
++++ b/src/pkg/net/rpc/client_test.go
+@@ -0,0 +1,36 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rpc
++
++import (
++	"errors"
++	"testing"
++)
++
++type shutdownCodec struct {
++	responded chan int
++	closed    bool
++}
++
++func (c *shutdownCodec) WriteRequest(*Request, interface{}) error { return nil }
++func (c *shutdownCodec) ReadResponseBody(interface{}) error       { return nil }
++func (c *shutdownCodec) ReadResponseHeader(*Response) error {
++	c.responded <- 1
++	return errors.New("shutdownCodec ReadResponseHeader")
++}
++func (c *shutdownCodec) Close() error {
++	c.closed = true
++	return nil
++}
++
++func TestCloseCodec(t *testing.T) {
++	codec := &shutdownCodec{responded: make(chan int)}
++	client := NewClientWithCodec(codec)
++	<-codec.responded
++	client.Close()
++	if !codec.closed {
++		t.Error("client.Close did not close codec")
++	}
++}

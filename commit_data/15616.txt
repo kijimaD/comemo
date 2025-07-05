@@ -9,7 +9,7 @@ Date:   Wed Mar 6 16:57:14 2013 -0500
     R=golang-dev, remyoudompheng, iant
     CC=golang-dev
     https://golang.org/cl/7530043
-
+---
  src/cmd/cc/dpchk.c  | 22 ++++++++++++++++++----
  src/cmd/cgo/doc.go  | 14 +++++++++++---
  src/cmd/cgo/gcc.go  |  6 +-----
@@ -18,3 +18,239 @@ Date:   Wed Mar 6 16:57:14 2013 -0500
  src/cmd/ld/go.c     | 29 ++++++++++++++++++++++-------
  src/cmd/ld/lib.h    |  2 ++
  7 files changed, 65 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 2f038f520b..34163ff926 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -692,22 +692,24 @@ pragcgo(char *verb)
+ 		goto out;
+ 	}	
+ 	
+-	if(strcmp(verb, "cgo_export") == 0 || strcmp(verb, "dynexport") == 0) {
++	if(strcmp(verb, "dynexport") == 0)
++		verb = "cgo_export_dynamic";
++	if(strcmp(verb, "cgo_export_static") == 0 || strcmp(verb, "cgo_export_dynamic") == 0) {
+ 		local = getimpsym();
+ 		if(local == nil)
+ 			goto err2;
+ 		if(!more()) {
+-			fmtprint(&pragcgobuf, "cgo_export %q\n", local->name);
++			fmtprint(&pragcgobuf, "%s %q\n", verb, local->name);
+ 			goto out;
+ 		}
+ 		remote = getimpsym();
+ 		if(remote == nil)
+ 			goto err2;
+-		fmtprint(&pragcgobuf, "cgo_export %q %q\n", local->name, remote->name);
++		fmtprint(&pragcgobuf, "%s %q %q\n", verb, local->name, remote->name);
+ 		goto out;
+ 	
+ 	err2:
+-		yyerror("usage: #pragma cgo_export local [remote]");
++		yyerror("usage: #pragma %s local [remote]", verb);
+ 		goto out;
+ 	}
+ 	
+@@ -749,6 +751,18 @@ pragcgo(char *verb)
+ 		goto out;
+ 	}
+ 	
++	if(strcmp(verb, "cgo_ldflag") == 0) {
++		p = getquoted();
++		if(p == nil)
++			goto err5;
++		fmtprint(&pragcgobuf, "cgo_ldflag %q\n", p);
++		goto out;
++
++	err5:
++		yyerror("usage: #pragma cgo_ldflag \"arg\"");
++		goto out;
++	}
++	
+ out:
+ 	while(getnsc() != '\n')
+ 		;
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 955b7c495e..3893f7deb5 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -484,16 +484,16 @@ The directives are:
+ 	Example:
+ 	#pragma cgo_dynamic_linker "/lib/ld-linux.so.2"
+ 
+-#pragma cgo_export <local> <remote>
++#pragma cgo_export_dynamic <local> <remote>
+ 
+-	In both internal and external linking modes, put the Go symbol
++	In internal linking mode, put the Go symbol
+ 	named <local> into the program's exported symbol table as
+ 	<remote>, so that C code can refer to it by that name. This
+ 	mechanism makes it possible for C code to call back into Go or
+ 	to share Go's data.
+ 
+ 	For compatibility with current versions of SWIG,
+-	#pragma dynexport is an alias for #pragma cgo_export.
++	#pragma dynexport is an alias for #pragma cgo_export_dynamic.
+ 
+ #pragma cgo_import_static <local>
+ 
+@@ -505,6 +505,14 @@ The directives are:
+ 	Example:
+ 	#pragma cgo_import_static puts_wrapper
+ 
++#pragma cgo_export_static <local> <remote>
++
++	In external linking mode, put the Go symbol
++	named <local> into the program's exported symbol table as
++	<remote>, so that C code can refer to it by that name. This
++	mechanism makes it possible for C code to call back into Go or
++	to share Go's data.
++
+ #pragma cgo_ldflag "<arg>"
+ 
+ 	In external linking mode, invoke the host linker (usually gcc)
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 4b0a521a87..585f01477c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -139,11 +139,7 @@ NextLine:
+ // addToFlag appends args to flag.  All flags are later written out onto the
+ // _cgo_flags file for the build system to use.
+ func (p *Package) addToFlag(flag string, args []string) {
+-	if oldv, ok := p.CgoFlags[flag]; ok {
+-		p.CgoFlags[flag] = oldv + " " + strings.Join(args, " ")
+-	} else {
+-		p.CgoFlags[flag] = strings.Join(args, " ")
+-	}
++	p.CgoFlags[flag] = append(p.CgoFlags[flag], args...)
+ 	if flag == "CFLAGS" {
+ 		// We'll also need these when preprocessing for dwarf information.
+ 		p.GccOptions = append(p.GccOptions, args...)
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 7adc795de3..ca370ef3f2 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -33,7 +33,7 @@ type Package struct {
+ 	PtrSize     int64
+ 	IntSize     int64
+ 	GccOptions  []string
+-	CgoFlags    map[string]string // #cgo flags (CFLAGS, LDFLAGS)
++	CgoFlags    map[string][]string // #cgo flags (CFLAGS, LDFLAGS)
+ 	Written     map[string]bool
+ 	Name        map[string]*Name // accumulated Name from Files
+ 	ExpFunc     []*ExpFunc       // accumulated ExpFunc from Files
+@@ -312,7 +312,7 @@ func newPackage(args []string) *Package {
+ 		PtrSize:    ptrSize,
+ 		IntSize:    intSize,
+ 		GccOptions: gccOptions,
+-		CgoFlags:   make(map[string]string),
++		CgoFlags:   make(map[string][]string),
+ 		Written:    make(map[string]bool),
+ 	}
+ 	return p
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index a126cf17fb..ee1d89142e 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -31,7 +31,12 @@ func (p *Package) writeDefs() {
+ 
+ 	fflg := creat(*objDir + "_cgo_flags")
+ 	for k, v := range p.CgoFlags {
+-		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, v)
++		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, strings.Join(v, " "))
++		if k == "LDFLAGS" {
++			for _, arg := range v {
++				fmt.Fprintf(fc, "#pragma cgo_ldflag %q\n", arg)
++			}
++		}
+ 	}
+ 	fflg.Close()
+ 
+@@ -100,6 +105,7 @@ func (p *Package) writeDefs() {
+ 			fmt.Fprintf(fm, "extern char %s[];\n", n.C)
+ 			fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
+ 
++			fmt.Fprintf(fc, "#pragma cgo_import_static %s\n", n.C)
+ 			fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
+ 
+ 			cVars[n.C] = true
+@@ -651,8 +657,9 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 		if fn.Recv != nil {
+ 			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
+ 		}
+-		fmt.Fprintf(fc, "#pragma cgo_export %s\n", goname)
++		fmt.Fprintf(fc, "#pragma cgo_export_dynamic %s\n", goname)
+ 		fmt.Fprintf(fc, "extern void ·%s();\n\n", goname)
++		fmt.Fprintf(fc, "#pragma cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
+ 		fmt.Fprintf(fc, "#pragma textflag 7\n") // no split stack, so no use of m or g
+ 		fmt.Fprintf(fc, "void\n")
+ 		fmt.Fprintf(fc, "_cgoexp%s_%s(void *a, int32 n)\n", cPrefix, exp.ExpName)
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index b2527b13ef..2b6fdd6b5e 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -487,7 +487,9 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 			continue;
+ 		}
+ 
+-		if(strcmp(f[0], "cgo_export") == 0) {
++		// TODO: cgo_export_static
++
++		if(strcmp(f[0], "cgo_export_dynamic") == 0) {
+ 			if(nf < 2 || nf > 3)
+ 				goto err;
+ 			local = f[1];
+@@ -501,13 +503,17 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 				fprint(2, "%s: symbol is both imported and exported: %s\n", argv0, local);
+ 				nerrors++;
+ 			}
+-			s->dynimpname = remote;
+ 			s->dynexport = 1;
+-
+-			if(ndynexp%32 == 0)
+-				dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
+-			dynexp[ndynexp++] = s;
+-
++			if(s->dynimpname == nil) {
++				s->dynimpname = remote;
++				if(ndynexp%32 == 0)
++					dynexp = realloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
++				dynexp[ndynexp++] = s;
++			} else if(strcmp(s->dynimpname, remote) != 0) {
++				fprint(2, "%s: conflicting cgo_export directives: %s as %s and %s\n", argv0, s->name, s->dynimpname, remote);
++				nerrors++;
++				return;
++			}
+ 			if(local != f[1])
+ 				free(local);
+ 			continue;
+@@ -528,6 +534,15 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 			}
+ 			continue;
+ 		}
++		
++		if(strcmp(f[0], "cgo_ldflag") == 0) {
++			if(nf != 2)
++				goto err;
++			if(nldflag%32 == 0)
++				ldflag = realloc(ldflag, (nldflag+32)*sizeof ldflag[0]);
++			ldflag[nldflag++] = strdup(f[1]);
++			continue;
++		}
+ 	}
+ 	free(p0);
+ 	return;
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 94ad76eccb..25fe45675e 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -138,6 +138,8 @@ EXTERN	char*	outfile;
+ EXTERN	int32	nsymbol;
+ EXTERN	char*	thestring;
+ EXTERN	int	ndynexp;
++EXTERN	int	nldflag;
++EXTERN	char**	ldflag;
+ EXTERN	int	havedynamic;
+ EXTERN	int	iscgo;
+ EXTERN	int	isobj;

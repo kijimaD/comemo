@@ -12,7 +12,67 @@ Date:   Wed Aug 9 17:14:30 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/web/http.go                      | 20 +++++++++++++-------
  .../go/testdata/script/mod_get_insecure_redirect.txt | 19 +++++++++++++++++++
  2 files changed, 32 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index 76b767c751..4fc939a30d 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -212,16 +212,22 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 			}
+ 		}
+ 
+-		if res == nil || res.Body == nil {
++		if err != nil {
++			// Per the docs for [net/http.Client.Do], “On error, any Response can be
++			// ignored. A non-nil Response with a non-nil error only occurs when
++			// CheckRedirect fails, and even then the returned Response.Body is
++			// already closed.”
+ 			release()
+-		} else {
+-			body := res.Body
+-			res.Body = hookCloser{
+-				ReadCloser: body,
+-				afterClose: release,
+-			}
++			return nil, nil, err
+ 		}
+ 
++		// “If the returned error is nil, the Response will contain a non-nil Body
++		// which the user is expected to close.”
++		body := res.Body
++		res.Body = hookCloser{
++			ReadCloser: body,
++			afterClose: release,
++		}
+ 		return url, res, err
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt b/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
+new file mode 100644
+index 0000000000..a503c914e3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
+@@ -0,0 +1,19 @@
++# golang.org/issue/29591: 'go get' was following plain-HTTP redirects even without -insecure (now replaced by GOINSECURE).
++# golang.org/issue/61877: 'go get' would panic in case of an insecure redirect in module mode
++
++[!git] skip
++
++env GOPRIVATE=vcs-test.golang.org
++
++! go get -d vcs-test.golang.org/insecure/go/insecure
++stderr 'redirected .* to insecure URL'
++
++[short] stop 'builds a git repo'
++
++env GOINSECURE=vcs-test.golang.org/insecure/go/insecure
++go get -d vcs-test.golang.org/insecure/go/insecure
++
++-- go.mod --
++module example
++go 1.21
++

@@ -13,7 +13,35 @@ Date:   Sun Aug 24 12:04:51 2014 +0400
     R=golang-codereviews, rsc
     CC=golang-codereviews, khr, rlh
     https://golang.org/cl/122680043
-
+---
  src/pkg/runtime/malloc.go | 2 +-
  src/pkg/runtime/mgc0.h    | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index 578fbd1c2d..ffe571a18a 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -28,7 +28,7 @@ const (
+ 	bitsMask           = 1<<bitsPerPointer - 1
+ 	pointersPerByte    = 8 / bitsPerPointer
+ 	bitPtrMask         = bitsMask << 2
+-	maxGCMask          = 0 // disabled because wastes several bytes of memory
++	maxGCMask          = 64
+ 	bitsDead           = 0
+ 	bitsPointer        = 2
+ 
+diff --git a/src/pkg/runtime/mgc0.h b/src/pkg/runtime/mgc0.h
+index 7449398b9f..a7292effd3 100644
+--- a/src/pkg/runtime/mgc0.h
++++ b/src/pkg/runtime/mgc0.h
+@@ -55,7 +55,8 @@ enum {
+ 	BitsIface	= 2,
+ 	BitsEface	= 3,
+ 
+-	MaxGCMask	= 0,	// disabled because wastes several bytes of memory
++	// 64 bytes cover objects of size 1024/512 on 64/32 bits, respectively.
++	MaxGCMask	= 64,
+ };
+ 
+ // Bits in per-word bitmap.

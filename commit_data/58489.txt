@@ -14,7 +14,254 @@ Date:   Mon Nov 13 09:32:33 2023 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/slices/slices.go      |  26 +++++-----
  src/slices/slices_test.go | 130 ++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 144 insertions(+), 12 deletions(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 4c398557ff..f92a25da6a 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -213,23 +213,21 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
+ 
+ // Delete removes the elements s[i:j] from s, returning the modified slice.
+ // Delete panics if j > len(s) or s[i:j] is not a valid slice of s.
+-// Delete is O(len(s)-j), so if many items must be deleted, it is better to
++// Delete is O(len(s)-i), so if many items must be deleted, it is better to
+ // make a single call deleting them all together than to delete one at a time.
+-// Delete might not modify the elements s[len(s)-(j-i):len(s)]. If those
+-// elements contain pointers you might consider zeroing those elements so that
+-// objects they reference can be garbage collected.
++// Delete zeroes the elements s[len(s)-(j-i):len(s)].
+ func Delete[S ~[]E, E any](s S, i, j int) S {
+ 	_ = s[i:j] // bounds check
+ 
+-	return append(s[:i], s[j:]...)
++	oldlen := len(s)
++	s = append(s[:i], s[j:]...)
++	clear(s[len(s):oldlen]) // zero/nil out the obsolete elements, for GC
++	return s
+ }
+ 
+ // DeleteFunc removes any elements from s for which del returns true,
+ // returning the modified slice.
+-// When DeleteFunc removes m elements, it might not modify the elements
+-// s[len(s)-m:len(s)]. If those elements contain pointers you might consider
+-// zeroing those elements so that objects they reference can be garbage
+-// collected.
++// DeleteFunc zeroes the elements between the new length and the original length.
+ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
+ 	i := IndexFunc(s, del)
+ 	if i == -1 {
+@@ -242,12 +240,14 @@ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
+ 			i++
+ 		}
+ 	}
++	clear(s[i:]) // zero/nil out the obsolete elements, for GC
+ 	return s[:i]
+ }
+ 
+ // Replace replaces the elements s[i:j] by the given v, and returns the
+ // modified slice.
+ // Replace panics if j > len(s) or s[i:j] is not a valid slice of s.
++// When len(v) < (j-i), Replace zeroes the elements between the new length and the original length.
+ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+ 	_ = s[i:j] // bounds check
+ 
+@@ -273,6 +273,7 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+ 		// Easy, as v fits in the deleted portion.
+ 		copy(r[i:], v)
+ 		copy(r[i+len(v):], s[j:])
++		clear(s[tot:]) // zero/nil out the obsolete elements, for GC
+ 		return r
+ 	}
+ 
+@@ -343,9 +344,7 @@ func Clone[S ~[]E, E any](s S) S {
+ // This is like the uniq command found on Unix.
+ // Compact modifies the contents of the slice s and returns the modified slice,
+ // which may have a smaller length.
+-// When Compact discards m elements in total, it might not modify the elements
+-// s[len(s)-m:len(s)]. If those elements contain pointers you might consider
+-// zeroing those elements so that objects they reference can be garbage collected.
++// Compact zeroes the elements between the new length and the original length.
+ func Compact[S ~[]E, E comparable](s S) S {
+ 	if len(s) < 2 {
+ 		return s
+@@ -359,11 +358,13 @@ func Compact[S ~[]E, E comparable](s S) S {
+ 			i++
+ 		}
+ 	}
++	clear(s[i:]) // zero/nil out the obsolete elements, for GC
+ 	return s[:i]
+ }
+ 
+ // CompactFunc is like [Compact] but uses an equality function to compare elements.
+ // For runs of elements that compare equal, CompactFunc keeps the first one.
++// CompactFunc zeroes the elements between the new length and the original length.
+ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
+ 	if len(s) < 2 {
+ 		return s
+@@ -377,6 +378,7 @@ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
+ 			i++
+ 		}
+ 	}
++	clear(s[i:]) // zero/nil out the obsolete elements, for GC
+ 	return s[:i]
+ }
+ 
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index 2fc583ff90..b86638172a 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -681,6 +681,39 @@ func TestDeletePanics(t *testing.T) {
+ 	}
+ }
+ 
++func TestDeleteClearTail(t *testing.T) {
++	mem := []*int{new(int), new(int), new(int), new(int), new(int), new(int)}
++	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
++
++	s = Delete(s, 2, 4)
++
++	if mem[3] != nil || mem[4] != nil {
++		// Check that potential memory leak is avoided
++		t.Errorf("Delete: want nil discarded elements, got %v, %v", mem[3], mem[4])
++	}
++	if mem[5] == nil {
++		t.Errorf("Delete: want unchanged elements beyond original len, got nil")
++	}
++}
++
++func TestDeleteFuncClearTail(t *testing.T) {
++	mem := []*int{new(int), new(int), new(int), new(int), new(int), new(int)}
++	*mem[2], *mem[3] = 42, 42
++	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
++
++	s = DeleteFunc(s, func(i *int) bool {
++		return i != nil && *i == 42
++	})
++
++	if mem[3] != nil || mem[4] != nil {
++		// Check that potential memory leak is avoided
++		t.Errorf("DeleteFunc: want nil discarded elements, got %v, %v", mem[3], mem[4])
++	}
++	if mem[5] == nil {
++		t.Errorf("DeleteFunc: want unchanged elements beyond original len, got nil")
++	}
++}
++
+ func TestClone(t *testing.T) {
+ 	s1 := []int{1, 2, 3}
+ 	s2 := Clone(s1)
+@@ -784,6 +817,53 @@ func TestCompactFunc(t *testing.T) {
+ 	}
+ }
+ 
++func TestCompactClearTail(t *testing.T) {
++	one, two, three, four := 1, 2, 3, 4
++	mem := []*int{&one, &one, &two, &two, &three, &four}
++	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
++	copy := Clone(s)
++
++	s = Compact(s)
++
++	if want := []*int{&one, &two, &three}; !Equal(s, want) {
++		t.Errorf("Compact(%v) = %v, want %v", copy, s, want)
++	}
++
++	if mem[3] != nil || mem[4] != nil {
++		// Check that potential memory leak is avoided
++		t.Errorf("Compact: want nil discarded elements, got %v, %v", mem[3], mem[4])
++	}
++	if mem[5] != &four {
++		t.Errorf("Compact: want unchanged element beyond original len, got %v", mem[5])
++	}
++}
++
++func TestCompactFuncClearTail(t *testing.T) {
++	a, b, c, d, e, f := 1, 1, 2, 2, 3, 4
++	mem := []*int{&a, &b, &c, &d, &e, &f}
++	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
++	copy := Clone(s)
++
++	s = CompactFunc(s, func(x, y *int) bool {
++		if x == nil || y == nil {
++			return x == y
++		}
++		return *x == *y
++	})
++
++	if want := []*int{&a, &c, &e}; !Equal(s, want) {
++		t.Errorf("CompactFunc(%v) = %v, want %v", copy, s, want)
++	}
++
++	if mem[3] != nil || mem[4] != nil {
++		// Check that potential memory leak is avoided
++		t.Errorf("CompactFunc: want nil discarded elements, got %v, %v", mem[3], mem[4])
++	}
++	if mem[5] != &f {
++		t.Errorf("CompactFunc: want unchanged elements beyond original len, got %v", mem[5])
++	}
++}
++
+ func BenchmarkCompactFunc_Large(b *testing.B) {
+ 	type Large [4 * 1024]byte
+ 
+@@ -954,6 +1034,56 @@ func TestReplacePanics(t *testing.T) {
+ 	}
+ }
+ 
++func TestReplaceGrow(t *testing.T) {
++	// When Replace needs to allocate a new slice, we want the original slice
++	// to not be changed.
++	a, b, c, d, e, f := 1, 2, 3, 4, 5, 6
++	mem := []*int{&a, &b, &c, &d, &e, &f}
++	memcopy := Clone(mem)
++	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
++	copy := Clone(s)
++	original := s
++
++	// The new elements don't fit within cap(s), so Replace will allocate.
++	z := 99
++	s = Replace(s, 1, 3, &z, &z, &z, &z)
++
++	if want := []*int{&a, &z, &z, &z, &z, &d, &e}; !Equal(s, want) {
++		t.Errorf("Replace(%v, 1, 3, %v, %v, %v, %v) = %v, want %v", copy, &z, &z, &z, &z, s, want)
++	}
++
++	if !Equal(original, copy) {
++		t.Errorf("original slice has changed, got %v, want %v", original, copy)
++	}
++
++	if !Equal(mem, memcopy) {
++		// Changing the original tail s[len(s):cap(s)] is unwanted
++		t.Errorf("original backing memory has changed, got %v, want %v", mem, memcopy)
++	}
++}
++
++func TestReplaceClearTail(t *testing.T) {
++	a, b, c, d, e, f := 1, 2, 3, 4, 5, 6
++	mem := []*int{&a, &b, &c, &d, &e, &f}
++	s := mem[0:5] // there is 1 element beyond len(s), within cap(s)
++	copy := Clone(s)
++
++	y, z := 8, 9
++	s = Replace(s, 1, 4, &y, &z)
++
++	if want := []*int{&a, &y, &z, &e}; !Equal(s, want) {
++		t.Errorf("Replace(%v) = %v, want %v", copy, s, want)
++	}
++
++	if mem[4] != nil {
++		// Check that potential memory leak is avoided
++		t.Errorf("Replace: want nil discarded element, got %v", mem[4])
++	}
++	if mem[5] != &f {
++		t.Errorf("Replace: want unchanged elements beyond original len, got %v", mem[5])
++	}
++}
++
+ func TestReplaceOverlap(t *testing.T) {
+ 	const N = 10
+ 	a := make([]int, N)

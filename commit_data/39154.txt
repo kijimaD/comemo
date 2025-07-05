@@ -7,6 +7,20 @@ Date:   Wed Jan 9 14:24:44 2019 +0100
     Change-Id: Iea33fe64403ca2e6f87a4e070af5e97d96506e41
     Reviewed-on: https://go-review.googlesource.com/c/157118
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index c13b99ff72..1c9feb7d7d 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -45,7 +45,7 @@ type ReverseProxy struct {
+ 	// after each write to the client.
+ 	// The FlushInterval is ignored when ReverseProxy
+ 	// recognizes a response as a streaming response;
+-	// for such reponses, writes are flushed to the client
++	// for such responses, writes are flushed to the client
+ 	// immediately.
+ 	FlushInterval time.Duration
+ 

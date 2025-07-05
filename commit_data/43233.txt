@@ -16,8 +16,388 @@ Date:   Thu Mar 19 14:29:23 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/fd_posix.go   | 100 ++++++++++++++++++++++++++++++++++++++++++++++++++
  src/net/fd_unix.go    |  94 ++++-------------------------------------------
  src/net/fd_windows.go |  96 +++++-------------------------------------------
  3 files changed, 117 insertions(+), 173 deletions(-)
+
+diff --git a/src/net/fd_posix.go b/src/net/fd_posix.go
+new file mode 100644
+index 0000000000..53abd152c7
+--- /dev/null
++++ b/src/net/fd_posix.go
+@@ -0,0 +1,100 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris windows
++
++package net
++
++import (
++	"internal/poll"
++	"runtime"
++	"syscall"
++	"time"
++)
++
++// Network file descriptor.
++type netFD struct {
++	pfd poll.FD
++
++	// immutable until Close
++	family      int
++	sotype      int
++	isConnected bool // handshake completed or use of association with peer
++	net         string
++	laddr       Addr
++	raddr       Addr
++}
++
++func (fd *netFD) setAddr(laddr, raddr Addr) {
++	fd.laddr = laddr
++	fd.raddr = raddr
++	runtime.SetFinalizer(fd, (*netFD).Close)
++}
++
++func (fd *netFD) Close() error {
++	runtime.SetFinalizer(fd, nil)
++	return fd.pfd.Close()
++}
++
++func (fd *netFD) shutdown(how int) error {
++	err := fd.pfd.Shutdown(how)
++	runtime.KeepAlive(fd)
++	return wrapSyscallError("shutdown", err)
++}
++
++func (fd *netFD) closeRead() error {
++	return fd.shutdown(syscall.SHUT_RD)
++}
++
++func (fd *netFD) closeWrite() error {
++	return fd.shutdown(syscall.SHUT_WR)
++}
++
++func (fd *netFD) Read(p []byte) (n int, err error) {
++	n, err = fd.pfd.Read(p)
++	runtime.KeepAlive(fd)
++	return n, wrapSyscallError(readSyscallName, err)
++}
++
++func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
++	n, sa, err = fd.pfd.ReadFrom(p)
++	runtime.KeepAlive(fd)
++	return n, sa, wrapSyscallError(readFromSyscallName, err)
++}
++
++func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
++	n, oobn, flags, sa, err = fd.pfd.ReadMsg(p, oob)
++	runtime.KeepAlive(fd)
++	return n, oobn, flags, sa, wrapSyscallError(readMsgSyscallName, err)
++}
++
++func (fd *netFD) Write(p []byte) (nn int, err error) {
++	nn, err = fd.pfd.Write(p)
++	runtime.KeepAlive(fd)
++	return nn, wrapSyscallError(writeSyscallName, err)
++}
++
++func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
++	n, err = fd.pfd.WriteTo(p, sa)
++	runtime.KeepAlive(fd)
++	return n, wrapSyscallError(writeToSyscallName, err)
++}
++
++func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
++	n, oobn, err = fd.pfd.WriteMsg(p, oob, sa)
++	runtime.KeepAlive(fd)
++	return n, oobn, wrapSyscallError(writeMsgSyscallName, err)
++}
++
++func (fd *netFD) SetDeadline(t time.Time) error {
++	return fd.pfd.SetDeadline(t)
++}
++
++func (fd *netFD) SetReadDeadline(t time.Time) error {
++	return fd.pfd.SetReadDeadline(t)
++}
++
++func (fd *netFD) SetWriteDeadline(t time.Time) error {
++	return fd.pfd.SetWriteDeadline(t)
++}
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index da88c74f6b..1c9bba3b19 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -12,21 +12,16 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"syscall"
+-	"time"
+ )
+ 
+-// Network file descriptor.
+-type netFD struct {
+-	pfd poll.FD
+-
+-	// immutable until Close
+-	family      int
+-	sotype      int
+-	isConnected bool // handshake completed or use of association with peer
+-	net         string
+-	laddr       Addr
+-	raddr       Addr
+-}
++const (
++	readSyscallName     = "read"
++	readFromSyscallName = "recvfrom"
++	readMsgSyscallName  = "recvmsg"
++	writeSyscallName    = "write"
++	writeToSyscallName  = "sendto"
++	writeMsgSyscallName = "sendmsg"
++)
+ 
+ func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
+ 	ret := &netFD{
+@@ -46,12 +41,6 @@ func (fd *netFD) init() error {
+ 	return fd.pfd.Init(fd.net, true)
+ }
+ 
+-func (fd *netFD) setAddr(laddr, raddr Addr) {
+-	fd.laddr = laddr
+-	fd.raddr = raddr
+-	runtime.SetFinalizer(fd, (*netFD).Close)
+-}
+-
+ func (fd *netFD) name() string {
+ 	var ls, rs string
+ 	if fd.laddr != nil {
+@@ -179,61 +168,6 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
+ 	}
+ }
+ 
+-func (fd *netFD) Close() error {
+-	runtime.SetFinalizer(fd, nil)
+-	return fd.pfd.Close()
+-}
+-
+-func (fd *netFD) shutdown(how int) error {
+-	err := fd.pfd.Shutdown(how)
+-	runtime.KeepAlive(fd)
+-	return wrapSyscallError("shutdown", err)
+-}
+-
+-func (fd *netFD) closeRead() error {
+-	return fd.shutdown(syscall.SHUT_RD)
+-}
+-
+-func (fd *netFD) closeWrite() error {
+-	return fd.shutdown(syscall.SHUT_WR)
+-}
+-
+-func (fd *netFD) Read(p []byte) (n int, err error) {
+-	n, err = fd.pfd.Read(p)
+-	runtime.KeepAlive(fd)
+-	return n, wrapSyscallError("read", err)
+-}
+-
+-func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+-	n, sa, err = fd.pfd.ReadFrom(p)
+-	runtime.KeepAlive(fd)
+-	return n, sa, wrapSyscallError("recvfrom", err)
+-}
+-
+-func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+-	n, oobn, flags, sa, err = fd.pfd.ReadMsg(p, oob)
+-	runtime.KeepAlive(fd)
+-	return n, oobn, flags, sa, wrapSyscallError("recvmsg", err)
+-}
+-
+-func (fd *netFD) Write(p []byte) (nn int, err error) {
+-	nn, err = fd.pfd.Write(p)
+-	runtime.KeepAlive(fd)
+-	return nn, wrapSyscallError("write", err)
+-}
+-
+-func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+-	n, err = fd.pfd.WriteTo(p, sa)
+-	runtime.KeepAlive(fd)
+-	return n, wrapSyscallError("sendto", err)
+-}
+-
+-func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+-	n, oobn, err = fd.pfd.WriteMsg(p, oob, sa)
+-	runtime.KeepAlive(fd)
+-	return n, oobn, wrapSyscallError("sendmsg", err)
+-}
+-
+ func (fd *netFD) accept() (netfd *netFD, err error) {
+ 	d, rsa, errcall, err := fd.pfd.Accept()
+ 	if err != nil {
+@@ -267,15 +201,3 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ 
+ 	return os.NewFile(uintptr(ns), fd.name()), nil
+ }
+-
+-func (fd *netFD) SetDeadline(t time.Time) error {
+-	return fd.pfd.SetDeadline(t)
+-}
+-
+-func (fd *netFD) SetReadDeadline(t time.Time) error {
+-	return fd.pfd.SetReadDeadline(t)
+-}
+-
+-func (fd *netFD) SetWriteDeadline(t time.Time) error {
+-	return fd.pfd.SetWriteDeadline(t)
+-}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 3cc4c7a6a2..030b6a15fb 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -10,10 +10,18 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"syscall"
+-	"time"
+ 	"unsafe"
+ )
+ 
++const (
++	readSyscallName     = "wsarecv"
++	readFromSyscallName = "wsarecvfrom"
++	readMsgSyscallName  = "wsarecvmsg"
++	writeSyscallName    = "wsasend"
++	writeToSyscallName  = "wsasendto"
++	writeMsgSyscallName = "wsasendmsg"
++)
++
+ // canUseConnectEx reports whether we can use the ConnectEx Windows API call
+ // for the given network type.
+ func canUseConnectEx(net string) bool {
+@@ -25,19 +33,6 @@ func canUseConnectEx(net string) bool {
+ 	return false
+ }
+ 
+-// Network file descriptor.
+-type netFD struct {
+-	pfd poll.FD
+-
+-	// immutable until Close
+-	family      int
+-	sotype      int
+-	isConnected bool // handshake completed or use of association with peer
+-	net         string
+-	laddr       Addr
+-	raddr       Addr
+-}
+-
+ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error) {
+ 	ret := &netFD{
+ 		pfd: poll.FD{
+@@ -60,12 +55,6 @@ func (fd *netFD) init() error {
+ 	return err
+ }
+ 
+-func (fd *netFD) setAddr(laddr, raddr Addr) {
+-	fd.laddr = laddr
+-	fd.raddr = raddr
+-	runtime.SetFinalizer(fd, (*netFD).Close)
+-}
+-
+ // Always returns nil for connected peer address result.
+ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.Sockaddr, error) {
+ 	// Do not need to call fd.writeLock here,
+@@ -129,43 +118,6 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.
+ 	return nil, os.NewSyscallError("setsockopt", syscall.Setsockopt(fd.pfd.Sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.pfd.Sysfd)), int32(unsafe.Sizeof(fd.pfd.Sysfd))))
+ }
+ 
+-func (fd *netFD) Close() error {
+-	runtime.SetFinalizer(fd, nil)
+-	return fd.pfd.Close()
+-}
+-
+-func (fd *netFD) shutdown(how int) error {
+-	err := fd.pfd.Shutdown(how)
+-	runtime.KeepAlive(fd)
+-	return err
+-}
+-
+-func (fd *netFD) closeRead() error {
+-	return fd.shutdown(syscall.SHUT_RD)
+-}
+-
+-func (fd *netFD) closeWrite() error {
+-	return fd.shutdown(syscall.SHUT_WR)
+-}
+-
+-func (fd *netFD) Read(buf []byte) (int, error) {
+-	n, err := fd.pfd.Read(buf)
+-	runtime.KeepAlive(fd)
+-	return n, wrapSyscallError("wsarecv", err)
+-}
+-
+-func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+-	n, sa, err := fd.pfd.ReadFrom(buf)
+-	runtime.KeepAlive(fd)
+-	return n, sa, wrapSyscallError("wsarecvfrom", err)
+-}
+-
+-func (fd *netFD) Write(buf []byte) (int, error) {
+-	n, err := fd.pfd.Write(buf)
+-	runtime.KeepAlive(fd)
+-	return n, wrapSyscallError("wsasend", err)
+-}
+-
+ func (c *conn) writeBuffers(v *Buffers) (int64, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+@@ -183,12 +135,6 @@ func (fd *netFD) writeBuffers(buf *Buffers) (int64, error) {
+ 	return n, wrapSyscallError("wsasend", err)
+ }
+ 
+-func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+-	n, err := fd.pfd.WriteTo(buf, sa)
+-	runtime.KeepAlive(fd)
+-	return n, wrapSyscallError("wsasendto", err)
+-}
+-
+ func (fd *netFD) accept() (*netFD, error) {
+ 	s, rawsa, rsan, errcall, err := fd.pfd.Accept(func() (syscall.Handle, error) {
+ 		return sysSocket(fd.family, fd.sotype, 0)
+@@ -224,33 +170,9 @@ func (fd *netFD) accept() (*netFD, error) {
+ 	return netfd, nil
+ }
+ 
+-func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+-	n, oobn, flags, sa, err = fd.pfd.ReadMsg(p, oob)
+-	runtime.KeepAlive(fd)
+-	return n, oobn, flags, sa, wrapSyscallError("wsarecvmsg", err)
+-}
+-
+-func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+-	n, oobn, err = fd.pfd.WriteMsg(p, oob, sa)
+-	runtime.KeepAlive(fd)
+-	return n, oobn, wrapSyscallError("wsasendmsg", err)
+-}
+-
+ // Unimplemented functions.
+ 
+ func (fd *netFD) dup() (*os.File, error) {
+ 	// TODO: Implement this
+ 	return nil, syscall.EWINDOWS
+ }
+-
+-func (fd *netFD) SetDeadline(t time.Time) error {
+-	return fd.pfd.SetDeadline(t)
+-}
+-
+-func (fd *netFD) SetReadDeadline(t time.Time) error {
+-	return fd.pfd.SetReadDeadline(t)
+-}
+-
+-func (fd *netFD) SetWriteDeadline(t time.Time) error {
+-	return fd.pfd.SetWriteDeadline(t)
+-}

@@ -11,6 +11,22 @@ Date:   Tue Jan 10 11:07:35 2012 +0100
     R=rsc, dsymonds, bradfitz
     CC=golang-dev
     https://golang.org/cl/5516051
-
+---
  src/cmd/gc/closure.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index d29e8cbc28..fa44e40fae 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -192,6 +192,10 @@ walkclosure(Node *func, NodeList **init)
+ 	Node *xtype, *xfunc, *call, *clos;
+ 	NodeList *l, *in;
+ 
++	// no closure vars, don't bother wrapping
++	if(func->cvars == nil)
++		return makeclosure(func, init, 1)->nname;
++
+ 	/*
+ 	 * wrap body in external function
+ 	 * with extra closure parameters.

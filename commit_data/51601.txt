@@ -14,6 +14,43 @@ Date:   Tue Feb 22 12:54:57 2022 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/387354
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 18 +++++++++---------
  1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 8617dd8fe1..25d85dd92a 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -333,15 +333,6 @@ Do not send CLs removing the interior tags from such phrases.
+   third-party tools that need to collect package source code.)
+ </p>
+ 
+-<h4 id="go-mod-vendor"><code>go</code> <code>build</code> <code>-asan</code></h4>
+-
+-<p><!-- CL 298612 -->
+-  The <code>go</code> <code>build</code> command and related commands
+-  now support an <code>-asan</code> flag that enables interoperation
+-  with C (or C++) code compiled with the address sanitizer (C compiler
+-  option <code>-fsanitize=address</code>).
+-</p>
+-
+ <h4 id="go-mod-tidy"><code>go</code> <code>mod</code> <code>tidy</code></h4>
+ 
+ <p><!-- https://golang.org/issue/47738, CL 344572 -->
+@@ -369,6 +360,15 @@ Do not send CLs removing the interior tags from such phrases.
+   documentation.
+ </p>
+ 
++<h4 id="go-build-asan"><code>go</code> <code>build</code> <code>-asan</code></h4>
++
++<p><!-- CL 298612 -->
++  The <code>go</code> <code>build</code> command and related commands
++  now support an <code>-asan</code> flag that enables interoperation
++  with C (or C++) code compiled with the address sanitizer (C compiler
++  option <code>-fsanitize=address</code>).
++</p>
++
+ <h4 id="go-test"><code>go</code> <code>test</code></h4>
+ 
+ <p><!-- CL 251441 -->

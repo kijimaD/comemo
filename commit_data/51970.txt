@@ -15,7 +15,110 @@ Date:   Mon Feb 28 20:42:40 2022 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/importer/exportdata.go |  8 +++++--
  src/cmd/compile/internal/importer/gcimporter.go | 29 ++++++++++++++++++++-----
  2 files changed, 29 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/exportdata.go b/src/cmd/compile/internal/importer/exportdata.go
+index 6a672be9c1..42fc5c9a57 100644
+--- a/src/cmd/compile/internal/importer/exportdata.go
++++ b/src/cmd/compile/internal/importer/exportdata.go
+@@ -41,7 +41,9 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
+ // start of the file before calling this function. The hdr result
+ // is the string before the export data, either "$$" or "$$B".
+ //
+-func FindExportData(r *bufio.Reader) (hdr string, err error) {
++// If size is non-negative, it's the number of bytes of export data
++// still available to read from r.
++func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
+ 	// Read first line to make sure this is an object file.
+ 	line, err := r.ReadSlice('\n')
+ 	if err != nil {
+@@ -52,7 +54,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
+ 	if string(line) == "!<arch>\n" {
+ 		// Archive file. Scan to __.PKGDEF.
+ 		var name string
+-		if name, _, err = readGopackHeader(r); err != nil {
++		if name, size, err = readGopackHeader(r); err != nil {
+ 			return
+ 		}
+ 
+@@ -76,6 +78,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
+ 		err = fmt.Errorf("not a Go object file")
+ 		return
+ 	}
++	size -= len(line)
+ 
+ 	// Skip over object header to export data.
+ 	// Begins after first line starting with $$.
+@@ -84,6 +87,7 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
+ 			err = fmt.Errorf("can't find export data (%v)", err)
+ 			return
+ 		}
++		size -= len(line)
+ 	}
+ 	hdr = string(line)
+ 
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index ff40be65bb..6c27f8b332 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/types2"
+ 	"fmt"
+ 	"go/build"
++	"internal/pkgbits"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -134,9 +135,9 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
+ 	}
+ 	defer rc.Close()
+ 
+-	var hdr string
+ 	buf := bufio.NewReader(rc)
+-	if hdr, err = FindExportData(buf); err != nil {
++	hdr, size, err := FindExportData(buf)
++	if err != nil {
+ 		return
+ 	}
+ 
+@@ -146,17 +147,33 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
+ 
+ 	case "$$B\n":
+ 		var data []byte
+-		data, err = ioutil.ReadAll(buf)
++		var r io.Reader = buf
++		if size >= 0 {
++			r = io.LimitReader(r, int64(size))
++		}
++		data, err = ioutil.ReadAll(r)
+ 		if err != nil {
+ 			break
+ 		}
+ 
++		if len(data) == 0 {
++			err = fmt.Errorf("import %q: missing export data", path)
++			break
++		}
++		exportFormat := data[0]
++		s := string(data[1:])
++
+ 		// The indexed export format starts with an 'i'; the older
+ 		// binary export format starts with a 'c', 'd', or 'v'
+ 		// (from "version"). Select appropriate importer.
+-		if len(data) > 0 && data[0] == 'i' {
+-			pkg, err = ImportData(packages, string(data[1:]), id)
+-		} else {
++		switch exportFormat {
++		case 'u':
++			s = s[:strings.Index(s, "\n$$\n")]
++			input := pkgbits.NewPkgDecoder(id, s)
++			pkg = ReadPackage(nil, packages, input)
++		case 'i':
++			pkg, err = ImportData(packages, s, id)
++		default:
+ 			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
+ 		}
+ 

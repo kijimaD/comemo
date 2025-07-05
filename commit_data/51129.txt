@@ -36,7 +36,7 @@ Date:   Wed Dec 1 11:25:16 2021 -0500
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../script/test_fuzz_minimize_interesting.txt      |  40 +++-
  src/internal/fuzz/mem.go                           |   8 +-
  src/internal/fuzz/minimize.go                      |  44 +---
@@ -44,3 +44,778 @@ Date:   Wed Dec 1 11:25:16 2021 -0500
  src/internal/fuzz/worker.go                        | 252 ++++++++++-----------
  src/internal/fuzz/worker_test.go                   |  48 ++++
  6 files changed, 215 insertions(+), 333 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt b/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
+index e017a4cad3..c9b04d02ea 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
+@@ -17,12 +17,13 @@ env GOCACHE=$WORK/gocache
+ exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinCache -test.fuzztime=1000x
+ go run check_cache.go $GOCACHE/fuzz/FuzzMinCache
+ 
++go test -c -fuzz=.  # Build using shared build cache for speed.
++env GOCACHE=$WORK/gocache
++
+ # Test that minimization occurs for a crash that appears while minimizing a
+ # newly found interesting input. There must be only one worker for this test to
+ # be flaky like we want.
+-go test -c -fuzz=.  # Build using shared build cache for speed.
+-env GOCACHE=$WORK/gocache
+-! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.fuzztime=10000x -test.parallel=1
++! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.run=FuzzMinimizerCrashInMinimization -test.fuzztime=10000x -test.parallel=1
+ ! stdout '^ok'
+ stdout 'got the minimum size!'
+ stdout -count=1 'flaky failure'
+@@ -31,6 +32,17 @@ stdout FAIL
+ # Make sure the crash that was written will fail when run with go test
+ ! go test -run=FuzzMinimizerCrashInMinimization .
+ 
++# Test that a nonrecoverable error that occurs while minimizing an interesting
++# input is reported correctly.
++! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerNonrecoverableCrashInMinimization -test.run=FuzzMinimizerNonrecoverableCrashInMinimization -test.fuzztime=10000x -test.parallel=1
++! stdout '^ok'
++stdout -count=1 'fuzzing process hung or terminated unexpectedly while minimizing'
++stdout -count=1 'EOF'
++stdout FAIL
++
++# Make sure the crash that was written will fail when run with go test
++! go test -run=FuzzMinimizerNonrecoverableCrashInMinimization .
++
+ -- go.mod --
+ module fuzz
+ 
+@@ -54,6 +66,7 @@ package fuzz
+ import (
+ 	"bytes"
+ 	"io"
++	"os"
+ 	"testing"
+ )
+ 
+@@ -70,7 +83,7 @@ func FuzzMinimizerCrashInMinimization(f *testing.F) {
+ 			// should be attempting minimization
+ 			Y(io.Discard, b)
+ 		}
+-		if len(b) < 350 {
++		if len(b) < 55 {
+ 			t.Error("flaky failure")
+ 		}
+ 		if len(b) == 50 {
+@@ -79,6 +92,25 @@ func FuzzMinimizerCrashInMinimization(f *testing.F) {
+ 	})
+ }
+ 
++func FuzzMinimizerNonrecoverableCrashInMinimization(f *testing.F) {
++	seed := make([]byte, 1000)
++	f.Add(seed)
++	f.Fuzz(func(t *testing.T, b []byte) {
++		if len(b) < 50 || len(b) > 1100 {
++			// Make sure that b is large enough that it can be minimized
++			return
++		}
++		if !bytes.Equal(b, seed) {
++			// This should have hit a new edge, and the interesting input
++			// should be attempting minimization
++			Y(io.Discard, b)
++		}
++		if len(b) < 55 {
++			os.Exit(19)
++		}
++	})
++}
++
+ func FuzzMinCache(f *testing.F) {
+ 	seed := bytes.Repeat([]byte("a"), 20)
+ 	f.Add(seed)
+diff --git a/src/internal/fuzz/mem.go b/src/internal/fuzz/mem.go
+index ccd4da2455..d6d45be20e 100644
+--- a/src/internal/fuzz/mem.go
++++ b/src/internal/fuzz/mem.go
+@@ -41,11 +41,17 @@ type sharedMemHeader struct {
+ 	// May be reset by coordinator.
+ 	count int64
+ 
+-	// valueLen is the length of the value that was last fuzzed.
++	// valueLen is the number of bytes in region which should be read.
+ 	valueLen int
+ 
+ 	// randState and randInc hold the state of a pseudo-random number generator.
+ 	randState, randInc uint64
++
++	// rawInMem is true if the region holds raw bytes, which occurs during
++	// minimization. If true after the worker fails during minimization, this
++	// indicates that an unrecoverable error occurred, and the region can be
++	// used to retrive the raw bytes that caused the error.
++	rawInMem bool
+ }
+ 
+ // sharedMemSize returns the size needed for a shared memory buffer that can
+diff --git a/src/internal/fuzz/minimize.go b/src/internal/fuzz/minimize.go
+index c6e4559665..0e410fb86a 100644
+--- a/src/internal/fuzz/minimize.go
++++ b/src/internal/fuzz/minimize.go
+@@ -5,20 +5,14 @@
+ package fuzz
+ 
+ import (
+-	"math"
+ 	"reflect"
+ )
+ 
+ func isMinimizable(t reflect.Type) bool {
+-	for _, v := range zeroVals {
+-		if t == reflect.TypeOf(v) {
+-			return true
+-		}
+-	}
+-	return false
++	return t == reflect.TypeOf("") || t == reflect.TypeOf([]byte(nil))
+ }
+ 
+-func minimizeBytes(v []byte, try func(interface{}) bool, shouldStop func() bool) {
++func minimizeBytes(v []byte, try func([]byte) bool, shouldStop func() bool) {
+ 	tmp := make([]byte, len(v))
+ 	// If minimization was successful at any point during minimizeBytes,
+ 	// then the vals slice in (*workerServer).minimizeInput will point to
+@@ -99,37 +93,3 @@ func minimizeBytes(v []byte, try func(interface{}) bool, shouldStop func() bool)
+ 		}
+ 	}
+ }
+-
+-func minimizeInteger(v uint, try func(interface{}) bool, shouldStop func() bool) {
+-	// TODO(rolandshoemaker): another approach could be either unsetting/setting all bits
+-	// (depending on signed-ness), or rotating bits? When operating on cast signed integers
+-	// this would probably be more complex though.
+-	for ; v != 0; v /= 10 {
+-		if shouldStop() {
+-			return
+-		}
+-		// We ignore the return value here because there is no point
+-		// advancing the loop, since there is nothing after this check,
+-		// and we don't return early because a smaller value could
+-		// re-trigger the crash.
+-		try(v)
+-	}
+-}
+-
+-func minimizeFloat(v float64, try func(interface{}) bool, shouldStop func() bool) {
+-	if math.IsNaN(v) {
+-		return
+-	}
+-	minimized := float64(0)
+-	for div := 10.0; minimized < v; div *= 10 {
+-		if shouldStop() {
+-			return
+-		}
+-		minimized = float64(int(v*div)) / div
+-		if !try(minimized) {
+-			// Since we are searching from least precision -> highest precision we
+-			// can return early since we've already found the smallest value
+-			return
+-		}
+-	}
+-}
+diff --git a/src/internal/fuzz/minimize_test.go b/src/internal/fuzz/minimize_test.go
+index 04d785ce40..f9041d1d34 100644
+--- a/src/internal/fuzz/minimize_test.go
++++ b/src/internal/fuzz/minimize_test.go
+@@ -129,150 +129,6 @@ func TestMinimizeInput(t *testing.T) {
+ 			input:    []interface{}{"ZZZZZ"},
+ 			expected: []interface{}{"A"},
+ 		},
+-		{
+-			name: "int",
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(int)
+-				if i > 100 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{123456},
+-			expected: []interface{}{123},
+-		},
+-		{
+-			name: "int8",
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(int8)
+-				if i > 10 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{int8(1<<7 - 1)},
+-			expected: []interface{}{int8(12)},
+-		},
+-		{
+-			name: "int16",
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(int16)
+-				if i > 10 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{int16(1<<15 - 1)},
+-			expected: []interface{}{int16(32)},
+-		},
+-		{
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(int32)
+-				if i > 10 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{int32(1<<31 - 1)},
+-			expected: []interface{}{int32(21)},
+-		},
+-		{
+-			name: "int32",
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(uint)
+-				if i > 10 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{uint(123456)},
+-			expected: []interface{}{uint(12)},
+-		},
+-		{
+-			name: "uint8",
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(uint8)
+-				if i > 10 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{uint8(1<<8 - 1)},
+-			expected: []interface{}{uint8(25)},
+-		},
+-		{
+-			name: "uint16",
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(uint16)
+-				if i > 10 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{uint16(1<<16 - 1)},
+-			expected: []interface{}{uint16(65)},
+-		},
+-		{
+-			name: "uint32",
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(uint32)
+-				if i > 10 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{uint32(1<<32 - 1)},
+-			expected: []interface{}{uint32(42)},
+-		},
+-		{
+-			name: "float32",
+-			fn: func(e CorpusEntry) error {
+-				if i := e.Values[0].(float32); i == 1.23 {
+-					return nil
+-				}
+-				return fmt.Errorf("bad %v", e.Values[0])
+-			},
+-			input:    []interface{}{float32(1.23456789)},
+-			expected: []interface{}{float32(1.2)},
+-		},
+-		{
+-			name: "float64",
+-			fn: func(e CorpusEntry) error {
+-				if i := e.Values[0].(float64); i == 1.23 {
+-					return nil
+-				}
+-				return fmt.Errorf("bad %v", e.Values[0])
+-			},
+-			input:    []interface{}{float64(1.23456789)},
+-			expected: []interface{}{float64(1.2)},
+-		},
+-	}
+-
+-	// If we are on a 64 bit platform add int64 and uint64 tests
+-	if v := int64(1<<63 - 1); int64(int(v)) == v {
+-		cases = append(cases, testcase{
+-			name: "int64",
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(int64)
+-				if i > 10 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{int64(1<<63 - 1)},
+-			expected: []interface{}{int64(92)},
+-		}, testcase{
+-			name: "uint64",
+-			fn: func(e CorpusEntry) error {
+-				i := e.Values[0].(uint64)
+-				if i > 10 {
+-					return fmt.Errorf("bad %v", e.Values[0])
+-				}
+-				return nil
+-			},
+-			input:    []interface{}{uint64(1<<64 - 1)},
+-			expected: []interface{}{uint64(18)},
+-		})
+ 	}
+ 
+ 	for _, tc := range cases {
+@@ -284,9 +140,9 @@ func TestMinimizeInput(t *testing.T) {
+ 					return time.Second, tc.fn(e)
+ 				},
+ 			}
+-			count := int64(0)
++			mem := &sharedMem{region: make([]byte, 100)} // big enough to hold value and header
+ 			vals := tc.input
+-			success, err := ws.minimizeInput(context.Background(), vals, &count, 0, nil)
++			success, err := ws.minimizeInput(context.Background(), vals, mem, minimizeArgs{})
+ 			if !success {
+ 				t.Errorf("minimizeInput did not succeed")
+ 			}
+@@ -310,17 +166,17 @@ func TestMinimizeFlaky(t *testing.T) {
+ 	ws := &workerServer{fuzzFn: func(e CorpusEntry) (time.Duration, error) {
+ 		return time.Second, errors.New("ohno")
+ 	}}
+-	keepCoverage := make([]byte, len(coverageSnapshot))
+-	count := int64(0)
++	mem := &sharedMem{region: make([]byte, 100)} // big enough to hold value and header
+ 	vals := []interface{}{[]byte(nil)}
+-	success, err := ws.minimizeInput(context.Background(), vals, &count, 0, keepCoverage)
++	args := minimizeArgs{KeepCoverage: make([]byte, len(coverageSnapshot))}
++	success, err := ws.minimizeInput(context.Background(), vals, mem, args)
+ 	if success {
+ 		t.Error("unexpected success")
+ 	}
+ 	if err != nil {
+ 		t.Errorf("unexpected error: %v", err)
+ 	}
+-	if count != 1 {
++	if count := mem.header().count; count != 1 {
+ 		t.Errorf("count: got %d, want 1", count)
+ 	}
+ }
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 5be49d28f9..c39804cad1 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -15,6 +15,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
++	"reflect"
+ 	"runtime"
+ 	"sync"
+ 	"time"
+@@ -255,7 +256,14 @@ func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuz
+ 				limit:        input.limit,
+ 			}, nil
+ 		}
+-		return fuzzResult{}, fmt.Errorf("fuzzing process hung or terminated unexpectedly while minimizing: %w", w.waitErr)
++		return fuzzResult{
++			entry:         entry,
++			crasherMsg:    fmt.Sprintf("fuzzing process hung or terminated unexpectedly while minimizing: %v", err),
++			canMinimize:   false,
++			limit:         input.limit,
++			count:         resp.Count,
++			totalDuration: resp.Duration,
++		}, nil
+ 	}
+ 
+ 	if input.crasherMsg != "" && resp.Err == "" {
+@@ -510,6 +518,9 @@ type minimizeArgs struct {
+ 	// keep in minimized values. When provided, the worker will reject inputs that
+ 	// don't cause at least one of these bits to be set.
+ 	KeepCoverage []byte
++
++	// Index is the index of the fuzz target parameter to be minimized.
++	Index int
+ }
+ 
+ // minimizeResponse contains results from workerServer.minimize.
+@@ -797,11 +808,10 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
+ 
+ 	// Minimize the values in vals, then write to shared memory. We only write
+ 	// to shared memory after completing minimization.
+-	// TODO(48165): If the worker terminates unexpectedly during minimization,
+-	// the coordinator has no way of retrieving the crashing input.
+-	success, err := ws.minimizeInput(ctx, vals, &mem.header().count, args.Limit, args.KeepCoverage)
++	success, err := ws.minimizeInput(ctx, vals, mem, args)
+ 	if success {
+ 		writeToMem(vals, mem)
++		mem.header().rawInMem = false
+ 		resp.WroteToMem = true
+ 		if err != nil {
+ 			resp.Err = err.Error()
+@@ -813,14 +823,18 @@ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp m
+ }
+ 
+ // minimizeInput applies a series of minimizing transformations on the provided
+-// vals, ensuring that each minimization still causes an error in fuzzFn. It
+-// uses the context to determine how long to run, stopping once closed. It
+-// returns a bool indicating whether minimization was successful and an error if
+-// one was found.
+-func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, count *int64, limit int64, keepCoverage []byte) (success bool, retErr error) {
++// vals, ensuring that each minimization still causes an error, or keeps
++// coverage, in fuzzFn. It uses the context to determine how long to run,
++// stopping once closed. It returns a bool indicating whether minimization was
++// successful and an error if one was found.
++func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, mem *sharedMem, args minimizeArgs) (success bool, retErr error) {
++	keepCoverage := args.KeepCoverage
++	memBytes := mem.valueRef()
++	bPtr := &memBytes
++	count := &mem.header().count
+ 	shouldStop := func() bool {
+ 		return ctx.Err() != nil ||
+-			(limit > 0 && *count >= limit)
++			(args.Limit > 0 && *count >= args.Limit)
+ 	}
+ 	if shouldStop() {
+ 		return false, nil
+@@ -838,64 +852,25 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
+ 	} else if retErr == nil {
+ 		return false, nil
+ 	}
++	mem.header().rawInMem = true
+ 
+-	var valI int
+ 	// tryMinimized runs the fuzz function with candidate replacing the value
+ 	// at index valI. tryMinimized returns whether the input with candidate is
+ 	// interesting for the same reason as the original input: it returns
+ 	// an error if one was expected, or it preserves coverage.
+-	tryMinimized := func(candidate interface{}) bool {
+-		prev := vals[valI]
+-		// Set vals[valI] to the candidate after it has been
+-		// properly cast. We know that candidate must be of
+-		// the same type as prev, so use that as a reference.
+-		switch c := candidate.(type) {
+-		case float64:
+-			switch prev.(type) {
+-			case float32:
+-				vals[valI] = float32(c)
+-			case float64:
+-				vals[valI] = c
+-			default:
+-				panic("impossible")
+-			}
+-		case uint:
+-			switch prev.(type) {
+-			case uint:
+-				vals[valI] = c
+-			case uint8:
+-				vals[valI] = uint8(c)
+-			case uint16:
+-				vals[valI] = uint16(c)
+-			case uint32:
+-				vals[valI] = uint32(c)
+-			case uint64:
+-				vals[valI] = uint64(c)
+-			case int:
+-				vals[valI] = int(c)
+-			case int8:
+-				vals[valI] = int8(c)
+-			case int16:
+-				vals[valI] = int16(c)
+-			case int32:
+-				vals[valI] = int32(c)
+-			case int64:
+-				vals[valI] = int64(c)
+-			default:
+-				panic("impossible")
+-			}
++	tryMinimized := func(candidate []byte) bool {
++		prev := vals[args.Index]
++		switch prev.(type) {
+ 		case []byte:
+-			switch prev.(type) {
+-			case []byte:
+-				vals[valI] = c
+-			case string:
+-				vals[valI] = string(c)
+-			default:
+-				panic("impossible")
+-			}
++			vals[args.Index] = candidate
++		case string:
++			vals[args.Index] = string(candidate)
+ 		default:
+ 			panic("impossible")
+ 		}
++		copy(*bPtr, candidate)
++		*bPtr = (*bPtr)[:len(candidate)]
++		mem.setValueLen(len(candidate))
+ 		*count++
+ 		_, err := ws.fuzzFn(CorpusEntry{Values: vals})
+ 		if err != nil {
+@@ -911,58 +886,16 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []interface{}, c
+ 		if keepCoverage != nil && hasCoverageBit(keepCoverage, coverageSnapshot) {
+ 			return true
+ 		}
+-		vals[valI] = prev
++		vals[args.Index] = prev
+ 		return false
+ 	}
+-
+-	for valI = range vals {
+-		if shouldStop() {
+-			break
+-		}
+-		switch v := vals[valI].(type) {
+-		case bool:
+-			continue // can't minimize
+-		case float32:
+-			minimizeFloat(float64(v), tryMinimized, shouldStop)
+-		case float64:
+-			minimizeFloat(v, tryMinimized, shouldStop)
+-		case uint:
+-			minimizeInteger(v, tryMinimized, shouldStop)
+-		case uint8:
+-			minimizeInteger(uint(v), tryMinimized, shouldStop)
+-		case uint16:
+-			minimizeInteger(uint(v), tryMinimized, shouldStop)
+-		case uint32:
+-			minimizeInteger(uint(v), tryMinimized, shouldStop)
+-		case uint64:
+-			if uint64(uint(v)) != v {
+-				// Skip minimizing a uint64 on 32 bit platforms, since we'll truncate the
+-				// value when casting
+-				continue
+-			}
+-			minimizeInteger(uint(v), tryMinimized, shouldStop)
+-		case int:
+-			minimizeInteger(uint(v), tryMinimized, shouldStop)
+-		case int8:
+-			minimizeInteger(uint(v), tryMinimized, shouldStop)
+-		case int16:
+-			minimizeInteger(uint(v), tryMinimized, shouldStop)
+-		case int32:
+-			minimizeInteger(uint(v), tryMinimized, shouldStop)
+-		case int64:
+-			if int64(int(v)) != v {
+-				// Skip minimizing a int64 on 32 bit platforms, since we'll truncate the
+-				// value when casting
+-				continue
+-			}
+-			minimizeInteger(uint(v), tryMinimized, shouldStop)
+-		case string:
+-			minimizeBytes([]byte(v), tryMinimized, shouldStop)
+-		case []byte:
+-			minimizeBytes(v, tryMinimized, shouldStop)
+-		default:
+-			panic("unreachable")
+-		}
++	switch v := vals[args.Index].(type) {
++	case string:
++		minimizeBytes([]byte(v), tryMinimized, shouldStop)
++	case []byte:
++		minimizeBytes(v, tryMinimized, shouldStop)
++	default:
++		panic("impossible")
+ 	}
+ 	return true, retErr
+ }
+@@ -983,8 +916,14 @@ func (ws *workerServer) ping(ctx context.Context, args pingArgs) pingResponse {
+ // workerServer).
+ type workerClient struct {
+ 	workerComm
++	m *mutator
++
++	// mu is the mutex protecting the workerComm.fuzzIn pipe. This must be
++	// locked before making calls to the workerServer. It prevents
++	// workerClient.Close from closing fuzzIn while workerClient methods are
++	// writing to it concurrently, and prevents multiple callers from writing to
++	// fuzzIn concurrently.
+ 	mu sync.Mutex
+-	m  *mutator
+ }
+ 
+ func newWorkerClient(comm workerComm, m *mutator) *workerClient {
+@@ -1025,7 +964,7 @@ var errSharedMemClosed = errors.New("internal error: shared memory was closed an
+ 
+ // minimize tells the worker to call the minimize method. See
+ // workerServer.minimize.
+-func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args minimizeArgs) (entryOut CorpusEntry, resp minimizeResponse, err error) {
++func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args minimizeArgs) (entryOut CorpusEntry, resp minimizeResponse, retErr error) {
+ 	wc.mu.Lock()
+ 	defer wc.mu.Unlock()
+ 
+@@ -1039,34 +978,75 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args
+ 		return CorpusEntry{}, minimizeResponse{}, err
+ 	}
+ 	mem.setValue(inp)
+-	wc.memMu <- mem
+-
+-	c := call{Minimize: &args}
+-	callErr := wc.callLocked(ctx, c, &resp)
+-	mem, ok = <-wc.memMu
+-	if !ok {
+-		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
+-	}
+ 	defer func() { wc.memMu <- mem }()
+-	resp.Count = mem.header().count
+-	if resp.WroteToMem {
+-		entryOut.Data = mem.valueCopy()
+-		entryOut.Values, err = unmarshalCorpusFile(entryOut.Data)
+-		h := sha256.Sum256(entryOut.Data)
+-		name := fmt.Sprintf("%x", h[:4])
+-		entryOut.Path = name
+-		entryOut.Parent = entryIn.Parent
+-		entryOut.Generation = entryIn.Generation
+-		if err != nil {
+-			return CorpusEntry{}, minimizeResponse{}, fmt.Errorf("workerClient.minimize unmarshaling minimized value: %v", err)
+-		}
+-	} else {
+-		// Did not minimize, but the original input may still be interesting,
+-		// for example, if there was an error.
+-		entryOut = entryIn
++	entryOut = entryIn
++	entryOut.Values, err = unmarshalCorpusFile(inp)
++	if err != nil {
++		return CorpusEntry{}, minimizeResponse{}, fmt.Errorf("workerClient.minimize unmarshaling provided value: %v", err)
+ 	}
++	for i, v := range entryOut.Values {
++		if !isMinimizable(reflect.TypeOf(v)) {
++			continue
++		}
+ 
+-	return entryOut, resp, callErr
++		wc.memMu <- mem
++		args.Index = i
++		c := call{Minimize: &args}
++		callErr := wc.callLocked(ctx, c, &resp)
++		mem, ok = <-wc.memMu
++		if !ok {
++			return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
++		}
++
++		if callErr != nil {
++			retErr = callErr
++			if !mem.header().rawInMem {
++				// An unrecoverable error occurred before minimization began.
++				return entryIn, minimizeResponse{}, retErr
++			}
++			// An unrecoverable error occurred during minimization. mem now
++			// holds the raw, unmarshalled bytes of entryIn.Values[i] that
++			// caused the error.
++			switch entryOut.Values[i].(type) {
++			case string:
++				entryOut.Values[i] = string(mem.valueCopy())
++			case []byte:
++				entryOut.Values[i] = mem.valueCopy()
++			default:
++				panic("impossible")
++			}
++			entryOut.Data = marshalCorpusFile(entryOut.Values...)
++			// Stop minimizing; another unrecoverable error is likely to occur.
++			break
++		}
++
++		if resp.WroteToMem {
++			// Minimization succeeded, and mem holds the marshaled data.
++			entryOut.Data = mem.valueCopy()
++			entryOut.Values, err = unmarshalCorpusFile(entryOut.Data)
++			if err != nil {
++				return CorpusEntry{}, minimizeResponse{}, fmt.Errorf("workerClient.minimize unmarshaling minimized value: %v", err)
++			}
++		}
++
++		// Prepare for next iteration of the loop.
++		if args.Timeout != 0 {
++			args.Timeout -= resp.Duration
++			if args.Timeout <= 0 {
++				break
++			}
++		}
++		if args.Limit != 0 {
++			args.Limit -= mem.header().count
++			if args.Limit <= 0 {
++				break
++			}
++		}
++	}
++	resp.Count = mem.header().count
++	h := sha256.Sum256(entryOut.Data)
++	entryOut.Path = fmt.Sprintf("%x", h[:4])
++	return entryOut, resp, retErr
+ }
+ 
+ // fuzz tells the worker to call the fuzz method. See workerServer.fuzz.
+diff --git a/src/internal/fuzz/worker_test.go b/src/internal/fuzz/worker_test.go
+index ed9722f43a..e2ecf0a9c3 100644
+--- a/src/internal/fuzz/worker_test.go
++++ b/src/internal/fuzz/worker_test.go
+@@ -6,6 +6,7 @@ package fuzz
+ 
+ import (
+ 	"context"
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"internal/race"
+@@ -13,6 +14,7 @@ import (
+ 	"os"
+ 	"os/signal"
+ 	"reflect"
++	"strconv"
+ 	"testing"
+ 	"time"
+ )
+@@ -156,3 +158,49 @@ func runBenchmarkWorker() {
+ 		panic(err)
+ 	}
+ }
++
++func BenchmarkWorkerMinimize(b *testing.B) {
++	if race.Enabled {
++		b.Skip("TODO(48504): fix and re-enable")
++	}
++
++	ws := &workerServer{
++		workerComm: workerComm{memMu: make(chan *sharedMem, 1)},
++	}
++
++	mem, err := sharedMemTempFile(workerSharedMemSize)
++	if err != nil {
++		b.Fatalf("failed to create temporary shared memory file: %s", err)
++	}
++	defer func() {
++		if err := mem.Close(); err != nil {
++			b.Error(err)
++		}
++	}()
++	ws.memMu <- mem
++
++	bytes := make([]byte, 1024)
++	ctx := context.Background()
++	for sz := 1; sz <= len(bytes); sz <<= 1 {
++		sz := sz
++		input := []interface{}{bytes[:sz]}
++		encodedVals := marshalCorpusFile(input...)
++		mem = <-ws.memMu
++		mem.setValue(encodedVals)
++		ws.memMu <- mem
++		b.Run(strconv.Itoa(sz), func(b *testing.B) {
++			i := 0
++			ws.fuzzFn = func(_ CorpusEntry) (time.Duration, error) {
++				if i == 0 {
++					i++
++					return time.Second, errors.New("initial failure for deflake")
++				}
++				return time.Second, nil
++			}
++			for i := 0; i < b.N; i++ {
++				b.SetBytes(int64(sz))
++				ws.minimize(ctx, minimizeArgs{})
++			}
++		})
++	}
++}

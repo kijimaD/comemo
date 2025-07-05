@@ -12,6 +12,20 @@ Date:   Sun Sep 11 23:29:25 2016 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 133a6198b9..2d974146cd 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -170,7 +170,7 @@ func lookupPort(ctx context.Context, network, service string) (port int, err err
+ 	case "udp4", "udp6":
+ 		network = "udp"
+ 	}
+-	lines, err := queryCS(ctx, network, "127.0.0.1", service)
++	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
+ 	if err != nil {
+ 		return
+ 	}

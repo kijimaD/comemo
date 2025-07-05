@@ -9,6 +9,20 @@ Date:   Wed Aug 14 16:28:40 2013 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/12949043
-
+---
  src/cmd/ld/data.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index a1c31128aa..db2ac0f460 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -1212,7 +1212,7 @@ dodata(void)
+ 		diag("data or bss segment too large");
+ 	}
+ 	
+-	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && iself && HEADTYPE != Hopenbsd) {
++	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && HEADTYPE != Hopenbsd) {
+ 		sect = addsection(&segdata, ".tbss", 06);
+ 		sect->align = PtrSize;
+ 		sect->vaddr = 0;

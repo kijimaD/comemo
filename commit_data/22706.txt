@@ -17,10 +17,161 @@ Date:   Thu Apr 2 16:34:48 2015 -0700
     Change-Id: Iee9287056f0e9aa4f06ceac0724ff4674f710c53
     Reviewed-on: https://go-review.googlesource.com/8429
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/go.go       |  9 +++++----
  src/cmd/internal/gc/mparith2.go |  5 +----
  src/cmd/internal/gc/mparith3.go | 20 ++++++++++----------
  test/fixedbugs/issue6889.go     | 10 +++++++++-
  test/fixedbugs/issue7740.go     |  2 +-
  5 files changed, 26 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index e4305961a0..027ad28fb1 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -57,10 +57,11 @@ const (
+ )
+ 
+ const (
+-	// TODO(gri) consider increasing Mpprec to 512 or perhaps 1024
+-	// (this would permit enabling additional tests).
+-	Mpprec  = 16 * 29 // == 464, to match original value
+-	Mpdebug = 0
++	// Maximum size in bits for Mpints before signalling
++	// overflow and also mantissa precision for Mpflts.
++	Mpprec = 512
++	// Turn on for constant arithmetic debugging output.
++	Mpdebug = false
+ )
+ 
+ // Mpint represents an integer constant.
+diff --git a/src/cmd/internal/gc/mparith2.go b/src/cmd/internal/gc/mparith2.go
+index a4b870eb67..e369ad064f 100644
+--- a/src/cmd/internal/gc/mparith2.go
++++ b/src/cmd/internal/gc/mparith2.go
+@@ -35,10 +35,7 @@ func mpmovefltfix(a *Mpint, b *Mpflt) int {
+ 		return 0
+ 	}
+ 
+-	// TODO(gri) reduce the value of delta - currently
+-	// we use the size of a mp-word of the old implementation
+-	// for approximately similar behavior.
+-	const delta = 29 // a reasonably small number of bits > 0
++	const delta = 16 // a reasonably small number of bits > 0
+ 	var t big.Float
+ 	t.SetPrec(Mpprec - delta)
+ 
+diff --git a/src/cmd/internal/gc/mparith3.go b/src/cmd/internal/gc/mparith3.go
+index b2424df92a..d1ae41dd74 100644
+--- a/src/cmd/internal/gc/mparith3.go
++++ b/src/cmd/internal/gc/mparith3.go
+@@ -32,13 +32,13 @@ func mpmovefltflt(a *Mpflt, b *Mpflt) {
+ }
+ 
+ func mpaddfltflt(a *Mpflt, b *Mpflt) {
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf("\n%v + %v", Fconv(a, 0), Fconv(b, 0))
+ 	}
+ 
+ 	a.Val.Add(&a.Val, &b.Val)
+ 
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+ 	}
+ }
+@@ -51,25 +51,25 @@ func mpaddcflt(a *Mpflt, c float64) {
+ }
+ 
+ func mpsubfltflt(a *Mpflt, b *Mpflt) {
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf("\n%v - %v", Fconv(a, 0), Fconv(b, 0))
+ 	}
+ 
+ 	a.Val.Sub(&a.Val, &b.Val)
+ 
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+ 	}
+ }
+ 
+ func mpmulfltflt(a *Mpflt, b *Mpflt) {
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf("%v\n * %v\n", Fconv(a, 0), Fconv(b, 0))
+ 	}
+ 
+ 	a.Val.Mul(&a.Val, &b.Val)
+ 
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+ 	}
+ }
+@@ -82,13 +82,13 @@ func mpmulcflt(a *Mpflt, c float64) {
+ }
+ 
+ func mpdivfltflt(a *Mpflt, b *Mpflt) {
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf("%v\n / %v\n", Fconv(a, 0), Fconv(b, 0))
+ 	}
+ 
+ 	a.Val.Quo(&a.Val, &b.Val)
+ 
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf(" = %v\n\n", Fconv(a, 0))
+ 	}
+ }
+@@ -140,13 +140,13 @@ func mpgetflt32(a *Mpflt) float64 {
+ }
+ 
+ func Mpmovecflt(a *Mpflt, c float64) {
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf("\nconst %g", c)
+ 	}
+ 
+ 	a.Val.SetFloat64(c)
+ 
+-	if Mpdebug != 0 {
++	if Mpdebug {
+ 		fmt.Printf(" = %v\n", Fconv(a, 0))
+ 	}
+ }
+diff --git a/test/fixedbugs/issue6889.go b/test/fixedbugs/issue6889.go
+index 46bb5dacf6..805a877d58 100644
+--- a/test/fixedbugs/issue6889.go
++++ b/test/fixedbugs/issue6889.go
+@@ -99,5 +99,13 @@ const (
+ 	f88 = f87 * 88
+ 	f89 = f88 * 89
+ 	f90 = f89 * 90
+-	f91 = f90 * 91 // ERROR "overflow"
++	f91 = f90 * 91
++	f92 = f91 * 92
++	f93 = f92 * 93
++	f94 = f93 * 94
++	f95 = f94 * 95
++	f96 = f95 * 96
++	f97 = f96 * 97
++	f98 = f97 * 98
++	f99 = f98 * 99 // ERROR "overflow"
+ )
+diff --git a/test/fixedbugs/issue7740.go b/test/fixedbugs/issue7740.go
+index d5005ed6c0..8f1afe86da 100644
+--- a/test/fixedbugs/issue7740.go
++++ b/test/fixedbugs/issue7740.go
+@@ -21,7 +21,7 @@ func main() {
+ 	var prec float64
+ 	switch runtime.Compiler {
+ 	case "gc":
+-		prec = 16 * 29
++		prec = 512
+ 	case "gccgo":
+ 		prec = 256
+ 	default:

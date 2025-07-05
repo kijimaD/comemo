@@ -14,7 +14,7 @@ Date:   Mon Sep 14 11:06:39 2020 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/poll/fd_writev_illumos.go      | 16 +++++++++++++++
  src/internal/poll/iovec_illumos.go          | 16 +++++++++++++++
  src/internal/poll/iovec_unix.go             | 13 +++++++++++++
@@ -23,3 +23,151 @@ Date:   Mon Sep 14 11:06:39 2020 +0200
  src/net/writev_test.go                      |  2 +-
  src/net/writev_unix.go                      |  2 +-
  7 files changed, 79 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/poll/fd_writev_illumos.go b/src/internal/poll/fd_writev_illumos.go
+new file mode 100644
+index 0000000000..1fa47ab1a3
+--- /dev/null
++++ b/src/internal/poll/fd_writev_illumos.go
+@@ -0,0 +1,16 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build illumos
++
++package poll
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
++
++func writev(fd int, iovecs []syscall.Iovec) (uintptr, error) {
++	return unix.Writev(fd, iovecs)
++}
+diff --git a/src/internal/poll/iovec_illumos.go b/src/internal/poll/iovec_illumos.go
+new file mode 100644
+index 0000000000..057067465b
+--- /dev/null
++++ b/src/internal/poll/iovec_illumos.go
+@@ -0,0 +1,16 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build illumos
++
++package poll
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func newIovecWithBase(base *byte) syscall.Iovec {
++	return syscall.Iovec{Base: (*int8)(unsafe.Pointer(base))}
++}
+diff --git a/src/internal/poll/iovec_unix.go b/src/internal/poll/iovec_unix.go
+new file mode 100644
+index 0000000000..6f98947866
+--- /dev/null
++++ b/src/internal/poll/iovec_unix.go
+@@ -0,0 +1,13 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package poll
++
++import "syscall"
++
++func newIovecWithBase(base *byte) syscall.Iovec {
++	return syscall.Iovec{Base: base}
++}
+diff --git a/src/internal/poll/writev.go b/src/internal/poll/writev.go
+index 305e2fd209..0123fc33de 100644
+--- a/src/internal/poll/writev.go
++++ b/src/internal/poll/writev.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd illumos linux netbsd openbsd
+ 
+ package poll
+ 
+@@ -38,7 +38,7 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
+ 			if len(chunk) == 0 {
+ 				continue
+ 			}
+-			iovecs = append(iovecs, syscall.Iovec{Base: &chunk[0]})
++			iovecs = append(iovecs, newIovecWithBase(&chunk[0]))
+ 			if fd.IsStream && len(chunk) > 1<<30 {
+ 				iovecs[len(iovecs)-1].SetLen(1 << 30)
+ 				break // continue chunk on next writev
+diff --git a/src/internal/syscall/unix/writev_illumos.go b/src/internal/syscall/unix/writev_illumos.go
+new file mode 100644
+index 0000000000..eb7973d65b
+--- /dev/null
++++ b/src/internal/syscall/unix/writev_illumos.go
+@@ -0,0 +1,30 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build illumos
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++//go:cgo_import_dynamic libc_writev writev "libc.so"
++
++//go:linkname procwritev libc_writev
++
++var procwritev uintptr
++
++func Writev(fd int, iovs []syscall.Iovec) (uintptr, error) {
++	var p *syscall.Iovec
++	if len(iovs) > 0 {
++		p = &iovs[0]
++	}
++	n, _, errno := syscall6(uintptr(unsafe.Pointer(&procwritev)), 3, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(len(iovs)), 0, 0, 0)
++	if errno != 0 {
++		return 0, errno
++	}
++	return n, nil
++}
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index c43be84418..d6dce3cc69 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -154,7 +154,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
+ 
+ 		var wantSum int
+ 		switch runtime.GOOS {
+-		case "android", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
++		case "android", "darwin", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd":
+ 			var wantMinCalls int
+ 			wantSum = want.Len()
+ 			v := chunks
+diff --git a/src/net/writev_unix.go b/src/net/writev_unix.go
+index bf0fbf8a13..8b20f42b34 100644
+--- a/src/net/writev_unix.go
++++ b/src/net/writev_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd illumos linux netbsd openbsd
+ 
+ package net
+ 

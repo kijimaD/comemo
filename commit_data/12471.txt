@@ -9,6 +9,21 @@ Date:   Wed Mar 7 11:38:05 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5761044
-
+---
  src/make.bash | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/make.bash b/src/make.bash
+index aaee75e460..3668e92046 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -76,6 +76,9 @@ do
+ 	fi
+ done
+ 
++# Clean old generated file that will cause problems in the build.
++rm -f ./pkg/runtime/runtime_defs.go
++
+ # Finally!  Run the build.
+ 
+ echo '# Building C bootstrap tool.'

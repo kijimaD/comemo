@@ -14,7 +14,42 @@ Date:   Sat Oct 6 08:56:03 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/cmd/compile/internal/gc/walk.go |  1 +
  test/fixedbugs/issue28055.go        | 16 ++++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1c398ef43c..80fdc55b5d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -211,6 +211,7 @@ func walkstmt(n *Node) *Node {
+ 		ODCLCONST,
+ 		ODCLTYPE,
+ 		OCHECKNIL,
++		OVARDEF,
+ 		OVARKILL,
+ 		OVARLIVE:
+ 		break
+diff --git a/test/fixedbugs/issue28055.go b/test/fixedbugs/issue28055.go
+new file mode 100644
+index 0000000000..d4889d54d4
+--- /dev/null
++++ b/test/fixedbugs/issue28055.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure VARDEF can be a top-level statement.
++
++package p
++
++func f() {
++	var s string
++	var as []string
++	switch false && (s+"a"+as[0]+s+as[0]+s == "") {
++	}
++}

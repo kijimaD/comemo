@@ -10,6 +10,28 @@ Date:   Fri Jul 24 03:38:38 2020 +1000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/link/internal/ld/elf.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 2862f65f9f..f5a2f899fc 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -12,6 +12,7 @@ import (
+ 	"crypto/sha1"
+ 	"encoding/binary"
+ 	"encoding/hex"
++	"fmt"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -1400,7 +1401,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
+ 
+ 	// sanity check
+ 	if uint64(out.Offset()) != sect.Reloff+sect.Rellen {
+-		panic("elfrelocsect: size mismatch")
++		panic(fmt.Sprintf("elfrelocsect: size mismatch %d != %d + %d", out.Offset(), sect.Reloff, sect.Rellen))
+ 	}
+ }
+ 

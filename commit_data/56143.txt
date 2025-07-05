@@ -31,7 +31,7 @@ Date:   Tue Apr 4 07:08:57 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
-
+---
  src/go/build/deps_test.go    |  5 +++--
  src/log/internal/internal.go | 12 +++++++++++
  src/log/log.go               | 47 ++++++++++++++++++++++++++++++++------------
@@ -40,3 +40,279 @@ Date:   Tue Apr 4 07:08:57 2023 -0400
  src/log/slog/logger.go       |  3 ++-
  src/log/slog/logger_test.go  | 15 ++++----------
  7 files changed, 61 insertions(+), 35 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 8779b8b8c1..a287eeda67 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -45,6 +45,7 @@ var depsRules = `
+ 	  internal/cpu, internal/goarch,
+ 	  internal/goexperiment, internal/goos,
+ 	  internal/goversion, internal/nettrace, internal/platform,
++	  log/internal,
+ 	  maps, slices, unicode/utf8, unicode/utf16, unicode,
+ 	  unsafe;
+ 
+@@ -369,7 +370,7 @@ var depsRules = `
+ 	< NET;
+ 
+ 	# logging - most packages should not import; http and up is allowed
+-	FMT
++	FMT, log/internal
+ 	< log;
+ 
+ 	log, log/slog !< crypto/tls, database/sql, go/importer, testing;
+@@ -382,7 +383,7 @@ var depsRules = `
+ 
+ 	FMT,
+ 	encoding, encoding/json,
+-	log,
++	log, log/internal,
+ 	log/slog/internal, log/slog/internal/buffer,
+ 	slices
+ 	< log/slog
+diff --git a/src/log/internal/internal.go b/src/log/internal/internal.go
+new file mode 100644
+index 0000000000..d5af2c536c
+--- /dev/null
++++ b/src/log/internal/internal.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package internal contains definitions used by both log and log/slog.
++package internal
++
++// DefaultOutput holds a function which calls the default log.Logger's
++// output function.
++// It allows slog.defaultHandler to call into an unexported function of
++// the log package.
++var DefaultOutput func(pc uintptr, data []byte) error
+diff --git a/src/log/log.go b/src/log/log.go
+index c02a98be49..9d5440ea3a 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -17,6 +17,7 @@ package log
+ import (
+ 	"fmt"
+ 	"io"
++	"log/internal"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -191,12 +192,14 @@ func putBuffer(p *[]byte) {
+ // paths it will be 2.
+ func (l *Logger) Output(calldepth int, s string) error {
+ 	calldepth++ // +1 for this frame.
+-	return l.output(calldepth, func(b []byte) []byte {
++	return l.output(0, calldepth, func(b []byte) []byte {
+ 		return append(b, s...)
+ 	})
+ }
+ 
+-func (l *Logger) output(calldepth int, appendOutput func([]byte) []byte) error {
++// output can take either a calldepth or a pc to get source line information.
++// It uses the pc if it is non-zero.
++func (l *Logger) output(pc uintptr, calldepth int, appendOutput func([]byte) []byte) error {
+ 	if l.isDiscard.Load() {
+ 		return nil
+ 	}
+@@ -211,11 +214,21 @@ func (l *Logger) output(calldepth int, appendOutput func([]byte) []byte) error {
+ 	var file string
+ 	var line int
+ 	if flag&(Lshortfile|Llongfile) != 0 {
+-		var ok bool
+-		_, file, line, ok = runtime.Caller(calldepth)
+-		if !ok {
+-			file = "???"
+-			line = 0
++		if pc == 0 {
++			var ok bool
++			_, file, line, ok = runtime.Caller(calldepth)
++			if !ok {
++				file = "???"
++				line = 0
++			}
++		} else {
++			fs := runtime.CallersFrames([]uintptr{pc})
++			f, _ := fs.Next()
++			file = f.File
++			if file == "" {
++				file = "???"
++			}
++			line = f.Line
+ 		}
+ 	}
+ 
+@@ -233,10 +246,18 @@ func (l *Logger) output(calldepth int, appendOutput func([]byte) []byte) error {
+ 	return err
+ }
+ 
++func init() {
++	internal.DefaultOutput = func(pc uintptr, data []byte) error {
++		return std.output(pc, 0, func(buf []byte) []byte {
++			return append(buf, data...)
++		})
++	}
++}
++
+ // Print calls l.Output to print to the logger.
+ // Arguments are handled in the manner of fmt.Print.
+ func (l *Logger) Print(v ...any) {
+-	l.output(2, func(b []byte) []byte {
++	l.output(0, 2, func(b []byte) []byte {
+ 		return fmt.Append(b, v...)
+ 	})
+ }
+@@ -244,7 +265,7 @@ func (l *Logger) Print(v ...any) {
+ // Printf calls l.Output to print to the logger.
+ // Arguments are handled in the manner of fmt.Printf.
+ func (l *Logger) Printf(format string, v ...any) {
+-	l.output(2, func(b []byte) []byte {
++	l.output(0, 2, func(b []byte) []byte {
+ 		return fmt.Appendf(b, format, v...)
+ 	})
+ }
+@@ -252,7 +273,7 @@ func (l *Logger) Printf(format string, v ...any) {
+ // Println calls l.Output to print to the logger.
+ // Arguments are handled in the manner of fmt.Println.
+ func (l *Logger) Println(v ...any) {
+-	l.output(2, func(b []byte) []byte {
++	l.output(0, 2, func(b []byte) []byte {
+ 		return fmt.Appendln(b, v...)
+ 	})
+ }
+@@ -365,7 +386,7 @@ func Writer() io.Writer {
+ // Print calls Output to print to the standard logger.
+ // Arguments are handled in the manner of fmt.Print.
+ func Print(v ...any) {
+-	std.output(2, func(b []byte) []byte {
++	std.output(0, 2, func(b []byte) []byte {
+ 		return fmt.Append(b, v...)
+ 	})
+ }
+@@ -373,7 +394,7 @@ func Print(v ...any) {
+ // Printf calls Output to print to the standard logger.
+ // Arguments are handled in the manner of fmt.Printf.
+ func Printf(format string, v ...any) {
+-	std.output(2, func(b []byte) []byte {
++	std.output(0, 2, func(b []byte) []byte {
+ 		return fmt.Appendf(b, format, v...)
+ 	})
+ }
+@@ -381,7 +402,7 @@ func Printf(format string, v ...any) {
+ // Println calls Output to print to the standard logger.
+ // Arguments are handled in the manner of fmt.Println.
+ func Println(v ...any) {
+-	std.output(2, func(b []byte) []byte {
++	std.output(0, 2, func(b []byte) []byte {
+ 		return fmt.Appendln(b, v...)
+ 	})
+ }
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 87732a90f4..597159e203 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -87,11 +87,11 @@ type Handler interface {
+ 
+ type defaultHandler struct {
+ 	ch *commonHandler
+-	// log.Output, except for testing
+-	output func(calldepth int, message string) error
++	// internal.DefaultOutput, except for testing
++	output func(pc uintptr, data []byte) error
+ }
+ 
+-func newDefaultHandler(output func(int, string) error) *defaultHandler {
++func newDefaultHandler(output func(uintptr, []byte) error) *defaultHandler {
+ 	return &defaultHandler{
+ 		ch:     &commonHandler{json: false},
+ 		output: output,
+@@ -113,9 +113,7 @@ func (h *defaultHandler) Handle(ctx context.Context, r Record) error {
+ 	state := h.ch.newHandleState(buf, true, " ", nil)
+ 	defer state.free()
+ 	state.appendNonBuiltIns(r)
+-
+-	// skip [h.output, defaultHandler.Handle, handlerWriter.Write, log.Output]
+-	return h.output(4, buf.String())
++	return h.output(r.PC, *buf)
+ }
+ 
+ func (h *defaultHandler) WithAttrs(as []Attr) Handler {
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index d79d0bf372..2c374d6a20 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -85,8 +85,8 @@ func TestDefaultHandle(t *testing.T) {
+ 	} {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			var got string
+-			var h Handler = newDefaultHandler(func(_ int, s string) error {
+-				got = s
++			var h Handler = newDefaultHandler(func(_ uintptr, b []byte) error {
++				got = string(b)
+ 				return nil
+ 			})
+ 			if test.with != nil {
+diff --git a/src/log/slog/logger.go b/src/log/slog/logger.go
+index f58add9af9..7c31cfc97b 100644
+--- a/src/log/slog/logger.go
++++ b/src/log/slog/logger.go
+@@ -7,6 +7,7 @@ package slog
+ import (
+ 	"context"
+ 	"log"
++	loginternal "log/internal"
+ 	"log/slog/internal"
+ 	"runtime"
+ 	"sync/atomic"
+@@ -16,7 +17,7 @@ import (
+ var defaultLogger atomic.Value
+ 
+ func init() {
+-	defaultLogger.Store(New(newDefaultHandler(log.Output)))
++	defaultLogger.Store(New(newDefaultHandler(loginternal.DefaultOutput)))
+ }
+ 
+ // Default returns the default Logger.
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index e65071424f..fd20e7ba01 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"log"
++	loginternal "log/internal"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+@@ -70,7 +71,7 @@ func TestConnections(t *testing.T) {
+ 	// tests might change the default logger using SetDefault. Also ensure we
+ 	// restore the default logger at the end of the test.
+ 	currentLogger := Default()
+-	SetDefault(New(newDefaultHandler(log.Output)))
++	SetDefault(New(newDefaultHandler(loginternal.DefaultOutput)))
+ 	t.Cleanup(func() {
+ 		SetDefault(currentLogger)
+ 	})
+@@ -94,16 +95,8 @@ func TestConnections(t *testing.T) {
+ 
+ 	t.Run("wrap default handler", func(t *testing.T) {
+ 		// It should be possible to wrap the default handler and get the right output.
+-		// But because the call depth to log.Output is hard-coded, the source line is wrong.
+-		// We want to use the pc inside the Record, but there is no way to give that to
+-		// the log package.
+-		//
+-		// TODO(jba): when slog lives under log in the standard library, we can
+-		// move the bulk of log.Logger.Output to a function in an internal
+-		// package, so both log and slog can call it.
+-		//
+-		// While slog lives in exp, we punt.
+-		t.Skip("skip until this package is in the standard library")
++		// This works because the default handler uses the pc in the Record
++		// to get the source line, rather than a call depth.
+ 		logger := New(wrappingHandler{Default().Handler()})
+ 		logger.Info("msg", "d", 4)
+ 		checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: INFO msg d=4`)

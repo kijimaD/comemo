@@ -11,6 +11,22 @@ Date:   Mon Oct 15 09:44:22 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index d520f21e63..f24da70625 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -833,7 +833,9 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 	var a *Node
+ 	if x := prealloc[n]; x != nil {
+ 		// temp allocated during order.go for dddarg
+-		x.Type = t
++		if !eqtype(t, x.Type) {
++			panic("dotdotdot base type does not match order's assigned type")
++		}
+ 
+ 		if vstat == nil {
+ 			a = nod(OAS, x, nil)

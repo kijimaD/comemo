@@ -8,8 +8,49 @@ Date:   Fri Jul 24 14:52:57 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12683
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/debug/elf/elf.go         | 2 +-
  src/mime/multipart/writer.go | 3 ++-
  src/net/http/request.go      | 2 +-
  3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 0ead9792be..70daeecd6d 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -312,7 +312,7 @@ const (
+ 	SHN_HIOS      SectionIndex = 0xff3f /* Last operating system-specific. */
+ 	SHN_ABS       SectionIndex = 0xfff1 /* Absolute values. */
+ 	SHN_COMMON    SectionIndex = 0xfff2 /* Common data. */
+-	SHN_XINDEX    SectionIndex = 0xffff /* Escape -- index stored elsewhere. */
++	SHN_XINDEX    SectionIndex = 0xffff /* Escape; index stored elsewhere. */
+ 	SHN_HIRESERVE SectionIndex = 0xffff /* Last of reserved range. */
+ )
+ 
+diff --git a/src/mime/multipart/writer.go b/src/mime/multipart/writer.go
+index e13a956afe..80960939d6 100644
+--- a/src/mime/multipart/writer.go
++++ b/src/mime/multipart/writer.go
+@@ -39,7 +39,8 @@ func (w *Writer) Boundary() string {
+ // boundary separator with an explicit value.
+ //
+ // SetBoundary must be called before any parts are created, may only
+-// contain certain ASCII characters, and must be 1-69 bytes long.
++// contain certain ASCII characters, and must be non-empty and
++// at most 69 bytes long.
+ func (w *Writer) SetBoundary(boundary string) error {
+ 	if w.lastpart != nil {
+ 		return errors.New("mime: SetBoundary called after write")
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index f41672210a..31fe45a4ed 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -340,7 +340,7 @@ func valueOrDefault(value, def string) string {
+ // See https://codereview.appspot.com/7532043.
+ const defaultUserAgent = "Go-http-client/1.1"
+ 
+-// Write writes an HTTP/1.1 request -- header and body -- in wire format.
++// Write writes an HTTP/1.1 request, which is the header and body, in wire format.
+ // This method consults the following fields of the request:
+ //	Host
+ //	URL

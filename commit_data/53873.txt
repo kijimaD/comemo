@@ -11,7 +11,70 @@ Date:   Sun Sep 4 18:17:40 2022 +0800
     Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/lookup_test.go         | 7 +++----
  src/net/lookup_windows_test.go | 5 ++---
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 24d4fbf66d..ed9f93f3fe 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -7,7 +7,6 @@
+ package net
+ 
+ import (
+-	"bytes"
+ 	"context"
+ 	"fmt"
+ 	"internal/testenv"
+@@ -718,7 +717,7 @@ func testDots(t *testing.T, mode string) {
+ }
+ 
+ func mxString(mxs []*MX) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	sep := ""
+ 	fmt.Fprintf(&buf, "[")
+ 	for _, mx := range mxs {
+@@ -730,7 +729,7 @@ func mxString(mxs []*MX) string {
+ }
+ 
+ func nsString(nss []*NS) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	sep := ""
+ 	fmt.Fprintf(&buf, "[")
+ 	for _, ns := range nss {
+@@ -742,7 +741,7 @@ func nsString(nss []*NS) string {
+ }
+ 
+ func srvString(srvs []*SRV) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	sep := ""
+ 	fmt.Fprintf(&buf, "[")
+ 	for _, srv := range srvs {
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index 20e0a1a8f1..c618a05bb4 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"bytes"
+ 	"context"
+ 	"encoding/json"
+ 	"errors"
+@@ -216,8 +215,8 @@ func (s byHost) Less(i, j int) bool { return s[i].Host < s[j].Host }
+ func (s byHost) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+ func nslookup(qtype, name string) (string, error) {
+-	var out bytes.Buffer
+-	var err bytes.Buffer
++	var out strings.Builder
++	var err strings.Builder
+ 	cmd := exec.Command("nslookup", "-querytype="+qtype, name)
+ 	cmd.Stdout = &out
+ 	cmd.Stderr = &err

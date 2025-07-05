@@ -14,8 +14,79 @@ Date:   Thu Jan 27 21:26:27 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/381634
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  api/go1.18.txt                               |  1 -
  src/cmd/compile/internal/types2/typelists.go | 11 -----------
  src/go/types/typelists.go                    | 11 -----------
  3 files changed, 23 deletions(-)
+
+diff --git a/api/go1.18.txt b/api/go1.18.txt
+index 7805d29eb7..2d05c3f41c 100644
+--- a/api/go1.18.txt
++++ b/api/go1.18.txt
+@@ -51,7 +51,6 @@ pkg go/types, method (*Term) Tilde() bool
+ pkg go/types, method (*Term) Type() Type
+ pkg go/types, method (*TypeList) At(int) Type
+ pkg go/types, method (*TypeList) Len() int
+-pkg go/types, method (*TypeList) String() string
+ pkg go/types, method (*TypeParam) Constraint() Type
+ pkg go/types, method (*TypeParam) Index() int
+ pkg go/types, method (*TypeParam) Obj() *TypeName
+diff --git a/src/cmd/compile/internal/types2/typelists.go b/src/cmd/compile/internal/types2/typelists.go
+index 0b77edbde2..a2aba4a9a5 100644
+--- a/src/cmd/compile/internal/types2/typelists.go
++++ b/src/cmd/compile/internal/types2/typelists.go
+@@ -4,8 +4,6 @@
+ 
+ package types2
+ 
+-import "bytes"
+-
+ // TypeParamList holds a list of type parameters.
+ type TypeParamList struct{ tparams []*TypeParam }
+ 
+@@ -54,15 +52,6 @@ func (l *TypeList) list() []Type {
+ 	return l.types
+ }
+ 
+-func (l *TypeList) String() string {
+-	if l == nil || len(l.types) == 0 {
+-		return "[]"
+-	}
+-	var buf bytes.Buffer
+-	newTypeWriter(&buf, nil).typeList(l.types)
+-	return buf.String()
+-}
+-
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+diff --git a/src/go/types/typelists.go b/src/go/types/typelists.go
+index aea19e946d..0f241356c3 100644
+--- a/src/go/types/typelists.go
++++ b/src/go/types/typelists.go
+@@ -4,8 +4,6 @@
+ 
+ package types
+ 
+-import "bytes"
+-
+ // TypeParamList holds a list of type parameters.
+ type TypeParamList struct{ tparams []*TypeParam }
+ 
+@@ -54,15 +52,6 @@ func (l *TypeList) list() []Type {
+ 	return l.types
+ }
+ 
+-func (l *TypeList) String() string {
+-	if l == nil || len(l.types) == 0 {
+-		return "[]"
+-	}
+-	var buf bytes.Buffer
+-	newTypeWriter(&buf, nil).typeList(l.types)
+-	return buf.String()
+-}
+-
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 

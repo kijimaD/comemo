@@ -15,9 +15,63 @@ Date:   Tue Oct 27 12:59:54 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/go/internal/gccgoimporter/importer_test.go       | 1 +
  src/go/internal/gccgoimporter/parser.go              | 7 +++++++
  src/go/internal/gccgoimporter/testdata/notinheap.go  | 4 ++++
  src/go/internal/gccgoimporter/testdata/notinheap.gox | 7 +++++++
  4 files changed, 19 insertions(+)
+
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index a74a456868..e4236a5867 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -97,6 +97,7 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "issue30628", name: "Apple", want: "type Apple struct{hey sync.RWMutex; x int; RQ [517]struct{Count uintptr; NumBytes uintptr; Last uintptr}}"},
+ 	{pkgpath: "issue31540", name: "S", gccgoVersion: 7, want: "type S struct{b int; map[Y]Z}"},
+ 	{pkgpath: "issue34182", name: "T1", want: "type T1 struct{f *T2}"},
++	{pkgpath: "notinheap", name: "S", want: "type S struct{}"},
+ }
+ 
+ func TestGoxImporter(t *testing.T) {
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index e2ef33f7ae..1b1d07d3f6 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -517,6 +517,13 @@ func (p *parser) parseNamedType(nlist []interface{}) types.Type {
+ 		p.errorf("%v has nil type", obj)
+ 	}
+ 
++	if p.tok == scanner.Ident && p.lit == "notinheap" {
++		p.next()
++		// The go/types package has no way of recording that
++		// this type is marked notinheap. Presumably no user
++		// of this package actually cares.
++	}
++
+ 	// type alias
+ 	if p.tok == '=' {
+ 		p.next()
+diff --git a/src/go/internal/gccgoimporter/testdata/notinheap.go b/src/go/internal/gccgoimporter/testdata/notinheap.go
+new file mode 100644
+index 0000000000..b1ac967227
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/notinheap.go
+@@ -0,0 +1,4 @@
++package notinheap
++
++//go:notinheap
++type S struct{}
+diff --git a/src/go/internal/gccgoimporter/testdata/notinheap.gox b/src/go/internal/gccgoimporter/testdata/notinheap.gox
+new file mode 100644
+index 0000000000..cc438e75e0
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/notinheap.gox
+@@ -0,0 +1,7 @@
++v3;
++package notinheap
++pkgpath notinheap
++init notinheap ~notinheap
++types 3 2 30 18
++type 1 "S" notinheap <type 2>
++type 2 struct { }

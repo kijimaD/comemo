@@ -9,7 +9,32 @@ Date:   Sun Apr 5 16:51:10 2020 +0800
     Change-Id: I05c73d848b8f40dc864a18c733ca3f47b1eab54d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227004
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6d2ae6378b..f317144bf9 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -144,6 +144,7 @@ Andy Davis <andy@bigandian.com>
+ Andy Finkenstadt <afinkenstadt@zynga.com>
+ Andy Lindeman <andy@lindeman.io>
+ Andy Maloney <asmaloney@gmail.com>
++Andy Pan <panjf2000@gmail.com>
+ Andy Walker <walkeraj@gmail.com>
+ Anfernee Yongkun Gui <anfernee.gui@gmail.com>
+ Angelo Bulfone <mbulfone@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 051a9c88a9..6e7d3e00e0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -216,6 +216,7 @@ Andy Davis <andy@bigandian.com>
+ Andy Finkenstadt <afinkenstadt@zynga.com>
+ Andy Lindeman <andy@lindeman.io>
+ Andy Maloney <asmaloney@gmail.com>
++Andy Pan <panjf2000@gmail.com>
+ Andy Walker <walkeraj@gmail.com>
+ Andzej Maciusovic <andzej.maciusovic@gmail.com>
+ Anfernee Yongkun Gui <anfernee.gui@gmail.com>

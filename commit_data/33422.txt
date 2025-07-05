@@ -32,7 +32,86 @@ Date:   Wed Jul 12 22:02:39 2017 -0700
     Change-Id: I6f50dc951f3693697f9669697599860604323102
     Reviewed-on: https://go-review.googlesource.com/48290
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/all_test.go | 22 ++++++++++++++++++++++
  src/math/pow.go      | 20 +++++++++++++++++++-
  2 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 4449228c1e..bdc4d228d5 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -1586,6 +1586,17 @@ var vfpowSC = [][2]float64{
+ 	{NaN(), 1},
+ 	{NaN(), Pi},
+ 	{NaN(), NaN()},
++
++	// Issue #7394 overflow checks
++	{2, float64(1 << 32)},
++	{2, -float64(1 << 32)},
++	{-2, float64(1<<32 + 1)},
++	{1 / 2, float64(1 << 45)},
++	{1 / 2, -float64(1 << 45)},
++	{Nextafter(1, 2), float64(1 << 63)},
++	{Nextafter(1, -2), float64(1 << 63)},
++	{Nextafter(-1, 2), float64(1 << 63)},
++	{Nextafter(-1, -2), float64(1 << 63)},
+ }
+ var powSC = []float64{
+ 	0,               // pow(-Inf, -Pi)
+@@ -1647,6 +1658,17 @@ var powSC = []float64{
+ 	NaN(),           // pow(NaN, 1)
+ 	NaN(),           // pow(NaN, +Pi)
+ 	NaN(),           // pow(NaN, NaN)
++
++	// Issue #7394 overflow checks
++	Inf(1),  // pow(2, float64(1 << 32))
++	0,       // pow(2, -float64(1 << 32))
++	Inf(-1), // pow(-2, float64(1<<32 + 1))
++	0,       // pow(1/2, float64(1 << 45))
++	Inf(1),  // pow(1/2, -float64(1 << 45))
++	Inf(1),  // pow(Nextafter(1, 2), float64(1 << 63))
++	0,       // pow(Nextafter(1, -2), float64(1 << 63))
++	0,       // pow(Nextafter(-1, 2), float64(1 << 63))
++	Inf(1),  // pow(Nextafter(-1, -2), float64(1 << 63))
+ }
+ 
+ var vfpow10SC = []int{
+diff --git a/src/math/pow.go b/src/math/pow.go
+index b3bfadfb87..daebf94728 100644
+--- a/src/math/pow.go
++++ b/src/math/pow.go
+@@ -94,7 +94,16 @@ func pow(x, y float64) float64 {
+ 		return NaN()
+ 	}
+ 	if yi >= 1<<63 {
+-		return Exp(y * Log(x))
++		// yi is a large even int that will lead to overflow (or underflow to 0)
++		// for all x except -1 (x == 1 was handled earlier)
++		switch {
++		case x == -1:
++			return 1
++		case (Abs(x) < 1) == (y > 0):
++			return 0
++		default:
++			return Inf(1)
++		}
+ 	}
+ 
+ 	// ans = a1 * 2**ae (= 1 for now).
+@@ -116,6 +125,15 @@ func pow(x, y float64) float64 {
+ 	// accumulate powers of two into exp.
+ 	x1, xe := Frexp(x)
+ 	for i := int64(yi); i != 0; i >>= 1 {
++		if xe < -1<<12 || 1<<12 < xe {
++			// catch xe before it overflows the left shift below
++			// Since i !=0 it has at least one bit still set, so ae will accumulate xe
++			// on at least one more iteration, ae += xe is a lower bound on ae
++			// the lower bound on ae exceeds the size of a float64 exp
++			// so the final call to Ldexp will produce under/overflow (0/Inf)
++			ae += xe
++			break
++		}
+ 		if i&1 == 1 {
+ 			a1 *= x1
+ 			ae += xe

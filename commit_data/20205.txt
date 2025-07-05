@@ -20,7 +20,69 @@ Date:   Mon Aug 25 07:05:45 2014 -0400
     R=golang-codereviews, dvyukov
     CC=golang-codereviews, r
     https://golang.org/cl/126570043
-
+---
  src/cmd/gc/order.c          |  8 ++++++++
  test/fixedbugs/issue8336.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 59231a0f1c..d11e9828cb 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -771,6 +771,12 @@ orderstmt(Node *n, Order *order)
+ 		// Special: clean case temporaries in each block entry.
+ 		// Select must enter one of its blocks, so there is no
+ 		// need for a cleaning at the end.
++		// Doubly special: evaluation order for select is stricter
++		// than ordinary expressions. Even something like p.c
++		// has to be hoisted into a temporary, so that it cannot be
++		// reordered after the channel evaluation for a different
++		// case (if p were nil, then the timing of the fault would
++		// give this away).
+ 		t = marktemp(order);
+ 		for(l=n->list; l; l=l->next) {
+ 			if(l->n->op != OXCASE)
+@@ -813,6 +819,8 @@ orderstmt(Node *n, Order *order)
+ 					// r->left == N means 'case <-c'.
+ 					// c is always evaluated; x and ok are only evaluated when assigned.
+ 					orderexpr(&r->right->left, order);
++					if(r->right->left->op != ONAME)
++						r->right->left = ordercopyexpr(r->right->left, r->right->left->type, order, 0);
+ 
+ 					// Introduce temporary for receive and move actual copy into case body.
+ 					// avoids problems with target being addressed, as usual.
+diff --git a/test/fixedbugs/issue8336.go b/test/fixedbugs/issue8336.go
+new file mode 100644
+index 0000000000..26bdeabb25
+--- /dev/null
++++ b/test/fixedbugs/issue8336.go
+@@ -0,0 +1,29 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8336. Order of evaluation of receive channels in select.
++
++package main
++
++type X struct {
++	c chan int
++}
++
++func main() {
++	defer func() {
++		recover()
++	}()
++	var x *X
++	select {
++	case <-x.c: // should fault and panic before foo is called
++	case <-foo():
++	}
++}
++
++func foo() chan int {
++	println("BUG: foo must not be called")
++	return make(chan int)
++}

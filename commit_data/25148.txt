@@ -12,6 +12,41 @@ Date:   Thu Oct 1 22:34:48 2015 +1000
     Change-Id: Ibd513829ffdbd0db6cd86a0a5409934336131156
     Reviewed-on: https://go-review.googlesource.com/15242
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/trace/trace_test.go | 16 ++++++++++++++--
  1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index 0a8957ffdf..f4791c2548 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -129,7 +129,13 @@ func TestTraceStress(t *testing.T) {
+ 
+ 	runtime.GC()
+ 	// Trigger GC from malloc.
+-	for i := 0; i < 1e3; i++ {
++	n := int(1e3)
++	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
++		// Reduce allocation to avoid running out of
++		// memory on the builder - see issue/12032.
++		n = 512
++	}
++	for i := 0; i < n; i++ {
+ 		_ = make([]byte, 1<<20)
+ 	}
+ 
+@@ -260,7 +266,13 @@ func TestTraceStressStartStop(t *testing.T) {
+ 
+ 		runtime.GC()
+ 		// Trigger GC from malloc.
+-		for i := 0; i < 1e3; i++ {
++		n := int(1e3)
++		if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
++			// Reduce allocation to avoid running out of
++			// memory on the builder - see issue/12032.
++			n = 512
++		}
++		for i := 0; i < n; i++ {
+ 			_ = make([]byte, 1<<20)
+ 		}
+ 

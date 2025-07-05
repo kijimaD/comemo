@@ -7,6 +7,20 @@ Date:   Thu Jun 16 00:13:18 2011 +1000
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4609042
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 972772d337..0f9b70729e 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -350,7 +350,7 @@ Both names read well in practice:
+ <pre>
+ owner := obj.Owner()
+ if owner != user {
+-	obj.SetOwner(user)
++    obj.SetOwner(user)
+ }
+ </pre>
+ 

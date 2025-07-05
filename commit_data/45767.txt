@@ -18,7 +18,81 @@ Date:   Thu Oct 1 10:53:41 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go              |  2 +-
  src/cmd/go/testdata/script/mod_go_version.txt | 41 +++++++++++++++++++++++++--
  2 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 157ac4cafc..6ce56dd6f4 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -766,7 +766,7 @@ OverlayLoop:
+ 	}
+ 	if err != nil {
+ 		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+-			b.showOutput(a, a.Package.Dir, a.Package.Desc(), "note: module requires Go "+p.Module.GoVersion)
++			b.showOutput(a, a.Package.Dir, a.Package.Desc(), "note: module requires Go "+p.Module.GoVersion+"\n")
+ 		}
+ 		return err
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_go_version.txt b/src/cmd/go/testdata/script/mod_go_version.txt
+index 37f173531b..97d9975e68 100644
+--- a/src/cmd/go/testdata/script/mod_go_version.txt
++++ b/src/cmd/go/testdata/script/mod_go_version.txt
+@@ -8,12 +8,19 @@ go build sub.1
+ go build subver.1
+ ! stderr 'module requires'
+ ! go build badsub.1
+-stderr 'module requires Go 1.11111'
++stderr '^note: module requires Go 1.11111$'
+ 
+ go build versioned.1
+ go mod edit -require versioned.1@v1.1.0
+ ! go build versioned.1
+-stderr 'module requires Go 1.99999'
++stderr '^note: module requires Go 1.99999$'
++
++[short] stop
++
++# The message should be printed even if the compiler emits no output.
++go build -o $WORK/nooutput.exe nooutput.go
++! go build -toolexec=$WORK/nooutput.exe versioned.1
++stderr '^# versioned.1\nnote: module requires Go 1.99999$'
+ 
+ -- go.mod --
+ module m
+@@ -71,3 +78,33 @@ go 1.99999
+ -- versioned2/x.go --
+ package x
+ invalid syntax
++
++-- nooutput.go --
++// +build ignore
++
++package main
++
++import (
++	"bytes"
++	"os"
++	"os/exec"
++	"strings"
++)
++
++func main() {
++	stderr := new(bytes.Buffer)
++	stdout := new(bytes.Buffer)
++
++	cmd := exec.Command(os.Args[1], os.Args[2:]...)
++	cmd.Stderr = stderr
++	cmd.Stdout = stdout
++
++	err := cmd.Run()
++	if strings.HasPrefix(os.Args[2], "-V") {
++		os.Stderr.Write(stderr.Bytes())
++		os.Stdout.Write(stdout.Bytes())
++	}
++	if err != nil {
++		os.Exit(1)
++	}
++}

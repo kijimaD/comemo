@@ -12,7 +12,93 @@ Date:   Wed Feb 21 09:29:17 2024 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/cfg/cfg.go    | 54 ++++++++++++++++++---------------------
  src/cmd/go/internal/work/build.go |  2 --
  2 files changed, 25 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 948bceab32..58432335e4 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -64,33 +64,31 @@ func ToolExeSuffix() string {
+ 
+ // These are general "build flags" used by build and other commands.
+ var (
+-	BuildA                 bool     // -a flag
+-	BuildBuildmode         string   // -buildmode flag
+-	BuildBuildvcs          = "auto" // -buildvcs flag: "true", "false", or "auto"
+-	BuildContext           = defaultContext()
+-	BuildMod               string                  // -mod flag
+-	BuildModExplicit       bool                    // whether -mod was set explicitly
+-	BuildModReason         string                  // reason -mod was set, if set by default
+-	BuildLinkshared        bool                    // -linkshared flag
+-	BuildMSan              bool                    // -msan flag
+-	BuildASan              bool                    // -asan flag
+-	BuildCover             bool                    // -cover flag
+-	BuildCoverMode         string                  // -covermode flag
+-	BuildCoverPkg          []string                // -coverpkg flag
+-	BuildN                 bool                    // -n flag
+-	BuildO                 string                  // -o flag
+-	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
+-	BuildPGO               string                  // -pgo flag
+-	BuildPkgdir            string                  // -pkgdir flag
+-	BuildRace              bool                    // -race flag
+-	BuildToolexec          []string                // -toolexec flag
+-	BuildToolchainName     string
+-	BuildToolchainCompiler func() string
+-	BuildToolchainLinker   func() string
+-	BuildTrimpath          bool // -trimpath flag
+-	BuildV                 bool // -v flag
+-	BuildWork              bool // -work flag
+-	BuildX                 bool // -x flag
++	BuildA             bool     // -a flag
++	BuildBuildmode     string   // -buildmode flag
++	BuildBuildvcs      = "auto" // -buildvcs flag: "true", "false", or "auto"
++	BuildContext       = defaultContext()
++	BuildMod           string                  // -mod flag
++	BuildModExplicit   bool                    // whether -mod was set explicitly
++	BuildModReason     string                  // reason -mod was set, if set by default
++	BuildLinkshared    bool                    // -linkshared flag
++	BuildMSan          bool                    // -msan flag
++	BuildASan          bool                    // -asan flag
++	BuildCover         bool                    // -cover flag
++	BuildCoverMode     string                  // -covermode flag
++	BuildCoverPkg      []string                // -coverpkg flag
++	BuildN             bool                    // -n flag
++	BuildO             string                  // -o flag
++	BuildP             = runtime.GOMAXPROCS(0) // -p flag
++	BuildPGO           string                  // -pgo flag
++	BuildPkgdir        string                  // -pkgdir flag
++	BuildRace          bool                    // -race flag
++	BuildToolexec      []string                // -toolexec flag
++	BuildToolchainName string
++	BuildTrimpath      bool // -trimpath flag
++	BuildV             bool // -v flag
++	BuildWork          bool // -work flag
++	BuildX             bool // -x flag
+ 
+ 	ModCacheRW bool   // -modcacherw flag
+ 	ModFile    string // -modfile flag
+@@ -181,8 +179,6 @@ func defaultContext() build.Context {
+ 
+ func init() {
+ 	SetGOROOT(Getenv("GOROOT"), false)
+-	BuildToolchainCompiler = func() string { return "missing-compiler" }
+-	BuildToolchainLinker = func() string { return "missing-linker" }
+ }
+ 
+ // SetGOROOT sets GOROOT and associated variables to the given values.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 408edb5119..ccfb4622e2 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -276,8 +276,6 @@ func (c buildCompiler) Set(value string) error {
+ 		return fmt.Errorf("unknown compiler %q", value)
+ 	}
+ 	cfg.BuildToolchainName = value
+-	cfg.BuildToolchainCompiler = BuildToolchain.compiler
+-	cfg.BuildToolchainLinker = BuildToolchain.linker
+ 	cfg.BuildContext.Compiler = value
+ 	return nil
+ }

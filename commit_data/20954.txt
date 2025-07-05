@@ -34,7 +34,7 @@ Date:   Wed Oct 29 15:14:24 2014 -0400
     R=r, iant
     CC=golang-codereviews
     https://golang.org/cl/167810044
-
+---
  src/runtime/heapdump.c         |  2 +-
  src/runtime/mgc0.c             |  4 ++--
  src/runtime/mprof.go           |  2 +-
@@ -51,3 +51,341 @@ Date:   Wed Oct 29 15:14:24 2014 -0400
  src/runtime/traceback.go       | 33 ++++++++++++++++++++--------
  test/fixedbugs/issue7690.go    | 49 ++++++++++++++++++++++++++++++++++++++++++
  15 files changed, 95 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/heapdump.c b/src/runtime/heapdump.c
+index 71da419f15..94a4bd2be5 100644
+--- a/src/runtime/heapdump.c
++++ b/src/runtime/heapdump.c
+@@ -413,7 +413,7 @@ dumpgoroutine(G *gp)
+ 	child.sp = nil;
+ 	child.depth = 0;
+ 	fn = dumpframe;
+-	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, &fn, &child, false);
++	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, &fn, &child, 0);
+ 
+ 	// dump defer & panic records
+ 	for(d = gp->defer; d != nil; d = d->link) {
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 1b41bf9a79..7754bad89d 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -774,7 +774,7 @@ scanstack(G *gp)
+ 		runtime·throw("can't scan gchelper stack");
+ 
+ 	fn = scanframe;
+-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, false);
++	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, 0);
+ 	runtime·tracebackdefers(gp, &fn, nil);
+ }
+ 
+@@ -1964,7 +1964,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 	frame.fn = nil;
+ 	frame.sp = (uintptr)p;
+ 	cb = getgcmaskcb;
+-	runtime·gentraceback(g->m->curg->sched.pc, g->m->curg->sched.sp, 0, g->m->curg, 0, nil, 1000, &cb, &frame, false);
++	runtime·gentraceback(g->m->curg->sched.pc, g->m->curg->sched.sp, 0, g->m->curg, 0, nil, 1000, &cb, &frame, 0);
+ 	if(frame.fn != nil) {
+ 		Func *f;
+ 		StackMap *stackmap;
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 803da56670..d64e3be695 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -562,7 +562,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ }
+ 
+ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
+-	n := gentraceback(pc, sp, 0, gp, 0, &r.Stack0[0], len(r.Stack0), nil, nil, false)
++	n := gentraceback(pc, sp, 0, gp, 0, &r.Stack0[0], len(r.Stack0), nil, nil, 0)
+ 	if n < len(r.Stack0) {
+ 		r.Stack0[n] = 0
+ 	}
+diff --git a/src/runtime/os_plan9_386.c b/src/runtime/os_plan9_386.c
+index 3490862244..42c6d161c7 100644
+--- a/src/runtime/os_plan9_386.c
++++ b/src/runtime/os_plan9_386.c
+@@ -114,7 +114,7 @@ Throw:
+ 
+ 	if(runtime·gotraceback(&crash)) {
+ 		runtime·goroutineheader(gp);
+-		runtime·traceback(ureg->pc, ureg->sp, 0, gp);
++		runtime·tracebacktrap(ureg->pc, ureg->sp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·printf("\n");
+ 		runtime·dumpregs(ureg);
+diff --git a/src/runtime/os_plan9_amd64.c b/src/runtime/os_plan9_amd64.c
+index 6b0f8ae3a2..a9dc0eb966 100644
+--- a/src/runtime/os_plan9_amd64.c
++++ b/src/runtime/os_plan9_amd64.c
+@@ -122,7 +122,7 @@ Throw:
+ 
+ 	if(runtime·gotraceback(&crash)) {
+ 		runtime·goroutineheader(gp);
+-		runtime·traceback(ureg->ip, ureg->sp, 0, gp);
++		runtime·tracebacktrap(ureg->ip, ureg->sp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·printf("\n");
+ 		runtime·dumpregs(ureg);
+diff --git a/src/runtime/os_windows_386.c b/src/runtime/os_windows_386.c
+index 213582799b..9962f0dc2e 100644
+--- a/src/runtime/os_windows_386.c
++++ b/src/runtime/os_windows_386.c
+@@ -97,7 +97,7 @@ runtime·lastcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback(&crash)){
+-		runtime·traceback(r->Eip, r->Esp, 0, gp);
++		runtime·tracebacktrap(r->Eip, r->Esp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+diff --git a/src/runtime/os_windows_amd64.c b/src/runtime/os_windows_amd64.c
+index b96cf70d1e..e4617e4cef 100644
+--- a/src/runtime/os_windows_amd64.c
++++ b/src/runtime/os_windows_amd64.c
+@@ -119,7 +119,7 @@ runtime·lastcontinuehandler(ExceptionRecord *info, Context *r, G *gp)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback(&crash)){
+-		runtime·traceback(r->Rip, r->Rsp, 0, gp);
++		runtime·tracebacktrap(r->Rip, r->Rsp, 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 52f7ef3a5b..b46f67065a 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -2532,7 +2532,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
+ 
+ 	n = 0;
+ 	if(traceback)
+-		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, stk, nelem(stk), nil, nil, false);
++		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, stk, nelem(stk), nil, nil, TraceTrap);
+ 	if(!traceback || n <= 0) {
+ 		// Normal traceback is impossible or has failed.
+ 		// See if it falls into several common cases.
+@@ -2542,13 +2542,13 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
+ 			// Cgo, we can't unwind and symbolize arbitrary C code,
+ 			// so instead collect Go stack that leads to the cgo call.
+ 			// This is especially important on windows, since all syscalls are cgo calls.
+-			n = runtime·gentraceback(mp->curg->syscallpc, mp->curg->syscallsp, 0, mp->curg, 0, stk, nelem(stk), nil, nil, false);
++			n = runtime·gentraceback(mp->curg->syscallpc, mp->curg->syscallsp, 0, mp->curg, 0, stk, nelem(stk), nil, nil, 0);
+ 		}
+ #ifdef GOOS_windows
+ 		if(n == 0 && mp->libcallg != nil && mp->libcallpc != 0 && mp->libcallsp != 0) {
+ 			// Libcall, i.e. runtime syscall on windows.
+ 			// Collect Go stack that leads to the call.
+-			n = runtime·gentraceback(mp->libcallpc, mp->libcallsp, 0, mp->libcallg, 0, stk, nelem(stk), nil, nil, false);
++			n = runtime·gentraceback(mp->libcallpc, mp->libcallsp, 0, mp->libcallg, 0, stk, nelem(stk), nil, nil, 0);
+ 		}
+ #endif
+ 		if(n == 0) {
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 2a60740063..977c4547df 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -719,9 +719,15 @@ struct Stkframe
+ 	BitVector*	argmap;	// force use of this argmap
+ };
+ 
+-intgo	runtime·gentraceback(uintptr, uintptr, uintptr, G*, intgo, uintptr*, intgo, bool(**)(Stkframe*, void*), void*, bool);
++enum
++{
++	TraceRuntimeFrames = 1<<0, // include frames for internal runtime functions.
++	TraceTrap = 1<<1, // the initial PC, SP are from a trap, not a return PC from a call
++};
++intgo	runtime·gentraceback(uintptr, uintptr, uintptr, G*, intgo, uintptr*, intgo, bool(**)(Stkframe*, void*), void*, uintgo);
+ void	runtime·tracebackdefers(G*, bool(**)(Stkframe*, void*), void*);
+ void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
++void	runtime·tracebacktrap(uintptr pc, uintptr sp, uintptr lr, G* gp);
+ void	runtime·tracebackothers(G*);
+ bool	runtime·haszeroargs(uintptr pc);
+ bool	runtime·topofstack(Func*);
+diff --git a/src/runtime/signal_386.c b/src/runtime/signal_386.c
+index d55e304528..30a7488bd7 100644
+--- a/src/runtime/signal_386.c
++++ b/src/runtime/signal_386.c
+@@ -109,7 +109,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 
+ 	if(runtime·gotraceback(&crash)){
+ 		runtime·goroutineheader(gp);
+-		runtime·traceback(SIG_EIP(info, ctxt), SIG_ESP(info, ctxt), 0, gp);
++		runtime·tracebacktrap(SIG_EIP(info, ctxt), SIG_ESP(info, ctxt), 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·printf("\n");
+ 		runtime·dumpregs(info, ctxt);
+diff --git a/src/runtime/signal_amd64x.c b/src/runtime/signal_amd64x.c
+index 44e68cecfc..feb4afcce3 100644
+--- a/src/runtime/signal_amd64x.c
++++ b/src/runtime/signal_amd64x.c
+@@ -143,7 +143,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 
+ 	if(runtime·gotraceback(&crash)){
+ 		runtime·goroutineheader(gp);
+-		runtime·traceback(SIG_RIP(info, ctxt), SIG_RSP(info, ctxt), 0, gp);
++		runtime·tracebacktrap(SIG_RIP(info, ctxt), SIG_RSP(info, ctxt), 0, gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·printf("\n");
+ 		runtime·dumpregs(info, ctxt);
+diff --git a/src/runtime/signal_arm.c b/src/runtime/signal_arm.c
+index 3571cf3ac6..afad5e7d16 100644
+--- a/src/runtime/signal_arm.c
++++ b/src/runtime/signal_arm.c
+@@ -108,7 +108,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 
+ 	if(runtime·gotraceback(&crash)){
+ 		runtime·goroutineheader(gp);
+-		runtime·traceback(SIG_PC(info, ctxt), SIG_SP(info, ctxt), SIG_LR(info, ctxt), gp);
++		runtime·tracebacktrap(SIG_PC(info, ctxt), SIG_SP(info, ctxt), SIG_LR(info, ctxt), gp);
+ 		runtime·tracebackothers(gp);
+ 		runtime·printf("\n");
+ 		runtime·dumpregs(info, ctxt);
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index ed8f4f8727..072bc242bc 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -620,7 +620,7 @@ copystack(G *gp, uintptr newsize)
+ 	adjinfo.old = old;
+ 	adjinfo.delta = new.hi - old.hi;
+ 	cb = adjustframe;
+-	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &cb, &adjinfo, false);
++	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &cb, &adjinfo, 0);
+ 	
+ 	// adjust other miscellaneous things that have pointers into stacks.
+ 	adjustctxt(gp, &adjinfo);
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 24dc3eea95..834435b400 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -96,7 +96,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
+ // the runtime.Callers function (pcbuf != nil), as well as the garbage
+ // collector (callback != nil).  A little clunky to merge these, but avoids
+ // duplicating the code and all its subtlety.
+-func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, printall bool) int {
++func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
+ 	if goexitPC == 0 {
+ 		gothrow("gentraceback before goexitPC initialization")
+ 	}
+@@ -297,13 +297,13 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 			}
+ 		}
+ 		if printing {
+-			if printall || showframe(f, gp) {
++			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp) {
+ 				// Print during crash.
+ 				//	main(0x1, 0x2, 0x3)
+ 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+ 				//
+ 				tracepc := frame.pc // back up to CALL instruction for funcline.
+-				if n > 0 && frame.pc > f.entry && !waspanic {
++				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+ 					tracepc--
+ 				}
+ 				print(gofuncname(f), "(")
+@@ -475,17 +475,32 @@ func printcreatedby(gp *g) {
+ }
+ 
+ func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
++	traceback1(pc, sp, lr, gp, 0)
++}
++
++// tracebacktrap is like traceback but expects that the PC and SP were obtained
++// from a trap, not from gp->sched or gp->syscallpc/gp->syscallsp or getcallerpc/getcallersp.
++// Because they are from a trap instead of from a saved pair,
++// the initial PC must not be rewound to the previous instruction.
++// (All the saved pairs record a PC that is a return address, so we
++// rewind it into the CALL instruction.)
++func tracebacktrap(pc uintptr, sp uintptr, lr uintptr, gp *g) {
++	traceback1(pc, sp, lr, gp, _TraceTrap)
++}
++
++func traceback1(pc uintptr, sp uintptr, lr uintptr, gp *g, flags uint) {
+ 	var n int
+ 	if readgstatus(gp)&^_Gscan == _Gsyscall {
+-		// Override signal registers if blocked in system call.
++		// Override registers if blocked in system call.
+ 		pc = gp.syscallpc
+ 		sp = gp.syscallsp
++		flags &^= _TraceTrap
+ 	}
+ 	// Print traceback. By default, omits runtime frames.
+ 	// If that means we print nothing at all, repeat forcing all frames printed.
+-	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, false)
+-	if n == 0 {
+-		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, true)
++	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags)
++	if n == 0 && (flags&_TraceRuntimeFrames) == 0 {
++		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags|_TraceRuntimeFrames)
+ 	}
+ 	if n == _TracebackMaxFrames {
+ 		print("...additional frames elided...\n")
+@@ -496,11 +511,11 @@ func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
+ func callers(skip int, pcbuf *uintptr, m int) int {
+ 	sp := getcallersp(unsafe.Pointer(&skip))
+ 	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
+-	return gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, false)
++	return gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
+ }
+ 
+ func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
+-	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, false)
++	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, 0)
+ }
+ 
+ func showframe(f *_func, gp *g) bool {
+diff --git a/test/fixedbugs/issue7690.go b/test/fixedbugs/issue7690.go
+new file mode 100644
+index 0000000000..4ad9e8622a
+--- /dev/null
++++ b/test/fixedbugs/issue7690.go
+@@ -0,0 +1,49 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 7690 - Stack and other routines did not back up initial PC
++// into CALL instruction, instead reporting line number of next instruction,
++// which might be on a different line.
++
++package main
++
++import (
++	"bytes"
++	"regexp"
++	"runtime"
++	"strconv"
++)
++
++func main() {
++	buf1 := make([]byte, 1000)
++	buf2 := make([]byte, 1000)
++
++	runtime.Stack(buf1, false)      // CALL is last instruction on this line
++	n := runtime.Stack(buf2, false) // CALL is followed by load of result from stack
++
++	buf1 = buf1[:bytes.IndexByte(buf1, 0)]
++	buf2 = buf2[:n]
++
++	re := regexp.MustCompile(`(?m)^main\.main\(\)\n.*/issue7690.go:([0-9]+)`)
++	m1 := re.FindStringSubmatch(string(buf1))
++	if m1 == nil {
++		println("BUG: cannot find main.main in first trace")
++		return
++	}
++	m2 := re.FindStringSubmatch(string(buf2))
++	if m2 == nil {
++		println("BUG: cannot find main.main in second trace")
++		return
++	}
++
++	n1, _ := strconv.Atoi(m1[1])
++	n2, _ := strconv.Atoi(m2[1])
++	if n1+1 != n2 {
++		println("BUG: expect runtime.Stack on back to back lines, have", n1, n2)
++		println(string(buf1))
++		println(string(buf2))
++	}
++}

@@ -13,6 +13,20 @@ Date:   Mon Nov 23 05:47:51 2020 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_gonoproxy.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_gonoproxy.txt b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+index 546605da21..204786969f 100644
+--- a/src/cmd/go/testdata/script/mod_gonoproxy.txt
++++ b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+@@ -21,7 +21,7 @@ go get -d rsc.io/quote
+ # Download .info files needed for 'go list -m all' later.
+ # TODO(#42723): either 'go list -m' should not read these files,
+ # or 'go get' and 'go mod tidy' should download them.
+-go list -m all  
++go list -m all
+ stdout '^golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c$'
+ 
+ # When GOPROXY is not empty but contains no entries, an error should be reported.

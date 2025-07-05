@@ -18,7 +18,7 @@ Date:   Thu Apr 20 16:55:13 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-
+---
  .../script/list_cgo_compiled_importmap.txt         |   5 +-
  src/net/cgo_stub.go                                |  16 +-
  src/net/cgo_unix.go                                |   7 +
@@ -39,3 +39,1006 @@ Date:   Thu Apr 20 16:55:13 2023 -0700
  src/net/netgo_off.go                               |   9 +
  src/net/netgo_on.go                                |   9 +
  19 files changed, 383 insertions(+), 189 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt b/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt
+index 30effb104b..869333986c 100644
+--- a/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt
++++ b/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt
+@@ -7,9 +7,12 @@
+ 
+ [short] skip  # -compiled can be slow (because it compiles things)
+ [!cgo] skip
++[GOOS:darwin] skip # net package does not import "C" on Darwin
++[GOOS:windows] skip # net package does not import "C" on Windows
++[GOOS:plan9] skip # net package does not import "C" on Plan 9
+ 
+ env CGO_ENABLED=1
+-env GOFLAGS=-tags=netcgo  # Force net to use cgo even on Windows.
++env GOFLAGS=-tags=netcgo  # Force net to use cgo
+ 
+ 
+ # "runtime/cgo [runtime.test]" appears in the test dependencies of "runtime",
+diff --git a/src/net/cgo_stub.go b/src/net/cgo_stub.go
+index c901d4bb80..96d5dc8e25 100644
+--- a/src/net/cgo_stub.go
++++ b/src/net/cgo_stub.go
+@@ -2,17 +2,21 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (!cgo && !darwin) || netgo
++// This file holds stub versions of the cgo functions called on Unix systems.
++// We build this file if using the netgo build tag, or if cgo is not
++// enabled and we are using a Unix system other than Darwin.
++// Darwin is exempted because it always provides the cgo routines,
++// in cgo_unix_syscall.go.
++
++//go:build netgo || (!cgo && unix && !darwin)
+ 
+ package net
+ 
+ import "context"
+ 
+-type addrinfoErrno int
+-
+-func (eai addrinfoErrno) Error() string   { return "<nil>" }
+-func (eai addrinfoErrno) Temporary() bool { return false }
+-func (eai addrinfoErrno) Timeout() bool   { return false }
++// cgoAvailable set to false to indicate that the cgo resolver
++// is not available on this system.
++const cgoAvailable = false
+ 
+ func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error, completed bool) {
+ 	return nil, nil, false
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index de6a64b23b..62b4f23367 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -21,6 +21,10 @@ import (
+ 	"golang.org/x/net/dns/dnsmessage"
+ )
+ 
++// cgoAvailable set to true to indicate that the cgo resolver
++// is available on this system.
++const cgoAvailable = true
++
+ // An addrinfoErrno represents a getaddrinfo, getnameinfo-specific
+ // error number. It's a signed number and a zero value is a non-error
+ // by convention.
+@@ -30,6 +34,9 @@ func (eai addrinfoErrno) Error() string   { return _C_gai_strerror(_C_int(eai))
+ func (eai addrinfoErrno) Temporary() bool { return eai == _C_EAI_AGAIN }
+ func (eai addrinfoErrno) Timeout() bool   { return false }
+ 
++// isAddrinfoErrno is just for testing purposes.
++func (eai addrinfoErrno) isAddrinfoErrno() {}
++
+ // doBlockingWithCtx executes a blocking function in a separate goroutine when the provided
+ // context is cancellable. It is intended for use with calls that don't support context
+ // cancellation (cgo, syscalls). blocking func may still be running after this function finishes.
+diff --git a/src/net/cgo_windows.go b/src/net/cgo_windows.go
+deleted file mode 100644
+index 6bb6cbbb2f..0000000000
+--- a/src/net/cgo_windows.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build cgo && !netgo
+-
+-package net
+-
+-type addrinfoErrno int
+-
+-func (eai addrinfoErrno) Error() string   { return "<nil>" }
+-func (eai addrinfoErrno) Temporary() bool { return false }
+-func (eai addrinfoErrno) Timeout() bool   { return false }
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 8a4ee935c6..2540ac5261 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -7,29 +7,70 @@
+ package net
+ 
+ import (
++	"errors"
+ 	"internal/bytealg"
+ 	"internal/godebug"
++	"io/fs"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+ 	"syscall"
+ )
+ 
+-// conf represents a system's network configuration.
++// The net package's name resolution is rather complicated.
++// There are two main approaches, go and cgo.
++// The cgo resolver uses C functions like getaddrinfo.
++// The go resolver reads system files directly and
++// sends DNS packets directly to servers.
++//
++// The netgo build tag prefers the go resolver.
++// The netcgo build tag prefers the cgo resolver.
++//
++// The netgo build tag also prohibits the use of the cgo tool.
++// However, on Darwin, Plan 9, and Windows the cgo resolver is still available.
++// On those systems the cgo resolver does not require the cgo tool.
++// (The term "cgo resolver" was locked in by GODEBUG settings
++// at a time when the cgo resolver did require the cgo tool.)
++//
++// Adding netdns=go to GODEBUG will prefer the go resolver.
++// Adding netdns=cgo to GODEBUG will prefer the cgo resolver.
++//
++// The Resolver struct has a PreferGo field that user code
++// may set to prefer the go resolver. It is documented as being
++// equivalent to adding netdns=go to GODEBUG.
++//
++// When deciding which resolver to use, we first check the PreferGo field.
++// If that is not set, we check the GODEBUG setting.
++// If that is not set, we check the netgo or netcgo build tag.
++// If none of those are set, we normally prefer the go resolver by default.
++// However, if the cgo resolver is available,
++// there is a complex set of conditions for which we prefer the cgo resolver.
++//
++// Other files define the netGoBuildTag, netCgoBuildTag, and cgoAvailable
++// constants.
++
++// conf is used to determine name resolution configuration.
+ type conf struct {
+-	// forceCgoLookupHost forces CGO to always be used, if available.
+-	forceCgoLookupHost bool
++	netGo  bool // prefer go approach, based on build tag and GODEBUG
++	netCgo bool // prefer cgo approach, based on build tag and GODEBUG
+ 
+-	netGo  bool // go DNS resolution forced
+-	netCgo bool // non-go DNS resolution forced (cgo, or win32)
++	dnsDebugLevel int // from GODEBUG
+ 
+-	// machine has an /etc/mdns.allow file
+-	hasMDNSAllow bool
++	preferCgo bool // if no explicit preference, use cgo
+ 
+-	goos          string // the runtime.GOOS, to ease testing
+-	dnsDebugLevel int
++	goos     string   // copy of runtime.GOOS, used for testing
++	mdnsTest mdnsTest // assume /etc/mdns.allow exists, for testing
+ }
+ 
++// mdnsTest is for testing only.
++type mdnsTest int
++
++const (
++	mdnsFromSystem mdnsTest = iota
++	mdnsAssumeExists
++	mdnsAssumeDoesNotExist
++)
++
+ var (
+ 	confOnce sync.Once // guards init of confVal via initConfVal
+ 	confVal  = &conf{goos: runtime.GOOS}
+@@ -41,22 +82,13 @@ func systemConf() *conf {
+ 	return confVal
+ }
+ 
++// initConfVal initializes confVal based on the environment
++// that will not change during program execution.
+ func initConfVal() {
+ 	dnsMode, debugLevel := goDebugNetDNS()
++	confVal.netGo = netGoBuildTag || dnsMode == "go"
++	confVal.netCgo = netCgoBuildTag || dnsMode == "cgo"
+ 	confVal.dnsDebugLevel = debugLevel
+-	confVal.netGo = netGo || dnsMode == "go"
+-	confVal.netCgo = netCgo || dnsMode == "cgo"
+-	if !confVal.netGo && !confVal.netCgo && (runtime.GOOS == "windows" || runtime.GOOS == "plan9") {
+-		// Neither of these platforms actually use cgo.
+-		//
+-		// The meaning of "cgo" mode in the net package is
+-		// really "the native OS way", which for libc meant
+-		// cgo on the original platforms that motivated
+-		// PreferGo support before Windows and Plan9 got support,
+-		// at which time the GODEBUG=netdns=go and GODEBUG=netdns=cgo
+-		// names were already kinda locked in.
+-		confVal.netCgo = true
+-	}
+ 
+ 	if confVal.dnsDebugLevel > 0 {
+ 		defer func() {
+@@ -65,12 +97,14 @@ func initConfVal() {
+ 			}
+ 			switch {
+ 			case confVal.netGo:
+-				if netGo {
++				if netGoBuildTag {
+ 					println("go package net: built with netgo build tag; using Go's DNS resolver")
+ 				} else {
+ 					println("go package net: GODEBUG setting forcing use of Go's resolver")
+ 				}
+-			case confVal.forceCgoLookupHost:
++			case !cgoAvailable:
++				println("go package net: cgo resolver not supported; using Go's DNS resolver")
++			case confVal.netCgo || confVal.preferCgo:
+ 				println("go package net: using cgo DNS resolver")
+ 			default:
+ 				println("go package net: dynamic selection of DNS resolver")
+@@ -78,60 +112,100 @@ func initConfVal() {
+ 		}()
+ 	}
+ 
+-	// Darwin pops up annoying dialog boxes if programs try to do
+-	// their own DNS requests. So always use cgo instead, which
+-	// avoids that.
+-	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+-		confVal.forceCgoLookupHost = true
++	// The remainder of this function sets preferCgo based on
++	// conditions that will not change during program execution.
++
++	// By default, prefer the go resolver.
++	confVal.preferCgo = false
++
++	// If the cgo resolver is not available, we can't prefer it.
++	if !cgoAvailable {
++		return
++	}
++
++	// Some operating systems always prefer the cgo resolver.
++	if goosPrefersCgo(runtime.GOOS) {
++		confVal.preferCgo = true
+ 		return
+ 	}
+ 
+-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++	// The remaining checks are specific to Unix systems.
++	switch runtime.GOOS {
++	case "plan9", "windows", "js", "wasip1":
+ 		return
+ 	}
+ 
+ 	// If any environment-specified resolver options are specified,
+-	// force cgo. Note that LOCALDOMAIN can change behavior merely
+-	// by being specified with the empty string.
++	// prefer the cgo resolver.
++	// Note that LOCALDOMAIN can change behavior merely by being
++	// specified with the empty string.
+ 	_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
+-	if os.Getenv("RES_OPTIONS") != "" ||
+-		os.Getenv("HOSTALIASES") != "" ||
+-		confVal.netCgo ||
+-		localDomainDefined {
+-		confVal.forceCgoLookupHost = true
++	if localDomainDefined || os.Getenv("RES_OPTIONS") != "" || os.Getenv("HOSTALIASES") != "" {
++		confVal.preferCgo = true
+ 		return
+ 	}
+ 
+ 	// OpenBSD apparently lets you override the location of resolv.conf
+ 	// with ASR_CONFIG. If we notice that, defer to libc.
+ 	if runtime.GOOS == "openbsd" && os.Getenv("ASR_CONFIG") != "" {
+-		confVal.forceCgoLookupHost = true
++		confVal.preferCgo = true
+ 		return
+ 	}
++}
+ 
+-	if _, err := os.Stat("/etc/mdns.allow"); err == nil {
+-		confVal.hasMDNSAllow = true
++// goosPreferCgo reports whether the GOOS value passed in prefers
++// the cgo resolver.
++func goosPrefersCgo(goos string) bool {
++	switch goos {
++	// Historically on Windows and Plan 9 we prefer the
++	// cgo resolver (which doesn't use the cgo tool) rather than
++	// the go resolver. This is because originally these
++	// systems did not support the go resolver.
++	// Keep it this way for better compatibility.
++	// Perhaps we can revisit this some day.
++	case "windows", "plan9":
++		return true
++
++	// Darwin pops up annoying dialog boxes if programs try to
++	// do their own DNS requests, so prefer cgo.
++	case "darwin", "ios":
++		return true
++
++	// DNS requests don't work on Android, so prefer the cgo resolver.
++	// Issue #10714.
++	case "android":
++		return true
++
++	default:
++		return false
+ 	}
+ }
+ 
+-// canUseCgo reports whether calling cgo functions is allowed
+-// for non-hostname lookups.
+-func (c *conf) canUseCgo() bool {
+-	ret, _ := c.hostLookupOrder(nil, "")
+-	return ret == hostLookupCgo
++// mustUseGoResolver reports whether a DNS lookup of any sort is
++// required to use the go resolver. The provided Resolver is optional.
++// This will report true if the cgo resolver is not available.
++func (c *conf) mustUseGoResolver(r *Resolver) bool {
++	return c.netGo || r.preferGo() || !cgoAvailable
+ }
+ 
+ // hostLookupOrder determines which strategy to use to resolve hostname.
+ // The provided Resolver is optional. nil means to not consider its options.
+ // It also returns dnsConfig when it was used to determine the lookup order.
+-func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, dnsConfig *dnsConfig) {
++func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, dnsConf *dnsConfig) {
+ 	if c.dnsDebugLevel > 1 {
+ 		defer func() {
+ 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
+ 		}()
+ 	}
+-	fallbackOrder := hostLookupCgo
+-	if c.netGo || r.preferGo() {
++
++	// fallbackOrder is the order we return if we can't figure it out.
++	var fallbackOrder hostLookupOrder
++
++	var canUseCgo bool
++	if c.mustUseGoResolver(r) {
++		// Go resolver was explicitly requested
++		// or cgo resolver is not available.
++		// Figure out the order below.
+ 		switch c.goos {
+ 		case "windows":
+ 			// TODO(bradfitz): implement files-based
+@@ -142,123 +216,161 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 		default:
+ 			fallbackOrder = hostLookupFilesDNS
+ 		}
+-	}
+-	if c.forceCgoLookupHost || c.goos == "android" || c.goos == "windows" || c.goos == "plan9" {
+-		return fallbackOrder, nil
+-	}
+-	if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
+-		// Don't deal with special form hostnames with backslashes
+-		// or '%'.
+-		return fallbackOrder, nil
++		canUseCgo = false
++	} else if c.netCgo {
++		// Cgo resolver was explicitly requested.
++		return hostLookupCgo, nil
++	} else if c.preferCgo {
++		// Given a choice, we prefer the cgo resolver.
++		return hostLookupCgo, nil
++	} else {
++		// Neither resolver was explicitly requested
++		// and we have no preference.
++
++		// For testing purposes only, recheck the GOOS.
++		// This lets TestConfHostLookupOrder test different
++		// GOOS values.
++		if c.goos != runtime.GOOS && goosPrefersCgo(c.goos) {
++			return hostLookupCgo, nil
++		}
++
++		if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
++			// Don't deal with special form hostnames
++			// with backslashes or '%'.
++			return hostLookupCgo, nil
++		}
++
++		// If something is unrecognized, use cgo.
++		fallbackOrder = hostLookupCgo
++		canUseCgo = true
+ 	}
+ 
+-	conf := getSystemDNSConfig()
+-	if conf.err != nil && !os.IsNotExist(conf.err) && !os.IsPermission(conf.err) {
+-		// If we can't read the resolv.conf file, assume it
+-		// had something important in it and defer to cgo.
+-		// libc's resolver might then fail too, but at least
+-		// it wasn't our fault.
+-		return fallbackOrder, conf
++	// Try to figure out the order to use for searches.
++	// If we don't recognize something, use fallbackOrder.
++	// That will use cgo unless the Go resolver was explicitly requested.
++	// If we do figure out the order, return something other
++	// than fallbackOrder to use the Go resolver with that order.
++
++	dnsConf = getSystemDNSConfig()
++
++	if canUseCgo && dnsConf.err != nil && !errors.Is(dnsConf.err, fs.ErrNotExist) && !errors.Is(dnsConf.err, fs.ErrPermission) {
++		// We can't read the resolv.conf file, so use cgo if we can.
++		return hostLookupCgo, dnsConf
+ 	}
+ 
+-	if conf.unknownOpt {
+-		return fallbackOrder, conf
++	if canUseCgo && dnsConf.unknownOpt {
++		// We didn't recognize something in resolv.conf,
++		// so use cgo if we can.
++		return hostLookupCgo, dnsConf
+ 	}
+ 
+ 	// OpenBSD is unique and doesn't use nsswitch.conf.
+ 	// It also doesn't support mDNS.
+ 	if c.goos == "openbsd" {
+-		// OpenBSD's resolv.conf manpage says that a non-existent
+-		// resolv.conf means "lookup" defaults to only "files",
+-		// without DNS lookups.
+-		if os.IsNotExist(conf.err) {
+-			return hostLookupFiles, conf
++		// OpenBSD's resolv.conf manpage says that a
++		// non-existent resolv.conf means "lookup" defaults
++		// to only "files", without DNS lookups.
++		if errors.Is(dnsConf.err, fs.ErrNotExist) {
++			return hostLookupFiles, dnsConf
+ 		}
+ 
+-		lookup := conf.lookup
++		lookup := dnsConf.lookup
+ 		if len(lookup) == 0 {
+ 			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+ 			// "If the lookup keyword is not used in the
+ 			// system's resolv.conf file then the assumed
+ 			// order is 'bind file'"
+-			return hostLookupDNSFiles, conf
++			return hostLookupDNSFiles, dnsConf
+ 		}
+ 		if len(lookup) < 1 || len(lookup) > 2 {
+-			return fallbackOrder, conf
++			// We don't recognize this format.
++			return fallbackOrder, dnsConf
+ 		}
+ 		switch lookup[0] {
+ 		case "bind":
+ 			if len(lookup) == 2 {
+ 				if lookup[1] == "file" {
+-					return hostLookupDNSFiles, conf
++					return hostLookupDNSFiles, dnsConf
+ 				}
+-				return fallbackOrder, conf
++				// Unrecognized.
++				return fallbackOrder, dnsConf
+ 			}
+-			return hostLookupDNS, conf
++			return hostLookupDNS, dnsConf
+ 		case "file":
+ 			if len(lookup) == 2 {
+ 				if lookup[1] == "bind" {
+-					return hostLookupFilesDNS, conf
++					return hostLookupFilesDNS, dnsConf
+ 				}
+-				return fallbackOrder, conf
++				// Unrecognized.
++				return fallbackOrder, dnsConf
+ 			}
+-			return hostLookupFiles, conf
++			return hostLookupFiles, dnsConf
+ 		default:
+-			return fallbackOrder, conf
++			// Unrecognized.
++			return fallbackOrder, dnsConf
+ 		}
++
++		// We always return before this point.
++		// The code below is for non-OpenBSD.
+ 	}
+ 
+ 	// Canonicalize the hostname by removing any trailing dot.
+ 	if stringsHasSuffix(hostname, ".") {
+ 		hostname = hostname[:len(hostname)-1]
+ 	}
+-	if stringsHasSuffixFold(hostname, ".local") {
++	if canUseCgo && stringsHasSuffixFold(hostname, ".local") {
+ 		// Per RFC 6762, the ".local" TLD is special. And
+ 		// because Go's native resolver doesn't do mDNS or
+ 		// similar local resolution mechanisms, assume that
+ 		// libc might (via Avahi, etc) and use cgo.
+-		return fallbackOrder, conf
++		return hostLookupCgo, dnsConf
+ 	}
+ 
+ 	nss := getSystemNSS()
+ 	srcs := nss.sources["hosts"]
+ 	// If /etc/nsswitch.conf doesn't exist or doesn't specify any
+ 	// sources for "hosts", assume Go's DNS will work fine.
+-	if os.IsNotExist(nss.err) || (nss.err == nil && len(srcs) == 0) {
+-		if c.goos == "solaris" {
+-			// illumos defaults to "nis [NOTFOUND=return] files"
+-			return fallbackOrder, conf
++	if errors.Is(nss.err, fs.ErrNotExist) || (nss.err == nil && len(srcs) == 0) {
++		if canUseCgo && c.goos == "solaris" {
++			// illumos defaults to
++			// "nis [NOTFOUND=return] files",
++			// which the go resolver doesn't support.
++			return hostLookupCgo, dnsConf
+ 		}
+ 
+-		return hostLookupFilesDNS, conf
++		return hostLookupFilesDNS, dnsConf
+ 	}
+ 	if nss.err != nil {
+ 		// We failed to parse or open nsswitch.conf, so
+-		// conservatively assume we should use cgo if it's
+-		// available.
+-		return fallbackOrder, conf
++		// we have nothing to base an order on.
++		return fallbackOrder, dnsConf
+ 	}
+ 
+-	var mdnsSource, filesSource, dnsSource bool
++	var mdnsSource, filesSource, dnsSource, unknownSource bool
+ 	var first string
+ 	for _, src := range srcs {
+ 		if src.source == "myhostname" {
+-			if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
+-				return fallbackOrder, conf
+-			}
+-			hn, err := getHostname()
+-			if err != nil || stringsEqualFold(hostname, hn) {
+-				return fallbackOrder, conf
++			// Let the cgo resolver handle myhostname
++			// if we are looking up the local hostname.
++			if canUseCgo {
++				if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
++					return hostLookupCgo, dnsConf
++				}
++				hn, err := getHostname()
++				if err != nil || stringsEqualFold(hostname, hn) {
++					return hostLookupCgo, dnsConf
++				}
+ 			}
+ 			continue
+ 		}
+ 		if src.source == "files" || src.source == "dns" {
+-			if !src.standardCriteria() {
+-				return fallbackOrder, conf // non-standard; let libc deal with it.
++			if canUseCgo && !src.standardCriteria() {
++				// non-standard; let libc deal with it.
++				return hostLookupCgo, dnsConf
+ 			}
+ 			if src.source == "files" {
+ 				filesSource = true
+-			} else if src.source == "dns" {
++			} else {
+ 				dnsSource = true
+ 			}
+ 			if first == "" {
+@@ -274,33 +386,62 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 			continue
+ 		}
+ 		// Some source we don't know how to deal with.
+-		return fallbackOrder, conf
++		if canUseCgo {
++			return hostLookupCgo, dnsConf
++		}
++
++		unknownSource = true
++		if first == "" {
++			first = src.source
++		}
+ 	}
+ 
+ 	// We don't parse mdns.allow files. They're rare. If one
+ 	// exists, it might list other TLDs (besides .local) or even
+ 	// '*', so just let libc deal with it.
+-	if mdnsSource && c.hasMDNSAllow {
+-		return fallbackOrder, conf
++	if canUseCgo && mdnsSource {
++		var haveMDNSAllow bool
++		switch c.mdnsTest {
++		case mdnsFromSystem:
++			_, err := os.Stat("/etc/mdns.allow")
++			if err != nil && !errors.Is(err, fs.ErrNotExist) {
++				// Let libc figure out what is going on.
++				return hostLookupCgo, dnsConf
++			}
++			haveMDNSAllow = err == nil
++		case mdnsAssumeExists:
++			haveMDNSAllow = true
++		case mdnsAssumeDoesNotExist:
++			haveMDNSAllow = false
++		}
++		if haveMDNSAllow {
++			return hostLookupCgo, dnsConf
++		}
++	}
++
++	// If we saw a source we don't recognize, which can only
++	// happen if we can't use the cgo resolver, treat it as DNS.
++	if unknownSource {
++		dnsSource = true
+ 	}
+ 
+-	// Cases where Go can handle it without cgo and C thread
+-	// overhead.
++	// Cases where Go can handle it without cgo and C thread overhead,
++	// or where the Go resolver has been forced.
+ 	switch {
+ 	case filesSource && dnsSource:
+ 		if first == "files" {
+-			return hostLookupFilesDNS, conf
++			return hostLookupFilesDNS, dnsConf
+ 		} else {
+-			return hostLookupDNSFiles, conf
++			return hostLookupDNSFiles, dnsConf
+ 		}
+ 	case filesSource:
+-		return hostLookupFiles, conf
++		return hostLookupFiles, dnsConf
+ 	case dnsSource:
+-		return hostLookupDNS, conf
++		return hostLookupDNS, dnsConf
+ 	}
+ 
+-	// Something weird. Let libc deal with it.
+-	return fallbackOrder, conf
++	// Something weird. Fallback to the default.
++	return fallbackOrder, dnsConf
+ }
+ 
+ var netdns = godebug.New("netdns")
+diff --git a/src/net/conf_netcgo.go b/src/net/conf_netcgo.go
+deleted file mode 100644
+index 82d1bb643e..0000000000
+--- a/src/net/conf_netcgo.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build netcgo
+-
+-package net
+-
+-/*
+-
+-// Fail if cgo isn't available.
+-
+-*/
+-import "C"
+-
+-// The build tag "netcgo" forces use of the cgo DNS resolver.
+-// It is the opposite of "netgo".
+-func init() { netCgo = true }
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 3736709295..6c9d247713 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -43,6 +43,15 @@ var defaultResolvConf = &dnsConfig{
+ }
+ 
+ func TestConfHostLookupOrder(t *testing.T) {
++	// These tests are written for a system with cgo available,
++	// without using the netgo tag.
++	if netGoBuildTag {
++		t.Skip("skipping test because net package built with netgo tag")
++	}
++	if !cgoAvailable {
++		t.Skip("skipping test because cgo resolver not available")
++	}
++
+ 	tests := []struct {
+ 		name      string
+ 		c         *conf
+@@ -54,7 +63,8 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "force",
+ 			c: &conf{
+-				forceCgoLookupHost: true,
++				preferCgo: true,
++				netCgo:    true,
+ 			},
+ 			resolv: defaultResolvConf,
+ 			nss:    nssStr(t, "foo: bar"),
+@@ -82,12 +92,14 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			resolv: defaultResolvConf,
+ 			nss:    nssStr(t, "hosts: dns files something_custom"),
+ 			hostTests: []nssHostTest{
+-				{"x.com", "myhostname", hostLookupFilesDNS},
++				{"x.com", "myhostname", hostLookupDNSFiles},
+ 			},
+ 		},
+ 		{
+-			name:   "ubuntu_trusty_avahi",
+-			c:      &conf{},
++			name: "ubuntu_trusty_avahi",
++			c: &conf{
++				mdnsTest: mdnsAssumeDoesNotExist,
++			},
+ 			resolv: defaultResolvConf,
+ 			nss:    nssStr(t, "hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4"),
+ 			hostTests: []nssHostTest{
+@@ -203,8 +215,10 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
+ 		},
+ 		{
+-			name:   "files_mdns_dns",
+-			c:      &conf{},
++			name: "files_mdns_dns",
++			c: &conf{
++				mdnsTest: mdnsAssumeDoesNotExist,
++			},
+ 			resolv: defaultResolvConf,
+ 			nss:    nssStr(t, "hosts: files mdns dns"),
+ 			hostTests: []nssHostTest{
+@@ -226,7 +240,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		{
+ 			name: "mdns_allow",
+ 			c: &conf{
+-				hasMDNSAllow: true,
++				mdnsTest: mdnsAssumeExists,
+ 			},
+ 			resolv: defaultResolvConf,
+ 			nss:    nssStr(t, "hosts: files mdns dns"),
+@@ -294,8 +308,10 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			},
+ 		},
+ 		{
+-			name:   "ubuntu14.04.02",
+-			c:      &conf{},
++			name: "ubuntu14.04.02",
++			c: &conf{
++				mdnsTest: mdnsAssumeDoesNotExist,
++			},
+ 			resolv: defaultResolvConf,
+ 			nss:    nssStr(t, "hosts: files myhostname mdns4_minimal [NOTFOUND=return] dns mdns4"),
+ 			hostTests: []nssHostTest{
+@@ -342,9 +358,8 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			name:     "resolver-prefergo",
+ 			resolver: &Resolver{PreferGo: true},
+ 			c: &conf{
+-				goos:               "darwin",
+-				forceCgoLookupHost: true, // always true for darwin
+-				netCgo:             true,
++				preferCgo: true,
++				netCgo:    true,
+ 			},
+ 			resolv: defaultResolvConf,
+ 			nss:    nssStr(t, ""),
+@@ -352,6 +367,16 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 				{"localhost", "myhostname", hostLookupFilesDNS},
+ 			},
+ 		},
++		{
++			name:     "unknown-source",
++			resolver: &Resolver{PreferGo: true},
++			c:        &conf{},
++			resolv:   defaultResolvConf,
++			nss:      nssStr(t, "hosts: resolve files"),
++			hostTests: []nssHostTest{
++				{"x.com", "myhostname", hostLookupDNSFiles},
++			},
++		},
+ 	}
+ 
+ 	origGetHostname := getHostname
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index fe0d9f676d..4538765d48 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -92,7 +92,9 @@ second:
+ 		return nil
+ 	}
+ 	switch err := nestedErr.(type) {
+-	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
++	case *AddrError, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
++		return nil
++	case interface{ isAddrinfoErrno() }:
+ 		return nil
+ 	case *os.SyscallError:
+ 		nestedErr = err.Err
+@@ -472,7 +474,9 @@ second:
+ 		return nil
+ 	}
+ 	switch err := nestedErr.(type) {
+-	case *AddrError, addrinfoErrno, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
++	case *AddrError, *timeoutError, *DNSError, InvalidAddrError, *ParseError, *poll.DeadlineExceededError, UnknownNetworkError:
++		return nil
++	case interface{ isAddrinfoErrno() }:
+ 		return nil
+ 	case *os.SyscallError:
+ 		nestedErr = err.Err
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 1995742f8c..7c423bfff6 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -13,6 +13,11 @@ import (
+ 	"os"
+ )
+ 
++// cgoAvailable set to true to indicate that the cgo resolver
++// is available on Plan 9. Note that on Plan 9 the cgo resolver
++// does not actually use cgo.
++const cgoAvailable = true
++
+ func query(ctx context.Context, filename, query string, bufSize int) (addrs []string, err error) {
+ 	queryAddrs := func() (addrs []string, err error) {
+ 		file, err := os.OpenFile(filename, os.O_RDWR, 0)
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index e02c45f638..0ea681f834 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -792,7 +792,7 @@ func TestLookupPort(t *testing.T) {
+ 
+ 	switch runtime.GOOS {
+ 	case "android":
+-		if netGo {
++		if netGoBuildTag {
+ 			t.Skipf("not supported on %s without cgo; see golang.org/issues/14576", runtime.GOOS)
+ 		}
+ 	default:
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 3c67b9ecc8..0189db09e4 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -55,7 +55,7 @@ func lookupProtocol(_ context.Context, name string) (int, error) {
+ 
+ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+ 	order, conf := systemConf().hostLookupOrder(r, host)
+-	if !r.preferGo() && order == hostLookupCgo {
++	if order == hostLookupCgo {
+ 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
+ 			return addrs, err
+ 		}
+@@ -82,7 +82,9 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
+ }
+ 
+ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
+-	if !r.preferGo() && systemConf().canUseCgo() {
++	// Port lookup is not a DNS operation.
++	// Prefer the cgo resolver if possible.
++	if !systemConf().mustUseGoResolver(r) {
+ 		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
+ 			if err != nil {
+ 				// Issue 18213: if cgo fails, first check to see whether we
+@@ -99,7 +101,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
+ 
+ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
+ 	order, conf := systemConf().hostLookupOrder(r, name)
+-	if !r.preferGo() && order == hostLookupCgo {
++	if order == hostLookupCgo {
+ 		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
+ 			return cname, err
+ 		}
+@@ -125,7 +127,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
+ 
+ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
+ 	order, conf := systemConf().hostLookupOrder(r, "")
+-	if !r.preferGo() && order == hostLookupCgo {
++	if order == hostLookupCgo {
+ 		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
+ 			return ptrs, err
+ 		}
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 11f43fe1c7..9f88d82854 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -14,6 +14,11 @@ import (
+ 	"unsafe"
+ )
+ 
++// cgoAvailable set to true to indicate that the cgo resolver
++// is available on Windows. Note that on Windows the cgo resolver
++// does not actually use cgo.
++const cgoAvailable = true
++
+ const (
+ 	_WSAHOST_NOT_FOUND = syscall.Errno(11001)
+ 	_WSATRY_AGAIN      = syscall.Errno(11002)
+diff --git a/src/net/net.go b/src/net/net.go
+index a9e9a6478a..5cfc25ffca 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -93,14 +93,6 @@ import (
+ 	"time"
+ )
+ 
+-// netGo and netCgo contain the state of the build tags used
+-// to build this binary, and whether cgo is available.
+-// conf.go mirrors these into conf for easier testing.
+-var (
+-	netGo  bool // set true in cgo_stub.go for build tag "netgo" (or no cgo)
+-	netCgo bool // set true in conf_netcgo.go for build tag "netcgo"
+-)
+-
+ // Addr represents a network end point address.
+ //
+ // The two methods Network and String conventionally return strings
+diff --git a/src/net/netcgo_off.go b/src/net/netcgo_off.go
+new file mode 100644
+index 0000000000..54677dcac6
+--- /dev/null
++++ b/src/net/netcgo_off.go
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !netcgo
++
++package net
++
++const netCgoBuildTag = false
+diff --git a/src/net/netcgo_on.go b/src/net/netcgo_on.go
+new file mode 100644
+index 0000000000..25d4bdca72
+--- /dev/null
++++ b/src/net/netcgo_on.go
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build netcgo
++
++package net
++
++const netCgoBuildTag = true
+diff --git a/src/net/netgo.go b/src/net/netgo.go
+deleted file mode 100644
+index e478c88b30..0000000000
+--- a/src/net/netgo.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Default netGo to true if the netgo build tag is being used, or the
+-// C library DNS routines are not available. Note that the C library
+-// routines are always available on Darwin and Windows.
+-
+-//go:build netgo || (!cgo && !darwin && !windows)
+-
+-package net
+-
+-func init() { netGo = true }
+diff --git a/src/net/netgo_netcgo.go b/src/net/netgo_netcgo.go
+new file mode 100644
+index 0000000000..7f3a5fd007
+--- /dev/null
++++ b/src/net/netgo_netcgo.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build netgo && netcgo
++
++package net
++
++func init() {
++	// This will give a compile time error about the unused constant.
++	// The advantage of this approach is that the gc compiler
++	// actually prints the constant, making the problem obvious.
++	"Do not use both netgo and netcgo build tags."
++}
+diff --git a/src/net/netgo_off.go b/src/net/netgo_off.go
+new file mode 100644
+index 0000000000..e6bc2d7d06
+--- /dev/null
++++ b/src/net/netgo_off.go
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !netgo
++
++package net
++
++const netGoBuildTag = false
+diff --git a/src/net/netgo_on.go b/src/net/netgo_on.go
+new file mode 100644
+index 0000000000..4f088de6e3
+--- /dev/null
++++ b/src/net/netgo_on.go
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build netgo
++
++package net
++
++const netGoBuildTag = true

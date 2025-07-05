@@ -12,7 +12,49 @@ Date:   Tue Feb 7 07:28:49 2017 -0800
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go           | 21 +++++++++++++++++++++
  src/cmd/go/internal/load/pkg.go |  1 +
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 09b6042c0f..06e87798d0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3777,3 +3777,24 @@ func TestA(t *testing.T) {}`)
+ 	tg.grepStdout("pkgs$", "expected package not listed")
+ 	tg.grepStdout("pkgs/a", "expected package not listed")
+ }
++
++// Issue 18975.
++func TestFFLAGS(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++
++	tg.tempFile("p/src/p/main.go", `package main
++		// #cgo FFLAGS: -no-such-fortran-flag
++		import "C"
++		func main() {}
++	`)
++	tg.tempFile("p/src/p/a.f", `! comment`)
++	tg.setenv("GOPATH", tg.path("p"))
++	tg.runFail("build", "-x", "p")
++	tg.grepStderr("no-such-fortran-flag", `missing expected "-no-such-fortran-flag"`)
++}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 11dd6815df..bf91bb74ad 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -184,6 +184,7 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.CgoCFLAGS = pp.CgoCFLAGS
+ 	p.CgoCPPFLAGS = pp.CgoCPPFLAGS
+ 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
++	p.CgoFFLAGS = pp.CgoFFLAGS
+ 	p.CgoLDFLAGS = pp.CgoLDFLAGS
+ 	p.CgoPkgConfig = pp.CgoPkgConfig
+ 	// We modify p.Imports in place, so make copy now.

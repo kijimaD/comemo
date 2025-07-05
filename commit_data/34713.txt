@@ -12,6 +12,26 @@ Date:   Tue Oct 17 13:50:26 2017 +0330
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 508d8b53f1..b000bf0e61 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -686,12 +686,8 @@ func TestHTTP2WriteDeadlineExtendedOnNewRequest(t *testing.T) {
+ 		req = req.WithContext(ctx)
+ 
+ 		r, err := c.Do(req)
+-		select {
+-		case <-ctx.Done():
+-			if ctx.Err() == context.DeadlineExceeded {
+-				t.Fatalf("http2 Get #%d response timed out", i)
+-			}
+-		default:
++		if ctx.Err() == context.DeadlineExceeded {
++			t.Fatalf("http2 Get #%d response timed out", i)
+ 		}
+ 		if err != nil {
+ 			t.Fatalf("http2 Get #%d: %v", i, err)

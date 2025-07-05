@@ -7,7 +7,7 @@ Date:   Tue Nov 30 16:59:43 2010 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/3364041
-
+---
  src/pkg/bufio/bufio.go               |   2 +-
  src/pkg/bufio/bufio_test.go          |   4 +-
  src/pkg/bytes/buffer.go              |   2 +-
@@ -23,3 +23,456 @@ Date:   Tue Nov 30 16:59:43 2010 -0500
  src/pkg/utf8/utf8.go                 |   2 +-
  src/pkg/utf8/utf8_test.go            |  10 ++--
  14 files changed, 21 insertions(+), 233 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 7d59fb883c..4e9f1cf3e4 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -482,7 +482,7 @@ func (b *Writer) WriteRune(rune int) (size int, err os.Error) {
+ 			return b.WriteString(string(rune))
+ 		}
+ 	}
+-	size = utf8.EncodeRune(rune, b.buf[b.n:])
++	size = utf8.EncodeRune(b.buf[b.n:], rune)
+ 	b.n += size
+ 	return size, nil
+ }
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index ef91d94cae..d84d18768e 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -337,7 +337,7 @@ func TestReadWriteRune(t *testing.T) {
+ 	// Write the runes out using WriteRune
+ 	buf := make([]byte, utf8.UTFMax)
+ 	for rune := 0; rune < NRune; rune++ {
+-		size := utf8.EncodeRune(rune, buf)
++		size := utf8.EncodeRune(buf, rune)
+ 		nbytes, err := w.WriteRune(rune)
+ 		if err != nil {
+ 			t.Fatalf("WriteRune(0x%x) error: %s", rune, err)
+@@ -351,7 +351,7 @@ func TestReadWriteRune(t *testing.T) {
+ 	r := NewReader(byteBuf)
+ 	// Read them back with ReadRune
+ 	for rune := 0; rune < NRune; rune++ {
+-		size := utf8.EncodeRune(rune, buf)
++		size := utf8.EncodeRune(buf, rune)
+ 		nr, nbytes, err := r.ReadRune()
+ 		if nr != rune || nbytes != size || err != nil {
+ 			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 6f93869584..b4ad95fc54 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -172,7 +172,7 @@ func (b *Buffer) WriteRune(r int) (n int, err os.Error) {
+ 		b.WriteByte(byte(r))
+ 		return 1, nil
+ 	}
+-	n = utf8.EncodeRune(r, b.runeBytes[0:])
++	n = utf8.EncodeRune(b.runeBytes[0:], r)
+ 	b.Write(b.runeBytes[0:n])
+ 	return n, nil
+ }
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 1ba77493d6..a95068a320 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -272,7 +272,7 @@ func TestRuneIO(t *testing.T) {
+ 	var buf Buffer
+ 	n := 0
+ 	for r := 0; r < NRune; r++ {
+-		size := utf8.EncodeRune(r, b[n:])
++		size := utf8.EncodeRune(b[n:], r)
+ 		nbytes, err := buf.WriteRune(r)
+ 		if err != nil {
+ 			t.Fatalf("WriteRune(0x%x) error: %s", r, err)
+@@ -291,7 +291,7 @@ func TestRuneIO(t *testing.T) {
+ 
+ 	// Read it back with ReadRune
+ 	for r := 0; r < NRune; r++ {
+-		size := utf8.EncodeRune(r, b)
++		size := utf8.EncodeRune(b, r)
+ 		nr, nbytes, err := buf.ReadRune()
+ 		if nr != r || nbytes != size || err != nil {
+ 			t.Fatalf("ReadRune(0x%x) got 0x%x,%d not 0x%x,%d (err=%s)", r, nr, nbytes, r, size, err)
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index e26b29fb55..d0749870eb 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -347,7 +347,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
+ 				copy(nb, b[0:nbytes])
+ 				b = nb
+ 			}
+-			nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes])
++			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], rune)
+ 		}
+ 		i += wid
+ 	}
+diff --git a/src/pkg/crypto/block/cbc_aes_test.go b/src/pkg/crypto/block/cbc_aes_test.go
+deleted file mode 100644
+index 5e8cb35a2d..0000000000
+--- a/src/pkg/crypto/block/cbc_aes_test.go
++++ /dev/null
+@@ -1,102 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// CBC AES test vectors.
+-
+-// See U.S. National Institute of Standards and Technology (NIST)
+-// Special Publication 800-38A, ``Recommendation for Block Cipher
+-// Modes of Operation,'' 2001 Edition, pp. 24-29.
+-
+-package block
+-
+-import (
+-	"bytes"
+-	"crypto/aes"
+-	"io"
+-	"testing"
+-)
+-
+-type cbcTest struct {
+-	name string
+-	key  []byte
+-	iv   []byte
+-	in   []byte
+-	out  []byte
+-}
+-
+-var cbcAESTests = []cbcTest{
+-	// NIST SP 800-38A pp 27-29
+-	{
+-		"CBC-AES128",
+-		commonKey128,
+-		commonIV,
+-		commonInput,
+-		[]byte{
+-			0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46, 0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d,
+-			0x50, 0x86, 0xcb, 0x9b, 0x50, 0x72, 0x19, 0xee, 0x95, 0xdb, 0x11, 0x3a, 0x91, 0x76, 0x78, 0xb2,
+-			0x73, 0xbe, 0xd6, 0xb8, 0xe3, 0xc1, 0x74, 0x3b, 0x71, 0x16, 0xe6, 0x9e, 0x22, 0x22, 0x95, 0x16,
+-			0x3f, 0xf1, 0xca, 0xa1, 0x68, 0x1f, 0xac, 0x09, 0x12, 0x0e, 0xca, 0x30, 0x75, 0x86, 0xe1, 0xa7,
+-		},
+-	},
+-	{
+-		"CBC-AES192",
+-		commonKey192,
+-		commonIV,
+-		commonInput,
+-		[]byte{
+-			0x4f, 0x02, 0x1d, 0xb2, 0x43, 0xbc, 0x63, 0x3d, 0x71, 0x78, 0x18, 0x3a, 0x9f, 0xa0, 0x71, 0xe8,
+-			0xb4, 0xd9, 0xad, 0xa9, 0xad, 0x7d, 0xed, 0xf4, 0xe5, 0xe7, 0x38, 0x76, 0x3f, 0x69, 0x14, 0x5a,
+-			0x57, 0x1b, 0x24, 0x20, 0x12, 0xfb, 0x7a, 0xe0, 0x7f, 0xa9, 0xba, 0xac, 0x3d, 0xf1, 0x02, 0xe0,
+-			0x08, 0xb0, 0xe2, 0x79, 0x88, 0x59, 0x88, 0x81, 0xd9, 0x20, 0xa9, 0xe6, 0x4f, 0x56, 0x15, 0xcd,
+-		},
+-	},
+-	{
+-		"CBC-AES256",
+-		commonKey256,
+-		commonIV,
+-		commonInput,
+-		[]byte{
+-			0xf5, 0x8c, 0x4c, 0x04, 0xd6, 0xe5, 0xf1, 0xba, 0x77, 0x9e, 0xab, 0xfb, 0x5f, 0x7b, 0xfb, 0xd6,
+-			0x9c, 0xfc, 0x4e, 0x96, 0x7e, 0xdb, 0x80, 0x8d, 0x67, 0x9f, 0x77, 0x7b, 0xc6, 0x70, 0x2c, 0x7d,
+-			0x39, 0xf2, 0x33, 0x69, 0xa9, 0xd9, 0xba, 0xcf, 0xa5, 0x30, 0xe2, 0x63, 0x04, 0x23, 0x14, 0x61,
+-			0xb2, 0xeb, 0x05, 0xe2, 0xc3, 0x9b, 0xe9, 0xfc, 0xda, 0x6c, 0x19, 0x07, 0x8c, 0x6a, 0x9d, 0x1b,
+-		},
+-	},
+-}
+-
+-func TestCBC_AES(t *testing.T) {
+-	for _, tt := range cbcAESTests {
+-		test := tt.name
+-
+-		c, err := aes.NewCipher(tt.key)
+-		if err != nil {
+-			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
+-			continue
+-		}
+-
+-		var crypt bytes.Buffer
+-		w := NewCBCEncrypter(c, tt.iv, &crypt)
+-		var r io.Reader = bytes.NewBuffer(tt.in)
+-		n, err := io.Copy(w, r)
+-		if n != int64(len(tt.in)) || err != nil {
+-			t.Errorf("%s: CBCEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in))
+-		} else if d := crypt.Bytes(); !same(tt.out, d) {
+-			t.Errorf("%s: CBCEncrypter\nhave %x\nwant %x", test, d, tt.out)
+-		}
+-
+-		var plain bytes.Buffer
+-		r = NewCBCDecrypter(c, tt.iv, bytes.NewBuffer(tt.out))
+-		w = &plain
+-		n, err = io.Copy(w, r)
+-		if n != int64(len(tt.out)) || err != nil {
+-			t.Errorf("%s: CBCDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out))
+-		} else if d := plain.Bytes(); !same(tt.in, d) {
+-			t.Errorf("%s: CBCDecrypter\nhave %x\nwant %x", test, d, tt.in)
+-		}
+-
+-		if t.Failed() {
+-			break
+-		}
+-	}
+-}
+diff --git a/src/pkg/crypto/block/ctr_aes_test.go b/src/pkg/crypto/block/ctr_aes_test.go
+deleted file mode 100644
+index ce5fdd59d1..0000000000
+--- a/src/pkg/crypto/block/ctr_aes_test.go
++++ /dev/null
+@@ -1,110 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// CTR AES test vectors.
+-
+-// See U.S. National Institute of Standards and Technology (NIST)
+-// Special Publication 800-38A, ``Recommendation for Block Cipher
+-// Modes of Operation,'' 2001 Edition, pp. 55-58.
+-
+-package block
+-
+-import (
+-	"bytes"
+-	"crypto/aes"
+-	"io"
+-	"testing"
+-)
+-
+-type ctrTest struct {
+-	name string
+-	key  []byte
+-	iv   []byte
+-	in   []byte
+-	out  []byte
+-}
+-
+-var commonCounter = []byte{0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff}
+-
+-var ctrAESTests = []ctrTest{
+-	// NIST SP 800-38A pp 55-58
+-	{
+-		"CTR-AES128",
+-		commonKey128,
+-		commonCounter,
+-		commonInput,
+-		[]byte{
+-			0x87, 0x4d, 0x61, 0x91, 0xb6, 0x20, 0xe3, 0x26, 0x1b, 0xef, 0x68, 0x64, 0x99, 0x0d, 0xb6, 0xce,
+-			0x98, 0x06, 0xf6, 0x6b, 0x79, 0x70, 0xfd, 0xff, 0x86, 0x17, 0x18, 0x7b, 0xb9, 0xff, 0xfd, 0xff,
+-			0x5a, 0xe4, 0xdf, 0x3e, 0xdb, 0xd5, 0xd3, 0x5e, 0x5b, 0x4f, 0x09, 0x02, 0x0d, 0xb0, 0x3e, 0xab,
+-			0x1e, 0x03, 0x1d, 0xda, 0x2f, 0xbe, 0x03, 0xd1, 0x79, 0x21, 0x70, 0xa0, 0xf3, 0x00, 0x9c, 0xee,
+-		},
+-	},
+-	{
+-		"CTR-AES192",
+-		commonKey192,
+-		commonCounter,
+-		commonInput,
+-		[]byte{
+-			0x1a, 0xbc, 0x93, 0x24, 0x17, 0x52, 0x1c, 0xa2, 0x4f, 0x2b, 0x04, 0x59, 0xfe, 0x7e, 0x6e, 0x0b,
+-			0x09, 0x03, 0x39, 0xec, 0x0a, 0xa6, 0xfa, 0xef, 0xd5, 0xcc, 0xc2, 0xc6, 0xf4, 0xce, 0x8e, 0x94,
+-			0x1e, 0x36, 0xb2, 0x6b, 0xd1, 0xeb, 0xc6, 0x70, 0xd1, 0xbd, 0x1d, 0x66, 0x56, 0x20, 0xab, 0xf7,
+-			0x4f, 0x78, 0xa7, 0xf6, 0xd2, 0x98, 0x09, 0x58, 0x5a, 0x97, 0xda, 0xec, 0x58, 0xc6, 0xb0, 0x50,
+-		},
+-	},
+-	{
+-		"CTR-AES256",
+-		commonKey256,
+-		commonCounter,
+-		commonInput,
+-		[]byte{
+-			0x60, 0x1e, 0xc3, 0x13, 0x77, 0x57, 0x89, 0xa5, 0xb7, 0xa7, 0xf5, 0x04, 0xbb, 0xf3, 0xd2, 0x28,
+-			0xf4, 0x43, 0xe3, 0xca, 0x4d, 0x62, 0xb5, 0x9a, 0xca, 0x84, 0xe9, 0x90, 0xca, 0xca, 0xf5, 0xc5,
+-			0x2b, 0x09, 0x30, 0xda, 0xa2, 0x3d, 0xe9, 0x4c, 0xe8, 0x70, 0x17, 0xba, 0x2d, 0x84, 0x98, 0x8d,
+-			0xdf, 0xc9, 0xc5, 0x8d, 0xb6, 0x7a, 0xad, 0xa6, 0x13, 0xc2, 0xdd, 0x08, 0x45, 0x79, 0x41, 0xa6,
+-		},
+-	},
+-}
+-
+-func TestCTR_AES(t *testing.T) {
+-	for _, tt := range ctrAESTests {
+-		test := tt.name
+-
+-		c, err := aes.NewCipher(tt.key)
+-		if err != nil {
+-			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
+-			continue
+-		}
+-
+-		for j := 0; j <= 5; j += 5 {
+-			var crypt bytes.Buffer
+-			in := tt.in[0 : len(tt.in)-j]
+-			w := NewCTRWriter(c, tt.iv, &crypt)
+-			var r io.Reader = bytes.NewBuffer(in)
+-			n, err := io.Copy(w, r)
+-			if n != int64(len(in)) || err != nil {
+-				t.Errorf("%s/%d: CTRWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in))
+-			} else if d, out := crypt.Bytes(), tt.out[0:len(in)]; !same(out, d) {
+-				t.Errorf("%s/%d: CTRWriter\ninpt %x\nhave %x\nwant %x", test, len(in), in, d, out)
+-			}
+-		}
+-
+-		for j := 0; j <= 7; j += 7 {
+-			var plain bytes.Buffer
+-			out := tt.out[0 : len(tt.out)-j]
+-			r := NewCTRReader(c, tt.iv, bytes.NewBuffer(out))
+-			w := &plain
+-			n, err := io.Copy(w, r)
+-			if n != int64(len(out)) || err != nil {
+-				t.Errorf("%s/%d: CTRReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out))
+-			} else if d, in := plain.Bytes(), tt.in[0:len(out)]; !same(in, d) {
+-				t.Errorf("%s/%d: CTRReader\nhave %x\nwant %x", test, len(out), d, in)
+-			}
+-		}
+-
+-		if t.Failed() {
+-			break
+-		}
+-	}
+-}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 24b1eb32e0..3bb14eeb14 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -120,7 +120,7 @@ func (p *pp) add(c int) {
+ 	if c < utf8.RuneSelf {
+ 		p.buf.WriteByte(byte(c))
+ 	} else {
+-		w := utf8.EncodeRune(c, p.runeBuf[0:])
++		w := utf8.EncodeRune(p.runeBuf[0:], c)
+ 		p.buf.Write(p.runeBuf[0:w])
+ 	}
+ }
+@@ -300,7 +300,7 @@ func (p *pp) fmtC(c int64) {
+ 	if int64(rune) != c {
+ 		rune = utf8.RuneError
+ 	}
+-	w := utf8.EncodeRune(rune, p.runeBuf[0:utf8.UTFMax])
++	w := utf8.EncodeRune(p.runeBuf[0:utf8.UTFMax], rune)
+ 	p.fmt.pad(p.runeBuf[0:w])
+ }
+ 
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index f30086f367..69acdda698 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -32,7 +32,7 @@ func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
+ 		}
+ 		x := entity[string(s[1:i])]
+ 		if x != 0 {
+-			return dst + utf8.EncodeRune(x, b[dst:]), src + i
++			return dst + utf8.EncodeRune(b[dst:], x), src + i
+ 		}
+ 		break
+ 	}
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index b6c575cc84..85d56bbe16 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -831,13 +831,13 @@ func unquote(s []byte) (t string, ok bool) {
+ 					if dec := utf16.DecodeRune(rune, rune1); dec != unicode.ReplacementChar {
+ 						// A valid pair; consume.
+ 						r += 6
+-						w += utf8.EncodeRune(dec, b[w:])
++						w += utf8.EncodeRune(b[w:], dec)
+ 						break
+ 					}
+ 					// Invalid surrogate; fall back to replacement rune.
+ 					rune = unicode.ReplacementChar
+ 				}
+-				w += utf8.EncodeRune(rune, b[w:])
++				w += utf8.EncodeRune(b[w:], rune)
+ 			}
+ 
+ 		// Quote, control characters are invalid.
+@@ -854,7 +854,7 @@ func unquote(s []byte) (t string, ok bool) {
+ 		default:
+ 			rune, size := utf8.DecodeRune(s[r:])
+ 			r += size
+-			w += utf8.EncodeRune(rune, b[w:])
++			w += utf8.EncodeRune(b[w:], rune)
+ 		}
+ 	}
+ 	return string(b[0:w]), true
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index d3f03ad790..80bcb46a9f 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -674,7 +674,7 @@ Loop:
+ 		case _BOT, _EOT, _ALT:
+ 			break Loop
+ 		}
+-		n := utf8.EncodeRune(inst.(*_Char).char, utf)
++		n := utf8.EncodeRune(utf, inst.(*_Char).char)
+ 		b = bytes.Add(b, utf[0:n])
+ 		i = inst.next().index()
+ 	}
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 8bf86dadd0..d8c695226d 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -317,7 +317,7 @@ func Map(mapping func(rune int) int, s string) string {
+ 				copy(nb, b[0:nbytes])
+ 				b = nb
+ 			}
+-			nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes])
++			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], rune)
+ 		}
+ 	}
+ 	return string(b[0:nbytes])
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index dfcdef9613..455499e4d9 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -293,7 +293,7 @@ func RuneLen(rune int) int {
+ 
+ // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
+ // It returns the number of bytes written.
+-func EncodeRune(rune int, p []byte) int {
++func EncodeRune(p []byte, rune int) int {
+ 	// Negative values are erroneous.  Making it unsigned addresses the problem.
+ 	r := uint(rune)
+ 
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index dc130f606f..ecaf2d872a 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -80,7 +80,7 @@ func TestEncodeRune(t *testing.T) {
+ 		m := utf8map[i]
+ 		b := []byte(m.str)
+ 		var buf [10]byte
+-		n := EncodeRune(m.rune, buf[0:])
++		n := EncodeRune(buf[0:], m.rune)
+ 		b1 := buf[0:n]
+ 		if !bytes.Equal(b, b1) {
+ 			t.Errorf("EncodeRune(%#04x) = %q want %q", m.rune, b1, b)
+@@ -242,9 +242,9 @@ func testSequence(t *testing.T, s string) {
+ // Check that negative runes encode as U+FFFD.
+ func TestNegativeRune(t *testing.T) {
+ 	errorbuf := make([]byte, UTFMax)
+-	errorbuf = errorbuf[0:EncodeRune(RuneError, errorbuf)]
++	errorbuf = errorbuf[0:EncodeRune(errorbuf, RuneError)]
+ 	buf := make([]byte, UTFMax)
+-	buf = buf[0:EncodeRune(-1, buf)]
++	buf = buf[0:EncodeRune(buf, -1)]
+ 	if !bytes.Equal(buf, errorbuf) {
+ 		t.Errorf("incorrect encoding [% x] for -1; expected [% x]", buf, errorbuf)
+ 	}
+@@ -289,14 +289,14 @@ func BenchmarkRuneCountTenJapaneseChars(b *testing.B) {
+ func BenchmarkEncodeASCIIRune(b *testing.B) {
+ 	buf := make([]byte, UTFMax)
+ 	for i := 0; i < b.N; i++ {
+-		EncodeRune('a', buf)
++		EncodeRune(buf, 'a')
+ 	}
+ }
+ 
+ func BenchmarkEncodeJapaneseRune(b *testing.B) {
+ 	buf := make([]byte, UTFMax)
+ 	for i := 0; i < b.N; i++ {
+-		EncodeRune('本', buf)
++		EncodeRune(buf, '本')
+ 	}
+ }
+ 

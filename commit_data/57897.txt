@@ -21,7 +21,7 @@ Date:   Tue Jul 18 16:17:12 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/511566
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             |  18 +-
  src/cmd/compile/internal/inline/inlheur/analyze.go |  35 +++-
  .../inline/inlheur/analyze_func_callsites.go       |  84 +++++++-
@@ -33,3 +33,1006 @@ Date:   Tue Jul 18 16:17:12 2023 -0400
  .../inline/inlheur/testdata/props/calls.go         |  88 ++++++--
  .../inline/inlheur/testdata/props/funcflags.go     |   4 +-
  10 files changed, 574 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 85d68ae0ba..115c7e5faf 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -293,15 +293,10 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 		base.Fatalf("CanInline no nname %+v", fn)
+ 	}
+ 
+-	canInline := func(fn *ir.Func) { CanInline(fn, profile) }
+-
+ 	var funcProps *inlheur.FuncProps
+-	if goexperiment.NewInliner {
+-		funcProps = inlheur.AnalyzeFunc(fn, canInline)
+-	}
+-
+-	if base.Debug.DumpInlFuncProps != "" {
+-		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps, canInline)
++	if goexperiment.NewInliner || inlheur.UnitTesting() {
++		funcProps = inlheur.AnalyzeFunc(fn,
++			func(fn *ir.Func) { CanInline(fn, profile) })
+ 	}
+ 
+ 	var reason string // reason, if any, that the function was not inlined
+@@ -803,6 +798,13 @@ func isBigFunc(fn *ir.Func) bool {
+ // InlineCalls/inlnode walks fn's statements and expressions and substitutes any
+ // calls made to inlineable functions. This is the external entry point.
+ func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
++	if goexperiment.NewInliner && !fn.Wrapper() {
++		inlheur.ScoreCalls(fn)
++	}
++	if base.Debug.DumpInlFuncProps != "" && !fn.Wrapper() {
++		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps,
++			func(fn *ir.Func) { CanInline(fn, profile) })
++	}
+ 	savefn := ir.CurFunc
+ 	ir.CurFunc = fn
+ 	bigCaller := isBigFunc(fn)
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 319de37a56..78a6cc5325 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -24,6 +24,7 @@ const (
+ 	debugTraceParams
+ 	debugTraceExprClassify
+ 	debugTraceCalls
++	debugTraceScoring
+ )
+ 
+ // propAnalyzer interface is used for defining one or more analyzer
+@@ -76,6 +77,9 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
+ 		base.FatalfAt(fn.Pos(), "%v", err)
+ 	}
+ 	fpmap[fn] = entry
++	if fn.Inl != nil && fn.Inl.Properties == "" {
++		fn.Inl.Properties = entry.props.SerializeToString()
++	}
+ 	return fp
+ }
+ 
+@@ -139,12 +143,26 @@ func UnitTesting() bool {
+ }
+ 
+ // DumpFuncProps computes and caches function properties for the func
+-// 'fn', or if fn is nil, writes out the cached set of properties to
+-// the file given in 'dumpfile'. Used for the "-d=dumpinlfuncprops=..."
+-// command line flag, intended for use primarily in unit testing.
++// 'fn' and any closures it contains, or if fn is nil, it writes out the
++// cached set of properties to the file given in 'dumpfile'. Used for
++// the "-d=dumpinlfuncprops=..." command line flag, intended for use
++// primarily in unit testing.
+ func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func)) {
+ 	if fn != nil {
++		dmp := func(fn *ir.Func) {
++
++			if !goexperiment.NewInliner {
++				ScoreCalls(fn)
++			}
++			captureFuncDumpEntry(fn, canInline)
++		}
+ 		captureFuncDumpEntry(fn, canInline)
++		dmp(fn)
++		ir.Visit(fn, func(n ir.Node) {
++			if clo, ok := n.(*ir.ClosureExpr); ok {
++				dmp(clo.Func)
++			}
++		})
+ 	} else {
+ 		emitDumpToFile(dumpfile)
+ 	}
+@@ -185,9 +203,16 @@ func emitDumpToFile(dumpfile string) {
+ 	dumpBuffer = nil
+ }
+ 
+-// captureFuncDumpEntry analyzes function 'fn' and adds a entry
+-// for it to 'dumpBuffer'. Used for unit testing.
++// captureFuncDumpEntry grabs the function properties object for 'fn'
++// and enqueues it for later dumping. Used for the
++// "-d=dumpinlfuncprops=..." command line flag, intended for use
++// primarily in unit testing.
+ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
++	if debugTrace&debugTraceFuncs != 0 {
++		fmt.Fprintf(os.Stderr, "=-= capturing dump for %v:\n",
++			fn.Sym().Name)
++	}
++
+ 	// avoid capturing compiler-generated equality funcs.
+ 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
+ 		return
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+index d281430693..b3422216af 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+@@ -5,10 +5,12 @@
+ package inlheur
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/pgo"
+ 	"fmt"
+ 	"os"
++	"sort"
+ 	"strings"
+ )
+ 
+@@ -120,13 +122,14 @@ func (csa *callSiteAnalyzer) determinePanicPathBits(call ir.Node, r CSPropBits)
+ }
+ 
+ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
++	flags := csa.flagsForNode(call)
+ 	// FIXME: maybe bulk-allocate these?
+ 	cs := &CallSite{
+ 		Call:   call,
+ 		Callee: callee,
+ 		Assign: csa.containingAssignment(call),
+-		Flags:  csa.flagsForNode(call),
+-		Id:     uint(len(csa.cstab)),
++		Flags:  flags,
++		ID:     uint(len(csa.cstab)),
+ 	}
+ 	if _, ok := csa.cstab[call]; ok {
+ 		fmt.Fprintf(os.Stderr, "*** cstab duplicate entry at: %s\n",
+@@ -134,12 +137,87 @@ func (csa *callSiteAnalyzer) addCallSite(callee *ir.Func, call *ir.CallExpr) {
+ 		fmt.Fprintf(os.Stderr, "*** call: %+v\n", call)
+ 		panic("bad")
+ 	}
++	if callee.Inl != nil {
++		// Set initial score for callsite to the cost computed
++		// by CanInline; this score will be refined later based
++		// on heuristics.
++		cs.Score = int(callee.Inl.Cost)
++	}
++
++	csa.cstab[call] = cs
+ 	if debugTrace&debugTraceCalls != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= added callsite: callee=%s call=%v\n",
+ 			callee.Sym().Name, callee)
+ 	}
++}
+ 
+-	csa.cstab[call] = cs
++// ScoreCalls assigns numeric scores to each of the callsites in
++// function 'fn'; the lower the score, the more helpful we think it
++// will be to inline.
++//
++// Unlike a lot of the other inline heuristics machinery, callsite
++// scoring can't be done as part of the CanInline call for a function,
++// due to fact that we may be working on a non-trivial SCC. So for
++// example with this SCC:
++//
++//	func foo(x int) {           func bar(x int, f func()) {
++//	  if x != 0 {                  f()
++//	    bar(x, func(){})           foo(x-1)
++//	  }                         }
++//	}
++//
++// We don't want to perform scoring for the 'foo' call in "bar" until
++// after foo has been analyzed, but it's conceivable that CanInline
++// might visit bar before foo for this SCC.
++func ScoreCalls(fn *ir.Func) {
++	enableDebugTraceIfEnv()
++	defer disableDebugTrace()
++	if debugTrace&debugTraceScoring != 0 {
++		fmt.Fprintf(os.Stderr, "=-= ScoreCalls(%v)\n", ir.FuncName(fn))
++	}
++
++	fih, ok := fpmap[fn]
++	if !ok {
++		// TODO: add an assert/panic here.
++		return
++	}
++
++	// Sort callsites to avoid any surprises with non deterministic
++	// map iteration order (this is probably not needed, but here just
++	// in case).
++	csl := make([]*CallSite, 0, len(fih.cstab))
++	for _, cs := range fih.cstab {
++		csl = append(csl, cs)
++	}
++	sort.Slice(csl, func(i, j int) bool {
++		return csl[i].ID < csl[j].ID
++	})
++
++	// Score each call site.
++	for _, cs := range csl {
++		var cprops *FuncProps
++		fihcprops := false
++		desercprops := false
++		if fih, ok := fpmap[cs.Callee]; ok {
++			cprops = fih.props
++			fihcprops = true
++		} else if cs.Callee.Inl != nil {
++			cprops = DeserializeFromString(cs.Callee.Inl.Properties)
++			desercprops = true
++		} else {
++			if base.Debug.DumpInlFuncProps != "" {
++				fmt.Fprintf(os.Stderr, "=-= *** unable to score call to %s from %s\n", cs.Callee.Sym().Name, fmtFullPos(cs.Call.Pos()))
++				panic("should never happen")
++			} else {
++				continue
++			}
++		}
++		cs.Score, cs.ScoreMask = computeCallSiteScore(cs.Callee, cprops, cs.Call, cs.Flags)
++
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d fih=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
++		}
++	}
+ }
+ 
+ func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
+diff --git a/src/cmd/compile/internal/inline/inlheur/callsite.go b/src/cmd/compile/internal/inline/inlheur/callsite.go
+index 5f8649a6d2..0ec7c52183 100644
+--- a/src/cmd/compile/internal/inline/inlheur/callsite.go
++++ b/src/cmd/compile/internal/inline/inlheur/callsite.go
+@@ -22,15 +22,16 @@ import (
+ // appears in the form of a top-level statement, e.g. "x := foo()"),
+ // "Flags" contains properties of the call that might be useful for
+ // making inlining decisions, "Score" is the final score assigned to
+-// the site, and "Id" is a numeric ID for the site within its
++// the site, and "ID" is a numeric ID for the site within its
+ // containing function.
+ type CallSite struct {
+-	Callee *ir.Func
+-	Call   *ir.CallExpr
+-	Assign ir.Node
+-	Flags  CSPropBits
+-	Score  int
+-	Id     uint
++	Callee    *ir.Func
++	Call      *ir.CallExpr
++	Assign    ir.Node
++	Flags     CSPropBits
++	Score     int
++	ScoreMask scoreAdjustTyp
++	ID        uint
+ }
+ 
+ // CallSiteTab is a table of call sites, keyed by call expr.
+@@ -53,8 +54,19 @@ const (
+ 
+ // encodedCallSiteTab is a table keyed by "encoded" callsite
+ // (stringified src.XPos plus call site ID) mapping to a value of call
+-// property bits.
+-type encodedCallSiteTab map[string]CSPropBits
++// property bits and score.
++type encodedCallSiteTab map[string]propsAndScore
++
++type propsAndScore struct {
++	props CSPropBits
++	score int
++	mask  scoreAdjustTyp
++}
++
++func (pas propsAndScore) String() string {
++	return fmt.Sprintf("P=%s|S=%d|M=%s", pas.props.String(),
++		pas.score, pas.mask.String())
++}
+ 
+ func (cst CallSiteTab) merge(other CallSiteTab) error {
+ 	for k, v := range other {
+@@ -80,9 +92,9 @@ func fmtFullPos(p src.XPos) string {
+ 
+ func encodeCallSiteKey(cs *CallSite) string {
+ 	var sb strings.Builder
+-	// FIXME: rewrite line offsets relative to function start
++	// FIXME: maybe rewrite line offsets relative to function start?
+ 	sb.WriteString(fmtFullPos(cs.Call.Pos()))
+-	fmt.Fprintf(&sb, "|%d", cs.Id)
++	fmt.Fprintf(&sb, "|%d", cs.ID)
+ 	return sb.String()
+ }
+ 
+@@ -90,7 +102,11 @@ func buildEncodedCallSiteTab(tab CallSiteTab) encodedCallSiteTab {
+ 	r := make(encodedCallSiteTab)
+ 	for _, cs := range tab {
+ 		k := encodeCallSiteKey(cs)
+-		r[k] = cs.Flags
++		r[k] = propsAndScore{
++			props: cs.Flags,
++			score: cs.Score,
++			mask:  cs.ScoreMask,
++		}
+ 	}
+ 	return r
+ }
+@@ -109,7 +125,7 @@ func dumpCallSiteComments(w io.Writer, tab CallSiteTab, ecst encodedCallSiteTab)
+ 	sort.Strings(tags)
+ 	for _, s := range tags {
+ 		v := ecst[s]
+-		fmt.Fprintf(w, "// callsite: %s flagstr %q flagval %d\n", s, v.String(), v)
++		fmt.Fprintf(w, "// callsite: %s flagstr %q flagval %d score %d mask %d maskstr %q\n", s, v.props.String(), v.props, v.score, v.mask, v.mask.String())
+ 	}
+ 	fmt.Fprintf(w, "// %s\n", csDelimiter)
+ }
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+index 1242733ce9..2abf4faabe 100644
+--- a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -72,8 +72,7 @@ func TestFuncProperties(t *testing.T) {
+ 				continue
+ 			}
+ 			if eidx >= len(eentries) {
+-				t.Errorf("missing expected entry for %s, skipping",
+-					dentry.fname)
++				t.Errorf("testcase %s missing expected entry for %s, skipping", tc, dentry.fname)
+ 				continue
+ 			}
+ 			eentry := eentries[eidx]
+@@ -124,20 +123,18 @@ func compareEntries(t *testing.T, tc string, dentry *fnInlHeur, dcsites encodedC
+ 	// Compare call sites.
+ 	for k, ve := range ecsites {
+ 		if vd, ok := dcsites[k]; !ok {
+-			t.Errorf("missing expected callsite %q in func %q",
+-				dfn, k)
++			t.Errorf("testcase %q missing expected callsite %q in func %q", tc, k, dfn)
+ 			continue
+ 		} else {
+ 			if vd != ve {
+-				t.Errorf("callsite %q in func %q: got %s want %s",
+-					k, dfn, vd.String(), ve.String())
++				t.Errorf("testcase %q callsite %q in func %q: got %+v want %+v",
++					tc, k, dfn, vd.String(), ve.String())
+ 			}
+ 		}
+ 	}
+ 	for k := range dcsites {
+ 		if _, ok := ecsites[k]; !ok {
+-			t.Errorf("unexpected extra callsite %q in func %q",
+-				dfn, k)
++			t.Errorf("testcase %q unexpected extra callsite %q in func %q", tc, k, dfn)
+ 		}
+ 	}
+ }
+@@ -276,13 +273,12 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
+ 		if line == csDelimiter {
+ 			break
+ 		}
+-		// expected format: "// callsite: <expanded pos> flagstr <desc> flagval <flags>"
++		// expected format: "// callsite: <expanded pos> flagstr <desc> flagval <flags> score <score> mask <scoremask> maskstr <scoremaskstring>"
+ 		fields := strings.Fields(line)
+-		if len(fields) != 6 {
+-			return fih, nil, fmt.Errorf("malformed callsite %s line %d: %s",
+-				dr.p, dr.ln, line)
++		if len(fields) != 12 {
++			return fih, nil, fmt.Errorf("malformed callsite (nf=%d) %s line %d: %s", len(fields), dr.p, dr.ln, line)
+ 		}
+-		if fields[2] != "flagstr" || fields[4] != "flagval" {
++		if fields[2] != "flagstr" || fields[4] != "flagval" || fields[6] != "score" || fields[8] != "mask" || fields[10] != "maskstr" {
+ 			return fih, nil, fmt.Errorf("malformed callsite %s line %d: %s",
+ 				dr.p, dr.ln, line)
+ 		}
+@@ -293,7 +289,23 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
+ 			return fih, nil, fmt.Errorf("bad flags val %s line %d: %q err=%v",
+ 				dr.p, dr.ln, line, err)
+ 		}
+-		callsites[tag] = CSPropBits(flags)
++		scorestr := fields[7]
++		score, err2 := strconv.Atoi(scorestr)
++		if err2 != nil {
++			return fih, nil, fmt.Errorf("bad score val %s line %d: %q err=%v",
++				dr.p, dr.ln, line, err2)
++		}
++		maskstr := fields[9]
++		mask, err3 := strconv.Atoi(maskstr)
++		if err3 != nil {
++			return fih, nil, fmt.Errorf("bad mask val %s line %d: %q err=%v",
++				dr.p, dr.ln, line, err3)
++		}
++		callsites[tag] = propsAndScore{
++			props: CSPropBits(flags),
++			score: score,
++			mask:  scoreAdjustTyp(mask),
++		}
+ 	}
+ 
+ 	// Consume function delimiter.
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoreadjusttyp_string.go b/src/cmd/compile/internal/inline/inlheur/scoreadjusttyp_string.go
+new file mode 100644
+index 0000000000..d75e6e2a91
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/scoreadjusttyp_string.go
+@@ -0,0 +1,74 @@
++// Code generated by "stringer -bitset -type scoreAdjustTyp"; DO NOT EDIT.
++
++package inlheur
++
++import "strconv"
++import "bytes"
++
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[panicPathAdj-1]
++	_ = x[initFuncAdj-2]
++	_ = x[inLoopAdj-4]
++	_ = x[passConstToIfAdj-8]
++	_ = x[passConstToNestedIfAdj-16]
++	_ = x[passConcreteToItfCallAdj-32]
++	_ = x[passConcreteToNestedItfCallAdj-64]
++	_ = x[passFuncToIndCallAdj-128]
++	_ = x[passFuncToNestedIndCallAdj-256]
++	_ = x[passInlinableFuncToIndCallAdj-512]
++	_ = x[passInlinableFuncToNestedIndCallAdj-1024]
++	_ = x[lastAdj-1024]
++}
++
++var _scoreAdjustTyp_value = [...]uint64{
++	0x1,   /* panicPathAdj */
++	0x2,   /* initFuncAdj */
++	0x4,   /* inLoopAdj */
++	0x8,   /* passConstToIfAdj */
++	0x10,  /* passConstToNestedIfAdj */
++	0x20,  /* passConcreteToItfCallAdj */
++	0x40,  /* passConcreteToNestedItfCallAdj */
++	0x80,  /* passFuncToIndCallAdj */
++	0x100, /* passFuncToNestedIndCallAdj */
++	0x200, /* passInlinableFuncToIndCallAdj */
++	0x400, /* passInlinableFuncToNestedIndCallAdj */
++	0x400, /* lastAdj */
++}
++
++const _scoreAdjustTyp_name = "panicPathAdjinitFuncAdjinLoopAdjpassConstToIfAdjpassConstToNestedIfAdjpassConcreteToItfCallAdjpassConcreteToNestedItfCallAdjpassFuncToIndCallAdjpassFuncToNestedIndCallAdjpassInlinableFuncToIndCallAdjpassInlinableFuncToNestedIndCallAdjlastAdj"
++
++var _scoreAdjustTyp_index = [...]uint8{0, 12, 23, 32, 48, 70, 94, 124, 144, 170, 199, 234, 241}
++
++func (i scoreAdjustTyp) String() string {
++	var b bytes.Buffer
++
++	remain := uint64(i)
++	seen := false
++
++	for k, v := range _scoreAdjustTyp_value {
++		x := _scoreAdjustTyp_name[_scoreAdjustTyp_index[k]:_scoreAdjustTyp_index[k+1]]
++		if v == 0 {
++			if i == 0 {
++				b.WriteString(x)
++				return b.String()
++			}
++			continue
++		}
++		if (v & remain) == v {
++			remain &^= v
++			x := _scoreAdjustTyp_name[_scoreAdjustTyp_index[k]:_scoreAdjustTyp_index[k+1]]
++			if seen {
++				b.WriteString("|")
++			}
++			seen = true
++			b.WriteString(x)
++		}
++	}
++	if remain == 0 {
++		return b.String()
++	}
++	return "scoreAdjustTyp(0x" + strconv.FormatInt(int64(i), 16) + ")"
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+new file mode 100644
+index 0000000000..82a9c2acac
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -0,0 +1,232 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
++	"fmt"
++	"os"
++)
++
++// These constants enumerate the set of possible ways/scenarios
++// in which we'll adjust the score of a given callsite.
++type scoreAdjustTyp uint
++
++const (
++	panicPathAdj scoreAdjustTyp = (1 << iota)
++	initFuncAdj
++	inLoopAdj
++	passConstToIfAdj
++	passConstToNestedIfAdj
++	passConcreteToItfCallAdj
++	passConcreteToNestedItfCallAdj
++	passFuncToIndCallAdj
++	passFuncToNestedIndCallAdj
++	passInlinableFuncToIndCallAdj
++	passInlinableFuncToNestedIndCallAdj
++	lastAdj scoreAdjustTyp = passInlinableFuncToNestedIndCallAdj
++)
++
++// This table records the specific values we use to adjust call
++// site scores in a given scenario.
++// NOTE: these numbers are chosen very arbitrarily; ideally
++// we will go through some sort of turning process to decide
++// what value for each one produces the best performance.
++
++var adjValues = map[scoreAdjustTyp]int{
++	panicPathAdj:                        40,
++	initFuncAdj:                         20,
++	inLoopAdj:                           -5,
++	passConstToIfAdj:                    -20,
++	passConstToNestedIfAdj:              -15,
++	passConcreteToItfCallAdj:            -30,
++	passConcreteToNestedItfCallAdj:      -25,
++	passFuncToIndCallAdj:                -25,
++	passFuncToNestedIndCallAdj:          -20,
++	passInlinableFuncToIndCallAdj:       -45,
++	passInlinableFuncToNestedIndCallAdj: -40,
++}
++
++func adjValue(x scoreAdjustTyp) int {
++	if val, ok := adjValues[x]; ok {
++		return val
++	} else {
++		panic("internal error unregistered adjustment type")
++	}
++}
++
++var mayMust = [...]struct{ may, must scoreAdjustTyp }{
++	{may: passConstToNestedIfAdj, must: passConstToIfAdj},
++	{may: passConcreteToNestedItfCallAdj, must: passConcreteToItfCallAdj},
++	{may: passFuncToNestedIndCallAdj, must: passFuncToNestedIndCallAdj},
++	{may: passInlinableFuncToNestedIndCallAdj, must: passInlinableFuncToIndCallAdj},
++}
++
++func isMay(x scoreAdjustTyp) bool {
++	return mayToMust(x) != 0
++}
++
++func isMust(x scoreAdjustTyp) bool {
++	return mustToMay(x) != 0
++}
++
++func mayToMust(x scoreAdjustTyp) scoreAdjustTyp {
++	for _, v := range mayMust {
++		if x == v.may {
++			return v.must
++		}
++	}
++	return 0
++}
++
++func mustToMay(x scoreAdjustTyp) scoreAdjustTyp {
++	for _, v := range mayMust {
++		if x == v.must {
++			return v.may
++		}
++	}
++	return 0
++}
++
++// computeCallSiteScore takes a given call site whose ir node is 'call' and
++// callee function is 'callee' and with previously computed call site
++// properties 'csflags', then computes a score for the callsite that
++// combines the size cost of the callee with heuristics based on
++// previously parameter and function properties.
++func computeCallSiteScore(callee *ir.Func, calleeProps *FuncProps, call ir.Node, csflags CSPropBits) (int, scoreAdjustTyp) {
++	// Start with the size-based score for the callee.
++	score := int(callee.Inl.Cost)
++	var tmask scoreAdjustTyp
++
++	if debugTrace&debugTraceScoring != 0 {
++		fmt.Fprintf(os.Stderr, "=-= scoring call to %s at %s , initial=%d\n",
++			callee.Sym().Name, fmtFullPos(call.Pos()), score)
++	}
++
++	// First some score adjustments to discourage inlining in selected cases.
++	if csflags&CallSiteOnPanicPath != 0 {
++		score, tmask = adjustScore(panicPathAdj, score, tmask)
++	}
++	if csflags&CallSiteInInitFunc != 0 {
++		score, tmask = adjustScore(initFuncAdj, score, tmask)
++	}
++
++	// Then adjustments to encourage inlining in selected cases.
++	if csflags&CallSiteInLoop != 0 {
++		score, tmask = adjustScore(inLoopAdj, score, tmask)
++	}
++
++	// Walk through the actual expressions being passed at the call.
++	calleeRecvrParms := callee.Type().RecvParams()
++	ce := call.(*ir.CallExpr)
++	for idx := range ce.Args {
++		// ignore blanks
++		if calleeRecvrParms[idx].Sym == nil ||
++			calleeRecvrParms[idx].Sym.IsBlank() {
++			continue
++		}
++		arg := ce.Args[idx]
++		pflag := calleeProps.ParamFlags[idx]
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= arg %d of %d: val %v flags=%s\n",
++				idx, len(ce.Args), arg, pflag.String())
++		}
++		_, islit := isLiteral(arg)
++		iscci := isConcreteConvIface(arg)
++		fname, isfunc, _ := isFuncName(arg)
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= isLit=%v iscci=%v isfunc=%v for arg %v\n", islit, iscci, isfunc, arg)
++		}
++
++		if islit {
++			if pflag&ParamMayFeedIfOrSwitch != 0 {
++				score, tmask = adjustScore(passConstToNestedIfAdj, score, tmask)
++			}
++			if pflag&ParamFeedsIfOrSwitch != 0 {
++				score, tmask = adjustScore(passConstToIfAdj, score, tmask)
++			}
++		}
++
++		if iscci {
++			// FIXME: ideally here it would be nice to make a
++			// distinction between the inlinable case and the
++			// non-inlinable case, but this is hard to do. Example:
++			//
++			//    type I interface { Tiny() int; Giant() }
++			//    type Conc struct { x int }
++			//    func (c *Conc) Tiny() int { return 42 }
++			//    func (c *Conc) Giant() { <huge amounts of code> }
++			//
++			//    func passConcToItf(c *Conc) {
++			//        makesItfMethodCall(c)
++			//    }
++			//
++			// In the code above, function properties will only tell
++			// us that 'makesItfMethodCall' invokes a method on its
++			// interface parameter, but we don't know whether it calls
++			// "Tiny" or "Giant". If we knew if called "Tiny", then in
++			// theory in addition to converting the interface call to
++			// a direct call, we could also inline (in which case
++			// we'd want to decrease the score even more).
++			//
++			// One thing we could do (not yet implemented) is iterate
++			// through all of the methods of "*Conc" that allow it to
++			// satisfy I, and if all are inlinable, then exploit that.
++			if pflag&ParamMayFeedInterfaceMethodCall != 0 {
++				score, tmask = adjustScore(passConcreteToNestedItfCallAdj, score, tmask)
++			}
++			if pflag&ParamFeedsInterfaceMethodCall != 0 {
++				score, tmask = adjustScore(passConcreteToItfCallAdj, score, tmask)
++			}
++		}
++
++		if isfunc {
++			mayadj := passFuncToNestedIndCallAdj
++			mustadj := passFuncToIndCallAdj
++			if fn := fname.Func; fn != nil && typecheck.HaveInlineBody(fn) {
++				mayadj = passInlinableFuncToNestedIndCallAdj
++				mustadj = passInlinableFuncToIndCallAdj
++			}
++			if pflag&ParamMayFeedIndirectCall != 0 {
++				score, tmask = adjustScore(mayadj, score, tmask)
++			}
++			if pflag&ParamFeedsIndirectCall != 0 {
++				score, tmask = adjustScore(mustadj, score, tmask)
++			}
++		}
++	}
++
++	return score, tmask
++}
++
++func adjustScore(typ scoreAdjustTyp, score int, mask scoreAdjustTyp) (int, scoreAdjustTyp) {
++
++	if isMust(typ) {
++		if mask&typ != 0 {
++			return score, mask
++		}
++		may := mustToMay(typ)
++		if mask&may != 0 {
++			// promote may to must, so undo may
++			score -= adjValue(may)
++			mask &^= may
++		}
++	} else if isMay(typ) {
++		must := mayToMust(typ)
++		if mask&(must|typ) != 0 {
++			return score, mask
++		}
++	}
++	if mask&typ == 0 {
++		if debugTrace&debugTraceScoring != 0 {
++			fmt.Fprintf(os.Stderr, "=-= applying adj %d for %s\n",
++				adjValue(typ), typ.String())
++		}
++		score += adjValue(typ)
++		mask |= typ
++	}
++	return score, mask
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+index aea83998e5..464e47c5e8 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+@@ -13,7 +13,7 @@ package params
+ //   0 ParamFeedsIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[8],"ResultFlags":[]}
+-// callsite: acrosscall.go:20:12|0 flagstr "" flagval 0
++// callsite: acrosscall.go:20:12|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_indirect_call_via_call_toplevel(f func(int)) {
+@@ -25,7 +25,7 @@ func T_feeds_indirect_call_via_call_toplevel(f func(int)) {
+ //   0 ParamMayFeedIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[16],"ResultFlags":[]}
+-// callsite: acrosscall.go:33:13|0 flagstr "" flagval 0
++// callsite: acrosscall.go:33:13|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_indirect_call_via_call_conditional(f func(int)) {
+@@ -39,7 +39,7 @@ func T_feeds_indirect_call_via_call_conditional(f func(int)) {
+ //   0 ParamMayFeedIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[16],"ResultFlags":[]}
+-// callsite: acrosscall.go:46:23|0 flagstr "" flagval 0
++// callsite: acrosscall.go:46:23|0 flagstr "" flagval 0 score 64 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_conditional_indirect_call_via_call_toplevel(f func(int)) {
+@@ -51,7 +51,7 @@ func T_feeds_conditional_indirect_call_via_call_toplevel(f func(int)) {
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
+-// callsite: acrosscall.go:58:9|0 flagstr "" flagval 0
++// callsite: acrosscall.go:58:9|0 flagstr "" flagval 0 score 8 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_via_call(x int) {
+@@ -63,7 +63,7 @@ func T_feeds_if_via_call(x int) {
+ //   0 ParamMayFeedIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[64],"ResultFlags":[]}
+-// callsite: acrosscall.go:71:10|0 flagstr "" flagval 0
++// callsite: acrosscall.go:71:10|0 flagstr "" flagval 0 score 8 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_if_via_call_conditional(x int) {
+@@ -77,7 +77,7 @@ func T_feeds_if_via_call_conditional(x int) {
+ //   0 ParamMayFeedIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[64],"ResultFlags":[]}
+-// callsite: acrosscall.go:84:20|0 flagstr "" flagval 0
++// callsite: acrosscall.go:84:20|0 flagstr "" flagval 0 score 12 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_conditional_if_via_call(x int) {
+@@ -90,9 +90,9 @@ func T_feeds_conditional_if_via_call(x int) {
+ //   1 ParamFeedsIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[24,8],"ResultFlags":[]}
+-// callsite: acrosscall.go:100:23|1 flagstr "" flagval 0
+-// callsite: acrosscall.go:101:12|2 flagstr "" flagval 0
+-// callsite: acrosscall.go:99:12|0 flagstr "" flagval 0
++// callsite: acrosscall.go:100:23|1 flagstr "" flagval 0 score 64 mask 0 maskstr ""
++// callsite: acrosscall.go:101:12|2 flagstr "" flagval 0 score 60 mask 0 maskstr ""
++// callsite: acrosscall.go:99:12|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_multifeeds(f1, f2 func(int)) {
+@@ -106,7 +106,7 @@ func T_multifeeds(f1, f2 func(int)) {
+ //   0 ResultAlwaysSameConstant
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[8]}
+-// callsite: acrosscall.go:113:24|0 flagstr "" flagval 0
++// callsite: acrosscall.go:113:24|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_returnsconstant() int {
+@@ -118,7 +118,7 @@ func T_acrosscall_returnsconstant() int {
+ //   0 ResultIsAllocatedMem
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[2]}
+-// callsite: acrosscall.go:125:19|0 flagstr "" flagval 0
++// callsite: acrosscall.go:125:19|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_returnsmem() *int {
+@@ -130,7 +130,7 @@ func T_acrosscall_returnsmem() *int {
+ //   0 ResultIsConcreteTypeConvertedToInterface
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[4]}
+-// callsite: acrosscall.go:137:19|0 flagstr "" flagval 0
++// callsite: acrosscall.go:137:19|0 flagstr "" flagval 0 score 7 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_returnscci() I {
+@@ -140,7 +140,7 @@ func T_acrosscall_returnscci() I {
+ // acrosscall.go T_acrosscall_multiret 146 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+-// callsite: acrosscall.go:148:25|0 flagstr "" flagval 0
++// callsite: acrosscall.go:148:25|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_multiret(q int) int {
+@@ -153,8 +153,8 @@ func T_acrosscall_multiret(q int) int {
+ // acrosscall.go T_acrosscall_multiret2 160 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+-// callsite: acrosscall.go:162:25|0 flagstr "" flagval 0
+-// callsite: acrosscall.go:164:25|1 flagstr "" flagval 0
++// callsite: acrosscall.go:162:25|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: acrosscall.go:164:25|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_acrosscall_multiret2(q int) int {
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+index 3e1a91dc26..1d35a1ad47 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+@@ -13,7 +13,7 @@ import "os"
+ // calls.go T_call_in_panic_arg 19 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
+-// callsite: calls.go:21:15|0 flagstr "CallSiteOnPanicPath" flagval 2
++// callsite: calls.go:21:15|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_call_in_panic_arg(x int) {
+@@ -25,8 +25,8 @@ func T_call_in_panic_arg(x int) {
+ // calls.go T_calls_in_loops 32 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
+-// callsite: calls.go:34:9|0 flagstr "CallSiteInLoop" flagval 1
+-// callsite: calls.go:37:9|1 flagstr "CallSiteInLoop" flagval 1
++// callsite: calls.go:34:9|0 flagstr "CallSiteInLoop" flagval 1 score -3 mask 4 maskstr "inLoopAdj"
++// callsite: calls.go:37:9|1 flagstr "CallSiteInLoop" flagval 1 score -3 mask 4 maskstr "inLoopAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_calls_in_loops(x int, q []string) {
+@@ -41,8 +41,8 @@ func T_calls_in_loops(x int, q []string) {
+ // calls.go T_calls_in_pseudo_loop 48 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
+-// callsite: calls.go:50:9|0 flagstr "" flagval 0
+-// callsite: calls.go:54:9|1 flagstr "" flagval 0
++// callsite: calls.go:50:9|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: calls.go:54:9|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_calls_in_pseudo_loop(x int, q []string) {
+@@ -59,9 +59,9 @@ func T_calls_in_pseudo_loop(x int, q []string) {
+ // calls.go T_calls_on_panic_paths 67 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[]}
+-// callsite: calls.go:69:9|0 flagstr "" flagval 0
+-// callsite: calls.go:73:9|1 flagstr "" flagval 0
+-// callsite: calls.go:77:12|2 flagstr "CallSiteOnPanicPath" flagval 2
++// callsite: calls.go:69:9|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: calls.go:73:9|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: calls.go:77:12|2 flagstr "CallSiteOnPanicPath" flagval 2 score 102 mask 1 maskstr "panicPathAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_calls_on_panic_paths(x int, q []string) {
+@@ -84,10 +84,10 @@ func T_calls_on_panic_paths(x int, q []string) {
+ //   1 ParamNoInfo
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[96,0],"ResultFlags":[]}
+-// callsite: calls.go:103:9|0 flagstr "" flagval 0
+-// callsite: calls.go:112:9|1 flagstr "" flagval 0
+-// callsite: calls.go:115:9|2 flagstr "" flagval 0
+-// callsite: calls.go:119:12|3 flagstr "" flagval 0
++// callsite: calls.go:103:9|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: calls.go:112:9|1 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: calls.go:115:9|2 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: calls.go:119:12|3 flagstr "" flagval 0 score 62 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_calls_not_on_panic_paths(x int, q []string) {
+@@ -123,20 +123,82 @@ func T_calls_not_on_panic_paths(x int, q []string) {
+ // calls.go init.0 129 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[],"ResultFlags":[]}
+-// callsite: calls.go:130:16|0 flagstr "CallSiteInInitFunc" flagval 4
++// callsite: calls.go:130:16|0 flagstr "CallSiteInInitFunc" flagval 4 score 22 mask 2 maskstr "initFuncAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func init() {
+ 	println(callee(5))
+ }
+ 
++// calls.go T_pass_inlinable_func_to_param_feeding_indirect_call 139 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// callsite: calls.go:140:19|0 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_pass_inlinable_func_to_param_feeding_indirect_call(x int) int {
++	return callsParam(x, callee)
++}
++
++// calls.go T_pass_noninlinable_func_to_param_feeding_indirect_call 149 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// callsite: calls.go:152:19|0 flagstr "" flagval 0 score 36 mask 128 maskstr "passFuncToIndCallAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_pass_noninlinable_func_to_param_feeding_indirect_call(x int) int {
++	// if we inline callsParam we can convert the indirect call
++	// to a direct call, but we can't inline it.
++	return callsParam(x, calleeNoInline)
++}
++
++// calls.go T_pass_inlinable_func_to_param_feeding_nested_indirect_call 163 0 1
++// ParamFlags
++//   0 ParamFeedsIfOrSwitch
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
++// callsite: calls.go:164:25|0 flagstr "" flagval 0 score 27 mask 1024 maskstr "passInlinableFuncToNestedIndCallAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_pass_inlinable_func_to_param_feeding_nested_indirect_call(x int) int {
++	return callsParamNested(x, callee)
++}
++
++// calls.go T_pass_noninlinable_func_to_param_feeding_nested_indirect_call 175 0 1
++// ParamFlags
++//   0 ParamFeedsIfOrSwitch
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
++// callsite: calls.go:176:25|0 flagstr "" flagval 0 score 47 mask 256 maskstr "passFuncToNestedIndCallAdj"
++// <endcallsites>
++// <endfuncpreamble>
++func T_pass_noninlinable_func_to_param_feeding_nested_indirect_call(x int) int {
++	return callsParamNested(x, calleeNoInline)
++}
++
+ var G int
+ 
+ func callee(x int) int {
+ 	return x
+ }
+ 
++func calleeNoInline(x int) int {
++	defer func() { G++ }()
++	return x
++}
++
+ func callsexit(x int) {
+ 	println(x)
+ 	os.Exit(x)
+ }
++
++func callsParam(x int, f func(int) int) int {
++	return f(x)
++}
++
++func callsParamNested(x int, f func(int) int) int {
++	if x < 0 {
++		return f(x)
++	}
++	return 0
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+index 4f23139286..4b9dbc2bb4 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+@@ -275,7 +275,7 @@ func T_callsexit(x int) {
+ // funcflags.go T_exitinexpr 281 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[]}
+-// callsite: funcflags.go:286:18|0 flagstr "CallSiteOnPanicPath" flagval 2
++// callsite: funcflags.go:286:18|0 flagstr "CallSiteOnPanicPath" flagval 2 score 102 mask 1 maskstr "panicPathAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_exitinexpr(x int) {
+@@ -328,7 +328,7 @@ func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+ // {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
+-// callsite: funcflags.go:335:15|0 flagstr "CallSiteOnPanicPath" flagval 2
++// callsite: funcflags.go:335:15|0 flagstr "CallSiteOnPanicPath" flagval 2 score 102 mask 1 maskstr "panicPathAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_calls_callsexit(x int) {

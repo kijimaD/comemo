@@ -11,7 +11,7 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go        |  8 +++--
  src/cmd/compile/internal/ssa/config.go     | 11 ++++++
  src/cmd/compile/internal/ssa/gen/386.rules |  3 ++
@@ -22,3 +22,238 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
  src/cmd/vet/all/whitelist/386.txt          |  2 ++
  src/runtime/asm_386.s                      | 58 ++++++++++++++++++++++++++++++
  9 files changed, 124 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index b651c9acb3..34ab29777d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -407,9 +407,11 @@ func Main(archInit func(*Arch)) {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
+-	// The buffered write barrier is only implemented on amd64
+-	// right now.
+-	if objabi.GOARCH != "amd64" {
++	switch objabi.GOARCH {
++	case "amd64", "386":
++	default:
++		// Other architectures don't support the buffered
++		// write barrier yet.
+ 		Debug_eagerwb = 1
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index ae6caeea9e..a4f4d7edfc 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -294,6 +294,17 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 
+ 		// runtime call clobber R12 on nacl
+ 		opcodeTable[OpARMCALLudiv].reg.clobbers |= 1 << 12 // R12
++
++		// Returns clobber BP on nacl/386, so the write
++		// barrier does.
++		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 5 // BP
++	}
++
++	if ctxt.Flag_shared {
++		// LoweredWB is secretly a CALL and CALLs on 386 in
++		// shared mode get rewritten by obj6.go to go through
++		// the GOT, which clobbers BX.
++		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 3 // BX
+ 	}
+ 
+ 	// cutoff is compared with product of numblocks and numvalues,
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index e012891aed..8fc7d0dce0 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -407,6 +407,9 @@
+ 
+ (If cond yes no) -> (NE (TESTB cond cond) yes no)
+ 
++// Write barrier.
++(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
++
+ // ***************************
+ // Above: lowering rules
+ // Below: optimizations
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index f5f46fad2c..d9aaf5d63b 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -450,6 +450,10 @@ func init() {
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// It saves all GP registers if necessary, but may clobber others.
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), ax}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++
+ 		// MOVLconvert converts between pointers and integers.
+ 		// We have a special op for this so as to not confuse GC
+ 		// (particularly stack maps).  It takes a memory arg so it
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7569545357..200298db56 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -399,6 +399,7 @@ const (
+ 	Op386LoweredGetCallerPC
+ 	Op386LoweredGetCallerSP
+ 	Op386LoweredNilCheck
++	Op386LoweredWB
+ 	Op386MOVLconvert
+ 	Op386FlagEQ
+ 	Op386FlagLT_ULT
+@@ -4389,6 +4390,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "LoweredWB",
++		auxType:      auxSym,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymNone,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 128}, // DI
++				{1, 1},   // AX
++			},
++			clobbers: 65280, // X0 X1 X2 X3 X4 X5 X6 X7
++		},
++	},
+ 	{
+ 		name:         "MOVLconvert",
+ 		argLen:       2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 32e86088f1..286df9d531 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -577,6 +577,8 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_OpTrunc32to16_0(v)
+ 	case OpTrunc32to8:
+ 		return rewriteValue386_OpTrunc32to8_0(v)
++	case OpWB:
++		return rewriteValue386_OpWB_0(v)
+ 	case OpXor16:
+ 		return rewriteValue386_OpXor16_0(v)
+ 	case OpXor32:
+@@ -17922,6 +17924,24 @@ func rewriteValue386_OpTrunc32to8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValue386_OpWB_0(v *Value) bool {
++	// match: (WB {fn} destptr srcptr mem)
++	// cond:
++	// result: (LoweredWB {fn} destptr srcptr mem)
++	for {
++		fn := v.Aux
++		_ = v.Args[2]
++		destptr := v.Args[0]
++		srcptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(Op386LoweredWB)
++		v.Aux = fn
++		v.AddArg(destptr)
++		v.AddArg(srcptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValue386_OpXor16_0(v *Value) bool {
+ 	// match: (Xor16 x y)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 69217f2915..17ce803e65 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -691,6 +691,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
++	case ssa.Op386LoweredWB:
++		p := s.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = v.Aux.(*obj.LSym)
++
+ 	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
+ 		s.Call(v)
+ 	case ssa.Op386NEGL,
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 505856f368..744ac654fd 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -25,3 +25,5 @@ runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go de
+ runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
+ 
+ runtime/asm_386.s: [386] stackcheck: function stackcheck missing Go declaration
++
++runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 80a145187c..ee6d768c23 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1695,3 +1695,61 @@ TEXT runtime·float64touint32(SB),NOSPLIT,$12-12
+ 	MOVL	4(SP), AX
+ 	MOVL	AX, ret+8(FP)
+ 	RET
++
++// gcWriteBarrier performs a heap pointer write and informs the GC.
++//
++// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
++// - DI is the destination of the write
++// - AX is the value being written at DI
++// It clobbers FLAGS. It does not clobber any general-purpose registers,
++// but may clobber others (e.g., SSE registers).
++TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$28
++	// Save the registers clobbered by the fast path. This is slightly
++	// faster than having the caller spill these.
++	MOVL	CX, 20(SP)
++	MOVL	BX, 24(SP)
++	// TODO: Consider passing g.m.p in as an argument so they can be shared
++	// across a sequence of write barriers.
++	get_tls(BX)
++	MOVL	g(BX), BX
++	MOVL	g_m(BX), BX
++	MOVL	m_p(BX), BX
++	MOVL	(p_wbBuf+wbBuf_next)(BX), CX
++	// Increment wbBuf.next position.
++	LEAL	8(CX), CX
++	MOVL	CX, (p_wbBuf+wbBuf_next)(BX)
++	CMPL	CX, (p_wbBuf+wbBuf_end)(BX)
++	// Record the write.
++	MOVL	AX, -8(CX)	// Record value
++	MOVL	(DI), BX	// TODO: This turns bad writes into bad reads.
++	MOVL	BX, -4(CX)	// Record *slot
++	// Is the buffer full? (flags set in CMPL above)
++	JEQ	flush
++ret:
++	MOVL	20(SP), CX
++	MOVL	24(SP), BX
++	// Do the write.
++	MOVL	AX, (DI)
++	RET
++
++flush:
++	// Save all general purpose registers since these could be
++	// clobbered by wbBufFlush and were not saved by the caller.
++	MOVL	DI, 0(SP)	// Also first argument to wbBufFlush
++	MOVL	AX, 4(SP)	// Also second argument to wbBufFlush
++	// BX already saved
++	// CX already saved
++	MOVL	DX, 8(SP)
++	MOVL	BP, 12(SP)
++	MOVL	SI, 16(SP)
++	// DI already saved
++
++	// This takes arguments DI and AX
++	CALL	runtime·wbBufFlush(SB)
++
++	MOVL	0(SP), DI
++	MOVL	4(SP), AX
++	MOVL	8(SP), DX
++	MOVL	12(SP), BP
++	MOVL	16(SP), SI
++	JMP	ret

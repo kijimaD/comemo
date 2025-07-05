@@ -9,7 +9,7 @@ Date:   Wed Jan 13 22:35:17 2016 -0500
     Change-Id: I5ee6cb18eaa66bdec1affe689aa531c05e719fc9
     Reviewed-on: https://go-review.googlesource.com/18645
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/build.go                                            |  2 ++
  src/cmd/go/go_test.go                                          | 10 ++++++++++
  src/cmd/go/testdata/src/run/bad.go                             |  5 +++++
@@ -17,3 +17,75 @@ Date:   Wed Jan 13 22:35:17 2016 -0500
  src/cmd/go/testdata/src/run/internal/internal.go               |  1 +
  src/cmd/go/testdata/src/run/subdir/internal/private/private.go |  1 +
  6 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index ebeb11cf63..6a8edaf6d2 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -822,7 +822,9 @@ func goFilesPackage(gofiles []string) *Package {
+ 	pkg := new(Package)
+ 	pkg.local = true
+ 	pkg.cmdline = true
++	stk.push("main")
+ 	pkg.load(&stk, bp, err)
++	stk.pop()
+ 	pkg.localPrefix = dirToImportPath(dir)
+ 	pkg.ImportPath = "command-line-arguments"
+ 	pkg.target = ""
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index cc36b43de3..50c7521831 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -961,6 +961,16 @@ func TestInternalPackagesOutsideGOROOTAreRespected(t *testing.T) {
+ 	tg.grepBoth("use of internal package not allowed", "wrote error message for testdata/testinternal2")
+ }
+ 
++func TestRunInternal(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	dir := filepath.Join(tg.pwd(), "testdata")
++	tg.setenv("GOPATH", dir)
++	tg.run("run", filepath.Join(dir, "src/run/good.go"))
++	tg.runFail("run", filepath.Join(dir, "src/run/bad.go"))
++	tg.grepStderr("use of internal package not allowed", "unexpected error for run/bad.go")
++}
++
+ func testMove(t *testing.T, vcs, url, base, config string) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+diff --git a/src/cmd/go/testdata/src/run/bad.go b/src/cmd/go/testdata/src/run/bad.go
+new file mode 100644
+index 0000000000..c1cc3ac6c8
+--- /dev/null
++++ b/src/cmd/go/testdata/src/run/bad.go
+@@ -0,0 +1,5 @@
++package main
++
++import _ "run/subdir/internal/private"
++
++func main() {}
+diff --git a/src/cmd/go/testdata/src/run/good.go b/src/cmd/go/testdata/src/run/good.go
+new file mode 100644
+index 0000000000..0b67dceeee
+--- /dev/null
++++ b/src/cmd/go/testdata/src/run/good.go
+@@ -0,0 +1,5 @@
++package main
++
++import _ "run/internal"
++
++func main() {}
+diff --git a/src/cmd/go/testdata/src/run/internal/internal.go b/src/cmd/go/testdata/src/run/internal/internal.go
+new file mode 100644
+index 0000000000..5bf0569ce8
+--- /dev/null
++++ b/src/cmd/go/testdata/src/run/internal/internal.go
+@@ -0,0 +1 @@
++package internal
+diff --git a/src/cmd/go/testdata/src/run/subdir/internal/private/private.go b/src/cmd/go/testdata/src/run/subdir/internal/private/private.go
+new file mode 100644
+index 0000000000..735e4dc819
+--- /dev/null
++++ b/src/cmd/go/testdata/src/run/subdir/internal/private/private.go
+@@ -0,0 +1 @@
++package private

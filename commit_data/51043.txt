@@ -16,8 +16,48 @@ Date:   Mon Nov 29 12:04:42 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 2 +-
  src/cmd/compile/internal/typecheck/iexport.go | 2 +-
  src/go/internal/gcimporter/iimport.go         | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 1aa3b7b6a8..23d6ca350e 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -45,7 +45,7 @@ func (r *intReader) uint64() uint64 {
+ const (
+ 	iexportVersionGo1_11   = 0
+ 	iexportVersionPosCol   = 1
+-	iexportVersionGenerics = 1 // probably change to 2 before release
++	iexportVersionGenerics = 2
+ 	iexportVersionGo1_18   = 2
+ 
+ 	iexportVersionCurrent = 2
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 9bd1f626fe..7ebabe7314 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -261,7 +261,7 @@ import (
+ const (
+ 	iexportVersionGo1_11   = 0
+ 	iexportVersionPosCol   = 1
+-	iexportVersionGenerics = 1 // probably change to 2 before release
++	iexportVersionGenerics = 2
+ 	iexportVersionGo1_18   = 2
+ 
+ 	iexportVersionCurrent = 2
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 49ea64392a..d7fc3ee7a9 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -46,7 +46,7 @@ func (r *intReader) uint64() uint64 {
+ const (
+ 	iexportVersionGo1_11   = 0
+ 	iexportVersionPosCol   = 1
+-	iexportVersionGenerics = 1 // probably change to 2 before release
++	iexportVersionGenerics = 2
+ 	iexportVersionGo1_18   = 2
+ 
+ 	iexportVersionCurrent = 2

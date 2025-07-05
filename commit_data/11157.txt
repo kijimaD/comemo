@@ -7,7 +7,7 @@ Date:   Sat Jan 14 06:40:55 2012 +0900
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5545048
-
+---
  src/buildscript_darwin_386.sh       |  2 +-
  src/buildscript_darwin_amd64.sh     |  2 +-
  src/buildscript_freebsd_386.sh      |  2 +-
@@ -44,3 +44,697 @@ Date:   Sat Jan 14 06:40:55 2012 +0900
  src/pkg/syscall/syscall_unix.go     |  3 ++-
  src/pkg/syscall/syscall_windows.go  |  2 --
  35 files changed, 51 insertions(+), 83 deletions(-)
+
+diff --git a/src/buildscript_darwin_386.sh b/src/buildscript_darwin_386.sh
+index e96ff4bc49..f5d00898d6 100755
+--- a/src/buildscript_darwin_386.sh
++++ b/src/buildscript_darwin_386.sh
+@@ -232,7 +232,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/darwin_386/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_386.go ./syscall_unix.go ./zerrors_darwin_386.go ./zsyscall_darwin_386.go ./zsysnum_darwin_386.go ./ztypes_darwin_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_386.go ./syscall_unix.go ./zerrors_darwin_386.go ./zsyscall_darwin_386.go ./zsysnum_darwin_386.go ./ztypes_darwin_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_darwin_386.8 -DGOOS_darwin -DGOARCH_386 ./asm_darwin_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_darwin_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/darwin_386/syscall.a
+diff --git a/src/buildscript_darwin_amd64.sh b/src/buildscript_darwin_amd64.sh
+index c9ec0a0639..36d18aee6f 100755
+--- a/src/buildscript_darwin_amd64.sh
++++ b/src/buildscript_darwin_amd64.sh
+@@ -231,7 +231,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/darwin_amd64/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_amd64.go ./syscall_unix.go ./zerrors_darwin_amd64.go ./zsyscall_darwin_amd64.go ./zsysnum_darwin_amd64.go ./ztypes_darwin_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_amd64.go ./syscall_unix.go ./zerrors_darwin_amd64.go ./zsyscall_darwin_amd64.go ./zsysnum_darwin_amd64.go ./ztypes_darwin_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_darwin_amd64.6 -DGOOS_darwin -DGOARCH_amd64 ./asm_darwin_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_darwin_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/darwin_amd64/syscall.a
+diff --git a/src/buildscript_freebsd_386.sh b/src/buildscript_freebsd_386.sh
+index fbd6acd092..d482e6f57f 100755
+--- a/src/buildscript_freebsd_386.sh
++++ b/src/buildscript_freebsd_386.sh
+@@ -232,7 +232,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/freebsd_386/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_386.go ./syscall_unix.go ./zerrors_freebsd_386.go ./zsyscall_freebsd_386.go ./zsysnum_freebsd_386.go ./ztypes_freebsd_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_386.go ./syscall_unix.go ./zerrors_freebsd_386.go ./zsyscall_freebsd_386.go ./zsysnum_freebsd_386.go ./ztypes_freebsd_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_freebsd_386.8 -DGOOS_freebsd -DGOARCH_386 ./asm_freebsd_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_freebsd_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/freebsd_386/syscall.a
+diff --git a/src/buildscript_freebsd_amd64.sh b/src/buildscript_freebsd_amd64.sh
+index f82c9f76f8..d24377b195 100755
+--- a/src/buildscript_freebsd_amd64.sh
++++ b/src/buildscript_freebsd_amd64.sh
+@@ -231,7 +231,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/freebsd_amd64/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_amd64.go ./syscall_unix.go ./zerrors_freebsd_amd64.go ./zsyscall_freebsd_amd64.go ./zsysnum_freebsd_amd64.go ./ztypes_freebsd_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_amd64.go ./syscall_unix.go ./zerrors_freebsd_amd64.go ./zsyscall_freebsd_amd64.go ./zsysnum_freebsd_amd64.go ./ztypes_freebsd_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_freebsd_amd64.6 -DGOOS_freebsd -DGOARCH_amd64 ./asm_freebsd_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_freebsd_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/freebsd_amd64/syscall.a
+diff --git a/src/buildscript_linux_386.sh b/src/buildscript_linux_386.sh
+index 70ce585e9e..ad8424253a 100755
+--- a/src/buildscript_linux_386.sh
++++ b/src/buildscript_linux_386.sh
+@@ -232,7 +232,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/linux_386/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_linux.go ./syscall_linux_386.go ./syscall_unix.go ./zerrors_linux_386.go ./zsyscall_linux_386.go ./zsysnum_linux_386.go ./ztypes_linux_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_linux.go ./syscall_linux_386.go ./syscall_unix.go ./zerrors_linux_386.go ./zsyscall_linux_386.go ./zsysnum_linux_386.go ./ztypes_linux_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_linux_386.8 -DGOOS_linux -DGOARCH_386 ./asm_linux_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_linux_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/linux_386/syscall.a
+diff --git a/src/buildscript_linux_amd64.sh b/src/buildscript_linux_amd64.sh
+index dc1f395909..e02b6f8a2f 100755
+--- a/src/buildscript_linux_amd64.sh
++++ b/src/buildscript_linux_amd64.sh
+@@ -231,7 +231,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/linux_amd64/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_linux.go ./syscall_linux_amd64.go ./syscall_unix.go ./zerrors_linux_amd64.go ./zsyscall_linux_amd64.go ./zsysnum_linux_amd64.go ./ztypes_linux_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_linux.go ./syscall_linux_amd64.go ./syscall_unix.go ./zerrors_linux_amd64.go ./zsyscall_linux_amd64.go ./zsysnum_linux_amd64.go ./ztypes_linux_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_linux_amd64.6 -DGOOS_linux -DGOARCH_amd64 ./asm_linux_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_linux_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/linux_amd64/syscall.a
+diff --git a/src/buildscript_linux_arm.sh b/src/buildscript_linux_arm.sh
+index a1718a2bd2..58027b8702 100755
+--- a/src/buildscript_linux_arm.sh
++++ b/src/buildscript_linux_arm.sh
+@@ -235,7 +235,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/linux_arm/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-5g -o "$WORK"/syscall/_obj/_go_.5 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_arm.go ./syscall_linux.go ./syscall_linux_arm.go ./syscall_unix.go ./zerrors_linux_arm.go ./zsyscall_linux_arm.go ./zsysnum_linux_arm.go ./ztypes_linux_arm.go
++5g -o "$WORK"/syscall/_obj/_go_.5 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_linux.go ./syscall_linux_arm.go ./syscall_unix.go ./zerrors_linux_arm.go ./zsyscall_linux_arm.go ./zsysnum_linux_arm.go ./ztypes_linux_arm.go
+ 5a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_linux_arm.5 -DGOOS_linux -DGOARCH_arm ./asm_linux_arm.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.5 "$WORK"/syscall/_obj/asm_linux_arm.5
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/linux_arm/syscall.a
+diff --git a/src/buildscript_netbsd_386.sh b/src/buildscript_netbsd_386.sh
+index 01b62564de..1a2c43f3b9 100755
+--- a/src/buildscript_netbsd_386.sh
++++ b/src/buildscript_netbsd_386.sh
+@@ -232,7 +232,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/netbsd_386/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_386.go ./syscall_unix.go ./zerrors_netbsd_386.go ./zsyscall_netbsd_386.go ./zsysnum_netbsd_386.go ./ztypes_netbsd_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_386.go ./syscall_unix.go ./zerrors_netbsd_386.go ./zsyscall_netbsd_386.go ./zsysnum_netbsd_386.go ./ztypes_netbsd_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_netbsd_386.8 -DGOOS_netbsd -DGOARCH_386 ./asm_netbsd_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_netbsd_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/netbsd_386/syscall.a
+diff --git a/src/buildscript_netbsd_amd64.sh b/src/buildscript_netbsd_amd64.sh
+index 3589e83974..7d6f647b64 100755
+--- a/src/buildscript_netbsd_amd64.sh
++++ b/src/buildscript_netbsd_amd64.sh
+@@ -231,7 +231,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/netbsd_amd64/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_amd64.go ./syscall_unix.go ./zerrors_netbsd_amd64.go ./zsyscall_netbsd_amd64.go ./zsysnum_netbsd_amd64.go ./ztypes_netbsd_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_amd64.go ./syscall_unix.go ./zerrors_netbsd_amd64.go ./zsyscall_netbsd_amd64.go ./zsysnum_netbsd_amd64.go ./ztypes_netbsd_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_netbsd_amd64.6 -DGOOS_netbsd -DGOARCH_amd64 ./asm_netbsd_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_netbsd_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/netbsd_amd64/syscall.a
+diff --git a/src/buildscript_openbsd_386.sh b/src/buildscript_openbsd_386.sh
+index 02f3f6f827..2b44b08af0 100755
+--- a/src/buildscript_openbsd_386.sh
++++ b/src/buildscript_openbsd_386.sh
+@@ -232,7 +232,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/openbsd_386/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_openbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_openbsd.go ./syscall_openbsd_386.go ./syscall_unix.go ./zerrors_openbsd_386.go ./zsyscall_openbsd_386.go ./zsysctl_openbsd.go ./zsysnum_openbsd_386.go ./ztypes_openbsd_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_openbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_openbsd.go ./syscall_openbsd_386.go ./syscall_unix.go ./zerrors_openbsd_386.go ./zsyscall_openbsd_386.go ./zsysctl_openbsd.go ./zsysnum_openbsd_386.go ./ztypes_openbsd_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_openbsd_386.8 -DGOOS_openbsd -DGOARCH_386 ./asm_openbsd_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_openbsd_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/openbsd_386/syscall.a
+diff --git a/src/buildscript_openbsd_amd64.sh b/src/buildscript_openbsd_amd64.sh
+index e3850ba009..ea3fca3853 100755
+--- a/src/buildscript_openbsd_amd64.sh
++++ b/src/buildscript_openbsd_amd64.sh
+@@ -231,7 +231,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/openbsd_amd64/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_openbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_openbsd.go ./syscall_openbsd_amd64.go ./syscall_unix.go ./zerrors_openbsd_amd64.go ./zsyscall_openbsd_amd64.go ./zsysctl_openbsd.go ./zsysnum_openbsd_amd64.go ./ztypes_openbsd_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_openbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_bsd.go ./syscall_openbsd.go ./syscall_openbsd_amd64.go ./syscall_unix.go ./zerrors_openbsd_amd64.go ./zsyscall_openbsd_amd64.go ./zsysctl_openbsd.go ./zsysnum_openbsd_amd64.go ./ztypes_openbsd_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_openbsd_amd64.6 -DGOOS_openbsd -DGOARCH_amd64 ./asm_openbsd_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_openbsd_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/openbsd_amd64/syscall.a
+diff --git a/src/buildscript_plan9_386.sh b/src/buildscript_plan9_386.sh
+index 0f6504d0dd..f4e2050f52 100755
+--- a/src/buildscript_plan9_386.sh
++++ b/src/buildscript_plan9_386.sh
+@@ -232,7 +232,7 @@ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/plan9_386/encoding/base64.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./env_plan9.go ./exec_plan9.go ./str.go ./syscall.go ./syscall_386.go ./syscall_plan9.go ./syscall_plan9_386.go ./zerrors_plan9_386.go ./zsyscall_plan9_386.go ./zsysnum_plan9_386.go ./ztypes_plan9_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./env_plan9.go ./exec_plan9.go ./str.go ./syscall.go ./syscall_plan9.go ./syscall_plan9_386.go ./zerrors_plan9_386.go ./zsyscall_plan9_386.go ./zsysnum_plan9_386.go ./ztypes_plan9_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_plan9_386.8 -DGOOS_plan9 -DGOARCH_386 ./asm_plan9_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_plan9_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/plan9_386/syscall.a
+diff --git a/src/buildscript_windows_386.sh b/src/buildscript_windows_386.sh
+index 871d145462..dc104dc364 100755
+--- a/src/buildscript_windows_386.sh
++++ b/src/buildscript_windows_386.sh
+@@ -244,7 +244,7 @@ cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/windows_386/unicode/utf16.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./str.go ./syscall.go ./syscall_386.go ./syscall_windows.go ./syscall_windows_386.go ./zerrors_windows.go ./zerrors_windows_386.go ./zsyscall_windows_386.go ./zsysnum_windows_386.go ./ztypes_windows.go ./ztypes_windows_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./str.go ./syscall.go ./syscall_windows.go ./syscall_windows_386.go ./zerrors_windows.go ./zerrors_windows_386.go ./zsyscall_windows_386.go ./zsysnum_windows_386.go ./ztypes_windows.go ./ztypes_windows_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_windows_386.8 -DGOOS_windows -DGOARCH_386 ./asm_windows_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_windows_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/windows_386/syscall.a
+diff --git a/src/buildscript_windows_amd64.sh b/src/buildscript_windows_amd64.sh
+index cbabd0f9bb..0bfb4a517f 100755
+--- a/src/buildscript_windows_amd64.sh
++++ b/src/buildscript_windows_amd64.sh
+@@ -243,7 +243,7 @@ cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/windows_amd64/unicode/utf16.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_windows.go ./syscall_windows_amd64.go ./zerrors_windows.go ./zerrors_windows_amd64.go ./zsyscall_windows_amd64.go ./zsysnum_windows_amd64.go ./ztypes_windows.go ./ztypes_windows_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./dll_windows.go ./env_windows.go ./exec_windows.go ./str.go ./syscall.go ./syscall_windows.go ./syscall_windows_amd64.go ./zerrors_windows.go ./zerrors_windows_amd64.go ./zsyscall_windows_amd64.go ./zsysnum_windows_amd64.go ./ztypes_windows.go ./ztypes_windows_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_windows_amd64.6 -DGOOS_windows -DGOARCH_amd64 ./asm_windows_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_windows_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/windows_amd64/syscall.a
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index e5c29889b7..b90181bdc6 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -7,14 +7,14 @@ package gosym
+ import (
+ 	"debug/elf"
+ 	"os"
+-	"syscall"
++	"runtime"
+ 	"testing"
+ )
+ 
+ func dotest() bool {
+ 	// For now, only works on ELF platforms.
+ 	// TODO: convert to work with new go tool
+-	return false && syscall.OS == "linux" && os.Getenv("GOARCH") == "amd64"
++	return false && runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
+ }
+ 
+ func getTable(t *testing.T) *Table {
+diff --git a/src/pkg/net/file_test.go b/src/pkg/net/file_test.go
+index 7867fa8df3..868388efa1 100644
+--- a/src/pkg/net/file_test.go
++++ b/src/pkg/net/file_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+-	"syscall"
+ 	"testing"
+ )
+ 
+@@ -67,7 +66,7 @@ func TestFileListener(t *testing.T) {
+ 		testFileListener(t, "tcp", "127.0.0.1")
+ 		testFileListener(t, "tcp", "[::ffff:127.0.0.1]")
+ 	}
+-	if syscall.OS == "linux" {
++	if runtime.GOOS == "linux" {
+ 		testFileListener(t, "unix", "@gotest/net")
+ 		testFileListener(t, "unixpacket", "@gotest/net")
+ 	}
+@@ -132,7 +131,7 @@ func TestFilePacketConn(t *testing.T) {
+ 	if supportsIPv6 && supportsIPv4map {
+ 		testFilePacketConnDial(t, "udp", "[::ffff:127.0.0.1]:12345")
+ 	}
+-	if syscall.OS == "linux" {
++	if runtime.GOOS == "linux" {
+ 		testFilePacketConnListen(t, "unixgram", "@gotest1/net")
+ 	}
+ }
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 7d17ccd53c..5475d3874f 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"strings"
+-	"syscall"
+ 	"testing"
+ )
+ 
+@@ -115,7 +114,7 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ }
+ 
+ func TestTCPServer(t *testing.T) {
+-	if syscall.OS != "openbsd" {
++	if runtime.GOOS != "openbsd" {
+ 		doTest(t, "tcp", "", "127.0.0.1")
+ 	}
+ 	doTest(t, "tcp", "0.0.0.0", "127.0.0.1")
+@@ -155,7 +154,7 @@ func TestUnixServer(t *testing.T) {
+ 	os.Remove("/tmp/gotest.net")
+ 	doTest(t, "unix", "/tmp/gotest.net", "/tmp/gotest.net")
+ 	os.Remove("/tmp/gotest.net")
+-	if syscall.OS == "linux" {
++	if runtime.GOOS == "linux" {
+ 		doTest(t, "unixpacket", "/tmp/gotest.net", "/tmp/gotest.net")
+ 		os.Remove("/tmp/gotest.net")
+ 		// Test abstract unix domain socket, a Linux-ism
+@@ -237,7 +236,7 @@ func TestUnixDatagramServer(t *testing.T) {
+ 		doTestPacket(t, "unixgram", "/tmp/gotest1.net", "/tmp/gotest1.net", isEmpty)
+ 		os.Remove("/tmp/gotest1.net")
+ 		os.Remove("/tmp/gotest1.net.local")
+-		if syscall.OS == "linux" {
++		if runtime.GOOS == "linux" {
+ 			// Test abstract unix domain socket, a Linux-ism
+ 			doTestPacket(t, "unixgram", "@gotest1/net", "@gotest1/net", isEmpty)
+ 		}
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 2a666f780e..ec8c50986f 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -11,8 +11,8 @@ import (
+ 	"io/ioutil"
+ 	. "os"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+-	"syscall"
+ 	"testing"
+ 	"time"
+ )
+@@ -35,7 +35,7 @@ type sysDir struct {
+ }
+ 
+ var sysdir = func() (sd *sysDir) {
+-	switch syscall.OS {
++	switch runtime.GOOS {
+ 	case "windows":
+ 		sd = &sysDir{
+ 			Getenv("SystemRoot") + "\\system32\\drivers\\etc",
+@@ -89,7 +89,7 @@ func size(name string, t *testing.T) int64 {
+ }
+ 
+ func equal(name1, name2 string) (r bool) {
+-	switch syscall.OS {
++	switch runtime.GOOS {
+ 	case "windows":
+ 		r = strings.ToLower(name1) == strings.ToLower(name2)
+ 	default:
+@@ -103,7 +103,7 @@ func newFile(testName string, t *testing.T) (f *File) {
+ 	// On Unix, override $TMPDIR in case the user
+ 	// has it set to an NFS-mounted directory.
+ 	dir := ""
+-	if syscall.OS != "windows" {
++	if runtime.GOOS != "windows" {
+ 		dir = "/tmp"
+ 	}
+ 	f, err := ioutil.TempFile(dir, "_Go_"+testName)
+@@ -278,7 +278,7 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
+ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 	// big directory that doesn't change often.
+ 	dir := "/usr/bin"
+-	switch syscall.OS {
++	switch runtime.GOOS {
+ 	case "windows":
+ 		dir = Getenv("SystemRoot") + "\\system32"
+ 	case "plan9":
+@@ -382,7 +382,7 @@ func TestReaddirNValues(t *testing.T) {
+ 
+ func TestHardLink(t *testing.T) {
+ 	// Hardlinks are not supported under windows or Plan 9.
+-	if syscall.OS == "windows" || syscall.OS == "plan9" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	from, to := "hardlinktestfrom", "hardlinktestto"
+@@ -415,7 +415,7 @@ func TestHardLink(t *testing.T) {
+ 
+ func TestSymLink(t *testing.T) {
+ 	// Symlinks are not supported under windows or Plan 9.
+-	if syscall.OS == "windows" || syscall.OS == "plan9" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	from, to := "symlinktestfrom", "symlinktestto"
+@@ -477,7 +477,7 @@ func TestSymLink(t *testing.T) {
+ 
+ func TestLongSymlink(t *testing.T) {
+ 	// Symlinks are not supported under windows or Plan 9.
+-	if syscall.OS == "windows" || syscall.OS == "plan9" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	s := "0123456789abcdef"
+@@ -547,7 +547,7 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
+ func TestStartProcess(t *testing.T) {
+ 	var dir, cmd, le string
+ 	var args []string
+-	if syscall.OS == "windows" {
++	if runtime.GOOS == "windows" {
+ 		le = "\r\n"
+ 		cmd = Getenv("COMSPEC")
+ 		dir = Getenv("SystemRoot")
+@@ -578,7 +578,7 @@ func checkMode(t *testing.T, path string, mode FileMode) {
+ 
+ func TestChmod(t *testing.T) {
+ 	// Chmod is not supported under windows.
+-	if syscall.OS == "windows" {
++	if runtime.GOOS == "windows" {
+ 		return
+ 	}
+ 	f := newFile("TestChmod", t)
+@@ -680,7 +680,7 @@ func TestChtimes(t *testing.T) {
+ 	*/
+ 	pat := Atime(postStat)
+ 	pmt := postStat.ModTime()
+-	if !pat.Before(at) && syscall.OS != "plan9" {
++	if !pat.Before(at) && runtime.GOOS != "plan9" {
+ 		t.Errorf("AccessTime didn't go backwards; was=%d, after=%d", at, pat)
+ 	}
+ 
+@@ -691,7 +691,7 @@ func TestChtimes(t *testing.T) {
+ 
+ func TestChdirAndGetwd(t *testing.T) {
+ 	// TODO(brainman): file.Chdir() is not implemented on windows.
+-	if syscall.OS == "windows" {
++	if runtime.GOOS == "windows" {
+ 		return
+ 	}
+ 	fd, err := Open(".")
+@@ -702,7 +702,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 	// (unlike, say, /var, /etc, and /tmp).
+ 	dirs := []string{"/", "/usr/bin"}
+ 	// /usr/bin does not usually exist on Plan 9.
+-	if syscall.OS == "plan9" {
++	if runtime.GOOS == "plan9" {
+ 		dirs = []string{"/", "/usr"}
+ 	}
+ 	for mode := 0; mode < 2; mode++ {
+@@ -830,7 +830,7 @@ func TestOpenError(t *testing.T) {
+ 			t.Errorf("Open(%q, %d) returns error of %T type; want *PathError", tt.path, tt.mode, err)
+ 		}
+ 		if perr.Err != tt.error {
+-			if syscall.OS == "plan9" {
++			if runtime.GOOS == "plan9" {
+ 				syscallErrStr := perr.Err.Error()
+ 				expectedErrStr := strings.Replace(tt.error.Error(), "file ", "", 1)
+ 				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
+@@ -888,7 +888,7 @@ func run(t *testing.T, cmd []string) string {
+ func TestHostname(t *testing.T) {
+ 	// There is no other way to fetch hostname on windows, but via winapi.
+ 	// On Plan 9 it is can be taken from #c/sysname as Hostname() does.
+-	if syscall.OS == "windows" || syscall.OS == "plan9" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/os/os_unix_test.go b/src/pkg/os/os_unix_test.go
+index 1f800d78cc..1bdcd748bc 100644
+--- a/src/pkg/os/os_unix_test.go
++++ b/src/pkg/os/os_unix_test.go
+@@ -8,6 +8,7 @@ package os_test
+ 
+ import (
+ 	. "os"
++	"runtime"
+ 	"syscall"
+ 	"testing"
+ )
+@@ -29,7 +30,7 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
+ func TestChown(t *testing.T) {
+ 	// Chown is not supported under windows or Plan 9.
+ 	// Plan9 provides a native ChownPlan9 version instead.
+-	if syscall.OS == "windows" || syscall.OS == "plan9" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	// Use TempDir() to make sure we're on a local file system,
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 89d66c29ef..18634ba410 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -8,7 +8,6 @@ import (
+ 	. "os"
+ 	"path/filepath"
+ 	"runtime"
+-	"syscall"
+ 	"testing"
+ )
+ 
+@@ -63,7 +62,7 @@ func TestMkdirAll(t *testing.T) {
+ 		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", ffpath, filepath.Clean(perr.Path), filepath.Clean(fpath))
+ 	}
+ 
+-	if syscall.OS == "windows" {
++	if runtime.GOOS == "windows" {
+ 		path := `_test\_TestMkdirAll_\dir\.\dir2\`
+ 		err := MkdirAll(path, 0777)
+ 		if err != nil {
+@@ -117,7 +116,7 @@ func TestRemoveAll(t *testing.T) {
+ 
+ 	// Determine if we should run the following test.
+ 	testit := true
+-	if syscall.OS == "windows" {
++	if runtime.GOOS == "windows" {
+ 		// Chmod is not supported under windows.
+ 		testit = false
+ 	} else {
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index ed009d25ce..68a6cd45ad 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -8,7 +8,6 @@ TARG=syscall
+ GOFILES=\
+ 	str.go\
+ 	syscall.go\
+-	syscall_$(GOARCH).go\
+ 	syscall_$(GOOS).go\
+ 	syscall_$(GOOS)_$(GOARCH).go\
+ 	zerrors_$(GOOS)_$(GOARCH).go\
+diff --git a/src/pkg/syscall/exec_bsd.go b/src/pkg/syscall/exec_bsd.go
+index 2240727f14..fc72c9af8c 100644
+--- a/src/pkg/syscall/exec_bsd.go
++++ b/src/pkg/syscall/exec_bsd.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"runtime"
+ 	"unsafe"
+ )
+ 
+@@ -41,7 +42,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// guard against side effects of shuffling fds below.
+ 	fd := append([]int(nil), attr.Files...)
+ 
+-	darwin := OS == "darwin"
++	darwin := runtime.GOOS == "darwin"
+ 
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index 59696732c5..ad3cf48c80 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -9,6 +9,7 @@
+ package syscall
+ 
+ import (
++	"runtime"
+ 	"sync"
+ 	"unsafe"
+ )
+@@ -131,7 +132,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ 	argvp := StringSlicePtr(argv)
+ 	envvp := StringSlicePtr(attr.Env)
+ 
+-	if OS == "freebsd" && len(argv[0]) > len(argv0) {
++	if runtime.GOOS == "freebsd" && len(argv[0]) > len(argv0) {
+ 		argvp[0] = argv0p
+ 	}
+ 
+diff --git a/src/pkg/syscall/syscall_386.go b/src/pkg/syscall/syscall_386.go
+deleted file mode 100644
+index cb948b87a2..0000000000
+--- a/src/pkg/syscall/syscall_386.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-const ARCH = "386"
+diff --git a/src/pkg/syscall/syscall_amd64.go b/src/pkg/syscall/syscall_amd64.go
+deleted file mode 100644
+index 75c3eac6f2..0000000000
+--- a/src/pkg/syscall/syscall_amd64.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-const ARCH = "amd64"
+diff --git a/src/pkg/syscall/syscall_arm.go b/src/pkg/syscall/syscall_arm.go
+deleted file mode 100644
+index b9d1ca0c08..0000000000
+--- a/src/pkg/syscall/syscall_arm.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-const ARCH = "arm"
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 00c2d34c7d..16f20981cc 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -12,7 +12,10 @@
+ 
+ package syscall
+ 
+-import "unsafe"
++import (
++	"runtime"
++	"unsafe"
++)
+ 
+ /*
+  * Pseudo-system calls
+@@ -554,7 +557,7 @@ func Sysctl(name string) (value string, err error) {
+ 		// Work around a bug that was fixed after OpenBSD 5.0.
+ 		// The length for kern.hostname and kern.domainname is always
+ 		// returned as 0 when a nil value is passed for oldp.
+-		if OS == "openbsd" && (name == "kern.hostname" || name == "kern.domainname") {
++		if runtime.GOOS == "openbsd" && (name == "kern.hostname" || name == "kern.domainname") {
+ 			// MAXHOSTNAMELEN
+ 			n = 256
+ 		} else {
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index fbef0e114c..cf876ed649 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -14,8 +14,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const OS = "darwin"
+-
+ type SockaddrDatalink struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 4962c74669..5be16da965 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -14,8 +14,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const OS = "freebsd"
+-
+ type SockaddrDatalink struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 3a1331c71c..d0e16271d5 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -13,8 +13,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const OS = "linux"
+-
+ /*
+  * Wrapped
+  */
+diff --git a/src/pkg/syscall/syscall_netbsd.go b/src/pkg/syscall/syscall_netbsd.go
+index fcbf6157b8..77ca9501b7 100644
+--- a/src/pkg/syscall/syscall_netbsd.go
++++ b/src/pkg/syscall/syscall_netbsd.go
+@@ -14,8 +14,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const OS = "netbsd"
+-
+ type SockaddrDatalink struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/pkg/syscall/syscall_openbsd.go b/src/pkg/syscall/syscall_openbsd.go
+index 16247e982c..adbbf3dd26 100644
+--- a/src/pkg/syscall/syscall_openbsd.go
++++ b/src/pkg/syscall/syscall_openbsd.go
+@@ -14,8 +14,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const OS = "openbsd"
+-
+ type SockaddrDatalink struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 292847d6ce..cd348f890d 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -13,8 +13,6 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const OS = "plan9"
+-
+ const ImplementsGetwd = true
+ 
+ // ErrorString implements Error's String method by returning itself.
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index 9cc9bc3c16..cc1e4f7aa8 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"runtime"
+ 	"sync"
+ 	"unsafe"
+ )
+@@ -17,7 +18,7 @@ var (
+ 	Stderr = 2
+ )
+ 
+-const darwinAMD64 = OS == "darwin" && ARCH == "amd64"
++const darwinAMD64 = runtime.GOOS == "darwin" && runtime.GOARCH == "amd64"
+ 
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 441cc3747b..b77a0779c5 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -11,8 +11,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-const OS = "windows"
+-
+ type Handle uintptr
+ 
+ const InvalidHandle = ^Handle(0)

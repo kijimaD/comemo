@@ -23,7 +23,95 @@ Date:   Mon Mar 28 04:13:24 2022 +0000
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/io/ioutil/ioutil.go   | 14 +++++++-------
  src/io/ioutil/tempfile.go |  4 ++--
  2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/io/ioutil/ioutil.go b/src/io/ioutil/ioutil.go
+index 45682b89c9..9921c2ae50 100644
+--- a/src/io/ioutil/ioutil.go
++++ b/src/io/ioutil/ioutil.go
+@@ -4,7 +4,7 @@
+ 
+ // Package ioutil implements some I/O utility functions.
+ //
+-// As of Go 1.16, the same functionality is now provided
++// Deprecated: As of Go 1.16, the same functionality is now provided
+ // by package io or package os, and those implementations
+ // should be preferred in new code.
+ // See the specific function documentation for details.
+@@ -22,7 +22,7 @@ import (
+ // defined to read from src until EOF, it does not treat an EOF from Read
+ // as an error to be reported.
+ //
+-// As of Go 1.16, this function simply calls io.ReadAll.
++// Deprecated: As of Go 1.16, this function simply calls io.ReadAll.
+ func ReadAll(r io.Reader) ([]byte, error) {
+ 	return io.ReadAll(r)
+ }
+@@ -32,7 +32,7 @@ func ReadAll(r io.Reader) ([]byte, error) {
+ // reads the whole file, it does not treat an EOF from Read as an error
+ // to be reported.
+ //
+-// As of Go 1.16, this function simply calls os.ReadFile.
++// Deprecated: As of Go 1.16, this function simply calls os.ReadFile.
+ func ReadFile(filename string) ([]byte, error) {
+ 	return os.ReadFile(filename)
+ }
+@@ -41,7 +41,7 @@ func ReadFile(filename string) ([]byte, error) {
+ // If the file does not exist, WriteFile creates it with permissions perm
+ // (before umask); otherwise WriteFile truncates it before writing, without changing permissions.
+ //
+-// As of Go 1.16, this function simply calls os.WriteFile.
++// Deprecated: As of Go 1.16, this function simply calls os.WriteFile.
+ func WriteFile(filename string, data []byte, perm fs.FileMode) error {
+ 	return os.WriteFile(filename, data, perm)
+ }
+@@ -51,7 +51,7 @@ func WriteFile(filename string, data []byte, perm fs.FileMode) error {
+ // sorted by filename. If an error occurs reading the directory,
+ // ReadDir returns no directory entries along with the error.
+ //
+-// As of Go 1.16, os.ReadDir is a more efficient and correct choice:
++// Deprecated: As of Go 1.16, os.ReadDir is a more efficient and correct choice:
+ // it returns a list of fs.DirEntry instead of fs.FileInfo,
+ // and it returns partial results in the case of an error
+ // midway through reading a directory.
+@@ -72,7 +72,7 @@ func ReadDir(dirname string) ([]fs.FileInfo, error) {
+ // NopCloser returns a ReadCloser with a no-op Close method wrapping
+ // the provided Reader r.
+ //
+-// As of Go 1.16, this function simply calls io.NopCloser.
++// Deprecated: As of Go 1.16, this function simply calls io.NopCloser.
+ func NopCloser(r io.Reader) io.ReadCloser {
+ 	return io.NopCloser(r)
+ }
+@@ -80,5 +80,5 @@ func NopCloser(r io.Reader) io.ReadCloser {
+ // Discard is an io.Writer on which all Write calls succeed
+ // without doing anything.
+ //
+-// As of Go 1.16, this value is simply io.Discard.
++// Deprecated: As of Go 1.16, this value is simply io.Discard.
+ var Discard io.Writer = io.Discard
+diff --git a/src/io/ioutil/tempfile.go b/src/io/ioutil/tempfile.go
+index c43db2c080..0561ad5a27 100644
+--- a/src/io/ioutil/tempfile.go
++++ b/src/io/ioutil/tempfile.go
+@@ -20,7 +20,7 @@ import (
+ // to find the pathname of the file. It is the caller's responsibility
+ // to remove the file when no longer needed.
+ //
+-// As of Go 1.17, this function simply calls os.CreateTemp.
++// Deprecated: As of Go 1.17, this function simply calls os.CreateTemp.
+ func TempFile(dir, pattern string) (f *os.File, err error) {
+ 	return os.CreateTemp(dir, pattern)
+ }
+@@ -35,7 +35,7 @@ func TempFile(dir, pattern string) (f *os.File, err error) {
+ // will not choose the same directory. It is the caller's responsibility
+ // to remove the directory when no longer needed.
+ //
+-// As of Go 1.17, this function simply calls os.MkdirTemp.
++// Deprecated: As of Go 1.17, this function simply calls os.MkdirTemp.
+ func TempDir(dir, pattern string) (name string, err error) {
+ 	return os.MkdirTemp(dir, pattern)
+ }

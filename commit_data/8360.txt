@@ -9,7 +9,48 @@ Date:   Wed May 11 23:41:59 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4532045
-
+---
  src/cmd/gc/swt.c         |  5 ++++-
  test/fixedbugs/bug340.go | 17 +++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 6e8436c3c5..c2968c44bc 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -867,8 +867,11 @@ typecheckswitch(Node *n)
+ 				case Etype:	// type switch
+ 					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL))
+ 						;
+-					else if(ll->n->op != OTYPE && ll->n->type != T)
++					else if(ll->n->op != OTYPE && ll->n->type != T) {
+ 						yyerror("%#N is not a type", ll->n);
++						// reset to original type
++						ll->n = n->ntest->right;
++					}
+ 					break;
+ 				}
+ 			}
+diff --git a/test/fixedbugs/bug340.go b/test/fixedbugs/bug340.go
+new file mode 100644
+index 0000000000..461cc6cd41
+--- /dev/null
++++ b/test/fixedbugs/bug340.go
+@@ -0,0 +1,17 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1606.
++
++package main
++
++func main() {
++	var x interface{}
++	switch t := x.(type) { // ERROR "0 is not a type"
++	case 0:
++		t.x = 1 // ERROR "type interface \{ \}"
++	}
++}

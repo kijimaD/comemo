@@ -11,9 +11,89 @@ Date:   Wed Dec 7 16:18:50 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5432082
-
+---
  src/cmd/gc/const.c       |  8 ++++++--
  src/cmd/gc/unsafe.c      |  2 ++
  test/fixedbugs/bug379.go |  4 ++--
  test/fixedbugs/bug381.go | 20 ++++++++++++++++++++
  4 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 96abf1a655..dd4c4433be 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -842,8 +842,12 @@ unary:
+ 	}
+ 
+ ret:
+-	norig = n->orig;
+-	// rewrite n in place.
++	if(n == n->orig) {
++		// duplicate node for n->orig.
++		norig = nod(OLITERAL, N, N);
++		*norig = *n;
++	} else
++		norig = n->orig;
+ 	*n = *nl;
+ 	// restore value of n->orig.
+ 	n->orig = norig;
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index 21496b08cc..95200ad415 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -94,8 +94,10 @@ ret:
+ 	val.u.xval = mal(sizeof(*n->val.u.xval));
+ 	mpmovecfix(val.u.xval, v);
+ 	n = nod(OLITERAL, N, N);
++	n->orig = nn;
+ 	n->val = val;
+ 	n->type = types[TUINTPTR];
++	nn->type = types[TUINTPTR];
+ 	return n;
+ }
+ 
+diff --git a/test/fixedbugs/bug379.go b/test/fixedbugs/bug379.go
+index 9b93578e53..3dd3d2983b 100644
+--- a/test/fixedbugs/bug379.go
++++ b/test/fixedbugs/bug379.go
+@@ -7,12 +7,12 @@
+ // Issue 2452.
+ 
+ // Check that the error messages says 
+-//	bug378.go:17: 3 not used
++//	bug378.go:17: 1 + 2 not used
+ // and not
+ //	bug378.go:17: 1 not used
+ 
+ package main
+ 
+ func main() {
+-	1 + 2 // ERROR "3 not used|value computed is not used"
++	1 + 2 // ERROR "1 \+ 2 not used|value computed is not used"
+ }
+diff --git a/test/fixedbugs/bug381.go b/test/fixedbugs/bug381.go
+new file mode 100644
+index 0000000000..3f3232bf12
+--- /dev/null
++++ b/test/fixedbugs/bug381.go
+@@ -0,0 +1,20 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2276.
++
++// Check that the error messages says 
++//	bug378.go:19: unsafe.Alignof(0) not used
++// and not
++//	bug378.go:19: 4 not used
++
++package main
++
++import "unsafe"
++
++func main() {
++	unsafe.Alignof(0) // ERROR "unsafe\.Alignof|value computed is not used"
++}

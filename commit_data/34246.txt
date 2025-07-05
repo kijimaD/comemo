@@ -12,7 +12,37 @@ Date:   Wed Oct 11 14:41:25 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/70110
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/encoding/json/decode.go | 3 ++-
  src/encoding/json/encode.go | 4 ++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index bc3bd9733d..44f9035358 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -138,7 +138,8 @@ func (e *UnmarshalTypeError) Error() string {
+ 
+ // An UnmarshalFieldError describes a JSON object key that
+ // led to an unexported (and therefore unwritable) struct field.
+-// (No longer used; kept for compatibility.)
++//
++// Deprecated: No longer used; kept for compatibility.
+ type UnmarshalFieldError struct {
+ 	Key   string
+ 	Type  reflect.Type
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index d1dda9796a..3f7a8d0175 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -245,8 +245,8 @@ func (e *UnsupportedValueError) Error() string {
+ // attempting to encode a string value with invalid UTF-8 sequences.
+ // As of Go 1.2, Marshal instead coerces the string to valid UTF-8 by
+ // replacing invalid bytes with the Unicode replacement rune U+FFFD.
+-// This error is no longer generated but is kept for backwards compatibility
+-// with programs that might mention it.
++//
++// Deprecated: No longer used; kept for compatibility.
+ type InvalidUTF8Error struct {
+ 	S string // the whole string value that caused the error
+ }

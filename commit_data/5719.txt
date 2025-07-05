@@ -7,7 +7,32 @@ Date:   Tue Jun 29 09:48:35 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1737044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index db252bd694..3577cd92b6 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -60,6 +60,7 @@ Môshe van der Sterre <moshevds@gmail.com>
+ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
++Peter Mundy <go.peter.90@gmail.com>
+ Peter Williams <pwil3058@gmail.com>
+ Raif S. Naffah <go@naffah-raif.name>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 01ebfba368..f3bae984cc 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -99,6 +99,7 @@ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter McKenzie <petermck@google.com>
++Peter Mundy <go.peter.90@gmail.com>
+ Péter Szabó <pts@google.com>
+ Peter Williams <pwil3058@gmail.com>
+ Phil Pennock <pdp@golang.org>

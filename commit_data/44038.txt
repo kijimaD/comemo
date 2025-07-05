@@ -14,7 +14,63 @@ Date:   Tue Apr 28 01:18:29 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/csv/writer.go      | 16 +++++++++++++++-
  src/encoding/csv/writer_test.go | 17 +++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/csv/writer.go b/src/encoding/csv/writer.go
+index 3f34bc51db..ac64b4d54c 100644
+--- a/src/encoding/csv/writer.go
++++ b/src/encoding/csv/writer.go
+@@ -158,10 +158,24 @@ func (w *Writer) fieldNeedsQuotes(field string) bool {
+ 	if field == "" {
+ 		return false
+ 	}
+-	if field == `\.` || strings.ContainsRune(field, w.Comma) || strings.ContainsAny(field, "\"\r\n") {
++
++	if field == `\.` {
+ 		return true
+ 	}
+ 
++	if w.Comma < utf8.RuneSelf {
++		for i := 0; i < len(field); i++ {
++			c := field[i]
++			if c == '\n' || c == '\r' || c == '"' || c == byte(w.Comma) {
++				return true
++			}
++		}
++	} else {
++		if strings.ContainsRune(field, w.Comma) || strings.ContainsAny(field, "\"\r\n") {
++			return true
++		}
++	}
++
+ 	r1, _ := utf8.DecodeRuneInString(field)
+ 	return unicode.IsSpace(r1)
+ }
+diff --git a/src/encoding/csv/writer_test.go b/src/encoding/csv/writer_test.go
+index 011f01c172..ab28b0d7c3 100644
+--- a/src/encoding/csv/writer_test.go
++++ b/src/encoding/csv/writer_test.go
+@@ -93,3 +93,20 @@ func TestError(t *testing.T) {
+ 		t.Error("Error should not be nil")
+ 	}
+ }
++
++var benchmarkWriteData = [][]string{
++	{"abc", "def", "12356", "1234567890987654311234432141542132"},
++	{"abc", "def", "12356", "1234567890987654311234432141542132"},
++	{"abc", "def", "12356", "1234567890987654311234432141542132"},
++}
++
++func BenchmarkWrite(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		w := NewWriter(&bytes.Buffer{})
++		err := w.WriteAll(benchmarkWriteData)
++		if err != nil {
++			b.Fatal(err)
++		}
++		w.Flush()
++	}
++}

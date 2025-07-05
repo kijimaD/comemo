@@ -15,7 +15,7 @@ Date:   Thu May 21 17:51:34 2015 -0400
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go        | 5 ++++-
  src/cmd/compile/internal/arm64/peep.go | 4 ++--
  src/cmd/internal/obj/arm64/asm7.go     | 4 ++--
@@ -23,3 +23,100 @@ Date:   Thu May 21 17:51:34 2015 -0400
  src/cmd/internal/obj/util.go           | 4 ++--
  src/cmd/internal/obj/x86/obj6.go       | 3 ---
  6 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 725c6352cb..d5d2772ef3 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -493,7 +493,10 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			if arch.IsARM64STLXR(op) {
+ 				prog.From = a[0]
+ 				prog.To = a[1]
+-				prog.To2 = a[2]
++				if a[2].Type != obj.TYPE_REG {
++					p.errorf("invalid addressing modes for third operand to %s instruction, must be register", obj.Aconv(op))
++				}
++				prog.RegTo2 = a[2].Reg
+ 				break
+ 			}
+ 			prog.From = a[0]
+diff --git a/src/cmd/compile/internal/arm64/peep.go b/src/cmd/compile/internal/arm64/peep.go
+index 1c3b2891aa..3dbccb70b2 100644
+--- a/src/cmd/compile/internal/arm64/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -422,9 +422,9 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		// 7g never generates a from3
+ 		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(&p.From3))
+ 	}
+-	if p.To2.Type != obj.TYPE_NONE {
++	if p.RegTo2 != obj.REG_NONE {
+ 		// 7g never generates a to2
+-		fmt.Printf("copyu: to2 (%v) not implemented\n", gc.Ctxt.Dconv(&p.To2))
++		fmt.Printf("copyu: RegTo2 (%v) not implemented\n", obj.Rconv(int(p.RegTo2)))
+ 	}
+ 
+ 	switch p.As {
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 6e00cb55ab..9e643932be 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2677,8 +2677,8 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 	case 59: /* stxr/stlxr */
+ 		o1 = opstore(ctxt, int(p.As))
+ 
+-		if p.To2.Type != obj.TYPE_NONE {
+-			o1 |= uint32(p.To2.Reg&31) << 16
++		if p.RegTo2 != obj.REG_NONE {
++			o1 |= uint32(p.RegTo2&31) << 16
+ 		} else {
+ 			o1 |= 0x1F << 16
+ 		}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index b0c7a55ca1..2fc12c1eb1 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -206,7 +206,6 @@ type Prog struct {
+ 	From     Addr
+ 	From3    Addr
+ 	To       Addr
+-	To2      Addr
+ 	Opt      interface{}
+ 	Forwd    *Prog
+ 	Pcond    *Prog
+@@ -217,6 +216,7 @@ type Prog struct {
+ 	Spadj    int32
+ 	As       int16
+ 	Reg      int16
++	RegTo2   int16 // 2nd register output operand
+ 	Mark     uint16
+ 	Optab    uint16
+ 	Scond    uint8
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 317ee4f14d..efecae62ac 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -327,8 +327,8 @@ func (p *Prog) String() string {
+ 	if p.To.Type != TYPE_NONE {
+ 		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To))
+ 	}
+-	if p.To2.Type != TYPE_NONE {
+-		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.To2))
++	if p.RegTo2 != REG_NONE {
++		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.RegTo2)))
+ 	}
+ 	return buf.String()
+ }
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 7a4fc128e6..4798c8f7fb 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -350,9 +350,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 		if p.From3.Name == obj.NAME_EXTERN {
+ 			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+ 		}
+-		if p.To2.Name == obj.NAME_EXTERN {
+-			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+-		}
+ 		var source *obj.Addr
+ 		if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+ 			if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {

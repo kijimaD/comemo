@@ -7,7 +7,7 @@ Date:   Mon Sep 17 17:25:26 2012 -0400
     R=dave, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6501134
-
+---
  src/cmd/8g/reg.c               | 1 -
  src/cmd/gc/closure.c           | 1 +
  src/cmd/gc/esc.c               | 1 +
@@ -16,3 +16,88 @@ Date:   Mon Sep 17 17:25:26 2012 -0400
  src/cmd/ld/go.c                | 1 +
  src/pkg/runtime/thread_plan9.c | 1 +
  7 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 98f3ee0d65..4ba9054ca9 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -147,7 +147,6 @@ regopt(Prog *firstp)
+ 		return;
+ 	}
+ 
+-	r1 = R;
+ 	firstr = R;
+ 	lastr = R;
+ 	
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index acf666c79e..cc44d7f6b0 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -252,6 +252,7 @@ walkclosure(Node *func, NodeList **init)
+ void
+ walkcallclosure(Node *n, NodeList **init)
+ {
++	USED(init);
+ 	if (n->op != OCALLFUNC || n->left->op != OCLOSURE) {
+ 		dump("walkcallclosure", n);
+ 		fatal("abuse of walkcallclosure");
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 282be9a5d4..bd197ab23e 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -949,6 +949,7 @@ esctag(EscState *e, Node *func)
+ 	Node *savefn;
+ 	NodeList *ll;
+ 	
++	USED(e);
+ 	func->esc = EscFuncTagged;
+ 	
+ 	// External functions must be assumed unsafe.
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 3739d0ea32..570bf641da 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -288,7 +288,7 @@ mpatoflt(Mpflt *a, char *as)
+ 	s = as;
+ 	base = -1;
+ 	while(base == -1) {
+-		switch(c = *s++) {
++		switch(*s++) {
+ 		case '-':
+ 		case '+':
+ 			break;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 9dbf1ec596..f38f58b9cc 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -471,6 +471,7 @@ typestruct(Type *t)
+ 	// Otherwise it will use a nil type word but still be usable
+ 	// by package runtime (because we always use the memory
+ 	// after the interface value, not the interface value itself).
++	USED(t);
+ 	return pkglookup("*reflect.commonType", weaktypepkg);
+ }
+ 
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 78f76bf121..28cf06b8bd 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -579,6 +579,7 @@ loaddynlinker(char *file, char *pkg, char *p, int n)
+ 	char *pend, *next, *dynlinker, *p0;
+ 
+ 	USED(file);
++	USED(pkg);
+ 	pend = p + n;
+ 	for(; p<pend; p=next) {
+ 		next = strchr(p, '\n');
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index 9898a65b28..5098864680 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -356,5 +356,6 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
+ void
+ runtime·badsignal(int32 sig)
+ {
++	USED(sig);
+ 	runtime·pwrite(2, badsignal, sizeof badsignal - 1, -1LL);
+ }

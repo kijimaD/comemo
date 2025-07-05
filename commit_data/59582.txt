@@ -14,7 +14,7 @@ Date:   Tue Mar 5 11:04:26 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/569338
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/devirtualize/pgo.go       | 36 +++++++++++-----------
  src/cmd/compile/internal/devirtualize/pgo_test.go  |  2 +-
  src/cmd/compile/internal/gc/main.go                |  6 ++--
@@ -25,3 +25,316 @@ Date:   Tue Mar 5 11:04:26 2024 -0500
  src/cmd/compile/internal/noder/unified.go          |  4 +--
  src/cmd/compile/internal/{pgo => pgoir}/irgraph.go |  4 ++-
  9 files changed, 36 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 5cc9fab54c..0a43135420 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -9,7 +9,7 @@ import (
+ 	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+-	"cmd/compile/internal/pgo"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -102,7 +102,7 @@ type CallStat struct {
+ //
+ // The primary benefit of this transformation is enabling inlining of the
+ // direct call.
+-func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
++func ProfileGuided(fn *ir.Func, p *pgoir.Profile) {
+ 	ir.CurFunc = fn
+ 
+ 	name := ir.LinkFuncName(fn)
+@@ -184,7 +184,7 @@ func ProfileGuided(fn *ir.Func, p *pgo.Profile) {
+ // Devirtualize interface call if possible and eligible. Returns the new
+ // ir.Node if call was devirtualized, and if so also the callee and weight of
+ // the devirtualized edge.
+-func maybeDevirtualizeInterfaceCall(p *pgo.Profile, fn *ir.Func, call *ir.CallExpr) (ir.Node, *ir.Func, int64) {
++func maybeDevirtualizeInterfaceCall(p *pgoir.Profile, fn *ir.Func, call *ir.CallExpr) (ir.Node, *ir.Func, int64) {
+ 	if base.Debug.PGODevirtualize < 1 {
+ 		return nil, nil, 0
+ 	}
+@@ -214,13 +214,13 @@ func maybeDevirtualizeInterfaceCall(p *pgo.Profile, fn *ir.Func, call *ir.CallEx
+ // Devirtualize an indirect function call if possible and eligible. Returns the new
+ // ir.Node if call was devirtualized, and if so also the callee and weight of
+ // the devirtualized edge.
+-func maybeDevirtualizeFunctionCall(p *pgo.Profile, fn *ir.Func, call *ir.CallExpr) (ir.Node, *ir.Func, int64) {
++func maybeDevirtualizeFunctionCall(p *pgoir.Profile, fn *ir.Func, call *ir.CallExpr) (ir.Node, *ir.Func, int64) {
+ 	if base.Debug.PGODevirtualize < 2 {
+ 		return nil, nil, 0
+ 	}
+ 
+ 	// Bail if this is a direct call; no devirtualization necessary.
+-	callee := pgo.DirectCallee(call.Fun)
++	callee := pgoir.DirectCallee(call.Fun)
+ 	if callee != nil {
+ 		return nil, nil, 0
+ 	}
+@@ -309,7 +309,7 @@ func shouldPGODevirt(fn *ir.Func) bool {
+ 					fmt.Printf("%v: should not PGO devirtualize %v: %s\n", ir.Line(fn), ir.FuncName(fn), reason)
+ 				}
+ 				if logopt.Enabled() {
+-					logopt.LogOpt(fn.Pos(), ": should not PGO devirtualize function", "pgo-devirtualize", ir.FuncName(fn), reason)
++					logopt.LogOpt(fn.Pos(), ": should not PGO devirtualize function", "pgoir-devirtualize", ir.FuncName(fn), reason)
+ 				}
+ 			}
+ 		}()
+@@ -336,7 +336,7 @@ func shouldPGODevirt(fn *ir.Func) bool {
+ // constructCallStat builds an initial CallStat describing this call, for
+ // logging. If the call is devirtualized, the devirtualization fields should be
+ // updated.
+-func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallExpr) *CallStat {
++func constructCallStat(p *pgoir.Profile, fn *ir.Func, name string, call *ir.CallExpr) *CallStat {
+ 	switch call.Op() {
+ 	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
+ 	default:
+@@ -350,9 +350,9 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
+ 		Caller: name,
+ 	}
+ 
+-	offset := pgo.NodeLineOffset(call, fn)
++	offset := pgoir.NodeLineOffset(call, fn)
+ 
+-	hotter := func(e *pgo.IREdge) bool {
++	hotter := func(e *pgoir.IREdge) bool {
+ 		if stat.Hottest == "" {
+ 			return true
+ 		}
+@@ -384,7 +384,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
+ 	case ir.OCALLFUNC:
+ 		stat.Interface = false
+ 
+-		callee := pgo.DirectCallee(call.Fun)
++		callee := pgoir.DirectCallee(call.Fun)
+ 		if callee != nil {
+ 			stat.Direct = true
+ 			if stat.Hottest == "" {
+@@ -651,12 +651,12 @@ func interfaceCallRecvTypeAndMethod(call *ir.CallExpr) (*types.Type, *types.Sym)
+ // if available, and its edge weight. extraFn can perform additional
+ // applicability checks on each candidate edge. If extraFn returns false,
+ // candidate will not be considered a valid callee candidate.
+-func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr, extraFn func(callerName string, callOffset int, candidate *pgo.IREdge) bool) (*ir.Func, int64) {
++func findHotConcreteCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr, extraFn func(callerName string, callOffset int, candidate *pgoir.IREdge) bool) (*ir.Func, int64) {
+ 	callerName := ir.LinkFuncName(caller)
+ 	callerNode := p.WeightedCG.IRNodes[callerName]
+-	callOffset := pgo.NodeLineOffset(call, caller)
++	callOffset := pgoir.NodeLineOffset(call, caller)
+ 
+-	var hottest *pgo.IREdge
++	var hottest *pgoir.IREdge
+ 
+ 	// Returns true if e is hotter than hottest.
+ 	//
+@@ -664,7 +664,7 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr, e
+ 	// has arbitrary iteration order, we need to apply additional sort
+ 	// criteria when e.Weight == hottest.Weight to ensure we have stable
+ 	// selection.
+-	hotter := func(e *pgo.IREdge) bool {
++	hotter := func(e *pgoir.IREdge) bool {
+ 		if hottest == nil {
+ 			return true
+ 		}
+@@ -747,10 +747,10 @@ func findHotConcreteCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr, e
+ 
+ // findHotConcreteInterfaceCallee returns the *ir.Func of the hottest callee of an
+ // interface call, if available, and its edge weight.
+-func findHotConcreteInterfaceCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
++func findHotConcreteInterfaceCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
+ 	inter, method := interfaceCallRecvTypeAndMethod(call)
+ 
+-	return findHotConcreteCallee(p, caller, call, func(callerName string, callOffset int, e *pgo.IREdge) bool {
++	return findHotConcreteCallee(p, caller, call, func(callerName string, callOffset int, e *pgoir.IREdge) bool {
+ 		ctyp := methodRecvType(e.Dst.AST)
+ 		if ctyp == nil {
+ 			// Not a method.
+@@ -795,10 +795,10 @@ func findHotConcreteInterfaceCallee(p *pgo.Profile, caller *ir.Func, call *ir.Ca
+ 
+ // findHotConcreteFunctionCallee returns the *ir.Func of the hottest callee of an
+ // indirect function call, if available, and its edge weight.
+-func findHotConcreteFunctionCallee(p *pgo.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
++func findHotConcreteFunctionCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr) (*ir.Func, int64) {
+ 	typ := call.Fun.Type().Underlying()
+ 
+-	return findHotConcreteCallee(p, caller, call, func(callerName string, callOffset int, e *pgo.IREdge) bool {
++	return findHotConcreteCallee(p, caller, call, func(callerName string, callOffset int, e *pgoir.IREdge) bool {
+ 		ctyp := e.Dst.AST.Type().Underlying()
+ 
+ 		// If ctyp doesn't match typ it is most likely from a different
+diff --git a/src/cmd/compile/internal/devirtualize/pgo_test.go b/src/cmd/compile/internal/devirtualize/pgo_test.go
+index 6ba8e9f907..cff4d63d51 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo_test.go
++++ b/src/cmd/compile/internal/devirtualize/pgo_test.go
+@@ -7,7 +7,7 @@ package devirtualize
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	pgoir "cmd/compile/internal/pgo"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 7e5069fced..130feafb24 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -17,7 +17,7 @@ import (
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/loopvar"
+ 	"cmd/compile/internal/noder"
+-	"cmd/compile/internal/pgo"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/pkginit"
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/rttype"
+@@ -215,10 +215,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	// Read profile file and build profile-graph and weighted-call-graph.
+ 	base.Timer.Start("fe", "pgo-load-profile")
+-	var profile *pgo.Profile
++	var profile *pgoir.Profile
+ 	if base.Flag.PgoProfile != "" {
+ 		var err error
+-		profile, err = pgo.New(base.Flag.PgoProfile)
++		profile, err = pgoir.New(base.Flag.PgoProfile)
+ 		if err != nil {
+ 			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
+ 		}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 33f454083f..a17562596f 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -36,7 +36,7 @@ import (
+ 	"cmd/compile/internal/inline/inlheur"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+-	pgoir "cmd/compile/internal/pgo"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+index 36ebe18b82..203578726e 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+@@ -6,7 +6,7 @@ package inlheur
+ 
+ import (
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/pgo"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/typecheck"
+ 	"fmt"
+ 	"os"
+@@ -220,7 +220,7 @@ func (cstb *callSiteTableBuilder) nodeVisitPre(n ir.Node) {
+ 		}
+ 	case ir.OCALLFUNC:
+ 		ce := n.(*ir.CallExpr)
+-		callee := pgo.DirectCallee(ce.Fun)
++		callee := pgoir.DirectCallee(ce.Fun)
+ 		if callee != nil && callee.Inl != nil {
+ 			cstb.addCallSite(callee, ce)
+ 		}
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index 3de95d46b4..3ef7c9b79a 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -7,7 +7,7 @@ package inlheur
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/pgo"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/types"
+ 	"fmt"
+ 	"os"
+@@ -638,7 +638,7 @@ var allCallSites CallSiteTab
+ // of the function called, "CallerPos" is the position of the
+ // callsite, and "ScoreFlags" is a digest of the specific properties
+ // we used to make adjustments to callsite score via heuristics.
+-func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func, profile *pgo.Profile) (int32, bool)) {
++func DumpInlCallSiteScores(profile *pgoir.Profile, budgetCallback func(fn *ir.Func, profile *pgoir.Profile) (int32, bool)) {
+ 
+ 	var indirectlyDueToPromotion func(cs *CallSite) bool
+ 	indirectlyDueToPromotion = func(cs *CallSite) bool {
+diff --git a/src/cmd/compile/internal/inline/interleaved/interleaved.go b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+index e55b0f1aee..9b2efd7f27 100644
+--- a/src/cmd/compile/internal/inline/interleaved/interleaved.go
++++ b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+@@ -12,14 +12,14 @@ import (
+ 	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/inline/inlheur"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/pgo"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/typecheck"
+ 	"fmt"
+ )
+ 
+ // DevirtualizeAndInlinePackage interleaves devirtualization and inlining on
+ // all functions within pkg.
+-func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
++func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
+ 	if profile != nil && base.Debug.PGODevirtualize > 0 {
+ 		// TODO(mdempsky): Integrate into DevirtualizeAndInlineFunc below.
+ 		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
+@@ -34,7 +34,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
+ 		inlheur.SetupScoreAdjustments()
+ 	}
+ 
+-	var inlProfile *pgo.Profile // copy of profile for inlining
++	var inlProfile *pgoir.Profile // copy of profile for inlining
+ 	if base.Debug.PGOInline != 0 {
+ 		inlProfile = profile
+ 	}
+@@ -66,7 +66,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
+ 
+ // DevirtualizeAndInlineFunc interleaves devirtualization and inlining
+ // on a single function.
+-func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgo.Profile) {
++func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
+ 	ir.WithFunc(fn, func() {
+ 		if base.Flag.LowerL != 0 {
+ 			if inlheur.Enabled() && !fn.Wrapper() {
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 492b00d256..da04ac5a2a 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -15,7 +15,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/pgo"
++	"cmd/compile/internal/pgoir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/compile/internal/types2"
+@@ -175,7 +175,7 @@ func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
+ func unified(m posMap, noders []*noder) {
+ 	inline.InlineCall = unifiedInlineCall
+ 	typecheck.HaveInlineBody = unifiedHaveInlineBody
+-	pgo.LookupFunc = LookupFunc
++	pgoir.LookupFunc = LookupFunc
+ 
+ 	data := writePkgStub(m, noders)
+ 
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgoir/irgraph.go
+similarity index 99%
+rename from src/cmd/compile/internal/pgo/irgraph.go
+rename to src/cmd/compile/internal/pgoir/irgraph.go
+index 418066f8ff..cb4333e6d7 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgoir/irgraph.go
+@@ -38,7 +38,9 @@
+ // //line directives that change line numbers in strange ways should be rare,
+ // and failing PGO matching on these files is not too big of a loss.
+ 
+-package pgo
++// Package pgoir assosciates a PGO profile with the IR of the current package
++// compilation.
++package pgoir
+ 
+ import (
+ 	"bufio"

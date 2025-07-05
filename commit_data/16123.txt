@@ -10,6 +10,20 @@ Date:   Sun Apr 7 11:16:15 2013 -0700
     R=golang-dev, iant, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/8355045
-
+---
  src/lib9/tempdir_unix.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib9/tempdir_unix.c b/src/lib9/tempdir_unix.c
+index 7b7e58b4d0..99a7092b68 100644
+--- a/src/lib9/tempdir_unix.c
++++ b/src/lib9/tempdir_unix.c
+@@ -16,7 +16,7 @@ mktempdir(void)
+ 	char *tmp, *p;
+ 	
+ 	tmp = getenv("TMPDIR");
+-	if(tmp == nil)
++	if(tmp == nil || strlen(tmp) == 0)
+ 		tmp = "/var/tmp";
+ 	p = smprint("%s/go-link-XXXXXX", tmp);
+ 	if(mkdtemp(p) == nil)

@@ -15,8 +15,123 @@ Date:   Wed Oct 16 16:05:24 2019 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httptest/example_test.go | 22 +++++++++++++++++++++
  src/net/http/httptest/server.go       | 12 +++++++++++-
  src/net/http/httptest/server_test.go  | 36 +++++++++++++++++++++++++++++++++++
  3 files changed, 69 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/httptest/example_test.go b/src/net/http/httptest/example_test.go
+index e3d392130e..54e77dbb84 100644
+--- a/src/net/http/httptest/example_test.go
++++ b/src/net/http/httptest/example_test.go
+@@ -55,6 +55,28 @@ func ExampleServer() {
+ 	// Output: Hello, client
+ }
+ 
++func ExampleServer_hTTP2() {
++	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		fmt.Fprintf(w, "Hello, %s", r.Proto)
++	}))
++	ts.EnableHTTP2 = true
++	ts.StartTLS()
++	defer ts.Close()
++
++	res, err := ts.Client().Get(ts.URL)
++	if err != nil {
++		log.Fatal(err)
++	}
++	greeting, err := ioutil.ReadAll(res.Body)
++	res.Body.Close()
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Printf("%s", greeting)
++
++	// Output: Hello, HTTP/2.0
++}
++
+ func ExampleNewTLSServer() {
+ 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		fmt.Fprintln(w, "Hello, client")
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index b4e2e9266e..65165d9eb3 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -27,6 +27,11 @@ type Server struct {
+ 	URL      string // base URL of form http://ipaddr:port with no trailing slash
+ 	Listener net.Listener
+ 
++	// EnableHTTP2 controls whether HTTP/2 is enabled
++	// on the server. It must be set between calling
++	// NewUnstartedServer and calling Server.StartTLS.
++	EnableHTTP2 bool
++
+ 	// TLS is the optional TLS configuration, populated with a new config
+ 	// after TLS is started. If set on an unstarted server before StartTLS
+ 	// is called, existing fields are copied into the new config.
+@@ -151,7 +156,11 @@ func (s *Server) StartTLS() {
+ 		s.TLS = new(tls.Config)
+ 	}
+ 	if s.TLS.NextProtos == nil {
+-		s.TLS.NextProtos = []string{"http/1.1"}
++		nextProtos := []string{"http/1.1"}
++		if s.EnableHTTP2 {
++			nextProtos = []string{"h2"}
++		}
++		s.TLS.NextProtos = nextProtos
+ 	}
+ 	if len(s.TLS.Certificates) == 0 {
+ 		s.TLS.Certificates = []tls.Certificate{cert}
+@@ -166,6 +175,7 @@ func (s *Server) StartTLS() {
+ 		TLSClientConfig: &tls.Config{
+ 			RootCAs: certpool,
+ 		},
++		ForceAttemptHTTP2: s.EnableHTTP2,
+ 	}
+ 	s.Listener = tls.NewListener(s.Listener, s.TLS)
+ 	s.URL = "https://" + s.Listener.Addr().String()
+diff --git a/src/net/http/httptest/server_test.go b/src/net/http/httptest/server_test.go
+index 8ab50cdb0a..0aad15c5ed 100644
+--- a/src/net/http/httptest/server_test.go
++++ b/src/net/http/httptest/server_test.go
+@@ -202,3 +202,39 @@ func TestServerZeroValueClose(t *testing.T) {
+ 
+ 	ts.Close() // tests that it doesn't panic
+ }
++
++func TestTLSServerWithHTTP2(t *testing.T) {
++	modes := []struct {
++		name      string
++		wantProto string
++	}{
++		{"http1", "HTTP/1.1"},
++		{"http2", "HTTP/2.0"},
++	}
++
++	for _, tt := range modes {
++		t.Run(tt.name, func(t *testing.T) {
++			cst := NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++				w.Header().Set("X-Proto", r.Proto)
++			}))
++
++			switch tt.name {
++			case "http2":
++				cst.EnableHTTP2 = true
++				cst.StartTLS()
++			default:
++				cst.Start()
++			}
++
++			defer cst.Close()
++
++			res, err := cst.Client().Get(cst.URL)
++			if err != nil {
++				t.Fatalf("Failed to make request: %v", err)
++			}
++			if g, w := res.Header.Get("X-Proto"), tt.wantProto; g != w {
++				t.Fatalf("X-Proto header mismatch:\n\tgot:  %q\n\twant: %q", g, w)
++			}
++		})
++	}
++}

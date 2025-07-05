@@ -8,7 +8,142 @@ Date:   Sat May 30 01:03:40 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10558
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go      | 47 ++++++++++++++++++++--
  src/cmd/compile/internal/ssa/schedule_test.go | 57 +++++++++++++++++++++++++++
  2 files changed, 100 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 0a89ac3773..b93b0d8a45 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -20,7 +20,40 @@ func schedule(f *Func) {
+ 	var queue []*Value //stack-like worklist.  Contains found and expanded nodes.
+ 	var order []*Value
+ 
++	nextMem := make([]*Value, f.NumValues()) // maps mem values to the next live value
++	additionalEdges := make([][]*Value, f.NumValues())
+ 	for _, b := range f.Blocks {
++		// Set the nextMem values for this block.  If the previous
++		// write is from a different block, then its nextMem entry
++		// might have already been set during processing of an earlier
++		// block.  This loop resets the nextMem entries to be correct
++		// for this block.
++		for _, v := range b.Values {
++			if v.Type.IsMemory() {
++				for _, w := range v.Args {
++					if w.Type.IsMemory() {
++						nextMem[w.ID] = v
++					}
++				}
++			}
++		}
++		// Add a anti-dependency between each load v and the memory value n
++		// following the memory value that v loads from.
++		// This will enforce the single-live-mem restriction.
++		for _, v := range b.Values {
++			if v.Type.IsMemory() {
++				continue
++			}
++			for _, w := range v.Args {
++				if w.Type.IsMemory() && nextMem[w.ID] != nil {
++					// Filter for intra-block edges.
++					if n := nextMem[w.ID]; n.Block == b {
++						additionalEdges[n.ID] = append(additionalEdges[n.ID], v)
++					}
++				}
++			}
++		}
++
+ 		// Topologically sort the values in b.
+ 		order = order[:0]
+ 		for _, v := range b.Values {
+@@ -51,6 +84,12 @@ func schedule(f *Func) {
+ 							queue = append(queue, w)
+ 						}
+ 					}
++					for _, w := range additionalEdges[v.ID] {
++						if w.Block == b && w.Op != OpPhi && state[w.ID] == unmarked {
++							state[w.ID] = found
++							queue = append(queue, w)
++						}
++					}
+ 				case expanded:
+ 					queue = queue[:len(queue)-1]
+ 					state[v.ID] = done
+@@ -62,8 +101,8 @@ func schedule(f *Func) {
+ 		}
+ 		copy(b.Values, order)
+ 	}
+-	// TODO: only allow one live mem type and one live flags type (x86)
+-	// This restriction will force any loads (and any flag uses) to appear
+-	// before the next store (flag update).  This "anti-dependence" is not
+-	// recorded explicitly in ssa form.
++	// TODO: only allow one live flags type (x86)
++	// This restriction will force and any flag uses to appear before
++	// the next flag update.  This "anti-dependence" is not recorded
++	// explicitly in ssa form.
+ }
+diff --git a/src/cmd/compile/internal/ssa/schedule_test.go b/src/cmd/compile/internal/ssa/schedule_test.go
+new file mode 100644
+index 0000000000..4830f79628
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/schedule_test.go
+@@ -0,0 +1,57 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "testing"
++
++func TestSchedule(t *testing.T) {
++	c := NewConfig("amd64", DummyFrontend{})
++	cases := []fun{
++		Fun(c, "entry",
++			Bloc("entry",
++				Valu("mem0", OpArg, TypeMem, ".mem"),
++				Valu("ptr", OpConst, TypeInt64, 0xABCD),
++				Valu("v", OpConst, TypeInt64, 12),
++				Valu("mem1", OpStore, TypeMem, 32, "ptr", "v", "mem0"),
++				Valu("mem2", OpStore, TypeMem, 32, "ptr", "v", "mem1"),
++				Valu("mem3", OpStore, TypeInt64, "ptr", "sum", "mem2"),
++				Valu("l1", OpLoad, TypeInt64, 16, "ptr", "mem1"),
++				Valu("l2", OpLoad, TypeInt64, 8, "ptr", "mem2"),
++				Valu("sum", OpAdd, TypeInt64, "l1", "l2"),
++				Goto("exit")),
++			Bloc("exit",
++				Exit("mem3"))),
++	}
++	for _, c := range cases {
++		schedule(c.f)
++		if !isSingleLiveMem(c.f) {
++			t.Error("single-live-mem restriction not enforced by schedule for func:")
++			printFunc(c.f)
++		}
++	}
++}
++
++func isSingleLiveMem(f *Func) bool {
++	for _, b := range f.Blocks {
++		var liveMem *Value
++		for _, v := range b.Values {
++			for _, w := range v.Args {
++				if w.Type.IsMemory() {
++					if liveMem == nil {
++						liveMem = w
++						continue
++					}
++					if w != liveMem {
++						return false
++					}
++				}
++			}
++			if v.Type.IsMemory() {
++				liveMem = v
++			}
++		}
++	}
++	return true
++}

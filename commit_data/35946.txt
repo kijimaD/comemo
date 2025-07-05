@@ -15,7 +15,36 @@ Date:   Fri Mar 23 17:53:26 2018 +0300
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_freebsd.go     | 2 +-
  src/runtime/os_freebsd_arm.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index b09dc04433..fafe7f470b 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -380,7 +380,7 @@ func sysargs(argc int32, argv **byte) {
+ const (
+ 	_AT_NULL   = 0  // Terminates the vector
+ 	_AT_PAGESZ = 6  // Page size in bytes
+-	_AT_HWCAP  = 16 // CPU feature flags
++	_AT_HWCAP  = 26 // CPU feature flags
+ )
+ 
+ func sysauxv(auxv []uintptr) {
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index a8581b1c8e..f0d04244f3 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -10,8 +10,8 @@ const (
+ 	_HWCAP_IDIVA = 1 << 17
+ )
+ 
+-var hwcap uint32 // set by archauxv
+-var hardDiv bool // set if a hardware divider is available
++var hwcap = ^uint32(0) // set by archauxv
++var hardDiv bool       // set if a hardware divider is available
+ 
+ func checkgoarm() {
+ 	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {

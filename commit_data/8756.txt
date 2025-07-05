@@ -31,7 +31,7 @@ Date:   Thu Jun 16 13:02:28 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4620049
-
+---
  src/cmd/gofix/Makefile            |   1 +
  src/cmd/gofix/httpheaders.go      |  66 ++++++++++++++++++++++
  src/cmd/gofix/httpheaders_test.go |  73 +++++++++++++++++++++++++
@@ -51,3 +51,1006 @@ Date:   Thu Jun 16 13:02:28 2011 -0700
  src/pkg/http/reverseproxy_test.go |   4 +-
  src/pkg/http/server.go            |   2 +-
  18 files changed, 314 insertions(+), 225 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index d19de5c4f6..7504ddcbdf 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -11,6 +11,7 @@ GOFILES=\
+ 	main.go\
+ 	osopen.go\
+ 	httpfinalurl.go\
++	httpheaders.go\
+ 	httpserver.go\
+ 	procattr.go\
+ 	reflect.go\
+diff --git a/src/cmd/gofix/httpheaders.go b/src/cmd/gofix/httpheaders.go
+new file mode 100644
+index 0000000000..8a9080e8e3
+--- /dev/null
++++ b/src/cmd/gofix/httpheaders.go
+@@ -0,0 +1,66 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++var httpHeadersFix = fix{
++	"httpheaders",
++	httpheaders,
++	`Rename http Referer, UserAgent, Cookie, SetCookie, which are now methods.
++
++http://codereview.appspot.com/4620049/
++`,
++}
++
++func init() {
++	register(httpHeadersFix)
++}
++
++func httpheaders(f *ast.File) bool {
++	if !imports(f, "http") {
++		return false
++	}
++
++	called := make(map[ast.Node]bool)
++	walk(f, func(ni interface{}) {
++		switch n := ni.(type) {
++		case *ast.CallExpr:
++			called[n.Fun] = true
++		}
++	})
++
++	fixed := false
++	typeof := typecheck(headerTypeConfig, f)
++	walk(f, func(ni interface{}) {
++		switch n := ni.(type) {
++		case *ast.SelectorExpr:
++			if called[n] {
++				break
++			}
++			if t := typeof[n.X]; t != "*http.Request" && t != "*http.Response" {
++				break
++			}
++			switch n.Sel.Name {
++			case "Referer", "UserAgent":
++				n.Sel.Name += "()"
++				fixed = true
++			case "Cookie":
++				n.Sel.Name = "Cookies()"
++				fixed = true
++			}
++		}
++	})
++	return fixed
++}
++
++var headerTypeConfig = &TypeConfig{
++	Type: map[string]*Type{
++		"*http.Request":  &Type{},
++		"*http.Response": &Type{},
++	},
++}
+diff --git a/src/cmd/gofix/httpheaders_test.go b/src/cmd/gofix/httpheaders_test.go
+new file mode 100644
+index 0000000000..cc82b58936
+--- /dev/null
++++ b/src/cmd/gofix/httpheaders_test.go
+@@ -0,0 +1,73 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(httpHeadersTests)
++}
++
++var httpHeadersTests = []testCase{
++	{
++		Name: "httpheaders.0",
++		In: `package headertest
++
++import (
++	"http"
++)
++
++type Other struct {
++	Referer   string
++	UserAgent string
++	Cookie    []*http.Cookie
++}
++
++func f(req *http.Request, res *http.Response, other *Other) {
++	_ = req.Referer
++	_ = req.UserAgent
++	_ = req.Cookie
++
++	_ = res.Cookie
++
++	_ = other.Referer
++	_ = other.UserAgent
++	_ = other.Cookie
++
++	_ = req.Referer()
++	_ = req.UserAgent()
++	_ = req.Cookies()
++	_ = res.Cookies()
++}
++`,
++		Out: `package headertest
++
++import (
++	"http"
++)
++
++type Other struct {
++	Referer   string
++	UserAgent string
++	Cookie    []*http.Cookie
++}
++
++func f(req *http.Request, res *http.Response, other *Other) {
++	_ = req.Referer()
++	_ = req.UserAgent()
++	_ = req.Cookies()
++
++	_ = res.Cookies()
++
++	_ = other.Referer
++	_ = other.UserAgent
++	_ = other.Cookie
++
++	_ = req.Referer()
++	_ = req.UserAgent()
++	_ = req.Cookies()
++	_ = res.Cookies()
++}
++`,
++	},
++}
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index 1b091c18aa..05495bc0d8 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -123,7 +123,7 @@ func processFile(filename string, useStdin bool) os.Error {
+ 	newFile := file
+ 	fixed := false
+ 	for _, fix := range fixes {
+-		if allowed != nil && !allowed[fix.desc] {
++		if allowed != nil && !allowed[fix.name] {
+ 			continue
+ 		}
+ 		if fix.f(newFile) {
+diff --git a/src/pkg/http/cgi/child.go b/src/pkg/http/cgi/child.go
+index e1ad7ad322..8b74d70548 100644
+--- a/src/pkg/http/cgi/child.go
++++ b/src/pkg/http/cgi/child.go
+@@ -45,13 +45,6 @@ func envMap(env []string) map[string]string {
+ 	return m
+ }
+ 
+-// These environment variables are manually copied into Request
+-var skipHeader = map[string]bool{
+-	"HTTP_HOST":       true,
+-	"HTTP_REFERER":    true,
+-	"HTTP_USER_AGENT": true,
+-}
+-
+ // RequestFromMap creates an http.Request from CGI variables.
+ // The returned Request's Body field is not populated.
+ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
+@@ -73,8 +66,6 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
+ 	r.Header = http.Header{}
+ 
+ 	r.Host = params["HTTP_HOST"]
+-	r.Referer = params["HTTP_REFERER"]
+-	r.UserAgent = params["HTTP_USER_AGENT"]
+ 
+ 	if lenstr := params["CONTENT_LENGTH"]; lenstr != "" {
+ 		clen, err := strconv.Atoi64(lenstr)
+@@ -90,7 +81,7 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
+ 
+ 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
+ 	for k, v := range params {
+-		if !strings.HasPrefix(k, "HTTP_") || skipHeader[k] {
++		if !strings.HasPrefix(k, "HTTP_") || k == "HTTP_HOST" {
+ 			continue
+ 		}
+ 		r.Header.Add(strings.Replace(k[5:], "_", "-", -1), v)
+diff --git a/src/pkg/http/cgi/child_test.go b/src/pkg/http/cgi/child_test.go
+index d12947814e..eee043bc90 100644
+--- a/src/pkg/http/cgi/child_test.go
++++ b/src/pkg/http/cgi/child_test.go
+@@ -28,23 +28,19 @@ func TestRequest(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("RequestFromMap: %v", err)
+ 	}
+-	if g, e := req.UserAgent, "goclient"; e != g {
++	if g, e := req.UserAgent(), "goclient"; e != g {
+ 		t.Errorf("expected UserAgent %q; got %q", e, g)
+ 	}
+ 	if g, e := req.Method, "GET"; e != g {
+ 		t.Errorf("expected Method %q; got %q", e, g)
+ 	}
+-	if g, e := req.Header.Get("User-Agent"), ""; e != g {
+-		// Tests that we don't put recognized headers in the map
+-		t.Errorf("expected User-Agent %q; got %q", e, g)
+-	}
+ 	if g, e := req.Header.Get("Content-Type"), "text/xml"; e != g {
+ 		t.Errorf("expected Content-Type %q; got %q", e, g)
+ 	}
+ 	if g, e := req.ContentLength, int64(123); e != g {
+ 		t.Errorf("expected ContentLength %d; got %d", e, g)
+ 	}
+-	if g, e := req.Referer, "elsewhere"; e != g {
++	if g, e := req.Referer(), "elsewhere"; e != g {
+ 		t.Errorf("expected Referer %q; got %q", e, g)
+ 	}
+ 	if req.Header == nil {
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 7ab3f9247a..2be3ede774 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -16,7 +16,6 @@ package cgi
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"exec"
+ 	"fmt"
+ 	"http"
+@@ -106,20 +105,13 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		env = append(env, "HTTPS=on")
+ 	}
+ 
+-	if len(req.Cookie) > 0 {
+-		b := new(bytes.Buffer)
+-		for idx, c := range req.Cookie {
+-			if idx > 0 {
+-				b.Write([]byte("; "))
+-			}
+-			fmt.Fprintf(b, "%s=%s", c.Name, c.Value)
+-		}
+-		env = append(env, "HTTP_COOKIE="+b.String())
+-	}
+-
+ 	for k, v := range req.Header {
+ 		k = strings.Map(upperCaseAndUnderscore, k)
+-		env = append(env, "HTTP_"+k+"="+strings.Join(v, ", "))
++		joinStr := ", "
++		if k == "COOKIE" {
++			joinStr = "; "
++		}
++		env = append(env, "HTTP_"+k+"="+strings.Join(v, joinStr))
+ 	}
+ 
+ 	if req.ContentLength > 0 {
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 71b0370422..9478cfae1d 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -173,7 +173,7 @@ func (c *Client) doFollowingRedirects(ireq *Request) (r *Response, err os.Error)
+ 				// Add the Referer header.
+ 				lastReq := via[len(via)-1]
+ 				if lastReq.URL.Scheme != "https" {
+-					req.Referer = lastReq.URL.String()
++					req.Header.Set("Referer", lastReq.URL.String())
+ 				}
+ 
+ 				err = redirectChecker(req, via)
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 9ef81d9d4f..d6a9dec351 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -149,7 +149,7 @@ func TestRedirects(t *testing.T) {
+ 		n, _ := strconv.Atoi(r.FormValue("n"))
+ 		// Test Referer header. (7 is arbitrary position to test at)
+ 		if n == 7 {
+-			if g, e := r.Referer, ts.URL+"/?n=6"; e != g {
++			if g, e := r.Referer(), ts.URL+"/?n=6"; e != g {
+ 				t.Errorf("on request ?n=7, expected referer of %q; got %q", e, g)
+ 			}
+ 		}
+diff --git a/src/pkg/http/cookie.go b/src/pkg/http/cookie.go
+index eb61a7001e..29c4ea7e9a 100644
+--- a/src/pkg/http/cookie.go
++++ b/src/pkg/http/cookie.go
+@@ -7,9 +7,6 @@ package http
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"io"
+-	"os"
+-	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -40,11 +37,9 @@ type Cookie struct {
+ }
+ 
+ // readSetCookies parses all "Set-Cookie" values from
+-// the header h, removes the successfully parsed values from the 
+-// "Set-Cookie" key in h and returns the parsed Cookies.
++// the header h and returns the successfully parsed Cookies.
+ func readSetCookies(h Header) []*Cookie {
+ 	cookies := []*Cookie{}
+-	var unparsedLines []string
+ 	for _, line := range h["Set-Cookie"] {
+ 		parts := strings.Split(strings.TrimSpace(line), ";", -1)
+ 		if len(parts) == 1 && parts[0] == "" {
+@@ -53,17 +48,14 @@ func readSetCookies(h Header) []*Cookie {
+ 		parts[0] = strings.TrimSpace(parts[0])
+ 		j := strings.Index(parts[0], "=")
+ 		if j < 0 {
+-			unparsedLines = append(unparsedLines, line)
+ 			continue
+ 		}
+ 		name, value := parts[0][:j], parts[0][j+1:]
+ 		if !isCookieNameValid(name) {
+-			unparsedLines = append(unparsedLines, line)
+ 			continue
+ 		}
+ 		value, success := parseCookieValue(value)
+ 		if !success {
+-			unparsedLines = append(unparsedLines, line)
+ 			continue
+ 		}
+ 		c := &Cookie{
+@@ -134,75 +126,54 @@ func readSetCookies(h Header) []*Cookie {
+ 		}
+ 		cookies = append(cookies, c)
+ 	}
+-	h["Set-Cookie"] = unparsedLines, unparsedLines != nil
+ 	return cookies
+ }
+ 
+ // SetCookie adds a Set-Cookie header to the provided ResponseWriter's headers.
+ func SetCookie(w ResponseWriter, cookie *Cookie) {
+-	var b bytes.Buffer
+-	writeSetCookieToBuffer(&b, cookie)
+-	w.Header().Add("Set-Cookie", b.String())
++	w.Header().Add("Set-Cookie", cookie.String())
+ }
+ 
+-func writeSetCookieToBuffer(buf *bytes.Buffer, c *Cookie) {
+-	fmt.Fprintf(buf, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
++// String returns the serialization of the cookie for use in a Cookie
++// header (if only Name and Value are set) or a Set-Cookie response
++// header (if other fields are set).
++func (c *Cookie) String() string {
++	var b bytes.Buffer
++	fmt.Fprintf(&b, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
+ 	if len(c.Path) > 0 {
+-		fmt.Fprintf(buf, "; Path=%s", sanitizeValue(c.Path))
++		fmt.Fprintf(&b, "; Path=%s", sanitizeValue(c.Path))
+ 	}
+ 	if len(c.Domain) > 0 {
+-		fmt.Fprintf(buf, "; Domain=%s", sanitizeValue(c.Domain))
++		fmt.Fprintf(&b, "; Domain=%s", sanitizeValue(c.Domain))
+ 	}
+ 	if len(c.Expires.Zone) > 0 {
+-		fmt.Fprintf(buf, "; Expires=%s", c.Expires.Format(time.RFC1123))
++		fmt.Fprintf(&b, "; Expires=%s", c.Expires.Format(time.RFC1123))
+ 	}
+ 	if c.MaxAge > 0 {
+-		fmt.Fprintf(buf, "; Max-Age=%d", c.MaxAge)
++		fmt.Fprintf(&b, "; Max-Age=%d", c.MaxAge)
+ 	} else if c.MaxAge < 0 {
+-		fmt.Fprintf(buf, "; Max-Age=0")
++		fmt.Fprintf(&b, "; Max-Age=0")
+ 	}
+ 	if c.HttpOnly {
+-		fmt.Fprintf(buf, "; HttpOnly")
++		fmt.Fprintf(&b, "; HttpOnly")
+ 	}
+ 	if c.Secure {
+-		fmt.Fprintf(buf, "; Secure")
+-	}
+-}
+-
+-// writeSetCookies writes the wire representation of the set-cookies
+-// to w. Each cookie is written on a separate "Set-Cookie: " line.
+-// This choice is made because HTTP parsers tend to have a limit on
+-// line-length, so it seems safer to place cookies on separate lines.
+-func writeSetCookies(w io.Writer, kk []*Cookie) os.Error {
+-	if kk == nil {
+-		return nil
++		fmt.Fprintf(&b, "; Secure")
+ 	}
+-	lines := make([]string, 0, len(kk))
+-	var b bytes.Buffer
+-	for _, c := range kk {
+-		b.Reset()
+-		writeSetCookieToBuffer(&b, c)
+-		lines = append(lines, "Set-Cookie: "+b.String()+"\r\n")
+-	}
+-	sort.SortStrings(lines)
+-	for _, l := range lines {
+-		if _, err := io.WriteString(w, l); err != nil {
+-			return err
+-		}
+-	}
+-	return nil
++	return b.String()
+ }
+ 
+-// readCookies parses all "Cookie" values from
+-// the header h, removes the successfully parsed values from the 
+-// "Cookie" key in h and returns the parsed Cookies.
+-func readCookies(h Header) []*Cookie {
++// readCookies parses all "Cookie" values from the header h and
++// returns the successfully parsed Cookies.
++//
++// if filter isn't empty, only cookies of that name are returned
++func readCookies(h Header, filter string) []*Cookie {
+ 	cookies := []*Cookie{}
+ 	lines, ok := h["Cookie"]
+ 	if !ok {
+ 		return cookies
+ 	}
+-	unparsedLines := []string{}
++Lines:
+ 	for _, line := range lines {
+ 		parts := strings.Split(strings.TrimSpace(line), ";", -1)
+ 		if len(parts) == 1 && parts[0] == "" {
+@@ -215,50 +186,27 @@ func readCookies(h Header) []*Cookie {
+ 			if len(parts[i]) == 0 {
+ 				continue
+ 			}
+-			attr, val := parts[i], ""
+-			if j := strings.Index(attr, "="); j >= 0 {
+-				attr, val = attr[:j], attr[j+1:]
++			name, val := parts[i], ""
++			if j := strings.Index(name, "="); j >= 0 {
++				name, val = name[:j], name[j+1:]
+ 			}
+-			if !isCookieNameValid(attr) {
++			if !isCookieNameValid(name) {
+ 				continue
+ 			}
++			if filter != "" && filter != name {
++				continue Lines
++			}
+ 			val, success := parseCookieValue(val)
+ 			if !success {
+ 				continue
+ 			}
+-			cookies = append(cookies, &Cookie{Name: attr, Value: val})
++			cookies = append(cookies, &Cookie{Name: name, Value: val})
+ 			parsedPairs++
+ 		}
+-		if parsedPairs == 0 {
+-			unparsedLines = append(unparsedLines, line)
+-		}
+ 	}
+-	h["Cookie"] = unparsedLines, len(unparsedLines) > 0
+ 	return cookies
+ }
+ 
+-// writeCookies writes the wire representation of the cookies to
+-// w. According to RFC 6265 section 5.4, writeCookies does not
+-// attach more than one Cookie header field.  That means all
+-// cookies, if any, are written into the same line, separated by
+-// semicolon.
+-func writeCookies(w io.Writer, kk []*Cookie) os.Error {
+-	if len(kk) == 0 {
+-		return nil
+-	}
+-	var buf bytes.Buffer
+-	fmt.Fprintf(&buf, "Cookie: ")
+-	for i, c := range kk {
+-		if i > 0 {
+-			fmt.Fprintf(&buf, "; ")
+-		}
+-		fmt.Fprintf(&buf, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
+-	}
+-	fmt.Fprintf(&buf, "\r\n")
+-	_, err := w.Write(buf.Bytes())
+-	return err
+-}
+-
+ func sanitizeName(n string) string {
+ 	n = strings.Replace(n, "\n", "-", -1)
+ 	n = strings.Replace(n, "\r", "-", -1)
+diff --git a/src/pkg/http/cookie_test.go b/src/pkg/http/cookie_test.go
+index 02e42226bd..9aad167e61 100644
+--- a/src/pkg/http/cookie_test.go
++++ b/src/pkg/http/cookie_test.go
+@@ -5,7 +5,6 @@
+ package http
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"json"
+ 	"os"
+@@ -15,30 +14,31 @@ import (
+ )
+ 
+ var writeSetCookiesTests = []struct {
+-	Cookies []*Cookie
+-	Raw     string
++	Cookie *Cookie
++	Raw    string
+ }{
+ 	{
+-		[]*Cookie{
+-			&Cookie{Name: "cookie-1", Value: "v$1"},
+-			&Cookie{Name: "cookie-2", Value: "two", MaxAge: 3600},
+-			&Cookie{Name: "cookie-3", Value: "three", Domain: ".example.com"},
+-			&Cookie{Name: "cookie-4", Value: "four", Path: "/restricted/"},
+-		},
+-		"Set-Cookie: cookie-1=v$1\r\n" +
+-			"Set-Cookie: cookie-2=two; Max-Age=3600\r\n" +
+-			"Set-Cookie: cookie-3=three; Domain=.example.com\r\n" +
+-			"Set-Cookie: cookie-4=four; Path=/restricted/\r\n",
++		&Cookie{Name: "cookie-1", Value: "v$1"},
++		"cookie-1=v$1",
++	},
++	{
++		&Cookie{Name: "cookie-2", Value: "two", MaxAge: 3600},
++		"cookie-2=two; Max-Age=3600",
++	},
++	{
++		&Cookie{Name: "cookie-3", Value: "three", Domain: ".example.com"},
++		"cookie-3=three; Domain=.example.com",
++	},
++	{
++		&Cookie{Name: "cookie-4", Value: "four", Path: "/restricted/"},
++		"cookie-4=four; Path=/restricted/",
+ 	},
+ }
+ 
+ func TestWriteSetCookies(t *testing.T) {
+ 	for i, tt := range writeSetCookiesTests {
+-		var w bytes.Buffer
+-		writeSetCookies(&w, tt.Cookies)
+-		seen := string(w.Bytes())
+-		if seen != tt.Raw {
+-			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, seen)
++		if g, e := tt.Cookie.String(), tt.Raw; g != e {
++			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, e, g)
+ 			continue
+ 		}
+ 	}
+@@ -73,7 +73,7 @@ func TestSetCookie(t *testing.T) {
+ 	}
+ }
+ 
+-var writeCookiesTests = []struct {
++var addCookieTests = []struct {
+ 	Cookies []*Cookie
+ 	Raw     string
+ }{
+@@ -83,7 +83,7 @@ var writeCookiesTests = []struct {
+ 	},
+ 	{
+ 		[]*Cookie{&Cookie{Name: "cookie-1", Value: "v$1"}},
+-		"Cookie: cookie-1=v$1\r\n",
++		"cookie-1=v$1",
+ 	},
+ 	{
+ 		[]*Cookie{
+@@ -91,17 +91,18 @@ var writeCookiesTests = []struct {
+ 			&Cookie{Name: "cookie-2", Value: "v$2"},
+ 			&Cookie{Name: "cookie-3", Value: "v$3"},
+ 		},
+-		"Cookie: cookie-1=v$1; cookie-2=v$2; cookie-3=v$3\r\n",
++		"cookie-1=v$1; cookie-2=v$2; cookie-3=v$3",
+ 	},
+ }
+ 
+-func TestWriteCookies(t *testing.T) {
+-	for i, tt := range writeCookiesTests {
+-		var w bytes.Buffer
+-		writeCookies(&w, tt.Cookies)
+-		seen := string(w.Bytes())
+-		if seen != tt.Raw {
+-			t.Errorf("Test %d, expecting:\n%s\nGot:\n%s\n", i, tt.Raw, seen)
++func TestAddCookie(t *testing.T) {
++	for i, tt := range addCookieTests {
++		req, _ := NewRequest("GET", "http://example.com/", nil)
++		for _, c := range tt.Cookies {
++			req.AddCookie(c)
++		}
++		if g := req.Header.Get("Cookie"); g != tt.Raw {
++			t.Errorf("Test %d:\nwant: %s\n got: %s\n", i, tt.Raw, g)
+ 			continue
+ 		}
+ 	}
+@@ -140,30 +141,46 @@ func toJSON(v interface{}) string {
+ 
+ func TestReadSetCookies(t *testing.T) {
+ 	for i, tt := range readSetCookiesTests {
+-		c := readSetCookies(tt.Header)
+-		if !reflect.DeepEqual(c, tt.Cookies) {
+-			t.Errorf("#%d readSetCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
+-			continue
++		for n := 0; n < 2; n++ { // to verify readSetCookies doesn't mutate its input
++			c := readSetCookies(tt.Header)
++			if !reflect.DeepEqual(c, tt.Cookies) {
++				t.Errorf("#%d readSetCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
++				continue
++			}
+ 		}
+ 	}
+ }
+ 
+ var readCookiesTests = []struct {
+ 	Header  Header
++	Filter  string
+ 	Cookies []*Cookie
+ }{
+ 	{
+-		Header{"Cookie": {"Cookie-1=v$1"}},
+-		[]*Cookie{&Cookie{Name: "Cookie-1", Value: "v$1"}},
++		Header{"Cookie": {"Cookie-1=v$1", "c2=v2"}},
++		"",
++		[]*Cookie{
++			&Cookie{Name: "Cookie-1", Value: "v$1"},
++			&Cookie{Name: "c2", Value: "v2"},
++		},
++	},
++	{
++		Header{"Cookie": {"Cookie-1=v$1", "c2=v2"}},
++		"c2",
++		[]*Cookie{
++			&Cookie{Name: "c2", Value: "v2"},
++		},
+ 	},
+ }
+ 
+ func TestReadCookies(t *testing.T) {
+ 	for i, tt := range readCookiesTests {
+-		c := readCookies(tt.Header)
+-		if !reflect.DeepEqual(c, tt.Cookies) {
+-			t.Errorf("#%d readCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
+-			continue
++		for n := 0; n < 2; n++ { // to verify readCookies doesn't mutate its input                                                  
++			c := readCookies(tt.Header, tt.Filter)
++			if !reflect.DeepEqual(c, tt.Cookies) {
++				t.Errorf("#%d readCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
++				continue
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/http/readrequest_test.go b/src/pkg/http/readrequest_test.go
+index d93e573f58..0b92b79426 100644
+--- a/src/pkg/http/readrequest_test.go
++++ b/src/pkg/http/readrequest_test.go
+@@ -58,12 +58,11 @@ var reqTests = []reqTest{
+ 				"Keep-Alive":       {"300"},
+ 				"Proxy-Connection": {"keep-alive"},
+ 				"Content-Length":   {"7"},
++				"User-Agent":       {"Fake"},
+ 			},
+ 			Close:         false,
+ 			ContentLength: 7,
+ 			Host:          "www.techcrunch.com",
+-			Referer:       "",
+-			UserAgent:     "Fake",
+ 			Form:          Values{},
+ 		},
+ 
+@@ -97,8 +96,6 @@ var reqTests = []reqTest{
+ 			Close:         false,
+ 			ContentLength: -1,
+ 			Host:          "test",
+-			Referer:       "",
+-			UserAgent:     "",
+ 			Form:          Values{},
+ 		},
+ 
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 9ed051b13b..2845f17799 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -60,10 +60,10 @@ type badStringError struct {
+ 
+ func (e *badStringError) String() string { return fmt.Sprintf("%s %q", e.what, e.str) }
+ 
+-var reqExcludeHeader = map[string]bool{
++// Headers that Request.Write handles itself and should be skipped.
++var reqWriteExcludeHeader = map[string]bool{
+ 	"Host":              true,
+ 	"User-Agent":        true,
+-	"Referer":           true,
+ 	"Content-Length":    true,
+ 	"Transfer-Encoding": true,
+ 	"Trailer":           true,
+@@ -102,9 +102,6 @@ type Request struct {
+ 	// following a hyphen uppercase and the rest lowercase.
+ 	Header Header
+ 
+-	// Cookie records the HTTP cookies sent with the request.
+-	Cookie []*Cookie
+-
+ 	// The message body.
+ 	Body io.ReadCloser
+ 
+@@ -125,21 +122,6 @@ type Request struct {
+ 	// or the host name given in the URL itself.
+ 	Host string
+ 
+-	// The referring URL, if sent in the request.
+-	//
+-	// Referer is misspelled as in the request itself,
+-	// a mistake from the earliest days of HTTP.
+-	// This value can also be fetched from the Header map
+-	// as Header["Referer"]; the benefit of making it
+-	// available as a structure field is that the compiler
+-	// can diagnose programs that use the alternate
+-	// (correct English) spelling req.Referrer but cannot
+-	// diagnose programs that use Header["Referrer"].
+-	Referer string
+-
+-	// The User-Agent: header string, if sent in the request.
+-	UserAgent string
+-
+ 	// The parsed form. Only available after ParseForm is called.
+ 	Form Values
+ 
+@@ -176,6 +158,52 @@ func (r *Request) ProtoAtLeast(major, minor int) bool {
+ 		r.ProtoMajor == major && r.ProtoMinor >= minor
+ }
+ 
++// UserAgent returns the client's User-Agent, if sent in the request.
++func (r *Request) UserAgent() string {
++	return r.Header.Get("User-Agent")
++}
++
++// Cookies parses and returns the HTTP cookies sent with the request.
++func (r *Request) Cookies() []*Cookie {
++	return readCookies(r.Header, "")
++}
++
++var ErrNoCookie = os.NewError("http: named cookied not present")
++
++// Cookie returns the named cookie provided in the request or
++// ErrNoCookie if not found.
++func (r *Request) Cookie(name string) (*Cookie, os.Error) {
++	for _, c := range readCookies(r.Header, name) {
++		return c, nil
++	}
++	return nil, ErrNoCookie
++}
++
++// AddCookie adds a cookie to the request.  Per RFC 6265 section 5.4,
++// AddCookie does not attach more than one Cookie header field.  That
++// means all cookies, if any, are written into the same line,
++// separated by semicolon.
++func (r *Request) AddCookie(c *Cookie) {
++	s := fmt.Sprintf("%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
++	if c := r.Header.Get("Cookie"); c != "" {
++		r.Header.Set("Cookie", c+"; "+s)
++	} else {
++		r.Header.Set("Cookie", s)
++	}
++}
++
++// Referer returns the referring URL, if sent in the request.
++//
++// Referer is misspelled as in the request itself, a mistake from the
++// earliest days of HTTP.  This value can also be fetched from the
++// Header map as Header["Referer"]; the benefit of making it available
++// as a method is that the compiler can diagnose programs that use the
++// alternate (correct English) spelling req.Referrer() but cannot
++// diagnose programs that use Header["Referrer"].
++func (r *Request) Referer() string {
++	return r.Header.Get("Referer")
++}
++
+ // multipartByReader is a sentinel value.
+ // Its presence in Request.MultipartForm indicates that parsing of the request
+ // body has been handed off to a MultipartReader instead of ParseMultipartFrom.
+@@ -230,10 +258,7 @@ const defaultUserAgent = "Go http package"
+ //	Host
+ //	RawURL, if non-empty, or else URL
+ //	Method (defaults to "GET")
+-//	UserAgent (defaults to defaultUserAgent)
+-//	Referer
+-//	Header (only keys not already in this list)
+-//	Cookie
++//	Header
+ //	ContentLength
+ //	TransferEncoding
+ //	Body
+@@ -281,9 +306,17 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
+ 
+ 	// Header lines
+ 	fmt.Fprintf(w, "Host: %s\r\n", host)
+-	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent))
+-	if req.Referer != "" {
+-		fmt.Fprintf(w, "Referer: %s\r\n", req.Referer)
++
++	// Use the defaultUserAgent unless the Header contains one, which
++	// may be blank to not send the header.
++	userAgent := defaultUserAgent
++	if req.Header != nil {
++		if ua := req.Header["User-Agent"]; len(ua) > 0 {
++			userAgent = ua[0]
++		}
++	}
++	if userAgent != "" {
++		fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)
+ 	}
+ 
+ 	// Process Body,ContentLength,Close,Trailer
+@@ -297,21 +330,11 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
+ 	}
+ 
+ 	// TODO: split long values?  (If so, should share code with Conn.Write)
+-	// TODO: if Header includes values for Host, User-Agent, or Referer, this
+-	// may conflict with the User-Agent or Referer headers we add manually.
+-	// One solution would be to remove the Host, UserAgent, and Referer fields
+-	// from Request, and introduce Request methods along the lines of
+-	// Response.{GetHeader,AddHeader} and string constants for "Host",
+-	// "User-Agent" and "Referer".
+-	err = req.Header.WriteSubset(w, reqExcludeHeader)
++	err = req.Header.WriteSubset(w, reqWriteExcludeHeader)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	if err = writeCookies(w, req.Cookie); err != nil {
+-		return err
+-	}
+-
+ 	io.WriteString(w, "\r\n")
+ 
+ 	// Write body and trailer
+@@ -559,13 +582,6 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 
+ 	fixPragmaCacheControl(req.Header)
+ 
+-	// Pull out useful fields as a convenience to clients.
+-	req.Referer = req.Header.Get("Referer")
+-	req.Header.Del("Referer")
+-
+-	req.UserAgent = req.Header.Get("User-Agent")
+-	req.Header.Del("User-Agent")
+-
+ 	// TODO: Parse specific header values:
+ 	//	Accept
+ 	//	Accept-Encoding
+@@ -597,8 +613,6 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 		return nil, err
+ 	}
+ 
+-	req.Cookie = readCookies(req.Header)
+-
+ 	return req, nil
+ }
+ 
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 98fbcf459b..43ad5252d3 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -47,13 +47,12 @@ var reqWriteTests = []reqWriteTest{
+ 				"Accept-Language":  {"en-us,en;q=0.5"},
+ 				"Keep-Alive":       {"300"},
+ 				"Proxy-Connection": {"keep-alive"},
++				"User-Agent":       {"Fake"},
+ 			},
+-			Body:      nil,
+-			Close:     false,
+-			Host:      "www.techcrunch.com",
+-			Referer:   "",
+-			UserAgent: "Fake",
+-			Form:      map[string][]string{},
++			Body:  nil,
++			Close: false,
++			Host:  "www.techcrunch.com",
++			Form:  map[string][]string{},
+ 		},
+ 
+ 		nil,
+@@ -233,6 +232,9 @@ func TestRequestWrite(t *testing.T) {
+ 		if tt.Body != nil {
+ 			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
+ 		}
++		if tt.Req.Header == nil {
++			tt.Req.Header = make(Header)
++		}
+ 		var braw bytes.Buffer
+ 		err := tt.Req.Write(&braw)
+ 		if err != nil {
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index 42e60c1f67..6c0c441a94 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -40,9 +40,6 @@ type Response struct {
+ 	// Keys in the map are canonicalized (see CanonicalHeaderKey).
+ 	Header Header
+ 
+-	// SetCookie records the Set-Cookie requests sent with the response.
+-	SetCookie []*Cookie
+-
+ 	// Body represents the response body.
+ 	Body io.ReadCloser
+ 
+@@ -71,6 +68,11 @@ type Response struct {
+ 	Request *Request
+ }
+ 
++// Cookies parses and returns the cookies set in the Set-Cookie headers.
++func (r *Response) Cookies() []*Cookie {
++	return readSetCookies(r.Header)
++}
++
+ // ReadResponse reads and returns an HTTP response from r.  The
+ // req parameter specifies the Request that corresponds to
+ // this Response.  Clients must call resp.Body.Close when finished
+@@ -127,8 +129,6 @@ func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err os.Error)
+ 		return nil, err
+ 	}
+ 
+-	resp.SetCookie = readSetCookies(resp.Header)
+-
+ 	return resp, nil
+ }
+ 
+@@ -200,10 +200,6 @@ func (resp *Response) Write(w io.Writer) os.Error {
+ 		return err
+ 	}
+ 
+-	if err = writeSetCookies(w, resp.SetCookie); err != nil {
+-		return err
+-	}
+-
+ 	// End-of-header
+ 	io.WriteString(w, "\r\n")
+ 
+diff --git a/src/pkg/http/reverseproxy.go b/src/pkg/http/reverseproxy.go
+index 9a9e21599b..e4ce1e34c7 100644
+--- a/src/pkg/http/reverseproxy.go
++++ b/src/pkg/http/reverseproxy.go
+@@ -92,10 +92,6 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
+ 		}
+ 	}
+ 
+-	for _, cookie := range res.SetCookie {
+-		SetCookie(rw, cookie)
+-	}
+-
+ 	rw.WriteHeader(res.StatusCode)
+ 
+ 	if res.Body != nil {
+diff --git a/src/pkg/http/reverseproxy_test.go b/src/pkg/http/reverseproxy_test.go
+index d7bcde90d3..bc08614814 100644
+--- a/src/pkg/http/reverseproxy_test.go
++++ b/src/pkg/http/reverseproxy_test.go
+@@ -49,10 +49,10 @@ func TestReverseProxy(t *testing.T) {
+ 	if g, e := res.Header.Get("X-Foo"), "bar"; g != e {
+ 		t.Errorf("got X-Foo %q; expected %q", g, e)
+ 	}
+-	if g, e := len(res.SetCookie), 1; g != e {
++	if g, e := len(res.Header["Set-Cookie"]), 1; g != e {
+ 		t.Fatalf("got %d SetCookies, want %d", g, e)
+ 	}
+-	if cookie := res.SetCookie[0]; cookie.Name != "flavor" {
++	if cookie := res.Cookies()[0]; cookie.Name != "flavor" {
+ 		t.Errorf("unexpected cookie %q", cookie.Name)
+ 	}
+ 	bodyBytes, _ := ioutil.ReadAll(res.Body)
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index c697ef0d3e..2f545f7102 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -405,7 +405,7 @@ func errorKludge(w *response) {
+ 
+ 	// Is it a broken browser?
+ 	var msg string
+-	switch agent := w.req.UserAgent; {
++	switch agent := w.req.UserAgent(); {
+ 	case strings.Contains(agent, "MSIE"):
+ 		msg = "Internet Explorer"
+ 	case strings.Contains(agent, "Chrome/"):

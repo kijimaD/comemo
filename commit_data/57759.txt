@@ -11,6 +11,19 @@ Date:   Thu Aug 17 16:00:08 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/testing/slogtest/slogtest.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/testing/slogtest/slogtest.go b/src/testing/slogtest/slogtest.go
+index 6f6fa902d5..255d8bb964 100644
+--- a/src/testing/slogtest/slogtest.go
++++ b/src/testing/slogtest/slogtest.go
+@@ -36,6 +36,7 @@ type testCase struct {
+ //
+ // TestHandler installs the given Handler in a [slog.Logger] and
+ // makes several calls to the Logger's output methods.
++// The Handler should be enabled for levels Info and above.
+ //
+ // The results function is invoked after all such calls.
+ // It should return a slice of map[string]any, one for each call to a Logger output method.

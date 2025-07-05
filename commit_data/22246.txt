@@ -10,6 +10,22 @@ Date:   Mon Mar 2 13:49:57 2015 -0500
     Change-Id: Id56daa160c9e7e01f301c1386791e410bbd5deef
     Reviewed-on: https://go-review.googlesource.com/6480
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/main.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index a13d990cfc..5e0ab79df3 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -158,7 +158,9 @@ func main() {
+ 	// but in practice there might be skew
+ 	// This makes sure we all agree.
+ 	for _, env := range mkEnv() {
+-		os.Setenv(env.name, env.value)
++		if os.Getenv(env.name) != env.value {
++			os.Setenv(env.name, env.value)
++		}
+ 	}
+ 
+ 	for _, cmd := range commands {

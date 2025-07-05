@@ -23,7 +23,7 @@ Date:   Sun Apr 3 16:45:18 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/doc/comment/html.go            |  48 ++++++++++++-
  src/go/doc/comment/markdown.go        |  23 ++++++
  src/go/doc/comment/parse.go           |  91 ++++++++++++++++++++++++
@@ -40,3 +40,1042 @@ Date:   Sun Apr 3 16:45:18 2022 -0400
  src/go/doc/comment/testdata/text8.txt |  94 +++++++++++++++++++++++++
  src/go/doc/comment/text.go            |  35 +++++++--
  15 files changed, 869 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/doc/comment/html.go b/src/go/doc/comment/html.go
+index 14a20b91e5..bc076f6a58 100644
+--- a/src/go/doc/comment/html.go
++++ b/src/go/doc/comment/html.go
+@@ -13,6 +13,7 @@ import (
+ // An htmlPrinter holds the state needed for printing a Doc as HTML.
+ type htmlPrinter struct {
+ 	*Printer
++	tight bool
+ }
+ 
+ // HTML returns an HTML formatting of the Doc.
+@@ -33,7 +34,9 @@ func (p *htmlPrinter) block(out *bytes.Buffer, x Block) {
+ 		fmt.Fprintf(out, "?%T", x)
+ 
+ 	case *Paragraph:
+-		out.WriteString("<p>")
++		if !p.tight {
++			out.WriteString("<p>")
++		}
+ 		p.text(out, x.Text)
+ 		out.WriteString("\n")
+ 
+@@ -56,7 +59,50 @@ func (p *htmlPrinter) block(out *bytes.Buffer, x Block) {
+ 		out.WriteString("<pre>")
+ 		p.escape(out, x.Text)
+ 		out.WriteString("</pre>\n")
++
++	case *List:
++		kind := "ol>\n"
++		if x.Items[0].Number == "" {
++			kind = "ul>\n"
++		}
++		out.WriteString("<")
++		out.WriteString(kind)
++		next := "1"
++		for _, item := range x.Items {
++			out.WriteString("<li")
++			if n := item.Number; n != "" {
++				if n != next {
++					out.WriteString(` value="`)
++					out.WriteString(n)
++					out.WriteString(`"`)
++					next = n
++				}
++				next = inc(next)
++			}
++			out.WriteString(">")
++			p.tight = !x.BlankBetween()
++			for _, blk := range item.Content {
++				p.block(out, blk)
++			}
++			p.tight = false
++		}
++		out.WriteString("</")
++		out.WriteString(kind)
++	}
++}
++
++// inc increments the decimal string s.
++// For example, inc("1199") == "1200".
++func inc(s string) string {
++	b := []byte(s)
++	for i := len(b) - 1; i >= 0; i-- {
++		if b[i] < '9' {
++			b[i]++
++			return string(b)
++		}
++		b[i] = '0'
+ 	}
++	return "1" + string(b)
+ }
+ 
+ // text prints the text sequence x to out.
+diff --git a/src/go/doc/comment/markdown.go b/src/go/doc/comment/markdown.go
+index 9e86cd8aef..d8550f2e39 100644
+--- a/src/go/doc/comment/markdown.go
++++ b/src/go/doc/comment/markdown.go
+@@ -66,6 +66,29 @@ func (p *mdPrinter) block(out *bytes.Buffer, x Block) {
+ 			}
+ 			out.WriteString("\n")
+ 		}
++
++	case *List:
++		loose := x.BlankBetween()
++		for i, item := range x.Items {
++			if i > 0 && loose {
++				out.WriteString("\n")
++			}
++			if n := item.Number; n != "" {
++				out.WriteString(" ")
++				out.WriteString(n)
++				out.WriteString(". ")
++			} else {
++				out.WriteString("  - ") // SP SP - SP
++			}
++			for i, blk := range item.Content {
++				const fourSpace = "    "
++				if i > 0 {
++					out.WriteString("\n" + fourSpace)
++				}
++				p.text(out, blk.(*Paragraph).Text)
++				out.WriteString("\n")
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/go/doc/comment/parse.go b/src/go/doc/comment/parse.go
+index 7f97e41a62..c881bbab5b 100644
+--- a/src/go/doc/comment/parse.go
++++ b/src/go/doc/comment/parse.go
+@@ -309,6 +309,10 @@ func (p *Parser) Parse(text string) *Doc {
+ 		case line == "":
+ 			// emit nothing
+ 
++		case isList(line):
++			prevWasBlank := len(lines) < len(all) && all[len(all)-len(lines)-1] == ""
++			b, lines = d.list(lines, prevWasBlank)
++
+ 		case isIndented(line):
+ 			b, lines = d.code(lines)
+ 
+@@ -575,6 +579,93 @@ func parseLink(line string) (*LinkDef, bool) {
+ 	return &LinkDef{Text: text, URL: url}, true
+ }
+ 
++// list returns a list built from the indented text at the start of lines,
++// using forceBlankBefore as the value of the List's ForceBlankBefore field.
++// The caller is responsible for ensuring that the first line of lines
++// satisfies isList.
++// list returns the *List as a Block along with the remaining lines.
++func (d *parseDoc) list(lines []string, forceBlankBefore bool) (b Block, rest []string) {
++	lines, rest = indented(lines)
++
++	num, _, _ := listMarker(lines[0])
++	var (
++		list *List = &List{ForceBlankBefore: forceBlankBefore}
++		item *ListItem
++		text []string
++	)
++	flush := func() {
++		if item != nil {
++			if para, _ := d.paragraph(text); para != nil {
++				item.Content = append(item.Content, para)
++			}
++		}
++		text = nil
++	}
++
++	for _, line := range lines {
++		if n, after, ok := listMarker(line); ok && (n != "") == (num != "") {
++			// start new list item
++			flush()
++
++			item = &ListItem{Number: n}
++			list.Items = append(list.Items, item)
++			line = after
++		}
++		line = strings.TrimSpace(line)
++		if line == "" {
++			list.ForceBlankBetween = true
++			flush()
++			continue
++		}
++		text = append(text, strings.TrimSpace(line))
++	}
++	flush()
++	return list, rest
++}
++
++// listMarker parses the line as an indented line beginning with a list marker.
++// If it can do that, it returns the numeric marker ("" for a bullet list),
++// the rest of the line, and ok == true.
++// Otherwise, it returns "", "", false.
++func listMarker(line string) (num, rest string, ok bool) {
++	if !isIndented(line) {
++		return "", "", false
++	}
++	line = strings.TrimSpace(line)
++	if line == "" {
++		return "", "", false
++	}
++
++	// Can we find a marker?
++	if r, n := utf8.DecodeRuneInString(line); r == '•' || r == '*' || r == '+' || r == '-' {
++		num, rest = "", line[n:]
++	} else if '0' <= line[0] && line[0] <= '9' {
++		n := 1
++		for n < len(line) && '0' <= line[n] && line[n] <= '9' {
++			n++
++		}
++		if n >= len(line) || (line[n] != '.' && line[n] != ')') {
++			return "", "", false
++		}
++		num, rest = line[:n], line[n+1:]
++	} else {
++		return "", "", false
++	}
++
++	if !isIndented(rest) || strings.TrimSpace(rest) == "" {
++		return "", "", false
++	}
++
++	return num, rest, true
++}
++
++// isList reports whether the line is the first line of a list,
++// meaning is indented and starts with a list marker.
++func isList(line string) bool {
++	_, _, ok := listMarker(line)
++	return ok
++}
++
+ // parseLinkedText parses text that is allowed to contain explicit links,
+ // such as [math.Sin] or [Go home page], into a slice of Text items.
+ //
+diff --git a/src/go/doc/comment/print.go b/src/go/doc/comment/print.go
+index d426b81761..cdbc7cc460 100644
+--- a/src/go/doc/comment/print.go
++++ b/src/go/doc/comment/print.go
+@@ -225,6 +225,29 @@ func (p *commentPrinter) block(out *bytes.Buffer, x Block) {
+ 			}
+ 			out.WriteString("\n")
+ 		}
++
++	case *List:
++		loose := x.BlankBetween()
++		for i, item := range x.Items {
++			if i > 0 && loose {
++				out.WriteString("\n")
++			}
++			out.WriteString(" ")
++			if item.Number == "" {
++				out.WriteString(" - ")
++			} else {
++				out.WriteString(item.Number)
++				out.WriteString(". ")
++			}
++			for i, blk := range item.Content {
++				const fourSpace = "    "
++				if i > 0 {
++					out.WriteString("\n" + fourSpace)
++				}
++				p.text(out, fourSpace, blk.(*Paragraph).Text)
++				out.WriteString("\n")
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/go/doc/comment/testdata/list.txt b/src/go/doc/comment/testdata/list.txt
+new file mode 100644
+index 0000000000..455782f864
+--- /dev/null
++++ b/src/go/doc/comment/testdata/list.txt
+@@ -0,0 +1,48 @@
++-- input --
++Text.
++- Not a list.
++ - Here is the list.
++     • Using multiple bullets.
++          * Indentation does not matter.
++     + Lots of bullets.
++More text.
++
++-- gofmt --
++Text.
++- Not a list.
++  - Here is the list.
++  - Using multiple bullets.
++  - Indentation does not matter.
++  - Lots of bullets.
++
++More text.
++
++-- text --
++Text. - Not a list.
++  - Here is the list.
++  - Using multiple bullets.
++  - Indentation does not matter.
++  - Lots of bullets.
++
++More text.
++
++-- markdown --
++Text. - Not a list.
++
++  - Here is the list.
++  - Using multiple bullets.
++  - Indentation does not matter.
++  - Lots of bullets.
++
++More text.
++
++-- html --
++<p>Text.
++- Not a list.
++<ul>
++<li>Here is the list.
++<li>Using multiple bullets.
++<li>Indentation does not matter.
++<li>Lots of bullets.
++</ul>
++<p>More text.
+diff --git a/src/go/doc/comment/testdata/list2.txt b/src/go/doc/comment/testdata/list2.txt
+new file mode 100644
+index 0000000000..c390b3d59a
+--- /dev/null
++++ b/src/go/doc/comment/testdata/list2.txt
+@@ -0,0 +1,57 @@
++-- input --
++Text.
++ 1. Uno
++   2) Dos
++ 3. Tres
++   5. Cinco
++ 7. Siete
++   11. Once
++ 12. Doce
++ 13. Trece.
++
++-- gofmt --
++Text.
++ 1. Uno
++ 2. Dos
++ 3. Tres
++ 5. Cinco
++ 7. Siete
++ 11. Once
++ 12. Doce
++ 13. Trece.
++
++-- text --
++Text.
++ 1. Uno
++ 2. Dos
++ 3. Tres
++ 5. Cinco
++ 7. Siete
++ 11. Once
++ 12. Doce
++ 13. Trece.
++
++-- markdown --
++Text.
++
++ 1. Uno
++ 2. Dos
++ 3. Tres
++ 5. Cinco
++ 7. Siete
++ 11. Once
++ 12. Doce
++ 13. Trece.
++
++-- html --
++<p>Text.
++<ol>
++<li>Uno
++<li>Dos
++<li>Tres
++<li value="5">Cinco
++<li value="7">Siete
++<li value="11">Once
++<li>Doce
++<li>Trece.
++</ol>
+diff --git a/src/go/doc/comment/testdata/list3.txt b/src/go/doc/comment/testdata/list3.txt
+new file mode 100644
+index 0000000000..d7d345d2d3
+--- /dev/null
++++ b/src/go/doc/comment/testdata/list3.txt
+@@ -0,0 +1,32 @@
++-- input --
++Text.
++
++ 1. Uno
++ 1. Dos
++ 1. Tres
++ 1. Quatro
++
++-- gofmt --
++Text.
++
++ 1. Uno
++ 1. Dos
++ 1. Tres
++ 1. Quatro
++
++-- markdown --
++Text.
++
++ 1. Uno
++ 1. Dos
++ 1. Tres
++ 1. Quatro
++
++-- html --
++<p>Text.
++<ol>
++<li>Uno
++<li value="1">Dos
++<li value="1">Tres
++<li value="1">Quatro
++</ol>
+diff --git a/src/go/doc/comment/testdata/list4.txt b/src/go/doc/comment/testdata/list4.txt
+new file mode 100644
+index 0000000000..9c28d65b6c
+--- /dev/null
++++ b/src/go/doc/comment/testdata/list4.txt
+@@ -0,0 +1,38 @@
++-- input --
++Text.
++  1. List
++2. Not indented, not a list.
++  3. Another list.
++
++-- gofmt --
++Text.
++ 1. List
++
++2. Not indented, not a list.
++ 3. Another list.
++
++-- text --
++Text.
++ 1. List
++
++2. Not indented, not a list.
++ 3. Another list.
++
++-- markdown --
++Text.
++
++ 1. List
++
++2\. Not indented, not a list.
++
++ 3. Another list.
++
++-- html --
++<p>Text.
++<ol>
++<li>List
++</ol>
++<p>2. Not indented, not a list.
++<ol>
++<li value="3">Another list.
++</ol>
+diff --git a/src/go/doc/comment/testdata/list5.txt b/src/go/doc/comment/testdata/list5.txt
+new file mode 100644
+index 0000000000..a5128e5b7c
+--- /dev/null
++++ b/src/go/doc/comment/testdata/list5.txt
+@@ -0,0 +1,40 @@
++-- input --
++Text.
++
++  1. One
++  999999999999999999999. Big
++  1000000000000000000000. Bigger
++  1000000000000000000001. Biggest
++
++-- gofmt --
++Text.
++
++ 1. One
++ 999999999999999999999. Big
++ 1000000000000000000000. Bigger
++ 1000000000000000000001. Biggest
++
++-- text --
++Text.
++
++ 1. One
++ 999999999999999999999. Big
++ 1000000000000000000000. Bigger
++ 1000000000000000000001. Biggest
++
++-- markdown --
++Text.
++
++ 1. One
++ 999999999999999999999. Big
++ 1000000000000000000000. Bigger
++ 1000000000000000000001. Biggest
++
++-- html --
++<p>Text.
++<ol>
++<li>One
++<li value="999999999999999999999">Big
++<li>Bigger
++<li>Biggest
++</ol>
+diff --git a/src/go/doc/comment/testdata/list6.txt b/src/go/doc/comment/testdata/list6.txt
+new file mode 100644
+index 0000000000..ffc0122f52
+--- /dev/null
++++ b/src/go/doc/comment/testdata/list6.txt
+@@ -0,0 +1,129 @@
++-- input --
++Text.
++ - List immediately after.
++ - Another.
++
++More text.
++
++ - List after blank line.
++ - Another.
++
++Even more text.
++ - List immediately after.
++
++ - Blank line between items.
++
++Yet more text.
++
++ - Another list after blank line.
++
++ - Blank line between items.
++
++Still more text.
++ - One list item.
++
++   Multiple paragraphs.
++-- dump --
++Doc
++	Paragraph
++		Plain "Text."
++	List ForceBlankBefore=false ForceBlankBetween=false
++		Item Number=""
++			Paragraph
++				Plain "List immediately after."
++		Item Number=""
++			Paragraph
++				Plain "Another."
++	Paragraph
++		Plain "More text."
++	List ForceBlankBefore=true ForceBlankBetween=false
++		Item Number=""
++			Paragraph
++				Plain "List after blank line."
++		Item Number=""
++			Paragraph
++				Plain "Another."
++	Paragraph
++		Plain "Even more text."
++	List ForceBlankBefore=false ForceBlankBetween=true
++		Item Number=""
++			Paragraph
++				Plain "List immediately after."
++		Item Number=""
++			Paragraph
++				Plain "Blank line between items."
++	Paragraph
++		Plain "Yet more text."
++	List ForceBlankBefore=true ForceBlankBetween=true
++		Item Number=""
++			Paragraph
++				Plain "Another list after blank line."
++		Item Number=""
++			Paragraph
++				Plain "Blank line between items."
++	Paragraph
++		Plain "Still more text."
++	List ForceBlankBefore=false ForceBlankBetween=true
++		Item Number=""
++			Paragraph
++				Plain "One list item."
++			Paragraph
++				Plain "Multiple paragraphs."
++
++-- gofmt --
++Text.
++  - List immediately after.
++  - Another.
++
++More text.
++
++  - List after blank line.
++  - Another.
++
++Even more text.
++
++  - List immediately after.
++
++  - Blank line between items.
++
++Yet more text.
++
++  - Another list after blank line.
++
++  - Blank line between items.
++
++Still more text.
++
++  - One list item.
++
++    Multiple paragraphs.
++
++-- markdown --
++Text.
++
++  - List immediately after.
++  - Another.
++
++More text.
++
++  - List after blank line.
++  - Another.
++
++Even more text.
++
++  - List immediately after.
++
++  - Blank line between items.
++
++Yet more text.
++
++  - Another list after blank line.
++
++  - Blank line between items.
++
++Still more text.
++
++  - One list item.
++
++    Multiple paragraphs.
++
+diff --git a/src/go/doc/comment/testdata/list7.txt b/src/go/doc/comment/testdata/list7.txt
+new file mode 100644
+index 0000000000..446605061f
+--- /dev/null
++++ b/src/go/doc/comment/testdata/list7.txt
+@@ -0,0 +1,98 @@
++-- input --
++Almost list markers (but not quite):
++
++ -
++
++❦
++
++ - $
++
++❦
++
++ - $
++
++❦
++
++  $
++   $
++
++❦
++
++ 1! List.
++
++❦
++-- gofmt --
++Almost list markers (but not quite):
++
++	-
++
++❦
++
++	- $
++
++❦
++
++	- $
++
++❦
++
++❦
++
++	1! List.
++
++❦
++-- text --
++Almost list markers (but not quite):
++
++	-
++
++❦
++
++	-
++
++❦
++
++	-
++
++❦
++
++❦
++
++	1! List.
++
++❦
++-- markdown --
++Almost list markers (but not quite):
++
++	-
++
++❦
++
++	- $
++
++❦
++
++	- $
++
++❦
++
++❦
++
++	1! List.
++
++❦
++-- html --
++<p>Almost list markers (but not quite):
++<pre>-
++</pre>
++<p>❦
++<pre>- $
++</pre>
++<p>❦
++<pre>- $
++</pre>
++<p>❦
++<p>❦
++<pre>1! List.
++</pre>
++<p>❦
+diff --git a/src/go/doc/comment/testdata/list8.txt b/src/go/doc/comment/testdata/list8.txt
+new file mode 100644
+index 0000000000..fc46b0d835
+--- /dev/null
++++ b/src/go/doc/comment/testdata/list8.txt
+@@ -0,0 +1,56 @@
++-- input --
++Loose lists.
++  - A
++
++    B
++  - C
++    D
++  - E
++  - F
++-- gofmt --
++Loose lists.
++
++  - A
++
++    B
++
++  - C
++    D
++
++  - E
++
++  - F
++-- text --
++Loose lists.
++
++  - A
++
++    B
++
++  - C D
++
++  - E
++
++  - F
++-- markdown --
++Loose lists.
++
++  - A
++
++    B
++
++  - C D
++
++  - E
++
++  - F
++-- html --
++<p>Loose lists.
++<ul>
++<li><p>A
++<p>B
++<li><p>C
++D
++<li><p>E
++<li><p>F
++</ul>
+diff --git a/src/go/doc/comment/testdata/text.txt b/src/go/doc/comment/testdata/text.txt
+new file mode 100644
+index 0000000000..c4de6e20d2
+--- /dev/null
++++ b/src/go/doc/comment/testdata/text.txt
+@@ -0,0 +1,62 @@
++{"TextPrefix":"|", "TextCodePrefix": "@"}
++-- input --
++Hello, world
++ Code block here.
++More text.
++Tight list
++ - one
++ - two
++ - three
++Loose list
++ - one
++
++ - two
++
++ - three
++
++# Heading
++
++More text.
++-- gofmt --
++Hello, world
++
++	Code block here.
++
++More text.
++Tight list
++  - one
++  - two
++  - three
++
++Loose list
++
++  - one
++
++  - two
++
++  - three
++
++# Heading
++
++More text.
++-- text --
++|Hello, world
++|
++@Code block here.
++|
++|More text. Tight list
++|  - one
++|  - two
++|  - three
++|
++|Loose list
++|
++|  - one
++|
++|  - two
++|
++|  - three
++|
++|# Heading
++|
++|More text.
+diff --git a/src/go/doc/comment/testdata/text8.txt b/src/go/doc/comment/testdata/text8.txt
+new file mode 100644
+index 0000000000..560ac951c1
+--- /dev/null
++++ b/src/go/doc/comment/testdata/text8.txt
+@@ -0,0 +1,94 @@
++{"TextWidth": 40}
++-- input --
++If the arguments have version suffixes (like @latest or @v1.0.0), "go install"
++builds packages in module-aware mode, ignoring the go.mod file in the current
++directory or any parent directory, if there is one. This is useful for
++installing executables without affecting the dependencies of the main module.
++To eliminate ambiguity about which module versions are used in the build, the
++arguments must satisfy the following constraints:
++
++ - Arguments must be package paths or package patterns (with "..." wildcards).
++ They must not be standard packages (like fmt), meta-patterns (std, cmd,
++ all), or relative or absolute file paths.
++
++ - All arguments must have the same version suffix. Different queries are not
++ allowed, even if they refer to the same version.
++
++ - All arguments must refer to packages in the same module at the same version.
++
++ - Package path arguments must refer to main packages. Pattern arguments
++ will only match main packages.
++
++ - No module is considered the "main" module. If the module containing
++ packages named on the command line has a go.mod file, it must not contain
++ directives (replace and exclude) that would cause it to be interpreted
++ differently than if it were the main module. The module must not require
++ a higher version of itself.
++
++ - Vendor directories are not used in any module. (Vendor directories are not
++ included in the module zip files downloaded by 'go install'.)
++
++If the arguments don't have version suffixes, "go install" may run in
++module-aware mode or GOPATH mode, depending on the GO111MODULE environment
++variable and the presence of a go.mod file. See 'go help modules' for details.
++If module-aware mode is enabled, "go install" runs in the context of the main
++module.
++-- text --
++If the arguments have version suffixes
++(like @latest or @v1.0.0), "go install"
++builds packages in module-aware mode,
++ignoring the go.mod file in the current
++directory or any parent directory,
++if there is one. This is useful for
++installing executables without affecting
++the dependencies of the main module.
++To eliminate ambiguity about which
++module versions are used in the build,
++the arguments must satisfy the following
++constraints:
++
++  - Arguments must be package paths
++    or package patterns (with "..."
++    wildcards). They must not be
++    standard packages (like fmt),
++    meta-patterns (std, cmd, all),
++    or relative or absolute file paths.
++
++  - All arguments must have the same
++    version suffix. Different queries
++    are not allowed, even if they refer
++    to the same version.
++
++  - All arguments must refer to packages
++    in the same module at the same
++    version.
++
++  - Package path arguments must refer
++    to main packages. Pattern arguments
++    will only match main packages.
++
++  - No module is considered the "main"
++    module. If the module containing
++    packages named on the command line
++    has a go.mod file, it must not
++    contain directives (replace and
++    exclude) that would cause it to be
++    interpreted differently than if it
++    were the main module. The module
++    must not require a higher version of
++    itself.
++
++  - Vendor directories are not used in
++    any module. (Vendor directories are
++    not included in the module zip files
++    downloaded by 'go install'.)
++
++If the arguments don't have version
++suffixes, "go install" may run in
++module-aware mode or GOPATH mode,
++depending on the GO111MODULE environment
++variable and the presence of a go.mod
++file. See 'go help modules' for details.
++If module-aware mode is enabled,
++"go install" runs in the context of the
++main module.
+diff --git a/src/go/doc/comment/text.go b/src/go/doc/comment/text.go
+index e35e5ccfd1..e9684f066b 100644
+--- a/src/go/doc/comment/text.go
++++ b/src/go/doc/comment/text.go
+@@ -86,12 +86,12 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
+ 
+ 	case *Paragraph:
+ 		out.WriteString(p.prefix)
+-		p.text(out, x.Text)
++		p.text(out, "", x.Text)
+ 
+ 	case *Heading:
+ 		out.WriteString(p.prefix)
+ 		out.WriteString("# ")
+-		p.text(out, x.Text)
++		p.text(out, "", x.Text)
+ 
+ 	case *Code:
+ 		text := x.Text
+@@ -104,12 +104,38 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
+ 			}
+ 			writeNL(out)
+ 		}
++
++	case *List:
++		loose := x.BlankBetween()
++		for i, item := range x.Items {
++			if i > 0 && loose {
++				out.WriteString(p.prefix)
++				writeNL(out)
++			}
++			out.WriteString(p.prefix)
++			out.WriteString(" ")
++			if item.Number == "" {
++				out.WriteString(" - ")
++			} else {
++				out.WriteString(item.Number)
++				out.WriteString(". ")
++			}
++			for i, blk := range item.Content {
++				const fourSpace = "    "
++				if i > 0 {
++					writeNL(out)
++					out.WriteString(p.prefix)
++					out.WriteString(fourSpace)
++				}
++				p.text(out, fourSpace, blk.(*Paragraph).Text)
++			}
++		}
+ 	}
+ }
+ 
+ // text prints the text sequence x to out.
+ // TODO: Wrap lines.
+-func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
++func (p *textPrinter) text(out *bytes.Buffer, indent string, x []Text) {
+ 	p.oneLongLine(&p.long, x)
+ 	words := strings.Fields(p.long.String())
+ 	p.long.Reset()
+@@ -118,11 +144,12 @@ func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
+ 	if p.width < 0 {
+ 		seq = []int{0, len(words)} // one long line
+ 	} else {
+-		seq = wrap(words, p.width)
++		seq = wrap(words, p.width-utf8.RuneCountInString(indent))
+ 	}
+ 	for i := 0; i+1 < len(seq); i++ {
+ 		if i > 0 {
+ 			out.WriteString(p.prefix)
++			out.WriteString(indent)
+ 		}
+ 		for j, w := range words[seq[i]:seq[i+1]] {
+ 			if j > 0 {

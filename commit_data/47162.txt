@@ -16,9 +16,95 @@ Date:   Mon Mar 1 09:05:58 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go |  5 +++++
  test/fixedbugs/issue44330.dir/a.go            | 21 +++++++++++++++++++++
  test/fixedbugs/issue44330.dir/b.go            | 23 +++++++++++++++++++++++
  test/fixedbugs/issue44330.go                  |  7 +++++++
  4 files changed, 56 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 17aa35549d..9355174da8 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -992,6 +992,11 @@ func (r *importReader) node() ir.Node {
+ 		r.funcBody(fn)
+ 		fn.Dcl = fn.Inl.Dcl
+ 		fn.Body = fn.Inl.Body
++		if len(fn.Body) == 0 {
++			// An empty closure must be represented as a single empty
++			// block statement, else it will be dropped.
++			fn.Body = []ir.Node{ir.NewBlockStmt(src.NoXPos, nil)}
++		}
+ 		fn.Inl = nil
+ 
+ 		ir.FinishCaptureNames(pos, r.curfn, fn)
+diff --git a/test/fixedbugs/issue44330.dir/a.go b/test/fixedbugs/issue44330.dir/a.go
+new file mode 100644
+index 0000000000..9d3ab9fe80
+--- /dev/null
++++ b/test/fixedbugs/issue44330.dir/a.go
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package a
++
++type Table struct {
++	ColumnSeparator bool
++	RowSeparator    bool
++
++	// ColumnResizer is called on each Draw. Can be used for custom column sizing.
++	ColumnResizer func()
++}
++
++func NewTable() *Table {
++	return &Table{
++		ColumnSeparator: true,
++		RowSeparator:    true,
++		ColumnResizer:   func() {},
++	}
++}
+diff --git a/test/fixedbugs/issue44330.dir/b.go b/test/fixedbugs/issue44330.dir/b.go
+new file mode 100644
+index 0000000000..1d5742421b
+--- /dev/null
++++ b/test/fixedbugs/issue44330.dir/b.go
+@@ -0,0 +1,23 @@
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package main
++
++import (
++	"./a"
++)
++
++type Term struct {
++	top *a.Table
++}
++
++//go:noinline
++func NewFred() *Term {
++	table := a.NewTable()
++	return &Term{top: table}
++}
++
++func main() {
++	NewFred()
++}
+diff --git a/test/fixedbugs/issue44330.go b/test/fixedbugs/issue44330.go
+new file mode 100644
+index 0000000000..682d9c5bf3
+--- /dev/null
++++ b/test/fixedbugs/issue44330.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package ignored

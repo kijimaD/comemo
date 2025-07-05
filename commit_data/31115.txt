@@ -15,7 +15,39 @@ Date:   Wed Dec 21 11:07:11 2016 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 6 ++----
  test/fixedbugs/issue16439.go         | 2 +-
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index a2146ebef1..48b98b798a 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -458,12 +458,10 @@ func toint(v Val) Val {
+ 
+ 	case *Mpcplx:
+ 		i := new(Mpint)
+-		if i.SetFloat(&u.Real) < 0 {
++		if i.SetFloat(&u.Real) < 0 || u.Imag.CmpFloat64(0) != 0 {
+ 			yyerror("constant %v%vi truncated to integer", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
+ 		}
+-		if u.Imag.CmpFloat64(0) != 0 {
+-			yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
+-		}
++
+ 		v.U = i
+ 	}
+ 
+diff --git a/test/fixedbugs/issue16439.go b/test/fixedbugs/issue16439.go
+index d321b6083e..f9382bafcd 100644
+--- a/test/fixedbugs/issue16439.go
++++ b/test/fixedbugs/issue16439.go
+@@ -13,6 +13,6 @@ var c []int = []int{2.0: 2}
+ var d []int = []int{-2.0: 2} // ERROR "must be non-negative integer constant"
+ 
+ var e []int = []int{3 + 0i: 3}
+-var f []int = []int{3i: 3} // ERROR "truncated to real"
++var f []int = []int{3i: 3} // ERROR "truncated to integer"
+ 
+ var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant"

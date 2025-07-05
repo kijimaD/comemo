@@ -9,7 +9,32 @@ Date:   Wed Mar 6 15:20:24 2013 -0500
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7473047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index de75396d01..14e02200e7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -98,6 +98,7 @@ Eric Roshan-Eisner <eric.d.eisner@gmail.com>
+ Erik St. Martin <alakriti@gmail.com>
+ Esko Luontola <esko.luontola@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
++Ewan Chou <coocood@gmail.com>
+ Fan Hongjian <fan.howard@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 01f4128721..d948e02bf9 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -155,6 +155,7 @@ Erik St. Martin <alakriti@gmail.com>
+ Esko Luontola <esko.luontola@gmail.com>
+ Evan Martin <evan.martin@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
++Ewan Chou <coocood@gmail.com>
+ Fan Hongjian <fan.howard@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>

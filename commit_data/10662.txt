@@ -7,9 +7,171 @@ Date:   Thu Dec 8 15:42:44 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5465043
-
+---
  src/pkg/net/http/serve_test.go | 18 +++++++++---------
  src/pkg/testing/testing.go     |  2 +-
  src/pkg/time/sleep.go          |  6 +++---
  src/pkg/time/sleep_test.go     | 19 +++++++++----------
  4 files changed, 22 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 670b5418fc..865f915a2b 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -361,7 +361,7 @@ func TestIdentityResponse(t *testing.T) {
+ 
+ 	// The ReadAll will hang for a failing test, so use a Timer to
+ 	// fail explicitly.
+-	goTimeout(t, 2e9, func() {
++	goTimeout(t, 2*time.Second, func() {
+ 		got, _ := ioutil.ReadAll(conn)
+ 		expectedSuffix := "\r\n\r\ntoo short"
+ 		if !strings.HasSuffix(string(got), expectedSuffix) {
+@@ -395,7 +395,7 @@ func testTcpConnectionCloses(t *testing.T, req string, h Handler) {
+ 	success := make(chan bool)
+ 	go func() {
+ 		select {
+-		case <-time.After(5e9):
++		case <-time.After(5 * time.Second):
+ 			t.Fatal("body not closed after 5s")
+ 		case <-success:
+ 		}
+@@ -546,7 +546,7 @@ func TestTLSHandshakeTimeout(t *testing.T) {
+ 		t.Fatalf("Dial: %v", err)
+ 	}
+ 	defer conn.Close()
+-	goTimeout(t, 10e9, func() {
++	goTimeout(t, 10*time.Second, func() {
+ 		var buf [1]byte
+ 		n, err := conn.Read(buf[:])
+ 		if err == nil || n != 0 {
+@@ -576,7 +576,7 @@ func TestTLSServer(t *testing.T) {
+ 		t.Fatalf("Dial: %v", err)
+ 	}
+ 	defer idleConn.Close()
+-	goTimeout(t, 10e9, func() {
++	goTimeout(t, 10*time.Second, func() {
+ 		if !strings.HasPrefix(ts.URL, "https://") {
+ 			t.Errorf("expected test TLS server to start with https://, got %q", ts.URL)
+ 			return
+@@ -925,7 +925,7 @@ func testHandlerPanic(t *testing.T, withHijack bool) {
+ 	select {
+ 	case <-done:
+ 		return
+-	case <-time.After(5e9):
++	case <-time.After(5 * time.Second):
+ 		t.Fatal("expected server handler to log an error")
+ 	}
+ }
+@@ -1072,7 +1072,7 @@ func TestClientWriteShutdown(t *testing.T) {
+ 	}()
+ 	select {
+ 	case <-donec:
+-	case <-time.After(10e9):
++	case <-time.After(10 * time.Second):
+ 		t.Fatalf("timeout")
+ 	}
+ }
+@@ -1103,10 +1103,10 @@ func TestServerBufferedChunking(t *testing.T) {
+ }
+ 
+ // goTimeout runs f, failing t if f takes more than ns to complete.
+-func goTimeout(t *testing.T, ns int64, f func()) {
++func goTimeout(t *testing.T, d time.Duration, f func()) {
+ 	ch := make(chan bool, 2)
+-	timer := time.AfterFunc(ns, func() {
+-		t.Errorf("Timeout expired after %d ns", ns)
++	timer := time.AfterFunc(d, func() {
++		t.Errorf("Timeout expired after %v", d)
+ 		ch <- true
+ 	})
+ 	defer timer.Stop()
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 0b3a07108c..b12882d606 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -322,7 +322,7 @@ var timer *time.Timer
+ // startAlarm starts an alarm if requested.
+ func startAlarm() {
+ 	if *timeout > 0 {
+-		timer = time.AfterFunc(*timeout*1e9, alarm)
++		timer = time.AfterFunc(time.Duration(*timeout)*time.Second, alarm)
+ 	}
+ }
+ 
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 1e23118f37..844d964d5a 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -72,13 +72,13 @@ func After(d Duration) <-chan Time {
+ 	return NewTimer(d).C
+ }
+ 
+-// AfterFunc waits at least ns nanoseconds before calling f
++// AfterFunc waits for the duration to elapse and then calls f
+ // in its own goroutine. It returns a Timer that can
+ // be used to cancel the call using its Stop method.
+-func AfterFunc(ns int64, f func()) *Timer {
++func AfterFunc(d Duration, f func()) *Timer {
+ 	t := &Timer{
+ 		r: runtimeTimer{
+-			when: nano() + ns,
++			when: nano() + int64(d),
+ 			f:    goFunc,
+ 			arg:  f,
+ 		},
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 91771fee6e..0e9bea48f1 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -39,7 +39,7 @@ func TestAfterFunc(t *testing.T) {
+ 		i--
+ 		if i >= 0 {
+ 			AfterFunc(0, f)
+-			Sleep(1e9)
++			Sleep(1 * Second)
+ 		} else {
+ 			c <- true
+ 		}
+@@ -91,7 +91,7 @@ func BenchmarkAfter(b *testing.B) {
+ 
+ func BenchmarkStop(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		NewTimer(1e9).Stop()
++		NewTimer(1 * Second).Stop()
+ 	}
+ }
+ 
+@@ -126,12 +126,11 @@ func TestAfterTick(t *testing.T) {
+ }
+ 
+ func TestAfterStop(t *testing.T) {
+-	const msec = 1e6
+-	AfterFunc(100*msec, func() {})
+-	t0 := NewTimer(50 * msec)
++	AfterFunc(100*Millisecond, func() {})
++	t0 := NewTimer(50 * Millisecond)
+ 	c1 := make(chan bool, 1)
+-	t1 := AfterFunc(150*msec, func() { c1 <- true })
+-	c2 := After(200 * msec)
++	t1 := AfterFunc(150*Millisecond, func() { c1 <- true })
++	c2 := After(200 * Millisecond)
+ 	if !t0.Stop() {
+ 		t.Fatalf("failed to stop event 0")
+ 	}
+@@ -212,12 +211,12 @@ func TestTimerStopStress(t *testing.T) {
+ 	}
+ 	for i := 0; i < 100; i++ {
+ 		go func(i int) {
+-			timer := AfterFunc(2e9, func() {
++			timer := AfterFunc(2*Second, func() {
+ 				t.Fatalf("timer %d was not stopped", i)
+ 			})
+-			Sleep(1e9)
++			Sleep(1 * Second)
+ 			timer.Stop()
+ 		}(i)
+ 	}
+-	Sleep(3e9)
++	Sleep(3 * Second)
+ }

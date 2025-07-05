@@ -29,6 +29,19 @@ Date:   Tue Feb 18 12:41:34 2025 -0500
     Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/bogo_config.json | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index f4772a00b2..e1ace2398e 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -52,7 +52,6 @@
+         "JustConfiguringKyberWorks": "we always send a X25519 key share with Kyber",
+         "KyberKeyShareIncludedSecond": "we always send the Kyber key share first",
+         "KyberKeyShareIncludedThird": "we always send the Kyber key share first",
+-        "SkipNewSessionTicket": "TODO confusing? maybe bug",
+         "SendUserCanceledAlerts*": "TODO may be a real bug?",
+         "GREASE-Server-TLS13": "TODO ???",
+         "GarbageCertificate*": "TODO ask davidben, alertDecode vs alertBadCertificate",

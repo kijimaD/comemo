@@ -23,6 +23,33 @@ Date:   Thu Mar 7 14:37:15 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/fd_fsync_darwin.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/internal/poll/fd_fsync_darwin.go b/src/internal/poll/fd_fsync_darwin.go
+index 731b7fd5bd..e55b490d41 100644
+--- a/src/internal/poll/fd_fsync_darwin.go
++++ b/src/internal/poll/fd_fsync_darwin.go
+@@ -5,6 +5,7 @@
+ package poll
+ 
+ import (
++	"errors"
+ 	"internal/syscall/unix"
+ 	"syscall"
+ )
+@@ -19,6 +20,13 @@ func (fd *FD) Fsync() error {
+ 	defer fd.decref()
+ 	return ignoringEINTR(func() error {
+ 		_, err := unix.Fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
++
++		// There are scenarios such as SMB mounts where fcntl will fail
++		// with ENOTSUP. In those cases fallback to fsync.
++		// See #64215
++		if err != nil && errors.Is(err, syscall.ENOTSUP) {
++			err = syscall.Fsync(fd.Sysfd)
++		}
+ 		return err
+ 	})
+ }

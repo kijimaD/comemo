@@ -11,7 +11,7 @@ Date:   Wed Oct 13 15:19:53 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2490041
-
+---
  src/cmd/5l/asm.c       |   74 +--
  src/cmd/5l/noop.c      | 1342 ++++++++++++++++++++++++------------------------
  src/cmd/5l/pass.c      |  130 ++---
@@ -25,3 +25,3634 @@ Date:   Wed Oct 13 15:19:53 2010 -0400
  src/cmd/8l/span.c      |   76 +--
  src/cmd/ld/lib.c       |  110 ++--
  12 files changed, 1632 insertions(+), 1632 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 82e7a09899..1b6ee68d08 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -421,25 +421,25 @@ asmb(void)
+ 	seek(cout, OFFSET, 0);
+ 	pc = INITTEXT;
+ 	for(p = firstp; p != P; p = p->link) {
+-		setarch(p);
+-		if(p->as == ATEXT) {
+-			curtext = p;
+-			autosize = p->to.offset + 4;
+-		}
+-		if(p->pc != pc) {
+-			diag("phase error %lux sb %lux",
+-				p->pc, pc);
+-			if(!debug['a'])
+-				prasm(curp);
+-			pc = p->pc;
+-		}
+-		curp = p;
+-		o = oplook(p);	/* could probably avoid this call */
+-		if(thumb)
+-			thumbasmout(p, o);
+-		else
+-			asmout(p, o);
+-		pc += o->size;
++			setarch(p);
++			if(p->as == ATEXT) {
++				curtext = p;
++				autosize = p->to.offset + 4;
++			}
++			if(p->pc != pc) {
++				diag("phase error %lux sb %lux",
++					p->pc, pc);
++				if(!debug['a'])
++					prasm(curp);
++				pc = p->pc;
++			}
++			curp = p;
++			o = oplook(p);	/* could probably avoid this call */
++			if(thumb)
++				thumbasmout(p, o);
++			else
++				asmout(p, o);
++			pc += o->size;
+ 	}
+ 	while(pc-INITTEXT < textsize) {
+ 		cput(0);
+@@ -1148,29 +1148,29 @@ asmthumbmap(void)
+ 	for(p = firstp; p != P; p = p->link){
+ 		pc = p->pc - INITTEXT;
+ 		if(p->as == ATEXT){
+-			setarch(p);
+-			if(thumb){
+-				if(p->from.sym->foreign){	// 8 bytes of ARM first
+-					if(lastt >= 0){
+-						outt(lastt, pc-1);
+-						lastt = -1;
+-					}
+-					pc += 8;
+-				}
+-				if(lastt < 0)
+-					lastt = pc;
+-			}
+-			else{
+-				if(p->from.sym->foreign){	// 4 bytes of THUMB first
+-					if(lastt < 0)
+-						lastt = pc;
+-					pc += 4;
+-				}
++		setarch(p);
++		if(thumb){
++			if(p->from.sym->foreign){	// 8 bytes of ARM first
+ 				if(lastt >= 0){
+ 					outt(lastt, pc-1);
+ 					lastt = -1;
+ 				}
++				pc += 8;
+ 			}
++			if(lastt < 0)
++				lastt = pc;
++		}
++		else{
++			if(p->from.sym->foreign){	// 4 bytes of THUMB first
++				if(lastt < 0)
++					lastt = pc;
++				pc += 4;
++			}
++			if(lastt >= 0){
++				outt(lastt, pc-1);
++				lastt = -1;
++			}
++		}
+ 		}
+ 	}
+ 	if(lastt >= 0)
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 41d235a098..c4f55db73a 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -151,88 +151,88 @@ noops(void)
+ 
+ 	q = P;
+ 	for(p = firstp; p != P; p = p->link) {
+-		setarch(p);
+-
+-		/* find out how much arg space is used in this TEXT */
+-		if(p->to.type == D_OREG && p->to.reg == REGSP)
+-			if(p->to.offset > curframe)
+-				curframe = p->to.offset;
+-
+-		switch(p->as) {
+-		case ATEXT:
+-			if(curtext && curtext->from.sym) {
+-				curtext->from.sym->frame = curframe;
+-				curtext->from.sym->become = curbecome;
+-				if(curbecome > maxbecome)
+-					maxbecome = curbecome;
+-			}
+-			curframe = 0;
+-			curbecome = 0;
+-
+-			p->mark |= LEAF;
+-			curtext = p;
+-			break;
+-
+-		case ARET:
+-			/* special form of RET is BECOME */
+-			if(p->from.type == D_CONST)
+-				if(p->from.offset > curbecome)
+-					curbecome = p->from.offset;
+-			break;
+-
+-		case ADIV:
+-		case ADIVU:
+-		case AMOD:
+-		case AMODU:
+-			q = p;
+-			if(prog_div == P)
+-				initdiv();
+-			if(curtext != P)
+-				curtext->mark &= ~LEAF;
+-			setdiv(p->as);
+-			continue;
+-
+-		case ANOP:
+-			q1 = p->link;
+-			q->link = q1;		/* q is non-nop */
+-			q1->mark |= p->mark;
+-			continue;
+-
+-		case ABL:
+-		case ABX:
+-			if(curtext != P)
+-				curtext->mark &= ~LEAF;
+-
+-		case ABCASE:
+-		case AB:
+-
+-		case ABEQ:
+-		case ABNE:
+-		case ABCS:
+-		case ABHS:
+-		case ABCC:
+-		case ABLO:
+-		case ABMI:
+-		case ABPL:
+-		case ABVS:
+-		case ABVC:
+-		case ABHI:
+-		case ABLS:
+-		case ABGE:
+-		case ABLT:
+-		case ABGT:
+-		case ABLE:
+-
+-			q1 = p->cond;
+-			if(q1 != P) {
+-				while(q1->as == ANOP) {
+-					q1 = q1->link;
+-					p->cond = q1;
++			setarch(p);
++	
++			/* find out how much arg space is used in this TEXT */
++			if(p->to.type == D_OREG && p->to.reg == REGSP)
++				if(p->to.offset > curframe)
++					curframe = p->to.offset;
++	
++			switch(p->as) {
++			case ATEXT:
++				if(curtext && curtext->from.sym) {
++					curtext->from.sym->frame = curframe;
++					curtext->from.sym->become = curbecome;
++					if(curbecome > maxbecome)
++						maxbecome = curbecome;
+ 				}
++				curframe = 0;
++				curbecome = 0;
++	
++				p->mark |= LEAF;
++				curtext = p;
++				break;
++	
++			case ARET:
++				/* special form of RET is BECOME */
++				if(p->from.type == D_CONST)
++					if(p->from.offset > curbecome)
++						curbecome = p->from.offset;
++				break;
++	
++			case ADIV:
++			case ADIVU:
++			case AMOD:
++			case AMODU:
++				q = p;
++				if(prog_div == P)
++					initdiv();
++				if(curtext != P)
++					curtext->mark &= ~LEAF;
++				setdiv(p->as);
++				continue;
++	
++			case ANOP:
++				q1 = p->link;
++				q->link = q1;		/* q is non-nop */
++				q1->mark |= p->mark;
++				continue;
++	
++			case ABL:
++			case ABX:
++				if(curtext != P)
++					curtext->mark &= ~LEAF;
++	
++			case ABCASE:
++			case AB:
++	
++			case ABEQ:
++			case ABNE:
++			case ABCS:
++			case ABHS:
++			case ABCC:
++			case ABLO:
++			case ABMI:
++			case ABPL:
++			case ABVS:
++			case ABVC:
++			case ABHI:
++			case ABLS:
++			case ABGE:
++			case ABLT:
++			case ABGT:
++			case ABLE:
++	
++				q1 = p->cond;
++				if(q1 != P) {
++					while(q1->as == ANOP) {
++						q1 = q1->link;
++						p->cond = q1;
++					}
++				}
++				break;
+ 			}
+-			break;
+-		}
+-		q = p;
++			q = p;
+ 	}
+ 
+ 	if(curtext && curtext->from.sym) {
+@@ -248,660 +248,660 @@ noops(void)
+ 
+ 	curtext = 0;
+ 	for(p = firstp; p != P; p = p->link) {
+-		setarch(p);
+-		switch(p->as) {
+-		case ATEXT:
+-			curtext = p;
+-			break;
+-		case ABL:
+-		// case ABX:
+-			if(curtext != P && curtext->from.sym != S && curtext->to.offset >= 0) {
+-				o = maxbecome - curtext->from.sym->frame;
+-				if(o <= 0)
+-					break;
+-				/* calling a become or calling a variable */
+-				if(p->to.sym == S || p->to.sym->become) {
+-					curtext->to.offset += o;
+-					if(debug['b']) {
+-						curp = p;
+-						print("%D calling %D increase %d\n",
+-							&curtext->from, &p->to, o);
++			setarch(p);
++			switch(p->as) {
++			case ATEXT:
++				curtext = p;
++				break;
++			case ABL:
++			// case ABX:
++				if(curtext != P && curtext->from.sym != S && curtext->to.offset >= 0) {
++					o = maxbecome - curtext->from.sym->frame;
++					if(o <= 0)
++						break;
++					/* calling a become or calling a variable */
++					if(p->to.sym == S || p->to.sym->become) {
++						curtext->to.offset += o;
++						if(debug['b']) {
++							curp = p;
++							print("%D calling %D increase %d\n",
++								&curtext->from, &p->to, o);
++						}
+ 					}
+ 				}
++				break;
+ 			}
+-			break;
+-		}
+ 	}
+ 
+ 	for(p = firstp; p != P; p = p->link) {
+-		setarch(p);
+-		o = p->as;
+-		switch(o) {
+-		case ATEXT:
+-			curtext = p;
+-			autosize = p->to.offset + 4;
+-			if(autosize <= 4)
+-			if(curtext->mark & LEAF) {
+-				p->to.offset = -4;
+-				autosize = 0;
+-			}
+-
+-			if(!autosize && !(curtext->mark & LEAF)) {
+-				if(debug['v'])
+-					Bprint(&bso, "save suppressed in: %s\n",
+-						curtext->from.sym->name);
+-				Bflush(&bso);
+-				curtext->mark |= LEAF;
+-			}
++			setarch(p);
++			o = p->as;
++			switch(o) {
++			case ATEXT:
++				curtext = p;
++				autosize = p->to.offset + 4;
++				if(autosize <= 4)
++				if(curtext->mark & LEAF) {
++					p->to.offset = -4;
++					autosize = 0;
++				}
++	
++				if(!autosize && !(curtext->mark & LEAF)) {
++					if(debug['v'])
++						Bprint(&bso, "save suppressed in: %s\n",
++							curtext->from.sym->name);
++					Bflush(&bso);
++					curtext->mark |= LEAF;
++				}
+ #ifdef CALLEEBX
+-			if(p->from.sym->foreign){
+-				if(thumb)
+-					// don't allow literal pool to seperate these
+-					p = adword(0xe28f7001, 0xe12fff17, p); // arm add 1, pc, r7 and bx r7
+-					// p = aword(0xe12fff17, aword(0xe28f7001, p)); // arm add 1, pc, r7 and bx r7
+-				else
+-					p = aword(0x4778, p);	// thumb bx pc and 2 bytes padding
+-			}
++				if(p->from.sym->foreign){
++					if(thumb)
++						// don't allow literal pool to seperate these
++						p = adword(0xe28f7001, 0xe12fff17, p); // arm add 1, pc, r7 and bx r7
++						// p = aword(0xe12fff17, aword(0xe28f7001, p)); // arm add 1, pc, r7 and bx r7
++					else
++						p = aword(0x4778, p);	// thumb bx pc and 2 bytes padding
++				}
+ #endif
+-			if(curtext->mark & LEAF) {
+-				if(curtext->from.sym)
+-					curtext->from.sym->type = SLEAF;
+-				if(!autosize)
++				if(curtext->mark & LEAF) {
++					if(curtext->from.sym)
++						curtext->from.sym->type = SLEAF;
++					if(!autosize)
++						break;
++				}
++	
++				if(thumb){
++					if(!(p->reg & NOSPLIT))
++						diag("stack splitting not supported in thumb");
++					if(!(curtext->mark & LEAF)){
++						q = movrr(nil, REGLINK, REGTMPT-1, p);
++						p->link = q;
++						q1 = prg();
++						q1->as = AMOVW;
++						q1->line = p->line;
++						q1->from.type = D_REG;
++						q1->from.reg = REGTMPT-1;
++						q1->to.type = D_OREG;
++						q1->to.name = D_NONE;
++						q1->to.reg = REGSP;
++						q1->to.offset = 0;
++						q1->link = q->link;
++						q->link = q1;
++					}
++					if(autosize){
++						q2 = prg();
++						q2->as = ASUB;
++						q2->line = p->line;
++						q2->from.type = D_CONST;
++						q2->from.offset = autosize;
++						q2->to.type = D_REG;
++						q2->to.reg = REGSP;
++						q2->link = p->link;
++						p->link = q2;
++					}
+ 					break;
+-			}
+-
+-			if(thumb){
+-				if(!(p->reg & NOSPLIT))
+-					diag("stack splitting not supported in thumb");
+-				if(!(curtext->mark & LEAF)){
+-					q = movrr(nil, REGLINK, REGTMPT-1, p);
+-					p->link = q;
++				}
++	
++				if(p->reg & NOSPLIT) {
+ 					q1 = prg();
+ 					q1->as = AMOVW;
++					q1->scond |= C_WBIT;
+ 					q1->line = p->line;
+ 					q1->from.type = D_REG;
+-					q1->from.reg = REGTMPT-1;
++					q1->from.reg = REGLINK;
+ 					q1->to.type = D_OREG;
+-					q1->to.name = D_NONE;
++					q1->to.offset = -autosize;
+ 					q1->to.reg = REGSP;
+-					q1->to.offset = 0;
+-					q1->link = q->link;
+-					q->link = q1;
+-				}
+-				if(autosize){
+-					q2 = prg();
+-					q2->as = ASUB;
+-					q2->line = p->line;
+-					q2->from.type = D_CONST;
+-					q2->from.offset = autosize;
+-					q2->to.type = D_REG;
+-					q2->to.reg = REGSP;
+-					q2->link = p->link;
+-					p->link = q2;
++					q1->link = p->link;
++					p->link = q1;
++				} else if (autosize < StackBig) {
++					// split stack check for small functions
++					// MOVW			g_stackguard(g), R1
++					// CMP			R1, $-autosize(SP)
++					// MOVW.LO		$autosize, R1
++					// MOVW.LO		$args, R2
++					// MOVW.LO		R14, R3
++					// BL.LO			runtime.morestack(SB) // modifies LR
++					// MOVW.W		R14,$-autosize(SP)
++	
++					// TODO(kaib): add more trampolines
++					// TODO(kaib): put stackguard in register
++					// TODO(kaib): add support for -K and underflow detection
++	
++					// MOVW			g_stackguard(g), R1
++					p = appendp(p);
++					p->as = AMOVW;
++					p->from.type = D_OREG;
++					p->from.reg = REGG;
++					p->to.type = D_REG;
++					p->to.reg = 1;
++	
++					// CMP			R1, $-autosize(SP)
++					p = appendp(p);
++					p->as = ACMP;
++					p->from.type = D_REG;
++					p->from.reg = 1;
++					p->from.offset = -autosize;
++					p->reg = REGSP;
++	
++					// MOVW.LO		$autosize, R1
++					p = appendp(p);
++					p->as = AMOVW;
++					p->scond = C_SCOND_LO;
++					p->from.type = D_CONST;
++					p->from.offset = 0;
++					p->to.type = D_REG;
++					p->to.reg = 1;
++	
++					// MOVW.LO		$args +4, R2
++					// also need to store the extra 4 bytes.
++					p = appendp(p);
++					p->as = AMOVW;
++					p->scond = C_SCOND_LO;
++					p->from.type = D_CONST;
++					p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
++					p->to.type = D_REG;
++					p->to.reg = 2;
++	
++					// MOVW.LO	R14, R3
++					p = appendp(p);
++					p->as = AMOVW;
++					p->scond = C_SCOND_LO;
++					p->from.type = D_REG;
++					p->from.reg = REGLINK;
++					p->to.type = D_REG;
++					p->to.reg = 3;
++	
++					// BL.LO		runtime.morestack(SB) // modifies LR
++					p = appendp(p);
++					p->as = ABL;
++					p->scond = C_SCOND_LO;
++	 				p->to.type = D_BRANCH;
++					p->to.sym = symmorestack;
++					p->cond = pmorestack;
++	
++					// MOVW.W		R14,$-autosize(SP)
++					p = appendp(p);
++					p->as = AMOVW;
++	 				p->scond |= C_WBIT;
++					p->from.type = D_REG;
++					p->from.reg = REGLINK;
++					p->to.type = D_OREG;
++					p->to.offset = -autosize;
++					p->to.reg = REGSP;
++				} else { // > StackBig
++					// MOVW		$autosize, R1
++					// MOVW		$args, R2
++					// MOVW		R14, R3
++					// BL			runtime.morestack(SB) // modifies LR
++					// MOVW.W		R14,$-autosize(SP)
++	
++					// MOVW		$autosize, R1
++					p = appendp(p);
++					p->as = AMOVW;
++					p->from.type = D_CONST;
++					p->from.offset = autosize;
++					p->to.type = D_REG;
++					p->to.reg = 1;
++	
++					// MOVW		$args +4, R2
++					// also need to store the extra 4 bytes.
++					p = appendp(p);
++					p->as = AMOVW;
++					p->from.type = D_CONST;
++					p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
++					p->to.type = D_REG;
++					p->to.reg = 2;
++	
++					// MOVW	R14, R3
++					p = appendp(p);
++					p->as = AMOVW;
++					p->from.type = D_REG;
++					p->from.reg = REGLINK;
++					p->to.type = D_REG;
++					p->to.reg = 3;
++	
++					// BL		runtime.morestack(SB) // modifies LR
++					p = appendp(p);
++					p->as = ABL;
++	 				p->to.type = D_BRANCH;
++					p->to.sym = symmorestack;
++					p->cond = pmorestack;
++	
++					// MOVW.W		R14,$-autosize(SP)
++					p = appendp(p);
++					p->as = AMOVW;
++	 				p->scond |= C_WBIT;
++					p->from.type = D_REG;
++					p->from.reg = REGLINK;
++					p->to.type = D_OREG;
++					p->to.offset = -autosize;
++					p->to.reg = REGSP;
+ 				}
+ 				break;
+-			}
+-
+-			if(p->reg & NOSPLIT) {
+-				q1 = prg();
+-				q1->as = AMOVW;
+-				q1->scond |= C_WBIT;
+-				q1->line = p->line;
+-				q1->from.type = D_REG;
+-				q1->from.reg = REGLINK;
+-				q1->to.type = D_OREG;
+-				q1->to.offset = -autosize;
+-				q1->to.reg = REGSP;
+-				q1->link = p->link;
+-				p->link = q1;
+-			} else if (autosize < StackBig) {
+-				// split stack check for small functions
+-				// MOVW			g_stackguard(g), R1
+-				// CMP			R1, $-autosize(SP)
+-				// MOVW.LO		$autosize, R1
+-				// MOVW.LO		$args, R2
+-				// MOVW.LO		R14, R3
+-				// BL.LO			runtime.morestack(SB) // modifies LR
+-				// MOVW.W		R14,$-autosize(SP)
+-
+-				// TODO(kaib): add more trampolines
+-				// TODO(kaib): put stackguard in register
+-				// TODO(kaib): add support for -K and underflow detection
+-
+-				// MOVW			g_stackguard(g), R1
+-				p = appendp(p);
+-				p->as = AMOVW;
+-				p->from.type = D_OREG;
+-				p->from.reg = REGG;
+-				p->to.type = D_REG;
+-				p->to.reg = 1;
+-
+-				// CMP			R1, $-autosize(SP)
+-				p = appendp(p);
+-				p->as = ACMP;
+-				p->from.type = D_REG;
+-				p->from.reg = 1;
+-				p->from.offset = -autosize;
+-				p->reg = REGSP;
+-
+-				// MOVW.LO		$autosize, R1
+-				p = appendp(p);
+-				p->as = AMOVW;
+-				p->scond = C_SCOND_LO;
+-				p->from.type = D_CONST;
+-				p->from.offset = 0;
+-				p->to.type = D_REG;
+-				p->to.reg = 1;
+-
+-				// MOVW.LO		$args +4, R2
+-				// also need to store the extra 4 bytes.
+-				p = appendp(p);
+-				p->as = AMOVW;
+-				p->scond = C_SCOND_LO;
+-				p->from.type = D_CONST;
+-				p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
+-				p->to.type = D_REG;
+-				p->to.reg = 2;
+-
+-				// MOVW.LO	R14, R3
+-				p = appendp(p);
+-				p->as = AMOVW;
+-				p->scond = C_SCOND_LO;
+-				p->from.type = D_REG;
+-				p->from.reg = REGLINK;
+-				p->to.type = D_REG;
+-				p->to.reg = 3;
+-
+-				// BL.LO		runtime.morestack(SB) // modifies LR
+-				p = appendp(p);
+-				p->as = ABL;
+-				p->scond = C_SCOND_LO;
+- 				p->to.type = D_BRANCH;
+-				p->to.sym = symmorestack;
+-				p->cond = pmorestack;
+-
+-				// MOVW.W		R14,$-autosize(SP)
+-				p = appendp(p);
+-				p->as = AMOVW;
+- 				p->scond |= C_WBIT;
+-				p->from.type = D_REG;
+-				p->from.reg = REGLINK;
+-				p->to.type = D_OREG;
+-				p->to.offset = -autosize;
+-				p->to.reg = REGSP;
+-			} else { // > StackBig
+-				// MOVW		$autosize, R1
+-				// MOVW		$args, R2
+-				// MOVW		R14, R3
+-				// BL			runtime.morestack(SB) // modifies LR
+-				// MOVW.W		R14,$-autosize(SP)
+-
+-				// MOVW		$autosize, R1
+-				p = appendp(p);
+-				p->as = AMOVW;
+-				p->from.type = D_CONST;
+-				p->from.offset = autosize;
+-				p->to.type = D_REG;
+-				p->to.reg = 1;
+-
+-				// MOVW		$args +4, R2
+-				// also need to store the extra 4 bytes.
+-				p = appendp(p);
+-				p->as = AMOVW;
+-				p->from.type = D_CONST;
+-				p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
+-				p->to.type = D_REG;
+-				p->to.reg = 2;
+-
+-				// MOVW	R14, R3
+-				p = appendp(p);
+-				p->as = AMOVW;
+-				p->from.type = D_REG;
+-				p->from.reg = REGLINK;
+-				p->to.type = D_REG;
+-				p->to.reg = 3;
+-
+-				// BL		runtime.morestack(SB) // modifies LR
+-				p = appendp(p);
+-				p->as = ABL;
+- 				p->to.type = D_BRANCH;
+-				p->to.sym = symmorestack;
+-				p->cond = pmorestack;
+-
+-				// MOVW.W		R14,$-autosize(SP)
+-				p = appendp(p);
+-				p->as = AMOVW;
+- 				p->scond |= C_WBIT;
+-				p->from.type = D_REG;
+-				p->from.reg = REGLINK;
+-				p->to.type = D_OREG;
+-				p->to.offset = -autosize;
+-				p->to.reg = REGSP;
+-			}
+-			break;
+-
+-		case ARET:
+-			nocache(p);
+-			foreign = seenthumb && curtext->from.sym != S && (curtext->from.sym->foreign || curtext->from.sym->fnptr);
++	
++			case ARET:
++				nocache(p);
++				foreign = seenthumb && curtext->from.sym != S && (curtext->from.sym->foreign || curtext->from.sym->fnptr);
+ // print("%s %d %d\n", curtext->from.sym->name, curtext->from.sym->foreign, curtext->from.sym->fnptr);
+-			if(p->from.type == D_CONST)
+-				goto become;
+-			if(curtext->mark & LEAF) {
+-				if(!autosize) {
+-					if(thumb){
+-						p = fnret(p, REGLINK, foreign, p);
++				if(p->from.type == D_CONST)
++					goto become;
++				if(curtext->mark & LEAF) {
++					if(!autosize) {
++						if(thumb){
++							p = fnret(p, REGLINK, foreign, p);
++							break;
++						}
++// if(foreign) print("ABXRET 1 %s\n", curtext->from.sym->name);
++						p->as = foreign ? ABXRET : AB;
++						p->from = zprg.from;
++						p->to.type = D_OREG;
++						p->to.offset = 0;
++						p->to.reg = REGLINK;
+ 						break;
+ 					}
+-// if(foreign) print("ABXRET 1 %s\n", curtext->from.sym->name);
+-					p->as = foreign ? ABXRET : AB;
+-					p->from = zprg.from;
+-					p->to.type = D_OREG;
+-					p->to.offset = 0;
+-					p->to.reg = REGLINK;
+-					break;
+ 				}
+-			}
+-			if(thumb){
+-				if(curtext->mark & LEAF){
+-					if(autosize){
+-						p->as = AADD;
+-						p->from.type = D_CONST;
+-						p->from.offset = autosize;
++				if(thumb){
++					if(curtext->mark & LEAF){
++						if(autosize){
++							p->as = AADD;
++							p->from.type = D_CONST;
++							p->from.offset = autosize;
++							p->to.type = D_REG;
++							p->to.reg = REGSP;
++							q = nil;
++						}
++						else
++							q = p;
++						q = fnret(q, REGLINK, foreign, p);
++						if(q != p)
++							p->link = q;
++					}
++					else{
++						p->as = AMOVW;
++						p->from.type = D_OREG;
++						p->from.name = D_NONE;
++						p->from.reg = REGSP;
++						p->from.offset = 0;
+ 						p->to.type = D_REG;
+-						p->to.reg = REGSP;
+-						q = nil;
++						p->to.reg = REGTMPT-1;
++						if(autosize){
++							q = prg();
++							q->as = AADD;
++							q->from.type = D_CONST;
++							q->from.offset = autosize;
++							q->to.type = D_REG;
++							q->to.reg = REGSP;
++							q->link = p->link;
++							p->link = 	q;
++						}
++						else
++							q = p;
++						q1 = fnret(nil, REGTMPT-1, foreign, p);
++						q1->link = q->link;
++						q->link = q1;
+ 					}
+-					else
+-						q = p;
+-					q = fnret(q, REGLINK, foreign, p);
+-					if(q != p)
+-						p->link = q;
++					break;
+ 				}
+-				else{
++				if(foreign) {
++// if(foreign) print("ABXRET 3 %s\n", curtext->from.sym->name);
++#define	R	1
+ 					p->as = AMOVW;
+ 					p->from.type = D_OREG;
+ 					p->from.name = D_NONE;
+ 					p->from.reg = REGSP;
+ 					p->from.offset = 0;
+ 					p->to.type = D_REG;
+-					p->to.reg = REGTMPT-1;
+-					if(autosize){
+-						q = prg();
+-						q->as = AADD;
+-						q->from.type = D_CONST;
+-						q->from.offset = autosize;
+-						q->to.type = D_REG;
+-						q->to.reg = REGSP;
+-						q->link = p->link;
+-						p->link = 	q;
+-					}
+-					else
+-						q = p;
+-					q1 = fnret(nil, REGTMPT-1, foreign, p);
++					p->to.reg = R;
++					q = prg();
++					q->as = AADD;
++					q->scond = p->scond;
++					q->line = p->line;
++					q->from.type = D_CONST;
++					q->from.offset = autosize;
++					q->to.type = D_REG;
++					q->to.reg = REGSP;
++					q->link = p->link;
++					p->link = q;
++					q1 = prg();
++					q1->as = ABXRET;
++					q1->scond = p->scond;
++					q1->line = p->line;
++					q1->to.type = D_OREG;
++					q1->to.offset = 0;
++					q1->to.reg = R;
+ 					q1->link = q->link;
+ 					q->link = q1;
++#undef	R
++				}
++				else {
++					p->as = AMOVW;
++					p->scond |= C_PBIT;
++					p->from.type = D_OREG;
++					p->from.offset = autosize;
++					p->from.reg = REGSP;
++					p->to.type = D_REG;
++					p->to.reg = REGPC;
+ 				}
+ 				break;
+-			}
+-			if(foreign) {
+-// if(foreign) print("ABXRET 3 %s\n", curtext->from.sym->name);
+-#define	R	1
+-				p->as = AMOVW;
+-				p->from.type = D_OREG;
+-				p->from.name = D_NONE;
+-				p->from.reg = REGSP;
+-				p->from.offset = 0;
+-				p->to.type = D_REG;
+-				p->to.reg = R;
++	
++			become:
++				if(foreign){
++					diag("foreign become - help");
++					break;
++				}
++				if(thumb){
++					diag("thumb become - help");
++					break;
++				}
++				print("arm become\n");
++				if(curtext->mark & LEAF) {
++	
++					if(!autosize) {
++						p->as = AB;
++						p->from = zprg.from;
++						break;
++					}
++				}
+ 				q = prg();
+-				q->as = AADD;
+ 				q->scond = p->scond;
+ 				q->line = p->line;
+-				q->from.type = D_CONST;
+-				q->from.offset = autosize;
+-				q->to.type = D_REG;
+-				q->to.reg = REGSP;
++				q->as = AB;
++				q->from = zprg.from;
++				q->to = p->to;
++				q->cond = p->cond;
+ 				q->link = p->link;
+ 				p->link = q;
+-				q1 = prg();
+-				q1->as = ABXRET;
+-				q1->scond = p->scond;
+-				q1->line = p->line;
+-				q1->to.type = D_OREG;
+-				q1->to.offset = 0;
+-				q1->to.reg = R;
+-				q1->link = q->link;
+-				q->link = q1;
+-#undef	R
+-			}
+-			else {
++				if(thumb){
++					q1 = prg();
++					q1->line = p->line;
++					q1->as = AADD;
++					q1->from.type = D_CONST;
++					q1->from.offset = autosize;
++					q1->to.type = D_REG;
++					q1->to.reg = REGSP;
++					p->as = AMOVW;
++					p->line = p->line;
++					p->from.type = D_OREG;
++					p->from.name = D_NONE;
++					p->from.reg = REGSP;
++					p->from.offset = 0;
++					p->to.type = D_REG;
++					p->to.reg = REGTMPT-1;
++					q1->link = q;
++					p->link = q1;
++					q2 = movrr(nil, REGTMPT-1, REGLINK, p);
++					q2->link = q;
++					q1->link = q2;
++					break;
++				}
+ 				p->as = AMOVW;
+ 				p->scond |= C_PBIT;
++				p->from = zprg.from;
+ 				p->from.type = D_OREG;
+ 				p->from.offset = autosize;
+ 				p->from.reg = REGSP;
++				p->to = zprg.to;
+ 				p->to.type = D_REG;
+-				p->to.reg = REGPC;
+-			}
+-			break;
+-
+-		become:
+-			if(foreign){
+-				diag("foreign become - help");
+-				break;
+-			}
+-			if(thumb){
+-				diag("thumb become - help");
++				p->to.reg = REGLINK;
++	
+ 				break;
+-			}
+-			print("arm become\n");
+-			if(curtext->mark & LEAF) {
+-
+-				if(!autosize) {
+-					p->as = AB;
+-					p->from = zprg.from;
++	
++			case ADIV:
++			case ADIVU:
++			case AMOD:
++			case AMODU:
++				if(debug['M'])
+ 					break;
+-				}
+-			}
+-			q = prg();
+-			q->scond = p->scond;
+-			q->line = p->line;
+-			q->as = AB;
+-			q->from = zprg.from;
+-			q->to = p->to;
+-			q->cond = p->cond;
+-			q->link = p->link;
+-			p->link = q;
+-			if(thumb){
+-				q1 = prg();
+-				q1->line = p->line;
+-				q1->as = AADD;
+-				q1->from.type = D_CONST;
+-				q1->from.offset = autosize;
+-				q1->to.type = D_REG;
+-				q1->to.reg = REGSP;
++				if(p->from.type != D_REG)
++					break;
++				if(p->to.type != D_REG)
++					break;
++				q1 = p;
++	
++				/* MOV a,4(SP) */
++				q = prg();
++				q->link = p->link;
++				p->link = q;
++				p = q;
++	
+ 				p->as = AMOVW;
+-				p->line = p->line;
+-				p->from.type = D_OREG;
+-				p->from.name = D_NONE;
+-				p->from.reg = REGSP;
+-				p->from.offset = 0;
++				p->line = q1->line;
++				p->from.type = D_REG;
++				p->from.reg = q1->from.reg;
++				p->to.type = D_OREG;
++				p->to.reg = REGSP;
++				p->to.offset = 4;
++	
++				/* MOV b,REGTMP */
++				q = prg();
++				q->link = p->link;
++				p->link = q;
++				p = q;
++	
++				p->as = AMOVW;
++				p->line = q1->line;
++				p->from.type = D_REG;
++				p->from.reg = q1->reg;
++				if(q1->reg == NREG)
++					p->from.reg = q1->to.reg;
+ 				p->to.type = D_REG;
+-				p->to.reg = REGTMPT-1;
+-				q1->link = q;
+-				p->link = q1;
+-				q2 = movrr(nil, REGTMPT-1, REGLINK, p);
+-				q2->link = q;
+-				q1->link = q2;
+-				break;
+-			}
+-			p->as = AMOVW;
+-			p->scond |= C_PBIT;
+-			p->from = zprg.from;
+-			p->from.type = D_OREG;
+-			p->from.offset = autosize;
+-			p->from.reg = REGSP;
+-			p->to = zprg.to;
+-			p->to.type = D_REG;
+-			p->to.reg = REGLINK;
+-
+-			break;
+-
+-		case ADIV:
+-		case ADIVU:
+-		case AMOD:
+-		case AMODU:
+-			if(debug['M'])
+-				break;
+-			if(p->from.type != D_REG)
+-				break;
+-			if(p->to.type != D_REG)
+-				break;
+-			q1 = p;
+-
+-			/* MOV a,4(SP) */
+-			q = prg();
+-			q->link = p->link;
+-			p->link = q;
+-			p = q;
+-
+-			p->as = AMOVW;
+-			p->line = q1->line;
+-			p->from.type = D_REG;
+-			p->from.reg = q1->from.reg;
+-			p->to.type = D_OREG;
+-			p->to.reg = REGSP;
+-			p->to.offset = 4;
+-
+-			/* MOV b,REGTMP */
+-			q = prg();
+-			q->link = p->link;
+-			p->link = q;
+-			p = q;
+-
+-			p->as = AMOVW;
+-			p->line = q1->line;
+-			p->from.type = D_REG;
+-			p->from.reg = q1->reg;
+-			if(q1->reg == NREG)
+-				p->from.reg = q1->to.reg;
+-			p->to.type = D_REG;
+-			p->to.reg = prog_div != UP && prog_div->from.sym->thumb ? REGTMPT : REGTMP;
+-			p->to.offset = 0;
+-
+-			/* CALL appropriate */
+-			q = prg();
+-			q->link = p->link;
+-			p->link = q;
+-			p = q;
+-
++				p->to.reg = prog_div != UP && prog_div->from.sym->thumb ? REGTMPT : REGTMP;
++				p->to.offset = 0;
++	
++				/* CALL appropriate */
++				q = prg();
++				q->link = p->link;
++				p->link = q;
++				p = q;
++	
+ #ifdef CALLEEBX
+-			p->as = ABL;
++				p->as = ABL;
+ #else
+-			if(prog_div != UP && prog_div->from.sym->thumb)
+-				p->as = thumb ? ABL : ABX;
+-			else
+-				p->as = thumb ? ABX : ABL;
++				if(prog_div != UP && prog_div->from.sym->thumb)
++					p->as = thumb ? ABL : ABX;
++				else
++					p->as = thumb ? ABX : ABL;
+ #endif
+-			p->line = q1->line;
+-			p->to.type = D_BRANCH;
+-			p->cond = p;
+-			switch(o) {
+-			case ADIV:
+-				p->cond = prog_div;
+-				p->to.sym = sym_div;
+-				break;
+-			case ADIVU:
+-				p->cond = prog_divu;
+-				p->to.sym = sym_divu;
+-				break;
+-			case AMOD:
+-				p->cond = prog_mod;
+-				p->to.sym = sym_mod;
++				p->line = q1->line;
++				p->to.type = D_BRANCH;
++				p->cond = p;
++				switch(o) {
++				case ADIV:
++					p->cond = prog_div;
++					p->to.sym = sym_div;
++					break;
++				case ADIVU:
++					p->cond = prog_divu;
++					p->to.sym = sym_divu;
++					break;
++				case AMOD:
++					p->cond = prog_mod;
++					p->to.sym = sym_mod;
++					break;
++				case AMODU:
++					p->cond = prog_modu;
++					p->to.sym = sym_modu;
++					break;
++				}
++	
++				/* MOV REGTMP, b */
++				q = prg();
++				q->link = p->link;
++				p->link = q;
++				p = q;
++	
++				p->as = AMOVW;
++				p->line = q1->line;
++				p->from.type = D_REG;
++				p->from.reg = prog_div != UP && prog_div->from.sym->thumb ? REGTMPT : REGTMP;
++				p->from.offset = 0;
++				p->to.type = D_REG;
++				p->to.reg = q1->to.reg;
++	
++				/* ADD $8,SP */
++				q = prg();
++				q->link = p->link;
++				p->link = q;
++				p = q;
++	
++				p->as = AADD;
++				p->from.type = D_CONST;
++				p->from.reg = NREG;
++				p->from.offset = 8;
++				p->reg = NREG;
++				p->to.type = D_REG;
++				p->to.reg = REGSP;
++	
++				/* SUB $8,SP */
++				q1->as = ASUB;
++				q1->from.type = D_CONST;
++				q1->from.offset = 8;
++				q1->from.reg = NREG;
++				q1->reg = NREG;
++				q1->to.type = D_REG;
++				q1->to.reg = REGSP;
++	
+ 				break;
+-			case AMODU:
+-				p->cond = prog_modu;
+-				p->to.sym = sym_modu;
++			case AMOVW:
++				if(thumb){
++					Adr *a = &p->from;
++	
++					if(a->type == D_CONST && ((a->name == D_NONE && a->reg == REGSP) || a->name == D_AUTO || a->name == D_PARAM) && (a->offset & 3))
++						diag("SP offset not multiple of 4");
++				}
+ 				break;
+-			}
+-
+-			/* MOV REGTMP, b */
+-			q = prg();
+-			q->link = p->link;
+-			p->link = q;
+-			p = q;
+-
+-			p->as = AMOVW;
+-			p->line = q1->line;
+-			p->from.type = D_REG;
+-			p->from.reg = prog_div != UP && prog_div->from.sym->thumb ? REGTMPT : REGTMP;
+-			p->from.offset = 0;
+-			p->to.type = D_REG;
+-			p->to.reg = q1->to.reg;
+-
+-			/* ADD $8,SP */
+-			q = prg();
+-			q->link = p->link;
+-			p->link = q;
+-			p = q;
+-
+-			p->as = AADD;
+-			p->from.type = D_CONST;
+-			p->from.reg = NREG;
+-			p->from.offset = 8;
+-			p->reg = NREG;
+-			p->to.type = D_REG;
+-			p->to.reg = REGSP;
+-
+-			/* SUB $8,SP */
+-			q1->as = ASUB;
+-			q1->from.type = D_CONST;
+-			q1->from.offset = 8;
+-			q1->from.reg = NREG;
+-			q1->reg = NREG;
+-			q1->to.type = D_REG;
+-			q1->to.reg = REGSP;
+-
+-			break;
+-		case AMOVW:
+-			if(thumb){
+-				Adr *a = &p->from;
+-
+-				if(a->type == D_CONST && ((a->name == D_NONE && a->reg == REGSP) || a->name == D_AUTO || a->name == D_PARAM) && (a->offset & 3))
+-					diag("SP offset not multiple of 4");
+-			}
+-			break;
+-		case AMOVB:
+-		case AMOVBU:
+-		case AMOVH:
+-		case AMOVHU:
+-			if(thumb){
+-				if(p->from.type == D_OREG && (p->from.name == D_AUTO || p->from.name == D_PARAM || (p->from.name == D_CONST && p->from.reg == REGSP))){
+-					q = prg();
+-					*q = *p;
+-					if(p->from.name == D_AUTO)
+-						q->from.offset += autosize;
+-					else if(p->from.name == D_PARAM)
+-						q->from.offset += autosize+4;
+-					q->from.name = D_NONE;
+-					q->from.reg = REGTMPT;
+-					p = movrr(p, REGSP, REGTMPT, p);
+-					q->link = p->link;
+-					p->link = q;
++			case AMOVB:
++			case AMOVBU:
++			case AMOVH:
++			case AMOVHU:
++				if(thumb){
++					if(p->from.type == D_OREG && (p->from.name == D_AUTO || p->from.name == D_PARAM || (p->from.name == D_CONST && p->from.reg == REGSP))){
++						q = prg();
++						*q = *p;
++						if(p->from.name == D_AUTO)
++							q->from.offset += autosize;
++						else if(p->from.name == D_PARAM)
++							q->from.offset += autosize+4;
++						q->from.name = D_NONE;
++						q->from.reg = REGTMPT;
++						p = movrr(p, REGSP, REGTMPT, p);
++						q->link = p->link;
++						p->link = q;
++					}
++					if(p->to.type == D_OREG && (p->to.name == D_AUTO || p->to.name == D_PARAM || (p->to.name == D_CONST && p->to.reg == REGSP))){
++						q = prg();
++						*q = *p;
++						if(p->to.name == D_AUTO)
++							q->to.offset += autosize;
++						else if(p->to.name == D_PARAM)
++							q->to.offset += autosize+4;
++						q->to.name = D_NONE;
++						q->to.reg = REGTMPT;
++						p = movrr(p, REGSP, REGTMPT, p);
++						q->link = p->link;
++						p->link = q;
++						if(q->to.offset < 0 || q->to.offset > 255){	// complicated
++							p->to.reg = REGTMPT+1;			// mov sp, r8
++							q1 = prg();
++							q1->line = p->line;
++							q1->as = AMOVW;
++							q1->from.type = D_CONST;
++							q1->from.offset = q->to.offset;
++							q1->to.type = D_REG;
++							q1->to.reg = REGTMPT;			// mov $o, r7
++							p->link = q1;
++							q1->link = q;
++							q1 = prg();
++							q1->line = p->line;
++							q1->as = AADD;
++							q1->from.type = D_REG;
++							q1->from.reg = REGTMPT+1;
++							q1->to.type = D_REG;
++							q1->to.reg = REGTMPT;			// add r8, r7
++							p->link->link = q1;
++							q1->link = q;
++							q->to.offset = 0;				// mov* r, 0(r7)
++							/* phew */
++						}
++					}
+ 				}
+-				if(p->to.type == D_OREG && (p->to.name == D_AUTO || p->to.name == D_PARAM || (p->to.name == D_CONST && p->to.reg == REGSP))){
+-					q = prg();
+-					*q = *p;
+-					if(p->to.name == D_AUTO)
+-						q->to.offset += autosize;
+-					else if(p->to.name == D_PARAM)
+-						q->to.offset += autosize+4;
+-					q->to.name = D_NONE;
+-					q->to.reg = REGTMPT;
+-					p = movrr(p, REGSP, REGTMPT, p);
+-					q->link = p->link;
+-					p->link = q;
+-					if(q->to.offset < 0 || q->to.offset > 255){	// complicated
+-						p->to.reg = REGTMPT+1;			// mov sp, r8
+-						q1 = prg();
+-						q1->line = p->line;
+-						q1->as = AMOVW;
+-						q1->from.type = D_CONST;
+-						q1->from.offset = q->to.offset;
+-						q1->to.type = D_REG;
+-						q1->to.reg = REGTMPT;			// mov $o, r7
+-						p->link = q1;
+-						q1->link = q;
+-						q1 = prg();
+-						q1->line = p->line;
+-						q1->as = AADD;
+-						q1->from.type = D_REG;
+-						q1->from.reg = REGTMPT+1;
+-						q1->to.type = D_REG;
+-						q1->to.reg = REGTMPT;			// add r8, r7
+-						p->link->link = q1;
+-						q1->link = q;
+-						q->to.offset = 0;				// mov* r, 0(r7)
+-						/* phew */
++				break;
++			case AMOVM:
++				if(thumb){
++					if(p->from.type == D_OREG){
++						if(p->from.offset == 0)
++							p->from.type = D_REG;
++						else
++							diag("non-zero AMOVM offset");
++					}
++					else if(p->to.type == D_OREG){
++						if(p->to.offset == 0)
++							p->to.type = D_REG;
++						else
++							diag("non-zero AMOVM offset");
+ 					}
+ 				}
+-			}
+-			break;
+-		case AMOVM:
+-			if(thumb){
+-				if(p->from.type == D_OREG){
+-					if(p->from.offset == 0)
++				break;
++			case AB:
++				if(thumb && p->to.type == D_OREG){
++					if(p->to.offset == 0){
++						p->as = AMOVW;
+ 						p->from.type = D_REG;
+-					else
+-						diag("non-zero AMOVM offset");
+-				}
+-				else if(p->to.type == D_OREG){
+-					if(p->to.offset == 0)
++						p->from.reg = p->to.reg;
+ 						p->to.type = D_REG;
+-					else
+-						diag("non-zero AMOVM offset");
+-				}
+-			}
+-			break;
+-		case AB:
+-			if(thumb && p->to.type == D_OREG){
+-				if(p->to.offset == 0){
+-					p->as = AMOVW;
+-					p->from.type = D_REG;
+-					p->from.reg = p->to.reg;
+-					p->to.type = D_REG;
+-					p->to.reg = REGPC;
++						p->to.reg = REGPC;
++					}
++					else{
++						p->as = AADD;
++						p->from.type = D_CONST;
++						p->from.offset = p->to.offset;
++						p->reg = p->to.reg;
++						p->to.type = D_REG;
++						p->to.reg = REGTMPT-1;
++						q = prg();
++						q->as = AMOVW;
++						q->line = p->line;
++						q->from.type = D_REG;
++						q->from.reg = REGTMPT-1;
++						q->to.type = D_REG;
++						q->to.reg = REGPC;
++						q->link = p->link;
++						p->link = q;
++					}
+ 				}
+-				else{
+-					p->as = AADD;
+-					p->from.type = D_CONST;
+-					p->from.offset = p->to.offset;
+-					p->reg = p->to.reg;
+-					p->to.type = D_REG;
+-					p->to.reg = REGTMPT-1;
+-					q = prg();
+-					q->as = AMOVW;
+-					q->line = p->line;
+-					q->from.type = D_REG;
+-					q->from.reg = REGTMPT-1;
+-					q->to.type = D_REG;
+-					q->to.reg = REGPC;
+-					q->link = p->link;
+-					p->link = q;
++				if(seenthumb && !thumb && p->to.type == D_OREG && p->to.reg == REGLINK){
++					// print("warn %s:	b	(R%d)	assuming a return\n", curtext->from.sym->name, p->to.reg);
++					p->as = ABXRET;
+ 				}
+-			}
+-			if(seenthumb && !thumb && p->to.type == D_OREG && p->to.reg == REGLINK){
+-				// print("warn %s:	b	(R%d)	assuming a return\n", curtext->from.sym->name, p->to.reg);
+-				p->as = ABXRET;
+-			}
+-			break;
+-		case ABL:
+-		case ABX:
+-			if(thumb && p->to.type == D_OREG){
+-				if(p->to.offset == 0){
+-					p->as = o;
+-					p->from.type = D_NONE;
+-					p->to.type = D_REG;
+-				}
+-				else{
+-					p->as = AADD;
+-					p->from.type = D_CONST;
+-					p->from.offset = p->to.offset;
+-					p->reg = p->to.reg;
+-					p->to.type = D_REG;
+-					p->to.reg = REGTMPT-1;
+-					q = prg();
+-					q->as = o;
+-					q->line = p->line;
+-					q->from.type = D_NONE;
+-					q->to.type = D_REG;
+-					q->to.reg = REGTMPT-1;
+-					q->link = p->link;
+-					p->link = q;
++				break;
++			case ABL:
++			case ABX:
++				if(thumb && p->to.type == D_OREG){
++					if(p->to.offset == 0){
++						p->as = o;
++						p->from.type = D_NONE;
++						p->to.type = D_REG;
++					}
++					else{
++						p->as = AADD;
++						p->from.type = D_CONST;
++						p->from.offset = p->to.offset;
++						p->reg = p->to.reg;
++						p->to.type = D_REG;
++						p->to.reg = REGTMPT-1;
++						q = prg();
++						q->as = o;
++						q->line = p->line;
++						q->from.type = D_NONE;
++						q->to.type = D_REG;
++						q->to.reg = REGTMPT-1;
++						q->link = p->link;
++						p->link = q;
++					}
+ 				}
++				break;
+ 			}
+-			break;
+-		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index 06b1792b4d..c1d30e7d98 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -359,80 +359,80 @@ patch(void)
+ 	s = lookup("exit", 0);
+ 	vexit = s->value;
+ 	for(p = firstp; p != P; p = p->link) {
+-		setarch(p);
+-		a = p->as;
+-		if(a == ATEXT)
+-			curtext = p;
+-		if(seenthumb && a == ABL){
+-			// if((s = p->to.sym) != S && (s1 = curtext->from.sym) != S)
+-			//	print("%s calls %s\n", s1->name, s->name);
+-			 if((s = p->to.sym) != S && (s1 = curtext->from.sym) != S && s->thumb != s1->thumb)
+-				s->foreign = 1;
+-		}
+-		if((a == ABL || a == ABX || a == AB || a == ARET) &&
+-		   p->to.type != D_BRANCH && p->to.sym != S) {
+-			s = p->to.sym;
+-			switch(s->type) {
+-			default:
+-				diag("undefined: %s", s->name);
+-				s->type = STEXT;
+-				s->value = vexit;
+-				continue;	// avoid more error messages
+-			case STEXT:
+-				p->to.offset = s->value;
+-				p->to.type = D_BRANCH;
+-				break;
+-			case SUNDEF:
+-				if(p->as != ABL)
+-					diag("help: SUNDEF in AB || ARET");
+-				p->to.offset = 0;
+-				p->to.type = D_BRANCH;
+-				p->cond = UP;
+-				break;
++			setarch(p);
++			a = p->as;
++			if(a == ATEXT)
++				curtext = p;
++			if(seenthumb && a == ABL){
++				// if((s = p->to.sym) != S && (s1 = curtext->from.sym) != S)
++				//	print("%s calls %s\n", s1->name, s->name);
++				 if((s = p->to.sym) != S && (s1 = curtext->from.sym) != S && s->thumb != s1->thumb)
++					s->foreign = 1;
+ 			}
+-		}
+-		if(p->to.type != D_BRANCH || p->cond == UP)
+-			continue;
+-		c = p->to.offset;
+-		for(q = firstp; q != P;) {
+-			if(q->forwd != P)
+-			if(c >= q->forwd->pc) {
+-				q = q->forwd;
++			if((a == ABL || a == ABX || a == AB || a == ARET) &&
++			   p->to.type != D_BRANCH && p->to.sym != S) {
++				s = p->to.sym;
++				switch(s->type) {
++				default:
++					diag("undefined: %s", s->name);
++					s->type = STEXT;
++					s->value = vexit;
++					continue;	// avoid more error messages
++				case STEXT:
++					p->to.offset = s->value;
++					p->to.type = D_BRANCH;
++					break;
++				case SUNDEF:
++					if(p->as != ABL)
++						diag("help: SUNDEF in AB || ARET");
++					p->to.offset = 0;
++					p->to.type = D_BRANCH;
++					p->cond = UP;
++					break;
++				}
++			}
++			if(p->to.type != D_BRANCH || p->cond == UP)
+ 				continue;
++			c = p->to.offset;
++			for(q = firstp; q != P;) {
++				if(q->forwd != P)
++				if(c >= q->forwd->pc) {
++					q = q->forwd;
++					continue;
++				}
++				if(c == q->pc)
++					break;
++				q = q->link;
+ 			}
+-			if(c == q->pc)
+-				break;
+-			q = q->link;
+-		}
+-		if(q == P) {
+-			diag("branch out of range %ld\n%P", c, p);
+-			p->to.type = D_NONE;
+-		}
+-		p->cond = q;
++			if(q == P) {
++				diag("branch out of range %ld\n%P", c, p);
++				p->to.type = D_NONE;
++			}
++			p->cond = q;
+ 	}
+ 
+ 	for(p = firstp; p != P; p = p->link) {
+-		setarch(p);
+-		a = p->as;
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		if(seenthumb && a == ABL) {
++			setarch(p);
++			a = p->as;
++			if(p->as == ATEXT)
++				curtext = p;
++			if(seenthumb && a == ABL) {
+ #ifdef CALLEEBX
+-			if(0)
+-				{}
++				if(0)
++					{}
+ #else
+-			if((s = p->to.sym) != S && (s->foreign || s->fnptr))
+-				p->as = ABX;
++				if((s = p->to.sym) != S && (s->foreign || s->fnptr))
++					p->as = ABX;
+ #endif
+-			else if(p->to.type == D_OREG)
+-				p->as = ABX;
+-		}
+-		if(p->cond != P && p->cond != UP) {
+-			p->cond = brloop(p->cond);
+-			if(p->cond != P)
+-			if(p->to.type == D_BRANCH)
+-				p->to.offset = p->cond->pc;
+-		}
++				else if(p->to.type == D_OREG)
++					p->as = ABX;
++			}
++			if(p->cond != P && p->cond != UP) {
++				p->cond = brloop(p->cond);
++				if(p->cond != P)
++				if(p->to.type == D_BRANCH)
++					p->to.offset = p->cond->pc;
++			}
+ 	}
+ }
+ 
+diff --git a/src/cmd/5l/softfloat.c b/src/cmd/5l/softfloat.c
+index 82874ee1cf..1f0584eede 100644
+--- a/src/cmd/5l/softfloat.c
++++ b/src/cmd/5l/softfloat.c
+@@ -27,45 +27,45 @@ softfloat()
+ 	wasfloat = 0;
+ 	p = firstp;
+ 	for(p = firstp; p != P; p = p->link) {
+-		switch(p->as) {
+-		case AMOVWD:
+-		case AMOVWF:
+-		case AMOVDW:
+-		case AMOVFW:
+-		case AMOVFD:
+-		case AMOVDF:
+-		case AMOVF:
+-		case AMOVD:
+-		case ACMPF:
+-		case ACMPD:
+-		case AADDF:
+-		case AADDD:
+-		case ASUBF:
+-		case ASUBD:
+-		case AMULF:
+-		case AMULD:
+-		case ADIVF:
+-		case ADIVD:
+-			if (psfloat == P)
+-				diag("floats used with _sfloat not defined");
+-			if (!wasfloat) {
+-				next = prg();
+-				*next = *p;
+-
+-				// BL		_sfloat(SB)
+-				*p = zprg;
+-				p->link = next;
+-				p->as = ABL;
+- 				p->to.type = D_BRANCH;
+-				p->to.sym = symsfloat;
+-				p->cond = psfloat;
+-
+-				p = next;
+-				wasfloat = 1;
++			switch(p->as) {
++			case AMOVWD:
++			case AMOVWF:
++			case AMOVDW:
++			case AMOVFW:
++			case AMOVFD:
++			case AMOVDF:
++			case AMOVF:
++			case AMOVD:
++			case ACMPF:
++			case ACMPD:
++			case AADDF:
++			case AADDD:
++			case ASUBF:
++			case ASUBD:
++			case AMULF:
++			case AMULD:
++			case ADIVF:
++			case ADIVD:
++				if (psfloat == P)
++					diag("floats used with _sfloat not defined");
++				if (!wasfloat) {
++					next = prg();
++					*next = *p;
++	
++					// BL		_sfloat(SB)
++					*p = zprg;
++					p->link = next;
++					p->as = ABL;
++	 				p->to.type = D_BRANCH;
++					p->to.sym = symsfloat;
++					p->cond = psfloat;
++	
++					p = next;
++					wasfloat = 1;
++				}
++				break;
++			default:
++				wasfloat = 0;
+ 			}
+-			break;
+-		default:
+-			wasfloat = 0;
+-		}
+ 	}
+ }
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index a97af07f93..7c66df1424 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -178,59 +178,59 @@ span(void)
+ 	op = nil;
+ 	otxt = c;
+ 	for(p = firstp; p != P; op = p, p = p->link) {
+-		setarch(p);
+-		p->pc = c;
+-		o = oplook(p);
+-		m = o->size;
+-		// must check literal pool here in case p generates many instructions
+-		if(blitrl){
+-			if(thumb && isbranch(p))
+-				pool.extra += brextra(p);
+-			if(checkpool(op, p->as == ACASE ? casesz(p) : m))
+-				c = p->pc = scan(op, p, c);
+-		}
+-		if(m == 0) {
+-			if(p->as == ATEXT) {
+-				if(blitrl && lastthumb != -1 && lastthumb != thumb){	// flush literal pool
+-					if(flushpool(op, 0, 1))
+-						c = p->pc = scan(op, p, c);
+-				}
+-				lastthumb = thumb;
+-				curtext = p;
+-				autosize = p->to.offset + 4;
+-				if(p->from.sym != S)
+-					p->from.sym->value = c;
+-				/* need passes to resolve branches */
+-				if(c-otxt >= 1L<<17)
+-					bflag = 1;
+-				otxt = c;
+-				if(thumb && blitrl)
++			setarch(p);
++			p->pc = c;
++			o = oplook(p);
++			m = o->size;
++			// must check literal pool here in case p generates many instructions
++			if(blitrl){
++				if(thumb && isbranch(p))
+ 					pool.extra += brextra(p);
++				if(checkpool(op, p->as == ACASE ? casesz(p) : m))
++					c = p->pc = scan(op, p, c);
++			}
++			if(m == 0) {
++				if(p->as == ATEXT) {
++					if(blitrl && lastthumb != -1 && lastthumb != thumb){	// flush literal pool
++						if(flushpool(op, 0, 1))
++							c = p->pc = scan(op, p, c);
++					}
++					lastthumb = thumb;
++					curtext = p;
++					autosize = p->to.offset + 4;
++					if(p->from.sym != S)
++						p->from.sym->value = c;
++					/* need passes to resolve branches */
++					if(c-otxt >= 1L<<17)
++						bflag = 1;
++					otxt = c;
++					if(thumb && blitrl)
++						pool.extra += brextra(p);
++					continue;
++				}
++				diag("zero-width instruction\n%P", p);
+ 				continue;
+ 			}
+-			diag("zero-width instruction\n%P", p);
+-			continue;
+-		}
+-		switch(o->flag & (LFROM|LTO|LPOOL)) {
+-		case LFROM:
+-			addpool(p, &p->from);
+-			break;
+-		case LTO:
+-			addpool(p, &p->to);
+-			break;
+-		case LPOOL:
+-			if ((p->scond&C_SCOND) == 14)
++			switch(o->flag & (LFROM|LTO|LPOOL)) {
++			case LFROM:
++				addpool(p, &p->from);
++				break;
++			case LTO:
++				addpool(p, &p->to);
++				break;
++			case LPOOL:
++				if ((p->scond&C_SCOND) == 14)
++					flushpool(p, 0, 0);
++				break;
++			}
++			if(p->as==AMOVW && p->to.type==D_REG && p->to.reg==REGPC && (p->scond&C_SCOND) == 14)
+ 				flushpool(p, 0, 0);
+-			break;
+-		}
+-		if(p->as==AMOVW && p->to.type==D_REG && p->to.reg==REGPC && (p->scond&C_SCOND) == 14)
+-			flushpool(p, 0, 0);
+-		c += m;
+-		if(blitrl && p->link == P){
+-			if(thumb && isbranch(p))
+-				pool.extra += brextra(p);
+-			checkpool(p, 0);
+-		}
++			c += m;
++			if(blitrl && p->link == P){
++				if(thumb && isbranch(p))
++					pool.extra += brextra(p);
++				checkpool(p, 0);
++			}
+ 	}
+ 
+ 	/*
+@@ -245,47 +245,47 @@ span(void)
+ 		bflag = 0;
+ 		c = INITTEXT;
+ 		for(p = firstp; p != P; p = p->link) {
+-			setarch(p);
+-			p->pc = c;
+-			if(thumb && isbranch(p))
+-				nocache(p);
+-			o = oplook(p);
++				setarch(p);
++				p->pc = c;
++				if(thumb && isbranch(p))
++					nocache(p);
++				o = oplook(p);
+ /* very larg branches
+-			if(o->type == 6 && p->cond) {
+-				otxt = p->cond->pc - c;
+-				if(otxt < 0)
+-					otxt = -otxt;
+-				if(otxt >= (1L<<17) - 10) {
+-					q = prg();
+-					q->link = p->link;
+-					p->link = q;
+-					q->as = AB;
+-					q->to.type = D_BRANCH;
+-					q->cond = p->cond;
+-					p->cond = q;
+-					q = prg();
+-					q->link = p->link;
+-					p->link = q;
+-					q->as = AB;
+-					q->to.type = D_BRANCH;
+-					q->cond = q->link->link;
+-					bflag = 1;
++				if(o->type == 6 && p->cond) {
++					otxt = p->cond->pc - c;
++					if(otxt < 0)
++						otxt = -otxt;
++					if(otxt >= (1L<<17) - 10) {
++						q = prg();
++						q->link = p->link;
++						p->link = q;
++						q->as = AB;
++						q->to.type = D_BRANCH;
++						q->cond = p->cond;
++						p->cond = q;
++						q = prg();
++						q->link = p->link;
++						p->link = q;
++						q->as = AB;
++						q->to.type = D_BRANCH;
++						q->cond = q->link->link;
++						bflag = 1;
++					}
+ 				}
+-			}
+  */
+-			m = o->size;
+-			if(m == 0) {
+-				if(p->as == ATEXT) {
+-					curtext = p;
+-					autosize = p->to.offset + 4;
+-					if(p->from.sym != S)
+-						p->from.sym->value = c;
++				m = o->size;
++				if(m == 0) {
++					if(p->as == ATEXT) {
++						curtext = p;
++						autosize = p->to.offset + 4;
++						if(p->from.sym != S)
++							p->from.sym->value = c;
++						continue;
++					}
++					diag("zero-width instruction\n%P", p);
+ 					continue;
+ 				}
+-				diag("zero-width instruction\n%P", p);
+-				continue;
+-			}
+-			c += m;
++				c += m;
+ 		}
+ 	}
+ 
+@@ -305,48 +305,48 @@ span(void)
+ 		oop = op = nil;
+ 		again = 0;
+ 		for(p = firstp; p != P; oop = op, op = p, p = p->link){
+-			setarch(p);
+-			if(p->pc != c)
+-				again = 1;
+-			p->pc = c;
+-			if(thumb && isbranch(p))
+-				nocache(p);
+-			o = oplook(p);
+-			m = o->size;
+-			if(passes == 1 && thumb && isbranch(p)){	// start conservative so unneeded alignment is not added
+-				if(p->as == ABL)
+-					m = 4;
+-				else
+-					m = 2;
+-				p->align = 0;
+-			}
+-			if(p->align){
+-				if((p->align == 4 && (c&3)) || (p->align == 2 && !(c&3))){
+-					if(ispad(op)){
+-						oop->link = p;
+-						op = oop;
+-						c -= 2;
+-						p->pc = c;
+-					}
+-					else{
+-						op->link = pad(op, c);
+-						op = op->link;
+-						c += 2;
+-						p->pc = c;
+-					}
++				setarch(p);
++				if(p->pc != c)
+ 					again = 1;
++				p->pc = c;
++				if(thumb && isbranch(p))
++					nocache(p);
++				o = oplook(p);
++				m = o->size;
++				if(passes == 1 && thumb && isbranch(p)){	// start conservative so unneeded alignment is not added
++					if(p->as == ABL)
++						m = 4;
++					else
++						m = 2;
++					p->align = 0;
+ 				}
+-			}
+-			if(m == 0) {
+-				if(p->as == ATEXT) {
+-					curtext = p;
+-					autosize = p->to.offset + 4;
+-					if(p->from.sym != S)
+-						p->from.sym->value = c;
+-					continue;
++				if(p->align){
++					if((p->align == 4 && (c&3)) || (p->align == 2 && !(c&3))){
++						if(ispad(op)){
++							oop->link = p;
++							op = oop;
++							c -= 2;
++							p->pc = c;
++						}
++						else{
++							op->link = pad(op, c);
++							op = op->link;
++							c += 2;
++							p->pc = c;
++						}
++						again = 1;
++					}
+ 				}
+-			}
+-			c += m;
++				if(m == 0) {
++					if(p->as == ATEXT) {
++						curtext = p;
++						autosize = p->to.offset + 4;
++						if(p->from.sym != S)
++							p->from.sym->value = c;
++						continue;
++					}
++				}
++				c += m;
+ 		}
+ 		if(c != lastc || again){
+ 			lastc = c;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 8cd256ca92..6b65ba36b7 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -490,37 +490,37 @@ asmb(void)
+ 	pc = INITTEXT;
+ 	curp = firstp;
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		if(p->pc != pc) {
+-			if(!debug['a'])
+-				print("%P\n", curp);
+-			diag("phase error %llux sb %llux in %s", p->pc, pc, TNAME);
+-			pc = p->pc;
+-		}
+-		curp = p;
+-		asmins(p);
+-		a = (andptr - and);
+-		if(cbc < a)
+-			cflush();
+-		if(debug['a']) {
+-			Bprint(&bso, pcstr, pc);
+-			for(op1 = and; op1 < andptr; op1++)
+-				Bprint(&bso, "%.2ux", *op1);
+-			for(; op1 < and+Maxand; op1++)
+-				Bprint(&bso, "  ");
+-			Bprint(&bso, "%P\n", curp);
+-		}
+-		if(dlm) {
+ 			if(p->as == ATEXT)
+-				reloca = nil;
+-			else if(reloca != nil)
+-				diag("reloc failure: %P", curp);
+-		}
+-		memmove(cbp, and, a);
+-		cbp += a;
+-		pc += a;
+-		cbc -= a;
++				curtext = p;
++			if(p->pc != pc) {
++				if(!debug['a'])
++					print("%P\n", curp);
++				diag("phase error %llux sb %llux in %s", p->pc, pc, TNAME);
++				pc = p->pc;
++			}
++			curp = p;
++			asmins(p);
++			a = (andptr - and);
++			if(cbc < a)
++				cflush();
++			if(debug['a']) {
++				Bprint(&bso, pcstr, pc);
++				for(op1 = and; op1 < andptr; op1++)
++					Bprint(&bso, "%.2ux", *op1);
++				for(; op1 < and+Maxand; op1++)
++					Bprint(&bso, "  ");
++				Bprint(&bso, "%P\n", curp);
++			}
++			if(dlm) {
++				if(p->as == ATEXT)
++					reloca = nil;
++				else if(reloca != nil)
++					diag("reloc failure: %P", curp);
++			}
++			memmove(cbp, and, a);
++			cbp += a;
++			pc += a;
++			cbc -= a;
+ 	}
+ 	cflush();
+ 
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 115aee6946..113723b15c 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -672,260 +672,260 @@ dostkoff(void)
+ 	deltasp = 0;
+ 	for(p = firstp; p != P; p = p->link) {
+ 		if(p->as == ATEXT) {
+-			curtext = p;
+-			parsetextconst(p->to.offset);
+-			autoffset = textstksiz;
+-			if(autoffset < 0)
+-				autoffset = 0;
+-
+-			q = P;
+-			q1 = P;
+-			if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
+-				diag("nosplit func likely to overflow stack");
+-
+-			if(!(p->from.scale & NOSPLIT)) {
+-				p = appendp(p);	// load g into CX
+-				p->as = AMOVQ;
+-				if(HEADTYPE == 7 || HEADTYPE == 9)	// ELF uses FS
+-					p->from.type = D_INDIR+D_FS;
+-				else
+-					p->from.type = D_INDIR+D_GS;
+-				p->from.offset = tlsoffset+0;
+-				p->to.type = D_CX;
+-
+-				if(debug['K']) {
+-					// 6l -K means check not only for stack
+-					// overflow but stack underflow.
+-					// On underflow, INT 3 (breakpoint).
+-					// Underflow itself is rare but this also
+-					// catches out-of-sync stack guard info
+-
+-					p = appendp(p);
+-					p->as = ACMPQ;
+-					p->from.type = D_INDIR+D_CX;
+-					p->from.offset = 8;
+-					p->to.type = D_SP;
+-
+-					p = appendp(p);
+-					p->as = AJHI;
+-					p->to.type = D_BRANCH;
+-					p->to.offset = 4;
+-					q1 = p;
+-
+-					p = appendp(p);
+-					p->as = AINT;
+-					p->from.type = D_CONST;
+-					p->from.offset = 3;
+-
+-					p = appendp(p);
+-					p->as = ANOP;
+-					q1->pcond = p;
+-					q1 = P;
+-				}
+-
+-				if(autoffset < StackBig) {  // do we need to call morestack?
+-					if(autoffset <= StackSmall) {
+-						// small stack
+-						p = appendp(p);
+-						p->as = ACMPQ;
+-						p->from.type = D_SP;
+-						p->to.type = D_INDIR+D_CX;
+-					} else {
+-						// large stack
+-						p = appendp(p);
+-						p->as = ALEAQ;
+-						p->from.type = D_INDIR+D_SP;
+-						p->from.offset = -(autoffset-StackSmall);
+-						p->to.type = D_AX;
+-
+-						p = appendp(p);
+-						p->as = ACMPQ;
+-						p->from.type = D_AX;
+-						p->to.type = D_INDIR+D_CX;
+-					}
++		curtext = p;
++		parsetextconst(p->to.offset);
++		autoffset = textstksiz;
++		if(autoffset < 0)
++			autoffset = 0;
++
++		q = P;
++		q1 = P;
++		if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
++			diag("nosplit func likely to overflow stack");
++
++		if(!(p->from.scale & NOSPLIT)) {
++			p = appendp(p);	// load g into CX
++			p->as = AMOVQ;
++			if(HEADTYPE == 7 || HEADTYPE == 9)	// ELF uses FS
++				p->from.type = D_INDIR+D_FS;
++			else
++				p->from.type = D_INDIR+D_GS;
++			p->from.offset = tlsoffset+0;
++			p->to.type = D_CX;
++
++			if(debug['K']) {
++				// 6l -K means check not only for stack
++				// overflow but stack underflow.
++				// On underflow, INT 3 (breakpoint).
++				// Underflow itself is rare but this also
++				// catches out-of-sync stack guard info
+ 
+-					// common
+-					p = appendp(p);
+-					p->as = AJHI;
+-					p->to.type = D_BRANCH;
+-					p->to.offset = 4;
+-					q = p;
+-				}
++				p = appendp(p);
++				p->as = ACMPQ;
++				p->from.type = D_INDIR+D_CX;
++				p->from.offset = 8;
++				p->to.type = D_SP;
+ 
+-				/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
+-				moreconst1 = 0;
+-				if(autoffset+160 > 4096)
+-					moreconst1 = (autoffset+160) & ~7LL;
+-				moreconst2 = textarg;
++				p = appendp(p);
++				p->as = AJHI;
++				p->to.type = D_BRANCH;
++				p->to.offset = 4;
++				q1 = p;
+ 
+-				// 4 varieties varieties (const1==0 cross const2==0)
+-				// and 6 subvarieties of (const1==0 and const2!=0)
+ 				p = appendp(p);
+-				if(moreconst1 == 0 && moreconst2 == 0) {
+-					p->as = ACALL;
+-					p->to.type = D_BRANCH;
+-					p->pcond = pmorestack[0];
+-					p->to.sym = symmorestack[0];
+-				} else
+-				if(moreconst1 != 0 && moreconst2 == 0) {
+-					p->as = AMOVL;
+-					p->from.type = D_CONST;
+-					p->from.offset = moreconst1;
+-					p->to.type = D_AX;
++				p->as = AINT;
++				p->from.type = D_CONST;
++				p->from.offset = 3;
+ 
+-					p = appendp(p);
+-					p->as = ACALL;
+-					p->to.type = D_BRANCH;
+-					p->pcond = pmorestack[1];
+-					p->to.sym = symmorestack[1];
+-				} else
+-				if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
+-					i = moreconst2/8 + 3;
+-					p->as = ACALL;
+-					p->to.type = D_BRANCH;
+-					p->pcond = pmorestack[i];
+-					p->to.sym = symmorestack[i];
+-				} else
+-				if(moreconst1 == 0 && moreconst2 != 0) {
+-					p->as = AMOVL;
+-					p->from.type = D_CONST;
+-					p->from.offset = moreconst2;
+-					p->to.type = D_AX;
++				p = appendp(p);
++				p->as = ANOP;
++				q1->pcond = p;
++				q1 = P;
++			}
+ 
++			if(autoffset < StackBig) {  // do we need to call morestack?
++				if(autoffset <= StackSmall) {
++					// small stack
+ 					p = appendp(p);
+-					p->as = ACALL;
+-					p->to.type = D_BRANCH;
+-					p->pcond = pmorestack[2];
+-					p->to.sym = symmorestack[2];
++					p->as = ACMPQ;
++					p->from.type = D_SP;
++					p->to.type = D_INDIR+D_CX;
+ 				} else {
+-					p->as = AMOVQ;
+-					p->from.type = D_CONST;
+-					p->from.offset = (uint64)moreconst2 << 32;
+-					p->from.offset |= moreconst1;
++					// large stack
++					p = appendp(p);
++					p->as = ALEAQ;
++					p->from.type = D_INDIR+D_SP;
++					p->from.offset = -(autoffset-StackSmall);
+ 					p->to.type = D_AX;
+ 
+ 					p = appendp(p);
+-					p->as = ACALL;
+-					p->to.type = D_BRANCH;
+-					p->pcond = pmorestack[3];
+-					p->to.sym = symmorestack[3];
++					p->as = ACMPQ;
++					p->from.type = D_AX;
++					p->to.type = D_INDIR+D_CX;
+ 				}
+-			}
+-
+-			if(q != P)
+-				q->pcond = p->link;
+ 
+-			if(autoffset) {
++				// common
+ 				p = appendp(p);
+-				p->as = AADJSP;
+-				p->from.type = D_CONST;
+-				p->from.offset = autoffset;
+-				p->spadj = autoffset;
+-				if(q != P)
+-					q->pcond = p;
++				p->as = AJHI;
++				p->to.type = D_BRANCH;
++				p->to.offset = 4;
++				q = p;
+ 			}
+-			deltasp = autoffset;
+ 
+-			if(debug['K'] > 1 && autoffset) {
+-				// 6l -KK means double-check for stack overflow
+-				// even after calling morestack and even if the
+-				// function is marked as nosplit.
+-				p = appendp(p);
+-				p->as = AMOVQ;
+-				p->from.type = D_INDIR+D_CX;
+-				p->from.offset = 0;
+-				p->to.type = D_BX;
++			/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
++			moreconst1 = 0;
++			if(autoffset+160 > 4096)
++				moreconst1 = (autoffset+160) & ~7LL;
++			moreconst2 = textarg;
+ 
+-				p = appendp(p);
+-				p->as = ASUBQ;
++			// 4 varieties varieties (const1==0 cross const2==0)
++			// and 6 subvarieties of (const1==0 and const2!=0)
++			p = appendp(p);
++			if(moreconst1 == 0 && moreconst2 == 0) {
++				p->as = ACALL;
++				p->to.type = D_BRANCH;
++				p->pcond = pmorestack[0];
++				p->to.sym = symmorestack[0];
++			} else
++			if(moreconst1 != 0 && moreconst2 == 0) {
++				p->as = AMOVL;
+ 				p->from.type = D_CONST;
+-				p->from.offset = StackSmall+32;
+-				p->to.type = D_BX;
++				p->from.offset = moreconst1;
++				p->to.type = D_AX;
+ 
+ 				p = appendp(p);
+-				p->as = ACMPQ;
+-				p->from.type = D_SP;
+-				p->to.type = D_BX;
+-
+-				p = appendp(p);
+-				p->as = AJHI;
++				p->as = ACALL;
+ 				p->to.type = D_BRANCH;
+-				q1 = p;
++				p->pcond = pmorestack[1];
++				p->to.sym = symmorestack[1];
++			} else
++			if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
++				i = moreconst2/8 + 3;
++				p->as = ACALL;
++				p->to.type = D_BRANCH;
++				p->pcond = pmorestack[i];
++				p->to.sym = symmorestack[i];
++			} else
++			if(moreconst1 == 0 && moreconst2 != 0) {
++				p->as = AMOVL;
++				p->from.type = D_CONST;
++				p->from.offset = moreconst2;
++				p->to.type = D_AX;
+ 
+ 				p = appendp(p);
+-				p->as = AINT;
++				p->as = ACALL;
++				p->to.type = D_BRANCH;
++				p->pcond = pmorestack[2];
++				p->to.sym = symmorestack[2];
++			} else {
++				p->as = AMOVQ;
+ 				p->from.type = D_CONST;
+-				p->from.offset = 3;
++				p->from.offset = (uint64)moreconst2 << 32;
++				p->from.offset |= moreconst1;
++				p->to.type = D_AX;
+ 
+ 				p = appendp(p);
+-				p->as = ANOP;
+-				q1->pcond = p;
+-				q1 = P;
++				p->as = ACALL;
++				p->to.type = D_BRANCH;
++				p->pcond = pmorestack[3];
++				p->to.sym = symmorestack[3];
+ 			}
+ 		}
+-		pcsize = p->mode/8;
+-		a = p->from.type;
+-		if(a == D_AUTO)
+-			p->from.offset += deltasp;
+-		if(a == D_PARAM)
+-			p->from.offset += deltasp + pcsize;
+-		a = p->to.type;
+-		if(a == D_AUTO)
+-			p->to.offset += deltasp;
+-		if(a == D_PARAM)
+-			p->to.offset += deltasp + pcsize;
+-
+-		switch(p->as) {
+-		default:
+-			continue;
+-		case APUSHL:
+-		case APUSHFL:
+-			deltasp += 4;
+-			p->spadj = 4;
+-			continue;
+-		case APUSHQ:
+-		case APUSHFQ:
+-			deltasp += 8;
+-			p->spadj = 8;
+-			continue;
+-		case APUSHW:
+-		case APUSHFW:
+-			deltasp += 2;
+-			p->spadj = 2;
+-			continue;
+-		case APOPL:
+-		case APOPFL:
+-			deltasp -= 4;
+-			p->spadj = -4;
+-			continue;
+-		case APOPQ:
+-		case APOPFQ:
+-			deltasp -= 8;
+-			p->spadj = -8;
+-			continue;
+-		case APOPW:
+-		case APOPFW:
+-			deltasp -= 2;
+-			p->spadj = -2;
+-			continue;
+-		case ARET:
+-			break;
+-		}
+ 
+-		if(autoffset != deltasp)
+-			diag("unbalanced PUSH/POP");
+-		if(p->from.type == D_CONST)
+-			goto become;
++		if(q != P)
++			q->pcond = p->link;
+ 
+ 		if(autoffset) {
++			p = appendp(p);
+ 			p->as = AADJSP;
+ 			p->from.type = D_CONST;
+-			p->from.offset = -autoffset;
+-			p->spadj = -autoffset;
++			p->from.offset = autoffset;
++			p->spadj = autoffset;
++			if(q != P)
++				q->pcond = p;
++		}
++		deltasp = autoffset;
++
++		if(debug['K'] > 1 && autoffset) {
++			// 6l -KK means double-check for stack overflow
++			// even after calling morestack and even if the
++			// function is marked as nosplit.
++			p = appendp(p);
++			p->as = AMOVQ;
++			p->from.type = D_INDIR+D_CX;
++			p->from.offset = 0;
++			p->to.type = D_BX;
++
++			p = appendp(p);
++			p->as = ASUBQ;
++			p->from.type = D_CONST;
++			p->from.offset = StackSmall+32;
++			p->to.type = D_BX;
++
+ 			p = appendp(p);
+-			p->as = ARET;
++			p->as = ACMPQ;
++			p->from.type = D_SP;
++			p->to.type = D_BX;
++
++			p = appendp(p);
++			p->as = AJHI;
++			p->to.type = D_BRANCH;
++			q1 = p;
++
++			p = appendp(p);
++			p->as = AINT;
++			p->from.type = D_CONST;
++			p->from.offset = 3;
++
++			p = appendp(p);
++			p->as = ANOP;
++			q1->pcond = p;
++			q1 = P;
+ 		}
+-		continue;
++		}
++			pcsize = p->mode/8;
++			a = p->from.type;
++			if(a == D_AUTO)
++				p->from.offset += deltasp;
++			if(a == D_PARAM)
++				p->from.offset += deltasp + pcsize;
++			a = p->to.type;
++			if(a == D_AUTO)
++				p->to.offset += deltasp;
++			if(a == D_PARAM)
++				p->to.offset += deltasp + pcsize;
++	
++			switch(p->as) {
++			default:
++				continue;
++			case APUSHL:
++			case APUSHFL:
++				deltasp += 4;
++				p->spadj = 4;
++				continue;
++			case APUSHQ:
++			case APUSHFQ:
++				deltasp += 8;
++				p->spadj = 8;
++				continue;
++			case APUSHW:
++			case APUSHFW:
++				deltasp += 2;
++				p->spadj = 2;
++				continue;
++			case APOPL:
++			case APOPFL:
++				deltasp -= 4;
++				p->spadj = -4;
++				continue;
++			case APOPQ:
++			case APOPFQ:
++				deltasp -= 8;
++				p->spadj = -8;
++				continue;
++			case APOPW:
++			case APOPFW:
++				deltasp -= 2;
++				p->spadj = -2;
++				continue;
++			case ARET:
++				break;
++			}
++	
++			if(autoffset != deltasp)
++				diag("unbalanced PUSH/POP");
++			if(p->from.type == D_CONST)
++				goto become;
++	
++			if(autoffset) {
++				p->as = AADJSP;
++				p->from.type = D_CONST;
++				p->from.offset = -autoffset;
++				p->spadj = -autoffset;
++				p = appendp(p);
++				p->as = ARET;
++			}
++			continue;
+ 
+ 	become:
+ 		q = p;
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 60114ece59..78f72deee8 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -51,29 +51,29 @@ span(void)
+ 
+ 	idat = INITDAT;
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		n = 0;
+-		if(p->to.type == D_BRANCH)
+-			if(p->pcond == P)
+-				p->pcond = p;
+-		if((q = p->pcond) != P)
+-			if(q->back != 2)
+-				n = 1;
+-		p->back = n;
+-		if(p->as == AADJSP) {
+-			p->to.type = D_SP;
+-			v = -p->from.offset;
+-			p->from.offset = v;
+-			p->as = p->mode != 64? AADDL: AADDQ;
+-			if(v < 0) {
+-				p->as = p->mode != 64? ASUBL: ASUBQ;
+-				v = -v;
++			if(p->as == ATEXT)
++				curtext = p;
++			n = 0;
++			if(p->to.type == D_BRANCH)
++				if(p->pcond == P)
++					p->pcond = p;
++			if((q = p->pcond) != P)
++				if(q->back != 2)
++					n = 1;
++			p->back = n;
++			if(p->as == AADJSP) {
++				p->to.type = D_SP;
++				v = -p->from.offset;
+ 				p->from.offset = v;
++				p->as = p->mode != 64? AADDL: AADDQ;
++				if(v < 0) {
++					p->as = p->mode != 64? ASUBL: ASUBQ;
++					v = -v;
++					p->from.offset = v;
++				}
++				if(v == 0)
++					p->as = ANOP;
+ 			}
+-			if(v == 0)
+-				p->as = ANOP;
+-		}
+ 	}
+ 	n = 0;
+ 
+@@ -83,16 +83,16 @@ start:
+ 	Bflush(&bso);
+ 	c = INITTEXT;
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		if(p->to.type == D_BRANCH)
+-			if(p->back)
+-				p->pc = c;
+-		asmins(p);
+-		p->pc = c;
+-		m = andptr-and;
+-		p->mark = m;
+-		c += m;
++			if(p->as == ATEXT)
++				curtext = p;
++			if(p->to.type == D_BRANCH)
++				if(p->back)
++					p->pc = c;
++			asmins(p);
++			p->pc = c;
++			m = andptr-and;
++			p->mark = m;
++			c += m;
+ 	}
+ 
+ loop:
+@@ -107,20 +107,20 @@ loop:
+ 	again = 0;
+ 	c = INITTEXT;
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		if(p->to.type == D_BRANCH || p->back & 0100) {
+-			if(p->back)
+-				p->pc = c;
+-			asmins(p);
+-			m = andptr-and;
+-			if(m != p->mark) {
+-				p->mark = m;
+-				again++;
++			if(p->as == ATEXT)
++				curtext = p;
++			if(p->to.type == D_BRANCH || p->back & 0100) {
++				if(p->back)
++					p->pc = c;
++				asmins(p);
++				m = andptr-and;
++				if(m != p->mark) {
++					p->mark = m;
++					again++;
++				}
+ 			}
+-		}
+-		p->pc = c;
+-		c += p->mark;
++			p->pc = c;
++			c += p->mark;
+ 	}
+ 	if(again) {
+ 		textsize = c;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 1dd24b5bea..b55f3c3c3c 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -473,58 +473,58 @@ asmb(void)
+ 	seek(cout, HEADR, 0);
+ 	pc = INITTEXT;
+ 	curp = firstp;
+-	for(p = firstp; p != P; p = p->link) {
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		curp = p;
+-		if(HEADTYPE == 8) {
+-			// native client
+-			expectpc = p->pc;
+-			p->pc = pc;
+-			asmins(p);
+-			if(p->pc != expectpc) {
++	for(p = firstp; p != P; p = p->link) {	
++			if(p->as == ATEXT)
++				curtext = p;
++			curp = p;
++			if(HEADTYPE == 8) {
++				// native client
++				expectpc = p->pc;
++				p->pc = pc;
++				asmins(p);
++				if(p->pc != expectpc) {
++					Bflush(&bso);
++					diag("phase error %lux sb %lux in %s", p->pc, expectpc, TNAME);
++				}
++				while(pc < p->pc) {
++					cput(0x90);	// nop
++					pc++;
++				}
++			}
++			if(p->pc != pc) {
+ 				Bflush(&bso);
+-				diag("phase error %lux sb %lux in %s", p->pc, expectpc, TNAME);
++				if(!debug['a'])
++					print("%P\n", curp);
++				diag("phase error %lux sb %lux in %s", p->pc, pc, TNAME);
++				pc = p->pc;
+ 			}
+-			while(pc < p->pc) {
+-				cput(0x90);	// nop
+-				pc++;
++			if(HEADTYPE != 8) {
++				asmins(p);
++				if(pc != p->pc) {
++					Bflush(&bso);
++					diag("asmins changed pc %lux sb %lux in %s", p->pc, pc, TNAME);
++				}
+ 			}
+-		}
+-		if(p->pc != pc) {
+-			Bflush(&bso);
+-			if(!debug['a'])
+-				print("%P\n", curp);
+-			diag("phase error %lux sb %lux in %s", p->pc, pc, TNAME);
+-			pc = p->pc;
+-		}
+-		if(HEADTYPE != 8) {
+-			asmins(p);
+-			if(pc != p->pc) {
+-				Bflush(&bso);
+-				diag("asmins changed pc %lux sb %lux in %s", p->pc, pc, TNAME);
++			if(cbc < sizeof(and))
++				cflush();
++			a = (andptr - and);
++	
++			if(debug['a']) {
++				Bprint(&bso, pcstr, pc);
++				for(op1 = and; op1 < andptr; op1++)
++					Bprint(&bso, "%.2ux", *op1 & 0xff);
++				Bprint(&bso, "\t%P\n", curp);
+ 			}
+-		}
+-		if(cbc < sizeof(and))
+-			cflush();
+-		a = (andptr - and);
+-
+-		if(debug['a']) {
+-			Bprint(&bso, pcstr, pc);
+-			for(op1 = and; op1 < andptr; op1++)
+-				Bprint(&bso, "%.2ux", *op1 & 0xff);
+-			Bprint(&bso, "\t%P\n", curp);
+-		}
+-		if(dlm) {
+-			if(p->as == ATEXT)
+-				reloca = nil;
+-			else if(reloca != nil)
+-				diag("reloc failure: %P", curp);
+-		}
+-		memmove(cbp, and, a);
+-		cbp += a;
+-		pc += a;
+-		cbc -= a;
++			if(dlm) {
++				if(p->as == ATEXT)
++					reloca = nil;
++				else if(reloca != nil)
++					diag("reloc failure: %P", curp);
++			}
++			memmove(cbp, and, a);
++			cbp += a;
++			pc += a;
++			cbc -= a;
+ 	}
+ 	if(HEADTYPE == 8) {
+ 		int32 etext;
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index f55e9a02d8..4583ee361e 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -390,99 +390,99 @@ patch(void)
+ 	s = lookup("exit", 0);
+ 	vexit = s->value;
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(HEADTYPE == 10) {	// Windows
+-			// Convert
+-			//   op	  n(GS), reg
+-			// to
+-			//   MOVL 0x2C(FS), reg
+-			//   op	  n(reg), reg
+-			// The purpose of this patch is to fix some accesses
+-			// to extern register variables (TLS) on Windows, as
+-			// a different method is used to access them.
+-			if(p->from.type == D_INDIR+D_GS
+-			&& p->to.type >= D_AX && p->to.type <= D_DI) {
+-				q = appendp(p);
+-				q->from = p->from;
+-				q->from.type = D_INDIR + p->to.type;
+-				q->to = p->to;
+-				q->as = p->as;
+-				p->as = AMOVL;
+-				p->from.type = D_INDIR+D_FS;
+-				p->from.offset = 0x2C;
++			if(HEADTYPE == 10) {	// Windows
++				// Convert
++				//   op	  n(GS), reg
++				// to
++				//   MOVL 0x2C(FS), reg
++				//   op	  n(reg), reg
++				// The purpose of this patch is to fix some accesses
++				// to extern register variables (TLS) on Windows, as
++				// a different method is used to access them.
++				if(p->from.type == D_INDIR+D_GS
++				&& p->to.type >= D_AX && p->to.type <= D_DI) {
++					q = appendp(p);
++					q->from = p->from;
++					q->from.type = D_INDIR + p->to.type;
++					q->to = p->to;
++					q->as = p->as;
++					p->as = AMOVL;
++					p->from.type = D_INDIR+D_FS;
++					p->from.offset = 0x2C;
++				}
+ 			}
+-		}
+-		if(HEADTYPE == 7) {	// Linux
+-			// Running binaries under Xen requires using
+-			//	MOVL 0(GS), reg
+-			// and then off(reg) instead of saying off(GS) directly
+-			// when the offset is negative.
+-			if(p->from.type == D_INDIR+D_GS && p->from.offset < 0
+-			&& p->to.type >= D_AX && p->to.type <= D_DI) {
+-				q = appendp(p);
+-				q->from = p->from;
+-				q->from.type = D_INDIR + p->to.type;
+-				q->to = p->to;
+-				q->as = p->as;
+-				p->as = AMOVL;
+-				p->from.type = D_INDIR+D_GS;
+-				p->from.offset = 0;
++			if(HEADTYPE == 7) {	// Linux
++				// Running binaries under Xen requires using
++				//	MOVL 0(GS), reg
++				// and then off(reg) instead of saying off(GS) directly
++				// when the offset is negative.
++				if(p->from.type == D_INDIR+D_GS && p->from.offset < 0
++				&& p->to.type >= D_AX && p->to.type <= D_DI) {
++					q = appendp(p);
++					q->from = p->from;
++					q->from.type = D_INDIR + p->to.type;
++					q->to = p->to;
++					q->as = p->as;
++					p->as = AMOVL;
++					p->from.type = D_INDIR+D_GS;
++					p->from.offset = 0;
++				}
+ 			}
+-		}
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
+-			s = p->to.sym;
+-			if(s) {
+-				if(debug['c'])
+-					Bprint(&bso, "%s calls %s\n", TNAME, s->name);
+-				switch(s->type) {
+-				default:
+-					/* diag prints TNAME first */
+-					diag("undefined: %s", s->name);
+-					s->type = STEXT;
+-					s->value = vexit;
+-					continue;	// avoid more error messages
+-				case STEXT:
+-					p->to.offset = s->value;
+-					break;
+-				case SUNDEF:
+-					p->pcond = UP;
+-					p->to.offset = 0;
+-					break;
++			if(p->as == ATEXT)
++				curtext = p;
++			if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
++				s = p->to.sym;
++				if(s) {
++					if(debug['c'])
++						Bprint(&bso, "%s calls %s\n", TNAME, s->name);
++					switch(s->type) {
++					default:
++						/* diag prints TNAME first */
++						diag("undefined: %s", s->name);
++						s->type = STEXT;
++						s->value = vexit;
++						continue;	// avoid more error messages
++					case STEXT:
++						p->to.offset = s->value;
++						break;
++					case SUNDEF:
++						p->pcond = UP;
++						p->to.offset = 0;
++						break;
++					}
++					p->to.type = D_BRANCH;
+ 				}
+-				p->to.type = D_BRANCH;
+ 			}
+-		}
+-		if(p->to.type != D_BRANCH || p->pcond == UP)
+-			continue;
+-		c = p->to.offset;
+-		for(q = firstp; q != P;) {
+-			if(q->forwd != P)
+-			if(c >= q->forwd->pc) {
+-				q = q->forwd;
++			if(p->to.type != D_BRANCH || p->pcond == UP)
+ 				continue;
++			c = p->to.offset;
++			for(q = firstp; q != P;) {
++				if(q->forwd != P)
++				if(c >= q->forwd->pc) {
++					q = q->forwd;
++					continue;
++				}
++				if(c == q->pc)
++					break;
++				q = q->link;
+ 			}
+-			if(c == q->pc)
+-				break;
+-			q = q->link;
+-		}
+-		if(q == P) {
+-			diag("branch out of range in %s\n%P", TNAME, p);
+-			p->to.type = D_NONE;
+-		}
+-		p->pcond = q;
++			if(q == P) {
++				diag("branch out of range in %s\n%P", TNAME, p);
++				p->to.type = D_NONE;
++			}
++			p->pcond = q;
+ 	}
+ 
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		p->mark = 0;	/* initialization for follow */
+-		if(p->pcond != P && p->pcond != UP) {
+-			p->pcond = brloop(p->pcond);
+-			if(p->pcond != P)
+-			if(p->to.type == D_BRANCH)
+-				p->to.offset = p->pcond->pc;
+-		}
++			if(p->as == ATEXT)
++				curtext = p;
++			p->mark = 0;	/* initialization for follow */
++			if(p->pcond != P && p->pcond != UP) {
++				p->pcond = brloop(p->pcond);
++				if(p->pcond != P)
++				if(p->to.type == D_BRANCH)
++					p->to.offset = p->pcond->pc;
++			}
+ 	}
+ }
+ 
+@@ -635,212 +635,212 @@ dostkoff(void)
+ 	deltasp = 0;
+ 	for(p = firstp; p != P; p = p->link) {
+ 		if(p->as == ATEXT) {
+-			curtext = p;
+-			autoffset = p->to.offset;
+-			if(autoffset < 0)
+-				autoffset = 0;
+-
+-			q = P;
+-			q1 = P;
+-			if(pmorestack != P)
+-			if(!(p->from.scale & NOSPLIT)) {
+-				p = appendp(p);	// load g into CX
+-				switch(HEADTYPE) {
+-				case 10:	// Windows
+-					p->as = AMOVL;
+-					p->from.type = D_INDIR+D_FS;
+-					p->from.offset = 0x2c;
+-					p->to.type = D_CX;
++		curtext = p;
++		autoffset = p->to.offset;
++		if(autoffset < 0)
++			autoffset = 0;
++
++		q = P;
++		q1 = P;
++		if(pmorestack != P)
++		if(!(p->from.scale & NOSPLIT)) {
++			p = appendp(p);	// load g into CX
++			switch(HEADTYPE) {
++			case 10:	// Windows
++				p->as = AMOVL;
++				p->from.type = D_INDIR+D_FS;
++				p->from.offset = 0x2c;
++				p->to.type = D_CX;
+ 
+-					p = appendp(p);
+-					p->as = AMOVL;
+-					p->from.type = D_INDIR+D_CX;
+-					p->from.offset = 0;
+-					p->to.type = D_CX;
+-					break;
+-				
+-				case 7:	// Linux
+-					p->as = AMOVL;
+-					p->from.type = D_INDIR+D_GS;
+-					p->from.offset = 0;
+-					p->to.type = D_CX;
++				p = appendp(p);
++				p->as = AMOVL;
++				p->from.type = D_INDIR+D_CX;
++				p->from.offset = 0;
++				p->to.type = D_CX;
++				break;
++			
++			case 7:	// Linux
++				p->as = AMOVL;
++				p->from.type = D_INDIR+D_GS;
++				p->from.offset = 0;
++				p->to.type = D_CX;
+ 
+-					p = appendp(p);
+-					p->as = AMOVL;
+-					p->from.type = D_INDIR+D_CX;
+-					p->from.offset = tlsoffset + 0;
+-					p->to.type = D_CX;
+-					break;
++				p = appendp(p);
++				p->as = AMOVL;
++				p->from.type = D_INDIR+D_CX;
++				p->from.offset = tlsoffset + 0;
++				p->to.type = D_CX;
++				break;
+ 
+-				default:
+-					p->as = AMOVL;
+-					p->from.type = D_INDIR+D_GS;
+-					p->from.offset = tlsoffset + 0;
+-					p->to.type = D_CX;
+-				}
++			default:
++				p->as = AMOVL;
++				p->from.type = D_INDIR+D_GS;
++				p->from.offset = tlsoffset + 0;
++				p->to.type = D_CX;
++			}
+ 
+-				if(debug['K']) {
+-					// 8l -K means check not only for stack
+-					// overflow but stack underflow.
+-					// On underflow, INT 3 (breakpoint).
+-					// Underflow itself is rare but this also
+-					// catches out-of-sync stack guard info.
+-					p = appendp(p);
+-					p->as = ACMPL;
+-					p->from.type = D_INDIR+D_CX;
+-					p->from.offset = 4;
+-					p->to.type = D_SP;
++			if(debug['K']) {
++				// 8l -K means check not only for stack
++				// overflow but stack underflow.
++				// On underflow, INT 3 (breakpoint).
++				// Underflow itself is rare but this also
++				// catches out-of-sync stack guard info.
++				p = appendp(p);
++				p->as = ACMPL;
++				p->from.type = D_INDIR+D_CX;
++				p->from.offset = 4;
++				p->to.type = D_SP;
+ 
+-					p = appendp(p);
+-					p->as = AJCC;
+-					p->to.type = D_BRANCH;
+-					p->to.offset = 4;
+-					q1 = p;
++				p = appendp(p);
++				p->as = AJCC;
++				p->to.type = D_BRANCH;
++				p->to.offset = 4;
++				q1 = p;
++
++				p = appendp(p);
++				p->as = AINT;
++				p->from.type = D_CONST;
++				p->from.offset = 3;
++				
++				p = appendp(p);
++				p->as = ANOP;
++				q1->pcond = p;
++			}
+ 
++			if(autoffset < StackBig) {  // do we need to call morestack
++				if(autoffset <= StackSmall) {
++					// small stack
+ 					p = appendp(p);
+-					p->as = AINT;
+-					p->from.type = D_CONST;
+-					p->from.offset = 3;
+-					
++					p->as = ACMPL;
++					p->from.type = D_SP;
++					p->to.type = D_INDIR+D_CX;
++				} else {
++					// large stack
+ 					p = appendp(p);
+-					p->as = ANOP;
+-					q1->pcond = p;
+-				}
++					p->as = ALEAL;
++					p->from.type = D_INDIR+D_SP;
++					p->from.offset = -(autoffset-StackSmall);
++					p->to.type = D_AX;
+ 
+-				if(autoffset < StackBig) {  // do we need to call morestack
+-					if(autoffset <= StackSmall) {
+-						// small stack
+-						p = appendp(p);
+-						p->as = ACMPL;
+-						p->from.type = D_SP;
+-						p->to.type = D_INDIR+D_CX;
+-					} else {
+-						// large stack
+-						p = appendp(p);
+-						p->as = ALEAL;
+-						p->from.type = D_INDIR+D_SP;
+-						p->from.offset = -(autoffset-StackSmall);
+-						p->to.type = D_AX;
+-
+-						p = appendp(p);
+-						p->as = ACMPL;
+-						p->from.type = D_AX;
+-						p->to.type = D_INDIR+D_CX;
+-					}
+-
+-					// common
+ 					p = appendp(p);
+-					p->as = AJHI;
+-					p->to.type = D_BRANCH;
+-					p->to.offset = 4;
+-					q = p;
++					p->as = ACMPL;
++					p->from.type = D_AX;
++					p->to.type = D_INDIR+D_CX;
+ 				}
+ 
+-				p = appendp(p);	// save frame size in DX
+-				p->as = AMOVL;
+-				p->to.type = D_DX;
+-				/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
+-				p->from.type = D_CONST;
+-				if(autoffset+160 > 4096)
+-					p->from.offset = (autoffset+160) & ~7LL;
+-
+-				p = appendp(p);	// save arg size in AX
+-				p->as = AMOVL;
+-				p->to.type = D_AX;
+-				p->from.type = D_CONST;
+-				p->from.offset = curtext->to.offset2;
+-
++				// common
+ 				p = appendp(p);
+-				p->as = ACALL;
++				p->as = AJHI;
+ 				p->to.type = D_BRANCH;
+-				p->pcond = pmorestack;
+-				p->to.sym = symmorestack;
+-
++				p->to.offset = 4;
++				q = p;
+ 			}
+ 
+-			if(q != P)
+-				q->pcond = p->link;
++			p = appendp(p);	// save frame size in DX
++			p->as = AMOVL;
++			p->to.type = D_DX;
++			/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
++			p->from.type = D_CONST;
++			if(autoffset+160 > 4096)
++				p->from.offset = (autoffset+160) & ~7LL;
+ 
+-			if(autoffset) {
+-				p = appendp(p);
+-				p->as = AADJSP;
+-				p->from.type = D_CONST;
+-				p->from.offset = autoffset;
+-				p->spadj = autoffset;
+-				if(q != P)
+-					q->pcond = p;
+-			}
+-			deltasp = autoffset;
+-		}
+-		a = p->from.type;
+-		if(a == D_AUTO)
+-			p->from.offset += deltasp;
+-		if(a == D_PARAM)
+-			p->from.offset += deltasp + 4;
+-		a = p->to.type;
+-		if(a == D_AUTO)
+-			p->to.offset += deltasp;
+-		if(a == D_PARAM)
+-			p->to.offset += deltasp + 4;
++			p = appendp(p);	// save arg size in AX
++			p->as = AMOVL;
++			p->to.type = D_AX;
++			p->from.type = D_CONST;
++			p->from.offset = curtext->to.offset2;
++
++			p = appendp(p);
++			p->as = ACALL;
++			p->to.type = D_BRANCH;
++			p->pcond = pmorestack;
++			p->to.sym = symmorestack;
+ 
+-		switch(p->as) {
+-		default:
+-			continue;
+-		case APUSHL:
+-		case APUSHFL:
+-			deltasp += 4;
+-			p->spadj = 4;
+-			continue;
+-		case APUSHW:
+-		case APUSHFW:
+-			deltasp += 2;
+-			p->spadj = 2;
+-			continue;
+-		case APOPL:
+-		case APOPFL:
+-			deltasp -= 4;
+-			p->spadj = -4;
+-			continue;
+-		case APOPW:
+-		case APOPFW:
+-			deltasp -= 2;
+-			p->spadj = -2;
+-			continue;
+-		case ARET:
+-			break;
+ 		}
+ 
+-		if(autoffset != deltasp)
+-			diag("unbalanced PUSH/POP");
+-		if(p->from.type == D_CONST)
+-			goto become;
++		if(q != P)
++			q->pcond = p->link;
+ 
+ 		if(autoffset) {
++			p = appendp(p);
++			p->as = AADJSP;
++			p->from.type = D_CONST;
++			p->from.offset = autoffset;
++			p->spadj = autoffset;
++			if(q != P)
++				q->pcond = p;
++		}
++		deltasp = autoffset;
++		}
++			a = p->from.type;
++			if(a == D_AUTO)
++				p->from.offset += deltasp;
++			if(a == D_PARAM)
++				p->from.offset += deltasp + 4;
++			a = p->to.type;
++			if(a == D_AUTO)
++				p->to.offset += deltasp;
++			if(a == D_PARAM)
++				p->to.offset += deltasp + 4;
++	
++			switch(p->as) {
++			default:
++				continue;
++			case APUSHL:
++			case APUSHFL:
++				deltasp += 4;
++				p->spadj = 4;
++				continue;
++			case APUSHW:
++			case APUSHFW:
++				deltasp += 2;
++				p->spadj = 2;
++				continue;
++			case APOPL:
++			case APOPFL:
++				deltasp -= 4;
++				p->spadj = -4;
++				continue;
++			case APOPW:
++			case APOPFW:
++				deltasp -= 2;
++				p->spadj = -2;
++				continue;
++			case ARET:
++				break;
++			}
++	
++			if(autoffset != deltasp)
++				diag("unbalanced PUSH/POP");
++			if(p->from.type == D_CONST)
++				goto become;
++	
++			if(autoffset) {
++				q = p;
++				p = appendp(p);
++				p->as = ARET;
++	
++				q->as = AADJSP;
++				q->from.type = D_CONST;
++				q->from.offset = -autoffset;
++				p->spadj = -autoffset;
++			}
++			continue;
++	
++		become:
+ 			q = p;
+ 			p = appendp(p);
+-			p->as = ARET;
+-
++			p->as = AJMP;
++			p->to = q->to;
++			p->pcond = q->pcond;
++	
+ 			q->as = AADJSP;
++			q->from = zprg.from;
+ 			q->from.type = D_CONST;
+ 			q->from.offset = -autoffset;
+ 			p->spadj = -autoffset;
+-		}
+-		continue;
+-
+-	become:
+-		q = p;
+-		p = appendp(p);
+-		p->as = AJMP;
+-		p->to = q->to;
+-		p->pcond = q->pcond;
+-
+-		q->as = AADJSP;
+-		q->from = zprg.from;
+-		q->from.type = D_CONST;
+-		q->from.offset = -autoffset;
+-		p->spadj = -autoffset;
+-		q->to = zprg.to;
+-		continue;
++			q->to = zprg.to;
++			continue;
+ 	}
+ }
+ 
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index e0f3ffc90e..7886faed03 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -46,29 +46,29 @@ span(void)
+ 
+ 	idat = INITDAT;
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		n = 0;
+-		if(p->to.type == D_BRANCH)
+-			if(p->pcond == P)
+-				p->pcond = p;
+-		if((q = p->pcond) != P)
+-			if(q->back != 2)
+-				n = 1;
+-		p->back = n;
+-		if(p->as == AADJSP) {
+-			p->to.type = D_SP;
+-			v = -p->from.offset;
+-			p->from.offset = v;
+-			p->as = AADDL;
+-			if(v < 0) {
+-				p->as = ASUBL;
+-				v = -v;
++			if(p->as == ATEXT)
++				curtext = p;
++			n = 0;
++			if(p->to.type == D_BRANCH)
++				if(p->pcond == P)
++					p->pcond = p;
++			if((q = p->pcond) != P)
++				if(q->back != 2)
++					n = 1;
++			p->back = n;
++			if(p->as == AADJSP) {
++				p->to.type = D_SP;
++				v = -p->from.offset;
+ 				p->from.offset = v;
++				p->as = AADDL;
++				if(v < 0) {
++					p->as = ASUBL;
++					v = -v;
++					p->from.offset = v;
++				}
++				if(v == 0)
++					p->as = ANOP;
+ 			}
+-			if(v == 0)
+-				p->as = ANOP;
+-		}
+ 	}
+ 
+ 	n = 0;
+@@ -89,24 +89,24 @@ start:
+ 				if(HEADTYPE == 8)
+ 					c = (c+31)&~31;
+ 			}
+-			if(p->to.type == D_BRANCH)
+-				if(p->back)
+-					p->pc = c;
+-			if(n == 0 || HEADTYPE == 8 || p->to.type == D_BRANCH) {
+-				if(HEADTYPE == 8)
++				if(p->to.type == D_BRANCH)
++					if(p->back)
++						p->pc = c;
++				if(n == 0 || HEADTYPE == 8 || p->to.type == D_BRANCH) {
++					if(HEADTYPE == 8)
++						p->pc = c;
++					asmins(p);
++					m = andptr-and;
++					if(p->mark != m)
++						again = 1;
++					p->mark = m;
++				}
++				if(HEADTYPE == 8) {
++					c = p->pc + p->mark;
++				} else {
+ 					p->pc = c;
+-				asmins(p);
+-				m = andptr-and;
+-				if(p->mark != m)
+-					again = 1;
+-				p->mark = m;
+-			}
+-			if(HEADTYPE == 8) {
+-				c = p->pc + p->mark;
+-			} else {
+-				p->pc = c;
+-				c += p->mark;
+-			}
++					c += p->mark;
++				}
+ 		}
+ 		textsize = c;
+ 		n++;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index a7f8396fd6..0700d3fb4b 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -945,65 +945,65 @@ asmlc(void)
+ 	oldpc = INITTEXT;
+ 	oldlc = 0;
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
+-			if(p->as == ATEXT)
+-				curtext = p;
+-			if(debug['O'])
+-				Bprint(&bso, "%6llux %P\n",
+-					p->pc, p);
+-			continue;
+-		}
+-		if(debug['O'])
+-			Bprint(&bso, "\t\t%6ld", lcsize);
+-		v = (p->pc - oldpc) / MINLC;
+-		while(v) {
+-			s = 127;
+-			if(v < 127)
+-				s = v;
+-			cput(s+128);	/* 129-255 +pc */
++			if(p->line == oldlc || p->as == ATEXT || p->as == ANOP) {
++				if(p->as == ATEXT)
++					curtext = p;
++				if(debug['O'])
++					Bprint(&bso, "%6llux %P\n",
++						p->pc, p);
++				continue;
++			}
+ 			if(debug['O'])
+-				Bprint(&bso, " pc+%ld*%d(%ld)", s, MINLC, s+128);
+-			v -= s;
+-			lcsize++;
+-		}
+-		s = p->line - oldlc;
+-		oldlc = p->line;
+-		oldpc = p->pc + MINLC;
+-		if(s > 64 || s < -64) {
+-			cput(0);	/* 0 vv +lc */
+-			cput(s>>24);
+-			cput(s>>16);
+-			cput(s>>8);
+-			cput(s);
+-			if(debug['O']) {
+-				if(s > 0)
+-					Bprint(&bso, " lc+%ld(%d,%ld)\n",
+-						s, 0, s);
+-				else
+-					Bprint(&bso, " lc%ld(%d,%ld)\n",
+-						s, 0, s);
+-				Bprint(&bso, "%6llux %P\n",
+-					p->pc, p);
++				Bprint(&bso, "\t\t%6ld", lcsize);
++			v = (p->pc - oldpc) / MINLC;
++			while(v) {
++				s = 127;
++				if(v < 127)
++					s = v;
++				cput(s+128);	/* 129-255 +pc */
++				if(debug['O'])
++					Bprint(&bso, " pc+%ld*%d(%ld)", s, MINLC, s+128);
++				v -= s;
++				lcsize++;
+ 			}
+-			lcsize += 5;
+-			continue;
+-		}
+-		if(s > 0) {
+-			cput(0+s);	/* 1-64 +lc */
+-			if(debug['O']) {
+-				Bprint(&bso, " lc+%ld(%ld)\n", s, 0+s);
+-				Bprint(&bso, "%6llux %P\n",
+-					p->pc, p);
++			s = p->line - oldlc;
++			oldlc = p->line;
++			oldpc = p->pc + MINLC;
++			if(s > 64 || s < -64) {
++				cput(0);	/* 0 vv +lc */
++				cput(s>>24);
++				cput(s>>16);
++				cput(s>>8);
++				cput(s);
++				if(debug['O']) {
++					if(s > 0)
++						Bprint(&bso, " lc+%ld(%d,%ld)\n",
++							s, 0, s);
++					else
++						Bprint(&bso, " lc%ld(%d,%ld)\n",
++							s, 0, s);
++					Bprint(&bso, "%6llux %P\n",
++						p->pc, p);
++				}
++				lcsize += 5;
++				continue;
+ 			}
+-		} else {
+-			cput(64-s);	/* 65-128 -lc */
+-			if(debug['O']) {
+-				Bprint(&bso, " lc%ld(%ld)\n", s, 64-s);
+-				Bprint(&bso, "%6llux %P\n",
+-					p->pc, p);
++			if(s > 0) {
++				cput(0+s);	/* 1-64 +lc */
++				if(debug['O']) {
++					Bprint(&bso, " lc+%ld(%ld)\n", s, 0+s);
++					Bprint(&bso, "%6llux %P\n",
++						p->pc, p);
++				}
++			} else {
++				cput(64-s);	/* 65-128 -lc */
++				if(debug['O']) {
++					Bprint(&bso, " lc%ld(%ld)\n", s, 64-s);
++					Bprint(&bso, "%6llux %P\n",
++						p->pc, p);
++				}
+ 			}
+-		}
+-		lcsize++;
++			lcsize++;
+ 	}
+ 	while(lcsize & 1) {
+ 		s = 129;

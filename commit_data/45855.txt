@@ -50,7 +50,7 @@ Date:   Mon Nov 23 13:42:43 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmtmap_test.go           |   4 +-
  src/cmd/compile/internal/gc/const.go     | 130 ++++++++++++++-----------------
  src/cmd/compile/internal/gc/dcl.go       |   3 +-
@@ -66,3 +66,1095 @@ Date:   Mon Nov 23 13:42:43 2020 -0800
  src/cmd/compile/internal/gc/typecheck.go |  47 +++++------
  src/cmd/compile/internal/gc/walk.go      |  51 ++++++------
  14 files changed, 153 insertions(+), 154 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index a8698de307..51134e4919 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -85,8 +85,6 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/gc.Class %d":                "",
+ 	"cmd/compile/internal/gc.Class %s":                "",
+ 	"cmd/compile/internal/gc.Class %v":                "",
+-	"cmd/compile/internal/gc.Ctype %d":                "",
+-	"cmd/compile/internal/gc.Ctype %v":                "",
+ 	"cmd/compile/internal/gc.Nodes %#v":               "",
+ 	"cmd/compile/internal/gc.Nodes %+v":               "",
+ 	"cmd/compile/internal/gc.Nodes %.v":               "",
+@@ -138,6 +136,8 @@ var knownFormats = map[string]string{
+ 	"float64 %.3f":                                    "",
+ 	"float64 %.6g":                                    "",
+ 	"float64 %g":                                      "",
++	"go/constant.Kind %d":                             "",
++	"go/constant.Kind %v":                             "",
+ 	"int %#x":                                         "",
+ 	"int %-12d":                                       "",
+ 	"int %-6d":                                        "",
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 326f44a2fe..c30d24ae1a 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -8,23 +8,11 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"go/constant"
+ 	"math/big"
+ 	"strings"
+ )
+ 
+-// Ctype describes the constant kind of an "ideal" (untyped) constant.
+-type Ctype uint8
+-
+-const (
+-	CTxxx Ctype = iota
+-
+-	CTINT
+-	CTFLT
+-	CTCPLX
+-	CTSTR
+-	CTBOOL
+-)
+-
+ type Val struct {
+ 	// U contains one of:
+ 	// bool     bool when Ctype() == CTBOOL
+@@ -35,28 +23,28 @@ type Val struct {
+ 	U interface{}
+ }
+ 
+-func (v Val) Ctype() Ctype {
++func (v Val) Kind() constant.Kind {
+ 	switch v.U.(type) {
+ 	default:
+ 		Fatalf("unexpected Ctype for %T", v.U)
+ 		panic("unreachable")
+ 	case nil:
+-		return CTxxx
++		return constant.Unknown
+ 	case bool:
+-		return CTBOOL
++		return constant.Bool
+ 	case *Mpint:
+-		return CTINT
++		return constant.Int
+ 	case *Mpflt:
+-		return CTFLT
++		return constant.Float
+ 	case *Mpcplx:
+-		return CTCPLX
++		return constant.Complex
+ 	case string:
+-		return CTSTR
++		return constant.String
+ 	}
+ }
+ 
+ func eqval(a, b Val) bool {
+-	if a.Ctype() != b.Ctype() {
++	if a.Kind() != b.Kind() {
+ 		return false
+ 	}
+ 	switch x := a.U.(type) {
+@@ -103,7 +91,7 @@ func (v Val) Interface() interface{} {
+ // Int64Val returns n as an int64.
+ // n must be an integer or rune constant.
+ func (n *Node) Int64Val() int64 {
+-	if !Isconst(n, CTINT) {
++	if !Isconst(n, constant.Int) {
+ 		Fatalf("Int64Val(%v)", n)
+ 	}
+ 	return n.Val().U.(*Mpint).Int64()
+@@ -111,7 +99,7 @@ func (n *Node) Int64Val() int64 {
+ 
+ // CanInt64 reports whether it is safe to call Int64Val() on n.
+ func (n *Node) CanInt64() bool {
+-	if !Isconst(n, CTINT) {
++	if !Isconst(n, constant.Int) {
+ 		return false
+ 	}
+ 
+@@ -123,7 +111,7 @@ func (n *Node) CanInt64() bool {
+ // BoolVal returns n as a bool.
+ // n must be a boolean constant.
+ func (n *Node) BoolVal() bool {
+-	if !Isconst(n, CTBOOL) {
++	if !Isconst(n, constant.Bool) {
+ 		Fatalf("BoolVal(%v)", n)
+ 	}
+ 	return n.Val().U.(bool)
+@@ -132,7 +120,7 @@ func (n *Node) BoolVal() bool {
+ // StringVal returns the value of a literal string Node as a string.
+ // n must be a string constant.
+ func (n *Node) StringVal() string {
+-	if !Isconst(n, CTSTR) {
++	if !Isconst(n, constant.String) {
+ 		Fatalf("StringVal(%v)", n)
+ 	}
+ 	return n.Val().U.(string)
+@@ -369,23 +357,23 @@ func operandType(op Op, t *types.Type) *types.Type {
+ // If explicit is true, then conversions from integer to string are
+ // also allowed.
+ func convertVal(v Val, t *types.Type, explicit bool) Val {
+-	switch ct := v.Ctype(); ct {
+-	case CTBOOL:
++	switch ct := v.Kind(); ct {
++	case constant.Bool:
+ 		if t.IsBoolean() {
+ 			return v
+ 		}
+ 
+-	case CTSTR:
++	case constant.String:
+ 		if t.IsString() {
+ 			return v
+ 		}
+ 
+-	case CTINT:
++	case constant.Int:
+ 		if explicit && t.IsString() {
+ 			return tostr(v)
+ 		}
+ 		fallthrough
+-	case CTFLT, CTCPLX:
++	case constant.Float, constant.Complex:
+ 		switch {
+ 		case t.IsInteger():
+ 			v = toint(v)
+@@ -543,14 +531,14 @@ func tostr(v Val) Val {
+ 	return v
+ }
+ 
+-func consttype(n *Node) Ctype {
++func consttype(n *Node) constant.Kind {
+ 	if n == nil || n.Op != OLITERAL {
+-		return CTxxx
++		return constant.Unknown
+ 	}
+-	return n.Val().Ctype()
++	return n.Val().Kind()
+ }
+ 
+-func Isconst(n *Node, ct Ctype) bool {
++func Isconst(n *Node, ct constant.Kind) bool {
+ 	return consttype(n) == ct
+ }
+ 
+@@ -596,11 +584,11 @@ func evconst(n *Node) {
+ 		// Merge adjacent constants in the argument list.
+ 		s := n.List.Slice()
+ 		for i1 := 0; i1 < len(s); i1++ {
+-			if Isconst(s[i1], CTSTR) && i1+1 < len(s) && Isconst(s[i1+1], CTSTR) {
++			if Isconst(s[i1], constant.String) && i1+1 < len(s) && Isconst(s[i1+1], constant.String) {
+ 				// merge from i1 up to but not including i2
+ 				var strs []string
+ 				i2 := i1
+-				for i2 < len(s) && Isconst(s[i2], CTSTR) {
++				for i2 < len(s) && Isconst(s[i2], constant.String) {
+ 					strs = append(strs, s[i2].StringVal())
+ 					i2++
+ 				}
+@@ -613,7 +601,7 @@ func evconst(n *Node) {
+ 			}
+ 		}
+ 
+-		if len(s) == 1 && Isconst(s[0], CTSTR) {
++		if len(s) == 1 && Isconst(s[0], constant.String) {
+ 			n.Op = OLITERAL
+ 			n.SetVal(s[0].Val())
+ 		} else {
+@@ -623,7 +611,7 @@ func evconst(n *Node) {
+ 	case OCAP, OLEN:
+ 		switch nl.Type.Etype {
+ 		case TSTRING:
+-			if Isconst(nl, CTSTR) {
++			if Isconst(nl, constant.String) {
+ 				setintconst(n, int64(len(nl.StringVal())))
+ 			}
+ 		case TARRAY:
+@@ -674,9 +662,9 @@ func evconst(n *Node) {
+ 
+ func match(x, y Val) (Val, Val) {
+ 	switch {
+-	case x.Ctype() == CTCPLX || y.Ctype() == CTCPLX:
++	case x.Kind() == constant.Complex || y.Kind() == constant.Complex:
+ 		return tocplx(x), tocplx(y)
+-	case x.Ctype() == CTFLT || y.Ctype() == CTFLT:
++	case x.Kind() == constant.Float || y.Kind() == constant.Float:
+ 		return toflt(x), toflt(y)
+ 	}
+ 
+@@ -687,8 +675,8 @@ func match(x, y Val) (Val, Val) {
+ func compareOp(x Val, op Op, y Val) bool {
+ 	x, y = match(x, y)
+ 
+-	switch x.Ctype() {
+-	case CTBOOL:
++	switch x.Kind() {
++	case constant.Bool:
+ 		x, y := x.U.(bool), y.U.(bool)
+ 		switch op {
+ 		case OEQ:
+@@ -697,15 +685,15 @@ func compareOp(x Val, op Op, y Val) bool {
+ 			return x != y
+ 		}
+ 
+-	case CTINT:
++	case constant.Int:
+ 		x, y := x.U.(*Mpint), y.U.(*Mpint)
+ 		return cmpZero(x.Cmp(y), op)
+ 
+-	case CTFLT:
++	case constant.Float:
+ 		x, y := x.U.(*Mpflt), y.U.(*Mpflt)
+ 		return cmpZero(x.Cmp(y), op)
+ 
+-	case CTCPLX:
++	case constant.Complex:
+ 		x, y := x.U.(*Mpcplx), y.U.(*Mpcplx)
+ 		eq := x.Real.Cmp(&y.Real) == 0 && x.Imag.Cmp(&y.Imag) == 0
+ 		switch op {
+@@ -715,7 +703,7 @@ func compareOp(x Val, op Op, y Val) bool {
+ 			return !eq
+ 		}
+ 
+-	case CTSTR:
++	case constant.String:
+ 		x, y := x.U.(string), y.U.(string)
+ 		switch op {
+ 		case OEQ:
+@@ -761,8 +749,8 @@ func binaryOp(x Val, op Op, y Val) Val {
+ 	x, y = match(x, y)
+ 
+ Outer:
+-	switch x.Ctype() {
+-	case CTBOOL:
++	switch x.Kind() {
++	case constant.Bool:
+ 		x, y := x.U.(bool), y.U.(bool)
+ 		switch op {
+ 		case OANDAND:
+@@ -771,7 +759,7 @@ Outer:
+ 			return Val{U: x || y}
+ 		}
+ 
+-	case CTINT:
++	case constant.Int:
+ 		x, y := x.U.(*Mpint), y.U.(*Mpint)
+ 
+ 		u := new(Mpint)
+@@ -808,7 +796,7 @@ Outer:
+ 		}
+ 		return Val{U: u}
+ 
+-	case CTFLT:
++	case constant.Float:
+ 		x, y := x.U.(*Mpflt), y.U.(*Mpflt)
+ 
+ 		u := newMpflt()
+@@ -831,7 +819,7 @@ Outer:
+ 		}
+ 		return Val{U: u}
+ 
+-	case CTCPLX:
++	case constant.Complex:
+ 		x, y := x.U.(*Mpcplx), y.U.(*Mpcplx)
+ 
+ 		u := newMpcmplx()
+@@ -864,28 +852,28 @@ Outer:
+ func unaryOp(op Op, x Val, t *types.Type) Val {
+ 	switch op {
+ 	case OPLUS:
+-		switch x.Ctype() {
+-		case CTINT, CTFLT, CTCPLX:
++		switch x.Kind() {
++		case constant.Int, constant.Float, constant.Complex:
+ 			return x
+ 		}
+ 
+ 	case ONEG:
+-		switch x.Ctype() {
+-		case CTINT:
++		switch x.Kind() {
++		case constant.Int:
+ 			x := x.U.(*Mpint)
+ 			u := new(Mpint)
+ 			u.Set(x)
+ 			u.Neg()
+ 			return Val{U: u}
+ 
+-		case CTFLT:
++		case constant.Float:
+ 			x := x.U.(*Mpflt)
+ 			u := newMpflt()
+ 			u.Set(x)
+ 			u.Neg()
+ 			return Val{U: u}
+ 
+-		case CTCPLX:
++		case constant.Complex:
+ 			x := x.U.(*Mpcplx)
+ 			u := newMpcmplx()
+ 			u.Real.Set(&x.Real)
+@@ -896,8 +884,8 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
+ 		}
+ 
+ 	case OBITNOT:
+-		switch x.Ctype() {
+-		case CTINT:
++		switch x.Kind() {
++		case constant.Int:
+ 			x := x.U.(*Mpint)
+ 
+ 			u := new(Mpint)
+@@ -967,12 +955,12 @@ func setconst(n *Node, v Val) {
+ 	lineno = lno
+ 
+ 	if !n.Type.IsUntyped() {
+-		switch v.Ctype() {
++		switch v.Kind() {
+ 		// Truncate precision for non-ideal float.
+-		case CTFLT:
++		case constant.Float:
+ 			n.SetVal(Val{truncfltlit(v.U.(*Mpflt), n.Type)})
+ 		// Truncate precision for non-ideal complex.
+-		case CTCPLX:
++		case constant.Complex:
+ 			n.SetVal(Val{trunccmplxlit(v.U.(*Mpcplx), n.Type)})
+ 		}
+ 	}
+@@ -990,7 +978,7 @@ func represents(t *types.Type, v Val) bool {
+ 		return true
+ 	}
+ 
+-	vt := idealType(v.Ctype())
++	vt := idealType(v.Kind())
+ 	return t == vt || (t == types.UntypedRune && vt == types.UntypedInt)
+ }
+ 
+@@ -1007,22 +995,22 @@ func setintconst(n *Node, v int64) {
+ // nodlit returns a new untyped constant with value v.
+ func nodlit(v Val) *Node {
+ 	n := nod(OLITERAL, nil, nil)
+-	n.Type = idealType(v.Ctype())
++	n.Type = idealType(v.Kind())
+ 	n.SetVal(v)
+ 	return n
+ }
+ 
+-func idealType(ct Ctype) *types.Type {
++func idealType(ct constant.Kind) *types.Type {
+ 	switch ct {
+-	case CTSTR:
++	case constant.String:
+ 		return types.UntypedString
+-	case CTBOOL:
++	case constant.Bool:
+ 		return types.UntypedBool
+-	case CTINT:
++	case constant.Int:
+ 		return types.UntypedInt
+-	case CTFLT:
++	case constant.Float:
+ 		return types.UntypedFloat
+-	case CTCPLX:
++	case constant.Complex:
+ 		return types.UntypedComplex
+ 	}
+ 	Fatalf("unexpected Ctype: %v", ct)
+@@ -1121,7 +1109,7 @@ func defaultType(t *types.Type) *types.Type {
+ }
+ 
+ func smallintconst(n *Node) bool {
+-	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
++	if n.Op == OLITERAL && Isconst(n, constant.Int) && n.Type != nil {
+ 		switch simtype[n.Type.Etype] {
+ 		case TINT8,
+ 			TUINT8,
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index d3b7590257..e0a6f6ac92 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"go/constant"
+ 	"strings"
+ )
+ 
+@@ -637,7 +638,7 @@ func interfacefield(n *Node) *types.Field {
+ 		Fatalf("interfacefield: oops %v\n", n)
+ 	}
+ 
+-	if n.Val().Ctype() != CTxxx {
++	if n.Val().Kind() != constant.Unknown {
+ 		yyerror("interface method cannot have annotation")
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 5179b6c05b..15251062b4 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"go/constant"
+ )
+ 
+ var (
+@@ -208,8 +209,8 @@ func dumpasmhdr() {
+ 		}
+ 		switch n.Op {
+ 		case OLITERAL:
+-			t := n.Val().Ctype()
+-			if t == CTFLT || t == CTCPLX {
++			t := n.Val().Kind()
++			if t == constant.Float || t == constant.Complex {
+ 				break
+ 			}
+ 			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym.Name, n.Val())
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 740fdab977..650fb9681e 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -556,7 +556,7 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprint(s, u)
+ 
+ 	default:
+-		fmt.Fprintf(s, "<ctype=%d>", v.Ctype())
++		fmt.Fprintf(s, "<ctype=%d>", v.Kind())
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index c3385f785a..d661fca2d1 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -210,6 +210,7 @@ import (
+ 	"crypto/md5"
+ 	"encoding/binary"
+ 	"fmt"
++	"go/constant"
+ 	"io"
+ 	"math/big"
+ 	"sort"
+@@ -748,28 +749,28 @@ func (w *exportWriter) param(f *types.Field) {
+ 	w.typ(f.Type)
+ }
+ 
+-func constTypeOf(typ *types.Type) Ctype {
++func constTypeOf(typ *types.Type) constant.Kind {
+ 	switch typ {
+ 	case types.UntypedInt, types.UntypedRune:
+-		return CTINT
++		return constant.Int
+ 	case types.UntypedFloat:
+-		return CTFLT
++		return constant.Float
+ 	case types.UntypedComplex:
+-		return CTCPLX
++		return constant.Complex
+ 	}
+ 
+ 	switch typ.Etype {
+ 	case TBOOL:
+-		return CTBOOL
++		return constant.Bool
+ 	case TSTRING:
+-		return CTSTR
++		return constant.String
+ 	case TINT, TINT8, TINT16, TINT32, TINT64,
+ 		TUINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINTPTR:
+-		return CTINT
++		return constant.Int
+ 	case TFLOAT32, TFLOAT64:
+-		return CTFLT
++		return constant.Float
+ 	case TCOMPLEX64, TCOMPLEX128:
+-		return CTCPLX
++		return constant.Complex
+ 	}
+ 
+ 	Fatalf("unexpected constant type: %v", typ)
+@@ -786,15 +787,15 @@ func (w *exportWriter) value(typ *types.Type, v Val) {
+ 	// and provides a useful consistency check.
+ 
+ 	switch constTypeOf(typ) {
+-	case CTBOOL:
++	case constant.Bool:
+ 		w.bool(v.U.(bool))
+-	case CTSTR:
++	case constant.String:
+ 		w.string(v.U.(string))
+-	case CTINT:
++	case constant.Int:
+ 		w.mpint(&v.U.(*Mpint).Val, typ)
+-	case CTFLT:
++	case constant.Float:
+ 		w.mpfloat(&v.U.(*Mpflt).Val, typ)
+-	case CTCPLX:
++	case constant.Complex:
+ 		x := v.U.(*Mpcplx)
+ 		w.mpfloat(&x.Real.Val, typ)
+ 		w.mpfloat(&x.Imag.Val, typ)
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index fc6b7ecb9f..0fa11c5f59 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/internal/src"
+ 	"encoding/binary"
+ 	"fmt"
++	"go/constant"
+ 	"io"
+ 	"math/big"
+ 	"os"
+@@ -357,19 +358,19 @@ func (r *importReader) doDecl(n *Node) {
+ 
+ func (p *importReader) value(typ *types.Type) (v Val) {
+ 	switch constTypeOf(typ) {
+-	case CTBOOL:
++	case constant.Bool:
+ 		v.U = p.bool()
+-	case CTSTR:
++	case constant.String:
+ 		v.U = p.string()
+-	case CTINT:
++	case constant.Int:
+ 		x := new(Mpint)
+ 		p.mpint(&x.Val, typ)
+ 		v.U = x
+-	case CTFLT:
++	case constant.Float:
+ 		x := newMpflt()
+ 		p.float(x, typ)
+ 		v.U = x
+-	case CTCPLX:
++	case constant.Complex:
+ 		x := newMpcmplx()
+ 		p.float(&x.Real, typ)
+ 		p.float(&x.Imag, typ)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index a882e91dce..6d07e156ea 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -32,6 +32,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"go/constant"
+ 	"strings"
+ )
+ 
+@@ -417,7 +418,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		}
+ 
+ 	case OIF:
+-		if Isconst(n.Left, CTBOOL) {
++		if Isconst(n.Left, constant.Bool) {
+ 			// This if and the condition cost nothing.
+ 			return v.visitList(n.Ninit) || v.visitList(n.Nbody) ||
+ 				v.visitList(n.Rlist)
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 303b04cd46..3ef8583f6d 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"fmt"
++	"go/constant"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -803,7 +804,7 @@ func (p *noder) sum(x syntax.Expr) *Node {
+ 	chunks := make([]string, 0, 1)
+ 
+ 	n := p.expr(x)
+-	if Isconst(n, CTSTR) && n.Sym == nil {
++	if Isconst(n, constant.String) && n.Sym == nil {
+ 		nstr = n
+ 		chunks = append(chunks, nstr.StringVal())
+ 	}
+@@ -812,7 +813,7 @@ func (p *noder) sum(x syntax.Expr) *Node {
+ 		add := adds[i]
+ 
+ 		r := p.expr(add.Y)
+-		if Isconst(r, CTSTR) && r.Sym == nil {
++		if Isconst(r, constant.String) && r.Sym == nil {
+ 			if nstr != nil {
+ 				// Collapse r into nstr instead of adding to n.
+ 				chunks = append(chunks, r.StringVal())
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 77f9afb44d..499b8ef2e5 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -13,6 +13,7 @@ import (
+ 	"crypto/sha256"
+ 	"encoding/json"
+ 	"fmt"
++	"go/constant"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -263,7 +264,7 @@ func dumpGlobalConst(n *Node) {
+ 	case TUINTPTR:
+ 		// ok
+ 	case TIDEAL:
+-		if !Isconst(n, CTINT) {
++		if !Isconst(n, constant.Int) {
+ 			return
+ 		}
+ 		x := n.Val().U.(*Mpint)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 709b2d434e..e23a189d71 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"encoding/binary"
+ 	"fmt"
++	"go/constant"
+ 	"html"
+ 	"os"
+ 	"path/filepath"
+@@ -1277,7 +1278,7 @@ func (s *state) stmt(n *Node) {
+ 			// We're assigning a slicing operation back to its source.
+ 			// Don't write back fields we aren't changing. See issue #14855.
+ 			i, j, k := rhs.SliceBounds()
+-			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Int64Val() == 0) {
++			if i != nil && (i.Op == OLITERAL && i.Val().Kind() == constant.Int && i.Int64Val() == 0) {
+ 				// [0:...] is the same as [:...]
+ 				i = nil
+ 			}
+@@ -1305,7 +1306,7 @@ func (s *state) stmt(n *Node) {
+ 		s.assign(n.Left, r, deref, skip)
+ 
+ 	case OIF:
+-		if Isconst(n.Left, CTBOOL) {
++		if Isconst(n.Left, constant.Bool) {
+ 			s.stmtList(n.Left.Ninit)
+ 			if n.Left.BoolVal() {
+ 				s.stmtList(n.Nbody)
+@@ -2093,7 +2094,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			}
+ 
+ 		default:
+-			s.Fatalf("unhandled OLITERAL %v", n.Val().Ctype())
++			s.Fatalf("unhandled OLITERAL %v", n.Val().Kind())
+ 			return nil
+ 		}
+ 	case OCONVNOP:
+@@ -2617,7 +2618,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OINDEX:
+ 		switch {
+ 		case n.Left.Type.IsString():
+-			if n.Bounded() && Isconst(n.Left, CTSTR) && Isconst(n.Right, CTINT) {
++			if n.Bounded() && Isconst(n.Left, constant.String) && Isconst(n.Right, constant.Int) {
+ 				// Replace "abc"[1] with 'b'.
+ 				// Delayed until now because "abc"[1] is not an ideal constant.
+ 				// See test/fixedbugs/issue11370.go.
+@@ -2629,7 +2630,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
+ 			ptrtyp := s.f.Config.Types.BytePtr
+ 			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
+-			if Isconst(n.Right, CTINT) {
++			if Isconst(n.Right, constant.Int) {
+ 				ptr = s.newValue1I(ssa.OpOffPtr, ptrtyp, n.Right.Int64Val(), ptr)
+ 			} else {
+ 				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 5f4e9e4b40..068f1a34e1 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
++	"go/constant"
+ 	"sort"
+ )
+ 
+@@ -442,7 +443,7 @@ func (c *exprClause) test(exprname *Node) *Node {
+ 	}
+ 
+ 	// Optimize "switch true { ...}" and "switch false { ... }".
+-	if Isconst(exprname, CTBOOL) && !c.lo.Type.IsInterface() {
++	if Isconst(exprname, constant.Bool) && !c.lo.Type.IsInterface() {
+ 		if exprname.BoolVal() {
+ 			return c.lo
+ 		} else {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 3fb59c8deb..11c1ae38ea 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/types"
+ 	"fmt"
++	"go/constant"
+ 	"strings"
+ )
+ 
+@@ -359,7 +360,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 	case OLITERAL:
+ 		ok |= ctxExpr
+ 
+-		if n.Type == nil && n.Val().Ctype() == CTSTR {
++		if n.Type == nil && n.Val().Kind() == constant.String {
+ 			n.Type = types.UntypedString
+ 		}
+ 
+@@ -425,7 +426,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		} else {
+ 			n.Left = indexlit(typecheck(n.Left, ctxExpr))
+ 			l := n.Left
+-			if consttype(l) != CTINT {
++			if consttype(l) != constant.Int {
+ 				switch {
+ 				case l.Type == nil:
+ 					// Error already reported elsewhere.
+@@ -802,7 +803,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			n.Right = nil
+ 		}
+ 
+-		if (op == ODIV || op == OMOD) && Isconst(r, CTINT) {
++		if (op == ODIV || op == OMOD) && Isconst(r, constant.Int) {
+ 			if r.Val().U.(*Mpint).CmpInt64(0) == 0 {
+ 				yyerror("division by zero")
+ 				n.Type = nil
+@@ -1044,15 +1045,15 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 				break
+ 			}
+ 
+-			if !n.Bounded() && Isconst(n.Right, CTINT) {
++			if !n.Bounded() && Isconst(n.Right, constant.Int) {
+ 				x := n.Right.Int64Val()
+ 				if x < 0 {
+ 					yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
+ 				} else if t.IsArray() && x >= t.NumElem() {
+ 					yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
+-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.StringVal())) {
++				} else if Isconst(n.Left, constant.String) && x >= int64(len(n.Left.StringVal())) {
+ 					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.StringVal()))
+-				} else if n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
++				} else if doesoverflow(n.Right.Val(), types.Types[TINT]) {
+ 					yyerror("invalid %s index %v (index too large)", why, n.Right)
+ 				}
+ 			}
+@@ -1147,15 +1148,15 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		l = defaultlit(l, types.Types[TINT])
+ 		c = defaultlit(c, types.Types[TINT])
+ 
+-		if Isconst(l, CTINT) && l.Int64Val() < 0 {
++		if Isconst(l, constant.Int) && l.Int64Val() < 0 {
+ 			Fatalf("len for OSLICEHEADER must be non-negative")
+ 		}
+ 
+-		if Isconst(c, CTINT) && c.Int64Val() < 0 {
++		if Isconst(c, constant.Int) && c.Int64Val() < 0 {
+ 			Fatalf("cap for OSLICEHEADER must be non-negative")
+ 		}
+ 
+-		if Isconst(l, CTINT) && Isconst(c, CTINT) && l.Val().U.(*Mpint).Cmp(c.Val().U.(*Mpint)) > 0 {
++		if Isconst(l, constant.Int) && Isconst(c, constant.Int) && compareOp(l.Val(), OGT, c.Val()) {
+ 			Fatalf("len larger than cap for OSLICEHEADER")
+ 		}
+ 
+@@ -1196,8 +1197,8 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			yyerror("non-integer len argument in OMAKESLICECOPY")
+ 		}
+ 
+-		if Isconst(n.Left, CTINT) {
+-			if n.Left.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
++		if Isconst(n.Left, constant.Int) {
++			if doesoverflow(n.Left.Val(), types.Types[TINT]) {
+ 				Fatalf("len for OMAKESLICECOPY too large")
+ 			}
+ 			if n.Left.Int64Val() < 0 {
+@@ -1773,7 +1774,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 				n.Type = nil
+ 				return n
+ 			}
+-			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && l.Val().U.(*Mpint).Cmp(r.Val().U.(*Mpint)) > 0 {
++			if Isconst(l, constant.Int) && r != nil && Isconst(r, constant.Int) && compareOp(l.Val(), OGT, r.Val()) {
+ 				yyerror("len larger than cap in make(%v)", t)
+ 				n.Type = nil
+ 				return n
+@@ -1865,7 +1866,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		ls := n.List.Slice()
+ 		for i1, n1 := range ls {
+ 			// Special case for print: int constant is int64, not int.
+-			if Isconst(n1, CTINT) {
++			if Isconst(n1, constant.Int) {
+ 				ls[i1] = defaultlit(ls[i1], types.Types[TINT64])
+ 			} else {
+ 				ls[i1] = defaultlit(ls[i1], nil)
+@@ -2187,10 +2188,10 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
+ 		} else if tp != nil && tp.NumElem() >= 0 && r.Int64Val() > tp.NumElem() {
+ 			yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
+ 			return false
+-		} else if Isconst(l, CTSTR) && r.Int64Val() > int64(len(l.StringVal())) {
++		} else if Isconst(l, constant.String) && r.Int64Val() > int64(len(l.StringVal())) {
+ 			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.StringVal()))
+ 			return false
+-		} else if r.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
++		} else if doesoverflow(r.Val(), types.Types[TINT]) {
+ 			yyerror("invalid slice index %v (index too large)", r)
+ 			return false
+ 		}
+@@ -2200,7 +2201,7 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
+ }
+ 
+ func checksliceconst(lo *Node, hi *Node) bool {
+-	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && lo.Val().U.(*Mpint).Cmp(hi.Val().U.(*Mpint)) > 0 {
++	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && compareOp(lo.Val(), OGT, hi.Val()) {
+ 		yyerror("invalid slice index: %v > %v", lo, hi)
+ 		return false
+ 	}
+@@ -3431,7 +3432,7 @@ func typecheckfunc(n *Node) {
+ // The result of stringtoruneslit MUST be assigned back to n, e.g.
+ // 	n.Left = stringtoruneslit(n.Left)
+ func stringtoruneslit(n *Node) *Node {
+-	if n.Left.Op != OLITERAL || n.Left.Val().Ctype() != CTSTR {
++	if n.Left.Op != OLITERAL || n.Left.Val().Kind() != constant.String {
+ 		Fatalf("stringtoarraylit %v", n)
+ 	}
+ 
+@@ -3724,7 +3725,7 @@ func checkmake(t *types.Type, arg string, np **Node) bool {
+ 	// Do range checks for constants before defaultlit
+ 	// to avoid redundant "constant NNN overflows int" errors.
+ 	switch consttype(n) {
+-	case CTINT, CTFLT, CTCPLX:
++	case constant.Int, constant.Float, constant.Complex:
+ 		v := toint(n.Val()).U.(*Mpint)
+ 		if v.CmpInt64(0) < 0 {
+ 			yyerror("negative %s argument in make(%v)", arg, t)
+@@ -3885,11 +3886,11 @@ func deadcodefn(fn *Node) {
+ 		}
+ 		switch n.Op {
+ 		case OIF:
+-			if !Isconst(n.Left, CTBOOL) || n.Nbody.Len() > 0 || n.Rlist.Len() > 0 {
++			if !Isconst(n.Left, constant.Bool) || n.Nbody.Len() > 0 || n.Rlist.Len() > 0 {
+ 				return
+ 			}
+ 		case OFOR:
+-			if !Isconst(n.Left, CTBOOL) || n.Left.BoolVal() {
++			if !Isconst(n.Left, constant.Bool) || n.Left.BoolVal() {
+ 				return
+ 			}
+ 		default:
+@@ -3917,7 +3918,7 @@ func deadcodeslice(nn *Nodes) {
+ 		}
+ 		if n.Op == OIF {
+ 			n.Left = deadcodeexpr(n.Left)
+-			if Isconst(n.Left, CTBOOL) {
++			if Isconst(n.Left, constant.Bool) {
+ 				var body Nodes
+ 				if n.Left.BoolVal() {
+ 					n.Rlist = Nodes{}
+@@ -3961,7 +3962,7 @@ func deadcodeexpr(n *Node) *Node {
+ 	case OANDAND:
+ 		n.Left = deadcodeexpr(n.Left)
+ 		n.Right = deadcodeexpr(n.Right)
+-		if Isconst(n.Left, CTBOOL) {
++		if Isconst(n.Left, constant.Bool) {
+ 			if n.Left.BoolVal() {
+ 				return n.Right // true && x => x
+ 			} else {
+@@ -3971,7 +3972,7 @@ func deadcodeexpr(n *Node) *Node {
+ 	case OOROR:
+ 		n.Left = deadcodeexpr(n.Left)
+ 		n.Right = deadcodeexpr(n.Right)
+-		if Isconst(n.Left, CTBOOL) {
++		if Isconst(n.Left, constant.Bool) {
+ 			if n.Left.BoolVal() {
+ 				return n.Left // true || x => true
+ 			} else {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e7351d1792..4bbc58ce13 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
+ 	"fmt"
++	"go/constant"
+ 	"strings"
+ )
+ 
+@@ -1045,15 +1046,15 @@ opswitch:
+ 		}
+ 		if t.IsArray() {
+ 			n.SetBounded(bounded(r, t.NumElem()))
+-			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
++			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, constant.Int) {
+ 				Warn("index bounds check elided")
+ 			}
+ 			if smallintconst(n.Right) && !n.Bounded() {
+ 				yyerror("index out of bounds")
+ 			}
+-		} else if Isconst(n.Left, CTSTR) {
++		} else if Isconst(n.Left, constant.String) {
+ 			n.SetBounded(bounded(r, int64(len(n.Left.StringVal()))))
+-			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
++			if Debug.m != 0 && n.Bounded() && !Isconst(n.Right, constant.Int) {
+ 				Warn("index bounds check elided")
+ 			}
+ 			if smallintconst(n.Right) && !n.Bounded() {
+@@ -1061,8 +1062,8 @@ opswitch:
+ 			}
+ 		}
+ 
+-		if Isconst(n.Right, CTINT) {
+-			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
++		if Isconst(n.Right, constant.Int) {
++			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || doesoverflow(n.Right.Val(), types.Types[TINT]) {
+ 				yyerror("index out of bounds")
+ 			}
+ 		}
+@@ -1192,7 +1193,7 @@ opswitch:
+ 		// Type checking guarantees that TIDEAL size is positive and fits in an int.
+ 		// The case of size overflow when converting TUINT or TUINTPTR to TINT
+ 		// will be handled by the negative range checks in makechan during runtime.
+-		if size.Type.IsKind(TIDEAL) || maxintval[size.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
++		if size.Type.IsKind(TIDEAL) || size.Type.Size() <= types.Types[TUINT].Size() {
+ 			fnname = "makechan"
+ 			argtype = types.Types[TINT]
+ 		}
+@@ -1222,7 +1223,7 @@ opswitch:
+ 			// BUCKETSIZE runtime.makemap will allocate the buckets on the heap.
+ 			// Maximum key and elem size is 128 bytes, larger objects
+ 			// are stored with an indirection. So max bucket size is 2048+eps.
+-			if !Isconst(hint, CTINT) ||
++			if !Isconst(hint, constant.Int) ||
+ 				hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
+ 
+ 				// In case hint is larger than BUCKETSIZE runtime.makemap
+@@ -1256,7 +1257,7 @@ opswitch:
+ 			}
+ 		}
+ 
+-		if Isconst(hint, CTINT) && hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
++		if Isconst(hint, constant.Int) && hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
+ 			// Handling make(map[any]any) and
+ 			// make(map[any]any, hint) where hint <= BUCKETSIZE
+ 			// special allows for faster map initialization and
+@@ -1300,7 +1301,7 @@ opswitch:
+ 			// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
+ 			// The case of hint overflow when converting TUINT or TUINTPTR to TINT
+ 			// will be handled by the negative range checks in makemap during runtime.
+-			if hint.Type.IsKind(TIDEAL) || maxintval[hint.Type.Etype].Cmp(maxintval[TUINT]) <= 0 {
++			if hint.Type.IsKind(TIDEAL) || hint.Type.Size() <= types.Types[TUINT].Size() {
+ 				fnname = "makemap"
+ 				argtype = types.Types[TINT]
+ 			}
+@@ -1370,8 +1371,8 @@ opswitch:
+ 			// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
+ 			// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
+ 			// will be handled by the negative range checks in makeslice during runtime.
+-			if (len.Type.IsKind(TIDEAL) || maxintval[len.Type.Etype].Cmp(maxintval[TUINT]) <= 0) &&
+-				(cap.Type.IsKind(TIDEAL) || maxintval[cap.Type.Etype].Cmp(maxintval[TUINT]) <= 0) {
++			if (len.Type.IsKind(TIDEAL) || len.Type.Size() <= types.Types[TUINT].Size()) &&
++				(cap.Type.IsKind(TIDEAL) || cap.Type.Size() <= types.Types[TUINT].Size()) {
+ 				fnname = "makeslice"
+ 				argtype = types.Types[TINT]
+ 			}
+@@ -1486,7 +1487,7 @@ opswitch:
+ 
+ 	case OSTR2BYTES:
+ 		s := n.Left
+-		if Isconst(s, CTSTR) {
++		if Isconst(s, constant.String) {
+ 			sc := s.StringVal()
+ 
+ 			// Allocate a [n]byte of the right size.
+@@ -1914,7 +1915,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 	t := make([]*Node, 0, len(s))
+ 	for i := 0; i < len(s); {
+ 		var strs []string
+-		for i < len(s) && Isconst(s[i], CTSTR) {
++		for i < len(s) && Isconst(s[i], constant.String) {
+ 			strs = append(strs, s[i].StringVal())
+ 			i++
+ 		}
+@@ -1935,11 +1936,11 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 				n = defaultlit(n, types.Runetype)
+ 			}
+ 
+-			switch n.Val().Ctype() {
+-			case CTINT:
++			switch n.Val().Kind() {
++			case constant.Int:
+ 				n = defaultlit(n, types.Types[TINT64])
+ 
+-			case CTFLT:
++			case constant.Float:
+ 				n = defaultlit(n, types.Types[TFLOAT64])
+ 			}
+ 		}
+@@ -1994,7 +1995,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 			on = syslook("printbool")
+ 		case TSTRING:
+ 			cs := ""
+-			if Isconst(n, CTSTR) {
++			if Isconst(n, constant.String) {
+ 				cs = n.StringVal()
+ 			}
+ 			switch cs {
+@@ -2850,7 +2851,7 @@ func isAppendOfMake(n *Node) bool {
+ 
+ 	// The care of overflow of the len argument to make will be handled by an explicit check of int(len) < 0 during runtime.
+ 	y := second.Left
+-	if !Isconst(y, CTINT) && maxintval[y.Type.Etype].Cmp(maxintval[TUINT]) > 0 {
++	if !Isconst(y, constant.Int) && y.Type.Size() > types.Types[TUINT].Size() {
+ 		return false
+ 	}
+ 
+@@ -3471,12 +3472,12 @@ func walkcompareString(n *Node, init *Nodes) *Node {
+ 	// Rewrite comparisons to short constant strings as length+byte-wise comparisons.
+ 	var cs, ncs *Node // const string, non-const string
+ 	switch {
+-	case Isconst(n.Left, CTSTR) && Isconst(n.Right, CTSTR):
++	case Isconst(n.Left, constant.String) && Isconst(n.Right, constant.String):
+ 		// ignore; will be constant evaluated
+-	case Isconst(n.Left, CTSTR):
++	case Isconst(n.Left, constant.String):
+ 		cs = n.Left
+ 		ncs = n.Right
+-	case Isconst(n.Right, CTSTR):
++	case Isconst(n.Right, constant.String):
+ 		cs = n.Right
+ 		ncs = n.Left
+ 	}
+@@ -3485,7 +3486,7 @@ func walkcompareString(n *Node, init *Nodes) *Node {
+ 		// Our comparison below assumes that the non-constant string
+ 		// is on the left hand side, so rewrite "" cmp x to x cmp "".
+ 		// See issue 24817.
+-		if Isconst(n.Left, CTSTR) {
++		if Isconst(n.Left, constant.String) {
+ 			cmp = brrev(cmp)
+ 		}
+ 
+@@ -3841,17 +3842,17 @@ func candiscard(n *Node) bool {
+ 
+ 		// Discardable as long as we know it's not division by zero.
+ 	case ODIV, OMOD:
+-		if Isconst(n.Right, CTINT) && n.Right.Val().U.(*Mpint).CmpInt64(0) != 0 {
++		if Isconst(n.Right, constant.Int) && n.Right.Val().U.(*Mpint).CmpInt64(0) != 0 {
+ 			break
+ 		}
+-		if Isconst(n.Right, CTFLT) && n.Right.Val().U.(*Mpflt).CmpFloat64(0) != 0 {
++		if Isconst(n.Right, constant.Float) && n.Right.Val().U.(*Mpflt).CmpFloat64(0) != 0 {
+ 			break
+ 		}
+ 		return false
+ 
+ 		// Discardable as long as we know it won't fail because of a bad size.
+ 	case OMAKECHAN, OMAKEMAP:
+-		if Isconst(n.Left, CTINT) && n.Left.Val().U.(*Mpint).CmpInt64(0) == 0 {
++		if Isconst(n.Left, constant.Int) && n.Left.Val().U.(*Mpint).CmpInt64(0) == 0 {
+ 			break
+ 		}
+ 		return false

@@ -20,8 +20,115 @@ Date:   Fri Aug 18 13:39:57 2023 +0800
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/gob/codec_test.go | 12 ++++++++++++
  src/encoding/gob/decode.go     |  2 +-
  src/encoding/gob/type.go       | 29 +++++++++++++++++++----------
  3 files changed, 32 insertions(+), 11 deletions(-)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index 11a38f5f58..ec56ad50b2 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -1616,3 +1616,15 @@ func TestLargeSlice(t *testing.T) {
+ 		testEncodeDecode(t, st, rt)
+ 	})
+ }
++
++func TestLocalRemoteTypesMismatch(t *testing.T) {
++	// Test data is from https://go.dev/issue/62117.
++	testData := []byte{9, 127, 3, 1, 2, 255, 128, 0, 0, 0, 3, 255, 128, 0}
++
++	var v []*struct{}
++	buf := bytes.NewBuffer(testData)
++	err := NewDecoder(buf).Decode(&v)
++	if err == nil {
++		t.Error("Encode/Decode: expected error but got err == nil")
++	}
++}
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 684505bf90..46657183f2 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -1082,7 +1082,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
+ func (dec *Decoder) typeString(remoteId typeId) string {
+ 	typeLock.Lock()
+ 	defer typeLock.Unlock()
+-	if t := idToType[remoteId]; t != nil {
++	if t := idToType(remoteId); t != nil {
+ 		// globally known type.
+ 		return t.string()
+ 	}
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index acc36425bd..24105c5e11 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -173,9 +173,18 @@ type gobType interface {
+ 	safeString(seen map[typeId]bool) string
+ }
+ 
+-var types = make(map[reflect.Type]gobType, 32)
+-var idToType = make([]gobType, 1, firstUserId)
+-var builtinIdToTypeSlice [firstUserId]gobType // set in init() after builtins are established
++var (
++	types                = make(map[reflect.Type]gobType, 32)
++	idToTypeSlice        = make([]gobType, 1, firstUserId)
++	builtinIdToTypeSlice [firstUserId]gobType // set in init() after builtins are established
++)
++
++func idToType(id typeId) gobType {
++	if id < 0 || int(id) >= len(idToTypeSlice) {
++		return nil
++	}
++	return idToTypeSlice[id]
++}
+ 
+ func builtinIdToType(id typeId) gobType {
+ 	if id < 0 || int(id) >= len(builtinIdToTypeSlice) {
+@@ -189,16 +198,16 @@ func setTypeId(typ gobType) {
+ 	if typ.id() != 0 {
+ 		return
+ 	}
+-	nextId := typeId(len(idToType))
++	nextId := typeId(len(idToTypeSlice))
+ 	typ.setId(nextId)
+-	idToType = append(idToType, typ)
++	idToTypeSlice = append(idToTypeSlice, typ)
+ }
+ 
+ func (t typeId) gobType() gobType {
+ 	if t == 0 {
+ 		return nil
+ 	}
+-	return idToType[t]
++	return idToType(t)
+ }
+ 
+ // string returns the string representation of the type associated with the typeId.
+@@ -277,14 +286,14 @@ func init() {
+ 	checkId(21, mustGetTypeInfo(reflect.TypeFor[fieldType]()).id)
+ 	checkId(23, mustGetTypeInfo(reflect.TypeFor[mapType]()).id)
+ 
+-	copy(builtinIdToTypeSlice[:], idToType)
++	copy(builtinIdToTypeSlice[:], idToTypeSlice)
+ 
+ 	// Move the id space upwards to allow for growth in the predefined world
+ 	// without breaking existing files.
+-	if nextId := len(idToType); nextId > firstUserId {
++	if nextId := len(idToTypeSlice); nextId > firstUserId {
+ 		panic(fmt.Sprintln("nextId too large:", nextId))
+ 	}
+-	idToType = idToType[:firstUserId]
++	idToTypeSlice = idToTypeSlice[:firstUserId]
+ 	registerBasics()
+ 	wireTypeUserInfo = userType(wireTypeType)
+ }
+@@ -526,7 +535,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
+ 	case reflect.Struct:
+ 		st := newStructType(name)
+ 		types[rt] = st
+-		idToType[st.id()] = st
++		idToTypeSlice[st.id()] = st
+ 		for i := 0; i < t.NumField(); i++ {
+ 			f := t.Field(i)
+ 			if !isSent(&f) {

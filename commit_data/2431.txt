@@ -8,6 +8,20 @@ Date:   Mon Jun 8 19:25:26 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=30080
     CL=30080
-
+---
  src/lib/datafmt/datafmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/datafmt/datafmt.go b/src/lib/datafmt/datafmt.go
+index dbd8ec6863..0aedbbbb0a 100644
+--- a/src/lib/datafmt/datafmt.go
++++ b/src/lib/datafmt/datafmt.go
+@@ -567,7 +567,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 		s.hasOutput = true;
+ 		// write literal segments
+ 		for _, lit := range t {
+-			if lit[0] == '%' && len(lit) > 1 {
++			if len(lit) > 1 && lit[0] == '%' {
+ 				// segment contains a %-format at the beginning
+ 				if lit[1] == '%' {
+ 					// "%%" is printed as a single "%"

@@ -7,6 +7,20 @@ Date:   Mon Aug 30 09:59:59 2010 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/2073041
-
+---
  src/pkg/crypto/tls/conn.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 4e8d05b6c3..2357297b75 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -617,7 +617,7 @@ func (c *Conn) Close() os.Error {
+ 
+ // Handshake runs the client or server handshake
+ // protocol if it has not yet been run.
+-// Most uses of this packge need not call Handshake
++// Most uses of this package need not call Handshake
+ // explicitly: the first Read or Write will call it automatically.
+ func (c *Conn) Handshake() os.Error {
+ 	c.handshakeMutex.Lock()

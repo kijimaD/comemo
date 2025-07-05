@@ -7,6 +7,20 @@ Date:   Wed Dec 2 16:22:53 2015 -0800
     Change-Id: I6bee207db7485f96a499f51b2d1346c35e086d41
     Reviewed-on: https://go-review.googlesource.com/17337
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 28092d7c7d..56da4d0237 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -22,7 +22,7 @@ Read the <a href="/doc/go1.5">Go 1.5 Release Notes</a> for more information.
+ <h3 id="go1.5.minor">Minor revisions</h3>
+ 
+ <p>
+-go1.5.2 (released 2015/11/23) includes bug fixes to the compiler, linker, and
++go1.5.2 (released 2015/12/02) includes bug fixes to the compiler, linker, and
+ the <code>mime/multipart</code>, <code>net</code>, and <code>runtime</code>
+ packages.
+ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.5.2">Go

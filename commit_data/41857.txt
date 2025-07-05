@@ -18,6 +18,31 @@ Date:   Mon Oct 28 22:14:04 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_unix_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/export_unix_test.go b/src/runtime/export_unix_test.go
+index 3f8bff619d..7af1c1dd54 100644
+--- a/src/runtime/export_unix_test.go
++++ b/src/runtime/export_unix_test.go
+@@ -33,6 +33,10 @@ var waitForSigusr1 struct {
+ // the ID of the M the SIGUSR1 was received on. If no SIGUSR1 is
+ // received for timeoutNS nanoseconds, it returns -1.
+ func WaitForSigusr1(ready func(mp *M), timeoutNS int64) (int64, int64) {
++	lockOSThread()
++	// Make sure we can receive SIGUSR1.
++	unblocksig(_SIGUSR1)
++
+ 	mp := getg().m
+ 	testSigusr1 = func(gp *g) bool {
+ 		waitForSigusr1.mp = gp.m
+@@ -46,6 +50,8 @@ func WaitForSigusr1(ready func(mp *M), timeoutNS int64) (int64, int64) {
+ 	waitForSigusr1.mp = nil
+ 	testSigusr1 = nil
+ 
++	unlockOSThread()
++
+ 	if !ok {
+ 		return -1, -1
+ 	}

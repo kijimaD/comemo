@@ -15,7 +15,7 @@ Date:   Fri Feb 5 20:26:18 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  31 ++-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |   4 +
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   4 +
@@ -26,3 +26,999 @@ Date:   Fri Feb 5 20:26:18 2016 -0800
  src/cmd/compile/internal/ssa/rewriteAMD64.go   |  54 +++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 283 +++++++++++++++++++++++++
  9 files changed, 795 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8109117982..71d5920824 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3904,10 +3904,11 @@ func (s *genState) genValue(v *ssa.Value) {
+ 			j2.To.Val = Pc
+ 		}
+ 
+-	case ssa.OpAMD64HMULL, ssa.OpAMD64HMULW, ssa.OpAMD64HMULB,
+-		ssa.OpAMD64HMULLU, ssa.OpAMD64HMULWU, ssa.OpAMD64HMULBU:
++	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULW, ssa.OpAMD64HMULB,
++		ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU, ssa.OpAMD64HMULWU, ssa.OpAMD64HMULBU:
+ 		// the frontend rewrites constant division by 8/16/32 bit integers into
+ 		// HMUL by a constant
++		// SSA rewrites generate the 64 bit versions
+ 
+ 		// Arg[0] is already in AX as it's the only register we allow
+ 		// and DX is the only output we care about (the high bits)
+@@ -3925,6 +3926,32 @@ func (s *genState) genValue(v *ssa.Value) {
+ 			m.To.Reg = x86.REG_DX
+ 		}
+ 
++	case ssa.OpAMD64AVGQU:
++		// compute (x+y)/2 unsigned.
++		// Do a 64-bit add, the overflow goes into the carry.
++		// Shift right once and pull the carry back into the 63rd bit.
++		r := regnum(v)
++		x := regnum(v.Args[0])
++		y := regnum(v.Args[1])
++		if x != r && y != r {
++			opregreg(moveByType(v.Type), r, x)
++			x = r
++		}
++		p := Prog(x86.AADDQ)
++		p.From.Type = obj.TYPE_REG
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++		if x == r {
++			p.From.Reg = y
++		} else {
++			p.From.Reg = x
++		}
++		p = Prog(x86.ARCRQ)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++
+ 	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,
+ 		ssa.OpAMD64SHRQ, ssa.OpAMD64SHRL, ssa.OpAMD64SHRW, ssa.OpAMD64SHRB,
+ 		ssa.OpAMD64SARQ, ssa.OpAMD64SARL, ssa.OpAMD64SARW, ssa.OpAMD64SARB:
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 465d7030f3..15457b8f6d 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -45,6 +45,8 @@
+ (Div8 x y) ->  (DIVW (SignExt8to16 x) (SignExt8to16 y))
+ (Div8u x y) ->  (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+ 
++(Hmul64 x y) -> (HMULQ x y)
++(Hmul64u x y) -> (HMULQU x y)
+ (Hmul32 x y) -> (HMULL x y)
+ (Hmul32u x y) -> (HMULLU x y)
+ (Hmul16 x y) -> (HMULW x y)
+@@ -52,6 +54,8 @@
+ (Hmul8 x y) ->  (HMULB x y)
+ (Hmul8u x y) ->  (HMULBU x y)
+ 
++(Avg64u x y) -> (AVGQU x y)
++
+ (Mod64 x y) -> (MODQ x y)
+ (Mod64u x y) -> (MODQU x y)
+ (Mod32 x y) -> (MODL x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 7fcf24782c..d139145e04 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -193,13 +193,17 @@ func init() {
+ 		{name: "MULWconst", reg: gp11, asm: "IMULW", aux: "Int16"}, // arg0 * auxint
+ 		{name: "MULBconst", reg: gp11, asm: "IMULW", aux: "Int8"},  // arg0 * auxint
+ 
++		{name: "HMULQ", reg: gp11hmul, asm: "IMULQ"}, // (arg0 * arg1) >> width
+ 		{name: "HMULL", reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
+ 		{name: "HMULW", reg: gp11hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
+ 		{name: "HMULB", reg: gp11hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
++		{name: "HMULQU", reg: gp11hmul, asm: "MULQ"}, // (arg0 * arg1) >> width
+ 		{name: "HMULLU", reg: gp11hmul, asm: "MULL"}, // (arg0 * arg1) >> width
+ 		{name: "HMULWU", reg: gp11hmul, asm: "MULW"}, // (arg0 * arg1) >> width
+ 		{name: "HMULBU", reg: gp11hmul, asm: "MULB"}, // (arg0 * arg1) >> width
+ 
++		{name: "AVGQU", reg: gp21}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
++
+ 		{name: "DIVQ", reg: gp11div, asm: "IDIVQ"}, // arg0 / arg1
+ 		{name: "DIVL", reg: gp11div, asm: "IDIVL"}, // arg0 / arg1
+ 		{name: "DIVW", reg: gp11div, asm: "IDIVW"}, // arg0 / arg1
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 28fe9ff878..2b811cc7ab 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -514,3 +514,100 @@
+     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])
+     (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)])
+     (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
++
++// strength reduction of divide by a constant.
++// Note: frontend does <=32 bits.  We only need to do 64 bits here.
++// TODO: Do them all here?
++
++// Div/mod by 1.  Currently handled by frontend.
++//(Div64 n (Const64 [1])) -> n
++//(Div64u n (Const64 [1])) -> n
++//(Mod64 n (Const64 [1])) -> (Const64 [0])
++//(Mod64u n (Const64 [1])) -> (Const64 [0])
++
++// Unsigned divide by power of 2.  Currently handled by frontend.
++//(Div64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Rsh64Ux64 n (Const64 <t> [log2(c)]))
++//(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
++
++// Signed divide by power of 2.  Currently handled by frontend.
++// n / c = n >> log(c)       if n >= 0
++//       = (n+c-1) >> log(c) if n < 0
++// We conditionally add c-1 by adding n>>63>>(64-log(c)) (first shift signed, second shift unsigned).
++//(Div64 <t> n (Const64 [c])) && isPowerOfTwo(c) ->
++//  (Rsh64x64
++//    (Add64 <t>
++//      n
++//      (Rsh64Ux64 <t>
++//        (Rsh64x64 <t> n (Const64 <t> [63]))
++//        (Const64 <t> [64-log2(c)])))
++//    (Const64 <t> [log2(c)]))
++
++// Unsigned divide, not a power of 2.  Strength reduce to a multiply.
++(Div64u <t> x (Const64 [c])) && umagic64ok(c) && !umagic64a(c) ->
++  (Rsh64Ux64
++    (Hmul64u <t>
++      (Const64 <t> [umagic64m(c)])
++      x)
++    (Const64 <t> [umagic64s(c)]))
++(Div64u <t> x (Const64 [c])) && umagic64ok(c) && umagic64a(c) ->
++  (Rsh64Ux64
++    (Avg64u <t>
++      (Hmul64u <t>
++        x
++        (Const64 <t> [umagic64m(c)]))
++      x)
++    (Const64 <t> [umagic64s(c)-1]))
++
++// Signed divide, not a power of 2.  Strength reduce to a multiply.
++(Div64 <t> x (Const64 [c])) && c > 0 && smagic64ok(c) && smagic64m(c) > 0 ->
++  (Sub64 <t>
++    (Rsh64x64 <t>
++      (Hmul64 <t>
++        (Const64 <t> [smagic64m(c)])
++        x)
++      (Const64 <t> [smagic64s(c)]))
++    (Rsh64x64 <t>
++      x
++      (Const64 <t> [63])))
++(Div64 <t> x (Const64 [c])) && c > 0 && smagic64ok(c) && smagic64m(c) < 0 ->
++  (Sub64 <t>
++    (Rsh64x64 <t>
++      (Add64 <t>
++        (Hmul64 <t>
++          (Const64 <t> [smagic64m(c)])
++          x)
++        x)
++      (Const64 <t> [smagic64s(c)]))
++    (Rsh64x64 <t>
++      x
++      (Const64 <t> [63])))
++(Div64 <t> x (Const64 [c])) && c < 0 && smagic64ok(c) && smagic64m(c) > 0 ->
++  (Neg64 <t>
++    (Sub64 <t>
++      (Rsh64x64 <t>
++        (Hmul64 <t>
++          (Const64 <t> [smagic64m(c)])
++          x)
++        (Const64 <t> [smagic64s(c)]))
++      (Rsh64x64 <t>
++        x
++        (Const64 <t> [63]))))
++(Div64 <t> x (Const64 [c])) && c < 0 && smagic64ok(c) && smagic64m(c) < 0 ->
++  (Neg64 <t>
++    (Sub64 <t>
++      (Rsh64x64 <t>
++        (Add64 <t>
++          (Hmul64 <t>
++            (Const64 <t> [smagic64m(c)])
++            x)
++          x)
++        (Const64 <t> [smagic64s(c)]))
++      (Rsh64x64 <t>
++        x
++        (Const64 <t> [63]))))
++
++// A%B = A-(A/B*B).
++// This implements % with two * and a bunch of ancillary ops.
++// One of the * is free if the user's code also computes A/B.
++(Mod64  <t> x (Const64 [c])) && smagic64ok(c) -> (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
++(Mod64u <t> x (Const64 [c])) && umagic64ok(c) -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 3c7aa84ee3..ec74859cbc 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -41,7 +41,11 @@ var genericOps = []opData{
+ 	{name: "Hmul16u"},
+ 	{name: "Hmul32"},
+ 	{name: "Hmul32u"},
+-	// frontend currently doesn't generate a 64 bit hmul
++	{name: "Hmul64"},
++	{name: "Hmul64u"},
++
++	// Weird special instruction for strength reduction of divides.
++	{name: "Avg64u"}, // (uint64(arg0) + uint64(arg1)) / 2, correct to all 64 bits.
+ 
+ 	{name: "Div8"}, // arg0 / arg1
+ 	{name: "Div8u"},
+diff --git a/src/cmd/compile/internal/ssa/magic.go b/src/cmd/compile/internal/ssa/magic.go
+new file mode 100644
+index 0000000000..a8e84d5c93
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/magic.go
+@@ -0,0 +1,260 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// A copy of the code in ../gc/subr.go.
++// We can't use it directly because it would generate
++// an import cycle.  TODO: move to a common support package.
++
++// argument passing to/from
++// smagic and umagic
++type magic struct {
++	W   int // input for both - width
++	S   int // output for both - shift
++	Bad int // output for both - unexpected failure
++
++	// magic multiplier for signed literal divisors
++	Sd int64 // input - literal divisor
++	Sm int64 // output - multiplier
++
++	// magic multiplier for unsigned literal divisors
++	Ud uint64 // input - literal divisor
++	Um uint64 // output - multiplier
++	Ua int    // output - adder
++}
++
++// magic number for signed division
++// see hacker's delight chapter 10
++func smagic(m *magic) {
++	var mask uint64
++
++	m.Bad = 0
++	switch m.W {
++	default:
++		m.Bad = 1
++		return
++
++	case 8:
++		mask = 0xff
++
++	case 16:
++		mask = 0xffff
++
++	case 32:
++		mask = 0xffffffff
++
++	case 64:
++		mask = 0xffffffffffffffff
++	}
++
++	two31 := mask ^ (mask >> 1)
++
++	p := m.W - 1
++	ad := uint64(m.Sd)
++	if m.Sd < 0 {
++		ad = -uint64(m.Sd)
++	}
++
++	// bad denominators
++	if ad == 0 || ad == 1 || ad == two31 {
++		m.Bad = 1
++		return
++	}
++
++	t := two31
++	ad &= mask
++
++	anc := t - 1 - t%ad
++	anc &= mask
++
++	q1 := two31 / anc
++	r1 := two31 - q1*anc
++	q1 &= mask
++	r1 &= mask
++
++	q2 := two31 / ad
++	r2 := two31 - q2*ad
++	q2 &= mask
++	r2 &= mask
++
++	var delta uint64
++	for {
++		p++
++		q1 <<= 1
++		r1 <<= 1
++		q1 &= mask
++		r1 &= mask
++		if r1 >= anc {
++			q1++
++			r1 -= anc
++			q1 &= mask
++			r1 &= mask
++		}
++
++		q2 <<= 1
++		r2 <<= 1
++		q2 &= mask
++		r2 &= mask
++		if r2 >= ad {
++			q2++
++			r2 -= ad
++			q2 &= mask
++			r2 &= mask
++		}
++
++		delta = ad - r2
++		delta &= mask
++		if q1 < delta || (q1 == delta && r1 == 0) {
++			continue
++		}
++
++		break
++	}
++
++	m.Sm = int64(q2 + 1)
++	if uint64(m.Sm)&two31 != 0 {
++		m.Sm |= ^int64(mask)
++	}
++	m.S = p - m.W
++}
++
++// magic number for unsigned division
++// see hacker's delight chapter 10
++func umagic(m *magic) {
++	var mask uint64
++
++	m.Bad = 0
++	m.Ua = 0
++
++	switch m.W {
++	default:
++		m.Bad = 1
++		return
++
++	case 8:
++		mask = 0xff
++
++	case 16:
++		mask = 0xffff
++
++	case 32:
++		mask = 0xffffffff
++
++	case 64:
++		mask = 0xffffffffffffffff
++	}
++
++	two31 := mask ^ (mask >> 1)
++
++	m.Ud &= mask
++	if m.Ud == 0 || m.Ud == two31 {
++		m.Bad = 1
++		return
++	}
++
++	nc := mask - (-m.Ud&mask)%m.Ud
++	p := m.W - 1
++
++	q1 := two31 / nc
++	r1 := two31 - q1*nc
++	q1 &= mask
++	r1 &= mask
++
++	q2 := (two31 - 1) / m.Ud
++	r2 := (two31 - 1) - q2*m.Ud
++	q2 &= mask
++	r2 &= mask
++
++	var delta uint64
++	for {
++		p++
++		if r1 >= nc-r1 {
++			q1 <<= 1
++			q1++
++			r1 <<= 1
++			r1 -= nc
++		} else {
++			q1 <<= 1
++			r1 <<= 1
++		}
++
++		q1 &= mask
++		r1 &= mask
++		if r2+1 >= m.Ud-r2 {
++			if q2 >= two31-1 {
++				m.Ua = 1
++			}
++
++			q2 <<= 1
++			q2++
++			r2 <<= 1
++			r2++
++			r2 -= m.Ud
++		} else {
++			if q2 >= two31 {
++				m.Ua = 1
++			}
++
++			q2 <<= 1
++			r2 <<= 1
++			r2++
++		}
++
++		q2 &= mask
++		r2 &= mask
++
++		delta = m.Ud - 1 - r2
++		delta &= mask
++
++		if p < m.W+m.W {
++			if q1 < delta || (q1 == delta && r1 == 0) {
++				continue
++			}
++		}
++
++		break
++	}
++
++	m.Um = q2 + 1
++	m.S = p - m.W
++}
++
++// adaptors for use by rewrite rules
++func smagic64ok(d int64) bool {
++	m := magic{W: 64, Sd: d}
++	smagic(&m)
++	return m.Bad == 0
++}
++func smagic64m(d int64) int64 {
++	m := magic{W: 64, Sd: d}
++	smagic(&m)
++	return m.Sm
++}
++func smagic64s(d int64) int64 {
++	m := magic{W: 64, Sd: d}
++	smagic(&m)
++	return int64(m.S)
++}
++
++func umagic64ok(d int64) bool {
++	m := magic{W: 64, Ud: uint64(d)}
++	umagic(&m)
++	return m.Bad == 0
++}
++func umagic64m(d int64) int64 {
++	m := magic{W: 64, Ud: uint64(d)}
++	umagic(&m)
++	return int64(m.Um)
++}
++func umagic64s(d int64) int64 {
++	m := magic{W: 64, Ud: uint64(d)}
++	umagic(&m)
++	return int64(m.S)
++}
++func umagic64a(d int64) bool {
++	m := magic{W: 64, Ud: uint64(d)}
++	umagic(&m)
++	return m.Ua != 0
++}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8ce9c82f67..dfd9df8ba4 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -109,12 +109,15 @@ const (
+ 	OpAMD64MULLconst
+ 	OpAMD64MULWconst
+ 	OpAMD64MULBconst
++	OpAMD64HMULQ
+ 	OpAMD64HMULL
+ 	OpAMD64HMULW
+ 	OpAMD64HMULB
++	OpAMD64HMULQU
+ 	OpAMD64HMULLU
+ 	OpAMD64HMULWU
+ 	OpAMD64HMULBU
++	OpAMD64AVGQU
+ 	OpAMD64DIVQ
+ 	OpAMD64DIVL
+ 	OpAMD64DIVW
+@@ -331,6 +334,9 @@ const (
+ 	OpHmul16u
+ 	OpHmul32
+ 	OpHmul32u
++	OpHmul64
++	OpHmul64u
++	OpAvg64u
+ 	OpDiv8
+ 	OpDiv8u
+ 	OpDiv16
+@@ -1144,6 +1150,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "HMULQ",
++		asm:  x86.AIMULQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1},     // .AX
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			clobbers: 8589934593, // .AX .FLAGS
++			outputs: []regMask{
++				4, // .DX
++			},
++		},
++	},
+ 	{
+ 		name: "HMULL",
+ 		asm:  x86.AIMULL,
+@@ -1186,6 +1206,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "HMULQU",
++		asm:  x86.AMULQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1},     // .AX
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			clobbers: 8589934593, // .AX .FLAGS
++			outputs: []regMask{
++				4, // .DX
++			},
++		},
++	},
+ 	{
+ 		name: "HMULLU",
+ 		asm:  x86.AMULL,
+@@ -1228,6 +1262,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "AVGQU",
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			clobbers: 8589934592, // .FLAGS
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "DIVQ",
+ 		asm:  x86.AIDIVQ,
+@@ -3661,6 +3708,18 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Hmul32u",
+ 		generic: true,
+ 	},
++	{
++		name:    "Hmul64",
++		generic: true,
++	},
++	{
++		name:    "Hmul64u",
++		generic: true,
++	},
++	{
++		name:    "Avg64u",
++		generic: true,
++	},
+ 	{
+ 		name:    "Div8",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index a5593444e9..601e9b8ce3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -63,6 +63,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAnd64(v, config)
+ 	case OpAnd8:
+ 		return rewriteValueAMD64_OpAnd8(v, config)
++	case OpAvg64u:
++		return rewriteValueAMD64_OpAvg64u(v, config)
+ 	case OpAMD64CMPB:
+ 		return rewriteValueAMD64_OpAMD64CMPB(v, config)
+ 	case OpAMD64CMPBconst:
+@@ -217,6 +219,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpHmul32(v, config)
+ 	case OpHmul32u:
+ 		return rewriteValueAMD64_OpHmul32u(v, config)
++	case OpHmul64:
++		return rewriteValueAMD64_OpHmul64(v, config)
++	case OpHmul64u:
++		return rewriteValueAMD64_OpHmul64u(v, config)
+ 	case OpHmul8:
+ 		return rewriteValueAMD64_OpHmul8(v, config)
+ 	case OpHmul8u:
+@@ -1972,6 +1978,22 @@ func rewriteValueAMD64_OpAnd8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAvg64u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Avg64u x y)
++	// cond:
++	// result: (AVGQU x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAMD64AVGQU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64CMPB(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3755,6 +3777,38 @@ func rewriteValueAMD64_OpHmul32u(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpHmul64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Hmul64 x y)
++	// cond:
++	// result: (HMULQ x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAMD64HMULQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpHmul64u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Hmul64u x y)
++	// cond:
++	// result: (HMULQU x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAMD64HMULQU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpHmul8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 0c091c7a32..a5d8a4d9eb 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -47,6 +47,10 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpConstString(v, config)
+ 	case OpConvert:
+ 		return rewriteValuegeneric_OpConvert(v, config)
++	case OpDiv64:
++		return rewriteValuegeneric_OpDiv64(v, config)
++	case OpDiv64u:
++		return rewriteValuegeneric_OpDiv64u(v, config)
+ 	case OpEq16:
+ 		return rewriteValuegeneric_OpEq16(v, config)
+ 	case OpEq32:
+@@ -167,6 +171,10 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpLsh8x64(v, config)
+ 	case OpLsh8x8:
+ 		return rewriteValuegeneric_OpLsh8x8(v, config)
++	case OpMod64:
++		return rewriteValuegeneric_OpMod64(v, config)
++	case OpMod64u:
++		return rewriteValuegeneric_OpMod64u(v, config)
+ 	case OpMul16:
+ 		return rewriteValuegeneric_OpMul16(v, config)
+ 	case OpMul32:
+@@ -1053,6 +1061,215 @@ func rewriteValuegeneric_OpConvert(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div64 <t> x (Const64 [c]))
++	// cond: c > 0 && smagic64ok(c) && smagic64m(c) > 0
++	// result: (Sub64 <t>     (Rsh64x64 <t>       (Hmul64 <t>         (Const64 <t> [smagic64m(c)])         x)       (Const64 <t> [smagic64s(c)]))     (Rsh64x64 <t>       x       (Const64 <t> [63])))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(c > 0 && smagic64ok(c) && smagic64m(c) > 0) {
++			break
++		}
++		v.reset(OpSub64)
++		v.Type = t
++		v0 := b.NewValue0(v.Line, OpRsh64x64, t)
++		v1 := b.NewValue0(v.Line, OpHmul64, t)
++		v2 := b.NewValue0(v.Line, OpConst64, t)
++		v2.AuxInt = smagic64m(c)
++		v1.AddArg(v2)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v3 := b.NewValue0(v.Line, OpConst64, t)
++		v3.AuxInt = smagic64s(c)
++		v0.AddArg(v3)
++		v.AddArg(v0)
++		v4 := b.NewValue0(v.Line, OpRsh64x64, t)
++		v4.AddArg(x)
++		v5 := b.NewValue0(v.Line, OpConst64, t)
++		v5.AuxInt = 63
++		v4.AddArg(v5)
++		v.AddArg(v4)
++		return true
++	}
++	// match: (Div64 <t> x (Const64 [c]))
++	// cond: c > 0 && smagic64ok(c) && smagic64m(c) < 0
++	// result: (Sub64 <t>     (Rsh64x64 <t>       (Add64 <t>         (Hmul64 <t>           (Const64 <t> [smagic64m(c)])           x)         x)       (Const64 <t> [smagic64s(c)]))     (Rsh64x64 <t>       x       (Const64 <t> [63])))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(c > 0 && smagic64ok(c) && smagic64m(c) < 0) {
++			break
++		}
++		v.reset(OpSub64)
++		v.Type = t
++		v0 := b.NewValue0(v.Line, OpRsh64x64, t)
++		v1 := b.NewValue0(v.Line, OpAdd64, t)
++		v2 := b.NewValue0(v.Line, OpHmul64, t)
++		v3 := b.NewValue0(v.Line, OpConst64, t)
++		v3.AuxInt = smagic64m(c)
++		v2.AddArg(v3)
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v4 := b.NewValue0(v.Line, OpConst64, t)
++		v4.AuxInt = smagic64s(c)
++		v0.AddArg(v4)
++		v.AddArg(v0)
++		v5 := b.NewValue0(v.Line, OpRsh64x64, t)
++		v5.AddArg(x)
++		v6 := b.NewValue0(v.Line, OpConst64, t)
++		v6.AuxInt = 63
++		v5.AddArg(v6)
++		v.AddArg(v5)
++		return true
++	}
++	// match: (Div64 <t> x (Const64 [c]))
++	// cond: c < 0 && smagic64ok(c) && smagic64m(c) > 0
++	// result: (Neg64 <t>     (Sub64 <t>       (Rsh64x64 <t>         (Hmul64 <t>           (Const64 <t> [smagic64m(c)])           x)         (Const64 <t> [smagic64s(c)]))       (Rsh64x64 <t>         x         (Const64 <t> [63]))))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(c < 0 && smagic64ok(c) && smagic64m(c) > 0) {
++			break
++		}
++		v.reset(OpNeg64)
++		v.Type = t
++		v0 := b.NewValue0(v.Line, OpSub64, t)
++		v1 := b.NewValue0(v.Line, OpRsh64x64, t)
++		v2 := b.NewValue0(v.Line, OpHmul64, t)
++		v3 := b.NewValue0(v.Line, OpConst64, t)
++		v3.AuxInt = smagic64m(c)
++		v2.AddArg(v3)
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v4 := b.NewValue0(v.Line, OpConst64, t)
++		v4.AuxInt = smagic64s(c)
++		v1.AddArg(v4)
++		v0.AddArg(v1)
++		v5 := b.NewValue0(v.Line, OpRsh64x64, t)
++		v5.AddArg(x)
++		v6 := b.NewValue0(v.Line, OpConst64, t)
++		v6.AuxInt = 63
++		v5.AddArg(v6)
++		v0.AddArg(v5)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Div64 <t> x (Const64 [c]))
++	// cond: c < 0 && smagic64ok(c) && smagic64m(c) < 0
++	// result: (Neg64 <t>     (Sub64 <t>       (Rsh64x64 <t>         (Add64 <t>           (Hmul64 <t>             (Const64 <t> [smagic64m(c)])             x)           x)         (Const64 <t> [smagic64s(c)]))       (Rsh64x64 <t>         x         (Const64 <t> [63]))))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(c < 0 && smagic64ok(c) && smagic64m(c) < 0) {
++			break
++		}
++		v.reset(OpNeg64)
++		v.Type = t
++		v0 := b.NewValue0(v.Line, OpSub64, t)
++		v1 := b.NewValue0(v.Line, OpRsh64x64, t)
++		v2 := b.NewValue0(v.Line, OpAdd64, t)
++		v3 := b.NewValue0(v.Line, OpHmul64, t)
++		v4 := b.NewValue0(v.Line, OpConst64, t)
++		v4.AuxInt = smagic64m(c)
++		v3.AddArg(v4)
++		v3.AddArg(x)
++		v2.AddArg(v3)
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v5 := b.NewValue0(v.Line, OpConst64, t)
++		v5.AuxInt = smagic64s(c)
++		v1.AddArg(v5)
++		v0.AddArg(v1)
++		v6 := b.NewValue0(v.Line, OpRsh64x64, t)
++		v6.AddArg(x)
++		v7 := b.NewValue0(v.Line, OpConst64, t)
++		v7.AuxInt = 63
++		v6.AddArg(v7)
++		v0.AddArg(v6)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div64u <t> x (Const64 [c]))
++	// cond: umagic64ok(c) && !umagic64a(c)
++	// result: (Rsh64Ux64     (Hmul64u <t>       (Const64 <t> [umagic64m(c)])       x)     (Const64 <t> [umagic64s(c)]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(umagic64ok(c) && !umagic64a(c)) {
++			break
++		}
++		v.reset(OpRsh64Ux64)
++		v0 := b.NewValue0(v.Line, OpHmul64u, t)
++		v1 := b.NewValue0(v.Line, OpConst64, t)
++		v1.AuxInt = umagic64m(c)
++		v0.AddArg(v1)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpConst64, t)
++		v2.AuxInt = umagic64s(c)
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Div64u <t> x (Const64 [c]))
++	// cond: umagic64ok(c) && umagic64a(c)
++	// result: (Rsh64Ux64     (Avg64u <t>       (Hmul64u <t>         x         (Const64 <t> [umagic64m(c)]))       x)     (Const64 <t> [umagic64s(c)-1]))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(umagic64ok(c) && umagic64a(c)) {
++			break
++		}
++		v.reset(OpRsh64Ux64)
++		v0 := b.NewValue0(v.Line, OpAvg64u, t)
++		v1 := b.NewValue0(v.Line, OpHmul64u, t)
++		v1.AddArg(x)
++		v2 := b.NewValue0(v.Line, OpConst64, t)
++		v2.AuxInt = umagic64m(c)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpConst64, t)
++		v3.AuxInt = umagic64s(c) - 1
++		v.AddArg(v3)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpEq16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3061,6 +3278,72 @@ func rewriteValuegeneric_OpLsh8x8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpMod64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mod64  <t> x (Const64 [c]))
++	// cond: smagic64ok(c)
++	// result: (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(smagic64ok(c)) {
++			break
++		}
++		v.reset(OpSub64)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpMul64, t)
++		v1 := b.NewValue0(v.Line, OpDiv64, t)
++		v1.AddArg(x)
++		v2 := b.NewValue0(v.Line, OpConst64, t)
++		v2.AuxInt = c
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v3 := b.NewValue0(v.Line, OpConst64, t)
++		v3.AuxInt = c
++		v0.AddArg(v3)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpMod64u(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mod64u <t> x (Const64 [c]))
++	// cond: umagic64ok(c)
++	// result: (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(umagic64ok(c)) {
++			break
++		}
++		v.reset(OpSub64)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpMul64, t)
++		v1 := b.NewValue0(v.Line, OpDiv64u, t)
++		v1.AddArg(x)
++		v2 := b.NewValue0(v.Line, OpConst64, t)
++		v2.AuxInt = c
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v3 := b.NewValue0(v.Line, OpConst64, t)
++		v3.AuxInt = c
++		v0.AddArg(v3)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpMul16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

@@ -12,7 +12,99 @@ Date:   Thu Jul 14 10:51:56 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/buildlist.go        |  5 +--
  src/cmd/go/testdata/script/work_goproxy_off.txt | 59 +++++++++++++++++++++++++
  2 files changed, 61 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 5b8d6051f3..cde4953afa 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -397,7 +397,6 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 		seen := map[module.Version]bool{}
+ 		for _, m := range roots {
+ 			hasDepsInAll[m.Path] = true
+-			seen[m] = true
+ 		}
+ 		// This loop will terminate because it will call enqueue on each version of
+ 		// each dependency of the modules in hasDepsInAll at most once (and only
+@@ -406,11 +405,11 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 			needsEnqueueing := map[module.Version]bool{}
+ 			for p := range hasDepsInAll {
+ 				m := module.Version{Path: p, Version: mg.g.Selected(p)}
+-				reqs, ok := mg.g.RequiredBy(m)
+-				if !ok {
++				if !seen[m] {
+ 					needsEnqueueing[m] = true
+ 					continue
+ 				}
++				reqs, _ := mg.g.RequiredBy(m)
+ 				for _, r := range reqs {
+ 					s := module.Version{Path: r.Path, Version: mg.g.Selected(r.Path)}
+ 					if cmpVersion(s.Version, r.Version) > 0 && !seen[s] {
+diff --git a/src/cmd/go/testdata/script/work_goproxy_off.txt b/src/cmd/go/testdata/script/work_goproxy_off.txt
+new file mode 100644
+index 0000000000..0a602e3d7b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_goproxy_off.txt
+@@ -0,0 +1,59 @@
++go work init
++go work use . ./sub
++
++# Verify that the go.mod files for both modules in the workspace are tidy,
++# and add missing go.sum entries as needed.
++
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod go.mod.orig
++
++cd sub
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod go.mod.orig
++cd ..
++
++go list -m all
++stdout '^rsc\.io/quote v1\.5\.1$'
++stdout '^rsc\.io/sampler v1\.3\.1$'
++
++# Now remove the module dependencies from the module cache.
++# Because one module upgrades a transitive dependency needed by another,
++# listing the modules in the workspace should error out.
++
++go clean -modcache
++env GOPROXY=off
++! go list -m all
++stderr '^go: rsc.io/sampler@v1.3.0: module lookup disabled by GOPROXY=off$'
++
++-- example.go --
++package example
++
++import _ "rsc.io/sampler"
++-- go.mod --
++module example
++
++go 1.19
++
++require rsc.io/sampler v1.3.0
++
++require (
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
++	rsc.io/testonly v1.0.0 // indirect
++)
++-- sub/go.mod --
++module example/sub
++
++go 1.19
++
++require rsc.io/quote v1.5.1
++
++require (
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
++	rsc.io/sampler v1.3.1 // indirect
++)
++-- sub/sub.go --
++package example
++
++import _ "rsc.io/quote"

@@ -7,7 +7,7 @@ Date:   Tue Jan 27 12:03:53 2009 -0800
     R=r
     OCL=23592
     CL=23592
-
+---
  src/cmd/6g/gen.c        | 71 ++++++++++++++++++++++++++++++++++++++-----------
  src/cmd/6g/gg.h         |  4 ++-
  src/cmd/gc/go.h         |  3 ++-
@@ -19,3 +19,452 @@ Date:   Tue Jan 27 12:03:53 2009 -0800
  src/runtime/rt0_amd64.s | 12 ++++++++-
  src/runtime/runtime.h   | 23 +++++++++++++---
  10 files changed, 141 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 769a72b8f2..f01f1d8b54 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -26,6 +26,22 @@ if(newproc == N) {
+ 	newproc->ullman = 1;
+ }
+ 
++if(deferproc == N) {
++	deferproc = nod(ONAME, N, N);
++	deferproc->sym = pkglookup("deferproc", "sys");
++	deferproc->class = PEXTERN;
++	deferproc->addable = 1;
++	deferproc->ullman = 1;
++}
++
++if(deferreturn == N) {
++	deferreturn = nod(ONAME, N, N);
++	deferreturn->sym = pkglookup("deferreturn", "sys");
++	deferreturn->class = PEXTERN;
++	deferreturn->addable = 1;
++	deferreturn->ullman = 1;
++}
++
+ if(throwindex == N) {
+ 	throwindex = nod(ONAME, N, N);
+ 	throwindex->sym = pkglookup("throwindex", "sys");
+@@ -63,6 +79,7 @@ if(throwreturn == N) {
+ 		}
+ 	}
+ 
++	hasdefer = 0;
+ 	walk(curfn);
+ 	if(nerrors != 0)
+ 		goto ret;
+@@ -90,6 +107,8 @@ if(throwreturn == N) {
+ 		gins(ACALL, N, throwreturn);
+ 	}
+ 
++	if(hasdefer)
++		gins(ACALL, N, deferreturn);
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+@@ -343,7 +362,11 @@ loop:
+ 		break;
+ 
+ 	case OPROC:
+-		cgen_proc(n);
++		cgen_proc(n, 1);
++		break;
++
++	case ODEFER:
++		cgen_proc(n, 2);
+ 		break;
+ 
+ 	case ORETURN:
+@@ -683,19 +706,26 @@ argsize(Type *t)
+ /*
+  * generate:
+  *	call f
+- * if proc, generate:
+- *	push f
+- *	push argsize
+- *	call newproc
+- *	pop
+- *	pop
++ *	proc=0	normal call
++ *	proc=1	goroutine run in new proc
++ *	proc=2	defer call save away stack
+  */
+ void
+ ginscall(Node *f, int proc)
+ {
+ 	Node reg, con;
+ 
+-	if(proc) {
++	switch(proc) {
++	default:
++		fatal("ginscall: bad proc %d", proc);
++		break;
++
++	case 0:	// normal call
++		gins(ACALL, N, f);
++		break;
++
++	case 1:	// call in new proc (go)
++	case 2:	// defered call (defer)
+ 		nodreg(&reg, types[TINT64], D_AX);
+ 		if(f->op != OREGISTER) {
+ 			gins(ALEAQ, f, &reg);
+@@ -704,12 +734,14 @@ ginscall(Node *f, int proc)
+ 			gins(APUSHQ, f, N);
+ 		nodconst(&con, types[TINT32], argsize(f->type));
+ 		gins(APUSHQ, &con, N);
+-		gins(ACALL, N, newproc);
++		if(proc == 1)
++			gins(ACALL, N, newproc);
++		else
++			gins(ACALL, N, deferproc);
+ 		gins(APOPQ, N, &reg);
+ 		gins(APOPQ, N, &reg);
+-		return;
++		break;
+ 	}
+-	gins(ACALL, N, f);
+ }
+ 
+ /*
+@@ -767,6 +799,9 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 
+ /*
+  * generate call to non-interface method
++ *	proc=0	normal call
++ *	proc=1	goroutine run in new proc
++ *	proc=2	defer call save away stack
+  */
+ void
+ cgen_callmeth(Node *n, int proc)
+@@ -791,7 +826,9 @@ cgen_callmeth(Node *n, int proc)
+ 
+ /*
+  * generate function call;
+- * if proc, run call in new proc.
++ *	proc=0	normal call
++ *	proc=1	goroutine run in new proc
++ *	proc=2	defer call save away stack
+  */
+ void
+ cgen_call(Node *n, int proc)
+@@ -851,22 +888,22 @@ ret:
+  * generate code to start new proc running call n.
+  */
+ void
+-cgen_proc(Node *n)
++cgen_proc(Node *n, int proc)
+ {
+ 	switch(n->left->op) {
+ 	default:
+ 		fatal("cgen_proc: unknown call %O", n->left->op);
+ 
+ 	case OCALLMETH:
+-		cgen_callmeth(n->left, 1);
++		cgen_callmeth(n->left, proc);
+ 		break;
+ 
+ 	case OCALLINTER:
+-		cgen_callinter(n->left, N, 1);
++		cgen_callinter(n->left, N, proc);
+ 		break;
+ 
+ 	case OCALL:
+-		cgen_call(n->left, 1);
++		cgen_call(n->left, proc);
+ 		break;
+ 	}
+ 
+@@ -947,6 +984,8 @@ void
+ cgen_ret(Node *n)
+ {
+ 	gen(n->left, L);	// copy out args
++	if(hasdefer)
++		gins(ACALL, N, deferreturn);
+ 	gins(ARET, N, N);
+ }
+ 
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index a01e5b6e55..881a230737 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -116,6 +116,8 @@ EXTERN	Label*	labellist;
+ EXTERN	Label*	findlab(Sym*);
+ EXTERN	Node*	curfn;
+ EXTERN	Node*	newproc;
++EXTERN	Node*	deferproc;
++EXTERN	Node*	deferreturn;
+ EXTERN	Node*	throwindex;
+ EXTERN	Node*	throwreturn;
+ 
+@@ -151,7 +153,7 @@ void	cgen_ret(Node*);
+ void	cgen_call(Node*, int);
+ void	cgen_callmeth(Node*, int);
+ void	cgen_callinter(Node*, Node*, int);
+-void	cgen_proc(Node*);
++void	cgen_proc(Node*, int);
+ void	cgen_callret(Node*, Node*);
+ void	cgen_div(int, Node*, Node*, Node*);
+ void	cgen_bmul(int, Node*, Node*, Node*);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index abb08ebe2d..a5d518b8d1 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -291,7 +291,7 @@ enum
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
+ 	ODCLFUNC, ODCLFIELD, ODCLARG,
+ 	OLIST, OCMP, OPTR, OARRAY, ORANGE,
+-	ORETURN, OFOR, OIF, OSWITCH,
++	ORETURN, OFOR, OIF, OSWITCH, ODEFER,
+ 	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
+ 	OGOTO, OPROC, OMAKE, ONEW, OEMPTY, OSELECT,
+ 	OLEN, OCAP, OPANIC, OPANICN, OPRINT, OPRINTN, OTYPEOF,
+@@ -498,6 +498,7 @@ EXTERN	int32	stksize;		// stack size for current frame
+ EXTERN	int32	initstksize;		// stack size for init function
+ EXTERN	ushort	blockgen;		// max block number
+ EXTERN	ushort	block;			// current block number
++EXTERN	int	hasdefer;		// flag that curfn has defer statetment
+ 
+ EXTERN	Node*	retnil;
+ EXTERN	Node*	fskel;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index ac764b94d8..4aafd0b0c1 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -15,7 +15,7 @@
+ %token	<val>		LLITERAL
+ %token	<lint>		LASOP
+ %token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
+-%token	<sym>		LPACKAGE LIMPORT LEXPORT
++%token	<sym>		LPACKAGE LIMPORT LDEFER
+ %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+ %token	<sym>		LCOLAS LFALL LRETURN LDDD
+ %token	<sym>		LLEN LCAP LTYPEOF LPANIC LPANICN LPRINT LPRINTN
+@@ -504,6 +504,11 @@ semi_stmt:
+ 		$$ = nod(OCALL, $2, $4);
+ 		$$ = nod(OPROC, $$, N);
+ 	}
++|	LDEFER pexpr '(' oexpr_list ')'
++	{
++		$$ = nod(OCALL, $2, $4);
++		$$ = nod(ODEFER, $$, N);
++	}
+ |	LGOTO new_name
+ 	{
+ 		$$ = nod(OGOTO, $2, N);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 83fc1f8d39..b8514549f8 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1056,7 +1056,7 @@ static	struct
+ 	"continue",	LCONTINUE,	Txxx,
+ 	"default",	LDEFAULT,	Txxx,
+ 	"else",		LELSE,		Txxx,
+-	"export",	LEXPORT,	Txxx,
++	"defer",	LDEFER,		Txxx,
+ 	"fallthrough",	LFALL,		Txxx,
+ 	"false",	LFALSE,		Txxx,
+ 	"for",		LFOR,		Txxx,
+@@ -1275,7 +1275,7 @@ struct
+ 	LPRINT,		"PRINT",
+ 	LPACKAGE,	"PACKAGE",
+ 	LIMPORT,	"IMPORT",
+-	LEXPORT,	"EXPORT",
++	LDEFER,		"DEFER",
+ 	LPANIC,		"PANIC",
+ };
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index bfcdd08f5b..98e99ab3b3 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -641,11 +641,12 @@ opnames[] =
+ 	[ODCLARG]	= "DCLARG",
+ 	[ODCLFIELD]	= "DCLFIELD",
+ 	[ODCLFUNC]	= "DCLFUNC",
++	[ODEFER]	= "DEFER",
+ 	[ODIV]		= "DIV",
+-	[ODOT]		= "DOT",
+-	[ODOTPTR]	= "DOTPTR",
+-	[ODOTMETH]	= "DOTMETH",
+ 	[ODOTINTER]	= "DOTINTER",
++	[ODOTMETH]	= "DOTMETH",
++	[ODOTPTR]	= "DOTPTR",
++	[ODOT]		= "DOT",
+ 	[OEMPTY]	= "EMPTY",
+ 	[OEND]		= "END",
+ 	[OEQ]		= "EQ",
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 99fe055ea2..5004a86f02 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -145,6 +145,7 @@ loop:
+ 	case OXFALL:
+ 	case ORETURN:
+ 	case OPROC:
++	case ODEFER:
+ 		walktype(n, Etop);
+ 		break;
+ 	}
+@@ -342,6 +343,8 @@ loop:
+ 		walkstate(n->nelse);
+ 		goto ret;
+ 
++	case ODEFER:
++		hasdefer = 1;
+ 	case OPROC:
+ 		if(top != Etop)
+ 			goto nottop;
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 7435830ff6..3fe08df94d 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -171,7 +171,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 
+ 	if((newg = gfget()) != nil){
+ 		newg->status = Gwaiting;
+-	}else{
++	} else {
+ 		newg = malg(4096);
+ 		newg->status = Gwaiting;
+ 		newg->alllink = allg;
+@@ -204,6 +204,41 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ //printf(" goid=%d\n", newg->goid);
+ }
+ 
++void
++sys·deferproc(int32 siz, byte* fn, byte* arg0)
++{
++	Defer *d;
++
++	d = mal(sizeof(*d) + siz - sizeof(d->args));
++	d->fn = fn;
++	d->sp = (byte*)&arg0;
++	d->siz = siz;
++	mcpy(d->args, d->sp, d->siz);
++
++	d->link = g->defer;
++	g->defer = d;
++}
++
++void
++sys·deferreturn(int32 arg0)
++{
++	// warning: jmpdefer knows the frame size
++	// of this routine. dont change anything
++	// that might change the frame size
++	Defer *d;
++	byte *sp;
++
++	d = g->defer;
++	if(d == nil)
++		return;
++	sp = (byte*)&arg0;
++	if(d->sp != sp)
++		return;
++	mcpy(d->sp, d->args, d->siz);
++	g->defer = d->link;
++	jmpdefer(d->fn);
++}
++
+ void
+ tracebackothers(G *me)
+ {
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 8588d61a4e..f8d4a381b3 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -120,7 +120,7 @@ TEXT setspgoto(SB), 7, $0
+ //	if(*val == old){
+ //		*val = new;
+ //		return 1;
+-//	}else
++//	} else
+ //		return 0;
+ TEXT cas(SB), 7, $0
+ 	MOVQ	8(SP), BX
+@@ -133,3 +133,13 @@ TEXT cas(SB), 7, $0
+ 	RET
+ 	MOVL	$1, AX
+ 	RET
++
++// void jmpdefer(byte*);
++// 1. pop the caller
++// 2. sub 5 bytes from the callers return
++// 3. jmp to the argument
++TEXT jmpdefer(SB), 7, $0
++	MOVQ	8(SP), AX	// function
++	ADDQ	$(8+56), SP	// pop saved PC and callers frame
++	SUBQ	$5, (SP)	// reposition his return address
++	JMP	AX		// and goto function
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 5552c9e94d..78e2affc62 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -52,6 +52,7 @@ typedef	struct	SigTab		SigTab;
+ typedef	struct	MCache		MCache;
+ typedef	struct	Iface		Iface;
+ typedef	struct	Itype		Itype;
++typedef	struct	Defer		Defer;
+ 
+ /*
+  * per cpu declaration
+@@ -128,6 +129,7 @@ struct	G
+ {
+ 	byte*	stackguard;	// must not move
+ 	byte*	stackbase;	// must not move
++	Defer*	defer;		// must not move
+ 	byte*	stack0;		// first stack segment
+ 	Gobuf	sched;
+ 	G*	alllink;	// on allg
+@@ -136,8 +138,8 @@ struct	G
+ 	int32	goid;
+ 	int32	selgen;		// valid sudog pointer
+ 	G*	schedlink;
+-	bool		readyonstop;
+-	M*	m;	// for debuggers
++	bool	readyonstop;
++	M*	m;		// for debuggers
+ };
+ struct	Mem
+ {
+@@ -151,8 +153,8 @@ struct	M
+ 	G*	g0;		// g0 w interrupt stack - must not move
+ 	uint64	morearg;	// arg to morestack - must not move
+ 	uint64	cret;		// return value from C - must not move
+-	uint64	procid;	// for debuggers - must not move
+-	G*	gsignal;		// signal-handling G - must not move
++	uint64	procid;		// for debuggers - must not move
++	G*	gsignal;	// signal-handling G - must not move
+ 	G*	curg;		// current running goroutine
+ 	G*	lastg;		// last running goroutine - to emulate fifo
+ 	Gobuf	sched;
+@@ -235,6 +237,18 @@ enum
+ 	Amax
+ };
+ 
++/*
++ * defered subroutine calls
++ */
++struct Defer
++{
++	int32	siz;
++	byte*	sp;
++	byte*	fn;
++	Defer*	link;
++	byte	args[8];	// padded to actual size
++};
++
+ /*
+  * external data
+  */
+@@ -286,6 +300,7 @@ int32	write(int32, void*, int32);
+ void	close(int32);
+ int32	fstat(int32, void*);
+ bool	cas(uint32*, uint32, uint32);
++void	jmpdefer(byte*);
+ void	exit1(int32);
+ void	ready(G*);
+ byte*	getenv(int8*);

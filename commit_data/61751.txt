@@ -35,6 +35,45 @@ Date:   Thu Nov 21 20:21:18 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/tcpsock.go | 20 ++++++++++++++++++--
  1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index f5df502f0f..92966b705b 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -324,7 +324,15 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+ 	}
+ 	sd := &sysDialer{network: network, address: raddr.String()}
+-	c, err := sd.dialTCP(context.Background(), laddr, raddr)
++	var (
++		c   *TCPConn
++		err error
++	)
++	if sd.MultipathTCP() {
++		c, err = sd.dialMPTCP(context.Background(), laddr, raddr)
++	} else {
++		c, err = sd.dialTCP(context.Background(), laddr, raddr)
++	}
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+ 	}
+@@ -439,7 +447,15 @@ func ListenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
+ 		laddr = &TCPAddr{}
+ 	}
+ 	sl := &sysListener{network: network, address: laddr.String()}
+-	ln, err := sl.listenTCP(context.Background(), laddr)
++	var (
++		ln  *TCPListener
++		err error
++	)
++	if sl.MultipathTCP() {
++		ln, err = sl.listenMPTCP(context.Background(), laddr)
++	} else {
++		ln, err = sl.listenTCP(context.Background(), laddr)
++	}
+ 	if err != nil {
+ 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
+ 	}

@@ -15,6 +15,24 @@ Date:   Tue Apr 4 13:02:02 2023 -0400
     TryBot-Bypass: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/dist/build.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 344d4bfa6d..565c93b75f 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1730,8 +1730,10 @@ var cgoEnabled = map[string]bool{
+ // get filtered out of cgoEnabled for 'dist list'.
+ // See go.dev/issue/56679.
+ var broken = map[string]bool{
+-	"linux/sparc64": true, // An incomplete port. See CL 132155.
+-	"wasip1/wasm":   true, // An incomplete port. See CL 479627.
++	"linux/sparc64":  true, // An incomplete port. See CL 132155.
++	"wasip1/wasm":    true, // An incomplete port. See CL 479627.
++	"openbsd/ppc64":  true, // An incomplete port: go.dev/issue/56001.
++	"openbsd/mips64": true, // Broken: go.dev/issue/58110.
+ }
+ 
+ // List of platforms which are first class ports. See go.dev/issue/38874.

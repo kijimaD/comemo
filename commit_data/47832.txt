@@ -28,10 +28,192 @@ Date:   Mon Apr 12 13:21:55 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 16 +++++++-------
  src/cmd/link/internal/ld/go.go       | 33 +++++++++++++++++++++++++----
  src/cmd/link/internal/ld/lib.go      | 41 ------------------------------------
  src/cmd/link/internal/ld/link.go     |  3 ---
  src/cmd/link/internal/ld/main.go     |  1 -
  5 files changed, 37 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 9b04e2cddc..741a72cad8 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -88,14 +88,6 @@ func (d *deadcodePass) init() {
+ 		}
+ 	}
+ 
+-	dynexpMap := d.ctxt.cgo_export_dynamic
+-	if d.ctxt.LinkMode == LinkExternal {
+-		dynexpMap = d.ctxt.cgo_export_static
+-	}
+-	for exp := range dynexpMap {
+-		names = append(names, exp)
+-	}
+-
+ 	if d.ctxt.Debugvlog > 1 {
+ 		d.ctxt.Logf("deadcode start names: %v\n", names)
+ 	}
+@@ -106,6 +98,14 @@ func (d *deadcodePass) init() {
+ 		// Also mark any Go functions (internal ABI).
+ 		d.mark(d.ldr.Lookup(name, sym.SymVerABIInternal), 0)
+ 	}
++
++	// All dynamic exports are roots.
++	for _, s := range d.ctxt.dynexp {
++		if d.ctxt.Debugvlog > 1 {
++			d.ctxt.Logf("deadcode start dynexp: %s<%d>\n", d.ldr.SymName(s), d.ldr.SymVersion(s))
++		}
++		d.mark(s, 0)
++	}
+ }
+ 
+ func (d *deadcodePass) flood() {
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index ec6ceb82ce..5dbf6c7153 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -234,11 +234,19 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
+ 			// Mark exported symbols and also add them to
+ 			// the lists used for roots in the deadcode pass.
+ 			if f[0] == "cgo_export_static" {
++				if ctxt.LinkMode == LinkExternal && !l.AttrCgoExportStatic(s) {
++					// Static cgo exports appear
++					// in the exported symbol table.
++					ctxt.dynexp = append(ctxt.dynexp, s)
++				}
+ 				l.SetAttrCgoExportStatic(s, true)
+-				ctxt.cgo_export_static[local] = true
+ 			} else {
++				if ctxt.LinkMode == LinkInternal && !l.AttrCgoExportDynamic(s) {
++					// Dynamic cgo exports appear
++					// in the exported symbol table.
++					ctxt.dynexp = append(ctxt.dynexp, s)
++				}
+ 				l.SetAttrCgoExportDynamic(s, true)
+-				ctxt.cgo_export_dynamic[local] = true
+ 			}
+ 
+ 			continue
+@@ -422,9 +430,26 @@ func (ctxt *Link) addexport() {
+ 		return
+ 	}
+ 
+-	for _, exp := range ctxt.dynexp {
+-		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, exp)
++	// Add dynamic symbols.
++	for _, s := range ctxt.dynexp {
++		// Consistency check.
++		if !ctxt.loader.AttrReachable(s) {
++			panic("dynexp entry not reachable")
++		}
++
++		// Resolve ABI aliases in the list of cgo-exported functions.
++		// This is necessary because we load the ABI0 symbol for all
++		// cgo exports.
++		if ctxt.loader.SymType(s) == sym.SABIALIAS {
++			t := ctxt.loader.ResolveABIAlias(s)
++			ctxt.loader.CopyAttributes(s, t)
++			ctxt.loader.SetSymExtname(t, ctxt.loader.SymExtname(s))
++			s = t
++		}
++
++		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, s)
+ 	}
++
+ 	for _, lib := range dedupLibraries(ctxt, dynlib) {
+ 		adddynlib(ctxt, lib)
+ 	}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 520d57a72e..b709569103 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -56,7 +56,6 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+-	"sort"
+ 	"strings"
+ 	"sync"
+ )
+@@ -508,9 +507,6 @@ func (ctxt *Link) loadlib() {
+ 		return ctxt.loader.SymName(s)
+ 	}
+ 
+-	ctxt.cgo_export_static = make(map[string]bool)
+-	ctxt.cgo_export_dynamic = make(map[string]bool)
+-
+ 	// ctxt.Library grows during the loop, so not a range loop.
+ 	i := 0
+ 	for ; i < len(ctxt.Library); i++ {
+@@ -638,43 +634,6 @@ func (ctxt *Link) loadlib() {
+ 	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
+ }
+ 
+-// setupdynexp constructs ctxt.dynexp, a list of loader.Sym.
+-func setupdynexp(ctxt *Link) {
+-	dynexpMap := ctxt.cgo_export_dynamic
+-	if ctxt.LinkMode == LinkExternal {
+-		dynexpMap = ctxt.cgo_export_static
+-	}
+-	d := make([]loader.Sym, 0, len(dynexpMap))
+-	for exp := range dynexpMap {
+-		s := ctxt.loader.LookupOrCreateSym(exp, 0)
+-		d = append(d, s)
+-		// sanity check
+-		if !ctxt.loader.AttrReachable(s) {
+-			panic("dynexp entry not reachable")
+-		}
+-	}
+-	sort.Slice(d, func(i, j int) bool {
+-		return ctxt.loader.SymName(d[i]) < ctxt.loader.SymName(d[j])
+-	})
+-
+-	// Resolve ABI aliases in the list of cgo-exported functions.
+-	// This is necessary because we load the ABI0 symbol for all
+-	// cgo exports.
+-	for i, s := range d {
+-		if ctxt.loader.SymType(s) != sym.SABIALIAS {
+-			continue
+-		}
+-		t := ctxt.loader.ResolveABIAlias(s)
+-		ctxt.loader.CopyAttributes(s, t)
+-		ctxt.loader.SetSymExtname(t, ctxt.loader.SymExtname(s))
+-		d[i] = t
+-	}
+-	ctxt.dynexp = d
+-
+-	ctxt.cgo_export_static = nil
+-	ctxt.cgo_export_dynamic = nil
+-}
+-
+ // loadcgodirectives reads the previously discovered cgo directives, creating
+ // symbols in preparation for host object loading or use later in the link.
+ func (ctxt *Link) loadcgodirectives() {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index f26d051a49..13618beff9 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -84,9 +84,6 @@ type Link struct {
+ 	loader  *loader.Loader
+ 	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
+ 
+-	cgo_export_static  map[string]bool
+-	cgo_export_dynamic map[string]bool
+-
+ 	datap  []loader.Sym
+ 	dynexp []loader.Sym
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 8631cf2939..1e3c3bdff7 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -294,7 +294,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("textbuildid")
+ 	ctxt.textbuildid()
+ 	bench.Start("addexport")
+-	setupdynexp(ctxt)
+ 	ctxt.setArchSyms()
+ 	ctxt.addexport()
+ 	bench.Start("Gentext")

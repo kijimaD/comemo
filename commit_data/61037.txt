@@ -9,9 +9,140 @@ Date:   Sat Feb 10 21:51:12 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go                    | 17 +++++++++++++++++
  src/cmd/go/internal/modget/query.go                  |  3 +++
  src/cmd/go/testdata/mod/example.com_tools_v1.1.0.txt | 12 ++++++++++++
  src/cmd/go/testdata/script/mod_get_tool.txt          | 19 +++++++++++++++++--
  4 files changed, 49 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 5119bcb3e5..bb29651810 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -342,6 +342,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	r := newResolver(ctx, queries)
+ 	r.performLocalQueries(ctx)
+ 	r.performPathQueries(ctx)
++	r.performToolQueries(ctx)
+ 
+ 	for {
+ 		r.performWildcardQueries(ctx)
+@@ -515,6 +516,7 @@ type resolver struct {
+ 	pathQueries       []*query // package path literal queries in original order
+ 	wildcardQueries   []*query // path wildcard queries in original order
+ 	patternAllQueries []*query // queries with the pattern "all"
++	toolQueries       []*query // queries with the pattern "tool"
+ 
+ 	// Indexed "none" queries. These are also included in the slices above;
+ 	// they are indexed here to speed up noneForPath.
+@@ -574,6 +576,8 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
+ 	for _, q := range queries {
+ 		if q.pattern == "all" {
+ 			r.patternAllQueries = append(r.patternAllQueries, q)
++		} else if q.pattern == "tool" {
++			r.toolQueries = append(r.toolQueries, q)
+ 		} else if q.patternIsLocal {
+ 			r.localQueries = append(r.localQueries, q)
+ 		} else if q.isWildcard() {
+@@ -1050,6 +1054,19 @@ func (r *resolver) queryPath(ctx context.Context, q *query) {
+ 	})
+ }
+ 
++// performToolQueries populates the candidates for each query whose
++// pattern is "tool".
++func (r *resolver) performToolQueries(ctx context.Context) {
++	for _, q := range r.toolQueries {
++		for tool := range modload.MainModules.Tools() {
++			q.pathOnce(tool, func() pathSet {
++				pkgMods, err := r.queryPackages(ctx, tool, q.version, r.initialSelected)
++				return pathSet{pkgMods: pkgMods, err: err}
++			})
++		}
++	}
++}
++
+ // performPatternAllQueries populates the candidates for each query whose
+ // pattern is "all".
+ //
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index 498ba6c2ff..f95b503d8f 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -199,6 +199,9 @@ func (q *query) validate() error {
+ 
+ 	if search.IsMetaPackage(q.pattern) && q.pattern != "all" {
+ 		if q.pattern != q.raw {
++			if q.pattern == "tool" {
++				return fmt.Errorf("can't request explicit version of \"tool\" pattern")
++			}
+ 			return fmt.Errorf("can't request explicit version of standard-library pattern %q", q.pattern)
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/mod/example.com_tools_v1.1.0.txt b/src/cmd/go/testdata/mod/example.com_tools_v1.1.0.txt
+new file mode 100644
+index 0000000000..91819341a6
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_tools_v1.1.0.txt
+@@ -0,0 +1,12 @@
++-- .info --
++{"Version": "v1.1.0"}
++-- .mod --
++module example.com/tools
++-- cmd/hello/hello.go --
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println("hello v1.1")
++}
+diff --git a/src/cmd/go/testdata/script/mod_get_tool.txt b/src/cmd/go/testdata/script/mod_get_tool.txt
+index f0e4371ee6..15f4db9096 100644
+--- a/src/cmd/go/testdata/script/mod_get_tool.txt
++++ b/src/cmd/go/testdata/script/mod_get_tool.txt
+@@ -1,7 +1,10 @@
+ # test go get -tool
+-go get -tool example.com/tools/cmd/hello
++go get -tool example.com/tools/cmd/hello@v1.0.0
+ cmp go.mod go.mod.want
+ 
++go get -u tool
++cmp go.mod go.mod.upgraded
++
+ # test -tool with @none
+ go get -tool example.com/tools/cmd/hello@none
+ cmp go.mod go.mod.gone
+@@ -19,6 +22,10 @@ stderr 'can''t request explicit version "none" of path "./cmd/..." in main modul
+ ! go get -tool all
+ stderr 'go get -tool does not work with "all"'
+ 
++# test tool@none
++! go get tool@none
++stderr 'can''t request explicit version of "tool" pattern'
++
+ -- main.go --
+ package main
+ 
+@@ -36,12 +43,20 @@ go 1.24
+ tool example.com/tools/cmd/hello
+ 
+ require example.com/tools v1.0.0 // indirect
++-- go.mod.upgraded --
++module example.com/foo
++
++go 1.24
++
++tool example.com/tools/cmd/hello
++
++require example.com/tools v1.1.0 // indirect
+ -- go.mod.gone --
+ module example.com/foo
+ 
+ go 1.24
+ 
+-require example.com/tools v1.0.0 // indirect
++require example.com/tools v1.1.0 // indirect
+ -- go.mod.empty --
+ module example.com/foo
+ 

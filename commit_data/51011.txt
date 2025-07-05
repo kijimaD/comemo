@@ -15,6 +15,20 @@ Date:   Wed Nov 24 15:37:21 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 1c28e47ac3..ec4db99d78 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -717,7 +717,7 @@ func TestTimePprof(t *testing.T) {
+ 	// This test is unreliable on any system in which nanotime
+ 	// calls into libc.
+ 	switch runtime.GOOS {
+-	case "aix", "darwin", "openbsd", "solaris":
++	case "aix", "darwin", "illumos", "openbsd", "solaris":
+ 		t.Skipf("skipping on %s because nanotime calls libc", runtime.GOOS)
+ 	}
+ 

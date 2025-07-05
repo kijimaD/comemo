@@ -22,10 +22,136 @@ Date:   Sat Mar 26 19:35:21 2016 +0000
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/exec_bsd.go     |  6 +++---
  src/syscall/exec_linux.go   |  6 +++---
  src/syscall/exec_plan9.go   |  6 +++---
  src/syscall/exec_solaris.go |  6 +++---
  src/syscall/syscall_test.go | 14 ++++++++++++++
  5 files changed, 26 insertions(+), 12 deletions(-)
+
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 47adffd60c..317645fae5 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -181,6 +181,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+ 		if fd[i] >= 0 && fd[i] < int(i) {
++			if nextfd == pipe { // don't stomp on pipe
++				nextfd++
++			}
+ 			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
+ 			if err1 != 0 {
+ 				goto childerror
+@@ -188,9 +191,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			fd[i] = nextfd
+ 			nextfd++
+-			if nextfd == pipe { // don't stomp on pipe
+-				nextfd++
+-			}
+ 		}
+ 	}
+ 
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index c1fd53cc6e..e49bad75b2 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -255,6 +255,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+ 		if fd[i] >= 0 && fd[i] < int(i) {
++			if nextfd == pipe { // don't stomp on pipe
++				nextfd++
++			}
+ 			_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
+ 			if err1 != 0 {
+ 				goto childerror
+@@ -262,9 +265,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			fd[i] = nextfd
+ 			nextfd++
+-			if nextfd == pipe { // don't stomp on pipe
+-				nextfd++
+-			}
+ 		}
+ 	}
+ 
+diff --git a/src/syscall/exec_plan9.go b/src/syscall/exec_plan9.go
+index 28a746580b..bccea5105c 100644
+--- a/src/syscall/exec_plan9.go
++++ b/src/syscall/exec_plan9.go
+@@ -270,6 +270,9 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+ 		if fd[i] >= 0 && fd[i] < int(i) {
++			if nextfd == pipe { // don't stomp on pipe
++				nextfd++
++			}
+ 			r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(nextfd), 0)
+ 			if int32(r1) == -1 {
+ 				goto childerror
+@@ -277,9 +280,6 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
+ 
+ 			fd[i] = nextfd
+ 			nextfd++
+-			if nextfd == pipe { // don't stomp on pipe
+-				nextfd++
+-			}
+ 		}
+ 	}
+ 
+diff --git a/src/syscall/exec_solaris.go b/src/syscall/exec_solaris.go
+index c2b2949462..fcb481c078 100644
+--- a/src/syscall/exec_solaris.go
++++ b/src/syscall/exec_solaris.go
+@@ -178,6 +178,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+ 		if fd[i] >= 0 && fd[i] < int(i) {
++			if nextfd == pipe { // don't stomp on pipe
++				nextfd++
++			}
+ 			_, err1 = fcntl1(uintptr(fd[i]), F_DUP2FD, uintptr(nextfd))
+ 			if err1 != 0 {
+ 				goto childerror
+@@ -185,9 +188,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			fd[i] = nextfd
+ 			nextfd++
+-			if nextfd == pipe { // don't stomp on pipe
+-				nextfd++
+-			}
+ 		}
+ 	}
+ 
+diff --git a/src/syscall/syscall_test.go b/src/syscall/syscall_test.go
+index 846c4873d2..0a0b8b7a26 100644
+--- a/src/syscall/syscall_test.go
++++ b/src/syscall/syscall_test.go
+@@ -6,6 +6,8 @@ package syscall_test
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
++	"os"
+ 	"syscall"
+ 	"testing"
+ )
+@@ -45,3 +47,15 @@ func TestItoa(t *testing.T) {
+ 		t.Fatalf("itoa(%d) = %s, want %s", i, s, f)
+ 	}
+ }
++
++// Check that permuting child process fds doesn't interfere with
++// reporting of fork/exec status. See Issue 14979.
++func TestExecErrPermutedFds(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	attr := &os.ProcAttr{Files: []*os.File{os.Stdin, os.Stderr, os.Stdout}}
++	_, err := os.StartProcess("/", []string{"/"}, attr)
++	if err == nil {
++		t.Fatalf("StartProcess of invalid program returned err = nil")
++	}
++}

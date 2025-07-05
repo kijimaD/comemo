@@ -7,6 +7,24 @@ Date:   Wed Oct 7 09:10:15 2015 -0700
     Change-Id: I8e94fa57482149f6ea8f13d02ddcc82d6764ddb8
     Reviewed-on: https://go-review.googlesource.com/15496
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/text/template/multi_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/text/template/multi_test.go b/src/text/template/multi_test.go
+index e170ff74b1..a8342f50aa 100644
+--- a/src/text/template/multi_test.go
++++ b/src/text/template/multi_test.go
+@@ -277,10 +277,10 @@ func TestRedefinition(t *testing.T) {
+ 		t.Fatalf("parse 1: %v", err)
+ 	}
+ 	if _, err = tmpl.Parse(`{{define "test"}}bar{{end}}`); err != nil {
+-		t.Fatal("got error %v, expected nil", err)
++		t.Fatalf("got error %v, expected nil", err)
+ 	}
+ 	if _, err = tmpl.New("tmpl2").Parse(`{{define "test"}}bar{{end}}`); err != nil {
+-		t.Fatal("got error %v, expected nil", err)
++		t.Fatalf("got error %v, expected nil", err)
+ 	}
+ }
+ 

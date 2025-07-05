@@ -7,6 +7,22 @@ Date:   Mon Apr 26 22:50:47 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1014041
-
+---
  src/pkg/os/stat_mingw.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/stat_mingw.go b/src/pkg/os/stat_mingw.go
+old mode 100644
+new mode 100755
+index 1d8d9b9d74..cfe283d098
+--- a/src/pkg/os/stat_mingw.go
++++ b/src/pkg/os/stat_mingw.go
+@@ -18,7 +18,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	} else {
+ 		fi.Mode = fi.Mode | 0666
+ 	}
+-	fi.Size = int64(stat.Windata.FileSizeHigh)<<32 + uint64(stat.Windata.FileSizeLow)
++	fi.Size = int64(stat.Windata.FileSizeHigh)<<32 + int64(stat.Windata.FileSizeLow)
+ 	fi.Name = string(syscall.UTF16ToString(stat.Windata.FileName[0:]))
+ 	fi.FollowedSymlink = false
+ 	// TODO(brainman): use CreationTime LastAccessTime LastWriteTime to prime following Dir fields

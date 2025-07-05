@@ -11,7 +11,77 @@ Date:   Thu Aug 23 17:03:33 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6474061
-
+---
  src/pkg/go/scanner/scanner.go      | 22 +++++-----------------
  src/pkg/go/scanner/scanner_test.go |  4 +++-
  2 files changed, 8 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index f1e18111a1..c213161c47 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -572,8 +572,7 @@ scanAgain:
+ 	// determine token value
+ 	insertSemi := false
+ 	switch ch := s.ch; {
+-	case 'a' <= ch && ch <= 'z':
+-		// literals start with a lower-case letter
++	case isLetter(ch):
+ 		lit = s.scanIdentifier()
+ 		if len(lit) > 1 {
+ 			// keywords are longer than one letter - avoid lookup otherwise
+@@ -586,10 +585,6 @@ scanAgain:
+ 			insertSemi = true
+ 			tok = token.IDENT
+ 		}
+-	case 'A' <= ch && ch <= 'Z' || ch == '_':
+-		insertSemi = true
+-		tok = token.IDENT
+-		lit = s.scanIdentifier()
+ 	case '0' <= ch && ch <= '9':
+ 		insertSemi = true
+ 		tok, lit = s.scanNumber(false)
+@@ -715,17 +710,10 @@ scanAgain:
+ 		case '|':
+ 			tok = s.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
+ 		default:
+-			if isLetter(ch) {
+-				// handle any letters we might have missed
+-				insertSemi = true
+-				tok = token.IDENT
+-				s.scanIdentifier()
+-			} else {
+-				s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
+-				insertSemi = s.insertSemi // preserve insertSemi info
+-				tok = token.ILLEGAL
+-				lit = string(ch)
+-			}
++			s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
++			insertSemi = s.insertSemi // preserve insertSemi info
++			tok = token.ILLEGAL
++			lit = string(ch)
+ 		}
+ 	}
+ 	if s.mode&dontInsertSemis == 0 {
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index a9a16a85b7..119679a31f 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -52,6 +52,8 @@ var tokens = [...]elt{
+ 	{token.IDENT, "a۰۱۸", literal},
+ 	{token.IDENT, "foo६४", literal},
+ 	{token.IDENT, "bar９８７６", literal},
++	{token.IDENT, "ŝ", literal},    // was bug (issue 4000)
++	{token.IDENT, "ŝfoo", literal}, // was bug (issue 4000)
+ 	{token.INT, "0", literal},
+ 	{token.INT, "1", literal},
+ 	{token.INT, "123456789012345678890", literal},
+@@ -544,7 +546,7 @@ func TestLineComments(t *testing.T) {
+ 	}
+ }
+ 
+-// Verify that initializing the same scanner more then once works correctly.
++// Verify that initializing the same scanner more than once works correctly.
+ func TestInit(t *testing.T) {
+ 	var s Scanner
+ 

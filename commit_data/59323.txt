@@ -12,6 +12,20 @@ Date:   Sun Mar 3 03:49:32 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  lib/time/mkzip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/time/mkzip.go b/lib/time/mkzip.go
+index 3920b11b6c..2f4d4dc71a 100644
+--- a/lib/time/mkzip.go
++++ b/lib/time/mkzip.go
+@@ -31,7 +31,7 @@ import (
+ )
+ 
+ func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: go run mkzip.go ../../zoneinfo.zip\n")
++	fmt.Fprintf(os.Stderr, "usage: go run mkzip.go zoneinfo.zip\n")
+ 	os.Exit(2)
+ }
+ 

@@ -42,7 +42,7 @@ Date:   Thu Feb 27 20:20:39 2020 -0500
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/gofmt/gofmt.go                    |  58 +---------
  src/go/format/format.go                   |   8 +-
  src/go/format/format_test.go              |  38 ++++++
@@ -54,3 +54,870 @@ Date:   Thu Feb 27 20:20:39 2020 -0500
  src/go/printer/testdata/go2numbers.input  | 186 ++++++++++++++++++++++++++++++
  src/go/printer/testdata/go2numbers.stdfmt | 186 ++++++++++++++++++++++++++++++
  10 files changed, 672 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 9e472b2d51..679fdd7b8a 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -37,9 +37,10 @@ var (
+ 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
+ )
+ 
++// Keep these in sync with go/format/format.go.
+ const (
+ 	tabWidth    = 8
+-	printerMode = printer.UseSpaces | printer.TabIndent
++	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat
+ )
+ 
+ var (
+@@ -113,8 +114,6 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 		simplify(file)
+ 	}
+ 
+-	ast.Inspect(file, normalizeNumbers)
+-
+ 	res, err := format(fileSet, file, sourceAdj, indentAdj, src, printer.Config{Mode: printerMode, Tabwidth: tabWidth})
+ 	if err != nil {
+ 		return err
+@@ -294,56 +293,3 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error)
+ 
+ 	return bakname, err
+ }
+-
+-// normalizeNumbers rewrites base prefixes and exponents to
+-// use lower-case letters, and removes leading 0's from
+-// integer imaginary literals. It leaves hexadecimal digits
+-// alone.
+-func normalizeNumbers(n ast.Node) bool {
+-	lit, _ := n.(*ast.BasicLit)
+-	if lit == nil || (lit.Kind != token.INT && lit.Kind != token.FLOAT && lit.Kind != token.IMAG) {
+-		return true
+-	}
+-	if len(lit.Value) < 2 {
+-		return false // only one digit (common case) - nothing to do
+-	}
+-	// len(lit.Value) >= 2
+-
+-	// We ignore lit.Kind because for lit.Kind == token.IMAG the literal may be an integer
+-	// or floating-point value, decimal or not. Instead, just consider the literal pattern.
+-	x := lit.Value
+-	switch x[:2] {
+-	default:
+-		// 0-prefix octal, decimal int, or float (possibly with 'i' suffix)
+-		if i := strings.LastIndexByte(x, 'E'); i >= 0 {
+-			x = x[:i] + "e" + x[i+1:]
+-			break
+-		}
+-		// remove leading 0's from integer (but not floating-point) imaginary literals
+-		if x[len(x)-1] == 'i' && strings.IndexByte(x, '.') < 0 && strings.IndexByte(x, 'e') < 0 {
+-			x = strings.TrimLeft(x, "0_")
+-			if x == "i" {
+-				x = "0i"
+-			}
+-		}
+-	case "0X":
+-		x = "0x" + x[2:]
+-		fallthrough
+-	case "0x":
+-		// possibly a hexadecimal float
+-		if i := strings.LastIndexByte(x, 'P'); i >= 0 {
+-			x = x[:i] + "p" + x[i+1:]
+-		}
+-	case "0O":
+-		x = "0o" + x[2:]
+-	case "0o":
+-		// nothing to do
+-	case "0B":
+-		x = "0b" + x[2:]
+-	case "0b":
+-		// nothing to do
+-	}
+-
+-	lit.Value = x
+-	return false
+-}
+diff --git a/src/go/format/format.go b/src/go/format/format.go
+index 9aa28fc63b..84afbb066a 100644
+--- a/src/go/format/format.go
++++ b/src/go/format/format.go
+@@ -24,7 +24,13 @@ import (
+ 	"io"
+ )
+ 
+-var config = printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
++// Keep these in sync with cmd/gofmt/gofmt.go.
++const (
++	tabWidth    = 8
++	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat
++)
++
++var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
+ 
+ const parserMode = parser.ParseComments
+ 
+diff --git a/src/go/format/format_test.go b/src/go/format/format_test.go
+index b5817a5dd1..aee51e2da1 100644
+--- a/src/go/format/format_test.go
++++ b/src/go/format/format_test.go
+@@ -6,6 +6,7 @@ package format
+ 
+ import (
+ 	"bytes"
++	"go/ast"
+ 	"go/parser"
+ 	"go/token"
+ 	"io/ioutil"
+@@ -57,6 +58,43 @@ func TestNode(t *testing.T) {
+ 	diff(t, buf.Bytes(), src)
+ }
+ 
++// Node is documented to not modify the AST. Test that it is so, even when
++// formatting changes are applied due to printer.StdFormat mode being used.
++func TestNodeNoModify(t *testing.T) {
++	const (
++		src    = "package p\n\nconst _ = 0000000123i\n"
++		golden = "package p\n\nconst _ = 123i\n"
++	)
++
++	fset := token.NewFileSet()
++	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Capture original address and value of a BasicLit node
++	// which will undergo formatting changes during printing.
++	wantLit := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.BasicLit)
++	wantVal := wantLit.Value
++
++	var buf bytes.Buffer
++	if err = Node(&buf, fset, file); err != nil {
++		t.Fatal("Node failed:", err)
++	}
++	diff(t, buf.Bytes(), []byte(golden))
++
++	// Check if anything changed after Node returned.
++	gotLit := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.BasicLit)
++	gotVal := gotLit.Value
++
++	if gotLit != wantLit {
++		t.Errorf("got *ast.BasicLit address %p, want %p", gotLit, wantLit)
++	}
++	if gotVal != wantVal {
++		t.Errorf("got *ast.BasicLit value %q, want %q", gotVal, wantVal)
++	}
++}
++
+ func TestSource(t *testing.T) {
+ 	src, err := ioutil.ReadFile(testfile)
+ 	if err != nil {
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index e4cb58a87f..0360c4606e 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -791,6 +791,9 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		}
+ 
+ 	case *ast.BasicLit:
++		if p.Config.Mode&StdFormat != 0 {
++			x = normalizeNumbers(x)
++		}
+ 		p.print(x)
+ 
+ 	case *ast.FuncLit:
+@@ -971,6 +974,62 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 	}
+ }
+ 
++// normalizeNumbers rewrites base prefixes and exponents to
++// use lower-case letters, and removes leading 0's from
++// integer imaginary literals. It leaves hexadecimal digits
++// alone.
++func normalizeNumbers(lit *ast.BasicLit) *ast.BasicLit {
++	if lit.Kind != token.INT && lit.Kind != token.FLOAT && lit.Kind != token.IMAG {
++		return lit // not a number - nothing to do
++	}
++	if len(lit.Value) < 2 {
++		return lit // only one digit (common case) - nothing to do
++	}
++	// len(lit.Value) >= 2
++
++	// We ignore lit.Kind because for lit.Kind == token.IMAG the literal may be an integer
++	// or floating-point value, decimal or not. Instead, just consider the literal pattern.
++	x := lit.Value
++	switch x[:2] {
++	default:
++		// 0-prefix octal, decimal int, or float (possibly with 'i' suffix)
++		if i := strings.LastIndexByte(x, 'E'); i >= 0 {
++			x = x[:i] + "e" + x[i+1:]
++			break
++		}
++		// remove leading 0's from integer (but not floating-point) imaginary literals
++		if x[len(x)-1] == 'i' && strings.IndexByte(x, '.') < 0 && strings.IndexByte(x, 'e') < 0 {
++			x = strings.TrimLeft(x, "0_")
++			if x == "i" {
++				x = "0i"
++			}
++		}
++	case "0X":
++		x = "0x" + x[2:]
++		// possibly a hexadecimal float
++		if i := strings.LastIndexByte(x, 'P'); i >= 0 {
++			x = x[:i] + "p" + x[i+1:]
++		}
++	case "0x":
++		// possibly a hexadecimal float
++		i := strings.LastIndexByte(x, 'P')
++		if i == -1 {
++			return lit // nothing to do
++		}
++		x = x[:i] + "p" + x[i+1:]
++	case "0O":
++		x = "0o" + x[2:]
++	case "0o":
++		return lit // nothing to do
++	case "0B":
++		x = "0b" + x[2:]
++	case "0b":
++		return lit // nothing to do
++	}
++
++	return &ast.BasicLit{ValuePos: lit.ValuePos, Kind: lit.Kind, Value: x}
++}
++
+ func (p *printer) possibleSelectorExpr(expr ast.Expr, prec1, depth int) bool {
+ 	if x, ok := expr.(*ast.SelectorExpr); ok {
+ 		return p.selectorExpr(x, depth, true)
+diff --git a/src/go/printer/performance_test.go b/src/go/printer/performance_test.go
+index 5b29affcb7..3f34bfcc32 100644
+--- a/src/go/printer/performance_test.go
++++ b/src/go/printer/performance_test.go
+@@ -20,7 +20,7 @@ import (
+ var testfile *ast.File
+ 
+ func testprint(out io.Writer, file *ast.File) {
+-	if err := (&Config{TabIndent | UseSpaces, 8, 0}).Fprint(out, fset, file); err != nil {
++	if err := (&Config{TabIndent | UseSpaces | StdFormat, 8, 0}).Fprint(out, fset, file); err != nil {
+ 		log.Fatalf("print error: %s", err)
+ 	}
+ }
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 9143442a27..9d0add40b6 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -1276,6 +1276,7 @@ const (
+ 	TabIndent                  // use tabs for indentation independent of UseSpaces
+ 	UseSpaces                  // use spaces instead of tabs for alignment
+ 	SourcePos                  // emit //line directives to preserve original source positions
++	StdFormat                  // apply standard formatting changes (exact byte output may change between versions of Go)
+ )
+ 
+ // A Config node controls the output of Fprint.
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index d2650399da..1e9d47ce73 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -33,6 +33,7 @@ type checkMode uint
+ const (
+ 	export checkMode = 1 << iota
+ 	rawFormat
++	stdFormat
+ 	idempotent
+ )
+ 
+@@ -57,6 +58,9 @@ func format(src []byte, mode checkMode) ([]byte, error) {
+ 	if mode&rawFormat != 0 {
+ 		cfg.Mode |= RawFormat
+ 	}
++	if mode&stdFormat != 0 {
++		cfg.Mode |= StdFormat
++	}
+ 
+ 	// print AST
+ 	var buf bytes.Buffer
+@@ -200,6 +204,8 @@ var data = []entry{
+ 	{"statements.input", "statements.golden", 0},
+ 	{"slow.input", "slow.golden", idempotent},
+ 	{"complit.input", "complit.x", export},
++	{"go2numbers.input", "go2numbers.golden", idempotent},
++	{"go2numbers.input", "go2numbers.stdfmt", stdFormat | idempotent},
+ }
+ 
+ func TestFiles(t *testing.T) {
+diff --git a/src/go/printer/testdata/go2numbers.golden b/src/go/printer/testdata/go2numbers.golden
+new file mode 100644
+index 0000000000..3c12049860
+--- /dev/null
++++ b/src/go/printer/testdata/go2numbers.golden
+@@ -0,0 +1,186 @@
++package p
++
++const (
++	// 0-octals
++	_	= 0
++	_	= 0123
++	_	= 0123456
++
++	_	= 0_123
++	_	= 0123_456
++
++	// decimals
++	_	= 1
++	_	= 1234
++	_	= 1234567
++
++	_	= 1_234
++	_	= 1_234_567
++
++	// hexadecimals
++	_	= 0x0
++	_	= 0x1234
++	_	= 0xcafef00d
++
++	_	= 0X0
++	_	= 0X1234
++	_	= 0XCAFEf00d
++
++	_	= 0X_0
++	_	= 0X_1234
++	_	= 0X_CAFE_f00d
++
++	// octals
++	_	= 0o0
++	_	= 0o1234
++	_	= 0o01234567
++
++	_	= 0O0
++	_	= 0O1234
++	_	= 0O01234567
++
++	_	= 0o_0
++	_	= 0o_1234
++	_	= 0o0123_4567
++
++	_	= 0O_0
++	_	= 0O_1234
++	_	= 0O0123_4567
++
++	// binaries
++	_	= 0b0
++	_	= 0b1011
++	_	= 0b00101101
++
++	_	= 0B0
++	_	= 0B1011
++	_	= 0B00101101
++
++	_	= 0b_0
++	_	= 0b10_11
++	_	= 0b_0010_1101
++
++	// decimal floats
++	_	= 0.
++	_	= 123.
++	_	= 0123.
++
++	_	= .0
++	_	= .123
++	_	= .0123
++
++	_	= 0e0
++	_	= 123e+0
++	_	= 0123E-1
++
++	_	= 0e-0
++	_	= 123E+0
++	_	= 0123E123
++
++	_	= 0.e+1
++	_	= 123.E-10
++	_	= 0123.e123
++
++	_	= .0e-1
++	_	= .123E+10
++	_	= .0123E123
++
++	_	= 0.0
++	_	= 123.123
++	_	= 0123.0123
++
++	_	= 0.0e1
++	_	= 123.123E-10
++	_	= 0123.0123e+456
++
++	_	= 1_2_3.
++	_	= 0_123.
++
++	_	= 0_0e0
++	_	= 1_2_3e0
++	_	= 0_123e0
++
++	_	= 0e-0_0
++	_	= 1_2_3E+0
++	_	= 0123E1_2_3
++
++	_	= 0.e+1
++	_	= 123.E-1_0
++	_	= 01_23.e123
++
++	_	= .0e-1
++	_	= .123E+10
++	_	= .0123E123
++
++	_	= 1_2_3.123
++	_	= 0123.01_23
++
++	// hexadecimal floats
++	_	= 0x0.p+0
++	_	= 0Xdeadcafe.p-10
++	_	= 0x1234.P123
++
++	_	= 0x.1p-0
++	_	= 0X.deadcafep2
++	_	= 0x.1234P+10
++
++	_	= 0x0p0
++	_	= 0Xdeadcafep+1
++	_	= 0x1234P-10
++
++	_	= 0x0.0p0
++	_	= 0Xdead.cafep+1
++	_	= 0x12.34P-10
++
++	_	= 0Xdead_cafep+1
++	_	= 0x_1234P-10
++
++	_	= 0X_dead_cafe.p-10
++	_	= 0x12_34.P1_2_3
++	_	= 0X1_2_3_4.P-1_2_3
++
++	// imaginaries
++	_	= 0i
++	_	= 00i
++	_	= 08i
++	_	= 0000000000i
++	_	= 0123i
++	_	= 0000000123i
++	_	= 0000056789i
++	_	= 1234i
++	_	= 1234567i
++
++	_	= 0i
++	_	= 0_0i
++	_	= 0_8i
++	_	= 0_000_000_000i
++	_	= 0_123i
++	_	= 0_000_000_123i
++	_	= 0_000_056_789i
++	_	= 1_234i
++	_	= 1_234_567i
++
++	_	= 0.i
++	_	= 123.i
++	_	= 0123.i
++	_	= 000123.i
++
++	_	= 0e0i
++	_	= 123e0i
++	_	= 0123E0i
++	_	= 000123E0i
++
++	_	= 0.e+1i
++	_	= 123.E-1_0i
++	_	= 01_23.e123i
++	_	= 00_01_23.e123i
++
++	_	= 0b1010i
++	_	= 0B1010i
++	_	= 0o660i
++	_	= 0O660i
++	_	= 0xabcDEFi
++	_	= 0XabcDEFi
++	_	= 0xabcDEFP0i
++	_	= 0XabcDEFp0i
++)
+diff --git a/src/go/printer/testdata/go2numbers.input b/src/go/printer/testdata/go2numbers.input
+new file mode 100644
+index 0000000000..f3e7828d94
+--- /dev/null
++++ b/src/go/printer/testdata/go2numbers.input
+@@ -0,0 +1,186 @@
++package p
++
++const (
++	// 0-octals
++	_ = 0
++	_ = 0123
++	_ = 0123456
++
++	_ = 0_123
++	_ = 0123_456
++
++	// decimals
++	_ = 1
++	_ = 1234
++	_ = 1234567
++
++	_ = 1_234
++	_ = 1_234_567
++
++	// hexadecimals
++	_ = 0x0
++	_ = 0x1234
++	_ = 0xcafef00d
++
++	_ = 0X0
++	_ = 0X1234
++	_ = 0XCAFEf00d
++
++	_ = 0X_0
++	_ = 0X_1234
++	_ = 0X_CAFE_f00d
++
++	// octals
++	_ = 0o0
++	_ = 0o1234
++	_ = 0o01234567
++
++	_ = 0O0
++	_ = 0O1234
++	_ = 0O01234567
++
++	_ = 0o_0
++	_ = 0o_1234
++	_ = 0o0123_4567
++
++	_ = 0O_0
++	_ = 0O_1234
++	_ = 0O0123_4567
++
++	// binaries
++	_ = 0b0
++	_ = 0b1011
++	_ = 0b00101101
++
++	_ = 0B0
++	_ = 0B1011
++	_ = 0B00101101
++
++	_ = 0b_0
++	_ = 0b10_11
++	_ = 0b_0010_1101
++
++	// decimal floats
++	_ = 0.
++	_ = 123.
++	_ = 0123.
++
++	_ = .0
++	_ = .123
++	_ = .0123
++
++	_ = 0e0
++	_ = 123e+0
++	_ = 0123E-1
++
++	_ = 0e-0
++	_ = 123E+0
++	_ = 0123E123
++
++	_ = 0.e+1
++	_ = 123.E-10
++	_ = 0123.e123
++
++	_ = .0e-1
++	_ = .123E+10
++	_ = .0123E123
++
++	_ = 0.0
++	_ = 123.123
++	_ = 0123.0123
++
++	_ = 0.0e1
++	_ = 123.123E-10
++	_ = 0123.0123e+456
++
++	_ = 1_2_3.
++	_ = 0_123.
++
++	_ = 0_0e0
++	_ = 1_2_3e0
++	_ = 0_123e0
++
++	_ = 0e-0_0
++	_ = 1_2_3E+0
++	_ = 0123E1_2_3
++
++	_ = 0.e+1
++	_ = 123.E-1_0
++	_ = 01_23.e123
++
++	_ = .0e-1
++	_ = .123E+10
++	_ = .0123E123
++
++	_ = 1_2_3.123
++	_ = 0123.01_23
++
++	// hexadecimal floats
++	_ = 0x0.p+0
++	_ = 0Xdeadcafe.p-10
++	_ = 0x1234.P123
++
++	_ = 0x.1p-0
++	_ = 0X.deadcafep2
++	_ = 0x.1234P+10
++
++	_ = 0x0p0
++	_ = 0Xdeadcafep+1
++	_ = 0x1234P-10
++
++	_ = 0x0.0p0
++	_ = 0Xdead.cafep+1
++	_ = 0x12.34P-10
++
++	_ = 0Xdead_cafep+1
++	_ = 0x_1234P-10
++
++	_ = 0X_dead_cafe.p-10
++	_ = 0x12_34.P1_2_3
++	_ = 0X1_2_3_4.P-1_2_3
++
++	// imaginaries
++	_ = 0i
++	_ = 00i
++	_ = 08i
++	_ = 0000000000i
++	_ = 0123i
++	_ = 0000000123i
++	_ = 0000056789i
++	_ = 1234i
++	_ = 1234567i
++
++	_ = 0i
++	_ = 0_0i
++	_ = 0_8i
++	_ = 0_000_000_000i
++	_ = 0_123i
++	_ = 0_000_000_123i
++	_ = 0_000_056_789i
++	_ = 1_234i
++	_ = 1_234_567i
++
++	_ = 0.i
++	_ = 123.i
++	_ = 0123.i
++	_ = 000123.i
++
++	_ = 0e0i
++	_ = 123e0i
++	_ = 0123E0i
++	_ = 000123E0i
++
++	_ = 0.e+1i
++	_ = 123.E-1_0i
++	_ = 01_23.e123i
++	_ = 00_01_23.e123i
++
++	_ = 0b1010i
++	_ = 0B1010i
++	_ = 0o660i
++	_ = 0O660i
++	_ = 0xabcDEFi
++	_ = 0XabcDEFi
++	_ = 0xabcDEFP0i
++	_ = 0XabcDEFp0i
++)
+diff --git a/src/go/printer/testdata/go2numbers.stdfmt b/src/go/printer/testdata/go2numbers.stdfmt
+new file mode 100644
+index 0000000000..855f0fc608
+--- /dev/null
++++ b/src/go/printer/testdata/go2numbers.stdfmt
+@@ -0,0 +1,186 @@
++package p
++
++const (
++	// 0-octals
++	_	= 0
++	_	= 0123
++	_	= 0123456
++
++	_	= 0_123
++	_	= 0123_456
++
++	// decimals
++	_	= 1
++	_	= 1234
++	_	= 1234567
++
++	_	= 1_234
++	_	= 1_234_567
++
++	// hexadecimals
++	_	= 0x0
++	_	= 0x1234
++	_	= 0xcafef00d
++
++	_	= 0x0
++	_	= 0x1234
++	_	= 0xCAFEf00d
++
++	_	= 0x_0
++	_	= 0x_1234
++	_	= 0x_CAFE_f00d
++
++	// octals
++	_	= 0o0
++	_	= 0o1234
++	_	= 0o01234567
++
++	_	= 0o0
++	_	= 0o1234
++	_	= 0o01234567
++
++	_	= 0o_0
++	_	= 0o_1234
++	_	= 0o0123_4567
++
++	_	= 0o_0
++	_	= 0o_1234
++	_	= 0o0123_4567
++
++	// binaries
++	_	= 0b0
++	_	= 0b1011
++	_	= 0b00101101
++
++	_	= 0b0
++	_	= 0b1011
++	_	= 0b00101101
++
++	_	= 0b_0
++	_	= 0b10_11
++	_	= 0b_0010_1101
++
++	// decimal floats
++	_	= 0.
++	_	= 123.
++	_	= 0123.
++
++	_	= .0
++	_	= .123
++	_	= .0123
++
++	_	= 0e0
++	_	= 123e+0
++	_	= 0123e-1
++
++	_	= 0e-0
++	_	= 123e+0
++	_	= 0123e123
++
++	_	= 0.e+1
++	_	= 123.e-10
++	_	= 0123.e123
++
++	_	= .0e-1
++	_	= .123e+10
++	_	= .0123e123
++
++	_	= 0.0
++	_	= 123.123
++	_	= 0123.0123
++
++	_	= 0.0e1
++	_	= 123.123e-10
++	_	= 0123.0123e+456
++
++	_	= 1_2_3.
++	_	= 0_123.
++
++	_	= 0_0e0
++	_	= 1_2_3e0
++	_	= 0_123e0
++
++	_	= 0e-0_0
++	_	= 1_2_3e+0
++	_	= 0123e1_2_3
++
++	_	= 0.e+1
++	_	= 123.e-1_0
++	_	= 01_23.e123
++
++	_	= .0e-1
++	_	= .123e+10
++	_	= .0123e123
++
++	_	= 1_2_3.123
++	_	= 0123.01_23
++
++	// hexadecimal floats
++	_	= 0x0.p+0
++	_	= 0xdeadcafe.p-10
++	_	= 0x1234.p123
++
++	_	= 0x.1p-0
++	_	= 0x.deadcafep2
++	_	= 0x.1234p+10
++
++	_	= 0x0p0
++	_	= 0xdeadcafep+1
++	_	= 0x1234p-10
++
++	_	= 0x0.0p0
++	_	= 0xdead.cafep+1
++	_	= 0x12.34p-10
++
++	_	= 0xdead_cafep+1
++	_	= 0x_1234p-10
++
++	_	= 0x_dead_cafe.p-10
++	_	= 0x12_34.p1_2_3
++	_	= 0x1_2_3_4.p-1_2_3
++
++	// imaginaries
++	_	= 0i
++	_	= 0i
++	_	= 8i
++	_	= 0i
++	_	= 123i
++	_	= 123i
++	_	= 56789i
++	_	= 1234i
++	_	= 1234567i
++
++	_	= 0i
++	_	= 0i
++	_	= 8i
++	_	= 0i
++	_	= 123i
++	_	= 123i
++	_	= 56_789i
++	_	= 1_234i
++	_	= 1_234_567i
++
++	_	= 0.i
++	_	= 123.i
++	_	= 0123.i
++	_	= 000123.i
++
++	_	= 0e0i
++	_	= 123e0i
++	_	= 0123e0i
++	_	= 000123e0i
++
++	_	= 0.e+1i
++	_	= 123.e-1_0i
++	_	= 01_23.e123i
++	_	= 00_01_23.e123i
++
++	_	= 0b1010i
++	_	= 0b1010i
++	_	= 0o660i
++	_	= 0o660i
++	_	= 0xabcDEFi
++	_	= 0xabcDEFi
++	_	= 0xabcDEFp0i
++	_	= 0xabcDEFp0i
++)

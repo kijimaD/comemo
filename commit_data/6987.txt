@@ -11,9 +11,62 @@ Date:   Thu Dec 16 12:46:56 2010 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3723041
-
+---
  src/pkg/runtime/darwin/386/sys.s    | 2 --
  src/pkg/runtime/darwin/amd64/sys.s  | 2 --
  src/pkg/runtime/freebsd/386/sys.s   | 2 --
  src/pkg/runtime/freebsd/amd64/sys.s | 2 --
  4 files changed, 8 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index a2067e42cf..79bbfb68bf 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -31,8 +31,6 @@ TEXT runtime·exit1(SB),7,$0
+ TEXT runtime·write(SB),7,$0
+ 	MOVL	$4, AX
+ 	INT	$0x80
+-	JAE	2(PC)
+-	CALL	runtime·notok(SB)
+ 	RET
+ 
+ TEXT runtime·mmap(SB),7,$0
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 2f0a4bf3e6..05dbc7b93b 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -36,8 +36,6 @@ TEXT runtime·write(SB),7,$0
+ 	MOVL	24(SP), DX		// arg 3 count
+ 	MOVL	$(0x2000000+4), AX	// syscall entry
+ 	SYSCALL
+-	JCC	2(PC)
+-	CALL	runtime·notok(SB)
+ 	RET
+ 
+ // void gettime(int64 *sec, int32 *usec)
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 2670fc1e77..7110e6924e 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -58,8 +58,6 @@ TEXT runtime·exit1(SB),7,$-4
+ TEXT runtime·write(SB),7,$-4
+ 	MOVL	$4, AX
+ 	INT	$0x80
+-	JAE	2(PC)
+-	CALL	runtime·notok(SB)
+ 	RET
+ 
+ TEXT runtime·notok(SB),7,$0
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 0f8a8a8a97..b9cf3832dd 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -63,8 +63,6 @@ TEXT runtime·write(SB),7,$-8
+ 	MOVL	24(SP), DX		// arg 3 count
+ 	MOVL	$4, AX
+ 	SYSCALL
+-	JCC	2(PC)
+-	CALL	runtime·notok(SB)
+ 	RET
+ 
+ TEXT runtime·gettime(SB), 7, $32

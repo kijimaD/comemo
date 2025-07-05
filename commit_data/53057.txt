@@ -15,6 +15,20 @@ Date:   Thu Jun 30 15:59:30 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/path_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index a96245f358..3356908a36 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -11,7 +11,7 @@ const (
+ 
+ // IsPathSeparator reports whether c is a directory separator character.
+ func IsPathSeparator(c uint8) bool {
+-	// NOTE: Windows accept / as path separator.
++	// NOTE: Windows accepts / as path separator.
+ 	return c == '\\' || c == '/'
+ }
+ 

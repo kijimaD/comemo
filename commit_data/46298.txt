@@ -14,7 +14,7 @@ Date:   Fri Dec 18 20:14:45 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/279314
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go      |  2 --
  src/cmd/compile/internal/gc/export.go   |  5 ++---
  src/cmd/compile/internal/gc/iimport.go  |  2 +-
@@ -22,3 +22,185 @@ Date:   Fri Dec 18 20:14:45 2020 -0800
  src/cmd/compile/internal/gc/universe.go |  6 ++----
  src/cmd/compile/internal/ir/name.go     | 24 +++++++++---------------
  6 files changed, 21 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 64b15077cd..04e3506dba 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -141,7 +141,6 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
+ 		as2.PtrRlist().Set1(e)
+ 		for _, v := range vl {
+ 			v := v.(*ir.Name)
+-			v.SetOp(ir.ONAME)
+ 			declare(v, dclcontext)
+ 			v.Ntype = t
+ 			v.Defn = as2
+@@ -166,7 +165,6 @@ func variter(vl []ir.Node, t ir.Ntype, el []ir.Node) []ir.Node {
+ 			el = el[1:]
+ 		}
+ 
+-		v.SetOp(ir.ONAME)
+ 		declare(v, dclcontext)
+ 		v.Ntype = t
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 6ed4327a8f..8a8295537c 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -82,9 +82,8 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Cl
+ 		base.Fatalf("importsym of symbol that already exists: %v", n)
+ 	}
+ 
+-	n := ir.NewDeclNameAt(pos, s)
+-	n.SetOp(op) // TODO(mdempsky): Add as argument to NewDeclNameAt.
+-	n.SetClass(ctxt)
++	n := ir.NewDeclNameAt(pos, op, s)
++	n.SetClass(ctxt) // TODO(mdempsky): Move this into NewDeclNameAt too?
+ 	s.SetPkgDef(n)
+ 	s.Importdef = ipkg
+ 	return n
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 76f55a44e5..219ce4bdef 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -971,7 +971,7 @@ func (r *importReader) node() ir.Node {
+ 	// statements
+ 	case ir.ODCL:
+ 		pos := r.pos()
+-		lhs := ir.NewDeclNameAt(pos, r.ident())
++		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.ident())
+ 		typ := ir.TypeNode(r.typ())
+ 		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index ee01423833..b61f19ae2e 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -374,7 +374,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ }
+ 
+ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
+-	names := p.declNames(decl.NameList)
++	names := p.declNames(ir.ONAME, decl.NameList)
+ 	typ := p.typeExprOrNil(decl.Type)
+ 
+ 	var exprs []ir.Node
+@@ -425,7 +425,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
+ 		p.checkUnused(pragma)
+ 	}
+ 
+-	names := p.declNames(decl.NameList)
++	names := p.declNames(ir.OLITERAL, decl.NameList)
+ 	typ := p.typeExprOrNil(decl.Type)
+ 
+ 	var values []ir.Node
+@@ -450,8 +450,6 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
+ 		if decl.Values == nil {
+ 			v = ir.DeepCopy(n.Pos(), v)
+ 		}
+-
+-		n.SetOp(ir.OLITERAL)
+ 		declare(n, dclcontext)
+ 
+ 		n.Ntype = typ
+@@ -471,8 +469,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
+ }
+ 
+ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
+-	n := p.declName(decl.Name)
+-	n.SetOp(ir.OTYPE)
++	n := p.declName(ir.OTYPE, decl.Name)
+ 	declare(n, dclcontext)
+ 
+ 	// decl.Type may be nil but in that case we got a syntax error during parsing
+@@ -495,16 +492,16 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
+ 	return nod
+ }
+ 
+-func (p *noder) declNames(names []*syntax.Name) []ir.Node {
++func (p *noder) declNames(op ir.Op, names []*syntax.Name) []ir.Node {
+ 	nodes := make([]ir.Node, 0, len(names))
+ 	for _, name := range names {
+-		nodes = append(nodes, p.declName(name))
++		nodes = append(nodes, p.declName(op, name))
+ 	}
+ 	return nodes
+ }
+ 
+-func (p *noder) declName(name *syntax.Name) *ir.Name {
+-	return ir.NewDeclNameAt(p.pos(name), p.name(name))
++func (p *noder) declName(op ir.Op, name *syntax.Name) *ir.Name {
++	return ir.NewDeclNameAt(p.pos(name), op, p.name(name))
+ }
+ 
+ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 21ddc78089..c988c575dc 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -97,8 +97,7 @@ func initUniverse() {
+ 
+ 	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
+ 		sym := pkg.Lookup(name)
+-		n := ir.NewDeclNameAt(src.NoXPos, sym)
+-		n.SetOp(ir.OTYPE)
++		n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
+ 		t := types.NewBasic(kind, n)
+ 		n.SetType(t)
+ 		sym.Def = n
+@@ -134,8 +133,7 @@ func initUniverse() {
+ 
+ 	// error type
+ 	s := types.BuiltinPkg.Lookup("error")
+-	n := ir.NewDeclNameAt(src.NoXPos, s)
+-	n.SetOp(ir.OTYPE)
++	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, s)
+ 	types.ErrorType = types.NewNamed(n)
+ 	types.ErrorType.SetUnderlying(makeErrorInterface())
+ 	n.SetType(types.ErrorType)
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index f5f4280fd0..9cf959b23d 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -164,13 +164,19 @@ func NewIota(pos src.XPos, sym *types.Sym) *Name {
+ 	return newNameAt(pos, OIOTA, sym)
+ }
+ 
+-// NewDeclNameAt returns a new ONONAME Node associated with symbol s at position pos.
++// NewDeclNameAt returns a new Name associated with symbol s at position pos.
+ // The caller is responsible for setting Curfn.
+-func NewDeclNameAt(pos src.XPos, sym *types.Sym) *Name {
++func NewDeclNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
+ 	if sym == nil {
+ 		base.Fatalf("NewDeclNameAt nil")
+ 	}
+-	return newNameAt(pos, ONONAME, sym)
++	switch op {
++	case ONAME, OTYPE, OLITERAL:
++		// ok
++	default:
++		base.Fatalf("NewDeclNameAt op %v", op)
++	}
++	return newNameAt(pos, op, sym)
+ }
+ 
+ // newNameAt is like NewNameAt but allows sym == nil.
+@@ -207,18 +213,6 @@ func (*Name) CanBeNtype()    {}
+ func (*Name) CanBeAnSSASym() {}
+ func (*Name) CanBeAnSSAAux() {}
+ 
+-func (n *Name) SetOp(op Op) {
+-	if n.op != ONONAME {
+-		base.Fatalf("%v already has Op %v", n, n.op)
+-	}
+-	switch op {
+-	default:
+-		panic(n.no("SetOp " + op.String()))
+-	case OLITERAL, ONAME, OTYPE, OIOTA:
+-		n.op = op
+-	}
+-}
+-
+ // Pragma returns the PragmaFlag for p, which must be for an OTYPE.
+ func (n *Name) Pragma() PragmaFlag { return n.pragma }
+ 

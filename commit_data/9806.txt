@@ -7,8 +7,122 @@ Date:   Mon Sep 26 19:35:32 2011 -0400
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5123047
-
+---
  src/pkg/bytes/bytes.go      | 55 +++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/bytes/bytes_test.go | 28 +++++++++++++++++++++++
  src/pkg/strings/strings.go  |  3 ++-
  3 files changed, 85 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index ea6bf5ec20..2fb456900a 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -608,3 +608,58 @@ func Replace(s, old, new []byte, n int) []byte {
+ 	w += copy(t[w:], s[start:])
+ 	return t[0:w]
+ }
++
++// EqualFold reports whether s and t, interpreted as UTF-8 strings,
++// are equal under Unicode case-folding.
++func EqualFold(s, t []byte) bool {
++	for len(s) != 0 && len(t) != 0 {
++		// Extract first rune from each.
++		var sr, tr int
++		if s[0] < utf8.RuneSelf {
++			sr, s = int(s[0]), s[1:]
++		} else {
++			r, size := utf8.DecodeRune(s)
++			sr, s = r, s[size:]
++		}
++		if t[0] < utf8.RuneSelf {
++			tr, t = int(t[0]), t[1:]
++		} else {
++			r, size := utf8.DecodeRune(t)
++			tr, t = r, t[size:]
++		}
++
++		// If they match, keep going; if not, return false.
++
++		// Easy case.
++		if tr == sr {
++			continue
++		}
++
++		// Make sr < tr to simplify what follows.
++		if tr < sr {
++			tr, sr = sr, tr
++		}
++		// Fast check for ASCII.
++		if tr < utf8.RuneSelf && 'A' <= sr && sr <= 'Z' {
++			// ASCII, and sr is upper case.  tr must be lower case.
++			if tr == sr+'a'-'A' {
++				continue
++			}
++			return false
++		}
++
++		// General case.  SimpleFold(x) returns the next equivalent rune > x
++		// or wraps around to smaller values.
++		r := unicode.SimpleFold(sr)
++		for r != sr && r < tr {
++			r = unicode.SimpleFold(r)
++		}
++		if r == tr {
++			continue
++		}
++		return false
++	}
++
++	// One string is empty.  Are both?
++	return len(s) == len(t)
++}
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 1679279d36..55aa0a065c 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -862,3 +862,31 @@ func TestTitle(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var EqualFoldTests = []struct {
++	s, t string
++	out  bool
++}{
++	{"abc", "abc", true},
++	{"ABcd", "ABcd", true},
++	{"123abc", "123ABC", true},
++	{"αβδ", "ΑΒΔ", true},
++	{"abc", "xyz", false},
++	{"abc", "XYZ", false},
++	{"abcdefghijk", "abcdefghijX", false},
++	{"abcdefghijk", "abcdefghij\u212A", true},
++	{"abcdefghijK", "abcdefghij\u212A", true},
++	{"abcdefghijkz", "abcdefghij\u212Ay", false},
++	{"abcdefghijKz", "abcdefghij\u212Ay", false},
++}
++
++func TestEqualFold(t *testing.T) {
++	for _, tt := range EqualFoldTests {
++		if out := EqualFold([]byte(tt.s), []byte(tt.t)); out != tt.out {
++			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.s, tt.t, out, tt.out)
++		}
++		if out := EqualFold([]byte(tt.t), []byte(tt.s)); out != tt.out {
++			t.Errorf("EqualFold(%#q, %#q) = %v, want %v", tt.t, tt.s, out, tt.out)
++		}
++	}
++}
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 446fa3a0c8..58301febdf 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -584,7 +584,8 @@ func Replace(s, old, new string, n int) string {
+ 	return string(t[0:w])
+ }
+ 
+-// EqualFold returns true if s and t are equal under Unicode case-folding.
++// EqualFold reports whether s and t, interpreted as UTF-8 strings,
++// are equal under Unicode case-folding.
+ func EqualFold(s, t string) bool {
+ 	for s != "" && t != "" {
+ 		// Extract first rune from each string.

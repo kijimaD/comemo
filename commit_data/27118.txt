@@ -24,7 +24,7 @@ Date:   Thu Mar 10 16:15:26 2016 -0500
     Change-Id: Ie17786395d0453ce0384d8b240ecb043b7726137
     Reviewed-on: https://go-review.googlesource.com/20489
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go   |  3 +++
  src/cmd/compile/internal/gc/syntax.go |  9 ++++----
  src/cmd/compile/internal/gc/walk.go   | 43 +++++++++++++++++++++++++++++++++++
@@ -39,3 +39,397 @@ Date:   Thu Mar 10 16:15:26 2016 -0500
  test/reflectmethod2.go                | 36 +++++++++++++++++++++++++++++
  test/reflectmethod3.go                | 35 ++++++++++++++++++++++++++++
  13 files changed, 195 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 359d97518c..75829aa2df 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -438,6 +438,9 @@ func compile(fn *Node) {
+ 	if fn.Func.Pragma&Nosplit != 0 {
+ 		ptxt.From3.Offset |= obj.NOSPLIT
+ 	}
++	if fn.Func.ReflectMethod {
++		ptxt.From3.Offset |= obj.REFLECTMETHOD
++	}
+ 	if fn.Func.Pragma&Systemstack != 0 {
+ 		ptxt.From.Sym.Cfunc = 1
+ 	}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index e36ae2d722..8831143e16 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -171,10 +171,11 @@ type Func struct {
+ 	Endlineno int32
+ 	WBLineno  int32 // line number of first write barrier
+ 
+-	Pragma   Pragma // go:xxx function annotations
+-	Dupok    bool   // duplicate definitions ok
+-	Wrapper  bool   // is method wrapper
+-	Needctxt bool   // function uses context register (has closure variables)
++	Pragma        Pragma // go:xxx function annotations
++	Dupok         bool   // duplicate definitions ok
++	Wrapper       bool   // is method wrapper
++	Needctxt      bool   // function uses context register (has closure variables)
++	ReflectMethod bool   // function calls reflect.Type.Method or MethodByName
+ }
+ 
+ type Op uint8
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index be0d5ff258..0284fb613c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -632,6 +632,7 @@ opswitch:
+ 		}
+ 
+ 	case OCALLINTER:
++		usemethod(n)
+ 		t := n.Left.Type
+ 		if n.List.Len() != 0 && n.List.First().Op == OAS {
+ 			break
+@@ -3765,6 +3766,48 @@ func bounded(n *Node, max int64) bool {
+ 	return false
+ }
+ 
++// usemethod check interface method calls for uses of reflect.Type.Method.
++func usemethod(n *Node) {
++	t := n.Left.Type
++
++	// Looking for either of:
++	//	Method(int) reflect.Method
++	//	MethodByName(string) (reflect.Method, bool)
++	//
++	// TODO(crawshaw): improve precision of match by working out
++	//                 how to check the method name.
++	if n := countfield(t.Params()); n != 1 {
++		return
++	}
++	if n := countfield(t.Results()); n != 1 && n != 2 {
++		return
++	}
++	p0 := t.Params().Field(0)
++	res0 := t.Results().Field(0)
++	var res1 *Type
++	if countfield(t.Results()) == 2 {
++		res1 = t.Results().Field(1)
++	}
++
++	if res1 == nil {
++		if p0.Type.Etype != TINT {
++			return
++		}
++	} else {
++		if p0.Type.Etype != TSTRING {
++			return
++		}
++		if res1.Type.Etype != TBOOL {
++			return
++		}
++	}
++	if Tconv(res0, 0) != "reflect.Method" {
++		return
++	}
++
++	Curfn.Func.ReflectMethod = true
++}
++
+ func usefield(n *Node) {
+ 	if obj.Fieldtrack_enabled == 0 {
+ 		return
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index be2fa7959a..db66be6bff 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -315,6 +315,15 @@ type LSym struct {
+ 	Leaf      uint8
+ 	Seenglobl uint8
+ 	Onlist    uint8
++
++	// ReflectMethod means the function may call reflect.Type.Method or
++	// reflect.Type.MethodByName. Matching is imprecise (as reflect.Type
++	// can be used through a custom interface), so ReflectMethod may be
++	// set in some cases when the reflect package is not called.
++	//
++	// Used by the linker to determine what methods can be pruned.
++	ReflectMethod bool
++
+ 	// Local means make the symbol local even when compiling Go code to reference Go
+ 	// symbols in other shared libraries, as in this mode symbols are global by
+ 	// default. "local" here means in the sense of the dynamic linker, i.e. not
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 7ff9fcaa91..fff2b9d14e 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -242,6 +242,9 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				if flag&NOSPLIT != 0 {
+ 					s.Nosplit = 1
+ 				}
++				if flag&REFLECTMETHOD != 0 {
++					s.ReflectMethod = true
++				}
+ 				s.Next = nil
+ 				s.Type = STEXT
+ 				s.Text = p
+@@ -460,7 +463,11 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
+ 		wrint(b, int64(s.Args))
+ 		wrint(b, int64(s.Locals))
+ 		wrint(b, int64(s.Nosplit))
+-		wrint(b, int64(s.Leaf)|int64(s.Cfunc)<<1)
++		flags := int64(s.Leaf) | int64(s.Cfunc)<<1
++		if s.ReflectMethod {
++			flags |= 1 << 2
++		}
++		wrint(b, flags)
+ 		n := 0
+ 		for a := s.Autom; a != nil; a = a.Link {
+ 			n++
+diff --git a/src/cmd/internal/obj/textflag.go b/src/cmd/internal/obj/textflag.go
+index 57ecea334c..d8a52da4af 100644
+--- a/src/cmd/internal/obj/textflag.go
++++ b/src/cmd/internal/obj/textflag.go
+@@ -44,4 +44,7 @@ const (
+ 	// Only valid on functions that declare a frame size of 0.
+ 	// TODO(mwhudson): only implemented for ppc64x at present.
+ 	NOFRAME = 512
++
++	// Function can call reflect.Type.Method or reflect.Type.MethodByName.
++	REFLECTMETHOD = 1024
+ )
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 6ae2ecf2ae..3cc7b0f8db 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -25,7 +25,7 @@ import (
+ //
+ //	1. direct call
+ //	2. through a reachable interface type
+-//	3. reflect.Value.Call
++//	3. reflect.Value.Call / reflect.Method.Func
+ //
+ // The first case is handled by the flood fill, a directly called method
+ // is marked as reachable.
+@@ -36,8 +36,10 @@ import (
+ // as reachable. This is extremely conservative, but easy and correct.
+ //
+ // The third case is handled by looking to see if reflect.Value.Call is
+-// ever marked reachable. If it is, all bets are off and all exported
+-// methods of reachable types are marked reachable.
++// ever marked reachable, or if a reflect.Method struct is ever
++// constructed by a call to reflect.Type.Method or MethodByName. If it
++// is, all bets are off and all exported methods of reachable types are
++// marked reachable.
+ //
+ // Any unreached text symbols are removed from ctxt.Textp.
+ func deadcode(ctxt *Link) {
+@@ -59,7 +61,7 @@ func deadcode(ctxt *Link) {
+ 	callSymSeen := false
+ 
+ 	for {
+-		if callSym != nil && callSym.Attr.Reachable() {
++		if callSym != nil && (callSym.Attr.Reachable() || d.reflectMethod) {
+ 			// Methods are called via reflection. Give up on
+ 			// static analysis, mark all exported methods of
+ 			// all reachable types as reachable.
+@@ -169,6 +171,7 @@ type deadcodepass struct {
+ 	markQueue       []*LSym            // symbols to flood fill in next pass
+ 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
+ 	markableMethods []methodref        // methods of reached types
++	reflectMethod   bool
+ }
+ 
+ func (d *deadcodepass) cleanupReloc(r *Reloc) {
+@@ -188,6 +191,9 @@ func (d *deadcodepass) mark(s, parent *LSym) {
+ 	if s == nil || s.Attr.Reachable() {
+ 		return
+ 	}
++	if s.Attr.ReflectMethod() {
++		d.reflectMethod = true
++	}
+ 	s.Attr |= AttrReachable
+ 	s.Reachparent = parent
+ 	d.markQueue = append(d.markQueue, s)
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 3173d87446..0fadaf4b85 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -105,6 +105,7 @@ const (
+ 	AttrHidden
+ 	AttrOnList
+ 	AttrLocal
++	AttrReflectMethod
+ )
+ 
+ func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
+@@ -118,6 +119,7 @@ func (a Attribute) StackCheck() bool       { return a&AttrStackCheck != 0 }
+ func (a Attribute) Hidden() bool           { return a&AttrHidden != 0 }
+ func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
+ func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
++func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
+ 
+ func (a Attribute) CgoExport() bool {
+ 	return a.CgoExportDynamic() || a.CgoExportStatic()
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 6e243052ab..6ea845f9f9 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -54,8 +54,9 @@ package ld
+ //	- locals [int]
+ //	- nosplit [int]
+ //	- flags [int]
+-//		1 leaf
+-//		2 C function
++//		1<<0 leaf
++//		1<<1 C function
++//		1<<2 function may call reflect.Type.Method
+ //	- nlocal [int]
+ //	- local [nlocal automatics]
+ //	- pcln [pcln table]
+@@ -264,7 +265,10 @@ overwrite:
+ 		if rduint8(f) != 0 {
+ 			s.Attr |= AttrNoSplit
+ 		}
+-		rdint(f) // v&1 is Leaf, currently unused
++		flags := rdint(f)
++		if flags&(1<<2) != 0 {
++			s.Attr |= AttrReflectMethod
++		}
+ 		n := rdint(f)
+ 		s.Autom = make([]Auto, n)
+ 		for i := 0; i < n; i++ {
+diff --git a/src/runtime/textflag.h b/src/runtime/textflag.h
+index e11c5dc3a2..929e9b36a9 100644
+--- a/src/runtime/textflag.h
++++ b/src/runtime/textflag.h
+@@ -5,6 +5,8 @@
+ // This file defines flags attached to various functions
+ // and data objects. The compilers, assemblers, and linker must
+ // all agree on these values.
++//
++// Keep in sync with src/cmd/internal/obj/textflag.go.
+ 
+ // Don't profile the marked routine. This flag is deprecated.
+ #define NOPROF	1
+@@ -28,3 +30,5 @@
+ // Only valid on functions that declare a frame size of 0.
+ // TODO(mwhudson): only implemented for ppc64x at present.
+ #define NOFRAME 512
++// Function can call reflect.Type.Method or reflect.Type.MethodByName.
++#define REFLECTMETHOD = 1024
+diff --git a/test/reflectmethod1.go b/test/reflectmethod1.go
+new file mode 100644
+index 0000000000..973bf15b8b
+--- /dev/null
++++ b/test/reflectmethod1.go
+@@ -0,0 +1,30 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The linker can prune methods that are not directly called or
++// assigned to interfaces, but only if reflect.Type.Method is
++// never used. Test it here.
++
++package main
++
++import "reflect"
++
++var called = false
++
++type M int
++
++func (m M) UniqueMethodName() {
++	called = true
++}
++
++var v M
++
++func main() {
++	reflect.TypeOf(v).Method(0).Func.Interface().(func(M))(v)
++	if !called {
++		panic("UniqueMethodName not called")
++	}
++}
+diff --git a/test/reflectmethod2.go b/test/reflectmethod2.go
+new file mode 100644
+index 0000000000..9ee1c245da
+--- /dev/null
++++ b/test/reflectmethod2.go
+@@ -0,0 +1,36 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The linker can prune methods that are not directly called or
++// assigned to interfaces, but only if reflect.Type.MethodByName is
++// never used. Test it here.
++
++package main
++
++import reflect1 "reflect"
++
++var called = false
++
++type M int
++
++func (m M) UniqueMethodName() {
++	called = true
++}
++
++var v M
++
++type MyType interface {
++	MethodByName(string) (reflect1.Method, bool)
++}
++
++func main() {
++	var t MyType = reflect1.TypeOf(v)
++	m, _ := t.MethodByName("UniqueMethodName")
++	m.Func.Interface().(func(M))(v)
++	if !called {
++		panic("UniqueMethodName not called")
++	}
++}
+diff --git a/test/reflectmethod3.go b/test/reflectmethod3.go
+new file mode 100644
+index 0000000000..b423a59f77
+--- /dev/null
++++ b/test/reflectmethod3.go
+@@ -0,0 +1,35 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The linker can prune methods that are not directly called or
++// assigned to interfaces, but only if reflect.Type.Method is
++// never used. Test it here.
++
++package main
++
++import "reflect"
++
++var called = false
++
++type M int
++
++func (m M) UniqueMethodName() {
++	called = true
++}
++
++var v M
++
++type MyType interface {
++	Method(int) reflect.Method
++}
++
++func main() {
++	var t MyType = reflect.TypeOf(v)
++	t.Method(0).Func.Interface().(func(M))(v)
++	if !called {
++		panic("UniqueMethodName not called")
++	}
++}

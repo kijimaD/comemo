@@ -15,9 +15,87 @@ Date:   Tue Sep 18 09:55:07 2012 +1000
     R=minux.ma, rsc, ajstarks
     CC=golang-dev
     https://golang.org/cl/6501099
-
+---
  src/cmd/5l/asm.c                   | 7 ++++++-
  src/cmd/5l/l.h                     | 2 ++
  src/cmd/5l/obj.c                   | 2 +-
  src/pkg/runtime/signal_linux_arm.c | 8 +++++++-
  4 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 1087229790..f31c2f734f 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -2213,7 +2213,8 @@ omvl(Prog *p, Adr *a, int dr)
+ int
+ chipzero(Ieee *e)
+ {
+-	if(e->l != 0 || e->h != 0)
++	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
++	if(goarm < 7 || e->l != 0 || e->h != 0)
+ 		return -1;
+ 	return 0;
+ }
+@@ -2224,6 +2225,10 @@ chipfloat(Ieee *e)
+ 	int n;
+ 	ulong h;
+ 
++	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
++	if(goarm < 7)
++		goto no;
++
+ 	if(e->l != 0 || (e->h&0xffff) != 0)
+ 		goto no;
+ 	h = e->h & 0x7fc00000;
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index ee2794ae00..17598d720c 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -316,6 +316,8 @@ void	addpool(Prog*, Adr*);
+ EXTERN	Prog*	blitrl;
+ EXTERN	Prog*	elitrl;
+ 
++EXTERN	int	goarm;
++
+ void	initdiv(void);
+ EXTERN	Prog*	prog_div;
+ EXTERN	Prog*	prog_divu;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 0e738394c8..889dfbd252 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -93,7 +93,7 @@ main(int argc, char *argv[])
+ 	if(p != nil)
+ 		goarm = atoi(p);
+ 	else
+-		goarm = 7;
++		goarm = 6;
+ 	if(goarm == 5)
+ 		debug['F'] = 1;
+ 
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+index 7f93db5fb0..786af82e19 100644
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -147,7 +147,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ #define AT_PLATFORM	15 // introduced in at least 2.6.11
+ #define AT_HWCAP	16 // introduced in at least 2.6.11
+ #define AT_RANDOM	25 // introduced in 2.6.29
+-#define HWCAP_VFP	(1 << 6)
++#define HWCAP_VFP	(1 << 6) // introduced in at least 2.6.11
++#define HWCAP_VFPv3	(1 << 13) // introduced in 2.6.30
+ static uint32 runtime·randomNumber;
+ uint8  runtime·armArch = 6;	// we default to ARMv6
+ uint32 runtime·hwcap;	// set by setup_auxv
+@@ -161,6 +162,11 @@ runtime·checkgoarm(void)
+ 		runtime·printf("this GOARM=%d binary. Recompile using GOARM=5.\n", runtime·goarm);
+ 		runtime·exit(1);
+ 	}
++	if(runtime·goarm > 6 && !(runtime·hwcap & HWCAP_VFPv3)) {
++		runtime·printf("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n");
++		runtime·printf("this GOARM=%d binary. Recompile using GOARM=6.\n", runtime·goarm);
++		runtime·exit(1);
++	}
+ }
+ 
+ #pragma textflag 7

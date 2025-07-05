@@ -13,8 +13,129 @@ Date:   Wed Jul 18 15:36:04 2018 -0400
     Change-Id: I7c9534cf7cc4579f7f82646d00ff691c87a13c4a
     Reviewed-on: https://go-review.googlesource.com/124713
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/mod.go           | 26 ++++++++++++++++++++++-
  src/cmd/go/internal/modfetch/fetch.go       | 18 ++++++++++++++++
  src/cmd/go/testdata/script/mod_sync_sum.txt | 33 +++++++++++++++++++++++++++++
  3 files changed, 76 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index b2769fd5d6..d01f699d88 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -14,6 +14,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfile"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/module"
+@@ -154,7 +155,8 @@ effectively imply 'go mod -fix'.
+ The -sync flag synchronizes go.mod with the source code in the module.
+ It adds any missing modules necessary to build the current module's
+ packages and dependencies, and it removes unused modules that
+-don't provide any relevant packages.
++don't provide any relevant packages. It also adds any missing entries
++to go.sum and removes any unnecessary ones.
+ 
+ The -vendor flag resets the module's vendor directory to include all
+ packages needed to build and test all the module's packages.
+@@ -291,6 +293,7 @@ func runMod(cmd *base.Command, args []string) {
+ 				}
+ 			}
+ 			modload.SetBuildList(keep)
++			modSyncGoSum() // updates memory copy; WriteGoMod on next line flushes it out
+ 		}
+ 		modload.WriteGoMod()
+ 		if *modVendor {
+@@ -530,3 +533,24 @@ func modPrintGraph() {
+ 	}
+ 	w.Flush()
+ }
++
++// modSyncGoSum resets the go.sum file content
++// to be exactly what's needed for the current go.mod.
++func modSyncGoSum() {
++	// Assuming go.sum already has at least enough from the successful load,
++	// we only have to tell modfetch what needs keeping.
++	reqs := modload.Reqs()
++	keep := make(map[module.Version]bool)
++	var walk func(module.Version)
++	walk = func(m module.Version) {
++		keep[m] = true
++		list, _ := reqs.Required(m)
++		for _, r := range list {
++			if !keep[r] {
++				walk(r)
++			}
++		}
++	}
++	walk(modload.Target)
++	modfetch.TrimGoSum(keep)
++}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 1693ef900c..110312bbe0 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -314,3 +314,21 @@ func WriteGoSum() {
+ 		os.Remove(goSum.modverify)
+ 	}
+ }
++
++// TrimGoSum trims go.sum to contain only the modules for which keep[m] is true.
++func TrimGoSum(keep map[module.Version]bool) {
++	goSum.mu.Lock()
++	defer goSum.mu.Unlock()
++	if !initGoSum() {
++		return
++	}
++
++	for m := range goSum.m {
++		// If we're keeping x@v we also keep x@v/go.mod.
++		// Map x@v/go.mod back to x@v for the keep lookup.
++		noGoMod := module.Version{Path: m.Path, Version: strings.TrimSuffix(m.Version, "/go.mod")}
++		if !keep[m] && !keep[noGoMod] {
++			delete(goSum.m, m)
++		}
++	}
++}
+diff --git a/src/cmd/go/testdata/script/mod_sync_sum.txt b/src/cmd/go/testdata/script/mod_sync_sum.txt
+new file mode 100644
+index 0000000000..1ecb6db145
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_sync_sum.txt
+@@ -0,0 +1,33 @@
++env GO111MODULE=on
++
++# go.sum should list directly used modules and dependencies
++go get rsc.io/quote@v1.5.2
++go mod -sync
++grep rsc.io/sampler go.sum
++
++# go.sum should not normally lose old entries
++go get rsc.io/quote@v1.0.0
++grep 'rsc.io/quote v1.0.0' go.sum
++grep 'rsc.io/quote v1.5.2' go.sum
++grep rsc.io/sampler go.sum
++
++# go mod -sync should clear dead entries from go.sum
++go mod -sync
++grep 'rsc.io/quote v1.0.0' go.sum
++! grep 'rsc.io/quote v1.5.2' go.sum
++! grep rsc.io/sampler go.sum
++
++# go.sum with no entries is OK to keep
++# (better for version control not to delete and recreate.)
++cp x.go.noimports x.go
++go mod -sync
++exists go.sum
++! grep . go.sum
++
++-- go.mod --
++module x
++-- x.go --
++package x
++import _ "rsc.io/quote"
++-- x.go.noimports --
++package x

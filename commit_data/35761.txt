@@ -23,7 +23,7 @@ Date:   Tue Mar 6 18:30:58 2018 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go     |  4 ++--
  src/cmd/compile/internal/gc/closure.go     |  3 ---
  src/cmd/compile/internal/gc/dcl.go         | 31 ++++++++++--------------------
@@ -33,3 +33,235 @@ Date:   Tue Mar 6 18:30:58 2018 -0800
  src/cmd/compile/internal/gc/syntax.go      |  2 --
  src/cmd/compile/internal/gc/walk.go        |  4 ----
  8 files changed, 14 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 71d20ec37b..68ca0ca949 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -178,8 +178,8 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
+ 		}
+ 		i0 = i
+ 
+-		if funcdepth != 0 {
+-			p.formatErrorf("unexpected Funcdepth %d", funcdepth)
++		if Curfn != nil {
++			p.formatErrorf("unexpected Curfn %v", Curfn)
+ 		}
+ 
+ 		// Note: In the original code, funchdr and funcbody are called for
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 1713b5129c..1a79b7b149 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -16,7 +16,6 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ 	n := p.nod(expr, OCLOSURE, nil, nil)
+ 	n.Func.SetIsHiddenClosure(Curfn != nil)
+ 	n.Func.Ntype = ntype
+-	n.Func.Depth = funcdepth
+ 	n.Func.Outerfunc = Curfn
+ 
+ 	old := p.funchdr(n)
+@@ -220,8 +219,6 @@ func makeclosure(func_ *Node) *Node {
+ 	xfunc.Func.Nname.Name.Param.Ntype = xtype
+ 	xfunc.Func.Nname.Name.Defn = xfunc
+ 	declare(xfunc.Func.Nname, PFUNC)
+-	xfunc.Func.Nname.Name.Funcdepth = func_.Func.Depth
+-	xfunc.Func.Depth = func_.Func.Depth
+ 	xfunc.Func.Endlineno = func_.Func.Endlineno
+ 	if Ctxt.Flag_dynlink {
+ 		makefuncsym(xfunc.Func.Nname.Sym)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 5d1efaadaf..ce1033cf25 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -128,7 +128,6 @@ func declare(n *Node, ctxt Class) {
+ 	s.Lastlineno = lineno
+ 	s.Def = asTypesNode(n)
+ 	n.Name.Vargen = int32(gen)
+-	n.Name.Funcdepth = funcdepth
+ 	n.SetClass(ctxt)
+ 
+ 	autoexport(n, ctxt)
+@@ -160,7 +159,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 			declare(v, dclcontext)
+ 			v.Name.Param.Ntype = t
+ 			v.Name.Defn = as2
+-			if funcdepth > 0 {
++			if Curfn != nil {
+ 				init = append(init, nod(ODCL, v, nil))
+ 			}
+ 		}
+@@ -183,8 +182,8 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 		declare(v, dclcontext)
+ 		v.Name.Param.Ntype = t
+ 
+-		if e != nil || funcdepth > 0 || isblank(v) {
+-			if funcdepth > 0 {
++		if e != nil || Curfn != nil || isblank(v) {
++			if Curfn != nil {
+ 				init = append(init, nod(ODCL, v, nil))
+ 			}
+ 			e = nod(OAS, v, e)
+@@ -276,7 +275,7 @@ func oldname(s *types.Sym) *Node {
+ 		return newnoname(s)
+ 	}
+ 
+-	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != funcdepth {
++	if Curfn != nil && n.Op == ONAME && n.Name.Curfn != nil && n.Name.Curfn != Curfn {
+ 		// Inner func is referring to var in outer func.
+ 		//
+ 		// TODO(rsc): If there is an outer variable x and we
+@@ -284,7 +283,7 @@ func oldname(s *types.Sym) *Node {
+ 		// the := it looks like a reference to the outer x so we'll
+ 		// make x a closure variable unnecessarily.
+ 		c := n.Name.Param.Innermost
+-		if c == nil || c.Name.Funcdepth != funcdepth {
++		if c == nil || c.Name.Curfn != Curfn {
+ 			// Do not have a closure var for the active closure yet; make one.
+ 			c = newname(s)
+ 			c.SetClass(PAUTOHEAP)
+@@ -292,7 +291,6 @@ func oldname(s *types.Sym) *Node {
+ 			c.SetIsddd(n.Isddd())
+ 			c.Name.Defn = n
+ 			c.SetAddable(false)
+-			c.Name.Funcdepth = funcdepth
+ 
+ 			// Link into list of active closure variables.
+ 			// Popped from list in func closurebody.
+@@ -384,12 +382,14 @@ func ifacedcl(n *Node) {
+ // returns in auto-declaration context.
+ func funchdr(n *Node) {
+ 	// change the declaration context from extern to auto
+-	if funcdepth == 0 && dclcontext != PEXTERN {
++	if Curfn == nil && dclcontext != PEXTERN {
+ 		Fatalf("funchdr: dclcontext = %d", dclcontext)
+ 	}
+ 
+ 	dclcontext = PAUTO
+-	funcstart(n)
++	types.Markdcl()
++	funcstack = append(funcstack, Curfn)
++	Curfn = n
+ 
+ 	if n.Func.Nname != nil {
+ 		funcargs(n.Func.Nname.Name.Param.Ntype)
+@@ -523,16 +523,6 @@ func funcargs2(t *types.Type) {
+ }
+ 
+ var funcstack []*Node // stack of previous values of Curfn
+-var funcdepth int32   // len(funcstack) during parsing, but then forced to be the same later during compilation
+-
+-// start the function.
+-// called before funcargs; undone at end of funcbody.
+-func funcstart(n *Node) {
+-	types.Markdcl()
+-	funcstack = append(funcstack, Curfn)
+-	funcdepth++
+-	Curfn = n
+-}
+ 
+ // finish the body.
+ // called in auto-declaration context.
+@@ -544,8 +534,7 @@ func funcbody() {
+ 	}
+ 	types.Popdcl()
+ 	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
+-	funcdepth--
+-	if funcdepth == 0 {
++	if Curfn == nil {
+ 		dclcontext = PEXTERN
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 2cebab28dd..aa7e230496 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -436,13 +436,6 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " colas(%v)", n.Colas())
+ 	}
+ 
+-	if n.Name != nil && n.Name.Funcdepth != 0 {
+-		fmt.Fprintf(s, " f(%d)", n.Name.Funcdepth)
+-	}
+-	if n.Func != nil && n.Func.Depth != 0 {
+-		fmt.Fprintf(s, " ff(%d)", n.Func.Depth)
+-	}
+-
+ 	switch n.Esc {
+ 	case EscUnknown:
+ 		break
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 36b46a1c69..e920f698b7 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -204,13 +204,11 @@ func funccompile(fn *Node) {
+ 	}
+ 
+ 	dclcontext = PAUTO
+-	funcdepth = fn.Func.Depth + 1
+ 	Curfn = fn
+ 
+ 	compile(fn)
+ 
+ 	Curfn = nil
+-	funcdepth = 0
+ 	dclcontext = PEXTERN
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 48d357a0b0..d649fd58d3 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -22,8 +22,8 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 132, 232},
+-		{Name{}, 36, 56},
++		{Func{}, 128, 232},
++		{Name{}, 32, 56},
+ 		{Param{}, 28, 56},
+ 		{Node{}, 76, 128},
+ 	}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index e120dccabf..65ecbeede2 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -242,7 +242,6 @@ type Name struct {
+ 	Param     *Param     // additional fields for ONAME, OTYPE
+ 	Decldepth int32      // declaration loop depth, increased for every loop or label
+ 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
+-	Funcdepth int32
+ 
+ 	used  bool // for variable declared and not used error
+ 	flags bitset8
+@@ -433,7 +432,6 @@ type Func struct {
+ 
+ 	Inl     Nodes // copy of the body for use in inlining
+ 	InlCost int32
+-	Depth   int32
+ 
+ 	Label int32 // largest auto-generated label in this function
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8770684d87..bdfda78061 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3868,9 +3868,6 @@ func wrapCall(n *Node, init *Nodes) *Node {
+ 		args = append(args, a.Left)
+ 	}
+ 
+-	oldfn := Curfn
+-	Curfn = nil
+-
+ 	wrapCall_prgen++
+ 	sym := lookupN("wrap·", wrapCall_prgen)
+ 	fn := dclfunc(sym, t)
+@@ -3885,7 +3882,6 @@ func wrapCall(n *Node, init *Nodes) *Node {
+ 	fn = typecheck(fn, Etop)
+ 	typecheckslice(fn.Nbody.Slice(), Etop)
+ 	xtop = append(xtop, fn)
+-	Curfn = oldfn
+ 
+ 	a = nod(OCALL, nil, nil)
+ 	a.Left = fn.Func.Nname

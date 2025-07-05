@@ -22,8 +22,155 @@ Date:   Mon Oct 1 23:37:00 2018 -0300
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  6 ++--
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  4 ++-
  src/cmd/compile/internal/ssa/rewritePPC64.go | 54 ++++++++++++++++++++++++++--
  3 files changed, 58 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 469fbb8c96..5b11e15655 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3236,7 +3236,7 @@ func init() {
+ 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
+ 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
+ 		},
+-		sys.ARM64, sys.S390X)
++		sys.ARM64, sys.S390X, sys.PPC64)
+ 	addF("math/bits", "TrailingZeros8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt8to32, types.Types[TUINT32], args[0])
+@@ -3427,12 +3427,12 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount16, types.Types[TINT], args[0])
+ 		},
+-		sys.ARM64, sys.S390X)
++		sys.ARM64, sys.S390X, sys.PPC64)
+ 	addF("math/bits", "OnesCount8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount8, types.Types[TINT], args[0])
+ 		},
+-		sys.S390X)
++		sys.S390X, sys.PPC64)
+ 	addF("math/bits", "OnesCount",
+ 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
+ 		sys.AMD64)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 21c12591c5..be1bd6de0b 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -297,6 +297,8 @@
+ 
+ (Ctz64 x) -> (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+ (Ctz32 x) -> (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
++(Ctz16 x) -> (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
++(Ctz8 x) -> (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
+ 
+ (BitLen64 x) -> (SUB (MOVDconst [64]) (CNTLZD <typ.Int> x))
+ (BitLen32 x) -> (SUB (MOVDconst [32]) (CNTLZW <typ.Int> x))
+@@ -304,7 +306,7 @@
+ (PopCount64 x) -> (POPCNTD x)
+ (PopCount32 x) -> (POPCNTW (MOVWZreg x))
+ (PopCount16 x) -> (POPCNTW (MOVHZreg x))
+-(PopCount8 x) -> (POPCNTB (MOVBreg x))
++(PopCount8 x) -> (POPCNTB (MOVBZreg x))
+ 
+ (And(64|32|16|8) x y) -> (AND x y)
+ (Or(64|32|16|8) x y) -> (OR x y)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 9aff3106db..8f100c1a38 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -105,6 +105,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpConstNil_0(v)
+ 	case OpCopysign:
+ 		return rewriteValuePPC64_OpCopysign_0(v)
++	case OpCtz16:
++		return rewriteValuePPC64_OpCtz16_0(v)
+ 	case OpCtz32:
+ 		return rewriteValuePPC64_OpCtz32_0(v)
+ 	case OpCtz32NonZero:
+@@ -113,6 +115,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpCtz64_0(v)
+ 	case OpCtz64NonZero:
+ 		return rewriteValuePPC64_OpCtz64NonZero_0(v)
++	case OpCtz8:
++		return rewriteValuePPC64_OpCtz8_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValuePPC64_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64:
+@@ -1323,6 +1327,29 @@ func rewriteValuePPC64_OpCopysign_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpCtz16_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz16 x)
++	// cond:
++	// result: (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64POPCNTW)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, typ.Int64)
++		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.Int16)
++		v2 := b.NewValue0(v.Pos, OpPPC64ADDconst, typ.Int16)
++		v2.AuxInt = -1
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1389,6 +1416,29 @@ func rewriteValuePPC64_OpCtz64NonZero_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpCtz8_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz8 x)
++	// cond:
++	// result: (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64POPCNTB)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZreg, typ.Int64)
++		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.UInt8)
++		v2 := b.NewValue0(v.Pos, OpPPC64ADDconst, typ.UInt8)
++		v2.AuxInt = -1
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpCvt32Fto32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -26653,11 +26703,11 @@ func rewriteValuePPC64_OpPopCount8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (PopCount8 x)
+ 	// cond:
+-	// result: (POPCNTB (MOVBreg x))
++	// result: (POPCNTB (MOVBZreg x))
+ 	for {
+ 		x := v.Args[0]
+ 		v.reset(OpPPC64POPCNTB)
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVBreg, typ.Int64)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZreg, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true

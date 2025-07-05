@@ -13,7 +13,38 @@ Date:   Wed Dec 19 07:03:04 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/issue4339.go | 3 ++-
  src/cmd/cgo/gcc.go         | 4 +++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/issue4339.go b/misc/cgo/test/issue4339.go
+index 4fa4b2bbd7..3715fde575 100644
+--- a/misc/cgo/test/issue4339.go
++++ b/misc/cgo/test/issue4339.go
+@@ -5,7 +5,8 @@
+ package cgotest
+ 
+ /*
+-#include "issue4339.h"
++// We've historically permitted #include <>, so test it here.  Issue 29333.
++#include <issue4339.h>
+ */
+ import "C"
+ 
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 27bd59b54e..11c3ff3a9c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1992,8 +1992,10 @@ func (p *Package) gccErrors(stdin []byte) string {
+ 		}
+ 	}
+ 
+-	// Force -O0 optimization
++	// Force -O0 optimization but keep the trailing "-" at the end.
+ 	nargs = append(nargs, "-O0")
++	nl := len(nargs)
++	nargs[nl-2], nargs[nl-1] = nargs[nl-1], nargs[nl-2]
+ 
+ 	if *debugGcc {
+ 		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(nargs, " "))

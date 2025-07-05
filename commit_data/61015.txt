@@ -16,6 +16,21 @@ Date:   Fri Sep 20 16:51:50 2024 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/os/os_windows_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index c8a133da81..fb95499c17 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1269,6 +1269,9 @@ func TestReadlink(t *testing.T) {
+ 		}
+ 
+ 		t.Run(name, func(t *testing.T) {
++			if !tt.junction {
++				testenv.MustHaveSymlink(t)
++			}
+ 			if !tt.relative {
+ 				t.Parallel()
+ 			}

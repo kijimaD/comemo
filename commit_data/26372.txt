@@ -11,6 +11,28 @@ Date:   Wed Jan 13 21:13:02 2016 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go1.6.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index c88271bdcc..61b2449dad 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -471,6 +471,16 @@ and <code>"page"</code> blocks to reuse the formatting for another page.
+ 
+ <ul>
+ 
++<li>
++The <a href="/pkg/archive/tar/"><code>archive/tar</code></a> package's
++implementation corrects many bugs in rare corner cases of the file format.
++One visible change is that the
++<a href="/pkg/archive/tar/#Reader"><code>Reader</code></a> type's
++<a href="/pkg/archive/tar/#Reader.Read"><code>Read</code></a> method
++now presents the content of special file types as being empty,
++returning <code>io.EOF</code> immediately.
++</li>
++
+ <li>
+ In the <a href="/pkg/archive/zip/"><code>archive/zip</code></a> package, the
+ <a href="/pkg/archive/zip/#Reader"><code>Reader</code></a> type now has a

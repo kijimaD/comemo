@@ -9,8 +9,77 @@ Date:   Tue Mar 24 16:40:38 2009 -0700
     R=r
     OCL=26697
     CL=26697
-
+---
  src/cmd/gc/const.c                 | 32 ++++++++++++++++++++++++++++++--
  test/const1.go                     |  2 +-
  test/{bugs => fixedbugs}/bug115.go |  0
  3 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 8b02de9b2d..fbb4fa3039 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -282,8 +282,9 @@ evconst(Node *n)
+ 	Node *nl, *nr;
+ 	int32 len;
+ 	String *str;
+-	int wl, wr, lno;
++	int wl, wr, lno, et;
+ 	Val v;
++	Mpint b;
+ 
+ 	nl = n->left;
+ 	if(nl == N || nl->type == T)
+@@ -541,7 +542,34 @@ unary:
+ 		mpnegfix(v.u.xval);
+ 		break;
+ 	case TUP(OCOM, CTINT):
+-		mpcomfix(v.u.xval);
++		et = Txxx;
++		if(nl->type != T)
++			et = nl->type->etype;
++
++		// calculate the mask in b
++		// result will be (a ^ mask)
++		switch(et) {
++		default:
++			mpmovecfix(&b, -1);
++			break;
++
++		case TINT8:
++		case TINT16:
++		case TINT32:
++		case TINT64:
++		case TINT:
++			et++;		// convert to unsigned
++					// fallthrough
++		case TUINT8:
++		case TUINT16:
++		case TUINT32:
++		case TUINT64:
++		case TUINT:
++		case TUINTPTR:
++			mpmovefixfix(&b, maxintval[et]);
++			break;
++		}
++		mpxorfixfix(v.u.xval, &b);
+ 		break;
+ 
+ 	case TUP(OPLUS, CTFLT):
+diff --git a/test/const1.go b/test/const1.go
+index d51e5823a6..0d48ada5e2 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -39,7 +39,7 @@ var (
+ 	b3 = Uint8 - Uint8;	// OK
+ 	b4 = Uint8 - Uint8 - Uint8;	// ERROR "overflow"
+ 	b5 = uint8(^0);	// ERROR "overflow"
+-	b6 = ^uint8(0);	// ERROR "overflow"
++	b6 = ^uint8(0);	// OK
+ 	b7 = uint8(Minus1);	// ERROR "overflow"
+ 	b8 = uint8(int8(-1));	// ERROR "overflow"
+ 	b8a = uint8(-1);	// ERROR "overflow"
+diff --git a/test/bugs/bug115.go b/test/fixedbugs/bug115.go
+similarity index 100%
+rename from test/bugs/bug115.go
+rename to test/fixedbugs/bug115.go

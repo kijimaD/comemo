@@ -17,7 +17,124 @@ Date:   Mon Jul 2 09:43:37 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 --
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 68 ----------------------------
  2 files changed, 73 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index dd71ccaf5e..9549ebfab3 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2376,11 +2376,6 @@
+ (XORQload x [off] {sym} ptr (MOVSDstore [off] {sym} ptr y _)) -> (XORQ x (MOVQf2i y))
+ (XORLload x [off] {sym} ptr (MOVSSstore [off] {sym} ptr y _)) -> (XORL x (MOVLf2i y))
+ 
+-(ADDQconstmodify [valOff] {sym} ptr (MOVSDstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
+-  (ADDQconst [ValAndOff(valOff).Val()] (MOVQf2i x))
+-(ADDLconstmodify [valOff] {sym} ptr (MOVSSstore [ValAndOff(valOff).Off()] {sym} ptr x _)) ->
+-  (ADDLconst [ValAndOff(valOff).Val()] (MOVLf2i x))
+-
+ (ADDSDload x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (ADDSD x (MOVQi2f y))
+ (ADDSSload x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) -> (ADDSS x (MOVLi2f y))
+ (SUBSDload x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) -> (SUBSD x (MOVQi2f y))
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5c681b94b7..be4873caa0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1874,10 +1874,6 @@ func rewriteValueAMD64_OpAMD64ADDLconst_10(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDLconstmodify_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (ADDLconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem)
+ 	// cond: ValAndOff(valoff1).canAdd(off2)
+ 	// result: (ADDLconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
+@@ -1927,36 +1923,6 @@ func rewriteValueAMD64_OpAMD64ADDLconstmodify_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (ADDLconstmodify [valOff] {sym} ptr (MOVSSstore [ValAndOff(valOff).Off()] {sym} ptr x _))
+-	// cond:
+-	// result: (ADDLconst [ValAndOff(valOff).Val()] (MOVLf2i x))
+-	for {
+-		valOff := v.AuxInt
+-		sym := v.Aux
+-		_ = v.Args[1]
+-		ptr := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64MOVSSstore {
+-			break
+-		}
+-		if v_1.AuxInt != ValAndOff(valOff).Off() {
+-			break
+-		}
+-		if v_1.Aux != sym {
+-			break
+-		}
+-		_ = v_1.Args[2]
+-		if ptr != v_1.Args[0] {
+-			break
+-		}
+-		x := v_1.Args[1]
+-		v.reset(OpAMD64ADDLconst)
+-		v.AuxInt = ValAndOff(valOff).Val()
+-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLf2i, typ.UInt32)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDLload_0(v *Value) bool {
+@@ -2772,10 +2738,6 @@ func rewriteValueAMD64_OpAMD64ADDQconst_10(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDQconstmodify_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (ADDQconstmodify [valoff1] {sym} (ADDQconst [off2] base) mem)
+ 	// cond: ValAndOff(valoff1).canAdd(off2)
+ 	// result: (ADDQconstmodify [ValAndOff(valoff1).add(off2)] {sym} base mem)
+@@ -2825,36 +2787,6 @@ func rewriteValueAMD64_OpAMD64ADDQconstmodify_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (ADDQconstmodify [valOff] {sym} ptr (MOVSDstore [ValAndOff(valOff).Off()] {sym} ptr x _))
+-	// cond:
+-	// result: (ADDQconst [ValAndOff(valOff).Val()] (MOVQf2i x))
+-	for {
+-		valOff := v.AuxInt
+-		sym := v.Aux
+-		_ = v.Args[1]
+-		ptr := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAMD64MOVSDstore {
+-			break
+-		}
+-		if v_1.AuxInt != ValAndOff(valOff).Off() {
+-			break
+-		}
+-		if v_1.Aux != sym {
+-			break
+-		}
+-		_ = v_1.Args[2]
+-		if ptr != v_1.Args[0] {
+-			break
+-		}
+-		x := v_1.Args[1]
+-		v.reset(OpAMD64ADDQconst)
+-		v.AuxInt = ValAndOff(valOff).Val()
+-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQf2i, typ.UInt64)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDQload_0(v *Value) bool {

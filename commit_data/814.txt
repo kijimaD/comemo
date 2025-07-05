@@ -8,7 +8,30 @@ Date:   Mon Oct 6 16:27:14 2008 -0700
     DELTA=4  (0 added, 3 deleted, 1 changed)
     OCL=16565
     CL=16579
-
+---
  test/func3.go   | 2 +-
  test/golden.out | 3 ---
  2 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/test/func3.go b/test/func3.go
+index 9077346269..33e80a716c 100644
+--- a/test/func3.go
++++ b/test/func3.go
+@@ -14,4 +14,4 @@ func f1(*t2, x t3);	// ERROR "named"
+ func f2(t1, *t2, x t3);	// ERROR "named"
+ func f3() (x int, *string);	// ERROR "named"
+ 
+-func f4() (t1 t1);	// ERROR "type"
++func f4() (t1 t1);	// legal - scope of parameter named t1 starts in body of f4.
+diff --git a/test/golden.out b/test/golden.out
+index b83de865dc..2676fec631 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,7 +1,4 @@
+ 
+-=========== ./func3.go
+-BUG: errchk: func3.go: missing expected error message on line 14: 'type'
+-
+ =========== ./helloworld.go
+ hello, world
+ 

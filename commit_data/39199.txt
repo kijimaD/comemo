@@ -9,6 +9,24 @@ Date:   Mon Jan 21 16:12:46 2019 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.12.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 0a998c06e0..dddf44b520 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -139,6 +139,12 @@ go vet -vettool=$(which shadow)
+ 	for more information.
+ </p>
+ 
++<p><!-- CL 152657 -->
++  Mangled C names are no longer accepted in packages that use Cgo. Use the Cgo
++  names instead. For example, use the documented cgo name <code>C.char</code>
++  rather than the mangled name <code>_Ctype_char</code> that cgo generates.
++</p>
++
+ <h3 id="modules">Modules</h3>
+ 
+ <p><!-- CL 148517 -->

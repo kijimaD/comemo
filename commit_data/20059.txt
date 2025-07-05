@@ -8,7 +8,34 @@ Date:   Wed Aug 13 01:23:00 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/129850044
-
+---
  src/pkg/runtime/stack.h        | 2 +-
  src/pkg/runtime/sys_power64x.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index 64d377754f..ee5fd351d5 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -76,7 +76,7 @@ enum {
+ 	// The minimum stack segment size to allocate.
+ 	// If the amount needed for the splitting frame + StackExtra
+ 	// is less than this number, the stack will have this size instead.
+-	StackMin = 65536,
++	StackMin = 8192,
+ 	StackSystemRounded = StackSystem + (-StackSystem & (StackMin-1)),
+ 	FixedStack = StackMin + StackSystemRounded,
+ 
+diff --git a/src/pkg/runtime/sys_power64x.c b/src/pkg/runtime/sys_power64x.c
+index ed8900c45e..79d976255f 100644
+--- a/src/pkg/runtime/sys_power64x.c
++++ b/src/pkg/runtime/sys_power64x.c
+@@ -28,7 +28,7 @@ runtime·rewindmorestack(Gobuf *gobuf)
+ 
+ 	inst = *(uint32*)gobuf->pc;
+ 	if((gobuf->pc&3) == 0 && (inst>>24) == 0x4b && (inst&3) == 0) {
+-		runtime·printf("runtime: rewind pc=%p to pc=%p\n", gobuf->pc, gobuf->pc + ((int32)(inst<<8)>>8));
++		//runtime·printf("runtime: rewind pc=%p to pc=%p\n", gobuf->pc, gobuf->pc + ((int32)(inst<<8)>>8));
+ 		gobuf->pc += (int32)(inst<<8)>>8;
+ 		return;
+ 	}

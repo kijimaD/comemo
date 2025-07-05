@@ -19,7 +19,7 @@ Date:   Sun Mar 6 20:11:21 2022 -0800
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go  | 14 ++++++-----
  src/cmd/compile/internal/noder/unified.go | 40 +++++++++++++++++--------------
  test/run.go                               |  1 -
@@ -27,3 +27,159 @@ Date:   Sun Mar 6 20:11:21 2022 -0800
  test/typeparam/issue49536.dir/b.go        |  9 +++++++
  test/typeparam/issue49536.go              |  7 ++++++
  6 files changed, 58 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 2b1636588e..3207e3f85b 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -930,11 +930,6 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
+ // constructed.
+ var todoBodies []*ir.Func
+ 
+-// todoBodiesDone signals that we constructed all function in todoBodies.
+-// This is necessary to prevent reader.addBody adds thing to todoBodies
+-// when nested inlining happens.
+-var todoBodiesDone = false
+-
+ func (r *reader) addBody(fn *ir.Func) {
+ 	pri := pkgReaderIndex{r.p, r.Reloc(pkgbits.RelocBody), r.dict}
+ 	bodyReader[fn] = pri
+@@ -945,7 +940,7 @@ func (r *reader) addBody(fn *ir.Func) {
+ 		return
+ 	}
+ 
+-	if r.curfn == nil && !todoBodiesDone {
++	if r.curfn == nil {
+ 		todoBodies = append(todoBodies, fn)
+ 		return
+ 	}
+@@ -1974,6 +1969,13 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 		r.curfn.Body = r.stmts()
+ 		r.curfn.Endlineno = r.pos()
+ 
++		// TODO(mdempsky): This shouldn't be necessary. Inlining might
++		// read in new function/method declarations, which could
++		// potentially be recursively inlined themselves; but we shouldn't
++		// need to read in the non-inlined bodies for the declarations
++		// themselves. But currently it's an easy fix to #50552.
++		readBodies(typecheck.Target)
++
+ 		deadcode.Func(r.curfn)
+ 
+ 		// Replace any "return" statements within the function body.
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index ac82f2df03..ca01c0da95 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -116,6 +116,28 @@ func unified(noders []*noder) {
+ 		}
+ 	}
+ 
++	readBodies(target)
++
++	// Check that nothing snuck past typechecking.
++	for _, n := range target.Decls {
++		if n.Typecheck() == 0 {
++			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
++		}
++
++		// For functions, check that at least their first statement (if
++		// any) was typechecked too.
++		if fn, ok := n.(*ir.Func); ok && len(fn.Body) != 0 {
++			if stmt := fn.Body[0]; stmt.Typecheck() == 0 {
++				base.FatalfAt(stmt.Pos(), "missed typecheck: %v", stmt)
++			}
++		}
++	}
++
++	base.ExitIfErrors() // just in case
++}
++
++// readBodies reads in bodies for any
++func readBodies(target *ir.Package) {
+ 	// Don't use range--bodyIdx can add closures to todoBodies.
+ 	for len(todoBodies) > 0 {
+ 		// The order we expand bodies doesn't matter, so pop from the end
+@@ -134,24 +156,6 @@ func unified(noders []*noder) {
+ 		}
+ 	}
+ 	todoBodies = nil
+-	todoBodiesDone = true
+-
+-	// Check that nothing snuck past typechecking.
+-	for _, n := range target.Decls {
+-		if n.Typecheck() == 0 {
+-			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
+-		}
+-
+-		// For functions, check that at least their first statement (if
+-		// any) was typechecked too.
+-		if fn, ok := n.(*ir.Func); ok && len(fn.Body) != 0 {
+-			if stmt := fn.Body[0]; stmt.Typecheck() == 0 {
+-				base.FatalfAt(stmt.Pos(), "missed typecheck: %v", stmt)
+-			}
+-		}
+-	}
+-
+-	base.ExitIfErrors() // just in case
+ }
+ 
+ // writePkgStub type checks the given parsed source files,
+diff --git a/test/run.go b/test/run.go
+index fcd5d4875b..e22efe49e5 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2043,7 +2043,6 @@ var unifiedFailures = setOf(
+ 	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
+ 	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
+ 	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
+-	"typeparam/issue50552.go",  // gives missing method for instantiated type
+ )
+ 
+ func setOf(keys ...string) map[string]bool {
+diff --git a/test/typeparam/issue49536.dir/a.go b/test/typeparam/issue49536.dir/a.go
+new file mode 100644
+index 0000000000..a95ad60812
+--- /dev/null
++++ b/test/typeparam/issue49536.dir/a.go
+@@ -0,0 +1,12 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F() interface{} { return new(T[int]) }
++
++type T[P any] int
++
++func (x *T[P]) One() int { return x.Two() }
++func (x *T[P]) Two() int { return 0 }
+diff --git a/test/typeparam/issue49536.dir/b.go b/test/typeparam/issue49536.dir/b.go
+new file mode 100644
+index 0000000000..b08a77b9de
+--- /dev/null
++++ b/test/typeparam/issue49536.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++var _ = a.F()
+diff --git a/test/typeparam/issue49536.go b/test/typeparam/issue49536.go
+new file mode 100644
+index 0000000000..8bb5c3e213
+--- /dev/null
++++ b/test/typeparam/issue49536.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

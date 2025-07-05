@@ -39,10 +39,306 @@ Date:   Fri Dec 2 09:25:26 2022 +0100
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go  | 46 ++++++++++-----------------------------
  src/cmd/internal/obj/x86/obj6.go  | 18 ++++++++++-----
  src/runtime/asm_386.s             | 19 ++++++++++++----
  src/runtime/cgo/gcc_windows_386.c | 12 +++++-----
  src/runtime/sys_windows_386.s     | 46 ++++++++++++++++++++++++++++++++-------
  5 files changed, 84 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 953eedc0d0..de08b42ab5 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2551,22 +2551,6 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+ 		}
+ 	}
+ 
+-	if ctxt.Arch.Family == sys.I386 {
+-		if a.Index == REG_TLS && ctxt.Flag_shared {
+-			// When building for inclusion into a shared library, an instruction of the form
+-			//     MOVL off(CX)(TLS*1), AX
+-			// becomes
+-			//     mov %gs:off(%ecx), %eax
+-			// which assumes that the correct TLS offset has been loaded into %ecx (today
+-			// there is only one TLS variable -- g -- so this is OK). When not building for
+-			// a shared library the instruction it becomes
+-			//     mov 0x0(%ecx), %eax
+-			// and a R_TLS_LE relocation, and so does not require a prefix.
+-			return 0x65 // GS
+-		}
+-		return 0
+-	}
+-
+ 	switch a.Index {
+ 	case REG_CS:
+ 		return 0x2e
+@@ -2582,11 +2566,18 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+ 			// When building for inclusion into a shared library, an instruction of the form
+ 			//     MOV off(CX)(TLS*1), AX
+ 			// becomes
+-			//     mov %fs:off(%rcx), %rax
+-			// which assumes that the correct TLS offset has been loaded into %rcx (today
++			//     mov %gs:off(%ecx), %eax // on i386
++			//     mov %fs:off(%rcx), %rax // on amd64
++			// which assumes that the correct TLS offset has been loaded into CX (today
+ 			// there is only one TLS variable -- g -- so this is OK). When not building for
+-			// a shared library the instruction does not require a prefix.
+-			return 0x64
++			// a shared library the instruction it becomes
++			//     mov 0x0(%ecx), %eax // on i386
++			//     mov 0x0(%rcx), %rax // on amd64
++			// and a R_TLS_LE relocation, and so does not require a prefix.
++			if ctxt.Arch.Family == sys.I386 {
++				return 0x65 // GS
++			}
++			return 0x64 // FS
+ 		}
+ 
+ 	case REG_FS:
+@@ -3725,7 +3716,7 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
+ 
+ 	if REG_AX <= base && base <= REG_R15 {
+ 		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid &&
+-			!(ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64) {
++			ctxt.Headtype != objabi.Hwindows {
+ 			rel = obj.Reloc{}
+ 			rel.Type = objabi.R_TLS_LE
+ 			rel.Siz = 4
+@@ -5137,19 +5128,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 							pp.From.Index = REG_NONE
+ 							ab.Put1(0x8B)
+ 							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
+-
+-						case objabi.Hwindows:
+-							// Windows TLS base is always 0x14(FS).
+-							pp.From = p.From
+-
+-							pp.From.Type = obj.TYPE_MEM
+-							pp.From.Reg = REG_FS
+-							pp.From.Offset = 0x14
+-							pp.From.Index = REG_NONE
+-							pp.From.Scale = 0
+-							ab.Put2(0x64, // FS
+-								0x8B)
+-							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
+ 						}
+ 						break
+ 					}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 85a4260453..a071762681 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -158,11 +158,11 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	// Android and Win64 use a tls offset determined at runtime. Rewrite
++	// Android and Windows use a tls offset determined at runtime. Rewrite
+ 	//	MOVQ TLS, BX
+ 	// to
+ 	//	MOVQ runtime.tls_g(SB), BX
+-	if (isAndroid || (ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64)) &&
++	if (isAndroid || ctxt.Headtype == objabi.Hwindows) &&
+ 		(p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Name = obj.NAME_EXTERN
+@@ -170,17 +170,23 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		p.From.Sym = ctxt.Lookup("runtime.tls_g")
+ 		p.From.Index = REG_NONE
+ 		if ctxt.Headtype == objabi.Hwindows {
+-			// Win64 requires an additional indirection
++			// Windows requires an additional indirection
+ 			// to retrieve the TLS pointer,
+-			// as runtime.tls_g contains the TLS offset from GS.
+-			// add
++			// as runtime.tls_g contains the TLS offset from GS or FS.
++			// on AMD64 add
+ 			//	MOVQ 0(BX)(GS*1), BX
++			// on 386 add
++			//	MOVQ 0(BX)(FS*1), BX4
+ 			q := obj.Appendp(p, newprog)
+ 			q.As = p.As
+ 			q.From = obj.Addr{}
+ 			q.From.Type = obj.TYPE_MEM
+ 			q.From.Reg = p.To.Reg
+-			q.From.Index = REG_GS
++			if ctxt.Arch.Family == sys.AMD64 {
++				q.From.Index = REG_GS
++			} else {
++				q.From.Index = REG_FS
++			}
+ 			q.From.Scale = 1
+ 			q.From.Offset = 0
+ 			q.To = p.To
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index e16880c950..02179d2ee9 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -171,8 +171,12 @@ nocpuinfo:
+ 	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
+ #else
+ 	MOVL	$0, BX
+-	MOVL	BX, 12(SP)	// arg 3,4: not used when using platform's TLS
+-	MOVL	BX, 8(SP)
++	MOVL	BX, 12(SP)	// arg 4: not used when using platform's TLS
++#ifdef GOOS_windows
++	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
++#else
++	MOVL	BX, 8(SP)	// arg 3: not used when using platform's TLS
++#endif
+ #endif
+ 	MOVL	$setg_gcc<>(SB), BX
+ 	MOVL	BX, 4(SP)	// arg 2: setg_gcc
+@@ -795,14 +799,15 @@ havem:
+ TEXT runtime·setg(SB), NOSPLIT, $0-4
+ 	MOVL	gg+0(FP), BX
+ #ifdef GOOS_windows
++	MOVL	runtime·tls_g(SB), CX
+ 	CMPL	BX, $0
+ 	JNE	settls
+-	MOVL	$0, 0x14(FS)
++	MOVL	$0, 0(CX)(FS)
+ 	RET
+ settls:
+ 	MOVL	g_m(BX), AX
+ 	LEAL	m_tls(AX), AX
+-	MOVL	AX, 0x14(FS)
++	MOVL	AX, 0(CX)(FS)
+ #endif
+ 	get_tls(CX)
+ 	MOVL	BX, g(CX)
+@@ -867,6 +872,9 @@ rdtsc:
+ 	JMP done
+ 
+ TEXT ldt0setup<>(SB),NOSPLIT,$16-0
++#ifdef GOOS_windows
++	CALL	runtime·wintls(SB)
++#endif
+ 	// set up ldt 7 to point at m0.tls
+ 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
+ 	// the entry number is just a hint.  setldt will set up GS with what it used.
+@@ -1577,3 +1585,6 @@ TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
+ DATA runtime·tls_g+0(SB)/4, $8
+ GLOBL runtime·tls_g+0(SB), NOPTR, $4
+ #endif
++#ifdef GOOS_windows
++GLOBL runtime·tls_g+0(SB), NOPTR, $4
++#endif
+diff --git a/src/runtime/cgo/gcc_windows_386.c b/src/runtime/cgo/gcc_windows_386.c
+index 56fbaac9b8..0f4f01c7c0 100644
+--- a/src/runtime/cgo/gcc_windows_386.c
++++ b/src/runtime/cgo/gcc_windows_386.c
+@@ -12,10 +12,12 @@
+ #include "libcgo_windows.h"
+ 
+ static void threadentry(void*);
++static DWORD *tls_g;
+ 
+ void
+-x_cgo_init(G *g)
++x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
++	tls_g = (DWORD *)tlsg;
+ }
+ 
+ 
+@@ -39,10 +41,10 @@ threadentry(void *v)
+ 	 * Set specific keys in thread local storage.
+ 	 */
+ 	asm volatile (
+-		"movl %0, %%fs:0x14\n"	// MOVL tls0, 0x14(FS)
+-		"movl %%fs:0x14, %%eax\n"	// MOVL 0x14(FS), tmp
+-		"movl %1, 0(%%eax)\n"	// MOVL g, 0(FS)
+-		:: "r"(ts.tls), "r"(ts.g) : "%eax"
++		"movl %0, %%fs:0(%1)\n"	// MOVL tls0, 0(tls_g)(FS)
++		"movl %%fs:0(%1), %%eax\n"	// MOVL 0(tls_g)(FS), tmp
++		"movl %2, 0(%%eax)\n"	// MOVL g, 0(AX)
++		:: "r"(ts.tls), "r"(*tls_g), "r"(ts.g) : "%eax"
+ 	);
+ 
+ 	crosscall_386(ts.fn);
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index cf3a439523..8713f7d0d9 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -7,6 +7,9 @@
+ #include "textflag.h"
+ #include "time_windows.h"
+ 
++// Offsets into Thread Environment Block (pointer in FS)
++#define TEB_TlsSlots 0xE10
++
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+ 	MOVL	fn+0(FP), BX
+@@ -222,7 +225,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	RET
+ 
+ // void tstart(M *newm);
+-TEXT tstart<>(SB),NOSPLIT,$0
++TEXT tstart<>(SB),NOSPLIT,$8-4
+ 	MOVL	newm+0(FP), CX		// m
+ 	MOVL	m_g0(CX), DX		// g
+ 
+@@ -236,10 +239,11 @@ TEXT tstart<>(SB),NOSPLIT,$0
+ 	MOVL	AX, g_stackguard1(DX)
+ 
+ 	// Set up tls.
+-	LEAL	m_tls(CX), SI
+-	MOVL	SI, 0x14(FS)
++	LEAL	m_tls(CX), DI
+ 	MOVL	CX, g_m(DX)
+-	MOVL	DX, g(SI)
++	MOVL	DX, g(DI)
++	MOVL	DI, 4(SP)
++	CALL	runtime·setldt(SB) // clobbers CX and DX
+ 
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+@@ -266,10 +270,11 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 
+ 	RET
+ 
+-// setldt(int entry, int address, int limit)
+-TEXT runtime·setldt(SB),NOSPLIT,$0
+-	MOVL	base+4(FP), CX
+-	MOVL	CX, 0x14(FS)
++// setldt(int slot, int base, int size)
++TEXT runtime·setldt(SB),NOSPLIT,$0-12
++	MOVL	base+4(FP), DX
++	MOVL	runtime·tls_g(SB), CX
++	MOVL	DX, 0(CX)(FS)
+ 	RET
+ 
+ // Runs on OS stack.
+@@ -356,3 +361,28 @@ loop:
+ useQPC:
+ 	JMP	runtime·nanotimeQPC(SB)
+ 	RET
++
++// This is called from rt0_go, which runs on the system stack
++// using the initial stack allocated by the OS.
++TEXT runtime·wintls(SB),NOSPLIT|NOFRAME,$0
++	// Allocate a TLS slot to hold g across calls to external code
++	MOVL	SP, BP
++	MOVL	runtime·_TlsAlloc(SB), AX
++	CALL	AX
++	MOVL	BP, SP
++
++	MOVL	AX, CX	// TLS index
++
++	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
++	CMPL	CX, $64
++	JB	ok
++	CALL	runtime·abort(SB)
++ok:
++	// Convert the TLS index at CX into
++	// an offset from TEB_TlsSlots.
++	SHLL	$2, CX
++
++	// Save offset from TLS into tls_g.
++	ADDL	$TEB_TlsSlots, CX
++	MOVL	CX, runtime·tls_g(SB)
++	RET

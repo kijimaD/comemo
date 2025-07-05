@@ -21,6 +21,32 @@ Date:   Mon Feb 7 17:07:44 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1be7a60830..94cff06a73 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -802,8 +802,18 @@ func mcommoninit(mp *m, id int64) {
+ 		mp.id = mReserveID()
+ 	}
+ 
+-	// cputicks is not very random in startup virtual machine
+-	mp.fastrand = uint64(int64Hash(uint64(mp.id), fastrandseed^uintptr(cputicks())))
++	lo := uint32(int64Hash(uint64(mp.id), fastrandseed))
++	hi := uint32(int64Hash(uint64(cputicks()), ^fastrandseed))
++	if lo|hi == 0 {
++		hi = 1
++	}
++	// Same behavior as for 1.17.
++	// TODO: Simplify ths.
++	if goarch.BigEndian {
++		mp.fastrand = uint64(lo)<<32 | uint64(hi)
++	} else {
++		mp.fastrand = uint64(hi)<<32 | uint64(lo)
++	}
+ 
+ 	mpreinit(mp)
+ 	if mp.gsignal != nil {

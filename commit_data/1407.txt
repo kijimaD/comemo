@@ -11,7 +11,53 @@ Date:   Tue Jan 6 09:53:30 2009 -0800
     DELTA=29  (10 added, 2 deleted, 17 changed)
     OCL=22110
     CL=22113
-
+---
  src/cmd/cc/Makefile | 5 +----
  src/cmd/gc/Makefile | 2 +-
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index 61aec26a72..9eea5a1789 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -10,7 +10,6 @@ LIB=\
+ HFILES=\
+ 	cc.h\
+ 	y.tab.h\
+-	compat.h\
+ 
+ YFILES=\
+ 	cc.y\
+@@ -28,10 +27,8 @@ OFILES=\
+ 	funct.$O\
+ 	sub.$O\
+ 	com64.$O\
+-	compat.$O\
+ 	dpchk.$O\
+ 	omachcap.$O\
+-	compat.$O\
+ 
+ $(LIB): $(OFILES)
+ 	ar rsc $(LIB) $(OFILES)
+@@ -39,7 +36,7 @@ $(LIB): $(OFILES)
+ $(OFILES): $(HFILES)
+ 
+ y.tab.h: $(YFILES)
+-	yacc $(YFLAGS) $(YFILES)
++	bison -y $(YFLAGS) $(YFILES)
+ 
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 6c8834d2f2..1ab4497689 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -34,7 +34,7 @@ $(LIB): $(OFILES)
+ $(OFILES): $(HFILES)
+ 
+ y.tab.h: $(YFILES)
+-	yacc $(YFLAGS) $(YFILES)
++	bison -y $(YFLAGS) $(YFILES)
+ 
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c

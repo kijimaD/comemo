@@ -11,7 +11,7 @@ Date:   Sun Dec 22 08:55:29 2013 -0800
     R=jsing, iant
     CC=golang-codereviews, golang-dev
     https://golang.org/cl/30460043
-
+---
  src/pkg/runtime/cgo/gcc_dragonfly_386.c   | 4 ++--
  src/pkg/runtime/cgo/gcc_dragonfly_amd64.c | 4 ++--
  src/pkg/runtime/cgo/gcc_freebsd_386.c     | 4 ++--
@@ -24,3 +24,240 @@ Date:   Sun Dec 22 08:55:29 2013 -0800
  src/pkg/runtime/cgo/gcc_openbsd_386.c     | 4 ++--
  src/pkg/runtime/cgo/gcc_openbsd_amd64.c   | 4 ++--
  11 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/gcc_dragonfly_386.c b/src/pkg/runtime/cgo/gcc_dragonfly_386.c
+index 6797824c6d..695c16634b 100644
+--- a/src/pkg/runtime/cgo/gcc_dragonfly_386.c
++++ b/src/pkg/runtime/cgo/gcc_dragonfly_386.c
+@@ -36,14 +36,14 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	SIGFILLSET(ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_dragonfly_amd64.c b/src/pkg/runtime/cgo/gcc_dragonfly_amd64.c
+index eb342a2ff5..a46c121ad9 100644
+--- a/src/pkg/runtime/cgo/gcc_dragonfly_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -35,7 +35,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	SIGFILLSET(ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+@@ -43,7 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_386.c b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+index 6797824c6d..695c16634b 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+@@ -36,14 +36,14 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	SIGFILLSET(ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+index eb342a2ff5..a46c121ad9 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+@@ -35,7 +35,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	SIGFILLSET(ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+@@ -43,7 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_linux_386.c b/src/pkg/runtime/cgo/gcc_linux_386.c
+index c25c7b70fc..0a46c9b7a2 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_386.c
++++ b/src/pkg/runtime/cgo/gcc_linux_386.c
+@@ -34,7 +34,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	sigfillset(&ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	// Not sure why the memset is necessary here,
+ 	// but without it, we get a bogus stack size
+@@ -46,7 +46,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_linux_amd64.c b/src/pkg/runtime/cgo/gcc_linux_amd64.c
+index bd7c88d991..c530183b73 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_linux_amd64.c
+@@ -34,14 +34,14 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	sigfillset(&ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_386.c b/src/pkg/runtime/cgo/gcc_netbsd_386.c
+index b399e16dc4..28690ccbdf 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_386.c
+@@ -35,14 +35,14 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	sigfillset(&ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_amd64.c b/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
+index f27e142ce1..6e0482d5b1 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
+@@ -35,7 +35,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	sigfillset(&ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+@@ -43,7 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_arm.c b/src/pkg/runtime/cgo/gcc_netbsd_arm.c
+index 68c8b6e718..ba2ae2568c 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_arm.c
+@@ -36,14 +36,14 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	sigfillset(&ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_openbsd_386.c b/src/pkg/runtime/cgo/gcc_openbsd_386.c
+index 6422d1b931..e682c37251 100644
+--- a/src/pkg/runtime/cgo/gcc_openbsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_openbsd_386.c
+@@ -122,14 +122,14 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	sigfillset(&ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = sys_pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+diff --git a/src/pkg/runtime/cgo/gcc_openbsd_amd64.c b/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
+index 5a5a171143..64d29a935b 100644
+--- a/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
+@@ -122,7 +122,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	int err;
+ 
+ 	sigfillset(&ign);
+-	sigprocmask(SIG_SETMASK, &ign, &oset);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+@@ -130,7 +130,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	ts->g->stackguard = size;
+ 	err = sys_pthread_create(&p, &attr, threadentry, ts);
+ 
+-	sigprocmask(SIG_SETMASK, &oset, nil);
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));

@@ -14,6 +14,26 @@ Date:   Wed Nov 2 23:22:18 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 8c438f6f6f..4427a06ce5 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -3433,10 +3433,12 @@ func (b *builder) collect(p *Package, obj, ofile string, cgoLDFLAGS, outObj []st
+ 		// skip "-framework X" on Darwin
+ 		case goos == "darwin" && f == "-framework":
+ 			i++
+-		// skip "*.{dylib,so,dll}"
++		// skip "*.{dylib,so,dll,o,a}"
+ 		case strings.HasSuffix(f, ".dylib"),
+ 			strings.HasSuffix(f, ".so"),
+-			strings.HasSuffix(f, ".dll"):
++			strings.HasSuffix(f, ".dll"),
++			strings.HasSuffix(f, ".o"),
++			strings.HasSuffix(f, ".a"):
+ 		// Remove any -fsanitize=foo flags.
+ 		// Otherwise the compiler driver thinks that we are doing final link
+ 		// and links sanitizer runtime into the object file. But we are not doing

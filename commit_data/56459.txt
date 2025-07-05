@@ -20,7 +20,108 @@ Date:   Tue May 9 14:02:07 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go | 20 +++++++++++++-------
  src/go/types/infer.go                    | 20 +++++++++++++-------
  2 files changed, 26 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 94a59f94bb..d8c81820f8 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -29,10 +29,7 @@ const enableReverseTypeInference = true // disable for debugging
+ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (inferred []Type) {
+ 	if debug {
+ 		defer func() {
+-			assert(inferred == nil || len(inferred) == len(tparams))
+-			for _, targ := range inferred {
+-				assert(targ != nil)
+-			}
++			assert(inferred == nil || len(inferred) == len(tparams) && !containsNil(inferred))
+ 		}()
+ 	}
+ 
+@@ -47,14 +44,13 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	n := len(tparams)
+ 	assert(n > 0 && len(targs) <= n)
+ 
+-	// Function parameters and arguments must match in number.
++	// Parameters and arguments must match in number.
+ 	assert(params.Len() == len(args))
+ 
+ 	// If we already have all type arguments, we're done.
+-	if len(targs) == n {
++	if len(targs) == n && !containsNil(targs) {
+ 		return targs
+ 	}
+-	// len(targs) < n
+ 
+ 	// Make sure we have a "full" list of type arguments, some of which may
+ 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
+@@ -440,6 +436,16 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	return
+ }
+ 
++// containsNil reports whether list contains a nil entry.
++func containsNil(list []Type) bool {
++	for _, t := range list {
++		if t == nil {
++			return true
++		}
++	}
++	return false
++}
++
+ // renameTParams renames the type parameters in the given type such that each type
+ // parameter is given a new identity. renameTParams returns the new type parameters
+ // and updated type. If the result type is unchanged from the argument type, none
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 661ff771c8..9c31d6adf6 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -31,10 +31,7 @@ const enableReverseTypeInference = true // disable for debugging
+ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (inferred []Type) {
+ 	if debug {
+ 		defer func() {
+-			assert(inferred == nil || len(inferred) == len(tparams))
+-			for _, targ := range inferred {
+-				assert(targ != nil)
+-			}
++			assert(inferred == nil || len(inferred) == len(tparams) && !containsNil(inferred))
+ 		}()
+ 	}
+ 
+@@ -49,14 +46,13 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	n := len(tparams)
+ 	assert(n > 0 && len(targs) <= n)
+ 
+-	// Function parameters and arguments must match in number.
++	// Parameters and arguments must match in number.
+ 	assert(params.Len() == len(args))
+ 
+ 	// If we already have all type arguments, we're done.
+-	if len(targs) == n {
++	if len(targs) == n && !containsNil(targs) {
+ 		return targs
+ 	}
+-	// len(targs) < n
+ 
+ 	// Make sure we have a "full" list of type arguments, some of which may
+ 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
+@@ -442,6 +438,16 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	return
+ }
+ 
++// containsNil reports whether list contains a nil entry.
++func containsNil(list []Type) bool {
++	for _, t := range list {
++		if t == nil {
++			return true
++		}
++	}
++	return false
++}
++
+ // renameTParams renames the type parameters in the given type such that each type
+ // parameter is given a new identity. renameTParams returns the new type parameters
+ // and updated type. If the result type is unchanged from the argument type, none

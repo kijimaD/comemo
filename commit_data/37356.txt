@@ -20,9 +20,221 @@ Date:   Wed Jul 18 15:05:17 2018 -0400
     Change-Id: I8c5fe987fbc3f8d2eceb1138e6862a391ade150c
     Reviewed-on: https://go-review.googlesource.com/124708
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/mod.go       |  2 +-
  src/cmd/go/internal/modload/init.go     | 55 +++++++++++--------------
  src/cmd/go/internal/search/search.go    | 71 +++++++++++++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_find.txt | 10 +++--
  4 files changed, 102 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index ddf5000dd8..b2769fd5d6 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -207,7 +207,7 @@ func init() {
+ 
+ func runMod(cmd *base.Command, args []string) {
+ 	if modload.Init(); !modload.Enabled() {
+-		base.Fatalf("go mod: cannot use outside module")
++		base.Fatalf("go mod: cannot use outside module; see 'go help modules'")
+ 	}
+ 	if len(args) != 0 {
+ 		base.Fatalf("go mod: mod takes no arguments")
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index cfcc65cb39..602d33acb3 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -17,7 +17,6 @@ import (
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
+ 	"encoding/json"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -96,8 +95,8 @@ func Init() {
+ 	}
+ 
+ 	// If this is testgo - the test binary during cmd/go tests -
+-	// then do not let it look for a go.mod unless GO111MODULE has an explicit setting.
+-	if base := filepath.Base(os.Args[0]); (base == "testgo" || base == "testgo.exe") && env == "" {
++	// then do not let it look for a go.mod unless GO111MODULE has an explicit setting or this is 'go mod -init'.
++	if base := filepath.Base(os.Args[0]); (base == "testgo" || base == "testgo.exe") && env == "" && !CmdModInit {
+ 		return
+ 	}
+ 
+@@ -134,25 +133,27 @@ func Init() {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
++	inGOPATH := false
++	for _, gopath := range filepath.SplitList(cfg.BuildContext.GOPATH) {
++		if gopath == "" {
++			continue
++		}
++		if search.InDir(cwd, filepath.Join(gopath, "src")) != "" {
++			inGOPATH = true
++			break
++		}
++	}
++	if inGOPATH && !MustUseModules && cfg.CmdName == "mod" {
++		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
++	}
++
+ 	if CmdModInit {
+ 		// Running 'go mod -init': go.mod will be created in current directory.
+ 		ModRoot = cwd
+ 	} else {
+-		inGOPATH := false
+-		for _, gopath := range filepath.SplitList(cfg.BuildContext.GOPATH) {
+-			if gopath == "" {
+-				continue
+-			}
+-			if str.HasFilePathPrefix(cwd, filepath.Join(gopath, "src")) {
+-				inGOPATH = true
+-				break
+-			}
+-		}
+-		if inGOPATH {
+-			if !MustUseModules {
+-				// No automatic enabling in GOPATH.
+-				return
+-			}
++		if inGOPATH && !MustUseModules {
++			// No automatic enabling in GOPATH.
++			return
+ 		}
+ 		root, _ := FindModuleRoot(cwd, "", MustUseModules)
+ 		if root == "" {
+@@ -422,22 +423,12 @@ func FindModulePath(dir string) (string, error) {
+ 	}
+ 
+ 	// Look for path in GOPATH.
+-	xdir, errdir := filepath.EvalSymlinks(dir)
+ 	for _, gpdir := range filepath.SplitList(cfg.BuildContext.GOPATH) {
+-		xgpdir, errgpdir := filepath.EvalSymlinks(gpdir)
+-		src := filepath.Join(gpdir, "src") + string(filepath.Separator)
+-		xsrc := filepath.Join(xgpdir, "src") + string(filepath.Separator)
+-		if strings.HasPrefix(dir, src) {
+-			return filepath.ToSlash(dir[len(src):]), nil
+-		}
+-		if errdir == nil && strings.HasPrefix(xdir, src) {
+-			return filepath.ToSlash(xdir[len(src):]), nil
+-		}
+-		if errgpdir == nil && strings.HasPrefix(dir, xsrc) {
+-			return filepath.ToSlash(dir[len(xsrc):]), nil
++		if gpdir == "" {
++			continue
+ 		}
+-		if errdir == nil && errgpdir == nil && strings.HasPrefix(xdir, xsrc) {
+-			return filepath.ToSlash(xdir[len(xsrc):]), nil
++		if rel := search.InDir(dir, filepath.Join(gpdir, "src")); rel != "" && rel != "." {
++			return filepath.ToSlash(rel), nil
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 0c3400915a..b020f600c1 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -437,3 +437,74 @@ func IsStandardImportPath(path string) bool {
+ func IsRelativePath(pattern string) bool {
+ 	return strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../") || pattern == "." || pattern == ".."
+ }
++
++// InDir checks whether path is in the file tree rooted at dir.
++// If so, InDir returns an equivalent path relative to dir.
++// If not, InDir returns an empty string.
++// InDir makes some effort to succeed even in the presence of symbolic links.
++// TODO(rsc): Replace internal/test.inDir with a call to this function for Go 1.12.
++func InDir(path, dir string) string {
++	if rel := inDirLex(path, dir); rel != "" {
++		return rel
++	}
++	xpath, err := filepath.EvalSymlinks(path)
++	if err != nil || xpath == path {
++		xpath = ""
++	} else {
++		if rel := inDirLex(xpath, dir); rel != "" {
++			return rel
++		}
++	}
++
++	xdir, err := filepath.EvalSymlinks(dir)
++	if err == nil && xdir != dir {
++		if rel := inDirLex(path, xdir); rel != "" {
++			return rel
++		}
++		if xpath != "" {
++			if rel := inDirLex(xpath, xdir); rel != "" {
++				return rel
++			}
++		}
++	}
++	return ""
++}
++
++// inDirLex is like inDir but only checks the lexical form of the file names.
++// It does not consider symbolic links.
++// TODO(rsc): This is a copy of str.HasFilePathPrefix, modified to
++// return the suffix. Most uses of str.HasFilePathPrefix should probably
++// be calling InDir instead.
++func inDirLex(path, dir string) string {
++	pv := strings.ToUpper(filepath.VolumeName(path))
++	dv := strings.ToUpper(filepath.VolumeName(dir))
++	path = path[len(pv):]
++	dir = dir[len(dv):]
++	switch {
++	default:
++		return ""
++	case pv != dv:
++		return ""
++	case len(path) == len(dir):
++		if path == dir {
++			return "."
++		}
++		return ""
++	case dir == "":
++		return path
++	case len(path) > len(dir):
++		if dir[len(dir)-1] == filepath.Separator {
++			if path[:len(dir)] == dir {
++				return path[len(dir):]
++			}
++			return ""
++		}
++		if path[len(dir)] == filepath.Separator && path[:len(dir)] == dir {
++			if len(path) == len(dir)+1 {
++				return "."
++			}
++			return path[len(dir)+1:]
++		}
++		return ""
++	}
++}
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index 673a817c02..9f4393d0de 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -1,7 +1,4 @@
+-env GO111MODULE=on
+-
+ # Derive module path from import comment.
+-# TODO SHOULD NOT NEED ENV VAR YET
+ cd $WORK/x
+ exists x.go
+ go mod -init
+@@ -13,6 +10,13 @@ addcrlf x.go
+ go mod -init
+ stderr 'module x'
+ 
++# go mod should die in GOPATH if modules are not enabled for GOPATH
++cd $GOPATH/src/example.com/x/y
++! go mod -init
++stderr 'go: modules disabled inside GOPATH/src by GO111MODULE=auto; see ''go help modules'''
++
++env GO111MODULE=on
++
+ # Derive module path from location inside GOPATH.
+ cd $GOPATH/src/example.com/x/y
+ go mod -init

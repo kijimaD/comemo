@@ -21,7 +21,7 @@ Date:   Sat Aug 15 11:43:54 2009 -0700
     DELTA=320  (124 added, 50 deleted, 146 changed)
     OCL=33308
     CL=33341
-
+---
  src/pkg/big/arith.go      | 131 +++++++++++++++++++++++++---------------------
  src/pkg/big/arith_amd64.s |  54 ++++++++-----------
  src/pkg/big/arith_test.go |  86 ++++++++++++++++++++++--------
@@ -30,3 +30,849 @@ Date:   Sat Aug 15 11:43:54 2009 -0700
  src/pkg/big/bigZ.go       |  72 ++++++++++++-------------
  src/pkg/big/bigZ_test.go  |  26 ++++-----
  7 files changed, 246 insertions(+), 172 deletions(-)
+
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index 45b7a0cb25..f18b865098 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -13,11 +13,13 @@ import "unsafe"
+ 
+ // ----------------------------------------------------------------------------
+ // Elementary operations on words
++//
++// These operations are used by the vector operations below.
+ 
+ func addWW_s(x, y, c Word) (z1, z0 Word)
+ 
+ // z1<<_W + z0 = x+y+c, with c == 0 or 1
+-func addWW(x, y, c Word) (z1, z0 Word) {
++func addWW_g(x, y, c Word) (z1, z0 Word) {
+ 	yc := y+c;
+ 	z0 = x+yc;
+ 	if z0 < x || yc < y {
+@@ -30,7 +32,7 @@ func addWW(x, y, c Word) (z1, z0 Word) {
+ func subWW_s(x, y, c Word) (z1, z0 Word)
+ 
+ // z1<<_W + z0 = x-y-c, with c == 0 or 1
+-func subWW(x, y, c Word) (z1, z0 Word) {
++func subWW_g(x, y, c Word) (z1, z0 Word) {
+ 	yc := y+c;
+ 	z0 = x-yc;
+ 	if z0 > x || yc < y {
+@@ -40,8 +42,12 @@ func subWW(x, y, c Word) (z1, z0 Word) {
+ }
+ 
+ 
++// TODO(gri) mulWW_g is not needed anymore. Keep around for
++//           now since mulAddWWW_g should use some of the
++//           optimizations from mulWW_g eventually.
++
+ // z1<<_W + z0 = x*y
+-func mulW(x, y Word) (z1, z0 Word) {
++func mulWW_g(x, y Word) (z1, z0 Word) {
+ 	// Split x and y into 2 halfWords each, multiply
+ 	// the halfWords separately while avoiding overflow,
+ 	// and return the product as 2 Words.
+@@ -96,7 +102,7 @@ func mulW(x, y Word) (z1, z0 Word) {
+ 
+ 
+ // z1<<_W + z0 = x*y + c
+-func mulAddWW(x, y, c Word) (z1, z0 Word) {
++func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ 	// Split x and y into 2 halfWords each, multiply
+ 	// the halfWords separately while avoiding overflow,
+ 	// and return the product as 2 Words.
+@@ -124,17 +130,17 @@ func mulAddWW(x, y, c Word) (z1, z0 Word) {
+ }
+ 
+ 
+-func divWW_s(x1, x0, y Word) (q, r Word)
++func divWWW_s(x1, x0, y Word) (q, r Word)
+ 
+ // q = (x1<<_W + x0 - r)/y
+-func divWW(x1, x0, y Word) (q, r Word) {
++func divWW_g(x1, x0, y Word) (q, r Word) {
+ 	if x1 == 0 {
+ 		q, r = x0/y, x0%y;
+ 		return;
+ 	}
+ 
+ 	// TODO(gri) implement general case w/o assembly code
+-	q, r = divWW_s(x1, x0, y);
++	q, r = divWWW_s(x1, x0, y);
+ 	return;
+ }
+ 
+@@ -142,98 +148,105 @@ func divWW(x1, x0, y Word) (q, r Word) {
+ // ----------------------------------------------------------------------------
+ // Elementary operations on vectors
+ 
+-// For each function f there is a corresponding function f_s which
+-// implements the same functionality as f but is written in assembly.
++// All higher-level functions use these elementary vector operations.
++// The function pointers f are initialized with default implementations
++// f_g, written in Go for portability. The corresponding assembly routines
++// f_s should be installed if they exist.
++var (
++	// addVV sets z and returns c such that z+c = x+y.
++	addVV func(z, x, y *Word, n int) (c Word)	= addVV_g;
+ 
++	// subVV sets z and returns c such that z-c = x-y.
++	subVV func(z, x, y *Word, n int) (c Word)	= subVV_g;
+ 
+-func addVV_s(z, x, y *Word, n int) (c Word)
++	// addVW sets z and returns c such that z+c = x-y.
++	addVW func(z, x *Word, y Word, n int) (c Word)	= addVW_g;
++
++	// subVW sets z and returns c such that z-c = x-y.
++	subVW func(z, x *Word, y Word, n int) (c Word)	= subVW_g;
++
++	// mulAddVWW sets z and returns c such that z+c = x*y + r.
++	mulAddVWW func(z, x *Word, y, r Word, n int) (c Word)	= mulAddVWW_g;
++
++	// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
++	divWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)	= divWVW_g;
++)
++
++
++func useAsm() bool
++
++func init() {
++	if useAsm() {
++		// Install assemby routines.
++		// TODO(gri) This should only be done if the assembly routines are present.
++		addVV = addVV_s;
++		subVV = subVV_s;
++		addVW = addVW_s;
++		subVW = subVW_s;
++		mulAddVWW = mulAddVWW_s;
++		divWVW = divWVW_s;
++	}
++}
++
++
++func (p *Word) at(i int) *Word {
++	return (*Word)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + uintptr(i)*_S));
++}
+ 
+-// addVV sets z and returns c such that z+c = x+y.
+-// z, x, y are n-word vectors.
+-func addVV(z, x, y *Word, n int) (c Word) {
+-	for i := 0; i < n; i++ {
+-		c, *z = addWW(*x, *y, c);
+-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
+-		y = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(y)) + _S)));
+-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
+ 
++func addVV_s(z, x, y *Word, n int) (c Word)
++func addVV_g(z, x, y *Word, n int) (c Word) {
++	for i := 0; i < n; i++ {
++		c, *z.at(i) = addWW_g(*x.at(i), *y.at(i), c);
+ 	}
+ 	return
+ }
+ 
+ 
+ func subVV_s(z, x, y *Word, n int) (c Word)
+-
+-// subVV sets z and returns c such that z-c = x-y.
+-// z, x, y are n-word vectors.
+-func subVV(z, x, y *Word, n int) (c Word) {
++func subVV_g(z, x, y *Word, n int) (c Word) {
+ 	for i := 0; i < n; i++ {
+-		c, *z = subWW(*x, *y, c);
+-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
+-		y = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(y)) + _S)));
+-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
++		c, *z.at(i) = subWW_g(*x.at(i), *y.at(i), c);
+ 	}
+ 	return
+ }
+ 
+ 
+ func addVW_s(z, x *Word, y Word, n int) (c Word)
+-
+-// addVW sets z and returns c such that z+c = x-y.
+-// z, x are n-word vectors.
+-func addVW(z, x *Word, y Word, n int) (c Word) {
++func addVW_g(z, x *Word, y Word, n int) (c Word) {
+ 	c = y;
+ 	for i := 0; i < n; i++ {
+-		c, *z = addWW(*x, c, 0);
+-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
+-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
+-
++		c, *z.at(i) = addWW_g(*x.at(i), c, 0);
+ 	}
+ 	return
+ }
+ 
+-func subVW_s(z, x *Word, y Word, n int) (c Word)
+ 
+-// subVW sets z and returns c such that z-c = x-y.
+-// z, x are n-word vectors.
+-func subVW(z, x *Word, y Word, n int) (c Word) {
++func subVW_s(z, x *Word, y Word, n int) (c Word)
++func subVW_g(z, x *Word, y Word, n int) (c Word) {
+ 	c = y;
+ 	for i := 0; i < n; i++ {
+-		c, *z = subWW(*x, c, 0);
+-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
+-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
+-
++		c, *z.at(i) = subWW_g(*x.at(i), c, 0);
+ 	}
+ 	return
+ }
+ 
+ 
+-func mulVW_s(z, x *Word, y Word, n int) (c Word)
+-
+-// mulVW sets z and returns c such that z+c = x*y.
+-// z, x are n-word vectors.
+-func mulVW(z, x *Word, y Word, n int) (c Word) {
++func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
++func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
++	c = r;
+ 	for i := 0; i < n; i++ {
+-		c, *z = mulAddWW(*x, y, c);
+-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
+-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
++		c, *z.at(i) = mulAddWWW_g(*x.at(i), y, c);
+ 	}
+ 	return
+ }
+ 
+ 
+ func divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
+-
+-// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
+-// z, x are n-word vectors; xn is the extra word x[n] of x.
+-func divWVW(z* Word, xn Word, x *Word, y Word, n int) (r Word) {
++func divWVW_g(z* Word, xn Word, x *Word, y Word, n int) (r Word) {
+ 	r = xn;
+-	x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + uintptr(n-1)*_S)));
+-	z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + uintptr(n-1)*_S)));
+ 	for i := n-1; i >= 0; i-- {
+-		*z, r = divWW(r, *x, y);
+-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) - _S)));
+-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) - _S)));
++		*z.at(i), r = divWW_g(r, *x.at(i), y);
+ 	}
+ 	return;
+ }
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+index 0853846a7e..768a85d48a 100644
+--- a/src/pkg/big/arith_amd64.s
++++ b/src/pkg/big/arith_amd64.s
+@@ -3,10 +3,11 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file provides fast assembly versions of the routines in arith.go.
+-//
+-// Note: Eventually, these functions should be named like their corresponding
+-//       Go implementations. For now their names have "_s" appended so that
+-//       they can be linked and tested together.
++
++TEXT big·useAsm(SB),7,$0
++	MOVB $1, 8(SP)
++	RET
++
+ 
+ // ----------------------------------------------------------------------------
+ // Elementary operations on words
+@@ -39,21 +40,10 @@ TEXT big·subWW_s(SB),7,$0
+ 	RET
+ 
+ 
+-// func mulWW_s(x, y Word) (z1, z0 Word)
+-// z1<<64 + z0 = x*y
+-//
+-TEXT big·mulWW_s(SB),7,$0
+-	MOVQ a+0(FP), AX
+-	MULQ a+8(FP)
+-	MOVQ DX, a+16(FP)
+-	MOVQ AX, a+24(FP)
+-	RET
+-
+-
+-// func mulAddWW_s(x, y, c Word) (z1, z0 Word)
++// func mulAddWWW_s(x, y, c Word) (z1, z0 Word)
+ // z1<<64 + z0 = x*y + c
+ //
+-TEXT big·mulAddWW_s(SB),7,$0
++TEXT big·mulAddWWW_s(SB),7,$0
+ 	MOVQ a+0(FP), AX
+ 	MULQ a+8(FP)
+ 	ADDQ a+16(FP), AX
+@@ -63,10 +53,10 @@ TEXT big·mulAddWW_s(SB),7,$0
+ 	RET
+ 
+ 
+-// func divWW_s(x1, x0, y Word) (q, r Word)
++// func divWWW_s(x1, x0, y Word) (q, r Word)
+ // q = (x1<<64 + x0)/y + r
+ //
+-TEXT big·divWW_s(SB),7,$0
++TEXT big·divWWW_s(SB),7,$0
+ 	MOVQ a+0(FP), DX
+ 	MOVQ a+8(FP), AX
+ 	DIVQ a+16(FP)
+@@ -174,17 +164,17 @@ E4:	CMPQ BX, R11		// i < n
+ 	RET
+ 
+ 
+-// func mulVW_s(z, x *Word, y Word, n int) (c Word)
+-TEXT big·mulVW_s(SB),7,$0
++// func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
++TEXT big·mulAddVWW_s(SB),7,$0
+ 	MOVQ a+0(FP), R10	// z
+ 	MOVQ a+8(FP), R8	// x
+ 	MOVQ a+16(FP), R9	// y
+-	MOVL a+24(FP), R11	// n
++	MOVQ a+24(FP), CX	// c = r
++	MOVL a+32(FP), R11	// n
+ 	XORQ BX, BX			// i = 0
+-	XORQ CX, CX			// c = 0
+-	JMP E5
++	JMP E6
+ 
+-L5:	MOVQ (R8)(BX*8), AX
++L6:	MOVQ (R8)(BX*8), AX
+ 	MULQ R9
+ 	ADDQ CX, AX
+ 	ADCQ $0, DX
+@@ -192,10 +182,10 @@ L5:	MOVQ (R8)(BX*8), AX
+ 	MOVQ DX, CX
+ 	ADDL $1, BX			// i++
+ 
+-E5:	CMPQ BX, R11		// i < n
+-	JL L5
++E6:	CMPQ BX, R11		// i < n
++	JL L6
+ 
+-	MOVQ CX, a+32(FP)	// return c
++	MOVQ CX, a+40(FP)	// return c
+ 	RET
+ 
+ 
+@@ -206,14 +196,14 @@ TEXT big·divWVW_s(SB),7,$0
+ 	MOVQ a+16(FP), R8	// x
+ 	MOVQ a+24(FP), R9	// y
+ 	MOVL a+32(FP), BX	// i = n
+-	JMP E6
++	JMP E7
+ 
+-L6:	MOVQ (R8)(BX*8), AX
++L7:	MOVQ (R8)(BX*8), AX
+ 	DIVQ R9
+ 	MOVQ AX, (R10)(BX*8)
+ 
+-E6:	SUBL $1, BX
+-	JGE L6
++E7:	SUBL $1, BX			// i--
++	JGE L7				// i >= 0
+ 
+ 	MOVQ DX, a+40(FP)	// return r
+ 	RET
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/big/arith_test.go
+index 0544fa7c62..f8e582e17c 100644
+--- a/src/pkg/big/arith_test.go
++++ b/src/pkg/big/arith_test.go
+@@ -36,19 +36,19 @@ func testFunWW(t *testing.T, msg string, f funWW, a argWW) {
+ func TestFunWW(t *testing.T) {
+ 	for _, a := range sumWW {
+ 		arg := a;
+-		testFunWW(t, "addWW", addWW, arg);
++		testFunWW(t, "addWW_g", addWW_g, arg);
+ 		testFunWW(t, "addWW_s", addWW_s, arg);
+ 
+ 		arg = argWW{a.y, a.x, a.c, a.z1, a.z0};
+-		testFunWW(t, "addWW symmetric", addWW, arg);
++		testFunWW(t, "addWW_g symmetric", addWW_g, arg);
+ 		testFunWW(t, "addWW_s symmetric", addWW_s, arg);
+ 
+ 		arg = argWW{a.z0, a.x, a.c, a.z1, a.y};
+-		testFunWW(t, "subWW", subWW, arg);
++		testFunWW(t, "subWW_g", subWW_g, arg);
+ 		testFunWW(t, "subWW_s", subWW_s, arg);
+ 
+ 		arg = argWW{a.z0, a.y, a.c, a.z1, a.x};
+-		testFunWW(t, "subWW symmetric", subWW, arg);
++		testFunWW(t, "subWW_g symmetric", subWW_g, arg);
+ 		testFunWW(t, "subWW_s symmetric", subWW_s, arg);
+ 	}
+ }
+@@ -97,19 +97,19 @@ func testFunVV(t *testing.T, msg string, f funVV, a argVV) {
+ func TestFunVV(t *testing.T) {
+ 	for _, a := range sumVV {
+ 		arg := a;
+-		testFunVV(t, "addVV", addVV, arg);
++		testFunVV(t, "addVV_g", addVV_g, arg);
+ 		testFunVV(t, "addVV_s", addVV_s, arg);
+ 
+ 		arg = argVV{a.z, a.y, a.x, a.c};
+-		testFunVV(t, "addVV symmetric", addVV, arg);
++		testFunVV(t, "addVV_g symmetric", addVV_g, arg);
+ 		testFunVV(t, "addVV_s symmetric", addVV_s, arg);
+ 
+ 		arg = argVV{a.x, a.z, a.y, a.c};
+-		testFunVV(t, "subVV", subVV, arg);
++		testFunVV(t, "subVV_g", subVV_g, arg);
+ 		testFunVV(t, "subVV_s", subVV_s, arg);
+ 
+ 		arg = argVV{a.y, a.z, a.x, a.c};
+-		testFunVV(t, "subVV symmetric", subVV, arg);
++		testFunVV(t, "subVV_g symmetric", subVV_g, arg);
+ 		testFunVV(t, "subVV_s symmetric", subVV_s, arg);
+ 	}
+ }
+@@ -162,26 +162,64 @@ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
+ func TestFunVW(t *testing.T) {
+ 	for _, a := range sumVW {
+ 		arg := a;
+-		testFunVW(t, "addVW", addVW, arg);
++		testFunVW(t, "addVW_g", addVW_g, arg);
+ 		testFunVW(t, "addVW_s", addVW_s, arg);
+ 
+ 		arg = argVW{a.x, a.z, a.y, a.c};
+-		testFunVW(t, "subVW", subVW, arg);
++		testFunVW(t, "subVW_g", subVW_g, arg);
+ 		testFunVW(t, "subVW_s", subVW_s, arg);
+ 	}
++}
+ 
+-	for _, a := range prodVW {
+-		arg := a;
+-		testFunVW(t, "mulVW", mulVW, arg);
+-		testFunVW(t, "mulVW_s", mulVW_s, arg);
++
++type funVWW func(z, x *Word, y, r Word, n int) (c Word)
++type argVWW struct { z, x []Word; y, r Word; c Word }
++
++var prodVWW = []argVWW{
++	argVWW{},
++	argVWW{[]Word{0}, []Word{0}, 0, 0, 0},
++	argVWW{[]Word{991}, []Word{0}, 0, 991, 0},
++	argVWW{[]Word{0}, []Word{_M}, 0, 0, 0},
++	argVWW{[]Word{991}, []Word{_M}, 0, 991, 0},
++	argVWW{[]Word{0}, []Word{0}, _M, 0, 0},
++	argVWW{[]Word{991}, []Word{0}, _M, 991, 0},
++	argVWW{[]Word{1}, []Word{1}, 1, 0, 0},
++	argVWW{[]Word{992}, []Word{1}, 1, 991, 0},
++	argVWW{[]Word{22793}, []Word{991}, 23, 0, 0},
++	argVWW{[]Word{22800}, []Word{991}, 23, 7, 0},
++	argVWW{[]Word{0, 0, 0, 22793}, []Word{0, 0, 0, 991}, 23, 0, 0},
++	argVWW{[]Word{7, 0, 0, 22793}, []Word{0, 0, 0, 991}, 23, 7, 0},
++	argVWW{[]Word{0, 0, 0, 0}, []Word{7893475, 7395495, 798547395, 68943}, 0, 0, 0},
++	argVWW{[]Word{991, 0, 0, 0}, []Word{7893475, 7395495, 798547395, 68943}, 0, 991, 0},
++	argVWW{[]Word{0, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 0, 0},
++	argVWW{[]Word{991, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 991, 0},
++	argVWW{[]Word{_M<<1&_M}, []Word{_M}, 1<<1, 0, _M>>(_W-1)},
++	argVWW{[]Word{_M<<1&_M + 1}, []Word{_M}, 1<<1, 1, _M>>(_W-1)},
++	argVWW{[]Word{_M<<7&_M}, []Word{_M}, 1<<7, 0, _M>>(_W-7)},
++	argVWW{[]Word{_M<<7&_M + 1<<6}, []Word{_M}, 1<<7, 1<<6, _M>>(_W-7)},
++	argVWW{[]Word{_M<<7&_M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, 0, _M>>(_W-7)},
++	argVWW{[]Word{_M<<7&_M + 1<<6, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, 1<<6, _M>>(_W-7)},
++}
++
++
++func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
++	n := len(a.z);
++	z := make([]Word, n);
++	c := f(addr(z), addr(a.x), a.y, a.r, n);
++	for i, zi := range z {
++		if zi != a.z[i] {
++			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i]);
++			break;
++		}
++	}
++	if c != a.c {
++		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c);
+ 	}
+ }
+ 
+ 
+-// TODO(gri) Vector mul and div are not quite symmetric.
+-//           make it symmetric, mulVW should become mulAddVWW.
+-//           Correct decision may become obvious after implementing
+-//           the higher-level routines.
++// TODO(gri) mulAddVWW and divWVW are symmetric operations but
++//           their signature is not symmetric. Try to unify.
+ 
+ type funWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)
+ type argWVW struct { z []Word; xn Word; x []Word; y Word; r Word }
+@@ -203,10 +241,14 @@ func testFunWVW(t *testing.T, msg string, f funWVW, a argWVW) {
+ 
+ 
+ func TestFunVWW(t *testing.T) {
+-	for _, a := range prodVW {
+-		if a.y != 0 {
+-			arg := argWVW{a.x, a.c, a.z, a.y, 0};
+-			testFunWVW(t, "divWVW", divWVW, arg);
++	for _, a := range prodVWW {
++		arg := a;
++		testFunVWW(t, "mulAddVWW_g", mulAddVWW_g, arg);
++		testFunVWW(t, "mulAddVWW_s", mulAddVWW_s, arg);
++
++		if a.y != 0 && a.r < a.y {
++			arg := argWVW{a.x, a.c, a.z, a.y, a.r};
++			testFunWVW(t, "divWVW_g", divWVW_g, arg);
+ 			testFunWVW(t, "divWVW_s", divWVW_s, arg);
+ 		}
+ 	}
+diff --git a/src/pkg/big/bigN.go b/src/pkg/big/bigN.go
+index 50d73a7916..b696563095 100644
+--- a/src/pkg/big/bigN.go
++++ b/src/pkg/big/bigN.go
+@@ -20,6 +20,9 @@ package big
+ // always normalized before returning the final result. The normalized
+ // representation of 0 is the empty or nil slice (length = 0).
+ 
++// TODO(gri) - convert these routines into methods for type 'nat'
++//           - decide if type 'nat' should be exported
++
+ func normN(z []Word) []Word {
+ 	i := len(z);
+ 	for i > 0 && z[i-1] == 0 {
+@@ -45,7 +48,7 @@ func makeN(z []Word, m int) []Word {
+ 
+ func newN(z []Word, x uint64) []Word {
+ 	if x == 0 {
+-		return nil;  // len == 0
++		return makeN(z, 0);
+ 	}
+ 
+ 	// single-digit values
+@@ -95,6 +98,7 @@ func addNN(z, x, y []Word) []Word {
+ 		// result is x
+ 		return setN(z, x);
+ 	}
++	// m > 0
+ 
+ 	z = makeN(z, m);
+ 	c := addVV(&z[0], &x[0], &y[0], n);
+@@ -124,6 +128,7 @@ func subNN(z, x, y []Word) []Word {
+ 		// result is x
+ 		return setN(z, x);
+ 	}
++	// m > 0
+ 
+ 	z = makeN(z, m);
+ 	c := subVV(&z[0], &x[0], &y[0], n);
+@@ -133,8 +138,8 @@ func subNN(z, x, y []Word) []Word {
+ 	if c != 0 {
+ 		panic("underflow");
+ 	}
+-
+ 	z = normN(z);
++
+ 	return z;
+ }
+ 
+@@ -160,27 +165,38 @@ func cmpNN(x, y []Word) int {
+ }
+ 
+ 
+-func mulNW(z, x []Word, y Word) []Word {
++func mulAddNWW(z, x []Word, y, r Word) []Word {
+ 	m := len(x);
+-	switch {
+-	case m == 0 || y == 0:
+-		return setN(z, nil);  // result is 0
+-	case y == 1:
+-		return setN(z, x);  // result is x
++	if m == 0 || y == 0 {
++		return newN(z, uint64(r));	// result is r
+ 	}
+ 	// m > 0
+-	z = makeN(z, m+1);
+-	c := mulVW(&z[0], &x[0], y, m);
++
++	z = makeN(z, m);
++	c := mulAddVWW(&z[0], &x[0], y, r, m);
+ 	if c > 0 {
+ 		z = z[0 : m+1];
+ 		z[m] = c;
+ 	}
++
+ 	return z;
+ }
+ 
+ 
+ func mulNN(z, x, y []Word) []Word {
++	m := len(x);
++	n := len(y);
++
++	switch {
++	case m < n:
++		return mulNN(z, x, y);
++	case m == 0 || n == 0:
++		return makeN(z, 0);
++	}
++	// m > 0 && n > 0 && m >= n
++
+ 	panic("mulNN unimplemented");
++
+ 	return z
+ }
+ 
+@@ -274,7 +290,7 @@ func scanN(z []Word, s string, base int) ([]Word, int, int) {
+ 	for ; i < n; i++ {
+ 		d := hexValue(s[i]);
+ 		if 0 <= d && d < base {
+-			panic("scanN needs mulAddVWW");
++			z = mulAddNWW(z, z, Word(base), Word(d));
+ 		} else {
+ 			break;
+ 		}
+diff --git a/src/pkg/big/bigN_test.go b/src/pkg/big/bigN_test.go
+index 48b78c48b6..8f9f9cc6a3 100644
+--- a/src/pkg/big/bigN_test.go
++++ b/src/pkg/big/bigN_test.go
+@@ -73,5 +73,16 @@ func TestStringN(t *testing.T) {
+ 		if s != a.s {
+ 			t.Errorf("stringN%+v\n\tgot s = %s; want %s", a, s, a.s);
+ 		}
++
++		x, b, n := scanN(nil, a.s, a.b);
++		if cmpNN(x, a.x) != 0 {
++			t.Errorf("scanN%+v\n\tgot z = %v; want %v", a, x, a.x);
++		}
++		if b != a.b {
++			t.Errorf("scanN%+v\n\tgot b = %d; want %d", a, b, a.b);
++		}
++		if n != len(a.s) {
++			t.Errorf("scanN%+v\n\tgot n = %d; want %d", a, n, len(a.s));
++		}
+ 	}
+ }
+diff --git a/src/pkg/big/bigZ.go b/src/pkg/big/bigZ.go
+index 03534eccfd..3e6bbd15e8 100644
+--- a/src/pkg/big/bigZ.go
++++ b/src/pkg/big/bigZ.go
+@@ -6,118 +6,118 @@
+ 
+ package big
+ 
+-// A Z represents a signed multi-precision integer.
+-// The zero value for a Z represents the value 0.
+-type Z struct {
++// An Int represents a signed multi-precision integer.
++// The zero value for an Int represents the value 0.
++type Int struct {
+ 	neg bool;  // sign
+-	m []Word;  // mantissa
++	abs []Word;  // absolute value of the integer
+ }
+ 
+ 
+-// NewZ sets z to x.
+-func NewZ(z Z, x int64) Z {
++// New sets z to x.
++func (z *Int) New(x int64) *Int {
+ 	z.neg = false;
+ 	if x < 0 {
+ 		z.neg = true;
+ 		x = -x;
+ 	}
+-	z.m = newN(z.m, uint64(x));
++	z.abs = newN(z.abs, uint64(x));
+ 	return z;
+ }
+ 
+ 
+-// SetZ sets z to x.
+-func SetZ(z, x Z) Z {
++// Set sets z to x.
++func (z *Int) Set(x *Int) *Int {
+ 	z.neg = x.neg;
+-	z.m = setN(z.m, x.m);
++	z.abs = setN(z.abs, x.abs);
+ 	return z;
+ }
+ 
+ 
+-// AddZZ computes z = x+y.
+-func AddZZ(z, x, y Z) Z {
++// Add computes z = x+y.
++func (z *Int) Add(x, y *Int) *Int {
+ 	if x.neg == y.neg {
+ 		// x + y == x + y
+ 		// (-x) + (-y) == -(x + y)
+ 		z.neg = x.neg;
+-		z.m = addNN(z.m, x.m, y.m);
++		z.abs = addNN(z.abs, x.abs, y.abs);
+ 	} else {
+ 		// x + (-y) == x - y == -(y - x)
+ 		// (-x) + y == y - x == -(x - y)
+-		if cmpNN(x.m, y.m) >= 0 {
++		if cmpNN(x.abs, y.abs) >= 0 {
+ 			z.neg = x.neg;
+-			z.m = subNN(z.m, x.m, y.m);
++			z.abs = subNN(z.abs, x.abs, y.abs);
+ 		} else {
+ 			z.neg = !x.neg;
+-			z.m = subNN(z.m, y.m, x.m);
++			z.abs = subNN(z.abs, y.abs, x.abs);
+ 		}
+ 	}
+-	if len(z.m) == 0 {
++	if len(z.abs) == 0 {
+ 		z.neg = false;  // 0 has no sign
+ 	}
+ 	return z
+ }
+ 
+ 
+-// AddZZ computes z = x-y.
+-func SubZZ(z, x, y Z) Z {
++// Sub computes z = x-y.
++func (z *Int) Sub(x, y *Int) *Int {
+ 	if x.neg != y.neg {
+ 		// x - (-y) == x + y
+ 		// (-x) - y == -(x + y)
+ 		z.neg = x.neg;
+-		z.m = addNN(z.m, x.m, y.m);
++		z.abs = addNN(z.abs, x.abs, y.abs);
+ 	} else {
+ 		// x - y == x - y == -(y - x)
+ 		// (-x) - (-y) == y - x == -(x - y)
+-		if cmpNN(x.m, y.m) >= 0 {
++		if cmpNN(x.abs, y.abs) >= 0 {
+ 			z.neg = x.neg;
+-			z.m = subNN(z.m, x.m, y.m);
++			z.abs = subNN(z.abs, x.abs, y.abs);
+ 		} else {
+ 			z.neg = !x.neg;
+-			z.m = subNN(z.m, y.m, x.m);
++			z.abs = subNN(z.abs, y.abs, x.abs);
+ 		}
+ 	}
+-	if len(z.m) == 0 {
++	if len(z.abs) == 0 {
+ 		z.neg = false;  // 0 has no sign
+ 	}
+ 	return z
+ }
+ 
+ 
+-// MulZZ computes z = x*y.
+-func MulZZ(z, x, y Z) Z {
++// Mul computes z = x*y.
++func (z *Int) Mul(x, y *Int) *Int {
+ 	// x * y == x * y
+ 	// x * (-y) == -(x * y)
+ 	// (-x) * y == -(x * y)
+ 	// (-x) * (-y) == x * y
+ 	z.neg = x.neg != y.neg;
+-	z.m = mulNN(z.m, x.m, y.m);
++	z.abs = mulNN(z.abs, x.abs, y.abs);
+ 	return z
+ }
+ 
+ 
+-// NegZ computes z = -x.
+-func NegZ(z, x Z) Z {
+-	z.neg = len(x.m) > 0 && !x.neg;  // 0 has no sign
+-	z.m = setN(z.m, x.m);
++// Neg computes z = -x.
++func (z *Int) Neg(x *Int) *Int {
++	z.neg = len(x.abs) > 0 && !x.neg;  // 0 has no sign
++	z.abs = setN(z.abs, x.abs);
+ 	return z;
+ }
+ 
+ 
+-// Cmp compares x and y. The result is an int value that is
++// CmpInt compares x and y. The result is an int value that is
+ //
+ //   <  0 if x <  y
+ //   == 0 if x == y
+ //   >  0 if x >  y
+ //
+-func CmpZZ(x, y Z) (r int) {
++func CmpInt(x, y *Int) (r int) {
+ 	// x cmp y == x cmp y
+ 	// x cmp (-y) == x
+ 	// (-x) cmp y == y
+ 	// (-x) cmp (-y) == -(x cmp y)
+ 	switch {
+ 	case x.neg == y.neg:
+-		r = cmpNN(x.m, y.m);
++		r = cmpNN(x.abs, y.abs);
+ 		if x.neg {
+ 			r = -r;
+ 		}
+@@ -130,10 +130,10 @@ func CmpZZ(x, y Z) (r int) {
+ }
+ 
+ 
+-func (x Z) String() string {
++func (x *Int) String() string {
+ 	s := "";
+ 	if x.neg {
+ 		s = "-";
+ 	}
+-	return s + stringN(x.m, 10);
++	return s + stringN(x.abs, 10);
+ }
+diff --git a/src/pkg/big/bigZ_test.go b/src/pkg/big/bigZ_test.go
+index ed6f4ff9b7..528afdd234 100644
+--- a/src/pkg/big/bigZ_test.go
++++ b/src/pkg/big/bigZ_test.go
+@@ -7,14 +7,14 @@ package big
+ import "testing"
+ 
+ 
+-func newZ(x int64) Z {
+-	var z Z;
+-	return NewZ(z, x);
++func newZ(x int64) *Int {
++	var z Int;
++	return z.New(x);
+ }
+ 
+ 
+-type funZZ func(z, x, y Z) Z
+-type argZZ struct { z, x, y Z }
++type funZZ func(z, x, y *Int) *Int
++type argZZ struct { z, x, y *Int }
+ 
+ var sumZZ = []argZZ{
+ 	argZZ{newZ(0), newZ(0), newZ(0)},
+@@ -28,9 +28,9 @@ var sumZZ = []argZZ{
+ 
+ func TestSetZ(t *testing.T) {
+ 	for _, a := range sumZZ {
+-		var z Z;
+-		z = SetZ(z, a.z);
+-		if CmpZZ(z, a.z) != 0 {
++		var z Int;
++		z.Set(a.z);
++		if CmpInt(&z, a.z) != 0 {
+ 			t.Errorf("got z = %v; want %v", z, a.z);
+ 		}
+ 	}
+@@ -38,15 +38,17 @@ func TestSetZ(t *testing.T) {
+ 
+ 
+ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
+-	var z Z;
+-	z = f(z, a.x, a.y);
+-	if CmpZZ(z, a.z) != 0 {
+-		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z);
++	var z Int;
++	f(&z, a.x, a.y);
++	if CmpInt(&z, a.z) != 0 {
++		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z);
+ 	}
+ }
+ 
+ 
+ func TestFunZZ(t *testing.T) {
++	AddZZ := func(z, x, y *Int) *Int { return z.Add(x, y) };
++	SubZZ := func(z, x, y *Int) *Int { return z.Sub(x, y) };
+ 	for _, a := range sumZZ {
+ 		arg := a;
+ 		testFunZZ(t, "AddZZ", AddZZ, arg);

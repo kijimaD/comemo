@@ -8,7 +8,7 @@ Date:   Tue Nov 17 20:41:44 2009 -0800
     
     R=rsc
     https://golang.org/cl/156055
-
+---
  src/cmd/gc/builtin.c.boot       |  1 +
  src/cmd/gc/go.h                 |  1 +
  src/cmd/gc/lex.c                |  1 +
@@ -22,3 +22,357 @@ Date:   Tue Nov 17 20:41:44 2009 -0800
  src/pkg/runtime/memmove_amd64.s | 65 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/slice.c         | 33 +++++++++++++++++++++
  12 files changed, 209 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index fc8a6d1f60..8b794efdb8 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -25,6 +25,7 @@ char *runtimeimport =
+ 	"func runtime.sliceinttostring (? []int) (? string)\n"
+ 	"func runtime.stringiter (? string, ? int) (? int)\n"
+ 	"func runtime.stringiter2 (? string, ? int) (retk int, retv int)\n"
++	"func runtime.slicecopy (to any, fr any, wid uint32) (? int)\n"
+ 	"func runtime.ifaceI2E (iface any) (ret any)\n"
+ 	"func runtime.ifaceE2I (typ *uint8, iface any) (ret any)\n"
+ 	"func runtime.ifaceT2E (typ *uint8, elem any) (ret any)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f5b88ff593..7702efbf74 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -346,6 +346,7 @@ enum
+ 	OCMPIFACE, OCMPSTR,
+ 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
+ 	OCONV, OCONVNOP, OCONVIFACE, OCONVSLICE,
++	OCOPY,
+ 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
+ 	ODOTTYPE,
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 14500dc75a..f858aa95ec 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1245,6 +1245,7 @@ static	struct
+ 	"cap",		LNAME,		Txxx,		OCAP,
+ 	"close",	LNAME,		Txxx,		OCLOSE,
+ 	"closed",	LNAME,		Txxx,		OCLOSED,
++	"copy",		LNAME,		Txxx,		OCOPY,
+ 	"len",		LNAME,		Txxx,		OLEN,
+ 	"make",		LNAME,		Txxx,		OMAKE,
+ 	"new",		LNAME,		Txxx,		ONEW,
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index ce4f721aed..bbb7b0fbd2 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -44,6 +44,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCAP:
+ 	case OCLOSE:
+ 	case OCLOSED:
++	case OCOPY:
+ 	case OLEN:
+ 	case OMAKE:
+ 	case ONEW:
+@@ -305,6 +306,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCLOSE:
+ 	case OCLOSED:
+ 	case OLEN:
++	case OCOPY:
+ 	case OMAKE:
+ 	case ONEW:
+ 	case OPANIC:
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 5e36329209..1f078f2da8 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -33,6 +33,7 @@ func slicebytetostring([]byte) string
+ func sliceinttostring([]int) string
+ func stringiter(string, int) int
+ func stringiter2(string, int) (retk int, retv int)
++func slicecopy(to any, fr any, wid uint32) int
+ 
+ func ifaceI2E(iface any) (ret any)
+ func ifaceE2I(typ *byte, iface any) (ret any)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 75ece477d2..22e59c5c80 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -746,6 +746,7 @@ goopnames[] =
+ 	[OCLOSE]	= "close",
+ 	[OCOM]		= "^",
+ 	[OCONTINUE]	= "continue",
++	[OCOPY]		= "copy",
+ 	[ODEC]		= "--",
+ 	[ODEFER]	= "defer",
+ 	[ODIV]		= "/",
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 108a2d3e9b..86633b86d9 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -761,6 +761,32 @@ reswitch:
+ 			ok |= Etop;
+ 		goto ret;
+ 
++	case OCOPY:
++		ok |= Erv;
++		args = n->list;
++		if(args == nil || args->next == nil) {
++			yyerror("missing arguments to copy");
++			goto error;
++		}
++		if(args->next->next != nil) {
++			yyerror("too many arguments to copy");
++			goto error;
++		}
++		typecheck(&args->n, Erv);
++		typecheck(&args->next->n, Erv);
++		if(!isslice(args->n->type) || !isslice(args->next->n->type)) {
++			yyerror("arguments to copy must be slices");
++			goto error;
++		}
++		if(!eqtype(args->n->type, args->next->n->type)) {
++			yyerror("arguments to copy must be slices of the same type");
++			goto error;
++		}
++		n->left = args->n;
++		n->right = args->next->n;
++		n->type = types[TINT];
++		goto ret;
++
+ 	case OCONV:
+ 	doconv:
+ 		ok |= Erv;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6aa23783f5..bb100b9716 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -307,6 +307,7 @@ walkstmt(Node **np)
+ 	case OAS2MAPR:
+ 	case OCLOSE:
+ 	case OCLOSED:
++	case OCOPY:
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+ 	case OCALL:
+@@ -904,6 +905,15 @@ walkexpr(Node **np, NodeList **init)
+ 			conv(n->right, types[TINT]));
+ 		goto ret;
+ 
++	case OCOPY:
++		fn = syslook("slicecopy", 1);
++		argtype(fn, n->left->type);
++		argtype(fn, n->right->type);
++		n = mkcall1(fn, n->type, init,
++			n->left, n->right,
++			nodintconst(n->left->type->width));
++		goto ret;
++
+ 	case OCLOSE:
+ 		// cannot use chanfn - closechan takes any, not chan any
+ 		fn = syslook("closechan", 1);
+@@ -950,7 +960,8 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case ORUNESTR:
+ 		// sys_intstring(v)
+-		n = mkcall("intstring", n->type, init, conv(n->left, types[TINT64]));	// TODO(rsc): int64?!
++		n = mkcall("intstring", n->type, init,
++			conv(n->left, types[TINT64]));	// TODO(rsc): int64?!
+ 		goto ret;
+ 
+ 	case OARRAYBYTESTR:
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 08bf278ef4..3c97c495f6 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -68,6 +68,7 @@ OFILES=\
+ 	sys.$O\
+ 	thread.$O\
+ 	traceback.$O\
++	memmove_$(GOARCH).$O\
+ 	$(OFILES_$(GOARCH))\
+ 
+ HFILES=\
+diff --git a/src/pkg/runtime/memmove_386.s b/src/pkg/runtime/memmove_386.s
+new file mode 100644
+index 0000000000..f7bc402590
+--- /dev/null
++++ b/src/pkg/runtime/memmove_386.s
+@@ -0,0 +1,65 @@
++	TEXT	memmove(SB), $0
++
++	MOVL	to+0(FP), DI
++	MOVL	fr+4(FP), SI
++	MOVL	n+8(FP), BX
++	JLT	fault
++
++/*
++ * check and set for backwards
++ * should we look closer for overlap?
++ */
++	CMPL	SI, DI
++	JLS	back
++
++/*
++ * foreward copy loop
++ */
++	MOVL	BX, CX
++	SHRL	$2, CX
++	ANDL	$3, BX
++
++	REP;	MOVSL
++	MOVL	BX, CX
++	REP;	MOVSB
++
++	MOVL	to+0(FP),AX
++	RET
++/*
++ * whole thing backwards has
++ * adjusted addresses
++ */
++back:
++	ADDL	BX, DI
++	ADDL	BX, SI
++	STD
++
++/*
++ * copy
++ */
++	MOVL	BX, CX
++	SHRL	$2, CX
++	ANDL	$3, BX
++
++	SUBL	$4, DI
++	SUBL	$4, SI
++	REP;	MOVSL
++
++	ADDL	$3, DI
++	ADDL	$3, SI
++	MOVL	BX, CX
++	REP;	MOVSB
++
++	CLD
++	MOVL	to+0(FP),AX
++	RET
++
++/*
++ * if called with negative count,
++ * treat as error rather than
++ * rotating all of memory
++ */
++fault:
++	MOVL	$0,SI
++	MOVL	0(SI), AX
++	RET
+diff --git a/src/pkg/runtime/memmove_amd64.s b/src/pkg/runtime/memmove_amd64.s
+new file mode 100644
+index 0000000000..7444d3bdbf
+--- /dev/null
++++ b/src/pkg/runtime/memmove_amd64.s
+@@ -0,0 +1,65 @@
++	TEXT	memmove(SB), $0
++
++	MOVQ	to+0(FP), DI
++	MOVQ	fr+8(FP), SI
++	MOVLQSX	n+16(FP), BX
++	JLT	fault
++
++/*
++ * check and set for backwards
++ * should we look closer for overlap?
++ */
++	CMPQ	SI, DI
++	JLS	back
++
++/*
++ * foreward copy loop
++ */
++	MOVQ	BX, CX
++	SHRQ	$3, CX
++	ANDQ	$7, BX
++
++	REP;	MOVSQ
++	MOVQ	BX, CX
++	REP;	MOVSB
++
++	MOVQ	to+0(FP),AX
++	RET
++/*
++ * whole thing backwards has
++ * adjusted addresses
++ */
++back:
++	ADDQ	BX, DI
++	ADDQ	BX, SI
++	STD
++
++/*
++ * copy
++ */
++	MOVQ	BX, CX
++	SHRQ	$3, CX
++	ANDQ	$7, BX
++
++	SUBQ	$8, DI
++	SUBQ	$8, SI
++	REP;	MOVSQ
++
++	ADDQ	$7, DI
++	ADDQ	$7, SI
++	MOVQ	BX, CX
++	REP;	MOVSB
++
++	CLD
++	MOVQ	to+0(FP),AX
++	RET
++
++/*
++ * if called with negative count,
++ * treat as error rather than
++ * rotating all of memory
++ */
++fault:
++	MOVQ	$0,SI
++	MOVQ	0(SI), AX
++	RET
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 722802c004..00d9724fbe 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -177,6 +177,39 @@ runtime·arraytoslice(byte* old, uint32 nel, Slice ret)
+ 	}
+ }
+ 
++// slicecopy(to any, fr any, wid uint32) int
++void
++runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret)
++{
++	if(fm.array == nil || fm.len == 0 ||
++	   to.array == nil || to.len == 0 ||
++	   width == 0) {
++		ret = 0;
++		goto out;
++	}
++
++	ret = fm.len;
++	if(to.len > ret)
++		ret = to.len;
++
++	memmove(to.array, fm.array, ret*width);
++
++out:
++	FLUSH(&ret);
++
++	if(debug) {
++		prints("main·copy: to=");
++		runtime·printslice(to);
++		prints("; fm=");
++		runtime·printslice(fm);
++		prints("; width=");
++		runtime·printint(width);
++		prints("; ret=");
++		runtime·printint(ret);
++		prints("\n");
++	}
++}
++
+ void
+ runtime·printslice(Slice a)
+ {

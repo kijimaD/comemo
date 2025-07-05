@@ -16,6 +16,25 @@ Date:   Fri Nov 4 13:27:23 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-
+---
  src/runtime/asm_loong64.s | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index 2513d2bb54..60641d0aee 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -266,6 +266,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	UNDEF
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
++	// Force SPWRITE. This function doesn't actually write SP,
++	// but it is called with a special calling convention where
++	// the caller doesn't save LR on stack but passes it as a
++	// register (R5), and the unwinder currently doesn't understand.
++	// Make it SPWRITE to stop unwinding. (See issue 54332)
++	MOVV    R3, R3
++
+ 	MOVV	R0, REGCTXT
+ 	JMP	runtime·morestack(SB)
+ 

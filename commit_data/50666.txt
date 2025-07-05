@@ -20,7 +20,7 @@ Date:   Tue Aug 20 17:39:09 2019 -0400
     Trust: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/flags/flags.go    |  5 ++
  src/cmd/asm/main.go                    |  1 +
  src/cmd/compile/internal/base/debug.go |  1 +
@@ -36,3 +36,998 @@ Date:   Tue Aug 20 17:39:09 2019 -0400
  src/cmd/internal/obj/x86/obj6.go       | 97 ++++++++++++++++++++++++----------
  test/maymorestack.go                   | 47 ++++++++++++++++
  14 files changed, 620 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index dd947c7b5b..607166e664 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -28,6 +28,10 @@ var (
+ 	CompilingRuntime = flag.Bool("compiling-runtime", false, "source to be compiled is part of the Go runtime")
+ )
+ 
++var DebugFlags struct {
++	MayMoreStack string `help:"call named function before all stack growth checks"`
++}
++
+ var (
+ 	D        MultiFlag
+ 	I        MultiFlag
+@@ -39,6 +43,7 @@ func init() {
+ 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
+ 	flag.Var(&I, "I", "include directory; can be set multiple times")
+ 	flag.BoolVar(&DebugV, "v", false, "print debug output")
++	flag.Var(objabi.NewDebugFlag(&DebugFlags, nil), "d", "enable debugging settings; try -d help")
+ 	objabi.AddVersionFlag() // -V
+ 	objabi.Flagcount("S", "print assembly and machine code", &PrintOut)
+ }
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 3e32aa3d7d..3683527f5b 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -42,6 +42,7 @@ func main() {
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+ 	ctxt.Flag_linkshared = *flags.Linkshared
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
++	ctxt.Flag_maymorestack = flags.DebugFlags.MayMoreStack
+ 	ctxt.IsAsm = true
+ 	ctxt.Pkgpath = *flags.Importpath
+ 	switch *flags.Spectre {
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 37e345bd7f..b105e46e35 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -42,6 +42,7 @@ type DebugFlags struct {
+ 	UnifiedQuirks        int    `help:"enable unified IR construction's quirks mode"`
+ 	WB                   int    `help:"print information about write barriers"`
+ 	ABIWrap              int    `help:"print information about ABI wrapper generation"`
++	MayMoreStack         string `help:"call named function before all stack growth checks"`
+ 
+ 	Any bool // set when any of the debug flags have been set
+ }
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index f38eaa91c0..d78f93b343 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -192,6 +192,7 @@ func ParseFlags() {
+ 	Ctxt.Flag_shared = Ctxt.Flag_dynlink || Ctxt.Flag_shared
+ 	Ctxt.Flag_optimize = Flag.N == 0
+ 	Ctxt.Debugasm = int(Flag.S)
++	Ctxt.Flag_maymorestack = Debug.MayMoreStack
+ 
+ 	if flag.NArg() < 1 {
+ 		usage()
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 1454d8a7c9..38aa11cde9 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -634,6 +634,61 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ }
+ 
+ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
++	if c.ctxt.Flag_maymorestack != "" {
++		// Save LR and make room for REGCTXT.
++		const frameSize = 8
++		// MOVW.W R14,$-8(SP)
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVW
++		p.Scond |= C_WBIT
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGLINK
++		p.To.Type = obj.TYPE_MEM
++		p.To.Offset = -frameSize
++		p.To.Reg = REGSP
++		p.Spadj = frameSize
++
++		// MOVW REGCTXT, 4(SP)
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVW
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGCTXT
++		p.To.Type = obj.TYPE_MEM
++		p.To.Offset = 4
++		p.To.Reg = REGSP
++
++		// CALL maymorestack
++		p = obj.Appendp(p, c.newprog)
++		p.As = obj.ACALL
++		p.To.Type = obj.TYPE_BRANCH
++		// See ../x86/obj6.go
++		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
++
++		// Restore REGCTXT and LR.
++
++		// MOVW 4(SP), REGCTXT
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVW
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = 4
++		p.From.Reg = REGSP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGCTXT
++
++		// MOVW.P 8(SP), R14
++		p.As = AMOVW
++		p.Scond |= C_PBIT
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = frameSize
++		p.From.Reg = REGSP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGLINK
++		p.Spadj = -frameSize
++	}
++
++	// Jump back to here after morestack returns.
++	startPred := p
++
+ 	// MOVW g_stackguard(g), R1
+ 	p = obj.Appendp(p, c.newprog)
+ 
+@@ -761,7 +816,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	b := obj.Appendp(pcdata, c.newprog)
+ 	b.As = obj.AJMP
+ 	b.To.Type = obj.TYPE_BRANCH
+-	b.To.SetTarget(c.cursym.Func().Text.Link)
++	b.To.SetTarget(startPred.Link)
+ 	b.Spadj = +framesize
+ 
+ 	return end
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index ae8deede3a..e9eb786cb2 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -58,6 +58,91 @@ var noZRreplace = map[obj.As]bool{
+ }
+ 
+ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
++	if c.ctxt.Flag_maymorestack != "" {
++		p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
++
++		// Save LR and make room for FP, REGCTXT. Leave room
++		// for caller's saved FP.
++		const frameSize = 32
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGLINK
++		p.To.Type = obj.TYPE_MEM
++		p.Scond = C_XPRE
++		p.To.Offset = -frameSize
++		p.To.Reg = REGSP
++		p.Spadj = frameSize
++
++		// Save FP.
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGFP
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = REGSP
++		p.To.Offset = -8
++
++		p = obj.Appendp(p, c.newprog)
++		p.As = ASUB
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 8
++		p.Reg = REGSP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGFP
++
++		// Save REGCTXT (for simplicity we do this whether or
++		// not we need it.)
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGCTXT
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = REGSP
++		p.To.Offset = 8
++
++		// BL maymorestack
++		p = obj.Appendp(p, c.newprog)
++		p.As = ABL
++		p.To.Type = obj.TYPE_BRANCH
++		// See ../x86/obj6.go
++		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
++
++		// Restore REGCTXT.
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = REGSP
++		p.From.Offset = 8
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGCTXT
++
++		// Restore FP.
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = REGSP
++		p.From.Offset = -8
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGFP
++
++		// Restore LR and SP.
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_MEM
++		p.Scond = C_XPOST
++		p.From.Offset = frameSize
++		p.From.Reg = REGSP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGLINK
++		p.Spadj = -frameSize
++
++		p = c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
++	}
++
++	// Jump back to here after morestack returns.
++	startPred := p
++
+ 	// MOV	g_stackguard(g), RT1
+ 	p = obj.Appendp(p, c.newprog)
+ 
+@@ -212,7 +297,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	jmp := obj.Appendp(pcdata, c.newprog)
+ 	jmp.As = AB
+ 	jmp.To.Type = obj.TYPE_BRANCH
+-	jmp.To.SetTarget(c.cursym.Func().Text.Link)
++	jmp.To.SetTarget(startPred.Link)
+ 	jmp.Spadj = +framesize
+ 
+ 	return end
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 4bcfb05a5e..11af143f22 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -880,7 +880,8 @@ type Link struct {
+ 	Flag_linkshared    bool
+ 	Flag_optimize      bool
+ 	Flag_locationlists bool
+-	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
++	Retpoline          bool   // emit use of retpoline stubs for indirect jmp/call
++	Flag_maymorestack  string // If not "", call this function before stack checks
+ 	Bso                *bufio.Writer
+ 	Pathname           string
+ 	Pkgpath            string           // the current package's import path, "" if unknown
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 1f31d0c4cd..9e2ccc1929 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -658,6 +658,82 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		mov = AMOVW
+ 	}
+ 
++	if c.ctxt.Flag_maymorestack != "" {
++		// Save LR and REGCTXT.
++		frameSize := 2 * c.ctxt.Arch.PtrSize
++
++		p = c.ctxt.StartUnsafePoint(p, c.newprog)
++
++		// MOV	REGLINK, -8/-16(SP)
++		p = obj.Appendp(p, c.newprog)
++		p.As = mov
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGLINK
++		p.To.Type = obj.TYPE_MEM
++		p.To.Offset = int64(-frameSize)
++		p.To.Reg = REGSP
++
++		// MOV	REGCTXT, -4/-8(SP)
++		p = obj.Appendp(p, c.newprog)
++		p.As = mov
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGCTXT
++		p.To.Type = obj.TYPE_MEM
++		p.To.Offset = -int64(c.ctxt.Arch.PtrSize)
++		p.To.Reg = REGSP
++
++		// ADD	$-8/$-16, SP
++		p = obj.Appendp(p, c.newprog)
++		p.As = add
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = int64(-frameSize)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGSP
++		p.Spadj = int32(frameSize)
++
++		// JAL	maymorestack
++		p = obj.Appendp(p, c.newprog)
++		p.As = AJAL
++		p.To.Type = obj.TYPE_BRANCH
++		// See ../x86/obj6.go
++		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
++		p.Mark |= BRANCH
++
++		// Restore LR and REGCTXT.
++
++		// MOV	0(SP), REGLINK
++		p = obj.Appendp(p, c.newprog)
++		p.As = mov
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = 0
++		p.From.Reg = REGSP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGLINK
++
++		// MOV	4/8(SP), REGCTXT
++		p = obj.Appendp(p, c.newprog)
++		p.As = mov
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = int64(c.ctxt.Arch.PtrSize)
++		p.From.Reg = REGSP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGCTXT
++
++		// ADD	$8/$16, SP
++		p = obj.Appendp(p, c.newprog)
++		p.As = add
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = int64(frameSize)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGSP
++		p.Spadj = int32(-frameSize)
++
++		p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
++	}
++
++	// Jump back to here after morestack returns.
++	startPred := p
++
+ 	// MOV	g_stackguard(g), R1
+ 	p = obj.Appendp(p, c.newprog)
+ 
+@@ -787,7 +863,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 
+ 	p.As = AJMP
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.To.SetTarget(c.cursym.Func().Text.Link)
++	p.To.SetTarget(startPred.Link)
++	startPred.Link.Mark |= LABEL
+ 	p.Mark |= BRANCH
+ 
+ 	// placeholder for q1's jump target
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index ee93fe048b..7ac6465a72 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -1048,7 +1048,96 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ */
+ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+-	p0 := p // save entry point, but skipping the two instructions setting R2 in shared mode
++	if c.ctxt.Flag_maymorestack != "" {
++		if c.ctxt.Flag_shared || c.ctxt.Flag_dynlink {
++			// See the call to morestack for why these are
++			// complicated to support.
++			c.ctxt.Diag("maymorestack with -shared or -dynlink is not supported")
++		}
++
++		// Spill arguments. This has to happen before we open
++		// any more frame space.
++		p = c.cursym.Func().SpillRegisterArgs(p, c.newprog)
++
++		// Save LR and REGCTXT
++		frameSize := 8 + c.ctxt.FixedFrameSize()
++
++		// MOVD LR, REGTMP
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REG_LR
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGTMP
++		// MOVDU REGTMP, -16(SP)
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVDU
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGTMP
++		p.To.Type = obj.TYPE_MEM
++		p.To.Offset = -frameSize
++		p.To.Reg = REGSP
++		p.Spadj = int32(frameSize)
++
++		// MOVD REGCTXT, 8(SP)
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGCTXT
++		p.To.Type = obj.TYPE_MEM
++		p.To.Offset = 8
++		p.To.Reg = REGSP
++
++		// BL maymorestack
++		p = obj.Appendp(p, c.newprog)
++		p.As = ABL
++		p.To.Type = obj.TYPE_BRANCH
++		// See ../x86/obj6.go
++		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
++
++		// Restore LR and REGCTXT
++
++		// MOVD 8(SP), REGCTXT
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = 8
++		p.From.Reg = REGSP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGCTXT
++
++		// MOVD 0(SP), REGTMP
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = 0
++		p.From.Reg = REGSP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGTMP
++
++		// MOVD REGTMP, LR
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REGTMP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REG_LR
++
++		// ADD $16, SP
++		p = obj.Appendp(p, c.newprog)
++		p.As = AADD
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = frameSize
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGSP
++		p.Spadj = -int32(frameSize)
++
++		// Unspill arguments.
++		p = c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
++	}
++
++	// save entry point, but skipping the two instructions setting R2 in shared mode and maymorestack
++	startPred := p
+ 
+ 	// MOVD	g_stackguard(g), R22
+ 	p = obj.Appendp(p, c.newprog)
+@@ -1262,7 +1351,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p = obj.Appendp(p, c.newprog)
+ 	p.As = ABR
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.To.SetTarget(p0.Link)
++	p.To.SetTarget(startPred.Link)
+ 
+ 	// placeholder for q1's jump target
+ 	p = obj.Appendp(p, c.newprog)
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index c27ad99b2d..5755b118db 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -722,6 +722,62 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 		return p
+ 	}
+ 
++	if ctxt.Flag_maymorestack != "" {
++		// Save LR and REGCTXT
++		const frameSize = 16
++		p = ctxt.StartUnsafePoint(p, newprog)
++		// MOV LR, -16(SP)
++		p = obj.Appendp(p, newprog)
++		p.As = AMOV
++		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
++		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: -frameSize}
++		// ADDI $-16, SP
++		p = obj.Appendp(p, newprog)
++		p.As = AADDI
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: -frameSize}
++		p.Reg = REG_SP
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
++		p.Spadj = frameSize
++		// MOV REGCTXT, 8(SP)
++		p = obj.Appendp(p, newprog)
++		p.As = AMOV
++		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_CTXT}
++		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 8}
++
++		// CALL maymorestack
++		p = obj.Appendp(p, newprog)
++		p.As = obj.ACALL
++		p.To.Type = obj.TYPE_BRANCH
++		// See ../x86/obj6.go
++		p.To.Sym = ctxt.LookupABI(ctxt.Flag_maymorestack, cursym.ABI())
++		jalToSym(ctxt, p, REG_X5)
++
++		// Restore LR and REGCTXT
++
++		// MOV 8(SP), REGCTXT
++		p = obj.Appendp(p, newprog)
++		p.As = AMOV
++		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 8}
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_CTXT}
++		// MOV (SP), LR
++		p = obj.Appendp(p, newprog)
++		p.As = AMOV
++		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_SP, Offset: 0}
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
++		// ADDI $16, SP
++		p = obj.Appendp(p, newprog)
++		p.As = AADDI
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: frameSize}
++		p.Reg = REG_SP
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_SP}
++		p.Spadj = -frameSize
++
++		p = ctxt.EndUnsafePoint(p, newprog, -1)
++	}
++
++	// Jump back to here after morestack returns.
++	startPred := p
++
+ 	// MOV	g_stackguard(g), X10
+ 	p = obj.Appendp(p, newprog)
+ 	p.As = AMOV
+@@ -821,7 +877,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 	p.As = AJAL
+ 	p.To = obj.Addr{Type: obj.TYPE_BRANCH}
+ 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+-	p.To.SetTarget(cursym.Func().Text.Link)
++	p.To.SetTarget(startPred.Link)
+ 
+ 	// placeholder for to_done's jump target
+ 	p = obj.Appendp(p, newprog)
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 201163b015..de40ff05af 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -294,6 +294,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var pLast *obj.Prog
+ 	var pPre *obj.Prog
+ 	var pPreempt *obj.Prog
++	var pCheck *obj.Prog
+ 	wasSplit := false
+ 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		pLast = p
+@@ -323,7 +324,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			q := p
+ 
+ 			if !p.From.Sym.NoSplit() {
+-				p, pPreempt = c.stacksplitPre(p, autosize) // emit pre part of split check
++				p, pPreempt, pCheck = c.stacksplitPre(p, autosize) // emit pre part of split check
+ 				pPre = p
+ 				p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+ 				wasSplit = true //need post part of split
+@@ -563,14 +564,69 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 	if wasSplit {
+-		c.stacksplitPost(pLast, pPre, pPreempt, autosize) // emit post part of split check
++		c.stacksplitPost(pLast, pPre, pPreempt, pCheck, autosize) // emit post part of split check
+ 	}
+ }
+ 
+-func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Prog) {
++// stacksplitPre generates the function stack check prologue following
++// Prog p (which should be the TEXT Prog). It returns one or two
++// branch Progs that must be patched to jump to the morestack epilogue,
++// and the Prog that starts the morestack check.
++func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCheck *obj.Prog) {
++	if c.ctxt.Flag_maymorestack != "" {
++		// Save LR and REGCTXT
++		const frameSize = 16
++		p = c.ctxt.StartUnsafePoint(p, c.newprog)
++		// MOVD LR, -16(SP)
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
++		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REGSP, Offset: -frameSize}
++		// MOVD $-16(SP), SP
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From = obj.Addr{Type: obj.TYPE_ADDR, Offset: -frameSize, Reg: REGSP}
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REGSP}
++		p.Spadj = frameSize
++		// MOVD REGCTXT, 8(SP)
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REGCTXT}
++		p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REGSP, Offset: 8}
++
++		// BL maymorestack
++		p = obj.Appendp(p, c.newprog)
++		p.As = ABL
++		// See ../x86/obj6.go
++		sym := c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
++		p.To = obj.Addr{Type: obj.TYPE_BRANCH, Sym: sym}
++
++		// Restore LR and REGCTXT
++
++		// MOVD REGCTXT, 8(SP)
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REGSP, Offset: 8}
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REGCTXT}
++		// MOVD (SP), LR
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REGSP, Offset: 0}
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_LR}
++		// MOVD $16(SP), SP
++		p = obj.Appendp(p, c.newprog)
++		p.As = AMOVD
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Reg: REGSP, Offset: frameSize}
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REGSP}
++		p.Spadj = -frameSize
++
++		p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
++	}
+ 
+ 	// MOVD	g_stackguard(g), R3
+ 	p = obj.Appendp(p, c.newprog)
++	// Jump back to here after morestack returns.
++	pCheck = p
+ 
+ 	p.As = AMOVD
+ 	p.From.Type = obj.TYPE_MEM
+@@ -599,12 +655,11 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
+ 		p.As = ACMPUBGE
+ 		p.To.Type = obj.TYPE_BRANCH
+ 
+-		return p, nil
++		return p, nil, pCheck
+ 	}
+ 
+ 	// large stack: SP-framesize < stackguard-StackSmall
+ 
+-	var q *obj.Prog
+ 	offset := int64(framesize) - objabi.StackSmall
+ 	if framesize > objabi.StackBig {
+ 		// Such a large stack we need to protect against underflow.
+@@ -625,7 +680,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
+ 		p.To.Reg = REG_R4
+ 
+ 		p = obj.Appendp(p, c.newprog)
+-		q = p
++		pPreempt = p
+ 		p.As = ACMPUBLT
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = REGSP
+@@ -651,10 +706,16 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
+ 	p.As = ACMPUBGE
+ 	p.To.Type = obj.TYPE_BRANCH
+ 
+-	return p, q
++	return p, pPreempt, pCheck
+ }
+ 
+-func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, framesize int32) *obj.Prog {
++// stacksplitPost generates the function epilogue that calls morestack
++// and returns the new last instruction in the function.
++//
++// p is the last Prog in the function. pPre and pPreempt, if non-nil,
++// are the instructions that branch to the epilogue. This will fill in
++// their branch targets. pCheck is the Prog that begins the stack check.
++func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre, pPreempt, pCheck *obj.Prog, framesize int32) *obj.Prog {
+ 	// Now we are at the end of the function, but logically
+ 	// we are still in function prologue. We need to fix the
+ 	// SP data and PCDATA.
+@@ -692,12 +753,12 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog,
+ 
+ 	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+ 
+-	// BR	start
++	// BR	pCheck
+ 	p = obj.Appendp(p, c.newprog)
+ 
+ 	p.As = ABR
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.To.SetTarget(c.cursym.Func().Text.Link)
++	p.To.SetTarget(pCheck)
+ 	return p
+ }
+ 
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 4d276db678..1c726f77d3 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -243,6 +243,51 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		p.Spadj = int32(framesize)
+ 	}
+ 
++	needMoreStack := !s.Func().Text.From.Sym.NoSplit()
++
++	// If the maymorestack debug option is enabled, insert the
++	// call to maymorestack *before* processing resume points so
++	// we can construct a resume point after maymorestack for
++	// morestack to resume at.
++	var pMorestack = s.Func().Text
++	if needMoreStack && ctxt.Flag_maymorestack != "" {
++		p := pMorestack
++
++		// Save REGCTXT on the stack.
++		const tempFrame = 8
++		p = appendp(p, AGet, regAddr(REG_SP))
++		p = appendp(p, AI32Const, constAddr(tempFrame))
++		p = appendp(p, AI32Sub)
++		p = appendp(p, ASet, regAddr(REG_SP))
++		p.Spadj = tempFrame
++		ctxtp := obj.Addr{
++			Type:   obj.TYPE_MEM,
++			Reg:    REG_SP,
++			Offset: 0,
++		}
++		p = appendp(p, AMOVD, regAddr(REGCTXT), ctxtp)
++
++		// maymorestack must not itself preempt because we
++		// don't have full stack information, so this can be
++		// ACALLNORESUME.
++		p = appendp(p, ACALLNORESUME, constAddr(0))
++		// See ../x86/obj6.go
++		sym := ctxt.LookupABI(ctxt.Flag_maymorestack, s.ABI())
++		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: sym}
++
++		// Restore REGCTXT.
++		p = appendp(p, AMOVD, ctxtp, regAddr(REGCTXT))
++		p = appendp(p, AGet, regAddr(REG_SP))
++		p = appendp(p, AI32Const, constAddr(tempFrame))
++		p = appendp(p, AI32Add)
++		p = appendp(p, ASet, regAddr(REG_SP))
++		p.Spadj = -tempFrame
++
++		// Add an explicit ARESUMEPOINT after maymorestack for
++		// morestack to resume at.
++		pMorestack = appendp(p, ARESUMEPOINT)
++	}
++
+ 	// Introduce resume points for CALL instructions
+ 	// and collect other explicit resume points.
+ 	numResumePoints := 0
+@@ -303,8 +348,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	tableIdxs = append(tableIdxs, uint64(numResumePoints))
+ 	s.Size = pc + 1
+ 
+-	if !s.Func().Text.From.Sym.NoSplit() {
+-		p := s.Func().Text
++	if needMoreStack {
++		p := pMorestack
+ 
+ 		if framesize <= objabi.StackSmall {
+ 			// small stack: SP <= stackguard
+@@ -341,6 +386,13 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		// TODO(neelance): handle wraparound case
+ 
+ 		p = appendp(p, AIf)
++		// This CALL does *not* have a resume point after it
++		// (we already inserted all of the resume points). As
++		// a result, morestack will resume at the *previous*
++		// resume point (typically, the beginning of the
++		// function) and perform the morestack check again.
++		// This is why we don't need an explicit loop like
++		// other architectures.
+ 		p = appendp(p, obj.ACALL, constAddr(0))
+ 		if s.Func().Text.From.Sym.NeedCtxt() {
+ 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: morestack}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 183ca2ebe9..a82285a0d3 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -644,19 +644,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
+-	var regg int16
+-	if !p.From.Sym.NoSplit() || p.From.Sym.Wrapper() {
+-		if ctxt.Arch.Family == sys.AMD64 && cursym.ABI() == obj.ABIInternal {
+-			regg = REGG // use the g register directly in ABIInternal
+-		} else {
+-			p = obj.Appendp(p, newprog)
+-			regg = REG_CX
+-			if ctxt.Arch.Family == sys.AMD64 {
+-				regg = REGG // == REG_R14
+-			}
+-			p = load_g(ctxt, p, newprog, regg) // load g into regg
+-		}
+-	}
+ 	var regEntryTmp0, regEntryTmp1 int16
+ 	if ctxt.Arch.Family == sys.AMD64 {
+ 		regEntryTmp0, regEntryTmp1 = REGENTRYTMP0, REGENTRYTMP1
+@@ -664,8 +651,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		regEntryTmp0, regEntryTmp1 = REG_BX, REG_DI
+ 	}
+ 
+-	if !cursym.Func().Text.From.Sym.NoSplit() {
+-		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg), regg) // emit split check
++	var regg int16
++	if !p.From.Sym.NoSplit() {
++		// Emit split check and load G register
++		p, regg = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg))
++	} else if p.From.Sym.Wrapper() {
++		// Load G register for the wrapper code
++		p, regg = loadG(ctxt, cursym, p, newprog)
+ 	}
+ 
+ 	// Delve debugger would like the next instruction to be noted as the end of the function prologue.
+@@ -973,12 +965,21 @@ func indir_cx(ctxt *obj.Link, a *obj.Addr) {
+ 	a.Reg = REG_CX
+ }
+ 
+-// Append code to p to load g into cx.
+-// Overwrites p with the first instruction (no first appendp).
+-// Overwriting p is unusual but it lets use this in both the
+-// prologue (caller must call appendp first) and in the epilogue.
+-// Returns last new instruction.
+-func load_g(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, rg int16) *obj.Prog {
++// loadG ensures the G is loaded into a register (either CX or REGG),
++// appending instructions to p if necessary. It returns the new last
++// instruction and the G register.
++func loadG(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc) (*obj.Prog, int16) {
++	if ctxt.Arch.Family == sys.AMD64 && cursym.ABI() == obj.ABIInternal {
++		// Use the G register directly in ABIInternal
++		return p, REGG
++	}
++
++	var regg int16 = REG_CX
++	if ctxt.Arch.Family == sys.AMD64 {
++		regg = REGG // == REG_R14
++	}
++
++	p = obj.Appendp(p, newprog)
+ 	p.As = AMOVQ
+ 	if ctxt.Arch.PtrSize == 4 {
+ 		p.As = AMOVL
+@@ -987,8 +988,9 @@ func load_g(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, rg int16) *obj.P
+ 	p.From.Reg = REG_TLS
+ 	p.From.Offset = 0
+ 	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = rg
++	p.To.Reg = regg
+ 
++	// Rewrite TLS instruction if necessary.
+ 	next := p.Link
+ 	progedit(ctxt, p, newprog)
+ 	for p.Link != next {
+@@ -1000,24 +1002,26 @@ func load_g(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, rg int16) *obj.P
+ 		p.From.Scale = 2
+ 	}
+ 
+-	return p
++	return p, regg
+ }
+ 
+ // Append code to p to check for stack split.
+ // Appends to (does not overwrite) p.
+ // Assumes g is in rg.
+-// Returns last new instruction.
+-func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc, framesize int32, textarg int32, rg int16) *obj.Prog {
++// Returns last new instruction and G register.
++func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgAlloc, framesize int32, textarg int32) (*obj.Prog, int16) {
+ 	cmp := ACMPQ
+ 	lea := ALEAQ
+ 	mov := AMOVQ
+ 	sub := ASUBQ
++	push, pop := APUSHQ, APOPQ
+ 
+ 	if ctxt.Arch.Family == sys.I386 {
+ 		cmp = ACMPL
+ 		lea = ALEAL
+ 		mov = AMOVL
+ 		sub = ASUBL
++		push, pop = APUSHL, APOPL
+ 	}
+ 
+ 	tmp := int16(REG_AX) // use AX for 32-bit
+@@ -1026,6 +1030,45 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		tmp = int16(REGENTRYTMP0)
+ 	}
+ 
++	if ctxt.Flag_maymorestack != "" {
++		p = cursym.Func().SpillRegisterArgs(p, newprog)
++
++		if cursym.Func().Text.From.Sym.NeedCtxt() {
++			p = obj.Appendp(p, newprog)
++			p.As = push
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = REGCTXT
++		}
++
++		// We call maymorestack with an ABI matching the
++		// caller's ABI. Since this is the first thing that
++		// happens in the function, we have to be consistent
++		// with the caller about CPU state (notably,
++		// fixed-meaning registers).
++
++		p = obj.Appendp(p, newprog)
++		p.As = obj.ACALL
++		p.To.Type = obj.TYPE_BRANCH
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = ctxt.LookupABI(ctxt.Flag_maymorestack, cursym.ABI())
++
++		if cursym.Func().Text.From.Sym.NeedCtxt() {
++			p = obj.Appendp(p, newprog)
++			p.As = pop
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = REGCTXT
++		}
++
++		p = cursym.Func().UnspillRegisterArgs(p, newprog)
++	}
++
++	// Jump back to here after morestack returns.
++	startPred := p
++
++	// Load G register
++	var rg int16
++	p, rg = loadG(ctxt, cursym, p, newprog)
++
+ 	var q1 *obj.Prog
+ 	if framesize <= objabi.StackSmall {
+ 		// small stack: SP <= stackguard
+@@ -1171,7 +1214,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	jmp := obj.Appendp(pcdata, newprog)
+ 	jmp.As = obj.AJMP
+ 	jmp.To.Type = obj.TYPE_BRANCH
+-	jmp.To.SetTarget(cursym.Func().Text.Link)
++	jmp.To.SetTarget(startPred.Link)
+ 	jmp.Spadj = +framesize
+ 
+ 	jls.To.SetTarget(spill)
+@@ -1179,7 +1222,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		q1.To.SetTarget(spill)
+ 	}
+ 
+-	return end
++	return end, rg
+ }
+ 
+ func isR15(r int16) bool {
+diff --git a/test/maymorestack.go b/test/maymorestack.go
+new file mode 100644
+index 0000000000..ec84ad44bc
+--- /dev/null
++++ b/test/maymorestack.go
+@@ -0,0 +1,47 @@
++// run -gcflags=-d=maymorestack=main.mayMoreStack
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test the maymorestack testing hook by injecting a hook that counts
++// how many times it is called and checking that count.
++
++package main
++
++import "runtime"
++
++var count uint32
++
++//go:nosplit
++func mayMoreStack() {
++	count++
++}
++
++func main() {
++	const wantCount = 128
++
++	anotherFunc(wantCount - 1) // -1 because the call to main already counted
++
++	if count == 0 {
++		panic("mayMoreStack not called")
++	} else if count != wantCount {
++		println(count, "!=", wantCount)
++		panic("wrong number of calls to mayMoreStack")
++	}
++}
++
++//go:noinline
++func anotherFunc(n int) {
++	// Trigger a stack growth on at least some calls to
++	// anotherFunc to test that mayMoreStack is called outside the
++	// morestack loop. It's also important that it is called
++	// before (not after) morestack, but that's hard to test.
++	var x [1 << 10]byte
++
++	if n > 1 {
++		anotherFunc(n - 1)
++	}
++
++	runtime.KeepAlive(x)
++}

@@ -8,9 +8,85 @@ Date:   Tue Nov 3 22:38:43 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1017024
-
+---
  src/cmd/goyacc/Makefile  |  2 +-
  src/cmd/goyacc/doc.go    | 23 +++++++++++++++++++++++
  src/cmd/goyacc/goyacc.go |  3 ---
  src/cmd/goyacc/units.y   |  1 -
  4 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/goyacc/Makefile b/src/cmd/goyacc/Makefile
+index 0fb6198042..80365b86ee 100644
+--- a/src/cmd/goyacc/Makefile
++++ b/src/cmd/goyacc/Makefile
+@@ -11,7 +11,7 @@ GOFILES=\
+ include $(GOROOT)/src/Make.cmd
+ 
+ units: goyacc units.y
+-	goyacc units.y
++	./goyacc units.y
+ 	$(GC) y.go
+ 	$(LD) -o units y.$O
+ 
+diff --git a/src/cmd/goyacc/doc.go b/src/cmd/goyacc/doc.go
+new file mode 100644
+index 0000000000..b6a2580f14
+--- /dev/null
++++ b/src/cmd/goyacc/doc.go
+@@ -0,0 +1,23 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++The program goyacc is a version of yacc written in Go and generating
++as output a parser also in Go.
++
++It is largely transliterated from the Inferno version written in Limbo
++which in turn was largely transliterated from the Plan 9 version
++written in C and documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/yacc
++
++Yacc adepts will have no trouble adapting to this form of the tool.
++
++The file units.y in this directory is a yacc grammar for a version of
++the Unix tool units, also written in Go and largely transliterated
++from the Plan 9 C version.  
++
++*/
++package documentation
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 3304f31ded..763e61cb03 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -47,7 +47,6 @@ package main
+ import
+ (
+ 	"flag";
+-	"io";
+ 	"fmt";
+ 	"bufio";
+ 	"os";
+@@ -1472,8 +1471,6 @@ cpyact(curprod []int, max int)
+ func
+ openup()
+ {
+-	var buf string;
+-
+ 	infile = flag.Arg(0);
+ 	finput = open(infile);
+ 	if(finput == nil) {
+diff --git a/src/cmd/goyacc/units.y b/src/cmd/goyacc/units.y
+index a3697a53de..44d1cc7588 100644
+--- a/src/cmd/goyacc/units.y
++++ b/src/cmd/goyacc/units.y
+@@ -26,7 +26,6 @@ package main
+ import
+ (
+ 	"flag";
+-	"io";
+ 	"fmt";
+ 	"bufio";
+ 	"os";

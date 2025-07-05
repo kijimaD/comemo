@@ -9,6 +9,28 @@ Date:   Mon Jun 8 10:38:49 2009 -0700
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=30043
     CL=30043
-
+---
  src/lib/runtime/Makefile | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/runtime/Makefile b/src/lib/runtime/Makefile
+index d4652a34f2..5a5ace9c57 100644
+--- a/src/lib/runtime/Makefile
++++ b/src/lib/runtime/Makefile
+@@ -22,7 +22,7 @@ O=$(O_$(GOARCH))
+ CC=$(O)c
+ GC=$(O)g
+ AS=$(O)a
+-AR=6ar  # sic
++AR=gopack
+ 
+ LIB=runtime.a
+ 
+@@ -74,6 +74,7 @@ HFILES=\
+ 	$(GOOS)/$(GOARCH)/defs.h\
+ 
+ install: $(LIB) runtime.acid
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+ 	cp $(LIB) $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/$(LIB)
+ 	cp runtime.acid $(GOROOT)/acid/runtime.acid
+ 

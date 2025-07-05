@@ -25,7 +25,313 @@ Date:   Tue Jan 25 13:32:56 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3972047
-
+---
  src/pkg/scanner/scanner.go      |  81 +++++++++++++++++++++--------
  src/pkg/scanner/scanner_test.go | 110 +++++++++++++++++++++++++++++++---------
  2 files changed, 144 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/scanner/scanner.go
+index 40ca018dcb..2396cdd9a1 100644
+--- a/src/pkg/scanner/scanner.go
++++ b/src/pkg/scanner/scanner.go
+@@ -34,13 +34,15 @@ import (
+ )
+ 
+ 
++// TODO(gri): Consider changing this to use the new (token) Position package.
++
+ // A source position is represented by a Position value.
+ // A position is valid if Line > 0.
+ type Position struct {
+ 	Filename string // filename, if any
+ 	Offset   int    // byte offset, starting at 0
+ 	Line     int    // line number, starting at 1
+-	Column   int    // column number, starting at 0 (character count per line)
++	Column   int    // column number, starting at 1 (character count per line)
+ }
+ 
+ 
+@@ -136,8 +138,10 @@ type Scanner struct {
+ 
+ 	// Source position
+ 	srcBufOffset int // byte offset of srcBuf[0] in source
+-	line         int // newline count + 1
+-	column       int // character count on line
++	line         int // line count
++	column       int // character count
++	lastLineLen  int // length of last line in characters (for correct column reporting)
++	lastCharLen  int // length of last character in bytes
+ 
+ 	// Token text buffer
+ 	// Typically, token text is stored completely in srcBuf, but in general
+@@ -191,6 +195,8 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
+ 	s.srcBufOffset = 0
+ 	s.line = 1
+ 	s.column = 0
++	s.lastLineLen = 0
++	s.lastCharLen = 0
+ 
+ 	// initialize token text buffer
+ 	// (required for first call to next()).
+@@ -209,12 +215,17 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
+ }
+ 
+ 
++// TODO(gri): The code for next() and the internal scanner state could benefit
++//            from a rethink. While next() is optimized for the common ASCII
++//            case, the "corrections" needed for proper position tracking undo
++//            some of the attempts for fast-path optimization.
++
+ // next reads and returns the next Unicode character. It is designed such
+ // that only a minimal amount of work needs to be done in the common ASCII
+ // case (one test to check for both ASCII and end-of-buffer, and one test
+ // to check for newlines).
+ func (s *Scanner) next() int {
+-	ch := int(s.srcBuf[s.srcPos])
++	ch, width := int(s.srcBuf[s.srcPos]), 1
+ 
+ 	if ch >= utf8.RuneSelf {
+ 		// uncommon case: not ASCII or not enough bytes
+@@ -241,6 +252,11 @@ func (s *Scanner) next() int {
+ 			s.srcBuf[s.srcEnd] = utf8.RuneSelf // sentinel
+ 			if err != nil {
+ 				if s.srcEnd == 0 {
++					if s.lastCharLen > 0 {
++						// previous character was not EOF
++						s.column++
++					}
++					s.lastCharLen = 0
+ 					return EOF
+ 				}
+ 				if err != os.EOF {
+@@ -257,23 +273,26 @@ func (s *Scanner) next() int {
+ 		ch = int(s.srcBuf[s.srcPos])
+ 		if ch >= utf8.RuneSelf {
+ 			// uncommon case: not ASCII
+-			var width int
+ 			ch, width = utf8.DecodeRune(s.srcBuf[s.srcPos:s.srcEnd])
+ 			if ch == utf8.RuneError && width == 1 {
+ 				s.error("illegal UTF-8 encoding")
+ 			}
+-			s.srcPos += width - 1 // -1 because of s.srcPos++ below
+ 		}
+ 	}
+ 
+-	s.srcPos++
++	// advance
++	s.srcPos += width
++	s.lastCharLen = width
+ 	s.column++
++
++	// special situations
+ 	switch ch {
+ 	case 0:
+ 		// implementation restriction for compatibility with other tools
+ 		s.error("illegal character NUL")
+ 	case '\n':
+ 		s.line++
++		s.lastLineLen = s.column
+ 		s.column = 0
+ 	}
+ 
+@@ -541,12 +560,22 @@ redo:
+ 
+ 	// start collecting token text
+ 	s.tokBuf.Reset()
+-	s.tokPos = s.srcPos - 1
++	s.tokPos = s.srcPos - s.lastCharLen
+ 
+ 	// set token position
++	// (this is a slightly optimized version of the code in Pos())
+ 	s.Offset = s.srcBufOffset + s.tokPos
+-	s.Line = s.line
+-	s.Column = s.column
++	if s.column > 0 {
++		// common case: last character was not a '\n'
++		s.Line = s.line
++		s.Column = s.column
++	} else {
++		// last character was a '\n'
++		// (we cannot be at the beginning of the source
++		// since we have called next() at least once)
++		s.Line = s.line - 1
++		s.Column = s.lastLineLen
++	}
+ 
+ 	// determine token value
+ 	tok := ch
+@@ -610,25 +639,33 @@ redo:
+ 	}
+ 
+ 	// end of token text
+-	s.tokEnd = s.srcPos - 1
++	s.tokEnd = s.srcPos - s.lastCharLen
+ 
+ 	s.ch = ch
+ 	return tok
+ }
+ 
+ 
+-// Position returns the current source position. If called before Next()
+-// or Scan(), it returns the position of the next Unicode character or token
+-// returned by these functions. If called afterwards, it returns the position
+-// immediately after the last character of the most recent token or character
+-// scanned.
+-func (s *Scanner) Pos() Position {
+-	return Position{
+-		s.Filename,
+-		s.srcBufOffset + s.srcPos - 1,
+-		s.line,
+-		s.column,
++// Pos returns the position of the character immediately after
++// the character or token returned by the last call to Next or Scan.
++func (s *Scanner) Pos() (pos Position) {
++	pos.Filename = s.Filename
++	pos.Offset = s.srcBufOffset + s.srcPos - s.lastCharLen
++	switch {
++	case s.column > 0:
++		// common case: last character was not a '\n'
++		pos.Line = s.line
++		pos.Column = s.column
++	case s.lastLineLen > 0:
++		// last character was a '\n'
++		pos.Line = s.line - 1
++		pos.Column = s.lastLineLen
++	default:
++		// at the beginning of the source
++		pos.Line = 1
++		pos.Column = 1
+ 	}
++	return
+ }
+ 
+ 
+diff --git a/src/pkg/scanner/scanner_test.go b/src/pkg/scanner/scanner_test.go
+index fc08197727..002252de8a 100644
+--- a/src/pkg/scanner/scanner_test.go
++++ b/src/pkg/scanner/scanner_test.go
+@@ -448,39 +448,99 @@ func TestError(t *testing.T) {
+ }
+ 
+ 
+-func checkPos(t *testing.T, s *Scanner, offset, line, column, char int) {
+-	pos := s.Pos()
+-	if pos.Offset != offset {
+-		t.Errorf("offset = %d, want %d", pos.Offset, offset)
++func checkPos(t *testing.T, got, want Position) {
++	if got.Offset != want.Offset || got.Line != want.Line || got.Column != want.Column {
++		t.Errorf("got offset, line, column = %d, %d, %d; want %d, %d, %d",
++			got.Offset, got.Line, got.Column, want.Offset, want.Line, want.Column)
+ 	}
+-	if pos.Line != line {
+-		t.Errorf("line = %d, want %d", pos.Line, line)
+-	}
+-	if pos.Column != column {
+-		t.Errorf("column = %d, want %d", pos.Column, column)
++}
++
++
++func checkNextPos(t *testing.T, s *Scanner, offset, line, column, char int) {
++	if ch := s.Next(); ch != char {
++		t.Errorf("ch = %s, want %s", TokenString(ch), TokenString(char))
+ 	}
+-	ch := s.Scan()
+-	if ch != char {
++	want := Position{Offset: offset, Line: line, Column: column}
++	checkPos(t, s.Pos(), want)
++}
++
++
++func checkScanPos(t *testing.T, s *Scanner, offset, line, column, char int) {
++	want := Position{Offset: offset, Line: line, Column: column}
++	checkPos(t, s.Pos(), want)
++	if ch := s.Scan(); ch != char {
+ 		t.Errorf("ch = %s, want %s", TokenString(ch), TokenString(char))
++		if string(ch) != s.TokenText() {
++			t.Errorf("tok = %q, want %q", s.TokenText(), string(ch))
++		}
+ 	}
++	checkPos(t, s.Position, want)
+ }
+ 
+ 
+ func TestPos(t *testing.T) {
+-	s := new(Scanner).Init(bytes.NewBufferString("abc\n012\n\nx"))
++	// corner case: empty source
++	s := new(Scanner).Init(bytes.NewBufferString(""))
++	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
++	s.Peek() // peek doesn't affect the position
++	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
++
++	// corner case: source with only a newline
++	s = new(Scanner).Init(bytes.NewBufferString("\n"))
++	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
++	checkNextPos(t, s, 1, 2, 1, '\n')
++	// after EOF position doesn't change
++	for i := 10; i > 0; i-- {
++		checkScanPos(t, s, 1, 2, 1, EOF)
++	}
++
++	// corner case: source with only a single character
++	s = new(Scanner).Init(bytes.NewBufferString("本"))
++	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
++	checkNextPos(t, s, 3, 1, 2, '本')
++	// after EOF position doesn't change
++	for i := 10; i > 0; i-- {
++		checkScanPos(t, s, 3, 1, 2, EOF)
++	}
++
++	// positions after calling Next
++	s = new(Scanner).Init(bytes.NewBufferString("  foo६४  \n\n本語\n"))
++	checkNextPos(t, s, 1, 1, 2, ' ')
++	s.Peek() // peek doesn't affect the position
++	checkNextPos(t, s, 2, 1, 3, ' ')
++	checkNextPos(t, s, 3, 1, 4, 'f')
++	checkNextPos(t, s, 4, 1, 5, 'o')
++	checkNextPos(t, s, 5, 1, 6, 'o')
++	checkNextPos(t, s, 8, 1, 7, '६')
++	checkNextPos(t, s, 11, 1, 8, '४')
++	checkNextPos(t, s, 12, 1, 9, ' ')
++	checkNextPos(t, s, 13, 1, 10, ' ')
++	checkNextPos(t, s, 14, 2, 1, '\n')
++	checkNextPos(t, s, 15, 3, 1, '\n')
++	checkNextPos(t, s, 18, 3, 2, '本')
++	checkNextPos(t, s, 21, 3, 3, '語')
++	checkNextPos(t, s, 22, 4, 1, '\n')
++	// after EOF position doesn't change
++	for i := 10; i > 0; i-- {
++		checkScanPos(t, s, 22, 4, 1, EOF)
++	}
++
++	// positions after calling Scan
++	s = new(Scanner).Init(bytes.NewBufferString("abc\n本語\n\nx"))
+ 	s.Mode = 0
+ 	s.Whitespace = 0
+-	s.Peek() // get a defined position
+-	checkPos(t, s, 0, 1, 1, 'a')
+-	checkPos(t, s, 1, 1, 2, 'b')
+-	checkPos(t, s, 2, 1, 3, 'c')
+-	checkPos(t, s, 3, 2, 0, '\n')
+-	checkPos(t, s, 4, 2, 1, '0')
+-	checkPos(t, s, 5, 2, 2, '1')
+-	checkPos(t, s, 6, 2, 3, '2')
+-	checkPos(t, s, 7, 3, 0, '\n')
+-	checkPos(t, s, 8, 4, 0, '\n')
+-	checkPos(t, s, 9, 4, 1, 'x')
+-	checkPos(t, s, 9, 4, 1, EOF)
+-	checkPos(t, s, 9, 4, 1, EOF) // after EOF, position doesn't change
++	checkScanPos(t, s, 0, 1, 1, 'a')
++	s.Peek() // peek doesn't affect the position
++	checkScanPos(t, s, 1, 1, 2, 'b')
++	checkScanPos(t, s, 2, 1, 3, 'c')
++	checkScanPos(t, s, 3, 1, 4, '\n')
++	checkScanPos(t, s, 4, 2, 1, '本')
++	checkScanPos(t, s, 7, 2, 2, '語')
++	checkScanPos(t, s, 10, 2, 3, '\n')
++	checkScanPos(t, s, 11, 3, 1, '\n')
++	checkScanPos(t, s, 12, 4, 1, 'x')
++	// after EOF position doesn't change
++	for i := 10; i > 0; i-- {
++		checkScanPos(t, s, 13, 4, 2, EOF)
++	}
+ }

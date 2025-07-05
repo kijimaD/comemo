@@ -12,7 +12,7 @@ Date:   Sun Nov 3 10:03:21 2024 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/cipher/cipher.go                        |  37 ++
  src/crypto/cipher/gcm.go                           | 398 ++++++---------------
  src/crypto/cipher/gcm_test.go                      |   2 +-
@@ -43,3 +43,2962 @@ Date:   Sun Nov 3 10:03:21 2024 +0100
  src/crypto/tls/cipher_suites.go                    |  12 +-
  src/go/build/deps_test.go                          |   1 +
  29 files changed, 1299 insertions(+), 1283 deletions(-)
+
+diff --git a/src/crypto/cipher/cipher.go b/src/crypto/cipher/cipher.go
+index df6f596b4d..4d631991ee 100644
+--- a/src/crypto/cipher/cipher.go
++++ b/src/crypto/cipher/cipher.go
+@@ -59,3 +59,40 @@ type BlockMode interface {
+ 	// maintains state and does not reset at each CryptBlocks call.
+ 	CryptBlocks(dst, src []byte)
+ }
++
++// AEAD is a cipher mode providing authenticated encryption with associated
++// data. For a description of the methodology, see
++// https://en.wikipedia.org/wiki/Authenticated_encryption.
++type AEAD interface {
++	// NonceSize returns the size of the nonce that must be passed to Seal
++	// and Open.
++	NonceSize() int
++
++	// Overhead returns the maximum difference between the lengths of a
++	// plaintext and its ciphertext.
++	Overhead() int
++
++	// Seal encrypts and authenticates plaintext, authenticates the
++	// additional data and appends the result to dst, returning the updated
++	// slice. The nonce must be NonceSize() bytes long and unique for all
++	// time, for a given key.
++	//
++	// To reuse plaintext's storage for the encrypted output, use plaintext[:0]
++	// as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
++	// dst and additionalData may not overlap.
++	Seal(dst, nonce, plaintext, additionalData []byte) []byte
++
++	// Open decrypts and authenticates ciphertext, authenticates the
++	// additional data and, if successful, appends the resulting plaintext
++	// to dst, returning the updated slice. The nonce must be NonceSize()
++	// bytes long and both it and the additional data must match the
++	// value passed to Seal.
++	//
++	// To reuse ciphertext's storage for the decrypted output, use ciphertext[:0]
++	// as dst. Otherwise, the remaining capacity of dst must not overlap ciphertext.
++	// dst and additionalData may not overlap.
++	//
++	// Even if the function fails, the contents of dst, up to its capacity,
++	// may be overwritten.
++	Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error)
++}
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 2010f200f0..d638fa94a4 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -1,4 +1,4 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2024 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -6,69 +6,19 @@ package cipher
+ 
+ import (
+ 	"crypto/internal/fips/aes"
++	"crypto/internal/fips/aes/gcm"
+ 	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"internal/byteorder"
+ )
+ 
+-// AEAD is a cipher mode providing authenticated encryption with associated
+-// data. For a description of the methodology, see
+-// https://en.wikipedia.org/wiki/Authenticated_encryption.
+-type AEAD interface {
+-	// NonceSize returns the size of the nonce that must be passed to Seal
+-	// and Open.
+-	NonceSize() int
+-
+-	// Overhead returns the maximum difference between the lengths of a
+-	// plaintext and its ciphertext.
+-	Overhead() int
+-
+-	// Seal encrypts and authenticates plaintext, authenticates the
+-	// additional data and appends the result to dst, returning the updated
+-	// slice. The nonce must be NonceSize() bytes long and unique for all
+-	// time, for a given key.
+-	//
+-	// To reuse plaintext's storage for the encrypted output, use plaintext[:0]
+-	// as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
+-	Seal(dst, nonce, plaintext, additionalData []byte) []byte
+-
+-	// Open decrypts and authenticates ciphertext, authenticates the
+-	// additional data and, if successful, appends the resulting plaintext
+-	// to dst, returning the updated slice. The nonce must be NonceSize()
+-	// bytes long and both it and the additional data must match the
+-	// value passed to Seal.
+-	//
+-	// To reuse ciphertext's storage for the decrypted output, use ciphertext[:0]
+-	// as dst. Otherwise, the remaining capacity of dst must not overlap ciphertext.
+-	//
+-	// Even if the function fails, the contents of dst, up to its capacity,
+-	// may be overwritten.
+-	Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error)
+-}
+-
+-// gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
+-// standard and make binary.BigEndian suitable for marshaling these values, the
+-// bits are stored in big endian order. For example:
+-//
+-//	the coefficient of x⁰ can be obtained by v.low >> 63.
+-//	the coefficient of x⁶³ can be obtained by v.low & 1.
+-//	the coefficient of x⁶⁴ can be obtained by v.high >> 63.
+-//	the coefficient of x¹²⁷ can be obtained by v.high & 1.
+-type gcmFieldElement struct {
+-	low, high uint64
+-}
+-
+-// gcm represents a Galois Counter Mode with a specific key. See
+-// https://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-revised-spec.pdf
+-type gcm struct {
+-	cipher    Block
+-	nonceSize int
+-	tagSize   int
+-	// productTable contains the first sixteen powers of the key, H.
+-	// However, they are in bit reversed order. See NewGCMWithNonceSize.
+-	productTable [16]gcmFieldElement
+-}
++const (
++	gcmBlockSize         = 16
++	gcmStandardNonceSize = 12
++	gcmTagSize           = 16
++	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
++)
+ 
+ // NewGCM returns the given 128-bit, block cipher wrapped in Galois Counter Mode
+ // with the standard nonce length.
+@@ -77,7 +27,7 @@ type gcm struct {
+ // An exception is when the underlying [Block] was created by aes.NewCipher
+ // on systems with hardware support for AES. See the [crypto/aes] package documentation for details.
+ func NewGCM(cipher Block) (AEAD, error) {
+-	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, gcmTagSize)
++	return newGCM(cipher, gcmStandardNonceSize, gcmTagSize)
+ }
+ 
+ // NewGCMWithNonceSize returns the given 128-bit, block cipher wrapped in Galois
+@@ -88,7 +38,7 @@ func NewGCM(cipher Block) (AEAD, error) {
+ // cryptosystem that uses non-standard nonce lengths. All other users should use
+ // [NewGCM], which is faster and more resistant to misuse.
+ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+-	return newGCMWithNonceAndTagSize(cipher, size, gcmTagSize)
++	return newGCM(cipher, size, gcmTagSize)
+ }
+ 
+ // NewGCMWithTagSize returns the given 128-bit, block cipher wrapped in Galois
+@@ -100,7 +50,21 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+ // cryptosystem that uses non-standard tag lengths. All other users should use
+ // [NewGCM], which is more resistant to misuse.
+ func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
+-	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, tagSize)
++	return newGCM(cipher, gcmStandardNonceSize, tagSize)
++}
++
++func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
++	c, ok := cipher.(*aes.Block)
++	if !ok {
++		return newGCMFallback(cipher, nonceSize, tagSize)
++	}
++	// We don't return gcm.New directly, because it would always return a non-nil
++	// AEAD interface value with type *gcm.GCM even if the *gcm.GCM is nil.
++	g, err := gcm.New(c, nonceSize, tagSize)
++	if err != nil {
++		return nil, err
++	}
++	return g, nil
+ }
+ 
+ // gcmAble is an interface implemented by ciphers that have a specific optimized
+@@ -110,96 +74,67 @@ type gcmAble interface {
+ 	NewGCM(nonceSize, tagSize int) (AEAD, error)
+ }
+ 
+-func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, error) {
++func newGCMFallback(cipher Block, nonceSize, tagSize int) (AEAD, error) {
+ 	if tagSize < gcmMinimumTagSize || tagSize > gcmBlockSize {
+ 		return nil, errors.New("cipher: incorrect tag size given to GCM")
+ 	}
+-
+ 	if nonceSize <= 0 {
+-		return nil, errors.New("cipher: the nonce can't have zero length, or the security of the key will be immediately compromised")
++		return nil, errors.New("cipher: the nonce can't have zero length")
+ 	}
+-
+-	if cipher, ok := cipher.(interface {
+-		NewGCM(nonceSize, tagSize int) (*aes.GCM, error)
+-	}); ok {
+-		gcm, err := cipher.NewGCM(nonceSize, tagSize)
+-		// TODO(filippo): Remove this check once the generic implementation is
+-		// moved to crypto/internal/fips/aes and this always returns non-nil.
+-		if gcm != nil || err != nil {
+-			return gcm, err
+-		}
+-	}
+-
+ 	if cipher, ok := cipher.(gcmAble); ok {
+ 		return cipher.NewGCM(nonceSize, tagSize)
+ 	}
+-
+ 	if cipher.BlockSize() != gcmBlockSize {
+ 		return nil, errors.New("cipher: NewGCM requires 128-bit block cipher")
+ 	}
+-
+-	var key [gcmBlockSize]byte
+-	cipher.Encrypt(key[:], key[:])
+-
+-	g := &gcm{cipher: cipher, nonceSize: nonceSize, tagSize: tagSize}
+-
+-	// We precompute 16 multiples of |key|. However, when we do lookups
+-	// into this table we'll be using bits from a field element and
+-	// therefore the bits will be in the reverse order. So normally one
+-	// would expect, say, 4*key to be in index 4 of the table but due to
+-	// this bit ordering it will actually be in index 0010 (base 2) = 2.
+-	x := gcmFieldElement{
+-		byteorder.BeUint64(key[:8]),
+-		byteorder.BeUint64(key[8:]),
+-	}
+-	g.productTable[reverseBits(1)] = x
+-
+-	for i := 2; i < 16; i += 2 {
+-		g.productTable[reverseBits(i)] = gcmDouble(&g.productTable[reverseBits(i/2)])
+-		g.productTable[reverseBits(i+1)] = gcmAdd(&g.productTable[reverseBits(i)], &x)
+-	}
+-
+-	return g, nil
++	return &gcmFallback{cipher: cipher, nonceSize: nonceSize, tagSize: tagSize}, nil
+ }
+ 
+-const (
+-	gcmBlockSize         = 16
+-	gcmTagSize           = 16
+-	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
+-	gcmStandardNonceSize = 12
+-)
++// gcmFallback is only used for non-AES ciphers, which regrettably we
++// theoretically support. It's a copy of the generic implementation from
++// crypto/internal/fips/aes/gcm/gcm_generic.go, refer to that file for more details.
++type gcmFallback struct {
++	cipher    Block
++	nonceSize int
++	tagSize   int
++}
+ 
+-func (g *gcm) NonceSize() int {
++func (g *gcmFallback) NonceSize() int {
+ 	return g.nonceSize
+ }
+ 
+-func (g *gcm) Overhead() int {
++func (g *gcmFallback) Overhead() int {
+ 	return g.tagSize
+ }
+ 
+-func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
++func (g *gcmFallback) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+-	if uint64(len(plaintext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize()) {
++	if g.nonceSize == 0 {
++		panic("crypto/cipher: incorrect GCM nonce size")
++	}
++	if uint64(len(plaintext)) > uint64((1<<32)-2)*gcmBlockSize {
+ 		panic("crypto/cipher: message too large for GCM")
+ 	}
+ 
+ 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+ 	if alias.InexactOverlap(out, plaintext) {
+-		panic("crypto/cipher: invalid buffer overlap")
++		panic("crypto/cipher: invalid buffer overlap of output and input")
++	}
++	if alias.AnyOverlap(out, additionalData) {
++		panic("crypto/cipher: invalid buffer overlap of output and additional data")
+ 	}
+ 
+-	var counter, tagMask [gcmBlockSize]byte
+-	g.deriveCounter(&counter, nonce)
+-
+-	g.cipher.Encrypt(tagMask[:], counter[:])
+-	gcmInc32(&counter)
++	var H, counter, tagMask [gcmBlockSize]byte
++	g.cipher.Encrypt(H[:], H[:])
++	deriveCounter(&H, &counter, nonce)
++	gcmCounterCryptGeneric(g.cipher, tagMask[:], tagMask[:], &counter)
+ 
+-	g.counterCrypt(out, plaintext, &counter)
++	gcmCounterCryptGeneric(g.cipher, out, plaintext, &counter)
+ 
+ 	var tag [gcmTagSize]byte
+-	g.auth(tag[:], out[:len(plaintext)], data, &tagMask)
++	gcmAuth(tag[:], &H, &tagMask, out[:len(plaintext)], additionalData)
+ 	copy(out[len(plaintext):], tag[:])
+ 
+ 	return ret
+@@ -207,12 +142,10 @@ func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 
+ var errOpen = errors.New("cipher: message authentication failed")
+ 
+-func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++func (g *gcmFallback) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+-	// Sanity check to prevent the authentication from always succeeding if an implementation
+-	// leaves tagSize uninitialized, for example.
+ 	if g.tagSize < gcmMinimumTagSize {
+ 		panic("crypto/cipher: incorrect GCM tag size")
+ 	}
+@@ -220,146 +153,84 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(ciphertext) < g.tagSize {
+ 		return nil, errOpen
+ 	}
+-	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize())+uint64(g.tagSize) {
++	if uint64(len(ciphertext)) > uint64((1<<32)-2)*gcmBlockSize+uint64(g.tagSize) {
+ 		return nil, errOpen
+ 	}
+ 
+-	tag := ciphertext[len(ciphertext)-g.tagSize:]
+-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
++	ret, out := sliceForAppend(dst, len(ciphertext)-g.tagSize)
++	if alias.InexactOverlap(out, ciphertext) {
++		panic("crypto/cipher: invalid buffer overlap of output and input")
++	}
++	if alias.AnyOverlap(out, additionalData) {
++		panic("crypto/cipher: invalid buffer overlap of output and additional data")
++	}
+ 
+-	var counter, tagMask [gcmBlockSize]byte
+-	g.deriveCounter(&counter, nonce)
++	var H, counter, tagMask [gcmBlockSize]byte
++	g.cipher.Encrypt(H[:], H[:])
++	deriveCounter(&H, &counter, nonce)
++	gcmCounterCryptGeneric(g.cipher, tagMask[:], tagMask[:], &counter)
+ 
+-	g.cipher.Encrypt(tagMask[:], counter[:])
+-	gcmInc32(&counter)
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+ 
+ 	var expectedTag [gcmTagSize]byte
+-	g.auth(expectedTag[:], ciphertext, data, &tagMask)
+-
+-	ret, out := sliceForAppend(dst, len(ciphertext))
+-	if alias.InexactOverlap(out, ciphertext) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-
++	gcmAuth(expectedTag[:], &H, &tagMask, ciphertext, additionalData)
+ 	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+-		// The AESNI code decrypts and authenticates concurrently, and
+-		// so overwrites dst in the event of a tag mismatch. That
+-		// behavior is mimicked here in order to be consistent across
+-		// platforms.
++		// We sometimes decrypt and authenticate concurrently, so we overwrite
++		// dst in the event of a tag mismatch. To be consistent across platforms
++		// and to avoid releasing unauthenticated plaintext, we clear the buffer
++		// in the event of an error.
+ 		clear(out)
+ 		return nil, errOpen
+ 	}
+ 
+-	g.counterCrypt(out, ciphertext, &counter)
++	gcmCounterCryptGeneric(g.cipher, out, ciphertext, &counter)
+ 
+ 	return ret, nil
+ }
+ 
+-// reverseBits reverses the order of the bits of 4-bit number in i.
+-func reverseBits(i int) int {
+-	i = ((i << 2) & 0xc) | ((i >> 2) & 0x3)
+-	i = ((i << 1) & 0xa) | ((i >> 1) & 0x5)
+-	return i
+-}
+-
+-// gcmAdd adds two elements of GF(2¹²⁸) and returns the sum.
+-func gcmAdd(x, y *gcmFieldElement) gcmFieldElement {
+-	// Addition in a characteristic 2 field is just XOR.
+-	return gcmFieldElement{x.low ^ y.low, x.high ^ y.high}
+-}
+-
+-// gcmDouble returns the result of doubling an element of GF(2¹²⁸).
+-func gcmDouble(x *gcmFieldElement) (double gcmFieldElement) {
+-	msbSet := x.high&1 == 1
+-
+-	// Because of the bit-ordering, doubling is actually a right shift.
+-	double.high = x.high >> 1
+-	double.high |= x.low << 63
+-	double.low = x.low >> 1
+-
+-	// If the most-significant bit was set before shifting then it,
+-	// conceptually, becomes a term of x^128. This is greater than the
+-	// irreducible polynomial so the result has to be reduced. The
+-	// irreducible polynomial is 1+x+x^2+x^7+x^128. We can subtract that to
+-	// eliminate the term at x^128 which also means subtracting the other
+-	// four terms. In characteristic 2 fields, subtraction == addition ==
+-	// XOR.
+-	if msbSet {
+-		double.low ^= 0xe100000000000000
++func deriveCounter(H, counter *[gcmBlockSize]byte, nonce []byte) {
++	if len(nonce) == gcmStandardNonceSize {
++		copy(counter[:], nonce)
++		counter[gcmBlockSize-1] = 1
++	} else {
++		lenBlock := make([]byte, 16)
++		byteorder.BePutUint64(lenBlock[8:], uint64(len(nonce))*8)
++		J := gcm.GHASH(H, nonce, lenBlock)
++		copy(counter[:], J)
+ 	}
+-
+-	return
+-}
+-
+-var gcmReductionTable = []uint16{
+-	0x0000, 0x1c20, 0x3840, 0x2460, 0x7080, 0x6ca0, 0x48c0, 0x54e0,
+-	0xe100, 0xfd20, 0xd940, 0xc560, 0x9180, 0x8da0, 0xa9c0, 0xb5e0,
+ }
+ 
+-// mul sets y to y*H, where H is the GCM key, fixed during NewGCMWithNonceSize.
+-func (g *gcm) mul(y *gcmFieldElement) {
+-	var z gcmFieldElement
+-
+-	for i := 0; i < 2; i++ {
+-		word := y.high
+-		if i == 1 {
+-			word = y.low
+-		}
+-
+-		// Multiplication works by multiplying z by 16 and adding in
+-		// one of the precomputed multiples of H.
+-		for j := 0; j < 64; j += 4 {
+-			msw := z.high & 0xf
+-			z.high >>= 4
+-			z.high |= z.low << 60
+-			z.low >>= 4
+-			z.low ^= uint64(gcmReductionTable[msw]) << 48
+-
+-			// the values in |table| are ordered for
+-			// little-endian bit positions. See the comment
+-			// in NewGCMWithNonceSize.
+-			t := &g.productTable[word&0xf]
+-
+-			z.low ^= t.low
+-			z.high ^= t.high
+-			word >>= 4
+-		}
+-	}
+-
+-	*y = z
+-}
++func gcmCounterCryptGeneric(b Block, out, src []byte, counter *[gcmBlockSize]byte) {
++	var mask [gcmBlockSize]byte
++	for len(src) >= gcmBlockSize {
++		b.Encrypt(mask[:], counter[:])
++		gcmInc32(counter)
+ 
+-// updateBlocks extends y with more polynomial terms from blocks, based on
+-// Horner's rule. There must be a multiple of gcmBlockSize bytes in blocks.
+-func (g *gcm) updateBlocks(y *gcmFieldElement, blocks []byte) {
+-	for len(blocks) > 0 {
+-		y.low ^= byteorder.BeUint64(blocks)
+-		y.high ^= byteorder.BeUint64(blocks[8:])
+-		g.mul(y)
+-		blocks = blocks[gcmBlockSize:]
++		subtle.XORBytes(out, src, mask[:])
++		out = out[gcmBlockSize:]
++		src = src[gcmBlockSize:]
+ 	}
+-}
+-
+-// update extends y with more polynomial terms from data. If data is not a
+-// multiple of gcmBlockSize bytes long then the remainder is zero padded.
+-func (g *gcm) update(y *gcmFieldElement, data []byte) {
+-	fullBlocks := (len(data) >> 4) << 4
+-	g.updateBlocks(y, data[:fullBlocks])
+-
+-	if len(data) != fullBlocks {
+-		var partialBlock [gcmBlockSize]byte
+-		copy(partialBlock[:], data[fullBlocks:])
+-		g.updateBlocks(y, partialBlock[:])
++	if len(src) > 0 {
++		b.Encrypt(mask[:], counter[:])
++		gcmInc32(counter)
++		subtle.XORBytes(out, src, mask[:])
+ 	}
+ }
+ 
+-// gcmInc32 treats the final four bytes of counterBlock as a big-endian value
+-// and increments it.
+-func gcmInc32(counterBlock *[16]byte) {
++func gcmInc32(counterBlock *[gcmBlockSize]byte) {
+ 	ctr := counterBlock[len(counterBlock)-4:]
+ 	byteorder.BePutUint32(ctr, byteorder.BeUint32(ctr)+1)
+ }
+ 
++func gcmAuth(out []byte, H, tagMask *[gcmBlockSize]byte, ciphertext, additionalData []byte) {
++	lenBlock := make([]byte, 16)
++	byteorder.BePutUint64(lenBlock[:8], uint64(len(additionalData))*8)
++	byteorder.BePutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
++	S := gcm.GHASH(H, additionalData, ciphertext, lenBlock)
++	subtle.XORBytes(out, S, tagMask[:])
++}
++
+ // sliceForAppend takes a slice and a requested number of bytes. It returns a
+ // slice with the contents of the given slice followed by that many bytes and a
+ // second slice that aliases into it and contains only the extra bytes. If the
+@@ -374,64 +245,3 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
+ 	tail = head[len(in):]
+ 	return
+ }
+-
+-// counterCrypt crypts in to out using g.cipher in counter mode.
+-func (g *gcm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
+-	var mask [gcmBlockSize]byte
+-
+-	for len(in) >= gcmBlockSize {
+-		g.cipher.Encrypt(mask[:], counter[:])
+-		gcmInc32(counter)
+-
+-		subtle.XORBytes(out, in, mask[:])
+-		out = out[gcmBlockSize:]
+-		in = in[gcmBlockSize:]
+-	}
+-
+-	if len(in) > 0 {
+-		g.cipher.Encrypt(mask[:], counter[:])
+-		gcmInc32(counter)
+-		subtle.XORBytes(out, in, mask[:])
+-	}
+-}
+-
+-// deriveCounter computes the initial GCM counter state from the given nonce.
+-// See NIST SP 800-38D, section 7.1. This assumes that counter is filled with
+-// zeros on entry.
+-func (g *gcm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
+-	// GCM has two modes of operation with respect to the initial counter
+-	// state: a "fast path" for 96-bit (12-byte) nonces, and a "slow path"
+-	// for nonces of other lengths. For a 96-bit nonce, the nonce, along
+-	// with a four-byte big-endian counter starting at one, is used
+-	// directly as the starting counter. For other nonce sizes, the counter
+-	// is computed by passing it through the GHASH function.
+-	if len(nonce) == gcmStandardNonceSize {
+-		copy(counter[:], nonce)
+-		counter[gcmBlockSize-1] = 1
+-	} else {
+-		var y gcmFieldElement
+-		g.update(&y, nonce)
+-		y.high ^= uint64(len(nonce)) * 8
+-		g.mul(&y)
+-		byteorder.BePutUint64(counter[:8], y.low)
+-		byteorder.BePutUint64(counter[8:], y.high)
+-	}
+-}
+-
+-// auth calculates GHASH(ciphertext, additionalData), masks the result with
+-// tagMask and writes the result to out.
+-func (g *gcm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]byte) {
+-	var y gcmFieldElement
+-	g.update(&y, additionalData)
+-	g.update(&y, ciphertext)
+-
+-	y.low ^= uint64(len(additionalData)) * 8
+-	y.high ^= uint64(len(ciphertext)) * 8
+-
+-	g.mul(&y)
+-
+-	byteorder.BePutUint64(out, y.low)
+-	byteorder.BePutUint64(out[8:], y.high)
+-
+-	subtle.XORBytes(out, out, tagMask[:])
+-}
+diff --git a/src/crypto/cipher/gcm_test.go b/src/crypto/cipher/gcm_test.go
+index 9493e90492..cdbe02b02f 100644
+--- a/src/crypto/cipher/gcm_test.go
++++ b/src/crypto/cipher/gcm_test.go
+@@ -464,7 +464,7 @@ func TestGCMInvalidTagSize(t *testing.T) {
+ 	for _, tagSize := range []int{0, 1, aes.BlockSize() + 1} {
+ 		aesgcm, err := cipher.NewGCMWithTagSize(aes, tagSize)
+ 		if aesgcm != nil || err == nil {
+-			t.Fatalf("NewGCMWithNonceAndTagSize was successful with an invalid %d-byte tag size", tagSize)
++			t.Fatalf("NewGCMWithTagSize was successful with an invalid %d-byte tag size", tagSize)
+ 		}
+ 	}
+ }
+diff --git a/src/crypto/internal/fips/aes/aes.go b/src/crypto/internal/fips/aes/aes.go
+index 36cc83ee7a..6ad63ea880 100644
+--- a/src/crypto/internal/fips/aes/aes.go
++++ b/src/crypto/internal/fips/aes/aes.go
+@@ -117,9 +117,3 @@ func (c *Block) Decrypt(dst, src []byte) {
+ 	}
+ 	decryptBlock(c, dst, src)
+ }
+-
+-// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+-// called by [crypto/cipher.NewGCM] via an interface upgrade.
+-func (c *Block) NewGCM(nonceSize, tagSize int) (*GCM, error) {
+-	return newGCM(c, nonceSize, tagSize)
+-}
+diff --git a/src/crypto/internal/fips/aes/aes_asm.go b/src/crypto/internal/fips/aes/aes_asm.go
+index 6dfcdc19df..fb36969105 100644
+--- a/src/crypto/internal/fips/aes/aes_asm.go
++++ b/src/crypto/internal/fips/aes/aes_asm.go
+@@ -22,7 +22,6 @@ func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+ 
+ var supportsAES = cpu.X86.HasAES && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
+ 	cpu.ARM64.HasAES || goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1
+-var supportsGFMUL = cpu.X86.HasPCLMULQDQ || cpu.ARM64.HasPMULL
+ 
+ // checkGenericIsExpected is called by the variable-time implementation to make
+ // sure it is not used when hardware support is available. It shouldn't happen,
+@@ -54,6 +53,12 @@ func newBlock(c *Block, key []byte) *Block {
+ 	return c
+ }
+ 
++// EncryptionKeySchedule is used from the GCM implementation to access the
++// precomputed AES key schedule, to pass to the assembly implementation.
++func EncryptionKeySchedule(c *Block) []uint32 {
++	return c.enc[:c.roundKeysSize()]
++}
++
+ func encryptBlock(c *Block, dst, src []byte) {
+ 	if supportsAES {
+ 		encryptBlockAsm(c.rounds, &c.enc[0], &dst[0], &src[0])
+diff --git a/src/crypto/internal/fips/aes/aes_s390x.go b/src/crypto/internal/fips/aes/aes_s390x.go
+index 4bc0671805..4e27b8c1d2 100644
+--- a/src/crypto/internal/fips/aes/aes_s390x.go
++++ b/src/crypto/internal/fips/aes/aes_s390x.go
+@@ -13,8 +13,8 @@ type code int
+ // Function codes for the cipher message family of instructions.
+ const (
+ 	aes128 code = 18
+-	aes192      = 19
+-	aes256      = 20
++	aes192 code = 19
++	aes256 code = 20
+ )
+ 
+ type block struct {
+@@ -32,7 +32,7 @@ type block struct {
+ //go:noescape
+ func cryptBlocks(c code, key, dst, src *byte, length int)
+ 
+-var supportsAES = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR
++var supportsAES = cpu.S390X.HasAES && cpu.S390X.HasAESCBC
+ 
+ func checkGenericIsExpected() {
+ 	if supportsAES {
+@@ -48,11 +48,11 @@ func newBlock(c *Block, key []byte) *Block {
+ 	}
+ 
+ 	switch len(key) {
+-	case 128 / 8:
++	case aes128KeySize:
+ 		c.function = aes128
+-	case 192 / 8:
++	case aes192KeySize:
+ 		c.function = aes192
+-	case 256 / 8:
++	case aes256KeySize:
+ 		c.function = aes256
+ 	}
+ 	c.key = c.storage[:len(key)]
+@@ -60,6 +60,18 @@ func newBlock(c *Block, key []byte) *Block {
+ 	return c
+ }
+ 
++// BlockFunction returns the function code for the block cipher.
++// It is used by the GCM implementation to invoke the KMA instruction.
++func BlockFunction(c *Block) int {
++	return int(c.function)
++}
++
++// BlockKey returns the key for the block cipher.
++// It is used by the GCM implementation to invoke the KMA instruction.
++func BlockKey(c *Block) []byte {
++	return c.key
++}
++
+ func encryptBlock(c *Block, dst, src []byte) {
+ 	if c.fallback != nil {
+ 		encryptBlockGeneric(c.fallback, dst, src)
+diff --git a/src/crypto/internal/fips/aes/aes_s390x.s b/src/crypto/internal/fips/aes/aes_s390x.s
+index 7cbb00eb4e..5a60dd03b1 100644
+--- a/src/crypto/internal/fips/aes/aes_s390x.s
++++ b/src/crypto/internal/fips/aes/aes_s390x.s
+@@ -37,124 +37,3 @@ loop:
+ 	MVC	$16, 0(R1), 0(R8) // update iv
+ 	RET
+ 
+-// func cryptBlocksGCM(fn code, key, dst, src, buf []byte, cnt *[16]byte)
+-TEXT ·cryptBlocksGCM(SB),NOSPLIT,$0-112
+-	MOVD	src_len+64(FP), R0
+-	MOVD	buf_base+80(FP), R1
+-	MOVD	cnt+104(FP), R12
+-	LMG	(R12), R2, R3
+-
+-	// Check that the src size is less than or equal to the buffer size.
+-	MOVD	buf_len+88(FP), R4
+-	CMP	R0, R4
+-	BGT	crash
+-
+-	// Check that the src size is a multiple of 16-bytes.
+-	MOVD	R0, R4
+-	AND	$0xf, R4
+-	BLT	crash // non-zero
+-
+-	// Check that the src size is less than or equal to the dst size.
+-	MOVD	dst_len+40(FP), R4
+-	CMP	R0, R4
+-	BGT	crash
+-
+-	MOVD	R2, R4
+-	MOVD	R2, R6
+-	MOVD	R2, R8
+-	MOVD	R3, R5
+-	MOVD	R3, R7
+-	MOVD	R3, R9
+-	ADDW	$1, R5
+-	ADDW	$2, R7
+-	ADDW	$3, R9
+-incr:
+-	CMP	R0, $64
+-	BLT	tail
+-	STMG	R2, R9, (R1)
+-	ADDW	$4, R3
+-	ADDW	$4, R5
+-	ADDW	$4, R7
+-	ADDW	$4, R9
+-	MOVD	$64(R1), R1
+-	SUB	$64, R0
+-	BR	incr
+-tail:
+-	CMP	R0, $0
+-	BEQ	crypt
+-	STMG	R2, R3, (R1)
+-	ADDW	$1, R3
+-	MOVD	$16(R1), R1
+-	SUB	$16, R0
+-	BR	tail
+-crypt:
+-	STMG	R2, R3, (R12)       // update next counter value
+-	MOVD	fn+0(FP), R0        // function code (encryption)
+-	MOVD	key_base+8(FP), R1  // key
+-	MOVD	buf_base+80(FP), R2 // counter values
+-	MOVD	dst_base+32(FP), R4 // dst
+-	MOVD	src_base+56(FP), R6 // src
+-	MOVD	src_len+64(FP), R7  // len
+-loop:
+-	KMCTR	R4, R2, R6          // cipher message with counter (KMCTR)
+-	BVS	loop                // branch back if interrupted
+-	RET
+-crash:
+-	MOVD	$0, (R0)
+-	RET
+-
+-// func ghash(key *gcmHashKey, hash *[16]byte, data []byte)
+-TEXT ·ghash(SB),NOSPLIT,$32-40
+-	MOVD    $65, R0 // GHASH function code
+-	MOVD	key+0(FP), R2
+-	LMG	(R2), R6, R7
+-	MOVD	hash+8(FP), R8
+-	LMG	(R8), R4, R5
+-	MOVD	$params-32(SP), R1
+-	STMG	R4, R7, (R1)
+-	LMG	data+16(FP), R2, R3 // R2=base, R3=len
+-loop:
+-	KIMD	R0, R2      // compute intermediate message digest (KIMD)
+-	BVS     loop        // branch back if interrupted
+-	MVC     $16, (R1), (R8)
+-	MOVD	$0, R0
+-	RET
+-
+-// func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
+-TEXT ·kmaGCM(SB),NOSPLIT,$112-120
+-	MOVD	fn+0(FP), R0
+-	MOVD	$params-112(SP), R1
+-
+-	// load ptr/len pairs
+-	LMG	dst+32(FP), R2, R3 // R2=base R3=len
+-	LMG	src+56(FP), R4, R5 // R4=base R5=len
+-	LMG	aad+80(FP), R6, R7 // R6=base R7=len
+-
+-	// setup parameters
+-	MOVD	cnt+112(FP), R8
+-	XC	$12, (R1), (R1)     // reserved
+-	MVC	$4, 12(R8), 12(R1)  // set chain value
+-	MVC	$16, (R8), 64(R1)   // set initial counter value
+-	XC	$32, 16(R1), 16(R1) // set hash subkey and tag
+-	SLD	$3, R7, R12
+-	MOVD	R12, 48(R1)         // set total AAD length
+-	SLD	$3, R5, R12
+-	MOVD	R12, 56(R1)         // set total plaintext/ciphertext length
+-
+-	LMG	key+8(FP), R8, R9   // R8=base R9=len
+-	MVC	$16, (R8), 80(R1)   // set key
+-	CMPBEQ	R9, $16, kma
+-	MVC	$8, 16(R8), 96(R1)
+-	CMPBEQ	R9, $24, kma
+-	MVC	$8, 24(R8), 104(R1)
+-
+-kma:
+-	KMA	R2, R6, R4       // Cipher Message with Authentication
+-	BVS	kma
+-
+-	MOVD	tag+104(FP), R2
+-	MVC	$16, 16(R1), 0(R2) // copy tag to output
+-	MOVD	cnt+112(FP), R8
+-	MVC	$4, 12(R1), 12(R8) // update counter value
+-
+-	RET
+diff --git a/src/crypto/internal/fips/aes/_asm/gcm/gcm_amd64_asm.go b/src/crypto/internal/fips/aes/gcm/_asm/gcm/gcm_amd64_asm.go
+similarity index 100%
+rename from src/crypto/internal/fips/aes/_asm/gcm/gcm_amd64_asm.go
+rename to src/crypto/internal/fips/aes/gcm/_asm/gcm/gcm_amd64_asm.go
+diff --git a/src/crypto/internal/fips/aes/_asm/gcm/go.mod b/src/crypto/internal/fips/aes/gcm/_asm/gcm/go.mod
+similarity index 100%
+rename from src/crypto/internal/fips/aes/_asm/gcm/go.mod
+rename to src/crypto/internal/fips/aes/gcm/_asm/gcm/go.mod
+diff --git a/src/crypto/internal/fips/aes/_asm/gcm/go.sum b/src/crypto/internal/fips/aes/gcm/_asm/gcm/go.sum
+similarity index 100%
+rename from src/crypto/internal/fips/aes/_asm/gcm/go.sum
+rename to src/crypto/internal/fips/aes/gcm/_asm/gcm/go.sum
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm.go b/src/crypto/internal/fips/aes/gcm/gcm.go
+new file mode 100644
+index 0000000000..b9732585b8
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/gcm.go
+@@ -0,0 +1,136 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gcm
++
++import (
++	"crypto/internal/fips/aes"
++	"crypto/internal/fips/alias"
++	"errors"
++)
++
++// GCM represents a Galois Counter Mode with a specific key.
++type GCM struct {
++	cipher    aes.Block
++	nonceSize int
++	tagSize   int
++	gcmPlatformData
++}
++
++func New(cipher *aes.Block, nonceSize, tagSize int) (*GCM, error) {
++	// This function is outlined to let the allocation happen on the parent stack.
++	return newGCM(&GCM{}, cipher, nonceSize, tagSize)
++}
++
++// newGCM is marked go:noinline to avoid it inlining into New, and making New
++// too complex to inline itself.
++//
++//go:noinline
++func newGCM(g *GCM, cipher *aes.Block, nonceSize, tagSize int) (*GCM, error) {
++	if tagSize < gcmMinimumTagSize || tagSize > gcmBlockSize {
++		return nil, errors.New("cipher: incorrect tag size given to GCM")
++	}
++	if nonceSize <= 0 {
++		return nil, errors.New("cipher: the nonce can't have zero length")
++	}
++	if cipher.BlockSize() != gcmBlockSize {
++		return nil, errors.New("cipher: NewGCM requires 128-bit block cipher")
++	}
++	g.cipher = *cipher
++	g.nonceSize = nonceSize
++	g.tagSize = tagSize
++	initGCM(g)
++	return g, nil
++}
++
++const (
++	gcmBlockSize         = 16
++	gcmTagSize           = 16
++	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
++	gcmStandardNonceSize = 12
++)
++
++func (g *GCM) NonceSize() int {
++	return g.nonceSize
++}
++
++func (g *GCM) Overhead() int {
++	return g.tagSize
++}
++
++func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
++	if len(nonce) != g.nonceSize {
++		panic("crypto/cipher: incorrect nonce length given to GCM")
++	}
++	if g.nonceSize == 0 {
++		panic("crypto/cipher: incorrect GCM nonce size")
++	}
++	if uint64(len(plaintext)) > uint64((1<<32)-2)*gcmBlockSize {
++		panic("crypto/cipher: message too large for GCM")
++	}
++
++	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
++	if alias.InexactOverlap(out, plaintext) {
++		panic("crypto/cipher: invalid buffer overlap of output and input")
++	}
++	if alias.AnyOverlap(out, data) {
++		panic("crypto/cipher: invalid buffer overlap of output and additional data")
++	}
++
++	seal(out, g, nonce, plaintext, data)
++	return ret
++}
++
++var errOpen = errors.New("cipher: message authentication failed")
++
++func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++	if len(nonce) != g.nonceSize {
++		panic("crypto/cipher: incorrect nonce length given to GCM")
++	}
++	// Sanity check to prevent the authentication from always succeeding if an
++	// implementation leaves tagSize uninitialized, for example.
++	if g.tagSize < gcmMinimumTagSize {
++		panic("crypto/cipher: incorrect GCM tag size")
++	}
++
++	if len(ciphertext) < g.tagSize {
++		return nil, errOpen
++	}
++	if uint64(len(ciphertext)) > uint64((1<<32)-2)*gcmBlockSize+uint64(g.tagSize) {
++		return nil, errOpen
++	}
++
++	ret, out := sliceForAppend(dst, len(ciphertext)-g.tagSize)
++	if alias.InexactOverlap(out, ciphertext) {
++		panic("crypto/cipher: invalid buffer overlap of output and input")
++	}
++	if alias.AnyOverlap(out, data) {
++		panic("crypto/cipher: invalid buffer overlap of output and additional data")
++	}
++
++	if err := open(out, g, nonce, ciphertext, data); err != nil {
++		// We sometimes decrypt and authenticate concurrently, so we overwrite
++		// dst in the event of a tag mismatch. To be consistent across platforms
++		// and to avoid releasing unauthenticated plaintext, we clear the buffer
++		// in the event of an error.
++		clear(out)
++		return nil, err
++	}
++	return ret, nil
++}
++
++// sliceForAppend takes a slice and a requested number of bytes. It returns a
++// slice with the contents of the given slice followed by that many bytes and a
++// second slice that aliases into it and contains only the extra bytes. If the
++// original slice has sufficient capacity then no allocation is performed.
++func sliceForAppend(in []byte, n int) (head, tail []byte) {
++	if total := len(in) + n; cap(in) >= total {
++		head = in[:total]
++	} else {
++		head = make([]byte, total)
++		copy(head, in)
++	}
++	tail = head[len(in):]
++	return
++}
+diff --git a/src/crypto/internal/fips/aes/gcm_amd64.s b/src/crypto/internal/fips/aes/gcm/gcm_amd64.s
+similarity index 100%
+rename from src/crypto/internal/fips/aes/gcm_amd64.s
+rename to src/crypto/internal/fips/aes/gcm/gcm_amd64.s
+diff --git a/src/crypto/internal/fips/aes/gcm_arm64.s b/src/crypto/internal/fips/aes/gcm/gcm_arm64.s
+similarity index 100%
+rename from src/crypto/internal/fips/aes/gcm_arm64.s
+rename to src/crypto/internal/fips/aes/gcm/gcm_arm64.s
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_asm.go b/src/crypto/internal/fips/aes/gcm/gcm_asm.go
+new file mode 100644
+index 0000000000..1f099f4bdf
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/gcm_asm.go
+@@ -0,0 +1,121 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (amd64 || arm64) && !purego
++
++package gcm
++
++import (
++	"crypto/internal/fips/aes"
++	"crypto/internal/fips/subtle"
++	"internal/cpu"
++)
++
++// The following functions are defined in gcm_*.s.
++
++//go:noescape
++func gcmAesInit(productTable *[256]byte, ks []uint32)
++
++//go:noescape
++func gcmAesData(productTable *[256]byte, data []byte, T *[16]byte)
++
++//go:noescape
++func gcmAesEnc(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
++
++//go:noescape
++func gcmAesDec(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
++
++//go:noescape
++func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
++
++// Keep in sync with crypto/tls.hasAESGCMHardwareSupport.
++var supportsAESGCM = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
++	cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
++
++// checkGenericIsExpected is called by the variable-time implementation to make
++// sure it is not used when hardware support is available. It shouldn't happen,
++// but this way it's more evidently correct.
++func checkGenericIsExpected() {
++	if supportsAESGCM {
++		panic("gcm: internal error: using generic implementation despite hardware support")
++	}
++}
++
++type gcmPlatformData struct {
++	productTable [256]byte
++}
++
++func initGCM(g *GCM) {
++	if !supportsAESGCM {
++		return
++	}
++	gcmAesInit(&g.productTable, aes.EncryptionKeySchedule(&g.cipher))
++}
++
++func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
++	if !supportsAESGCM {
++		sealGeneric(out, g, nonce, plaintext, data)
++		return
++	}
++
++	var counter, tagMask [gcmBlockSize]byte
++
++	if len(nonce) == gcmStandardNonceSize {
++		// Init counter to nonce||1
++		copy(counter[:], nonce)
++		counter[gcmBlockSize-1] = 1
++	} else {
++		// Otherwise counter = GHASH(nonce)
++		gcmAesData(&g.productTable, nonce, &counter)
++		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
++	}
++
++	g.cipher.Encrypt(tagMask[:], counter[:])
++
++	var tagOut [gcmTagSize]byte
++	gcmAesData(&g.productTable, data, &tagOut)
++
++	if len(plaintext) > 0 {
++		gcmAesEnc(&g.productTable, out, plaintext, &counter, &tagOut, aes.EncryptionKeySchedule(&g.cipher))
++	}
++	gcmAesFinish(&g.productTable, &tagMask, &tagOut, uint64(len(plaintext)), uint64(len(data)))
++	copy(out[len(plaintext):], tagOut[:])
++}
++
++func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
++	if !supportsAESGCM {
++		return openGeneric(out, g, nonce, ciphertext, data)
++	}
++
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
++
++	// See GCM spec, section 7.1.
++	var counter, tagMask [gcmBlockSize]byte
++
++	if len(nonce) == gcmStandardNonceSize {
++		// Init counter to nonce||1
++		copy(counter[:], nonce)
++		counter[gcmBlockSize-1] = 1
++	} else {
++		// Otherwise counter = GHASH(nonce)
++		gcmAesData(&g.productTable, nonce, &counter)
++		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
++	}
++
++	g.cipher.Encrypt(tagMask[:], counter[:])
++
++	var expectedTag [gcmTagSize]byte
++	gcmAesData(&g.productTable, data, &expectedTag)
++
++	if len(ciphertext) > 0 {
++		gcmAesDec(&g.productTable, out, ciphertext, &counter, &expectedTag, aes.EncryptionKeySchedule(&g.cipher))
++	}
++	gcmAesFinish(&g.productTable, &tagMask, &expectedTag, uint64(len(ciphertext)), uint64(len(data)))
++
++	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
++		return errOpen
++	}
++	return nil
++}
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_generic.go b/src/crypto/internal/fips/aes/gcm/gcm_generic.go
+new file mode 100644
+index 0000000000..7f9e0b37f6
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/gcm_generic.go
+@@ -0,0 +1,105 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gcm
++
++import (
++	"crypto/internal/fips/aes"
++	"crypto/internal/fips/subtle"
++	"internal/byteorder"
++)
++
++func sealGeneric(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
++	var H, counter, tagMask [gcmBlockSize]byte
++	g.cipher.Encrypt(H[:], H[:])
++	deriveCounterGeneric(&H, &counter, nonce)
++	gcmCounterCryptGeneric(&g.cipher, tagMask[:], tagMask[:], &counter)
++
++	gcmCounterCryptGeneric(&g.cipher, out, plaintext, &counter)
++
++	var tag [gcmTagSize]byte
++	gcmAuthGeneric(tag[:], &H, &tagMask, out[:len(plaintext)], additionalData)
++	copy(out[len(plaintext):], tag[:])
++}
++
++func openGeneric(out []byte, g *GCM, nonce, ciphertext, additionalData []byte) error {
++	var H, counter, tagMask [gcmBlockSize]byte
++	g.cipher.Encrypt(H[:], H[:])
++	deriveCounterGeneric(&H, &counter, nonce)
++	gcmCounterCryptGeneric(&g.cipher, tagMask[:], tagMask[:], &counter)
++
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
++
++	var expectedTag [gcmTagSize]byte
++	gcmAuthGeneric(expectedTag[:], &H, &tagMask, ciphertext, additionalData)
++	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
++		return errOpen
++	}
++
++	gcmCounterCryptGeneric(&g.cipher, out, ciphertext, &counter)
++
++	return nil
++}
++
++// deriveCounterGeneric computes the initial GCM counter state from the given nonce.
++// See NIST SP 800-38D, section 7.1. This assumes that counter is filled with
++// zeros on entry.
++func deriveCounterGeneric(H, counter *[gcmBlockSize]byte, nonce []byte) {
++	// GCM has two modes of operation with respect to the initial counter
++	// state: a "fast path" for 96-bit (12-byte) nonces, and a "slow path"
++	// for nonces of other lengths. For a 96-bit nonce, the nonce, along
++	// with a four-byte big-endian counter starting at one, is used
++	// directly as the starting counter. For other nonce sizes, the counter
++	// is computed by passing it through the GHASH function.
++	if len(nonce) == gcmStandardNonceSize {
++		copy(counter[:], nonce)
++		counter[gcmBlockSize-1] = 1
++	} else {
++		lenBlock := make([]byte, 16)
++		byteorder.BePutUint64(lenBlock[8:], uint64(len(nonce))*8)
++		ghash(counter, H, nonce, lenBlock)
++	}
++}
++
++// gcmCounterCryptGeneric encrypts src using AES in counter mode with 32-bit
++// wrapping (which is different from AES-CTR) and places the result into out.
++// counter is the initial value and will be updated with the next value.
++func gcmCounterCryptGeneric(b *aes.Block, out, src []byte, counter *[gcmBlockSize]byte) {
++	var mask [gcmBlockSize]byte
++
++	for len(src) >= gcmBlockSize {
++		b.Encrypt(mask[:], counter[:])
++		gcmInc32(counter)
++
++		subtle.XORBytes(out, src, mask[:])
++		out = out[gcmBlockSize:]
++		src = src[gcmBlockSize:]
++	}
++
++	if len(src) > 0 {
++		b.Encrypt(mask[:], counter[:])
++		gcmInc32(counter)
++		subtle.XORBytes(out, src, mask[:])
++	}
++}
++
++// gcmInc32 treats the final four bytes of counterBlock as a big-endian value
++// and increments it.
++func gcmInc32(counterBlock *[gcmBlockSize]byte) {
++	ctr := counterBlock[len(counterBlock)-4:]
++	byteorder.BePutUint32(ctr, byteorder.BeUint32(ctr)+1)
++}
++
++// gcmAuthGeneric calculates GHASH(additionalData, ciphertext), masks the result
++// with tagMask and writes the result to out.
++func gcmAuthGeneric(out []byte, H, tagMask *[gcmBlockSize]byte, ciphertext, additionalData []byte) {
++	checkGenericIsExpected()
++	lenBlock := make([]byte, 16)
++	byteorder.BePutUint64(lenBlock[:8], uint64(len(additionalData))*8)
++	byteorder.BePutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
++	var S [gcmBlockSize]byte
++	ghash(&S, H, additionalData, ciphertext, lenBlock)
++	subtle.XORBytes(out, S[:], tagMask[:])
++}
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_noasm.go b/src/crypto/internal/fips/aes/gcm/gcm_noasm.go
+new file mode 100644
+index 0000000000..4ae3831a45
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/gcm_noasm.go
+@@ -0,0 +1,21 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (!amd64 && !s390x && !ppc64 && !ppc64le && !arm64) || purego
++
++package gcm
++
++func checkGenericIsExpected() {}
++
++type gcmPlatformData struct{}
++
++func initGCM(g *GCM) {}
++
++func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
++	sealGeneric(out, g, nonce, plaintext, data)
++}
++
++func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
++	return openGeneric(out, g, nonce, ciphertext, data)
++}
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go b/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go
+new file mode 100644
+index 0000000000..df1df2e541
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go
+@@ -0,0 +1,182 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (ppc64le || ppc64) && !purego
++
++package gcm
++
++import (
++	"crypto/internal/fips/aes"
++	"crypto/internal/fips/subtle"
++	"internal/byteorder"
++	"internal/godebug"
++	"runtime"
++)
++
++// This file implements GCM using an optimized GHASH function.
++
++//go:noescape
++func gcmInit(productTable *[256]byte, h []byte)
++
++//go:noescape
++func gcmHash(output []byte, productTable *[256]byte, inp []byte, len int)
++
++func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *uint32)
++
++// The POWER architecture doesn't have a way to turn off AES-GCM support
++// at runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG
++// knob for that. It's intentionally only checked at init() time, to
++// avoid the performance overhead of checking it every time.
++var supportsAESGCM = godebug.New("#ppc64gcm").Value() == "off"
++
++func checkGenericIsExpected() {
++	if supportsAESGCM {
++		panic("gcm: internal error: using generic implementation despite hardware support")
++	}
++}
++
++type gcmPlatformData struct {
++	productTable [256]byte
++}
++
++func initGCM(g *GCM) {
++	if !supportsAESGCM {
++		return
++	}
++
++	hle := make([]byte, gcmBlockSize)
++	g.cipher.Encrypt(hle, hle)
++
++	// Reverse the bytes in each 8 byte chunk
++	// Load little endian, store big endian
++	var h1, h2 uint64
++	if runtime.GOARCH == "ppc64le" {
++		h1 = byteorder.LeUint64(hle[:8])
++		h2 = byteorder.LeUint64(hle[8:])
++	} else {
++		h1 = byteorder.BeUint64(hle[:8])
++		h2 = byteorder.BeUint64(hle[8:])
++	}
++	byteorder.BePutUint64(hle[:8], h1)
++	byteorder.BePutUint64(hle[8:], h2)
++	gcmInit(&g.productTable, hle)
++}
++
++// deriveCounter computes the initial GCM counter state from the given nonce.
++func deriveCounter(counter *[gcmBlockSize]byte, nonce []byte, productTable *[256]byte) {
++	if len(nonce) == gcmStandardNonceSize {
++		copy(counter[:], nonce)
++		counter[gcmBlockSize-1] = 1
++	} else {
++		var hash [16]byte
++		paddedGHASH(&hash, nonce, productTable)
++		lens := gcmLengths(0, uint64(len(nonce))*8)
++		paddedGHASH(&hash, lens[:], productTable)
++		copy(counter[:], hash[:])
++	}
++}
++
++// counterCrypt encrypts in using AES in counter mode and places the result
++// into out. counter is the initial count value and will be updated with the next
++// count value. The length of out must be greater than or equal to the length
++// of in.
++// counterCryptASM implements counterCrypt which then allows the loop to
++// be unrolled and optimized.
++func counterCrypt(b *aes.Block, out, in []byte, counter *[gcmBlockSize]byte) {
++	enc := aes.EncryptionKeySchedule(b)
++	rounds := len(enc)/4 - 1
++	counterCryptASM(rounds, out, in, counter, &enc[0])
++}
++
++// paddedGHASH pads data with zeroes until its length is a multiple of
++// 16-bytes. It then calculates a new value for hash using the ghash
++// algorithm.
++func paddedGHASH(hash *[16]byte, data []byte, productTable *[256]byte) {
++	if siz := len(data) - (len(data) % gcmBlockSize); siz > 0 {
++		gcmHash(hash[:], productTable, data[:], siz)
++		data = data[siz:]
++	}
++	if len(data) > 0 {
++		var s [16]byte
++		copy(s[:], data)
++		gcmHash(hash[:], productTable, s[:], len(s))
++	}
++}
++
++// auth calculates GHASH(ciphertext, additionalData), masks the result with
++// tagMask and writes the result to out.
++func auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte, productTable *[256]byte) {
++	var hash [16]byte
++	paddedGHASH(&hash, aad, productTable)
++	paddedGHASH(&hash, ciphertext, productTable)
++	lens := gcmLengths(uint64(len(aad))*8, uint64(len(ciphertext))*8)
++	paddedGHASH(&hash, lens[:], productTable)
++
++	copy(out, hash[:])
++	for i := range out {
++		out[i] ^= tagMask[i]
++	}
++}
++
++func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
++	if !supportsAESGCM {
++		sealGeneric(out, g, nonce, plaintext, data)
++		return
++	}
++
++	var counter, tagMask [gcmBlockSize]byte
++	deriveCounter(&counter, nonce, &g.productTable)
++
++	g.cipher.Encrypt(tagMask[:], counter[:])
++	gcmInc32(&counter)
++
++	counterCrypt(&g.cipher, out, plaintext, &counter)
++	auth(out[len(plaintext):], out[:len(plaintext)], data, &tagMask, &g.productTable)
++}
++
++func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
++	if !supportsAESGCM {
++		return openGeneric(out, g, nonce, ciphertext, data)
++	}
++
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
++
++	var counter, tagMask [gcmBlockSize]byte
++	deriveCounter(&counter, nonce, &g.productTable)
++
++	g.cipher.Encrypt(tagMask[:], counter[:])
++	gcmInc32(&counter)
++
++	var expectedTag [gcmTagSize]byte
++	auth(expectedTag[:], ciphertext, data, &tagMask, &g.productTable)
++
++	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
++		return errOpen
++	}
++
++	counterCrypt(&g.cipher, out, ciphertext, &counter)
++	return nil
++}
++
++func gcmLengths(len0, len1 uint64) [16]byte {
++	return [16]byte{
++		byte(len0 >> 56),
++		byte(len0 >> 48),
++		byte(len0 >> 40),
++		byte(len0 >> 32),
++		byte(len0 >> 24),
++		byte(len0 >> 16),
++		byte(len0 >> 8),
++		byte(len0),
++		byte(len1 >> 56),
++		byte(len1 >> 48),
++		byte(len1 >> 40),
++		byte(len1 >> 32),
++		byte(len1 >> 24),
++		byte(len1 >> 16),
++		byte(len1 >> 8),
++		byte(len1),
++	}
++}
+diff --git a/src/crypto/internal/fips/aes/gcm_ppc64x.s b/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.s
+similarity index 96%
+rename from src/crypto/internal/fips/aes/gcm_ppc64x.s
+rename to src/crypto/internal/fips/aes/gcm/gcm_ppc64x.s
+index 987f4e718e..558399b10a 100644
+--- a/src/crypto/internal/fips/aes/gcm_ppc64x.s
++++ b/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.s
+@@ -12,7 +12,7 @@
+ // # details see http://www.openssl.org/~appro/cryptogams/.
+ // # ====================================================================
+ 
+-// The implementations for gcmHash, gcmInit and gcmMul are based on the generated asm
++// The implementations for gcmHash and gcmInit are based on the generated asm
+ // from the script https://github.com/dot-asm/cryptogams/blob/master/ppc/ghashp8-ppc.pl
+ // from commit d47afb3c.
+ 
+@@ -94,6 +94,18 @@
+ #define ESPERM V10
+ #define TMP2 V11
+ 
++DATA ·rcon+0x00(SB)/8, $0x0f0e0d0c0b0a0908 // Permute for vector doubleword endian swap
++DATA ·rcon+0x08(SB)/8, $0x0706050403020100
++DATA ·rcon+0x10(SB)/8, $0x0100000001000000 // RCON
++DATA ·rcon+0x18(SB)/8, $0x0100000001000000 // RCON
++DATA ·rcon+0x20(SB)/8, $0x1b0000001b000000
++DATA ·rcon+0x28(SB)/8, $0x1b0000001b000000
++DATA ·rcon+0x30(SB)/8, $0x0d0e0f0c0d0e0f0c // MASK
++DATA ·rcon+0x38(SB)/8, $0x0d0e0f0c0d0e0f0c // MASK
++DATA ·rcon+0x40(SB)/8, $0x0000000000000000
++DATA ·rcon+0x48(SB)/8, $0x0000000000000000
++GLOBL ·rcon(SB), RODATA, $80
++
+ // The following macros provide appropriate
+ // implementations for endianness as well as
+ // ISA specific for power8 and power9.
+@@ -833,52 +845,6 @@ done_4x:
+ 	STXVD2X VXL, (XIP+R0)      // write out Xi
+ 	RET
+ 
+-// func gcmMul(output []byte, productTable *[256]byte)
+-TEXT ·gcmMul(SB), NOSPLIT, $0-32
+-	MOVD output+0(FP), XIP
+-	MOVD productTable+24(FP), HTBL
+-
+-	MOVD   $0x10, R8
+-	MOVD   $0x20, R9
+-	MOVD   $0x30, R10
+-	LXVD2X (XIP)(R0), VIN // load Xi
+-
+-	LXVD2X   (HTBL)(R8), VHL    // Load pre-computed table
+-	LXVD2X   (HTBL)(R9), VH
+-	LXVD2X   (HTBL)(R10), VHH
+-	LXVD2X   (HTBL)(R0), VXC2
+-#ifdef GOARCH_ppc64le
+-	VSPLTISB $0x07, T0
+-	VXOR     LEMASK, T0, LEMASK
+-	VPERM    IN, IN, LEMASK, IN
+-#endif
+-	VXOR     ZERO, ZERO, ZERO
+-
+-	VPMSUMD IN, HL, XL // H.lo·Xi.lo
+-	VPMSUMD IN, H, XM  // H.hi·Xi.lo+H.lo·Xi.hi
+-	VPMSUMD IN, HH, XH // H.hi·Xi.hi
+-
+-	VPMSUMD XL, XC2, T2 // 1st reduction phase
+-
+-	VSLDOI $8, XM, ZERO, T0
+-	VSLDOI $8, ZERO, XM, T1
+-	VXOR   XL, T0, XL
+-	VXOR   XH, T1, XH
+-
+-	VSLDOI $8, XL, XL, XL
+-	VXOR   XL, T2, XL
+-
+-	VSLDOI  $8, XL, XL, T1 // 2nd reduction phase
+-	VPMSUMD XL, XC2, XL
+-	VXOR    T1, XH, T1
+-	VXOR    XL, T1, XL
+-
+-#ifdef GOARCH_ppc64le
+-	VPERM   XL, XL, LEMASK, XL
+-#endif
+-	STXVD2X VXL, (XIP+R0)      // write out Xi
+-	RET
+-
+ #define BLK_INP    R3
+ #define BLK_OUT    R4
+ #define BLK_KEY    R5
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_s390x.go b/src/crypto/internal/fips/aes/gcm/gcm_s390x.go
+new file mode 100644
+index 0000000000..b456d49517
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/gcm_s390x.go
+@@ -0,0 +1,245 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++package gcm
++
++import (
++	"crypto/internal/fips/aes"
++	"crypto/internal/fips/subtle"
++	"internal/byteorder"
++	"internal/cpu"
++)
++
++// This file contains two implementations of AES-GCM. The first implementation
++// (useGHASH) uses the KMCTR instruction to encrypt using AES in counter mode
++// and the KIMD instruction for GHASH. The second implementation (useGCM) uses
++// the newer KMA instruction which performs both operations (but still requires
++// KIMD to hash large nonces).
++
++// Keep in sync with crypto/tls.hasAESGCMHardwareSupport.
++var useGHASH = cpu.S390X.HasAES && cpu.S390X.HasAESCTR && cpu.S390X.HasGHASH
++var useGCM = useGHASH && cpu.S390X.HasAESGCM
++
++func checkGenericIsExpected() {
++	if useGHASH || useGCM {
++		panic("gcm: internal error: using generic implementation despite hardware support")
++	}
++}
++
++// gcmLengths writes len0 || len1 as big-endian values to a 16-byte array.
++func gcmLengths(len0, len1 uint64) [16]byte {
++	v := [16]byte{}
++	byteorder.BePutUint64(v[0:], len0)
++	byteorder.BePutUint64(v[8:], len1)
++	return v
++}
++
++// gcmHashKey represents the 16-byte hash key required by the GHASH algorithm.
++type gcmHashKey [16]byte
++
++type gcmPlatformData struct {
++	hashKey gcmHashKey
++}
++
++func initGCM(g *GCM) {
++	if !useGCM && !useGHASH {
++		return
++	}
++	// Note that hashKey is also used in the KMA codepath to hash large nonces.
++	g.cipher.Encrypt(g.hashKey[:], g.hashKey[:])
++}
++
++// ghashAsm uses the GHASH algorithm to hash data with the given key. The initial
++// hash value is given by hash which will be updated with the new hash value.
++// The length of data must be a multiple of 16-bytes.
++//
++//go:noescape
++func ghashAsm(key *gcmHashKey, hash *[16]byte, data []byte)
++
++// paddedGHASH pads data with zeroes until its length is a multiple of
++// 16-bytes. It then calculates a new value for hash using the GHASH algorithm.
++func paddedGHASH(hashKey *gcmHashKey, hash *[16]byte, data []byte) {
++	siz := len(data) &^ 0xf // align size to 16-bytes
++	if siz > 0 {
++		ghashAsm(hashKey, hash, data[:siz])
++		data = data[siz:]
++	}
++	if len(data) > 0 {
++		var s [16]byte
++		copy(s[:], data)
++		ghashAsm(hashKey, hash, s[:])
++	}
++}
++
++// cryptBlocksGCM encrypts src using AES in counter mode using the given
++// function code and key. The rightmost 32-bits of the counter are incremented
++// between each block as required by the GCM spec. The initial counter value
++// is given by cnt, which is updated with the value of the next counter value
++// to use.
++//
++// The lengths of both dst and buf must be greater than or equal to the length
++// of src. buf may be partially or completely overwritten during the execution
++// of the function.
++//
++//go:noescape
++func cryptBlocksGCM(fn int, key, dst, src, buf []byte, cnt *[gcmBlockSize]byte)
++
++// counterCrypt encrypts src using AES in counter mode and places the result
++// into dst. cnt is the initial count value and will be updated with the next
++// count value. The length of dst must be greater than or equal to the length
++// of src.
++func counterCrypt(g *GCM, dst, src []byte, cnt *[gcmBlockSize]byte) {
++	// Copying src into a buffer improves performance on some models when
++	// src and dst point to the same underlying array. We also need a
++	// buffer for counter values.
++	var ctrbuf, srcbuf [2048]byte
++	for len(src) >= 16 {
++		siz := len(src)
++		if len(src) > len(ctrbuf) {
++			siz = len(ctrbuf)
++		}
++		siz &^= 0xf // align siz to 16-bytes
++		copy(srcbuf[:], src[:siz])
++		cryptBlocksGCM(aes.BlockFunction(&g.cipher), aes.BlockKey(&g.cipher), dst[:siz], srcbuf[:siz], ctrbuf[:], cnt)
++		src = src[siz:]
++		dst = dst[siz:]
++	}
++	if len(src) > 0 {
++		var x [16]byte
++		g.cipher.Encrypt(x[:], cnt[:])
++		for i := range src {
++			dst[i] = src[i] ^ x[i]
++		}
++		gcmInc32(cnt)
++	}
++}
++
++// deriveCounter computes the initial GCM counter state from the given nonce.
++// See NIST SP 800-38D, section 7.1 and deriveCounterGeneric in gcm_generic.go.
++func deriveCounter(H *gcmHashKey, counter *[gcmBlockSize]byte, nonce []byte) {
++	if len(nonce) == gcmStandardNonceSize {
++		copy(counter[:], nonce)
++		counter[gcmBlockSize-1] = 1
++	} else {
++		var hash [16]byte
++		paddedGHASH(H, &hash, nonce)
++		lens := gcmLengths(0, uint64(len(nonce))*8)
++		paddedGHASH(H, &hash, lens[:])
++		copy(counter[:], hash[:])
++	}
++}
++
++// gcmAuth calculates GHASH(additionalData, ciphertext), masks the result
++// with tagMask and writes the result to out.
++func gcmAuth(out []byte, H *gcmHashKey, tagMask *[gcmBlockSize]byte, ciphertext, additionalData []byte) {
++	var hash [16]byte
++	paddedGHASH(H, &hash, additionalData)
++	paddedGHASH(H, &hash, ciphertext)
++	lens := gcmLengths(uint64(len(additionalData))*8, uint64(len(ciphertext))*8)
++	paddedGHASH(H, &hash, lens[:])
++
++	copy(out, hash[:])
++	for i := range out {
++		out[i] ^= tagMask[i]
++	}
++}
++
++func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
++	switch {
++	case useGCM:
++		sealKMA(out, g, nonce, plaintext, data)
++	case useGHASH:
++		sealAsm(out, g, nonce, plaintext, data)
++	default:
++		sealGeneric(out, g, nonce, plaintext, data)
++	}
++}
++
++func sealAsm(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
++	var counter, tagMask [gcmBlockSize]byte
++	deriveCounter(&g.hashKey, &counter, nonce)
++	counterCrypt(g, tagMask[:], tagMask[:], &counter)
++
++	counterCrypt(g, out, plaintext, &counter)
++
++	var tag [gcmTagSize]byte
++	gcmAuth(tag[:], &g.hashKey, &tagMask, out[:len(plaintext)], additionalData)
++	copy(out[len(plaintext):], tag[:])
++}
++
++func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
++	switch {
++	case useGCM:
++		return openKMA(out, g, nonce, ciphertext, data)
++	case useGHASH:
++		return openAsm(out, g, nonce, ciphertext, data)
++	default:
++		return openGeneric(out, g, nonce, ciphertext, data)
++	}
++}
++
++func openAsm(out []byte, g *GCM, nonce, ciphertext, additionalData []byte) error {
++	var counter, tagMask [gcmBlockSize]byte
++	deriveCounter(&g.hashKey, &counter, nonce)
++	counterCrypt(g, tagMask[:], tagMask[:], &counter)
++
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
++
++	var expectedTag [gcmTagSize]byte
++	gcmAuth(expectedTag[:], &g.hashKey, &tagMask, ciphertext, additionalData)
++	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
++		return errOpen
++	}
++
++	counterCrypt(g, out, ciphertext, &counter)
++
++	return nil
++}
++
++// flags for the KMA instruction
++const (
++	kmaHS      = 1 << 10 // hash subkey supplied
++	kmaLAAD    = 1 << 9  // last series of additional authenticated data
++	kmaLPC     = 1 << 8  // last series of plaintext or ciphertext blocks
++	kmaDecrypt = 1 << 7  // decrypt
++)
++
++// kmaGCM executes the encryption or decryption operation given by fn. The tag
++// will be calculated and written to tag. cnt should contain the current
++// counter state and will be overwritten with the updated counter state.
++// TODO(mundaym): could pass in hash subkey
++//
++//go:noescape
++func kmaGCM(fn int, key, dst, src, aad []byte, tag *[16]byte, cnt *[gcmBlockSize]byte)
++
++func sealKMA(out []byte, g *GCM, nonce, plaintext, data []byte) {
++	var counter [gcmBlockSize]byte
++	deriveCounter(&g.hashKey, &counter, nonce)
++	fc := aes.BlockFunction(&g.cipher) | kmaLAAD | kmaLPC
++
++	var tag [gcmTagSize]byte
++	kmaGCM(fc, aes.BlockKey(&g.cipher), out[:len(plaintext)], plaintext, data, &tag, &counter)
++	copy(out[len(plaintext):], tag[:])
++}
++
++func openKMA(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
++	tag := ciphertext[len(ciphertext)-g.tagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
++
++	var counter [gcmBlockSize]byte
++	deriveCounter(&g.hashKey, &counter, nonce)
++	fc := aes.BlockFunction(&g.cipher) | kmaLAAD | kmaLPC | kmaDecrypt
++
++	var expectedTag [gcmTagSize]byte
++	kmaGCM(fc, aes.BlockKey(&g.cipher), out[:len(ciphertext)], ciphertext, data, &expectedTag, &counter)
++
++	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
++		return errOpen
++	}
++
++	return nil
++}
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_s390x.s b/src/crypto/internal/fips/aes/gcm/gcm_s390x.s
+new file mode 100644
+index 0000000000..23a15dfcb0
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/gcm_s390x.s
+@@ -0,0 +1,130 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++#include "textflag.h"
++
++// func cryptBlocksGCM(fn code, key, dst, src, buf []byte, cnt *[16]byte)
++TEXT ·cryptBlocksGCM(SB),NOSPLIT,$0-112
++       MOVD    src_len+64(FP), R0
++       MOVD    buf_base+80(FP), R1
++       MOVD    cnt+104(FP), R12
++       LMG     (R12), R2, R3
++
++       // Check that the src size is less than or equal to the buffer size.
++       MOVD    buf_len+88(FP), R4
++       CMP     R0, R4
++       BGT     crash
++
++       // Check that the src size is a multiple of 16-bytes.
++       MOVD    R0, R4
++       AND     $0xf, R4
++       BLT     crash // non-zero
++
++       // Check that the src size is less than or equal to the dst size.
++       MOVD    dst_len+40(FP), R4
++       CMP     R0, R4
++       BGT     crash
++
++       MOVD    R2, R4
++       MOVD    R2, R6
++       MOVD    R2, R8
++       MOVD    R3, R5
++       MOVD    R3, R7
++       MOVD    R3, R9
++       ADDW    $1, R5
++       ADDW    $2, R7
++       ADDW    $3, R9
++incr:
++       CMP     R0, $64
++       BLT     tail
++       STMG    R2, R9, (R1)
++       ADDW    $4, R3
++       ADDW    $4, R5
++       ADDW    $4, R7
++       ADDW    $4, R9
++       MOVD    $64(R1), R1
++       SUB     $64, R0
++       BR      incr
++tail:
++       CMP     R0, $0
++       BEQ     crypt
++       STMG    R2, R3, (R1)
++       ADDW    $1, R3
++       MOVD    $16(R1), R1
++       SUB     $16, R0
++       BR      tail
++crypt:
++       STMG    R2, R3, (R12)       // update next counter value
++       MOVD    fn+0(FP), R0        // function code (encryption)
++       MOVD    key_base+8(FP), R1  // key
++       MOVD    buf_base+80(FP), R2 // counter values
++       MOVD    dst_base+32(FP), R4 // dst
++       MOVD    src_base+56(FP), R6 // src
++       MOVD    src_len+64(FP), R7  // len
++loop:
++       KMCTR   R4, R2, R6          // cipher message with counter (KMCTR)
++       BVS     loop                // branch back if interrupted
++       RET
++crash:
++       MOVD    $0, (R0)
++       RET
++
++
++// func ghashAsm(key *gcmHashKey, hash *[16]byte, data []byte)
++TEXT ·ghashAsm(SB),NOSPLIT,$32-40
++	MOVD    $65, R0 // GHASH function code
++	MOVD	key+0(FP), R2
++	LMG	(R2), R6, R7
++	MOVD	hash+8(FP), R8
++	LMG	(R8), R4, R5
++	MOVD	$params-32(SP), R1
++	STMG	R4, R7, (R1)
++	LMG	data+16(FP), R2, R3 // R2=base, R3=len
++loop:
++	KIMD	R0, R2      // compute intermediate message digest (KIMD)
++	BVS     loop        // branch back if interrupted
++	MVC     $16, (R1), (R8)
++	MOVD	$0, R0
++	RET
++
++// func kmaGCM(fn int, key, dst, src, aad []byte, tag *[16]byte, cnt *[gcmBlockSize]byte)
++TEXT ·kmaGCM(SB),NOSPLIT,$112-120
++	MOVD	fn+0(FP), R0
++	MOVD	$params-112(SP), R1
++
++	// load ptr/len pairs
++	LMG	dst+32(FP), R2, R3 // R2=base R3=len
++	LMG	src+56(FP), R4, R5 // R4=base R5=len
++	LMG	aad+80(FP), R6, R7 // R6=base R7=len
++
++	// setup parameters
++	MOVD	cnt+112(FP), R8
++	XC	$12, (R1), (R1)     // reserved
++	MVC	$4, 12(R8), 12(R1)  // set chain value
++	MVC	$16, (R8), 64(R1)   // set initial counter value
++	XC	$32, 16(R1), 16(R1) // set hash subkey and tag
++	SLD	$3, R7, R12
++	MOVD	R12, 48(R1)         // set total AAD length
++	SLD	$3, R5, R12
++	MOVD	R12, 56(R1)         // set total plaintext/ciphertext length
++
++	LMG	key+8(FP), R8, R9   // R8=base R9=len
++	MVC	$16, (R8), 80(R1)   // set key
++	CMPBEQ	R9, $16, kma
++	MVC	$8, 16(R8), 96(R1)
++	CMPBEQ	R9, $24, kma
++	MVC	$8, 24(R8), 104(R1)
++
++kma:
++	KMA	R2, R6, R4       // Cipher Message with Authentication
++	BVS	kma
++
++	MOVD	tag+104(FP), R2
++	MVC	$16, 16(R1), 0(R2) // copy tag to output
++	MOVD	cnt+112(FP), R8
++	MVC	$4, 12(R1), 12(R8) // update counter value
++
++	RET
+diff --git a/src/crypto/internal/fips/aes/gcm/ghash.go b/src/crypto/internal/fips/aes/gcm/ghash.go
+new file mode 100644
+index 0000000000..5e51e3879f
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/ghash.go
+@@ -0,0 +1,162 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gcm
++
++import (
++	"crypto/internal/fips"
++	"internal/byteorder"
++)
++
++// gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
++// standard and make binary.BigEndian suitable for marshaling these values, the
++// bits are stored in big endian order. For example:
++//
++//	the coefficient of x⁰ can be obtained by v.low >> 63.
++//	the coefficient of x⁶³ can be obtained by v.low & 1.
++//	the coefficient of x⁶⁴ can be obtained by v.high >> 63.
++//	the coefficient of x¹²⁷ can be obtained by v.high & 1.
++type gcmFieldElement struct {
++	low, high uint64
++}
++
++// GHASH is exposed to allow crypto/cipher to implement non-AES GCM modes.
++// It is not allowed in FIPS mode.
++func GHASH(key *[16]byte, inputs ...[]byte) []byte {
++	fips.RecordNonApproved()
++	var out [gcmBlockSize]byte
++	ghash(&out, key, inputs...)
++	return out[:]
++}
++
++// ghash is a variable-time generic implementation of GHASH, which shouldn't
++// be used on any architecture with hardware support for AES-GCM.
++//
++// Each input is zero-padded to 128-bit before being absorbed.
++func ghash(out, H *[gcmBlockSize]byte, inputs ...[]byte) {
++	// productTable contains the first sixteen powers of the key, H.
++	// However, they are in bit reversed order.
++	var productTable [16]gcmFieldElement
++
++	// We precompute 16 multiples of H. However, when we do lookups
++	// into this table we'll be using bits from a field element and
++	// therefore the bits will be in the reverse order. So normally one
++	// would expect, say, 4*H to be in index 4 of the table but due to
++	// this bit ordering it will actually be in index 0010 (base 2) = 2.
++	x := gcmFieldElement{
++		byteorder.BeUint64(H[:8]),
++		byteorder.BeUint64(H[8:]),
++	}
++	productTable[reverseBits(1)] = x
++
++	for i := 2; i < 16; i += 2 {
++		productTable[reverseBits(i)] = ghashDouble(&productTable[reverseBits(i/2)])
++		productTable[reverseBits(i+1)] = ghashAdd(&productTable[reverseBits(i)], &x)
++	}
++
++	var y gcmFieldElement
++	for _, input := range inputs {
++		ghashUpdate(&productTable, &y, input)
++	}
++
++	byteorder.BePutUint64(out[:], y.low)
++	byteorder.BePutUint64(out[8:], y.high)
++}
++
++// reverseBits reverses the order of the bits of 4-bit number in i.
++func reverseBits(i int) int {
++	i = ((i << 2) & 0xc) | ((i >> 2) & 0x3)
++	i = ((i << 1) & 0xa) | ((i >> 1) & 0x5)
++	return i
++}
++
++// ghashAdd adds two elements of GF(2¹²⁸) and returns the sum.
++func ghashAdd(x, y *gcmFieldElement) gcmFieldElement {
++	// Addition in a characteristic 2 field is just XOR.
++	return gcmFieldElement{x.low ^ y.low, x.high ^ y.high}
++}
++
++// ghashDouble returns the result of doubling an element of GF(2¹²⁸).
++func ghashDouble(x *gcmFieldElement) (double gcmFieldElement) {
++	msbSet := x.high&1 == 1
++
++	// Because of the bit-ordering, doubling is actually a right shift.
++	double.high = x.high >> 1
++	double.high |= x.low << 63
++	double.low = x.low >> 1
++
++	// If the most-significant bit was set before shifting then it,
++	// conceptually, becomes a term of x^128. This is greater than the
++	// irreducible polynomial so the result has to be reduced. The
++	// irreducible polynomial is 1+x+x^2+x^7+x^128. We can subtract that to
++	// eliminate the term at x^128 which also means subtracting the other
++	// four terms. In characteristic 2 fields, subtraction == addition ==
++	// XOR.
++	if msbSet {
++		double.low ^= 0xe100000000000000
++	}
++
++	return
++}
++
++var ghashReductionTable = []uint16{
++	0x0000, 0x1c20, 0x3840, 0x2460, 0x7080, 0x6ca0, 0x48c0, 0x54e0,
++	0xe100, 0xfd20, 0xd940, 0xc560, 0x9180, 0x8da0, 0xa9c0, 0xb5e0,
++}
++
++// ghashMul sets y to y*H, where H is the GCM key, fixed during New.
++func ghashMul(productTable *[16]gcmFieldElement, y *gcmFieldElement) {
++	var z gcmFieldElement
++
++	for i := 0; i < 2; i++ {
++		word := y.high
++		if i == 1 {
++			word = y.low
++		}
++
++		// Multiplication works by multiplying z by 16 and adding in
++		// one of the precomputed multiples of H.
++		for j := 0; j < 64; j += 4 {
++			msw := z.high & 0xf
++			z.high >>= 4
++			z.high |= z.low << 60
++			z.low >>= 4
++			z.low ^= uint64(ghashReductionTable[msw]) << 48
++
++			// the values in |table| are ordered for little-endian bit
++			// positions. See the comment in New.
++			t := productTable[word&0xf]
++
++			z.low ^= t.low
++			z.high ^= t.high
++			word >>= 4
++		}
++	}
++
++	*y = z
++}
++
++// updateBlocks extends y with more polynomial terms from blocks, based on
++// Horner's rule. There must be a multiple of gcmBlockSize bytes in blocks.
++func updateBlocks(productTable *[16]gcmFieldElement, y *gcmFieldElement, blocks []byte) {
++	for len(blocks) > 0 {
++		y.low ^= byteorder.BeUint64(blocks)
++		y.high ^= byteorder.BeUint64(blocks[8:])
++		ghashMul(productTable, y)
++		blocks = blocks[gcmBlockSize:]
++	}
++}
++
++// ghashUpdate extends y with more polynomial terms from data. If data is not a
++// multiple of gcmBlockSize bytes long then the remainder is zero padded.
++func ghashUpdate(productTable *[16]gcmFieldElement, y *gcmFieldElement, data []byte) {
++	fullBlocks := (len(data) >> 4) << 4
++	updateBlocks(productTable, y, data[:fullBlocks])
++
++	if len(data) != fullBlocks {
++		var partialBlock [gcmBlockSize]byte
++		copy(partialBlock[:], data[fullBlocks:])
++		updateBlocks(productTable, y, partialBlock[:])
++	}
++}
+diff --git a/src/crypto/internal/fips/aes/gcm/interface_test.go b/src/crypto/internal/fips/aes/gcm/interface_test.go
+new file mode 100644
+index 0000000000..d5f869e8f6
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/interface_test.go
+@@ -0,0 +1,12 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gcm_test
++
++import (
++	"crypto/cipher"
++	"crypto/internal/fips/aes/gcm"
++)
++
++var _ cipher.AEAD = (*gcm.GCM)(nil)
+diff --git a/src/crypto/internal/fips/aes/gcm_asm.go b/src/crypto/internal/fips/aes/gcm_asm.go
+deleted file mode 100644
+index 649fa1ff37..0000000000
+--- a/src/crypto/internal/fips/aes/gcm_asm.go
++++ /dev/null
+@@ -1,182 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (amd64 || arm64) && !purego
+-
+-package aes
+-
+-import (
+-	"crypto/internal/fips/alias"
+-	"crypto/internal/fips/subtle"
+-	"errors"
+-)
+-
+-// The following functions are defined in gcm_*.s.
+-
+-//go:noescape
+-func gcmAesInit(productTable *[256]byte, ks []uint32)
+-
+-//go:noescape
+-func gcmAesData(productTable *[256]byte, data []byte, T *[16]byte)
+-
+-//go:noescape
+-func gcmAesEnc(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
+-
+-//go:noescape
+-func gcmAesDec(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
+-
+-//go:noescape
+-func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
+-
+-const (
+-	gcmBlockSize         = 16
+-	gcmTagSize           = 16
+-	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
+-	gcmStandardNonceSize = 12
+-)
+-
+-var errOpen = errors.New("cipher: message authentication failed")
+-
+-func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
+-	if supportsAES && supportsGFMUL {
+-		l := c.roundKeysSize()
+-		g := &GCM{ks: c.enc[:l], nonceSize: nonceSize, tagSize: tagSize}
+-		gcmAesInit(&g.productTable, g.ks)
+-		return g, nil
+-	}
+-	return nil, nil
+-}
+-
+-type GCM struct {
+-	// ks is the key schedule, the length of which depends on the size of
+-	// the AES key.
+-	ks []uint32
+-	// productTable contains pre-computed multiples of the binary-field
+-	// element used in GHASH.
+-	productTable [256]byte
+-	// nonceSize contains the expected size of the nonce, in bytes.
+-	nonceSize int
+-	// tagSize contains the size of the tag, in bytes.
+-	tagSize int
+-}
+-
+-func (g *GCM) NonceSize() int {
+-	return g.nonceSize
+-}
+-
+-func (g *GCM) Overhead() int {
+-	return g.tagSize
+-}
+-
+-// sliceForAppend takes a slice and a requested number of bytes. It returns a
+-// slice with the contents of the given slice followed by that many bytes and a
+-// second slice that aliases into it and contains only the extra bytes. If the
+-// original slice has sufficient capacity then no allocation is performed.
+-func sliceForAppend(in []byte, n int) (head, tail []byte) {
+-	if total := len(in) + n; cap(in) >= total {
+-		head = in[:total]
+-	} else {
+-		head = make([]byte, total)
+-		copy(head, in)
+-	}
+-	tail = head[len(in):]
+-	return
+-}
+-
+-// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+-// details.
+-func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
+-	if len(nonce) != g.nonceSize {
+-		panic("crypto/cipher: incorrect nonce length given to GCM")
+-	}
+-	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
+-		panic("crypto/cipher: message too large for GCM")
+-	}
+-
+-	var counter, tagMask [gcmBlockSize]byte
+-
+-	if len(nonce) == gcmStandardNonceSize {
+-		// Init counter to nonce||1
+-		copy(counter[:], nonce)
+-		counter[gcmBlockSize-1] = 1
+-	} else {
+-		// Otherwise counter = GHASH(nonce)
+-		gcmAesData(&g.productTable, nonce, &counter)
+-		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+-	}
+-
+-	encryptBlockAsm(len(g.ks)/4-1, &g.ks[0], &tagMask[0], &counter[0])
+-
+-	var tagOut [gcmTagSize]byte
+-	gcmAesData(&g.productTable, data, &tagOut)
+-
+-	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+-	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-	if len(plaintext) > 0 {
+-		gcmAesEnc(&g.productTable, out, plaintext, &counter, &tagOut, g.ks)
+-	}
+-	gcmAesFinish(&g.productTable, &tagMask, &tagOut, uint64(len(plaintext)), uint64(len(data)))
+-	copy(out[len(plaintext):], tagOut[:])
+-
+-	return ret
+-}
+-
+-// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+-// for details.
+-func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+-	if len(nonce) != g.nonceSize {
+-		panic("crypto/cipher: incorrect nonce length given to GCM")
+-	}
+-	// Sanity check to prevent the authentication from always succeeding if an implementation
+-	// leaves tagSize uninitialized, for example.
+-	if g.tagSize < gcmMinimumTagSize {
+-		panic("crypto/cipher: incorrect GCM tag size")
+-	}
+-
+-	if len(ciphertext) < g.tagSize {
+-		return nil, errOpen
+-	}
+-	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
+-		return nil, errOpen
+-	}
+-
+-	tag := ciphertext[len(ciphertext)-g.tagSize:]
+-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+-
+-	// See GCM spec, section 7.1.
+-	var counter, tagMask [gcmBlockSize]byte
+-
+-	if len(nonce) == gcmStandardNonceSize {
+-		// Init counter to nonce||1
+-		copy(counter[:], nonce)
+-		counter[gcmBlockSize-1] = 1
+-	} else {
+-		// Otherwise counter = GHASH(nonce)
+-		gcmAesData(&g.productTable, nonce, &counter)
+-		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+-	}
+-
+-	encryptBlockAsm(len(g.ks)/4-1, &g.ks[0], &tagMask[0], &counter[0])
+-
+-	var expectedTag [gcmTagSize]byte
+-	gcmAesData(&g.productTable, data, &expectedTag)
+-
+-	ret, out := sliceForAppend(dst, len(ciphertext))
+-	if alias.InexactOverlap(out, ciphertext) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-	if len(ciphertext) > 0 {
+-		gcmAesDec(&g.productTable, out, ciphertext, &counter, &expectedTag, g.ks)
+-	}
+-	gcmAesFinish(&g.productTable, &tagMask, &expectedTag, uint64(len(ciphertext)), uint64(len(data)))
+-
+-	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+-		clear(out)
+-		return nil, errOpen
+-	}
+-
+-	return ret, nil
+-}
+diff --git a/src/crypto/internal/fips/aes/gcm_noasm.go b/src/crypto/internal/fips/aes/gcm_noasm.go
+deleted file mode 100644
+index 995e5f648c..0000000000
+--- a/src/crypto/internal/fips/aes/gcm_noasm.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (!amd64 && !s390x && !ppc64 && !ppc64le && !arm64) || purego
+-
+-package aes
+-
+-func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
+-	return nil, nil
+-}
+-
+-type GCM struct{}
+-
+-func (g *GCM) NonceSize() int {
+-	panic("not implemented")
+-}
+-
+-func (g *GCM) Overhead() int {
+-	panic("not implemented")
+-}
+-
+-func (g *GCM) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
+-	panic("not implemented")
+-}
+-
+-func (g *GCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
+-	panic("not implemented")
+-}
+diff --git a/src/crypto/internal/fips/aes/gcm_ppc64x.go b/src/crypto/internal/fips/aes/gcm_ppc64x.go
+deleted file mode 100644
+index 69276bd34b..0000000000
+--- a/src/crypto/internal/fips/aes/gcm_ppc64x.go
++++ /dev/null
+@@ -1,244 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (ppc64le || ppc64) && !purego
+-
+-package aes
+-
+-import (
+-	"crypto/internal/fips/alias"
+-	"crypto/internal/fips/subtle"
+-	"errors"
+-	"internal/byteorder"
+-	"runtime"
+-)
+-
+-// This file implements GCM using an optimized GHASH function.
+-
+-//go:noescape
+-func gcmInit(productTable *[256]byte, h []byte)
+-
+-//go:noescape
+-func gcmHash(output []byte, productTable *[256]byte, inp []byte, len int)
+-
+-//go:noescape
+-func gcmMul(output []byte, productTable *[256]byte)
+-
+-const (
+-	gcmCounterSize       = 16
+-	gcmBlockSize         = 16
+-	gcmTagSize           = 16
+-	gcmStandardNonceSize = 12
+-)
+-
+-var errOpen = errors.New("cipher: message authentication failed")
+-
+-type GCM struct {
+-	cipher *Block
+-	// ks is the key schedule, the length of which depends on the size of
+-	// the AES key.
+-	ks []uint32
+-	// productTable contains pre-computed multiples of the binary-field
+-	// element used in GHASH.
+-	productTable [256]byte
+-	// nonceSize contains the expected size of the nonce, in bytes.
+-	nonceSize int
+-	// tagSize contains the size of the tag, in bytes.
+-	tagSize int
+-}
+-
+-func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *uint32)
+-
+-func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
+-	var h1, h2 uint64
+-	l := c.roundKeysSize()
+-	g := &GCM{cipher: c, ks: c.enc[:l], nonceSize: nonceSize, tagSize: tagSize}
+-
+-	hle := make([]byte, gcmBlockSize)
+-
+-	c.Encrypt(hle, hle)
+-
+-	// Reverse the bytes in each 8 byte chunk
+-	// Load little endian, store big endian
+-	if runtime.GOARCH == "ppc64le" {
+-		h1 = byteorder.LeUint64(hle[:8])
+-		h2 = byteorder.LeUint64(hle[8:])
+-	} else {
+-		h1 = byteorder.BeUint64(hle[:8])
+-		h2 = byteorder.BeUint64(hle[8:])
+-	}
+-	byteorder.BePutUint64(hle[:8], h1)
+-	byteorder.BePutUint64(hle[8:], h2)
+-	gcmInit(&g.productTable, hle)
+-
+-	return g, nil
+-}
+-
+-func (g *GCM) NonceSize() int {
+-	return g.nonceSize
+-}
+-
+-func (g *GCM) Overhead() int {
+-	return g.tagSize
+-}
+-
+-func sliceForAppend(in []byte, n int) (head, tail []byte) {
+-	if total := len(in) + n; cap(in) >= total {
+-		head = in[:total]
+-	} else {
+-		head = make([]byte, total)
+-		copy(head, in)
+-	}
+-	tail = head[len(in):]
+-	return
+-}
+-
+-// deriveCounter computes the initial GCM counter state from the given nonce.
+-func (g *GCM) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
+-	if len(nonce) == gcmStandardNonceSize {
+-		copy(counter[:], nonce)
+-		counter[gcmBlockSize-1] = 1
+-	} else {
+-		var hash [16]byte
+-		g.paddedGHASH(&hash, nonce)
+-		lens := gcmLengths(0, uint64(len(nonce))*8)
+-		g.paddedGHASH(&hash, lens[:])
+-		copy(counter[:], hash[:])
+-	}
+-}
+-
+-// counterCrypt encrypts in using AES in counter mode and places the result
+-// into out. counter is the initial count value and will be updated with the next
+-// count value. The length of out must be greater than or equal to the length
+-// of in.
+-// counterCryptASM implements counterCrypt which then allows the loop to
+-// be unrolled and optimized.
+-func (g *GCM) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
+-	counterCryptASM(g.cipher.rounds, out, in, counter, &g.cipher.enc[0])
+-
+-}
+-
+-// increments the rightmost 32-bits of the count value by 1.
+-func gcmInc32(counterBlock *[16]byte) {
+-	c := counterBlock[len(counterBlock)-4:]
+-	x := byteorder.BeUint32(c) + 1
+-	byteorder.BePutUint32(c, x)
+-}
+-
+-// paddedGHASH pads data with zeroes until its length is a multiple of
+-// 16-bytes. It then calculates a new value for hash using the ghash
+-// algorithm.
+-func (g *GCM) paddedGHASH(hash *[16]byte, data []byte) {
+-	if siz := len(data) - (len(data) % gcmBlockSize); siz > 0 {
+-		gcmHash(hash[:], &g.productTable, data[:], siz)
+-		data = data[siz:]
+-	}
+-	if len(data) > 0 {
+-		var s [16]byte
+-		copy(s[:], data)
+-		gcmHash(hash[:], &g.productTable, s[:], len(s))
+-	}
+-}
+-
+-// auth calculates GHASH(ciphertext, additionalData), masks the result with
+-// tagMask and writes the result to out.
+-func (g *GCM) auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte) {
+-	var hash [16]byte
+-	g.paddedGHASH(&hash, aad)
+-	g.paddedGHASH(&hash, ciphertext)
+-	lens := gcmLengths(uint64(len(aad))*8, uint64(len(ciphertext))*8)
+-	g.paddedGHASH(&hash, lens[:])
+-
+-	copy(out, hash[:])
+-	for i := range out {
+-		out[i] ^= tagMask[i]
+-	}
+-}
+-
+-// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+-// details.
+-func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
+-	if len(nonce) != g.nonceSize {
+-		panic("cipher: incorrect nonce length given to GCM")
+-	}
+-	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
+-		panic("cipher: message too large for GCM")
+-	}
+-
+-	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+-	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-
+-	var counter, tagMask [gcmBlockSize]byte
+-	g.deriveCounter(&counter, nonce)
+-
+-	g.cipher.Encrypt(tagMask[:], counter[:])
+-	gcmInc32(&counter)
+-
+-	g.counterCrypt(out, plaintext, &counter)
+-	g.auth(out[len(plaintext):], out[:len(plaintext)], data, &tagMask)
+-
+-	return ret
+-}
+-
+-// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+-// for details.
+-func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+-	if len(nonce) != g.nonceSize {
+-		panic("cipher: incorrect nonce length given to GCM")
+-	}
+-	if len(ciphertext) < g.tagSize {
+-		return nil, errOpen
+-	}
+-	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
+-		return nil, errOpen
+-	}
+-
+-	tag := ciphertext[len(ciphertext)-g.tagSize:]
+-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+-
+-	var counter, tagMask [gcmBlockSize]byte
+-	g.deriveCounter(&counter, nonce)
+-
+-	g.cipher.Encrypt(tagMask[:], counter[:])
+-	gcmInc32(&counter)
+-
+-	var expectedTag [gcmTagSize]byte
+-	g.auth(expectedTag[:], ciphertext, data, &tagMask)
+-
+-	ret, out := sliceForAppend(dst, len(ciphertext))
+-	if alias.InexactOverlap(out, ciphertext) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-
+-	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+-		clear(out)
+-		return nil, errOpen
+-	}
+-
+-	g.counterCrypt(out, ciphertext, &counter)
+-	return ret, nil
+-}
+-
+-func gcmLengths(len0, len1 uint64) [16]byte {
+-	return [16]byte{
+-		byte(len0 >> 56),
+-		byte(len0 >> 48),
+-		byte(len0 >> 40),
+-		byte(len0 >> 32),
+-		byte(len0 >> 24),
+-		byte(len0 >> 16),
+-		byte(len0 >> 8),
+-		byte(len0),
+-		byte(len1 >> 56),
+-		byte(len1 >> 48),
+-		byte(len1 >> 40),
+-		byte(len1 >> 32),
+-		byte(len1 >> 24),
+-		byte(len1 >> 16),
+-		byte(len1 >> 8),
+-		byte(len1),
+-	}
+-}
+diff --git a/src/crypto/internal/fips/aes/gcm_s390x.go b/src/crypto/internal/fips/aes/gcm_s390x.go
+deleted file mode 100644
+index 40a4b15edc..0000000000
+--- a/src/crypto/internal/fips/aes/gcm_s390x.go
++++ /dev/null
+@@ -1,344 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-package aes
+-
+-import (
+-	"crypto/internal/fips/alias"
+-	"crypto/internal/fips/subtle"
+-	"errors"
+-	"internal/byteorder"
+-	"internal/cpu"
+-)
+-
+-// This file contains two implementations of AES-GCM. The first implementation
+-// (gcmAsm) uses the KMCTR instruction to encrypt using AES in counter mode and
+-// the KIMD instruction for GHASH. The second implementation (gcmKMA) uses the
+-// newer KMA instruction which performs both operations.
+-
+-// gcmCount represents a 16-byte big-endian count value.
+-type gcmCount [16]byte
+-
+-// inc increments the rightmost 32-bits of the count value by 1.
+-func (x *gcmCount) inc() {
+-	byteorder.BePutUint32(x[len(x)-4:], byteorder.BeUint32(x[len(x)-4:])+1)
+-}
+-
+-// gcmLengths writes len0 || len1 as big-endian values to a 16-byte array.
+-func gcmLengths(len0, len1 uint64) [16]byte {
+-	v := [16]byte{}
+-	byteorder.BePutUint64(v[0:], len0)
+-	byteorder.BePutUint64(v[8:], len1)
+-	return v
+-}
+-
+-// gcmHashKey represents the 16-byte hash key required by the GHASH algorithm.
+-type gcmHashKey [16]byte
+-
+-type GCM struct {
+-	block     *Block
+-	hashKey   gcmHashKey
+-	nonceSize int
+-	tagSize   int
+-}
+-
+-const (
+-	gcmBlockSize         = 16
+-	gcmTagSize           = 16
+-	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
+-	gcmStandardNonceSize = 12
+-)
+-
+-var errOpen = errors.New("cipher: message authentication failed")
+-
+-func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
+-	var hk gcmHashKey
+-	c.Encrypt(hk[:], hk[:])
+-	g := GCM{
+-		block:     c,
+-		hashKey:   hk,
+-		nonceSize: nonceSize,
+-		tagSize:   tagSize,
+-	}
+-	return &g, nil
+-}
+-
+-func (g *GCM) NonceSize() int {
+-	return g.nonceSize
+-}
+-
+-func (g *GCM) Overhead() int {
+-	return g.tagSize
+-}
+-
+-// sliceForAppend takes a slice and a requested number of bytes. It returns a
+-// slice with the contents of the given slice followed by that many bytes and a
+-// second slice that aliases into it and contains only the extra bytes. If the
+-// original slice has sufficient capacity then no allocation is performed.
+-func sliceForAppend(in []byte, n int) (head, tail []byte) {
+-	if total := len(in) + n; cap(in) >= total {
+-		head = in[:total]
+-	} else {
+-		head = make([]byte, total)
+-		copy(head, in)
+-	}
+-	tail = head[len(in):]
+-	return
+-}
+-
+-// ghash uses the GHASH algorithm to hash data with the given key. The initial
+-// hash value is given by hash which will be updated with the new hash value.
+-// The length of data must be a multiple of 16-bytes.
+-//
+-//go:noescape
+-func ghash(key *gcmHashKey, hash *[16]byte, data []byte)
+-
+-// paddedGHASH pads data with zeroes until its length is a multiple of
+-// 16-bytes. It then calculates a new value for hash using the GHASH algorithm.
+-func (g *GCM) paddedGHASH(hash *[16]byte, data []byte) {
+-	siz := len(data) &^ 0xf // align size to 16-bytes
+-	if siz > 0 {
+-		ghash(&g.hashKey, hash, data[:siz])
+-		data = data[siz:]
+-	}
+-	if len(data) > 0 {
+-		var s [16]byte
+-		copy(s[:], data)
+-		ghash(&g.hashKey, hash, s[:])
+-	}
+-}
+-
+-// cryptBlocksGCM encrypts src using AES in counter mode using the given
+-// function code and key. The rightmost 32-bits of the counter are incremented
+-// between each block as required by the GCM spec. The initial counter value
+-// is given by cnt, which is updated with the value of the next counter value
+-// to use.
+-//
+-// The lengths of both dst and buf must be greater than or equal to the length
+-// of src. buf may be partially or completely overwritten during the execution
+-// of the function.
+-//
+-//go:noescape
+-func cryptBlocksGCM(fn code, key, dst, src, buf []byte, cnt *gcmCount)
+-
+-// counterCrypt encrypts src using AES in counter mode and places the result
+-// into dst. cnt is the initial count value and will be updated with the next
+-// count value. The length of dst must be greater than or equal to the length
+-// of src.
+-func (g *GCM) counterCrypt(dst, src []byte, cnt *gcmCount) {
+-	// Copying src into a buffer improves performance on some models when
+-	// src and dst point to the same underlying array. We also need a
+-	// buffer for counter values.
+-	var ctrbuf, srcbuf [2048]byte
+-	for len(src) >= 16 {
+-		siz := len(src)
+-		if len(src) > len(ctrbuf) {
+-			siz = len(ctrbuf)
+-		}
+-		siz &^= 0xf // align siz to 16-bytes
+-		copy(srcbuf[:], src[:siz])
+-		cryptBlocksGCM(g.block.function, g.block.key, dst[:siz], srcbuf[:siz], ctrbuf[:], cnt)
+-		src = src[siz:]
+-		dst = dst[siz:]
+-	}
+-	if len(src) > 0 {
+-		var x [16]byte
+-		g.block.Encrypt(x[:], cnt[:])
+-		for i := range src {
+-			dst[i] = src[i] ^ x[i]
+-		}
+-		cnt.inc()
+-	}
+-}
+-
+-// deriveCounter computes the initial GCM counter state from the given nonce.
+-// See NIST SP 800-38D, section 7.1.
+-func (g *GCM) deriveCounter(nonce []byte) gcmCount {
+-	// GCM has two modes of operation with respect to the initial counter
+-	// state: a "fast path" for 96-bit (12-byte) nonces, and a "slow path"
+-	// for nonces of other lengths. For a 96-bit nonce, the nonce, along
+-	// with a four-byte big-endian counter starting at one, is used
+-	// directly as the starting counter. For other nonce sizes, the counter
+-	// is computed by passing it through the GHASH function.
+-	var counter gcmCount
+-	if len(nonce) == gcmStandardNonceSize {
+-		copy(counter[:], nonce)
+-		counter[gcmBlockSize-1] = 1
+-	} else {
+-		var hash [16]byte
+-		g.paddedGHASH(&hash, nonce)
+-		lens := gcmLengths(0, uint64(len(nonce))*8)
+-		g.paddedGHASH(&hash, lens[:])
+-		copy(counter[:], hash[:])
+-	}
+-	return counter
+-}
+-
+-// auth calculates GHASH(ciphertext, additionalData), masks the result with
+-// tagMask and writes the result to out.
+-func (g *GCM) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]byte) {
+-	var hash [16]byte
+-	g.paddedGHASH(&hash, additionalData)
+-	g.paddedGHASH(&hash, ciphertext)
+-	lens := gcmLengths(uint64(len(additionalData))*8, uint64(len(ciphertext))*8)
+-	g.paddedGHASH(&hash, lens[:])
+-
+-	copy(out, hash[:])
+-	for i := range out {
+-		out[i] ^= tagMask[i]
+-	}
+-}
+-
+-// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+-// details.
+-func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
+-	if len(nonce) != g.nonceSize {
+-		panic("crypto/cipher: incorrect nonce length given to GCM")
+-	}
+-	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
+-		panic("crypto/cipher: message too large for GCM")
+-	}
+-
+-	if cpu.S390X.HasAESGCM {
+-		return kmaSeal(g, dst, nonce, plaintext, data)
+-	}
+-
+-	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+-	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-
+-	counter := g.deriveCounter(nonce)
+-
+-	var tagMask [gcmBlockSize]byte
+-	g.block.Encrypt(tagMask[:], counter[:])
+-	counter.inc()
+-
+-	var tagOut [gcmTagSize]byte
+-	g.counterCrypt(out, plaintext, &counter)
+-	g.auth(tagOut[:], out[:len(plaintext)], data, &tagMask)
+-	copy(out[len(plaintext):], tagOut[:])
+-
+-	return ret
+-}
+-
+-// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+-// for details.
+-func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+-	if len(nonce) != g.nonceSize {
+-		panic("crypto/cipher: incorrect nonce length given to GCM")
+-	}
+-	// Sanity check to prevent the authentication from always succeeding if an implementation
+-	// leaves tagSize uninitialized, for example.
+-	if g.tagSize < gcmMinimumTagSize {
+-		panic("crypto/cipher: incorrect GCM tag size")
+-	}
+-	if len(ciphertext) < g.tagSize {
+-		return nil, errOpen
+-	}
+-	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
+-		return nil, errOpen
+-	}
+-
+-	if cpu.S390X.HasAESGCM {
+-		return kmaOpen(g, dst, nonce, ciphertext, data)
+-	}
+-
+-	tag := ciphertext[len(ciphertext)-g.tagSize:]
+-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+-
+-	counter := g.deriveCounter(nonce)
+-
+-	var tagMask [gcmBlockSize]byte
+-	g.block.Encrypt(tagMask[:], counter[:])
+-	counter.inc()
+-
+-	var expectedTag [gcmTagSize]byte
+-	g.auth(expectedTag[:], ciphertext, data, &tagMask)
+-
+-	ret, out := sliceForAppend(dst, len(ciphertext))
+-	if alias.InexactOverlap(out, ciphertext) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-
+-	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+-		// The AESNI code decrypts and authenticates concurrently, and
+-		// so overwrites dst in the event of a tag mismatch. That
+-		// behavior is mimicked here in order to be consistent across
+-		// platforms.
+-		clear(out)
+-		return nil, errOpen
+-	}
+-
+-	g.counterCrypt(out, ciphertext, &counter)
+-	return ret, nil
+-}
+-
+-// flags for the KMA instruction
+-const (
+-	kmaHS      = 1 << 10 // hash subkey supplied
+-	kmaLAAD    = 1 << 9  // last series of additional authenticated data
+-	kmaLPC     = 1 << 8  // last series of plaintext or ciphertext blocks
+-	kmaDecrypt = 1 << 7  // decrypt
+-)
+-
+-// kmaGCM executes the encryption or decryption operation given by fn. The tag
+-// will be calculated and written to tag. cnt should contain the current
+-// counter state and will be overwritten with the updated counter state.
+-// TODO(mundaym): could pass in hash subkey
+-//
+-//go:noescape
+-func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
+-
+-// Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+-// details.
+-func kmaSeal(g *GCM, dst, nonce, plaintext, data []byte) []byte {
+-	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+-	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-
+-	counter := g.deriveCounter(nonce)
+-	fc := g.block.function | kmaLAAD | kmaLPC
+-
+-	var tag [gcmTagSize]byte
+-	kmaGCM(fc, g.block.key, out[:len(plaintext)], plaintext, data, &tag, &counter)
+-	copy(out[len(plaintext):], tag[:])
+-
+-	return ret
+-}
+-
+-// Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+-// for details.
+-func kmaOpen(g *GCM, dst, nonce, ciphertext, data []byte) ([]byte, error) {
+-	tag := ciphertext[len(ciphertext)-g.tagSize:]
+-	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+-	ret, out := sliceForAppend(dst, len(ciphertext))
+-	if alias.InexactOverlap(out, ciphertext) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-
+-	if g.tagSize < gcmMinimumTagSize {
+-		panic("crypto/cipher: incorrect GCM tag size")
+-	}
+-
+-	counter := g.deriveCounter(nonce)
+-	fc := g.block.function | kmaLAAD | kmaLPC | kmaDecrypt
+-
+-	var expectedTag [gcmTagSize]byte
+-	kmaGCM(fc, g.block.key, out[:len(ciphertext)], ciphertext, data, &expectedTag, &counter)
+-
+-	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+-		// The AESNI code decrypts and authenticates concurrently, and
+-		// so overwrites dst in the event of a tag mismatch. That
+-		// behavior is mimicked here in order to be consistent across
+-		// platforms.
+-		clear(out)
+-		return nil, errOpen
+-	}
+-
+-	return ret, nil
+-}
+diff --git a/src/crypto/internal/fips/aes/interface_test.go b/src/crypto/internal/fips/aes/interface_test.go
+index f3b7a3950d..17e59b25ff 100644
+--- a/src/crypto/internal/fips/aes/interface_test.go
++++ b/src/crypto/internal/fips/aes/interface_test.go
+@@ -13,4 +13,3 @@ var _ cipher.Block = (*aes.Block)(nil)
+ var _ cipher.Stream = (*aes.CTR)(nil)
+ var _ cipher.BlockMode = (*aes.CBCDecrypter)(nil)
+ var _ cipher.BlockMode = (*aes.CBCEncrypter)(nil)
+-var _ cipher.AEAD = (*aes.GCM)(nil)
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 917a1eff42..ec867ceab0 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -365,15 +365,13 @@ var tdesCiphers = map[uint16]bool{
+ }
+ 
+ var (
+-	hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
++	// Keep in sync with crypto/internal/fips/aes/gcm.supportsAESGCM.
++	hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
+ 	hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+-	// Keep in sync with crypto/aes/cipher_s390x.go.
+-	hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR &&
+-		(cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
++	hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCTR && cpu.S390X.HasGHASH
++	hasGCMAsmPPC64 = runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le"
+ 
+-	hasAESGCMHardwareSupport = runtime.GOARCH == "amd64" && hasGCMAsmAMD64 ||
+-		runtime.GOARCH == "arm64" && hasGCMAsmARM64 ||
+-		runtime.GOARCH == "s390x" && hasGCMAsmS390X
++	hasAESGCMHardwareSupport = hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X || hasGCMAsmPPC64
+ )
+ 
+ var aesgcmCiphers = map[uint16]bool{
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index db8f118538..bb48c7aa85 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -455,6 +455,7 @@ var depsRules = `
+ 	< crypto/internal/fips/subtle
+ 	< crypto/internal/fips/aes
+ 	< crypto/internal/fips/drbg
++	< crypto/internal/fips/aes/gcm
+ 	< crypto/internal/fips/sha256
+ 	< crypto/internal/fips/sha512
+ 	< crypto/internal/fips/sha3

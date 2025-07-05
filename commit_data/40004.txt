@@ -30,8 +30,82 @@ Date:   Tue Apr 9 12:10:27 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/386.s   |  4 ++++
  src/cmd/asm/internal/asm/testdata/amd64.s |  4 ++++
  src/cmd/internal/obj/x86/asm6.go          | 16 +++++-----------
  3 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/386.s b/src/cmd/asm/internal/asm/testdata/386.s
+index d524a4c8c1..e0855f5e4b 100644
+--- a/src/cmd/asm/internal/asm/testdata/386.s
++++ b/src/cmd/asm/internal/asm/testdata/386.s
+@@ -89,6 +89,10 @@ label:
+ loop:
+ 	LOOP	loop // LOOP
+ 
++// Tests for TLS reference.
++	MOVL    (TLS), AX
++	MOVL    8(TLS), DX
++
+ // LTYPE0 nonnon	{ outcode(int($1), &$2); }
+ 	RET
+ 	RET	foo(SB)
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64.s b/src/cmd/asm/internal/asm/testdata/amd64.s
+index 680d8eff38..1dec7f4135 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64.s
+@@ -143,6 +143,10 @@ loop:
+ 	MOVB	foo+32(SP)(CX*4), AH		// 8a648c20
+ 	MOVB	foo+32323(SP)(CX*8), R9		// 448a8ccc437e0000
+ 
++// Tests for TLS reference.
++	MOVQ	(TLS), AX
++	MOVQ	8(TLS), DX
++
+ // LTYPE0 nonnon	{ outcode($1, &$2); }
+ 	RET // c3
+ 	RET	foo(SB)
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index a81de43845..336446449b 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2345,17 +2345,14 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+ 	if ctxt.Arch.Family == sys.I386 {
+ 		if a.Index == REG_TLS && ctxt.Flag_shared {
+ 			// When building for inclusion into a shared library, an instruction of the form
+-			//     MOVL 0(CX)(TLS*1), AX
++			//     MOVL off(CX)(TLS*1), AX
+ 			// becomes
+-			//     mov %gs:(%ecx), %eax
++			//     mov %gs:off(%ecx), %eax
+ 			// which assumes that the correct TLS offset has been loaded into %ecx (today
+ 			// there is only one TLS variable -- g -- so this is OK). When not building for
+ 			// a shared library the instruction it becomes
+-			//     mov 0x0(%ecx), $eax
++			//     mov 0x0(%ecx), %eax
+ 			// and a R_TLS_LE relocation, and so does not require a prefix.
+-			if a.Offset != 0 {
+-				ctxt.Diag("cannot handle non-0 offsets to TLS")
+-			}
+ 			return 0x65 // GS
+ 		}
+ 		return 0
+@@ -2374,15 +2371,12 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+ 	case REG_TLS:
+ 		if ctxt.Flag_shared && ctxt.Headtype != objabi.Hwindows {
+ 			// When building for inclusion into a shared library, an instruction of the form
+-			//     MOV 0(CX)(TLS*1), AX
++			//     MOV off(CX)(TLS*1), AX
+ 			// becomes
+-			//     mov %fs:(%rcx), %rax
++			//     mov %fs:off(%rcx), %rax
+ 			// which assumes that the correct TLS offset has been loaded into %rcx (today
+ 			// there is only one TLS variable -- g -- so this is OK). When not building for
+ 			// a shared library the instruction does not require a prefix.
+-			if a.Offset != 0 {
+-				log.Fatalf("cannot handle non-0 offsets to TLS")
+-			}
+ 			return 0x64
+ 		}
+ 

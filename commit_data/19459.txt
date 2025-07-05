@@ -13,7 +13,48 @@ Date:   Wed May 28 08:16:09 2014 -0700
     R=golang-codereviews, r
     CC=dsymonds, golang-codereviews, iant, rsc
     https://golang.org/cl/98580047
-
+---
  src/pkg/mime/mediatype.go      | 10 +++++++++-
  src/pkg/mime/mediatype_test.go |  1 +
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/mime/mediatype.go b/src/pkg/mime/mediatype.go
+index 608f759da8..ad63f9bb98 100644
+--- a/src/pkg/mime/mediatype.go
++++ b/src/pkg/mime/mediatype.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
++	"sort"
+ 	"strings"
+ 	"unicode"
+ )
+@@ -31,7 +32,14 @@ func FormatMediaType(t string, param map[string]string) string {
+ 	b.WriteByte('/')
+ 	b.WriteString(strings.ToLower(sub))
+ 
+-	for attribute, value := range param {
++	attrs := make([]string, 0, len(param))
++	for a := range param {
++		attrs = append(attrs, a)
++	}
++	sort.Strings(attrs)
++
++	for _, attribute := range attrs {
++		value := param[attribute]
+ 		b.WriteByte(';')
+ 		b.WriteByte(' ')
+ 		if !isToken(attribute) {
+diff --git a/src/pkg/mime/mediatype_test.go b/src/pkg/mime/mediatype_test.go
+index 29511445bc..026bfa4d73 100644
+--- a/src/pkg/mime/mediatype_test.go
++++ b/src/pkg/mime/mediatype_test.go
+@@ -293,6 +293,7 @@ var formatTests = []formatTest{
+ 	{"foo/BAR", map[string]string{"": "empty attribute"}, ""},
+ 	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
+ 	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
++	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
+ }
+ 
+ func TestFormatMediaType(t *testing.T) {

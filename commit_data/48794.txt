@@ -12,7 +12,7 @@ Date:   Wed Jun 9 18:15:10 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_typeparams.go |   3 --
  src/go/types/builtins.go       |  16 +++---
  src/go/types/expr.go           |   4 +-
@@ -31,3 +31,790 @@ Date:   Wed Jun 9 18:15:10 2021 -0400
  src/go/types/unify.go          |   4 --
  src/go/types/union.go          | 111 +++++++++++++++++++++++++++++++++++------
  17 files changed, 185 insertions(+), 191 deletions(-)
+
+diff --git a/src/go/types/api_typeparams.go b/src/go/types/api_typeparams.go
+index 25fb3fa781..6aaefbb6b2 100644
+--- a/src/go/types/api_typeparams.go
++++ b/src/go/types/api_typeparams.go
+@@ -10,12 +10,9 @@ import (
+ 
+ type (
+ 	Inferred  = _Inferred
+-	Sum       = _Sum
+ 	TypeParam = _TypeParam
+ )
+ 
+-func NewSum(types []Type) Type { return _NewSum(types) }
+-
+ // NewTypeParam returns a new TypeParam.
+ func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+ 	return (*Checker)(nil).newTypeParam(obj, index, bound)
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 99122dfe7c..92807ed44a 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -179,9 +179,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 				mode = value
+ 			}
+ 
+-		case *_Sum:
+-			if t.is(func(t Type) bool {
+-				switch t := under(t).(type) {
++		case *Union:
++			if t.underIs(func(t Type) bool {
++				switch t := t.(type) {
+ 				case *Basic:
+ 					if isString(t) && id == _Len {
+ 						return true
+@@ -469,8 +469,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 				m = 2
+ 			case *Map, *Chan:
+ 				m = 1
+-			case *_Sum:
+-				return t.is(valid)
++			case *Union:
++				return t.underIs(valid)
+ 			default:
+ 				return false
+ 			}
+@@ -768,10 +768,14 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 	if tp := asTypeParam(x); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
++		// TODO(gri) This needs to consider the ~ information if we
++		//           have a union type.
+ 		var rtypes []Type
++		var tilde []bool
+ 		if !tp.Bound().is(func(x Type) bool {
+ 			if r := f(x); r != nil {
+ 				rtypes = append(rtypes, r)
++				tilde = append(tilde, true)
+ 				return true
+ 			}
+ 			return false
+@@ -782,7 +786,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// construct a suitable new type parameter
+ 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
+ 		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+-		tsum := _NewSum(rtypes)
++		tsum := newUnion(rtypes, tilde)
+ 		ptyp.bound = &Interface{allMethods: markComplete, allTypes: tsum}
+ 
+ 		return ptyp
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 5c65fad447..b7cc6e8ae7 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -661,8 +661,8 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		default:
+ 			return nil, nil, _InvalidUntypedConversion
+ 		}
+-	case *_Sum:
+-		ok := t.is(func(t Type) bool {
++	case *Union:
++		ok := t.underIs(func(t Type) bool {
+ 			target, _, _ := check.implicitTypeAndValue(x, t)
+ 			return target != nil
+ 		})
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 2ba3475f89..5bc1d0af8d 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -91,15 +91,15 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 		x.expr = e
+ 		return
+ 
+-	case *_Sum:
+-		// A sum type can be indexed if all of the sum's types
++	case *Union:
++		// A union type can be indexed if all of the union's terms
+ 		// support indexing and have the same index and element
+-		// type. Special rules apply for maps in the sum type.
++		// type. Special rules apply for maps in the union type.
+ 		var tkey, telem Type // key is for map types only
+-		nmaps := 0           // number of map types in sum type
+-		if typ.is(func(t Type) bool {
++		nmaps := 0           // number of map types in union type
++		if typ.underIs(func(t Type) bool {
+ 			var e Type
+-			switch t := under(t).(type) {
++			switch t := t.(type) {
+ 			case *Basic:
+ 				if isString(t) {
+ 					e = universeByte
+@@ -113,7 +113,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 			case *Slice:
+ 				e = t.elem
+ 			case *Map:
+-				// If there are multiple maps in the sum type,
++				// If there are multiple maps in the union type,
+ 				// they must have identical key types.
+ 				// TODO(gri) We may be able to relax this rule
+ 				// but it becomes complicated very quickly.
+@@ -148,7 +148,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 				// ok to continue even if indexing failed - map element type is known
+ 
+ 				// If there are only maps, we are done.
+-				if nmaps == len(typ.types) {
++				if nmaps == typ.NumTerms() {
+ 					x.mode = mapindex
+ 					x.typ = telem
+ 					x.expr = e
+@@ -246,7 +246,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 		valid = true
+ 		// x.typ doesn't change
+ 
+-	case *_Sum, *_TypeParam:
++	case *Union, *_TypeParam:
+ 		check.errorf(x, 0, "generic slice expressions not yet implemented")
+ 		x.mode = invalid
+ 		return
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 951c6b8cbd..ddf02a3942 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -302,7 +302,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 			}
+ 		}
+ 
+-	case *_Sum:
++	case *Union:
+ 		return w.isParameterizedList(t.types)
+ 
+ 	case *Signature:
+@@ -315,9 +315,6 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 		// Thus, we only need to look at the input and result parameters.
+ 		return w.isParameterized(t.params) || w.isParameterized(t.results)
+ 
+-	case *Union:
+-		panic("unimplemented")
+-
+ 	case *Interface:
+ 		if t.allMethods != nil {
+ 			// TODO(rFindley) at some point we should enforce completeness here
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 611f387046..2bbd2f135d 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -240,22 +240,26 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 			}
+ 			types = t.allTypes
+ 		case *Union:
+-			types = NewSum(t.terms)
++			// TODO(gri) combine with default case once we have
++			//           converted all tests to new notation and we
++			//           can report an error when we don't have an
++			//           interface before go1.18.
++			types = typ
+ 		case *TypeParam:
+ 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+ 				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is a type parameter, not an interface", typ)
+ 				continue
+ 			}
+-			types = t
++			types = typ
+ 		default:
+-			if t == Typ[Invalid] {
++			if typ == Typ[Invalid] {
+ 				continue
+ 			}
+ 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+ 				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is not an interface", typ)
+ 				continue
+ 			}
+-			types = t
++			types = typ
+ 		}
+ 		allTypes = intersect(allTypes, types)
+ 	}
+@@ -276,44 +280,6 @@ func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
+ 	ityp.allTypes = allTypes
+ }
+ 
+-// intersect computes the intersection of the types x and y.
+-// Note: An incomming nil type stands for the top type. A top
+-// type result is returned as nil.
+-func intersect(x, y Type) (r Type) {
+-	defer func() {
+-		if r == theTop {
+-			r = nil
+-		}
+-	}()
+-
+-	switch {
+-	case x == theBottom || y == theBottom:
+-		return theBottom
+-	case x == nil || x == theTop:
+-		return y
+-	case y == nil || x == theTop:
+-		return x
+-	}
+-
+-	xtypes := unpackType(x)
+-	ytypes := unpackType(y)
+-	// Compute the list rtypes which includes only
+-	// types that are in both xtypes and ytypes.
+-	// Quadratic algorithm, but good enough for now.
+-	// TODO(gri) fix this
+-	var rtypes []Type
+-	for _, x := range xtypes {
+-		if includes(ytypes, x) {
+-			rtypes = append(rtypes, x)
+-		}
+-	}
+-
+-	if rtypes == nil {
+-		return theBottom
+-	}
+-	return _NewSum(rtypes)
+-}
+-
+ func sortTypes(list []Type) {
+ 	sort.Stable(byUniqueTypeName(list))
+ }
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 6463728cec..81dc66e800 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -233,6 +233,12 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	V := x.typ
+ 
++	const debugAssignableTo = false
++	if debugAssignableTo && check != nil {
++		check.dump("V = %s", V)
++		check.dump("T = %s", T)
++	}
++
+ 	// x's type is identical to T
+ 	if check.identical(V, T) {
+ 		return true, 0
+@@ -241,11 +247,20 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	Vu := optype(V)
+ 	Tu := optype(T)
+ 
++	if debugAssignableTo && check != nil {
++		check.dump("Vu = %s", Vu)
++		check.dump("Tu = %s", Tu)
++	}
++
+ 	// x is an untyped value representable by a value of type T.
+ 	if isUntyped(Vu) {
+-		if t, ok := Tu.(*_Sum); ok {
+-			return t.is(func(t Type) bool {
++		if t, ok := Tu.(*Union); ok {
++			return t.is(func(t Type, tilde bool) bool {
+ 				// TODO(gri) this could probably be more efficient
++				if tilde {
++					// TODO(gri) We need to check assignability
++					//           for the underlying type of x.
++				}
+ 				ok, _ := x.assignableTo(check, t, reason)
+ 				return ok
+ 			}), _IncompatibleAssign
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index a72c0dc1fd..78dba6d3e0 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -32,8 +32,8 @@ func is(typ Type, what BasicInfo) bool {
+ 	switch t := optype(typ).(type) {
+ 	case *Basic:
+ 		return t.info&what != 0
+-	case *_Sum:
+-		return t.is(func(typ Type) bool { return is(typ, what) })
++	case *Union:
++		return t.underIs(func(typ Type) bool { return is(typ, what) })
+ 	}
+ 	return false
+ }
+@@ -128,11 +128,10 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 		return true
+ 	case *Array:
+ 		return comparable(t.elem, seen)
+-	case *_Sum:
+-		pred := func(t Type) bool {
++	case *Union:
++		return t.underIs(func(t Type) bool {
+ 			return comparable(t, seen)
+-		}
+-		return t.is(pred)
++		})
+ 	case *_TypeParam:
+ 		return t.Bound()._IsComparable()
+ 	}
+@@ -146,8 +145,8 @@ func hasNil(typ Type) bool {
+ 		return t.kind == UnsafePointer
+ 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
+ 		return true
+-	case *_Sum:
+-		return t.is(hasNil)
++	case *Union:
++		return t.underIs(hasNil)
+ 	}
+ 	return false
+ }
+@@ -265,21 +264,20 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 				check.identical0(x.results, y.results, cmpTags, p)
+ 		}
+ 
+-	case *_Sum:
+-		// Two sum types are identical if they contain the same types.
+-		// (Sum types always consist of at least two types. Also, the
+-		// the set (list) of types in a sum type consists of unique
+-		// types - each type appears exactly once. Thus, two sum types
++	case *Union:
++		// Two union types are identical if they contain the same terms.
++		// The set (list) of types in a union type consists of unique
++		// types - each type appears exactly once. Thus, two union types
+ 		// must contain the same number of types to have chance of
+ 		// being equal.
+-		if y, ok := y.(*_Sum); ok && len(x.types) == len(y.types) {
++		if y, ok := y.(*Union); ok && x.NumTerms() == y.NumTerms() {
+ 			// Every type in x.types must be in y.types.
+ 			// Quadratic algorithm, but probably good enough for now.
+ 			// TODO(gri) we need a fast quick type ID/hash for all types.
+ 		L:
+-			for _, x := range x.types {
+-				for _, y := range y.types {
+-					if Identical(x, y) {
++			for i, xt := range x.types {
++				for j, yt := range y.types {
++					if Identical(xt, yt) && x.tilde[i] == y.tilde[j] {
+ 						continue L // x is in y.types
+ 					}
+ 				}
+@@ -288,9 +286,6 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 			return true
+ 		}
+ 
+-	case *Union:
+-		panic("identical0 not implemented for union types")
+-
+ 	case *Interface:
+ 		// Two interface types are identical if they have the same set of methods with
+ 		// the same names and identical function types. Lower-case method names from
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+index b9fd56001d..2d70060899 100644
+--- a/src/go/types/sanitize.go
++++ b/src/go/types/sanitize.go
+@@ -107,11 +107,8 @@ func (s sanitizer) typ(typ Type) Type {
+ 		s.tuple(t.params)
+ 		s.tuple(t.results)
+ 
+-	case *_Sum:
+-		s.typeList(t.types)
+-
+ 	case *Union:
+-		s.typeList(t.terms)
++		s.typeList(t.types)
+ 
+ 	case *Interface:
+ 		s.funcList(t.methods)
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 7454831843..3e79499ea5 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -26,7 +26,6 @@ func TestSizeof(t *testing.T) {
+ 		{Pointer{}, 8, 16},
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 44, 88},
+-		{_Sum{}, 12, 24},
+ 		{Union{}, 24, 48},
+ 		{Interface{}, 52, 104},
+ 		{Map{}, 16, 32},
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index ae5d765a89..35219836ec 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -148,10 +148,8 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ 		}
+ 		offsets := s.Offsetsof(t.fields)
+ 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
+-	case *_Sum:
+-		panic("Sizeof unimplemented for type sum")
+ 	case *Union:
+-		panic("Sizeof unimplemented for type union")
++		panic("Sizeof unimplemented for union")
+ 	case *Interface:
+ 		return s.WordSize * 2
+ 	}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 47f6dcfbd1..9dcaceaca7 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -911,12 +911,12 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
+ 			msg = "send-only channel"
+ 		}
+ 		return typ.elem, Typ[Invalid], msg
+-	case *_Sum:
++	case *Union:
+ 		first := true
+ 		var key, val Type
+ 		var msg string
+-		typ.is(func(t Type) bool {
+-			k, v, m := rangeKeyVal(under(t), wantKey, wantVal)
++		typ.underIs(func(t Type) bool {
++			k, v, m := rangeKeyVal(t, wantKey, wantVal)
+ 			if k == nil || m != "" {
+ 				key, val, msg = k, v, m
+ 				return false
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index d79c07a2fc..8cd8d0719b 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -302,21 +302,13 @@ func (subst *subster) typ(typ Type) Type {
+ 			}
+ 		}
+ 
+-	case *_Sum:
+-		types, copied := subst.typeList(t.types)
+-		if copied {
+-			// Don't do it manually, with a Sum literal: the new
+-			// types list may not be unique and NewSum may remove
+-			// duplicates.
+-			return _NewSum(types)
+-		}
+-
+ 	case *Union:
+-		terms, copied := subst.typeList(t.terms)
++		types, copied := subst.typeList(t.types)
+ 		if copied {
+-			// TODO(gri) Do we need to remove duplicates that may have
+-			//           crept in after substitution? It may not matter.
+-			return newUnion(terms, t.tilde)
++			// TODO(gri) Remove duplicates that may have crept in after substitution
++			//           (unlikely but possible). This matters for the Identical
++			//           predicate on unions.
++			return newUnion(types, t.tilde)
+ 		}
+ 
+ 	case *Interface:
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index d487bf66f9..3b10fabbf8 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -255,53 +255,6 @@ func (s *Signature) Results() *Tuple { return s.results }
+ // Variadic reports whether the signature s is variadic.
+ func (s *Signature) Variadic() bool { return s.variadic }
+ 
+-// A _Sum represents a set of possible types.
+-// Sums are currently used to represent type lists of interfaces
+-// and thus the underlying types of type parameters; they are not
+-// first class types of Go.
+-type _Sum struct {
+-	types []Type // types are unique
+-}
+-
+-// _NewSum returns a new Sum type consisting of the provided
+-// types if there are more than one. If there is exactly one
+-// type, it returns that type. If the list of types is empty
+-// the result is nil.
+-func _NewSum(types []Type) Type {
+-	if len(types) == 0 {
+-		return nil
+-	}
+-
+-	// What should happen if types contains a sum type?
+-	// Do we flatten the types list? For now we check
+-	// and panic. This should not be possible for the
+-	// current use case of type lists.
+-	// TODO(gri) Come up with the rules for sum types.
+-	for _, t := range types {
+-		if _, ok := t.(*_Sum); ok {
+-			panic("sum type contains sum type - unimplemented")
+-		}
+-	}
+-
+-	if len(types) == 1 {
+-		return types[0]
+-	}
+-	return &_Sum{types: types}
+-}
+-
+-// is reports whether all types in t satisfy pred.
+-func (s *_Sum) is(pred func(Type) bool) bool {
+-	if s == nil {
+-		return false
+-	}
+-	for _, t := range s.types {
+-		if !pred(t) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // An Interface represents an interface type.
+ type Interface struct {
+ 	methods   []*Func // ordered list of explicitly declared methods
+@@ -319,8 +272,8 @@ func unpackType(typ Type) []Type {
+ 	if typ == nil {
+ 		return nil
+ 	}
+-	if sum := asSum(typ); sum != nil {
+-		return sum.types
++	if u := asUnion(typ); u != nil {
++		return u.types
+ 	}
+ 	return []Type{typ}
+ }
+@@ -709,9 +662,16 @@ func optype(typ Type) Type {
+ 		// for a type parameter list of the form:
+ 		// (type T interface { type T }).
+ 		// See also issue #39680.
+-		if u := t.Bound().allTypes; u != nil && u != typ {
+-			// u != typ and u is a type parameter => under(u) != typ, so this is ok
+-			return under(u)
++		if a := t.Bound().allTypes; a != nil && a != typ {
++			// If we have a union with a single entry, ignore
++			// any tilde because under(~t) == under(t).
++			if u, _ := a.(*Union); u != nil && u.NumTerms() == 1 {
++				a = u.types[0]
++			}
++			if a != typ {
++				// a != typ and a is a type parameter => under(a) != typ, so this is ok
++				return under(a)
++			}
+ 		}
+ 		return theTop
+ 	}
+@@ -793,7 +753,6 @@ func (t *Struct) Underlying() Type     { return t }
+ func (t *Pointer) Underlying() Type    { return t }
+ func (t *Tuple) Underlying() Type      { return t }
+ func (t *Signature) Underlying() Type  { return t }
+-func (t *_Sum) Underlying() Type       { return t }
+ func (t *Interface) Underlying() Type  { return t }
+ func (t *Map) Underlying() Type        { return t }
+ func (t *Chan) Underlying() Type       { return t }
+@@ -811,7 +770,6 @@ func (t *Struct) String() string     { return TypeString(t, nil) }
+ func (t *Pointer) String() string    { return TypeString(t, nil) }
+ func (t *Tuple) String() string      { return TypeString(t, nil) }
+ func (t *Signature) String() string  { return TypeString(t, nil) }
+-func (t *_Sum) String() string       { return TypeString(t, nil) }
+ func (t *Interface) String() string  { return TypeString(t, nil) }
+ func (t *Map) String() string        { return TypeString(t, nil) }
+ func (t *Chan) String() string       { return TypeString(t, nil) }
+@@ -826,7 +784,7 @@ func (t *top) String() string        { return TypeString(t, nil) }
+ // under must only be called when a type is known
+ // to be fully set up.
+ func under(t Type) Type {
+-	// TODO(gri) is this correct for *Sum?
++	// TODO(gri) is this correct for *Union?
+ 	if n := asNamed(t); n != nil {
+ 		return n.under()
+ 	}
+@@ -876,8 +834,8 @@ func asSignature(t Type) *Signature {
+ 	return op
+ }
+ 
+-func asSum(t Type) *_Sum {
+-	op, _ := optype(t).(*_Sum)
++func asUnion(t Type) *Union {
++	op, _ := optype(t).(*Union)
+ 	return op
+ }
+ 
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 9e860dda22..52c22f25d8 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -158,11 +158,8 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		buf.WriteString("func")
+ 		writeSignature(buf, t, qf, visited)
+ 
+-	case *_Sum:
+-		writeTypeList(buf, t.types, qf, visited)
+-
+ 	case *Union:
+-		for i, e := range t.terms {
++		for i, e := range t.types {
+ 			if i > 0 {
+ 				buf.WriteString("|")
+ 			}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 4b541df4cd..7c58c6c512 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -352,10 +352,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 				u.nify(x.results, y.results, p)
+ 		}
+ 
+-	case *_Sum:
+-		// This should not happen with the current internal use of sum types.
+-		panic("type inference across sum types not implemented")
+-
+ 	case *Union:
+ 		// This should not happen with the current internal use of union types.
+ 		panic("type inference across union types not implemented")
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 0df200c67b..aa46b8ab9c 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -13,16 +13,16 @@ import (
+ // API
+ 
+ // A Union represents a union of terms.
+-// A term is a type, possibly with a ~ (tilde) indication.
++// A term is a type, possibly with a ~ (tilde) flag.
+ type Union struct {
+-	terms []Type // terms are unique
++	types []Type // types are unique
+ 	tilde []bool // if tilde[i] is set, terms[i] is of the form ~T
+ }
+ 
+-func NewUnion(terms []Type, tilde []bool) Type { return newUnion(terms, tilde) }
++func NewUnion(types []Type, tilde []bool) Type { return newUnion(types, tilde) }
+ 
+-func (u *Union) NumTerms() int           { return len(u.terms) }
+-func (u *Union) Term(i int) (Type, bool) { return u.terms[i], u.tilde[i] }
++func (u *Union) NumTerms() int           { return len(u.types) }
++func (u *Union) Term(i int) (Type, bool) { return u.types[i], u.tilde[i] }
+ 
+ func (u *Union) Underlying() Type { return u }
+ func (u *Union) String() string   { return TypeString(u, nil) }
+@@ -30,26 +30,52 @@ func (u *Union) String() string   { return TypeString(u, nil) }
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-func newUnion(terms []Type, tilde []bool) Type {
+-	assert(len(terms) == len(tilde))
+-	if terms == nil {
++func newUnion(types []Type, tilde []bool) Type {
++	assert(len(types) == len(tilde))
++	if types == nil {
+ 		return nil
+ 	}
+ 	t := new(Union)
+-	t.terms = terms
++	t.types = types
+ 	t.tilde = tilde
+ 	return t
+ }
+ 
++// is reports whether f returned true for all terms (type, tilde) of u.
++func (u *Union) is(f func(Type, bool) bool) bool {
++	if u == nil {
++		return false
++	}
++	for i, t := range u.types {
++		if !f(t, u.tilde[i]) {
++			return false
++		}
++	}
++	return true
++}
++
++// is reports whether f returned true for the underlying types of all terms of u.
++func (u *Union) underIs(f func(Type) bool) bool {
++	if u == nil {
++		return false
++	}
++	for _, t := range u.types {
++		if !f(under(t)) {
++			return false
++		}
++	}
++	return true
++}
++
+ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+-	var terms []Type
++	var types []Type
+ 	var tilde []bool
+ 	for _, x := range tlist {
+ 		t, d := parseTilde(check, x)
+ 		if len(tlist) == 1 && !d {
+ 			return t // single type
+ 		}
+-		terms = append(terms, t)
++		types = append(types, t)
+ 		tilde = append(tilde, d)
+ 	}
+ 
+@@ -58,7 +84,7 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 	// for correctness of the code.
+ 	// Note: This is a quadratic algorithm, but unions tend to be short.
+ 	check.later(func() {
+-		for i, t := range terms {
++		for i, t := range types {
+ 			t := expand(t)
+ 			if t == Typ[Invalid] {
+ 				continue
+@@ -88,14 +114,14 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 			}
+ 
+ 			// Complain about duplicate entries a|a, but also a|~a, and ~a|~a.
+-			if includes(terms[:i], t) {
++			if includes(types[:i], t) {
+ 				// TODO(rfindley) this currently doesn't print the ~ if present
+ 				check.softErrorf(atPos(pos), _Todo, "duplicate term %s in union element", t)
+ 			}
+ 		}
+ 	})
+ 
+-	return newUnion(terms, tilde)
++	return newUnion(types, tilde)
+ }
+ 
+ func parseTilde(check *Checker, x ast.Expr) (Type, bool) {
+@@ -106,3 +132,60 @@ func parseTilde(check *Checker, x ast.Expr) (Type, bool) {
+ 	}
+ 	return check.anyType(x), tilde
+ }
++
++// intersect computes the intersection of the types x and y.
++// Note: An incomming nil type stands for the top type. A top
++// type result is returned as nil.
++func intersect(x, y Type) (r Type) {
++	defer func() {
++		if r == theTop {
++			r = nil
++		}
++	}()
++
++	switch {
++	case x == theBottom || y == theBottom:
++		return theBottom
++	case x == nil || x == theTop:
++		return y
++	case y == nil || x == theTop:
++		return x
++	}
++
++	// Compute the terms which are in both x and y.
++	xu, _ := x.(*Union)
++	yu, _ := y.(*Union)
++	switch {
++	case xu != nil && yu != nil:
++		// Quadratic algorithm, but good enough for now.
++		// TODO(gri) fix asymptotic performance
++		var types []Type
++		var tilde []bool
++		for _, y := range yu.types {
++			if includes(xu.types, y) {
++				types = append(types, y)
++				tilde = append(tilde, true) // TODO(gri) fix this
++			}
++		}
++		if types != nil {
++			return newUnion(types, tilde)
++		}
++
++	case xu != nil:
++		if includes(xu.types, y) {
++			return y
++		}
++
++	case yu != nil:
++		if includes(yu.types, x) {
++			return x
++		}
++
++	default: // xu == nil && yu == nil
++		if Identical(x, y) {
++			return x
++		}
++	}
++
++	return theBottom
++}

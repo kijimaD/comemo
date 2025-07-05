@@ -7,6 +7,33 @@ Date:   Tue Jun 8 22:32:04 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1631041
-
+---
  test/char_lit.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/test/char_lit.go b/test/char_lit.go
+index 689a54a2fa..e4f3f83235 100644
+--- a/test/char_lit.go
++++ b/test/char_lit.go
+@@ -30,15 +30,15 @@ func main() {
+ 		'\xFE' +
+ 		'\u0123' +
+ 		'\ubabe' +
+-		'\U0123ABCD' +
+-		'\Ucafebabe'
++		'\U0010FFFF' +
++		'\U000ebabe'
+ 		;
+-	if '\Ucafebabe' != 0xcafebabe {
+-		print("cafebabe wrong\n");
++	if '\U000ebabe' != 0x000ebabe {
++		print("ebabe wrong\n");
+ 		os.Exit(1)
+ 	}
+-	if i != 0xcc238de1 {
+-		print("number is ", i, " should be ", 0xcc238de1, "\n");
++	if i != 0x20e213 {
++		print("number is ", i, " should be ", 0x20e213, "\n");
+ 		os.Exit(1)
+ 		}
+ }

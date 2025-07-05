@@ -5,10 +5,391 @@ Date:   Sat Jun 7 15:21:02 2008 -0700
     more code generation - mostly shift and multiply
     
     SVN=121585
-
+---
  src/cmd/6g/cgen.c     | 53 ++++++++++++++-----------------
  src/cmd/6g/gen.c      | 82 ++++++++++++++++++++++++++++++++++++++++++------
  src/cmd/6g/gg.h       |  1 +
  src/cmd/6g/gsubr.c    | 86 ++++++++++++++++++++++++++++++++++++++++++---------
  src/cmd/gc/mksys.bash |  2 +-
  5 files changed, 170 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 07bb11c3b2..16d8fef7e7 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -9,7 +9,7 @@ cgen(Node *n, Node *res)
+ {
+ 	long lno;
+ 	Node *nl, *nr, *r;
+-	Node n1, tmp;
++	Node n1, n2;
+ 	int a;
+ 	Prog *p1, *p2, *p3;
+ 
+@@ -113,8 +113,6 @@ cgen(Node *n, Node *res)
+ 
+ 	// asymmetric binary
+ 	case OSUB:
+-	case OLSH:
+-	case ORSH:
+ 		a = optoas(n->op, nl->type);
+ 		goto abop;
+ 
+@@ -240,6 +238,10 @@ cgen(Node *n, Node *res)
+ 	case ODIV:
+ 		cgen_div(n->op, nl, nr, res);
+ 		break;
++	case OLSH:
++	case ORSH:
++		cgen_shift(n->op, nl, nr, res);
++		break;
+ 	}
+ 	goto ret;
+ 
+@@ -251,26 +253,21 @@ sbop:	// symmetric binary
+ 	}
+ 
+ abop:	// asymmetric binary
+-	if(nr->addable) {
++	if(nl->ullman >= nr->ullman) {
++		regalloc(&n1, nl->type, res);
++		cgen(nl, &n1);
++		regalloc(&n2, nr->type, N);
++		cgen(nr, &n2);
++	} else {
++		regalloc(&n2, nr->type, N);
++		cgen(nr, &n2);
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+-		gins(a, nr, &n1);
+-		gmove(&n1, res);
+-		regfree(&n1);
+-		goto ret;
+ 	}
+-
+-	tempname(&tmp, nr->type);
+-	regalloc(&n1, nr->type, res);
+-	cgen(nr, &n1);
+-	gmove(&n1, &tmp);
+-	regfree(&n1);
+-
+-	regalloc(&n1, nl->type, res);
+-	cgen(nl, &n1);
+-	gins(a, &tmp, &n1);
++	gins(a, &n2, &n1);
+ 	gmove(&n1, res);
+ 	regfree(&n1);
++	regfree(&n2);
+ 	goto ret;
+ 
+ uop:	// unary
+@@ -375,18 +372,16 @@ agen(Node *n, Node *res)
+ 		// &a is in res
+ 		// i is in &n1
+ 		// w is width
+-		if(issigned[n1.type->etype]) {
+-			nodconst(&n3, types[TINT64], w);	// w/tint64
++		nodconst(&n3, types[TINT64], w);	// w/tint64
++		if(issigned[n1.type->etype])
+ 			regalloc(&n2, types[TINT64], &n1);	// i/int64
+-			gmove(&n1, &n2);
+-			gins(optoas(OMUL, types[TINT64]), &n3, &n2);
+-			gins(optoas(OADD, types[tptr]), &n2, res);
+-			regfree(&n1);
+-			regfree(&n2);
+-			break;
+-		}
+-		// unsigned multiply is a pain in the ass
+-		fatal("agen: unsigned index");
++		else
++			regalloc(&n2, types[TUINT64], &n1);	// i/uint64
++		gmove(&n1, &n2);
++		gins(optoas(OMUL, types[TINT64]), &n3, &n2);
++		gins(optoas(OADD, types[tptr]), &n2, res);
++		regfree(&n1);
++		regfree(&n2);
+ 		break;
+ 
+ //	case OIND:
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index e6ca3cb40e..01ef519b83 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -839,25 +839,32 @@ samereg(Node *a, Node *b)
+ 	return 1;
+ }
+ 
++/*
++ * this is hard because divide
++ * is done in a fixed numerator
++ * of combined DX:AX registers
++ */
+ void
+ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ {
+ 	Node n1, n2, n3;
+ 	int a, rax, rdx;
+ 
+-	nodreg(&n1, types[TINT64], D_AX);
+-	nodreg(&n2, types[TINT64], D_DX);
+ 
+ 	rax = reg[D_AX];
+ 	rdx = reg[D_DX];
+ 
+-	// hold down the DX:AX registers
++	nodreg(&n1, types[TINT64], D_AX);
++	nodreg(&n2, types[TINT64], D_DX);
+ 	regalloc(&n1, nr->type, &n1);
++	regalloc(&n2, nr->type, &n2);
++
++	// clean out the AX register
+ 	if(rax && !samereg(res, &n1)) {
+-		// clean out the AX register
+ 		regalloc(&n3, types[TINT64], N);
+ 		gins(AMOVQ, &n1, &n3);
+ 		regfree(&n1);
++		regfree(&n2);
+ 
+ 		reg[D_AX] = 0;
+ 		cgen_div(op, nl, nr, res);
+@@ -868,12 +875,12 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 		return;
+ 	}
+ 
+-	regalloc(&n2, nr->type, &n2);
++	// clean out the DX register
+ 	if(rdx && !samereg(res, &n2)) {
+-		// clean out the DX register
+ 		regalloc(&n3, types[TINT64], N);
+ 		gins(AMOVQ, &n2, &n3);
+ 		regfree(&n1);
++		regfree(&n2);
+ 
+ 		reg[D_DX] = 0;
+ 		cgen_div(op, nl, nr, res);
+@@ -891,18 +898,18 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 		gmove(&n3, &n2);
+ 	}
+ 
+-	regalloc(&n3, nr->type, res);
++	regalloc(&n3, nr->type, N);
+ 	if(nl->ullman >= nr->ullman) {
+ 		cgen(nl, &n1);
+ 		if(issigned[nl->type->etype])
+-			gins(ACDQ, N, N);
++			gins(optoas(OFOR, nl->type), N, N);
+ 		cgen(nr, &n3);
+ 		gins(a, &n3, N);
+ 	} else {
+ 		cgen(nr, &n3);
+ 		cgen(nl, &n1);
+ 		if(issigned[nl->type->etype])
+-			gins(ACDQ, N, N);
++			gins(optoas(OFOR, nl->type), N, N);
+ 		gins(a, &n3, N);
+ 	}
+ 	regfree(&n3);
+@@ -915,3 +922,60 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 	regfree(&n1);
+ 	regfree(&n2);
+ }
++
++/*
++ * this is hard because shift
++ * count is either constant
++ * or the CL register
++ */
++void
++cgen_shift(int op, Node *nl, Node *nr, Node *res)
++{
++	Node n1, n2;
++	int a, rcl;
++
++	a = optoas(op, nl->type);
++
++	if(nr->op == OLITERAL) {
++		regalloc(&n1, nr->type, res);
++		cgen(nl, &n1);
++		gins(a, nr, &n1);
++		gmove(&n1, res);
++		regfree(&n1);
++		return;
++	}
++
++	rcl = reg[D_CX];
++
++	nodreg(&n1, types[TINT64], D_CX);
++	regalloc(&n1, nr->type, &n1);
++
++	// clean out the CL register
++	if(rcl && !samereg(res, &n1)) {
++		regalloc(&n2, types[TINT64], N);
++		gins(AMOVQ, &n1, &n2);
++		regfree(&n1);
++
++		reg[D_CX] = 0;
++		cgen_shift(op, nl, nr, res);
++		reg[D_CX] = rcl;
++
++		gins(AMOVQ, &n2, &n1);
++		regfree(&n2);
++		return;
++	}
++
++	regalloc(&n2, nl->type, res);	// can one shift the CL register?
++	if(nl->ullman >= nr->ullman) {
++		cgen(nl, &n2);
++		cgen(nr, &n1);
++	} else {
++		cgen(nr, &n1);
++		cgen(nl, &n2);
++	}
++	gins(a, &n1, &n2);
++	gmove(&n2, res);
++
++	regfree(&n1);
++	regfree(&n2);
++}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 290b10114b..eadd6dedde 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -118,6 +118,7 @@ void	cgen_callmeth(Node*);
+ void	cgen_callinter(Node*, Node*);
+ void	cgen_callret(Node*, Node*);
+ void	cgen_div(int, Node*, Node*, Node*);
++void	cgen_shift(int, Node*, Node*, Node*);
+ void	genpanic(void);
+ int	needconvert(Type*, Type*);
+ void	genconv(Type*, Type*);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 125e4c8323..3ecaf09ce4 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1354,38 +1354,82 @@ optoas(int op, Type *t)
+ 		a = ANEGQ;
+ 		break;
+ 
+-	case CASE(OMUL, TINT8):
+-		a = AIMULB;
++	case CASE(OLSH, TINT8):
++	case CASE(OLSH, TUINT8):
++		a = ASHLB;
+ 		break;
+ 
+-	case CASE(OMUL, TUINT8):
+-		a = AMULB;
++	case CASE(OLSH, TINT16):
++	case CASE(OLSH, TUINT16):
++		a = ASHLW;
+ 		break;
+ 
+-	case CASE(OMUL, TINT16):
+-		a = AIMULW;
++	case CASE(OLSH, TINT32):
++	case CASE(OLSH, TUINT32):
++	case CASE(OLSH, TPTR32):
++		a = ASHLL;
+ 		break;
+ 
+-	case CASE(OMUL, TUINT16):
+-		a = AMULW;
++	case CASE(OLSH, TINT64):
++	case CASE(OLSH, TUINT64):
++	case CASE(OLSH, TPTR64):
++		a = ASHLQ;
+ 		break;
+ 
+-	case CASE(OMUL, TINT32):
+-		a = AIMULL;
++	case CASE(ORSH, TUINT8):
++		a = ASHRB;
++		break;
++
++	case CASE(ORSH, TUINT16):
++		a = ASHRW;
++		break;
++
++	case CASE(ORSH, TUINT32):
++	case CASE(ORSH, TPTR32):
++		a = ASHRL;
++		break;
++
++	case CASE(ORSH, TUINT64):
++	case CASE(ORSH, TPTR64):
++		a = ASHRQ;
++		break;
++
++	case CASE(ORSH, TINT8):
++		a = ASARB;
++		break;
++
++	case CASE(ORSH, TINT16):
++		a = ASARW;
++		break;
++
++	case CASE(ORSH, TINT32):
++		a = ASARL;
++		break;
++
++	case CASE(ORSH, TINT64):
++		a = ASARQ;
+ 		break;
+ 
++	case CASE(OMUL, TINT8):
++	case CASE(OMUL, TUINT8):
++		a = AIMULB;
++		break;
++
++	case CASE(OMUL, TINT16):
++	case CASE(OMUL, TUINT16):
++		a = AIMULW;
++		break;
++
++	case CASE(OMUL, TINT32):
+ 	case CASE(OMUL, TUINT32):
+ 	case CASE(OMUL, TPTR32):
+-		a = AMULL;
++		a = AIMULL;
+ 		break;
+ 
+ 	case CASE(OMUL, TINT64):
+-		a = AIMULQ;
+-		break;
+-
+ 	case CASE(OMUL, TUINT64):
+ 	case CASE(OMUL, TPTR64):
+-		a = AMULQ;
++		a = AIMULQ;
+ 		break;
+ 
+ 	case CASE(OMUL, TFLOAT32):
+@@ -1440,6 +1484,18 @@ optoas(int op, Type *t)
+ 		a = ADIVQ;
+ 		break;
+ 
++	case CASE(OFOR, TINT16):
++		a = ACWD;
++		break;
++
++	case CASE(OFOR, TINT32):
++		a = ACDQ;
++		break;
++
++	case CASE(OFOR, TINT64):
++		a = ACQO;
++		break;
++
+ 	case CASE(ODIV, TFLOAT32):
+ 		a = ADIVSS;
+ 		break;
+diff --git a/src/cmd/gc/mksys.bash b/src/cmd/gc/mksys.bash
+index edd1c9df78..42279868be 100644
+--- a/src/cmd/gc/mksys.bash
++++ b/src/cmd/gc/mksys.bash
+@@ -16,4 +16,4 @@ $a
+ 
+ .
+ w sysimport.c
+-q' | ed foop.6
++q' | ed sys.6

@@ -7,6 +7,20 @@ Date:   Mon Apr 11 08:48:19 2011 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/4385051
-
+---
  misc/vim/syntax/go.vim | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/vim/syntax/go.vim b/misc/vim/syntax/go.vim
+index abb1bf9995..26d7defe36 100644
+--- a/misc/vim/syntax/go.vim
++++ b/misc/vim/syntax/go.vim
+@@ -181,7 +181,7 @@ if go_highlight_extra_types != 0
+   syn match goExtraType /\<bytes\.\(Buffer\)\>/
+   syn match goExtraType /\<io\.\(Reader\|Writer\|ReadWriter\|ReadWriteCloser\)\>/
+   syn match goExtraType /\<\(os\.Error\)\>/
+-  syn match goExtraType /\<reflect\.\w*\(Type\|Value\)\>/
++  syn match goExtraType /\<reflect\.\(Kind\|Type\|Value\)\>/
+   syn match goExtraType /\<unsafe\.Pointer\>/
+ endif
+ 

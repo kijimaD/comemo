@@ -21,8 +21,214 @@ Date:   Thu Sep 29 09:19:38 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cover/cfg_test.go        | 25 ++++++++++++++++------
  src/cmd/cover/cover.go           | 46 ++++++++++++++++++++++++++++------------
  src/cmd/go/internal/work/exec.go | 20 +++++++++++------
  3 files changed, 65 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+index f674c815dc..d90e849448 100644
+--- a/src/cmd/cover/cfg_test.go
++++ b/src/cmd/cover/cfg_test.go
+@@ -39,18 +39,29 @@ func writePkgConfig(t *testing.T, outdir, tag, ppath, pname string, gran string)
+ 	return incfg
+ }
+ 
++func writeOutFileList(t *testing.T, infiles []string, outdir, tag string) ([]string, string) {
++	outfilelist := filepath.Join(outdir, tag+"outfilelist.txt")
++	var sb strings.Builder
++	outfs := []string{}
++	for _, inf := range infiles {
++		base := filepath.Base(inf)
++		of := filepath.Join(outdir, tag+".cov."+base)
++		outfs = append(outfs, of)
++		fmt.Fprintf(&sb, "%s\n", of)
++	}
++	if err := os.WriteFile(outfilelist, []byte(sb.String()), 0666); err != nil {
++		t.Fatalf("writing %s: %v", outfilelist, err)
++	}
++	return outfs, outfilelist
++}
++
+ func runPkgCover(t *testing.T, outdir string, tag string, incfg string, mode string, infiles []string, errExpected bool) ([]string, string, string) {
+ 	// Write the pkgcfg file.
+ 	outcfg := filepath.Join(outdir, "outcfg.txt")
+ 
+ 	// Form up the arguments and run the tool.
+-	outfiles := []string{}
+-	for _, inf := range infiles {
+-		base := filepath.Base(inf)
+-		outfiles = append(outfiles, filepath.Join(outdir, "cov."+base))
+-	}
+-	ofs := strings.Join(outfiles, string(os.PathListSeparator))
+-	args := []string{"-pkgcfg", incfg, "-mode=" + mode, "-var=var" + tag, "-o", ofs}
++	outfiles, outfilelist := writeOutFileList(t, infiles, outdir, tag)
++	args := []string{"-pkgcfg", incfg, "-mode=" + mode, "-var=var" + tag, "-outfilelist", outfilelist}
+ 	args = append(args, infiles...)
+ 	cmd := exec.Command(testcover, args...)
+ 	if errExpected {
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 05c265d515..530d40d458 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -44,10 +44,12 @@ Display coverage percentages to stdout for each function:
+ Finally, to generate modified source code with coverage annotations
+ for a package (what go test -cover does):
+ 	go tool cover -mode=set -var=CoverageVariableName \
+-		-pkgcfg=<config> -o=<outputfiles> file1.go ... fileN.go
++		-pkgcfg=<config> -outfilelist=<file> file1.go ... fileN.go
+ 
+ where -pkgcfg points to a file containing the package path,
+-package name, module path, and related info from "go build".
++package name, module path, and related info from "go build",
++and -outfilelist points to a file containing the filenames
++of the instrumented output files (one per input file).
+ See https://pkg.go.dev/internal/coverage#CoverPkgConfig for
+ more on the package config.
+ `
+@@ -61,16 +63,19 @@ func usage() {
+ }
+ 
+ var (
+-	mode    = flag.String("mode", "", "coverage mode: set, count, atomic")
+-	varVar  = flag.String("var", "GoCover", "name of coverage variable to generate")
+-	output  = flag.String("o", "", fmt.Sprintf("file(s) for output (if multiple inputs, this is a %q-separated list); defaults to stdout if omitted.", string(os.PathListSeparator)))
+-	htmlOut = flag.String("html", "", "generate HTML representation of coverage profile")
+-	funcOut = flag.String("func", "", "output coverage profile information for each function")
+-	pkgcfg  = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
++	mode        = flag.String("mode", "", "coverage mode: set, count, atomic")
++	varVar      = flag.String("var", "GoCover", "name of coverage variable to generate")
++	output      = flag.String("o", "", "file for output")
++	outfilelist = flag.String("outfilelist", "", "file containing list of output files (one per line) if -pkgcfg is in use")
++	htmlOut     = flag.String("html", "", "generate HTML representation of coverage profile")
++	funcOut     = flag.String("func", "", "output coverage profile information for each function")
++	pkgcfg      = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
+ )
+ 
+ var pkgconfig coverage.CoverPkgConfig
+ 
++var outputfiles []string // set whe -pkgcfg is in use
++
+ var profile string // The profile to read; the value of -html or -func
+ 
+ var counterStmt func(*File, string) string
+@@ -153,11 +158,15 @@ func parseFlags() error {
+ 			return fmt.Errorf("missing source file(s)")
+ 		} else {
+ 			if *pkgcfg != "" {
+-				if *output == "" {
+-					return fmt.Errorf("supply output file(s) with -o")
++				if *output != "" {
++					return fmt.Errorf("please use '-outfilelist' flag instead of '-o'")
++				}
++				var err error
++				if outputfiles, err = readOutFileList(*outfilelist); err != nil {
++					return err
+ 				}
+ 				numInputs := len(flag.Args())
+-				numOutputs := len(strings.Split(*output, string(os.PathListSeparator)))
++				numOutputs := len(outputfiles)
+ 				if numOutputs != numInputs {
+ 					return fmt.Errorf("number of output files (%d) not equal to number of input files (%d)", numOutputs, numInputs)
+ 				}
+@@ -165,6 +174,10 @@ func parseFlags() error {
+ 					return err
+ 				}
+ 				return nil
++			} else {
++				if *outfilelist != "" {
++					return fmt.Errorf("'-outfilelist' flag applicable only when -pkgcfg used")
++				}
+ 			}
+ 			if flag.NArg() == 1 {
+ 				return nil
+@@ -176,6 +189,14 @@ func parseFlags() error {
+ 	return fmt.Errorf("too many arguments")
+ }
+ 
++func readOutFileList(path string) ([]string, error) {
++	data, err := ioutil.ReadFile(path)
++	if err != nil {
++		return nil, fmt.Errorf("error reading -outfilelist file %q: %v", path, err)
++	}
++	return strings.Split(strings.TrimSpace(string(data)), "\n"), nil
++}
++
+ func readPackageConfig(path string) error {
+ 	data, err := ioutil.ReadFile(path)
+ 	if err != nil {
+@@ -495,7 +516,6 @@ func annotate(names []string) {
+ 		}
+ 	}
+ 	// TODO: process files in parallel here if it matters.
+-	outfiles := strings.Split(*output, string(os.PathListSeparator))
+ 	for k, name := range names {
+ 		last := false
+ 		if k == len(names)-1 {
+@@ -506,7 +526,7 @@ func annotate(names []string) {
+ 		isStdout := true
+ 		if *pkgcfg != "" {
+ 			var err error
+-			fd, err = os.Create(outfiles[k])
++			fd, err = os.Create(outputfiles[k])
+ 			if err != nil {
+ 				log.Fatalf("cover: %s", err)
+ 			}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index ca2f5a80b3..bbac37528c 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -691,7 +691,8 @@ OverlayLoop:
+ 					panic("covermode should be set at this point")
+ 				}
+ 				pkgcfg := a.Objdir + "pkgcfg.txt"
+-				if err := b.cover2(a, pkgcfg, infiles, outfiles, coverVar, mode); err != nil {
++				covoutfiles := a.Objdir + "coveroutfiles.txt"
++				if err := b.cover2(a, pkgcfg, covoutfiles, infiles, outfiles, coverVar, mode); err != nil {
+ 					return err
+ 				}
+ 			} else {
+@@ -1943,22 +1944,22 @@ func (b *Builder) cover(a *Action, dst, src string, varName string) error {
+ // cover2 runs, in effect,
+ //
+ //	go tool cover -pkgcfg=<config file> -mode=b.coverMode -var="varName" -o <outfiles> <infiles>
+-func (b *Builder) cover2(a *Action, pkgcfg string, infiles, outfiles []string, varName string, mode string) error {
+-	if err := b.writeCoverPkgCfg(a, pkgcfg); err != nil {
++func (b *Builder) cover2(a *Action, pkgcfg, covoutputs string, infiles, outfiles []string, varName string, mode string) error {
++	if err := b.writeCoverPkgInputs(a, pkgcfg, covoutputs, outfiles); err != nil {
+ 		return err
+ 	}
+ 	args := []string{base.Tool("cover"),
+ 		"-pkgcfg", pkgcfg,
+ 		"-mode", mode,
+ 		"-var", varName,
+-		"-o", strings.Join(outfiles, string(os.PathListSeparator)),
++		"-outfilelist", covoutputs,
+ 	}
+ 	args = append(args, infiles...)
+ 	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
+ 		cfg.BuildToolexec, args)
+ }
+ 
+-func (b *Builder) writeCoverPkgCfg(a *Action, file string) error {
++func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
+ 	p := a.Package
+ 	p.Internal.CoverageCfg = a.Objdir + "coveragecfg"
+ 	pcfg := coverage.CoverPkgConfig{
+@@ -1978,7 +1979,14 @@ func (b *Builder) writeCoverPkgCfg(a *Action, file string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	return b.writeFile(file, data)
++	if err := b.writeFile(pconfigfile, data); err != nil {
++		return err
++	}
++	var sb strings.Builder
++	for i := range outfiles {
++		fmt.Fprintf(&sb, "%s\n", outfiles[i])
++	}
++	return b.writeFile(covoutputsfile, []byte(sb.String()))
+ }
+ 
+ var objectMagic = [][]byte{

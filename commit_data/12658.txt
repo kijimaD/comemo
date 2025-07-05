@@ -9,6 +9,21 @@ Date:   Thu Mar 15 15:10:01 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5836046
-
+---
  src/cmd/go/http.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/http.go b/src/cmd/go/http.go
+index c1b9bb42a8..6de9a3e1e4 100644
+--- a/src/cmd/go/http.go
++++ b/src/cmd/go/http.go
+@@ -80,6 +80,8 @@ func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err erro
+ 	}
+ 	// Note: accepting a non-200 OK here, so people can serve a
+ 	// meta import in their http 404 page.
+-	log.Printf("Parsing meta tags from %s (status code %d)", urlStr, res.StatusCode)
++	if buildV {
++		log.Printf("Parsing meta tags from %s (status code %d)", urlStr, res.StatusCode)
++	}
+ 	return urlStr, res.Body, nil
+ }

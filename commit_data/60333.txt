@@ -13,6 +13,20 @@ Date:   Thu Jun 20 10:23:42 2024 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/godebugs/table.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index f4262b6695..4c084635fb 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -36,7 +36,7 @@ var All = []Info{
+ 	{Name: "http2server", Package: "net/http"},
+ 	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
+ 	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
+-	{Name: "httpservecontentkeepheaders", Package: "net/http", Changed: 23, Old: "0"},
++	{Name: "httpservecontentkeepheaders", Package: "net/http", Changed: 23, Old: "1"},
+ 	{Name: "installgoroot", Package: "go/build"},
+ 	{Name: "jstmpllitinterp", Package: "html/template", Opaque: true}, // bug #66217: remove Opaque
+ 	//{Name: "multipartfiles", Package: "mime/multipart"},

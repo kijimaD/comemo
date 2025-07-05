@@ -7,6 +7,20 @@ Date:   Mon Dec 8 16:15:22 2014 -0800
     Change-Id: I3030d678c4eee85970826c86332a2b818cf7f5b6
     Reviewed-on: https://go-review.googlesource.com/1217
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  CONTRIBUTING.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 6fbfd0da9f..736de379bc 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -1,7 +1,7 @@
+ The Go project is an open source project.
+ For information, see: https://golang.org/
+ 
+-Its canonical Git repository is located at https://go.googlecode.com/go.
++Its canonical Git repository is located at https://go.googlesource.com/go.
+ (There is a mirror of the repository at https://github.com/golang/go.)
+ 
+ Report issues here: https://github.com/golang/go/issues

@@ -3,6 +3,20 @@ Author: Ken Thompson <ken@golang.org>
 Date:   Tue Jun 17 18:02:06 2008 -0700
 
     SVN=123250
-
+---
  src/cmd/gc/subr.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 8d24915359..1cd9f94718 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -504,6 +504,8 @@ whatis(Node *n)
+ 			return Wlitbool;
+ 		case CTSTR:
+ 			return Wlitstr;
++		case CTNIL:
++			return Wlitnil;	// not used
+ 		}
+ 		return Wtunkn;
+ 	}

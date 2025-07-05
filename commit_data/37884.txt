@@ -1299,3 +1299,17 @@ Date:   Thu Sep 6 13:25:27 2018 -0400
  test/unsafereject1.go                              |   16 +
  test/unsafereject2.go                              |   15 +
  1291 files changed, 63543 insertions(+), 17831 deletions(-)
+
+diff --cc src/crypto/rand/rand_unix.go
+index f7cd74693d,cebb7a761c..13c874a961
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@@ -13,7 -13,7 +13,8 @@@ import 
+  	"bufio"
+  	"crypto/aes"
+  	"crypto/cipher"
+ +	"crypto/internal/boring"
++ 	"encoding/binary"
+  	"io"
+  	"os"
+  	"runtime"

@@ -11,7 +11,7 @@ Date:   Thu Feb 24 16:46:54 2022 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/asm_linux_386.s     | 22 ----------------------
  src/syscall/asm_linux_amd64.s   | 20 --------------------
  src/syscall/asm_linux_arm.s     | 24 ------------------------
@@ -23,3 +23,336 @@ Date:   Thu Feb 24 16:46:54 2022 -0500
  src/syscall/asm_linux_s390x.s   | 23 -----------------------
  src/syscall/syscall_linux.go    | 22 +++++++++++++++++++++-
  10 files changed, 21 insertions(+), 194 deletions(-)
+
+diff --git a/src/syscall/asm_linux_386.s b/src/syscall/asm_linux_386.s
+index a2b5efb2db..546d27932d 100644
+--- a/src/syscall/asm_linux_386.s
++++ b/src/syscall/asm_linux_386.s
+@@ -65,28 +65,6 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-// func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+-	MOVL	trap+0(FP), AX	// syscall entry
+-	MOVL	a1+4(FP), BX
+-	MOVL	a2+8(FP), CX
+-	MOVL	a3+12(FP), DX
+-	MOVL	$0, SI
+-	MOVL	$0, DI
+-	INVOKE_SYSCALL
+-	CMPL	AX, $0xfffff001
+-	JLS	ok1
+-	MOVL	$-1, r1+16(FP)
+-	MOVL	$0, r2+20(FP)
+-	NEGL	AX
+-	MOVL	AX, err+24(FP)
+-	RET
+-ok1:
+-	MOVL	AX, r1+16(FP)
+-	MOVL	DX, r2+20(FP)
+-	MOVL	$0, err+24(FP)
+-	RET
+-
+ // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVL	trap+0(FP), AX	// syscall entry
+diff --git a/src/syscall/asm_linux_amd64.s b/src/syscall/asm_linux_amd64.s
+index a98125903a..bd50b5ebfe 100644
+--- a/src/syscall/asm_linux_amd64.s
++++ b/src/syscall/asm_linux_amd64.s
+@@ -64,26 +64,6 @@ ok6:
+ 	CALL	runtime·exitsyscall<ABIInternal>(SB)
+ 	RET
+ 
+-// func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	MOVQ	a1+8(FP), DI
+-	MOVQ	a2+16(FP), SI
+-	MOVQ	a3+24(FP), DX
+-	MOVQ	trap+0(FP), AX	// syscall entry
+-	SYSCALL
+-	CMPQ	AX, $0xfffffffffffff001
+-	JLS	ok1
+-	MOVQ	$-1, r1+32(FP)
+-	MOVQ	$0, r2+40(FP)
+-	NEGQ	AX
+-	MOVQ	AX, err+48(FP)
+-	RET
+-ok1:
+-	MOVQ	AX, r1+32(FP)
+-	MOVQ	DX, r2+40(FP)
+-	MOVQ	$0, err+48(FP)
+-	RET
+-
+ // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	MOVQ	a1+8(FP), DI
+diff --git a/src/syscall/asm_linux_arm.s b/src/syscall/asm_linux_arm.s
+index 50103172ba..12986f801e 100644
+--- a/src/syscall/asm_linux_arm.s
++++ b/src/syscall/asm_linux_arm.s
+@@ -102,30 +102,6 @@ okseek:
+ 	BL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-// func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+-	MOVW	trap+0(FP), R7	// syscall entry
+-	MOVW	a1+4(FP), R0
+-	MOVW	a2+8(FP), R1
+-	MOVW	a3+12(FP), R2
+-	SWI	$0
+-	MOVW	$0xfffff001, R1
+-	CMP	R1, R0
+-	BLS	ok1
+-	MOVW	$-1, R1
+-	MOVW	R1, r1+16(FP)
+-	MOVW	$0, R2
+-	MOVW	R2, r2+20(FP)
+-	RSB	$0, R0, R0
+-	MOVW	R0, err+24(FP)
+-	RET
+-ok1:
+-	MOVW	R0, r1+16(FP)
+-	MOVW	$0, R0
+-	MOVW	R0, r2+20(FP)
+-	MOVW	R0, err+24(FP)
+-	RET
+-
+ // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVW	trap+0(FP), R7	// syscall entry
+diff --git a/src/syscall/asm_linux_arm64.s b/src/syscall/asm_linux_arm64.s
+index c9c6bfab09..fc1466cc80 100644
+--- a/src/syscall/asm_linux_arm64.s
++++ b/src/syscall/asm_linux_arm64.s
+@@ -57,29 +57,6 @@ ok:
+ 	BL	runtime·exitsyscall<ABIInternal>(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	MOVD	a1+8(FP), R0
+-	MOVD	a2+16(FP), R1
+-	MOVD	a3+24(FP), R2
+-	MOVD	$0, R3
+-	MOVD	$0, R4
+-	MOVD	$0, R5
+-	MOVD	trap+0(FP), R8	// syscall entry
+-	SVC
+-	CMN	$4095, R0
+-	BCC	ok
+-	MOVD	$-1, R4
+-	MOVD	R4, r1+32(FP)	// r1
+-	MOVD	ZR, r2+40(FP)	// r2
+-	NEG	R0, R0
+-	MOVD	R0, err+48(FP)	// errno
+-	RET
+-ok:
+-	MOVD	R0, r1+32(FP)	// r1
+-	MOVD	R1, r2+40(FP)	// r2
+-	MOVD	ZR, err+48(FP)	// errno
+-	RET
+-
+ // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+ TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
+ 	MOVD	a1+8(FP), R0
+diff --git a/src/syscall/asm_linux_mips64x.s b/src/syscall/asm_linux_mips64x.s
+index bc2f72c965..b6f293471d 100644
+--- a/src/syscall/asm_linux_mips64x.s
++++ b/src/syscall/asm_linux_mips64x.s
+@@ -59,27 +59,6 @@ ok6:
+ 	JAL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	MOVV	a1+8(FP), R4
+-	MOVV	a2+16(FP), R5
+-	MOVV	a3+24(FP), R6
+-	MOVV	R0, R7
+-	MOVV	R0, R8
+-	MOVV	R0, R9
+-	MOVV	trap+0(FP), R2	// syscall entry
+-	SYSCALL
+-	BEQ	R7, ok1
+-	MOVV	$-1, R1
+-	MOVV	R1, r1+32(FP)	// r1
+-	MOVV	R0, r2+40(FP)	// r2
+-	MOVV	R2, err+48(FP)	// errno
+-	RET
+-ok1:
+-	MOVV	R2, r1+32(FP)	// r1
+-	MOVV	R3, r2+40(FP)	// r2
+-	MOVV	R0, err+48(FP)	// errno
+-	RET
+-
+ // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	MOVV	a1+8(FP), R4
+diff --git a/src/syscall/asm_linux_mipsx.s b/src/syscall/asm_linux_mipsx.s
+index 04fad404a4..041c353e79 100644
+--- a/src/syscall/asm_linux_mipsx.s
++++ b/src/syscall/asm_linux_mipsx.s
+@@ -97,24 +97,6 @@ ok9:
+ 	JAL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$24-28
+-	MOVW	a1+4(FP), R4
+-	MOVW	a2+8(FP), R5
+-	MOVW	a3+12(FP), R6
+-	MOVW	trap+0(FP), R2	// syscall entry
+-	SYSCALL
+-	BEQ	R7, ok1
+-	MOVW	$-1, R1
+-	MOVW	R1, r1+16(FP)	// r1
+-	MOVW	R0, r2+20(FP)	// r2
+-	MOVW	R2, err+24(FP)	// errno
+-	RET
+-ok1:
+-	MOVW	R2, r1+16(FP)	// r1
+-	MOVW	R3, r2+20(FP)	// r2
+-	MOVW	R0, err+24(FP)	// errno
+-	RET
+-
+ // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVW	a1+4(FP), R4
+diff --git a/src/syscall/asm_linux_ppc64x.s b/src/syscall/asm_linux_ppc64x.s
+index 4c9c383ff0..b03d859ca2 100644
+--- a/src/syscall/asm_linux_ppc64x.s
++++ b/src/syscall/asm_linux_ppc64x.s
+@@ -59,27 +59,6 @@ ok6:
+ 	BL	runtime·exitsyscall<ABIInternal>(SB)
+ 	RET
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	MOVD	a1+8(FP), R3
+-	MOVD	a2+16(FP), R4
+-	MOVD	a3+24(FP), R5
+-	MOVD	R0, R6
+-	MOVD	R0, R7
+-	MOVD	R0, R8
+-	MOVD	trap+0(FP), R9	// syscall entry
+-	SYSCALL R9
+-	BVC	ok1
+-	MOVD	$-1, R4
+-	MOVD	R4, r1+32(FP)	// r1
+-	MOVD	R0, r2+40(FP)	// r2
+-	MOVD	R3, err+48(FP)	// errno
+-	RET
+-ok1:
+-	MOVD	R3, r1+32(FP)	// r1
+-	MOVD	R0, r2+40(FP)	// r2
+-	MOVD	R0, err+48(FP)	// errno
+-	RET
+-
+ // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	MOVD	a1+8(FP), R3
+diff --git a/src/syscall/asm_linux_riscv64.s b/src/syscall/asm_linux_riscv64.s
+index c7e1003997..f6b7d11c08 100644
+--- a/src/syscall/asm_linux_riscv64.s
++++ b/src/syscall/asm_linux_riscv64.s
+@@ -59,27 +59,6 @@ err:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-// func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	MOV	a1+8(FP), A0
+-	MOV	a2+16(FP), A1
+-	MOV	a3+24(FP), A2
+-	MOV	trap+0(FP), A7	// syscall entry
+-	ECALL
+-	MOV	$-4096, T0
+-	BLTU	T0, A0, err
+-	MOV	A0, r1+32(FP)	// r1
+-	MOV	A1, r2+40(FP)	// r2
+-	MOV	ZERO, err+48(FP)	// errno
+-	RET
+-err:
+-	MOV	$-1, T0
+-	MOV	T0, r1+32(FP)	// r1
+-	MOV	ZERO, r2+40(FP)	// r2
+-	SUB	A0, ZERO, A0
+-	MOV	A0, err+48(FP)	// errno
+-	RET
+-
+ // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	MOV	a1+8(FP), A0
+diff --git a/src/syscall/asm_linux_s390x.s b/src/syscall/asm_linux_s390x.s
+index 3fbda38b5c..0a4913779a 100644
+--- a/src/syscall/asm_linux_s390x.s
++++ b/src/syscall/asm_linux_s390x.s
+@@ -60,29 +60,6 @@ ok6:
+ 	BL	runtime·exitsyscall(SB)
+ 	RET
+ 
+-// func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	MOVD	a1+8(FP), R2
+-	MOVD	a2+16(FP), R3
+-	MOVD	a3+24(FP), R4
+-	MOVD	$0, R5
+-	MOVD	$0, R6
+-	MOVD	$0, R7
+-	MOVD	trap+0(FP), R1	// syscall entry
+-	SYSCALL
+-	MOVD	$0xfffffffffffff001, R8
+-	CMPUBLT	R2, R8, ok1
+-	MOVD	$-1, r1+32(FP)
+-	MOVD	$0, r2+40(FP)
+-	NEG	R2, R2
+-	MOVD	R2, err+48(FP)	// errno
+-	RET
+-ok1:
+-	MOVD	R2, r1+32(FP)
+-	MOVD	R3, r2+40(FP)
+-	MOVD	$0, err+48(FP)	// errno
+-	RET
+-
+ // func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
+ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
+ 	MOVD	$0, R2
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index b0e2cdb682..a9a8ecbefd 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -18,7 +18,6 @@ import (
+ 
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+-func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ // N.B. RawSyscall6 is provided via linkname by runtime/internal/syscall.
+ //
+@@ -27,6 +26,27 @@ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
++// N.B. For the Syscall functions below:
++//
++// //go:uintptrkeepalive because the uintptr argument may be converted pointers
++// that need to be kept alive in the caller (this is implied for RawSyscall6
++// since it has no body).
++//
++// //go:nosplit because stack copying does not account for uintptrkeepalive, so
++// the stack must not grow. Stack copying cannot blindly assume that all
++// uintptr arguments are pointers, because some values may look like pointers,
++// but not really be pointers, and adjusting their value would break the call.
++//
++// //go:linkname to ensure ABI wrappers are generated for external callers
++// (notably x/sys/unix assembly).
++
++//go:uintptrkeepalive
++//go:nosplit
++//go:linkname RawSyscall
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
++	return RawSyscall6(trap, a1, a2, a3, 0, 0, 0)
++}
++
+ func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
+ 
+ /*

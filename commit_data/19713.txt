@@ -9,8 +9,48 @@ Date:   Thu Jul 10 15:15:16 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/106370043
-
+---
  src/pkg/crypto/rc4/rc4_arm.s  | 2 ++
  src/pkg/crypto/rc4/rc4_asm.go | 2 +-
  src/pkg/crypto/rc4/rc4_ref.go | 2 +-
  3 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/rc4/rc4_arm.s b/src/pkg/crypto/rc4/rc4_arm.s
+index 3aad729406..b9ac72301c 100644
+--- a/src/pkg/crypto/rc4/rc4_arm.s
++++ b/src/pkg/crypto/rc4/rc4_arm.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !nacl
++
+ #include "../../../cmd/ld/textflag.h"
+ 
+ // Registers
+diff --git a/src/pkg/crypto/rc4/rc4_asm.go b/src/pkg/crypto/rc4/rc4_asm.go
+index fc71b9a6fa..02e5b67d55 100644
+--- a/src/pkg/crypto/rc4/rc4_asm.go
++++ b/src/pkg/crypto/rc4/rc4_asm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32 arm 386
++// +build amd64 amd64p32 arm,!nacl 386
+ 
+ package rc4
+ 
+diff --git a/src/pkg/crypto/rc4/rc4_ref.go b/src/pkg/crypto/rc4/rc4_ref.go
+index 1ecce1a7fb..e34bd34cf1 100644
+--- a/src/pkg/crypto/rc4/rc4_ref.go
++++ b/src/pkg/crypto/rc4/rc4_ref.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!amd64p32,!arm,!386
++// +build !amd64,!amd64p32,!arm,!386 arm,nacl
+ 
+ package rc4
+ 

@@ -29,7 +29,7 @@ Date:   Fri Aug 24 12:37:23 2012 -0700
     R=golang-dev, adg, rogpeppe, minux.ma
     CC=golang-dev
     https://golang.org/cl/6482056
-
+---
  src/pkg/text/template/doc.go              |  4 ++++
  src/pkg/text/template/exec.go             |  4 ++++
  src/pkg/text/template/exec_test.go        | 12 ++++++++++++
@@ -39,3 +39,279 @@ Date:   Fri Aug 24 12:37:23 2012 -0700
  src/pkg/text/template/parse/parse.go      | 13 +++++++++++--
  src/pkg/text/template/parse/parse_test.go |  2 ++
  8 files changed, 82 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/text/template/doc.go b/src/pkg/text/template/doc.go
+index 3e4c66a276..224775c46c 100644
+--- a/src/pkg/text/template/doc.go
++++ b/src/pkg/text/template/doc.go
+@@ -148,6 +148,8 @@ An argument is a simple value, denoted by one of the following.
+ 	  The result is the value of invoking the function, fun(). The return
+ 	  types and values behave as in methods. Functions and function
+ 	  names are described below.
++	- Parentheses may be used for grouping, as in
++		print (.F1 arg1) (.F2 arg2)
+ 
+ Arguments may evaluate to any type; if they are pointers the implementation
+ automatically indirects to the base type when required.
+@@ -228,6 +230,8 @@ All produce the quoted word "output":
+ 	{{"output" | printf "%q"}}
+ 		A function call whose final argument comes from the previous
+ 		command.
++	{{printf "%q" (print "out" "put")}}
++		A parenthesized argument.
+ 	{{"put" | printf "%s%s" "out" | printf "%q"}}
+ 		A more elaborate call.
+ 	{{"output" | printf "%s" | printf "%q"}}
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index a041351448..1739a86179 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -564,6 +564,8 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
+ 		return s.validateType(s.evalFieldNode(dot, arg, []parse.Node{n}, zero), typ)
+ 	case *parse.VariableNode:
+ 		return s.validateType(s.evalVariableNode(dot, arg, nil, zero), typ)
++	case *parse.PipeNode:
++		return s.validateType(s.evalPipeline(dot, arg), typ)
+ 	}
+ 	switch typ.Kind() {
+ 	case reflect.Bool:
+@@ -666,6 +668,8 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
+ 		return reflect.ValueOf(n.Text)
+ 	case *parse.VariableNode:
+ 		return s.evalVariableNode(dot, n, nil, zero)
++	case *parse.PipeNode:
++		return s.evalPipeline(dot, n)
+ 	}
+ 	s.errorf("can't handle assignment of %s to empty interface argument", n)
+ 	panic("not reached")
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 95e0592df8..7f60dcafa5 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -337,6 +337,9 @@ var execTests = []execTest{
+ 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
+ 	{"pipeline func", "-{{call .VariadicFunc `llo` | call .VariadicFunc `he` }}-", "-<he+<llo>>-", tVal, true},
+ 
++	// Parenthesized expressions
++	{"parens in pipeline", "{{printf `%d %d %d` (1) (2 | add 3) (add 4 (add 5 6))}}", "1 5 15", tVal, true},
++
+ 	// If.
+ 	{"if true", "{{if true}}TRUE{{end}}", "TRUE", tVal, true},
+ 	{"if false", "{{if false}}TRUE{{else}}FALSE{{end}}", "FALSE", tVal, true},
+@@ -524,6 +527,14 @@ func vfunc(V, *V) string {
+ 	return "vfunc"
+ }
+ 
++func add(args ...int) int {
++	sum := 0
++	for _, x := range args {
++		sum += x
++	}
++	return sum
++}
++
+ func stringer(s fmt.Stringer) string {
+ 	return s.String()
+ }
+@@ -531,6 +542,7 @@ func stringer(s fmt.Stringer) string {
+ func testExecute(execTests []execTest, template *Template, t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	funcs := FuncMap{
++		"add":      add,
+ 		"count":    count,
+ 		"dddArg":   dddArg,
+ 		"oneArg":   oneArg,
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index 98f12a821f..c73f533d19 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -46,10 +46,12 @@ const (
+ 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
+ 	itemIdentifier // alphanumeric identifier
+ 	itemLeftDelim  // left action delimiter
++	itemLeftParen  // '(' inside action
+ 	itemNumber     // simple number, including imaginary
+ 	itemPipe       // pipe symbol
+ 	itemRawString  // raw quoted string (includes quotes)
+ 	itemRightDelim // right action delimiter
++	itemRightParen // ')' inside action
+ 	itemString     // quoted string (includes quotes)
+ 	itemText       // plain text
+ 	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'.
+@@ -78,12 +80,15 @@ var itemName = map[itemType]string{
+ 	itemField:        "field",
+ 	itemIdentifier:   "identifier",
+ 	itemLeftDelim:    "left delim",
++	itemLeftParen:    "(",
+ 	itemNumber:       "number",
+ 	itemPipe:         "pipe",
+ 	itemRawString:    "raw string",
+ 	itemRightDelim:   "right delim",
++	itemRightParen:   ")",
+ 	itemString:       "string",
+ 	itemVariable:     "variable",
++
+ 	// keywords
+ 	itemDot:      ".",
+ 	itemDefine:   "define",
+@@ -133,6 +138,7 @@ type lexer struct {
+ 	width      int       // width of last rune read from input.
+ 	lastPos    int       // position of most recent item returned by nextItem
+ 	items      chan item // channel of scanned items.
++	parenDepth int       // nesting depth of ( ) exprs
+ }
+ 
+ // next returns the next rune in the input.
+@@ -269,6 +275,7 @@ func lexLeftDelim(l *lexer) stateFn {
+ 		return lexComment
+ 	}
+ 	l.emit(itemLeftDelim)
++	l.parenDepth = 0
+ 	return lexInsideAction
+ }
+ 
+@@ -297,7 +304,10 @@ func lexInsideAction(l *lexer) stateFn {
+ 	// Spaces separate and are ignored.
+ 	// Pipe symbols separate and are emitted.
+ 	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
+-		return lexRightDelim
++		if l.parenDepth == 0 {
++			return lexRightDelim
++		}
++		return l.errorf("unclosed left paren")
+ 	}
+ 	switch r := l.next(); {
+ 	case r == eof || r == '\n':
+@@ -334,6 +344,17 @@ func lexInsideAction(l *lexer) stateFn {
+ 	case isAlphaNumeric(r):
+ 		l.backup()
+ 		return lexIdentifier
++	case r == '(':
++		l.emit(itemLeftParen)
++		l.parenDepth++
++		return lexInsideAction
++	case r == ')':
++		l.emit(itemRightParen)
++		l.parenDepth--
++		if l.parenDepth < 0 {
++			return l.errorf("unexpected right paren %#U", r)
++		}
++		return lexInsideAction
+ 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
+ 		l.emit(itemChar)
+ 		return lexInsideAction
+@@ -386,7 +407,7 @@ func (l *lexer) atTerminator() bool {
+ 		return true
+ 	}
+ 	switch r {
+-	case eof, ',', '|', ':':
++	case eof, ',', '|', ':', ')', '(':
+ 		return true
+ 	}
+ 	// Does r start the delimiter? This can be ambiguous (with delim=="//", $x/2 will
+diff --git a/src/pkg/text/template/parse/lex_test.go b/src/pkg/text/template/parse/lex_test.go
+index f38057d8c3..5a4e8b658d 100644
+--- a/src/pkg/text/template/parse/lex_test.go
++++ b/src/pkg/text/template/parse/lex_test.go
+@@ -43,6 +43,16 @@ var lexTests = []lexTest{
+ 		tRight,
+ 		tEOF,
+ 	}},
++	{"parens", "{{((3))}}", []item{
++		tLeft,
++		{itemLeftParen, 0, "("},
++		{itemLeftParen, 0, "("},
++		{itemNumber, 0, "3"},
++		{itemRightParen, 0, ")"},
++		{itemRightParen, 0, ")"},
++		tRight,
++		tEOF,
++	}},
+ 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
+ 	{"for", `{{for }}`, []item{tLeft, tFor, tRight, tEOF}},
+ 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
+@@ -189,6 +199,18 @@ var lexTests = []lexTest{
+ 		tLeft,
+ 		{itemError, 0, `bad number syntax: "3k"`},
+ 	}},
++	{"unclosed paren", "{{(3}}", []item{
++		tLeft,
++		{itemLeftParen, 0, "("},
++		{itemNumber, 0, "3"},
++		{itemError, 0, `unclosed left paren`},
++	}},
++	{"extra right paren", "{{3)}}", []item{
++		tLeft,
++		{itemNumber, 0, "3"},
++		{itemRightParen, 0, ")"},
++		{itemError, 0, `unexpected right paren U+0029 ')'`},
++	}},
+ 
+ 	// Fixed bugs
+ 	// Many elements in an action blew the lookahead until
+diff --git a/src/pkg/text/template/parse/node.go b/src/pkg/text/template/parse/node.go
+index 8a779ce1a9..e6d106f3b7 100644
+--- a/src/pkg/text/template/parse/node.go
++++ b/src/pkg/text/template/parse/node.go
+@@ -209,6 +209,10 @@ func (c *CommandNode) String() string {
+ 		if i > 0 {
+ 			s += " "
+ 		}
++		if arg, ok := arg.(*PipeNode); ok {
++			s += "(" + arg.String() + ")"
++			continue
++		}
+ 		s += arg.String()
+ 	}
+ 	return s
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 7ddb6fff1e..6dc2f0fb78 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -349,10 +349,13 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 	pipe = newPipeline(t.lex.lineNumber(), decl)
+ 	for {
+ 		switch token := t.next(); token.typ {
+-		case itemRightDelim:
++		case itemRightDelim, itemRightParen:
+ 			if len(pipe.Cmds) == 0 {
+ 				t.errorf("missing value for %s", context)
+ 			}
++			if token.typ == itemRightParen {
++				t.backup()
++			}
+ 			return
+ 		case itemBool, itemCharConstant, itemComplex, itemDot, itemField, itemIdentifier,
+ 			itemNumber, itemNil, itemRawString, itemString, itemVariable:
+@@ -456,11 +459,17 @@ func (t *Tree) command() *CommandNode {
+ Loop:
+ 	for {
+ 		switch token := t.next(); token.typ {
+-		case itemRightDelim:
++		case itemRightDelim, itemRightParen:
+ 			t.backup()
+ 			break Loop
+ 		case itemPipe:
+ 			break Loop
++		case itemLeftParen:
++			p := t.pipeline("parenthesized expression")
++			if t.next().typ != itemRightParen {
++				t.errorf("missing right paren in parenthesized expression")
++			}
++			cmd.append(p)
+ 		case itemError:
+ 			t.errorf("%s", token.val)
+ 		case itemIdentifier:
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index d7bfc78c05..da0df20950 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -185,6 +185,8 @@ var parseTests = []parseTest{
+ 		`{{.X | .Y}}`},
+ 	{"pipeline with decl", "{{$x := .X|.Y}}", noError,
+ 		`{{$x := .X | .Y}}`},
++	{"nested pipeline", "{{.X (.Y .Z) (.A | .B .C) (.E)}}", noError,
++		`{{.X (.Y .Z) (.A | .B .C) (.E)}}`},
+ 	{"simple if", "{{if .X}}hello{{end}}", noError,
+ 		`{{if .X}}"hello"{{end}}`},
+ 	{"if with else", "{{if .X}}true{{else}}false{{end}}", noError,

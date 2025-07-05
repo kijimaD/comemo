@@ -24,9 +24,144 @@ Date:   Thu Jan 6 12:39:37 2022 -0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/transform.go | 25 ++++++++++++++++++++++
  src/cmd/compile/internal/typecheck/expr.go  | 21 +++++++++++++++++++
  test/fixedbugs/issue23536.go                | 22 ++++++++++++++++++++
  test/typeparam/issue23536.go                | 32 +++++++++++++++++++++++++++++
  4 files changed, 100 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index a673484821..6f49106f5e 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -115,6 +115,31 @@ func transformConv(n *ir.ConvExpr) ir.Node {
+ 		if n.X.Op() == ir.OLITERAL {
+ 			return stringtoruneslit(n)
+ 		}
++
++	case ir.OBYTES2STR:
++		assert(t.IsSlice())
++		assert(t.Elem().Kind() == types.TUINT8)
++		if t.Elem() != types.ByteType && t.Elem() != types.Types[types.TUINT8] {
++			// If t is a slice of a user-defined byte type B (not uint8
++			// or byte), then add an extra CONVNOP from []B to []byte, so
++			// that the call to slicebytetostring() added in walk will
++			// typecheck correctly.
++			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.ByteType), n.X)
++			n.X.SetTypecheck(1)
++		}
++
++	case ir.ORUNES2STR:
++		assert(t.IsSlice())
++		assert(t.Elem().Kind() == types.TINT32)
++		if t.Elem() != types.RuneType && t.Elem() != types.Types[types.TINT32] {
++			// If t is a slice of a user-defined rune type B (not uint32
++			// or rune), then add an extra CONVNOP from []B to []rune, so
++			// that the call to slicerunetostring() added in walk will
++			// typecheck correctly.
++			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.RuneType), n.X)
++			n.X.SetTypecheck(1)
++		}
++
+ 	}
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 9b74bf7a9d..eb316d33db 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -466,6 +466,27 @@ func tcConv(n *ir.ConvExpr) ir.Node {
+ 		if n.X.Op() == ir.OLITERAL {
+ 			return stringtoruneslit(n)
+ 		}
++
++	case ir.OBYTES2STR:
++		if t.Elem() != types.ByteType && t.Elem() != types.Types[types.TUINT8] {
++			// If t is a slice of a user-defined byte type B (not uint8
++			// or byte), then add an extra CONVNOP from []B to []byte, so
++			// that the call to slicebytetostring() added in walk will
++			// typecheck correctly.
++			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.ByteType), n.X)
++			n.X.SetTypecheck(1)
++		}
++
++	case ir.ORUNES2STR:
++		if t.Elem() != types.RuneType && t.Elem() != types.Types[types.TINT32] {
++			// If t is a slice of a user-defined rune type B (not uint32
++			// or rune), then add an extra CONVNOP from []B to []rune, so
++			// that the call to slicerunetostring() added in walk will
++			// typecheck correctly.
++			n.X = ir.NewConvExpr(n.X.Pos(), ir.OCONVNOP, types.NewSlice(types.RuneType), n.X)
++			n.X.SetTypecheck(1)
++		}
++
+ 	}
+ 	return n
+ }
+diff --git a/test/fixedbugs/issue23536.go b/test/fixedbugs/issue23536.go
+new file mode 100644
+index 0000000000..07b5033d36
+--- /dev/null
++++ b/test/fixedbugs/issue23536.go
+@@ -0,0 +1,22 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case where a slice of a user-defined byte type (not uint8 or byte) is
++// converted to a string.  Same for slice of runes.
++
++package main
++
++type MyByte byte
++
++type MyRune rune
++
++func main() {
++	var y []MyByte
++	_ = string(y)
++
++	var z []MyRune
++	_ = string(z)
++}
+diff --git a/test/typeparam/issue23536.go b/test/typeparam/issue23536.go
+new file mode 100644
+index 0000000000..a4f061802f
+--- /dev/null
++++ b/test/typeparam/issue23536.go
+@@ -0,0 +1,32 @@
++// run -gcflags=-G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case where a slice of a user-defined byte type (not uint8 or byte) is
++// converted to a string.  Same for slice of runes.
++
++package main
++
++type MyByte byte
++
++type MyRune rune
++
++func f[T []MyByte](x T) string {
++	return string(x)
++}
++
++func g[T []MyRune](x T) string {
++	return string(x)
++}
++
++func main() {
++	var y []MyByte
++	_ = f(y)
++	_ = string(y)
++
++	var z []MyRune
++	_ = g(z)
++	_ = string(z)
++}

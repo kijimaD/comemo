@@ -9,7 +9,7 @@ Date:   Fri Apr 27 15:12:24 2012 +1000
     R=golang-dev, r, rsc, r, adg
     CC=golang-dev
     https://golang.org/cl/5979046
-
+---
  doc/go1.html                          |    4 +-
  src/pkg/old/regexp/all_test.go        |  421 ----------
  src/pkg/old/regexp/find_test.go       |  472 -----------
@@ -20,3 +20,4521 @@ Date:   Fri Apr 27 15:12:24 2012 +1000
  src/pkg/old/template/parse.go         |  742 ----------------
  src/pkg/old/template/template_test.go |  810 ------------------
  9 files changed, 2 insertions(+), 4449 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index e1afe479ae..f0a804784a 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -618,8 +618,6 @@ The packages in their new locations are:
+ 
+ <ul>
+ <li><code>old/netchan</code></li>
+-<li><code>old/regexp</code></li>
+-<li><code>old/template</code></li>
+ </ul>
+ 
+ <p>
+@@ -639,6 +637,8 @@ Go 1 deletes several packages outright:
+ <li><code>container/vector</code></li>
+ <li><code>exp/datafmt</code></li>
+ <li><code>go/typechecker</code></li>
++<li><code>old/regexp</code></li>
++<li><code>old/template</code></li>
+ <li><code>try</code></li>
+ </ul>
+ 
+diff --git a/src/pkg/old/regexp/all_test.go b/src/pkg/old/regexp/all_test.go
+deleted file mode 100644
+index 180dac4d45..0000000000
+--- a/src/pkg/old/regexp/all_test.go
++++ /dev/null
+@@ -1,421 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package regexp
+-
+-import (
+-	"strings"
+-	"testing"
+-)
+-
+-var good_re = []string{
+-	``,
+-	`.`,
+-	`^.$`,
+-	`a`,
+-	`a*`,
+-	`a+`,
+-	`a?`,
+-	`a|b`,
+-	`a*|b*`,
+-	`(a*|b)(c*|d)`,
+-	`[a-z]`,
+-	`[a-abc-c\-\]\[]`,
+-	`[a-z]+`,
+-	`[]`,
+-	`[abc]`,
+-	`[^1234]`,
+-	`[^\n]`,
+-	`\!\\`,
+-}
+-
+-type stringError struct {
+-	re  string
+-	err error
+-}
+-
+-var bad_re = []stringError{
+-	{`*`, ErrBareClosure},
+-	{`+`, ErrBareClosure},
+-	{`?`, ErrBareClosure},
+-	{`(abc`, ErrUnmatchedLpar},
+-	{`abc)`, ErrUnmatchedRpar},
+-	{`x[a-z`, ErrUnmatchedLbkt},
+-	{`abc]`, ErrUnmatchedRbkt},
+-	{`[z-a]`, ErrBadRange},
+-	{`abc\`, ErrExtraneousBackslash},
+-	{`a**`, ErrBadClosure},
+-	{`a*+`, ErrBadClosure},
+-	{`a??`, ErrBadClosure},
+-	{`\x`, ErrBadBackslash},
+-}
+-
+-func compileTest(t *testing.T, expr string, error error) *Regexp {
+-	re, err := Compile(expr)
+-	if err != error {
+-		t.Error("compiling `", expr, "`; unexpected error: ", err.Error())
+-	}
+-	return re
+-}
+-
+-func TestGoodCompile(t *testing.T) {
+-	for i := 0; i < len(good_re); i++ {
+-		compileTest(t, good_re[i], nil)
+-	}
+-}
+-
+-func TestBadCompile(t *testing.T) {
+-	for i := 0; i < len(bad_re); i++ {
+-		compileTest(t, bad_re[i].re, bad_re[i].err)
+-	}
+-}
+-
+-func matchTest(t *testing.T, test *FindTest) {
+-	re := compileTest(t, test.pat, nil)
+-	if re == nil {
+-		return
+-	}
+-	m := re.MatchString(test.text)
+-	if m != (len(test.matches) > 0) {
+-		t.Errorf("MatchString failure on %s: %t should be %t", test, m, len(test.matches) > 0)
+-	}
+-	// now try bytes
+-	m = re.Match([]byte(test.text))
+-	if m != (len(test.matches) > 0) {
+-		t.Errorf("Match failure on %s: %t should be %t", test, m, len(test.matches) > 0)
+-	}
+-}
+-
+-func TestMatch(t *testing.T) {
+-	for _, test := range findTests {
+-		matchTest(t, &test)
+-	}
+-}
+-
+-func matchFunctionTest(t *testing.T, test *FindTest) {
+-	m, err := MatchString(test.pat, test.text)
+-	if err == nil {
+-		return
+-	}
+-	if m != (len(test.matches) > 0) {
+-		t.Errorf("Match failure on %s: %t should be %t", test, m, len(test.matches) > 0)
+-	}
+-}
+-
+-func TestMatchFunction(t *testing.T) {
+-	for _, test := range findTests {
+-		matchFunctionTest(t, &test)
+-	}
+-}
+-
+-type ReplaceTest struct {
+-	pattern, replacement, input, output string
+-}
+-
+-var replaceTests = []ReplaceTest{
+-	// Test empty input and/or replacement, with pattern that matches the empty string.
+-	{"", "", "", ""},
+-	{"", "x", "", "x"},
+-	{"", "", "abc", "abc"},
+-	{"", "x", "abc", "xaxbxcx"},
+-
+-	// Test empty input and/or replacement, with pattern that does not match the empty string.
+-	{"b", "", "", ""},
+-	{"b", "x", "", ""},
+-	{"b", "", "abc", "ac"},
+-	{"b", "x", "abc", "axc"},
+-	{"y", "", "", ""},
+-	{"y", "x", "", ""},
+-	{"y", "", "abc", "abc"},
+-	{"y", "x", "abc", "abc"},
+-
+-	// Multibyte characters -- verify that we don't try to match in the middle
+-	// of a character.
+-	{"[a-c]*", "x", "\u65e5", "x\u65e5x"},
+-	{"[^\u65e5]", "x", "abc\u65e5def", "xxx\u65e5xxx"},
+-
+-	// Start and end of a string.
+-	{"^[a-c]*", "x", "abcdabc", "xdabc"},
+-	{"[a-c]*$", "x", "abcdabc", "abcdx"},
+-	{"^[a-c]*$", "x", "abcdabc", "abcdabc"},
+-	{"^[a-c]*", "x", "abc", "x"},
+-	{"[a-c]*$", "x", "abc", "x"},
+-	{"^[a-c]*$", "x", "abc", "x"},
+-	{"^[a-c]*", "x", "dabce", "xdabce"},
+-	{"[a-c]*$", "x", "dabce", "dabcex"},
+-	{"^[a-c]*$", "x", "dabce", "dabce"},
+-	{"^[a-c]*", "x", "", "x"},
+-	{"[a-c]*$", "x", "", "x"},
+-	{"^[a-c]*$", "x", "", "x"},
+-
+-	{"^[a-c]+", "x", "abcdabc", "xdabc"},
+-	{"[a-c]+$", "x", "abcdabc", "abcdx"},
+-	{"^[a-c]+$", "x", "abcdabc", "abcdabc"},
+-	{"^[a-c]+", "x", "abc", "x"},
+-	{"[a-c]+$", "x", "abc", "x"},
+-	{"^[a-c]+$", "x", "abc", "x"},
+-	{"^[a-c]+", "x", "dabce", "dabce"},
+-	{"[a-c]+$", "x", "dabce", "dabce"},
+-	{"^[a-c]+$", "x", "dabce", "dabce"},
+-	{"^[a-c]+", "x", "", ""},
+-	{"[a-c]+$", "x", "", ""},
+-	{"^[a-c]+$", "x", "", ""},
+-
+-	// Other cases.
+-	{"abc", "def", "abcdefg", "defdefg"},
+-	{"bc", "BC", "abcbcdcdedef", "aBCBCdcdedef"},
+-	{"abc", "", "abcdabc", "d"},
+-	{"x", "xXx", "xxxXxxx", "xXxxXxxXxXxXxxXxxXx"},
+-	{"abc", "d", "", ""},
+-	{"abc", "d", "abc", "d"},
+-	{".+", "x", "abc", "x"},
+-	{"[a-c]*", "x", "def", "xdxexfx"},
+-	{"[a-c]+", "x", "abcbcdcdedef", "xdxdedef"},
+-	{"[a-c]*", "x", "abcbcdcdedef", "xdxdxexdxexfx"},
+-}
+-
+-type ReplaceFuncTest struct {
+-	pattern       string
+-	replacement   func(string) string
+-	input, output string
+-}
+-
+-var replaceFuncTests = []ReplaceFuncTest{
+-	{"[a-c]", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxayxbyxcydef"},
+-	{"[a-c]+", func(s string) string { return "x" + s + "y" }, "defabcdef", "defxabcydef"},
+-	{"[a-c]*", func(s string) string { return "x" + s + "y" }, "defabcdef", "xydxyexyfxabcydxyexyfxy"},
+-}
+-
+-func TestReplaceAll(t *testing.T) {
+-	for _, tc := range replaceTests {
+-		re, err := Compile(tc.pattern)
+-		if err != nil {
+-			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
+-			continue
+-		}
+-		actual := re.ReplaceAllString(tc.input, tc.replacement)
+-		if actual != tc.output {
+-			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
+-				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+-		}
+-		// now try bytes
+-		actual = string(re.ReplaceAll([]byte(tc.input), []byte(tc.replacement)))
+-		if actual != tc.output {
+-			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
+-				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+-		}
+-	}
+-}
+-
+-func TestReplaceAllFunc(t *testing.T) {
+-	for _, tc := range replaceFuncTests {
+-		re, err := Compile(tc.pattern)
+-		if err != nil {
+-			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
+-			continue
+-		}
+-		actual := re.ReplaceAllStringFunc(tc.input, tc.replacement)
+-		if actual != tc.output {
+-			t.Errorf("%q.ReplaceFunc(%q,%q) = %q; want %q",
+-				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+-		}
+-		// now try bytes
+-		actual = string(re.ReplaceAllFunc([]byte(tc.input), func(s []byte) []byte { return []byte(tc.replacement(string(s))) }))
+-		if actual != tc.output {
+-			t.Errorf("%q.ReplaceFunc(%q,%q) = %q; want %q",
+-				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+-		}
+-	}
+-}
+-
+-type MetaTest struct {
+-	pattern, output, literal string
+-	isLiteral                bool
+-}
+-
+-var metaTests = []MetaTest{
+-	{``, ``, ``, true},
+-	{`foo`, `foo`, `foo`, true},
+-	{`foo\.\$`, `foo\\\.\\\$`, `foo.$`, true}, // has meta but no operator
+-	{`foo.\$`, `foo\.\\\$`, `foo`, false},     // has escaped operators and real operators
+-	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`, `!@#`, false},
+-}
+-
+-func TestQuoteMeta(t *testing.T) {
+-	for _, tc := range metaTests {
+-		// Verify that QuoteMeta returns the expected string.
+-		quoted := QuoteMeta(tc.pattern)
+-		if quoted != tc.output {
+-			t.Errorf("QuoteMeta(`%s`) = `%s`; want `%s`",
+-				tc.pattern, quoted, tc.output)
+-			continue
+-		}
+-
+-		// Verify that the quoted string is in fact treated as expected
+-		// by Compile -- i.e. that it matches the original, unquoted string.
+-		if tc.pattern != "" {
+-			re, err := Compile(quoted)
+-			if err != nil {
+-				t.Errorf("Unexpected error compiling QuoteMeta(`%s`): %v", tc.pattern, err)
+-				continue
+-			}
+-			src := "abc" + tc.pattern + "def"
+-			repl := "xyz"
+-			replaced := re.ReplaceAllString(src, repl)
+-			expected := "abcxyzdef"
+-			if replaced != expected {
+-				t.Errorf("QuoteMeta(`%s`).Replace(`%s`,`%s`) = `%s`; want `%s`",
+-					tc.pattern, src, repl, replaced, expected)
+-			}
+-		}
+-	}
+-}
+-
+-func TestLiteralPrefix(t *testing.T) {
+-	for _, tc := range metaTests {
+-		// Literal method needs to scan the pattern.
+-		re := MustCompile(tc.pattern)
+-		str, complete := re.LiteralPrefix()
+-		if complete != tc.isLiteral {
+-			t.Errorf("LiteralPrefix(`%s`) = %t; want %t", tc.pattern, complete, tc.isLiteral)
+-		}
+-		if str != tc.literal {
+-			t.Errorf("LiteralPrefix(`%s`) = `%s`; want `%s`", tc.pattern, str, tc.literal)
+-		}
+-	}
+-}
+-
+-type numSubexpCase struct {
+-	input    string
+-	expected int
+-}
+-
+-var numSubexpCases = []numSubexpCase{
+-	{``, 0},
+-	{`.*`, 0},
+-	{`abba`, 0},
+-	{`ab(b)a`, 1},
+-	{`ab(.*)a`, 1},
+-	{`(.*)ab(.*)a`, 2},
+-	{`(.*)(ab)(.*)a`, 3},
+-	{`(.*)((a)b)(.*)a`, 4},
+-	{`(.*)(\(ab)(.*)a`, 3},
+-	{`(.*)(\(a\)b)(.*)a`, 3},
+-}
+-
+-func TestNumSubexp(t *testing.T) {
+-	for _, c := range numSubexpCases {
+-		re := MustCompile(c.input)
+-		n := re.NumSubexp()
+-		if n != c.expected {
+-			t.Errorf("NumSubexp for %q returned %d, expected %d", c.input, n, c.expected)
+-		}
+-	}
+-}
+-
+-func BenchmarkLiteral(b *testing.B) {
+-	x := strings.Repeat("x", 50) + "y"
+-	b.StopTimer()
+-	re := MustCompile("y")
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		if !re.MatchString(x) {
+-			b.Fatal("no match!")
+-		}
+-	}
+-}
+-
+-func BenchmarkNotLiteral(b *testing.B) {
+-	x := strings.Repeat("x", 50) + "y"
+-	b.StopTimer()
+-	re := MustCompile(".y")
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		if !re.MatchString(x) {
+-			b.Fatal("no match!")
+-		}
+-	}
+-}
+-
+-func BenchmarkMatchClass(b *testing.B) {
+-	b.StopTimer()
+-	x := strings.Repeat("xxxx", 20) + "w"
+-	re := MustCompile("[abcdw]")
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		if !re.MatchString(x) {
+-			b.Fatal("no match!")
+-		}
+-	}
+-}
+-
+-func BenchmarkMatchClass_InRange(b *testing.B) {
+-	b.StopTimer()
+-	// 'b' is between 'a' and 'c', so the charclass
+-	// range checking is no help here.
+-	x := strings.Repeat("bbbb", 20) + "c"
+-	re := MustCompile("[ac]")
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		if !re.MatchString(x) {
+-			b.Fatal("no match!")
+-		}
+-	}
+-}
+-
+-func BenchmarkReplaceAll(b *testing.B) {
+-	x := "abcdefghijklmnopqrstuvwxyz"
+-	b.StopTimer()
+-	re := MustCompile("[cjrw]")
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		re.ReplaceAllString(x, "")
+-	}
+-}
+-
+-func BenchmarkAnchoredLiteralShortNonMatch(b *testing.B) {
+-	b.StopTimer()
+-	x := []byte("abcdefghijklmnopqrstuvwxyz")
+-	re := MustCompile("^zbc(d|e)")
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		re.Match(x)
+-	}
+-}
+-
+-func BenchmarkAnchoredLiteralLongNonMatch(b *testing.B) {
+-	b.StopTimer()
+-	x := []byte("abcdefghijklmnopqrstuvwxyz")
+-	for i := 0; i < 15; i++ {
+-		x = append(x, x...)
+-	}
+-	re := MustCompile("^zbc(d|e)")
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		re.Match(x)
+-	}
+-}
+-
+-func BenchmarkAnchoredShortMatch(b *testing.B) {
+-	b.StopTimer()
+-	x := []byte("abcdefghijklmnopqrstuvwxyz")
+-	re := MustCompile("^.bc(d|e)")
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		re.Match(x)
+-	}
+-}
+-
+-func BenchmarkAnchoredLongMatch(b *testing.B) {
+-	b.StopTimer()
+-	x := []byte("abcdefghijklmnopqrstuvwxyz")
+-	for i := 0; i < 15; i++ {
+-		x = append(x, x...)
+-	}
+-	re := MustCompile("^.bc(d|e)")
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		re.Match(x)
+-	}
+-}
+diff --git a/src/pkg/old/regexp/find_test.go b/src/pkg/old/regexp/find_test.go
+deleted file mode 100644
+index 83b249e3ce..0000000000
+--- a/src/pkg/old/regexp/find_test.go
++++ /dev/null
+@@ -1,472 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package regexp
+-
+-import (
+-	"fmt"
+-	"strings"
+-	"testing"
+-)
+-
+-// For each pattern/text pair, what is the expected output of each function?
+-// We can derive the textual results from the indexed results, the non-submatch
+-// results from the submatched results, the single results from the 'all' results,
+-// and the byte results from the string results. Therefore the table includes
+-// only the FindAllStringSubmatchIndex result.
+-type FindTest struct {
+-	pat     string
+-	text    string
+-	matches [][]int
+-}
+-
+-func (t FindTest) String() string {
+-	return fmt.Sprintf("pat: %#q text: %#q", t.pat, t.text)
+-}
+-
+-var findTests = []FindTest{
+-	{``, ``, build(1, 0, 0)},
+-	{`^abcdefg`, "abcdefg", build(1, 0, 7)},
+-	{`a+`, "baaab", build(1, 1, 4)},
+-	{"abcd..", "abcdef", build(1, 0, 6)},
+-	{`a`, "a", build(1, 0, 1)},
+-	{`x`, "y", nil},
+-	{`b`, "abc", build(1, 1, 2)},
+-	{`.`, "a", build(1, 0, 1)},
+-	{`.*`, "abcdef", build(1, 0, 6)},
+-	{`^`, "abcde", build(1, 0, 0)},
+-	{`$`, "abcde", build(1, 5, 5)},
+-	{`^abcd$`, "abcd", build(1, 0, 4)},
+-	{`^bcd'`, "abcdef", nil},
+-	{`^abcd$`, "abcde", nil},
+-	{`a+`, "baaab", build(1, 1, 4)},
+-	{`a*`, "baaab", build(3, 0, 0, 1, 4, 5, 5)},
+-	{`[a-z]+`, "abcd", build(1, 0, 4)},
+-	{`[^a-z]+`, "ab1234cd", build(1, 2, 6)},
+-	{`[a\-\]z]+`, "az]-bcz", build(2, 0, 4, 6, 7)},
+-	{`[^\n]+`, "abcd\n", build(1, 0, 4)},
+-	{`[日本語]+`, "日本語日本語", build(1, 0, 18)},
+-	{`日本語+`, "日本語", build(1, 0, 9)},
+-	{`日本語+`, "日本語語語語", build(1, 0, 18)},
+-	{`()`, "", build(1, 0, 0, 0, 0)},
+-	{`(a)`, "a", build(1, 0, 1, 0, 1)},
+-	{`(.)(.)`, "日a", build(1, 0, 4, 0, 3, 3, 4)},
+-	{`(.*)`, "", build(1, 0, 0, 0, 0)},
+-	{`(.*)`, "abcd", build(1, 0, 4, 0, 4)},
+-	{`(..)(..)`, "abcd", build(1, 0, 4, 0, 2, 2, 4)},
+-	{`(([^xyz]*)(d))`, "abcd", build(1, 0, 4, 0, 4, 0, 3, 3, 4)},
+-	{`((a|b|c)*(d))`, "abcd", build(1, 0, 4, 0, 4, 2, 3, 3, 4)},
+-	{`(((a|b|c)*)(d))`, "abcd", build(1, 0, 4, 0, 4, 0, 3, 2, 3, 3, 4)},
+-	{`\a\b\f\n\r\t\v`, "\a\b\f\n\r\t\v", build(1, 0, 7)},
+-	{`[\a\b\f\n\r\t\v]+`, "\a\b\f\n\r\t\v", build(1, 0, 7)},
+-
+-	{`a*(|(b))c*`, "aacc", build(1, 0, 4, 2, 2, -1, -1)},
+-	{`(.*).*`, "ab", build(1, 0, 2, 0, 2)},
+-	{`[.]`, ".", build(1, 0, 1)},
+-	{`/$`, "/abc/", build(1, 4, 5)},
+-	{`/$`, "/abc", nil},
+-
+-	// multiple matches
+-	{`.`, "abc", build(3, 0, 1, 1, 2, 2, 3)},
+-	{`(.)`, "abc", build(3, 0, 1, 0, 1, 1, 2, 1, 2, 2, 3, 2, 3)},
+-	{`.(.)`, "abcd", build(2, 0, 2, 1, 2, 2, 4, 3, 4)},
+-	{`ab*`, "abbaab", build(3, 0, 3, 3, 4, 4, 6)},
+-	{`a(b*)`, "abbaab", build(3, 0, 3, 1, 3, 3, 4, 4, 4, 4, 6, 5, 6)},
+-
+-	// fixed bugs
+-	{`ab$`, "cab", build(1, 1, 3)},
+-	{`axxb$`, "axxcb", nil},
+-	{`data`, "daXY data", build(1, 5, 9)},
+-	{`da(.)a$`, "daXY data", build(1, 5, 9, 7, 8)},
+-	{`zx+`, "zzx", build(1, 1, 3)},
+-
+-	// can backslash-escape any punctuation
+-	{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,
+-		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, build(1, 0, 31)},
+-	{`[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~]+`,
+-		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, build(1, 0, 31)},
+-	{"\\`", "`", build(1, 0, 1)},
+-	{"[\\`]+", "`", build(1, 0, 1)},
+-
+-	// long set of matches (longer than startSize)
+-	{
+-		".",
+-		"qwertyuiopasdfghjklzxcvbnm1234567890",
+-		build(36, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10,
+-			10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20,
+-			20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 30,
+-			30, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35, 36),
+-	},
+-}
+-
+-// build is a helper to construct a [][]int by extracting n sequences from x.
+-// This represents n matches with len(x)/n submatches each.
+-func build(n int, x ...int) [][]int {
+-	ret := make([][]int, n)
+-	runLength := len(x) / n
+-	j := 0
+-	for i := range ret {
+-		ret[i] = make([]int, runLength)
+-		copy(ret[i], x[j:])
+-		j += runLength
+-		if j > len(x) {
+-			panic("invalid build entry")
+-		}
+-	}
+-	return ret
+-}
+-
+-// First the simple cases.
+-
+-func TestFind(t *testing.T) {
+-	for _, test := range findTests {
+-		re := MustCompile(test.pat)
+-		if re.String() != test.pat {
+-			t.Errorf("String() = `%s`; should be `%s`", re.String(), test.pat)
+-		}
+-		result := re.Find([]byte(test.text))
+-		switch {
+-		case len(test.matches) == 0 && len(result) == 0:
+-			// ok
+-		case test.matches == nil && result != nil:
+-			t.Errorf("expected no match; got one: %s", test)
+-		case test.matches != nil && result == nil:
+-			t.Errorf("expected match; got none: %s", test)
+-		case test.matches != nil && result != nil:
+-			expect := test.text[test.matches[0][0]:test.matches[0][1]]
+-			if expect != string(result) {
+-				t.Errorf("expected %q got %q: %s", expect, result, test)
+-			}
+-		}
+-	}
+-}
+-
+-func TestFindString(t *testing.T) {
+-	for _, test := range findTests {
+-		result := MustCompile(test.pat).FindString(test.text)
+-		switch {
+-		case len(test.matches) == 0 && len(result) == 0:
+-			// ok
+-		case test.matches == nil && result != "":
+-			t.Errorf("expected no match; got one: %s", test)
+-		case test.matches != nil && result == "":
+-			// Tricky because an empty result has two meanings: no match or empty match.
+-			if test.matches[0][0] != test.matches[0][1] {
+-				t.Errorf("expected match; got none: %s", test)
+-			}
+-		case test.matches != nil && result != "":
+-			expect := test.text[test.matches[0][0]:test.matches[0][1]]
+-			if expect != result {
+-				t.Errorf("expected %q got %q: %s", expect, result, test)
+-			}
+-		}
+-	}
+-}
+-
+-func testFindIndex(test *FindTest, result []int, t *testing.T) {
+-	switch {
+-	case len(test.matches) == 0 && len(result) == 0:
+-		// ok
+-	case test.matches == nil && result != nil:
+-		t.Errorf("expected no match; got one: %s", test)
+-	case test.matches != nil && result == nil:
+-		t.Errorf("expected match; got none: %s", test)
+-	case test.matches != nil && result != nil:
+-		expect := test.matches[0]
+-		if expect[0] != result[0] || expect[1] != result[1] {
+-			t.Errorf("expected %v got %v: %s", expect, result, test)
+-		}
+-	}
+-}
+-
+-func TestFindIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindIndex(&test, MustCompile(test.pat).FindIndex([]byte(test.text)), t)
+-	}
+-}
+-
+-func TestFindStringIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindIndex(&test, MustCompile(test.pat).FindStringIndex(test.text), t)
+-	}
+-}
+-
+-func TestFindReaderIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindIndex(&test, MustCompile(test.pat).FindReaderIndex(strings.NewReader(test.text)), t)
+-	}
+-}
+-
+-// Now come the simple All cases.
+-
+-func TestFindAll(t *testing.T) {
+-	for _, test := range findTests {
+-		result := MustCompile(test.pat).FindAll([]byte(test.text), -1)
+-		switch {
+-		case test.matches == nil && result == nil:
+-			// ok
+-		case test.matches == nil && result != nil:
+-			t.Errorf("expected no match; got one: %s", test)
+-		case test.matches != nil && result == nil:
+-			t.Errorf("expected match; got none: %s", test)
+-		case test.matches != nil && result != nil:
+-			if len(test.matches) != len(result) {
+-				t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+-				continue
+-			}
+-			for k, e := range test.matches {
+-				expect := test.text[e[0]:e[1]]
+-				if expect != string(result[k]) {
+-					t.Errorf("match %d: expected %q got %q: %s", k, expect, result[k], test)
+-				}
+-			}
+-		}
+-	}
+-}
+-
+-func TestFindAllString(t *testing.T) {
+-	for _, test := range findTests {
+-		result := MustCompile(test.pat).FindAllString(test.text, -1)
+-		switch {
+-		case test.matches == nil && result == nil:
+-			// ok
+-		case test.matches == nil && result != nil:
+-			t.Errorf("expected no match; got one: %s", test)
+-		case test.matches != nil && result == nil:
+-			t.Errorf("expected match; got none: %s", test)
+-		case test.matches != nil && result != nil:
+-			if len(test.matches) != len(result) {
+-				t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+-				continue
+-			}
+-			for k, e := range test.matches {
+-				expect := test.text[e[0]:e[1]]
+-				if expect != result[k] {
+-					t.Errorf("expected %q got %q: %s", expect, result, test)
+-				}
+-			}
+-		}
+-	}
+-}
+-
+-func testFindAllIndex(test *FindTest, result [][]int, t *testing.T) {
+-	switch {
+-	case test.matches == nil && result == nil:
+-		// ok
+-	case test.matches == nil && result != nil:
+-		t.Errorf("expected no match; got one: %s", test)
+-	case test.matches != nil && result == nil:
+-		t.Errorf("expected match; got none: %s", test)
+-	case test.matches != nil && result != nil:
+-		if len(test.matches) != len(result) {
+-			t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+-			return
+-		}
+-		for k, e := range test.matches {
+-			if e[0] != result[k][0] || e[1] != result[k][1] {
+-				t.Errorf("match %d: expected %v got %v: %s", k, e, result[k], test)
+-			}
+-		}
+-	}
+-}
+-
+-func TestFindAllIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindAllIndex(&test, MustCompile(test.pat).FindAllIndex([]byte(test.text), -1), t)
+-	}
+-}
+-
+-func TestFindAllStringIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindAllIndex(&test, MustCompile(test.pat).FindAllStringIndex(test.text, -1), t)
+-	}
+-}
+-
+-// Now come the Submatch cases.
+-
+-func testSubmatchBytes(test *FindTest, n int, submatches []int, result [][]byte, t *testing.T) {
+-	if len(submatches) != len(result)*2 {
+-		t.Errorf("match %d: expected %d submatches; got %d: %s", n, len(submatches)/2, len(result), test)
+-		return
+-	}
+-	for k := 0; k < len(submatches); k += 2 {
+-		if submatches[k] == -1 {
+-			if result[k/2] != nil {
+-				t.Errorf("match %d: expected nil got %q: %s", n, result, test)
+-			}
+-			continue
+-		}
+-		expect := test.text[submatches[k]:submatches[k+1]]
+-		if expect != string(result[k/2]) {
+-			t.Errorf("match %d: expected %q got %q: %s", n, expect, result, test)
+-			return
+-		}
+-	}
+-}
+-
+-func TestFindSubmatch(t *testing.T) {
+-	for _, test := range findTests {
+-		result := MustCompile(test.pat).FindSubmatch([]byte(test.text))
+-		switch {
+-		case test.matches == nil && result == nil:
+-			// ok
+-		case test.matches == nil && result != nil:
+-			t.Errorf("expected no match; got one: %s", test)
+-		case test.matches != nil && result == nil:
+-			t.Errorf("expected match; got none: %s", test)
+-		case test.matches != nil && result != nil:
+-			testSubmatchBytes(&test, 0, test.matches[0], result, t)
+-		}
+-	}
+-}
+-
+-func testSubmatchString(test *FindTest, n int, submatches []int, result []string, t *testing.T) {
+-	if len(submatches) != len(result)*2 {
+-		t.Errorf("match %d: expected %d submatches; got %d: %s", n, len(submatches)/2, len(result), test)
+-		return
+-	}
+-	for k := 0; k < len(submatches); k += 2 {
+-		if submatches[k] == -1 {
+-			if result[k/2] != "" {
+-				t.Errorf("match %d: expected nil got %q: %s", n, result, test)
+-			}
+-			continue
+-		}
+-		expect := test.text[submatches[k]:submatches[k+1]]
+-		if expect != result[k/2] {
+-			t.Errorf("match %d: expected %q got %q: %s", n, expect, result, test)
+-			return
+-		}
+-	}
+-}
+-
+-func TestFindStringSubmatch(t *testing.T) {
+-	for _, test := range findTests {
+-		result := MustCompile(test.pat).FindStringSubmatch(test.text)
+-		switch {
+-		case test.matches == nil && result == nil:
+-			// ok
+-		case test.matches == nil && result != nil:
+-			t.Errorf("expected no match; got one: %s", test)
+-		case test.matches != nil && result == nil:
+-			t.Errorf("expected match; got none: %s", test)
+-		case test.matches != nil && result != nil:
+-			testSubmatchString(&test, 0, test.matches[0], result, t)
+-		}
+-	}
+-}
+-
+-func testSubmatchIndices(test *FindTest, n int, expect, result []int, t *testing.T) {
+-	if len(expect) != len(result) {
+-		t.Errorf("match %d: expected %d matches; got %d: %s", n, len(expect)/2, len(result)/2, test)
+-		return
+-	}
+-	for k, e := range expect {
+-		if e != result[k] {
+-			t.Errorf("match %d: submatch error: expected %v got %v: %s", n, expect, result, test)
+-		}
+-	}
+-}
+-
+-func testFindSubmatchIndex(test *FindTest, result []int, t *testing.T) {
+-	switch {
+-	case test.matches == nil && result == nil:
+-		// ok
+-	case test.matches == nil && result != nil:
+-		t.Errorf("expected no match; got one: %s", test)
+-	case test.matches != nil && result == nil:
+-		t.Errorf("expected match; got none: %s", test)
+-	case test.matches != nil && result != nil:
+-		testSubmatchIndices(test, 0, test.matches[0], result, t)
+-	}
+-}
+-
+-func TestFindSubmatchIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindSubmatchIndex(&test, MustCompile(test.pat).FindSubmatchIndex([]byte(test.text)), t)
+-	}
+-}
+-
+-func TestFindStringSubmatchIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindSubmatchIndex(&test, MustCompile(test.pat).FindStringSubmatchIndex(test.text), t)
+-	}
+-}
+-
+-func TestFindReaderSubmatchIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindSubmatchIndex(&test, MustCompile(test.pat).FindReaderSubmatchIndex(strings.NewReader(test.text)), t)
+-	}
+-}
+-
+-// Now come the monster AllSubmatch cases.
+-
+-func TestFindAllSubmatch(t *testing.T) {
+-	for _, test := range findTests {
+-		result := MustCompile(test.pat).FindAllSubmatch([]byte(test.text), -1)
+-		switch {
+-		case test.matches == nil && result == nil:
+-			// ok
+-		case test.matches == nil && result != nil:
+-			t.Errorf("expected no match; got one: %s", test)
+-		case test.matches != nil && result == nil:
+-			t.Errorf("expected match; got none: %s", test)
+-		case len(test.matches) != len(result):
+-			t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+-		case test.matches != nil && result != nil:
+-			for k, match := range test.matches {
+-				testSubmatchBytes(&test, k, match, result[k], t)
+-			}
+-		}
+-	}
+-}
+-
+-func TestFindAllStringSubmatch(t *testing.T) {
+-	for _, test := range findTests {
+-		result := MustCompile(test.pat).FindAllStringSubmatch(test.text, -1)
+-		switch {
+-		case test.matches == nil && result == nil:
+-			// ok
+-		case test.matches == nil && result != nil:
+-			t.Errorf("expected no match; got one: %s", test)
+-		case test.matches != nil && result == nil:
+-			t.Errorf("expected match; got none: %s", test)
+-		case len(test.matches) != len(result):
+-			t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+-		case test.matches != nil && result != nil:
+-			for k, match := range test.matches {
+-				testSubmatchString(&test, k, match, result[k], t)
+-			}
+-		}
+-	}
+-}
+-
+-func testFindAllSubmatchIndex(test *FindTest, result [][]int, t *testing.T) {
+-	switch {
+-	case test.matches == nil && result == nil:
+-		// ok
+-	case test.matches == nil && result != nil:
+-		t.Errorf("expected no match; got one: %s", test)
+-	case test.matches != nil && result == nil:
+-		t.Errorf("expected match; got none: %s", test)
+-	case len(test.matches) != len(result):
+-		t.Errorf("expected %d matches; got %d: %s", len(test.matches), len(result), test)
+-	case test.matches != nil && result != nil:
+-		for k, match := range test.matches {
+-			testSubmatchIndices(test, k, match, result[k], t)
+-		}
+-	}
+-}
+-
+-func TestFindAllSubmatchIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllSubmatchIndex([]byte(test.text), -1), t)
+-	}
+-}
+-
+-func TestFindAllStringSubmatchIndex(t *testing.T) {
+-	for _, test := range findTests {
+-		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllStringSubmatchIndex(test.text, -1), t)
+-	}
+-}
+diff --git a/src/pkg/old/regexp/regexp.go b/src/pkg/old/regexp/regexp.go
+deleted file mode 100644
+index d3044d0c1d..0000000000
+--- a/src/pkg/old/regexp/regexp.go
++++ /dev/null
+@@ -1,1488 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package regexp implements a simple regular expression library.
+-//
+-// The syntax of the regular expressions accepted is:
+-//
+-//	regexp:
+-//		concatenation { '|' concatenation }
+-//	concatenation:
+-//		{ closure }
+-//	closure:
+-//		term [ '*' | '+' | '?' ]
+-//	term:
+-//		'^'
+-//		'$'
+-//		'.'
+-//		character
+-//		'[' [ '^' ] { character-range } ']'
+-//		'(' regexp ')'
+-//	character-range:
+-//		character [ '-' character ]
+-//
+-// All characters are UTF-8-encoded code points.  Backslashes escape special
+-// characters, including inside character classes.  The standard Go character
+-// escapes are also recognized: \a \b \f \n \r \t \v.
+-//
+-// There are 16 methods of Regexp that match a regular expression and identify
+-// the matched text.  Their names are matched by this regular expression:
+-//
+-//	Find(All)?(String)?(Submatch)?(Index)?
+-//
+-// If 'All' is present, the routine matches successive non-overlapping
+-// matches of the entire expression.  Empty matches abutting a preceding
+-// match are ignored.  The return value is a slice containing the successive
+-// return values of the corresponding non-'All' routine.  These routines take
+-// an extra integer argument, n; if n >= 0, the function returns at most n
+-// matches/submatches.
+-//
+-// If 'String' is present, the argument is a string; otherwise it is a slice
+-// of bytes; return values are adjusted as appropriate.
+-//
+-// If 'Submatch' is present, the return value is a slice identifying the
+-// successive submatches of the expression.  Submatches are matches of
+-// parenthesized subexpressions within the regular expression, numbered from
+-// left to right in order of opening parenthesis.  Submatch 0 is the match of
+-// the entire expression, submatch 1 the match of the first parenthesized
+-// subexpression, and so on.
+-//
+-// If 'Index' is present, matches and submatches are identified by byte index
+-// pairs within the input string: result[2*n:2*n+1] identifies the indexes of
+-// the nth submatch.  The pair for n==0 identifies the match of the entire
+-// expression.  If 'Index' is not present, the match is identified by the
+-// text of the match/submatch.  If an index is negative, it means that
+-// subexpression did not match any string in the input.
+-//
+-// There is also a subset of the methods that can be applied to text read
+-// from a RuneReader:
+-//
+-//	MatchReader, FindReaderIndex, FindReaderSubmatchIndex
+-//
+-// This set may grow.  Note that regular expression matches may need to
+-// examine text beyond the text returned by a match, so the methods that
+-// match text from a RuneReader may read arbitrarily far into the input
+-// before returning.
+-//
+-// (There are a few other methods that do not match this pattern.)
+-//
+-package regexp
+-
+-import (
+-	"bytes"
+-	"io"
+-	"strings"
+-	"unicode/utf8"
+-)
+-
+-var debug = false
+-
+-// Error is the local type for a parsing error.
+-type Error string
+-
+-func (e Error) Error() string {
+-	return string(e)
+-}
+-
+-// Error codes returned by failures to parse an expression.
+-var (
+-	ErrInternal            = Error("regexp: internal error")
+-	ErrUnmatchedLpar       = Error("regexp: unmatched '('")
+-	ErrUnmatchedRpar       = Error("regexp: unmatched ')'")
+-	ErrUnmatchedLbkt       = Error("regexp: unmatched '['")
+-	ErrUnmatchedRbkt       = Error("regexp: unmatched ']'")
+-	ErrBadRange            = Error("regexp: bad range in character class")
+-	ErrExtraneousBackslash = Error("regexp: extraneous backslash")
+-	ErrBadClosure          = Error("regexp: repeated closure (**, ++, etc.)")
+-	ErrBareClosure         = Error("regexp: closure applies to nothing")
+-	ErrBadBackslash        = Error("regexp: illegal backslash escape")
+-)
+-
+-const (
+-	iStart     = iota // beginning of program
+-	iEnd              // end of program: success
+-	iBOT              // '^' beginning of text
+-	iEOT              // '$' end of text
+-	iChar             // 'a' regular character
+-	iCharClass        // [a-z] character class
+-	iAny              // '.' any character including newline
+-	iNotNL            // [^\n] special case: any character but newline
+-	iBra              // '(' parenthesized expression: 2*braNum for left, 2*braNum+1 for right
+-	iAlt              // '|' alternation
+-	iNop              // do nothing; makes it easy to link without patching
+-)
+-
+-// An instruction executed by the NFA
+-type instr struct {
+-	kind  int    // the type of this instruction: iChar, iAny, etc.
+-	index int    // used only in debugging; could be eliminated
+-	next  *instr // the instruction to execute after this one
+-	// Special fields valid only for some items.
+-	char   rune       // iChar
+-	braNum int        // iBra, iEbra
+-	cclass *charClass // iCharClass
+-	left   *instr     // iAlt, other branch
+-}
+-
+-func (i *instr) print() {
+-	switch i.kind {
+-	case iStart:
+-		print("start")
+-	case iEnd:
+-		print("end")
+-	case iBOT:
+-		print("bot")
+-	case iEOT:
+-		print("eot")
+-	case iChar:
+-		print("char ", string(i.char))
+-	case iCharClass:
+-		i.cclass.print()
+-	case iAny:
+-		print("any")
+-	case iNotNL:
+-		print("notnl")
+-	case iBra:
+-		if i.braNum&1 == 0 {
+-			print("bra", i.braNum/2)
+-		} else {
+-			print("ebra", i.braNum/2)
+-		}
+-	case iAlt:
+-		print("alt(", i.left.index, ")")
+-	case iNop:
+-		print("nop")
+-	}
+-}
+-
+-// Regexp is the representation of a compiled regular expression.
+-// The public interface is entirely through methods.
+-// A Regexp is safe for concurrent use by multiple goroutines.
+-type Regexp struct {
+-	expr        string // the original expression
+-	prefix      string // initial plain text string
+-	prefixBytes []byte // initial plain text bytes
+-	inst        []*instr
+-	start       *instr // first instruction of machine
+-	prefixStart *instr // where to start if there is a prefix
+-	nbra        int    // number of brackets in expression, for subexpressions
+-}
+-
+-type charClass struct {
+-	negate bool // is character class negated? ([^a-z])
+-	// slice of int, stored pairwise: [a-z] is (a,z); x is (x,x):
+-	ranges     []rune
+-	cmin, cmax rune
+-}
+-
+-func (cclass *charClass) print() {
+-	print("charclass")
+-	if cclass.negate {
+-		print(" (negated)")
+-	}
+-	for i := 0; i < len(cclass.ranges); i += 2 {
+-		l := cclass.ranges[i]
+-		r := cclass.ranges[i+1]
+-		if l == r {
+-			print(" [", string(l), "]")
+-		} else {
+-			print(" [", string(l), "-", string(r), "]")
+-		}
+-	}
+-}
+-
+-func (cclass *charClass) addRange(a, b rune) {
+-	// range is a through b inclusive
+-	cclass.ranges = append(cclass.ranges, a, b)
+-	if a < cclass.cmin {
+-		cclass.cmin = a
+-	}
+-	if b > cclass.cmax {
+-		cclass.cmax = b
+-	}
+-}
+-
+-func (cclass *charClass) matches(c rune) bool {
+-	if c < cclass.cmin || c > cclass.cmax {
+-		return cclass.negate
+-	}
+-	ranges := cclass.ranges
+-	for i := 0; i < len(ranges); i = i + 2 {
+-		if ranges[i] <= c && c <= ranges[i+1] {
+-			return !cclass.negate
+-		}
+-	}
+-	return cclass.negate
+-}
+-
+-func newCharClass() *instr {
+-	i := &instr{kind: iCharClass}
+-	i.cclass = new(charClass)
+-	i.cclass.ranges = make([]rune, 0, 4)
+-	i.cclass.cmin = 0x10FFFF + 1 // MaxRune + 1
+-	i.cclass.cmax = -1
+-	return i
+-}
+-
+-func (re *Regexp) add(i *instr) *instr {
+-	i.index = len(re.inst)
+-	re.inst = append(re.inst, i)
+-	return i
+-}
+-
+-type parser struct {
+-	re    *Regexp
+-	nlpar int // number of unclosed lpars
+-	pos   int
+-	ch    rune
+-}
+-
+-func (p *parser) error(err Error) {
+-	panic(err)
+-}
+-
+-const endOfText = -1
+-
+-func (p *parser) c() rune { return p.ch }
+-
+-func (p *parser) nextc() rune {
+-	if p.pos >= len(p.re.expr) {
+-		p.ch = endOfText
+-	} else {
+-		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:])
+-		p.ch = c
+-		p.pos += w
+-	}
+-	return p.ch
+-}
+-
+-func newParser(re *Regexp) *parser {
+-	p := new(parser)
+-	p.re = re
+-	p.nextc() // load p.ch
+-	return p
+-}
+-
+-func special(c rune) bool {
+-	for _, r := range `\.+*?()|[]^$` {
+-		if c == r {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-func ispunct(c rune) bool {
+-	for _, r := range "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" {
+-		if c == r {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-var escapes = []byte("abfnrtv")
+-var escaped = []byte("\a\b\f\n\r\t\v")
+-
+-func escape(c rune) int {
+-	for i, b := range escapes {
+-		if rune(b) == c {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+-
+-func (p *parser) checkBackslash() rune {
+-	c := p.c()
+-	if c == '\\' {
+-		c = p.nextc()
+-		switch {
+-		case c == endOfText:
+-			p.error(ErrExtraneousBackslash)
+-		case ispunct(c):
+-			// c is as delivered
+-		case escape(c) >= 0:
+-			c = rune(escaped[escape(c)])
+-		default:
+-			p.error(ErrBadBackslash)
+-		}
+-	}
+-	return c
+-}
+-
+-func (p *parser) charClass() *instr {
+-	i := newCharClass()
+-	cc := i.cclass
+-	if p.c() == '^' {
+-		cc.negate = true
+-		p.nextc()
+-	}
+-	left := rune(-1)
+-	for {
+-		switch c := p.c(); c {
+-		case ']', endOfText:
+-			if left >= 0 {
+-				p.error(ErrBadRange)
+-			}
+-			// Is it [^\n]?
+-			if cc.negate && len(cc.ranges) == 2 &&
+-				cc.ranges[0] == '\n' && cc.ranges[1] == '\n' {
+-				nl := &instr{kind: iNotNL}
+-				p.re.add(nl)
+-				return nl
+-			}
+-			// Special common case: "[a]" -> "a"
+-			if !cc.negate && len(cc.ranges) == 2 && cc.ranges[0] == cc.ranges[1] {
+-				c := &instr{kind: iChar, char: cc.ranges[0]}
+-				p.re.add(c)
+-				return c
+-			}
+-			p.re.add(i)
+-			return i
+-		case '-': // do this before backslash processing
+-			p.error(ErrBadRange)
+-		default:
+-			c = p.checkBackslash()
+-			p.nextc()
+-			switch {
+-			case left < 0: // first of pair
+-				if p.c() == '-' { // range
+-					p.nextc()
+-					left = c
+-				} else { // single char
+-					cc.addRange(c, c)
+-				}
+-			case left <= c: // second of pair
+-				cc.addRange(left, c)
+-				left = -1
+-			default:
+-				p.error(ErrBadRange)
+-			}
+-		}
+-	}
+-	panic("unreachable")
+-}
+-
+-func (p *parser) term() (start, end *instr) {
+-	switch c := p.c(); c {
+-	case '|', endOfText:
+-		return nil, nil
+-	case '*', '+', '?':
+-		p.error(ErrBareClosure)
+-	case ')':
+-		if p.nlpar == 0 {
+-			p.error(ErrUnmatchedRpar)
+-		}
+-		return nil, nil
+-	case ']':
+-		p.error(ErrUnmatchedRbkt)
+-	case '^':
+-		p.nextc()
+-		start = p.re.add(&instr{kind: iBOT})
+-		return start, start
+-	case '$':
+-		p.nextc()
+-		start = p.re.add(&instr{kind: iEOT})
+-		return start, start
+-	case '.':
+-		p.nextc()
+-		start = p.re.add(&instr{kind: iAny})
+-		return start, start
+-	case '[':
+-		p.nextc()
+-		start = p.charClass()
+-		if p.c() != ']' {
+-			p.error(ErrUnmatchedLbkt)
+-		}
+-		p.nextc()
+-		return start, start
+-	case '(':
+-		p.nextc()
+-		p.nlpar++
+-		p.re.nbra++ // increment first so first subexpr is \1
+-		nbra := p.re.nbra
+-		start, end = p.regexp()
+-		if p.c() != ')' {
+-			p.error(ErrUnmatchedLpar)
+-		}
+-		p.nlpar--
+-		p.nextc()
+-		bra := &instr{kind: iBra, braNum: 2 * nbra}
+-		p.re.add(bra)
+-		ebra := &instr{kind: iBra, braNum: 2*nbra + 1}
+-		p.re.add(ebra)
+-		if start == nil {
+-			if end == nil {
+-				p.error(ErrInternal)
+-				return
+-			}
+-			start = ebra
+-		} else {
+-			end.next = ebra
+-		}
+-		bra.next = start
+-		return bra, ebra
+-	default:
+-		c = p.checkBackslash()
+-		p.nextc()
+-		start = &instr{kind: iChar, char: c}
+-		p.re.add(start)
+-		return start, start
+-	}
+-	panic("unreachable")
+-}
+-
+-func (p *parser) closure() (start, end *instr) {
+-	start, end = p.term()
+-	if start == nil {
+-		return
+-	}
+-	switch p.c() {
+-	case '*':
+-		// (start,end)*:
+-		alt := &instr{kind: iAlt}
+-		p.re.add(alt)
+-		end.next = alt   // after end, do alt
+-		alt.left = start // alternate brach: return to start
+-		start = alt      // alt becomes new (start, end)
+-		end = alt
+-	case '+':
+-		// (start,end)+:
+-		alt := &instr{kind: iAlt}
+-		p.re.add(alt)
+-		end.next = alt   // after end, do alt
+-		alt.left = start // alternate brach: return to start
+-		end = alt        // start is unchanged; end is alt
+-	case '?':
+-		// (start,end)?:
+-		alt := &instr{kind: iAlt}
+-		p.re.add(alt)
+-		nop := &instr{kind: iNop}
+-		p.re.add(nop)
+-		alt.left = start // alternate branch is start
+-		alt.next = nop   // follow on to nop
+-		end.next = nop   // after end, go to nop
+-		start = alt      // start is now alt
+-		end = nop        // end is nop pointed to by both branches
+-	default:
+-		return
+-	}
+-	switch p.nextc() {
+-	case '*', '+', '?':
+-		p.error(ErrBadClosure)
+-	}
+-	return
+-}
+-
+-func (p *parser) concatenation() (start, end *instr) {
+-	for {
+-		nstart, nend := p.closure()
+-		switch {
+-		case nstart == nil: // end of this concatenation
+-			if start == nil { // this is the empty string
+-				nop := p.re.add(&instr{kind: iNop})
+-				return nop, nop
+-			}
+-			return
+-		case start == nil: // this is first element of concatenation
+-			start, end = nstart, nend
+-		default:
+-			end.next = nstart
+-			end = nend
+-		}
+-	}
+-	panic("unreachable")
+-}
+-
+-func (p *parser) regexp() (start, end *instr) {
+-	start, end = p.concatenation()
+-	for {
+-		switch p.c() {
+-		default:
+-			return
+-		case '|':
+-			p.nextc()
+-			nstart, nend := p.concatenation()
+-			alt := &instr{kind: iAlt}
+-			p.re.add(alt)
+-			alt.left = start
+-			alt.next = nstart
+-			nop := &instr{kind: iNop}
+-			p.re.add(nop)
+-			end.next = nop
+-			nend.next = nop
+-			start, end = alt, nop
+-		}
+-	}
+-	panic("unreachable")
+-}
+-
+-func unNop(i *instr) *instr {
+-	for i.kind == iNop {
+-		i = i.next
+-	}
+-	return i
+-}
+-
+-func (re *Regexp) eliminateNops() {
+-	for _, inst := range re.inst {
+-		if inst.kind == iEnd {
+-			continue
+-		}
+-		inst.next = unNop(inst.next)
+-		if inst.kind == iAlt {
+-			inst.left = unNop(inst.left)
+-		}
+-	}
+-}
+-
+-func (re *Regexp) dump() {
+-	print("prefix <", re.prefix, ">\n")
+-	for _, inst := range re.inst {
+-		print(inst.index, ": ")
+-		inst.print()
+-		if inst.kind != iEnd {
+-			print(" -> ", inst.next.index)
+-		}
+-		print("\n")
+-	}
+-}
+-
+-func (re *Regexp) doParse() {
+-	p := newParser(re)
+-	start := &instr{kind: iStart}
+-	re.add(start)
+-	s, e := p.regexp()
+-	start.next = s
+-	re.start = start
+-	e.next = re.add(&instr{kind: iEnd})
+-
+-	if debug {
+-		re.dump()
+-		println()
+-	}
+-
+-	re.eliminateNops()
+-	if debug {
+-		re.dump()
+-		println()
+-	}
+-	re.setPrefix()
+-	if debug {
+-		re.dump()
+-		println()
+-	}
+-}
+-
+-// Extract regular text from the beginning of the pattern,
+-// possibly after a leading iBOT.
+-// That text can be used by doExecute to speed up matching.
+-func (re *Regexp) setPrefix() {
+-	var b []byte
+-	var utf = make([]byte, utf8.UTFMax)
+-	var inst *instr
+-	// First instruction is start; skip that.  Also skip any initial iBOT.
+-	inst = re.inst[0].next
+-	for inst.kind == iBOT {
+-		inst = inst.next
+-	}
+-Loop:
+-	for ; inst.kind != iEnd; inst = inst.next {
+-		// stop if this is not a char
+-		if inst.kind != iChar {
+-			break
+-		}
+-		// stop if this char can be followed by a match for an empty string,
+-		// which includes closures, ^, and $.
+-		switch inst.next.kind {
+-		case iBOT, iEOT, iAlt:
+-			break Loop
+-		}
+-		n := utf8.EncodeRune(utf, inst.char)
+-		b = append(b, utf[0:n]...)
+-	}
+-	// point prefixStart instruction to first non-CHAR after prefix
+-	re.prefixStart = inst
+-	re.prefixBytes = b
+-	re.prefix = string(b)
+-}
+-
+-// String returns the source text used to compile the regular expression.
+-func (re *Regexp) String() string {
+-	return re.expr
+-}
+-
+-// Compile parses a regular expression and returns, if successful, a Regexp
+-// object that can be used to match against text.
+-func Compile(str string) (regexp *Regexp, error error) {
+-	regexp = new(Regexp)
+-	// doParse will panic if there is a parse error.
+-	defer func() {
+-		if e := recover(); e != nil {
+-			regexp = nil
+-			error = e.(Error) // Will re-panic if error was not an Error, e.g. nil-pointer exception
+-		}
+-	}()
+-	regexp.expr = str
+-	regexp.inst = make([]*instr, 0, 10)
+-	regexp.doParse()
+-	return
+-}
+-
+-// MustCompile is like Compile but panics if the expression cannot be parsed.
+-// It simplifies safe initialization of global variables holding compiled regular
+-// expressions.
+-func MustCompile(str string) *Regexp {
+-	regexp, error := Compile(str)
+-	if error != nil {
+-		panic(`regexp: compiling "` + str + `": ` + error.Error())
+-	}
+-	return regexp
+-}
+-
+-// NumSubexp returns the number of parenthesized subexpressions in this Regexp.
+-func (re *Regexp) NumSubexp() int { return re.nbra }
+-
+-// The match arena allows us to reduce the garbage generated by tossing
+-// match vectors away as we execute.  Matches are ref counted and returned
+-// to a free list when no longer active.  Increases a simple benchmark by 22X.
+-type matchArena struct {
+-	head  *matchVec
+-	len   int // length of match vector
+-	pos   int
+-	atBOT bool // whether we're at beginning of text
+-	atEOT bool // whether we're at end of text
+-}
+-
+-type matchVec struct {
+-	m    []int // pairs of bracketing submatches. 0th is start,end
+-	ref  int
+-	next *matchVec
+-}
+-
+-func (a *matchArena) new() *matchVec {
+-	if a.head == nil {
+-		const N = 10
+-		block := make([]matchVec, N)
+-		for i := 0; i < N; i++ {
+-			b := &block[i]
+-			b.next = a.head
+-			a.head = b
+-		}
+-	}
+-	m := a.head
+-	a.head = m.next
+-	m.ref = 0
+-	if m.m == nil {
+-		m.m = make([]int, a.len)
+-	}
+-	return m
+-}
+-
+-func (a *matchArena) free(m *matchVec) {
+-	m.ref--
+-	if m.ref == 0 {
+-		m.next = a.head
+-		a.head = m
+-	}
+-}
+-
+-func (a *matchArena) copy(m *matchVec) *matchVec {
+-	m1 := a.new()
+-	copy(m1.m, m.m)
+-	return m1
+-}
+-
+-func (a *matchArena) noMatch() *matchVec {
+-	m := a.new()
+-	for i := range m.m {
+-		m.m[i] = -1 // no match seen; catches cases like "a(b)?c" on "ac"
+-	}
+-	m.ref = 1
+-	return m
+-}
+-
+-type state struct {
+-	inst     *instr // next instruction to execute
+-	prefixed bool   // this match began with a fixed prefix
+-	match    *matchVec
+-}
+-
+-// Append new state to to-do list.  Leftmost-longest wins so avoid
+-// adding a state that's already active.  The matchVec will be inc-ref'ed
+-// if it is assigned to a state.
+-func (a *matchArena) addState(s []state, inst *instr, prefixed bool, match *matchVec) []state {
+-	switch inst.kind {
+-	case iBOT:
+-		if a.atBOT {
+-			s = a.addState(s, inst.next, prefixed, match)
+-		}
+-		return s
+-	case iEOT:
+-		if a.atEOT {
+-			s = a.addState(s, inst.next, prefixed, match)
+-		}
+-		return s
+-	case iBra:
+-		match.m[inst.braNum] = a.pos
+-		s = a.addState(s, inst.next, prefixed, match)
+-		return s
+-	}
+-	l := len(s)
+-	// States are inserted in order so it's sufficient to see if we have the same
+-	// instruction; no need to see if existing match is earlier (it is).
+-	for i := 0; i < l; i++ {
+-		if s[i].inst == inst {
+-			return s
+-		}
+-	}
+-	s = append(s, state{inst, prefixed, match})
+-	match.ref++
+-	if inst.kind == iAlt {
+-		s = a.addState(s, inst.left, prefixed, a.copy(match))
+-		// give other branch a copy of this match vector
+-		s = a.addState(s, inst.next, prefixed, a.copy(match))
+-	}
+-	return s
+-}
+-
+-// input abstracts different representations of the input text. It provides
+-// one-character lookahead.
+-type input interface {
+-	step(pos int) (r rune, width int) // advance one rune
+-	canCheckPrefix() bool             // can we look ahead without losing info?
+-	hasPrefix(re *Regexp) bool
+-	index(re *Regexp, pos int) int
+-}
+-
+-// inputString scans a string.
+-type inputString struct {
+-	str string
+-}
+-
+-func newInputString(str string) *inputString {
+-	return &inputString{str: str}
+-}
+-
+-func (i *inputString) step(pos int) (rune, int) {
+-	if pos < len(i.str) {
+-		return utf8.DecodeRuneInString(i.str[pos:len(i.str)])
+-	}
+-	return endOfText, 0
+-}
+-
+-func (i *inputString) canCheckPrefix() bool {
+-	return true
+-}
+-
+-func (i *inputString) hasPrefix(re *Regexp) bool {
+-	return strings.HasPrefix(i.str, re.prefix)
+-}
+-
+-func (i *inputString) index(re *Regexp, pos int) int {
+-	return strings.Index(i.str[pos:], re.prefix)
+-}
+-
+-// inputBytes scans a byte slice.
+-type inputBytes struct {
+-	str []byte
+-}
+-
+-func newInputBytes(str []byte) *inputBytes {
+-	return &inputBytes{str: str}
+-}
+-
+-func (i *inputBytes) step(pos int) (rune, int) {
+-	if pos < len(i.str) {
+-		return utf8.DecodeRune(i.str[pos:len(i.str)])
+-	}
+-	return endOfText, 0
+-}
+-
+-func (i *inputBytes) canCheckPrefix() bool {
+-	return true
+-}
+-
+-func (i *inputBytes) hasPrefix(re *Regexp) bool {
+-	return bytes.HasPrefix(i.str, re.prefixBytes)
+-}
+-
+-func (i *inputBytes) index(re *Regexp, pos int) int {
+-	return bytes.Index(i.str[pos:], re.prefixBytes)
+-}
+-
+-// inputReader scans a RuneReader.
+-type inputReader struct {
+-	r     io.RuneReader
+-	atEOT bool
+-	pos   int
+-}
+-
+-func newInputReader(r io.RuneReader) *inputReader {
+-	return &inputReader{r: r}
+-}
+-
+-func (i *inputReader) step(pos int) (rune, int) {
+-	if !i.atEOT && pos != i.pos {
+-		return endOfText, 0
+-
+-	}
+-	r, w, err := i.r.ReadRune()
+-	if err != nil {
+-		i.atEOT = true
+-		return endOfText, 0
+-	}
+-	i.pos += w
+-	return r, w
+-}
+-
+-func (i *inputReader) canCheckPrefix() bool {
+-	return false
+-}
+-
+-func (i *inputReader) hasPrefix(re *Regexp) bool {
+-	return false
+-}
+-
+-func (i *inputReader) index(re *Regexp, pos int) int {
+-	return -1
+-}
+-
+-// Search match starting from pos bytes into the input.
+-func (re *Regexp) doExecute(i input, pos int) []int {
+-	var s [2][]state
+-	s[0] = make([]state, 0, 10)
+-	s[1] = make([]state, 0, 10)
+-	in, out := 0, 1
+-	var final state
+-	found := false
+-	anchored := re.inst[0].next.kind == iBOT
+-	if anchored && pos > 0 {
+-		return nil
+-	}
+-	// fast check for initial plain substring
+-	if i.canCheckPrefix() && re.prefix != "" {
+-		advance := 0
+-		if anchored {
+-			if !i.hasPrefix(re) {
+-				return nil
+-			}
+-		} else {
+-			advance = i.index(re, pos)
+-			if advance == -1 {
+-				return nil
+-			}
+-		}
+-		pos += advance
+-	}
+-	// We look one character ahead so we can match $, which checks whether
+-	// we are at EOT.
+-	nextChar, nextWidth := i.step(pos)
+-	arena := &matchArena{
+-		len:   2 * (re.nbra + 1),
+-		pos:   pos,
+-		atBOT: pos == 0,
+-		atEOT: nextChar == endOfText,
+-	}
+-	for c, startPos := rune(0), pos; c != endOfText; {
+-		if !found && (pos == startPos || !anchored) {
+-			// prime the pump if we haven't seen a match yet
+-			match := arena.noMatch()
+-			match.m[0] = pos
+-			s[out] = arena.addState(s[out], re.start.next, false, match)
+-			arena.free(match) // if addState saved it, ref was incremented
+-		} else if len(s[out]) == 0 {
+-			// machine has completed
+-			break
+-		}
+-		in, out = out, in // old out state is new in state
+-		// clear out old state
+-		old := s[out]
+-		for _, state := range old {
+-			arena.free(state.match)
+-		}
+-		s[out] = old[0:0] // truncate state vector
+-		c = nextChar
+-		thisPos := pos
+-		pos += nextWidth
+-		nextChar, nextWidth = i.step(pos)
+-		arena.atEOT = nextChar == endOfText
+-		arena.atBOT = false
+-		arena.pos = pos
+-		for _, st := range s[in] {
+-			switch st.inst.kind {
+-			case iBOT:
+-			case iEOT:
+-			case iChar:
+-				if c == st.inst.char {
+-					s[out] = arena.addState(s[out], st.inst.next, st.prefixed, st.match)
+-				}
+-			case iCharClass:
+-				if st.inst.cclass.matches(c) {
+-					s[out] = arena.addState(s[out], st.inst.next, st.prefixed, st.match)
+-				}
+-			case iAny:
+-				if c != endOfText {
+-					s[out] = arena.addState(s[out], st.inst.next, st.prefixed, st.match)
+-				}
+-			case iNotNL:
+-				if c != endOfText && c != '\n' {
+-					s[out] = arena.addState(s[out], st.inst.next, st.prefixed, st.match)
+-				}
+-			case iBra:
+-			case iAlt:
+-			case iEnd:
+-				// choose leftmost longest
+-				if !found || // first
+-					st.match.m[0] < final.match.m[0] || // leftmost
+-					(st.match.m[0] == final.match.m[0] && thisPos > final.match.m[1]) { // longest
+-					if final.match != nil {
+-						arena.free(final.match)
+-					}
+-					final = st
+-					final.match.ref++
+-					final.match.m[1] = thisPos
+-				}
+-				found = true
+-			default:
+-				st.inst.print()
+-				panic("unknown instruction in execute")
+-			}
+-		}
+-	}
+-	if final.match == nil {
+-		return nil
+-	}
+-	// if match found, back up start of match by width of prefix.
+-	if final.prefixed && len(final.match.m) > 0 {
+-		final.match.m[0] -= len(re.prefix)
+-	}
+-	return final.match.m
+-}
+-
+-// LiteralPrefix returns a literal string that must begin any match
+-// of the regular expression re.  It returns the boolean true if the
+-// literal string comprises the entire regular expression.
+-func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
+-	c := make([]rune, len(re.inst)-2) // minus start and end.
+-	// First instruction is start; skip that.
+-	i := 0
+-	for inst := re.inst[0].next; inst.kind != iEnd; inst = inst.next {
+-		// stop if this is not a char
+-		if inst.kind != iChar {
+-			return string(c[:i]), false
+-		}
+-		c[i] = inst.char
+-		i++
+-	}
+-	return string(c[:i]), true
+-}
+-
+-// MatchReader returns whether the Regexp matches the text read by the
+-// RuneReader.  The return value is a boolean: true for match, false for no
+-// match.
+-func (re *Regexp) MatchReader(r io.RuneReader) bool {
+-	return len(re.doExecute(newInputReader(r), 0)) > 0
+-}
+-
+-// MatchString returns whether the Regexp matches the string s.
+-// The return value is a boolean: true for match, false for no match.
+-func (re *Regexp) MatchString(s string) bool { return len(re.doExecute(newInputString(s), 0)) > 0 }
+-
+-// Match returns whether the Regexp matches the byte slice b.
+-// The return value is a boolean: true for match, false for no match.
+-func (re *Regexp) Match(b []byte) bool { return len(re.doExecute(newInputBytes(b), 0)) > 0 }
+-
+-// MatchReader checks whether a textual regular expression matches the text
+-// read by the RuneReader.  More complicated queries need to use Compile and
+-// the full Regexp interface.
+-func MatchReader(pattern string, r io.RuneReader) (matched bool, error error) {
+-	re, err := Compile(pattern)
+-	if err != nil {
+-		return false, err
+-	}
+-	return re.MatchReader(r), nil
+-}
+-
+-// MatchString checks whether a textual regular expression
+-// matches a string.  More complicated queries need
+-// to use Compile and the full Regexp interface.
+-func MatchString(pattern string, s string) (matched bool, error error) {
+-	re, err := Compile(pattern)
+-	if err != nil {
+-		return false, err
+-	}
+-	return re.MatchString(s), nil
+-}
+-
+-// Match checks whether a textual regular expression
+-// matches a byte slice.  More complicated queries need
+-// to use Compile and the full Regexp interface.
+-func Match(pattern string, b []byte) (matched bool, error error) {
+-	re, err := Compile(pattern)
+-	if err != nil {
+-		return false, err
+-	}
+-	return re.Match(b), nil
+-}
+-
+-// ReplaceAllString returns a copy of src in which all matches for the Regexp
+-// have been replaced by repl.  No support is provided for expressions
+-// (e.g. \1 or $1) in the replacement string.
+-func (re *Regexp) ReplaceAllString(src, repl string) string {
+-	return re.ReplaceAllStringFunc(src, func(string) string { return repl })
+-}
+-
+-// ReplaceAllStringFunc returns a copy of src in which all matches for the
+-// Regexp have been replaced by the return value of of function repl (whose
+-// first argument is the matched string).  No support is provided for
+-// expressions (e.g. \1 or $1) in the replacement string.
+-func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
+-	lastMatchEnd := 0 // end position of the most recent match
+-	searchPos := 0    // position where we next look for a match
+-	buf := new(bytes.Buffer)
+-	for searchPos <= len(src) {
+-		a := re.doExecute(newInputString(src), searchPos)
+-		if len(a) == 0 {
+-			break // no more matches
+-		}
+-
+-		// Copy the unmatched characters before this match.
+-		io.WriteString(buf, src[lastMatchEnd:a[0]])
+-
+-		// Now insert a copy of the replacement string, but not for a
+-		// match of the empty string immediately after another match.
+-		// (Otherwise, we get double replacement for patterns that
+-		// match both empty and nonempty strings.)
+-		if a[1] > lastMatchEnd || a[0] == 0 {
+-			io.WriteString(buf, repl(src[a[0]:a[1]]))
+-		}
+-		lastMatchEnd = a[1]
+-
+-		// Advance past this match; always advance at least one character.
+-		_, width := utf8.DecodeRuneInString(src[searchPos:])
+-		if searchPos+width > a[1] {
+-			searchPos += width
+-		} else if searchPos+1 > a[1] {
+-			// This clause is only needed at the end of the input
+-			// string.  In that case, DecodeRuneInString returns width=0.
+-			searchPos++
+-		} else {
+-			searchPos = a[1]
+-		}
+-	}
+-
+-	// Copy the unmatched characters after the last match.
+-	io.WriteString(buf, src[lastMatchEnd:])
+-
+-	return buf.String()
+-}
+-
+-// ReplaceAll returns a copy of src in which all matches for the Regexp
+-// have been replaced by repl.  No support is provided for expressions
+-// (e.g. \1 or $1) in the replacement text.
+-func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+-	return re.ReplaceAllFunc(src, func([]byte) []byte { return repl })
+-}
+-
+-// ReplaceAllFunc returns a copy of src in which all matches for the
+-// Regexp have been replaced by the return value of of function repl (whose
+-// first argument is the matched []byte).  No support is provided for
+-// expressions (e.g. \1 or $1) in the replacement string.
+-func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
+-	lastMatchEnd := 0 // end position of the most recent match
+-	searchPos := 0    // position where we next look for a match
+-	buf := new(bytes.Buffer)
+-	for searchPos <= len(src) {
+-		a := re.doExecute(newInputBytes(src), searchPos)
+-		if len(a) == 0 {
+-			break // no more matches
+-		}
+-
+-		// Copy the unmatched characters before this match.
+-		buf.Write(src[lastMatchEnd:a[0]])
+-
+-		// Now insert a copy of the replacement string, but not for a
+-		// match of the empty string immediately after another match.
+-		// (Otherwise, we get double replacement for patterns that
+-		// match both empty and nonempty strings.)
+-		if a[1] > lastMatchEnd || a[0] == 0 {
+-			buf.Write(repl(src[a[0]:a[1]]))
+-		}
+-		lastMatchEnd = a[1]
+-
+-		// Advance past this match; always advance at least one character.
+-		_, width := utf8.DecodeRune(src[searchPos:])
+-		if searchPos+width > a[1] {
+-			searchPos += width
+-		} else if searchPos+1 > a[1] {
+-			// This clause is only needed at the end of the input
+-			// string.  In that case, DecodeRuneInString returns width=0.
+-			searchPos++
+-		} else {
+-			searchPos = a[1]
+-		}
+-	}
+-
+-	// Copy the unmatched characters after the last match.
+-	buf.Write(src[lastMatchEnd:])
+-
+-	return buf.Bytes()
+-}
+-
+-// QuoteMeta returns a string that quotes all regular expression metacharacters
+-// inside the argument text; the returned string is a regular expression matching
+-// the literal text.  For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
+-func QuoteMeta(s string) string {
+-	b := make([]byte, 2*len(s))
+-
+-	// A byte loop is correct because all metacharacters are ASCII.
+-	j := 0
+-	for i := 0; i < len(s); i++ {
+-		if special(rune(s[i])) {
+-			b[j] = '\\'
+-			j++
+-		}
+-		b[j] = s[i]
+-		j++
+-	}
+-	return string(b[0:j])
+-}
+-
+-// Find matches in slice b if b is non-nil, otherwise find matches in string s.
+-func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
+-	var end int
+-	if b == nil {
+-		end = len(s)
+-	} else {
+-		end = len(b)
+-	}
+-
+-	for pos, i, prevMatchEnd := 0, 0, -1; i < n && pos <= end; {
+-		var in input
+-		if b == nil {
+-			in = newInputString(s)
+-		} else {
+-			in = newInputBytes(b)
+-		}
+-		matches := re.doExecute(in, pos)
+-		if len(matches) == 0 {
+-			break
+-		}
+-
+-		accept := true
+-		if matches[1] == pos {
+-			// We've found an empty match.
+-			if matches[0] == prevMatchEnd {
+-				// We don't allow an empty match right
+-				// after a previous match, so ignore it.
+-				accept = false
+-			}
+-			var width int
+-			// TODO: use step()
+-			if b == nil {
+-				_, width = utf8.DecodeRuneInString(s[pos:end])
+-			} else {
+-				_, width = utf8.DecodeRune(b[pos:end])
+-			}
+-			if width > 0 {
+-				pos += width
+-			} else {
+-				pos = end + 1
+-			}
+-		} else {
+-			pos = matches[1]
+-		}
+-		prevMatchEnd = matches[1]
+-
+-		if accept {
+-			deliver(matches)
+-			i++
+-		}
+-	}
+-}
+-
+-// Find returns a slice holding the text of the leftmost match in b of the regular expression.
+-// A return value of nil indicates no match.
+-func (re *Regexp) Find(b []byte) []byte {
+-	a := re.doExecute(newInputBytes(b), 0)
+-	if a == nil {
+-		return nil
+-	}
+-	return b[a[0]:a[1]]
+-}
+-
+-// FindIndex returns a two-element slice of integers defining the location of
+-// the leftmost match in b of the regular expression.  The match itself is at
+-// b[loc[0]:loc[1]].
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindIndex(b []byte) (loc []int) {
+-	a := re.doExecute(newInputBytes(b), 0)
+-	if a == nil {
+-		return nil
+-	}
+-	return a[0:2]
+-}
+-
+-// FindString returns a string holding the text of the leftmost match in s of the regular
+-// expression.  If there is no match, the return value is an empty string,
+-// but it will also be empty if the regular expression successfully matches
+-// an empty string.  Use FindStringIndex or FindStringSubmatch if it is
+-// necessary to distinguish these cases.
+-func (re *Regexp) FindString(s string) string {
+-	a := re.doExecute(newInputString(s), 0)
+-	if a == nil {
+-		return ""
+-	}
+-	return s[a[0]:a[1]]
+-}
+-
+-// FindStringIndex returns a two-element slice of integers defining the
+-// location of the leftmost match in s of the regular expression.  The match
+-// itself is at s[loc[0]:loc[1]].
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindStringIndex(s string) []int {
+-	a := re.doExecute(newInputString(s), 0)
+-	if a == nil {
+-		return nil
+-	}
+-	return a[0:2]
+-}
+-
+-// FindReaderIndex returns a two-element slice of integers defining the
+-// location of the leftmost match of the regular expression in text read from
+-// the RuneReader.  The match itself is at s[loc[0]:loc[1]].  A return
+-// value of nil indicates no match.
+-func (re *Regexp) FindReaderIndex(r io.RuneReader) []int {
+-	a := re.doExecute(newInputReader(r), 0)
+-	if a == nil {
+-		return nil
+-	}
+-	return a[0:2]
+-}
+-
+-// FindSubmatch returns a slice of slices holding the text of the leftmost
+-// match of the regular expression in b and the matches, if any, of its
+-// subexpressions, as defined by the 'Submatch' descriptions in the package
+-// comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindSubmatch(b []byte) [][]byte {
+-	a := re.doExecute(newInputBytes(b), 0)
+-	if a == nil {
+-		return nil
+-	}
+-	ret := make([][]byte, len(a)/2)
+-	for i := range ret {
+-		if a[2*i] >= 0 {
+-			ret[i] = b[a[2*i]:a[2*i+1]]
+-		}
+-	}
+-	return ret
+-}
+-
+-// FindSubmatchIndex returns a slice holding the index pairs identifying the
+-// leftmost match of the regular expression in b and the matches, if any, of
+-// its subexpressions, as defined by the 'Submatch' and 'Index' descriptions
+-// in the package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindSubmatchIndex(b []byte) []int {
+-	return re.doExecute(newInputBytes(b), 0)
+-}
+-
+-// FindStringSubmatch returns a slice of strings holding the text of the
+-// leftmost match of the regular expression in s and the matches, if any, of
+-// its subexpressions, as defined by the 'Submatch' description in the
+-// package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindStringSubmatch(s string) []string {
+-	a := re.doExecute(newInputString(s), 0)
+-	if a == nil {
+-		return nil
+-	}
+-	ret := make([]string, len(a)/2)
+-	for i := range ret {
+-		if a[2*i] >= 0 {
+-			ret[i] = s[a[2*i]:a[2*i+1]]
+-		}
+-	}
+-	return ret
+-}
+-
+-// FindStringSubmatchIndex returns a slice holding the index pairs
+-// identifying the leftmost match of the regular expression in s and the
+-// matches, if any, of its subexpressions, as defined by the 'Submatch' and
+-// 'Index' descriptions in the package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindStringSubmatchIndex(s string) []int {
+-	return re.doExecute(newInputString(s), 0)
+-}
+-
+-// FindReaderSubmatchIndex returns a slice holding the index pairs
+-// identifying the leftmost match of the regular expression of text read by
+-// the RuneReader, and the matches, if any, of its subexpressions, as defined
+-// by the 'Submatch' and 'Index' descriptions in the package comment.  A
+-// return value of nil indicates no match.
+-func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
+-	return re.doExecute(newInputReader(r), 0)
+-}
+-
+-const startSize = 10 // The size at which to start a slice in the 'All' routines.
+-
+-// FindAll is the 'All' version of Find; it returns a slice of all successive
+-// matches of the expression, as defined by the 'All' description in the
+-// package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindAll(b []byte, n int) [][]byte {
+-	if n < 0 {
+-		n = len(b) + 1
+-	}
+-	result := make([][]byte, 0, startSize)
+-	re.allMatches("", b, n, func(match []int) {
+-		result = append(result, b[match[0]:match[1]])
+-	})
+-	if len(result) == 0 {
+-		return nil
+-	}
+-	return result
+-}
+-
+-// FindAllIndex is the 'All' version of FindIndex; it returns a slice of all
+-// successive matches of the expression, as defined by the 'All' description
+-// in the package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindAllIndex(b []byte, n int) [][]int {
+-	if n < 0 {
+-		n = len(b) + 1
+-	}
+-	result := make([][]int, 0, startSize)
+-	re.allMatches("", b, n, func(match []int) {
+-		result = append(result, match[0:2])
+-	})
+-	if len(result) == 0 {
+-		return nil
+-	}
+-	return result
+-}
+-
+-// FindAllString is the 'All' version of FindString; it returns a slice of all
+-// successive matches of the expression, as defined by the 'All' description
+-// in the package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindAllString(s string, n int) []string {
+-	if n < 0 {
+-		n = len(s) + 1
+-	}
+-	result := make([]string, 0, startSize)
+-	re.allMatches(s, nil, n, func(match []int) {
+-		result = append(result, s[match[0]:match[1]])
+-	})
+-	if len(result) == 0 {
+-		return nil
+-	}
+-	return result
+-}
+-
+-// FindAllStringIndex is the 'All' version of FindStringIndex; it returns a
+-// slice of all successive matches of the expression, as defined by the 'All'
+-// description in the package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
+-	if n < 0 {
+-		n = len(s) + 1
+-	}
+-	result := make([][]int, 0, startSize)
+-	re.allMatches(s, nil, n, func(match []int) {
+-		result = append(result, match[0:2])
+-	})
+-	if len(result) == 0 {
+-		return nil
+-	}
+-	return result
+-}
+-
+-// FindAllSubmatch is the 'All' version of FindSubmatch; it returns a slice
+-// of all successive matches of the expression, as defined by the 'All'
+-// description in the package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
+-	if n < 0 {
+-		n = len(b) + 1
+-	}
+-	result := make([][][]byte, 0, startSize)
+-	re.allMatches("", b, n, func(match []int) {
+-		slice := make([][]byte, len(match)/2)
+-		for j := range slice {
+-			if match[2*j] >= 0 {
+-				slice[j] = b[match[2*j]:match[2*j+1]]
+-			}
+-		}
+-		result = append(result, slice)
+-	})
+-	if len(result) == 0 {
+-		return nil
+-	}
+-	return result
+-}
+-
+-// FindAllSubmatchIndex is the 'All' version of FindSubmatchIndex; it returns
+-// a slice of all successive matches of the expression, as defined by the
+-// 'All' description in the package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindAllSubmatchIndex(b []byte, n int) [][]int {
+-	if n < 0 {
+-		n = len(b) + 1
+-	}
+-	result := make([][]int, 0, startSize)
+-	re.allMatches("", b, n, func(match []int) {
+-		result = append(result, match)
+-	})
+-	if len(result) == 0 {
+-		return nil
+-	}
+-	return result
+-}
+-
+-// FindAllStringSubmatch is the 'All' version of FindStringSubmatch; it
+-// returns a slice of all successive matches of the expression, as defined by
+-// the 'All' description in the package comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
+-	if n < 0 {
+-		n = len(s) + 1
+-	}
+-	result := make([][]string, 0, startSize)
+-	re.allMatches(s, nil, n, func(match []int) {
+-		slice := make([]string, len(match)/2)
+-		for j := range slice {
+-			if match[2*j] >= 0 {
+-				slice[j] = s[match[2*j]:match[2*j+1]]
+-			}
+-		}
+-		result = append(result, slice)
+-	})
+-	if len(result) == 0 {
+-		return nil
+-	}
+-	return result
+-}
+-
+-// FindAllStringSubmatchIndex is the 'All' version of
+-// FindStringSubmatchIndex; it returns a slice of all successive matches of
+-// the expression, as defined by the 'All' description in the package
+-// comment.
+-// A return value of nil indicates no match.
+-func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
+-	if n < 0 {
+-		n = len(s) + 1
+-	}
+-	result := make([][]int, 0, startSize)
+-	re.allMatches(s, nil, n, func(match []int) {
+-		result = append(result, match)
+-	})
+-	if len(result) == 0 {
+-		return nil
+-	}
+-	return result
+-}
+diff --git a/src/pkg/old/template/doc.go b/src/pkg/old/template/doc.go
+deleted file mode 100644
+index e778d801da..0000000000
+--- a/src/pkg/old/template/doc.go
++++ /dev/null
+@@ -1,91 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-	Package template implements data-driven templates for generating textual
+-	output such as HTML.
+-
+-	Templates are executed by applying them to a data structure.
+-	Annotations in the template refer to elements of the data
+-	structure (typically a field of a struct or a key in a map)
+-	to control execution and derive values to be displayed.
+-	The template walks the structure as it executes and the
+-	"cursor" @ represents the value at the current location
+-	in the structure.
+-
+-	Data items may be values or pointers; the interface hides the
+-	indirection.
+-
+-	In the following, 'Field' is one of several things, according to the data.
+-
+-		- The name of a field of a struct (result = data.Field),
+-		- The value stored in a map under that key (result = data["Field"]), or
+-		- The result of invoking a niladic single-valued method with that name
+-		  (result = data.Field())
+-
+-	If Field is a struct field or method name, it must be an exported
+-	(capitalized) name.
+-
+-	Major constructs ({} are the default delimiters for template actions;
+-	[] are the notation in this comment for optional elements):
+-
+-		{# comment }
+-
+-	A one-line comment.
+-
+-		{.section field} XXX [ {.or} YYY ] {.end}
+-
+-	Set @ to the value of the field.  It may be an explicit @
+-	to stay at the same point in the data. If the field is nil
+-	or empty, execute YYY; otherwise execute XXX.
+-
+-		{.repeated section field} XXX [ {.alternates with} ZZZ ] [ {.or} YYY ] {.end}
+-
+-	Like .section, but field must be an array or slice.  XXX
+-	is executed for each element.  If the array is nil or empty,
+-	YYY is executed instead.  If the {.alternates with} marker
+-	is present, ZZZ is executed between iterations of XXX.
+-
+-		{field}
+-		{field1 field2 ...}
+-		{field|formatter}
+-		{field1 field2...|formatter}
+-		{field|formatter1|formatter2}
+-
+-	Insert the value of the fields into the output. Each field is
+-	first looked for in the cursor, as in .section and .repeated.
+-	If it is not found, the search continues in outer sections
+-	until the top level is reached.
+-
+-	If the field value is a pointer, leading asterisks indicate
+-	that the value to be inserted should be evaluated through the
+-	pointer.  For example, if x.p is of type *int, {x.p} will
+-	insert the value of the pointer but {*x.p} will insert the
+-	value of the underlying integer.  If the value is nil or not a
+-	pointer, asterisks have no effect.
+-
+-	If a formatter is specified, it must be named in the formatter
+-	map passed to the template set up routines or in the default
+-	set ("html","str","") and is used to process the data for
+-	output.  The formatter function has signature
+-		func(wr io.Writer, formatter string, data ...interface{})
+-	where wr is the destination for output, data holds the field
+-	values at the instantiation, and formatter is its name at
+-	the invocation site.  The default formatter just concatenates
+-	the string representations of the fields.
+-
+-	Multiple formatters separated by the pipeline character | are
+-	executed sequentially, with each formatter receiving the bytes
+-	emitted by the one to its left.
+-
+-	As well as field names, one may use literals with Go syntax.
+-	Integer, floating-point, and string literals are supported.
+-	Raw strings may not span newlines.
+-
+-	The delimiter strings get their default value, "{" and "}", from
+-	JSON-template.  They may be set to any non-empty, space-free
+-	string using the SetDelims method.  Their value can be printed
+-	in the output using {.meta-left} and {.meta-right}.
+-*/
+-package template
+diff --git a/src/pkg/old/template/execute.go b/src/pkg/old/template/execute.go
+deleted file mode 100644
+index 464b620c98..0000000000
+--- a/src/pkg/old/template/execute.go
++++ /dev/null
+@@ -1,346 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Code to execute a parsed template.
+-
+-package template
+-
+-import (
+-	"bytes"
+-	"io"
+-	"reflect"
+-	"strings"
+-)
+-
+-// Internal state for executing a Template.  As we evaluate the struct,
+-// the data item descends into the fields associated with sections, etc.
+-// Parent is used to walk upwards to find variables higher in the tree.
+-type state struct {
+-	parent *state          // parent in hierarchy
+-	data   reflect.Value   // the driver data for this section etc.
+-	wr     io.Writer       // where to send output
+-	buf    [2]bytes.Buffer // alternating buffers used when chaining formatters
+-}
+-
+-func (parent *state) clone(data reflect.Value) *state {
+-	return &state{parent: parent, data: data, wr: parent.wr}
+-}
+-
+-// Evaluate interfaces and pointers looking for a value that can look up the name, via a
+-// struct field, method, or map key, and return the result of the lookup.
+-func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value {
+-	for v.IsValid() {
+-		typ := v.Type()
+-		if n := v.Type().NumMethod(); n > 0 {
+-			for i := 0; i < n; i++ {
+-				m := typ.Method(i)
+-				mtyp := m.Type
+-				if m.Name == name && mtyp.NumIn() == 1 && mtyp.NumOut() == 1 {
+-					if !isExported(name) {
+-						t.execError(st, t.linenum, "name not exported: %s in type %s", name, st.data.Type())
+-					}
+-					return v.Method(i).Call(nil)[0]
+-				}
+-			}
+-		}
+-		switch av := v; av.Kind() {
+-		case reflect.Ptr:
+-			v = av.Elem()
+-		case reflect.Interface:
+-			v = av.Elem()
+-		case reflect.Struct:
+-			if !isExported(name) {
+-				t.execError(st, t.linenum, "name not exported: %s in type %s", name, st.data.Type())
+-			}
+-			return av.FieldByName(name)
+-		case reflect.Map:
+-			if v := av.MapIndex(reflect.ValueOf(name)); v.IsValid() {
+-				return v
+-			}
+-			return reflect.Zero(typ.Elem())
+-		default:
+-			return reflect.Value{}
+-		}
+-	}
+-	return v
+-}
+-
+-// indirectPtr returns the item numLevels levels of indirection below the value.
+-// It is forgiving: if the value is not a pointer, it returns it rather than giving
+-// an error.  If the pointer is nil, it is returned as is.
+-func indirectPtr(v reflect.Value, numLevels int) reflect.Value {
+-	for i := numLevels; v.IsValid() && i > 0; i++ {
+-		if p := v; p.Kind() == reflect.Ptr {
+-			if p.IsNil() {
+-				return v
+-			}
+-			v = p.Elem()
+-		} else {
+-			break
+-		}
+-	}
+-	return v
+-}
+-
+-// Walk v through pointers and interfaces, extracting the elements within.
+-func indirect(v reflect.Value) reflect.Value {
+-loop:
+-	for v.IsValid() {
+-		switch av := v; av.Kind() {
+-		case reflect.Ptr:
+-			v = av.Elem()
+-		case reflect.Interface:
+-			v = av.Elem()
+-		default:
+-			break loop
+-		}
+-	}
+-	return v
+-}
+-
+-// If the data for this template is a struct, find the named variable.
+-// Names of the form a.b.c are walked down the data tree.
+-// The special name "@" (the "cursor") denotes the current data.
+-// The value coming in (st.data) might need indirecting to reach
+-// a struct while the return value is not indirected - that is,
+-// it represents the actual named field. Leading stars indicate
+-// levels of indirection to be applied to the value.
+-func (t *Template) findVar(st *state, s string) reflect.Value {
+-	data := st.data
+-	flattenedName := strings.TrimLeft(s, "*")
+-	numStars := len(s) - len(flattenedName)
+-	s = flattenedName
+-	if s == "@" {
+-		return indirectPtr(data, numStars)
+-	}
+-	for _, elem := range strings.Split(s, ".") {
+-		// Look up field; data must be a struct or map.
+-		data = t.lookup(st, data, elem)
+-		if !data.IsValid() {
+-			return reflect.Value{}
+-		}
+-	}
+-	return indirectPtr(data, numStars)
+-}
+-
+-// Is there no data to look at?
+-func empty(v reflect.Value) bool {
+-	v = indirect(v)
+-	if !v.IsValid() {
+-		return true
+-	}
+-	switch v.Kind() {
+-	case reflect.Bool:
+-		return v.Bool() == false
+-	case reflect.String:
+-		return v.String() == ""
+-	case reflect.Struct:
+-		return false
+-	case reflect.Map:
+-		return false
+-	case reflect.Array:
+-		return v.Len() == 0
+-	case reflect.Slice:
+-		return v.Len() == 0
+-	}
+-	return false
+-}
+-
+-// Look up a variable or method, up through the parent if necessary.
+-func (t *Template) varValue(name string, st *state) reflect.Value {
+-	field := t.findVar(st, name)
+-	if !field.IsValid() {
+-		if st.parent == nil {
+-			t.execError(st, t.linenum, "name not found: %s in type %s", name, st.data.Type())
+-		}
+-		return t.varValue(name, st.parent)
+-	}
+-	return field
+-}
+-
+-func (t *Template) format(wr io.Writer, fmt string, val []interface{}, v *variableElement, st *state) {
+-	fn := t.formatter(fmt)
+-	if fn == nil {
+-		t.execError(st, v.linenum, "missing formatter %s for variable", fmt)
+-	}
+-	fn(wr, fmt, val...)
+-}
+-
+-// Evaluate a variable, looking up through the parent if necessary.
+-// If it has a formatter attached ({var|formatter}) run that too.
+-func (t *Template) writeVariable(v *variableElement, st *state) {
+-	// Resolve field names
+-	val := make([]interface{}, len(v.args))
+-	for i, arg := range v.args {
+-		if name, ok := arg.(fieldName); ok {
+-			val[i] = t.varValue(string(name), st).Interface()
+-		} else {
+-			val[i] = arg
+-		}
+-	}
+-	for i, fmt := range v.fmts[:len(v.fmts)-1] {
+-		b := &st.buf[i&1]
+-		b.Reset()
+-		t.format(b, fmt, val, v, st)
+-		val = val[0:1]
+-		val[0] = b.Bytes()
+-	}
+-	t.format(st.wr, v.fmts[len(v.fmts)-1], val, v, st)
+-}
+-
+-// Execute element i.  Return next index to execute.
+-func (t *Template) executeElement(i int, st *state) int {
+-	switch elem := t.elems[i].(type) {
+-	case *textElement:
+-		st.wr.Write(elem.text)
+-		return i + 1
+-	case *literalElement:
+-		st.wr.Write(elem.text)
+-		return i + 1
+-	case *variableElement:
+-		t.writeVariable(elem, st)
+-		return i + 1
+-	case *sectionElement:
+-		t.executeSection(elem, st)
+-		return elem.end
+-	case *repeatedElement:
+-		t.executeRepeated(elem, st)
+-		return elem.end
+-	}
+-	e := t.elems[i]
+-	t.execError(st, 0, "internal error: bad directive in execute: %v %T\n", reflect.ValueOf(e).Interface(), e)
+-	return 0
+-}
+-
+-// Execute the template.
+-func (t *Template) execute(start, end int, st *state) {
+-	for i := start; i < end; {
+-		i = t.executeElement(i, st)
+-	}
+-}
+-
+-// Execute a .section
+-func (t *Template) executeSection(s *sectionElement, st *state) {
+-	// Find driver data for this section.  It must be in the current struct.
+-	field := t.varValue(s.field, st)
+-	if !field.IsValid() {
+-		t.execError(st, s.linenum, ".section: cannot find field %s in %s", s.field, st.data.Type())
+-	}
+-	st = st.clone(field)
+-	start, end := s.start, s.or
+-	if !empty(field) {
+-		// Execute the normal block.
+-		if end < 0 {
+-			end = s.end
+-		}
+-	} else {
+-		// Execute the .or block.  If it's missing, do nothing.
+-		start, end = s.or, s.end
+-		if start < 0 {
+-			return
+-		}
+-	}
+-	for i := start; i < end; {
+-		i = t.executeElement(i, st)
+-	}
+-}
+-
+-// Return the result of calling the Iter method on v, or nil.
+-func iter(v reflect.Value) reflect.Value {
+-	for j := 0; j < v.Type().NumMethod(); j++ {
+-		mth := v.Type().Method(j)
+-		fv := v.Method(j)
+-		ft := fv.Type()
+-		// TODO(rsc): NumIn() should return 0 here, because ft is from a curried FuncValue.
+-		if mth.Name != "Iter" || ft.NumIn() != 1 || ft.NumOut() != 1 {
+-			continue
+-		}
+-		ct := ft.Out(0)
+-		if ct.Kind() != reflect.Chan ||
+-			ct.ChanDir()&reflect.RecvDir == 0 {
+-			continue
+-		}
+-		return fv.Call(nil)[0]
+-	}
+-	return reflect.Value{}
+-}
+-
+-// Execute a .repeated section
+-func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+-	// Find driver data for this section.  It must be in the current struct.
+-	field := t.varValue(r.field, st)
+-	if !field.IsValid() {
+-		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, st.data.Type())
+-	}
+-	field = indirect(field)
+-
+-	start, end := r.start, r.or
+-	if end < 0 {
+-		end = r.end
+-	}
+-	if r.altstart >= 0 {
+-		end = r.altstart
+-	}
+-	first := true
+-
+-	// Code common to all the loops.
+-	loopBody := func(newst *state) {
+-		// .alternates between elements
+-		if !first && r.altstart >= 0 {
+-			for i := r.altstart; i < r.altend; {
+-				i = t.executeElement(i, newst)
+-			}
+-		}
+-		first = false
+-		for i := start; i < end; {
+-			i = t.executeElement(i, newst)
+-		}
+-	}
+-
+-	if array := field; array.Kind() == reflect.Array || array.Kind() == reflect.Slice {
+-		for j := 0; j < array.Len(); j++ {
+-			loopBody(st.clone(array.Index(j)))
+-		}
+-	} else if m := field; m.Kind() == reflect.Map {
+-		for _, key := range m.MapKeys() {
+-			loopBody(st.clone(m.MapIndex(key)))
+-		}
+-	} else if ch := iter(field); ch.IsValid() {
+-		for {
+-			e, ok := ch.Recv()
+-			if !ok {
+-				break
+-			}
+-			loopBody(st.clone(e))
+-		}
+-	} else {
+-		t.execError(st, r.linenum, ".repeated: cannot repeat %s (type %s)",
+-			r.field, field.Type())
+-	}
+-
+-	if first {
+-		// Empty. Execute the .or block, once.  If it's missing, do nothing.
+-		start, end := r.or, r.end
+-		if start >= 0 {
+-			newst := st.clone(field)
+-			for i := start; i < end; {
+-				i = t.executeElement(i, newst)
+-			}
+-		}
+-		return
+-	}
+-}
+-
+-// A valid delimiter must contain no space and be non-empty.
+-func validDelim(d []byte) bool {
+-	if len(d) == 0 {
+-		return false
+-	}
+-	for _, c := range d {
+-		if isSpace(c) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+diff --git a/src/pkg/old/template/format.go b/src/pkg/old/template/format.go
+deleted file mode 100644
+index 9156b08081..0000000000
+--- a/src/pkg/old/template/format.go
++++ /dev/null
+@@ -1,77 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Template library: default formatters
+-
+-package template
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"io"
+-)
+-
+-// StringFormatter formats into the default string representation.
+-// It is stored under the name "str" and is the default formatter.
+-// You can override the default formatter by storing your default
+-// under the name "" in your custom formatter map.
+-func StringFormatter(w io.Writer, format string, value ...interface{}) {
+-	if len(value) == 1 {
+-		if b, ok := value[0].([]byte); ok {
+-			w.Write(b)
+-			return
+-		}
+-	}
+-	fmt.Fprint(w, value...)
+-}
+-
+-var (
+-	esc_quot = []byte("&#34;") // shorter than "&quot;"
+-	esc_apos = []byte("&#39;") // shorter than "&apos;"
+-	esc_amp  = []byte("&amp;")
+-	esc_lt   = []byte("&lt;")
+-	esc_gt   = []byte("&gt;")
+-)
+-
+-// HTMLEscape writes to w the properly escaped HTML equivalent
+-// of the plain text data s.
+-func HTMLEscape(w io.Writer, s []byte) {
+-	var esc []byte
+-	last := 0
+-	for i, c := range s {
+-		switch c {
+-		case '"':
+-			esc = esc_quot
+-		case '\'':
+-			esc = esc_apos
+-		case '&':
+-			esc = esc_amp
+-		case '<':
+-			esc = esc_lt
+-		case '>':
+-			esc = esc_gt
+-		default:
+-			continue
+-		}
+-		w.Write(s[last:i])
+-		w.Write(esc)
+-		last = i + 1
+-	}
+-	w.Write(s[last:])
+-}
+-
+-// HTMLFormatter formats arbitrary values for HTML
+-func HTMLFormatter(w io.Writer, format string, value ...interface{}) {
+-	ok := false
+-	var b []byte
+-	if len(value) == 1 {
+-		b, ok = value[0].([]byte)
+-	}
+-	if !ok {
+-		var buf bytes.Buffer
+-		fmt.Fprint(&buf, value...)
+-		b = buf.Bytes()
+-	}
+-	HTMLEscape(w, b)
+-}
+diff --git a/src/pkg/old/template/parse.go b/src/pkg/old/template/parse.go
+deleted file mode 100644
+index e1bfa47249..0000000000
+--- a/src/pkg/old/template/parse.go
++++ /dev/null
+@@ -1,742 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Code to parse a template.
+-
+-package template
+-
+-import (
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"reflect"
+-	"strconv"
+-	"strings"
+-	"unicode"
+-	"unicode/utf8"
+-)
+-
+-// Errors returned during parsing and execution.  Users may extract the information and reformat
+-// if they desire.
+-type Error struct {
+-	Line int
+-	Msg  string
+-}
+-
+-func (e *Error) Error() string { return fmt.Sprintf("line %d: %s", e.Line, e.Msg) }
+-
+-// checkError is a deferred function to turn a panic with type *Error into a plain error return.
+-// Other panics are unexpected and so are re-enabled.
+-func checkError(error *error) {
+-	if v := recover(); v != nil {
+-		if e, ok := v.(*Error); ok {
+-			*error = e
+-		} else {
+-			// runtime errors should crash
+-			panic(v)
+-		}
+-	}
+-}
+-
+-// Most of the literals are aces.
+-var lbrace = []byte{'{'}
+-var rbrace = []byte{'}'}
+-var space = []byte{' '}
+-var tab = []byte{'\t'}
+-
+-// The various types of "tokens", which are plain text or (usually) brace-delimited descriptors
+-const (
+-	tokAlternates = iota
+-	tokComment
+-	tokEnd
+-	tokLiteral
+-	tokOr
+-	tokRepeated
+-	tokSection
+-	tokText
+-	tokVariable
+-)
+-
+-// FormatterMap is the type describing the mapping from formatter
+-// names to the functions that implement them.
+-type FormatterMap map[string]func(io.Writer, string, ...interface{})
+-
+-// Built-in formatters.
+-var builtins = FormatterMap{
+-	"html": HTMLFormatter,
+-	"str":  StringFormatter,
+-	"":     StringFormatter,
+-}
+-
+-// The parsed state of a template is a vector of xxxElement structs.
+-// Sections have line numbers so errors can be reported better during execution.
+-
+-// Plain text.
+-type textElement struct {
+-	text []byte
+-}
+-
+-// A literal such as .meta-left or .meta-right
+-type literalElement struct {
+-	text []byte
+-}
+-
+-// A variable invocation to be evaluated
+-type variableElement struct {
+-	linenum int
+-	args    []interface{} // The fields and literals in the invocation.
+-	fmts    []string      // Names of formatters to apply. len(fmts) > 0
+-}
+-
+-// A variableElement arg to be evaluated as a field name
+-type fieldName string
+-
+-// A .section block, possibly with a .or
+-type sectionElement struct {
+-	linenum int    // of .section itself
+-	field   string // cursor field for this block
+-	start   int    // first element
+-	or      int    // first element of .or block
+-	end     int    // one beyond last element
+-}
+-
+-// A .repeated block, possibly with a .or and a .alternates
+-type repeatedElement struct {
+-	sectionElement     // It has the same structure...
+-	altstart       int // ... except for alternates
+-	altend         int
+-}
+-
+-// Template is the type that represents a template definition.
+-// It is unchanged after parsing.
+-type Template struct {
+-	fmap FormatterMap // formatters for variables
+-	// Used during parsing:
+-	ldelim, rdelim []byte // delimiters; default {}
+-	buf            []byte // input text to process
+-	p              int    // position in buf
+-	linenum        int    // position in input
+-	// Parsed results:
+-	elems []interface{}
+-}
+-
+-// New creates a new template with the specified formatter map (which
+-// may be nil) to define auxiliary functions for formatting variables.
+-func New(fmap FormatterMap) *Template {
+-	t := new(Template)
+-	t.fmap = fmap
+-	t.ldelim = lbrace
+-	t.rdelim = rbrace
+-	t.elems = make([]interface{}, 0, 16)
+-	return t
+-}
+-
+-// Report error and stop executing.  The line number must be provided explicitly.
+-func (t *Template) execError(st *state, line int, err string, args ...interface{}) {
+-	panic(&Error{line, fmt.Sprintf(err, args...)})
+-}
+-
+-// Report error, panic to terminate parsing.
+-// The line number comes from the template state.
+-func (t *Template) parseError(err string, args ...interface{}) {
+-	panic(&Error{t.linenum, fmt.Sprintf(err, args...)})
+-}
+-
+-// Is this an exported - upper case - name?
+-func isExported(name string) bool {
+-	r, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(r)
+-}
+-
+-// -- Lexical analysis
+-
+-// Is c a space character?
+-func isSpace(c uint8) bool { return c == ' ' || c == '\t' || c == '\r' || c == '\n' }
+-
+-// Safely, does s[n:n+len(t)] == t?
+-func equal(s []byte, n int, t []byte) bool {
+-	b := s[n:]
+-	if len(t) > len(b) { // not enough space left for a match.
+-		return false
+-	}
+-	for i, c := range t {
+-		if c != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-// isQuote returns true if c is a string- or character-delimiting quote character.
+-func isQuote(c byte) bool {
+-	return c == '"' || c == '`' || c == '\''
+-}
+-
+-// endQuote returns the end quote index for the quoted string that
+-// starts at n, or -1 if no matching end quote is found before the end
+-// of the line.
+-func endQuote(s []byte, n int) int {
+-	quote := s[n]
+-	for n++; n < len(s); n++ {
+-		switch s[n] {
+-		case '\\':
+-			if quote == '"' || quote == '\'' {
+-				n++
+-			}
+-		case '\n':
+-			return -1
+-		case quote:
+-			return n
+-		}
+-	}
+-	return -1
+-}
+-
+-// nextItem returns the next item from the input buffer.  If the returned
+-// item is empty, we are at EOF.  The item will be either a
+-// delimited string or a non-empty string between delimited
+-// strings. Tokens stop at (but include, if plain text) a newline.
+-// Action tokens on a line by themselves drop any space on
+-// either side, up to and including the newline.
+-func (t *Template) nextItem() []byte {
+-	startOfLine := t.p == 0 || t.buf[t.p-1] == '\n'
+-	start := t.p
+-	var i int
+-	newline := func() {
+-		t.linenum++
+-		i++
+-	}
+-	// Leading space up to but not including newline
+-	for i = start; i < len(t.buf); i++ {
+-		if t.buf[i] == '\n' || !isSpace(t.buf[i]) {
+-			break
+-		}
+-	}
+-	leadingSpace := i > start
+-	// What's left is nothing, newline, delimited string, or plain text
+-	switch {
+-	case i == len(t.buf):
+-		// EOF; nothing to do
+-	case t.buf[i] == '\n':
+-		newline()
+-	case equal(t.buf, i, t.ldelim):
+-		left := i         // Start of left delimiter.
+-		right := -1       // Will be (immediately after) right delimiter.
+-		haveText := false // Delimiters contain text.
+-		i += len(t.ldelim)
+-		// Find the end of the action.
+-		for ; i < len(t.buf); i++ {
+-			if t.buf[i] == '\n' {
+-				break
+-			}
+-			if isQuote(t.buf[i]) {
+-				i = endQuote(t.buf, i)
+-				if i == -1 {
+-					t.parseError("unmatched quote")
+-					return nil
+-				}
+-				continue
+-			}
+-			if equal(t.buf, i, t.rdelim) {
+-				i += len(t.rdelim)
+-				right = i
+-				break
+-			}
+-			haveText = true
+-		}
+-		if right < 0 {
+-			t.parseError("unmatched opening delimiter")
+-			return nil
+-		}
+-		// Is this a special action (starts with '.' or '#') and the only thing on the line?
+-		if startOfLine && haveText {
+-			firstChar := t.buf[left+len(t.ldelim)]
+-			if firstChar == '.' || firstChar == '#' {
+-				// It's special and the first thing on the line. Is it the last?
+-				for j := right; j < len(t.buf) && isSpace(t.buf[j]); j++ {
+-					if t.buf[j] == '\n' {
+-						// Yes it is. Drop the surrounding space and return the {.foo}
+-						t.linenum++
+-						t.p = j + 1
+-						return t.buf[left:right]
+-					}
+-				}
+-			}
+-		}
+-		// No it's not. If there's leading space, return that.
+-		if leadingSpace {
+-			// not trimming space: return leading space if there is some.
+-			t.p = left
+-			return t.buf[start:left]
+-		}
+-		// Return the word, leave the trailing space.
+-		start = left
+-		break
+-	default:
+-		for ; i < len(t.buf); i++ {
+-			if t.buf[i] == '\n' {
+-				newline()
+-				break
+-			}
+-			if equal(t.buf, i, t.ldelim) {
+-				break
+-			}
+-		}
+-	}
+-	item := t.buf[start:i]
+-	t.p = i
+-	return item
+-}
+-
+-// Turn a byte array into a space-split array of strings,
+-// taking into account quoted strings.
+-func words(buf []byte) []string {
+-	s := make([]string, 0, 5)
+-	for i := 0; i < len(buf); {
+-		// One word per loop
+-		for i < len(buf) && isSpace(buf[i]) {
+-			i++
+-		}
+-		if i == len(buf) {
+-			break
+-		}
+-		// Got a word
+-		start := i
+-		if isQuote(buf[i]) {
+-			i = endQuote(buf, i)
+-			if i < 0 {
+-				i = len(buf)
+-			} else {
+-				i++
+-			}
+-		}
+-		// Even with quotes, break on space only.  This handles input
+-		// such as {""|} and catches quoting mistakes.
+-		for i < len(buf) && !isSpace(buf[i]) {
+-			i++
+-		}
+-		s = append(s, string(buf[start:i]))
+-	}
+-	return s
+-}
+-
+-// Analyze an item and return its token type and, if it's an action item, an array of
+-// its constituent words.
+-func (t *Template) analyze(item []byte) (tok int, w []string) {
+-	// item is known to be non-empty
+-	if !equal(item, 0, t.ldelim) { // doesn't start with left delimiter
+-		tok = tokText
+-		return
+-	}
+-	if !equal(item, len(item)-len(t.rdelim), t.rdelim) { // doesn't end with right delimiter
+-		t.parseError("internal error: unmatched opening delimiter") // lexing should prevent this
+-		return
+-	}
+-	if len(item) <= len(t.ldelim)+len(t.rdelim) { // no contents
+-		t.parseError("empty directive")
+-		return
+-	}
+-	// Comment
+-	if item[len(t.ldelim)] == '#' {
+-		tok = tokComment
+-		return
+-	}
+-	// Split into words
+-	w = words(item[len(t.ldelim) : len(item)-len(t.rdelim)]) // drop final delimiter
+-	if len(w) == 0 {
+-		t.parseError("empty directive")
+-		return
+-	}
+-	first := w[0]
+-	if first[0] != '.' {
+-		tok = tokVariable
+-		return
+-	}
+-	if len(first) > 1 && first[1] >= '0' && first[1] <= '9' {
+-		// Must be a float.
+-		tok = tokVariable
+-		return
+-	}
+-	switch first {
+-	case ".meta-left", ".meta-right", ".space", ".tab":
+-		tok = tokLiteral
+-		return
+-	case ".or":
+-		tok = tokOr
+-		return
+-	case ".end":
+-		tok = tokEnd
+-		return
+-	case ".section":
+-		if len(w) != 2 {
+-			t.parseError("incorrect fields for .section: %s", item)
+-			return
+-		}
+-		tok = tokSection
+-		return
+-	case ".repeated":
+-		if len(w) != 3 || w[1] != "section" {
+-			t.parseError("incorrect fields for .repeated: %s", item)
+-			return
+-		}
+-		tok = tokRepeated
+-		return
+-	case ".alternates":
+-		if len(w) != 2 || w[1] != "with" {
+-			t.parseError("incorrect fields for .alternates: %s", item)
+-			return
+-		}
+-		tok = tokAlternates
+-		return
+-	}
+-	t.parseError("bad directive: %s", item)
+-	return
+-}
+-
+-// formatter returns the Formatter with the given name in the Template, or nil if none exists.
+-func (t *Template) formatter(name string) func(io.Writer, string, ...interface{}) {
+-	if t.fmap != nil {
+-		if fn := t.fmap[name]; fn != nil {
+-			return fn
+-		}
+-	}
+-	return builtins[name]
+-}
+-
+-// -- Parsing
+-
+-// newVariable allocates a new variable-evaluation element.
+-func (t *Template) newVariable(words []string) *variableElement {
+-	formatters := extractFormatters(words)
+-	args := make([]interface{}, len(words))
+-
+-	// Build argument list, processing any literals
+-	for i, word := range words {
+-		var lerr error
+-		switch word[0] {
+-		case '"', '`', '\'':
+-			v, err := strconv.Unquote(word)
+-			if err == nil && word[0] == '\'' {
+-				args[i], _ = utf8.DecodeRuneInString(v)
+-			} else {
+-				args[i], lerr = v, err
+-			}
+-
+-		case '.', '+', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+-			v, err := strconv.ParseInt(word, 0, 64)
+-			if err == nil {
+-				args[i] = v
+-			} else {
+-				v, err := strconv.ParseFloat(word, 64)
+-				args[i], lerr = v, err
+-			}
+-
+-		default:
+-			args[i] = fieldName(word)
+-		}
+-		if lerr != nil {
+-			t.parseError("invalid literal: %q: %s", word, lerr)
+-		}
+-	}
+-
+-	// We could remember the function address here and avoid the lookup later,
+-	// but it's more dynamic to let the user change the map contents underfoot.
+-	// We do require the name to be present, though.
+-
+-	// Is it in user-supplied map?
+-	for _, f := range formatters {
+-		if t.formatter(f) == nil {
+-			t.parseError("unknown formatter: %q", f)
+-		}
+-	}
+-
+-	return &variableElement{t.linenum, args, formatters}
+-}
+-
+-// extractFormatters extracts a list of formatters from words.
+-// After the final space-separated argument in a variable, formatters may be
+-// specified separated by pipe symbols. For example: {a b c|d|e}
+-// The words parameter still has the formatters joined by '|' in the last word.
+-// extractFormatters splits formatters, replaces the last word with the content
+-// found before the first '|' within it, and returns the formatters obtained.
+-// If no formatters are found in words, the default formatter is returned.
+-func extractFormatters(words []string) (formatters []string) {
+-	// "" is the default formatter.
+-	formatters = []string{""}
+-	if len(words) == 0 {
+-		return
+-	}
+-	var bar int
+-	lastWord := words[len(words)-1]
+-	if isQuote(lastWord[0]) {
+-		end := endQuote([]byte(lastWord), 0)
+-		if end < 0 || end+1 == len(lastWord) || lastWord[end+1] != '|' {
+-			return
+-		}
+-		bar = end + 1
+-	} else {
+-		bar = strings.IndexRune(lastWord, '|')
+-		if bar < 0 {
+-			return
+-		}
+-	}
+-	words[len(words)-1] = lastWord[0:bar]
+-	formatters = strings.Split(lastWord[bar+1:], "|")
+-	return
+-}
+-
+-// Grab the next item.  If it's simple, just append it to the template.
+-// Otherwise return its details.
+-func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
+-	tok, w = t.analyze(item)
+-	done = true // assume for simplicity
+-	switch tok {
+-	case tokComment:
+-		return
+-	case tokText:
+-		t.elems = append(t.elems, &textElement{item})
+-		return
+-	case tokLiteral:
+-		switch w[0] {
+-		case ".meta-left":
+-			t.elems = append(t.elems, &literalElement{t.ldelim})
+-		case ".meta-right":
+-			t.elems = append(t.elems, &literalElement{t.rdelim})
+-		case ".space":
+-			t.elems = append(t.elems, &literalElement{space})
+-		case ".tab":
+-			t.elems = append(t.elems, &literalElement{tab})
+-		default:
+-			t.parseError("internal error: unknown literal: %s", w[0])
+-		}
+-		return
+-	case tokVariable:
+-		t.elems = append(t.elems, t.newVariable(w))
+-		return
+-	}
+-	return false, tok, w
+-}
+-
+-// parseRepeated and parseSection are mutually recursive
+-
+-func (t *Template) parseRepeated(words []string) *repeatedElement {
+-	r := new(repeatedElement)
+-	t.elems = append(t.elems, r)
+-	r.linenum = t.linenum
+-	r.field = words[2]
+-	// Scan section, collecting true and false (.or) blocks.
+-	r.start = len(t.elems)
+-	r.or = -1
+-	r.altstart = -1
+-	r.altend = -1
+-Loop:
+-	for {
+-		item := t.nextItem()
+-		if len(item) == 0 {
+-			t.parseError("missing .end for .repeated section")
+-			break
+-		}
+-		done, tok, w := t.parseSimple(item)
+-		if done {
+-			continue
+-		}
+-		switch tok {
+-		case tokEnd:
+-			break Loop
+-		case tokOr:
+-			if r.or >= 0 {
+-				t.parseError("extra .or in .repeated section")
+-				break Loop
+-			}
+-			r.altend = len(t.elems)
+-			r.or = len(t.elems)
+-		case tokSection:
+-			t.parseSection(w)
+-		case tokRepeated:
+-			t.parseRepeated(w)
+-		case tokAlternates:
+-			if r.altstart >= 0 {
+-				t.parseError("extra .alternates in .repeated section")
+-				break Loop
+-			}
+-			if r.or >= 0 {
+-				t.parseError(".alternates inside .or block in .repeated section")
+-				break Loop
+-			}
+-			r.altstart = len(t.elems)
+-		default:
+-			t.parseError("internal error: unknown repeated section item: %s", item)
+-			break Loop
+-		}
+-	}
+-	if r.altend < 0 {
+-		r.altend = len(t.elems)
+-	}
+-	r.end = len(t.elems)
+-	return r
+-}
+-
+-func (t *Template) parseSection(words []string) *sectionElement {
+-	s := new(sectionElement)
+-	t.elems = append(t.elems, s)
+-	s.linenum = t.linenum
+-	s.field = words[1]
+-	// Scan section, collecting true and false (.or) blocks.
+-	s.start = len(t.elems)
+-	s.or = -1
+-Loop:
+-	for {
+-		item := t.nextItem()
+-		if len(item) == 0 {
+-			t.parseError("missing .end for .section")
+-			break
+-		}
+-		done, tok, w := t.parseSimple(item)
+-		if done {
+-			continue
+-		}
+-		switch tok {
+-		case tokEnd:
+-			break Loop
+-		case tokOr:
+-			if s.or >= 0 {
+-				t.parseError("extra .or in .section")
+-				break Loop
+-			}
+-			s.or = len(t.elems)
+-		case tokSection:
+-			t.parseSection(w)
+-		case tokRepeated:
+-			t.parseRepeated(w)
+-		case tokAlternates:
+-			t.parseError(".alternates not in .repeated")
+-		default:
+-			t.parseError("internal error: unknown section item: %s", item)
+-		}
+-	}
+-	s.end = len(t.elems)
+-	return s
+-}
+-
+-func (t *Template) parse() {
+-	for {
+-		item := t.nextItem()
+-		if len(item) == 0 {
+-			break
+-		}
+-		done, tok, w := t.parseSimple(item)
+-		if done {
+-			continue
+-		}
+-		switch tok {
+-		case tokOr, tokEnd, tokAlternates:
+-			t.parseError("unexpected %s", w[0])
+-		case tokSection:
+-			t.parseSection(w)
+-		case tokRepeated:
+-			t.parseRepeated(w)
+-		default:
+-			t.parseError("internal error: bad directive in parse: %s", item)
+-		}
+-	}
+-}
+-
+-// -- Execution
+-
+-// -- Public interface
+-
+-// Parse initializes a Template by parsing its definition.  The string
+-// s contains the template text.  If any errors occur, Parse returns
+-// the error.
+-func (t *Template) Parse(s string) (err error) {
+-	if t.elems == nil {
+-		return &Error{1, "template not allocated with New"}
+-	}
+-	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
+-		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
+-	}
+-	defer checkError(&err)
+-	t.buf = []byte(s)
+-	t.p = 0
+-	t.linenum = 1
+-	t.parse()
+-	return nil
+-}
+-
+-// ParseFile is like Parse but reads the template definition from the
+-// named file.
+-func (t *Template) ParseFile(filename string) (err error) {
+-	b, err := ioutil.ReadFile(filename)
+-	if err != nil {
+-		return err
+-	}
+-	return t.Parse(string(b))
+-}
+-
+-// Execute applies a parsed template to the specified data object,
+-// generating output to wr.
+-func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+-	// Extract the driver data.
+-	val := reflect.ValueOf(data)
+-	defer checkError(&err)
+-	t.p = 0
+-	t.execute(0, len(t.elems), &state{parent: nil, data: val, wr: wr})
+-	return nil
+-}
+-
+-// SetDelims sets the left and right delimiters for operations in the
+-// template.  They are validated during parsing.  They could be
+-// validated here but it's better to keep the routine simple.  The
+-// delimiters are very rarely invalid and Parse has the necessary
+-// error-handling interface already.
+-func (t *Template) SetDelims(left, right string) {
+-	t.ldelim = []byte(left)
+-	t.rdelim = []byte(right)
+-}
+-
+-// Parse creates a Template with default parameters (such as {} for
+-// metacharacters).  The string s contains the template text while
+-// the formatter map fmap, which may be nil, defines auxiliary functions
+-// for formatting variables.  The template is returned. If any errors
+-// occur, err will be non-nil.
+-func Parse(s string, fmap FormatterMap) (t *Template, err error) {
+-	t = New(fmap)
+-	err = t.Parse(s)
+-	if err != nil {
+-		t = nil
+-	}
+-	return
+-}
+-
+-// ParseFile is a wrapper function that creates a Template with default
+-// parameters (such as {} for metacharacters).  The filename identifies
+-// a file containing the template text, while the formatter map fmap, which
+-// may be nil, defines auxiliary functions for formatting variables.
+-// The template is returned. If any errors occur, err will be non-nil.
+-func ParseFile(filename string, fmap FormatterMap) (t *Template, err error) {
+-	b, err := ioutil.ReadFile(filename)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return Parse(string(b), fmap)
+-}
+-
+-// MustParse is like Parse but panics if the template cannot be parsed.
+-func MustParse(s string, fmap FormatterMap) *Template {
+-	t, err := Parse(s, fmap)
+-	if err != nil {
+-		panic("template.MustParse error: " + err.Error())
+-	}
+-	return t
+-}
+-
+-// MustParseFile is like ParseFile but panics if the file cannot be read
+-// or the template cannot be parsed.
+-func MustParseFile(filename string, fmap FormatterMap) *Template {
+-	b, err := ioutil.ReadFile(filename)
+-	if err != nil {
+-		panic("template.MustParseFile error: " + err.Error())
+-	}
+-	return MustParse(string(b), fmap)
+-}
+diff --git a/src/pkg/old/template/template_test.go b/src/pkg/old/template/template_test.go
+deleted file mode 100644
+index 854a548e5a..0000000000
+--- a/src/pkg/old/template/template_test.go
++++ /dev/null
+@@ -1,810 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package template
+-
+-import (
+-	"bytes"
+-	"encoding/json"
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"os"
+-	"strings"
+-	"testing"
+-)
+-
+-type Test struct {
+-	in, out, err string
+-}
+-
+-type T struct {
+-	Item  string
+-	Value string
+-}
+-
+-type U struct {
+-	Mp map[string]int
+-}
+-
+-type S struct {
+-	Header        string
+-	HeaderPtr     *string
+-	Integer       int
+-	IntegerPtr    *int
+-	NilPtr        *int
+-	InnerT        T
+-	InnerPointerT *T
+-	Data          []T
+-	Pdata         []*T
+-	Empty         []*T
+-	Emptystring   string
+-	Null          []*T
+-	Vec           []interface{}
+-	True          bool
+-	False         bool
+-	Mp            map[string]string
+-	JSON          interface{}
+-	Innermap      U
+-	Stringmap     map[string]string
+-	Ptrmap        map[string]*string
+-	Iface         interface{}
+-	Ifaceptr      interface{}
+-}
+-
+-func (s *S) PointerMethod() string { return "ptrmethod!" }
+-
+-func (s S) ValueMethod() string { return "valmethod!" }
+-
+-var t1 = T{"ItemNumber1", "ValueNumber1"}
+-var t2 = T{"ItemNumber2", "ValueNumber2"}
+-
+-func uppercase(v interface{}) string {
+-	s := v.(string)
+-	t := ""
+-	for i := 0; i < len(s); i++ {
+-		c := s[i]
+-		if 'a' <= c && c <= 'z' {
+-			c = c + 'A' - 'a'
+-		}
+-		t += string(c)
+-	}
+-	return t
+-}
+-
+-func plus1(v interface{}) string {
+-	i := v.(int)
+-	return fmt.Sprint(i + 1)
+-}
+-
+-func writer(f func(interface{}) string) func(io.Writer, string, ...interface{}) {
+-	return func(w io.Writer, format string, v ...interface{}) {
+-		if len(v) != 1 {
+-			panic("test writer expected one arg")
+-		}
+-		io.WriteString(w, f(v[0]))
+-	}
+-}
+-
+-func multiword(w io.Writer, format string, value ...interface{}) {
+-	for _, v := range value {
+-		fmt.Fprintf(w, "<%v>", v)
+-	}
+-}
+-
+-func printf(w io.Writer, format string, v ...interface{}) {
+-	io.WriteString(w, fmt.Sprintf(v[0].(string), v[1:]...))
+-}
+-
+-var formatters = FormatterMap{
+-	"uppercase": writer(uppercase),
+-	"+1":        writer(plus1),
+-	"multiword": multiword,
+-	"printf":    printf,
+-}
+-
+-var tests = []*Test{
+-	// Simple
+-	{"", "", ""},
+-	{"abc", "abc", ""},
+-	{"abc\ndef\n", "abc\ndef\n", ""},
+-	{" {.meta-left}   \n", "{", ""},
+-	{" {.meta-right}   \n", "}", ""},
+-	{" {.space}   \n", " ", ""},
+-	{" {.tab}   \n", "\t", ""},
+-	{"     {#comment}   \n", "", ""},
+-	{"\tSome Text\t\n", "\tSome Text\t\n", ""},
+-	{" {.meta-right} {.meta-right} {.meta-right} \n", " } } } \n", ""},
+-
+-	// Variables at top level
+-	{
+-		in: "{Header}={Integer}\n",
+-
+-		out: "Header=77\n",
+-	},
+-
+-	{
+-		in: "Pointers: {*HeaderPtr}={*IntegerPtr}\n",
+-
+-		out: "Pointers: Header=77\n",
+-	},
+-
+-	{
+-		in: "Stars but not pointers: {*Header}={*Integer}\n",
+-
+-		out: "Stars but not pointers: Header=77\n",
+-	},
+-
+-	{
+-		in: "nil pointer: {*NilPtr}={*Integer}\n",
+-
+-		out: "nil pointer: <nil>=77\n",
+-	},
+-
+-	{
+-		in: `{"Strings" ":"} {""} {"|"} {"\t\u0123 \x23\\"} {"\"}{\\"}`,
+-
+-		out: "Strings:  | \t\u0123 \x23\\ \"}{\\",
+-	},
+-
+-	{
+-		in: "{`Raw strings` `:`} {``} {`|`} {`\\t\\u0123 \\x23\\`} {`}{\\`}",
+-
+-		out: "Raw strings:  | \\t\\u0123 \\x23\\ }{\\",
+-	},
+-
+-	{
+-		in: "Characters: {'a'} {'\\u0123'} {' '} {'{'} {'|'} {'}'}",
+-
+-		out: "Characters: 97 291 32 123 124 125",
+-	},
+-
+-	{
+-		in: "Integers: {1} {-2} {+42} {0777} {0x0a}",
+-
+-		out: "Integers: 1 -2 42 511 10",
+-	},
+-
+-	{
+-		in: "Floats: {.5} {-.5} {1.1} {-2.2} {+42.1} {1e10} {1.2e-3} {1.2e3} {-1.2e3}",
+-
+-		out: "Floats: 0.5 -0.5 1.1 -2.2 42.1 1e+10 0.0012 1200 -1200",
+-	},
+-
+-	// Method at top level
+-	{
+-		in: "ptrmethod={PointerMethod}\n",
+-
+-		out: "ptrmethod=ptrmethod!\n",
+-	},
+-
+-	{
+-		in: "valmethod={ValueMethod}\n",
+-
+-		out: "valmethod=valmethod!\n",
+-	},
+-
+-	// Section
+-	{
+-		in: "{.section Data }\n" +
+-			"some text for the section\n" +
+-			"{.end}\n",
+-
+-		out: "some text for the section\n",
+-	},
+-	{
+-		in: "{.section Data }\n" +
+-			"{Header}={Integer}\n" +
+-			"{.end}\n",
+-
+-		out: "Header=77\n",
+-	},
+-	{
+-		in: "{.section Pdata }\n" +
+-			"{Header}={Integer}\n" +
+-			"{.end}\n",
+-
+-		out: "Header=77\n",
+-	},
+-	{
+-		in: "{.section Pdata }\n" +
+-			"data present\n" +
+-			"{.or}\n" +
+-			"data not present\n" +
+-			"{.end}\n",
+-
+-		out: "data present\n",
+-	},
+-	{
+-		in: "{.section Empty }\n" +
+-			"data present\n" +
+-			"{.or}\n" +
+-			"data not present\n" +
+-			"{.end}\n",
+-
+-		out: "data not present\n",
+-	},
+-	{
+-		in: "{.section Null }\n" +
+-			"data present\n" +
+-			"{.or}\n" +
+-			"data not present\n" +
+-			"{.end}\n",
+-
+-		out: "data not present\n",
+-	},
+-	{
+-		in: "{.section Pdata }\n" +
+-			"{Header}={Integer}\n" +
+-			"{.section @ }\n" +
+-			"{Header}={Integer}\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "Header=77\n" +
+-			"Header=77\n",
+-	},
+-
+-	{
+-		in: "{.section Data}{.end} {Header}\n",
+-
+-		out: " Header\n",
+-	},
+-
+-	{
+-		in: "{.section Integer}{@}{.end}",
+-
+-		out: "77",
+-	},
+-
+-	// Repeated
+-	{
+-		in: "{.section Pdata }\n" +
+-			"{.repeated section @ }\n" +
+-			"{Item}={Value}\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "ItemNumber1=ValueNumber1\n" +
+-			"ItemNumber2=ValueNumber2\n",
+-	},
+-	{
+-		in: "{.section Pdata }\n" +
+-			"{.repeated section @ }\n" +
+-			"{Item}={Value}\n" +
+-			"{.or}\n" +
+-			"this should not appear\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "ItemNumber1=ValueNumber1\n" +
+-			"ItemNumber2=ValueNumber2\n",
+-	},
+-	{
+-		in: "{.section @ }\n" +
+-			"{.repeated section Empty }\n" +
+-			"{Item}={Value}\n" +
+-			"{.or}\n" +
+-			"this should appear: empty field\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "this should appear: empty field\n",
+-	},
+-	{
+-		in: "{.repeated section Pdata }\n" +
+-			"{Item}\n" +
+-			"{.alternates with}\n" +
+-			"is\nover\nmultiple\nlines\n" +
+-			"{.end}\n",
+-
+-		out: "ItemNumber1\n" +
+-			"is\nover\nmultiple\nlines\n" +
+-			"ItemNumber2\n",
+-	},
+-	{
+-		in: "{.repeated section Pdata }\n" +
+-			"{Item}\n" +
+-			"{.alternates with}\n" +
+-			"is\nover\nmultiple\nlines\n" +
+-			" {.end}\n",
+-
+-		out: "ItemNumber1\n" +
+-			"is\nover\nmultiple\nlines\n" +
+-			"ItemNumber2\n",
+-	},
+-	{
+-		in: "{.section Pdata }\n" +
+-			"{.repeated section @ }\n" +
+-			"{Item}={Value}\n" +
+-			"{.alternates with}DIVIDER\n" +
+-			"{.or}\n" +
+-			"this should not appear\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "ItemNumber1=ValueNumber1\n" +
+-			"DIVIDER\n" +
+-			"ItemNumber2=ValueNumber2\n",
+-	},
+-	{
+-		in: "{.repeated section Vec }\n" +
+-			"{@}\n" +
+-			"{.end}\n",
+-
+-		out: "elt1\n" +
+-			"elt2\n",
+-	},
+-	// Same but with a space before {.end}: was a bug.
+-	{
+-		in: "{.repeated section Vec }\n" +
+-			"{@} {.end}\n",
+-
+-		out: "elt1 elt2 \n",
+-	},
+-	{
+-		in: "{.repeated section Integer}{.end}",
+-
+-		err: "line 1: .repeated: cannot repeat Integer (type int)",
+-	},
+-
+-	// Nested names
+-	{
+-		in: "{.section @ }\n" +
+-			"{InnerT.Item}={InnerT.Value}\n" +
+-			"{.end}",
+-
+-		out: "ItemNumber1=ValueNumber1\n",
+-	},
+-	{
+-		in: "{.section @ }\n" +
+-			"{InnerT.Item}={.section InnerT}{.section Value}{@}{.end}{.end}\n" +
+-			"{.end}",
+-
+-		out: "ItemNumber1=ValueNumber1\n",
+-	},
+-
+-	{
+-		in: "{.section Emptystring}emptystring{.end}\n" +
+-			"{.section Header}header{.end}\n",
+-
+-		out: "\nheader\n",
+-	},
+-
+-	{
+-		in: "{.section True}1{.or}2{.end}\n" +
+-			"{.section False}3{.or}4{.end}\n",
+-
+-		out: "1\n4\n",
+-	},
+-
+-	// Maps
+-
+-	{
+-		in: "{Mp.mapkey}\n",
+-
+-		out: "Ahoy!\n",
+-	},
+-	{
+-		in: "{Innermap.Mp.innerkey}\n",
+-
+-		out: "55\n",
+-	},
+-	{
+-		in: "{.section Innermap}{.section Mp}{innerkey}{.end}{.end}\n",
+-
+-		out: "55\n",
+-	},
+-	{
+-		in: "{.section JSON}{.repeated section maps}{a}{b}{.end}{.end}\n",
+-
+-		out: "1234\n",
+-	},
+-	{
+-		in: "{Stringmap.stringkey1}\n",
+-
+-		out: "stringresult\n",
+-	},
+-	{
+-		in: "{.repeated section Stringmap}\n" +
+-			"{@}\n" +
+-			"{.end}",
+-
+-		out: "stringresult\n" +
+-			"stringresult\n",
+-	},
+-	{
+-		in: "{.repeated section Stringmap}\n" +
+-			"\t{@}\n" +
+-			"{.end}",
+-
+-		out: "\tstringresult\n" +
+-			"\tstringresult\n",
+-	},
+-	{
+-		in: "{*Ptrmap.stringkey1}\n",
+-
+-		out: "pointedToString\n",
+-	},
+-	{
+-		in: "{.repeated section Ptrmap}\n" +
+-			"{*@}\n" +
+-			"{.end}",
+-
+-		out: "pointedToString\n" +
+-			"pointedToString\n",
+-	},
+-
+-	// Interface values
+-
+-	{
+-		in: "{Iface}",
+-
+-		out: "[1 2 3]",
+-	},
+-	{
+-		in: "{.repeated section Iface}{@}{.alternates with} {.end}",
+-
+-		out: "1 2 3",
+-	},
+-	{
+-		in: "{.section Iface}{@}{.end}",
+-
+-		out: "[1 2 3]",
+-	},
+-	{
+-		in: "{.section Ifaceptr}{Item} {Value}{.end}",
+-
+-		out: "Item Value",
+-	},
+-}
+-
+-func TestAll(t *testing.T) {
+-	// Parse
+-	testAll(t, func(test *Test) (*Template, error) { return Parse(test.in, formatters) })
+-	// ParseFile
+-	f, err := ioutil.TempFile("", "template-test")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer func() {
+-		name := f.Name()
+-		f.Close()
+-		os.Remove(name)
+-	}()
+-	testAll(t, func(test *Test) (*Template, error) {
+-		err := ioutil.WriteFile(f.Name(), []byte(test.in), 0600)
+-		if err != nil {
+-			t.Error("unexpected write error:", err)
+-			return nil, err
+-		}
+-		return ParseFile(f.Name(), formatters)
+-	})
+-	// tmpl.ParseFile
+-	testAll(t, func(test *Test) (*Template, error) {
+-		err := ioutil.WriteFile(f.Name(), []byte(test.in), 0600)
+-		if err != nil {
+-			t.Error("unexpected write error:", err)
+-			return nil, err
+-		}
+-		tmpl := New(formatters)
+-		return tmpl, tmpl.ParseFile(f.Name())
+-	})
+-}
+-
+-func testAll(t *testing.T, parseFunc func(*Test) (*Template, error)) {
+-	s := new(S)
+-	// initialized by hand for clarity.
+-	s.Header = "Header"
+-	s.HeaderPtr = &s.Header
+-	s.Integer = 77
+-	s.IntegerPtr = &s.Integer
+-	s.InnerT = t1
+-	s.Data = []T{t1, t2}
+-	s.Pdata = []*T{&t1, &t2}
+-	s.Empty = []*T{}
+-	s.Null = nil
+-	s.Vec = []interface{}{"elt1", "elt2"}
+-	s.True = true
+-	s.False = false
+-	s.Mp = make(map[string]string)
+-	s.Mp["mapkey"] = "Ahoy!"
+-	json.Unmarshal([]byte(`{"maps":[{"a":1,"b":2},{"a":3,"b":4}]}`), &s.JSON)
+-	s.Innermap.Mp = make(map[string]int)
+-	s.Innermap.Mp["innerkey"] = 55
+-	s.Stringmap = make(map[string]string)
+-	s.Stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
+-	s.Stringmap["stringkey2"] = "stringresult"
+-	s.Ptrmap = make(map[string]*string)
+-	x := "pointedToString"
+-	s.Ptrmap["stringkey1"] = &x // the same value so repeated section is order-independent
+-	s.Ptrmap["stringkey2"] = &x
+-	s.Iface = []int{1, 2, 3}
+-	s.Ifaceptr = &T{"Item", "Value"}
+-
+-	var buf bytes.Buffer
+-	for _, test := range tests {
+-		buf.Reset()
+-		tmpl, err := parseFunc(test)
+-		if err != nil {
+-			t.Error("unexpected parse error: ", err)
+-			continue
+-		}
+-		err = tmpl.Execute(&buf, s)
+-		if test.err == "" {
+-			if err != nil {
+-				t.Error("unexpected execute error:", err)
+-			}
+-		} else {
+-			if err == nil {
+-				t.Errorf("expected execute error %q, got nil", test.err)
+-			} else if err.Error() != test.err {
+-				t.Errorf("expected execute error %q, got %q", test.err, err.Error())
+-			}
+-		}
+-		if buf.String() != test.out {
+-			t.Errorf("for %q: expected %q got %q", test.in, test.out, buf.String())
+-		}
+-	}
+-}
+-
+-func TestMapDriverType(t *testing.T) {
+-	mp := map[string]string{"footer": "Ahoy!"}
+-	tmpl, err := Parse("template: {footer}", nil)
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	var b bytes.Buffer
+-	err = tmpl.Execute(&b, mp)
+-	if err != nil {
+-		t.Error("unexpected execute error:", err)
+-	}
+-	s := b.String()
+-	expect := "template: Ahoy!"
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-}
+-
+-func TestMapNoEntry(t *testing.T) {
+-	mp := make(map[string]int)
+-	tmpl, err := Parse("template: {notthere}!", nil)
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	var b bytes.Buffer
+-	err = tmpl.Execute(&b, mp)
+-	if err != nil {
+-		t.Error("unexpected execute error:", err)
+-	}
+-	s := b.String()
+-	expect := "template: 0!"
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-}
+-
+-func TestStringDriverType(t *testing.T) {
+-	tmpl, err := Parse("template: {@}", nil)
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	var b bytes.Buffer
+-	err = tmpl.Execute(&b, "hello")
+-	if err != nil {
+-		t.Error("unexpected execute error:", err)
+-	}
+-	s := b.String()
+-	expect := "template: hello"
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-}
+-
+-func TestTwice(t *testing.T) {
+-	tmpl, err := Parse("template: {@}", nil)
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	var b bytes.Buffer
+-	err = tmpl.Execute(&b, "hello")
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	s := b.String()
+-	expect := "template: hello"
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-	err = tmpl.Execute(&b, "hello")
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	s = b.String()
+-	expect += expect
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-}
+-
+-func TestCustomDelims(t *testing.T) {
+-	// try various lengths.  zero should catch error.
+-	for i := 0; i < 7; i++ {
+-		for j := 0; j < 7; j++ {
+-			tmpl := New(nil)
+-			// first two chars deliberately the same to test equal left and right delims
+-			ldelim := "$!#$%^&"[0:i]
+-			rdelim := "$*&^%$!"[0:j]
+-			tmpl.SetDelims(ldelim, rdelim)
+-			// if braces, this would be template: {@}{.meta-left}{.meta-right}
+-			text := "template: " +
+-				ldelim + "@" + rdelim +
+-				ldelim + ".meta-left" + rdelim +
+-				ldelim + ".meta-right" + rdelim
+-			err := tmpl.Parse(text)
+-			if err != nil {
+-				if i == 0 || j == 0 { // expected
+-					continue
+-				}
+-				t.Error("unexpected parse error:", err)
+-			} else if i == 0 || j == 0 {
+-				t.Errorf("expected parse error for empty delimiter: %d %d %q %q", i, j, ldelim, rdelim)
+-				continue
+-			}
+-			var b bytes.Buffer
+-			err = tmpl.Execute(&b, "hello")
+-			s := b.String()
+-			if s != "template: hello"+ldelim+rdelim {
+-				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
+-			}
+-		}
+-	}
+-}
+-
+-// Test that a variable evaluates to the field itself and does not further indirection
+-func TestVarIndirection(t *testing.T) {
+-	s := new(S)
+-	// initialized by hand for clarity.
+-	s.InnerPointerT = &t1
+-
+-	var buf bytes.Buffer
+-	input := "{.section @}{InnerPointerT}{.end}"
+-	tmpl, err := Parse(input, nil)
+-	if err != nil {
+-		t.Fatal("unexpected parse error:", err)
+-	}
+-	err = tmpl.Execute(&buf, s)
+-	if err != nil {
+-		t.Fatal("unexpected execute error:", err)
+-	}
+-	expect := fmt.Sprintf("%v", &t1) // output should be hex address of t1
+-	if buf.String() != expect {
+-		t.Errorf("for %q: expected %q got %q", input, expect, buf.String())
+-	}
+-}
+-
+-func TestHTMLFormatterWithByte(t *testing.T) {
+-	s := "Test string."
+-	b := []byte(s)
+-	var buf bytes.Buffer
+-	HTMLFormatter(&buf, "", b)
+-	bs := buf.String()
+-	if bs != s {
+-		t.Errorf("munged []byte, expected: %s got: %s", s, bs)
+-	}
+-}
+-
+-type UF struct {
+-	I int
+-	s string
+-}
+-
+-func TestReferenceToUnexported(t *testing.T) {
+-	u := &UF{3, "hello"}
+-	var buf bytes.Buffer
+-	input := "{.section @}{I}{s}{.end}"
+-	tmpl, err := Parse(input, nil)
+-	if err != nil {
+-		t.Fatal("unexpected parse error:", err)
+-	}
+-	err = tmpl.Execute(&buf, u)
+-	if err == nil {
+-		t.Fatal("expected execute error, got none")
+-	}
+-	if strings.Index(err.Error(), "not exported") < 0 {
+-		t.Fatal("expected unexported error; got", err)
+-	}
+-}
+-
+-var formatterTests = []Test{
+-	{
+-		in: "{Header|uppercase}={Integer|+1}\n" +
+-			"{Header|html}={Integer|str}\n",
+-
+-		out: "HEADER=78\n" +
+-			"Header=77\n",
+-	},
+-
+-	{
+-		in: "{Header|uppercase}={Integer Header|multiword}\n" +
+-			"{Header|html}={Header Integer|multiword}\n" +
+-			"{Header|html}={Header Integer}\n",
+-
+-		out: "HEADER=<77><Header>\n" +
+-			"Header=<Header><77>\n" +
+-			"Header=Header77\n",
+-	},
+-	{
+-		in: "{Raw}\n" +
+-			"{Raw|html}\n",
+-
+-		out: "a <&> b\n" +
+-			"a &lt;&amp;&gt; b\n",
+-	},
+-	{
+-		in:  "{Bytes}",
+-		out: "hello",
+-	},
+-	{
+-		in:  "{Raw|uppercase|html|html}",
+-		out: "A &amp;lt;&amp;amp;&amp;gt; B",
+-	},
+-	{
+-		in:  "{Header Integer|multiword|html}",
+-		out: "&lt;Header&gt;&lt;77&gt;",
+-	},
+-	{
+-		in:  "{Integer|no_formatter|html}",
+-		err: `unknown formatter: "no_formatter"`,
+-	},
+-	{
+-		in:  "{Integer|||||}", // empty string is a valid formatter
+-		out: "77",
+-	},
+-	{
+-		in:  `{"%.02f 0x%02X" 1.1 10|printf}`,
+-		out: "1.10 0x0A",
+-	},
+-	{
+-		in:  `{""|}{""||}{""|printf}`, // Issue #1896.
+-		out: "",
+-	},
+-}
+-
+-func TestFormatters(t *testing.T) {
+-	data := map[string]interface{}{
+-		"Header":  "Header",
+-		"Integer": 77,
+-		"Raw":     "a <&> b",
+-		"Bytes":   []byte("hello"),
+-	}
+-	for _, c := range formatterTests {
+-		tmpl, err := Parse(c.in, formatters)
+-		if err != nil {
+-			if c.err == "" {
+-				t.Error("unexpected parse error:", err)
+-				continue
+-			}
+-			if strings.Index(err.Error(), c.err) < 0 {
+-				t.Errorf("unexpected error: expected %q, got %q", c.err, err.Error())
+-				continue
+-			}
+-		} else {
+-			if c.err != "" {
+-				t.Errorf("For %q, expected error, got none.", c.in)
+-				continue
+-			}
+-			var buf bytes.Buffer
+-			err = tmpl.Execute(&buf, data)
+-			if err != nil {
+-				t.Error("unexpected Execute error: ", err)
+-				continue
+-			}
+-			actual := buf.String()
+-			if actual != c.out {
+-				t.Errorf("for %q: expected %q but got %q.", c.in, c.out, actual)
+-			}
+-		}
+-	}
+-}

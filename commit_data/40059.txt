@@ -11,7 +11,34 @@ Date:   Fri Apr 12 14:29:59 2019 -0700
     Run-TryBot: Ross Light <light@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go             | 2 +-
  src/cmd/go/internal/modget/get.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 008e306efb..2cc00f29b1 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -549,7 +549,7 @@
+ // For each named package or package pattern, get must decide which version of
+ // the corresponding module to use. By default, get chooses the latest tagged
+ // release version, such as v0.4.5 or v1.2.3. If there are no tagged release
+-// versions, get chooses the latest tagged prerelease version, such as
++// versions, get chooses the latest tagged pre-release version, such as
+ // v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
+ // known commit.
+ //
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 40bbd50746..c8368acce3 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -39,7 +39,7 @@ The first step is to resolve which dependencies to add.
+ For each named package or package pattern, get must decide which version of
+ the corresponding module to use. By default, get chooses the latest tagged
+ release version, such as v0.4.5 or v1.2.3. If there are no tagged release
+-versions, get chooses the latest tagged prerelease version, such as
++versions, get chooses the latest tagged pre-release version, such as
+ v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
+ known commit.
+ 

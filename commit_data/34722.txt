@@ -25,7 +25,7 @@ Date:   Thu Nov 9 10:29:23 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/76876
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/alldocs.go                  | 32 ++++++++++++++++------------
  src/cmd/go/go_test.go                  | 14 ++++++++++++
  src/cmd/go/internal/load/flag.go       |  4 ++--
@@ -33,3 +33,216 @@ Date:   Thu Nov 9 10:29:23 2017 -0500
  src/cmd/go/internal/test/test.go       | 39 +++++++++++++++++++++-------------
  src/cmd/go/testdata/src/sleepybad/p.go |  5 +++++
  6 files changed, 66 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 5649211aee..ddda393f47 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -576,7 +576,7 @@
+ //
+ // Usage:
+ //
+-// 	go list [-e] [-f format] [-json] [build flags] [packages]
++// 	go list [-deps] [-e] [-f format] [-json] [build flags] [packages]
+ //
+ // List lists the packages named by the import paths, one per line.
+ //
+@@ -680,6 +680,9 @@
+ // The -json flag causes the package data to be printed in JSON format
+ // instead of using the template format.
+ //
++// The -deps flag causes list to add to its output all the dependencies of
++// the packages named on the command line.
++//
+ // The -e flag changes the handling of erroneous packages, those that
+ // cannot be found or are malformed. By default, the list command
+ // prints an error to standard error for each erroneous package and
+@@ -761,20 +764,21 @@
+ //
+ // In local directory mode, go test compiles and tests the package sources
+ // found in the current directory and then runs the resulting test binary.
+-// In this mode, the test binary runs with standard output and standard error
+-// connected directly to the go command's own standard output and standard
+-// error, and test result caching (discussed below) is disabled.
+-// After the package test finishes, go test prints to standard output a
+-// summary line showing the test status ('ok' or 'FAIL'), package name,
+-// and elapsed time.
++// In this mode, caching (discussed below) is disabled. After the package test
++// finishes, go test prints a summary line showing the test status ('ok' or 'FAIL'),
++// package name, and elapsed time.
+ //
+ // In package list mode, go test compiles and tests each of the packages
+ // listed on the command line. If a package test passes, go test prints only
+ // the final 'ok' summary line. If a package test fails, go test prints the
+ // full test output. If invoked with the -bench or -v flag, go test prints
+ // the full output even for passing package tests, in order to display the
+-// requested benchmark results or verbose logging. In package list mode,
+-// go test prints all test output and summary lines to standard output.
++// requested benchmark results or verbose logging.
++//
++// All test output and summary lines are printed to the go command's standard
++// output, even if the test printed them to its own standard error.
++// (The go command's standard error is reserved for printing errors building
++// the tests.)
+ //
+ // In package list mode, go test also caches successful package test results.
+ // If go test has cached a previous test run using the same test binary and
+@@ -784,7 +788,9 @@
+ // binary again. In the summary line, go test prints '(cached)' in place of
+ // the elapsed time. To disable test caching, use any test flag or argument
+ // other than the cacheable flags. The idiomatic way to disable test caching
+-// explicitly is to use -count=1.
++// explicitly is to use -count=1. A cached result is treated as executing in
++// no time at all, so a successful package test result will be cached and reused
++// regardless of -timeout setting.
+ //
+ // In addition to the build flags, the flags handled by 'go test' itself are:
+ //
+@@ -1517,10 +1523,10 @@
+ // 			significantly more expensive.
+ // 	    Sets -cover.
+ //
+-// 	-coverpkg pkg1,pkg2,pkg3
+-// 	    Apply coverage analysis in each test to the given list of packages.
++// 	-coverpkg pattern1,pattern2,pattern3
++// 	    Apply coverage analysis in each test to packages matching the patterns.
+ // 	    The default is for each test to analyze only the package being tested.
+-// 	    Packages are specified as import paths.
++// 	    See 'go help packages' for a description of package patterns.
+ // 	    Sets -cover.
+ //
+ // 	-cpu 1,2,4
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 84fcac25ed..5e3c2704a6 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2416,6 +2416,20 @@ func TestCoverageImportMainLoop(t *testing.T) {
+ 	tg.grepStderr("not an importable package", "did not detect import main")
+ }
+ 
++func TestCoveragePattern(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++
++	// If coverpkg=sleepy... expands by package loading
++	// (as opposed to pattern matching on deps)
++	// then it will try to load sleepybad, which does not compile,
++	// and the test command will fail.
++	tg.run("test", "-coverprofile="+filepath.Join(tg.tempdir, "cover.out"), "-coverpkg=sleepy...", "-run=^$", "sleepy1")
++}
++
+ func TestPluginNonMain(t *testing.T) {
+ 	wd, err := os.Getwd()
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/load/flag.go b/src/cmd/go/internal/load/flag.go
+index 0a15368b1c..d2db3ee4a0 100644
+--- a/src/cmd/go/internal/load/flag.go
++++ b/src/cmd/go/internal/load/flag.go
+@@ -56,7 +56,7 @@ func (f *PerPackageFlag) set(v, cwd string) error {
+ 			return fmt.Errorf("missing <pattern> in <pattern>=<value>")
+ 		}
+ 		pattern := v[:i]
+-		match = matchPackage(pattern, cwd)
++		match = MatchPackage(pattern, cwd)
+ 		v = v[i+1:]
+ 	}
+ 	flags, err := str.SplitQuotedFields(v)
+@@ -104,7 +104,7 @@ func setCmdlinePatterns(args []string, cwd string) {
+ 	}
+ 	cmdlineMatchers = nil // allow reset for testing
+ 	for _, arg := range args {
+-		cmdlineMatchers = append(cmdlineMatchers, matchPackage(arg, cwd))
++		cmdlineMatchers = append(cmdlineMatchers, MatchPackage(arg, cwd))
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/load/search.go b/src/cmd/go/internal/load/search.go
+index e18f69a223..595de07904 100644
+--- a/src/cmd/go/internal/load/search.go
++++ b/src/cmd/go/internal/load/search.go
+@@ -266,8 +266,8 @@ func matchPattern(pattern string) func(name string) bool {
+ 	}
+ }
+ 
+-// matchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
+-func matchPackage(pattern, cwd string) func(*Package) bool {
++// MatchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
++func MatchPackage(pattern, cwd string) func(*Package) bool {
+ 	switch {
+ 	case strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../") || pattern == "." || pattern == "..":
+ 		// Split pattern into leading pattern-free directory path
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 0ead178b9a..0a0f149e7d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -220,10 +220,10 @@ const testFlag2 = `
+ 			significantly more expensive.
+ 	    Sets -cover.
+ 
+-	-coverpkg pkg1,pkg2,pkg3
+-	    Apply coverage analysis in each test to the given list of packages.
++	-coverpkg pattern1,pattern2,pattern3
++	    Apply coverage analysis in each test to packages matching the patterns.
+ 	    The default is for each test to analyze only the package being tested.
+-	    Packages are specified as import paths.
++	    See 'go help packages' for a description of package patterns.
+ 	    Sets -cover.
+ 
+ 	-cpu 1,2,4
+@@ -604,21 +604,30 @@ func runTest(cmd *base.Command, args []string) {
+ 	var builds, runs, prints []*work.Action
+ 
+ 	if testCoverPaths != nil {
+-		// Load packages that were asked about for coverage.
+-		// packagesForBuild exits if the packages cannot be loaded.
+-		testCoverPkgs = load.PackagesForBuild(testCoverPaths)
++		match := make([]func(*load.Package) bool, len(testCoverPaths))
++		matched := make([]bool, len(testCoverPaths))
++		for i := range testCoverPaths {
++			match[i] = load.MatchPackage(testCoverPaths[i], base.Cwd)
++		}
+ 
+-		// Warn about -coverpkg arguments that are not actually used.
+-		used := make(map[string]bool)
+-		for _, p := range pkgs {
+-			used[p.ImportPath] = true
+-			for _, dep := range p.Deps {
+-				used[dep] = true
++		// Select for coverage all dependencies matching the testCoverPaths patterns.
++		for _, p := range load.PackageList(pkgs) {
++			haveMatch := false
++			for i := range testCoverPaths {
++				if match[i](p) {
++					matched[i] = true
++					haveMatch = true
++				}
++			}
++			if haveMatch {
++				testCoverPkgs = append(testCoverPkgs, p)
+ 			}
+ 		}
+-		for _, p := range testCoverPkgs {
+-			if !used[p.ImportPath] {
+-				fmt.Fprintf(os.Stderr, "warning: no packages being tested depend on %s\n", p.ImportPath)
++
++		// Warn about -coverpkg arguments that are not actually used.
++		for i := range testCoverPaths {
++			if !matched[i] {
++				fmt.Fprintf(os.Stderr, "warning: no packages being tested depend on matches for pattern %s\n", testCoverPaths[i])
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/go/testdata/src/sleepybad/p.go b/src/cmd/go/testdata/src/sleepybad/p.go
+new file mode 100644
+index 0000000000..e05b403e39
+--- /dev/null
++++ b/src/cmd/go/testdata/src/sleepybad/p.go
+@@ -0,0 +1,5 @@
++package p
++
++// missing import
++
++var _ = io.DoesNotExist

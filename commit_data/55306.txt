@@ -12,8 +12,33 @@ Date:   Tue Feb 8 14:22:42 2022 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/5501685e611fa764    | 2 ++
  .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/71634114e78567cf    | 2 ++
  .../debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/c73dce23c1f2494c    | 2 ++
  3 files changed, 6 insertions(+)
+
+diff --git a/src/runtime/debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/5501685e611fa764 b/src/runtime/debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/5501685e611fa764
+new file mode 100644
+index 0000000000..4ab5d9297b
+--- /dev/null
++++ b/src/runtime/debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/5501685e611fa764
+@@ -0,0 +1,2 @@
++go test fuzz v1
++string("mod\t\t0\n")
+diff --git a/src/runtime/debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/71634114e78567cf b/src/runtime/debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/71634114e78567cf
+new file mode 100644
+index 0000000000..741c4df882
+--- /dev/null
++++ b/src/runtime/debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/71634114e78567cf
+@@ -0,0 +1,2 @@
++go test fuzz v1
++string("mod\t0\t\n")
+diff --git a/src/runtime/debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/c73dce23c1f2494c b/src/runtime/debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/c73dce23c1f2494c
+new file mode 100644
+index 0000000000..60f9338339
+--- /dev/null
++++ b/src/runtime/debug/testdata/fuzz/FuzzParseBuildInfoRoundTrip/c73dce23c1f2494c
+@@ -0,0 +1,2 @@
++go test fuzz v1
++string("build\t0=\" 0\"\n")

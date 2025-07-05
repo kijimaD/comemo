@@ -18,7 +18,110 @@ Date:   Sun Mar 5 19:44:34 2023 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go | 26 +++++++++-----------------
  src/go/types/lookup.go                    | 26 +++++++++-----------------
  2 files changed, 18 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index c19a6571c3..855bf2a24c 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -349,7 +349,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 
+ 	state := ok
+ 	var m *Func // method on T we're trying to implement
+-	var f *Func // method on V, if found (state is one of ok, wrongName, wrongSig, ptrRecv)
++	var f *Func // method on V, if found (state is one of ok, wrongName, wrongSig)
+ 
+ 	if u, _ := under(V).(*Interface); u != nil {
+ 		tset := u.typeSet()
+@@ -371,29 +371,21 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		}
+ 	} else {
+ 		for _, m = range methods {
+-			obj, _, _ := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
++			obj, _, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
+ 
+ 			// check if m is on *V, or on V with case-folding
+ 			if obj == nil {
+-				state = notFound
+-				// TODO(gri) Instead of NewPointer(V) below, can we just set the "addressable" argument?
+-				obj, _, _ = lookupFieldOrMethodImpl(NewPointer(V), false, m.pkg, m.name, false)
+-				if obj != nil {
+-					f, _ = obj.(*Func)
+-					if f != nil {
+-						state = ptrRecv
+-					}
+-					// otherwise we found a field, keep state == notFound
++				if indirect {
++					state = ptrRecv
+ 					break
+ 				}
+ 				obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+-				if obj != nil {
+-					f, _ = obj.(*Func)
+-					if f != nil {
+-						state = wrongName
+-					}
+-					// otherwise we found a (differently spelled) field, keep state == notFound
++				f, _ = obj.(*Func)
++				if f != nil {
++					state = wrongName
++					break
+ 				}
++				state = notFound
+ 				break
+ 			}
+ 
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index c59e5e6914..a2f7e7ea50 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -351,7 +351,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 
+ 	state := ok
+ 	var m *Func // method on T we're trying to implement
+-	var f *Func // method on V, if found (state is one of ok, wrongName, wrongSig, ptrRecv)
++	var f *Func // method on V, if found (state is one of ok, wrongName, wrongSig)
+ 
+ 	if u, _ := under(V).(*Interface); u != nil {
+ 		tset := u.typeSet()
+@@ -373,29 +373,21 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		}
+ 	} else {
+ 		for _, m = range methods {
+-			obj, _, _ := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
++			obj, _, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
+ 
+ 			// check if m is on *V, or on V with case-folding
+ 			if obj == nil {
+-				state = notFound
+-				// TODO(gri) Instead of NewPointer(V) below, can we just set the "addressable" argument?
+-				obj, _, _ = lookupFieldOrMethodImpl(NewPointer(V), false, m.pkg, m.name, false)
+-				if obj != nil {
+-					f, _ = obj.(*Func)
+-					if f != nil {
+-						state = ptrRecv
+-					}
+-					// otherwise we found a field, keep state == notFound
++				if indirect {
++					state = ptrRecv
+ 					break
+ 				}
+ 				obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+-				if obj != nil {
+-					f, _ = obj.(*Func)
+-					if f != nil {
+-						state = wrongName
+-					}
+-					// otherwise we found a (differently spelled) field, keep state == notFound
++				f, _ = obj.(*Func)
++				if f != nil {
++					state = wrongName
++					break
+ 				}
++				state = notFound
+ 				break
+ 			}
+ 

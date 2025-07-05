@@ -11,6 +11,20 @@ Date:   Mon Jun 27 19:06:17 2016 -0700
     Change-Id: I6d769a68f64280f5db89ff6fbc67bfea9c8f1526
     Reviewed-on: https://go-review.googlesource.com/24509
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/pprof/pprof.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index cb4086b963..126e9eaaa7 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -4,8 +4,6 @@
+ 
+ // Package pprof serves via its HTTP server runtime profiling data
+ // in the format expected by the pprof visualization tool.
+-// For more information about pprof, see
+-// http://code.google.com/p/google-perftools/.
+ //
+ // The package is typically only imported for the side effect of
+ // registering its HTTP handlers.

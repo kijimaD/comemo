@@ -7,7 +7,7 @@ Date:   Mon Dec 12 15:42:06 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5476048
-
+---
  src/Make.inc                   |  4 ++++
  src/cmd/cov/Makefile           |  1 +
  src/cmd/prof/Makefile          |  1 +
@@ -21,3 +21,209 @@ Date:   Mon Dec 12 15:42:06 2011 -0500
  src/pkg/syscall/Makefile       | 11 +++++++++++
  src/pkg/time/Makefile          |  4 ++++
  12 files changed, 66 insertions(+)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index c770b76327..7b4ccd0aee 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -33,6 +33,7 @@ GOOS_LIST=\
+ 	darwin\
+ 	freebsd\
+ 	linux\
++	netbsd\
+ 	openbsd\
+ 	plan9\
+ 	windows\
+@@ -138,6 +139,9 @@ endif
+ ifeq ($(GOOS),openbsd)  # ... and not on OpenBSD
+ CGO_ENABLED:=0
+ endif
++ifeq ($(GOOS),netbsd)  # ... and not on NetBSD
++CGO_ENABLED:=0
++endif
+ endif
+ 
+ # Make environment more standard.
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index 62836fcacb..c080f4a284 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -29,6 +29,7 @@ endif
+ install: install-$(NAME)
+ install-linux: install-default
+ install-freebsd: install-default
++install-netbsd: install-default
+ install-openbsd: install-default
+ install-windows: install-default
+ 
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 6cefceb8ed..292a6482a2 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -25,6 +25,7 @@ endif
+ install: install-$(NAME) install-pprof
+ install-linux: install-default
+ install-freebsd: install-default
++install-netbsd: install-default
+ install-openbsd: install-default
+ install-windows: install-default
+ 
+diff --git a/src/pkg/crypto/tls/Makefile b/src/pkg/crypto/tls/Makefile
+index 3914484730..5cda149ddc 100644
+--- a/src/pkg/crypto/tls/Makefile
++++ b/src/pkg/crypto/tls/Makefile
+@@ -26,6 +26,7 @@ endif
+ 
+ GOFILES_freebsd+=root_unix.go
+ GOFILES_linux+=root_unix.go
++GOFILES_netbsd+=root_unix.go
+ GOFILES_openbsd+=root_unix.go
+ GOFILES_plan9+=root_stub.go
+ GOFILES_windows+=root_windows.go
+diff --git a/src/pkg/mime/Makefile b/src/pkg/mime/Makefile
+index aec5560b9e..38d809c1c1 100644
+--- a/src/pkg/mime/Makefile
++++ b/src/pkg/mime/Makefile
+@@ -19,6 +19,9 @@ GOFILES_darwin=\
+ GOFILES_linux=\
+ 	type_unix.go
+ 
++GOFILES_netbsd=\
++	type_unix.go
++
+ GOFILES_openbsd=\
+ 	type_unix.go
+ 
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index eba9e26d9d..bae7e5d521 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -104,6 +104,27 @@ else
+ GOFILES_linux+=cgo_stub.go
+ endif
+ 
++GOFILES_netbsd=\
++	dnsclient_unix.go\
++	dnsconfig.go\
++	fd.go\
++	fd_$(GOOS).go\
++	file.go\
++	interface_bsd.go\
++	interface_openbsd.go\
++	iprawsock_posix.go\
++	ipsock_posix.go\
++	lookup_unix.go\
++	newpollserver.go\
++	port.go\
++	sendfile_stub.go\
++	sock.go\
++	sock_bsd.go\
++	tcpsock_posix.go\
++	udpsock_posix.go\
++	unixsock_posix.go\
++	cgo_stub.go\
++
+ GOFILES_openbsd=\
+ 	dnsclient_unix.go\
+ 	dnsconfig.go\
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index 9bb2c0cbf1..7f756cbd8e 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -50,6 +50,17 @@ GOFILES_linux=\
+ 	exec_unix.go\
+ 	signal_unix.go\
+ 
++GOFILES_netbsd=\
++	dir_unix.go\
++	error_posix.go\
++	file_posix.go\
++	file_unix.go\
++	path_unix.go\
++	sys_bsd.go\
++	exec_posix.go\
++	exec_unix.go\
++	signal_unix.go\
++
+ GOFILES_openbsd=\
+ 	dir_unix.go\
+ 	error_posix.go\
+diff --git a/src/pkg/os/exec/Makefile b/src/pkg/os/exec/Makefile
+index ff86a58f55..e67dfba9fe 100644
+--- a/src/pkg/os/exec/Makefile
++++ b/src/pkg/os/exec/Makefile
+@@ -17,6 +17,9 @@ GOFILES_darwin=\
+ GOFILES_linux=\
+ 	lp_unix.go\
+ 
++GOFILES_netbsd=\
++	lp_unix.go\
++
+ GOFILES_openbsd=\
+ 	lp_unix.go\
+ 
+diff --git a/src/pkg/path/filepath/Makefile b/src/pkg/path/filepath/Makefile
+index af250ab330..7f8ea308c7 100644
+--- a/src/pkg/path/filepath/Makefile
++++ b/src/pkg/path/filepath/Makefile
+@@ -18,6 +18,9 @@ GOFILES_darwin=\
+ GOFILES_linux=\
+ 	path_unix.go
+ 
++GOFILES_netbsd=\
++	path_unix.go
++
+ GOFILES_openbsd=\
+ 	path_unix.go
+ 
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 406c40e25e..c390040c45 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -39,6 +39,9 @@ OFILES_freebsd=\
+ OFILES_linux=\
+ 	lock_futex.$O\
+ 
++OFILES_netbsd=\
++	lock_sema.$O\
++
+ OFILES_openbsd=\
+ 	lock_sema.$O\
+ 
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index 38e73cdb01..f6494eaa74 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -45,6 +45,17 @@ GOFILES_linux=\
+ 	sockcmsg_unix.go\
+ 	syscall_unix.go\
+ 
++GOFILES_netbsd=\
++	bpf_bsd.go\
++	env_unix.go\
++	exec_unix.go\
++	route_bsd.go\
++	route_netbsd.go\
++	sockcmsg_unix.go\
++	syscall_bsd.go\
++	syscall_unix.go\
++	zsysctl_netbsd.go\
++
+ GOFILES_openbsd=\
+ 	bpf_bsd.go\
+ 	env_unix.go\
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+index 24a18747f5..28c6afc537 100644
+--- a/src/pkg/time/Makefile
++++ b/src/pkg/time/Makefile
+@@ -25,6 +25,10 @@ GOFILES_linux=\
+ 	sys_unix.go\
+ 	zoneinfo_unix.go\
+ 
++GOFILES_netbsd=\
++	sys_unix.go\
++	zoneinfo_unix.go\
++
+ GOFILES_openbsd=\
+ 	sys_unix.go\
+ 	zoneinfo_unix.go\

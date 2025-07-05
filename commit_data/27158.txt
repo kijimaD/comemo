@@ -21,6 +21,62 @@ Date:   Tue Feb 16 12:23:33 2016 -0500
     Change-Id: I94fa86f823ba9ee478e73b2ba509eed3361c43df
     Reviewed-on: https://go-review.googlesource.com/20033
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/stack.go | 27 ++++++++++++++-------------
  1 file changed, 14 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b89dc59142..d37bc7d08b 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -748,29 +748,27 @@ func copystack(gp *g, newsize uintptr) {
+ 		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]/", gp.stackAlloc, " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
+ 	}
+ 
+-	// Disallow sigprof scans of this stack and block if there's
+-	// one in progress.
+-	gcLockStackBarriers(gp)
+-
+-	// adjust pointers in the to-be-copied frames
++	// Compute adjustment.
+ 	var adjinfo adjustinfo
+ 	adjinfo.old = old
+ 	adjinfo.delta = new.hi - old.hi
+-	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, adjustframe, noescape(unsafe.Pointer(&adjinfo)), 0)
+ 
+-	// adjust other miscellaneous things that have pointers into stacks.
++	// copy the stack to the new location
++	memmove(unsafe.Pointer(new.hi-used), unsafe.Pointer(old.hi-used), used)
++
++	// Disallow sigprof scans of this stack and block if there's
++	// one in progress.
++	gcLockStackBarriers(gp)
++
++	// Adjust structures that have pointers into stacks. We have
++	// to do most of these before we traceback the new stack
++	// because gentraceback uses them.
+ 	adjustctxt(gp, &adjinfo)
+ 	adjustdefers(gp, &adjinfo)
+ 	adjustpanics(gp, &adjinfo)
+ 	adjustsudogs(gp, &adjinfo)
+ 	adjuststkbar(gp, &adjinfo)
+ 
+-	// copy the stack to the new location
+-	if stackPoisonCopy != 0 {
+-		fillstack(new, 0xfb)
+-	}
+-	memmove(unsafe.Pointer(new.hi-used), unsafe.Pointer(old.hi-used), used)
+-
+ 	// copy old stack barriers to new stack barrier array
+ 	newstkbar = newstkbar[:len(gp.stkbar)]
+ 	copy(newstkbar, gp.stkbar)
+@@ -784,6 +782,9 @@ func copystack(gp *g, newsize uintptr) {
+ 	gp.stkbar = newstkbar
+ 	gp.stktopsp += adjinfo.delta
+ 
++	// Adjust pointers in the new stack.
++	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, adjustframe, noescape(unsafe.Pointer(&adjinfo)), 0)
++
+ 	gcUnlockStackBarriers(gp)
+ 
+ 	// free old stack

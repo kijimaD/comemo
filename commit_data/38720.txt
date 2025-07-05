@@ -13,8 +13,388 @@ Date:   Fri Nov 16 14:23:15 2018 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../x/tools/go/analysis/cmd/vet-lite/main.go       |  15 ---
  .../go/analysis/internal/analysisflags/flags.go    | 136 ++++++++++++++++-----
  .../x/tools/go/analysis/unitchecker/unitchecker.go |  56 ++++++---
  3 files changed, 149 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go
+index d767d56663..259d3976b4 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go
+@@ -7,8 +7,6 @@
+ package main
+ 
+ import (
+-	"flag"
+-
+ 	"golang.org/x/tools/go/analysis/unitchecker"
+ 
+ 	"golang.org/x/tools/go/analysis/passes/asmdecl"
+@@ -23,7 +21,6 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/loopclosure"
+ 	"golang.org/x/tools/go/analysis/passes/lostcancel"
+ 	"golang.org/x/tools/go/analysis/passes/nilfunc"
+-	"golang.org/x/tools/go/analysis/passes/pkgfact"
+ 	"golang.org/x/tools/go/analysis/passes/printf"
+ 	"golang.org/x/tools/go/analysis/passes/shift"
+ 	"golang.org/x/tools/go/analysis/passes/stdmethods"
+@@ -35,11 +32,6 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+ )
+ 
+-// Flags for legacy vet compatibility.
+-//
+-// These flags, plus the shims in analysisflags, enable
+-// existing scripts that run vet to continue to work.
+-//
+ // Legacy vet had the concept of "experimental" checkers. There
+ // was exactly one, shadow, and it had to be explicitly enabled
+ // by the -shadow flag, which would of course disable all the
+@@ -54,12 +46,6 @@ import (
+ // Alternatively, one could build a multichecker containing all
+ // the desired checks (vet's suite + shadow) and run it in a
+ // single "go vet" command.
+-func init() {
+-	_ = flag.Bool("source", false, "no effect (deprecated)")
+-	_ = flag.Bool("v", false, "no effect (deprecated)")
+-	_ = flag.Bool("all", false, "no effect (deprecated)")
+-	_ = flag.String("tags", "", "no effect (deprecated)")
+-}
+ 
+ func main() {
+ 	unitchecker.Main(
+@@ -75,7 +61,6 @@ func main() {
+ 		loopclosure.Analyzer,
+ 		lostcancel.Analyzer,
+ 		nilfunc.Analyzer,
+-		pkgfact.Analyzer,
+ 		printf.Analyzer,
+ 		shift.Analyzer,
+ 		stdmethods.Analyzer,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index b5ad4f47cb..729ac3b417 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -11,27 +11,29 @@ import (
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
++	"go/token"
+ 	"io"
++	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"strconv"
++	"strings"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ )
+ 
++// flags common to all {single,multi,unit}checkers.
++var (
++	JSON    = false // -json
++	Context = -1    // -c=N: if N>0, display offending line plus N lines of context
++)
++
+ // Parse creates a flag for each of the analyzer's flags,
+ // including (in multi mode) a flag named after the analyzer,
+ // parses the flags, then filters and returns the list of
+ // analyzers enabled by flags.
+ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 	// Connect each analysis flag to the command line as -analysis.flag.
+-	type analysisFlag struct {
+-		Name  string
+-		Bool  bool
+-		Usage string
+-	}
+-	var analysisFlags []analysisFlag
+-
+ 	enabled := make(map[*analysis.Analyzer]*triState)
+ 	for _, a := range analyzers {
+ 		var prefix string
+@@ -44,7 +46,6 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 			enableUsage := "enable " + a.Name + " analysis"
+ 			flag.Var(enable, a.Name, enableUsage)
+ 			enabled[a] = enable
+-			analysisFlags = append(analysisFlags, analysisFlag{a.Name, true, enableUsage})
+ 		}
+ 
+ 		a.Flags.VisitAll(func(f *flag.Flag) {
+@@ -55,9 +56,6 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 
+ 			name := prefix + f.Name
+ 			flag.Var(f.Value, name, f.Usage)
+-
+-			isBool := isBoolFlag(f.Value)
+-			analysisFlags = append(analysisFlags, analysisFlag{name, isBool, f.Usage})
+ 		})
+ 	}
+ 
+@@ -65,23 +63,20 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 	printflags := flag.Bool("flags", false, "print analyzer flags in JSON")
+ 	addVersionFlag()
+ 
++	// flags common to all checkers
++	flag.BoolVar(&JSON, "json", JSON, "emit JSON output")
++	flag.IntVar(&Context, "c", Context, `display offending line with this many lines of context`)
++
+ 	// Add shims for legacy vet flags to enable existing
+ 	// scripts that run vet to continue to work.
+ 	_ = flag.Bool("source", false, "no effect (deprecated)")
+ 	_ = flag.Bool("v", false, "no effect (deprecated)")
+ 	_ = flag.Bool("all", false, "no effect (deprecated)")
+ 	_ = flag.String("tags", "", "no effect (deprecated)")
+-	for _, name := range []string{"source", "v", "all", "tags"} {
+-		f := flag.Lookup(name)
+-		isBool := isBoolFlag(f.Value)
+-		analysisFlags = append(analysisFlags, analysisFlag{name, isBool, f.Usage})
+-	}
+ 	for old, new := range vetLegacyFlags {
+ 		newFlag := flag.Lookup(new)
+ 		if newFlag != nil && flag.Lookup(old) == nil {
+ 			flag.Var(newFlag.Value, old, "deprecated alias for -"+new)
+-			isBool := isBoolFlag(newFlag.Value)
+-			analysisFlags = append(analysisFlags, analysisFlag{old, isBool, newFlag.Usage})
+ 		}
+ 	}
+ 
+@@ -89,11 +84,7 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 
+ 	// -flags: print flags so that go vet knows which ones are legitimate.
+ 	if *printflags {
+-		data, err := json.MarshalIndent(analysisFlags, "", "\t")
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-		os.Stdout.Write(data)
++		printFlags()
+ 		os.Exit(0)
+ 	}
+ 
+@@ -131,6 +122,33 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 	return analyzers
+ }
+ 
++func printFlags() {
++	type jsonFlag struct {
++		Name  string
++		Bool  bool
++		Usage string
++	}
++	var flags []jsonFlag = nil
++	flag.VisitAll(func(f *flag.Flag) {
++		// Don't report {single,multi}checker debugging
++		// flags as these have no effect on unitchecker
++		// (as invoked by 'go vet').
++		switch f.Name {
++		case "debug", "cpuprofile", "memprofile", "trace":
++			return
++		}
++
++		b, ok := f.Value.(interface{ IsBoolFlag() bool })
++		isBool := ok && b.IsBoolFlag()
++		flags = append(flags, jsonFlag{f.Name, isBool, f.Usage})
++	})
++	data, err := json.MarshalIndent(flags, "", "\t")
++	if err != nil {
++		log.Fatal(err)
++	}
++	os.Stdout.Write(data)
++}
++
+ // addVersionFlag registers a -V flag that, if set,
+ // prints the executable version and exits 0.
+ //
+@@ -238,11 +256,6 @@ func (ts triState) IsBoolFlag() bool {
+ 	return true
+ }
+ 
+-func isBoolFlag(v flag.Value) bool {
+-	b, ok := v.(interface{ IsBoolFlag() bool })
+-	return ok && b.IsBoolFlag()
+-}
+-
+ // Legacy flag support
+ 
+ // vetLegacyFlags maps flags used by legacy vet to their corresponding
+@@ -261,3 +274,70 @@ var vetLegacyFlags = map[string]string{
+ 	"unusedfuncs":         "unusedresult.funcs",
+ 	"unusedstringmethods": "unusedresult.stringmethods",
+ }
++
++// ---- output helpers common to all drivers ----
++
++// PrintPlain prints a diagnostic in plain text form,
++// with context specified by the -c flag.
++func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
++	posn := fset.Position(diag.Pos)
++	fmt.Fprintf(os.Stderr, "%s: %s\n", posn, diag.Message)
++
++	// -c=N: show offending line plus N lines of context.
++	if Context >= 0 {
++		data, _ := ioutil.ReadFile(posn.Filename)
++		lines := strings.Split(string(data), "\n")
++		for i := posn.Line - Context; i <= posn.Line+Context; i++ {
++			if 1 <= i && i <= len(lines) {
++				fmt.Fprintf(os.Stderr, "%d\t%s\n", i, lines[i-1])
++			}
++		}
++	}
++}
++
++// A JSONTree is a mapping from package ID to analysis name to result.
++// Each result is either a jsonError or a list of jsonDiagnostic.
++type JSONTree map[string]map[string]interface{}
++
++// Add adds the result of analysis 'name' on package 'id'.
++// The result is either a list of diagnostics or an error.
++func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.Diagnostic, err error) {
++	var v interface{}
++	if err != nil {
++		type jsonError struct {
++			Err string `json:"error"`
++		}
++		v = jsonError{err.Error()}
++	} else if len(diags) > 0 {
++		type jsonDiagnostic struct {
++			Category string `json:"category,omitempty"`
++			Posn     string `json:"posn"`
++			Message  string `json:"message"`
++		}
++		var diagnostics []jsonDiagnostic
++		for _, f := range diags {
++			diagnostics = append(diagnostics, jsonDiagnostic{
++				Category: f.Category,
++				Posn:     fset.Position(f.Pos).String(),
++				Message:  f.Message,
++			})
++		}
++		v = diagnostics
++	}
++	if v != nil {
++		m, ok := tree[id]
++		if !ok {
++			m = make(map[string]interface{})
++			tree[id] = m
++		}
++		m[name] = v
++	}
++}
++
++func (tree JSONTree) Print() {
++	data, err := json.MarshalIndent(tree, "", "\t")
++	if err != nil {
++		log.Panicf("internal error: JSON marshalling failed: %v", err)
++	}
++	fmt.Printf("%s\n", data)
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index edfca577bf..7b8fec9db2 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -25,7 +25,6 @@ package unitchecker
+ //   so we will not get to analyze it. Yet we must in order
+ //   to create base facts for, say, the fmt package for the
+ //   printf checker.
+-// - support JSON output, factored with multichecker.
+ 
+ import (
+ 	"encoding/gob"
+@@ -57,6 +56,7 @@ import (
+ // It is provided to the tool in a JSON-encoded file
+ // whose name ends with ".cfg".
+ type Config struct {
++	ID                        string // e.g. "fmt [fmt.test]"
+ 	Compiler                  string
+ 	Dir                       string
+ 	ImportPath                string
+@@ -127,16 +127,37 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
+ 	}
+ 
+ 	fset := token.NewFileSet()
+-	diags, err := run(fset, cfg, analyzers)
++	results, err := run(fset, cfg, analyzers)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+ 
+-	if !cfg.VetxOnly && len(diags) > 0 {
+-		for _, diag := range diags {
+-			fmt.Fprintf(os.Stderr, "%s: %s\n", fset.Position(diag.Pos), diag.Message)
++	// In VetxOnly mode, the analysis is run only for facts.
++	if !cfg.VetxOnly {
++		if analysisflags.JSON {
++			// JSON output
++			tree := make(analysisflags.JSONTree)
++			for _, res := range results {
++				tree.Add(fset, cfg.ID, res.a.Name, res.diagnostics, res.err)
++			}
++			tree.Print()
++		} else {
++			// plain text
++			exit := 0
++			for _, res := range results {
++				if res.err != nil {
++					log.Println(res.err)
++					exit = 1
++				}
++			}
++			for _, res := range results {
++				for _, diag := range res.diagnostics {
++					analysisflags.PrintPlain(fset, diag)
++					exit = 1
++				}
++			}
++			os.Exit(exit)
+ 		}
+-		os.Exit(1)
+ 	}
+ 
+ 	os.Exit(0)
+@@ -160,7 +181,7 @@ func readConfig(filename string) (*Config, error) {
+ 	return cfg, nil
+ }
+ 
+-func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]analysis.Diagnostic, error) {
++func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]result, error) {
+ 	// Load, parse, typecheck.
+ 	var files []*ast.File
+ 	for _, name := range cfg.GoFiles {
+@@ -333,14 +354,13 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]an
+ 
+ 	execAll(analyzers)
+ 
+-	// Return diagnostics from root analyzers.
+-	var diags []analysis.Diagnostic
+-	for _, a := range analyzers {
++	// Return diagnostics and errors from root analyzers.
++	results := make([]result, len(analyzers))
++	for i, a := range analyzers {
+ 		act := actions[a]
+-		if act.err != nil {
+-			return nil, act.err // some analysis failed
+-		}
+-		diags = append(diags, act.diagnostics...)
++		results[i].a = a
++		results[i].err = act.err
++		results[i].diagnostics = act.diagnostics
+ 	}
+ 
+ 	data := facts.Encode()
+@@ -348,7 +368,13 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]an
+ 		return nil, fmt.Errorf("failed to write analysis facts: %v", err)
+ 	}
+ 
+-	return diags, nil
++	return results, nil
++}
++
++type result struct {
++	a           *analysis.Analyzer
++	diagnostics []analysis.Diagnostic
++	err         error
+ }
+ 
+ type importerFunc func(path string) (*types.Package, error)

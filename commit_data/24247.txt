@@ -9,6 +9,21 @@ Date:   Sat Jul 18 10:54:50 2015 +1000
     Change-Id: Ifa423ca6eea46d1500278db290498724a9559d14
     Reviewed-on: https://go-review.googlesource.com/12347
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/syscall_windows_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index cb9dfcde9d..677eb5f82d 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -578,6 +578,9 @@ func forceStackCopy() (r int) {
+ }
+ 
+ func TestReturnAfterStackGrowInCallback(t *testing.T) {
++	if _, err := exec.LookPath("gcc"); err != nil {
++		t.Skip("skipping test: gcc is missing")
++	}
+ 
+ 	const src = `
+ #include <stdint.h>

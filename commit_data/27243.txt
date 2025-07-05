@@ -26,7 +26,7 @@ Date:   Tue Mar 15 20:45:50 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  36 ++---
  src/cmd/compile/internal/ssa/block.go          |  10 ++
  src/cmd/compile/internal/ssa/check.go          |  20 +++
@@ -51,3 +51,1709 @@ Date:   Tue Mar 15 20:45:50 2016 -0700
  src/cmd/compile/internal/ssa/zcse.go           |   2 +-
  test/atomicload.go                             |  45 ++++++
  23 files changed, 296 insertions(+), 147 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6bf5899ba0..716be35034 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -540,7 +540,7 @@ func (s *state) stmt(n *Node) {
+ 			m := s.mem()
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockExit
+-			b.Control = m
++			b.SetControl(m)
+ 			// TODO: never rewrite OPANIC to OCALLFUNC in the
+ 			// first place. Need to wait until all backends
+ 			// go through SSA.
+@@ -920,7 +920,7 @@ func (s *state) exit() *ssa.Block {
+ 	m := s.mem()
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockRet
+-	b.Control = m
++	b.SetControl(m)
+ 	return b
+ }
+ 
+@@ -1795,7 +1795,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockIf
+-		b.Control = el
++		b.SetControl(el)
+ 		// In theory, we should set b.Likely here based on context.
+ 		// However, gc only gives us likeliness hints
+ 		// in a single place, for plain OIF statements,
+@@ -2039,7 +2039,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockIf
+ 		b.Likely = ssa.BranchUnlikely
+-		b.Control = cmp
++		b.SetControl(cmp)
+ 		b.AddEdgeTo(grow)
+ 		b.AddEdgeTo(assign)
+ 
+@@ -2143,7 +2143,7 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
+ 	c := s.expr(cond)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+-	b.Control = c
++	b.SetControl(c)
+ 	b.Likely = ssa.BranchPrediction(likely) // gc and ssa both use -1/0/+1 for likeliness
+ 	b.AddEdgeTo(yes)
+ 	b.AddEdgeTo(no)
+@@ -2396,7 +2396,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	s.vars[&memVar] = call
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockCall
+-	b.Control = call
++	b.SetControl(call)
+ 	b.AddEdgeTo(bNext)
+ 	if k == callDefer {
+ 		// Add recover edge to exit code.
+@@ -2654,7 +2654,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
+ 	chk := s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockCheck
+-	b.Control = chk
++	b.SetControl(chk)
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
+ 	b.AddEdgeTo(bNext)
+ 	s.startBlock(bNext)
+@@ -2692,7 +2692,7 @@ func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
+ func (s *state) check(cmp *ssa.Value, fn *Node) {
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+-	b.Control = cmp
++	b.SetControl(cmp)
+ 	b.Likely = ssa.BranchLikely
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
+ 	line := s.peekLine()
+@@ -2740,7 +2740,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ 	b := s.endBlock()
+ 	if !returns {
+ 		b.Kind = ssa.BlockExit
+-		b.Control = call
++		b.SetControl(call)
+ 		call.AuxInt = off
+ 		if len(results) > 0 {
+ 			Fatalf("panic call can't have results")
+@@ -2748,7 +2748,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ 		return nil
+ 	}
+ 	b.Kind = ssa.BlockCall
+-	b.Control = call
++	b.SetControl(call)
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
+ 	b.AddEdgeTo(bNext)
+ 	s.startBlock(bNext)
+@@ -2793,7 +2793,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.Likely = ssa.BranchUnlikely
+-	b.Control = flag
++	b.SetControl(flag)
+ 	b.AddEdgeTo(bThen)
+ 	b.AddEdgeTo(bElse)
+ 
+@@ -2838,7 +2838,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.Likely = ssa.BranchUnlikely
+-	b.Control = flag
++	b.SetControl(flag)
+ 	b.AddEdgeTo(bThen)
+ 	b.AddEdgeTo(bElse)
+ 
+@@ -3049,7 +3049,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.Likely = ssa.BranchLikely
+-	b.Control = cmp
++	b.SetControl(cmp)
+ 
+ 	// Generate code for non-zero length slice case.
+ 	nz := s.f.NewBlock(ssa.BlockPlain)
+@@ -3150,7 +3150,7 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ 	cmp := s.newValue2(cvttab.geq, Types[TBOOL], x, s.zeroVal(ft))
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+-	b.Control = cmp
++	b.SetControl(cmp)
+ 	b.Likely = ssa.BranchLikely
+ 
+ 	bThen := s.f.NewBlock(ssa.BlockPlain)
+@@ -3198,7 +3198,7 @@ func (s *state) referenceTypeBuiltin(n *Node, x *ssa.Value) *ssa.Value {
+ 	cmp := s.newValue2(ssa.OpEqPtr, Types[TBOOL], x, nilValue)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+-	b.Control = cmp
++	b.SetControl(cmp)
+ 	b.Likely = ssa.BranchUnlikely
+ 
+ 	bThen := s.f.NewBlock(ssa.BlockPlain)
+@@ -3269,7 +3269,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ 	cmp := s.newValue2(cvttab.ltf, Types[TBOOL], x, twoToThe63)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+-	b.Control = cmp
++	b.SetControl(cmp)
+ 	b.Likely = ssa.BranchLikely
+ 
+ 	bThen := s.f.NewBlock(ssa.BlockPlain)
+@@ -3318,7 +3318,7 @@ func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
+ 	isnonnil := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], tab, s.constNil(byteptr))
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+-	b.Control = isnonnil
++	b.SetControl(isnonnil)
+ 	b.Likely = ssa.BranchLikely
+ 
+ 	bLoad := s.f.NewBlock(ssa.BlockPlain)
+@@ -3360,7 +3360,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], typ, target)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+-	b.Control = cond
++	b.SetControl(cond)
+ 	b.Likely = ssa.BranchLikely
+ 
+ 	byteptr := Ptrto(Types[TUINT8])
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 2e520da050..ffe4615578 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -97,6 +97,16 @@ func (b *Block) LongString() string {
+ 	return s
+ }
+ 
++func (b *Block) SetControl(v *Value) {
++	if w := b.Control; w != nil {
++		w.Uses--
++	}
++	b.Control = v
++	if v != nil {
++		v.Uses++
++	}
++}
++
+ // AddEdgeTo adds an edge from block b to block c. Used during building of the
+ // SSA graph; do not use on an already-completed SSA graph.
+ func (b *Block) AddEdgeTo(c *Block) {
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 8f8227722c..85cc3eadf4 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -294,6 +294,26 @@ func checkFunc(f *Func) {
+ 			}
+ 		}
+ 	}
++
++	// Check use counts
++	uses := make([]int32, f.NumValues())
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			for _, a := range v.Args {
++				uses[a.ID]++
++			}
++		}
++		if b.Control != nil {
++			uses[b.Control.ID]++
++		}
++	}
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			if v.Uses != uses[v.ID] {
++				f.Fatalf("%s has %d uses, but has Uses=%d", v, uses[v.ID], v.Uses)
++			}
++		}
++	}
+ }
+ 
+ // domCheck reports whether x dominates y (including x==y).
+diff --git a/src/cmd/compile/internal/ssa/copyelim.go b/src/cmd/compile/internal/ssa/copyelim.go
+index 5488134122..70db03c688 100644
+--- a/src/cmd/compile/internal/ssa/copyelim.go
++++ b/src/cmd/compile/internal/ssa/copyelim.go
+@@ -11,11 +11,11 @@ func copyelim(f *Func) {
+ 			copyelimValue(v)
+ 		}
+ 		v := b.Control
+-		if v != nil {
++		if v != nil && v.Op == OpCopy {
+ 			for v.Op == OpCopy {
+ 				v = v.Args[0]
+ 			}
+-			b.Control = v
++			b.SetControl(v)
+ 		}
+ 	}
+ 
+@@ -34,8 +34,9 @@ func copyelim(f *Func) {
+ 	}
+ }
+ 
+-func copyelimValue(v *Value) {
++func copyelimValue(v *Value) bool {
+ 	// elide any copies generated during rewriting
++	changed := false
+ 	for i, a := range v.Args {
+ 		if a.Op != OpCopy {
+ 			continue
+@@ -55,6 +56,8 @@ func copyelimValue(v *Value) {
+ 			}
+ 			advance = !advance
+ 		}
+-		v.Args[i] = a
++		v.SetArg(i, a)
++		changed = true
+ 	}
++	return changed
+ }
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 817ee4b341..1ec5712be0 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -182,7 +182,7 @@ func cse(f *Func) {
+ 					// them appropriately, so don't mess with them here.
+ 					continue
+ 				}
+-				b.Control = x
++				b.SetControl(x)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 819f6de247..ae990026f5 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -164,6 +164,18 @@ func deadcode(f *Func) {
+ 	}
+ 	f.Names = f.Names[:i]
+ 
++	// Unlink values.
++	for _, b := range f.Blocks {
++		if !reachable[b.ID] {
++			b.SetControl(nil)
++		}
++		for _, v := range b.Values {
++			if !live[v.ID] {
++				v.resetArgs()
++			}
++		}
++	}
++
+ 	// Remove dead values from blocks' value list. Return dead
+ 	// values to the allocator.
+ 	for _, b := range f.Blocks {
+@@ -231,6 +243,7 @@ func (b *Block) removePred(p *Block) {
+ 		if v.Op != OpPhi {
+ 			continue
+ 		}
++		v.Args[i].Uses--
+ 		v.Args[i] = v.Args[n]
+ 		v.Args[n] = nil // aid GC
+ 		v.Args = v.Args[:n]
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index b3aa62cd5d..6f20bea9ce 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -113,7 +113,7 @@ func flagalloc(f *Func) {
+ 		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
+ 			// Recalculate control value.
+ 			c := v.copyInto(b)
+-			b.Control = c
++			b.SetControl(c)
+ 			flag = v
+ 		}
+ 		if v := end[b.ID]; v != nil && v != flag {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index d7a48feea9..6e47b7f19c 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -114,6 +114,9 @@ func (f *Func) freeValue(v *Value) {
+ 	if v.Block == nil {
+ 		f.Fatalf("trying to free an already freed value")
+ 	}
++	if v.Uses != 0 {
++		f.Fatalf("value %s still has %d uses", v, v.Uses)
++	}
+ 	// Clear everything but ID (which we reuse).
+ 	id := v.ID
+ 
+@@ -217,6 +220,7 @@ func (b *Block) NewValue1(line int32, op Op, t Type, arg *Value) *Value {
+ 	v.AuxInt = 0
+ 	v.Args = v.argstorage[:1]
+ 	v.argstorage[0] = arg
++	arg.Uses++
+ 	return v
+ }
+ 
+@@ -226,6 +230,7 @@ func (b *Block) NewValue1I(line int32, op Op, t Type, auxint int64, arg *Value)
+ 	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:1]
+ 	v.argstorage[0] = arg
++	arg.Uses++
+ 	return v
+ }
+ 
+@@ -236,6 +241,7 @@ func (b *Block) NewValue1A(line int32, op Op, t Type, aux interface{}, arg *Valu
+ 	v.Aux = aux
+ 	v.Args = v.argstorage[:1]
+ 	v.argstorage[0] = arg
++	arg.Uses++
+ 	return v
+ }
+ 
+@@ -246,6 +252,7 @@ func (b *Block) NewValue1IA(line int32, op Op, t Type, auxint int64, aux interfa
+ 	v.Aux = aux
+ 	v.Args = v.argstorage[:1]
+ 	v.argstorage[0] = arg
++	arg.Uses++
+ 	return v
+ }
+ 
+@@ -256,6 +263,8 @@ func (b *Block) NewValue2(line int32, op Op, t Type, arg0, arg1 *Value) *Value {
+ 	v.Args = v.argstorage[:2]
+ 	v.argstorage[0] = arg0
+ 	v.argstorage[1] = arg1
++	arg0.Uses++
++	arg1.Uses++
+ 	return v
+ }
+ 
+@@ -266,6 +275,8 @@ func (b *Block) NewValue2I(line int32, op Op, t Type, auxint int64, arg0, arg1 *
+ 	v.Args = v.argstorage[:2]
+ 	v.argstorage[0] = arg0
+ 	v.argstorage[1] = arg1
++	arg0.Uses++
++	arg1.Uses++
+ 	return v
+ }
+ 
+@@ -274,6 +285,9 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = 0
+ 	v.Args = []*Value{arg0, arg1, arg2}
++	arg0.Uses++
++	arg1.Uses++
++	arg2.Uses++
+ 	return v
+ }
+ 
+@@ -282,6 +296,9 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1,
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = auxint
+ 	v.Args = []*Value{arg0, arg1, arg2}
++	arg0.Uses++
++	arg1.Uses++
++	arg2.Uses++
+ 	return v
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 4fef782afc..ddb9ccbe72 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -168,7 +168,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
+ 			if !ok {
+ 				f.Fatalf("control value for block %s missing", bloc.name)
+ 			}
+-			b.Control = cval
++			b.SetControl(cval)
+ 		}
+ 		// Fill in args.
+ 		for _, valu := range bloc.valus {
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index 3f81e452b6..1f826cd25e 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -96,7 +96,7 @@ func fuseBlockIf(b *Block) bool {
+ 		ss.removePred(s1)
+ 	}
+ 	b.Kind = BlockPlain
+-	b.Control = nil
++	b.SetControl(nil)
+ 	b.Succs = append(b.Succs[:0], ss)
+ 
+ 	// Trash the empty blocks s0 & s1.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index b720be75d1..b9753583bf 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -602,12 +602,15 @@
+ // as the original load. If not, we end up making a value with
+ // memory type live in two different blocks, which can lead to
+ // multiple memory values alive simultaneously.
+-(MOVBQSX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+-(MOVBQZX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
+-(MOVWQSX (MOVWload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+-(MOVWQZX (MOVWload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
+-(MOVLQSX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
+-(MOVLQZX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
++// Make sure we don't combine these ops if the load has another use.
++// This prevents a single load from being split into multiple loads
++// which then might return different values.  See test/atomicload.go.
++(MOVBQSX (MOVBload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
++(MOVBQZX (MOVBload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
++(MOVWQSX (MOVWload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
++(MOVWQZX (MOVWload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
++(MOVLQSX (MOVLload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
++(MOVLQZX (MOVLload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
+ 
+ // replace load from same location as preceding store with copy
+ (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 9cb44f4f53..68e2dbf1a5 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -258,9 +258,9 @@ func genRules(arch arch) {
+ 
+ 			fmt.Fprintf(w, "b.Kind = %s\n", blockName(t[0], arch))
+ 			if t[1] == "nil" {
+-				fmt.Fprintf(w, "b.Control = nil\n")
++				fmt.Fprintf(w, "b.SetControl(nil)\n")
+ 			} else {
+-				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false, false))
++				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false))
+ 			}
+ 			if len(newsuccs) < len(succs) {
+ 				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
+@@ -486,7 +486,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
+ 		v = fmt.Sprintf("v%d", *alloc)
+ 		*alloc++
+ 		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, %s, %s)\n", v, opName(s[0], arch), opType)
+-		if move {
++		if move && top {
+ 			// Rewrite original into a copy
+ 			fmt.Fprintf(w, "v.reset(OpCopy)\n")
+ 			fmt.Fprintf(w, "v.AddArg(%s)\n", v)
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 4e40c5b88f..881e3b2eff 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -98,10 +98,10 @@ func nilcheckelim(f *Func) {
+ 					switch node.block.Kind {
+ 					case BlockIf:
+ 						node.block.Kind = BlockFirst
+-						node.block.Control = nil
++						node.block.SetControl(nil)
+ 					case BlockCheck:
+ 						node.block.Kind = BlockPlain
+-						node.block.Control = nil
++						node.block.SetControl(nil)
+ 					default:
+ 						f.Fatalf("bad block kind in nilcheck %s", node.block.Kind)
+ 					}
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index bb20f1d5db..f09a3c5e04 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -307,7 +307,7 @@ func prove(f *Func) {
+ 			if succ != unknown {
+ 				b := node.block
+ 				b.Kind = BlockFirst
+-				b.Control = nil
++				b.SetControl(nil)
+ 				if succ == negative {
+ 					b.Succs[0], b.Succs[1] = b.Succs[1], b.Succs[0]
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 865284798d..8a5e438a4a 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -897,6 +897,9 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				// Value is rematerializeable, don't issue it here.
+ 				// It will get issued just before each use (see
+ 				// allocValueToReg).
++				for _, a := range v.Args {
++					a.Uses--
++				}
+ 				s.advanceUses(v)
+ 				continue
+ 			}
+@@ -949,7 +952,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 
+ 			// Issue the Value itself.
+ 			for i, a := range args {
+-				v.Args[i] = a // use register version of arguments
++				v.SetArg(i, a) // use register version of arguments
+ 			}
+ 			b.Values = append(b.Values, v)
+ 
+@@ -1123,6 +1126,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			// Constants, SP, SB, ...
+ 			continue
+ 		}
++		spill.Args[0].Uses--
+ 		f.freeValue(spill)
+ 	}
+ 	for _, b := range f.Blocks {
+@@ -1333,7 +1337,9 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
+ 		// Value is already in the correct place.
+ 		e.contents[loc] = contentRecord{vid, occupant.c, true}
+ 		if splice != nil {
++			(*splice).Uses--
+ 			*splice = occupant.c
++			occupant.c.Uses++
+ 		}
+ 		// Note: if splice==nil then c will appear dead. This is
+ 		// non-SSA formed code, so be careful after this pass not to run
+@@ -1430,7 +1436,9 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
+ 	}
+ 	e.set(loc, vid, x, true)
+ 	if splice != nil {
++		(*splice).Uses--
+ 		*splice = x
++		x.Uses++
+ 	}
+ 	return true
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 8581b7d55c..fc2cd4c154 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -31,7 +31,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 			}
+ 			if b.Control != nil && b.Control.Op == OpCopy {
+ 				for b.Control.Op == OpCopy {
+-					b.Control = b.Control.Args[0]
++					b.SetControl(b.Control.Args[0])
+ 				}
+ 			}
+ 			curb = b
+@@ -40,7 +40,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 			}
+ 			curb = nil
+ 			for _, v := range b.Values {
+-				copyelimValue(v)
++				change = copyelimValue(v) || change
+ 				change = phielimValue(v) || change
+ 
+ 				// apply rewrite function
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index fe452f74f3..9b4e638ec1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -5390,7 +5390,7 @@ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVBQSX (MOVBload [off] {sym} ptr mem))
+-	// cond:
++	// cond: v.Args[0].Uses == 1
+ 	// result: @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+ 	for {
+ 		if v.Args[0].Op != OpAMD64MOVBload {
+@@ -5400,6 +5400,9 @@ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
++		if !(v.Args[0].Uses == 1) {
++			break
++		}
+ 		b = v.Args[0].Block
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVBQSXload, v.Type)
+ 		v.reset(OpCopy)
+@@ -5461,7 +5464,7 @@ func rewriteValueAMD64_OpAMD64MOVBQZX(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVBQZX (MOVBload [off] {sym} ptr mem))
+-	// cond:
++	// cond: v.Args[0].Uses == 1
+ 	// result: @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
+ 	for {
+ 		if v.Args[0].Op != OpAMD64MOVBload {
+@@ -5471,6 +5474,9 @@ func rewriteValueAMD64_OpAMD64MOVBQZX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
++		if !(v.Args[0].Uses == 1) {
++			break
++		}
+ 		b = v.Args[0].Block
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVBQZXload, v.Type)
+ 		v.reset(OpCopy)
+@@ -6051,7 +6057,7 @@ func rewriteValueAMD64_OpAMD64MOVLQSX(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVLQSX (MOVLload [off] {sym} ptr mem))
+-	// cond:
++	// cond: v.Args[0].Uses == 1
+ 	// result: @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
+ 	for {
+ 		if v.Args[0].Op != OpAMD64MOVLload {
+@@ -6061,6 +6067,9 @@ func rewriteValueAMD64_OpAMD64MOVLQSX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
++		if !(v.Args[0].Uses == 1) {
++			break
++		}
+ 		b = v.Args[0].Block
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVLQSXload, v.Type)
+ 		v.reset(OpCopy)
+@@ -6122,7 +6131,7 @@ func rewriteValueAMD64_OpAMD64MOVLQZX(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVLQZX (MOVLload [off] {sym} ptr mem))
+-	// cond:
++	// cond: v.Args[0].Uses == 1
+ 	// result: @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
+ 	for {
+ 		if v.Args[0].Op != OpAMD64MOVLload {
+@@ -6132,6 +6141,9 @@ func rewriteValueAMD64_OpAMD64MOVLQZX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
++		if !(v.Args[0].Uses == 1) {
++			break
++		}
+ 		b = v.Args[0].Block
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVLQZXload, v.Type)
+ 		v.reset(OpCopy)
+@@ -7652,7 +7664,7 @@ func rewriteValueAMD64_OpAMD64MOVWQSX(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVWQSX (MOVWload [off] {sym} ptr mem))
+-	// cond:
++	// cond: v.Args[0].Uses == 1
+ 	// result: @v.Args[0].Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+ 	for {
+ 		if v.Args[0].Op != OpAMD64MOVWload {
+@@ -7662,6 +7674,9 @@ func rewriteValueAMD64_OpAMD64MOVWQSX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
++		if !(v.Args[0].Uses == 1) {
++			break
++		}
+ 		b = v.Args[0].Block
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVWQSXload, v.Type)
+ 		v.reset(OpCopy)
+@@ -7723,7 +7738,7 @@ func rewriteValueAMD64_OpAMD64MOVWQZX(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVWQZX (MOVWload [off] {sym} ptr mem))
+-	// cond:
++	// cond: v.Args[0].Uses == 1
+ 	// result: @v.Args[0].Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
+ 	for {
+ 		if v.Args[0].Op != OpAMD64MOVWload {
+@@ -7733,6 +7748,9 @@ func rewriteValueAMD64_OpAMD64MOVWQZX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
++		if !(v.Args[0].Uses == 1) {
++			break
++		}
+ 		b = v.Args[0].Block
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVWQZXload, v.Type)
+ 		v.reset(OpCopy)
+@@ -14375,7 +14393,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQ
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14391,7 +14409,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14407,7 +14425,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -14424,7 +14442,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -14441,7 +14459,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -14458,7 +14476,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -14477,7 +14495,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14493,7 +14511,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14509,7 +14527,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -14526,7 +14544,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -14543,7 +14561,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14559,7 +14577,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14577,7 +14595,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14593,7 +14611,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -14610,7 +14628,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -14627,7 +14645,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -14644,7 +14662,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14660,7 +14678,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14678,7 +14696,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14695,7 +14713,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14712,7 +14730,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14729,7 +14747,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14746,7 +14764,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQ
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14763,7 +14781,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14780,7 +14798,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14797,7 +14815,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14814,7 +14832,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14831,7 +14849,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14848,7 +14866,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14865,7 +14883,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14882,7 +14900,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQF
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14899,7 +14917,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NEF
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14916,7 +14934,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			v0 := b.NewValue0(v.Line, OpAMD64TESTB, TypeFlags)
+ 			v0.AddArg(cond)
+ 			v0.AddArg(cond)
+-			b.Control = v0
++			b.SetControl(v0)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14934,7 +14952,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14950,7 +14968,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14966,7 +14984,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14982,7 +15000,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -14998,7 +15016,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15015,7 +15033,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15034,7 +15052,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15050,7 +15068,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15067,7 +15085,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15083,7 +15101,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15099,7 +15117,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15116,7 +15134,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15138,7 +15156,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15158,7 +15176,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64LE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15178,7 +15196,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15198,7 +15216,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64GE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15218,7 +15236,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQ
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15238,7 +15256,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15258,7 +15276,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15278,7 +15296,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15298,7 +15316,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15318,7 +15336,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15338,7 +15356,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15358,7 +15376,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15378,7 +15396,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64EQF
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15398,7 +15416,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NEF
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15415,7 +15433,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64NE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15431,7 +15449,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15448,7 +15466,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15464,7 +15482,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15480,7 +15498,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15496,7 +15514,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15514,7 +15532,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15530,7 +15548,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15546,7 +15564,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15563,7 +15581,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15579,7 +15597,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15596,7 +15614,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15614,7 +15632,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64ULT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15630,7 +15648,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15647,7 +15665,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15664,7 +15682,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15680,7 +15698,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15697,7 +15715,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15715,7 +15733,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGE
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15731,7 +15749,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15747,7 +15765,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15763,7 +15781,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15780,7 +15798,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15796,7 +15814,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15815,7 +15833,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockAMD64UGT
+-			b.Control = cmp
++			b.SetControl(cmp)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15831,7 +15849,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15848,7 +15866,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15864,7 +15882,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -15881,7 +15899,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -15897,7 +15915,7 @@ func rewriteBlockAMD64(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 4ed4cbfc26..bf08dd102b 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -7798,8 +7798,6 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpOffPtr, v.Type.PtrTo())
+-		v.reset(OpCopy)
+-		v.AddArg(v1)
+ 		v1.AuxInt = t.FieldOff(int(i))
+ 		v1.AddArg(ptr)
+ 		v0.AddArg(v1)
+@@ -8642,7 +8640,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			}
+ 			next := b.Succs[0]
+ 			b.Kind = BlockPlain
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = next
+ 			b.Likely = BranchUnknown
+ 			return true
+@@ -8660,7 +8658,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			b.Kind = BlockIf
+-			b.Control = cond
++			b.SetControl(cond)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+@@ -8681,7 +8679,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 				break
+ 			}
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = yes
+ 			b.Succs[1] = no
+ 			return true
+@@ -8701,7 +8699,7 @@ func rewriteBlockgeneric(b *Block) bool {
+ 				break
+ 			}
+ 			b.Kind = BlockFirst
+-			b.Control = nil
++			b.SetControl(nil)
+ 			b.Succs[0] = no
+ 			b.Succs[1] = yes
+ 			b.Likely *= -1
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit.go b/src/cmd/compile/internal/ssa/shortcircuit.go
+index d22a61a0af..f589b7a07d 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit.go
+@@ -36,9 +36,9 @@ func shortcircuit(f *Func) {
+ 					continue
+ 				}
+ 				if p.Succs[0] == b {
+-					v.Args[i] = ct
++					v.SetArg(i, ct)
+ 				} else {
+-					v.Args[i] = cf
++					v.SetArg(i, cf)
+ 				}
+ 			}
+ 		}
+@@ -111,7 +111,7 @@ func shortcircuit(f *Func) {
+ 				if w.Op != OpPhi {
+ 					continue
+ 				}
+-				w.Args = append(w.Args, w.Args[j])
++				w.AddArg(w.Args[j])
+ 			}
+ 
+ 			// Fix up b to have one less predecessor.
+@@ -119,6 +119,7 @@ func shortcircuit(f *Func) {
+ 			b.Preds[i] = b.Preds[n]
+ 			b.Preds[n] = nil
+ 			b.Preds = b.Preds[:n]
++			v.Args[i].Uses--
+ 			v.Args[i] = v.Args[n]
+ 			v.Args[n] = nil
+ 			v.Args = v.Args[:n]
+diff --git a/src/cmd/compile/internal/ssa/sizeof_test.go b/src/cmd/compile/internal/ssa/sizeof_test.go
+index 8b79ecfe68..11b46caf32 100644
+--- a/src/cmd/compile/internal/ssa/sizeof_test.go
++++ b/src/cmd/compile/internal/ssa/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Value{}, 64, 112},
++		{Value{}, 68, 112},
+ 		{Block{}, 124, 232},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index e3510b135e..0e71326450 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -38,6 +38,9 @@ type Value struct {
+ 	// Source line number
+ 	Line int32
+ 
++	// Use count. Each appearance in Value.Args and Block.Control counts once.
++	Uses int32
++
+ 	// Storage for the first three args
+ 	argstorage [3]*Value
+ }
+@@ -162,17 +165,24 @@ func (v *Value) AddArg(w *Value) {
+ 		v.resetArgs() // use argstorage
+ 	}
+ 	v.Args = append(v.Args, w)
++	w.Uses++
+ }
+ func (v *Value) AddArgs(a ...*Value) {
+ 	if v.Args == nil {
+ 		v.resetArgs() // use argstorage
+ 	}
+ 	v.Args = append(v.Args, a...)
++	for _, x := range a {
++		x.Uses++
++	}
+ }
+ func (v *Value) SetArg(i int, w *Value) {
++	v.Args[i].Uses--
+ 	v.Args[i] = w
++	w.Uses++
+ }
+ func (v *Value) RemoveArg(i int) {
++	v.Args[i].Uses--
+ 	copy(v.Args[i:], v.Args[i+1:])
+ 	v.Args[len(v.Args)-1] = nil // aid GC
+ 	v.Args = v.Args[:len(v.Args)-1]
+@@ -188,6 +198,9 @@ func (v *Value) SetArgs2(a *Value, b *Value) {
+ }
+ 
+ func (v *Value) resetArgs() {
++	for _, a := range v.Args {
++		a.Uses--
++	}
+ 	v.argstorage[0] = nil
+ 	v.argstorage[1] = nil
+ 	v.Args = v.argstorage[:0]
+diff --git a/src/cmd/compile/internal/ssa/zcse.go b/src/cmd/compile/internal/ssa/zcse.go
+index 664fbae9f0..dbda53e8a2 100644
+--- a/src/cmd/compile/internal/ssa/zcse.go
++++ b/src/cmd/compile/internal/ssa/zcse.go
+@@ -48,7 +48,7 @@ func zcse(f *Func) {
+ 				if opcodeTable[a.Op].argLen == 0 {
+ 					key := vkey{a.Op, keyFor(a), a.Aux, typeStr(a)}
+ 					if rv, ok := vals[key]; ok {
+-						v.Args[i] = rv
++						v.SetArg(i, rv)
+ 					}
+ 				}
+ 			}
+diff --git a/test/atomicload.go b/test/atomicload.go
+new file mode 100644
+index 0000000000..76f1ad491e
+--- /dev/null
++++ b/test/atomicload.go
+@@ -0,0 +1,45 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that we do loads exactly once. The SSA backend
++// once tried to do the load in f twice, once sign extended
++// and once zero extended.  This can cause problems in
++// racy code, particularly sync/mutex.
++
++package main
++
++func f(p *byte) bool {
++	x := *p
++	a := int64(int8(x))
++	b := int64(uint8(x))
++	return a == b
++}
++
++func main() {
++	var x byte
++	const N = 1000000
++	c := make(chan struct{})
++	go func() {
++		for i := 0; i < N; i++ {
++			x = 1
++		}
++		c <- struct{}{}
++	}()
++	go func() {
++		for i := 0; i < N; i++ {
++			x = 2
++		}
++		c <- struct{}{}
++	}()
++
++	for i := 0; i < N; i++ {
++		if !f(&x) {
++			panic("non-atomic load!")
++		}
++	}
++	<-c
++	<-c
++}

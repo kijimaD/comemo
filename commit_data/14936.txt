@@ -13,10 +13,84 @@ Date:   Fri Jan 18 19:08:00 2013 -0800
     R=golang-dev, seed, rsc
     CC=golang-dev
     https://golang.org/cl/7067052
-
+---
  src/cmd/8g/gsubr.c    | 5 +----
  src/cmd/8g/reg.c      | 2 +-
  src/cmd/dist/plan9.c  | 1 +
  src/cmd/gc/fmt.c      | 2 +-
  src/cmd/gc/racewalk.c | 1 +
  5 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index b101d14a83..4c86b7582e 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1515,7 +1515,7 @@ floatmove(Node *f, Node *t)
+ {
+ 	Node r1, r2, t1, t2, tlo, thi, con, f0, f1, ax, dx, cx;
+ 	Type *cvt;
+-	int a, ft, tt;
++	int ft, tt;
+ 	Prog *p1, *p2, *p3;
+ 
+ 	ft = simsimtype(f->type);
+@@ -1711,9 +1711,6 @@ floatmove(Node *f, Node *t)
+ 		return;
+ 	}
+ 
+-	gins(a, f, t);
+-	return;
+-
+ hard:
+ 	// requires register intermediate
+ 	regalloc(&r1, cvt, t);
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 7b8b39e8bc..4e516b82a6 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -1815,7 +1815,7 @@ hash32to16(uint32 h)
+  * sees, which lets it do a better job and makes it less likely to turn
+  * itself off.
+  */
+-void
++static void
+ fixtemp(Prog *firstp)
+ {
+ 	static uint8 counts[1<<16]; // A hash table to count variable occurences.
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+index 56f922ced6..f289f5213c 100644
+--- a/src/cmd/dist/plan9.c
++++ b/src/cmd/dist/plan9.c
+@@ -755,6 +755,7 @@ xsamefile(char *f1, char *f2)
+ int
+ xtryexecfunc(void (*f)(void))
+ {
++	USED(f);
+ 	return 0; // suffice for now
+ }
+ 
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index cbaba467e8..3ff212ea33 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -289,7 +289,7 @@ Jconv(Fmt *fp)
+ 		fmtprint(fp, " l(%d)", n->lineno);
+ 
+ 	if(!c && n->xoffset != BADWIDTH)
+-		fmtprint(fp, " x(%lld%+d)", n->xoffset, n->stkdelta);
++		fmtprint(fp, " x(%lld%+lld)", n->xoffset, n->stkdelta);
+ 
+ 	if(n->class != 0) {
+ 		s = "";
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index d744cea91e..5fa74ff20e 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -219,6 +219,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		racewalknode(&n->left, init, 0, 0);
+ 		if(istype(n->left->type, TMAP)) {
+ 			// crashes on len(m[0]) or len(f())
++			SET(n1);
+ 			USED(n1);
+ 			/*
+ 			n1 = nod(OADDR, n->left, N);

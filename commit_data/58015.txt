@@ -19,7 +19,82 @@ Date:   Mon Sep 18 15:50:27 2023 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/test/test.go                   | 22 ++++++++---------
  .../go/testdata/script/test_json_issue35169.txt    | 28 ++++++++++++++++++++++
  2 files changed, 38 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 11d1aefc19..4c181dbcd2 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1233,18 +1233,6 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 		return nil
+ 	}
+ 
+-	if a.Failed {
+-		// We were unable to build the binary.
+-		a.Failed = false
+-		a.TestOutput = new(bytes.Buffer)
+-		fmt.Fprintf(a.TestOutput, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
+-		base.SetExitStatus(1)
+-
+-		// release next test to start
+-		close(r.next)
+-		return nil
+-	}
+-
+ 	var stdout io.Writer = os.Stdout
+ 	var err error
+ 	if testJSON {
+@@ -1259,6 +1247,16 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 	// Release next test to start (test2json.NewConverter writes the start event).
+ 	close(r.next)
+ 
++	if a.Failed {
++		// We were unable to build the binary.
++		a.Failed = false
++		fmt.Fprintf(stdout, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
++		// Tell the JSON converter that this was a failure, not a passing run.
++		err = errors.New("build failed")
++		base.SetExitStatus(1)
++		return nil
++	}
++
+ 	if p := a.Package; len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+ 		fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", p.ImportPath)
+ 		return nil
+diff --git a/src/cmd/go/testdata/script/test_json_issue35169.txt b/src/cmd/go/testdata/script/test_json_issue35169.txt
+new file mode 100644
+index 0000000000..fdb57556bd
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_json_issue35169.txt
+@@ -0,0 +1,28 @@
++! go test -json .
++
++	# We should see only JSON output on stdout, no non-JSON.
++	# To simplify the check, we just look for non-curly-braces, since
++	# every JSON entry has them and they're unlikely to occur
++	# in other error messages.
++! stdout '^[^{]'
++! stdout '[^}]\n$'
++
++	# Since the only test we requested failed to build, we should
++	# not see any "pass" actions in the JSON stream.
++! stdout '\{.*"Action":"pass".*\}'
++
++	# TODO(#62067): emit this as a build event instead of a test event.
++stdout '\{.*"Action":"output","Package":"example","Output":"FAIL\\texample \[build failed\]\\n"\}'
++stdout '\{.*"Action":"fail","Package":"example",.*\}'
++
++-- go.mod --
++module example
++go 1.19
++-- example.go --
++package example
++
++This is not valid Go source.
++-- example_test.go --
++package  example
++
++func Test(*testing.T) {}

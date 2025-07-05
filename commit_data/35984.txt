@@ -21,6 +21,22 @@ Date:   Mon Mar 26 10:41:11 2018 +0200
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/stat_plan9.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/os/stat_plan9.go b/src/os/stat_plan9.go
+index 15999c001c..b43339afa4 100644
+--- a/src/os/stat_plan9.go
++++ b/src/os/stat_plan9.go
+@@ -35,6 +35,10 @@ func fileInfoFromStat(d *syscall.Dir) FileInfo {
+ 	if d.Type != 'M' {
+ 		fs.mode |= ModeDevice
+ 	}
++	// Consider all files served by #c as character device files.
++	if d.Type == 'c' {
++		fs.mode |= ModeCharDevice
++	}
+ 	return fs
+ }
+ 

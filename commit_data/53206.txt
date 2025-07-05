@@ -12,6 +12,38 @@ Date:   Wed Jul 20 12:59:03 2022 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go | 13 ++++++-------
  1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 5c1069eed7..84a7216b10 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -929,11 +929,10 @@ func gcMarkTermination() {
+ 
+ 	mp := acquirem()
+ 	mp.preemptoff = "gcing"
+-	_g_ := getg()
+-	_g_.m.traceback = 2
+-	gp := _g_.m.curg
+-	casgstatus(gp, _Grunning, _Gwaiting)
+-	gp.waitreason = waitReasonGarbageCollection
++	mp.traceback = 2
++	curgp := mp.curg
++	casgstatus(curgp, _Grunning, _Gwaiting)
++	curgp.waitreason = waitReasonGarbageCollection
+ 
+ 	// Run gc on the g0 stack. We do this so that the g stack
+ 	// we're currently running on will no longer change. Cuts
+@@ -972,8 +971,8 @@ func gcMarkTermination() {
+ 		gcSweep(work.mode)
+ 	})
+ 
+-	_g_.m.traceback = 0
+-	casgstatus(gp, _Gwaiting, _Grunning)
++	mp.traceback = 0
++	casgstatus(curgp, _Gwaiting, _Grunning)
+ 
+ 	if trace.enabled {
+ 		traceGCDone()

@@ -8,6 +8,21 @@ Date:   Mon Sep 14 16:46:48 2009 -0700
     DELTA=3  (3 added, 0 deleted, 0 changed)
     OCL=34606
     CL=34609
-
+---
  src/pkg/template/template.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 847e58f443..46003b7671 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -575,6 +575,9 @@ func (st *state) findVar(s string) reflect.Value {
+ 	for i := 0; i < len(elems); i++ {
+ 		// Look up field; data must be a struct.
+ 		data = reflect.Indirect(data);
++		if data == nil {
++			return nil
++		}
+ 		typ, ok := data.Type().(*reflect.StructType);
+ 		if !ok {
+ 			return nil

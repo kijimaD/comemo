@@ -22,10 +22,145 @@ Date:   Mon Aug 29 17:25:32 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go   |  1 +
  src/cmd/compile/internal/noder/reader.go | 17 ++++++++++++++++-
  test/fixedbugs/issue54722.go             | 15 +++++++++++++++
  test/fixedbugs/issue54722b.go            | 30 ++++++++++++++++++++++++++++++
  test/typeparam/nested.go                 | 26 +++++---------------------
  5 files changed, 67 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 5edb665e37..32a45d7a9c 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -35,6 +35,7 @@ type DebugFlags struct {
+ 	PCTab                string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+ 	Panic                int    `help:"show all compiler panics"`
+ 	Reshape              int    `help:"print information about expression reshaping"`
++	Shapify              int    `help:"print information about shaping recursive types"`
+ 	Slice                int    `help:"print information about slice compilation"`
+ 	SoftFloat            int    `help:"force compiler to emit soft-float code"`
+ 	SyncFrames           int    `help:"how many writer stack frames to include at sync points in unified export data"`
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index d1a8843138..a34d5c924a 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -817,7 +817,22 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
+ // If basic is true, then the type argument is used to instantiate a
+ // type parameter whose constraint is a basic interface.
+ func shapify(targ *types.Type, basic bool) *types.Type {
+-	base.Assertf(targ.Kind() != types.TFORW, "%v is missing its underlying type", targ)
++	if targ.Kind() == types.TFORW {
++		if targ.IsFullyInstantiated() {
++			// For recursive instantiated type argument, it may  still be a TFORW
++			// when shapifying happens. If we don't have targ's underlying type,
++			// shapify won't work. The worst case is we end up not reusing code
++			// optimally in some tricky cases.
++			if base.Debug.Shapify != 0 {
++				base.Warn("skipping shaping of recursive type %v", targ)
++			}
++			if targ.HasShape() {
++				return targ
++			}
++		} else {
++			base.Fatalf("%v is missing its underlying type", targ)
++		}
++	}
+ 
+ 	// When a pointer type is used to instantiate a type parameter
+ 	// constrained by a basic interface, we know the pointer's element
+diff --git a/test/fixedbugs/issue54722.go b/test/fixedbugs/issue54722.go
+new file mode 100644
+index 0000000000..7de27082b1
+--- /dev/null
++++ b/test/fixedbugs/issue54722.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type G[T any] struct {
++	h H[G[T]]
++}
++
++type H[T any] struct{}
++
++var x G[int]
+diff --git a/test/fixedbugs/issue54722b.go b/test/fixedbugs/issue54722b.go
+new file mode 100644
+index 0000000000..a6c8f829ab
+--- /dev/null
++++ b/test/fixedbugs/issue54722b.go
+@@ -0,0 +1,30 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type value[V comparable] struct {
++	node  *node[value[V]]
++	value V
++}
++
++type node[V comparable] struct {
++	index    *index[V]
++	children map[string]*node[V]
++}
++
++type index[V comparable] struct {
++	arrays []array[V]
++}
++
++type array[V comparable] struct {
++	valueMap map[int]V
++}
++
++var x value[int]
++var y value[*Column]
++
++type Column struct{ column int }
+diff --git a/test/typeparam/nested.go b/test/typeparam/nested.go
+index 068e32be1d..cdb8bfb574 100644
+--- a/test/typeparam/nested.go
++++ b/test/typeparam/nested.go
+@@ -104,27 +104,11 @@ func main() {
+ 	F[V]()
+ 	F[W]()
+ 
+-	// TODO(go.dev/issue/54512): Restore these tests. They currently
+-	// cause problems for shaping with unified IR.
+-	//
+-	// For example, instantiating X[int] requires instantiating shape
+-	// type X[shapify(int)] == X[go.shape.int]. In turn, this requires
+-	// instantiating U[shapify(X[go.shape.int])]. But we're still in the
+-	// process of constructing X[go.shape.int], so we don't yet know its
+-	// underlying type.
+-	//
+-	// Notably, this is a consequence of unified IR writing out type
+-	// declarations with a reference to the full RHS expression (i.e.,
+-	// U[X[A]]) rather than its underlying type (i.e., int), which is
+-	// necessary to support //go:notinheap. Once go.dev/issue/46731 is
+-	// implemented and unified IR is updated, I expect this will just
+-	// work.
+-	//
+-	// type X[A any] U[X[A]]
+-	//
+-	// F[X[int]]()
+-	// F[X[Int]]()
+-	// F[X[GlobalInt]]()
++	type X[A any] U[X[A]]
++
++	F[X[int]]()
++	F[X[Int]]()
++	F[X[GlobalInt]]()
+ 
+ 	for j, tj := range tests {
+ 		for i, ti := range tests[:j+1] {

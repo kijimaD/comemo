@@ -16,10 +16,229 @@ Date:   Wed Jul 13 15:18:41 2022 -0400
     Change-Id: I3f58a56babb76634839a161ca174c8f085fe3ba4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/417555
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types/size.go        |  2 ++
  src/cmd/compile/internal/types2/sizes.go      | 23 +++++++++++++++
  src/cmd/compile/internal/types2/sizes_test.go | 41 ++++++++++++++++++++++++++-
  src/go/types/sizes.go                         | 23 +++++++++++++++
  src/go/types/sizes_test.go                    | 41 ++++++++++++++++++++++++++-
  5 files changed, 128 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 68b9ac3ff3..d034808132 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -169,6 +169,8 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 	}
+ 	// Special case: sync/atomic.align64 is an empty struct we recognize
+ 	// as a signal that the struct it contains must be 64-bit-aligned.
++	//
++	// This logic is duplicated in go/types and cmd/compile/internal/types2.
+ 	if isStruct && t.NumFields() == 0 && t.Sym() != nil && t.Sym().Name == "align64" && isAtomicStdPkg(t.Sym().Pkg) {
+ 		maxalign = 8
+ 	}
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index 6133e15924..4da309461f 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -53,6 +53,17 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 		// is the same as unsafe.Alignof(x[0]), but at least 1."
+ 		return s.Alignof(t.elem)
+ 	case *Struct:
++		if len(t.fields) == 0 && isSyncAtomicAlign64(T) {
++			// Special case: sync/atomic.align64 is an
++			// empty struct we recognize as a signal that
++			// the struct it contains must be
++			// 64-bit-aligned.
++			//
++			// This logic is equivalent to the logic in
++			// cmd/compile/internal/types/size.go:calcStructOffset
++			return 8
++		}
++
+ 		// spec: "For a variable x of struct type: unsafe.Alignof(x)
+ 		// is the largest of the values unsafe.Alignof(x.f) for each
+ 		// field f of x, but at least 1."
+@@ -93,6 +104,18 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 	return a
+ }
+ 
++func isSyncAtomicAlign64(T Type) bool {
++	named, ok := T.(*Named)
++	if !ok {
++		return false
++	}
++	obj := named.Obj()
++	return obj.Name() == "align64" &&
++		obj.Pkg() != nil &&
++		(obj.Pkg().Path() == "sync/atomic" ||
++			obj.Pkg().Path() == "runtime/internal/atomic")
++}
++
+ func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
+ 	offsets := make([]int64, len(fields))
+ 	var o int64
+diff --git a/src/cmd/compile/internal/types2/sizes_test.go b/src/cmd/compile/internal/types2/sizes_test.go
+index c9a4942bed..824ec838e2 100644
+--- a/src/cmd/compile/internal/types2/sizes_test.go
++++ b/src/cmd/compile/internal/types2/sizes_test.go
+@@ -14,12 +14,15 @@ import (
+ 
+ // findStructType typechecks src and returns the first struct type encountered.
+ func findStructType(t *testing.T, src string) *types2.Struct {
++	return findStructTypeConfig(t, src, &types2.Config{})
++}
++
++func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2.Struct {
+ 	f, err := parseSrc("x.go", src)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
+-	var conf types2.Config
+ 	_, err = conf.Check("x", []*syntax.File{f}, &info)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -105,3 +108,39 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
+ 		_ = conf.Sizes.Alignof(tv.Type)
+ 	}
+ }
++
++// Issue #53884.
++func TestAtomicAlign(t *testing.T) {
++	const src = `
++package main
++
++import "sync/atomic"
++
++var s struct {
++	x int32
++	y atomic.Int64
++	z int64
++}
++`
++
++	want := []int64{0, 8, 16}
++	for _, arch := range []string{"386", "amd64"} {
++		t.Run(arch, func(t *testing.T) {
++			conf := types2.Config{
++				Importer: defaultImporter(),
++				Sizes:    types2.SizesFor("gc", arch),
++			}
++			ts := findStructTypeConfig(t, src, &conf)
++			var fields []*types2.Var
++			// Make a copy manually :(
++			for i := 0; i < ts.NumFields(); i++ {
++				fields = append(fields, ts.Field(i))
++			}
++
++			offsets := conf.Sizes.Offsetsof(fields)
++			if offsets[0] != want[0] || offsets[1] != want[1] || offsets[2] != want[2] {
++				t.Errorf("OffsetsOf(%v) = %v want %v", ts, offsets, want)
++			}
++		})
++	}
++}
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 7b67dca2b8..cb5253b453 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -53,6 +53,17 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 		// is the same as unsafe.Alignof(x[0]), but at least 1."
+ 		return s.Alignof(t.elem)
+ 	case *Struct:
++		if len(t.fields) == 0 && isSyncAtomicAlign64(T) {
++			// Special case: sync/atomic.align64 is an
++			// empty struct we recognize as a signal that
++			// the struct it contains must be
++			// 64-bit-aligned.
++			//
++			// This logic is equivalent to the logic in
++			// cmd/compile/internal/types/size.go:calcStructOffset
++			return 8
++		}
++
+ 		// spec: "For a variable x of struct type: unsafe.Alignof(x)
+ 		// is the largest of the values unsafe.Alignof(x.f) for each
+ 		// field f of x, but at least 1."
+@@ -93,6 +104,18 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 	return a
+ }
+ 
++func isSyncAtomicAlign64(T Type) bool {
++	named, ok := T.(*Named)
++	if !ok {
++		return false
++	}
++	obj := named.Obj()
++	return obj.Name() == "align64" &&
++		obj.Pkg() != nil &&
++		(obj.Pkg().Path() == "sync/atomic" ||
++			obj.Pkg().Path() == "runtime/internal/atomic")
++}
++
+ func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
+ 	offsets := make([]int64, len(fields))
+ 	var o int64
+diff --git a/src/go/types/sizes_test.go b/src/go/types/sizes_test.go
+index 539b4e37c1..740072f1dc 100644
+--- a/src/go/types/sizes_test.go
++++ b/src/go/types/sizes_test.go
+@@ -17,13 +17,16 @@ import (
+ 
+ // findStructType typechecks src and returns the first struct type encountered.
+ func findStructType(t *testing.T, src string) *types.Struct {
++	return findStructTypeConfig(t, src, &types.Config{})
++}
++
++func findStructTypeConfig(t *testing.T, src string, conf *types.Config) *types.Struct {
+ 	fset := token.NewFileSet()
+ 	f, err := parser.ParseFile(fset, "x.go", src, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
+-	var conf types.Config
+ 	_, err = conf.Check("x", fset, []*ast.File{f}, &info)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -110,3 +113,39 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
+ 		_ = conf.Sizes.Alignof(tv.Type)
+ 	}
+ }
++
++// Issue #53884.
++func TestAtomicAlign(t *testing.T) {
++	const src = `
++package main
++
++import "sync/atomic"
++
++var s struct {
++	x int32
++	y atomic.Int64
++	z int64
++}
++`
++
++	want := []int64{0, 8, 16}
++	for _, arch := range []string{"386", "amd64"} {
++		t.Run(arch, func(t *testing.T) {
++			conf := types.Config{
++				Importer: importer.Default(),
++				Sizes:    types.SizesFor("gc", arch),
++			}
++			ts := findStructTypeConfig(t, src, &conf)
++			var fields []*types.Var
++			// Make a copy manually :(
++			for i := 0; i < ts.NumFields(); i++ {
++				fields = append(fields, ts.Field(i))
++			}
++
++			offsets := conf.Sizes.Offsetsof(fields)
++			if offsets[0] != want[0] || offsets[1] != want[1] || offsets[2] != want[2] {
++				t.Errorf("OffsetsOf(%v) = %v want %v", ts, offsets, want)
++			}
++		})
++	}
++}

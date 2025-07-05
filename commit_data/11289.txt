@@ -8,10 +8,121 @@ Date:   Fri Jan 20 10:32:55 2012 +0400
     R=golang-dev, bradfitz, sameer, rsc
     CC=golang-dev
     https://golang.org/cl/5558049
-
+---
  src/cmd/gc/go.h              |  2 ++
  src/cmd/gc/subr.c            |  2 ++
  src/pkg/runtime/alg.c        | 19 +++++++++++++++++++
  src/pkg/runtime/chan_test.go |  9 +++++++++
  src/pkg/runtime/runtime.h    |  2 ++
  5 files changed, 34 insertions(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 57cc94cccb..37bf806e36 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -40,12 +40,14 @@ enum
+ 	// These values are known by runtime.
+ 	// The MEMx and NOEQx values must run in parallel.  See algtype.
+ 	AMEM		= 0,
++	AMEM0,
+ 	AMEM8,
+ 	AMEM16,
+ 	AMEM32,
+ 	AMEM64,
+ 	AMEM128,
+ 	ANOEQ,
++	ANOEQ0,
+ 	ANOEQ8,
+ 	ANOEQ16,
+ 	ANOEQ32,
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 96616d88ee..3b53b97adc 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -586,6 +586,8 @@ algtype(Type *t)
+ 		if(isslice(t))
+ 			return ASLICE;
+ 		switch(t->width) {
++		case 0:
++			return a + AMEM0 - AMEM;
+ 		case 1:
+ 			return a + AMEM8 - AMEM;
+ 		case 2:
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.c
+index 8d6fffcfaa..033f5b462a 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -88,6 +88,23 @@ runtime·memcopy(uintptr s, void *a, void *b)
+ 	runtime·memmove(a, b, s);
+ }
+ 
++void
++runtime·memequal0(bool *eq, uintptr s, void *a, void *b)
++{
++	USED(s);
++	USED(a);
++	USED(b);
++	*eq = true;
++}
++
++void
++runtime·memcopy0(uintptr s, void *a, void *b)
++{
++	USED(s);
++	USED(a);
++	USED(b);
++}
++
+ void
+ runtime·memequal8(bool *eq, uintptr s, void *a, void *b)
+ {
+@@ -332,11 +349,13 @@ runtime·algarray[] =
+ [AINTER]	{ runtime·interhash, runtime·interequal, runtime·interprint, runtime·intercopy },
+ [ANILINTER]	{ runtime·nilinterhash, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
+ [ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·slicecopy },
++[AMEM0]		{ runtime·memhash, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
+ [AMEM8]		{ runtime·memhash, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
+ [AMEM16]	{ runtime·memhash, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
+ [AMEM32]	{ runtime·memhash, runtime·memequal32, runtime·memprint, runtime·memcopy32 },
+ [AMEM64]	{ runtime·memhash, runtime·memequal64, runtime·memprint, runtime·memcopy64 },
+ [AMEM128]	{ runtime·memhash, runtime·memequal128, runtime·memprint, runtime·memcopy128 },
++[ANOEQ0]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy0 },
+ [ANOEQ8]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy8 },
+ [ANOEQ16]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy16 },
+ [ANOEQ32]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy32 },
+diff --git a/src/pkg/runtime/chan_test.go b/src/pkg/runtime/chan_test.go
+index 7cea906cea..eb2c7c60d0 100644
+--- a/src/pkg/runtime/chan_test.go
++++ b/src/pkg/runtime/chan_test.go
+@@ -371,3 +371,12 @@ func BenchmarkChanCreation(b *testing.B) {
+ 		<-c
+ 	}
+ }
++
++func BenchmarkChanSem(b *testing.B) {
++	type Empty struct{}
++	c := make(chan Empty, 1)
++	for i := 0; i < b.N; i++ {
++		c <- Empty{}
++		<-c
++	}
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index dc54285c72..a30a16cf7e 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -358,12 +358,14 @@ enum {
+ enum
+ {
+ 	AMEM,
++	AMEM0,
+ 	AMEM8,
+ 	AMEM16,
+ 	AMEM32,
+ 	AMEM64,
+ 	AMEM128,
+ 	ANOEQ,
++	ANOEQ0,
+ 	ANOEQ8,
+ 	ANOEQ16,
+ 	ANOEQ32,

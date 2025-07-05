@@ -13,6 +13,30 @@ Date:   Wed Feb 8 11:44:09 2017 +1100
     Change-Id: I128c3ad125f7d0db19e922f165704a054b2af7ba
     Reviewed-on: https://go-review.googlesource.com/36980
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 3a99388381..6c8d39a43e 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1196,14 +1196,16 @@ func Asmbpe(ctxt *Link) {
+ 		b.Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_ALIGN_32BYTES
+ 		b.PointerToRawData = 0
+ 		bsssect = pensect
+-
+-		c = addinitarray(ctxt)
+ 	}
+ 
+ 	if !*FlagS {
+ 		dwarfaddpeheaders(ctxt)
+ 	}
+ 
++	if Linkmode == LinkExternal {
++		c = addinitarray(ctxt)
++	}
++
+ 	Cseek(int64(nextfileoff))
+ 	if Linkmode != LinkExternal {
+ 		addimports(ctxt, d)

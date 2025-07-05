@@ -12,7 +12,43 @@ Date:   Fri Jun 12 16:27:08 2020 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64enc.s | 4 ++--
  src/cmd/internal/obj/arm64/asm7.go           | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index 56cf51c303..e802ee76f5 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -591,7 +591,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    FMOVS R8, F15                              // 0f01271e
+    FMOVD F2, F9                               // 4940601e
+    FMOVS F4, F27                              // 9b40201e
+-   //TODO VFMOV $3.125, V8.2D                 // 28f5006f
++   //TODO VFMOV $3.125, V8.D2                 // 28f5006f
+    FMSUBS F13, F21, F13, F19                  // b3d50d1f
+    FMSUBD F11, F7, F15, F31                   // ff9d4b1f
+    //TODO VFMUL V9.S[2], F21, F19             // b39a895f
+@@ -648,7 +648,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    FSUBS F25, F23, F0                         // e03a391e
+    FSUBD F11, F13, F24                        // b8396b1e
+    //TODO SCVTFSS F30, F20                    // d4db215e
+-   //TODO VSCVTF V7.2S, V17.2S                // f1d8210e
++   //TODO VSCVTF V7.S2, V17.S2                // f1d8210e
+    SCVTFWS R3, F16                            // 7000221e
+    SCVTFWD R20, F4                            // 8402621e
+    SCVTFS R16, F12                            // 0c02229e
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 7a5a8ff38c..bc27740469 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -4801,7 +4801,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			Q = 1
+ 			b = 15
+ 		} else {
+-			c.ctxt.Diag("invalid arrangement, should be 8B or 16B: %v", p)
++			c.ctxt.Diag("invalid arrangement, should be B8 or B16: %v", p)
+ 			break
+ 		}
+ 

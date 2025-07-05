@@ -8,6 +8,43 @@ Date:   Tue Nov 17 22:14:34 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/157058
-
+---
  src/pkg/fmt/fmt_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index f2c4b19429..5d9b3abe50 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -40,6 +40,20 @@ type A struct {
+ 	x	[]int;
+ }
+ 
++type I int
++
++func (i I) String() string	{ return Sprintf("<%d>", i) }
++
++type B struct {
++	i	I;
++	j	int;
++}
++
++type C struct {
++	i	int;
++	B;
++}
++
+ var b byte
+ 
+ var fmttests = []fmtTest{
+@@ -184,6 +198,10 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%v", A{1, 2, "a", []int{1, 2}}, `{1 2 a [1 2]}`},
+ 	fmtTest{"%+v", A{1, 2, "a", []int{1, 2}}, `{i:1 j:2 s:a x:[1 2]}`},
+ 
++	// +v on structs with Stringable items
++	fmtTest{"%+v", B{1, 2}, `{i:<1> j:2}`},
++	fmtTest{"%+v", C{1, B{2, 3}}, `{i:1 B:{i:<2> j:3}}`},
++
+ 	// go syntax
+ 	fmtTest{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
+ 	fmtTest{"%#v", &b, "(*uint8)(PTR)"},

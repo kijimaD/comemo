@@ -9,9 +9,145 @@ Date:   Tue Feb 26 14:18:48 2013 +1100
     R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/7312053
-
+---
  src/pkg/os/file_windows.go                | 38 +++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_windows.go        |  1 +
  src/pkg/syscall/zsyscall_windows_386.go   | 13 +++++++++++
  src/pkg/syscall/zsyscall_windows_amd64.go | 13 +++++++++++
  4 files changed, 65 insertions(+)
+
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 839d14627f..2eba7a4752 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -32,6 +32,7 @@ type file struct {
+ 	// only for console io
+ 	isConsole bool
+ 	lastbits  []byte // first few bytes of the last incomplete rune in last write
++	readbuf   []rune // input console buffer
+ }
+ 
+ // Fd returns the Windows handle referencing the open file.
+@@ -242,11 +243,48 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 	return fi, nil
+ }
+ 
++// readConsole reads utf16 charcters from console File,
++// encodes them into utf8 and stores them in buffer b.
++// It returns the number of utf8 bytes read and an error, if any.
++func (f *File) readConsole(b []byte) (n int, err error) {
++	if len(b) == 0 {
++		return 0, nil
++	}
++	if len(f.readbuf) == 0 {
++		// get more input data from os
++		wchars := make([]uint16, len(b))
++		var p *uint16
++		if len(b) > 0 {
++			p = &wchars[0]
++		}
++		var nw uint32
++		err := syscall.ReadConsole(f.fd, p, uint32(len(wchars)), &nw, nil)
++		if err != nil {
++			return 0, err
++		}
++		f.readbuf = utf16.Decode(wchars[:nw])
++	}
++	for i, r := range f.readbuf {
++		if utf8.RuneLen(r) > len(b) {
++			f.readbuf = f.readbuf[i:]
++			return n, nil
++		}
++		nr := utf8.EncodeRune(b, r)
++		b = b[nr:]
++		n += nr
++	}
++	f.readbuf = nil
++	return n, nil
++}
++
+ // read reads up to len(b) bytes from the File.
+ // It returns the number of bytes read and an error, if any.
+ func (f *File) read(b []byte) (n int, err error) {
+ 	f.l.Lock()
+ 	defer f.l.Unlock()
++	if f.isConsole {
++		return f.readConsole(b)
++	}
+ 	return syscall.Read(f.fd, b)
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index e745fbe510..d7c3265a14 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -202,6 +202,7 @@ func NewCallback(fn interface{}) uintptr
+ //sys	getCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
+ //sys	GetConsoleMode(console Handle, mode *uint32) (err error) = kernel32.GetConsoleMode
+ //sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
++//sys	ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) = kernel32.ReadConsoleW
+ 
+ // syscall interface implementation for other packages
+ 
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index c90cdfc065..e5c48488ba 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -107,6 +107,7 @@ var (
+ 	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
+ 	procGetConsoleMode                   = modkernel32.NewProc("GetConsoleMode")
+ 	procWriteConsoleW                    = modkernel32.NewProc("WriteConsoleW")
++	procReadConsoleW                     = modkernel32.NewProc("ReadConsoleW")
+ 	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
+@@ -1238,6 +1239,18 @@ func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32,
+ 	return
+ }
+ 
++func ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) {
++	r1, _, e1 := Syscall6(procReadConsoleW.Addr(), 5, uintptr(console), uintptr(unsafe.Pointer(buf)), uintptr(toread), uintptr(unsafe.Pointer(read)), uintptr(unsafe.Pointer(inputControl)), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	if r0 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index 105fdda584..465b509ae7 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -107,6 +107,7 @@ var (
+ 	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
+ 	procGetConsoleMode                   = modkernel32.NewProc("GetConsoleMode")
+ 	procWriteConsoleW                    = modkernel32.NewProc("WriteConsoleW")
++	procReadConsoleW                     = modkernel32.NewProc("ReadConsoleW")
+ 	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
+@@ -1238,6 +1239,18 @@ func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32,
+ 	return
+ }
+ 
++func ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) {
++	r1, _, e1 := Syscall6(procReadConsoleW.Addr(), 5, uintptr(console), uintptr(unsafe.Pointer(buf)), uintptr(toread), uintptr(unsafe.Pointer(read)), uintptr(unsafe.Pointer(inputControl)), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	if r0 != 0 {

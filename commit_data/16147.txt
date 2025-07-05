@@ -13,9 +13,73 @@ Date:   Tue Apr 9 12:41:58 2013 +0900
     R=dvyukov, dave, bradfitz, adg
     CC=golang-dev
     https://golang.org/cl/8318044
-
+---
  src/pkg/net/fd_unix.go        | 10 +++++++---
  src/pkg/net/sock_posix.go     |  2 +-
  src/pkg/net/tcpsock_posix.go  |  2 +-
  src/pkg/net/unixsock_posix.go |  2 +-
  4 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index f52c98a6c6..c160faeceb 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -122,12 +122,16 @@ func (fd *netFD) incref(closing bool) error {
+ func (fd *netFD) decref() {
+ 	fd.sysmu.Lock()
+ 	fd.sysref--
+-	if fd.closing && fd.sysref == 0 && fd.sysfile != nil {
++	if fd.closing && fd.sysref == 0 {
+ 		// Poller may want to unregister fd in readiness notification mechanism,
+ 		// so this must be executed before sysfile.Close().
+ 		fd.pd.Close()
+-		fd.sysfile.Close()
+-		fd.sysfile = nil
++		if fd.sysfile != nil {
++			fd.sysfile.Close()
++			fd.sysfile = nil
++		} else {
++			closesocket(fd.sysfd)
++		}
+ 		fd.sysfd = -1
+ 	}
+ 	fd.sysmu.Unlock()
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index e2487c805e..7e6a2c073d 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -58,7 +58,7 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 			setWriteDeadline(fd, deadline)
+ 		}
+ 		if err = fd.connect(ursa); err != nil {
+-			closesocket(s)
++			fd.Close()
+ 			return nil, err
+ 		}
+ 		fd.isConnected = true
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 8133ca1c11..2224e6a5e9 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -288,7 +288,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	}
+ 	err = syscall.Listen(fd.sysfd, listenerBacklog)
+ 	if err != nil {
+-		closesocket(fd.sysfd)
++		fd.Close()
+ 		return nil, &OpError{"listen", net, laddr, err}
+ 	}
+ 	return &TCPListener{fd}, nil
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 760d38f273..6490cae77f 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -271,7 +271,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ 	}
+ 	err = syscall.Listen(fd.sysfd, listenerBacklog)
+ 	if err != nil {
+-		closesocket(fd.sysfd)
++		fd.Close()
+ 		return nil, &OpError{Op: "listen", Net: net, Addr: laddr, Err: err}
+ 	}
+ 	return &UnixListener{fd, laddr.Name}, nil

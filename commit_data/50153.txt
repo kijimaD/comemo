@@ -19,6 +19,33 @@ Date:   Tue Oct 5 14:10:39 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/symtab.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 8d21fdc42c..e26c05bc0c 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -1096,9 +1096,9 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
+ 	if i < 0 || i >= f.nfuncdata {
+ 		return nil
+ 	}
+-	p := add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(f.npcdata)*4)
+-	p = add(p, uintptr(i)*4)
+-	off := *(*uint32)(p)
++	base := f.datap.gofunc // load gofunc address early so that we calculate during cache misses
++	p := uintptr(unsafe.Pointer(&f.nfuncdata)) + unsafe.Sizeof(f.nfuncdata) + uintptr(f.npcdata)*4 + uintptr(i)*4
++	off := *(*uint32)(unsafe.Pointer(p))
+ 	// Return off == ^uint32(0) ? 0 : f.datap.gofunc + uintptr(off), but without branches.
+ 	// The compiler calculates mask on most architectures using conditional assignment.
+ 	var mask uintptr
+@@ -1106,7 +1106,7 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
+ 		mask = 1
+ 	}
+ 	mask--
+-	raw := f.datap.gofunc + uintptr(off)
++	raw := base + uintptr(off)
+ 	return unsafe.Pointer(raw & mask)
+ }
+ 

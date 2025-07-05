@@ -9,7 +9,73 @@ Date:   Thu Jun 25 16:52:51 2015 +0100
     Change-Id: I3be7fbc86c5f62761f47122632f3e11b56cb6be6
     Reviewed-on: https://go-review.googlesource.com/11510
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/client.go      |  2 +-
  src/net/http/client_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index d5e3899fd3..02ac85a1d7 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -212,7 +212,7 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
+ 		req.Header = make(Header)
+ 	}
+ 
+-	if u := req.URL.User; u != nil {
++	if u := req.URL.User; u != nil && req.Header.Get("Authorization") == "" {
+ 		username := u.Username()
+ 		password, _ := u.Password()
+ 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 12e165a5ef..10829a7790 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -843,6 +843,47 @@ func TestBasicAuth(t *testing.T) {
+ 	}
+ }
+ 
++func TestBasicAuthHeadersPreserved(t *testing.T) {
++	defer afterTest(t)
++	tr := &recordingTransport{}
++	client := &Client{Transport: tr}
++
++	// If Authorization header is provided, username in URL should not override it
++	url := "http://My%20User@dummy.faketld/"
++	req, err := NewRequest("GET", url, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.SetBasicAuth("My User", "My Pass")
++	expected := "My User:My Pass"
++	client.Do(req)
++
++	if tr.req.Method != "GET" {
++		t.Errorf("got method %q, want %q", tr.req.Method, "GET")
++	}
++	if tr.req.URL.String() != url {
++		t.Errorf("got URL %q, want %q", tr.req.URL.String(), url)
++	}
++	if tr.req.Header == nil {
++		t.Fatalf("expected non-nil request Header")
++	}
++	auth := tr.req.Header.Get("Authorization")
++	if strings.HasPrefix(auth, "Basic ") {
++		encoded := auth[6:]
++		decoded, err := base64.StdEncoding.DecodeString(encoded)
++		if err != nil {
++			t.Fatal(err)
++		}
++		s := string(decoded)
++		if expected != s {
++			t.Errorf("Invalid Authorization header. Got %q, wanted %q", s, expected)
++		}
++	} else {
++		t.Errorf("Invalid auth %q", auth)
++	}
++
++}
++
+ func TestClientTimeout(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")

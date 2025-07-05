@@ -31,6 +31,45 @@ Date:   Fri Aug 9 09:02:27 2013 +0900
     R=dvyukov, bradfitz
     CC=golang-dev
     https://golang.org/cl/12663043
-
+---
  src/pkg/net/fd_poll_unix.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/pkg/net/fd_poll_unix.go b/src/pkg/net/fd_poll_unix.go
+index 9834190fda..bbe827a5bf 100644
+--- a/src/pkg/net/fd_poll_unix.go
++++ b/src/pkg/net/fd_poll_unix.go
+@@ -252,14 +252,23 @@ func (pd *pollDesc) Close() {
+ }
+ 
+ func (pd *pollDesc) Lock() {
++	if pd.pollServer == nil {
++		return
++	}
+ 	pd.pollServer.Lock()
+ }
+ 
+ func (pd *pollDesc) Unlock() {
++	if pd.pollServer == nil {
++		return
++	}
+ 	pd.pollServer.Unlock()
+ }
+ 
+ func (pd *pollDesc) Wakeup() {
++	if pd.pollServer == nil {
++		return
++	}
+ 	pd.pollServer.Wakeup()
+ }
+ 
+@@ -294,6 +303,9 @@ func (pd *pollDesc) WaitWrite() error {
+ }
+ 
+ func (pd *pollDesc) Evict() bool {
++	if pd.pollServer == nil {
++		return false
++	}
+ 	return pd.pollServer.Evict(pd)
+ }
+ 

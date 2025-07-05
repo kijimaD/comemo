@@ -8,6 +8,16 @@ Date:   Thu Oct 15 11:02:18 2009 -0700
     DELTA=3  (3 added, 0 deleted, 0 changed)
     OCL=35732
     CL=35775
-
+---
  src/pkg/exp/README | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/exp/README b/src/pkg/exp/README
+new file mode 100644
+index 0000000000..e602e3ac9f
+--- /dev/null
++++ b/src/pkg/exp/README
+@@ -0,0 +1,3 @@
++This directory tree contains experimental packages and
++unfinished code that is subject to even more change than the
++rest of the Go tree.

@@ -9,7 +9,32 @@ Date:   Mon Mar 11 07:43:17 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7700043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index df64966177..eeda1da75a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -149,6 +149,7 @@ John Asmuth <jasmuth@gmail.com>
+ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ Jonathan Gold <jgold.bg@gmail.com>
+ Jonathan Mark <jhmark@xenops.com>
++Jonathan Rudenberg <jonathan@titanous.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Jongmin Kim <atomaths@gmail.com>
+ Jose Luis Vázquez González <josvazg@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 8eb4730892..49b976935d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -226,6 +226,7 @@ Jonathan Gold <jgold.bg@gmail.com>
+ Jonathan Hseu <jhseu@google.com>
+ Jonathan Mark <jhmark@xenops.com> <jhmark000@gmail.com>
+ Jonathan Pittman <jmpittman@google.com> <jonathan.mark.pittman@gmail.com>
++Jonathan Rudenberg <jonathan@titanous.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Jongmin Kim <atomaths@gmail.com>
+ Jos Visser <josv@google.com>

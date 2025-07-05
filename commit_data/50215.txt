@@ -10,8 +10,77 @@ Date:   Fri Oct 8 09:52:37 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/354694
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/check.go     | 10 +++++-----
  src/go/types/signature.go |  8 ++++----
  src/go/types/typexpr.go   |  4 ++--
  3 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index fa3bd94681..46a0000940 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -103,10 +103,10 @@ type Checker struct {
+ 	// information collected during type-checking of a set of package files
+ 	// (initialized by Files, valid only for the duration of check.Files;
+ 	// maps and lists are allocated on demand)
+-	files        []*ast.File               // package files
+-	imports      []*PkgName                // list of imported packages
+-	dotImportMap map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+-	rparamMap    map[*ast.Ident]*TypeParam // maps blank receiver type params to their type
++	files         []*ast.File               // package files
++	imports       []*PkgName                // list of imported packages
++	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
++	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
+ 
+ 	firstErr error                 // first error encountered
+ 	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
+@@ -284,7 +284,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	check.dotImportMap = nil
+ 	check.pkgPathMap = nil
+ 	check.seenPkgMap = nil
+-	check.rparamMap = nil
++	check.recvTParamMap = nil
+ 
+ 	// TODO(rFindley) There's more memory we should release at this point.
+ 
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index ae7818afdf..c83bf09032 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -117,16 +117,16 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 			// receiver type expression would fail in Checker.collectParams below,
+ 			// when Checker.ident cannot resolve the _ to a type.
+ 			//
+-			// Checker.rparamMap maps these blank identifiers to their type parameter
++			// Checker.recvTParamMap maps these blank identifiers to their type parameter
+ 			// types, so that they may be resolved in Checker.ident when they fail
+ 			// lookup in the scope.
+ 			for i, p := range rparams {
+ 				if p.Name == "_" {
+ 					tpar := sig.rparams.At(i)
+-					if check.rparamMap == nil {
+-						check.rparamMap = make(map[*ast.Ident]*TypeParam)
++					if check.recvTParamMap == nil {
++						check.recvTParamMap = make(map[*ast.Ident]*TypeParam)
+ 					}
+-					check.rparamMap[p] = tpar
++					check.recvTParamMap[p] = tpar
+ 				}
+ 			}
+ 			// determine receiver type to get its type parameters
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index f581effc19..71623c336e 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -32,8 +32,8 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 		if e.Name == "_" {
+ 			// Blank identifiers are never declared, but the current identifier may
+ 			// be a placeholder for a receiver type parameter. In this case we can
+-			// resolve its type and object from Checker.rparamMap.
+-			if tpar := check.rparamMap[e]; tpar != nil {
++			// resolve its type and object from Checker.recvTParamMap.
++			if tpar := check.recvTParamMap[e]; tpar != nil {
+ 				x.mode = typexpr
+ 				x.typ = tpar
+ 			} else {

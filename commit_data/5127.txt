@@ -7,6 +7,23 @@ Date:   Wed Mar 24 18:03:10 2010 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/747041
-
+---
  src/pkg/runtime/mingw/thread.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/runtime/mingw/thread.c b/src/pkg/runtime/mingw/thread.c
+index 94ffc27521..9a0bf2a8a6 100644
+--- a/src/pkg/runtime/mingw/thread.c
++++ b/src/pkg/runtime/mingw/thread.c
+@@ -217,6 +217,11 @@ unlock(Lock *l)
+ 	eventunlock(l);
+ }
+ 
++void
++destroylock(Lock *l)
++{
++}
++
+ void
+ noteclear(Note *n)
+ {

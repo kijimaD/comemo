@@ -9,7 +9,7 @@ Date:   Tue Jun 29 22:29:09 2010 -0700
     R=PeterGo, adg, rsc
     CC=golang-dev
     https://golang.org/cl/1121042
-
+---
  src/pkg/syscall/syscall_windows.go      |  16 +-
  src/pkg/syscall/zsyscall_windows_386.go |  12 ++
  src/pkg/syscall/ztypes_windows_386.go   |  27 +++-
@@ -18,3 +18,639 @@ Date:   Tue Jun 29 22:29:09 2010 -0700
  src/pkg/time/zoneinfo_unix.go           | 261 ++++++++++++++++++++++++++++++++
  src/pkg/time/zoneinfo_windows.go        | 191 +++++++++++++++++++++++
  7 files changed, 517 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 2f0552b6a4..8b6789221b 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -127,20 +127,13 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) = GetComputerNameW
+ //sys	SetEndOfFile(handle int32) (ok bool, errno int)
+ //sys	GetSystemTimeAsFileTime(time *Filetime)
+-//sys   sleep(msec uint32) = Sleep
++//sys	sleep(msec uint32) = Sleep
++//sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) [failretval=0xffffffff]
+ //sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
+ //sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
+ 
+ // syscall interface implementation for other packages
+ 
+-func Sleep(nsec int64) (errno int) {
+-	nsec += 999999 // round up to milliseconds
+-	msec := uint32(nsec / 1e6)
+-	sleep(msec)
+-	errno = 0
+-	return
+-}
+-
+ func Errstr(errno int) string {
+ 	if errno == EWINDOWS {
+ 		return "not supported by windows"
+@@ -379,6 +372,11 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ 	return 0
+ }
+ 
++func Sleep(nsec int64) (errno int) {
++	sleep(uint32((nsec + 1e6 - 1) / 1e6)) // round up to milliseconds
++	return 0
++}
++
+ // TODO(brainman): implement Utimes, or rewrite os.file.Chtimes() instead
+ func Utimes(path string, tv []Timeval) (errno int) {
+ 	return EWINDOWS
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index fcd6dc6b14..306de3031a 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -37,6 +37,7 @@ var (
+ 	procSetEndOfFile               = getSysProcAddr(modkernel32, "SetEndOfFile")
+ 	procGetSystemTimeAsFileTime    = getSysProcAddr(modkernel32, "GetSystemTimeAsFileTime")
+ 	procSleep                      = getSysProcAddr(modkernel32, "Sleep")
++	procGetTimeZoneInformation     = getSysProcAddr(modkernel32, "GetTimeZoneInformation")
+ 	procCreateIoCompletionPort     = getSysProcAddr(modkernel32, "CreateIoCompletionPort")
+ 	procGetQueuedCompletionStatus  = getSysProcAddr(modkernel32, "GetQueuedCompletionStatus")
+ 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
+@@ -341,6 +342,17 @@ func sleep(msec uint32) {
+ 	return
+ }
+ 
++func GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) {
++	r0, _, e1 := Syscall(procGetTimeZoneInformation, uintptr(unsafe.Pointer(tzi)), 0, 0)
++	rc = uint32(r0)
++	if rc == 0xffffffff {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int) {
+ 	r0, _, e1 := Syscall6(procCreateIoCompletionPort, uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt), 0, 0)
+ 	handle = int32(r0)
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index ad2980c1d1..315a8ac210 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -79,7 +79,11 @@ const (
+ 
+ 	MAX_COMPUTERNAME_LENGTH = 15
+ 
+-	INFINITE = 0xffffffff
++	TIME_ZONE_ID_UNKNOWN  = 0
++	TIME_ZONE_ID_STANDARD = 1
++
++	TIME_ZONE_ID_DAYLIGHT = 2
++	INFINITE              = 0xffffffff
+ 
+ 	WAIT_TIMEOUT = 258
+ )
+@@ -155,6 +159,27 @@ type Stat_t struct {
+ 	Mode    uint32
+ }
+ 
++type Systemtime struct {
++	Year         uint16
++	Month        uint16
++	DayOfWeek    uint16
++	Day          uint16
++	Hour         uint16
++	Minute       uint16
++	Second       uint16
++	Milliseconds uint16
++}
++
++type Timezoneinformation struct {
++	Bias         int32
++	StandardName [32]uint16
++	StandardDate Systemtime
++	StandardBias int32
++	DaylightName [32]uint16
++	DaylightDate Systemtime
++	DaylightBias int32
++}
++
+ // Socket related.
+ 
+ const (
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+index 1dbdb22d53..6732d6a79f 100644
+--- a/src/pkg/time/Makefile
++++ b/src/pkg/time/Makefile
+@@ -10,6 +10,22 @@ GOFILES=\
+ 	sleep.go\
+ 	tick.go\
+ 	time.go\
+-	zoneinfo.go\
++
++GOFILES_freebsd=\
++	zoneinfo_unix.go\
++
++GOFILES_darwin=\
++	zoneinfo_unix.go\
++
++GOFILES_linux=\
++	zoneinfo_unix.go\
++
++GOFILES_nacl=\
++	zoneinfo_unix.go\
++
++GOFILES_windows=\
++	zoneinfo_windows.go\
++
++GOFILES+=$(GOFILES_$(GOOS))
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 226826aca2..c043251266 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -2,7 +2,6 @@ package time
+ 
+ import (
+ 	"bytes"
+-	"once"
+ 	"os"
+ 	"strconv"
+ )
+@@ -581,13 +580,9 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 			}
+ 			// It's a valid format.
+ 			t.Zone = p
+-			// Can we find it in the table?
+-			once.Do(setupZone)
+-			for _, z := range zones {
+-				if p == z.zone.name {
+-					t.ZoneOffset = z.zone.utcoff
+-					break
+-				}
++			// Can we find its offset?
++			if offset, found := lookupByName(p); found {
++				t.ZoneOffset = offset
+ 			}
+ 		}
+ 		if rangeErrString != "" {
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+new file mode 100644
+index 0000000000..5a8c94aaf7
+--- /dev/null
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -0,0 +1,261 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parse "zoneinfo" time zone file.
++// This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
++// See tzfile(5), http://en.wikipedia.org/wiki/Zoneinfo,
++// and ftp://munnari.oz.au/pub/oldtz/
++
++package time
++
++import (
++	"io/ioutil"
++	"once"
++	"os"
++)
++
++const (
++	headerSize = 4 + 16 + 4*7
++	zoneDir    = "/usr/share/zoneinfo/"
++)
++
++// Simple I/O interface to binary blob of data.
++type data struct {
++	p     []byte
++	error bool
++}
++
++
++func (d *data) read(n int) []byte {
++	if len(d.p) < n {
++		d.p = nil
++		d.error = true
++		return nil
++	}
++	p := d.p[0:n]
++	d.p = d.p[n:]
++	return p
++}
++
++func (d *data) big4() (n uint32, ok bool) {
++	p := d.read(4)
++	if len(p) < 4 {
++		d.error = true
++		return 0, false
++	}
++	return uint32(p[0])<<24 | uint32(p[1])<<16 | uint32(p[2])<<8 | uint32(p[3]), true
++}
++
++func (d *data) byte() (n byte, ok bool) {
++	p := d.read(1)
++	if len(p) < 1 {
++		d.error = true
++		return 0, false
++	}
++	return p[0], true
++}
++
++
++// Make a string by stopping at the first NUL
++func byteString(p []byte) string {
++	for i := 0; i < len(p); i++ {
++		if p[i] == 0 {
++			return string(p[0:i])
++		}
++	}
++	return string(p)
++}
++
++// Parsed representation
++type zone struct {
++	utcoff int
++	isdst  bool
++	name   string
++}
++
++type zonetime struct {
++	time         int32 // transition time, in seconds since 1970 GMT
++	zone         *zone // the zone that goes into effect at that time
++	isstd, isutc bool  // ignored - no idea what these mean
++}
++
++func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
++	d := data{bytes, false}
++
++	// 4-byte magic "TZif"
++	if magic := d.read(4); string(magic) != "TZif" {
++		return nil, false
++	}
++
++	// 1-byte version, then 15 bytes of padding
++	var p []byte
++	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
++		return nil, false
++	}
++
++	// six big-endian 32-bit integers:
++	//	number of UTC/local indicators
++	//	number of standard/wall indicators
++	//	number of leap seconds
++	//	number of transition times
++	//	number of local time zones
++	//	number of characters of time zone abbrev strings
++	const (
++		NUTCLocal = iota
++		NStdWall
++		NLeap
++		NTime
++		NZone
++		NChar
++	)
++	var n [6]int
++	for i := 0; i < 6; i++ {
++		nn, ok := d.big4()
++		if !ok {
++			return nil, false
++		}
++		n[i] = int(nn)
++	}
++
++	// Transition times.
++	txtimes := data{d.read(n[NTime] * 4), false}
++
++	// Time zone indices for transition times.
++	txzones := d.read(n[NTime])
++
++	// Zone info structures
++	zonedata := data{d.read(n[NZone] * 6), false}
++
++	// Time zone abbreviations.
++	abbrev := d.read(n[NChar])
++
++	// Leap-second time pairs
++	d.read(n[NLeap] * 8)
++
++	// Whether tx times associated with local time types
++	// are specified as standard time or wall time.
++	isstd := d.read(n[NStdWall])
++
++	// Whether tx times associated with local time types
++	// are specified as UTC or local time.
++	isutc := d.read(n[NUTCLocal])
++
++	if d.error { // ran out of data
++		return nil, false
++	}
++
++	// If version == 2, the entire file repeats, this time using
++	// 8-byte ints for txtimes and leap seconds.
++	// We won't need those until 2106.
++
++	// Now we can build up a useful data structure.
++	// First the zone information.
++	//	utcoff[4] isdst[1] nameindex[1]
++	z := make([]zone, n[NZone])
++	for i := 0; i < len(z); i++ {
++		var ok bool
++		var n uint32
++		if n, ok = zonedata.big4(); !ok {
++			return nil, false
++		}
++		z[i].utcoff = int(n)
++		var b byte
++		if b, ok = zonedata.byte(); !ok {
++			return nil, false
++		}
++		z[i].isdst = b != 0
++		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
++			return nil, false
++		}
++		z[i].name = byteString(abbrev[b:])
++	}
++
++	// Now the transition time info.
++	zt = make([]zonetime, n[NTime])
++	for i := 0; i < len(zt); i++ {
++		var ok bool
++		var n uint32
++		if n, ok = txtimes.big4(); !ok {
++			return nil, false
++		}
++		zt[i].time = int32(n)
++		if int(txzones[i]) >= len(z) {
++			return nil, false
++		}
++		zt[i].zone = &z[txzones[i]]
++		if i < len(isstd) {
++			zt[i].isstd = isstd[i] != 0
++		}
++		if i < len(isutc) {
++			zt[i].isutc = isutc[i] != 0
++		}
++	}
++	return zt, true
++}
++
++func readinfofile(name string) ([]zonetime, bool) {
++	buf, err := ioutil.ReadFile(name)
++	if err != nil {
++		return nil, false
++	}
++	return parseinfo(buf)
++}
++
++var zones []zonetime
++
++func setupZone() {
++	// consult $TZ to find the time zone to use.
++	// no $TZ means use the system default /etc/localtime.
++	// $TZ="" means use UTC.
++	// $TZ="foo" means use /usr/share/zoneinfo/foo.
++
++	tz, err := os.Getenverror("TZ")
++	switch {
++	case err == os.ENOENV:
++		zones, _ = readinfofile("/etc/localtime")
++	case len(tz) > 0:
++		zones, _ = readinfofile(zoneDir + tz)
++	case len(tz) == 0:
++		// do nothing: use UTC
++	}
++}
++
++// Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
++func lookupTimezone(sec int64) (zone string, offset int) {
++	once.Do(setupZone)
++	if len(zones) == 0 {
++		return "UTC", 0
++	}
++
++	// Binary search for entry with largest time <= sec
++	tz := zones
++	for len(tz) > 1 {
++		m := len(tz) / 2
++		if sec < int64(tz[m].time) {
++			tz = tz[0:m]
++		} else {
++			tz = tz[m:]
++		}
++	}
++	z := tz[0].zone
++	return z.name, z.utcoff
++}
++
++// lookupByName returns the time offset for the
++// time zone with the given abbreviation. It only considers
++// time zones that apply to the current system.
++// For example, for a system configured as being in New York,
++// it only recognizes "EST" and "EDT".
++// For a system in San Francisco, "PST" and "PDT".
++// For a system in Sydney, "EST" and "EDT", though they have
++// different meanings than they do in New York.
++func lookupByName(name string) (off int, found bool) {
++	once.Do(setupZone)
++	for _, z := range zones {
++		if name == z.zone.name {
++			return z.zone.utcoff, true
++		}
++	}
++	return 0, false
++}
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+new file mode 100644
+index 0000000000..d249165c11
+--- /dev/null
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -0,0 +1,191 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++import (
++	"syscall"
++	"os"
++	"once"
++)
++
++// BUG(brainman): The Windows implementation assumes that
++// this year's rules for daylight savings time apply to all previous
++// and future years as well.
++
++// TODO(brainman): use GetDynamicTimeZoneInformation, whenever posible (Vista and up),
++// to improve on situation described in the bug above.
++
++type zone struct {
++	name                  string
++	offset                int
++	year                  int64
++	month, day, dayofweek int
++	hour, minute, second  int
++	abssec                int64
++	prev                  *zone
++}
++
++// Populate zone struct with Windows supplied information. Returns true, if data is valid.
++func (z *zone) populate(bias, biasdelta int32, d *syscall.Systemtime, name []uint16) (dateisgood bool) {
++	z.name = syscall.UTF16ToString(name)
++	z.offset = int(bias)
++	z.year = int64(d.Year)
++	z.month = int(d.Month)
++	z.day = int(d.Day)
++	z.dayofweek = int(d.DayOfWeek)
++	z.hour = int(d.Hour)
++	z.minute = int(d.Minute)
++	z.second = int(d.Second)
++	dateisgood = d.Month != 0
++	if dateisgood {
++		z.offset += int(biasdelta)
++	}
++	z.offset = -z.offset * 60
++	return
++}
++
++// Pre-calculte cutoff time in seconds since the Unix epoch, if data is supplied in "absolute" format.
++func (z *zone) preCalculateAbsSec() {
++	if z.year != 0 {
++		z.abssec = (&Time{z.year, int(z.month), int(z.day), int(z.hour), int(z.minute), int(z.second), 0, 0, ""}).Seconds()
++		// Time given is in "local" time. Adjust it for "utc".
++		z.abssec -= int64(z.prev.offset)
++	}
++}
++
++// Convert zone cutoff time to sec in number of seconds since the Unix epoch, given particualar year.
++func (z *zone) cutoffSeconds(year int64) int64 {
++	// Windows specifies daylight savings information in "day in month" format:
++	// z.month is month number (1-12)
++	// z.dayofweek is appropriate weekday (Sunday=0 to Saturday=6)
++	// z.day is week within the month (1 to 5, where 5 is last week of the month)
++	// z.hour, z.minute and z.second are absolute time
++	t := &Time{year, int(z.month), 1, int(z.hour), int(z.minute), int(z.second), 0, 0, ""}
++	t = SecondsToUTC(t.Seconds())
++	i := int(z.dayofweek) - t.Weekday
++	if i < 0 {
++		i += 7
++	}
++	t.Day += i
++	if week := int(z.day) - 1; week < 4 {
++		t.Day += week * 7
++	} else {
++		// "Last" instance of the day.
++		t.Day += 4 * 7
++		if t.Day > months(year)[t.Month] {
++			t.Day -= 7
++		}
++	}
++	// Result is in "local" time. Adjust it for "utc".
++	return t.Seconds() - int64(z.prev.offset)
++}
++
++// Is t before the cutoff for switching to z?
++func (z *zone) isBeforeCutoff(t *Time) bool {
++	var coff int64
++	if z.year == 0 {
++		// "day in month" format used
++		coff = z.cutoffSeconds(t.Year)
++	} else {
++		// "absolute" format used
++		coff = z.abssec
++	}
++	return t.Seconds() < coff
++}
++
++type zoneinfo struct {
++	disabled         bool // daylight saving time is not used localy
++	offsetIfDisabled int
++	januaryIsStd     bool // is january 1 standard time?
++	std, dst         zone
++}
++
++// Pick zone (std or dst) t time belongs to.
++func (zi *zoneinfo) pickZone(t *Time) *zone {
++	z := &zi.std
++	if tz.januaryIsStd {
++		if !zi.dst.isBeforeCutoff(t) && zi.std.isBeforeCutoff(t) {
++			// after switch to daylight time and before the switch back to standard
++			z = &zi.dst
++		}
++	} else {
++		if zi.std.isBeforeCutoff(t) || !zi.dst.isBeforeCutoff(t) {
++			// before switch to standard time or after the switch back to daylight
++			z = &zi.dst
++		}
++	}
++	return z
++}
++
++var tz zoneinfo
++var initError os.Error
++
++func setupZone() {
++	var i syscall.Timezoneinformation
++	if _, e := syscall.GetTimeZoneInformation(&i); e != 0 {
++		initError = os.NewSyscallError("GetTimeZoneInformation", e)
++		return
++	}
++	if !tz.std.populate(i.Bias, i.StandardBias, &i.StandardDate, i.StandardName[0:]) {
++		tz.disabled = true
++		tz.offsetIfDisabled = tz.std.offset
++		return
++	}
++	tz.std.prev = &tz.dst
++	tz.dst.populate(i.Bias, i.DaylightBias, &i.DaylightDate, i.DaylightName[0:])
++	tz.dst.prev = &tz.std
++	tz.std.preCalculateAbsSec()
++	tz.dst.preCalculateAbsSec()
++	// Is january 1 standard time this year?
++	t := UTC()
++	tz.januaryIsStd = tz.dst.cutoffSeconds(t.Year) < tz.std.cutoffSeconds(t.Year)
++}
++
++// Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
++func lookupTimezone(sec int64) (zone string, offset int) {
++	once.Do(setupZone)
++	if initError != nil {
++		return "", 0
++	}
++	if tz.disabled {
++		return "", tz.offsetIfDisabled
++	}
++	t := SecondsToUTC(sec)
++	z := &tz.std
++	if tz.std.year == 0 {
++		// "day in month" format used
++		z = tz.pickZone(t)
++	} else {
++		// "absolute" format used
++		if tz.std.year == t.Year {
++			// we have rule for the year in question
++			z = tz.pickZone(t)
++		} else {
++			// we do not have any information for that year,
++			// will assume standard offset all year around
++		}
++	}
++	return z.name, z.offset
++}
++
++// lookupByName returns the time offset for the
++// time zone with the given abbreviation. It only considers
++// time zones that apply to the current system.
++func lookupByName(name string) (off int, found bool) {
++	once.Do(setupZone)
++	if initError != nil {
++		return 0, false
++	}
++	if tz.disabled {
++		return tz.offsetIfDisabled, false
++	}
++	switch name {
++	case tz.std.name:
++		return tz.std.offset, true
++	case tz.dst.name:
++		return tz.dst.offset, true
++	}
++	return 0, false
++}

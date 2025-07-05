@@ -32,7 +32,42 @@ Date:   Fri Oct 7 00:49:15 2022 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/internal/modload/init.go                |  6 +++++-
  src/cmd/go/testdata/script/work_use_issue55952.txt | 11 +++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 7da2bebdb8..06be18405d 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -718,7 +718,11 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		var fixed bool
+ 		data, f, err := ReadModFile(gomod, fixVersion(ctx, &fixed))
+ 		if err != nil {
+-			base.Fatalf("go: %v", err)
++			if inWorkspaceMode() {
++				base.Fatalf("go: cannot load module listed in go.work file: %v", err)
++			} else {
++				base.Fatalf("go: %v", err)
++			}
+ 		}
+ 
+ 		modFiles = append(modFiles, f)
+diff --git a/src/cmd/go/testdata/script/work_use_issue55952.txt b/src/cmd/go/testdata/script/work_use_issue55952.txt
+new file mode 100644
+index 0000000000..2eef36199d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_use_issue55952.txt
+@@ -0,0 +1,11 @@
++! go list .
++stderr '^go: cannot load module listed in go\.work file: open .+go\.mod:'
++
++-- go.work --
++use ./y
++-- x/go.mod --
++module x
++
++go 1.19
++-- x/m.go --
++package m

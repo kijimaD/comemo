@@ -14,8 +14,62 @@ Date:   Tue Feb 24 14:28:49 2015 -0800
     Change-Id: Ifb2ab870de1aa1b53dec76a78ac697a0d36fa80a
     Reviewed-on: https://go-review.googlesource.com/5850
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/flags/flags.go | 2 +-
  src/cmd/asm/main.go                 | 1 +
  src/cmd/go/build.go                 | 6 +++---
  3 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index df0049faa6..12bd585413 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -17,7 +17,7 @@ var (
+ 	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
+ 	OutputFile = flag.String("o", "", "output file; default foo.6 for /a/b/c/foo.s on amd64")
+ 	PrintOut   = flag.Bool("S", false, "print assembly and machine code")
+-	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths (unused TODO)")
++	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
+ )
+ 
+ var (
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 31d5b95d68..9df486e85c 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -40,6 +40,7 @@ func main() {
+ 	if *flags.PrintOut {
+ 		ctxt.Debugasm = 1
+ 	}
++	ctxt.Trimpath = *flags.TrimPath
+ 	ctxt.Bso = obj.Binitw(os.Stdout)
+ 	defer obj.Bflush(ctxt.Bso)
+ 	ctxt.Diag = log.Fatalf
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 382c4cd276..df4260c359 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1703,7 +1703,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ }
+ 
+ // verifyAsm specifies whether to check the assemblers written in Go
+-// against the assemblers written in C. If set, asm will run both (say) 6a and new6a
++// against the assemblers written in C. If set, asm will run both asm and (say) 6a
+ // and fail if the two produce different output files.
+ const verifyAsm = true
+ 
+@@ -1711,12 +1711,12 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+ 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	sfile = mkAbs(p.Dir, sfile)
+-	args := []interface{}{buildToolExec, tool(archChar + "a"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
++	args := []interface{}{buildToolExec, tool("asm"), "-o", ofile, "-trimpath", b.work, "-I", obj, "-I", inc, "-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch, sfile}
+ 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
+ 		return err
+ 	}
+ 	if verifyAsm {
+-		if err := toolVerify(b, p, "asm", ofile, args); err != nil {
++		if err := toolVerify(b, p, archChar+"a", ofile, args); err != nil {
+ 			return err
+ 		}
+ 	}

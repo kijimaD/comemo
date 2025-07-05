@@ -18,6 +18,19 @@ Date:   Thu Mar 20 09:12:17 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/go/parser/parser_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index 869d803df6..714a6e0237 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -632,6 +632,7 @@ var parseDepthTests = []struct {
+ 	{name: "go", format: "package main; func main() { «go func() { «» }()» }", parseMultiplier: 2, scope: true},                      // Parser nodes: GoStmt, FuncLit
+ 	{name: "defer", format: "package main; func main() { «defer func() { «» }()» }", parseMultiplier: 2, scope: true},                // Parser nodes: DeferStmt, FuncLit
+ 	{name: "select", format: "package main; func main() { «select { default: «» }» }", scope: true},
++	{name: "block", format: "package main; func main() { «{«»}» }", scope: true},
+ }
+ 
+ // split splits pre«mid»post into pre, mid, post.

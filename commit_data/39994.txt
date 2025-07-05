@@ -17,10 +17,95 @@ Date:   Mon Apr 8 17:57:53 2019 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170955
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/asm_386.s         | 3 +++
  src/runtime/asm_amd64.s       | 3 +++
  src/runtime/cgo/gcc_android.c | 8 ++++++--
  src/runtime/tls_arm.s         | 5 +++++
  src/runtime/tls_arm64.s       | 5 +++++
  5 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 8995436184..61aae47c08 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1564,5 +1564,8 @@ TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
+ 	JMP	runtime·goPanicExtendSlice3CU(SB)
+ 
+ #ifdef GOOS_android
++// Use the free TLS_SLOT_APP slot #2 on Android Q.
++// Earlier androids are set up in gcc_android.c.
++DATA runtime·tls_g+0(SB)/4, $8
+ GLOBL runtime·tls_g+0(SB), NOPTR, $4
+ #endif
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 149b04dfdf..7b2fdf0d3d 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1713,5 +1713,8 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+ 	JMP	runtime·goPanicSlice3CU(SB)
+ 
+ #ifdef GOOS_android
++// Use the free TLS_SLOT_APP slot #2 on Android Q.
++// Earlier androids are set up in gcc_android.c.
++DATA runtime·tls_g+0(SB)/8, $16
+ GLOBL runtime·tls_g+0(SB), NOPTR, $8
+ #endif
+diff --git a/src/runtime/cgo/gcc_android.c b/src/runtime/cgo/gcc_android.c
+index 5075023282..321a5150b9 100644
+--- a/src/runtime/cgo/gcc_android.c
++++ b/src/runtime/cgo/gcc_android.c
+@@ -47,7 +47,7 @@ inittls(void **tlsg, void **tlsbase)
+ {
+ 	pthread_key_t k;
+ 	int i, err;
+-	void *handle, *get_ver;
++	void *handle, *get_ver, *off;
+ 
+ 	// Check for Android Q where we can use the free TLS_SLOT_APP slot.
+ 	handle = dlopen("libc.so", RTLD_LAZY);
+@@ -60,7 +60,11 @@ inittls(void **tlsg, void **tlsbase)
+ 	get_ver = dlsym(handle, "android_get_device_api_level");
+ 	dlclose(handle);
+ 	if (get_ver != NULL) {
+-		*tlsg = (void *)(TLS_SLOT_APP*sizeof(void *));
++		off = (void *)(TLS_SLOT_APP*sizeof(void *));
++		// tlsg is initialized to Q's free TLS slot. Verify it while we're here.
++		if (*tlsg != off) {
++			fatalf("tlsg offset wrong, got %ld want %ld\n", *tlsg, off);
++		}
+ 		return;
+ 	}
+ 
+diff --git a/src/runtime/tls_arm.s b/src/runtime/tls_arm.s
+index 400c16a177..9b8855e170 100644
+--- a/src/runtime/tls_arm.s
++++ b/src/runtime/tls_arm.s
+@@ -103,6 +103,11 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
+ 	B		runtime·save_g(SB)
+ 
+ #ifdef TLSG_IS_VARIABLE
++#ifdef GOOS_android
++// Use the free TLS_SLOT_APP slot #2 on Android Q.
++// Earlier androids are set up in gcc_android.c.
++DATA runtime·tls_g+0(SB)/4, $8
++#endif
+ GLOBL runtime·tls_g+0(SB), NOPTR, $4
+ #else
+ GLOBL runtime·tls_g+0(SB), TLSBSS, $4
+diff --git a/src/runtime/tls_arm64.s b/src/runtime/tls_arm64.s
+index 62ae6faf21..fb8627db29 100644
+--- a/src/runtime/tls_arm64.s
++++ b/src/runtime/tls_arm64.s
+@@ -43,6 +43,11 @@ nocgo:
+ 	RET
+ 
+ #ifdef TLSG_IS_VARIABLE
++#ifdef GOOS_android
++// Use the free TLS_SLOT_APP slot #2 on Android Q.
++// Earlier androids are set up in gcc_android.c.
++DATA runtime·tls_g+0(SB)/8, $16
++#endif
+ GLOBL runtime·tls_g+0(SB), NOPTR, $8
+ #else
+ GLOBL runtime·tls_g+0(SB), TLSBSS, $8

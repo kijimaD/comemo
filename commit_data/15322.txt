@@ -21,7 +21,7 @@ Date:   Wed Feb 20 16:19:52 2013 +1100
     R=rsc, minux.ma, mccoyst, alex.brainman, iant
     CC=golang-dev
     https://golang.org/cl/7181047
-
+---
  src/pkg/os/exec/lp_unix_test.go            |  5 +-
  src/pkg/os/exec/lp_windows.go              | 35 +++++++++++-
  src/pkg/path/filepath/path.go              |  5 +-
@@ -31,3 +31,295 @@ Date:   Wed Feb 20 16:19:52 2013 +1100
  src/pkg/path/filepath/path_windows.go      | 33 +++++++++++
  src/pkg/path/filepath/path_windows_test.go | 89 ++++++++++++++++++++++++++++++
  8 files changed, 203 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/os/exec/lp_unix_test.go b/src/pkg/os/exec/lp_unix_test.go
+index 3cba13e427..625d784864 100644
+--- a/src/pkg/os/exec/lp_unix_test.go
++++ b/src/pkg/os/exec/lp_unix_test.go
+@@ -32,7 +32,10 @@ func TestLookPathUnixEmptyPath(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("OpenFile failed: ", err)
+ 	}
+-	defer f.Close()
++	err = f.Close()
++	if err != nil {
++		t.Fatal("Close failed: ", err)
++	}
+ 
+ 	pathenv := os.Getenv("PATH")
+ 	defer os.Setenv("PATH", pathenv)
+diff --git a/src/pkg/os/exec/lp_windows.go b/src/pkg/os/exec/lp_windows.go
+index d8351d7e6d..7c7289bcee 100644
+--- a/src/pkg/os/exec/lp_windows.go
++++ b/src/pkg/os/exec/lp_windows.go
+@@ -72,7 +72,7 @@ func LookPath(file string) (f string, err error) {
+ 		return
+ 	}
+ 	if pathenv := os.Getenv(`PATH`); pathenv != `` {
+-		for _, dir := range strings.Split(pathenv, `;`) {
++		for _, dir := range splitList(pathenv) {
+ 			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
+ 				return
+ 			}
+@@ -80,3 +80,36 @@ func LookPath(file string) (f string, err error) {
+ 	}
+ 	return ``, &Error{file, ErrNotFound}
+ }
++
++func splitList(path string) []string {
++	// The same implementation is used in SplitList in path/filepath;
++	// consider changing path/filepath when changing this.
++
++	if path == "" {
++		return []string{}
++	}
++
++	// Split path, respecting but preserving quotes.
++	list := []string{}
++	start := 0
++	quo := false
++	for i := 0; i < len(path); i++ {
++		switch c := path[i]; {
++		case c == '"':
++			quo = !quo
++		case c == os.PathListSeparator && !quo:
++			list = append(list, path[start:i])
++			start = i + 1
++		}
++	}
++	list = append(list, path[start:])
++
++	// Remove quotes.
++	for i, s := range list {
++		if strings.Contains(s, `"`) {
++			list[i] = strings.Replace(s, `"`, ``, -1)
++		}
++	}
++
++	return list
++}
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index c065b03beb..f8c7e4b2f4 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -176,10 +176,7 @@ func FromSlash(path string) string {
+ // usually found in PATH or GOPATH environment variables.
+ // Unlike strings.Split, SplitList returns an empty slice when passed an empty string.
+ func SplitList(path string) []string {
+-	if path == "" {
+-		return []string{}
+-	}
+-	return strings.Split(path, string(ListSeparator))
++	return splitList(path)
+ }
+ 
+ // Split splits path immediately following the final Separator,
+diff --git a/src/pkg/path/filepath/path_plan9.go b/src/pkg/path/filepath/path_plan9.go
+index 0c938d89da..12e85aae00 100644
+--- a/src/pkg/path/filepath/path_plan9.go
++++ b/src/pkg/path/filepath/path_plan9.go
+@@ -21,3 +21,10 @@ func volumeNameLen(path string) int {
+ func HasPrefix(p, prefix string) bool {
+ 	return strings.HasPrefix(p, prefix)
+ }
++
++func splitList(path string) []string {
++	if path == "" {
++		return []string{}
++	}
++	return strings.Split(path, string(ListSeparator))
++}
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 84609c4bfc..e768ad32f0 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -148,10 +148,36 @@ var splitlisttests = []SplitListTest{
+ 	{string([]byte{lsep, 'a', lsep, 'b'}), []string{"", "a", "b"}},
+ }
+ 
++var winsplitlisttests = []SplitListTest{
++	// quoted
++	{`"a"`, []string{`a`}},
++
++	// semicolon
++	{`";"`, []string{`;`}},
++	{`"a;b"`, []string{`a;b`}},
++	{`";";`, []string{`;`, ``}},
++	{`;";"`, []string{``, `;`}},
++
++	// partially quoted
++	{`a";"b`, []string{`a;b`}},
++	{`a; ""b`, []string{`a`, ` b`}},
++	{`"a;b`, []string{`a;b`}},
++	{`""a;b`, []string{`a`, `b`}},
++	{`"""a;b`, []string{`a;b`}},
++	{`""""a;b`, []string{`a`, `b`}},
++	{`a";b`, []string{`a;b`}},
++	{`a;b";c`, []string{`a`, `b;c`}},
++	{`"a";b";c`, []string{`a`, `b;c`}},
++}
++
+ func TestSplitList(t *testing.T) {
+-	for _, test := range splitlisttests {
++	tests := splitlisttests
++	if runtime.GOOS == "windows" {
++		tests = append(tests, winsplitlisttests...)
++	}
++	for _, test := range tests {
+ 		if l := filepath.SplitList(test.list); !reflect.DeepEqual(l, test.result) {
+-			t.Errorf("SplitList(%q) = %s, want %s", test.list, l, test.result)
++			t.Errorf("SplitList(%#q) = %#q, want %#q", test.list, l, test.result)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+index 3b48d14e08..cff7b2c65c 100644
+--- a/src/pkg/path/filepath/path_unix.go
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -23,3 +23,10 @@ func volumeNameLen(path string) int {
+ func HasPrefix(p, prefix string) bool {
+ 	return strings.HasPrefix(p, prefix)
+ }
++
++func splitList(path string) []string {
++	if path == "" {
++		return []string{}
++	}
++	return strings.Split(path, string(ListSeparator))
++}
+diff --git a/src/pkg/path/filepath/path_windows.go b/src/pkg/path/filepath/path_windows.go
+index db2b57ec00..e99997257d 100644
+--- a/src/pkg/path/filepath/path_windows.go
++++ b/src/pkg/path/filepath/path_windows.go
+@@ -70,3 +70,36 @@ func HasPrefix(p, prefix string) bool {
+ 	}
+ 	return strings.HasPrefix(strings.ToLower(p), strings.ToLower(prefix))
+ }
++
++func splitList(path string) []string {
++	// The same implementation is used in LookPath in os/exec;
++	// consider changing os/exec when changing this.
++
++	if path == "" {
++		return []string{}
++	}
++
++	// Split path, respecting but preserving quotes.
++	list := []string{}
++	start := 0
++	quo := false
++	for i := 0; i < len(path); i++ {
++		switch c := path[i]; {
++		case c == '"':
++			quo = !quo
++		case c == ListSeparator && !quo:
++			list = append(list, path[start:i])
++			start = i + 1
++		}
++	}
++	list = append(list, path[start:])
++
++	// Remove quotes.
++	for i, s := range list {
++		if strings.Contains(s, `"`) {
++			list[i] = strings.Replace(s, `"`, ``, -1)
++		}
++	}
++
++	return list
++}
+diff --git a/src/pkg/path/filepath/path_windows_test.go b/src/pkg/path/filepath/path_windows_test.go
+new file mode 100644
+index 0000000000..8f8e82ae50
+--- /dev/null
++++ b/src/pkg/path/filepath/path_windows_test.go
+@@ -0,0 +1,89 @@
++package filepath_test
++
++import (
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"reflect"
++	"testing"
++)
++
++func TestWinSplitListTestsAreValid(t *testing.T) {
++	comspec := os.Getenv("ComSpec")
++	if comspec == "" {
++		t.Fatal("%ComSpec% must be set")
++	}
++
++	for ti, tt := range winsplitlisttests {
++		testWinSplitListTestIsValid(t, ti, tt, comspec)
++	}
++}
++
++func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
++	comspec string) {
++
++	const (
++		cmdfile             = `printdir.cmd`
++		perm    os.FileMode = 0700
++	)
++
++	tmp, err := ioutil.TempDir("", "testWinSplitListTestIsValid")
++	if err != nil {
++		t.Fatalf("TempDir failed: %v", err)
++	}
++	defer os.RemoveAll(tmp)
++
++	for i, d := range tt.result {
++		if d == "" {
++			continue
++		}
++		if cd := filepath.Clean(d); filepath.VolumeName(cd) != "" ||
++			cd[0] == '\\' || cd == ".." || (len(cd) >= 3 && cd[0:3] == `..\`) {
++			t.Errorf("%d,%d: %#q refers outside working directory", ti, i, d)
++			return
++		}
++		dd := filepath.Join(tmp, d)
++		if _, err := os.Stat(dd); err == nil {
++			t.Errorf("%d,%d: %#q already exists", ti, i, d)
++			return
++		}
++		if err = os.MkdirAll(dd, perm); err != nil {
++			t.Errorf("%d,%d: MkdirAll(%#q) failed: %v", ti, i, dd, err)
++			return
++		}
++		fn, data := filepath.Join(dd, cmdfile), []byte("@echo "+d+"\r\n")
++		if err = ioutil.WriteFile(fn, data, perm); err != nil {
++			t.Errorf("%d,%d: WriteFile(%#q) failed: %v", ti, i, fn, err)
++			return
++		}
++	}
++
++	for i, d := range tt.result {
++		if d == "" {
++			continue
++		}
++		exp := []byte(d + "\r\n")
++		cmd := &exec.Cmd{
++			Path: comspec,
++			Args: []string{`/c`, cmdfile},
++			Env:  []string{`Path=` + tt.list},
++			Dir:  tmp,
++		}
++		out, err := cmd.Output()
++		switch {
++		case err != nil:
++			t.Errorf("%d,%d: execution error %v", ti, i, err)
++			return
++		case !reflect.DeepEqual(out, exp):
++			t.Errorf("%d,%d: expected %#q, got %#q", ti, i, exp, out)
++			return
++		default:
++			// unshadow cmdfile in next directory
++			err = os.Remove(filepath.Join(tmp, d, cmdfile))
++			if err != nil {
++				t.Fatalf("Remove test command failed: %v", err)
++			}
++		}
++	}
++}

@@ -14,6 +14,19 @@ Date:   Tue Jul 28 00:01:16 2015 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/transport_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 0950d2de23..c21d4afa87 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1554,6 +1554,7 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
+ 
+ // Issue 11020. The returned error message should be errRequestCanceled
+ func TestTransportCancelBeforeResponseHeaders(t *testing.T) {
++	t.Skip("Skipping flaky test; see Issue 11894")
+ 	defer afterTest(t)
+ 
+ 	serverConnCh := make(chan net.Conn, 1)

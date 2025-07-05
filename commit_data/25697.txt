@@ -9,6 +9,20 @@ Date:   Wed Nov 4 14:03:06 2015 -0500
     Change-Id: I1390605bdf908f59b596975ea51eb04bd03bbae0
     Reviewed-on: https://go-review.googlesource.com/16918
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index f70c1cf6d4..2b45e5b998 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -79,6 +79,8 @@ Flags:
+ 		Write a package (archive) file rather than an object file
+ 	-race
+ 		Compile with race detector enabled.
++	-trimpath prefix
++		Remove prefix from recorded source file paths.
+ 	-u
+ 		Disallow importing packages not marked as safe; implies -nolocalimports.
+ 

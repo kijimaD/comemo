@@ -23,7 +23,224 @@ Date:   Wed Mar 3 14:16:07 2021 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutator.txt |  39 +++++++-
  src/internal/fuzz/worker.go                      | 117 ++++++++++++++++++++++-
  2 files changed, 149 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index 4a33eba339..c5a7a86b84 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -14,11 +14,21 @@ go test -fuzz=FuzzA -fuzztime=5s -parallel=1 -log=fuzz
+ go run check_logs.go fuzz fuzz.worker
+ 
+ # Test that the mutator is good enough to find several unique mutations.
+-! go test -fuzz=Fuzz -parallel=1 -fuzztime=30s mutator_test.go
++! go test -fuzz=FuzzMutator -parallel=1 -fuzztime=30s mutator_test.go
+ ! stdout '^ok'
+ stdout FAIL
+ stdout 'mutator found enough unique mutations'
+ 
++# Test that minimization is working.
++! go test -fuzz=FuzzMinimizer -run=FuzzMinimizer -parallel=1 -fuzztime=5s minimizer_test.go
++! stdout ok
++# TODO(jayconrod,katiehockman): Once logging is fixed, add this test in.
++# stdout 'got the minimum size!'
++stdout FAIL
++
++# Test that re-running the minimized value causes a crash.
++! go test -run=FuzzMinimizer minimizer_test.go
++
+ -- go.mod --
+ module m
+ 
+@@ -67,6 +77,31 @@ func FuzzB(f *testing.F) {
+ 	})
+ }
+ 
++-- minimizer_test.go --
++package fuzz_test
++
++import (
++	"bytes"
++	"testing"
++)
++
++func FuzzMinimizer(f *testing.F) {
++	f.Fuzz(func(t *testing.T, b []byte) {
++		if len(b) < 100 {
++			// Make sure that b is large enough that it can be minimized
++			return
++		}
++		if len(b) == 100 {
++			t.Logf("got the minimum size!")
++		}
++		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
++			// Given the randomness of the mutations, this should allow the
++			// minimizer to trim down the value quite a bit.
++			t.Errorf("contains a letter")
++		}
++	})
++}
++
+ -- check_logs.go --
+ // +build ignore
+ 
+@@ -170,7 +205,7 @@ import (
+ 
+ // TODO(katiehockman): re-work this test once we have a better fuzzing engine
+ // (ie. more mutations, and compiler instrumentation)
+-func Fuzz(f *testing.F) {
++func FuzzMutator(f *testing.F) {
+ 	// TODO(katiehockman): simplify this once we can dedupe crashes (e.g.
+ 	// replace map with calls to panic, and simply count the number of crashes
+ 	// that were added to testdata)
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index d42044bb91..70d76d6fc6 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -492,7 +492,7 @@ func (ws *workerServer) serve(ctx context.Context) error {
+ // a given amount of time. fuzz returns early if it finds an input that crashes
+ // the fuzz function or an input that expands coverage.
+ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+-	ctx, cancel := context.WithTimeout(ctx, args.Duration)
++	fuzzCtx, cancel := context.WithTimeout(ctx, args.Duration)
+ 	defer cancel()
+ 	mem := <-ws.memMu
+ 	defer func() { ws.memMu <- mem }()
+@@ -503,16 +503,19 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+ 	}
+ 	for {
+ 		select {
+-		case <-ctx.Done():
++		case <-fuzzCtx.Done():
+ 			// TODO(jayconrod,katiehockman): this value is not interesting. Use a
+ 			// real heuristic once we have one.
+ 			return fuzzResponse{Interesting: true}
+ 		default:
+ 			vals = ws.m.mutate(vals, cap(mem.valueRef()))
+-			b := marshalCorpusFile(vals...)
+-			mem.setValueLen(len(b))
+-			mem.setValue(b)
++			writeToMem(vals, mem)
+ 			if err := ws.fuzzFn(CorpusEntry{Values: vals}); err != nil {
++				if minErr := ws.minimize(ctx, vals, mem); minErr != nil {
++					// Minimization found a different error, so use that one.
++					writeToMem(vals, mem)
++					err = minErr
++				}
+ 				return fuzzResponse{Crashed: true, Err: err.Error()}
+ 			}
+ 			// TODO(jayconrod,katiehockman): return early if we find an
+@@ -521,6 +524,110 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+ 	}
+ }
+ 
++// minimizeInput applies a series of minimizing transformations on the provided
++// vals, ensuring that each minimization still causes an error in fuzzFn. Before
++// every call to fuzzFn, it marshals the new vals and writes it to the provided
++// mem just in case an unrecoverable error occurs. It runs for a maximum of one
++// minute, and returns the last error it found.
++func (ws *workerServer) minimize(ctx context.Context, vals []interface{}, mem *sharedMem) error {
++	// TODO(jayconrod,katiehockman): consider making the maximum minimization
++	// time customizable with a go command flag.
++	ctx, cancel := context.WithTimeout(ctx, time.Minute)
++	defer cancel()
++	var retErr error
++
++	// tryMinimized will run the fuzz function for the values in vals at the
++	// time the function is called. If err is nil, then the minimization was
++	// unsuccessful, since we expect an error to still occur.
++	tryMinimized := func(i int, prevVal interface{}) error {
++		err := ws.fuzzFn(CorpusEntry{Values: vals})
++		if err == nil {
++			// The fuzz function succeeded, so return the value at index i back
++			// to the previously failing input.
++			vals[i] = prevVal
++		} else {
++			// The fuzz function failed, so save the most recent error.
++			retErr = err
++		}
++		return err
++	}
++	for valI := range vals {
++		switch v := vals[valI].(type) {
++		case bool, byte, rune:
++			continue // can't minimize
++		case string, int, int8, int16, int64, uint, uint16, uint32, uint64, float32, float64:
++			// TODO(jayconrod,katiehockman): support minimizing other types
++		case []byte:
++			// First, try to cut the tail.
++			for n := 1024; n != 0; n /= 2 {
++				for len(v) > n {
++					if ctx.Done() != nil {
++						return retErr
++					}
++					vals[valI] = v[:len(v)-n]
++					if tryMinimized(valI, v) != nil {
++						break
++					}
++					// Set v to the new value to continue iterating.
++					v = v[:len(v)-n]
++				}
++			}
++
++			// Then, try to remove each individual byte.
++			tmp := make([]byte, len(v))
++			for i := 0; i < len(v)-1; i++ {
++				if ctx.Done() != nil {
++					return retErr
++				}
++				candidate := tmp[:len(v)-1]
++				copy(candidate[:i], v[:i])
++				copy(candidate[i:], v[i+1:])
++				vals[valI] = candidate
++				if tryMinimized(valI, v) != nil {
++					continue
++				}
++				// Update v to delete the value at index i.
++				copy(v[i:], v[i+1:])
++				v = v[:len(candidate)]
++				// v[i] is now different, so decrement i to redo this iteration
++				// of the loop with the new value.
++				i--
++			}
++
++			// Then, try to remove each possible subset of bytes.
++			for i := 0; i < len(v)-1; i++ {
++				copy(tmp, v[:i])
++				for j := len(v); j > i+1; j-- {
++					if ctx.Done() != nil {
++						return retErr
++					}
++					candidate := tmp[:len(v)-j+i]
++					copy(candidate[i:], v[j:])
++					vals[valI] = candidate
++					if tryMinimized(valI, v) != nil {
++						continue
++					}
++					// Update v and reset the loop with the new length.
++					copy(v[i:], v[j:])
++					v = v[:len(candidate)]
++					j = len(v)
++				}
++			}
++			// TODO(jayconrod,katiehockman): consider adding canonicalization
++			// which replaces each individual byte with '0'
++		default:
++			panic("unreachable")
++		}
++	}
++	return retErr
++}
++
++func writeToMem(vals []interface{}, mem *sharedMem) {
++	b := marshalCorpusFile(vals...)
++	mem.setValueLen(len(b))
++	mem.setValue(b)
++}
++
+ // ping does nothing. The coordinator calls this method to ensure the worker
+ // has called F.Fuzz and can communicate.
+ func (ws *workerServer) ping(ctx context.Context, args pingArgs) pingResponse {

@@ -9,6 +9,33 @@ Date:   Fri Dec 13 09:31:49 2013 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/41540043
-
+---
  doc/devel/release.html | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index d31f793591..ec17b5bdd6 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -13,12 +13,19 @@ hg pull
+ hg update <i>tag</i>
+ </pre>
+ 
++<h2 id="go1.2">go1.2 (released 2013/12/01)</h2>
++
++<p>
++Go 1.2 is a major release of Go.
++Read the <a href="/doc/go1.2">Go 1.2 Release Notes</a> for more information.
++</p>
++
++
+ <h2 id="go1.1">go1.1 (released 2013/05/13)</h2>
+ 
+ <p>
+ Go 1.1 is a major release of Go.
+-Read the <a href="/doc/go1.1.html">Go 1.1 Release Notes</a> for
+-more information.
++Read the <a href="/doc/go1.1">Go 1.1 Release Notes</a> for more information.
+ </p>
+ 
+ <h3 id="go1.1.minor">Minor revisions</h3>

@@ -23,7 +23,7 @@ Date:   Tue Aug 1 14:41:42 2023 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/runtime/debugcall.go      |  2 +-
  src/runtime/heapdump.go       |  2 +-
  src/runtime/mbitmap.go        |  2 +-
@@ -39,3 +39,405 @@ Date:   Tue Aug 1 14:41:42 2023 -0400
  src/runtime/trace.go          |  3 +--
  src/runtime/traceback.go      | 17 +++++++----------
  14 files changed, 36 insertions(+), 47 deletions(-)
+
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index ea413bd0c5..f8b3494ec3 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -83,7 +83,7 @@ func debugCallCheck(pc uintptr) string {
+ 		if pc != f.entry() {
+ 			pc--
+ 		}
+-		up := pcdatavalue(f, abi.PCDATA_UnsafePoint, pc, nil)
++		up := pcdatavalue(f, abi.PCDATA_UnsafePoint, pc)
+ 		if up != abi.UnsafePointSafe {
+ 			// Not at a safe point.
+ 			ret = debugCallUnsafePoint
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 8ddec8b2d5..430e4bccb5 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -259,7 +259,7 @@ func dumpframe(s *stkframe, child *childInfo) {
+ 	pcdata := int32(-1) // Use the entry map at function entry
+ 	if pc != f.entry() {
+ 		pc--
+-		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, pc, nil)
++		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, pc)
+ 	}
+ 	if pcdata == -1 {
+ 		// We do not have a valid pcdata value but there might be a
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index a242872884..4ba25901d4 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1479,7 +1479,7 @@ func getgcmask(ep any) (mask []byte) {
+ 			}
+ 		}
+ 		if found {
+-			locals, _, _ := u.frame.getStackMap(nil, false)
++			locals, _, _ := u.frame.getStackMap(false)
+ 			if locals.n == 0 {
+ 				return
+ 			}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index c49eba0302..2b4e23823b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -964,7 +964,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 		return
+ 	}
+ 
+-	locals, args, objs := frame.getStackMap(&state.cache, false)
++	locals, args, objs := frame.getStackMap(false)
+ 
+ 	// Scan local variables if stack frame has been allocated.
+ 	if locals.n > 0 {
+diff --git a/src/runtime/mgcstack.go b/src/runtime/mgcstack.go
+index 6b552203ee..f4a83f5f59 100644
+--- a/src/runtime/mgcstack.go
++++ b/src/runtime/mgcstack.go
+@@ -166,8 +166,6 @@ func (obj *stackObject) setRecord(r *stackObjectRecord) {
+ // A stackScanState keeps track of the state used during the GC walk
+ // of a goroutine.
+ type stackScanState struct {
+-	cache pcvalueCache
+-
+ 	// stack limits
+ 	stack stack
+ 
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 76d8ba4cdf..82d85cd707 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -385,7 +385,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 		// Not Go code.
+ 		return false, 0
+ 	}
+-	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc, nil) == 0 {
++	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc) == 0 {
+ 		// We probably stopped at a half-executed CALL instruction,
+ 		// where the LR is updated but the PC has not. If we preempt
+ 		// here we'll see a seemingly self-recursive call, which is in
+@@ -414,7 +414,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 		return false, 0
+ 	}
+ 	// Check the inner-most name
+-	u, uf := newInlineUnwinder(f, pc, nil)
++	u, uf := newInlineUnwinder(f, pc)
+ 	name := u.srcFunc(uf).name()
+ 	if hasPrefix(name, "runtime.") ||
+ 		hasPrefix(name, "runtime/internal/") ||
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index e2767f0324..496e3725bf 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -172,7 +172,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
+ 	pc := ctx.pc
+ 	fi := findfunc(pc)
+ 	if fi.valid() {
+-		u, uf := newInlineUnwinder(fi, pc, nil)
++		u, uf := newInlineUnwinder(fi, pc)
+ 		for ; uf.valid(); uf = u.next(uf) {
+ 			sf := u.srcFunc(uf)
+ 			if sf.funcID == abi.FuncIDWrapper && u.isInlined(uf) {
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 903b096f08..61cd0a0fdd 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -555,7 +555,6 @@ var ptrnames = []string{
+ type adjustinfo struct {
+ 	old   stack
+ 	delta uintptr // ptr distance from old to new stack (newbase - oldbase)
+-	cache pcvalueCache
+ 
+ 	// sghi is the highest sudog.elem on the stack.
+ 	sghi uintptr
+@@ -676,7 +675,7 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
+ 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
+ 	}
+ 
+-	locals, args, objs := frame.getStackMap(&adjinfo.cache, true)
++	locals, args, objs := frame.getStackMap(true)
+ 
+ 	// Adjust local variables if stack frame has been allocated.
+ 	if locals.n > 0 {
+diff --git a/src/runtime/stkframe.go b/src/runtime/stkframe.go
+index 5caacbacba..bfd9eac2b0 100644
+--- a/src/runtime/stkframe.go
++++ b/src/runtime/stkframe.go
+@@ -154,7 +154,7 @@ func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bo
+ 
+ // getStackMap returns the locals and arguments live pointer maps, and
+ // stack object list for frame.
+-func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
++func (frame *stkframe) getStackMap(debug bool) (locals, args bitvector, objs []stackObjectRecord) {
+ 	targetpc := frame.continpc
+ 	if targetpc == 0 {
+ 		// Frame is dead. Return empty bitvectors.
+@@ -169,7 +169,7 @@ func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, arg
+ 		// the first instruction of the function changes the
+ 		// stack map.
+ 		targetpc--
+-		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, targetpc, cache)
++		pcdata = pcdatavalue(f, abi.PCDATA_StackMapIndex, targetpc)
+ 	}
+ 	if pcdata == -1 {
+ 		// We do not have a valid pcdata value but there might be a
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 18ba683d69..0397b6ecf5 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -119,7 +119,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 		}
+ 		// It's important that interpret pc non-strictly as cgoTraceback may
+ 		// have added bogus PCs with a valid funcInfo but invalid PCDATA.
+-		u, uf := newInlineUnwinder(funcInfo, pc, nil)
++		u, uf := newInlineUnwinder(funcInfo, pc)
+ 		sf := u.srcFunc(uf)
+ 		if u.isInlined(uf) {
+ 			// Note: entry is not modified. It always refers to a real frame, not an inlined one.
+@@ -180,7 +180,7 @@ func runtime_FrameSymbolName(f *Frame) string {
+ 	if !f.funcInfo.valid() {
+ 		return f.Function
+ 	}
+-	u, uf := newInlineUnwinder(f.funcInfo, f.PC, nil)
++	u, uf := newInlineUnwinder(f.funcInfo, f.PC)
+ 	sf := u.srcFunc(uf)
+ 	return sf.name()
+ }
+@@ -204,8 +204,7 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
+ 		return stk
+ 	}
+ 
+-	var cache pcvalueCache
+-	u, uf := newInlineUnwinder(f, tracepc, &cache)
++	u, uf := newInlineUnwinder(f, tracepc)
+ 	if !u.isInlined(uf) {
+ 		// Nothing inline at tracepc.
+ 		return stk
+@@ -658,7 +657,7 @@ func FuncForPC(pc uintptr) *Func {
+ 	// We just report the preceding function in that situation. See issue 29735.
+ 	// TODO: Perhaps we should report no function at all in that case.
+ 	// The runtime currently doesn't have function end info, alas.
+-	u, uf := newInlineUnwinder(f, pc, nil)
++	u, uf := newInlineUnwinder(f, pc)
+ 	if !u.isInlined(uf) {
+ 		return f._Func()
+ 	}
+@@ -843,7 +842,7 @@ func pcvalueCacheKey(targetpc uintptr) uintptr {
+ }
+ 
+ // Returns the PCData value, and the PC where this value starts.
+-func pcvalue(f funcInfo, off uint32, targetpc uintptr, _ *pcvalueCache, strict bool) (int32, uintptr) {
++func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uintptr) {
+ 	if off == 0 {
+ 		return -1, 0
+ 	}
+@@ -979,8 +978,8 @@ func funcline1(f funcInfo, targetpc uintptr, strict bool) (file string, line int
+ 	if !f.valid() {
+ 		return "?", 0
+ 	}
+-	fileno, _ := pcvalue(f, f.pcfile, targetpc, nil, strict)
+-	line, _ = pcvalue(f, f.pcln, targetpc, nil, strict)
++	fileno, _ := pcvalue(f, f.pcfile, targetpc, strict)
++	line, _ = pcvalue(f, f.pcln, targetpc, strict)
+ 	if fileno == -1 || line == -1 || int(fileno) >= len(datap.filetab) {
+ 		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
+ 		return "?", 0
+@@ -993,8 +992,8 @@ func funcline(f funcInfo, targetpc uintptr) (file string, line int32) {
+ 	return funcline1(f, targetpc, true)
+ }
+ 
+-func funcspdelta(f funcInfo, targetpc uintptr, cache *pcvalueCache) int32 {
+-	x, _ := pcvalue(f, f.pcsp, targetpc, cache, true)
++func funcspdelta(f funcInfo, targetpc uintptr) int32 {
++	x, _ := pcvalue(f, f.pcsp, targetpc, true)
+ 	if debugPcln && x&(goarch.PtrSize-1) != 0 {
+ 		print("invalid spdelta ", funcname(f), " ", hex(f.entry()), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+ 		throw("bad spdelta")
+@@ -1025,29 +1024,28 @@ func pcdatastart(f funcInfo, table uint32) uint32 {
+ 	return *(*uint32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
+ }
+ 
+-func pcdatavalue(f funcInfo, table uint32, targetpc uintptr, cache *pcvalueCache) int32 {
++func pcdatavalue(f funcInfo, table uint32, targetpc uintptr) int32 {
+ 	if table >= f.npcdata {
+ 		return -1
+ 	}
+-	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, true)
++	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, true)
+ 	return r
+ }
+ 
+-func pcdatavalue1(f funcInfo, table uint32, targetpc uintptr, cache *pcvalueCache, strict bool) int32 {
++func pcdatavalue1(f funcInfo, table uint32, targetpc uintptr, strict bool) int32 {
+ 	if table >= f.npcdata {
+ 		return -1
+ 	}
+-	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, cache, strict)
++	r, _ := pcvalue(f, pcdatastart(f, table), targetpc, strict)
+ 	return r
+ }
+ 
+ // Like pcdatavalue, but also return the start PC of this PCData value.
+-// It doesn't take a cache.
+ func pcdatavalue2(f funcInfo, table uint32, targetpc uintptr) (int32, uintptr) {
+ 	if table >= f.npcdata {
+ 		return -1, 0
+ 	}
+-	return pcvalue(f, pcdatastart(f, table), targetpc, nil, true)
++	return pcvalue(f, pcdatastart(f, table), targetpc, true)
+ }
+ 
+ // funcdata returns a pointer to the ith funcdata for f.
+diff --git a/src/runtime/symtabinl.go b/src/runtime/symtabinl.go
+index 2bb1c4bc6a..9273b49b11 100644
+--- a/src/runtime/symtabinl.go
++++ b/src/runtime/symtabinl.go
+@@ -30,7 +30,6 @@ type inlinedCall struct {
+ // code.
+ type inlineUnwinder struct {
+ 	f       funcInfo
+-	cache   *pcvalueCache
+ 	inlTree *[1 << 20]inlinedCall
+ }
+ 
+@@ -52,13 +51,13 @@ type inlineFrame struct {
+ // This unwinder uses non-strict handling of PC because it's assumed this is
+ // only ever used for symbolic debugging. If things go really wrong, it'll just
+ // fall back to the outermost frame.
+-func newInlineUnwinder(f funcInfo, pc uintptr, cache *pcvalueCache) (inlineUnwinder, inlineFrame) {
++func newInlineUnwinder(f funcInfo, pc uintptr) (inlineUnwinder, inlineFrame) {
+ 	inldata := funcdata(f, abi.FUNCDATA_InlTree)
+ 	if inldata == nil {
+ 		return inlineUnwinder{f: f}, inlineFrame{pc: pc, index: -1}
+ 	}
+ 	inlTree := (*[1 << 20]inlinedCall)(inldata)
+-	u := inlineUnwinder{f: f, cache: cache, inlTree: inlTree}
++	u := inlineUnwinder{f: f, inlTree: inlTree}
+ 	return u, u.resolveInternal(pc)
+ }
+ 
+@@ -67,7 +66,7 @@ func (u *inlineUnwinder) resolveInternal(pc uintptr) inlineFrame {
+ 		pc: pc,
+ 		// Conveniently, this returns -1 if there's an error, which is the same
+ 		// value we use for the outermost frame.
+-		index: pcdatavalue1(u.f, abi.PCDATA_InlTreeIndex, pc, u.cache, false),
++		index: pcdatavalue1(u.f, abi.PCDATA_InlTreeIndex, pc, false),
+ 	}
+ }
+ 
+diff --git a/src/runtime/symtabinl_test.go b/src/runtime/symtabinl_test.go
+index 9e75f79281..df524aec4a 100644
+--- a/src/runtime/symtabinl_test.go
++++ b/src/runtime/symtabinl_test.go
+@@ -34,10 +34,9 @@ func XTestInlineUnwinder(t TestingT) {
+ 
+ 	// Iterate over the PCs in tiuTest and walk the inline stack for each.
+ 	prevStack := "x"
+-	var cache pcvalueCache
+ 	for pc := pc1; pc < pc1+1024 && findfunc(pc) == f; pc += sys.PCQuantum {
+ 		stack := ""
+-		u, uf := newInlineUnwinder(f, pc, &cache)
++		u, uf := newInlineUnwinder(f, pc)
+ 		if file, _ := u.fileLine(uf); file == "?" {
+ 			// We're probably in the trailing function padding, where findfunc
+ 			// still returns f but there's no symbolic information. Just keep
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index a4d50d77a0..125b8678db 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -1345,7 +1345,6 @@ func fpunwindExpand(pcBuf []uintptr) []uintptr {
+ 	}
+ 
+ 	var (
+-		cache      pcvalueCache
+ 		lastFuncID = abi.FuncIDNormal
+ 		newPCBuf   = make([]uintptr, 0, traceStackSize)
+ 		skip       = pcBuf[0]
+@@ -1374,7 +1373,7 @@ outer:
+ 			continue
+ 		}
+ 
+-		u, uf := newInlineUnwinder(fi, callPC, &cache)
++		u, uf := newInlineUnwinder(fi, callPC)
+ 		for ; uf.valid(); uf = u.next(uf) {
+ 			sf := u.srcFunc(uf)
+ 			if sf.funcID == abi.FuncIDWrapper && elideWrapperCalling(lastFuncID) {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 86df1155b5..5dfac4fa01 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -112,9 +112,6 @@ type unwinder struct {
+ 	// flags are the flags to this unwind. Some of these are updated as we
+ 	// unwind (see the flags documentation).
+ 	flags unwindFlags
+-
+-	// cache is used to cache pcvalue lookups.
+-	cache pcvalueCache
+ }
+ 
+ // init initializes u to start unwinding gp's stack and positions the
+@@ -307,7 +304,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
+ 			case abi.FuncID_systemstack:
+ 				// systemstack returns normally, so just follow the
+ 				// stack transition.
+-				if usesLR && funcspdelta(f, frame.pc, &u.cache) == 0 {
++				if usesLR && funcspdelta(f, frame.pc) == 0 {
+ 					// We're at the function prologue and the stack
+ 					// switch hasn't happened, or epilogue where we're
+ 					// about to return. Just unwind normally.
+@@ -325,7 +322,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
+ 				flag &^= abi.FuncFlagSPWrite
+ 			}
+ 		}
+-		frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &u.cache))
++		frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc))
+ 		if !usesLR {
+ 			// On x86, call instruction pushes return PC before entering new function.
+ 			frame.fp += goarch.PtrSize
+@@ -500,7 +497,7 @@ func (u *unwinder) next() {
+ 		frame.fn = f
+ 		if !f.valid() {
+ 			frame.pc = x
+-		} else if funcspdelta(f, frame.pc, &u.cache) == 0 {
++		} else if funcspdelta(f, frame.pc) == 0 {
+ 			frame.lr = x
+ 		}
+ 	}
+@@ -620,7 +617,7 @@ func tracebackPCs(u *unwinder, skip int, pcBuf []uintptr) int {
+ 		cgoN := u.cgoCallers(cgoBuf[:])
+ 
+ 		// TODO: Why does &u.cache cause u to escape? (Same in traceback2)
+-		for iu, uf := newInlineUnwinder(f, u.symPC(), noEscapePtr(&u.cache)); n < len(pcBuf) && uf.valid(); uf = iu.next(uf) {
++		for iu, uf := newInlineUnwinder(f, u.symPC()); n < len(pcBuf) && uf.valid(); uf = iu.next(uf) {
+ 			sf := iu.srcFunc(uf)
+ 			if sf.funcID == abi.FuncIDWrapper && elideWrapperCalling(u.calleeFuncID) {
+ 				// ignore wrappers
+@@ -670,7 +667,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer, pc uintptr) {
+ 	}
+ 
+ 	liveInfo := funcdata(f, abi.FUNCDATA_ArgLiveInfo)
+-	liveIdx := pcdatavalue(f, abi.PCDATA_ArgLiveIndex, pc, nil)
++	liveIdx := pcdatavalue(f, abi.PCDATA_ArgLiveIndex, pc)
+ 	startOffset := uint8(0xff) // smallest offset that needs liveness info (slots with a lower offset is always live)
+ 	if liveInfo != nil {
+ 		startOffset = *(*uint8)(liveInfo)
+@@ -977,7 +974,7 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
+ 	for ; u.valid(); u.next() {
+ 		lastN = 0
+ 		f := u.frame.fn
+-		for iu, uf := newInlineUnwinder(f, u.symPC(), noEscapePtr(&u.cache)); uf.valid(); uf = iu.next(uf) {
++		for iu, uf := newInlineUnwinder(f, u.symPC()); uf.valid(); uf = iu.next(uf) {
+ 			sf := iu.srcFunc(uf)
+ 			callee := u.calleeFuncID
+ 			u.calleeFuncID = sf.funcID
+@@ -1078,7 +1075,7 @@ func printAncestorTraceback(ancestor ancestorInfo) {
+ // due to only have access to the pcs at the time of the caller
+ // goroutine being created.
+ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
+-	u, uf := newInlineUnwinder(f, pc, nil)
++	u, uf := newInlineUnwinder(f, pc)
+ 	file, line := u.fileLine(uf)
+ 	printFuncName(u.srcFunc(uf).name())
+ 	print("(...)\n")

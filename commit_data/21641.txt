@@ -7,6 +7,36 @@ Date:   Fri Jan 23 11:08:51 2015 -0500
     Change-Id: I97bbf7a276c8f99554f0e3a9bcc8d3792a5e0f65
     Reviewed-on: https://go-review.googlesource.com/3221
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/util.go | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 1bb3ba80e6..decbb0ffd2 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -84,8 +84,23 @@ func run(dir string, mode int, cmd ...string) string {
+ 
+ 	xcmd := exec.Command(cmd[0], cmd[1:]...)
+ 	xcmd.Dir = dir
++	var data []byte
+ 	var err error
+-	data, err := xcmd.CombinedOutput()
++
++	// If we want to show command output and this is not
++	// a background command, assume it's the only thing
++	// running, so we can just let it write directly stdout/stderr
++	// as it runs without fear of mixing the output with some
++	// other command's output. Not buffering lets the output
++	// appear as it is printed instead of once the command exits.
++	// This is most important for the invocation of 'go1.4 build -v bootstrap/...'.
++	if mode&(Background|ShowOutput) == ShowOutput {
++		xcmd.Stdout = os.Stdout
++		xcmd.Stderr = os.Stderr
++		err = xcmd.Run()
++	} else {
++		data, err = xcmd.CombinedOutput()
++	}
+ 	if err != nil && mode&CheckExit != 0 {
+ 		outputLock.Lock()
+ 		if len(data) > 0 {

@@ -12,7 +12,36 @@ Date:   Mon Feb 4 20:07:46 2019 +0100
     Change-Id: I76dc4ff87e50f1dd8536fd9ac1fd938adb29bee3
     Reviewed-on: https://go-review.googlesource.com/c/161037
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go             | 3 ++-
  src/cmd/go/internal/modget/get.go | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d5f6369312..186f42156a 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2496,7 +2496,8 @@
+ // development module, then get will update the required version.
+ // Specifying a version earlier than the current required version is valid and
+ // downgrades the dependency. The version suffix @none indicates that the
+-// dependency should be removed entirely.
++// dependency should be removed entirely, downgrading or removing modules
++// depending on it as needed.
+ //
+ // Although get defaults to using the latest version of the module containing
+ // a named package, it does not use the latest version of that module's
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 2bfe6d3bb2..17a0ed45e2 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -56,7 +56,8 @@ If a module under consideration is already a dependency of the current
+ development module, then get will update the required version.
+ Specifying a version earlier than the current required version is valid and
+ downgrades the dependency. The version suffix @none indicates that the
+-dependency should be removed entirely.
++dependency should be removed entirely, downgrading or removing modules
++depending on it as needed.
+ 
+ Although get defaults to using the latest version of the module containing
+ a named package, it does not use the latest version of that module's

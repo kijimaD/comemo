@@ -16,7 +16,88 @@ Date:   Sat Jul 15 12:33:06 2017 -0600
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/writer.go   | 13 +++++++++++++
  src/archive/zip/zip_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 9f4fceee84..079917cadc 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -14,6 +14,11 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++var (
++	errLongName  = errors.New("zip: FileHeader.Name too long")
++	errLongExtra = errors.New("zip: FileHeader.Extra too long")
++)
++
+ // Writer implements a zip file writer.
+ type Writer struct {
+ 	cw          *countWriter
+@@ -273,6 +278,14 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ }
+ 
+ func writeHeader(w io.Writer, h *FileHeader) error {
++	const maxUint16 = 1<<16 - 1
++	if len(h.Name) > maxUint16 {
++		return errLongName
++	}
++	if len(h.Extra) > maxUint16 {
++		return errLongExtra
++	}
++
+ 	var buf [fileHeaderLen]byte
+ 	b := writeBuf(buf[:])
+ 	b.uint32(uint32(fileHeaderSignature))
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 18c2171ba6..7d1546c91f 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -650,6 +650,44 @@ func TestHeaderTooShort(t *testing.T) {
+ 	testValidHeader(&h, t)
+ }
+ 
++func TestHeaderTooLongErr(t *testing.T) {
++	var headerTests = []struct {
++		name    string
++		extra   []byte
++		wanterr error
++	}{
++		{
++			name:    strings.Repeat("x", 1<<16),
++			extra:   []byte{},
++			wanterr: errLongName,
++		},
++		{
++			name:    "long_extra",
++			extra:   bytes.Repeat([]byte{0xff}, 1<<16),
++			wanterr: errLongExtra,
++		},
++	}
++
++	// write a zip file
++	buf := new(bytes.Buffer)
++	w := NewWriter(buf)
++
++	for _, test := range headerTests {
++		h := &FileHeader{
++			Name:  test.name,
++			Extra: test.extra,
++		}
++		_, err := w.CreateHeader(h)
++		if err != test.wanterr {
++			t.Errorf("error=%v, want %v", err, test.wanterr)
++		}
++	}
++
++	if err := w.Close(); err != nil {
++		t.Fatal(err)
++	}
++}
++
+ func TestHeaderIgnoredSize(t *testing.T) {
+ 	h := FileHeader{
+ 		Name:   "foo.txt",

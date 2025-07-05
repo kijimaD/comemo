@@ -12,6 +12,46 @@ Date:   Mon Nov 11 11:08:20 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/dist/test.go | 24 +++++++++++++++++++++---
  1 file changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index cc54554a1d..e0fa51f146 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1007,13 +1007,31 @@ func (t *tester) registerHostTest(name, heading, dir, pkg string) {
+ }
+ 
+ func (t *tester) runHostTest(dir, pkg string) error {
+-	defer os.Remove(filepath.Join(goroot, dir, "test.test"))
+-	cmd := t.dirCmd(dir, t.goTest(), "-c", "-o", "test.test", pkg)
++	out, err := exec.Command("go", "env", "GOEXE", "GOTMPDIR").Output()
++	if err != nil {
++		return err
++	}
++
++	parts := strings.Split(string(out), "\n")
++	if len(parts) < 2 {
++		return fmt.Errorf("'go env GOEXE GOTMPDIR' output contains <2 lines")
++	}
++	GOEXE := strings.TrimSpace(parts[0])
++	GOTMPDIR := strings.TrimSpace(parts[1])
++
++	f, err := ioutil.TempFile(GOTMPDIR, "test.test-*"+GOEXE)
++	if err != nil {
++		return err
++	}
++	f.Close()
++	defer os.Remove(f.Name())
++
++	cmd := t.dirCmd(dir, t.goTest(), "-c", "-o", f.Name(), pkg)
+ 	cmd.Env = append(os.Environ(), "GOARCH="+gohostarch, "GOOS="+gohostos)
+ 	if err := cmd.Run(); err != nil {
+ 		return err
+ 	}
+-	return t.dirCmd(dir, "./test.test", "-test.short").Run()
++	return t.dirCmd(dir, f.Name(), "-test.short").Run()
+ }
+ 
+ func (t *tester) cgoTest(dt *distTest) error {

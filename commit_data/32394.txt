@@ -10,6 +10,48 @@ Date:   Fri Apr 21 14:51:37 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/41410
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go | 18 ++++++++++--------
  1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 17401a4ca7..c261713fcd 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -221,9 +221,9 @@ func dumpglobls() {
+ 	}
+ 
+ 	for _, s := range funcsyms {
+-		sf := s.Pkg.Lookup(funcsymname(s))
+-		dsymptr(sf.Linksym(), 0, s.Linksym(), 0)
+-		ggloblsym(sf.Linksym(), int32(Widthptr), obj.DUPOK|obj.RODATA)
++		sf := s.Pkg.Lookup(funcsymname(s)).Linksym()
++		dsymptr(sf, 0, s.Linksym(), 0)
++		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
+ 	}
+ 
+ 	// Do not reprocess funcsyms on next dumpglobls call.
+@@ -324,16 +324,18 @@ func slicebytes(nam *Node, s string, len int) {
+ 	sym := localpkg.Lookup(symname)
+ 	sym.Def = asTypesNode(newname(sym))
+ 
+-	off := dsname(sym.Linksym(), 0, s)
+-	ggloblsym(sym.Linksym(), int32(off), obj.NOPTR|obj.LOCAL)
++	lsym := sym.Linksym()
++	off := dsname(lsym, 0, s)
++	ggloblsym(lsym, int32(off), obj.NOPTR|obj.LOCAL)
+ 
+ 	if nam.Op != ONAME {
+ 		Fatalf("slicebytes %v", nam)
+ 	}
++	nsym := nam.Sym.Linksym()
+ 	off = int(nam.Xoffset)
+-	off = dsymptr(nam.Sym.Linksym(), off, sym.Linksym(), 0)
+-	off = duintptr(nam.Sym.Linksym(), off, uint64(len))
+-	duintptr(nam.Sym.Linksym(), off, uint64(len))
++	off = dsymptr(nsym, off, lsym, 0)
++	off = duintptr(nsym, off, uint64(len))
++	duintptr(nsym, off, uint64(len))
+ }
+ 
+ func dsname(s *obj.LSym, off int, t string) int {

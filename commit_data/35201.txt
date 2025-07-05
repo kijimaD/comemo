@@ -34,6 +34,31 @@ Date:   Tue Jan 9 21:20:10 2018 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/internal/dwarf/dwarf.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index b6a0604590..0d6b1971a6 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -551,7 +551,6 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_variable_parameter, DW_FORM_flag},
+-			{DW_AT_decl_line, DW_FORM_udata},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
+@@ -1429,7 +1428,10 @@ func putAbstractVar(ctxt Context, info Sym, v *Var) {
+ 	}
+ 
+ 	// Line
+-	putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
++	if abbrev != DW_ABRV_PARAM_ABSTRACT {
++		// See issue 23374 for more on why decl line is skipped for abs params.
++		putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
++	}
+ 
+ 	// Type
+ 	putattr(ctxt, info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)

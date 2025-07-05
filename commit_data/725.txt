@@ -7,6 +7,22 @@ Date:   Wed Sep 24 16:20:01 2008 -0700
     R=r
     OCL=15805
     CL=15805
-
+---
  src/cmd/gc/export.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 8bc326ebbc..d4e5b0d193 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -507,7 +507,9 @@ importaddtyp(Node *ss, Type *t)
+ 
+ 	s = getimportsym(ss);
+ 	if(s->otype != T && !eqtype(t, s->otype, 0)) {
+-		yyerror("import redeclaration of %S %lT => %lT\n", s, s->otype, t);
++		if(!isptrto(t, TFORW))
++			yyerror("import redeclaration of %lS %lT => %lT\n",
++				s, s->otype, t);
+ 		s->otype = t;
+ 	}
+ 

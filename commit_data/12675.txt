@@ -7,6 +7,21 @@ Date:   Sat Mar 17 18:13:02 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5841054
-
+---
  doc/install.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 909f82fd4a..c8b1cf4cf5 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -200,8 +200,7 @@ If you see the "hello, world" message then your Go installation is working.
+ <h2 id="next">What's next</h2>
+ 
+ <p>
+-Start by taking <a href="http://code.google.com/p/go-tour/">A Tour of Go</a>
+-or reading the <a href="/doc/go_tutorial.html">Go Tutorial</a>.
++Start by taking <a href="http://code.google.com/p/go-tour/">A Tour of Go</a>.
+ </p>
+ 
+ <p>

@@ -7,6 +7,30 @@ Date:   Fri Dec 23 22:01:46 2011 +0900
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5498066
-
+---
  src/pkg/net/rpc/server_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index c1845fa507..ae688c0f8c 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -498,8 +498,7 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
+ 	once.Do(startServer)
+ 	client, err := dial()
+ 	if err != nil {
+-		fmt.Println("error dialing", err)
+-		return
++		b.Fatal("error dialing:", err)
+ 	}
+ 
+ 	// Synchronous calls
+@@ -534,7 +533,7 @@ func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
+ 	once.Do(startServer)
+ 	client, err := dial()
+ 	if err != nil {
+-		b.Fatalf("error dialing:", err)
++		b.Fatal("error dialing:", err)
+ 	}
+ 
+ 	// Asynchronous calls

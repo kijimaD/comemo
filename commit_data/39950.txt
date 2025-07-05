@@ -24,7 +24,7 @@ Date:   Sun Mar 24 12:14:27 2019 +0100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/install-source.html                     |  1 +
  src/cmd/compile/internal/ssa/gen/Wasm.rules | 16 +++++++--------
  src/cmd/compile/internal/ssa/gen/WasmOps.go |  4 ++--
@@ -38,3 +38,368 @@ Date:   Sun Mar 24 12:14:27 2019 +0100
  src/cmd/internal/obj/wasm/wasmobj.go        |  9 ++++++--
  src/cmd/internal/objabi/util.go             |  6 ++++++
  12 files changed, 80 insertions(+), 42 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 9c73b925b1..6a0c3844ae 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -645,6 +645,7 @@ for which the compiler will target. The default is <code>power8</code>.
+ 	The default is to use no experimental features.
+ 	</p>
+ 	<ul>
++		<li><code>GOWASM=satconv</code>: generate <a href="https://github.com/WebAssembly/nontrapping-float-to-int-conversions/blob/master/proposals/nontrapping-float-to-int-conversion/Overview.md">saturating (non-trapping) float-to-int conversions</a></li>
+ 		<li><code>GOWASM=signext</code>: generate <a href="https://github.com/WebAssembly/sign-extension-ops/blob/master/proposals/sign-extension-ops/Overview.md">sign-extension operators</a></li>
+ 	</ul>
+ </li>
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index 72f4805edf..a832abf0fb 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -84,14 +84,14 @@
+ (Cvt64Uto32F x) -> (LoweredRound32F (F64ConvertI64U x))
+ (Cvt64Uto64F x) -> (F64ConvertI64U x)
+ 
+-(Cvt32Fto32 x) -> (I64TruncF64S x)
+-(Cvt32Fto64 x) -> (I64TruncF64S x)
+-(Cvt64Fto32 x) -> (I64TruncF64S x)
+-(Cvt64Fto64 x) -> (I64TruncF64S x)
+-(Cvt32Fto32U x) -> (I64TruncF64U x)
+-(Cvt32Fto64U x) -> (I64TruncF64U x)
+-(Cvt64Fto32U x) -> (I64TruncF64U x)
+-(Cvt64Fto64U x) -> (I64TruncF64U x)
++(Cvt32Fto32 x) -> (I64TruncSatF64S x)
++(Cvt32Fto64 x) -> (I64TruncSatF64S x)
++(Cvt64Fto32 x) -> (I64TruncSatF64S x)
++(Cvt64Fto64 x) -> (I64TruncSatF64S x)
++(Cvt32Fto32U x) -> (I64TruncSatF64U x)
++(Cvt32Fto64U x) -> (I64TruncSatF64U x)
++(Cvt64Fto32U x) -> (I64TruncSatF64U x)
++(Cvt64Fto64U x) -> (I64TruncSatF64U x)
+ 
+ (Cvt32Fto64F x) -> x
+ (Cvt64Fto32F x) -> (LoweredRound32F x)
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index 4e5f076575..de035c985a 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -187,8 +187,8 @@ func init() {
+ 		{name: "F64Mul", asm: "F64Mul", argLength: 2, reg: fp21, typ: "Float64"}, // arg0 * arg1
+ 		{name: "F64Div", asm: "F64Div", argLength: 2, reg: fp21, typ: "Float64"}, // arg0 / arg1
+ 
+-		{name: "I64TruncF64S", asm: "I64TruncF64S", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"},       // truncates the float arg0 to a signed integer
+-		{name: "I64TruncF64U", asm: "I64TruncF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"},       // truncates the float arg0 to an unsigned integer
++		{name: "I64TruncSatF64S", asm: "I64TruncSatF64S", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to a signed integer (saturating)
++		{name: "I64TruncSatF64U", asm: "I64TruncSatF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to an unsigned integer (saturating)
+ 		{name: "F64ConvertI64S", asm: "F64ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the signed integer arg0 to a float
+ 		{name: "F64ConvertI64U", asm: "F64ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the unsigned integer arg0 to a float
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 214d68757c..06dcb2d7ac 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2132,8 +2132,8 @@ const (
+ 	OpWasmF64Sub
+ 	OpWasmF64Mul
+ 	OpWasmF64Div
+-	OpWasmI64TruncF64S
+-	OpWasmI64TruncF64U
++	OpWasmI64TruncSatF64S
++	OpWasmI64TruncSatF64U
+ 	OpWasmF64ConvertI64S
+ 	OpWasmF64ConvertI64U
+ 	OpWasmI64Extend8S
+@@ -28676,9 +28676,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "I64TruncF64S",
++		name:   "I64TruncSatF64S",
+ 		argLen: 1,
+-		asm:    wasm.AI64TruncF64S,
++		asm:    wasm.AI64TruncSatF64S,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28689,9 +28689,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "I64TruncF64U",
++		name:   "I64TruncSatF64U",
+ 		argLen: 1,
+-		asm:    wasm.AI64TruncF64U,
++		asm:    wasm.AI64TruncSatF64U,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index fe85922e31..d02ed1e87f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -1095,10 +1095,10 @@ func rewriteValueWasm_OpCtz8NonZero_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+-	// result: (I64TruncF64S x)
++	// result: (I64TruncSatF64S x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncF64S)
++		v.reset(OpWasmI64TruncSatF64S)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1106,10 +1106,10 @@ func rewriteValueWasm_OpCvt32Fto32_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt32Fto32U_0(v *Value) bool {
+ 	// match: (Cvt32Fto32U x)
+ 	// cond:
+-	// result: (I64TruncF64U x)
++	// result: (I64TruncSatF64U x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncF64U)
++		v.reset(OpWasmI64TruncSatF64U)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1117,10 +1117,10 @@ func rewriteValueWasm_OpCvt32Fto32U_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt32Fto64_0(v *Value) bool {
+ 	// match: (Cvt32Fto64 x)
+ 	// cond:
+-	// result: (I64TruncF64S x)
++	// result: (I64TruncSatF64S x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncF64S)
++		v.reset(OpWasmI64TruncSatF64S)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1140,10 +1140,10 @@ func rewriteValueWasm_OpCvt32Fto64F_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt32Fto64U_0(v *Value) bool {
+ 	// match: (Cvt32Fto64U x)
+ 	// cond:
+-	// result: (I64TruncF64U x)
++	// result: (I64TruncSatF64U x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncF64U)
++		v.reset(OpWasmI64TruncSatF64U)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1215,10 +1215,10 @@ func rewriteValueWasm_OpCvt32to64F_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt64Fto32_0(v *Value) bool {
+ 	// match: (Cvt64Fto32 x)
+ 	// cond:
+-	// result: (I64TruncF64S x)
++	// result: (I64TruncSatF64S x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncF64S)
++		v.reset(OpWasmI64TruncSatF64S)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1237,10 +1237,10 @@ func rewriteValueWasm_OpCvt64Fto32F_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt64Fto32U_0(v *Value) bool {
+ 	// match: (Cvt64Fto32U x)
+ 	// cond:
+-	// result: (I64TruncF64U x)
++	// result: (I64TruncSatF64U x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncF64U)
++		v.reset(OpWasmI64TruncSatF64U)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1248,10 +1248,10 @@ func rewriteValueWasm_OpCvt64Fto32U_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt64Fto64_0(v *Value) bool {
+ 	// match: (Cvt64Fto64 x)
+ 	// cond:
+-	// result: (I64TruncF64S x)
++	// result: (I64TruncSatF64S x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncF64S)
++		v.reset(OpWasmI64TruncSatF64S)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1259,10 +1259,10 @@ func rewriteValueWasm_OpCvt64Fto64_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt64Fto64U_0(v *Value) bool {
+ 	// match: (Cvt64Fto64U x)
+ 	// cond:
+-	// result: (I64TruncF64U x)
++	// result: (I64TruncSatF64U x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncF64U)
++		v.reset(OpWasmI64TruncSatF64U)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 7575df548a..63eb319edb 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/wasm"
++	"cmd/internal/objabi"
+ )
+ 
+ func Init(arch *gc.Arch) {
+@@ -307,15 +308,23 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 		s.Prog(wasm.AI64DivS)
+ 
+-	case ssa.OpWasmI64TruncF64S:
++	case ssa.OpWasmI64TruncSatF64S:
+ 		getValue64(s, v.Args[0])
+-		p := s.Prog(wasm.ACall)
+-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
++		if objabi.GOWASM.SatConv {
++			s.Prog(v.Op.Asm())
++		} else {
++			p := s.Prog(wasm.ACall)
++			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
++		}
+ 
+-	case ssa.OpWasmI64TruncF64U:
++	case ssa.OpWasmI64TruncSatF64U:
+ 		getValue64(s, v.Args[0])
+-		p := s.Prog(wasm.ACall)
+-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
++		if objabi.GOWASM.SatConv {
++			s.Prog(v.Op.Asm())
++		} else {
++			p := s.Prog(wasm.ACall)
++			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
++		}
+ 
+ 	case
+ 		ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertI64S, ssa.OpWasmF64ConvertI64U,
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index de07d910d8..008e306efb 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1581,7 +1581,7 @@
+ // 		Valid values are hardfloat (default), softfloat.
+ // 	GOWASM
+ // 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+-// 		Valid values are: signext.
++// 		Valid values are satconv, signext.
+ //
+ // Special-purpose environment variables:
+ //
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index eb663e99b6..98d4bd0382 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -565,7 +565,7 @@ Architecture-specific environment variables:
+ 		Valid values are hardfloat (default), softfloat.
+ 	GOWASM
+ 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+-		Valid values are: signext.
++		Valid values are satconv, signext.
+ 
+ Special-purpose environment variables:
+ 
+diff --git a/src/cmd/internal/obj/wasm/a.out.go b/src/cmd/internal/obj/wasm/a.out.go
+index 29ea87f3b0..c686f1d6f0 100644
+--- a/src/cmd/internal/obj/wasm/a.out.go
++++ b/src/cmd/internal/obj/wasm/a.out.go
+@@ -216,6 +216,15 @@ const (
+ 	AI64Extend16S
+ 	AI64Extend32S
+ 
++	AI32TruncSatF32S // opcode 0xFC 0x00
++	AI32TruncSatF32U
++	AI32TruncSatF64S
++	AI32TruncSatF64U
++	AI64TruncSatF32S
++	AI64TruncSatF32U
++	AI64TruncSatF64S
++	AI64TruncSatF64U
++
+ 	ALast // Sentinel: End of low-level WebAssembly instructions.
+ 
+ 	ARESUMEPOINT
+diff --git a/src/cmd/internal/obj/wasm/anames.go b/src/cmd/internal/obj/wasm/anames.go
+index fb4b72c398..c8552e7f18 100644
+--- a/src/cmd/internal/obj/wasm/anames.go
++++ b/src/cmd/internal/obj/wasm/anames.go
+@@ -182,6 +182,14 @@ var Anames = []string{
+ 	"I64Extend8S",
+ 	"I64Extend16S",
+ 	"I64Extend32S",
++	"I32TruncSatF32S",
++	"I32TruncSatF32U",
++	"I32TruncSatF64S",
++	"I32TruncSatF64U",
++	"I64TruncSatF32S",
++	"I64TruncSatF32U",
++	"I64TruncSatF64S",
++	"I64TruncSatF64U",
+ 	"Last",
+ 	"RESUMEPOINT",
+ 	"CALLNORESUME",
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index dded62a4be..0474e3b4b1 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -886,7 +886,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 
+ 		switch {
+-		case p.As < AUnreachable || p.As >= ALast:
++		case p.As < AUnreachable:
+ 			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
+ 		case p.As < AEnd:
+ 			w.WriteByte(byte(p.As - AUnreachable + 0x00))
+@@ -894,8 +894,13 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			w.WriteByte(byte(p.As - AEnd + 0x0B))
+ 		case p.As < AI32Load:
+ 			w.WriteByte(byte(p.As - ADrop + 0x1A))
+-		default:
++		case p.As < AI32TruncSatF32S:
+ 			w.WriteByte(byte(p.As - AI32Load + 0x28))
++		case p.As < ALast:
++			w.WriteByte(0xFC)
++			w.WriteByte(byte(p.As - AI32TruncSatF32S + 0x00))
++		default:
++			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
+ 		}
+ 
+ 		switch p.As {
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 02f9d9273a..e28447d141 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -79,10 +79,14 @@ func goppc64() int {
+ 
+ type gowasmFeatures struct {
+ 	SignExt bool
++	SatConv bool
+ }
+ 
+ func (f *gowasmFeatures) String() string {
+ 	var flags []string
++	if f.SatConv {
++		flags = append(flags, "satconv")
++	}
+ 	if f.SignExt {
+ 		flags = append(flags, "signext")
+ 	}
+@@ -92,6 +96,8 @@ func (f *gowasmFeatures) String() string {
+ func gowasm() (f gowasmFeatures) {
+ 	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
+ 		switch opt {
++		case "satconv":
++			f.SatConv = true
+ 		case "signext":
+ 			f.SignExt = true
+ 		case "":

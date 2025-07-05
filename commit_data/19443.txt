@@ -9,7 +9,37 @@ Date:   Fri May 23 17:39:58 2014 -0700
     R=golang-codereviews, r, khr
     CC=golang-codereviews
     https://golang.org/cl/96540051
-
+---
  doc/go1.3.html           | 6 ++++++
  src/pkg/reflect/value.go | 1 +
  2 files changed, 7 insertions(+)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index d98cdf629f..9a9f9f8d46 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -509,6 +509,12 @@ In particular, it only calls <a href="/pkg/os/exec/#LookPath"><code>LookPath</co
+ when the binary's file name contains no path separators.
+ </li>
+ 
++<li>
++The <a href="/pkg/reflect/#Value.SetMapIndex"><code>SetMapIndex</code></a>
++function in the <a href="/pkg/reflect/"><code>reflect</code></a> package
++no longer panics when deleting from a <code>nil</code> map.
++</li>
++
+ <li>
+ If the main goroutine calls 
+ <a href="/pkg/runtime/#Goexit"><code>runtime.Goexit</code></a>
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 2cbda3983c..576cbc3984 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1620,6 +1620,7 @@ func (v Value) SetCap(n int) {
+ // SetMapIndex sets the value associated with key in the map v to val.
+ // It panics if v's Kind is not Map.
+ // If val is the zero Value, SetMapIndex deletes the key from the map.
++// Otherwise if v holds a nil map, SetMapIndex will panic.
+ // As in Go, key's value must be assignable to the map's key type,
+ // and val's value must be assignable to the map's value type.
+ func (v Value) SetMapIndex(key, val Value) {

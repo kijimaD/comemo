@@ -16,7 +16,74 @@ Date:   Fri Oct 21 15:01:03 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/go_test.go | 21 +++++++++++++++++++++
  src/cmd/go/pkg.go     | 19 ++++++++++++++++---
  2 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 4a82fdef6c..f445aef5bd 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1759,6 +1759,27 @@ func TestSymlinksVendor(t *testing.T) {
+ 	tg.run("install")
+ }
+ 
++// Issue 15201.
++func TestSymlinksVendor15201(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skipf("skipping symlink test on %s", runtime.GOOS)
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	tg.tempDir("gopath/src/x/y/_vendor/src/x")
++	tg.must(os.Symlink("../../..", tg.path("gopath/src/x/y/_vendor/src/x/y")))
++	tg.tempFile("gopath/src/x/y/w/w.go", "package w\nimport \"x/y/z\"\n")
++	tg.must(os.Symlink("../_vendor/src", tg.path("gopath/src/x/y/w/vendor")))
++	tg.tempFile("gopath/src/x/y/z/z.go", "package z\n")
++
++	tg.setenv("GOPATH", tg.path("gopath/src/x/y/_vendor")+string(filepath.ListSeparator)+tg.path("gopath"))
++	tg.cd(tg.path("gopath/src"))
++	tg.run("list", "./...")
++}
++
+ func TestSymlinksInternal(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 69367eefb1..a3018bce45 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -415,13 +415,26 @@ func vendoredImportPath(parent *Package, path string) (found string) {
+ 
+ 	dir := filepath.Clean(parent.Dir)
+ 	root := filepath.Join(parent.Root, "src")
+-	if !hasFilePathPrefix(dir, root) {
++	if !hasFilePathPrefix(dir, root) || parent.ImportPath != "command-line-arguments" && filepath.Join(root, parent.ImportPath) != dir {
+ 		// Look for symlinks before reporting error.
+ 		dir = expandPath(dir)
+ 		root = expandPath(root)
+ 	}
+-	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
+-		fatalf("invalid vendoredImportPath: dir=%q root=%q separator=%q", dir, root, string(filepath.Separator))
++
++	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && filepath.Join(root, parent.ImportPath) != dir {
++		fatalf("unexpected directory layout:\n"+
++			"	import path: %s\n"+
++			"	root: %s\n"+
++			"	dir: %s\n"+
++			"	expand root: %s\n"+
++			"	expand dir: %s\n"+
++			"	separator: %s",
++			parent.ImportPath,
++			filepath.Join(parent.Root, "src"),
++			filepath.Clean(parent.Dir),
++			root,
++			dir,
++			string(filepath.Separator))
+ 	}
+ 
+ 	vpath := "vendor/" + path

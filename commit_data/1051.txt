@@ -7,7 +7,33 @@ Date:   Tue Nov 4 14:33:47 2008 -0800
     R=rsc
     OCL=18482
     CL=18484
-
+---
  test/bignum_test.go | 2 --
  test/golden.out     | 3 ---
  2 files changed, 5 deletions(-)
+
+diff --git a/test/bignum_test.go b/test/bignum_test.go
+index 3b80a309c3..911bbe51bf 100644
+--- a/test/bignum_test.go
++++ b/test/bignum_test.go
+@@ -491,6 +491,4 @@ func main() {
+ 	// Rationals
+ 	// TODO add more tests
+ 	RatConv();
+-
+-	print("PASSED\n");
+ }
+diff --git a/test/golden.out b/test/golden.out
+index e877506b98..c1410a1ead 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -37,9 +37,6 @@ Faulting address: 0x0
+ pc: xxx
+ 
+ 
+-=========== ./method2.go
+-BUG: errchk: command succeeded unexpectedly:  6g ./method2.go
+-
+ =========== ./peano.go
+ 0! = 1
+ 1! = 1

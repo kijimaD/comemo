@@ -18,8 +18,66 @@ Date:   Sat Oct 12 16:58:01 2019 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/class_string.go | 5 ++---
  src/cmd/compile/internal/gc/dcl.go          | 4 ----
  src/cmd/compile/internal/gc/go.go           | 9 +--------
  3 files changed, 3 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/class_string.go b/src/cmd/compile/internal/gc/class_string.go
+index 7dc6a15a18..a4084a7535 100644
+--- a/src/cmd/compile/internal/gc/class_string.go
++++ b/src/cmd/compile/internal/gc/class_string.go
+@@ -15,12 +15,11 @@ func _() {
+ 	_ = x[PPARAM-4]
+ 	_ = x[PPARAMOUT-5]
+ 	_ = x[PFUNC-6]
+-	_ = x[PDISCARD-7]
+ }
+ 
+-const _Class_name = "PxxxPEXTERNPAUTOPAUTOHEAPPPARAMPPARAMOUTPFUNCPDISCARD"
++const _Class_name = "PxxxPEXTERNPAUTOPAUTOHEAPPPARAMPPARAMOUTPFUNC"
+ 
+-var _Class_index = [...]uint8{0, 4, 11, 16, 25, 31, 40, 45, 53}
++var _Class_index = [...]uint8{0, 4, 11, 16, 25, 31, 40, 45}
+ 
+ func (i Class) String() string {
+ 	if i >= Class(len(_Class_index)-1) {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 32b72a44d8..44ef64f329 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -60,10 +60,6 @@ var declare_typegen int
+ // declare records that Node n declares symbol n.Sym in the specified
+ // declaration context.
+ func declare(n *Node, ctxt Class) {
+-	if ctxt == PDISCARD {
+-		return
+-	}
+-
+ 	if n.isBlank() {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 37b86523cc..f6ad3752a0 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -60,17 +60,10 @@ const (
+ 	PPARAMOUT              // output results
+ 	PFUNC                  // global function
+ 
+-	PDISCARD // discard during parse of duplicate import
+ 	// Careful: Class is stored in three bits in Node.flags.
+-	// Adding a new Class will overflow that.
++	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
+ )
+ 
+-func init() {
+-	if PDISCARD != 7 {
+-		panic("PDISCARD changed; does all Class values still fit in three bits?")
+-	}
+-}
+-
+ // note this is the runtime representation
+ // of the compilers arrays.
+ //

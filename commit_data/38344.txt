@@ -15,7 +15,7 @@ Date:   Mon Aug 6 19:50:38 2018 +1000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go              | 85 ++++++++++++----------
  src/cmd/compile/internal/gc/testdata/arith_test.go | 36 +++++++++
  src/cmd/compile/internal/ssa/gen/386.rules         |  8 +-
@@ -31,3 +31,825 @@ Date:   Mon Aug 6 19:50:38 2018 +1000
  src/cmd/compile/internal/x86/ssa.go                | 33 +++++----
  test/codegen/arithmetic.go                         | 81 +++++++++++++++++++++
  14 files changed, 298 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 5b776170d7..749dbf1d5d 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -229,24 +229,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		// Result[0] (the quotient) is in AX.
+ 		// Result[1] (the remainder) is in DX.
+ 		r := v.Args[1].Reg()
++		var j1 *obj.Prog
+ 
+ 		// CPU faults upon signed overflow, which occurs when the most
+ 		// negative int is divided by -1. Handle divide by -1 as a special case.
+-		var c *obj.Prog
+-		switch v.Op {
+-		case ssa.OpAMD64DIVQ:
+-			c = s.Prog(x86.ACMPQ)
+-		case ssa.OpAMD64DIVL:
+-			c = s.Prog(x86.ACMPL)
+-		case ssa.OpAMD64DIVW:
+-			c = s.Prog(x86.ACMPW)
++		if ssa.NeedsFixUp(v) {
++			var c *obj.Prog
++			switch v.Op {
++			case ssa.OpAMD64DIVQ:
++				c = s.Prog(x86.ACMPQ)
++			case ssa.OpAMD64DIVL:
++				c = s.Prog(x86.ACMPL)
++			case ssa.OpAMD64DIVW:
++				c = s.Prog(x86.ACMPW)
++			}
++			c.From.Type = obj.TYPE_REG
++			c.From.Reg = r
++			c.To.Type = obj.TYPE_CONST
++			c.To.Offset = -1
++			j1 = s.Prog(x86.AJEQ)
++			j1.To.Type = obj.TYPE_BRANCH
+ 		}
+-		c.From.Type = obj.TYPE_REG
+-		c.From.Reg = r
+-		c.To.Type = obj.TYPE_CONST
+-		c.To.Offset = -1
+-		j1 := s.Prog(x86.AJEQ)
+-		j1.To.Type = obj.TYPE_BRANCH
+ 
+ 		// Sign extend dividend.
+ 		switch v.Op {
+@@ -263,36 +266,38 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = r
+ 
+-		// Skip over -1 fixup code.
+-		j2 := s.Prog(obj.AJMP)
+-		j2.To.Type = obj.TYPE_BRANCH
++		if j1 != nil {
++			// Skip over -1 fixup code.
++			j2 := s.Prog(obj.AJMP)
++			j2.To.Type = obj.TYPE_BRANCH
+ 
+-		// Issue -1 fixup code.
+-		// n / -1 = -n
+-		var n1 *obj.Prog
+-		switch v.Op {
+-		case ssa.OpAMD64DIVQ:
+-			n1 = s.Prog(x86.ANEGQ)
+-		case ssa.OpAMD64DIVL:
+-			n1 = s.Prog(x86.ANEGL)
+-		case ssa.OpAMD64DIVW:
+-			n1 = s.Prog(x86.ANEGW)
+-		}
+-		n1.To.Type = obj.TYPE_REG
+-		n1.To.Reg = x86.REG_AX
++			// Issue -1 fixup code.
++			// n / -1 = -n
++			var n1 *obj.Prog
++			switch v.Op {
++			case ssa.OpAMD64DIVQ:
++				n1 = s.Prog(x86.ANEGQ)
++			case ssa.OpAMD64DIVL:
++				n1 = s.Prog(x86.ANEGL)
++			case ssa.OpAMD64DIVW:
++				n1 = s.Prog(x86.ANEGW)
++			}
++			n1.To.Type = obj.TYPE_REG
++			n1.To.Reg = x86.REG_AX
+ 
+-		// n % -1 == 0
+-		n2 := s.Prog(x86.AXORL)
+-		n2.From.Type = obj.TYPE_REG
+-		n2.From.Reg = x86.REG_DX
+-		n2.To.Type = obj.TYPE_REG
+-		n2.To.Reg = x86.REG_DX
++			// n % -1 == 0
++			n2 := s.Prog(x86.AXORL)
++			n2.From.Type = obj.TYPE_REG
++			n2.From.Reg = x86.REG_DX
++			n2.To.Type = obj.TYPE_REG
++			n2.To.Reg = x86.REG_DX
+ 
+-		// TODO(khr): issue only the -1 fixup code we need.
+-		// For instance, if only the quotient is used, no point in zeroing the remainder.
++			// TODO(khr): issue only the -1 fixup code we need.
++			// For instance, if only the quotient is used, no point in zeroing the remainder.
+ 
+-		j1.To.Val = n1
+-		j2.To.Val = s.Pc()
++			j1.To.Val = n1
++			j2.To.Val = s.Pc()
++		}
+ 
+ 	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU:
+ 		// the frontend rewrites constant division by 8/16/32 bit integers into
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_test.go b/src/cmd/compile/internal/gc/testdata/arith_test.go
+index d30d660b34..728ca56892 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_test.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_test.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ import (
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -14,6 +15,13 @@ const (
+ 	y = 0x0fffFFFF
+ )
+ 
++var (
++	g8  int8
++	g16 int16
++	g32 int32
++	g64 int64
++)
++
+ //go:noinline
+ func lshNop1(x uint64) uint64 {
+ 	// two outer shifts should be removed
+@@ -915,4 +923,32 @@ func TestArithmetic(t *testing.T) {
+ 	testLoadSymCombine(t)
+ 	testShiftRemoval(t)
+ 	testShiftedOps(t)
++	testDivFixUp(t)
++}
++
++// testDivFixUp ensures that signed division fix-ups are being generated.
++func testDivFixUp(t *testing.T) {
++	defer func() {
++		if r := recover(); r != nil {
++			t.Error("testDivFixUp failed")
++			if e, ok := r.(runtime.Error); ok {
++				t.Logf("%v\n", e.Error())
++			}
++		}
++	}()
++	var w int8 = -128
++	var x int16 = -32768
++	var y int32 = -2147483648
++	var z int64 = -9223372036854775808
++
++	for i := -5; i < 0; i++ {
++		g8 = w / int8(i)
++		g16 = x / int16(i)
++		g32 = y / int32(i)
++		g64 = z / int64(i)
++		g8 = w % int8(i)
++		g16 = x % int16(i)
++		g32 = y % int32(i)
++		g64 = z % int64(i)
++	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 2241a65d55..e1680ec37c 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -25,9 +25,9 @@
+ (Div32F x y) -> (DIVSS x y)
+ (Div64F x y) -> (DIVSD x y)
+ 
+-(Div32  x y) -> (DIVL  x y)
++(Div32 [a] x y) -> (DIVL [a] x y)
+ (Div32u x y) -> (DIVLU x y)
+-(Div16  x y) -> (DIVW  x y)
++(Div16 [a] x y) -> (DIVW [a] x y)
+ (Div16u x y) -> (DIVWU x y)
+ (Div8   x y) -> (DIVW  (SignExt8to16 x) (SignExt8to16 y))
+ (Div8u  x y) -> (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+@@ -35,9 +35,9 @@
+ (Hmul32  x y) -> (HMULL  x y)
+ (Hmul32u x y) -> (HMULLU x y)
+ 
+-(Mod32  x y) -> (MODL  x y)
++(Mod32 [a] x y) -> (MODL [a] x y)
+ (Mod32u x y) -> (MODLU x y)
+-(Mod16  x y) -> (MODW  x y)
++(Mod16 [a] x y) -> (MODW [a] x y)
+ (Mod16u x y) -> (MODWU x y)
+ (Mod8   x y) -> (MODW  (SignExt8to16 x) (SignExt8to16 y))
+ (Mod8u  x y) -> (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index cb2919567f..fa3e7cd375 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -216,15 +216,16 @@ func init() {
+ 
+ 		{name: "AVGLU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true, clobberFlags: true}, // (arg0 + arg1) / 2 as unsigned, all 32 result bits
+ 
+-		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL", clobberFlags: true}, // arg0 / arg1
+-		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW", clobberFlags: true}, // arg0 / arg1
+-		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL", clobberFlags: true}, // arg0 / arg1
+-		{name: "DIVWU", argLength: 2, reg: gp11div, asm: "DIVW", clobberFlags: true}, // arg0 / arg1
+-
+-		{name: "MODL", argLength: 2, reg: gp11mod, asm: "IDIVL", clobberFlags: true}, // arg0 % arg1
+-		{name: "MODW", argLength: 2, reg: gp11mod, asm: "IDIVW", clobberFlags: true}, // arg0 % arg1
+-		{name: "MODLU", argLength: 2, reg: gp11mod, asm: "DIVL", clobberFlags: true}, // arg0 % arg1
+-		{name: "MODWU", argLength: 2, reg: gp11mod, asm: "DIVW", clobberFlags: true}, // arg0 % arg1
++		// For DIVL, DIVW, MODL and MODW, AuxInt non-zero means that the divisor has been proved to be not -1.
++		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL", aux: "Bool", clobberFlags: true}, // arg0 / arg1
++		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW", aux: "Bool", clobberFlags: true}, // arg0 / arg1
++		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL", clobberFlags: true},              // arg0 / arg1
++		{name: "DIVWU", argLength: 2, reg: gp11div, asm: "DIVW", clobberFlags: true},              // arg0 / arg1
++
++		{name: "MODL", argLength: 2, reg: gp11mod, asm: "IDIVL", aux: "Bool", clobberFlags: true}, // arg0 % arg1
++		{name: "MODW", argLength: 2, reg: gp11mod, asm: "IDIVW", aux: "Bool", clobberFlags: true}, // arg0 % arg1
++		{name: "MODLU", argLength: 2, reg: gp11mod, asm: "DIVL", clobberFlags: true},              // arg0 % arg1
++		{name: "MODWU", argLength: 2, reg: gp11mod, asm: "DIVW", clobberFlags: true},              // arg0 % arg1
+ 
+ 		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0 & arg1
+ 		{name: "ANDLconst", argLength: 1, reg: gp11, asm: "ANDL", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 & auxint
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 7bba4bcccb..86f7d921e4 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -23,7 +23,7 @@
+ (Hmul(64|32)  x y) -> (HMUL(Q|L)  x y)
+ (Hmul(64|32)u x y) -> (HMUL(Q|L)U x y)
+ 
+-(Div(64|32|16)  x y) -> (Select0 (DIV(Q|L|W)  x y))
++(Div(64|32|16) [a] x y) -> (Select0 (DIV(Q|L|W) [a] x y))
+ (Div8  x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
+ (Div(64|32|16)u x y) -> (Select0 (DIV(Q|L|W)U x y))
+ (Div8u x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
+@@ -34,7 +34,7 @@
+ 
+ (Avg64u x y) -> (AVGQU x y)
+ 
+-(Mod(64|32|16)  x y) -> (Select1 (DIV(Q|L|W)  x y))
++(Mod(64|32|16) [a] x y) -> (Select1 (DIV(Q|L|W) [a] x y))
+ (Mod8  x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
+ (Mod(64|32|16)u x y) -> (Select1 (DIV(Q|L|W)U x y))
+ (Mod8u x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index cd6eb53460..29f208f0d0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -220,9 +220,11 @@ func init() {
+ 
+ 		{name: "AVGQU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true, clobberFlags: true}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
+ 
+-		{name: "DIVQ", argLength: 2, reg: gp11div, typ: "(Int64,Int64)", asm: "IDIVQ", clobberFlags: true},   // [arg0 / arg1, arg0 % arg1]
+-		{name: "DIVL", argLength: 2, reg: gp11div, typ: "(Int32,Int32)", asm: "IDIVL", clobberFlags: true},   // [arg0 / arg1, arg0 % arg1]
+-		{name: "DIVW", argLength: 2, reg: gp11div, typ: "(Int16,Int16)", asm: "IDIVW", clobberFlags: true},   // [arg0 / arg1, arg0 % arg1]
++		// For DIVQ, DIVL and DIVW, AuxInt non-zero means that the divisor has been proved to be not -1.
++		{name: "DIVQ", argLength: 2, reg: gp11div, typ: "(Int64,Int64)", asm: "IDIVQ", aux: "Bool", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
++		{name: "DIVL", argLength: 2, reg: gp11div, typ: "(Int32,Int32)", asm: "IDIVL", aux: "Bool", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
++		{name: "DIVW", argLength: 2, reg: gp11div, typ: "(Int16,Int16)", asm: "IDIVW", aux: "Bool", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
++
+ 		{name: "DIVQU", argLength: 2, reg: gp11div, typ: "(UInt64,UInt64)", asm: "DIVQ", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
+ 		{name: "DIVLU", argLength: 2, reg: gp11div, typ: "(UInt32,UInt32)", asm: "DIVL", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
+ 		{name: "DIVWU", argLength: 2, reg: gp11div, typ: "(UInt16,UInt16)", asm: "DIVW", clobberFlags: true}, // [arg0 / arg1, arg0 % arg1]
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 58f1b5bf79..2f28ed45d0 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -66,23 +66,26 @@ var genericOps = []opData{
+ 	{name: "Avg32u", argLength: 2, typ: "UInt32"}, // 32-bit platforms only
+ 	{name: "Avg64u", argLength: 2, typ: "UInt64"}, // 64-bit platforms only
+ 
++	// For Div16, Div32 and Div64, AuxInt non-zero means that the divisor has been proved to be not -1
++	// or that the dividend is not the most negative value.
+ 	{name: "Div8", argLength: 2},  // arg0 / arg1, signed
+ 	{name: "Div8u", argLength: 2}, // arg0 / arg1, unsigned
+-	{name: "Div16", argLength: 2},
++	{name: "Div16", argLength: 2, aux: "Bool"},
+ 	{name: "Div16u", argLength: 2},
+-	{name: "Div32", argLength: 2},
++	{name: "Div32", argLength: 2, aux: "Bool"},
+ 	{name: "Div32u", argLength: 2},
+-	{name: "Div64", argLength: 2},
++	{name: "Div64", argLength: 2, aux: "Bool"},
+ 	{name: "Div64u", argLength: 2},
+ 	{name: "Div128u", argLength: 3}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
+ 
++	// For Mod16, Mod32 and Mod64, AuxInt non-zero means that the divisor has been proved to be not -1.
+ 	{name: "Mod8", argLength: 2},  // arg0 % arg1, signed
+ 	{name: "Mod8u", argLength: 2}, // arg0 % arg1, unsigned
+-	{name: "Mod16", argLength: 2},
++	{name: "Mod16", argLength: 2, aux: "Bool"},
+ 	{name: "Mod16u", argLength: 2},
+-	{name: "Mod32", argLength: 2},
++	{name: "Mod32", argLength: 2, aux: "Bool"},
+ 	{name: "Mod32u", argLength: 2},
+-	{name: "Mod64", argLength: 2},
++	{name: "Mod64", argLength: 2, aux: "Bool"},
+ 	{name: "Mod64u", argLength: 2},
+ 
+ 	{name: "And8", argLength: 2, commutative: true}, // arg0 & arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 082b6e1ba7..ad6c151d1d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -3216,6 +3216,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "DIVL",
++		auxType:      auxBool,
+ 		argLen:       2,
+ 		clobberFlags: true,
+ 		asm:          x86.AIDIVL,
+@@ -3232,6 +3233,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "DIVW",
++		auxType:      auxBool,
+ 		argLen:       2,
+ 		clobberFlags: true,
+ 		asm:          x86.AIDIVW,
+@@ -3280,6 +3282,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "MODL",
++		auxType:      auxBool,
+ 		argLen:       2,
+ 		clobberFlags: true,
+ 		asm:          x86.AIDIVL,
+@@ -3296,6 +3299,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "MODW",
++		auxType:      auxBool,
+ 		argLen:       2,
+ 		clobberFlags: true,
+ 		asm:          x86.AIDIVW,
+@@ -6436,6 +6440,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "DIVQ",
++		auxType:      auxBool,
+ 		argLen:       2,
+ 		clobberFlags: true,
+ 		asm:          x86.AIDIVQ,
+@@ -6452,6 +6457,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "DIVL",
++		auxType:      auxBool,
+ 		argLen:       2,
+ 		clobberFlags: true,
+ 		asm:          x86.AIDIVL,
+@@ -6468,6 +6474,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "DIVW",
++		auxType:      auxBool,
+ 		argLen:       2,
+ 		clobberFlags: true,
+ 		asm:          x86.AIDIVW,
+@@ -28022,6 +28029,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Div16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+@@ -28032,6 +28040,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Div32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+@@ -28042,6 +28051,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Div64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+@@ -28067,6 +28077,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Mod16",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+@@ -28077,6 +28088,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Mod32",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+@@ -28087,6 +28099,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Mod64",
++		auxType: auxBool,
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 6462370d5c..0656bb45c5 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1076,6 +1076,13 @@ func addLocalInductiveFacts(ft *factsTable, b *Block) {
+ }
+ 
+ var ctzNonZeroOp = map[Op]Op{OpCtz8: OpCtz8NonZero, OpCtz16: OpCtz16NonZero, OpCtz32: OpCtz32NonZero, OpCtz64: OpCtz64NonZero}
++var mostNegativeDividend = map[Op]int64{
++	OpDiv16: -1 << 15,
++	OpMod16: -1 << 15,
++	OpDiv32: -1 << 31,
++	OpMod32: -1 << 31,
++	OpDiv64: -1 << 63,
++	OpMod64: -1 << 63}
+ 
+ // simplifyBlock simplifies some constant values in b and evaluates
+ // branches to non-uniquely dominated successors of b.
+@@ -1147,6 +1154,22 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
+ 				}
+ 			}
++		case OpDiv16, OpDiv32, OpDiv64, OpMod16, OpMod32, OpMod64:
++			// On amd64 and 386 fix-up code can be avoided if we know
++			//  the divisor is not -1 or the dividend > MinIntNN.
++			divr := v.Args[1]
++			divrLim, divrLimok := ft.limits[divr.ID]
++			divd := v.Args[0]
++			divdLim, divdLimok := ft.limits[divd.ID]
++			if (divrLimok && (divrLim.max < -1 || divrLim.min > -1)) ||
++				(divdLimok && divdLim.min > mostNegativeDividend[v.Op]) {
++				v.AuxInt = 1 // see NeedsFixUp in genericOps - v.AuxInt = 0 means we have not proved
++				// that the divisor is not -1 and the dividend is not the most negative,
++				// so we need to add fix-up code.
++				if b.Func.pass.debug > 0 {
++					b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
++				}
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index b93dce2004..ae6af1c269 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -451,6 +451,16 @@ func extend32Fto64F(f float32) float64 {
+ 	return math.Float64frombits(r)
+ }
+ 
++// NeedsFixUp reports whether the division needs fix-up code.
++func NeedsFixUp(v *Value) bool {
++	return v.AuxInt == 0
++}
++
++// i2f is used in rules for converting from an AuxInt to a float.
++func i2f(i int64) float64 {
++	return math.Float64frombits(uint64(i))
++}
++
+ // auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
+ func auxFrom64F(f float64) int64 {
+ 	return int64(math.Float64bits(f))
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 61bdfcbcbb..70aa51f3d1 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -21554,14 +21554,16 @@ func rewriteValue386_OpCvt64Fto32F_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValue386_OpDiv16_0(v *Value) bool {
+-	// match: (Div16 x y)
++	// match: (Div16 [a] x y)
+ 	// cond:
+-	// result: (DIVW x y)
++	// result: (DIVW [a] x y)
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(Op386DIVW)
++		v.AuxInt = a
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return true
+@@ -21582,14 +21584,16 @@ func rewriteValue386_OpDiv16u_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValue386_OpDiv32_0(v *Value) bool {
+-	// match: (Div32 x y)
++	// match: (Div32 [a] x y)
+ 	// cond:
+-	// result: (DIVL x y)
++	// result: (DIVL [a] x y)
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(Op386DIVL)
++		v.AuxInt = a
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return true
+@@ -22957,14 +22961,16 @@ func rewriteValue386_OpLsh8x8_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValue386_OpMod16_0(v *Value) bool {
+-	// match: (Mod16 x y)
++	// match: (Mod16 [a] x y)
+ 	// cond:
+-	// result: (MODW x y)
++	// result: (MODW [a] x y)
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(Op386MODW)
++		v.AuxInt = a
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return true
+@@ -22985,14 +22991,16 @@ func rewriteValue386_OpMod16u_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValue386_OpMod32_0(v *Value) bool {
+-	// match: (Mod32 x y)
++	// match: (Mod32 [a] x y)
+ 	// cond:
+-	// result: (MODL x y)
++	// result: (MODL [a] x y)
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(Op386MODL)
++		v.AuxInt = a
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index c7aa87b956..09d17e00c8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -59791,15 +59791,17 @@ func rewriteValueAMD64_OpDiv16_0(v *Value) bool {
+ 	_ = b
+ 	typ := &b.Func.Config.Types
+ 	_ = typ
+-	// match: (Div16 x y)
++	// match: (Div16 [a] x y)
+ 	// cond:
+-	// result: (Select0 (DIVW x y))
++	// result: (Select0 (DIVW [a] x y))
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect0)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, types.NewTuple(typ.Int16, typ.Int16))
++		v0.AuxInt = a
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -59831,15 +59833,17 @@ func rewriteValueAMD64_OpDiv32_0(v *Value) bool {
+ 	_ = b
+ 	typ := &b.Func.Config.Types
+ 	_ = typ
+-	// match: (Div32 x y)
++	// match: (Div32 [a] x y)
+ 	// cond:
+-	// result: (Select0 (DIVL x y))
++	// result: (Select0 (DIVL [a] x y))
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect0)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64DIVL, types.NewTuple(typ.Int32, typ.Int32))
++		v0.AuxInt = a
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -59885,15 +59889,17 @@ func rewriteValueAMD64_OpDiv64_0(v *Value) bool {
+ 	_ = b
+ 	typ := &b.Func.Config.Types
+ 	_ = typ
+-	// match: (Div64 x y)
++	// match: (Div64 [a] x y)
+ 	// cond:
+-	// result: (Select0 (DIVQ x y))
++	// result: (Select0 (DIVQ [a] x y))
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect0)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64DIVQ, types.NewTuple(typ.Int64, typ.Int64))
++		v0.AuxInt = a
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -61971,15 +61977,17 @@ func rewriteValueAMD64_OpMod16_0(v *Value) bool {
+ 	_ = b
+ 	typ := &b.Func.Config.Types
+ 	_ = typ
+-	// match: (Mod16 x y)
++	// match: (Mod16 [a] x y)
+ 	// cond:
+-	// result: (Select1 (DIVW x y))
++	// result: (Select1 (DIVW [a] x y))
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64DIVW, types.NewTuple(typ.Int16, typ.Int16))
++		v0.AuxInt = a
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -62011,15 +62019,17 @@ func rewriteValueAMD64_OpMod32_0(v *Value) bool {
+ 	_ = b
+ 	typ := &b.Func.Config.Types
+ 	_ = typ
+-	// match: (Mod32 x y)
++	// match: (Mod32 [a] x y)
+ 	// cond:
+-	// result: (Select1 (DIVL x y))
++	// result: (Select1 (DIVL [a] x y))
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64DIVL, types.NewTuple(typ.Int32, typ.Int32))
++		v0.AuxInt = a
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -62051,15 +62061,17 @@ func rewriteValueAMD64_OpMod64_0(v *Value) bool {
+ 	_ = b
+ 	typ := &b.Func.Config.Types
+ 	_ = typ
+-	// match: (Mod64 x y)
++	// match: (Mod64 [a] x y)
+ 	// cond:
+-	// result: (Select1 (DIVQ x y))
++	// result: (Select1 (DIVQ [a] x y))
+ 	for {
++		a := v.AuxInt
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64DIVQ, types.NewTuple(typ.Int64, typ.Int64))
++		v0.AuxInt = a
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 8a6f015854..24ba9649be 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -198,24 +198,31 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if v.Op == ssa.Op386DIVL || v.Op == ssa.Op386DIVW ||
+ 			v.Op == ssa.Op386MODL || v.Op == ssa.Op386MODW {
+ 
+-			var c *obj.Prog
++			if ssa.NeedsFixUp(v) {
++				var c *obj.Prog
++				switch v.Op {
++				case ssa.Op386DIVL, ssa.Op386MODL:
++					c = s.Prog(x86.ACMPL)
++					j = s.Prog(x86.AJEQ)
++
++				case ssa.Op386DIVW, ssa.Op386MODW:
++					c = s.Prog(x86.ACMPW)
++					j = s.Prog(x86.AJEQ)
++				}
++				c.From.Type = obj.TYPE_REG
++				c.From.Reg = x
++				c.To.Type = obj.TYPE_CONST
++				c.To.Offset = -1
++
++				j.To.Type = obj.TYPE_BRANCH
++			}
++			// sign extend the dividend
+ 			switch v.Op {
+ 			case ssa.Op386DIVL, ssa.Op386MODL:
+-				c = s.Prog(x86.ACMPL)
+-				j = s.Prog(x86.AJEQ)
+-				s.Prog(x86.ACDQ) //TODO: fix
+-
++				s.Prog(x86.ACDQ)
+ 			case ssa.Op386DIVW, ssa.Op386MODW:
+-				c = s.Prog(x86.ACMPW)
+-				j = s.Prog(x86.AJEQ)
+ 				s.Prog(x86.ACWD)
+ 			}
+-			c.From.Type = obj.TYPE_REG
+-			c.From.Reg = x
+-			c.To.Type = obj.TYPE_CONST
+-			c.To.Offset = -1
+-
+-			j.To.Type = obj.TYPE_BRANCH
+ 		}
+ 
+ 		// for unsigned ints, we sign extend by setting DX = 0
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index d91eb16edb..c65fb0144a 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -181,6 +181,87 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
+ 	return a, b
+ }
+ 
++// Check that fix-up code is not generated for divisions where it has been proven that
++// that the divisor is not -1 or that the dividend is > MinIntNN.
++func NoFix64A(divr int64) (int64, int64) {
++	var d int64 = 42
++	var e int64 = 84
++	if divr > 5 {
++		d /= divr // amd64:-"JMP"
++		e %= divr // amd64:-"JMP"
++	}
++	return d, e
++}
++
++func NoFix64B(divd int64) (int64, int64) {
++	var d int64
++	var e int64
++	var divr int64 = -1
++	if divd > -9223372036854775808 {
++		d = divd / divr // amd64:-"JMP"
++		e = divd % divr // amd64:-"JMP"
++	}
++	return d, e
++}
++
++func NoFix32A(divr int32) (int32, int32) {
++	var d int32 = 42
++	var e int32 = 84
++	if divr > 5 {
++		// amd64:-"JMP"
++		// 386:-"JMP"
++		d /= divr
++		// amd64:-"JMP"
++		// 386:-"JMP"
++		e %= divr
++	}
++	return d, e
++}
++
++func NoFix32B(divd int32) (int32, int32) {
++	var d int32
++	var e int32
++	var divr int32 = -1
++	if divd > -2147483648 {
++		// amd64:-"JMP"
++		// 386:-"JMP"
++		d = divd / divr
++		// amd64:-"JMP"
++		// 386:-"JMP"
++		e = divd % divr
++	}
++	return d, e
++}
++
++func NoFix16A(divr int16) (int16, int16) {
++	var d int16 = 42
++	var e int16 = 84
++	if divr > 5 {
++		// amd64:-"JMP"
++		// 386:-"JMP"
++		d /= divr
++		// amd64:-"JMP"
++		// 386:-"JMP"
++		e %= divr
++	}
++	return d, e
++}
++
++func NoFix16B(divd int16) (int16, int16) {
++	var d int16
++	var e int16
++	var divr int16 = -1
++	if divd > -32768 {
++		// amd64:-"JMP"
++		// 386:-"JMP"
++		d = divd / divr
++		// amd64:-"JMP"
++		// 386:-"JMP"
++		e = divd % divr
++	}
++	return d, e
++}
++
+ // Check that len() and cap() calls divided by powers of two are
+ // optimized into shifts and ands
+ 

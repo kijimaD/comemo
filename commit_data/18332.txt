@@ -12,8 +12,61 @@ Date:   Wed Jan 22 21:21:18 2014 +0100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/53820046
-
+---
  src/cmd/gc/obj.c   | 2 +-
  src/cmd/gc/plive.c | 5 ++---
  src/cmd/ld/lib.c   | 6 ++++--
  3 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index c6ba367647..635a30d402 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -20,7 +20,7 @@ enum
+ static void
+ formathdr(char *arhdr, char *name, vlong size)
+ {
+-	snprint(arhdr, ArhdrSize, "%-16s%-12d%-6d%-6d%-8o%-10d`",
++	snprint(arhdr, ArhdrSize, "%-16s%-12d%-6d%-6d%-8o%-10lld`",
+ 		name, 0, 0, 0, 0644, size);
+ 	arhdr[ArhdrSize-1] = '\n'; // overwrite \0 written by snprint
+ }
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index fb0d7687ab..27eac707e1 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -1676,10 +1676,9 @@ printbitset(int printed, char *name, Array *vars, Bvec *bits)
+ 		if(!bvget(bits, i))
+ 			continue;
+ 		if(!started) {
+-			if(!printed) {
+-				printed = 1;
++			if(!printed)
+ 				print("\t");
+-			} else
++			else
+ 				print(" ");
+ 			started = 1;
+ 			printed = 1;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 98fa7aa482..ac2417ee66 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -329,13 +329,15 @@ objfile(char *file, char *pkg)
+ 	
+ 	/* skip over optional __.GOSYMDEF and process __.PKGDEF */
+ 	off = Boffset(f);
+-	if((l = nextar(f, off, &arhdr)) <= 0) {
++	l = nextar(f, off, &arhdr);
++	if(l <= 0) {
+ 		diag("%s: short read on archive file symbol header", file);
+ 		goto out;
+ 	}
+ 	if(strncmp(arhdr.name, symname, strlen(symname)) == 0) {
+ 		off += l;
+-		if((l = nextar(f, off, &arhdr)) <= 0) {
++		l = nextar(f, off, &arhdr);
++		if(l <= 0) {
+ 			diag("%s: short read on archive file symbol header", file);
+ 			goto out;
+ 		}

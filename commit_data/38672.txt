@@ -23,6 +23,20 @@ Date:   Tue Nov 13 18:32:55 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/c/149483
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  test/fixedbugs/issue19507.dir/div_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue19507.dir/div_arm.s b/test/fixedbugs/issue19507.dir/div_arm.s
+index f67c3bb66d..0bc33e92ce 100644
+--- a/test/fixedbugs/issue19507.dir/div_arm.s
++++ b/test/fixedbugs/issue19507.dir/div_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT main·f(SB),0,$0-8
++TEXT ·f(SB),0,$0-8
+ 	MOVW	x+0(FP), R1
+ 	MOVW	x+4(FP), R2
+ 	DIVU	R1, R2

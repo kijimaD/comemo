@@ -9,7 +9,7 @@ Date:   Fri Mar 18 19:09:39 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_s390x.s           | 1130 +++++++++++++++++++++++++++++++++++++
  src/runtime/defs_linux_s390x.go   |  167 ++++++
  src/runtime/lfstack_64bit.go      |   32 +-
@@ -22,3 +22,2532 @@ Date:   Fri Mar 18 19:09:39 2016 -0400
  src/runtime/sys_s390x.go          |   45 ++
  src/runtime/tls_s390x.s           |   51 ++
  11 files changed, 2437 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+new file mode 100644
+index 0000000000..fc74b0ddf9
+--- /dev/null
++++ b/src/runtime/asm_s390x.s
+@@ -0,0 +1,1130 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "funcdata.h"
++#include "textflag.h"
++
++// Indicate the status of vector facility
++// -1: 	init value
++// 0:	vector not installed
++// 1:	vector installed and enabled
++// 2:	vector installed but not enabled
++
++DATA runtime·vectorfacility+0x00(SB)/4, $-1
++GLOBL runtime·vectorfacility(SB), NOPTR, $4
++
++TEXT runtime·checkvectorfacility(SB),NOSPLIT,$32-0
++	MOVD    $2, R0
++	MOVD	R1, tmp-32(SP)
++	MOVD    $x-24(SP), R1
++//      STFLE   0(R1)
++	WORD    $0xB2B01000
++	MOVBZ   z-8(SP), R1
++	AND     $0x40, R1
++	BNE     vectorinstalled
++	MOVB    $0, runtime·vectorfacility(SB) //Vector not installed
++	MOVD	tmp-32(SP), R1
++	MOVD    $0, R0
++	RET
++vectorinstalled:
++	// check if the vector instruction has been enabled
++	VLEIB   $0, $0xF, V16
++	VLGVB   $0, V16, R0
++	CMPBEQ  R0, $0xF, vectorenabled
++	MOVB    $2, runtime·vectorfacility(SB) //Vector installed but not enabled
++	MOVD    tmp-32(SP), R1
++	MOVD    $0, R0
++	RET
++vectorenabled:
++	MOVB    $1, runtime·vectorfacility(SB) //Vector installed and enabled
++	MOVD    tmp-32(SP), R1
++	MOVD    $0, R0
++	RET
++
++TEXT runtime·rt0_go(SB),NOSPLIT,$0
++	// R2 = argc; R3 = argv; R11 = temp; R13 = g; R15 = stack pointer
++	// C TLS base pointer in AR0:AR1
++
++	// initialize essential registers
++	XOR	R0, R0
++
++	SUB	$24, R15
++	MOVW	R2, 8(R15) // argc
++	MOVD	R3, 16(R15) // argv
++
++	// create istack out of the given (operating system) stack.
++	// _cgo_init may update stackguard.
++	MOVD	$runtime·g0(SB), g
++	MOVD	R15, R11
++	SUB	$(64*1024), R11
++	MOVD	R11, g_stackguard0(g)
++	MOVD	R11, g_stackguard1(g)
++	MOVD	R11, (g_stack+stack_lo)(g)
++	MOVD	R15, (g_stack+stack_hi)(g)
++
++	// if there is a _cgo_init, call it using the gcc ABI.
++	MOVD	_cgo_init(SB), R11
++	CMPBEQ	R11, $0, nocgo
++	MOVW	AR0, R4			// (AR0 << 32 | AR1) is the TLS base pointer; MOVD is translated to EAR
++	SLD	$32, R4, R4
++	MOVW	AR1, R4			// arg 2: TLS base pointer
++	MOVD	$setg_gcc<>(SB), R3 	// arg 1: setg
++	MOVD	g, R2			// arg 0: G
++	// C functions expect 160 bytes of space on caller stack frame
++	// and an 8-byte aligned stack pointer
++	MOVD	R15, R9			// save current stack (R9 is preserved in the Linux ABI)
++	SUB	$160, R15		// reserve 160 bytes
++	MOVD    $~7, R6
++	AND 	R6, R15			// 8-byte align
++	BL	R11			// this call clobbers volatile registers according to Linux ABI (R0-R5, R14)
++	MOVD	R9, R15			// restore stack
++	XOR	R0, R0			// zero R0
++
++nocgo:
++	// update stackguard after _cgo_init
++	MOVD	(g_stack+stack_lo)(g), R2
++	ADD	$const__StackGuard, R2
++	MOVD	R2, g_stackguard0(g)
++	MOVD	R2, g_stackguard1(g)
++
++	// set the per-goroutine and per-mach "registers"
++	MOVD	$runtime·m0(SB), R2
++
++	// save m->g0 = g0
++	MOVD	g, m_g0(R2)
++	// save m0 to g0->m
++	MOVD	R2, g_m(g)
++
++	BL	runtime·check(SB)
++
++	// argc/argv are already prepared on stack
++	BL	runtime·args(SB)
++	BL	runtime·osinit(SB)
++	BL	runtime·schedinit(SB)
++
++	// create a new goroutine to start program
++	MOVD	$runtime·mainPC(SB), R2		// entry
++	SUB     $24, R15
++	MOVD 	R2, 16(R15)
++	MOVD 	R0, 8(R15)
++	MOVD 	R0, 0(R15)
++	BL	runtime·newproc(SB)
++	ADD	$24, R15
++
++	// start this M
++	BL	runtime·mstart(SB)
++
++	MOVD	R0, 1(R0)
++	RET
++
++DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
++GLOBL	runtime·mainPC(SB),RODATA,$8
++
++TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
++	MOVD	R0, 2(R0)
++	RET
++
++TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
++	RET
++
++/*
++ *  go-routine
++ */
++
++// void gosave(Gobuf*)
++// save state in Gobuf; setjmp
++TEXT runtime·gosave(SB), NOSPLIT, $-8-8
++	MOVD	buf+0(FP), R3
++	MOVD	R15, gobuf_sp(R3)
++	MOVD	LR, gobuf_pc(R3)
++	MOVD	g, gobuf_g(R3)
++	MOVD	$0, gobuf_lr(R3)
++	MOVD	$0, gobuf_ret(R3)
++	MOVD	$0, gobuf_ctxt(R3)
++	RET
++
++// void gogo(Gobuf*)
++// restore state from Gobuf; longjmp
++TEXT runtime·gogo(SB), NOSPLIT, $-8-8
++	MOVD	buf+0(FP), R5
++	MOVD	gobuf_g(R5), g	// make sure g is not nil
++	BL	runtime·save_g(SB)
++
++	MOVD	0(g), R4
++	MOVD	gobuf_sp(R5), R15
++	MOVD	gobuf_lr(R5), LR
++	MOVD	gobuf_ret(R5), R3
++	MOVD	gobuf_ctxt(R5), R12
++	MOVD	$0, gobuf_sp(R5)
++	MOVD	$0, gobuf_ret(R5)
++	MOVD	$0, gobuf_lr(R5)
++	MOVD	$0, gobuf_ctxt(R5)
++	CMP	R0, R0 // set condition codes for == test, needed by stack split
++	MOVD	gobuf_pc(R5), R6
++	BR	(R6)
++
++// void mcall(fn func(*g))
++// Switch to m->g0's stack, call fn(g).
++// Fn must never return.  It should gogo(&g->sched)
++// to keep running g.
++TEXT runtime·mcall(SB), NOSPLIT, $-8-8
++	// Save caller state in g->sched
++	MOVD	R15, (g_sched+gobuf_sp)(g)
++	MOVD	LR, (g_sched+gobuf_pc)(g)
++	MOVD	R0, (g_sched+gobuf_lr)(g)
++	MOVD	g, (g_sched+gobuf_g)(g)
++
++	// Switch to m->g0 & its stack, call fn.
++	MOVD	g, R3
++	MOVD	g_m(g), R8
++	MOVD	m_g0(R8), g
++	BL	runtime·save_g(SB)
++	CMP	g, R3
++	BNE	2(PC)
++	BR	runtime·badmcall(SB)
++	MOVD	fn+0(FP), R12			// context
++	MOVD	0(R12), R4			// code pointer
++	MOVD	(g_sched+gobuf_sp)(g), R15	// sp = m->g0->sched.sp
++	SUB	$16, R15
++	MOVD	R3, 8(R15)
++	MOVD	$0, 0(R15)
++	BL	(R4)
++	BR	runtime·badmcall2(SB)
++
++// systemstack_switch is a dummy routine that systemstack leaves at the bottom
++// of the G stack.  We need to distinguish the routine that
++// lives at the bottom of the G stack from the one that lives
++// at the top of the system stack because the one at the top of
++// the system stack terminates the stack walk (see topofstack()).
++TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
++	UNDEF
++	BL	(LR)	// make sure this function is not leaf
++	RET
++
++// func systemstack(fn func())
++TEXT runtime·systemstack(SB), NOSPLIT, $0-8
++	MOVD	fn+0(FP), R3	// R3 = fn
++	MOVD	R3, R12		// context
++	MOVD	g_m(g), R4	// R4 = m
++
++	MOVD	m_gsignal(R4), R5	// R5 = gsignal
++	CMPBEQ	g, R5, noswitch
++
++	MOVD	m_g0(R4), R5	// R5 = g0
++	CMPBEQ	g, R5, noswitch
++
++	MOVD	m_curg(R4), R6
++	CMPBEQ	g, R6, switch
++
++	// Bad: g is not gsignal, not g0, not curg. What is it?
++	// Hide call from linker nosplit analysis.
++	MOVD	$runtime·badsystemstack(SB), R3
++	BL	(R3)
++
++switch:
++	// save our state in g->sched.  Pretend to
++	// be systemstack_switch if the G stack is scanned.
++	MOVD	$runtime·systemstack_switch(SB), R6
++	ADD	$16, R6	// get past prologue
++	MOVD	R6, (g_sched+gobuf_pc)(g)
++	MOVD	R15, (g_sched+gobuf_sp)(g)
++	MOVD	R0, (g_sched+gobuf_lr)(g)
++	MOVD	g, (g_sched+gobuf_g)(g)
++
++	// switch to g0
++	MOVD	R5, g
++	BL	runtime·save_g(SB)
++	MOVD	(g_sched+gobuf_sp)(g), R3
++	// make it look like mstart called systemstack on g0, to stop traceback
++	SUB	$8, R3
++	MOVD	$runtime·mstart(SB), R4
++	MOVD	R4, 0(R3)
++	MOVD	R3, R15
++
++	// call target function
++	MOVD	0(R12), R3	// code pointer
++	BL	(R3)
++
++	// switch back to g
++	MOVD	g_m(g), R3
++	MOVD	m_curg(R3), g
++	BL	runtime·save_g(SB)
++	MOVD	(g_sched+gobuf_sp)(g), R15
++	MOVD	$0, (g_sched+gobuf_sp)(g)
++	RET
++
++noswitch:
++	// already on m stack, just call directly
++	MOVD	0(R12), R3	// code pointer
++	BL	(R3)
++	RET
++
++/*
++ * support for morestack
++ */
++
++// Called during function prolog when more stack is needed.
++// Caller has already loaded:
++// R3: framesize, R4: argsize, R5: LR
++//
++// The traceback routines see morestack on a g0 as being
++// the top of a stack (for example, morestack calling newstack
++// calling the scheduler calling newm calling gc), so we must
++// record an argument size. For that purpose, it has no arguments.
++TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
++	// Cannot grow scheduler stack (m->g0).
++	MOVD	g_m(g), R7
++	MOVD	m_g0(R7), R8
++	CMPBNE	g, R8, 2(PC)
++	BL	runtime·abort(SB)
++
++	// Cannot grow signal stack (m->gsignal).
++	MOVD	m_gsignal(R7), R8
++	CMP	g, R8
++	BNE	2(PC)
++	BL	runtime·abort(SB)
++
++	// Called from f.
++	// Set g->sched to context in f.
++	MOVD	R12, (g_sched+gobuf_ctxt)(g)
++	MOVD	R15, (g_sched+gobuf_sp)(g)
++	MOVD	LR, R8
++	MOVD	R8, (g_sched+gobuf_pc)(g)
++	MOVD	R5, (g_sched+gobuf_lr)(g)
++
++	// Called from f.
++	// Set m->morebuf to f's caller.
++	MOVD	R5, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
++	MOVD	R15, (m_morebuf+gobuf_sp)(R7)	// f's caller's SP
++	MOVD	g, (m_morebuf+gobuf_g)(R7)
++
++	// Call newstack on m->g0's stack.
++	MOVD	m_g0(R7), g
++	BL	runtime·save_g(SB)
++	MOVD	(g_sched+gobuf_sp)(g), R15
++	BL	runtime·newstack(SB)
++
++	// Not reached, but make sure the return PC from the call to newstack
++	// is still in this function, and not the beginning of the next.
++	UNDEF
++
++TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
++	MOVD	$0, R12
++	BR	runtime·morestack(SB)
++
++TEXT runtime·stackBarrier(SB),NOSPLIT,$0
++	// We came here via a RET to an overwritten LR.
++	// R3 may be live. Other registers are available.
++
++	// Get the original return PC, g.stkbar[g.stkbarPos].savedLRVal.
++	MOVD	(g_stkbar+slice_array)(g), R4
++	MOVD	g_stkbarPos(g), R5
++	MOVD	$stkbar__size, R6
++	MULLD	R5, R6
++	ADD	R4, R6
++	MOVD	stkbar_savedLRVal(R6), R6
++	// Record that this stack barrier was hit.
++	ADD	$1, R5
++	MOVD	R5, g_stkbarPos(g)
++	// Jump to the original return PC.
++	BR	(R6)
++
++// reflectcall: call a function with the given argument list
++// func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
++// we don't have variable-sized frames, so we use a small number
++// of constant-sized-frame functions to encode a few bits of size in the pc.
++// Caution: ugly multiline assembly macros in your future!
++
++#define DISPATCH(NAME,MAXSIZE)		\
++	MOVD	$MAXSIZE, R4;		\
++	CMP	R3, R4;		\
++	BGT	3(PC);			\
++	MOVD	$NAME(SB), R5;	\
++	BR	(R5)
++// Note: can't just "BR NAME(SB)" - bad inlining results.
++
++TEXT reflect·call(SB), NOSPLIT, $0-0
++	BR	·reflectcall(SB)
++
++TEXT ·reflectcall(SB), NOSPLIT, $-8-32
++	MOVWZ argsize+24(FP), R3
++	// NOTE(rsc): No call16, because CALLFN needs four words
++	// of argument space to invoke callwritebarrier.
++	DISPATCH(runtime·call32, 32)
++	DISPATCH(runtime·call64, 64)
++	DISPATCH(runtime·call128, 128)
++	DISPATCH(runtime·call256, 256)
++	DISPATCH(runtime·call512, 512)
++	DISPATCH(runtime·call1024, 1024)
++	DISPATCH(runtime·call2048, 2048)
++	DISPATCH(runtime·call4096, 4096)
++	DISPATCH(runtime·call8192, 8192)
++	DISPATCH(runtime·call16384, 16384)
++	DISPATCH(runtime·call32768, 32768)
++	DISPATCH(runtime·call65536, 65536)
++	DISPATCH(runtime·call131072, 131072)
++	DISPATCH(runtime·call262144, 262144)
++	DISPATCH(runtime·call524288, 524288)
++	DISPATCH(runtime·call1048576, 1048576)
++	DISPATCH(runtime·call2097152, 2097152)
++	DISPATCH(runtime·call4194304, 4194304)
++	DISPATCH(runtime·call8388608, 8388608)
++	DISPATCH(runtime·call16777216, 16777216)
++	DISPATCH(runtime·call33554432, 33554432)
++	DISPATCH(runtime·call67108864, 67108864)
++	DISPATCH(runtime·call134217728, 134217728)
++	DISPATCH(runtime·call268435456, 268435456)
++	DISPATCH(runtime·call536870912, 536870912)
++	DISPATCH(runtime·call1073741824, 1073741824)
++	MOVD	$runtime·badreflectcall(SB), R5
++	BR	(R5)
++
++#define CALLFN(NAME,MAXSIZE)			\
++TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
++	NO_LOCAL_POINTERS;			\
++	/* copy arguments to stack */		\
++	MOVD	arg+16(FP), R3;			\
++	MOVWZ	argsize+24(FP), R4;			\
++	MOVD	R15, R5;				\
++	ADD	$(8-1), R5;			\
++	SUB	$1, R3;				\
++	ADD	R5, R4;				\
++	CMP	R5, R4;				\
++	BEQ	6(PC);				\
++	ADD	$1, R3;				\
++	ADD	$1, R5;				\
++	MOVBZ	0(R3), R6;			\
++	MOVBZ	R6, 0(R5);			\
++	BR	-6(PC);				\
++	/* call function */			\
++	MOVD	f+8(FP), R12;			\
++	MOVD	(R12), R8;			\
++	PCDATA  $PCDATA_StackMapIndex, $0;	\
++	BL	(R8);				\
++	/* copy return values back */		\
++	MOVD	arg+16(FP), R3;			\
++	MOVWZ	n+24(FP), R4;			\
++	MOVWZ	retoffset+28(FP), R6;		\
++	MOVD	R15, R5;				\
++	ADD	R6, R5; 			\
++	ADD	R6, R3;				\
++	SUB	R6, R4;				\
++	ADD	$(8-1), R5;			\
++	SUB	$1, R3;				\
++	ADD	R5, R4;				\
++loop:						\
++	CMP	R5, R4;				\
++	BEQ	end;				\
++	ADD	$1, R5;				\
++	ADD	$1, R3;				\
++	MOVBZ	0(R5), R6;			\
++	MOVBZ	R6, 0(R3);			\
++	BR	loop;				\
++end:						\
++	/* execute write barrier updates */	\
++	MOVD	argtype+0(FP), R7;		\
++	MOVD	arg+16(FP), R3;			\
++	MOVWZ	n+24(FP), R4;			\
++	MOVWZ	retoffset+28(FP), R6;		\
++	MOVD	R7, 8(R15);			\
++	MOVD	R3, 16(R15);			\
++	MOVD	R4, 24(R15);			\
++	MOVD	R6, 32(R15);			\
++	BL	runtime·callwritebarrier(SB);	\
++	RET
++
++CALLFN(·call32, 32)
++CALLFN(·call64, 64)
++CALLFN(·call128, 128)
++CALLFN(·call256, 256)
++CALLFN(·call512, 512)
++CALLFN(·call1024, 1024)
++CALLFN(·call2048, 2048)
++CALLFN(·call4096, 4096)
++CALLFN(·call8192, 8192)
++CALLFN(·call16384, 16384)
++CALLFN(·call32768, 32768)
++CALLFN(·call65536, 65536)
++CALLFN(·call131072, 131072)
++CALLFN(·call262144, 262144)
++CALLFN(·call524288, 524288)
++CALLFN(·call1048576, 1048576)
++CALLFN(·call2097152, 2097152)
++CALLFN(·call4194304, 4194304)
++CALLFN(·call8388608, 8388608)
++CALLFN(·call16777216, 16777216)
++CALLFN(·call33554432, 33554432)
++CALLFN(·call67108864, 67108864)
++CALLFN(·call134217728, 134217728)
++CALLFN(·call268435456, 268435456)
++CALLFN(·call536870912, 536870912)
++CALLFN(·call1073741824, 1073741824)
++
++TEXT runtime·procyield(SB),NOSPLIT,$0-0
++	RET
++
++// void jmpdefer(fv, sp);
++// called from deferreturn.
++// 1. grab stored LR for caller
++// 2. sub 6 bytes to get back to BL deferreturn (size of BRASL instruction)
++// 3. BR to fn
++TEXT runtime·jmpdefer(SB),NOSPLIT|NOFRAME,$0-16
++	MOVD	0(R15), R1
++	SUB	$6, R1, LR
++
++	MOVD	fv+0(FP), R12
++	MOVD	argp+8(FP), R15
++	SUB	$8, R15
++	MOVD	0(R12), R3
++	BR	(R3)
++
++// Save state of caller into g->sched. Smashes R31.
++TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
++	MOVD	LR, (g_sched+gobuf_pc)(g)
++	MOVD	R15, (g_sched+gobuf_sp)(g)
++	MOVD	$0, (g_sched+gobuf_lr)(g)
++	MOVD	$0, (g_sched+gobuf_ret)(g)
++	MOVD	$0, (g_sched+gobuf_ctxt)(g)
++	RET
++
++// func asmcgocall(fn, arg unsafe.Pointer) int32
++// Call fn(arg) on the scheduler stack,
++// aligned appropriately for the gcc ABI.
++// See cgocall.go for more details.
++TEXT ·asmcgocall(SB),NOSPLIT,$0-20
++	// R2 = argc; R3 = argv; R11 = temp; R13 = g; R15 = stack pointer
++	// C TLS base pointer in AR0:AR1
++	MOVD	fn+0(FP), R3
++	MOVD	arg+8(FP), R4
++
++	MOVD	R15, R2		// save original stack pointer
++	MOVD	g, R5
++
++	// Figure out if we need to switch to m->g0 stack.
++	// We get called to create new OS threads too, and those
++	// come in on the m->g0 stack already.
++	MOVD	g_m(g), R6
++	MOVD	m_g0(R6), R6
++	CMPBEQ	R6, g, g0
++	BL	gosave<>(SB)
++	MOVD	R6, g
++	BL	runtime·save_g(SB)
++	MOVD	(g_sched+gobuf_sp)(g), R15
++
++	// Now on a scheduling stack (a pthread-created stack).
++g0:
++	// Save room for two of our pointers, plus 160 bytes of callee
++	// save area that lives on the caller stack.
++	SUB	$176, R15
++	MOVD	$~7, R6
++	AND	R6, R15                 // 8-byte alignment for gcc ABI
++	MOVD	R5, 168(R15)             // save old g on stack
++	MOVD	(g_stack+stack_hi)(R5), R5
++	SUB	R2, R5
++	MOVD	R5, 160(R15)             // save depth in old g stack (can't just save SP, as stack might be copied during a callback)
++	MOVD	R0, 0(R15)              // clear back chain pointer (TODO can we give it real back trace information?)
++	MOVD	R4, R2                  // arg in R2
++	BL	R3                      // can clobber: R0-R5, R14, F0-F3, F5, F7-F15
++
++	XOR	R0, R0                  // set R0 back to 0.
++	// Restore g, stack pointer.
++	MOVD	168(R15), g
++	BL	runtime·save_g(SB)
++	MOVD	(g_stack+stack_hi)(g), R5
++	MOVD	160(R15), R6
++	SUB	R6, R5
++	MOVD	R5, R15
++
++	MOVW	R2, ret+16(FP)
++	RET
++
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// Turn the fn into a Go func (by taking its address) and call
++// cgocallback_gofunc.
++TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
++	MOVD	$fn+0(FP), R3
++	MOVD	R3, 8(R15)
++	MOVD	frame+8(FP), R3
++	MOVD	R3, 16(R15)
++	MOVD	framesize+16(FP), R3
++	MOVD	R3, 24(R15)
++	MOVD	$runtime·cgocallback_gofunc(SB), R3
++	BL	(R3)
++	RET
++
++// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
++// See cgocall.go for more details.
++TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
++	NO_LOCAL_POINTERS
++
++	// Load m and g from thread-local storage.
++	MOVB	runtime·iscgo(SB), R3
++	CMPBEQ	R3, $0, nocgo
++	BL	runtime·load_g(SB)
++
++nocgo:
++	// If g is nil, Go did not create the current thread.
++	// Call needm to obtain one for temporary use.
++	// In this case, we're running on the thread stack, so there's
++	// lots of space, but the linker doesn't know. Hide the call from
++	// the linker analysis by using an indirect call.
++	CMPBEQ	g, $0, needm
++
++	MOVD	g_m(g), R8
++	MOVD	R8, savedm-8(SP)
++	BR	havem
++
++needm:
++	MOVD	g, savedm-8(SP) // g is zero, so is m.
++	MOVD	$runtime·needm(SB), R3
++	BL	(R3)
++
++	// Set m->sched.sp = SP, so that if a panic happens
++	// during the function we are about to execute, it will
++	// have a valid SP to run on the g0 stack.
++	// The next few lines (after the havem label)
++	// will save this SP onto the stack and then write
++	// the same SP back to m->sched.sp. That seems redundant,
++	// but if an unrecovered panic happens, unwindm will
++	// restore the g->sched.sp from the stack location
++	// and then systemstack will try to use it. If we don't set it here,
++	// that restored SP will be uninitialized (typically 0) and
++	// will not be usable.
++	MOVD	g_m(g), R8
++	MOVD	m_g0(R8), R3
++	MOVD	R15, (g_sched+gobuf_sp)(R3)
++
++havem:
++	// Now there's a valid m, and we're running on its m->g0.
++	// Save current m->g0->sched.sp on stack and then set it to SP.
++	// Save current sp in m->g0->sched.sp in preparation for
++	// switch back to m->curg stack.
++	// NOTE: unwindm knows that the saved g->sched.sp is at 8(R1) aka savedsp-16(SP).
++	MOVD	m_g0(R8), R3
++	MOVD	(g_sched+gobuf_sp)(R3), R4
++	MOVD	R4, savedsp-16(SP)
++	MOVD	R15, (g_sched+gobuf_sp)(R3)
++
++	// Switch to m->curg stack and call runtime.cgocallbackg.
++	// Because we are taking over the execution of m->curg
++	// but *not* resuming what had been running, we need to
++	// save that information (m->curg->sched) so we can restore it.
++	// We can restore m->curg->sched.sp easily, because calling
++	// runtime.cgocallbackg leaves SP unchanged upon return.
++	// To save m->curg->sched.pc, we push it onto the stack.
++	// This has the added benefit that it looks to the traceback
++	// routine like cgocallbackg is going to return to that
++	// PC (because the frame we allocate below has the same
++	// size as cgocallback_gofunc's frame declared above)
++	// so that the traceback will seamlessly trace back into
++	// the earlier calls.
++	//
++	// In the new goroutine, -16(SP) and -8(SP) are unused.
++	MOVD	m_curg(R8), g
++	BL	runtime·save_g(SB)
++	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
++	MOVD	(g_sched+gobuf_pc)(g), R5
++	MOVD	R5, -24(R4)
++	MOVD	$-24(R4), R15
++	BL	runtime·cgocallbackg(SB)
++
++	// Restore g->sched (== m->curg->sched) from saved values.
++	MOVD	0(R15), R5
++	MOVD	R5, (g_sched+gobuf_pc)(g)
++	MOVD	$24(R15), R4
++	MOVD	R4, (g_sched+gobuf_sp)(g)
++
++	// Switch back to m->g0's stack and restore m->g0->sched.sp.
++	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
++	// so we do not have to restore it.)
++	MOVD	g_m(g), R8
++	MOVD	m_g0(R8), g
++	BL	runtime·save_g(SB)
++	MOVD	(g_sched+gobuf_sp)(g), R15
++	MOVD	savedsp-16(SP), R4
++	MOVD	R4, (g_sched+gobuf_sp)(g)
++
++	// If the m on entry was nil, we called needm above to borrow an m
++	// for the duration of the call. Since the call is over, return it with dropm.
++	MOVD	savedm-8(SP), R6
++	CMPBNE	R6, $0, droppedm
++	MOVD	$runtime·dropm(SB), R3
++	BL	(R3)
++droppedm:
++
++	// Done!
++	RET
++
++// void setg(G*); set g. for use by needm.
++TEXT runtime·setg(SB), NOSPLIT, $0-8
++	MOVD	gg+0(FP), g
++	// This only happens if iscgo, so jump straight to save_g
++	BL	runtime·save_g(SB)
++	RET
++
++// void setg_gcc(G*); set g in C TLS.
++// Must obey the gcc calling convention.
++TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
++	// The standard prologue clobbers LR (R14), which is callee-save in
++	// the C ABI, so we have to use NOFRAME and save LR ourselves.
++	MOVD	LR, R1
++	// Also save g, R10, and R11 since they're callee-save in C ABI
++	MOVD	R10, R3
++	MOVD	g, R4
++	MOVD	R11, R5
++
++	MOVD	R2, g
++	BL	runtime·save_g(SB)
++
++	MOVD	R5, R11
++	MOVD	R4, g
++	MOVD	R3, R10
++	MOVD	R1, LR
++	RET
++
++TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
++	MOVD	16(R15), R3		// LR saved by caller
++	MOVD	runtime·stackBarrierPC(SB), R4
++	CMPBNE	R3, R4, nobar
++	// Get original return PC.
++	BL	runtime·nextBarrierPC(SB)
++	MOVD	8(R15), R3
++nobar:
++	MOVD	R3, ret+8(FP)
++	RET
++
++TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
++	MOVD	pc+8(FP), R3
++	MOVD	16(R15), R4
++	MOVD	runtime·stackBarrierPC(SB), R5
++	CMPBEQ	R4, R5, setbar
++	MOVD	R3, 16(R15)		// set LR in caller
++	RET
++setbar:
++	// Set the stack barrier return PC.
++	MOVD	R3, 8(R15)
++	BL	runtime·setNextBarrierPC(SB)
++	RET
++
++TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
++	MOVD	argp+0(FP), R3
++	SUB	$8, R3
++	MOVD	R3, ret+8(FP)
++	RET
++
++TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
++	MOVW	(R0), R0
++	UNDEF
++
++// int64 runtime·cputicks(void)
++TEXT runtime·cputicks(SB),NOSPLIT,$0-8
++	// The TOD clock on s390 counts from the year 1900 in ~250ps intervals.
++	// This means that since about 1972 the msb has been set, making the
++	// result of a call to STORE CLOCK (stck) a negative number.
++	// We clear the msb to make it positive.
++	STCK	ret+0(FP)      // serialises before and after call
++	MOVD	ret+0(FP), R3  // R3 will wrap to 0 in the year 2043
++	SLD	$1, R3
++	SRD	$1, R3
++	MOVD	R3, ret+0(FP)
++	RET
++
++// memhash_varlen(p unsafe.Pointer, h seed) uintptr
++// redirects to memhash(p, h, size) using the size
++// stored in the closure.
++TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
++	GO_ARGS
++	NO_LOCAL_POINTERS
++	MOVD	p+0(FP), R3
++	MOVD	h+8(FP), R4
++	MOVD	8(R12), R5
++	MOVD	R3, 8(R15)
++	MOVD	R4, 16(R15)
++	MOVD	R5, 24(R15)
++	BL	runtime·memhash(SB)
++	MOVD	32(R15), R3
++	MOVD	R3, ret+16(FP)
++	RET
++
++// AES hashing not implemented for s390x
++TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
++	MOVW	(R0), R15
++TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
++	MOVW	(R0), R15
++TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
++	MOVW	(R0), R15
++TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
++	MOVW	(R0), R15
++
++// memequal(p, q unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
++	MOVD	p+0(FP), R3
++	MOVD	q+8(FP), R5
++	MOVD	size+16(FP), R6
++	LA	ret+24(FP), R7
++	BR	runtime·memeqbody(SB)
++
++// memequal_varlen(a, b unsafe.Pointer) bool
++TEXT runtime·memequal_varlen(SB),NOSPLIT|NOFRAME,$0-17
++	MOVD	a+0(FP), R3
++	MOVD	b+8(FP), R5
++	MOVD	8(R12), R6    // compiler stores size at offset 8 in the closure
++	LA	ret+16(FP), R7
++	BR	runtime·memeqbody(SB)
++
++// eqstring tests whether two strings are equal.
++// The compiler guarantees that strings passed
++// to eqstring have equal length.
++// See runtime_test.go:eqstring_generic for
++// equivalent Go code.
++TEXT runtime·eqstring(SB),NOSPLIT|NOFRAME,$0-33
++	MOVD	s1str+0(FP), R3
++	MOVD	s1len+8(FP), R6
++	MOVD	s2str+16(FP), R5
++	LA	ret+32(FP), R7
++	BR	runtime·memeqbody(SB)
++
++TEXT bytes·Equal(SB),NOSPLIT|NOFRAME,$0-49
++	MOVD	a_len+8(FP), R2
++	MOVD	b_len+32(FP), R6
++	MOVD	a+0(FP), R3
++	MOVD	b+24(FP), R5
++	LA	ret+48(FP), R7
++	CMPBNE	R2, R6, notequal
++	BR	runtime·memeqbody(SB)
++notequal:
++	MOVB	$0, ret+48(FP)
++	RET
++
++// input:
++//   R3 = a
++//   R5 = b
++//   R6 = len
++//   R7 = address of output byte (stores 0 or 1 here)
++//   a and b have the same length
++TEXT runtime·memeqbody(SB),NOSPLIT|NOFRAME,$0-0
++	CMPBEQ	R3, R5, equal
++loop:
++	CMPBEQ	R6, $0, equal
++	CMPBLT	R6, $32, tiny
++	CMP	R6, $256
++	BLT	tail
++	CLC	$256, 0(R3), 0(R5)
++	BNE	notequal
++	SUB	$256, R6
++	LA	256(R3), R3
++	LA	256(R5), R5
++	BR	loop
++tail:
++	SUB	$1, R6, R8
++	EXRL	$runtime·memeqbodyclc(SB), R8
++	BEQ	equal
++notequal:
++	MOVB	$0, 0(R7)
++	RET
++equal:
++	MOVB	$1, 0(R7)
++	RET
++tiny:
++	MOVD	$0, R2
++	CMPBLT	R6, $16, lt16
++	MOVD	0(R3), R8
++	MOVD	0(R5), R9
++	CMPBNE	R8, R9, notequal
++	MOVD	8(R3), R8
++	MOVD	8(R5), R9
++	CMPBNE	R8, R9, notequal
++	LA	16(R2), R2
++	SUB	$16, R6
++lt16:
++	CMPBLT	R6, $8, lt8
++	MOVD	0(R3)(R2*1), R8
++	MOVD	0(R5)(R2*1), R9
++	CMPBNE	R8, R9, notequal
++	LA	8(R2), R2
++	SUB	$8, R6
++lt8:
++	CMPBLT	R6, $4, lt4
++	MOVWZ	0(R3)(R2*1), R8
++	MOVWZ	0(R5)(R2*1), R9
++	CMPBNE	R8, R9, notequal
++	LA	4(R2), R2
++	SUB	$4, R6
++lt4:
++#define CHECK(n) \
++	CMPBEQ	R6, $n, equal \
++	MOVB	n(R3)(R2*1), R8 \
++	MOVB	n(R5)(R2*1), R9 \
++	CMPBNE	R8, R9, notequal
++	CHECK(0)
++	CHECK(1)
++	CHECK(2)
++	CHECK(3)
++	BR	equal
++
++TEXT runtime·memeqbodyclc(SB),NOSPLIT|NOFRAME,$0-0
++	CLC	$1, 0(R3), 0(R5)
++	RET
++
++TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
++	MOVD	g_m(g), R4
++	MOVWZ	m_fastrand(R4), R3
++	ADD	R3, R3
++	CMPW	R3, $0
++	BGE	2(PC)
++	XOR	$0x88888eef, R3
++	MOVW	R3, m_fastrand(R4)
++	MOVW	R3, ret+0(FP)
++	RET
++
++TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
++	MOVD	s+0(FP), R3     // s => R3
++	MOVD	s_len+8(FP), R4 // s_len => R4
++	MOVBZ	c+24(FP), R5    // c => R5
++	MOVD	$ret+32(FP), R2 // &ret => R9
++	BR	runtime·indexbytebody(SB)
++
++TEXT strings·IndexByte(SB),NOSPLIT,$0-32
++	MOVD	s+0(FP), R3     // s => R3
++	MOVD	s_len+8(FP), R4 // s_len => R4
++	MOVBZ	c+16(FP), R5    // c => R5
++	MOVD	$ret+24(FP), R2 // &ret => R9
++	BR	runtime·indexbytebody(SB)
++
++// input:
++// R3: s
++// R4: s_len
++// R5: c -- byte sought
++// R2: &ret -- address to put index into
++TEXT runtime·indexbytebody(SB),NOSPLIT,$0
++	CMPBEQ	R4, $0, notfound
++	MOVD	R3, R6          // store base for later
++	ADD	R3, R4, R8      // the address after the end of the string
++	//if the length is small, use loop; otherwise, use vector or srst search
++	CMPBGE	R4, $16, large
++
++residual:
++	CMPBEQ	R3, R8, notfound
++	MOVBZ	0(R3), R7
++	LA	1(R3), R3
++	CMPBNE	R7, R5, residual
++
++found:
++	SUB	R6, R3
++	SUB	$1, R3
++	MOVD	R3, 0(R2)
++	RET
++
++notfound:
++	MOVD	$-1, 0(R2)
++	RET
++
++large:
++	MOVB	runtime·vectorfacility(SB), R1
++	CMPBEQ	R1, $-1, checkvector	// vectorfacility = -1, vector not checked yet
++vectorchecked:
++	CMPBEQ	R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++
++srstimpl:                       // vectorfacility != 1, not support or enable vector
++	MOVBZ	R5, R0          // c needs to be in R0, leave until last minute as currently R0 is expected to be 0
++srstloop:
++	WORD	$0xB25E0083     // srst %r8, %r3 (search the range [R3, R8))
++	BVS	srstloop        // interrupted - continue
++	BGT	notfoundr0
++foundr0:
++	XOR	R0, R0          // reset R0
++	SUB	R6, R8          // remove base
++	MOVD	R8, 0(R2)
++	RET
++notfoundr0:
++	XOR	R0, R0          // reset R0
++	MOVD	$-1, 0(R2)
++	RET
++
++vectorimpl:
++	//if the address is not 16byte aligned, use loop for the header
++	AND	$15, R3, R8
++	CMPBGT	R8, $0, notaligned
++
++aligned:
++	ADD	R6, R4, R8
++	AND	$-16, R8, R7
++	// replicate c across V17
++	VLVGB	$0, R5, V19
++	VREPB	$0, V19, V17
++
++vectorloop:
++	CMPBGE	R3, R7, residual
++	VL	0(R3), V16    // load string to be searched into V16
++	ADD	$16, R3
++	VFEEBS	V16, V17, V18 // search V17 in V16 and set conditional code accordingly
++	BVS	vectorloop
++
++	// when vector search found c in the string
++	VLGVB	$7, V18, R7   // load 7th element of V18 containing index into R7
++	SUB	$16, R3
++	SUB	R6, R3
++	ADD	R3, R7
++	MOVD	R7, 0(R2)
++	RET
++
++notaligned:
++	AND	$-16, R3, R8
++	ADD     $16, R8
++notalignedloop:
++	CMPBEQ	R3, R8, aligned
++	MOVBZ	0(R3), R7
++	LA	1(R3), R3
++	CMPBNE	R7, R5, notalignedloop
++	BR	found
++
++checkvector:
++	CALL	runtime·checkvectorfacility(SB)
++	MOVB    runtime·vectorfacility(SB), R1
++	BR	vectorchecked
++
++TEXT runtime·return0(SB), NOSPLIT, $0
++	MOVW	$0, R3
++	RET
++
++// Called from cgo wrappers, this function returns g->m->curg.stack.hi.
++// Must obey the gcc calling convention.
++TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
++	// g (R13), R10, R11 and LR (R14) are callee-save in the C ABI, so save them
++	MOVD	g, R1
++	MOVD	R10, R3
++	MOVD	LR, R4
++	MOVD	R11, R5
++
++	BL	runtime·load_g(SB)	// clobbers g (R13), R10, R11
++	MOVD	g_m(g), R2
++	MOVD	m_curg(R2), R2
++	MOVD	(g_stack+stack_hi)(R2), R2
++
++	MOVD	R1, g
++	MOVD	R3, R10
++	MOVD	R4, LR
++	MOVD	R5, R11
++	RET
++
++// The top-most function running on a goroutine
++// returns to goexit+PCQuantum.
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
++	BYTE $0x07; BYTE $0x00; // 2-byte nop
++	BL	runtime·goexit1(SB)	// does not return
++	// traceback from goexit1 must hit code range of goexit
++	BYTE $0x07; BYTE $0x00; // 2-byte nop
++
++TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
++	RET
++
++TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
++	RET
++
++TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
++	RET
++
++TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
++	RET
++
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
++	RET
++
++TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
++	SYNC
++	RET
++
++TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
++	MOVD	s1_base+0(FP), R3
++	MOVD	s1_len+8(FP), R4
++	MOVD	s2_base+16(FP), R5
++	MOVD	s2_len+24(FP), R6
++	LA	ret+32(FP), R7
++	BR	runtime·cmpbody(SB)
++
++TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
++	MOVD	s1+0(FP), R3
++	MOVD	s1+8(FP), R4
++	MOVD	s2+24(FP), R5
++	MOVD	s2+32(FP), R6
++	LA	res+48(FP), R7
++	BR	runtime·cmpbody(SB)
++
++// input:
++//   R3 = a
++//   R4 = alen
++//   R5 = b
++//   R6 = blen
++//   R7 = address of output word (stores -1/0/1 here)
++TEXT runtime·cmpbody(SB),NOSPLIT|NOFRAME,$0-0
++	CMPBEQ	R3, R5, cmplengths
++	MOVD	R4, R8
++	CMPBLE	R4, R6, amin
++	MOVD	R6, R8
++amin:
++	CMPBEQ	R8, $0, cmplengths
++	CMP	R8, $256
++	BLE	tail
++loop:
++	CLC	$256, 0(R3), 0(R5)
++	BGT	gt
++	BLT	lt
++	SUB	$256, R8
++	CMP	R8, $256
++	BGT	loop
++tail:
++	SUB	$1, R8
++	EXRL	$runtime·cmpbodyclc(SB), R8
++	BGT	gt
++	BLT	lt
++cmplengths:
++	CMP	R4, R6
++	BEQ	eq
++	BLT	lt
++gt:
++	MOVD	$1, 0(R7)
++	RET
++lt:
++	MOVD	$-1, 0(R7)
++	RET
++eq:
++	MOVD	$0, 0(R7)
++	RET
++
++TEXT runtime·cmpbodyclc(SB),NOSPLIT|NOFRAME,$0-0
++	CLC	$1, 0(R3), 0(R5)
++	RET
++
++// This is called from .init_array and follows the platform, not Go, ABI.
++// We are overly conservative. We could only save the registers we use.
++// However, since this function is only called once per loaded module
++// performance is unimportant.
++TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
++	// Save R6-R15, F0, F2, F4 and F6 in the
++	// register save area of the calling function
++	STMG	R6, R15, 48(R15)
++	FMOVD	F0, 128(R15)
++	FMOVD	F2, 136(R15)
++	FMOVD	F4, 144(R15)
++	FMOVD	F6, 152(R15)
++
++	// append the argument (passed in R2, as per the ELF ABI) to the
++	// moduledata linked list.
++	MOVD	runtime·lastmoduledatap(SB), R1
++	MOVD	R2, moduledata_next(R1)
++	MOVD	R2, runtime·lastmoduledatap(SB)
++
++	// Restore R6-R15, F0, F2, F4 and F6
++	LMG	48(R15), R6, R15
++	FMOVD	F0, 128(R15)
++	FMOVD	F2, 136(R15)
++	FMOVD	F4, 144(R15)
++	FMOVD	F6, 152(R15)
++	RET
++
++TEXT ·checkASM(SB),NOSPLIT,$0-1
++	MOVB	$1, ret+0(FP)
++	RET
+diff --git a/src/runtime/defs_linux_s390x.go b/src/runtime/defs_linux_s390x.go
+new file mode 100644
+index 0000000000..5f55d5a889
+--- /dev/null
++++ b/src/runtime/defs_linux_s390x.go
+@@ -0,0 +1,167 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	_EINTR  = 0x4
++	_EAGAIN = 0xb
++	_ENOMEM = 0xc
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x20
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_DONTNEED   = 0x4
++	_MADV_HUGEPAGE   = 0xe
++	_MADV_NOHUGEPAGE = 0xf
++
++	_SA_RESTART = 0x10000000
++	_SA_ONSTACK = 0x8000000
++	_SA_SIGINFO = 0x4
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGBUS    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGUSR1   = 0xa
++	_SIGSEGV   = 0xb
++	_SIGUSR2   = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGSTKFLT = 0x10
++	_SIGCHLD   = 0x11
++	_SIGCONT   = 0x12
++	_SIGSTOP   = 0x13
++	_SIGTSTP   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGURG    = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGIO     = 0x1d
++	_SIGPWR    = 0x1e
++	_SIGSYS    = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EPOLLIN       = 0x1
++	_EPOLLOUT      = 0x4
++	_EPOLLERR      = 0x8
++	_EPOLLHUP      = 0x10
++	_EPOLLRDHUP    = 0x2000
++	_EPOLLET       = 0x80000000
++	_EPOLL_CLOEXEC = 0x80000
++	_EPOLL_CTL_ADD = 0x1
++	_EPOLL_CTL_DEL = 0x2
++	_EPOLL_CTL_MOD = 0x3
++)
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++func (ts *timespec) set_sec(x int64) {
++	ts.tv_sec = x
++}
++
++func (ts *timespec) set_nsec(x int32) {
++	ts.tv_nsec = int64(x)
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int64
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = int64(x)
++}
++
++type sigactiont struct {
++	sa_handler  uintptr
++	sa_flags    uint64
++	sa_restorer uintptr
++	sa_mask     uint64
++}
++
++type siginfo struct {
++	si_signo int32
++	si_errno int32
++	si_code  int32
++	// below here is a union; si_addr is the only field we use
++	si_addr uint64
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type epollevent struct {
++	events    uint32
++	pad_cgo_0 [4]byte
++	data      [8]byte // unaligned uintptr
++}
++
++const (
++	_O_RDONLY    = 0x0
++	_O_CLOEXEC   = 0x80000
++	_SA_RESTORER = 0
++)
++
++type sigaltstackt struct {
++	ss_sp    *byte
++	ss_flags int32
++	ss_size  uintptr
++}
++
++type sigcontext struct {
++	psw_mask uint64
++	psw_addr uint64
++	gregs    [16]uint64
++	aregs    [16]uint32
++	fpc      uint32
++	fpregs   [16]uint64
++}
++
++type ucontext struct {
++	uc_flags    uint64
++	uc_link     *ucontext
++	uc_stack    sigaltstackt
++	uc_mcontext sigcontext
++	uc_sigmask  uint64
++}
+diff --git a/src/runtime/lfstack_64bit.go b/src/runtime/lfstack_64bit.go
+index 07c2a141f0..8180b0a248 100644
+--- a/src/runtime/lfstack_64bit.go
++++ b/src/runtime/lfstack_64bit.go
+@@ -2,26 +2,32 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build arm64 mips64 mips64le ppc64 ppc64le
++// +build arm64 mips64 mips64le ppc64 ppc64le s390x
+ 
+ package runtime
+ 
+ import "unsafe"
+ 
+-// On ppc64, Linux limits the user address space to 46 bits (see
+-// TASK_SIZE_USER64 in the Linux kernel).  This has grown over time,
+-// so here we allow 48 bit addresses.
+-//
+-// On mips64, Linux limits the user address space to 40 bits (see
+-// TASK_SIZE64 in the Linux kernel).  This has grown over time,
+-// so here we allow 48 bit addresses.
+-//
+-// In addition to the 16 bits taken from the top, we can take 3 from the
+-// bottom, because node must be pointer-aligned, giving a total of 19 bits
+-// of count.
+ const (
++	// addrBits is the number of bits needed to represent a virtual address.
++	//
++	// In Linux the user address space for each architecture is limited as
++	// follows (taken from the processor.h file for the architecture):
++	//
++	// Architecture  Name              Maximum Value (exclusive)
++	// ---------------------------------------------------------------------
++	// arm64         TASK_SIZE_64      Depends on configuration.
++	// ppc64{,le}    TASK_SIZE_USER64  0x400000000000UL (46 bit addresses)
++	// mips64{,le}   TASK_SIZE64       0x010000000000UL (40 bit addresses)
++	// s390x         TASK_SIZE         0x020000000000UL (41 bit addresses)
++	//
++	// These values may increase over time.
+ 	addrBits = 48
+-	cntBits  = 64 - addrBits + 3
++
++	// In addition to the 16 bits taken from the top, we can take 3 from the
++	// bottom, because node must be pointer-aligned, giving a total of 19 bits
++	// of count.
++	cntBits = 64 - addrBits + 3
+ )
+ 
+ func lfstackPack(node *lfnode, cnt uintptr) uint64 {
+diff --git a/src/runtime/memclr_s390x.s b/src/runtime/memclr_s390x.s
+new file mode 100644
+index 0000000000..86eafec0a9
+--- /dev/null
++++ b/src/runtime/memclr_s390x.s
+@@ -0,0 +1,122 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// void runtime·memclr(void*, uintptr)
++TEXT runtime·memclr(SB),NOSPLIT|NOFRAME,$0-16
++	MOVD	ptr+0(FP), R4
++	MOVD	n+8(FP), R5
++
++start:
++	CMPBLE	R5, $3, clear0to3
++	CMPBLE	R5, $7, clear4to7
++	CMPBLE	R5, $11, clear8to11
++	CMPBLE	R5, $15, clear12to15
++	CMP	R5, $32
++	BGE	clearmt32
++	MOVD	R0, 0(R4)
++	MOVD	R0, 8(R4)
++	ADD	$16, R4
++	SUB	$16, R5
++	BR	start
++
++clear0to3:
++	CMPBEQ	R5, $0, done
++	CMPBNE	R5, $1, clear2
++	MOVB	R0, 0(R4)
++	RET
++clear2:
++	CMPBNE	R5, $2, clear3
++	MOVH	R0, 0(R4)
++	RET
++clear3:
++	MOVH	R0, 0(R4)
++	MOVB	R0, 2(R4)
++	RET
++
++clear4to7:
++	CMPBNE	R5, $4, clear5
++	MOVW	R0, 0(R4)
++	RET
++clear5:
++	CMPBNE	R5, $5, clear6
++	MOVW	R0, 0(R4)
++	MOVB	R0, 4(R4)
++	RET
++clear6:
++	CMPBNE	R5, $6, clear7
++	MOVW	R0, 0(R4)
++	MOVH	R0, 4(R4)
++	RET
++clear7:
++	MOVW	R0, 0(R4)
++	MOVH	R0, 4(R4)
++	MOVB	R0, 6(R4)
++	RET
++
++clear8to11:
++	CMPBNE	R5, $8, clear9
++	MOVD	R0, 0(R4)
++	RET
++clear9:
++	CMPBNE	R5, $9, clear10
++	MOVD	R0, 0(R4)
++	MOVB	R0, 8(R4)
++	RET
++clear10:
++	CMPBNE	R5, $10, clear11
++	MOVD	R0, 0(R4)
++	MOVH	R0, 8(R4)
++	RET
++clear11:
++	MOVD	R0, 0(R4)
++	MOVH	R0, 8(R4)
++	MOVB	R0, 10(R4)
++	RET
++
++clear12to15:
++	CMPBNE	R5, $12, clear13
++	MOVD	R0, 0(R4)
++	MOVW	R0, 8(R4)
++	RET
++clear13:
++	CMPBNE	R5, $13, clear14
++	MOVD	R0, 0(R4)
++	MOVW	R0, 8(R4)
++	MOVB	R0, 12(R4)
++	RET
++clear14:
++	CMPBNE	R5, $14, clear15
++	MOVD	R0, 0(R4)
++	MOVW	R0, 8(R4)
++	MOVH	R0, 12(R4)
++	RET
++clear15:
++	MOVD	R0, 0(R4)
++	MOVW	R0, 8(R4)
++	MOVH	R0, 12(R4)
++	MOVB	R0, 14(R4)
++	RET
++
++clearmt32:
++	CMP	R5, $256
++	BLT	clearlt256
++	XC	$256, 0(R4), 0(R4)
++	ADD	$256, R4
++	ADD	$-256, R5
++	BR	clearmt32
++clearlt256:
++	CMPBEQ	R5, $0, done
++	ADD	$-1, R5
++	EXRL	$runtime·memclr_s390x_exrl_xc(SB), R5
++done:
++	RET
++
++// DO NOT CALL - target for exrl (execute relative long) instruction.
++TEXT runtime·memclr_s390x_exrl_xc(SB),NOSPLIT|NOFRAME,$0-0
++	XC	$1, 0(R4), 0(R4)
++	MOVD	R0, 0(R0)
++	RET
++
+diff --git a/src/runtime/memmove_s390x.s b/src/runtime/memmove_s390x.s
+new file mode 100644
+index 0000000000..238f30891d
+--- /dev/null
++++ b/src/runtime/memmove_s390x.s
+@@ -0,0 +1,189 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// void runtime·memmove(void*, void*, uintptr)
++TEXT runtime·memmove(SB),NOSPLIT|NOFRAME,$0-24
++	MOVD	to+0(FP), R6
++	MOVD	from+8(FP), R4
++	MOVD	n+16(FP), R5
++
++	CMPBEQ	R6, R4, done
++
++start:
++	CMPBLE	R5, $3, move0to3
++	CMPBLE	R5, $7, move4to7
++	CMPBLE	R5, $11, move8to11
++	CMPBLE	R5, $15, move12to15
++	CMPBNE	R5, $16, movemt16
++	MOVD	0(R4), R7
++	MOVD	8(R4), R8
++	MOVD	R7, 0(R6)
++	MOVD	R8, 8(R6)
++	RET
++
++movemt16:
++	CMPBGT	R4, R6, forwards
++	ADD	R5, R4, R7
++	CMPBLE	R7, R6, forwards
++	ADD	R5, R6, R8
++backwards:
++	MOVD	-8(R7), R3
++	MOVD	R3, -8(R8)
++	MOVD	-16(R7), R3
++	MOVD	R3, -16(R8)
++	ADD	$-16, R5
++	ADD	$-16, R7
++	ADD	$-16, R8
++	CMP	R5, $16
++	BGE	backwards
++	BR	start
++
++forwards:
++	CMPBGT	R5, $64, forwards_fast
++	MOVD	0(R4), R3
++	MOVD	R3, 0(R6)
++	MOVD	8(R4), R3
++	MOVD	R3, 8(R6)
++	ADD	$16, R4
++	ADD	$16, R6
++	ADD	$-16, R5
++	CMP	R5, $16
++	BGE	forwards
++	BR	start
++
++forwards_fast:
++	CMP	R5, $256
++	BLE	forwards_small
++	MVC	$256, 0(R4), 0(R6)
++	ADD	$256, R4
++	ADD	$256, R6
++	ADD	$-256, R5
++	BR	forwards_fast
++
++forwards_small:
++	CMPBEQ	R5, $0, done
++	ADD	$-1, R5
++	EXRL	$runtime·memmove_s390x_exrl_mvc(SB), R5
++	RET
++
++move0to3:
++	CMPBEQ	R5, $0, done
++move1:
++	CMPBNE	R5, $1, move2
++	MOVB	0(R4), R3
++	MOVB	R3, 0(R6)
++	RET
++move2:
++	CMPBNE	R5, $2, move3
++	MOVH	0(R4), R3
++	MOVH	R3, 0(R6)
++	RET
++move3:
++	MOVH	0(R4), R3
++	MOVB	2(R4), R7
++	MOVH	R3, 0(R6)
++	MOVB	R7, 2(R6)
++	RET
++
++move4to7:
++	CMPBNE	R5, $4, move5
++	MOVW	0(R4), R3
++	MOVW	R3, 0(R6)
++	RET
++move5:
++	CMPBNE	R5, $5, move6
++	MOVW	0(R4), R3
++	MOVB	4(R4), R7
++	MOVW	R3, 0(R6)
++	MOVB	R7, 4(R6)
++	RET
++move6:
++	CMPBNE	R5, $6, move7
++	MOVW	0(R4), R3
++	MOVH	4(R4), R7
++	MOVW	R3, 0(R6)
++	MOVH	R7, 4(R6)
++	RET
++move7:
++	MOVW	0(R4), R3
++	MOVH	4(R4), R7
++	MOVB	6(R4), R8
++	MOVW	R3, 0(R6)
++	MOVH	R7, 4(R6)
++	MOVB	R8, 6(R6)
++	RET
++
++move8to11:
++	CMPBNE	R5, $8, move9
++	MOVD	0(R4), R3
++	MOVD	R3, 0(R6)
++	RET
++move9:
++	CMPBNE	R5, $9, move10
++	MOVD	0(R4), R3
++	MOVB	8(R4), R7
++	MOVD	R3, 0(R6)
++	MOVB	R7, 8(R6)
++	RET
++move10:
++	CMPBNE	R5, $10, move11
++	MOVD	0(R4), R3
++	MOVH	8(R4), R7
++	MOVD	R3, 0(R6)
++	MOVH	R7, 8(R6)
++	RET
++move11:
++	MOVD	0(R4), R3
++	MOVH	8(R4), R7
++	MOVB	10(R4), R8
++	MOVD	R3, 0(R6)
++	MOVH	R7, 8(R6)
++	MOVB	R8, 10(R6)
++	RET
++
++move12to15:
++	CMPBNE	R5, $12, move13
++	MOVD	0(R4), R3
++	MOVW	8(R4), R7
++	MOVD	R3, 0(R6)
++	MOVW	R7, 8(R6)
++	RET
++move13:
++	CMPBNE	R5, $13, move14
++	MOVD	0(R4), R3
++	MOVW	8(R4), R7
++	MOVB	12(R4), R8
++	MOVD	R3, 0(R6)
++	MOVW	R7, 8(R6)
++	MOVB	R8, 12(R6)
++	RET
++move14:
++	CMPBNE	R5, $14, move15
++	MOVD	0(R4), R3
++	MOVW	8(R4), R7
++	MOVH	12(R4), R8
++	MOVD	R3, 0(R6)
++	MOVW	R7, 8(R6)
++	MOVH	R8, 12(R6)
++	RET
++move15:
++	MOVD	0(R4), R3
++	MOVW	8(R4), R7
++	MOVH	12(R4), R8
++	MOVB	14(R4), R10
++	MOVD	R3, 0(R6)
++	MOVW	R7, 8(R6)
++	MOVH	R8, 12(R6)
++	MOVB	R10, 14(R6)
++done:
++	RET
++
++// DO NOT CALL - target for exrl (execute relative long) instruction.
++TEXT runtime·memmove_s390x_exrl_mvc(SB),NOSPLIT|NOFRAME,$0-0
++	MVC	$1, 0(R4), 0(R6)
++	MOVD	R0, 0(R0)
++	RET
++
+diff --git a/src/runtime/os_linux_s390x.go b/src/runtime/os_linux_s390x.go
+new file mode 100644
+index 0000000000..e659dff716
+--- /dev/null
++++ b/src/runtime/os_linux_s390x.go
+@@ -0,0 +1,46 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	_SS_DISABLE  = 2
++	_NSIG        = 65
++	_SI_USER     = 0
++	_SIG_BLOCK   = 0
++	_SIG_UNBLOCK = 1
++	_SIG_SETMASK = 2
++	_RLIMIT_AS   = 9
++)
++
++type sigset uint64
++
++type rlimit struct {
++	rlim_cur uintptr
++	rlim_max uintptr
++}
++
++var sigset_all = sigset(^uint64(0))
++
++func sigaddset(mask *sigset, i int) {
++	if i > 64 {
++		throw("unexpected signal greater than 64")
++	}
++	*mask |= 1 << (uint(i) - 1)
++}
++
++func sigdelset(mask *sigset, i int) {
++	if i > 64 {
++		throw("unexpected signal greater than 64")
++	}
++	*mask &^= 1 << (uint(i) - 1)
++}
++
++func sigfillset(mask *uint64) {
++	*mask = ^uint64(0)
++}
++
++func sigcopyset(mask *sigset, m sigmask) {
++	*mask = sigset(uint64(m[0]) | uint64(m[1])<<32)
++}
+diff --git a/src/runtime/rt0_linux_s390x.s b/src/runtime/rt0_linux_s390x.s
+new file mode 100644
+index 0000000000..aedd6c7ef2
+--- /dev/null
++++ b/src/runtime/rt0_linux_s390x.s
+@@ -0,0 +1,20 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT _rt0_s390x_linux(SB),NOSPLIT|NOFRAME,$0
++	// In a statically linked binary, the stack contains argc,
++	// argv as argc string pointers followed by a NULL, envv as a
++	// sequence of string pointers followed by a NULL, and auxv.
++	// There is no TLS base pointer.
++	//
++	// TODO: Support dynamic linking entry point
++	MOVD 0(R15), R2 // argc
++	ADD $8, R15, R3 // argv
++	BR main(SB)
++
++TEXT main(SB),NOSPLIT|NOFRAME,$0
++	MOVD	$runtime·rt0_go(SB), R11
++	BR	R11
+diff --git a/src/runtime/signal_linux_s390x.go b/src/runtime/signal_linux_s390x.go
+new file mode 100644
+index 0000000000..155d3a326f
+--- /dev/null
++++ b/src/runtime/signal_linux_s390x.go
+@@ -0,0 +1,208 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *sigcontext {
++	return (*sigcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
++}
++func (c *sigctxt) r0() uint64      { return c.regs().gregs[0] }
++func (c *sigctxt) r1() uint64      { return c.regs().gregs[1] }
++func (c *sigctxt) r2() uint64      { return c.regs().gregs[2] }
++func (c *sigctxt) r3() uint64      { return c.regs().gregs[3] }
++func (c *sigctxt) r4() uint64      { return c.regs().gregs[4] }
++func (c *sigctxt) r5() uint64      { return c.regs().gregs[5] }
++func (c *sigctxt) r6() uint64      { return c.regs().gregs[6] }
++func (c *sigctxt) r7() uint64      { return c.regs().gregs[7] }
++func (c *sigctxt) r8() uint64      { return c.regs().gregs[8] }
++func (c *sigctxt) r9() uint64      { return c.regs().gregs[9] }
++func (c *sigctxt) r10() uint64     { return c.regs().gregs[10] }
++func (c *sigctxt) r11() uint64     { return c.regs().gregs[11] }
++func (c *sigctxt) r12() uint64     { return c.regs().gregs[12] }
++func (c *sigctxt) r13() uint64     { return c.regs().gregs[13] }
++func (c *sigctxt) r14() uint64     { return c.regs().gregs[14] }
++func (c *sigctxt) r15() uint64     { return c.regs().gregs[15] }
++func (c *sigctxt) link() uint64    { return c.regs().gregs[14] }
++func (c *sigctxt) sp() uint64      { return c.regs().gregs[15] }
++func (c *sigctxt) pc() uint64      { return c.regs().psw_addr }
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
++
++func (c *sigctxt) set_r0(x uint64)      { c.regs().gregs[0] = x }
++func (c *sigctxt) set_r13(x uint64)     { c.regs().gregs[13] = x }
++func (c *sigctxt) set_link(x uint64)    { c.regs().gregs[14] = x }
++func (c *sigctxt) set_sp(x uint64)      { c.regs().gregs[15] = x }
++func (c *sigctxt) set_pc(x uint64)      { c.regs().psw_addr = x }
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint64) {
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
++}
++
++func dumpregs(c *sigctxt) {
++	print("r0   ", hex(c.r0()), "\t")
++	print("r1   ", hex(c.r1()), "\n")
++	print("r2   ", hex(c.r2()), "\t")
++	print("r3   ", hex(c.r3()), "\n")
++	print("r4   ", hex(c.r4()), "\t")
++	print("r5   ", hex(c.r5()), "\n")
++	print("r6   ", hex(c.r6()), "\t")
++	print("r7   ", hex(c.r7()), "\n")
++	print("r8   ", hex(c.r8()), "\t")
++	print("r9   ", hex(c.r9()), "\n")
++	print("r10  ", hex(c.r10()), "\t")
++	print("r11  ", hex(c.r11()), "\n")
++	print("r12  ", hex(c.r12()), "\t")
++	print("r13  ", hex(c.r13()), "\n")
++	print("r14  ", hex(c.r14()), "\t")
++	print("r15  ", hex(c.r15()), "\n")
++	print("pc   ", hex(c.pc()), "\t")
++	print("link ", hex(c.link()), "\n")
++}
++
++var crashing int32
++
++// May run during STW, so write barriers are not allowed.
++//
++//go:nowritebarrierrec
++func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
++	_g_ := getg()
++	c := &sigctxt{info, ctxt}
++
++	if sig == _SIGPROF {
++		sigprof(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp, _g_.m)
++		return
++	}
++	flags := int32(_SigThrow)
++	if sig < uint32(len(sigtable)) {
++		flags = sigtable[sig].flags
++	}
++	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp.sig = sig
++		gp.sigcode0 = uintptr(c.sigcode())
++		gp.sigcode1 = uintptr(c.sigaddr())
++		gp.sigpc = uintptr(c.pc())
++
++		// We arrange link, and pc to pretend the panicking
++		// function calls sigpanic directly.
++		// Always save LINK to stack so that panics in leaf
++		// functions are correctly handled. This smashes
++		// the stack frame but we're not going back there
++		// anyway.
++		sp := c.sp() - sys.MinFrameSize
++		c.set_sp(sp)
++		*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
++
++		pc := uintptr(gp.sigpc)
++
++		// If we don't recognize the PC as code
++		// but we do recognize the link register as code,
++		// then assume this was a call to non-code and treat like
++		// pc == 0, to make unwinding show the context.
++		if pc != 0 && findfunc(pc) == nil && findfunc(uintptr(c.link())) != nil {
++			pc = 0
++		}
++
++		// Don't bother saving PC if it's zero, which is
++		// probably a call to a nil func: the old link register
++		// is more useful in the stack trace.
++		if pc != 0 {
++			c.set_link(uint64(pc))
++		}
++
++		// In case we are panicking from external C code
++		c.set_r0(0)
++		c.set_r13(uint64(uintptr(unsafe.Pointer(gp))))
++		c.set_pc(uint64(funcPC(sigpanic)))
++		return
++	}
++
++	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
++		if sigsend(sig) {
++			return
++		}
++	}
++
++	if c.sigcode() == _SI_USER && signal_ignored(sig) {
++		return
++	}
++
++	if flags&_SigKill != 0 {
++		dieFromSignal(int32(sig))
++	}
++
++	if flags&_SigThrow == 0 {
++		return
++	}
++
++	_g_.m.throwing = 1
++	_g_.m.caughtsig.set(gp)
++
++	if crashing == 0 {
++		startpanic()
++	}
++
++	if sig < uint32(len(sigtable)) {
++		print(sigtable[sig].name, "\n")
++	} else {
++		print("Signal ", sig, "\n")
++	}
++
++	print("PC=", hex(c.pc()), " m=", _g_.m.id, "\n")
++	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
++		print("signal arrived during cgo execution\n")
++		gp = _g_.m.lockedg
++	}
++	print("\n")
++
++	level, _, docrash := gotraceback()
++	if level > 0 {
++		goroutineheader(gp)
++		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp)
++		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
++			// tracebackothers on original m skipped this one; trace it now.
++			goroutineheader(_g_.m.curg)
++			traceback(^uintptr(0), ^uintptr(0), 0, gp)
++		} else if crashing == 0 {
++			tracebackothers(gp)
++			print("\n")
++		}
++		dumpregs(c)
++	}
++
++	if docrash {
++		crashing++
++		if crashing < sched.mcount {
++			// There are other m's that need to dump their stacks.
++			// Relay SIGQUIT to the next m by sending it to the current process.
++			// All m's that have already received SIGQUIT have signal masks blocking
++			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
++			// When the last m receives the SIGQUIT, it will fall through to the call to
++			// crash below. Just in case the relaying gets botched, each m involved in
++			// the relay sleeps for 5 seconds and then does the crash/exit itself.
++			// In expected operation, the last m has received the SIGQUIT and run
++			// crash/exit and the process is gone, all long before any of the
++			// 5-second sleeps have finished.
++			print("\n-----\n\n")
++			raiseproc(_SIGQUIT)
++			usleep(5 * 1000 * 1000)
++		}
++		crash()
++	}
++
++	exit(2)
++}
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+new file mode 100644
+index 0000000000..f43792bd51
+--- /dev/null
++++ b/src/runtime/sys_linux_s390x.s
+@@ -0,0 +1,440 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// System calls and other system stuff for Linux s390x; see
++// /usr/include/asm/unistd.h for the syscall number definitions.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++#define SYS_exit                  1
++#define SYS_read                  3
++#define SYS_write                 4
++#define SYS_open                  5
++#define SYS_close                 6
++#define SYS_getpid               20
++#define SYS_kill                 37
++#define SYS_fcntl                55
++#define SYS_gettimeofday         78
++#define SYS_mmap                 90
++#define SYS_munmap               91
++#define SYS_setitimer           104
++#define SYS_clone               120
++#define SYS_select              142
++#define SYS_sched_yield         158
++#define SYS_rt_sigreturn        173
++#define SYS_rt_sigaction        174
++#define SYS_rt_sigprocmask      175
++#define SYS_sigaltstack         186
++#define SYS_ugetrlimit          191
++#define SYS_madvise             219
++#define SYS_mincore             218
++#define SYS_gettid              236
++#define SYS_tkill               237
++#define SYS_futex               238
++#define SYS_sched_getaffinity   240
++#define SYS_exit_group          248
++#define SYS_epoll_create        249
++#define SYS_epoll_ctl           250
++#define SYS_epoll_wait          251
++#define SYS_clock_gettime       260
++#define SYS_epoll_create1       327
++
++TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
++	MOVW	code+0(FP), R2
++	MOVW	$SYS_exit_group, R1
++	SYSCALL
++	RET
++
++TEXT runtime·exit1(SB),NOSPLIT|NOFRAME,$0-4
++	MOVW	code+0(FP), R2
++	MOVW	$SYS_exit, R1
++	SYSCALL
++	RET
++
++TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0-20
++	MOVD	name+0(FP), R2
++	MOVW	mode+8(FP), R3
++	MOVW	perm+12(FP), R4
++	MOVW	$SYS_open, R1
++	SYSCALL
++	MOVD	$-4095, R3
++	CMPUBLT	R2, R3, 2(PC)
++	MOVW	$-1, R2
++	MOVW	R2, ret+16(FP)
++	RET
++
++TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
++	MOVW	fd+0(FP), R2
++	MOVW	$SYS_close, R1
++	SYSCALL
++	MOVD	$-4095, R3
++	CMPUBLT	R2, R3, 2(PC)
++	MOVW	$-1, R2
++	MOVW	R2, ret+8(FP)
++	RET
++
++TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0-28
++	MOVD	fd+0(FP), R2
++	MOVD	p+8(FP), R3
++	MOVW	n+16(FP), R4
++	MOVW	$SYS_write, R1
++	SYSCALL
++	MOVD	$-4095, R3
++	CMPUBLT	R2, R3, 2(PC)
++	MOVW	$-1, R2
++	MOVW	R2, ret+24(FP)
++	RET
++
++TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
++	MOVW	fd+0(FP), R2
++	MOVD	p+8(FP), R3
++	MOVW	n+16(FP), R4
++	MOVW	$SYS_read, R1
++	SYSCALL
++	MOVD	$-4095, R3
++	CMPUBLT	R2, R3, 2(PC)
++	MOVW	$-1, R2
++	MOVW	R2, ret+24(FP)
++	RET
++
++TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
++	MOVW	kind+0(FP), R2
++	MOVD	limit+8(FP), R3
++	MOVW	$SYS_ugetrlimit, R1
++	SYSCALL
++	MOVW	R2, ret+16(FP)
++	RET
++
++TEXT runtime·usleep(SB),NOSPLIT,$16-4
++	MOVW	usec+0(FP), R2
++	MOVD	R2, R4
++	MOVW	$1000000, R3
++	DIVD	R3, R2
++	MOVD	R2, 8(R15)
++	MULLD	R2, R3
++	SUB	R3, R4
++	MOVD	R4, 16(R15)
++
++	// select(0, 0, 0, 0, &tv)
++	MOVW	$0, R2
++	MOVW	$0, R3
++	MOVW	$0, R4
++	MOVW	$0, R5
++	ADD	$8, R15, R6
++	MOVW	$SYS_select, R1
++	SYSCALL
++	RET
++
++TEXT runtime·gettid(SB),NOSPLIT,$0-4
++	MOVW	$SYS_gettid, R1
++	SYSCALL
++	MOVW	R2, ret+0(FP)
++	RET
++
++TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
++	MOVW	$SYS_gettid, R1
++	SYSCALL
++	MOVW	R2, R2	// arg 1 tid
++	MOVW	sig+0(FP), R3	// arg 2
++	MOVW	$SYS_tkill, R1
++	SYSCALL
++	RET
++
++TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
++	MOVW	$SYS_getpid, R1
++	SYSCALL
++	MOVW	R2, R2	// arg 1 pid
++	MOVW	sig+0(FP), R3	// arg 2
++	MOVW	$SYS_kill, R1
++	SYSCALL
++	RET
++
++TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
++	MOVW	mode+0(FP), R2
++	MOVD	new+8(FP), R3
++	MOVD	old+16(FP), R4
++	MOVW	$SYS_setitimer, R1
++	SYSCALL
++	RET
++
++TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
++	MOVD	addr+0(FP), R2
++	MOVD	n+8(FP), R3
++	MOVD	dst+16(FP), R4
++	MOVW	$SYS_mincore, R1
++	SYSCALL
++	MOVW	R2, ret+24(FP)
++	RET
++
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB),NOSPLIT,$16
++	MOVD	$0(R15), R2
++	MOVD	$0, R3
++	MOVW	$SYS_gettimeofday, R1
++	SYSCALL
++	MOVD	0(R15), R2	// sec
++	MOVD	8(R15), R4	// usec
++	MOVD	$1000, R3
++	MULLD	R3, R4
++	MOVD	R2, sec+0(FP)
++	MOVW	R4, nsec+8(FP)
++	RET
++
++TEXT runtime·nanotime(SB),NOSPLIT,$16
++	MOVW	$1, R2 // CLOCK_MONOTONIC
++	MOVD	$0(R15), R3
++	MOVW	$SYS_clock_gettime, R1
++	SYSCALL
++	MOVD	0(R15), R2	// sec
++	MOVD	8(R15), R4	// nsec
++	// sec is in R2, nsec in R4
++	// return nsec in R2
++	MOVD	$1000000000, R3
++	MULLD	R3, R2
++	ADD	R4, R2
++	MOVD	R2, ret+0(FP)
++	RET
++
++TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
++	MOVW	sig+0(FP), R2
++	MOVD	new+8(FP), R3
++	MOVD	old+16(FP), R4
++	MOVW	size+24(FP), R5
++	MOVW	$SYS_rt_sigprocmask, R1
++	SYSCALL
++	MOVD	$-4095, R3
++	CMPUBLT	R2, R3, 2(PC)
++	MOVD	R0, 0(R0) // crash
++	RET
++
++TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
++	MOVD	sig+0(FP), R2
++	MOVD	new+8(FP), R3
++	MOVD	old+16(FP), R4
++	MOVD	size+24(FP), R5
++	MOVW	$SYS_rt_sigaction, R1
++	SYSCALL
++	MOVW	R2, ret+32(FP)
++	RET
++
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
++	MOVW	sig+8(FP), R2
++	MOVD	info+16(FP), R3
++	MOVD	ctx+24(FP), R4
++	MOVD	fn+0(FP), R5
++	BL	R5
++	RET
++
++TEXT runtime·sigtramp(SB),NOSPLIT,$64
++	// initialize essential registers (just in case)
++	XOR	R0, R0
++
++	// this might be called in external code context,
++	// where g is not set.
++	MOVB	runtime·iscgo(SB), R6
++	CMPBEQ	R6, $0, 2(PC)
++	BL	runtime·load_g(SB)
++
++	MOVW	R2, 8(R15)
++	MOVD	R3, 16(R15)
++	MOVD	R4, 24(R15)
++	MOVD	$runtime·sigtrampgo(SB), R5
++	BL	R5
++	RET
++
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	BR	runtime·sigtramp(SB)
++
++// func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
++TEXT runtime·mmap(SB),NOSPLIT,$48-40
++	MOVD	addr+0(FP), R2
++	MOVD	n+8(FP), R3
++	MOVW	prot+16(FP), R4
++	MOVW	flags+20(FP), R5
++	MOVW	fd+24(FP), R6
++	MOVWZ	off+28(FP), R7
++
++	// s390x uses old_mmap, so the arguments need to be placed into
++	// a struct and a pointer to the struct passed to mmap.
++	MOVD	R2, addr-48(SP)
++	MOVD	R3, n-40(SP)
++	MOVD	R4, prot-32(SP)
++	MOVD	R5, flags-24(SP)
++	MOVD	R6, fd-16(SP)
++	MOVD	R7, off-8(SP)
++
++	MOVD	$addr-48(SP), R2
++	MOVW	$SYS_mmap, R1
++	SYSCALL
++	MOVD	$-4095, R3
++	CMPUBLT	R2, R3, 2(PC)
++	NEG	R2
++	MOVD	R2, ret+32(FP)
++	RET
++
++TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
++	MOVD	addr+0(FP), R2
++	MOVD	n+8(FP), R3
++	MOVW	$SYS_munmap, R1
++	SYSCALL
++	MOVD	$-4095, R3
++	CMPUBLT	R2, R3, 2(PC)
++	MOVD	R0, 0(R0) // crash
++	RET
++
++TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
++	MOVD	addr+0(FP), R2
++	MOVD	n+8(FP), R3
++	MOVW	flags+16(FP), R4
++	MOVW	$SYS_madvise, R1
++	SYSCALL
++	// ignore failure - maybe pages are locked
++	RET
++
++// int64 futex(int32 *uaddr, int32 op, int32 val,
++//	struct timespec *timeout, int32 *uaddr2, int32 val2);
++TEXT runtime·futex(SB),NOSPLIT|NOFRAME,$0
++	MOVD	addr+0(FP), R2
++	MOVW	op+8(FP), R3
++	MOVW	val+12(FP), R4
++	MOVD	ts+16(FP), R5
++	MOVD	addr2+24(FP), R6
++	MOVW	val3+32(FP),  R7
++	MOVW	$SYS_futex, R1
++	SYSCALL
++	MOVW	R2, ret+40(FP)
++	RET
++
++// int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
++TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
++	MOVW	flags+0(FP), R3
++	MOVD	stk+8(FP), R2
++
++	// Copy mp, gp, fn off parent stack for use by child.
++	// Careful: Linux system call clobbers ???.
++	MOVD	mm+16(FP), R7
++	MOVD	gg+24(FP), R8
++	MOVD	fn+32(FP), R9
++
++	MOVD	R7, -8(R2)
++	MOVD	R8, -16(R2)
++	MOVD	R9, -24(R2)
++	MOVD	$1234, R7
++	MOVD	R7, -32(R2)
++
++	SYSCALL $SYS_clone
++
++	// In parent, return.
++	CMPBEQ	R2, $0, 3(PC)
++	MOVW	R2, ret+40(FP)
++	RET
++
++	// In child, on new stack.
++	// initialize essential registers
++	XOR	R0, R0
++	MOVD	-32(R15), R7
++	CMP	R7, $1234
++	BEQ	2(PC)
++	MOVD	R0, 0(R0)
++
++	// Initialize m->procid to Linux tid
++	SYSCALL $SYS_gettid
++
++	MOVD	-24(R15), R9        // fn
++	MOVD	-16(R15), R8        // g
++	MOVD	-8(R15), R7         // m
++
++	CMPBEQ	R7, $0, nog
++	CMP	R8, $0
++	BEQ	nog
++
++	MOVD	R2, m_procid(R7)
++
++	// In child, set up new stack
++	MOVD	R7, g_m(R8)
++	MOVD	R8, g
++	//CALL	runtime·stackcheck(SB)
++
++nog:
++	// Call fn
++	BL	R9
++
++	// It shouldn't return.	 If it does, exit that thread.
++	MOVW	$111, R2
++	MOVW	$SYS_exit, R1
++	SYSCALL
++	BR	-2(PC)	// keep exiting
++
++TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
++	MOVD	new+0(FP), R2
++	MOVD	old+8(FP), R3
++	MOVW	$SYS_sigaltstack, R1
++	SYSCALL
++	MOVD	$-4095, R3
++	CMPUBLT	R2, R3, 2(PC)
++	MOVD	R0, 0(R0) // crash
++	RET
++
++TEXT runtime·osyield(SB),NOSPLIT|NOFRAME,$0
++	MOVW	$SYS_sched_yield, R1
++	SYSCALL
++	RET
++
++TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
++	MOVD	pid+0(FP), R2
++	MOVD	len+8(FP), R3
++	MOVD	buf+16(FP), R4
++	MOVW	$SYS_sched_getaffinity, R1
++	SYSCALL
++	MOVW	R2, ret+24(FP)
++	RET
++
++// int32 runtime·epollcreate(int32 size);
++TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
++	MOVW    size+0(FP), R2
++	MOVW	$SYS_epoll_create, R1
++	SYSCALL
++	MOVW	R2, ret+8(FP)
++	RET
++
++// int32 runtime·epollcreate1(int32 flags);
++TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
++	MOVW	flags+0(FP), R2
++	MOVW	$SYS_epoll_create1, R1
++	SYSCALL
++	MOVW	R2, ret+8(FP)
++	RET
++
++// func epollctl(epfd, op, fd int32, ev *epollEvent) int
++TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
++	MOVW	epfd+0(FP), R2
++	MOVW	op+4(FP), R3
++	MOVW	fd+8(FP), R4
++	MOVD	ev+16(FP), R5
++	MOVW	$SYS_epoll_ctl, R1
++	SYSCALL
++	MOVW	R2, ret+24(FP)
++	RET
++
++// int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
++TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
++	MOVW	epfd+0(FP), R2
++	MOVD	ev+8(FP), R3
++	MOVW	nev+16(FP), R4
++	MOVW	timeout+20(FP), R5
++	MOVW	$SYS_epoll_wait, R1
++	SYSCALL
++	MOVW	R2, ret+24(FP)
++	RET
++
++// void runtime·closeonexec(int32 fd);
++TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
++	MOVW    fd+0(FP), R2  // fd
++	MOVD    $2, R3  // F_SETFD
++	MOVD    $1, R4  // FD_CLOEXEC
++	MOVW	$SYS_fcntl, R1
++	SYSCALL
++	RET
+diff --git a/src/runtime/sys_s390x.go b/src/runtime/sys_s390x.go
+new file mode 100644
+index 0000000000..2aa81e75c0
+--- /dev/null
++++ b/src/runtime/sys_s390x.go
+@@ -0,0 +1,45 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// adjust Gobuf as if it executed a call to fn with context ctxt
++// and then did an immediate Gosave.
++func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
++	if buf.lr != 0 {
++		throw("invalid use of gostartcall")
++	}
++	buf.lr = buf.pc
++	buf.pc = uintptr(fn)
++	buf.ctxt = ctxt
++}
++
++// Called to rewind context saved during morestack back to beginning of function.
++// To help us, the linker emits a jmp back to the beginning right after the
++// call to morestack. We just have to decode and apply that jump.
++func rewindmorestack(buf *gobuf) {
++	var inst uint64
++	if buf.pc&1 == 0 && buf.pc != 0 {
++		inst = *(*uint64)(unsafe.Pointer(buf.pc))
++		switch inst >> 48 {
++		case 0xa7f4: // BRC (branch relative on condition) instruction.
++			inst >>= 32
++			inst &= 0xFFFF
++			offset := int64(int16(inst))
++			offset <<= 1
++			buf.pc += uintptr(offset)
++			return
++		case 0xc0f4: // BRCL (branch relative on condition long) instruction.
++			inst >>= 16
++			inst = inst & 0xFFFFFFFF
++			inst = (inst << 1) & 0xFFFFFFFF
++			buf.pc += uintptr(int32(inst))
++			return
++		}
++	}
++	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
++	throw("runtime: misuse of rewindmorestack")
++}
+diff --git a/src/runtime/tls_s390x.s b/src/runtime/tls_s390x.s
+new file mode 100644
+index 0000000000..cb6a21c114
+--- /dev/null
++++ b/src/runtime/tls_s390x.s
+@@ -0,0 +1,51 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "funcdata.h"
++#include "textflag.h"
++
++// We have to resort to TLS variable to save g (R13).
++// One reason is that external code might trigger
++// SIGSEGV, and our runtime.sigtramp don't even know we
++// are in external code, and will continue to use R13,
++// this might well result in another SIGSEGV.
++
++// save_g saves the g register into pthread-provided
++// thread-local memory, so that we can call externally compiled
++// s390x code that will overwrite this register.
++//
++// If !iscgo, this is a no-op.
++//
++// NOTE: setg_gcc<> assume this clobbers only R10 and R11.
++TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
++	MOVB	runtime·iscgo(SB),  R10
++	CMPBEQ	R10, $0, nocgo
++	MOVW	AR0, R11
++	SLD	$32, R11
++	MOVW	AR1, R11
++	MOVD	runtime·tls_g(SB), R10
++	MOVD	g, 0(R10)(R11*1)
++nocgo:
++	RET
++
++// load_g loads the g register from pthread-provided
++// thread-local memory, for use after calling externally compiled
++// s390x code that overwrote those registers.
++//
++// This is never called directly from C code (it doesn't have to
++// follow the C ABI), but it may be called from a C context, where the
++// usual Go registers aren't set up.
++//
++// NOTE: _cgo_topofstack assumes this only clobbers g (R13), R10 and R11.
++TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
++	MOVW	AR0, R11
++	SLD	$32, R11
++	MOVW	AR1, R11
++	MOVD	runtime·tls_g(SB), R10
++	MOVD	0(R10)(R11*1), g
++	RET
++
++GLOBL runtime·tls_g+0(SB),TLSBSS,$8

@@ -9,6 +9,28 @@ Date:   Wed Jun 28 12:14:49 2017 -0700
     Change-Id: If35868345d9697d4afa2e9c19b85e01d94c87908
     Reviewed-on: https://go-review.googlesource.com/47034
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.9.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 262d468e3f..ee3c872afa 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -190,6 +190,16 @@ type T1 = T2
+   <a href="/pkg/net/http/#ProxyFromEnvironment"><code>http.ProxyFromEnvironment</code></a>.
+ </p>
+ 
++<h3 id="gccgo">Gccgo</h3>
++
++<p>
++Due to the alignment of Go's semiannual release schedule with GCC's
++annual release schedule,
++GCC release 7 contains the Go 1.8.3 version of gccgo.
++We expect that the next release, GCC 8, will contain the Go 1.10
++version of gccgo.
++</p>
++
+ <h3 id="tools-TODO">TODO</h3>
+ 
+ <p>TODO: finish documenting misc tool changes</p>

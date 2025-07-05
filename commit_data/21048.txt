@@ -14,7 +14,74 @@ Date:   Tue Nov 11 01:23:01 2014 -0500
     R=r
     CC=austin, golang-codereviews, iant, khr
     https://golang.org/cl/167520044
-
+---
  src/reflect/type.go        | 13 ++++---------
  src/runtime/gcinfo_test.go |  9 +++------
  2 files changed, 7 insertions(+), 15 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 572e611fa9..e05a3f9d17 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1533,12 +1533,8 @@ func (gc *gcProg) appendProg(t *rtype) {
+ 			gc.appendProg(e)
+ 		}
+ 	case Interface:
+-		gc.appendWord(bitsMultiWord)
+-		if t.NumMethod() == 0 {
+-			gc.appendWord(bitsEface)
+-		} else {
+-			gc.appendWord(bitsIface)
+-		}
++		gc.appendWord(bitsPointer)
++		gc.appendWord(bitsPointer)
+ 	case Struct:
+ 		c := t.NumField()
+ 		for i := 0; i < c; i++ {
+@@ -1592,9 +1588,8 @@ func (gc *gcProg) align(a uintptr) {
+ 
+ // These constants must stay in sync with ../runtime/mgc0.h.
+ const (
+-	bitsScalar    = 1
+-	bitsPointer   = 2
+-	bitsMultiWord = 3
++	bitsScalar  = 1
++	bitsPointer = 2
+ 
+ 	bitsIface = 2
+ 	bitsEface = 3
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index 88f6703f97..1443c2c134 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -62,12 +62,10 @@ func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
+ func nonStackInfo(mask []byte) []byte {
+ 	// BitsDead is replaced with BitsScalar everywhere except stacks.
+ 	mask1 := make([]byte, len(mask))
+-	mw := false
+ 	for i, v := range mask {
+-		if !mw && v == BitsDead {
++		if v == BitsDead {
+ 			v = BitsScalar
+ 		}
+-		mw = !mw && v == BitsMultiWord
+ 		mask1[i] = v
+ 	}
+ 	return mask1
+@@ -84,7 +82,6 @@ const (
+ 	BitsDead = iota
+ 	BitsScalar
+ 	BitsPointer
+-	BitsMultiWord
+ )
+ 
+ const (
+@@ -188,6 +185,6 @@ var (
+ 
+ 	infoString = []byte{BitsPointer, BitsDead}
+ 	infoSlice  = []byte{BitsPointer, BitsDead, BitsDead}
+-	infoEface  = []byte{BitsMultiWord, BitsEface}
+-	infoIface  = []byte{BitsMultiWord, BitsIface}
++	infoEface  = []byte{BitsPointer, BitsPointer}
++	infoIface  = []byte{BitsPointer, BitsPointer}
+ )

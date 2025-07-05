@@ -29,7 +29,7 @@ Date:   Thu Mar 14 11:35:13 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7565048
-
+---
  src/cmd/dist/build.c                               |   3 +
  src/pkg/runtime/{thread_darwin.c => os_darwin.c}   |  39 ++++
  src/pkg/runtime/os_darwin.h                        |   6 -
@@ -86,3 +86,3974 @@ Date:   Thu Mar 14 11:35:13 2013 -0700
  src/pkg/runtime/signal_unix.c                      |   1 +
  src/pkg/runtime/signal_unix.h                      |  13 ++
  55 files changed, 1209 insertions(+), 2290 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 9793702ffd..e6c02e5636 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -794,6 +794,9 @@ install(char *dir)
+ 			bpathf(&b1, "%s/arch_%s.h", bstr(&path), goarch), 0);
+ 		copy(bpathf(&b, "%s/defs_GOOS_GOARCH.h", workdir),
+ 			bpathf(&b1, "%s/defs_%s_%s.h", bstr(&path), goos, goarch), 0);
++		p = bpathf(&b1, "%s/signal_%s_%s.h", bstr(&path), goos, goarch);
++		if(isfile(p))
++			copy(bpathf(&b, "%s/signal_GOOS_GOARCH.h", workdir), p, 0);
+ 		copy(bpathf(&b, "%s/os_GOOS.h", workdir),
+ 			bpathf(&b1, "%s/os_%s.h", bstr(&path), goos), 0);
+ 		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/os_darwin.c
+similarity index 94%
+rename from src/pkg/runtime/thread_darwin.c
+rename to src/pkg/runtime/os_darwin.c
+index 4394cbcdfd..ba4e6ebdfc 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -5,6 +5,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
++#include "signal_unix.h"
+ #include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
+@@ -546,3 +547,41 @@ runtime·badsignal(int32 sig)
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);
+ }
++
++void
++runtime·setsig(int32 i, GoSighandler *fn, bool restart)
++{
++	Sigaction sa;
++		
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~(uintptr)0;
++	sa.sa_tramp = (void*)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
++	*(uintptr*)sa.__sigaction_u = (uintptr)fn;
++	runtime·sigaction(i, &sa, nil);
++}
++
++GoSighandler*
++runtime·getsig(int32 i)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	runtime·sigaction(i, nil, &sa);
++	return *(void**)sa.__sigaction_u;
++}
++
++void
++runtime·signalstack(byte *p, int32 n)
++{
++	StackT st;
++
++	st.ss_sp = (void*)p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
++	runtime·sigaltstack(&st, nil);
++}
+diff --git a/src/pkg/runtime/os_darwin.h b/src/pkg/runtime/os_darwin.h
+index 5fcb717cbb..8024109753 100644
+--- a/src/pkg/runtime/os_darwin.h
++++ b/src/pkg/runtime/os_darwin.h
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_DFL ((void*)0)
+-#define SIG_IGN ((void*)1)
+-#define SIGHUP 1
+ #define SS_DISABLE 4
+ 
+ int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
+@@ -27,8 +24,6 @@ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+ 
+ struct Sigaction;
+ void	runtime·sigaction(uintptr, struct Sigaction*, struct Sigaction*);
+-void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+-void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+ 
+ struct StackT;
+ void	runtime·sigaltstack(struct StackT*, struct StackT*);
+@@ -36,7 +31,6 @@ void	runtime·sigtramp(void);
+ void	runtime·sigpanic(void);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ 
+-void	runtime·raisesigpipe(void);
+ 
+ #define	NSIG 32
+ #define	SI_USER	0  /* empirically true, but not what headers say */
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/os_freebsd.c
+similarity index 82%
+rename from src/pkg/runtime/thread_freebsd.c
+rename to src/pkg/runtime/os_freebsd.c
+index 7ead04468f..0632eabd30 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -4,6 +4,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
++#include "signal_unix.h"
+ #include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
+@@ -257,3 +258,58 @@ runtime·badsignal(int32 sig)
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);
+ }
++
++extern void runtime·sigtramp(void);
++
++typedef struct sigaction {
++	union {
++		void    (*__sa_handler)(int32);
++		void    (*__sa_sigaction)(int32, Siginfo*, void *);
++	} __sigaction_u;		/* signal handler */
++	int32	sa_flags;		/* see signal options below */
++	Sigset	sa_mask;		/* signal mask to apply */
++} Sigaction;
++
++void
++runtime·setsig(int32 i, GoSighandler *fn, bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask.__bits[0] = ~(uint32)0;
++	sa.sa_mask.__bits[1] = ~(uint32)0;
++	sa.sa_mask.__bits[2] = ~(uint32)0;
++	sa.sa_mask.__bits[3] = ~(uint32)0;
++	if(fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
++	sa.__sigaction_u.__sa_sigaction = (void*)fn;
++	runtime·sigaction(i, &sa, nil);
++}
++
++GoSighandler*
++runtime·getsig(int32 i)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	runtime·sigaction(i, nil, &sa);
++	if((void*)sa.__sigaction_u.__sa_sigaction == runtime·sigtramp)
++		return runtime·sighandler;
++	return (void*)sa.__sigaction_u.__sa_sigaction;
++}
++
++void
++runtime·signalstack(byte *p, int32 n)
++{
++	StackT st;
++
++	st.ss_sp = (void*)p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
++	runtime·sigaltstack(&st, nil);
++}
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index a37ad7cd87..3d631bfc80 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -1,20 +1,14 @@
+-#define SIG_DFL ((void*)0)
+-#define SIG_IGN ((void*)1)
+-#define SIGHUP 1
+ #define SS_DISABLE 4
+ 
+ int32	runtime·thr_new(ThrParam*, int32);
+-void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+ void	runtime·sigpanic(void);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ struct	sigaction;
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigprocmask(Sigset *, Sigset *);
+-void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+-void	runtime·raisesigpipe(void);
+ 
+ #define	NSIG 33
+ #define	SI_USER	0x10001
+diff --git a/src/pkg/runtime/os_freebsd_arm.c b/src/pkg/runtime/os_freebsd_arm.c
+new file mode 100644
+index 0000000000..7eaa45c441
+--- /dev/null
++++ b/src/pkg/runtime/os_freebsd_arm.c
+@@ -0,0 +1,23 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++
++void
++runtime·checkgoarm(void)
++{
++	// TODO(minux)
++}
++
++#pragma textflag 7
++int64
++runtime·cputicks(void)
++{
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
++	// TODO: need more entropy to better seed fastrand1.
++	return runtime·nanotime();
++}
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/os_linux.c
+similarity index 84%
+rename from src/pkg/runtime/thread_linux.c
+rename to src/pkg/runtime/os_linux.c
+index 7fdc757dfc..dc1e274378 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -5,6 +5,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
++#include "signal_unix.h"
+ #include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
+@@ -309,3 +310,60 @@ runtime·badsignal(int32 sig)
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);
+ }
++
++#ifdef GOARCH_386
++#define sa_handler k_sa_handler
++#endif
++
++/*
++ * This assembler routine takes the args from registers, puts them on the stack,
++ * and calls sighandler().
++ */
++extern void runtime·sigtramp(void);
++extern void runtime·sigreturn(void);	// calls runtime·sigreturn
++
++void
++runtime·setsig(int32 i, GoSighandler *fn, bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~0ULL;
++	// TODO(adonovan): Linux manpage says "sa_restorer element is
++	// obsolete and should not be used".  Avoid it here, and test.
++	sa.sa_restorer = (void*)runtime·sigreturn;
++	if(fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
++	sa.sa_handler = fn;
++	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
++		runtime·throw("rt_sigaction failure");
++}
++
++GoSighandler*
++runtime·getsig(int32 i)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
++		runtime·throw("rt_sigaction read failure");
++	if((void*)sa.sa_handler == runtime·sigtramp)
++		return runtime·sighandler;
++	return (void*)sa.sa_handler;
++}
++
++void
++runtime·signalstack(byte *p, int32 n)
++{
++	Sigaltstack st;
++
++	st.ss_sp = p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
++	runtime·sigaltstack(&st, nil);
++}
+diff --git a/src/pkg/runtime/os_linux.h b/src/pkg/runtime/os_linux.h
+index a23fe0f735..b2d3f6f2aa 100644
+--- a/src/pkg/runtime/os_linux.h
++++ b/src/pkg/runtime/os_linux.h
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_DFL ((void*)0)
+-#define SIG_IGN ((void*)1)
+-#define SIGHUP 1
+ #define SS_DISABLE 2
+ 
+ // Linux-specific system calls
+@@ -13,14 +10,11 @@ int32	runtime·clone(int32, void*, M*, G*, void(*)(void));
+ 
+ struct Sigaction;
+ int32	runtime·rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
+-void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+-void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+ 
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sigpanic(void);
+ void runtime·setitimer(int32, Itimerval*, Itimerval*);
+ 
+-void	runtime·raisesigpipe(void);
+ 
+ #define	NSIG	65
+ #define	SI_USER 0
+diff --git a/src/pkg/runtime/os_linux_386.c b/src/pkg/runtime/os_linux_386.c
+new file mode 100644
+index 0000000000..18becb6e65
+--- /dev/null
++++ b/src/pkg/runtime/os_linux_386.c
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++
++#define AT_NULL		0
++#define AT_RANDOM	25
++#define AT_SYSINFO	32
++extern uint32 runtime·_vdso;
++
++#pragma textflag 7
++void
++runtime·linux_setup_vdso(int32 argc, byte **argv)
++{
++	byte **envp;
++	uint32 *auxv;
++
++	// skip envp to get to ELF auxiliary vector.
++	for(envp = &argv[argc+1]; *envp != nil; envp++)
++		;
++	envp++;
++	
++	for(auxv=(uint32*)envp; auxv[0] != AT_NULL; auxv += 2) {
++		if(auxv[0] == AT_SYSINFO) {
++			runtime·_vdso = auxv[1];
++			continue;
++		}
++		if(auxv[0] == AT_RANDOM) {
++			runtime·startup_random_data = (byte*)auxv[1];
++			runtime·startup_random_data_len = 16;
++			continue;
++		}
++	}
++}
+diff --git a/src/pkg/runtime/os_linux_arm.c b/src/pkg/runtime/os_linux_arm.c
+new file mode 100644
+index 0000000000..dd0fa94154
+--- /dev/null
++++ b/src/pkg/runtime/os_linux_arm.c
+@@ -0,0 +1,82 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++
++#define AT_NULL		0
++#define AT_PLATFORM	15 // introduced in at least 2.6.11
++#define AT_HWCAP	16 // introduced in at least 2.6.11
++#define AT_RANDOM	25 // introduced in 2.6.29
++#define HWCAP_VFP	(1 << 6) // introduced in at least 2.6.11
++#define HWCAP_VFPv3	(1 << 13) // introduced in 2.6.30
++static uint32 runtime·randomNumber;
++uint8  runtime·armArch = 6;	// we default to ARMv6
++uint32 runtime·hwcap;	// set by setup_auxv
++uint8  runtime·goarm;	// set by 5l
++
++void
++runtime·checkgoarm(void)
++{
++	if(runtime·goarm > 5 && !(runtime·hwcap & HWCAP_VFP)) {
++		runtime·printf("runtime: this CPU has no floating point hardware, so it cannot run\n");
++		runtime·printf("this GOARM=%d binary. Recompile using GOARM=5.\n", runtime·goarm);
++		runtime·exit(1);
++	}
++	if(runtime·goarm > 6 && !(runtime·hwcap & HWCAP_VFPv3)) {
++		runtime·printf("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n");
++		runtime·printf("this GOARM=%d binary. Recompile using GOARM=6.\n", runtime·goarm);
++		runtime·exit(1);
++	}
++}
++
++#pragma textflag 7
++void
++runtime·setup_auxv(int32 argc, void *argv_list)
++{
++	byte **argv;
++	byte **envp;
++	byte *rnd;
++	uint32 *auxv;
++	uint32 t;
++
++	argv = &argv_list;
++
++	// skip envp to get to ELF auxiliary vector.
++	for(envp = &argv[argc+1]; *envp != nil; envp++)
++		;
++	envp++;
++	
++	for(auxv=(uint32*)envp; auxv[0] != AT_NULL; auxv += 2) {
++		switch(auxv[0]) {
++		case AT_RANDOM: // kernel provided 16-byte worth of random data
++			if(auxv[1]) {
++				rnd = (byte*)auxv[1];
++				runtime·randomNumber = rnd[4] | rnd[5]<<8 | rnd[6]<<16 | rnd[7]<<24;
++			}
++			break;
++		case AT_PLATFORM: // v5l, v6l, v7l
++			if(auxv[1]) {
++				t = *(uint8*)(auxv[1]+1);
++				if(t >= '5' && t <= '7')
++					runtime·armArch = t - '0';
++			}
++			break;
++		case AT_HWCAP: // CPU capability bit flags
++			runtime·hwcap = auxv[1];
++			break;
++		}
++	}
++}
++
++#pragma textflag 7
++int64
++runtime·cputicks(void)
++{
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
++	// runtime·randomNumber provides better seeding of fastrand1.
++	return runtime·nanotime() + runtime·randomNumber;
++}
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/os_netbsd.c
+similarity index 86%
+rename from src/pkg/runtime/thread_netbsd.c
+rename to src/pkg/runtime/os_netbsd.c
+index 58bc0a8a33..d4b874f4c2 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -4,6 +4,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
++#include "signal_unix.h"
+ #include "stack.h"
+ 
+ enum
+@@ -302,3 +303,58 @@ runtime·badsignal(int32 sig)
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);
+ }
++
++extern void runtime·sigtramp(void);
++
++typedef struct sigaction {
++	union {
++		void    (*_sa_handler)(int32);
++		void    (*_sa_sigaction)(int32, Siginfo*, void *);
++	} _sa_u;			/* signal handler */
++	uint32	sa_mask[4];		/* signal mask to apply */
++	int32	sa_flags;		/* see signal options below */
++} Sigaction;
++
++void
++runtime·setsig(int32 i, GoSighandler *fn, bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask[0] = ~0U;
++	sa.sa_mask[1] = ~0U;
++	sa.sa_mask[2] = ~0U;
++	sa.sa_mask[3] = ~0U;
++	if (fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
++	sa._sa_u._sa_sigaction = (void*)fn;
++	runtime·sigaction(i, &sa, nil);
++}
++
++GoSighandler*
++runtime·getsig(int32 i)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	runtime·sigaction(i, nil, &sa);
++	if((void*)sa._sa_u._sa_sigaction == runtime·sigtramp)
++		return runtime·sighandler;
++	return (void*)sa._sa_u._sa_sigaction;
++}
++
++void
++runtime·signalstack(byte *p, int32 n)
++{
++	StackT st;
++
++	st.ss_sp = (void*)p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
++	runtime·sigaltstack(&st, nil);
++}
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index 19d72fd254..84e0b241d1 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_DFL ((void*)0)
+-#define SIG_IGN ((void*)1)
+-#define SIGHUP 1
+ #define SS_DISABLE 4
+ 
+ #define SIG_BLOCK 1
+@@ -13,9 +10,6 @@
+ 
+ struct sigaction;
+ 
+-void	runtime·raisesigpipe(void);
+-void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+-void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+ void	runtime·sigpanic(void);
+ 
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+diff --git a/src/pkg/runtime/os_netbsd_386.c b/src/pkg/runtime/os_netbsd_386.c
+new file mode 100644
+index 0000000000..23e9db3c1c
+--- /dev/null
++++ b/src/pkg/runtime/os_netbsd_386.c
+@@ -0,0 +1,17 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++
++void
++runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
++{
++	mc->__gregs[REG_EIP] = (uint32)runtime·lwp_tramp;
++	mc->__gregs[REG_UESP] = (uint32)stack;
++	mc->__gregs[REG_EBX] = (uint32)mp;
++	mc->__gregs[REG_EDX] = (uint32)gp;
++	mc->__gregs[REG_ESI] = (uint32)fn;
++}
+diff --git a/src/pkg/runtime/os_netbsd_amd64.c b/src/pkg/runtime/os_netbsd_amd64.c
+new file mode 100644
+index 0000000000..226846cbb0
+--- /dev/null
++++ b/src/pkg/runtime/os_netbsd_amd64.c
+@@ -0,0 +1,18 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++
++void
++runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
++{
++	// Machine dependent mcontext initialisation for LWP.
++	mc->__gregs[REG_RIP] = (uint64)runtime·lwp_tramp;
++	mc->__gregs[REG_RSP] = (uint64)stack;
++	mc->__gregs[REG_R8] = (uint64)mp;
++	mc->__gregs[REG_R9] = (uint64)gp;
++	mc->__gregs[REG_R12] = (uint64)fn;
++}
+diff --git a/src/pkg/runtime/os_netbsd_arm.c b/src/pkg/runtime/os_netbsd_arm.c
+new file mode 100644
+index 0000000000..f188a30638
+--- /dev/null
++++ b/src/pkg/runtime/os_netbsd_arm.c
+@@ -0,0 +1,32 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++
++void
++runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
++{
++	mc->r15 = (uint32)runtime·lwp_tramp;
++	mc->r13 = (uint32)stack;
++	mc->r0 = (uint32)mp;
++	mc->r1 = (uint32)gp;
++	mc->r2 = (uint32)fn;
++}
++
++void
++runtime·checkgoarm(void)
++{
++	// TODO(minux)
++}
++
++#pragma textflag 7
++int64
++runtime·cputicks() {
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
++	// TODO: need more entropy to better seed fastrand1.
++	return runtime·nanotime();
++}
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/os_openbsd.c
+similarity index 84%
+rename from src/pkg/runtime/thread_openbsd.c
+rename to src/pkg/runtime/os_openbsd.c
+index f2d17404fd..01a2ef1195 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -4,6 +4,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
++#include "signal_unix.h"
+ #include "stack.h"
+ 
+ enum
+@@ -279,3 +280,55 @@ runtime·badsignal(int32 sig)
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);
+ }
++
++extern void runtime·sigtramp(void);
++
++typedef struct sigaction {
++	union {
++		void    (*__sa_handler)(int32);
++		void    (*__sa_sigaction)(int32, Siginfo*, void *);
++	} __sigaction_u;		/* signal handler */
++	uint32	sa_mask;		/* signal mask to apply */
++	int32	sa_flags;		/* see signal options below */
++} Sigaction;
++
++void
++runtime·setsig(int32 i, GoSighandler *fn, bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~0U;
++	if(fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
++	sa.__sigaction_u.__sa_sigaction = (void*)fn;
++	runtime·sigaction(i, &sa, nil);
++}
++
++GoSighandler*
++runtime·getsig(int32 i)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	runtime·sigaction(i, nil, &sa);
++	if((void*)sa.__sigaction_u.__sa_sigaction == runtime·sigtramp)
++		return runtime·sighandler;
++	return (void*)sa.__sigaction_u.__sa_sigaction;
++}
++
++void
++runtime·signalstack(byte *p, int32 n)
++{
++	StackT st;
++
++	st.ss_sp = (void*)p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
++	runtime·sigaltstack(&st, nil);
++}
+diff --git a/src/pkg/runtime/os_openbsd.h b/src/pkg/runtime/os_openbsd.h
+index a599aad053..dbfa4b69f5 100644
+--- a/src/pkg/runtime/os_openbsd.h
++++ b/src/pkg/runtime/os_openbsd.h
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_DFL ((void*)0)
+-#define SIG_IGN ((void*)1)
+-#define SIGHUP 1
+ #define SS_DISABLE 4
+ 
+ #define SIG_BLOCK 1
+@@ -13,14 +10,11 @@
+ 
+ struct sigaction;
+ 
+-void	runtime·raisesigpipe(void);
+-void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtime·sigpanic(void);
+ 
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+-void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+ Sigset	runtime·sigprocmask(int32, Sigset);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/os_plan9.c
+similarity index 100%
+rename from src/pkg/runtime/thread_plan9.c
+rename to src/pkg/runtime/os_plan9.c
+diff --git a/src/pkg/runtime/os_plan9.h b/src/pkg/runtime/os_plan9.h
+index f7cc597338..f0474cda54 100644
+--- a/src/pkg/runtime/os_plan9.h
++++ b/src/pkg/runtime/os_plan9.h
+@@ -16,7 +16,6 @@ int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
+ int32	runtime·notify(void (*fn)(void*, int8*));
+ int32	runtime·noted(int32);
+ void	runtime·sigtramp(void*, int8*);
+-int32	runtime·sighandler(void*, int8*, G*);
+ void	runtime·sigpanic(void);
+ void	runtime·goexitsall(int8*);
+ void	runtime·setfpmasks(void);
+diff --git a/src/pkg/runtime/signal_plan9_386.c b/src/pkg/runtime/os_plan9_386.c
+similarity index 100%
+rename from src/pkg/runtime/signal_plan9_386.c
+rename to src/pkg/runtime/os_plan9_386.c
+diff --git a/src/pkg/runtime/signal_plan9_amd64.c b/src/pkg/runtime/os_plan9_amd64.c
+similarity index 100%
+rename from src/pkg/runtime/signal_plan9_amd64.c
+rename to src/pkg/runtime/os_plan9_amd64.c
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/os_windows.c
+similarity index 100%
+rename from src/pkg/runtime/thread_windows.c
+rename to src/pkg/runtime/os_windows.c
+diff --git a/src/pkg/runtime/signal_windows_386.c b/src/pkg/runtime/os_windows_386.c
+similarity index 100%
+rename from src/pkg/runtime/signal_windows_386.c
+rename to src/pkg/runtime/os_windows_386.c
+diff --git a/src/pkg/runtime/signal_windows_amd64.c b/src/pkg/runtime/os_windows_amd64.c
+similarity index 100%
+rename from src/pkg/runtime/signal_windows_amd64.c
+rename to src/pkg/runtime/os_windows_amd64.c
+diff --git a/src/pkg/runtime/signal_386.c b/src/pkg/runtime/signal_386.c
+new file mode 100644
+index 0000000000..1377de1400
+--- /dev/null
++++ b/src/pkg/runtime/signal_386.c
+@@ -0,0 +1,119 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "signal_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++
++void
++runtime·dumpregs(Siginfo *info, void *ctxt)
++{
++	USED(info);
++	USED(ctxt);
++	
++	runtime·printf("eax     %x\n", SIG_EAX(info, ctxt));
++	runtime·printf("ebx     %x\n", SIG_EBX(info, ctxt));
++	runtime·printf("ecx     %x\n", SIG_ECX(info, ctxt));
++	runtime·printf("edx     %x\n", SIG_EDX(info, ctxt));
++	runtime·printf("edi     %x\n", SIG_EDI(info, ctxt));
++	runtime·printf("esi     %x\n", SIG_ESI(info, ctxt));
++	runtime·printf("ebp     %x\n", SIG_EBP(info, ctxt));
++	runtime·printf("esp     %x\n", SIG_ESP(info, ctxt));
++	runtime·printf("eip     %x\n", SIG_EIP(info, ctxt));
++	runtime·printf("eflags  %x\n", SIG_EFLAGS(info, ctxt));
++	runtime·printf("cs      %x\n", SIG_CS(info, ctxt));
++	runtime·printf("fs      %x\n", SIG_FS(info, ctxt));
++	runtime·printf("gs      %x\n", SIG_GS(info, ctxt));
++}
++
++void
++runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
++{
++	uintptr *sp;
++	SigTab *t;
++
++	if(sig == SIGPROF) {
++		if(gp != m->g0 && gp != m->gsignal)
++			runtime·sigprof((byte*)SIG_EIP(info, ctxt), (byte*)SIG_ESP(info, ctxt), nil, gp);
++		return;
++	}
++
++	t = &runtime·sigtab[sig];
++	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
++		if(gp == nil || gp == m->g0)
++			goto Throw;
++
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = SIG_CODE0(info, ctxt);
++		gp->sigcode1 = SIG_CODE1(info, ctxt);
++		gp->sigpc = SIG_EIP(info, ctxt);
++
++#ifdef GOOS_darwin
++		// Work around Leopard bug that doesn't set FPE_INTDIV.
++		// Look at instruction to see if it is a divide.
++		// Not necessary in Snow Leopard (si_code will be != 0).
++		if(sig == SIGFPE && gp->sigcode0 == 0) {
++			byte *pc;
++			pc = (byte*)gp->sigpc;
++			if(pc[0] == 0x66)	// 16-bit instruction prefix
++				pc++;
++			if(pc[0] == 0xF6 || pc[0] == 0xF7)
++				gp->sigcode0 = FPE_INTDIV;
++		}
++#endif
++
++		// Only push runtime·sigpanic if eip != 0.
++		// If eip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime·sigpanic instead.
++		// (Otherwise the trace will end at runtime·sigpanic and we
++		// won't get to see who faulted.)
++		if(SIG_EIP(info, ctxt) != 0) {
++			sp = (uintptr*)SIG_ESP(info, ctxt);
++			*--sp = SIG_EIP(info, ctxt);
++			SIG_ESP(info, ctxt) = (uintptr)sp;
++		}
++		SIG_EIP(info, ctxt) = (uintptr)runtime·sigpanic;
++		return;
++	}
++
++	if(info->si_code == SI_USER || (t->flags & SigNotify))
++		if(runtime·sigsend(sig))
++			return;
++	if(t->flags & SigKill)
++		runtime·exit(2);
++	if(!(t->flags & SigThrow))
++		return;
++
++Throw:
++	runtime·startpanic();
++
++	if(sig < 0 || sig >= NSIG)
++		runtime·printf("Signal %d\n", sig);
++	else
++		runtime·printf("%s\n", runtime·sigtab[sig].name);
++
++	runtime·printf("PC=%x\n", SIG_EIP(info, ctxt));
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}	
++	runtime·printf("\n");
++
++	if(runtime·gotraceback()){
++		runtime·traceback((void*)SIG_EIP(info, ctxt), (void*)SIG_ESP(info, ctxt), 0, gp);
++		runtime·tracebackothers(gp);
++		runtime·dumpregs(info, ctxt);
++	}
++
++	runtime·exit(2);
++}
+diff --git a/src/pkg/runtime/signal_amd64.c b/src/pkg/runtime/signal_amd64.c
+new file mode 100644
+index 0000000000..04ba038663
+--- /dev/null
++++ b/src/pkg/runtime/signal_amd64.c
+@@ -0,0 +1,129 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "signal_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++
++void
++runtime·dumpregs(Siginfo *info, void *ctxt)
++{
++	USED(info);
++	USED(ctxt);
++	
++	runtime·printf("rax     %X\n", SIG_RAX(info, ctxt));
++	runtime·printf("rbx     %X\n", SIG_RBX(info, ctxt));
++	runtime·printf("rcx     %X\n", SIG_RCX(info, ctxt));
++	runtime·printf("rdx     %X\n", SIG_RDX(info, ctxt));
++	runtime·printf("rdi     %X\n", SIG_RDI(info, ctxt));
++	runtime·printf("rsi     %X\n", SIG_RSI(info, ctxt));
++	runtime·printf("rbp     %X\n", SIG_RBP(info, ctxt));
++	runtime·printf("rsp     %X\n", SIG_RSP(info, ctxt));
++	runtime·printf("r8      %X\n", SIG_R8(info, ctxt) );
++	runtime·printf("r9      %X\n", SIG_R9(info, ctxt) );
++	runtime·printf("r10     %X\n", SIG_R10(info, ctxt));
++	runtime·printf("r11     %X\n", SIG_R11(info, ctxt));
++	runtime·printf("r12     %X\n", SIG_R12(info, ctxt));
++	runtime·printf("r13     %X\n", SIG_R13(info, ctxt));
++	runtime·printf("r14     %X\n", SIG_R14(info, ctxt));
++	runtime·printf("r15     %X\n", SIG_R15(info, ctxt));
++	runtime·printf("rip     %X\n", SIG_RIP(info, ctxt));
++	runtime·printf("rflags  %X\n", SIG_RFLAGS(info, ctxt));
++	runtime·printf("cs      %X\n", SIG_CS(info, ctxt));
++	runtime·printf("fs      %X\n", SIG_FS(info, ctxt));
++	runtime·printf("gs      %X\n", SIG_GS(info, ctxt));
++}
++
++void
++runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
++{
++	uintptr *sp;
++	SigTab *t;
++
++	if(sig == SIGPROF) {
++		if(gp != m->g0 && gp != m->gsignal)
++			runtime·sigprof((byte*)SIG_RIP(info, ctxt), (byte*)SIG_RSP(info, ctxt), nil, gp);
++		return;
++	}
++
++	t = &runtime·sigtab[sig];
++	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
++		if(gp == nil || gp == m->g0)
++			goto Throw;
++
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = SIG_CODE0(info, ctxt);
++		gp->sigcode1 = SIG_CODE1(info, ctxt);
++		gp->sigpc = SIG_RIP(info, ctxt);
++
++#ifdef GOOS_darwin
++		// Work around Leopard bug that doesn't set FPE_INTDIV.
++		// Look at instruction to see if it is a divide.
++		// Not necessary in Snow Leopard (si_code will be != 0).
++		if(sig == SIGFPE && gp->sigcode0 == 0) {
++			byte *pc;
++			pc = (byte*)gp->sigpc;
++			if((pc[0]&0xF0) == 0x40)	// 64-bit REX prefix
++				pc++;
++			else if(pc[0] == 0x66)	// 16-bit instruction prefix
++				pc++;
++			if(pc[0] == 0xF6 || pc[0] == 0xF7)
++				gp->sigcode0 = FPE_INTDIV;
++		}
++#endif
++
++		// Only push runtime·sigpanic if rip != 0.
++		// If rip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime·sigpanic instead.
++		// (Otherwise the trace will end at runtime·sigpanic and we
++		// won't get to see who faulted.)
++		if(SIG_RIP(info, ctxt) != 0) {
++			sp = (uintptr*)SIG_RSP(info, ctxt);
++			*--sp = SIG_RIP(info, ctxt);
++			SIG_RSP(info, ctxt) = (uintptr)sp;
++		}
++		SIG_RIP(info, ctxt) = (uintptr)runtime·sigpanic;
++		return;
++	}
++
++	if(info->si_code == SI_USER || (t->flags & SigNotify))
++		if(runtime·sigsend(sig))
++			return;
++	if(t->flags & SigKill)
++		runtime·exit(2);
++	if(!(t->flags & SigThrow))
++		return;
++
++Throw:
++	runtime·startpanic();
++
++	if(sig < 0 || sig >= NSIG)
++		runtime·printf("Signal %d\n", sig);
++	else
++		runtime·printf("%s\n", runtime·sigtab[sig].name);
++
++	runtime·printf("PC=%X\n", SIG_RIP(info, ctxt));
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
++	runtime·printf("\n");
++
++	if(runtime·gotraceback()){
++		runtime·traceback((void*)SIG_RIP(info, ctxt), (void*)SIG_RSP(info, ctxt), 0, gp);
++		runtime·tracebackothers(gp);
++		runtime·dumpregs(info, ctxt);
++	}
++
++	runtime·exit(2);
++}
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+new file mode 100644
+index 0000000000..d493984ddb
+--- /dev/null
++++ b/src/pkg/runtime/signal_arm.c
+@@ -0,0 +1,120 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "signal_GOOS_GOARCH.h"
++#include "signals_GOOS.h"
++
++void
++runtime·dumpregs(Siginfo *info, void *ctxt)
++{
++	USED(info);
++	USED(ctxt);
++
++	runtime·printf("trap    %x\n", SIG_TRAP(info, ctxt));
++	runtime·printf("error   %x\n", SIG_ERROR(info, ctxt));
++	runtime·printf("oldmask %x\n", SIG_OLDMASK(info, ctxt));
++	runtime·printf("r0      %x\n", SIG_R0(info, ctxt));
++	runtime·printf("r1      %x\n", SIG_R1(info, ctxt));
++	runtime·printf("r2      %x\n", SIG_R2(info, ctxt));
++	runtime·printf("r3      %x\n", SIG_R3(info, ctxt));
++	runtime·printf("r4      %x\n", SIG_R4(info, ctxt));
++	runtime·printf("r5      %x\n", SIG_R5(info, ctxt));
++	runtime·printf("r6      %x\n", SIG_R6(info, ctxt));
++	runtime·printf("r7      %x\n", SIG_R7(info, ctxt));
++	runtime·printf("r8      %x\n", SIG_R8(info, ctxt));
++	runtime·printf("r9      %x\n", SIG_R9(info, ctxt));
++	runtime·printf("r10     %x\n", SIG_R10(info, ctxt));
++	runtime·printf("fp      %x\n", SIG_FP(info, ctxt));
++	runtime·printf("ip      %x\n", SIG_IP(info, ctxt));
++	runtime·printf("sp      %x\n", SIG_SP(info, ctxt));
++	runtime·printf("lr      %x\n", SIG_LR(info, ctxt));
++	runtime·printf("pc      %x\n", SIG_PC(info, ctxt));
++	runtime·printf("cpsr    %x\n", SIG_CPSR(info, ctxt));
++	runtime·printf("fault   %x\n", SIG_FAULT(info, ctxt));
++}
++
++void
++runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
++{
++	SigTab *t;
++
++	if(sig == SIGPROF) {
++		if(gp != m->g0 && gp != m->gsignal)
++			runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp);
++		return;
++	}
++
++	t = &runtime·sigtab[sig];
++	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
++		if(gp == nil || gp == m->g0)
++			goto Throw;
++
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = sig;
++		gp->sigcode0 = SIG_CODE0(info, ctxt);
++		gp->sigcode1 = SIG_FAULT_ADDRESS(info, ctxt);
++		gp->sigpc = SIG_PC(info, ctxt);
++
++		// We arrange lr, and pc to pretend the panicking
++		// function calls sigpanic directly.
++		// Always save LR to stack so that panics in leaf
++		// functions are correctly handled. This smashes
++		// the stack frame but we're not going back there
++		// anyway.
++		SIG_SP(info, ctxt) -= 4;
++		*(uint32*)SIG_SP(info, ctxt) = SIG_LR(info, ctxt);
++		// Don't bother saving PC if it's zero, which is
++		// probably a call to a nil func: the old link register
++		// is more useful in the stack trace.
++		if(gp->sigpc != 0)
++			SIG_LR(info, ctxt) = gp->sigpc;
++		// In case we are panicking from external C code
++		SIG_R10(info, ctxt) = (uintptr)gp;
++		SIG_R9(info, ctxt) = (uintptr)m;
++		SIG_PC(info, ctxt) = (uintptr)runtime·sigpanic;
++		return;
++	}
++
++	if(info->si_code == SI_USER || (t->flags & SigNotify))
++		if(runtime·sigsend(sig))
++			return;
++	if(t->flags & SigKill)
++		runtime·exit(2);
++	if(!(t->flags & SigThrow))
++		return;
++
++Throw:
++	if(runtime·panicking)	// traceback already printed
++		runtime·exit(2);
++	runtime·panicking = 1;
++
++	if(sig < 0 || sig >= NSIG)
++		runtime·printf("Signal %d\n", sig);
++	else
++		runtime·printf("%s\n", runtime·sigtab[sig].name);
++
++	runtime·printf("PC=%x\n", SIG_PC(info, ctxt));
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
++	runtime·printf("\n");
++
++	if(runtime·gotraceback()){
++		runtime·traceback((void*)SIG_PC(info, ctxt), (void*)SIG_SP(info, ctxt), (void*)SIG_LR(info, ctxt), gp);
++		runtime·tracebackothers(gp);
++		runtime·printf("\n");
++		runtime·dumpregs(r);
++	}
++
++	runtime·exit(2);
++}
+diff --git a/src/pkg/runtime/signal_darwin_386.c b/src/pkg/runtime/signal_darwin_386.c
+deleted file mode 100644
+index 132ca931b6..0000000000
+--- a/src/pkg/runtime/signal_darwin_386.c
++++ /dev/null
+@@ -1,155 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signals_GOOS.h"
+-
+-void
+-runtime·dumpregs(Regs32 *r)
+-{
+-	runtime·printf("eax     %x\n", r->eax);
+-	runtime·printf("ebx     %x\n", r->ebx);
+-	runtime·printf("ecx     %x\n", r->ecx);
+-	runtime·printf("edx     %x\n", r->edx);
+-	runtime·printf("edi     %x\n", r->edi);
+-	runtime·printf("esi     %x\n", r->esi);
+-	runtime·printf("ebp     %x\n", r->ebp);
+-	runtime·printf("esp     %x\n", r->esp);
+-	runtime·printf("eip     %x\n", r->eip);
+-	runtime·printf("eflags  %x\n", r->eflags);
+-	runtime·printf("cs      %x\n", r->cs);
+-	runtime·printf("fs      %x\n", r->fs);
+-	runtime·printf("gs      %x\n", r->gs);
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Ucontext *uc;
+-	Mcontext32 *mc;
+-	Regs32 *r;
+-	uintptr *sp;
+-	byte *pc;
+-	SigTab *t;
+-
+-	uc = context;
+-	mc = uc->uc_mcontext;
+-	r = &mc->ss;
+-
+-	if(sig == SIGPROF) {
+-		if(gp != m->g0 && gp != m->gsignal)
+-			runtime·sigprof((uint8*)r->eip, (uint8*)r->esp, nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Work around Leopard bug that doesn't set FPE_INTDIV.
+-		// Look at instruction to see if it is a divide.
+-		// Not necessary in Snow Leopard (si_code will be != 0).
+-		if(sig == SIGFPE && info->si_code == 0) {
+-			pc = (byte*)r->eip;
+-			if(pc[0] == 0x66)	// 16-bit instruction prefix
+-				pc++;
+-			if(pc[0] == 0xF6 || pc[0] == 0xF7)
+-				info->si_code = FPE_INTDIV;
+-		}
+-
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = (uintptr)info->si_addr;
+-		gp->sigpc = r->eip;
+-
+-		// Only push runtime·sigpanic if r->eip != 0.
+-		// If r->eip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(r->eip != 0) {
+-			sp = (uintptr*)r->esp;
+-			*--sp = r->eip;
+-			r->esp = (uintptr)sp;
+-		}
+-		r->eip = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG){
+-		runtime·printf("Signal %d\n", sig);
+-	}else{
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-	}
+-
+-	runtime·printf("PC=%x\n", r->eip);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}	
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->eip, (void*)r->esp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(r);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	StackT st;
+-
+-	st.ss_sp = p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(*(void**)sa.__sigaction_u == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask = ~0U;
+-	sa.sa_tramp = (void*)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
+-	*(uintptr*)sa.__sigaction_u = (uintptr)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+diff --git a/src/pkg/runtime/signal_darwin_386.h b/src/pkg/runtime/signal_darwin_386.h
+new file mode 100644
+index 0000000000..5459e10a10
+--- /dev/null
++++ b/src/pkg/runtime/signal_darwin_386.h
+@@ -0,0 +1,23 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext->ss)
++
++#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).eax)
++#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).ebx)
++#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).ecx)
++#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).edx)
++#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).edi)
++#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).esi)
++#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).ebp)
++#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).esp)
++#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).eip)
++#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).eflags)
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).cs)
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).fs)
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).gs)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/pkg/runtime/signal_darwin_amd64.c b/src/pkg/runtime/signal_darwin_amd64.c
+deleted file mode 100644
+index 4b7256bf43..0000000000
+--- a/src/pkg/runtime/signal_darwin_amd64.c
++++ /dev/null
+@@ -1,165 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signals_GOOS.h"
+-
+-void
+-runtime·dumpregs(Regs64 *r)
+-{
+-	runtime·printf("rax     %X\n", r->rax);
+-	runtime·printf("rbx     %X\n", r->rbx);
+-	runtime·printf("rcx     %X\n", r->rcx);
+-	runtime·printf("rdx     %X\n", r->rdx);
+-	runtime·printf("rdi     %X\n", r->rdi);
+-	runtime·printf("rsi     %X\n", r->rsi);
+-	runtime·printf("rbp     %X\n", r->rbp);
+-	runtime·printf("rsp     %X\n", r->rsp);
+-	runtime·printf("r8      %X\n", r->r8 );
+-	runtime·printf("r9      %X\n", r->r9 );
+-	runtime·printf("r10     %X\n", r->r10);
+-	runtime·printf("r11     %X\n", r->r11);
+-	runtime·printf("r12     %X\n", r->r12);
+-	runtime·printf("r13     %X\n", r->r13);
+-	runtime·printf("r14     %X\n", r->r14);
+-	runtime·printf("r15     %X\n", r->r15);
+-	runtime·printf("rip     %X\n", r->rip);
+-	runtime·printf("rflags  %X\n", r->rflags);
+-	runtime·printf("cs      %X\n", r->cs);
+-	runtime·printf("fs      %X\n", r->fs);
+-	runtime·printf("gs      %X\n", r->gs);
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Ucontext *uc;
+-	Mcontext64 *mc;
+-	Regs64 *r;
+-	uintptr *sp;
+-	byte *pc;
+-	SigTab *t;
+-
+-	uc = context;
+-	mc = uc->uc_mcontext;
+-	r = &mc->ss;
+-
+-	if(sig == SIGPROF) {
+-		if(gp != m->g0 && gp != m->gsignal)
+-			runtime·sigprof((uint8*)r->rip, (uint8*)r->rsp, nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Work around Leopard bug that doesn't set FPE_INTDIV.
+-		// Look at instruction to see if it is a divide.
+-		// Not necessary in Snow Leopard (si_code will be != 0).
+-		if(sig == SIGFPE && info->si_code == 0) {
+-			pc = (byte*)r->rip;
+-			if((pc[0]&0xF0) == 0x40)	// 64-bit REX prefix
+-				pc++;
+-			else if(pc[0] == 0x66)	// 16-bit instruction prefix
+-				pc++;
+-			if(pc[0] == 0xF6 || pc[0] == 0xF7)
+-				info->si_code = FPE_INTDIV;
+-		}
+-
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = (uintptr)info->si_addr;
+-		gp->sigpc = r->rip;
+-
+-		// Only push runtime·sigpanic if r->rip != 0.
+-		// If r->rip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(r->rip != 0) {
+-			sp = (uintptr*)r->rsp;
+-			*--sp = r->rip;
+-			r->rsp = (uintptr)sp;
+-		}
+-		r->rip = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG){
+-		runtime·printf("Signal %d\n", sig);
+-	}else{
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-	}
+-
+-	runtime·printf("PC=%X\n", r->rip);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->rip, (void*)r->rsp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(r);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	StackT st;
+-
+-	st.ss_sp = p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(*(void**)sa.__sigaction_u == SIG_IGN)
+-			return;
+-	}
+-		
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask = ~0ULL;
+-	sa.sa_tramp = runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
+-	*(uintptr*)sa.__sigaction_u = (uintptr)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+diff --git a/src/pkg/runtime/signal_darwin_amd64.h b/src/pkg/runtime/signal_darwin_amd64.h
+new file mode 100644
+index 0000000000..e3da6de3a0
+--- /dev/null
++++ b/src/pkg/runtime/signal_darwin_amd64.h
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext->ss)
++
++#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).rax)
++#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).rbx)
++#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).rcx)
++#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).rdx)
++#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).rdi)
++#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).rsi)
++#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).rbp)
++#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).rsp)
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).r8)
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).r9)
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).r10)
++#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).r11)
++#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).r12)
++#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).r13)
++#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).r14)
++#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).r15)
++#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).rip)
++#define SIG_RFLAGS(info, ctxt) (SIG_REGS(ctxt).rflags)
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).cs)
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).fs)
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).gs)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/pkg/runtime/signal_freebsd_386.c b/src/pkg/runtime/signal_freebsd_386.c
+deleted file mode 100644
+index 254e5e2772..0000000000
+--- a/src/pkg/runtime/signal_freebsd_386.c
++++ /dev/null
+@@ -1,154 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*__sa_handler)(int32);
+-		void    (*__sa_sigaction)(int32, Siginfo*, void *);
+-	} __sigaction_u;		/* signal handler */
+-	int32	sa_flags;		/* see signal options below */
+-	Sigset	sa_mask;		/* signal mask to apply */
+-} Sigaction;
+-
+-void
+-runtime·dumpregs(Mcontext *r)
+-{
+-	runtime·printf("eax     %x\n", r->mc_eax);
+-	runtime·printf("ebx     %x\n", r->mc_ebx);
+-	runtime·printf("ecx     %x\n", r->mc_ecx);
+-	runtime·printf("edx     %x\n", r->mc_edx);
+-	runtime·printf("edi     %x\n", r->mc_edi);
+-	runtime·printf("esi     %x\n", r->mc_esi);
+-	runtime·printf("ebp     %x\n", r->mc_ebp);
+-	runtime·printf("esp     %x\n", r->mc_esp);
+-	runtime·printf("eip     %x\n", r->mc_eip);
+-	runtime·printf("eflags  %x\n", r->mc_eflags);
+-	runtime·printf("cs      %x\n", r->mc_cs);
+-	runtime·printf("fs      %x\n", r->mc_fs);
+-	runtime·printf("gs      %x\n", r->mc_gs);
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Ucontext *uc;
+-	Mcontext *r;
+-	uintptr *sp;
+-	SigTab *t;
+-
+-	uc = context;
+-	r = &uc->uc_mcontext;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->mc_eip, (uint8*)r->mc_esp, nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = (uintptr)info->si_addr;
+-		gp->sigpc = r->mc_eip;
+-
+-		// Only push runtime·sigpanic if r->mc_eip != 0.
+-		// If r->mc_eip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(r->mc_eip != 0) {
+-			sp = (uintptr*)r->mc_esp;
+-			*--sp = r->mc_eip;
+-			r->mc_esp = (uintptr)sp;
+-		}
+-		r->mc_eip = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%X\n", r->mc_eip);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->mc_eip, (void*)r->mc_esp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(r);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = (int8*)p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(sa.__sigaction_u.__sa_sigaction == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask.__bits[0] = ~(uint32)0;
+-	sa.sa_mask.__bits[1] = ~(uint32)0;
+-	sa.sa_mask.__bits[2] = ~(uint32)0;
+-	sa.sa_mask.__bits[3] = ~(uint32)0;
+-	if (fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+diff --git a/src/pkg/runtime/signal_freebsd_386.h b/src/pkg/runtime/signal_freebsd_386.h
+new file mode 100644
+index 0000000000..4f641fe760
+--- /dev/null
++++ b/src/pkg/runtime/signal_freebsd_386.h
+@@ -0,0 +1,23 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*((Ucontext*)(ctxt))->uc_mcontext)
++
++#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).mc_eax)
++#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).mc_ebx)
++#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).mc_ecx)
++#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).mc_edx)
++#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).mc_edi)
++#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).mc_esi)
++#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).mc_ebp)
++#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).mc_esp)
++#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).mc_eip)
++#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).mc_eflags)
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).mc_cs)
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).mc_fs)
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).mc_gs)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/pkg/runtime/signal_freebsd_amd64.c b/src/pkg/runtime/signal_freebsd_amd64.c
+deleted file mode 100644
+index 7dbf36075b..0000000000
+--- a/src/pkg/runtime/signal_freebsd_amd64.c
++++ /dev/null
+@@ -1,162 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*__sa_handler)(int32);
+-		void    (*__sa_sigaction)(int32, Siginfo*, void *);
+-	} __sigaction_u;		/* signal handler */
+-	int32	sa_flags;		/* see signal options below */
+-	Sigset	sa_mask;		/* signal mask to apply */
+-} Sigaction;
+-
+-void
+-runtime·dumpregs(Mcontext *r)
+-{
+-	runtime·printf("rax     %X\n", r->mc_rax);
+-	runtime·printf("rbx     %X\n", r->mc_rbx);
+-	runtime·printf("rcx     %X\n", r->mc_rcx);
+-	runtime·printf("rdx     %X\n", r->mc_rdx);
+-	runtime·printf("rdi     %X\n", r->mc_rdi);
+-	runtime·printf("rsi     %X\n", r->mc_rsi);
+-	runtime·printf("rbp     %X\n", r->mc_rbp);
+-	runtime·printf("rsp     %X\n", r->mc_rsp);
+-	runtime·printf("r8      %X\n", r->mc_r8 );
+-	runtime·printf("r9      %X\n", r->mc_r9 );
+-	runtime·printf("r10     %X\n", r->mc_r10);
+-	runtime·printf("r11     %X\n", r->mc_r11);
+-	runtime·printf("r12     %X\n", r->mc_r12);
+-	runtime·printf("r13     %X\n", r->mc_r13);
+-	runtime·printf("r14     %X\n", r->mc_r14);
+-	runtime·printf("r15     %X\n", r->mc_r15);
+-	runtime·printf("rip     %X\n", r->mc_rip);
+-	runtime·printf("rflags  %X\n", r->mc_flags);
+-	runtime·printf("cs      %X\n", r->mc_cs);
+-	runtime·printf("fs      %X\n", r->mc_fs);
+-	runtime·printf("gs      %X\n", r->mc_gs);
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Ucontext *uc;
+-	Mcontext *r;
+-	uintptr *sp;
+-	SigTab *t;
+-
+-	uc = context;
+-	r = &uc->uc_mcontext;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->mc_rip, (uint8*)r->mc_rsp, nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = (uintptr)info->si_addr;
+-		gp->sigpc = r->mc_rip;
+-
+-		// Only push runtime·sigpanic if r->mc_rip != 0.
+-		// If r->mc_rip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(r->mc_rip != 0) {
+-			sp = (uintptr*)r->mc_rsp;
+-			*--sp = r->mc_rip;
+-			r->mc_rsp = (uintptr)sp;
+-		}
+-		r->mc_rip = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%X\n", r->mc_rip);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->mc_rip, (void*)r->mc_rsp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(r);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = (int8*)p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(sa.__sigaction_u.__sa_sigaction == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask.__bits[0] = ~(uint32)0;
+-	sa.sa_mask.__bits[1] = ~(uint32)0;
+-	sa.sa_mask.__bits[2] = ~(uint32)0;
+-	sa.sa_mask.__bits[3] = ~(uint32)0;
+-	if (fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+diff --git a/src/pkg/runtime/signal_freebsd_amd64.h b/src/pkg/runtime/signal_freebsd_amd64.h
+new file mode 100644
+index 0000000000..bde629fadd
+--- /dev/null
++++ b/src/pkg/runtime/signal_freebsd_amd64.h
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*((Ucontext*)(ctxt))->uc_mcontext)
++
++#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).mc_rax)
++#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).mc_rbx)
++#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).mc_rcx)
++#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).mc_rdx)
++#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).mc_rdi)
++#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).mc_rsi)
++#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).mc_rbp)
++#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).mc_rsp)
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).mc_r8)
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).mc_r9)
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).mc_r10)
++#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).mc_r11)
++#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).mc_r12)
++#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).mc_r13)
++#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).mc_r14)
++#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).mc_r15)
++#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).mc_rip)
++#define SIG_RFLAGS(info, ctxt) (SIG_REGS(ctxt).mc_rflags)
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).mc_cs)
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).mc_fs)
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).mc_gs)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/pkg/runtime/signal_freebsd_arm.c b/src/pkg/runtime/signal_freebsd_arm.c
+deleted file mode 100644
+index 50c3221bb4..0000000000
+--- a/src/pkg/runtime/signal_freebsd_arm.c
++++ /dev/null
+@@ -1,193 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-#define r0	__gregs[0]
+-#define r1	__gregs[1]
+-#define r2	__gregs[2]
+-#define r3	__gregs[3]
+-#define r4	__gregs[4]
+-#define r5	__gregs[5]
+-#define r6	__gregs[6]
+-#define r7	__gregs[7]
+-#define r8	__gregs[8]
+-#define r9	__gregs[9]
+-#define r10	__gregs[10]
+-#define r11	__gregs[11]
+-#define r12	__gregs[12]
+-#define r13	__gregs[13]
+-#define r14	__gregs[14]
+-#define r15	__gregs[15]
+-#define cpsr	__gregs[16]
+-
+-void
+-runtime·dumpregs(Mcontext *r)
+-{
+-	runtime·printf("r0      %x\n", r->r0);
+-	runtime·printf("r1      %x\n", r->r1);
+-	runtime·printf("r2      %x\n", r->r2);
+-	runtime·printf("r3      %x\n", r->r3);
+-	runtime·printf("r4      %x\n", r->r4);
+-	runtime·printf("r5      %x\n", r->r5);
+-	runtime·printf("r6      %x\n", r->r6);
+-	runtime·printf("r7      %x\n", r->r7);
+-	runtime·printf("r8      %x\n", r->r8);
+-	runtime·printf("r9      %x\n", r->r9);
+-	runtime·printf("r10     %x\n", r->r10);
+-	runtime·printf("fp      %x\n", r->r11);
+-	runtime·printf("ip      %x\n", r->r12);
+-	runtime·printf("sp      %x\n", r->r13);
+-	runtime·printf("lr      %x\n", r->r14);
+-	runtime·printf("pc      %x\n", r->r15);
+-	runtime·printf("cpsr    %x\n", r->cpsr);
+-}
+-
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*__sa_handler)(int32);
+-		void    (*__sa_sigaction)(int32, Siginfo*, void *);
+-	} __sigaction_u;		/* signal handler */
+-	int32	sa_flags;		/* see signal options below */
+-	Sigset	sa_mask;		/* signal mask to apply */
+-} Sigaction;
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Ucontext *uc;
+-	Mcontext *r;
+-	SigTab *t;
+-
+-	uc = context;
+-	r = &uc->uc_mcontext;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->r15, (uint8*)r->r13, (uint8*)r->r14, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = (uintptr)info->si_addr;
+-		gp->sigpc = r->r15;
+-
+-		// Only push runtime·sigpanic if r->mc_rip != 0.
+-		// If r->mc_rip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(r->r15 != 0)
+-			r->r14 = r->r15;
+-		// In case we are panicking from external C code
+-		r->r10 = (uintptr)gp;
+-		r->r9 = (uintptr)m;
+-		r->r15 = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%x\n", r->r15);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->r15, (void*)r->r13, (void*)r->r14, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·printf("\n");
+-		runtime·dumpregs(r);
+-	}
+-
+-//	breakpoint();
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = (uint8*)p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(sa.__sigaction_u.__sa_sigaction == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask.__bits[0] = ~(uint32)0;
+-	sa.sa_mask.__bits[1] = ~(uint32)0;
+-	sa.sa_mask.__bits[2] = ~(uint32)0;
+-	sa.sa_mask.__bits[3] = ~(uint32)0;
+-	if (fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+-
+-void
+-runtime·checkgoarm(void)
+-{
+-	// TODO(minux)
+-}
+-
+-#pragma textflag 7
+-int64
+-runtime·cputicks(void)
+-{
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
+-	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand1.
+-	return runtime·nanotime();
+-}
+diff --git a/src/pkg/runtime/signal_freebsd_arm.h b/src/pkg/runtime/signal_freebsd_arm.h
+new file mode 100644
+index 0000000000..4f26da3611
+--- /dev/null
++++ b/src/pkg/runtime/signal_freebsd_arm.h
+@@ -0,0 +1,27 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++
++#define SIG_R0(info, ctxt) (SIG_REGS(ctxt).__gregs[0])
++#define SIG_R1(info, ctxt) (SIG_REGS(ctxt).__gregs[1])
++#define SIG_R2(info, ctxt) (SIG_REGS(ctxt).__gregs[2])
++#define SIG_R3(info, ctxt) (SIG_REGS(ctxt).__gregs[3])
++#define SIG_R4(info, ctxt) (SIG_REGS(ctxt).__gregs[4])
++#define SIG_R5(info, ctxt) (SIG_REGS(ctxt).__gregs[5])
++#define SIG_R6(info, ctxt) (SIG_REGS(ctxt).__gregs[6])
++#define SIG_R7(info, ctxt) (SIG_REGS(ctxt).__gregs[7])
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).__gregs[8])
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).__gregs[9])
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).__gregs[10])
++#define SIG_FP(info, ctxt) (SIG_REGS(ctxt).__gregs[11])
++#define SIG_IP(info, ctxt) (SIG_REGS(ctxt).__gregs[12])
++#define SIG_SP(info, ctxt) (SIG_REGS(ctxt).__gregs[13])
++#define SIG_LR(info, ctxt) (SIG_REGS(ctxt).__gregs[14])
++#define SIG_PC(info, ctxt) (SIG_REGS(ctxt).__gregs[15])
++#define SIG_CPSR(info, ctxt) (SIG_REGS(ctxt).__gregs[16])
++#define SIG_FAULT(info, ctxt) ((uintptr)(info)->si_addr)
++#define SIG_TRAP(info, ctxt) (0)
++#define SIG_ERROR(info, ctxt) (0)
++#define SIG_OLDMASK(info, ctxt) (0)
+diff --git a/src/pkg/runtime/signal_linux_386.c b/src/pkg/runtime/signal_linux_386.c
+deleted file mode 100644
+index 07aed332b9..0000000000
+--- a/src/pkg/runtime/signal_linux_386.c
++++ /dev/null
+@@ -1,180 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-void
+-runtime·dumpregs(Sigcontext *r)
+-{
+-	runtime·printf("eax     %x\n", r->eax);
+-	runtime·printf("ebx     %x\n", r->ebx);
+-	runtime·printf("ecx     %x\n", r->ecx);
+-	runtime·printf("edx     %x\n", r->edx);
+-	runtime·printf("edi     %x\n", r->edi);
+-	runtime·printf("esi     %x\n", r->esi);
+-	runtime·printf("ebp     %x\n", r->ebp);
+-	runtime·printf("esp     %x\n", r->esp);
+-	runtime·printf("eip     %x\n", r->eip);
+-	runtime·printf("eflags  %x\n", r->eflags);
+-	runtime·printf("cs      %x\n", r->cs);
+-	runtime·printf("fs      %x\n", r->fs);
+-	runtime·printf("gs      %x\n", r->gs);
+-}
+-
+-/*
+- * This assembler routine takes the args from registers, puts them on the stack,
+- * and calls sighandler().
+- */
+-extern void runtime·sigtramp(void);
+-extern void runtime·sigreturn(void);	// calls runtime·sigreturn
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Ucontext *uc;
+-	Sigcontext *r;
+-	uintptr *sp;
+-	SigTab *t;
+-
+-	uc = context;
+-	r = &uc->uc_mcontext;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->eip, (uint8*)r->esp, nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = ((uintptr*)info)[3];
+-		gp->sigpc = r->eip;
+-
+-		// Only push runtime·sigpanic if r->eip != 0.
+-		// If r->eip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(r->eip != 0) {
+-			sp = (uintptr*)r->esp;
+-			*--sp = r->eip;
+-			r->esp = (uintptr)sp;
+-		}
+-		r->eip = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%X\n", r->eip);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->eip, (void*)r->esp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(r);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
+-			runtime·throw("rt_sigaction read failure");
+-		if(sa.k_sa_handler == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask = ~0ULL;
+-	sa.sa_restorer = (void*)runtime·sigreturn;
+-	if(fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa.k_sa_handler = fn;
+-	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
+-		runtime·throw("rt_sigaction failure");
+-}
+-
+-#define AT_NULL		0
+-#define AT_RANDOM	25
+-#define AT_SYSINFO	32
+-extern uint32 runtime·_vdso;
+-
+-#pragma textflag 7
+-void
+-runtime·linux_setup_vdso(int32 argc, byte **argv)
+-{
+-	byte **envp;
+-	uint32 *auxv;
+-
+-	// skip envp to get to ELF auxiliary vector.
+-	for(envp = &argv[argc+1]; *envp != nil; envp++)
+-		;
+-	envp++;
+-	
+-	for(auxv=(uint32*)envp; auxv[0] != AT_NULL; auxv += 2) {
+-		if(auxv[0] == AT_SYSINFO) {
+-			runtime·_vdso = auxv[1];
+-			continue;
+-		}
+-		if(auxv[0] == AT_RANDOM) {
+-			runtime·startup_random_data = (byte*)auxv[1];
+-			runtime·startup_random_data_len = 16;
+-			continue;
+-		}
+-	}
+-}
+diff --git a/src/pkg/runtime/signal_linux_386.h b/src/pkg/runtime/signal_linux_386.h
+new file mode 100644
+index 0000000000..f77f1c9d51
+--- /dev/null
++++ b/src/pkg/runtime/signal_linux_386.h
+@@ -0,0 +1,24 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++
++#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).eax)
++#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).ebx)
++#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).ecx)
++#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).edx)
++#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).edi)
++#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).esi)
++#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).ebp)
++#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).esp)
++#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).eip)
++#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).eflags)
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).cs)
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).fs)
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).gs)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) (((uintptr*)(info))[2])
++
+diff --git a/src/pkg/runtime/signal_linux_amd64.c b/src/pkg/runtime/signal_linux_amd64.c
+deleted file mode 100644
+index c4e39a6ab0..0000000000
+--- a/src/pkg/runtime/signal_linux_amd64.c
++++ /dev/null
+@@ -1,162 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-void
+-runtime·dumpregs(Sigcontext *r)
+-{
+-	runtime·printf("rax     %X\n", r->rax);
+-	runtime·printf("rbx     %X\n", r->rbx);
+-	runtime·printf("rcx     %X\n", r->rcx);
+-	runtime·printf("rdx     %X\n", r->rdx);
+-	runtime·printf("rdi     %X\n", r->rdi);
+-	runtime·printf("rsi     %X\n", r->rsi);
+-	runtime·printf("rbp     %X\n", r->rbp);
+-	runtime·printf("rsp     %X\n", r->rsp);
+-	runtime·printf("r8      %X\n", r->r8 );
+-	runtime·printf("r9      %X\n", r->r9 );
+-	runtime·printf("r10     %X\n", r->r10);
+-	runtime·printf("r11     %X\n", r->r11);
+-	runtime·printf("r12     %X\n", r->r12);
+-	runtime·printf("r13     %X\n", r->r13);
+-	runtime·printf("r14     %X\n", r->r14);
+-	runtime·printf("r15     %X\n", r->r15);
+-	runtime·printf("rip     %X\n", r->rip);
+-	runtime·printf("rflags  %X\n", r->eflags);
+-	runtime·printf("cs      %X\n", (uint64)r->cs);
+-	runtime·printf("fs      %X\n", (uint64)r->fs);
+-	runtime·printf("gs      %X\n", (uint64)r->gs);
+-}
+-
+-/*
+- * This assembler routine takes the args from registers, puts them on the stack,
+- * and calls sighandler().
+- */
+-extern void runtime·sigtramp(void);
+-extern void runtime·sigreturn(void);	// calls runtime·sigreturn
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Ucontext *uc;
+-	Mcontext *mc;
+-	Sigcontext *r;
+-	uintptr *sp;
+-	SigTab *t;
+-
+-	uc = context;
+-	mc = &uc->uc_mcontext;
+-	r = (Sigcontext*)mc;	// same layout, more conveient names
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->rip, (uint8*)r->rsp, nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = ((uintptr*)info)[2];
+-		gp->sigpc = r->rip;
+-
+-		// Only push runtime·sigpanic if r->rip != 0.
+-		// If r->rip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(r->rip != 0) {
+-			sp = (uintptr*)r->rsp;
+-			*--sp = r->rip;
+-			r->rsp = (uintptr)sp;
+-		}
+-		r->rip = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%X\n", r->rip);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->rip, (void*)r->rsp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(r);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
+-			runtime·throw("rt_sigaction read failure");
+-		if(sa.sa_handler == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask = ~0ULL;
+-	// TODO(adonovan): Linux manpage says "sa_restorer element is
+-	// obsolete and should not be used".  Avoid it here, and test.
+-	sa.sa_restorer = (void*)runtime·sigreturn;
+-	if(fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa.sa_handler = fn;
+-	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
+-		runtime·throw("rt_sigaction failure");
+-}
+diff --git a/src/pkg/runtime/signal_linux_amd64.h b/src/pkg/runtime/signal_linux_amd64.h
+new file mode 100644
+index 0000000000..5a9a3e5da4
+--- /dev/null
++++ b/src/pkg/runtime/signal_linux_amd64.h
+@@ -0,0 +1,32 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++
++#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).rax)
++#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).rbx)
++#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).rcx)
++#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).rdx)
++#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).rdi)
++#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).rsi)
++#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).rbp)
++#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).rsp)
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).r8)
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).r9)
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).r10)
++#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).r11)
++#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).r12)
++#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).r13)
++#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).r14)
++#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).r15)
++#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).rip)
++#define SIG_RFLAGS(info, ctxt) ((uint64)SIG_REGS(ctxt).eflags)
++
++#define SIG_CS(info, ctxt) ((uint64)SIG_REGS(ctxt).cs)
++#define SIG_FS(info, ctxt) ((uint64)SIG_REGS(ctxt).fs)
++#define SIG_GS(info, ctxt) ((uint64)SIG_REGS(ctxt).gs)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) (((uintptr*)(info))[2])
++
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+deleted file mode 100644
+index c26caa7cdb..0000000000
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ /dev/null
+@@ -1,241 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-void
+-runtime·dumpregs(Sigcontext *r)
+-{
+-	runtime·printf("trap    %x\n", r->trap_no);
+-	runtime·printf("error   %x\n", r->error_code);
+-	runtime·printf("oldmask %x\n", r->oldmask);
+-	runtime·printf("r0      %x\n", r->arm_r0);
+-	runtime·printf("r1      %x\n", r->arm_r1);
+-	runtime·printf("r2      %x\n", r->arm_r2);
+-	runtime·printf("r3      %x\n", r->arm_r3);
+-	runtime·printf("r4      %x\n", r->arm_r4);
+-	runtime·printf("r5      %x\n", r->arm_r5);
+-	runtime·printf("r6      %x\n", r->arm_r6);
+-	runtime·printf("r7      %x\n", r->arm_r7);
+-	runtime·printf("r8      %x\n", r->arm_r8);
+-	runtime·printf("r9      %x\n", r->arm_r9);
+-	runtime·printf("r10     %x\n", r->arm_r10);
+-	runtime·printf("fp      %x\n", r->arm_fp);
+-	runtime·printf("ip      %x\n", r->arm_ip);
+-	runtime·printf("sp      %x\n", r->arm_sp);
+-	runtime·printf("lr      %x\n", r->arm_lr);
+-	runtime·printf("pc      %x\n", r->arm_pc);
+-	runtime·printf("cpsr    %x\n", r->arm_cpsr);
+-	runtime·printf("fault   %x\n", r->fault_address);
+-}
+-
+-/*
+- * This assembler routine takes the args from registers, puts them on the stack,
+- * and calls sighandler().
+- */
+-extern void runtime·sigtramp(void);
+-extern void runtime·sigreturn(void);	// calls runtime·sigreturn
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Ucontext *uc;
+-	Sigcontext *r;
+-	SigTab *t;
+-
+-	uc = context;
+-	r = &uc->uc_mcontext;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->arm_pc, (uint8*)r->arm_sp, (uint8*)r->arm_lr, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = r->fault_address;
+-		gp->sigpc = r->arm_pc;
+-
+-		// We arrange lr, and pc to pretend the panicking
+-		// function calls sigpanic directly.
+-		// Always save LR to stack so that panics in leaf
+-		// functions are correctly handled. This smashes
+-		// the stack frame but we're not going back there
+-		// anyway.
+-		r->arm_sp -= 4;
+-		*(uint32 *)r->arm_sp = r->arm_lr;
+-		// Don't bother saving PC if it's zero, which is
+-		// probably a call to a nil func: the old link register
+-		// is more useful in the stack trace.
+-		if(r->arm_pc != 0)
+-			r->arm_lr = r->arm_pc;
+-		// In case we are panicking from external C code
+-		r->arm_r10 = (uintptr)gp;
+-		r->arm_r9 = (uintptr)m;
+-		r->arm_pc = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%x\n", r->arm_pc);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->arm_pc, (void*)r->arm_sp, (void*)r->arm_lr, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·printf("\n");
+-		runtime·dumpregs(r);
+-	}
+-
+-//	breakpoint();
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		if(runtime·rt_sigaction(i, nil, &sa, sizeof(sa.sa_mask)) != 0)
+-			runtime·throw("rt_sigaction read failure");
+-		if(sa.sa_handler == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask = ~0ULL;
+-	sa.sa_restorer = (void*)runtime·sigreturn;
+-	if(fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa.sa_handler = fn;
+-	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
+-		runtime·throw("rt_sigaction failure");
+-}
+-
+-#define AT_NULL		0
+-#define AT_PLATFORM	15 // introduced in at least 2.6.11
+-#define AT_HWCAP	16 // introduced in at least 2.6.11
+-#define AT_RANDOM	25 // introduced in 2.6.29
+-#define HWCAP_VFP	(1 << 6) // introduced in at least 2.6.11
+-#define HWCAP_VFPv3	(1 << 13) // introduced in 2.6.30
+-static uint32 runtime·randomNumber;
+-uint8  runtime·armArch = 6;	// we default to ARMv6
+-uint32 runtime·hwcap;	// set by setup_auxv
+-uint8  runtime·goarm;	// set by 5l
+-
+-void
+-runtime·checkgoarm(void)
+-{
+-	if(runtime·goarm > 5 && !(runtime·hwcap & HWCAP_VFP)) {
+-		runtime·printf("runtime: this CPU has no floating point hardware, so it cannot run\n");
+-		runtime·printf("this GOARM=%d binary. Recompile using GOARM=5.\n", runtime·goarm);
+-		runtime·exit(1);
+-	}
+-	if(runtime·goarm > 6 && !(runtime·hwcap & HWCAP_VFPv3)) {
+-		runtime·printf("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n");
+-		runtime·printf("this GOARM=%d binary. Recompile using GOARM=6.\n", runtime·goarm);
+-		runtime·exit(1);
+-	}
+-}
+-
+-#pragma textflag 7
+-void
+-runtime·setup_auxv(int32 argc, void *argv_list)
+-{
+-	byte **argv;
+-	byte **envp;
+-	byte *rnd;
+-	uint32 *auxv;
+-	uint32 t;
+-
+-	argv = &argv_list;
+-
+-	// skip envp to get to ELF auxiliary vector.
+-	for(envp = &argv[argc+1]; *envp != nil; envp++)
+-		;
+-	envp++;
+-	
+-	for(auxv=(uint32*)envp; auxv[0] != AT_NULL; auxv += 2) {
+-		switch(auxv[0]) {
+-		case AT_RANDOM: // kernel provided 16-byte worth of random data
+-			if(auxv[1]) {
+-				rnd = (byte*)auxv[1];
+-				runtime·randomNumber = rnd[4] | rnd[5]<<8 | rnd[6]<<16 | rnd[7]<<24;
+-			}
+-			break;
+-		case AT_PLATFORM: // v5l, v6l, v7l
+-			if(auxv[1]) {
+-				t = *(uint8*)(auxv[1]+1);
+-				if(t >= '5' && t <= '7')
+-					runtime·armArch = t - '0';
+-			}
+-			break;
+-		case AT_HWCAP: // CPU capability bit flags
+-			runtime·hwcap = auxv[1];
+-			break;
+-		}
+-	}
+-}
+-
+-#pragma textflag 7
+-int64
+-runtime·cputicks(void)
+-{
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
+-	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// runtime·randomNumber provides better seeding of fastrand1.
+-	return runtime·nanotime() + runtime·randomNumber;
+-}
+diff --git a/src/pkg/runtime/signal_linux_arm.h b/src/pkg/runtime/signal_linux_arm.h
+new file mode 100644
+index 0000000000..cc16c079e8
+--- /dev/null
++++ b/src/pkg/runtime/signal_linux_arm.h
+@@ -0,0 +1,27 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++
++#define SIG_R0(info, ctxt) (SIG_REGS(ctxt).arm_r0)
++#define SIG_R1(info, ctxt) (SIG_REGS(ctxt).arm_r1)
++#define SIG_R2(info, ctxt) (SIG_REGS(ctxt).arm_r2)
++#define SIG_R3(info, ctxt) (SIG_REGS(ctxt).arm_r3)
++#define SIG_R4(info, ctxt) (SIG_REGS(ctxt).arm_r4)
++#define SIG_R5(info, ctxt) (SIG_REGS(ctxt).arm_r5)
++#define SIG_R6(info, ctxt) (SIG_REGS(ctxt).arm_r6)
++#define SIG_R7(info, ctxt) (SIG_REGS(ctxt).arm_r7)
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).arm_r8)
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).arm_r9)
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).arm_r10)
++#define SIG_FP(info, ctxt) (SIG_REGS(ctxt).arm_fp)
++#define SIG_IP(info, ctxt) (SIG_REGS(ctxt).arm_ip)
++#define SIG_SP(info, ctxt) (SIG_REGS(ctxt).arm_sp)
++#define SIG_LR(info, ctxt) (SIG_REGS(ctxt).arm_lr)
++#define SIG_PC(info, ctxt) (SIG_REGS(ctxt).arm_pc)
++#define SIG_CPSR(info, ctxt) (SIG_REGS(ctxt).arm_cpsr)
++#define SIG_FAULT(info, ctxt) (SIG_REGS(ctxt).fault_address)
++#define SIG_TRAP(info, ctxt) (SIG_REGS(ctxt).trap_no)
++#define SIG_ERROR(info, ctxt) (SIG_REGS(ctxt).error_code)
++#define SIG_OLDMASK(info, ctxt) (SIG_REGS(ctxt).oldmask)
+diff --git a/src/pkg/runtime/signal_netbsd_386.c b/src/pkg/runtime/signal_netbsd_386.c
+deleted file mode 100644
+index 08744c4251..0000000000
+--- a/src/pkg/runtime/signal_netbsd_386.c
++++ /dev/null
+@@ -1,164 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-extern void runtime·lwp_tramp(void);
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*_sa_handler)(int32);
+-		void    (*_sa_sigaction)(int32, Siginfo*, void *);
+-	} _sa_u;			/* signal handler */
+-	uint32	sa_mask[4];		/* signal mask to apply */
+-	int32	sa_flags;		/* see signal options below */
+-} Sigaction;
+-
+-void
+-runtime·dumpregs(McontextT *mc)
+-{
+-	runtime·printf("eax     %x\n", mc->__gregs[REG_EAX]);
+-	runtime·printf("ebx     %x\n", mc->__gregs[REG_EBX]);
+-	runtime·printf("ecx     %x\n", mc->__gregs[REG_ECX]);
+-	runtime·printf("edx     %x\n", mc->__gregs[REG_EDX]);
+-	runtime·printf("edi     %x\n", mc->__gregs[REG_EDI]);
+-	runtime·printf("esi     %x\n", mc->__gregs[REG_ESI]);
+-	runtime·printf("ebp     %x\n", mc->__gregs[REG_EBP]);
+-	runtime·printf("esp     %x\n", mc->__gregs[REG_UESP]);
+-	runtime·printf("eip     %x\n", mc->__gregs[REG_EIP]);
+-	runtime·printf("eflags  %x\n", mc->__gregs[REG_EFL]);
+-	runtime·printf("cs      %x\n", mc->__gregs[REG_CS]);
+-	runtime·printf("fs      %x\n", mc->__gregs[REG_FS]);
+-	runtime·printf("gs      %x\n", mc->__gregs[REG_GS]);
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	UcontextT *uc = context;
+-	McontextT *mc = &uc->uc_mcontext;
+-	uintptr *sp;
+-	SigTab *t;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)mc->__gregs[REG_EIP],
+-			(uint8*)mc->__gregs[REG_UESP], nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// We need to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->_code;
+-		gp->sigcode1 = *(uintptr*)&info->_reason[0]; /* _addr */
+-		gp->sigpc = mc->__gregs[REG_EIP];
+-
+-		// Only push runtime·sigpanic if __gregs[REG_EIP] != 0.
+-		// If __gregs[REG_EIP] == 0, probably panicked because of a
+-		// call to a nil func. Not pushing that onto sp will make the
+-		// trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic
+-		// and we won't get to see who faulted.)
+-		if(mc->__gregs[REG_EIP] != 0) {
+-			sp = (uintptr*)mc->__gregs[REG_UESP];
+-			*--sp = mc->__gregs[REG_EIP];
+-			mc->__gregs[REG_UESP] = (uintptr)sp;
+-		}
+-		mc->__gregs[REG_EIP] = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%X\n", mc->__gregs[REG_EIP]);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)mc->__gregs[REG_EIP],
+-			(void*)mc->__gregs[REG_UESP], 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(mc);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(sa._sa_u._sa_sigaction == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask[0] = ~0U;
+-	sa.sa_mask[1] = ~0U;
+-	sa.sa_mask[2] = ~0U;
+-	sa.sa_mask[3] = ~0U;
+-	if (fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa._sa_u._sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+-
+-void
+-runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
+-{
+-	mc->__gregs[REG_EIP] = (uint32)runtime·lwp_tramp;
+-	mc->__gregs[REG_UESP] = (uint32)stack;
+-	mc->__gregs[REG_EBX] = (uint32)mp;
+-	mc->__gregs[REG_EDX] = (uint32)gp;
+-	mc->__gregs[REG_ESI] = (uint32)fn;
+-}
+diff --git a/src/pkg/runtime/signal_netbsd_386.h b/src/pkg/runtime/signal_netbsd_386.h
+new file mode 100644
+index 0000000000..65df84da0d
+--- /dev/null
++++ b/src/pkg/runtime/signal_netbsd_386.h
+@@ -0,0 +1,23 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++
++#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EAX])
++#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EBX])
++#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_ECX])
++#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EDX])
++#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EDI])
++#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_ESI])
++#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EBP])
++#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_ESP])
++#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EIP])
++#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EFLAGS])
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_CS])
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_FS])
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_GS])
++
++#define SIG_CODE0(info, ctxt) ((info)->_code)
++#define SIG_CODE1(info, ctxt) (*(uintptr*)&(info)->_reason[0])
+diff --git a/src/pkg/runtime/signal_netbsd_amd64.c b/src/pkg/runtime/signal_netbsd_amd64.c
+deleted file mode 100644
+index 46afb682ba..0000000000
+--- a/src/pkg/runtime/signal_netbsd_amd64.c
++++ /dev/null
+@@ -1,172 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-extern void runtime·lwp_tramp(void);
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*_sa_handler)(int32);
+-		void    (*_sa_sigaction)(int32, Siginfo*, void *);
+-	} _sa_u;			/* signal handler */
+-	uint32	sa_mask[4];		/* signal mask to apply */
+-	int32	sa_flags;		/* see signal options below */
+-} Sigaction;
+-
+-void
+-runtime·dumpregs(McontextT *mc)
+-{
+-	runtime·printf("rax     %X\n", mc->__gregs[REG_RAX]);
+-	runtime·printf("rbx     %X\n", mc->__gregs[REG_RBX]);
+-	runtime·printf("rcx     %X\n", mc->__gregs[REG_RCX]);
+-	runtime·printf("rdx     %X\n", mc->__gregs[REG_RDX]);
+-	runtime·printf("rdi     %X\n", mc->__gregs[REG_RDI]);
+-	runtime·printf("rsi     %X\n", mc->__gregs[REG_RSI]);
+-	runtime·printf("rbp     %X\n", mc->__gregs[REG_RBP]);
+-	runtime·printf("rsp     %X\n", mc->__gregs[REG_RSP]);
+-	runtime·printf("r8      %X\n", mc->__gregs[REG_R8]);
+-	runtime·printf("r9      %X\n", mc->__gregs[REG_R9]);
+-	runtime·printf("r10     %X\n", mc->__gregs[REG_R10]);
+-	runtime·printf("r11     %X\n", mc->__gregs[REG_R11]);
+-	runtime·printf("r12     %X\n", mc->__gregs[REG_R12]);
+-	runtime·printf("r13     %X\n", mc->__gregs[REG_R13]);
+-	runtime·printf("r14     %X\n", mc->__gregs[REG_R14]);
+-	runtime·printf("r15     %X\n", mc->__gregs[REG_R15]);
+-	runtime·printf("rip     %X\n", mc->__gregs[REG_RIP]);
+-	runtime·printf("rflags  %X\n", mc->__gregs[REG_RFLAGS]);
+-	runtime·printf("cs      %X\n", mc->__gregs[REG_CS]);
+-	runtime·printf("fs      %X\n", mc->__gregs[REG_FS]);
+-	runtime·printf("gs      %X\n", mc->__gregs[REG_GS]);
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	UcontextT *uc = context;
+-	McontextT *mc = &uc->uc_mcontext;
+-	uintptr *sp;
+-	SigTab *t;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)mc->__gregs[REG_RIP],
+-			(uint8*)mc->__gregs[REG_RSP], nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// We need to pass arguments out of band since augmenting the
+-		// stack frame would break the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->_code;
+-		gp->sigcode1 = *(uintptr*)&info->_reason[0]; /* _addr */
+-		gp->sigpc = mc->__gregs[REG_RIP];
+-
+-		// Only push runtime·sigpanic if __gregs[REG_RIP] != 0.
+-		// If __gregs[REG_RIP] == 0, probably panicked because of a
+-		// call to a nil func. Not pushing that onto sp will make the
+-		// trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic
+-		// and we won't get to see who faulted.)
+-		if(mc->__gregs[REG_RIP] != 0) {
+-			sp = (uintptr*)mc->__gregs[REG_RSP];
+-			*--sp = mc->__gregs[REG_RIP];
+-			mc->__gregs[REG_RSP] = (uintptr)sp;
+-		}
+-		mc->__gregs[REG_RIP] = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%X\n", mc->__gregs[REG_RIP]);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)mc->__gregs[REG_RIP],
+-			(void*)mc->__gregs[REG_RSP], 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(mc);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(sa._sa_u._sa_sigaction == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask[0] = ~0U;
+-	sa.sa_mask[1] = ~0U;
+-	sa.sa_mask[2] = ~0U;
+-	sa.sa_mask[3] = ~0U;
+-	if (fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa._sa_u._sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+-
+-void
+-runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
+-{
+-	// Machine dependent mcontext initialisation for LWP.
+-	mc->__gregs[REG_RIP] = (uint64)runtime·lwp_tramp;
+-	mc->__gregs[REG_RSP] = (uint64)stack;
+-	mc->__gregs[REG_R8] = (uint64)mp;
+-	mc->__gregs[REG_R9] = (uint64)gp;
+-	mc->__gregs[REG_R12] = (uint64)fn;
+-}
+diff --git a/src/pkg/runtime/signal_netbsd_amd64.h b/src/pkg/runtime/signal_netbsd_amd64.h
+new file mode 100644
+index 0000000000..a374039aab
+--- /dev/null
++++ b/src/pkg/runtime/signal_netbsd_amd64.h
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++
++#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RAX])
++#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RBX])
++#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RCX])
++#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RDX])
++#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RDI])
++#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RSI])
++#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RBP])
++#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RSP])
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R8])
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R9])
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R10])
++#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R11])
++#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R12])
++#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R13])
++#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R14])
++#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_R15])
++#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RIP])
++#define SIG_RFLAGS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_RFLAGS])
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_CS])
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_FS])
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_GS])
++
++#define SIG_CODE0(info, ctxt) ((info)->_code)
++#define SIG_CODE1(info, ctxt) (*(uintptr*)&(info)->_reason[0])
+diff --git a/src/pkg/runtime/signal_netbsd_arm.c b/src/pkg/runtime/signal_netbsd_arm.c
+deleted file mode 100644
+index 97f62687bd..0000000000
+--- a/src/pkg/runtime/signal_netbsd_arm.c
++++ /dev/null
+@@ -1,208 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-#define r0	__gregs[0]
+-#define r1	__gregs[1]
+-#define r2	__gregs[2]
+-#define r3	__gregs[3]
+-#define r4	__gregs[4]
+-#define r5	__gregs[5]
+-#define r6	__gregs[6]
+-#define r7	__gregs[7]
+-#define r8	__gregs[8]
+-#define r9	__gregs[9]
+-#define r10	__gregs[10]
+-#define r11	__gregs[11]
+-#define r12	__gregs[12]
+-#define r13	__gregs[13]
+-#define r14	__gregs[14]
+-#define r15	__gregs[15]
+-#define cpsr	__gregs[16]
+-
+-void
+-runtime·dumpregs(McontextT *r)
+-{
+-	runtime·printf("r0      %x\n", r->r0);
+-	runtime·printf("r1      %x\n", r->r1);
+-	runtime·printf("r2      %x\n", r->r2);
+-	runtime·printf("r3      %x\n", r->r3);
+-	runtime·printf("r4      %x\n", r->r4);
+-	runtime·printf("r5      %x\n", r->r5);
+-	runtime·printf("r6      %x\n", r->r6);
+-	runtime·printf("r7      %x\n", r->r7);
+-	runtime·printf("r8      %x\n", r->r8);
+-	runtime·printf("r9      %x\n", r->r9);
+-	runtime·printf("r10     %x\n", r->r10);
+-	runtime·printf("fp      %x\n", r->r11);
+-	runtime·printf("ip      %x\n", r->r12);
+-	runtime·printf("sp      %x\n", r->r13);
+-	runtime·printf("lr      %x\n", r->r14);
+-	runtime·printf("pc      %x\n", r->r15);
+-	runtime·printf("cpsr    %x\n", r->cpsr);
+-}
+-
+-extern void runtime·lwp_tramp(void);
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*_sa_handler)(int32);
+-		void    (*_sa_sigaction)(int32, Siginfo*, void *);
+-	} _sa_u;			/* signal handler */
+-	uint32	sa_mask[4];		/* signal mask to apply */
+-	int32	sa_flags;		/* see signal options below */
+-} Sigaction;
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	UcontextT *uc;
+-	McontextT *r;
+-	SigTab *t;
+-
+-	uc = context;
+-	r = &uc->uc_mcontext;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->r15, (uint8*)r->r13, (uint8*)r->r14, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// We have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->_code;
+-		gp->sigcode1 = *(uintptr*)&info->_reason[0]; /* _addr */
+-		gp->sigpc = r->r15;
+-
+-		// We arrange lr, and pc to pretend the panicking
+-		// function calls sigpanic directly.
+-		// Always save LR to stack so that panics in leaf
+-		// functions are correctly handled. This smashes
+-		// the stack frame but we're not going back there
+-		// anyway.
+-		r->r13 -= 4;
+-		*(uint32 *)r->r13 = r->r14;
+-		// Don't bother saving PC if it's zero, which is
+-		// probably a call to a nil func: the old link register
+-		// is more useful in the stack trace.
+-		if(r->r15 != 0)
+-			r->r14 = r->r15;
+-		// In case we are panicking from external C code
+-		r->r10 = (uintptr)gp;
+-		r->r9 = (uintptr)m;
+-		r->r15 = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%x\n", r->r15);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->r15, (void*)r->r13, (void*)r->r14, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·printf("\n");
+-		runtime·dumpregs(r);
+-	}
+-
+-//	breakpoint();
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = (uint8*)p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(sa._sa_u._sa_sigaction == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask[0] = ~0U;
+-	sa.sa_mask[1] = ~0U;
+-	sa.sa_mask[2] = ~0U;
+-	sa.sa_mask[3] = ~0U;
+-	if (fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa._sa_u._sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+-
+-void
+-runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
+-{
+-	mc->r15 = (uint32)runtime·lwp_tramp;
+-	mc->r13 = (uint32)stack;
+-	mc->r0 = (uint32)mp;
+-	mc->r1 = (uint32)gp;
+-	mc->r2 = (uint32)fn;
+-}
+-
+-void
+-runtime·checkgoarm(void)
+-{
+-	// TODO(minux)
+-}
+-
+-#pragma textflag 7
+-int64
+-runtime·cputicks() {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
+-	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand1.
+-	return runtime·nanotime();
+-}
+diff --git a/src/pkg/runtime/signal_netbsd_arm.h b/src/pkg/runtime/signal_netbsd_arm.h
+new file mode 100644
+index 0000000000..ffdca0e32f
+--- /dev/null
++++ b/src/pkg/runtime/signal_netbsd_arm.h
+@@ -0,0 +1,27 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
++
++#define SIG_R0(info, ctxt) (SIG_REGS(ctxt).__gregs[0])
++#define SIG_R1(info, ctxt) (SIG_REGS(ctxt).__gregs[1])
++#define SIG_R2(info, ctxt) (SIG_REGS(ctxt).__gregs[2])
++#define SIG_R3(info, ctxt) (SIG_REGS(ctxt).__gregs[3])
++#define SIG_R4(info, ctxt) (SIG_REGS(ctxt).__gregs[4])
++#define SIG_R5(info, ctxt) (SIG_REGS(ctxt).__gregs[5])
++#define SIG_R6(info, ctxt) (SIG_REGS(ctxt).__gregs[6])
++#define SIG_R7(info, ctxt) (SIG_REGS(ctxt).__gregs[7])
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).__gregs[8])
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).__gregs[9])
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).__gregs[10])
++#define SIG_FP(info, ctxt) (SIG_REGS(ctxt).__gregs[11])
++#define SIG_IP(info, ctxt) (SIG_REGS(ctxt).__gregs[12])
++#define SIG_SP(info, ctxt) (SIG_REGS(ctxt).__gregs[13])
++#define SIG_LR(info, ctxt) (SIG_REGS(ctxt).__gregs[14])
++#define SIG_PC(info, ctxt) (SIG_REGS(ctxt).__gregs[15])
++#define SIG_CPSR(info, ctxt) (SIG_REGS(ctxt).__gregs[16])
++#define SIG_FAULT(info, ctxt) (*(uintptr*)&(info)->_reason[0])
++#define SIG_TRAP(info, ctxt) (0)
++#define SIG_ERROR(info, ctxt) (0)
++#define SIG_OLDMASK(info, ctxt) (0)
+diff --git a/src/pkg/runtime/signal_openbsd_386.c b/src/pkg/runtime/signal_openbsd_386.c
+deleted file mode 100644
+index 516797c8d2..0000000000
+--- a/src/pkg/runtime/signal_openbsd_386.c
++++ /dev/null
+@@ -1,147 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*__sa_handler)(int32);
+-		void    (*__sa_sigaction)(int32, Siginfo*, void *);
+-	} __sigaction_u;		/* signal handler */
+-	uint32	sa_mask;		/* signal mask to apply */
+-	int32	sa_flags;		/* see signal options below */
+-} Sigaction;
+-
+-void
+-runtime·dumpregs(Sigcontext *r)
+-{
+-	runtime·printf("eax     %x\n", r->sc_eax);
+-	runtime·printf("ebx     %x\n", r->sc_ebx);
+-	runtime·printf("ecx     %x\n", r->sc_ecx);
+-	runtime·printf("edx     %x\n", r->sc_edx);
+-	runtime·printf("edi     %x\n", r->sc_edi);
+-	runtime·printf("esi     %x\n", r->sc_esi);
+-	runtime·printf("ebp     %x\n", r->sc_ebp);
+-	runtime·printf("esp     %x\n", r->sc_esp);
+-	runtime·printf("eip     %x\n", r->sc_eip);
+-	runtime·printf("eflags  %x\n", r->sc_eflags);
+-	runtime·printf("cs      %x\n", r->sc_cs);
+-	runtime·printf("fs      %x\n", r->sc_fs);
+-	runtime·printf("gs      %x\n", r->sc_gs);
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Sigcontext *r = context;
+-	uintptr *sp;
+-	SigTab *t;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->sc_eip, (uint8*)r->sc_esp, nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = *(uintptr*)((byte*)info + 12); /* si_addr */
+-		gp->sigpc = r->sc_eip;
+-
+-		// Only push runtime·sigpanic if r->sc_eip != 0.
+-		// If r->sc_eip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(r->sc_eip != 0) {
+-			sp = (uintptr*)r->sc_esp;
+-			*--sp = r->sc_eip;
+-			r->sc_esp = (uintptr)sp;
+-		}
+-		r->sc_eip = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%X\n", r->sc_eip);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->sc_eip, (void*)r->sc_esp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(r);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(sa.__sigaction_u.__sa_sigaction == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask = ~0ULL;
+-	if (fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+diff --git a/src/pkg/runtime/signal_openbsd_386.h b/src/pkg/runtime/signal_openbsd_386.h
+new file mode 100644
+index 0000000000..0ba66ab9f1
+--- /dev/null
++++ b/src/pkg/runtime/signal_openbsd_386.h
+@@ -0,0 +1,23 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*(Sigcontext*)(ctxt))
++
++#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).sc_eax)
++#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).sc_ebx)
++#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).sc_ecx)
++#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).sc_edx)
++#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).sc_edi)
++#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).sc_esi)
++#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).sc_ebp)
++#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).sc_esp)
++#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).sc_eip)
++#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).sc_eflags)
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).sc_cs)
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).sc_fs)
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).sc_gs)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/pkg/runtime/signal_openbsd_amd64.c b/src/pkg/runtime/signal_openbsd_amd64.c
+deleted file mode 100644
+index 0d0db770b5..0000000000
+--- a/src/pkg/runtime/signal_openbsd_amd64.c
++++ /dev/null
+@@ -1,156 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-#include "os_GOOS.h"
+-
+-extern void runtime·sigtramp(void);
+-
+-typedef struct sigaction {
+-	union {
+-		void    (*__sa_handler)(int32);
+-		void    (*__sa_sigaction)(int32, Siginfo*, void *);
+-	} __sigaction_u;		/* signal handler */
+-	uint32	sa_mask;		/* signal mask to apply */
+-	int32	sa_flags;		/* see signal options below */
+-} Sigaction;
+-
+-void
+-runtime·dumpregs(Sigcontext *r)
+-{
+-	runtime·printf("rax     %X\n", r->sc_rax);
+-	runtime·printf("rbx     %X\n", r->sc_rbx);
+-	runtime·printf("rcx     %X\n", r->sc_rcx);
+-	runtime·printf("rdx     %X\n", r->sc_rdx);
+-	runtime·printf("rdi     %X\n", r->sc_rdi);
+-	runtime·printf("rsi     %X\n", r->sc_rsi);
+-	runtime·printf("rbp     %X\n", r->sc_rbp);
+-	runtime·printf("rsp     %X\n", r->sc_rsp);
+-	runtime·printf("r8      %X\n", r->sc_r8);
+-	runtime·printf("r9      %X\n", r->sc_r9);
+-	runtime·printf("r10     %X\n", r->sc_r10);
+-	runtime·printf("r11     %X\n", r->sc_r11);
+-	runtime·printf("r12     %X\n", r->sc_r12);
+-	runtime·printf("r13     %X\n", r->sc_r13);
+-	runtime·printf("r14     %X\n", r->sc_r14);
+-	runtime·printf("r15     %X\n", r->sc_r15);
+-	runtime·printf("rip     %X\n", r->sc_rip);
+-	runtime·printf("rflags  %X\n", r->sc_rflags);
+-	runtime·printf("cs      %X\n", r->sc_cs);
+-	runtime·printf("fs      %X\n", r->sc_fs);
+-	runtime·printf("gs      %X\n", r->sc_gs);
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+-{
+-	Sigcontext *r = context;
+-	uintptr *sp;
+-	SigTab *t;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->sc_rip,
+-			(uint8*)r->sc_rsp, nil, gp);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
+-			goto Throw;
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = info->si_code;
+-		gp->sigcode1 = *(uintptr*)((byte*)info + 16); /* si_addr */
+-		gp->sigpc = r->sc_rip;
+-
+-		// Only push runtime·sigpanic if r->sc_rip != 0.
+-		// If r->sc_rip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(r->sc_rip != 0) {
+-			sp = (uintptr*)r->sc_rsp;
+-			*--sp = r->sc_rip;
+-			r->sc_rsp = (uintptr)sp;
+-		}
+-		r->sc_rip = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(info->si_code == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-Throw:
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%X\n", r->sc_rip);
+-	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->sc_rip, (void*)r->sc_rsp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·dumpregs(r);
+-	}
+-
+-	runtime·exit(2);
+-}
+-
+-void
+-runtime·signalstack(byte *p, int32 n)
+-{
+-	Sigaltstack st;
+-
+-	st.ss_sp = p;
+-	st.ss_size = n;
+-	st.ss_flags = 0;
+-	if(p == nil)
+-		st.ss_flags = SS_DISABLE;
+-	runtime·sigaltstack(&st, nil);
+-}
+-
+-void
+-runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+-{
+-	Sigaction sa;
+-
+-	// If SIGHUP handler is SIG_IGN, assume running
+-	// under nohup and do not set explicit handler.
+-	if(i == SIGHUP) {
+-		runtime·memclr((byte*)&sa, sizeof sa);
+-		runtime·sigaction(i, nil, &sa);
+-		if(sa.__sigaction_u.__sa_sigaction == SIG_IGN)
+-			return;
+-	}
+-
+-	runtime·memclr((byte*)&sa, sizeof sa);
+-	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
+-	if(restart)
+-		sa.sa_flags |= SA_RESTART;
+-	sa.sa_mask = ~0U;
+-	if(fn == runtime·sighandler)
+-		fn = (void*)runtime·sigtramp;
+-	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+-	runtime·sigaction(i, &sa, nil);
+-}
+diff --git a/src/pkg/runtime/signal_openbsd_amd64.h b/src/pkg/runtime/signal_openbsd_amd64.h
+new file mode 100644
+index 0000000000..b46a5dfa66
+--- /dev/null
++++ b/src/pkg/runtime/signal_openbsd_amd64.h
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (*(Sigcontext*)(ctxt))
++
++#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).sc_rax)
++#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).sc_rbx)
++#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).sc_rcx)
++#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).sc_rdx)
++#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).sc_rdi)
++#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).sc_rsi)
++#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).sc_rbp)
++#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).sc_rsp)
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).sc_r8)
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).sc_r9)
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).sc_r10)
++#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).sc_r11)
++#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).sc_r12)
++#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).sc_r13)
++#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).sc_r14)
++#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).sc_r15)
++#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).sc_rip)
++#define SIG_RFLAGS(info, ctxt) (SIG_REGS(ctxt).sc_rflags)
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).sc_cs)
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).sc_fs)
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).sc_gs)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) (*(uintptr*)((byte*)(info) + 16))
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index 9b7e8b03a8..f3542acbae 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -7,6 +7,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
++#include "signal_unix.h"
+ 
+ extern SigTab runtime·sigtab[];
+ 
+diff --git a/src/pkg/runtime/signal_unix.h b/src/pkg/runtime/signal_unix.h
+new file mode 100644
+index 0000000000..a4acff4b20
+--- /dev/null
++++ b/src/pkg/runtime/signal_unix.h
+@@ -0,0 +1,13 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_DFL ((void*)0)
++#define SIG_IGN ((void*)1)
++
++typedef void GoSighandler(int32, Siginfo*, void*, G*);
++void	runtime·setsig(int32, GoSighandler*, bool);
++GoSighandler* runtime·getsig(int32);
++
++void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
++void	runtime·raisesigpipe(void);

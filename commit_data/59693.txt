@@ -20,7 +20,7 @@ Date:   Mon Apr 1 13:13:50 2024 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.17_spec.html       | 12 ++++++------
  doc/go_spec.html           | 12 ++++++------
  src/builtin/builtin.go     |  4 ++--
@@ -28,3 +28,175 @@ Date:   Mon Apr 1 13:13:50 2024 -0700
  src/math/big/float.go      |  6 +++---
  src/math/big/float_test.go |  2 +-
  6 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/doc/go1.17_spec.html b/doc/go1.17_spec.html
+index c87d9aff3c..9f408bcc25 100644
+--- a/doc/go1.17_spec.html
++++ b/doc/go1.17_spec.html
+@@ -656,7 +656,7 @@ and are discussed in that section.
+ 
+ <p>
+ Numeric constants represent exact values of arbitrary precision and do not overflow.
+-Consequently, there are no constants denoting the IEEE-754 negative zero, infinity,
++Consequently, there are no constants denoting the IEEE 754 negative zero, infinity,
+ and not-a-number values.
+ </p>
+ 
+@@ -882,8 +882,8 @@ int16       the set of all signed 16-bit integers (-32768 to 32767)
+ int32       the set of all signed 32-bit integers (-2147483648 to 2147483647)
+ int64       the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
+ 
+-float32     the set of all IEEE-754 32-bit floating-point numbers
+-float64     the set of all IEEE-754 64-bit floating-point numbers
++float32     the set of all IEEE 754 32-bit floating-point numbers
++float64     the set of all IEEE 754 64-bit floating-point numbers
+ 
+ complex64   the set of all complex numbers with float32 real and imaginary parts
+ complex128  the set of all complex numbers with float64 real and imaginary parts
+@@ -3814,7 +3814,7 @@ For floating-point and complex numbers,
+ <code>+x</code> is the same as <code>x</code>,
+ while <code>-x</code> is the negation of <code>x</code>.
+ The result of a floating-point or complex division by zero is not specified beyond the
+-IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
++IEEE 754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
+ occurs is implementation-specific.
+ </p>
+ 
+@@ -3904,7 +3904,7 @@ These terms and the result of the comparisons are defined as follows:
+ 
+ 	<li>
+ 	Floating-point values are comparable and ordered,
+-	as defined by the IEEE-754 standard.
++	as defined by the IEEE 754 standard.
+ 	</li>
+ 
+ 	<li>
+@@ -4252,7 +4252,7 @@ When converting an integer or floating-point number to a floating-point type,
+ or a complex number to another complex type, the result value is rounded
+ to the precision specified by the destination type.
+ For instance, the value of a variable <code>x</code> of type <code>float32</code>
+-may be stored using additional precision beyond that of an IEEE-754 32-bit number,
++may be stored using additional precision beyond that of an IEEE 754 32-bit number,
+ but float32(x) represents the result of rounding <code>x</code>'s value to
+ 32-bit precision. Similarly, <code>x + 0.1</code> may use more than 32 bits
+ of precision, but <code>float32(x + 0.1)</code> does not.
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 8f48f7444b..0fd12bf4b5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -674,7 +674,7 @@ and are discussed in that section.
+ 
+ <p>
+ Numeric constants represent exact values of arbitrary precision and do not overflow.
+-Consequently, there are no constants denoting the IEEE-754 negative zero, infinity,
++Consequently, there are no constants denoting the IEEE 754 negative zero, infinity,
+ and not-a-number values.
+ </p>
+ 
+@@ -861,8 +861,8 @@ int16       the set of all signed 16-bit integers (-32768 to 32767)
+ int32       the set of all signed 32-bit integers (-2147483648 to 2147483647)
+ int64       the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
+ 
+-float32     the set of all IEEE-754 32-bit floating-point numbers
+-float64     the set of all IEEE-754 64-bit floating-point numbers
++float32     the set of all IEEE 754 32-bit floating-point numbers
++float64     the set of all IEEE 754 64-bit floating-point numbers
+ 
+ complex64   the set of all complex numbers with float32 real and imaginary parts
+ complex128  the set of all complex numbers with float64 real and imaginary parts
+@@ -5022,7 +5022,7 @@ For floating-point and complex numbers,
+ <code>+x</code> is the same as <code>x</code>,
+ while <code>-x</code> is the negation of <code>x</code>.
+ The result of a floating-point or complex division by zero is not specified beyond the
+-IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
++IEEE 754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
+ occurs is implementation-specific.
+ </p>
+ 
+@@ -5112,7 +5112,7 @@ These terms and the result of the comparisons are defined as follows:
+ 
+ 	<li>
+ 	Floating-point types are comparable and ordered.
+-	Two floating-point values are compared as defined by the IEEE-754 standard.
++	Two floating-point values are compared as defined by the IEEE 754 standard.
+ 	</li>
+ 
+ 	<li>
+@@ -5542,7 +5542,7 @@ When converting an integer or floating-point number to a floating-point type,
+ or a <a href="#Numeric_types">complex number</a> to another complex type, the result value is rounded
+ to the precision specified by the destination type.
+ For instance, the value of a variable <code>x</code> of type <code>float32</code>
+-may be stored using additional precision beyond that of an IEEE-754 32-bit number,
++may be stored using additional precision beyond that of an IEEE 754 32-bit number,
+ but float32(x) represents the result of rounding <code>x</code>'s value to
+ 32-bit precision. Similarly, <code>x + 0.1</code> may use more than 32 bits
+ of precision, but <code>float32(x + 0.1)</code> does not.
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index 668c799ca7..215c59c4ae 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -53,10 +53,10 @@ type int32 int32
+ // Range: -9223372036854775808 through 9223372036854775807.
+ type int64 int64
+ 
+-// float32 is the set of all IEEE-754 32-bit floating-point numbers.
++// float32 is the set of all IEEE 754 32-bit floating-point numbers.
+ type float32 float32
+ 
+-// float64 is the set of all IEEE-754 64-bit floating-point numbers.
++// float64 is the set of all IEEE 754 64-bit floating-point numbers.
+ type float64 float64
+ 
+ // complex64 is the set of all complex numbers with float32 real and
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index 3f26ed8591..30e7978b7c 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -67,7 +67,7 @@ arbitrary precision unsigned integers. There is no int8, int16 etc.
+ discrimination in the gob format; there are only signed and unsigned integers. As
+ described below, the transmitter sends the value in a variable-length encoding;
+ the receiver accepts the value and stores it in the destination variable.
+-Floating-point numbers are always sent using IEEE-754 64-bit precision (see
++Floating-point numbers are always sent using IEEE 754 64-bit precision (see
+ below).
+ 
+ Signed integers may be received into any signed integer variable: int, int16, etc.;
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 1c97ec98c0..0a2887cb5f 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -48,10 +48,10 @@ const debugFloat = false // enable for debugging
+ //
+ // By setting the desired precision to 24 or 53 and using matching rounding
+ // mode (typically [ToNearestEven]), Float operations produce the same results
+-// as the corresponding float32 or float64 IEEE-754 arithmetic for operands
++// as the corresponding float32 or float64 IEEE 754 arithmetic for operands
+ // that correspond to normal (i.e., not denormal) float32 or float64 numbers.
+ // Exponent underflow and overflow lead to a 0 or an Infinity for different
+-// values than IEEE-754 because Float exponents have a much larger range.
++// values than IEEE 754 because Float exponents have a much larger range.
+ //
+ // The zero (uninitialized) value for a Float is ready to use and represents
+ // the number +0.0 exactly, with precision 0 and rounding mode [ToNearestEven].
+@@ -73,7 +73,7 @@ type Float struct {
+ }
+ 
+ // An ErrNaN panic is raised by a [Float] operation that would lead to
+-// a NaN under IEEE-754 rules. An ErrNaN implements the error interface.
++// a NaN under IEEE 754 rules. An ErrNaN implements the error interface.
+ type ErrNaN struct {
+ 	msg string
+ }
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index bb045a0b48..cc842754b5 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -519,7 +519,7 @@ func TestFloatRound(t *testing.T) {
+ }
+ 
+ // TestFloatRound24 tests that rounding a float64 to 24 bits
+-// matches IEEE-754 rounding to nearest when converting a
++// matches IEEE 754 rounding to nearest when converting a
+ // float64 to a float32 (excluding denormal numbers).
+ func TestFloatRound24(t *testing.T) {
+ 	const x0 = 1<<26 - 0x10 // 11...110000 (26 bits)

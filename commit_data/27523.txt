@@ -10,8 +10,49 @@ Date:   Thu Mar 31 10:57:48 2016 -0700
     Change-Id: Ia8d61c5c0bde907369366ea9ea98711823342803
     Reviewed-on: https://go-review.googlesource.com/21349
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/go/types/stdlib_test.go  | 1 +
  test/fixedbugs/issue15002.go | 2 +-
  test/run.go                  | 4 ++--
  3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 97e6a69521..bd5afafe39 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -155,6 +155,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue6889.go",  // gc-specific test
+ 		"issue7746.go",  // large constants - consumes too much memory
+ 		"issue11362.go", // canonical import path check
++		"issue15002.go", // uses Mmap; testTestDir should consult build tags
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue15002.go b/test/fixedbugs/issue15002.go
+index 526846ae2c..2cda42e08a 100644
+--- a/test/fixedbugs/issue15002.go
++++ b/test/fixedbugs/issue15002.go
+@@ -1,6 +1,6 @@
++// run
+ // +build amd64
+ // +build linux darwin
+-// run
+ 
+ // Copyright 2016 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index ffaf4d992a..706eaa51f1 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -122,9 +122,9 @@ func main() {
+ 		<-test.donec
+ 		status := "ok  "
+ 		errStr := ""
+-		if _, isSkip := test.err.(skipError); isSkip {
++		if e, isSkip := test.err.(skipError); isSkip {
+ 			test.err = nil
+-			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
++			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + string(e)
+ 			status = "FAIL"
+ 		}
+ 		if test.err != nil {

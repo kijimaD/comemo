@@ -8,6 +8,42 @@ Date:   Thu Apr 2 22:39:52 2009 -0700
     R=rsc
     OCL=27056
     CL=27056
-
+---
  usr/gri/pretty/docprinter.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/usr/gri/pretty/docprinter.go b/usr/gri/pretty/docprinter.go
+index a901bdee08..94fe501193 100644
+--- a/usr/gri/pretty/docprinter.go
++++ b/usr/gri/pretty/docprinter.go
+@@ -129,11 +129,14 @@ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
+ 	var typ *typeDoc;
+ 	if fun.Recv != nil {
+ 		// method
++		// (all receiver types must be declared before they are used)
+ 		typ = doc.lookupTypeDoc(fun.Recv.Type);
+ 		if typ != nil {
++			// type found (i.e., exported)
+ 			typ.methods[name] = fdoc;
+-			return;
+ 		}
++		// if the type wasn't found, it wasn't exported
++
+ 	} else {
+ 		// perhaps a factory function
+ 		// determine result type, if any
+@@ -148,11 +151,10 @@ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
+ 				}
+ 			}
+ 		}
++
++		// ordinary function
++		doc.funcs[name] = fdoc;
+ 	}
+-	// TODO other heuristics (e.g. name is "NewTypename"?)
+-	
+-	// ordinary function
+-	doc.funcs[name] = fdoc;
+ }
+ 
+ 

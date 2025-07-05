@@ -16,6 +16,19 @@ Date:   Thu Mar 23 11:20:17 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/stack.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 92b8a2b921..830316b69a 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1188,6 +1188,6 @@ func freeStackSpans() {
+ //go:nosplit
+ func morestackc() {
+ 	systemstack(func() {
+-		throw("attempt to execute C code on Go stack")
++		throw("attempt to execute system stack code on user stack")
+ 	})
+ }

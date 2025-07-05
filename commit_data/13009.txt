@@ -7,9 +7,374 @@ Date:   Tue May 1 22:44:38 2012 -0700
     R=golang-dev, r, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/6117062
-
+---
  src/pkg/os/dir_plan9.go  | 34 +++++++++++++++---------------
  src/pkg/os/file_plan9.go | 54 +++++++++++++++++++++++++++++-------------------
  src/pkg/os/path_plan9.go |  4 ++--
  src/pkg/os/stat_plan9.go | 24 ++++++++++-----------
  4 files changed, 64 insertions(+), 52 deletions(-)
+
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+index 7fa4c7f444..ebce6d83d8 100644
+--- a/src/pkg/os/dir_plan9.go
++++ b/src/pkg/os/dir_plan9.go
+@@ -48,7 +48,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 		if m < syscall.STATFIXLEN {
+ 			return result, &PathError{"readdir", file.name, errShortStat}
+ 		}
+-		dir, e := UnmarshalDir(d.buf[d.bufp : d.bufp+int(m)])
++		dir, e := unmarshalDir(d.buf[d.bufp : d.bufp+int(m)])
+ 		if e != nil {
+ 			return result, &PathError{"readdir", file.name, e}
+ 		}
+@@ -73,12 +73,12 @@ func (file *File) readdirnames(n int) (names []string, err error) {
+ 	return
+ }
+ 
+-type Dir struct {
++type dir struct {
+ 	// system-modified data
+ 	Type uint16 // server type
+ 	Dev  uint32 // server subtype
+ 	// file data
+-	Qid    Qid    // unique id from server
++	Qid    qid    // unique id from server
+ 	Mode   uint32 // permissions
+ 	Atime  uint32 // last read time
+ 	Mtime  uint32 // last write time
+@@ -89,16 +89,16 @@ type Dir struct {
+ 	Muid   string // last modifier name
+ }
+ 
+-type Qid struct {
++type qid struct {
+ 	Path uint64 // the file server's unique identification for the file
+ 	Vers uint32 // version number for given Path
+ 	Type uint8  // the type of the file (syscall.QTDIR for example)
+ }
+ 
+-var nullDir = Dir{
++var nullDir = dir{
+ 	^uint16(0),
+ 	^uint32(0),
+-	Qid{^uint64(0), ^uint32(0), ^uint8(0)},
++	qid{^uint64(0), ^uint32(0), ^uint8(0)},
+ 	^uint32(0),
+ 	^uint32(0),
+ 	^uint32(0),
+@@ -111,12 +111,12 @@ var nullDir = Dir{
+ 
+ // Null assigns members of d with special "don't care" values indicating
+ // they should not be written by syscall.Wstat. 
+-func (d *Dir) Null() {
++func (d *dir) Null() {
+ 	*d = nullDir
+ }
+ 
+ // pdir appends a 9P Stat message based on the contents of Dir d to a byte slice b.
+-func pdir(b []byte, d *Dir) []byte {
++func pdir(b []byte, d *dir) []byte {
+ 	n := len(b)
+ 	b = pbit16(b, 0) // length, filled in later	
+ 	b = pbit16(b, d.Type)
+@@ -134,9 +134,9 @@ func pdir(b []byte, d *Dir) []byte {
+ 	return b
+ }
+ 
+-// UnmarshalDir reads a 9P Stat message from a 9P protocol message stored in b,
+-// returning the corresponding Dir struct.
+-func UnmarshalDir(b []byte) (d *Dir, err error) {
++// unmarshalDir reads a 9P Stat message from a 9P protocol message stored in b,
++// returning the corresponding dir struct.
++func unmarshalDir(b []byte) (d *dir, err error) {
+ 	n := uint16(0)
+ 	n, b = gbit16(b)
+ 
+@@ -144,7 +144,7 @@ func UnmarshalDir(b []byte) (d *Dir, err error) {
+ 		return nil, errBadStat
+ 	}
+ 
+-	d = new(Dir)
++	d = new(dir)
+ 	d.Type, b = gbit16(b)
+ 	d.Dev, b = gbit32(b)
+ 	d.Qid, b = gqid(b)
+@@ -165,17 +165,17 @@ func UnmarshalDir(b []byte) (d *Dir, err error) {
+ }
+ 
+ // gqid reads the qid part of a 9P Stat message from a 9P protocol message stored in b,
+-// returning the corresponding Qid struct and the remaining slice of b.
+-func gqid(b []byte) (Qid, []byte) {
+-	var q Qid
++// returning the corresponding qid struct and the remaining slice of b.
++func gqid(b []byte) (qid, []byte) {
++	var q qid
+ 	q.Path, b = gbit64(b)
+ 	q.Vers, b = gbit32(b)
+ 	q.Type, b = gbit8(b)
+ 	return q, b
+ }
+ 
+-// pqid appends a Qid struct q to a 9P message b.
+-func pqid(b []byte, q Qid) []byte {
++// pqid appends a qid struct q to a 9P message b.
++func pqid(b []byte, q qid) []byte {
+ 	b = pbit64(b, q.Path)
+ 	b = pbit32(b, q.Vers)
+ 	b = pbit8(b, q.Type)
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index cb0e9ef928..db366a07cc 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -5,14 +5,11 @@
+ package os
+ 
+ import (
+-	"errors"
+ 	"runtime"
+ 	"syscall"
+ 	"time"
+ )
+ 
+-var ErrPlan9 = errors.New("unimplemented on Plan 9")
+-
+ // File represents an open file descriptor.
+ type File struct {
+ 	*file
+@@ -137,8 +134,8 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 
+ // Close closes the File, rendering it unusable for I/O.
+ // It returns an error, if any.
+-func (file *File) Close() error {
+-	return file.file.close()
++func (f *File) Close() error {
++	return f.file.close()
+ }
+ 
+ func (file *file) close() error {
+@@ -159,8 +156,8 @@ func (file *file) close() error {
+ }
+ 
+ // Stat returns the FileInfo structure describing file.
+-// It returns the FileInfo and an error, if any.
+-func (f *File) Stat() (FileInfo, error) {
++// If there is an error, it will be of type *PathError.
++func (f *File) Stat() (fi FileInfo, err error) {
+ 	d, err := dirstat(f)
+ 	if err != nil {
+ 		return nil, err
+@@ -170,8 +167,9 @@ func (f *File) Stat() (FileInfo, error) {
+ 
+ // Truncate changes the size of the file.
+ // It does not change the I/O offset.
++// If there is an error, it will be of type *PathError.
+ func (f *File) Truncate(size int64) error {
+-	var d Dir
++	var d dir
+ 	d.Null()
+ 
+ 	d.Length = uint64(size)
+@@ -187,7 +185,7 @@ const chmodMask = uint32(syscall.DMAPPEND | syscall.DMEXCL | syscall.DMTMP | Mod
+ // Chmod changes the mode of the file to mode.
+ // If there is an error, it will be of type *PathError.
+ func (f *File) Chmod(mode FileMode) error {
+-	var d Dir
++	var d dir
+ 
+ 	odir, e := dirstat(f)
+ 	if e != nil {
+@@ -209,7 +207,7 @@ func (f *File) Sync() (err error) {
+ 		return ErrInvalid
+ 	}
+ 
+-	var d Dir
++	var d dir
+ 	d.Null()
+ 
+ 	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); e != nil {
+@@ -255,7 +253,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+ // If the file is a symbolic link, it changes the size of the link's target.
+ // If there is an error, it will be of type *PathError.
+ func Truncate(name string, size int64) error {
+-	var d Dir
++	var d dir
+ 	d.Null()
+ 
+ 	d.Length = uint64(size)
+@@ -277,7 +275,7 @@ func Remove(name string) error {
+ 
+ // Rename renames a file.
+ func Rename(oldname, newname string) error {
+-	var d Dir
++	var d dir
+ 	d.Null()
+ 
+ 	d.Name = newname
+@@ -289,9 +287,10 @@ func Rename(oldname, newname string) error {
+ }
+ 
+ // Chmod changes the mode of the named file to mode.
++// If the file is a symbolic link, it changes the mode of the link's target.
+ // If there is an error, it will be of type *PathError.
+ func Chmod(name string, mode FileMode) error {
+-	var d Dir
++	var d dir
+ 
+ 	odir, e := dirstat(name)
+ 	if e != nil {
+@@ -310,8 +309,9 @@ func Chmod(name string, mode FileMode) error {
+ //
+ // The underlying filesystem may truncate or round the values to a
+ // less precise time unit.
++// If there is an error, it will be of type *PathError.
+ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+-	var d Dir
++	var d dir
+ 	d.Null()
+ 
+ 	d.Atime = uint32(atime.Unix())
+@@ -323,6 +323,8 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+ 	return nil
+ }
+ 
++// Pipe returns a connected pair of Files; reads from r return bytes
++// written to w. It returns the files and an error, if any.
+ func Pipe() (r *File, w *File, err error) {
+ 	var p [2]int
+ 
+@@ -338,32 +340,42 @@ func Pipe() (r *File, w *File, err error) {
+ 
+ // not supported on Plan 9
+ 
+-// Link creates a hard link.
++// Link creates newname as a hard link to the oldname file.
+ // If there is an error, it will be of type *LinkError.
+ func Link(oldname, newname string) error {
+-	return &LinkError{"link", oldname, newname, ErrPlan9}
++	return &LinkError{"link", oldname, newname, syscall.EPLAN9}
+ }
+ 
+ // Symlink creates newname as a symbolic link to oldname.
+ // If there is an error, it will be of type *LinkError.
+ func Symlink(oldname, newname string) error {
+-	return &LinkError{"symlink", oldname, newname, ErrPlan9}
++	return &LinkError{"symlink", oldname, newname, syscall.EPLAN9}
+ }
+ 
++// Readlink returns the destination of the named symbolic link.
++// If there is an error, it will be of type *PathError.
+ func Readlink(name string) (string, error) {
+-	return "", ErrPlan9
++	return "", &PathError{"readlink", name, syscall.EPLAN9}
+ }
+ 
++// Chown changes the numeric uid and gid of the named file.
++// If the file is a symbolic link, it changes the uid and gid of the link's target.
++// If there is an error, it will be of type *PathError.
+ func Chown(name string, uid, gid int) error {
+-	return ErrPlan9
++	return &PathError{"chown", name, syscall.EPLAN9}
+ }
+ 
++// Lchown changes the numeric uid and gid of the named file.
++// If the file is a symbolic link, it changes the uid and gid of the link itself.
++// If there is an error, it will be of type *PathError.
+ func Lchown(name string, uid, gid int) error {
+-	return ErrPlan9
++	return &PathError{"lchown", name, syscall.EPLAN9}
+ }
+ 
++// Chown changes the numeric uid and gid of the named file.
++// If there is an error, it will be of type *PathError.
+ func (f *File) Chown(uid, gid int) error {
+-	return ErrPlan9
++	return &PathError{"chown", f.name, syscall.EPLAN9}
+ }
+ 
+ // TempDir returns the default directory to use for temporary files.
+diff --git a/src/pkg/os/path_plan9.go b/src/pkg/os/path_plan9.go
+index 3121b7bc71..64bad500a6 100644
+--- a/src/pkg/os/path_plan9.go
++++ b/src/pkg/os/path_plan9.go
+@@ -5,8 +5,8 @@
+ package os
+ 
+ const (
+-	PathSeparator     = '/' // OS-specific path separator
+-	PathListSeparator = 0   // OS-specific path list separator
++	PathSeparator     = '/'    // OS-specific path separator
++	PathListSeparator = '\000' // OS-specific path list separator
+ )
+ 
+ // IsPathSeparator returns true if c is a directory separator character.
+diff --git a/src/pkg/os/stat_plan9.go b/src/pkg/os/stat_plan9.go
+index a7990a359e..1bc9dd0524 100644
+--- a/src/pkg/os/stat_plan9.go
++++ b/src/pkg/os/stat_plan9.go
+@@ -10,12 +10,12 @@ import (
+ )
+ 
+ func sameFile(sys1, sys2 interface{}) bool {
+-	a := sys1.(*Dir)
+-	b := sys2.(*Dir)
++	a := sys1.(*dir)
++	b := sys2.(*dir)
+ 	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
+ }
+ 
+-func fileInfoFromStat(d *Dir) FileInfo {
++func fileInfoFromStat(d *dir) FileInfo {
+ 	fs := &fileStat{
+ 		name:    d.Name,
+ 		size:    int64(d.Length),
+@@ -39,7 +39,7 @@ func fileInfoFromStat(d *Dir) FileInfo {
+ }
+ 
+ // arg is an open *File or a path string. 
+-func dirstat(arg interface{}) (d *Dir, err error) {
++func dirstat(arg interface{}) (d *dir, err error) {
+ 	var name string
+ 
+ 	// This is big enough for most stat messages
+@@ -72,7 +72,7 @@ func dirstat(arg interface{}) (d *Dir, err error) {
+ 		// If the stat message is larger than our buffer we will
+ 		// go around the loop and allocate one that is big enough.
+ 		if size <= n {
+-			d, err = UnmarshalDir(buf[:n])
++			d, err = unmarshalDir(buf[:n])
+ 			if err != nil {
+ 				return nil, &PathError{"stat", name, err}
+ 			}
+@@ -82,9 +82,9 @@ func dirstat(arg interface{}) (d *Dir, err error) {
+ 	return nil, &PathError{"stat", name, errBadStat}
+ }
+ 
+-// Stat returns a FileInfo structure describing the named file.
++// Stat returns a FileInfo describing the named file.
+ // If there is an error, it will be of type *PathError.
+-func Stat(name string) (FileInfo, error) {
++func Stat(name string) (fi FileInfo, err error) {
+ 	d, err := dirstat(name)
+ 	if err != nil {
+ 		return nil, err
+@@ -92,15 +92,15 @@ func Stat(name string) (FileInfo, error) {
+ 	return fileInfoFromStat(d), nil
+ }
+ 
+-// Lstat returns the FileInfo structure describing the named file.
+-// If the file is a symbolic link (though Plan 9 does not have symbolic links), 
+-// the returned FileInfo describes the symbolic link.  Lstat makes no attempt to follow the link.
++// Lstat returns a FileInfo describing the named file.
++// If the file is a symbolic link, the returned FileInfo
++// describes the symbolic link.  Lstat makes no attempt to follow the link.
+ // If there is an error, it will be of type *PathError.
+-func Lstat(name string) (FileInfo, error) {
++func Lstat(name string) (fi FileInfo, err error) {
+ 	return Stat(name)
+ }
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return time.Unix(int64(fi.Sys().(*Dir).Atime), 0)
++	return time.Unix(int64(fi.Sys().(*dir).Atime), 0)
+ }

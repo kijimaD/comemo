@@ -18,7 +18,195 @@ Date:   Fri Nov 20 16:49:30 2015 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 68 +++--------------------------------
  test/switch2.go                       | 19 ++++++++--
  2 files changed, 22 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 7244e44654..85abca11c8 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -225,11 +225,9 @@ func tokstring(tok int32) string {
+ 		return s
+ 	}
+ 	// catchall
+-	return yyTokname(int(tok))
++	return fmt.Sprintf("tok-%v", tok)
+ }
+ 
+-// TODO(gri) figure out why yyTokname doesn't work for us as expected
+-// (issue 13243)
+ var tokstrings = map[int32]string{
+ 	LLITERAL:           "LLITERAL",
+ 	LASOP:              "op=",
+@@ -439,7 +437,7 @@ func (p *parser) import_here() int {
+ 		p.advance(';', ')')
+ 	}
+ 
+-	line := parserline() // TODO(gri) check correct placement of this (issue 13243)
++	line := parserline()
+ 	importfile(&path, line)
+ 	return line
+ }
+@@ -899,6 +897,7 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
+ 	}
+ 
+ 	l := p.stmt_list()
++	p.want('}')
+ 
+ 	var stmt *Node
+ 	if l == nil {
+@@ -908,8 +907,6 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
+ 	}
+ 	popdcl()
+ 
+-	p.want('}') // TODO(gri) is this correct location w/ respect to popdcl()? (issue 13243)
+-
+ 	return stmt
+ }
+ 
+@@ -920,32 +917,9 @@ func (p *parser) caseblock(tswitch *Node) *Node {
+ 	}
+ 
+ 	stmt := p.case_(tswitch) // does markdcl
+-
+-	// If the last token read by the lexer was consumed
+-	// as part of the case, clear it (parser has cleared yychar).
+-	// If the last token read by the lexer was the lookahead
+-	// leave it alone (parser has it cached in yychar).
+-	// This is so that the stmt_list action doesn't look at
+-	// the case tokens if the stmt_list is empty.
+-	//yylast = yychar;
+ 	stmt.Xoffset = int64(block)
+-
+ 	stmt.Nbody = p.stmt_list()
+ 
+-	// TODO(gri) what do we need to do here? (issue 13243)
+-	// // This is the only place in the language where a statement
+-	// // list is not allowed to drop the final semicolon, because
+-	// // it's the only place where a statement list is not followed
+-	// // by a closing brace.  Handle the error for pedantry.
+-
+-	// // Find the final token of the statement list.
+-	// // yylast is lookahead; yyprev is last of stmt_list
+-	// last := yyprev;
+-
+-	// if last > 0 && last != ';' && yychar != '}' {
+-	// 	Yyerror("missing statement after label");
+-	// }
+-
+ 	popdcl()
+ 
+ 	return stmt
+@@ -1873,14 +1847,6 @@ func (p *parser) ntype() *Node {
+ 		p.want(')')
+ 		return t
+ 
+-	case LDDD:
+-		// permit ...T but complain
+-		// TODO(gri) introduced for test/fixedbugs/bug228.go - maybe adjust bug or find better solution
+-		// (issue 13243)
+-		p.syntax_error("")
+-		p.advance()
+-		return p.ntype()
+-
+ 	default:
+ 		p.syntax_error("")
+ 		p.advance()
+@@ -1898,8 +1864,7 @@ func (p *parser) chan_elem() *Node {
+ 		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE,
+ 		'*',
+ 		LNAME, '@', '?',
+-		'(',
+-		LDDD:
++		'(':
+ 		return p.ntype()
+ 
+ 	default:
+@@ -1909,26 +1874,6 @@ func (p *parser) chan_elem() *Node {
+ 	}
+ }
+ 
+-// go.y:fnret_type
+-// TODO(gri) only called from fnres - inline and remove this one
+-// (issue 13243)
+-func (p *parser) fnret_type() *Node {
+-	if trace && Debug['x'] != 0 {
+-		defer p.trace("fnret_type")()
+-	}
+-
+-	switch p.tok {
+-	case LFUNC, // fntype
+-		LCOMM,                                 // recvchantype
+-		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE, // othertype
+-		'*': // ptrtype
+-		return p.ntype()
+-
+-	default:
+-		return p.dotname()
+-	}
+-}
+-
+ // go.y:dotname (partial)
+ func (p *parser) new_dotname(pkg *Node) *Node {
+ 	if trace && Debug['x'] != 0 {
+@@ -2218,7 +2163,7 @@ func (p *parser) fnres() *NodeList {
+ 		return nil
+ 
+ 	case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', LNAME, '@', '?':
+-		result := p.fnret_type()
++		result := p.ntype()
+ 		return list1(Nod(ODCLFIELD, nil, result))
+ 
+ 	case '(':
+@@ -2754,9 +2699,6 @@ func (p *parser) arg_list() (l *NodeList, ddd bool) {
+ 		defer p.trace("arg_list")()
+ 	}
+ 
+-	// TODO(gri) make this more tolerant in the presence of LDDD
+-	// that is not at the end (issue 13243).
+-
+ 	p.want('(')
+ 	p.xnest++
+ 
+diff --git a/test/switch2.go b/test/switch2.go
+index 3582da8be6..11ff5c5d9b 100644
+--- a/test/switch2.go
++++ b/test/switch2.go
+@@ -4,11 +4,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check various syntax errors with switches.
++// Verify that erroneous switch statements are detected by the compiler.
++// Does not compile.
+ 
+ package main
+ 
+-func _() {
++func f() {
+ 	switch {
+ 	case 0; // ERROR "expecting := or = or : or comma"
+ 	}
+@@ -18,6 +19,20 @@ func _() {
+ 	default:
+ 	}
+ 
++	switch {
++	case 0: case 0: default:
++	}
++
++	switch {
++	case 0: f(); case 0:
++	case 0: f() case 0: // ERROR "unexpected case at end of statement"
++	}
++
++	switch {
++	case 0: f(); default:
++	case 0: f() default: // ERROR "unexpected default at end of statement"
++	}
++
+ 	switch {
+ 	if x: // ERROR "expecting case or default or }"
+ 	}

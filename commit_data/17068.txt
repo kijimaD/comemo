@@ -8,7 +8,34 @@ Date:   Wed Aug 7 09:35:06 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12558046
-
+---
  src/pkg/go/ast/ast.go        | 2 +-
  src/pkg/html/template/css.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index e7e357106c..a6ce674e74 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -528,7 +528,7 @@ func IsExported(name string) bool {
+ }
+ 
+ // IsExported reports whether id is an exported Go symbol
+-// (i.e., whether it begins with an uppercase letter).
++// (that is, whether it begins with an uppercase letter).
+ //
+ func (id *Ident) IsExported() bool { return IsExported(id.Name) }
+ 
+diff --git a/src/pkg/html/template/css.go b/src/pkg/html/template/css.go
+index c5cb074345..634f183f79 100644
+--- a/src/pkg/html/template/css.go
++++ b/src/pkg/html/template/css.go
+@@ -99,7 +99,7 @@ func decodeCSS(s []byte) []byte {
+ 	return b
+ }
+ 
+-// isHex reports reports whether the given character is a hex digit.
++// isHex reports whether the given character is a hex digit.
+ func isHex(c byte) bool {
+ 	return '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
+ }

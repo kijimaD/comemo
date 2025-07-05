@@ -11,6 +11,26 @@ Date:   Thu Nov 30 21:02:24 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.22.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 8e9b6ee53c..ccaafa7ff7 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -108,6 +108,14 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: complete this section, or delete if not needed
+ </p>
+ 
++<h2 id="bootstrap">Bootstrap</h2>
++
++<p>
++  As mentioned in the <a href="/doc/go1.20#bootstrap">Go 1.20 release notes</a>, Go 1.22 now requires
++  the final point release of Go 1.20 or later for bootstrap.
++  We expect that Go 1.24 will require the final point release of Go 1.22 or later for bootstrap.
++</p>
++
+ <h2 id="library">Core library</h2>
+ 
+ <h3 id="minor_library_changes">New math/rand/v2 package</h3>

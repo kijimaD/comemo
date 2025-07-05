@@ -21,7 +21,73 @@ Date:   Mon May 24 10:06:36 2021 -0700
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/sha256/sha256.go |  6 +++---
  src/crypto/sha512/sha512.go | 18 +++++++++---------
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index e1cccf65a6..659531dc71 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -259,12 +259,12 @@ func Sum256(data []byte) [Size]byte {
+ }
+ 
+ // Sum224 returns the SHA224 checksum of the data.
+-func Sum224(data []byte) (sum224 [Size224]byte) {
++func Sum224(data []byte) [Size224]byte {
+ 	var d digest
+ 	d.is224 = true
+ 	d.Reset()
+ 	d.Write(data)
+ 	sum := d.checkSum()
+-	copy(sum224[:], sum[:Size224])
+-	return
++	ap := (*[Size224]byte)(sum[:])
++	return *ap
+ }
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 9c143a2a28..d5715558c0 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -337,31 +337,31 @@ func Sum512(data []byte) [Size]byte {
+ }
+ 
+ // Sum384 returns the SHA384 checksum of the data.
+-func Sum384(data []byte) (sum384 [Size384]byte) {
++func Sum384(data []byte) [Size384]byte {
+ 	d := digest{function: crypto.SHA384}
+ 	d.Reset()
+ 	d.Write(data)
+ 	sum := d.checkSum()
+-	copy(sum384[:], sum[:Size384])
+-	return
++	ap := (*[Size384]byte)(sum[:])
++	return *ap
+ }
+ 
+ // Sum512_224 returns the Sum512/224 checksum of the data.
+-func Sum512_224(data []byte) (sum224 [Size224]byte) {
++func Sum512_224(data []byte) [Size224]byte {
+ 	d := digest{function: crypto.SHA512_224}
+ 	d.Reset()
+ 	d.Write(data)
+ 	sum := d.checkSum()
+-	copy(sum224[:], sum[:Size224])
+-	return
++	ap := (*[Size224]byte)(sum[:])
++	return *ap
+ }
+ 
+ // Sum512_256 returns the Sum512/256 checksum of the data.
+-func Sum512_256(data []byte) (sum256 [Size256]byte) {
++func Sum512_256(data []byte) [Size256]byte {
+ 	d := digest{function: crypto.SHA512_256}
+ 	d.Reset()
+ 	d.Write(data)
+ 	sum := d.checkSum()
+-	copy(sum256[:], sum[:Size256])
+-	return
++	ap := (*[Size256]byte)(sum[:])
++	return *ap
+ }

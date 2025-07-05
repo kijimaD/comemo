@@ -12,7 +12,53 @@ Date:   Wed Feb 23 14:47:22 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4206042
-
+---
  src/pkg/runtime/amd64/traceback.c | 12 ++++++++++++
  src/pkg/runtime/arm/traceback.c   | 11 +++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index d3aae0db95..035dc560c5 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -164,6 +164,18 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
+ 			continue;
+ 		}
+ 
++		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && g == m->g0) {
++			// Lessstack is running on scheduler stack.  Switch to original goroutine.
++			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
++			g = m->curg;
++			stk = (Stktop*)g->stackbase;
++			sp = stk->gobuf.sp;
++			pc = (uintptr)stk->gobuf.pc;
++			fp = nil;
++			lr = 0;
++			continue;
++		}
++
+ 		// Unwind to next frame.
+ 		pc = lr;
+ 		lr = 0;
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index 28d39dcdf6..ce0c287f3c 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -149,6 +149,17 @@ gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, i
+ 			continue;
+ 		}
+ 		
++		if(pcbuf == nil && f->entry == (uintptr)runtime·lessstack && g == m->g0) {
++			runtime·printf("----- lessstack called from goroutine %d -----\n", m->curg->goid);
++			g = m->curg;
++			stk = (Stktop*)g->stackbase;
++			sp = stk->gobuf.sp;
++			pc = (uintptr)stk->gobuf.pc;
++			fp = nil;
++			lr = 0;
++			continue;
++		}	
++		
+ 		// Unwind to next frame.
+ 		pc = lr;
+ 		lr = 0;

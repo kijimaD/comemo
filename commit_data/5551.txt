@@ -7,6 +7,29 @@ Date:   Wed May 26 10:01:52 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1316042
-
+---
  src/pkg/fmt/scan_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index a49fb90a48..1c974e4d5a 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -121,6 +121,8 @@ func TestScanln(t *testing.T) {
+ }
+ 
+ func TestScanOverflow(t *testing.T) {
++	// different machines and different types report errors with different strings.
++	re := testing.MustCompile("overflow|too large|out of range|not representable")
+ 	for _, test := range overflowTests {
+ 		r := strings.NewReader(test.text)
+ 		_, err := Scan(r, test.in)
+@@ -128,7 +130,7 @@ func TestScanOverflow(t *testing.T) {
+ 			t.Errorf("expected overflow scanning %q", test.text)
+ 			continue
+ 		}
+-		if strings.Index(err.String(), "overflow") < 0 && strings.Index(err.String(), "too large") < 0 {
++		if !re.MatchString(err.String()) {
+ 			t.Errorf("expected overflow error scanning %q: %s", test.text, err)
+ 		}
+ 	}

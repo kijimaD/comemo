@@ -15,8 +15,55 @@ Date:   Thu May 12 15:45:13 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/linker.go  | 2 +-
  src/cmd/compile/internal/noder/reader.go  | 4 ++--
  src/cmd/compile/internal/noder/unified.go | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 0c86088e62..4ad05dcbe0 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -153,7 +153,7 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
+ 	l.relocCommon(pr, &wdict, pkgbits.RelocObjDict, idx)
+ 
+ 	var obj *ir.Name
+-	if path == "" {
++	if sym.Pkg == types.LocalPkg {
+ 		var ok bool
+ 		obj, ok = sym.Def.(*ir.Name)
+ 
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 2c038b0689..61a00fb04b 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -295,13 +295,13 @@ func (r *reader) doPkg() *types.Pkg {
+ 	if pkg.Name == "" {
+ 		pkg.Name = name
+ 	} else {
+-		assert(pkg.Name == name)
++		base.Assertf(pkg.Name == name, "package %q has name %q, but want %q", pkg.Path, pkg.Name, name)
+ 	}
+ 
+ 	if pkg.Height == 0 {
+ 		pkg.Height = height
+ 	} else {
+-		assert(pkg.Height == height)
++		base.Assertf(pkg.Height == height, "package %q has height %v, but want %v", pkg.Path, pkg.Height, height)
+ 	}
+ 
+ 	return pkg
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index e7a4001cec..91a3f3fb4b 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -232,7 +232,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
+ 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 
+ 	pkg := r.pkg()
+-	assert(pkg == importpkg)
++	base.Assertf(pkg == importpkg, "have package %q (%p), want package %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
+ 
+ 	if r.Bool() {
+ 		sym := pkg.Lookup(".inittask")

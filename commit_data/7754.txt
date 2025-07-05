@@ -7,7 +7,7 @@ Date:   Sat Mar 12 16:05:07 2011 -0800
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/4278044
-
+---
  src/pkg/archive/zip/reader.go      |  9 ++-------
  src/pkg/http/cgi/child.go          | 10 ++--------
  src/pkg/http/client.go             | 11 +++--------
@@ -16,3 +16,227 @@ Date:   Sat Mar 12 16:05:07 2011 -0800
  src/pkg/http/responsewrite_test.go |  7 ++++---
  src/pkg/io/ioutil/ioutil.go        | 12 ++++++++++++
  7 files changed, 28 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index d8d9bba60b..3b265c9b72 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -19,6 +19,7 @@ import (
+ 	"hash/crc32"
+ 	"encoding/binary"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ )
+ 
+@@ -109,7 +110,7 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
+ 	r := io.NewSectionReader(f.zipr, off+f.bodyOffset, size)
+ 	switch f.Method {
+ 	case 0: // store (no compression)
+-		rc = nopCloser{r}
++		rc = ioutil.NopCloser(r)
+ 	case 8: // DEFLATE
+ 		rc = flate.NewReader(r)
+ 	default:
+@@ -147,12 +148,6 @@ func (r *checksumReader) Read(b []byte) (n int, err os.Error) {
+ 
+ func (r *checksumReader) Close() os.Error { return r.rc.Close() }
+ 
+-type nopCloser struct {
+-	io.Reader
+-}
+-
+-func (f nopCloser) Close() os.Error { return nil }
+-
+ func readFileHeader(f *File, r io.Reader) (err os.Error) {
+ 	defer func() {
+ 		if rerr, ok := recover().(os.Error); ok {
+diff --git a/src/pkg/http/cgi/child.go b/src/pkg/http/cgi/child.go
+index e410c0aa23..c7d48b9eb3 100644
+--- a/src/pkg/http/cgi/child.go
++++ b/src/pkg/http/cgi/child.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"http"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -67,7 +68,7 @@ func requestFromEnvironment(env map[string]string) (*http.Request, os.Error) {
+ 			return nil, os.NewError("cgi: bad CONTENT_LENGTH in environment: " + lenstr)
+ 		}
+ 		r.ContentLength = clen
+-		r.Body = nopCloser{io.LimitReader(os.Stdin, clen)}
++		r.Body = ioutil.NopCloser(io.LimitReader(os.Stdin, clen))
+ 	}
+ 
+ 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
+@@ -103,13 +104,6 @@ func requestFromEnvironment(env map[string]string) (*http.Request, os.Error) {
+ 	return r, nil
+ }
+ 
+-// TODO: move this to ioutil or something.  It's copy/pasted way too often.
+-type nopCloser struct {
+-	io.Reader
+-}
+-
+-func (nopCloser) Close() os.Error { return nil }
+-
+ // Serve executes the provided Handler on the currently active CGI
+ // request, if any. If there's no current CGI environment
+ // an error is returned. The provided handler may be nil to use
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index c4f7e947d8..c43e58332b 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -11,6 +11,7 @@ import (
+ 	"encoding/base64"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -235,7 +236,7 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
+ 	req.ProtoMajor = 1
+ 	req.ProtoMinor = 1
+ 	req.Close = true
+-	req.Body = nopCloser{body}
++	req.Body = ioutil.NopCloser(body)
+ 	req.Header = Header{
+ 		"Content-Type": {bodyType},
+ 	}
+@@ -270,7 +271,7 @@ func (c *Client) PostForm(url string, data map[string]string) (r *Response, err
+ 	req.ProtoMinor = 1
+ 	req.Close = true
+ 	body := urlencode(data)
+-	req.Body = nopCloser{body}
++	req.Body = ioutil.NopCloser(body)
+ 	req.Header = Header{
+ 		"Content-Type":   {"application/x-www-form-urlencoded"},
+ 		"Content-Length": {strconv.Itoa(body.Len())},
+@@ -310,9 +311,3 @@ func (c *Client) Head(url string) (r *Response, err os.Error) {
+ 	}
+ 	return send(&req, c.Transport)
+ }
+-
+-type nopCloser struct {
+-	io.Reader
+-}
+-
+-func (nopCloser) Close() os.Error { return nil }
+diff --git a/src/pkg/http/dump.go b/src/pkg/http/dump.go
+index 73ac979739..306c45bc2c 100644
+--- a/src/pkg/http/dump.go
++++ b/src/pkg/http/dump.go
+@@ -7,10 +7,10 @@ package http
+ import (
+ 	"bytes"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ )
+ 
+-
+ // One of the copies, say from b to r2, could be avoided by using a more
+ // elaborate trick where the other copy is made during Request/Response.Write.
+ // This would complicate things too much, given that these functions are for
+@@ -23,7 +23,7 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err os.Error) {
+ 	if err = b.Close(); err != nil {
+ 		return nil, nil, err
+ 	}
+-	return nopCloser{&buf}, nopCloser{bytes.NewBuffer(buf.Bytes())}, nil
++	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
+ }
+ 
+ // DumpRequest returns the wire representation of req,
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 03a766efd8..726baa2668 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -6,6 +6,7 @@ package http
+ 
+ import (
+ 	"bytes"
++	"io/ioutil"
+ 	"testing"
+ )
+ 
+@@ -158,7 +159,7 @@ func TestRequestWrite(t *testing.T) {
+ 	for i := range reqWriteTests {
+ 		tt := &reqWriteTests[i]
+ 		if tt.Body != nil {
+-			tt.Req.Body = nopCloser{bytes.NewBuffer(tt.Body)}
++			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
+ 		}
+ 		var braw bytes.Buffer
+ 		err := tt.Req.Write(&braw)
+@@ -173,7 +174,7 @@ func TestRequestWrite(t *testing.T) {
+ 		}
+ 
+ 		if tt.Body != nil {
+-			tt.Req.Body = nopCloser{bytes.NewBuffer(tt.Body)}
++			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
+ 		}
+ 		var praw bytes.Buffer
+ 		err = tt.Req.WriteProxy(&praw)
+diff --git a/src/pkg/http/responsewrite_test.go b/src/pkg/http/responsewrite_test.go
+index 0ef7f041e9..de0635da51 100644
+--- a/src/pkg/http/responsewrite_test.go
++++ b/src/pkg/http/responsewrite_test.go
+@@ -6,6 +6,7 @@ package http
+ 
+ import (
+ 	"bytes"
++	"io/ioutil"
+ 	"testing"
+ )
+ 
+@@ -23,7 +24,7 @@ var respWriteTests = []respWriteTest{
+ 			ProtoMinor:    0,
+ 			RequestMethod: "GET",
+ 			Header:        Header{},
+-			Body:          nopCloser{bytes.NewBufferString("abcdef")},
++			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+ 			ContentLength: 6,
+ 		},
+ 
+@@ -39,7 +40,7 @@ var respWriteTests = []respWriteTest{
+ 			ProtoMinor:    0,
+ 			RequestMethod: "GET",
+ 			Header:        Header{},
+-			Body:          nopCloser{bytes.NewBufferString("abcdef")},
++			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+ 			ContentLength: -1,
+ 		},
+ 		"HTTP/1.0 200 OK\r\n" +
+@@ -54,7 +55,7 @@ var respWriteTests = []respWriteTest{
+ 			ProtoMinor:       1,
+ 			RequestMethod:    "GET",
+ 			Header:           Header{},
+-			Body:             nopCloser{bytes.NewBufferString("abcdef")},
++			Body:             ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+ 			ContentLength:    6,
+ 			TransferEncoding: []string{"chunked"},
+ 			Close:            true,
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index 7e3b44e55c..ed6c310eb4 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -90,3 +90,15 @@ func ReadDir(dirname string) ([]*os.FileInfo, os.Error) {
+ 	sort.Sort(fi)
+ 	return fi, nil
+ }
++
++type nopCloser struct {
++	io.Reader
++}
++
++func (nopCloser) Close() os.Error { return nil }
++
++// NopCloser returns a ReadCloser with a no-op Close method wrapping
++// the provided Reader r.
++func NopCloser(r io.Reader) io.ReadCloser {
++	return nopCloser{r}
++}

@@ -12,7 +12,42 @@ Date:   Sun Sep 4 20:03:05 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cover/cover_test.go | 2 +-
  src/cmd/cover/html.go       | 3 +--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 28be231121..d9d63e4587 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -400,7 +400,7 @@ func TestCoverHTML(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	var out bytes.Buffer
++	var out strings.Builder
+ 	scan := bufio.NewScanner(bytes.NewReader(entireHTML))
+ 	in := false
+ 	for scan.Scan() {
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+index 3c1d17e7b9..400a7d879d 100644
+--- a/src/cmd/cover/html.go
++++ b/src/cmd/cover/html.go
+@@ -6,7 +6,6 @@ package main
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"cmd/internal/browser"
+ 	"fmt"
+ 	"html/template"
+@@ -157,7 +156,7 @@ func rgb(n int) string {
+ 
+ // colors generates the CSS rules for coverage colors.
+ func colors() template.CSS {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i := 0; i < 11; i++ {
+ 		fmt.Fprintf(&buf, ".cov%v { color: %v }\n", i, rgb(i))
+ 	}

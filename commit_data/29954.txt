@@ -11,6 +11,24 @@ Date:   Tue Oct 18 15:28:44 2016 +0200
     Change-Id: I6658bda2e494d3239d62c49d0bd5d34a36b744d0
     Reviewed-on: https://go-review.googlesource.com/31394
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 3051ec9473..1221642f2f 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1696,12 +1696,6 @@ func testCancelRequestWithChannelBeforeDo(t *testing.T, withCtx bool) {
+ 	defer ts.Close()
+ 	defer close(unblockc)
+ 
+-	// Don't interfere with the next test on plan9.
+-	// Cf. https://golang.org/issues/11476
+-	if runtime.GOOS == "plan9" {
+-		defer time.Sleep(500 * time.Millisecond)
+-	}
+-
+ 	tr := &Transport{}
+ 	defer tr.CloseIdleConnections()
+ 	c := &Client{Transport: tr}

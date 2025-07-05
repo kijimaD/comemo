@@ -9,9 +9,71 @@ Date:   Wed Apr 28 19:36:42 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/1019042
-
+---
  src/pkg/runtime/darwin/386/sys.s   | 6 ++++--
  src/pkg/runtime/darwin/amd64/sys.s | 6 ++++--
  src/pkg/runtime/darwin/os.h        | 2 +-
  src/pkg/runtime/darwin/thread.c    | 3 ++-
  4 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 242800a5f5..f88f6b2468 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -130,8 +130,10 @@ TEXT bsdthread_create(SB),7,$32
+ 	MOVL	BX, 16(SP)	// pthread
+ 	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
+ 	INT	$0x80
+-	JAE	2(PC)
+-	CALL	notok(SB)
++	JAE	3(PC)
++	MOVL	$-1, AX
++	RET
++	MOVL	$0, AX
+ 	RET
+ 
+ // The thread that bsdthread_create creates starts executing here,
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index db922f7a03..1654fa2b0c 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -116,8 +116,10 @@ TEXT bsdthread_create(SB),7,$0
+ 	MOVQ	$0, R9	// paranoia
+ 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
+ 	SYSCALL
+-	JCC 2(PC)
+-	CALL	notok(SB)
++	JCC 3(PC)
++	MOVL	$-1, AX
++	RET
++	MOVL	$0, AX
+ 	RET
+ 
+ // The thread that bsdthread_create creates starts executing here,
+diff --git a/src/pkg/runtime/darwin/os.h b/src/pkg/runtime/darwin/os.h
+index 24496485c4..51a164c339 100644
+--- a/src/pkg/runtime/darwin/os.h
++++ b/src/pkg/runtime/darwin/os.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-void	bsdthread_create(void*, M*, G*, void(*)(void));
++int32	bsdthread_create(void*, M*, G*, void(*)(void));
+ void	bsdthread_register(void);
+ int32	mach_msg_trap(MachHeader*, int32, uint32, uint32, uint32, uint32, uint32);
+ uint32	mach_reply_port(void);
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index d9acfa8d30..e51d530196 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -157,7 +157,8 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 		printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+ 			stk, m, g, fn, m->id, m->tls[0], &m);
+ 	}
+-	bsdthread_create(stk, m, g, fn);
++	if(bsdthread_create(stk, m, g, fn) < 0)
++		throw("cannot create new OS thread");
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).

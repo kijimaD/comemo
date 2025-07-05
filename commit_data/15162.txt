@@ -7,6 +7,26 @@ Date:   Fri Feb 8 12:00:35 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7309061
-
+---
  src/cmd/godoc/play-appengine.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/play-appengine.go b/src/cmd/godoc/play-appengine.go
+index 1d093e9592..9e351d1a25 100644
+--- a/src/cmd/godoc/play-appengine.go
++++ b/src/cmd/godoc/play-appengine.go
+@@ -24,12 +24,12 @@ func bounceToPlayground(w http.ResponseWriter, req *http.Request) {
+ 	resp, err := client.Post(url, req.Header.Get("Content-type"), req.Body)
+ 	if err != nil {
+ 		http.Error(w, "Internal Server Error", 500)
+-		c.Errorf("making POST request:", err)
++		c.Errorf("making POST request: %v", err)
+ 		return
+ 	}
+ 	defer resp.Body.Close()
+ 	if _, err := io.Copy(w, resp.Body); err != nil {
+ 		http.Error(w, "Internal Server Error", 500)
+-		c.Errorf("making POST request:", err)
++		c.Errorf("making POST request: %v", err)
+ 	}
+ }

@@ -14,6 +14,21 @@ Date:   Wed Apr 24 11:31:19 2024 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/pgoir/irgraph.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/pgoir/irgraph.go b/src/cmd/compile/internal/pgoir/irgraph.go
+index cb4333e6d7..f1c8d13dec 100644
+--- a/src/cmd/compile/internal/pgoir/irgraph.go
++++ b/src/cmd/compile/internal/pgoir/irgraph.go
+@@ -333,6 +333,9 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap pgo.NamedEdgeMap) {
+ 			// devirtualization. Instantiation of generic functions
+ 			// will likely need to be done at the devirtualization
+ 			// site, if at all.
++			if base.Debug.PGODebug >= 3 {
++				fmt.Printf("addIndirectEdges: %s attempting export data lookup\n", key.CalleeName)
++			}
+ 			fn, err := LookupFunc(key.CalleeName)
+ 			if err == nil {
+ 				if base.Debug.PGODebug >= 3 {

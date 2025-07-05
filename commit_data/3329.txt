@@ -7,9 +7,77 @@ Date:   Mon Sep 21 09:41:21 2009 -0700
     R=ken
     OCL=34845
     CL=34845
-
+---
  src/cmd/8a/a.y     |  1 +
  src/cmd/8l/l.h     |  1 +
  src/cmd/8l/optab.c |  3 ++-
  src/cmd/8l/span.c  | 11 ++++++++++-
  4 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8a/a.y b/src/cmd/8a/a.y
+index fced3efa47..3fded981f1 100644
+--- a/src/cmd/8a/a.y
++++ b/src/cmd/8a/a.y
+@@ -285,6 +285,7 @@ rom:
+ 	}
+ |	reg
+ |	omem
++|	imm
+ 
+ rim:
+ 	rem
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 1b61ee14be..98d35de624 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -193,6 +193,7 @@ enum
+ 	Z_rp,
+ 	Zbr,
+ 	Zcall,
++	Zcallcon,
+ 	Zib_,
+ 	Zib_rp,
+ 	Zibo_m,
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index df5ba629fc..14e6daa326 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -260,7 +260,8 @@ uchar	yloop[] =
+ uchar	ycall[] =
+ {
+ 	Ynone,	Yml,	Zo_m,	2,
+-	Ynone,	Ybr,	Zcall,	1,
++	Ynone,	Ybr,	Zcall,	0,
++	Ynone,	Yi32,	Zcallcon,	1,
+ 	0
+ };
+ uchar	yjmp[] =
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index d056fecafb..8253ec9b16 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -105,7 +105,7 @@ start:
+ 		textsize = c;
+ 		n++;
+ 	}while(again);
+-	
++
+ 	if(INITRND) {
+ 		INITDAT = rnd(c, INITRND);
+ 		if(INITDAT != idat) {
+@@ -1109,6 +1109,15 @@ found:
+ 		}
+ 		break;
+ 
++	case Zcallcon:
++		v = p->to.offset - p->pc - 5;
++		*andptr++ = op;
++		*andptr++ = v;
++		*andptr++ = v>>8;
++		*andptr++ = v>>16;
++		*andptr++ = v>>24;
++		break;
++
+ 	case Zjmp:
+ 		q = p->pcond;
+ 		if(q) {

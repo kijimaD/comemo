@@ -13,7 +13,77 @@ Date:   Thu Nov 21 22:25:52 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 33 +++++++++++++++++++++++++++++++++
  src/net/http/server.go     |  7 ++++---
  2 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 9077c0c122..a2ab52b829 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6126,6 +6126,39 @@ func TestServerContextsHTTP2(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 35750: check ConnContext not modifying context for other connections
++func TestConnContextNotModifyingAllContexts(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++	type connKey struct{}
++	ts := httptest.NewUnstartedServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
++		rw.Header().Set("Connection", "close")
++	}))
++	ts.Config.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
++		if got := ctx.Value(connKey{}); got != nil {
++			t.Errorf("in ConnContext, unexpected context key = %#v", got)
++		}
++		return context.WithValue(ctx, connKey{}, "conn")
++	}
++	ts.Start()
++	defer ts.Close()
++
++	var res *Response
++	var err error
++
++	res, err = ts.Client().Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++
++	res, err = ts.Client().Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++}
++
+ // Issue 30710: ensure that as per the spec, a server responds
+ // with 501 Not Implemented for unsupported transfer-encodings.
+ func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 4f1c73dbdf..58aff08424 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2920,16 +2920,17 @@ func (srv *Server) Serve(l net.Listener) error {
+ 			}
+ 			return err
+ 		}
++		connCtx := ctx
+ 		if cc := srv.ConnContext; cc != nil {
+-			ctx = cc(ctx, rw)
+-			if ctx == nil {
++			connCtx = cc(connCtx, rw)
++			if connCtx == nil {
+ 				panic("ConnContext returned nil")
+ 			}
+ 		}
+ 		tempDelay = 0
+ 		c := srv.newConn(rw)
+ 		c.setState(c.rwc, StateNew) // before Serve can return
+-		go c.serve(ctx)
++		go c.serve(connCtx)
+ 	}
+ }
+ 

@@ -18,9 +18,206 @@ Date:   Mon Nov 6 22:33:25 2023 +0000
     Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/internal/atomic/atomic_andor_test.go |  2 +-
  src/runtime/internal/atomic/atomic_arm.go        | 60 ++++++++++++++++++
  src/runtime/internal/atomic/atomic_arm64.go      | 18 ++++++
  src/runtime/internal/atomic/atomic_arm64.s       | 78 ++++++++++++++++++++++++
  4 files changed, 157 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_andor_test.go b/src/runtime/internal/atomic/atomic_andor_test.go
+index 1c198ba5c4..9dd8b60ae4 100644
+--- a/src/runtime/internal/atomic/atomic_andor_test.go
++++ b/src/runtime/internal/atomic/atomic_andor_test.go
+@@ -1,4 +1,4 @@
+-//go:build 386 || amd64 || ppc64 || ppc64le || riscv64 || wasm
++//go:build 386 || amd64 || arm || arm64 || ppc64 || ppc64le || riscv64 || wasm
+ 
+ //
+ // Copyright 2023 The Go Authors. All rights reserved.
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index 567e951244..ae609cf4db 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -208,6 +208,66 @@ func And(addr *uint32, v uint32) {
+ 	}
+ }
+ 
++//go:nosplit
++func Or32(addr *uint32, v uint32) uint32 {
++	for {
++		old := *addr
++		if Cas(addr, old, old|v) {
++			return old
++		}
++	}
++}
++
++//go:nosplit
++func And32(addr *uint32, v uint32) uint32 {
++	for {
++		old := *addr
++		if Cas(addr, old, old&v) {
++			return old
++		}
++	}
++}
++
++//go:nosplit
++func Or64(addr *uint64, v uint64) uint64 {
++	for {
++		old := *addr
++		if Cas64(addr, old, old|v) {
++			return old
++		}
++	}
++}
++
++//go:nosplit
++func And64(addr *uint64, v uint64) uint64 {
++	for {
++		old := *addr
++		if Cas64(addr, old, old&v) {
++			return old
++		}
++	}
++}
++
++//go:nosplit
++func Oruintptr(addr *uintptr, v uintptr) uintptr {
++	for {
++		old := *addr
++		if Casuintptr(addr, old, old|v) {
++			return old
++		}
++	}
++}
++
++//go:nosplit
++func Anduintptr(addr *uintptr, v uintptr) uintptr {
++	for {
++		old := *addr
++		if Casuintptr(addr, old, old&v) {
++			return old
++		}
++	}
++}
++
+ //go:nosplit
+ func armcas(ptr *uint32, old, new uint32) bool
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm64.go b/src/runtime/internal/atomic/atomic_arm64.go
+index 459fb9978d..c4c56ae895 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.go
++++ b/src/runtime/internal/atomic/atomic_arm64.go
+@@ -66,6 +66,24 @@ func And(ptr *uint32, val uint32)
+ //go:noescape
+ func Or(ptr *uint32, val uint32)
+ 
++//go:noescape
++func And32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func Or32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func And64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Or64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Anduintptr(ptr *uintptr, val uintptr) uintptr
++
++//go:noescape
++func Oruintptr(ptr *uintptr, val uintptr) uintptr
++
+ //go:noescape
+ func Cas64(ptr *uint64, old, new uint64) bool
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm64.s b/src/runtime/internal/atomic/atomic_arm64.s
+index 5f77d92deb..3a249d3ed2 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.s
++++ b/src/runtime/internal/atomic/atomic_arm64.s
+@@ -331,3 +331,81 @@ load_store_loop:
+ 	STLXRW	R2, (R0), R3
+ 	CBNZ	R3, load_store_loop
+ 	RET
++
++// func Or32(addr *uint32, v uint32) old uint32
++TEXT ·Or32(SB), NOSPLIT, $0-20
++	MOVD	ptr+0(FP), R0
++	MOVW	val+8(FP), R1
++	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
++	CBZ 	R4, load_store_loop
++	LDORALW	R1, (R0), R2
++	MOVD	R2, ret+16(FP)
++	RET
++load_store_loop:
++	LDAXRW	(R0), R2
++	ORR	R1, R2, R3
++	STLXRW	R3, (R0), R4
++	CBNZ	R4, load_store_loop
++	MOVD R2, ret+16(FP)
++	RET
++
++// func And32(addr *uint32, v uint32) old uint32
++TEXT ·And32(SB), NOSPLIT, $0-20
++	MOVD	ptr+0(FP), R0
++	MOVW	val+8(FP), R1
++	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
++	CBZ 	R4, load_store_loop
++	MVN 	R1, R2
++	LDCLRALW	R2, (R0), R3
++	MOVD	R3, ret+16(FP)
++	RET
++load_store_loop:
++	LDAXRW	(R0), R2
++	AND	R1, R2, R3
++	STLXRW	R3, (R0), R4
++	CBNZ	R4, load_store_loop
++	MOVD R2, ret+16(FP)
++	RET
++
++// func Or64(addr *uint64, v uint64) old uint64
++TEXT ·Or64(SB), NOSPLIT, $0-24
++	MOVD	ptr+0(FP), R0
++	MOVD	val+8(FP), R1
++	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
++	CBZ 	R4, load_store_loop
++	LDORALD	R1, (R0), R2
++	MOVD	R2, ret+16(FP)
++	RET
++load_store_loop:
++	LDAXR	(R0), R2
++	ORR	R1, R2, R3
++	STLXR	R3, (R0), R4
++	CBNZ	R4, load_store_loop
++	MOVD 	R2, ret+16(FP)
++	RET
++
++// func And64(addr *uint64, v uint64) old uint64
++TEXT ·And64(SB), NOSPLIT, $0-24
++	MOVD	ptr+0(FP), R0
++	MOVD	val+8(FP), R1
++	MOVBU	internal∕cpu·ARM64+const_offsetARM64HasATOMICS(SB), R4
++	CBZ 	R4, load_store_loop
++	MVN 	R1, R2
++	LDCLRALD	R2, (R0), R3
++	MOVD	R3, ret+16(FP)
++	RET
++load_store_loop:
++	LDAXR	(R0), R2
++	AND	R1, R2, R3
++	STLXR	R3, (R0), R4
++	CBNZ	R4, load_store_loop
++	MOVD 	R2, ret+16(FP)
++	RET
++
++// func Anduintptr(addr *uintptr, v uintptr) old uintptr
++TEXT ·Anduintptr(SB), NOSPLIT, $0-24
++	B	·And64(SB)
++
++// func Oruintptr(addr *uintptr, v uintptr) old uintptr
++TEXT ·Oruintptr(SB), NOSPLIT, $0-24
++	B	·Or64(SB)

@@ -8,6 +8,30 @@ Date:   Tue Jan 20 12:57:25 2009 -0800
     DELTA=456  (9 added, 2 deleted, 445 changed)
     OCL=23107
     CL=23107
-
+---
  src/lib/io/bytebuffer.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/lib/io/bytebuffer.go b/src/lib/io/bytebuffer.go
+index 59547afb4a..5faeff9eb7 100644
+--- a/src/lib/io/bytebuffer.go
++++ b/src/lib/io/bytebuffer.go
+@@ -75,10 +75,18 @@ func (b *ByteBuffer) Len() int {
+ 	return b.len
+ }
+ 
++func (b *ByteBuffer) Off() int {
++	return b.off
++}
++
+ func (b *ByteBuffer) Data() []byte {
+ 	return b.buf[b.off:b.len]
+ }
+ 
++func (b *ByteBuffer) AllData() []byte {
++	return b.buf[0:b.len]
++}
++
+ 
+ export func NewByteBufferFromArray(buf []byte) *ByteBuffer {
+ 	b := new(ByteBuffer);

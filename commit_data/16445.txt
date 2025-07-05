@@ -10,8 +10,93 @@ Date:   Thu May 30 21:32:20 2013 -0700
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/9869045
-
+---
  src/pkg/runtime/malloc.goc |  6 +-----
  src/pkg/runtime/mgc0.c     | 10 ++--------
  src/pkg/runtime/mheap.c    |  4 +---
  3 files changed, 4 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 2ff63bcc13..6d5eda5d38 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -84,6 +84,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 		s = runtime·MHeap_Alloc(&runtime·mheap, npages, 0, 1, zeroed);
+ 		if(s == nil)
+ 			runtime·throw("out of memory");
++		s->limit = (byte*)(s->start<<PageShift) + size;
+ 		size = npages<<PageShift;
+ 		c->local_alloc += size;
+ 		c->local_total_alloc += size;
+@@ -238,11 +239,6 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ 		return 1;
+ 	}
+ 
+-	if((byte*)v >= (byte*)s->limit) {
+-		// pointers past the last block do not count as pointers.
+-		return 0;
+-	}
+-
+ 	n = s->elemsize;
+ 	if(base) {
+ 		i = ((byte*)v - p)/n;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d5761997f3..fc797822cd 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -231,14 +231,12 @@ markonly(void *obj)
+ 	if(sizeof(void*) == 8)
+ 		x -= (uintptr)runtime·mheap.arena_start>>PageShift;
+ 	s = runtime·mheap.spans[x];
+-	if(s == nil || k < s->start || k - s->start >= s->npages || s->state != MSpanInUse)
++	if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
+ 		return false;
+ 	p = (byte*)((uintptr)s->start<<PageShift);
+ 	if(s->sizeclass == 0) {
+ 		obj = p;
+ 	} else {
+-		if((byte*)obj >= (byte*)s->limit)
+-			return false;
+ 		uintptr size = s->elemsize;
+ 		int32 i = ((byte*)obj - p)/size;
+ 		obj = p+i*size;
+@@ -411,14 +409,12 @@ flushptrbuf(PtrTarget *ptrbuf, PtrTarget **ptrbufpos, Obj **_wp, Workbuf **_wbuf
+ 			if(sizeof(void*) == 8)
+ 				x -= (uintptr)arena_start>>PageShift;
+ 			s = runtime·mheap.spans[x];
+-			if(s == nil || k < s->start || k - s->start >= s->npages || s->state != MSpanInUse)
++			if(s == nil || k < s->start || obj >= s->limit || s->state != MSpanInUse)
+ 				continue;
+ 			p = (byte*)((uintptr)s->start<<PageShift);
+ 			if(s->sizeclass == 0) {
+ 				obj = p;
+ 			} else {
+-				if((byte*)obj >= (byte*)s->limit)
+-					continue;
+ 				size = s->elemsize;
+ 				int32 i = ((byte*)obj - p)/size;
+ 				obj = p+i*size;
+@@ -1173,8 +1169,6 @@ debug_scanblock(byte *b, uintptr n)
+ 		if(s->sizeclass == 0) {
+ 			obj = p;
+ 		} else {
+-			if((byte*)obj >= (byte*)s->limit)
+-				continue;
+ 			int32 i = ((byte*)obj - p)/size;
+ 			obj = p+i*size;
+ 		}
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 93facda55c..354031ad03 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -303,9 +303,7 @@ runtime·MHeap_LookupMaybe(MHeap *h, void *v)
+ 	if(sizeof(void*) == 8)
+ 		q -= (uintptr)h->arena_start >> PageShift;
+ 	s = h->spans[q];
+-	if(s == nil || p < s->start || p - s->start >= s->npages)
+-		return nil;
+-	if(s->state != MSpanInUse)
++	if(s == nil || p < s->start || v >= s->limit || s->state != MSpanInUse)
+ 		return nil;
+ 	return s;
+ }

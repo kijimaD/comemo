@@ -23,7 +23,50 @@ Date:   Fri Nov 22 21:06:15 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcscavenge.go | 10 ++++++++--
  src/runtime/proc_test.go   |  2 --
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 9c45ce8c87..c7bab59fb7 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -166,9 +166,15 @@ func wakeScavenger() {
+ 		stopTimer(scavenge.timer)
+ 
+ 		// Unpark the goroutine and tell it that there may have been a pacing
+-		// change.
++		// change. Note that we skip the scheduler's runnext slot because we
++		// want to avoid having the scavenger interfere with the fair
++		// scheduling of user goroutines. In effect, this schedules the
++		// scavenger at a "lower priority" but that's OK because it'll
++		// catch up on the work it missed when it does get scheduled.
+ 		scavenge.parked = false
+-		goready(scavenge.g, 0)
++		systemstack(func() {
++			ready(scavenge.g, 0, false)
++		})
+ 	}
+ 	unlock(&scavenge.lock)
+ }
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 48b865e8a5..acee7a1819 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -6,7 +6,6 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
+-	"internal/testenv"
+ 	"math"
+ 	"net"
+ 	"runtime"
+@@ -423,7 +422,6 @@ func TestPingPongHog(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in -short mode")
+ 	}
+-	testenv.SkipFlaky(t, 35271)
+ 
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	done := make(chan bool)

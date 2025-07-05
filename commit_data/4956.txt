@@ -7,6 +7,20 @@ Date:   Thu Feb 25 20:06:41 2010 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/224069
-
+---
  doc/progs/helloworld3.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index 5655c7489d..e065f02e6b 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func main() {
+-	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'}
++	hello := []byte("hello, world\n")
+ 	file.Stdout.Write(hello)
+ 	file, err := file.Open("/does/not/exist",  0,  0)
+ 	if file == nil {

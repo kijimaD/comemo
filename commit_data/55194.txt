@@ -23,7 +23,7 @@ Date:   Sat Nov 26 15:03:51 2022 -0800
     Reviewed-by: Martin Möhrmann <martin@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/386Ops.go     |  4 ++--
  src/cmd/compile/internal/ssa/_gen/AMD64Ops.go   |  4 ++--
  src/cmd/compile/internal/ssa/_gen/ARM64Ops.go   |  4 ++--
@@ -40,3 +40,327 @@ Date:   Sat Nov 26 15:03:51 2022 -0800
  src/cmd/compile/internal/ssa/opGen.go           | 24 ++++++++++++------------
  src/cmd/compile/internal/ssagen/ssa.go          |  4 ++--
  15 files changed, 37 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/386Ops.go b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+index c66650cdac..589bf133a5 100644
+--- a/src/cmd/compile/internal/ssa/_gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/386Ops.go
+@@ -511,8 +511,8 @@ func init() {
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index cbe1f5b761..3cb7053105 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -930,8 +930,8 @@ func init() {
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index f7cc47bae2..badaf95e9a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -603,8 +603,8 @@ func init() {
+ 		// use of R26 (arm64.REGCTXT, the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R26")}}, zeroWidth: true},
+ 
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARMOps.go b/src/cmd/compile/internal/ssa/_gen/ARMOps.go
+index de477a22af..f4a400b35b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARMOps.go
+@@ -531,8 +531,8 @@ func init() {
+ 		// use of R7 (arm.REGCTXT, the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R7")}}, zeroWidth: true},
+ 
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 22a83fb300..40e7a6801e 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -432,8 +432,8 @@ func init() {
+ 		// use of R22 (loong64.REGCTXT, the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R29")}}, zeroWidth: true},
+ 
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+index 89c87720ed..58ea40f86e 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+@@ -432,8 +432,8 @@ func init() {
+ 		// use of R22 (mips.REGCTXT, the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R22")}}, zeroWidth: true},
+ 
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+index 22a7a5c867..4b7741a6cd 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+@@ -385,8 +385,8 @@ func init() {
+ 		// use of R22 (mips.REGCTXT, the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R22")}}, zeroWidth: true},
+ 
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index 2d651dd780..88d85ed946 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -430,8 +430,8 @@ func init() {
+ 		// use of the closure pointer.
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}, zeroWidth: true},
+ 
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index 09b1620962..82d21b48f0 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -379,8 +379,8 @@ func init() {
+ 		{name: "LoweredNilCheck", argLength: 2, faultOnNilArg0: true, nilCheck: true, reg: regInfo{inputs: []regMask{gpspMask}}}, // arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{regCtxt}}},                                                // scheduler ensures only at beginning of entry block
+ 
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+diff --git a/src/cmd/compile/internal/ssa/_gen/S390XOps.go b/src/cmd/compile/internal/ssa/_gen/S390XOps.go
+index 896fdaa20f..f2184ad11f 100644
+--- a/src/cmd/compile/internal/ssa/_gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/S390XOps.go
+@@ -492,8 +492,8 @@ func init() {
+ 		// use of R12 (the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R12")}}, zeroWidth: true},
+ 		// arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+-		// LoweredGetCallerSP returns the SP of the caller of the current function.
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
+ 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+ 		// I.e., if f calls g "calls" getcallerpc,
+ 		// the result should be the PC within f that g will return to.
+diff --git a/src/cmd/compile/internal/ssa/_gen/WasmOps.go b/src/cmd/compile/internal/ssa/_gen/WasmOps.go
+index cd127b5f06..c9409bcfcc 100644
+--- a/src/cmd/compile/internal/ssa/_gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/WasmOps.go
+@@ -131,7 +131,7 @@ func init() {
+ 
+ 		{name: "LoweredGetClosurePtr", reg: gp01},                                                                          // returns wasm.REG_CTXT, the closure pointer
+ 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},                                                   // returns the PC of the caller of the current function
+-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},                                                   // returns the SP of the caller of the current function
++		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},                                     // returns the SP of the caller of the current function. arg0=mem.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil. arg1=mem
+ 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Sym", symEffect: "None"},          // invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 40c9baf5f1..cb4470a99b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -475,7 +475,7 @@ var genericOps = []opData{
+ 	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
+ 	{name: "GetClosurePtr"},                       // get closure pointer from dedicated register
+ 	{name: "GetCallerPC"},                         // for getcallerpc intrinsic
+-	{name: "GetCallerSP"},                         // for getcallersp intrinsic
++	{name: "GetCallerSP", argLength: 1},           // for getcallersp intrinsic. arg0=mem.
+ 
+ 	// Indexing operations
+ 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 949a8d3a24..26a944dfae 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1090,7 +1090,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
+ 	if v.Op == OpTailLECall {
+ 		// For tail call, we unwind the frame before the call so we'll use the caller's
+ 		// SP.
+-		sp = x.f.Entry.NewValue0(src.NoXPos, OpGetCallerSP, x.typs.Uintptr)
++		sp = x.f.Entry.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
+ 	}
+ 	for i, a := range v.Args[firstArg : len(v.Args)-1] { // skip leading non-parameter SSA Args and trailing mem SSA Arg.
+ 		oldArgs = append(oldArgs, a)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c59cfdd9ef..597dc9c72e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -6296,7 +6296,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -13501,7 +13501,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -18363,7 +18363,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -22329,7 +22329,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -24507,7 +24507,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -25987,7 +25987,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -27662,7 +27662,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -30189,7 +30189,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -31996,7 +31996,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -35511,7 +35511,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -36220,7 +36220,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "LoweredGetCallerSP",
+-		argLen:            0,
++		argLen:            1,
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+@@ -39148,7 +39148,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "GetCallerSP",
+-		argLen:  0,
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 52f94030df..9bad115def 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3304,7 +3304,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
+ 
+ 	case ir.OGETCALLERSP:
+ 		n := n.(*ir.CallExpr)
+-		return s.newValue0(ssa.OpGetCallerSP, n.Type())
++		return s.newValue1(ssa.OpGetCallerSP, n.Type(), s.mem())
+ 
+ 	case ir.OAPPEND:
+ 		return s.append(n.(*ir.CallExpr), false)
+@@ -3989,7 +3989,7 @@ func InitTables() {
+ 
+ 	add("runtime", "getcallersp",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			return s.newValue0(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr)
++			return s.newValue1(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem())
+ 		},
+ 		all...)
+ 

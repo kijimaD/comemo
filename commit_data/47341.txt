@@ -21,6 +21,29 @@ Date:   Fri Mar 12 11:21:38 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index bd5ae46739..fd3d3e03bb 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -276,7 +276,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		key, val := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
+-		if exp := cfg.Getenv("GOEXPERIMENT"); exp != "" {
++		if exp := cfg.GOEXPERIMENT; exp != "" {
+ 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", exp)
+ 		}
+ 
+@@ -1250,7 +1250,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 		key, val := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
+-		if exp := cfg.Getenv("GOEXPERIMENT"); exp != "" {
++		if exp := cfg.GOEXPERIMENT; exp != "" {
+ 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", exp)
+ 		}
+ 

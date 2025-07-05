@@ -11,7 +11,72 @@ Date:   Mon Jun 27 10:28:08 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/serve_test.go |  7 +++++++
  src/net/http/server.go     | 21 +++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index ca30e644c3..62b558c2cf 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3958,6 +3958,8 @@ func TestServerValidatesHostHeader(t *testing.T) {
+ 		host  string
+ 		want  int
+ 	}{
++		{"HTTP/0.9", "", 400},
++
+ 		{"HTTP/1.1", "", 400},
+ 		{"HTTP/1.1", "Host: \r\n", 200},
+ 		{"HTTP/1.1", "Host: 1.2.3.4\r\n", 200},
+@@ -3983,6 +3985,11 @@ func TestServerValidatesHostHeader(t *testing.T) {
+ 
+ 		// Make an exception for HTTP upgrade requests:
+ 		{"PRI * HTTP/2.0", "", 200},
++
++		// But not other HTTP/2 stuff:
++		{"PRI / HTTP/2.0", "", 400},
++		{"GET / HTTP/2.0", "", 400},
++		{"GET / HTTP/3.0", "", 400},
+ 	}
+ 	for _, tt := range tests {
+ 		conn := &testConn{closec: make(chan bool, 1)}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 42b6304d4f..a1c48272fd 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -771,6 +771,10 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
+ 		return nil, err
+ 	}
+ 
++	if !http1ServerSupportsRequest(req) {
++		return nil, badRequestError("unsupported protocol version")
++	}
++
+ 	ctx, cancelCtx := context.WithCancel(ctx)
+ 	req.ctx = ctx
+ 
+@@ -828,6 +832,23 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
+ 	return w, nil
+ }
+ 
++// http1ServerSupportsRequest reports whether Go's HTTP/1.x server
++// supports the given request.
++func http1ServerSupportsRequest(req *Request) bool {
++	if req.ProtoMajor == 1 {
++		return true
++	}
++	// Accept "PRI * HTTP/2.0" upgrade requests, so Handlers can
++	// wire up their own HTTP/2 upgrades.
++	if req.ProtoMajor == 2 && req.ProtoMinor == 0 &&
++		req.Method == "PRI" && req.RequestURI == "*" {
++		return true
++	}
++	// Reject HTTP/0.x, and all other HTTP/2+ requests (which
++	// aren't encoded in ASCII anyway).
++	return false
++}
++
+ func (w *response) Header() Header {
+ 	if w.cw.header == nil && w.wroteHeader && !w.cw.wroteHeader {
+ 		// Accessing the header between logically writing it

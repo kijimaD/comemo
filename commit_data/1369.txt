@@ -7,6 +7,20 @@ Date:   Thu Dec 18 21:15:26 2008 -0800
     R=ken
     OCL=21566
     CL=21566
-
+---
  src/cmd/gc/walk.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 54645438a0..55fd025f3a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -962,7 +962,7 @@ loop:
+ 			tempname(nvar, ptrto(n->left->type));
+ 
+ 			nnew = nod(ONEW, N, N);
+-			nnew->type = nvar->type;
++			nnew->type = n->left->type;
+ 			nnew = newcompat(nnew);
+ 
+ 			nas = nod(OAS, nvar, nnew);

@@ -16,7 +16,57 @@ Date:   Fri Apr 5 12:53:20 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/576680
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/liveness/mergelocals.go | 18 ++++++++++++------
  src/cmd/compile/internal/ssagen/pgen.go          |  5 +++--
  2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/mergelocals.go b/src/cmd/compile/internal/liveness/mergelocals.go
+index a1342efce6..82440beb6c 100644
+--- a/src/cmd/compile/internal/liveness/mergelocals.go
++++ b/src/cmd/compile/internal/liveness/mergelocals.go
+@@ -139,16 +139,22 @@ func (mls *MergeLocalsState) Followers(n *ir.Name, tmp []*ir.Name) []*ir.Name {
+ 	return tmp
+ }
+ 
+-// EstSavings returns the estimated reduction in stack size for
+-// the given merge locals state.
+-func (mls *MergeLocalsState) EstSavings() int {
+-	tot := 0
++// EstSavings returns the estimated reduction in stack size (number of bytes) for
++// the given merge locals state via a pair of ints, the first for non-pointer types and the second for pointer types.
++func (mls *MergeLocalsState) EstSavings() (int, int) {
++	totnp := 0
++	totp := 0
+ 	for n := range mls.partition {
+ 		if mls.Subsumed(n) {
+-			tot += int(n.Type().Size())
++			sz := int(n.Type().Size())
++			if n.Type().HasPointers() {
++				totp += sz
++			} else {
++				totnp += sz
++			}
+ 		}
+ 	}
+-	return tot
++	return totnp, totp
+ }
+ 
+ // check tests for various inconsistencies and problems in mls,
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index d0045e7ee3..bef9049126 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -155,8 +155,9 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	var mls *liveness.MergeLocalsState
+ 	if base.Debug.MergeLocals != 0 {
+ 		mls = liveness.MergeLocals(fn, f)
+-		if base.Debug.MergeLocalsTrace == 1 && mls != nil {
+-			fmt.Fprintf(os.Stderr, "%s: %d bytes of stack space saved via stack slot merging\n", ir.FuncName(fn), mls.EstSavings())
++		if base.Debug.MergeLocalsTrace > 0 && mls != nil {
++			savedNP, savedP := mls.EstSavings()
++			fmt.Fprintf(os.Stderr, "%s: %d bytes of stack space saved via stack slot merging (%d nonpointer %d pointer)\n", ir.FuncName(fn), savedNP+savedP, savedNP, savedP)
+ 			if base.Debug.MergeLocalsTrace > 1 {
+ 				fmt.Fprintf(os.Stderr, "=-= merge locals state for %v:\n%v",
+ 					fn, mls)

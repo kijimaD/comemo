@@ -8,6 +8,19 @@ Date:   Sun Aug 9 19:18:40 2009 -0700
     DELTA=1  (1 added, 0 deleted, 0 changed)
     OCL=32948
     CL=32948
-
+---
  test/bench/timing.sh | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index a65e7f60a3..0c3e49bf38 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -5,6 +5,7 @@
+ 
+ set -e
+ . $GOROOT/src/Make.$GOARCH
++PATH=.:$PATH
+ 
+ mode=run
+ case X"$1" in

@@ -9,8 +9,48 @@ Date:   Fri Aug 14 10:35:46 2020 +0000
     GitHub-Pull-Request: golang/go#40793
     Reviewed-on: https://go-review.googlesource.com/c/go/+/248441
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/bufio/bufio.go     | 2 +-
  src/net/http/client.go | 2 +-
  src/runtime/mheap.go   | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 7cbd5424ea..6baf9b9e40 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -425,7 +425,7 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
+ // of bytes in the combined first two elements, error).
+ // The complete result is equal to
+ // `bytes.Join(append(fullBuffers, finalFragment), nil)`, which has a
+-// length of `totalLen`. The result is strucured in this way to allow callers
++// length of `totalLen`. The result is structured in this way to allow callers
+ // to minimize allocations and copies.
+ func (b *Reader) collectFragments(delim byte) (fullBuffers [][]byte, finalFragment []byte, totalLen int, err error) {
+ 	var frag []byte
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 3860d97d8f..6ca0d2e6cf 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -321,7 +321,7 @@ func knownRoundTripperImpl(rt RoundTripper, req *Request) bool {
+ 		return true
+ 	}
+ 	// There's a very minor chance of a false positive with this.
+-	// Insted of detecting our golang.org/x/net/http2.Transport,
++	// Instead of detecting our golang.org/x/net/http2.Transport,
+ 	// it might detect a Transport type in a different http2
+ 	// package. But I know of none, and the only problem would be
+ 	// some temporarily leaked goroutines if the transport didn't
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index cb586171c4..1a57bcd66e 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -42,7 +42,7 @@ const (
+ 	// roughly 100µs.
+ 	//
+ 	// Must be a multiple of the pageInUse bitmap element size and
+-	// must also evenly divid pagesPerArena.
++	// must also evenly divide pagesPerArena.
+ 	pagesPerReclaimerChunk = 512
+ )
+ 

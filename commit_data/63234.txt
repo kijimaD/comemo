@@ -15,7 +15,84 @@ Date:   Wed May 28 11:10:53 2025 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Mark Freeman <mark@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/check.go | 20 +++++++++++++++++++-
  src/go/types/check.go                    | 20 +++++++++++++++++++-
  2 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index d262ab9f85..31a1aa2abe 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	. "internal/types/errors"
++	"os"
+ 	"sync/atomic"
+ )
+ 
+@@ -419,7 +420,24 @@ func (check *Checker) handleBailout(err *error) {
+ 		// normal return or early exit
+ 		*err = check.firstErr
+ 	default:
+-		// TODO(markfreeman): dump posStack if available
++		if len(check.posStack) > 0 {
++			doPrint := func(ps []syntax.Pos) {
++				for i := len(ps) - 1; i >= 0; i-- {
++					fmt.Fprintf(os.Stderr, "\t%v\n", ps[i])
++				}
++			}
++
++			fmt.Fprintln(os.Stderr, "The following panic happened checking types near:")
++			if len(check.posStack) <= 10 {
++				doPrint(check.posStack)
++			} else {
++				// if it's long, truncate the middle; it's least likely to help
++				doPrint(check.posStack[len(check.posStack)-5:])
++				fmt.Fprintln(os.Stderr, "\t...")
++				doPrint(check.posStack[:5])
++			}
++		}
++
+ 		// re-panic
+ 		panic(p)
+ 	}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 77bff811b9..e4e8e95c99 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/token"
+ 	"internal/godebug"
+ 	. "internal/types/errors"
++	"os"
+ 	"sync/atomic"
+ )
+ 
+@@ -444,7 +445,24 @@ func (check *Checker) handleBailout(err *error) {
+ 		// normal return or early exit
+ 		*err = check.firstErr
+ 	default:
+-		// TODO(markfreeman): dump posStack if available
++		if len(check.posStack) > 0 {
++			doPrint := func(ps []positioner) {
++				for i := len(ps) - 1; i >= 0; i-- {
++					fmt.Fprintf(os.Stderr, "\t%v\n", check.fset.Position(ps[i].Pos()))
++				}
++			}
++
++			fmt.Fprintln(os.Stderr, "The following panic happened checking types near:")
++			if len(check.posStack) <= 10 {
++				doPrint(check.posStack)
++			} else {
++				// if it's long, truncate the middle; it's least likely to help
++				doPrint(check.posStack[len(check.posStack)-5:])
++				fmt.Fprintln(os.Stderr, "\t...")
++				doPrint(check.posStack[:5])
++			}
++		}
++
+ 		// re-panic
+ 		panic(p)
+ 	}

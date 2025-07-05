@@ -20,6 +20,20 @@ Date:   Thu Jan 25 17:13:11 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/testenv/testenv_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/testenv/testenv_test.go b/src/internal/testenv/testenv_test.go
+index d39a02b981..71cf9977e4 100644
+--- a/src/internal/testenv/testenv_test.go
++++ b/src/internal/testenv/testenv_test.go
+@@ -97,7 +97,7 @@ func TestHasGoBuild(t *testing.T) {
+ 			}
+ 		}
+ 
+-		if strings.HasSuffix(b, "-noopt") {
++		if strings.Contains(b, "-noopt") {
+ 			// The -noopt builder sets GO_GCFLAGS, which causes tests of 'go build' to
+ 			// be skipped.
+ 			t.Logf("HasGoBuild is false on %s", b)

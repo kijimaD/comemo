@@ -13,7 +13,84 @@ Date:   Mon Apr 24 10:33:01 2023 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/coverage/slicewriter/slicewriter.go |  6 +++---
  src/internal/coverage/slicewriter/slw_test.go    | 11 +++++++----
  2 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/coverage/slicewriter/slicewriter.go b/src/internal/coverage/slicewriter/slicewriter.go
+index 3522bf5770..460e9dc98c 100644
+--- a/src/internal/coverage/slicewriter/slicewriter.go
++++ b/src/internal/coverage/slicewriter/slicewriter.go
+@@ -38,21 +38,21 @@ func (sws *WriteSeeker) Write(p []byte) (n int, err error) {
+ func (sws *WriteSeeker) Seek(offset int64, whence int) (int64, error) {
+ 	switch whence {
+ 	case io.SeekStart:
+-		if sws.off != offset && (offset < 0 || offset >= int64(len(sws.payload))) {
++		if sws.off != offset && (offset < 0 || offset > int64(len(sws.payload))) {
+ 			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", offset, len(sws.payload))
+ 		}
+ 		sws.off = offset
+ 		return offset, nil
+ 	case io.SeekCurrent:
+ 		newoff := sws.off + offset
+-		if newoff != sws.off && (newoff < 0 || newoff >= int64(len(sws.payload))) {
++		if newoff != sws.off && (newoff < 0 || newoff > int64(len(sws.payload))) {
+ 			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(sws.payload))
+ 		}
+ 		sws.off += offset
+ 		return sws.off, nil
+ 	case io.SeekEnd:
+ 		newoff := int64(len(sws.payload)) + offset
+-		if newoff != sws.off && (newoff < 0 || newoff >= int64(len(sws.payload))) {
++		if newoff != sws.off && (newoff < 0 || newoff > int64(len(sws.payload))) {
+ 			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(sws.payload))
+ 		}
+ 		sws.off = newoff
+diff --git a/src/internal/coverage/slicewriter/slw_test.go b/src/internal/coverage/slicewriter/slw_test.go
+index f4e75f40d9..9e267670e0 100644
+--- a/src/internal/coverage/slicewriter/slw_test.go
++++ b/src/internal/coverage/slicewriter/slw_test.go
+@@ -47,12 +47,13 @@ func TestSliceWriter(t *testing.T) {
+ 		sleq(t, b, p)
+ 	}
+ 
+-	sk := func(t *testing.T, ws *WriteSeeker, offset int64, whence int) {
++	sk := func(t *testing.T, ws *WriteSeeker, offset int64, whence int) int64 {
+ 		t.Helper()
+-		_, err := ws.Seek(offset, whence)
++		off, err := ws.Seek(offset, whence)
+ 		if err != nil {
+ 			t.Fatalf("unexpected seek error: %v", err)
+ 		}
++		return off
+ 	}
+ 
+ 	wp1 := []byte{1, 2}
+@@ -80,6 +81,8 @@ func TestSliceWriter(t *testing.T) {
+ 	rf(t, ws, []byte{2, 7})
+ 	sk(t, ws, -4, io.SeekEnd)
+ 	rf(t, ws, []byte{2, 7})
++	off := sk(t, ws, 0, io.SeekEnd)
++	sk(t, ws, off, io.SeekStart)
+ 
+ 	// seek back and overwrite
+ 	sk(t, ws, 1, io.SeekStart)
+@@ -98,7 +101,7 @@ func TestSliceWriter(t *testing.T) {
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid -1 seek")
+ 	}
+-	_, err = ws.Seek(int64(len(ws.BytesWritten())), io.SeekStart)
++	_, err = ws.Seek(int64(len(ws.BytesWritten())+1), io.SeekStart)
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid %d seek", len(ws.BytesWritten()))
+ 	}
+@@ -108,7 +111,7 @@ func TestSliceWriter(t *testing.T) {
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid -1 seek")
+ 	}
+-	_, err = ws.Seek(int64(len(ws.BytesWritten())), io.SeekCurrent)
++	_, err = ws.Seek(int64(len(ws.BytesWritten())+1), io.SeekCurrent)
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid %d seek", len(ws.BytesWritten()))
+ 	}

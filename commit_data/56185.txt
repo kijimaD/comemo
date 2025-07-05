@@ -18,6 +18,24 @@ Date:   Fri Apr 14 05:47:36 2023 +1000
     Reviewed-by: Aaron Bieber <deftly@gmail.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b2a7daba23..c88a955a0c 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1407,6 +1407,12 @@ func (ctxt *Link) hostlink() {
+ 	case objabi.Hopenbsd:
+ 		argv = append(argv, "-Wl,-nopie")
+ 		argv = append(argv, "-pthread")
++		if ctxt.Arch.InFamily(sys.ARM64) {
++			// Disable execute-only on openbsd/arm64 - the Go arm64 assembler
++			// currently stores constants in the text section rather than in rodata.
++			// See issue #59615.
++			argv = append(argv, "-Wl,--no-execute-only")
++		}
+ 	case objabi.Hwindows:
+ 		if windowsgui {
+ 			argv = append(argv, "-mwindows")

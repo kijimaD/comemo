@@ -24,8 +24,48 @@ Date:   Fri Jan 24 08:25:52 2020 -0800
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/testdata/issue24161e0/main.go | 2 +-
  misc/cgo/test/testdata/issue24161e1/main.go | 2 +-
  misc/cgo/test/testdata/issue24161e2/main.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/testdata/issue24161e0/main.go b/misc/cgo/test/testdata/issue24161e0/main.go
+index cbc1deea78..efe53458d8 100644
+--- a/misc/cgo/test/testdata/issue24161e0/main.go
++++ b/misc/cgo/test/testdata/issue24161e0/main.go
+@@ -12,7 +12,7 @@ package issue24161e0
+ #include <TargetConditionals.h>
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
+-#if TARGET_OS_IPHONE == 0 && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++#if TARGET_OS_IPHONE == 0 && __MAC_OS_X_VERSION_MAX_ALLOWED < 101200
+   typedef CFStringRef SecKeyAlgorithm;
+   static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
+   #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()
+diff --git a/misc/cgo/test/testdata/issue24161e1/main.go b/misc/cgo/test/testdata/issue24161e1/main.go
+index eb48fc0059..82bf172b7d 100644
+--- a/misc/cgo/test/testdata/issue24161e1/main.go
++++ b/misc/cgo/test/testdata/issue24161e1/main.go
+@@ -12,7 +12,7 @@ package issue24161e1
+ #include <TargetConditionals.h>
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
+-#if TARGET_OS_IPHONE == 0 && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++#if TARGET_OS_IPHONE == 0 && __MAC_OS_X_VERSION_MAX_ALLOWED < 101200
+   typedef CFStringRef SecKeyAlgorithm;
+   static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
+   #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()
+diff --git a/misc/cgo/test/testdata/issue24161e2/main.go b/misc/cgo/test/testdata/issue24161e2/main.go
+index 1951c86317..82d2ec1296 100644
+--- a/misc/cgo/test/testdata/issue24161e2/main.go
++++ b/misc/cgo/test/testdata/issue24161e2/main.go
+@@ -12,7 +12,7 @@ package issue24161e2
+ #include <TargetConditionals.h>
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
+-#if TARGET_OS_IPHONE == 0 && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++#if TARGET_OS_IPHONE == 0 && __MAC_OS_X_VERSION_MAX_ALLOWED < 101200
+   typedef CFStringRef SecKeyAlgorithm;
+   static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
+   #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()

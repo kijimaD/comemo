@@ -21,6 +21,28 @@ Date:   Mon Nov 25 23:29:02 2019 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_unix.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 756467f4df..3861cace08 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -349,6 +349,16 @@ func preemptM(mp *m) {
+ 		// yet, so doSigPreempt won't work.
+ 		return
+ 	}
++	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") && !iscgo {
++		// On darwin, we use libc calls, and cgo is required on ARM and ARM64
++		// so we have TLS set up to save/restore G during C calls. If cgo is
++		// absent, we cannot save/restore G in TLS, and if a signal is
++		// received during C execution we cannot get the G. Therefore don't
++		// send signals.
++		// This can only happen in the go_bootstrap program (otherwise cgo is
++		// required).
++		return
++	}
+ 	signalM(mp, sigPreempt)
+ }
+ 

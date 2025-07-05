@@ -7,7 +7,7 @@ Date:   Sun Oct 21 17:41:32 2012 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6569057
-
+---
  src/pkg/runtime/hashmap.c  |  9 +++++++++
  src/pkg/runtime/iface.c    | 32 +++++++++++++++++++++++++-------
  src/pkg/runtime/malloc.goc | 20 ++++++++++++++++++++
@@ -18,3 +18,255 @@ Date:   Sun Oct 21 17:41:32 2012 -0400
  src/pkg/runtime/slice.c    | 18 +++++++++++++-----
  src/pkg/runtime/type.h     |  7 +++++++
  9 files changed, 98 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index fec407b67a..4869669b6e 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -3,6 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch_GOARCH.h"
++#include "malloc.h"
+ #include "hashmap.h"
+ #include "type.h"
+ #include "race.h"
+@@ -748,6 +750,13 @@ runtime·makemap_c(MapType *typ, int64 hint)
+ 	h = runtime·mal(sizeof(*h));
+ 	h->flag |= CanFreeTable;  /* until reflect gets involved, free is okay */
+ 
++	if(UseSpanType) {
++		if(false) {
++			runtime·printf("makemap %S: %p\n", *typ->string, h);
++		}
++		runtime·settype(h, (uintptr)typ | TypeInfo_Map);
++	}
++
+ 	ksize = ROUND(key->size, sizeof(void*));
+ 	vsize = ROUND(val->size, sizeof(void*));
+ 	if(ksize > MaxData || vsize > MaxData || ksize+vsize > MaxData) {
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index a3c5f1b045..5566d88e3b 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -688,6 +688,7 @@ void
+ reflect·unsafe_New(Eface typ, void *ret)
+ {
+ 	Type *t;
++	uint32 flag;
+ 
+ 	// Reflect library has reinterpreted typ
+ 	// as its own kind of type structure.
+@@ -695,10 +696,16 @@ reflect·unsafe_New(Eface typ, void *ret)
+ 	// type structure sits before the data pointer.
+ 	t = (Type*)((Eface*)typ.data-1);
+ 
+-	if(t->kind&KindNoPointers)
+-		ret = runtime·mallocgc(t->size, FlagNoPointers, 1, 1);
+-	else
+-		ret = runtime·mal(t->size);
++	flag = t->kind&KindNoPointers ? FlagNoPointers : 0;
++	ret = runtime·mallocgc(t->size, flag, 1, 1);
++
++	if(UseSpanType && !flag) {
++		if(false) {
++			runtime·printf("unsafe_New %S: %p\n", *t->string, ret);
++		}
++		runtime·settype(ret, (uintptr)t | TypeInfo_SingleObject);
++	}
++
+ 	FLUSH(&ret);
+ }
+ 
+@@ -715,9 +722,20 @@ reflect·unsafe_NewArray(Eface typ, intgo n, void *ret)
+ 	t = (Type*)((Eface*)typ.data-1);
+ 
+ 	size = n*t->size;
+-	if(t->kind&KindNoPointers)
++	if(size == 0)
++		ret = (byte*)&runtime·zerobase;
++	else if(t->kind&KindNoPointers)
+ 		ret = runtime·mallocgc(size, FlagNoPointers, 1, 1);
+-	else
+-		ret = runtime·mal(size);
++	else {
++		ret = runtime·mallocgc(size, 0, 1, 1);
++
++		if(UseSpanType) {
++			if(false) {
++				runtime·printf("unsafe_NewArray [%D]%S: %p\n", (int64)n, *t->string, ret);
++			}
++			runtime·settype(ret, (uintptr)t | TypeInfo_Array);
++		}
++	}
++
+ 	FLUSH(&ret);
+ }
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 7507eb52d0..eaae52a641 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -708,6 +708,26 @@ runtime·new(Type *typ, uint8 *ret)
+ 	FLUSH(&ret);
+ }
+ 
++// same as runtime·new, but callable from C
++void*
++runtime·cnew(Type *typ)
++{
++	uint32 flag;
++	void *ret;
++
++	m->racepc = runtime·getcallerpc(&typ);
++	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
++	ret = runtime·mallocgc(typ->size, flag, 1, 1);
++
++	if(UseSpanType && !flag) {
++		if(false) {
++			runtime·printf("new %S: %p\n", *typ->string, ret);
++		}
++		runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
++	}
++	return ret;
++}
++
+ void*
+ runtime·stackalloc(uint32 n)
+ {
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 3e696d066d..ac3cfa8d6a 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -452,6 +452,7 @@ void	runtime·unmarkspan(void *v, uintptr size);
+ bool	runtime·blockspecial(void*);
+ void	runtime·setblockspecial(void*, bool);
+ void	runtime·purgecachedstats(MCache*);
++void*	runtime·cnew(Type*);
+ 
+ void	runtime·settype(void*, uintptr);
+ void	runtime·settype_flush(M*, bool);
+@@ -485,3 +486,6 @@ enum
+ 	// Enables type information at the end of blocks allocated from heap	
+ 	DebugTypeAtBlockEnd = 0,
+ };
++
++// defined in mgc0.go
++void	runtime·gc_m_ptr(Eface*);
+diff --git a/src/pkg/runtime/mgc0.go b/src/pkg/runtime/mgc0.go
+new file mode 100644
+index 0000000000..a7ddaf0a7c
+--- /dev/null
++++ b/src/pkg/runtime/mgc0.go
+@@ -0,0 +1,10 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// Called from C. Returns the Go type *m.
++func gc_m_ptr(ret *interface{}) {
++	*ret = (*m)(nil)
++}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 1cb8bf5864..5fecf05589 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -9,6 +9,7 @@
+ #include "os_GOOS.h"
+ #include "stack.h"
+ #include "race.h"
++#include "type.h"
+ 
+ bool	runtime·iscgo;
+ 
+@@ -833,8 +834,15 @@ M*
+ runtime·newm(void)
+ {
+ 	M *mp;
++	static Type *mtype;  // The Go type M
+ 
+-	mp = runtime·malloc(sizeof(M));
++	if(mtype == nil) {
++		Eface e;
++		runtime·gc_m_ptr(&e);
++		mtype = ((PtrType*)e.type)->elem;
++	}
++
++	mp = runtime·cnew(mtype);
+ 	mcommoninit(mp);
+ 
+ 	if(runtime·iscgo) {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 4394f38057..83757ba8a3 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -517,6 +517,7 @@ struct Panic
+  * external data
+  */
+ extern	String	runtime·emptystring;
++extern	uintptr runtime·zerobase;
+ G*	runtime·allg;
+ G*	runtime·lastg;
+ M*	runtime·allm;
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index d24f6a88ae..3ec44b875f 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -38,7 +38,7 @@ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
+ // Dummy word to use as base pointer for make([]T, 0).
+ // Since you cannot take the address of such a slice,
+ // you can't tell that they all have the same base pointer.
+-static uintptr zerobase;
++uintptr runtime·zerobase;
+ 
+ static void
+ makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
+@@ -50,12 +50,20 @@ makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
+ 	ret->len = len;
+ 	ret->cap = cap;
+ 
+-	if(cap == 0)
+-		ret->array = (byte*)&zerobase;
++	if(size == 0)
++		ret->array = (byte*)&runtime·zerobase;
+ 	else if((t->elem->kind&KindNoPointers))
+ 		ret->array = runtime·mallocgc(size, FlagNoPointers, 1, 1);
+-	else
+-		ret->array = runtime·mal(size);
++	else {
++		ret->array = runtime·mallocgc(size, 0, 1, 1);
++
++		if(UseSpanType) {
++			if(false) {
++				runtime·printf("new slice [%D]%S: %p\n", (int64)cap, *t->elem->string, ret->array);
++			}
++			runtime·settype(ret->array, (uintptr)t->elem | TypeInfo_Array);
++		}
++	}
+ }
+ 
+ // appendslice(type *Type, x, y, []T) []T
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index ec2299692d..dc636902f7 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -18,6 +18,7 @@ typedef struct Method Method;
+ typedef struct IMethod IMethod;
+ typedef struct SliceType SliceType;
+ typedef struct FuncType FuncType;
++typedef struct PtrType PtrType;
+ 
+ // Needs to be in sync with typekind.h/CommonSize
+ struct CommonType
+@@ -101,3 +102,9 @@ struct FuncType
+ 	Slice in;
+ 	Slice out;
+ };
++
++struct PtrType
++{
++	Type;
++	Type *elem;
++};

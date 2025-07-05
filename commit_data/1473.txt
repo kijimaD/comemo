@@ -13,6 +13,20 @@ Date:   Thu Jan 15 10:15:23 2009 -0800
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=22821
     CL=22826
-
+---
  test/interface5.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/interface5.go b/test/interface5.go
+index a7d79a17bc..2e273ddddb 100644
+--- a/test/interface5.go
++++ b/test/interface5.go
+@@ -16,6 +16,6 @@ func main() {
+ 	// neither of these can work,
+ 	// because i has an extra method
+ 	// that t does not, so i cannot contain a t.
+-	i = t;	// ERROR "missing"
+-	t = i;	// ERROR "missing"
++	i = t;	// ERROR "missing|incompatible"
++	t = i;	// ERROR "missing|incompatible"
+ }

@@ -13,7 +13,73 @@ Date:   Tue Oct 3 22:40:28 2017 +0300
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/buffer.go      |  5 +++++
  src/bytes/buffer_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 099e431a36..a99e64d1e8 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -41,6 +41,7 @@ const (
+ 
+ // ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.
+ var ErrTooLarge = errors.New("bytes.Buffer: too large")
++var errNegativeRead = errors.New("bytes.Buffer: reader returned negative count from Read")
+ 
+ const maxInt = int(^uint(0) >> 1)
+ 
+@@ -198,6 +199,10 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
+ 	for {
+ 		i := b.grow(MinRead)
+ 		m, e := r.Read(b.buf[i:cap(b.buf)])
++		if m < 0 {
++			panic(errNegativeRead)
++		}
++
+ 		b.buf = b.buf[:i+m]
+ 		n += int64(m)
+ 		if e == io.EOF {
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index 141bbe4821..e4bbc12f6a 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -17,6 +17,10 @@ const N = 10000       // make this bigger for a larger (and slower) test
+ var testString string // test data for write tests
+ var testBytes []byte  // test data; same as testString but as a slice.
+ 
++type negativeReader struct{}
++
++func (r *negativeReader) Read([]byte) (int, error) { return -1, nil }
++
+ func init() {
+ 	testBytes = make([]byte, N)
+ 	for i := 0; i < N; i++ {
+@@ -265,6 +269,26 @@ func TestReadFrom(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadFromNegativeReader(t *testing.T) {
++	var b Buffer
++	defer func() {
++		switch err := recover().(type) {
++		case nil:
++			t.Fatal("bytes.Buffer.ReadFrom didn't panic")
++		case error:
++			// this is the error string of errNegativeRead
++			wantError := "bytes.Buffer: reader returned negative count from Read"
++			if err.Error() != wantError {
++				t.Fatalf("recovered panic: got %v, want %v", err.Error(), wantError)
++			}
++		default:
++			t.Fatalf("unexpected panic value: %#v", err)
++		}
++	}()
++
++	b.ReadFrom(new(negativeReader))
++}
++
+ func TestWriteTo(t *testing.T) {
+ 	var buf Buffer
+ 	for i := 3; i < 30; i += 3 {

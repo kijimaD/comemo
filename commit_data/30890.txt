@@ -13,6 +13,20 @@ Date:   Wed Dec 14 21:35:30 2016 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_mipsx.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index ad1d1a7716..73da768897 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -481,7 +481,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
+ g0:
+ 	// Save room for two of our pointers and O32 frame.
+ 	ADDU	$-24, R29
+-	AND	$^7, R29	// O32 ABI expects 8-byte aligned stack on function entry
++	AND	$~7, R29	// O32 ABI expects 8-byte aligned stack on function entry
+ 	MOVW	R2, 16(R29)	// save old g on stack
+ 	MOVW	(g_stack+stack_hi)(R2), R2
+ 	SUBU	R3, R2

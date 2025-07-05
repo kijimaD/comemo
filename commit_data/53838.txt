@@ -11,7 +11,34 @@ Date:   Sun Sep 4 17:22:48 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/archive/tar/writer_test.go | 2 +-
  src/archive/zip/zip_test.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index da3fb89e65..48f35e5133 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -1252,7 +1252,7 @@ func TestFileWriter(t *testing.T) {
+ 
+ 	for i, v := range vectors {
+ 		var wantStr string
+-		bb := new(bytes.Buffer)
++		bb := new(strings.Builder)
+ 		w := testNonEmptyWriter{bb}
+ 		var fw fileWriter
+ 		switch maker := v.maker.(type) {
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index ead9cd3aab..a4b952efcc 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -24,7 +24,7 @@ func TestOver65kFiles(t *testing.T) {
+ 	if testing.Short() && testenv.Builder() == "" {
+ 		t.Skip("skipping in short mode")
+ 	}
+-	buf := new(bytes.Buffer)
++	buf := new(strings.Builder)
+ 	w := NewWriter(buf)
+ 	const nFiles = (1 << 16) + 42
+ 	for i := 0; i < nFiles; i++ {

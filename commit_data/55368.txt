@@ -1121,7 +1121,7 @@ Date:   Wed Nov 30 15:31:26 2022 +0100
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |   9 ++
  src/cmd/compile/internal/ssa/rewrite.go         |   6 +
  src/cmd/compile/internal/ssa/rewritegeneric.go  |  56 +++++++
@@ -1129,3 +1129,418 @@ Date:   Wed Nov 30 15:31:26 2022 +0100
  test/codegen/issue52635.go                      |  13 +-
  test/codegen/slices.go                          |  13 +-
  6 files changed, 288 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index d5d4033c7b..0cbde1ee45 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2067,6 +2067,15 @@
+   && canLoadUnaligned(config) && config.PtrSize == 8
+   => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+ 
++// Turn known-size calls to memclrNoHeapPointers into a Zero.
++// Note that we are using types.Types[types.TUINT8] instead of sptr.Type.Elem() - see issue 55122 and CL 431496 for more details.
++(SelectN [0] call:(StaticCall {sym} sptr (Const(64|32) [c]) mem))
++  && isInlinableMemclr(config)
++  && isSameCall(sym, "runtime.memclrNoHeapPointers")
++  && call.Uses == 1
++  && clobber(call)
++  => (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
++
+ // Recognise make([]T, 0) and replace it with a pointer to the zerobase
+ (SelectN [0] call:(StaticLECall _ (Const(64|32) [0]) (Const(64|32) [0]) _))
+ 	&& isSameCall(call.Aux, "runtime.makeslice")
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 13095c0440..0cf7917ec6 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1365,6 +1365,12 @@ func zeroUpper56Bits(x *Value, depth int) bool {
+ 	return false
+ }
+ 
++func isInlinableMemclr(c *Config) bool {
++	// TODO: expand this check to allow other architectures
++	// see CL 454255 and issue 56997
++	return c.arch == "amd64" || c.arch == "arm64"
++}
++
+ // isInlinableMemmove reports whether the given arch performs a Move of the given size
+ // faster than memmove. It will only return true if replacing the memmove with a Move is
+ // safe, either because Move will do all of its loads before any of its stores, or
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 6ba7fb3d55..5917d45505 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -26411,6 +26411,62 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		v.copyOf(z)
+ 		return true
+ 	}
++	// match: (SelectN [0] call:(StaticCall {sym} sptr (Const64 [c]) mem))
++	// cond: isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
++	// result: (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpStaticCall || len(call.Args) != 3 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		mem := call.Args[2]
++		sptr := call.Args[0]
++		call_1 := call.Args[1]
++		if call_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(call_1.AuxInt)
++		if !(isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
++			break
++		}
++		v.reset(OpZero)
++		v.AuxInt = int64ToAuxInt(int64(c))
++		v.Aux = typeToAux(types.Types[types.TUINT8])
++		v.AddArg2(sptr, mem)
++		return true
++	}
++	// match: (SelectN [0] call:(StaticCall {sym} sptr (Const32 [c]) mem))
++	// cond: isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
++	// result: (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpStaticCall || len(call.Args) != 3 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		mem := call.Args[2]
++		sptr := call.Args[0]
++		call_1 := call.Args[1]
++		if call_1.Op != OpConst32 {
++			break
++		}
++		c := auxIntToInt32(call_1.AuxInt)
++		if !(isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
++			break
++		}
++		v.reset(OpZero)
++		v.AuxInt = int64ToAuxInt(int64(c))
++		v.Aux = typeToAux(types.Types[types.TUINT8])
++		v.AddArg2(sptr, mem)
++		return true
++	}
+ 	// match: (SelectN [0] call:(StaticLECall _ (Const64 [0]) (Const64 [0]) _))
+ 	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
+ 	// result: (Addr {ir.Syms.Zerobase} (SB))
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index f1247f6ddf..73895becd8 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -874,3 +874,202 @@ func BenchmarkIssue18740(b *testing.B) {
+ 		})
+ 	}
+ }
++
++var memclrSink []int8
++
++func BenchmarkMemclrKnownSize1(b *testing.B) {
++	var x [1]int8
++
++	b.SetBytes(1)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize2(b *testing.B) {
++	var x [2]int8
++
++	b.SetBytes(2)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize4(b *testing.B) {
++	var x [4]int8
++
++	b.SetBytes(4)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize8(b *testing.B) {
++	var x [8]int8
++
++	b.SetBytes(8)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize16(b *testing.B) {
++	var x [16]int8
++
++	b.SetBytes(16)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize32(b *testing.B) {
++	var x [32]int8
++
++	b.SetBytes(32)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize64(b *testing.B) {
++	var x [64]int8
++
++	b.SetBytes(64)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize112(b *testing.B) {
++	var x [112]int8
++
++	b.SetBytes(112)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++
++func BenchmarkMemclrKnownSize128(b *testing.B) {
++	var x [128]int8
++
++	b.SetBytes(128)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++
++func BenchmarkMemclrKnownSize192(b *testing.B) {
++	var x [192]int8
++
++	b.SetBytes(192)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++
++func BenchmarkMemclrKnownSize248(b *testing.B) {
++	var x [248]int8
++
++	b.SetBytes(248)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++
++func BenchmarkMemclrKnownSize256(b *testing.B) {
++	var x [256]int8
++
++	b.SetBytes(256)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize512(b *testing.B) {
++	var x [512]int8
++
++	b.SetBytes(512)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize1024(b *testing.B) {
++	var x [1024]int8
++
++	b.SetBytes(1024)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize4096(b *testing.B) {
++	var x [4096]int8
++
++	b.SetBytes(4096)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
++func BenchmarkMemclrKnownSize512KiB(b *testing.B) {
++	var x [524288]int8
++
++	b.SetBytes(524288)
++	for i := 0; i < b.N; i++ {
++		for a := range x {
++			x[a] = 0
++		}
++	}
++
++	memclrSink = x[:]
++}
+diff --git a/test/codegen/issue52635.go b/test/codegen/issue52635.go
+index 0e4d169081..9b08cade36 100644
+--- a/test/codegen/issue52635.go
++++ b/test/codegen/issue52635.go
+@@ -5,6 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test that optimized range memclr works with pointers to arrays.
++// The clears get inlined, see https://github.com/golang/go/issues/56997
+ 
+ package codegen
+ 
+@@ -14,22 +15,26 @@ type T struct {
+ }
+ 
+ func (t *T) f() {
+-	// amd64:".*runtime.memclrNoHeapPointers"
++	// amd64:-".*runtime.memclrNoHeapPointers"
++	// amd64:"DUFFZERO"
+ 	for i := range t.a {
+ 		t.a[i] = 0
+ 	}
+ 
+-	// amd64:".*runtime.memclrNoHeapPointers"
++	// amd64:-".*runtime.memclrNoHeapPointers"
++	// amd64:"DUFFZERO"
+ 	for i := range *t.a {
+ 		t.a[i] = 0
+ 	}
+ 
+-	// amd64:".*runtime.memclrNoHeapPointers"
++	// amd64:-".*runtime.memclrNoHeapPointers"
++	// amd64:"DUFFZERO"
+ 	for i := range t.a {
+ 		(*t.a)[i] = 0
+ 	}
+ 
+-	// amd64:".*runtime.memclrNoHeapPointers"
++	// amd64:-".*runtime.memclrNoHeapPointers"
++	// amd64:"DUFFZERO"
+ 	for i := range *t.a {
+ 		(*t.a)[i] = 0
+ 	}
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index 1f9f74263b..e3be6bd76b 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -16,6 +16,7 @@ import "unsafe"
+ // ------------------ //
+ 
+ // Issue #5373 optimize memset idiom
++// Some of the clears get inlined, see #56997
+ 
+ func SliceClear(s []int) []int {
+ 	// amd64:`.*memclrNoHeapPointers`
+@@ -42,9 +43,10 @@ func SliceClearPointers(s []*int) []*int {
+ // Issue #21266 - avoid makeslice in append(x, make([]T, y)...)
+ 
+ func SliceExtensionConst(s []int) []int {
+-	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.memclrNoHeapPointers`
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
++	// amd64:"MOVUPS\tX15"
+ 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+@@ -52,9 +54,10 @@ func SliceExtensionConst(s []int) []int {
+ }
+ 
+ func SliceExtensionConstInt64(s []int) []int {
+-	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.memclrNoHeapPointers`
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
++	// amd64:"MOVUPS\tX15"
+ 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+@@ -62,9 +65,10 @@ func SliceExtensionConstInt64(s []int) []int {
+ }
+ 
+ func SliceExtensionConstUint64(s []int) []int {
+-	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.memclrNoHeapPointers`
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
++	// amd64:"MOVUPS\tX15"
+ 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`
+@@ -72,9 +76,10 @@ func SliceExtensionConstUint64(s []int) []int {
+ }
+ 
+ func SliceExtensionConstUint(s []int) []int {
+-	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.memclrNoHeapPointers`
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
++	// amd64:"MOVUPS\tX15"
+ 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
+ 	// ppc64x:-`.*runtime\.makeslice`
+ 	// ppc64x:-`.*runtime\.panicmakeslicelen`

@@ -8,6 +8,20 @@ Date:   Mon Feb 9 20:04:36 2009 -0800
     DELTA=3  (3 added, 0 deleted, 0 changed)
     OCL=24727
     CL=24727
-
+---
  src/lib/syscall/file_darwin.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/lib/syscall/file_darwin.go b/src/lib/syscall/file_darwin.go
+index 5d128f743c..c1e43c31ff 100644
+--- a/src/lib/syscall/file_darwin.go
++++ b/src/lib/syscall/file_darwin.go
+@@ -96,5 +96,8 @@ func Dup2(fd1, fd2 int64) (ret int64, errno int64) {
+ 
+ func Getdirentries(fd int64, buf *byte, nbytes int64, basep *int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall6(SYS_GETDIRENTRIES64, fd, int64(uintptr(unsafe.Pointer(buf))), nbytes, int64(uintptr(unsafe.Pointer(basep))), 0, 0);
++	if r1 != -1 {
++		*basep = r2
++	}
+ 	return r1, err;
+ }

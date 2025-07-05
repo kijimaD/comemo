@@ -9,7 +9,7 @@ Date:   Mon May 5 15:51:05 2025 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/runtime/syscall/defs_linux.go         |  7 ++++
  src/internal/runtime/syscall/defs_linux_386.go     |  6 +++
  src/internal/runtime/syscall/defs_linux_amd64.go   |  6 +++
@@ -23,3 +23,349 @@ Date:   Mon May 5 15:51:05 2025 -0400
  src/internal/runtime/syscall/defs_linux_s390x.go   |  6 +++
  src/internal/runtime/syscall/syscall_linux.go      | 45 ++++++++++++++++++++++
  12 files changed, 112 insertions(+)
+
+diff --git a/src/internal/runtime/syscall/defs_linux.go b/src/internal/runtime/syscall/defs_linux.go
+index 70a1388a9e..4c131e23cf 100644
+--- a/src/internal/runtime/syscall/defs_linux.go
++++ b/src/internal/runtime/syscall/defs_linux.go
+@@ -5,6 +5,10 @@
+ package syscall
+ 
+ const (
++	AT_FDCWD = -0x64
++
++	ENOENT = 0x2
++
+ 	EPOLLIN       = 0x1
+ 	EPOLLOUT      = 0x4
+ 	EPOLLERR      = 0x8
+@@ -17,6 +21,9 @@ const (
+ 	EPOLL_CTL_MOD = 0x3
+ 	EFD_CLOEXEC   = 0x80000
+ 
++	O_RDONLY  = 0x0
++	O_CLOEXEC = 0x80000
++
+ 	PR_SET_VMA           = 0x53564d41
+ 	PR_SET_VMA_ANON_NAME = 0
+ )
+diff --git a/src/internal/runtime/syscall/defs_linux_386.go b/src/internal/runtime/syscall/defs_linux_386.go
+index 2cfedab7c6..6f05fd7306 100644
+--- a/src/internal/runtime/syscall/defs_linux_386.go
++++ b/src/internal/runtime/syscall/defs_linux_386.go
+@@ -5,6 +5,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 6
+ 	SYS_FCNTL         = 55
+ 	SYS_MPROTECT      = 125
+ 	SYS_PRCTL         = 172
+@@ -13,8 +14,13 @@ const (
+ 	SYS_EPOLL_CREATE1 = 329
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 328
++	SYS_OPENAT        = 295
++	SYS_PREAD64       = 180
++	SYS_READ          = 3
+ 
+ 	EFD_NONBLOCK = 0x800
++
++	O_LARGEFILE = 0x8000
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/defs_linux_amd64.go b/src/internal/runtime/syscall/defs_linux_amd64.go
+index f664a59ad7..6c62818100 100644
+--- a/src/internal/runtime/syscall/defs_linux_amd64.go
++++ b/src/internal/runtime/syscall/defs_linux_amd64.go
+@@ -5,6 +5,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 3
+ 	SYS_MPROTECT      = 10
+ 	SYS_FCNTL         = 72
+ 	SYS_PRCTL         = 157
+@@ -13,8 +14,13 @@ const (
+ 	SYS_EPOLL_CREATE1 = 291
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 290
++	SYS_OPENAT        = 257
++	SYS_PREAD64       = 17
++	SYS_READ          = 0
+ 
+ 	EFD_NONBLOCK = 0x800
++
++	O_LARGEFILE = 0x0
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/defs_linux_arm.go b/src/internal/runtime/syscall/defs_linux_arm.go
+index 2850199a65..2b6005a3da 100644
+--- a/src/internal/runtime/syscall/defs_linux_arm.go
++++ b/src/internal/runtime/syscall/defs_linux_arm.go
+@@ -5,6 +5,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 6
+ 	SYS_FCNTL         = 55
+ 	SYS_MPROTECT      = 125
+ 	SYS_PRCTL         = 172
+@@ -13,8 +14,13 @@ const (
+ 	SYS_EPOLL_CREATE1 = 357
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 356
++	SYS_OPENAT        = 322
++	SYS_PREAD64       = 180
++	SYS_READ          = 3
+ 
+ 	EFD_NONBLOCK = 0x800
++
++	O_LARGEFILE = 0x20000
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/defs_linux_arm64.go b/src/internal/runtime/syscall/defs_linux_arm64.go
+index 1c951c1e7d..05922fbf7a 100644
+--- a/src/internal/runtime/syscall/defs_linux_arm64.go
++++ b/src/internal/runtime/syscall/defs_linux_arm64.go
+@@ -5,6 +5,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 57
+ 	SYS_EPOLL_CREATE1 = 20
+ 	SYS_EPOLL_CTL     = 21
+ 	SYS_EPOLL_PWAIT   = 22
+@@ -13,8 +14,13 @@ const (
+ 	SYS_MPROTECT      = 226
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 19
++	SYS_OPENAT        = 56
++	SYS_PREAD64       = 67
++	SYS_READ          = 63
+ 
+ 	EFD_NONBLOCK = 0x800
++
++	O_LARGEFILE = 0x0
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/defs_linux_loong64.go b/src/internal/runtime/syscall/defs_linux_loong64.go
+index dfeee05737..2501434ceb 100644
+--- a/src/internal/runtime/syscall/defs_linux_loong64.go
++++ b/src/internal/runtime/syscall/defs_linux_loong64.go
+@@ -5,6 +5,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 57
+ 	SYS_EPOLL_CREATE1 = 20
+ 	SYS_EPOLL_CTL     = 21
+ 	SYS_EPOLL_PWAIT   = 22
+@@ -13,8 +14,13 @@ const (
+ 	SYS_MPROTECT      = 226
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 19
++	SYS_OPENAT        = 56
++	SYS_PREAD64       = 67
++	SYS_READ          = 63
+ 
+ 	EFD_NONBLOCK = 0x800
++
++	O_LARGEFILE = 0x0
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/defs_linux_mips64x.go b/src/internal/runtime/syscall/defs_linux_mips64x.go
+index b9b8818d30..92ba3f7398 100644
+--- a/src/internal/runtime/syscall/defs_linux_mips64x.go
++++ b/src/internal/runtime/syscall/defs_linux_mips64x.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 5003
+ 	SYS_MPROTECT      = 5010
+ 	SYS_FCNTL         = 5070
+ 	SYS_PRCTL         = 5153
+@@ -15,8 +16,13 @@ const (
+ 	SYS_EPOLL_CREATE1 = 5285
+ 	SYS_EPOLL_PWAIT2  = 5441
+ 	SYS_EVENTFD2      = 5284
++	SYS_OPENAT        = 5247
++	SYS_PREAD64       = 5016
++	SYS_READ          = 5000
+ 
+ 	EFD_NONBLOCK = 0x80
++
++	O_LARGEFILE = 0x0
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/defs_linux_mipsx.go b/src/internal/runtime/syscall/defs_linux_mipsx.go
+index f147865f44..7b4dee08af 100644
+--- a/src/internal/runtime/syscall/defs_linux_mipsx.go
++++ b/src/internal/runtime/syscall/defs_linux_mipsx.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 4006
+ 	SYS_FCNTL         = 4055
+ 	SYS_MPROTECT      = 4125
+ 	SYS_PRCTL         = 4192
+@@ -15,8 +16,13 @@ const (
+ 	SYS_EPOLL_CREATE1 = 4326
+ 	SYS_EPOLL_PWAIT2  = 4441
+ 	SYS_EVENTFD2      = 4325
++	SYS_OPENAT        = 4288
++	SYS_PREAD64       = 4200
++	SYS_READ          = 4003
+ 
+ 	EFD_NONBLOCK = 0x80
++
++	O_LARGEFILE = 0x2000
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/defs_linux_ppc64x.go b/src/internal/runtime/syscall/defs_linux_ppc64x.go
+index 81421089db..4656517628 100644
+--- a/src/internal/runtime/syscall/defs_linux_ppc64x.go
++++ b/src/internal/runtime/syscall/defs_linux_ppc64x.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 6
+ 	SYS_FCNTL         = 55
+ 	SYS_MPROTECT      = 125
+ 	SYS_PRCTL         = 171
+@@ -15,8 +16,13 @@ const (
+ 	SYS_EPOLL_CREATE1 = 315
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 314
++	SYS_OPENAT        = 286
++	SYS_PREAD64       = 179
++	SYS_READ          = 3
+ 
+ 	EFD_NONBLOCK = 0x800
++
++	O_LARGEFILE = 0x0
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/defs_linux_riscv64.go b/src/internal/runtime/syscall/defs_linux_riscv64.go
+index dfeee05737..2501434ceb 100644
+--- a/src/internal/runtime/syscall/defs_linux_riscv64.go
++++ b/src/internal/runtime/syscall/defs_linux_riscv64.go
+@@ -5,6 +5,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 57
+ 	SYS_EPOLL_CREATE1 = 20
+ 	SYS_EPOLL_CTL     = 21
+ 	SYS_EPOLL_PWAIT   = 22
+@@ -13,8 +14,13 @@ const (
+ 	SYS_MPROTECT      = 226
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 19
++	SYS_OPENAT        = 56
++	SYS_PREAD64       = 67
++	SYS_READ          = 63
+ 
+ 	EFD_NONBLOCK = 0x800
++
++	O_LARGEFILE = 0x0
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/defs_linux_s390x.go b/src/internal/runtime/syscall/defs_linux_s390x.go
+index 1d9d5b2219..8005890e45 100644
+--- a/src/internal/runtime/syscall/defs_linux_s390x.go
++++ b/src/internal/runtime/syscall/defs_linux_s390x.go
+@@ -5,6 +5,7 @@
+ package syscall
+ 
+ const (
++	SYS_CLOSE         = 6
+ 	SYS_FCNTL         = 55
+ 	SYS_MPROTECT      = 125
+ 	SYS_PRCTL         = 172
+@@ -13,8 +14,13 @@ const (
+ 	SYS_EPOLL_CREATE1 = 327
+ 	SYS_EPOLL_PWAIT2  = 441
+ 	SYS_EVENTFD2      = 323
++	SYS_OPENAT        = 288
++	SYS_PREAD64       = 180
++	SYS_READ          = 3
+ 
+ 	EFD_NONBLOCK = 0x800
++
++	O_LARGEFILE = 0x0
+ )
+ 
+ type EpollEvent struct {
+diff --git a/src/internal/runtime/syscall/syscall_linux.go b/src/internal/runtime/syscall/syscall_linux.go
+index 83df825169..49e5f8de2c 100644
+--- a/src/internal/runtime/syscall/syscall_linux.go
++++ b/src/internal/runtime/syscall/syscall_linux.go
+@@ -6,6 +6,7 @@
+ package syscall
+ 
+ import (
++	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -42,3 +43,47 @@ func Eventfd(initval, flags int32) (fd int32, errno uintptr) {
+ 	r1, _, e := Syscall6(SYS_EVENTFD2, uintptr(initval), uintptr(flags), 0, 0, 0, 0)
+ 	return int32(r1), e
+ }
++
++func Open(path *byte, mode int, perm uint32) (fd int, errno uintptr) {
++	// Use SYS_OPENAT to match the syscall package.
++	dfd := AT_FDCWD
++	r1, _, e := Syscall6(SYS_OPENAT, uintptr(dfd), uintptr(unsafe.Pointer(path)), uintptr(mode|O_LARGEFILE), uintptr(perm), 0, 0)
++	return int(r1), e
++}
++
++func Close(fd int) (errno uintptr) {
++	_, _, e := Syscall6(SYS_CLOSE, uintptr(fd), 0, 0, 0, 0, 0)
++	return e
++}
++
++func Read(fd int, p []byte) (n int, errno uintptr) {
++	var p0 unsafe.Pointer
++	if len(p) > 0 {
++		p0 = unsafe.Pointer(&p[0])
++	} else {
++		p0 = unsafe.Pointer(&_zero)
++	}
++	r1, _, e := Syscall6(SYS_READ, uintptr(fd), uintptr(p0), uintptr(len(p)), 0, 0, 0)
++	return int(r1), e
++}
++
++func Pread(fd int, p []byte, offset int64) (n int, errno uintptr) {
++	var p0 unsafe.Pointer
++	if len(p) > 0 {
++		p0 = unsafe.Pointer(&p[0])
++	} else {
++		p0 = unsafe.Pointer(&_zero)
++	}
++	var r1, e uintptr
++	switch goarch.GOARCH {
++	case "386":
++		r1, _, e = Syscall6(SYS_PREAD64, uintptr(fd), uintptr(p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
++	case "arm", "mipsle":
++		r1, _, e = Syscall6(SYS_PREAD64, uintptr(fd), uintptr(p0), uintptr(len(p)), 0, uintptr(offset), uintptr(offset>>32))
++	case "mips":
++		r1, _, e = Syscall6(SYS_PREAD64, uintptr(fd), uintptr(p0), uintptr(len(p)), 0, uintptr(offset>>32), uintptr(offset))
++	default:
++		r1, _, e = Syscall6(SYS_PREAD64, uintptr(fd), uintptr(p0), uintptr(len(p)), uintptr(offset), 0, 0)
++	}
++	return int(r1), e
++}

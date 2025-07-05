@@ -11,7 +11,7 @@ Date:   Tue Feb 1 17:45:28 2022 -0800
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/interface.go   | 1 -
  src/cmd/compile/internal/types2/sizeof_test.go | 2 +-
  src/cmd/compile/internal/types2/typexpr.go     | 3 ---
@@ -21,3 +21,126 @@ Date:   Tue Feb 1 17:45:28 2022 -0800
  src/go/types/typexpr.go                        | 3 ---
  src/go/types/universe.go                       | 4 ++--
  8 files changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 75597abaf9..b8bf88dc62 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -12,7 +12,6 @@ import "cmd/compile/internal/syntax"
+ // An Interface represents an interface type.
+ type Interface struct {
+ 	check     *Checker      // for error reporting; nil once type set is computed
+-	obj       *TypeName     // corresponding declared object; or nil (for better error messages)
+ 	methods   []*Func       // ordered list of explicitly declared methods
+ 	embeddeds []Type        // ordered list of explicitly embedded elements
+ 	embedPos  *[]syntax.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index 14020050a9..bd31a041b7 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -28,7 +28,7 @@ func TestSizeof(t *testing.T) {
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 28, 56},
+ 		{Union{}, 12, 24},
+-		{Interface{}, 44, 88},
++		{Interface{}, 40, 80},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+ 		{Named{}, 56, 104},
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 7e30562e97..40333fd77f 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -348,9 +348,6 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 	case *syntax.InterfaceType:
+ 		typ := check.newInterface()
+ 		def.setUnderlying(typ)
+-		if def != nil {
+-			typ.obj = def.obj
+-		}
+ 		check.interfaceType(typ, e, def)
+ 		return typ
+ 
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 11c81863a9..1deff3961f 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -97,7 +97,7 @@ func defPredeclaredTypes() {
+ 		err := NewFunc(nopos, nil, "Error", sig)
+ 
+ 		// interface{ Error() string }
+-		ityp := &Interface{obj: obj, methods: []*Func{err}, complete: true}
++		ityp := &Interface{methods: []*Func{err}, complete: true}
+ 		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
+ 
+ 		typ.SetUnderlying(ityp)
+@@ -111,7 +111,7 @@ func defPredeclaredTypes() {
+ 		typ := NewNamed(obj, nil, nil)
+ 
+ 		// interface{} // marked as comparable
+-		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{nil, allTermlist, true}}
++		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
+ 
+ 		typ.SetUnderlying(ityp)
+ 		def(obj)
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 3db3580a91..361ef7eddf 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -15,7 +15,6 @@ import (
+ // An Interface represents an interface type.
+ type Interface struct {
+ 	check     *Checker     // for error reporting; nil once type set is computed
+-	obj       *TypeName    // type name object defining this interface; or nil (for better error messages)
+ 	methods   []*Func      // ordered list of explicitly declared methods
+ 	embeddeds []Type       // ordered list of explicitly embedded elements
+ 	embedPos  *[]token.Pos // positions of embedded elements; or nil (for error messages) - use pointer to save space
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index bfd14a8109..ba8edf8ad5 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -27,7 +27,7 @@ func TestSizeof(t *testing.T) {
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 28, 56},
+ 		{Union{}, 12, 24},
+-		{Interface{}, 44, 88},
++		{Interface{}, 40, 80},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+ 		{Named{}, 56, 104},
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 5bb2d8f811..d72b48185a 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -329,9 +329,6 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 	case *ast.InterfaceType:
+ 		typ := check.newInterface()
+ 		def.setUnderlying(typ)
+-		if def != nil {
+-			typ.obj = def.obj
+-		}
+ 		check.interfaceType(typ, e, def)
+ 		return typ
+ 
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 303ada4e57..f58128f480 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -98,7 +98,7 @@ func defPredeclaredTypes() {
+ 		err := NewFunc(token.NoPos, nil, "Error", sig)
+ 
+ 		// interface{ Error() string }
+-		ityp := &Interface{obj: obj, methods: []*Func{err}, complete: true}
++		ityp := &Interface{methods: []*Func{err}, complete: true}
+ 		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
+ 
+ 		typ.SetUnderlying(ityp)
+@@ -112,7 +112,7 @@ func defPredeclaredTypes() {
+ 		typ := NewNamed(obj, nil, nil)
+ 
+ 		// interface{} // marked as comparable
+-		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{nil, allTermlist, true}}
++		ityp := &Interface{complete: true, tset: &_TypeSet{nil, allTermlist, true}}
+ 
+ 		typ.SetUnderlying(ityp)
+ 		def(obj)

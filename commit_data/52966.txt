@@ -17,7 +17,7 @@ Date:   Wed May 11 02:27:21 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Alex Rakoczy <alex@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/test/testdata/issue52611.go    | 13 +++++++++++++
  misc/cgo/test/testdata/issue52611a/a.go | 16 ++++++++++++++++
  misc/cgo/test/testdata/issue52611a/b.go | 11 +++++++++++
@@ -25,3 +25,117 @@ Date:   Wed May 11 02:27:21 2022 +0000
  misc/cgo/test/testdata/issue52611b/b.go | 16 ++++++++++++++++
  src/cmd/cgo/gcc.go                      |  5 +++++
  6 files changed, 72 insertions(+)
+
+diff --git a/misc/cgo/test/testdata/issue52611.go b/misc/cgo/test/testdata/issue52611.go
+new file mode 100644
+index 0000000000..32d22403ab
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue52611.go
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 52611: inconsistent compiler behaviour when compiling a C.struct.
++// No runtime test; just make sure it compiles.
++
++package cgotest
++
++import (
++	_ "cgotest/issue52611a"
++	_ "cgotest/issue52611b"
++)
+diff --git a/misc/cgo/test/testdata/issue52611a/a.go b/misc/cgo/test/testdata/issue52611a/a.go
+new file mode 100644
+index 0000000000..0764688ec4
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue52611a/a.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue52611a
++
++/*
++typedef struct Foo {
++    int X;
++} Foo;
++*/
++import "C"
++
++func GetX1(foo *C.struct_Foo) int32 {
++	return int32(foo.X)
++}
+diff --git a/misc/cgo/test/testdata/issue52611a/b.go b/misc/cgo/test/testdata/issue52611a/b.go
+new file mode 100644
+index 0000000000..74a50c5dea
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue52611a/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue52611a
++
++import "C"
++
++func GetX2(foo *C.struct_Foo) int32 {
++	return int32(foo.X)
++}
+diff --git a/misc/cgo/test/testdata/issue52611b/a.go b/misc/cgo/test/testdata/issue52611b/a.go
+new file mode 100644
+index 0000000000..730b52f5e9
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue52611b/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue52611b
++
++import "C"
++
++func GetX1(bar *C.struct_Bar) int32 {
++	return int32(bar.X)
++}
+diff --git a/misc/cgo/test/testdata/issue52611b/b.go b/misc/cgo/test/testdata/issue52611b/b.go
+new file mode 100644
+index 0000000000..d304175395
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue52611b/b.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue52611b
++
++/*
++typedef struct Bar {
++    int X;
++} Bar;
++*/
++import "C"
++
++func GetX2(bar *C.struct_Bar) int32 {
++	return int32(bar.X)
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 4dff5e2b1c..3cb01ba382 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2551,6 +2551,11 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 		t.Go = name // publish before recursive calls
+ 		goIdent[name.Name] = name
+ 		if dt.ByteSize < 0 {
++			// Don't override old type
++			if _, ok := typedef[name.Name]; ok {
++				break
++			}
++
+ 			// Size calculation in c.Struct/c.Opaque will die with size=-1 (unknown),
+ 			// so execute the basic things that the struct case would do
+ 			// other than try to determine a Go representation.

@@ -13,6 +13,20 @@ Date:   Sun Feb 21 12:22:13 2021 +0900
     Trust: Cody Oss <codyoss@google.com>
     Run-TryBot: Sameer Ajmani <sameer@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/context/context_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 6b392a29da..84eef01da1 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -525,7 +525,7 @@ func XTestInterlockedCancels(t testingT) {
+ 	parent, cancelParent := WithCancel(Background())
+ 	child, cancelChild := WithCancel(parent)
+ 	go func() {
+-		parent.Done()
++		<-parent.Done()
+ 		cancelChild()
+ 	}()
+ 	cancelParent()

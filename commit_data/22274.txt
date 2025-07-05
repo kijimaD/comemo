@@ -22,7 +22,7 @@ Date:   Mon Mar 2 16:03:26 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6519
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/5g/cgen.go               |  6 +--
  src/cmd/6g/cgen.go               |  9 ++--
  src/cmd/8g/cgen.go               |  6 +--
@@ -46,3 +46,1452 @@ Date:   Mon Mar 2 16:03:26 2015 -0500
  src/cmd/internal/gc/y.go         | 10 ++--
  src/cmd/internal/ld/go.go        | 46 +------------------
  22 files changed, 179 insertions(+), 289 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.go b/src/cmd/5g/cgen.go
+index 1fd31113b6..d9c827776d 100644
+--- a/src/cmd/5g/cgen.go
++++ b/src/cmd/5g/cgen.go
+@@ -387,7 +387,7 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 			var n1 gc.Node
+ 			regalloc(&n1, gc.Types[gc.Tptr], res)
+ 			p1 := gins(arm.AMOVW, nil, &n1)
+-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
++			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			gmove(&n1, res)
+ 			regfree(&n1)
+ 			break
+@@ -1075,7 +1075,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		if gc.Debug['B'] == 0 && !n.Bounded {
+ 			// check bounds
+ 			if gc.Isconst(nl, gc.CTSTR) {
+-				gc.Nodconst(&n4, gc.Types[gc.TUINT32], int64(len(nl.Val.U.Sval.S)))
++				gc.Nodconst(&n4, gc.Types[gc.TUINT32], int64(len(nl.Val.U.Sval)))
+ 			} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
+ 				n1 = n3
+ 				n1.Op = gc.OINDREG
+@@ -1102,7 +1102,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		if gc.Isconst(nl, gc.CTSTR) {
+ 			regalloc(&n3, gc.Types[gc.Tptr], res)
+ 			p1 := gins(arm.AMOVW, nil, &n3)
+-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
++			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			p1.From.Type = obj.TYPE_ADDR
+ 		} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
+ 			n1 = n3
+diff --git a/src/cmd/6g/cgen.go b/src/cmd/6g/cgen.go
+index 7f1da8ec46..8e282155f6 100644
+--- a/src/cmd/6g/cgen.go
++++ b/src/cmd/6g/cgen.go
+@@ -8,8 +8,9 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
++
++	"cmd/internal/gc"
+ )
+-import "cmd/internal/gc"
+ 
+ /*
+  * reg.c
+@@ -374,7 +375,7 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 			var n1 gc.Node
+ 			regalloc(&n1, gc.Types[gc.Tptr], res)
+ 			p1 := gins(x86.ALEAQ, nil, &n1)
+-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
++			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			gmove(&n1, res)
+ 			regfree(&n1)
+ 			break
+@@ -794,7 +795,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 				t = gc.Types[gc.TUINT64]
+ 			}
+ 			if gc.Isconst(nl, gc.CTSTR) {
+-				gc.Nodconst(&nlen, t, int64(len(nl.Val.U.Sval.S)))
++				gc.Nodconst(&nlen, t, int64(len(nl.Val.U.Sval)))
+ 			} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
+ 				if gc.Is64(nr.Type) {
+ 					var n5 gc.Node
+@@ -823,7 +824,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		if gc.Isconst(nl, gc.CTSTR) {
+ 			regalloc(&n3, gc.Types[gc.Tptr], res)
+ 			p1 := gins(x86.ALEAQ, nil, &n3)
+-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
++			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			gins(x86.AADDQ, &n2, &n3)
+ 			goto indexdone
+ 		}
+diff --git a/src/cmd/8g/cgen.go b/src/cmd/8g/cgen.go
+index 93934fb40e..ec8532d6fc 100644
+--- a/src/cmd/8g/cgen.go
++++ b/src/cmd/8g/cgen.go
+@@ -332,7 +332,7 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 			var n1 gc.Node
+ 			regalloc(&n1, gc.Types[gc.Tptr], res)
+ 			p1 := gins(i386.ALEAL, nil, &n1)
+-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
++			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			gmove(&n1, res)
+ 			regfree(&n1)
+ 			break
+@@ -726,7 +726,7 @@ func agen(n *gc.Node, res *gc.Node) {
+ 
+ 			var nlen gc.Node
+ 			if gc.Isconst(nl, gc.CTSTR) {
+-				gc.Nodconst(&nlen, t, int64(len(nl.Val.U.Sval.S)))
++				gc.Nodconst(&nlen, t, int64(len(nl.Val.U.Sval)))
+ 			} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
+ 				nlen = n3
+ 				nlen.Type = t
+@@ -747,7 +747,7 @@ func agen(n *gc.Node, res *gc.Node) {
+ 		if gc.Isconst(nl, gc.CTSTR) {
+ 			regalloc(&n3, gc.Types[gc.Tptr], res)
+ 			p1 := gins(i386.ALEAL, nil, &n3)
+-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
++			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			p1.From.Scale = 1
+ 			p1.From.Index = n2.Val.U.Reg
+ 			goto indexdone
+diff --git a/src/cmd/9g/cgen.go b/src/cmd/9g/cgen.go
+index 059ec5e4bd..424825bc03 100644
+--- a/src/cmd/9g/cgen.go
++++ b/src/cmd/9g/cgen.go
+@@ -380,7 +380,7 @@ func cgen(n *gc.Node, res *gc.Node) {
+ 			var n1 gc.Node
+ 			regalloc(&n1, gc.Types[gc.Tptr], res)
+ 			p1 := gins(ppc64.AMOVD, nil, &n1)
+-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
++			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			gmove(&n1, res)
+ 			regfree(&n1)
+ 			break
+@@ -783,7 +783,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		if gc.Debug['B'] == 0 && !n.Bounded {
+ 			// check bounds
+ 			if gc.Isconst(nl, gc.CTSTR) {
+-				gc.Nodconst(&n4, gc.Types[gc.TUINT64], int64(len(nl.Val.U.Sval.S)))
++				gc.Nodconst(&n4, gc.Types[gc.TUINT64], int64(len(nl.Val.U.Sval)))
+ 			} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
+ 				n1 = n3
+ 				n1.Op = gc.OINDREG
+@@ -817,7 +817,7 @@ func agenr(n *gc.Node, a *gc.Node, res *gc.Node) {
+ 		if gc.Isconst(nl, gc.CTSTR) {
+ 			regalloc(&n3, gc.Types[gc.Tptr], res)
+ 			p1 := gins(ppc64.AMOVD, nil, &n3)
+-			gc.Datastring(nl.Val.U.Sval.S, &p1.From)
++			gc.Datastring(nl.Val.U.Sval, &p1.From)
+ 			p1.From.Type = obj.TYPE_ADDR
+ 		} else if gc.Isslice(nl.Type) || nl.Type.Etype == gc.TSTRING {
+ 			n1 = n3
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/internal/gc/closure.go
+index 8f13a3e853..c9b6981aec 100644
+--- a/src/cmd/internal/gc/closure.go
++++ b/src/cmd/internal/gc/closure.go
+@@ -532,7 +532,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	}
+ 	if spkg == nil {
+ 		if makepartialcall_gopkg == nil {
+-			makepartialcall_gopkg = mkpkg(newstrlit("go"))
++			makepartialcall_gopkg = mkpkg("go")
+ 		}
+ 		spkg = makepartialcall_gopkg
+ 	}
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/internal/gc/const.go
+index 724505b5f7..ec84f65961 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/internal/gc/const.go
+@@ -4,7 +4,10 @@
+ 
+ package gc
+ 
+-import "cmd/internal/obj"
++import (
++	"cmd/internal/obj"
++	"strings"
++)
+ 
+ /*
+  * truncate float literal fv to 32-bit or 64-bit precision
+@@ -432,11 +435,10 @@ func tostr(v Val) Val {
+ 		if Mpcmpfixfix(v.U.Xval, Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[TINT]) > 0 {
+ 			Yyerror("overflow in int -> string")
+ 		}
+-		rune_ := uint(Mpgetfix(v.U.Xval))
+-		s := &Strlit{S: string(rune_)}
++		r := uint(Mpgetfix(v.U.Xval))
+ 		v = Val{}
+ 		v.Ctype = CTSTR
+-		v.U.Sval = s
++		v.U.Sval = string(r)
+ 
+ 	case CTFLT:
+ 		Yyerror("no float -> string")
+@@ -445,7 +447,7 @@ func tostr(v Val) Val {
+ 	case CTNIL:
+ 		v = Val{}
+ 		v.Ctype = CTSTR
+-		v.U.Sval = new(Strlit)
++		v.U.Sval = ""
+ 	}
+ 
+ 	return v
+@@ -526,16 +528,15 @@ func evconst(n *Node) {
+ 	case OADDSTR:
+ 		var nr *Node
+ 		var nl *Node
+-		var str *Strlit
+ 		var l2 *NodeList
+ 		for l1 := n.List; l1 != nil; l1 = l1.Next {
+ 			if Isconst(l1.N, CTSTR) && l1.Next != nil && Isconst(l1.Next.N, CTSTR) {
+ 				// merge from l1 up to but not including l2
+-				str = new(Strlit)
++				var strs []string
+ 				l2 = l1
+ 				for l2 != nil && Isconst(l2.N, CTSTR) {
+ 					nr = l2.N
+-					str.S += nr.Val.U.Sval.S
++					strs = append(strs, nr.Val.U.Sval)
+ 					l2 = l2.Next
+ 				}
+ 
+@@ -543,7 +544,7 @@ func evconst(n *Node) {
+ 				*nl = *l1.N
+ 				nl.Orig = nl
+ 				nl.Val.Ctype = CTSTR
+-				nl.Val.U.Sval = str
++				nl.Val.U.Sval = strings.Join(strs, "")
+ 				l1.N = nl
+ 				l1.Next = l2
+ 			}
+@@ -1334,7 +1335,7 @@ func defaultlit2(lp **Node, rp **Node, force int) {
+ }
+ 
+ func cmpslit(l, r *Node) int {
+-	return stringsCompare(l.Val.U.Sval.S, r.Val.U.Sval.S)
++	return stringsCompare(l.Val.U.Sval, r.Val.U.Sval)
+ }
+ 
+ func Smallintconst(n *Node) bool {
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/internal/gc/dcl.go
+index 97271ba410..8ea5d8dd76 100644
+--- a/src/cmd/internal/gc/dcl.go
++++ b/src/cmd/internal/gc/dcl.go
+@@ -132,14 +132,14 @@ func testdclstack() {
+ 
+ func redeclare(s *Sym, where string) {
+ 	if s.Lastlineno == 0 {
+-		var tmp *Strlit
++		var tmp string
+ 		if s.Origpkg != nil {
+ 			tmp = s.Origpkg.Path
+ 		} else {
+ 			tmp = s.Pkg.Path
+ 		}
+ 		pkgstr := tmp
+-		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import \"%v\"", Sconv(s, 0), where, Zconv(pkgstr, 0))
++		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import %q", Sconv(s, 0), where, pkgstr)
+ 	} else {
+ 		line1 := parserline()
+ 		line2 := int(s.Lastlineno)
+@@ -823,7 +823,8 @@ func structfield(n *Node) *Type {
+ 
+ 	switch n.Val.Ctype {
+ 	case CTSTR:
+-		f.Note = n.Val.U.Sval
++		f.Note = new(string)
++		*f.Note = n.Val.U.Sval
+ 
+ 	default:
+ 		Yyerror("field annotation must be string")
+@@ -1284,7 +1285,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 
+ 	if spkg == nil {
+ 		if methodsym_toppkg == nil {
+-			methodsym_toppkg = mkpkg(newstrlit("go"))
++			methodsym_toppkg = mkpkg("go")
+ 		}
+ 		spkg = methodsym_toppkg
+ 	}
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index f54e550b60..169dec6341 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -217,9 +217,9 @@ type EscState struct {
+ 	recursive bool
+ }
+ 
+-var tags [16]*Strlit
++var tags [16]*string
+ 
+-func mktag(mask int) *Strlit {
++func mktag(mask int) *string {
+ 	switch mask & EscMask {
+ 	case EscNone,
+ 		EscReturn:
+@@ -235,22 +235,18 @@ func mktag(mask int) *Strlit {
+ 		return tags[mask]
+ 	}
+ 
+-	buf := fmt.Sprintf("esc:0x%x", mask)
+-	s := newstrlit(buf)
++	s := fmt.Sprintf("esc:0x%x", mask)
+ 	if mask < len(tags) {
+-		tags[mask] = s
++		tags[mask] = &s
+ 	}
+-	return s
++	return &s
+ }
+ 
+-func parsetag(note *Strlit) int {
+-	if note == nil {
++func parsetag(note *string) int {
++	if note == nil || !strings.HasPrefix(*note, "esc:") {
+ 		return EscUnknown
+ 	}
+-	if !strings.HasPrefix(note.S, "esc:") {
+-		return EscUnknown
+-	}
+-	em := atoi(note.S[4:])
++	em := atoi((*note)[4:])
+ 	if em == 0 {
+ 		return EscNone
+ 	}
+@@ -941,7 +937,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 	lineno = int32(lno)
+ }
+ 
+-func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int {
++func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) int {
+ 	var em int
+ 
+ 	em = parsetag(note)
+@@ -969,7 +965,7 @@ func escassignfromtag(e *EscState, note *Strlit, dsts *NodeList, src *Node) int
+ 	}
+ 
+ 	if em != 0 && dsts == nil {
+-		Fatal("corrupt esc tag %v or messed up escretval list\n", Zconv(note, 0))
++		Fatal("corrupt esc tag %q or messed up escretval list\n", note)
+ 	}
+ 	return em0
+ }
+diff --git a/src/cmd/internal/gc/export.go b/src/cmd/internal/gc/export.go
+index 17037f6d94..54ed515d08 100644
+--- a/src/cmd/internal/gc/export.go
++++ b/src/cmd/internal/gc/export.go
+@@ -87,7 +87,7 @@ func dumppkg(p *Pkg) {
+ 	if p.Direct == 0 {
+ 		suffix = " // indirect"
+ 	}
+-	fmt.Fprintf(bout, "\timport %s \"%v\"%s\n", p.Name, Zconv(p.Path, 0), suffix)
++	fmt.Fprintf(bout, "\timport %s %q%s\n", p.Name, p.Path, suffix)
+ }
+ 
+ // Look for anything we need for the inline body
+@@ -399,7 +399,7 @@ func dumpexport() {
+  */
+ func importsym(s *Sym, op int) *Sym {
+ 	if s.Def != nil && int(s.Def.Op) != op {
+-		pkgstr := fmt.Sprintf("during import \"%v\"", Zconv(importpkg.Path, 0))
++		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
+ 		redeclare(s, pkgstr)
+ 	}
+ 
+@@ -432,24 +432,24 @@ func pkgtype(s *Sym) *Type {
+ 	return s.Def.Type
+ }
+ 
+-func importimport(s *Sym, z *Strlit) {
++func importimport(s *Sym, path string) {
+ 	// Informational: record package name
+ 	// associated with import path, for use in
+ 	// human-readable messages.
+ 
+-	if isbadimport(z) {
++	if isbadimport(path) {
+ 		errorexit()
+ 	}
+-	p := mkpkg(z)
++	p := mkpkg(path)
+ 	if p.Name == "" {
+ 		p.Name = s.Name
+ 		Pkglookup(s.Name, nil).Npkg++
+ 	} else if p.Name != s.Name {
+-		Yyerror("conflicting names %s and %s for package \"%v\"", p.Name, s.Name, Zconv(p.Path, 0))
++		Yyerror("conflicting names %s and %s for package %q", p.Name, s.Name, p.Path)
+ 	}
+ 
+-	if incannedimport == 0 && myimportpath != "" && z.S == myimportpath {
+-		Yyerror("import \"%v\": package depends on \"%v\" (import cycle)", Zconv(importpkg.Path, 0), Zconv(z, 0))
++	if incannedimport == 0 && myimportpath != "" && path == myimportpath {
++		Yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
+ 		errorexit()
+ 	}
+ }
+@@ -488,7 +488,7 @@ func importvar(s *Sym, t *Type) {
+ 		if Eqtype(t, s.Def.Type) {
+ 			return
+ 		}
+-		Yyerror("inconsistent definition for var %v during import\n\t%v (in \"%v\")\n\t%v (in \"%v\")", Sconv(s, 0), Tconv(s.Def.Type, 0), Zconv(s.Importdef.Path, 0), Tconv(t, 0), Zconv(importpkg.Path, 0))
++		Yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", Sconv(s, 0), Tconv(s.Def.Type, 0), s.Importdef.Path, Tconv(t, 0), importpkg.Path)
+ 	}
+ 
+ 	n := newname(s)
+@@ -518,7 +518,7 @@ func importtype(pt *Type, t *Type) {
+ 		declare(n, PEXTERN)
+ 		checkwidth(pt)
+ 	} else if !Eqtype(pt.Orig, t) {
+-		Yyerror("inconsistent definition for type %v during import\n\t%v (in \"%v\")\n\t%v (in \"%v\")", Sconv(pt.Sym, 0), Tconv(pt, obj.FmtLong), Zconv(pt.Sym.Importdef.Path, 0), Tconv(t, obj.FmtLong), Zconv(importpkg.Path, 0))
++		Yyerror("inconsistent definition for type %v during import\n\t%v (in %q)\n\t%v (in %q)", Sconv(pt.Sym, 0), Tconv(pt, obj.FmtLong), pt.Sym.Importdef.Path, Tconv(t, obj.FmtLong), importpkg.Path)
+ 	}
+ 
+ 	if Debug['E'] != 0 {
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 6fe4a3330c..cd62cef993 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -45,8 +45,6 @@ import (
+ //		Flags: those of %N
+ //			','  separate items with ',' instead of ';'
+ //
+-//	%Z Strlit*	String literals
+-//
+ //   In mparith1.c:
+ //      %B Mpint*	Big integers
+ //	%F Mpflt*	Big floats
+@@ -350,7 +348,7 @@ func Vconv(v *Val, flag int) string {
+ 
+ 	case CTSTR:
+ 		var fp string
+-		fp += fmt.Sprintf("\"%v\"", Zconv(v.U.Sval, 0))
++		fp += fmt.Sprintf("%q", v.U.Sval)
+ 		return fp
+ 
+ 	case CTBOOL:
+@@ -370,54 +368,6 @@ func Vconv(v *Val, flag int) string {
+ 	return fmt.Sprintf("<ctype=%d>", v.Ctype)
+ }
+ 
+-// Fmt "%Z": escaped string literals
+-func Zconv(sp *Strlit, flag int) string {
+-	if sp == nil {
+-		return "<nil>"
+-	}
+-
+-	// NOTE: Keep in sync with ../ld/go.c:/^Zconv.
+-	s := sp.S
+-	var n int
+-	var fp string
+-	for i := 0; i < len(s); i += n {
+-		var r rune
+-		r, n = utf8.DecodeRuneInString(s[i:])
+-		switch r {
+-		case utf8.RuneError:
+-			if n == 1 {
+-				fp += fmt.Sprintf("\\x%02x", s[i])
+-				break
+-			}
+-			fallthrough
+-
+-			// fall through
+-		default:
+-			if r < ' ' {
+-				fp += fmt.Sprintf("\\x%02x", r)
+-				break
+-			}
+-
+-			fp += string(r)
+-
+-		case '\t':
+-			fp += "\\t"
+-
+-		case '\n':
+-			fp += "\\n"
+-
+-		case '"',
+-			'\\':
+-			fp += `\` + string(r)
+-
+-		case 0xFEFF: // BOM, basically disallowed in source code
+-			fp += "\\uFEFF"
+-		}
+-	}
+-
+-	return fp
+-}
+-
+ /*
+ s%,%,\n%g
+ s%\n+%\n%g
+@@ -477,7 +427,7 @@ func symfmt(s *Sym, flag int) string {
+ 
+ 			// If the name was used by multiple packages, display the full path,
+ 			if s.Pkg.Name != "" && Pkglookup(s.Pkg.Name, nil).Npkg > 1 {
+-				return fmt.Sprintf("\"%v\".%s", Zconv(s.Pkg.Path, 0), s.Name)
++				return fmt.Sprintf("%q.%s", s.Pkg.Path, s.Name)
+ 			}
+ 			var fp string
+ 			fp += fmt.Sprintf("%s.%s", s.Pkg.Name, s.Name)
+@@ -501,7 +451,7 @@ func symfmt(s *Sym, flag int) string {
+ 				Fatal("exporting synthetic symbol %s", s.Name)
+ 			}
+ 			if s.Pkg != builtinpkg {
+-				return fmt.Sprintf("@\"%v\".%s", Zconv(s.Pkg.Path, 0), s.Name)
++				return fmt.Sprintf("@%q.%s", s.Pkg.Path, s.Name)
+ 			}
+ 		}
+ 	}
+@@ -516,7 +466,7 @@ func symfmt(s *Sym, flag int) string {
+ 
+ 		// exportname needs to see the name without the prefix too.
+ 		if (fmtmode == FExp && !exportname(p)) || fmtmode == FDbg {
+-			return fmt.Sprintf("@\"%v\".%s", Zconv(s.Pkg.Path, 0), p)
++			return fmt.Sprintf("@%q.%s", s.Pkg.Path, p)
+ 		}
+ 
+ 		return p
+@@ -791,8 +741,8 @@ func typefmt(t *Type, flag int) string {
+ 				//if(t->funarg)
+ 				//	fmtstrcpy(fp, "_ ");
+ 				//else
+-				if t.Embedded != 0 && s.Pkg != nil && len(s.Pkg.Path.S) > 0 {
+-					fp += fmt.Sprintf("@\"%v\".? ", Zconv(s.Pkg.Path, 0))
++				if t.Embedded != 0 && s.Pkg != nil && len(s.Pkg.Path) > 0 {
++					fp += fmt.Sprintf("@%q.? ", s.Pkg.Path)
+ 				} else {
+ 					fp += "? "
+ 				}
+@@ -806,7 +756,7 @@ func typefmt(t *Type, flag int) string {
+ 		}
+ 
+ 		if flag&obj.FmtShort == 0 /*untyped*/ && t.Note != nil {
+-			fp += fmt.Sprintf(" \"%v\"", Zconv(t.Note, 0))
++			fp += fmt.Sprintf(" %q", *t.Note)
+ 		}
+ 		return fp
+ 
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 508042d284..706e973df3 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -55,15 +55,6 @@ const (
+ 	MaxStackVarSize = 10 * 1024 * 1024
+ )
+ 
+-/*
+- * note this is the representation
+- * of the compilers string literals,
+- * it is not the runtime representation
+- */
+-type Strlit struct {
+-	S string
+-}
+-
+ const (
+ 	Mpscale = 29
+ 	Mpprec  = 16
+@@ -98,7 +89,7 @@ type Val struct {
+ 		Xval *Mpint
+ 		Fval *Mpflt
+ 		Cval *Mpcplx
+-		Sval *Strlit
++		Sval string
+ 	}
+ }
+ 
+@@ -116,7 +107,7 @@ type Bvec struct {
+ 
+ type Pkg struct {
+ 	Name     string
+-	Path     *Strlit
++	Path     string
+ 	Pathsym  *Sym
+ 	Prefix   string
+ 	Link     *Pkg
+@@ -279,7 +270,7 @@ type Type struct {
+ 	Width       int64
+ 	Down        *Type
+ 	Outer       *Type
+-	Note        *Strlit
++	Note        *string
+ 	Bound       int64
+ 	Bucket      *Type
+ 	Hmap        *Type
+diff --git a/src/cmd/internal/gc/go.y b/src/cmd/internal/gc/go.y
+index 0c86d0f125..96d5cbe58b 100644
+--- a/src/cmd/internal/gc/go.y
++++ b/src/cmd/internal/gc/go.y
+@@ -251,13 +251,13 @@ import_package:
+ 			importpkg.Name = $2.Name;
+ 			Pkglookup($2.Name, nil).Npkg++;
+ 		} else if importpkg.Name != $2.Name {
+-			Yyerror("conflicting names %s and %s for package \"%v\"", importpkg.Name, $2.Name, Zconv(importpkg.Path, 0));
++			Yyerror("conflicting names %s and %s for package %q", importpkg.Name, $2.Name, importpkg.Path);
+ 		}
+ 		importpkg.Direct = 1;
+ 		importpkg.Safe = curio.importsafe
+ 
+ 		if safemode != 0 && !curio.importsafe {
+-			Yyerror("cannot import unsafe package \"%v\"", Zconv(importpkg.Path, 0));
++			Yyerror("cannot import unsafe package %q", importpkg.Path);
+ 		}
+ 	}
+ 
+@@ -1130,7 +1130,7 @@ hidden_importsym:
+ 	{
+ 		var p *Pkg
+ 
+-		if $2.U.Sval.S == "" {
++		if $2.U.Sval == "" {
+ 			p = importpkg;
+ 		} else {
+ 			if isbadimport($2.U.Sval) {
+@@ -1144,7 +1144,7 @@ hidden_importsym:
+ 	{
+ 		var p *Pkg
+ 
+-		if $2.U.Sval.S == "" {
++		if $2.U.Sval == "" {
+ 			p = importpkg;
+ 		} else {
+ 			if isbadimport($2.U.Sval) {
+@@ -1975,7 +1975,7 @@ hidden_import:
+ 		importlist = list(importlist, $2);
+ 
+ 		if Debug['E'] > 0 {
+-			print("import [%v] func %lN \n", Zconv(importpkg.Path, 0), $2);
++			print("import [%q] func %lN \n", importpkg.Path, $2);
+ 			if Debug['m'] > 2 && $2.Inl != nil {
+ 				print("inl body:%+H\n", $2.Inl);
+ 			}
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 319315efde..e447f4ce10 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -121,50 +121,50 @@ func Main() {
+ 	Ctxt.Bso = &bstdout
+ 	bstdout = *obj.Binitw(os.Stdout)
+ 
+-	localpkg = mkpkg(newstrlit(""))
++	localpkg = mkpkg("")
+ 	localpkg.Prefix = "\"\""
+ 
+ 	// pseudo-package, for scoping
+-	builtinpkg = mkpkg(newstrlit("go.builtin"))
++	builtinpkg = mkpkg("go.builtin")
+ 
+ 	builtinpkg.Prefix = "go.builtin" // not go%2ebuiltin
+ 
+ 	// pseudo-package, accessed by import "unsafe"
+-	unsafepkg = mkpkg(newstrlit("unsafe"))
++	unsafepkg = mkpkg("unsafe")
+ 
+ 	unsafepkg.Name = "unsafe"
+ 
+ 	// real package, referred to by generated runtime calls
+-	Runtimepkg = mkpkg(newstrlit("runtime"))
++	Runtimepkg = mkpkg("runtime")
+ 
+ 	Runtimepkg.Name = "runtime"
+ 
+ 	// pseudo-packages used in symbol tables
+-	gostringpkg = mkpkg(newstrlit("go.string"))
++	gostringpkg = mkpkg("go.string")
+ 
+ 	gostringpkg.Name = "go.string"
+ 	gostringpkg.Prefix = "go.string" // not go%2estring
+ 
+-	itabpkg = mkpkg(newstrlit("go.itab"))
++	itabpkg = mkpkg("go.itab")
+ 
+ 	itabpkg.Name = "go.itab"
+ 	itabpkg.Prefix = "go.itab" // not go%2eitab
+ 
+-	weaktypepkg = mkpkg(newstrlit("go.weak.type"))
++	weaktypepkg = mkpkg("go.weak.type")
+ 
+ 	weaktypepkg.Name = "go.weak.type"
+ 	weaktypepkg.Prefix = "go.weak.type" // not go%2eweak%2etype
+ 
+-	typelinkpkg = mkpkg(newstrlit("go.typelink"))
++	typelinkpkg = mkpkg("go.typelink")
+ 	typelinkpkg.Name = "go.typelink"
+ 	typelinkpkg.Prefix = "go.typelink" // not go%2etypelink
+ 
+-	trackpkg = mkpkg(newstrlit("go.track"))
++	trackpkg = mkpkg("go.track")
+ 
+ 	trackpkg.Name = "go.track"
+ 	trackpkg.Prefix = "go.track" // not go%2etrack
+ 
+-	typepkg = mkpkg(newstrlit("type"))
++	typepkg = mkpkg("type")
+ 
+ 	typepkg.Name = "type"
+ 
+@@ -238,7 +238,7 @@ func Main() {
+ 	startProfile()
+ 
+ 	if flag_race != 0 {
+-		racepkg = mkpkg(newstrlit("runtime/race"))
++		racepkg = mkpkg("runtime/race")
+ 		racepkg.Name = "race"
+ 	}
+ 
+@@ -549,14 +549,14 @@ func addidir(dir string) {
+ }
+ 
+ // is this path a local name?  begins with ./ or ../ or /
+-func islocalname(name *Strlit) bool {
+-	return strings.HasPrefix(name.S, "/") ||
+-		Ctxt.Windows != 0 && len(name.S) >= 3 && yy_isalpha(int(name.S[0])) && name.S[1] == ':' && name.S[2] == '/' ||
+-		strings.HasPrefix(name.S, "./") || name.S == "." ||
+-		strings.HasPrefix(name.S, "../") || name.S == ".."
++func islocalname(name string) bool {
++	return strings.HasPrefix(name, "/") ||
++		Ctxt.Windows != 0 && len(name) >= 3 && yy_isalpha(int(name[0])) && name[1] == ':' && name[2] == '/' ||
++		strings.HasPrefix(name, "./") || name == "." ||
++		strings.HasPrefix(name, "../") || name == ".."
+ }
+ 
+-func findpkg(name *Strlit) bool {
++func findpkg(name string) bool {
+ 	if islocalname(name) {
+ 		if safemode != 0 || nolocalimports != 0 {
+ 			return false
+@@ -565,12 +565,12 @@ func findpkg(name *Strlit) bool {
+ 		// try .a before .6.  important for building libraries:
+ 		// if there is an array.6 in the array.a library,
+ 		// want to find all of array.a, not just array.6.
+-		namebuf = fmt.Sprintf("%v.a", Zconv(name, 0))
++		namebuf = fmt.Sprintf("%s.a", name)
+ 
+ 		if obj.Access(namebuf, 0) >= 0 {
+ 			return true
+ 		}
+-		namebuf = fmt.Sprintf("%v.%c", Zconv(name, 0), Thearch.Thechar)
++		namebuf = fmt.Sprintf("%s.%c", name, Thearch.Thechar)
+ 		if obj.Access(namebuf, 0) >= 0 {
+ 			return true
+ 		}
+@@ -582,17 +582,17 @@ func findpkg(name *Strlit) bool {
+ 	// as different from "encoding/base64".
+ 	var q string
+ 	_ = q
+-	if path.Clean(name.S) != name.S {
+-		Yyerror("non-canonical import path %v (should be %s)", Zconv(name, 0), q)
++	if path.Clean(name) != name {
++		Yyerror("non-canonical import path %q (should be %q)", name, q)
+ 		return false
+ 	}
+ 
+ 	for p := idirs; p != nil; p = p.link {
+-		namebuf = fmt.Sprintf("%s/%v.a", p.dir, Zconv(name, 0))
++		namebuf = fmt.Sprintf("%s/%s.a", p.dir, name)
+ 		if obj.Access(namebuf, 0) >= 0 {
+ 			return true
+ 		}
+-		namebuf = fmt.Sprintf("%s/%v.%c", p.dir, Zconv(name, 0), Thearch.Thechar)
++		namebuf = fmt.Sprintf("%s/%s.%c", p.dir, name, Thearch.Thechar)
+ 		if obj.Access(namebuf, 0) >= 0 {
+ 			return true
+ 		}
+@@ -609,11 +609,11 @@ func findpkg(name *Strlit) bool {
+ 			suffix = "race"
+ 		}
+ 
+-		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%v.a", goroot, goos, goarch, suffixsep, suffix, Zconv(name, 0))
++		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
+ 		if obj.Access(namebuf, 0) >= 0 {
+ 			return true
+ 		}
+-		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%v.%c", goroot, goos, goarch, suffixsep, suffix, Zconv(name, 0), Thearch.Thechar)
++		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.%c", goroot, goos, goarch, suffixsep, suffix, name, Thearch.Thechar)
+ 		if obj.Access(namebuf, 0) >= 0 {
+ 			return true
+ 		}
+@@ -623,7 +623,7 @@ func findpkg(name *Strlit) bool {
+ }
+ 
+ func fakeimport() {
+-	importpkg = mkpkg(newstrlit("fake"))
++	importpkg = mkpkg("fake")
+ 	cannedimports("fake.6", "$$\n")
+ }
+ 
+@@ -634,7 +634,7 @@ func importfile(f *Val, line int) {
+ 		return
+ 	}
+ 
+-	if len(f.U.Sval.S) == 0 {
++	if len(f.U.Sval) == 0 {
+ 		Yyerror("import path is empty")
+ 		fakeimport()
+ 		return
+@@ -649,17 +649,17 @@ func importfile(f *Val, line int) {
+ 	// but we reserve the import path "main" to identify
+ 	// the main package, just as we reserve the import
+ 	// path "math" to identify the standard math package.
+-	if f.U.Sval.S == "main" {
++	if f.U.Sval == "main" {
+ 		Yyerror("cannot import \"main\"")
+ 		errorexit()
+ 	}
+ 
+-	if myimportpath != "" && f.U.Sval.S == myimportpath {
+-		Yyerror("import \"%v\" while compiling that package (import cycle)", Zconv(f.U.Sval, 0))
++	if myimportpath != "" && f.U.Sval == myimportpath {
++		Yyerror("import %q while compiling that package (import cycle)", f.U.Sval)
+ 		errorexit()
+ 	}
+ 
+-	if f.U.Sval.S == "unsafe" {
++	if f.U.Sval == "unsafe" {
+ 		if safemode != 0 {
+ 			Yyerror("cannot import package unsafe")
+ 			errorexit()
+@@ -673,7 +673,7 @@ func importfile(f *Val, line int) {
+ 
+ 	path_ := f.U.Sval
+ 	if islocalname(path_) {
+-		if path_.S[0] == '/' {
++		if path_[0] == '/' {
+ 			Yyerror("import path cannot be absolute path")
+ 			fakeimport()
+ 			return
+@@ -685,9 +685,9 @@ func importfile(f *Val, line int) {
+ 		}
+ 		cleanbuf := prefix
+ 		cleanbuf += "/"
+-		cleanbuf += path_.S
++		cleanbuf += path_
+ 		cleanbuf = path.Clean(cleanbuf)
+-		path_ = newstrlit(cleanbuf)
++		path_ = cleanbuf
+ 
+ 		if isbadimport(path_) {
+ 			fakeimport()
+@@ -696,7 +696,7 @@ func importfile(f *Val, line int) {
+ 	}
+ 
+ 	if !findpkg(path_) {
+-		Yyerror("can't find import: \"%v\"", Zconv(f.U.Sval, 0))
++		Yyerror("can't find import: %q", f.U.Sval)
+ 		errorexit()
+ 	}
+ 
+@@ -722,7 +722,7 @@ func importfile(f *Val, line int) {
+ 	var imp *obj.Biobuf
+ 	imp, err = obj.Bopenr(namebuf)
+ 	if err != nil {
+-		Yyerror("can't open import: \"%v\": %v", Zconv(f.U.Sval, 0), err)
++		Yyerror("can't open import: %q: %v", f.U.Sval, err)
+ 		errorexit()
+ 	}
+ 
+@@ -754,7 +754,7 @@ func importfile(f *Val, line int) {
+ 
+ 	// assume files move (get installed)
+ 	// so don't record the full path.
+-	linehist(file[n-len(path_.S)-2:], -1, 1) // acts as #pragma lib
++	linehist(file[n-len(path_)-2:], -1, 1) // acts as #pragma lib
+ 
+ 	/*
+ 	 * position the input right
+@@ -788,7 +788,7 @@ func importfile(f *Val, line int) {
+ 		return
+ 	}
+ 
+-	Yyerror("no import in \"%v\"", Zconv(f.U.Sval, 0))
++	Yyerror("no import in %q", f.U.Sval)
+ 	unimportfile()
+ }
+ 
+@@ -1491,7 +1491,7 @@ caseout:
+ 	return LLITERAL
+ 
+ strlit:
+-	yylval.val.U.Sval = &Strlit{S: cp.String()}
++	yylval.val.U.Sval = internString(cp.Bytes())
+ 	yylval.val.Ctype = CTSTR
+ 	if Debug['x'] != 0 {
+ 		fmt.Printf("lex: string literal\n")
+@@ -1500,6 +1500,18 @@ strlit:
+ 	return LLITERAL
+ }
+ 
++var internedStrings = map[string]string{}
++
++func internString(b []byte) string {
++	s, ok := internedStrings[string(b)] // string(b) here doesn't allocate
++	if ok {
++		return s
++	}
++	s = string(b)
++	internedStrings[s] = s
++	return s
++}
++
+ func more(pp *string) bool {
+ 	p := *pp
+ 	for p != "" && yy_isspace(int(p[0])) {
+@@ -3080,21 +3092,21 @@ var yytfix = []struct {
+ 	}{"','", "comma"},
+ }
+ 
+-func pkgnotused(lineno int, path_ *Strlit, name string) {
++func pkgnotused(lineno int, path string, name string) {
+ 	// If the package was imported with a name other than the final
+ 	// import path element, show it explicitly in the error message.
+ 	// Note that this handles both renamed imports and imports of
+ 	// packages containing unconventional package declarations.
+ 	// Note that this uses / always, even on Windows, because Go import
+ 	// paths always use forward slashes.
+-	elem := path_.S
++	elem := path
+ 	if i := strings.LastIndex(elem, "/"); i >= 0 {
+ 		elem = elem[i+1:]
+ 	}
+ 	if name == "" || elem == name {
+-		yyerrorl(int(lineno), "imported and not used: \"%v\"", Zconv(path_, 0))
++		yyerrorl(int(lineno), "imported and not used: %q", path)
+ 	} else {
+-		yyerrorl(int(lineno), "imported and not used: \"%v\" as %s", Zconv(path_, 0), name)
++		yyerrorl(int(lineno), "imported and not used: %q as %s", path, name)
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/gc/obj.go b/src/cmd/internal/gc/obj.go
+index 7f1582b1e3..cb5b914803 100644
+--- a/src/cmd/internal/gc/obj.go
++++ b/src/cmd/internal/gc/obj.go
+@@ -199,12 +199,7 @@ func duintptr(s *Sym, off int, v uint64) int {
+ var stringsym_gen int
+ 
+ func stringsym(s string) *Sym {
+-	var tmp struct {
+-		lit Strlit
+-		buf string
+-	}
+ 	var pkg *Pkg
+-
+ 	if len(s) > 100 {
+ 		// huge strings are made static to avoid long names
+ 		stringsym_gen++
+@@ -215,8 +210,7 @@ func stringsym(s string) *Sym {
+ 		// small strings get named by their contents,
+ 		// so that multiple modules using the same string
+ 		// can share it.
+-		tmp.lit.S = s
+-		namebuf = fmt.Sprintf("\"%v\"", Zconv(&tmp.lit, 0))
++		namebuf = fmt.Sprintf("%q", s)
+ 		pkg = gostringpkg
+ 	}
+ 
+@@ -313,8 +307,8 @@ func Datastring(s string, a *obj.Addr) {
+ 	a.Etype = Simtype[TINT]
+ }
+ 
+-func datagostring(sval *Strlit, a *obj.Addr) {
+-	sym := stringsym(sval.S)
++func datagostring(sval string, a *obj.Addr) {
++	sym := stringsym(sval)
+ 	a.Type = obj.TYPE_MEM
+ 	a.Name = obj.NAME_EXTERN
+ 	a.Sym = Linksym(sym)
+@@ -327,19 +321,13 @@ func dgostringptr(s *Sym, off int, str string) int {
+ 	if str == "" {
+ 		return duintptr(s, off, 0)
+ 	}
+-
+-	n := len(str)
+-	lit := new(Strlit)
+-	lit.S = str
+-	lit.S = lit.S[:n]
+-	return dgostrlitptr(s, off, lit)
++	return dgostrlitptr(s, off, &str)
+ }
+ 
+-func dgostrlitptr(s *Sym, off int, lit *Strlit) int {
++func dgostrlitptr(s *Sym, off int, lit *string) int {
+ 	if lit == nil {
+ 		return duintptr(s, off, 0)
+ 	}
+-
+ 	off = int(Rnd(int64(off), int64(Widthptr)))
+ 	p := Thearch.Gins(obj.ADATA, nil, nil)
+ 	p.From.Type = obj.TYPE_MEM
+@@ -348,7 +336,7 @@ func dgostrlitptr(s *Sym, off int, lit *Strlit) int {
+ 	p.From.Offset = int64(off)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(Widthptr)
+-	datagostring(lit, &p.To)
++	datagostring(*lit, &p.To)
+ 	p.To.Type = obj.TYPE_ADDR
+ 	p.To.Etype = Simtype[TINT]
+ 	off += Widthptr
+@@ -425,18 +413,18 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
+ 	p.To.U.Dval = mpgetflt(&cval.Imag)
+ }
+ 
+-func gdatastring(nam *Node, sval *Strlit) {
++func gdatastring(nam *Node, sval string) {
+ 	var nod1 Node
+ 
+ 	p := Thearch.Gins(obj.ADATA, nam, nil)
+-	Datastring(sval.S, &p.To)
++	Datastring(sval, &p.To)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = Types[Tptr].Width
+ 	p.To.Type = obj.TYPE_ADDR
+ 
+ 	//print("%P\n", p);
+ 
+-	Nodconst(&nod1, Types[TINT], int64(len(sval.S)))
++	Nodconst(&nod1, Types[TINT], int64(len(sval)))
+ 
+ 	p = Thearch.Gins(obj.ADATA, nam, &nod1)
+ 	p.From3.Type = obj.TYPE_CONST
+diff --git a/src/cmd/internal/gc/order.go b/src/cmd/internal/gc/order.go
+index 35c8a13b11..3f16d75447 100644
+--- a/src/cmd/internal/gc/order.go
++++ b/src/cmd/internal/gc/order.go
+@@ -991,7 +991,7 @@ func orderexpr(np **Node, order *Order) {
+ 		haslit := false
+ 		for l := n.List; l != nil; l = l.Next {
+ 			hasbyte = hasbyte || l.N.Op == OARRAYBYTESTR
+-			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val.U.Sval.S) != 0
++			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val.U.Sval) != 0
+ 		}
+ 
+ 		if haslit && hasbyte {
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index e2be03df02..a1ddf779d1 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -28,7 +28,7 @@ func sigcmp(a *Sig, b *Sig) int {
+ 	if b.pkg == nil {
+ 		return +1
+ 	}
+-	return stringsCompare(a.pkg.Path.S, b.pkg.Path.S)
++	return stringsCompare(a.pkg.Path, b.pkg.Path)
+ }
+ 
+ func lsort(l *Sig, f func(*Sig, *Sig) int) *Sig {
+@@ -473,7 +473,7 @@ func dimportpath(p *Pkg) {
+ 	}
+ 
+ 	if dimportpath_gopkg == nil {
+-		dimportpath_gopkg = mkpkg(newstrlit("go"))
++		dimportpath_gopkg = mkpkg("go")
+ 		dimportpath_gopkg.Name = "go"
+ 	}
+ 
+@@ -502,7 +502,7 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
+ 		var ns *Sym
+ 
+ 		if ns == nil {
+-			ns = Pkglookup("importpath.\"\".", mkpkg(newstrlit("go")))
++			ns = Pkglookup("importpath.\"\".", mkpkg("go"))
+ 		}
+ 		return dsymptr(s, ot, ns, 0)
+ 	}
+@@ -1280,7 +1280,7 @@ func dumptypestructs() {
+ 		if flag_race != 0 {
+ 			dimportpath(racepkg)
+ 		}
+-		dimportpath(mkpkg(newstrlit("main")))
++		dimportpath(mkpkg("main"))
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/gc/sinit.go b/src/cmd/internal/gc/sinit.go
+index 60e62e205b..b66123076f 100644
+--- a/src/cmd/internal/gc/sinit.go
++++ b/src/cmd/internal/gc/sinit.go
+@@ -443,7 +443,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 	case OSTRARRAYBYTE:
+ 		if l.Class == PEXTERN && r.Left.Op == OLITERAL {
+ 			sval := r.Left.Val.U.Sval
+-			slicebytes(l, sval.S, len(sval.S))
++			slicebytes(l, sval, len(sval))
+ 			return true
+ 		}
+ 
+@@ -1368,7 +1368,7 @@ func iszero(n *Node) bool {
+ 			return true
+ 
+ 		case CTSTR:
+-			return n.Val.U.Sval == nil || len(n.Val.U.Sval.S) == 0
++			return n.Val.U.Sval == ""
+ 
+ 		case CTBOOL:
+ 			return n.Val.U.Bval == 0
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 4bc26f2094..7449dad9d9 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -353,7 +353,7 @@ func importdot(opkg *Pkg, pack *Node) {
+ 			}
+ 			s1 = Lookup(s.Name)
+ 			if s1.Def != nil {
+-				pkgerror = fmt.Sprintf("during import \"%v\"", Zconv(opkg.Path, 0))
++				pkgerror = fmt.Sprintf("during import %q", opkg.Path)
+ 				redeclare(s1, pkgerror)
+ 				continue
+ 			}
+@@ -368,7 +368,7 @@ func importdot(opkg *Pkg, pack *Node) {
+ 
+ 	if n == 0 {
+ 		// can't possibly be used - there were no symbols
+-		yyerrorl(int(pack.Lineno), "imported and not used: \"%v\"", Zconv(opkg.Path, 0))
++		yyerrorl(int(pack.Lineno), "imported and not used: %q", opkg.Path)
+ 	}
+ }
+ 
+@@ -642,7 +642,7 @@ func (x methcmp) Less(i, j int) bool {
+ 		return k < 0
+ 	}
+ 	if !exportname(a.Sym.Name) {
+-		k := stringsCompare(a.Sym.Pkg.Path.S, b.Sym.Pkg.Path.S)
++		k := stringsCompare(a.Sym.Pkg.Path, b.Sym.Pkg.Path)
+ 		if k != 0 {
+ 			return k < 0
+ 		}
+@@ -941,8 +941,8 @@ func cplxsubtype(et int) int {
+ 	return 0
+ }
+ 
+-func eqnote(a, b *Strlit) bool {
+-	return a == b || a != nil && b != nil && a.S == b.S
++func eqnote(a, b *string) bool {
++	return a == b || a != nil && b != nil && *a == *b
+ }
+ 
+ type TypePairList struct {
+@@ -2454,11 +2454,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 
+ 		var v Val
+ 		v.Ctype = CTSTR
+-		v.U.Sval = newstrlit(rcvr.Type.Sym.Pkg.Name) // package name
++		v.U.Sval = rcvr.Type.Sym.Pkg.Name // package name
+ 		l = list(l, nodlit(v))
+-		v.U.Sval = newstrlit(rcvr.Type.Sym.Name) // type name
++		v.U.Sval = rcvr.Type.Sym.Name // type name
+ 		l = list(l, nodlit(v))
+-		v.U.Sval = newstrlit(method.Sym.Name)
++		v.U.Sval = method.Sym.Name
+ 		l = list(l, nodlit(v)) // method name
+ 		call := Nod(OCALL, syslook("panicwrap", 0), nil)
+ 		call.List = l
+@@ -3583,28 +3583,22 @@ func pathtoprefix(s string) string {
+ 	return s
+ }
+ 
+-func mkpkg(path_ *Strlit) *Pkg {
+-	h := int(stringhash(path_.S) & uint32(len(phash)-1))
++func mkpkg(path string) *Pkg {
++	h := int(stringhash(path) & uint32(len(phash)-1))
+ 	for p := phash[h]; p != nil; p = p.Link {
+-		if p.Path.S == path_.S {
++		if p.Path == path {
+ 			return p
+ 		}
+ 	}
+ 
+ 	p := new(Pkg)
+-	p.Path = path_
+-	p.Prefix = pathtoprefix(path_.S)
++	p.Path = path
++	p.Prefix = pathtoprefix(path)
+ 	p.Link = phash[h]
+ 	phash[h] = p
+ 	return p
+ }
+ 
+-func newstrlit(s string) *Strlit {
+-	return &Strlit{
+-		S: s,
+-	}
+-}
+-
+ func addinit(np **Node, init *NodeList) {
+ 	if init == nil {
+ 		return
+@@ -3632,15 +3626,15 @@ var reservedimports = []string{
+ 	"type",
+ }
+ 
+-func isbadimport(path_ *Strlit) bool {
+-	if len(path_.S) != len(path_.S) {
++func isbadimport(path string) bool {
++	if strings.Contains(path, "\x00") {
+ 		Yyerror("import path contains NUL")
+ 		return true
+ 	}
+ 
+ 	for i := 0; i < len(reservedimports); i++ {
+-		if path_.S == reservedimports[i] {
+-			Yyerror("import path \"%s\" is reserved and cannot be used", path_.S)
++		if path == reservedimports[i] {
++			Yyerror("import path %q is reserved and cannot be used", path)
+ 			return true
+ 		}
+ 	}
+@@ -3649,29 +3643,29 @@ func isbadimport(path_ *Strlit) bool {
+ 	_ = s
+ 	var r uint
+ 	_ = r
+-	for _, r := range path_.S {
++	for _, r := range path {
+ 		if r == utf8.RuneError {
+-			Yyerror("import path contains invalid UTF-8 sequence: \"%v\"", Zconv(path_, 0))
++			Yyerror("import path contains invalid UTF-8 sequence: %q", path)
+ 			return true
+ 		}
+ 
+ 		if r < 0x20 || r == 0x7f {
+-			Yyerror("import path contains control character: \"%v\"", Zconv(path_, 0))
++			Yyerror("import path contains control character: %q", path)
+ 			return true
+ 		}
+ 
+ 		if r == '\\' {
+-			Yyerror("import path contains backslash; use slash: \"%v\"", Zconv(path_, 0))
++			Yyerror("import path contains backslash; use slash: %q", path)
+ 			return true
+ 		}
+ 
+ 		if unicode.IsSpace(rune(r)) {
+-			Yyerror("import path contains space character: \"%v\"", Zconv(path_, 0))
++			Yyerror("import path contains space character: %q", path)
+ 			return true
+ 		}
+ 
+ 		if strings.ContainsRune("!\"#$%&'()*,:;<=>?[]^`{|}", r) {
+-			Yyerror("import path contains invalid character '%c': \"%v\"", r, Zconv(path_, 0))
++			Yyerror("import path contains invalid character '%c': %q", r, path)
+ 			return true
+ 		}
+ 	}
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 69af782dbc..72c2bba42b 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -802,8 +802,8 @@ reswitch:
+ 					Yyerror("invalid %s index %v (index must be non-negative)", why, Nconv(n.Right, 0))
+ 				} else if Isfixedarray(t) && t.Bound > 0 && x >= t.Bound {
+ 					Yyerror("invalid array index %v (out of bounds for %d-element array)", Nconv(n.Right, 0), t.Bound)
+-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val.U.Sval.S)) {
+-					Yyerror("invalid string index %v (out of bounds for %d-byte string)", Nconv(n.Right, 0), len(n.Left.Val.U.Sval.S))
++				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val.U.Sval)) {
++					Yyerror("invalid string index %v (out of bounds for %d-byte string)", Nconv(n.Right, 0), len(n.Left.Val.U.Sval))
+ 				} else if Mpcmpfixfix(n.Right.Val.U.Xval, Maxintval[TINT]) > 0 {
+ 					Yyerror("invalid %s index %v (index too large)", why, Nconv(n.Right, 0))
+ 				}
+@@ -1169,7 +1169,7 @@ reswitch:
+ 		case TSTRING:
+ 			if Isconst(l, CTSTR) {
+ 				r := Nod(OXXX, nil, nil)
+-				Nodconst(r, Types[TINT], int64(len(l.Val.U.Sval.S)))
++				Nodconst(r, Types[TINT], int64(len(l.Val.U.Sval)))
+ 				r.Orig = n
+ 				n = r
+ 			}
+@@ -2135,8 +2135,8 @@ func checksliceindex(l *Node, r *Node, tp *Type) int {
+ 		} else if tp != nil && tp.Bound > 0 && Mpgetfix(r.Val.U.Xval) > tp.Bound {
+ 			Yyerror("invalid slice index %v (out of bounds for %d-element array)", Nconv(r, 0), tp.Bound)
+ 			return -1
+-		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val.U.Xval) > int64(len(l.Val.U.Sval.S)) {
+-			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", Nconv(r, 0), len(l.Val.U.Sval.S))
++		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val.U.Xval) > int64(len(l.Val.U.Sval)) {
++			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", Nconv(r, 0), len(l.Val.U.Sval))
+ 			return -1
+ 		} else if Mpcmpfixfix(r.Val.U.Xval, Maxintval[TINT]) > 0 {
+ 			Yyerror("invalid slice index %v (index too large)", Nconv(r, 0))
+@@ -2705,8 +2705,8 @@ func keydup(n *Node, hash []*Node) {
+ 
+ 	case CTSTR:
+ 		b = 0
+-		s := n.Val.U.Sval.S
+-		for i := len(n.Val.U.Sval.S); i > 0; i-- {
++		s := n.Val.U.Sval
++		for i := len(n.Val.U.Sval); i > 0; i-- {
+ 			b = b*PRIME1 + uint32(s[0])
+ 			s = s[1:]
+ 		}
+@@ -3444,7 +3444,7 @@ func stringtoarraylit(np **Node) {
+ 		Fatal("stringtoarraylit %N", n)
+ 	}
+ 
+-	s := n.Left.Val.U.Sval.S
++	s := n.Left.Val.U.Sval
+ 	var l *NodeList
+ 	if n.Type.Type.Etype == TUINT8 {
+ 		// []byte
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 22f1ea7eb5..ed46809a37 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -1154,7 +1154,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 				Yyerror("index out of bounds")
+ 			}
+ 		} else if Isconst(n.Left, CTSTR) {
+-			n.Bounded = bounded(r, int64(len(n.Left.Val.U.Sval.S)))
++			n.Bounded = bounded(r, int64(len(n.Left.Val.U.Sval)))
+ 			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
+ 				Warn("index bounds check elided")
+ 			}
+@@ -1167,7 +1167,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 					// an ideal constant.
+ 					v := Mpgetfix(n.Right.Val.U.Xval)
+ 
+-					Nodconst(n, n.Type, int64(n.Left.Val.U.Sval.S[v]))
++					Nodconst(n, n.Type, int64(n.Left.Val.U.Sval[v]))
+ 					n.Typecheck = 1
+ 				}
+ 			}
+@@ -1308,7 +1308,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 	// comparing the lengths instead will yield the same result
+ 	// without the function call.
+ 	case OCMPSTR:
+-		if (Isconst(n.Left, CTSTR) && len(n.Left.Val.U.Sval.S) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val.U.Sval.S) == 0) {
++		if (Isconst(n.Left, CTSTR) && len(n.Left.Val.U.Sval) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val.U.Sval) == 0) {
+ 			r := Nod(int(n.Etype), Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil))
+ 			typecheck(&r, Erv)
+ 			walkexpr(&r, init)
+@@ -2862,7 +2862,7 @@ func addstr(n *Node, init **NodeList) *Node {
+ 		sz := int64(0)
+ 		for l := n.List; l != nil; l = l.Next {
+ 			if n.Op == OLITERAL {
+-				sz += int64(len(n.Val.U.Sval.S))
++				sz += int64(len(n.Val.U.Sval))
+ 			}
+ 		}
+ 
+@@ -4100,7 +4100,7 @@ func usefield(n *Node) {
+ 	if field == nil {
+ 		Fatal("usefield %v %v without paramfld", Tconv(n.Left.Type, 0), Sconv(n.Right.Sym, 0))
+ 	}
+-	if field.Note == nil || !strings.Contains(field.Note.S, "go:\"track\"") {
++	if field.Note == nil || !strings.Contains(*field.Note, "go:\"track\"") {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/internal/gc/y.go
+index 6a43c343e5..365777144b 100644
+--- a/src/cmd/internal/gc/y.go
++++ b/src/cmd/internal/gc/y.go
+@@ -1228,13 +1228,13 @@ yydefault:
+ 				importpkg.Name = yyDollar[2].sym.Name
+ 				Pkglookup(yyDollar[2].sym.Name, nil).Npkg++
+ 			} else if importpkg.Name != yyDollar[2].sym.Name {
+-				Yyerror("conflicting names %s and %s for package \"%v\"", importpkg.Name, yyDollar[2].sym.Name, Zconv(importpkg.Path, 0))
++				Yyerror("conflicting names %s and %s for package %q", importpkg.Name, yyDollar[2].sym.Name, importpkg.Path)
+ 			}
+ 			importpkg.Direct = 1
+ 			importpkg.Safe = curio.importsafe
+ 
+ 			if safemode != 0 && !curio.importsafe {
+-				Yyerror("cannot import unsafe package \"%v\"", Zconv(importpkg.Path, 0))
++				Yyerror("cannot import unsafe package %q", importpkg.Path)
+ 			}
+ 		}
+ 	case 20:
+@@ -2276,7 +2276,7 @@ yydefault:
+ 		{
+ 			var p *Pkg
+ 
+-			if yyDollar[2].val.U.Sval.S == "" {
++			if yyDollar[2].val.U.Sval == "" {
+ 				p = importpkg
+ 			} else {
+ 				if isbadimport(yyDollar[2].val.U.Sval) {
+@@ -2292,7 +2292,7 @@ yydefault:
+ 		{
+ 			var p *Pkg
+ 
+-			if yyDollar[2].val.U.Sval.S == "" {
++			if yyDollar[2].val.U.Sval == "" {
+ 				p = importpkg
+ 			} else {
+ 				if isbadimport(yyDollar[2].val.U.Sval) {
+@@ -3232,7 +3232,7 @@ yydefault:
+ 			importlist = list(importlist, yyDollar[2].node)
+ 
+ 			if Debug['E'] > 0 {
+-				print("import [%v] func %lN \n", Zconv(importpkg.Path, 0), yyDollar[2].node)
++				print("import [%q] func %lN \n", importpkg.Path, yyDollar[2].node)
+ 				if Debug['m'] > 2 && yyDollar[2].node.Inl != nil {
+ 					print("inl body:%+H\n", yyDollar[2].node.Inl)
+ 				}
+diff --git a/src/cmd/internal/ld/go.go b/src/cmd/internal/ld/go.go
+index 93ba58cbad..718379253d 100644
+--- a/src/cmd/internal/ld/go.go
++++ b/src/cmd/internal/ld/go.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"strings"
+-	"unicode/utf8"
+ )
+ 
+ // go-specific code shared across loaders (5l, 6l, 8l).
+@@ -757,49 +756,6 @@ func addexport() {
+ 	}
+ }
+ 
+-/* %Z from gc, for quoting import paths */
+-func Zconv(s string, flag int) string {
+-	// NOTE: Keep in sync with gc Zconv.
+-	var n int
+-	var fp string
+-	for i := 0; i < len(s); i += n {
+-		var r rune
+-		r, n = utf8.DecodeRuneInString(s[i:])
+-		switch r {
+-		case utf8.RuneError:
+-			if n == 1 {
+-				fp += fmt.Sprintf("\\x%02x", s[i])
+-				break
+-			}
+-			fallthrough
+-
+-			// fall through
+-		default:
+-			if r < ' ' {
+-				fp += fmt.Sprintf("\\x%02x", r)
+-				break
+-			}
+-
+-			fp += string(r)
+-
+-		case '\t':
+-			fp += "\\t"
+-
+-		case '\n':
+-			fp += "\\n"
+-
+-		case '"',
+-			'\\':
+-			fp += `\` + string(r)
+-
+-		case 0xFEFF: // BOM, basically disallowed in source code
+-			fp += "\\uFEFF"
+-		}
+-	}
+-
+-	return fp
+-}
+-
+ type Pkg struct {
+ 	mark    uint8
+ 	checked uint8
+@@ -835,7 +791,7 @@ func imported(pkg string, import_ string) {
+ 		return
+ 	}
+ 
+-	pkg = fmt.Sprintf("\"%v\"", Zconv(pkg, 0)) // turn pkg path into quoted form, freed below
++	pkg = fmt.Sprintf("%q", pkg) // turn pkg path into quoted form, freed below
+ 	p := getpkg(pkg)
+ 	i := getpkg(import_)
+ 	i.impby = append(i.impby, p)

@@ -12,6 +12,54 @@ Date:   Wed Nov 16 16:34:02 2016 +0900
     Change-Id: I5ca9287a48bb5cdda6845a7f12757f95175c5db8
     Reviewed-on: https://go-review.googlesource.com/33257
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/timeout_test.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 56baa98fce..f46b30a090 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"context"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -165,13 +164,14 @@ func TestAcceptTimeout(t *testing.T) {
+ 	}
+ 	defer ln.Close()
+ 
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
++	var wg sync.WaitGroup
+ 	for i, tt := range acceptTimeoutTests {
+ 		if tt.timeout < 0 {
++			wg.Add(1)
+ 			go func() {
+-				var d Dialer
+-				c, err := d.DialContext(ctx, ln.Addr().Network(), ln.Addr().String())
++				defer wg.Done()
++				d := Dialer{Timeout: 100 * time.Millisecond}
++				c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
+ 				if err != nil {
+ 					t.Error(err)
+ 					return
+@@ -198,13 +198,14 @@ func TestAcceptTimeout(t *testing.T) {
+ 				}
+ 				if err == nil {
+ 					c.Close()
+-					time.Sleep(tt.timeout / 3)
++					time.Sleep(10 * time.Millisecond)
+ 					continue
+ 				}
+ 				break
+ 			}
+ 		}
+ 	}
++	wg.Wait()
+ }
+ 
+ func TestAcceptTimeoutMustReturn(t *testing.T) {

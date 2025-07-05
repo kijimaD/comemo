@@ -7,6 +7,19 @@ Date:   Wed May 13 10:06:20 2015 +0900
     Change-Id: I6bda19877ae5148ad349cfb8929f1103740422bb
     Reviewed-on: https://go-review.googlesource.com/10005
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index b0602f9b77..571a9f17d0 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -53,6 +53,7 @@ mime: add ExtensionByType (https://golang.org/cl/7444)
+ mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
+ net: add Source field to OpError (https://go-review.googlesource.com/9231)
+ net: fix inconsistent errors (https://golang.org/cl/9236)
++net: add SocketConn, SocketPacketConn (https://golang.org/cl/9275)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+ net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
+ net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)

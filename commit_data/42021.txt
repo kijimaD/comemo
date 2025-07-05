@@ -12,7 +12,7 @@ Date:   Fri Nov 1 16:54:18 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204878
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/tidy.go           |  27 +--
  src/cmd/go/internal/modload/init.go          | 283 ++++++++++++++++++++-------
  src/cmd/go/internal/modload/load.go          |  69 +++++--
@@ -20,3 +20,804 @@ Date:   Fri Nov 1 16:54:18 2019 -0400
  src/cmd/go/testdata/script/mod_retention.txt | 135 +++++++++++++
  src/cmd/go/testdata/script/mod_tidy.txt      |   1 -
  6 files changed, 439 insertions(+), 120 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 584a432d66..af2b04c0c2 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -7,9 +7,6 @@
+ package modcmd
+ 
+ import (
+-	"fmt"
+-	"os"
+-
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modfetch"
+@@ -45,28 +42,8 @@ func runTidy(cmd *base.Command, args []string) {
+ 		base.Fatalf("go mod tidy: no arguments allowed")
+ 	}
+ 
+-	// LoadALL adds missing modules.
+-	// Remove unused modules.
+-	used := make(map[module.Version]bool)
+-	for _, pkg := range modload.LoadALL() {
+-		used[modload.PackageModule(pkg)] = true
+-	}
+-	used[modload.Target] = true // note: LoadALL initializes Target
+-
+-	inGoMod := make(map[string]bool)
+-	for _, r := range modload.ModFile().Require {
+-		inGoMod[r.Mod.Path] = true
+-	}
+-
+-	var keep []module.Version
+-	for _, m := range modload.BuildList() {
+-		if used[m] {
+-			keep = append(keep, m)
+-		} else if cfg.BuildV && inGoMod[m.Path] {
+-			fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
+-		}
+-	}
+-	modload.SetBuildList(keep)
++	modload.LoadALL()
++	modload.TidyBuildList()
+ 	modTidyGoSum() // updates memory copy; WriteGoMod on next line flushes it out
+ 	modload.WriteGoMod()
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 82ec62ea08..cbf3b0575a 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -38,11 +38,8 @@ var (
+ 	mustUseModules = false
+ 	initialized    bool
+ 
+-	modRoot     string
+-	modFile     *modfile.File
+-	modFileData []byte
+-	excluded    map[module.Version]bool
+-	Target      module.Version
++	modRoot string
++	Target  module.Version
+ 
+ 	// targetPrefix is the path prefix for packages in Target, without a trailing
+ 	// slash. For most modules, targetPrefix is just Target.Path, but the
+@@ -61,6 +58,27 @@ var (
+ 	allowMissingModuleImports bool
+ )
+ 
++var modFile *modfile.File
++
++// A modFileIndex is an index of data corresponding to a modFile
++// at a specific point in time.
++type modFileIndex struct {
++	data         []byte
++	dataNeedsFix bool // true if fixVersion applied a change while parsing data
++	module       module.Version
++	goVersion    string
++	require      map[module.Version]requireMeta
++	replace      map[module.Version]module.Version
++	exclude      map[module.Version]bool
++}
++
++// index is the index of the go.mod file as of when it was last read or written.
++var index *modFileIndex
++
++type requireMeta struct {
++	indirect bool
++}
++
+ // ModFile returns the parsed go.mod file.
+ //
+ // Note that after calling ImportPaths or LoadBuildList,
+@@ -383,13 +401,14 @@ func InitMod() {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	f, err := modfile.Parse(gomod, data, fixVersion)
++	var fixed bool
++	f, err := modfile.Parse(gomod, data, fixVersion(&fixed))
+ 	if err != nil {
+ 		// Errors returned by modfile.Parse begin with file:line.
+ 		base.Fatalf("go: errors parsing go.mod:\n%s\n", err)
+ 	}
+ 	modFile = f
+-	modFileData = data
++	index = indexModFile(data, f, fixed)
+ 
+ 	if len(f.Syntax.Stmt) == 0 || f.Module == nil {
+ 		// Empty mod file. Must add module path.
+@@ -406,10 +425,6 @@ func InitMod() {
+ 		legacyModInit()
+ 	}
+ 
+-	excluded = make(map[module.Version]bool)
+-	for _, x := range f.Exclude {
+-		excluded[x.Mod] = true
+-	}
+ 	modFileToBuildList()
+ 	setDefaultBuildMod()
+ 	if cfg.BuildMod == "vendor" {
+@@ -421,6 +436,53 @@ func InitMod() {
+ 	}
+ }
+ 
++// fixVersion returns a modfile.VersionFixer implemented using the Query function.
++//
++// It resolves commit hashes and branch names to versions,
++// canonicalizes verisons that appeared in early vgo drafts,
++// and does nothing for versions that already appear to be canonical.
++//
++// The VersionFixer sets 'fixed' if it ever returns a non-canonical version.
++func fixVersion(fixed *bool) modfile.VersionFixer {
++	return func(path, vers string) (resolved string, err error) {
++		defer func() {
++			if err == nil && resolved != vers {
++				*fixed = true
++			}
++		}()
++
++		// Special case: remove the old -gopkgin- hack.
++		if strings.HasPrefix(path, "gopkg.in/") && strings.Contains(vers, "-gopkgin-") {
++			vers = vers[strings.Index(vers, "-gopkgin-")+len("-gopkgin-"):]
++		}
++
++		// fixVersion is called speculatively on every
++		// module, version pair from every go.mod file.
++		// Avoid the query if it looks OK.
++		_, pathMajor, ok := module.SplitPathVersion(path)
++		if !ok {
++			return "", &module.ModuleError{
++				Path: path,
++				Err: &module.InvalidVersionError{
++					Version: vers,
++					Err:     fmt.Errorf("malformed module path %q", path),
++				},
++			}
++		}
++		if vers != "" && module.CanonicalVersion(vers) == vers {
++			if err := module.CheckPathMajor(vers, pathMajor); err == nil {
++				return vers, nil
++			}
++		}
++
++		info, err := Query(path, vers, "", nil)
++		if err != nil {
++			return "", err
++		}
++		return info.Version, nil
++	}
++}
++
+ // AllowMissingModuleImports allows import paths to be resolved to modules
+ // when there is no module root. Normally, this is forbidden because it's slow
+ // and there's no way to make the result reproducible, but some commands
+@@ -466,15 +528,15 @@ func setDefaultBuildMod() {
+ 
+ 	if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
+ 		modGo := "unspecified"
+-		if modFile.Go != nil {
+-			if semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0 {
++		if index.goVersion != "" {
++			if semver.Compare("v"+index.goVersion, "v1.14") >= 0 {
+ 				// The Go version is at least 1.14, and a vendor directory exists.
+ 				// Set -mod=vendor by default.
+ 				cfg.BuildMod = "vendor"
+ 				cfg.BuildModReason = "Go version in go.mod is at least 1.14 and vendor directory exists."
+ 				return
+ 			} else {
+-				modGo = modFile.Go.Version
++				modGo = index.goVersion
+ 			}
+ 		}
+ 
+@@ -516,9 +578,7 @@ func checkVendorConsistency() {
+ 		}
+ 	}
+ 
+-	explicitInGoMod := make(map[module.Version]bool, len(modFile.Require))
+ 	for _, r := range modFile.Require {
+-		explicitInGoMod[r.Mod] = true
+ 		if !vendorMeta[r.Mod].Explicit {
+ 			if pre114 {
+ 				// Before 1.14, modules.txt did not indicate whether modules were listed
+@@ -545,9 +605,7 @@ func checkVendorConsistency() {
+ 	// don't directly apply to any module in the vendor list, the replacement
+ 	// go.mod file can affect the selected versions of other (transitive)
+ 	// dependencies
+-	goModReplacement := make(map[module.Version]module.Version, len(modFile.Replace))
+ 	for _, r := range modFile.Replace {
+-		goModReplacement[r.Old] = r.New
+ 		vr := vendorMeta[r.Old].Replacement
+ 		if vr == (module.Version{}) {
+ 			if pre114 && (r.Old.Version == "" || vendorVersion[r.Old.Path] != r.Old.Version) {
+@@ -563,17 +621,16 @@ func checkVendorConsistency() {
+ 
+ 	for _, mod := range vendorList {
+ 		meta := vendorMeta[mod]
+-		if meta.Explicit && !explicitInGoMod[mod] {
+-			vendErrorf(mod, "is marked as explicit in vendor/modules.txt, but not explicitly required in go.mod")
++		if meta.Explicit {
++			if _, inGoMod := index.require[mod]; !inGoMod {
++				vendErrorf(mod, "is marked as explicit in vendor/modules.txt, but not explicitly required in go.mod")
++			}
+ 		}
+ 	}
+ 
+ 	for _, mod := range vendorReplaced {
+-		r, ok := goModReplacement[mod]
+-		if !ok {
+-			r, ok = goModReplacement[module.Version{Path: mod.Path}]
+-		}
+-		if !ok {
++		r := Replacement(mod)
++		if r == (module.Version{}) {
+ 			vendErrorf(mod, "is marked as replaced in vendor/modules.txt, but not replaced in go.mod")
+ 			continue
+ 		}
+@@ -589,7 +646,7 @@ func checkVendorConsistency() {
+ 
+ // Allowed reports whether module m is allowed (not excluded) by the main module's go.mod.
+ func Allowed(m module.Version) bool {
+-	return !excluded[m]
++	return index == nil || !index.exclude[m]
+ }
+ 
+ func legacyModInit() {
+@@ -811,16 +868,17 @@ func AllowWriteGoMod() {
+ 	allowWriteGoMod = true
+ }
+ 
+-// MinReqs returns a Reqs with minimal dependencies of Target,
++// MinReqs returns a Reqs with minimal additional dependencies of Target,
+ // as will be written to go.mod.
+ func MinReqs() mvs.Reqs {
+-	var direct []string
++	var retain []string
+ 	for _, m := range buildList[1:] {
+-		if loaded.direct[m.Path] {
+-			direct = append(direct, m.Path)
++		_, explicit := index.require[m]
++		if explicit || loaded.direct[m.Path] {
++			retain = append(retain, m.Path)
+ 		}
+ 	}
+-	min, err := mvs.Req(Target, direct, Reqs())
++	min, err := mvs.Req(Target, retain, Reqs())
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -841,7 +899,9 @@ func WriteGoMod() {
+ 		return
+ 	}
+ 
+-	addGoStmt()
++	if cfg.BuildMod != "readonly" {
++		addGoStmt()
++	}
+ 
+ 	if loaded != nil {
+ 		reqs := MinReqs()
+@@ -858,14 +918,9 @@ func WriteGoMod() {
+ 		}
+ 		modFile.SetRequire(list)
+ 	}
++	modFile.Cleanup()
+ 
+-	modFile.Cleanup() // clean file after edits
+-	new, err := modFile.Format()
+-	if err != nil {
+-		base.Fatalf("go: %v", err)
+-	}
+-
+-	dirty := !bytes.Equal(new, modFileData)
++	dirty := index.modFileIsDirty(modFile)
+ 	if dirty && cfg.BuildMod == "readonly" {
+ 		// If we're about to fail due to -mod=readonly,
+ 		// prefer to report a dirty go.mod over a dirty go.sum
+@@ -879,23 +934,34 @@ func WriteGoMod() {
+ 	// downloaded modules that we didn't have before.
+ 	modfetch.WriteGoSum()
+ 
+-	if !dirty {
+-		// We don't need to modify go.mod from what we read previously.
++	if !dirty && cfg.CmdName != "mod tidy" {
++		// The go.mod file has the same semantic content that it had before
++		// (but not necessarily the same exact bytes).
+ 		// Ignore any intervening edits.
+ 		return
+ 	}
+ 
++	new, err := modFile.Format()
++	if err != nil {
++		base.Fatalf("go: %v", err)
++	}
++	defer func() {
++		// At this point we have determined to make the go.mod file on disk equal to new.
++		index = indexModFile(new, modFile, false)
++	}()
++
+ 	unlock := modfetch.SideLock()
+ 	defer unlock()
+ 
+ 	file := ModFilePath()
+ 	old, err := renameio.ReadFile(file)
+-	if !bytes.Equal(old, modFileData) {
+-		if bytes.Equal(old, new) {
+-			// Some other process wrote the same go.mod file that we were about to write.
+-			modFileData = new
+-			return
+-		}
++	if bytes.Equal(old, new) {
++		// The go.mod file is already equal to new, possibly as the result of some
++		// other process.
++		return
++	}
++
++	if index != nil && !bytes.Equal(old, index.data) {
+ 		if err != nil {
+ 			base.Fatalf("go: can't determine whether go.mod has changed: %v", err)
+ 		}
+@@ -911,37 +977,114 @@ func WriteGoMod() {
+ 	if err := renameio.WriteFile(file, new, 0666); err != nil {
+ 		base.Fatalf("error writing go.mod: %v", err)
+ 	}
+-	modFileData = new
+ }
+ 
+-func fixVersion(path, vers string) (string, error) {
+-	// Special case: remove the old -gopkgin- hack.
+-	if strings.HasPrefix(path, "gopkg.in/") && strings.Contains(vers, "-gopkgin-") {
+-		vers = vers[strings.Index(vers, "-gopkgin-")+len("-gopkgin-"):]
++// indexModFile rebuilds the index of modFile.
++// If modFile has been changed since it was first read,
++// modFile.Cleanup must be called before indexModFile.
++func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileIndex {
++	i := new(modFileIndex)
++	i.data = data
++	i.dataNeedsFix = needsFix
++
++	i.module = module.Version{}
++	if modFile.Module != nil {
++		i.module = modFile.Module.Mod
+ 	}
+ 
+-	// fixVersion is called speculatively on every
+-	// module, version pair from every go.mod file.
+-	// Avoid the query if it looks OK.
+-	_, pathMajor, ok := module.SplitPathVersion(path)
+-	if !ok {
+-		return "", &module.ModuleError{
+-			Path: path,
+-			Err: &module.InvalidVersionError{
+-				Version: vers,
+-				Err:     fmt.Errorf("malformed module path %q", path),
+-			},
++	i.goVersion = ""
++	if modFile.Go != nil {
++		i.goVersion = modFile.Go.Version
++	}
++
++	i.require = make(map[module.Version]requireMeta, len(modFile.Require))
++	for _, r := range modFile.Require {
++		i.require[r.Mod] = requireMeta{indirect: r.Indirect}
++	}
++
++	i.replace = make(map[module.Version]module.Version, len(modFile.Replace))
++	for _, r := range modFile.Replace {
++		if prev, dup := i.replace[r.Old]; dup && prev != r.New {
++			base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v", r.Old, prev, r.New)
+ 		}
++		i.replace[r.Old] = r.New
++	}
++
++	i.exclude = make(map[module.Version]bool, len(modFile.Exclude))
++	for _, x := range modFile.Exclude {
++		i.exclude[x.Mod] = true
+ 	}
+-	if vers != "" && module.CanonicalVersion(vers) == vers {
+-		if err := module.CheckPathMajor(vers, pathMajor); err == nil {
+-			return vers, nil
++
++	return i
++}
++
++// modFileIsDirty reports whether the go.mod file differs meaningfully
++// from what was indexed.
++// If modFile has been changed (even cosmetically) since it was first read,
++// modFile.Cleanup must be called before modFileIsDirty.
++func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
++	if i == nil {
++		return modFile != nil
++	}
++
++	if i.dataNeedsFix {
++		return true
++	}
++
++	if modFile.Module == nil {
++		if i.module != (module.Version{}) {
++			return true
+ 		}
++	} else if modFile.Module.Mod != i.module {
++		return true
+ 	}
+ 
+-	info, err := Query(path, vers, "", nil)
+-	if err != nil {
+-		return "", err
++	if modFile.Go == nil {
++		if i.goVersion != "" {
++			return true
++		}
++	} else if modFile.Go.Version != i.goVersion {
++		if i.goVersion == "" && cfg.BuildMod == "readonly" {
++			// go.mod files did not always require a 'go' version, so do not error out
++			// if one is missing — we may be inside an older module in the module
++			// cache, and should bias toward providing useful behavior.
++		} else {
++			return true
++		}
++	}
++
++	if len(modFile.Require) != len(i.require) ||
++		len(modFile.Replace) != len(i.replace) ||
++		len(modFile.Exclude) != len(i.exclude) {
++		return true
++	}
++
++	for _, r := range modFile.Require {
++		if meta, ok := i.require[r.Mod]; !ok {
++			return true
++		} else if r.Indirect != meta.indirect {
++			if cfg.BuildMod == "readonly" {
++				// The module's requirements are consistent; only the "// indirect"
++				// comments that are wrong. But those are only guaranteed to be accurate
++				// after a "go mod tidy" — it's a good idea to run those before
++				// committing a change, but it's certainly not mandatory.
++			} else {
++				return true
++			}
++		}
++	}
++
++	for _, r := range modFile.Replace {
++		if r.New != i.replace[r.Old] {
++			return true
++		}
+ 	}
+-	return info.Version, nil
++
++	for _, x := range modFile.Exclude {
++		if !i.exclude[x.Mod] {
++			return true
++		}
++	}
++
++	return false
+ }
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 2172f81797..ca6c260f45 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -428,6 +428,37 @@ func SetBuildList(list []module.Version) {
+ 	buildList = append([]module.Version{}, list...)
+ }
+ 
++// TidyBuildList trims the build list to the minimal requirements needed to
++// retain the same versions of all packages from the preceding Load* or
++// ImportPaths* call.
++func TidyBuildList() {
++	used := map[module.Version]bool{Target: true}
++	for _, pkg := range loaded.pkgs {
++		used[pkg.mod] = true
++	}
++
++	keep := []module.Version{Target}
++	var direct []string
++	for _, m := range buildList[1:] {
++		if used[m] {
++			keep = append(keep, m)
++			if loaded.direct[m.Path] {
++				direct = append(direct, m.Path)
++			}
++		} else if cfg.BuildV {
++			if _, ok := index.require[m]; ok {
++				fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
++			}
++		}
++	}
++
++	min, err := mvs.Req(Target, direct, &mvsReqs{buildList: keep})
++	if err != nil {
++		base.Fatalf("go: %v", err)
++	}
++	buildList = append([]module.Version{Target}, min...)
++}
++
+ // ImportMap returns the actual package import path
+ // for an import path found in source code.
+ // If the given import path does not appear in the source code
+@@ -966,21 +997,15 @@ func WhyDepth(path string) int {
+ // If there is no replacement for mod, Replacement returns
+ // a module.Version with Path == "".
+ func Replacement(mod module.Version) module.Version {
+-	if modFile == nil {
+-		// Happens during testing and if invoking 'go get' or 'go list' outside a module.
+-		return module.Version{}
+-	}
+-
+-	var found *modfile.Replace
+-	for _, r := range modFile.Replace {
+-		if r.Old.Path == mod.Path && (r.Old.Version == "" || r.Old.Version == mod.Version) {
+-			found = r // keep going
++	if index != nil {
++		if r, ok := index.replace[mod]; ok {
++			return r
++		}
++		if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
++			return r
+ 		}
+ 	}
+-	if found == nil {
+-		return module.Version{}
+-	}
+-	return found.New
++	return module.Version{}
+ }
+ 
+ // mvsReqs implements mvs.Reqs for module semantic versions,
+@@ -1013,15 +1038,17 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
+ 			return cached{nil, err}
+ 		}
+ 		for i, mv := range list {
+-			for excluded[mv] {
+-				mv1, err := r.next(mv)
+-				if err != nil {
+-					return cached{nil, err}
+-				}
+-				if mv1.Version == "none" {
+-					return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
++			if index != nil {
++				for index.exclude[mv] {
++					mv1, err := r.next(mv)
++					if err != nil {
++						return cached{nil, err}
++					}
++					if mv1.Version == "none" {
++						return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
++					}
++					mv = mv1
+ 				}
+-				mv = mv1
+ 			}
+ 			list[i] = mv
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index 942a8663f6..1c89b49f51 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -2,9 +2,6 @@ env GO111MODULE=on
+ [short] skip
+ 
+ # -mod=readonly must not resolve missing modules nor update go.mod
+-#
+-# TODO(bcmills): 'go list' should suffice, but today it does not fail due to
+-# unresolved imports. When that is fixed, use 'go list' instead of 'go list all'.
+ env GOFLAGS=-mod=readonly
+ go mod edit -fmt
+ cp go.mod go.mod.empty
+@@ -27,6 +24,7 @@ grep rsc.io/quote go.mod
+ # update go.mod - go mod tidy allowed
+ cp go.mod.empty go.mod
+ go mod tidy
++cp go.mod go.mod.tidy
+ 
+ # -mod=readonly must succeed once go.mod is up-to-date...
+ go list all
+@@ -43,6 +41,19 @@ cp go.mod go.mod.inconsistent
+ stderr 'go: updates to go.mod needed, disabled by -mod=readonly'
+ cmp go.mod go.mod.inconsistent
+ 
++# However, it should not reject files missing a 'go' directive,
++# since that was not always required.
++cp go.mod.nogo go.mod
++go list all
++
++# Nor should it reject files with redundant (not incorrect)
++# requirements.
++cp go.mod.redundant go.mod
++go list all
++
++cp go.mod.indirect go.mod
++go list all
++
+ -- go.mod --
+ module m
+ 
+@@ -51,3 +62,30 @@ go 1.20
+ -- x.go --
+ package x
+ import _ "rsc.io/quote"
++-- go.mod.nogo --
++module m
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/testonly v1.0.0 // indirect
++)
++-- go.mod.redundant --
++module m
++
++go 1.20
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/sampler v1.3.0 // indirect
++	rsc.io/testonly v1.0.0 // indirect
++)
++-- go.mod.indirect --
++module m
++
++go 1.20
++
++require (
++	rsc.io/quote v1.5.2 // indirect
++	rsc.io/sampler v1.3.0 // indirect
++	rsc.io/testonly v1.0.0 // indirect
++)
+diff --git a/src/cmd/go/testdata/script/mod_retention.txt b/src/cmd/go/testdata/script/mod_retention.txt
+new file mode 100644
+index 0000000000..bff4142ad8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_retention.txt
+@@ -0,0 +1,135 @@
++# Regression test for golang.org/issue/34822: the 'go' command should prefer not
++# to update the go.mod file if the changes only affect formatting, and should only
++# remove redundant requirements in 'go mod tidy'.
++
++env GO111MODULE=on
++[short] skip
++
++# Control case: verify that go.mod.tidy is actually tidy.
++cp go.mod.tidy go.mod
++go list all
++cmp go.mod go.mod.tidy
++
++
++# If the only difference in the go.mod file is the line endings,
++# it should not be overwritten automatically.
++cp go.mod.crlf go.mod
++go list all
++cmp go.mod go.mod.crlf
++
++# However, 'go mod tidy' should fix whitespace even if there are no other changes.
++go mod tidy
++cmp go.mod go.mod.tidy
++
++
++# Out-of-order requirements should not be overwritten automatically...
++cp go.mod.unsorted go.mod
++go list all
++cmp go.mod go.mod.unsorted
++
++# ...but 'go mod edit -fmt' should sort them.
++go mod edit -fmt
++cmp go.mod go.mod.tidy
++
++
++# "// indirect" comments should be removed if direct dependencies are seen.
++# changes.
++cp go.mod.indirect go.mod
++go list all
++cmp go.mod go.mod.tidy
++
++# "// indirect" comments should be added if appropriate.
++cp go.mod.toodirect go.mod
++go list all
++cmp go.mod go.mod.toodirect
++go mod vendor # loads everything, so adds "// indirect" comments.
++cmp go.mod go.mod.tidy
++rm -r vendor
++
++
++# Redundant requirements should be preserved...
++cp go.mod.redundant go.mod
++go list all
++cmp go.mod go.mod.redundant
++go mod vendor
++cmp go.mod go.mod.redundant
++rm -r vendor
++
++# ...except by 'go mod tidy'.
++go mod tidy
++cmp go.mod go.mod.tidy
++
++
++# A missing "go" version directive should be added.
++# However, that should not remove other redundant requirements.
++cp go.mod.nogo go.mod
++go list all
++cmp go.mod go.mod.redundant
++
++
++-- go.mod.tidy --
++module m
++
++go 1.14
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/testonly v1.0.0 // indirect
++)
++-- x.go --
++package x
++import _ "rsc.io/quote"
++-- go.mod.crlf --
++module m
++
++go 1.14
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/testonly v1.0.0 // indirect
++)
++-- go.mod.unsorted --
++module m
++
++go 1.14
++
++require (
++	rsc.io/testonly v1.0.0 // indirect
++	rsc.io/quote v1.5.2
++)
++-- go.mod.indirect --
++module m
++
++go 1.14
++
++require (
++	rsc.io/quote v1.5.2 // indirect
++	rsc.io/testonly v1.0.0 // indirect
++)
++-- go.mod.toodirect --
++module m
++
++go 1.14
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/testonly v1.0.0
++)
++-- go.mod.redundant --
++module m
++
++go 1.14
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/sampler v1.3.0 // indirect
++	rsc.io/testonly v1.0.0 // indirect
++)
++-- go.mod.nogo --
++module m
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/sampler v1.3.0 // indirect
++	rsc.io/testonly v1.0.0 // indirect
++)
+diff --git a/src/cmd/go/testdata/script/mod_tidy.txt b/src/cmd/go/testdata/script/mod_tidy.txt
+index de3b52e2c0..b1d9371217 100644
+--- a/src/cmd/go/testdata/script/mod_tidy.txt
++++ b/src/cmd/go/testdata/script/mod_tidy.txt
+@@ -5,7 +5,6 @@ go mod tidy -v
+ stderr '^unused y.1'
+ ! stderr '^unused [^y]'
+ 
+-# tidy should not touch existing go line
+ grep 'go 1.10' go.mod
+ 
+ go list -m all

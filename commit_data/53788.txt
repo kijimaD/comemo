@@ -33,10 +33,414 @@ Date:   Tue Aug 30 21:48:17 2022 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/compare/compare.go      |  98 +++++++++++--
  src/cmd/compile/internal/compare/compare_test.go | 178 +++++++++++++++++++++++
  src/cmd/compile/internal/reflectdata/alg_test.go |  19 +++
  src/cmd/compile/internal/walk/compare.go         |   2 +-
  test/codegen/comparisons.go                      |  45 ++++++
  5 files changed, 332 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/compare/compare.go b/src/cmd/compile/internal/compare/compare.go
+index c0017b1b72..512ad25237 100644
+--- a/src/cmd/compile/internal/compare/compare.go
++++ b/src/cmd/compile/internal/compare/compare.go
+@@ -79,10 +79,93 @@ func EqCanPanic(t *types.Type) bool {
+ 	}
+ }
+ 
++// EqStructCost returns the cost of an equality comparison of two structs.
++//
++// The cost is determined using an algorithm which takes into consideration
++// the size of the registers in the current architecture and the size of the
++// memory-only fields in the struct.
++func EqStructCost(t *types.Type) int64 {
++	cost := int64(0)
++
++	for i, fields := 0, t.FieldSlice(); i < len(fields); {
++		f := fields[i]
++
++		// Skip blank-named fields.
++		if f.Sym.IsBlank() {
++			i++
++			continue
++		}
++
++		n, _, next := eqStructFieldCost(t, i)
++
++		cost += n
++		i = next
++	}
++
++	return cost
++}
++
++// eqStructFieldCost returns the cost of an equality comparison of two struct fields.
++// t is the parent struct type, and i is the index of the field in the parent struct type.
++// eqStructFieldCost may compute the cost of several adjacent fields at once. It returns
++// the cost, the size of the set of fields it computed the cost for (in bytes), and the
++// index of the first field not part of the set of fields for which the cost
++// has already been calculated.
++func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
++	var (
++		cost    = int64(0)
++		regSize = int64(types.RegSize)
++
++		size int64
++		next int
++	)
++
++	if base.Ctxt.Arch.CanMergeLoads {
++		// If we can merge adjacent loads then we can calculate the cost of the
++		// comparison using the size of the memory run and the size of the registers.
++		size, next = Memrun(t, i)
++		cost = size / regSize
++		if size%regSize != 0 {
++			cost++
++		}
++		return cost, size, next
++	}
++
++	// If we cannot merge adjacent loads then we have to use the size of the
++	// field and take into account the type to determine how many loads and compares
++	// are needed.
++	ft := t.Field(i).Type
++	size = ft.Size()
++	next = i + 1
++
++	return calculateCostForType(ft), size, next
++}
++
++func calculateCostForType(t *types.Type) int64 {
++	var cost int64
++	switch t.Kind() {
++	case types.TSTRUCT:
++		return EqStructCost(t)
++	case types.TSLICE:
++		// Slices are not comparable.
++		base.Fatalf("eqStructFieldCost: unexpected slice type")
++	case types.TARRAY:
++		elemCost := calculateCostForType(t.Elem())
++		cost = t.NumElem() * elemCost
++	case types.TSTRING, types.TINTER, types.TCOMPLEX64, types.TCOMPLEX128:
++		cost = 2
++	case types.TINT64, types.TUINT64:
++		cost = 8 / int64(types.RegSize)
++	default:
++		cost = 1
++	}
++	return cost
++}
++
+ // EqStruct compares two structs np and nq for equality.
+ // It works by building a list of boolean conditions to satisfy.
+ // Conditions must be evaluated in the returned order and
+-// properly short circuited by the caller.
++// properly short-circuited by the caller.
+ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
+ 	// The conditions are a list-of-lists. Conditions are reorderable
+ 	// within each inner list. The outer lists must be evaluated in order.
+@@ -128,18 +211,15 @@ func EqStruct(t *types.Type, np, nq ir.Node) []ir.Node {
+ 			continue
+ 		}
+ 
+-		// Find maximal length run of memory-only fields.
+-		size, next := Memrun(t, i)
+-
+-		// TODO(rsc): All the calls to newname are wrong for
+-		// cross-package unexported fields.
+-		if s := fields[i:next]; len(s) <= 2 {
+-			// Two or fewer fields: use plain field equality.
++		cost, size, next := eqStructFieldCost(t, i)
++		if cost <= 4 {
++			// Cost of 4 or less: use plain field equality.
++			s := fields[i:next]
+ 			for _, f := range s {
+ 				and(eqfield(np, nq, ir.OEQ, f.Sym))
+ 			}
+ 		} else {
+-			// More than two fields: use memequal.
++			// Higher cost: use memequal.
+ 			cc := eqmem(np, nq, f.Sym, size)
+ 			and(cc)
+ 		}
+diff --git a/src/cmd/compile/internal/compare/compare_test.go b/src/cmd/compile/internal/compare/compare_test.go
+new file mode 100644
+index 0000000000..85c11bfd40
+--- /dev/null
++++ b/src/cmd/compile/internal/compare/compare_test.go
+@@ -0,0 +1,178 @@
++package compare
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++	"cmd/internal/src"
++	"cmd/internal/sys"
++	"testing"
++)
++
++type typefn func() *types.Type
++
++func init() {
++	// These are the few constants that need to be initialized in order to use
++	// the types package without using the typecheck package by calling
++	// typecheck.InitUniverse() (the normal way to initialize the types package).
++	types.PtrSize = 8
++	types.RegSize = 8
++	types.MaxWidth = 1 << 50
++	typecheck.InitUniverse()
++	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
++}
++
++func TestEqStructCost(t *testing.T) {
++	newByteField := func(parent *types.Type, offset int64) *types.Field {
++		f := types.NewField(src.XPos{}, parent.Sym(), types.ByteType)
++		f.Offset = offset
++		return f
++	}
++	newArrayField := func(parent *types.Type, offset int64, len int64, kind types.Kind) *types.Field {
++		f := types.NewField(src.XPos{}, parent.Sym(), types.NewArray(types.Types[kind], len))
++		// Call Type.Size here to force the size calculation to be done. If not done here the size returned later is incorrect.
++		f.Type.Size()
++		f.Offset = offset
++		return f
++	}
++	newField := func(parent *types.Type, offset int64, kind types.Kind) *types.Field {
++		f := types.NewField(src.XPos{}, parent.Sym(), types.Types[kind])
++		f.Offset = offset
++		return f
++	}
++	tt := []struct {
++		name             string
++		cost             int64
++		nonMergeLoadCost int64
++		tfn              typefn
++	}{
++		{"struct without fields", 0, 0,
++			func() *types.Type {
++				return types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++			}},
++		{"struct with 1 byte field", 1, 1,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := []*types.Field{
++					newByteField(parent, 0),
++				}
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++		{"struct with 8 byte fields", 1, 8,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := make([]*types.Field, 8)
++				for i := range fields {
++					fields[i] = newByteField(parent, int64(i))
++				}
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++		{"struct with 16 byte fields", 2, 16,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := make([]*types.Field, 16)
++				for i := range fields {
++					fields[i] = newByteField(parent, int64(i))
++				}
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++		{"struct with 32 byte fields", 4, 32,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := make([]*types.Field, 32)
++				for i := range fields {
++					fields[i] = newByteField(parent, int64(i))
++				}
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++		{"struct with 2 int32 fields", 1, 2,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := make([]*types.Field, 2)
++				for i := range fields {
++					fields[i] = newField(parent, int64(i*4), types.TINT32)
++				}
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++		{"struct with 2 int32 fields and 1 int64", 2, 3,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := make([]*types.Field, 3)
++				fields[0] = newField(parent, int64(0), types.TINT32)
++				fields[1] = newField(parent, int64(4), types.TINT32)
++				fields[2] = newField(parent, int64(8), types.TINT64)
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++		{"struct with 1 int field and 1 string", 3, 3,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := make([]*types.Field, 2)
++				fields[0] = newField(parent, int64(0), types.TINT64)
++				fields[1] = newField(parent, int64(8), types.TSTRING)
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++		{"struct with 2 strings", 4, 4,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := make([]*types.Field, 2)
++				fields[0] = newField(parent, int64(0), types.TSTRING)
++				fields[1] = newField(parent, int64(8), types.TSTRING)
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++		{"struct with 1 large byte array field", 26, 101,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := []*types.Field{
++					newArrayField(parent, 0, 101, types.TUINT16),
++				}
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++		{"struct with string array field", 4, 4,
++			func() *types.Type {
++				parent := types.NewStruct(types.NewPkg("main", ""), []*types.Field{})
++				fields := []*types.Field{
++					newArrayField(parent, 0, 2, types.TSTRING),
++				}
++				parent.SetFields(fields)
++				return parent
++			},
++		},
++	}
++
++	for _, tc := range tt {
++		t.Run(tc.name, func(t *testing.T) {
++			want := tc.cost
++			base.Ctxt.Arch.CanMergeLoads = true
++			actual := EqStructCost(tc.tfn())
++			if actual != want {
++				t.Errorf("CanMergeLoads=true EqStructCost(%v) = %d, want %d", tc.tfn, actual, want)
++			}
++
++			base.Ctxt.Arch.CanMergeLoads = false
++			want = tc.nonMergeLoadCost
++			actual = EqStructCost(tc.tfn())
++			if actual != want {
++				t.Errorf("CanMergeLoads=false EqStructCost(%v) = %d, want %d", tc.tfn, actual, want)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/compile/internal/reflectdata/alg_test.go b/src/cmd/compile/internal/reflectdata/alg_test.go
+index 1e57b913fd..a1fc8c590c 100644
+--- a/src/cmd/compile/internal/reflectdata/alg_test.go
++++ b/src/cmd/compile/internal/reflectdata/alg_test.go
+@@ -74,3 +74,22 @@ func BenchmarkEqArrayOfFloats1024(b *testing.B) {
+ 		_ = a == c
+ 	}
+ }
++
++const size = 16
++
++type T1 struct {
++	a [size]byte
++}
++
++func BenchmarkEqStruct(b *testing.B) {
++	x, y := T1{}, T1{}
++	x.a = [size]byte{1, 2, 3, 4, 5, 6, 7, 8}
++	y.a = [size]byte{2, 3, 4, 5, 6, 7, 8, 9}
++
++	for i := 0; i < b.N; i++ {
++		f := x == y
++		if f {
++			println("hello")
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index 8a8f9b6d93..fe9c5d8833 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -167,7 +167,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		// We can compare several elements at once with 2/4/8 byte integer compares
+ 		inline = t.NumElem() <= 1 || (types.IsSimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Size()*t.NumElem() <= maxcmpsize))
+ 	case types.TSTRUCT:
+-		inline = t.NumComponents(types.IgnoreBlankFields) <= 4
++		inline = compare.EqStructCost(t) <= 4
+ 	}
+ 
+ 	cmpl := n.X
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 7e9d4745f1..b1dba2482f 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -84,6 +84,51 @@ func CompareArray6(a, b unsafe.Pointer) bool {
+ 	return *((*[4]byte)(a)) != *((*[4]byte)(b))
+ }
+ 
++// Check that some structs generate 2/4/8 byte compares.
++
++type T1 struct {
++	a [8]byte
++}
++
++func CompareStruct1(s1, s2 T1) bool {
++	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:-`CALL`
++	return s1 == s2
++}
++
++type T2 struct {
++	a [16]byte
++}
++
++func CompareStruct2(s1, s2 T2) bool {
++	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:-`CALL`
++	return s1 == s2
++}
++
++// Assert that a memequal call is still generated when
++// inlining would increase binary size too much.
++
++type T3 struct {
++	a [24]byte
++}
++
++func CompareStruct3(s1, s2 T3) bool {
++	// amd64:-`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CALL`
++	return s1 == s2
++}
++
++type T4 struct {
++	a [32]byte
++}
++
++func CompareStruct4(s1, s2 T4) bool {
++	// amd64:-`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
++	// amd64:`CALL`
++	return s1 == s2
++}
++
+ // -------------- //
+ //    Ordering    //
+ // -------------- //

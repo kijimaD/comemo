@@ -9,6 +9,46 @@ Date:   Fri Feb 20 08:34:30 2015 +1100
     Change-Id: I7943470a1784278a5c6e99c3b66c59d4953734ba
     Reviewed-on: https://go-review.googlesource.com/5340
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 3932c0bc42..141d3c9660 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -296,6 +296,11 @@ func findgoversion() string {
+ 		return chomp(readfile(path))
+ 	}
+ 
++	// Show a nicer error message if this isn't a Git repo.
++	if !isGitRepo() {
++		fatal("FAILED: not a Git repo; must put a VERSION file in $GOROOT")
++	}
++
+ 	// Otherwise, use Git.
+ 	// What is the current branch?
+ 	branch := chomp(run(goroot, CheckExit, "git", "rev-parse", "--abbrev-ref", "HEAD"))
+@@ -321,6 +326,22 @@ func findgoversion() string {
+ 	return tag
+ }
+ 
++// isGitRepo reports whether the working directory is inside a Git repository.
++func isGitRepo() bool {
++	p := ".git"
++	for {
++		fi, err := os.Stat(p)
++		if os.IsNotExist(err) {
++			p = filepath.Join("..", p)
++			continue
++		}
++		if err != nil || !fi.IsDir() {
++			return false
++		}
++		return true
++	}
++}
++
+ /*
+  * Initial tree setup.
+  */

@@ -22,10 +22,211 @@ Date:   Tue Jan 9 15:16:29 2018 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go            | 24 ++++++++++++++++++++++++
  src/cmd/go/internal/load/path.go | 22 ----------------------
  src/cmd/go/internal/load/pkg.go  | 12 ++++++------
  src/cmd/go/internal/str/path.go  | 32 ++++++++++++++++++++++++++++++++
  src/cmd/go/internal/test/test.go | 20 ++++++++++++++++++++
  5 files changed, 82 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 42eea06dc2..02c63de57f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5307,6 +5307,30 @@ func TestTestCacheInputs(t *testing.T) {
+ 	tg.run("test", "testcache", "-run=DirList")
+ 	tg.grepStdout(`\(cached\)`, "did not cache")
+ 
++	tg.tempFile("file.txt", "")
++	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/testcachetmp_test.go"), []byte(`package testcache
++
++		import (
++			"os"
++			"testing"
++		)
++
++		func TestExternalFile(t *testing.T) {
++			os.Open(`+fmt.Sprintf("%q", tg.path("file.txt"))+`)
++			_, err := os.Stat(`+fmt.Sprintf("%q", tg.path("file.txt"))+`)
++			if err != nil {
++				t.Fatal(err)
++			}
++		}
++	`), 0666))
++	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/testcachetmp_test.go"))
++	tg.run("test", "testcache", "-run=ExternalFile")
++	tg.run("test", "testcache", "-run=ExternalFile")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++	tg.must(os.Remove(filepath.Join(tg.tempdir, "file.txt")))
++	tg.run("test", "testcache", "-run=ExternalFile")
++	tg.grepStdout(`\(cached\)`, "did not cache")
++
+ 	switch runtime.GOOS {
+ 	case "nacl", "plan9", "windows":
+ 		// no shell scripts
+diff --git a/src/cmd/go/internal/load/path.go b/src/cmd/go/internal/load/path.go
+index 9cc85dd757..45a9e7b242 100644
+--- a/src/cmd/go/internal/load/path.go
++++ b/src/cmd/go/internal/load/path.go
+@@ -56,25 +56,3 @@ func expandPath(p string) string {
+ 	}
+ 	return p
+ }
+-
+-// hasFilePathPrefix reports whether the filesystem path s begins with the
+-// elements in prefix.
+-func hasFilePathPrefix(s, prefix string) bool {
+-	sv := strings.ToUpper(filepath.VolumeName(s))
+-	pv := strings.ToUpper(filepath.VolumeName(prefix))
+-	s = s[len(sv):]
+-	prefix = prefix[len(pv):]
+-	switch {
+-	default:
+-		return false
+-	case sv != pv:
+-		return false
+-	case len(s) == len(prefix):
+-		return s == prefix
+-	case len(s) > len(prefix):
+-		if prefix != "" && prefix[len(prefix)-1] == filepath.Separator {
+-			return strings.HasPrefix(s, prefix)
+-		}
+-		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
+-	}
+-}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 2b3d7fd0e1..a0d052a26f 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -520,13 +520,13 @@ func VendoredImportPath(parent *Package, path string) (found string) {
+ 
+ 	dir := filepath.Clean(parent.Dir)
+ 	root := filepath.Join(parent.Root, "src")
+-	if !hasFilePathPrefix(dir, root) || parent.ImportPath != "command-line-arguments" && filepath.Join(root, parent.ImportPath) != dir {
++	if !str.HasFilePathPrefix(dir, root) || parent.ImportPath != "command-line-arguments" && filepath.Join(root, parent.ImportPath) != dir {
+ 		// Look for symlinks before reporting error.
+ 		dir = expandPath(dir)
+ 		root = expandPath(root)
+ 	}
+ 
+-	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && !parent.Internal.Local && filepath.Join(root, parent.ImportPath) != dir {
++	if !str.HasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || parent.ImportPath != "command-line-arguments" && !parent.Internal.Local && filepath.Join(root, parent.ImportPath) != dir {
+ 		base.Fatalf("unexpected directory layout:\n"+
+ 			"	import path: %s\n"+
+ 			"	root: %s\n"+
+@@ -670,14 +670,14 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
+ 		i-- // rewind over slash in ".../internal"
+ 	}
+ 	parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
+-	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
++	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+ 		return p
+ 	}
+ 
+ 	// Look for symlinks before reporting error.
+ 	srcDir = expandPath(srcDir)
+ 	parent = expandPath(parent)
+-	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
++	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+ 		return p
+ 	}
+ 
+@@ -770,14 +770,14 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *ImportStack) *Pack
+ 		return p
+ 	}
+ 	parent := p.Dir[:truncateTo]
+-	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
++	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+ 		return p
+ 	}
+ 
+ 	// Look for symlinks before reporting error.
+ 	srcDir = expandPath(srcDir)
+ 	parent = expandPath(parent)
+-	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
++	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+ 		return p
+ 	}
+ 
+diff --git a/src/cmd/go/internal/str/path.go b/src/cmd/go/internal/str/path.go
+new file mode 100644
+index 0000000000..84ca9d581e
+--- /dev/null
++++ b/src/cmd/go/internal/str/path.go
+@@ -0,0 +1,32 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package str
++
++import (
++	"path/filepath"
++	"strings"
++)
++
++// HasFilePathPrefix reports whether the filesystem path s begins with the
++// elements in prefix.
++func HasFilePathPrefix(s, prefix string) bool {
++	sv := strings.ToUpper(filepath.VolumeName(s))
++	pv := strings.ToUpper(filepath.VolumeName(prefix))
++	s = s[len(sv):]
++	prefix = prefix[len(pv):]
++	switch {
++	default:
++		return false
++	case sv != pv:
++		return false
++	case len(s) == len(prefix):
++		return s == prefix
++	case len(s) > len(prefix):
++		if prefix != "" && prefix[len(prefix)-1] == filepath.Separator {
++			return strings.HasPrefix(s, prefix)
++		}
++		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
++	}
++}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index f7f6c64a86..0bc27c17ea 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1637,11 +1637,19 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
+ 			if !filepath.IsAbs(name) {
+ 				name = filepath.Join(pwd, name)
+ 			}
++			if !inDir(name, a.Package.Root) {
++				// Do not recheck files outside the GOPATH or GOROOT root.
++				break
++			}
+ 			fmt.Fprintf(h, "stat %s %x\n", name, hashStat(name))
+ 		case "open":
+ 			if !filepath.IsAbs(name) {
+ 				name = filepath.Join(pwd, name)
+ 			}
++			if !inDir(name, a.Package.Root) {
++				// Do not recheck files outside the GOPATH or GOROOT root.
++				break
++			}
+ 			fh, err := hashOpen(name)
+ 			if err != nil {
+ 				if cache.DebugTest {
+@@ -1656,6 +1664,18 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
+ 	return sum, nil
+ }
+ 
++func inDir(path, dir string) bool {
++	if str.HasFilePathPrefix(path, dir) {
++		return true
++	}
++	xpath, err1 := filepath.EvalSymlinks(path)
++	xdir, err2 := filepath.EvalSymlinks(dir)
++	if err1 == nil && err2 == nil && str.HasFilePathPrefix(xpath, xdir) {
++		return true
++	}
++	return false
++}
++
+ func hashGetenv(name string) cache.ActionID {
+ 	h := cache.NewHash("getenv")
+ 	v, ok := os.LookupEnv(name)

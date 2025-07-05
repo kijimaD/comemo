@@ -10,6 +10,22 @@ Date:   Wed Mar 9 12:58:50 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/391137
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index cfbb17e3bb..d241dada72 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3289,10 +3289,6 @@ f.p[i].x()
+ 
+ <h3 id="Selectors">Selectors</h3>
+ 
+-<p><b>
+-[This section is missing rules for x.f where x's type is a type parameter and f is a field.]
+-</b></p>
+-
+ <p>
+ For a <a href="#Primary_expressions">primary expression</a> <code>x</code>
+ that is not a <a href="#Package_clause">package name</a>, the

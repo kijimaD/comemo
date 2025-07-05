@@ -12,7 +12,7 @@ Date:   Thu Apr 11 22:25:27 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/next/6-stdlib/1-time.md                           |  2 +-
  doc/next/6-stdlib/99-minor/archive/tar/50102.md       |  7 ++++---
  doc/next/6-stdlib/99-minor/database/sql/64707.md      |  7 +++----
@@ -35,3 +35,250 @@ Date:   Thu Apr 11 22:25:27 2024 +0800
  doc/next/6-stdlib/99-minor/testing/fstest/63675.md    |  7 +++----
  doc/next/6-stdlib/99-minor/unicode/utf16/44940.md     |  6 +++---
  21 files changed, 55 insertions(+), 60 deletions(-)
+
+diff --git a/doc/next/6-stdlib/1-time.md b/doc/next/6-stdlib/1-time.md
+index fbd8fc740a..c809764ce1 100644
+--- a/doc/next/6-stdlib/1-time.md
++++ b/doc/next/6-stdlib/1-time.md
+@@ -1,7 +1,7 @@
+ ### Timer changes
+ 
+ Go 1.23 makes two significant changes to the implementation of
+-[`time.Timer`](/pkg/time#Timer) and [`time.Ticker`](/pkg/time#Ticker).
++[time.Timer] and [time.Ticker].
+ 
+ First, `Timer`s and `Ticker`s that are no longer referred to by the program
+ become eligible for garbage collection immediately, even if their
+diff --git a/doc/next/6-stdlib/99-minor/archive/tar/50102.md b/doc/next/6-stdlib/99-minor/archive/tar/50102.md
+index be5592bc05..ed8675f693 100644
+--- a/doc/next/6-stdlib/99-minor/archive/tar/50102.md
++++ b/doc/next/6-stdlib/99-minor/archive/tar/50102.md
+@@ -1,3 +1,4 @@
+-If the argument to [`FileInfoHeader`](/archive/tar#FileInfoHeader) implements the new [`FileInfoNames`](/archive/tar#FileInfoNames) interface,
+-then the interface methods will be used to set the Uname/Gname of the file header.
+-This allows applications to override the system-dependent Uname/Gname lookup.
++If the argument to [FileInfoHeader] implements the new [FileInfoNames]
++interface, then the interface methods will be used to set the Uname/Gname
++of the file header. This allows applications to override the system-dependent
++Uname/Gname lookup.
+diff --git a/doc/next/6-stdlib/99-minor/database/sql/64707.md b/doc/next/6-stdlib/99-minor/database/sql/64707.md
+index b6942b66b6..17d4516ba8 100644
+--- a/doc/next/6-stdlib/99-minor/database/sql/64707.md
++++ b/doc/next/6-stdlib/99-minor/database/sql/64707.md
+@@ -1,4 +1,3 @@
+-Errors returned by [`driver.Valuer`](/pkg/database/sql/driver#Driver)
+-implementations are now wrapped for improved error handling during
+-operations like [`Query`](/pkg/database/sql#DB.Query), [`Exec`](/pkg/database/sql#DB.Exec),
+-and [`QueryRow`](/pkg/database/sql#DB.QueryRow).
++Errors returned by [driver.Valuer] implementations are now wrapped for
++improved error handling during operations like [DB.Query], [DB.Exec],
++and [DB.QueryRow].
+diff --git a/doc/next/6-stdlib/99-minor/debug/elf/66054.md b/doc/next/6-stdlib/99-minor/debug/elf/66054.md
+index c2236877c3..0b3443f7d4 100644
+--- a/doc/next/6-stdlib/99-minor/debug/elf/66054.md
++++ b/doc/next/6-stdlib/99-minor/debug/elf/66054.md
+@@ -1,3 +1,3 @@
+-The new [`ProgType`](/pkg/debug/elf#ProgType)
+-[`PT_OPENBSD_NOBTCFI`](/pkg/debug/elf#PT_OPENBSD_NOBTCFI).
+-disables Branch Tracking Control Flow Integrity (BTCFI) enforcement on OpenBSD binaries.
++The `debug/elf` package now defines [PT_OPENBSD_NOBTCFI]. This [ProgType] is
++used to disable Branch Tracking Control Flow Integrity (BTCFI) enforcement
++on OpenBSD binaries.
+diff --git a/doc/next/6-stdlib/99-minor/net/62254.md b/doc/next/6-stdlib/99-minor/net/62254.md
+index fefc3fb50f..639140bbec 100644
+--- a/doc/next/6-stdlib/99-minor/net/62254.md
++++ b/doc/next/6-stdlib/99-minor/net/62254.md
+@@ -1,4 +1,3 @@
+-The new type [`KeepAliveConfig`](/pkg/net#KeepAliveConfig) permits fine-tuning
+-the keep-alive options for TCP connections, via a new
+-[`TCPConn.SetKeepAliveConfig`](/pkg/net#TCPConn.SetKeepAliveConfig) method and
+-new KeepAliveConfig fields for [`Dialer`](/pkg/net#Dialer) and [`ListenConfig`](/pkg/net#ListenConfig).
++The new type [KeepAliveConfig] permits fine-tuning the keep-alive
++options for TCP connections, via a new [TCPConn.SetKeepAliveConfig]
++method and new KeepAliveConfig fields for [Dialer] and [ListenConfig].
+diff --git a/doc/next/6-stdlib/99-minor/net/http/64910.md b/doc/next/6-stdlib/99-minor/net/http/64910.md
+index 26e69d2e6e..78b13fb711 100644
+--- a/doc/next/6-stdlib/99-minor/net/http/64910.md
++++ b/doc/next/6-stdlib/99-minor/net/http/64910.md
+@@ -1,2 +1,2 @@
+-The patterns used by [`net/http.ServeMux`](/pkg/net/http#ServeMux) allow
+-multiple spaces matching regexp '[ \t]+'.
++The patterns used by [ServeMux] allow multiple spaces matching
++regexp '[ \t]+'.
+diff --git a/doc/next/6-stdlib/99-minor/net/http/httptest/59473.md b/doc/next/6-stdlib/99-minor/net/http/httptest/59473.md
+index 621338d238..a640bbd0e4 100644
+--- a/doc/next/6-stdlib/99-minor/net/http/httptest/59473.md
++++ b/doc/next/6-stdlib/99-minor/net/http/httptest/59473.md
+@@ -1,2 +1,2 @@
+-The new [`NewRequestWithContext`](/pkg/net/http/httptest#NewRequestWithContext) method creates an incoming request with
+-a [`context.Context`](/pkg/context#Context).
++The new [NewRequestWithContext] method creates an incoming request with
++a [context.Context].
+diff --git a/doc/next/6-stdlib/99-minor/os/33357.md b/doc/next/6-stdlib/99-minor/os/33357.md
+index 67e66c589b..bd542d9d77 100644
+--- a/doc/next/6-stdlib/99-minor/os/33357.md
++++ b/doc/next/6-stdlib/99-minor/os/33357.md
+@@ -1,3 +1,3 @@
+-The [`os.Stat`](/pkg/os#Stat) function now sets the [`os.ModeSocket`](/pkg/os#ModeSocket)
+-bit for files that are Unix sockets on Windows. These files are identified by
+-having a reparse tag set to `IO_REPARSE_TAG_AF_UNIX`.
++The [Stat] function now sets the [ModeSocket] bit for
++files that are Unix sockets on Windows. These files are identified
++by having a reparse tag set to `IO_REPARSE_TAG_AF_UNIX`.
+diff --git a/doc/next/6-stdlib/99-minor/os/61893.md b/doc/next/6-stdlib/99-minor/os/61893.md
+index b2dd537039..d22060c869 100644
+--- a/doc/next/6-stdlib/99-minor/os/61893.md
++++ b/doc/next/6-stdlib/99-minor/os/61893.md
+@@ -1,7 +1,7 @@
+-On Windows, the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
+-for reparse points changed. Mount points no longer have [`os.ModeSymlink`](/pkg/os#ModeSymlink) set,
+-and reparse points that are not symlinks, Unix sockets, or dedup files now
+-always have [`os.ModeIrregular`](/pkg/os#ModeIrregular) set.
++On Windows, the mode bits reported by [Lstat] and [Stat] for
++reparse points changed. Mount points no longer have [ModeSymlink] set,
++and reparse points that are not symlinks, Unix sockets, or dedup files
++now always have [ModeIrregular] set.
+ This behavior is controlled by the `winsymlink` setting.
+ For Go 1.23, it defaults to `winsymlink=1`.
+ Previous versions default to `winsymlink=0`.
+diff --git a/doc/next/6-stdlib/99-minor/os/62484.md b/doc/next/6-stdlib/99-minor/os/62484.md
+index 305f8ad05c..c99801bb6c 100644
+--- a/doc/next/6-stdlib/99-minor/os/62484.md
++++ b/doc/next/6-stdlib/99-minor/os/62484.md
+@@ -1,2 +1 @@
+-The [`CopyFS`](/pkg/os#CopyFS) function copies an [`io/fs.FS`](/pkg/io/fs#FS)
+-into the local filesystem.
++The [CopyFS] function copies an [io/fs.FS] into the local filesystem.
+diff --git a/doc/next/6-stdlib/99-minor/os/63703.md b/doc/next/6-stdlib/99-minor/os/63703.md
+index f547d496a2..3fbb2594cf 100644
+--- a/doc/next/6-stdlib/99-minor/os/63703.md
++++ b/doc/next/6-stdlib/99-minor/os/63703.md
+@@ -1,5 +1,5 @@
+-On Windows, [`os.Readlink`](/pkg/os#Readlink) no longer tries
+-to normalize volumes to drive letters, which was not always even possible.
++On Windows, [Readlink] no longer tries to normalize volumes
++to drive letters, which was not always even possible.
+ This behavior is controlled by the `winreadlinkvolume` setting.
+ For Go 1.23, it defaults to `winreadlinkvolume=1`.
+ Previous versions default to `winreadlinkvolume=0`.
+\ No newline at end of file
+diff --git a/doc/next/6-stdlib/99-minor/path/filepath/57151.md b/doc/next/6-stdlib/99-minor/path/filepath/57151.md
+index c992447fe3..5a99e3a4f2 100644
+--- a/doc/next/6-stdlib/99-minor/path/filepath/57151.md
++++ b/doc/next/6-stdlib/99-minor/path/filepath/57151.md
+@@ -1,2 +1,2 @@
+-The new [`Localize`](/pkg/path/filepath#Localize) function safely converts
+-a slash-separated path into an operating system path.
++The new [Localize] function safely converts a slash-separated
++path into an operating system path.
+diff --git a/doc/next/6-stdlib/99-minor/path/filepath/63703.md b/doc/next/6-stdlib/99-minor/path/filepath/63703.md
+index 0aa0ba6fe3..da2b132d8b 100644
+--- a/doc/next/6-stdlib/99-minor/path/filepath/63703.md
++++ b/doc/next/6-stdlib/99-minor/path/filepath/63703.md
+@@ -1,11 +1,11 @@
+-On Windows, [`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks) no longer evaluates
+-mount points, which was a source of many inconsistencies and bugs.
++On Windows, [EvalSymlinks] no longer evaluates mount points,
++which was a source of many inconsistencies and bugs.
+ This behavior is controlled by the `winsymlink` setting.
+ For Go 1.23, it defaults to `winsymlink=1`.
+ Previous versions default to `winsymlink=0`.
+ 
+-On Windows, [`filepath.EvalSymlinks`](/pkg/path/filepath#EvalSymlinks) no longer tries
+-to normalize volumes to drive letters, which was not always even possible.
++On Windows, [EvalSymlinks] no longer tries to normalize
++volumes to drive letters, which was not always even possible.
+ This behavior is controlled by the `winreadlinkvolume` setting.
+ For Go 1.23, it defaults to `winreadlinkvolume=1`.
+ Previous versions default to `winreadlinkvolume=0`.
+\ No newline at end of file
+diff --git a/doc/next/6-stdlib/99-minor/reflect/60427.md b/doc/next/6-stdlib/99-minor/reflect/60427.md
+index 92230cde1a..bca1360734 100644
+--- a/doc/next/6-stdlib/99-minor/reflect/60427.md
++++ b/doc/next/6-stdlib/99-minor/reflect/60427.md
+@@ -1,6 +1,6 @@
+-The new methods synonymous with the method of the same name in [`reflect.Value`](/pkg/reflect#Value)
+-are added to [`reflect.Type`](/pkg/reflect#Type):
+-1. [`OverflowComplex`](/pkg/reflect#Type.OverflowComplex)
+-2. [`OverflowFloat`](/pkg/reflect#Type.OverflowFloat)
+-3. [`OverflowInt`](/pkg/reflect#Type.OverflowInt)
+-4. [`OverflowUint`](/pkg/reflect#Type.OverflowUint)
++The new methods synonymous with the method of the same name
++in [Value] are added to [Type]:
++1. [Type.OverflowComplex]
++2. [Type.OverflowFloat]
++3. [Type.OverflowInt]
++4. [Type.OverflowUint]
+diff --git a/doc/next/6-stdlib/99-minor/reflect/61308.md b/doc/next/6-stdlib/99-minor/reflect/61308.md
+index e512e8ffb6..ed21ec3a37 100644
+--- a/doc/next/6-stdlib/99-minor/reflect/61308.md
++++ b/doc/next/6-stdlib/99-minor/reflect/61308.md
+@@ -1,3 +1,3 @@
+-The [`SliceAt(typ Type, p unsafe.Pointer, len int)`](/pkg/reflect#SliceAt) function
+-returns a Value representing a slice whose underlying array starts at p and whose
+-length and capacity are len.
++The [SliceAt(typ Type, p unsafe.Pointer, len int)] function
++returns a Value representing a slice whose underlying array starts
++at p and whose length and capacity are len.
+\ No newline at end of file
+diff --git a/doc/next/6-stdlib/99-minor/runtime/debug/42888.md b/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
+index a4e812cc06..2a65e691fe 100644
+--- a/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
++++ b/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
+@@ -1,8 +1,6 @@
+ 
+-The [`debug.SetCrashOutput`](/pkg/runtime#SetCrashOutput) function allows
+-the user to specify an alternate file to which the runtime should
+-write its fatal crash report
+-([#42888](https://github.com/golang/go/issues/42888)).
++The [SetCrashOutput] function allows the user to specify an alternate
++file to which the runtime should write its fatal crash report.
+ It may be used to construct an automated reporting mechanism for all
+ unexpected crashes, not just those in goroutines that explicitly use
+ `recover`.
+diff --git a/doc/next/6-stdlib/99-minor/slices/65238.md b/doc/next/6-stdlib/99-minor/slices/65238.md
+index 9204eb58a9..34ef66a2dd 100644
+--- a/doc/next/6-stdlib/99-minor/slices/65238.md
++++ b/doc/next/6-stdlib/99-minor/slices/65238.md
+@@ -1,2 +1,2 @@
+-The [`Repeat`](/pkg/slices#Repeat) function returns a new slice
+-that repeats the provided slice the given number of times.
++The [Repeat] function returns a new slice that repeats the
++provided slice the given number of times.
+diff --git a/doc/next/6-stdlib/99-minor/syscall/62254.md b/doc/next/6-stdlib/99-minor/syscall/62254.md
+index bffb7199d8..1d463e5ea8 100644
+--- a/doc/next/6-stdlib/99-minor/syscall/62254.md
++++ b/doc/next/6-stdlib/99-minor/syscall/62254.md
+@@ -1 +1 @@
+-The syscall package now defines [`WSAENOPROTOOPT`](/pkg/syscall#WSAENOPROTOOPT) on Windows.
++The syscall package now defines [WSAENOPROTOOPT] on Windows.
+diff --git a/doc/next/6-stdlib/99-minor/syscall/65817.md b/doc/next/6-stdlib/99-minor/syscall/65817.md
+index a279a0ad69..9a2d12c074 100644
+--- a/doc/next/6-stdlib/99-minor/syscall/65817.md
++++ b/doc/next/6-stdlib/99-minor/syscall/65817.md
+@@ -1 +1 @@
+-The [`GetsockoptInt`](/pkg/syscall#GetsockoptInt) function is now supported on Windows.
++The [GetsockoptInt] function is now supported on Windows.
+diff --git a/doc/next/6-stdlib/99-minor/testing/fstest/63675.md b/doc/next/6-stdlib/99-minor/testing/fstest/63675.md
+index 1a3552d50d..cea9ae3dc2 100644
+--- a/doc/next/6-stdlib/99-minor/testing/fstest/63675.md
++++ b/doc/next/6-stdlib/99-minor/testing/fstest/63675.md
+@@ -1,4 +1,3 @@
+-[`TestFS`](/pkg/testing/fstest#TestFS) now returns a structured
+-error that can be unwrapped (via method `Unwrap() []error`). This allows
+-inspecting errors using [`errors.Is`](/pkg/errors#Is) or
+-[`errors.As`](/pkg/errors#As).
++[TestFS] now returns a structured error that can be unwrapped
++(via method `Unwrap() []error`). This allows inspecting errors
++using [errors.Is] or [errors.As].
+diff --git a/doc/next/6-stdlib/99-minor/unicode/utf16/44940.md b/doc/next/6-stdlib/99-minor/unicode/utf16/44940.md
+index 79a36cd611..e066784588 100644
+--- a/doc/next/6-stdlib/99-minor/unicode/utf16/44940.md
++++ b/doc/next/6-stdlib/99-minor/unicode/utf16/44940.md
+@@ -1,3 +1,3 @@
+-The [`unicode/utf16.RuneLen`](/pkg/unicode/utf16#RuneLen) function returns
+-the number of 16-bit words in the UTF-16 encoding of the rune. It returns -1
+-if the rune is not a valid value to encode in UTF-16.
++The [RuneLen] function returns the number of 16-bit words in
++the UTF-16 encoding of the rune. It returns -1 if the rune
++is not a valid value to encode in UTF-16.

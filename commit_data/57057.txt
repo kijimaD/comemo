@@ -17,6 +17,20 @@ Date:   Mon Jun 12 16:10:55 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/security_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/security_test.go b/src/runtime/security_test.go
+index 1d304113d6..5cd90f9d1f 100644
+--- a/src/runtime/security_test.go
++++ b/src/runtime/security_test.go
+@@ -27,6 +27,8 @@ func privesc(command string, args ...string) error {
+ 	var cmd *exec.Cmd
+ 	if runtime.GOOS == "darwin" {
+ 		cmd = exec.CommandContext(ctx, "sudo", append([]string{"-n", command}, args...)...)
++	} else if runtime.GOOS == "openbsd" {
++		cmd = exec.CommandContext(ctx, "doas", append([]string{"-n", command}, args...)...)
+ 	} else {
+ 		cmd = exec.CommandContext(ctx, "su", highPrivUser, "-c", fmt.Sprintf("%s %s", command, strings.Join(args, " ")))
+ 	}

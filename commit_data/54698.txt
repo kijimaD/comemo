@@ -14,6 +14,43 @@ Date:   Wed Aug 31 10:24:04 2022 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/unsafe/unsafe.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 5051b3ee9f..2f4212a1ae 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -239,3 +239,31 @@ func Add(ptr Pointer, len IntegerType) Pointer
+ // At run time, if len is negative, or if ptr is nil and len is not zero,
+ // a run-time panic occurs.
+ func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
++
++// SliceData returns a pointer to the underlying array of the argument
++// slice.
++//   - If cap(slice) > 0, SliceData returns &slice[:1][0].
++//   - If slice == nil, SliceData returns nil.
++//   - Otherwise, SliceData returns a non-nil pointer to an
++//     unspecified memory address.
++func SliceData(slice []ArbitraryType) *ArbitraryType
++
++// String returns a string value whose underlying bytes
++// start at ptr and whose length is len.
++//
++// The len argument must be of integer type or an untyped constant.
++// A constant len argument must be non-negative and representable by a value of type int;
++// if it is an untyped constant it is given type int.
++// At run time, if len is negative, or if ptr is nil and len is not zero,
++// a run-time panic occurs.
++//
++// Since Go strings are immutable, the bytes passed to String
++// must not be modified afterwards.
++func String(ptr *byte, len IntegerType) string
++
++// StringData returns a pointer to the underlying bytes of str.
++// For an empty string the return value is unspecified, and may be nil.
++//
++// Since Go strings are immutable, the bytes returned by StringData
++// must not be modified.
++func StringData(str string) *byte

@@ -26,7 +26,123 @@ Date:   Mon Oct 13 18:35:53 2014 -0700
     R=rsc
     CC=golang-codereviews, golang-dev
     https://golang.org/cl/153420045
-
+---
  src/crypto/x509/x509.go      | 15 ++++++++++-
  src/crypto/x509/x509_test.go | 63 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 77 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 6e57e913ac..69a62e57d2 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -494,6 +494,11 @@ type Certificate struct {
+ 	BasicConstraintsValid bool // if true then the next two fields are valid.
+ 	IsCA                  bool
+ 	MaxPathLen            int
++	// MaxPathLenZero indicates that BasicConstraintsValid==true and
++	// MaxPathLen==0 should be interpreted as an actual maximum path length
++	// of zero. Otherwise, that combination is interpreted as MaxPathLen
++	// not being set.
++	MaxPathLenZero bool
+ 
+ 	SubjectKeyId   []byte
+ 	AuthorityKeyId []byte
+@@ -913,6 +918,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 					out.BasicConstraintsValid = true
+ 					out.IsCA = constraints.IsCA
+ 					out.MaxPathLen = constraints.MaxPathLen
++					out.MaxPathLenZero = out.MaxPathLen == 0
+ 					continue
+ 				}
+ 			case 17:
+@@ -1227,8 +1233,15 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
+ 	}
+ 
+ 	if template.BasicConstraintsValid && !oidInExtensions(oidExtensionBasicConstraints, template.ExtraExtensions) {
++		// Leaving MaxPathLen as zero indicates that no maximum path
++		// length is desired, unless MaxPathLenZero is set. A value of
++		// -1 causes encoding/asn1 to omit the value as desired.
++		maxPathLen := template.MaxPathLen
++		if maxPathLen == 0 && !template.MaxPathLenZero {
++			maxPathLen = -1
++		}
+ 		ret[n].Id = oidExtensionBasicConstraints
+-		ret[n].Value, err = asn1.Marshal(basicConstraints{template.IsCA, template.MaxPathLen})
++		ret[n].Value, err = asn1.Marshal(basicConstraints{template.IsCA, maxPathLen})
+ 		ret[n].Critical = true
+ 		if err != nil {
+ 			return
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index abe86216f9..4f5173fb5d 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -953,6 +953,69 @@ func TestParseCertificateRequest(t *testing.T) {
+ 	}
+ }
+ 
++func TestMaxPathLen(t *testing.T) {
++	block, _ := pem.Decode([]byte(pemPrivateKey))
++	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
++	if err != nil {
++		t.Fatalf("Failed to parse private key: %s", err)
++	}
++
++	template := &Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject: pkix.Name{
++			CommonName: "Σ Acme Co",
++		},
++		NotBefore: time.Unix(1000, 0),
++		NotAfter:  time.Unix(100000, 0),
++
++		BasicConstraintsValid: true,
++		IsCA: true,
++	}
++
++	serialiseAndParse := func(template *Certificate) *Certificate {
++		derBytes, err := CreateCertificate(rand.Reader, template, template, &rsaPriv.PublicKey, rsaPriv)
++		if err != nil {
++			t.Fatalf("failed to create certificate: %s", err)
++			return nil
++		}
++
++		cert, err := ParseCertificate(derBytes)
++		if err != nil {
++			t.Fatalf("failed to parse certificate: %s", err)
++			return nil
++		}
++
++		return cert
++	}
++
++	cert1 := serialiseAndParse(template)
++	if m := cert1.MaxPathLen; m != -1 {
++		t.Errorf("Omitting MaxPathLen didn't turn into -1, got %d", m)
++	}
++	if cert1.MaxPathLenZero {
++		t.Errorf("Omitting MaxPathLen resulted in MaxPathLenZero")
++	}
++
++	template.MaxPathLen = 1
++	cert2 := serialiseAndParse(template)
++	if m := cert2.MaxPathLen; m != 1 {
++		t.Errorf("Setting MaxPathLen didn't work. Got %d but set 1", m)
++	}
++	if cert2.MaxPathLenZero {
++		t.Errorf("Setting MaxPathLen resulted in MaxPathLenZero")
++	}
++
++	template.MaxPathLen = 0
++	template.MaxPathLenZero = true
++	cert3 := serialiseAndParse(template)
++	if m := cert3.MaxPathLen; m != 0 {
++		t.Errorf("Setting MaxPathLenZero didn't work, got %d", m)
++	}
++	if !cert3.MaxPathLenZero {
++		t.Errorf("Setting MaxPathLen to zero didn't result in MaxPathLenZero")
++	}
++}
++
+ // This CSR was generated with OpenSSL:
+ //  openssl req -out CSR.csr -new -newkey rsa:2048 -nodes -keyout privateKey.key -config openssl.cnf
+ //

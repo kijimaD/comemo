@@ -21,9 +21,100 @@ Date:   Thu Dec 12 13:33:42 2019 +0000
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/doc_test.go          | 34 ++++++++++++++++++++++++++++++++++
  src/cmd/doc/testdata/merge/aa.go |  7 +++++++
  src/cmd/doc/testdata/merge/bb.go |  7 +++++++
  src/go/parser/interface.go       |  8 +-------
  4 files changed, 49 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index c0959acca1..fd2ae30827 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -724,6 +724,40 @@ var tests = []test{
+ 		},
+ 	},
+ 
++	// Merging comments with -src.
++	{
++		"merge comments with -src A",
++		[]string{"-src", p + "/merge", `A`},
++		[]string{
++			`A doc`,
++			`func A`,
++			`A comment`,
++		},
++		[]string{
++			`Package A doc`,
++			`Package B doc`,
++			`B doc`,
++			`B comment`,
++			`B doc`,
++		},
++	},
++	{
++		"merge comments with -src B",
++		[]string{"-src", p + "/merge", `B`},
++		[]string{
++			`B doc`,
++			`func B`,
++			`B comment`,
++		},
++		[]string{
++			`Package A doc`,
++			`Package B doc`,
++			`A doc`,
++			`A comment`,
++			`A doc`,
++		},
++	},
++
+ 	// No dups with -u. Issue 21797.
+ 	{
+ 		"case matching on, no dups",
+diff --git a/src/cmd/doc/testdata/merge/aa.go b/src/cmd/doc/testdata/merge/aa.go
+new file mode 100644
+index 0000000000..f8ab92dfd0
+--- /dev/null
++++ b/src/cmd/doc/testdata/merge/aa.go
+@@ -0,0 +1,7 @@
++// Package comment A.
++package merge
++
++// A doc.
++func A() {
++	// A comment.
++}
+diff --git a/src/cmd/doc/testdata/merge/bb.go b/src/cmd/doc/testdata/merge/bb.go
+new file mode 100644
+index 0000000000..fd8cf3c446
+--- /dev/null
++++ b/src/cmd/doc/testdata/merge/bb.go
+@@ -0,0 +1,7 @@
++// Package comment B.
++package merge
++
++// B doc.
++func B() {
++	// B comment.
++}
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index 500c98d496..54f9d7b80a 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -133,13 +133,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
+ // first error encountered are returned.
+ //
+ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
+-	fd, err := os.Open(path)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer fd.Close()
+-
+-	list, err := fd.Readdir(-1)
++	list, err := ioutil.ReadDir(path)
+ 	if err != nil {
+ 		return nil, err
+ 	}

@@ -16,6 +16,50 @@ Date:   Thu Mar 31 10:30:04 2016 +1100
     Reviewed-on: https://go-review.googlesource.com/21350
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go | 17 +++++------------
  1 file changed, 5 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index f107a4e284..7adaa0ea2d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -819,15 +819,13 @@ func tostruct0(t *Type, l []*Node) {
+ 
+ 	var fields []*Field
+ 	for _, n := range l {
+-		fields = append(fields, structfield(n))
+-	}
+-	t.SetFields(fields)
+-
+-	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
++		f := structfield(n)
+ 		if f.Broke {
+ 			t.Broke = true
+ 		}
++		fields = append(fields, f)
+ 	}
++	t.SetFields(fields)
+ 
+ 	checkdupfields("field", t)
+ 
+@@ -849,17 +847,12 @@ func tofunargs(l []*Node) *Type {
+ 		if n.Left != nil && n.Left.Class == PPARAM {
+ 			n.Left.Name.Param.Field = f
+ 		}
+-
+-		fields = append(fields, f)
+-	}
+-	t.SetFields(fields)
+-
+-	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
+ 		if f.Broke {
+ 			t.Broke = true
+ 		}
++		fields = append(fields, f)
+ 	}
+-
++	t.SetFields(fields)
+ 	return t
+ }
+ 

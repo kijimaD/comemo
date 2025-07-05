@@ -11,8 +11,61 @@ Date:   Wed Jul 31 15:09:13 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/12006047
-
+---
  src/pkg/text/template/multi_test.go       | 4 ++--
  src/pkg/text/template/parse/node.go       | 4 +++-
  src/pkg/text/template/parse/parse_test.go | 2 ++
  3 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/text/template/multi_test.go b/src/pkg/text/template/multi_test.go
+index bd98bd047e..1f6ed5d8e2 100644
+--- a/src/pkg/text/template/multi_test.go
++++ b/src/pkg/text/template/multi_test.go
+@@ -33,10 +33,10 @@ var multiParseTests = []multiParseTest{
+ 		nil},
+ 	{"one", `{{define "foo"}} FOO {{end}}`, noError,
+ 		[]string{"foo"},
+-		[]string{`" FOO "`}},
++		[]string{" FOO "}},
+ 	{"two", `{{define "foo"}} FOO {{end}}{{define "bar"}} BAR {{end}}`, noError,
+ 		[]string{"foo", "bar"},
+-		[]string{`" FOO "`, `" BAR "`}},
++		[]string{" FOO ", " BAR "}},
+ 	// errors
+ 	{"missing end", `{{define "foo"}} FOO `, hasError,
+ 		nil,
+diff --git a/src/pkg/text/template/parse/node.go b/src/pkg/text/template/parse/node.go
+index 9d0d09eb5f..dc6a3bb929 100644
+--- a/src/pkg/text/template/parse/node.go
++++ b/src/pkg/text/template/parse/node.go
+@@ -13,6 +13,8 @@ import (
+ 	"strings"
+ )
+ 
++var textFormat = "%s" // Changed to "%q" in tests for better error messages.
++
+ // A Node is an element in the parse tree. The interface is trivial.
+ // The interface contains an unexported method so that only
+ // types local to this package can satisfy it.
+@@ -125,7 +127,7 @@ func newText(pos Pos, text string) *TextNode {
+ }
+ 
+ func (t *TextNode) String() string {
+-	return fmt.Sprintf("%q", t.Text)
++	return fmt.Sprintf(textFormat, t.Text)
+ }
+ 
+ func (t *TextNode) Copy() Node {
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index 695c76ebfe..0e5c1448c8 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -256,6 +256,8 @@ var builtins = map[string]interface{}{
+ }
+ 
+ func testParse(doCopy bool, t *testing.T) {
++	textFormat = "%q"
++	defer func() { textFormat = "%s" }()
+ 	for _, test := range parseTests {
+ 		tmpl, err := New(test.name).Parse(test.input, "", "", make(map[string]*Tree), builtins)
+ 		switch {

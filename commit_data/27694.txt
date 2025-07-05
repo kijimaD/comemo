@@ -14,7 +14,59 @@ Date:   Thu Apr 7 23:22:30 2016 -0700
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/bytes/bytes.go      |  5 +++++
  src/bytes/bytes_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 698d881c9d..305c85d9f4 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -88,6 +88,11 @@ func ContainsAny(b []byte, chars string) bool {
+ 	return IndexAny(b, chars) >= 0
+ }
+ 
++// ContainsRune reports whether the Unicode code point r is within b.
++func ContainsRune(b []byte, r rune) bool {
++	return IndexRune(b, r) >= 0
++}
++
+ // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+ func Index(s, sep []byte) int {
+ 	n := len(sep)
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 40e8d09b59..620cfd1bce 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -1245,6 +1245,30 @@ func TestContainsAny(t *testing.T) {
+ 	}
+ }
+ 
++var ContainsRuneTests = []struct {
++	b        []byte
++	r        rune
++	expected bool
++}{
++	{[]byte(""), 'a', false},
++	{[]byte("a"), 'a', true},
++	{[]byte("aaa"), 'a', true},
++	{[]byte("abc"), 'y', false},
++	{[]byte("abc"), 'c', true},
++	{[]byte("a☺b☻c☹d"), 'x', false},
++	{[]byte("a☺b☻c☹d"), '☻', true},
++	{[]byte("aRegExp*"), '*', true},
++}
++
++func TestContainsRune(t *testing.T) {
++	for _, ct := range ContainsRuneTests {
++		if ContainsRune(ct.b, ct.r) != ct.expected {
++			t.Errorf("ContainsRune(%q, %q) = %v, want %v",
++				ct.b, ct.r, !ct.expected, ct.expected)
++		}
++	}
++}
++
+ var makeFieldsInput = func() []byte {
+ 	x := make([]byte, 1<<20)
+ 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.

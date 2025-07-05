@@ -14,9 +14,421 @@ Date:   Wed Sep 30 14:41:00 2015 -0400
     Change-Id: Ie8adfab7547f179391d470679598f0904aabf9f7
     Reviewed-on: https://go-review.googlesource.com/15200
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go |  23 +++--
  test/escape2.go                    |  34 ++++----
  test/escape2n.go                   |  34 ++++----
  test/fixedbugs/issue12006.go       | 174 +++++++++++++++++++++++++++++++++++++
  4 files changed, 221 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index b91a6d2a88..c989f51f8c 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -951,6 +951,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 		OMAPLIT,
+ 		OSTRUCTLIT,
+ 		OPTRLIT,
++		ODDDARG,
+ 		OCALLPART:
+ 		break
+ 
+@@ -1456,8 +1457,9 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		}
+ 	}
+ 
++	var src *Node
+ 	for t := getinargx(fntype).Type; ll != nil; ll = ll.Next {
+-		src := ll.N
++		src = ll.N
+ 		if t.Isddd && !n.Isddd {
+ 			// Introduce ODDDARG node to represent ... allocation.
+ 			src = Nod(ODDDARG, nil, nil)
+@@ -1498,17 +1500,17 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		}
+ 
+ 		if src != ll.N {
++			// This occurs when function parameter type Isddd and n not Isddd
+ 			break
+ 		}
+ 		t = t.Down
+ 	}
+ 
+-	// "..." arguments are untracked
+ 	for ; ll != nil; ll = ll.Next {
+-		escassign(e, &e.theSink, ll.N)
+ 		if Debug['m'] > 2 {
+-			fmt.Printf("%v::esccall:: ... <- %v, untracked\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
++			fmt.Printf("%v::esccall:: ... <- %v\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
+ 		}
++		escassign(e, src, ll.N) // args to slice
+ 	}
+ }
+ 
+@@ -1694,6 +1696,16 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 	case OAPPEND:
+ 		escwalk(e, level, dst, src.List.N)
+ 
++	case ODDDARG:
++		if leaks {
++			src.Esc = EscHeap
++			if Debug['m'] != 0 {
++				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(src, obj.FmtShort))
++			}
++		}
++		// similar to a slice arraylit and its args.
++		level = level.dec()
++
+ 	case OARRAYLIT:
+ 		if Isfixedarray(src.Type) {
+ 			break
+@@ -1704,8 +1716,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 
+ 		fallthrough
+ 
+-	case ODDDARG,
+-		OMAKECHAN,
++	case OMAKECHAN,
+ 		OMAKEMAP,
+ 		OMAKESLICE,
+ 		OARRAYRUNESTR,
+diff --git a/test/escape2.go b/test/escape2.go
+index 46cfde4a94..d17a919a11 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -620,15 +620,15 @@ func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param:
+ }
+ 
+ func foo75(z *int) { // ERROR "foo75 z does not escape$"
+-	myprint(z, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo75 ... argument does not escape$"
++	myprint(z, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo75 ... argument does not escape$"
+ }
+ 
+ func foo75a(z *int) { // ERROR "foo75a z does not escape$"
+-	myprint1(z, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo75a ... argument does not escape$"
++	myprint1(z, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo75a ... argument does not escape$"
+ }
+ 
+ func foo75esc(z *int) { // ERROR "leaking param: z$"
+-	gxx = myprint(z, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo75esc ... argument does not escape$"
++	gxx = myprint(z, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo75esc ... argument does not escape$"
+ }
+ 
+ func foo75aesc(z *int) { // ERROR "foo75aesc z does not escape$"
+@@ -640,30 +640,28 @@ func foo75aesc1(z *int) { // ERROR "foo75aesc1 z does not escape$"
+ 	sink = myprint1(z, 1, 2, 3) // ERROR "... argument escapes to heap$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "myprint1\(z, 1, 2, 3\) escapes to heap$"
+ }
+ 
+-// BAD: z does not escape here
+-func foo76(z *int) { // ERROR "leaking param: z$"
+-	myprint(nil, z) // ERROR "foo76 ... argument does not escape$" "z escapes to heap$"
++func foo76(z *int) { // ERROR "z does not escape"
++	myprint(nil, z) // ERROR "foo76 ... argument does not escape$" "z does not escape"
+ }
+ 
+-// BAD: z does not escape here
+-func foo76a(z *int) { // ERROR "leaking param: z$"
+-	myprint1(nil, z) // ERROR "foo76a ... argument does not escape$" "z escapes to heap$"
++func foo76a(z *int) { // ERROR "z does not escape"
++	myprint1(nil, z) // ERROR "foo76a ... argument does not escape$" "z does not escape"
+ }
+ 
+ func foo76b() {
+-	myprint(nil, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo76b ... argument does not escape$"
++	myprint(nil, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo76b ... argument does not escape$"
+ }
+ 
+ func foo76c() {
+-	myprint1(nil, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo76c ... argument does not escape$"
++	myprint1(nil, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo76c ... argument does not escape$"
+ }
+ 
+ func foo76d() {
+-	defer myprint(nil, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo76d ... argument does not escape$"
++	defer myprint(nil, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo76d ... argument does not escape$"
+ }
+ 
+ func foo76e() {
+-	defer myprint1(nil, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo76e ... argument does not escape$"
++	defer myprint1(nil, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo76e ... argument does not escape$"
+ }
+ 
+ func foo76f() {
+@@ -697,13 +695,11 @@ func foo77c(z []interface{}) { // ERROR "leaking param: z$"
+ }
+ 
+ func dotdotdot() {
+-	// BAD: i should not escape here
+-	i := 0           // ERROR "moved to heap: i$"
+-	myprint(nil, &i) // ERROR "&i escapes to heap$" "dotdotdot ... argument does not escape$"
++	i := 0
++	myprint(nil, &i) // ERROR "&i does not escape" "dotdotdot ... argument does not escape$"
+ 
+-	// BAD: j should not escape here
+-	j := 0            // ERROR "moved to heap: j$"
+-	myprint1(nil, &j) // ERROR "&j escapes to heap$" "dotdotdot ... argument does not escape$"
++	j := 0
++	myprint1(nil, &j) // ERROR "&j does not escape" "dotdotdot ... argument does not escape$"
+ }
+ 
+ func foo78(z int) *int { // ERROR "moved to heap: z$"
+diff --git a/test/escape2n.go b/test/escape2n.go
+index c32877321f..6996572f71 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -620,15 +620,15 @@ func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param:
+ }
+ 
+ func foo75(z *int) { // ERROR "foo75 z does not escape$"
+-	myprint(z, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo75 ... argument does not escape$"
++	myprint(z, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo75 ... argument does not escape$"
+ }
+ 
+ func foo75a(z *int) { // ERROR "foo75a z does not escape$"
+-	myprint1(z, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo75a ... argument does not escape$"
++	myprint1(z, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo75a ... argument does not escape$"
+ }
+ 
+ func foo75esc(z *int) { // ERROR "leaking param: z$"
+-	gxx = myprint(z, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo75esc ... argument does not escape$"
++	gxx = myprint(z, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo75esc ... argument does not escape$"
+ }
+ 
+ func foo75aesc(z *int) { // ERROR "foo75aesc z does not escape$"
+@@ -640,30 +640,28 @@ func foo75aesc1(z *int) { // ERROR "foo75aesc1 z does not escape$"
+ 	sink = myprint1(z, 1, 2, 3) // ERROR "... argument escapes to heap$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "myprint1\(z, 1, 2, 3\) escapes to heap$"
+ }
+ 
+-// BAD: z does not escape here
+-func foo76(z *int) { // ERROR "leaking param: z$"
+-	myprint(nil, z) // ERROR "foo76 ... argument does not escape$" "z escapes to heap$"
++func foo76(z *int) { // ERROR "z does not escape"
++	myprint(nil, z) // ERROR "foo76 ... argument does not escape$" "z does not escape"
+ }
+ 
+-// BAD: z does not escape here
+-func foo76a(z *int) { // ERROR "leaking param: z$"
+-	myprint1(nil, z) // ERROR "foo76a ... argument does not escape$" "z escapes to heap$"
++func foo76a(z *int) { // ERROR "z does not escape"
++	myprint1(nil, z) // ERROR "foo76a ... argument does not escape$" "z does not escape"
+ }
+ 
+ func foo76b() {
+-	myprint(nil, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo76b ... argument does not escape$"
++	myprint(nil, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo76b ... argument does not escape$"
+ }
+ 
+ func foo76c() {
+-	myprint1(nil, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo76c ... argument does not escape$"
++	myprint1(nil, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo76c ... argument does not escape$"
+ }
+ 
+ func foo76d() {
+-	defer myprint(nil, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo76d ... argument does not escape$"
++	defer myprint(nil, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo76d ... argument does not escape$"
+ }
+ 
+ func foo76e() {
+-	defer myprint1(nil, 1, 2, 3) // ERROR "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$" "foo76e ... argument does not escape$"
++	defer myprint1(nil, 1, 2, 3) // ERROR "1 does not escape" "2 does not escape" "3 does not escape" "foo76e ... argument does not escape$"
+ }
+ 
+ func foo76f() {
+@@ -697,13 +695,11 @@ func foo77c(z []interface{}) { // ERROR "leaking param: z$"
+ }
+ 
+ func dotdotdot() {
+-	// BAD: i should not escape here
+-	i := 0           // ERROR "moved to heap: i$"
+-	myprint(nil, &i) // ERROR "&i escapes to heap$" "dotdotdot ... argument does not escape$"
++	i := 0
++	myprint(nil, &i) // ERROR "&i does not escape" "dotdotdot ... argument does not escape$"
+ 
+-	// BAD: j should not escape here
+-	j := 0            // ERROR "moved to heap: j$"
+-	myprint1(nil, &j) // ERROR "&j escapes to heap$" "dotdotdot ... argument does not escape$"
++	j := 0
++	myprint1(nil, &j) // ERROR "&j does not escape" "dotdotdot ... argument does not escape$"
+ }
+ 
+ func foo78(z int) *int { // ERROR "moved to heap: z$"
+diff --git a/test/fixedbugs/issue12006.go b/test/fixedbugs/issue12006.go
+new file mode 100644
+index 0000000000..01dced3b43
+--- /dev/null
++++ b/test/fixedbugs/issue12006.go
+@@ -0,0 +1,174 @@
++// errorcheck -0 -m -l
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis through ... parameters.
++
++package foo
++
++func FooN(vals ...*int) (s int) { // ERROR "FooN vals does not escape"
++	for _, v := range vals {
++		s += *v
++	}
++	return s
++}
++
++// Append forces heap allocation and copies entries in vals to heap, therefore they escape to heap.
++func FooNx(x *int, vals ...*int) (s int) { // ERROR "leaking param: x" "leaking param content: vals"
++	vals = append(vals, x)
++	return FooN(vals...)
++}
++
++var sink []*int
++
++func FooNy(x *int, vals ...*int) (s int) { // ERROR "leaking param: x" "leaking param: vals" "leaking param content: vals"
++	vals = append(vals, x)
++	sink = vals
++	return FooN(vals...)
++}
++
++func FooNz(vals ...*int) (s int) { // ERROR "leaking param: vals"
++	sink = vals
++	return FooN(vals...)
++}
++
++func TFooN() {
++	for i := 0; i < 1000; i++ {
++		var i, j int
++		FooN(&i, &j) // ERROR "TFooN &i does not escape" "TFooN &j does not escape" "TFooN ... argument does not escape"
++	}
++}
++
++func TFooNx() {
++	for i := 0; i < 1000; i++ {
++		var i, j, k int   // ERROR "moved to heap: i" "moved to heap: j" "moved to heap: k"
++		FooNx(&k, &i, &j) // ERROR "&k escapes to heap" "&i escapes to heap" "&j escapes to heap" "TFooNx ... argument does not escape"
++	}
++}
++
++func TFooNy() {
++	for i := 0; i < 1000; i++ {
++		var i, j, k int   // ERROR "moved to heap: i" "moved to heap: j" "moved to heap: k"
++		FooNy(&k, &i, &j) // ERROR "&i escapes to heap" "&j escapes to heap" "&k escapes to heap" "... argument escapes to heap"
++	}
++}
++
++func TFooNz() {
++	for i := 0; i < 1000; i++ {
++		var i, j int  // ERROR "moved to heap: i" "moved to heap: j"
++		FooNz(&i, &j) // ERROR "&i escapes to heap" "&j escapes to heap" "... argument escapes to heap"
++	}
++}
++
++var isink *int32
++
++func FooI(args ...interface{}) { // ERROR "leaking param content: args"
++	for i := 0; i < len(args); i++ {
++		switch x := args[i].(type) {
++		case nil:
++			println("is nil")
++		case int32:
++			println("is int32")
++		case *int32:
++			println("is *int32")
++			isink = x
++		case string:
++			println("is string")
++		}
++	}
++}
++
++func TFooI() {
++	a := int32(1) // ERROR "moved to heap: a"
++	b := "cat"
++	c := &a       // ERROR "&a escapes to heap"
++	FooI(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooI ... argument does not escape"
++}
++
++func FooJ(args ...interface{}) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
++	for i := 0; i < len(args); i++ {
++		switch x := args[i].(type) {
++		case nil:
++			println("is nil")
++		case int32:
++			println("is int32")
++		case *int32:
++			println("is *int32")
++			return x
++		case string:
++			println("is string")
++		}
++	}
++	return nil
++}
++
++func TFooJ1() {
++	a := int32(1)
++	b := "cat"
++	c := &a       // ERROR "TFooJ1 &a does not escape"
++	FooJ(a, b, c) // ERROR "TFooJ1 a does not escape" "TFooJ1 b does not escape" "TFooJ1 c does not escape" "TFooJ1 ... argument does not escape"
++}
++
++func TFooJ2() {
++	a := int32(1) // ERROR "moved to heap: a"
++	b := "cat"
++	c := &a               // ERROR "&a escapes to heap"
++	isink = FooJ(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooJ2 ... argument does not escape"
++}
++
++type fakeSlice struct {
++	l int
++	a *[4]interface{}
++}
++
++func FooK(args fakeSlice) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
++	for i := 0; i < args.l; i++ {
++		switch x := (*args.a)[i].(type) {
++		case nil:
++			println("is nil")
++		case int32:
++			println("is int32")
++		case *int32:
++			println("is *int32")
++			return x
++		case string:
++			println("is string")
++		}
++	}
++	return nil
++}
++
++func TFooK2() {
++	a := int32(1) // ERROR "moved to heap: a"
++	b := "cat"
++	c := &a                                           // ERROR "&a escapes to heap"
++	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooK2 &\[4\]interface {} literal does not escape"
++	isink = FooK(fs)
++}
++
++func FooL(args []interface{}) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
++	for i := 0; i < len(args); i++ {
++		switch x := args[i].(type) {
++		case nil:
++			println("is nil")
++		case int32:
++			println("is int32")
++		case *int32:
++			println("is *int32")
++			return x
++		case string:
++			println("is string")
++		}
++	}
++	return nil
++}
++
++func TFooL2() {
++	a := int32(1) // ERROR "moved to heap: a"
++	b := "cat"
++	c := &a                     // ERROR "&a escapes to heap"
++	s := []interface{}{a, b, c} // ERROR "a escapes to heap" "b escapes to heap" "c escapes to heap" "TFooL2 \[\]interface {} literal does not escape"
++	isink = FooL(s)
++}

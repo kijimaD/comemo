@@ -9,6 +9,35 @@ Date:   Wed Nov 14 10:43:21 2012 +0100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6846045
-
+---
  src/pkg/regexp/example_test.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/src/pkg/regexp/example_test.go b/src/pkg/regexp/example_test.go
+new file mode 100644
+index 0000000000..aa92e0b58b
+--- /dev/null
++++ b/src/pkg/regexp/example_test.go
+@@ -0,0 +1,22 @@
++package regexp_test
++
++import (
++	"fmt"
++	"regexp"
++)
++
++func Example() {
++	// Compile the expression once, usually at init time.
++	// Use raw strings to avoid having to quote the backslashes.
++	var validID = regexp.MustCompile(`^[a-z]+\[[0-9]+\]$`)
++
++	fmt.Println(validID.MatchString("adam[23]"))
++	fmt.Println(validID.MatchString("eve[7]"))
++	fmt.Println(validID.MatchString("Job[48]"))
++	fmt.Println(validID.MatchString("snakey"))
++	// Output:
++	// true
++	// true
++	// false
++	// false
++}

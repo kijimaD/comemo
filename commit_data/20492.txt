@@ -9,7 +9,7 @@ Date:   Fri Sep 12 00:55:24 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/141460043
-
+---
  src/syscall/asm_darwin_386.s      | 1 +
  src/syscall/asm_dragonfly_386.s   | 1 +
  src/syscall/asm_dragonfly_amd64.s | 1 +
@@ -30,3 +30,232 @@ Date:   Fri Sep 12 00:55:24 2014 -0400
  src/syscall/asm_plan9_386.s       | 1 +
  src/syscall/asm_plan9_amd64.s     | 1 +
  19 files changed, 19 insertions(+)
+
+diff --git a/src/syscall/asm_darwin_386.s b/src/syscall/asm_darwin_386.s
+index 4d60a817ee..7d8ddf4378 100644
+--- a/src/syscall/asm_darwin_386.s
++++ b/src/syscall/asm_darwin_386.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for 386, Darwin
+diff --git a/src/syscall/asm_dragonfly_386.s b/src/syscall/asm_dragonfly_386.s
+index 59cb39e447..0d7d6ba1e7 100644
+--- a/src/syscall/asm_dragonfly_386.s
++++ b/src/syscall/asm_dragonfly_386.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for 386, FreeBSD
+diff --git a/src/syscall/asm_dragonfly_amd64.s b/src/syscall/asm_dragonfly_amd64.s
+index 764c7bda37..b81cf8dda9 100644
+--- a/src/syscall/asm_dragonfly_amd64.s
++++ b/src/syscall/asm_dragonfly_amd64.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for AMD64, DragonFly
+diff --git a/src/syscall/asm_freebsd_386.s b/src/syscall/asm_freebsd_386.s
+index b711aa5ad6..ff5f9f4a2a 100644
+--- a/src/syscall/asm_freebsd_386.s
++++ b/src/syscall/asm_freebsd_386.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for 386, FreeBSD
+diff --git a/src/syscall/asm_freebsd_amd64.s b/src/syscall/asm_freebsd_amd64.s
+index 95583b95c4..47ceb9287b 100644
+--- a/src/syscall/asm_freebsd_amd64.s
++++ b/src/syscall/asm_freebsd_amd64.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for AMD64, FreeBSD
+diff --git a/src/syscall/asm_freebsd_arm.s b/src/syscall/asm_freebsd_arm.s
+index 5588eaaa43..ed369ce73e 100644
+--- a/src/syscall/asm_freebsd_arm.s
++++ b/src/syscall/asm_freebsd_arm.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for ARM, FreeBSD
+diff --git a/src/syscall/asm_linux_386.s b/src/syscall/asm_linux_386.s
+index fb3a3b9bd8..bcb85add64 100644
+--- a/src/syscall/asm_linux_386.s
++++ b/src/syscall/asm_linux_386.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System calls for 386, Linux
+diff --git a/src/syscall/asm_linux_amd64.s b/src/syscall/asm_linux_amd64.s
+index fb6672624c..6c9e654519 100644
+--- a/src/syscall/asm_linux_amd64.s
++++ b/src/syscall/asm_linux_amd64.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System calls for AMD64, Linux
+diff --git a/src/syscall/asm_linux_arm.s b/src/syscall/asm_linux_arm.s
+index edb5b21a74..0060a2171c 100644
+--- a/src/syscall/asm_linux_arm.s
++++ b/src/syscall/asm_linux_arm.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System calls for arm, Linux
+diff --git a/src/syscall/asm_nacl_386.s b/src/syscall/asm_nacl_386.s
+index 655248b37f..5352b7697c 100644
+--- a/src/syscall/asm_nacl_386.s
++++ b/src/syscall/asm_nacl_386.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ #include "../runtime/syscall_nacl.h"
+ 
+ //
+diff --git a/src/syscall/asm_nacl_amd64p32.s b/src/syscall/asm_nacl_amd64p32.s
+index 33f8220134..637fafab45 100644
+--- a/src/syscall/asm_nacl_amd64p32.s
++++ b/src/syscall/asm_nacl_amd64p32.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ #include "../runtime/syscall_nacl.h"
+ 
+ //
+diff --git a/src/syscall/asm_nacl_arm.s b/src/syscall/asm_nacl_arm.s
+index 536d751b50..3e4479432b 100644
+--- a/src/syscall/asm_nacl_arm.s
++++ b/src/syscall/asm_nacl_arm.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ #include "../runtime/syscall_nacl.h"
+ 
+ //
+diff --git a/src/syscall/asm_netbsd_386.s b/src/syscall/asm_netbsd_386.s
+index 9dc6a9242a..29442ca9dd 100644
+--- a/src/syscall/asm_netbsd_386.s
++++ b/src/syscall/asm_netbsd_386.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for 386, NetBSD
+diff --git a/src/syscall/asm_netbsd_amd64.s b/src/syscall/asm_netbsd_amd64.s
+index d6bb1dd091..6d0f311f41 100644
+--- a/src/syscall/asm_netbsd_amd64.s
++++ b/src/syscall/asm_netbsd_amd64.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for AMD64, NetBSD
+diff --git a/src/syscall/asm_netbsd_arm.s b/src/syscall/asm_netbsd_arm.s
+index 357e28d947..c4190ea332 100644
+--- a/src/syscall/asm_netbsd_arm.s
++++ b/src/syscall/asm_netbsd_arm.s
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for ARM, NetBSD
+diff --git a/src/syscall/asm_openbsd_386.s b/src/syscall/asm_openbsd_386.s
+index 6c51f197ee..e448a70ca1 100644
+--- a/src/syscall/asm_openbsd_386.s
++++ b/src/syscall/asm_openbsd_386.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for 386, OpenBSD
+diff --git a/src/syscall/asm_openbsd_amd64.s b/src/syscall/asm_openbsd_amd64.s
+index 4ba5844e49..654e3df742 100644
+--- a/src/syscall/asm_openbsd_amd64.s
++++ b/src/syscall/asm_openbsd_amd64.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for AMD64, OpenBSD
+diff --git a/src/syscall/asm_plan9_386.s b/src/syscall/asm_plan9_386.s
+index 30726b4d00..8585385bcd 100644
+--- a/src/syscall/asm_plan9_386.s
++++ b/src/syscall/asm_plan9_386.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for 386, Plan 9
+diff --git a/src/syscall/asm_plan9_amd64.s b/src/syscall/asm_plan9_amd64.s
+index 3e61318cd5..afbd49152c 100644
+--- a/src/syscall/asm_plan9_amd64.s
++++ b/src/syscall/asm_plan9_amd64.s
+@@ -6,6 +6,7 @@
+ // so that go vet can check that they are correct.
+ 
+ #include "textflag.h"
++#include "funcdata.h"
+ 
+ //
+ // System call support for Plan 9

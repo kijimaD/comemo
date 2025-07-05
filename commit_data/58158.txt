@@ -19,7 +19,36 @@ Date:   Sat Oct 7 22:54:50 2023 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/writer.go | 2 +-
  test/fixedbugs/issue63436.go             | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 6d7bd4c782..08da36eccb 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1909,7 +1909,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 
+ 		var rtype types2.Type
+ 		if tv.IsBuiltin() {
+-			switch obj, _ := lookupObj(w.p, expr.Fun); obj.Name() {
++			switch obj, _ := lookupObj(w.p, syntax.Unparen(expr.Fun)); obj.Name() {
+ 			case "make":
+ 				assert(len(expr.ArgList) >= 1)
+ 				assert(!expr.HasDots)
+diff --git a/test/fixedbugs/issue63436.go b/test/fixedbugs/issue63436.go
+new file mode 100644
+index 0000000000..bbd34a5a28
+--- /dev/null
++++ b/test/fixedbugs/issue63436.go
+@@ -0,0 +1,9 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ = (new)(int)

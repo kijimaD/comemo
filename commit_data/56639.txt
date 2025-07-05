@@ -15,7 +15,7 @@ Date:   Thu May 18 17:32:05 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/cgo/internal/testso/so_test.go             |  10 +-
  .../cgo/internal/testso/testdata/{ => so}/cgoso.c  |   0
  .../cgo/internal/testso/testdata/{ => so}/cgoso.go |   0
@@ -29,3 +29,286 @@ Date:   Thu May 18 17:32:05 2023 -0400
  src/cmd/cgo/internal/testsovar/overlaydir_test.go  |  78 -------------
  src/cmd/cgo/internal/testsovar/so_test.go          | 128 ---------------------
  12 files changed, 9 insertions(+), 207 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testso/so_test.go b/src/cmd/cgo/internal/testso/so_test.go
+index a2cd056c45..e7fa0cadc3 100644
+--- a/src/cmd/cgo/internal/testso/so_test.go
++++ b/src/cmd/cgo/internal/testso/so_test.go
+@@ -16,6 +16,14 @@ import (
+ )
+ 
+ func TestSO(t *testing.T) {
++	testSO(t, "so")
++}
++
++func TestSOVar(t *testing.T) {
++	testSO(t, "sovar")
++}
++
++func testSO(t *testing.T, dir string) {
+ 	if runtime.GOOS == "ios" {
+ 		t.Skip("iOS disallows dynamic loading of user libraries")
+ 	}
+@@ -30,7 +38,7 @@ func TestSO(t *testing.T) {
+ 	defer os.RemoveAll(GOPATH)
+ 
+ 	modRoot := filepath.Join(GOPATH, "src", "cgosotest")
+-	if err := overlayDir(modRoot, "testdata"); err != nil {
++	if err := overlayDir(modRoot, filepath.Join("testdata", dir)); err != nil {
+ 		log.Panic(err)
+ 	}
+ 	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {
+diff --git a/src/cmd/cgo/internal/testso/testdata/cgoso.c b/src/cmd/cgo/internal/testso/testdata/so/cgoso.c
+similarity index 100%
+rename from src/cmd/cgo/internal/testso/testdata/cgoso.c
+rename to src/cmd/cgo/internal/testso/testdata/so/cgoso.c
+diff --git a/src/cmd/cgo/internal/testso/testdata/cgoso.go b/src/cmd/cgo/internal/testso/testdata/so/cgoso.go
+similarity index 100%
+rename from src/cmd/cgo/internal/testso/testdata/cgoso.go
+rename to src/cmd/cgo/internal/testso/testdata/so/cgoso.go
+diff --git a/src/cmd/cgo/internal/testso/testdata/cgoso_c.c b/src/cmd/cgo/internal/testso/testdata/so/cgoso_c.c
+similarity index 100%
+rename from src/cmd/cgo/internal/testso/testdata/cgoso_c.c
+rename to src/cmd/cgo/internal/testso/testdata/so/cgoso_c.c
+diff --git a/src/cmd/cgo/internal/testso/testdata/cgoso_unix.go b/src/cmd/cgo/internal/testso/testdata/so/cgoso_unix.go
+similarity index 100%
+rename from src/cmd/cgo/internal/testso/testdata/cgoso_unix.go
+rename to src/cmd/cgo/internal/testso/testdata/so/cgoso_unix.go
+diff --git a/src/cmd/cgo/internal/testso/testdata/main.go b/src/cmd/cgo/internal/testso/testdata/so/main.go
+similarity index 100%
+rename from src/cmd/cgo/internal/testso/testdata/main.go
+rename to src/cmd/cgo/internal/testso/testdata/so/main.go
+diff --git a/src/cmd/cgo/internal/testsovar/testdata/cgoso.go b/src/cmd/cgo/internal/testso/testdata/sovar/cgoso.go
+similarity index 100%
+rename from src/cmd/cgo/internal/testsovar/testdata/cgoso.go
+rename to src/cmd/cgo/internal/testso/testdata/sovar/cgoso.go
+diff --git a/src/cmd/cgo/internal/testsovar/testdata/cgoso_c.c b/src/cmd/cgo/internal/testso/testdata/sovar/cgoso_c.c
+similarity index 100%
+rename from src/cmd/cgo/internal/testsovar/testdata/cgoso_c.c
+rename to src/cmd/cgo/internal/testso/testdata/sovar/cgoso_c.c
+diff --git a/src/cmd/cgo/internal/testsovar/testdata/cgoso_c.h b/src/cmd/cgo/internal/testso/testdata/sovar/cgoso_c.h
+similarity index 100%
+rename from src/cmd/cgo/internal/testsovar/testdata/cgoso_c.h
+rename to src/cmd/cgo/internal/testso/testdata/sovar/cgoso_c.h
+diff --git a/src/cmd/cgo/internal/testsovar/testdata/main.go b/src/cmd/cgo/internal/testso/testdata/sovar/main.go
+similarity index 100%
+rename from src/cmd/cgo/internal/testsovar/testdata/main.go
+rename to src/cmd/cgo/internal/testso/testdata/sovar/main.go
+diff --git a/src/cmd/cgo/internal/testsovar/overlaydir_test.go b/src/cmd/cgo/internal/testsovar/overlaydir_test.go
+deleted file mode 100644
+index 09a1d512f1..0000000000
+--- a/src/cmd/cgo/internal/testsovar/overlaydir_test.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package so_test
+-
+-import (
+-	"io"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
+-	dstRoot = filepath.Clean(dstRoot)
+-	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+-		return err
+-	}
+-
+-	srcRoot, err := filepath.Abs(srcRoot)
+-	if err != nil {
+-		return err
+-	}
+-
+-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+-		if err != nil || srcPath == srcRoot {
+-			return err
+-		}
+-
+-		suffix := strings.TrimPrefix(srcPath, srcRoot)
+-		for len(suffix) > 0 && suffix[0] == filepath.Separator {
+-			suffix = suffix[1:]
+-		}
+-		dstPath := filepath.Join(dstRoot, suffix)
+-
+-		perm := info.Mode() & os.ModePerm
+-		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(srcPath)
+-			if err != nil {
+-				return err
+-			}
+-			perm = info.Mode() & os.ModePerm
+-		}
+-
+-		// Always copy directories (don't symlink them).
+-		// If we add a file in the overlay, we don't want to add it in the original.
+-		if info.IsDir() {
+-			return os.MkdirAll(dstPath, perm|0200)
+-		}
+-
+-		// If the OS supports symlinks, use them instead of copying bytes.
+-		if err := os.Symlink(srcPath, dstPath); err == nil {
+-			return nil
+-		}
+-
+-		// Otherwise, copy the bytes.
+-		src, err := os.Open(srcPath)
+-		if err != nil {
+-			return err
+-		}
+-		defer src.Close()
+-
+-		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+-		if err != nil {
+-			return err
+-		}
+-
+-		_, err = io.Copy(dst, src)
+-		if closeErr := dst.Close(); err == nil {
+-			err = closeErr
+-		}
+-		return err
+-	})
+-}
+diff --git a/src/cmd/cgo/internal/testsovar/so_test.go b/src/cmd/cgo/internal/testsovar/so_test.go
+deleted file mode 100644
+index a2cd056c45..0000000000
+--- a/src/cmd/cgo/internal/testsovar/so_test.go
++++ /dev/null
+@@ -1,128 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package so_test
+-
+-import (
+-	"internal/testenv"
+-	"log"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"runtime"
+-	"strings"
+-	"testing"
+-)
+-
+-func TestSO(t *testing.T) {
+-	if runtime.GOOS == "ios" {
+-		t.Skip("iOS disallows dynamic loading of user libraries")
+-	}
+-	testenv.MustHaveGoBuild(t)
+-	testenv.MustHaveExec(t)
+-	testenv.MustHaveCGO(t)
+-
+-	GOPATH, err := os.MkdirTemp("", "cgosotest")
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	defer os.RemoveAll(GOPATH)
+-
+-	modRoot := filepath.Join(GOPATH, "src", "cgosotest")
+-	if err := overlayDir(modRoot, "testdata"); err != nil {
+-		log.Panic(err)
+-	}
+-	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {
+-		log.Panic(err)
+-	}
+-
+-	cmd := exec.Command("go", "env", "CC", "GOGCCFLAGS")
+-	cmd.Dir = modRoot
+-	cmd.Stderr = new(strings.Builder)
+-	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+-	out, err := cmd.Output()
+-	if err != nil {
+-		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
+-	}
+-	lines := strings.Split(string(out), "\n")
+-	if len(lines) != 3 || lines[2] != "" {
+-		t.Fatalf("Unexpected output from %s:\n%s", strings.Join(cmd.Args, " "), lines)
+-	}
+-
+-	cc := lines[0]
+-	if cc == "" {
+-		t.Fatal("CC environment variable (go env CC) cannot be empty")
+-	}
+-	gogccflags := strings.Split(lines[1], " ")
+-
+-	// build shared object
+-	ext := "so"
+-	args := append(gogccflags, "-shared")
+-	switch runtime.GOOS {
+-	case "darwin", "ios":
+-		ext = "dylib"
+-		args = append(args, "-undefined", "suppress", "-flat_namespace")
+-	case "windows":
+-		ext = "dll"
+-		args = append(args, "-DEXPORT_DLL")
+-		// At least in mingw-clang it is not permitted to just name a .dll
+-		// on the command line. You must name the corresponding import
+-		// library instead, even though the dll is used when the executable is run.
+-		args = append(args, "-Wl,-out-implib,libcgosotest.a")
+-	case "aix":
+-		ext = "so.1"
+-	}
+-	sofname := "libcgosotest." + ext
+-	args = append(args, "-o", sofname, "cgoso_c.c")
+-
+-	cmd = exec.Command(cc, args...)
+-	cmd.Dir = modRoot
+-	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+-	out, err = cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+-	}
+-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+-
+-	if runtime.GOOS == "aix" {
+-		// Shared object must be wrapped by an archive
+-		cmd = exec.Command("ar", "-X64", "-q", "libcgosotest.a", "libcgosotest.so.1")
+-		cmd.Dir = modRoot
+-		out, err = cmd.CombinedOutput()
+-		if err != nil {
+-			t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+-		}
+-	}
+-
+-	cmd = exec.Command("go", "build", "-o", "main.exe", "main.go")
+-	cmd.Dir = modRoot
+-	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+-	out, err = cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+-	}
+-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+-
+-	cmd = exec.Command("./main.exe")
+-	cmd.Dir = modRoot
+-	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+-	if runtime.GOOS != "windows" {
+-		s := "LD_LIBRARY_PATH"
+-		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+-			s = "DYLD_LIBRARY_PATH"
+-		}
+-		cmd.Env = append(os.Environ(), s+"=.")
+-
+-		// On FreeBSD 64-bit architectures, the 32-bit linker looks for
+-		// different environment variables.
+-		if runtime.GOOS == "freebsd" && runtime.GOARCH == "386" {
+-			cmd.Env = append(cmd.Env, "LD_32_LIBRARY_PATH=.")
+-		}
+-	}
+-	out, err = cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+-	}
+-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+-}

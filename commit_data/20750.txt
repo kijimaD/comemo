@@ -12,6 +12,28 @@ Date:   Mon Oct 6 15:08:31 2014 -0700
     R=r
     CC=golang-codereviews, rsc
     https://golang.org/cl/152220045
-
+---
  src/go/build/doc.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 56878f2b4a..75a827bb91 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -108,12 +108,10 @@
+ //	*_GOOS
+ // 	*_GOARCH
+ // 	*_GOOS_GOARCH
+-// (example: source_windows_amd64.go) or the literals:
+-//	GOOS
+-// 	GOARCH
+-// (example: windows.go) where GOOS and GOARCH represent any known operating
+-// system and architecture values respectively, then the file is considered to
+-// have an implicit build constraint requiring those terms.
++// (example: source_windows_amd64.go) where GOOS and GOARCH represent
++// any known operating system and architecture values respectively, then
++// the file is considered to have an implicit build constraint requiring
++// those terms.
+ //
+ // To keep a file from being considered for the build:
+ //

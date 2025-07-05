@@ -14,7 +14,71 @@ Date:   Fri Feb 28 21:53:38 2020 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/script/test_main_panic.txt | 30 ++++++++++++++++++++++++++
  src/testing/testing.go                         | 11 +++++-----
  2 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_main_panic.txt b/src/cmd/go/testdata/script/test_main_panic.txt
+new file mode 100644
+index 0000000000..45887c5c73
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_main_panic.txt
+@@ -0,0 +1,30 @@
++[short] skip
++[!race] skip
++
++! go test -v -race main_panic/testmain_parallel_sub_panic_test.go
++! stdout 'DATA RACE'
++-- main_panic/testmain_parallel_sub_panic_test.go --
++package testmain_parallel_sub_panic_test
++
++import "testing"
++
++func setup()    { println("setup()") }
++func teardown() { println("teardown()") }
++func TestA(t *testing.T) {
++	t.Run("1", func(t *testing.T) {
++		t.Run("1", func(t *testing.T) {
++			t.Parallel()
++			panic("A/1/1 panics")
++		})
++		t.Run("2", func(t *testing.T) {
++			t.Parallel()
++			println("A/1/2 is ok")
++		})
++	})
++}
++
++func TestMain(m *testing.M) {
++	setup()
++	defer teardown()
++	m.Run()
++}
+\ No newline at end of file
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 5c78d9b741..85a92c9384 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -928,16 +928,15 @@ func tRunner(t *T, fn func(t *T)) {
+ 				t.Logf("cleanup panicked with %v", r)
+ 			}
+ 			// Flush the output log up to the root before dying.
+-			t.mu.Lock()
+-			root := &t.common
+-			for ; root.parent != nil; root = root.parent {
++			for root := &t.common; root.parent != nil; root = root.parent {
++				root.mu.Lock()
+ 				root.duration += time.Since(root.start)
+-				fmt.Fprintf(root.parent.w, "--- FAIL: %s (%s)\n", root.name, fmtDuration(root.duration))
++				d := root.duration
++				root.mu.Unlock()
++				root.flushToParent("--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
+ 				if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
+ 					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
+ 				}
+-				root.parent.mu.Lock()
+-				io.Copy(root.parent.w, bytes.NewReader(root.output))
+ 			}
+ 			panic(err)
+ 		}

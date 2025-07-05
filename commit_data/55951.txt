@@ -13,6 +13,31 @@ Date:   Tue Mar 28 12:51:35 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/fixedbugs/issue55242.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/test/fixedbugs/issue55242.go b/test/fixedbugs/issue55242.go
+new file mode 100644
+index 0000000000..4b29eb815c
+--- /dev/null
++++ b/test/fixedbugs/issue55242.go
+@@ -0,0 +1,18 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 55242: gofrontend crash calling function that returns
++// trailing empty struct.
++
++package p
++
++func F1() (int, struct{}) {
++	return 0, struct{}{}
++}
++
++func F2() {
++	F1()
++}

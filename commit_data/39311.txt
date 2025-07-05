@@ -10,7 +10,7 @@ Date:   Thu Feb 21 16:18:28 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/163213
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  misc/cgo/testcshared/cshared_test.go               | 144 +++++++++++----------
  misc/cgo/testcshared/overlaydir_test.go            |  81 ++++++++++++
  .../{src => testdata}/go2c2go/go/shlib.go          |   0
@@ -32,3 +32,531 @@ Date:   Thu Feb 21 16:18:28 2019 -0500
  misc/cgo/testcshared/{src => testdata}/p/p.go      |   0
  src/cmd/dist/test.go                               |   2 +-
  20 files changed, 160 insertions(+), 69 deletions(-)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index e5b90ff194..163cea2136 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -5,13 +5,13 @@
+ package cshared_test
+ 
+ import (
++	"bytes"
+ 	"debug/elf"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+-	"path"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
+@@ -22,9 +22,6 @@ import (
+ // C compiler with args (from $(go env CC) $(go env GOGCCFLAGS)).
+ var cc []string
+ 
+-// An environment with GOPATH=$(pwd).
+-var gopathEnv []string
+-
+ // ".exe" on Windows.
+ var exeSuffix string
+ 
+@@ -33,6 +30,12 @@ var installdir, androiddir string
+ var libSuffix, libgoname string
+ 
+ func TestMain(m *testing.M) {
++	os.Exit(testMain(m))
++}
++
++func testMain(m *testing.M) int {
++	log.SetFlags(log.Lshortfile)
++
+ 	GOOS = goEnv("GOOS")
+ 	GOARCH = goEnv("GOARCH")
+ 	GOROOT = goEnv("GOROOT")
+@@ -41,19 +44,6 @@ func TestMain(m *testing.M) {
+ 		log.Fatalf("Unable able to find GOROOT at '%s'", GOROOT)
+ 	}
+ 
+-	// Directory where cgo headers and outputs will be installed.
+-	// The installation directory format varies depending on the platform.
+-	installdir = path.Join("pkg", fmt.Sprintf("%s_%s_testcshared", GOOS, GOARCH))
+-	switch GOOS {
+-	case "darwin":
+-		libSuffix = "dylib"
+-	case "windows":
+-		libSuffix = "dll"
+-	default:
+-		libSuffix = "so"
+-		installdir = path.Join("pkg", fmt.Sprintf("%s_%s_testcshared_shared", GOOS, GOARCH))
+-	}
+-
+ 	androiddir = fmt.Sprintf("/data/local/tmp/testcshared-%d", os.Getpid())
+ 	if GOOS == "android" {
+ 		args := append(adbCmd(), "shell", "mkdir", "-p", androiddir)
+@@ -62,10 +52,9 @@ func TestMain(m *testing.M) {
+ 		if err != nil {
+ 			log.Fatalf("setupAndroid failed: %v\n%s\n", err, out)
+ 		}
++		defer cleanupAndroid()
+ 	}
+ 
+-	libgoname = "libgo." + libSuffix
+-
+ 	cc = []string{goEnv("CC")}
+ 
+ 	out := goEnv("GOGCCFLAGS")
+@@ -120,34 +109,56 @@ func TestMain(m *testing.M) {
+ 	}
+ 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
+ 
+-	// Build an environment with GOPATH=$(pwd)
+-	dir, err := os.Getwd()
+-	if err != nil {
+-		fmt.Fprintln(os.Stderr, err)
+-		os.Exit(2)
+-	}
+-	gopathEnv = append(os.Environ(), "GOPATH="+dir)
+-
+ 	if GOOS == "windows" {
+ 		exeSuffix = ".exe"
+ 	}
+ 
+-	st := m.Run()
++	// Copy testdata into GOPATH/src/testcshared, along with a go.mod file
++	// declaring the same path.
++
++	GOPATH, err := ioutil.TempDir("", "cshared_test")
++	if err != nil {
++		log.Panic(err)
++	}
++	defer os.RemoveAll(GOPATH)
++	os.Setenv("GOPATH", GOPATH)
++
++	// Copy testdata into GOPATH/src/testarchive, along with a go.mod file
++	// declaring the same path.
++	modRoot := filepath.Join(GOPATH, "src", "testcshared")
++	if err := overlayDir(modRoot, "testdata"); err != nil {
++		log.Panic(err)
++	}
++	if err := os.Chdir(modRoot); err != nil {
++		log.Panic(err)
++	}
++	if err := ioutil.WriteFile("go.mod", []byte("module testcshared\n"), 0666); err != nil {
++		log.Panic(err)
++	}
+ 
+-	os.Remove(libgoname)
+-	os.RemoveAll("pkg")
+-	cleanupHeaders()
+-	cleanupAndroid()
++	// Directory where cgo headers and outputs will be installed.
++	// The installation directory format varies depending on the platform.
++	output, err := exec.Command("go", "list",
++		"-buildmode=c-shared",
++		"-installsuffix", "testcshared",
++		"-f", "{{.Target}}",
++		"./libgo").CombinedOutput()
++	if err != nil {
++		log.Panicf("go list failed: %v\n%s", err, output)
++	}
++	target := string(bytes.TrimSpace(output))
++	libgoname = filepath.Base(target)
++	installdir = filepath.Dir(target)
++	libSuffix = strings.TrimPrefix(filepath.Ext(target), ".")
+ 
+-	os.Exit(st)
++	return m.Run()
+ }
+ 
+ func goEnv(key string) string {
+ 	out, err := exec.Command("go", "env", key).Output()
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "go env %s failed:\n%s", key, err)
+-		fmt.Fprintf(os.Stderr, "%s", err.(*exec.ExitError).Stderr)
+-		os.Exit(2)
++		log.Printf("go env %s failed:\n%s", key, err)
++		log.Panicf("%s", err.(*exec.ExitError).Stderr)
+ 	}
+ 	return strings.TrimSpace(string(out))
+ }
+@@ -197,10 +208,12 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
+ 	return strings.Replace(string(out), "\r", "", -1)
+ }
+ 
+-func run(t *testing.T, env []string, args ...string) string {
++func run(t *testing.T, extraEnv []string, args ...string) string {
+ 	t.Helper()
+ 	cmd := exec.Command(args[0], args[1:]...)
+-	cmd.Env = env
++	if len(extraEnv) > 0 {
++		cmd.Env = append(os.Environ(), extraEnv...)
++	}
+ 
+ 	if GOOS != "windows" {
+ 		// TestUnexportedSymbols relies on file descriptor 30
+@@ -220,12 +233,12 @@ func run(t *testing.T, env []string, args ...string) string {
+ 	return string(out)
+ }
+ 
+-func runExe(t *testing.T, env []string, args ...string) string {
++func runExe(t *testing.T, extraEnv []string, args ...string) string {
+ 	t.Helper()
+ 	if GOOS == "android" {
+-		return adbRun(t, env, args...)
++		return adbRun(t, append(os.Environ(), extraEnv...), args...)
+ 	}
+-	return run(t, env, args...)
++	return run(t, extraEnv, args...)
+ }
+ 
+ func runCC(t *testing.T, args ...string) string {
+@@ -237,9 +250,8 @@ func runCC(t *testing.T, args ...string) string {
+ 
+ func createHeaders() error {
+ 	args := []string{"go", "install", "-i", "-buildmode=c-shared",
+-		"-installsuffix", "testcshared", "libgo"}
++		"-installsuffix", "testcshared", "./libgo"}
+ 	cmd := exec.Command(args[0], args[1:]...)
+-	cmd.Env = gopathEnv
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
+@@ -248,9 +260,8 @@ func createHeaders() error {
+ 	args = []string{"go", "build", "-buildmode=c-shared",
+ 		"-installsuffix", "testcshared",
+ 		"-o", libgoname,
+-		filepath.Join("src", "libgo", "libgo.go")}
++		filepath.Join(".", "libgo", "libgo.go")}
+ 	cmd = exec.Command(args[0], args[1:]...)
+-	cmd.Env = gopathEnv
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+ 		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
+@@ -282,10 +293,6 @@ func createHeadersOnce(t *testing.T) {
+ 	}
+ }
+ 
+-func cleanupHeaders() {
+-	os.Remove("libgo.h")
+-}
+-
+ func cleanupAndroid() {
+ 	if GOOS != "android" {
+ 		return
+@@ -294,7 +301,7 @@ func cleanupAndroid() {
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		log.Fatalf("cleanupAndroid failed: %v\n%s\n", err, out)
++		log.Panicf("cleanupAndroid failed: %v\n%s\n", err, out)
+ 	}
+ }
+ 
+@@ -312,7 +319,7 @@ func TestExportedSymbols(t *testing.T) {
+ 
+ 	defer os.Remove(bin)
+ 
+-	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), bin)
++	out := runExe(t, []string{"LD_LIBRARY_PATH=."}, bin)
+ 	if strings.TrimSpace(out) != "PASS" {
+ 		t.Error(out)
+ 	}
+@@ -361,11 +368,11 @@ func TestUnexportedSymbols(t *testing.T) {
+ 	libname := "libgo2." + libSuffix
+ 
+ 	run(t,
+-		gopathEnv,
++		nil,
+ 		"go", "build",
+ 		"-buildmode=c-shared",
+ 		"-installsuffix", "testcshared",
+-		"-o", libname, "libgo2",
++		"-o", libname, "./libgo2",
+ 	)
+ 	adbPush(t, libname)
+ 
+@@ -380,7 +387,7 @@ func TestUnexportedSymbols(t *testing.T) {
+ 	defer os.Remove(libname)
+ 	defer os.Remove(bin)
+ 
+-	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), bin)
++	out := runExe(t, []string{"LD_LIBRARY_PATH=."}, bin)
+ 
+ 	if strings.TrimSpace(out) != "PASS" {
+ 		t.Error(out)
+@@ -418,7 +425,7 @@ func TestMainExportedOnAndroid(t *testing.T) {
+ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
+ 	libname := pkgname + "." + libSuffix
+ 	run(t,
+-		gopathEnv,
++		nil,
+ 		"go", "build",
+ 		"-buildmode=c-shared",
+ 		"-installsuffix", "testcshared",
+@@ -451,7 +458,7 @@ func TestSignalHandlers(t *testing.T) {
+ 		t.Logf("Skipping on %s", GOOS)
+ 		return
+ 	}
+-	testSignalHandlers(t, "libgo4", "main4.c", "testp4")
++	testSignalHandlers(t, "./libgo4", "main4.c", "testp4")
+ }
+ 
+ // test5: test signal handlers with os/signal.Notify
+@@ -461,7 +468,7 @@ func TestSignalHandlersWithNotify(t *testing.T) {
+ 		t.Logf("Skipping on %s", GOOS)
+ 		return
+ 	}
+-	testSignalHandlers(t, "libgo5", "main5.c", "testp5")
++	testSignalHandlers(t, "./libgo5", "main5.c", "testp5")
+ }
+ 
+ func TestPIE(t *testing.T) {
+@@ -515,14 +522,16 @@ func TestCachedInstall(t *testing.T) {
+ 	}
+ 	// defer os.RemoveAll(tmpdir)
+ 
+-	copyFile(t, filepath.Join(tmpdir, "src", "libgo", "libgo.go"), filepath.Join("src", "libgo", "libgo.go"))
+-	copyFile(t, filepath.Join(tmpdir, "src", "p", "p.go"), filepath.Join("src", "p", "p.go"))
++	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "go.mod"), "go.mod")
++	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "libgo", "libgo.go"), filepath.Join("libgo", "libgo.go"))
++	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "p", "p.go"), filepath.Join("p", "p.go"))
+ 
+-	env := append(os.Environ(), "GOPATH="+tmpdir)
++	env := append(os.Environ(), "GOPATH="+tmpdir, "GOBIN="+filepath.Join(tmpdir, "bin"))
+ 
+-	buildcmd := []string{"go", "install", "-x", "-i", "-buildmode=c-shared", "-installsuffix", "testcshared", "libgo"}
++	buildcmd := []string{"go", "install", "-x", "-i", "-buildmode=c-shared", "-installsuffix", "testcshared", "./libgo"}
+ 
+ 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
++	cmd.Dir = filepath.Join(tmpdir, "src", "testcshared")
+ 	cmd.Env = env
+ 	t.Log(buildcmd)
+ 	out, err := cmd.CombinedOutput()
+@@ -572,6 +581,7 @@ func TestCachedInstall(t *testing.T) {
+ 	}
+ 
+ 	cmd = exec.Command(buildcmd[0], buildcmd[1:]...)
++	cmd.Dir = filepath.Join(tmpdir, "src", "testcshared")
+ 	cmd.Env = env
+ 	t.Log(buildcmd)
+ 	out, err = cmd.CombinedOutput()
+@@ -621,8 +631,8 @@ func TestGo2C2Go(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+-	shlib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
+-	run(t, gopathEnv, "go", "build", "-buildmode=c-shared", "-o", shlib, "go2c2go/go")
++	lib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
++	run(t, nil, "go", "build", "-buildmode=c-shared", "-o", lib, "./go2c2go/go")
+ 
+ 	cgoCflags := os.Getenv("CGO_CFLAGS")
+ 	if cgoCflags != "" {
+@@ -636,7 +646,7 @@ func TestGo2C2Go(t *testing.T) {
+ 	}
+ 	cgoLdflags += "-L" + tmpdir + " -ltestgo2c2go"
+ 
+-	goenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "CGO_CFLAGS="+cgoCflags, "CGO_LDFLAGS="+cgoLdflags)
++	goenv := []string{"CGO_CFLAGS=" + cgoCflags, "CGO_LDFLAGS=" + cgoLdflags}
+ 
+ 	ldLibPath := os.Getenv("LD_LIBRARY_PATH")
+ 	if ldLibPath != "" {
+@@ -644,13 +654,13 @@ func TestGo2C2Go(t *testing.T) {
+ 	}
+ 	ldLibPath += tmpdir
+ 
+-	runenv := append(gopathEnv[:len(gopathEnv):len(gopathEnv)], "LD_LIBRARY_PATH="+ldLibPath)
++	runenv := []string{"LD_LIBRARY_PATH=" + ldLibPath}
+ 
+ 	bin := filepath.Join(tmpdir, "m1") + exeSuffix
+-	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m1")
++	run(t, goenv, "go", "build", "-o", bin, "./go2c2go/m1")
+ 	runExe(t, runenv, bin)
+ 
+ 	bin = filepath.Join(tmpdir, "m2") + exeSuffix
+-	run(t, goenv, "go", "build", "-o", bin, "go2c2go/m2")
++	run(t, goenv, "go", "build", "-o", bin, "./go2c2go/m2")
+ 	runExe(t, runenv, bin)
+ }
+diff --git a/misc/cgo/testcshared/overlaydir_test.go b/misc/cgo/testcshared/overlaydir_test.go
+new file mode 100644
+index 0000000000..1eaabf6fe2
+--- /dev/null
++++ b/misc/cgo/testcshared/overlaydir_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cshared_test
++
++import (
++	"io"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
++//
++// TODO: Once we no longer need to support the misc module in GOPATH mode,
++// factor this function out into a package to reduce duplication.
++func overlayDir(dstRoot, srcRoot string) error {
++	dstRoot = filepath.Clean(dstRoot)
++	if err := os.MkdirAll(dstRoot, 0777); err != nil {
++		return err
++	}
++
++	symBase, err := filepath.Rel(srcRoot, dstRoot)
++	if err != nil {
++		symBase, err = filepath.Abs(srcRoot)
++		if err != nil {
++			return err
++		}
++	}
++
++	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
++		if err != nil || srcPath == srcRoot {
++			return err
++		}
++
++		suffix := strings.TrimPrefix(srcPath, srcRoot)
++		for len(suffix) > 0 && suffix[0] == filepath.Separator {
++			suffix = suffix[1:]
++		}
++		dstPath := filepath.Join(dstRoot, suffix)
++
++		perm := info.Mode() & os.ModePerm
++		if info.Mode()&os.ModeSymlink != 0 {
++			info, err = os.Stat(srcPath)
++			if err != nil {
++				return err
++			}
++			perm = info.Mode() & os.ModePerm
++		}
++
++		// Always copy directories (don't symlink them).
++		// If we add a file in the overlay, we don't want to add it in the original.
++		if info.IsDir() {
++			return os.Mkdir(dstPath, perm)
++		}
++
++		// If the OS supports symlinks, use them instead of copying bytes.
++		if err := os.Symlink(filepath.Join(symBase, suffix), dstPath); err == nil {
++			return nil
++		}
++
++		// Otherwise, copy the bytes.
++		src, err := os.Open(srcPath)
++		if err != nil {
++			return err
++		}
++		defer src.Close()
++
++		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
++		if err != nil {
++			return err
++		}
++
++		_, err = io.Copy(dst, src)
++		if closeErr := dst.Close(); err == nil {
++			err = closeErr
++		}
++		return err
++	})
++}
+diff --git a/misc/cgo/testcshared/src/go2c2go/go/shlib.go b/misc/cgo/testcshared/testdata/go2c2go/go/shlib.go
+similarity index 100%
+rename from misc/cgo/testcshared/src/go2c2go/go/shlib.go
+rename to misc/cgo/testcshared/testdata/go2c2go/go/shlib.go
+diff --git a/misc/cgo/testcshared/src/go2c2go/m1/c.c b/misc/cgo/testcshared/testdata/go2c2go/m1/c.c
+similarity index 100%
+rename from misc/cgo/testcshared/src/go2c2go/m1/c.c
+rename to misc/cgo/testcshared/testdata/go2c2go/m1/c.c
+diff --git a/misc/cgo/testcshared/src/go2c2go/m1/main.go b/misc/cgo/testcshared/testdata/go2c2go/m1/main.go
+similarity index 100%
+rename from misc/cgo/testcshared/src/go2c2go/m1/main.go
+rename to misc/cgo/testcshared/testdata/go2c2go/m1/main.go
+diff --git a/misc/cgo/testcshared/src/go2c2go/m2/main.go b/misc/cgo/testcshared/testdata/go2c2go/m2/main.go
+similarity index 100%
+rename from misc/cgo/testcshared/src/go2c2go/m2/main.go
+rename to misc/cgo/testcshared/testdata/go2c2go/m2/main.go
+diff --git a/misc/cgo/testcshared/src/libgo/libgo.go b/misc/cgo/testcshared/testdata/libgo/libgo.go
+similarity index 97%
+rename from misc/cgo/testcshared/src/libgo/libgo.go
+rename to misc/cgo/testcshared/testdata/libgo/libgo.go
+index 8a4bf795e9..063441766a 100644
+--- a/misc/cgo/testcshared/src/libgo/libgo.go
++++ b/misc/cgo/testcshared/testdata/libgo/libgo.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	_ "p"
+ 	"syscall"
++	_ "testcshared/p"
+ 	"time"
+ )
+ 
+diff --git a/misc/cgo/testcshared/src/libgo2/dup2.go b/misc/cgo/testcshared/testdata/libgo2/dup2.go
+similarity index 100%
+rename from misc/cgo/testcshared/src/libgo2/dup2.go
+rename to misc/cgo/testcshared/testdata/libgo2/dup2.go
+diff --git a/misc/cgo/testcshared/src/libgo2/dup3.go b/misc/cgo/testcshared/testdata/libgo2/dup3.go
+similarity index 100%
+rename from misc/cgo/testcshared/src/libgo2/dup3.go
+rename to misc/cgo/testcshared/testdata/libgo2/dup3.go
+diff --git a/misc/cgo/testcshared/src/libgo2/libgo2.go b/misc/cgo/testcshared/testdata/libgo2/libgo2.go
+similarity index 100%
+rename from misc/cgo/testcshared/src/libgo2/libgo2.go
+rename to misc/cgo/testcshared/testdata/libgo2/libgo2.go
+diff --git a/misc/cgo/testcshared/src/libgo4/libgo4.go b/misc/cgo/testcshared/testdata/libgo4/libgo4.go
+similarity index 100%
+rename from misc/cgo/testcshared/src/libgo4/libgo4.go
+rename to misc/cgo/testcshared/testdata/libgo4/libgo4.go
+diff --git a/misc/cgo/testcshared/src/libgo5/libgo5.go b/misc/cgo/testcshared/testdata/libgo5/libgo5.go
+similarity index 100%
+rename from misc/cgo/testcshared/src/libgo5/libgo5.go
+rename to misc/cgo/testcshared/testdata/libgo5/libgo5.go
+diff --git a/misc/cgo/testcshared/main0.c b/misc/cgo/testcshared/testdata/main0.c
+similarity index 100%
+rename from misc/cgo/testcshared/main0.c
+rename to misc/cgo/testcshared/testdata/main0.c
+diff --git a/misc/cgo/testcshared/main1.c b/misc/cgo/testcshared/testdata/main1.c
+similarity index 100%
+rename from misc/cgo/testcshared/main1.c
+rename to misc/cgo/testcshared/testdata/main1.c
+diff --git a/misc/cgo/testcshared/main2.c b/misc/cgo/testcshared/testdata/main2.c
+similarity index 100%
+rename from misc/cgo/testcshared/main2.c
+rename to misc/cgo/testcshared/testdata/main2.c
+diff --git a/misc/cgo/testcshared/main3.c b/misc/cgo/testcshared/testdata/main3.c
+similarity index 100%
+rename from misc/cgo/testcshared/main3.c
+rename to misc/cgo/testcshared/testdata/main3.c
+diff --git a/misc/cgo/testcshared/main4.c b/misc/cgo/testcshared/testdata/main4.c
+similarity index 100%
+rename from misc/cgo/testcshared/main4.c
+rename to misc/cgo/testcshared/testdata/main4.c
+diff --git a/misc/cgo/testcshared/main5.c b/misc/cgo/testcshared/testdata/main5.c
+similarity index 100%
+rename from misc/cgo/testcshared/main5.c
+rename to misc/cgo/testcshared/testdata/main5.c
+diff --git a/misc/cgo/testcshared/src/p/p.go b/misc/cgo/testcshared/testdata/p/p.go
+similarity index 100%
+rename from misc/cgo/testcshared/src/p/p.go
+rename to misc/cgo/testcshared/testdata/p/p.go
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 30b4468b08..6392321091 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -695,7 +695,7 @@ func (t *tester) registerTests() {
+ 			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", ".")
+ 		}
+ 		if t.supportedBuildmode("c-shared") {
+-			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", "cshared_test.go")
++			t.registerHostTest("testcshared", "../misc/cgo/testcshared", "misc/cgo/testcshared", ".")
+ 		}
+ 		if t.supportedBuildmode("shared") {
+ 			t.registerTest("testshared", "../misc/cgo/testshared", t.goTest(), t.timeout(600))

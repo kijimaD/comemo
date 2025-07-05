@@ -11,7 +11,58 @@ Date:   Fri Mar 9 16:27:32 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5754068
-
+---
  src/pkg/net/http/transport.go      |  2 +-
  src/pkg/net/http/transport_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 09579f8a09..024975946e 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -196,7 +196,7 @@ func (t *Transport) CloseIdleConnections() {
+ 			pconn.close()
+ 		}
+ 	}
+-	t.idleConn = nil
++	t.idleConn = make(map[string][]*persistConn)
+ }
+ 
+ //
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index cbb3884f9e..a9e401de58 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -698,6 +698,32 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ 	}
+ }
+ 
++// This used to crash; http://golang.org/issue/3266
++func TestTransportIdleConnCrash(t *testing.T) {
++	tr := &Transport{}
++	c := &Client{Transport: tr}
++
++	unblockCh := make(chan bool, 1)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		<-unblockCh
++		tr.CloseIdleConnections()
++	}))
++	defer ts.Close()
++
++	didreq := make(chan bool)
++	go func() {
++		res, err := c.Get(ts.URL)
++		if err != nil {
++			t.Error(err)
++		} else {
++			res.Body.Close() // returns idle conn
++		}
++		didreq <- true
++	}()
++	unblockCh <- true
++	<-didreq
++}
++
+ type fooProto struct{}
+ 
+ func (fooProto) RoundTrip(req *Request) (*Response, error) {

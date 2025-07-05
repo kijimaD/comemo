@@ -20,7 +20,76 @@ Date:   Fri Oct 2 18:17:54 2015 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/asm_amd64p32.s          |  6 +++---
  src/runtime/memmove_nacl_amd64p32.s | 23 +++++++++++++----------
  2 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index e8b14912b9..78b16f4abd 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -620,12 +620,12 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-8
+ 	MOVL	ptr+0(FP), DI
+ 	MOVL	n+4(FP), CX
+ 	MOVQ	CX, BX
+-	ANDQ	$7, BX
+-	SHRQ	$3, CX
++	ANDQ	$3, BX
++	SHRQ	$2, CX
+ 	MOVQ	$0, AX
+ 	CLD
+ 	REP
+-	STOSQ
++	STOSL
+ 	MOVQ	BX, CX
+ 	REP
+ 	STOSB
+diff --git a/src/runtime/memmove_nacl_amd64p32.s b/src/runtime/memmove_nacl_amd64p32.s
+index 373607afec..be9e1e55be 100644
+--- a/src/runtime/memmove_nacl_amd64p32.s
++++ b/src/runtime/memmove_nacl_amd64p32.s
+@@ -4,6 +4,9 @@
+ 
+ #include "textflag.h"
+ 
++// This could use MOVSQ, but we use MOVSL so that if an object ends in
++// a 4 byte pointer, we copy it as a unit instead of byte by byte.
++
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+ 	MOVL	from+4(FP), SI
+@@ -14,9 +17,9 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 
+ forward:
+ 	MOVL	BX, CX
+-	SHRL	$3, CX
+-	ANDL	$7, BX
+-	REP; MOVSQ
++	SHRL	$2, CX
++	ANDL	$3, BX
++	REP; MOVSL
+ 	MOVL	BX, CX
+ 	REP; MOVSB
+ 	RET
+@@ -32,13 +35,13 @@ back:
+ 	STD
+ 	
+ 	MOVL	BX, CX
+-	SHRL	$3, CX
+-	ANDL	$7, BX
+-	SUBL	$8, DI
+-	SUBL	$8, SI
+-	REP; MOVSQ
+-	ADDL	$7, DI
+-	ADDL	$7, SI
++	SHRL	$2, CX
++	ANDL	$3, BX
++	SUBL	$4, DI
++	SUBL	$4, SI
++	REP; MOVSL
++	ADDL	$3, DI
++	ADDL	$3, SI
+ 	MOVL	BX, CX
+ 	REP; MOVSB
+ 	CLD

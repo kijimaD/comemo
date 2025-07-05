@@ -16,6 +16,30 @@ Date:   Thu Sep 9 22:40:25 2010 -0700
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/2175041
-
+---
  test/syntax/topexpr.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/syntax/topexpr.go b/test/syntax/topexpr.go
+index 83de49075d..93d86fbe95 100644
+--- a/test/syntax/topexpr.go
++++ b/test/syntax/topexpr.go
+@@ -6,15 +6,15 @@
+ 
+ package main
+ 
+-fmt.Printf("hello")	// ERROR "non-declaration statement outside function body"
++fmt.Printf("hello")	// ERROR "non-declaration statement outside function body|expected declaration"
+ 
+ func main() {
+ }
+ 
+-x++	// ERROR "non-declaration statement outside function body"
++x++	// ERROR "non-declaration statement outside function body|expected declaration"
+ 
+ func init() {
+ }
+ 
+-x,y := 1, 2	// ERROR "non-declaration statement outside function body"
++x,y := 1, 2	// ERROR "non-declaration statement outside function body|expected declaration"
+ 

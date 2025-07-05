@@ -13,7 +13,7 @@ Date:   Wed Jan 25 10:19:33 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/35732
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go   |  8 ++-
  src/cmd/compile/internal/gc/reflect.go | 11 ++++-
  src/cmd/link/internal/ld/decodesym.go  |  2 +-
@@ -23,3 +23,373 @@ Date:   Wed Jan 25 10:19:33 2017 -0500
  src/runtime/cgocall.go                 |  2 +-
  src/runtime/type.go                    | 12 +++--
  8 files changed, 85 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index eee801fb8e..1dd04e349d 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -74,7 +74,13 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 			lastzero = o
+ 		}
+ 		o += w
+-		if o >= Thearch.MAXWIDTH {
++		maxwidth := Thearch.MAXWIDTH
++		// On 32-bit systems, reflect tables impose an additional constraint
++		// that each field start offset must fit in 31 bits.
++		if maxwidth < 1<<32 {
++			maxwidth = 1<<31 - 1
++		}
++		if o >= maxwidth {
+ 			yyerror("type %L too large", errtype)
+ 			o = 8 // small but nonzero
+ 		}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 61ac67c0bc..7cd02749a5 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -511,7 +511,7 @@ func isExportedField(ft *Field) (bool, *Pkg) {
+ // dnameField dumps a reflect.name for a struct field.
+ func dnameField(s *Sym, ot int, spkg *Pkg, ft *Field) int {
+ 	var name string
+-	if ft.Sym != nil && ft.Embedded == 0 {
++	if ft.Sym != nil {
+ 		name = ft.Sym.Name
+ 	}
+ 	isExported, fpkg := isExportedField(ft)
+@@ -1345,7 +1345,14 @@ ok:
+ 			// ../../../../runtime/type.go:/structField
+ 			ot = dnameField(s, ot, pkg, f)
+ 			ot = dsymptr(s, ot, dtypesym(f.Type), 0)
+-			ot = duintptr(s, ot, uint64(f.Offset))
++			offsetAnon := uint64(f.Offset) << 1
++			if offsetAnon>>1 != uint64(f.Offset) {
++				Fatalf("%v: bad field offset for %s", t, f.Sym.Name)
++			}
++			if f.Embedded != 0 {
++				offsetAnon |= 1
++			}
++			ot = duintptr(s, ot, offsetAnon)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index d111b005d9..d898c40c1c 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -255,7 +255,7 @@ func decodetypeStructFieldType(s *Symbol, i int) *Symbol {
+ 
+ func decodetypeStructFieldOffs(arch *sys.Arch, s *Symbol, i int) int64 {
+ 	off := decodetypeStructFieldArrayOff(s, i)
+-	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.IntSize))
++	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.IntSize) >> 1)
+ }
+ 
+ // InterfaceType.methods.length
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e057b0cfcc..ed3ad33835 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4265,7 +4265,7 @@ func TestStructOfExportRules(t *testing.T) {
+ 			field := typ.Field(0)
+ 			n := field.Name
+ 			if n == "" {
+-				n = field.Type.Name()
++				panic("field.Name must not be empty")
+ 			}
+ 			exported := isExported(n)
+ 			if exported != test.exported {
+@@ -5984,3 +5984,20 @@ func TestUnaddressableField(t *testing.T) {
+ 		lv.Set(rv)
+ 	})
+ }
++
++type Talias1 struct {
++	byte
++	uint8
++	int
++	int32
++	rune
++}
++
++func TestAliasNames(t *testing.T) {
++	t1 := Talias1{byte: 1, uint8: 2, int: 3, int32: 4, rune: 5}
++	out := fmt.Sprintf("%#v", t1)
++	want := "reflect_test.Talias1{byte:0x1, uint8:0x2, int:3, int32:4, rune:5}"
++	if out != want {
++		t.Errorf("Talias1 print:\nhave: %s\nwant: %s", out, want)
++	}
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index e0be36d970..fbfda3a363 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -417,9 +417,17 @@ type sliceType struct {
+ 
+ // Struct field
+ type structField struct {
+-	name   name    // name is empty for embedded fields
+-	typ    *rtype  // type of field
+-	offset uintptr // byte offset of field within struct
++	name       name    // name is always non-empty
++	typ        *rtype  // type of field
++	offsetAnon uintptr // byte offset of field<<1 | isAnonymous
++}
++
++func (f *structField) offset() uintptr {
++	return f.offsetAnon >> 1
++}
++
++func (f *structField) anon() bool {
++	return f.offsetAnon&1 != 0
+ }
+ 
+ // structType represents a struct type.
+@@ -1215,16 +1223,8 @@ func (t *structType) Field(i int) (f StructField) {
+ 	}
+ 	p := &t.fields[i]
+ 	f.Type = toType(p.typ)
+-	if name := p.name.name(); name != "" {
+-		f.Name = name
+-	} else {
+-		t := f.Type
+-		if t.Kind() == Ptr {
+-			t = t.Elem()
+-		}
+-		f.Name = t.Name()
+-		f.Anonymous = true
+-	}
++	f.Name = p.name.name()
++	f.Anonymous = p.anon()
+ 	if !p.name.isExported() {
+ 		f.PkgPath = p.name.pkgPath()
+ 		if f.PkgPath == "" {
+@@ -1234,7 +1234,7 @@ func (t *structType) Field(i int) (f StructField) {
+ 	if tag := p.name.tag(); tag != "" {
+ 		f.Tag = StructTag(tag)
+ 	}
+-	f.Offset = p.offset
++	f.Offset = p.offset()
+ 
+ 	// NOTE(rsc): This is the only allocation in the interface
+ 	// presented by a reflect.Type. It would be nice to avoid,
+@@ -1321,19 +1321,15 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (result StructFiel
+ 			visited[t] = true
+ 			for i := range t.fields {
+ 				f := &t.fields[i]
+-				// Find name and type for field f.
+-				var fname string
++				// Find name and (for anonymous field) type for field f.
++				fname := f.name.name()
+ 				var ntyp *rtype
+-				if name := f.name.name(); name != "" {
+-					fname = name
+-				} else {
++				if f.anon() {
+ 					// Anonymous field of type T or *T.
+-					// Name taken from type.
+ 					ntyp = f.typ
+ 					if ntyp.Kind() == Ptr {
+ 						ntyp = ntyp.Elem().common()
+ 					}
+-					fname = ntyp.Name()
+ 				}
+ 
+ 				// Does it match?
+@@ -1390,14 +1386,12 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
+ 	if name != "" {
+ 		for i := range t.fields {
+ 			tf := &t.fields[i]
+-			tfname := tf.name.name()
+-			if tfname == "" {
+-				hasAnon = true
+-				continue
+-			}
+-			if tfname == name {
++			if tf.name.name() == name {
+ 				return t.Field(i), true
+ 			}
++			if tf.anon() {
++				hasAnon = true
++			}
+ 		}
+ 	}
+ 	if !hasAnon {
+@@ -1694,7 +1688,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 			if cmpTags && tf.name.tag() != vf.name.tag() {
+ 				return false
+ 			}
+-			if tf.offset != vf.offset {
++			if tf.offsetAnon != vf.offsetAnon {
+ 				return false
+ 			}
+ 			if !tf.name.isExported() {
+@@ -2418,13 +2412,11 @@ func StructOf(fields []StructField) Type {
+ 			hasPtr = true
+ 		}
+ 
+-		name := ""
+ 		// Update string and hash
+-		if f.name.nameLen() > 0 {
+-			hash = fnv1(hash, []byte(f.name.name())...)
+-			repr = append(repr, (" " + f.name.name())...)
+-			name = f.name.name()
+-		} else {
++		name := f.name.name()
++		hash = fnv1(hash, []byte(name)...)
++		repr = append(repr, (" " + name)...)
++		if f.anon() {
+ 			// Embedded field
+ 			if f.typ.Kind() == Ptr {
+ 				// Embedded ** and *interface{} are illegal
+@@ -2432,11 +2424,7 @@ func StructOf(fields []StructField) Type {
+ 				if k := elem.Kind(); k == Ptr || k == Interface {
+ 					panic("reflect.StructOf: illegal anonymous field type " + ft.String())
+ 				}
+-				name = elem.String()
+-			} else {
+-				name = ft.String()
+ 			}
+-			// TODO(sbinet) check for syntactically impossible type names?
+ 
+ 			switch f.typ.Kind() {
+ 			case Interface:
+@@ -2568,11 +2556,12 @@ func StructOf(fields []StructField) Type {
+ 		comparable = comparable && (ft.alg.equal != nil)
+ 		hashable = hashable && (ft.alg.hash != nil)
+ 
+-		f.offset = align(size, uintptr(ft.align))
++		offset := align(size, uintptr(ft.align))
+ 		if ft.align > typalign {
+ 			typalign = ft.align
+ 		}
+-		size = f.offset + ft.size
++		size = offset + ft.size
++		f.offsetAnon |= offset << 1
+ 
+ 		if ft.size == 0 {
+ 			lastzero = size
+@@ -2764,7 +2753,7 @@ func StructOf(fields []StructField) Type {
+ 		typ.alg.hash = func(p unsafe.Pointer, seed uintptr) uintptr {
+ 			o := seed
+ 			for _, ft := range typ.fields {
+-				pi := unsafe.Pointer(uintptr(p) + ft.offset)
++				pi := unsafe.Pointer(uintptr(p) + ft.offset())
+ 				o = ft.typ.alg.hash(pi, o)
+ 			}
+ 			return o
+@@ -2774,8 +2763,8 @@ func StructOf(fields []StructField) Type {
+ 	if comparable {
+ 		typ.alg.equal = func(p, q unsafe.Pointer) bool {
+ 			for _, ft := range typ.fields {
+-				pi := unsafe.Pointer(uintptr(p) + ft.offset)
+-				qi := unsafe.Pointer(uintptr(q) + ft.offset)
++				pi := unsafe.Pointer(uintptr(p) + ft.offset())
++				qi := unsafe.Pointer(uintptr(q) + ft.offset())
+ 				if !ft.typ.alg.equal(pi, qi) {
+ 					return false
+ 				}
+@@ -2808,16 +2797,16 @@ func runtimeStructField(field StructField) structField {
+ 		panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but missing PkgPath")
+ 	}
+ 
+-	name := field.Name
++	offsetAnon := uintptr(0)
+ 	if field.Anonymous {
+-		name = ""
++		offsetAnon |= 1
+ 	}
+ 
+ 	resolveReflectType(field.Type.common()) // install in runtime
+ 	return structField{
+-		name:   newName(name, string(field.Tag), "", true),
+-		typ:    field.Type.common(),
+-		offset: 0,
++		name:       newName(field.Name, string(field.Tag), "", true),
++		typ:        field.Type.common(),
++		offsetAnon: offsetAnon,
+ 	}
+ }
+ 
+@@ -2840,7 +2829,7 @@ func typeptrdata(t *rtype) uintptr {
+ 			}
+ 		}
+ 		f := st.fields[field]
+-		return f.offset + f.typ.ptrdata
++		return f.offset() + f.typ.ptrdata
+ 
+ 	default:
+ 		panic("reflect.typeptrdata: unexpected type, " + t.String())
+@@ -3214,7 +3203,7 @@ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
+ 		tt := (*structType)(unsafe.Pointer(t))
+ 		for i := range tt.fields {
+ 			f := &tt.fields[i]
+-			addTypeBits(bv, offset+f.offset, f.typ)
++			addTypeBits(bv, offset+f.offset(), f.typ)
+ 		}
+ 	}
+ }
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 042414ffe7..a1bfb6d489 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -755,7 +755,7 @@ func (v Value) Field(i int) Value {
+ 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
+ 	// Using an unexported field forces flagRO.
+ 	if !field.name.isExported() {
+-		if field.name.name() == "" {
++		if field.anon() {
+ 			fl |= flagEmbedRO
+ 		} else {
+ 			fl |= flagStickyRO
+@@ -766,7 +766,7 @@ func (v Value) Field(i int) Value {
+ 	// In the former case, we want v.ptr + offset.
+ 	// In the latter case, we must have field.offset = 0,
+ 	// so v.ptr + field.offset is still okay.
+-	ptr := unsafe.Pointer(uintptr(v.ptr) + field.offset)
++	ptr := unsafe.Pointer(uintptr(v.ptr) + field.offset())
+ 	return Value{typ, ptr, fl}
+ }
+ 
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 69e29ef976..879e786231 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -531,7 +531,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 			return
+ 		}
+ 		for _, f := range st.fields {
+-			cgoCheckArg(f.typ, add(p, f.offset), true, top, msg)
++			cgoCheckArg(f.typ, add(p, f.offset()), true, top, msg)
+ 		}
+ 	case kindPtr, kindUnsafePointer:
+ 		if indir {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 3ecc54c72c..10442eff69 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -390,9 +390,13 @@ type ptrtype struct {
+ }
+ 
+ type structfield struct {
+-	name   name
+-	typ    *_type
+-	offset uintptr
++	name       name
++	typ        *_type
++	offsetAnon uintptr
++}
++
++func (f *structfield) offset() uintptr {
++	return f.offsetAnon >> 1
+ }
+ 
+ type structtype struct {
+@@ -650,7 +654,7 @@ func typesEqual(t, v *_type) bool {
+ 			if tf.name.tag() != vf.name.tag() {
+ 				return false
+ 			}
+-			if tf.offset != vf.offset {
++			if tf.offsetAnon != vf.offsetAnon {
+ 				return false
+ 			}
+ 		}

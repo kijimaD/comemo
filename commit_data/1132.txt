@@ -9,7 +9,39 @@ Date:   Fri Nov 14 17:28:17 2008 -0800
     DELTA=10  (0 added, 10 deleted, 0 changed)
     OCL=19292
     CL=19298
-
+---
  test/bugs/bug032.go | 11 -----------
  test/golden.out     |  3 ---
  2 files changed, 14 deletions(-)
+
+diff --git a/test/bugs/bug032.go b/test/bugs/bug032.go
+deleted file mode 100644
+index fb11fdfbe9..0000000000
+--- a/test/bugs/bug032.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go && echo BUG: compilation succeeds incorrectly
+-
+-package main
+-
+-type I interface {
+-	g,f	()int;  // BUG only one method name allowed per signature
+-}
+diff --git a/test/golden.out b/test/golden.out
+index cedf02964a..3d7795022b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -85,9 +85,6 @@ PASS
+ bugs/bug020.go:7: type of a structure field cannot be an open array
+ BUG should compile
+ 
+-=========== bugs/bug032.go
+-BUG: compilation succeeds incorrectly
+-
+ =========== bugs/bug041.go
+ BUG: compilation succeeds incorrectly
+ 

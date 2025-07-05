@@ -12,7 +12,7 @@ Date:   Thu Jan 12 13:44:02 2012 -0800
     R=golang-dev, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5541043
-
+---
  src/cmd/go/build.go | 42 +++++++++++++++++++-----------------------
  src/cmd/go/fix.go   |  2 +-
  src/cmd/go/fmt.go   |  2 +-
@@ -21,3 +21,223 @@ Date:   Thu Jan 12 13:44:02 2012 -0800
  src/cmd/go/test.go  |  5 ++---
  src/cmd/go/vet.go   |  2 +-
  7 files changed, 44 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 02e2172b96..f0078a36c8 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -818,7 +818,8 @@ var errPrintedOutput = errors.New("already printed output - no need to show erro
+ // run runs the command given by cmdline in the directory dir.
+ // If the commnd fails, run prints information about the failure
+ // and returns a non-nil error.
+-func (b *builder) run(dir string, desc string, cmdline ...string) error {
++func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
++	cmdline := stringList(cmdargs...)
+ 	if buildN || buildX {
+ 		b.showcmd(dir, "%s", strings.Join(cmdline, " "))
+ 		if buildN {
+@@ -890,14 +891,11 @@ func mkAbs(dir, f string) string {
+ // gc runs the Go compiler in a specific directory on a set of files
+ // to generate the named output file. 
+ func (b *builder) gc(p *Package, ofile string, gcargs, importArgs []string, gofiles []string) error {
+-	args := []string{b.arch + "g", "-o", ofile}
+-	args = append(args, b.gcflags...)
+-	args = append(args, gcargs...)
+-	args = append(args, importArgs...)
++	args := stringList(b.arch+"g", "-o", ofile, b.gcflags, gcargs, importArgs)
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))
+ 	}
+-	return b.run(p.Dir, p.ImportPath, args...)
++	return b.run(p.Dir, p.ImportPath, args)
+ }
+ 
+ // asm runs the assembler in a specific directory on a specific file
+@@ -911,17 +909,16 @@ func (b *builder) asm(p *Package, obj, ofile, sfile string) error {
+ // an archive from a set of object files.
+ // typically it is run in the object directory.
+ func (b *builder) gopack(p *Package, objDir, afile string, ofiles []string) error {
+-	cmd := []string{"gopack", "grc"}
+-	cmd = append(cmd, mkAbs(objDir, afile))
++	var absOfiles []string
+ 	for _, f := range ofiles {
+-		cmd = append(cmd, mkAbs(objDir, f))
++		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	return b.run(p.Dir, p.ImportPath, cmd...)
++	return b.run(p.Dir, p.ImportPath, "gopack", "grc", mkAbs(objDir, afile), absOfiles)
+ }
+ 
+ // ld runs the linker to create a package starting at mainpkg.
+ func (b *builder) ld(p *Package, out string, importArgs []string, mainpkg string) error {
+-	return b.run(p.Dir, p.ImportPath, append(append([]string{b.arch + "l", "-o", out}, importArgs...), mainpkg)...)
++	return b.run(p.Dir, p.ImportPath, b.arch+"l", "-o", out, importArgs, mainpkg)
+ }
+ 
+ // cc runs the gc-toolchain C compiler in a directory on a C file
+@@ -929,22 +926,24 @@ func (b *builder) ld(p *Package, out string, importArgs []string, mainpkg string
+ func (b *builder) cc(p *Package, objdir, ofile, cfile string) error {
+ 	inc := filepath.Join(b.goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+-	return b.run(p.Dir, p.ImportPath, b.arch+"c", "-FVw", "-I", objdir, "-I", inc, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
++	return b.run(p.Dir, p.ImportPath, b.arch+"c", "-FVw",
++		"-I", objdir, "-I", inc, "-o", ofile,
++		"-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
+ }
+ 
+ // gcc runs the gcc C compiler to create an object from a single C file.
+ func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
+ 	cfile = mkAbs(p.Dir, cfile)
+-	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir, flags, "-o", out, "-c", cfile)...)
++	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
+ }
+ 
+ // gccld runs the gcc linker to create an executable from a set of object files
+ func (b *builder) gccld(p *Package, out string, flags []string, obj []string) error {
+-	return b.run(p.Dir, p.ImportPath, append(b.gccCmd(p.Dir, flags, "-o", out), obj...)...)
++	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", out, obj, flags)
+ }
+ 
+-// gccCmd returns a gcc command line ending with args
+-func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string {
++// gccCmd returns a gcc command line prefix
++func (b *builder) gccCmd(objdir string) []string {
+ 	// TODO: HOST_CC?
+ 	a := []string{"gcc", "-I", objdir, "-g", "-O2"}
+ 
+@@ -969,8 +968,7 @@ func (b *builder) gccCmd(objdir string, flags []string, args ...string) []string
+ 			a = append(a, "-pthread")
+ 		}
+ 	}
+-	a = append(a, flags...)
+-	return append(a, args...)
++	return a
+ }
+ 
+ var cgoRe = regexp.MustCompile(`[/\\:]`)
+@@ -994,13 +992,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 	defunC := obj + "_cgo_defun.c"
+ 	// TODO: make cgo not depend on $GOARCH?
+ 	// TODO: make cgo write to obj
+-	cgoArgs := []string{cgoExe, "-objdir", obj}
++	var runtimeFlag []string
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+-		cgoArgs = append(cgoArgs, "-import_runtime_cgo=false")
++		runtimeFlag = []string{"-import_runtime_cgo=false"}
+ 	}
+-	cgoArgs = append(cgoArgs, "--")
+-	cgoArgs = append(cgoArgs, p.CgoFiles...)
+-	if err := b.run(p.Dir, p.ImportPath, cgoArgs...); err != nil {
++	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, runtimeFlag, "--", p.CgoFiles); err != nil {
+ 		return nil, nil, err
+ 	}
+ 	outGo = append(outGo, gofiles...)
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index df6bcb347b..fdefe8db6e 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -25,6 +25,6 @@ func runFix(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(append([]string{"gofix"}, pkg.gofiles...)...)
++		run(stringList("gofix", pkg.gofiles))
+ 	}
+ }
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index adf63be1f1..fb0b091192 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -26,7 +26,7 @@ func runFmt(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(append([]string{"gofmt", "-l", "-w"}, pkg.gofiles...)...)
++		run(stringList("gofmt", "-I", "w", pkg.gofiles))
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 4d21cf20c3..4b1ff357da 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -236,7 +236,8 @@ func exitIfErrors() {
+ 	}
+ }
+ 
+-func run(cmdline ...string) {
++func run(cmdargs ...interface{}) {
++	cmdline := stringList(cmdargs...)
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
+@@ -404,3 +405,20 @@ func allPackagesInFS(pattern string) []string {
+ 	}
+ 	return pkgs
+ }
++
++// stringList's arguments should be a sequence of string or []string values.
++// stringList flattens them into a single []string.
++func stringList(args ...interface{}) []string {
++	var x []string
++	for _, arg := range args {
++		switch arg := arg.(type) {
++		case []string:
++			x = append(x, arg...)
++		case string:
++			x = append(x, arg)
++		default:
++			panic("stringList: invalid argument")
++		}
++	}
++	return x
++}
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 1582531fae..dbd91a367e 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -42,8 +42,7 @@ func runRun(cmd *Command, args []string) {
+ // runProgram is the action for running a binary that has already
+ // been compiled.  We ignore exit status.
+ func (b *builder) runProgram(a *action) error {
+-	args := append([]string{a.deps[0].target}, a.args...)
+-	run(args...)
++	run(a.deps[0].target, a.args)
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index ac0498fa7a..57e0469e06 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -359,7 +359,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
+ 		ptest.GoFiles = append(ptest.GoFiles, p.info.TestGoFiles...)
+ 		ptest.target = ""
+-		ptest.Imports = append(append([]string{}, p.info.Imports...), p.info.TestImports...)
++		ptest.Imports = stringList(p.info.Imports, p.info.TestImports)
+ 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
+ 		ptest.pkgdir = testDir
+ 		ptest.fake = true
+@@ -441,8 +441,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 
+ // runTest is the action for running a test binary.
+ func (b *builder) runTest(a *action) error {
+-	args := []string{a.deps[0].target}
+-	args = append(args, testArgs...)
++	args := stringList(a.deps[0].target, testArgs)
+ 	a.testOutput = new(bytes.Buffer)
+ 
+ 	if buildN || buildX {
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index f8fe92243b..c1e17dfd0c 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -25,6 +25,6 @@ func runVet(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(append([]string{"govet"}, pkg.gofiles...)...)
++		run("govet", pkg.gofiles)
+ 	}
+ }

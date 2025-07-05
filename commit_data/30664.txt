@@ -11,6 +11,26 @@ Date:   Mon Nov 21 22:30:14 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 03edbdfc19..508863f275 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -746,6 +746,14 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		return false
+ 	case "plugin":
++		if os.Getenv("GO_BUILDER_NAME") == "linux-amd64-noopt" {
++			// Skip the plugin tests on noopt. They're
++			// causing build failures potentially
++			// obscuring other issues. This is hopefully a
++			// temporary workaround. See golang.org/issue/17937.
++			return false
++		}
++
+ 		// linux-arm64 is missing because it causes the external linker
+ 		// to crash, see https://golang.org/issue/17138
+ 		switch pair {

@@ -7,6 +7,20 @@ Date:   Wed Jun 17 12:46:06 2015 +1000
     Change-Id: If6dc3acdc023ac78f63e257974cd2d2e9f1cca10
     Reviewed-on: https://go-review.googlesource.com/11161
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/articles/wiki/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/wiki/test.bash b/doc/articles/wiki/test.bash
+index b1e89e9a22..8bbb734750 100755
+--- a/doc/articles/wiki/test.bash
++++ b/doc/articles/wiki/test.bash
+@@ -13,7 +13,7 @@ fi
+ wiki_pid=
+ cleanup() {
+ 	kill $wiki_pid
+-	rm -f test_*.out Test.txt final-test.bin final-test-port.txt a.out get.bin
++	rm -f test_*.out Test.txt final-test.go final-test.bin final-test-port.txt a.out get.bin
+ }
+ trap cleanup 0 INT
+ 

@@ -8,6 +8,22 @@ Date:   Wed Nov 5 11:09:08 2014 -0500
     R=crawshaw
     CC=golang-codereviews
     https://golang.org/cl/168860046
-
+---
  src/runtime/mgc0.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 75678c5224..22e88494a0 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -84,8 +84,8 @@ func bgsweep() {
+ }
+ 
+ const (
+-	_PoisonGC    = 0xf969696969696969 & ^uintptr(0)
+-	_PoisonStack = 0x6868686868686868 & ^uintptr(0)
++	_PoisonGC    = 0xf969696969696969 & (1<<(8*ptrSize) - 1)
++	_PoisonStack = 0x6868686868686868 & (1<<(8*ptrSize) - 1)
+ )
+ 
+ // NOTE: Really dst *unsafe.Pointer, src unsafe.Pointer,

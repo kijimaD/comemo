@@ -12,8 +12,62 @@ Date:   Wed Nov 16 15:26:41 2016 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go           | 3 ---
  src/cmd/objdump/objdump_test.go | 1 -
  src/cmd/vet/vet_test.go         | 2 --
  3 files changed, 6 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 320c041265..6e747865da 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6,7 +6,6 @@ package main_test
+ 
+ import (
+ 	"bytes"
+-	"flag"
+ 	"fmt"
+ 	"go/build"
+ 	"go/format"
+@@ -67,8 +66,6 @@ func init() {
+ // The TestMain function creates a go command for testing purposes and
+ // deletes it after the tests have been run.
+ func TestMain(m *testing.M) {
+-	flag.Parse()
+-
+ 	if canRun {
+ 		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
+ 		if race.Enabled {
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 4b70862d09..30b964d883 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -21,7 +21,6 @@ import (
+ var tmp, exe string // populated by buildObjdump
+ 
+ func TestMain(m *testing.M) {
+-	flag.Parse()
+ 	if !testenv.HasGoBuild() {
+ 		return
+ 	}
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 853088d768..725f013a7d 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -6,7 +6,6 @@ package main_test
+ 
+ import (
+ 	"bytes"
+-	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+@@ -24,7 +23,6 @@ const (
+ 
+ // We implement TestMain so remove the test binary when all is done.
+ func TestMain(m *testing.M) {
+-	flag.Parse()
+ 	result := m.Run()
+ 	os.Remove(binary)
+ 	os.Exit(result)

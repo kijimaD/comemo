@@ -9,8 +9,102 @@ Date:   Thu Feb 21 12:01:47 2013 -0800
     R=adg, rsc, campoy
     CC=golang-dev
     https://golang.org/cl/7369045
-
+---
  src/pkg/net/http/requestwrite_test.go | 38 +++++++++++++++++++++++++++++++++++
  src/pkg/net/url/url.go                |  4 ++++
  src/pkg/net/url/url_test.go           | 18 +++++++++++++++++
  3 files changed, 60 insertions(+)
+
+diff --git a/src/pkg/net/http/requestwrite_test.go b/src/pkg/net/http/requestwrite_test.go
+index 3a5cd8ae2d..bc637f18b0 100644
+--- a/src/pkg/net/http/requestwrite_test.go
++++ b/src/pkg/net/http/requestwrite_test.go
+@@ -353,6 +353,44 @@ var reqWriteTests = []reqWriteTest{
+ 			"Host: \r\n" +
+ 			"User-Agent: Go http package\r\n\r\n",
+ 	},
++
++	// Opaque test #1 from golang.org/issue/4860
++	{
++		Req: Request{
++			Method: "GET",
++			URL: &url.URL{
++				Scheme: "http",
++				Host:   "www.google.com",
++				Opaque: "/%2F/%2F/",
++			},
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Header:     Header{},
++		},
++
++		WantWrite: "GET /%2F/%2F/ HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
++			"User-Agent: Go http package\r\n\r\n",
++	},
++
++	// Opaque test #2 from golang.org/issue/4860
++	{
++		Req: Request{
++			Method: "GET",
++			URL: &url.URL{
++				Scheme: "http",
++				Host:   "x.google.com",
++				Opaque: "//y.google.com/%2F/%2F/",
++			},
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Header:     Header{},
++		},
++
++		WantWrite: "GET http://y.google.com/%2F/%2F/ HTTP/1.1\r\n" +
++			"Host: x.google.com\r\n" +
++			"User-Agent: Go http package\r\n\r\n",
++	},
+ }
+ 
+ func TestRequestWrite(t *testing.T) {
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 667aa0741f..9c08b35ba8 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -693,6 +693,10 @@ func (u *URL) RequestURI() string {
+ 		if result == "" {
+ 			result = "/"
+ 		}
++	} else {
++		if strings.HasPrefix(result, "//") {
++			result = u.Scheme + ":" + result
++		}
+ 	}
+ 	if u.RawQuery != "" {
+ 		result += "?" + u.RawQuery
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index ed94d02055..4c4f406c21 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -798,6 +798,24 @@ var requritests = []RequestURITest{
+ 		},
+ 		"/a%20b",
+ 	},
++	// golang.org/issue/4860 variant 1
++	{
++		&URL{
++			Scheme: "http",
++			Host:   "example.com",
++			Opaque: "/%2F/%2F/",
++		},
++		"/%2F/%2F/",
++	},
++	// golang.org/issue/4860 variant 2
++	{
++		&URL{
++			Scheme: "http",
++			Host:   "example.com",
++			Opaque: "//other.example.com/%2F/%2F/",
++		},
++		"http://other.example.com/%2F/%2F/",
++	},
+ 	{
+ 		&URL{
+ 			Scheme:   "http",

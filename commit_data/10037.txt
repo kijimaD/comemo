@@ -14,7 +14,7 @@ Date:   Tue Oct 18 14:55:50 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5300042
-
+---
  src/cmd/gc/builtin.c.boot | 84 +++++++++++++++++++++++------------------------
  src/cmd/gc/export.c       |  2 +-
  src/cmd/gc/go.h           |  1 +
@@ -24,3 +24,348 @@ Date:   Tue Oct 18 14:55:50 2011 -0400
  src/cmd/gc/typecheck.c    |  4 +--
  test/alias.go             | 19 +++++++++++
  8 files changed, 112 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index b2e9465c47..bf9d96d6a7 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,7 +1,7 @@
+ char *runtimeimport =
+ 	"package runtime\n"
+ 	"import runtime \"runtime\"\n"
+-	"func @\"\".new (typ *uint8) *any\n"
++	"func @\"\".new (typ *byte) *any\n"
+ 	"func @\"\".panicindex ()\n"
+ 	"func @\"\".panicslice ()\n"
+ 	"func @\"\".throwreturn ()\n"
+@@ -24,67 +24,67 @@ char *runtimeimport =
+ 	"func @\"\".goprintf ()\n"
+ 	"func @\"\".concatstring ()\n"
+ 	"func @\"\".append ()\n"
+-	"func @\"\".appendslice (typ *uint8, x any, y []any) any\n"
+-	"func @\"\".appendstr (typ *uint8, x []uint8, y string) []uint8\n"
++	"func @\"\".appendslice (typ *byte, x any, y []any) any\n"
++	"func @\"\".appendstr (typ *byte, x []byte, y string) []byte\n"
+ 	"func @\"\".cmpstring (? string, ? string) int\n"
+ 	"func @\"\".slicestring (? string, ? int, ? int) string\n"
+ 	"func @\"\".slicestring1 (? string, ? int) string\n"
+ 	"func @\"\".intstring (? int64) string\n"
+-	"func @\"\".slicebytetostring (? []uint8) string\n"
++	"func @\"\".slicebytetostring (? []byte) string\n"
+ 	"func @\"\".sliceinttostring (? []int) string\n"
+-	"func @\"\".stringtoslicebyte (? string) []uint8\n"
++	"func @\"\".stringtoslicebyte (? string) []byte\n"
+ 	"func @\"\".stringtosliceint (? string) []int\n"
+ 	"func @\"\".stringiter (? string, ? int) int\n"
+ 	"func @\"\".stringiter2 (? string, ? int) (retk int, retv int)\n"
+ 	"func @\"\".slicecopy (to any, fr any, wid uint32) int\n"
+ 	"func @\"\".slicestringcopy (to any, fr any) int\n"
+ 	"func @\"\".convI2E (elem any) any\n"
+-	"func @\"\".convI2I (typ *uint8, elem any) any\n"
+-	"func @\"\".convT2E (typ *uint8, elem any) any\n"
+-	"func @\"\".convT2I (typ *uint8, typ2 *uint8, elem any) any\n"
+-	"func @\"\".assertE2E (typ *uint8, iface any) any\n"
+-	"func @\"\".assertE2E2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertE2I (typ *uint8, iface any) any\n"
+-	"func @\"\".assertE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertE2T (typ *uint8, iface any) any\n"
+-	"func @\"\".assertE2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertI2E (typ *uint8, iface any) any\n"
+-	"func @\"\".assertI2E2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertI2I (typ *uint8, iface any) any\n"
+-	"func @\"\".assertI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertI2T (typ *uint8, iface any) any\n"
+-	"func @\"\".assertI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func @\"\".convI2I (typ *byte, elem any) any\n"
++	"func @\"\".convT2E (typ *byte, elem any) any\n"
++	"func @\"\".convT2I (typ *byte, typ2 *byte, elem any) any\n"
++	"func @\"\".assertE2E (typ *byte, iface any) any\n"
++	"func @\"\".assertE2E2 (typ *byte, iface any) (ret any, ok bool)\n"
++	"func @\"\".assertE2I (typ *byte, iface any) any\n"
++	"func @\"\".assertE2I2 (typ *byte, iface any) (ret any, ok bool)\n"
++	"func @\"\".assertE2T (typ *byte, iface any) any\n"
++	"func @\"\".assertE2T2 (typ *byte, iface any) (ret any, ok bool)\n"
++	"func @\"\".assertI2E (typ *byte, iface any) any\n"
++	"func @\"\".assertI2E2 (typ *byte, iface any) (ret any, ok bool)\n"
++	"func @\"\".assertI2I (typ *byte, iface any) any\n"
++	"func @\"\".assertI2I2 (typ *byte, iface any) (ret any, ok bool)\n"
++	"func @\"\".assertI2T (typ *byte, iface any) any\n"
++	"func @\"\".assertI2T2 (typ *byte, iface any) (ret any, ok bool)\n"
+ 	"func @\"\".ifaceeq (i1 any, i2 any) bool\n"
+ 	"func @\"\".efaceeq (i1 any, i2 any) bool\n"
+ 	"func @\"\".ifacethash (i1 any) uint32\n"
+ 	"func @\"\".efacethash (i1 any) uint32\n"
+-	"func @\"\".makemap (mapType *uint8, hint int64) map[any] any\n"
+-	"func @\"\".mapaccess1 (mapType *uint8, hmap map[any] any, key any) any\n"
+-	"func @\"\".mapaccess2 (mapType *uint8, hmap map[any] any, key any) (val any, pres bool)\n"
+-	"func @\"\".mapassign1 (mapType *uint8, hmap map[any] any, key any, val any)\n"
+-	"func @\"\".mapassign2 (mapType *uint8, hmap map[any] any, key any, val any, pres bool)\n"
+-	"func @\"\".mapiterinit (mapType *uint8, hmap map[any] any, hiter *any)\n"
+-	"func @\"\".mapdelete (mapType *uint8, hmap map[any] any, key any)\n"
++	"func @\"\".makemap (mapType *byte, hint int64) map[any] any\n"
++	"func @\"\".mapaccess1 (mapType *byte, hmap map[any] any, key any) any\n"
++	"func @\"\".mapaccess2 (mapType *byte, hmap map[any] any, key any) (val any, pres bool)\n"
++	"func @\"\".mapassign1 (mapType *byte, hmap map[any] any, key any, val any)\n"
++	"func @\"\".mapassign2 (mapType *byte, hmap map[any] any, key any, val any, pres bool)\n"
++	"func @\"\".mapiterinit (mapType *byte, hmap map[any] any, hiter *any)\n"
++	"func @\"\".mapdelete (mapType *byte, hmap map[any] any, key any)\n"
+ 	"func @\"\".mapiternext (hiter *any)\n"
+ 	"func @\"\".mapiter1 (hiter *any) any\n"
+ 	"func @\"\".mapiter2 (hiter *any) (key any, val any)\n"
+-	"func @\"\".makechan (chanType *uint8, hint int64) chan any\n"
+-	"func @\"\".chanrecv1 (chanType *uint8, hchan <-chan any) any\n"
+-	"func @\"\".chanrecv2 (chanType *uint8, hchan <-chan any) (elem any, received bool)\n"
+-	"func @\"\".chansend1 (chanType *uint8, hchan chan<- any, elem any)\n"
++	"func @\"\".makechan (chanType *byte, hint int64) chan any\n"
++	"func @\"\".chanrecv1 (chanType *byte, hchan <-chan any) any\n"
++	"func @\"\".chanrecv2 (chanType *byte, hchan <-chan any) (elem any, received bool)\n"
++	"func @\"\".chansend1 (chanType *byte, hchan chan<- any, elem any)\n"
+ 	"func @\"\".closechan (hchan any)\n"
+-	"func @\"\".selectnbsend (chanType *uint8, hchan chan<- any, elem any) bool\n"
+-	"func @\"\".selectnbrecv (chanType *uint8, elem *any, hchan <-chan any) bool\n"
+-	"func @\"\".selectnbrecv2 (chanType *uint8, elem *any, received *bool, hchan <-chan any) bool\n"
+-	"func @\"\".newselect (size int) *uint8\n"
+-	"func @\"\".selectsend (sel *uint8, hchan chan<- any, elem *any) bool\n"
+-	"func @\"\".selectrecv (sel *uint8, hchan <-chan any, elem *any) bool\n"
+-	"func @\"\".selectrecv2 (sel *uint8, hchan <-chan any, elem *any, received *bool) bool\n"
+-	"func @\"\".selectdefault (sel *uint8) bool\n"
+-	"func @\"\".selectgo (sel *uint8)\n"
++	"func @\"\".selectnbsend (chanType *byte, hchan chan<- any, elem any) bool\n"
++	"func @\"\".selectnbrecv (chanType *byte, elem *any, hchan <-chan any) bool\n"
++	"func @\"\".selectnbrecv2 (chanType *byte, elem *any, received *bool, hchan <-chan any) bool\n"
++	"func @\"\".newselect (size int) *byte\n"
++	"func @\"\".selectsend (sel *byte, hchan chan<- any, elem *any) bool\n"
++	"func @\"\".selectrecv (sel *byte, hchan <-chan any, elem *any) bool\n"
++	"func @\"\".selectrecv2 (sel *byte, hchan <-chan any, elem *any, received *bool) bool\n"
++	"func @\"\".selectdefault (sel *byte) bool\n"
++	"func @\"\".selectgo (sel *byte)\n"
+ 	"func @\"\".block ()\n"
+-	"func @\"\".makeslice (typ *uint8, nel int64, cap int64) []any\n"
+-	"func @\"\".growslice (typ *uint8, old []any, n int64) []any\n"
++	"func @\"\".makeslice (typ *byte, nel int64, cap int64) []any\n"
++	"func @\"\".growslice (typ *byte, old []any, n int64) []any\n"
+ 	"func @\"\".sliceslice1 (old []any, lb uint64, width uint64) []any\n"
+ 	"func @\"\".sliceslice (old []any, lb uint64, hb uint64, width uint64) []any\n"
+ 	"func @\"\".slicearray (old *any, nel uint64, lb uint64, hb uint64, width uint64) []any\n"
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 58b1154ed7..e2f8c6f0c7 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -94,7 +94,7 @@ dumpprereq(Type *t)
+ 	if(t == T)
+ 		return;
+ 
+-	if(t->printed || t == types[t->etype])
++	if(t->printed || t == types[t->etype] || t == bytetype)
+ 		return;
+ 	t->printed = 1;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5c2de998e5..73cef3ddea 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -784,6 +784,7 @@ EXTERN	Idir*	idirs;
+ EXTERN	Type*	types[NTYPE];
+ EXTERN	Type*	idealstring;
+ EXTERN	Type*	idealbool;
++EXTERN	Type*	bytetype;
+ EXTERN	uchar	simtype[NTYPE];
+ EXTERN	uchar	isptr[NTYPE];
+ EXTERN	uchar	isforw[NTYPE];
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 8328b38a31..73a23ee5a4 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -19,6 +19,7 @@ int yyprev;
+ int yylast;
+ 
+ static void	lexinit(void);
++static void	lexinit1(void);
+ static void	lexfini(void);
+ static void	yytinit(void);
+ static int	getc(void);
+@@ -211,6 +212,7 @@ main(int argc, char *argv[])
+ 
+ 	lexinit();
+ 	typeinit();
++	lexinit1();
+ 	yytinit();
+ 
+ 	blockgen = 1;
+@@ -1588,7 +1590,6 @@ static	struct
+ 	"complex128",	LNAME,		TCOMPLEX128,	OXXX,
+ 
+ 	"bool",		LNAME,		TBOOL,		OXXX,
+-	"byte",		LNAME,		TUINT8,		OXXX,
+ 	"string",	LNAME,		TSTRING,	OXXX,
+ 
+ 	"any",		LNAME,		TANY,		OXXX,
+@@ -1706,6 +1707,21 @@ lexinit(void)
+ 	nblank = s->def;
+ }
+ 
++static void
++lexinit1(void)
++{
++	Sym *s, *s1;
++
++	// byte alias
++	s = lookup("byte");
++	s->lexical = LNAME;
++	bytetype = typ(TUINT8);
++	bytetype->sym = s;
++	s1 = pkglookup("byte", builtinpkg);
++	s1->lexical = LNAME;
++	s1->def = typenod(bytetype);
++}
++
+ static void
+ lexfini(void)
+ {
+@@ -1741,6 +1757,10 @@ lexfini(void)
+ 
+ 	// there's only so much table-driven we can handle.
+ 	// these are special cases.
++	s = lookup("byte");
++	if(s->def == N)
++		s->def = typenod(bytetype);
++
+ 	types[TNIL] = typ(TNIL);
+ 	s = lookup("nil");
+ 	if(s->def == N) {
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index ca7d08e511..816235bcc2 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -692,7 +692,7 @@ dtypesym(Type *t)
+ 		tbase = t->type;
+ 	dupok = tbase->sym == S;
+ 
+-	if(compiling_runtime && tbase == types[tbase->etype])	// int, float, etc
++	if(compiling_runtime && (tbase == types[tbase->etype] || tbase == bytetype))	// int, float, etc
+ 		goto ok;
+ 
+ 	// named types from other files are defined only by those files
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c0e22c2be8..56537efa02 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1280,12 +1280,18 @@ Tpretty(Fmt *fp, Type *t)
+ 		debug['r'] = 1;
+ 		return 0;
+ 	}
++	
++	if(noargnames) {
++		// called from typesym
++		if(t == bytetype)
++			t = types[bytetype->etype];
++	}
+ 
+ 	if(t->etype != TFIELD
+ 	&& t->sym != S
+ 	&& !(fp->flags&FmtLong)) {
+ 		s = t->sym;
+-		if(t == types[t->etype] && t->etype != TUNSAFEPTR)
++		if((t == types[t->etype] && t->etype != TUNSAFEPTR) || t == bytetype)
+ 			return fmtprint(fp, "%s", s->name);
+ 		if(exporting) {
+ 			if(fp->flags & FmtShort)
+@@ -1859,8 +1865,19 @@ eqtype(Type *t1, Type *t2)
+ {
+ 	if(t1 == t2)
+ 		return 1;
+-	if(t1 == T || t2 == T || t1->etype != t2->etype || t1->sym || t2->sym)
++	if(t1 == T || t2 == T || t1->etype != t2->etype)
++		return 0;
++	if(t1->sym || t2->sym) {
++		// Special case: we keep byte and uint8 separate
++		// for error messages.  Treat them as equal.
++		switch(t1->etype) {
++		case TUINT8:
++			if((t1 == types[TUINT8] || t1 == bytetype) && (t2 == types[TUINT8] || t2 == bytetype))
++				return 1;
++			break;
++		}
+ 		return 0;
++	}
+ 
+ 	switch(t1->etype) {
+ 	case TINTER:
+@@ -2088,24 +2105,20 @@ convertop(Type *src, Type *dst, char **why)
+ 	if(isint[src->etype] && dst->etype == TSTRING)
+ 		return ORUNESTR;
+ 
+-	if(isslice(src) && src->sym == nil &&  src->type == types[src->type->etype] && dst->etype == TSTRING) {
+-		switch(src->type->etype) {
+-		case TUINT8:
++	if(isslice(src) && src->sym == nil && dst->etype == TSTRING) {
++		if(eqtype(src->type, bytetype))
+ 			return OARRAYBYTESTR;
+-		case TINT:
++		if(eqtype(src->type, types[TINT]))
+ 			return OARRAYRUNESTR;
+-		}
+ 	}
+ 	
+ 	// 7. src is a string and dst is []byte or []int.
+ 	// String to slice.
+-	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil && dst->type == types[dst->type->etype]) {
+-		switch(dst->type->etype) {
+-		case TUINT8:
++	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil) {
++		if(eqtype(dst->type, bytetype))
+ 			return OSTRARRAYBYTE;
+-		case TINT:
++		if(eqtype(dst->type, types[TINT]))
+ 			return OSTRARRAYRUNE;
+-		}
+ 	}
+ 	
+ 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 20411a1a0e..21cf77e300 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1040,7 +1040,7 @@ reswitch:
+ 				yyerror("too many arguments to append");
+ 				goto error;
+ 			}
+-			if(istype(t->type, TUINT8) &&  istype(args->next->n->type, TSTRING)) {
++			if(istype(t->type, TUINT8) && istype(args->next->n->type, TSTRING)) {
+ 				defaultlit(&args->next->n, types[TSTRING]);
+ 				goto ret;
+ 			}
+@@ -1078,7 +1078,7 @@ reswitch:
+ 
+ 		// copy([]byte, string)
+ 		if(isslice(n->left->type) && n->right->type->etype == TSTRING) {
+-			if(n->left->type->type == types[TUINT8])
++			if(eqtype(n->left->type->type, bytetype))
+ 				goto ret;
+ 			yyerror("arguments to copy have different element types: %lT and string", n->left->type);
+ 			goto error;
+diff --git a/test/alias.go b/test/alias.go
+new file mode 100644
+index 0000000000..6039b3183f
+--- /dev/null
++++ b/test/alias.go
+@@ -0,0 +1,19 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Test that error messages say what the source file says
++// (uint8 vs byte).
++
++func f(byte) {}
++func g(uint8) {}
++
++func main() {
++	var x int
++	f(x)  // ERROR "byte"
++	g(x)  // ERROR "uint8"
++}

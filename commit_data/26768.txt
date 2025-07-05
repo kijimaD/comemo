@@ -9,6 +9,22 @@ Date:   Tue Feb 9 17:34:14 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mbitmap.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 35fc82bf4a..04992890a1 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -494,6 +494,10 @@ func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
+ // TODO(rsc): Perhaps introduce a different heapBitsSpan type.
+ 
+ // initSpan initializes the heap bitmap for a span.
++// It clears all mark and checkmark bits.
++// If this is a span of pointer-sized objects, it initializes all
++// words to pointer (and there are no dead bits).
++// Otherwise, it initializes all words to scalar/dead.
+ func (h heapBits) initSpan(size, n, total uintptr) {
+ 	if total%heapBitmapScale != 0 {
+ 		throw("initSpan: unaligned length")

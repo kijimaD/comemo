@@ -11,6 +11,20 @@ Date:   Fri May 13 09:36:52 2022 +0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/go/scanner/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 1ff1b07dd8..16958d22ce 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -820,7 +820,7 @@ scanAgain:
+ 	default:
+ 		s.next() // always make progress
+ 		switch ch {
+-		case -1:
++		case eof:
+ 			if s.insertSemi {
+ 				s.insertSemi = false // EOF consumed
+ 				return pos, token.SEMICOLON, "\n"

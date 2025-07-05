@@ -7,6 +7,29 @@ Date:   Tue Jan 10 11:25:14 2017 -0800
     Change-Id: I7ca7e9a2d4cf97cf33c60a9a4d0ba5fb0ca6e44c
     Reviewed-on: https://go-review.googlesource.com/35098
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/install.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 2143d591cb..6bff75c5a0 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -250,7 +250,7 @@ $ <b>cd $HOME/go/src/hello</b>
+ $ <b>go build</b>
+ </pre>
+ 
+-<pre class="testWindows" style="display: none">
++<pre class="testWindows">
+ C:\&gt; <b>cd %USERPROFILE%\go\src\hello</b>
+ C:\Users\Gopher\go\src\hello&gt; <b>go build</b>
+ </pre>
+@@ -267,7 +267,7 @@ $ <b>./hello</b>
+ hello, world
+ </pre>
+ 
+-<pre class="testWindows" style="display: none">
++<pre class="testWindows">
+ C:\Users\Gopher\go\src\hello&gt; <b>hello</b>
+ hello, world
+ </pre>

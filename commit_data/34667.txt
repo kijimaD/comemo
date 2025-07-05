@@ -17,8 +17,69 @@ Date:   Thu Nov 2 12:37:25 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go     | 5 +++--
  src/cmd/compile/internal/types/type.go | 2 +-
  test/notinheap3.go                     | 8 ++++++--
  3 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9e743c0874..339c6be7a4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3736,8 +3736,9 @@ func (s *state) storeTypePtrs(t *types.Type, left, right *ssa.Value) {
+ 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, right)
+ 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
+ 	case t.IsSlice():
+-		ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, right)
+-		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, s.f.Config.Types.BytePtr, left, ptr, s.mem())
++		elType := types.NewPtr(t.Elem())
++		ptr := s.newValue1(ssa.OpSlicePtr, elType, right)
++		s.vars[&memVar] = s.newValue3A(ssa.OpStore, types.TypeMem, elType, left, ptr, s.mem())
+ 	case t.IsInterface():
+ 		// itab field is treated as a scalar.
+ 		idata := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, right)
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 82829a1179..44cdabcb30 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1391,7 +1391,7 @@ func Haspointers1(t *Type, ignoreNotInHeap bool) bool {
+ 		}
+ 		return false
+ 
+-	case TPTR32, TPTR64:
++	case TPTR32, TPTR64, TSLICE:
+ 		return !(ignoreNotInHeap && t.Elem().NotInHeap())
+ 	}
+ 
+diff --git a/test/notinheap3.go b/test/notinheap3.go
+index b37d73df6d..d48c2a0cc9 100644
+--- a/test/notinheap3.go
++++ b/test/notinheap3.go
+@@ -10,11 +10,13 @@ package p
+ 
+ type t1 struct {
+ 	x *nih
++	s []nih
+ 	y [1024]byte // Prevent write decomposition
+ }
+ 
+ type t2 struct {
+ 	x *ih
++	s []ih
+ 	y [1024]byte
+ }
+ 
+@@ -37,8 +39,10 @@ var (
+ 
+ func f() {
+ 	// Test direct writes
+-	v1.x = nil // no barrier
+-	v2.x = nil // ERROR "write barrier"
++	v1.x = nil        // no barrier
++	v2.x = nil        // ERROR "write barrier"
++	v1.s = []nih(nil) // no barrier
++	v2.s = []ih(nil)  // ERROR "write barrier"
+ }
+ 
+ func g() {

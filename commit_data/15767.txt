@@ -10,6 +10,31 @@ Date:   Thu Mar 14 09:42:29 2013 -0700
     R=bradfitz, dvyukov
     CC=golang-dev
     https://golang.org/cl/7735044
-
+---
  src/pkg/net/dial_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 2303e8fa46..098df738b6 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -28,12 +28,18 @@ func newLocalListener(t *testing.T) Listener {
+ }
+ 
+ func TestDialTimeout(t *testing.T) {
++	origBacklog := listenerBacklog
++	defer func() {
++		listenerBacklog = origBacklog
++	}()
++	listenerBacklog = 1
++
+ 	ln := newLocalListener(t)
+ 	defer ln.Close()
+ 
+ 	errc := make(chan error)
+ 
+-	numConns := listenerBacklog + 10
++	numConns := listenerBacklog + 100
+ 
+ 	// TODO(bradfitz): It's hard to test this in a portable
+ 	// way. This is unfortunate, but works for now.

@@ -31,7 +31,7 @@ Date:   Thu Jun 25 20:24:55 2009 -0700
     DELTA=1153  (561 added, 156 deleted, 436 changed)
     OCL=30738
     CL=30781
-
+---
  doc/progs/file.go                 |  20 +++-
  src/cmd/gobuild/util.go           |   4 +-
  src/pkg/Make.deps                 |   8 +-
@@ -80,3 +80,3537 @@ Date:   Thu Jun 25 20:24:55 2009 -0700
  src/pkg/time/time.go              |   5 +-
  src/pkg/time/zoneinfo.go          |  63 +++++--------
  47 files changed, 958 insertions(+), 549 deletions(-)
+
+diff --git a/doc/progs/file.go b/doc/progs/file.go
+index ff796c5653..bda3890de2 100644
+--- a/doc/progs/file.go
++++ b/doc/progs/file.go
+@@ -29,7 +29,10 @@ var (
+ 
+ func Open(name string, mode int, perm int) (file *File, err os.Error) {
+ 	r, e := syscall.Open(name, mode, perm);
+-	return newFile(r, name), os.ErrnoToError(e)
++	if e != 0 {
++		err = os.Errno(e);
++	}
++	return newFile(r, name), err
+ }
+ 
+ func (file *File) Close() os.Error {
+@@ -38,7 +41,10 @@ func (file *File) Close() os.Error {
+ 	}
+ 	e := syscall.Close(file.fd);
+ 	file.fd = -1;  // so it can't be closed again
+-	return os.ErrnoToError(e);
++	if e != 0 {
++		return os.Errno(e);
++	}
++	return nil
+ }
+ 
+ func (file *File) Read(b []byte) (ret int, err os.Error) {
+@@ -46,7 +52,10 @@ func (file *File) Read(b []byte) (ret int, err os.Error) {
+ 		return -1, os.EINVAL
+ 	}
+ 	r, e := syscall.Read(file.fd, b);
+-	return int(r), os.ErrnoToError(e)
++	if e != 0 {
++		err = os.Errno(e);
++	}
++	return int(r), err
+ }
+ 
+ func (file *File) Write(b []byte) (ret int, err os.Error) {
+@@ -54,7 +63,10 @@ func (file *File) Write(b []byte) (ret int, err os.Error) {
+ 		return -1, os.EINVAL
+ 	}
+ 	r, e := syscall.Write(file.fd, b);
+-	return int(r), os.ErrnoToError(e)
++	if e != 0 {
++		err = os.Errno(e);
++	}
++	return int(r), err
+ }
+ 
+ func (file *File) String() string {
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index 7fec135401..4bcf97a5a6 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -290,8 +290,8 @@ func RemoveAll(name string) {
+ 	if err != nil {
+ 		fatal("run /bin/rm: %v", err);
+ 	}
+-	w, err1 := p.Wait(0);
+-	if err1 != nil {
++	w, err := p.Wait(0);
++	if err != nil {
+ 		fatal("wait /bin/rm: %v", err);
+ 	}
+ 	if !w.Exited() || w.ExitStatus() != 0 {
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 9df9db4165..6a5a0c4780 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -1,14 +1,14 @@
+ archive/tar.install: bufio.install bytes.install io.install os.install strconv.install
+ base64.install: bytes.install io.install os.install strconv.install
+ bignum.install: fmt.install
+-bufio.install: io.install os.install utf8.install
++bufio.install: io.install os.install strconv.install utf8.install
+ bytes.install: utf8.install
+ compress/flate.install: bufio.install io.install os.install strconv.install
+ compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
+ container/list.install:
+ container/vector.install:
+-crypto/aes.install: os.install
+-crypto/block.install: fmt.install io.install os.install
++crypto/aes.install: os.install strconv.install
++crypto/block.install: fmt.install io.install os.install strconv.install
+ crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
+ crypto/md5.install: hash.install os.install
+ crypto/sha1.install: hash.install os.install
+@@ -26,7 +26,7 @@ go/token.install: strconv.install
+ hash.install: io.install
+ hash/adler32.install: hash.install os.install
+ hash/crc32.install: hash.install os.install
+-http.install: bufio.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
++http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
+ io.install: bytes.install os.install sync.install
+ json.install: container/vector.install fmt.install io.install math.install reflect.install strconv.install strings.install utf8.install
+ log.install: fmt.install io.install os.install runtime.install time.install
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 520fd3afcb..4cbebddb54 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -10,6 +10,7 @@ package bufio
+ import (
+ 	"io";
+ 	"os";
++	"strconv";
+ 	"utf8";
+ )
+ 
+@@ -30,12 +31,17 @@ type Error struct {
+ }
+ 
+ var (
+-	PhaseError os.Error = &Error{"bufio: phase error"};
+-	BufferFull os.Error = &Error{"bufio: buffer full"};
+-	InternalError os.Error = &Error{"bufio: internal error"};
+-	BadBufSize os.Error = &Error{"bufio: bad buffer size"};
++	ErrInvalidUnreadByte os.Error = &Error{"bufio: invalid use of UnreadByte"};
++	ErrBufferFull os.Error = &Error{"bufio: buffer full"};
++	errInternal os.Error = &Error{"bufio: internal error"};
+ )
+ 
++// BufSizeError is the error representing an invalid buffer size.
++type BufSizeError int
++func (b BufSizeError) String() string {
++	return "bufio: bad buffer size " + strconv.Itoa(int(b));
++}
++
+ func copySlice(dst []byte, src []byte) {
+ 	for i := 0; i < len(dst); i++ {
+ 		dst[i] = src[i]
+@@ -60,7 +66,7 @@ type Reader struct {
+ // It returns the Reader and any error.
+ func NewReaderSize(rd io.Reader, size int) (*Reader, os.Error) {
+ 	if size <= 0 {
+-		return nil, BadBufSize
++		return nil, BufSizeError(size)
+ 	}
+ 	// Is it already a Reader?
+ 	b, ok := rd.(*Reader);
+@@ -165,7 +171,7 @@ func (b *Reader) ReadByte() (c byte, err os.Error) {
+ 	return c, nil
+ }
+ 
+-// UnreadByte unreads the last byte.  Only one byte may be unread at a given time.
++// UnreadByte unreads the last byte.  Only the most recently read byte can be unread.
+ func (b *Reader) UnreadByte() os.Error {
+ 	if b.err != nil {
+ 		return b.err
+@@ -178,7 +184,7 @@ func (b *Reader) UnreadByte() os.Error {
+ 		return nil;
+ 	}
+ 	if b.r <= 0 {
+-		return PhaseError
++		return ErrInvalidUnreadByte
+ 	}
+ 	b.r--;
+ 	b.lastbyte = -1;
+@@ -261,7 +267,7 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
+ 
+ 		// Buffer is full?
+ 		if b.Buffered() >= len(b.buf) {
+-			return nil, BufferFull
++			return nil, ErrBufferFull
+ 		}
+ 	}
+ 
+@@ -292,7 +298,7 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
+ 		if e == nil {	// got final fragment
+ 			break
+ 		}
+-		if e != BufferFull {	// unexpected error
++		if e != ErrBufferFull {	// unexpected error
+ 			err = e;
+ 			break
+ 		}
+@@ -308,7 +314,7 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
+ 		}
+ 		if n != len(buf) {
+ 			frag = buf[0:n];
+-			err = InternalError;
++			err = errInternal;
+ 			break
+ 		}
+ 
+@@ -378,7 +384,7 @@ type Writer struct {
+ // It returns the Writer and any error.
+ func NewWriterSize(wr io.Writer, size int) (*Writer, os.Error) {
+ 	if size <= 0 {
+-		return nil, BadBufSize
++		return nil, BufSizeError(size)
+ 	}
+ 	// Is it already a Writer?
+ 	b, ok := wr.(*Writer);
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 1e81aff739..31289c80ae 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -61,7 +61,7 @@ var reverseByte = [256]byte {
+ // A CorruptInputError reports the presence of corrupt input at a given offset.
+ type CorruptInputError int64
+ func (e CorruptInputError) String() string {
+-	return "flate: corrupt input at offset " + strconv.Itoa64(int64(e));
++	return "flate: corrupt input before offset " + strconv.Itoa64(int64(e));
+ }
+ 
+ // An InternalError reports an error in the flate code itself.
+@@ -263,11 +263,6 @@ type inflater struct {
+ 	buf [4]byte;
+ }
+ 
+-// TODO(rsc): This works around a 6g bug.
+-func (f *inflater) getRoffset() int64 {
+-	return f.roffset;
+-}
+-
+ func (f *inflater) dataBlock() os.Error
+ func (f *inflater) readHuffman() os.Error
+ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error
+@@ -301,10 +296,7 @@ func (f *inflater) inflate() (err os.Error) {
+ 			}
+ 		default:
+ 			// 3 is reserved.
+-			// TODO(rsc): Works around the same 6g bug.
+-			var i int64 = f.getRoffset();
+-			i--;
+-			err = CorruptInputError(i);
++			err = CorruptInputError(f.roffset);
+ 		}
+ 	}
+ 	return;
+@@ -347,7 +339,7 @@ func (f *inflater) readHuffman() os.Error {
+ 		f.codebits[codeOrder[i]] = 0;
+ 	}
+ 	if !f.h1.init(&f.codebits) {
+-		return os.ErrorString("huff and puff");
++		return CorruptInputError(f.roffset);
+ 	}
+ 
+ 	// HLIT + 257 code lengths, HDIST + 1 code lengths,
+@@ -374,7 +366,7 @@ func (f *inflater) readHuffman() os.Error {
+ 			rep = 3;
+ 			nb = 2;
+ 			if i == 0 {
+-				return CorruptInputError(f.getRoffset());
++				return CorruptInputError(f.roffset);
+ 			}
+ 			b = f.bits[i-1];
+ 		case 17:
+@@ -395,7 +387,7 @@ func (f *inflater) readHuffman() os.Error {
+ 		f.b >>= nb;
+ 		f.nb -= nb;
+ 		if i+rep > n {
+-			return CorruptInputError(f.getRoffset());
++			return CorruptInputError(f.roffset);
+ 		}
+ 		for j := 0; j < rep; j++ {
+ 			f.bits[i] = b;
+@@ -404,7 +396,7 @@ func (f *inflater) readHuffman() os.Error {
+ 	}
+ 
+ 	if !f.h1.init(f.bits[0:nlit]) || !f.h2.init(f.bits[nlit:nlit+ndist]) {
+-		return CorruptInputError(f.getRoffset());
++		return CorruptInputError(f.roffset);
+ 	}
+ 
+ 	return nil;
+@@ -488,7 +480,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
+ 		case dist < 4:
+ 			dist++;
+ 		case dist >= 30:
+-			return CorruptInputError(f.getRoffset());
++			return CorruptInputError(f.roffset);
+ 		default:
+ 			nb := uint(dist - 2) >> 1;
+ 			// have 1 bit in bottom of dist, need nb more.
+@@ -511,7 +503,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
+ 
+ 		// No check on length; encoding can be prescient.
+ 		if !f.hfull && dist > f.hp {
+-			return CorruptInputError(f.getRoffset());
++			return CorruptInputError(f.roffset);
+ 		}
+ 
+ 		p := f.hp - dist;
+@@ -551,7 +543,7 @@ func (f *inflater) dataBlock() os.Error {
+ 	n := int(f.buf[0]) | int(f.buf[1])<<8;
+ 	nn := int(f.buf[2]) | int(f.buf[3])<<8;
+ 	if nn != ^n {
+-		return CorruptInputError(f.getRoffset());
++		return CorruptInputError(f.roffset);
+ 	}
+ 
+ 	// Read len bytes into history,
+@@ -580,6 +572,9 @@ func (f *inflater) dataBlock() os.Error {
+ func (f *inflater) moreBits() os.Error {
+ 	c, err := f.r.ReadByte();
+ 	if err != nil {
++		if err == os.EOF {
++			err = io.ErrUnexpectedEOF;
++		}
+ 		return err;
+ 	}
+ 	f.roffset++;
+@@ -609,7 +604,7 @@ func (f *inflater) huffSym(h *huffmanDecoder) (int, os.Error) {
+ 			return h.codes[v - h.base[n]], nil;
+ 		}
+ 	}
+-	return 0, CorruptInputError(f.getRoffset());
++	return 0, CorruptInputError(f.roffset);
+ }
+ 
+ // Flush any buffered output to the underlying writer.
+diff --git a/src/pkg/crypto/aes/cipher.go b/src/pkg/crypto/aes/cipher.go
+index fd8e43e162..e430c9e14f 100644
+--- a/src/pkg/crypto/aes/cipher.go
++++ b/src/pkg/crypto/aes/cipher.go
+@@ -7,6 +7,7 @@ package aes
+ import (
+ 	"crypto/aes";
+ 	"os";
++	"strconv";
+ )
+ 
+ // The AES block size in bytes.
+@@ -18,19 +19,25 @@ type Cipher struct {
+ 	dec []uint32;
+ }
+ 
++type KeySizeError int
++func (k KeySizeError) String() string {
++	return "crypto/aes: invalid key size " + strconv.Itoa(int(k));
++}
++
+ // NewCipher creates and returns a new Cipher.
+ // The key argument should be the AES key,
+ // either 16, 24, or 32 bytes to select
+ // AES-128, AES-192, or AES-256.
+ func NewCipher(key []byte) (*Cipher, os.Error) {
+-	switch len(key) {
++	k := len(key);
++	switch k {
+ 	default:
+-		return nil, os.ErrorString("crypto/aes: invalid key size");
++		return nil, KeySizeError(k);
+ 	case 16, 24, 32:
+ 		break;
+ 	}
+ 
+-	n := len(key) + 28;
++	n := k + 28;
+ 	c := &Cipher{make([]uint32, n), make([]uint32, n)};
+ 	expandKey(key, c.enc, c.dec);
+ 	return c, nil;
+diff --git a/src/pkg/crypto/block/ecb.go b/src/pkg/crypto/block/ecb.go
+index d1f1dee0e0..134ac6da05 100644
+--- a/src/pkg/crypto/block/ecb.go
++++ b/src/pkg/crypto/block/ecb.go
+@@ -17,6 +17,7 @@ import (
+ 	"crypto/block";
+ 	"io";
+ 	"os";
++	"strconv";
+ )
+ 
+ type ecbDecrypter struct {
+@@ -73,6 +74,11 @@ func (x *ecbDecrypter) readPlain(p []byte) int {
+ 	return n;
+ }
+ 
++type ecbFragmentError int
++func (n ecbFragmentError) String() string {
++	return "crypto/block: " + strconv.Itoa(int(n)) + "-byte fragment at EOF";
++}
++
+ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
+ 	if len(p) == 0 {
+ 		return;
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index ebb40a2fe8..7ddb98b508 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -140,8 +140,8 @@ Error:
+ // other options cause Wait to return for other
+ // process events; see package os for details.
+ func (p *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
+-	if p.Pid < 0 {
+-		return nil, os.EINVAL;
++	if p.Pid <= 0 {
++		return nil, os.ErrorString("exec: invalid use of Cmd.Wait");
+ 	}
+ 	w, err := os.Wait(p.Pid, options);
+ 	if w != nil && (w.Exited() || w.Signaled()) {
+@@ -154,7 +154,7 @@ func (p *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
+ // if it hasn't already, and then closes the non-nil file descriptors
+ // p.Stdin, p.Stdout, and p.Stderr.
+ func (p *Cmd) Close() os.Error {
+-	if p.Pid >= 0 {
++	if p.Pid > 0 {
+ 		// Loop on interrupt, but
+ 		// ignore other errors -- maybe
+ 		// caller has already waited for pid.
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 8c17eb8e36..14131ec8ee 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -78,7 +78,7 @@ type readClose struct {
+ // connections, it may no longer make sense to have a method with this signature.
+ func send(req *Request) (resp *Response, err os.Error) {
+ 	if req.Url.Scheme != "http" {
+-		return nil, os.ErrorString("Unsupported protocol: " + req.Url.Scheme);
++		return nil, &badStringError{"unsupported protocol scheme", req.Url.Scheme};
+ 	}
+ 
+ 	addr := req.Url.Host;
+@@ -87,7 +87,7 @@ func send(req *Request) (resp *Response, err os.Error) {
+ 	}
+ 	conn, err := net.Dial("tcp", "", addr);
+ 	if err != nil {
+-		return nil, os.ErrorString("Error dialing " + addr + ": " + err.String());
++		return nil, err;
+ 	}
+ 
+ 	// Close the connection if we encounter an error during header parsing.  We'll
+@@ -110,12 +110,12 @@ func send(req *Request) (resp *Response, err os.Error) {
+ 	}
+ 	f := strings.Split(line, " ", 3);
+ 	if len(f) < 3 {
+-		return nil, os.ErrorString(fmt.Sprintf("Invalid first line in HTTP response: %q", line));
++		return nil, &badStringError{"malformed HTTP response", line};
+ 	}
+ 	resp.Status = f[1] + " " + f[2];
+ 	resp.StatusCode, err = strconv.Atoi(f[1]);
+ 	if err != nil {
+-		return nil, os.ErrorString(fmt.Sprintf("Invalid status code in HTTP response: %q", line));
++		return nil, &badStringError{"malformed HTTP status code", f[1]};
+ 	}
+ 
+ 	// Parse the response headers.
+@@ -165,34 +165,36 @@ func shouldRedirect(statusCode int) bool {
+ // URL unless redirects were followed.
+ //
+ // Caller should close r.Body when done reading it.
+-func Get(url string) (r *Response, finalUrl string, err os.Error) {
++func Get(url string) (r *Response, finalURL string, err os.Error) {
+ 	// TODO: if/when we add cookie support, the redirected request shouldn't
+ 	// necessarily supply the same cookies as the original.
+-	// TODO: adjust referrer header on redirects.
+-	for redirectCount := 0; redirectCount < 10; redirectCount++ {
+-		var req Request;
+-		req.Url, err = ParseURL(url);
+-		if err != nil {
+-			return nil, url, err;
++	// TODO: set referrer header on redirects.
++	for redirect := 0;; redirect++ {
++		if redirect >= 10 {
++			err = os.ErrorString("stopped after 10 redirects");
++			break;
+ 		}
+ 
+-		r, err := send(&req);
+-		if err != nil {
+-			return nil, url, err;
++		var req Request;
++		if req.Url, err = ParseURL(url); err != nil {
++			break;
+ 		}
+-
+-		if !shouldRedirect(r.StatusCode) {
+-			return r, url, nil;
++		if r, err = send(&req); err != nil {
++			break;
+ 		}
+-
+-		r.Body.Close();
+-		url := r.GetHeader("Location");
+-		if url == "" {
+-			return r, url, os.ErrorString("302 result with no Location header");
++		if shouldRedirect(r.StatusCode) {
++			r.Body.Close();
++			if url = r.GetHeader("Location"); url == "" {
++				err = os.ErrorString(fmt.Sprintf("%d response missing Location header", r.StatusCode));
++				break;
++			}
+ 		}
++		finalURL = url;
++		return;
+ 	}
+ 
+-	return nil, url, os.ErrorString("Too many redirects");
++	err = &URLError{"Get", url, err};
++	return;
+ }
+ 
+ 
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 919e556e4c..f697fb8567 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -24,9 +24,8 @@ func TestClient(t *testing.T) {
+ 		b, err = io.ReadAll(r.Body);
+ 		r.Body.Close();
+ 	}
+-
+ 	if err != nil {
+-		t.Errorf("Error fetching URL: %v", err);
++		t.Error(err);
+ 	} else if s := string(b); !strings.HasPrefix(s, "User-agent:") {
+ 		t.Errorf("Incorrect page body (did not begin with User-agent): %q", s);
+ 	}
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 9051d4c43d..86b37d4c87 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -11,6 +11,7 @@ package http
+ 
+ import (
+ 	"bufio";
++	"bytes";
+ 	"container/vector";
+ 	"fmt";
+ 	"http";
+@@ -32,19 +33,20 @@ type ProtocolError struct {
+ 	os.ErrorString
+ }
+ var (
+-	LineTooLong = &ProtocolError{"http header line too long"};
+-	ValueTooLong = &ProtocolError{"http header value too long"};
+-	HeaderTooLong = &ProtocolError{"http header too long"};
+-	BadContentLength = &ProtocolError{"invalid content length"};
+-	ShortEntityBody = &ProtocolError{"entity body too short"};
+-	NoEntityBody = &ProtocolError{"no entity body"};
+-	BadHeader = &ProtocolError{"malformed http header"};
+-	BadRequest = &ProtocolError{"invalid http request"};
+-	BadHTTPVersion = &ProtocolError{"unsupported http version"};
+-	UnknownContentType = &ProtocolError{"unknown content type"};
+-	BadChunkedEncoding = &ProtocolError{"bad chunked encoding"};
++	ErrLineTooLong = &ProtocolError{"header line too long"};
++	ErrHeaderTooLong = &ProtocolError{"header too long"};
++	ErrShortBody = &ProtocolError{"entity body too short"};
+ )
+ 
++type badStringError struct {
++	what string;
++	str string;
++}
++
++func (e *badStringError) String() string {
++	return fmt.Sprintf("%s %q", e.what, e.str);
++}
++
+ // A Request represents a parsed HTTP request header.
+ type Request struct {
+ 	Method string;		// GET, POST, PUT, etc.
+@@ -204,10 +206,15 @@ func (req *Request) write(w io.Writer) os.Error {
+ // the bufio, so they are only valid until the next bufio read.
+ func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
+ 	if p, err = b.ReadLineSlice('\n'); err != nil {
++		// We always know when EOF is coming.
++		// If the caller asked for a line, there should be a line.
++		if err == os.EOF {
++			err = io.ErrUnexpectedEOF;
++		}
+ 		return nil, err
+ 	}
+ 	if len(p) >= maxLineLength {
+-		return nil, LineTooLong
++		return nil, ErrLineTooLong
+ 	}
+ 
+ 	// Chop off trailing white space.
+@@ -229,6 +236,8 @@ func readLine(b *bufio.Reader) (s string, err os.Error) {
+ 	return string(p), nil
+ }
+ 
++var colon = []byte{':'}
++
+ // Read a key/value pair from b.
+ // A key/value has the form Key: Value\r\n
+ // and the Value can continue on multiple lines if each continuation line
+@@ -243,58 +252,60 @@ func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
+ 	}
+ 
+ 	// Scan first line for colon.
+-	for i := 0; i < len(line); i++ {
+-		switch line[i] {
+-		case ' ':
+-			// Key field has space - no good.
+-			return "", "", BadHeader;
+-		case ':':
+-			key = string(line[0:i]);
+-			// Skip initial space before value.
+-			for i++; i < len(line); i++ {
+-				if line[i] != ' ' {
+-					break
+-				}
+-			}
+-			value = string(line[i:len(line)]);
++	i := bytes.Index(line, colon);
++	if i < 0 {
++		goto Malformed;
++	}
+ 
+-			// Look for extension lines, which must begin with space.
+-			for {
+-				var c byte;
++	key = string(line[0:i]);
++	if strings.Index(key, " ") >= 0 {
++		// Key field has space - no good.
++		goto Malformed;
++	}
+ 
+-				if c, e = b.ReadByte(); e != nil {
+-					return "", "", e
+-				}
+-				if c != ' ' {
+-					// Not leading space; stop.
+-					b.UnreadByte();
+-					break
+-				}
++	// Skip initial space before value.
++	for i++; i < len(line); i++ {
++		if line[i] != ' ' {
++			break
++		}
++	}
++	value = string(line[i:len(line)]);
+ 
+-				// Eat leading space.
+-				for c == ' ' {
+-					if c, e = b.ReadByte(); e != nil {
+-						return "", "", e
+-					}
+-				}
++	// Look for extension lines, which must begin with space.
++	for {
++		c, e := b.ReadByte();
++		if c != ' ' {
++			if e != os.EOF {
+ 				b.UnreadByte();
++			}
++			break;
++		}
+ 
+-				// Read the rest of the line and add to value.
+-				if line, e = readLineBytes(b); e != nil {
+-					return "", "", e
+-				}
+-				value += " " + string(line);
+-
+-				if len(value) >= maxValueLength {
+-					return "", "", ValueTooLong
++		// Eat leading space.
++		for c == ' ' {
++			if c, e = b.ReadByte(); e != nil {
++				if e == os.EOF {
++					e = io.ErrUnexpectedEOF;
+ 				}
++				return "", "", e
+ 			}
+-			return key, value, nil
++		}
++		b.UnreadByte();
++
++		// Read the rest of the line and add to value.
++		if line, e = readLineBytes(b); e != nil {
++			return "", "", e
++		}
++		value += " " + string(line);
++
++		if len(value) >= maxValueLength {
++			return "", "", &badStringError{"value too long for key", key};
+ 		}
+ 	}
++	return key, value, nil;
+ 
+-	// Line ended before space or colon.
+-	return "", "", BadHeader;
++Malformed:
++	return "", "", &badStringError{"malformed header line", string(line)};
+ }
+ 
+ // Convert decimal at s[i:len(s)] to integer,
+@@ -424,7 +435,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
+ 		var nb int;
+ 		if nb, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
+ 			if b[0] != '\r' || b[1] != '\n' {
+-				cr.err = BadChunkedEncoding;
++				cr.err = os.NewError("malformed chunked encoding");
+ 			}
+ 		}
+ 	}
+@@ -443,12 +454,12 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 
+ 	var f []string;
+ 	if f = strings.Split(s, " ", 3); len(f) < 3 {
+-		return nil, BadRequest
++		return nil, &badStringError{"malformed HTTP request", s};
+ 	}
+ 	req.Method, req.RawUrl, req.Proto = f[0], f[1], f[2];
+ 	var ok bool;
+ 	if req.ProtoMajor, req.ProtoMinor, ok = parseHTTPVersion(req.Proto); !ok {
+-		return nil, BadHTTPVersion
++		return nil, &badStringError{"malformed HTTP version", req.Proto};
+ 	}
+ 
+ 	if req.Url, err = ParseURL(req.RawUrl); err != nil {
+@@ -467,7 +478,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 			break
+ 		}
+ 		if nheader++; nheader >= maxHeaderLines {
+-			return nil, HeaderTooLong
++			return nil, ErrHeaderTooLong
+ 		}
+ 
+ 		key = CanonicalHeaderKey(key);
+@@ -556,13 +567,13 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	} else if v, present := req.Header["Content-Length"]; present {
+ 		length, err := strconv.Btoui64(v, 10);
+ 		if err != nil {
+-			return nil, BadContentLength
++			return nil, &badStringError{"invalid Content-Length", v};
+ 		}
+ 		// TODO: limit the Content-Length. This is an easy DoS vector.
+ 		raw := make([]byte, length);
+ 		n, err := b.Read(raw);
+ 		if err != nil || uint64(n) < length {
+-			return nil, ShortEntityBody
++			return nil, ErrShortBody
+ 		}
+ 		req.Body = io.NewByteReader(raw);
+ 	}
+@@ -599,7 +610,7 @@ func parseForm(body string) (data map[string] *vector.StringVector, err os.Error
+ // TODO(dsymonds): Parse r.Url.RawQuery instead for GET requests.
+ func (r *Request) ParseForm() (err os.Error) {
+ 	if r.Body == nil {
+-		return NoEntityBody
++		return os.ErrorString("missing form body");
+ 	}
+ 	ct, ok := r.Header["Content-Type"];
+ 	if !ok {
+@@ -613,5 +624,5 @@ func (r *Request) ParseForm() (err os.Error) {
+ 		return err
+ 	// TODO(dsymonds): Handle multipart/form-data
+ 	}
+-	return UnknownContentType
++	return &badStringError{"unknown Content-Type", ct};
+ }
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 156f3ad016..87612a96af 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -9,12 +9,19 @@ package http
+ 
+ import (
+ 	"os";
+-	"strings"
++	"strconv";
++	"strings";
+ )
+ 
+-// Errors introduced by ParseURL.
+-type BadURL struct {
+-	os.ErrorString
++// URLError reports an error and the operation and URL that caused it.
++type URLError struct {
++	Op string;
++	URL string;
++	Error os.Error;
++}
++
++func (e *URLError) String() string {
++	return e.Op + " " + e.URL + ": " + e.Error.String();
+ }
+ 
+ func ishex(c byte) bool {
+@@ -41,6 +48,11 @@ func unhex(c byte) byte {
+ 	return 0
+ }
+ 
++type URLEscapeError string
++func (e URLEscapeError) String() string {
++	return "invalid URL escape " + strconv.Quote(string(e));
++}
++
+ // Return true if the specified character should be escaped when appearing in a
+ // URL string.
+ //
+@@ -56,7 +68,7 @@ func shouldEscape(c byte) bool {
+ 
+ // URLUnescape unescapes a URL-encoded string,
+ // converting %AB into the byte 0xAB and '+' into ' ' (space).
+-// It returns a BadURL error if any % is not followed
++// It returns an error if any % is not followed
+ // by two hexadecimal digits.
+ func URLUnescape(s string) (string, os.Error) {
+ 	// Count %, check that they're well-formed.
+@@ -67,7 +79,11 @@ func URLUnescape(s string) (string, os.Error) {
+ 		case '%':
+ 			n++;
+ 			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
+-				return "", BadURL{"invalid hexadecimal escape"}
++				s = s[i:len(s)];
++				if len(s) > 3 {
++					s = s[0:3];
++				}
++				return "", URLEscapeError(s);
+ 			}
+ 			i += 3;
+ 		case '+':
+@@ -124,18 +140,18 @@ func URLEscape(s string) string {
+ 	t := make([]byte, len(s)+2*hexCount);
+ 	j := 0;
+ 	for i := 0; i < len(s); i++ {
+-		c := s[i];
+-		if !shouldEscape(c) {
+-			t[j] = s[i];
+-			j++;
+-		} else if c == ' ' {
++		switch c := s[i]; {
++		case c == ' ':
+ 			t[j] = '+';
+ 			j++;
+-		} else {
++		case shouldEscape(c):
+ 			t[j] = '%';
+ 			t[j+1] = "0123456789abcdef"[c>>4];
+ 			t[j+2] = "0123456789abcdef"[c&15];
+ 			j += 3;
++		default:
++			t[j] = s[i];
++			j++;
+ 		}
+ 	}
+ 	return string(t);
+@@ -177,7 +193,7 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
+ 			}
+ 		case c == ':':
+ 			if i == 0 {
+-				return "", "", BadURL{"missing protocol scheme"}
++				return "", "", os.ErrorString("missing protocol scheme")
+ 			}
+ 			return rawurl[0:i], rawurl[i+1:len(rawurl)], nil
+ 		default:
+@@ -204,15 +220,21 @@ func split(s string, c byte, cutc bool) (string, string) {
+ 	return s, ""
+ }
+ 
++// TODO(rsc): The BUG comment is supposed to appear in the godoc output
++// in a BUGS section, but that got lost in the transition to godoc.
++
+ // BUG(rsc): ParseURL should canonicalize the path,
+ // removing unnecessary . and .. elements.
+ 
++
++
+ // ParseURL parses rawurl into a URL structure.
+ // The string rawurl is assumed not to have a #fragment suffix.
+ // (Web browsers strip #fragment before sending the URL to a web server.)
+ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 	if rawurl == "" {
+-		return nil, BadURL{"empty url"}
++		err = os.ErrorString("empty url");
++		goto Error;
+ 	}
+ 	url = new(URL);
+ 	url.Raw = rawurl;
+@@ -220,7 +242,7 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 	// split off possible leading "http:", "mailto:", etc.
+ 	var path string;
+ 	if url.Scheme, path, err = getscheme(rawurl); err != nil {
+-		return nil, err
++		goto Error;
+ 	}
+ 	url.RawPath = path;
+ 
+@@ -245,25 +267,31 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 	// What's left is the path.
+ 	// TODO: Canonicalize (remove . and ..)?
+ 	if url.Path, err = URLUnescape(path); err != nil {
+-		return nil, err
++		goto Error;
+ 	}
+ 
+ 	// Remove escapes from the Authority and Userinfo fields, and verify
+ 	// that Scheme and Host contain no escapes (that would be illegal).
+ 	if url.Authority, err = URLUnescape(url.Authority); err != nil {
+-		return nil, err
++		goto Error;
+ 	}
+ 	if url.Userinfo, err = URLUnescape(url.Userinfo); err != nil {
+-		return nil, err
++		goto Error;
+ 	}
+ 	if strings.Index(url.Scheme, "%") >= 0 {
+-		return nil, BadURL{"hexadecimal escape in scheme"}
++		err = os.ErrorString("hexadecimal escape in scheme");
++		goto Error;
+ 	}
+ 	if strings.Index(url.Host, "%") >= 0 {
+-		return nil, BadURL{"hexadecimal escape in host"}
++		err = os.ErrorString("hexadecimal escape in host");
++		goto Error;
+ 	}
+ 
+-	return url, nil
++	return url, nil;
++
++Error:
++	return nil, &URLError{"parse", rawurl, err}
++
+ }
+ 
+ // ParseURLReference is like ParseURL but allows a trailing #fragment.
+@@ -274,7 +302,7 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
+ 		return nil, err
+ 	}
+ 	if url.Fragment, err = URLUnescape(frag); err != nil {
+-		return nil, err
++		return nil, &URLError{"parse", rawurl, err}
+ 	}
+ 	return url, nil
+ }
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index ea05ed3e83..51d0283fee 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -281,27 +281,27 @@ var unescapeTests = []URLEscapeTest {
+ 	URLEscapeTest{
+ 		"%", // not enough characters after %
+ 		"",
+-		BadURL{"invalid hexadecimal escape"}
++		URLEscapeError("%"),
+ 	},
+ 	URLEscapeTest{
+ 		"%a", // not enough characters after %
+ 		"",
+-		BadURL{"invalid hexadecimal escape"}
++		URLEscapeError("%a"),
+ 	},
+ 	URLEscapeTest{
+ 		"%1", // not enough characters after %
+ 		"",
+-		BadURL{"invalid hexadecimal escape"}
++		URLEscapeError("%1"),
+ 	},
+ 	URLEscapeTest{
+ 		"123%45%6", // not enough characters after %
+ 		"",
+-		BadURL{"invalid hexadecimal escape"}
++		URLEscapeError("%6"),
+ 	},
+ 	URLEscapeTest{
+-		"%zz", // invalid hex digits
++		"%zzzzz", // invalid hex digits
+ 		"",
+-		BadURL{"invalid hexadecimal escape"}
++		URLEscapeError("%zz"),
+ 	},
+ }
+ 
+diff --git a/src/pkg/io/bytebuffer.go b/src/pkg/io/bytebuffer.go
+index 2c356192e1..6971c0e031 100644
+--- a/src/pkg/io/bytebuffer.go
++++ b/src/pkg/io/bytebuffer.go
+@@ -113,7 +113,7 @@ func (b *ByteBuffer) ReadByte() (c byte, err os.Error) {
+ 	if b.off >= len(b.buf) {
+ 		return 0, os.EOF;
+ 	}
+-        c = b.buf[b.off];
++	c = b.buf[b.off];
+ 	b.off++;
+ 	return c, nil;
+ }
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 61c8720892..77056198ac 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++
+ # DO NOT EDIT.  Automatically generated by gobuild.
+ # gobuild -m dnsclient.go dnsconfig.go dnsmsg.go fd.go fd_${GOOS}.go ip.go net.go parse.go port.go >Makefile
+ 
+@@ -20,7 +21,7 @@ test: packages
+ 
+ coverage: packages
+ 	gotest
+-	6cov -g `pwd` | grep -v '_test\.go:'
++	6cov -g $$(pwd) | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+ 	$(GC) -I_obj $*.go
+@@ -32,48 +33,42 @@ coverage: packages
+ 	$(AS) $*.s
+ 
+ O1=\
+-	dnsmsg.$O\
++	fd_$(GOOS).$O\
+ 	parse.$O\
+ 
+ O2=\
+-	fd_$(GOOS).$O\
++	fd.$O\
+ 	ip.$O\
+-	port.$O\
+ 
+ O3=\
+ 	dnsconfig.$O\
+-	fd.$O\
+-
+-O4=\
++	dnsmsg.$O\
+ 	net.$O\
+ 
+-O5=\
++O4=\
+ 	dnsclient.$O\
++	port.$O\
+ 
+ 
+-phases: a1 a2 a3 a4 a5
++phases: a1 a2 a3 a4
+ _obj$D/net.a: phases
+ 
+ a1: $(O1)
+-	$(AR) grc _obj$D/net.a dnsmsg.$O parse.$O
++	$(AR) grc _obj$D/net.a fd_$(GOOS).$O parse.$O
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/net.a fd_$(GOOS).$O ip.$O port.$O
++	$(AR) grc _obj$D/net.a fd.$O ip.$O
+ 	rm -f $(O2)
+ 
+ a3: $(O3)
+-	$(AR) grc _obj$D/net.a dnsconfig.$O fd.$O
++	$(AR) grc _obj$D/net.a dnsconfig.$O dnsmsg.$O net.$O
+ 	rm -f $(O3)
+ 
+ a4: $(O4)
+-	$(AR) grc _obj$D/net.a net.$O
++	$(AR) grc _obj$D/net.a dnsclient.$O port.$O
+ 	rm -f $(O4)
+ 
+-a5: $(O5)
+-	$(AR) grc _obj$D/net.a dnsclient.$O
+-	rm -f $(O5)
+-
+ 
+ newpkg: clean
+ 	mkdir -p _obj$D
+@@ -84,7 +79,6 @@ $(O2): a1
+ $(O3): a2
+ $(O4): a3
+ $(O5): a4
+-$(O6): a5
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/net.a
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 3792195ce7..f259cba017 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -6,7 +6,6 @@ package net
+ 
+ import (
+ 	"flag";
+-	"fmt";
+ 	"io";
+ 	"net";
+ 	"os";
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index cfd67eabee..72af10f543 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// DNS client.
++// DNS client: see RFC 1035.
+ // Has to be linked into package net for Dial.
+ 
+ // TODO(rsc):
+@@ -12,12 +12,10 @@
+ //	Random UDP source port (net.Dial should do that for us).
+ //	Random request IDs.
+ //	More substantial error reporting.
+-//	Remove use of fmt?
+ 
+ package net
+ 
+ import (
+-	"fmt";
+ 	"io";
+ 	"net";
+ 	"once";
+@@ -25,28 +23,29 @@ import (
+ 	"strings";
+ )
+ 
+-// DNS errors returned by LookupHost.
++// DNSError represents a DNS lookup error.
+ type DNSError struct {
+-	os.ErrorString
++	Error string;	// description of the error
++	Name string;	// name looked for
++	Server string;	// server used
+ }
+-var (
+-	DNS_InternalError os.Error = &DNSError{"internal dns error"};
+-	DNS_MissingConfig os.Error = &DNSError{"no dns configuration"};
+-	DNS_No_Answer os.Error = &DNSError{"dns got no answer"};
+-	DNS_BadRequest os.Error = &DNSError{"malformed dns request"};
+-	DNS_BadReply os.Error = &DNSError{"malformed dns reply"};
+-	DNS_ServerFailure os.Error = &DNSError{"dns server failure"};
+-	DNS_NoServers os.Error = &DNSError{"no dns servers"};
+-	DNS_NameTooLong os.Error = &DNSError{"dns name too long"};
+-	DNS_RedirectLoop os.Error = &DNSError{"dns redirect loop"};
+-	DNS_NameNotFound os.Error = &DNSError{"dns name not found"};
+-)
++
++func (e *DNSError) String() string {
++	s := "lookup " + e.Name;
++	if e.Server != "" {
++		s += " on " + e.Server;
++	}
++	s += ": " + e.Error;
++	return s;
++}
++
++const noSuchHost = "no such host"
+ 
+ // Send a request on the connection and hope for a reply.
+ // Up to cfg.attempts attempts.
+ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error) {
+ 	if len(name) >= 256 {
+-		return nil, DNS_NameTooLong
++		return nil, &DNSError{"name too long", name, ""}
+ 	}
+ 	out := new(_DNS_Msg);
+ 	out.id = 0x1234;
+@@ -56,7 +55,7 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
+ 	out.recursion_desired = true;
+ 	msg, ok := out.Pack();
+ 	if !ok {
+-		return nil, DNS_InternalError
++		return nil, &DNSError{"internal error - cannot pack message", name, ""}
+ 	}
+ 
+ 	for attempt := 0; attempt < cfg.attempts; attempt++ {
+@@ -69,7 +68,8 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
+ 
+ 		buf := make([]byte, 2000);	// More than enough.
+ 		n, err = c.Read(buf);
+-		if err == os.EAGAIN {
++		if isEAGAIN(err)  {
++			err = nil;
+ 			continue;
+ 		}
+ 		if err != nil {
+@@ -82,25 +82,25 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
+ 		}
+ 		return in, nil
+ 	}
+-	return nil, DNS_No_Answer
++	return nil, &DNSError{"no answer from server", name, c.RemoteAddr()}
+ }
+ 
+ 
+ // Find answer for name in dns message.
+ // On return, if err == nil, addrs != nil.
+ // TODO(rsc): Maybe return []IP instead?
+-func answer(name string, dns *_DNS_Msg) (addrs []string, err os.Error) {
++func answer(name, server string, dns *_DNS_Msg) (addrs []string, err *DNSError) {
+ 	addrs = make([]string, 0, len(dns.answer));
+ 
+-	if dns.rcode == _DNS_RcodeNameError && dns.authoritative {
+-		return nil, DNS_NameNotFound	// authoritative "no such host"
++	if dns.rcode == _DNS_RcodeNameError && dns.recursion_available {
++		return nil, &DNSError{noSuchHost, name, ""}
+ 	}
+ 	if dns.rcode != _DNS_RcodeSuccess {
+ 		// None of the error codes make sense
+ 		// for the query we sent.  If we didn't get
+ 		// a name error and we didn't get success,
+ 		// the server is behaving incorrectly.
+-		return nil, DNS_ServerFailure
++		return nil, &DNSError{"server misbehaving", name, server}
+ 	}
+ 
+ 	// Look for the name.
+@@ -120,7 +120,7 @@ Cname:
+ 					n := len(addrs);
+ 					a := rr.(*_DNS_RR_A).a;
+ 					addrs = addrs[0:n+1];
+-					addrs[n] = fmt.Sprintf("%d.%d.%d.%d", (a>>24), (a>>16)&0xFF, (a>>8)&0xFF, a&0xFF);
++					addrs[n] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String();
+ 				case _DNS_TypeCNAME:
+ 					// redirect to cname
+ 					name = rr.(*_DNS_RR_CNAME).cname;
+@@ -129,19 +129,20 @@ Cname:
+ 			}
+ 		}
+ 		if len(addrs) == 0 {
+-			return nil, DNS_NameNotFound
++			return nil, &DNSError{noSuchHost, name, server}
+ 		}
+ 		return addrs, nil
+ 	}
+ 
+-	// Too many redirects
+-	return nil, DNS_RedirectLoop
++	return nil, &DNSError{"too many redirects", name, server}
+ }
+ 
+ // Do a lookup for a single name, which must be rooted
+ // (otherwise answer will not find the answers).
+ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
+-	err = DNS_NoServers;
++	if len(cfg.servers) == 0 {
++		return nil, &DNSError{"no DNS servers", name, ""}
++	}
+ 	for i := 0; i < len(cfg.servers); i++ {
+ 		// Calling Dial here is scary -- we have to be sure
+ 		// not to dial a name that will require a DNS lookup,
+@@ -149,7 +150,8 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
+ 		// The DNS config parser has already checked that
+ 		// all the cfg.servers[i] are IP addresses, which
+ 		// Dial will use without a DNS lookup.
+-		c, cerr := Dial("udp", "", cfg.servers[i] + ":53");
++		server := cfg.servers[i] + ":53";
++		c, cerr := Dial("udp", "", server);
+ 		if cerr != nil {
+ 			err = cerr;
+ 			continue;
+@@ -160,12 +162,16 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
+ 			err = merr;
+ 			continue;
+ 		}
+-		addrs, aerr := answer(name, msg);
+-		if aerr != nil && aerr != DNS_NameNotFound {
+-			err = aerr;
+-			continue;
++		var dnserr *DNSError;
++		addrs, dnserr = answer(name, server, msg);
++		if dnserr != nil {
++			err = dnserr;
++		} else {
++			err = nil;	// nil os.Error, not nil *DNSError
++		}
++		if dnserr == nil || dnserr.Error == noSuchHost {
++			break;
+ 		}
+-		return addrs, aerr;
+ 	}
+ 	return;
+ }
+@@ -177,18 +183,60 @@ func loadConfig() {
+ 	cfg, dnserr = _DNS_ReadConfig();
+ }
+ 
++func isDomainName(s string) bool {
++	// Requirements on DNS name:
++	//	* must not be empty.
++	//	* must be alphanumeric plus - and .
++	//	* each of the dot-separated elements must begin
++	//	  and end with a letter or digit.
++	//	  RFC 1035 required the element to begin with a letter,
++	//	  but RFC 3696 says this has been relaxed to allow digits too.
++	//	  still, there must be a letter somewhere in the entire name.
++	if len(s) == 0 {
++		return false;
++	}
++	if s[len(s)-1] != '.' {	// simplify checking loop: make name end in dot
++		s += ".";
++	}
++
++	last := byte('.');
++	ok := false;	// ok once we've seen a letter
++	for i := 0; i < len(s); i++ {
++		c := s[i];
++		switch {
++		default:
++			return false;
++		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
++			ok = true;
++		case '0' <= c && c <= '9':
++			// fine
++		case c == '-':
++			// byte before dash cannot be dot
++			if last == '.' {
++				return false;
++			}
++		case c == '.':
++			// byte before dot cannot be dot, dash
++			if last == '.' || last == '-' {
++				return false;
++			}
++		}
++		last = c;
++	}
++
++	return ok;
++}
++
+ // LookupHost looks up the host name using the local DNS resolver.
+ // It returns the canonical name for the host and an array of that
+ // host's addresses.
+-func LookupHost(name string) (cname string, addrs []string, err os.Error)
+-{
+-	// TODO(rsc): Pick out obvious non-DNS names to avoid
+-	// sending stupid requests to the server?
+-
++func LookupHost(name string) (cname string, addrs []string, err os.Error) {
++	if !isDomainName(name) {
++		return name, nil, &DNSError{"invalid domain name", name, ""};
++	}
+ 	once.Do(loadConfig);
+ 	if dnserr != nil || cfg == nil {
+-		// better error than file not found.
+-		err = DNS_MissingConfig;
++		err = dnserr;
+ 		return;
+ 	}
+ 
+@@ -201,11 +249,12 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error)
+ 			rname += ".";
+ 		}
+ 		// Can try as ordinary name.
+-		addrs, aerr := tryOneName(cfg, rname);
+-		if aerr == nil {
+-			return rname, addrs, nil;
++		var dnserr *DNSError;
++		addrs, err = tryOneName(cfg, rname);
++		if err == nil {
++			cname = rname;
++			return;
+ 		}
+-		err = aerr;
+ 	}
+ 	if rooted {
+ 		return
+@@ -213,15 +262,16 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error)
+ 
+ 	// Otherwise, try suffixes.
+ 	for i := 0; i < len(cfg.search); i++ {
+-		newname := name+"."+cfg.search[i];
+-		if newname[len(newname)-1] != '.' {
+-			newname += "."
++		rname := name+"."+cfg.search[i];
++		if rname[len(rname)-1] != '.' {
++			rname += "."
+ 		}
+-		addrs, aerr := tryOneName(cfg, newname);
+-		if aerr == nil {
+-			return newname, addrs, nil;
++		var dnserr *DNSError;
++		addrs, err = tryOneName(cfg, rname);
++		if err == nil {
++			cname = rname;
++			return;
+ 		}
+-		err = aerr;
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index d7a467fc6d..728e89821d 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// DNS packet assembly.
++// DNS packet assembly.  See RFC 1035.
+ //
+ // This is intended to support name resolution during net.Dial.
+ // It doesn't have to be blazing fast.
+@@ -25,6 +25,7 @@ package net
+ 
+ import (
+ 	"fmt";
++	"net";
+ 	"os";
+ 	"reflect";
+ )
+@@ -464,7 +465,7 @@ func printStructValue(val reflect.StructValue) string {
+ 			s += printStructValue(fld.(reflect.StructValue));
+ 		case kind == reflect.Uint32Kind && tag == "ipv4":
+ 			i := fld.(reflect.Uint32Value).Get();
+-			s += fmt.Sprintf("%d.%d.%d.%d", (i>>24)&0xFF, (i>>16)&0xFF, (i>>8)&0xFF, i&0xFF);
++			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String();
+ 		default:
+ 			s += fmt.Sprint(fld.Interface())
+ 		}
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 17598af466..0917c50fcf 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -85,7 +85,7 @@ func newPollServer() (s *pollServer, err os.Error) {
+ 	var e int;
+ 	if e = syscall.SetNonblock(s.pr.Fd(), true); e != 0 {
+ 	Errno:
+-		err = os.ErrnoToError(e);
++		err = &os.PathError{"setnonblock", s.pr.Name(), os.Errno(e)};
+ 	Error:
+ 		s.pr.Close();
+ 		s.pw.Close();
+@@ -304,19 +304,46 @@ func newFD(fd int, net, laddr, raddr string) (f *netFD, err os.Error) {
+ 		once.Do(_StartServer);
+ 	}
+ 	if e := syscall.SetNonblock(fd, true); e != 0 {
+-		return nil, os.ErrnoToError(e);
++		return nil, &os.PathError{"setnonblock", laddr, os.Errno(e)};
+ 	}
+ 	f = new(netFD);
+ 	f.fd = fd;
+ 	f.net = net;
+ 	f.laddr = laddr;
+ 	f.raddr = raddr;
+-	f.file = os.NewFile(fd, "net: " + net + " " + laddr + " " + raddr);
++	f.file = os.NewFile(fd, net + "!" + laddr + "->" + raddr);
+ 	f.cr = make(chan *netFD, 1);
+ 	f.cw = make(chan *netFD, 1);
+ 	return f, nil
+ }
+ 
++func isEAGAIN(e os.Error) bool {
++	if e1, ok := e.(*os.PathError); ok {
++		return e1.Error == os.EAGAIN;
++	}
++	return e == os.EAGAIN;
++}
++
++func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error)
++
++func (fd *netFD) addr() string {
++	sa, e := syscall.Getsockname(fd.fd);
++	if e != 0 {
++		return "";
++	}
++	addr, err := sockaddrToString(sa);
++	return addr;
++}
++
++func (fd *netFD) remoteAddr() string {
++	sa, e := syscall.Getpeername(fd.fd);
++	if e != 0 {
++		return "";
++	}
++	addr, err := sockaddrToString(sa);
++	return addr;
++}
++
+ func (fd *netFD) Close() os.Error {
+ 	if fd == nil || fd.file == nil {
+ 		return os.EINVAL
+@@ -338,7 +365,7 @@ func (fd *netFD) Close() os.Error {
+ 
+ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+-		return -1, os.EINVAL
++		return 0, os.EINVAL
+ 	}
+ 	fd.rio.Lock();
+ 	defer fd.rio.Unlock();
+@@ -347,17 +374,20 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+ 	} else {
+ 		fd.rdeadline = 0;
+ 	}
+-	n, err = fd.file.Read(p);
+-	for err == os.EAGAIN && fd.rdeadline >= 0 {
+-		pollserver.WaitRead(fd);
+-		n, err = fd.file.Read(p)
++	for {
++		n, err = fd.file.Read(p);
++		if isEAGAIN(err) && fd.rdeadline >= 0 {
++			pollserver.WaitRead(fd);
++			continue;
++		}
++		break;
+ 	}
+-	return n, err
++	return;
+ }
+ 
+ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+-		return -1, os.EINVAL
++		return 0, os.EINVAL
+ 	}
+ 	fd.wio.Lock();
+ 	defer fd.wio.Unlock();
+@@ -376,7 +406,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 		if nn == len(p) {
+ 			break;
+ 		}
+-		if err == os.EAGAIN && fd.wdeadline >= 0 {
++		if isEAGAIN(err) && fd.wdeadline >= 0 {
+ 			pollserver.WaitWrite(fd);
+ 			continue;
+ 		}
+@@ -387,8 +417,6 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	return nn, err
+ }
+ 
+-func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error)
+-
+ func (fd *netFD) accept() (nfd *netFD, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+ 		return nil, os.EINVAL
+@@ -411,7 +439,7 @@ func (fd *netFD) accept() (nfd *netFD, err os.Error) {
+ 	}
+ 	if e != 0 {
+ 		syscall.ForkLock.RUnlock();
+-		return nil, os.ErrnoToError(e)
++		return nil, &os.PathError{"accept", fd.addr(), os.Errno(e)}
+ 	}
+ 	syscall.CloseOnExec(s);
+ 	syscall.ForkLock.RUnlock();
+@@ -426,23 +454,3 @@ func (fd *netFD) accept() (nfd *netFD, err os.Error) {
+ 	}
+ 	return nfd, nil
+ }
+-
+-func (fd *netFD) addr() string {
+-	sa, err := syscall.Getsockname(fd.fd);
+-	if err != 0 {
+-		return "";
+-	}
+-	// TODO(rsc): woud like to say err not err1 but 6g complains
+-	addr, err1 := sockaddrToString(sa);
+-	return addr;
+-}
+-
+-func (fd *netFD) remoteAddr() string {
+-	sa, err := syscall.Getpeername(fd.fd);
+-	if err != 0 {
+-		return "";
+-	}
+-	// TODO(rsc): woud like to say err not err1 but 6g complains
+-	addr, err1 := sockaddrToString(sa);
+-	return addr;
+-}
+diff --git a/src/pkg/net/fd_darwin.go b/src/pkg/net/fd_darwin.go
+index 42bf512210..c5b38eb3b8 100644
+--- a/src/pkg/net/fd_darwin.go
++++ b/src/pkg/net/fd_darwin.go
+@@ -12,8 +12,6 @@ import (
+ 	"syscall";
+ )
+ 
+-var kqueuePhaseError = &Error{"kqueue phase error"}
+-
+ type pollster struct {
+ 	kq int;
+ 	eventbuf [10]syscall.Kevent_t;
+@@ -24,7 +22,7 @@ func newpollster() (p *pollster, err os.Error) {
+ 	p = new(pollster);
+ 	var e int;
+ 	if p.kq, e = syscall.Kqueue(); e != 0 {
+-		return nil, os.ErrnoToError(e)
++		return nil, os.NewSyscallError("kqueue", e)
+ 	}
+ 	p.events = p.eventbuf[0:0];
+ 	return p, nil
+@@ -51,13 +49,13 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 
+ 	n, e := syscall.Kevent(p.kq, &events, &events, nil);
+ 	if e != 0 {
+-		return os.ErrnoToError(e)
++		return os.NewSyscallError("kevent", e);
+ 	}
+ 	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+-		return kqueuePhaseError
++		return os.ErrorString("kqueue phase error");
+ 	}
+ 	if ev.Data != 0 {
+-		return os.ErrnoToError(int(ev.Data))
++		return os.Errno(int(ev.Data))
+ 	}
+ 	return nil
+ }
+@@ -92,7 +90,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ 			if e == syscall.EINTR {
+ 				continue
+ 			}
+-			return -1, 0, os.ErrnoToError(e)
++			return -1, 0, os.NewSyscallError("kevent", e)
+ 		}
+ 		if nn == 0 {
+ 			return -1, 0, nil;
+@@ -111,5 +109,5 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ }
+ 
+ func (p *pollster) Close() os.Error {
+-	return os.ErrnoToError(syscall.Close(p.kq))
++	return os.NewSyscallError("close", syscall.Close(p.kq))
+ }
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index bd822589ee..04cf8eac46 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -32,7 +32,7 @@ func newpollster() (p *pollster, err os.Error) {
+ 	// about the number of FDs we will care about.
+ 	// We don't know.
+ 	if p.epfd, e = syscall.EpollCreate(16); e != 0 {
+-		return nil, os.ErrnoToError(e)
++		return nil, os.NewSyscallError("epoll_create", e)
+ 	}
+ 	p.events = make(map[int] uint32);
+ 	return p, nil
+@@ -59,7 +59,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 		op = syscall.EPOLL_CTL_ADD;
+ 	}
+ 	if e := syscall.EpollCtl(p.epfd, op, fd, &ev); e != 0 {
+-		return os.ErrnoToError(e)
++		return os.NewSyscallError("epoll_ctl", e)
+ 	}
+ 	p.events[fd] = ev.Events;
+ 	return nil
+@@ -87,12 +87,12 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
+ 		ev.Fd = int32(fd);
+ 		ev.Events = events;
+ 		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &ev); e != 0 {
+-			print("Epoll modify fd=", fd, ": ", os.ErrnoToError(e).String(), "\n");
++			print("Epoll modify fd=", fd, ": ", os.Errno(e).String(), "\n");
+ 		}
+ 		p.events[fd] = events;
+ 	} else {
+ 		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
+-			print("Epoll delete fd=", fd, ": ", os.ErrnoToError(e).String(), "\n");
++			print("Epoll delete fd=", fd, ": ", os.Errno(e).String(), "\n");
+ 		}
+ 		p.events[fd] = 0, false;
+ 	}
+@@ -119,7 +119,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ 		n, e = syscall.EpollWait(p.epfd, &evarray, msec);
+ 	}
+ 	if e != 0 {
+-		return -1, 0, os.ErrnoToError(e);
++		return -1, 0, os.NewSyscallError("epoll_wait", e);
+ 	}
+ 	if n == 0 {
+ 		return -1, 0, nil;
+@@ -146,5 +146,5 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ }
+ 
+ func (p *pollster) Close() os.Error {
+-	return os.ErrnoToError(syscall.Close(p.epfd));
++	return os.NewSyscallError("close", syscall.Close(p.epfd));
+ }
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 91d498a3da..bbd89ca845 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -7,18 +7,50 @@ package net
+ import (
+ 	"net";
+ 	"os";
++	"reflect";
+ 	"strconv";
++	"strings";
+ 	"syscall";
+ )
+ 
+-var (
+-	BadAddress os.Error = &Error{"malformed address"};
+-	MissingAddress os.Error = &Error{"missing address"};
+-	UnknownNetwork os.Error = &Error{"unknown network"};
+-	UnknownHost os.Error = &Error{"unknown host"};
+-	UnknownSocketFamily os.Error = &Error{"unknown socket family"};
+-)
++var errMissingAddress = os.ErrorString("missing address")
++
++type OpError struct {
++	Op string;
++	Net string;
++	Addr string;
++	Error os.Error;
++}
++
++func (e *OpError) String() string {
++	s := e.Op;
++	if e.Net != "" {
++		s += " " + e.Net;
++	}
++	if e.Addr != "" {
++		s += " " + e.Addr;
++	}
++	s += ": " + e.Error.String();
++	return s;
++}
++
++type AddrError struct {
++	Error string;
++	Addr string;
++}
+ 
++func (e *AddrError) String() string {
++	s := e.Error;
++	if e.Addr != "" {
++		s += " " + e.Addr;
++	}
++	return s;
++}
++
++type UnknownNetworkError string
++func (e UnknownNetworkError) String() string {
++	return "unknown network " + string(e);
++}
+ 
+ // Conn is a generic network connection.
+ type Conn interface {
+@@ -127,23 +159,19 @@ func listenBacklog() int {
+ }
+ 
+ func LookupHost(name string) (cname string, addrs []string, err os.Error)
++func LookupPort(network, service string) (port int, err os.Error)
+ 
+ // Split "host:port" into "host" and "port".
+ // Host cannot contain colons unless it is bracketed.
+ func splitHostPort(hostport string) (host, port string, err os.Error) {
+ 	// The port starts after the last colon.
+-	var i int;
+-	for i = len(hostport)-1; i >= 0; i-- {
+-		if hostport[i] == ':' {
+-			break
+-		}
+-	}
++	i := strings.LastIndex(hostport, ":");
+ 	if i < 0 {
+-		return "", "", BadAddress
++		err = &AddrError{"missing port in address", hostport};
++		return;
+ 	}
+ 
+-	host = hostport[0:i];
+-	port = hostport[i+1:len(hostport)];
++	host, port = hostport[0:i], hostport[i+1:len(hostport)];
+ 
+ 	// Can put brackets around host ...
+ 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
+@@ -151,10 +179,11 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
+ 	} else {
+ 		// ... but if there are no brackets, no colons.
+ 		if byteIndex(host, ':') >= 0 {
+-			return "", "", BadAddress
++			err = &AddrError{"too many colons in address", hostport};
++			return;
+ 		}
+ 	}
+-	return host, port, nil
++	return;
+ }
+ 
+ // Join "host" and "port" into "host:port".
+@@ -171,22 +200,21 @@ func joinHostPort(host, port string) string {
+ // For now, host and port must be numeric literals.
+ // Eventually, we'll have name resolution.
+ func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
+-	var host, port string;
+-	host, port, err = splitHostPort(hostport);
++	host, port, err := splitHostPort(hostport);
+ 	if err != nil {
+-		return nil, 0, err
++		goto Error;
+ 	}
+ 
+ 	var addr IP;
+ 	if host == "" {
+-		if mode == "listen" {
+-			if preferIPv4 {
+-				addr = IPv4zero;
+-			} else {
+-				addr = IPzero;	// wildcard - listen to all
+-			}
++		if mode != "listen" {
++			err = &AddrError{"no host in address", hostport};
++			goto Error;
++		}
++		if preferIPv4 {
++			addr = IPv4zero;
+ 		} else {
+-			return nil, 0, MissingAddress;
++			addr = IPzero;	// wildcard - listen to all
+ 		}
+ 	}
+ 
+@@ -196,17 +224,16 @@ func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
+ 	}
+ 	if addr == nil {
+ 		// Not an IP address.  Try as a DNS name.
+-		hostname, addrs, err := LookupHost(host);
+-		if err != nil {
+-			return nil, 0, err
+-		}
+-		if len(addrs) == 0 {
+-			return nil, 0, UnknownHost
++		hostname, addrs, err1 := LookupHost(host);
++		if err1 != nil {
++			err = err1;
++			goto Error;
+ 		}
+ 		addr = ParseIP(addrs[0]);
+ 		if addr == nil {
+ 			// should not happen
+-			return nil, 0, BadAddress
++			err = &AddrError{"LookupHost returned invalid address", addrs[0]};
++			goto Error;
+ 		}
+ 	}
+ 
+@@ -214,14 +241,25 @@ func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
+ 	if !ok || i != len(port) {
+ 		p, err = LookupPort(net, port);
+ 		if err != nil {
+-			return nil, 0, err
++			goto Error;
+ 		}
+ 	}
+ 	if p < 0 || p > 0xFFFF {
+-		return nil, 0, BadAddress
++		err = &AddrError{"invalid port", port};
++		goto Error;
+ 	}
+ 
+-	return addr, p, nil
++	return addr, p, nil;
++
++Error:
++	return nil, 0, err;
++}
++
++type UnknownSocketError struct {
++	sa syscall.Sockaddr;
++}
++func (e *UnknownSocketError) String() string {
++	return "unknown socket address type " + reflect.Typeof(e.sa).String()
+ }
+ 
+ func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
+@@ -233,7 +271,8 @@ func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
+ 	case *syscall.SockaddrUnix:
+ 		return a.Name, nil;
+ 	}
+-	return "", UnknownSocketFamily
++
++	return "", &UnknownSocketError{sa};
+ }
+ 
+ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+@@ -283,7 +322,7 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd
+ 	s, e := syscall.Socket(f, p, t);
+ 	if e != 0 {
+ 		syscall.ForkLock.RUnlock();
+-		return nil, os.ErrnoToError(e)
++		return nil, os.Errno(e)
+ 	}
+ 	syscall.CloseOnExec(s);
+ 	syscall.ForkLock.RUnlock();
+@@ -296,7 +335,7 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd
+ 		e = syscall.Bind(s, la);
+ 		if e != 0 {
+ 			syscall.Close(s);
+-			return nil, os.ErrnoToError(e)
++			return nil, os.Errno(e)
+ 		}
+ 	}
+ 
+@@ -304,7 +343,7 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd
+ 		e = syscall.Connect(s, ra);
+ 		if e != 0 {
+ 			syscall.Close(s);
+-			return nil, os.ErrnoToError(e)
++			return nil, os.Errno(e)
+ 		}
+ 	}
+ 
+@@ -390,12 +429,12 @@ func (c *connBase) Close() os.Error {
+ 
+ 
+ func setsockoptInt(fd, level, opt int, value int) os.Error {
+-	return os.ErrnoToError(syscall.SetsockoptInt(fd, level, opt, value));
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, level, opt, value));
+ }
+ 
+ func setsockoptNsec(fd, level, opt int, nsec int64) os.Error {
+ 	var tv = syscall.NsecToTimeval(nsec);
+-	return os.ErrnoToError(syscall.SetsockoptTimeval(fd, level, opt, &tv));
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptTimeval(fd, level, opt, &tv));
+ }
+ 
+ func (c *connBase) SetReadBuffer(bytes int) os.Error {
+@@ -450,7 +489,7 @@ func (c *connBase) SetLinger(sec int) os.Error {
+ 		l.Linger = 0;
+ 	}
+ 	e := syscall.SetsockoptLinger(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_LINGER, &l);
+-	return os.ErrnoToError(e);
++	return os.NewSyscallError("setsockopt", e);
+ }
+ 
+ 
+@@ -463,12 +502,12 @@ func internetSocket(net, laddr, raddr string, proto int, mode string) (fd *netFD
+ 
+ 	if laddr != "" {
+ 		if lip, lport, err = hostPortToIP(net, laddr, mode); err != nil {
+-			return
++			goto Error;
+ 		}
+ 	}
+ 	if raddr != "" {
+ 		if rip, rport, err = hostPortToIP(net, raddr, mode); err != nil {
+-			return
++			goto Error;
+ 		}
+ 	}
+ 
+@@ -500,17 +539,27 @@ func internetSocket(net, laddr, raddr string, proto int, mode string) (fd *netFD
+ 	var la, ra syscall.Sockaddr;
+ 	if lip != nil {
+ 		if la, err = ipToSockaddr(family, lip, lport); err != nil {
+-			return
++			goto Error;
+ 		}
+ 	}
+ 	if rip != nil {
+ 		if ra, err = ipToSockaddr(family, rip, rport); err != nil {
+-			return
++			goto Error;
+ 		}
+ 	}
+ 
+ 	fd, err = socket(net, laddr, raddr, family, proto, 0, la, ra);
+-	return fd, err
++	if err != nil {
++		goto Error;
++	}
++	return fd, nil;
++
++Error:
++	addr := raddr;
++	if mode == "listen" {
++		addr = laddr;
++	}
++	return nil, &OpError{mode, net, addr, err};
+ }
+ 
+ 
+@@ -541,7 +590,7 @@ func newConnTCP(fd *netFD, raddr string) *ConnTCP {
+ // and returns a ConnTCP structure.
+ func DialTCP(net, laddr, raddr string) (c *ConnTCP, err os.Error) {
+ 	if raddr == "" {
+-		return nil, MissingAddress
++		return nil, &OpError{"dial", "tcp", "", errMissingAddress}
+ 	}
+ 	fd, e := internetSocket(net, laddr, raddr, syscall.SOCK_STREAM, "dial");
+ 	if e != nil {
+@@ -572,7 +621,7 @@ func newConnUDP(fd *netFD, raddr string) *ConnUDP {
+ // and returns a ConnUDP structure.
+ func DialUDP(net, laddr, raddr string) (c *ConnUDP, err os.Error) {
+ 	if raddr == "" {
+-		return nil, MissingAddress
++		return nil, &OpError{"dial", "udp", "", errMissingAddress}
+ 	}
+ 	fd, e := internetSocket(net, laddr, raddr, syscall.SOCK_DGRAM, "dial");
+ 	if e != nil {
+@@ -593,7 +642,7 @@ func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error)
+ 	var proto int;
+ 	switch net {
+ 	default:
+-		return nil, UnknownNetwork;
++		return nil, UnknownNetworkError(net);
+ 	case "unix":
+ 		proto = syscall.SOCK_STREAM;
+ 	case "unix-dgram":
+@@ -602,27 +651,40 @@ func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error)
+ 
+ 	var la, ra syscall.Sockaddr;
+ 	switch mode {
++	default:
++		panic("unixSocket", mode);
++
+ 	case "dial":
+ 		if laddr != "" {
+-			return nil, BadAddress;
++			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected local address", laddr}}
+ 		}
+ 		if raddr == "" {
+-			return nil, MissingAddress;
++			return nil, &OpError{mode, net, "", errMissingAddress}
+ 		}
+ 		ra = &syscall.SockaddrUnix{Name: raddr};
+ 
+ 	case "listen":
+ 		if laddr == "" {
+-			return nil, MissingAddress;
++			return nil, &OpError{mode, net, "", errMissingAddress}
+ 		}
+ 		la = &syscall.SockaddrUnix{Name: laddr};
+ 		if raddr != "" {
+-			return nil, BadAddress;
++			return nil, &OpError{mode, net, laddr, &AddrError{"unexpected remote address", raddr}}
+ 		}
+ 	}
+ 
+ 	fd, err = socket(net, laddr, raddr, syscall.AF_UNIX, proto, 0, la, ra);
+-	return fd, err
++	if err != nil {
++		goto Error;
++	}
++	return fd, nil;
++
++Error:
++	addr := raddr;
++	if mode == "listen" {
++		addr = laddr;
++	}
++	return nil, &OpError{mode, net, addr, err};
+ }
+ 
+ // ConnUnix is an implementation of the Conn interface
+@@ -663,6 +725,9 @@ type ListenerUnix struct {
+ func ListenUnix(net, laddr string) (l *ListenerUnix, err os.Error) {
+ 	fd, e := unixSocket(net, laddr, "", "listen");
+ 	if e != nil {
++		if pe, ok := e.(*os.PathError); ok {
++			e = pe.Error;
++		}
+ 		// Check for socket ``in use'' but ``refusing connections,''
+ 		// which means some program created it and exited
+ 		// without unlinking it from the file system.
+@@ -675,6 +740,9 @@ func ListenUnix(net, laddr string) (l *ListenerUnix, err os.Error) {
+ 		if e1 == nil {
+ 			fd1.Close();
+ 		}
++		if pe, ok := e1.(*os.PathError); ok {
++			e1 = pe.Error;
++		}
+ 		if e1 != os.ECONNREFUSED {
+ 			return nil, e;
+ 		}
+@@ -688,7 +756,7 @@ func ListenUnix(net, laddr string) (l *ListenerUnix, err os.Error) {
+ 	e1 := syscall.Listen(fd.fd, 8); // listenBacklog());
+ 	if e1 != 0 {
+ 		syscall.Close(fd.fd);
+-		return nil, os.ErrnoToError(e1);
++		return nil, &OpError{"listen", "unix", laddr, os.Errno(e1)};
+ 	}
+ 	return &ListenerUnix{fd, laddr}, nil;
+ }
+@@ -788,7 +856,7 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+ 		return c, err
+ */
+ 	}
+-	return nil, UnknownNetwork
++	return nil, &OpError{"dial", net, raddr, UnknownNetworkError(net)};
+ }
+ 
+ // A Listener is a generic network listener.
+@@ -818,7 +886,7 @@ func ListenTCP(net, laddr string) (l *ListenerTCP, err os.Error) {
+ 	e1 := syscall.Listen(fd.fd, listenBacklog());
+ 	if e1 != 0 {
+ 		syscall.Close(fd.fd);
+-		return nil, os.ErrnoToError(e1)
++		return nil, &OpError{"listen", "tcp", laddr, os.Errno(e1)};
+ 	}
+ 	l = new(ListenerTCP);
+ 	l.fd = fd;
+@@ -884,6 +952,6 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
+ */
+ 	// BUG(rsc): Listen should support UDP.
+ 	}
+-	return nil, UnknownNetwork
++	return nil, UnknownNetworkError(net);
+ }
+ 
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+new file mode 100644
+index 0000000000..cafca3c98d
+--- /dev/null
++++ b/src/pkg/net/net_test.go
+@@ -0,0 +1,72 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"net";
++	"os";
++	"regexp";
++	"testing";
++)
++
++type DialErrorTest struct {
++	Net string;
++	Laddr string;
++	Raddr string;
++	Pattern string;
++}
++
++var dialErrorTests = []DialErrorTest {
++	DialErrorTest{
++		"datakit", "", "mh/astro/r70",
++		"dial datakit mh/astro/r70: unknown network datakit",
++	},
++	DialErrorTest{
++		"tcp", "", "127.0.0.1:☺",
++		"dial tcp 127.0.0.1:☺: unknown port tcp/☺",
++	},
++	DialErrorTest{
++		"tcp", "", "no-such-name.google.com.:80",
++		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.: no such host",
++	},
++	DialErrorTest{
++		"tcp", "", "no-such-name.no-such-top-level-domain.:80",
++		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.: no such host",
++	},
++	DialErrorTest{
++		"tcp", "", "no-such-name:80",
++		"dial tcp no-such-name:80: lookup no-such-name.google.com.: no such host",
++	},
++	DialErrorTest{
++		"tcp", "", "mh/astro/r70:http",
++		"dial tcp mh/astro/r70:http: lookup mh/astro/r70: invalid domain name",
++	},
++	DialErrorTest{
++		"unix", "", "/etc/file-not-found",
++		"dial unix /etc/file-not-found: no such file or directory",
++	},
++	DialErrorTest{
++		"unix", "", "/etc/",
++		"dial unix /etc/: (permission denied|socket operation on non-socket)",
++	},
++}
++
++func TestDialError(t *testing.T) {
++	for i, tt := range dialErrorTests {
++		c, e := net.Dial(tt.Net, tt.Laddr, tt.Raddr);
++		if c != nil {
++			c.Close();
++		}
++		if e == nil {
++			t.Errorf("#%d: nil error, want match for %#q", i, tt.Pattern);
++			continue;
++		}
++		s := e.String();
++		match, err := regexp.Match(tt.Pattern, s);
++		if !match {
++			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern);
++		}
++	}
++}
+diff --git a/src/pkg/net/parse.go b/src/pkg/net/parse.go
+index 7d5dd8f888..8b10519d41 100644
+--- a/src/pkg/net/parse.go
++++ b/src/pkg/net/parse.go
+@@ -12,10 +12,6 @@ import (
+ 	"os";
+ )
+ 
+-type Error struct {
+-	os.ErrorString
+-}
+-
+ type file struct {
+ 	file *os.File;
+ 	data []byte;
+diff --git a/src/pkg/net/port.go b/src/pkg/net/port.go
+index 21e3b48aa0..a9cd98daf8 100644
+--- a/src/pkg/net/port.go
++++ b/src/pkg/net/port.go
+@@ -11,13 +11,8 @@ import (
+ 	"net";
+ 	"once";
+ 	"os";
+-	"strconv";
+ )
+ 
+-// The error returned by LookupPort when a network service
+-// is not listed in the database.
+-var ErrNoService = &Error{"unknown network service"};
+-
+ var services map[string] map[string] int
+ var servicesError os.Error
+ 
+@@ -65,13 +60,10 @@ func LookupPort(network, service string) (port int, err os.Error) {
+ 		network = "udp";
+ 	}
+ 
+-	m, ok := services[network];
+-	if !ok {
+-		return 0, ErrNoService;
+-	}
+-	port, ok = m[service];
+-	if !ok {
+-		return 0, ErrNoService;
++	if m, ok := services[network]; ok {
++		if port, ok = m[service]; ok {
++			return;
++		}
+ 	}
+-	return port, nil;
++	return 0, &AddrError{"unknown port", network + "/" + service};
+ }
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index e08ce88ce7..0aebce88a4 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -22,7 +22,7 @@ func testTimeout(t *testing.T, network, addr string) {
+ 	var b [100]byte;
+ 	n, err1 := fd.Read(&b);
+ 	t1 := time.Nanoseconds();
+-	if n != 0 || err1 != os.EAGAIN {
++	if n != 0 || !isEAGAIN(err1) {
+ 		t.Errorf("fd.Read on %s %s did not return 0, EAGAIN: %v, %v", network, addr, n, err1);
+ 	}
+ 	if t1 - t0 < 0.5e8 || t1 - t0 > 1.5e8 {
+diff --git a/src/pkg/os/dir_darwin_386.go b/src/pkg/os/dir_darwin_386.go
+index 2803ecee27..791499d8f9 100644
+--- a/src/pkg/os/dir_darwin_386.go
++++ b/src/pkg/os/dir_darwin_386.go
+@@ -38,9 +38,9 @@ func readdirnames(file *File, count int) (names []string, err Error) {
+ 			d.nbuf, errno = syscall.Getdirentries(file.fd, d.buf, new(uintptr));
+ 			if errno != 0 {
+ 				d.nbuf = 0;
+-				return names, ErrnoToError(errno)
++				return names, NewSyscallError("getdirentries", errno);
+ 			}
+-			if d.nbuf == 0 {
++			if d.nbuf <= 0 {
+ 				break	// EOF
+ 			}
+ 		}
+diff --git a/src/pkg/os/dir_darwin_amd64.go b/src/pkg/os/dir_darwin_amd64.go
+index 2803ecee27..791499d8f9 100644
+--- a/src/pkg/os/dir_darwin_amd64.go
++++ b/src/pkg/os/dir_darwin_amd64.go
+@@ -38,9 +38,9 @@ func readdirnames(file *File, count int) (names []string, err Error) {
+ 			d.nbuf, errno = syscall.Getdirentries(file.fd, d.buf, new(uintptr));
+ 			if errno != 0 {
+ 				d.nbuf = 0;
+-				return names, ErrnoToError(errno)
++				return names, NewSyscallError("getdirentries", errno);
+ 			}
+-			if d.nbuf == 0 {
++			if d.nbuf <= 0 {
+ 				break	// EOF
+ 			}
+ 		}
+diff --git a/src/pkg/os/dir_linux_386.go b/src/pkg/os/dir_linux_386.go
+index c4594a52df..d6d700b24b 100644
+--- a/src/pkg/os/dir_linux_386.go
++++ b/src/pkg/os/dir_linux_386.go
+@@ -47,10 +47,10 @@ func readdirnames(file *File, count int) (names []string, err Error) {
+ 		if d.bufp >= d.nbuf {
+ 			var errno int;
+ 			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
+-			if d.nbuf < 0 {
+-				return names, ErrnoToError(errno)
++			if errno != 0 {
++				return names, NewSyscallError("getdents", errno)
+ 			}
+-			if d.nbuf == 0 {
++			if d.nbuf <= 0 {
+ 				break	// EOF
+ 			}
+ 			d.bufp = 0;
+diff --git a/src/pkg/os/dir_linux_amd64.go b/src/pkg/os/dir_linux_amd64.go
+index 05b3d4c65d..8b1664f774 100644
+--- a/src/pkg/os/dir_linux_amd64.go
++++ b/src/pkg/os/dir_linux_amd64.go
+@@ -43,10 +43,10 @@ func readdirnames(file *File, count int) (names []string, err Error) {
+ 		if d.bufp >= d.nbuf {
+ 			var errno int;
+ 			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
+-			if d.nbuf < 0 {
+-				return names, ErrnoToError(errno)
++			if errno != 0 {
++				return names, NewSyscallError("getdents", errno)
+ 			}
+-			if d.nbuf == 0 {
++			if d.nbuf <= 0 {
+ 				break	// EOF
+ 			}
+ 			d.bufp = 0;
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 718499b212..10a7d042a1 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -30,15 +30,6 @@ func (e Errno) String() string {
+ 	return syscall.Errstr(int(e))
+ }
+ 
+-// ErrnoToError converts errno to an Error (underneath, an Errno).
+-// It returns nil for the "no error" errno.
+-func ErrnoToError(errno int) Error {
+-	if errno == 0 {
+-		return nil
+-	}
+-	return Errno(errno)
+-}
+-
+ // Commonly known Unix errors.
+ var (
+ 	EPERM Error = Errno(syscall.EPERM);
+@@ -81,3 +72,33 @@ var (
+ 	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG);
+ )
+ 
++// PathError records an error and the operation and file path that caused it.
++type PathError struct {
++	Op string;
++	Path string;
++	Error Error;
++}
++
++func (e *PathError) String() string {
++	return e.Op + " " + e.Path + ": " + e.Error.String();
++}
++
++// SyscallError records an error from a specific system call.
++type SyscallError struct {
++	Syscall string;
++	Errno Errno;
++}
++
++func (e *SyscallError) String() string {
++	return e.Syscall + ": " + e.Errno.String();
++}
++
++// NewSyscallError returns, as an os.Error, a new SyscallError
++// with the given system call name and error number.
++// As a convenience, if errno is 0, NewSyscallError returns nil.
++func NewSyscallError(syscall string, errno int) os.Error {
++	if errno == 0 {
++		return nil;
++	}
++	return &SyscallError{syscall, Errno(errno)}
++}
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index c1551f86dd..a7430ef7f7 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -30,7 +30,10 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
+ 	}
+ 
+ 	p, e := syscall.ForkExec(argv0, argv, envv, dir, intfd);
+-	return int(p), ErrnoToError(e);
++	if e != 0 {
++		return 0, &PathError{"fork/exec", argv0, Errno(e)};
++	}
++	return p, nil;
+ }
+ 
+ // Exec replaces the current process with an execution of the program
+@@ -42,7 +45,10 @@ func Exec(argv0 string, argv []string, envv []string) Error {
+ 		envv = Environ();
+ 	}
+ 	e := syscall.Exec(argv0, argv, envv);
+-	return ErrnoToError(e);
++	if e != 0 {
++		return &PathError{"exec", argv0, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // TODO(rsc): Should os implement its own syscall.WaitStatus
+@@ -79,10 +85,10 @@ func Wait(pid int, options int) (w *Waitmsg, err Error) {
+ 	}
+ 	pid1, e := syscall.Wait4(pid, &status, options, rusage);
+ 	if e != 0 {
+-		return nil, ErrnoToError(e);
++		return nil, NewSyscallError("wait", e);
+ 	}
+ 	w = new(Waitmsg);
+-	w.Pid = pid;
++	w.Pid = pid1;
+ 	w.WaitStatus = status;
+ 	w.Rusage = rusage;
+ 	return w, nil;
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 5b6115932e..8c76735fbc 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -37,11 +37,11 @@ func (file *File) Name() string {
+ }
+ 
+ // NewFile returns a new File with the given file descriptor and name.
+-func NewFile(file int, name string) *File {
+-	if file < 0 {
++func NewFile(fd int, name string) *File {
++	if fd < 0 {
+ 		return nil
+ 	}
+-	return &File{file, name, nil, 0}
++	return &File{fd, name, nil, 0}
+ }
+ 
+ // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
+@@ -74,7 +74,7 @@ const (
+ func Open(name string, flag int, perm int) (file *File, err Error) {
+ 	r, e := syscall.Open(name, flag | syscall.O_CLOEXEC, perm);
+ 	if e != 0 {
+-		return nil, ErrnoToError(e);
++		return nil, &PathError{"open", name, Errno(e)};
+ 	}
+ 
+ 	// There's a race here with fork/exec, which we are
+@@ -83,7 +83,7 @@ func Open(name string, flag int, perm int) (file *File, err Error) {
+ 		syscall.CloseOnExec(r);
+ 	}
+ 
+-	return NewFile(r, name), ErrnoToError(e)
++	return NewFile(r, name), nil;
+ }
+ 
+ // Close closes the File, rendering it unusable for I/O.
+@@ -92,7 +92,10 @@ func (file *File) Close() Error {
+ 	if file == nil {
+ 		return EINVAL
+ 	}
+-	err := ErrnoToError(syscall.Close(file.fd));
++	var err os.Error;
++	if e := syscall.Close(file.fd); e != 0 {
++		err = &PathError{"close", file.name, Errno(e)};
++	}
+ 	file.fd = -1;  // so it can't be closed again
+ 	return err;
+ }
+@@ -124,7 +127,10 @@ func (file *File) Read(b []byte) (ret int, err Error) {
+ 	if n == 0 && e == 0 {
+ 		return 0, EOF
+ 	}
+-	return n, ErrnoToError(e);
++	if e != 0 {
++		err = &PathError{"read", file.name, Errno(e)};
++	}
++	return n, err
+ }
+ 
+ // Write writes len(b) bytes to the File.
+@@ -146,7 +152,10 @@ func (file *File) Write(b []byte) (ret int, err Error) {
+ 	} else {
+ 		file.nepipe = 0;
+ 	}
+-	return n, ErrnoToError(e)
++	if e != 0 {
++		err = &PathError{"write", file.name, Errno(e)};
++	}
++	return n, err
+ }
+ 
+ // Seek sets the offset for the next Read or Write on file to offset, interpreted
+@@ -155,11 +164,11 @@ func (file *File) Write(b []byte) (ret int, err Error) {
+ // It returns the new offset and an Error, if any.
+ func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
+ 	r, e := syscall.Seek(file.fd, offset, whence);
+-	if e != 0 {
+-		return -1, ErrnoToError(e)
++	if e == 0 && file.dirinfo != nil && r != 0 {
++		e = syscall.EISDIR;
+ 	}
+-	if file.dirinfo != nil && r != 0 {
+-		return -1, ErrnoToError(syscall.EISDIR)
++	if e != 0 {
++		return 0, &PathError{"seek", file.name, Errno(e)};
+ 	}
+ 	return r, nil
+ }
+@@ -172,11 +181,7 @@ func (file *File) WriteString(s string) (ret int, err Error) {
+ 	}
+ 	b := syscall.StringByteSlice(s);
+ 	b = b[0:len(b)-1];
+-	r, e := syscall.Write(file.fd, b);
+-	if r < 0 {
+-		r = 0
+-	}
+-	return int(r), ErrnoToError(e)
++	return file.Write(b);
+ }
+ 
+ // Pipe returns a connected pair of Files; reads from r return bytes written to w.
+@@ -189,7 +194,7 @@ func Pipe() (r *File, w *File, err Error) {
+ 	e := syscall.Pipe(&p);
+ 	if e != 0 {
+ 		syscall.ForkLock.RUnlock();
+-		return nil, nil, ErrnoToError(e)
++		return nil, nil, NewSyscallError("pipe", e);
+ 	}
+ 	syscall.CloseOnExec(p[0]);
+ 	syscall.CloseOnExec(p[1]);
+@@ -201,7 +206,11 @@ func Pipe() (r *File, w *File, err Error) {
+ // Mkdir creates a new directory with the specified name and permission bits.
+ // It returns an error, if any.
+ func Mkdir(name string, perm int) Error {
+-	return ErrnoToError(syscall.Mkdir(name, perm));
++	e := syscall.Mkdir(name, perm);
++	if e != 0 {
++		return &PathError{"mkdir", name, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Stat returns a Dir structure describing the named file and an error, if any.
+@@ -213,7 +222,7 @@ func Stat(name string) (dir *Dir, err Error) {
+ 	var lstat, stat syscall.Stat_t;
+ 	e := syscall.Lstat(name, &lstat);
+ 	if e != 0 {
+-		return nil, ErrnoToError(e);
++		return nil, &PathError{"stat", name, Errno(e)};
+ 	}
+ 	statp := &lstat;
+ 	if lstat.Mode & syscall.S_IFMT == syscall.S_IFLNK {
+@@ -231,7 +240,7 @@ func (file *File) Stat() (dir *Dir, err Error) {
+ 	var stat syscall.Stat_t;
+ 	e := syscall.Fstat(file.fd, &stat);
+ 	if e != 0 {
+-		return nil, ErrnoToError(e)
++		return nil, &PathError{"stat", file.name, Errno(e)};
+ 	}
+ 	return dirFromStat(file.name, new(Dir), &stat, &stat), nil
+ }
+@@ -243,7 +252,7 @@ func Lstat(name string) (dir *Dir, err Error) {
+ 	var stat syscall.Stat_t;
+ 	e := syscall.Lstat(name, &stat);
+ 	if e != 0 {
+-		return nil, ErrnoToError(e)
++		return nil, &PathError{"lstat", name, Errno(e)};
+ 	}
+ 	return dirFromStat(name, new(Dir), &stat, &stat), nil
+ }
+@@ -290,13 +299,19 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
+ 
+ // Chdir changes the current working directory to the named directory.
+ func Chdir(dir string) Error {
+-	return ErrnoToError(syscall.Chdir(dir));
++	if e := syscall.Chdir(dir); e != 0 {
++		return &PathError{"chdir", dir, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Chdir changes the current working directory to the file,
+ // which must be a directory.
+ func (f *File) Chdir() Error {
+-	return ErrnoToError(syscall.Fchdir(f.fd));
++	if e := syscall.Fchdir(f.fd); e != 0 {
++		return &PathError{"chdir", f.name, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Remove removes the named file or directory.
+@@ -326,17 +341,38 @@ func Remove(name string) Error {
+ 	if e1 != syscall.ENOTDIR {
+ 		e = e1;
+ 	}
+-	return ErrnoToError(e);
++	return &PathError{"remove", name, Errno(e)};
++}
++
++// LinkError records an error during a link or symlink
++// system call and the paths that caused it.
++type LinkError struct {
++	Op string;
++	Old string;
++	New string;
++	Error Error;
++}
++
++func (e *LinkError) String() string {
++	return e.Op + " " + e.Old + " " + e.New + ": " + e.Error.String();
+ }
+ 
+ // Link creates a hard link.
+ func Link(oldname, newname string) Error {
+-	return ErrnoToError(syscall.Link(oldname, newname));
++	e := syscall.Link(oldname, newname);
++	if e != 0 {
++		return &LinkError{"link", oldname, newname, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Symlink creates a symbolic link.
+ func Symlink(oldname, newname string) Error {
+-	return ErrnoToError(syscall.Symlink(oldname, newname));
++	e := syscall.Symlink(oldname, newname);
++	if e != 0 {
++		return &LinkError{"symlink", oldname, newname, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Readlink reads the contents of a symbolic link: the destination of
+@@ -346,7 +382,7 @@ func Readlink(name string) (string, Error) {
+ 		b := make([]byte, len);
+ 		n, e := syscall.Readlink(name, b);
+ 		if e != 0 {
+-			return "", ErrnoToError(e);
++			return "", &PathError{"readlink", name, Errno(e)};
+ 		}
+ 		if n < len {
+ 			return string(b[0:n]), nil;
+@@ -359,40 +395,61 @@ func Readlink(name string) (string, Error) {
+ // Chmod changes the mode of the named file to mode.
+ // If the file is a symbolic link, it changes the uid and gid of the link's target.
+ func Chmod(name string, mode int) Error {
+-	return ErrnoToError(syscall.Chmod(name, mode));
++	if e := syscall.Chmod(name, mode); e != 0 {
++		return &PathError{"chmod", name, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Chmod changes the mode of the file to mode.
+ func (f *File) Chmod(mode int) Error {
+-	return ErrnoToError(syscall.Fchmod(f.fd, mode));
++	if e := syscall.Fchmod(f.fd, mode); e != 0 {
++		return &PathError{"chmod", f.name, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Chown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link's target.
+ func Chown(name string, uid, gid int) Error {
+-	return ErrnoToError(syscall.Chown(name, uid, gid));
++	if e := syscall.Chown(name, uid, gid); e != 0 {
++		return &PathError{"chown", name, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Lchown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link itself.
+ func Lchown(name string, uid, gid int) Error {
+-	return ErrnoToError(syscall.Lchown(name, uid, gid));
++	if e := syscall.Lchown(name, uid, gid); e != 0 {
++		return &PathError{"lchown", name, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Chown changes the numeric uid and gid of the named file.
+ func (f *File) Chown(uid, gid int) Error {
+-	return ErrnoToError(syscall.Fchown(f.fd, uid, gid));
++	if e := syscall.Fchown(f.fd, uid, gid); e != 0 {
++		return &PathError{"chown", f.name, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Truncate changes the size of the named file.
+ // If the file is a symbolic link, it changes the size of the link's target.
+ func Truncate(name string, size int64) Error {
+-	return ErrnoToError(syscall.Truncate(name, size));
++	if e := syscall.Truncate(name, size); e != 0 {
++		return &PathError{"truncate", name, Errno(e)};
++	}
++	return nil;
+ }
+ 
+ // Truncate changes the size of the file.
+ // It does not change the I/O offset.
+ func (f *File) Truncate(size int64) Error {
+-	return ErrnoToError(syscall.Ftruncate(f.fd, size));
++	if e := syscall.Ftruncate(f.fd, size); e != 0 {
++		return &PathError{"truncate", f.name, Errno(e)};
++	}
++	return nil;
+ }
+ 
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index 2d7b754b51..cbc6134a7d 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -17,7 +17,7 @@ func Getwd() (string, Error) {
+ 	// If the operating system provides a Getwd call, use it.
+ 	if syscall.ImplementsGetwd {
+ 		s, e := syscall.Getwd();
+-		return s, ErrnoToError(e);
++		return s, NewSyscallError("getwd", e);
+ 	}
+ 
+ 	// Otherwise, we're trying to find our way back to ".".
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 77b69447d5..fb555eb861 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -549,3 +549,41 @@ func TestSeek(t *testing.T) {
+ 	}
+ 	f.Close();
+ }
++
++type openErrorTest struct {
++	path string;
++	mode int;
++	error string;
++}
++
++var openErrorTests = []openErrorTest {
++	openErrorTest {
++		"/etc/no-such-file",
++		O_RDONLY,
++		"open /etc/no-such-file: no such file or directory",
++	},
++	openErrorTest {
++		"/etc",
++		O_WRONLY,
++		"open /etc: is a directory",
++	},
++	openErrorTest {
++		"/etc/passwd/group",
++		O_WRONLY,
++		"open /etc/passwd/group: not a directory",
++	},
++}
++
++func TestOpenError(t *testing.T) {
++	for i, tt := range openErrorTests {
++		f, err := Open(tt.path, tt.mode, 0);
++		if err == nil {
++			t.Errorf("Open(%q, %d) succeeded", tt.path, tt.mode);
++			f.Close();
++			continue;
++		}
++		if s := err.String(); s != tt.error {
++			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, s, tt.error);
++		}
++	}
++}
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index 0b86b8f8bd..d8efe51832 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -6,16 +6,6 @@ package os
+ 
+ import "os"
+ 
+-// PathError reports an error and the file path where it occurred.
+-type PathError struct {
+-	Path string;
+-	Error Error;
+-}
+-
+-func (p *PathError) String() string {
+-	return p.Path + ": " + p.Error.String();
+-}
+-
+ // MkdirAll creates a directory named path,
+ // along with any necessary parents, and returns nil,
+ // or else returns an error.
+@@ -30,7 +20,7 @@ func MkdirAll(path string, perm int) Error {
+ 		if dir.IsDirectory() {
+ 			return nil;
+ 		}
+-		return &PathError{path, ENOTDIR};
++		return &PathError{"mkdir", path, ENOTDIR};
+ 	}
+ 
+ 	// Doesn't already exist; make sure parent does.
+@@ -61,7 +51,7 @@ func MkdirAll(path string, perm int) Error {
+ 		if err1 == nil && dir.IsDirectory() {
+ 			return nil;
+ 		}
+-		return &PathError{path, err};
++		return err;
+ 	}
+ 	return nil;
+ }
+@@ -77,19 +67,19 @@ func RemoveAll(path string) Error {
+ 	}
+ 
+ 	// Otherwise, is this a directory we need to recurse into?
+-	dir, err1 := os.Lstat(path);
+-	if err1 != nil {
+-		return &PathError{path, err1};
++	dir, err := os.Lstat(path);
++	if err != nil {
++		return err;
+ 	}
+ 	if !dir.IsDirectory() {
+ 		// Not a directory; return the error from Remove.
+-		return &PathError{path, err};
++		return err;
+ 	}
+ 
+ 	// Directory.
+ 	fd, err := Open(path, os.O_RDONLY, 0);
+ 	if err != nil {
+-		return &PathError{path, err};
++		return err;
+ 	}
+ 	defer fd.Close();
+ 
+@@ -99,13 +89,13 @@ func RemoveAll(path string) Error {
+ 		names, err1 := fd.Readdirnames(100);
+ 		for i, name := range names {
+ 			err1 := RemoveAll(path + "/" + name);
+-			if err1 != nil && err == nil {
++			if err == nil {
+ 				err = err1;
+ 			}
+ 		}
+ 		// If Readdirnames returned an error, use it.
+-		if err1 != nil && err == nil {
+-			err = &PathError{path, err1};
++		if err == nil {
++			err = err1;
+ 		}
+ 		if len(names) == 0 {
+ 			break;
+@@ -113,9 +103,9 @@ func RemoveAll(path string) Error {
+ 	}
+ 
+ 	// Remove directory.
+-	err1 = Remove(path);
+-	if err1 != nil && err == nil {
+-		err = &PathError{path, err1};
++	err1 := Remove(path);
++	if err == nil {
++		err = err1;
+ 	}
+ 	return err;
+ }
+diff --git a/src/pkg/os/proc.go b/src/pkg/os/proc.go
+index d2fd6493eb..9920c13556 100644
+--- a/src/pkg/os/proc.go
++++ b/src/pkg/os/proc.go
+@@ -39,7 +39,7 @@ func Getegid() int {
+ // Getgroups returns a list of the numeric ids of groups that the caller belongs to.
+ func Getgroups() ([]int, os.Error) {
+ 	gids, errno := syscall.Getgroups();
+-	return gids, ErrnoToError(errno);
++	return gids, NewSyscallError("getgroups", errno);
+ }
+ 
+ // Exit causes the current program to exit with the given status code.
+diff --git a/src/pkg/os/time.go b/src/pkg/os/time.go
+index 3eee243cc5..e1022066fd 100644
+--- a/src/pkg/os/time.go
++++ b/src/pkg/os/time.go
+@@ -17,7 +17,7 @@ import (
+ func Time() (sec int64, nsec int64, err Error) {
+ 	var tv syscall.Timeval;
+ 	if errno := syscall.Gettimeofday(&tv); errno != 0 {
+-		return 0, 0, ErrnoToError(errno)
++		return 0, 0, NewSyscallError("gettimeofday", errno);
+ 	}
+ 	return int64(tv.Sec), int64(tv.Usec)*1000, err;
+ }
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 281dca9815..e1c320ca81 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -85,9 +85,13 @@ HFILES=\
+ 
+ all: $(LIB) runtime.acid
+ 
+-install: $(LIB) runtime.acid
++TARG=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)/$(LIB)
++
++install: $(TARG)
++
++$(TARG): $(LIB) runtime.acid
+ 	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+-	cp $(LIB) $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/$(LIB)
++	cp $(LIB) $(TARG)
+ 	cp runtime.acid $(GOROOT)/acid/runtime.acid
+ 
+ $(LIB): $(OFILES)
+@@ -96,7 +100,7 @@ $(LIB): $(OFILES)
+ $(OFILES): $(HFILES)
+ 
+ nuke:
+-	rm -f *.[568] *.a $(GOROOT)/lib/$(LIB)
++	rm -f *.[568] *.a $(TARG)
+ 
+ clean:
+ 	rm -f *.[568] *.a runtime.acid cgo2c */asm.h
+diff --git a/src/pkg/strconv/Makefile b/src/pkg/strconv/Makefile
+index 499f8c1c14..f295218441 100644
+--- a/src/pkg/strconv/Makefile
++++ b/src/pkg/strconv/Makefile
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++
+ # DO NOT EDIT.  Automatically generated by gobuild.
+ # gobuild -m >Makefile
+ 
+@@ -20,7 +21,7 @@ test: packages
+ 
+ coverage: packages
+ 	gotest
+-	6cov -g `pwd` | grep -v '_test\.go:'
++	6cov -g $$(pwd) | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+ 	$(GC) -I_obj $*.go
+@@ -32,12 +33,12 @@ coverage: packages
+ 	$(AS) $*.s
+ 
+ O1=\
+-	atoi.$O\
+ 	decimal.$O\
+ 	itoa.$O\
+ 	quote.$O\
+ 
+ O2=\
++	atoi.$O\
+ 	ftoa.$O\
+ 
+ O3=\
+@@ -48,11 +49,11 @@ phases: a1 a2 a3
+ _obj$D/strconv.a: phases
+ 
+ a1: $(O1)
+-	$(AR) grc _obj$D/strconv.a atoi.$O decimal.$O itoa.$O quote.$O
++	$(AR) grc _obj$D/strconv.a decimal.$O itoa.$O quote.$O
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/strconv.a ftoa.$O
++	$(AR) grc _obj$D/strconv.a atoi.$O ftoa.$O
+ 	rm -f $(O2)
+ 
+ a3: $(O3)
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index c257b2a33e..6d6ec562ce 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -316,15 +316,18 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
+ // Atof32 returns the nearest floating point number rounded
+ // using IEEE754 unbiased rounding.
+ //
+-// If s is not syntactically well-formed, Atof32 returns err = os.EINVAL.
++// The errors that Atof32 returns have concrete type *NumError
++// and include err.Num = s.
++//
++// If s is not syntactically well-formed, Atof32 returns err.Error = os.EINVAL.
+ //
+ // If s is syntactically well-formed but is more than 1/2 ULP
+ // away from the largest floating point number of the given size,
+-// Atof32 returns f = ±Inf, err = os.ERANGE.
++// Atof32 returns f = ±Inf, err.Error = os.ERANGE.
+ func Atof32(s string) (f float32, err os.Error) {
+ 	neg, d, trunc, ok := stringToDecimal(s);
+ 	if !ok {
+-		return 0, os.EINVAL;
++		return 0, &NumError{s, os.EINVAL};
+ 	}
+ 	if optimize {
+ 		if f, ok := decimalAtof32(neg, d, trunc); ok {
+@@ -334,7 +337,7 @@ func Atof32(s string) (f float32, err os.Error) {
+ 	b, ovf := decimalToFloatBits(neg, d, trunc, &float32info);
+ 	f = math.Float32frombits(uint32(b));
+ 	if ovf {
+-		err = os.ERANGE;
++		err = &NumError{s, os.ERANGE};
+ 	}
+ 	return f, err
+ }
+@@ -345,7 +348,7 @@ func Atof32(s string) (f float32, err os.Error) {
+ func Atof64(s string) (f float64, err os.Error) {
+ 	neg, d, trunc, ok := stringToDecimal(s);
+ 	if !ok {
+-		return 0, os.EINVAL;
++		return 0, &NumError{s, os.EINVAL};
+ 	}
+ 	if optimize {
+ 		if f, ok := decimalAtof64(neg, d, trunc); ok {
+@@ -355,7 +358,7 @@ func Atof64(s string) (f float64, err os.Error) {
+ 	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
+ 	f = math.Float64frombits(b);
+ 	if ovf {
+-		err = os.ERANGE;
++		err = &NumError{s, os.ERANGE};
+ 	}
+ 	return f, err
+ }
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 6782f274a2..ecccab79b0 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -6,6 +6,7 @@ package strconv
+ import (
+ 	"fmt";
+ 	"os";
++	"reflect";
+ 	"strconv";
+ 	"testing"
+ )
+@@ -91,6 +92,17 @@ var atoftests = []atofTest {
+ 	atofTest{ ".e-1", "0", os.EINVAL },
+ }
+ 
++func init() {
++	// The atof routines return NumErrors wrapping
++	// the error and the string.  Convert the table above.
++	for i := range atoftests {
++		test := &atoftests[i];
++		if test.err != nil {
++			test.err = &NumError{test.in, test.err}
++		}
++	}
++}
++
+ func testAtof(t *testing.T, opt bool) {
+ 	oldopt := strconv.optimize;
+ 	strconv.optimize = opt;
+@@ -98,7 +110,7 @@ func testAtof(t *testing.T, opt bool) {
+ 		test := &atoftests[i];
+ 		out, err := strconv.Atof64(test.in);
+ 		outs := strconv.Ftoa64(out, 'g', -1);
+-		if outs != test.out || err != test.err {
++		if outs != test.out || !reflect.DeepEqual(err, test.err) {
+ 			t.Errorf("strconv.Atof64(%v) = %v, %v want %v, %v\n",
+ 				test.in, out, err, test.out, test.err);
+ 		}
+@@ -106,7 +118,7 @@ func testAtof(t *testing.T, opt bool) {
+ 		if float64(float32(out)) == out {
+ 			out32, err := strconv.Atof32(test.in);
+ 			outs := strconv.Ftoa32(out32, 'g', -1);
+-			if outs != test.out || err != test.err {
++			if outs != test.out || !reflect.DeepEqual(err, test.err) {
+ 				t.Errorf("strconv.Atof32(%v) = %v, %v want %v, %v  # %v\n",
+ 					test.in, out32, err, test.out, test.err, out);
+ 			}
+@@ -115,7 +127,7 @@ func testAtof(t *testing.T, opt bool) {
+ 		if FloatSize == 64 || float64(float32(out)) == out {
+ 			outf, err := strconv.Atof(test.in);
+ 			outs := strconv.Ftoa(outf, 'g', -1);
+-			if outs != test.out || err != test.err {
++			if outs != test.out || !reflect.DeepEqual(err, test.err) {
+ 				t.Errorf("strconv.Ftoa(%v) = %v, %v want %v, %v  # %v\n",
+ 					test.in, outf, err, test.out, test.err, out);
+ 			}
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index a5d896a05e..857b1afe68 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -3,7 +3,20 @@
+ // license that can be found in the LICENSE file.
+ 
+ package strconv
+-import "os"
++import (
++	"os";
++	"strconv"
++)
++
++type NumError struct {
++	Num string;
++	Error os.Error;
++}
++
++func (e *NumError) String() string {
++	return "parsing " + e.Num + ": " + e.Error.String();
++}
++
+ 
+ func computeIntsize() uint {
+ 	siz := uint(8);
+@@ -25,13 +38,18 @@ func cutoff64(base int) uint64 {
+ // Btoui64 interprets a string s in an arbitrary base b (2 to 36)
+ // and returns the corresponding value n.
+ //
+-// Btoui64 returns err == os.EINVAL if b is out of
+-// range or s is empty or contains invalid digits.
+-// It returns err == os.ERANGE if the value corresponding
+-// to s cannot be represented by a uint64.
++// The errors that Btoui64 returns have concrete type *NumError
++// and include err.Num = s.  If s is empty or contains invalid
++// digits, err.Error = os.EINVAL; if the value corresponding
++// to s cannot be represented by a uint64, err.Error = os.ERANGE.
+ func Btoui64(s string, b int) (n uint64, err os.Error) {
+-	if b < 2 || b > 36 || len(s) < 1 {
+-		return 0, os.EINVAL;
++	if b < 2 || b > 36 {
++		err = os.ErrorString("invalid base " + Itoa(b));
++		goto Error;
++	}
++	if len(s) < 1 {
++		err = os.EINVAL;
++		goto Error;
+ 	}
+ 
+ 	n = 0;
+@@ -47,27 +65,38 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ 		case 'A' <= s[i] && s[i] <= 'Z':
+ 			v = s[i] - 'A' + 10;
+ 		default:
+-			return 0, os.EINVAL;
++			n = 0;
++			err = os.EINVAL;
++			goto Error;
+ 		}
+ 		if int(v) >= b {
+-			return 0, os.EINVAL;
++			n = 0;
++			err = os.EINVAL;
++			goto Error;
+ 		}
+ 
+ 		if n >= cutoff {
+ 			// n*b overflows
+-			return 1<<64-1, os.ERANGE;
++			n = 1<<64-1;
++			err = os.ERANGE;
++			goto Error;
+ 		}
+ 		n *= uint64(b);
+ 
+ 		n1 := n+uint64(v);
+ 		if n1 < n {
+ 			// n+v overflows
+-			return 1<<64-1, os.ERANGE;
++			n = 1<<64-1;
++			err = os.ERANGE;
++			goto Error;
+ 		}
+ 		n = n1;
+ 	}
+ 
+ 	return n, nil;
++
++Error:
++	return n, &NumError{s, err};
+ }
+ 
+ // Atoui64 interprets a string s as an unsigned decimal, octal, or
+@@ -80,7 +109,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
+ func Atoui64(s string) (n uint64, err os.Error) {
+ 	// Empty string bad.
+ 	if len(s) == 0 {
+-		return 0, os.EINVAL
++		return 0, &NumError{s, os.EINVAL}
+ 	}
+ 
+ 	// Look for octal, hex prefix.
+@@ -102,7 +131,7 @@ func Atoui64(s string) (n uint64, err os.Error) {
+ func Atoi64(s string) (i int64, err os.Error) {
+ 	// Empty string bad.
+ 	if len(s) == 0 {
+-		return 0, os.EINVAL
++		return 0, &NumError{s, os.EINVAL}
+ 	}
+ 
+ 	// Pick off leading sign.
+@@ -117,14 +146,14 @@ func Atoi64(s string) (i int64, err os.Error) {
+ 	// Convert unsigned and check range.
+ 	var un uint64;
+ 	un, err = Atoui64(s);
+-	if err != nil && err != os.ERANGE {
++	if err != nil && err.(*NumError).Error != os.ERANGE {
+ 		return 0, err
+ 	}
+ 	if !neg && un >= 1<<63 {
+-		return 1<<63-1, os.ERANGE
++		return 1<<63-1, &NumError{s, os.ERANGE}
+ 	}
+ 	if neg && un > 1<<63 {
+-		return -1<<63, os.ERANGE
++		return -1<<63, &NumError{s, os.ERANGE}
+ 	}
+ 	n := int64(un);
+ 	if neg {
+@@ -136,14 +165,12 @@ func Atoi64(s string) (i int64, err os.Error) {
+ // Atoui is like Atoui64 but returns its result as a uint.
+ func Atoui(s string) (i uint, err os.Error) {
+ 	i1, e1 := Atoui64(s);
+-	if e1 != nil && e1 != os.ERANGE {
++	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
+ 		return 0, e1
+ 	}
+ 	i = uint(i1);
+ 	if uint64(i) != i1 {
+-		// TODO: return uint(^0), os.ERANGE.
+-		i1 = 1<<64-1;
+-		return uint(i1), os.ERANGE
++		return ^uint(0), &NumError{s, os.ERANGE}
+ 	}
+ 	return i, nil
+ }
+@@ -151,15 +178,15 @@ func Atoui(s string) (i uint, err os.Error) {
+ // Atoi is like Atoi64 but returns its result as an int.
+ func Atoi(s string) (i int, err os.Error) {
+ 	i1, e1 := Atoi64(s);
+-	if e1 != nil && e1 != os.ERANGE {
++	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
+ 		return 0, e1
+ 	}
+ 	i = int(i1);
+ 	if int64(i) != i1 {
+ 		if i1 < 0 {
+-			return -1<<(intsize-1), os.ERANGE
++			return -1<<(intsize-1), &NumError{s, os.ERANGE}
+ 		}
+-		return 1<<(intsize-1) - 1, os.ERANGE
++		return 1<<(intsize-1) - 1, &NumError{s, os.ERANGE}
+ 	}
+ 	return i, nil
+ }
+diff --git a/src/pkg/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+index e4a9f955d9..2483a6ff41 100644
+--- a/src/pkg/strconv/atoi_test.go
++++ b/src/pkg/strconv/atoi_test.go
+@@ -7,6 +7,7 @@ package strconv
+ import (
+ 	"fmt";
+ 	"os";
++	"reflect";
+ 	"strconv";
+ 	"testing"
+ )
+@@ -44,7 +45,7 @@ type atoi64Test struct {
+ 	err os.Error;
+ }
+ 
+-var atoi64test = []atoi64Test {
++var atoi64tests = []atoi64Test {
+ 	atoi64Test{"", 0, os.EINVAL},
+ 	atoi64Test{"0", 0, nil},
+ 	atoi64Test{"-0", 0, nil},
+@@ -118,11 +119,40 @@ var atoi32tests = []atoi32Test {
+ 	atoi32Test{"-2147483649", -1<<31, os.ERANGE},
+ }
+ 
++func init() {
++	// The atoi routines return NumErrors wrapping
++	// the error and the string.  Convert the tables above.
++	for i := range atoui64tests {
++		test := &atoui64tests[i];
++		if test.err != nil {
++			test.err = &NumError{test.in, test.err}
++		}
++	}
++	for i := range atoi64tests {
++		test := &atoi64tests[i];
++		if test.err != nil {
++			test.err = &NumError{test.in, test.err}
++		}
++	}
++	for i := range atoui32tests {
++		test := &atoui32tests[i];
++		if test.err != nil {
++			test.err = &NumError{test.in, test.err}
++		}
++	}
++	for i := range atoi32tests {
++		test := &atoi32tests[i];
++		if test.err != nil {
++			test.err = &NumError{test.in, test.err}
++		}
++	}
++}
++
+ func TestAtoui64(t *testing.T) {
+-	for i := 0; i < len(atoui64tests); i++ {
++	for i := range atoui64tests {
+ 		test := &atoui64tests[i];
+ 		out, err := strconv.Atoui64(test.in);
+-		if test.out != out || test.err != err {
++		if test.out != out || !reflect.DeepEqual(test.err, err) {
+ 			t.Errorf("strconv.Atoui64(%v) = %v, %v want %v, %v\n",
+ 				test.in, out, err, test.out, test.err);
+ 		}
+@@ -130,10 +160,10 @@ func TestAtoui64(t *testing.T) {
+ }
+ 
+ func TestAtoi64(t *testing.T) {
+-	for i := 0; i < len(atoi64test); i++ {
+-		test := &atoi64test[i];
++	for i := range atoi64tests {
++		test := &atoi64tests[i];
+ 		out, err := strconv.Atoi64(test.in);
+-		if test.out != out || test.err != err {
++		if test.out != out || !reflect.DeepEqual(test.err, err) {
+ 			t.Errorf("strconv.Atoi64(%v) = %v, %v want %v, %v\n",
+ 				test.in, out, err, test.out, test.err);
+ 		}
+@@ -143,19 +173,19 @@ func TestAtoi64(t *testing.T) {
+ func TestAtoui(t *testing.T) {
+ 	switch intsize {
+ 	case 32:
+-		for i := 0; i < len(atoui32tests); i++ {
++		for i := range atoui32tests {
+ 			test := &atoui32tests[i];
+ 			out, err := strconv.Atoui(test.in);
+-			if test.out != uint32(out) || test.err != err {
++			if test.out != uint32(out) || !reflect.DeepEqual(test.err, err) {
+ 				t.Errorf("strconv.Atoui(%v) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+ 	case 64:
+-		for i := 0; i < len(atoui64tests); i++ {
++		for i := range atoui64tests {
+ 			test := &atoui64tests[i];
+ 			out, err := strconv.Atoui(test.in);
+-			if test.out != uint64(out) || test.err != err {
++			if test.out != uint64(out) || !reflect.DeepEqual(test.err, err) {
+ 				t.Errorf("strconv.Atoui(%v) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+@@ -166,19 +196,19 @@ func TestAtoui(t *testing.T) {
+ func TestAtoi(t *testing.T) {
+ 	switch intsize {
+ 	case 32:
+-		for i := 0; i < len(atoi32tests); i++ {
++		for i := range atoi32tests {
+ 			test := &atoi32tests[i];
+ 			out, err := strconv.Atoi(test.in);
+-			if test.out != int32(out) || test.err != err {
++			if test.out != int32(out) || !reflect.DeepEqual(test.err, err) {
+ 				t.Errorf("strconv.Atoi(%v) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+ 	case 64:
+-		for i := 0; i < len(atoi64test); i++ {
+-			test := &atoi64test[i];
++		for i := range atoi64tests {
++			test := &atoi64tests[i];
+ 			out, err := strconv.Atoi(test.in);
+-			if test.out != int64(out) || test.err != err {
++			if test.out != int64(out) || !reflect.DeepEqual(test.err, err) {
+ 				t.Errorf("strconv.Atoi(%v) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 3bb76cf475..6f9ab12cb4 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -13,5 +13,5 @@ import (
+ // Sleep pauses the current goroutine for ns nanoseconds.
+ // It returns os.EINTR if interrupted.
+ func Sleep(ns int64) os.Error {
+-	return os.ErrnoToError(syscall.Sleep(ns));
++	return os.NewSyscallError("sleep", syscall.Sleep(ns));
+ }
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index ea9b66cbc7..3d69d99912 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -159,10 +159,7 @@ func UTC() *Time {
+ // SecondsToLocalTime converts sec, in number of seconds since the Unix epoch,
+ // into a parsed Time value in the local time zone.
+ func SecondsToLocalTime(sec int64) *Time {
+-	z, offset, err := time.lookupTimezone(sec);
+-	if err != nil {
+-		return SecondsToUTC(sec)
+-	}
++	z, offset := time.lookupTimezone(sec);
+ 	t := SecondsToUTC(sec+int64(offset));
+ 	t.Zone = z;
+ 	t.ZoneOffset = offset;
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index c4fe814c30..e2102f1ded 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -21,14 +21,6 @@ const (
+ 	zoneDir = "/usr/share/zoneinfo/";
+ )
+ 
+-// Errors that can be generated recovering time zone information.
+-type TimeZoneError struct {
+-	os.ErrorString
+-}
+-
+-var errShort = TimeZoneError{ "time: short zone file" }
+-var errInvalid = TimeZoneError{ "time: invalid zone file" }
+-
+ // Simple I/O interface to binary blob of data.
+ type data struct {
+ 	p []byte;
+@@ -89,18 +81,18 @@ type zonetime struct {
+ 	isstd, isutc bool;	// ignored - no idea what these mean
+ }
+ 
+-func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
++func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+ 	d := data{bytes, false};
+ 
+ 	// 4-byte magic "TZif"
+ 	if magic := d.read(4); string(magic) != "TZif" {
+-		return nil, TimeZoneError{ "time: bad zone magic" }
++		return nil, false
+ 	}
+ 
+ 	// 1-byte version, then 15 bytes of padding
+ 	var p []byte;
+ 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
+-		return nil, TimeZoneError { "time: bad zone file version" }
++		return nil, false
+ 	}
+ 	vers := p[0];
+ 
+@@ -123,7 +115,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 	for i := 0; i < 6; i++ {
+ 		nn, ok := d.big4();
+ 		if !ok {
+-			return nil, errShort
++			return nil, false
+ 		}
+ 		n[i] = int(nn);
+ 	}
+@@ -152,7 +144,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 	isutc := d.read(n[NUTCLocal]);
+ 
+ 	if d.error {	// ran out of data
+-		return nil, errShort
++		return nil, false
+ 	}
+ 
+ 	// If version == 2, the entire file repeats, this time using
+@@ -167,16 +159,16 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 		var ok bool;
+ 		var n uint32;
+ 		if n, ok = zonedata.big4(); !ok {
+-			return nil, errShort
++			return nil, false
+ 		}
+ 		z[i].utcoff = int(n);
+ 		var b byte;
+ 		if b, ok = zonedata.byte(); !ok {
+-			return nil, errShort
++			return nil, false
+ 		}
+ 		z[i].isdst = b != 0;
+ 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
+-			return nil, errInvalid
++			return nil, false
+ 		}
+ 		z[i].name = byteString(abbrev[b:len(abbrev)])
+ 	}
+@@ -187,11 +179,11 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 		var ok bool;
+ 		var n uint32;
+ 		if n, ok = txtimes.big4(); !ok {
+-			return nil, errShort
++			return nil, false
+ 		}
+ 		zt[i].time = int32(n);
+ 		if int(txzones[i]) >= len(z) {
+-			return nil, errInvalid
++			return nil, false
+ 		}
+ 		zt[i].zone = &z[txzones[i]];
+ 		if i < len(isstd) {
+@@ -201,29 +193,18 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 			zt[i].isutc = isutc[i] != 0
+ 		}
+ 	}
+-	return zt, nil
++	return zt, true
+ }
+ 
+-func readinfofile(name string) ([]zonetime, os.Error) {
++func readinfofile(name string) ([]zonetime, bool) {
+ 	buf, err := io.ReadFile(name);
+ 	if err != nil {
+-		goto Error;
+-	}
+-	tx, err := parseinfo(buf);
+-	if err != nil {
+-		goto Error;
+-	}
+-	return tx, nil;
+-
+-Error:
+-	if tzerr, ok := err.(TimeZoneError); ok {
+-		tzerr.ErrorString = os.ErrorString(tzerr.String() + ": " + name)
++		return nil, false
+ 	}
+-	return nil, err
++	return parseinfo(buf);
+ }
+ 
+ var zones []zonetime
+-var zoneerr os.Error
+ 
+ func setupZone() {
+ 	// consult $TZ to find the time zone to use.
+@@ -232,23 +213,21 @@ func setupZone() {
+ 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
+ 
+ 	tz, err := os.Getenv("TZ");
+-	var file string;
++	var ok bool;
+ 	switch {
+ 	case err == os.ENOENV:
+-		zones, zoneerr = readinfofile("/etc/localtime");
+-	case err != nil:
+-		zoneerr = err;
++		zones, ok = readinfofile("/etc/localtime");
+ 	case len(tz) > 0:
+-		zones, zoneerr = readinfofile(zoneDir + tz);
++		zones, ok = readinfofile(zoneDir + tz);
+ 	case len(tz) == 0:
+ 		// do nothing: use UTC
+ 	}
+ }
+ 
+-func lookupTimezone(sec int64) (zone string, offset int, err os.Error) {
++func lookupTimezone(sec int64) (zone string, offset int) {
+ 	once.Do(setupZone);
+-	if zoneerr != nil || len(zones) == 0 {
+-		return "UTC", 0, zoneerr
++	if len(zones) == 0 {
++		return "UTC", 0
+ 	}
+ 
+ 	// Binary search for entry with largest time <= sec
+@@ -262,5 +241,5 @@ func lookupTimezone(sec int64) (zone string, offset int, err os.Error) {
+ 		}
+ 	}
+ 	z := tz[0].zone;
+-	return z.name, z.utcoff, nil
++	return z.name, z.utcoff
+ }

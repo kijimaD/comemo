@@ -18,8 +18,65 @@ Date:   Thu Jul 13 17:28:54 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/flag/export_test.go |  2 ++
  src/flag/flag.go        |  5 +++--
  src/flag/flag_test.go   | 14 ++++++++++++++
  3 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/flag/export_test.go b/src/flag/export_test.go
+index edbe83c664..838cfaf6a4 100644
+--- a/src/flag/export_test.go
++++ b/src/flag/export_test.go
+@@ -8,6 +8,8 @@ import "os"
+ 
+ // Additional routines compiled into the package only during testing.
+ 
++var DefaultUsage = Usage
++
+ // ResetForTesting clears all flag state and sets the usage function as directed.
+ // After calling ResetForTesting, parse errors in flag handling will not
+ // exit the program.
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index b166c5753a..be47f0714d 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -515,13 +515,14 @@ func (f *FlagSet) defaultUsage() {
+ // because it serves (via godoc flag Usage) as the example
+ // for how to write your own usage function.
+ 
+-// Usage prints to standard error a usage message documenting all defined command-line flags.
++// Usage prints a usage message documenting all defined command-line flags
++// to CommandLine's output, which by default is os.Stderr.
+ // It is called when an error occurs while parsing flags.
+ // The function is a variable that may be changed to point to a custom function.
+ // By default it prints a simple header and calls PrintDefaults; for details about the
+ // format of the output and how to control it, see the documentation for PrintDefaults.
+ var Usage = func() {
+-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
++	fmt.Fprintf(CommandLine.out(), "Usage of %s:\n", os.Args[0])
+ 	PrintDefaults()
+ }
+ 
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 02da2c7750..20d09c4c41 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -432,3 +432,17 @@ func TestIntFlagOverflow(t *testing.T) {
+ 		t.Error("unexpected success setting Uint")
+ 	}
+ }
++
++// Issue 20998: Usage should respect CommandLine.output.
++func TestUsageOutput(t *testing.T) {
++	ResetForTesting(DefaultUsage)
++	var buf bytes.Buffer
++	CommandLine.SetOutput(&buf)
++	defer func(old []string) { os.Args = old }(os.Args)
++	os.Args = []string{"app", "-i=1", "-unknown"}
++	Parse()
++	const want = "flag provided but not defined: -i\nUsage of app:\n"
++	if got := buf.String(); got != want {
++		t.Errorf("output = %q; want %q", got, want)
++	}
++}

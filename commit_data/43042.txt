@@ -7,7 +7,104 @@ Date:   Mon Mar 2 04:24:35 2020 +1100
     Change-Id: I9a994b01e9fecb13077c30df4b7677d40d179cce
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221681
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  9 ++++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 59 ++++++++++++++++++++++++++
  2 files changed, 68 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 3fd482b50c..9c1169dc67 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -467,5 +467,14 @@
+ (SUB x (MOVWconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+ (SUB x (MOVDconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+ 
++// Subtraction of zero.
++(SUB x (MOVBconst [0])) -> x
++(SUB x (MOVHconst [0])) -> x
++(SUB x (MOVWconst [0])) -> x
++(SUB x (MOVDconst [0])) -> x
++
++// Subtraction of zero with sign extension.
++(SUBW x (MOVWconst [0])) -> (ADDIW [0] x)
++
+ // remove redundant *const ops
+ (ADDI [0]  x) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 128f7bb2b2..b363b10ad7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -406,6 +406,8 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRISCV64MOVWstore(v)
+ 	case OpRISCV64SUB:
+ 		return rewriteValueRISCV64_OpRISCV64SUB(v)
++	case OpRISCV64SUBW:
++		return rewriteValueRISCV64_OpRISCV64SUBW(v)
+ 	case OpRotateLeft16:
+ 		return rewriteValueRISCV64_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+@@ -2950,6 +2952,63 @@ func rewriteValueRISCV64_OpRISCV64SUB(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SUB x (MOVBconst [0]))
++	// result: x
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVBconst || v_1.AuxInt != 0 {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (SUB x (MOVHconst [0]))
++	// result: x
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVHconst || v_1.AuxInt != 0 {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (SUB x (MOVWconst [0]))
++	// result: x
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVWconst || v_1.AuxInt != 0 {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	// match: (SUB x (MOVDconst [0]))
++	// result: x
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVDconst || v_1.AuxInt != 0 {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
++	return false
++}
++func rewriteValueRISCV64_OpRISCV64SUBW(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SUBW x (MOVWconst [0]))
++	// result: (ADDIW [0] x)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64MOVWconst || v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpRISCV64ADDIW)
++		v.AuxInt = 0
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRotateLeft16(v *Value) bool {

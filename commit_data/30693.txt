@@ -12,6 +12,20 @@ Date:   Thu Nov 24 02:21:20 2016 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/database/sql/sql.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index a02aa35b7b..2a9ae0b95a 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -72,6 +72,8 @@ func Drivers() []string {
+ // NamedParam may be passed into query parameter arguments to associate
+ // a named placeholder with a value.
+ type NamedParam struct {
++	_Named_Fields_Required struct{}
++
+ 	// Name of the parameter placeholder. If empty the ordinal position in the
+ 	// argument list will be used.
+ 	Name string

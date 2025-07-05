@@ -16,7 +16,50 @@ Date:   Tue Sep 27 01:31:31 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/build/build.go     | 5 +++--
  src/go/printer/comment.go | 7 ++++---
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 36d9165125..bf779da992 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -179,10 +179,11 @@ func hasSubdir(root, dir string) (rel string, ok bool) {
+ 		root += sep
+ 	}
+ 	dir = filepath.Clean(dir)
+-	if !strings.HasPrefix(dir, root) {
++	after, found := strings.CutPrefix(dir, root)
++	if !found {
+ 		return "", false
+ 	}
+-	return filepath.ToSlash(dir[len(root):]), true
++	return filepath.ToSlash(after), true
+ }
+ 
+ // readDir calls ctxt.ReadDir (if not nil) or else os.ReadDir.
+diff --git a/src/go/printer/comment.go b/src/go/printer/comment.go
+index 76dd31efc7..9012714939 100644
+--- a/src/go/printer/comment.go
++++ b/src/go/printer/comment.go
+@@ -36,15 +36,16 @@ func formatDocComment(list []*ast.Comment) []*ast.Comment {
+ 		kind = "//"
+ 		var b strings.Builder
+ 		for _, c := range list {
+-			if !strings.HasPrefix(c.Text, "//") {
++			after, found := strings.CutPrefix(c.Text, "//")
++			if !found {
+ 				return list
+ 			}
+ 			// Accumulate //go:build etc lines separately.
+-			if isDirective(c.Text[2:]) {
++			if isDirective(after) {
+ 				directives = append(directives, c)
+ 				continue
+ 			}
+-			b.WriteString(strings.TrimPrefix(c.Text[2:], " "))
++			b.WriteString(strings.TrimPrefix(after, " "))
+ 			b.WriteString("\n")
+ 		}
+ 		text = b.String()

@@ -14,10 +14,327 @@ Date:   Wed Sep 21 15:51:27 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/fixedbugs/bug369.go     | 13 ++++---
  test/fixedbugs/issue21317.go |  2 +-
  test/linkmain_run.go         | 23 +++++++-----
  test/linkobj.go              | 16 ++++++---
  test/run.go                  | 84 ++++++++++++++++++++++++++++++++++++--------
  5 files changed, 106 insertions(+), 32 deletions(-)
+
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index 5bababd63e..65dd9adc73 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -31,10 +31,15 @@ func main() {
+ 
+ 	check(os.Mkdir(tmp("test"), 0777))
+ 
+-	run("go", "tool", "compile", "-p=test/slow", "-N", "-o", tmp("test/slow.o"), "pkg.go")
+-	run("go", "tool", "compile", "-p=test/fast", "-o", tmp("test/fast.o"), "pkg.go")
+-	run("go", "tool", "compile", "-p=main", "-D", "test", "-I", tmpDir, "-o", tmp("main.o"), "main.go")
+-	run("go", "tool", "link", "-L", tmpDir, "-o", tmp("a.exe"), tmp("main.o"))
++	stdlibimportcfg, err := os.ReadFile(os.Getenv("STDLIB_IMPORTCFG"))
++	check(err)
++	importcfg := string(stdlibimportcfg) + "\npackagefile test/slow=" + tmp("test/slow.o") + "\npackagefile test/fast=" + tmp("test/fast.o")
++	os.WriteFile(tmp("importcfg"), []byte(importcfg), 0644)
++
++	run("go", "tool", "compile", "-importcfg="+tmp("importcfg"), "-p=test/slow", "-N", "-o", tmp("test/slow.o"), "pkg.go")
++	run("go", "tool", "compile", "-importcfg="+tmp("importcfg"), "-p=test/fast", "-o", tmp("test/fast.o"), "pkg.go")
++	run("go", "tool", "compile", "-importcfg="+tmp("importcfg"), "-p=main", "-D", "test", "-o", tmp("main.o"), "main.go")
++	run("go", "tool", "link", "-importcfg="+tmp("importcfg"), "-o", tmp("a.exe"), tmp("main.o"))
+ 	run(tmp("a.exe"))
+ }
+ 
+diff --git a/test/fixedbugs/issue21317.go b/test/fixedbugs/issue21317.go
+index 80797f73ed..81379dcc33 100644
+--- a/test/fixedbugs/issue21317.go
++++ b/test/fixedbugs/issue21317.go
+@@ -38,7 +38,7 @@ func main() {
+ 	defer os.RemoveAll(f.Name())
+ 
+ 	// compile and test output
+-	cmd := exec.Command("go", "tool", "compile", "-p=main", f.Name())
++	cmd := exec.Command("go", "tool", "compile", "-p=main", "-importcfg="+os.Getenv("STDLIB_IMPORTCFG"), f.Name())
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		log.Fatalf("expected cmd/compile to fail")
+diff --git a/test/linkmain_run.go b/test/linkmain_run.go
+index 6bc82dfafc..f4f6c4320e 100644
+--- a/test/linkmain_run.go
++++ b/test/linkmain_run.go
+@@ -61,16 +61,23 @@ func main() {
+ 		return filepath.Join(tmpDir, name)
+ 	}
+ 
++    importcfg, err := exec.Command("go", "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std").Output()
++    if err != nil {
++        fmt.Println(err)
++        os.Exit(1)
++    }
++    os.WriteFile(tmp("importcfg"), importcfg, 0644)
++
+ 	// helloworld.go is package main
+-	run("go tool compile -p=main -o", tmp("linkmain.o"), "helloworld.go")
+-	run("go tool compile -p=main -pack -o", tmp("linkmain.a"), "helloworld.go")
+-	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.o"))
+-	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.a"))
++    run("go tool compile -p=main -importcfg", tmp("importcfg"), "-o", tmp("linkmain.o"), "helloworld.go")
++	run("go tool compile -p=main -importcfg", tmp("importcfg"), " -pack -o", tmp("linkmain.a"), "helloworld.go")
++	run("go tool link -importcfg", tmp("importcfg"), "-o", tmp("linkmain.exe"), tmp("linkmain.o"))
++	run("go tool link -importcfg", tmp("importcfg"), "-o", tmp("linkmain.exe"), tmp("linkmain.a"))
+ 
+ 	// linkmain.go is not
+-	run("go tool compile -p=notmain -o", tmp("linkmain1.o"), "linkmain.go")
+-	run("go tool compile -p=notmain -pack -o", tmp("linkmain1.a"), "linkmain.go")
+-	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.o"))
+-	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.a"))
++	run("go tool compile -importcfg", tmp("importcfg"), "-p=notmain -o", tmp("linkmain1.o"), "linkmain.go")
++	run("go tool compile -importcfg", tmp("importcfg"), "-p=notmain -pack -o", tmp("linkmain1.a"), "linkmain.go")
++	runFail("go tool link -importcfg", tmp("importcfg"), "-o", tmp("linkmain.exe"), tmp("linkmain1.o"))
++	runFail("go tool link -importcfg", tmp("importcfg"), "-o", tmp("linkmain.exe"), tmp("linkmain1.a"))
+ 	cleanup()
+ }
+diff --git a/test/linkobj.go b/test/linkobj.go
+index 023996aa30..35ff63ba67 100644
+--- a/test/linkobj.go
++++ b/test/linkobj.go
+@@ -65,6 +65,11 @@ func main() {
+ 		}
+ 	`)
+ 
++	stdlibimportcfg, err := os.ReadFile(os.Getenv("STDLIB_IMPORTCFG"))
++	if err != nil {
++		fatalf("listing stdlib export files: %v", err)
++	}
++
+ 	// two rounds: once using normal objects, again using .a files (compile -pack).
+ 	for round := 0; round < 2; round++ {
+ 		pkg := "-pack=" + fmt.Sprint(round)
+@@ -75,10 +80,13 @@ func main() {
+ 			o = "a"
+ 		}
+ 
++		importcfg := string(stdlibimportcfg) + "\npackagefile p1=p1." + o + "\npackagefile p2=p2." + o
++		os.WriteFile("importcfg", []byte(importcfg), 0644)
++
+ 		// inlining is disabled to make sure that the link objects contain needed code.
+-		run("go", "tool", "compile", "-p=p1", pkg, "-D", ".", "-I", ".", "-l", "-o", "p1."+o, "-linkobj", "p1.lo", "p1.go")
+-		run("go", "tool", "compile", "-p=p2", pkg, "-D", ".", "-I", ".", "-l", "-o", "p2."+o, "-linkobj", "p2.lo", "p2.go")
+-		run("go", "tool", "compile", "-p=main", pkg, "-D", ".", "-I", ".", "-l", "-o", "p3."+o, "-linkobj", "p3.lo", "p3.go")
++		run("go", "tool", "compile", "-p=p1", pkg, "-D", ".", "-importcfg=importcfg", "-l", "-o", "p1."+o, "-linkobj", "p1.lo", "p1.go")
++		run("go", "tool", "compile", "-p=p2", pkg, "-D", ".", "-importcfg=importcfg", "-l", "-o", "p2."+o, "-linkobj", "p2.lo", "p2.go")
++		run("go", "tool", "compile", "-p=main", pkg, "-D", ".", "-importcfg=importcfg", "-l", "-o", "p3."+o, "-linkobj", "p3.lo", "p3.go")
+ 
+ 		cp("p1."+o, "p1.oo")
+ 		cp("p2."+o, "p2.oo")
+@@ -91,7 +99,7 @@ func main() {
+ 			fatalf("link p2.o failed but not for package main:\n%s", out)
+ 		}
+ 
+-		run("go", "tool", "link", "-L", ".", "-o", "a.out.exe", "p3."+o)
++		run("go", "tool", "link", "-importcfg=importcfg", "-o", "a.out.exe", "p3."+o)
+ 		out = run("./a.out.exe")
+ 		if !strings.Contains(out, "hello from p1\nhello from p2\nhello from main\n") {
+ 			fatalf("running main, incorrect output:\n%s", out)
+diff --git a/test/run.go b/test/run.go
+index 5497c6c231..167eeac689 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -29,6 +29,7 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"time"
+ 	"unicode"
+ )
+@@ -263,7 +264,7 @@ func goFiles(dir string) []string {
+ type runCmd func(...string) ([]byte, error)
+ 
+ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, err error) {
+-	cmd := []string{goTool(), "tool", "compile", "-e", "-p=p"}
++	cmd := []string{goTool(), "tool", "compile", "-e", "-p=p", "-importcfg=" + stdlibImportcfgFile()}
+ 	cmd = append(cmd, flags...)
+ 	if *linkshared {
+ 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
+@@ -272,8 +273,11 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
+ 	return runcmd(cmd...)
+ }
+ 
+-func compileInDir(runcmd runCmd, dir string, flags []string, pkgname string, names ...string) (out []byte, err error) {
+-	cmd := []string{goTool(), "tool", "compile", "-e", "-D", "test", "-I", "."}
++func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, pkgname string, names ...string) (out []byte, err error) {
++	if importcfg == "" {
++		importcfg = stdlibImportcfgFile()
++	}
++	cmd := []string{goTool(), "tool", "compile", "-e", "-D", "test", "-importcfg=" + importcfg}
+ 	if pkgname == "main" {
+ 		cmd = append(cmd, "-p=main")
+ 	} else {
+@@ -290,9 +294,41 @@ func compileInDir(runcmd runCmd, dir string, flags []string, pkgname string, nam
+ 	return runcmd(cmd...)
+ }
+ 
+-func linkFile(runcmd runCmd, goname string, ldflags []string) (err error) {
++var stdlibImportcfgString string
++var stdlibImportcfgFilename string
++var cfgonce sync.Once
++var fileonce sync.Once
++
++func stdlibImportcfg() string {
++	cfgonce.Do(func() {
++		output, err := exec.Command(goTool(), "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std").Output()
++		if err != nil {
++			log.Fatal(err)
++		}
++		stdlibImportcfgString = string(output)
++	})
++	return stdlibImportcfgString
++}
++
++func stdlibImportcfgFile() string {
++	fileonce.Do(func() {
++		tmpdir, err := os.MkdirTemp("", "importcfg")
++		if err != nil {
++			log.Fatal(err)
++		}
++		filename := filepath.Join(tmpdir, "importcfg")
++		os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
++		stdlibImportcfgFilename = filename
++	})
++	return stdlibImportcfgFilename
++}
++
++func linkFile(runcmd runCmd, goname string, importcfg string, ldflags []string) (err error) {
++	if importcfg == "" {
++		importcfg = stdlibImportcfgFile()
++	}
+ 	pfile := strings.Replace(goname, ".go", ".o", -1)
+-	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-L", "."}
++	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-importcfg=" + importcfg}
+ 	if *linkshared {
+ 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
+ 	}
+@@ -718,6 +754,7 @@ func (t *test) run() {
+ 		if tempDirIsGOPATH {
+ 			cmd.Env = append(cmd.Env, "GOPATH="+t.tempDir)
+ 		}
++		cmd.Env = append(cmd.Env, "STDLIB_IMPORTCFG="+stdlibImportcfgFile())
+ 		// Put the bin directory of the GOROOT that built this program
+ 		// first in the path. This ensures that tests that use the "go"
+ 		// tool use the same one that built this program. This ensures
+@@ -775,6 +812,17 @@ func (t *test) run() {
+ 		return buf.Bytes(), err
+ 	}
+ 
++	importcfg := func(dir string, pkgs []*goDirPkg) string {
++		cfg := stdlibImportcfg()
++		for _, pkg := range pkgs {
++			pkgpath := path.Join("test", strings.TrimSuffix(pkg.files[0], ".go"))
++			cfg += "\npackagefile " + pkgpath + "=" + filepath.Join(t.tempDir, pkgpath+".a")
++		}
++		filename := filepath.Join(t.tempDir, "importcfg")
++		os.WriteFile(filename, []byte(cfg), 0644)
++		return filename
++	}
++
+ 	long := filepath.Join(cwd, t.goFileName())
+ 	switch action {
+ 	default:
+@@ -839,7 +887,7 @@ func (t *test) run() {
+ 		// Fail if wantError is true and compilation was successful and vice versa.
+ 		// Match errors produced by gc against errors in comments.
+ 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
+-		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-o", "a.o"}
++		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.o"}
+ 		// No need to add -dynlink even if linkshared if we're just checking for errors...
+ 		cmdline = append(cmdline, flags...)
+ 		cmdline = append(cmdline, long)
+@@ -876,8 +924,10 @@ func (t *test) run() {
+ 			t.err = err
+ 			return
+ 		}
++		importcfgfile := importcfg(longdir, pkgs)
++
+ 		for _, pkg := range pkgs {
+-			_, t.err = compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
++			_, t.err = compileInDir(runcmd, longdir, flags, importcfgfile, pkg.name, pkg.files...)
+ 			if t.err != nil {
+ 				return
+ 			}
+@@ -900,8 +950,9 @@ func (t *test) run() {
+ 			// Preceding pkg must return an error from compileInDir.
+ 			errPkg--
+ 		}
++		importcfgfile := importcfg(longdir, pkgs)
+ 		for i, pkg := range pkgs {
+-			out, err := compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
++			out, err := compileInDir(runcmd, longdir, flags, importcfgfile, pkg.name, pkg.files...)
+ 			if i == errPkg {
+ 				if wantError && err == nil {
+ 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+@@ -949,16 +1000,19 @@ func (t *test) run() {
+ 			}
+ 		}
+ 
++		importcfgfile := importcfg(longdir, pkgs)
++
+ 		for i, pkg := range pkgs {
+-			_, err := compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
++			_, err := compileInDir(runcmd, longdir, flags, importcfgfile, pkg.name, pkg.files...)
+ 			// Allow this package compilation fail based on conditions below;
+ 			// its errors were checked in previous case.
+ 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
+ 				t.err = err
+ 				return
+ 			}
++
+ 			if i == len(pkgs)-1 {
+-				err = linkFile(runcmd, pkg.files[0], ldflags)
++				err = linkFile(runcmd, pkg.files[0], importcfgfile, ldflags)
+ 				if err != nil {
+ 					t.err = err
+ 					return
+@@ -1060,7 +1114,7 @@ func (t *test) run() {
+ 			}
+ 		}
+ 		var objs []string
+-		cmd := []string{goTool(), "tool", "compile", "-p=main", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
++		cmd := []string{goTool(), "tool", "compile", "-p=main", "-e", "-D", ".", "-importcfg=" + stdlibImportcfgFile(), "-o", "go.o"}
+ 		if len(asms) > 0 {
+ 			cmd = append(cmd, "-asmhdr", "go_asm.h", "-symabis", "symabis")
+ 		}
+@@ -1088,7 +1142,7 @@ func (t *test) run() {
+ 			t.err = err
+ 			break
+ 		}
+-		cmd = []string{goTool(), "tool", "link", "-o", "a.exe", "all.a"}
++		cmd = []string{goTool(), "tool", "link", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.exe", "all.a"}
+ 		_, err = runcmd(cmd...)
+ 		if err != nil {
+ 			t.err = err
+@@ -1145,12 +1199,12 @@ func (t *test) run() {
+ 			// Because we run lots of trivial test programs,
+ 			// the time adds up.
+ 			pkg := filepath.Join(t.tempDir, "pkg.a")
+-			if _, err := runcmd(goTool(), "tool", "compile", "-p=main", "-o", pkg, t.goFileName()); err != nil {
++			if _, err := runcmd(goTool(), "tool", "compile", "-p=main", "-importcfg="+stdlibImportcfgFile(), "-o", pkg, t.goFileName()); err != nil {
+ 				t.err = err
+ 				return
+ 			}
+ 			exe := filepath.Join(t.tempDir, "test.exe")
+-			cmd := []string{goTool(), "tool", "link", "-s", "-w"}
++			cmd := []string{goTool(), "tool", "link", "-s", "-w", "-importcfg=" + stdlibImportcfgFile()}
+ 			cmd = append(cmd, "-o", exe, pkg)
+ 			if _, err := runcmd(cmd...); err != nil {
+ 				t.err = err
+@@ -1227,7 +1281,7 @@ func (t *test) run() {
+ 			t.err = fmt.Errorf("write tempfile:%s", err)
+ 			return
+ 		}
+-		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-e", "-o", "a.o"}
++		cmdline := []string{goTool(), "tool", "compile", "-importcfg=" + stdlibImportcfgFile(), "-p=p", "-d=panic", "-e", "-o", "a.o"}
+ 		cmdline = append(cmdline, flags...)
+ 		cmdline = append(cmdline, tfile)
+ 		out, err = runcmd(cmdline...)

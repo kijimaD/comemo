@@ -12,6 +12,23 @@ Date:   Wed Oct 6 13:16:02 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/walk/builtin.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 3c9ef636f8..d0aaee03d5 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -622,10 +622,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil)
+ 		if params := on.Type().Params().FieldSlice(); len(params) > 0 {
+ 			t := params[0].Type
+-			if !types.Identical(t, n.Type()) {
+-				n = ir.NewConvExpr(base.Pos, ir.OCONV, nil, n)
+-				n.SetType(t)
+-			}
++			n = typecheck.Conv(n, t)
+ 			r.Args.Append(n)
+ 		}
+ 		calls = append(calls, r)

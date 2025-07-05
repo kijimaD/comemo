@@ -8,7 +8,7 @@ Date:   Wed Sep 3 13:21:05 2008 -0700
     R=gri
     OCL=14751
     CL=14751
-
+---
  test/{bugs => fixedbugs}/bug027.go |  2 +-
  test/{bugs => fixedbugs}/bug072.go |  0
  test/{bugs => fixedbugs}/bug076.go |  0
@@ -16,3 +16,168 @@ Date:   Wed Sep 3 13:21:05 2008 -0700
  test/ken/array.go                  |  9 +++----
  test/ken/shift.go                  |  1 -
  6 files changed, 37 insertions(+), 26 deletions(-)
+
+diff --git a/test/bugs/bug027.go b/test/fixedbugs/bug027.go
+similarity index 92%
+rename from test/bugs/bug027.go
+rename to test/fixedbugs/bug027.go
+index 33005a2406..f7b33c04cb 100644
+--- a/test/bugs/bug027.go
++++ b/test/fixedbugs/bug027.go
+@@ -51,7 +51,7 @@ func main() {
+ 		print(i, " ", x.val, "\n");  // prints correct list
+ 	}
+ 	for i := 0; i < v.nelem; i++ {
+-		print(i, " ", I(v.At(i)).val, "\n"); // always prints 5 - bad code - should be *I()
++		print(i, " ", v.At(i).(*I).val, "\n");
+ 	}
+ }
+ /*
+diff --git a/test/bugs/bug072.go b/test/fixedbugs/bug072.go
+similarity index 100%
+rename from test/bugs/bug072.go
+rename to test/fixedbugs/bug072.go
+diff --git a/test/bugs/bug076.go b/test/fixedbugs/bug076.go
+similarity index 100%
+rename from test/bugs/bug076.go
+rename to test/fixedbugs/bug076.go
+diff --git a/test/golden.out b/test/golden.out
+index 652866e86c..0fe042c3b2 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -34,6 +34,14 @@ Hello World!
+ =========== ken/rob2.go
+ (defn foo (add 12 34))
+ 
++=========== ken/shift.go
++ken/shift.go:50: stupid shift: 1025
++ken/shift.go:51: stupid shift: 1025
++ken/shift.go:57: stupid shift: 1025
++ken/shift.go:58: stupid shift: 1025
++ken/shift.go:64: stupid shift: 1025
++ken/shift.go:65: stupid shift: 1025
++
+ =========== ken/simpprint.go
+ hello world
+ 
+@@ -54,15 +62,6 @@ BUG should compile
+ sys·printstring: main·sigs_I: not defined
+ BUG: known to fail incorrectly
+ 
+-=========== bugs/bug027.go
+-bugs/bug027.go:50: illegal types for operand: CONV
+-	(<Element>I{})
+-	(<I>{<val><int32>INT32;})
+-bugs/bug027.go:50: illegal types for operand: CONV
+-	(<Element>I{})
+-	(<I>{<val><int32>INT32;})
+-BUG: known to fail incorrectly
+-
+ =========== bugs/bug029.go
+ BUG: known to succeed incorrectly
+ 
+@@ -73,12 +72,8 @@ BUG: compilation succeeds incorrectly
+ BUG: compilation succeeds incorrectly
+ 
+ =========== bugs/bug047.go
+-bugs/bug047.go:13: illegal types for operand: CONV
+-	(<T>{<s><string>*STRING;<f><float32>FLOAT32;})
+ bugs/bug047.go:16: illegal types for operand: CONV
+ 	(MAP[<int32>INT32]<int32>INT32)
+-bugs/bug047.go:13: illegal types for operand: CONV
+-	(<T>{<s><string>*STRING;<f><float32>FLOAT32;})
+ bugs/bug047.go:16: illegal types for operand: CONV
+ 	(MAP[<int32>INT32]<int32>INT32)
+ BUG: known to fail incorrectly
+@@ -108,14 +103,12 @@ BUG: compilation should succeed
+ bugs/bug068.go:6: unknown escape sequence: '
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug072.go
+-bugs/bug072.go:6: bug: undefined
+-BUG: compiler crashes after error message - Bus error
+-Bus error               $G $D/$F.go
+-
+ =========== bugs/bug074.go
++bugs/bug074.go:6: illegal types for operand: CONV
++	(<string>*STRING)
++bugs/bug074.go:6: illegal types for operand: CONV
++	(<string>*STRING)
+ BUG: compiler crashes - Bus error
+-Bus error               $G $D/$F.go
+ 
+ =========== bugs/bug075.go
+ bugs/bug075.go:11: bad shape across assignment - cr=1 cl=2
+@@ -180,6 +173,19 @@ fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
+ =========== fixedbugs/bug025.go
+ fixedbugs/bug025.go:7: variable exported but not defined: Foo
+ 
++=========== fixedbugs/bug027.go
++hi
++0 44444
++1 3333
++2 222
++3 11
++4 0
++0 44444
++1 3333
++2 222
++3 11
++4 0
++
+ =========== fixedbugs/bug035.go
+ fixedbugs/bug035.go:6: var i redeclared in this block
+      previous declaration at fixedbugs/bug035.go:5
+@@ -210,6 +216,13 @@ inner loop top i 0
+ do break
+ broke
+ 
++=========== fixedbugs/bug072.go
++fixedbugs/bug072.go:6: bug: undefined
++fixedbugs/bug072.go:6: illegal types for operand: CONV
++	(<string>*STRING)
++fixedbugs/bug072.go:6: illegal types for operand: CONV
++	(<string>*STRING)
++
+ =========== fixedbugs/bug073.go
+ fixedbugs/bug073.go:8: illegal types for operand: LSH
+ 	(<int32>INT32)
+diff --git a/test/ken/array.go b/test/ken/array.go
+index bd17f645c5..0dac2a6893 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -4,7 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ package	main
+ 
+ export func
+@@ -147,10 +146,10 @@ testfdfault()
+ func
+ main()
+ {
+-	print("testpdpd\n");	testpdpd();
+-	print("testpfpf\n");	testpfpf();
+-	print("testpdpf1\n");	testpdpf1();
+-	print("testpdpf2\n");	testpdpf2();
++	testpdpd();
++	testpfpf();
++	testpdpf1();
++	testpdpf2();
+ //	print("testpdfault\n");	testpdfault();
+ //	print("testfdfault\n");	testfdfault();
+ }
+diff --git a/test/ken/shift.go b/test/ken/shift.go
+index 180abbf3fc..0be8da51b6 100644
+--- a/test/ken/shift.go
++++ b/test/ken/shift.go
+@@ -4,7 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ package main
+ 
+ var	ians	[18]int;

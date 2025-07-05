@@ -7,6 +7,20 @@ Date:   Tue May 26 21:11:31 2009 -0700
     R=ken
     OCL=29426
     CL=29426
-
+---
  src/cmd/8g/gobj.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index e080d8aea6..37d7321f11 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -521,7 +521,7 @@ duint16(Sym *s, int off, uint32 v)
+ int
+ duintptr(Sym *s, int off, uint32 v)
+ {
+-	return duintxx(s, off, v, 8);
++	return duintxx(s, off, v, 4);
+ }
+ 
+ int

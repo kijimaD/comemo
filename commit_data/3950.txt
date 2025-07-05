@@ -9,8 +9,61 @@ Date:   Tue Nov 10 09:37:03 2009 -0800
     
     R=r
     http://go/go-review/1025035
-
+---
  doc/contribute.html  | 4 ----
  doc/install.html     | 3 +--
  lib/godoc/godoc.html | 3 ++-
  3 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 7fd680daf8..55c8e31ae3 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -242,8 +242,6 @@ the Mercurial Queues extension.
+ 
+ <h3>Configure the extension</h3>
+ 
+-[NOTE FOR BEFORE LAUNCH: <a href="http://www/~rsc/internal-hg.html">Read this instead</a>.]
+-
+ <p>Edit <code>$GOROOT/.hg/hgrc</code> to add:</p>
+ 
+ <pre>
+@@ -257,8 +255,6 @@ The Mercurial configuration file format does not allow environment variable subs
+ 
+ <h3>Log in to the code review site.</h3>
+ 
+-[NOTE FOR BEFORE LAUNCH: <a href="http://www/~rsc/internal-hg.html">Read this instead</a>.]
+-
+ <p>
+ The code review server uses a Google Account to authenticate.
+ (If you can use the account to
+diff --git a/doc/install.html b/doc/install.html
+index 029eb7734e..ce34fc05dd 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -147,9 +147,8 @@ If that fails, visit the <a href="http://mercurial.selenic.com/wiki/Download">Me
+ <p>Make sure the <code>$GOROOT</code> directory does not exist or is empty.
+ Then check out the repository:</p>
+ 
+-<!-- TODO(go-dev): Replace with http://go.googlecode.com/ for launch. -->
+ <pre>
+-$ hg clone http://r45/ $GOROOT
++$ hg clone -r release https://go.googlecode.com/hg/ $GOROOT
+ </pre>
+ 
+ <h2>Install Go</h2>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index cae2cdaea7..6ac255ab2a 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -101,8 +101,9 @@
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Help</li>
+-    <li><a href="http://code.google.com/p/go/issues/list">Issue tracker</a></li>
++    <li>#go-nuts on irc.freenode.net</li>
+     <li><a href="http://groups.google.com/group/golang-nuts">Go Nuts mailing list</a></li>
++    <li><a href="http://code.google.com/p/go/issues/list">Issue tracker</a></li>
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Go code search</li>

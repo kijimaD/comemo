@@ -17,8 +17,53 @@ Date:   Fri Sep 23 21:23:40 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5127041
-
+---
  test/fixedbugs/bug340.go | 6 +++---
  test/fixedbugs/bug350.go | 8 ++++----
  test/fixedbugs/bug351.go | 2 +-
  3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/test/fixedbugs/bug340.go b/test/fixedbugs/bug340.go
+index 461cc6cd41..af72513e32 100644
+--- a/test/fixedbugs/bug340.go
++++ b/test/fixedbugs/bug340.go
+@@ -10,8 +10,8 @@ package main
+ 
+ func main() {
+ 	var x interface{}
+-	switch t := x.(type) { // ERROR "0 is not a type"
+-	case 0:
+-		t.x = 1 // ERROR "type interface \{ \}"
++	switch t := x.(type) { // GC_ERROR "0 is not a type"
++	case 0:		// GCCGO_ERROR "expected type"
++		t.x = 1 // ERROR "type interface \{ \}|reference to undefined field or method"
+ 	}
+ }
+diff --git a/test/fixedbugs/bug350.go b/test/fixedbugs/bug350.go
+index aac2949017..f8df3f58b9 100644
+--- a/test/fixedbugs/bug350.go
++++ b/test/fixedbugs/bug350.go
+@@ -8,8 +8,8 @@ package main
+ 
+ type T int
+ 
+-func (T) m() {}
+-func (T) m() {} // ERROR "T[.]m redeclared"
++func (T) m() {} // GCCGO_ERROR "previous"
++func (T) m() {} // ERROR "T[.]m redeclared|redefinition"
+ 
+-func (*T) p() {}
+-func (*T) p() {} // ERROR "[(][*]T[)][.]p redeclared"
++func (*T) p() {} // GCCGO_ERROR "previous"
++func (*T) p() {} // ERROR "[(][*]T[)][.]p redeclared|redefinition"
+diff --git a/test/fixedbugs/bug351.go b/test/fixedbugs/bug351.go
+index 2f631bbbbc..9625c6a501 100644
+--- a/test/fixedbugs/bug351.go
++++ b/test/fixedbugs/bug351.go
+@@ -9,5 +9,5 @@ package main
+ var x int
+ 
+ func main() {
+-	(x) := 0  // ERROR "non-name [(]x[)]"
++	(x) := 0  // ERROR "non-name [(]x[)]|non-name on left side"
+ }

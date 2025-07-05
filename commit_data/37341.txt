@@ -8,7 +8,7 @@ Date:   Tue Jul 17 22:59:51 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/124697
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/mod_test.go                             | 131 ---------------------
  src/cmd/go/script_test.go                          |  65 +++++++++-
  src/cmd/go/testdata/script/README                  |  21 ++--
@@ -19,3 +19,458 @@ Date:   Tue Jul 17 22:59:51 2018 -0400
  src/cmd/go/testdata/script/mod_vendor_nodeps.txt   |   9 ++
  src/cmd/go/testdata/script/mod_version_nomod.txt   |   4 +
  9 files changed, 182 insertions(+), 145 deletions(-)
+
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+index 7c582633e4..1a985eb774 100644
+--- a/src/cmd/go/mod_test.go
++++ b/src/cmd/go/mod_test.go
+@@ -972,70 +972,6 @@ func TestModInitLegacy(t *testing.T) {
+ 	tg.grepStderrNot("copying requirements from .*Gopkg.lock", "should not copy Gopkg.lock again")
+ }
+ 
+-func TestModQueryExcluded(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte(`package x; import _ "github.com/gorilla/mux"`), 0666))
+-	gomod := []byte(`
+-		module x
+-
+-		exclude rsc.io/quote v1.5.0
+-	`)
+-
+-	tg.setenv(homeEnvName(), tg.path("home"))
+-	tg.cd(tg.path("x"))
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), gomod, 0666))
+-	tg.runFail("get", "rsc.io/quote@v1.5.0")
+-	tg.grepStderr("rsc.io/quote@v1.5.0 excluded", "print version excluded")
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), gomod, 0666))
+-	tg.run("get", "rsc.io/quote@v1.5.1")
+-	tg.grepStderr("rsc.io/quote v1.5.1", "find version 1.5.1")
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), gomod, 0666))
+-	tg.run("get", "rsc.io/quote@>=v1.5")
+-	tg.run("list", "-m", "...quote")
+-	tg.grepStdout("rsc.io/quote v1.5.[1-9]", "expected version 1.5.1 or later")
+-}
+-
+-func TestModRequireExcluded(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte(`package x; import _ "rsc.io/quote"`), 0666))
+-
+-	tg.setenv(homeEnvName(), tg.path("home"))
+-	tg.cd(tg.path("x"))
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-		exclude rsc.io/sampler latest
+-		require rsc.io/sampler latest
+-	`), 0666))
+-	tg.runFail("build")
+-	tg.grepStderr("no newer version available", "only available version excluded")
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-		exclude rsc.io/quote v1.5.1
+-		require rsc.io/quote v1.5.1
+-	`), 0666))
+-	tg.run("build")
+-	tg.grepStderr("rsc.io/quote v1.5.2", "find version 1.5.2")
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-		exclude rsc.io/quote v1.5.2
+-		require rsc.io/quote v1.5.1
+-	`), 0666))
+-	tg.run("build")
+-	tg.grepStderr("rsc.io/quote v1.5.1", "find version 1.5.1")
+-}
+-
+ func TestModInitLegacy2(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 	if _, err := exec.LookPath("git"); err != nil {
+@@ -1215,73 +1151,6 @@ func TestModFileProxy(t *testing.T) {
+ 	tg.mustExist(tg.path("gp2/src/mod/cache/download/rsc.io/quote/@v/list"))
+ }
+ 
+-func TestModVendorNoDeps(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/main.go"), []byte(`package x`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`module x`), 0666))
+-	tg.cd(tg.path("x"))
+-	tg.run("mod", "-vendor")
+-	tg.grepStderr("go: no dependencies to vendor", "print vendor info")
+-}
+-
+-func TestModVersionNoModule(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.cd(tg.path("."))
+-	tg.run("version")
+-}
+-
+-func TestModImportDomainRoot(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/main.go"), []byte(`
+-		package x
+-		import _ "example.com"`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte("module x"), 0666))
+-	tg.cd(tg.path("x"))
+-	tg.run("build")
+-}
+-
+-func TestModSyncPrintJson(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/main.go"), []byte(`
+-		package x
+-		import "rsc.io/quote"
+-		func main() {
+-			_ = mux.NewRouter()
+-		}`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte("module x"), 0666))
+-	tg.cd(tg.path("x"))
+-	tg.run("mod", "-sync", "-json")
+-	count := tg.grepCountBoth(`"Path": "rsc.io/quote",`)
+-	if count != 1 {
+-		t.Fatal("produces duplicate imports")
+-	}
+-	// test quoted module path
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-		require (
+-			"rsc.io/sampler" v1.3.0
+-			"rsc.io/quote" v1.5.2
+-	)`), 0666))
+-	tg.run("mod", "-sync", "-json")
+-	count = tg.grepCountBoth(`"Path": "rsc.io/quote",`)
+-	if count != 1 {
+-		t.Fatal("produces duplicate imports")
+-	}
+-}
+-
+ func TestModMultiVersion(t *testing.T) {
+ 	tg := testGoModules(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 78bb1cb50e..8d05f69dd9 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -288,6 +289,7 @@ var scriptCmds = map[string]func(*testScript, bool, []string){
+ 	"exec":   (*testScript).cmdExec,
+ 	"exists": (*testScript).cmdExists,
+ 	"go":     (*testScript).cmdGo,
++	"grep":   (*testScript).cmdGrep,
+ 	"mkdir":  (*testScript).cmdMkdir,
+ 	"rm":     (*testScript).cmdRm,
+ 	"skip":   (*testScript).cmdSkip,
+@@ -406,8 +408,13 @@ func (ts *testScript) cmdExec(neg bool, args []string) {
+ 
+ // exists checks that the list of files exists.
+ func (ts *testScript) cmdExists(neg bool, args []string) {
++	var readonly bool
++	if len(args) > 0 && args[0] == "-readonly" {
++		readonly = true
++		args = args[1:]
++	}
+ 	if len(args) == 0 {
+-		ts.fatalf("usage: exists file...")
++		ts.fatalf("usage: exists [-readonly] file...")
+ 	}
+ 
+ 	for _, file := range args {
+@@ -423,6 +430,9 @@ func (ts *testScript) cmdExists(neg bool, args []string) {
+ 		if err != nil && !neg {
+ 			ts.fatalf("%s does not exist", file)
+ 		}
++		if err == nil && !neg && readonly && info.Mode()&0222 != 0 {
++			ts.fatalf("%s exists but is writable", file)
++		}
+ 	}
+ }
+ 
+@@ -521,20 +531,63 @@ func (ts *testScript) cmdStderr(neg bool, args []string) {
+ 	scriptMatch(ts, neg, args, ts.stderr, "stderr")
+ }
+ 
++// grep checks that file content matches a regexp.
++// Like stdout/stderr and unlike Unix grep, it accepts Go regexp syntax.
++func (ts *testScript) cmdGrep(neg bool, args []string) {
++	scriptMatch(ts, neg, args, "", "grep")
++}
++
+ // scriptMatch implements both stdout and stderr.
+ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
+-	if len(args) != 1 {
+-		ts.fatalf("usage: %s 'pattern' (%q)", name, args)
++	n := 0
++	if len(args) >= 1 && strings.HasPrefix(args[0], "-count=") {
++		if neg {
++			ts.fatalf("cannot use -count= with negated match")
++		}
++		var err error
++		n, err = strconv.Atoi(args[0][len("-count="):])
++		if err != nil {
++			ts.fatalf("bad -count=: %v", err)
++		}
++		if n < 1 {
++			ts.fatalf("bad -count=: must be at least 1")
++		}
++		args = args[1:]
+ 	}
+-	re, err := regexp.Compile(`(?m)` + args[0])
++
++	extraUsage := ""
++	want := 1
++	if name == "grep" {
++		extraUsage = " file"
++		want = 2
++	}
++	if len(args) != want {
++		ts.fatalf("usage: %s [-count=N] 'pattern' file%s", name, extraUsage)
++	}
++
++	pattern := args[0]
++	re, err := regexp.Compile(`(?m)` + pattern)
+ 	ts.check(err)
++
++	if name == "grep" {
++		data, err := ioutil.ReadFile(ts.mkabs(args[1]))
++		ts.check(err)
++		text = string(data)
++	}
++
+ 	if neg {
+ 		if re.MatchString(text) {
+-			ts.fatalf("unexpected match for %#q found in %s: %s %q", args[0], name, text, re.FindString(text))
++			ts.fatalf("unexpected match for %#q found in %s: %s %q", pattern, name, text, re.FindString(text))
+ 		}
+ 	} else {
+ 		if !re.MatchString(text) {
+-			ts.fatalf("no match for %#q found in %s", args[0], name)
++			ts.fatalf("no match for %#q found in %s", pattern, name)
++		}
++		if n > 0 {
++			count := len(re.FindAllString(text, -1))
++			if count != n {
++				ts.fatalf("have %d matches for %#q, want %d", count, pattern, n)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 55bc48b215..40ffc8f3ce 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -97,13 +97,18 @@ The commands are:
+   It must (or must not) succeed.
+   Note that 'exec' does not terminate the script (unlike in Unix shells).
+ 
+-- [!] exists file...
+-  Each of the listed files must (or must not) exist. (Directories are allowed.)
++- [!] exists [-readonly] file...
++  Each of the listed files or directories must (or must not) exist.
++  If -readonly is given, the files or directories must be unwritable.
+ 
+ - [!] go args...
+   Run the (test copy of the) go command with the given arguments.
+   It must (or must not) succeed.
+ 
++- [!] grep [-count=N] pattern file
++  The file's content must (or must not) match the regular expression pattern.
++  For positive matches, -count=N specifies an exact number of matches to require.
++
+ - mkdir path...
+   Create the listed directories, if they do not already exists.
+ 
+@@ -117,13 +122,13 @@ The commands are:
+   The packages named by the path arguments must (or must not)
+   be reported as "stale" by the go command.
+ 
+-- [!] stderr pattern
+-  Standard error from the most recent exec or go command
+-  must (or must not) match the regular expression pattern.
++- [!] stderr [-count=N] pattern
++  Apply the grep command (see above) to the standard error
++  from the most recent exec or go command.
+ 
+-- [!] stdout pattern
+-  Standard output from the most recent exec or go command
+-  must (or must not) match the regular expression pattern.
++- [!] stdout [-count=N] pattern
++  Apply the grep command (see above) to the standard output
++  from the most recent exec or go command.
+ 
+ - stop [message]
+   Stop the test early (marking it as passing), including the message if given.
+diff --git a/src/cmd/go/testdata/script/mod_domain_root.txt b/src/cmd/go/testdata/script/mod_domain_root.txt
+new file mode 100644
+index 0000000000..e34cc29fa6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_domain_root.txt
+@@ -0,0 +1,12 @@
++# Module paths that are domain roots should resolve.
++# (example.com not example.com/something)
++
++env GO111MODULE=on
++go build
++
++-- go.mod --
++module x
++
++-- x.go --
++package x
++import _ "example.com"
+diff --git a/src/cmd/go/testdata/script/mod_query_exclude.txt b/src/cmd/go/testdata/script/mod_query_exclude.txt
+new file mode 100644
+index 0000000000..a64a8e1086
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_query_exclude.txt
+@@ -0,0 +1,26 @@
++env GO111MODULE=on
++
++# get excluded version
++cp go.mod1 go.mod
++! go get rsc.io/quote@v1.5.0
++stderr 'rsc.io/quote@v1.5.0 excluded'
++
++# get non-excluded version
++cp go.mod1 go.mod
++go get rsc.io/quote@v1.5.1
++stderr 'rsc.io/quote v1.5.1'
++
++# get range with excluded version
++cp go.mod1 go.mod
++go get rsc.io/quote@>=v1.5
++go list -m ...quote
++stdout 'rsc.io/quote v1.5.[1-9]'
++
++-- go.mod1 --
++module x
++exclude rsc.io/quote v1.5.0
++
++-- x.go --
++package x
++import _ "rsc.io/quote"
++
+diff --git a/src/cmd/go/testdata/script/mod_require_exclude.txt b/src/cmd/go/testdata/script/mod_require_exclude.txt
+new file mode 100644
+index 0000000000..60f7e3fa91
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_require_exclude.txt
+@@ -0,0 +1,33 @@
++# build with no newer version to satisfy exclude
++env GO111MODULE=on
++! go list -m all
++stderr 'no newer version available'
++
++# build with newer version available
++cp go.mod2 go.mod
++go list -m all
++stdout 'rsc.io/quote v1.5.2'
++
++# build with excluded newer version
++cp go.mod3 go.mod
++go list -m all
++stdout 'rsc.io/quote v1.5.1'
++
++-- x.go --
++package x
++import _ "rsc.io/quote"
++
++-- go.mod --
++module x
++exclude rsc.io/sampler latest
++require rsc.io/sampler latest
++
++-- go.mod2 --
++module x
++exclude rsc.io/quote v1.5.1
++require rsc.io/quote v1.5.1
++
++-- go.mod3 --
++module x
++exclude rsc.io/quote v1.5.2
++require rsc.io/quote v1.5.1
+diff --git a/src/cmd/go/testdata/script/mod_sync_quote.txt b/src/cmd/go/testdata/script/mod_sync_quote.txt
+new file mode 100644
+index 0000000000..77f7b2543b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_sync_quote.txt
+@@ -0,0 +1,26 @@
++# Check that mod -sync does not introduce repeated
++# require statements when input go.mod has quoted requirements.
++env GO111MODULE=on
++
++go mod -sync -json
++stdout -count=1 '"Path": "rsc.io/quote"'
++
++cp go.mod2 go.mod
++go mod -sync -json
++stdout -count=1 '"Path": "rsc.io/quote"'
++
++
++-- go.mod --
++module x
++
++-- x.go --
++package x
++import "rsc.io/quote"
++func main() { _ = quote.Hello }
++
++-- go.mod2 --
++module x
++require (
++	"rsc.io/sampler" v1.3.0
++	"rsc.io/quote" v1.5.2
++)
+diff --git a/src/cmd/go/testdata/script/mod_vendor_nodeps.txt b/src/cmd/go/testdata/script/mod_vendor_nodeps.txt
+new file mode 100644
+index 0000000000..207bf24b1e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_nodeps.txt
+@@ -0,0 +1,9 @@
++env GO111MODULE=on
++
++go mod -vendor
++stderr '^go: no dependencies to vendor'
++
++-- go.mod --
++module x
++-- x.go --
++package x
+diff --git a/src/cmd/go/testdata/script/mod_version_nomod.txt b/src/cmd/go/testdata/script/mod_version_nomod.txt
+new file mode 100644
+index 0000000000..4cd542444a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_version_nomod.txt
+@@ -0,0 +1,4 @@
++# Test go version with no module.
++env GO111MODULE=on
++! go mod -json
++go version

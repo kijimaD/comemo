@@ -27,8 +27,210 @@ Date:   Sat Jan 16 03:27:17 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/assign.go | 10 ++--
  src/cmd/compile/internal/walk/order.go  | 83 +++++++++++++++------------------
  test/reorder.go                         | 16 +++++++
  3 files changed, 57 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 4043d7574a..320a3464cc 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -268,7 +268,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
+ 		base.Fatalf("ascompatet: assignment count mismatch: %d = %d", len(nl), nr.NumFields())
+ 	}
+ 
+-	var nn, mm ir.Nodes
++	var nn ir.Nodes
+ 	for i, l := range nl {
+ 		if ir.IsBlank(l) {
+ 			continue
+@@ -278,11 +278,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
+ 		// Any assignment to an lvalue that might cause a function call must be
+ 		// deferred until all the returned values have been read.
+ 		if fncall(l, r.Type) {
+-			tmp := ir.Node(typecheck.Temp(r.Type))
+-			tmp = typecheck.Expr(tmp)
+-			a := convas(ir.NewAssignStmt(base.Pos, l, tmp), &mm)
+-			mm.Append(a)
+-			l = tmp
++			base.FatalfAt(l.Pos(), "assigning %v to %+v", r.Type, l)
+ 		}
+ 
+ 		res := ir.NewResultExpr(base.Pos, nil, types.BADWIDTH)
+@@ -299,7 +295,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
+ 
+ 		nn.Append(a)
+ 	}
+-	return append(nn, mm...)
++	return nn
+ }
+ 
+ // check assign expression list to
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 78063c4db2..d34c58009a 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -555,10 +555,6 @@ func (o *orderState) mapAssign(n ir.Node) {
+ 			n.Y = o.safeMapRHS(n.Y)
+ 		}
+ 		o.out = append(o.out, n)
+-
+-	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2MAPR, ir.OAS2FUNC:
+-		n := n.(*ir.AssignListStmt)
+-		o.out = append(o.out, n)
+ 	}
+ }
+ 
+@@ -637,7 +633,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 		t := o.markTemp()
+ 		o.exprList(n.Lhs)
+ 		o.exprList(n.Rhs)
+-		o.mapAssign(n)
++		o.out = append(o.out, n)
+ 		o.cleanTemp(t)
+ 
+ 	// Special: avoid copy of func call n.Right
+@@ -647,7 +643,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 		o.exprList(n.Lhs)
+ 		o.init(n.Rhs[0])
+ 		o.call(n.Rhs[0])
+-		o.as2(n)
++		o.as2func(n)
+ 		o.cleanTemp(t)
+ 
+ 	// Special: use temporary variables to hold result,
+@@ -679,7 +675,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 			base.Fatalf("order.stmt: %v", r.Op())
+ 		}
+ 
+-		o.okAs2(n)
++		o.as2ok(n)
+ 		o.cleanTemp(t)
+ 
+ 	// Special: does not save n onto out.
+@@ -1390,57 +1386,54 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 	// No return - type-assertions above. Each case must return for itself.
+ }
+ 
+-// as2 orders OAS2XXXX nodes. It creates temporaries to ensure left-to-right assignment.
+-// The caller should order the right-hand side of the assignment before calling order.as2.
++// as2func orders OAS2FUNC nodes. It creates temporaries to ensure left-to-right assignment.
++// The caller should order the right-hand side of the assignment before calling order.as2func.
+ // It rewrites,
+-// 	a, b, a = ...
++//	a, b, a = ...
+ // as
+ //	tmp1, tmp2, tmp3 = ...
+-// 	a, b, a = tmp1, tmp2, tmp3
++//	a, b, a = tmp1, tmp2, tmp3
+ // This is necessary to ensure left to right assignment order.
+-func (o *orderState) as2(n *ir.AssignListStmt) {
+-	tmplist := []ir.Node{}
+-	left := []ir.Node{}
+-	for ni, l := range n.Lhs {
+-		if !ir.IsBlank(l) {
+-			tmp := o.newTemp(l.Type(), l.Type().HasPointers())
+-			n.Lhs[ni] = tmp
+-			tmplist = append(tmplist, tmp)
+-			left = append(left, l)
++func (o *orderState) as2func(n *ir.AssignListStmt) {
++	results := n.Rhs[0].Type()
++	as := ir.NewAssignListStmt(n.Pos(), ir.OAS2, nil, nil)
++	for i, nl := range n.Lhs {
++		if !ir.IsBlank(nl) {
++			typ := results.Field(i).Type
++			tmp := o.newTemp(typ, typ.HasPointers())
++			n.Lhs[i] = tmp
++			as.Lhs = append(as.Lhs, nl)
++			as.Rhs = append(as.Rhs, tmp)
+ 		}
+ 	}
+ 
+ 	o.out = append(o.out, n)
+-
+-	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
+-	as.Lhs = left
+-	as.Rhs = tmplist
+ 	o.stmt(typecheck.Stmt(as))
+ }
+ 
+-// okAs2 orders OAS2XXX with ok.
+-// Just like as2, this also adds temporaries to ensure left-to-right assignment.
+-func (o *orderState) okAs2(n *ir.AssignListStmt) {
+-	var tmp1, tmp2 ir.Node
+-	if !ir.IsBlank(n.Lhs[0]) {
+-		typ := n.Rhs[0].Type()
+-		tmp1 = o.newTemp(typ, typ.HasPointers())
++// as2ok orders OAS2XXX with ok.
++// Just like as2func, this also adds temporaries to ensure left-to-right assignment.
++func (o *orderState) as2ok(n *ir.AssignListStmt) {
++	as := ir.NewAssignListStmt(n.Pos(), ir.OAS2, nil, nil)
++
++	do := func(i int, typ *types.Type) {
++		if nl := n.Lhs[i]; !ir.IsBlank(nl) {
++			var tmp ir.Node = o.newTemp(typ, typ.HasPointers())
++			n.Lhs[i] = tmp
++			as.Lhs = append(as.Lhs, nl)
++			if i == 1 {
++				// The "ok" result is an untyped boolean according to the Go
++				// spec. We need to explicitly convert it to the LHS type in
++				// case the latter is a defined boolean type (#8475).
++				tmp = typecheck.Conv(tmp, nl.Type())
++			}
++			as.Rhs = append(as.Rhs, tmp)
++		}
+ 	}
+ 
+-	if !ir.IsBlank(n.Lhs[1]) {
+-		tmp2 = o.newTemp(types.Types[types.TBOOL], false)
+-	}
++	do(0, n.Rhs[0].Type())
++	do(1, types.Types[types.TBOOL])
+ 
+ 	o.out = append(o.out, n)
+-
+-	if tmp1 != nil {
+-		r := ir.NewAssignStmt(base.Pos, n.Lhs[0], tmp1)
+-		o.mapAssign(typecheck.Stmt(r))
+-		n.Lhs[0] = tmp1
+-	}
+-	if tmp2 != nil {
+-		r := ir.NewAssignStmt(base.Pos, n.Lhs[1], typecheck.Conv(tmp2, n.Lhs[1].Type()))
+-		o.mapAssign(typecheck.Stmt(r))
+-		n.Lhs[1] = tmp2
+-	}
++	o.stmt(typecheck.Stmt(as))
+ }
+diff --git a/test/reorder.go b/test/reorder.go
+index 3a87d025c2..57892f882f 100644
+--- a/test/reorder.go
++++ b/test/reorder.go
+@@ -20,6 +20,8 @@ func main() {
+ 	p7()
+ 	p8()
+ 	p9()
++	p10()
++	p11()
+ }
+ 
+ var gx []int
+@@ -149,3 +151,17 @@ func checkOAS2XXX(x bool, s string) {
+ 		panic("failed")
+ 	}
+ }
++
++//go:noinline
++func fp() (*int, int) { return nil, 42 }
++
++func p10() {
++	p := new(int)
++	p, *p = fp()
++}
++
++func p11() {
++	var i interface{}
++	p := new(bool)
++	p, *p = i.(*bool)
++}

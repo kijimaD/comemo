@@ -7,6 +7,20 @@ Date:   Fri Oct 24 16:43:12 2008 -0700
     R=ken
     OCL=17832
     CL=17832
-
+---
  src/cmd/6l/pass.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index cf6e6c92f7..a8d9ed42fd 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -456,7 +456,7 @@ patch(void)
+ 	for(p = firstp; p != P; p = p->link) {
+ 		if(p->as == ATEXT)
+ 			curtext = p;
+-		if(p->as == ACALL || p->as == ARET) {
++		if(p->as == ACALL || p->as == AJMP) {
+ 			s = p->to.sym;
+ 			if(s) {
+ 				if(debug['c'])

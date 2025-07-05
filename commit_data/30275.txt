@@ -11,6 +11,20 @@ Date:   Fri Oct 28 05:57:55 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/net.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index b9a78266b5..4cf122475f 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -108,7 +108,7 @@ func init() {
+ // and meaning of the strings is up to the implementation.
+ type Addr interface {
+ 	Network() string // name of the network (for example, "tcp", "udp")
+-	String() string  // string form of address (for example, "127.0.0.1:25", "[2001:db8::1]:80")
++	String() string  // string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+ }
+ 
+ // Conn is a generic stream-oriented network connection.

@@ -9,7 +9,47 @@ Date:   Thu Aug 9 19:24:46 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6453105
-
+---
  src/pkg/text/template/parse/lex.go      | 5 +++--
  src/pkg/text/template/parse/lex_test.go | 4 ++++
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index 443fb86423..98f12a821f 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -264,16 +264,17 @@ func lexText(l *lexer) stateFn {
+ 
+ // lexLeftDelim scans the left delimiter, which is known to be present.
+ func lexLeftDelim(l *lexer) stateFn {
+-	if strings.HasPrefix(l.input[l.pos:], l.leftDelim+leftComment) {
++	l.pos += len(l.leftDelim)
++	if strings.HasPrefix(l.input[l.pos:], leftComment) {
+ 		return lexComment
+ 	}
+-	l.pos += len(l.leftDelim)
+ 	l.emit(itemLeftDelim)
+ 	return lexInsideAction
+ }
+ 
+ // lexComment scans a comment. The left comment marker is known to be present.
+ func lexComment(l *lexer) stateFn {
++	l.pos += len(leftComment)
+ 	i := strings.Index(l.input[l.pos:], rightComment+l.rightDelim)
+ 	if i < 0 {
+ 		return l.errorf("unclosed comment")
+diff --git a/src/pkg/text/template/parse/lex_test.go b/src/pkg/text/template/parse/lex_test.go
+index 842e92db21..f38057d8c3 100644
+--- a/src/pkg/text/template/parse/lex_test.go
++++ b/src/pkg/text/template/parse/lex_test.go
+@@ -203,6 +203,10 @@ var lexTests = []lexTest{
+ 		tRight,
+ 		tEOF,
+ 	}},
++	{"text with bad comment", "hello-{{/*/}}-world", []item{
++		{itemText, 0, "hello-"},
++		{itemError, 0, `unclosed comment`},
++	}},
+ }
+ 
+ // collect gathers the emitted items into a slice.

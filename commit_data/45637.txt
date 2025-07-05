@@ -39,7 +39,49 @@ Date:   Sun Nov 1 17:48:42 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/267100
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/extern.go   |  8 ++++----
  src/runtime/runtime1.go | 11 +++++++++++
  2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index b75507b8f8..dacdf4f383 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -91,10 +91,10 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 		# bytes     memory allocated on the heap
+ 		# allocs    number of heap allocations
+ 
+-	madvdontneed: setting madvdontneed=1 will use MADV_DONTNEED
+-	instead of MADV_FREE on Linux when returning memory to the
+-	kernel. This is less efficient, but causes RSS numbers to drop
+-	more quickly.
++	madvdontneed: setting madvdontneed=0 will use MADV_FREE
++	instead of MADV_DONTNEED on Linux when returning memory to the
++	kernel. This is more efficient, but means RSS numbers will
++	drop only when the OS is under memory pressure.
+ 
+ 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
+ 	When set to 0 memory profiling is disabled.  Refer to the description of
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 0f182ac58e..30b7044bff 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -352,6 +352,17 @@ func parsedebugvars() {
+ 	// defaults
+ 	debug.cgocheck = 1
+ 	debug.invalidptr = 1
++	if GOOS == "linux" {
++		// On Linux, MADV_FREE is faster than MADV_DONTNEED,
++		// but doesn't affect many of the statistics that
++		// MADV_DONTNEED does until the memory is actually
++		// reclaimed. This generally leads to poor user
++		// experience, like confusing stats in top and other
++		// monitoring tools; and bad integration with
++		// management systems that respond to memory usage.
++		// Hence, default to MADV_DONTNEED.
++		debug.madvdontneed = 1
++	}
+ 
+ 	for p := gogetenv("GODEBUG"); p != ""; {
+ 		field := ""

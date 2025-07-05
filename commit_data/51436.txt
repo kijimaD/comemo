@@ -14,7 +14,7 @@ Date:   Thu Jan 27 10:52:22 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/381435
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go     |  2 +
  src/cmd/compile/internal/types2/operand.go         | 47 +++++++--------------
  .../internal/types2/testdata/check/issues.src      |  4 +-
@@ -22,3 +22,203 @@ Date:   Thu Jan 27 10:52:22 2022 -0800
  src/go/types/operand.go                            | 49 +++++++---------------
  src/go/types/testdata/check/issues.src             |  4 +-
  6 files changed, 38 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 02ab13ec59..e8f2d98d25 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -157,6 +157,8 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 
+ // implements checks if V implements T and reports an error if it doesn't.
+ // If a qualifier is provided, it is used in error formatting.
++// The receiver may be nil if implements is called through an exported
++// API call such as AssignableTo.
+ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 	Vu := under(V)
+ 	Tu := under(T)
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 1eb24d136b..1bda0a51f5 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -288,47 +288,30 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 		return true, 0
+ 	}
+ 
+-	// T is an interface type and x implements T and T is not a type parameter
+-	if Ti, ok := Tu.(*Interface); ok && Tp == nil {
+-		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
++	// T is an interface type and x implements T and T is not a type parameter.
++	// Also handle the case where T is a pointer to an interface.
++	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
++		var qf Qualifier
++		if check != nil {
++			qf = check.qualifier
++		}
++		if err := check.implements(V, T, qf); err != nil {
+ 			if reason != nil {
+-				if check != nil && check.conf.CompilerErrorMessages {
+-					*reason = check.sprintf("%s does not implement %s %s", x.typ, T,
+-						check.missingMethodReason(x.typ, T, m, wrongType))
+-				} else {
+-					if wrongType != nil {
+-						if Identical(m.typ, wrongType.typ) {
+-							*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+-						} else {
+-							*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
+-						}
+-					} else {
+-						*reason = "missing method " + m.Name()
+-					}
+-				}
++				*reason = err.Error()
+ 			}
+ 			return false, _InvalidIfaceAssign
+ 		}
+ 		return true, 0
+ 	}
+ 
+-	// Provide extra detail in compiler error messages in some cases when T is
+-	// not an interface.
+-	if check != nil && check.conf.CompilerErrorMessages {
+-		if isInterfacePtr(Tu) {
++	// If V is an interface, check if a missing type assertion is the problem.
++	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
++		if check.implements(T, V, nil) == nil {
++			// T implements V, so give hint about type assertion.
+ 			if reason != nil {
+-				*reason = check.sprintf("%s does not implement %s (type %s is pointer to interface, not interface)", x.typ, T, T)
+-			}
+-			return false, _InvalidIfaceAssign
+-		}
+-		if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+-			if m, _ := check.missingMethod(T, Vi, true); m == nil {
+-				// T implements Vi, so give hint about type assertion.
+-				if reason != nil {
+-					*reason = check.sprintf("need type assertion")
+-				}
+-				return false, _IncompatibleAssign
++				*reason = "need type assertion"
+ 			}
++			return false, _IncompatibleAssign
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.src b/src/cmd/compile/internal/types2/testdata/check/issues.src
+index 868df46bd9..fb7d89fb68 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.src
+@@ -165,8 +165,8 @@ func issue10260() {
+ 	_ = map[int]I1{0: i0 /* ERROR cannot use .* missing method foo */ }
+ 	_ = map[int]I1{0: i2 /* ERROR cannot use .* wrong type for method foo */ }
+ 
+-	make(chan I1) <- i0 /* ERROR cannot use .* in send: missing method foo */
+-	make(chan I1) <- i2 /* ERROR cannot use .* in send: wrong type for method foo */
++	make(chan I1) <- i0 /* ERROR I0 does not implement I1: missing method foo */
++	make(chan I1) <- i2 /* ERROR wrong type for method foo \(have func\(x int\), want func\(\)\) */
+ }
+ 
+ // Check that constants representable as integers are in integer form
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 7dea8a5e1d..4a167eb91e 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -157,6 +157,8 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type)
+ 
+ // implements checks if V implements T and reports an error if it doesn't.
+ // If a qualifier is provided, it is used in error formatting.
++// The receiver may be nil if implements is called through an exported
++// API call such as AssignableTo.
+ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 	Vu := under(V)
+ 	Tu := under(T)
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index d119b5ee7b..c04c5742a8 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -8,7 +8,6 @@ package types
+ 
+ import (
+ 	"bytes"
+-	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
+@@ -278,48 +277,30 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 		return true, 0
+ 	}
+ 
+-	// T is an interface type and x implements T and T is not a type parameter
+-	if Ti, ok := Tu.(*Interface); ok && Tp == nil {
+-		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
++	// T is an interface type and x implements T and T is not a type parameter.
++	// Also handle the case where T is a pointer to an interface.
++	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
++		var qf Qualifier
++		if check != nil {
++			qf = check.qualifier
++		}
++		if err := check.implements(V, T, qf); err != nil {
+ 			if reason != nil {
+-				if check != nil && compilerErrorMessages {
+-					*reason = check.sprintf("%s does not implement %s %s", x.typ, T,
+-						check.missingMethodReason(x.typ, T, m, wrongType))
+-				} else {
+-					if wrongType != nil {
+-						if Identical(m.typ, wrongType.typ) {
+-							*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
+-						} else {
+-							*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
+-						}
+-
+-					} else {
+-						*reason = "missing method " + m.Name()
+-					}
+-				}
++				*reason = err.Error()
+ 			}
+ 			return false, _InvalidIfaceAssign
+ 		}
+ 		return true, 0
+ 	}
+ 
+-	// Provide extra detail in compiler error messages in some cases when T is
+-	// not an interface.
+-	if check != nil && compilerErrorMessages {
+-		if isInterfacePtr(Tu) {
++	// If V is an interface, check if a missing type assertion is the problem.
++	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
++		if check.implements(T, V, nil) == nil {
++			// T implements V, so give hint about type assertion.
+ 			if reason != nil {
+-				*reason = check.sprintf("%s does not implement %s (type %s is pointer to interface, not interface)", x.typ, T, T)
+-			}
+-			return false, _InvalidIfaceAssign
+-		}
+-		if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+-			if m, _ := check.missingMethod(T, Vi, true); m == nil {
+-				// T implements Vi, so give hint about type assertion.
+-				if reason != nil {
+-					*reason = check.sprintf("need type assertion")
+-				}
+-				return false, _IncompatibleAssign
++				*reason = "need type assertion"
+ 			}
++			return false, _IncompatibleAssign
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/testdata/check/issues.src b/src/go/types/testdata/check/issues.src
+index 88ce452959..0b77b0e854 100644
+--- a/src/go/types/testdata/check/issues.src
++++ b/src/go/types/testdata/check/issues.src
+@@ -165,8 +165,8 @@ func issue10260() {
+ 	_ = map[int]I1{0: i0 /* ERROR cannot use .* missing method foo */ }
+ 	_ = map[int]I1{0: i2 /* ERROR cannot use .* wrong type for method foo */ }
+ 
+-	make(chan I1) <- i0 /* ERROR cannot use .* in send: missing method foo */
+-	make(chan I1) <- i2 /* ERROR cannot use .* in send: wrong type for method foo */
++	make(chan I1) <- i0 /* ERROR I0 does not implement I1: missing method foo */
++	make(chan I1) <- i2 /* ERROR wrong type for method foo \(have func\(x int\), want func\(\)\) */
+ }
+ 
+ // Check that constants representable as integers are in integer form

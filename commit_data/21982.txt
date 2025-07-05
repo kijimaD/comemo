@@ -12,6 +12,20 @@ Date:   Mon Feb 16 19:50:35 2015 -0800
     Change-Id: Ia8968cc803b3498dfa2f98188c6ed1cf2e11c66d
     Reviewed-on: https://go-review.googlesource.com/4962
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/arm/anames5.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/arm/anames5.go b/src/cmd/internal/obj/arm/anames5.go
+index 067bec72ab..5e08bb93aa 100644
+--- a/src/cmd/internal/obj/arm/anames5.go
++++ b/src/cmd/internal/obj/arm/anames5.go
+@@ -20,7 +20,7 @@ var Anames = []string{
+ 	"USEFIELD",
+ 	"VARDEF",
+ 	"VARKILL",
+-	"AND ",
++	"AND",
+ 	"EOR",
+ 	"SUB",
+ 	"RSB",

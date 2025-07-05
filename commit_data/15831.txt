@@ -7,7 +7,34 @@ Date:   Tue Mar 19 13:48:07 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7856044
-
+---
  src/pkg/unicode/maketables.go | 2 +-
  src/pkg/unicode/tables.go     | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 53d8b967e9..e5ed08b237 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -440,7 +440,7 @@ func printCategories() {
+ 			varDecl = "\tLetter = _L;	// Letter/L is the set of Unicode letters, category L.\n"
+ 			varDecl += "\tL = _L\n"
+ 		case "M":
+-			varDecl = "\tMark = _M;	// Mark/M is the set of Unicode mark characters, category  M.\n"
++			varDecl = "\tMark = _M;	// Mark/M is the set of Unicode mark characters, category M.\n"
+ 			varDecl += "\tM = _M\n"
+ 		case "N":
+ 			varDecl = "\tNumber = _N;	// Number/N is the set of Unicode number characters, category N.\n"
+diff --git a/src/pkg/unicode/tables.go b/src/pkg/unicode/tables.go
+index 36b5a3115b..939c41dc51 100644
+--- a/src/pkg/unicode/tables.go
++++ b/src/pkg/unicode/tables.go
+@@ -2864,7 +2864,7 @@ var (
+ 	Lo     = _Lo // Lo is the set of Unicode characters in category Lo.
+ 	Lower  = _Ll // Lower is the set of Unicode lower case letters.
+ 	Ll     = _Ll // Ll is the set of Unicode characters in category Ll.
+-	Mark   = _M  // Mark/M is the set of Unicode mark characters, category  M.
++	Mark   = _M  // Mark/M is the set of Unicode mark characters, category M.
+ 	M      = _M
+ 	Mc     = _Mc // Mc is the set of Unicode characters in category Mc.
+ 	Me     = _Me // Me is the set of Unicode characters in category Me.

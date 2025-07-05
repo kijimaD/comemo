@@ -19,8 +19,83 @@ Date:   Wed May 1 14:17:24 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/583917
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go/main.go                                | 12 ++++--------
  src/cmd/internal/telemetry/telemetry.go           | 15 +++++++++++++++
  src/cmd/internal/telemetry/telemetry_bootstrap.go | 13 +++++++------
  3 files changed, 26 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 86f3c65a92..72656dd903 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -98,6 +98,7 @@ func main() {
+ 
+ 	flag.Usage = base.Usage
+ 	flag.Parse()
++	telemetry.Inc("go/invocations")
+ 	telemetry.CountFlags("go/flag:", *flag.CommandLine)
+ 
+ 	args := flag.Args()
+@@ -252,14 +253,9 @@ func invoke(cmd *base.Command, args []string) {
+ 	} else {
+ 		base.SetFromGOFLAGS(&cmd.Flag)
+ 		cmd.Flag.Parse(args[1:])
+-		prefix := "go/flag:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-"
+-		cmd.Flag.Visit(func(f *flag.Flag) {
+-			counterName := prefix + f.Name
+-			if f.Name == "buildmode" { // Special case: there is a limited set of buildmode values
+-				counterName += "-" + f.Value.String()
+-			}
+-			telemetry.Inc(counterName)
+-		})
++		flagCounterPrefix := "go/" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "/flag"
++		telemetry.CountFlags(flagCounterPrefix+":", cmd.Flag)
++		telemetry.CountFlagValue(flagCounterPrefix+"/", cmd.Flag, "buildmode")
+ 		args = cmd.Flag.Args()
+ 	}
+ 
+diff --git a/src/cmd/internal/telemetry/telemetry.go b/src/cmd/internal/telemetry/telemetry.go
+index d31f0eeff3..2420a07708 100644
+--- a/src/cmd/internal/telemetry/telemetry.go
++++ b/src/cmd/internal/telemetry/telemetry.go
+@@ -59,3 +59,18 @@ func NewStackCounter(name string, depth int) *counter.StackCounter {
+ func CountFlags(prefix string, flagSet flag.FlagSet) {
+ 	counter.CountFlags(prefix, flagSet)
+ }
++
++// CountFlagValue creates a counter for the flag value
++// if it is set and increments the counter. The name of the
++// counter is the concatenation of prefix, the flagName, ":",
++// and value.String() for the flag's value.
++func CountFlagValue(prefix string, flagSet flag.FlagSet, flagName string) {
++	// TODO(matloob): Maybe pass in a list of flagNames if we end up counting
++	// values for more than one?
++	// TODO(matloob): Add this to x/telemetry?
++	flagSet.Visit(func(f *flag.Flag) {
++		if f.Name == flagName {
++			counter.New(prefix + f.Name + ":" + f.Value.String()).Inc()
++		}
++	})
++}
+diff --git a/src/cmd/internal/telemetry/telemetry_bootstrap.go b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+index 2e127bec28..01549b6970 100644
+--- a/src/cmd/internal/telemetry/telemetry_bootstrap.go
++++ b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+@@ -12,9 +12,10 @@ type dummyCounter struct{}
+ 
+ func (dc dummyCounter) Inc() {}
+ 
+-func Start()                                              {}
+-func StartWithUpload()                                    {}
+-func Inc(name string)                                     {}
+-func NewCounter(name string) dummyCounter                 { return dummyCounter{} }
+-func NewStackCounter(name string, depth int) dummyCounter { return dummyCounter{} }
+-func CountFlags(name string, flagSet flag.FlagSet)        {}
++func Start()                                                              {}
++func StartWithUpload()                                                    {}
++func Inc(name string)                                                     {}
++func NewCounter(name string) dummyCounter                                 { return dummyCounter{} }
++func NewStackCounter(name string, depth int) dummyCounter                 { return dummyCounter{} }
++func CountFlags(name string, flagSet flag.FlagSet)                        {}
++func CountFlagValue(prefix string, flagSet flag.FlagSet, flagName string) {}

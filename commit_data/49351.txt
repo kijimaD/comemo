@@ -12,7 +12,49 @@ Date:   Sun Aug 15 11:46:33 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go              |  6 +++++-
  .../compile/internal/syntax/testdata/issue47704.src    | 18 ++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index acffd84885..29f5c88d0f 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1049,7 +1049,11 @@ loop:
+ 			}
+ 
+ 			// x[i:...
+-			p.want(_Colon)
++			// For better error message, don't use p.want(_Colon) here (issue #47704).
++			if !p.got(_Colon) {
++				p.syntaxError("expecting : or ]")
++				p.advance(_Colon, _Rbrack)
++			}
+ 			p.xnest++
+ 			t := new(SliceExpr)
+ 			t.pos = pos
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue47704.src b/src/cmd/compile/internal/syntax/testdata/issue47704.src
+new file mode 100644
+index 0000000000..0156af7d8d
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue47704.src
+@@ -0,0 +1,18 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// error messages for parser in non-generic mode
++func _() {
++	_ = m[]   // ERROR expecting operand
++	_ = m[x,] // ERROR unexpected comma, expecting \: or \]
++	_ = m[x /* ERROR unexpected a */ a b c d]
++}
++
++// test case from the issue
++func f(m map[int]int) int {
++	return m[0 // ERROR expecting \: or \]
++		]
++}

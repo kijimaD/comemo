@@ -19,7 +19,7 @@ Date:   Wed Nov 3 14:42:52 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_unix.go        | 54 +++++++++++++++++++++++++
  src/internal/poll/fd_windows.go     | 79 +++++++++++++++++++++++++++++++++----
  src/internal/syscall/unix/net.go    |  8 ++++
@@ -29,3 +29,317 @@ Date:   Wed Nov 3 14:42:52 2021 -0700
  src/net/udpsock_posix.go            | 12 +++---
  src/syscall/syscall_unix.go         | 27 +++++++++++++
  8 files changed, 195 insertions(+), 13 deletions(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index b090e5b6bd..45d4ce07b2 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -311,6 +311,60 @@ func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.S
+ 	}
+ }
+ 
++// ReadMsgInet4 is ReadMsg, but specialized for syscall.SockaddrInet4.
++func (fd *FD) ReadMsgInet4(p []byte, oob []byte, flags int, sa4 *syscall.SockaddrInet4) (int, int, int, error) {
++	if err := fd.readLock(); err != nil {
++		return 0, 0, 0, err
++	}
++	defer fd.readUnlock()
++	if err := fd.pd.prepareRead(fd.isFile); err != nil {
++		return 0, 0, 0, err
++	}
++	for {
++		n, oobn, sysflags, err := unix.RecvmsgInet4(fd.Sysfd, p, oob, flags, sa4)
++		if err != nil {
++			if err == syscall.EINTR {
++				continue
++			}
++			// TODO(dfc) should n and oobn be set to 0
++			if err == syscall.EAGAIN && fd.pd.pollable() {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
++					continue
++				}
++			}
++		}
++		err = fd.eofError(n, err)
++		return n, oobn, sysflags, err
++	}
++}
++
++// ReadMsgInet6 is ReadMsg, but specialized for syscall.SockaddrInet6.
++func (fd *FD) ReadMsgInet6(p []byte, oob []byte, flags int, sa6 *syscall.SockaddrInet6) (int, int, int, error) {
++	if err := fd.readLock(); err != nil {
++		return 0, 0, 0, err
++	}
++	defer fd.readUnlock()
++	if err := fd.pd.prepareRead(fd.isFile); err != nil {
++		return 0, 0, 0, err
++	}
++	for {
++		n, oobn, sysflags, err := unix.RecvmsgInet6(fd.Sysfd, p, oob, flags, sa6)
++		if err != nil {
++			if err == syscall.EINTR {
++				continue
++			}
++			// TODO(dfc) should n and oobn be set to 0
++			if err == syscall.EAGAIN && fd.pd.pollable() {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
++					continue
++				}
++			}
++		}
++		err = fd.eofError(n, err)
++		return n, oobn, sysflags, err
++	}
++}
++
+ // Write implements io.Writer.
+ func (fd *FD) Write(p []byte) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index f8fc4de75d..4dd5986efd 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -620,10 +620,7 @@ func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error)
+ 	if err != nil {
+ 		return n, err
+ 	}
+-	sa, _ := o.rsa.Sockaddr()
+-	if sa != nil {
+-		*sa4 = *(sa.(*syscall.SockaddrInet4))
+-	}
++	rawToSockaddrInet4(o.rsa, sa4)
+ 	return n, err
+ }
+ 
+@@ -652,10 +649,7 @@ func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error)
+ 	if err != nil {
+ 		return n, err
+ 	}
+-	sa, _ := o.rsa.Sockaddr()
+-	if sa != nil {
+-		*sa6 = *(sa.(*syscall.SockaddrInet6))
+-	}
++	rawToSockaddrInet6(o.rsa, sa6)
+ 	return n, err
+ }
+ 
+@@ -1149,6 +1143,21 @@ func sockaddrInet6ToRaw(sa syscall.SockaddrInet6) (unsafe.Pointer, int32) {
+ 	return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw))
+ }
+ 
++func rawToSockaddrInet4(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet4) {
++	pp := (*syscall.RawSockaddrInet4)(unsafe.Pointer(rsa))
++	p := (*[2]byte)(unsafe.Pointer(&pp.Port))
++	sa.Port = int(p[0])<<8 + int(p[1])
++	sa.Addr = pp.Addr
++}
++
++func rawToSockaddrInet6(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet6) {
++	pp := (*syscall.RawSockaddrInet6)(unsafe.Pointer(rsa))
++	p := (*[2]byte)(unsafe.Pointer(&pp.Port))
++	sa.Port = int(p[0])<<8 + int(p[1])
++	sa.ZoneId = pp.Scope_id
++	sa.Addr = pp.Addr
++}
++
+ func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+@@ -1190,6 +1199,60 @@ func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.S
+ 	return n, int(o.msg.Control.Len), int(o.msg.Flags), sa, err
+ }
+ 
++// ReadMsgInet4 is ReadMsg, but specialized to return a syscall.SockaddrInet4.
++func (fd *FD) ReadMsgInet4(p []byte, oob []byte, flags int, sa4 *syscall.SockaddrInet4) (int, int, int, error) {
++	if err := fd.readLock(); err != nil {
++		return 0, 0, 0, err
++	}
++	defer fd.readUnlock()
++
++	if len(p) > maxRW {
++		p = p[:maxRW]
++	}
++
++	o := &fd.rop
++	o.InitMsg(p, oob)
++	o.rsa = new(syscall.RawSockaddrAny)
++	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
++	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
++	o.msg.Flags = uint32(flags)
++	n, err := execIO(o, func(o *operation) error {
++		return windows.WSARecvMsg(o.fd.Sysfd, &o.msg, &o.qty, &o.o, nil)
++	})
++	err = fd.eofError(n, err)
++	if err == nil {
++		rawToSockaddrInet4(o.rsa, sa4)
++	}
++	return n, int(o.msg.Control.Len), int(o.msg.Flags), err
++}
++
++// ReadMsgInet6 is ReadMsg, but specialized to return a syscall.SockaddrInet6.
++func (fd *FD) ReadMsgInet6(p []byte, oob []byte, flags int, sa6 *syscall.SockaddrInet6) (int, int, int, error) {
++	if err := fd.readLock(); err != nil {
++		return 0, 0, 0, err
++	}
++	defer fd.readUnlock()
++
++	if len(p) > maxRW {
++		p = p[:maxRW]
++	}
++
++	o := &fd.rop
++	o.InitMsg(p, oob)
++	o.rsa = new(syscall.RawSockaddrAny)
++	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
++	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
++	o.msg.Flags = uint32(flags)
++	n, err := execIO(o, func(o *operation) error {
++		return windows.WSARecvMsg(o.fd.Sysfd, &o.msg, &o.qty, &o.o, nil)
++	})
++	err = fd.eofError(n, err)
++	if err == nil {
++		rawToSockaddrInet6(o.rsa, sa6)
++	}
++	return n, int(o.msg.Control.Len), int(o.msg.Flags), err
++}
++
+ // WriteMsg wraps the WSASendMsg network call.
+ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, error) {
+ 	if len(p) > maxRW {
+diff --git a/src/internal/syscall/unix/net.go b/src/internal/syscall/unix/net.go
+index 71e50f54c3..87ce89b57f 100644
+--- a/src/internal/syscall/unix/net.go
++++ b/src/internal/syscall/unix/net.go
+@@ -34,3 +34,11 @@ func SendmsgNInet4(fd int, p, oob []byte, to syscall.SockaddrInet4, flags int) (
+ //go:linkname SendmsgNInet6 syscall.sendmsgNInet6
+ //go:noescape
+ func SendmsgNInet6(fd int, p, oob []byte, to syscall.SockaddrInet6, flags int) (n int, err error)
++
++//go:linkname RecvmsgInet4 syscall.recvmsgInet4
++//go:noescape
++func RecvmsgInet4(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet4) (n, oobn int, recvflags int, err error)
++
++//go:linkname RecvmsgInet6 syscall.recvmsgInet6
++//go:noescape
++func RecvmsgInet6(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet6) (n, oobn int, recvflags int, err error)
+diff --git a/src/internal/syscall/unix/net_js.go b/src/internal/syscall/unix/net_js.go
+index 35bc687b58..defc3f6fb2 100644
+--- a/src/internal/syscall/unix/net_js.go
++++ b/src/internal/syscall/unix/net_js.go
+@@ -34,3 +34,11 @@ func SendmsgNInet4(fd int, p, oob []byte, to syscall.SockaddrInet4, flags int) (
+ func SendmsgNInet6(fd int, p, oob []byte, to syscall.SockaddrInet6, flags int) (n int, err error) {
+ 	return 0, syscall.ENOSYS
+ }
++
++func RecvmsgInet4(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet4) (n, oobn int, recvflags int, err error) {
++	return 0, 0, 0, syscall.ENOSYS
++}
++
++func RecvmsgInet6(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet6) (n, oobn int, recvflags int, err error) {
++	return 0, 0, 0, syscall.ENOSYS
++}
+diff --git a/src/net/fd_posix.go b/src/net/fd_posix.go
+index edcef1f2e1..d12dbeebd2 100644
+--- a/src/net/fd_posix.go
++++ b/src/net/fd_posix.go
+@@ -80,6 +80,18 @@ func (fd *netFD) readMsg(p []byte, oob []byte, flags int) (n, oobn, retflags int
+ 	return n, oobn, retflags, sa, wrapSyscallError(readMsgSyscallName, err)
+ }
+ 
++func (fd *netFD) readMsgInet4(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet4) (n, oobn, retflags int, err error) {
++	n, oobn, retflags, err = fd.pfd.ReadMsgInet4(p, oob, flags, sa)
++	runtime.KeepAlive(fd)
++	return n, oobn, retflags, wrapSyscallError(readMsgSyscallName, err)
++}
++
++func (fd *netFD) readMsgInet6(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet6) (n, oobn, retflags int, err error) {
++	n, oobn, retflags, err = fd.pfd.ReadMsgInet6(p, oob, flags, sa)
++	runtime.KeepAlive(fd)
++	return n, oobn, retflags, wrapSyscallError(readMsgSyscallName, err)
++}
++
+ func (fd *netFD) Write(p []byte) (nn int, err error) {
+ 	nn, err = fd.pfd.Write(p)
+ 	runtime.KeepAlive(fd)
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index 2ade9f7774..8da9d15bb2 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -279,6 +279,14 @@ func (fd *netFD) readMsg(p []byte, oob []byte, flags int) (n, oobn, retflags int
+ 	return 0, 0, 0, nil, syscall.ENOSYS
+ }
+ 
++func (fd *netFD) readMsgInet4(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet4) (n, oobn, retflags int, err error) {
++	return 0, 0, 0, syscall.ENOSYS
++}
++
++func (fd *netFD) readMsgInet6(p []byte, oob []byte, flags int, sa *syscall.SockaddrInet6) (n, oobn, retflags int, err error) {
++	return 0, 0, 0, syscall.ENOSYS
++}
++
+ func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (n int, oobn int, err error) {
+ 	return 0, 0, syscall.ENOSYS
+ }
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 468afbc4dc..2bf6568a95 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -95,13 +95,15 @@ func (c *UDPConn) readFromAddrPort(b []byte) (n int, addr netip.AddrPort, err er
+ }
+ 
+ func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
+-	var sa syscall.Sockaddr
+-	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, 0)
+-	switch sa := sa.(type) {
+-	case *syscall.SockaddrInet4:
++	switch c.fd.family {
++	case syscall.AF_INET:
++		var sa syscall.SockaddrInet4
++		n, oobn, flags, err = c.fd.readMsgInet4(b, oob, 0, &sa)
+ 		ip := netip.AddrFrom4(sa.Addr)
+ 		addr = netip.AddrPortFrom(ip, uint16(sa.Port))
+-	case *syscall.SockaddrInet6:
++	case syscall.AF_INET6:
++		var sa syscall.SockaddrInet6
++		n, oobn, flags, err = c.fd.readMsgInet6(b, oob, 0, &sa)
+ 		ip := netip.AddrFrom16(sa.Addr).WithZone(zoneCache.name(int(sa.ZoneId)))
+ 		addr = netip.AddrPortFrom(ip, uint16(sa.Port))
+ 	}
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 8692a65794..56d3cad1d0 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -324,6 +324,33 @@ func recvfromInet6(fd int, p []byte, flags int, from *SockaddrInet6) (n int, err
+ 	return
+ }
+ 
++func recvmsgInet4(fd int, p, oob []byte, flags int, from *SockaddrInet4) (n, oobn int, recvflags int, err error) {
++	var rsa RawSockaddrAny
++	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
++	if err != nil {
++		return
++	}
++	pp := (*RawSockaddrInet4)(unsafe.Pointer(&rsa))
++	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
++	from.Port = int(port[0])<<8 + int(port[1])
++	from.Addr = pp.Addr
++	return
++}
++
++func recvmsgInet6(fd int, p, oob []byte, flags int, from *SockaddrInet6) (n, oobn int, recvflags int, err error) {
++	var rsa RawSockaddrAny
++	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
++	if err != nil {
++		return
++	}
++	pp := (*RawSockaddrInet6)(unsafe.Pointer(&rsa))
++	port := (*[2]byte)(unsafe.Pointer(&pp.Port))
++	from.Port = int(port[0])<<8 + int(port[1])
++	from.ZoneId = pp.Scope_id
++	from.Addr = pp.Addr
++	return
++}
++
+ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+ 	var rsa RawSockaddrAny
+ 	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)

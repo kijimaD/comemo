@@ -15,6 +15,20 @@ Date:   Thu May 4 16:13:24 2017 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 66375b05ae..0fc947fec2 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -936,7 +936,7 @@ func Elfinit(ctxt *Link) {
+ 		fallthrough
+ 	case sys.AMD64, sys.ARM64, sys.MIPS64:
+ 		if SysArch.Family == sys.MIPS64 {
+-			ehdr.flags = 0x20000000 /* MIPS 3 */
++			ehdr.flags = 0x20000004 /* MIPS 3 CPIC */
+ 		}
+ 		elf64 = true
+ 

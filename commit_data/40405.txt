@@ -16,7 +16,7 @@ Date:   Wed May 8 18:40:58 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176107
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/whitelist/nacl_386.txt      | 10 ----------
  src/cmd/vet/all/whitelist/nacl_amd64p32.txt | 18 ------------------
  src/cmd/vet/all/whitelist/nacl_arm.txt      |  4 ----
@@ -27,3 +27,216 @@ Date:   Wed May 8 18:40:58 2019 -0400
  src/runtime/sys_nacl_amd64p32.s             |  9 +--------
  src/runtime/sys_nacl_arm.s                  | 10 ----------
  9 files changed, 12 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/nacl_386.txt b/src/cmd/vet/all/whitelist/nacl_386.txt
+deleted file mode 100644
+index 9e756d1bd5..0000000000
+--- a/src/cmd/vet/all/whitelist/nacl_386.txt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// nacl/386-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_nacl_386.s: [386] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+-runtime/sys_nacl_386.s: [386] sigtramp: use of 20(SP) points beyond argument frame
+-runtime/sys_nacl_386.s: [386] sigtramp: use of 4(SP) points beyond argument frame
+-runtime/sys_nacl_386.s: [386] sigtramp: unknown variable ctxt
+-runtime/sys_nacl_386.s: [386] sigtramp: use of 8(SP) points beyond argument frame
+-runtime/sys_nacl_386.s: [386] sigtramp: use of 12(SP) points beyond argument frame
+-runtime/sys_nacl_386.s: [386] sigtramp: use of 20(SP) points beyond argument frame
+-runtime/sys_nacl_386.s: [386] sigtramp: unknown variable ctxt
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+deleted file mode 100644
+index fb95a360a6..0000000000
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// nacl/amd64p32-specific vet whitelist. See readme.txt for details.
+-
+-// reflect trampolines intentionally omit arg size. Same for morestack.
+-runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
+-runtime/asm_amd64p32.s: [amd64p32] morestack: use of 16(SP) points beyond argument frame
+-runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
+-
+-runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+-runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+-runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+-runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_sysinfo: function nacl_sysinfo missing Go declaration
+-runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+-
+-// Clearer using FP than SP, but that requires named offsets.
+-runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argc
+-runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
+-
+-runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
+diff --git a/src/cmd/vet/all/whitelist/nacl_arm.txt b/src/cmd/vet/all/whitelist/nacl_arm.txt
+deleted file mode 100644
+index 08a613dd56..0000000000
+--- a/src/cmd/vet/all/whitelist/nacl_arm.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-// nacl/arm-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_nacl_arm.s: [arm] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+-runtime/sys_nacl_arm.s: [arm] nacl_sysinfo: function nacl_sysinfo missing Go declaration
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 4d0d6c5650..48f3711e4d 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -9,9 +9,9 @@
+ 
+ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// copy arguments forward on an even stack
+-	MOVL	argc+0(FP), AX
+-	MOVL	argv+4(FP), BX
+ 	MOVL	SP, CX
++	MOVL	8(CX), AX	// argc
++	MOVL	12(CX), BX	// argv
+ 	SUBL	$128, CX		// plenty of scratch
+ 	ANDL	$~15, CX
+ 	MOVL	CX, SP
+@@ -276,6 +276,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
++	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	MOVL	8(SP), AX	// f's caller's PC
+ 	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
+ 	LEAL	16(SP), AX	// f's caller's SP
+@@ -443,7 +444,8 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+ // Not implemented.
+ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-12
+-	MOVL	0, AX
++	MOVL	0, AX // crash
++	MOVL	$0, ret+8(FP) // for vet
+ 	RET
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 155b763c3d..2b9a1cf6a5 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -77,7 +77,7 @@ func mpreinit(mp *m) {
+ 	mp.gsignal.m = mp
+ }
+ 
+-func sigtramp()
++func sigtramp(ctxt byte)
+ 
+ //go:nosplit
+ func msigsave(mp *m) {
+diff --git a/src/runtime/signal_nacl_amd64p32.go b/src/runtime/signal_nacl_amd64p32.go
+index 6d656fe14b..81bbdc5f56 100644
+--- a/src/runtime/signal_nacl_amd64p32.go
++++ b/src/runtime/signal_nacl_amd64p32.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++func nacl_sysinfo(di uint32) // cross-assembly-file call; declared for vet
++
+ type sigctxt struct {
+ 	info *siginfo
+ 	ctxt unsafe.Pointer
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index fff75b8626..8460aabce3 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -258,15 +258,6 @@ TEXT runtime·walltime(SB),NOSPLIT,$20
+ TEXT syscall·now(SB),NOSPLIT,$0
+ 	JMP runtime·walltime(SB)
+ 
+-TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$8
+-	MOVL arg1+0(FP), AX
+-	MOVL AX, 0(SP)
+-	MOVL arg2+4(FP), AX
+-	MOVL AX, 4(SP)
+-	NACL_SYSCALL(SYS_clock_gettime)
+-	MOVL AX, ret+8(FP)
+-	RET
+-
+ TEXT runtime·nanotime(SB),NOSPLIT,$20
+ 	MOVL $0, 0(SP) // real time clock
+ 	LEAL 8(SP), AX
+@@ -307,6 +298,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	JMP 	ret
+ 
+ 	// save g
++	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	MOVL	DI, 20(SP)
+ 
+ 	// g = m->gsignal
+@@ -317,7 +309,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// copy arguments for sighandler
+ 	MOVL	$11, 0(SP) // signal
+ 	MOVL	$0, 4(SP) // siginfo
+-	LEAL	ctxt+4(FP), AX
++	LEAL	8(SP), AX
+ 	MOVL	AX, 8(SP) // context
+ 	MOVL	DI, 12(SP) // g
+ 
+@@ -359,8 +351,7 @@ ret:
+ 	//
+ 	// We smash BP, because that's what the linker smashes during RET.
+ 	//
+-	LEAL	ctxt+4(FP), BP
+-	ADDL	$64, BP
++	LEAL	72(SP), BP
+ 	MOVL	0(BP), AX
+ 	MOVL	4(BP), CX
+ 	MOVL	8(BP), DX
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index b4a108346d..9f4f69cfc2 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -293,13 +293,6 @@ realtime:
+ TEXT syscall·now(SB),NOSPLIT,$0
+ 	JMP runtime·walltime(SB)
+ 
+-TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
+-	NACL_SYSCALL(SYS_clock_gettime)
+-	MOVL AX, ret+8(FP)
+-	RET
+-
+ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	MOVQ runtime·faketime(SB), AX
+ 	CMPQ AX, $0
+@@ -328,7 +321,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
+ 	// NOTE: Cannot use SYS_tls_get here (like we do in mstart_nacl),
+ 	// because the main thread never calls tls_set.
+ 	LEAL ctxt+0(FP), AX
+-	MOVL (16*4+5*8)(AX), AX
++	MOVL	(16*4+5*8)(AX), AX
+ 	MOVL	AX, TLS
+ 
+ 	// check that g exists
+diff --git a/src/runtime/sys_nacl_arm.s b/src/runtime/sys_nacl_arm.s
+index b403a18c90..90201683b7 100644
+--- a/src/runtime/sys_nacl_arm.s
++++ b/src/runtime/sys_nacl_arm.s
+@@ -217,13 +217,6 @@ TEXT runtime·walltime(SB),NOSPLIT,$16
+ TEXT syscall·now(SB),NOSPLIT,$0
+ 	B runtime·walltime(SB)
+ 
+-TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
+-	NACL_SYSCALL(SYS_clock_gettime)
+-	MOVW	R0, ret+8(FP)
+-	RET
+-
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB),NOSPLIT,$16
+@@ -304,9 +297,6 @@ nog:
+ 	MOVW	$0, R0
+ 	RET
+ 
+-TEXT runtime·nacl_sysinfo(SB),NOSPLIT,$16
+-	RET
+-
+ // func getRandomData([]byte)
+ TEXT runtime·getRandomData(SB),NOSPLIT,$0-12
+ 	MOVW arg_base+0(FP), R0

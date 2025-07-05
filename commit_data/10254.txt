@@ -9,8 +9,265 @@ Date:   Fri Nov 4 09:17:46 2011 -0700
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/5348041
-
+---
  src/pkg/net/http/readrequest_test.go | 57 +++++++++++++++++++++++++---
  src/pkg/net/http/request.go          | 12 +-----
  src/pkg/net/http/transfer.go         | 73 ++++++++++++++++++++++++++++++++----
  3 files changed, 119 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/net/http/readrequest_test.go b/src/pkg/net/http/readrequest_test.go
+index d62133df43..524b208dba 100644
+--- a/src/pkg/net/http/readrequest_test.go
++++ b/src/pkg/net/http/readrequest_test.go
+@@ -9,19 +9,22 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"reflect"
+ 	"testing"
+ 	"url"
+ )
+ 
+ type reqTest struct {
+-	Raw   string
+-	Req   *Request
+-	Body  string
+-	Error string
++	Raw     string
++	Req     *Request
++	Body    string
++	Trailer Header
++	Error   string
+ }
+ 
+ var noError = ""
+ var noBody = ""
++var noTrailer Header = nil
+ 
+ var reqTests = []reqTest{
+ 	// Baseline test; All Request fields included for template use
+@@ -72,6 +75,7 @@ var reqTests = []reqTest{
+ 
+ 		"abcdef\n",
+ 
++		noTrailer,
+ 		noError,
+ 	},
+ 
+@@ -97,6 +101,7 @@ var reqTests = []reqTest{
+ 		},
+ 
+ 		noBody,
++		noTrailer,
+ 		noError,
+ 	},
+ 
+@@ -130,6 +135,7 @@ var reqTests = []reqTest{
+ 		},
+ 
+ 		noBody,
++		noTrailer,
+ 		noError,
+ 	},
+ 
+@@ -139,6 +145,7 @@ var reqTests = []reqTest{
+ 			"Host: test\r\n\r\n",
+ 		nil,
+ 		noBody,
++		noTrailer,
+ 		"parse ../../../../etc/passwd: invalid URI for request",
+ 	},
+ 
+@@ -148,8 +155,42 @@ var reqTests = []reqTest{
+ 			"Host: test\r\n\r\n",
+ 		nil,
+ 		noBody,
++		noTrailer,
+ 		"parse : empty url",
+ 	},
++
++	// Tests chunked body with trailer:
++	{
++		"POST / HTTP/1.1\r\n" +
++			"Host: foo.com\r\n" +
++			"Transfer-Encoding: chunked\r\n\r\n" +
++			"3\r\nfoo\r\n" +
++			"3\r\nbar\r\n" +
++			"0\r\n" +
++			"Trailer-Key: Trailer-Value\r\n" +
++			"\r\n",
++		&Request{
++			Method: "POST",
++			URL: &url.URL{
++				Raw:     "/",
++				Path:    "/",
++				RawPath: "/",
++			},
++			TransferEncoding: []string{"chunked"},
++			Proto:            "HTTP/1.1",
++			ProtoMajor:       1,
++			ProtoMinor:       1,
++			ContentLength:    -1,
++			Host:             "foo.com",
++			Form:             url.Values{},
++		},
++
++		"foobar",
++		Header{
++			"Trailer-Key": {"Trailer-Value"},
++		},
++		noError,
++	},
+ }
+ 
+ func TestReadRequest(t *testing.T) {
+@@ -169,12 +210,18 @@ func TestReadRequest(t *testing.T) {
+ 		diff(t, fmt.Sprintf("#%d Request", i), req, tt.Req)
+ 		var bout bytes.Buffer
+ 		if rbody != nil {
+-			io.Copy(&bout, rbody)
++			_, err := io.Copy(&bout, rbody)
++			if err != nil {
++				t.Fatalf("#%d. copying body: %v", i, err)
++			}
+ 			rbody.Close()
+ 		}
+ 		body := bout.String()
+ 		if body != tt.Body {
+ 			t.Errorf("#%d: Body = %q want %q", i, body, tt.Body)
+ 		}
++		if !reflect.DeepEqual(tt.Trailer, req.Trailer) {
++			t.Errorf("%#d. Trailers differ.\n got: %v\nwant: %v", i, req.Trailer, tt.Trailer)
++		}
+ 	}
+ }
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 000d8edbf8..0cf1224ddb 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -142,6 +142,8 @@ type Request struct {
+ 	// Trailer maps trailer keys to values.  Like for Header, if the
+ 	// response has multiple trailer lines with the same key, they will be
+ 	// concatenated, delimited by commas.
++	// For server requests, Trailer is only populated after Body has been
++	// closed or fully consumed.
+ 	// Trailer support is only partially complete.
+ 	Trailer Header
+ 
+@@ -464,16 +466,6 @@ func (cr *chunkedReader) beginChunk() {
+ 		return
+ 	}
+ 	if cr.n == 0 {
+-		// trailer CRLF
+-		for {
+-			line, cr.err = readLine(cr.r)
+-			if cr.err != nil {
+-				return
+-			}
+-			if line == "" {
+-				break
+-			}
+-		}
+ 		cr.err = io.EOF
+ 	}
+ }
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 4c23de33f9..2670d77ef0 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"net/textproto"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -532,7 +533,68 @@ func (b *body) Read(p []byte) (n int, err error) {
+ 	if b.closed {
+ 		return 0, ErrBodyReadAfterClose
+ 	}
+-	return b.Reader.Read(p)
++	n, err = b.Reader.Read(p)
++
++	// Read the final trailer once we hit EOF.
++	if err == io.EOF && b.hdr != nil {
++		err = b.readTrailer()
++		b.hdr = nil
++	}
++	return n, err
++}
++
++var (
++	singleCRLF = []byte("\r\n")
++	doubleCRLF = []byte("\r\n\r\n")
++)
++
++func seeUpcomingDoubleCRLF(r *bufio.Reader) bool {
++	for peekSize := 4; ; peekSize++ {
++		// This loop stops when Peek returns an error,
++		// which it does when r's buffer has been filled.
++		buf, err := r.Peek(peekSize)
++		if bytes.HasSuffix(buf, doubleCRLF) {
++			return true
++		}
++		if err != nil {
++			break
++		}
++	}
++	return false
++}
++
++func (b *body) readTrailer() error {
++	// The common case, since nobody uses trailers.
++	buf, _ := b.r.Peek(2)
++	if bytes.Equal(buf, singleCRLF) {
++		b.r.ReadByte()
++		b.r.ReadByte()
++		return nil
++	}
++
++	// Make sure there's a header terminator coming up, to prevent
++	// a DoS with an unbounded size Trailer.  It's not easy to
++	// slip in a LimitReader here, as textproto.NewReader requires
++	// a concrete *bufio.Reader.  Also, we can't get all the way
++	// back up to our conn's LimitedReader that *might* be backing
++	// this bufio.Reader.  Instead, a hack: we iteratively Peek up
++	// to the bufio.Reader's max size, looking for a double CRLF.
++	// This limits the trailer to the underlying buffer size, typically 4kB.
++	if !seeUpcomingDoubleCRLF(b.r) {
++		return errors.New("http: suspiciously long trailer after chunked body")
++	}
++
++	hdr, err := textproto.NewReader(b.r).ReadMIMEHeader()
++	if err != nil {
++		return err
++	}
++	switch rr := b.hdr.(type) {
++	case *Request:
++		rr.Trailer = Header(hdr)
++	case *Response:
++		rr.Trailer = Header(hdr)
++	}
++	return nil
+ }
+ 
+ func (b *body) Close() error {
+@@ -557,15 +619,10 @@ func (b *body) Close() error {
+ 		return nil
+ 	}
+ 
++	// Fully consume the body, which will also lead to us reading
++	// the trailer headers after the body, if present.
+ 	if _, err := io.Copy(ioutil.Discard, b); err != nil {
+ 		return err
+ 	}
+-
+-	if b.hdr == nil { // not reading trailer
+-		return nil
+-	}
+-
+-	// TODO(petar): Put trailer reader code here
+-
+ 	return nil
+ }

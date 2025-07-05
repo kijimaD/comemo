@@ -24,7 +24,185 @@ Date:   Wed Aug 16 02:09:49 2023 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Run-TryBot: qiu laidongfeng2 <2645477756@qq.com>
     Reviewed-by: WANG Xuerui <git@xen0n.name>
-
+---
  src/cmd/internal/obj/loong64/asm.go      | 41 +++++++++------
  src/cmd/internal/obj/loong64/asm_test.go | 85 ++++++++++++++++++++++++++++++++
  2 files changed, 112 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index f0f8abb59c..6b950f8d05 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -449,11 +449,8 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	// Run these passes until convergence.
+-	bflag := 1
+-	var otxt int64
+-	var q *obj.Prog
+-	for bflag != 0 {
+-		bflag = 0
++	for {
++		rescan := false
+ 		pc = 0
+ 		prev := c.cursym.Func().Text
+ 		for p = prev.Link; p != nil; prev, p = p, p.Link {
+@@ -468,7 +465,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			// because pc will be adjusted if padding happens.
+ 			if p.Mark&branchLoopHead != 0 && pc&(loopAlign-1) != 0 &&
+ 				!(prev.As == obj.APCALIGN && prev.From.Offset >= loopAlign) {
+-				q = c.newprog()
++				q := c.newprog()
+ 				prev.Link = q
+ 				q.Link = p
+ 				q.Pc = pc
+@@ -484,18 +481,29 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				// since this loop iteration is for p.
+ 				pc += int64(pcAlignPadLength(ctxt, pc, loopAlign))
+ 				p.Pc = pc
++				rescan = true
+ 			}
+ 
+ 			// very large conditional branches
+ 			//
+-			// if any procedure is large enough to
+-			// generate a large SBRA branch, then
+-			// generate extra passes putting branches
+-			// around jmps to fix. this is rare.
++			// if any procedure is large enough to generate a large SBRA branch, then
++			// generate extra passes putting branches around jmps to fix. this is rare.
+ 			if o.type_ == 6 && p.To.Target() != nil {
+-				otxt = p.To.Target().Pc - pc
+-				if otxt < -(1<<17)+10 || otxt >= (1<<17)-10 {
+-					q = c.newprog()
++				otxt := p.To.Target().Pc - pc
++
++				// On loong64, the immediate value field of the conditional branch instructions
++				// BFPT and BFPT is 21 bits, and the others are 16 bits. The jump target address
++				// is to logically shift the immediate value in the instruction code to the left
++				// by 2 bits and then sign extend.
++				bound := int64(1 << (18 - 1))
++
++				switch p.As {
++				case ABFPT, ABFPF:
++					bound = int64(1 << (23 - 1))
++				}
++
++				if otxt < -bound || otxt >= bound {
++					q := c.newprog()
+ 					q.Link = p.Link
+ 					p.Link = q
+ 					q.As = AJMP
+@@ -510,7 +518,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q.Pos = p.Pos
+ 					q.To.Type = obj.TYPE_BRANCH
+ 					q.To.SetTarget(q.Link.Link)
+-					bflag = 1
++					rescan = true
+ 				}
+ 			}
+ 
+@@ -532,7 +540,12 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 
+ 		c.cursym.Size = pc
++
++		if !rescan {
++			break
++		}
+ 	}
++
+ 	pc += -pc & (FuncAlign - 1)
+ 	c.cursym.Size = pc
+ 
+diff --git a/src/cmd/internal/obj/loong64/asm_test.go b/src/cmd/internal/obj/loong64/asm_test.go
+new file mode 100644
+index 0000000000..a35de61df6
+--- /dev/null
++++ b/src/cmd/internal/obj/loong64/asm_test.go
+@@ -0,0 +1,85 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package loong64
++
++import (
++	"bytes"
++	"fmt"
++	"internal/testenv"
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++const genBufSize = (1024 * 1024 * 32) // 32MB
++
++// TestLargeBranch generates a large function with a very far conditional
++// branch, in order to ensure that it assembles successfully.
++func TestLargeBranch(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Skipping test in short mode")
++	}
++	testenv.MustHaveGoBuild(t)
++
++	dir, err := os.MkdirTemp("", "testlargebranch")
++	if err != nil {
++		t.Fatalf("Could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	// Generate a very large function.
++	buf := bytes.NewBuffer(make([]byte, 0, genBufSize))
++	genLargeBranch(buf)
++
++	tmpfile := filepath.Join(dir, "x.s")
++	if err := os.WriteFile(tmpfile, buf.Bytes(), 0644); err != nil {
++		t.Fatalf("Failed to write file: %v", err)
++	}
++
++	// Assemble generated file.
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
++	cmd.Env = append(os.Environ(), "GOARCH=loong64", "GOOS=linux")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("Build failed: %v, output: %s", err, out)
++	}
++}
++
++func genLargeBranch(buf *bytes.Buffer) {
++	genSize1 := (1 << 16) + 16
++	genSize2 := (1 << 21) + 16
++
++	fmt.Fprintln(buf, "TEXT f(SB),0,$0-0")
++	fmt.Fprintln(buf, "BEQ R5, R6, label18")
++	fmt.Fprintln(buf, "BNE R5, R6, label18")
++	fmt.Fprintln(buf, "BGE R5, R6, label18")
++
++	fmt.Fprintln(buf, "BGEU R5, R6, label18")
++	fmt.Fprintln(buf, "BLTU R5, R6, label18")
++
++	fmt.Fprintln(buf, "BLEZ R5, label18")
++	fmt.Fprintln(buf, "BGEZ R5, label18")
++	fmt.Fprintln(buf, "BLTZ R5, label18")
++	fmt.Fprintln(buf, "BGTZ R5, label18")
++
++	fmt.Fprintln(buf, "BFPT label23")
++	fmt.Fprintln(buf, "BFPF label23")
++
++	fmt.Fprintln(buf, "BEQ R5, label23")
++	fmt.Fprintln(buf, "BNE R5, label23")
++
++	for i := 0; i <= genSize1; i++ {
++		fmt.Fprintln(buf, "ADDV $0, R0, R0")
++	}
++
++	fmt.Fprintln(buf, "label18:")
++	for i := 0; i <= (genSize2 - genSize1); i++ {
++		fmt.Fprintln(buf, "ADDV $0, R0, R0")
++	}
++
++	fmt.Fprintln(buf, "label23:")
++	fmt.Fprintln(buf, "ADDV $0, R0, R0")
++	fmt.Fprintln(buf, "RET")
++}

@@ -11,6 +11,17 @@ Date:   Fri Oct 1 21:02:43 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  test/typeparam/issue48424.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/typeparam/issue48424.go b/test/typeparam/issue48424.go
+index b1238df697..3253e6457b 100644
+--- a/test/typeparam/issue48424.go
++++ b/test/typeparam/issue48424.go
+@@ -1,4 +1,4 @@
+-// run
++// run -gcflags=-G=3
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

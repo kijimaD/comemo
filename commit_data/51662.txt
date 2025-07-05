@@ -15,7 +15,7 @@ Date:   Fri Feb 18 16:10:27 2022 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_linux_386.go       |  8 --------
  src/syscall/syscall_linux_amd64.go     |  1 -
  src/syscall/syscall_linux_arm.go       |  1 -
@@ -36,3 +36,346 @@ Date:   Fri Feb 18 16:10:27 2022 +0100
  src/syscall/zsyscall_linux_ppc64le.go  | 11 -----------
  src/syscall/zsyscall_linux_riscv64.go  | 11 -----------
  19 files changed, 133 deletions(-)
+
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index a3a5870a17..ef0f53468a 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -183,14 +183,6 @@ const (
+ func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
+ func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	fd, e := socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+-	if e != 0 {
+-		err = e
+-	}
+-	return
+-}
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	fd, e := socketcall(_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	if e != 0 {
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 26b40ffe9b..ea5229e8a0 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -37,7 +37,6 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error)
+ //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 58f376f350..f00149a1d4 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -28,7 +28,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 	return newoffset, nil
+ }
+ 
+-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index f3c6c48d06..9ed20f43ed 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -54,7 +54,6 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error) = SYS_SYNC_FILE_RANGE2
+ //sys	Truncate(path string, length int64) (err error)
+-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 7be1664637..b56b8f06b6 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -37,7 +37,6 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error)
+ //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 97188d3895..c9c9f94e42 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -37,7 +37,6 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error) = SYS_TRUNCATE64
+ //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index ac42b20598..4180a17f3b 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -43,7 +43,6 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+ //sys	Truncate(path string, length int64) (err error)
+ //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index 4331a19e8d..a5fb18aa85 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -58,7 +58,6 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error)
+-//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index ff99024788..5d6f4d2526 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -112,14 +112,6 @@ const (
+ func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
+ func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	fd, e := socketcall(_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0)
+-	if e != 0 {
+-		err = e
+-	}
+-	return
+-}
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	fd, e := socketcall(_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	if e != 0 {
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 2059271324..3e22e20907 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -1399,17 +1399,6 @@ func Ustat(dev int, ubuf *Ustat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 50498c6eb6..38907a0b35 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -1057,17 +1057,6 @@ func Munlockall() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index 6714123f9c..f335c062d5 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -1363,17 +1363,6 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index c6f4878ff7..f5f73895cc 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -1332,17 +1332,6 @@ func Ustat(dev int, ubuf *Ustat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index 5187c28ebb..32f3c32b9b 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -1388,17 +1388,6 @@ func Ustat(dev int, ubuf *Ustat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index f3dacfeeda..62dcff45a1 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -1388,17 +1388,6 @@ func Ustat(dev int, ubuf *Ustat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index fbc543709f..4761246536 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -1332,17 +1332,6 @@ func Ustat(dev int, ubuf *Ustat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index b71dca2b37..c9b1365e74 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -1466,17 +1466,6 @@ func Ustat(dev int, ubuf *Ustat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 193fbbc541..0807390894 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -1466,17 +1466,6 @@ func Ustat(dev int, ubuf *Ustat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_riscv64.go b/src/syscall/zsyscall_linux_riscv64.go
+index 33b1e9b431..1661d04221 100644
+--- a/src/syscall/zsyscall_linux_riscv64.go
++++ b/src/syscall/zsyscall_linux_riscv64.go
+@@ -1363,17 +1363,6 @@ func Truncate(path string, length int64) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+-	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+-	fd = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	fd = int(r0)

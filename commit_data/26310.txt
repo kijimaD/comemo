@@ -9,6 +9,28 @@ Date:   Fri Jan 8 20:06:04 2016 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  api/go1.6.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/api/go1.6.txt b/api/go1.6.txt
+index 9366925845..109ce7a05c 100644
+--- a/api/go1.6.txt
++++ b/api/go1.6.txt
+@@ -185,6 +185,7 @@ pkg go/constant, func ToComplex(Value) Value
+ pkg go/constant, func ToFloat(Value) Value
+ pkg go/constant, func ToInt(Value) Value
+ pkg go/constant, type Value interface, ExactString() string
++pkg go/types, method (*Package) SetName(string)
+ pkg html/template, func IsTrue(interface{}) (bool, bool)
+ pkg html/template, method (*Template) DefinedTemplates() string
+ pkg image, func NewNYCbCrA(Rectangle, YCbCrSubsampleRatio) *NYCbCrA
+@@ -241,6 +242,8 @@ pkg net/http, const StatusRequestHeaderFieldsTooLarge = 431
+ pkg net/http, const StatusRequestHeaderFieldsTooLarge ideal-int
+ pkg net/http, const StatusTooManyRequests = 429
+ pkg net/http, const StatusTooManyRequests ideal-int
++pkg net/http, const StatusUnavailableForLegalReasons = 451
++pkg net/http, const StatusUnavailableForLegalReasons ideal-int
+ pkg net/http, type Transport struct, ExpectContinueTimeout time.Duration
+ pkg net/http, type Transport struct, TLSNextProto map[string]func(string, *tls.Conn) RoundTripper
+ pkg net/http, var ErrSkipAltProtocol error

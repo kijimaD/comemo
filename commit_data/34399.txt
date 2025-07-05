@@ -18,8 +18,100 @@ Date:   Mon Oct 23 14:43:51 2017 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/csv/reader.go      | 10 ++++++++++
  src/encoding/csv/reader_test.go | 30 ++++++++++++++++++++++++++++++
  src/encoding/csv/writer.go      |  4 ++++
  3 files changed, 44 insertions(+)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index 00b9bbffee..031ee6cedb 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -88,6 +88,12 @@ var (
+ 	ErrFieldCount    = errors.New("wrong number of fields")
+ )
+ 
++var errInvalidDelim = errors.New("csv: invalid field or comment delimiter")
++
++func validDelim(r rune) bool {
++	return r != 0 && r != '\r' && r != '\n' && utf8.ValidRune(r) && r != utf8.RuneError
++}
++
+ // A Reader reads records from a CSV-encoded file.
+ //
+ // As returned by NewReader, a Reader expects input conforming to RFC 4180.
+@@ -232,6 +238,10 @@ func nextRune(b []byte) rune {
+ }
+ 
+ func (r *Reader) readRecord(dst []string) ([]string, error) {
++	if r.Comma == r.Comment || !validDelim(r.Comma) || (r.Comment != 0 && !validDelim(r.Comment)) {
++		return nil, errInvalidDelim
++	}
++
+ 	// Read line (automatically skipping past empty lines and any comments).
+ 	var line, fullLine []byte
+ 	var errRead error
+diff --git a/src/encoding/csv/reader_test.go b/src/encoding/csv/reader_test.go
+index ed7d89dfe0..48efbb6719 100644
+--- a/src/encoding/csv/reader_test.go
++++ b/src/encoding/csv/reader_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"reflect"
+ 	"strings"
+ 	"testing"
++	"unicode/utf8"
+ )
+ 
+ func TestRead(t *testing.T) {
+@@ -312,6 +313,35 @@ x,,,
+ 		Input:      `"""""""`,
+ 		Output:     [][]string{{`"""`}},
+ 		LazyQuotes: true,
++	}, {
++		Name:  "BadComma1",
++		Comma: '\n',
++		Error: errInvalidDelim,
++	}, {
++		Name:  "BadComma2",
++		Comma: '\r',
++		Error: errInvalidDelim,
++	}, {
++		Name:  "BadComma3",
++		Comma: utf8.RuneError,
++		Error: errInvalidDelim,
++	}, {
++		Name:    "BadComment1",
++		Comment: '\n',
++		Error:   errInvalidDelim,
++	}, {
++		Name:    "BadComment2",
++		Comment: '\r',
++		Error:   errInvalidDelim,
++	}, {
++		Name:    "BadComment3",
++		Comment: utf8.RuneError,
++		Error:   errInvalidDelim,
++	}, {
++		Name:    "BadCommaComment",
++		Comma:   'X',
++		Comment: 'X',
++		Error:   errInvalidDelim,
+ 	}}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/encoding/csv/writer.go b/src/encoding/csv/writer.go
+index 84b7aa1ed1..b23cae4517 100644
+--- a/src/encoding/csv/writer.go
++++ b/src/encoding/csv/writer.go
+@@ -38,6 +38,10 @@ func NewWriter(w io.Writer) *Writer {
+ // Writer writes a single CSV record to w along with any necessary quoting.
+ // A record is a slice of strings with each string being one field.
+ func (w *Writer) Write(record []string) error {
++	if !validDelim(w.Comma) {
++		return errInvalidDelim
++	}
++
+ 	for n, field := range record {
+ 		if n > 0 {
+ 			if _, err := w.w.WriteRune(w.Comma); err != nil {

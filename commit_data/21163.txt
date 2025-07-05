@@ -10,6 +10,20 @@ Date:   Fri Nov 21 20:44:04 2014 +0100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/177160043
-
+---
  src/cmd/8g/reg.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 13beaf9414..d7394a16d2 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -362,7 +362,7 @@ brk:
+ 		print("\nregisterizing\n");
+ 	for(i=0; i<nregion; i++) {
+ 		if(debug['R'] && debug['v'])
+-			print("region %d: cost %d varno %d enter %d\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
++			print("region %d: cost %d varno %d enter %lld\n", i, rgp->cost, rgp->varno, rgp->enter->f.prog->pc);
+ 		bit = blsh(rgp->varno);
+ 		vreg = paint2(rgp->enter, rgp->varno, 0);
+ 		vreg = allreg(vreg, rgp);

@@ -12,6 +12,31 @@ Date:   Thu Oct 11 13:13:03 2018 +1100
     Change-Id: I75bcee4a1dd9ec8cd82826c9a6e02ba7d599f719
     Reviewed-on: https://go-review.googlesource.com/c/141377
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/unsafe/unsafe.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 00961cffa3..e16c4aeacb 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -178,11 +178,13 @@ type Pointer *ArbitraryType
+ // The size does not include any memory possibly referenced by x.
+ // For instance, if x is a slice, Sizeof returns the size of the slice
+ // descriptor, not the size of the memory referenced by the slice.
++// The return value of Sizeof is a Go constant.
+ func Sizeof(x ArbitraryType) uintptr
+ 
+ // Offsetof returns the offset within the struct of the field represented by x,
+ // which must be of the form structValue.field. In other words, it returns the
+ // number of bytes between the start of the struct and the start of the field.
++// The return value of Offsetof is a Go constant.
+ func Offsetof(x ArbitraryType) uintptr
+ 
+ // Alignof takes an expression x of any type and returns the required alignment
+@@ -193,4 +195,5 @@ func Offsetof(x ArbitraryType) uintptr
+ // within that struct, then Alignof(s.f) will return the required alignment
+ // of a field of that type within a struct. This case is the same as the
+ // value returned by reflect.TypeOf(s.f).FieldAlign().
++// The return value of Alignof is a Go constant.
+ func Alignof(x ArbitraryType) uintptr

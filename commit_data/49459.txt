@@ -14,6 +14,35 @@ Date:   Sat Aug 21 02:51:51 2021 +0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/typeparam/issue46591.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/test/typeparam/issue46591.go b/test/typeparam/issue46591.go
+new file mode 100644
+index 0000000000..e7b9fa2b48
+--- /dev/null
++++ b/test/typeparam/issue46591.go
+@@ -0,0 +1,22 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T[_ any] struct{}
++
++var m = map[interface{}]int{
++	T[struct{ int }]{}: 0,
++	T[struct {
++		int "x"
++	}]{}: 0,
++}
++
++func main() {
++	if len(m) != 2 {
++		panic(len(m))
++	}
++}

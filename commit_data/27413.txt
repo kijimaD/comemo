@@ -10,7 +10,57 @@ Date:   Thu Mar 24 22:46:10 2016 +0530
     Reviewed-on: https://go-review.googlesource.com/21065
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go   |  6 ++++--
  src/cmd/go/go_test.go | 21 +++++++++++++++++++++
  2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 08062ea9a5..01b32c30ed 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2346,8 +2346,10 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 
+ 	// The archive file should have been created by the compiler.
+ 	// Since it used to not work that way, verify.
+-	if _, err := os.Stat(absAfile); err != nil {
+-		fatalf("os.Stat of archive file failed: %v", err)
++	if !buildN {
++		if _, err := os.Stat(absAfile); err != nil {
++			fatalf("os.Stat of archive file failed: %v", err)
++		}
+ 	}
+ 
+ 	if buildN || buildX {
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e20ec814c5..05e509d41d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1982,6 +1982,27 @@ func TestCoverageUsesActualSettingToOverrideEvenForRace(t *testing.T) {
+ 	checkCoverage(tg, data)
+ }
+ 
++func TestBuildDryRunWithCgo(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempFile("foo.go", `package main
++
++/*
++#include <limits.h>
++*/
++import "C"
++
++func main() {
++        println(C.INT_MAX)
++}`)
++	tg.run("build", "-n", tg.path("foo.go"))
++	tg.grepStderrNot(`os.Stat .* no such file or directory`, "unexpected stat of archive file")
++}
++
+ func TestCoverageWithCgo(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")

@@ -23,8 +23,93 @@ Date:   Wed Sep 23 10:05:44 2015 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/decimal.go      | 14 ++++++++------
  src/math/big/decimal_test.go | 10 ++++++++++
  src/math/big/ftoa.go         | 16 +++-------------
  3 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/src/math/big/decimal.go b/src/math/big/decimal.go
+index 7789677f76..b9e181dba3 100644
+--- a/src/math/big/decimal.go
++++ b/src/math/big/decimal.go
+@@ -29,6 +29,14 @@ type decimal struct {
+ 	exp  int    // exponent
+ }
+ 
++// at returns the i'th mantissa digit, starting with the most significant digit at 0.
++func (d *decimal) at(i int) byte {
++	if 0 <= i && i < len(d.mant) {
++		return d.mant[i]
++	}
++	return '0'
++}
++
+ // Maximum shift amount that can be done in one pass without overflow.
+ // A Word has _W bits and (1<<maxShift - 1)*10 + 9 must fit into Word.
+ const maxShift = _W - 4
+@@ -92,12 +100,6 @@ func (x *decimal) init(m nat, shift int) {
+ 	}
+ }
+ 
+-// Possibly optimization: The current implementation of nat.string takes
+-// a charset argument. When a right shift is needed, we could provide
+-// "\x00\x01...\x09" instead of "012..9" (as in nat.decimalString) and
+-// avoid the repeated +'0' and -'0' operations in decimal.shr (and do a
+-// single +'0' pass at the end).
+-
+ // shr implements x >> s, for s <= maxShift.
+ func shr(x *decimal, s uint) {
+ 	// Division by 1<<s using shift-and-subtract algorithm.
+diff --git a/src/math/big/decimal_test.go b/src/math/big/decimal_test.go
+index 81e022a47d..15bdb181e7 100644
+--- a/src/math/big/decimal_test.go
++++ b/src/math/big/decimal_test.go
+@@ -104,3 +104,13 @@ func TestDecimalRounding(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkDecimalConversion(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		for shift := -100; shift <= +100; shift++ {
++			var d decimal
++			d.init(natOne, shift)
++			d.String()
++		}
++	}
++}
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 21d5b546ff..5c1d31ebde 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -201,14 +201,8 @@ func roundShortest(d *decimal, x *Float) {
+ 	// Now we can figure out the minimum number of digits required.
+ 	// Walk along until d has distinguished itself from upper and lower.
+ 	for i, m := range d.mant {
+-		l := byte('0') // lower digit
+-		if i < len(lower.mant) {
+-			l = lower.mant[i]
+-		}
+-		u := byte('0') // upper digit
+-		if i < len(upper.mant) {
+-			u = upper.mant[i]
+-		}
++		l := lower.at(i)
++		u := upper.at(i)
+ 
+ 		// Okay to round down (truncate) if lower has a different digit
+ 		// or if lower is inclusive and is exactly the result of rounding
+@@ -296,11 +290,7 @@ func fmtF(buf []byte, prec int, d decimal) []byte {
+ 	if prec > 0 {
+ 		buf = append(buf, '.')
+ 		for i := 0; i < prec; i++ {
+-			ch := byte('0')
+-			if j := d.exp + i; 0 <= j && j < len(d.mant) {
+-				ch = d.mant[j]
+-			}
+-			buf = append(buf, ch)
++			buf = append(buf, d.at(d.exp+i))
+ 		}
+ 	}
+ 

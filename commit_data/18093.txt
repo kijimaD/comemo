@@ -10,7 +10,34 @@ Date:   Fri Dec 20 21:29:28 2013 +0900
     R=golang-dev, rsc, minux.ma, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/15990043
-
+---
  src/pkg/net/ip.go      | 3 +++
  src/pkg/net/ip_test.go | 1 +
  2 files changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index fd6a7d4ee8..0582009b8b 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -623,6 +623,9 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+ 		for k := ellipsis + n - 1; k >= ellipsis; k-- {
+ 			ip[k] = 0
+ 		}
++	} else if ellipsis >= 0 {
++		// Ellipsis must represent at least one 0 group.
++		return nil, zone
+ 	}
+ 	return ip, zone
+ }
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index 26b53729b8..ffeb9d315e 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -25,6 +25,7 @@ var parseIPTests = []struct {
+ 	{"fe80::1%lo0", nil},
+ 	{"fe80::1%911", nil},
+ 	{"", nil},
++	{"a1:a2:a3:a4::b1:b2:b3:b4", nil}, // Issue 6628
+ }
+ 
+ func TestParseIP(t *testing.T) {

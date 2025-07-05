@@ -20,10 +20,194 @@ Date:   Wed Feb 19 12:29:31 2025 +0100
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/next/6-stdlib/99-minor/crypto/tls/fips.md |  2 +-
  src/crypto/tls/defaults_boring.go             |  2 +
  src/crypto/tls/defaults_fips140.go            | 76 +++++++++++++++++++++++++++
  src/crypto/tls/fips140_test.go                | 25 +++++++--
  src/crypto/tls/tls.go                         | 11 ++--
  5 files changed, 108 insertions(+), 8 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/fips.md b/doc/next/6-stdlib/99-minor/crypto/tls/fips.md
+index 8a81688af6..0f0c9459ce 100644
+--- a/doc/next/6-stdlib/99-minor/crypto/tls/fips.md
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/fips.md
+@@ -1,2 +1,2 @@
+ When [FIPS 140-3 mode](/doc/security/fips140) is enabled, Extended Master Secret
+-is now required in TLS 1.2.
++is now required in TLS 1.2, and Ed25519 and X25519MLKEM768 are now allowed.
+diff --git a/src/crypto/tls/defaults_boring.go b/src/crypto/tls/defaults_boring.go
+index 8356ee6932..96406acfca 100644
+--- a/src/crypto/tls/defaults_boring.go
++++ b/src/crypto/tls/defaults_boring.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ package tls
+ 
+ import (
+diff --git a/src/crypto/tls/defaults_fips140.go b/src/crypto/tls/defaults_fips140.go
+new file mode 100644
+index 0000000000..472bb807f0
+--- /dev/null
++++ b/src/crypto/tls/defaults_fips140.go
+@@ -0,0 +1,76 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !boringcrypto
++
++package tls
++
++import (
++	"crypto/ecdsa"
++	"crypto/ed25519"
++	"crypto/elliptic"
++	"crypto/rsa"
++	"crypto/x509"
++)
++
++// These FIPS 140-3 policies allow anything approved by SP 800-140C
++// and SP 800-140D, and tested as part of the Go Cryptographic Module.
++//
++// Notably, not SHA-1, 3DES, RC4, ChaCha20Poly1305, RSA PKCS #1 v1.5 key
++// transport, or TLS 1.0—1.1 (because we don't test its KDF).
++//
++// These are not default lists, but filters to apply to the default or
++// configured lists. Missing items are treated as if they were not implemented.
++//
++// They are applied when the fips140 GODEBUG is "on" or "only".
++
++var (
++	allowedSupportedVersionsFIPS = []uint16{
++		VersionTLS12,
++		VersionTLS13,
++	}
++	allowedCurvePreferencesFIPS = []CurveID{
++		X25519MLKEM768,
++		CurveP256,
++		CurveP384,
++		CurveP521,
++	}
++	allowedSupportedSignatureAlgorithmsFIPS = []SignatureScheme{
++		PSSWithSHA256,
++		ECDSAWithP256AndSHA256,
++		Ed25519,
++		PSSWithSHA384,
++		PSSWithSHA512,
++		PKCS1WithSHA256,
++		PKCS1WithSHA384,
++		PKCS1WithSHA512,
++		ECDSAWithP384AndSHA384,
++		ECDSAWithP521AndSHA512,
++	}
++	allowedCipherSuitesFIPS = []uint16{
++		TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
++		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
++		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
++		TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
++		TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
++	}
++	allowedCipherSuitesTLS13FIPS = []uint16{
++		TLS_AES_128_GCM_SHA256,
++		TLS_AES_256_GCM_SHA384,
++	}
++)
++
++func isCertificateAllowedFIPS(c *x509.Certificate) bool {
++	switch k := c.PublicKey.(type) {
++	case *rsa.PublicKey:
++		return k.N.BitLen() >= 2048
++	case *ecdsa.PublicKey:
++		return k.Curve == elliptic.P256() || k.Curve == elliptic.P384() || k.Curve == elliptic.P521()
++	case ed25519.PublicKey:
++		return true
++	default:
++		return false
++	}
++}
+diff --git a/src/crypto/tls/fips140_test.go b/src/crypto/tls/fips140_test.go
+index 9ea32a6d9a..c22ad485cc 100644
+--- a/src/crypto/tls/fips140_test.go
++++ b/src/crypto/tls/fips140_test.go
+@@ -7,6 +7,7 @@ package tls
+ import (
+ 	"crypto/ecdsa"
+ 	"crypto/elliptic"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"crypto/x509"
+@@ -109,8 +110,20 @@ func isFIPSCipherSuite(id uint16) bool {
+ 		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+ 		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+ 		return true
+-	default:
++	case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
++		TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
++		// Only for the native module.
++		return !boring.Enabled
++	}
++	switch {
++	case strings.Contains(name, "CHACHA20"):
++		return false
++	case strings.HasSuffix(name, "_SHA"): // SHA-1
+ 		return false
++	case strings.HasPrefix(name, "TLS_RSA"): // RSA kex
++		return false
++	default:
++		panic("unknown cipher suite: " + name)
+ 	}
+ }
+ 
+@@ -118,7 +131,10 @@ func isFIPSCurve(id CurveID) bool {
+ 	switch id {
+ 	case CurveP256, CurveP384, CurveP521:
+ 		return true
+-	case X25519, X25519MLKEM768:
++	case X25519MLKEM768:
++		// Only for the native module.
++		return !boring.Enabled
++	case X25519:
+ 		return false
+ 	default:
+ 		panic("unknown curve: " + id.String())
+@@ -146,7 +162,10 @@ func isFIPSSignatureScheme(alg SignatureScheme) bool {
+ 		PSSWithSHA384,
+ 		PSSWithSHA512:
+ 		return true
+-	case Ed25519, PKCS1WithSHA1, ECDSAWithSHA1:
++	case Ed25519:
++		// Only for the native module.
++		return !boring.Enabled
++	case PKCS1WithSHA1, ECDSAWithSHA1:
+ 		return false
+ 	default:
+ 		panic("unknown signature scheme: " + alg.String())
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index c64201abc1..a0fd8e835d 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -7,10 +7,13 @@
+ //
+ // # FIPS 140-3 mode
+ //
+-// When the program is in [FIPS 140-3 mode], this package behaves as if
+-// only protocol versions, cipher suites, signature algorithms, and
+-// key exchange algorithms approved by NIST SP 800-52r2 are implemented.
+-// Others are silently ignored and not negotiated.
++// When the program is in [FIPS 140-3 mode], this package behaves as if only
++// SP 800-140C and SP 800-140D approved protocol versions, cipher suites,
++// signature algorithms, certificate public key types and sizes, and key
++// exchange and derivation algorithms were implemented. Others are silently
++// ignored and not negotiated, or rejected. This set may depend on the
++// algorithms supported by the FIPS 140-3 Go Cryptographic Module selected with
++// GOFIPS140, and may change across Go versions.
+ //
+ // [FIPS 140-3 mode]: https://go.dev/doc/security/fips140
+ package tls

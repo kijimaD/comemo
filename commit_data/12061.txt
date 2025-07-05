@@ -8,6 +8,30 @@ Date:   Mon Feb 20 07:44:24 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5673103
-
+---
  test/initcomma.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/test/initcomma.go b/test/initcomma.go
+index 7fa069044d..a54fce4280 100644
+--- a/test/initcomma.go
++++ b/test/initcomma.go
+@@ -4,12 +4,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test trailing commas. DO NOT gofmt THIS FILE.
++
+ package main
+ 
+-var a = []int{1, 2}
+-var b = [5]int{1, 2, 3}
+-var c = []int{1}
+-var d = [...]int{1, 2, 3}
++var a = []int{1, 2, }
++var b = [5]int{1, 2, 3, }
++var c = []int{1, }
++var d = [...]int{1, 2, 3, }
+ 
+ func main() {
+ 	if len(a) != 2 {

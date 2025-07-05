@@ -10,8 +10,98 @@ Date:   Thu Sep 24 08:19:16 2009 -0700
     DELTA=9  (0 added, 1 deleted, 8 changed)
     OCL=34851
     CL=34962
-
+---
  usr/austin/sym/binary.go   | 8 ++++----
  usr/austin/sym/elf.go      | 5 ++---
  usr/austin/sym/gosymtab.go | 4 ++--
  3 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/usr/austin/sym/binary.go b/usr/austin/sym/binary.go
+index 015175d743..be395f2094 100644
+--- a/usr/austin/sym/binary.go
++++ b/usr/austin/sym/binary.go
+@@ -84,7 +84,7 @@ func (r *binaryReader) Error() os.Error {
+ 
+ func (r *binaryReader) ReadUint8() uint8 {
+ 	var buf [1]byte;
+-	n, err := io.ReadFull(r.Reader, &buf);
++	_, err := io.ReadFull(r.Reader, &buf);
+ 	if r.err == nil && err != nil {
+ 		r.err = err;
+ 	}
+@@ -93,7 +93,7 @@ func (r *binaryReader) ReadUint8() uint8 {
+ 
+ func (r *binaryReader) ReadUint16() uint16 {
+ 	var buf [2]byte;
+-	n, err := io.ReadFull(r.Reader, &buf);
++	_, err := io.ReadFull(r.Reader, &buf);
+ 	if r.err == nil && err != nil {
+ 		r.err = err;
+ 	}
+@@ -102,7 +102,7 @@ func (r *binaryReader) ReadUint16() uint16 {
+ 
+ func (r *binaryReader) ReadUint32() uint32 {
+ 	var buf [4]byte;
+-	n, err := io.ReadFull(r.Reader, &buf);
++	_, err := io.ReadFull(r.Reader, &buf);
+ 	if r.err == nil && err != nil {
+ 		r.err = err;
+ 	}
+@@ -111,7 +111,7 @@ func (r *binaryReader) ReadUint32() uint32 {
+ 
+ func (r *binaryReader) ReadUint64() uint64 {
+ 	var buf [8]byte;
+-	n, err := io.ReadFull(r.Reader, &buf);
++	_, err := io.ReadFull(r.Reader, &buf);
+ 	if r.err == nil && err != nil {
+ 		r.err = err;
+ 	}
+diff --git a/usr/austin/sym/elf.go b/usr/austin/sym/elf.go
+index 95b7cc41c4..c18de9810e 100644
+--- a/usr/austin/sym/elf.go
++++ b/usr/austin/sym/elf.go
+@@ -7,7 +7,6 @@ package sym
+ import (
+ 	"fmt";
+ 	"io";
+-	"log";
+ 	"os";
+ )
+ 
+@@ -62,7 +61,7 @@ func NewElf(r io.ReadSeeker) (*Elf, os.Error) {
+ 		return nil, err;
+ 	}
+ 	start := off;
+-	n, err := io.ReadFull(r, &ident);
++	_, err = io.ReadFull(r, &ident);
+ 	if err != nil {
+ 		if err == os.EOF {
+ 			err = io.ErrUnexpectedEOF;
+@@ -167,7 +166,7 @@ func NewElf(r io.ReadSeeker) (*Elf, os.Error) {
+ 		return nil, err;
+ 	}
+ 	blob := make([]byte, e.Sections[shstrndx].Size);
+-	n, err = io.ReadFull(r, blob);
++	_, err = io.ReadFull(r, blob);
+ 
+ 	for i, s := range e.Sections {
+ 		var ok bool;
+diff --git a/usr/austin/sym/gosymtab.go b/usr/austin/sym/gosymtab.go
+index e9519a3e54..687745ff39 100644
+--- a/usr/austin/sym/gosymtab.go
++++ b/usr/austin/sym/gosymtab.go
+@@ -646,12 +646,12 @@ func (lt *lineTable) slice(pc uint64) *lineTable {
+ }
+ 
+ func (lt *lineTable) alineFromPC(targetPC uint64) int {
+-	_1, _2, aline := lt.parse(targetPC, -1);
++	_, _, aline := lt.parse(targetPC, -1);
+ 	return aline;
+ }
+ 
+ func (lt *lineTable) pcFromAline(aline int, maxPC uint64) uint64 {
+-	_1, pc, line := lt.parse(maxPC, aline);
++	_, pc, line := lt.parse(maxPC, aline);
+ 	if line != aline {
+ 		// Never found aline
+ 		return 0;

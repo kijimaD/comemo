@@ -10,7 +10,65 @@ Date:   Wed Apr 16 11:32:41 2014 -0700
     R=golang-codereviews, minux.ma
     CC=golang-codereviews, nigeltao, r, rsc
     https://golang.org/cl/88330044
-
+---
  src/pkg/encoding/base64/base64.go      |  4 ++--
  src/pkg/encoding/base64/base64_test.go | 13 +++++++++++++
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index a6efd44615..e38c26d0ec 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -250,7 +250,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 				}
+ 				if len(src) > 0 {
+ 					// trailing garbage
+-					return n, false, CorruptInputError(olen - len(src))
++					err = CorruptInputError(olen - len(src))
+ 				}
+ 				dlen, end = j, true
+ 				break
+@@ -277,7 +277,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 		n += dlen - 1
+ 	}
+ 
+-	return n, end, nil
++	return n, end, err
+ }
+ 
+ // Decode decodes src using the encoding enc.  It writes at most
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index 0285629029..f1469c6842 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"io/ioutil"
++	"reflect"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -165,6 +166,7 @@ func TestDecodeCorrupt(t *testing.T) {
+ 		{"AAA=", -1},
+ 		{"AAAA", -1},
+ 		{"AAAAAA=", 7},
++		{"YWJjZA=====", 8},
+ 	}
+ 	for _, tc := range testCases {
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(tc.input)))
+@@ -329,3 +331,14 @@ bqbPb06551Y4
+ 		t.Error("Decoded results not equal")
+ 	}
+ }
++
++func TestDecoderIssue7733(t *testing.T) {
++	s, err := StdEncoding.DecodeString("YWJjZA=====")
++	want := CorruptInputError(8)
++	if !reflect.DeepEqual(want, err) {
++		t.Errorf("Error = %v; want CorruptInputError(8)")
++	}
++	if string(s) != "abcd" {
++		t.Errorf("DecodeString = %q; want abcd", s)
++	}
++}

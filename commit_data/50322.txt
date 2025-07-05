@@ -14,6 +14,19 @@ Date:   Mon Oct 18 17:38:22 2021 +0000
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/parse/parse.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index d92bed5d3d..64b29a2e16 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -32,7 +32,6 @@ type Tree struct {
+ 	treeSet    map[string]*Tree
+ 	actionLine int // line of left delim starting action
+ 	rangeDepth int
+-	mode       Mode
+ }
+ 
+ // A mode value is a set of flags (or 0). Modes control parser behavior.

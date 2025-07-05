@@ -46,9 +46,143 @@ Date:   Mon Apr 13 23:34:57 2015 -0400
     Change-Id: I35422d6bba0c2310d48bb1f8f30a72d29e98c1af
     Reviewed-on: https://go-review.googlesource.com/8921
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mcentral.go | 18 ++++++++++++++++++
  src/runtime/mgc.go      | 37 +++++++++++++++++++++++++++++++------
  src/runtime/mgcsweep.go |  2 ++
  src/runtime/mheap.go    | 11 +++++++++++
  4 files changed, 62 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 8aab903ab9..915da69d87 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -29,6 +29,24 @@ func mCentral_Init(c *mcentral, sizeclass int32) {
+ 
+ // Allocate a span to use in an MCache.
+ func mCentral_CacheSpan(c *mcentral) *mspan {
++	// Perform proportional sweep work. We don't directly reuse
++	// the spans we're sweeping here for this allocation because
++	// these can hold any size class. We'll sweep one more span
++	// below and use that because it will have the right size
++	// class and be hot in our cache.
++	pagesOwed := int64(mheap_.sweepPagesPerByte * float64(memstats.heap_live-memstats.heap_marked))
++	if pagesOwed-int64(mheap_.pagesSwept) > 1 {
++		// Get the debt down to one page, which we're likely
++		// to take care of below (if we don't, that's fine;
++		// we'll pick up the slack later).
++		for pagesOwed-int64(atomicload64(&mheap_.pagesSwept)) > 1 {
++			if gosweepone() == ^uintptr(0) {
++				mheap_.sweepPagesPerByte = 0
++				break
++			}
++		}
++	}
++
+ 	lock(&c.lock)
+ 	sg := mheap_.sweepgen
+ retry:
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c413bbf2a6..fa0b82777a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -580,12 +580,11 @@ func gc(mode int) {
+ 
+ 	// Pick up the remaining unswept/not being swept spans concurrently
+ 	//
+-	// TODO(austin): If the last GC cycle shrank the heap, our 1:1
+-	// sweeping rule will undershoot and we'll wind up doing
+-	// sweeping here, which will allow the mutator to do more
+-	// allocation than we intended before we "really" start GC.
+-	// Compute an allocation sweep ratio so we're done sweeping by
+-	// the time we hit next_gc.
++	// This shouldn't happen if we're being invoked in background
++	// mode since proportional sweep should have just finished
++	// sweeping everything, but rounding errors, etc, may leave a
++	// few spans unswept. In forced mode, this is necessary since
++	// GC can be forced at any point in the sweeping cycle.
+ 	for gosweepone() != ^uintptr(0) {
+ 		sweep.nbgsweep++
+ 	}
+@@ -1025,6 +1024,11 @@ func gcSweep(mode int) {
+ 
+ 	if !_ConcurrentSweep || mode == gcForceBlockMode {
+ 		// Special case synchronous sweep.
++		// Record that no proportional sweeping has to happen.
++		lock(&mheap_.lock)
++		mheap_.sweepPagesPerByte = 0
++		mheap_.pagesSwept = 0
++		unlock(&mheap_.lock)
+ 		// Sweep all spans eagerly.
+ 		for sweepone() != ^uintptr(0) {
+ 			sweep.npausesweep++
+@@ -1035,6 +1039,27 @@ func gcSweep(mode int) {
+ 		return
+ 	}
+ 
++	// Account how much sweeping needs to be done before the next
++	// GC cycle and set up proportional sweep statistics.
++	var pagesToSweep uintptr
++	for _, s := range work.spans {
++		if s.state == mSpanInUse {
++			pagesToSweep += s.npages
++		}
++	}
++	heapDistance := int64(memstats.next_gc) - int64(memstats.heap_live)
++	// Add a little margin so rounding errors and concurrent
++	// sweep are less likely to leave pages unswept when GC starts.
++	heapDistance -= 1024 * 1024
++	if heapDistance < _PageSize {
++		// Avoid setting the sweep ratio extremely high
++		heapDistance = _PageSize
++	}
++	lock(&mheap_.lock)
++	mheap_.sweepPagesPerByte = float64(pagesToSweep) / float64(heapDistance)
++	mheap_.pagesSwept = 0
++	unlock(&mheap_.lock)
++
+ 	// Background sweep.
+ 	lock(&sweep.lock)
+ 	if sweep.parked {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 1785d74eba..02e0ecee94 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -165,6 +165,8 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 		traceGCSweepStart()
+ 	}
+ 
++	xadd64(&mheap_.pagesSwept, int64(s.npages))
++
+ 	cl := s.sizeclass
+ 	size := s.elemsize
+ 	res := false
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index fe44231e7b..68844e40b5 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -59,6 +59,10 @@ type mheap struct {
+ 	specialprofilealloc   fixalloc // allocator for specialprofile*
+ 	speciallock           mutex    // lock for sepcial record allocators.
+ 
++	// Proportional sweep
++	pagesSwept        uint64  // pages swept this cycle; updated atomically
++	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
++
+ 	// Malloc stats.
+ 	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
+ 	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
+@@ -362,6 +366,13 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan
+ 	// To prevent excessive heap growth, before allocating n pages
+ 	// we need to sweep and reclaim at least n pages.
+ 	if h.sweepdone == 0 {
++		// TODO(austin): This tends to sweep a large number of
++		// spans in order to find a few completely free spans
++		// (for example, in the garbage benchmark, this sweeps
++		// ~30x the number of pages its trying to allocate).
++		// If GC kept a bit for whether there were any marks
++		// in a span, we could release these free spans
++		// at the end of GC and eliminate this entirely.
+ 		mHeap_Reclaim(h, npage)
+ 	}
+ 

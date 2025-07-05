@@ -11,7 +11,47 @@ Date:   Mon Jul 17 23:41:40 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/issue19832.go | 16 ++++++++++++++++
  src/cmd/cgo/gcc.go          |  6 ++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/misc/cgo/test/issue19832.go b/misc/cgo/test/issue19832.go
+new file mode 100644
+index 0000000000..44587770af
+--- /dev/null
++++ b/misc/cgo/test/issue19832.go
+@@ -0,0 +1,16 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 19832. Functions taking a pointer typedef were being expanded and triggering a compiler error.
++
++package cgotest
++
++// typedef struct { int i; } *PS;
++// void T19832(PS p) {}
++import "C"
++import "testing"
++
++func test19832(t *testing.T) {
++	C.T19832(nil)
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 77a59c6633..a59892ef00 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2227,6 +2227,12 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+ 				break
+ 			}
+ 
++			// If we already know the typedef for t just use that.
++			// See issue 19832.
++			if def := typedef[t.Go.(*ast.Ident).Name]; def != nil {
++				break
++			}
++
+ 			t = c.Type(ptr, pos)
+ 			if t == nil {
+ 				return nil

@@ -13,7 +13,47 @@ Date:   Fri Sep 30 09:38:39 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/regexp/onepass.go      | 6 +++---
  src/regexp/syntax/parse.go | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index bc47f4c4a8..89040d7b0e 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -33,10 +33,10 @@ type onePassInst struct {
+ 	Next []uint32
+ }
+ 
+-// OnePassPrefix returns a literal string that all matches for the
++// onePassPrefix returns a literal string that all matches for the
+ // regexp must start with. Complete is true if the prefix
+ // is the entire match. Pc is the index of the last rune instruction
+-// in the string. The OnePassPrefix skips over the mandatory
++// in the string. The onePassPrefix skips over the mandatory
+ // EmptyBeginText
+ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
+ 	i := &p.Inst[p.Start]
+@@ -68,7 +68,7 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
+ 	return buf.String(), complete, pc
+ }
+ 
+-// OnePassNext selects the next actionable state of the prog, based on the input character.
++// onePassNext selects the next actionable state of the prog, based on the input character.
+ // It should only be called when i.Op == InstAlt or InstAltMatch, and from the one-pass machine.
+ // One of the alternates may ultimately lead without input to end of line. If the instruction
+ // is InstAltMatch the path to the InstMatch is in i.Out, the normal node in i.Next.
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 350f297e5b..861c06d999 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -1800,7 +1800,7 @@ func appendClass(r []rune, x []rune) []rune {
+ 	return r
+ }
+ 
+-// appendFolded returns the result of appending the case folding of the class x to the class r.
++// appendFoldedClass returns the result of appending the case folding of the class x to the class r.
+ func appendFoldedClass(r []rune, x []rune) []rune {
+ 	for i := 0; i < len(x); i += 2 {
+ 		r = appendFoldedRange(r, x[i], x[i+1])

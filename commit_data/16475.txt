@@ -9,6 +9,31 @@ Date:   Mon Jun 3 07:07:31 2013 -0700
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/9955043
-
+---
  test/stress/runstress.go | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/test/stress/runstress.go b/test/stress/runstress.go
+index b5adf6a4a5..76ab2a8b4f 100644
+--- a/test/stress/runstress.go
++++ b/test/stress/runstress.go
+@@ -114,11 +114,16 @@ func stressExec() {
+ 	}
+ }
+ 
+-func ringf(in <-chan int, out chan<- int, donec chan<- bool) {
++func ringf(in <-chan int, out chan<- int, donec chan bool) {
+ 	for {
+-		n := <-in
++		var n int
++		select {
++		case <-donec:
++			return
++		case n = <-in:
++		}
+ 		if n == 0 {
+-			donec <- true
++			close(donec)
+ 			return
+ 		}
+ 		out <- n - 1

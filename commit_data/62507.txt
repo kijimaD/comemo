@@ -24,8 +24,47 @@ Date:   Wed Feb 26 14:13:15 2025 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/bogo_config.json    | 1 -
  src/crypto/tls/handshake_client.go | 2 +-
  src/crypto/tls/handshake_server.go | 2 +-
  3 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 1521594034..6a9a6dfcc5 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -54,7 +54,6 @@
+         "KyberKeyShareIncludedSecond": "we always send the Kyber key share first",
+         "KyberKeyShareIncludedThird": "we always send the Kyber key share first",
+         "GREASE-Server-TLS13": "We don't send GREASE extensions",
+-        "GarbageCertificate*": "TODO ask davidben, alertDecode vs alertBadCertificate",
+         "SendBogusAlertType": "sending wrong alert type",
+         "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",
+         "*Client-P-224*": "no P-224 support",
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 1be0c82c4b..f6930c5d1b 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -1096,7 +1096,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 	for i, asn1Data := range certificates {
+ 		cert, err := globalCertCache.newCert(asn1Data)
+ 		if err != nil {
+-			c.sendAlert(alertBadCertificate)
++			c.sendAlert(alertDecodeError)
+ 			return errors.New("tls: failed to parse certificate from server: " + err.Error())
+ 		}
+ 		if cert.cert.PublicKeyAlgorithm == x509.RSA {
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 641bbec0c9..bb3d3065e2 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -909,7 +909,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
+ 	var err error
+ 	for i, asn1Data := range certificates {
+ 		if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
+-			c.sendAlert(alertBadCertificate)
++			c.sendAlert(alertDecodeError)
+ 			return errors.New("tls: failed to parse client certificate: " + err.Error())
+ 		}
+ 		if certs[i].PublicKeyAlgorithm == x509.RSA {

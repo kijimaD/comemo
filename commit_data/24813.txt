@@ -11,7 +11,43 @@ Date:   Tue Sep 1 15:18:01 2015 -0700
     Change-Id: I6c843bd268496bc13fc7e3c561d76619e961e8ad
     Reviewed-on: https://go-review.googlesource.com/14180
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 2 +-
  src/cmd/compile/internal/ssa/opGen.go        | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 09ffd4526f..da5c506064 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -112,7 +112,7 @@ func init() {
+ 		gp1flags  = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+ 		flagsgp   = regInfo{inputs: flagsonly, outputs: gponly}
+ 		readflags = regInfo{inputs: flagsonly, outputs: gponly}
+-		flagsgpax = regInfo{inputs: flagsonly, clobbers: ax, outputs: []regMask{gp &^ ax}}
++		flagsgpax = regInfo{inputs: flagsonly, clobbers: ax | flags, outputs: []regMask{gp &^ ax}}
+ 
+ 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
+ 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8263268019..82ba4a5449 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2502,7 +2502,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 1, // .AX
++			clobbers: 8589934593, // .AX .FLAGS
+ 			outputs: []regMask{
+ 				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2515,7 +2515,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 1, // .AX
++			clobbers: 8589934593, // .AX .FLAGS
+ 			outputs: []regMask{
+ 				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},

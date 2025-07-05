@@ -17,7 +17,46 @@ Date:   Fri May 10 15:26:56 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo_test.go | 7 +++++++
  src/cmd/go/internal/modfetch/sumdb.go         | 2 +-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index fcea6a0c1b..724602233c 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modfetch/codehost"
+ )
+ 
+@@ -26,6 +27,12 @@ func TestMain(m *testing.M) {
+ func testMain(m *testing.M) int {
+ 	SetProxy("direct")
+ 
++	// The sum database is populated using a released version of the go command,
++	// but this test may include fixes for additional modules that previously
++	// could not be fetched. Since this test isn't executing any of the resolved
++	// code, bypass the sum database.
++	cfg.GOSUMDB = "off"
++
+ 	dir, err := ioutil.TempDir("", "gitrepo-test-")
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index ebfb95b716..0af7219914 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -60,7 +60,7 @@ func dbDial() (dbName string, db *sumweb.Conn, err error) {
+ 	// $GOSUMDB can be "key" or "key url",
+ 	// and the key can be a full verifier key
+ 	// or a host on our list of known keys.
+-	key := strings.Fields(cfg.Getenv("GOSUMDB"))
++	key := strings.Fields(cfg.GOSUMDB)
+ 	if len(key) >= 1 {
+ 		if k := knownGOSUMDB[key[0]]; k != "" {
+ 			key[0] = k

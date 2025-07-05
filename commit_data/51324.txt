@@ -20,7 +20,7 @@ Date:   Tue Jan 11 09:14:38 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/377714
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/crawler.go   | 20 +++++++++++++++-----
  src/cmd/compile/internal/typecheck/typecheck.go |  6 +++++-
  test/run.go                                     |  1 +
@@ -28,3 +28,141 @@ Date:   Tue Jan 11 09:14:38 2022 -0800
  test/typeparam/issue50552.dir/main.go           | 20 ++++++++++++++++++++
  test/typeparam/issue50552.go                    |  7 +++++++
  6 files changed, 64 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index cdb1c46509..87dc5165fd 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ )
+ 
+ // crawlExports crawls the type/object graph rooted at the given list of exported
+@@ -241,11 +242,12 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 			if t.IsFullyInstantiated() && !t.HasShape() && !t.IsInterface() && t.Methods().Len() > 0 {
+ 				// For any fully-instantiated type, the relevant
+ 				// dictionaries and shape instantiations will have
+-				// already been created. Make sure that they are
+-				// exported, so that any other package that inlines
+-				// this function will have them available for import,
+-				// and so will not need another round of method and
+-				// dictionary instantiation after inlining.
++				// already been created or are in the import data.
++				// Make sure that they are exported, so that any
++				// other package that inlines this function will have
++				// them available for import, and so will not need
++				// another round of method and dictionary
++				// instantiation after inlining.
+ 				baseType := t.OrigSym().Def.(*ir.Name).Type()
+ 				shapes := make([]*types.Type, len(t.RParams()))
+ 				for i, t1 := range t.RParams() {
+@@ -254,8 +256,16 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 				for j := range t.Methods().Slice() {
+ 					baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
+ 					dictsym := MakeDictSym(baseNname.Sym(), t.RParams(), true)
++					if dictsym.Def == nil {
++						in := Resolve(ir.NewIdent(src.NoXPos, dictsym))
++						dictsym = in.Sym()
++					}
+ 					Export(dictsym.Def.(*ir.Name))
+ 					methsym := MakeFuncInstSym(baseNname.Sym(), shapes, false, true)
++					if methsym.Def == nil {
++						in := Resolve(ir.NewIdent(src.NoXPos, methsym))
++						methsym = in.Sym()
++					}
+ 					methNode := methsym.Def.(*ir.Name)
+ 					Export(methNode)
+ 					if HaveInlineBody(methNode.Func) {
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 42970f6a5e..f6be298667 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -129,7 +129,11 @@ const (
+ 
+ var typecheckdefstack []*ir.Name
+ 
+-// Resolve ONONAME to definition, if any.
++// Resolve resolves an ONONAME node to a definition, if any. If n is not an ONONAME node,
++// Resolve returns n unchanged. If n is an ONONAME node and not in the same package,
++// then n.Sym() is resolved using import data. Otherwise, Resolve returns
++// n.Sym().Def. An ONONAME node can be created using ir.NewIdent(), so an imported
++// symbol can be resolved via Resolve(ir.NewIdent(src.NoXPos, sym)).
+ func Resolve(n ir.Node) (res ir.Node) {
+ 	if n == nil || n.Op() != ir.ONONAME {
+ 		return n
+diff --git a/test/run.go b/test/run.go
+index 278d5efce9..75073993b8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2178,6 +2178,7 @@ var unifiedFailures = setOf(
+ 	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
+ 	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
+ 	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
++	"typeparam/issue50552.go",  // gives missing method for instantiated type
+ )
+ 
+ func setOf(keys ...string) map[string]bool {
+diff --git a/test/typeparam/issue50552.dir/a.go b/test/typeparam/issue50552.dir/a.go
+new file mode 100644
+index 0000000000..89b9bcb877
+--- /dev/null
++++ b/test/typeparam/issue50552.dir/a.go
+@@ -0,0 +1,16 @@
++package a
++
++type Builder[T any] struct{}
++
++func (r Builder[T]) New() T {
++	var v T
++	return v
++}
++
++func (r Builder[T]) New2() T {
++	return r.New()
++}
++
++func BuildInt() int {
++	return Builder[int]{}.New()
++}
+diff --git a/test/typeparam/issue50552.dir/main.go b/test/typeparam/issue50552.dir/main.go
+new file mode 100644
+index 0000000000..047c27e5e1
+--- /dev/null
++++ b/test/typeparam/issue50552.dir/main.go
+@@ -0,0 +1,20 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++)
++
++func BuildInt() int {
++	return a.BuildInt()
++}
++
++func main() {
++	if got, want := BuildInt(), 0; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++}
+diff --git a/test/typeparam/issue50552.go b/test/typeparam/issue50552.go
+new file mode 100644
+index 0000000000..87b4ff46c1
+--- /dev/null
++++ b/test/typeparam/issue50552.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

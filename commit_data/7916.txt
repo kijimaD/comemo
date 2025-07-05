@@ -7,8 +7,57 @@ Date:   Tue Mar 29 09:08:23 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4313054
-
+---
  src/cmd/govet/govet.go        | 4 ++--
  src/pkg/go/printer/nodes.go   | 2 +-
  src/pkg/go/printer/printer.go | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index b9e769af1c..c9b0a9db37 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -256,7 +256,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
+ 		return
+ 	}
+ 	if lit.Kind == token.STRING {
+-		if strings.Index(lit.Value, "%") < 0 {
++		if strings.Contains(lit.Value, "%") {
+ 			if len(call.Args) > skip+1 {
+ 				f.Badf(call.Pos(), "no formatting directive in %s call", name)
+ 			}
+@@ -338,7 +338,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
+ 	}
+ 	arg := args[skip]
+ 	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+-		if strings.Index(lit.Value, "%") >= 0 {
++		if strings.Contains(lit.Value, "%") {
+ 			f.Badf(call.Pos(), "possible formatting directive in %s call", name)
+ 		}
+ 	}
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 2f12038e52..0b3b6621e6 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -515,7 +515,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
+ 		}
+ 
+ 	case *ast.StarExpr:
+-		if e.Op == token.QUO {
++		if e.Op == token.QUO { // `*/`
+ 			maxProblem = 5
+ 		}
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index b0a31a6404..2fbec86291 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -127,7 +127,7 @@ func (p *printer) internalError(msg ...interface{}) {
+ 
+ 
+ // escape escapes string s by bracketing it with tabwriter.Escape.
+-// Escapes strings pass through tabwriter unchanged. (Note that
++// Escaped strings pass through tabwriter unchanged. (Note that
+ // valid Go programs cannot contain tabwriter.Escape bytes since
+ // they do not appear in legal UTF-8 sequences).
+ //

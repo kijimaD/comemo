@@ -19,6 +19,20 @@ Date:   Thu May 8 10:59:18 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/lock_spinbit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/lock_spinbit.go b/src/runtime/lock_spinbit.go
+index c2a6c76629..f90698a4c9 100644
+--- a/src/runtime/lock_spinbit.go
++++ b/src/runtime/lock_spinbit.go
+@@ -404,7 +404,7 @@ useStackLock:
+ 			n++
+ 			next := node.mWaitList.next.ptr()
+ 			if next == nil {
+-				cycles := endTicks - (head.mWaitList.startTicks+node.mWaitList.startTicks)/2
++				cycles := ((endTicks - head.mWaitList.startTicks) + (endTicks - node.mWaitList.startTicks)) / 2
+ 				node.mWaitList.startTicks = endTicks
+ 				head.mWaitList.startTicks = endTicks
+ 				getg().m.mLockProfile.recordUnlock(cycles * int64(n))

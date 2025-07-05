@@ -11,6 +11,23 @@ Date:   Wed Nov 28 17:00:50 2012 +1100
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/6842109
-
+---
  src/pkg/net/http/transport_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index a594fa81d9..2f4eb88f96 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -996,9 +996,11 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
+ 		req, _ := NewRequest("PUT", ts.URL+"/put", sres.Body)
+ 		_, err = client.Do(req)
+ 		if err == nil {
++			sres.Body.Close()
+ 			t.Errorf("Unexpected successful PUT")
+ 			break
+ 		}
++		sres.Body.Close()
+ 	}
+ 	if debug {
+ 		println("tests complete; waiting for handlers to finish")

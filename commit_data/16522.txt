@@ -9,9 +9,109 @@ Date:   Mon Jun 10 09:20:27 2013 +0400
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/10140044
-
+---
  src/pkg/runtime/malloc.goc  | 2 +-
  src/pkg/runtime/malloc.h    | 7 +++----
  src/pkg/runtime/mfixalloc.c | 7 ++-----
  src/pkg/runtime/mheap.c     | 6 +++---
  4 files changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 7b5b5980e3..4d900d63b9 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -407,7 +407,7 @@ runtime·mallocinit(void)
+ 	runtime·mheap.arena_end = runtime·mheap.arena_start + arena_size;
+ 
+ 	// Initialize the rest of the allocator.	
+-	runtime·MHeap_Init(&runtime·mheap, runtime·SysAlloc);
++	runtime·MHeap_Init(&runtime·mheap);
+ 	m->mcache = runtime·allocmcache();
+ 
+ 	// See if it works.
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 41604501f0..94907b1b0e 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -108,7 +108,7 @@ enum
+ 	// Tunable constants.
+ 	MaxSmallSize = 32<<10,
+ 
+-	FixAllocChunk = 128<<10,	// Chunk size for FixAlloc
++	FixAllocChunk = 16<<10,		// Chunk size for FixAlloc
+ 	MaxMHeapList = 1<<(20 - PageShift),	// Maximum page length for fixed-size list in MHeap.
+ 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
+ 
+@@ -188,7 +188,6 @@ void*	runtime·SysReserve(void *v, uintptr nbytes);
+ struct FixAlloc
+ {
+ 	uintptr size;
+-	void *(*alloc)(uintptr);
+ 	void (*first)(void *arg, byte *p);	// called first time p is returned
+ 	void *arg;
+ 	MLink *list;
+@@ -198,7 +197,7 @@ struct FixAlloc
+ 	uintptr sys;	// bytes obtained from system
+ };
+ 
+-void	runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(void*, byte*), void *arg);
++void	runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg);
+ void*	runtime·FixAlloc_Alloc(FixAlloc *f);
+ void	runtime·FixAlloc_Free(FixAlloc *f, void *p);
+ 
+@@ -432,7 +431,7 @@ struct MHeap
+ };
+ extern MHeap runtime·mheap;
+ 
+-void	runtime·MHeap_Init(MHeap *h, void *(*allocator)(uintptr));
++void	runtime·MHeap_Init(MHeap *h);
+ MSpan*	runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct, int32 zeroed);
+ void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
+ MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
+diff --git a/src/pkg/runtime/mfixalloc.c b/src/pkg/runtime/mfixalloc.c
+index c7dab8aea8..9541511644 100644
+--- a/src/pkg/runtime/mfixalloc.c
++++ b/src/pkg/runtime/mfixalloc.c
+@@ -13,10 +13,9 @@
+ // Initialize f to allocate objects of the given size,
+ // using the allocator to obtain chunks of memory.
+ void
+-runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(void*, byte*), void *arg)
++runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg)
+ {
+ 	f->size = size;
+-	f->alloc = alloc;
+ 	f->first = first;
+ 	f->arg = arg;
+ 	f->list = nil;
+@@ -44,9 +43,7 @@ runtime·FixAlloc_Alloc(FixAlloc *f)
+ 	}
+ 	if(f->nchunk < f->size) {
+ 		f->sys += FixAllocChunk;
+-		f->chunk = f->alloc(FixAllocChunk);
+-		if(f->chunk == nil)
+-			runtime·throw("out of memory (FixAlloc)");
++		f->chunk = runtime·persistentalloc(FixAllocChunk, 0);
+ 		f->nchunk = FixAllocChunk;
+ 	}
+ 	v = f->chunk;
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 11d78203de..f988fe3f26 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -51,12 +51,12 @@ RecordSpan(void *vh, byte *p)
+ 
+ // Initialize the heap; fetch memory using alloc.
+ void
+-runtime·MHeap_Init(MHeap *h, void *(*alloc)(uintptr))
++runtime·MHeap_Init(MHeap *h)
+ {
+ 	uint32 i;
+ 
+-	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), alloc, RecordSpan, h);
+-	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), alloc, nil, nil);
++	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), RecordSpan, h);
++	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), nil, nil);
+ 	// h->mapcache needs no init
+ 	for(i=0; i<nelem(h->free); i++)
+ 		runtime·MSpanList_Init(&h->free[i]);

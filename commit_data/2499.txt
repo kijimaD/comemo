@@ -10,6 +10,46 @@ Date:   Mon Jun 22 15:43:50 2009 -0700
     DELTA=17  (6 added, 0 deleted, 11 changed)
     OCL=30606
     CL=30612
-
+---
  src/make.bash | 28 +++++++++++++++++-----------
  1 file changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 6b103c6571..00cc6b4fd3 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -19,17 +19,23 @@ cp quietgcc.bash $HOME/bin/quietgcc
+ chmod +x $HOME/bin/quietgcc
+ 
+ for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/gobuild cmd/godoc cmd/gofmt
+-do (
+-	echo; echo; echo %%%% making $i %%%%; echo
+-	cd $i
+-	case $i in
+-	cmd)
+-		bash make.bash
+-		;;
+-	*)
+-		make install
+-	esac
+-) done
++do
++	# The ( ) here are to preserve the current directory
++	# for the next round despite the cd $i below.
++	# set -e does not apply to ( ) so we must explicitly
++	# test the exit status.
++	(
++		echo; echo; echo %%%% making $i %%%%; echo
++		cd $i
++		case $i in
++		cmd)
++			bash make.bash
++			;;
++		*)
++			make install
++		esac
++	)  || exit 1
++done
+ 
+ case "`uname`" in
+ Darwin)

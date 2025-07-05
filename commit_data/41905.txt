@@ -11,9 +11,108 @@ Date:   Fri Nov 1 04:07:23 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 13 +++++++------
  test/fixedbugs/issue13365.go             |  6 +++---
  test/fixedbugs/issue35291.go             | 14 ++++++++++++++
  test/fixedbugs/issue7153.go              |  2 +-
  4 files changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 140acb9062..7fb4a51817 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2782,7 +2782,7 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 		}
+ 		elemType := n.Right.Right.Type
+ 
+-		length := typecheckarraylit(elemType, -1, n.List.Slice())
++		length := typecheckarraylit(elemType, -1, n.List.Slice(), "array literal")
+ 
+ 		n.Op = OARRAYLIT
+ 		n.Type = types.NewArray(elemType, length)
+@@ -2804,12 +2804,12 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 		n.Type = nil
+ 
+ 	case TARRAY:
+-		typecheckarraylit(t.Elem(), t.NumElem(), n.List.Slice())
++		typecheckarraylit(t.Elem(), t.NumElem(), n.List.Slice(), "array literal")
+ 		n.Op = OARRAYLIT
+ 		n.Right = nil
+ 
+ 	case TSLICE:
+-		length := typecheckarraylit(t.Elem(), -1, n.List.Slice())
++		length := typecheckarraylit(t.Elem(), -2, n.List.Slice(), "slice literal")
+ 		n.Op = OSLICELIT
+ 		n.Right = nodintconst(length)
+ 
+@@ -2960,7 +2960,8 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 	return n
+ }
+ 
+-func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node) int64 {
++// typecheckarraylit type-checks a sequence of slice/array literal elements.
++func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node, ctx string) int64 {
+ 	// If there are key/value pairs, create a map to keep seen
+ 	// keys so we can check for duplicate indices.
+ 	var indices map[int64]bool
+@@ -2995,12 +2996,12 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []*Node) int64 {
+ 		r := *vp
+ 		r = pushtype(r, elemType)
+ 		r = typecheck(r, ctxExpr)
+-		*vp = assignconv(r, elemType, "array or slice literal")
++		*vp = assignconv(r, elemType, ctx)
+ 
+ 		if key >= 0 {
+ 			if indices != nil {
+ 				if indices[key] {
+-					yyerror("duplicate index in array literal: %d", key)
++					yyerror("duplicate index in %s: %d", ctx, key)
+ 				} else {
+ 					indices[key] = true
+ 				}
+diff --git a/test/fixedbugs/issue13365.go b/test/fixedbugs/issue13365.go
+index 379f9b6586..4bd103e38d 100644
+--- a/test/fixedbugs/issue13365.go
++++ b/test/fixedbugs/issue13365.go
+@@ -19,7 +19,7 @@ func main() {
+ 	_ = [10]int{100: 0} // ERROR "array index 100 out of bounds"
+ 	_ = [...]int{100: 0}
+ 
+-	_ = []int{t}    // ERROR "cannot use .* as type int in array or slice literal"
+-	_ = [10]int{t}  // ERROR "cannot use .* as type int in array or slice literal"
+-	_ = [...]int{t} // ERROR "cannot use .* as type int in array or slice literal"
++	_ = []int{t}    // ERROR "cannot use .* as type int in slice literal"
++	_ = [10]int{t}  // ERROR "cannot use .* as type int in array literal"
++	_ = [...]int{t} // ERROR "cannot use .* as type int in array literal"
+ }
+diff --git a/test/fixedbugs/issue35291.go b/test/fixedbugs/issue35291.go
+new file mode 100644
+index 0000000000..3cbdbf962a
+--- /dev/null
++++ b/test/fixedbugs/issue35291.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check error message for duplicated index in slice literal
++
++package p
++
++var s = []string{
++	1: "dup",
++	1: "dup", // ERROR "duplicate index in slice literal: 1"
++}
+diff --git a/test/fixedbugs/issue7153.go b/test/fixedbugs/issue7153.go
+index 215387732b..66b1338496 100644
+--- a/test/fixedbugs/issue7153.go
++++ b/test/fixedbugs/issue7153.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in array or slice literal"
++var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal"

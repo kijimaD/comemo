@@ -7,6 +7,19 @@ Date:   Tue May 18 23:25:07 2010 -0700
     TBR=r
     CC=golang-dev
     https://golang.org/cl/1230042
-
+---
  src/pkg/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6458dcd992..7337951ae5 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -162,6 +162,7 @@ NOTEST+=exec         # no pipe
+ NOTEST+=http         # no network
+ NOTEST+=log          # no runtime.Caller
+ NOTEST+=net          # no network
++NOTEST+=netchan      # no network
+ NOTEST+=os           # many things unimplemented
+ NOTEST+=os/signal    # no signals
+ NOTEST+=path         # tree walking does not work

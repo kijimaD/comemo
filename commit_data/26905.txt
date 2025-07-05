@@ -11,7 +11,186 @@ Date:   Wed Mar 2 15:49:55 2016 -0500
     Change-Id: I883d68ec7a5746d652712be84a274a11256b3b33
     Reviewed-on: https://go-review.googlesource.com/20141
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |   7 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 114 +++++++++++++++++++++++++
  2 files changed, 121 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 37e2bd6536..0c77a6dee8 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -355,6 +355,13 @@
+ (Neg32 (Sub32 x y)) -> (Sub32 y x)
+ (Neg64 (Sub64 x y)) -> (Sub64 y x)
+ 
++(Trunc64to8 (And64 (Const64 [y]) x)) && y&0xFF == 0xFF -> (Trunc64to8 x)
++(Trunc64to16 (And64 (Const64 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc64to16 x)
++(Trunc64to32 (And64 (Const64 [y]) x)) && y&0xFFFFFFFF == 0xFFFFFFFF -> (Trunc64to32 x)
++(Trunc32to8 (And32 (Const32 [y]) x)) && y&0xFF == 0xFF -> (Trunc32to8 x)
++(Trunc32to16 (And32 (Const32 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc32to16 x)
++(Trunc16to8 (And16 (Const16 [y]) x)) && y&0xFF == 0xFF -> (Trunc16to8 x)
++
+ // Rewrite AND of consts as shifts if possible, slightly faster for 32/64 bit operands
+ // leading zeros can be shifted left, then right
+ (And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 2e15daca4c..4b22653cdb 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -7551,6 +7551,25 @@ func rewriteValuegeneric_OpTrunc16to8(v *Value, config *Config) bool {
+ 		v.AuxInt = int64(int8(c))
+ 		return true
+ 	}
++	// match: (Trunc16to8 (And16 (Const16 [y]) x))
++	// cond: y&0xFF == 0xFF
++	// result: (Trunc16to8 x)
++	for {
++		if v.Args[0].Op != OpAnd16 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst16 {
++			break
++		}
++		y := v.Args[0].Args[0].AuxInt
++		x := v.Args[0].Args[1]
++		if !(y&0xFF == 0xFF) {
++			break
++		}
++		v.reset(OpTrunc16to8)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpTrunc32to16(v *Value, config *Config) bool {
+@@ -7568,6 +7587,25 @@ func rewriteValuegeneric_OpTrunc32to16(v *Value, config *Config) bool {
+ 		v.AuxInt = int64(int16(c))
+ 		return true
+ 	}
++	// match: (Trunc32to16 (And32 (Const32 [y]) x))
++	// cond: y&0xFFFF == 0xFFFF
++	// result: (Trunc32to16 x)
++	for {
++		if v.Args[0].Op != OpAnd32 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst32 {
++			break
++		}
++		y := v.Args[0].Args[0].AuxInt
++		x := v.Args[0].Args[1]
++		if !(y&0xFFFF == 0xFFFF) {
++			break
++		}
++		v.reset(OpTrunc32to16)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpTrunc32to8(v *Value, config *Config) bool {
+@@ -7585,6 +7623,25 @@ func rewriteValuegeneric_OpTrunc32to8(v *Value, config *Config) bool {
+ 		v.AuxInt = int64(int8(c))
+ 		return true
+ 	}
++	// match: (Trunc32to8 (And32 (Const32 [y]) x))
++	// cond: y&0xFF == 0xFF
++	// result: (Trunc32to8 x)
++	for {
++		if v.Args[0].Op != OpAnd32 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst32 {
++			break
++		}
++		y := v.Args[0].Args[0].AuxInt
++		x := v.Args[0].Args[1]
++		if !(y&0xFF == 0xFF) {
++			break
++		}
++		v.reset(OpTrunc32to8)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpTrunc64to16(v *Value, config *Config) bool {
+@@ -7602,6 +7659,25 @@ func rewriteValuegeneric_OpTrunc64to16(v *Value, config *Config) bool {
+ 		v.AuxInt = int64(int16(c))
+ 		return true
+ 	}
++	// match: (Trunc64to16 (And64 (Const64 [y]) x))
++	// cond: y&0xFFFF == 0xFFFF
++	// result: (Trunc64to16 x)
++	for {
++		if v.Args[0].Op != OpAnd64 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst64 {
++			break
++		}
++		y := v.Args[0].Args[0].AuxInt
++		x := v.Args[0].Args[1]
++		if !(y&0xFFFF == 0xFFFF) {
++			break
++		}
++		v.reset(OpTrunc64to16)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpTrunc64to32(v *Value, config *Config) bool {
+@@ -7619,6 +7695,25 @@ func rewriteValuegeneric_OpTrunc64to32(v *Value, config *Config) bool {
+ 		v.AuxInt = int64(int32(c))
+ 		return true
+ 	}
++	// match: (Trunc64to32 (And64 (Const64 [y]) x))
++	// cond: y&0xFFFFFFFF == 0xFFFFFFFF
++	// result: (Trunc64to32 x)
++	for {
++		if v.Args[0].Op != OpAnd64 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst64 {
++			break
++		}
++		y := v.Args[0].Args[0].AuxInt
++		x := v.Args[0].Args[1]
++		if !(y&0xFFFFFFFF == 0xFFFFFFFF) {
++			break
++		}
++		v.reset(OpTrunc64to32)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpTrunc64to8(v *Value, config *Config) bool {
+@@ -7636,6 +7731,25 @@ func rewriteValuegeneric_OpTrunc64to8(v *Value, config *Config) bool {
+ 		v.AuxInt = int64(int8(c))
+ 		return true
+ 	}
++	// match: (Trunc64to8 (And64 (Const64 [y]) x))
++	// cond: y&0xFF == 0xFF
++	// result: (Trunc64to8 x)
++	for {
++		if v.Args[0].Op != OpAnd64 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst64 {
++			break
++		}
++		y := v.Args[0].Args[0].AuxInt
++		x := v.Args[0].Args[1]
++		if !(y&0xFF == 0xFF) {
++			break
++		}
++		v.reset(OpTrunc64to8)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpXor16(v *Value, config *Config) bool {

@@ -25,7 +25,54 @@ Date:   Sat Sep 26 17:21:35 2015 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/fcgi/child.go     |  3 +++
  src/net/http/fcgi/fcgi_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/net/http/fcgi/child.go b/src/net/http/fcgi/child.go
+index da824ed717..88704245db 100644
+--- a/src/net/http/fcgi/child.go
++++ b/src/net/http/fcgi/child.go
+@@ -56,6 +56,9 @@ func (r *request) parseParams() {
+ 			return
+ 		}
+ 		text = text[n:]
++		if int(keyLen)+int(valLen) > len(text) {
++			return
++		}
+ 		key := readString(text, keyLen)
+ 		text = text[keyLen:]
+ 		val := readString(text, valLen)
+diff --git a/src/net/http/fcgi/fcgi_test.go b/src/net/http/fcgi/fcgi_test.go
+index de0f7f831f..b6013bfdd5 100644
+--- a/src/net/http/fcgi/fcgi_test.go
++++ b/src/net/http/fcgi/fcgi_test.go
+@@ -254,3 +254,27 @@ func TestChildServeCleansUp(t *testing.T) {
+ 		<-done
+ 	}
+ }
++
++type rwNopCloser struct {
++	io.Reader
++	io.Writer
++}
++
++func (rwNopCloser) Close() error {
++	return nil
++}
++
++// Verifies it doesn't crash. 	Issue 11824.
++func TestMalformedParams(t *testing.T) {
++	input := []byte{
++		// beginRequest, requestId=1, contentLength=8, role=1, keepConn=1
++		1, 1, 0, 1, 0, 8, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
++		// params, requestId=1, contentLength=10, k1Len=50, v1Len=50 (malformed, wrong length)
++		1, 4, 0, 1, 0, 10, 0, 0, 50, 50, 3, 4, 5, 6, 7, 8, 9, 10,
++		// end of params
++		1, 4, 0, 1, 0, 0, 0, 0,
++	}
++	rw := rwNopCloser{bytes.NewReader(input), ioutil.Discard}
++	c := newChild(rw, http.DefaultServeMux)
++	c.serve()
++}

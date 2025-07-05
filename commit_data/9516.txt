@@ -7,7 +7,32 @@ Date:   Fri Aug 26 17:20:01 2011 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4966044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index d8bf4b45cf..8baf0a7e42 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -78,6 +78,7 @@ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
++Jaroslavas Počepko <jp@webmaster.ms>
+ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org>
+ Jim McGrath <jimmc2@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 293df0bb2e..d506adffe0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -124,6 +124,7 @@ James Whitehead <jnwhiteh@gmail.com>
+ Jamie Gennis <jgennis@google.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
++Jaroslavas Počepko <jp@webmaster.ms>
+ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>

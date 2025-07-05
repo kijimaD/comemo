@@ -20,7 +20,7 @@ Date:   Sat Nov 28 00:36:44 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     |  4 +--
  src/cmd/compile/internal/gc/escape.go    |  2 +-
  src/cmd/compile/internal/gc/gen.go       |  2 +-
@@ -31,3 +31,246 @@ Date:   Sat Nov 28 00:36:44 2020 -0500
  src/cmd/compile/internal/ir/fmt.go       |  8 +++---
  src/cmd/compile/internal/ir/node.go      | 42 ++++++++++++++++++++++++++------
  9 files changed, 52 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 4beb85245f..3c161d8e12 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -537,7 +537,7 @@ func evalConst(n ir.Node) ir.Node {
+ 				}
+ 
+ 				nl := origConst(s[i], constant.MakeString(strings.Join(strs, "")))
+-				nl.SetOrig(nl) // it's bigger than just s[i]
++				nl.(ir.OrigNode).SetOrig(nl) // it's bigger than just s[i]
+ 				newList = append(newList, nl)
+ 				i = i2 - 1
+ 			} else {
+@@ -642,7 +642,7 @@ func origConst(n ir.Node, v constant.Value) ir.Node {
+ 
+ 	orig := n
+ 	n = ir.NodAt(orig.Pos(), ir.OLITERAL, nil, nil)
+-	n.SetOrig(orig)
++	n.(ir.OrigNode).SetOrig(orig)
+ 	n.SetType(orig.Type())
+ 	n.SetVal(v)
+ 	return n
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 6b6fb44a99..e3ac883e95 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1871,7 +1871,7 @@ func moveToHeap(n ir.Node) {
+ 	// temp will add it to the function declaration list automatically.
+ 	heapaddr := temp(types.NewPtr(n.Type()))
+ 	heapaddr.SetSym(lookup("&" + n.Sym().Name))
+-	heapaddr.Orig().SetSym(heapaddr.Sym())
++	ir.Orig(heapaddr).SetSym(heapaddr.Sym())
+ 	heapaddr.SetPos(n.Pos())
+ 
+ 	// Unset AutoTemp to persist the &foo variable name through SSA to
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 44e918f2c1..cb640c7ccf 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -80,7 +80,7 @@ func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) ir.Node {
+ 
+ 	dowidth(t)
+ 
+-	return n.Orig()
++	return ir.Orig(n)
+ }
+ 
+ func temp(t *types.Type) ir.Node {
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 7c42e43bee..c2ea599af4 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1210,8 +1210,8 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		if !n.Type().HasNil() {
+ 			base.Fatalf("unexpected type for nil: %v", n.Type())
+ 		}
+-		if n.Orig() != nil && n.Orig() != n {
+-			w.expr(n.Orig())
++		if orig := ir.Orig(n); orig != nil && orig != n {
++			w.expr(orig)
+ 			break
+ 		}
+ 		w.op(ir.OLITERAL)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index bcc126f82e..1a13b14376 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -6675,7 +6675,7 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 	case ir.Node:
+ 		if n.Class() == ir.PPARAM || n.Class() == ir.PPARAMOUT {
+ 			a.Name = obj.NAME_PARAM
+-			a.Sym = n.Orig().Sym().Linksym()
++			a.Sym = ir.Orig(n).Sym().Linksym()
+ 			a.Offset += n.Offset()
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index d174ebd582..722876abf5 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -559,7 +559,7 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
+ 	r.SetType(t)
+ 	r.SetTypecheck(1)
+ 	r.SetImplicit(true)
+-	r.SetOrig(n.Orig())
++	r.(ir.OrigNode).SetOrig(ir.Orig(n))
+ 	return r
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 9da464e1b6..7037eddff0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -851,7 +851,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 			checklvalue(n.Left(), "take the address of")
+ 			r := outervalue(n.Left())
+ 			if r.Op() == ir.ONAME {
+-				if r.Orig() != r {
++				if ir.Orig(r) != r {
+ 					base.Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
+ 				}
+ 				r.Name().SetAddrtaken(true)
+@@ -2144,8 +2144,8 @@ func typecheckargs(n ir.Node) {
+ 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
+ 
+ 	// Save n as n.Orig for fmt.go.
+-	if n.Orig() == n {
+-		n.SetOrig(ir.SepCopy(n))
++	if ir.Orig(n) == n {
++		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
+ 	}
+ 
+ 	as := ir.Nod(ir.OAS2, nil, nil)
+@@ -2245,7 +2245,7 @@ func checkdefergo(n ir.Node) {
+ 		ir.ONEW,
+ 		ir.OREAL,
+ 		ir.OLITERAL: // conversion or unsafe.Alignof, Offsetof, Sizeof
+-		if n.Left().Orig() != nil && n.Left().Orig().Op() == ir.OCONV {
++		if orig := ir.Orig(n.Left()); orig.Op() == ir.OCONV {
+ 			break
+ 		}
+ 		base.ErrorfAt(n.Pos(), "%s discards result of %v", what, n.Left())
+@@ -2814,7 +2814,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
+ 	}
+ 
+ 	// Save original node (including n.Right)
+-	n.SetOrig(ir.Copy(n))
++	n.(ir.OrigNode).SetOrig(ir.Copy(n))
+ 
+ 	setlineno(n.Right())
+ 
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index f394219c05..24318d501f 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1223,8 +1223,8 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
+ 
+ 	case OLITERAL: // this is a bit of a mess
+ 		if mode == FErr {
+-			if n.Orig() != nil && n.Orig() != n {
+-				exprFmt(n.Orig(), s, prec, mode)
++			if orig := Orig(n); orig != nil && orig != n {
++				exprFmt(orig, s, prec, mode)
+ 				return
+ 			}
+ 			if n.Sym() != nil {
+@@ -1561,8 +1561,8 @@ func nodeFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+ 
+ 	// We almost always want the original.
+ 	// TODO(gri) Why the special case for OLITERAL?
+-	if n.Op() != OLITERAL && n.Orig() != nil {
+-		n = n.Orig()
++	if n.Op() != OLITERAL && Orig(n) != nil {
++		n = Orig(n)
+ 	}
+ 
+ 	if flag&FmtLong != 0 && t != nil {
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 7a61355858..7e46673eab 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -35,8 +35,6 @@ type Node interface {
+ 	// Abstract graph structure, for generic traversals.
+ 	Op() Op
+ 	SetOp(x Op)
+-	Orig() Node
+-	SetOrig(x Node)
+ 	SubOp() Op
+ 	SetSubOp(x Op)
+ 	Left() Node
+@@ -1616,11 +1614,41 @@ func (n *node) RawCopy() Node {
+ 	return &copy
+ }
+ 
++// A Node may implement the Orig and SetOrig method to
++// maintain a pointer to the "unrewritten" form of a Node.
++// If a Node does not implement OrigNode, it is its own Orig.
++//
++// Note that both SepCopy and Copy have definitions compatible
++// with a Node that does not implement OrigNode: such a Node
++// is its own Orig, and in that case, that's what both want to return
++// anyway (SepCopy unconditionally, and Copy only when the input
++// is its own Orig as well, but if the output does not implement
++// OrigNode, then neither does the input, making the condition true).
++type OrigNode interface {
++	Node
++	Orig() Node
++	SetOrig(Node)
++}
++
++func Orig(n Node) Node {
++	if n, ok := n.(OrigNode); ok {
++		o := n.Orig()
++		if o == nil {
++			Dump("Orig nil", n)
++			base.Fatalf("Orig returned nil")
++		}
++		return o
++	}
++	return n
++}
++
+ // sepcopy returns a separate shallow copy of n, with the copy's
+ // Orig pointing to itself.
+ func SepCopy(n Node) Node {
+ 	n = n.RawCopy()
+-	n.SetOrig(n)
++	if n, ok := n.(OrigNode); ok {
++		n.SetOrig(n)
++	}
+ 	return n
+ }
+ 
+@@ -1633,8 +1661,8 @@ func SepCopy(n Node) Node {
+ // messages; see issues #26855, #27765).
+ func Copy(n Node) Node {
+ 	copy := n.RawCopy()
+-	if n.Orig() == n {
+-		copy.SetOrig(copy)
++	if n, ok := n.(OrigNode); ok && n.Orig() == n {
++		copy.(OrigNode).SetOrig(copy)
+ 	}
+ 	return copy
+ }
+@@ -1643,7 +1671,7 @@ func Copy(n Node) Node {
+ func IsNil(n Node) bool {
+ 	// Check n.Orig because constant propagation may produce typed nil constants,
+ 	// which don't exist in the Go spec.
+-	return n.Orig().Op() == ONIL
++	return Orig(n).Op() == ONIL
+ }
+ 
+ func IsBlank(n Node) bool {
+@@ -1664,7 +1692,7 @@ func Nod(op Op, nleft, nright Node) Node {
+ }
+ 
+ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+-	var n Node
++	var n *node
+ 	switch op {
+ 	case ODCLFUNC:
+ 		var x struct {

@@ -12,6 +12,33 @@ Date:   Fri Aug 25 17:13:34 2017 +1200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/sync/atomic/atomic_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index 17baccb468..753def62b5 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -772,10 +772,8 @@ func init() {
+ 	if uintptr(v) != 0 {
+ 		// 64-bit system; clear uintptr tests
+ 		delete(hammer32, "SwapUintptr")
+-		delete(hammer32, "SwapPointer")
+ 		delete(hammer32, "AddUintptr")
+ 		delete(hammer32, "CompareAndSwapUintptr")
+-		delete(hammer32, "CompareAndSwapPointer")
+ 	}
+ }
+ 
+@@ -923,10 +921,8 @@ func init() {
+ 	if uintptr(v) == 0 {
+ 		// 32-bit system; clear uintptr tests
+ 		delete(hammer64, "SwapUintptr")
+-		delete(hammer64, "SwapPointer")
+ 		delete(hammer64, "AddUintptr")
+ 		delete(hammer64, "CompareAndSwapUintptr")
+-		delete(hammer64, "CompareAndSwapPointer")
+ 	}
+ }
+ 

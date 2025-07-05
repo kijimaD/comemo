@@ -14,9 +14,329 @@ Date:   Mon Jun 13 17:53:32 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/418015
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/base/hashdebug.go | 147 +++++++++++++++++++++++++++++
  src/cmd/compile/internal/ir/func.go        |   7 --
  src/cmd/compile/internal/ssa/func.go       | 101 ++------------------
  src/cmd/compile/internal/ssagen/ssa.go     |   1 -
  4 files changed, 157 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+new file mode 100644
+index 0000000000..ca2e8a2420
+--- /dev/null
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -0,0 +1,147 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package base
++
++import (
++	"cmd/internal/notsha256"
++	"fmt"
++	"io"
++	"os"
++	"strings"
++	"sync"
++)
++
++const GOSSAHASH = "GOSSAHASH"
++
++type writeSyncer interface {
++	io.Writer
++	Sync() error
++}
++
++type HashDebug struct {
++	mu sync.Mutex
++	// what file (if any) receives the yes/no logging?
++	// default is os.Stdout
++	logfile writeSyncer
++}
++
++var hd HashDebug
++
++// DebugHashMatch reports whether environment variable GOSSAHASH
++//
++//  1. is empty (this is a special more-quickly implemented case of 3)
++//  2. is "y" or "Y"
++//  3. is a suffix of the sha1 hash of name
++//  4. OR
++//      if evname(i) is a suffix of the sha1 hash of name
++//      where evname(i)=fmt.Sprintf("GOSSAHASH%d", i),
++//      for 0<=i<n such that for all i evname(i) != "" and evname(n) == ""
++//
++//     That is, as long as they're not empty, try GOSSAHASH, GOSSAHASH0, GOSSAHASH1, etc,
++//     but quit trying at the first empty environment variable substitution.
++//
++// Otherwise it returns false.
++// Clause 4 is not really intended for human use.
++//
++// Unless GOSSAHASH is empty, when DebugHashMatch returns true the message
++//
++//	"%s triggered %s\n", evname, name
++//
++// is printed on the file named in environment variable GSHS_LOGFILE,
++// or standard out if that is empty.
++//
++// Typical use:
++//
++//  1. you make a change to the compiler, say, adding a new phase
++//  2. it is broken in some mystifying way, for example, make.bash builds a broken
++//     compiler that almost works, but crashes compiling a test in run.bash.
++//  3. add this guard to the code, which by default leaves it broken, but
++//     does not run the broken new code if GOSSAHASH is non-empty and non-matching:
++//
++//      if !base.DebugHashMatch(ir.PkgFuncName(fn)) {
++//      return nil // early exit, do nothing
++//      }
++//
++//  4. rebuild w/o the bad code, GOSSAHASH=n ./all.bash to verify that you
++//     put theguard in the right place with the right sense of the test.
++//  5. use github.com/dr2chase/gossahash to search for the error:
++//
++//      go install github.com/dr2chase/gossahash@latest
++//
++//      gossahash -- <the thing that fails>
++//
++//      for example: GOMAXPROCS=1 gossahash -- ./all.bash
++//  6. gossahash should return a single function whose miscompilation
++//     causes the problem, and you can focus on that.
++//
++func DebugHashMatch(pkgAndName string) bool {
++	return hd.DebugHashMatch(pkgAndName)
++}
++
++func (d *HashDebug) DebugHashMatch(pkgAndName string) bool {
++	evname := GOSSAHASH
++	evhash := os.Getenv(evname)
++	hstr := ""
++
++	switch evhash {
++	case "":
++		return true // default behavior with no EV is "on"
++	case "n", "N":
++		return false
++	}
++
++	// Check the hash of the name against a partial input hash.
++	// We use this feature to do a binary search to
++	// find a function that is incorrectly compiled.
++	for _, b := range notsha256.Sum256([]byte(pkgAndName)) {
++		hstr += fmt.Sprintf("%08b", b)
++	}
++
++	if evhash == "y" || evhash == "Y" || strings.HasSuffix(hstr, evhash) {
++		d.logDebugHashMatch(evname, pkgAndName, hstr)
++		return true
++	}
++
++	// Iteratively try additional hashes to allow tests for multi-point
++	// failure.
++	for i := 0; true; i++ {
++		ev := fmt.Sprintf("%s%d", evname, i)
++		evv := os.Getenv(ev)
++		if evv == "" {
++			break
++		}
++		if strings.HasSuffix(hstr, evv) {
++			d.logDebugHashMatch(ev, pkgAndName, hstr)
++			return true
++		}
++	}
++	return false
++}
++
++func (d *HashDebug) logDebugHashMatch(evname, name, hstr string) {
++	d.mu.Lock()
++	defer d.mu.Unlock()
++	file := d.logfile
++	if file == nil {
++		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
++			var err error
++			file, err = os.OpenFile(tmpfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
++			if err != nil {
++				Fatalf("could not open hash-testing logfile %s", tmpfile)
++				return
++			}
++		}
++		if file == nil {
++			file = os.Stdout
++		}
++		d.logfile = file
++	}
++	if len(hstr) > 24 {
++		hstr = hstr[len(hstr)-24:]
++	}
++	// External tools depend on this string
++	fmt.Fprintf(file, "%s triggered %s %s\n", evname, name, hstr)
++	file.Sync()
++}
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index f90c87126f..2bbacfc2c3 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -268,13 +268,6 @@ func PkgFuncName(f *Func) string {
+ 	s := f.Sym()
+ 	pkg := s.Pkg
+ 
+-	// TODO(mdempsky): Remove after submitting CL 393715? This matches
+-	// how PkgFuncName has historically handled local functions, but
+-	// drchase points out it contradicts the documentation.
+-	if pkg == types.LocalPkg {
+-		return s.Name
+-	}
+-
+ 	return pkg.Path + "." + s.Name
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 75f17634ec..d572b02c5f 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -8,20 +8,13 @@ import (
+ 	"cmd/compile/internal/abi"
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/notsha256"
+ 	"cmd/internal/src"
+ 	"fmt"
+-	"io"
+ 	"math"
+ 	"os"
+ 	"strings"
+ )
+ 
+-type writeSyncer interface {
+-	io.Writer
+-	Sync() error
+-}
+-
+ // A Func represents a Go func declaration (or function literal) and its body.
+ // This package compiles each Func independently.
+ // Funcs are single-use; a new Func must be created for every compiled function.
+@@ -38,11 +31,7 @@ type Func struct {
+ 	bid idAlloc // block ID allocator
+ 	vid idAlloc // value ID allocator
+ 
+-	// Given an environment variable used for debug hash match,
+-	// what file (if any) receives the yes/no logging?
+-	logfiles       map[string]writeSyncer
+ 	HTMLWriter     *HTMLWriter    // html writer, for debugging
+-	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+ 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
+ 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
+ 	ABI0           *abi.ABIConfig // A copy, for no-sync access
+@@ -819,88 +808,18 @@ func (f *Func) invalidateCFG() {
+ 	f.cachedLoopnest = nil
+ }
+ 
+-// DebugHashMatch reports whether environment variable evname
+-//  1. is empty (this is a special more-quickly implemented case of 3)
+-//  2. is "y" or "Y"
+-//  3. is a suffix of the sha1 hash of name
+-//  4. is a suffix of the environment variable
+-//     fmt.Sprintf("%s%d", evname, n)
+-//     provided that all such variables are nonempty for 0 <= i <= n
+-//
+-// Otherwise it returns false.
+-// When true is returned the message
+-//
+-//	"%s triggered %s\n", evname, name
+-//
+-// is printed on the file named in environment variable
+-//
+-//	GSHS_LOGFILE
+-//
+-// or standard out if that is empty or there is an error
+-// opening the file.
+-func (f *Func) DebugHashMatch(evname string) bool {
+-	name := f.fe.MyImportPath() + "." + f.Name
+-	evhash := os.Getenv(evname)
+-	switch evhash {
+-	case "":
+-		return true // default behavior with no EV is "on"
+-	case "y", "Y":
+-		f.logDebugHashMatch(evname, name)
++// DebugHashMatch returns
++//   base.DebugHashMatch(this function's package.name)
++// for use in bug isolation.  The return value is true unless
++// environment variable GOSSAHASH is set, in which case "it depends".
++// See [base.DebugHashMatch] for more information.
++func (f *Func) DebugHashMatch() bool {
++	evhash := os.Getenv(base.GOSSAHASH)
++	if evhash == "" {
+ 		return true
+-	case "n", "N":
+-		return false
+-	}
+-	// Check the hash of the name against a partial input hash.
+-	// We use this feature to do a binary search to
+-	// find a function that is incorrectly compiled.
+-	hstr := ""
+-	for _, b := range notsha256.Sum256([]byte(name)) {
+-		hstr += fmt.Sprintf("%08b", b)
+-	}
+-
+-	if strings.HasSuffix(hstr, evhash) {
+-		f.logDebugHashMatch(evname, name)
+-		return true
+-	}
+-
+-	// Iteratively try additional hashes to allow tests for multi-point
+-	// failure.
+-	for i := 0; true; i++ {
+-		ev := fmt.Sprintf("%s%d", evname, i)
+-		evv := os.Getenv(ev)
+-		if evv == "" {
+-			break
+-		}
+-		if strings.HasSuffix(hstr, evv) {
+-			f.logDebugHashMatch(ev, name)
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-func (f *Func) logDebugHashMatch(evname, name string) {
+-	if f.logfiles == nil {
+-		f.logfiles = make(map[string]writeSyncer)
+ 	}
+-	file := f.logfiles[evname]
+-	if file == nil {
+-		file = os.Stdout
+-		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
+-			var err error
+-			file, err = os.OpenFile(tmpfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+-			if err != nil {
+-				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
+-			}
+-		}
+-		f.logfiles[evname] = file
+-	}
+-	fmt.Fprintf(file, "%s triggered %s\n", evname, name)
+-	file.Sync()
+-}
+-
+-func DebugNameMatch(evname, name string) bool {
+-	return os.Getenv(evname) == name
++	name := f.fe.MyImportPath() + "." + f.Name
++	return base.DebugHashMatch(name)
+ }
+ 
+ func (f *Func) spSb() (sp, sb *Value) {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 805b47ce7d..26e69ad05d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -357,7 +357,6 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	s.f.Cache = &ssaCaches[worker]
+ 	s.f.Cache.Reset()
+ 	s.f.Name = name
+-	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH")
+ 	s.f.PrintOrHtmlSSA = printssa
+ 	if fn.Pragma&ir.Nosplit != 0 {
+ 		s.f.NoSplit = true

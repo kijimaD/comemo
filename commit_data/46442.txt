@@ -31,7 +31,7 @@ Date:   Tue Dec 29 19:46:31 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go          |  29 +-
  src/cmd/compile/internal/ir/func.go             |   6 +-
  src/cmd/compile/internal/ir/mknode.go           |  18 +-
@@ -42,3 +42,1869 @@ Date:   Tue Dec 29 19:46:31 2020 -0800
  src/cmd/compile/internal/ir/visit.go            | 103 ++-
  src/cmd/compile/internal/typecheck/typecheck.go |   6 +-
  9 files changed, 481 insertions(+), 613 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 7584f6a19f..df797da2d1 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -265,7 +265,7 @@ var errBudget = errors.New("too expensive")
+ func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
+ 	v.do = v.doNode // cache closure
+ 
+-	err := ir.DoChildren(fn, v.do)
++	err := errChildren(fn, v.do)
+ 	if err != nil {
+ 		v.reason = err.Error()
+ 		return true
+@@ -393,13 +393,13 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		if ir.IsConst(n.Cond, constant.Bool) {
+ 			// This if and the condition cost nothing.
+ 			// TODO(rsc): It seems strange that we visit the dead branch.
+-			if err := ir.DoList(n.Init(), v.do); err != nil {
++			if err := errList(n.Init(), v.do); err != nil {
+ 				return err
+ 			}
+-			if err := ir.DoList(n.Body, v.do); err != nil {
++			if err := errList(n.Body, v.do); err != nil {
+ 				return err
+ 			}
+-			if err := ir.DoList(n.Else, v.do); err != nil {
++			if err := errList(n.Else, v.do); err != nil {
+ 				return err
+ 			}
+ 			return nil
+@@ -431,7 +431,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		return errBudget
+ 	}
+ 
+-	return ir.DoChildren(n, v.do)
++	return errChildren(n, v.do)
+ }
+ 
+ func isBigFunc(fn *ir.Func) bool {
+@@ -1214,3 +1214,22 @@ func numNonClosures(list []*ir.Func) int {
+ 	}
+ 	return count
+ }
++
++// TODO(mdempsky): Update inl.go to use ir.DoChildren directly.
++func errChildren(n ir.Node, do func(ir.Node) error) (err error) {
++	ir.DoChildren(n, func(x ir.Node) bool {
++		err = do(x)
++		return err != nil
++	})
++	return
++}
++func errList(list []ir.Node, do func(ir.Node) error) error {
++	for _, x := range list {
++		if x != nil {
++			if err := do(x); err != nil {
++				return err
++			}
++		}
++	}
++	return nil
++}
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 32ad37fa80..9a79a4f30f 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -115,9 +115,9 @@ func NewFunc(pos src.XPos) *Func {
+ 
+ func (f *Func) isStmt() {}
+ 
+-func (n *Func) copy() Node                           { panic(n.no("copy")) }
+-func (n *Func) doChildren(do func(Node) error) error { return doNodes(n.Body, do) }
+-func (n *Func) editChildren(edit func(Node) Node)    { editNodes(n.Body, edit) }
++func (n *Func) copy() Node                         { panic(n.no("copy")) }
++func (n *Func) doChildren(do func(Node) bool) bool { return doNodes(n.Body, do) }
++func (n *Func) editChildren(edit func(Node) Node)  { editNodes(n.Body, edit) }
+ 
+ func (f *Func) Type() *types.Type  { return f.Nname.Type() }
+ func (f *Func) Sym() *types.Sym    { return f.Nname.Sym() }
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index 4e26bc5011..326f491a69 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -70,10 +70,10 @@ func main() {
+ 			"return &c }\n")
+ 
+ 		forNodeFields(typ,
+-			"func (n *%[1]s) doChildren(do func(Node) error) error {\n",
+-			"if n.%[1]s != nil { if err := do(n.%[1]s); err != nil { return err } }",
+-			"if err := do%[2]s(n.%[1]s, do); err != nil { return err }",
+-			"return nil }\n")
++			"func (n *%[1]s) doChildren(do func(Node) bool) bool {\n",
++			"if n.%[1]s != nil && do(n.%[1]s) { return true }",
++			"if do%[2]s(n.%[1]s, do) { return true }",
++			"return false }\n")
+ 
+ 		forNodeFields(typ,
+ 			"func (n *%[1]s) editChildren(edit func(Node) Node) {\n",
+@@ -121,15 +121,13 @@ func copy%[1]s(list []%[2]s) []%[2]s {
+ 	copy(c, list)
+ 	return c
+ }
+-func do%[1]s(list []%[2]s, do func(Node) error) error {
++func do%[1]s(list []%[2]s, do func(Node) bool) bool {
+ 	for _, x := range list {
+-		if x != nil {
+-			if err := do(x); err != nil {
+-				return err
+-			}
++		if x != nil && do(x) {
++			return true
+ 		}
+ 	}
+-	return nil
++	return false
+ }
+ func edit%[1]s(list []%[2]s, edit func(Node) Node) {
+ 	for i, x := range list {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index b12e833f73..697b04f541 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -143,9 +143,9 @@ type Name struct {
+ 
+ func (n *Name) isExpr() {}
+ 
+-func (n *Name) copy() Node                           { panic(n.no("copy")) }
+-func (n *Name) doChildren(do func(Node) error) error { return nil }
+-func (n *Name) editChildren(edit func(Node) Node)    {}
++func (n *Name) copy() Node                         { panic(n.no("copy")) }
++func (n *Name) doChildren(do func(Node) bool) bool { return false }
++func (n *Name) editChildren(edit func(Node) Node)  {}
+ 
+ // CloneName makes a cloned copy of the name.
+ // It's not ir.Copy(n) because in general that operation is a mistake on names,
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 0238e9de85..0d56b5aeb8 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -28,7 +28,7 @@ type Node interface {
+ 	// For making copies. For Copy and SepCopy.
+ 	copy() Node
+ 
+-	doChildren(func(Node) error) error
++	doChildren(func(Node) bool) bool
+ 	editChildren(func(Node) Node)
+ 
+ 	// Abstract graph structure, for generic traversals.
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 21e4eff9fb..65c0b239ed 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -11,19 +11,17 @@ func (n *AddStringExpr) copy() Node {
+ 	c.List = copyNodes(c.List)
+ 	return &c
+ }
+-func (n *AddStringExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *AddStringExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if err := doNodes(n.List, do); err != nil {
+-		return err
++	if doNodes(n.List, do) {
++		return true
+ 	}
+-	if n.Prealloc != nil {
+-		if err := do(n.Prealloc); err != nil {
+-			return err
+-		}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *AddStringExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -39,21 +37,17 @@ func (n *AddrExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *AddrExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *AddrExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Prealloc != nil {
+-		if err := do(n.Prealloc); err != nil {
+-			return err
+-		}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *AddrExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -70,18 +64,14 @@ func (n *ArrayType) copy() Node {
+ 	c := *n
+ 	return &c
+ }
+-func (n *ArrayType) doChildren(do func(Node) error) error {
+-	if n.Len != nil {
+-		if err := do(n.Len); err != nil {
+-			return err
+-		}
++func (n *ArrayType) doChildren(do func(Node) bool) bool {
++	if n.Len != nil && do(n.Len) {
++		return true
+ 	}
+-	if n.Elem != nil {
+-		if err := do(n.Elem); err != nil {
+-			return err
+-		}
++	if n.Elem != nil && do(n.Elem) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ArrayType) editChildren(edit func(Node) Node) {
+ 	if n.Len != nil {
+@@ -100,17 +90,17 @@ func (n *AssignListStmt) copy() Node {
+ 	c.Rhs = copyNodes(c.Rhs)
+ 	return &c
+ }
+-func (n *AssignListStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *AssignListStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Lhs, do); err != nil {
+-		return err
++	if doNodes(n.Lhs, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Rhs, do); err != nil {
+-		return err
++	if doNodes(n.Rhs, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *AssignListStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -124,21 +114,17 @@ func (n *AssignOpStmt) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *AssignOpStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *AssignOpStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Y != nil {
+-		if err := do(n.Y); err != nil {
+-			return err
+-		}
++	if n.Y != nil && do(n.Y) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *AssignOpStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -156,21 +142,17 @@ func (n *AssignStmt) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *AssignStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *AssignStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Y != nil {
+-		if err := do(n.Y); err != nil {
+-			return err
+-		}
++	if n.Y != nil && do(n.Y) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *AssignStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -188,11 +170,11 @@ func (n *BasicLit) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *BasicLit) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *BasicLit) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *BasicLit) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -204,21 +186,17 @@ func (n *BinaryExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *BinaryExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *BinaryExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Y != nil {
+-		if err := do(n.Y); err != nil {
+-			return err
+-		}
++	if n.Y != nil && do(n.Y) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *BinaryExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -237,14 +215,14 @@ func (n *BlockStmt) copy() Node {
+ 	c.List = copyNodes(c.List)
+ 	return &c
+ }
+-func (n *BlockStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *BlockStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if err := doNodes(n.List, do); err != nil {
+-		return err
++	if doNodes(n.List, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *BlockStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -257,11 +235,11 @@ func (n *BranchStmt) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *BranchStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *BranchStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *BranchStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -276,25 +254,23 @@ func (n *CallExpr) copy() Node {
+ 	c.Body = copyNodes(c.Body)
+ 	return &c
+ }
+-func (n *CallExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *CallExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if err := doNodes(n.Args, do); err != nil {
+-		return err
++	if doNodes(n.Args, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Rargs, do); err != nil {
+-		return err
++	if doNodes(n.Rargs, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Body, do); err != nil {
+-		return err
++	if doNodes(n.Body, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *CallExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -314,22 +290,20 @@ func (n *CaseClause) copy() Node {
+ 	c.Body = copyNodes(c.Body)
+ 	return &c
+ }
+-func (n *CaseClause) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *CaseClause) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Var != nil {
+-		if err := do(n.Var); err != nil {
+-			return err
+-		}
++	if n.Var != nil && do(n.Var) {
++		return true
+ 	}
+-	if err := doNodes(n.List, do); err != nil {
+-		return err
++	if doNodes(n.List, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Body, do); err != nil {
+-		return err
++	if doNodes(n.Body, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *CaseClause) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -345,13 +319,11 @@ func (n *ChanType) copy() Node {
+ 	c := *n
+ 	return &c
+ }
+-func (n *ChanType) doChildren(do func(Node) error) error {
+-	if n.Elem != nil {
+-		if err := do(n.Elem); err != nil {
+-			return err
+-		}
++func (n *ChanType) doChildren(do func(Node) bool) bool {
++	if n.Elem != nil && do(n.Elem) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ChanType) editChildren(edit func(Node) Node) {
+ 	if n.Elem != nil {
+@@ -365,16 +337,14 @@ func (n *ClosureExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *ClosureExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *ClosureExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Prealloc != nil {
+-		if err := do(n.Prealloc); err != nil {
+-			return err
+-		}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ClosureExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -389,11 +359,11 @@ func (n *ClosureReadExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *ClosureReadExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *ClosureReadExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ClosureReadExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -406,19 +376,17 @@ func (n *CommClause) copy() Node {
+ 	c.Body = copyNodes(c.Body)
+ 	return &c
+ }
+-func (n *CommClause) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *CommClause) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Comm != nil {
+-		if err := do(n.Comm); err != nil {
+-			return err
+-		}
++	if n.Comm != nil && do(n.Comm) {
++		return true
+ 	}
+-	if err := doNodes(n.Body, do); err != nil {
+-		return err
++	if doNodes(n.Body, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *CommClause) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -435,24 +403,20 @@ func (n *CompLitExpr) copy() Node {
+ 	c.List = copyNodes(c.List)
+ 	return &c
+ }
+-func (n *CompLitExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *CompLitExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Ntype != nil {
+-		if err := do(n.Ntype); err != nil {
+-			return err
+-		}
++	if n.Ntype != nil && do(n.Ntype) {
++		return true
+ 	}
+-	if err := doNodes(n.List, do); err != nil {
+-		return err
++	if doNodes(n.List, do) {
++		return true
+ 	}
+-	if n.Prealloc != nil {
+-		if err := do(n.Prealloc); err != nil {
+-			return err
+-		}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *CompLitExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -471,11 +435,11 @@ func (n *ConstExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *ConstExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *ConstExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ConstExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -487,16 +451,14 @@ func (n *ConvExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *ConvExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *ConvExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ConvExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -510,13 +472,11 @@ func (n *Decl) copy() Node {
+ 	c := *n
+ 	return &c
+ }
+-func (n *Decl) doChildren(do func(Node) error) error {
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++func (n *Decl) doChildren(do func(Node) bool) bool {
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *Decl) editChildren(edit func(Node) Node) {
+ 	if n.X != nil {
+@@ -532,27 +492,23 @@ func (n *ForStmt) copy() Node {
+ 	c.Body = copyNodes(c.Body)
+ 	return &c
+ }
+-func (n *ForStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *ForStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Cond != nil {
+-		if err := do(n.Cond); err != nil {
+-			return err
+-		}
++	if n.Cond != nil && do(n.Cond) {
++		return true
+ 	}
+-	if err := doNodes(n.Late, do); err != nil {
+-		return err
++	if doNodes(n.Late, do) {
++		return true
+ 	}
+-	if n.Post != nil {
+-		if err := do(n.Post); err != nil {
+-			return err
+-		}
++	if n.Post != nil && do(n.Post) {
++		return true
+ 	}
+-	if err := doNodes(n.Body, do); err != nil {
+-		return err
++	if doNodes(n.Body, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ForStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -576,17 +532,17 @@ func (n *FuncType) copy() Node {
+ 	c.Results = copyFields(c.Results)
+ 	return &c
+ }
+-func (n *FuncType) doChildren(do func(Node) error) error {
+-	if err := doField(n.Recv, do); err != nil {
+-		return err
++func (n *FuncType) doChildren(do func(Node) bool) bool {
++	if doField(n.Recv, do) {
++		return true
+ 	}
+-	if err := doFields(n.Params, do); err != nil {
+-		return err
++	if doFields(n.Params, do) {
++		return true
+ 	}
+-	if err := doFields(n.Results, do); err != nil {
+-		return err
++	if doFields(n.Results, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *FuncType) editChildren(edit func(Node) Node) {
+ 	editField(n.Recv, edit)
+@@ -600,16 +556,14 @@ func (n *GoDeferStmt) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *GoDeferStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *GoDeferStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Call != nil {
+-		if err := do(n.Call); err != nil {
+-			return err
+-		}
++	if n.Call != nil && do(n.Call) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -624,11 +578,11 @@ func (n *Ident) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *Ident) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *Ident) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *Ident) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -642,22 +596,20 @@ func (n *IfStmt) copy() Node {
+ 	c.Else = copyNodes(c.Else)
+ 	return &c
+ }
+-func (n *IfStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *IfStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Cond != nil {
+-		if err := do(n.Cond); err != nil {
+-			return err
+-		}
++	if n.Cond != nil && do(n.Cond) {
++		return true
+ 	}
+-	if err := doNodes(n.Body, do); err != nil {
+-		return err
++	if doNodes(n.Body, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Else, do); err != nil {
+-		return err
++	if doNodes(n.Else, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *IfStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -674,21 +626,17 @@ func (n *IndexExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *IndexExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *IndexExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Index != nil {
+-		if err := do(n.Index); err != nil {
+-			return err
+-		}
++	if n.Index != nil && do(n.Index) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *IndexExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -706,11 +654,11 @@ func (n *InlineMarkStmt) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *InlineMarkStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *InlineMarkStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *InlineMarkStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -724,17 +672,17 @@ func (n *InlinedCallExpr) copy() Node {
+ 	c.ReturnVars = copyNodes(c.ReturnVars)
+ 	return &c
+ }
+-func (n *InlinedCallExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *InlinedCallExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Body, do); err != nil {
+-		return err
++	if doNodes(n.Body, do) {
++		return true
+ 	}
+-	if err := doNodes(n.ReturnVars, do); err != nil {
+-		return err
++	if doNodes(n.ReturnVars, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -748,11 +696,11 @@ func (n *InterfaceType) copy() Node {
+ 	c.Methods = copyFields(c.Methods)
+ 	return &c
+ }
+-func (n *InterfaceType) doChildren(do func(Node) error) error {
+-	if err := doFields(n.Methods, do); err != nil {
+-		return err
++func (n *InterfaceType) doChildren(do func(Node) bool) bool {
++	if doFields(n.Methods, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *InterfaceType) editChildren(edit func(Node) Node) {
+ 	editFields(n.Methods, edit)
+@@ -764,21 +712,17 @@ func (n *KeyExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *KeyExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *KeyExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Key != nil {
+-		if err := do(n.Key); err != nil {
+-			return err
+-		}
++	if n.Key != nil && do(n.Key) {
++		return true
+ 	}
+-	if n.Value != nil {
+-		if err := do(n.Value); err != nil {
+-			return err
+-		}
++	if n.Value != nil && do(n.Value) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *KeyExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -796,11 +740,11 @@ func (n *LabelStmt) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *LabelStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *LabelStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *LabelStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -812,21 +756,17 @@ func (n *LogicalExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *LogicalExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *LogicalExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Y != nil {
+-		if err := do(n.Y); err != nil {
+-			return err
+-		}
++	if n.Y != nil && do(n.Y) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *LogicalExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -844,21 +784,17 @@ func (n *MakeExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *MakeExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *MakeExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Len != nil {
+-		if err := do(n.Len); err != nil {
+-			return err
+-		}
++	if n.Len != nil && do(n.Len) {
++		return true
+ 	}
+-	if n.Cap != nil {
+-		if err := do(n.Cap); err != nil {
+-			return err
+-		}
++	if n.Cap != nil && do(n.Cap) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *MakeExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -875,18 +811,14 @@ func (n *MapType) copy() Node {
+ 	c := *n
+ 	return &c
+ }
+-func (n *MapType) doChildren(do func(Node) error) error {
+-	if n.Key != nil {
+-		if err := do(n.Key); err != nil {
+-			return err
+-		}
++func (n *MapType) doChildren(do func(Node) bool) bool {
++	if n.Key != nil && do(n.Key) {
++		return true
+ 	}
+-	if n.Elem != nil {
+-		if err := do(n.Elem); err != nil {
+-			return err
+-		}
++	if n.Elem != nil && do(n.Elem) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *MapType) editChildren(edit func(Node) Node) {
+ 	if n.Key != nil {
+@@ -905,16 +837,14 @@ func (n *NameOffsetExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *NameOffsetExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *NameOffsetExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Name_ != nil {
+-		if err := do(n.Name_); err != nil {
+-			return err
+-		}
++	if n.Name_ != nil && do(n.Name_) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -929,11 +859,11 @@ func (n *NilExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *NilExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *NilExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *NilExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -945,16 +875,14 @@ func (n *ParenExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *ParenExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *ParenExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ParenExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -968,8 +896,8 @@ func (n *PkgName) copy() Node {
+ 	c := *n
+ 	return &c
+ }
+-func (n *PkgName) doChildren(do func(Node) error) error {
+-	return nil
++func (n *PkgName) doChildren(do func(Node) bool) bool {
++	return false
+ }
+ func (n *PkgName) editChildren(edit func(Node) Node) {
+ }
+@@ -981,34 +909,26 @@ func (n *RangeStmt) copy() Node {
+ 	c.Body = copyNodes(c.Body)
+ 	return &c
+ }
+-func (n *RangeStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *RangeStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Key != nil {
+-		if err := do(n.Key); err != nil {
+-			return err
+-		}
++	if n.Key != nil && do(n.Key) {
++		return true
+ 	}
+-	if n.Value != nil {
+-		if err := do(n.Value); err != nil {
+-			return err
+-		}
++	if n.Value != nil && do(n.Value) {
++		return true
+ 	}
+-	if err := doNodes(n.Body, do); err != nil {
+-		return err
++	if doNodes(n.Body, do) {
++		return true
+ 	}
+-	if n.Prealloc != nil {
+-		if err := do(n.Prealloc); err != nil {
+-			return err
+-		}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *RangeStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1033,11 +953,11 @@ func (n *ResultExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *ResultExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *ResultExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ResultExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1050,14 +970,14 @@ func (n *ReturnStmt) copy() Node {
+ 	c.Results = copyNodes(c.Results)
+ 	return &c
+ }
+-func (n *ReturnStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *ReturnStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Results, do); err != nil {
+-		return err
++	if doNodes(n.Results, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *ReturnStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1072,17 +992,17 @@ func (n *SelectStmt) copy() Node {
+ 	c.Compiled = copyNodes(c.Compiled)
+ 	return &c
+ }
+-func (n *SelectStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *SelectStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if err := doCommClauses(n.Cases, do); err != nil {
+-		return err
++	if doCommClauses(n.Cases, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Compiled, do); err != nil {
+-		return err
++	if doNodes(n.Compiled, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *SelectStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1096,21 +1016,17 @@ func (n *SelectorExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *SelectorExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *SelectorExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Prealloc != nil {
+-		if err := do(n.Prealloc); err != nil {
+-			return err
+-		}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *SelectorExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1128,21 +1044,17 @@ func (n *SendStmt) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *SendStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *SendStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Chan != nil {
+-		if err := do(n.Chan); err != nil {
+-			return err
+-		}
++	if n.Chan != nil && do(n.Chan) {
++		return true
+ 	}
+-	if n.Value != nil {
+-		if err := do(n.Value); err != nil {
+-			return err
+-		}
++	if n.Value != nil && do(n.Value) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *SendStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1160,31 +1072,23 @@ func (n *SliceExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *SliceExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *SliceExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Low != nil {
+-		if err := do(n.Low); err != nil {
+-			return err
+-		}
++	if n.Low != nil && do(n.Low) {
++		return true
+ 	}
+-	if n.High != nil {
+-		if err := do(n.High); err != nil {
+-			return err
+-		}
++	if n.High != nil && do(n.High) {
++		return true
+ 	}
+-	if n.Max != nil {
+-		if err := do(n.Max); err != nil {
+-			return err
+-		}
++	if n.Max != nil && do(n.Max) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *SliceExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1208,26 +1112,20 @@ func (n *SliceHeaderExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *SliceHeaderExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *SliceHeaderExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Ptr != nil {
+-		if err := do(n.Ptr); err != nil {
+-			return err
+-		}
++	if n.Ptr != nil && do(n.Ptr) {
++		return true
+ 	}
+-	if n.Len != nil {
+-		if err := do(n.Len); err != nil {
+-			return err
+-		}
++	if n.Len != nil && do(n.Len) {
++		return true
+ 	}
+-	if n.Cap != nil {
+-		if err := do(n.Cap); err != nil {
+-			return err
+-		}
++	if n.Cap != nil && do(n.Cap) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1247,13 +1145,11 @@ func (n *SliceType) copy() Node {
+ 	c := *n
+ 	return &c
+ }
+-func (n *SliceType) doChildren(do func(Node) error) error {
+-	if n.Elem != nil {
+-		if err := do(n.Elem); err != nil {
+-			return err
+-		}
++func (n *SliceType) doChildren(do func(Node) bool) bool {
++	if n.Elem != nil && do(n.Elem) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *SliceType) editChildren(edit func(Node) Node) {
+ 	if n.Elem != nil {
+@@ -1267,16 +1163,14 @@ func (n *StarExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *StarExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *StarExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *StarExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1291,16 +1185,14 @@ func (n *StructKeyExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *StructKeyExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *StructKeyExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Value != nil {
+-		if err := do(n.Value); err != nil {
+-			return err
+-		}
++	if n.Value != nil && do(n.Value) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *StructKeyExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1315,11 +1207,11 @@ func (n *StructType) copy() Node {
+ 	c.Fields = copyFields(c.Fields)
+ 	return &c
+ }
+-func (n *StructType) doChildren(do func(Node) error) error {
+-	if err := doFields(n.Fields, do); err != nil {
+-		return err
++func (n *StructType) doChildren(do func(Node) bool) bool {
++	if doFields(n.Fields, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *StructType) editChildren(edit func(Node) Node) {
+ 	editFields(n.Fields, edit)
+@@ -1333,22 +1225,20 @@ func (n *SwitchStmt) copy() Node {
+ 	c.Compiled = copyNodes(c.Compiled)
+ 	return &c
+ }
+-func (n *SwitchStmt) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *SwitchStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.Tag != nil {
+-		if err := do(n.Tag); err != nil {
+-			return err
+-		}
++	if n.Tag != nil && do(n.Tag) {
++		return true
+ 	}
+-	if err := doCaseClauses(n.Cases, do); err != nil {
+-		return err
++	if doCaseClauses(n.Cases, do) {
++		return true
+ 	}
+-	if err := doNodes(n.Compiled, do); err != nil {
+-		return err
++	if doNodes(n.Compiled, do) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *SwitchStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1365,21 +1255,17 @@ func (n *TypeAssertExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *TypeAssertExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	if n.Ntype != nil {
+-		if err := do(n.Ntype); err != nil {
+-			return err
+-		}
++	if n.Ntype != nil && do(n.Ntype) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1396,18 +1282,14 @@ func (n *TypeSwitchGuard) copy() Node {
+ 	c := *n
+ 	return &c
+ }
+-func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
+-	if n.Tag != nil {
+-		if err := do(n.Tag); err != nil {
+-			return err
+-		}
++func (n *TypeSwitchGuard) doChildren(do func(Node) bool) bool {
++	if n.Tag != nil && do(n.Tag) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
+ 	if n.Tag != nil {
+@@ -1424,16 +1306,14 @@ func (n *UnaryExpr) copy() Node {
+ 	c.init = copyNodes(c.init)
+ 	return &c
+ }
+-func (n *UnaryExpr) doChildren(do func(Node) error) error {
+-	if err := doNodes(n.init, do); err != nil {
+-		return err
++func (n *UnaryExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
+ 	}
+-	if n.X != nil {
+-		if err := do(n.X); err != nil {
+-			return err
+-		}
++	if n.X != nil && do(n.X) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func (n *UnaryExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -1447,8 +1327,8 @@ func (n *typeNode) copy() Node {
+ 	c := *n
+ 	return &c
+ }
+-func (n *typeNode) doChildren(do func(Node) error) error {
+-	return nil
++func (n *typeNode) doChildren(do func(Node) bool) bool {
++	return false
+ }
+ func (n *typeNode) editChildren(edit func(Node) Node) {
+ }
+@@ -1461,15 +1341,13 @@ func copyCaseClauses(list []*CaseClause) []*CaseClause {
+ 	copy(c, list)
+ 	return c
+ }
+-func doCaseClauses(list []*CaseClause, do func(Node) error) error {
++func doCaseClauses(list []*CaseClause, do func(Node) bool) bool {
+ 	for _, x := range list {
+-		if x != nil {
+-			if err := do(x); err != nil {
+-				return err
+-			}
++		if x != nil && do(x) {
++			return true
+ 		}
+ 	}
+-	return nil
++	return false
+ }
+ func editCaseClauses(list []*CaseClause, edit func(Node) Node) {
+ 	for i, x := range list {
+@@ -1487,15 +1365,13 @@ func copyCommClauses(list []*CommClause) []*CommClause {
+ 	copy(c, list)
+ 	return c
+ }
+-func doCommClauses(list []*CommClause, do func(Node) error) error {
++func doCommClauses(list []*CommClause, do func(Node) bool) bool {
+ 	for _, x := range list {
+-		if x != nil {
+-			if err := do(x); err != nil {
+-				return err
+-			}
++		if x != nil && do(x) {
++			return true
+ 		}
+ 	}
+-	return nil
++	return false
+ }
+ func editCommClauses(list []*CommClause, edit func(Node) Node) {
+ 	for i, x := range list {
+@@ -1513,15 +1389,13 @@ func copyNodes(list []Node) []Node {
+ 	copy(c, list)
+ 	return c
+ }
+-func doNodes(list []Node, do func(Node) error) error {
++func doNodes(list []Node, do func(Node) bool) bool {
+ 	for _, x := range list {
+-		if x != nil {
+-			if err := do(x); err != nil {
+-				return err
+-			}
++		if x != nil && do(x) {
++			return true
+ 		}
+ 	}
+-	return nil
++	return false
+ }
+ func editNodes(list []Node, edit func(Node) Node) {
+ 	for i, x := range list {
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index 7dd394f9ea..a903ea8cd4 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -195,21 +195,17 @@ func copyField(f *Field) *Field {
+ 	c := *f
+ 	return &c
+ }
+-func doField(f *Field, do func(Node) error) error {
++func doField(f *Field, do func(Node) bool) bool {
+ 	if f == nil {
+-		return nil
++		return false
+ 	}
+-	if f.Decl != nil {
+-		if err := do(f.Decl); err != nil {
+-			return err
+-		}
++	if f.Decl != nil && do(f.Decl) {
++		return true
+ 	}
+-	if f.Ntype != nil {
+-		if err := do(f.Ntype); err != nil {
+-			return err
+-		}
++	if f.Ntype != nil && do(f.Ntype) {
++		return true
+ 	}
+-	return nil
++	return false
+ }
+ func editField(f *Field, edit func(Node) Node) {
+ 	if f == nil {
+@@ -230,13 +226,13 @@ func copyFields(list []*Field) []*Field {
+ 	}
+ 	return out
+ }
+-func doFields(list []*Field, do func(Node) error) error {
++func doFields(list []*Field, do func(Node) bool) bool {
+ 	for _, x := range list {
+-		if err := doField(x, do); err != nil {
+-			return err
++		if doField(x, do) {
++			return true
+ 		}
+ 	}
+-	return nil
++	return false
+ }
+ func editFields(list []*Field, edit func(Node) Node) {
+ 	for _, f := range list {
+diff --git a/src/cmd/compile/internal/ir/visit.go b/src/cmd/compile/internal/ir/visit.go
+index 4616390b7c..c1b3d4ed95 100644
+--- a/src/cmd/compile/internal/ir/visit.go
++++ b/src/cmd/compile/internal/ir/visit.go
+@@ -4,23 +4,18 @@
+ 
+ // IR visitors for walking the IR tree.
+ //
+-// The lowest level helpers are DoChildren and EditChildren,
+-// which nodes help implement (TODO(rsc): eventually) and
+-// provide control over whether and when recursion happens
+-// during the walk of the IR.
++// The lowest level helpers are DoChildren and EditChildren, which
++// nodes help implement and provide control over whether and when
++// recursion happens during the walk of the IR.
+ //
+ // Although these are both useful directly, two simpler patterns
+-// are fairly common and also provided: Inspect and Scan.
++// are fairly common and also provided: Visit and Any.
+ 
+ package ir
+ 
+-import (
+-	"errors"
+-)
+-
+ // DoChildren calls do(x) on each of n's non-nil child nodes x.
+-// If any call returns a non-nil error, DoChildren stops and returns that error.
+-// Otherwise, DoChildren returns nil.
++// If any call returns true, DoChildren stops and returns true.
++// Otherwise, DoChildren returns false.
+ //
+ // Note that DoChildren(n, do) only calls do(x) for n's immediate children.
+ // If x's children should be processed, then do(x) must call DoChildren(x, do).
+@@ -28,32 +23,32 @@ import (
+ // DoChildren allows constructing general traversals of the IR graph
+ // that can stop early if needed. The most general usage is:
+ //
+-//	var do func(ir.Node) error
+-//	do = func(x ir.Node) error {
++//	var do func(ir.Node) bool
++//	do = func(x ir.Node) bool {
+ //		... processing BEFORE visting children ...
+ //		if ... should visit children ... {
+ //			ir.DoChildren(x, do)
+ //			... processing AFTER visting children ...
+ //		}
+ //		if ... should stop parent DoChildren call from visiting siblings ... {
+-//			return non-nil error
++//			return true
+ //		}
+-//		return nil
++//		return false
+ //	}
+ //	do(root)
+ //
+-// Since DoChildren does not generate any errors itself, if the do function
+-// never wants to stop the traversal, it can assume that DoChildren itself
+-// will always return nil, simplifying to:
++// Since DoChildren does not return true itself, if the do function
++// never wants to stop the traversal, it can assume that DoChildren
++// itself will always return false, simplifying to:
+ //
+-//	var do func(ir.Node) error
+-//	do = func(x ir.Node) error {
++//	var do func(ir.Node) bool
++//	do = func(x ir.Node) bool {
+ //		... processing BEFORE visting children ...
+ //		if ... should visit children ... {
+ //			ir.DoChildren(x, do)
+ //		}
+ //		... processing AFTER visting children ...
+-//		return nil
++//		return false
+ //	}
+ //	do(root)
+ //
+@@ -61,14 +56,15 @@ import (
+ // only processing before visiting children and never stopping:
+ //
+ //	func Visit(n ir.Node, visit func(ir.Node)) {
+-//		var do func(ir.Node) error
+-//		do = func(x ir.Node) error {
++//		if n == nil {
++//			return
++//		}
++//		var do func(ir.Node) bool
++//		do = func(x ir.Node) bool {
+ //			visit(x)
+ //			return ir.DoChildren(x, do)
+ //		}
+-//		if n != nil {
+-//			visit(n)
+-//		}
++//		do(n)
+ //	}
+ //
+ // The Any function illustrates a different simplification of the pattern,
+@@ -76,50 +72,40 @@ import (
+ // a node x for which cond(x) returns true, at which point the entire
+ // traversal stops and returns true.
+ //
+-//	func Any(n ir.Node, find cond(ir.Node)) bool {
+-//		stop := errors.New("stop")
+-//		var do func(ir.Node) error
+-//		do = func(x ir.Node) error {
+-//			if cond(x) {
+-//				return stop
+-//			}
+-//			return ir.DoChildren(x, do)
++//	func Any(n ir.Node, cond(ir.Node) bool) bool {
++//		if n == nil {
++//			return false
+ //		}
+-//		return do(n) == stop
++//		var do func(ir.Node) bool
++//		do = func(x ir.Node) bool {
++//			return cond(x) || ir.DoChildren(x, do)
++//		}
++//		return do(n)
+ //	}
+ //
+ // Visit and Any are presented above as examples of how to use
+ // DoChildren effectively, but of course, usage that fits within the
+ // simplifications captured by Visit or Any will be best served
+ // by directly calling the ones provided by this package.
+-func DoChildren(n Node, do func(Node) error) error {
++func DoChildren(n Node, do func(Node) bool) bool {
+ 	if n == nil {
+-		return nil
++		return false
+ 	}
+ 	return n.doChildren(do)
+ }
+ 
+-// DoList calls f on each non-nil node x in the list, in list order.
+-// If any call returns a non-nil error, DoList stops and returns that error.
+-// Otherwise DoList returns nil.
+-//
+-// Note that DoList only calls do on the nodes in the list, not their children.
+-// If x's children should be processed, do(x) must call DoChildren(x, do) itself.
+-func DoList(list Nodes, do func(Node) error) error {
+-	return doNodes(list, do)
+-}
+-
+ // Visit visits each non-nil node x in the IR tree rooted at n
+ // in a depth-first preorder traversal, calling visit on each node visited.
+ func Visit(n Node, visit func(Node)) {
+-	var do func(Node) error
+-	do = func(x Node) error {
++	if n == nil {
++		return
++	}
++	var do func(Node) bool
++	do = func(x Node) bool {
+ 		visit(x)
+ 		return DoChildren(x, do)
+ 	}
+-	if n != nil {
+-		do(n)
+-	}
++	do(n)
+ }
+ 
+ // VisitList calls Visit(x, visit) for each node x in the list.
+@@ -129,8 +115,6 @@ func VisitList(list Nodes, visit func(Node)) {
+ 	}
+ }
+ 
+-var stop = errors.New("stop")
+-
+ // Any looks for a non-nil node x in the IR tree rooted at n
+ // for which cond(x) returns true.
+ // Any considers nodes in a depth-first, preorder traversal.
+@@ -141,14 +125,11 @@ func Any(n Node, cond func(Node) bool) bool {
+ 	if n == nil {
+ 		return false
+ 	}
+-	var do func(Node) error
+-	do = func(x Node) error {
+-		if cond(x) {
+-			return stop
+-		}
+-		return DoChildren(x, do)
++	var do func(Node) bool
++	do = func(x Node) bool {
++		return cond(x) || DoChildren(x, do)
+ 	}
+-	return do(n) == stop
++	return do(n)
+ }
+ 
+ // AnyList calls Any(x, cond) for each node x in the list, in order.
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 480d2de8e3..ebdcc4a72e 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -2053,8 +2053,8 @@ func markBreak(fn *ir.Func) {
+ 	var labels map[*types.Sym]ir.Node
+ 	var implicit ir.Node
+ 
+-	var mark func(ir.Node) error
+-	mark = func(n ir.Node) error {
++	var mark func(ir.Node) bool
++	mark = func(n ir.Node) bool {
+ 		switch n.Op() {
+ 		default:
+ 			ir.DoChildren(n, mark)
+@@ -2094,7 +2094,7 @@ func markBreak(fn *ir.Func) {
+ 			}
+ 			implicit = old
+ 		}
+-		return nil
++		return false
+ 	}
+ 
+ 	mark(fn)

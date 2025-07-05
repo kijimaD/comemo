@@ -19,8 +19,271 @@ Date:   Tue Mar 5 03:58:37 2019 -0800
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/example.go        | 92 +++++++++++++++----------------------------
  src/testing/run_example.go    | 64 ++++++++++++++++++++++++++++++
  src/testing/run_example_js.go | 74 ++++++++++++++++++++++++++++++++++
  3 files changed, 169 insertions(+), 61 deletions(-)
+
+diff --git a/src/testing/example.go b/src/testing/example.go
+index f4beb76f5f..c122121289 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -6,7 +6,6 @@ package testing
+ 
+ import (
+ 	"fmt"
+-	"io"
+ 	"os"
+ 	"sort"
+ 	"strings"
+@@ -56,68 +55,39 @@ func sortLines(output string) string {
+ 	return strings.Join(lines, "\n")
+ }
+ 
+-func runExample(eg InternalExample) (ok bool) {
+-	if *chatty {
+-		fmt.Printf("=== RUN   %s\n", eg.Name)
+-	}
+-
+-	// Capture stdout.
+-	stdout := os.Stdout
+-	r, w, err := os.Pipe()
+-	if err != nil {
+-		fmt.Fprintln(os.Stderr, err)
+-		os.Exit(1)
+-	}
+-	os.Stdout = w
+-	outC := make(chan string)
+-	go func() {
+-		var buf strings.Builder
+-		_, err := io.Copy(&buf, r)
+-		r.Close()
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: copying pipe: %v\n", err)
+-			os.Exit(1)
++// processRunResult computes a summary and status of the result of running an example test.
++// stdout is the captured output from stdout of the test.
++// recovered is the result of invoking recover after running the test, in case it panicked.
++//
++// If stdout doesn't match the expected output or if recovered is non-nil, it'll print the cause of failure to stdout.
++// If the test is chatty/verbose, it'll print a success message to stdout.
++// If recovered is non-nil, it'll panic with that value.
++func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Duration, recovered interface{}) (passed bool) {
++	passed = true
++
++	dstr := fmtDuration(timeSpent)
++	var fail string
++	got := strings.TrimSpace(stdout)
++	want := strings.TrimSpace(eg.Output)
++	if eg.Unordered {
++		if sortLines(got) != sortLines(want) && recovered == nil {
++			fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", stdout, eg.Output)
+ 		}
+-		outC <- buf.String()
+-	}()
+-
+-	start := time.Now()
+-	ok = true
+-
+-	// Clean up in a deferred call so we can recover if the example panics.
+-	defer func() {
+-		dstr := fmtDuration(time.Since(start))
+-
+-		// Close pipe, restore stdout, get output.
+-		w.Close()
+-		os.Stdout = stdout
+-		out := <-outC
+-
+-		var fail string
+-		err := recover()
+-		got := strings.TrimSpace(out)
+-		want := strings.TrimSpace(eg.Output)
+-		if eg.Unordered {
+-			if sortLines(got) != sortLines(want) && err == nil {
+-				fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", out, eg.Output)
+-			}
+-		} else {
+-			if got != want && err == nil {
+-				fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", got, want)
+-			}
+-		}
+-		if fail != "" || err != nil {
+-			fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
+-			ok = false
+-		} else if *chatty {
+-			fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
+-		}
+-		if err != nil {
+-			panic(err)
++	} else {
++		if got != want && recovered == nil {
++			fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", got, want)
+ 		}
+-	}()
++	}
++	if fail != "" || recovered != nil {
++		fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
++		passed = false
++	} else if *chatty {
++		fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
++	}
++	if recovered != nil {
++		// Propagate the previously recovered result, by panicking.
++		panic(recovered)
++	}
+ 
+-	// Run example.
+-	eg.F()
+ 	return
+ }
+diff --git a/src/testing/run_example.go b/src/testing/run_example.go
+new file mode 100644
+index 0000000000..10bde49e5b
+--- /dev/null
++++ b/src/testing/run_example.go
+@@ -0,0 +1,64 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !js
++
++// TODO(@musiol, @odeke-em): re-unify this entire file back into
++// example.go when js/wasm gets an os.Pipe implementation
++// and no longer needs this separation.
++
++package testing
++
++import (
++	"fmt"
++	"io"
++	"os"
++	"strings"
++	"time"
++)
++
++func runExample(eg InternalExample) (ok bool) {
++	if *chatty {
++		fmt.Printf("=== RUN   %s\n", eg.Name)
++	}
++
++	// Capture stdout.
++	stdout := os.Stdout
++	r, w, err := os.Pipe()
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++	os.Stdout = w
++	outC := make(chan string)
++	go func() {
++		var buf strings.Builder
++		_, err := io.Copy(&buf, r)
++		r.Close()
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "testing: copying pipe: %v\n", err)
++			os.Exit(1)
++		}
++		outC <- buf.String()
++	}()
++
++	start := time.Now()
++
++	// Clean up in a deferred call so we can recover if the example panics.
++	defer func() {
++		timeSpent := time.Since(start)
++
++		// Close pipe, restore stdout, get output.
++		w.Close()
++		os.Stdout = stdout
++		out := <-outC
++
++		err := recover()
++		ok = eg.processRunResult(out, timeSpent, err)
++	}()
++
++	// Run example.
++	eg.F()
++	return
++}
+diff --git a/src/testing/run_example_js.go b/src/testing/run_example_js.go
+new file mode 100644
+index 0000000000..472e0c57fa
+--- /dev/null
++++ b/src/testing/run_example_js.go
+@@ -0,0 +1,74 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js
++
++package testing
++
++import (
++	"fmt"
++	"io"
++	"os"
++	"strings"
++	"time"
++)
++
++// TODO(@musiol, @odeke-em): unify this code back into
++// example.go when js/wasm gets an os.Pipe implementation.
++func runExample(eg InternalExample) (ok bool) {
++	if *chatty {
++		fmt.Printf("=== RUN   %s\n", eg.Name)
++	}
++
++	// Capture stdout to temporary file. We're not using
++	// os.Pipe because it is not supported on js/wasm.
++	stdout := os.Stdout
++	f := createTempFile(eg.Name)
++	os.Stdout = f
++	start := time.Now()
++
++	// Clean up in a deferred call so we can recover if the example panics.
++	defer func() {
++		timeSpent := time.Since(start)
++
++		// Restore stdout, get output and remove temporary file.
++		os.Stdout = stdout
++		var buf strings.Builder
++		_, seekErr := f.Seek(0, os.SEEK_SET)
++		_, readErr := io.Copy(&buf, f)
++		out := buf.String()
++		f.Close()
++		os.Remove(f.Name())
++		if seekErr != nil {
++			fmt.Fprintf(os.Stderr, "testing: seek temp file: %v\n", seekErr)
++			os.Exit(1)
++		}
++		if readErr != nil {
++			fmt.Fprintf(os.Stderr, "testing: read temp file: %v\n", readErr)
++			os.Exit(1)
++		}
++
++		err := recover()
++		ok = eg.processRunResult(out, timeSpent, err)
++	}()
++
++	// Run example.
++	eg.F()
++	return
++}
++
++func createTempFile(exampleName string) *os.File {
++	for i := 0; ; i++ {
++		name := fmt.Sprintf("%s/go-example-stdout-%s-%d.txt", os.TempDir(), exampleName, i)
++		f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
++		if err != nil {
++			if os.IsExist(err) {
++				continue
++			}
++			fmt.Fprintf(os.Stderr, "testing: open temp file: %v\n", err)
++			os.Exit(1)
++		}
++		return f
++	}
++}

@@ -18,7 +18,56 @@ Date:   Thu Mar 3 13:33:38 2022 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go       |  2 +-
  .../script/mod_download_git_decorate_full.txt      | 28 ++++++++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 853d43bc5b..034abf360b 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -447,7 +447,7 @@ func (r *gitRepo) fetchRefsLocked() error {
+ // statLocal returns a RevInfo describing rev in the local git repository.
+ // It uses version as info.Version.
+ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+-	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "-n1", "--format=format:%H %ct %D", rev, "--")
++	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
+ 	if err != nil {
+ 		return nil, &UnknownRevisionError{Rev: rev}
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt b/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt
+new file mode 100644
+index 0000000000..3b19acc1b1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt
+@@ -0,0 +1,28 @@
++env GO111MODULE=on
++
++[!net] skip
++[!exec:git] skip
++
++env GOPROXY=direct
++env HOME=$WORK/home/gopher
++
++
++go env GOPROXY
++stdout 'direct'
++
++exec git config --get log.decorate
++stdout 'full'
++
++# Test that Git log with user's global config '~/gitconfig' has log.decorate=full
++# go mod download has an error 'v1.x.y is not a tag'
++# with go1.16.14: 
++# `go1.16.14 list -m vcs-test.golang.org/git/gitrepo1.git@v1.2.3`
++# will output with error:
++# go list -m: vcs-test.golang.org/git/gitrepo1.git@v1.2.3: invalid version: unknown revision v1.2.3
++# See golang/go#51312.
++go list -m vcs-test.golang.org/git/gitrepo1.git@v1.2.3
++stdout 'vcs-test.golang.org/git/gitrepo1.git v1.2.3'
++
++-- $WORK/home/gopher/.gitconfig --
++[log]
++	decorate = full
+\ No newline at end of file

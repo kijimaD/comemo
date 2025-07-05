@@ -8,7 +8,30 @@ Date:   Mon Sep 22 13:46:57 2008 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=15626
     CL=15641
-
+---
  src/syscall/time_amd64_darwin.go | 2 +-
  src/syscall/time_amd64_linux.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/time_amd64_darwin.go b/src/syscall/time_amd64_darwin.go
+index d4cdaa048e..4bcbe249f6 100644
+--- a/src/syscall/time_amd64_darwin.go
++++ b/src/syscall/time_amd64_darwin.go
+@@ -15,5 +15,5 @@ export func gettimeofday() (sec, nsec, errno int64) {
+ 	if err != 0 {
+ 		return 0, 0, err
+ 	}
+-	return r1, r2, 0
++	return r1, r2*1000, 0
+ }
+diff --git a/src/syscall/time_amd64_linux.go b/src/syscall/time_amd64_linux.go
+index 9feacf6546..71bd5658be 100644
+--- a/src/syscall/time_amd64_linux.go
++++ b/src/syscall/time_amd64_linux.go
+@@ -15,5 +15,5 @@ export func gettimeofday() (sec, nsec, errno int64) {
+ 	if err != 0 {
+ 		return 0, 0, err
+ 	}
+-	return tv[0], tv[1], 0
++	return tv[0], tv[1]*1000, 0
+ }

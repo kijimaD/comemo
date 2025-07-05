@@ -12,7 +12,7 @@ Date:   Fri Feb 10 09:22:35 2017 -0500
     Change-Id: Ic5a55e042e588f1e1bc6605a3d309d1eabdeb288
     Reviewed-on: https://go-review.googlesource.com/36716
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/asm.s                  |  7 +++----
  src/syscall/dll_windows.go         |  1 -
  src/syscall/syscall.go             | 10 ----------
@@ -26,3 +26,190 @@ Date:   Fri Feb 10 09:22:35 2017 -0500
  src/syscall/syscall_linux_s390x.go |  1 -
  src/syscall/syscall_plan9.go       |  2 --
  12 files changed, 3 insertions(+), 28 deletions(-)
+
+diff --git a/src/syscall/asm.s b/src/syscall/asm.s
+index 06449ebfa9..c3bc40a594 100644
+--- a/src/syscall/asm.s
++++ b/src/syscall/asm.s
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "textflag.h"
+-
+-TEXT ·use(SB),NOSPLIT,$0
+-	RET
++// Dummy asm file to keep Windows building.
++// TODO(sameer): delete this after updating go tool
++// per Ian's comment in golang.org/cl/36716
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 864473b43b..2ee85a0d77 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -87,7 +87,6 @@ func (d *DLL) FindProc(name string) (proc *Proc, err error) {
+ 		return nil, err
+ 	}
+ 	a, e := getprocaddress(uintptr(d.Handle), namep)
+-	use(unsafe.Pointer(namep))
+ 	if e != 0 {
+ 		return nil, &DLLError{
+ 			Err:     e,
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 2fbe624c1f..e8560a036d 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -26,8 +26,6 @@
+ //
+ package syscall
+ 
+-import "unsafe"
+-
+ //go:generate go run mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
+ 
+ // StringByteSlice converts a string to a NUL-terminated []byte,
+@@ -98,11 +96,3 @@ func (tv *Timeval) Nano() int64 {
+ // Getpagesize is provided by the runtime.
+ 
+ func Getpagesize() int
+-
+-// use is a no-op, but the compiler cannot see that it is.
+-// Calling use(p) ensures that p is kept live until that point.
+-// This was needed until Go 1.6 to call syscall.Syscall correctly.
+-// As of Go 1.6 the compiler handles that case automatically.
+-// The uses and definition of use can be removed early in the Go 1.7 cycle.
+-//go:noescape
+-func use(p unsafe.Pointer)
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 689bc14cf4..a1c360d4f4 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -127,7 +127,6 @@ func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (
+ 		uintptr(options),
+ 		0,
+ 	)
+-	use(unsafe.Pointer(_p0))
+ 	if e1 != 0 {
+ 		return nil, e1
+ 	}
+@@ -180,7 +179,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT64, uintptr(_p0), bufsize, uintptr(flags))
+-	use(unsafe.Pointer(_p0))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 980687ccbd..054183adef 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -100,7 +100,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
+-	use(unsafe.Pointer(_p0))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 2a304cd2c6..4dc07fe3c8 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -113,7 +113,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 		bufsize = unsafe.Sizeof(Statfs_t{}) * uintptr(len(buf))
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), bufsize, uintptr(flags))
+-	use(unsafe.Pointer(_p0))
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index a8801ad5fd..8099a5fdeb 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -127,7 +127,6 @@ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
+ 		return err
+ 	}
+ 	err = futimesat(dirfd, pathp, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+-	use(unsafe.Pointer(pathp))
+ 	return err
+ }
+ 
+@@ -790,7 +789,6 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ 		return err
+ 	}
+ 	err = mount(source, target, fstype, flags, datap)
+-	use(unsafe.Pointer(datap))
+ 	return err
+ }
+ 
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 00cf262738..d08338b1db 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -354,7 +354,6 @@ func Statfs(path string, buf *Statfs_t) (err error) {
+ 		return err
+ 	}
+ 	_, _, e := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(pathp)), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+-	use(unsafe.Pointer(pathp))
+ 	if e != 0 {
+ 		err = e
+ 	}
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 2ed31f0bb9..a58ebd4ed1 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -123,7 +123,6 @@ func Statfs(path string, buf *Statfs_t) (err error) {
+ 		return err
+ 	}
+ 	_, _, e := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(pathp)), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+-	use(unsafe.Pointer(pathp))
+ 	if e != 0 {
+ 		err = e
+ 	}
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 48e79eabee..1b072c1380 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -72,7 +72,6 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ 
+ func Fstatfs(fd int, buf *Statfs_t) (err error) {
+ 	_, _, e := Syscall(SYS_FSTATFS64, uintptr(fd), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+-	use(unsafe.Pointer(buf))
+ 	if e != 0 {
+ 		err = errnoErr(e)
+ 	}
+@@ -85,7 +84,6 @@ func Statfs(path string, buf *Statfs_t) (err error) {
+ 		return err
+ 	}
+ 	_, _, e := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(p)), unsafe.Sizeof(*buf), uintptr(unsafe.Pointer(buf)))
+-	use(unsafe.Pointer(p))
+ 	if e != 0 {
+ 		err = errnoErr(e)
+ 	}
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index 148790e756..a1dd5d6fdb 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -96,7 +96,6 @@ func Pipe2(p []int, flags int) (err error) {
+ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error) {
+ 	mmap_args := [6]uintptr{addr, length, uintptr(prot), uintptr(flags), uintptr(fd), uintptr(offset)}
+ 	r0, _, e1 := Syscall(SYS_MMAP, uintptr(unsafe.Pointer(&mmap_args[0])), 0, 0)
+-	use(unsafe.Pointer(&mmap_args[0]))
+ 	xaddr = uintptr(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index 0691889e31..b7a0d543d9 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -251,9 +251,7 @@ func Unmount(name, old string) (err error) {
+ 			return err
+ 		}
+ 		r0, _, e = Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(namep)), oldptr, 0)
+-		use(unsafe.Pointer(namep))
+ 	}
+-	use(unsafe.Pointer(oldp))
+ 
+ 	if int32(r0) == -1 {
+ 		err = e

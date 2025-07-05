@@ -10,7 +10,7 @@ Date:   Mon Jan 9 14:22:53 2012 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5531052
-
+---
  src/pkg/os/stat_darwin.go  |  4 +++-
  src/pkg/os/stat_freebsd.go |  4 +++-
  src/pkg/os/stat_linux.go   |  4 +++-
@@ -18,3 +18,131 @@ Date:   Mon Jan 9 14:22:53 2012 -0800
  src/pkg/os/stat_openbsd.go |  4 +++-
  src/pkg/os/types.go        | 26 +++++++++++++++-----------
  6 files changed, 30 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/os/stat_darwin.go b/src/pkg/os/stat_darwin.go
+index 81d6cd57c7..efe77cb30b 100644
+--- a/src/pkg/os/stat_darwin.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -24,8 +24,10 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {
+-	case syscall.S_IFBLK, syscall.S_IFCHR, syscall.S_IFWHT:
++	case syscall.S_IFBLK, syscall.S_IFWHT:
+ 		fs.mode |= ModeDevice
++	case syscall.S_IFCHR:
++		fs.mode |= ModeDevice | ModeCharDevice
+ 	case syscall.S_IFDIR:
+ 		fs.mode |= ModeDir
+ 	case syscall.S_IFIFO:
+diff --git a/src/pkg/os/stat_freebsd.go b/src/pkg/os/stat_freebsd.go
+index c142edffab..b59c53635a 100644
+--- a/src/pkg/os/stat_freebsd.go
++++ b/src/pkg/os/stat_freebsd.go
+@@ -24,8 +24,10 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {
+-	case syscall.S_IFBLK, syscall.S_IFCHR:
++	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
++	case syscall.S_IFCHR:
++		fs.mode |= ModeDevice | ModeCharDevice
+ 	case syscall.S_IFDIR:
+ 		fs.mode |= ModeDir
+ 	case syscall.S_IFIFO:
+diff --git a/src/pkg/os/stat_linux.go b/src/pkg/os/stat_linux.go
+index 66189a6b9b..b0a569e24c 100644
+--- a/src/pkg/os/stat_linux.go
++++ b/src/pkg/os/stat_linux.go
+@@ -24,8 +24,10 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {
+-	case syscall.S_IFBLK, syscall.S_IFCHR:
++	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
++	case syscall.S_IFCHR:
++		fs.mode |= ModeDevice | ModeCharDevice
+ 	case syscall.S_IFDIR:
+ 		fs.mode |= ModeDir
+ 	case syscall.S_IFIFO:
+diff --git a/src/pkg/os/stat_netbsd.go b/src/pkg/os/stat_netbsd.go
+index 66189a6b9b..b0a569e24c 100644
+--- a/src/pkg/os/stat_netbsd.go
++++ b/src/pkg/os/stat_netbsd.go
+@@ -24,8 +24,10 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {
+-	case syscall.S_IFBLK, syscall.S_IFCHR:
++	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
++	case syscall.S_IFCHR:
++		fs.mode |= ModeDevice | ModeCharDevice
+ 	case syscall.S_IFDIR:
+ 		fs.mode |= ModeDir
+ 	case syscall.S_IFIFO:
+diff --git a/src/pkg/os/stat_openbsd.go b/src/pkg/os/stat_openbsd.go
+index 66189a6b9b..b0a569e24c 100644
+--- a/src/pkg/os/stat_openbsd.go
++++ b/src/pkg/os/stat_openbsd.go
+@@ -24,8 +24,10 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	}
+ 	fs.mode = FileMode(st.Mode & 0777)
+ 	switch st.Mode & syscall.S_IFMT {
+-	case syscall.S_IFBLK, syscall.S_IFCHR:
++	case syscall.S_IFBLK:
+ 		fs.mode |= ModeDevice
++	case syscall.S_IFCHR:
++		fs.mode |= ModeDevice | ModeCharDevice
+ 	case syscall.S_IFDIR:
+ 		fs.mode |= ModeDir
+ 	case syscall.S_IFIFO:
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index 2638153ddb..bf009805fd 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -30,19 +30,23 @@ type FileMode uint32
+ 
+ // The defined file mode bits are the most significant bits of the FileMode.
+ // The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
++// The values of these bits should be considered part of the public API and
++// may be used in wire protocols or disk representations: they must not be
++// changed, although new bits might be added.
+ const (
+ 	// The single letters are the abbreviations
+ 	// used by the String method's formatting.
+-	ModeDir       FileMode = 1 << (32 - 1 - iota) // d: is a directory
+-	ModeAppend                                    // a: append-only
+-	ModeExclusive                                 // l: exclusive use
+-	ModeTemporary                                 // t: temporary file (not backed up)
+-	ModeSymlink                                   // L: symbolic link
+-	ModeDevice                                    // D: device file
+-	ModeNamedPipe                                 // p: named pipe (FIFO)
+-	ModeSocket                                    // S: Unix domain socket
+-	ModeSetuid                                    // u: setuid
+-	ModeSetgid                                    // g: setgid
++	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: is a directory
++	ModeAppend                                     // a: append-only
++	ModeExclusive                                  // l: exclusive use
++	ModeTemporary                                  // t: temporary file (not backed up)
++	ModeSymlink                                    // L: symbolic link
++	ModeDevice                                     // D: device file
++	ModeNamedPipe                                  // p: named pipe (FIFO)
++	ModeSocket                                     // S: Unix domain socket
++	ModeSetuid                                     // u: setuid
++	ModeSetgid                                     // g: setgid
++	ModeCharDevice                                 // c: Unix character device, when ModeDevice is set
+ 
+ 	// Mask for the type bits. For regular files, none will be set.
+ 	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
+@@ -51,7 +55,7 @@ const (
+ )
+ 
+ func (m FileMode) String() string {
+-	const str = "daltLDpSug"
++	const str = "daltLDpSugc"
+ 	var buf [20]byte
+ 	w := 0
+ 	for i, c := range str {

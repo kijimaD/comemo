@@ -20,6 +20,20 @@ Date:   Tue Jun 24 19:00:23 2025 -0700
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/encoding/json/jsontext/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/jsontext/encode.go b/src/encoding/json/jsontext/encode.go
+index bb9a41f0f6..562d217fef 100644
+--- a/src/encoding/json/jsontext/encode.go
++++ b/src/encoding/json/jsontext/encode.go
+@@ -114,7 +114,7 @@ func (e *encoderState) reset(b []byte, w io.Writer, opts ...Options) {
+ 	e.state.reset()
+ 	e.encodeBuffer = encodeBuffer{Buf: b, wr: w, bufStats: e.bufStats}
+ 	if bb, ok := w.(*bytes.Buffer); ok && bb != nil {
+-		e.Buf = bb.Bytes()[bb.Len():] // alias the unused buffer of bb
++		e.Buf = bb.AvailableBuffer() // alias the unused buffer of bb
+ 	}
+ 	opts2 := jsonopts.Struct{} // avoid mutating e.Struct in case it is part of opts
+ 	opts2.Join(opts...)

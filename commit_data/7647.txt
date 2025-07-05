@@ -7,7 +7,32 @@ Date:   Sat Mar 5 17:51:53 2011 -0800
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/4256053
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index cb59837d8d..cbac729b2d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -107,6 +107,7 @@ Peter Williams <pwil3058@gmail.com>
+ Pieter Droogendijk <pieter@binky.org.uk>
+ Raif S. Naffah <go@naffah-raif.name>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
++Robert Hencke <robert.hencke@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Ryan Hitchman <hitchmanr@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a20f8fedef..913116e1e0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -162,6 +162,7 @@ Raif S. Naffah <go@naffah-raif.name>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Rob Pike <r@golang.org>
+ Robert Griesemer <gri@golang.org>
++Robert Hencke <robert.hencke@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Russ Cox <rsc@golang.org>

@@ -26,8 +26,137 @@ Date:   Thu Apr 1 17:01:51 2021 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/os3_solaris.go | 42 +++++++++++++++++++++---------------------
  src/runtime/os_aix.go      |  8 ++++----
  src/runtime/panic.go       |  8 ++++----
  3 files changed, 29 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 3149d13869..2e946656d0 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -329,20 +329,20 @@ func semacreate(mp *m) {
+ 
+ //go:nosplit
+ func semasleep(ns int64) int32 {
+-	_m_ := getg().m
++	mp := getg().m
+ 	if ns >= 0 {
+-		_m_.ts.tv_sec = ns / 1000000000
+-		_m_.ts.tv_nsec = ns % 1000000000
+-
+-		_m_.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_reltimedwait_np))
+-		_m_.libcall.n = 2
+-		_m_.scratch = mscratch{}
+-		_m_.scratch.v[0] = _m_.waitsema
+-		_m_.scratch.v[1] = uintptr(unsafe.Pointer(&_m_.ts))
+-		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
+-		asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&_m_.libcall))
+-		if *_m_.perrno != 0 {
+-			if *_m_.perrno == _ETIMEDOUT || *_m_.perrno == _EAGAIN || *_m_.perrno == _EINTR {
++		mp.ts.tv_sec = ns / 1000000000
++		mp.ts.tv_nsec = ns % 1000000000
++
++		mp.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_reltimedwait_np))
++		mp.libcall.n = 2
++		mp.scratch = mscratch{}
++		mp.scratch.v[0] = mp.waitsema
++		mp.scratch.v[1] = uintptr(unsafe.Pointer(&mp.ts))
++		mp.libcall.args = uintptr(unsafe.Pointer(&mp.scratch))
++		asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&mp.libcall))
++		if *mp.perrno != 0 {
++			if *mp.perrno == _ETIMEDOUT || *mp.perrno == _EAGAIN || *mp.perrno == _EINTR {
+ 				return -1
+ 			}
+ 			throw("sem_reltimedwait_np")
+@@ -350,16 +350,16 @@ func semasleep(ns int64) int32 {
+ 		return 0
+ 	}
+ 	for {
+-		_m_.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_wait))
+-		_m_.libcall.n = 1
+-		_m_.scratch = mscratch{}
+-		_m_.scratch.v[0] = _m_.waitsema
+-		_m_.libcall.args = uintptr(unsafe.Pointer(&_m_.scratch))
+-		asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&_m_.libcall))
+-		if _m_.libcall.r1 == 0 {
++		mp.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_wait))
++		mp.libcall.n = 1
++		mp.scratch = mscratch{}
++		mp.scratch.v[0] = mp.waitsema
++		mp.libcall.args = uintptr(unsafe.Pointer(&mp.scratch))
++		asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&mp.libcall))
++		if mp.libcall.r1 == 0 {
+ 			break
+ 		}
+-		if *_m_.perrno == _EINTR {
++		if *mp.perrno == _EINTR {
+ 			continue
+ 		}
+ 		throw("sem_wait")
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 54e0cfbb8d..c21da4ddaa 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -49,7 +49,7 @@ func semacreate(mp *m) {
+ 
+ //go:nosplit
+ func semasleep(ns int64) int32 {
+-	_m_ := getg().m
++	mp := getg().m
+ 	if ns >= 0 {
+ 		var ts timespec
+ 
+@@ -63,17 +63,17 @@ func semasleep(ns int64) int32 {
+ 			ts.tv_nsec -= 1e9
+ 		}
+ 
+-		if r, err := sem_timedwait((*semt)(unsafe.Pointer(_m_.waitsema)), &ts); r != 0 {
++		if r, err := sem_timedwait((*semt)(unsafe.Pointer(mp.waitsema)), &ts); r != 0 {
+ 			if err == _ETIMEDOUT || err == _EAGAIN || err == _EINTR {
+ 				return -1
+ 			}
+-			println("sem_timedwait err ", err, " ts.tv_sec ", ts.tv_sec, " ts.tv_nsec ", ts.tv_nsec, " ns ", ns, " id ", _m_.id)
++			println("sem_timedwait err ", err, " ts.tv_sec ", ts.tv_sec, " ts.tv_nsec ", ts.tv_nsec, " ns ", ns, " id ", mp.id)
+ 			throw("sem_timedwait")
+ 		}
+ 		return 0
+ 	}
+ 	for {
+-		r1, err := sem_wait((*semt)(unsafe.Pointer(_m_.waitsema)))
++		r1, err := sem_wait((*semt)(unsafe.Pointer(mp.waitsema)))
+ 		if r1 == 0 {
+ 			break
+ 		}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 942898716e..c4f3f41ff5 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1190,22 +1190,22 @@ func canpanic(gp *g) bool {
+ 	// Note also that g->m can change at preemption, so m can go stale
+ 	// if this function ever makes a function call.
+ 	_g_ := getg()
+-	_m_ := _g_.m
++	mp := _g_.m
+ 
+ 	// Is it okay for gp to panic instead of crashing the program?
+ 	// Yes, as long as it is running Go code, not runtime code,
+ 	// and not stuck in a system call.
+-	if gp == nil || gp != _m_.curg {
++	if gp == nil || gp != mp.curg {
+ 		return false
+ 	}
+-	if _m_.locks != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.preemptoff != "" || _m_.dying != 0 {
++	if mp.locks != 0 || mp.mallocing != 0 || mp.throwing != 0 || mp.preemptoff != "" || mp.dying != 0 {
+ 		return false
+ 	}
+ 	status := readgstatus(gp)
+ 	if status&^_Gscan != _Grunning || gp.syscallsp != 0 {
+ 		return false
+ 	}
+-	if GOOS == "windows" && _m_.libcallsp != 0 {
++	if GOOS == "windows" && mp.libcallsp != 0 {
+ 		return false
+ 	}
+ 	return true

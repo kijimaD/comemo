@@ -16,7 +16,44 @@ Date:   Wed May 6 09:32:11 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9793
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/conf.go      |  2 +-
  src/net/conf_test.go | 12 ++++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 010131c489..ca7fa8708f 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -85,7 +85,7 @@ func initConfVal() {
+ 
+ // hostLookupOrder determines which strategy to use to resolve hostname.
+ func (c *conf) hostLookupOrder(hostname string) hostLookupOrder {
+-	if c.forceCgoLookupHost || c.resolv.unknownOpt {
++	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
+ 		return hostLookupCgo
+ 	}
+ 	if byteIndex(hostname, '\\') != -1 || byteIndex(hostname, '%') != -1 {
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 01de0de794..003c615eb8 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -272,6 +272,18 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			},
+ 			hostTests: []nssHostTest{{"google.com", hostLookupCgo}},
+ 		},
++		// Android should always use cgo.
++		{
++			name: "android",
++			c: &conf{
++				goos:   "android",
++				nss:    nssStr(""),
++				resolv: defaultResolvConf,
++			},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupCgo},
++			},
++		},
+ 	}
+ 	for _, tt := range tests {
+ 		for _, ht := range tt.hostTests {

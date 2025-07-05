@@ -20,6 +20,20 @@ Date:   Fri Jun 22 17:36:12 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 49e5699120..6d449ec499 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -446,7 +446,7 @@ func (t *tester) registerTests() {
+ 		})
+ 	}
+ 
+-	if t.race {
++	if t.race || goos == "js" {
+ 		return
+ 	}
+ 

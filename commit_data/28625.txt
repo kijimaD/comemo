@@ -11,7 +11,61 @@ Date:   Wed Jun 15 10:52:42 2016 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 19 +++++++++++++++++++
  src/net/http/server.go     |  5 ++++-
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 8e4bbdc0c4..ca30e644c3 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -9,6 +9,7 @@ package http_test
+ import (
+ 	"bufio"
+ 	"bytes"
++	"compress/gzip"
+ 	"context"
+ 	"crypto/tls"
+ 	"encoding/json"
+@@ -4200,6 +4201,24 @@ func TestHandlerSetTransferEncodingChunked(t *testing.T) {
+ 	}
+ }
+ 
++// https://golang.org/issue/16063
++func TestHandlerSetTransferEncodingGzip(t *testing.T) {
++	defer afterTest(t)
++	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Transfer-Encoding", "gzip")
++		gz := gzip.NewWriter(w)
++		gz.Write([]byte("hello"))
++		gz.Close()
++	}))
++	resp := ht.rawResponse("GET / HTTP/1.1\nHost: foo")
++	for _, v := range []string{"gzip", "chunked"} {
++		hdr := "Transfer-Encoding: " + v
++		if n := strings.Count(resp, hdr); n != 1 {
++			t.Errorf("want 1 occurrence of %q in response, got %v\nresponse: %v", hdr, n, resp)
++		}
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 8ecced85db..42b6304d4f 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1147,7 +1147,10 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 			// to avoid closing the connection at EOF.
+ 			cw.chunking = true
+ 			setHeader.transferEncoding = "chunked"
+-			delHeader("Transfer-Encoding")
++			if hasTE && te == "chunked" {
++				// We will send the chunked Transfer-Encoding header later.
++				delHeader("Transfer-Encoding")
++			}
+ 		}
+ 	} else {
+ 		// HTTP version < 1.1: cannot do chunked transfer

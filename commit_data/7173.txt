@@ -8,6 +8,24 @@ Date:   Wed Jan 19 12:36:52 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4067042
-
+---
  src/pkg/runtime/debug/Makefile | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/pkg/runtime/debug/Makefile b/src/pkg/runtime/debug/Makefile
+new file mode 100644
+index 0000000000..885f66aca5
+--- /dev/null
++++ b/src/pkg/runtime/debug/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=runtime/debug
++GOFILES=\
++	stack.go\
++
++include ../../../Make.pkg

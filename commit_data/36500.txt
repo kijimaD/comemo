@@ -16,7 +16,40 @@ Date:   Sun Apr 1 12:21:57 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 1 +
  src/runtime/symtab.go                   | 7 +++++--
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 0225287866..a452f2ad29 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -60,6 +60,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"releasem",
+ 			"round",
+ 			"roundupsize",
++			"stackmapdata",
+ 			"stringStructOf",
+ 			"subtract1",
+ 			"subtractb",
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 91a8f8eb05..8d54369d88 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -916,10 +916,13 @@ type stackmap struct {
+ 
+ //go:nowritebarrier
+ func stackmapdata(stkmap *stackmap, n int32) bitvector {
+-	if n < 0 || n >= stkmap.n {
++	// Check this invariant only when stackDebug is on at all.
++	// The invariant is already checked by many of stackmapdata's callers,
++	// and disabling it by default allows stackmapdata to be inlined.
++	if stackDebug > 0 && (n < 0 || n >= stkmap.n) {
+ 		throw("stackmapdata: index out of range")
+ 	}
+-	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+7)>>3))))}
++	return bitvector{stkmap.nbit, addb(&stkmap.bytedata[0], uintptr(n*((stkmap.nbit+7)>>3)))}
+ }
+ 
+ // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.

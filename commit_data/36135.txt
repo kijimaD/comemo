@@ -18,8 +18,60 @@ Date:   Thu Apr 5 22:42:16 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go   |  1 +
  src/cmd/compile/internal/gc/typecheck.go | 10 ++++++++++
  test/method7.go                          |  7 +++----
  3 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index bd837b140e..053e3cb031 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1474,6 +1474,7 @@ func itabsym(it *obj.LSym, offset int64) *obj.LSym {
+ 	return syms[methodnum]
+ }
+ 
++// addsignat ensures that a runtime type descriptor is emitted for t.
+ func addsignat(t *types.Type) {
+ 	signatset[t] = struct{}{}
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ea6c4c8dff..4254d5655d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2378,6 +2378,16 @@ func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
+ 		return false
+ 	}
+ 
++	// The method expression T.m requires a wrapper when T is
++	// different from m's declared receiver type. We normally
++	// generate these wrappers while writing out runtime type
++	// descriptors, which is always done for types declared at
++	// package scope. However, we need to make sure to generate
++	// wrappers for anonymous receiver types too.
++	if mt.Sym == nil {
++		addsignat(t)
++	}
++
+ 	n.Sym = methodSym(t, n.Sym)
+ 	n.Xoffset = f2.Offset
+ 	n.Type = f2.Type
+diff --git a/test/method7.go b/test/method7.go
+index 72c88b377d..15e123e85f 100644
+--- a/test/method7.go
++++ b/test/method7.go
+@@ -45,10 +45,9 @@ func main() {
+ 	interface{ m1(string) }.m1(x, "d")
+ 	want += " m1(d)"
+ 
+-	// cannot link the call below - see #22444
+-	// g := struct{ T }.m2
+-	// g(struct{T}{})
+-	// want += " m2()"
++	g := struct{ T }.m2
++	g(struct{ T }{})
++	want += " m2()"
+ 
+ 	if got != want {
+ 		panic("got" + got + ", want" + want)

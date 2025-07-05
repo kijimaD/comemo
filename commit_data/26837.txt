@@ -11,6 +11,33 @@ Date:   Fri Feb 26 18:26:04 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/handshake_server_test.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index e25bfa5170..74ad72a848 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -518,16 +518,17 @@ func (test *serverTest) run(t *testing.T, write bool) {
+ 	server := Server(serverConn, config)
+ 	connStateChan := make(chan ConnectionState, 1)
+ 	go func() {
+-		var err error
+-		if _, err = server.Write([]byte("hello, world\n")); err != nil {
+-			t.Logf("Error from Server.Write: %s", err)
+-		}
++		_, err := server.Write([]byte("hello, world\n"))
+ 		if len(test.expectHandshakeErrorIncluding) > 0 {
+ 			if err == nil {
+ 				t.Errorf("Error expected, but no error returned")
+ 			} else if s := err.Error(); !strings.Contains(s, test.expectHandshakeErrorIncluding) {
+ 				t.Errorf("Error expected containing '%s' but got '%s'", test.expectHandshakeErrorIncluding, s)
+ 			}
++		} else {
++			if err != nil {
++				t.Logf("Error from Server.Write: '%s'", err)
++			}
+ 		}
+ 		server.Close()
+ 		serverConn.Close()

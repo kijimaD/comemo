@@ -18,6 +18,20 @@ Date:   Mon May 17 14:25:49 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/typexpr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index e64d804c30..a1663d2aa0 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -778,7 +778,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, type0 sy
+ 			named = true
+ 		} else {
+ 			// anonymous parameter
+-			par := NewParam(ftype.Pos(), check.pkg, "", typ)
++			par := NewParam(field.Pos(), check.pkg, "", typ)
+ 			check.recordImplicit(field, par)
+ 			params = append(params, par)
+ 			anonymous = true

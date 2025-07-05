@@ -21,6 +21,24 @@ Date:   Sat Jul 15 06:33:24 2017 -0700
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 84d30a4a92..6846970ecf 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -435,7 +435,11 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	// On the builders only, test that a moved GOROOT still works.
+-	if os.Getenv("GO_BUILDER_NAME") != "" {
++	// Fails on iOS because CC_FOR_TARGET refers to clangwrap.sh
++	// in the unmoved GOROOT.
++	// Fails on Android with an exec format error.
++	// Fails on plan9 with "cannot find GOROOT" (issue #21016).
++	if os.Getenv("GO_BUILDER_NAME") != "" && t.goos != "android" && !t.iOS() && t.goos != "plan9" {
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "moved_goroot",
+ 			heading: "moved GOROOT",

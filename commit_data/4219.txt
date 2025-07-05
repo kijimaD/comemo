@@ -8,6 +8,20 @@ Date:   Tue Nov 24 16:01:35 2009 -0800
     
     R=r, r1
     https://golang.org/cl/160060
-
+---
  src/make.bash | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/make.bash b/src/make.bash
+index c9a812b763..7d0c2b350f 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -7,6 +7,8 @@ set -e
+ GOBIN="${GOBIN:-$HOME/bin}"
+ export MAKEFLAGS=-j4
+ 
++unset CDPATH	# in case user has it set
++
+ if ! test -f "$GOROOT"/include/u.h
+ then
+ 	echo '$GOROOT is not set correctly or not exported' 1>&2

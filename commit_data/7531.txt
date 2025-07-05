@@ -7,7 +7,51 @@ Date:   Tue Feb 22 18:23:29 2011 -0500
     R=ken2, r2
     CC=golang-dev
     https://golang.org/cl/4195045
-
+---
  src/cmd/gc/go.y   |  9 +++++++--
  test/syntax/if.go | 15 +++++++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 86e3cae33c..4b838a4911 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -640,10 +640,15 @@ if_stmt:
+ 	{
+ 		markdcl();
+ 	}
+-	if_header loop_body
++	if_header
++	{
++		if($3->ntest == N)
++			yyerror("missing condition in if statement");
++	}
++	loop_body
+ 	{
+ 		$$ = $3;
+-		$$->nbody = $4;
++		$$->nbody = $5;
+ 		// no popdcl; maybe there's an LELSE
+ 	}
+ 
+diff --git a/test/syntax/if.go b/test/syntax/if.go
+new file mode 100644
+index 0000000000..913d418854
+--- /dev/null
++++ b/test/syntax/if.go
+@@ -0,0 +1,15 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	if {  // ERROR "missing condition"
++	}
++	
++	if x(); {  // ERROR "missing condition"
++	}
++}

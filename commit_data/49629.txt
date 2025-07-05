@@ -27,8 +27,231 @@ Date:   Tue Aug 31 13:21:11 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/main.go           |  20 +++--
  src/cmd/compile/internal/pkginit/init.go      | 103 +++++++++++++++++---------
  src/cmd/compile/internal/pkginit/initorder.go |  10 +--
  3 files changed, 85 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 8a365f8f6a..0dbe47f653 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -195,18 +195,19 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// because it generates itabs for initializing global variables.
+ 	ssagen.InitConfig()
+ 
+-	// Build init task.
+-	if initTask := pkginit.Task(); initTask != nil {
+-		typecheck.Export(initTask)
+-	}
++	// Create "init" function for package-scope variable initialization
++	// statements, if any.
++	//
++	// Note: This needs to happen early, before any optimizations. The
++	// Go spec defines a precise order than initialization should be
++	// carried out in, and even mundane optimizations like dead code
++	// removal can skew the results (e.g., #43444).
++	pkginit.MakeInit()
+ 
+ 	// Stability quirk: sort top-level declarations, so we're not
+ 	// sensitive to the order that functions are added. In particular,
+ 	// the order that noder+typecheck add function closures is very
+ 	// subtle, and not important to reproduce.
+-	//
+-	// Note: This needs to happen after pkginit.Task, otherwise it risks
+-	// changing the order in which top-level variables are initialized.
+ 	if base.Debug.UnifiedQuirks != 0 {
+ 		s := typecheck.Target.Decls
+ 		sort.SliceStable(s, func(i, j int) bool {
+@@ -253,6 +254,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	}
+ 	ir.CurFunc = nil
+ 
++	// Build init task, if needed.
++	if initTask := pkginit.Task(); initTask != nil {
++		typecheck.Export(initTask)
++	}
++
+ 	// Generate ABI wrappers. Must happen before escape analysis
+ 	// and doesn't benefit from dead-coding or inlining.
+ 	symABIs.GenABIWrappers()
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 7cad262214..40f1408260 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -6,14 +6,62 @@ package pkginit
+ 
+ import (
+ 	"cmd/compile/internal/base"
+-	"cmd/compile/internal/deadcode"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
++	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ )
+ 
++// MakeInit creates a synthetic init function to handle any
++// package-scope initialization statements.
++//
++// TODO(mdempsky): Move into noder, so that the types2-based frontends
++// can use Info.InitOrder instead.
++func MakeInit() {
++	nf := initOrder(typecheck.Target.Decls)
++	if len(nf) == 0 {
++		return
++	}
++
++	// Make a function that contains all the initialization statements.
++	base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
++	initializers := typecheck.Lookup("init")
++	fn := typecheck.DeclFunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
++	for _, dcl := range typecheck.InitTodoFunc.Dcl {
++		dcl.Curfn = fn
++	}
++	fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
++	typecheck.InitTodoFunc.Dcl = nil
++
++	// Suppress useless "can inline" diagnostics.
++	// Init functions are only called dynamically.
++	fn.SetInlinabilityChecked(true)
++
++	fn.Body = nf
++	typecheck.FinishFuncBody()
++
++	typecheck.Func(fn)
++	ir.WithFunc(fn, func() {
++		typecheck.Stmts(nf)
++	})
++	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
++
++	// Prepend to Inits, so it runs first, before any user-declared init
++	// functions.
++	typecheck.Target.Inits = append([]*ir.Func{fn}, typecheck.Target.Inits...)
++
++	if typecheck.InitTodoFunc.Dcl != nil {
++		// We only generate temps using InitTodoFunc if there
++		// are package-scope initialization statements, so
++		// something's weird if we get here.
++		base.Fatalf("InitTodoFunc still has declarations")
++	}
++	typecheck.InitTodoFunc = nil
++}
++
+ // Task makes and returns an initialization record for the package.
+ // See runtime/proc.go:initTask for its layout.
+ // The 3 tasks for initialization are:
+@@ -21,8 +69,6 @@ import (
+ //   2) Initialize all the variables that have initializers.
+ //   3) Run any init functions.
+ func Task() *ir.Name {
+-	nf := initOrder(typecheck.Target.Decls)
+-
+ 	var deps []*obj.LSym // initTask records for packages the current package depends on
+ 	var fns []*obj.LSym  // functions to call for package initialization
+ 
+@@ -38,39 +84,28 @@ func Task() *ir.Name {
+ 		deps = append(deps, n.(*ir.Name).Linksym())
+ 	}
+ 
+-	// Make a function that contains all the initialization statements.
+-	if len(nf) > 0 {
+-		base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
+-		initializers := typecheck.Lookup("init")
+-		fn := typecheck.DeclFunc(initializers, ir.NewFuncType(base.Pos, nil, nil, nil))
+-		for _, dcl := range typecheck.InitTodoFunc.Dcl {
+-			dcl.Curfn = fn
+-		}
+-		fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
+-		typecheck.InitTodoFunc.Dcl = nil
+-
+-		fn.Body = nf
+-		typecheck.FinishFuncBody()
+-
+-		typecheck.Func(fn)
+-		ir.CurFunc = fn
+-		typecheck.Stmts(nf)
+-		ir.CurFunc = nil
+-		typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+-		fns = append(fns, fn.Linksym())
+-	}
+-	if typecheck.InitTodoFunc.Dcl != nil {
+-		// We only generate temps using InitTodoFunc if there
+-		// are package-scope initialization statements, so
+-		// something's weird if we get here.
+-		base.Fatalf("InitTodoFunc still has declarations")
+-	}
+-	typecheck.InitTodoFunc = nil
+-
+ 	// Record user init functions.
+ 	for _, fn := range typecheck.Target.Inits {
+-		// Must happen after initOrder; see #43444.
+-		deadcode.Func(fn)
++		if fn.Sym().Name == "init" {
++			// Synthetic init function for initialization of package-scope
++			// variables. We can use staticinit to optimize away static
++			// assignments.
++			s := staticinit.Schedule{
++				Plans: make(map[ir.Node]*staticinit.Plan),
++				Temps: make(map[ir.Node]*ir.Name),
++			}
++			for _, n := range fn.Body {
++				s.StaticInit(n)
++			}
++			fn.Body = s.Out
++			ir.WithFunc(fn, func() {
++				typecheck.Stmts(fn.Body)
++			})
++
++			if len(fn.Body) == 0 {
++				fn.Body = []ir.Node{ir.NewBlockStmt(src.NoXPos, nil)}
++			}
++		}
+ 
+ 		// Skip init functions with empty bodies.
+ 		if len(fn.Body) == 1 {
+diff --git a/src/cmd/compile/internal/pkginit/initorder.go b/src/cmd/compile/internal/pkginit/initorder.go
+index 0aad63a69f..a50975343f 100644
+--- a/src/cmd/compile/internal/pkginit/initorder.go
++++ b/src/cmd/compile/internal/pkginit/initorder.go
+@@ -11,7 +11,6 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/staticinit"
+ )
+ 
+ // Package initialization
+@@ -78,10 +77,7 @@ type InitOrder struct {
+ // corresponding list of statements to include in the init() function
+ // body.
+ func initOrder(l []ir.Node) []ir.Node {
+-	s := staticinit.Schedule{
+-		Plans: make(map[ir.Node]*staticinit.Plan),
+-		Temps: make(map[ir.Node]*ir.Name),
+-	}
++	var res ir.Nodes
+ 	o := InitOrder{
+ 		blocking: make(map[ir.Node][]ir.Node),
+ 		order:    make(map[ir.Node]int),
+@@ -92,7 +88,7 @@ func initOrder(l []ir.Node) []ir.Node {
+ 		switch n.Op() {
+ 		case ir.OAS, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+ 			o.processAssign(n)
+-			o.flushReady(s.StaticInit)
++			o.flushReady(func(n ir.Node) { res.Append(n) })
+ 		case ir.ODCLCONST, ir.ODCLFUNC, ir.ODCLTYPE:
+ 			// nop
+ 		default:
+@@ -125,7 +121,7 @@ func initOrder(l []ir.Node) []ir.Node {
+ 		base.Fatalf("expected empty map: %v", o.blocking)
+ 	}
+ 
+-	return s.Out
++	return res
+ }
+ 
+ func (o *InitOrder) processAssign(n ir.Node) {

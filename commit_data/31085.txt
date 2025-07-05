@@ -8,6 +8,25 @@ Date:   Thu Jan 26 09:30:04 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/35833
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 51957dff28..be340a35fd 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -69,6 +69,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.7.4">Go
+ 1.7.4 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.7.5 (released 2017/01/26) includes fixes to the compiler, runtime,
++and the <code>crypto/x509</code> and <code>time</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.7.5">Go
++1.7.5 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.6">go1.6 (released 2016/02/17)</h2>
+ 
+ <p>

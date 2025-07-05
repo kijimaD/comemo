@@ -9,7 +9,34 @@ Date:   Thu Nov 19 11:01:16 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/157084
-
+---
  src/pkg/runtime/darwin/386/signal.c   | 2 +-
  src/pkg/runtime/darwin/amd64/signal.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 3a63c4b382..8d9a68967c 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -83,7 +83,7 @@ initsig(void)
+ 	static Sigaction sa;
+ 
+ 	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
+-	sa.sa_mask = 0; // 0xFFFFFFFFU;
++	sa.sa_mask = 0xFFFFFFFFU;
+ 	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 45e5e8d478..8ceb17ed38 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -91,7 +91,7 @@ initsig(void)
+ 	static Sigaction sa;
+ 
+ 	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
+-	sa.sa_mask = 0; // 0xFFFFFFFFU;
++	sa.sa_mask = 0xFFFFFFFFU;
+ 	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(sigtab[i].flags) {

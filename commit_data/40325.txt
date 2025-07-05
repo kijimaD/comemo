@@ -15,7 +15,41 @@ Date:   Fri May 3 11:41:54 2019 +0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go      | 5 ++---
  src/net/http/client_test.go | 5 +++++
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 6de1b48531..65a9d51cc6 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -926,10 +926,9 @@ func isDomainOrSubdomain(sub, parent string) bool {
+ }
+ 
+ func stripPassword(u *url.URL) string {
+-	pass, passSet := u.User.Password()
++	_, passSet := u.User.Password()
+ 	if passSet {
+-		return strings.Replace(u.String(), pass+"@", "***@", 1)
++		return strings.Replace(u.String(), u.User.String()+"@", u.User.Username()+":***@", 1)
+ 	}
+-
+ 	return u.String()
+ }
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index cb3b86d977..2f031e2f9b 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1184,6 +1184,11 @@ func TestStripPasswordFromError(t *testing.T) {
+ 			in:   "http://user:password@dummy.faketld/password",
+ 			out:  "Get http://user:***@dummy.faketld/password: dummy impl",
+ 		},
++		{
++			desc: "Strip escaped password",
++			in:   "http://user:pa%2Fssword@dummy.faketld/",
++			out:  "Get http://user:***@dummy.faketld/: dummy impl",
++		},
+ 	}
+ 	for _, tC := range testCases {
+ 		t.Run(tC.desc, func(t *testing.T) {

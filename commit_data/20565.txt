@@ -10,10 +10,266 @@ Date:   Thu Sep 18 15:43:06 2014 -0700
     R=gri, adg
     CC=golang-codereviews, rsc
     https://golang.org/cl/144110044
-
+---
  src/go/doc/exports.go              | 21 +++++++++--------
  src/go/doc/testdata/blank.0.golden | 37 ++++++++++++++++++++++++++++++
  src/go/doc/testdata/blank.1.golden | 46 ++++++++++++++++++++++++++++++++++++++
  src/go/doc/testdata/blank.2.golden | 37 ++++++++++++++++++++++++++++++
  src/go/doc/testdata/blank.go       | 38 +++++++++++++++++++++++++++++++
  5 files changed, 170 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/doc/exports.go b/src/go/doc/exports.go
+index ff01285d4c..9b421e7341 100644
+--- a/src/go/doc/exports.go
++++ b/src/go/doc/exports.go
+@@ -6,15 +6,18 @@
+ 
+ package doc
+ 
+-import "go/ast"
++import (
++	"go/ast"
++	"go/token"
++)
+ 
+ // filterIdentList removes unexported names from list in place
+ // and returns the resulting list.
+ //
+-func filterIdentList(list []*ast.Ident) []*ast.Ident {
++func filterIdentList(list []*ast.Ident, blankOk bool) []*ast.Ident {
+ 	j := 0
+ 	for _, x := range list {
+-		if ast.IsExported(x.Name) {
++		if ast.IsExported(x.Name) || (blankOk && x.Name == "_") {
+ 			list[j] = x
+ 			j++
+ 		}
+@@ -74,7 +77,7 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp
+ 				r.remember(ityp)
+ 			}
+ 		} else {
+-			field.Names = filterIdentList(field.Names)
++			field.Names = filterIdentList(field.Names, false)
+ 			if len(field.Names) < n {
+ 				removedFields = true
+ 			}
+@@ -136,13 +139,13 @@ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
+ 	}
+ }
+ 
+-func (r *reader) filterSpec(spec ast.Spec) bool {
++func (r *reader) filterSpec(spec ast.Spec, tok token.Token) bool {
+ 	switch s := spec.(type) {
+ 	case *ast.ImportSpec:
+ 		// always keep imports so we can collect them
+ 		return true
+ 	case *ast.ValueSpec:
+-		s.Names = filterIdentList(s.Names)
++		s.Names = filterIdentList(s.Names, tok == token.CONST)
+ 		if len(s.Names) > 0 {
+ 			r.filterType(nil, s.Type)
+ 			return true
+@@ -159,10 +162,10 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
+ 	return false
+ }
+ 
+-func (r *reader) filterSpecList(list []ast.Spec) []ast.Spec {
++func (r *reader) filterSpecList(list []ast.Spec, tok token.Token) []ast.Spec {
+ 	j := 0
+ 	for _, s := range list {
+-		if r.filterSpec(s) {
++		if r.filterSpec(s, tok) {
+ 			list[j] = s
+ 			j++
+ 		}
+@@ -173,7 +176,7 @@ func (r *reader) filterSpecList(list []ast.Spec) []ast.Spec {
+ func (r *reader) filterDecl(decl ast.Decl) bool {
+ 	switch d := decl.(type) {
+ 	case *ast.GenDecl:
+-		d.Specs = r.filterSpecList(d.Specs)
++		d.Specs = r.filterSpecList(d.Specs, d.Tok)
+ 		return len(d.Specs) > 0
+ 	case *ast.FuncDecl:
+ 		// ok to filter these methods early because any
+diff --git a/src/go/doc/testdata/blank.0.golden b/src/go/doc/testdata/blank.0.golden
+new file mode 100644
+index 0000000000..dae3ab2aff
+--- /dev/null
++++ b/src/go/doc/testdata/blank.0.golden
+@@ -0,0 +1,37 @@
++// Package blank is a go/doc test for the handling of _. See issue ...
++PACKAGE blank
++
++IMPORTPATH
++	testdata/blank
++
++FILENAMES
++	testdata/blank.go
++
++CONSTANTS
++	// Package constants. 
++	const (
++		_	int	= iota
++		I1
++		I2
++	)
++
++
++TYPES
++	// S has a padding field. 
++	type S struct {
++		H	uint32
++	
++		A	uint8
++		// contains filtered or unexported fields
++	}
++
++	// 
++	type T int
++
++	// T constants. 
++	const (
++		_	T	= iota
++		T1
++		T2
++	)
++
+diff --git a/src/go/doc/testdata/blank.1.golden b/src/go/doc/testdata/blank.1.golden
+new file mode 100644
+index 0000000000..333d7e5b04
+--- /dev/null
++++ b/src/go/doc/testdata/blank.1.golden
+@@ -0,0 +1,46 @@
++// Package blank is a go/doc test for the handling of _. See issue ...
++PACKAGE blank
++
++IMPORTPATH
++	testdata/blank
++
++FILENAMES
++	testdata/blank.go
++
++CONSTANTS
++	// Package constants. 
++	const (
++		_	int	= iota
++		I1
++		I2
++	)
++
++
++VARIABLES
++	// 
++	var _ = T(55)
++
++
++FUNCTIONS
++	// 
++	func _()
++
++
++TYPES
++	// S has a padding field. 
++	type S struct {
++		H	uint32
++		_	uint8
++		A	uint8
++	}
++
++	// 
++	type T int
++
++	// T constants. 
++	const (
++		_	T	= iota
++		T1
++		T2
++	)
++
+diff --git a/src/go/doc/testdata/blank.2.golden b/src/go/doc/testdata/blank.2.golden
+new file mode 100644
+index 0000000000..dae3ab2aff
+--- /dev/null
++++ b/src/go/doc/testdata/blank.2.golden
+@@ -0,0 +1,37 @@
++// Package blank is a go/doc test for the handling of _. See issue ...
++PACKAGE blank
++
++IMPORTPATH
++	testdata/blank
++
++FILENAMES
++	testdata/blank.go
++
++CONSTANTS
++	// Package constants. 
++	const (
++		_	int	= iota
++		I1
++		I2
++	)
++
++
++TYPES
++	// S has a padding field. 
++	type S struct {
++		H	uint32
++	
++		A	uint8
++		// contains filtered or unexported fields
++	}
++
++	// 
++	type T int
++
++	// T constants. 
++	const (
++		_	T	= iota
++		T1
++		T2
++	)
++
+diff --git a/src/go/doc/testdata/blank.go b/src/go/doc/testdata/blank.go
+new file mode 100644
+index 0000000000..f812c77b77
+--- /dev/null
++++ b/src/go/doc/testdata/blank.go
+@@ -0,0 +1,38 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package blank is a go/doc test for the handling of _.
++// See issue 5397.
++package blank
++
++type T int
++
++// T constants.
++const (
++	_ T = iota
++	T1
++	T2
++)
++
++// Package constants.
++const (
++	_ int = iota
++	I1
++	I2
++)
++
++// Blanks not in doc output:
++
++// S has a padding field.
++type S struct {
++	H uint32
++	_ uint8
++	A uint8
++}
++
++func _() {}
++
++type _ T
++
++var _ = T(55)

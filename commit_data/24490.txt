@@ -9,6 +9,36 @@ Date:   Fri Jul 31 09:03:58 2015 +1000
     Change-Id: I548f9d75c6223bf79bdf654ef733f1568e3d5804
     Reviewed-on: https://go-review.googlesource.com/12990
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.5.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 6dff14eb2e..16620e34ae 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -254,6 +254,13 @@ On Darwin, the use of the system X.509 certificate interface can be disabled
+ with the <code>ios</code> build tag.
+ </p>
+ 
++<p>
++The Solaris port now has full support for cgo and the packages
++<a href="/pkg/net/"><code>net</code></a> and
++<a href="/pkg/crypto/x509/"><code>crypto/x509</code></a>,
++as well as a number of other fixes and improvements.
++</p>
++
+ <h2 id="tools">Tools</h2>
+ 
+ <h3 id="translate">Translating</h3>
+@@ -593,6 +600,10 @@ source code directory. Without the expansion the paths would be
+ invalid when the current working directory changes.
+ </p>
+ 
++<p>
++Solaris now has full cgo support.
++</p>
++
+ <p>
+ On Windows, cgo now uses external linking by default.
+ </p>

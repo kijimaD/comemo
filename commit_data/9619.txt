@@ -9,7 +9,7 @@ Date:   Wed Sep 7 15:49:56 2011 -0400
     R=alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/4974061
-
+---
  include/libc.h   |  2 ++
  src/cmd/5a/lex.c | 16 ++++++++--------
  src/cmd/5c/swt.c | 12 ++++--------
@@ -18,3 +18,209 @@ Date:   Wed Sep 7 15:49:56 2011 -0400
  src/cmd/8a/lex.c | 16 ++++++++--------
  src/cmd/8c/swt.c | 12 ++++--------
  7 files changed, 38 insertions(+), 48 deletions(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index 0817d77b81..f9ad963345 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -307,6 +307,8 @@ extern int nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
+ extern int fork(void);
+ extern int pread(int fd, void *buf, int n, int off);
+ extern int pwrite(int fd, void *buf, int n, int off);
++#undef  getwd
++#define getwd(s, ns) getcwd(s, ns)
+ #undef  lseek
+ #define lseek(fd, n, base) _lseeki64(fd, n, base)
+ #define mkdir(path, perm) mkdir(path)
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index ad7ed05ddd..4bef0219a2 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -44,7 +44,11 @@ enum
+ int
+ systemtype(int sys)
+ {
++#ifdef _WIN32
++	return sys&Windows;
++#else
+ 	return sys&Plan9;
++#endif
+ }
+ 
+ void
+@@ -643,17 +647,13 @@ outhist(void)
+ 	for(h = hist; h != H; h = h->link) {
+ 		p = h->name;
+ 		op = 0;
+-		/* on windows skip drive specifier in pathname */
+ 		if(systemtype(Windows) && p && p[1] == ':'){
+-			p += 2;
+-			c = *p;
+-		}
+-		if(p && p[0] != c && h->offset == 0 && pathname){
+-			/* on windows skip drive specifier in pathname */
++			c = p[2];
++		} else if(p && p[0] != c && h->offset == 0 && pathname){
+ 			if(systemtype(Windows) && pathname[1] == ':') {
+ 				op = p;
+-				p = pathname+2;
+-				c = *p;
++				p = pathname;
++				c = p[2];
+ 			} else if(pathname[0] == c){
+ 				op = p;
+ 				p = pathname;
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 7cbaadba96..32032532f2 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -460,17 +460,13 @@ outhist(Biobuf *b)
+ 	for(h = hist; h != H; h = h->link) {
+ 		p = h->name;
+ 		op = 0;
+-		/* on windows skip drive specifier in pathname */
+ 		if(systemtype(Windows) && p && p[1] == ':'){
+-			p += 2;
+-			c = *p;
+-		}
+-		if(p && p[0] != c && h->offset == 0 && pathname){
+-			/* on windows skip drive specifier in pathname */
++			c = p[2];
++		} else if(p && p[0] != c && h->offset == 0 && pathname){
+ 			if(systemtype(Windows) && pathname[1] == ':') {
+ 				op = p;
+-				p = pathname+2;
+-				c = *p;
++				p = pathname;
++				c = p[2];
+ 			} else if(pathname[0] == c){
+ 				op = p;
+ 				p = pathname;
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 1cc89a37a0..1a8e5ad619 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -44,7 +44,11 @@ enum
+ int
+ systemtype(int sys)
+ {
++#ifdef _WIN32
++	return sys&Windows;
++#else
+ 	return sys&Plan9;
++#endif
+ }
+ 
+ int
+@@ -1251,17 +1255,13 @@ outhist(void)
+ 	for(h = hist; h != H; h = h->link) {
+ 		p = h->name;
+ 		op = 0;
+-		/* on windows skip drive specifier in pathname */
+ 		if(systemtype(Windows) && p && p[1] == ':'){
+-			p += 2;
+-			c = *p;
+-		}
+-		if(p && p[0] != c && h->offset == 0 && pathname){
+-			/* on windows skip drive specifier in pathname */
++			c = p[2];
++		} else if(p && p[0] != c && h->offset == 0 && pathname){
+ 			if(systemtype(Windows) && pathname[1] == ':') {
+ 				op = p;
+-				p = pathname+2;
+-				c = *p;
++				p = pathname;
++				c = p[2];
+ 			} else if(pathname[0] == c){
+ 				op = p;
+ 				p = pathname;
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index d7a917043e..3de86306d3 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -331,17 +331,13 @@ outhist(Biobuf *b)
+ 	for(h = hist; h != H; h = h->link) {
+ 		p = h->name;
+ 		op = 0;
+-		/* on windows skip drive specifier in pathname */
+ 		if(systemtype(Windows) && p && p[1] == ':'){
+-			p += 2;
+-			c = *p;
+-		}
+-		if(p && p[0] != c && h->offset == 0 && pathname){
+-			/* on windows skip drive specifier in pathname */
++			c = p[2];
++		} else if(p && p[0] != c && h->offset == 0 && pathname){
+ 			if(systemtype(Windows) && pathname[1] == ':') {
+ 				op = p;
+-				p = pathname+2;
+-				c = *p;
++				p = pathname;
++				c = p[2];
+ 			} else if(pathname[0] == c){
+ 				op = p;
+ 				p = pathname;
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 44cfa41f87..ca2e2c138d 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -44,7 +44,11 @@ enum
+ int
+ systemtype(int sys)
+ {
++#ifdef _WIN32
++	return sys&Windows;
++#else
+ 	return sys&Plan9;
++#endif
+ }
+ 
+ int
+@@ -912,17 +916,13 @@ outhist(void)
+ 	for(h = hist; h != H; h = h->link) {
+ 		p = h->name;
+ 		op = 0;
+-		/* on windows skip drive specifier in pathname */
+ 		if(systemtype(Windows) && p && p[1] == ':'){
+-			p += 2;
+-			c = *p;
+-		}
+-		if(p && p[0] != c && h->offset == 0 && pathname){
+-			/* on windows skip drive specifier in pathname */
++			c = p[2];
++		} else if(p && p[0] != c && h->offset == 0 && pathname){
+ 			if(systemtype(Windows) && pathname[1] == ':') {
+ 				op = p;
+-				p = pathname+2;
+-				c = *p;
++				p = pathname;
++				c = p[2];
+ 			} else if(pathname[0] == c){
+ 				op = p;
+ 				p = pathname;
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index 769ef2c66e..006bfdfe23 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -330,17 +330,13 @@ outhist(Biobuf *b)
+ 	for(h = hist; h != H; h = h->link) {
+ 		p = h->name;
+ 		op = 0;
+-		/* on windows skip drive specifier in pathname */
+ 		if(systemtype(Windows) && p && p[1] == ':'){
+-			p += 2;
+-			c = *p;
+-		}
+-		if(p && p[0] != c && h->offset == 0 && pathname){
+-			/* on windows skip drive specifier in pathname */
++			c = p[2];
++		} else if(p && p[0] != c && h->offset == 0 && pathname){
+ 			if(systemtype(Windows) && pathname[1] == ':') {
+ 				op = p;
+-				p = pathname+2;
+-				c = *p;
++				p = pathname;
++				c = p[2];
+ 			} else if(pathname[0] == c){
+ 				op = p;
+ 				p = pathname;

@@ -12,6 +12,21 @@ Date:   Tue Apr 9 15:35:11 2024 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/api/main_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/api/main_test.go b/src/cmd/api/main_test.go
+index 0a3d44ddd0..b071ef5f99 100644
+--- a/src/cmd/api/main_test.go
++++ b/src/cmd/api/main_test.go
+@@ -843,6 +843,9 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
+ 		buf.WriteString(s)
+ 		w.writeType(buf, typ.Elem())
+ 
++	case *types.Alias:
++		w.writeType(buf, types.Unalias(typ))
++
+ 	case *types.Named:
+ 		obj := typ.Obj()
+ 		pkg := obj.Pkg()

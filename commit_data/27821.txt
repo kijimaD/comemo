@@ -14,7 +14,7 @@ Date:   Tue Apr 12 10:43:44 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21893
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/alert.go            |  4 ++--
  src/crypto/tls/common.go           |  2 +-
  src/crypto/tls/conn.go             |  2 +-
@@ -23,3 +23,274 @@ Date:   Tue Apr 12 10:43:44 2016 -0700
  src/crypto/tls/key_agreement.go    | 20 ++++++++++----------
  src/crypto/tls/tls.go              | 26 +++++++++++++-------------
  7 files changed, 36 insertions(+), 36 deletions(-)
+
+diff --git a/src/crypto/tls/alert.go b/src/crypto/tls/alert.go
+index 3de4834d3f..9cf99224f5 100644
+--- a/src/crypto/tls/alert.go
++++ b/src/crypto/tls/alert.go
+@@ -69,9 +69,9 @@ var alertText = map[alert]string{
+ func (e alert) String() string {
+ 	s, ok := alertText[e]
+ 	if ok {
+-		return s
++		return "tls: " + s
+ 	}
+-	return "alert(" + strconv.Itoa(int(e)) + ")"
++	return "tls: alert(" + strconv.Itoa(int(e)) + ")"
+ }
+ 
+ func (e alert) Error() string {
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index b3399b063c..33d585c5b0 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -516,7 +516,7 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
+ 	}
+ 
+ 	if len(c.Certificates) == 0 {
+-		return nil, errors.New("crypto/tls: no certificates configured")
++		return nil, errors.New("tls: no certificates configured")
+ 	}
+ 
+ 	if len(c.Certificates) == 1 || c.NameToCertificate == nil {
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 2b1875d903..8c05b15a06 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -928,7 +928,7 @@ func (c *Conn) readHandshake() (interface{}, error) {
+ 	return m, nil
+ }
+ 
+-var errClosed = errors.New("crypto/tls: use of closed connection")
++var errClosed = errors.New("tls: use of closed connection")
+ 
+ // Write writes data to the connection.
+ func (c *Conn) Write(b []byte) (int, error) {
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 9517320f6c..75e84023fe 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -533,17 +533,17 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
+ 
+ 	if !clientDidNPN && serverHasNPN {
+ 		c.sendAlert(alertHandshakeFailure)
+-		return false, errors.New("server advertised unrequested NPN extension")
++		return false, errors.New("tls: server advertised unrequested NPN extension")
+ 	}
+ 
+ 	if !clientDidALPN && serverHasALPN {
+ 		c.sendAlert(alertHandshakeFailure)
+-		return false, errors.New("server advertised unrequested ALPN extension")
++		return false, errors.New("tls: server advertised unrequested ALPN extension")
+ 	}
+ 
+ 	if serverHasNPN && serverHasALPN {
+ 		c.sendAlert(alertHandshakeFailure)
+-		return false, errors.New("server advertised both NPN and ALPN extensions")
++		return false, errors.New("tls: server advertised both NPN and ALPN extensions")
+ 	}
+ 
+ 	if serverHasALPN {
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index a6cafd3d24..70f4374d34 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -209,7 +209,7 @@ Curves:
+ 			hs.rsaSignOk = true
+ 		default:
+ 			c.sendAlert(alertInternalError)
+-			return false, fmt.Errorf("crypto/tls: unsupported signing key type (%T)", priv.Public())
++			return false, fmt.Errorf("tls: unsupported signing key type (%T)", priv.Public())
+ 		}
+ 	}
+ 	if priv, ok := hs.cert.PrivateKey.(crypto.Decrypter); ok {
+@@ -218,7 +218,7 @@ Curves:
+ 			hs.rsaDecryptOk = true
+ 		default:
+ 			c.sendAlert(alertInternalError)
+-			return false, fmt.Errorf("crypto/tls: unsupported decryption key type (%T)", priv.Public())
++			return false, fmt.Errorf("tls: unsupported decryption key type (%T)", priv.Public())
+ 		}
+ 	}
+ 
+@@ -514,7 +514,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 		switch key := pub.(type) {
+ 		case *ecdsa.PublicKey:
+ 			if signatureAndHash.signature != signatureECDSA {
+-				err = errors.New("bad signature type for client's ECDSA certificate")
++				err = errors.New("tls: bad signature type for client's ECDSA certificate")
+ 				break
+ 			}
+ 			ecdsaSig := new(ecdsaSignature)
+@@ -522,7 +522,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 				break
+ 			}
+ 			if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+-				err = errors.New("ECDSA signature contained zero or negative values")
++				err = errors.New("tls: ECDSA signature contained zero or negative values")
+ 				break
+ 			}
+ 			var digest []byte
+@@ -530,11 +530,11 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 				break
+ 			}
+ 			if !ecdsa.Verify(key, digest, ecdsaSig.R, ecdsaSig.S) {
+-				err = errors.New("ECDSA verification failure")
++				err = errors.New("tls: ECDSA verification failure")
+ 			}
+ 		case *rsa.PublicKey:
+ 			if signatureAndHash.signature != signatureRSA {
+-				err = errors.New("bad signature type for client's RSA certificate")
++				err = errors.New("tls: bad signature type for client's RSA certificate")
+ 				break
+ 			}
+ 			var digest []byte
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 3326894a08..467efb2bf5 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -242,19 +242,19 @@ NextCandidate:
+ 	case signatureECDSA:
+ 		_, ok := priv.Public().(*ecdsa.PublicKey)
+ 		if !ok {
+-			return nil, errors.New("ECDHE ECDSA requires an ECDSA server key")
++			return nil, errors.New("tls: ECDHE ECDSA requires an ECDSA server key")
+ 		}
+ 	case signatureRSA:
+ 		_, ok := priv.Public().(*rsa.PublicKey)
+ 		if !ok {
+-			return nil, errors.New("ECDHE RSA requires a RSA server key")
++			return nil, errors.New("tls: ECDHE RSA requires a RSA server key")
+ 		}
+ 	default:
+-		return nil, errors.New("unknown ECDHE signature algorithm")
++		return nil, errors.New("tls: unknown ECDHE signature algorithm")
+ 	}
+ 	sig, err = priv.Sign(config.rand(), digest, hashFunc)
+ 	if err != nil {
+-		return nil, errors.New("failed to sign ECDHE parameters: " + err.Error())
++		return nil, errors.New("tls: failed to sign ECDHE parameters: " + err.Error())
+ 	}
+ 
+ 	skx := new(serverKeyExchangeMsg)
+@@ -354,28 +354,28 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 	case signatureECDSA:
+ 		pubKey, ok := cert.PublicKey.(*ecdsa.PublicKey)
+ 		if !ok {
+-			return errors.New("ECDHE ECDSA requires a ECDSA server public key")
++			return errors.New("tls: ECDHE ECDSA requires a ECDSA server public key")
+ 		}
+ 		ecdsaSig := new(ecdsaSignature)
+ 		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
+ 			return err
+ 		}
+ 		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+-			return errors.New("ECDSA signature contained zero or negative values")
++			return errors.New("tls: ECDSA signature contained zero or negative values")
+ 		}
+ 		if !ecdsa.Verify(pubKey, digest, ecdsaSig.R, ecdsaSig.S) {
+-			return errors.New("ECDSA verification failure")
++			return errors.New("tls: ECDSA verification failure")
+ 		}
+ 	case signatureRSA:
+ 		pubKey, ok := cert.PublicKey.(*rsa.PublicKey)
+ 		if !ok {
+-			return errors.New("ECDHE RSA requires a RSA server public key")
++			return errors.New("tls: ECDHE RSA requires a RSA server public key")
+ 		}
+ 		if err := rsa.VerifyPKCS1v15(pubKey, hashFunc, digest, sig); err != nil {
+ 			return err
+ 		}
+ 	default:
+-		return errors.New("unknown ECDHE signature algorithm")
++		return errors.New("tls: unknown ECDHE signature algorithm")
+ 	}
+ 
+ 	return nil
+@@ -383,7 +383,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 
+ func (ka *ecdheKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {
+ 	if ka.curve == nil {
+-		return nil, nil, errors.New("missing ServerKeyExchange message")
++		return nil, nil, errors.New("tls: missing ServerKeyExchange message")
+ 	}
+ 	priv, mx, my, err := elliptic.GenerateKey(ka.curve, config.rand())
+ 	if err != nil {
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index bfe331dd42..0be0b42912 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -209,12 +209,12 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+ 
+ 	if len(cert.Certificate) == 0 {
+ 		if len(skippedBlockTypes) == 0 {
+-			return fail(errors.New("crypto/tls: failed to find any PEM data in certificate input"))
++			return fail(errors.New("tls: failed to find any PEM data in certificate input"))
+ 		}
+ 		if len(skippedBlockTypes) == 1 && strings.HasSuffix(skippedBlockTypes[0], "PRIVATE KEY") {
+-			return fail(errors.New("crypto/tls: failed to find certificate PEM data in certificate input, but did find a private key; PEM inputs may have been switched"))
++			return fail(errors.New("tls: failed to find certificate PEM data in certificate input, but did find a private key; PEM inputs may have been switched"))
+ 		}
+-		return fail(fmt.Errorf("crypto/tls: failed to find \"CERTIFICATE\" PEM block in certificate input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
++		return fail(fmt.Errorf("tls: failed to find \"CERTIFICATE\" PEM block in certificate input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
+ 	}
+ 
+ 	skippedBlockTypes = skippedBlockTypes[:0]
+@@ -223,12 +223,12 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+ 		keyDERBlock, keyPEMBlock = pem.Decode(keyPEMBlock)
+ 		if keyDERBlock == nil {
+ 			if len(skippedBlockTypes) == 0 {
+-				return fail(errors.New("crypto/tls: failed to find any PEM data in key input"))
++				return fail(errors.New("tls: failed to find any PEM data in key input"))
+ 			}
+ 			if len(skippedBlockTypes) == 1 && skippedBlockTypes[0] == "CERTIFICATE" {
+-				return fail(errors.New("crypto/tls: found a certificate rather than a key in the PEM for the private key"))
++				return fail(errors.New("tls: found a certificate rather than a key in the PEM for the private key"))
+ 			}
+-			return fail(fmt.Errorf("crypto/tls: failed to find PEM block with type ending in \"PRIVATE KEY\" in key input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
++			return fail(fmt.Errorf("tls: failed to find PEM block with type ending in \"PRIVATE KEY\" in key input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
+ 		}
+ 		if keyDERBlock.Type == "PRIVATE KEY" || strings.HasSuffix(keyDERBlock.Type, " PRIVATE KEY") {
+ 			break
+@@ -253,21 +253,21 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+ 	case *rsa.PublicKey:
+ 		priv, ok := cert.PrivateKey.(*rsa.PrivateKey)
+ 		if !ok {
+-			return fail(errors.New("crypto/tls: private key type does not match public key type"))
++			return fail(errors.New("tls: private key type does not match public key type"))
+ 		}
+ 		if pub.N.Cmp(priv.N) != 0 {
+-			return fail(errors.New("crypto/tls: private key does not match public key"))
++			return fail(errors.New("tls: private key does not match public key"))
+ 		}
+ 	case *ecdsa.PublicKey:
+ 		priv, ok := cert.PrivateKey.(*ecdsa.PrivateKey)
+ 		if !ok {
+-			return fail(errors.New("crypto/tls: private key type does not match public key type"))
++			return fail(errors.New("tls: private key type does not match public key type"))
+ 		}
+ 		if pub.X.Cmp(priv.X) != 0 || pub.Y.Cmp(priv.Y) != 0 {
+-			return fail(errors.New("crypto/tls: private key does not match public key"))
++			return fail(errors.New("tls: private key does not match public key"))
+ 		}
+ 	default:
+-		return fail(errors.New("crypto/tls: unknown public key algorithm"))
++		return fail(errors.New("tls: unknown public key algorithm"))
+ 	}
+ 
+ 	return cert, nil
+@@ -285,12 +285,12 @@ func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
+ 		case *rsa.PrivateKey, *ecdsa.PrivateKey:
+ 			return key, nil
+ 		default:
+-			return nil, errors.New("crypto/tls: found unknown private key type in PKCS#8 wrapping")
++			return nil, errors.New("tls: found unknown private key type in PKCS#8 wrapping")
+ 		}
+ 	}
+ 	if key, err := x509.ParseECPrivateKey(der); err == nil {
+ 		return key, nil
+ 	}
+ 
+-	return nil, errors.New("crypto/tls: failed to parse private key")
++	return nil, errors.New("tls: failed to parse private key")
+ }

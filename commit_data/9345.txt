@@ -26,7 +26,7 @@ Date:   Fri Aug 12 14:34:29 2011 +1000
     R=rsc, r, nigeltao, r
     CC=golang-dev
     https://golang.org/cl/4808089
-
+---
  src/pkg/Makefile                          |   1 +
  src/pkg/exp/template/html/Makefile        |  11 +++
  src/pkg/exp/template/html/reverse.go      | 134 ++++++++++++++++++++++++++++++
@@ -35,3 +35,284 @@ Date:   Fri Aug 12 14:34:29 2011 +1000
  src/pkg/exp/template/parse/node.go        |   7 +-
  src/pkg/exp/template/parse/parse.go       |   2 +-
  7 files changed, 200 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index c824f508cf..ec9a070bd1 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -83,6 +83,7 @@ DIRS=\
+ 	exp/norm\
+ 	exp/regexp/syntax\
+ 	exp/template\
++	exp/template/html\
+ 	exp/template/parse\
+ 	expvar\
+ 	flag\
+diff --git a/src/pkg/exp/template/html/Makefile b/src/pkg/exp/template/html/Makefile
+new file mode 100644
+index 0000000000..e532950b30
+--- /dev/null
++++ b/src/pkg/exp/template/html/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../../Make.inc
++
++TARG=exp/template/html
++GOFILES=\
++	reverse.go
++
++include ../../../../Make.pkg
+diff --git a/src/pkg/exp/template/html/reverse.go b/src/pkg/exp/template/html/reverse.go
+new file mode 100644
+index 0000000000..446e0f7b5e
+--- /dev/null
++++ b/src/pkg/exp/template/html/reverse.go
+@@ -0,0 +1,134 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package html is a specialization of exp/template that automates the
++// construction of safe HTML output.
++// At the moment it is just skeleton code that demonstrates how to derive
++// templates via AST -> AST transformations.
++package html
++
++import (
++	"exp/template"
++	"exp/template/parse"
++	"fmt"
++)
++
++// Reverse reverses a template.
++// After Reverse(t), t.Execute(wr, data) writes to wr the byte-wise reverse of
++// what would have been written otherwise.
++//
++// E.g.
++// Reverse(template.Parse("{{if .Coming}}Hello{{else}}Bye{{end}}, {{.World}}")
++// behaves like
++// template.Parse("{{.World | reverse}} ,{{if .Coming}}olleH{{else}}eyB{{end}}")
++func Reverse(t *template.Template) {
++	t.Funcs(supportFuncs)
++
++	// If the parser shares trees based on common-subexpression
++	// joining then we will need to avoid multiply reversing the same tree.
++	reverseListNode(t.Tree.Root)
++}
++
++// reverseNode dispatches to reverse<NodeType> helpers by type.
++func reverseNode(node parse.Node) {
++	switch n := node.(type) {
++	case *parse.ListNode:
++		reverseListNode(n)
++	case *parse.TextNode:
++		reverseTextNode(n)
++	case *parse.ActionNode:
++		reverseActionNode(n)
++	case *parse.IfNode:
++		reverseIfNode(n)
++	default:
++		panic("handling for " + node.String() + " not implemented")
++		// TODO: Handle other inner node types.
++	}
++}
++
++// reverseListNode recursively reverses its input's children and reverses their
++// order.
++func reverseListNode(node *parse.ListNode) {
++	if node == nil {
++		return
++	}
++	children := node.Nodes
++	for _, child := range children {
++		reverseNode(child)
++	}
++	for i, j := 0, len(children)-1; i < j; i, j = i+1, j-1 {
++		children[i], children[j] = children[j], children[i]
++	}
++}
++
++// reverseTextNode reverses the text UTF-8 sequence by UTF-8 sequence.
++func reverseTextNode(node *parse.TextNode) {
++	runes := []int(string(node.Text))
++	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
++		runes[i], runes[j] = runes[j], runes[i]
++	}
++	node.Text = []byte(string(runes))
++}
++
++// reverseActionNode adds a pipeline call to the end that reverses the result
++// of the expression before it is interpolated into the template output.
++func reverseActionNode(node *parse.ActionNode) {
++	pipe := node.Pipe
++
++	cmds := pipe.Cmds
++	nCmds := len(cmds)
++
++	// If it's already been reversed, just slice out the reverse command.
++	// This makes (Reverse o Reverse) almost the identity function
++	// modulo changes to the templates FuncMap.
++	if nCmds != 0 {
++		if lastCmd := cmds[nCmds-1]; len(lastCmd.Args) != 0 {
++			if arg, ok := lastCmd.Args[0].(*parse.IdentifierNode); ok && arg.Ident == "reverse" {
++				pipe.Cmds = pipe.Cmds[:nCmds-1]
++				return
++			}
++		}
++	}
++
++	reverseCommand := parse.CommandNode{
++		NodeType: parse.NodeCommand,
++		Args:     []parse.Node{parse.NewIdentifier("reverse")},
++	}
++
++	node.Pipe.Cmds = append(node.Pipe.Cmds, &reverseCommand)
++}
++
++// reverseIfNode recursively reverses the if and then clauses but leaves the
++// condition unchanged.
++func reverseIfNode(node *parse.IfNode) {
++	reverseListNode(node.List)
++	reverseListNode(node.ElseList)
++}
++
++// reverse writes the reverse of the given byte buffer to the given Writer.
++func reverse(x interface{}) string {
++	var s string
++	switch y := x.(type) {
++	case nil:
++		s = "<nil>"
++	case []byte:
++		// TODO: unnecessary buffer copy.
++		s = string(y)
++	case string:
++		s = y
++	case fmt.Stringer:
++		s = y.String()
++	default:
++		s = fmt.Sprintf("<inconvertible of type %T>", x)
++	}
++	n := len(s)
++	bytes := make([]byte, n)
++	for i := 0; i < n; i++ {
++		bytes[n-i-1] = s[i]
++	}
++	return string(bytes)
++}
++
++// supportFuncs contains functions required by reversed template nodes.
++var supportFuncs = template.FuncMap{"reverse": reverse}
+diff --git a/src/pkg/exp/template/html/reverse_test.go b/src/pkg/exp/template/html/reverse_test.go
+new file mode 100644
+index 0000000000..32d11c6d65
+--- /dev/null
++++ b/src/pkg/exp/template/html/reverse_test.go
+@@ -0,0 +1,48 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"bytes"
++	"exp/template"
++	"testing"
++)
++
++type data struct {
++	World  string
++	Coming bool
++}
++
++func TestReverse(t *testing.T) {
++	templateSource :=
++		"{{if .Coming}}Hello{{else}}Goodbye{{end}}, {{.World}}!"
++	templateData := data{
++		World:  "Cincinatti",
++		Coming: true,
++	}
++
++	tmpl := template.New("test")
++	tmpl, err := tmpl.Parse(templateSource)
++	if err != nil {
++		t.Errorf("failed to parse template: %s", err)
++		return
++	}
++
++	Reverse(tmpl)
++
++	buffer := new(bytes.Buffer)
++
++	err = tmpl.Execute(buffer, templateData)
++	if err != nil {
++		t.Errorf("failed to execute reversed template: %s", err)
++		return
++	}
++
++	golden := "!ittanicniC ,olleH"
++	actual := buffer.String()
++	if golden != actual {
++		t.Errorf("reversed output: %q != %q", golden, actual)
++	}
++}
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index 6db00c1c11..4b8a54e65c 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -24,7 +24,7 @@ type Template struct {
+ 
+ // Name returns the name of the template.
+ func (t *Template) Name() string {
+-	return t.Tree.Name
++	return t.name
+ }
+ 
+ // Parsing.
+diff --git a/src/pkg/exp/template/parse/node.go b/src/pkg/exp/template/parse/node.go
+index 0f77ad850e..a917418dc3 100644
+--- a/src/pkg/exp/template/parse/node.go
++++ b/src/pkg/exp/template/parse/node.go
+@@ -31,14 +31,14 @@ func (t NodeType) Type() NodeType {
+ 
+ const (
+ 	NodeText       NodeType = iota // Plain text.
+-	NodeAction                     // An simple action such as field evaluation.
++	NodeAction                     // A simple action such as field evaluation.
+ 	NodeBool                       // A boolean constant.
+ 	NodeCommand                    // An element of a pipeline.
+ 	NodeDot                        // The cursor, dot.
+ 	NodeElse                       // An else action.
+ 	NodeEnd                        // An end action.
+ 	NodeField                      // A field or method name.
+-	NodeIdentifier                 // A identifier; always a function name.
++	NodeIdentifier                 // An identifier; always a function name.
+ 	NodeIf                         // An if action.
+ 	NodeList                       // A list of Nodes.
+ 	NodeNumber                     // A numerical constant.
+@@ -154,7 +154,8 @@ type IdentifierNode struct {
+ 	Ident string // The identifier's name.
+ }
+ 
+-func newIdentifier(ident string) *IdentifierNode {
++// NewIdentifier returns a new IdentifierNode with the given identifier name.
++func NewIdentifier(ident string) *IdentifierNode {
+ 	return &IdentifierNode{NodeType: NodeIdentifier, Ident: ident}
+ }
+ 
+diff --git a/src/pkg/exp/template/parse/parse.go b/src/pkg/exp/template/parse/parse.go
+index f8f9023e54..691d85ef63 100644
+--- a/src/pkg/exp/template/parse/parse.go
++++ b/src/pkg/exp/template/parse/parse.go
+@@ -373,7 +373,7 @@ Loop:
+ 			if !t.hasFunction(token.val) {
+ 				t.errorf("function %q not defined", token.val)
+ 			}
+-			cmd.append(newIdentifier(token.val))
++			cmd.append(NewIdentifier(token.val))
+ 		case itemDot:
+ 			cmd.append(newDot())
+ 		case itemVariable:

@@ -9,7 +9,34 @@ Date:   Mon Feb 7 11:51:17 2011 -0800
     R=adg, gri
     CC=golang-dev
     https://golang.org/cl/4119060
-
+---
  doc/codelab/wiki/index.html | 2 +-
  doc/codelab/wiki/wiki.html  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index ee7af33442..e29106a6e5 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -710,7 +710,7 @@ Then we create an <code>init</code> function, which will be called before
+ <code>ParseFile</code> that does not return an error code; instead, it panics
+ if an error is encountered. A panic is appropriate here; if the templates can't
+ be loaded the only sensible thing to do is exit the program.
+-</p
++</p>
+ 
+ <pre>
+ func init() {
+diff --git a/doc/codelab/wiki/wiki.html b/doc/codelab/wiki/wiki.html
+index 3ddbd96b77..7ef97b45ba 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/codelab/wiki/wiki.html
+@@ -574,7 +574,7 @@ Then we create an <code>init</code> function, which will be called before
+ <code>ParseFile</code> that does not return an error code; instead, it panics
+ if an error is encountered. A panic is appropriate here; if the templates can't
+ be loaded the only sensible thing to do is exit the program.
+-</p
++</p>
+ 
+ <pre>
+ !./srcextract.bin -src=final.go -name=init

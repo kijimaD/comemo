@@ -7,7 +7,51 @@ Date:   Thu Dec 23 13:32:20 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/3809042
-
+---
  .hgtags                |  1 -
  doc/devel/release.html | 23 +++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index 47b2fd2d92..adee0eba12 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -43,4 +43,3 @@ f7e692dc29b02fba8e5d59b967880a347b53607c release.2010-12-02
+ 56e39c466cc1c49b587eb56dc2166d61151637df release.2010-12-08
+ 26f4898dc1ca18bb77f9968aca23773637e34f0d release.2010-12-15
+ 61b2c52b0d2246430395f2869d7b34e565333cf5 release.2010-12-15.1
+-61b2c52b0d2246430395f2869d7b34e565333cf5 release
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 6225305b88..bbc62585e6 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -5,6 +5,29 @@
+ <p>This page summarizes the changes between tagged releases of Go.
+ For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+ 
++<h3 id="2010-12-22">2010-12-22</h3>
++
++<pre>
++A small release this week. The most significant change is that some 
++outstanding cgo issues were resolved.
++
++* cgo: handle references to symbols in shared libraries.
++* crypto/elliptic: add serialisation and key pair generation.
++* crypto/hmac: add HMAC-SHA256 (thanks Anthony Martin).
++* crypto/tls: add ECDHE support ("Elliptic Curve Diffie Hellman Ephemeral"),
++        add support code for generating handshake scripts for testing.
++* darwin, freebsd: ignore write failure (during print, panic).
++* exp/draw: remove Border function.
++* expvar: quote StringFunc output, same as String output.
++* hash/crc64: fix typo in Sum.
++* ld: allow relocations pointing at ELF .bss symbols, ignore stab symbols.
++* misc/cgo/life: fix, add to build.
++* regexp: add HasMeta, HasOperator, and String methods to Regexp.
++* suffixarray: implemented FindAllIndex regexp search.
++* test/bench: update numbers for regex-dna after speedup to regexp.
++* time: explain the formats a little better.
++</pre>
++
+ <h3 id="2010-12-15">2010-12-15</h3>
+ 
+ <pre>

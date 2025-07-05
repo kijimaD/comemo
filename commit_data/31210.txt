@@ -17,7 +17,7 @@ Date:   Mon Feb 6 14:46:48 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go  |  2 +-
  src/cmd/compile/internal/amd64/ssa.go   |  4 ++--
  src/cmd/compile/internal/arm/ggen.go    |  3 ++-
@@ -34,3 +34,279 @@ Date:   Mon Feb 6 14:46:48 2017 -0800
  src/cmd/compile/internal/x86/ggen.go    |  2 +-
  src/cmd/compile/internal/x86/ssa.go     |  4 ++--
  15 files changed, 44 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index c137b52d80..a7b805eac6 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -146,7 +146,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32, x0 *uin
+ 		}
+ 		p = gc.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(cnt))
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
++		p.To.Sym = gc.Duffzero
+ 
+ 		if cnt%16 != 0 {
+ 			p = gc.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_DI, -int64(8))
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 4b0e395495..4a95d02960 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -658,7 +658,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 		p = gc.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_ADDR
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
++		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = off
+ 	case ssa.OpAMD64MOVOconst:
+ 		if v.AuxInt != 0 {
+@@ -669,7 +669,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpAMD64DUFFCOPY:
+ 		p := gc.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_ADDR
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
++		p.To.Sym = gc.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
+ 	case ssa.OpCopy, ssa.OpAMD64MOVQconvert, ssa.OpAMD64MOVLconvert: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 6dce0a4e80..7af3cd7443 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -74,7 +74,8 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
+ 		p = gc.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
+ 		p.Reg = arm.REGSP
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+-		gc.Naddr(&p.To, gc.Sysfunc("duffzero"))
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		p = gc.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 63488f7116..c595ffab60 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -689,13 +689,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
++		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARMDUFFCOPY:
+ 		p := gc.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
++		p.To.Sym = gc.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARMLoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 16813b642a..e9418df79e 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -81,7 +81,8 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		p = gc.Appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGRT1, 0)
+ 		p.Reg = arm64.REGRT1
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+-		gc.Naddr(&p.To, gc.Sysfunc("duffzero"))
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		p = gc.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGTMP, 0)
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index a8101ae844..63490e8f1e 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -577,7 +577,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p = gc.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
++		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARM64LoweredZero:
+ 		// MOVD.P	ZR, 8(R16)
+@@ -602,7 +602,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := gc.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
++		p.To.Sym = gc.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARM64LoweredMove:
+ 		// MOVD.P	8(R16), Rtmp
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 49ccc41760..cc202e741a 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -6,12 +6,13 @@
+ 
+ package gc
+ 
+-import "fmt"
++import (
++	"cmd/internal/obj"
++	"fmt"
++)
+ 
+-func Sysfunc(name string) *Node {
+-	n := newname(Pkglookup(name, Runtimepkg))
+-	n.Class = PFUNC
+-	return n
++func Sysfunc(name string) *obj.LSym {
++	return Linksym(Pkglookup(name, Runtimepkg))
+ }
+ 
+ // addrescapes tags node n as having had its address taken
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 0d5e30d002..c6fcfd7347 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -370,6 +370,8 @@ var (
+ 	Newproc,
+ 	Deferproc,
+ 	Deferreturn,
++	Duffcopy,
++	Duffzero,
+ 	panicindex,
+ 	panicslice,
+ 	panicdivide,
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 1796fb3df1..64f61b4352 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -297,19 +297,21 @@ func (s *ssaExport) AllocFrame(f *ssa.Func) {
+ 
+ func compile(fn *Node) {
+ 	if Newproc == nil {
+-		Newproc = Linksym(Sysfunc("newproc").Sym)
+-		Deferproc = Linksym(Sysfunc("deferproc").Sym)
+-		Deferreturn = Linksym(Sysfunc("deferreturn").Sym)
+-		panicindex = Linksym(Sysfunc("panicindex").Sym)
+-		panicslice = Linksym(Sysfunc("panicslice").Sym)
+-		panicdivide = Linksym(Sysfunc("panicdivide").Sym)
+-		growslice = Linksym(Sysfunc("growslice").Sym)
+-		panicdottype = Linksym(Sysfunc("panicdottype").Sym)
+-		panicnildottype = Linksym(Sysfunc("panicnildottype").Sym)
+-		assertE2I = Linksym(Sysfunc("assertE2I").Sym)
+-		assertE2I2 = Linksym(Sysfunc("assertE2I2").Sym)
+-		assertI2I = Linksym(Sysfunc("assertI2I").Sym)
+-		assertI2I2 = Linksym(Sysfunc("assertI2I2").Sym)
++		Newproc = Sysfunc("newproc")
++		Deferproc = Sysfunc("deferproc")
++		Deferreturn = Sysfunc("deferreturn")
++		Duffcopy = Sysfunc("duffcopy")
++		Duffzero = Sysfunc("duffzero")
++		panicindex = Sysfunc("panicindex")
++		panicslice = Sysfunc("panicslice")
++		panicdivide = Sysfunc("panicdivide")
++		growslice = Sysfunc("growslice")
++		panicdottype = Sysfunc("panicdottype")
++		panicnildottype = Sysfunc("panicnildottype")
++		assertE2I = Sysfunc("assertE2I")
++		assertE2I2 = Sysfunc("assertE2I2")
++		assertI2I = Sysfunc("assertI2I")
++		assertI2I2 = Sysfunc("assertI2I2")
+ 	}
+ 
+ 	defer func(lno src.XPos) {
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 2af4a8b1ce..1bb47ff112 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -71,7 +71,8 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		p = gc.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, mips.REGRT1, 0)
+ 		p.Reg = mips.REGSP
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+-		gc.Naddr(&p.To, gc.Sysfunc("duffzero"))
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = 8 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		//	ADDV	$(8+frame+lo-8), SP, r1
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 067f4c00f1..e67be062fb 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -387,7 +387,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p = gc.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
++		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpMIPS64LoweredZero:
+ 		// SUBV	$8, R1
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index b3ce968567..8064e4d9aa 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -71,7 +71,8 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		p = gc.Appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+frame+lo-8, obj.TYPE_REG, ppc64.REGRT1, 0)
+ 		p.Reg = ppc64.REGSP
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+-		gc.Naddr(&p.To, gc.Sysfunc("duffzero"))
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		p = gc.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+frame+lo-8, obj.TYPE_REG, ppc64.REGTMP, 0)
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+index 248fec68ce..ea62ce31ff 100644
+--- a/src/cmd/compile/internal/x86/387.go
++++ b/src/cmd/compile/internal/x86/387.go
+@@ -124,7 +124,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 			p = gc.Prog(x86.AFLDCW)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+-			p.From.Sym = gc.Linksym(gc.Pkglookup("controlWord32", gc.Runtimepkg))
++			p.From.Sym = gc.Sysfunc("controlWord32")
+ 		}
+ 
+ 		var op obj.As
+@@ -221,7 +221,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		p = gc.Prog(x86.AFLDCW)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Name = obj.NAME_EXTERN
+-		p.From.Sym = gc.Linksym(gc.Pkglookup("controlWord64trunc", gc.Runtimepkg))
++		p.From.Sym = gc.Sysfunc("controlWord64trunc")
+ 
+ 		// Now do the conversion.
+ 		p = gc.Prog(x86.AFMOVLP)
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 25769b4de0..7f844531a7 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -73,7 +73,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
+ 	} else if !gc.Nacl && cnt <= int64(128*gc.Widthreg) {
+ 		p = gc.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
++		p.To.Sym = gc.Duffzero
+ 	} else {
+ 		p = gc.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
+ 		p = gc.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 65646ad3b5..1f4b7bea07 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -587,12 +587,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.Op386DUFFZERO:
+ 		p := gc.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_ADDR
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
++		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.Op386DUFFCOPY:
+ 		p := gc.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_ADDR
+-		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
++		p.To.Sym = gc.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
+ 	case ssa.OpCopy, ssa.Op386MOVLconvert: // TODO: use MOVLreg for reg->reg copies instead of OpCopy?

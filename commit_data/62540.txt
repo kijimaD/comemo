@@ -11,7 +11,60 @@ Date:   Sun Mar 9 14:39:49 2025 +0100
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go |  8 ++++++++
  test/prove_popcount.go                | 23 +++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 9fedbdbbc9..1b5989e6e5 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1732,6 +1732,14 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 			return ft.unsignedMax(v, uint64(bits.Len8(uint8(a.umax))-1))
+ 		}
+ 
++	case OpPopCount64, OpPopCount32, OpPopCount16, OpPopCount8:
++		a := ft.limits[v.Args[0].ID]
++		changingBitsCount := uint64(bits.Len64(a.umax ^ a.umin))
++		sharedLeadingMask := ^(uint64(1)<<changingBitsCount - 1)
++		fixedBits := a.umax & sharedLeadingMask
++		min := uint64(bits.OnesCount64(fixedBits))
++		return ft.unsignedMinMax(v, min, min+changingBitsCount)
++
+ 	case OpBitLen64:
+ 		a := ft.limits[v.Args[0].ID]
+ 		return ft.unsignedMinMax(v,
+diff --git a/test/prove_popcount.go b/test/prove_popcount.go
+index 430df01ec3..1fe53defb0 100644
+--- a/test/prove_popcount.go
++++ b/test/prove_popcount.go
+@@ -33,5 +33,28 @@ func onesCountsBounds(x uint64, ensureAllBranchesCouldHappen func() bool) int {
+ 	return z
+ }
+ 
++func onesCountsTight(x uint64, ensureAllBranchesCouldHappen func() bool) int {
++	const maxv = 0xff0f
++	const minv = 0xff00
++	x = max(x, minv)
++	x = min(x, maxv)
++
++	z := bits.OnesCount64(x)
++
++	if ensureAllBranchesCouldHappen() && z > bits.OnesCount64(maxv) { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && z <= bits.OnesCount64(maxv) { // ERROR "Proved Leq64$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && z < bits.OnesCount64(minv) { // ERROR "Disproved Less64$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && z >= bits.OnesCount64(minv) { // ERROR "Proved Leq64$"
++		return 42424242
++	}
++	return z
++}
++
+ func main() {
+ }

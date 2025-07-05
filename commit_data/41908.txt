@@ -9,6 +9,20 @@ Date:   Thu Oct 31 22:24:04 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/removeall_noat.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index 953c4a2715..c1b43e3807 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -130,7 +130,7 @@ func removeAll(path string) error {
+ 	}
+ 	if runtime.GOOS == "windows" && IsPermission(err1) {
+ 		if fs, err := Stat(path); err == nil {
+-			if err = Chmod(path, FileMode(0200 | int(fs.Mode()))); err == nil {
++			if err = Chmod(path, FileMode(0200|int(fs.Mode()))); err == nil {
+ 				err1 = Remove(path)
+ 			}
+ 		}

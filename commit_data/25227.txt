@@ -46,9 +46,244 @@ Date:   Sun Oct 4 20:16:57 2015 -0700
     Change-Id: Ia821c5f07f8a433e8da7f195b52adfedd58bdf2c
     Reviewed-on: https://go-review.googlesource.com/15408
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go      | 52 +++++++++++++++++++++++++++++++++----------------
  src/runtime/mgcmark.go  | 32 +++++++++++++++++-------------
  src/runtime/mheap.go    |  9 +++++----
  src/runtime/runtime2.go | 11 +++++++++--
  4 files changed, 68 insertions(+), 36 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b69168a069..62f6a13ab6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -351,11 +351,14 @@ type gcControllerState struct {
+ 	// dedicated mark workers get started.
+ 	dedicatedMarkWorkersNeeded int64
+ 
+-	// assistRatio is the ratio of scan work to allocated bytes
+-	// that should be performed by mutator assists. This is
++	// assistWorkPerByte is the ratio of scan work to allocated
++	// bytes that should be performed by mutator assists. This is
+ 	// computed at the beginning of each cycle and updated every
+ 	// time heap_scan is updated.
+-	assistRatio float64
++	assistWorkPerByte float64
++
++	// assistBytesPerWork is 1/assistWorkPerByte.
++	assistBytesPerWork float64
+ 
+ 	// fractionalUtilizationGoal is the fraction of wall clock
+ 	// time that should be spent in the fractional mark worker.
+@@ -443,7 +446,7 @@ func (c *gcControllerState) startCycle() {
+ 	c.revise()
+ 
+ 	if debug.gcpacertrace > 0 {
+-		print("pacer: assist ratio=", c.assistRatio,
++		print("pacer: assist ratio=", c.assistWorkPerByte,
+ 			" (scan ", memstats.heap_scan>>20, " MB in ",
+ 			work.initialHeapLive>>20, "->",
+ 			c.heapGoal>>20, " MB)",
+@@ -454,13 +457,14 @@ func (c *gcControllerState) startCycle() {
+ 
+ // revise updates the assist ratio during the GC cycle to account for
+ // improved estimates. This should be called either under STW or
+-// whenever memstats.heap_scan is updated (with mheap_.lock held).
++// whenever memstats.heap_scan or memstats.heap_live is updated (with
++// mheap_.lock held).
+ //
+ // It should only be called when gcBlackenEnabled != 0 (because this
+ // is when assists are enabled and the necessary statistics are
+ // available).
+ func (c *gcControllerState) revise() {
+-	// Compute the expected scan work.
++	// Compute the expected scan work remaining.
+ 	//
+ 	// Note that the scannable heap size is likely to increase
+ 	// during the GC cycle. This is why it's important to revise
+@@ -469,24 +473,39 @@ func (c *gcControllerState) revise() {
+ 	// scannable heap size may target too little scan work.
+ 	//
+ 	// This particular estimate is a strict upper bound on the
+-	// possible scan work in the current heap.
++	// possible remaining scan work for the current heap.
+ 	// You might consider dividing this by 2 (or by
+ 	// (100+GOGC)/100) to counter this over-estimation, but
+ 	// benchmarks show that this has almost no effect on mean
+ 	// mutator utilization, heap size, or assist time and it
+ 	// introduces the danger of under-estimating and letting the
+ 	// mutator outpace the garbage collector.
+-	scanWorkExpected := memstats.heap_scan
++	scanWorkExpected := int64(memstats.heap_scan) - c.scanWork
++	if scanWorkExpected < 1000 {
++		// We set a somewhat arbitrary lower bound on
++		// remaining scan work since if we aim a little high,
++		// we can miss by a little.
++		//
++		// We *do* need to enforce that this is at least 1,
++		// since marking is racy and double-scanning objects
++		// may legitimately make the expected scan work
++		// negative.
++		scanWorkExpected = 1000
++	}
+ 
+-	// Compute the mutator assist ratio so by the time the mutator
+-	// allocates the remaining heap bytes up to next_gc, it will
+-	// have done (or stolen) the estimated amount of scan work.
+-	heapDistance := int64(c.heapGoal) - int64(work.initialHeapLive)
++	// Compute the heap distance remaining.
++	heapDistance := int64(c.heapGoal) - int64(memstats.heap_live)
+ 	if heapDistance <= 0 {
+-		print("runtime: heap goal=", heapDistance, " initial heap live=", work.initialHeapLive, "\n")
+-		throw("negative heap distance")
++		// This shouldn't happen, but if it does, avoid
++		// dividing by zero or setting the assist negative.
++		heapDistance = 1
+ 	}
+-	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
++
++	// Compute the mutator assist ratio so by the time the mutator
++	// allocates the remaining heap bytes up to next_gc, it will
++	// have done (or stolen) the remaining amount of scan work.
++	c.assistWorkPerByte = float64(scanWorkExpected) / float64(heapDistance)
++	c.assistBytesPerWork = float64(heapDistance) / float64(scanWorkExpected)
+ }
+ 
+ // endCycle updates the GC controller state at the end of the
+@@ -1641,8 +1660,7 @@ func gcResetGState() (numgs int) {
+ 	for _, gp := range allgs {
+ 		gp.gcscandone = false  // set to true in gcphasework
+ 		gp.gcscanvalid = false // stack has not been scanned
+-		gp.gcalloc = 0
+-		gp.gcscanwork = 0
++		gp.gcAssistBytes = 0
+ 	}
+ 	numgs = len(allgs)
+ 	unlock(&allglock)
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 2d27d6897d..413274fef1 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -214,9 +214,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 	}
+ 
+ 	// Record allocation.
+-	gp.gcalloc += size
++	gp.gcAssistBytes -= int64(size)
+ 
+-	if !allowAssist {
++	if !allowAssist || gp.gcAssistBytes >= 0 {
+ 		return
+ 	}
+ 
+@@ -229,13 +229,10 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 		return
+ 	}
+ 
+-	// Compute the amount of assist scan work we need to do.
+-	scanWork := int64(gcController.assistRatio*float64(gp.gcalloc)) - gp.gcscanwork
+-	// scanWork can be negative if the last assist scanned a large
+-	// object and we're still ahead of our assist goal.
+-	if scanWork <= 0 {
+-		return
+-	}
++	// Compute the amount of scan work we need to do to make the
++	// balance positive.
++	debtBytes := -gp.gcAssistBytes
++	scanWork := int64(gcController.assistWorkPerByte * float64(debtBytes))
+ 
+ retry:
+ 	// Steal as much credit as we can from the background GC's
+@@ -249,15 +246,18 @@ retry:
+ 	if bgScanCredit > 0 {
+ 		if bgScanCredit < scanWork {
+ 			stolen = bgScanCredit
++			gp.gcAssistBytes += 1 + int64(gcController.assistBytesPerWork*float64(stolen))
+ 		} else {
+ 			stolen = scanWork
++			gp.gcAssistBytes += debtBytes
+ 		}
+ 		xaddint64(&gcController.bgScanCredit, -stolen)
+ 
+ 		scanWork -= stolen
+-		gp.gcscanwork += stolen
+ 
+ 		if scanWork == 0 {
++			// We were able to steal all of the credit we
++			// needed.
+ 			return
+ 		}
+ 	}
+@@ -291,14 +291,20 @@ retry:
+ 		// will be more cache friendly.
+ 		gcw := &getg().m.p.ptr().gcw
+ 		workDone := gcDrainN(gcw, scanWork)
+-		// Record that we did this much scan work.
+-		gp.gcscanwork += workDone
+-		scanWork -= workDone
+ 		// If we are near the end of the mark phase
+ 		// dispose of the gcw.
+ 		if gcBlackenPromptly {
+ 			gcw.dispose()
+ 		}
++
++		// Record that we did this much scan work.
++		scanWork -= workDone
++		// Back out the number of bytes of assist credit that
++		// this scan work counts for. The "1+" is a poor man's
++		// round-up, to ensure this adds credit even if
++		// assistBytesPerWork is very low.
++		gp.gcAssistBytes += 1 + int64(gcController.assistBytesPerWork*float64(workDone))
++
+ 		// If this is the last worker and we ran out of work,
+ 		// signal a completion point.
+ 		incnwait := xadd(&work.nwait, +1)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 54cefb4e0b..40526771c7 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -423,10 +423,6 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan
+ 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
+ 	_g_.m.mcache.local_tinyallocs = 0
+ 
+-	if gcBlackenEnabled != 0 {
+-		gcController.revise()
+-	}
+-
+ 	s := mHeap_AllocSpanLocked(h, npage)
+ 	if s != nil {
+ 		// Record span info, because gc needs to be
+@@ -464,6 +460,11 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan
+ 			}
+ 		}
+ 	}
++	// heap_scan and heap_live were updated.
++	if gcBlackenEnabled != 0 {
++		gcController.revise()
++	}
++
+ 	if trace.enabled {
+ 		traceHeapAlloc()
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 5ef1ddfb7d..5d0aad0f69 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -259,8 +259,15 @@ type g struct {
+ 	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
+ 
+ 	// Per-G gcController state
+-	gcalloc    uintptr // bytes allocated during this GC cycle
+-	gcscanwork int64   // scan work done (or stolen) this GC cycle
++
++	// gcAssistBytes is this G's GC assist credit in terms of
++	// bytes allocated. If this is positive, then the G has credit
++	// to allocate gcAssistBytes bytes without assisting. If this
++	// is negative, then the G must correct this by performing
++	// scan work. We track this in bytes to make it fast to update
++	// and check for debt in the malloc hot path. The assist ratio
++	// determines how this corresponds to scan work debt.
++	gcAssistBytes int64
+ }
+ 
+ type mts struct {

@@ -10,6 +10,46 @@ Date:   Fri Apr 24 16:57:07 2020 -0400
     Change-Id: I92e750dc894c8c6b3c3ba10f7be58bb541d3c289
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230023
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 806d7463cd..a4f78c1c78 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -172,6 +172,17 @@ TODO
+   </dd>
+ </dl>
+ 
++<dl id="net/http/pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
++  <dd>
++    <p><!-- CL 147598, 229537 -->
++      All profile endpoints now support a "seconds" parameter. When present,
++      the endpoint profiles for the specified number of seconds and reports the difference.
++      The meaning of the "seconds" parameter in the <code>cpu</code> profile and
++      the trace endpoints is unchanged.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+   <dd>
+     <p><!-- CL 227645 -->
+@@ -224,6 +235,16 @@ TODO
+   </dd>
+ </dl>
+ 
++<dl id="pkg-runtime-pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
++  <dd>
++    <p><!-- CL 189318 -->
++      The goroutine profile includes the profile labels associated with each goroutine
++      at the time of profiling. This feature is not yet implemented for the profile
++      reported with <code>debug=2</code>.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+   <dd>
+     <p><!-- CL 205899, golang.org/issue/33762 -->

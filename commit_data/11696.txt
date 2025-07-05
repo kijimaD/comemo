@@ -17,7 +17,7 @@ Date:   Tue Feb 7 23:37:25 2012 -0500
     R=golang-dev, r, r, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/5634051
-
+---
  src/pkg/encoding/xml/atom_test.go    | 13 ++++--
  src/pkg/encoding/xml/marshal.go      | 12 ++++++
  src/pkg/encoding/xml/marshal_test.go |  7 ++++
@@ -27,3 +27,508 @@ Date:   Tue Feb 7 23:37:25 2012 -0500
  src/pkg/time/time.go                 | 35 ++--------------
  src/pkg/time/time_test.go            | 42 ++++++++++++++++++--
  8 files changed, 154 insertions(+), 82 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/atom_test.go b/src/pkg/encoding/xml/atom_test.go
+index 8d003aade0..a71284312a 100644
+--- a/src/pkg/encoding/xml/atom_test.go
++++ b/src/pkg/encoding/xml/atom_test.go
+@@ -4,6 +4,8 @@
+ 
+ package xml
+ 
++import "time"
++
+ var atomValue = &Feed{
+ 	XMLName: Name{"http://www.w3.org/2005/Atom", "feed"},
+ 	Title:   "Example Feed",
+@@ -24,11 +26,10 @@ var atomValue = &Feed{
+ }
+ 
+ var atomXml = `` +
+-	`<feed xmlns="http://www.w3.org/2005/Atom">` +
++	`<feed xmlns="http://www.w3.org/2005/Atom" updated="2003-12-13T18:30:02Z">` +
+ 	`<title>Example Feed</title>` +
+ 	`<id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>` +
+ 	`<link href="http://example.org/"></link>` +
+-	`<updated>2003-12-13T18:30:02Z</updated>` +
+ 	`<author><name>John Doe</name><uri></uri><email></email></author>` +
+ 	`<entry>` +
+ 	`<title>Atom-Powered Robots Run Amok</title>` +
+@@ -40,8 +41,12 @@ var atomXml = `` +
+ 	`</entry>` +
+ 	`</feed>`
+ 
+-func ParseTime(str string) Time {
+-	return Time(str)
++func ParseTime(str string) time.Time {
++	t, err := time.Parse(time.RFC3339, str)
++	if err != nil {
++		panic(err)
++	}
++	return t
+ }
+ 
+ func NewText(text string) Text {
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index a2e47cf9b8..a96c523d55 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -12,6 +12,7 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"strings"
++	"time"
+ )
+ 
+ const (
+@@ -223,7 +224,14 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
+ 	return nil
+ }
+ 
++var timeType = reflect.TypeOf(time.Time{})
++
+ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) error {
++	// Normally we don't see structs, but this can happen for an attribute.
++	if val.Type() == timeType {
++		p.WriteString(val.Interface().(time.Time).Format(time.RFC3339Nano))
++		return nil
++	}
+ 	switch val.Kind() {
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		p.WriteString(strconv.FormatInt(val.Int(), 10))
+@@ -255,6 +263,10 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) error {
+ var ddBytes = []byte("--")
+ 
+ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
++	if val.Type() == timeType {
++		p.WriteString(val.Interface().(time.Time).Format(time.RFC3339Nano))
++		return nil
++	}
+ 	s := parentStack{printer: p}
+ 	for i := range tinfo.fields {
+ 		finfo := &tinfo.fields[i]
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index ce51ea82b9..9170fccd24 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ type DriveType int
+@@ -256,6 +257,12 @@ var marshalTests = []struct {
+ 	{Value: &Plain{[]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
+ 	{Value: &Plain{[3]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
+ 
++	// Test time.
++	{
++		Value:     &Plain{time.Unix(1e9, 123456789).UTC()},
++		ExpectXML: `<Plain><V>2001-09-09T01:46:40.123456789Z</V></Plain>`,
++	},
++
+ 	// A pointer to struct{} may be used to test for an element's presence.
+ 	{
+ 		Value:     &PresenceTest{new(struct{})},
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index bde875a012..b5a3426a32 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -10,6 +10,7 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"strings"
++	"time"
+ )
+ 
+ // BUG(rsc): Mapping between XML elements and data structures is inherently flawed:
+@@ -270,6 +271,10 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 			v.Set(reflect.ValueOf(start.Name))
+ 			break
+ 		}
++		if typ == timeType {
++			saveData = v
++			break
++		}
+ 
+ 		sv = v
+ 		tinfo, err = getTypeInfo(typ)
+@@ -473,6 +478,14 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
+ 			src = []byte{}
+ 		}
+ 		t.SetBytes(src)
++	case reflect.Struct:
++		if t.Type() == timeType {
++			tv, err := time.Parse(time.RFC3339, string(src))
++			if err != nil {
++				return err
++			}
++			t.Set(reflect.ValueOf(tv))
++		}
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/encoding/xml/read_test.go b/src/pkg/encoding/xml/read_test.go
+index a3b0b1d594..8df09b3cce 100644
+--- a/src/pkg/encoding/xml/read_test.go
++++ b/src/pkg/encoding/xml/read_test.go
+@@ -7,6 +7,7 @@ package xml
+ import (
+ 	"reflect"
+ 	"testing"
++	"time"
+ )
+ 
+ // Stripped down Atom feed data structures.
+@@ -24,7 +25,7 @@ func TestUnmarshalFeed(t *testing.T) {
+ // hget http://codereview.appspot.com/rss/mine/rsc
+ const atomFeedString = `
+ <?xml version="1.0" encoding="utf-8"?>
+-<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-us"><title>Code Review - My issues</title><link href="http://codereview.appspot.com/" rel="alternate"></link><link href="http://codereview.appspot.com/rss/mine/rsc" rel="self"></link><id>http://codereview.appspot.com/</id><updated>2009-10-04T01:35:58+00:00</updated><author><name>rietveld&lt;&gt;</name></author><entry><title>rietveld: an attempt at pubsubhubbub
++<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-us" updated="2009-10-04T01:35:58+00:00"><title>Code Review - My issues</title><link href="http://codereview.appspot.com/" rel="alternate"></link><link href="http://codereview.appspot.com/rss/mine/rsc" rel="self"></link><id>http://codereview.appspot.com/</id><author><name>rietveld&lt;&gt;</name></author><entry><title>rietveld: an attempt at pubsubhubbub
+ </title><link href="http://codereview.appspot.com/126085" rel="alternate"></link><updated>2009-10-04T01:35:58+00:00</updated><author><name>email-address-removed</name></author><id>urn:md5:134d9179c41f806be79b3a5f7877d19a</id><summary type="html">
+   An attempt at adding pubsubhubbub support to Rietveld.
+ http://code.google.com/p/pubsubhubbub
+@@ -78,22 +79,22 @@ not being used from outside intra_region_diff.py.
+ </summary></entry></feed> 	   `
+ 
+ type Feed struct {
+-	XMLName Name    `xml:"http://www.w3.org/2005/Atom feed"`
+-	Title   string  `xml:"title"`
+-	Id      string  `xml:"id"`
+-	Link    []Link  `xml:"link"`
+-	Updated Time    `xml:"updated"`
+-	Author  Person  `xml:"author"`
+-	Entry   []Entry `xml:"entry"`
++	XMLName Name      `xml:"http://www.w3.org/2005/Atom feed"`
++	Title   string    `xml:"title"`
++	Id      string    `xml:"id"`
++	Link    []Link    `xml:"link"`
++	Updated time.Time `xml:"updated,attr"`
++	Author  Person    `xml:"author"`
++	Entry   []Entry   `xml:"entry"`
+ }
+ 
+ type Entry struct {
+-	Title   string `xml:"title"`
+-	Id      string `xml:"id"`
+-	Link    []Link `xml:"link"`
+-	Updated Time   `xml:"updated"`
+-	Author  Person `xml:"author"`
+-	Summary Text   `xml:"summary"`
++	Title   string    `xml:"title"`
++	Id      string    `xml:"id"`
++	Link    []Link    `xml:"link"`
++	Updated time.Time `xml:"updated"`
++	Author  Person    `xml:"author"`
++	Summary Text      `xml:"summary"`
+ }
+ 
+ type Link struct {
+@@ -113,8 +114,6 @@ type Text struct {
+ 	Body string `xml:",chardata"`
+ }
+ 
+-type Time string
+-
+ var atomFeed = Feed{
+ 	XMLName: Name{"http://www.w3.org/2005/Atom", "feed"},
+ 	Title:   "Code Review - My issues",
+@@ -123,7 +122,7 @@ var atomFeed = Feed{
+ 		{Rel: "self", Href: "http://codereview.appspot.com/rss/mine/rsc"},
+ 	},
+ 	Id:      "http://codereview.appspot.com/",
+-	Updated: "2009-10-04T01:35:58+00:00",
++	Updated: ParseTime("2009-10-04T01:35:58+00:00"),
+ 	Author: Person{
+ 		Name:     "rietveld<>",
+ 		InnerXML: "<name>rietveld&lt;&gt;</name>",
+@@ -134,7 +133,7 @@ var atomFeed = Feed{
+ 			Link: []Link{
+ 				{Rel: "alternate", Href: "http://codereview.appspot.com/126085"},
+ 			},
+-			Updated: "2009-10-04T01:35:58+00:00",
++			Updated: ParseTime("2009-10-04T01:35:58+00:00"),
+ 			Author: Person{
+ 				Name:     "email-address-removed",
+ 				InnerXML: "<name>email-address-removed</name>",
+@@ -181,7 +180,7 @@ the top of feeds.py marked NOTE(rsc).
+ 			Link: []Link{
+ 				{Rel: "alternate", Href: "http://codereview.appspot.com/124106"},
+ 			},
+-			Updated: "2009-10-03T23:02:17+00:00",
++			Updated: ParseTime("2009-10-03T23:02:17+00:00"),
+ 			Author: Person{
+ 				Name:     "email-address-removed",
+ 				InnerXML: "<name>email-address-removed</name>",
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 76bf6ff419..a5716ce699 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -27,7 +27,10 @@ const (
+ // compatibility with fixed-width Unix time formats.
+ //
+ // A decimal point followed by one or more zeros represents a fractional
+-// second. When parsing (only), the input may contain a fractional second
++// second, printed to the given number of decimal places.  A decimal point
++// followed by one or more nines represents a fractional second, printed to
++// the given number of decimal places, with trailing zeros removed.
++// When parsing (only), the input may contain a fractional second
+ // field immediately after the seconds field, even if the layout does not
+ // signify its presence. In that case a decimal point followed by a maximal
+ // series of digits is parsed as a fractional second.
+@@ -41,16 +44,17 @@ const (
+ //	Z0700  Z or ±hhmm
+ //	Z07:00 Z or ±hh:mm
+ const (
+-	ANSIC    = "Mon Jan _2 15:04:05 2006"
+-	UnixDate = "Mon Jan _2 15:04:05 MST 2006"
+-	RubyDate = "Mon Jan 02 15:04:05 -0700 2006"
+-	RFC822   = "02 Jan 06 1504 MST"
+-	RFC822Z  = "02 Jan 06 1504 -0700" // RFC822 with numeric zone
+-	RFC850   = "Monday, 02-Jan-06 15:04:05 MST"
+-	RFC1123  = "Mon, 02 Jan 2006 15:04:05 MST"
+-	RFC1123Z = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
+-	RFC3339  = "2006-01-02T15:04:05Z07:00"
+-	Kitchen  = "3:04PM"
++	ANSIC       = "Mon Jan _2 15:04:05 2006"
++	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
++	RubyDate    = "Mon Jan 02 15:04:05 -0700 2006"
++	RFC822      = "02 Jan 06 1504 MST"
++	RFC822Z     = "02 Jan 06 1504 -0700" // RFC822 with numeric zone
++	RFC850      = "Monday, 02-Jan-06 15:04:05 MST"
++	RFC1123     = "Mon, 02 Jan 2006 15:04:05 MST"
++	RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
++	RFC3339     = "2006-01-02T15:04:05Z07:00"
++	RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
++	Kitchen     = "3:04PM"
+ 	// Handy time stamps.
+ 	Stamp      = "Jan _2 15:04:05"
+ 	StampMilli = "Jan _2 15:04:05.000"
+@@ -165,15 +169,17 @@ func nextStdChunk(layout string) (prefix, std, suffix string) {
+ 			if len(layout) >= i+6 && layout[i:i+6] == stdISO8601ColonTZ {
+ 				return layout[0:i], layout[i : i+6], layout[i+6:]
+ 			}
+-		case '.': // .000 - multiple digits of zeros (only) for fractional seconds.
+-			numZeros := 0
+-			var j int
+-			for j = i + 1; j < len(layout) && layout[j] == '0'; j++ {
+-				numZeros++
+-			}
+-			// String of digits must end here - only fractional second is all zeros.
+-			if numZeros > 0 && !isDigit(layout, j) {
+-				return layout[0:i], layout[i : i+1+numZeros], layout[i+1+numZeros:]
++		case '.': // .000 or .999 - repeated digits for fractional seconds.
++			if i+1 < len(layout) && (layout[i+1] == '0' || layout[i+1] == '9') {
++				ch := layout[i+1]
++				j := i + 1
++				for j < len(layout) && layout[j] == ch {
++					j++
++				}
++				// String of digits must end here - only fractional second is all digits.
++				if !isDigit(layout, j) {
++					return layout[0:i], layout[i:j], layout[j:]
++				}
+ 			}
+ 		}
+ 	}
+@@ -313,7 +319,7 @@ func pad(i int, padding string) string {
+ func zeroPad(i int) string { return pad(i, "0") }
+ 
+ // formatNano formats a fractional second, as nanoseconds.
+-func formatNano(nanosec, n int) string {
++func formatNano(nanosec, n int, trim bool) string {
+ 	// User might give us bad data. Make sure it's positive and in range.
+ 	// They'll get nonsense output but it will have the right format.
+ 	s := itoa(int(uint(nanosec) % 1e9))
+@@ -324,6 +330,14 @@ func formatNano(nanosec, n int) string {
+ 	if n > 9 {
+ 		n = 9
+ 	}
++	if trim {
++		for n > 0 && s[n-1] == '0' {
++			n--
++		}
++		if n == 0 {
++			return ""
++		}
++	}
+ 	return "." + s[:n]
+ }
+ 
+@@ -388,7 +402,24 @@ func (t Time) Format(layout string) string {
+ 		case stdYear:
+ 			p = zeroPad(year % 100)
+ 		case stdLongYear:
++			// Pad year to at least 4 digits.
+ 			p = itoa(year)
++			switch {
++			case year <= -1000:
++				// ok
++			case year <= -100:
++				p = p[:1] + "0" + p[1:]
++			case year <= -10:
++				p = p[:1] + "00" + p[1:]
++			case year < 0:
++				p = p[:1] + "000" + p[1:]
++			case year < 10:
++				p = "000" + p
++			case year < 100:
++				p = "00" + p
++			case year < 1000:
++				p = "0" + p
++			}
+ 		case stdMonth:
+ 			p = month.String()[:3]
+ 		case stdLongMonth:
+@@ -481,8 +512,8 @@ func (t Time) Format(layout string) string {
+ 				p += zeroPad(zone % 60)
+ 			}
+ 		default:
+-			if len(std) >= 2 && std[0:2] == ".0" {
+-				p = formatNano(t.Nanosecond(), len(std)-1)
++			if len(std) >= 2 && (std[0:2] == ".0" || std[0:2] == ".9") {
++				p = formatNano(t.Nanosecond(), len(std)-1, std[1] == '9')
+ 			}
+ 		}
+ 		b.WriteString(p)
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 39d4b95dd0..709a422672 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -841,46 +841,17 @@ func (t *Time) GobDecode(buf []byte) error {
+ // MarshalJSON implements the json.Marshaler interface.
+ // Time is formatted as RFC3339.
+ func (t Time) MarshalJSON() ([]byte, error) {
+-	yearInt := t.Year()
+-	if yearInt < 0 || yearInt > 9999 {
++	if y := t.Year(); y < 0 || y >= 10000 {
+ 		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
+ 	}
+-
+-	// We need a four-digit year, but Format produces variable-width years.
+-	year := itoa(yearInt)
+-	year = "0000"[:4-len(year)] + year
+-
+-	var formattedTime string
+-	if t.nsec == 0 {
+-		// RFC3339, no fractional second
+-		formattedTime = t.Format("-01-02T15:04:05Z07:00")
+-	} else {
+-		// RFC3339 with fractional second
+-		formattedTime = t.Format("-01-02T15:04:05.000000000Z07:00")
+-
+-		// Trim trailing zeroes from fractional second.
+-		const nanoEnd = 24 // Index of last digit of fractional second
+-		var i int
+-		for i = nanoEnd; formattedTime[i] == '0'; i-- {
+-			// Seek backwards until first significant digit is found.
+-		}
+-
+-		formattedTime = formattedTime[:i+1] + formattedTime[nanoEnd+1:]
+-	}
+-
+-	buf := make([]byte, 0, 1+len(year)+len(formattedTime)+1)
+-	buf = append(buf, '"')
+-	buf = append(buf, year...)
+-	buf = append(buf, formattedTime...)
+-	buf = append(buf, '"')
+-	return buf, nil
++	return []byte(t.Format(`"` + RFC3339Nano + `"`)), nil
+ }
+ 
+ // UnmarshalJSON implements the json.Unmarshaler interface.
+ // Time is expected in RFC3339 format.
+ func (t *Time) UnmarshalJSON(data []byte) (err error) {
+-	*t, err = Parse("\""+RFC3339+"\"", string(data))
+ 	// Fractional seconds are handled implicitly by Parse.
++	*t, err = Parse(`"`+RFC3339+`"`, string(data))
+ 	return
+ }
+ 
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index cdc1c39c5f..3430526b8b 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/gob"
+ 	"encoding/json"
++	"fmt"
+ 	"math/rand"
+ 	"strconv"
+ 	"strings"
+@@ -227,6 +228,7 @@ var formatTests = []FormatTest{
+ 	{"RFC1123", RFC1123, "Wed, 04 Feb 2009 21:00:57 PST"},
+ 	{"RFC1123Z", RFC1123Z, "Wed, 04 Feb 2009 21:00:57 -0800"},
+ 	{"RFC3339", RFC3339, "2009-02-04T21:00:57-08:00"},
++	{"RFC3339Nano", RFC3339Nano, "2009-02-04T21:00:57.0123456-08:00"},
+ 	{"Kitchen", Kitchen, "9:00PM"},
+ 	{"am/pm", "3pm", "9pm"},
+ 	{"AM/PM", "3PM", "9PM"},
+@@ -235,12 +237,12 @@ var formatTests = []FormatTest{
+ 	{"Stamp", Stamp, "Feb  4 21:00:57"},
+ 	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
+ 	{"StampMicro", StampMicro, "Feb  4 21:00:57.012345"},
+-	{"StampNano", StampNano, "Feb  4 21:00:57.012345678"},
++	{"StampNano", StampNano, "Feb  4 21:00:57.012345600"},
+ }
+ 
+ func TestFormat(t *testing.T) {
+-	// The numeric time represents Thu Feb  4 21:00:57.012345678 PST 2010
+-	time := Unix(0, 1233810057012345678)
++	// The numeric time represents Thu Feb  4 21:00:57.012345600 PST 2010
++	time := Unix(0, 1233810057012345600)
+ 	for _, test := range formatTests {
+ 		result := time.Format(test.format)
+ 		if result != test.result {
+@@ -249,6 +251,38 @@ func TestFormat(t *testing.T) {
+ 	}
+ }
+ 
++func TestFormatShortYear(t *testing.T) {
++	years := []int{
++		-100001, -100000, -99999,
++		-10001, -10000, -9999,
++		-1001, -1000, -999,
++		-101, -100, -99,
++		-11, -10, -9,
++		-1, 0, 1,
++		9, 10, 11,
++		99, 100, 101,
++		999, 1000, 1001,
++		9999, 10000, 10001,
++		99999, 100000, 100001,
++	}
++
++	for _, y := range years {
++		time := Date(y, January, 1, 0, 0, 0, 0, UTC)
++		result := time.Format("2006.01.02")
++		var want string
++		if y < 0 {
++			// The 4 in %04d counts the - sign, so print -y instead
++			// and introduce our own - sign.
++			want = fmt.Sprintf("-%04d.%02d.%02d", -y, 1, 1)
++		} else {
++			want = fmt.Sprintf("%04d.%02d.%02d", y, 1, 1)
++		}
++		if result != want {
++			t.Errorf("(jan 1 %d).Format(\"2006.01.02\") = %q, want %q", y, result, want)
++		}
++	}
++}
++
+ type ParseTest struct {
+ 	name       string
+ 	format     string
+@@ -782,7 +816,7 @@ func TestTimeJSON(t *testing.T) {
+ 		if jsonBytes, err := json.Marshal(tt.time); err != nil {
+ 			t.Errorf("%v json.Marshal error = %v, want nil", tt.time, err)
+ 		} else if string(jsonBytes) != tt.json {
+-			t.Errorf("%v JSON = %q, want %q", tt.time, string(jsonBytes), tt.json)
++			t.Errorf("%v JSON = %#q, want %#q", tt.time, string(jsonBytes), tt.json)
+ 		} else if err = json.Unmarshal(jsonBytes, &jsonTime); err != nil {
+ 			t.Errorf("%v json.Unmarshal error = %v, want nil", tt.time, err)
+ 		} else if !equalTimeAndZone(jsonTime, tt.time) {

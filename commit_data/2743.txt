@@ -8,9 +8,139 @@ Date:   Fri Jul 17 14:20:33 2009 -0700
     DELTA=31  (8 added, 2 deleted, 21 changed)
     OCL=31778
     CL=31792
-
+---
  src/pkg/gob/decode.go   |  2 +-
  src/pkg/gob/type.go     |  7 +++----
  src/pkg/reflect/type.go | 37 ++++++++++++++++++++++---------------
  src/pkg/rpc/server.go   |  2 +-
  4 files changed, 27 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 1de74e260a..991b6f03f9 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -741,7 +741,7 @@ func decode(b *bytes.Buffer, wireId TypeId, e interface{}) os.Error {
+ 	}
+ 	engine := *enginePtr;
+ 	if engine.numInstr == 0 && st.NumField() > 0 && len(wireId.gobType().(*structType).field) > 0 {
+-		path, name := rt.Name();
++		name := rt.Name();
+ 		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
+ 	}
+ 	return decodeStruct(engine, rt.(*reflect.StructType), b, uintptr(v.Addr()), 0);
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 1c8bf61bc5..006a0e442b 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -241,8 +241,7 @@ func newTypeObject(name string, rt reflect.Type) gobType {
+ 		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
+ 			return tBytes.gobType()
+ 		}
+-		_, elemName := t.Elem().Name();
+-		return newSliceType(name, newType(elemName, t.Elem()));
++		return newSliceType(name, newType(t.Elem().Name(), t.Elem()));
+ 
+ 	case *reflect.StructType:
+ 		// Install the struct type itself before the fields so recursive
+@@ -254,7 +253,7 @@ func newTypeObject(name string, rt reflect.Type) gobType {
+ 		for i := 0; i < t.NumField(); i++ {
+ 			f := t.Field(i);
+ 			typ, _indir := indirect(f.Type);
+-			_pkg, tname := typ.Name();
++			tname := typ.Name();
+ 			if tname == "" {
+ 				tname = f.Type.String();
+ 			}
+@@ -346,7 +345,7 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
+ 	info, ok := typeInfoMap[rt];
+ 	if !ok {
+ 		info = new(typeInfo);
+-		path, name := rt.Name();
++		name := rt.Name();
+ 		info.typeId = getType(name, rt).id();
+ 		// assume it's a struct type
+ 		info.wire = &wireType{info.typeId.gobType().(*structType)};
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 6a0b70a7a7..7e4914cc25 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -246,9 +246,12 @@ type Method struct {
+ // Each type in a program has a unique Type, so == on Types
+ // corresponds to Go's type equality.
+ type Type interface {
+-	// Name returns the type's package and name.
+-	// The package is a full package import path like "container/vector".
+-	Name()	(pkgPath string, name string);
++	// PkgPath returns the type's package path.
++	// The package path is a full package import path like "container/vector".
++	PkgPath()	string;
++
++	// Name returns the type's name within its package.
++	Name()	string;
+ 
+ 	// String returns a string representation of the type.
+ 	// The string representation may use shortened package names
+@@ -284,17 +287,18 @@ func (t *uncommonType) uncommon() *uncommonType {
+ 	return t;
+ }
+ 
+-func (t *uncommonType) Name() (pkgPath string, name string) {
+-	if t == nil {
+-		return;
++func (t *uncommonType) PkgPath() string {
++	if t == nil || t.pkgPath == nil {
++		return ""
+ 	}
+-	if t.pkgPath != nil {
+-		pkgPath = *t.pkgPath;
+-	}
+-	if t.name != nil {
+-		name = *t.name;
++	return *t.pkgPath;
++}
++
++func (t *uncommonType) Name() string {
++	if t == nil || t.name == nil {
++		return "";
+ 	}
+-	return;
++	return *t.name;
+ }
+ 
+ func (t *commonType) String() string {
+@@ -348,7 +352,11 @@ func (t *commonType) Method(i int) (m Method) {
+ 	return t.uncommonType.Method(i);
+ }
+ 
+-func (t *commonType) Name() (pkgPath string, name string) {
++func (t *commonType) PkgPath() string {
++	return t.uncommonType.PkgPath();
++}
++
++func (t *commonType) Name() string {
+ 	return t.uncommonType.Name();
+ }
+ 
+@@ -469,8 +477,7 @@ func (t *StructType) Field(i int) (f StructField) {
+ 	if p.name != nil {
+ 		f.Name = *p.name;
+ 	} else {
+-		nam, pkg := f.Type.Name();
+-		f.Name = nam;
++		f.Name = f.Type.Name();
+ 		f.Anonymous = true;
+ 	}
+ 	if p.pkgPath != nil {
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index dadfae0c94..78458e40bd 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -71,7 +71,7 @@ func (server *serverType) add(rcvr interface{}) os.Error {
+ 	s := new(service);
+ 	s.typ = reflect.Typeof(rcvr);
+ 	s.rcvr = reflect.NewValue(rcvr);
+-	path_, sname := reflect.Indirect(s.rcvr).Type().Name();
++	sname := reflect.Indirect(s.rcvr).Type().Name();
+ 	if sname == "" {
+ 		log.Exit("rpc: no service name for type", s.typ.String())
+ 	}

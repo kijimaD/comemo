@@ -7,6 +7,20 @@ Date:   Sun Jul 31 12:59:58 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4809064
-
+---
  doc/go_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 560ab3617a..0bb3eef76c 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1053,7 +1053,7 @@ How is the run-time support implemented?</h3>
+ Again due to bootstrapping issues, the run-time code is mostly in C (with a
+ tiny bit of assembler) although Go is capable of implementing most of
+ it now. <code>Gccgo</code>'s run-time support uses <code>glibc</code>.
+-<code>Gc</code> uses a custom library, to keep the footprint under
++<code>Gc</code> uses a custom library to keep the footprint under
+ control; it is
+ compiled with a version of the Plan 9 C compiler that supports
+ segmented stacks for goroutines.

@@ -12,6 +12,39 @@ Date:   Sat Sep 2 17:38:45 2017 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/regexp/syntax/prog.go | 13 ++-----------
  1 file changed, 2 insertions(+), 11 deletions(-)
+
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index c32ae8d9fa..6c56371b4c 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -247,15 +247,6 @@ func (i *Inst) MatchRunePos(r rune) int {
+ 	return noMatch
+ }
+ 
+-// As per re2's Prog::IsWordChar. Determines whether rune is an ASCII word char.
+-// Since we act on runes, it would be easy to support Unicode here.
+-func wordRune(r rune) bool {
+-	return r == '_' ||
+-		('A' <= r && r <= 'Z') ||
+-		('a' <= r && r <= 'z') ||
+-		('0' <= r && r <= '9')
+-}
+-
+ // MatchEmptyWidth reports whether the instruction matches
+ // an empty string between the runes before and after.
+ // It should only be called when i.Op == InstEmptyWidth.
+@@ -270,9 +261,9 @@ func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
+ 	case EmptyEndText:
+ 		return after == -1
+ 	case EmptyWordBoundary:
+-		return wordRune(before) != wordRune(after)
++		return IsWordChar(before) != IsWordChar(after)
+ 	case EmptyNoWordBoundary:
+-		return wordRune(before) == wordRune(after)
++		return IsWordChar(before) == IsWordChar(after)
+ 	}
+ 	panic("unknown empty width arg")
+ }

@@ -16,7 +16,22 @@ Date:   Sun Nov 19 10:24:22 2023 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/race/README                  |   2 +-
  src/runtime/race/race_linux_ppc64le.syso | Bin 669736 -> 727720 bytes
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index 75484f71eb..47c51ca9c1 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -13,5 +13,5 @@ internal/amd64v1/race_windows.syso built with LLVM 51bfeff0e4b0757ff773da6882f4d
+ internal/amd64v3/race_linux.syso built with LLVM 51bfeff0e4b0757ff773da6882f4d538996c9b04 and Go e7d582b55dda36e76ce4d0ce770139ca0915b7c5.
+ race_darwin_arm64.syso built with LLVM 51bfeff0e4b0757ff773da6882f4d538996c9b04 and Go e7d582b55dda36e76ce4d0ce770139ca0915b7c5.
+ race_linux_arm64.syso built with LLVM 51bfeff0e4b0757ff773da6882f4d538996c9b04 and Go e7d582b55dda36e76ce4d0ce770139ca0915b7c5.
+-race_linux_ppc64le.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
++race_linux_ppc64le.syso built with LLVM 51bfeff0e4b0757ff773da6882f4d538996c9b04 and Go e7d582b55dda36e76ce4d0ce770139ca0915b7c5.
+ race_linux_s390x.syso built with LLVM 51bfeff0e4b0757ff773da6882f4d538996c9b04 and Go e7d582b55dda36e76ce4d0ce770139ca0915b7c5.
+diff --git a/src/runtime/race/race_linux_ppc64le.syso b/src/runtime/race/race_linux_ppc64le.syso
+index 1939f29ac0..49824a9d18 100644
+Binary files a/src/runtime/race/race_linux_ppc64le.syso and b/src/runtime/race/race_linux_ppc64le.syso differ

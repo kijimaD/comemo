@@ -15,10 +15,207 @@ Date:   Mon Nov 14 16:50:15 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcarchive/main2.c |  7 ++++---
  misc/cgo/testcarchive/main3.c | 14 ++++++++------
  misc/cgo/testcarchive/main4.c | 15 +++++++++------
  misc/cgo/testcshared/main4.c  |  7 ++++---
  misc/cgo/testcshared/main5.c  | 14 ++++++++------
  5 files changed, 33 insertions(+), 24 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main2.c b/misc/cgo/testcarchive/main2.c
+index 56f890cad4..ea37986129 100644
+--- a/misc/cgo/testcarchive/main2.c
++++ b/misc/cgo/testcarchive/main2.c
+@@ -112,6 +112,7 @@ int main(int argc, char** argv) {
+ 	int verbose;
+ 	sigset_t mask;
+ 	int i;
++	struct timespec ts;
+ 
+ 	verbose = argc > 1;
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+@@ -161,9 +162,9 @@ int main(int argc, char** argv) {
+ 	// Wait until the signal has been delivered.
+ 	i = 0;
+ 	while (!sigioSeen) {
+-		if (sched_yield() < 0) {
+-			perror("sched_yield");
+-		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = 1000000;
++		nanosleep(&ts, NULL);
+ 		i++;
+ 		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+diff --git a/misc/cgo/testcarchive/main3.c b/misc/cgo/testcarchive/main3.c
+index 11046d087d..bb7eeda032 100644
+--- a/misc/cgo/testcarchive/main3.c
++++ b/misc/cgo/testcarchive/main3.c
+@@ -9,6 +9,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <time.h>
+ #include <sched.h>
+ 
+ #include "libgo3.h"
+@@ -28,6 +29,7 @@ int main(int argc, char** argv) {
+ 	int verbose;
+ 	struct sigaction sa;
+ 	int i;
++	struct timespec ts;
+ 
+ 	verbose = argc > 2;
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+@@ -64,9 +66,9 @@ int main(int argc, char** argv) {
+ 	// Wait until the signal has been delivered.
+ 	i = 0;
+ 	while (!sigioSeen) {
+-		if (sched_yield() < 0) {
+-			perror("sched_yield");
+-		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = 1000000;
++		nanosleep(&ts, NULL);
+ 		i++;
+ 		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+@@ -138,9 +140,9 @@ int main(int argc, char** argv) {
+ 	// Wait until the signal has been delivered.
+ 	i = 0;
+ 	while (!sigioSeen) {
+-		if (sched_yield() < 0) {
+-			perror("sched_yield");
+-		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = 1000000;
++		nanosleep(&ts, NULL);
+ 		i++;
+ 		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+diff --git a/misc/cgo/testcarchive/main4.c b/misc/cgo/testcarchive/main4.c
+index 353f980c50..39f7c309df 100644
+--- a/misc/cgo/testcarchive/main4.c
++++ b/misc/cgo/testcarchive/main4.c
+@@ -8,6 +8,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <time.h>
+ #include <sched.h>
+ #include <pthread.h>
+ 
+@@ -48,6 +49,7 @@ static void* thread1(void* arg __attribute__ ((unused))) {
+ 	stack_t ss;
+ 	int i;
+ 	stack_t nss;
++	struct timespec ts;
+ 
+ 	// Set up an alternate signal stack for this thread.
+ 	memset(&ss, 0, sizeof ss);
+@@ -73,9 +75,9 @@ static void* thread1(void* arg __attribute__ ((unused))) {
+ 	// Wait until the signal has been delivered.
+ 	i = 0;
+ 	while (SIGIOCount() == 0) {
+-		if (sched_yield() < 0) {
+-			perror("sched_yield");
+-		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = 1000000;
++		nanosleep(&ts, NULL);
+ 		i++;
+ 		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+@@ -105,6 +107,7 @@ static void* thread2(void* arg __attribute__ ((unused))) {
+ 	int i;
+ 	int oldcount;
+ 	pthread_t tid;
++	struct timespec ts;
+ 	stack_t nss;
+ 
+ 	// Set up an alternate signal stack for this thread.
+@@ -129,9 +132,9 @@ static void* thread2(void* arg __attribute__ ((unused))) {
+ 	// Wait until the signal has been delivered.
+ 	i = 0;
+ 	while (SIGIOCount() == oldcount) {
+-		if (sched_yield() < 0) {
+-			perror("sched_yield");
+-		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = 1000000;
++		nanosleep(&ts, NULL);
+ 		i++;
+ 		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+diff --git a/misc/cgo/testcshared/main4.c b/misc/cgo/testcshared/main4.c
+index fd7b5b31ed..ffc4ecabad 100644
+--- a/misc/cgo/testcshared/main4.c
++++ b/misc/cgo/testcshared/main4.c
+@@ -77,6 +77,7 @@ int main(int argc, char** argv) {
+ 	void (*fn)(void);
+ 	sigset_t mask;
+ 	int i;
++	struct timespec ts;
+ 
+ 	verbose = argc > 2;
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+@@ -166,9 +167,9 @@ int main(int argc, char** argv) {
+ 	// Wait until the signal has been delivered.
+ 	i = 0;
+ 	while (!sigioSeen) {
+-		if (sched_yield() < 0) {
+-			perror("sched_yield");
+-		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = 1000000;
++		nanosleep(&ts, NULL);
+ 		i++;
+ 		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+diff --git a/misc/cgo/testcshared/main5.c b/misc/cgo/testcshared/main5.c
+index 97a258f21a..57c64a122e 100644
+--- a/misc/cgo/testcshared/main5.c
++++ b/misc/cgo/testcshared/main5.c
+@@ -10,6 +10,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <time.h>
+ #include <sched.h>
+ #include <dlfcn.h>
+ 
+@@ -31,6 +32,7 @@ int main(int argc, char** argv) {
+ 	void (*fn1)(void);
+ 	int (*sawSIGIO)(void);
+ 	int i;
++	struct timespec ts;
+ 
+ 	verbose = argc > 2;
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+@@ -77,9 +79,9 @@ int main(int argc, char** argv) {
+ 	// Wait until the signal has been delivered.
+ 	i = 0;
+ 	while (!sigioSeen) {
+-		if (sched_yield() < 0) {
+-			perror("sched_yield");
+-		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = 1000000;
++		nanosleep(&ts, NULL);
+ 		i++;
+ 		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");
+@@ -182,9 +184,9 @@ int main(int argc, char** argv) {
+ 	// Wait until the signal has been delivered.
+ 	i = 0;
+ 	while (!sigioSeen) {
+-		if (sched_yield() < 0) {
+-			perror("sched_yield");
+-		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = 1000000;
++		nanosleep(&ts, NULL);
+ 		i++;
+ 		if (i > 100000) {
+ 			fprintf(stderr, "looping too long waiting for signal\n");

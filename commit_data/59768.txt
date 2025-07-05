@@ -15,6 +15,20 @@ Date:   Mon Apr 15 18:23:38 2024 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/alg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index aadd5f1002..cab0abf577 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -391,7 +391,7 @@ func alginit() {
+ 		return
+ 	}
+ 	for i := range hashkey {
+-		hashkey[i] = uintptr(bootstrapRand()) | 1 // make sure these numbers are odd
++		hashkey[i] = uintptr(bootstrapRand())
+ 	}
+ }
+ 

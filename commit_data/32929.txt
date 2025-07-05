@@ -23,6 +23,20 @@ Date:   Wed Jun 14 21:32:41 2017 +0000
     Change-Id: Ibdd7a92377f4cc77d71ed548f02d48bde6550f67
     Reviewed-on: https://go-review.googlesource.com/45778
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  src/cmd/go/internal/work/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 413537d9de..20f3952d4a 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -396,7 +396,7 @@ func BuildModeInit() {
+ 			cfg.BuildContext.InstallSuffix += codegenArg[1:]
+ 		}
+ 	}
+-	if strings.HasPrefix(runtimeVersion, "go1") {
++	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+ 		buildGcflags = append(buildGcflags, "-goversion", runtimeVersion)
+ 	}
+ }

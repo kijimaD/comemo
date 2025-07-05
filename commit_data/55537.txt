@@ -20,7 +20,7 @@ Date:   Tue Oct 25 17:58:07 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Bypass: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/test/inl_test.go |  2 +
  src/runtime/asm_386.s                     | 16 +++----
  src/runtime/asm_amd64.s                   | 17 ++++----
@@ -37,3 +37,957 @@ Date:   Tue Oct 25 17:58:07 2022 -0700
  src/runtime/mbitmap.go                    | 33 +++++++-------
  src/runtime/mwbbuf.go                     | 69 ++++++++++++++---------------
  15 files changed, 189 insertions(+), 180 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 3dda480d36..96dd0bf935 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -87,6 +87,8 @@ func TestIntendedInlining(t *testing.T) {
+ 			"(*mspan).markBitsForIndex",
+ 			"(*muintptr).set",
+ 			"(*puintptr).set",
++			"(*wbBuf).get1",
++			"(*wbBuf).get2",
+ 		},
+ 		"runtime/internal/sys": {},
+ 		"runtime/internal/math": {
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 02179d2ee9..a03e5b0fe0 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1377,6 +1377,7 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$28
+ 	// faster than having the caller spill these.
+ 	MOVL	CX, 20(SP)
+ 	MOVL	BX, 24(SP)
++retry:
+ 	// TODO: Consider passing g.m.p in as an argument so they can be shared
+ 	// across a sequence of write barriers.
+ 	get_tls(BX)
+@@ -1386,15 +1387,15 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$28
+ 	MOVL	(p_wbBuf+wbBuf_next)(BX), CX
+ 	// Increment wbBuf.next position.
+ 	LEAL	8(CX), CX
+-	MOVL	CX, (p_wbBuf+wbBuf_next)(BX)
++	// Is the buffer full?
+ 	CMPL	CX, (p_wbBuf+wbBuf_end)(BX)
++	JA	flush
++	// Commit to the larger buffer.
++	MOVL	CX, (p_wbBuf+wbBuf_next)(BX)
+ 	// Record the write.
+ 	MOVL	AX, -8(CX)	// Record value
+ 	MOVL	(DI), BX	// TODO: This turns bad writes into bad reads.
+ 	MOVL	BX, -4(CX)	// Record *slot
+-	// Is the buffer full? (flags set in CMPL above)
+-	JEQ	flush
+-ret:
+ 	MOVL	20(SP), CX
+ 	MOVL	24(SP), BX
+ 	// Do the write.
+@@ -1404,8 +1405,8 @@ ret:
+ flush:
+ 	// Save all general purpose registers since these could be
+ 	// clobbered by wbBufFlush and were not saved by the caller.
+-	MOVL	DI, 0(SP)	// Also first argument to wbBufFlush
+-	MOVL	AX, 4(SP)	// Also second argument to wbBufFlush
++	MOVL	DI, 0(SP)
++	MOVL	AX, 4(SP)
+ 	// BX already saved
+ 	// CX already saved
+ 	MOVL	DX, 8(SP)
+@@ -1413,7 +1414,6 @@ flush:
+ 	MOVL	SI, 16(SP)
+ 	// DI already saved
+ 
+-	// This takes arguments DI and AX
+ 	CALL	runtime·wbBufFlush(SB)
+ 
+ 	MOVL	0(SP), DI
+@@ -1421,7 +1421,7 @@ flush:
+ 	MOVL	8(SP), DX
+ 	MOVL	12(SP), BP
+ 	MOVL	16(SP), SI
+-	JMP	ret
++	JMP	retry
+ 
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 45afcda38f..6acb7ddaef 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1634,15 +1634,20 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
+ 	// faster than having the caller spill these.
+ 	MOVQ	R12, 96(SP)
+ 	MOVQ	R13, 104(SP)
++retry:
+ 	// TODO: Consider passing g.m.p in as an argument so they can be shared
+ 	// across a sequence of write barriers.
+ 	MOVQ	g_m(R14), R13
+ 	MOVQ	m_p(R13), R13
++	// Get current buffer write position.
+ 	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12
+ 	// Increment wbBuf.next position.
+ 	LEAQ	16(R12), R12
+-	MOVQ	R12, (p_wbBuf+wbBuf_next)(R13)
++	// Is the buffer full?
+ 	CMPQ	R12, (p_wbBuf+wbBuf_end)(R13)
++	JA	flush
++	// Commit to the larger buffer.
++	MOVQ	R12, (p_wbBuf+wbBuf_next)(R13)
+ 	// Record the write.
+ 	MOVQ	AX, -16(R12)	// Record value
+ 	// Note: This turns bad pointer writes into bad
+@@ -1653,9 +1658,6 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
+ 	// combine the read and the write.
+ 	MOVQ	(DI), R13
+ 	MOVQ	R13, -8(R12)	// Record *slot
+-	// Is the buffer full? (flags set in CMPQ above)
+-	JEQ	flush
+-ret:
+ 	MOVQ	96(SP), R12
+ 	MOVQ	104(SP), R13
+ 	// Do the write.
+@@ -1675,8 +1677,8 @@ flush:
+ 	//
+ 	// TODO: We could strike a different balance; e.g., saving X0
+ 	// and not saving GP registers that are less likely to be used.
+-	MOVQ	DI, 0(SP)	// Also first argument to wbBufFlush
+-	MOVQ	AX, 8(SP)	// Also second argument to wbBufFlush
++	MOVQ	DI, 0(SP)
++	MOVQ	AX, 8(SP)
+ 	MOVQ	BX, 16(SP)
+ 	MOVQ	CX, 24(SP)
+ 	MOVQ	DX, 32(SP)
+@@ -1692,7 +1694,6 @@ flush:
+ 	// R14 is g
+ 	MOVQ	R15, 88(SP)
+ 
+-	// This takes arguments DI and AX
+ 	CALL	runtime·wbBufFlush(SB)
+ 
+ 	MOVQ	0(SP), DI
+@@ -1707,7 +1708,7 @@ flush:
+ 	MOVQ	72(SP), R10
+ 	MOVQ	80(SP), R11
+ 	MOVQ	88(SP), R15
+-	JMP	ret
++	JMP	retry
+ 
+ // gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
+ // Defined as ABIInternal since it does not use the stable Go ABI.
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 591ef2a399..40a6e47792 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -882,21 +882,22 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ TEXT runtime·gcWriteBarrier(SB),NOSPLIT|NOFRAME,$0
+ 	// Save the registers clobbered by the fast path.
+ 	MOVM.DB.W	[R0,R1], (R13)
++retry:
+ 	MOVW	g_m(g), R0
+ 	MOVW	m_p(R0), R0
+ 	MOVW	(p_wbBuf+wbBuf_next)(R0), R1
++	MOVW	(p_wbBuf+wbBuf_end)(R0), R11
+ 	// Increment wbBuf.next position.
+ 	ADD	$8, R1
++	// Is the buffer full?
++	CMP	R11, R1
++	BHI	flush
++	// Commit to the larger buffer.
+ 	MOVW	R1, (p_wbBuf+wbBuf_next)(R0)
+-	MOVW	(p_wbBuf+wbBuf_end)(R0), R0
+-	CMP	R1, R0
+ 	// Record the write.
+ 	MOVW	R3, -8(R1)	// Record value
+ 	MOVW	(R2), R0	// TODO: This turns bad writes into bad reads.
+ 	MOVW	R0, -4(R1)	// Record *slot
+-	// Is the buffer full? (flags set in CMP above)
+-	B.EQ	flush
+-ret:
+ 	MOVM.IA.W	(R13), [R0,R1]
+ 	// Do the write.
+ 	MOVW	R3, (R2)
+@@ -911,20 +912,16 @@ flush:
+ 	// R11 is linker temp, so no need to save.
+ 	// R13 is stack pointer.
+ 	// R15 is PC.
+-	//
+-	// This also sets up R2 and R3 as the arguments to wbBufFlush.
+ 	MOVM.DB.W	[R2-R9,R12], (R13)
+ 	// Save R14 (LR) because the fast path above doesn't save it,
+-	// but needs it to RET. This is after the MOVM so it appears below
+-	// the arguments in the stack frame.
++	// but needs it to RET.
+ 	MOVM.DB.W	[R14], (R13)
+ 
+-	// This takes arguments R2 and R3.
+ 	CALL	runtime·wbBufFlush(SB)
+ 
+ 	MOVM.IA.W	(R13), [R14]
+ 	MOVM.IA.W	(R13), [R2-R9,R12]
+-	JMP	ret
++	JMP	retry
+ 
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 7eb5bcfd21..bc9e73ffd6 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1194,7 +1194,7 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ // - R2 is the destination of the write
+ // - R3 is the value being written at R2
+ // It clobbers condition codes.
+-// It does not clobber any general-purpose registers,
++// It does not clobber any general-purpose registers except R27,
+ // but may clobber others (e.g., floating point registers)
+ // The act of CALLing gcWriteBarrier will clobber R30 (LR).
+ //
+@@ -1203,21 +1203,22 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$200
+ 	// Save the registers clobbered by the fast path.
+ 	STP	(R0, R1), 184(RSP)
++retry:
+ 	MOVD	g_m(g), R0
+ 	MOVD	m_p(R0), R0
+-	MOVD	(p_wbBuf+wbBuf_next)(R0), R1
++        MOVD	(p_wbBuf+wbBuf_next)(R0), R1
++        MOVD	(p_wbBuf+wbBuf_end)(R0), R27
+ 	// Increment wbBuf.next position.
+ 	ADD	$16, R1
++	// Is the buffer full?
++	CMP	R27, R1
++	BHI	flush
++	// Commit to the larger buffer.
+ 	MOVD	R1, (p_wbBuf+wbBuf_next)(R0)
+-	MOVD	(p_wbBuf+wbBuf_end)(R0), R0
+-	CMP	R1, R0
+ 	// Record the write.
+ 	MOVD	R3, -16(R1)	// Record value
+ 	MOVD	(R2), R0	// TODO: This turns bad writes into bad reads.
+ 	MOVD	R0, -8(R1)	// Record *slot
+-	// Is the buffer full? (flags set in CMP above)
+-	BEQ	flush
+-ret:
+ 	LDP	184(RSP), (R0, R1)
+ 	// Do the write.
+ 	MOVD	R3, (R2)
+@@ -1227,7 +1228,7 @@ flush:
+ 	// Save all general purpose registers since these could be
+ 	// clobbered by wbBufFlush and were not saved by the caller.
+ 	// R0 and R1 already saved
+-	STP	(R2, R3), 1*8(RSP)	// Also first and second arguments to wbBufFlush
++	STP	(R2, R3), 1*8(RSP)
+ 	STP	(R4, R5), 3*8(RSP)
+ 	STP	(R6, R7), 5*8(RSP)
+ 	STP	(R8, R9), 7*8(RSP)
+@@ -1246,7 +1247,6 @@ flush:
+ 	// R30 is LR, which was saved by the prologue.
+ 	// R31 is SP.
+ 
+-	// This takes arguments R2 and R3.
+ 	CALL	runtime·wbBufFlush(SB)
+ 	LDP	1*8(RSP), (R2, R3)
+ 	LDP	3*8(RSP), (R4, R5)
+@@ -1259,7 +1259,7 @@ flush:
+ 	LDP	17*8(RSP), (R21, R22)
+ 	LDP	19*8(RSP), (R23, R24)
+ 	LDP	21*8(RSP), (R25, R26)
+-	JMP	ret
++	JMP	retry
+ 
+ DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
+ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index a6ccd196c9..09a2964511 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -628,21 +628,21 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
+ 	// Save the registers clobbered by the fast path.
+ 	MOVV	R19, 208(R3)
+ 	MOVV	R13, 216(R3)
++retry:
+ 	MOVV	g_m(g), R19
+ 	MOVV	m_p(R19), R19
+ 	MOVV	(p_wbBuf+wbBuf_next)(R19), R13
++	MOVV	(p_wbBuf+wbBuf_end)(R19), R30 // R30 is linker temp register
+ 	// Increment wbBuf.next position.
+ 	ADDV	$16, R13
++	// Is the buffer full?
++	BLTU	R30, R13, flush
++	// Commit to the larger buffer.
+ 	MOVV	R13, (p_wbBuf+wbBuf_next)(R19)
+-	MOVV	(p_wbBuf+wbBuf_end)(R19), R19
+-	MOVV	R19, R30		// R30 is linker temp register
+ 	// Record the write.
+ 	MOVV	R28, -16(R13)	// Record value
+ 	MOVV	(R27), R19	// TODO: This turns bad writes into bad reads.
+ 	MOVV	R19, -8(R13)	// Record *slot
+-	// Is the buffer full?
+-	BEQ	R13, R30, flush
+-ret:
+ 	MOVV	208(R3), R19
+ 	MOVV	216(R3), R13
+ 	// Do the write.
+@@ -652,8 +652,8 @@ ret:
+ flush:
+ 	// Save all general purpose registers since these could be
+ 	// clobbered by wbBufFlush and were not saved by the caller.
+-	MOVV	R27, 8(R3)	// Also first argument to wbBufFlush
+-	MOVV	R28, 16(R3)	// Also second argument to wbBufFlush
++	MOVV	R27, 8(R3)
++	MOVV	R28, 16(R3)
+ 	// R1 is LR, which was saved by the prologue.
+ 	MOVV	R2, 24(R3)
+ 	// R3 is SP.
+@@ -686,8 +686,6 @@ flush:
+ 	// R30 is tmp register.
+ 	MOVV	R31, 200(R3)
+ 
+-
+-	// This takes arguments R27 and R28.
+ 	CALL	runtime·wbBufFlush(SB)
+ 
+ 	MOVV	8(R3), R27
+@@ -715,7 +713,7 @@ flush:
+ 	MOVV	184(R3), R26
+ 	MOVV	192(R3), R29
+ 	MOVV	200(R3), R31
+-	JMP	ret
++	JMP	retry
+ 
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 1abadb9c7d..6f413db84b 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -644,21 +644,22 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$192
+ 	// Save the registers clobbered by the fast path.
+ 	MOVV	R1, 184(R29)
+ 	MOVV	R2, 192(R29)
++retry:
+ 	MOVV	g_m(g), R1
+ 	MOVV	m_p(R1), R1
+ 	MOVV	(p_wbBuf+wbBuf_next)(R1), R2
++	MOVV	(p_wbBuf+wbBuf_end)(R1), R23 // R23 is linker temp register
+ 	// Increment wbBuf.next position.
+ 	ADDV	$16, R2
++	// Is the buffer full?
++        SGTU	R2, R23, R23
++	BNE	R23, flush
++	// Commit to the larger buffer.
+ 	MOVV	R2, (p_wbBuf+wbBuf_next)(R1)
+-	MOVV	(p_wbBuf+wbBuf_end)(R1), R1
+-	MOVV	R1, R23		// R23 is linker temp register
+ 	// Record the write.
+ 	MOVV	R21, -16(R2)	// Record value
+ 	MOVV	(R20), R1	// TODO: This turns bad writes into bad reads.
+ 	MOVV	R1, -8(R2)	// Record *slot
+-	// Is the buffer full?
+-	BEQ	R2, R23, flush
+-ret:
+ 	MOVV	184(R29), R1
+ 	MOVV	192(R29), R2
+ 	// Do the write.
+@@ -668,8 +669,8 @@ ret:
+ flush:
+ 	// Save all general purpose registers since these could be
+ 	// clobbered by wbBufFlush and were not saved by the caller.
+-	MOVV	R20, 8(R29)	// Also first argument to wbBufFlush
+-	MOVV	R21, 16(R29)	// Also second argument to wbBufFlush
++	MOVV	R20, 8(R29)
++	MOVV	R21, 16(R29)
+ 	// R1 already saved
+ 	// R2 already saved
+ 	MOVV	R3, 24(R29)
+@@ -702,7 +703,6 @@ flush:
+ 	// R30 is g.
+ 	// R31 is LR, which was saved by the prologue.
+ 
+-	// This takes arguments R20 and R21.
+ 	CALL	runtime·wbBufFlush(SB)
+ 
+ 	MOVV	8(R29), R20
+@@ -727,7 +727,7 @@ flush:
+ 	MOVV	160(R29), R22
+ 	MOVV	168(R29), R24
+ 	MOVV	176(R29), R25
+-	JMP	ret
++	JMP	retry
+ 
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 877c1bb97b..2fbbf13672 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -637,21 +637,22 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
+ 	// Save the registers clobbered by the fast path.
+ 	MOVW	R1, 100(R29)
+ 	MOVW	R2, 104(R29)
++retry:
+ 	MOVW	g_m(g), R1
+ 	MOVW	m_p(R1), R1
+ 	MOVW	(p_wbBuf+wbBuf_next)(R1), R2
++	MOVW	(p_wbBuf+wbBuf_end)(R1), R23 // R23 is linker temp register
+ 	// Increment wbBuf.next position.
+ 	ADD	$8, R2
++	// Is the buffer full?
++	SGTU	R2, R23, R23
++	BNE	R23, flush
++	// Commit to the larger buffer.
+ 	MOVW	R2, (p_wbBuf+wbBuf_next)(R1)
+-	MOVW	(p_wbBuf+wbBuf_end)(R1), R1
+-	MOVW	R1, R23		// R23 is linker temp register
+ 	// Record the write.
+ 	MOVW	R21, -8(R2)	// Record value
+ 	MOVW	(R20), R1	// TODO: This turns bad writes into bad reads.
+ 	MOVW	R1, -4(R2)	// Record *slot
+-	// Is the buffer full?
+-	BEQ	R2, R23, flush
+-ret:
+ 	MOVW	100(R29), R1
+ 	MOVW	104(R29), R2
+ 	// Do the write.
+@@ -661,8 +662,8 @@ ret:
+ flush:
+ 	// Save all general purpose registers since these could be
+ 	// clobbered by wbBufFlush and were not saved by the caller.
+-	MOVW	R20, 4(R29)	// Also first argument to wbBufFlush
+-	MOVW	R21, 8(R29)	// Also second argument to wbBufFlush
++	MOVW	R20, 4(R29)
++	MOVW	R21, 8(R29)
+ 	// R1 already saved
+ 	// R2 already saved
+ 	MOVW	R3, 12(R29)
+@@ -696,7 +697,6 @@ flush:
+ 	// R30 is g.
+ 	// R31 is LR, which was saved by the prologue.
+ 
+-	// This takes arguments R20 and R21.
+ 	CALL	runtime·wbBufFlush(SB)
+ 
+ 	MOVW	4(R29), R20
+@@ -723,7 +723,7 @@ flush:
+ 	MOVW	88(R29), R24
+ 	MOVW	92(R29), R25
+ 	MOVW	96(R29), R28
+-	JMP	ret
++	JMP	retry
+ 
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 61ff17a934..4a30f38fc9 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -938,22 +938,23 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ // but may clobber any other register, *including* R31.
+ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
+ 	// The standard prologue clobbers R31.
+-	// We use R18 and R19 as scratch registers.
++	// We use R18, R19, and R31 as scratch registers.
++retry:
+ 	MOVD	g_m(g), R18
+ 	MOVD	m_p(R18), R18
+ 	MOVD	(p_wbBuf+wbBuf_next)(R18), R19
++	MOVD	(p_wbBuf+wbBuf_end)(R18), R31
+ 	// Increment wbBuf.next position.
+ 	ADD	$16, R19
++	// Is the buffer full?
++	CMPU	R31, R19
++	BLT	flush
++	// Commit to the larger buffer.
+ 	MOVD	R19, (p_wbBuf+wbBuf_next)(R18)
+-	MOVD	(p_wbBuf+wbBuf_end)(R18), R18
+-	CMP	R18, R19
+ 	// Record the write.
+ 	MOVD	R21, -16(R19)	// Record value
+ 	MOVD	(R20), R18	// TODO: This turns bad writes into bad reads.
+ 	MOVD	R18, -8(R19)	// Record *slot
+-	// Is the buffer full? (flags set in CMP above)
+-	BEQ	flush
+-ret:
+ 	// Do the write.
+ 	MOVD	R21, (R20)
+ 	RET
+@@ -961,8 +962,8 @@ ret:
+ flush:
+ 	// Save registers R0 through R15 since these were not saved by the caller.
+ 	// We don't save all registers on ppc64 because it takes too much space.
+-	MOVD	R20, (FIXED_FRAME+0)(R1)	// Also first argument to wbBufFlush
+-	MOVD	R21, (FIXED_FRAME+8)(R1)	// Also second argument to wbBufFlush
++	MOVD	R20, (FIXED_FRAME+0)(R1)
++	MOVD	R21, (FIXED_FRAME+8)(R1)
+ 	// R0 is always 0, so no need to spill.
+ 	// R1 is SP.
+ 	// R2 is SB.
+@@ -981,7 +982,6 @@ flush:
+ 	MOVD	R16, (FIXED_FRAME+96)(R1)
+ 	MOVD	R17, (FIXED_FRAME+104)(R1)
+ 
+-	// This takes arguments R20 and R21.
+ 	CALL	runtime·wbBufFlush(SB)
+ 
+ 	MOVD	(FIXED_FRAME+0)(R1), R20
+@@ -998,7 +998,7 @@ flush:
+ 	MOVD	(FIXED_FRAME+88)(R1), R15
+ 	MOVD	(FIXED_FRAME+96)(R1), R16
+ 	MOVD	(FIXED_FRAME+104)(R1), R17
+-	JMP	ret
++	JMP	retry
+ 
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 31b81aea12..4c434ea551 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -714,10 +714,10 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+ 
+ // gcWriteBarrier performs a heap pointer write and informs the GC.
+ //
+-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
+-// - T0 is the destination of the write
+-// - T1 is the value being written at T0.
+-// It clobbers R30 (the linker temp register - REG_TMP).
++// gcWriteBarrier does NOT follow the Go ABI. It accepts the
++// number of bytes of buffer needed in X24, and returns a pointer
++// to the buffer spcae in X24.
++// It clobbers X31 aka T6 (the linker temp register - REG_TMP).
+ // The act of CALLing gcWriteBarrier will clobber RA (LR).
+ // It does not clobber any other general-purpose registers,
+ // but may clobber others (e.g., floating point registers).
+@@ -725,21 +725,21 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$208
+ 	// Save the registers clobbered by the fast path.
+ 	MOV	A0, 24*8(X2)
+ 	MOV	A1, 25*8(X2)
++retry:
+ 	MOV	g_m(g), A0
+ 	MOV	m_p(A0), A0
+ 	MOV	(p_wbBuf+wbBuf_next)(A0), A1
++	MOV	(p_wbBuf+wbBuf_end)(A0), T6 // T6 is linker temp register (REG_TMP)
+ 	// Increment wbBuf.next position.
+ 	ADD	$16, A1
++	// Is the buffer full?
++	BLTU	T6, A1, flush
++	// Commit to the larger buffer.
+ 	MOV	A1, (p_wbBuf+wbBuf_next)(A0)
+-	MOV	(p_wbBuf+wbBuf_end)(A0), A0
+-	MOV	A0, T6		// T6 is linker temp register (REG_TMP)
+ 	// Record the write.
+ 	MOV	T1, -16(A1)	// Record value
+ 	MOV	(T0), A0	// TODO: This turns bad writes into bad reads.
+ 	MOV	A0, -8(A1)	// Record *slot
+-	// Is the buffer full?
+-	BEQ	A1, T6, flush
+-ret:
+ 	MOV	24*8(X2), A0
+ 	MOV	25*8(X2), A1
+ 	// Do the write.
+@@ -749,15 +749,13 @@ ret:
+ flush:
+ 	// Save all general purpose registers since these could be
+ 	// clobbered by wbBufFlush and were not saved by the caller.
+-	MOV	T0, 1*8(X2)	// Also first argument to wbBufFlush
+-	MOV	T1, 2*8(X2)	// Also second argument to wbBufFlush
++	MOV	T0, 1*8(X2)
++	MOV	T1, 2*8(X2)
+ 	// X0 is zero register
+ 	// X1 is LR, saved by prologue
+ 	// X2 is SP
+ 	// X3 is GP
+ 	// X4 is TP
+-	// X5 is first arg to wbBufFlush (T0)
+-	// X6 is second arg to wbBufFlush (T1)
+ 	MOV	X7, 3*8(X2)
+ 	MOV	X8, 4*8(X2)
+ 	MOV	X9, 5*8(X2)
+@@ -784,7 +782,6 @@ flush:
+ 	MOV	X30, 23*8(X2)
+ 	// X31 is tmp register.
+ 
+-	// This takes arguments T0 and T1.
+ 	CALL	runtime·wbBufFlush(SB)
+ 
+ 	MOV	1*8(X2), T0
+@@ -811,7 +808,7 @@ flush:
+ 	MOV	22*8(X2), X29
+ 	MOV	23*8(X2), X30
+ 
+-	JMP	ret
++	JMP	retry
+ 
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers (ssa/gen/RISCV64Ops.go), but the space for those
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 96b20f43a8..5332c9b234 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -790,20 +790,21 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$96
+ 	// Save the registers clobbered by the fast path.
+ 	MOVD	R4, 96(R15)
++retry:
+ 	MOVD	g_m(g), R1
+ 	MOVD	m_p(R1), R1
+ 	// Increment wbBuf.next position.
+ 	MOVD	$16, R4
+ 	ADD	(p_wbBuf+wbBuf_next)(R1), R4
++	// Is the buffer full?
++	MOVD	(p_wbBuf+wbBuf_end)(R1), R10
++	CMPUBGT	R4, R10, flush
++	// Commit to the larger buffer.
+ 	MOVD	R4, (p_wbBuf+wbBuf_next)(R1)
+-	MOVD	(p_wbBuf+wbBuf_end)(R1), R1
+ 	// Record the write.
+ 	MOVD	R3, -16(R4) // Record value
+ 	MOVD	(R2), R10   // TODO: This turns bad writes into bad reads.
+ 	MOVD	R10, -8(R4) // Record *slot
+-	// Is the buffer full?
+-	CMPBEQ	R4, R1, flush
+-ret:
+ 	MOVD	96(R15), R4
+ 	// Do the write.
+ 	MOVD	R3, (R2)
+@@ -812,7 +813,7 @@ ret:
+ flush:
+ 	// Save all general purpose registers since these could be
+ 	// clobbered by wbBufFlush and were not saved by the caller.
+-	STMG	R2, R3, 8(R15)   // set R2 and R3 as arguments for wbBufFlush
++	STMG	R2, R3, 8(R15)
+ 	MOVD	R0, 24(R15)
+ 	// R1 already saved.
+ 	// R4 already saved.
+@@ -821,13 +822,12 @@ flush:
+ 	// R14 is LR.
+ 	// R15 is SP.
+ 
+-	// This takes arguments R2 and R3.
+ 	CALL	runtime·wbBufFlush(SB)
+ 
+ 	LMG	8(R15), R2, R3   // restore R2 - R3
+ 	MOVD	24(R15), R0      // restore R0
+ 	LMG	32(R15), R5, R12 // restore R5 - R12
+-	JMP	ret
++	JMP	retry
+ 
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index e075c72598..6666b554d6 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -410,36 +410,52 @@ TEXT runtime·cgocallback(SB), NOSPLIT, $0-24
+ // R0: the destination of the write (i64)
+ // R1: the value being written (i64)
+ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
+-	// R3 = g.m
+-	MOVD g_m(g), R3
+-	// R4 = p
+-	MOVD m_p(R3), R4
+-	// R5 = wbBuf.next
+-	MOVD p_wbBuf+wbBuf_next(R4), R5
+-
+-	// Record value
+-	MOVD R1, 0(R5)
+-	// Record *slot
+-	MOVD (R0), 8(R5)
+-
+-	// Increment wbBuf.next
+-	Get R5
+-	I64Const $16
+-	I64Add
+-	Set R5
+-	MOVD R5, p_wbBuf+wbBuf_next(R4)
+-
+-	Get R5
+-	I64Load (p_wbBuf+wbBuf_end)(R4)
+-	I64Eq
+-	If
++	Loop
++		// R3 = g.m
++		MOVD g_m(g), R3
++		// R4 = p
++		MOVD m_p(R3), R4
++		// R5 = wbBuf.next
++		MOVD p_wbBuf+wbBuf_next(R4), R5
++
++		// Increment wbBuf.next
++		Get R5
++		I64Const $16
++		I64Add
++		Set R5
++
++		// Is the buffer full?
++		Get R5
++		I64Load (p_wbBuf+wbBuf_end)(R4)
++		I64LeU
++		If
++			// Commit to the larger buffer.
++			MOVD R5, p_wbBuf+wbBuf_next(R4)
++
++			// Back up to write position (wasm stores can't use negative offsets)
++			Get R5
++			I64Const $16
++			I64Sub
++			Set R5
++
++			// Record value
++			MOVD R1, 0(R5)
++			// Record *slot
++			MOVD (R0), 8(R5)
++
++			// Do the write
++			MOVD R1, (R0)
++
++			RET
++		End
++
+ 		// Flush
+ 		MOVD R0, 0(SP)
+ 		MOVD R1, 8(SP)
+ 		CALLNORESUME runtime·wbBufFlush(SB)
+-	End
++		MOVD 0(SP), R0
++		MOVD 8(SP), R1
+ 
+-	// Do the write
+-	MOVD R1, (R0)
+-
+-	RET
++		// Retry
++		Br $0
++	End
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index 26dfbfc2cc..b61bf0b8b2 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -21,9 +21,9 @@ import (
+ //go:nosplit
+ func atomicwb(ptr *unsafe.Pointer, new unsafe.Pointer) {
+ 	slot := (*uintptr)(unsafe.Pointer(ptr))
+-	if !getg().m.p.ptr().wbBuf.putFast(*slot, uintptr(new)) {
+-		wbBufFlush()
+-	}
++	buf := getg().m.p.ptr().wbBuf.get2()
++	buf[0] = *slot
++	buf[1] = uintptr(new)
+ }
+ 
+ // atomicstorep performs *ptr = new atomically and invokes a write barrier.
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index a3a8b2e70a..7c5856d9e7 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -573,9 +573,8 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 				break
+ 			}
+ 			dstx := (*uintptr)(unsafe.Pointer(addr))
+-			if !buf.putFast(*dstx, 0) {
+-				wbBufFlush()
+-			}
++			p := buf.get1()
++			p[0] = *dstx
+ 		}
+ 	} else {
+ 		for {
+@@ -585,9 +584,9 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 			}
+ 			dstx := (*uintptr)(unsafe.Pointer(addr))
+ 			srcx := (*uintptr)(unsafe.Pointer(src + (addr - dst)))
+-			if !buf.putFast(*dstx, *srcx) {
+-				wbBufFlush()
+-			}
++			p := buf.get2()
++			p[0] = *dstx
++			p[1] = *srcx
+ 		}
+ 	}
+ }
+@@ -617,9 +616,8 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+ 			break
+ 		}
+ 		srcx := (*uintptr)(unsafe.Pointer(addr - dst + src))
+-		if !buf.putFast(0, *srcx) {
+-			wbBufFlush()
+-		}
++		p := buf.get1()
++		p[0] = *srcx
+ 	}
+ }
+ 
+@@ -650,14 +648,13 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
+ 		if *bits&mask != 0 {
+ 			dstx := (*uintptr)(unsafe.Pointer(dst + i))
+ 			if src == 0 {
+-				if !buf.putFast(*dstx, 0) {
+-					wbBufFlush()
+-				}
++				p := buf.get1()
++				p[0] = *dstx
+ 			} else {
+ 				srcx := (*uintptr)(unsafe.Pointer(src + i))
+-				if !buf.putFast(*dstx, *srcx) {
+-					wbBufFlush()
+-				}
++				p := buf.get2()
++				p[0] = *dstx
++				p[1] = *srcx
+ 			}
+ 		}
+ 		mask <<= 1
+@@ -709,9 +706,9 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
+ 		if bits&1 != 0 {
+ 			dstx := (*uintptr)(unsafe.Pointer(dst + i))
+ 			srcx := (*uintptr)(unsafe.Pointer(src + i))
+-			if !buf.putFast(*dstx, *srcx) {
+-				wbBufFlush()
+-			}
++			p := buf.get2()
++			p[0] = *dstx
++			p[1] = *srcx
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 9b92c92675..4236cfb838 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -53,15 +53,13 @@ type wbBuf struct {
+ 	// be updated without write barriers.
+ 	end uintptr
+ 
+-	// buf stores a series of pointers to execute write barriers
+-	// on. This must be a multiple of wbBufEntryPointers because
+-	// the write barrier only checks for overflow once per entry.
+-	buf [wbBufEntryPointers * wbBufEntries]uintptr
++	// buf stores a series of pointers to execute write barriers on.
++	buf [wbBufEntries]uintptr
+ }
+ 
+ const (
+-	// wbBufEntries is the number of write barriers between
+-	// flushes of the write barrier buffer.
++	// wbBufEntries is the maximum number of pointers that can be
++	// stored in the write barrier buffer.
+ 	//
+ 	// This trades latency for throughput amortization. Higher
+ 	// values amortize flushing overhead more, but increase the
+@@ -69,11 +67,11 @@ const (
+ 	// footprint of the buffer.
+ 	//
+ 	// TODO: What is the latency cost of this? Tune this value.
+-	wbBufEntries = 256
++	wbBufEntries = 512
+ 
+-	// wbBufEntryPointers is the number of pointers added to the
+-	// buffer by each write barrier.
+-	wbBufEntryPointers = 2
++	// Maximum number of entries that we need to ask from the
++	// buffer in a single call.
++	wbMaxEntriesPerCall = 2
+ )
+ 
+ // reset empties b by resetting its next and end pointers.
+@@ -81,16 +79,15 @@ func (b *wbBuf) reset() {
+ 	start := uintptr(unsafe.Pointer(&b.buf[0]))
+ 	b.next = start
+ 	if testSmallBuf {
+-		// For testing, allow two barriers in the buffer. If
+-		// we only did one, then barriers of non-heap pointers
+-		// would be no-ops. This lets us combine a buffered
+-		// barrier with a flush at a later time.
+-		b.end = uintptr(unsafe.Pointer(&b.buf[2*wbBufEntryPointers]))
++		// For testing, make the buffer smaller but more than
++		// 1 write barrier's worth, so it tests both the
++		// immediate flush and delayed flush cases.
++		b.end = uintptr(unsafe.Pointer(&b.buf[wbMaxEntriesPerCall+1]))
+ 	} else {
+ 		b.end = start + uintptr(len(b.buf))*unsafe.Sizeof(b.buf[0])
+ 	}
+ 
+-	if (b.end-b.next)%(wbBufEntryPointers*unsafe.Sizeof(b.buf[0])) != 0 {
++	if (b.end-b.next)%unsafe.Sizeof(b.buf[0]) != 0 {
+ 		throw("bad write barrier buffer bounds")
+ 	}
+ }
+@@ -109,13 +106,12 @@ func (b *wbBuf) empty() bool {
+ 	return b.next == uintptr(unsafe.Pointer(&b.buf[0]))
+ }
+ 
+-// putFast adds old and new to the write barrier buffer and returns
+-// false if a flush is necessary. Callers should use this as:
++// getX returns space in the write barrier buffer to store X pointers.
++// getX will flush the buffer if necessary. Callers should use this as:
+ //
+ //	buf := &getg().m.p.ptr().wbBuf
+-//	if !buf.putFast(old, new) {
+-//	    wbBufFlush()
+-//	}
++//	p := buf.get2()
++//	p[0], p[1] = old, new
+ //	... actual memory write ...
+ //
+ // The caller must ensure there are no preemption points during the
+@@ -125,19 +121,31 @@ func (b *wbBuf) empty() bool {
+ // could allow a GC phase change, which could result in missed write
+ // barriers.
+ //
+-// putFast must be nowritebarrierrec to because write barriers here would
++// getX must be nowritebarrierrec to because write barriers here would
+ // corrupt the write barrier buffer. It (and everything it calls, if
+ // it called anything) has to be nosplit to avoid scheduling on to a
+ // different P and a different buffer.
+ //
+ //go:nowritebarrierrec
+ //go:nosplit
+-func (b *wbBuf) putFast(old, new uintptr) bool {
++func (b *wbBuf) get1() *[1]uintptr {
++	if b.next+goarch.PtrSize > b.end {
++		wbBufFlush()
++	}
++	p := (*[1]uintptr)(unsafe.Pointer(b.next))
++	b.next += goarch.PtrSize
++	return p
++}
++
++//go:nowritebarrierrec
++//go:nosplit
++func (b *wbBuf) get2() *[2]uintptr {
++	if b.next+2*goarch.PtrSize > b.end {
++		wbBufFlush()
++	}
+ 	p := (*[2]uintptr)(unsafe.Pointer(b.next))
+-	p[0] = old
+-	p[1] = new
+ 	b.next += 2 * goarch.PtrSize
+-	return b.next != b.end
++	return p
+ }
+ 
+ // wbBufFlush flushes the current P's write barrier buffer to the GC
+@@ -159,13 +167,6 @@ func wbBufFlush() {
+ 	// Note: Every possible return from this function must reset
+ 	// the buffer's next pointer to prevent buffer overflow.
+ 
+-	// This *must not* modify its arguments because this
+-	// function's argument slots do double duty in gcWriteBarrier
+-	// as register spill slots. Currently, not modifying the
+-	// arguments is sufficient to keep the spill slots unmodified
+-	// (which seems unlikely to change since it costs little and
+-	// helps with debugging).
+-
+ 	if getg().m.dying > 0 {
+ 		// We're going down. Not much point in write barriers
+ 		// and this way we can allow write barriers in the
+@@ -175,7 +176,7 @@ func wbBufFlush() {
+ 	}
+ 
+ 	// Switch to the system stack so we don't have to worry about
+-	// the untyped stack slots or safe points.
++	// safe points.
+ 	systemstack(func() {
+ 		wbBufFlush1(getg().m.p.ptr())
+ 	})

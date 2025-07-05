@@ -42,7 +42,138 @@ Date:   Thu Aug 18 11:04:21 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/noder/writer.go | 40 ++++++++++++++++++--------------
  test/typeparam/nested.go                 | 26 ++++-----------------
  2 files changed, 28 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 6c2ef033f6..d9cd1cbd32 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -432,8 +432,9 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
+ // @@@ Types
+ 
+ var (
+-	anyTypeName  = types2.Universe.Lookup("any").(*types2.TypeName)
+-	runeTypeName = types2.Universe.Lookup("rune").(*types2.TypeName)
++	anyTypeName        = types2.Universe.Lookup("any").(*types2.TypeName)
++	comparableTypeName = types2.Universe.Lookup("comparable").(*types2.TypeName)
++	runeTypeName       = types2.Universe.Lookup("rune").(*types2.TypeName)
+ )
+ 
+ // typ writes a use of the given type into the bitstream.
+@@ -485,7 +486,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 			w.Len(int(kind))
+ 
+ 		default:
+-			// Handle "byte" and "rune" as references to their TypeName.
++			// Handle "byte" and "rune" as references to their TypeNames.
+ 			obj := types2.Universe.Lookup(typ.Name())
+ 			assert(obj.Type() == typ)
+ 
+@@ -543,6 +544,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 		w.structType(typ)
+ 
+ 	case *types2.Interface:
++		// Handle "any" as reference to its TypeName.
+ 		if typ == anyTypeName.Type() {
+ 			w.Code(pkgbits.TypeNamed)
+ 			w.obj(anyTypeName, nil)
+@@ -590,6 +592,23 @@ func (w *writer) unionType(typ *types2.Union) {
+ }
+ 
+ func (w *writer) interfaceType(typ *types2.Interface) {
++	// If typ has no embedded types but it's not a basic interface, then
++	// the natural description we write out below will fail to
++	// reconstruct it.
++	if typ.NumEmbeddeds() == 0 && !typ.IsMethodSet() {
++		// Currently, this can only happen for the underlying Interface of
++		// "comparable", which is needed to handle type declarations like
++		// "type C comparable".
++		assert(typ == comparableTypeName.Type().(*types2.Named).Underlying())
++
++		// Export as "interface{ comparable }".
++		w.Len(0)                         // NumExplicitMethods
++		w.Len(1)                         // NumEmbeddeds
++		w.Bool(false)                    // IsImplicit
++		w.typ(comparableTypeName.Type()) // EmbeddedType(0)
++		return
++	}
++
+ 	w.Len(typ.NumExplicitMethods())
+ 	w.Len(typ.NumEmbeddeds())
+ 
+@@ -775,9 +794,6 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
+ 		return pkgbits.ObjFunc
+ 
+ 	case *types2.TypeName:
+-		decl, ok := w.p.typDecls[obj]
+-		assert(ok)
+-
+ 		if obj.IsAlias() {
+ 			w.pos(obj)
+ 			w.typ(obj.Type())
+@@ -790,7 +806,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
+ 		w.pos(obj)
+ 		w.typeParamNames(named.TypeParams())
+ 		wext.typeExt(obj)
+-		w.typExpr(decl.Type)
++		w.typ(named.Underlying())
+ 
+ 		w.Len(named.NumMethods())
+ 		for i := 0; i < named.NumMethods(); i++ {
+@@ -807,16 +823,6 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
+ 	}
+ }
+ 
+-// typExpr writes the type represented by the given expression.
+-//
+-// TODO(mdempsky): Document how this differs from exprType.
+-func (w *writer) typExpr(expr syntax.Expr) {
+-	tv, ok := w.p.info.Types[expr]
+-	assert(ok)
+-	assert(tv.IsType())
+-	w.typ(tv.Type)
+-}
+-
+ // objDict writes the dictionary needed for reading the given object.
+ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 	// TODO(mdempsky): Split objDict into multiple entries? reader.go
+diff --git a/test/typeparam/nested.go b/test/typeparam/nested.go
+index 068e32be1d..cdb8bfb574 100644
+--- a/test/typeparam/nested.go
++++ b/test/typeparam/nested.go
+@@ -104,27 +104,11 @@ func main() {
+ 	F[V]()
+ 	F[W]()
+ 
+-	// TODO(go.dev/issue/54512): Restore these tests. They currently
+-	// cause problems for shaping with unified IR.
+-	//
+-	// For example, instantiating X[int] requires instantiating shape
+-	// type X[shapify(int)] == X[go.shape.int]. In turn, this requires
+-	// instantiating U[shapify(X[go.shape.int])]. But we're still in the
+-	// process of constructing X[go.shape.int], so we don't yet know its
+-	// underlying type.
+-	//
+-	// Notably, this is a consequence of unified IR writing out type
+-	// declarations with a reference to the full RHS expression (i.e.,
+-	// U[X[A]]) rather than its underlying type (i.e., int), which is
+-	// necessary to support //go:notinheap. Once go.dev/issue/46731 is
+-	// implemented and unified IR is updated, I expect this will just
+-	// work.
+-	//
+-	// type X[A any] U[X[A]]
+-	//
+-	// F[X[int]]()
+-	// F[X[Int]]()
+-	// F[X[GlobalInt]]()
++	type X[A any] U[X[A]]
++
++	F[X[int]]()
++	F[X[Int]]()
++	F[X[GlobalInt]]()
+ 
+ 	for j, tj := range tests {
+ 		for i, ti := range tests[:j+1] {

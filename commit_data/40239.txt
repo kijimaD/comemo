@@ -20,9 +20,164 @@ Date:   Sun Apr 28 23:03:35 2019 +0700
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/crypto/tls/key_agreement.go | 18 ++++++------------
  src/go/types/call.go            |  4 ++--
  src/net/dnsclient_unix.go       |  8 ++++----
  src/text/tabwriter/tabwriter.go | 10 ++++------
  4 files changed, 16 insertions(+), 24 deletions(-)
+
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 628e578e48..488401d038 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -106,19 +106,19 @@ func md5SHA1Hash(slices [][]byte) []byte {
+ // hashForServerKeyExchange hashes the given slices and returns their digest
+ // using the given hash function (for >= TLS 1.2) or using a default based on
+ // the sigType (for earlier TLS versions).
+-func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint16, slices ...[]byte) ([]byte, error) {
++func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint16, slices ...[]byte) []byte {
+ 	if version >= VersionTLS12 {
+ 		h := hashFunc.New()
+ 		for _, slice := range slices {
+ 			h.Write(slice)
+ 		}
+ 		digest := h.Sum(nil)
+-		return digest, nil
++		return digest
+ 	}
+ 	if sigType == signatureECDSA {
+-		return sha1Hash(slices), nil
++		return sha1Hash(slices)
+ 	}
+-	return md5SHA1Hash(slices), nil
++	return md5SHA1Hash(slices)
+ }
+ 
+ // ecdheKeyAgreement implements a TLS key agreement where the server
+@@ -185,10 +185,7 @@ NextCandidate:
+ 		return nil, errors.New("tls: certificate cannot be used with the selected cipher suite")
+ 	}
+ 
+-	digest, err := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, hello.random, serverECDHParams)
+-	if err != nil {
+-		return nil, err
+-	}
++	digest := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, hello.random, serverECDHParams)
+ 
+ 	signOpts := crypto.SignerOpts(hashFunc)
+ 	if sigType == signatureRSAPSS {
+@@ -297,10 +294,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 	}
+ 	sig = sig[2:]
+ 
+-	digest, err := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, serverHello.random, serverECDHParams)
+-	if err != nil {
+-		return err
+-	}
++	digest := hashForServerKeyExchange(sigType, hashFunc, ka.version, clientHello.random, serverHello.random, serverECDHParams)
+ 	return verifyHandshakeSignature(sigType, cert.PublicKey, hashFunc, digest, sig)
+ }
+ 
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 1abc1d8a5e..88e3336136 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -241,7 +241,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature,
+ 			if i == n-1 && call.Ellipsis.IsValid() {
+ 				ellipsis = call.Ellipsis
+ 			}
+-			check.argument(call.Fun, sig, i, x, ellipsis, context)
++			check.argument(sig, i, x, ellipsis, context)
+ 		}
+ 	}
+ 
+@@ -259,7 +259,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature,
+ 
+ // argument checks passing of argument x to the i'th parameter of the given signature.
+ // If ellipsis is valid, the argument is followed by ... at that position in the call.
+-func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, ellipsis token.Pos, context string) {
++func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token.Pos, context string) {
+ 	check.singleValue(x)
+ 	if x.mode == invalid {
+ 		return
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 478ee51a81..e0a7ef8552 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -183,7 +183,7 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
+ }
+ 
+ // checkHeader performs basic sanity checks on the header.
+-func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header, name, server string) error {
++func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
+ 	if h.RCode == dnsmessage.RCodeNameError {
+ 		return errNoSuchHost
+ 	}
+@@ -214,7 +214,7 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header, name, server string)
+ 	return nil
+ }
+ 
+-func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type, name, server string) error {
++func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
+ 	for {
+ 		h, err := p.AnswerHeader()
+ 		if err == dnsmessage.ErrSectionDone {
+@@ -272,7 +272,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string,
+ 				continue
+ 			}
+ 
+-			if err := checkHeader(&p, h, name, server); err != nil {
++			if err := checkHeader(&p, h); err != nil {
+ 				dnsErr := &DNSError{
+ 					Err:    err.Error(),
+ 					Name:   name,
+@@ -292,7 +292,7 @@ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string,
+ 				continue
+ 			}
+ 
+-			err = skipToAnswer(&p, qtype, name, server)
++			err = skipToAnswer(&p, qtype)
+ 			if err == nil {
+ 				return p, server, nil
+ 			}
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index bd45cddecb..76dec7b358 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -499,13 +499,14 @@ func (b *Writer) Flush() error {
+ // don't want to expose.
+ func (b *Writer) flush() (err error) {
+ 	defer b.handlePanic(&err, "Flush")
+-	return b.flushNoDefers()
++	b.flushNoDefers()
++	return nil
+ }
+ 
+ // flushNoDefers is like flush, but without a deferred handlePanic call. This
+ // can be called from other methods which already have their own deferred
+ // handlePanic calls, such as Write, and avoid the extra defer work.
+-func (b *Writer) flushNoDefers() (err error) {
++func (b *Writer) flushNoDefers() {
+ 	// add current cell if not empty
+ 	if b.cell.size > 0 {
+ 		if b.endChar != 0 {
+@@ -518,7 +519,6 @@ func (b *Writer) flushNoDefers() (err error) {
+ 	// format contents of buffer
+ 	b.format(0, 0, len(b.lines))
+ 	b.reset()
+-	return nil
+ }
+ 
+ var hbar = []byte("---\n")
+@@ -551,9 +551,7 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
+ 						// the formatting of the following lines (the last cell per
+ 						// line is ignored by format()), thus we can flush the
+ 						// Writer contents.
+-						if err = b.flushNoDefers(); err != nil {
+-							return
+-						}
++						b.flushNoDefers()
+ 						if ch == '\f' && b.flags&Debug != 0 {
+ 							// indicate section break
+ 							b.write0(hbar)

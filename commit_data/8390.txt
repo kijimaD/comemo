@@ -7,8 +7,202 @@ Date:   Sat May 14 00:35:10 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4517057
-
+---
  src/cmd/gc/builtin.c.boot |   1 -
  src/cmd/gc/walk.c         | 100 ++++++++++++++--------------------------------
  src/pkg/runtime/slice.c   |  14 -------
  3 files changed, 31 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 66b5c205ed..c9bf501d1b 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -22,7 +22,6 @@ char *runtimeimport =
+ 	"func \"\".printsp ()\n"
+ 	"func \"\".goprintf ()\n"
+ 	"func \"\".concatstring ()\n"
+-	"func \"\".append ()\n"
+ 	"func \"\".appendslice (typ *uint8, x any, y []any) any\n"
+ 	"func \"\".cmpstring (? string, ? string) int\n"
+ 	"func \"\".slicestring (? string, ? int, ? int) string\n"
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 569f16cf0a..b3b400556c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -20,7 +20,6 @@ static	NodeList*	reorder3(NodeList*);
+ static	Node*	addstr(Node*, NodeList**);
+ static	Node*	appendslice(Node*, NodeList**);
+ static	Node*	append(Node*, NodeList**);
+-static	int	oasappend(Node**, NodeList**);
+ 
+ static	NodeList*	walkdefstack;
+ 
+@@ -811,9 +810,6 @@ walkexpr(Node **np, NodeList **init)
+ 		if(oaslit(n, init))
+ 			goto ret;
+ 
+-		if (oasappend(&n, init))
+-			goto ret;
+-
+ 		walkexpr(&n->right, init);
+ 		if(n->left != N && n->right != N) {
+ 			r = convas(nod(OAS, n->left, n->right), init);
+@@ -2381,77 +2377,44 @@ appendslice(Node *n, NodeList **init)
+ 	return mkcall1(f, n->type, init, typename(n->type), n->list->n, n->list->next->n);
+ }
+ 
++// expand append(src, a [, b]* ) to
++//
++//   init {
++//     s := src
++//     const argc = len(args) - 1
++//     if cap(s) - len(s) < argc {
++//          s = growslice(s, argc) 
++//     }
++//     n := len(s)
++//     s = s[:n+argc]
++//     s[n] = a
++//     s[n+1] = b
++//     ...
++//   }
++//   s
+ static Node*
+ append(Node *n, NodeList **init)
+-{
+-	int i, j;
+-	Node *f, *r;
+-	NodeList *in, *args;
+-
+-	j = count(n->list) - 1;
+-	f = syslook("append", 1);
+-	f->type = T;
+-	f->ntype = nod(OTFUNC, N, N);
+-	in = list1(nod(ODCLFIELD, N, typenod(ptrto(types[TUINT8]))));	// type
+-	in = list(in, nod(ODCLFIELD, N, typenod(types[TINT])));	// count
+-	in = list(in, nod(ODCLFIELD, N, typenod(n->type)));	// slice
+-	for(i=0; i<j; i++)
+-		in = list(in, nod(ODCLFIELD, N, typenod(n->type->type)));
+-	f->ntype->list = in;
+-	f->ntype->rlist = list1(nod(ODCLFIELD, N, typenod(n->type)));
+-	
+-	args = list1(typename(n->type));
+-	args = list(args, nodintconst(j));
+-	args = concat(args, n->list);
+-	
+-	r = nod(OCALL, f, N);
+-	r->list = args;
+-	typecheck(&r, Erv);
+-	walkexpr(&r, init);
+-	r->type = n->type;
+-
+-	return r;
+-}
+-
+-
+-// expand s = append(s, a [, b]* ) to
+-// 
+-//   const argc = len(args) - 1
+-//   if cap(s) - len(s) < argc {
+-//        s = growslice(s, argc) 
+-//   }
+-//   n := len(s)
+-//   s = s[:n+argc]
+-//   s[n] = a
+-//   s[n+1] = b
+-// ...
+-//
+-static int
+-oasappend(Node **np, NodeList **init)
+ {
+ 	NodeList *l, *a;
+-	Node *n, *ns, *nn, *na, *nx, *fn;
++	Node *nsrc, *ns, *nn, *na, *nx, *fn;
+ 	int argc;
+ 
+-	n = *np;
++	walkexprlistsafe(n->list, init);
+ 
+-	// Check that it's an assignment of the form s = append(s, elem), where s is ONAME.
+-	if (n->right == N || n->right->op != OAPPEND || n->right->isddd || 
+-	    n->left == N || n->left->op != ONAME || n->left != n->right->list->n)
+-		return 0;
+-
+-	ns = cheapexpr(n->left, init);
+-	walkexprlistsafe(n->right->list, init);
+-	argc = count(n->right->list) - 1;
++	nsrc = n->list->n;
++	argc = count(n->list) - 1;
+ 	if (argc < 1) {
+-		n->op = OEMPTY;
+-		return 1;
++		return nsrc;
+ 	}
+ 
+-	na = nodintconst(argc);         // const argc
++	l = nil;
++
++	ns = nod(OXXX, N, N);             // var s
++	tempname(ns, nsrc->type);
++	l = list(l, nod(OAS, ns, nsrc));  // s = src
+ 
++	na = nodintconst(argc);         // const argc
+ 	nx = nod(OIF, N, N);            // if cap(s) - len(s) < argc
+-	nx->lineno = n->lineno;
+ 	nx->ntest = nod(OLT, nod(OSUB, nod(OCAP, ns, N), nod(OLEN, ns, N)), na);
+ 
+ 	fn = syslook("growslice", 1);   //   growslice(<type>, old []T, n int64) (ret []T)
+@@ -2462,7 +2425,7 @@ oasappend(Node **np, NodeList **init)
+ 					       typename(ns->type),
+ 					       ns,
+ 					       conv(na, types[TINT64]))));
+-	l = list1(nx);
++	l = list(l, nx);
+ 
+ 	nn = nod(OXXX, N, N);                            // var n
+ 	tempname(nn, types[TINT]);
+@@ -2472,7 +2435,7 @@ oasappend(Node **np, NodeList **init)
+ 	nx->etype = 1;  // disable bounds check
+ 	l = list(l, nod(OAS, ns, nx));                  // s = s[:n+argc]
+ 
+-	for (a = n->right->list->next;  a != nil; a = a->next) {
++	for (a = n->list->next;  a != nil; a = a->next) {
+ 		nx = nod(OINDEX, ns, nn);               // s[n] ...
+ 		nx->etype = 1;  // disable bounds check
+ 		l = list(l, nod(OAS, nx, a->n));        // s[n] = arg
+@@ -2481,8 +2444,7 @@ oasappend(Node **np, NodeList **init)
+ 	}
+ 
+ 	typechecklist(l, Etop);
+-	*np = liststmt(l);
+-
+-	walkstmt(np);
+-	return 1;
++	walkstmtlist(l);
++	*init = concat(*init, l);
++	return ns;
+ }
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 0e7f8e080e..9146c177f2 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -48,20 +48,6 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
+ 		ret->array = runtime·mal(size);
+ }
+ 
+-// append(type *Type, n int, old []T, ...,) []T
+-#pragma textflag 7
+-void
+-runtime·append(SliceType *t, int32 n, Slice old, ...)
+-{
+-	Slice sl;
+-	Slice *ret;
+-	
+-	sl.len = n;
+-	sl.array = (byte*)(&old+1);
+-	ret = (Slice*)(sl.array + ((t->elem->size*n+sizeof(uintptr)-1) & ~(sizeof(uintptr)-1)));
+-	appendslice1(t, old, sl, ret);
+-}
+-
+ // appendslice(type *Type, x, y, []T) []T
+ void
+ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)

@@ -18,7 +18,99 @@ Date:   Mon Dec 19 16:50:24 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/bootstrap.bash    | 10 ++++++++--
  src/cmd/dist/build.go | 20 +++++++++++++++++---
  2 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/src/bootstrap.bash b/src/bootstrap.bash
+index 1e4f1c5081..5a97d52e5f 100755
+--- a/src/bootstrap.bash
++++ b/src/bootstrap.bash
+@@ -21,10 +21,16 @@
+ set -e
+ 
+ if [ "$GOOS" = "" -o "$GOARCH" = "" ]; then
+-	echo "usage: GOOS=os GOARCH=arch ./bootstrap.bash" >&2
++	echo "usage: GOOS=os GOARCH=arch ./bootstrap.bash [-force]" >&2
+ 	exit 2
+ fi
+ 
++forceflag=""
++if [ "$1" = "-force" ]; then
++	forceflag=-force
++	shift
++fi
++
+ targ="../../go-${GOOS}-${GOARCH}-bootstrap"
+ if [ -e $targ ]; then
+ 	echo "$targ already exists; remove before continuing"
+@@ -47,7 +53,7 @@ echo
+ echo "#### Building $targ"
+ echo
+ cd src
+-./make.bash --no-banner
++./make.bash --no-banner $forceflag
+ gohostos="$(../bin/go env GOHOSTOS)"
+ gohostarch="$(../bin/go env GOHOSTARCH)"
+ goos="$(../bin/go env GOOS)"
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index c15515f695..96cbd3dbf6 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1314,10 +1314,12 @@ func cmdbootstrap() {
+ 
+ 	var noBanner, noClean bool
+ 	var debug bool
++	var force bool
+ 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
+ 	flag.BoolVar(&debug, "d", debug, "enable debugging of bootstrap process")
+ 	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
+ 	flag.BoolVar(&noClean, "no-clean", noClean, "print deprecation warning")
++	flag.BoolVar(&force, "force", force, "build even if the port is marked as broken")
+ 
+ 	xflagparse(0)
+ 
+@@ -1325,6 +1327,12 @@ func cmdbootstrap() {
+ 		xprintf("warning: --no-clean is deprecated and has no effect; use 'go install std cmd' instead\n")
+ 	}
+ 
++	// Don't build broken ports by default.
++	if broken[goos+"/"+goarch] && !force {
++		fatalf("build stopped because the port %s/%s is marked as broken\n\n"+
++			"Use the -force flag to build anyway.\n", goos, goarch)
++	}
++
+ 	// Set GOPATH to an internal directory. We shouldn't actually
+ 	// need to store files here, since the toolchain won't
+ 	// depend on modules outside of vendor directories, but if
+@@ -1674,12 +1682,18 @@ var cgoEnabled = map[string]bool{
+ }
+ 
+ // List of platforms which are supported but not complete yet. These get
+-// filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
++// filtered out of cgoEnabled for 'dist list'. See go.dev/issue/28944.
+ var incomplete = map[string]bool{
+ 	"linux/sparc64": true,
+ }
+ 
+-// List of platforms which are first class ports. See golang.org/issue/38874.
++// List of platforms that are marked as broken ports.
++// These require -force flag to build, and also
++// get filtered out of cgoEnabled for 'dist list'.
++// See go.dev/issue/56679.
++var broken = map[string]bool{}
++
++// List of platforms which are first class ports. See go.dev/issue/38874.
+ var firstClass = map[string]bool{
+ 	"darwin/amd64":  true,
+ 	"darwin/arm64":  true,
+@@ -1825,7 +1839,7 @@ func cmdlist() {
+ 
+ 	var plats []string
+ 	for p := range cgoEnabled {
+-		if incomplete[p] {
++		if broken[p] || incomplete[p] {
+ 			continue
+ 		}
+ 		plats = append(plats, p)

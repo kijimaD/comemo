@@ -7,7 +7,36 @@ Date:   Fri Dec 21 19:11:10 2012 +0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7006043
-
+---
  src/cmd/go/build.go | 3 +--
  src/cmd/go/doc.go   | 3 +--
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e7046a9ef5..f2d81c02d1 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -62,8 +62,7 @@ The build flags are shared by the build, install, run, and test commands:
+ 		print the commands.
+ 	-race
+ 		enable data race detection.
+-		Currently supported only on linux/amd64,
+-		darwin/amd64 and windows/amd64.
++		Supported only on linux/amd64, darwin/amd64 and windows/amd64.
+ 
+ 	-ccflags 'arg list'
+ 		arguments to pass on each 5c, 6c, or 8c compiler invocation
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 29bfc68b90..18c5e8818c 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -78,8 +78,7 @@ The build flags are shared by the build, install, run, and test commands:
+ 		print the commands.
+ 	-race
+ 		enable data race detection.
+-		Currently supported only on linux/amd64,
+-		darwin/amd64 and windows/amd64.
++		Supported only on linux/amd64, darwin/amd64 and windows/amd64.
+ 
+ 	-ccflags 'arg list'
+ 		arguments to pass on each 5c, 6c, or 8c compiler invocation

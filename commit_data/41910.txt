@@ -20,7 +20,47 @@ Date:   Thu Oct 31 21:53:49 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go        |  2 +-
  src/cmd/link/internal/loader/loader.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b882df29a1..e46457d858 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2620,7 +2620,7 @@ func (ctxt *Link) loadlibfull() {
+ 
+ func (ctxt *Link) dumpsyms() {
+ 	for _, s := range ctxt.Syms.Allsym {
+-		fmt.Printf("%s %s %p\n", s, s.Type, s)
++		fmt.Printf("%s %s %p %v %v\n", s, s.Type, s, s.Attr.Reachable(), s.Attr.OnList())
+ 		for i := range s.R {
+ 			fmt.Println("\t", s.R[i].Type, s.R[i].Sym)
+ 		}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 0ce6f54ef7..67c4c9719c 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -753,6 +753,21 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 	for _, o := range l.objs[1:] {
+ 		loadObjFull(l, o.r)
+ 	}
++
++	// Resolve ABI aliases for external symbols. This is only
++	// needed for internal cgo linking.
++	// (The old code does this in deadcode, but deadcode2 doesn't
++	// do this.)
++	for i := l.extStart; i <= l.max; i++ {
++		if s := l.Syms[i]; s != nil && s.Attr.Reachable() {
++			for ri := range s.R {
++				r := &s.R[ri]
++				if r.Sym != nil && r.Sym.Type == sym.SABIALIAS {
++					r.Sym = r.Sym.R[0].Sym
++				}
++			}
++		}
++	}
+ }
+ 
+ // ExtractSymbols grabs the symbols out of the loader for work that hasn't been

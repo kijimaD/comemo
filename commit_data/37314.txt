@@ -19,9 +19,89 @@ Date:   Tue Jul 17 17:36:15 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  misc/cgo/test/issue26430.go   | 10 ++++++++++
  misc/cgo/test/issue26430/a.go | 13 +++++++++++++
  misc/cgo/test/issue26430/b.go | 13 +++++++++++++
  src/cmd/cgo/main.go           | 10 ++++++++++
  4 files changed, 46 insertions(+)
+
+diff --git a/misc/cgo/test/issue26430.go b/misc/cgo/test/issue26430.go
+new file mode 100644
+index 0000000000..3ad5420989
+--- /dev/null
++++ b/misc/cgo/test/issue26430.go
+@@ -0,0 +1,10 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 26430: incomplete typedef leads to inconsistent typedefs error.
++// No runtime test; just make sure it compiles.
++
++package cgotest
++
++import _ "./issue26430"
+diff --git a/misc/cgo/test/issue26430/a.go b/misc/cgo/test/issue26430/a.go
+new file mode 100644
+index 0000000000..fbaa46b1e8
+--- /dev/null
++++ b/misc/cgo/test/issue26430/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++// typedef struct S ST;
++// static ST* F() { return 0; }
++import "C"
++
++func F1() {
++	C.F()
++}
+diff --git a/misc/cgo/test/issue26430/b.go b/misc/cgo/test/issue26430/b.go
+new file mode 100644
+index 0000000000..a7c527cde3
+--- /dev/null
++++ b/misc/cgo/test/issue26430/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++// typedef struct S ST;
++// struct S { int f; };
++import "C"
++
++func F2(p *C.ST) {
++	p.f = 1
++}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 540fe7499a..f76c2247f5 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -399,6 +399,10 @@ func (p *Package) Record(f *File) {
+ 		for k, v := range f.Name {
+ 			if p.Name[k] == nil {
+ 				p.Name[k] = v
++			} else if p.incompleteTypedef(p.Name[k].Type) {
++				p.Name[k] = v
++			} else if p.incompleteTypedef(v.Type) {
++				// Nothing to do.
+ 			} else if !reflect.DeepEqual(p.Name[k], v) {
+ 				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
+ 			}
+@@ -411,3 +415,9 @@ func (p *Package) Record(f *File) {
+ 	}
+ 	p.Decl = append(p.Decl, f.AST.Decls...)
+ }
++
++// incompleteTypedef reports whether t appears to be an incomplete
++// typedef definition.
++func (p *Package) incompleteTypedef(t *Type) bool {
++	return t == nil || (t.Size == 0 && t.Align == -1)
++}

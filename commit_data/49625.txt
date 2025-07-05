@@ -13,7 +13,57 @@ Date:   Sat Aug 21 18:40:20 2021 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Meng Zhuo <mzh@golangcn.org>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64error.s | 12 ++++++++++++
  src/cmd/internal/obj/riscv/obj.go                |  3 ++-
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index fb43e68fc1..b09a1c7a8c 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -3,6 +3,14 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT errors(SB),$0
++	MOV	$errors(SB), (X5)		// ERROR "unsupported addr MOV"
++	MOV	$8(SP), (X5)			// ERROR "unsupported addr MOV"
++	MOVB	$8(SP), X5			// ERROR "unsupported addr MOV"
++	MOVH	$8(SP), X5			// ERROR "unsupported addr MOV"
++	MOVW	$8(SP), X5			// ERROR "unsupported addr MOV"
++	MOVF	$8(SP), X5			// ERROR "unsupported addr MOV"
++	MOV	$1234, 0(SP)			// ERROR "constant load must target register"
++	MOV	$1234, 8(SP)			// ERROR "constant load must target register"
+ 	MOV	$0, 0(SP)			// ERROR "constant load must target register"
+ 	MOV	$0, 8(SP)			// ERROR "constant load must target register"
+ 	MOV	$1234, 0(SP)			// ERROR "constant load must target register"
+@@ -11,4 +19,8 @@ TEXT errors(SB),$0
+ 	MOVH	$1, X5				// ERROR "unsupported constant load"
+ 	MOVW	$1, X5				// ERROR "unsupported constant load"
+ 	MOVF	$1, X5				// ERROR "unsupported constant load"
++	MOVBU	X5, (X6)			// ERROR "unsupported unsigned store"
++	MOVHU	X5, (X6)			// ERROR "unsupported unsigned store"
++	MOVWU	X5, (X6)			// ERROR "unsupported unsigned store"
++
+ 	RET
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index a305edab4b..f89e13d81c 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -271,6 +271,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
+ 			switch p.As {
+ 			case AMOVBU, AMOVHU, AMOVWU:
+ 				ctxt.Diag("unsupported unsigned store at %v", p)
++				return
+ 			}
+ 			switch p.To.Name {
+ 			case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
+@@ -1795,7 +1796,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 	case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+ 		// Handle register to register moves.
+ 		if p.From.Type != obj.TYPE_REG || p.To.Type != obj.TYPE_REG {
+-			break
++			return nil
+ 		}
+ 		switch p.As {
+ 		case AMOV: // MOV Ra, Rb -> ADDI $0, Ra, Rb

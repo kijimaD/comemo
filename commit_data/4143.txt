@@ -8,6 +8,20 @@ Date:   Wed Nov 18 16:38:30 2009 -0800
     
     R=rsc
     https://golang.org/cl/157075
-
+---
  src/pkg/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index ee0f3858d1..37bc894bac 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -78,7 +78,7 @@ type certificate struct {
+ }
+ 
+ type tbsCertificate struct {
+-	Raw			asn1.RawContents;
++	Raw			asn1.RawContent;
+ 	Version			int	"optional,explicit,default:1,tag:0";
+ 	SerialNumber		asn1.RawValue;
+ 	SignatureAlgorithm	algorithmIdentifier;

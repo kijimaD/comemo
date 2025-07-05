@@ -5,7 +5,55 @@ Date:   Thu Jul 3 18:10:54 2008 -0700
     one bug fixed
     
     SVN=126006
-
+---
  test/{bugs => fixedbugs}/bug056.go |  0
  test/golden.out                    | 11 +++++------
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/test/bugs/bug056.go b/test/fixedbugs/bug056.go
+similarity index 100%
+rename from test/bugs/bug056.go
+rename to test/fixedbugs/bug056.go
+diff --git a/test/golden.out b/test/golden.out
+index ea398693a4..51ce968a4f 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -187,6 +187,7 @@ BUG: compilation succeeds incorrectly
+ 
+ =========== bugs/bug042.go
+ bugs/bug042.go:6: syntax error
++bugs/bug042.go:15: syntax error
+ BUG: compilation should succeed
+ 
+ =========== bugs/bug043.go
+@@ -217,6 +218,8 @@ BUG: known to fail incorrectly
+ bugs/bug048.go:7: illegal types for operand: CONV
+ 	(MAP[<int32>INT32]<int32>INT32)
+ bugs/bug048.go:8: syntax error
++bugs/bug048.go:7: illegal types for operand: CONV
++	(MAP[<int32>INT32]<int32>INT32)
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug049.go
+@@ -295,12 +298,6 @@ BUG: known to fail incorrectly
+ bug055.go:1: fatal error: cant open: bug055.go
+ BUG: known to fail incorrectly
+ 
+-=========== bugs/bug056.go
+-bugs/bug056.go:9: illegal types for operand: AS
+-	(<int32>INT32)
+-	(<int32>INT32)
+-BUG: compilation should succeed
+-
+ =========== bugs/bug057.go
+ bugs/bug057.go:13: syntax error
+ BUG: compilation should succeed
+@@ -387,6 +384,8 @@ BUG: compilation should succeed
+ 
+ =========== fixedbugs/bug045.go
+ 
++=========== fixedbugs/bug056.go
++
+ =========== fixedbugs/bug058.go
+ 
+ =========== fixedbugs/bug059.go

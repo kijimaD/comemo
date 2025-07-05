@@ -27,7 +27,137 @@ Date:   Tue Sep 1 00:38:01 2020 +0000
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/fs_test.go | 12 +++++++--
  src/net/http/server.go  | 70 +++++++++++++++++++++++++------------------------
  2 files changed, 46 insertions(+), 36 deletions(-)
+
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index c082ceee71..245d9ce65c 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1136,6 +1136,14 @@ func TestLinuxSendfile(t *testing.T) {
+ 		t.Skipf("skipping; failed to run strace: %v", err)
+ 	}
+ 
++	filename := fmt.Sprintf("1kb-%d", os.Getpid())
++	filepath := path.Join(os.TempDir(), filename)
++
++	if err := ioutil.WriteFile(filepath, bytes.Repeat([]byte{'a'}, 1<<10), 0755); err != nil {
++		t.Fatal(err)
++	}
++	defer os.Remove(filepath)
++
+ 	var buf bytes.Buffer
+ 	child := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
+ 	child.ExtraFiles = append(child.ExtraFiles, lnf)
+@@ -1146,7 +1154,7 @@ func TestLinuxSendfile(t *testing.T) {
+ 		t.Skipf("skipping; failed to start straced child: %v", err)
+ 	}
+ 
+-	res, err := Get(fmt.Sprintf("http://%s/", ln.Addr()))
++	res, err := Get(fmt.Sprintf("http://%s/%s", ln.Addr(), filename))
+ 	if err != nil {
+ 		t.Fatalf("http client error: %v", err)
+ 	}
+@@ -1192,7 +1200,7 @@ func TestLinuxSendfileChild(*testing.T) {
+ 		panic(err)
+ 	}
+ 	mux := NewServeMux()
+-	mux.Handle("/", FileServer(Dir("testdata")))
++	mux.Handle("/", FileServer(Dir(os.TempDir())))
+ 	mux.HandleFunc("/quit", func(ResponseWriter, *Request) {
+ 		os.Exit(0)
+ 	})
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ed5de350a9..9124903b89 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -561,51 +561,53 @@ type writerOnly struct {
+ 	io.Writer
+ }
+ 
+-func srcIsRegularFile(src io.Reader) (isRegular bool, err error) {
+-	switch v := src.(type) {
+-	case *os.File:
+-		fi, err := v.Stat()
+-		if err != nil {
+-			return false, err
+-		}
+-		return fi.Mode().IsRegular(), nil
+-	case *io.LimitedReader:
+-		return srcIsRegularFile(v.R)
+-	default:
+-		return
+-	}
+-}
+-
+ // ReadFrom is here to optimize copying from an *os.File regular file
+-// to a *net.TCPConn with sendfile.
++// to a *net.TCPConn with sendfile, or from a supported src type such
++// as a *net.TCPConn on Linux with splice.
+ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
++	bufp := copyBufPool.Get().(*[]byte)
++	buf := *bufp
++	defer copyBufPool.Put(bufp)
++
+ 	// Our underlying w.conn.rwc is usually a *TCPConn (with its
+-	// own ReadFrom method). If not, or if our src isn't a regular
+-	// file, just fall back to the normal copy method.
++	// own ReadFrom method). If not, just fall back to the normal
++	// copy method.
+ 	rf, ok := w.conn.rwc.(io.ReaderFrom)
+-	regFile, err := srcIsRegularFile(src)
+-	if err != nil {
+-		return 0, err
+-	}
+-	if !ok || !regFile {
+-		bufp := copyBufPool.Get().(*[]byte)
+-		defer copyBufPool.Put(bufp)
+-		return io.CopyBuffer(writerOnly{w}, src, *bufp)
++	if !ok {
++		return io.CopyBuffer(writerOnly{w}, src, buf)
+ 	}
+ 
+ 	// sendfile path:
+ 
+-	if !w.wroteHeader {
+-		w.WriteHeader(StatusOK)
+-	}
++	// Do not start actually writing response until src is readable.
++	// If body length is <= sniffLen, sendfile/splice path will do
++	// little anyway. This small read also satisfies sniffing the
++	// body in case Content-Type is missing.
++	nr, er := src.Read(buf[:sniffLen])
++	atEOF := errors.Is(er, io.EOF)
++	n += int64(nr)
+ 
+-	if w.needsSniff() {
+-		n0, err := io.Copy(writerOnly{w}, io.LimitReader(src, sniffLen))
+-		n += n0
+-		if err != nil {
+-			return n, err
++	if nr > 0 {
++		// Write the small amount read normally.
++		nw, ew := w.Write(buf[:nr])
++		if ew != nil {
++			err = ew
++		} else if nr != nw {
++			err = io.ErrShortWrite
+ 		}
+ 	}
++	if err == nil && er != nil && !atEOF {
++		err = er
++	}
++
++	// Do not send StatusOK in the error case where nothing has been written.
++	if err == nil && !w.wroteHeader {
++		w.WriteHeader(StatusOK) // nr == 0, no error (or EOF)
++	}
++
++	if err != nil || atEOF {
++		return n, err
++	}
+ 
+ 	w.w.Flush()  // get rid of any previous writes
+ 	w.cw.flush() // make sure Header is written; flush data to rwc

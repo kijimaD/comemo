@@ -12,10 +12,88 @@ Date:   Wed Sep 6 22:33:24 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go     |  3 ---
  src/cmd/compile/internal/ssa/config.go      |  3 ---
  src/cmd/compile/internal/ssa/export_test.go |  2 --
  src/cmd/compile/internal/ssa/stackframe.go  | 10 ----------
  src/cmd/compile/internal/ssagen/ssa.go      |  2 ++
  5 files changed, 2 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 8618cf34cd..10984d508b 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -508,7 +508,6 @@ var passes = [...]pass{
+ 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
+ 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
+ 	{name: "loop rotate", fn: loopRotate},
+-	{name: "stackframe", fn: stackframe, required: true},
+ 	{name: "trim", fn: trim}, // remove empty blocks
+ }
+ 
+@@ -577,8 +576,6 @@ var passOrder = [...]constraint{
+ 	{"flagalloc", "regalloc"},
+ 	// loopRotate will confuse regalloc.
+ 	{"regalloc", "loop rotate"},
+-	// stackframe needs to know about spilled registers.
+-	{"regalloc", "stackframe"},
+ 	// trim needs regalloc to be done first.
+ 	{"regalloc", "trim"},
+ 	// memcombine works better if fuse happens first, to help merge stores.
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index f50c96228e..4dcb57c2f9 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -154,9 +154,6 @@ type Frontend interface {
+ 	// for the parts of that compound type.
+ 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
+ 
+-	// AllocFrame assigns frame offsets to all live auto variables.
+-	AllocFrame(f *Func)
+-
+ 	// Syslook returns a symbol of the runtime function/variable with the
+ 	// given name.
+ 	Syslook(string) *obj.LSym
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 45a8f8b9e2..e2a600a201 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -89,8 +89,6 @@ func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
+ func (d TestFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
+ 	return LocalSlot{N: parent.N, Type: t, Off: offset}
+ }
+-func (TestFrontend) AllocFrame(f *Func) {
+-}
+ func (d TestFrontend) Syslook(s string) *obj.LSym {
+ 	return d.ctxt.Lookup(s)
+ }
+diff --git a/src/cmd/compile/internal/ssa/stackframe.go b/src/cmd/compile/internal/ssa/stackframe.go
+deleted file mode 100644
+index 08be62a051..0000000000
+--- a/src/cmd/compile/internal/ssa/stackframe.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ssa
+-
+-// stackframe calls back into the frontend to assign frame offsets.
+-func stackframe(f *Func) {
+-	f.fe.AllocFrame(f)
+-}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index d1f0fe5331..8a8a2eb104 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -566,6 +566,8 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	// Main call to ssa package to compile function
+ 	ssa.Compile(s.f)
+ 
++	fe.AllocFrame(s.f)
++
+ 	if len(s.openDefers) != 0 {
+ 		s.emitOpenDeferInfo()
+ 	}

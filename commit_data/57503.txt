@@ -20,8 +20,59 @@ Date:   Fri Aug 11 14:38:19 2023 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/cpuprof.go   | 6 +++++-
  src/runtime/os_darwin.go | 3 ++-
  src/runtime/profbuf.go   | 1 +
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 6ef374eaa4..0d7eeacb39 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -227,7 +227,11 @@ func runtime_pprof_readProfile() ([]uint64, []unsafe.Pointer, bool) {
+ 	lock(&cpuprof.lock)
+ 	log := cpuprof.log
+ 	unlock(&cpuprof.lock)
+-	data, tags, eof := log.read(profBufBlocking)
++	readMode := profBufBlocking
++	if GOOS == "darwin" || GOOS == "ios" {
++		readMode = profBufNonBlocking // For #61768; on Darwin notes are not async-signal-safe.  See sigNoteSetup in os_darwin.go.
++	}
++	data, tags, eof := log.read(readMode)
+ 	if len(data) == 0 && eof {
+ 		lock(&cpuprof.lock)
+ 		cpuprof.log = nil
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index c4f3bb6a81..105de47a1f 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -81,7 +81,7 @@ func semawakeup(mp *m) {
+ // The read and write file descriptors used by the sigNote functions.
+ var sigNoteRead, sigNoteWrite int32
+ 
+-// sigNoteSetup initializes an async-signal-safe note.
++// sigNoteSetup initializes a single, there-can-only-be-one, async-signal-safe note.
+ //
+ // The current implementation of notes on Darwin is not async-signal-safe,
+ // because the functions pthread_mutex_lock, pthread_cond_signal, and
+@@ -93,6 +93,7 @@ var sigNoteRead, sigNoteWrite int32
+ // not support timed waits but is async-signal-safe.
+ func sigNoteSetup(*note) {
+ 	if sigNoteRead != 0 || sigNoteWrite != 0 {
++		// Generalizing this would require avoiding the pipe-fork-closeonexec race, which entangles syscall.
+ 		throw("duplicate sigNoteSetup")
+ 	}
+ 	var errno int32
+diff --git a/src/runtime/profbuf.go b/src/runtime/profbuf.go
+index c579f21488..083b55a922 100644
+--- a/src/runtime/profbuf.go
++++ b/src/runtime/profbuf.go
+@@ -491,6 +491,7 @@ Read:
+ 		// Nothing to read right now.
+ 		// Return or sleep according to mode.
+ 		if mode == profBufNonBlocking {
++			// Necessary on Darwin, notetsleepg below does not work in signal handler, root cause of #61768.
+ 			return nil, nil, false
+ 		}
+ 		if !b.w.cas(bw, bw|profReaderSleeping) {

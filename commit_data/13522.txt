@@ -10,7 +10,95 @@ Date:   Mon Jul 30 10:54:50 2012 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6453062
-
+---
  misc/dashboard/codereview/dashboard/cl.go    | 25 ++++++++++++++++++++++---
  misc/dashboard/codereview/dashboard/front.go |  1 +
  2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/misc/dashboard/codereview/dashboard/cl.go b/misc/dashboard/codereview/dashboard/cl.go
+index 4201946832..1b05e8ffdd 100644
+--- a/misc/dashboard/codereview/dashboard/cl.go
++++ b/misc/dashboard/codereview/dashboard/cl.go
+@@ -49,6 +49,7 @@ type CL struct {
+ 	Description []byte `datastore:",noindex"`
+ 	FirstLine   string `datastore:",noindex"`
+ 	LGTMs       []string
++	NotLGTMs    []string
+ 
+ 	// Mail information.
+ 	Subject       string   `datastore:",noindex"`
+@@ -78,9 +79,9 @@ func (cl *CL) FirstLineHTML() template.HTML {
+ 	return template.HTML(s)
+ }
+ 
+-func (cl *CL) LGTMHTML() template.HTML {
+-	x := make([]string, len(cl.LGTMs))
+-	for i, s := range cl.LGTMs {
++func formatEmails(e []string) template.HTML {
++	x := make([]string, len(e))
++	for i, s := range e {
+ 		s = template.HTMLEscapeString(s)
+ 		if !strings.Contains(s, "@") {
+ 			s = "<b>" + s + "</b>"
+@@ -91,6 +92,14 @@ func (cl *CL) LGTMHTML() template.HTML {
+ 	return template.HTML(strings.Join(x, ", "))
+ }
+ 
++func (cl *CL) LGTMHTML() template.HTML {
++	return formatEmails(cl.LGTMs)
++}
++
++func (cl *CL) NotLGTMHTML() template.HTML {
++	return formatEmails(cl.NotLGTMs)
++}
++
+ func (cl *CL) ModifiedAgo() string {
+ 	// Just the first non-zero unit.
+ 	units := [...]struct {
+@@ -326,6 +335,7 @@ func updateCL(c appengine.Context, n string) error {
+ 		cl.FirstLine = cl.FirstLine[:i]
+ 	}
+ 	lgtm := make(map[string]bool)
++	notLGTM := make(map[string]bool)
+ 	rcpt := make(map[string]bool)
+ 	for _, msg := range apiResp.Messages {
+ 		s, rev := msg.Sender, false
+@@ -343,6 +353,11 @@ func updateCL(c appengine.Context, n string) error {
+ 
+ 		if msg.Approval {
+ 			lgtm[s] = true
++			delete(notLGTM, s) // "LGTM" overrules previous "NOT LGTM"
++		}
++		if strings.Contains(msg.Text, "NOT LGTM") {
++			notLGTM[s] = true
++			delete(lgtm, s) // "NOT LGTM" overrules previous "LGTM"
+ 		}
+ 
+ 		for _, r := range msg.Recipients {
+@@ -352,10 +367,14 @@ func updateCL(c appengine.Context, n string) error {
+ 	for l := range lgtm {
+ 		cl.LGTMs = append(cl.LGTMs, l)
+ 	}
++	for l := range notLGTM {
++		cl.NotLGTMs = append(cl.NotLGTMs, l)
++	}
+ 	for r := range rcpt {
+ 		cl.Recipients = append(cl.Recipients, r)
+ 	}
+ 	sort.Strings(cl.LGTMs)
++	sort.Strings(cl.NotLGTMs)
+ 	sort.Strings(cl.Recipients)
+ 
+ 	err = datastore.RunInTransaction(c, func(c appengine.Context) error {
+diff --git a/misc/dashboard/codereview/dashboard/front.go b/misc/dashboard/codereview/dashboard/front.go
+index 791a1000c2..052f50d367 100644
+--- a/misc/dashboard/codereview/dashboard/front.go
++++ b/misc/dashboard/codereview/dashboard/front.go
+@@ -245,6 +245,7 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
+     <td>
+       <a href="http://codereview.appspot.com/{{.Number}}/" title="{{ printf "%s" .Description}}">{{.Number}}: {{.FirstLineHTML}}</a>
+       {{if and .LGTMs $tbl.Assignable}}<br /><span style="font-size: smaller;">LGTMs: {{.LGTMHTML}}{{end}}</span>
++      {{if and .NotLGTMs $tbl.Assignable}}<br /><span style="font-size: smaller; color: #f74545;">NOT LGTMs: {{.NotLGTMHTML}}{{end}}</span>
+     </td>
+     <td title="Last modified">{{.ModifiedAgo}}</td>
+     {{if $.IsAdmin}}<td><a href="/update-cl?cl={{.Number}}" title="Update this CL">&#x27f3;</a></td>{{end}}

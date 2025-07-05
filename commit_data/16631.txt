@@ -9,6 +9,29 @@ Date:   Mon Jun 24 16:53:13 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10478048
-
+---
  src/pkg/hash/hash.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/hash/hash.go b/src/pkg/hash/hash.go
+index aa895cf984..8d138d07f9 100644
+--- a/src/pkg/hash/hash.go
++++ b/src/pkg/hash/hash.go
+@@ -9,7 +9,7 @@ import "io"
+ 
+ // Hash is the common interface implemented by all hash functions.
+ type Hash interface {
+-	// Write adds more data to the running hash.
++	// Write (via the embedded io.Writer interface) adds more data to the running hash.
+ 	// It never returns an error.
+ 	io.Writer
+ 
+@@ -17,7 +17,7 @@ type Hash interface {
+ 	// It does not change the underlying hash state.
+ 	Sum(b []byte) []byte
+ 
+-	// Reset resets the hash to one with zero bytes written.
++	// Reset resets the Hash to its initial state.
+ 	Reset()
+ 
+ 	// Size returns the number of bytes Sum will return.

@@ -69,8 +69,166 @@ Date:   Thu Jun 3 15:09:39 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/mutator.go      | 34 +++++++++++++++++++++-------------
  src/internal/fuzz/mutator_test.go | 11 ++++++-----
  src/testing/fuzz.go               | 13 +++++++++++--
  3 files changed, 38 insertions(+), 20 deletions(-)
+
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index 2d7dbe6ed8..9aa56782b0 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -13,7 +13,8 @@ import (
+ )
+ 
+ type mutator struct {
+-	r mutatorRand
++	r       mutatorRand
++	scratch []byte // scratch slice to avoid additional allocations
+ }
+ 
+ func newMutator() *mutator {
+@@ -95,27 +96,34 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
+ 	case byte: // uint8
+ 		vals[i] = byte(m.mutateUInt(uint64(v), math.MaxUint8))
+ 	case string:
+-		// TODO(jayconrod,katiehockman): Keep a []byte somewhere (maybe in
+-		// mutator) that we mutate repeatedly to avoid re-allocating the data
+-		// every time.
+ 		if len(v) > maxPerVal {
+ 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
+ 		}
+-		b := []byte(v)
+-		if cap(b) < maxPerVal {
+-			b = append(make([]byte, 0, maxPerVal), b...)
++		if cap(m.scratch) < maxPerVal {
++			m.scratch = append(make([]byte, 0, maxPerVal), v...)
++		} else {
++			m.scratch = m.scratch[:len(v)]
++			copy(m.scratch, v)
+ 		}
+-		m.mutateBytes(&b)
+-		vals[i] = string(b)
++		m.mutateBytes(&m.scratch)
++		var s string
++		shdr := (*reflect.StringHeader)(unsafe.Pointer(&s))
++		bhdr := (*reflect.SliceHeader)(unsafe.Pointer(&m.scratch))
++		shdr.Data = bhdr.Data
++		shdr.Len = bhdr.Len
++		vals[i] = s
+ 	case []byte:
+ 		if len(v) > maxPerVal {
+ 			panic(fmt.Sprintf("cannot mutate bytes of length %d", len(v)))
+ 		}
+-		if cap(v) < maxPerVal {
+-			v = append(make([]byte, 0, maxPerVal), v...)
++		if cap(m.scratch) < maxPerVal {
++			m.scratch = append(make([]byte, 0, maxPerVal), v...)
++		} else {
++			m.scratch = m.scratch[:len(v)]
++			copy(m.scratch, v)
+ 		}
+-		m.mutateBytes(&v)
+-		vals[i] = v
++		m.mutateBytes(&m.scratch)
++		vals[i] = m.scratch
+ 	default:
+ 		panic(fmt.Sprintf("type not supported for mutating: %T", vals[i]))
+ 	}
+diff --git a/src/internal/fuzz/mutator_test.go b/src/internal/fuzz/mutator_test.go
+index 5fcfb27c16..ee2912dfd2 100644
+--- a/src/internal/fuzz/mutator_test.go
++++ b/src/internal/fuzz/mutator_test.go
+@@ -15,6 +15,7 @@ func BenchmarkMutatorBytes(b *testing.B) {
+ 	origEnv := os.Getenv("GODEBUG")
+ 	defer func() { os.Setenv("GODEBUG", origEnv) }()
+ 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
++	m := newMutator()
+ 
+ 	for _, size := range []int{
+ 		1,
+@@ -24,7 +25,6 @@ func BenchmarkMutatorBytes(b *testing.B) {
+ 		10000,
+ 		100000,
+ 	} {
+-		size := size
+ 		b.Run(strconv.Itoa(size), func(b *testing.B) {
+ 			buf := make([]byte, size)
+ 			b.ResetTimer()
+@@ -32,7 +32,7 @@ func BenchmarkMutatorBytes(b *testing.B) {
+ 			for i := 0; i < b.N; i++ {
+ 				// resize buffer to the correct shape and reset the PCG
+ 				buf = buf[0:size]
+-				m := newMutator()
++				m.r = newPcgRand()
+ 				m.mutate([]interface{}{buf}, workerSharedMemSize)
+ 			}
+ 		})
+@@ -43,6 +43,7 @@ func BenchmarkMutatorString(b *testing.B) {
+ 	origEnv := os.Getenv("GODEBUG")
+ 	defer func() { os.Setenv("GODEBUG", origEnv) }()
+ 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
++	m := newMutator()
+ 
+ 	for _, size := range []int{
+ 		1,
+@@ -52,7 +53,6 @@ func BenchmarkMutatorString(b *testing.B) {
+ 		10000,
+ 		100000,
+ 	} {
+-		size := size
+ 		b.Run(strconv.Itoa(size), func(b *testing.B) {
+ 			buf := make([]byte, size)
+ 			b.ResetTimer()
+@@ -60,7 +60,7 @@ func BenchmarkMutatorString(b *testing.B) {
+ 			for i := 0; i < b.N; i++ {
+ 				// resize buffer to the correct shape and reset the PCG
+ 				buf = buf[0:size]
+-				m := newMutator()
++				m.r = newPcgRand()
+ 				m.mutate([]interface{}{string(buf)}, workerSharedMemSize)
+ 			}
+ 		})
+@@ -71,6 +71,7 @@ func BenchmarkMutatorAllBasicTypes(b *testing.B) {
+ 	origEnv := os.Getenv("GODEBUG")
+ 	defer func() { os.Setenv("GODEBUG", origEnv) }()
+ 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
++	m := newMutator()
+ 
+ 	types := []interface{}{
+ 		[]byte(""),
+@@ -92,7 +93,7 @@ func BenchmarkMutatorAllBasicTypes(b *testing.B) {
+ 	for _, t := range types {
+ 		b.Run(fmt.Sprintf("%T", t), func(b *testing.B) {
+ 			for i := 0; i < b.N; i++ {
+-				m := newMutator()
++				m.r = newPcgRand()
+ 				m.mutate([]interface{}{t}, workerSharedMemSize)
+ 			}
+ 		})
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 55e5397193..d62eb55dec 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -258,9 +258,18 @@ var supportedTypes = map[reflect.Type]bool{
+ // Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
+ // arguments, those arguments will be added to the seed corpus.
+ //
++// ff must be a function with no return value whose first argument is *T and
++// whose remaining arguments are the types to be fuzzed.
++// For example:
++//
++// f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
++//
++// This function should be fast, deterministic, and stateless.
++// None of the pointers to any input data should be retained between executions.
++//
+ // This is a terminal function which will terminate the currently running fuzz
+-// target by calling runtime.Goexit. To run any code after this function, use
+-// Cleanup.
++// target by calling runtime.Goexit.
++// To run any code after fuzzing stops, use (*F).Cleanup.
+ func (f *F) Fuzz(ff interface{}) {
+ 	if f.fuzzCalled {
+ 		panic("testing: F.Fuzz called more than once")

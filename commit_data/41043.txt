@@ -22,7 +22,7 @@ Date:   Tue Aug 20 11:03:13 2019 -0700
     Change-Id: Ib7ca77b63d28222eb0189bc3d7130531949d853c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/190998
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/alg.go         | 19 ++++++-------------
  src/runtime/asm_386.s      | 24 ++++++++++++++++++++----
  src/runtime/asm_amd64.s    | 36 +++++++++++++++++++++++++++---------
@@ -37,3 +37,535 @@ Date:   Tue Aug 20 11:03:13 2019 -0700
  src/runtime/hash32.go      |  9 +++------
  src/runtime/hash64.go      | 10 +++-------
  13 files changed, 146 insertions(+), 110 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 732d32bf41..57306f81d9 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -88,14 +88,14 @@ var algarray = [alg_max]typeAlg{
+ var useAeshash bool
+ 
+ // in asm_*.s
+-func aeshash(p unsafe.Pointer, h, s uintptr) uintptr
+-func aeshash32(p unsafe.Pointer, h uintptr) uintptr
+-func aeshash64(p unsafe.Pointer, h uintptr) uintptr
+-func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
++func memhash(p unsafe.Pointer, h, s uintptr) uintptr
++func memhash32(p unsafe.Pointer, h uintptr) uintptr
++func memhash64(p unsafe.Pointer, h uintptr) uintptr
++func strhash(p unsafe.Pointer, h uintptr) uintptr
+ 
+-func strhash(a unsafe.Pointer, h uintptr) uintptr {
++func strhashFallback(a unsafe.Pointer, h uintptr) uintptr {
+ 	x := (*stringStruct)(a)
+-	return memhash(x.str, h, uintptr(x.len))
++	return memhashFallback(x.str, h, uintptr(x.len))
+ }
+ 
+ // NOTE: Because NaN != NaN, a map can contain any
+@@ -305,14 +305,7 @@ func alginit() {
+ }
+ 
+ func initAlgAES() {
+-	if GOOS == "aix" {
+-		// runtime.algarray is immutable on AIX: see cmd/link/internal/ld/xcoff.go
+-		return
+-	}
+ 	useAeshash = true
+-	algarray[alg_MEM32].hash = aeshash32
+-	algarray[alg_MEM64].hash = aeshash64
+-	algarray[alg_STRING].hash = aeshashstr
+ 	// Initialize with random data so hash collisions will be hard to engineer.
+ 	getRandomData(aeskeysched[:])
+ }
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index a01841d796..b31ea41ad4 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -911,18 +911,26 @@ TEXT runtime·emptyfunc(SB),0,$0-0
+ 	RET
+ 
+ // hash function using AES hardware instructions
+-TEXT runtime·aeshash(SB),NOSPLIT,$0-16
++TEXT runtime·memhash(SB),NOSPLIT,$0-16
++	CMPB	runtime·useAeshash(SB), $0
++	JEQ	noaes
+ 	MOVL	p+0(FP), AX	// ptr to data
+ 	MOVL	s+8(FP), BX	// size
+ 	LEAL	ret+12(FP), DX
+ 	JMP	aeshashbody<>(SB)
++noaes:
++	JMP	runtime·memhashFallback(SB)
+ 
+-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-12
++TEXT runtime·strhash(SB),NOSPLIT,$0-12
++	CMPB	runtime·useAeshash(SB), $0
++	JEQ	noaes
+ 	MOVL	p+0(FP), AX	// ptr to string object
+ 	MOVL	4(AX), BX	// length of string
+ 	MOVL	(AX), AX	// string data
+ 	LEAL	ret+8(FP), DX
+ 	JMP	aeshashbody<>(SB)
++noaes:
++	JMP	runtime·strhashFallback(SB)
+ 
+ // AX: data
+ // BX: length
+@@ -1108,7 +1116,9 @@ aesloop:
+ 	MOVL	X4, (DX)
+ 	RET
+ 
+-TEXT runtime·aeshash32(SB),NOSPLIT,$0-12
++TEXT runtime·memhash32(SB),NOSPLIT,$0-12
++	CMPB	runtime·useAeshash(SB), $0
++	JEQ	noaes
+ 	MOVL	p+0(FP), AX	// ptr to data
+ 	MOVL	h+4(FP), X0	// seed
+ 	PINSRD	$1, (AX), X0	// data
+@@ -1117,8 +1127,12 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-12
+ 	AESENC	runtime·aeskeysched+32(SB), X0
+ 	MOVL	X0, ret+8(FP)
+ 	RET
++noaes:
++	JMP	runtime·memhash32Fallback(SB)
+ 
+-TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
++TEXT runtime·memhash64(SB),NOSPLIT,$0-12
++	CMPB	runtime·useAeshash(SB), $0
++	JEQ	noaes
+ 	MOVL	p+0(FP), AX	// ptr to data
+ 	MOVQ	(AX), X0	// data
+ 	PINSRD	$2, h+4(FP), X0	// seed
+@@ -1127,6 +1141,8 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
+ 	AESENC	runtime·aeskeysched+32(SB), X0
+ 	MOVL	X0, ret+8(FP)
+ 	RET
++noaes:
++	JMP	runtime·memhash64Fallback(SB)
+ 
+ // simple mask to get rid of data in the high part of the register.
+ DATA masks<>+0x00(SB)/4, $0x00000000
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index fd3a9c3127..ba673432c1 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -885,21 +885,29 @@ done:
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+-// func aeshash(p unsafe.Pointer, h, s uintptr) uintptr
++// func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+ // hash function using AES hardware instructions
+-TEXT runtime·aeshash(SB),NOSPLIT,$0-32
++TEXT runtime·memhash(SB),NOSPLIT,$0-32
++	CMPB	runtime·useAeshash(SB), $0
++	JEQ	noaes
+ 	MOVQ	p+0(FP), AX	// ptr to data
+ 	MOVQ	s+16(FP), CX	// size
+ 	LEAQ	ret+24(FP), DX
+ 	JMP	aeshashbody<>(SB)
++noaes:
++	JMP	runtime·memhashFallback(SB)
+ 
+-// func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
++// func strhash(p unsafe.Pointer, h uintptr) uintptr
++TEXT runtime·strhash(SB),NOSPLIT,$0-24
++	CMPB	runtime·useAeshash(SB), $0
++	JEQ	noaes
+ 	MOVQ	p+0(FP), AX	// ptr to string struct
+ 	MOVQ	8(AX), CX	// length of string
+ 	MOVQ	(AX), AX	// string data
+ 	LEAQ	ret+16(FP), DX
+ 	JMP	aeshashbody<>(SB)
++noaes:
++	JMP	runtime·strhashFallback(SB)
+ 
+ // AX: data
+ // CX: length
+@@ -1232,8 +1240,11 @@ aesloop:
+ 	MOVQ	X8, (DX)
+ 	RET
+ 
+-// func aeshash32(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
++// func memhash32(p unsafe.Pointer, h uintptr) uintptr
++TEXT runtime·memhash32(SB),NOSPLIT,$0-24
++	CMPB	runtime·useAeshash(SB), $0
++	JEQ	noaes
++	JMP	runtime·memhash32Fallback(SB)
+ 	MOVQ	p+0(FP), AX	// ptr to data
+ 	MOVQ	h+8(FP), X0	// seed
+ 	PINSRD	$2, (AX), X0	// data
+@@ -1242,9 +1253,14 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
+ 	AESENC	runtime·aeskeysched+32(SB), X0
+ 	MOVQ	X0, ret+16(FP)
+ 	RET
+-
+-// func aeshash64(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
++noaes:
++	JMP	runtime·memhash32Fallback(SB)
++
++// func memhash64(p unsafe.Pointer, h uintptr) uintptr
++TEXT runtime·memhash64(SB),NOSPLIT,$0-24
++	CMPB	runtime·useAeshash(SB), $0
++	JEQ	noaes
++	JMP	runtime·memhash64Fallback(SB)
+ 	MOVQ	p+0(FP), AX	// ptr to data
+ 	MOVQ	h+8(FP), X0	// seed
+ 	PINSRQ	$1, (AX), X0	// data
+@@ -1253,6 +1269,8 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
+ 	AESENC	runtime·aeskeysched+32(SB), X0
+ 	MOVQ	X0, ret+16(FP)
+ 	RET
++noaes:
++	JMP	runtime·memhash64Fallback(SB)
+ 
+ // simple mask to get rid of data in the high part of the register.
+ DATA masks<>+0x00(SB)/8, $0x0000000000000000
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 48f3711e4d..34c9c64af6 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -497,21 +497,17 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ // write the implementations. Can copy and adjust the ones
+ // in asm_amd64.s when the time comes.
+ 
+-TEXT runtime·aeshash(SB),NOSPLIT,$0-20
+-	MOVL	AX, ret+16(FP)
+-	RET
++TEXT runtime·memhash(SB),NOSPLIT,$0-20
++	JMP	runtime·memhashFallback(SB)
+ 
+-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-12
+-	MOVL	AX, ret+8(FP)
+-	RET
++TEXT runtime·strhash(SB),NOSPLIT,$0-12
++	JMP	runtime·strhashFallback(SB)
+ 
+-TEXT runtime·aeshash32(SB),NOSPLIT,$0-12
+-	MOVL	AX, ret+8(FP)
+-	RET
++TEXT runtime·memhash32(SB),NOSPLIT,$0-12
++	JMP	runtime·memhash32Fallback(SB)
+ 
+-TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
+-	MOVL	AX, ret+8(FP)
+-	RET
++TEXT runtime·memhash64(SB),NOSPLIT,$0-12
++	JMP	runtime·memhash64Fallback(SB)
+ 
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 5a7e3b7ea7..ade39dfed8 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -817,18 +817,14 @@ TEXT runtime·armPublicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	RET
+ 
+ // AES hashing not implemented for ARM
+-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	$0, R0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	$0, R0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	$0, R0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	$0, R0
+-	MOVW	(R0), R1
++TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-16
++	JMP	runtime·memhashFallback(SB)
++TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-12
++	JMP	runtime·strhashFallback(SB)
++TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
++	JMP	runtime·memhash32Fallback(SB)
++TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
++	JMP	runtime·memhash64Fallback(SB)
+ 
+ TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 6e3b1b14a6..21ea519d64 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -445,8 +445,11 @@ CALLFN(·call268435456, 268435464 )
+ CALLFN(·call536870912, 536870920 )
+ CALLFN(·call1073741824, 1073741832 )
+ 
+-// func aeshash32(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-24
++// func memhash32(p unsafe.Pointer, h uintptr) uintptr
++TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
++	MOVB	runtime·useAeshash(SB), R0
++	CMP	$0, R0
++	BEQ	noaes
+ 	MOVD	p+0(FP), R0
+ 	MOVD	h+8(FP), R1
+ 	MOVD	$ret+16(FP), R2
+@@ -465,9 +468,14 @@ TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-24
+ 
+ 	VST1	[V0.D1], (R2)
+ 	RET
++noaes:
++	B	runtime·memhash32Fallback(SB)
+ 
+-// func aeshash64(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-24
++// func memhash64(p unsafe.Pointer, h uintptr) uintptr
++TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
++	MOVB	runtime·useAeshash(SB), R0
++	CMP	$0, R0
++	BEQ	noaes
+ 	MOVD	p+0(FP), R0
+ 	MOVD	h+8(FP), R1
+ 	MOVD	$ret+16(FP), R2
+@@ -486,22 +494,34 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-24
+ 
+ 	VST1	[V0.D1], (R2)
+ 	RET
++noaes:
++	B	runtime·memhash64Fallback(SB)
+ 
+-// func aeshash(p unsafe.Pointer, h, size uintptr) uintptr
+-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-32
++// func memhash(p unsafe.Pointer, h, size uintptr) uintptr
++TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
++	MOVB	runtime·useAeshash(SB), R0
++	CMP	$0, R0
++	BEQ	noaes
+ 	MOVD	p+0(FP), R0
+ 	MOVD	s+16(FP), R1
+ 	MOVWU	h+8(FP), R3
+ 	MOVD	$ret+24(FP), R2
+ 	B	aeshashbody<>(SB)
++noaes:
++	B	runtime·memhashFallback(SB)
+ 
+-// func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-24
++// func strhash(p unsafe.Pointer, h uintptr) uintptr
++TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
++	MOVB	runtime·useAeshash(SB), R0
++	CMP	$0, R0
++	BEQ	noaes
+ 	MOVD	p+0(FP), R10 // string pointer
+ 	LDP	(R10), (R0, R1) //string data/ length
+ 	MOVWU	h+8(FP), R3
+ 	MOVD	$ret+16(FP), R2 // return adddress
+ 	B	aeshashbody<>(SB)
++noaes:
++	B	runtime·strhashFallback(SB)
+ 
+ // R0: data
+ // R1: length (maximum 32 bits)
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 8e591400d1..7330f40e85 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -610,14 +610,14 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	UNDEF
+ 
+ // AES hashing not implemented for mips64
+-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R1
++TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
++	JMP	runtime·memhashFallback(SB)
++TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·strhashFallback(SB)
++TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash32Fallback(SB)
++TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash64Fallback(SB)
+ 
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R1
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 971dc37658..aca0510b69 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -611,21 +611,15 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
+ TEXT runtime·abort(SB),NOSPLIT,$0-0
+ 	UNDEF
+ 
+-// Not implemented.
+-TEXT runtime·aeshash(SB),NOSPLIT,$0
+-	UNDEF
+-
+-// Not implemented.
+-TEXT runtime·aeshash32(SB),NOSPLIT,$0
+-	UNDEF
+-
+-// Not implemented.
+-TEXT runtime·aeshash64(SB),NOSPLIT,$0
+-	UNDEF
+-
+-// Not implemented.
+-TEXT runtime·aeshashstr(SB),NOSPLIT,$0
+-	UNDEF
++// AES hashing not implemented for mips
++TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-16
++	JMP	runtime·memhashFallback(SB)
++TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-12
++	JMP	runtime·strhashFallback(SB)
++TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
++	JMP	runtime·memhash32Fallback(SB)
++TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
++	JMP	runtime·memhash64Fallback(SB)
+ 
+ TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R1
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 441042cebe..11d2f2f51a 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -833,14 +833,14 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	RET
+ 
+ // AES hashing not implemented for ppc64
+-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R1
+-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R1
++TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
++	JMP	runtime·memhashFallback(SB)
++TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·strhashFallback(SB)
++TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash32Fallback(SB)
++TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash64Fallback(SB)
+ 
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R3
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index ff3caf72ad..cb39451faa 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -740,14 +740,14 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	RET
+ 
+ // AES hashing not implemented for s390x
+-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R15
+-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R15
+-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R15
+-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVW	(R0), R15
++TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
++	JMP	runtime·memhashFallback(SB)
++TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·strhashFallback(SB)
++TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash32Fallback(SB)
++TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash64Fallback(SB)
+ 
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R3
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 8f3964f08b..7d88beb537 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -176,6 +176,16 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+ 	RET
+ 
++// AES hashing not implemented for wasm
++TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
++	JMP	runtime·memhashFallback(SB)
++TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·strhashFallback(SB)
++TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash32Fallback(SB)
++TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
++	JMP	runtime·memhash64Fallback(SB)
++
+ TEXT runtime·return0(SB), NOSPLIT, $0-0
+ 	MOVD $0, RET0
+ 	RET
+diff --git a/src/runtime/hash32.go b/src/runtime/hash32.go
+index 5574923911..966f70e1aa 100644
+--- a/src/runtime/hash32.go
++++ b/src/runtime/hash32.go
+@@ -20,10 +20,7 @@ const (
+ 	m4 = 2336365089
+ )
+ 
+-func memhash(p unsafe.Pointer, seed, s uintptr) uintptr {
+-	if GOARCH == "386" && GOOS != "nacl" && useAeshash {
+-		return aeshash(p, seed, s)
+-	}
++func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
+ 	h := uint32(seed + s*hashkey[0])
+ tail:
+ 	switch {
+@@ -81,7 +78,7 @@ tail:
+ 	return uintptr(h)
+ }
+ 
+-func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
++func memhash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+ 	h := uint32(seed + 4*hashkey[0])
+ 	h ^= readUnaligned32(p)
+ 	h = rotl_15(h*m1) * m2
+@@ -93,7 +90,7 @@ func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
+ 	return uintptr(h)
+ }
+ 
+-func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
++func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+ 	h := uint32(seed + 8*hashkey[0])
+ 	h ^= readUnaligned32(p)
+ 	h = rotl_15(h*m1) * m2
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index c3f2b9b6ad..e7908d7800 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -20,11 +20,7 @@ const (
+ 	m4 = 15839092249703872147
+ )
+ 
+-func memhash(p unsafe.Pointer, seed, s uintptr) uintptr {
+-	if (GOARCH == "amd64" || GOARCH == "arm64") &&
+-		GOOS != "nacl" && useAeshash {
+-		return aeshash(p, seed, s)
+-	}
++func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
+ 	h := uint64(seed + s*hashkey[0])
+ tail:
+ 	switch {
+@@ -82,7 +78,7 @@ tail:
+ 	return uintptr(h)
+ }
+ 
+-func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
++func memhash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+ 	h := uint64(seed + 4*hashkey[0])
+ 	v := uint64(readUnaligned32(p))
+ 	h ^= v
+@@ -94,7 +90,7 @@ func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
+ 	return uintptr(h)
+ }
+ 
+-func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
++func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+ 	h := uint64(seed + 8*hashkey[0])
+ 	h ^= uint64(readUnaligned32(p)) | uint64(readUnaligned32(add(p, 4)))<<32
+ 	h = rotl_31(h*m1) * m2

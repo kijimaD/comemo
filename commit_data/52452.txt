@@ -12,6 +12,37 @@ Date:   Wed May 4 11:56:10 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index aaeb2a23c6..22b1816307 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -683,14 +683,14 @@ func extractName(x Expr, force bool) (*Name, Expr) {
+ 		}
+ 		switch x.Op {
+ 		case Mul:
+-			if name, _ := x.X.(*Name); name != nil && (isTypeElem(x.Y) || force) {
++			if name, _ := x.X.(*Name); name != nil && (force || isTypeElem(x.Y)) {
+ 				// x = name *x.Y
+ 				op := *x
+ 				op.X, op.Y = op.Y, nil // change op into unary *op.Y
+ 				return name, &op
+ 			}
+ 		case Or:
+-			if name, lhs := extractName(x.X, isTypeElem(x.Y) || force); name != nil && lhs != nil { // note: lhs should never be nil
++			if name, lhs := extractName(x.X, force || isTypeElem(x.Y)); name != nil && lhs != nil {
+ 				// x = name lhs|x.Y
+ 				op := *x
+ 				op.X = lhs
+@@ -699,7 +699,7 @@ func extractName(x Expr, force bool) (*Name, Expr) {
+ 		}
+ 	case *CallExpr:
+ 		if name, _ := x.Fun.(*Name); name != nil {
+-			if len(x.ArgList) == 1 && !x.HasDots && (isTypeElem(x.ArgList[0]) || force) {
++			if len(x.ArgList) == 1 && !x.HasDots && (force || isTypeElem(x.ArgList[0])) {
+ 				// x = name "(" x.ArgList[0] ")"
+ 				return name, x.ArgList[0]
+ 			}

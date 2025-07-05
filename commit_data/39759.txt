@@ -20,7 +20,82 @@ Date:   Fri Aug 24 00:27:35 2018 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/time.go      | 33 +++++++++++++++++++++++++--------
  src/time/time_test.go | 10 +++++++++-
  2 files changed, 34 insertions(+), 9 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index aacde0db2c..d9938861ac 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -906,16 +906,33 @@ func (t Time) Sub(u Time) Duration {
+ 		}
+ 		return d
+ 	}
+-	d := Duration(t.sec()-u.sec())*Second + Duration(t.nsec()-u.nsec())
+-	// Check for overflow or underflow.
+-	switch {
+-	case u.Add(d).Equal(t):
+-		return d // d is correct
+-	case t.Before(u):
++
++	ts, us := t.sec(), u.sec()
++
++	var sec, nsec, d int64
++
++	ssub := ts - us
++	if (ssub < ts) != (us > 0) {
++		goto overflow
++	}
++
++	if ssub < int64(minDuration/Second) || ssub > int64(maxDuration/Second) {
++		goto overflow
++	}
++	sec = ssub * int64(Second)
++
++	nsec = int64(t.nsec() - u.nsec())
++	d = sec + nsec
++	if (d > sec) != (nsec > 0) {
++		goto overflow
++	}
++	return Duration(d)
++
++overflow:
++	if t.Before(u) {
+ 		return minDuration // t - u is negative out of range
+-	default:
+-		return maxDuration // t - u is positive out of range
+ 	}
++	return maxDuration // t - u is positive out of range
+ }
+ 
+ // Since returns the time elapsed since t.
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 0ac3c3a27f..dd3a8160cd 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -690,7 +690,7 @@ var gobTests = []Time{
+ 	Date(0, 1, 2, 3, 4, 5, 6, UTC),
+ 	Date(7, 8, 9, 10, 11, 12, 13, FixedZone("", 0)),
+ 	Unix(81985467080890095, 0x76543210), // Time.sec: 0x0123456789ABCDEF
+-	{}, // nil location
++	{},                                  // nil location
+ 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", 32767*60)),
+ 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", -32768*60)),
+ }
+@@ -1008,6 +1008,14 @@ func TestSub(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkSub(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		for _, st := range subTests {
++			st.t.Sub(st.u)
++		}
++	}
++}
++
+ var nsDurationTests = []struct {
+ 	d    Duration
+ 	want int64

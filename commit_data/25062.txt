@@ -16,9 +16,70 @@ Date:   Sat Sep 19 12:01:39 2015 -0700
     Change-Id: I3f00a768aa5ddd8d7772f375b25f846086a3e689
     Reviewed-on: https://go-review.googlesource.com/14758
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 4 +++-
  src/cmd/internal/obj/stack.go      | 2 +-
  src/runtime/stack2.go              | 2 +-
  test/nosplit.go                    | 4 ++--
  4 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8e0f0dcc9b..6cb5c571c2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -794,7 +794,9 @@ func (s *state) stmt(n *Node) {
+ 		// We only care about liveness info at call sites, so putting the
+ 		// varkill in the store chain is enough to keep it correctly ordered
+ 		// with respect to call ops.
+-		s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
++		if !canSSA(n.Left) {
++			s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
++		}
+ 
+ 	case OCHECKNIL:
+ 		p := s.expr(n.Left)
+diff --git a/src/cmd/internal/obj/stack.go b/src/cmd/internal/obj/stack.go
+index b1630b55fc..87698b3eeb 100644
+--- a/src/cmd/internal/obj/stack.go
++++ b/src/cmd/internal/obj/stack.go
+@@ -41,7 +41,7 @@ const (
+ 	STACKSYSTEM = 0
+ 	StackSystem = STACKSYSTEM
+ 	StackBig    = 4096
+-	StackGuard  = 960*stackGuardMultiplier + StackSystem
++	StackGuard  = 640*stackGuardMultiplier + StackSystem
+ 	StackSmall  = 128
+ 	StackLimit  = StackGuard - StackSystem - StackSmall
+ )
+diff --git a/src/runtime/stack2.go b/src/runtime/stack2.go
+index 02b82ebe13..59d4ef694d 100644
+--- a/src/runtime/stack2.go
++++ b/src/runtime/stack2.go
+@@ -86,7 +86,7 @@ const (
+ 
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+-	_StackGuard = 960*stackGuardMultiplier + _StackSystem
++	_StackGuard = 640*stackGuardMultiplier + _StackSystem
+ 
+ 	// After a stack split check the SP is allowed to be this
+ 	// many bytes below the stack guard.  This saves an instruction
+diff --git a/test/nosplit.go b/test/nosplit.go
+index e7c00f5783..e5c2a9f30e 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -285,12 +285,12 @@ TestCases:
+ 				// Instead of rewriting the test cases above, adjust
+ 				// the first stack frame to use up the extra bytes.
+ 				if i == 0 {
+-					size += 832 - 128
++					size += 512 - 128
+ 					// Noopt builds have a larger stackguard.
+ 					// See ../cmd/dist/buildruntime.go:stackGuardMultiplier
+ 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
+ 						if s == "-N" {
+-							size += 960
++							size += 640
+ 						}
+ 					}
+ 				}

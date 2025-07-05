@@ -17,7 +17,65 @@ Date:   Fri Sep 18 13:57:04 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     | 15 +++++++++------
  src/cmd/compile/internal/gc/typecheck.go | 13 +------------
  2 files changed, 10 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 399d0148bb..c0ed8192d9 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1072,12 +1072,7 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
+ 		return l, r
+ 	}
+ 
+-	nn := l
+-	if ctype(r.Type) > ctype(l.Type) {
+-		nn = r
+-	}
+-
+-	t := defaultType(nn.Type)
++	t := defaultType(mixUntyped(l.Type, r.Type))
+ 	l = convlit(l, t)
+ 	r = convlit(r, t)
+ 	return l, r
+@@ -1102,6 +1097,14 @@ func ctype(t *types.Type) Ctype {
+ 	panic("unreachable")
+ }
+ 
++func mixUntyped(t1, t2 *types.Type) *types.Type {
++	t := t1
++	if ctype(t2) > ctype(t1) {
++		t = t2
++	}
++	return t
++}
++
+ func defaultType(t *types.Type) *types.Type {
+ 	if !t.IsUntyped() || t.Etype == TNIL {
+ 		return t
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 2654177c25..12c99bf48f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -717,18 +717,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		}
+ 
+ 		if t.Etype == TIDEAL {
+-			switch {
+-			case l.Type == types.Idealcomplex || r.Type == types.Idealcomplex:
+-				t = types.Idealcomplex
+-			case l.Type == types.Idealfloat || r.Type == types.Idealfloat:
+-				t = types.Idealfloat
+-			case l.Type == types.Idealrune || r.Type == types.Idealrune:
+-				t = types.Idealrune
+-			case l.Type == types.Idealint || r.Type == types.Idealint:
+-				t = types.Idealint
+-			default:
+-				Fatalf("bad untyped type: %v", t)
+-			}
++			t = mixUntyped(l.Type, r.Type)
+ 		}
+ 		if dt := defaultType(t); !okfor[op][dt.Etype] {
+ 			yyerror("invalid operation: %v (operator %v not defined on %v)", n, op, t)

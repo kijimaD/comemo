@@ -15,6 +15,48 @@ Date:   Sat Mar 30 03:46:09 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/util.go | 17 +++++++++++++++--
  1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index b82a983d9f..dcaca892db 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -39,7 +39,12 @@ func startProfile() {
+ 		if err := pprof.StartCPUProfile(f); err != nil {
+ 			base.Fatalf("%v", err)
+ 		}
+-		base.AtExit(pprof.StopCPUProfile)
++		base.AtExit(func() {
++			pprof.StopCPUProfile()
++			if err = f.Close(); err != nil {
++				base.Fatalf("error closing cpu profile: %v", err)
++			}
++		})
+ 	}
+ 	if base.Flag.MemProfile != "" {
+ 		if base.Flag.MemProfileRate != 0 {
+@@ -77,6 +82,9 @@ func startProfile() {
+ 			if err := pprof.Lookup("heap").WriteTo(f, format); err != nil {
+ 				base.Fatalf("%v", err)
+ 			}
++			if err = f.Close(); err != nil {
++				base.Fatalf("error closing memory profile: %v", err)
++			}
+ 		})
+ 	} else {
+ 		// Not doing memory profiling; disable it entirely.
+@@ -112,6 +120,11 @@ func startProfile() {
+ 		if err := tracepkg.Start(f); err != nil {
+ 			base.Fatalf("%v", err)
+ 		}
+-		base.AtExit(tracepkg.Stop)
++		base.AtExit(func() {
++			tracepkg.Stop()
++			if err = f.Close(); err != nil {
++				base.Fatalf("error closing trace profile: %v", err)
++			}
++		})
+ 	}
+ }

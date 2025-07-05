@@ -10,6 +10,22 @@ Date:   Wed Apr 8 20:05:31 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227758
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/target.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/target.go b/src/cmd/link/internal/ld/target.go
+index 95f6ca17ab..09a67365d0 100644
+--- a/src/cmd/link/internal/ld/target.go
++++ b/src/cmd/link/internal/ld/target.go
+@@ -99,6 +99,10 @@ func (t *Target) IsS390X() bool {
+ 	return t.Arch.Family == sys.S390X
+ }
+ 
++func (t *Target) IsWasm() bool {
++	return t.Arch.Family == sys.Wasm
++}
++
+ //
+ // OS Functions
+ //

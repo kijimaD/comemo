@@ -15,8 +15,189 @@ Date:   Fri Jul 10 11:39:23 2020 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  4 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 80 ++++++++++++++++++++++++++
  test/codegen/comparisons.go                    | 17 ++++++
  3 files changed, 101 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index ed5bfc81fd..2d39d27226 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -545,6 +545,10 @@
+ (Or(64|32|16|8) x (Or(64|32|16|8) x y)) => (Or(64|32|16|8) x y)
+ (Xor(64|32|16|8) x (Xor(64|32|16|8) x y)) => y
+ 
++// Unsigned comparisons to zero.
++(Less(64U|32U|16U|8U) _ (Const(64|32|16|8) [0])) => (ConstBool [false])
++(Leq(64U|32U|16U|8U) (Const(64|32|16|8) [0]) _)  => (ConstBool [true])
++
+ // Ands clear bits. Ors set bits.
+ // If a subsequent Or will set all the bits
+ // that an And cleared, we can skip the And.
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 9f4e1b95bd..68e49f46f3 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -9701,6 +9701,16 @@ func rewriteValuegeneric_OpLeq16U(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(uint16(c) <= uint16(d))
+ 		return true
+ 	}
++	// match: (Leq16U (Const16 [0]) _)
++	// result: (ConstBool [true])
++	for {
++		if v_0.Op != OpConst16 || auxIntToInt16(v_0.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = boolToAuxInt(true)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLeq32(v *Value) bool {
+@@ -9805,6 +9815,16 @@ func rewriteValuegeneric_OpLeq32U(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(uint32(c) <= uint32(d))
+ 		return true
+ 	}
++	// match: (Leq32U (Const32 [0]) _)
++	// result: (ConstBool [true])
++	for {
++		if v_0.Op != OpConst32 || auxIntToInt32(v_0.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = boolToAuxInt(true)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLeq64(v *Value) bool {
+@@ -9909,6 +9929,16 @@ func rewriteValuegeneric_OpLeq64U(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(uint64(c) <= uint64(d))
+ 		return true
+ 	}
++	// match: (Leq64U (Const64 [0]) _)
++	// result: (ConstBool [true])
++	for {
++		if v_0.Op != OpConst64 || auxIntToInt64(v_0.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = boolToAuxInt(true)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLeq8(v *Value) bool {
+@@ -9993,6 +10023,16 @@ func rewriteValuegeneric_OpLeq8U(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(uint8(c) <= uint8(d))
+ 		return true
+ 	}
++	// match: (Leq8U (Const8 [0]) _)
++	// result: (ConstBool [true])
++	for {
++		if v_0.Op != OpConst8 || auxIntToInt8(v_0.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = boolToAuxInt(true)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLess16(v *Value) bool {
+@@ -10033,6 +10073,16 @@ func rewriteValuegeneric_OpLess16U(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(uint16(c) < uint16(d))
+ 		return true
+ 	}
++	// match: (Less16U _ (Const16 [0]))
++	// result: (ConstBool [false])
++	for {
++		if v_1.Op != OpConst16 || auxIntToInt16(v_1.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = boolToAuxInt(false)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLess32(v *Value) bool {
+@@ -10093,6 +10143,16 @@ func rewriteValuegeneric_OpLess32U(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(uint32(c) < uint32(d))
+ 		return true
+ 	}
++	// match: (Less32U _ (Const32 [0]))
++	// result: (ConstBool [false])
++	for {
++		if v_1.Op != OpConst32 || auxIntToInt32(v_1.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = boolToAuxInt(false)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLess64(v *Value) bool {
+@@ -10153,6 +10213,16 @@ func rewriteValuegeneric_OpLess64U(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(uint64(c) < uint64(d))
+ 		return true
+ 	}
++	// match: (Less64U _ (Const64 [0]))
++	// result: (ConstBool [false])
++	for {
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = boolToAuxInt(false)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLess8(v *Value) bool {
+@@ -10193,6 +10263,16 @@ func rewriteValuegeneric_OpLess8U(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(uint8(c) < uint8(d))
+ 		return true
+ 	}
++	// match: (Less8U _ (Const8 [0]))
++	// result: (ConstBool [false])
++	for {
++		if v_1.Op != OpConst8 || auxIntToInt8(v_1.AuxInt) != 0 {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = boolToAuxInt(false)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLoad(v *Value) bool {
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 90808573c2..f3c15538a8 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -407,3 +407,20 @@ func CmpToZero_ex5(e, f int32, u uint32) int {
+ 	}
+ 	return 0
+ }
++func UintLtZero(a uint8, b uint16, c uint32, d uint64) int {
++	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCC|JCS)`
++	// arm64: -`(CMPW|CMP|BHS|BLO)`
++	if a < 0 || b < 0 || c < 0 || d < 0 {
++		return 1
++	}
++	return 0
++}
++
++func UintGeqZero(a uint8, b uint16, c uint32, d uint64) int {
++	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCS|JCC)`
++	// arm64: -`(CMPW|CMP|BLO|BHS)`
++	if a >= 0 || b >= 0 || c >= 0 || d >= 0 {
++		return 1
++	}
++	return 0
++}

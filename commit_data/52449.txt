@@ -22,6 +22,20 @@ Date:   Wed May 4 09:20:56 2022 +0200
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/netip/netip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 7d8b20384e..2c21715af1 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -1171,7 +1171,7 @@ func (p AddrPort) AppendTo(b []byte) []byte {
+ 		b = append(b, ']')
+ 	}
+ 	b = append(b, ':')
+-	b = strconv.AppendInt(b, int64(p.port), 10)
++	b = strconv.AppendUint(b, uint64(p.port), 10)
+ 	return b
+ }
+ 

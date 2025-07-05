@@ -16,7 +16,7 @@ Date:   Fri Apr 22 12:27:29 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go  | 108 ++++++++++++++++------------------
  src/cmd/compile/internal/gc/cplx.go   |   5 +-
  src/cmd/compile/internal/gc/dcl.go    |  14 ++---
@@ -27,3 +27,578 @@ Date:   Fri Apr 22 12:27:29 2016 -0700
  src/cmd/compile/internal/gc/sinit.go  |  30 ++++------
  src/cmd/compile/internal/gc/ssa.go    |  52 ++++++++--------
  9 files changed, 146 insertions(+), 168 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index c2ed0d31d8..68bcae3f4c 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -378,22 +378,22 @@ bad:
+ }
+ 
+ func copyval(v Val) Val {
+-	switch v.Ctype() {
+-	case CTINT, CTRUNE:
++	switch u := v.U.(type) {
++	case *Mpint:
+ 		i := new(Mpint)
+-		i.Set(v.U.(*Mpint))
+-		i.Rune = v.U.(*Mpint).Rune
++		i.Set(u)
++		i.Rune = u.Rune
+ 		v.U = i
+ 
+-	case CTFLT:
++	case *Mpflt:
+ 		f := newMpflt()
+-		f.Set(v.U.(*Mpflt))
++		f.Set(u)
+ 		v.U = f
+ 
+-	case CTCPLX:
++	case *Mpcplx:
+ 		c := new(Mpcplx)
+-		c.Real.Set(&v.U.(*Mpcplx).Real)
+-		c.Imag.Set(&v.U.(*Mpcplx).Imag)
++		c.Real.Set(&u.Real)
++		c.Imag.Set(&u.Imag)
+ 		v.U = c
+ 	}
+ 
+@@ -401,16 +401,16 @@ func copyval(v Val) Val {
+ }
+ 
+ func tocplx(v Val) Val {
+-	switch v.Ctype() {
+-	case CTINT, CTRUNE:
++	switch u := v.U.(type) {
++	case *Mpint:
+ 		c := new(Mpcplx)
+-		c.Real.SetInt(v.U.(*Mpint))
++		c.Real.SetInt(u)
+ 		c.Imag.SetFloat64(0.0)
+ 		v.U = c
+ 
+-	case CTFLT:
++	case *Mpflt:
+ 		c := new(Mpcplx)
+-		c.Real.Set(v.U.(*Mpflt))
++		c.Real.Set(u)
+ 		c.Imag.SetFloat64(0.0)
+ 		v.U = c
+ 	}
+@@ -419,17 +419,17 @@ func tocplx(v Val) Val {
+ }
+ 
+ func toflt(v Val) Val {
+-	switch v.Ctype() {
+-	case CTINT, CTRUNE:
++	switch u := v.U.(type) {
++	case *Mpint:
+ 		f := newMpflt()
+-		f.SetInt(v.U.(*Mpint))
++		f.SetInt(u)
+ 		v.U = f
+ 
+-	case CTCPLX:
++	case *Mpcplx:
+ 		f := newMpflt()
+-		f.Set(&v.U.(*Mpcplx).Real)
+-		if v.U.(*Mpcplx).Imag.CmpFloat64(0) != 0 {
+-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
++		f.Set(&u.Real)
++		if u.Imag.CmpFloat64(0) != 0 {
++			Yyerror("constant %v%vi truncated to real", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp|FmtSign))
+ 		}
+ 		v.U = f
+ 	}
+@@ -438,31 +438,33 @@ func toflt(v Val) Val {
+ }
+ 
+ func toint(v Val) Val {
+-	switch v.Ctype() {
+-	case CTRUNE:
+-		i := new(Mpint)
+-		i.Set(v.U.(*Mpint))
+-		v.U = i
++	switch u := v.U.(type) {
++	case *Mpint:
++		if u.Rune {
++			i := new(Mpint)
++			i.Set(u)
++			v.U = i
++		}
+ 
+-	case CTFLT:
++	case *Mpflt:
+ 		i := new(Mpint)
+-		if f := v.U.(*Mpflt); i.SetFloat(f) < 0 {
++		if i.SetFloat(u) < 0 {
+ 			msg := "constant %v truncated to integer"
+ 			// provide better error message if SetFloat failed because f was too large
+-			if f.Val.IsInt() {
++			if u.Val.IsInt() {
+ 				msg = "constant %v overflows integer"
+ 			}
+-			Yyerror(msg, Fconv(f, FmtSharp))
++			Yyerror(msg, Fconv(u, FmtSharp))
+ 		}
+ 		v.U = i
+ 
+-	case CTCPLX:
++	case *Mpcplx:
+ 		i := new(Mpint)
+-		if i.SetFloat(&v.U.(*Mpcplx).Real) < 0 {
+-			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
++		if i.SetFloat(&u.Real) < 0 {
++			Yyerror("constant %v%vi truncated to integer", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp|FmtSign))
+ 		}
+-		if v.U.(*Mpcplx).Imag.CmpFloat64(0) != 0 {
+-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
++		if u.Imag.CmpFloat64(0) != 0 {
++			Yyerror("constant %v%vi truncated to real", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp|FmtSign))
+ 		}
+ 		v.U = i
+ 	}
+@@ -471,30 +473,25 @@ func toint(v Val) Val {
+ }
+ 
+ func doesoverflow(v Val, t *Type) bool {
+-	switch v.Ctype() {
+-	case CTINT, CTRUNE:
++	switch u := v.U.(type) {
++	case *Mpint:
+ 		if !t.IsInteger() {
+ 			Fatalf("overflow: %v integer constant", t)
+ 		}
+-		if v.U.(*Mpint).Cmp(Minintval[t.Etype]) < 0 || v.U.(*Mpint).Cmp(Maxintval[t.Etype]) > 0 {
+-			return true
+-		}
++		return u.Cmp(Minintval[t.Etype]) < 0 || u.Cmp(Maxintval[t.Etype]) > 0
+ 
+-	case CTFLT:
++	case *Mpflt:
+ 		if !t.IsFloat() {
+ 			Fatalf("overflow: %v floating-point constant", t)
+ 		}
+-		if v.U.(*Mpflt).Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpflt).Cmp(maxfltval[t.Etype]) >= 0 {
+-			return true
+-		}
++		return u.Cmp(minfltval[t.Etype]) <= 0 || u.Cmp(maxfltval[t.Etype]) >= 0
+ 
+-	case CTCPLX:
++	case *Mpcplx:
+ 		if !t.IsComplex() {
+ 			Fatalf("overflow: %v complex constant", t)
+ 		}
+-		if v.U.(*Mpcplx).Real.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Real.Cmp(maxfltval[t.Etype]) >= 0 || v.U.(*Mpcplx).Imag.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Imag.Cmp(maxfltval[t.Etype]) >= 0 {
+-			return true
+-		}
++		return u.Real.Cmp(minfltval[t.Etype]) <= 0 || u.Real.Cmp(maxfltval[t.Etype]) >= 0 ||
++			u.Imag.Cmp(minfltval[t.Etype]) <= 0 || u.Imag.Cmp(maxfltval[t.Etype]) >= 0
+ 	}
+ 
+ 	return false
+@@ -518,21 +515,16 @@ func overflow(v Val, t *Type) {
+ }
+ 
+ func tostr(v Val) Val {
+-	switch v.Ctype() {
+-	case CTINT, CTRUNE:
++	switch u := v.U.(type) {
++	case *Mpint:
+ 		var i int64 = 0xFFFD
+-		if u := v.U.(*Mpint); u.Cmp(Minintval[TUINT32]) >= 0 && u.Cmp(Maxintval[TUINT32]) <= 0 {
++		if u.Cmp(Minintval[TUINT32]) >= 0 && u.Cmp(Maxintval[TUINT32]) <= 0 {
+ 			i = u.Int64()
+ 		}
+-		v = Val{}
+ 		v.U = string(i)
+ 
+-	case CTFLT:
+-		Yyerror("no float -> string")
+-		fallthrough
+-
+-	case CTNIL:
+-		v = Val{}
++	case *NilVal:
++		// Can happen because of string([]byte(nil)).
+ 		v.U = ""
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/cplx.go b/src/cmd/compile/internal/gc/cplx.go
+index b0fa70b0ad..34fd0b96d9 100644
+--- a/src/cmd/compile/internal/gc/cplx.go
++++ b/src/cmd/compile/internal/gc/cplx.go
+@@ -89,8 +89,9 @@ func subnode(nr *Node, ni *Node, nc *Node) {
+ 	t := Types[tc]
+ 
+ 	if nc.Op == OLITERAL {
+-		nodfconst(nr, t, &nc.Val().U.(*Mpcplx).Real)
+-		nodfconst(ni, t, &nc.Val().U.(*Mpcplx).Imag)
++		u := nc.Val().U.(*Mpcplx)
++		nodfconst(nr, t, &u.Real)
++		nodfconst(ni, t, &u.Imag)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e303f11c09..7f6e167488 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -755,17 +755,13 @@ func structfield(n *Node) *Field {
+ 		f.Broke = true
+ 	}
+ 
+-	switch n.Val().Ctype() {
+-	case CTSTR:
+-		f.Note = new(string)
+-		*f.Note = n.Val().U.(string)
+-
++	switch u := n.Val().U.(type) {
++	case string:
++		f.Note = &u
+ 	default:
+ 		Yyerror("field annotation must be string")
+-		fallthrough
+-
+-	case CTxxx:
+-		f.Note = nil
++	case nil:
++		// noop
+ 	}
+ 
+ 	if n.Left != nil && n.Left.Op == ONAME {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index e5977c0905..5f6edd1018 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -334,15 +334,16 @@ func Jconv(n *Node, flag FmtFlag) string {
+ 
+ // Fmt "%V": Values
+ func Vconv(v Val, flag FmtFlag) string {
+-	switch v.Ctype() {
+-	case CTINT:
+-		if (flag&FmtSharp != 0) || fmtmode == FExp {
+-			return Bconv(v.U.(*Mpint), FmtSharp)
++	switch u := v.U.(type) {
++	case *Mpint:
++		if !u.Rune {
++			if (flag&FmtSharp != 0) || fmtmode == FExp {
++				return Bconv(u, FmtSharp)
++			}
++			return Bconv(u, 0)
+ 		}
+-		return Bconv(v.U.(*Mpint), 0)
+ 
+-	case CTRUNE:
+-		x := v.U.(*Mpint).Int64()
++		x := u.Int64()
+ 		if ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'' {
+ 			return fmt.Sprintf("'%c'", int(x))
+ 		}
+@@ -352,39 +353,39 @@ func Vconv(v Val, flag FmtFlag) string {
+ 		if 0 <= x && x <= utf8.MaxRune {
+ 			return fmt.Sprintf("'\\U%08x'", uint64(x))
+ 		}
+-		return fmt.Sprintf("('\\x00' + %v)", v.U.(*Mpint))
++		return fmt.Sprintf("('\\x00' + %v)", u)
+ 
+-	case CTFLT:
++	case *Mpflt:
+ 		if (flag&FmtSharp != 0) || fmtmode == FExp {
+-			return Fconv(v.U.(*Mpflt), 0)
++			return Fconv(u, 0)
+ 		}
+-		return Fconv(v.U.(*Mpflt), FmtSharp)
++		return Fconv(u, FmtSharp)
+ 
+-	case CTCPLX:
++	case *Mpcplx:
+ 		if (flag&FmtSharp != 0) || fmtmode == FExp {
+-			return fmt.Sprintf("(%v+%vi)", &v.U.(*Mpcplx).Real, &v.U.(*Mpcplx).Imag)
++			return fmt.Sprintf("(%v+%vi)", &u.Real, &u.Imag)
+ 		}
+ 		if v.U.(*Mpcplx).Real.CmpFloat64(0) == 0 {
+-			return fmt.Sprintf("%vi", Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
++			return fmt.Sprintf("%vi", Fconv(&u.Imag, FmtSharp))
+ 		}
+ 		if v.U.(*Mpcplx).Imag.CmpFloat64(0) == 0 {
+-			return Fconv(&v.U.(*Mpcplx).Real, FmtSharp)
++			return Fconv(&u.Real, FmtSharp)
+ 		}
+ 		if v.U.(*Mpcplx).Imag.CmpFloat64(0) < 0 {
+-			return fmt.Sprintf("(%v%vi)", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
++			return fmt.Sprintf("(%v%vi)", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp))
+ 		}
+-		return fmt.Sprintf("(%v+%vi)", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
++		return fmt.Sprintf("(%v+%vi)", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp))
+ 
+-	case CTSTR:
+-		return strconv.Quote(v.U.(string))
++	case string:
++		return strconv.Quote(u)
+ 
+-	case CTBOOL:
+-		if v.U.(bool) {
++	case bool:
++		if u {
+ 			return "true"
+ 		}
+ 		return "false"
+ 
+-	case CTNIL:
++	case *NilVal:
+ 		return "nil"
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index bcfd3439a0..ff6fbe42fb 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -430,28 +430,28 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if Thearch.LinkArch.Family == sys.I386 {
+ 			a.Width = 0
+ 		}
+-		switch n.Val().Ctype() {
++		switch u := n.Val().U.(type) {
+ 		default:
+ 			Fatalf("naddr: const %v", Tconv(n.Type, FmtLong))
+ 
+-		case CTFLT:
++		case *Mpflt:
+ 			a.Type = obj.TYPE_FCONST
+-			a.Val = n.Val().U.(*Mpflt).Float64()
++			a.Val = u.Float64()
+ 
+-		case CTINT, CTRUNE:
++		case *Mpint:
+ 			a.Sym = nil
+ 			a.Type = obj.TYPE_CONST
+-			a.Offset = n.Int64()
++			a.Offset = u.Int64()
+ 
+-		case CTSTR:
+-			datagostring(n.Val().U.(string), a)
++		case string:
++			datagostring(u, a)
+ 
+-		case CTBOOL:
++		case bool:
+ 			a.Sym = nil
+ 			a.Type = obj.TYPE_CONST
+-			a.Offset = int64(obj.Bool2int(n.Val().U.(bool)))
++			a.Offset = int64(obj.Bool2int(u))
+ 
+-		case CTNIL:
++		case *NilVal:
+ 			a.Sym = nil
+ 			a.Type = obj.TYPE_CONST
+ 			a.Offset = 0
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index fab611fdb5..378ac0d2c3 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -342,20 +342,23 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 
+ 	switch nr.Op {
+ 	case OLITERAL:
+-		switch nr.Val().Ctype() {
+-		case CTCPLX:
+-			gdatacomplex(nam, nr.Val().U.(*Mpcplx))
++		switch u := nr.Val().U.(type) {
++		case *Mpcplx:
++			gdatacomplex(nam, u)
+ 
+-		case CTSTR:
+-			gdatastring(nam, nr.Val().U.(string))
++		case string:
++			gdatastring(nam, u)
+ 
+-		case CTINT, CTRUNE, CTBOOL:
+-			i, _ := nr.IntLiteral()
++		case bool:
++			i := int64(obj.Bool2int(u))
+ 			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, wid, i)
+ 
+-		case CTFLT:
++		case *Mpint:
++			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, wid, u.Int64())
++
++		case *Mpflt:
+ 			s := Linksym(nam.Sym)
+-			f := nr.Val().U.(*Mpflt).Float64()
++			f := u.Float64()
+ 			switch nam.Type.Etype {
+ 			case TFLOAT32:
+ 				s.WriteFloat32(Ctxt, nam.Xoffset, float32(f))
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 6538877e68..ae4b497b7b 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -3246,17 +3246,14 @@ func (p *parser) hidden_literal() *Node {
+ 		if p.tok == LLITERAL {
+ 			ss := nodlit(p.val)
+ 			p.next()
+-			switch ss.Val().Ctype() {
+-			case CTINT, CTRUNE:
+-				ss.Val().U.(*Mpint).Neg()
+-				break
+-			case CTFLT:
+-				ss.Val().U.(*Mpflt).Neg()
+-				break
+-			case CTCPLX:
+-				ss.Val().U.(*Mpcplx).Real.Neg()
+-				ss.Val().U.(*Mpcplx).Imag.Neg()
+-				break
++			switch u := ss.Val().U.(type) {
++			case *Mpint:
++				u.Neg()
++			case *Mpflt:
++				u.Neg()
++			case *Mpcplx:
++				u.Real.Neg()
++				u.Imag.Neg()
+ 			default:
+ 				Yyerror("bad negated constant")
+ 			}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 71c06eb0a0..5560415cab 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1309,28 +1309,22 @@ func addvalue(p *InitPlan, xoffset int64, n *Node) {
+ func iszero(n *Node) bool {
+ 	switch n.Op {
+ 	case OLITERAL:
+-		switch n.Val().Ctype() {
++		switch u := n.Val().U.(type) {
+ 		default:
+ 			Dump("unexpected literal", n)
+ 			Fatalf("iszero")
+-
+-		case CTNIL:
++		case *NilVal:
+ 			return true
+-
+-		case CTSTR:
+-			return n.Val().U.(string) == ""
+-
+-		case CTBOOL:
+-			return !n.Val().U.(bool)
+-
+-		case CTINT, CTRUNE:
+-			return n.Val().U.(*Mpint).CmpInt64(0) == 0
+-
+-		case CTFLT:
+-			return n.Val().U.(*Mpflt).CmpFloat64(0) == 0
+-
+-		case CTCPLX:
+-			return n.Val().U.(*Mpcplx).Real.CmpFloat64(0) == 0 && n.Val().U.(*Mpcplx).Imag.CmpFloat64(0) == 0
++		case string:
++			return u == ""
++		case bool:
++			return !u
++		case *Mpint:
++			return u.CmpInt64(0) == 0
++		case *Mpflt:
++			return u.CmpFloat64(0) == 0
++		case *Mpcplx:
++			return u.Real.CmpFloat64(0) == 0 && u.Imag.CmpFloat64(0) == 0
+ 		}
+ 
+ 	case OARRAYLIT:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 218f720a61..f989ad0375 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1448,9 +1448,9 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		addr := s.addr(n, false)
+ 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+ 	case OLITERAL:
+-		switch n.Val().Ctype() {
+-		case CTINT:
+-			i := n.Int64()
++		switch u := n.Val().U.(type) {
++		case *Mpint:
++			i := u.Int64()
+ 			switch n.Type.Size() {
+ 			case 1:
+ 				return s.constInt8(n.Type, int8(i))
+@@ -1464,13 +1464,13 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				s.Fatalf("bad integer size %d", n.Type.Size())
+ 				return nil
+ 			}
+-		case CTSTR:
+-			if n.Val().U == "" {
++		case string:
++			if u == "" {
+ 				return s.constEmptyString(n.Type)
+ 			}
+-			return s.entryNewValue0A(ssa.OpConstString, n.Type, n.Val().U)
+-		case CTBOOL:
+-			v := s.constBool(n.Val().U.(bool))
++			return s.entryNewValue0A(ssa.OpConstString, n.Type, u)
++		case bool:
++			v := s.constBool(u)
+ 			// For some reason the frontend gets the line numbers of
+ 			// CTBOOL literals totally wrong. Fix it here by grabbing
+ 			// the line number of the enclosing AST node.
+@@ -1478,7 +1478,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				v.Line = s.line[len(s.line)-2]
+ 			}
+ 			return v
+-		case CTNIL:
++		case *NilVal:
+ 			t := n.Type
+ 			switch {
+ 			case t.IsSlice():
+@@ -1488,36 +1488,30 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			default:
+ 				return s.constNil(t)
+ 			}
+-		case CTFLT:
+-			f := n.Val().U.(*Mpflt)
++		case *Mpflt:
+ 			switch n.Type.Size() {
+ 			case 4:
+-				return s.constFloat32(n.Type, f.Float32())
++				return s.constFloat32(n.Type, u.Float32())
+ 			case 8:
+-				return s.constFloat64(n.Type, f.Float64())
++				return s.constFloat64(n.Type, u.Float64())
+ 			default:
+ 				s.Fatalf("bad float size %d", n.Type.Size())
+ 				return nil
+ 			}
+-		case CTCPLX:
+-			c := n.Val().U.(*Mpcplx)
+-			r := &c.Real
+-			i := &c.Imag
++		case *Mpcplx:
++			r := &u.Real
++			i := &u.Imag
+ 			switch n.Type.Size() {
+ 			case 8:
+-				{
+-					pt := Types[TFLOAT32]
+-					return s.newValue2(ssa.OpComplexMake, n.Type,
+-						s.constFloat32(pt, r.Float32()),
+-						s.constFloat32(pt, i.Float32()))
+-				}
++				pt := Types[TFLOAT32]
++				return s.newValue2(ssa.OpComplexMake, n.Type,
++					s.constFloat32(pt, r.Float32()),
++					s.constFloat32(pt, i.Float32()))
+ 			case 16:
+-				{
+-					pt := Types[TFLOAT64]
+-					return s.newValue2(ssa.OpComplexMake, n.Type,
+-						s.constFloat64(pt, r.Float64()),
+-						s.constFloat64(pt, i.Float64()))
+-				}
++				pt := Types[TFLOAT64]
++				return s.newValue2(ssa.OpComplexMake, n.Type,
++					s.constFloat64(pt, r.Float64()),
++					s.constFloat64(pt, i.Float64()))
+ 			default:
+ 				s.Fatalf("bad float size %d", n.Type.Size())
+ 				return nil

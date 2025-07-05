@@ -17,8 +17,107 @@ Date:   Thu Jun 27 13:26:51 2019 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  api/go1.13.txt                   |  3 ---
  src/text/scanner/scanner.go      | 30 +++++++++++++++---------------
  src/text/scanner/scanner_test.go |  3 +--
  3 files changed, 16 insertions(+), 20 deletions(-)
+
+diff --git a/api/go1.13.txt b/api/go1.13.txt
+index 0f5e3eeefd..16f11cf2b7 100644
+--- a/api/go1.13.txt
++++ b/api/go1.13.txt
+@@ -8021,9 +8021,6 @@ pkg syscall (windows-amd64), type SysProcAttr struct, ThreadAttributes *Security
+ pkg testing, func Init()
+ pkg testing, method (*B) ReportMetric(float64, string)
+ pkg testing, type BenchmarkResult struct, Extra map[string]float64
+-pkg text/scanner, const AllowDigitSeparators = 1024
+-pkg text/scanner, const AllowDigitSeparators ideal-int
+-pkg text/scanner, const GoTokens = 2036
+ pkg text/template, method (ExecError) Unwrap() error
+ pkg time, method (Duration) Microseconds() int64
+ pkg time, method (Duration) Milliseconds() int64
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index fa5a0cd70d..e0847a7239 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -58,17 +58,19 @@ func (pos Position) String() string {
+ // For instance, if the mode is ScanIdents (not ScanStrings), the string
+ // "foo" is scanned as the token sequence '"' Ident '"'.
+ //
++// Use GoTokens to configure the Scanner such that it accepts all Go
++// literal tokens including Go identifiers. Comments will be skipped.
++//
+ const (
+-	ScanIdents           = 1 << -Ident
+-	ScanInts             = 1 << -Int
+-	ScanFloats           = 1 << -Float // includes Ints and hexadecimal floats
+-	ScanChars            = 1 << -Char
+-	ScanStrings          = 1 << -String
+-	ScanRawStrings       = 1 << -RawString
+-	ScanComments         = 1 << -Comment
+-	SkipComments         = 1 << -skipComment          // if set with ScanComments, comments become white space
+-	AllowDigitSeparators = 1 << -allowDigitSeparators // if set, number literals may contain underscores as digit separators
+-	GoTokens             = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments | AllowDigitSeparators
++	ScanIdents     = 1 << -Ident
++	ScanInts       = 1 << -Int
++	ScanFloats     = 1 << -Float // includes Ints and hexadecimal floats
++	ScanChars      = 1 << -Char
++	ScanStrings    = 1 << -String
++	ScanRawStrings = 1 << -RawString
++	ScanComments   = 1 << -Comment
++	SkipComments   = 1 << -skipComment // if set with ScanComments, comments become white space
++	GoTokens       = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments
+ )
+ 
+ // The result of Scan is one of these tokens or a Unicode character.
+@@ -84,7 +86,6 @@ const (
+ 
+ 	// internal use only
+ 	skipComment
+-	allowDigitSeparators
+ )
+ 
+ var tokenString = map[rune]string{
+@@ -363,8 +364,7 @@ func lower(ch rune) rune     { return ('a' - 'A') | ch } // returns lower-case c
+ func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
+ func isHex(ch rune) bool     { return '0' <= ch && ch <= '9' || 'a' <= lower(ch) && lower(ch) <= 'f' }
+ 
+-// digits accepts the sequence { digit } (if AllowDigitSeparators is not set)
+-// or { digit | '_' } (if AllowDigitSeparators is set), starting with ch0.
++// digits accepts the sequence { digit | '_' } starting with ch0.
+ // If base <= 10, digits accepts any decimal digit but records
+ // the first invalid digit >= base in *invalid if *invalid == 0.
+ // digits returns the first rune that is not part of the sequence
+@@ -374,7 +374,7 @@ func (s *Scanner) digits(ch0 rune, base int, invalid *rune) (ch rune, digsep int
+ 	ch = ch0
+ 	if base <= 10 {
+ 		max := rune('0' + base)
+-		for isDecimal(ch) || ch == '_' && s.Mode&AllowDigitSeparators != 0 {
++		for isDecimal(ch) || ch == '_' {
+ 			ds := 1
+ 			if ch == '_' {
+ 				ds = 2
+@@ -385,7 +385,7 @@ func (s *Scanner) digits(ch0 rune, base int, invalid *rune) (ch rune, digsep int
+ 			ch = s.next()
+ 		}
+ 	} else {
+-		for isHex(ch) || ch == '_' && s.Mode&AllowDigitSeparators != 0 {
++		for isHex(ch) || ch == '_' {
+ 			ds := 1
+ 			if ch == '_' {
+ 				ds = 2
+diff --git a/src/text/scanner/scanner_test.go b/src/text/scanner/scanner_test.go
+index fb68106c16..fe39d3060b 100644
+--- a/src/text/scanner/scanner_test.go
++++ b/src/text/scanner/scanner_test.go
+@@ -886,8 +886,7 @@ func TestIssue30320(t *testing.T) {
+ 		{"foo01.bar31.xx-0-1-1-0", "01 31 0 1 1 0", ScanInts},
+ 		{"foo0/12/0/5.67", "0 12 0 5 67", ScanInts},
+ 		{"xxx1e0yyy", "1 0", ScanInts},
+-		{"1_2", "1 2", ScanInts}, // don't consume _ as part of a number if not explicitly enabled
+-		{"1_2", "1_2", ScanInts | AllowDigitSeparators},
++		{"1_2", "1_2", ScanInts},
+ 		{"xxx1.0yyy2e3ee", "1 0 2 3", ScanInts},
+ 		{"xxx1.0yyy2e3ee", "1.0 2e3", ScanFloats},
+ 	} {

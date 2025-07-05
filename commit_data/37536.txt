@@ -9,7 +9,45 @@ Date:   Mon Aug 13 16:00:34 2018 +0000
     Change-Id: Id4def032b846257d2de992b7561ac90a17e08b91
     Reviewed-on: https://go-review.googlesource.com/129155
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/net/http/client.go  | 8 +++-----
  src/net/http/request.go | 4 ++++
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index fc4a792edd..8f69a298e3 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -95,14 +95,12 @@ type Client struct {
+ 	// A Timeout of zero means no timeout.
+ 	//
+ 	// The Client cancels requests to the underlying Transport
+-	// using the Request.Cancel mechanism. Requests passed
+-	// to Client.Do may still set Request.Cancel; both will
+-	// cancel the request.
++	// as if the Request's Context ended.
+ 	//
+ 	// For compatibility, the Client will also use the deprecated
+ 	// CancelRequest method on Transport if found. New
+-	// RoundTripper implementations should use Request.Cancel
+-	// instead of implementing CancelRequest.
++	// RoundTripper implementations should use the Request's Context
++	// for cancelation instead of implementing CancelRequest.
+ 	Timeout time.Duration
+ }
+ 
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 8cb278ea2c..a40b0a3cb8 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -339,6 +339,10 @@ func (r *Request) Context() context.Context {
+ 
+ // WithContext returns a shallow copy of r with its context changed
+ // to ctx. The provided ctx must be non-nil.
++//
++// For outgoing client request, the context controls the entire
++// lifetime of a request and its response: obtaining a connection,
++// sending the request, and reading the response headers and body.
+ func (r *Request) WithContext(ctx context.Context) *Request {
+ 	if ctx == nil {
+ 		panic("nil context")

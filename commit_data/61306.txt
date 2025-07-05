@@ -12,8 +12,88 @@ Date:   Mon Oct 28 14:24:10 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/telemetrystats/version_windows.go | 11 +++++------
  src/cmd/internal/osinfo/os_windows.go                 |  7 +++----
  src/internal/syscall/windows/version_windows.go       |  8 ++++----
  3 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/telemetrystats/version_windows.go b/src/cmd/go/internal/telemetrystats/version_windows.go
+index 7de87193c6..c5b1db7228 100644
+--- a/src/cmd/go/internal/telemetrystats/version_windows.go
++++ b/src/cmd/go/internal/telemetrystats/version_windows.go
+@@ -8,15 +8,14 @@ package telemetrystats
+ 
+ import (
+ 	"fmt"
++	"internal/syscall/windows"
+ 
+ 	"cmd/internal/telemetry/counter"
+-
+-	"golang.org/x/sys/windows"
+ )
+ 
+ func incrementVersionCounters() {
+-	v := windows.RtlGetVersion()
+-	counter.Inc(fmt.Sprintf("go/platform/host/windows/major-version:%d", v.MajorVersion))
+-	counter.Inc(fmt.Sprintf("go/platform/host/windows/version:%d-%d", v.MajorVersion, v.MinorVersion))
+-	counter.Inc(fmt.Sprintf("go/platform/host/windows/build:%d", v.BuildNumber))
++	major, minor, build := windows.Version()
++	counter.Inc(fmt.Sprintf("go/platform/host/windows/major-version:%d", major))
++	counter.Inc(fmt.Sprintf("go/platform/host/windows/version:%d-%d", major, minor))
++	counter.Inc(fmt.Sprintf("go/platform/host/windows/build:%d", build))
+ }
+diff --git a/src/cmd/internal/osinfo/os_windows.go b/src/cmd/internal/osinfo/os_windows.go
+index 228369ea22..b3693a8496 100644
+--- a/src/cmd/internal/osinfo/os_windows.go
++++ b/src/cmd/internal/osinfo/os_windows.go
+@@ -8,12 +8,11 @@ package osinfo
+ 
+ import (
+ 	"fmt"
+-
+-	"golang.org/x/sys/windows"
++	"internal/syscall/windows"
+ )
+ 
+ // Version returns the OS version name/number.
+ func Version() (string, error) {
+-	info := windows.RtlGetVersion()
+-	return fmt.Sprintf("%d.%d.%d", info.MajorVersion, info.MinorVersion, info.BuildNumber), nil
++	major, minor, build := windows.Version()
++	return fmt.Sprintf("%d.%d.%d", major, minor, build), nil
+ }
+diff --git a/src/internal/syscall/windows/version_windows.go b/src/internal/syscall/windows/version_windows.go
+index ff21fc59e5..8f21272831 100644
+--- a/src/internal/syscall/windows/version_windows.go
++++ b/src/internal/syscall/windows/version_windows.go
+@@ -24,9 +24,9 @@ type _OSVERSIONINFOW struct {
+ // According to documentation, RtlGetVersion function always succeeds.
+ //sys	rtlGetVersion(info *_OSVERSIONINFOW) = ntdll.RtlGetVersion
+ 
+-// version retrieves the major, minor, and build version numbers
++// Version retrieves the major, minor, and build version numbers
+ // of the current Windows OS from the RtlGetVersion API.
+-func version() (major, minor, build uint32) {
++func Version() (major, minor, build uint32) {
+ 	info := _OSVERSIONINFOW{}
+ 	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
+ 	rtlGetVersion(&info)
+@@ -43,7 +43,7 @@ var initTCPKeepAlive = sync.OnceFunc(func() {
+ 	s, err := WSASocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP, nil, 0, WSA_FLAG_NO_HANDLE_INHERIT)
+ 	if err != nil {
+ 		// Fallback to checking the Windows version.
+-		major, _, build := version()
++		major, _, build := Version()
+ 		supportTCPKeepAliveIdle = major >= 10 && build >= 16299
+ 		supportTCPKeepAliveInterval = major >= 10 && build >= 16299
+ 		supportTCPKeepAliveCount = major >= 10 && build >= 15063
+@@ -85,7 +85,7 @@ func SupportTCPKeepAliveCount() bool {
+ // Windows version supports the TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS.
+ // The minimal requirement is Windows 10.0.16299.
+ var SupportTCPInitialRTONoSYNRetransmissions = sync.OnceValue(func() bool {
+-	major, _, build := version()
++	major, _, build := Version()
+ 	return major >= 10 && build >= 16299
+ })
+ 

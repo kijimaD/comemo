@@ -22,7 +22,7 @@ Date:   Wed Jun 24 14:30:16 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/data.go              |   4 +
  src/cmd/link/internal/ld/pcln.go              |  95 ++++++++++++++++------
  src/cmd/link/internal/ld/symtab.go            |   6 +-
@@ -32,3 +32,551 @@ Date:   Wed Jun 24 14:30:16 2020 -0400
  src/debug/gosym/testdata/pcln115.gz           | Bin 0 -> 124875 bytes
  src/runtime/symtab.go                         |  22 +++--
  8 files changed, 227 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 9329e32e8c..05ed022a74 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1921,6 +1921,8 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	/* gopclntab */
+ 	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gopclntab"), sym.SPCLNTAB, sym.SRODATA, relroSecPerm)
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pcheader", 0), sect)
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.pclntab_old", 0), sect)
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.epclntab", 0), sect)
+ 
+ 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+@@ -2477,6 +2479,8 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	ctxt.xdefine("runtime.symtab", sym.SRODATA, int64(symtab.Vaddr))
+ 	ctxt.xdefine("runtime.esymtab", sym.SRODATA, int64(symtab.Vaddr+symtab.Length))
+ 	ctxt.xdefine("runtime.pclntab", sym.SRODATA, int64(pclntab.Vaddr))
++	pcvar := ctxt.xdefine("runtime.pcheader", sym.SRODATA, int64(pclntab.Vaddr))
++	ctxt.xdefine("runtime.pclntab_old", sym.SRODATA, int64(pclntab.Vaddr)+ldr.SymSize(pcvar))
+ 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
+ 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
+ 	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 71eaed1a54..5ea210c139 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -227,13 +227,41 @@ func (state *pclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch) loader
+ 	return its
+ }
+ 
++// generatePCHeader creates the runtime.pcheader symbol, setting it up as a
++// generator to fill in its data later.
++func generatePCHeader(ctxt *Link, carrier *loader.SymbolBuilder, pclntabSym loader.Sym) {
++	ldr := ctxt.loader
++	writeHeader := func(ctxt *Link, s loader.Sym) {
++		ldr := ctxt.loader
++		header := ctxt.loader.MakeSymbolUpdater(s)
++
++		// Check symbol order.
++		diff := ldr.SymValue(pclntabSym) - ldr.SymValue(s)
++		if diff <= 0 {
++			panic(fmt.Sprintf("expected runtime.pcheader(%x) to be placed before runtime.pclntab(%x)", ldr.SymValue(s), ldr.SymValue(pclntabSym)))
++		}
++
++		// Write header.
++		// Keep in sync with runtime/symtab.go:pcHeader.
++		header.SetUint32(ctxt.Arch, 0, 0xfffffffa)
++		header.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
++		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
++		off := header.SetUint(ctxt.Arch, 8, uint64(pclntabNfunc))
++		header.SetUintptr(ctxt.Arch, off, uintptr(diff))
++	}
++
++	size := int64(8 + 2*ctxt.Arch.PtrSize)
++	s := ctxt.createGeneratorSymbol("runtime.pcheader", 0, sym.SPCLNTAB, size, writeHeader)
++	ldr.SetAttrReachable(s, true)
++	ldr.SetCarrierSym(s, carrier.Sym())
++}
++
+ // pclntab initializes the pclntab symbol with
+ // runtime function and file name information.
+ 
+ // These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
+ var pclntabNfunc int32
+ var pclntabFiletabOffset int32
+-var pclntabPclntabOffset int32
+ var pclntabFirstFunc loader.Sym
+ var pclntabLastFunc loader.Sym
+ 
+@@ -242,22 +270,46 @@ var pclntabLastFunc loader.Sym
+ // symbols, e.g. the set of all symbols X such that Outer(S) = X for
+ // some other text symbol S.
+ func (ctxt *Link) pclntab() loader.Bitmap {
+-	funcdataBytes := int64(0)
++	// Go 1.2's symtab layout is documented in golang.org/s/go12symtab, but the
++	// layout and data has changed since that time.
++	//
++	// As of July 2020, here's the layout of pclntab:
++	//
++	//  .gopclntab/__gopclntab [elf/macho section]
++	//    runtime.pclntab
++	//      Carrier symbol for the entire pclntab section.
++	//
++	//      runtime.pcheader  (see: runtime/symtab.go:pcHeader)
++	//        8-byte magic
++	//        nfunc [thearch.ptrsize bytes]
++	//        offset to runtime.pclntab_old from beginning of runtime.pcheader
++	//
++	//      runtime.pclntab_old
++	//        function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
++	//        end PC [thearch.ptrsize bytes]
++	//        offset to file table [4 bytes]
++	//        func structures, function names, pcdata tables.
++	//        filetable
++
+ 	ldr := ctxt.loader
+-	ftabsym := ldr.LookupOrCreateSym("runtime.pclntab", 0)
+-	ftab := ldr.MakeSymbolUpdater(ftabsym)
++	carrier := ldr.CreateSymForUpdate("runtime.pclntab", 0)
++	carrier.SetType(sym.SPCLNTAB)
++	carrier.SetReachable(true)
++
++	// runtime.pclntab_old is just a placeholder,and will eventually be deleted.
++	// It contains the pieces of runtime.pclntab that haven't moved to a more
++	// ration form.
++	pclntabSym := ldr.LookupOrCreateSym("runtime.pclntab_old", 0)
++	generatePCHeader(ctxt, carrier, pclntabSym)
++
++	funcdataBytes := int64(0)
++	ldr.SetCarrierSym(pclntabSym, carrier.Sym())
++	ftab := ldr.MakeSymbolUpdater(pclntabSym)
+ 	ftab.SetType(sym.SPCLNTAB)
+-	ldr.SetAttrReachable(ftabsym, true)
++	ftab.SetReachable(true)
+ 
+ 	state := makepclnState(ctxt)
+ 
+-	// See golang.org/s/go12symtab for the format. Briefly:
+-	//	8-byte header
+-	//	nfunc [thearch.ptrsize bytes]
+-	//	function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
+-	//	end PC [thearch.ptrsize bytes]
+-	//	offset to file table [4 bytes]
+-
+ 	// Find container symbols and mark them as such.
+ 	for _, s := range ctxt.Textp {
+ 		outer := ldr.OuterSym(s)
+@@ -290,12 +342,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
+ 	}
+ 
+ 	pclntabNfunc = nfunc
+-	ftab.Grow(8 + int64(ctxt.Arch.PtrSize) + int64(nfunc)*2*int64(ctxt.Arch.PtrSize) + int64(ctxt.Arch.PtrSize) + 4)
+-	ftab.SetUint32(ctxt.Arch, 0, 0xfffffffb)
+-	ftab.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
+-	ftab.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
+-	ftab.SetUint(ctxt.Arch, 8, uint64(nfunc))
+-	pclntabPclntabOffset = int32(8 + ctxt.Arch.PtrSize)
++	ftab.Grow(int64(nfunc)*2*int64(ctxt.Arch.PtrSize) + int64(ctxt.Arch.PtrSize) + 4)
+ 
+ 	szHint := len(ctxt.Textp) * 2
+ 	funcnameoff := make(map[string]int32, szHint)
+@@ -360,8 +407,8 @@ func (ctxt *Link) pclntab() loader.Bitmap {
+ 			// invalid funcoff value to mark the hole. See also
+ 			// runtime/symtab.go:findfunc
+ 			prevFuncSize := int64(ldr.SymSize(prevFunc))
+-			setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), prevFunc, prevFuncSize)
+-			ftab.SetUint(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), ^uint64(0))
++			setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), prevFunc, prevFuncSize)
++			ftab.SetUint(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), ^uint64(0))
+ 			nfunc++
+ 		}
+ 		prevFunc = s
+@@ -410,8 +457,8 @@ func (ctxt *Link) pclntab() loader.Bitmap {
+ 		funcstart := int32(dSize)
+ 		funcstart += int32(-dSize) & (int32(ctxt.Arch.PtrSize) - 1) // align to ptrsize
+ 
+-		setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s, 0)
+-		ftab.SetUint(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint64(funcstart))
++		setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s, 0)
++		ftab.SetUint(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint64(funcstart))
+ 
+ 		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
+ 		// and package debug/gosym.
+@@ -523,14 +570,14 @@ func (ctxt *Link) pclntab() loader.Bitmap {
+ 	last := ctxt.Textp[len(ctxt.Textp)-1]
+ 	pclntabLastFunc = last
+ 	// Final entry of table is just end pc.
+-	setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, ldr.SymSize(last))
++	setAddr(ftab, ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, ldr.SymSize(last))
+ 
+ 	// Start file table.
+ 	dSize := len(ftab.Data())
+ 	start := int32(dSize)
+ 	start += int32(-dSize) & (int32(ctxt.Arch.PtrSize) - 1)
+ 	pclntabFiletabOffset = start
+-	ftab.SetUint32(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint32(start))
++	ftab.SetUint32(ctxt.Arch, int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint32(start))
+ 
+ 	nf := len(state.numberedFiles)
+ 	ftab.Grow(int64(start) + int64((nf+1)*4))
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index fddf85f1c5..15fa162c60 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -607,13 +607,15 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 	// the definition of moduledata in runtime/symtab.go.
+ 	// This code uses several global variables that are set by pcln.go:pclntab.
+ 	moduledata := ldr.MakeSymbolUpdater(ctxt.Moduledata)
+-	pclntab := ldr.Lookup("runtime.pclntab", 0)
++	// The pcHeader
++	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.pcheader", 0))
+ 	// The pclntab slice
++	pclntab := ldr.Lookup("runtime.pclntab_old", 0)
+ 	moduledata.AddAddr(ctxt.Arch, pclntab)
+ 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pclntab)))
+ 	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pclntab)))
+ 	// The ftab slice
+-	moduledata.AddAddrPlus(ctxt.Arch, pclntab, int64(pclntabPclntabOffset))
++	moduledata.AddAddr(ctxt.Arch, pclntab)
+ 	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
+ 	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
+ 	// The filetab slice
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 5b07d6e884..314111d5ea 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -287,6 +287,10 @@ func (sb *SymbolBuilder) SetUint(arch *sys.Arch, r int64, v uint64) int64 {
+ 	return sb.setUintXX(arch, r, v, int64(arch.PtrSize))
+ }
+ 
++func (sb *SymbolBuilder) SetUintptr(arch *sys.Arch, r int64, v uintptr) int64 {
++	return sb.setUintXX(arch, r, uint64(v), int64(arch.PtrSize))
++}
++
+ func (sb *SymbolBuilder) SetAddrPlus(arch *sys.Arch, off int64, tgt Sym, add int64) int64 {
+ 	if sb.Type() == 0 {
+ 		sb.SetType(sym.SDATA)
+diff --git a/src/debug/gosym/pclntab.go b/src/debug/gosym/pclntab.go
+index 7e54a94351..8c7ace17cd 100644
+--- a/src/debug/gosym/pclntab.go
++++ b/src/debug/gosym/pclntab.go
+@@ -14,6 +14,16 @@ import (
+ 	"sync"
+ )
+ 
++// version of the pclntab
++type version int
++
++const (
++	verUnknown version = iota
++	ver11
++	ver12
++	ver116
++)
++
+ // A LineTable is a data structure mapping program counters to line numbers.
+ //
+ // In Go 1.1 and earlier, each function (represented by a Func) had its own LineTable,
+@@ -32,12 +42,17 @@ type LineTable struct {
+ 	PC   uint64
+ 	Line int
+ 
+-	// Go 1.2 state
+-	mu       sync.Mutex
+-	go12     int // is this in Go 1.2 format? -1 no, 0 unknown, 1 yes
++	// This mutex is used to keep parsing of pclntab synchronous.
++	mu sync.Mutex
++
++	// Contains the version of the pclntab section.
++	version version
++
++	// Go 1.2/1.16 state
+ 	binary   binary.ByteOrder
+ 	quantum  uint32
+ 	ptrsize  uint32
++	funcdata []byte
+ 	functab  []byte
+ 	nfunctab uint32
+ 	filetab  []byte
+@@ -140,11 +155,12 @@ func NewLineTable(data []byte, text uint64) *LineTable {
+ 
+ // isGo12 reports whether this is a Go 1.2 (or later) symbol table.
+ func (t *LineTable) isGo12() bool {
+-	t.go12Init()
+-	return t.go12 == 1
++	t.parsePclnTab()
++	return t.version >= ver12
+ }
+ 
+ const go12magic = 0xfffffffb
++const go116magic = 0xfffffffa
+ 
+ // uintptr returns the pointer-sized value encoded at b.
+ // The pointer size is dictated by the table being read.
+@@ -155,49 +171,79 @@ func (t *LineTable) uintptr(b []byte) uint64 {
+ 	return t.binary.Uint64(b)
+ }
+ 
+-// go12init initializes the Go 1.2 metadata if t is a Go 1.2 symbol table.
+-func (t *LineTable) go12Init() {
++// parsePclnTab parses the pclntab, setting the version.
++func (t *LineTable) parsePclnTab() {
+ 	t.mu.Lock()
+ 	defer t.mu.Unlock()
+-	if t.go12 != 0 {
++	if t.version != verUnknown {
+ 		return
+ 	}
+ 
++	// Note that during this function, setting the version is the last thing we do.
++	// If we set the version too early, and parsing failed (likely as a panic on
++	// slice lookups), we'd have a mistaken version.
++	//
++	// Error paths through this code will default the version to 1.1.
++	t.version = ver11
++
+ 	defer func() {
+-		// If we panic parsing, assume it's not a Go 1.2 symbol table.
++		// If we panic parsing, assume it's a Go 1.1 pclntab.
+ 		recover()
+ 	}()
+ 
+ 	// Check header: 4-byte magic, two zeros, pc quantum, pointer size.
+-	t.go12 = -1 // not Go 1.2 until proven otherwise
+ 	if len(t.Data) < 16 || t.Data[4] != 0 || t.Data[5] != 0 ||
+ 		(t.Data[6] != 1 && t.Data[6] != 2 && t.Data[6] != 4) || // pc quantum
+ 		(t.Data[7] != 4 && t.Data[7] != 8) { // pointer size
+ 		return
+ 	}
+ 
+-	switch uint32(go12magic) {
+-	case binary.LittleEndian.Uint32(t.Data):
+-		t.binary = binary.LittleEndian
+-	case binary.BigEndian.Uint32(t.Data):
+-		t.binary = binary.BigEndian
++	var possibleVersion version
++	leMagic := binary.LittleEndian.Uint32(t.Data)
++	beMagic := binary.BigEndian.Uint32(t.Data)
++	switch {
++	case leMagic == go12magic:
++		t.binary, possibleVersion = binary.LittleEndian, ver12
++	case beMagic == go12magic:
++		t.binary, possibleVersion = binary.BigEndian, ver12
++	case leMagic == go116magic:
++		t.binary, possibleVersion = binary.LittleEndian, ver116
++	case beMagic == go116magic:
++		t.binary, possibleVersion = binary.BigEndian, ver116
+ 	default:
+ 		return
+ 	}
+ 
++	// quantum and ptrSize are the same between 1.2 and 1.16
+ 	t.quantum = uint32(t.Data[6])
+ 	t.ptrsize = uint32(t.Data[7])
+ 
+-	t.nfunctab = uint32(t.uintptr(t.Data[8:]))
+-	t.functab = t.Data[8+t.ptrsize:]
+-	functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
+-	fileoff := t.binary.Uint32(t.functab[functabsize:])
+-	t.functab = t.functab[:functabsize]
+-	t.filetab = t.Data[fileoff:]
+-	t.nfiletab = t.binary.Uint32(t.filetab)
+-	t.filetab = t.filetab[:t.nfiletab*4]
+-
+-	t.go12 = 1 // so far so good
++	switch possibleVersion {
++	case ver116:
++		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
++		offset := t.uintptr(t.Data[8+t.ptrsize:])
++		t.funcdata = t.Data[offset:]
++		t.functab = t.Data[offset:]
++		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
++		fileoff := t.binary.Uint32(t.functab[functabsize:])
++		t.filetab = t.functab[fileoff:]
++		t.functab = t.functab[:functabsize]
++		t.nfiletab = t.binary.Uint32(t.filetab)
++		t.filetab = t.filetab[:t.nfiletab*4]
++	case ver12:
++		t.nfunctab = uint32(t.uintptr(t.Data[8:]))
++		t.funcdata = t.Data
++		t.functab = t.Data[8+t.ptrsize:]
++		functabsize := t.nfunctab*2*t.ptrsize + t.ptrsize
++		fileoff := t.binary.Uint32(t.functab[functabsize:])
++		t.functab = t.functab[:functabsize]
++		t.filetab = t.Data[fileoff:]
++		t.nfiletab = t.binary.Uint32(t.filetab)
++		t.filetab = t.filetab[:t.nfiletab*4]
++	default:
++		panic("unreachable")
++	}
++	t.version = possibleVersion
+ }
+ 
+ // go12Funcs returns a slice of Funcs derived from the Go 1.2 pcln table.
+@@ -213,7 +259,7 @@ func (t *LineTable) go12Funcs() []Func {
+ 		f := &funcs[i]
+ 		f.Entry = t.uintptr(t.functab[2*i*int(t.ptrsize):])
+ 		f.End = t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):])
+-		info := t.Data[t.uintptr(t.functab[(2*i+1)*int(t.ptrsize):]):]
++		info := t.funcdata[t.uintptr(t.functab[(2*i+1)*int(t.ptrsize):]):]
+ 		f.LineTable = t
+ 		f.FrameSize = int(t.binary.Uint32(info[t.ptrsize+2*4:]))
+ 		f.Sym = &Sym{
+@@ -241,7 +287,7 @@ func (t *LineTable) findFunc(pc uint64) []byte {
+ 		m := nf / 2
+ 		fm := f[2*t.ptrsize*m:]
+ 		if t.uintptr(fm) <= pc && pc < t.uintptr(fm[2*t.ptrsize:]) {
+-			return t.Data[t.uintptr(fm[t.ptrsize:]):]
++			return t.funcdata[t.uintptr(fm[t.ptrsize:]):]
+ 		} else if pc < t.uintptr(fm) {
+ 			nf = m
+ 		} else {
+@@ -273,8 +319,8 @@ func (t *LineTable) string(off uint32) string {
+ 	if s, ok := t.strings[off]; ok {
+ 		return s
+ 	}
+-	i := bytes.IndexByte(t.Data[off:], 0)
+-	s := string(t.Data[off : off+uint32(i)])
++	i := bytes.IndexByte(t.funcdata[off:], 0)
++	s := string(t.funcdata[off : off+uint32(i)])
+ 	t.strings[off] = s
+ 	return s
+ }
+@@ -301,7 +347,7 @@ func (t *LineTable) step(p *[]byte, pc *uint64, val *int32, first bool) bool {
+ // off is the offset to the beginning of the pc-value table,
+ // and entry is the start PC for the corresponding function.
+ func (t *LineTable) pcvalue(off uint32, entry, targetpc uint64) int32 {
+-	p := t.Data[off:]
++	p := t.funcdata[off:]
+ 
+ 	val := int32(-1)
+ 	pc := entry
+@@ -324,8 +370,8 @@ func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum,
+ 		return 0
+ 	}
+ 
+-	fp := t.Data[filetab:]
+-	fl := t.Data[linetab:]
++	fp := t.funcdata[filetab:]
++	fl := t.funcdata[linetab:]
+ 	fileVal := int32(-1)
+ 	filePC := entry
+ 	lineVal := int32(-1)
+@@ -412,7 +458,7 @@ func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
+ 	// If this turns out to be a bottleneck, we could build a map[int32][]int32
+ 	// mapping file number to a list of functions with code from that file.
+ 	for i := uint32(0); i < t.nfunctab; i++ {
+-		f := t.Data[t.uintptr(t.functab[2*t.ptrsize*i+t.ptrsize:]):]
++		f := t.funcdata[t.uintptr(t.functab[2*t.ptrsize*i+t.ptrsize:]):]
+ 		entry := t.uintptr(f)
+ 		filetab := t.binary.Uint32(f[t.ptrsize+4*4:])
+ 		linetab := t.binary.Uint32(f[t.ptrsize+5*4:])
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index 6baa53defd..33772c7813 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -5,6 +5,8 @@
+ package gosym
+ 
+ import (
++	"bytes"
++	"compress/gzip"
+ 	"debug/elf"
+ 	"internal/testenv"
+ 	"io/ioutil"
+@@ -264,3 +266,51 @@ func TestPCLine(t *testing.T) {
+ 		off = pc + 1 - text.Addr
+ 	}
+ }
++
++// Test that we can parse a pclntab from 1.15.
++// The file was compiled in /tmp/hello.go:
++// [BEGIN]
++// package main
++//
++// func main() {
++//    println("hello")
++// }
++// [END]
++func Test115PclnParsing(t *testing.T) {
++	zippedDat, err := ioutil.ReadFile("testdata/pcln115.gz")
++	if err != nil {
++		t.Fatal(err)
++	}
++	var gzReader *gzip.Reader
++	gzReader, err = gzip.NewReader(bytes.NewBuffer(zippedDat))
++	if err != nil {
++		t.Fatal(err)
++	}
++	var dat []byte
++	dat, err = ioutil.ReadAll(gzReader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	const textStart = 0x1001000
++	pcln := NewLineTable(dat, textStart)
++	var tab *Table
++	tab, err = NewTable(nil, pcln)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var f *Func
++	var pc uint64
++	pc, f, err = tab.LineToPC("/tmp/hello.go", 3)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if pcln.version != ver12 {
++		t.Fatal("Expected pcln to parse as an older version")
++	}
++	if pc != 0x105c280 {
++		t.Fatalf("expect pc = 0x105c280, got 0x%x", pc)
++	}
++	if f.Name != "main.main" {
++		t.Fatalf("expected to parse name as main.main, got %v", f.Name)
++	}
++}
+diff --git a/src/debug/gosym/testdata/pcln115.gz b/src/debug/gosym/testdata/pcln115.gz
+new file mode 100644
+index 0000000000..db5c3d48ad
+Binary files /dev/null and b/src/debug/gosym/testdata/pcln115.gz differ
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 1e86662adc..95f01c555b 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -334,12 +334,23 @@ const (
+ 	funcID_wrapper // any autogenerated code (hash/eq algorithms, method wrappers, etc.)
+ )
+ 
++// PCHeader holds data used by the pclntab lookups.
++type pcHeader struct {
++	magic      uint32  // 0xFFFFFFFA
++	pad1, pad2 uint8   // 0,0
++	minLC      uint8   // min instruction size
++	ptrSize    uint8   // size of a ptr in bytes
++	nfunc      int     // number of functions in the module
++	pclnOffset uintptr // offset to the pclntab variable from pcHeader
++}
++
+ // moduledata records information about the layout of the executable
+ // image. It is written by the linker. Any changes here must be
+ // matched changes to the code in cmd/internal/ld/symtab.go:symtab.
+ // moduledata is stored in statically allocated non-pointer memory;
+ // none of the pointers here are visible to the garbage collector.
+ type moduledata struct {
++	pcHeader     *pcHeader
+ 	pclntable    []byte
+ 	ftab         []functab
+ 	filetab      []uint32
+@@ -514,13 +525,10 @@ func moduledataverify() {
+ const debugPcln = false
+ 
+ func moduledataverify1(datap *moduledata) {
+-	// See golang.org/s/go12symtab for header: 0xfffffffb,
+-	// two zero bytes, a byte giving the PC quantum,
+-	// and a byte giving the pointer width in bytes.
+-	pcln := *(**[8]byte)(unsafe.Pointer(&datap.pclntable))
+-	pcln32 := *(**[2]uint32)(unsafe.Pointer(&datap.pclntable))
+-	if pcln32[0] != 0xfffffffb || pcln[4] != 0 || pcln[5] != 0 || pcln[6] != sys.PCQuantum || pcln[7] != sys.PtrSize {
+-		println("runtime: function symbol table header:", hex(pcln32[0]), hex(pcln[4]), hex(pcln[5]), hex(pcln[6]), hex(pcln[7]))
++	// Check that the pclntab's format is valid.
++	hdr := datap.pcHeader
++	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 || hdr.minLC != sys.PCQuantum || hdr.ptrSize != sys.PtrSize {
++		println("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
+ 		throw("invalid function symbol table\n")
+ 	}
+ 

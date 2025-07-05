@@ -12,6 +12,20 @@ Date:   Wed Nov 22 13:12:42 2017 -0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/types/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index f4cf61d8e6..4c681a79c4 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -262,7 +262,7 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+ 	}
+ 	sort.Sort(byUniqueMethodName(methods))
+ 
+-	if embeddeds == nil {
++	if embeddeds != nil {
+ 		sort.Sort(byUniqueTypeName(embeddeds))
+ 	}
+ 

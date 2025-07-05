@@ -7,6 +7,38 @@ Date:   Fri Apr 8 13:42:20 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4380043
-
+---
  test/fixedbugs/bug327.go | 16 +++++++++++-----
  1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/bug327.go b/test/fixedbugs/bug327.go
+index 10f309da4e..4ba5f6072e 100644
+--- a/test/fixedbugs/bug327.go
++++ b/test/fixedbugs/bug327.go
+@@ -4,15 +4,21 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Conversion between identical interfaces.
++// Issue 1647.
++
++// The compiler used to not realize this was a no-op,
++// so it generated a call to the non-existent function runtime.convE2E.
++
+ package main
+ 
+ type (
+-       a interface{}
+-       b interface{}
++	a interface{}
++	b interface{}
+ )
+ 
+ func main() {
+-       x := a(1)
+-       z := b(x)
+-       _ = z
++	x := a(1)
++	z := b(x)
++	_ = z
+ }

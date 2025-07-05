@@ -15,7 +15,7 @@ Date:   Thu Aug 7 13:04:04 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/117580043
-
+---
  src/pkg/runtime/cgo/callbacks.c |  4 ++--
  src/pkg/runtime/env_posix.c     |  4 ++--
  src/pkg/runtime/heapdump.c      |  2 --
@@ -30,3 +30,261 @@ Date:   Thu Aug 7 13:04:04 2014 +0400
  src/pkg/runtime/runtime.h       |  3 +--
  src/pkg/runtime/time.goc        |  2 +-
  13 files changed, 18 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/callbacks.c b/src/pkg/runtime/cgo/callbacks.c
+index 5a4889c9b3..954a1cdcc3 100644
+--- a/src/pkg/runtime/cgo/callbacks.c
++++ b/src/pkg/runtime/cgo/callbacks.c
+@@ -38,8 +38,8 @@ _cgo_allocate_internal(uintptr len, byte *ret)
+ {
+ 	CgoMal *c;
+ 
+-	ret = runtime·mal(len);
+-	c = runtime·mal(sizeof(*c));
++	ret = runtime·mallocgc(len, nil, 0);
++	c = runtime·mallocgc(sizeof(*c), nil, 0);
+ 	c->next = g->m->cgomal;
+ 	c->alloc = ret;
+ 	g->m->cgomal = c;
+diff --git a/src/pkg/runtime/env_posix.c b/src/pkg/runtime/env_posix.c
+index 9b3583ce8b..edd1d3568d 100644
+--- a/src/pkg/runtime/env_posix.c
++++ b/src/pkg/runtime/env_posix.c
+@@ -50,11 +50,11 @@ syscall·setenv_c(String k, String v)
+ 	if(_cgo_setenv == nil)
+ 		return;
+ 
+-	arg[0] = runtime·malloc(k.len + 1);
++	arg[0] = runtime·mallocgc(k.len + 1, nil, 0);
+ 	runtime·memmove(arg[0], k.str, k.len);
+ 	arg[0][k.len] = 0;
+ 
+-	arg[1] = runtime·malloc(v.len + 1);
++	arg[1] = runtime·mallocgc(v.len + 1, nil, 0);
+ 	runtime·memmove(arg[1], v.str, v.len);
+ 	arg[1][v.len] = 0;
+ 
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index eec34f2cb7..9e968a250e 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -544,8 +544,6 @@ dumpobjs(void)
+ 			bitp = (uintptr*)runtime·mheap.arena_start - off/wordsPerBitmapWord - 1;
+ 			shift = (off % wordsPerBitmapWord) * gcBits;
+ 			bits = (*bitp >> shift) & bitMask;
+-
+-			// Skip FlagNoGC allocations (stacks)
+ 			if(bits != bitAllocated)
+ 				continue;
+ 			dumpobj(p, size, makeheapobjbv(p, size));
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index 951117622f..be3280e0f1 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -35,12 +35,6 @@ runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
+ 	return ret;
+ }
+ 
+-void*
+-runtime·malloc(uintptr size)
+-{
+-	return runtime·mallocgc(size, nil, FlagNoInvokeGC);
+-}
+-
+ int32
+ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ {
+@@ -399,12 +393,6 @@ runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
+ 
+ // Runtime stubs.
+ 
+-void*
+-runtime·mal(uintptr n)
+-{
+-	return runtime·mallocgc(n, nil, 0);
+-}
+-
+ static void*
+ cnew(Type *typ, intgo n)
+ {
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index 81769573c9..e7f23889af 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -11,8 +11,7 @@ import (
+ const (
+ 	flagNoScan      = 1 << 0 // GC doesn't have to scan object
+ 	flagNoProfiling = 1 << 1 // must not profile
+-	flagNoZero      = 1 << 3 // don't zero memory
+-	flagNoInvokeGC  = 1 << 4 // don't invoke GC
++	flagNoZero      = 1 << 2 // don't zero memory
+ 
+ 	kindArray      = 17
+ 	kindFunc       = 19
+@@ -198,7 +197,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 
+ 	releasem(mp)
+ 
+-	if flags&flagNoInvokeGC == 0 && memstats.heap_alloc >= memstats.next_gc {
++	if memstats.heap_alloc >= memstats.next_gc {
+ 		gogc(0)
+ 	}
+ 
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 1e26509bd9..43feef79ed 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -513,7 +513,6 @@ void	runtime·MHeap_MapBits(MHeap *h);
+ void	runtime·MHeap_MapSpans(MHeap *h);
+ void	runtime·MHeap_Scavenger(void);
+ 
+-void*	runtime·mallocgc(uintptr size, Type* typ, uint32 flag);
+ void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
+ int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
+ void	runtime·gc(int32 force);
+@@ -537,9 +536,7 @@ enum
+ 	// flags to malloc
+ 	FlagNoScan	= 1<<0,	// GC doesn't have to scan object
+ 	FlagNoProfiling	= 1<<1,	// must not profile
+-	FlagNoGC	= 1<<2,	// must not free or scan for pointers
+-	FlagNoZero	= 1<<3, // don't zero memory
+-	FlagNoInvokeGC	= 1<<4, // don't invoke GC
++	FlagNoZero	= 1<<2, // don't zero memory
+ };
+ 
+ void	runtime·MProf_Malloc(void*, uintptr);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 16d616b3f6..4637d68bce 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -966,7 +966,7 @@ runtime·MSpan_Sweep(MSpan *s)
+ 		xbits = *bitp;
+ 		bits = (xbits>>shift) & bitMask;
+ 
+-		// Non-allocated or FlagNoGC object, ignore.
++		// Non-allocated object, ignore.
+ 		if(bits == bitBoundary)
+ 			continue;
+ 		// Allocated and marked object, reset bits to allocated.
+@@ -1659,7 +1659,7 @@ runfinq(void)
+ 					// all not yet finalized objects are stored in finq.
+ 					// If we do not mark it as FlagNoScan,
+ 					// the last finalized object is not collected.
+-					frame = runtime·mallocgc(framesz, 0, FlagNoScan|FlagNoInvokeGC);
++					frame = runtime·mallocgc(framesz, 0, FlagNoScan);
+ 					framecap = framesz;
+ 				}
+ 				if(f->fint == nil)
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index af8bb1bc0e..bc685398a6 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -42,7 +42,7 @@ newdefer(int32 siz)
+ 	if(d == nil) {
+ 		// deferpool is empty or just a big defer
+ 		total = runtime·roundupsize(TOTALSIZE(siz));
+-		d = runtime·malloc(total);
++		d = runtime·mallocgc(total, nil, 0);
+ 	}
+ 	d->siz = siz;
+ 	d->special = 0;
+diff --git a/src/pkg/runtime/parfor.c b/src/pkg/runtime/parfor.c
+index 4706e0a43a..1073dfa394 100644
+--- a/src/pkg/runtime/parfor.c
++++ b/src/pkg/runtime/parfor.c
+@@ -27,7 +27,7 @@ runtime·parforalloc(uint32 nthrmax)
+ 
+ 	// The ParFor object is followed by CacheLineSize padding
+ 	// and then nthrmax ParForThread.
+-	desc = (ParFor*)runtime·malloc(sizeof(ParFor) + CacheLineSize + nthrmax * sizeof(ParForThread));
++	desc = (ParFor*)runtime·mallocgc(sizeof(ParFor) + CacheLineSize + nthrmax * sizeof(ParForThread), nil, 0);
+ 	desc->thr = (ParForThread*)((byte*)(desc+1) + CacheLineSize);
+ 	desc->nthrmax = nthrmax;
+ 	return desc;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 26e687e3b4..137f49f5f0 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -183,7 +183,7 @@ runtime·schedinit(void)
+ 			n = MaxGomaxprocs;
+ 		procs = n;
+ 	}
+-	runtime·allp = runtime·malloc((MaxGomaxprocs+1)*sizeof(runtime·allp[0]));
++	runtime·allp = runtime·mallocgc((MaxGomaxprocs+1)*sizeof(runtime·allp[0]), nil, 0);
+ 	procresize(procs);
+ 
+ 	runtime·copystack = runtime·precisestack;
+@@ -1926,7 +1926,7 @@ allgadd(G *gp)
+ 		cap = 4096/sizeof(new[0]);
+ 		if(cap < 2*allgcap)
+ 			cap = 2*allgcap;
+-		new = runtime·malloc(cap*sizeof(new[0]));
++		new = runtime·mallocgc(cap*sizeof(new[0]), nil, 0);
+ 		if(new == nil)
+ 			runtime·throw("runtime: cannot allocate memory");
+ 		if(runtime·allg != nil)
+@@ -2396,7 +2396,7 @@ procresize(int32 new)
+ 	for(i = 0; i < new; i++) {
+ 		p = runtime·allp[i];
+ 		if(p == nil) {
+-			p = (P*)runtime·mallocgc(sizeof(*p), 0, FlagNoInvokeGC);
++			p = (P*)runtime·mallocgc(sizeof(*p), 0, 0);
+ 			p->id = i;
+ 			p->status = Pgcstop;
+ 			runtime·atomicstorep(&runtime·allp[i], p);
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 31b853c87a..98c9edda41 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -111,7 +111,7 @@ runtime·goargs(void)
+ 	if(Windows)
+ 		return;
+ 
+-	s = runtime·malloc(argc*sizeof s[0]);
++	s = runtime·mallocgc(argc*sizeof s[0], nil, 0);
+ 	for(i=0; i<argc; i++)
+ 		s[i] = runtime·gostringnocopy(argv[i]);
+ 	os·Args.array = (byte*)s;
+@@ -128,7 +128,7 @@ runtime·goenvs_unix(void)
+ 	for(n=0; argv[argc+1+n] != 0; n++)
+ 		;
+ 
+-	s = runtime·malloc(n*sizeof s[0]);
++	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
+ 	for(i=0; i<n; i++)
+ 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
+ 	syscall·envs.array = (byte*)s;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1d1618b0d6..1687b85c44 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -829,7 +829,6 @@ int32	runtime·snprintf(byte*, int32, int8*, ...);
+ byte*	runtime·mchr(byte*, byte, byte*);
+ int32	runtime·mcmp(byte*, byte*, uintptr);
+ void	runtime·memmove(void*, void*, uintptr);
+-void*	runtime·mal(uintptr);
+ String	runtime·catstring(String, String);
+ String	runtime·gostring(byte*);
+ String  runtime·gostringn(byte*, intgo);
+@@ -876,7 +875,7 @@ void	runtime·mallocinit(void);
+ void	runtime·chaninit(void);
+ bool	runtime·ifaceeq_c(Iface, Iface);
+ bool	runtime·efaceeq_c(Eface, Eface);
+-void*	runtime·malloc(uintptr size);
++void*	runtime·mallocgc(uintptr size, Type* typ, uint32 flag);
+ void	runtime·runpanic(Panic*);
+ uintptr	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 791e4eb02b..10b8cea0ab 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -125,7 +125,7 @@ addtimer(Timer *t)
+ 		n = 16;
+ 		if(n <= timers.cap)
+ 			n = timers.cap*3 / 2;
+-		nt = runtime·malloc(n*sizeof nt[0]);
++		nt = runtime·mallocgc(n*sizeof nt[0], nil, 0);
+ 		runtime·memmove(nt, timers.t, timers.len*sizeof nt[0]);
+ 		timers.t = nt;
+ 		timers.cap = n;

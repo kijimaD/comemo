@@ -12,6 +12,19 @@ Date:   Thu Mar 17 16:14:41 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/20822
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/critical.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index b414913f94..38d4ca40dd 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -79,6 +79,7 @@ func critical(f *Func) {
+ 			if reusedBlock {
+ 				d.Preds = append(d.Preds, c)
+ 				b.Preds[i] = nil
++				phi.Args[i].Uses--
+ 				phi.Args[i] = nil
+ 			} else {
+ 				// splice it in

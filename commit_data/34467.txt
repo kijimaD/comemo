@@ -32,9 +32,184 @@ Date:   Sun Oct 22 13:33:06 2017 +0300
     Change-Id: Ic9a540e39ceb21e7741d308af1cfbe61b4ac347b
     Reviewed-on: https://go-review.googlesource.com/72373
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/color/color.go      | 29 ++++++++++++++++++++------
  src/image/color/color_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++
  src/image/draw/draw.go        | 10 ++++-----
  src/image/draw/draw_test.go   | 45 +++++++++++++++++++++++++++++++++++++++++
  4 files changed, 119 insertions(+), 12 deletions(-)
+
+diff --git a/src/image/color/color.go b/src/image/color/color.go
+index f719f25da1..8895839140 100644
+--- a/src/image/color/color.go
++++ b/src/image/color/color.go
+@@ -312,12 +312,29 @@ func (p Palette) Index(c Color) int {
+ //
+ // x and y are both assumed to be in the range [0, 0xffff].
+ func sqDiff(x, y uint32) uint32 {
+-	var d uint32
+-	if x > y {
+-		d = x - y
+-	} else {
+-		d = y - x
+-	}
++	// The canonical code of this function looks as follows:
++	//
++	//	var d uint32
++	//	if x > y {
++	//		d = x - y
++	//	} else {
++	//		d = y - x
++	//	}
++	//	return (d * d) >> 2
++	//
++	// Language spec guarantees the following properties of unsigned integer
++	// values operations with respect to overflow/wrap around:
++	//
++	// > For unsigned integer values, the operations +, -, *, and << are
++	// > computed modulo 2n, where n is the bit width of the unsigned
++	// > integer's type. Loosely speaking, these unsigned integer operations
++	// > discard high bits upon overflow, and programs may rely on ``wrap
++	// > around''.
++	//
++	// Considering these properties and the fact that this function is
++	// called in the hot paths (x,y loops), it is reduced to the below code
++	// which is slightly faster. See TestSqDiff for correctness check.
++	d := x - y
+ 	return (d * d) >> 2
+ }
+ 
+diff --git a/src/image/color/color_test.go b/src/image/color/color_test.go
+new file mode 100644
+index 0000000000..ea66b7bef2
+--- /dev/null
++++ b/src/image/color/color_test.go
+@@ -0,0 +1,47 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package color
++
++import (
++	"testing"
++	"testing/quick"
++)
++
++func TestSqDiff(t *testing.T) {
++	// canonical sqDiff implementation
++	orig := func(x, y uint32) uint32 {
++		var d uint32
++		if x > y {
++			d = uint32(x - y)
++		} else {
++			d = uint32(y - x)
++		}
++		return (d * d) >> 2
++	}
++	testCases := []uint32{
++		0,
++		1,
++		2,
++		0x0fffd,
++		0x0fffe,
++		0x0ffff,
++		0x10000,
++		0x10001,
++		0x10002,
++		0xfffffffd,
++		0xfffffffe,
++		0xffffffff,
++	}
++	for _, x := range testCases {
++		for _, y := range testCases {
++			if got, want := sqDiff(x, y), orig(x, y); got != want {
++				t.Fatalf("sqDiff(%#x, %#x): got %d, want %d", x, y, got, want)
++			}
++		}
++	}
++	if err := quick.CheckEqual(orig, sqDiff, &quick.Config{MaxCountScale: 10}); err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index f81d791f18..977d7c5221 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -564,12 +564,10 @@ func clamp(i int32) int32 {
+ //
+ // x and y are both assumed to be in the range [0, 0xffff].
+ func sqDiff(x, y int32) uint32 {
+-	var d uint32
+-	if x > y {
+-		d = uint32(x - y)
+-	} else {
+-		d = uint32(y - x)
+-	}
++	// This is an optimized code relying on the overflow/wrap around
++	// properties of unsigned integers operations guaranteed by the language
++	// spec. See sqDiff from the image/color package for more details.
++	d := uint32(x - y)
+ 	return (d * d) >> 2
+ }
+ 
+diff --git a/src/image/draw/draw_test.go b/src/image/draw/draw_test.go
+index a58f0f4984..dea51b6bc5 100644
+--- a/src/image/draw/draw_test.go
++++ b/src/image/draw/draw_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"image/png"
+ 	"os"
+ 	"testing"
++	"testing/quick"
+ )
+ 
+ func eq(c0, c1 color.Color) bool {
+@@ -467,3 +468,47 @@ loop:
+ 		}
+ 	}
+ }
++
++func TestSqDiff(t *testing.T) {
++	// This test is similar to the one from the image/color package, but
++	// sqDiff in this package accepts int32 instead of uint32, so test it
++	// for appropriate input.
++
++	// canonical sqDiff implementation
++	orig := func(x, y int32) uint32 {
++		var d uint32
++		if x > y {
++			d = uint32(x - y)
++		} else {
++			d = uint32(y - x)
++		}
++		return (d * d) >> 2
++	}
++	testCases := []int32{
++		0,
++		1,
++		2,
++		0x0fffd,
++		0x0fffe,
++		0x0ffff,
++		0x10000,
++		0x10001,
++		0x10002,
++		0x7ffffffd,
++		0x7ffffffe,
++		0x7fffffff,
++		-0x7ffffffd,
++		-0x7ffffffe,
++		-0x80000000,
++	}
++	for _, x := range testCases {
++		for _, y := range testCases {
++			if got, want := sqDiff(x, y), orig(x, y); got != want {
++				t.Fatalf("sqDiff(%#x, %#x): got %d, want %d", x, y, got, want)
++			}
++		}
++	}
++	if err := quick.CheckEqual(orig, sqDiff, &quick.Config{MaxCountScale: 10}); err != nil {
++		t.Fatal(err)
++	}
++}

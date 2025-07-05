@@ -27,7 +27,50 @@ Date:   Wed Jan 27 19:22:28 2016 +0100
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/race/output_test.go |  5 ++++-
  src/runtime/race/race_test.go   | 15 ++++++++++++++-
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index a9f9f0fbd5..0c71a019dd 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -51,7 +51,10 @@ func TestOutput(t *testing.T) {
+ 			}
+ 			cmd.Env = append(cmd.Env, env)
+ 		}
+-		cmd.Env = append(cmd.Env, "GORACE="+test.gorace)
++		cmd.Env = append(cmd.Env,
++			"GOMAXPROCS=1", // see comment in race_test.go
++			"GORACE="+test.gorace,
++		)
+ 		got, _ := cmd.CombinedOutput()
+ 		if !regexp.MustCompile(test.re).MatchString(string(got)) {
+ 			t.Fatalf("failed test case %v, expect:\n%v\ngot:\n%s",
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 6898e74900..748f33883b 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -155,7 +155,20 @@ func runTests() ([]byte, error) {
+ 		}
+ 		cmd.Env = append(cmd.Env, env)
+ 	}
+-	cmd.Env = append(cmd.Env, `GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0`)
++	// We set GOMAXPROCS=1 to prevent test flakiness.
++	// There are two sources of flakiness:
++	// 1. Some tests rely on particular execution order.
++	//    If the order is different, race does not happen at all.
++	// 2. Ironically, ThreadSanitizer runtime contains a logical race condition
++	//    that can lead to false negatives if racy accesses happen literally at the same time.
++	// Tests used to work reliably in the good old days of GOMAXPROCS=1.
++	// So let's set it for now. A more reliable solution is to explicitly annotate tests
++	// with required execution order by means of a special "invisible" synchronization primitive
++	// (that's what is done for C++ ThreadSanitizer tests). This is issue #14119.
++	cmd.Env = append(cmd.Env,
++		"GOMAXPROCS=1",
++		"GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0",
++	)
+ 	return cmd.CombinedOutput()
+ }
+ 

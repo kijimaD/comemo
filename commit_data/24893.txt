@@ -13,7 +13,7 @@ Date:   Tue Sep 8 05:46:31 2015 +0200
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go  | 8 ++++----
  src/cmd/compile/internal/gc/go.go      | 6 +++---
  src/cmd/compile/internal/gc/go.y       | 2 +-
@@ -21,3 +21,111 @@ Date:   Tue Sep 8 05:46:31 2015 +0200
  src/cmd/compile/internal/gc/reflect.go | 2 +-
  src/cmd/compile/internal/gc/y.go       | 2 +-
  6 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index f673137756..0edccce051 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -79,12 +79,12 @@ func autoexport(n *Node, ctxt uint8) {
+ }
+ 
+ func dumppkg(p *Pkg) {
+-	if p == nil || p == localpkg || p.Exported != 0 || p == builtinpkg {
++	if p == nil || p == localpkg || p.Exported || p == builtinpkg {
+ 		return
+ 	}
+-	p.Exported = 1
++	p.Exported = true
+ 	suffix := ""
+-	if p.Direct == 0 {
++	if !p.Direct {
+ 		suffix = " // indirect"
+ 	}
+ 	fmt.Fprintf(bout, "\timport %s %q%s\n", p.Name, p.Path, suffix)
+@@ -371,7 +371,7 @@ func dumpexport() {
+ 	fmt.Fprintf(bout, "\n")
+ 
+ 	for _, p := range pkgs {
+-		if p.Direct != 0 {
++		if p.Direct {
+ 			dumppkg(p)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 3e7d6aa80e..21e6486415 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -125,9 +125,9 @@ type Pkg struct {
+ 	Path     string // string literal used in import statement
+ 	Pathsym  *Sym
+ 	Prefix   string // escaped path for use in symbol table
+-	Imported uint8  // export data of this package was parsed
+-	Exported int8   // import line written in export data
+-	Direct   int8   // imported directly
++	Imported bool   // export data of this package was parsed
++	Exported bool   // import line written in export data
++	Direct   bool   // imported directly
+ 	Safe     bool   // whether the package is marked as safe
+ 	Syms     map[string]*Sym
+ }
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index 32f02ded6d..6d148e4824 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -315,7 +315,7 @@ import_package:
+ 		} else if importpkg.Name != $2.Name {
+ 			Yyerror("conflicting names %s and %s for package %q", importpkg.Name, $2.Name, importpkg.Path);
+ 		}
+-		importpkg.Direct = 1;
++		importpkg.Direct = true;
+ 		importpkg.Safe = curio.importsafe
+ 
+ 		if safemode != 0 && !curio.importsafe {
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index ce0654e54b..d2f8912e04 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -744,7 +744,7 @@ func importfile(f *Val, line int) {
+ 
+ 	// If we already saw that package, feed a dummy statement
+ 	// to the lexer to avoid parsing export data twice.
+-	if importpkg.Imported != 0 {
++	if importpkg.Imported {
+ 		tag := ""
+ 		if importpkg.Safe {
+ 			tag = "safe"
+@@ -755,7 +755,7 @@ func importfile(f *Val, line int) {
+ 		return
+ 	}
+ 
+-	importpkg.Imported = 1
++	importpkg.Imported = true
+ 
+ 	var err error
+ 	var imp *obj.Biobuf
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 80257c1dd8..b36df0f421 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1293,7 +1293,7 @@ func dumptypestructs() {
+ 
+ 	// generate import strings for imported packages
+ 	for _, p := range pkgs {
+-		if p.Direct != 0 {
++		if p.Direct {
+ 			dimportpath(p)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 9b780353c3..fafbdf163f 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -1354,7 +1354,7 @@ yydefault:
+ 			} else if importpkg.Name != yyDollar[2].sym.Name {
+ 				Yyerror("conflicting names %s and %s for package %q", importpkg.Name, yyDollar[2].sym.Name, importpkg.Path)
+ 			}
+-			importpkg.Direct = 1
++			importpkg.Direct = true
+ 			importpkg.Safe = curio.importsafe
+ 
+ 			if safemode != 0 && !curio.importsafe {

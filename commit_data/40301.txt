@@ -15,9 +15,247 @@ Date:   Sat Oct 13 22:40:23 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes.go          | 29 ++++++++++++++++++++++++++
  src/bytes/bytes_test.go     | 50 +++++++++++++++++++++++++++++++++++++++++++++
  src/strings/strings.go      | 50 +++++++++++++++++++++++++++++++++++++++++++++
  src/strings/strings_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 179 insertions(+)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 9d586581f5..eb13212384 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -592,6 +592,35 @@ func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
+ 	return Map(c.ToTitle, s)
+ }
+ 
++// ToValidUTF8 treats s as UTF-8-encoded bytes and returns a copy with each run of bytes
++// representing invalid UTF-8 replaced with the bytes in replacement, which may be empty.
++func ToValidUTF8(s, replacement []byte) []byte {
++	b := make([]byte, 0, len(s)+len(replacement))
++	invalid := false // previous byte was from an invalid UTF-8 sequence
++	for i := 0; i < len(s); {
++		c := s[i]
++		if c < utf8.RuneSelf {
++			i++
++			invalid = false
++			b = append(b, byte(c))
++			continue
++		}
++		_, wid := utf8.DecodeRune(s[i:])
++		if wid == 1 {
++			i++
++			if !invalid {
++				invalid = true
++				b = append(b, replacement...)
++			}
++			continue
++		}
++		invalid = false
++		b = append(b, s[i:i+wid]...)
++		i += wid
++	}
++	return b
++}
++
+ // isSeparator reports whether the rune could mark a word boundary.
+ // TODO: update when package unicode captures more of the properties.
+ func isSeparator(r rune) bool {
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 4c50755e7c..2dbbb99f37 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -1061,6 +1061,36 @@ func BenchmarkToLower(b *testing.B) {
+ 	}
+ }
+ 
++var toValidUTF8Tests = []struct {
++	in   string
++	repl string
++	out  string
++}{
++	{"", "\uFFFD", ""},
++	{"abc", "\uFFFD", "abc"},
++	{"\uFDDD", "\uFFFD", "\uFDDD"},
++	{"a\xffb", "\uFFFD", "a\uFFFDb"},
++	{"a\xffb\uFFFD", "X", "aXb\uFFFD"},
++	{"a☺\xffb☺\xC0\xAFc☺\xff", "", "a☺b☺c☺"},
++	{"a☺\xffb☺\xC0\xAFc☺\xff", "日本語", "a☺日本語b☺日本語c☺日本語"},
++	{"\xC0\xAF", "\uFFFD", "\uFFFD"},
++	{"\xE0\x80\xAF", "\uFFFD", "\uFFFD"},
++	{"\xed\xa0\x80", "abc", "abc"},
++	{"\xed\xbf\xbf", "\uFFFD", "\uFFFD"},
++	{"\xF0\x80\x80\xaf", "☺", "☺"},
++	{"\xF8\x80\x80\x80\xAF", "\uFFFD", "\uFFFD"},
++	{"\xFC\x80\x80\x80\x80\xAF", "\uFFFD", "\uFFFD"},
++}
++
++func TestToValidUTF8(t *testing.T) {
++	for _, tc := range toValidUTF8Tests {
++		got := ToValidUTF8([]byte(tc.in), []byte(tc.repl))
++		if !Equal(got, []byte(tc.out)) {
++			t.Errorf("ToValidUTF8(%q, %q) = %q; want %q", tc.in, tc.repl, got, tc.out)
++		}
++	}
++}
++
+ func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
+ 
+ type RepeatTest struct {
+@@ -1703,6 +1733,26 @@ func BenchmarkTrimSpace(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkToValidUTF8(b *testing.B) {
++	tests := []struct {
++		name  string
++		input []byte
++	}{
++		{"Valid", []byte("typical")},
++		{"InvalidASCII", []byte("foo\xffbar")},
++		{"InvalidNonASCII", []byte("日本語\xff日本語")},
++	}
++	replacement := []byte("\uFFFD")
++	b.ResetTimer()
++	for _, test := range tests {
++		b.Run(test.name, func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				ToValidUTF8(test.input, replacement)
++			}
++		})
++	}
++}
++
+ func makeBenchInputHard() []byte {
+ 	tokens := [...]string{
+ 		"<a>", "<p>", "<b>", "<strong>",
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index e3fdd9feaf..7337481380 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -631,6 +631,56 @@ func ToTitleSpecial(c unicode.SpecialCase, s string) string {
+ 	return Map(c.ToTitle, s)
+ }
+ 
++// ToValidUTF8 returns a copy of the string s with each run of invalid UTF-8 byte sequences
++// replaced by the replacement string, which may be empty.
++func ToValidUTF8(s, replacement string) string {
++	var b Builder
++
++	for i, c := range s {
++		if c != utf8.RuneError {
++			continue
++		}
++
++		_, wid := utf8.DecodeRuneInString(s[i:])
++		if wid == 1 {
++			b.Grow(len(s) + len(replacement))
++			b.WriteString(s[:i])
++			s = s[i:]
++			break
++		}
++	}
++
++	// Fast path for unchanged input
++	if b.Cap() == 0 { // didn't call b.Grow above
++		return s
++	}
++
++	invalid := false // previous byte was from an invalid UTF-8 sequence
++	for i := 0; i < len(s); {
++		c := s[i]
++		if c < utf8.RuneSelf {
++			i++
++			invalid = false
++			b.WriteByte(c)
++			continue
++		}
++		_, wid := utf8.DecodeRuneInString(s[i:])
++		if wid == 1 {
++			i++
++			if !invalid {
++				invalid = true
++				b.WriteString(replacement)
++			}
++			continue
++		}
++		invalid = false
++		b.WriteString(s[i : i+wid])
++		i += wid
++	}
++
++	return b.String()
++}
++
+ // isSeparator reports whether the rune could mark a word boundary.
+ // TODO: update when package unicode captures more of the properties.
+ func isSeparator(r rune) bool {
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 9766521615..fb736b29d3 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -705,6 +705,36 @@ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTest
+ 
+ func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+ 
++var toValidUTF8Tests = []struct {
++	in   string
++	repl string
++	out  string
++}{
++	{"", "\uFFFD", ""},
++	{"abc", "\uFFFD", "abc"},
++	{"\uFDDD", "\uFFFD", "\uFDDD"},
++	{"a\xffb", "\uFFFD", "a\uFFFDb"},
++	{"a\xffb\uFFFD", "X", "aXb\uFFFD"},
++	{"a☺\xffb☺\xC0\xAFc☺\xff", "", "a☺b☺c☺"},
++	{"a☺\xffb☺\xC0\xAFc☺\xff", "日本語", "a☺日本語b☺日本語c☺日本語"},
++	{"\xC0\xAF", "\uFFFD", "\uFFFD"},
++	{"\xE0\x80\xAF", "\uFFFD", "\uFFFD"},
++	{"\xed\xa0\x80", "abc", "abc"},
++	{"\xed\xbf\xbf", "\uFFFD", "\uFFFD"},
++	{"\xF0\x80\x80\xaf", "☺", "☺"},
++	{"\xF8\x80\x80\x80\xAF", "\uFFFD", "\uFFFD"},
++	{"\xFC\x80\x80\x80\x80\xAF", "\uFFFD", "\uFFFD"},
++}
++
++func TestToValidUTF8(t *testing.T) {
++	for _, tc := range toValidUTF8Tests {
++		got := ToValidUTF8(tc.in, tc.repl)
++		if got != tc.out {
++			t.Errorf("ToValidUTF8(%q, %q) = %q; want %q", tc.in, tc.repl, got, tc.out)
++		}
++	}
++}
++
+ func BenchmarkToUpper(b *testing.B) {
+ 	for _, tc := range upperTests {
+ 		b.Run(tc.in, func(b *testing.B) {
+@@ -851,6 +881,26 @@ func BenchmarkTrim(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkToValidUTF8(b *testing.B) {
++	tests := []struct {
++		name  string
++		input string
++	}{
++		{"Valid", "typical"},
++		{"InvalidASCII", "foo\xffbar"},
++		{"InvalidNonASCII", "日本語\xff日本語"},
++	}
++	replacement := "\uFFFD"
++	b.ResetTimer()
++	for _, test := range tests {
++		b.Run(test.name, func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				ToValidUTF8(test.input, replacement)
++			}
++		})
++	}
++}
++
+ type predicate struct {
+ 	f    func(rune) bool
+ 	name string

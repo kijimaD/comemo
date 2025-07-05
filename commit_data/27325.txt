@@ -11,6 +11,32 @@ Date:   Fri Mar 18 18:55:26 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/exec_linux.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 0ea9283bf6..c1fd53cc6e 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"runtime"
+ 	"unsafe"
+ )
+ 
+@@ -93,7 +94,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
+ 	runtime_BeforeFork()
+-	r1, _, err1 = RawSyscall6(SYS_CLONE, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0, 0)
++	if runtime.GOARCH == "s390x" {
++		r1, _, err1 = RawSyscall6(SYS_CLONE, 0, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0)
++	} else {
++		r1, _, err1 = RawSyscall6(SYS_CLONE, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0, 0)
++	}
+ 	if err1 != 0 {
+ 		runtime_AfterFork()
+ 		return 0, err1

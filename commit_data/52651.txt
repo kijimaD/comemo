@@ -16,7 +16,7 @@ Date:   Mon May 9 17:19:58 2022 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go           | 37 +++++++++++++++------------
  src/cmd/compile/internal/ir/node_gen.go       | 18 ++++++++-----
  src/cmd/compile/internal/ir/type.go           | 24 +++++++++++++----
@@ -29,3 +29,395 @@ Date:   Mon May 9 17:19:58 2022 -0700
  src/cmd/compile/internal/walk/order.go        |  3 ++-
  src/cmd/compile/internal/walk/switch.go       | 13 +++-------
  11 files changed, 107 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 43d48b4a65..8ac7e7f4f7 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -623,7 +623,7 @@ type TypeAssertExpr struct {
+ 
+ 	// Runtime type information provided by walkDotType for
+ 	// assertions from non-empty interface to concrete type.
+-	Itab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
++	ITab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
+ }
+ 
+ func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {
+@@ -645,24 +645,29 @@ func (n *TypeAssertExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// A DynamicTypeAssertExpr asserts that X is of dynamic type T.
++// A DynamicTypeAssertExpr asserts that X is of dynamic type RType.
+ type DynamicTypeAssertExpr struct {
+ 	miniExpr
+ 	X Node
+-	// N = not an interface
+-	// E = empty interface
+-	// I = nonempty interface
+-	// For E->N, T is a *runtime.type for N
+-	// For I->N, T is a *runtime.itab for N+I
+-	// For E->I, T is a *runtime.type for I
+-	// For I->I, ditto
+-	// For I->E, T is a *runtime.type for interface{} (unnecessary, but just to fill in the slot)
+-	// For E->E, ditto
+-	T Node
+-}
+-
+-func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, t Node) *DynamicTypeAssertExpr {
+-	n := &DynamicTypeAssertExpr{X: x, T: t}
++
++	// RType is an expression that yields a *runtime._type value
++	// representing the asserted type.
++	//
++	// BUG(mdempsky): If ITab is non-nil, RType may be nil.
++	RType Node
++
++	// ITab is an expression that yields a *runtime.itab value
++	// representing the asserted type within the assertee expression's
++	// original interface type.
++	//
++	// ITab is only used for assertions from non-empty interface type to
++	// a concrete (i.e., non-interface) type. For all other assertions,
++	// ITab is nil.
++	ITab Node
++}
++
++func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, rtype Node) *DynamicTypeAssertExpr {
++	n := &DynamicTypeAssertExpr{X: x, RType: rtype}
+ 	n.pos = pos
+ 	n.op = op
+ 	return n
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 30d5b23de9..6e14bea169 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -427,7 +427,7 @@ func (n *DynamicType) doChildren(do func(Node) bool) bool {
+ 	if doNodes(n.init, do) {
+ 		return true
+ 	}
+-	if n.X != nil && do(n.X) {
++	if n.RType != nil && do(n.RType) {
+ 		return true
+ 	}
+ 	if n.ITab != nil && do(n.ITab) {
+@@ -437,8 +437,8 @@ func (n *DynamicType) doChildren(do func(Node) bool) bool {
+ }
+ func (n *DynamicType) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+-	if n.X != nil {
+-		n.X = edit(n.X).(Node)
++	if n.RType != nil {
++		n.RType = edit(n.RType).(Node)
+ 	}
+ 	if n.ITab != nil {
+ 		n.ITab = edit(n.ITab).(Node)
+@@ -458,7 +458,10 @@ func (n *DynamicTypeAssertExpr) doChildren(do func(Node) bool) bool {
+ 	if n.X != nil && do(n.X) {
+ 		return true
+ 	}
+-	if n.T != nil && do(n.T) {
++	if n.RType != nil && do(n.RType) {
++		return true
++	}
++	if n.ITab != nil && do(n.ITab) {
+ 		return true
+ 	}
+ 	return false
+@@ -468,8 +471,11 @@ func (n *DynamicTypeAssertExpr) editChildren(edit func(Node) Node) {
+ 	if n.X != nil {
+ 		n.X = edit(n.X).(Node)
+ 	}
+-	if n.T != nil {
+-		n.T = edit(n.T).(Node)
++	if n.RType != nil {
++		n.RType = edit(n.RType).(Node)
++	}
++	if n.ITab != nil {
++		n.ITab = edit(n.ITab).(Node)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index e2ed5ecd76..033d1eed4a 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -74,15 +74,29 @@ func TypeNode(t *types.Type) Ntype {
+ 	return newTypeNode(t)
+ }
+ 
+-// A DynamicType represents the target type in a type switch.
++// A DynamicType represents a type expression whose exact type must be
++// computed dynamically.
+ type DynamicType struct {
+ 	miniExpr
+-	X    Node // a *runtime._type for the targeted type
+-	ITab Node // for type switches from nonempty interfaces to non-interfaces, this is the itab for that pair.
++
++	// RType is an expression that yields a *runtime._type value
++	// representing the asserted type.
++	//
++	// BUG(mdempsky): If ITab is non-nil, RType may be nil.
++	RType Node
++
++	// ITab is an expression that yields a *runtime.itab value
++	// representing the asserted type within the assertee expression's
++	// original interface type.
++	//
++	// ITab is only used for assertions (including type switches) from
++	// non-empty interface type to a concrete (i.e., non-interface)
++	// type. For all other assertions, ITab is nil.
++	ITab Node
+ }
+ 
+-func NewDynamicType(pos src.XPos, x Node) *DynamicType {
+-	n := &DynamicType{X: x}
++func NewDynamicType(pos src.XPos, rtype Node) *DynamicType {
++	n := &DynamicType{RType: rtype}
+ 	n.pos = pos
+ 	n.op = ODYNAMICTYPE
+ 	return n
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 61a00fb04b..60aba3e560 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1636,7 +1636,9 @@ func (r *reader) expr() (res ir.Node) {
+ 		typ := r.exprType(false)
+ 
+ 		if typ, ok := typ.(*ir.DynamicType); ok && typ.Op() == ir.ODYNAMICTYPE {
+-			return typed(typ.Type(), ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.X))
++			assert := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, x, typ.RType)
++			assert.ITab = typ.ITab
++			return typed(typ.Type(), assert)
+ 		}
+ 		return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, typ.Type()))
+ 
+@@ -1806,12 +1808,23 @@ func (r *reader) exprType(nilOK bool) ir.Node {
+ 
+ 	pos := r.pos()
+ 
++	lsymPtr := func(lsym *obj.LSym) ir.Node {
++		return typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
++	}
++
+ 	var typ *types.Type
+-	var lsym *obj.LSym
++	var rtype, itab ir.Node
+ 
+ 	if r.Bool() {
+-		itab := r.dict.itabs[r.Len()]
+-		typ, lsym = itab.typ, itab.lsym
++		info := r.dict.itabs[r.Len()]
++		typ = info.typ
++
++		// TODO(mdempsky): Populate rtype unconditionally?
++		if typ.IsInterface() {
++			rtype = lsymPtr(info.lsym)
++		} else {
++			itab = lsymPtr(info.lsym)
++		}
+ 	} else {
+ 		info := r.typInfo()
+ 		typ = r.p.typIdx(info, r.dict, true)
+@@ -1823,11 +1836,12 @@ func (r *reader) exprType(nilOK bool) ir.Node {
+ 			return n
+ 		}
+ 
+-		lsym = reflectdata.TypeLinksym(typ)
++		rtype = lsymPtr(reflectdata.TypeLinksym(typ))
+ 	}
+ 
+-	ptr := typecheck.Expr(typecheck.NodAddr(ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+-	return typed(typ, ir.NewDynamicType(pos, ptr))
++	dt := ir.NewDynamicType(pos, rtype)
++	dt.ITab = itab
++	return typed(typ, dt)
+ }
+ 
+ func (r *reader) op() ir.Op {
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 34ba6bb8d5..a986b08041 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1333,11 +1333,12 @@ func (g *genInst) dictPass(info *instInfo) {
+ 				break
+ 			}
+ 			dt := m.(*ir.TypeAssertExpr)
+-			var rt ir.Node
++			var rtype, itab ir.Node
+ 			if dt.Type().IsInterface() || dt.X.Type().IsEmptyInterface() {
++				// TODO(mdempsky): Investigate executing this block unconditionally.
+ 				ix := findDictType(info, m.Type())
+ 				assert(ix >= 0)
+-				rt = getDictionaryType(info, info.dictParam, dt.Pos(), ix)
++				rtype = getDictionaryType(info, info.dictParam, dt.Pos(), ix)
+ 			} else {
+ 				// nonempty interface to noninterface. Need an itab.
+ 				ix := -1
+@@ -1348,13 +1349,14 @@ func (g *genInst) dictPass(info *instInfo) {
+ 					}
+ 				}
+ 				assert(ix >= 0)
+-				rt = getDictionaryEntry(dt.Pos(), info.dictParam, ix, info.dictInfo.dictLen)
++				itab = getDictionaryEntry(dt.Pos(), info.dictParam, ix, info.dictInfo.dictLen)
+ 			}
+ 			op := ir.ODYNAMICDOTTYPE
+ 			if m.Op() == ir.ODOTTYPE2 {
+ 				op = ir.ODYNAMICDOTTYPE2
+ 			}
+-			m = ir.NewDynamicTypeAssertExpr(dt.Pos(), op, dt.X, rt)
++			m = ir.NewDynamicTypeAssertExpr(dt.Pos(), op, dt.X, rtype)
++			m.(*ir.DynamicTypeAssertExpr).ITab = itab
+ 			m.SetType(dt.Type())
+ 			m.SetTypecheck(1)
+ 		case ir.OCASE:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 31c95da0af..c4f9994104 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6222,22 +6222,25 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	iface := s.expr(n.X)              // input interface
+ 	target := s.reflectType(n.Type()) // target type
+ 	var targetItab *ssa.Value
+-	if n.Itab != nil {
+-		targetItab = s.expr(n.Itab)
++	if n.ITab != nil {
++		targetItab = s.expr(n.ITab)
+ 	}
+ 	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
+ }
+ 
+ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
+ 	iface := s.expr(n.X)
+-	target := s.expr(n.T)
+-	var itab *ssa.Value
++	var target, targetItab *ssa.Value
+ 	if !n.X.Type().IsEmptyInterface() && !n.Type().IsInterface() {
+ 		byteptr := s.f.Config.Types.BytePtr
+-		itab = target
+-		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)) // itab.typ
++		targetItab = s.expr(n.ITab)
++		// TODO(mdempsky): Investigate whether compiling n.RType could be
++		// better than loading itab.typ.
++		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), targetItab)) // itab.typ
++	} else {
++		target = s.expr(n.RType)
+ 	}
+-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, itab, commaok)
++	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
+ }
+ 
+ // dottype1 implements a x.(T) operation. iface is the argument (x), dst is the type we're asserting to (T)
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index b12ddc9782..d5c4b8e1e8 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1811,12 +1811,9 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		n := n.(*ir.DynamicType)
+ 		w.op(ir.ODYNAMICTYPE)
+ 		w.pos(n.Pos())
+-		w.expr(n.X)
+-		if n.ITab != nil {
+-			w.bool(true)
++		w.expr(n.RType)
++		if w.bool(n.ITab != nil) {
+ 			w.expr(n.ITab)
+-		} else {
+-			w.bool(false)
+ 		}
+ 		w.typ(n.Type())
+ 
+@@ -1931,7 +1928,10 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.op(n.Op())
+ 		w.pos(n.Pos())
+ 		w.expr(n.X)
+-		w.expr(n.T)
++		w.expr(n.RType)
++		if w.bool(n.ITab != nil) {
++			w.expr(n.ITab)
++		}
+ 		w.typ(n.Type())
+ 
+ 	case ir.OINDEX, ir.OINDEXMAP:
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index c6d3fc4c6e..605cf9c222 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1483,6 +1483,9 @@ func (r *importReader) node() ir.Node {
+ 
+ 	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
+ 		n := ir.NewDynamicTypeAssertExpr(r.pos(), op, r.expr(), r.expr())
++		if r.bool() {
++			n.ITab = r.expr()
++		}
+ 		n.SetType(r.typ())
+ 		return n
+ 
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index c5dd344315..9aabf91679 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -666,7 +666,7 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	n.X = walkExpr(n.X, init)
+ 	// Set up interface type addresses for back end.
+ 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
+-		n.Itab = reflectdata.ITabAddr(n.Type(), n.X.Type())
++		n.ITab = reflectdata.ITabAddr(n.Type(), n.X.Type())
+ 	}
+ 	return n
+ }
+@@ -674,7 +674,8 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
+ // walkDynamicdotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
+ func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	n.X = walkExpr(n.X, init)
+-	n.T = walkExpr(n.T, init)
++	n.RType = walkExpr(n.RType, init)
++	n.ITab = walkExpr(n.ITab, init)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 80806478be..d4abd1af77 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -706,7 +706,8 @@ func (o *orderState) stmt(n ir.Node) {
+ 		case ir.ODYNAMICDOTTYPE2:
+ 			r := r.(*ir.DynamicTypeAssertExpr)
+ 			r.X = o.expr(r.X, nil)
+-			r.T = o.expr(r.T, nil)
++			r.RType = o.expr(r.RType, nil)
++			r.ITab = o.expr(r.ITab, nil)
+ 		case ir.ORECV:
+ 			r := r.(*ir.UnaryExpr)
+ 			r.X = o.expr(r.X, nil)
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 75c4ceaf02..6cac8f2937 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -469,11 +469,8 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 			}
+ 			if len(ncase.List) == 1 && ncase.List[0].Op() == ir.ODYNAMICTYPE {
+ 				dt := ncase.List[0].(*ir.DynamicType)
+-				x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.X)
+-				if dt.ITab != nil {
+-					// TODO: make ITab a separate field in DynamicTypeAssertExpr?
+-					x.T = dt.ITab
+-				}
++				x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.RType)
++				x.ITab = dt.ITab
+ 				x.SetType(caseVar.Type())
+ 				x.SetTypecheck(1)
+ 				val = x
+@@ -572,10 +569,8 @@ func (s *typeSwitch) Add(pos src.XPos, n1 ir.Node, caseVar *ir.Name, jmp ir.Node
+ 	case ir.ODYNAMICTYPE:
+ 		// Dynamic type assertion (generic)
+ 		dt := n1.(*ir.DynamicType)
+-		dot := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, s.facename, dt.X)
+-		if dt.ITab != nil {
+-			dot.T = dt.ITab
+-		}
++		dot := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, s.facename, dt.RType)
++		dot.ITab = dt.ITab
+ 		dot.SetType(typ)
+ 		dot.SetTypecheck(1)
+ 		as.Rhs = []ir.Node{dot}

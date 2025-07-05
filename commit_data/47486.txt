@@ -21,9 +21,244 @@ Date:   Thu Feb 11 19:10:10 2021 +0100
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/export_windows_test.go |  1 +
  src/os/path_windows.go        |  7 ++++
  src/os/path_windows_test.go   | 23 ++++++++++
  src/runtime/os_windows.go     | 97 ++++++++++++++++++++++++++++++++++++++-----
  4 files changed, 118 insertions(+), 10 deletions(-)
+
+diff --git a/src/os/export_windows_test.go b/src/os/export_windows_test.go
+index f36fadb58b..ff4f8995f8 100644
+--- a/src/os/export_windows_test.go
++++ b/src/os/export_windows_test.go
+@@ -8,6 +8,7 @@ package os
+ 
+ var (
+ 	FixLongPath       = fixLongPath
++	CanUseLongPaths   = canUseLongPaths
+ 	NewConsoleFile    = newConsoleFile
+ 	CommandLineToArgv = commandLineToArgv
+ )
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index 87b1cac531..a96245f358 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -128,6 +128,10 @@ func dirname(path string) string {
+ 	return vol + dir
+ }
+ 
++// This is set via go:linkname on runtime.canUseLongPaths, and is true when the OS
++// supports opting into proper long path handling without the need for fixups.
++var canUseLongPaths bool
++
+ // fixLongPath returns the extended-length (\\?\-prefixed) form of
+ // path when needed, in order to avoid the default 260 character file
+ // path limit imposed by Windows. If path is not easily converted to
+@@ -137,6 +141,9 @@ func dirname(path string) string {
+ //
+ // See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
+ func fixLongPath(path string) string {
++	if canUseLongPaths {
++		return path
++	}
+ 	// Do nothing (and don't allocate) if the path is "short".
+ 	// Empirically (at least on the Windows Server 2013 builder),
+ 	// the kernel is arbitrarily okay with < 248 bytes. That
+diff --git a/src/os/path_windows_test.go b/src/os/path_windows_test.go
+index 869db8fd6c..a23a079f77 100644
+--- a/src/os/path_windows_test.go
++++ b/src/os/path_windows_test.go
+@@ -12,6 +12,9 @@ import (
+ )
+ 
+ func TestFixLongPath(t *testing.T) {
++	if os.CanUseLongPaths {
++		return
++	}
+ 	// 248 is long enough to trigger the longer-than-248 checks in
+ 	// fixLongPath, but short enough not to make a path component
+ 	// longer than 255, which is illegal on Windows. (which
+@@ -46,6 +49,26 @@ func TestFixLongPath(t *testing.T) {
+ 	}
+ }
+ 
++func TestMkdirAllLongPath(t *testing.T) {
++	tmpDir, err := os.MkdirTemp("", "TestMkdirAllLongPath")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpDir)
++	path := tmpDir
++	for i := 0; i < 100; i++ {
++		path += `\another-path-component`
++	}
++	err = os.MkdirAll(path, 0777)
++	if err != nil {
++		t.Fatalf("MkdirAll(%q) failed; %v", path, err)
++	}
++	err = os.RemoveAll(tmpDir)
++	if err != nil {
++		t.Fatalf("RemoveAll(%q) failed; %v", tmpDir, err)
++	}
++}
++
+ func TestMkdirAllExtendedLength(t *testing.T) {
+ 	tmpDir, err := os.MkdirTemp("", "TestMkdirAllExtendedLength")
+ 	if err != nil {
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index f4e21a93ed..707c9054b5 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -18,6 +18,7 @@ const (
+ //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
++//go:cgo_import_dynamic runtime._CreateFileA CreateFileA%7 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._CreateIoCompletionPort CreateIoCompletionPort%4 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._CreateThread CreateThread%6 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._CreateWaitableTimerA CreateWaitableTimerA%3 "kernel32.dll"
+@@ -67,6 +68,7 @@ var (
+ 	_AddVectoredExceptionHandler,
+ 	_CloseHandle,
+ 	_CreateEventA,
++	_CreateFileA,
+ 	_CreateIoCompletionPort,
+ 	_CreateThread,
+ 	_CreateWaitableTimerA,
+@@ -132,7 +134,9 @@ var (
+ 	// Load ntdll.dll manually during startup, otherwise Mingw
+ 	// links wrong printf function to cgo executable (see issue
+ 	// 12030 for details).
+-	_NtWaitForSingleObject stdFunction
++	_NtWaitForSingleObject  stdFunction
++	_RtlGetCurrentPeb       stdFunction
++	_RtlGetNtVersionNumbers stdFunction
+ 
+ 	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
+ 	_timeBeginPeriod,
+@@ -219,21 +223,22 @@ func windowsFindfunc(lib uintptr, name []byte) stdFunction {
+ 	return stdFunction(unsafe.Pointer(f))
+ }
+ 
+-var sysDirectory [521]byte
++const _MAX_PATH = 260 // https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
++var sysDirectory [_MAX_PATH + 1]byte
+ var sysDirectoryLen uintptr
+ 
+ func windowsLoadSystemLib(name []byte) uintptr {
++	if sysDirectoryLen == 0 {
++		l := stdcall2(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
++		if l == 0 || l > uintptr(len(sysDirectory)-1) {
++			throw("Unable to determine system directory")
++		}
++		sysDirectory[l] = '\\'
++		sysDirectoryLen = l + 1
++	}
+ 	if useLoadLibraryEx {
+ 		return stdcall3(_LoadLibraryExA, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+ 	} else {
+-		if sysDirectoryLen == 0 {
+-			l := stdcall2(_GetSystemDirectoryA, uintptr(unsafe.Pointer(&sysDirectory[0])), uintptr(len(sysDirectory)-1))
+-			if l == 0 || l > uintptr(len(sysDirectory)-1) {
+-				throw("Unable to determine system directory")
+-			}
+-			sysDirectory[l] = '\\'
+-			sysDirectoryLen = l + 1
+-		}
+ 		absName := append(sysDirectory[:sysDirectoryLen], name...)
+ 		return stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&absName[0])))
+ 	}
+@@ -266,6 +271,8 @@ func loadOptionalSyscalls() {
+ 		throw("ntdll.dll not found")
+ 	}
+ 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
++	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
++	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
+ 
+ 	if !haveCputicksAsm {
+ 		_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
+@@ -471,6 +478,74 @@ func initHighResTimer() {
+ 	}
+ }
+ 
++//go:linkname canUseLongPaths os.canUseLongPaths
++var canUseLongPaths bool
++
++// We want this to be large enough to hold the contents of sysDirectory, *plus*
++// a slash and another component that itself is greater than MAX_PATH.
++var longFileName [(_MAX_PATH+1)*2 + 1]byte
++
++// initLongPathSupport initializes the canUseLongPaths variable, which is
++// linked into os.canUseLongPaths for determining whether or not long paths
++// need to be fixed up. In the best case, this function is running on newer
++// Windows 10 builds, which have a bit field member of the PEB called
++// "IsLongPathAwareProcess." When this is set, we don't need to go through the
++// error-prone fixup function in order to access long paths. So this init
++// function first checks the Windows build number, sets the flag, and then
++// tests to see if it's actually working. If everything checks out, then
++// canUseLongPaths is set to true, and later when called, os.fixLongPath
++// returns early without doing work.
++func initLongPathSupport() {
++	const (
++		IsLongPathAwareProcess = 0x80
++		PebBitFieldOffset      = 3
++		OPEN_EXISTING          = 3
++		ERROR_PATH_NOT_FOUND   = 3
++	)
++
++	// Check that we're ≥ 10.0.15063.
++	var maj, min, build uint32
++	stdcall3(_RtlGetNtVersionNumbers, uintptr(unsafe.Pointer(&maj)), uintptr(unsafe.Pointer(&min)), uintptr(unsafe.Pointer(&build)))
++	if maj < 10 || (maj == 10 && min == 0 && build&0xffff < 15063) {
++		return
++	}
++
++	// Set the IsLongPathAwareProcess flag of the PEB's bit field.
++	bitField := (*byte)(unsafe.Pointer(stdcall0(_RtlGetCurrentPeb) + PebBitFieldOffset))
++	originalBitField := *bitField
++	*bitField |= IsLongPathAwareProcess
++
++	// Check that this actually has an effect, by constructing a large file
++	// path and seeing whether we get ERROR_PATH_NOT_FOUND, rather than
++	// some other error, which would indicate the path is too long, and
++	// hence long path support is not successful. This whole section is NOT
++	// strictly necessary, but is a nice validity check for the near to
++	// medium term, when this functionality is still relatively new in
++	// Windows.
++	getRandomData(longFileName[len(longFileName)-33 : len(longFileName)-1])
++	start := copy(longFileName[:], sysDirectory[:sysDirectoryLen])
++	const dig = "0123456789abcdef"
++	for i := 0; i < 32; i++ {
++		longFileName[start+i*2] = dig[longFileName[len(longFileName)-33+i]>>4]
++		longFileName[start+i*2+1] = dig[longFileName[len(longFileName)-33+i]&0xf]
++	}
++	start += 64
++	for i := start; i < len(longFileName)-1; i++ {
++		longFileName[i] = 'A'
++	}
++	stdcall7(_CreateFileA, uintptr(unsafe.Pointer(&longFileName[0])), 0, 0, 0, OPEN_EXISTING, 0, 0)
++	// The ERROR_PATH_NOT_FOUND error value is distinct from
++	// ERROR_FILE_NOT_FOUND or ERROR_INVALID_NAME, the latter of which we
++	// expect here due to the final component being too long.
++	if getlasterror() == ERROR_PATH_NOT_FOUND {
++		*bitField = originalBitField
++		println("runtime: warning: IsLongPathAwareProcess failed to enable long paths; proceeding in fixup mode")
++		return
++	}
++
++	canUseLongPaths = true
++}
++
+ func osinit() {
+ 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+ 
+@@ -487,6 +562,8 @@ func osinit() {
+ 	initHighResTimer()
+ 	timeBeginPeriodRetValue = osRelax(false)
+ 
++	initLongPathSupport()
++
+ 	ncpu = getproccount()
+ 
+ 	physPageSize = getPageSize()

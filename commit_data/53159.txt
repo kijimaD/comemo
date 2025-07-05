@@ -17,8 +17,117 @@ Date:   Wed Jul 20 20:27:58 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go    | 29 +++--------------------------
  src/cmd/compile/internal/noder/helpers.go | 31 +++++++++++++++++++++++++++++++
  src/cmd/compile/internal/noder/writer.go  |  4 +++-
  3 files changed, 37 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index a1160d42c4..54b07c39f4 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -6,7 +6,6 @@ package noder
+ 
+ import (
+ 	"fmt"
+-	"go/constant"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -53,31 +52,9 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
+ 
+ 	base.Assert(g.exprStmtOK)
+ 
+-	// The gc backend expects all expressions to have a concrete type, and
+-	// types2 mostly satisfies this expectation already. But there are a few
+-	// cases where the Go spec doesn't require converting to concrete type,
+-	// and so types2 leaves them untyped. So we need to fix those up here.
+-	typ := tv.Type
+-	if basic, ok := typ.(*types2.Basic); ok && basic.Info()&types2.IsUntyped != 0 {
+-		switch basic.Kind() {
+-		case types2.UntypedNil:
+-			// ok; can appear in type switch case clauses
+-			// TODO(mdempsky): Handle as part of type switches instead?
+-		case types2.UntypedInt, types2.UntypedFloat, types2.UntypedComplex:
+-			// Untyped rhs of non-constant shift, e.g. x << 1.0.
+-			// If we have a constant value, it must be an int >= 0.
+-			if tv.Value != nil {
+-				s := constant.ToInt(tv.Value)
+-				assert(s.Kind() == constant.Int && constant.Sign(s) >= 0)
+-			}
+-			typ = types2.Typ[types2.Uint]
+-		case types2.UntypedBool:
+-			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
+-		case types2.UntypedString:
+-			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
+-		default:
+-			base.FatalfAt(g.pos(expr), "unexpected untyped type: %v", basic)
+-		}
++	typ := idealType(tv)
++	if typ == nil {
++		base.FatalfAt(g.pos(expr), "unexpected untyped type: %v", tv.Type)
+ 	}
+ 
+ 	// Constant expression.
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 8efcef26cf..40f80ab528 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/compile/internal/types2"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -220,3 +221,33 @@ func IncDec(pos src.XPos, op ir.Op, x ir.Node) *ir.AssignOpStmt {
+ 	}
+ 	return ir.NewAssignOpStmt(pos, op, x, bl)
+ }
++
++func idealType(tv types2.TypeAndValue) types2.Type {
++	// The gc backend expects all expressions to have a concrete type, and
++	// types2 mostly satisfies this expectation already. But there are a few
++	// cases where the Go spec doesn't require converting to concrete type,
++	// and so types2 leaves them untyped. So we need to fix those up here.
++	typ := tv.Type
++	if basic, ok := typ.(*types2.Basic); ok && basic.Info()&types2.IsUntyped != 0 {
++		switch basic.Kind() {
++		case types2.UntypedNil:
++			// ok; can appear in type switch case clauses
++			// TODO(mdempsky): Handle as part of type switches instead?
++		case types2.UntypedInt, types2.UntypedFloat, types2.UntypedComplex:
++			// Untyped rhs of non-constant shift, e.g. x << 1.0.
++			// If we have a constant value, it must be an int >= 0.
++			if tv.Value != nil {
++				s := constant.ToInt(tv.Value)
++				assert(s.Kind() == constant.Int && constant.Sign(s) >= 0)
++			}
++			typ = types2.Typ[types2.Uint]
++		case types2.UntypedBool:
++			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
++		case types2.UntypedString:
++			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
++		default:
++			return nil
++		}
++	}
++	return typ
++}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 09afbcdffb..ac08022c34 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1436,7 +1436,9 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		if tv.Value != nil {
+ 			w.Code(exprConst)
+ 			w.pos(expr)
+-			w.typ(tv.Type)
++			typ := idealType(tv)
++			assert(typ != nil)
++			w.typ(typ)
+ 			w.Value(tv.Value)
+ 
+ 			// TODO(mdempsky): These details are only important for backend

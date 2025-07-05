@@ -6,6 +6,21 @@ Date:   Fri Apr 1 02:03:04 1988 -0500
     
     R=dmr
     DELTA=3  (2 added, 0 deleted, 1 changed)
-
+---
  src/pkg/debug/macho/testdata/hello.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/macho/testdata/hello.c b/src/pkg/debug/macho/testdata/hello.c
+index 8626b30633..a689d3644e 100644
+--- a/src/pkg/debug/macho/testdata/hello.c
++++ b/src/pkg/debug/macho/testdata/hello.c
+@@ -1,6 +1,8 @@
+ #include <stdio.h>
+ 
+-main()
++int
++main(void)
+ {
+ 	printf("hello, world\n");
++	return 0;
+ }

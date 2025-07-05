@@ -9,7 +9,7 @@ Date:   Mon Aug 11 18:44:41 2008 -0700
     R=r
     OCL=14098
     CL=14098
-
+---
  usr/gri/gosrc/compilation.go |  30 +++++----
  usr/gri/gosrc/export.go      |  65 +++-----------------
  usr/gri/gosrc/globals.go     |   6 +-
@@ -20,3 +20,477 @@ Date:   Mon Aug 11 18:44:41 2008 -0700
  usr/gri/gosrc/printer.go     |  10 ++-
  usr/gri/gosrc/scanner.go     |  11 ++--
  9 files changed, 162 insertions(+), 133 deletions(-)
+
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index 14a0b5b070..c8c394279e 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -52,7 +52,7 @@ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data s
+ 	// see if it just works
+ 	data, ok = Platform.ReadSourceFile(filename);
+ 	if ok {
+-		comp.env.Compile(comp.flags, comp.env, filename + Platform.src_file_ext);
++		comp.env.Compile(comp, filename + Platform.src_file_ext);
+ 		data, ok = ReadImport(comp, filename, false);
+ 		if ok {
+ 			return data, ok;
+@@ -73,30 +73,28 @@ export func Import(comp *Globals.Compilation, pkg_file string) *Globals.Package
+ }
+ 
+ 
+-export func Export(comp *Globals.Compilation) string {
+-	panic "UNIMPLEMENTED";
+-	return "";
++export func Export(comp *Globals.Compilation, pkg_file string) {
++	data := Exporter.Export(comp);
++	ok := Platform.WriteObjectFile(pkg_file, data);
++	if !ok {
++		panic "export failed";
++	}
+ }
+ 
+ 
+-export func Compile(flags *Globals.Flags, env* Globals.Environment, filename string) {
+-	// setup compilation
+-	comp := new(Globals.Compilation);
+-	comp.flags = flags;
+-	comp.env = env;
+-	
+-	src, ok := sys.readfile(filename);
++export func Compile(comp *Globals.Compilation, src_file string) {
++	src, ok := Platform.ReadSourceFile(src_file);
+ 	if !ok {
+-		print "cannot open ", filename, "\n"
++		print "cannot open ", src_file, "\n"
+ 		return;
+ 	}
+ 	
+-	if flags.verbosity > 0 {
+-		print filename, "\n";
++	if comp.flags.verbosity > 0 {
++		print src_file, "\n";
+ 	}
+ 
+ 	scanner := new(Scanner.Scanner);
+-	scanner.Open(filename, src);
++	scanner.Open(src_file, src);
+ 	
+ 	var tstream *chan *Scanner.Token;
+ 	if comp.flags.token_chan {
+@@ -122,5 +120,5 @@ export func Compile(flags *Globals.Flags, env* Globals.Environment, filename str
+ 		Printer.PrintObject(comp, comp.pkg_list[0].obj, false);
+ 	}
+ 	
+-	Exporter.Export(comp, filename);
++	Export(comp, src_file);
+ }
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index f410cd2d78..dced0152c7 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -174,6 +174,12 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	}
+ 	
+ 	switch typ.form {
++	case Type.FORWARD:
++		// corresponding package must be forward-declared too
++		if typ.obj == nil || E.comp.pkg_list[typ.obj.pnolev].key != "" {
++			panic "inconsistency in package.type forward declaration";
++		}
++		
+ 	case Type.ALIAS, Type.MAP:
+ 		E.WriteType(typ.aux);
+ 		E.WriteType(typ.elt);
+@@ -237,54 +243,7 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ }
+ 
+ 
+-func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+-	E.comp = comp;
+-	E.debug = comp.flags.debug;
+-	E.buf_pos = 0;
+-	E.pkg_ref = 0;
+-	E.type_ref = 0;
+-	
+-	if E.debug {
+-		print "exporting to ", file_name, "\n";
+-	}
+-
+-	// write magic bits
+-	magic := Platform.MAGIC_obj_file;  // TODO remove once len(constant) works
+-	for i := 0; i < len(magic); i++ {
+-		E.WriteByte(magic[i]);
+-	}
+-	
+-	// Predeclared types are "pre-exported".
+-	// TODO run the loop below only in debug mode
+-	{	i := 0;
+-		for p := Universe.types.first; p != nil; p = p.next {
+-			if p.typ.ref != i {
+-				panic "incorrect ref for predeclared type";
+-			}
+-			i++;
+-		}
+-	}
+-	E.type_ref = Universe.types.len_;
+-	
+-	// export package 0
+-	pkg := comp.pkg_list[0];
+-	E.WritePackage(pkg);
+-	E.WriteScope(pkg.scope);
+-	
+-	if E.debug {
+-		print "\n(", E.buf_pos, " bytes)\n";
+-	}
+-	
+-	data := string(E.buf)[0 : E.buf_pos];
+-	ok := sys.writefile(file_name, data);
+-	
+-	if !ok {
+-		panic "export failed";
+-	}
+-}
+-
+-
+-func (E *Exporter) Export2(comp* Globals.Compilation) string {
++func (E *Exporter) Export(comp* Globals.Compilation) string {
+ 	E.comp = comp;
+ 	E.debug = comp.flags.debug;
+ 	E.buf_pos = 0;
+@@ -322,13 +281,7 @@ func (E *Exporter) Export2(comp* Globals.Compilation) string {
+ }
+ 
+ 
+-export func Export(comp* Globals.Compilation, pkg_name string) {
+-	var E Exporter;
+-	(&E).Export(comp, Utils.TrimExt(Utils.BaseName(pkg_name), Platform.src_file_ext) + Platform.obj_file_ext);
+-}
+-
+-
+-export func Export2(comp* Globals.Compilation) string {
++export func Export(comp* Globals.Compilation) string {
+ 	var E Exporter;
+-	return (&E).Export2(comp);
++	return (&E).Export(comp);
+ }
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index d9e35bee17..4bc9affc4f 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -77,8 +77,8 @@ export type Flags struct {
+ export type Environment struct {
+ 	Error *func(comp *Compilation);  // TODO complete this
+ 	Import *func(comp *Compilation, pkg_file string) *Package;
+-	Export *func(comp *Compilation) string;
+-	Compile *func(flags *Flags, env* Environment, file string);
++	Export *func(comp *Compilation, pkg_file string);
++	Compile *func(comp *Compilation, src_file string);
+ }
+ 
+ 
+@@ -147,7 +147,7 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+ 	pkg := new(Package);
+ 	pkg.ref = -1;  // not yet exported
+ 	pkg.file_name = file_name;
+-	pkg.key = "<the package key>";  // TODO fix this
++	pkg.key = "<the package key>";  // empty key means package forward declaration
+ 	pkg.obj = obj;
+ 	pkg.scope = scope;
+ 	return pkg;
+diff --git a/usr/gri/gosrc/go.go b/usr/gri/gosrc/go.go
+index f467951ab1..625548ed89 100644
+--- a/usr/gri/gosrc/go.go
++++ b/usr/gri/gosrc/go.go
+@@ -89,6 +89,12 @@ func main() {
+ 	
+ 	// compile files
+ 	for p := files.first; p != nil; p = p.next {
+-		Compilation.Compile(flags, env, p.str);
++		// setup compilation
++		comp := new(Globals.Compilation);
++		comp.flags = flags;
++		comp.env = env;
++		
++		// compile
++		Compilation.Compile(comp, p.str);
+ 	}
+ }
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 1915d681a9..4ce3703e64 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -132,9 +132,11 @@ func (I *Importer) ReadPackage() *Globals.Package {
+ 		if I.comp.flags.verbosity > 1 {
+ 			print `import: implicitly adding package `, ident, ` "`, file_name, `" (pno = `, obj.pnolev, ")\n";
+ 		}
+-	} else if key != pkg.key {
++	} else if key != "" && key != pkg.key {
+ 		// the package was imported before but the package
+-		// key has changed
++		// key has changed (a "" key indicates a forward-
++		// declared package - it's key is consistent with
++		// any actual package of the same name)
+ 		panic "package key inconsistency";
+ 	}
+ 	I.pkg_list[I.pkg_ref] = pkg;
+@@ -198,6 +200,10 @@ func (I *Importer) ReadType() *Globals.Type {
+ 	I.type_ref++;
+ 
+ 	switch (typ.form) {
++	case Type.FORWARD:
++		typ.scope = Globals.NewScope(nil);
++		break;
++		
+ 	case Type.ALIAS, Type.MAP:
+ 		typ.aux = I.ReadType();
+ 		typ.elt = I.ReadType();
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 2e2e6faabb..2ca3a0f29d 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -715,33 +715,78 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ 	typ := Globals.NewType(Type.POINTER);
+ 	
+ 	var elt *Globals.Type;
+-	if P.semantic_checks && P.tok == Scanner.IDENT {
+-		if P.Lookup(P.val) == nil {
+-			// implicit forward declaration
+-			// create a named forward type 
++	if P.semantic_checks {
++		if P.tok == Scanner.STRING && !P.comp.flags.sixg {
++			// implicit package.type forward declaration
++			// TODO eventually the scanner should strip the quotes
++			pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
++			pkg := P.comp.Lookup(pkg_name);
++			if pkg == nil {
++				// package doesn't exist yet - add it to the package list
++				obj := Globals.NewObject(P.pos, Object.PACKAGE, ".pkg");
++				pkg = Globals.NewPackage(pkg_name, obj, Globals.NewScope(nil));
++				pkg.key = "";  // mark as forward-declared package
++				P.comp.Insert(pkg);
++			} else {
++				// package exists already - must be forward declaration
++				if pkg.key != "" {
++					P.Error(P.pos, `cannot use implicit package forward declaration for imported package "` + P.val + `"`);
++					panic "wrong package forward decl";
++					// TODO introduce dummy package so we can continue safely
++				}
++			}
++			
++			P.Next();  // consume package name
++			P.Expect(Scanner.PERIOD);
+ 			pos, ident := P.ParseIdent();
+-			obj := Globals.NewObject(pos, Object.TYPE, ident);
+-			elt = Globals.NewType(Type.FORWARD);
+-			obj.typ = elt;
+-			elt.obj = obj;  // primary type object;
+-			// remember the current scope - resolving the forward
+-			// type must find a matching declaration in this or a less nested scope
+-			elt.scope = P.top_scope;
++			obj := pkg.scope.Lookup(ident);
++			if obj == nil {
++				elt = Globals.NewType(Type.FORWARD);
++				elt.scope = P.top_scope;  // not really needed here, but for consistency
++				obj = Globals.NewObject(pos, Object.TYPE, ident);
++				obj.exported = true;  // the type name must be visible
++				obj.typ = elt;
++				elt.obj = obj;  // primary type object;
++				pkg.scope.Insert(obj);
++				obj.pnolev = pkg.obj.pnolev;
++			} else {
++				if obj.kind != Object.TYPE || obj.typ.form != Type.FORWARD {
++					panic "inconsistency in package.type forward declaration";
++				}
++				elt = obj.typ;
++			}
+ 			
+-		} else {
+-			// type name
+-			// (ParseType() (via TryType()) checks for forward types and complains,
+-			// so call ParseTypeName() directly)
+-			// we can only have a foward type here if we refer to the name of a
+-			// yet incomplete type (i.e. if we are in the middle of a type's declaration)
+-			elt = P.ParseTypeName();
+-		}
++		} else if P.tok == Scanner.IDENT {
++			if P.Lookup(P.val) == nil {
++				// implicit type forward declaration
++				// create a named forward type 
++				pos, ident := P.ParseIdent();
++				obj := Globals.NewObject(pos, Object.TYPE, ident);
++				elt = Globals.NewType(Type.FORWARD);
++				obj.typ = elt;
++				elt.obj = obj;  // primary type object;
++				// remember the current scope - resolving the forward
++				// type must find a matching declaration in this or a less nested scope
++				elt.scope = P.top_scope;
++				
++			} else {
++				// type name
++				// (ParseType() (via TryType()) checks for forward types and complains,
++				// so call ParseTypeName() directly)
++				// we can only have a foward type here if we refer to the name of a
++				// yet incomplete type (i.e. if we are in the middle of a type's declaration)
++				elt = P.ParseTypeName();
++			}
+ 
+-		// collect uses of pointer types referring to forward types
+-		if elt.form == Type.FORWARD {
+-			P.forward_types.AddTyp(typ);
++			// collect uses of pointer types referring to forward types
++			if elt.form == Type.FORWARD {
++				P.forward_types.AddTyp(typ);
++			}
++			
++		} else {
++			elt = P.ParseType();
+ 		}
+-		
++	
+ 	} else {
+ 		elt = P.ParseType();
+ 	}
+@@ -1556,22 +1601,10 @@ func (P *Parser) ParseCase() {
+ }
+ 
+ 
+-func (P *Parser) ParseCaseList() {
+-	P.Trace("CaseList");
+-	
+-	P.ParseCase();
+-	for P.tok == Scanner.CASE || P.tok == Scanner.DEFAULT {
+-		P.ParseCase();
+-	}
+-	
+-	P.Ecart();
+-}
+-
+-
+ func (P *Parser) ParseCaseClause() {
+ 	P.Trace("CaseClause");
+ 	
+-	P.ParseCaseList();
++	P.ParseCase();
+ 	if P.tok != Scanner.FALLTHROUGH && P.tok != Scanner.RBRACE {
+ 		P.ParseStatementList();
+ 		P.Optional(Scanner.SEMICOLON);
+@@ -1796,19 +1829,35 @@ func (P *Parser) ParseConstSpec(exported bool) {
+ func (P *Parser) ParseTypeSpec(exported bool) {
+ 	P.Trace("TypeSpec");
+ 
+-	// Immediately after declaration of the type name, the type is
+-	// considered forward-declared. It may be referred to from inside
+-	// the type specification only via a pointer type.
+-	typ := Globals.NewType(Type.FORWARD);
+-	typ.scope = P.top_scope;  // not really needed here, but for consistency
++	var typ *Globals.Type;
+ 	
+ 	pos, ident := P.ParseIdent();
+-	obj := Globals.NewObject(pos, Object.TYPE, ident);
+-	obj.exported = exported;
+-	obj.typ = typ;
+-	typ.obj = obj;  // primary type object
+-	P.Declare(obj);
++	obj := P.Lookup(ident);
+ 	
++	if !P.comp.flags.sixg && obj != nil {
++		if obj.typ.form == Type.FORWARD {
++			// imported forward-declared type
++			if !exported {
++				panic "foo";
++			}
++		} else {
++			panic "bar";
++		}
++		
++	} else {
++		// Immediately after declaration of the type name, the type is
++		// considered forward-declared. It may be referred to from inside
++		// the type specification only via a pointer type.
++		typ = Globals.NewType(Type.FORWARD);
++		typ.scope = P.top_scope;  // not really needed here, but for consistency
++
++		obj = Globals.NewObject(pos, Object.TYPE, ident);
++		obj.exported = exported;
++		obj.typ = typ;
++		typ.obj = obj;  // primary type object
++		P.Declare(obj);
++	}
++
+ 	// If the next token is an identifier and we have a legal program,
+ 	// it must be a typename. In that case this declaration introduces
+ 	// an alias type.
+diff --git a/usr/gri/gosrc/platform.go b/usr/gri/gosrc/platform.go
+index 210b2e91fa..c76d591505 100644
+--- a/usr/gri/gosrc/platform.go
++++ b/usr/gri/gosrc/platform.go
+@@ -4,6 +4,9 @@
+ 
+ package Platform
+ 
++import Utils "utils"
++
++
+ // ----------------------------------------------------------------------------
+ // Environment
+ 
+@@ -54,7 +57,14 @@ export func ReadObjectFile(filename string) (data string, ok bool) {
+ }
+ 
+ 
+-export func ReadSourceFile(filename string) (data string, ok bool) {
+-	data, ok = sys.readfile(filename + src_file_ext);
++export func ReadSourceFile(name string) (data string, ok bool) {
++	name = Utils.TrimExt(name, src_file_ext) + src_file_ext;
++	data, ok = sys.readfile(name);
+ 	return data, ok;
+ }
++
++
++export func WriteObjectFile(name string, data string) bool {
++	name = Utils.TrimExt(Utils.BaseName(name), src_file_ext) + obj_file_ext;
++	return sys.writefile(name, data);
++}
+diff --git a/usr/gri/gosrc/printer.go b/usr/gri/gosrc/printer.go
+index ed8487a2e3..3269fe2177 100755
+--- a/usr/gri/gosrc/printer.go
++++ b/usr/gri/gosrc/printer.go
+@@ -178,7 +178,15 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
+ 
+ func (P *Printer) PrintObject(obj *Globals.Object) {
+ 	if obj.pnolev > 0 {
+-		print P.comp.pkg_list[obj.pnolev].obj.ident, ".";
++		pkg := P.comp.pkg_list[obj.pnolev];
++		if pkg.key == "" {
++			// forward-declared package
++			print `"`, pkg.file_name, `"`;
++		} else {
++			// imported package
++			print pkg.obj.ident;
++		}
++		print "."
+ 	}
+ 	print obj.ident;
+ }
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index a21c058947..95981808d6 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -276,12 +276,11 @@ func (S *Scanner) Next() {
+ 		Bit3 = 4;
+ 		Bit4 = 3;
+ 
+-		// TODO 6g constant evaluation incomplete
+-		T1 = 0x00;  // (1 << (Bit1 + 1) - 1) ^ 0xFF;  // 0000 0000
+-		Tx = 0x80;  // (1 << (Bitx + 1) - 1) ^ 0xFF;  // 1000 0000
+-		T2 = 0xC0;  // (1 << (Bit2 + 1) - 1) ^ 0xFF;  // 1100 0000
+-		T3 = 0xE0;  // (1 << (Bit3 + 1) - 1) ^ 0xFF;  // 1110 0000
+-		T4 = 0xF0;  // (1 << (Bit4 + 1) - 1) ^ 0xFF;  // 1111 0000
++		T1 = (1 << (Bit1 + 1) - 1) ^ 0xFF;  // 0000 0000
++		Tx = (1 << (Bitx + 1) - 1) ^ 0xFF;  // 1000 0000
++		T2 = (1 << (Bit2 + 1) - 1) ^ 0xFF;  // 1100 0000
++		T3 = (1 << (Bit3 + 1) - 1) ^ 0xFF;  // 1110 0000
++		T4 = (1 << (Bit4 + 1) - 1) ^ 0xFF;  // 1111 0000
+ 
+ 		Rune1 = 1 << (Bit1 + 0*Bitx) - 1;  // 0000 0000 0111 1111
+ 		Rune2 = 1 << (Bit2 + 1*Bitx) - 1;  // 0000 0111 1111 1111

@@ -15,8 +15,175 @@ Date:   Fri Nov 1 19:40:05 2019 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go                 | 36 ++++++++++++++++++++++
  src/crypto/tls/handshake_client.go       | 52 ++++++--------------------------
  src/crypto/tls/handshake_client_tls13.go |  1 +
  3 files changed, 47 insertions(+), 42 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 4b8e023089..8011cebaa3 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -5,6 +5,7 @@
+ package tls
+ 
+ import (
++	"bytes"
+ 	"container/list"
+ 	"crypto"
+ 	"crypto/ecdsa"
+@@ -407,6 +408,9 @@ type CertificateRequestInfo struct {
+ 	// SignatureSchemes lists the signature schemes that the server is
+ 	// willing to verify.
+ 	SignatureSchemes []SignatureScheme
++
++	// Version is the TLS version that was negotiated for this connection.
++	Version uint16
+ }
+ 
+ // RenegotiationSupport enumerates the different levels of support for TLS
+@@ -1070,6 +1074,38 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
+ 	return nil
+ }
+ 
++// SupportsCertificate returns nil if the provided certificate is supported by
++// the server that sent the CertificateRequest. Otherwise, it returns an error
++// describing the reason for the incompatibility.
++func (cri *CertificateRequestInfo) SupportsCertificate(c *Certificate) error {
++	if _, err := selectSignatureScheme(cri.Version, c, cri.SignatureSchemes); err != nil {
++		return err
++	}
++
++	if len(cri.AcceptableCAs) == 0 {
++		return nil
++	}
++
++	for j, cert := range c.Certificate {
++		x509Cert := c.Leaf
++		// Parse the certificate if this isn't the leaf node, or if
++		// chain.Leaf was nil.
++		if j != 0 || x509Cert == nil {
++			var err error
++			if x509Cert, err = x509.ParseCertificate(cert); err != nil {
++				return fmt.Errorf("failed to parse certificate #%d in the chain: %w", j, err)
++			}
++		}
++
++		for _, ca := range cri.AcceptableCAs {
++			if bytes.Equal(x509Cert.RawIssuer, ca) {
++				return nil
++			}
++		}
++	}
++	return errors.New("chain is not signed by an acceptable CA")
++}
++
+ // BuildNameToCertificate parses c.Certificates and builds c.NameToCertificate
+ // from the CommonName and SubjectAlternateName fields of each of the leaf
+ // certificates.
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 989df76d78..4fb528cc9b 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -16,7 +16,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"net"
+-	"strconv"
+ 	"strings"
+ 	"sync/atomic"
+ 	"time"
+@@ -518,7 +517,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 		certRequested = true
+ 		hs.finishedHash.Write(certReq.marshal())
+ 
+-		cri := certificateRequestInfoFromMsg(certReq)
++		cri := certificateRequestInfoFromMsg(c.vers, certReq)
+ 		if chainToSend, err = c.getClientCertificate(cri); err != nil {
+ 			c.sendAlert(alertInternalError)
+ 			return err
+@@ -850,7 +849,12 @@ var (
+ 
+ // certificateRequestInfoFromMsg generates a CertificateRequestInfo from a TLS
+ // <= 1.2 CertificateRequest, making an effort to fill in missing information.
+-func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateRequestInfo {
++func certificateRequestInfoFromMsg(vers uint16, certReq *certificateRequestMsg) *CertificateRequestInfo {
++	cri := &CertificateRequestInfo{
++		AcceptableCAs: certReq.certificateAuthorities,
++		Version:       vers,
++	}
++
+ 	var rsaAvail, ecAvail bool
+ 	for _, certType := range certReq.certificateTypes {
+ 		switch certType {
+@@ -861,10 +865,6 @@ func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateR
+ 		}
+ 	}
+ 
+-	cri := &CertificateRequestInfo{
+-		AcceptableCAs: certReq.certificateAuthorities,
+-	}
+-
+ 	if !certReq.hasSignatureAlgorithm {
+ 		// Prior to TLS 1.2, the signature schemes were not
+ 		// included in the certificate request message. In this
+@@ -909,43 +909,11 @@ func (c *Conn) getClientCertificate(cri *CertificateRequestInfo) (*Certificate,
+ 		return c.config.GetClientCertificate(cri)
+ 	}
+ 
+-	// We need to search our list of client certs for one
+-	// where SignatureAlgorithm is acceptable to the server and the
+-	// Issuer is in AcceptableCAs.
+-	for i, chain := range c.config.Certificates {
+-		sigOK := false
+-		for _, alg := range signatureSchemesForCertificate(c.vers, &chain) {
+-			if isSupportedSignatureAlgorithm(alg, cri.SignatureSchemes) {
+-				sigOK = true
+-				break
+-			}
+-		}
+-		if !sigOK {
++	for _, chain := range c.config.Certificates {
++		if err := cri.SupportsCertificate(&chain); err != nil {
+ 			continue
+ 		}
+-
+-		if len(cri.AcceptableCAs) == 0 {
+-			return &chain, nil
+-		}
+-
+-		for j, cert := range chain.Certificate {
+-			x509Cert := chain.Leaf
+-			// Parse the certificate if this isn't the leaf node, or if
+-			// chain.Leaf was nil.
+-			if j != 0 || x509Cert == nil {
+-				var err error
+-				if x509Cert, err = x509.ParseCertificate(cert); err != nil {
+-					c.sendAlert(alertInternalError)
+-					return nil, errors.New("tls: failed to parse configured certificate chain #" + strconv.Itoa(i) + ": " + err.Error())
+-				}
+-			}
+-
+-			for _, ca := range cri.AcceptableCAs {
+-				if bytes.Equal(x509Cert.RawIssuer, ca) {
+-					return &chain, nil
+-				}
+-			}
+-		}
++		return &chain, nil
+ 	}
+ 
+ 	// No acceptable certificate found. Don't send a certificate.
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index 66775ff0fe..8994591ee4 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -526,6 +526,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
+ 	cert, err := c.getClientCertificate(&CertificateRequestInfo{
+ 		AcceptableCAs:    hs.certReq.certificateAuthorities,
+ 		SignatureSchemes: hs.certReq.supportedSignatureAlgorithms,
++		Version:          c.vers,
+ 	})
+ 	if err != nil {
+ 		return err

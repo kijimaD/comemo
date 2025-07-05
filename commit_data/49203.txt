@@ -14,7 +14,7 @@ Date:   Mon Jul 26 17:41:02 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/escape/expr.go   |   4 +
  src/cmd/compile/internal/ir/expr.go       |  23 ++++++
  src/cmd/compile/internal/ir/node.go       |   4 +
@@ -27,3 +27,565 @@ Date:   Mon Jul 26 17:41:02 2021 -0700
  test/typeparam/dottype.go                 |   5 ++
  test/typeparam/dottype.out                |   2 +
  11 files changed, 209 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/expr.go b/src/cmd/compile/internal/escape/expr.go
+index b7423e114a..4a6304d47a 100644
+--- a/src/cmd/compile/internal/escape/expr.go
++++ b/src/cmd/compile/internal/escape/expr.go
+@@ -74,6 +74,10 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 	case ir.ODOTTYPE, ir.ODOTTYPE2:
+ 		n := n.(*ir.TypeAssertExpr)
+ 		e.expr(k.dotType(n.Type(), n, "dot"), n.X)
++	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
++		n := n.(*ir.DynamicTypeAssertExpr)
++		e.expr(k.dotType(n.Type(), n, "dot"), n.X)
++		// n.T doesn't need to be tracked; it always points to read-only storage.
+ 	case ir.OINDEX:
+ 		n := n.(*ir.IndexExpr)
+ 		if n.X.Type().IsArray() {
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 86323e6b8f..9c5fbbc9aa 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -677,6 +677,29 @@ func (n *TypeAssertExpr) SetOp(op Op) {
+ 	}
+ }
+ 
++// A DynamicTypeAssertExpr asserts that X is of dynamic type T.
++type DynamicTypeAssertExpr struct {
++	miniExpr
++	X Node
++	// N = not an interface
++	// E = empty interface
++	// I = nonempty interface
++	// For E->N, T is a *runtime.type for N
++	// For I->N, T is a *runtime.itab for N+I
++	// For E->I, T is a *runtime.type for I
++	// For I->I, ditto
++	// For I->E, T is a *runtime.type for interface{} (unnecessary, but just to fill in the slot)
++	// For E->E, ditto
++	T Node
++}
++
++func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, t Node) *DynamicTypeAssertExpr {
++	n := &DynamicTypeAssertExpr{X: x, T: t}
++	n.pos = pos
++	n.op = op
++	return n
++}
++
+ // A UnaryExpr is a unary expression Op X,
+ // or Op(X) for a builtin function that does not end up being a call.
+ type UnaryExpr struct {
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 0fbc867c1d..e5f0c38f86 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -319,6 +319,10 @@ const (
+ 	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+ 	OLINKSYMOFFSET // offset within a name
+ 
++	// opcodes for generics
++	ODYNAMICDOTTYPE
++	ODYNAMICDOTTYPE2
++
+ 	// arch-specific opcodes
+ 	OTAILCALL    // tail call to another function
+ 	OGETG        // runtime.getg() (read g pointer)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 9a4858d037..56db6bb9cf 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -463,6 +463,34 @@ func (n *Decl) editChildren(edit func(Node) Node) {
+ 	}
+ }
+ 
++func (n *DynamicTypeAssertExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
++func (n *DynamicTypeAssertExpr) copy() Node {
++	c := *n
++	c.init = copyNodes(c.init)
++	return &c
++}
++func (n *DynamicTypeAssertExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.T != nil && do(n.T) {
++		return true
++	}
++	return false
++}
++func (n *DynamicTypeAssertExpr) editChildren(edit func(Node) Node) {
++	editNodes(n.init, edit)
++	if n.X != nil {
++		n.X = edit(n.X).(Node)
++	}
++	if n.T != nil {
++		n.T = edit(n.T).(Node)
++	}
++}
++
+ func (n *ForStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *ForStmt) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 0235d5eab3..7b08ee287a 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -162,16 +162,18 @@ func _() {
+ 	_ = x[ORESULT-151]
+ 	_ = x[OINLMARK-152]
+ 	_ = x[OLINKSYMOFFSET-153]
+-	_ = x[OTAILCALL-154]
+-	_ = x[OGETG-155]
+-	_ = x[OGETCALLERPC-156]
+-	_ = x[OGETCALLERSP-157]
+-	_ = x[OEND-158]
++	_ = x[ODYNAMICDOTTYPE-154]
++	_ = x[ODYNAMICDOTTYPE2-155]
++	_ = x[OTAILCALL-156]
++	_ = x[OGETG-157]
++	_ = x[OGETCALLERPC-158]
++	_ = x[OGETCALLERSP-159]
++	_ = x[OEND-160]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETTAILCALLGETGGETCALLERPCGETCALLERSPEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETDYNAMICDOTTYPEDYNAMICDOTTYPE2TAILCALLGETGGETCALLERPCGETCALLERSPEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 136, 138, 141, 151, 158, 165, 172, 176, 180, 188, 196, 205, 208, 213, 220, 227, 233, 242, 250, 258, 264, 268, 277, 286, 293, 297, 300, 307, 315, 322, 328, 331, 337, 344, 352, 356, 363, 371, 373, 375, 377, 379, 381, 383, 388, 393, 401, 404, 413, 416, 420, 428, 435, 444, 457, 460, 463, 466, 469, 472, 475, 481, 484, 487, 493, 497, 500, 504, 509, 514, 520, 525, 529, 534, 542, 550, 556, 565, 576, 583, 592, 596, 603, 611, 615, 619, 623, 630, 637, 645, 651, 660, 671, 679, 688, 693, 698, 702, 710, 715, 719, 722, 730, 734, 736, 741, 743, 748, 754, 760, 766, 772, 780, 785, 789, 796, 802, 807, 813, 819, 826, 831, 835, 840, 844, 849, 857, 863, 870, 877, 883, 890, 903, 911, 915, 926, 937, 940}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 136, 138, 141, 151, 158, 165, 172, 176, 180, 188, 196, 205, 208, 213, 220, 227, 233, 242, 250, 258, 264, 268, 277, 286, 293, 297, 300, 307, 315, 322, 328, 331, 337, 344, 352, 356, 363, 371, 373, 375, 377, 379, 381, 383, 388, 393, 401, 404, 413, 416, 420, 428, 435, 444, 457, 460, 463, 466, 469, 472, 475, 481, 484, 487, 493, 497, 500, 504, 509, 514, 520, 525, 529, 534, 542, 550, 556, 565, 576, 583, 592, 596, 603, 611, 615, 619, 623, 630, 637, 645, 651, 660, 671, 679, 688, 693, 698, 702, 710, 715, 719, 722, 730, 734, 736, 741, 743, 748, 754, 760, 766, 772, 780, 785, 789, 796, 802, 807, 813, 819, 826, 831, 835, 840, 844, 849, 857, 863, 870, 877, 883, 890, 903, 917, 932, 940, 944, 955, 966, 969}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 02a380e63f..70a2c7b97f 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1039,6 +1039,7 @@ func (subst *subster) checkDictionary(name *ir.Name, targs []*types.Type) (code
+ 	d.SetTypecheck(1)
+ 	d = ir.NewConvExpr(pos, ir.OCONVNOP, types.NewArray(types.Types[types.TUINTPTR], int64(len(targs))).PtrTo(), d)
+ 	d.SetTypecheck(1)
++	types.CheckSize(d.Type().Elem())
+ 
+ 	// Check that each type entry in the dictionary is correct.
+ 	for i, t := range targs {
+@@ -1079,6 +1080,7 @@ func getDictionaryEntry(pos src.XPos, dict *ir.Name, i int, size int) ir.Node {
+ 	d.SetTypecheck(1)
+ 	d = ir.NewConvExpr(pos, ir.OCONVNOP, types.NewArray(types.Types[types.TUINTPTR], int64(size)).PtrTo(), d)
+ 	d.SetTypecheck(1)
++	types.CheckSize(d.Type().Elem())
+ 
+ 	// Load entry i out of the dictionary.
+ 	deref := ir.NewStarExpr(pos, d)
+@@ -1367,7 +1369,31 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				m = subst.convertUsingDictionary(m.Pos(), m.(*ir.ConvExpr).X, x, m.Type(), x.X.Type())
+ 			}
+ 		case ir.ODOTTYPE, ir.ODOTTYPE2:
+-			m.SetType(subst.unshapifyTyp(m.Type()))
++			dt := m.(*ir.TypeAssertExpr)
++			var rt ir.Node
++			if dt.Type().IsInterface() || dt.X.Type().IsEmptyInterface() {
++				ix := subst.findDictType(x.Type())
++				assert(ix >= 0)
++				rt = subst.getDictionaryType(dt.Pos(), ix)
++			} else {
++				// nonempty interface to noninterface. Need an itab.
++				ix := -1
++				for i, ic := range subst.info.gfInfo.itabConvs {
++					if ic == x {
++						ix = subst.info.startItabConv + i
++						break
++					}
++				}
++				assert(ix >= 0)
++				rt = getDictionaryEntry(dt.Pos(), subst.info.dictParam, ix, subst.info.dictLen)
++			}
++			op := ir.ODYNAMICDOTTYPE
++			if x.Op() == ir.ODOTTYPE2 {
++				op = ir.ODYNAMICDOTTYPE2
++			}
++			m = ir.NewDynamicTypeAssertExpr(dt.Pos(), op, dt.X, rt)
++			m.SetType(dt.Type())
++			m.SetTypecheck(1)
+ 
+ 		case ir.OMETHEXPR:
+ 			se := m.(*ir.SelectorExpr)
+@@ -1696,7 +1722,8 @@ func (g *irgen) finalizeSyms() {
+ 		// Emit an entry for each itab
+ 		for _, n := range info.itabConvs {
+ 			var srctype, dsttype *types.Type
+-			if n.Op() == ir.OXDOT {
++			switch n.Op() {
++			case ir.OXDOT:
+ 				se := n.(*ir.SelectorExpr)
+ 				srctype = subst.Typ(se.X.Type())
+ 				dsttype = subst.Typ(se.X.Type().Bound())
+@@ -1712,10 +1739,14 @@ func (g *irgen) finalizeSyms() {
+ 					}
+ 				}
+ 				assert(found)
+-			} else {
+-				assert(n.Op() == ir.OCONVIFACE)
++			case ir.ODOTTYPE, ir.ODOTTYPE2:
++				srctype = subst.Typ(n.(*ir.TypeAssertExpr).Type())
++				dsttype = subst.Typ(n.(*ir.TypeAssertExpr).X.Type())
++			case ir.OCONVIFACE:
+ 				srctype = subst.Typ(n.(*ir.ConvExpr).X.Type())
+ 				dsttype = subst.Typ(n.Type())
++			default:
++				base.Fatalf("itab entry with unknown op %s", n.Op())
+ 			}
+ 			itabLsym := reflectdata.ITabLsym(srctype, dsttype)
+ 			d.off = objw.SymPtr(lsym, d.off, itabLsym, 0)
+@@ -1859,6 +1890,10 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
+ 			infoPrint("  Itab for interface conv: %v\n", n)
+ 			info.itabConvs = append(info.itabConvs, n)
+ 		}
++		if (n.Op() == ir.ODOTTYPE || n.Op() == ir.ODOTTYPE2) && !n.(*ir.TypeAssertExpr).Type().IsInterface() && !n.(*ir.TypeAssertExpr).X.Type().IsEmptyInterface() {
++			infoPrint("  Itab for dot type: %v\n", n)
++			info.itabConvs = append(info.itabConvs, n)
++		}
+ 		if n.Op() == ir.OCLOSURE {
+ 			// Visit the closure body and add all relevant entries to the
+ 			// dictionary of the outer function (closure will just use
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index d2e0d57b28..7e2f6a7471 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1423,7 +1423,12 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 	case ir.OAS2DOTTYPE:
+ 		n := n.(*ir.AssignListStmt)
+-		res, resok := s.dottype(n.Rhs[0].(*ir.TypeAssertExpr), true)
++		var res, resok *ssa.Value
++		if n.Rhs[0].Op() == ir.ODOTTYPE2 {
++			res, resok = s.dottype(n.Rhs[0].(*ir.TypeAssertExpr), true)
++		} else {
++			res, resok = s.dynamicDottype(n.Rhs[0].(*ir.DynamicTypeAssertExpr), true)
++		}
+ 		deref := false
+ 		if !TypeOK(n.Rhs[0].Type()) {
+ 			if res.Op != ssa.OpLoad {
+@@ -2680,6 +2685,11 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		res, _ := s.dottype(n, false)
+ 		return res
+ 
++	case ir.ODYNAMICDOTTYPE:
++		n := n.(*ir.DynamicTypeAssertExpr)
++		res, _ := s.dynamicDottype(n, false)
++		return res
++
+ 	// binary ops
+ 	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
+ 		n := n.(*ir.BinaryExpr)
+@@ -5147,9 +5157,13 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 	case ir.OCALLFUNC, ir.OCALLINTER:
+ 		n := n.(*ir.CallExpr)
+ 		return s.callAddr(n, callNormal)
+-	case ir.ODOTTYPE:
+-		n := n.(*ir.TypeAssertExpr)
+-		v, _ := s.dottype(n, false)
++	case ir.ODOTTYPE, ir.ODYNAMICDOTTYPE:
++		var v *ssa.Value
++		if n.Op() == ir.ODOTTYPE {
++			v, _ = s.dottype(n.(*ir.TypeAssertExpr), false)
++		} else {
++			v, _ = s.dynamicDottype(n.(*ir.DynamicTypeAssertExpr), false)
++		}
+ 		if v.Op != ssa.OpLoad {
+ 			s.Fatalf("dottype of non-load")
+ 		}
+@@ -6043,14 +6057,38 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
+ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
+ 	iface := s.expr(n.X)              // input interface
+ 	target := s.reflectType(n.Type()) // target type
+-	byteptr := s.f.Config.Types.BytePtr
++	var targetItab *ssa.Value
++	if n.Itab != nil {
++		targetItab = s.expr(n.Itab)
++	}
++	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
++}
+ 
+-	if n.Type().IsInterface() {
+-		if n.Type().IsEmptyInterface() {
++func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
++	iface := s.expr(n.X)
++	target := s.expr(n.T)
++	var itab *ssa.Value
++	if !n.X.Type().IsEmptyInterface() && !n.Type().IsInterface() {
++		byteptr := s.f.Config.Types.BytePtr
++		itab = target
++		target = s.load(byteptr, s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)) // itab.typ
++	}
++	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, itab, commaok)
++}
++
++// dottype1 implements a x.(T) operation. iface is the argument (x), dst is the type we're asserting to (T)
++// and src is the type we're asserting from.
++// target is the *runtime._type of dst.
++// If src is a nonempty interface and dst is not an interface, targetItab is an itab representing (dst, src). Otherwise it is nil.
++// commaok is true if the caller wants a boolean success value. Otherwise, the generated code panics if the conversion fails.
++func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, target, targetItab *ssa.Value, commaok bool) (res, resok *ssa.Value) {
++	byteptr := s.f.Config.Types.BytePtr
++	if dst.IsInterface() {
++		if dst.IsEmptyInterface() {
+ 			// Converting to an empty interface.
+ 			// Input could be an empty or nonempty interface.
+ 			if base.Debug.TypeAssert > 0 {
+-				base.WarnfAt(n.Pos(), "type assertion inlined")
++				base.WarnfAt(pos, "type assertion inlined")
+ 			}
+ 
+ 			// Get itab/type field from input.
+@@ -6058,7 +6096,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 			// Conversion succeeds iff that field is not nil.
+ 			cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], itab, s.constNil(byteptr))
+ 
+-			if n.X.Type().IsEmptyInterface() && commaok {
++			if src.IsEmptyInterface() && commaok {
+ 				// Converting empty interface to empty interface with ,ok is just a nil check.
+ 				return iface, cond
+ 			}
+@@ -6080,7 +6118,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 
+ 				// On success, return (perhaps modified) input interface.
+ 				s.startBlock(bOk)
+-				if n.X.Type().IsEmptyInterface() {
++				if src.IsEmptyInterface() {
+ 					res = iface // Use input interface unchanged.
+ 					return
+ 				}
+@@ -6088,7 +6126,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(types.PtrSize), itab)
+ 				typ := s.load(byteptr, off)
+ 				idata := s.newValue1(ssa.OpIData, byteptr, iface)
+-				res = s.newValue2(ssa.OpIMake, n.Type(), typ, idata)
++				res = s.newValue2(ssa.OpIMake, dst, typ, idata)
+ 				return
+ 			}
+ 
+@@ -6110,62 +6148,62 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 			bFail.AddEdgeTo(bEnd)
+ 			s.startBlock(bEnd)
+ 			idata := s.newValue1(ssa.OpIData, byteptr, iface)
+-			res = s.newValue2(ssa.OpIMake, n.Type(), s.variable(typVar, byteptr), idata)
++			res = s.newValue2(ssa.OpIMake, dst, s.variable(typVar, byteptr), idata)
+ 			resok = cond
+ 			delete(s.vars, typVar)
+ 			return
+ 		}
+ 		// converting to a nonempty interface needs a runtime call.
+ 		if base.Debug.TypeAssert > 0 {
+-			base.WarnfAt(n.Pos(), "type assertion not inlined")
++			base.WarnfAt(pos, "type assertion not inlined")
+ 		}
+ 		if !commaok {
+ 			fn := ir.Syms.AssertI2I
+-			if n.X.Type().IsEmptyInterface() {
++			if src.IsEmptyInterface() {
+ 				fn = ir.Syms.AssertE2I
+ 			}
+ 			data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
+ 			tab := s.newValue1(ssa.OpITab, byteptr, iface)
+ 			tab = s.rtcall(fn, true, []*types.Type{byteptr}, target, tab)[0]
+-			return s.newValue2(ssa.OpIMake, n.Type(), tab, data), nil
++			return s.newValue2(ssa.OpIMake, dst, tab, data), nil
+ 		}
+ 		fn := ir.Syms.AssertI2I2
+-		if n.X.Type().IsEmptyInterface() {
++		if src.IsEmptyInterface() {
+ 			fn = ir.Syms.AssertE2I2
+ 		}
+-		res = s.rtcall(fn, true, []*types.Type{n.Type()}, target, iface)[0]
+-		resok = s.newValue2(ssa.OpNeqInter, types.Types[types.TBOOL], res, s.constInterface(n.Type()))
++		res = s.rtcall(fn, true, []*types.Type{dst}, target, iface)[0]
++		resok = s.newValue2(ssa.OpNeqInter, types.Types[types.TBOOL], res, s.constInterface(dst))
+ 		return
+ 	}
+ 
+ 	if base.Debug.TypeAssert > 0 {
+-		base.WarnfAt(n.Pos(), "type assertion inlined")
++		base.WarnfAt(pos, "type assertion inlined")
+ 	}
+ 
+ 	// Converting to a concrete type.
+-	direct := types.IsDirectIface(n.Type())
++	direct := types.IsDirectIface(dst)
+ 	itab := s.newValue1(ssa.OpITab, byteptr, iface) // type word of interface
+ 	if base.Debug.TypeAssert > 0 {
+-		base.WarnfAt(n.Pos(), "type assertion inlined")
++		base.WarnfAt(pos, "type assertion inlined")
+ 	}
+-	var targetITab *ssa.Value
+-	if n.X.Type().IsEmptyInterface() {
++	var wantedFirstWord *ssa.Value
++	if src.IsEmptyInterface() {
+ 		// Looking for pointer to target type.
+-		targetITab = target
++		wantedFirstWord = target
+ 	} else {
+ 		// Looking for pointer to itab for target type and source interface.
+-		targetITab = s.expr(n.Itab)
++		wantedFirstWord = targetItab
+ 	}
+ 
+ 	var tmp ir.Node     // temporary for use with large types
+ 	var addr *ssa.Value // address of tmp
+-	if commaok && !TypeOK(n.Type()) {
++	if commaok && !TypeOK(dst) {
+ 		// unSSAable type, use temporary.
+ 		// TODO: get rid of some of these temporaries.
+-		tmp, addr = s.temp(n.Pos(), n.Type())
++		tmp, addr = s.temp(pos, dst)
+ 	}
+ 
+-	cond := s.newValue2(ssa.OpEqPtr, types.Types[types.TBOOL], itab, targetITab)
++	cond := s.newValue2(ssa.OpEqPtr, types.Types[types.TBOOL], itab, wantedFirstWord)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.SetControl(cond)
+@@ -6179,8 +6217,8 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	if !commaok {
+ 		// on failure, panic by calling panicdottype
+ 		s.startBlock(bFail)
+-		taddr := s.reflectType(n.X.Type())
+-		if n.X.Type().IsEmptyInterface() {
++		taddr := s.reflectType(src)
++		if src.IsEmptyInterface() {
+ 			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
+ 		} else {
+ 			s.rtcall(ir.Syms.PanicdottypeI, false, nil, itab, target, taddr)
+@@ -6189,10 +6227,10 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 		// on success, return data from interface
+ 		s.startBlock(bOk)
+ 		if direct {
+-			return s.newValue1(ssa.OpIData, n.Type(), iface), nil
++			return s.newValue1(ssa.OpIData, dst, iface), nil
+ 		}
+-		p := s.newValue1(ssa.OpIData, types.NewPtr(n.Type()), iface)
+-		return s.load(n.Type(), p), nil
++		p := s.newValue1(ssa.OpIData, types.NewPtr(dst), iface)
++		return s.load(dst, p), nil
+ 	}
+ 
+ 	// commaok is the more complicated case because we have
+@@ -6206,14 +6244,14 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	s.startBlock(bOk)
+ 	if tmp == nil {
+ 		if direct {
+-			s.vars[valVar] = s.newValue1(ssa.OpIData, n.Type(), iface)
++			s.vars[valVar] = s.newValue1(ssa.OpIData, dst, iface)
+ 		} else {
+-			p := s.newValue1(ssa.OpIData, types.NewPtr(n.Type()), iface)
+-			s.vars[valVar] = s.load(n.Type(), p)
++			p := s.newValue1(ssa.OpIData, types.NewPtr(dst), iface)
++			s.vars[valVar] = s.load(dst, p)
+ 		}
+ 	} else {
+-		p := s.newValue1(ssa.OpIData, types.NewPtr(n.Type()), iface)
+-		s.move(n.Type(), addr, p)
++		p := s.newValue1(ssa.OpIData, types.NewPtr(dst), iface)
++		s.move(dst, addr, p)
+ 	}
+ 	s.vars[okVar] = s.constBool(true)
+ 	s.endBlock()
+@@ -6222,9 +6260,9 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	// type assertion failed
+ 	s.startBlock(bFail)
+ 	if tmp == nil {
+-		s.vars[valVar] = s.zeroVal(n.Type())
++		s.vars[valVar] = s.zeroVal(dst)
+ 	} else {
+-		s.zero(n.Type(), addr)
++		s.zero(dst, addr)
+ 	}
+ 	s.vars[okVar] = s.constBool(false)
+ 	s.endBlock()
+@@ -6233,10 +6271,10 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	// merge point
+ 	s.startBlock(bEnd)
+ 	if tmp == nil {
+-		res = s.variable(valVar, n.Type())
++		res = s.variable(valVar, dst)
+ 		delete(s.vars, valVar)
+ 	} else {
+-		res = s.load(n.Type(), addr)
++		res = s.load(dst, addr)
+ 		s.vars[memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, tmp.(*ir.Name), s.mem())
+ 	}
+ 	resok = s.variable(okVar, types.Types[types.TBOOL])
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index f0d37198d3..f95b6f4639 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -136,6 +136,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		n := n.(*ir.TypeAssertExpr)
+ 		return walkDotType(n, init)
+ 
++	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
++		n := n.(*ir.DynamicTypeAssertExpr)
++		return walkDynamicDotType(n, init)
++
+ 	case ir.OLEN, ir.OCAP:
+ 		n := n.(*ir.UnaryExpr)
+ 		return walkLenCap(n, init)
+@@ -669,6 +673,13 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	return n
+ }
+ 
++// walkDynamicdotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
++func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
++	n.X = walkExpr(n.X, init)
++	n.T = walkExpr(n.T, init)
++	return n
++}
++
+ // walkIndex walks an OINDEX node.
+ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
+ 	n.X = walkExpr(n.X, init)
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index fe6ae3fda0..c5fd0c1e1d 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -686,6 +686,10 @@ func (o *orderState) stmt(n ir.Node) {
+ 		case ir.ODOTTYPE2:
+ 			r := r.(*ir.TypeAssertExpr)
+ 			r.X = o.expr(r.X, nil)
++		case ir.ODYNAMICDOTTYPE2:
++			r := r.(*ir.DynamicTypeAssertExpr)
++			r.X = o.expr(r.X, nil)
++			r.T = o.expr(r.T, nil)
+ 		case ir.ORECV:
+ 			r := r.(*ir.UnaryExpr)
+ 			r.X = o.expr(r.X, nil)
+diff --git a/test/typeparam/dottype.go b/test/typeparam/dottype.go
+index 89a9b02111..c9c900c096 100644
+--- a/test/typeparam/dottype.go
++++ b/test/typeparam/dottype.go
+@@ -69,6 +69,11 @@ func main() {
+ 	println(h[int](struct{ a, b int }{3, 5}).a)
+ 
+ 	println(k[int](mybar(3)).bar())
++
++	type large struct {a,b,c,d,e,f int}
++	println(f[large](large{}).a)
++	l2, ok := f2[large](large{})
++	println(l2.a, ok)
+ }
+ func shouldpanic(x func()) {
+ 	defer func() {
+diff --git a/test/typeparam/dottype.out b/test/typeparam/dottype.out
+index 058c923a5c..8e6a3c2552 100644
+--- a/test/typeparam/dottype.out
++++ b/test/typeparam/dottype.out
+@@ -6,3 +6,5 @@
+ 0 false
+ 3
+ 3
++0
++0 true

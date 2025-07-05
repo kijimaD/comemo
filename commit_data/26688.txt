@@ -25,7 +25,90 @@ Date:   Sat Feb 20 23:23:01 2016 -0300
     Change-Id: Iad591363330843ad833bd79a0388d709c8d0c8aa
     Reviewed-on: https://go-review.googlesource.com/19775
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/cover/cover.go         | 14 ++++++++++++++
  src/cmd/cover/testdata/test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 31ec434546..c5d1682651 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -181,6 +181,10 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 		}
+ 		n.List = f.addCounters(n.Lbrace, n.Rbrace+1, n.List, true) // +1 to step past closing brace.
+ 	case *ast.IfStmt:
++		if n.Init != nil {
++			ast.Walk(f, n.Init)
++		}
++		ast.Walk(f, n.Cond)
+ 		ast.Walk(f, n.Body)
+ 		if n.Else == nil {
+ 			return nil
+@@ -219,11 +223,21 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 	case *ast.SwitchStmt:
+ 		// Don't annotate an empty switch - creates a syntax error.
+ 		if n.Body == nil || len(n.Body.List) == 0 {
++			if n.Init != nil {
++				ast.Walk(f, n.Init)
++			}
++			if n.Tag != nil {
++				ast.Walk(f, n.Tag)
++			}
+ 			return nil
+ 		}
+ 	case *ast.TypeSwitchStmt:
+ 		// Don't annotate an empty type switch - creates a syntax error.
+ 		if n.Body == nil || len(n.Body.List) == 0 {
++			if n.Init != nil {
++				ast.Walk(f, n.Init)
++			}
++			ast.Walk(f, n.Assign)
+ 			return nil
+ 		}
+ 	}
+diff --git a/src/cmd/cover/testdata/test.go b/src/cmd/cover/testdata/test.go
+index 9013950a2b..c4c0e15b0b 100644
+--- a/src/cmd/cover/testdata/test.go
++++ b/src/cmd/cover/testdata/test.go
+@@ -24,6 +24,7 @@ func testAll() {
+ 	testSelect2()
+ 	testPanic()
+ 	testEmptySwitches()
++	testFunctionLiteral()
+ }
+ 
+ // The indexes of the counters in testPanic are known to main.go
+@@ -216,3 +217,32 @@ func testEmptySwitches() {
+ 	<-c
+ 	check(LINE, 1)
+ }
++
++func testFunctionLiteral() {
++	a := func(f func()) error {
++		f()
++		f()
++		return nil
++	}
++
++	b := func(f func()) bool {
++		f()
++		f()
++		return true
++	}
++
++	check(LINE, 1)
++	a(func() {
++		check(LINE, 2)
++	})
++
++	if err := a(func() {
++		check(LINE, 2)
++	}); err != nil {
++	}
++
++	switch b(func() {
++		check(LINE, 2)
++	}) {
++	}
++}

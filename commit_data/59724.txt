@@ -11,6 +11,20 @@ Date:   Mon Feb 5 14:56:54 2024 -0800
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/godebug.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 85137573da..704ebe3a2f 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -183,7 +183,7 @@ and clients to TLS 1.2. The default can be reverted to TLS 1.0 using the
+ 
+ Go 1.22 changed the default TLS cipher suites used by clients and servers when
+ not explicitly configured, removing the cipher suites which used RSA based key
+-exchange. The default can be revert using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
++exchange. The default can be reverted using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
+ 
+ Go 1.22 disabled
+ [`ConnectionState.ExportKeyingMaterial`](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial)

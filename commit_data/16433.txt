@@ -7,7 +7,7 @@ Date:   Wed May 29 17:51:17 2013 +0200
     R=iant
     CC=golang-dev
     https://golang.org/cl/9738046
-
+---
  src/pkg/runtime/os_darwin.c         | 11 -----------
  src/pkg/runtime/os_freebsd.c        | 11 -----------
  src/pkg/runtime/os_linux.c          | 11 -----------
@@ -18,3 +18,220 @@ Date:   Wed May 29 17:51:17 2013 +0200
  src/pkg/runtime/sys_windows_386.s   | 20 --------------------
  src/pkg/runtime/sys_windows_amd64.s | 27 ---------------------------
  9 files changed, 117 deletions(-)
+
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index deb1c556a9..b28e805a82 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -523,17 +523,6 @@ runtime·setprof(bool on)
+ 		runtime·sigprocmask(SIG_BLOCK, &sigset_prof, nil);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badcallback(void)
+-{
+-	runtime·write(2, badcallback, sizeof badcallback - 1);
+-}
+-
+ #pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 8c6e1b2496..efe82ca072 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -235,17 +235,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badcallback(void)
+-{
+-	runtime·write(2, badcallback, sizeof badcallback - 1);
+-}
+-
+ #pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 6bb376a7e9..2ae33af2d9 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -284,17 +284,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badcallback(void)
+-{
+-	runtime·write(2, badcallback, sizeof badcallback - 1);
+-}
+-
+ #pragma dataflag 16  // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 3355208133..56ff188a63 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -275,17 +275,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badcallback(void)
+-{
+-	runtime·write(2, badcallback, sizeof badcallback - 1);
+-}
+-
+ #pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 898dca9b6a..8c62886e9b 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -257,17 +257,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badcallback(void)
+-{
+-	runtime·write(2, badcallback, sizeof badcallback - 1);
+-}
+-
+ #pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go: ";
+ 
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index dd02eb8782..0991f81753 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -330,17 +330,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-static int8 badcallback[] = "runtime: cgo callback on thread not created by Go.\n";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag 7
+-void
+-runtime·badcallback(void)
+-{
+-	runtime·pwrite(2, badcallback, sizeof badcallback - 1, -1LL);
+-}
+-
+ #pragma dataflag 16 // no pointers
+ static int8 badsignal[] = "runtime: signal received on thread not created by Go.\n";
+ 
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 9b8e3e363a..60160c3e16 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -450,10 +450,6 @@ runtime·setprof(bool on)
+ 	USED(on);
+ }
+ 
+-#pragma dataflag 16 // no pointers
+-int8 runtime·badcallbackmsg[] = "runtime: cgo callback on thread not created by Go.\n";
+-int32 runtime·badcallbacklen = sizeof runtime·badcallbackmsg - 1;
+-
+ #pragma dataflag 16 // no pointers
+ int8 runtime·badsignalmsg[] = "runtime: signal received on thread not created by Go.\n";
+ int32 runtime·badsignallen = sizeof runtime·badsignalmsg - 1;
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index 206cdccc42..2c63b33850 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -38,26 +38,6 @@ TEXT runtime·asmstdcall(SB),7,$0
+ 
+ 	RET
+ 
+-TEXT	runtime·badcallback(SB),7,$24
+-	// stderr
+-	MOVL	$-12, 0(SP)
+-	MOVL	SP, BP
+-	CALL	*runtime·GetStdHandle(SB)
+-	MOVL	BP, SP
+-
+-	MOVL	AX, 0(SP)	// handle
+-	MOVL	$runtime·badcallbackmsg(SB), DX // pointer
+-	MOVL	DX, 4(SP)
+-	MOVL	runtime·badcallbacklen(SB), DX // count
+-	MOVL	DX, 8(SP)
+-	LEAL	20(SP), DX  // written count
+-	MOVL	$0, 0(DX)
+-	MOVL	DX, 12(SP)
+-	MOVL	$0, 16(SP) // overlapped
+-	CALL	*runtime·WriteFile(SB)
+-	MOVL	BP, SI
+-	RET
+-
+ TEXT	runtime·badsignal(SB),7,$24
+ 	// stderr
+ 	MOVL	$-12, 0(SP)
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index c20a268b10..b9eaec68d7 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -60,33 +60,6 @@ loadregs:
+ 
+ 	RET
+ 
+-// This should be called on a system stack,
+-// so we don't need to concern about split stack.
+-TEXT runtime·badcallback(SB),7,$0
+-	SUBQ	$48, SP
+-
+-	// stderr
+-	MOVQ	$-12, CX // stderr
+-	MOVQ	CX, 0(SP)
+-	MOVQ	runtime·GetStdHandle(SB), AX
+-	CALL	AX
+-
+-	MOVQ	AX, CX	// handle
+-	MOVQ	CX, 0(SP)
+-	MOVQ	$runtime·badcallbackmsg(SB), DX // pointer
+-	MOVQ	DX, 8(SP)
+-	MOVL	$runtime·badcallbacklen(SB), R8 // count
+-	MOVQ	R8, 16(SP)
+-	LEAQ	40(SP), R9  // written count
+-	MOVQ	$0, 0(R9)
+-	MOVQ	R9, 24(SP)
+-	MOVQ	$0, 32(SP)	// overlapped
+-	MOVQ	runtime·WriteFile(SB), AX
+-	CALL	AX
+-	
+-	ADDQ	$48, SP
+-	RET
+-
+ TEXT runtime·badsignal(SB),7,$48
+ 	// stderr
+ 	MOVQ	$-12, CX // stderr

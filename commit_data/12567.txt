@@ -9,8 +9,79 @@ Date:   Mon Mar 12 10:42:25 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5783080
-
+---
  src/pkg/net/http/request.go      |  6 ++++--
  src/pkg/net/http/request_test.go | 19 +++++++++++++++++++
  src/pkg/net/http/server.go       |  2 +-
  3 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 5277657805..f5bc6eb910 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -455,11 +455,13 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 	// First line: GET /index.html HTTP/1.0
+ 	var s string
+ 	if s, err = tp.ReadLine(); err != nil {
++		return nil, err
++	}
++	defer func() {
+ 		if err == io.EOF {
+ 			err = io.ErrUnexpectedEOF
+ 		}
+-		return nil, err
+-	}
++	}()
+ 
+ 	var f []string
+ 	if f = strings.SplitN(s, " ", 3); len(f) < 3 {
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 7a3556d036..6e00b9bfd3 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -5,6 +5,7 @@
+ package http_test
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+@@ -177,6 +178,24 @@ func TestRequestMultipartCallOrder(t *testing.T) {
+ 	}
+ }
+ 
++var readRequestErrorTests = []struct {
++	in  string
++	err error
++}{
++	{"GET / HTTP/1.1\r\nheader:foo\r\n\r\n", nil},
++	{"GET / HTTP/1.1\r\nheader:foo\r\n", io.ErrUnexpectedEOF},
++	{"", io.EOF},
++}
++
++func TestReadRequestErrors(t *testing.T) {
++	for i, tt := range readRequestErrorTests {
++		_, err := ReadRequest(bufio.NewReader(strings.NewReader(tt.in)))
++		if err != tt.err {
++			t.Errorf("%d. got error = %v; want %v", i, err, tt.err)
++		}
++	}
++}
++
+ func testMissingFile(t *testing.T, req *Request) {
+ 	f, fh, err := req.FormFile("missing")
+ 	if f != nil {
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index fa0df54a23..228ac40196 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -601,7 +601,7 @@ func (c *conn) serve() {
+ 				// while they're still writing their
+ 				// request.  Undefined behavior.
+ 				msg = "413 Request Entity Too Large"
+-			} else if err == io.ErrUnexpectedEOF {
++			} else if err == io.EOF {
+ 				break // Don't reply
+ 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+ 				break // Don't reply

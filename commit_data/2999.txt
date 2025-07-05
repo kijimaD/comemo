@@ -8,7 +8,7 @@ Date:   Mon Aug 17 15:14:59 2009 -0700
     DELTA=41  (20 added, 2 deleted, 19 changed)
     OCL=33412
     CL=33415
-
+---
  src/cmd/5a/a.h       | 3 ++-
  src/cmd/5l/l.h       | 9 +++++----
  src/cmd/8l/l.h       | 3 ++-
@@ -18,3 +18,164 @@ Date:   Mon Aug 17 15:14:59 2009 -0700
  src/lib9/strecpy.c   | 3 ++-
  src/lib9/tokenize.c  | 3 ++-
  8 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index a8456b2485..6a40f9c632 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -28,7 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include <lib9.h>
++#include <u.h>
++#include <libc.h>
+ #include <bio.h>
+ #include "../5l/5.out.h"
+ 
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index df47d9055a..25cffd0c2c 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -28,7 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include	<lib9.h>
++#include	<u.h>
++#include	<libc.h>
+ #include	<bio.h>
+ #include	"../5l/5.out.h"
+ 
+@@ -74,6 +75,7 @@ struct	Adr
+ 	char	name;
+ 	int32	offset2; // argsize
+ 	char	class;
++	Sym*	gotype;
+ };
+ 
+ #define	offset	u0.u0offset
+@@ -128,6 +130,7 @@ struct	Sym
+ 	Sym*	link;
+ 	Prog*	text;
+ 	Prog*	data;
++	Sym*	gotype;
+ };
+ 
+ #define SIGNINTERN	(1729*325*1729)
+@@ -138,6 +141,7 @@ struct	Autom
+ 	Auto*	link;
+ 	int32	aoffset;
+ 	short	type;
++	Sym*	gotype;
+ };
+ struct	Optab
+ {
+@@ -318,7 +322,6 @@ EXTERN	char*	library[50];
+ EXTERN	char*	libraryobj[50];
+ EXTERN	int	libraryp;
+ EXTERN	int	xrefresolv;
+-EXTERN	char*	hunk;
+ EXTERN	uchar	inuxi1[1];
+ EXTERN	uchar	inuxi2[2];
+ EXTERN	uchar	inuxi4[4];
+@@ -326,7 +329,6 @@ EXTERN	Prog*	lastp;
+ EXTERN	int32	lcsize;
+ EXTERN	char	literal[32];
+ EXTERN	int	nerrors;
+-EXTERN	int32	nhunk;
+ EXTERN	int32	instoffset;
+ EXTERN	Opcross	opcross[8];
+ EXTERN	Oprang	oprange[ALAST];
+@@ -419,7 +421,6 @@ void	exchange(Prog*);
+ void	export(void);
+ int	find1(int32, int);
+ void	follow(void);
+-void	gethunk(void);
+ void	histtoauto(void);
+ void	hputl(int);
+ double	ieeedtod(Ieee*);
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 607fb4d449..3452598c52 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -28,7 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include	<lib9.h>
++#include	<u.h>
++#include	<libc.h>
+ #include	<bio.h>
+ #include	"../8l/8.out.h"
+ 
+diff --git a/src/lib9/argv0.c b/src/lib9/argv0.c
+index f109efde01..623985122b 100644
+--- a/src/lib9/argv0.c
++++ b/src/lib9/argv0.c
+@@ -23,7 +23,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ */
+ 
+-#include <lib9.h>
++#include <u.h>
++#include <libc.h>
+ 
+ char *argv0;
+ 
+diff --git a/src/lib9/getfields.c b/src/lib9/getfields.c
+index 898328cb84..0af8388da8 100644
+--- a/src/lib9/getfields.c
++++ b/src/lib9/getfields.c
+@@ -24,7 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ */
+ 
+-#include <lib9.h>
++#include <u.h>
++#include <libc.h>
+ 
+ int
+ getfields(char *str, char **args, int max, int mflag, char *set)
+diff --git a/src/lib9/readn.c b/src/lib9/readn.c
+index 76e497de81..f39b4a4c22 100644
+--- a/src/lib9/readn.c
++++ b/src/lib9/readn.c
+@@ -24,7 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ */
+ 
+-#include <lib9.h>
++#include <u.h>
++#include <libc.h>
+ 
+ long
+ readn(int f, void *av, long n)
+diff --git a/src/lib9/strecpy.c b/src/lib9/strecpy.c
+index f38b524c2e..389fdc8a02 100644
+--- a/src/lib9/strecpy.c
++++ b/src/lib9/strecpy.c
+@@ -24,7 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ */
+ 
+-#include <lib9.h>
++#include <u.h>
++#include <libc.h>
+ 
+ char*
+ strecpy(char *to, char *e, char *from)
+diff --git a/src/lib9/tokenize.c b/src/lib9/tokenize.c
+index 6b8c0e778d..52167ff2fd 100644
+--- a/src/lib9/tokenize.c
++++ b/src/lib9/tokenize.c
+@@ -24,7 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ */
+ 
+-#include <lib9.h>
++#include <u.h>
++#include <libc.h>
+ 
+ static char qsep[] = " \t\r\n";
+ 

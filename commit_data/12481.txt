@@ -15,6 +15,20 @@ Date:   Wed Mar 7 13:51:05 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5753065
-
+---
  src/pkg/go/build/deps_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index e2f1d95a23..13b9dc97bb 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -300,7 +300,7 @@ var pkgDeps = map[string][]string{
+ 		"L4", "CRYPTO-MATH", "CGO", "OS",
+ 		"crypto/x509", "encoding/pem", "net", "syscall",
+ 	},
+-	"crypto/x509":      {"L4", "CRYPTO-MATH", "OS", "CGO", "crypto/x509/pkix", "encoding/pem"},
++	"crypto/x509":      {"L4", "CRYPTO-MATH", "OS", "CGO", "crypto/x509/pkix", "encoding/pem", "syscall"},
+ 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
+ 
+ 	// Simple net+crypto-aware packages.

@@ -14,6 +14,34 @@ Date:   Wed Aug 30 05:51:23 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/asn1/asn1.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index e7bf793a82..9c05871e76 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -656,14 +656,14 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
+ }
+ 
+ var (
+-	bitStringType        = reflect.TypeOf(BitString{})
+-	objectIdentifierType = reflect.TypeOf(ObjectIdentifier{})
+-	enumeratedType       = reflect.TypeOf(Enumerated(0))
+-	flagType             = reflect.TypeOf(Flag(false))
+-	timeType             = reflect.TypeOf(time.Time{})
+-	rawValueType         = reflect.TypeOf(RawValue{})
+-	rawContentsType      = reflect.TypeOf(RawContent(nil))
+-	bigIntType           = reflect.TypeOf((*big.Int)(nil))
++	bitStringType        = reflect.TypeFor[BitString]()
++	objectIdentifierType = reflect.TypeFor[ObjectIdentifier]()
++	enumeratedType       = reflect.TypeFor[Enumerated]()
++	flagType             = reflect.TypeFor[Flag]()
++	timeType             = reflect.TypeFor[time.Time]()
++	rawValueType         = reflect.TypeFor[RawValue]()
++	rawContentsType      = reflect.TypeFor[RawContent]()
++	bigIntType           = reflect.TypeFor[*big.Int]()
+ )
+ 
+ // invalidLength reports whether offset + length > sliceLength, or if the

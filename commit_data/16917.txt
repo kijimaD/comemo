@@ -9,7 +9,51 @@ Date:   Tue Jul 30 09:42:53 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/11331043
-
+---
  doc/codewalk/run | 21 +++++++++++++++++++++
  src/run.bash     |  5 +----
  2 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/doc/codewalk/run b/doc/codewalk/run
+new file mode 100755
+index 0000000000..1c7c5fc0dd
+--- /dev/null
++++ b/doc/codewalk/run
+@@ -0,0 +1,21 @@
++#!/usr/bin/env bash
++# Copyright 2013 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++
++function fail {
++	echo FAIL: doc/codewalk/$1
++	exit 1
++}
++
++# markov.xml
++echo foo | go run markov.go | grep foo > /dev/null || fail markov
++
++# functions.xml
++go run pig.go | grep 'Wins, losses staying at k = 100: 210/990 (21.2%), 780/990 (78.8%)' > /dev/null || fail pig
++
++# sharemem.xml: only build the example, as it uses the network
++go build -o /dev/null urlpoll.go || fail urlpoll
++
+diff --git a/src/run.bash b/src/run.bash
+index 4d8d04bfb3..24bcd3f228 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -152,10 +152,7 @@ make clean || exit 1
+ ) || exit $?
+ 
+ (xcd ../doc/codewalk
+-# TODO: test these too.
+-go build pig.go || exit 1
+-go build urlpoll.go || exit 1
+-rm -f pig urlpoll
++time ./run || exit 1
+ ) || exit $?
+ 
+ echo

@@ -14,7 +14,66 @@ Date:   Fri Oct 6 19:00:52 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/sync/once.go    | 12 ++++++------
  test/inline_sync.go |  2 +-
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/sync/once.go b/src/sync/once.go
+index b6399cfc3d..3f58707e1c 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -21,7 +21,7 @@ type Once struct {
+ 	// The hot path is inlined at every call site.
+ 	// Placing done first allows more compact instructions on some architectures (amd64/386),
+ 	// and fewer instructions (to calculate offset) on other architectures.
+-	done uint32
++	done atomic.Uint32
+ 	m    Mutex
+ }
+ 
+@@ -48,7 +48,7 @@ type Once struct {
+ func (o *Once) Do(f func()) {
+ 	// Note: Here is an incorrect implementation of Do:
+ 	//
+-	//	if atomic.CompareAndSwapUint32(&o.done, 0, 1) {
++	//	if o.done.CompareAndSwap(0, 1) {
+ 	//		f()
+ 	//	}
+ 	//
+@@ -58,9 +58,9 @@ func (o *Once) Do(f func()) {
+ 	// call f, and the second would return immediately, without
+ 	// waiting for the first's call to f to complete.
+ 	// This is why the slow path falls back to a mutex, and why
+-	// the atomic.StoreUint32 must be delayed until after f returns.
++	// the o.done.Store must be delayed until after f returns.
+ 
+-	if atomic.LoadUint32(&o.done) == 0 {
++	if o.done.Load() == 0 {
+ 		// Outlined slow-path to allow inlining of the fast-path.
+ 		o.doSlow(f)
+ 	}
+@@ -69,8 +69,8 @@ func (o *Once) Do(f func()) {
+ func (o *Once) doSlow(f func()) {
+ 	o.m.Lock()
+ 	defer o.m.Unlock()
+-	if o.done == 0 {
+-		defer atomic.StoreUint32(&o.done, 1)
++	if o.done.Load() == 0 {
++		defer o.done.Store(1)
+ 		f()
+ 	}
+ }
+diff --git a/test/inline_sync.go b/test/inline_sync.go
+index 69e2a0ead6..eaa2176d5f 100644
+--- a/test/inline_sync.go
++++ b/test/inline_sync.go
+@@ -37,7 +37,7 @@ var once *sync.Once
+ 
+ func small7() { // ERROR "can inline small7"
+ 	// the Do fast path should be inlined
+-	once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do"
++	once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "inlining call to atomic\.\(\*Uint32\)\.Load"
+ }
+ 
+ var rwmutex *sync.RWMutex

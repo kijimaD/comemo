@@ -16,7 +16,98 @@ Date:   Mon Nov 21 21:30:02 2022 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go | 20 ++++++++++++++------
  src/cmd/dist/test.go  | 11 -----------
  2 files changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index cd3e971636..ae39e9bf30 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -46,6 +46,7 @@ var (
+ 	tooldir          string
+ 	oldgoos          string
+ 	oldgoarch        string
++	oldgocache       string
+ 	exe              string
+ 	defaultcc        map[string]string
+ 	defaultcxx       map[string]string
+@@ -234,11 +235,6 @@ func xinit() {
+ 	os.Setenv("GOROOT", goroot)
+ 	os.Setenv("GOROOT_FINAL", goroot_final)
+ 
+-	// Use a build cache separate from the default user one.
+-	// Also one that will be wiped out during startup, so that
+-	// make.bash really does start from a clean slate.
+-	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
+-
+ 	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
+ 	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,
+ 	// https://go.dev/issue/31576). Since we want binaries installed by 'dist' to
+@@ -1211,7 +1207,6 @@ func cmdenv() {
+ 	xprintf(format, "GO111MODULE", "")
+ 	xprintf(format, "GOARCH", goarch)
+ 	xprintf(format, "GOBIN", gorootBin)
+-	xprintf(format, "GOCACHE", os.Getenv("GOCACHE"))
+ 	xprintf(format, "GODEBUG", os.Getenv("GODEBUG"))
+ 	xprintf(format, "GOENV", "off")
+ 	xprintf(format, "GOFLAGS", "")
+@@ -1340,6 +1335,12 @@ func cmdbootstrap() {
+ 	// go tool may complain.
+ 	os.Setenv("GOPATH", pathf("%s/pkg/obj/gopath", goroot))
+ 
++	// Use a build cache separate from the default user one.
++	// Also one that will be wiped out during startup, so that
++	// make.bash really does start from a clean slate.
++	oldgocache = os.Getenv("GOCACHE")
++	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
++
+ 	// Disable GOEXPERIMENT when building toolchain1 and
+ 	// go_bootstrap. We don't need any experiments for the
+ 	// bootstrap toolchain, and this lets us avoid duplicating the
+@@ -1467,6 +1468,13 @@ func cmdbootstrap() {
+ 		copyfile(pathf("%s/compile3", tooldir), pathf("%s/compile", tooldir), writeExec)
+ 	}
+ 
++	// Now that toolchain3 has been built from scratch, its compiler and linker
++	// should have accurate build IDs suitable for caching.
++	// Now prime the build cache with the rest of the standard library for
++	// testing, and so that the user can run 'go install std cmd' to quickly
++	// iterate on local changes without waiting for a full rebuild.
++	os.Setenv("GOCACHE", oldgocache)
++
+ 	if goos == oldgoos && goarch == oldgoarch {
+ 		// Common case - not setting up for cross-compilation.
+ 		timelog("build", "toolchain")
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 3182fd4e45..0cd5113a60 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -773,7 +773,6 @@ func (t *tester) registerTests() {
+ 					pkg:    "fmt",
+ 				}).command(t)
+ 				unsetEnv(cmd, "GOROOT")
+-				unsetEnv(cmd, "GOCACHE") // TODO(bcmills): ...why‽
+ 				err := cmd.Run()
+ 
+ 				if rerr := os.Rename(moved, goroot); rerr != nil {
+@@ -1699,18 +1698,8 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
+ 		}
+ 	}
+ 
+-	gocache := os.Getenv("GOCACHE")
+-	if gocache == "" {
+-		panic("GOCACHE not set")
+-	}
+-	gocacheSubdir, _ := filepath.Rel(dir, gocache)
+-
+ 	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+ 		if suffix := strings.TrimPrefix(path, dir+string(filepath.Separator)); suffix != "" {
+-			if suffix == gocacheSubdir {
+-				// Leave GOCACHE writable: we may need to write test binaries into it.
+-				return filepath.SkipDir
+-			}
+ 			if suffix == ".git" {
+ 				// Leave Git metadata in whatever state it was in. It may contain a lot
+ 				// of files, and it is highly unlikely that a test will try to modify

@@ -7,7 +7,99 @@ Date:   Wed Jan 26 12:38:06 2011 -0500
     R=adg
     CC=golang-dev
     https://golang.org/cl/3982051
-
+---
  src/pkg/net/dialgoogle_test.go | 38 +++++++++++++++++++++++++++++---------
  src/pkg/net/timeout_test.go    | 12 ++++++++----
  2 files changed, 37 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 47a478a8fa..a432800cfe 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -6,12 +6,14 @@ package net
+ 
+ import (
+ 	"flag"
++	"fmt"
+ 	"io"
++	"strings"
+ 	"syscall"
+ 	"testing"
+ )
+ 
+-// If an IPv6 tunnel is running (see go/stubl), we can try dialing a real IPv6 address.
++// If an IPv6 tunnel is running, we can try dialing a real IPv6 address.
+ var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
+ 
+ // fd is already connected to the destination, port 80.
+@@ -40,16 +42,16 @@ func doDial(t *testing.T, network, addr string) {
+ }
+ 
+ var googleaddrs = []string{
+-	"74.125.19.99:80",
++	"%d.%d.%d.%d:80",
+ 	"www.google.com:80",
+-	"74.125.19.99:http",
++	"%d.%d.%d.%d:http",
+ 	"www.google.com:http",
+-	"074.125.019.099:0080",
+-	"[::ffff:74.125.19.99]:80",
+-	"[::ffff:4a7d:1363]:80",
+-	"[0:0:0:0:0000:ffff:74.125.19.99]:80",
+-	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
+-	"[0:0:0:0:0:ffff::74.125.19.99]:80",
++	"%03d.%03d.%03d.%03d:0080",
++	"[::ffff:%d.%d.%d.%d]:80",
++	"[::ffff:%02x%02x:%02x%02x]:80",
++	"[0:0:0:0:0000:ffff:%d.%d.%d.%d]:80",
++	"[0:0:0:0:000000:ffff:%d.%d.%d.%d]:80",
++	"[0:0:0:0:0:ffff::%d.%d.%d.%d]:80",
+ 	"[2001:4860:0:2001::68]:80", // ipv6.google.com; removed if ipv6 flag not set
+ }
+ 
+@@ -59,6 +61,24 @@ func TestDialGoogle(t *testing.T) {
+ 		googleaddrs[len(googleaddrs)-1] = ""
+ 	}
+ 
++	// Insert an actual IP address for google.com
++	// into the table.
++
++	_, addrs, err := LookupHost("www.google.com")
++	if err != nil {
++		t.Fatalf("lookup www.google.com: %v", err)
++	}
++	if len(addrs) == 0 {
++		t.Fatalf("no addresses for www.google.com")
++	}
++	ip := ParseIP(addrs[0]).To4()
++
++	for i, s := range googleaddrs {
++		if strings.Contains(s, "%") {
++			googleaddrs[i] = fmt.Sprintf(s, ip[0], ip[1], ip[2], ip[3])
++		}
++	}
++
+ 	for i := 0; i < len(googleaddrs); i++ {
+ 		addr := googleaddrs[i]
+ 		if addr == "" {
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 3594c0a350..09a257dc81 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -46,8 +46,12 @@ func TestTimeoutUDP(t *testing.T) {
+ }
+ 
+ func TestTimeoutTCP(t *testing.T) {
+-	// 74.125.19.99 is www.google.com.
+-	// could use dns, but dns depends on
+-	// timeouts and this is the timeout test.
+-	testTimeout(t, "tcp", "74.125.19.99:80", false)
++	// set up a listener that won't talk back
++	listening := make(chan string)
++	done := make(chan int)
++	go runServe(t, "tcp", "127.0.0.1:0", listening, done)
++	addr := <-listening
++
++	testTimeout(t, "tcp", addr, false)
++	<-done
+ }

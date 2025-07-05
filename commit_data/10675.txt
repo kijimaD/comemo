@@ -7,7 +7,33 @@ Date:   Thu Dec 8 22:06:33 2011 -0500
     R=rsc, golang-dev
     CC=golang-dev
     https://golang.org/cl/5477046
-
+---
  src/pkg/math/const.go | 2 --
  src/pkg/math/pow10.go | 4 ++++
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/const.go b/src/pkg/math/const.go
+index a108d3e294..282561f98b 100644
+--- a/src/pkg/math/const.go
++++ b/src/pkg/math/const.go
+@@ -49,5 +49,3 @@ const (
+ 	MaxUint32 = 1<<32 - 1
+ 	MaxUint64 = 1<<64 - 1
+ )
+-
+-// BUG(rsc): The manual should define the special cases for all of these functions.
+diff --git a/src/pkg/math/pow10.go b/src/pkg/math/pow10.go
+index 20f91bcb70..f5ad28bb4b 100644
+--- a/src/pkg/math/pow10.go
++++ b/src/pkg/math/pow10.go
+@@ -9,6 +9,10 @@ package math
+ var pow10tab [70]float64
+ 
+ // Pow10 returns 10**e, the base-10 exponential of e.
++//
++// Special cases are:
++//	Pow10(e) = +Inf for e > 309
++//	Pow10(e) = 0 for e < -324
+ func Pow10(e int) float64 {
+ 	if e <= -325 {
+ 		return 0

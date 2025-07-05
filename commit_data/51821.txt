@@ -12,6 +12,24 @@ Date:   Wed Mar 16 14:25:50 2022 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/creds_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/creds_test.go b/src/syscall/creds_test.go
+index 1ee56fc340..2fc61df1c5 100644
+--- a/src/syscall/creds_test.go
++++ b/src/syscall/creds_test.go
+@@ -77,8 +77,10 @@ func TestSCMCredentials(t *testing.T) {
+ 			if sys, ok := err.(*os.SyscallError); ok {
+ 				err = sys.Err
+ 			}
+-			if err != syscall.EPERM {
+-				t.Fatalf("WriteMsgUnix failed with %v, want EPERM", err)
++			switch err {
++			case syscall.EPERM, syscall.EINVAL:
++			default:
++				t.Fatalf("WriteMsgUnix failed with %v, want EPERM or EINVAL", err)
+ 			}
+ 		}
+ 

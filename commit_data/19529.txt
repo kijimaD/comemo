@@ -10,7 +10,54 @@ Date:   Thu Jun 12 16:34:36 2014 -0400
     R=golang-codereviews, r, iant
     CC=dvyukov, golang-codereviews, khr
     https://golang.org/cl/105140044
-
+---
  src/pkg/runtime/stack.c      |  7 ++++++-
  test/fixedbugs/issue8047b.go | 22 ++++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 4b66e7dbaa..1f7c2eaada 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -856,7 +856,12 @@ runtime·newstack(void)
+ void
+ runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
+ {
+-	runtime·gostartcall(gobuf, fv->fn, fv);
++	void *fn;
++
++	fn = nil;
++	if(fv != nil)
++		fn = fv->fn;
++	runtime·gostartcall(gobuf, fn, fv);
+ }
+ 
+ // Maybe shrink the stack being used by gp.
+diff --git a/test/fixedbugs/issue8047b.go b/test/fixedbugs/issue8047b.go
+new file mode 100644
+index 0000000000..de6acaab59
+--- /dev/null
++++ b/test/fixedbugs/issue8047b.go
+@@ -0,0 +1,22 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8047. Defer setup during panic shouldn't crash for nil defer.
++
++package main
++
++func main() {
++	defer func() {
++		recover()
++	}()
++	f()
++}
++
++func f() {
++	var g func()
++	defer g()
++	panic(1)
++}

@@ -36,9 +36,208 @@ Date:   Mon Jun 4 08:24:11 2018 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go | 77 +++++++++++++++++++++++++-----------
  src/runtime/map_benchmark_test.go    | 34 ++++++++++++++++
  src/runtime/string.go                |  3 +-
  test/codegen/maps.go                 | 29 ++++++++++++++
  4 files changed, 119 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 694f8fbd34..e603a39b2a 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -233,6 +233,45 @@ func (o *Order) mapKeyTemp(t *types.Type, n *Node) *Node {
+ 	return n
+ }
+ 
++// mapKeyReplaceStrConv replaces OARRAYBYTESTR by OARRAYBYTESTRTMP
++// in n to avoid string allocations for keys in map lookups.
++// Returns a bool that signals if a modification was made.
++//
++// For:
++//  x = m[string(k)]
++//  x = m[T1{... Tn{..., string(k), ...}]
++// where k is []byte, T1 to Tn is a nesting of struct and array literals,
++// the allocation of backing bytes for the string can be avoided
++// by reusing the []byte backing array. These are special cases
++// for avoiding allocations when converting byte slices to strings.
++// It would be nice to handle these generally, but because
++// []byte keys are not allowed in maps, the use of string(k)
++// comes up in important cases in practice. See issue 3512.
++func mapKeyReplaceStrConv(n *Node) bool {
++	var replaced bool
++	switch n.Op {
++	case OARRAYBYTESTR:
++		n.Op = OARRAYBYTESTRTMP
++		replaced = true
++	case OSTRUCTLIT:
++		for _, elem := range n.List.Slice() {
++			if mapKeyReplaceStrConv(elem.Left) {
++				replaced = true
++			}
++		}
++	case OARRAYLIT:
++		for _, elem := range n.List.Slice() {
++			if elem.Op == OKEY {
++				elem = elem.Right
++			}
++			if mapKeyReplaceStrConv(elem) {
++				replaced = true
++			}
++		}
++	}
++	return replaced
++}
++
+ type ordermarker int
+ 
+ // Marktemp returns the top of the temporary variable stack.
+@@ -580,10 +619,9 @@ func (o *Order) stmt(n *Node) {
+ 		r.Left = o.expr(r.Left, nil)
+ 		r.Right = o.expr(r.Right, nil)
+ 
+-		// See case OINDEXMAP below.
+-		if r.Right.Op == OARRAYBYTESTR {
+-			r.Right.Op = OARRAYBYTESTRTMP
+-		}
++		// See similar conversion for OINDEXMAP below.
++		_ = mapKeyReplaceStrConv(r.Right)
++
+ 		r.Right = o.mapKeyTemp(r.Left.Type, r.Right)
+ 		o.okAs2(n)
+ 		o.cleanTemp(t)
+@@ -1042,25 +1080,18 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		n.Right = o.expr(n.Right, nil)
+ 		needCopy := false
+ 
+-		if !n.IndexMapLValue() && instrumenting {
+-			// Race detector needs the copy so it can
+-			// call treecopy on the result.
+-			needCopy = true
+-		}
+-
+-		// For x = m[string(k)] where k is []byte, the allocation of
+-		// backing bytes for the string can be avoided by reusing
+-		// the []byte backing array. This is a special case that it
+-		// would be nice to handle more generally, but because
+-		// there are no []byte-keyed maps, this specific case comes
+-		// up in important cases in practice. See issue 3512.
+-		// Nothing can change the []byte we are not copying before
+-		// the map index, because the map access is going to
+-		// be forced to happen immediately following this
+-		// conversion (by the ordercopyexpr a few lines below).
+-		if !n.IndexMapLValue() && n.Right.Op == OARRAYBYTESTR {
+-			n.Right.Op = OARRAYBYTESTRTMP
+-			needCopy = true
++		if !n.IndexMapLValue() {
++			// Enforce that any []byte slices we are not copying
++			// can not be changed before the map index by forcing
++			// the map index to happen immediately following the
++			// conversions. See copyExpr a few lines below.
++			needCopy = mapKeyReplaceStrConv(n.Right)
++
++			if instrumenting {
++				// Race detector needs the copy so it can
++				// call treecopy on the result.
++				needCopy = true
++			}
+ 		}
+ 
+ 		n.Right = o.mapKeyTemp(n.Left.Type, n.Right)
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index 025c0398d3..1d9d09c698 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -370,3 +370,37 @@ func BenchmarkGoMapClear(b *testing.B) {
+ 		}
+ 	})
+ }
++
++func BenchmarkMapStringConversion(b *testing.B) {
++	for _, length := range []int{32, 64} {
++		b.Run(strconv.Itoa(length), func(b *testing.B) {
++			bytes := make([]byte, length)
++			b.Run("simple", func(b *testing.B) {
++				b.ReportAllocs()
++				m := make(map[string]int)
++				m[string(bytes)] = 0
++				for i := 0; i < b.N; i++ {
++					_ = m[string(bytes)]
++				}
++			})
++			b.Run("struct", func(b *testing.B) {
++				b.ReportAllocs()
++				type stringstruct struct{ s string }
++				m := make(map[stringstruct]int)
++				m[stringstruct{string(bytes)}] = 0
++				for i := 0; i < b.N; i++ {
++					_ = m[stringstruct{string(bytes)}]
++				}
++			})
++			b.Run("array", func(b *testing.B) {
++				b.ReportAllocs()
++				type stringarray [1]string
++				m := make(map[stringarray]int)
++				m[stringarray{string(bytes)}] = 0
++				for i := 0; i < b.N; i++ {
++					_ = m[stringarray{string(bytes)}]
++				}
++			})
++		})
++	}
++}
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index d10bd96f43..839e882cdc 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -135,7 +135,8 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
+ // and otherwise intrinsified by the compiler.
+ //
+ // Some internal compiler optimizations use this function.
+-// - Used for m[string(k)] lookup where m is a string-keyed map and k is a []byte.
++// - Used for m[T1{... Tn{..., string(k), ...} ...}] and m[string(k)]
++//   where k is []byte, T1 to Tn is a nesting of struct and array literals.
+ // - Used for "<"+string(b)+">" concatenation where b is []byte.
+ // - Used for string(b)=="foo" comparison where b is []byte.
+ func slicebytetostringtmp(b []byte) string {
+diff --git a/test/codegen/maps.go b/test/codegen/maps.go
+index d167715898..8dd22ed5ca 100644
+--- a/test/codegen/maps.go
++++ b/test/codegen/maps.go
+@@ -37,6 +37,35 @@ func AccessString2(m map[string]int) bool {
+ 	return ok
+ }
+ 
++// ------------------- //
++//  String Conversion  //
++// ------------------- //
++
++func LookupStringConversionSimple(m map[string]int, bytes []byte) int {
++	// amd64:-`.*runtime\.slicebytetostring\(`
++	return m[string(bytes)]
++}
++
++func LookupStringConversionStructLit(m map[struct{ string }]int, bytes []byte) int {
++	// amd64:-`.*runtime\.slicebytetostring\(`
++	return m[struct{ string }{string(bytes)}]
++}
++
++func LookupStringConversionArrayLit(m map[[2]string]int, bytes []byte) int {
++	// amd64:-`.*runtime\.slicebytetostring\(`
++	return m[[2]string{string(bytes), string(bytes)}]
++}
++
++func LookupStringConversionNestedLit(m map[[1]struct{ s [1]string }]int, bytes []byte) int {
++	// amd64:-`.*runtime\.slicebytetostring\(`
++	return m[[1]struct{ s [1]string }{struct{ s [1]string }{s: [1]string{string(bytes)}}}]
++}
++
++func LookupStringConversionKeyedArrayLit(m map[[2]string]int, bytes []byte) int {
++	// amd64:-`.*runtime\.slicebytetostring\(`
++	return m[[2]string{0: string(bytes)}]
++}
++
+ // ------------------- //
+ //     Map Clear       //
+ // ------------------- //

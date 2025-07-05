@@ -12,6 +12,27 @@ Date:   Tue Jun 16 11:03:19 2015 -0700
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Yves Junqueira <yves.junqueira@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index c73abbf0f4..c36abc3aa8 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -633,6 +633,7 @@ func TestABIChecking(t *testing.T) {
+ 	// This assumes adding an exported function breaks ABI, which is not true in
+ 	// some senses but suffices for the narrow definition of ABI compatiblity the
+ 	// toolchain uses today.
++	resetFileStamps()
+ 	appendFile("src/dep/dep.go", "func ABIBreak() {}\n")
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
+ 	c := exec.Command("./bin/exe")
+@@ -662,6 +663,7 @@ func TestABIChecking(t *testing.T) {
+ 
+ 	// If we make a change which does not break ABI (such as adding an unexported
+ 	// function) and rebuild libdep.so, exe still works.
++	resetFileStamps()
+ 	appendFile("src/dep/dep.go", "func noABIBreak() {}\n")
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
+ 	run(t, "after non-ABI breaking change", "./bin/exe")

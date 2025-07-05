@@ -9,7 +9,107 @@ Date:   Thu Mar 8 23:56:26 2012 +0900
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5792043
-
+---
  src/cmd/gofmt/gofmt.go     | 10 +++++-----
  src/cmd/gofmt/long_test.go | 12 +++++++-----
  2 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 8e565563e4..2bb0b6754d 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -41,7 +41,7 @@ var (
+ )
+ 
+ var (
+-	fset        = token.NewFileSet()
++	fileSet     = token.NewFileSet() // per process FileSet
+ 	exitCode    = 0
+ 	rewrite     func(*ast.File) *ast.File
+ 	parserMode  parser.Mode
+@@ -98,7 +98,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 		return err
+ 	}
+ 
+-	file, adjust, err := parse(filename, src, stdin)
++	file, adjust, err := parse(fileSet, filename, src, stdin)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -111,14 +111,14 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 		}
+ 	}
+ 
+-	ast.SortImports(fset, file)
++	ast.SortImports(fileSet, file)
+ 
+ 	if *simplifyAST {
+ 		simplify(file)
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	err = (&printer.Config{Mode: printerMode, Tabwidth: *tabWidth}).Fprint(&buf, fset, file)
++	err = (&printer.Config{Mode: printerMode, Tabwidth: *tabWidth}).Fprint(&buf, fileSet, file)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -254,7 +254,7 @@ func diff(b1, b2 []byte) (data []byte, err error) {
+ 
+ // parse parses src, which was read from filename,
+ // as a Go source file or statement list.
+-func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, error) {
++func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, error) {
+ 	// Try as whole source file.
+ 	file, err := parser.ParseFile(fset, filename, src, parserMode)
+ 	if err == nil {
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index 9a589b1ba4..edbce606a5 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/printer"
++	"go/token"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -30,8 +31,8 @@ var (
+ 	nfiles  int // number of files processed
+ )
+ 
+-func gofmt(filename string, src *bytes.Buffer) error {
+-	f, _, err := parse(filename, src.Bytes(), false)
++func gofmt(fset *token.FileSet, filename string, src *bytes.Buffer) error {
++	f, _, err := parse(fset, filename, src.Bytes(), false)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -58,7 +59,8 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
+ 	}
+ 
+ 	// exclude files w/ syntax errors (typically test cases)
+-	if _, _, err = parse(filename, b1.Bytes(), false); err != nil {
++	fset := token.NewFileSet()
++	if _, _, err = parse(fset, filename, b1.Bytes(), false); err != nil {
+ 		if *verbose {
+ 			fmt.Fprintf(os.Stderr, "ignoring %s\n", err)
+ 		}
+@@ -66,7 +68,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
+ 	}
+ 
+ 	// gofmt file
+-	if err = gofmt(filename, b1); err != nil {
++	if err = gofmt(fset, filename, b1); err != nil {
+ 		t.Errorf("1st gofmt failed: %v", err)
+ 		return
+ 	}
+@@ -76,7 +78,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
+ 	b2.Write(b1.Bytes())
+ 
+ 	// gofmt result again
+-	if err = gofmt(filename, b2); err != nil {
++	if err = gofmt(fset, filename, b2); err != nil {
+ 		t.Errorf("2nd gofmt failed: %v", err)
+ 		return
+ 	}

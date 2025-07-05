@@ -18,7 +18,7 @@ Date:   Fri Mar 4 10:26:57 2016 -0800
     Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  22 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 +-
  src/cmd/compile/internal/ssa/gen/rulegen.go    |  12 +-
@@ -26,3 +26,569 @@ Date:   Fri Mar 4 10:26:57 2016 -0800
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 303 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go |  26 +--
  6 files changed, 350 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 73fa700d93..35d0848233 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1162,3 +1162,25 @@
+ (CMPLconst (ANDLconst [c] x) [0]) -> (TESTLconst [c] x)
+ (CMPWconst (ANDWconst [c] x) [0]) -> (TESTWconst [c] x)
+ (CMPBconst (ANDBconst [c] x) [0]) -> (TESTBconst [c] x)
++
++// Combining byte loads into larger (unaligned) loads.
++// There are many ways these combinations could occur.  This is
++// designed to match the way encoding/binary.LittleEndian does it.
++(ORW                (MOVBQZXload [i]   {s} p mem)
++     (SHLWconst [8] (MOVBQZXload [i+1] {s} p mem))) -> (MOVWload p mem)
++
++(ORL (ORL (ORL
++                    (MOVBQZXload [i]   {s} p mem)
++    (SHLLconst [8]  (MOVBQZXload [i+1] {s} p mem)))
++    (SHLLconst [16] (MOVBQZXload [i+2] {s} p mem)))
++    (SHLLconst [24] (MOVBQZXload [i+3] {s} p mem))) -> (MOVLload p mem)
++
++(ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ
++                    (MOVBQZXload [i]   {s} p mem)
++    (SHLQconst [8]  (MOVBQZXload [i+1] {s} p mem)))
++    (SHLQconst [16] (MOVBQZXload [i+2] {s} p mem)))
++    (SHLQconst [24] (MOVBQZXload [i+3] {s} p mem)))
++    (SHLQconst [32] (MOVBQZXload [i+4] {s} p mem)))
++    (SHLQconst [40] (MOVBQZXload [i+5] {s} p mem)))
++    (SHLQconst [48] (MOVBQZXload [i+6] {s} p mem)))
++    (SHLQconst [56] (MOVBQZXload [i+7] {s} p mem))) -> (MOVQload p mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 4ec24e1c08..f3c66bf328 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -372,13 +372,13 @@ func init() {
+ 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
+ 		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem
+ 		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff"},             // ditto, extend to int64
+-		{name: "MOVBQZXload", argLength: 2, reg: gpload, asm: "MOVBQZX", aux: "SymOff"},             // ditto, extend to uint64
++		{name: "MOVBQZXload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff"},             // ditto, extend to uint64
+ 		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem
+ 		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff"},             // ditto, extend to int64
+-		{name: "MOVWQZXload", argLength: 2, reg: gpload, asm: "MOVWQZX", aux: "SymOff"},             // ditto, extend to uint64
++		{name: "MOVWQZXload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff"},             // ditto, extend to uint64
+ 		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32"},    // load 4 bytes from arg0+auxint+aux. arg1=mem
+ 		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff"},             // ditto, extend to int64
+-		{name: "MOVLQZXload", argLength: 2, reg: gpload, asm: "MOVLQZX", aux: "SymOff"},             // ditto, extend to uint64
++		{name: "MOVLQZXload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff"},                // ditto, extend to uint64
+ 		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64"},    // load 8 bytes from arg0+auxint+aux. arg1=mem
+ 		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},     // store byte in arg1 to arg0+auxint+aux. arg2=mem
+ 		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 61a420270f..9cb44f4f53 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -352,9 +352,9 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
+ 				fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
+ 			} else {
+ 				// variable
+-				if u, ok := m[t]; ok {
++				if _, ok := m[t]; ok {
+ 					// must match previous variable
+-					fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, u)
++					fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
+ 				} else {
+ 					m[t] = v + ".Type"
+ 					fmt.Fprintf(w, "%s := %s.Type\n", t, v)
+@@ -368,8 +368,8 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
+ 				fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, x)
+ 			} else {
+ 				// variable
+-				if y, ok := m[x]; ok {
+-					fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, y)
++				if _, ok := m[x]; ok {
++					fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, x)
+ 				} else {
+ 					m[x] = v + ".AuxInt"
+ 					fmt.Fprintf(w, "%s := %s.AuxInt\n", x, v)
+@@ -383,8 +383,8 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
+ 				fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, x)
+ 			} else {
+ 				// variable
+-				if y, ok := m[x]; ok {
+-					fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, y)
++				if _, ok := m[x]; ok {
++					fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, x)
+ 				} else {
+ 					m[x] = v + ".Aux"
+ 					fmt.Fprintf(w, "%s := %s.Aux\n", x, v)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 34809a7508..cbd5ece894 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -3272,7 +3272,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "MOVBQZXload",
+ 		auxType: auxSymOff,
+ 		argLen:  2,
+-		asm:     x86.AMOVBQZX,
++		asm:     x86.AMOVBLZX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3314,7 +3314,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "MOVWQZXload",
+ 		auxType: auxSymOff,
+ 		argLen:  2,
+-		asm:     x86.AMOVWQZX,
++		asm:     x86.AMOVWLZX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3356,7 +3356,7 @@ var opcodeTable = [...]opInfo{
+ 		name:    "MOVLQZXload",
+ 		auxType: auxSymOff,
+ 		argLen:  2,
+-		asm:     x86.AMOVLQZX,
++		asm:     x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index bed44ef103..0675d86d3f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -9463,6 +9463,91 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ORL (ORL (ORL                     (MOVBQZXload [i]   {s} p mem)     (SHLLconst [8]  (MOVBQZXload [i+1] {s} p mem)))     (SHLLconst [16] (MOVBQZXload [i+2] {s} p mem)))     (SHLLconst [24] (MOVBQZXload [i+3] {s} p mem)))
++	// cond:
++	// result: (MOVLload p mem)
++	for {
++		if v.Args[0].Op != OpAMD64ORL {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpAMD64ORL {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		i := v.Args[0].Args[0].Args[0].AuxInt
++		s := v.Args[0].Args[0].Args[0].Aux
++		p := v.Args[0].Args[0].Args[0].Args[0]
++		mem := v.Args[0].Args[0].Args[0].Args[1]
++		if v.Args[0].Args[0].Args[1].Op != OpAMD64SHLLconst {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].AuxInt != 8 {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].AuxInt != i+1 {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		if v.Args[0].Args[1].Op != OpAMD64SHLLconst {
++			break
++		}
++		if v.Args[0].Args[1].AuxInt != 16 {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].AuxInt != i+2 {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		if v.Args[1].Op != OpAMD64SHLLconst {
++			break
++		}
++		if v.Args[1].AuxInt != 24 {
++			break
++		}
++		if v.Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[1].Args[0].AuxInt != i+3 {
++			break
++		}
++		if v.Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		v.reset(OpAMD64MOVLload)
++		v.AddArg(p)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ORLconst(v *Value, config *Config) bool {
+@@ -9559,6 +9644,187 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ                     (MOVBQZXload [i]   {s} p mem)     (SHLQconst [8]  (MOVBQZXload [i+1] {s} p mem)))     (SHLQconst [16] (MOVBQZXload [i+2] {s} p mem)))     (SHLQconst [24] (MOVBQZXload [i+3] {s} p mem)))     (SHLQconst [32] (MOVBQZXload [i+4] {s} p mem)))     (SHLQconst [40] (MOVBQZXload [i+5] {s} p mem)))     (SHLQconst [48] (MOVBQZXload [i+6] {s} p mem)))     (SHLQconst [56] (MOVBQZXload [i+7] {s} p mem)))
++	// cond:
++	// result: (MOVQload p mem)
++	for {
++		if v.Args[0].Op != OpAMD64ORQ {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpAMD64ORQ {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Op != OpAMD64ORQ {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Op != OpAMD64ORQ {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Op != OpAMD64ORQ {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Op != OpAMD64ORQ {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		i := v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].AuxInt
++		s := v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Aux
++		p := v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0]
++		mem := v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1]
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].AuxInt != 8 {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].AuxInt != i+1 {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].AuxInt != 16 {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].AuxInt != i+2 {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[1].AuxInt != 24 {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].AuxInt != i+3 {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[1].AuxInt != 32 {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[1].Args[0].AuxInt != i+4 {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[0].Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].AuxInt != 40 {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].AuxInt != i+5 {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		if v.Args[0].Args[1].Op != OpAMD64SHLQconst {
++			break
++		}
++		if v.Args[0].Args[1].AuxInt != 48 {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].AuxInt != i+6 {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[0].Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		if v.Args[1].Op != OpAMD64SHLQconst {
++			break
++		}
++		if v.Args[1].AuxInt != 56 {
++			break
++		}
++		if v.Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[1].Args[0].AuxInt != i+7 {
++			break
++		}
++		if v.Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		v.reset(OpAMD64MOVQload)
++		v.AddArg(p)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ORQconst(v *Value, config *Config) bool {
+@@ -9647,6 +9913,43 @@ func rewriteValueAMD64_OpAMD64ORW(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ORW                (MOVBQZXload [i]   {s} p mem)      (SHLWconst [8] (MOVBQZXload [i+1] {s} p mem)))
++	// cond:
++	// result: (MOVWload p mem)
++	for {
++		if v.Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		i := v.Args[0].AuxInt
++		s := v.Args[0].Aux
++		p := v.Args[0].Args[0]
++		mem := v.Args[0].Args[1]
++		if v.Args[1].Op != OpAMD64SHLWconst {
++			break
++		}
++		if v.Args[1].AuxInt != 8 {
++			break
++		}
++		if v.Args[1].Args[0].Op != OpAMD64MOVBQZXload {
++			break
++		}
++		if v.Args[1].Args[0].AuxInt != i+1 {
++			break
++		}
++		if v.Args[1].Args[0].Aux != s {
++			break
++		}
++		if v.Args[1].Args[0].Args[0] != p {
++			break
++		}
++		if v.Args[1].Args[0].Args[1] != mem {
++			break
++		}
++		v.reset(OpAMD64MOVWload)
++		v.AddArg(p)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ORWconst(v *Value, config *Config) bool {
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 4b22653cdb..1ed5fa9555 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1708,7 +1708,7 @@ func rewriteValuegeneric_OpEq16(v *Value, config *Config) bool {
+ 		if v.Args[1].Args[0].Op != OpConst16 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -1788,7 +1788,7 @@ func rewriteValuegeneric_OpEq32(v *Value, config *Config) bool {
+ 		if v.Args[1].Args[0].Op != OpConst32 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -1868,7 +1868,7 @@ func rewriteValuegeneric_OpEq64(v *Value, config *Config) bool {
+ 		if v.Args[1].Args[0].Op != OpConst64 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -1995,7 +1995,7 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
+ 		if v.Args[1].Args[0].Op != OpConst8 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -4057,13 +4057,13 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
+ 		if v.Args[1].Op != OpAdd32 {
+ 			break
+ 		}
+-		if v.Args[1].Type != v.Args[0].Type {
++		if v.Args[1].Type != t {
+ 			break
+ 		}
+ 		if v.Args[1].Args[0].Op != OpConst32 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -4147,13 +4147,13 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
+ 		if v.Args[1].Op != OpAdd64 {
+ 			break
+ 		}
+-		if v.Args[1].Type != v.Args[0].Type {
++		if v.Args[1].Type != t {
+ 			break
+ 		}
+ 		if v.Args[1].Args[0].Op != OpConst64 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -4395,7 +4395,7 @@ func rewriteValuegeneric_OpNeq16(v *Value, config *Config) bool {
+ 		if v.Args[1].Args[0].Op != OpConst16 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -4475,7 +4475,7 @@ func rewriteValuegeneric_OpNeq32(v *Value, config *Config) bool {
+ 		if v.Args[1].Args[0].Op != OpConst32 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -4555,7 +4555,7 @@ func rewriteValuegeneric_OpNeq64(v *Value, config *Config) bool {
+ 		if v.Args[1].Args[0].Op != OpConst64 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -4682,7 +4682,7 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
+ 		if v.Args[1].Args[0].Op != OpConst8 {
+ 			break
+ 		}
+-		if v.Args[1].Args[0].Type != v.Args[0].Type {
++		if v.Args[1].Args[0].Type != t {
+ 			break
+ 		}
+ 		d := v.Args[1].Args[0].AuxInt
+@@ -5173,7 +5173,7 @@ func rewriteValuegeneric_OpPhi(v *Value, config *Config) bool {
+ 		if v.Args[1].Op != OpConst64 {
+ 			break
+ 		}
+-		if v.Args[1].AuxInt != v.Args[0].AuxInt {
++		if v.Args[1].AuxInt != c {
+ 			break
+ 		}
+ 		if len(v.Args) != 2 {

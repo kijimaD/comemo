@@ -9,6 +9,20 @@ Date:   Thu Jun 8 12:05:31 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 26f36b5119..dd1f79b72e 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -436,7 +436,7 @@ def find_goroutine(goid):
+ 	for thr in gdb.selected_inferior().threads():
+ 		if thr.ptid[1] == m['procid']:
+ 			break
+-        else:
++	else:
+ 		return None, None
+ 	# Get scheduler state from the G's OS thread state.
+ 	curthr = gdb.selected_thread()

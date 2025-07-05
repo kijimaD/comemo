@@ -17,7 +17,7 @@ Date:   Fri Feb 23 13:07:11 2024 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  doc/godebug.md                 |  5 -----
  src/internal/godebugs/table.go |  1 -
  src/os/exec.go                 |  9 +--------
@@ -26,3 +26,144 @@ Date:   Fri Feb 23 13:07:11 2024 -0500
  src/os/pidfd_other.go          |  4 ----
  src/runtime/metrics/doc.go     |  4 ----
  7 files changed, 3 insertions(+), 50 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 9dbbab284d..a7619c9a3d 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -126,11 +126,6 @@ for example,
+ see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
+ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
+ 
+-### Go 1.23
+-
+-Go 1.23 enabled Linux pidfd support for process lookup. This feature can be
+-disabled by using the [`osfinderr` setting](/pkg/os#FindProcess).
+-
+ ### Go 1.22
+ 
+ Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 4ac306b323..a0a0672966 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -42,7 +42,6 @@ var All = []Info{
+ 	{Name: "multipartmaxparts", Package: "mime/multipart"},
+ 	{Name: "multipathtcp", Package: "net"},
+ 	{Name: "netdns", Package: "net", Opaque: true},
+-	{Name: "osfinderr", Package: "os"},
+ 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
+ 	{Name: "randautoseed", Package: "math/rand"},
+ 	{Name: "tarinsecurepath", Package: "archive/tar"},
+diff --git a/src/os/exec.go b/src/os/exec.go
+index 7ef1fee595..42e8a399a9 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -86,17 +86,10 @@ func Getppid() int { return syscall.Getppid() }
+ // The Process it returns can be used to obtain information
+ // about the underlying operating system process.
+ //
+-// On Unix systems other than Linux, FindProcess always succeeds and returns a Process
++// On Unix systems, FindProcess always succeeds and returns a Process
+ // for the given pid, regardless of whether the process exists. To test whether
+ // the process actually exists, see whether p.Signal(syscall.Signal(0)) reports
+ // an error.
+-//
+-// On Linux, FindProcess may either return ErrProcessGone for a non-existing
+-// process (thus eliminating the need to use a signal to check if the process
+-// exists), or work the same way as for other Unix systems, described above,
+-// depending on the kernel version used and the system configuration. The old
+-// behavior (of always succeeding) can be enforced by using GODEBUG setting
+-// osfinderr=0.
+ func FindProcess(pid int) (*Process, error) {
+ 	return findProcess(pid)
+ }
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 21d03da48e..2c66a8be20 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -106,14 +106,8 @@ func (p *Process) release() error {
+ }
+ 
+ func findProcess(pid int) (p *Process, err error) {
+-	h, err := pidfdFind(pid)
+-	if err == ErrProcessDone {
+-		return nil, err
+-	}
+-	// Ignore all other errors from pidfdFind,
+-	// as the callers do not expect them, and
+-	// we can use pid anyway.
+-	return newProcess(pid, h), nil
++	// NOOP for unix.
++	return newProcess(pid, unsetHandle), nil
+ }
+ 
+ func (p *ProcessState) userTime() time.Duration {
+diff --git a/src/os/pidfd_linux.go b/src/os/pidfd_linux.go
+index cc67dfa05f..d6e1d53eee 100644
+--- a/src/os/pidfd_linux.go
++++ b/src/os/pidfd_linux.go
+@@ -14,7 +14,6 @@
+ package os
+ 
+ import (
+-	"internal/godebug"
+ 	"internal/syscall/unix"
+ 	"sync"
+ 	"syscall"
+@@ -50,25 +49,6 @@ func getPidfd(sysAttr *syscall.SysProcAttr) uintptr {
+ 	return uintptr(*sysAttr.PidFD)
+ }
+ 
+-var osfinderr = godebug.New("osfinderr")
+-
+-func pidfdFind(pid int) (uintptr, error) {
+-	if !pidfdWorks() {
+-		return unsetHandle, syscall.ENOSYS
+-	}
+-	if osfinderr.Value() == "0" {
+-		osfinderr.IncNonDefault()
+-		return unsetHandle, syscall.ENOSYS
+-
+-	}
+-
+-	h, err := unix.PidFDOpen(pid, 0)
+-	if err == nil {
+-		return h, nil
+-	}
+-	return unsetHandle, convertESRCH(err)
+-}
+-
+ func (p *Process) pidfdRelease() {
+ 	// Release pidfd unconditionally.
+ 	handle := p.handle.Swap(unsetHandle)
+diff --git a/src/os/pidfd_other.go b/src/os/pidfd_other.go
+index bb38c72404..1918acbec5 100644
+--- a/src/os/pidfd_other.go
++++ b/src/os/pidfd_other.go
+@@ -16,10 +16,6 @@ func getPidfd(_ *syscall.SysProcAttr) uintptr {
+ 	return unsetHandle
+ }
+ 
+-func pidfdFind(_ int) (uintptr, error) {
+-	return unsetHandle, syscall.ENOSYS
+-}
+-
+ func (p *Process) pidfdRelease() {}
+ 
+ func (_ *Process) pidfdWait() (*ProcessState, error) {
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index d1c2f8aa25..fb2f44da29 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -290,10 +290,6 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the net package
+ 		due to a non-default GODEBUG=multipathtcp=... setting.
+ 
+-	/godebug/non-default-behavior/osfinderr:events
+-		The number of non-default behaviors executed by the os package
+-		due to a non-default GODEBUG=osfinderr=... setting.
+-
+ 	/godebug/non-default-behavior/panicnil:events
+ 		The number of non-default behaviors executed by the runtime
+ 		package due to a non-default GODEBUG=panicnil=... setting.

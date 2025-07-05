@@ -21,7 +21,7 @@ Date:   Fri Sep 1 20:32:07 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ir/node.go                |  23 +-
  src/cmd/compile/internal/ir/node_gen.go            |  46 +++
  src/cmd/compile/internal/ir/op_string.go           |  21 +-
@@ -37,3 +37,1394 @@ Date:   Fri Sep 1 20:32:07 2023 -0700
  src/runtime/iface.go                               |  16 +
  test/codegen/switch.go                             |  21 ++
  14 files changed, 742 insertions(+), 355 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a6e8f0e3e5..6513386f03 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -282,17 +282,18 @@ const (
+ 	// for the captured variables, parameters, retvars, & INLMARK op),
+ 	// Body (body of the inlined function), and ReturnVars (list of
+ 	// return values)
+-	OINLCALL       // intermediary representation of an inlined call.
+-	OMAKEFACE      // construct an interface value from rtype/itab and data pointers
+-	OITAB          // rtype/itab pointer of an interface value
+-	OIDATA         // data pointer of an interface value
+-	OSPTR          // base pointer of a slice or string. Bounded==1 means known non-nil.
+-	OCFUNC         // reference to c function pointer (not go func value)
+-	OCHECKNIL      // emit code to ensure pointer/interface not nil
+-	ORESULT        // result of a function call; Xoffset is stack offset
+-	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+-	OLINKSYMOFFSET // offset within a name
+-	OJUMPTABLE     // A jump table structure for implementing dense expression switches
++	OINLCALL         // intermediary representation of an inlined call.
++	OMAKEFACE        // construct an interface value from rtype/itab and data pointers
++	OITAB            // rtype/itab pointer of an interface value
++	OIDATA           // data pointer of an interface value
++	OSPTR            // base pointer of a slice or string. Bounded==1 means known non-nil.
++	OCFUNC           // reference to c function pointer (not go func value)
++	OCHECKNIL        // emit code to ensure pointer/interface not nil
++	ORESULT          // result of a function call; Xoffset is stack offset
++	OINLMARK         // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
++	OLINKSYMOFFSET   // offset within a name
++	OJUMPTABLE       // A jump table structure for implementing dense expression switches
++	OINTERFACESWITCH // A type switch with interface cases
+ 
+ 	// opcodes for generics
+ 	ODYNAMICDOTTYPE  // x = i.(T) where T is a type parameter (or derived from a type parameter)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index d24c6dbd38..fc28067629 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -847,6 +847,52 @@ func (n *InlinedCallExpr) editChildrenWithHidden(edit func(Node) Node) {
+ 	editNodes(n.ReturnVars, edit)
+ }
+ 
++func (n *InterfaceSwitchStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
++func (n *InterfaceSwitchStmt) copy() Node {
++	c := *n
++	c.init = copyNodes(c.init)
++	return &c
++}
++func (n *InterfaceSwitchStmt) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Case != nil && do(n.Case) {
++		return true
++	}
++	if n.Itab != nil && do(n.Itab) {
++		return true
++	}
++	if n.RuntimeType != nil && do(n.RuntimeType) {
++		return true
++	}
++	return false
++}
++func (n *InterfaceSwitchStmt) editChildren(edit func(Node) Node) {
++	editNodes(n.init, edit)
++	if n.Case != nil {
++		n.Case = edit(n.Case).(Node)
++	}
++	if n.Itab != nil {
++		n.Itab = edit(n.Itab).(Node)
++	}
++	if n.RuntimeType != nil {
++		n.RuntimeType = edit(n.RuntimeType).(Node)
++	}
++}
++func (n *InterfaceSwitchStmt) editChildrenWithHidden(edit func(Node) Node) {
++	editNodes(n.init, edit)
++	if n.Case != nil {
++		n.Case = edit(n.Case).(Node)
++	}
++	if n.Itab != nil {
++		n.Itab = edit(n.Itab).(Node)
++	}
++	if n.RuntimeType != nil {
++		n.RuntimeType = edit(n.RuntimeType).(Node)
++	}
++}
++
+ func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *JumpTableStmt) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 6c3f666c87..fb97ac68f4 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -151,19 +151,20 @@ func _() {
+ 	_ = x[OINLMARK-140]
+ 	_ = x[OLINKSYMOFFSET-141]
+ 	_ = x[OJUMPTABLE-142]
+-	_ = x[ODYNAMICDOTTYPE-143]
+-	_ = x[ODYNAMICDOTTYPE2-144]
+-	_ = x[ODYNAMICTYPE-145]
+-	_ = x[OTAILCALL-146]
+-	_ = x[OGETG-147]
+-	_ = x[OGETCALLERPC-148]
+-	_ = x[OGETCALLERSP-149]
+-	_ = x[OEND-150]
++	_ = x[OINTERFACESWITCH-143]
++	_ = x[ODYNAMICDOTTYPE-144]
++	_ = x[ODYNAMICDOTTYPE2-145]
++	_ = x[ODYNAMICTYPE-146]
++	_ = x[OTAILCALL-147]
++	_ = x[OGETG-148]
++	_ = x[OGETCALLERPC-149]
++	_ = x[OGETCALLERSP-150]
++	_ = x[OEND-151]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLEARCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERSTRINGHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2MINMAXREALIMAGCOMPLEXUNSAFEADDUNSAFESLICEUNSAFESLICEDATAUNSAFESTRINGUNSAFESTRINGDATAMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWINLCALLMAKEFACEITABIDATASPTRCFUNCCHECKNILRESULTINLMARKLINKSYMOFFSETJUMPTABLEDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
++const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLEARCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERSTRINGHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2MINMAXREALIMAGCOMPLEXUNSAFEADDUNSAFESLICEUNSAFESLICEDATAUNSAFESTRINGUNSAFESTRINGDATAMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWINLCALLMAKEFACEITABIDATASPTRCFUNCCHECKNILRESULTINLMARKLINKSYMOFFSETJUMPTABLEINTERFACESWITCHDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 129, 141, 143, 146, 156, 163, 170, 177, 181, 185, 193, 201, 210, 213, 218, 223, 230, 237, 243, 252, 260, 268, 274, 278, 287, 294, 298, 301, 308, 314, 317, 323, 330, 338, 342, 349, 357, 359, 361, 363, 365, 367, 369, 374, 379, 387, 390, 399, 402, 406, 414, 421, 430, 443, 446, 449, 452, 455, 458, 461, 467, 470, 473, 479, 483, 486, 490, 495, 500, 506, 511, 515, 520, 528, 536, 542, 551, 562, 574, 581, 590, 594, 601, 609, 612, 615, 619, 623, 630, 639, 650, 665, 677, 693, 701, 710, 715, 720, 724, 732, 737, 741, 744, 748, 750, 755, 757, 762, 768, 774, 780, 786, 793, 801, 805, 810, 814, 819, 827, 833, 840, 853, 862, 876, 891, 902, 910, 914, 925, 936, 939}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 129, 141, 143, 146, 156, 163, 170, 177, 181, 185, 193, 201, 210, 213, 218, 223, 230, 237, 243, 252, 260, 268, 274, 278, 287, 294, 298, 301, 308, 314, 317, 323, 330, 338, 342, 349, 357, 359, 361, 363, 365, 367, 369, 374, 379, 387, 390, 399, 402, 406, 414, 421, 430, 443, 446, 449, 452, 455, 458, 461, 467, 470, 473, 479, 483, 486, 490, 495, 500, 506, 511, 515, 520, 528, 536, 542, 551, 562, 574, 581, 590, 594, 601, 609, 612, 615, 619, 623, 630, 639, 650, 665, 677, 693, 701, 710, 715, 720, 724, 732, 737, 741, 744, 748, 750, 755, 757, 762, 768, 774, 780, 786, 793, 801, 805, 810, 814, 819, 827, 833, 840, 853, 862, 877, 891, 906, 917, 925, 929, 940, 951, 954}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index b3d6b0fbd5..81d139cf12 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -7,6 +7,7 @@ package ir
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"go/constant"
+ )
+@@ -309,6 +310,42 @@ func NewJumpTableStmt(pos src.XPos, idx Node) *JumpTableStmt {
+ 	return n
+ }
+ 
++// An InterfaceSwitchStmt is used to implement type switches.
++// Its semantics are:
++//
++//     if RuntimeType implements Descriptor.Cases[0] {
++//         Case, Itab = 0, itab<RuntimeType, Descriptor.Cases[0]>
++//     } else if RuntimeType implements Descriptor.Cases[1] {
++//         Case, Itab = 1, itab<RuntimeType, Descriptor.Cases[1]>
++//     ...
++//     } else if RuntimeType implements Descriptor.Cases[N-1] {
++//         Case, Itab = N-1, itab<RuntimeType, Descriptor.Cases[N-1]>
++//     } else {
++//         Case, Itab = len(cases), nil
++//     }
++// RuntimeType must be a non-nil *runtime._type.
++// Descriptor must represent an abi.InterfaceSwitch global variable.
++type InterfaceSwitchStmt struct {
++	miniStmt
++
++	Case        Node
++	Itab        Node
++	RuntimeType Node
++	Descriptor  *obj.LSym
++}
++
++func NewInterfaceSwitchStmt(pos src.XPos, case_, itab, runtimeType Node, descriptor *obj.LSym) *InterfaceSwitchStmt {
++	n := &InterfaceSwitchStmt{
++		Case:        case_,
++		Itab:        itab,
++		RuntimeType: runtimeType,
++		Descriptor:  descriptor,
++	}
++	n.pos = pos
++	n.op = OINTERFACESWITCH
++	return n
++}
++
+ // An InlineMarkStmt is a marker placed just before an inlined body.
+ type InlineMarkStmt struct {
+ 	miniStmt
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 4021035aa8..2c366ec7bd 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -31,6 +31,7 @@ type symsStruct struct {
+ 	GCWriteBarrier    [8]*obj.LSym
+ 	Goschedguarded    *obj.LSym
+ 	Growslice         *obj.LSym
++	InterfaceSwitch   *obj.LSym
+ 	Memmove           *obj.LSym
+ 	Msanread          *obj.LSym
+ 	Msanwrite         *obj.LSym
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 84ea74aec5..aa2c962de0 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -118,6 +118,7 @@ func InitConfig() {
+ 	ir.Syms.GCWriteBarrier[7] = typecheck.LookupRuntimeFunc("gcWriteBarrier8")
+ 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
+ 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
++	ir.Syms.InterfaceSwitch = typecheck.LookupRuntimeFunc("interfaceSwitch")
+ 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
+ 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
+ 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
+@@ -2017,6 +2018,15 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 		s.startBlock(bEnd)
+ 
++	case ir.OINTERFACESWITCH:
++		n := n.(*ir.InterfaceSwitchStmt)
++
++		t := s.expr(n.RuntimeType)
++		d := s.newValue1A(ssa.OpAddr, s.f.Config.Types.BytePtr, n.Descriptor, s.sb)
++		r := s.rtcall(ir.Syms.InterfaceSwitch, true, []*types.Type{s.f.Config.Types.Int, s.f.Config.Types.BytePtr}, d, t)
++		s.assign(n.Case, r[0], false, 0)
++		s.assign(n.Itab, r[1], false, 0)
++
+ 	case ir.OCHECKNIL:
+ 		n := n.(*ir.UnaryExpr)
+ 		p := s.expr(n.X)
+diff --git a/src/cmd/compile/internal/test/switch_test.go b/src/cmd/compile/internal/test/switch_test.go
+index ddb39bfe5f..1d12361cbb 100644
+--- a/src/cmd/compile/internal/test/switch_test.go
++++ b/src/cmd/compile/internal/test/switch_test.go
+@@ -160,6 +160,123 @@ func benchmarkSwitchType(b *testing.B, predictable bool) {
+ 			n += 8
+ 		}
+ 	}
++	sink = n
++}
++
++func BenchmarkSwitchInterfaceTypePredictable(b *testing.B) {
++	benchmarkSwitchInterfaceType(b, true)
++}
++func BenchmarkSwitchInterfaceTypeUnpredictable(b *testing.B) {
++	benchmarkSwitchInterfaceType(b, false)
++}
++
++type SI0 interface {
++	si0()
++}
++type ST0 struct {
++}
++
++func (ST0) si0() {
++}
++
++type SI1 interface {
++	si1()
++}
++type ST1 struct {
++}
++
++func (ST1) si1() {
++}
++
++type SI2 interface {
++	si2()
++}
++type ST2 struct {
++}
++
++func (ST2) si2() {
++}
++
++type SI3 interface {
++	si3()
++}
++type ST3 struct {
++}
++
++func (ST3) si3() {
++}
++
++type SI4 interface {
++	si4()
++}
++type ST4 struct {
++}
++
++func (ST4) si4() {
++}
++
++type SI5 interface {
++	si5()
++}
++type ST5 struct {
++}
++
++func (ST5) si5() {
++}
++
++type SI6 interface {
++	si6()
++}
++type ST6 struct {
++}
++
++func (ST6) si6() {
++}
++
++type SI7 interface {
++	si7()
++}
++type ST7 struct {
++}
++
++func (ST7) si7() {
++}
++
++func benchmarkSwitchInterfaceType(b *testing.B, predictable bool) {
++	a := []any{
++		ST0{},
++		ST1{},
++		ST2{},
++		ST3{},
++		ST4{},
++		ST5{},
++		ST6{},
++		ST7{},
++	}
++	n := 0
++	rng := newRNG()
++	for i := 0; i < b.N; i++ {
++		rng = rng.next(predictable)
++		switch a[rng.value()&7].(type) {
++		case SI0:
++			n += 1
++		case SI1:
++			n += 2
++		case SI2:
++			n += 3
++		case SI3:
++			n += 4
++		case SI4:
++			n += 5
++		case SI5:
++			n += 6
++		case SI6:
++			n += 7
++		case SI7:
++			n += 8
++		}
++	}
++	sink = n
+ }
+ 
+ // A simple random number generator used to make switches conditionally predictable.
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index c758d7f4b7..1e68fddaa0 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -112,6 +112,9 @@ func panicdottypeE(have, want, iface *byte)
+ func panicdottypeI(have, want, iface *byte)
+ func panicnildottype(want *byte)
+ 
++// interface switches
++func interfaceSwitch(s *byte, t *byte) (int, *byte)
++
+ // interface equality. Type/itab pointers are already known to be equal, so
+ // we only need to pass one.
+ func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 2caa9a6484..fb1c3d7cf8 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -101,141 +101,142 @@ var runtimeDecls = [...]struct {
+ 	{"panicdottypeE", funcTag, 71},
+ 	{"panicdottypeI", funcTag, 71},
+ 	{"panicnildottype", funcTag, 72},
+-	{"ifaceeq", funcTag, 73},
+-	{"efaceeq", funcTag, 73},
+-	{"deferrangefunc", funcTag, 74},
+-	{"fastrand", funcTag, 75},
+-	{"makemap64", funcTag, 77},
+-	{"makemap", funcTag, 78},
+-	{"makemap_small", funcTag, 79},
+-	{"mapaccess1", funcTag, 80},
+-	{"mapaccess1_fast32", funcTag, 81},
+-	{"mapaccess1_fast64", funcTag, 82},
+-	{"mapaccess1_faststr", funcTag, 83},
+-	{"mapaccess1_fat", funcTag, 84},
+-	{"mapaccess2", funcTag, 85},
+-	{"mapaccess2_fast32", funcTag, 86},
+-	{"mapaccess2_fast64", funcTag, 87},
+-	{"mapaccess2_faststr", funcTag, 88},
+-	{"mapaccess2_fat", funcTag, 89},
+-	{"mapassign", funcTag, 80},
+-	{"mapassign_fast32", funcTag, 81},
+-	{"mapassign_fast32ptr", funcTag, 90},
+-	{"mapassign_fast64", funcTag, 82},
+-	{"mapassign_fast64ptr", funcTag, 90},
+-	{"mapassign_faststr", funcTag, 83},
+-	{"mapiterinit", funcTag, 91},
+-	{"mapdelete", funcTag, 91},
+-	{"mapdelete_fast32", funcTag, 92},
+-	{"mapdelete_fast64", funcTag, 93},
+-	{"mapdelete_faststr", funcTag, 94},
+-	{"mapiternext", funcTag, 95},
+-	{"mapclear", funcTag, 96},
+-	{"makechan64", funcTag, 98},
+-	{"makechan", funcTag, 99},
+-	{"chanrecv1", funcTag, 101},
+-	{"chanrecv2", funcTag, 102},
+-	{"chansend1", funcTag, 104},
++	{"interfaceSwitch", funcTag, 73},
++	{"ifaceeq", funcTag, 74},
++	{"efaceeq", funcTag, 74},
++	{"deferrangefunc", funcTag, 75},
++	{"fastrand", funcTag, 76},
++	{"makemap64", funcTag, 78},
++	{"makemap", funcTag, 79},
++	{"makemap_small", funcTag, 80},
++	{"mapaccess1", funcTag, 81},
++	{"mapaccess1_fast32", funcTag, 82},
++	{"mapaccess1_fast64", funcTag, 83},
++	{"mapaccess1_faststr", funcTag, 84},
++	{"mapaccess1_fat", funcTag, 85},
++	{"mapaccess2", funcTag, 86},
++	{"mapaccess2_fast32", funcTag, 87},
++	{"mapaccess2_fast64", funcTag, 88},
++	{"mapaccess2_faststr", funcTag, 89},
++	{"mapaccess2_fat", funcTag, 90},
++	{"mapassign", funcTag, 81},
++	{"mapassign_fast32", funcTag, 82},
++	{"mapassign_fast32ptr", funcTag, 91},
++	{"mapassign_fast64", funcTag, 83},
++	{"mapassign_fast64ptr", funcTag, 91},
++	{"mapassign_faststr", funcTag, 84},
++	{"mapiterinit", funcTag, 92},
++	{"mapdelete", funcTag, 92},
++	{"mapdelete_fast32", funcTag, 93},
++	{"mapdelete_fast64", funcTag, 94},
++	{"mapdelete_faststr", funcTag, 95},
++	{"mapiternext", funcTag, 96},
++	{"mapclear", funcTag, 97},
++	{"makechan64", funcTag, 99},
++	{"makechan", funcTag, 100},
++	{"chanrecv1", funcTag, 102},
++	{"chanrecv2", funcTag, 103},
++	{"chansend1", funcTag, 105},
+ 	{"closechan", funcTag, 30},
+-	{"writeBarrier", varTag, 106},
+-	{"typedmemmove", funcTag, 107},
+-	{"typedmemclr", funcTag, 108},
+-	{"typedslicecopy", funcTag, 109},
+-	{"selectnbsend", funcTag, 110},
+-	{"selectnbrecv", funcTag, 111},
+-	{"selectsetpc", funcTag, 112},
+-	{"selectgo", funcTag, 113},
++	{"writeBarrier", varTag, 107},
++	{"typedmemmove", funcTag, 108},
++	{"typedmemclr", funcTag, 109},
++	{"typedslicecopy", funcTag, 110},
++	{"selectnbsend", funcTag, 111},
++	{"selectnbrecv", funcTag, 112},
++	{"selectsetpc", funcTag, 113},
++	{"selectgo", funcTag, 114},
+ 	{"block", funcTag, 9},
+-	{"makeslice", funcTag, 114},
+-	{"makeslice64", funcTag, 115},
+-	{"makeslicecopy", funcTag, 116},
+-	{"growslice", funcTag, 118},
+-	{"unsafeslicecheckptr", funcTag, 119},
++	{"makeslice", funcTag, 115},
++	{"makeslice64", funcTag, 116},
++	{"makeslicecopy", funcTag, 117},
++	{"growslice", funcTag, 119},
++	{"unsafeslicecheckptr", funcTag, 120},
+ 	{"panicunsafeslicelen", funcTag, 9},
+ 	{"panicunsafeslicenilptr", funcTag, 9},
+-	{"unsafestringcheckptr", funcTag, 120},
++	{"unsafestringcheckptr", funcTag, 121},
+ 	{"panicunsafestringlen", funcTag, 9},
+ 	{"panicunsafestringnilptr", funcTag, 9},
+-	{"memmove", funcTag, 121},
+-	{"memclrNoHeapPointers", funcTag, 122},
+-	{"memclrHasPointers", funcTag, 122},
+-	{"memequal", funcTag, 123},
+-	{"memequal0", funcTag, 124},
+-	{"memequal8", funcTag, 124},
+-	{"memequal16", funcTag, 124},
+-	{"memequal32", funcTag, 124},
+-	{"memequal64", funcTag, 124},
+-	{"memequal128", funcTag, 124},
+-	{"f32equal", funcTag, 125},
+-	{"f64equal", funcTag, 125},
+-	{"c64equal", funcTag, 125},
+-	{"c128equal", funcTag, 125},
+-	{"strequal", funcTag, 125},
+-	{"interequal", funcTag, 125},
+-	{"nilinterequal", funcTag, 125},
+-	{"memhash", funcTag, 126},
+-	{"memhash0", funcTag, 127},
+-	{"memhash8", funcTag, 127},
+-	{"memhash16", funcTag, 127},
+-	{"memhash32", funcTag, 127},
+-	{"memhash64", funcTag, 127},
+-	{"memhash128", funcTag, 127},
+-	{"f32hash", funcTag, 128},
+-	{"f64hash", funcTag, 128},
+-	{"c64hash", funcTag, 128},
+-	{"c128hash", funcTag, 128},
+-	{"strhash", funcTag, 128},
+-	{"interhash", funcTag, 128},
+-	{"nilinterhash", funcTag, 128},
+-	{"int64div", funcTag, 129},
+-	{"uint64div", funcTag, 130},
+-	{"int64mod", funcTag, 129},
+-	{"uint64mod", funcTag, 130},
+-	{"float64toint64", funcTag, 131},
+-	{"float64touint64", funcTag, 132},
+-	{"float64touint32", funcTag, 133},
+-	{"int64tofloat64", funcTag, 134},
+-	{"int64tofloat32", funcTag, 136},
+-	{"uint64tofloat64", funcTag, 137},
+-	{"uint64tofloat32", funcTag, 138},
+-	{"uint32tofloat64", funcTag, 139},
+-	{"complex128div", funcTag, 140},
+-	{"getcallerpc", funcTag, 141},
+-	{"getcallersp", funcTag, 141},
++	{"memmove", funcTag, 122},
++	{"memclrNoHeapPointers", funcTag, 123},
++	{"memclrHasPointers", funcTag, 123},
++	{"memequal", funcTag, 124},
++	{"memequal0", funcTag, 125},
++	{"memequal8", funcTag, 125},
++	{"memequal16", funcTag, 125},
++	{"memequal32", funcTag, 125},
++	{"memequal64", funcTag, 125},
++	{"memequal128", funcTag, 125},
++	{"f32equal", funcTag, 126},
++	{"f64equal", funcTag, 126},
++	{"c64equal", funcTag, 126},
++	{"c128equal", funcTag, 126},
++	{"strequal", funcTag, 126},
++	{"interequal", funcTag, 126},
++	{"nilinterequal", funcTag, 126},
++	{"memhash", funcTag, 127},
++	{"memhash0", funcTag, 128},
++	{"memhash8", funcTag, 128},
++	{"memhash16", funcTag, 128},
++	{"memhash32", funcTag, 128},
++	{"memhash64", funcTag, 128},
++	{"memhash128", funcTag, 128},
++	{"f32hash", funcTag, 129},
++	{"f64hash", funcTag, 129},
++	{"c64hash", funcTag, 129},
++	{"c128hash", funcTag, 129},
++	{"strhash", funcTag, 129},
++	{"interhash", funcTag, 129},
++	{"nilinterhash", funcTag, 129},
++	{"int64div", funcTag, 130},
++	{"uint64div", funcTag, 131},
++	{"int64mod", funcTag, 130},
++	{"uint64mod", funcTag, 131},
++	{"float64toint64", funcTag, 132},
++	{"float64touint64", funcTag, 133},
++	{"float64touint32", funcTag, 134},
++	{"int64tofloat64", funcTag, 135},
++	{"int64tofloat32", funcTag, 137},
++	{"uint64tofloat64", funcTag, 138},
++	{"uint64tofloat32", funcTag, 139},
++	{"uint32tofloat64", funcTag, 140},
++	{"complex128div", funcTag, 141},
++	{"getcallerpc", funcTag, 142},
++	{"getcallersp", funcTag, 142},
+ 	{"racefuncenter", funcTag, 31},
+ 	{"racefuncexit", funcTag, 9},
+ 	{"raceread", funcTag, 31},
+ 	{"racewrite", funcTag, 31},
+-	{"racereadrange", funcTag, 142},
+-	{"racewriterange", funcTag, 142},
+-	{"msanread", funcTag, 142},
+-	{"msanwrite", funcTag, 142},
+-	{"msanmove", funcTag, 143},
+-	{"asanread", funcTag, 142},
+-	{"asanwrite", funcTag, 142},
+-	{"checkptrAlignment", funcTag, 144},
+-	{"checkptrArithmetic", funcTag, 146},
+-	{"libfuzzerTraceCmp1", funcTag, 147},
+-	{"libfuzzerTraceCmp2", funcTag, 148},
+-	{"libfuzzerTraceCmp4", funcTag, 149},
+-	{"libfuzzerTraceCmp8", funcTag, 150},
+-	{"libfuzzerTraceConstCmp1", funcTag, 147},
+-	{"libfuzzerTraceConstCmp2", funcTag, 148},
+-	{"libfuzzerTraceConstCmp4", funcTag, 149},
+-	{"libfuzzerTraceConstCmp8", funcTag, 150},
+-	{"libfuzzerHookStrCmp", funcTag, 151},
+-	{"libfuzzerHookEqualFold", funcTag, 151},
+-	{"addCovMeta", funcTag, 153},
++	{"racereadrange", funcTag, 143},
++	{"racewriterange", funcTag, 143},
++	{"msanread", funcTag, 143},
++	{"msanwrite", funcTag, 143},
++	{"msanmove", funcTag, 144},
++	{"asanread", funcTag, 143},
++	{"asanwrite", funcTag, 143},
++	{"checkptrAlignment", funcTag, 145},
++	{"checkptrArithmetic", funcTag, 147},
++	{"libfuzzerTraceCmp1", funcTag, 148},
++	{"libfuzzerTraceCmp2", funcTag, 149},
++	{"libfuzzerTraceCmp4", funcTag, 150},
++	{"libfuzzerTraceCmp8", funcTag, 151},
++	{"libfuzzerTraceConstCmp1", funcTag, 148},
++	{"libfuzzerTraceConstCmp2", funcTag, 149},
++	{"libfuzzerTraceConstCmp4", funcTag, 150},
++	{"libfuzzerTraceConstCmp8", funcTag, 151},
++	{"libfuzzerHookStrCmp", funcTag, 152},
++	{"libfuzzerHookEqualFold", funcTag, 152},
++	{"addCovMeta", funcTag, 154},
+ 	{"x86HasPOPCNT", varTag, 6},
+ 	{"x86HasSSE41", varTag, 6},
+ 	{"x86HasFMA", varTag, 6},
+ 	{"armHasVFPv4", varTag, 6},
+ 	{"arm64HasATOMICS", varTag, 6},
+-	{"asanregisterglobals", funcTag, 122},
++	{"asanregisterglobals", funcTag, 123},
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [154]*types.Type
++	var typs [155]*types.Type
+ 	typs[0] = types.ByteType
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[types.TANY]
+@@ -309,87 +310,88 @@ func runtimeTypes() []*types.Type {
+ 	typs[70] = newSig(params(typs[1], typs[2]), params(typs[2]))
+ 	typs[71] = newSig(params(typs[1], typs[1], typs[1]), nil)
+ 	typs[72] = newSig(params(typs[1]), nil)
+-	typs[73] = newSig(params(typs[57], typs[7], typs[7]), params(typs[6]))
+-	typs[74] = newSig(nil, params(typs[10]))
+-	typs[75] = newSig(nil, params(typs[62]))
+-	typs[76] = types.NewMap(typs[2], typs[2])
+-	typs[77] = newSig(params(typs[1], typs[22], typs[3]), params(typs[76]))
+-	typs[78] = newSig(params(typs[1], typs[15], typs[3]), params(typs[76]))
+-	typs[79] = newSig(nil, params(typs[76]))
+-	typs[80] = newSig(params(typs[1], typs[76], typs[3]), params(typs[3]))
+-	typs[81] = newSig(params(typs[1], typs[76], typs[62]), params(typs[3]))
+-	typs[82] = newSig(params(typs[1], typs[76], typs[24]), params(typs[3]))
+-	typs[83] = newSig(params(typs[1], typs[76], typs[28]), params(typs[3]))
+-	typs[84] = newSig(params(typs[1], typs[76], typs[3], typs[1]), params(typs[3]))
+-	typs[85] = newSig(params(typs[1], typs[76], typs[3]), params(typs[3], typs[6]))
+-	typs[86] = newSig(params(typs[1], typs[76], typs[62]), params(typs[3], typs[6]))
+-	typs[87] = newSig(params(typs[1], typs[76], typs[24]), params(typs[3], typs[6]))
+-	typs[88] = newSig(params(typs[1], typs[76], typs[28]), params(typs[3], typs[6]))
+-	typs[89] = newSig(params(typs[1], typs[76], typs[3], typs[1]), params(typs[3], typs[6]))
+-	typs[90] = newSig(params(typs[1], typs[76], typs[7]), params(typs[3]))
+-	typs[91] = newSig(params(typs[1], typs[76], typs[3]), nil)
+-	typs[92] = newSig(params(typs[1], typs[76], typs[62]), nil)
+-	typs[93] = newSig(params(typs[1], typs[76], typs[24]), nil)
+-	typs[94] = newSig(params(typs[1], typs[76], typs[28]), nil)
+-	typs[95] = newSig(params(typs[3]), nil)
+-	typs[96] = newSig(params(typs[1], typs[76]), nil)
+-	typs[97] = types.NewChan(typs[2], types.Cboth)
+-	typs[98] = newSig(params(typs[1], typs[22]), params(typs[97]))
+-	typs[99] = newSig(params(typs[1], typs[15]), params(typs[97]))
+-	typs[100] = types.NewChan(typs[2], types.Crecv)
+-	typs[101] = newSig(params(typs[100], typs[3]), nil)
+-	typs[102] = newSig(params(typs[100], typs[3]), params(typs[6]))
+-	typs[103] = types.NewChan(typs[2], types.Csend)
+-	typs[104] = newSig(params(typs[103], typs[3]), nil)
+-	typs[105] = types.NewArray(typs[0], 3)
+-	typs[106] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[105]), types.NewField(src.NoXPos, Lookup("needed"), typs[6]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
+-	typs[107] = newSig(params(typs[1], typs[3], typs[3]), nil)
+-	typs[108] = newSig(params(typs[1], typs[3]), nil)
+-	typs[109] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))
+-	typs[110] = newSig(params(typs[103], typs[3]), params(typs[6]))
+-	typs[111] = newSig(params(typs[3], typs[100]), params(typs[6], typs[6]))
+-	typs[112] = newSig(params(typs[57]), nil)
+-	typs[113] = newSig(params(typs[1], typs[1], typs[57], typs[15], typs[15], typs[6]), params(typs[15], typs[6]))
+-	typs[114] = newSig(params(typs[1], typs[15], typs[15]), params(typs[7]))
+-	typs[115] = newSig(params(typs[1], typs[22], typs[22]), params(typs[7]))
+-	typs[116] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
+-	typs[117] = types.NewSlice(typs[2])
+-	typs[118] = newSig(params(typs[3], typs[15], typs[15], typs[15], typs[1]), params(typs[117]))
+-	typs[119] = newSig(params(typs[1], typs[7], typs[22]), nil)
+-	typs[120] = newSig(params(typs[7], typs[22]), nil)
+-	typs[121] = newSig(params(typs[3], typs[3], typs[5]), nil)
+-	typs[122] = newSig(params(typs[7], typs[5]), nil)
+-	typs[123] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
+-	typs[124] = newSig(params(typs[3], typs[3]), params(typs[6]))
+-	typs[125] = newSig(params(typs[7], typs[7]), params(typs[6]))
+-	typs[126] = newSig(params(typs[3], typs[5], typs[5]), params(typs[5]))
+-	typs[127] = newSig(params(typs[7], typs[5]), params(typs[5]))
+-	typs[128] = newSig(params(typs[3], typs[5]), params(typs[5]))
+-	typs[129] = newSig(params(typs[22], typs[22]), params(typs[22]))
+-	typs[130] = newSig(params(typs[24], typs[24]), params(typs[24]))
+-	typs[131] = newSig(params(typs[20]), params(typs[22]))
+-	typs[132] = newSig(params(typs[20]), params(typs[24]))
+-	typs[133] = newSig(params(typs[20]), params(typs[62]))
+-	typs[134] = newSig(params(typs[22]), params(typs[20]))
+-	typs[135] = types.Types[types.TFLOAT32]
+-	typs[136] = newSig(params(typs[22]), params(typs[135]))
+-	typs[137] = newSig(params(typs[24]), params(typs[20]))
+-	typs[138] = newSig(params(typs[24]), params(typs[135]))
+-	typs[139] = newSig(params(typs[62]), params(typs[20]))
+-	typs[140] = newSig(params(typs[26], typs[26]), params(typs[26]))
+-	typs[141] = newSig(nil, params(typs[5]))
+-	typs[142] = newSig(params(typs[5], typs[5]), nil)
+-	typs[143] = newSig(params(typs[5], typs[5], typs[5]), nil)
+-	typs[144] = newSig(params(typs[7], typs[1], typs[5]), nil)
+-	typs[145] = types.NewSlice(typs[7])
+-	typs[146] = newSig(params(typs[7], typs[145]), nil)
+-	typs[147] = newSig(params(typs[66], typs[66], typs[17]), nil)
+-	typs[148] = newSig(params(typs[60], typs[60], typs[17]), nil)
+-	typs[149] = newSig(params(typs[62], typs[62], typs[17]), nil)
+-	typs[150] = newSig(params(typs[24], typs[24], typs[17]), nil)
+-	typs[151] = newSig(params(typs[28], typs[28], typs[17]), nil)
+-	typs[152] = types.NewArray(typs[0], 16)
+-	typs[153] = newSig(params(typs[7], typs[62], typs[152], typs[28], typs[15], typs[66], typs[66]), params(typs[62]))
++	typs[73] = newSig(params(typs[1], typs[1]), params(typs[15], typs[1]))
++	typs[74] = newSig(params(typs[57], typs[7], typs[7]), params(typs[6]))
++	typs[75] = newSig(nil, params(typs[10]))
++	typs[76] = newSig(nil, params(typs[62]))
++	typs[77] = types.NewMap(typs[2], typs[2])
++	typs[78] = newSig(params(typs[1], typs[22], typs[3]), params(typs[77]))
++	typs[79] = newSig(params(typs[1], typs[15], typs[3]), params(typs[77]))
++	typs[80] = newSig(nil, params(typs[77]))
++	typs[81] = newSig(params(typs[1], typs[77], typs[3]), params(typs[3]))
++	typs[82] = newSig(params(typs[1], typs[77], typs[62]), params(typs[3]))
++	typs[83] = newSig(params(typs[1], typs[77], typs[24]), params(typs[3]))
++	typs[84] = newSig(params(typs[1], typs[77], typs[28]), params(typs[3]))
++	typs[85] = newSig(params(typs[1], typs[77], typs[3], typs[1]), params(typs[3]))
++	typs[86] = newSig(params(typs[1], typs[77], typs[3]), params(typs[3], typs[6]))
++	typs[87] = newSig(params(typs[1], typs[77], typs[62]), params(typs[3], typs[6]))
++	typs[88] = newSig(params(typs[1], typs[77], typs[24]), params(typs[3], typs[6]))
++	typs[89] = newSig(params(typs[1], typs[77], typs[28]), params(typs[3], typs[6]))
++	typs[90] = newSig(params(typs[1], typs[77], typs[3], typs[1]), params(typs[3], typs[6]))
++	typs[91] = newSig(params(typs[1], typs[77], typs[7]), params(typs[3]))
++	typs[92] = newSig(params(typs[1], typs[77], typs[3]), nil)
++	typs[93] = newSig(params(typs[1], typs[77], typs[62]), nil)
++	typs[94] = newSig(params(typs[1], typs[77], typs[24]), nil)
++	typs[95] = newSig(params(typs[1], typs[77], typs[28]), nil)
++	typs[96] = newSig(params(typs[3]), nil)
++	typs[97] = newSig(params(typs[1], typs[77]), nil)
++	typs[98] = types.NewChan(typs[2], types.Cboth)
++	typs[99] = newSig(params(typs[1], typs[22]), params(typs[98]))
++	typs[100] = newSig(params(typs[1], typs[15]), params(typs[98]))
++	typs[101] = types.NewChan(typs[2], types.Crecv)
++	typs[102] = newSig(params(typs[101], typs[3]), nil)
++	typs[103] = newSig(params(typs[101], typs[3]), params(typs[6]))
++	typs[104] = types.NewChan(typs[2], types.Csend)
++	typs[105] = newSig(params(typs[104], typs[3]), nil)
++	typs[106] = types.NewArray(typs[0], 3)
++	typs[107] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[106]), types.NewField(src.NoXPos, Lookup("needed"), typs[6]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
++	typs[108] = newSig(params(typs[1], typs[3], typs[3]), nil)
++	typs[109] = newSig(params(typs[1], typs[3]), nil)
++	typs[110] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))
++	typs[111] = newSig(params(typs[104], typs[3]), params(typs[6]))
++	typs[112] = newSig(params(typs[3], typs[101]), params(typs[6], typs[6]))
++	typs[113] = newSig(params(typs[57]), nil)
++	typs[114] = newSig(params(typs[1], typs[1], typs[57], typs[15], typs[15], typs[6]), params(typs[15], typs[6]))
++	typs[115] = newSig(params(typs[1], typs[15], typs[15]), params(typs[7]))
++	typs[116] = newSig(params(typs[1], typs[22], typs[22]), params(typs[7]))
++	typs[117] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
++	typs[118] = types.NewSlice(typs[2])
++	typs[119] = newSig(params(typs[3], typs[15], typs[15], typs[15], typs[1]), params(typs[118]))
++	typs[120] = newSig(params(typs[1], typs[7], typs[22]), nil)
++	typs[121] = newSig(params(typs[7], typs[22]), nil)
++	typs[122] = newSig(params(typs[3], typs[3], typs[5]), nil)
++	typs[123] = newSig(params(typs[7], typs[5]), nil)
++	typs[124] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
++	typs[125] = newSig(params(typs[3], typs[3]), params(typs[6]))
++	typs[126] = newSig(params(typs[7], typs[7]), params(typs[6]))
++	typs[127] = newSig(params(typs[3], typs[5], typs[5]), params(typs[5]))
++	typs[128] = newSig(params(typs[7], typs[5]), params(typs[5]))
++	typs[129] = newSig(params(typs[3], typs[5]), params(typs[5]))
++	typs[130] = newSig(params(typs[22], typs[22]), params(typs[22]))
++	typs[131] = newSig(params(typs[24], typs[24]), params(typs[24]))
++	typs[132] = newSig(params(typs[20]), params(typs[22]))
++	typs[133] = newSig(params(typs[20]), params(typs[24]))
++	typs[134] = newSig(params(typs[20]), params(typs[62]))
++	typs[135] = newSig(params(typs[22]), params(typs[20]))
++	typs[136] = types.Types[types.TFLOAT32]
++	typs[137] = newSig(params(typs[22]), params(typs[136]))
++	typs[138] = newSig(params(typs[24]), params(typs[20]))
++	typs[139] = newSig(params(typs[24]), params(typs[136]))
++	typs[140] = newSig(params(typs[62]), params(typs[20]))
++	typs[141] = newSig(params(typs[26], typs[26]), params(typs[26]))
++	typs[142] = newSig(nil, params(typs[5]))
++	typs[143] = newSig(params(typs[5], typs[5]), nil)
++	typs[144] = newSig(params(typs[5], typs[5], typs[5]), nil)
++	typs[145] = newSig(params(typs[7], typs[1], typs[5]), nil)
++	typs[146] = types.NewSlice(typs[7])
++	typs[147] = newSig(params(typs[7], typs[146]), nil)
++	typs[148] = newSig(params(typs[66], typs[66], typs[17]), nil)
++	typs[149] = newSig(params(typs[60], typs[60], typs[17]), nil)
++	typs[150] = newSig(params(typs[62], typs[62], typs[17]), nil)
++	typs[151] = newSig(params(typs[24], typs[24], typs[17]), nil)
++	typs[152] = newSig(params(typs[28], typs[28], typs[17]), nil)
++	typs[153] = types.NewArray(typs[0], 16)
++	typs[154] = newSig(params(typs[7], typs[62], typs[153], typs[28], typs[15], typs[66], typs[66]), params(typs[62]))
+ 	return typs[:]
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 15f097f3cb..b2a226e078 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -88,6 +88,7 @@ func walkStmt(n ir.Node) ir.Node {
+ 		ir.OGOTO,
+ 		ir.OLABEL,
+ 		ir.OJUMPTABLE,
++		ir.OINTERFACESWITCH,
+ 		ir.ODCL,
+ 		ir.OCHECKNIL:
+ 		return n
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 2fc8aefe5f..2f7eb5486c 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -5,6 +5,7 @@
+ package walk
+ 
+ import (
++	"fmt"
+ 	"go/constant"
+ 	"go/token"
+ 	"math/bits"
+@@ -12,9 +13,12 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/objw"
++	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -379,17 +383,19 @@ func endsInFallthrough(stmts []ir.Node) (bool, src.XPos) {
+ // type switch.
+ func walkSwitchType(sw *ir.SwitchStmt) {
+ 	var s typeSwitch
+-	s.facename = sw.Tag.(*ir.TypeSwitchGuard).X
+-	sw.Tag = nil
+-
+-	s.facename = walkExpr(s.facename, sw.PtrInit())
+-	s.facename = copyExpr(s.facename, s.facename.Type(), &sw.Compiled)
+-	s.okname = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
++	s.srcName = sw.Tag.(*ir.TypeSwitchGuard).X
++	s.srcName = walkExpr(s.srcName, sw.PtrInit())
++	s.srcName = copyExpr(s.srcName, s.srcName.Type(), &sw.Compiled)
++	s.okName = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
++	s.itabName = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINT8].PtrTo())
+ 
+ 	// Get interface descriptor word.
+ 	// For empty interfaces this will be the type.
+ 	// For non-empty interfaces this will be the itab.
+-	itab := ir.NewUnaryExpr(base.Pos, ir.OITAB, s.facename)
++	srcItab := ir.NewUnaryExpr(base.Pos, ir.OITAB, s.srcName)
++	srcData := ir.NewUnaryExpr(base.Pos, ir.OIDATA, s.srcName)
++	srcData.SetType(types.Types[types.TUINT8].PtrTo())
++	srcData.SetTypecheck(1)
+ 
+ 	// For empty interfaces, do:
+ 	//     if e._type == nil {
+@@ -398,42 +404,49 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 	//     h := e._type.hash
+ 	// Use a similar strategy for non-empty interfaces.
+ 	ifNil := ir.NewIfStmt(base.Pos, nil, nil, nil)
+-	ifNil.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, itab, typecheck.NodNil())
++	ifNil.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, srcItab, typecheck.NodNil())
+ 	base.Pos = base.Pos.WithNotStmt() // disable statement marks after the first check.
+ 	ifNil.Cond = typecheck.Expr(ifNil.Cond)
+ 	ifNil.Cond = typecheck.DefaultLit(ifNil.Cond, nil)
+-	// ifNil.Nbody assigned at end.
++	// ifNil.Nbody assigned later.
+ 	sw.Compiled.Append(ifNil)
+ 
+ 	// Load hash from type or itab.
+-	dotHash := typeHashFieldOf(base.Pos, itab)
+-	s.hashname = copyExpr(dotHash, dotHash.Type(), &sw.Compiled)
++	dotHash := typeHashFieldOf(base.Pos, srcItab)
++	s.hashName = copyExpr(dotHash, dotHash.Type(), &sw.Compiled)
++
++	// Make a label for each case body.
++	labels := make([]*types.Sym, len(sw.Cases))
++	for i := range sw.Cases {
++		labels[i] = typecheck.AutoLabel(".s")
++	}
+ 
++	// "jump" to execute if no case matches.
+ 	br := ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)
+-	var defaultGoto, nilGoto ir.Node
+-	var body ir.Nodes
+-	for _, ncase := range sw.Cases {
+-		caseVar := ncase.Var
+-
+-		// For single-type cases with an interface type,
+-		// we initialize the case variable as part of the type assertion.
+-		// In other cases, we initialize it in the body.
+-		var singleType *types.Type
+-		if len(ncase.List) == 1 && ncase.List[0].Op() == ir.OTYPE {
+-			singleType = ncase.List[0].Type()
+-		}
+-		caseVarInitialized := false
+ 
+-		label := typecheck.AutoLabel(".s")
+-		jmp := ir.NewBranchStmt(ncase.Pos(), ir.OGOTO, label)
++	// Assemble a list of all the types we're looking for.
++	// This pass flattens the case lists, as well as handles
++	// some unusual cases, like default and nil cases.
++	type oneCase struct {
++		pos src.XPos
++		jmp ir.Node // jump to body of selected case
+ 
++		// The case we're matching. Normally the type we're looking for
++		// is typ.Type(), but when typ is ODYNAMICTYPE the actual type
++		// we're looking for is not a compile-time constant (typ.Type()
++		// will be its shape).
++		typ ir.Node
++	}
++	var cases []oneCase
++	var defaultGoto, nilGoto ir.Node
++	for i, ncase := range sw.Cases {
++		jmp := ir.NewBranchStmt(ncase.Pos(), ir.OGOTO, labels[i])
+ 		if len(ncase.List) == 0 { // default:
+ 			if defaultGoto != nil {
+ 				base.Fatalf("duplicate default case not detected during typechecking")
+ 			}
+ 			defaultGoto = jmp
+ 		}
+-
+ 		for _, n1 := range ncase.List {
+ 			if ir.IsNil(n1) { // case nil:
+ 				if nilGoto != nil {
+@@ -442,60 +455,228 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 				nilGoto = jmp
+ 				continue
+ 			}
++			if n1.Op() == ir.ODYNAMICTYPE {
++				// Convert dynamic to static, if the dynamic is actually static.
++				// TODO: why isn't this OTYPE to begin with?
++				dt := n1.(*ir.DynamicType)
++				if dt.RType != nil && dt.RType.Op() == ir.OADDR {
++					addr := dt.RType.(*ir.AddrExpr)
++					if addr.X.Op() == ir.OLINKSYMOFFSET {
++						n1 = ir.TypeNode(n1.Type())
++					}
++				}
++				if dt.ITab != nil && dt.ITab.Op() == ir.OADDR {
++					addr := dt.ITab.(*ir.AddrExpr)
++					if addr.X.Op() == ir.OLINKSYMOFFSET {
++						n1 = ir.TypeNode(n1.Type())
++					}
++				}
++			}
++			cases = append(cases, oneCase{
++				pos: ncase.Pos(),
++				typ: n1,
++				jmp: jmp,
++			})
++		}
++	}
++	if defaultGoto == nil {
++		defaultGoto = br
++	}
++	if nilGoto == nil {
++		nilGoto = defaultGoto
++	}
++	ifNil.Body = []ir.Node{nilGoto}
++
++	// Now go through the list of cases, processing groups as we find them.
++	var concreteCases []oneCase
++	var interfaceCases []oneCase
++	flush := func() {
++		// Process all the concrete types first. Because we handle shadowing
++		// below, it is correct to do all the concrete types before all of
++		// the interface types.
++		// The concrete cases can all be handled without a runtime call.
++		if len(concreteCases) > 0 {
++			var clauses []typeClause
++			for _, c := range concreteCases {
++				as := ir.NewAssignListStmt(c.pos, ir.OAS2,
++					[]ir.Node{ir.BlankNode, s.okName},                               // _, ok =
++					[]ir.Node{ir.NewTypeAssertExpr(c.pos, s.srcName, c.typ.Type())}) // iface.(type)
++				nif := ir.NewIfStmt(c.pos, s.okName, []ir.Node{c.jmp}, nil)
++				clauses = append(clauses, typeClause{
++					hash: types.TypeHash(c.typ.Type()),
++					body: []ir.Node{typecheck.Stmt(as), typecheck.Stmt(nif)},
++				})
++			}
++			s.flush(clauses, &sw.Compiled)
++			concreteCases = concreteCases[:0]
++		}
++
++		// The "any" case, if it exists, must be the last interface case, because
++		// it would shadow all subsequent cases. Strip it off here so the runtime
++		// call only needs to handle non-empty interfaces.
++		var anyGoto ir.Node
++		if len(interfaceCases) > 0 && interfaceCases[len(interfaceCases)-1].typ.Type().IsEmptyInterface() {
++			anyGoto = interfaceCases[len(interfaceCases)-1].jmp
++			interfaceCases = interfaceCases[:len(interfaceCases)-1]
++		}
+ 
+-			if singleType != nil && singleType.IsInterface() {
+-				s.Add(ncase.Pos(), n1, caseVar, jmp)
+-				caseVarInitialized = true
++		// Next, process all the interface types with a single call to the runtime.
++		if len(interfaceCases) > 0 {
++
++			// Build an internal/abi.InterfaceSwitch descriptor to pass to the runtime.
++			lsym := types.LocalPkg.Lookup(fmt.Sprintf(".interfaceSwitch.%d", interfaceSwitchGen)).LinksymABI(obj.ABI0)
++			interfaceSwitchGen++
++			off := 0
++			off = objw.Uintptr(lsym, off, uint64(len(interfaceCases)))
++			for _, c := range interfaceCases {
++				off = objw.SymPtr(lsym, off, reflectdata.TypeSym(c.typ.Type()).Linksym(), 0)
++			}
++			// Note: it has pointers, just not ones the GC cares about.
++			objw.Global(lsym, int32(off), obj.LOCAL|obj.NOPTR)
++
++			// Call runtime to do switch
++			// case, itab = runtime.interfaceSwitch(&descriptor, typeof(arg))
++			var typeArg ir.Node
++			if s.srcName.Type().IsEmptyInterface() {
++				typeArg = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUINT8].PtrTo(), srcItab)
+ 			} else {
+-				s.Add(ncase.Pos(), n1, nil, jmp)
++				typeArg = itabType(srcItab)
++			}
++			caseVar := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
++			isw := ir.NewInterfaceSwitchStmt(base.Pos, caseVar, s.itabName, typeArg, lsym)
++			sw.Compiled.Append(isw)
++
++			// Switch on the result of the call.
++			var newCases []*ir.CaseClause
++			for i, c := range interfaceCases {
++				newCases = append(newCases, &ir.CaseClause{
++					List: []ir.Node{ir.NewInt(base.Pos, int64(i))},
++					Body: []ir.Node{c.jmp},
++				})
+ 			}
++			// TODO: add len(newCases) case, mark switch as bounded
++			sw2 := ir.NewSwitchStmt(base.Pos, caseVar, newCases)
++			sw.Compiled.Append(typecheck.Stmt(sw2))
++			interfaceCases = interfaceCases[:0]
+ 		}
+ 
+-		body.Append(ir.NewLabelStmt(ncase.Pos(), label))
+-		if caseVar != nil && !caseVarInitialized {
+-			val := s.facename
+-			if singleType != nil {
+-				// We have a single concrete type. Extract the data.
+-				if singleType.IsInterface() {
+-					base.Fatalf("singleType interface should have been handled in Add")
+-				}
+-				val = ifaceData(ncase.Pos(), s.facename, singleType)
++		if anyGoto != nil {
++			// We've already handled the nil case, so everything
++			// that reaches here matches the "any" case.
++			sw.Compiled.Append(anyGoto)
++		}
++	}
++caseLoop:
++	for _, c := range cases {
++		if c.typ.Op() == ir.ODYNAMICTYPE {
++			flush() // process all previous cases
++			dt := c.typ.(*ir.DynamicType)
++			dot := ir.NewDynamicTypeAssertExpr(c.pos, ir.ODYNAMICDOTTYPE, s.srcName, dt.RType)
++			dot.ITab = dt.ITab
++			dot.SetType(c.typ.Type())
++			dot.SetTypecheck(1)
++
++			as := ir.NewAssignListStmt(c.pos, ir.OAS2, nil, nil)
++			as.Lhs = []ir.Node{ir.BlankNode, s.okName} // _, ok =
++			as.Rhs = []ir.Node{dot}
++			typecheck.Stmt(as)
++
++			nif := ir.NewIfStmt(c.pos, s.okName, []ir.Node{c.jmp}, nil)
++			sw.Compiled.Append(as, nif)
++			continue
++		}
++
++		// Check for shadowing (a case that will never fire because
++		// a previous case would have always fired first). This check
++		// allows us to reorder concrete and interface cases.
++		// (TODO: these should be vet failures, maybe?)
++		for _, ic := range interfaceCases {
++			// An interface type case will shadow all
++			// subsequent types that implement that interface.
++			if typecheck.Implements(c.typ.Type(), ic.typ.Type()) {
++				continue caseLoop
+ 			}
+-			if len(ncase.List) == 1 && ncase.List[0].Op() == ir.ODYNAMICTYPE {
+-				dt := ncase.List[0].(*ir.DynamicType)
+-				x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.RType)
+-				x.ITab = dt.ITab
+-				x.SetType(caseVar.Type())
+-				x.SetTypecheck(1)
+-				val = x
++			// Note that we don't need to worry about:
++			// 1. Two concrete types shadowing each other. That's
++			//    disallowed by the spec.
++			// 2. A concrete type shadowing an interface type.
++			//    That can never happen, as interface types can
++			//    be satisfied by an infinite set of concrete types.
++			// The correctness of this step also depends on handling
++			// the dynamic type cases separately, as we do above.
++		}
++
++		if c.typ.Type().IsInterface() {
++			interfaceCases = append(interfaceCases, c)
++		} else {
++			concreteCases = append(concreteCases, c)
++		}
++	}
++	flush()
++
++	sw.Compiled.Append(defaultGoto) // if none of the cases matched
++
++	// Now generate all the case bodies
++	for i, ncase := range sw.Cases {
++		sw.Compiled.Append(ir.NewLabelStmt(ncase.Pos(), labels[i]))
++		if caseVar := ncase.Var; caseVar != nil {
++			val := s.srcName
++			if len(ncase.List) == 1 {
++				// single type. We have to downcast the input value to the target type.
++				if ncase.List[0].Op() == ir.OTYPE { // single compile-time known type
++					t := ncase.List[0].Type()
++					if t.IsInterface() {
++						// This case is an interface. Build case value from input interface.
++						// The data word will always be the same, but the itab/type changes.
++						if t.IsEmptyInterface() {
++							var typ ir.Node
++							if s.srcName.Type().IsEmptyInterface() {
++								// E->E, nothing to do, type is already correct.
++								typ = srcItab
++							} else {
++								// I->E, load type out of itab
++								typ = itabType(srcItab)
++								typ.SetPos(ncase.Pos())
++							}
++							val = ir.NewBinaryExpr(ncase.Pos(), ir.OMAKEFACE, typ, srcData)
++						} else {
++							// The itab we need was returned by a runtime.interfaceSwitch call.
++							val = ir.NewBinaryExpr(ncase.Pos(), ir.OMAKEFACE, s.itabName, srcData)
++						}
++					} else {
++						// This case is a concrete type, just read its value out of the interface.
++						val = ifaceData(ncase.Pos(), s.srcName, t)
++					}
++				} else if ncase.List[0].Op() == ir.ODYNAMICTYPE { // single runtime known type
++					dt := ncase.List[0].(*ir.DynamicType)
++					x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.RType)
++					x.ITab = dt.ITab
++					val = x
++				} else if ir.IsNil(ncase.List[0]) {
++				} else {
++					base.Fatalf("unhandled type switch case %v", ncase.List[0])
++				}
++				val.SetType(caseVar.Type())
++				val.SetTypecheck(1)
+ 			}
+ 			l := []ir.Node{
+ 				ir.NewDecl(ncase.Pos(), ir.ODCL, caseVar),
+ 				ir.NewAssignStmt(ncase.Pos(), caseVar, val),
+ 			}
+ 			typecheck.Stmts(l)
+-			body.Append(l...)
++			sw.Compiled.Append(l...)
+ 		}
+-		body.Append(ncase.Body...)
+-		body.Append(br)
+-	}
+-	sw.Cases = nil
+-
+-	if defaultGoto == nil {
+-		defaultGoto = br
++		sw.Compiled.Append(ncase.Body...)
++		sw.Compiled.Append(br)
+ 	}
+-	if nilGoto == nil {
+-		nilGoto = defaultGoto
+-	}
+-	ifNil.Body = []ir.Node{nilGoto}
+-
+-	s.Emit(&sw.Compiled)
+-	sw.Compiled.Append(defaultGoto)
+-	sw.Compiled.Append(body.Take()...)
+ 
+ 	walkStmtList(sw.Compiled)
++	sw.Tag = nil
++	sw.Cases = nil
+ }
+ 
++var interfaceSwitchGen int
++
+ // typeHashFieldOf returns an expression to select the type hash field
+ // from an interface's descriptor word (whether a *runtime._type or
+ // *runtime.itab pointer).
+@@ -525,12 +706,10 @@ var rtypeHashField, itabHashField *types.Field
+ // A typeSwitch walks a type switch.
+ type typeSwitch struct {
+ 	// Temporary variables (i.e., ONAMEs) used by type switch dispatch logic:
+-	facename ir.Node // value being type-switched on
+-	hashname ir.Node // type hash of the value being type-switched on
+-	okname   ir.Node // boolean used for comma-ok type assertions
+-
+-	done    ir.Nodes
+-	clauses []typeClause
++	srcName  ir.Node // value being type-switched on
++	hashName ir.Node // type hash of the value being type-switched on
++	okName   ir.Node // boolean used for comma-ok type assertions
++	itabName ir.Node // itab value to use for first word of non-empty interface
+ }
+ 
+ type typeClause struct {
+@@ -538,68 +717,7 @@ type typeClause struct {
+ 	body ir.Nodes
+ }
+ 
+-func (s *typeSwitch) Add(pos src.XPos, n1 ir.Node, caseVar *ir.Name, jmp ir.Node) {
+-	typ := n1.Type()
+-	var body ir.Nodes
+-	if caseVar != nil {
+-		l := []ir.Node{
+-			ir.NewDecl(pos, ir.ODCL, caseVar),
+-			ir.NewAssignStmt(pos, caseVar, nil),
+-		}
+-		typecheck.Stmts(l)
+-		body.Append(l...)
+-	} else {
+-		caseVar = ir.BlankNode
+-	}
+-
+-	// cv, ok = iface.(type)
+-	as := ir.NewAssignListStmt(pos, ir.OAS2, nil, nil)
+-	as.Lhs = []ir.Node{caseVar, s.okname} // cv, ok =
+-	switch n1.Op() {
+-	case ir.OTYPE:
+-		// Static type assertion (non-generic)
+-		dot := ir.NewTypeAssertExpr(pos, s.facename, typ) // iface.(type)
+-		as.Rhs = []ir.Node{dot}
+-	case ir.ODYNAMICTYPE:
+-		// Dynamic type assertion (generic)
+-		dt := n1.(*ir.DynamicType)
+-		dot := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, s.facename, dt.RType)
+-		dot.ITab = dt.ITab
+-		dot.SetType(typ)
+-		dot.SetTypecheck(1)
+-		as.Rhs = []ir.Node{dot}
+-	default:
+-		base.Fatalf("unhandled type case %s", n1.Op())
+-	}
+-	appendWalkStmt(&body, as)
+-
+-	// if ok { goto label }
+-	nif := ir.NewIfStmt(pos, nil, nil, nil)
+-	nif.Cond = s.okname
+-	nif.Body = []ir.Node{jmp}
+-	body.Append(nif)
+-
+-	if n1.Op() == ir.OTYPE && !typ.IsInterface() {
+-		// Defer static, noninterface cases so they can be binary searched by hash.
+-		s.clauses = append(s.clauses, typeClause{
+-			hash: types.TypeHash(n1.Type()),
+-			body: body,
+-		})
+-		return
+-	}
+-
+-	s.flush()
+-	s.done.Append(body.Take()...)
+-}
+-
+-func (s *typeSwitch) Emit(out *ir.Nodes) {
+-	s.flush()
+-	out.Append(s.done.Take()...)
+-}
+-
+-func (s *typeSwitch) flush() {
+-	cc := s.clauses
+-	s.clauses = nil
++func (s *typeSwitch) flush(cc []typeClause, compiled *ir.Nodes) {
+ 	if len(cc) == 0 {
+ 		return
+ 	}
+@@ -618,18 +736,18 @@ func (s *typeSwitch) flush() {
+ 	}
+ 	cc = merged
+ 
+-	if s.tryJumpTable(cc, &s.done) {
++	if s.tryJumpTable(cc, compiled) {
+ 		return
+ 	}
+-	binarySearch(len(cc), &s.done,
++	binarySearch(len(cc), compiled,
+ 		func(i int) ir.Node {
+-			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashname, ir.NewInt(base.Pos, int64(cc[i-1].hash)))
++			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashName, ir.NewInt(base.Pos, int64(cc[i-1].hash)))
+ 		},
+ 		func(i int, nif *ir.IfStmt) {
+ 			// TODO(mdempsky): Omit hash equality check if
+ 			// there's only one type.
+ 			c := cc[i]
+-			nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, s.hashname, ir.NewInt(base.Pos, int64(c.hash)))
++			nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, s.hashName, ir.NewInt(base.Pos, int64(c.hash)))
+ 			nif.Body.Append(c.body.Take()...)
+ 		},
+ 	)
+@@ -670,7 +788,7 @@ func (s *typeSwitch) tryJumpTable(cc []typeClause, out *ir.Nodes) bool {
+ 			}
+ 
+ 			// All hashes are distinct. Use these values of b and i.
+-			h := s.hashname
++			h := s.hashName
+ 			if i != 0 {
+ 				h = ir.NewBinaryExpr(base.Pos, ir.ORSH, h, ir.NewInt(base.Pos, int64(i)))
+ 			}
+diff --git a/src/internal/abi/switch.go b/src/internal/abi/switch.go
+new file mode 100644
+index 0000000000..62d75852f1
+--- /dev/null
++++ b/src/internal/abi/switch.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi
++
++type InterfaceSwitch struct {
++	NCases int
++
++	// Array of NCases elements.
++	// Each case must be a non-empty interface type.
++	Cases [1]*InterfaceType
++}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 87f7c20f5d..ecf673aa93 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -468,6 +468,22 @@ func assertE2I2(inter *interfacetype, e eface) (r iface) {
+ 	return
+ }
+ 
++// interfaceSwitch compares t against the list of cases in s.
++// If t matches case i, interfaceSwitch returns the case index i and
++// an itab for the pair <t, s.Cases[i]>.
++// If there is no match, return N,nil, where N is the number
++// of cases.
++func interfaceSwitch(s *abi.InterfaceSwitch, t *_type) (int, *itab) {
++	cases := unsafe.Slice(&s.Cases[0], s.NCases)
++	for i, c := range cases {
++		tab := getitab(c, t, true)
++		if tab != nil {
++			return i, tab
++		}
++	}
++	return len(cases), nil
++}
++
+ //go:linkname reflect_ifaceE2I reflect.ifaceE2I
+ func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
+ 	*dst = iface{assertE2I(inter, e._type), e.data}
+diff --git a/test/codegen/switch.go b/test/codegen/switch.go
+index 556d02a162..63b0dce8a6 100644
+--- a/test/codegen/switch.go
++++ b/test/codegen/switch.go
+@@ -118,3 +118,24 @@ func typeSwitch(x any) int {
+ 	}
+ 	return 7
+ }
++
++type I interface {
++	foo()
++}
++type J interface {
++	bar()
++}
++
++// use a runtime call for type switches to interface types.
++func interfaceSwitch(x any) int {
++	// amd64:`CALL\truntime.interfaceSwitch`
++	// arm64:`CALL\truntime.interfaceSwitch`
++	switch x.(type) {
++	case I:
++		return 1
++	case J:
++		return 2
++	default:
++		return 3
++	}
++}

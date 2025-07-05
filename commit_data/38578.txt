@@ -12,7 +12,69 @@ Date:   Fri Nov 2 15:42:15 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/c/147277
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/script_test.go         | 20 ++++++++++++++++++++
  src/cmd/go/testdata/script/README |  4 ++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index f03d9840ca..bad0d48f37 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -331,6 +331,7 @@ var scriptCmds = map[string]func(*testScript, bool, []string){
+ 	"addcrlf": (*testScript).cmdAddcrlf,
+ 	"cd":      (*testScript).cmdCd,
+ 	"cmp":     (*testScript).cmdCmp,
++	"cmpenv":  (*testScript).cmdCmpenv,
+ 	"cp":      (*testScript).cmdCp,
+ 	"env":     (*testScript).cmdEnv,
+ 	"exec":    (*testScript).cmdExec,
+@@ -396,7 +397,21 @@ func (ts *testScript) cmdCmp(neg bool, args []string) {
+ 	if len(args) != 2 {
+ 		ts.fatalf("usage: cmp file1 file2")
+ 	}
++	ts.doCmdCmp(args, false)
++}
+ 
++// cmpenv compares two files with environment variable substitution.
++func (ts *testScript) cmdCmpenv(neg bool, args []string) {
++	if neg {
++		ts.fatalf("unsupported: ! cmpenv")
++	}
++	if len(args) != 2 {
++		ts.fatalf("usage: cmpenv file1 file2")
++	}
++	ts.doCmdCmp(args, true)
++}
++
++func (ts *testScript) doCmdCmp(args []string, env bool) {
+ 	name1, name2 := args[0], args[1]
+ 	var text1, text2 string
+ 	if name1 == "stdout" {
+@@ -413,6 +428,11 @@ func (ts *testScript) cmdCmp(neg bool, args []string) {
+ 	ts.check(err)
+ 	text2 = string(data)
+ 
++	if env {
++		text1 = ts.expand(text1)
++		text2 = ts.expand(text2)
++	}
++
+ 	if text1 == text2 {
+ 		return
+ 	}
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index f28f1b87ed..73858103fd 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -92,6 +92,10 @@ The commands are:
+   from the most recent exec or go command.
+   (If the files have differing content, the failure prints a diff.)
+ 
++- cmpenv file1 file2
++  Like cmp, but environment variables are substituted in the file contents
++  before the comparison. For example, $GOOS is replaced by the target GOOS.
++
+ - cp src... dst
+   Copy the listed files to the target file or existing directory.
+ 

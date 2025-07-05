@@ -18,7 +18,188 @@ Date:   Thu Mar 21 13:40:28 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go | 78 +++++++++++++++++++---------
  test/fixedbugs/issue30977.go                 | 52 +++++++++++++++++++
  2 files changed, 106 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index d9f39bffc9..3c64da20a7 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -216,6 +216,43 @@ func writebarrier(f *Func) {
+ 		// and simple store version to bElse
+ 		memThen := mem
+ 		memElse := mem
++
++		// If the source of a MoveWB is volatile (will be clobbered by a
++		// function call), we need to copy it to a temporary location, as
++		// marshaling the args of typedmemmove might clobber the value we're
++		// trying to move.
++		// Look for volatile source, copy it to temporary before we emit any
++		// call.
++		// It is unlikely to have more than one of them. Just do a linear
++		// search instead of using a map.
++		type volatileCopy struct {
++			src *Value // address of original volatile value
++			tmp *Value // address of temporary we've copied the volatile value into
++		}
++		var volatiles []volatileCopy
++	copyLoop:
++		for _, w := range stores {
++			if w.Op == OpMoveWB {
++				val := w.Args[1]
++				if isVolatile(val) {
++					for _, c := range volatiles {
++						if val == c.src {
++							continue copyLoop // already copied
++						}
++					}
++
++					t := val.Type.Elem()
++					tmp := f.fe.Auto(w.Pos, t)
++					memThen = bThen.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, memThen)
++					tmpaddr := bThen.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, memThen)
++					siz := t.Size()
++					memThen = bThen.NewValue3I(w.Pos, OpMove, types.TypeMem, siz, tmpaddr, val, memThen)
++					memThen.Aux = t
++					volatiles = append(volatiles, volatileCopy{val, tmpaddr})
++				}
++			}
++		}
++
+ 		for _, w := range stores {
+ 			ptr := w.Args[0]
+ 			pos := w.Pos
+@@ -242,11 +279,19 @@ func writebarrier(f *Func) {
+ 			// then block: emit write barrier call
+ 			switch w.Op {
+ 			case OpStoreWB, OpMoveWB, OpZeroWB:
+-				volatile := w.Op == OpMoveWB && isVolatile(val)
+ 				if w.Op == OpStoreWB {
+ 					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
+ 				} else {
+-					memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
++					srcval := val
++					if w.Op == OpMoveWB && isVolatile(srcval) {
++						for _, c := range volatiles {
++							if srcval == c.src {
++								srcval = c.tmp
++								break
++							}
++						}
++					}
++					memThen = wbcall(pos, bThen, fn, typ, ptr, srcval, memThen, sp, sb)
+ 				}
+ 				// Note that we set up a writebarrier function call.
+ 				f.fe.SetWBPos(pos)
+@@ -269,6 +314,12 @@ func writebarrier(f *Func) {
+ 			}
+ 		}
+ 
++		// mark volatile temps dead
++		for _, c := range volatiles {
++			tmpNode := c.tmp.Aux
++			memThen = bThen.NewValue1A(memThen.Pos, OpVarKill, types.TypeMem, tmpNode, memThen)
++		}
++
+ 		// merge memory
+ 		// Splice memory Phi into the last memory of the original sequence,
+ 		// which may be used in subsequent blocks. Other memories in the
+@@ -403,25 +454,9 @@ func (f *Func) computeZeroMap() map[ID]ZeroRegion {
+ }
+ 
+ // wbcall emits write barrier runtime call in b, returns memory.
+-// if valIsVolatile, it moves val into temp space before making the call.
+-func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
++func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value) *Value {
+ 	config := b.Func.Config
+ 
+-	var tmp GCNode
+-	if valIsVolatile {
+-		// Copy to temp location if the source is volatile (will be clobbered by
+-		// a function call). Marshaling the args to typedmemmove might clobber the
+-		// value we're trying to move.
+-		t := val.Type.Elem()
+-		tmp = b.Func.fe.Auto(val.Pos, t)
+-		mem = b.NewValue1A(pos, OpVarDef, types.TypeMem, tmp, mem)
+-		tmpaddr := b.NewValue2A(pos, OpLocalAddr, t.PtrTo(), tmp, sp, mem)
+-		siz := t.Size()
+-		mem = b.NewValue3I(pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
+-		mem.Aux = t
+-		val = tmpaddr
+-	}
+-
+ 	// put arguments on stack
+ 	off := config.ctxt.FixedFrameSize()
+ 
+@@ -449,11 +484,6 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	// issue call
+ 	mem = b.NewValue1A(pos, OpStaticCall, types.TypeMem, fn, mem)
+ 	mem.AuxInt = off - config.ctxt.FixedFrameSize()
+-
+-	if valIsVolatile {
+-		mem = b.NewValue1A(pos, OpVarKill, types.TypeMem, tmp, mem) // mark temp dead
+-	}
+-
+ 	return mem
+ }
+ 
+diff --git a/test/fixedbugs/issue30977.go b/test/fixedbugs/issue30977.go
+new file mode 100644
+index 0000000000..2ca040d79a
+--- /dev/null
++++ b/test/fixedbugs/issue30977.go
+@@ -0,0 +1,52 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 30977: write barrier call clobbers volatile
++// value when there are multiple uses of the value.
++
++package main
++
++import "runtime"
++
++type T struct {
++	a, b, c, d, e string
++}
++
++//go:noinline
++func g() T {
++	return T{"a", "b", "c", "d", "e"}
++}
++
++//go:noinline
++func f() {
++	// The compiler optimizes this to direct copying
++	// the call result to both globals, with write
++	// barriers. The first write barrier call clobbers
++	// the result of g on stack.
++	X = g()
++	Y = X
++}
++
++var X, Y T
++
++const N = 1000
++
++func main() {
++	// Keep GC running so the write barrier is on.
++	go func() {
++		for {
++			runtime.GC()
++		}
++	}()
++
++	for i := 0; i < N; i++ {
++		runtime.Gosched()
++		f()
++		if X != Y {
++			panic("FAIL")
++		}
++	}
++}

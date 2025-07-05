@@ -8,6 +8,19 @@ Date:   Mon Mar 17 15:46:31 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/76400044
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6f38916a45..37c129d415 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -121,6 +121,7 @@ Carlos Castillo <cookieo9@gmail.com>
+ Cary Hull <chull@google.com>
+ Case Nelson <case.nelson@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
++Catalin Patulea <catalinp@google.com>
+ ChaiShushan <chaishushan@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Charles Lee <zombie.fml@gmail.com>

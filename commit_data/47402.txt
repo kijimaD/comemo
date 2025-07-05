@@ -14,6 +14,20 @@ Date:   Wed Mar 10 14:41:38 2021 -0600
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 6e3b2c077d..e373a6e0b4 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -252,6 +252,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
+ 	}
+ 
++	ehdrFlags = initEhdrFlags
++
+ 	base := f.Offset()
+ 
+ 	var hdrbuf [64]byte

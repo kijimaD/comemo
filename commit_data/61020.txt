@@ -25,8 +25,103 @@ Date:   Tue Aug 27 14:44:16 2024 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/internal/nistec/p256_asm_ppc64le.s |  4 +-
  src/crypto/internal/nistec/p256_asm_s390x.s   |  2 +-
  src/crypto/internal/nistec/p256_asm_test.go   | 53 +++++++++++++++++++++++++++
  3 files changed, 56 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/nistec/p256_asm_ppc64le.s b/src/crypto/internal/nistec/p256_asm_ppc64le.s
+index 1475dfb1d9..a21e638662 100644
+--- a/src/crypto/internal/nistec/p256_asm_ppc64le.s
++++ b/src/crypto/internal/nistec/p256_asm_ppc64le.s
+@@ -291,7 +291,7 @@ TEXT ·p256Select(SB), NOSPLIT, $0-24
+ 	VSPLTB   $7, SEL1, IDX    // splat byte
+ 	VSPLTISB $1, ONE          // VREPIB $1, ONE
+ 	VSPLTISB $1, SEL2         // VREPIB $1, SEL2
+-	MOVD     $17, COUNT
++	MOVD     $16, COUNT	  // len(p256Table)
+ 	MOVD     COUNT, CTR       // set up ctr
+ 
+ 	VSPLTISB $0, X1H // VZERO  X1H
+@@ -441,7 +441,7 @@ TEXT ·p256SelectAffine(SB), NOSPLIT, $0-24
+ 
+ 	VSPLTISB $1, ONE    // Vector with byte 1s
+ 	VSPLTISB $1, SEL2   // Vector with byte 1s
+-	MOVD     $64, COUNT
++	MOVD     $32, COUNT // len(p256AffineTable)
+ 	MOVD     COUNT, CTR // loop count
+ 
+ 	VSPLTISB $0, X1H // VZERO  X1H
+diff --git a/src/crypto/internal/nistec/p256_asm_s390x.s b/src/crypto/internal/nistec/p256_asm_s390x.s
+index 77c9f63349..6ff4cb3f5f 100644
+--- a/src/crypto/internal/nistec/p256_asm_s390x.s
++++ b/src/crypto/internal/nistec/p256_asm_s390x.s
+@@ -508,7 +508,7 @@ loop_select:
+ 	VAB  SEL2, ONE, SEL2
+ 	ADDW $1, COUNT
+ 	ADD  $64, P1ptr
+-	CMPW COUNT, $65
++	CMPW COUNT, $33 // len(p256AffineTable) + 1
+ 	BLT  loop_select
+ 	VST  X1H, 0(P3ptr)
+ 	VST  X1L, 16(P3ptr)
+diff --git a/src/crypto/internal/nistec/p256_asm_test.go b/src/crypto/internal/nistec/p256_asm_test.go
+new file mode 100644
+index 0000000000..71edb9575c
+--- /dev/null
++++ b/src/crypto/internal/nistec/p256_asm_test.go
+@@ -0,0 +1,53 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (amd64 || arm64 || ppc64le || s390x) && !purego && linux
++
++package nistec
++
++import (
++	"syscall"
++	"testing"
++	"unsafe"
++)
++
++// Lightly adapted from the bytes test package. Allocate a pair of T one at the start of a page, another at the
++// end. Any access beyond or before the page boundary should cause a fault. This is linux specific.
++func dangerousObjs[T any](t *testing.T) (start *T, end *T) {
++	pagesize := syscall.Getpagesize()
++	b, err := syscall.Mmap(0, 0, 3*pagesize, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANONYMOUS|syscall.MAP_PRIVATE)
++	if err != nil {
++		t.Fatalf("mmap failed %s", err)
++	}
++	err = syscall.Mprotect(b[:pagesize], syscall.PROT_NONE)
++	if err != nil {
++		t.Fatalf("mprotect low failed %s\n", err)
++	}
++	err = syscall.Mprotect(b[2*pagesize:], syscall.PROT_NONE)
++	if err != nil {
++		t.Fatalf("mprotect high failed %s\n", err)
++	}
++	b = b[pagesize : 2*pagesize]
++	end = (*T)(unsafe.Pointer(&b[len(b)-(int)(unsafe.Sizeof(*end))]))
++	start = (*T)(unsafe.Pointer(&b[0]))
++	return start, end
++}
++
++func TestP256SelectAffinePageBoundary(t *testing.T) {
++	var out p256AffinePoint
++	begintp, endtp := dangerousObjs[p256AffineTable](t)
++	for i := 0; i < 31; i++ {
++		p256SelectAffine(&out, begintp, i)
++		p256SelectAffine(&out, endtp, i)
++	}
++}
++
++func TestP256SelectPageBoundary(t *testing.T) {
++	var out P256Point
++	begintp, endtp := dangerousObjs[p256Table](t)
++	for i := 0; i < 15; i++ {
++		p256Select(&out, begintp, i)
++		p256Select(&out, endtp, i)
++	}
++}

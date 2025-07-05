@@ -26,9 +26,294 @@ Date:   Wed Apr 14 19:15:42 2021 -0400
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/dist/build.go                |  7 ++--
  src/cmd/internal/objabi/path.go      |  4 +++
  src/internal/bytealg/compare_amd64.s | 38 ++++++++++++++++++--
  src/internal/bytealg/equal_amd64.s   | 70 ++++++++++++++++++++++++++++++++----
  4 files changed, 108 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index f8f8003ff7..63dd8005e3 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1764,8 +1764,9 @@ func cmdlist() {
+ // IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
+ // belongs to the collection of "runtime-related" packages, including
+ // "runtime" itself, "reflect", "syscall", and the
+-// "runtime/internal/*" packages. See also the function of the same
+-// name in cmd/internal/objabi/path.go.
++// "runtime/internal/*" packages.
++//
++// Keep in sync with cmd/internal/objabi/path.go:IsRuntimePackagePath.
+ func IsRuntimePackagePath(pkgpath string) bool {
+ 	rval := false
+ 	switch pkgpath {
+@@ -1777,6 +1778,8 @@ func IsRuntimePackagePath(pkgpath string) bool {
+ 		rval = true
+ 	case "crypto/x509/internal/macos": // libc function wrappers need to be ABIInternal
+ 		rval = true
++	case "internal/bytealg":
++		rval = true
+ 	default:
+ 		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+ 	}
+diff --git a/src/cmd/internal/objabi/path.go b/src/cmd/internal/objabi/path.go
+index 1a0784cf7f..d49de141cc 100644
+--- a/src/cmd/internal/objabi/path.go
++++ b/src/cmd/internal/objabi/path.go
+@@ -47,6 +47,8 @@ func PathToPrefix(s string) string {
+ // some cases need to be aware of when they are building such a
+ // package, for example to enable features such as ABI selectors in
+ // assembly sources.
++//
++// Keep in sync with cmd/dist/build.go:IsRuntimePackagePath.
+ func IsRuntimePackagePath(pkgpath string) bool {
+ 	rval := false
+ 	switch pkgpath {
+@@ -58,6 +60,8 @@ func IsRuntimePackagePath(pkgpath string) bool {
+ 		rval = true
+ 	case "crypto/x509/internal/macos": // libc function wrappers need to be ABIInternal
+ 		rval = true
++	case "internal/bytealg":
++		rval = true
+ 	default:
+ 		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+ 	}
+diff --git a/src/internal/bytealg/compare_amd64.s b/src/internal/bytealg/compare_amd64.s
+index 900b92a21e..8295acb03a 100644
+--- a/src/internal/bytealg/compare_amd64.s
++++ b/src/internal/bytealg/compare_amd64.s
+@@ -5,20 +5,41 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Compare(SB),NOSPLIT,$0-56
++TEXT ·Compare<ABIInternal>(SB),NOSPLIT,$0-56
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = a_base (want in SI)
++	// BX = a_len  (want in BX)
++	// CX = a_cap  (unused)
++	// DI = b_base (want in DI)
++	// SI = b_len  (want in DX)
++	// R8 = b_cap  (unused)
++	MOVQ	SI, DX
++	MOVQ	AX, SI
++#else
+ 	MOVQ	a_base+0(FP), SI
+ 	MOVQ	a_len+8(FP), BX
+ 	MOVQ	b_base+24(FP), DI
+ 	MOVQ	b_len+32(FP), DX
+ 	LEAQ	ret+48(FP), R9
++#endif
+ 	JMP	cmpbody<>(SB)
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
++TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT,$0-40
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = a_base (want in SI)
++	// BX = a_len  (want in BX)
++	// CX = b_base (want in DI)
++	// DI = b_len  (want in DX)
++	MOVQ	AX, SI
++	MOVQ	DI, DX
++	MOVQ	CX, DI
++#else
+ 	MOVQ	a_base+0(FP), SI
+ 	MOVQ	a_len+8(FP), BX
+ 	MOVQ	b_base+16(FP), DI
+ 	MOVQ	b_len+24(FP), DX
+ 	LEAQ	ret+32(FP), R9
++#endif
+ 	JMP	cmpbody<>(SB)
+ 
+ // input:
+@@ -26,7 +47,12 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+ //   DI = b
+ //   BX = alen
+ //   DX = blen
++#ifndef GOEXPERIMENT_regabiargs
+ //   R9 = address of output word (stores -1/0/1 here)
++#else
++// output:
++//   AX = output (-1/0/1)
++#endif
+ TEXT cmpbody<>(SB),NOSPLIT,$0-0
+ 	CMPQ	SI, DI
+ 	JEQ	allsame
+@@ -74,7 +100,9 @@ diff16:
+ 	CMPB	CX, (DI)(BX*1)
+ 	SETHI	AX
+ 	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVQ	AX, (R9)
++#endif
+ 	RET
+ 
+ 	// 0 through 16 bytes left, alen>=8, blen>=8
+@@ -100,7 +128,9 @@ diff8:
+ 	SHRQ	CX, AX	// move a's bit to bottom
+ 	ANDQ	$1, AX	// mask bit
+ 	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVQ	AX, (R9)
++#endif
+ 	RET
+ 
+ 	// 0-7 bytes in common
+@@ -139,7 +169,9 @@ di_finish:
+ 	SHRQ	CX, SI	// move a's bit to bottom
+ 	ANDQ	$1, SI	// mask bit
+ 	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVQ	AX, (R9)
++#endif
+ 	RET
+ 
+ allsame:
+@@ -149,7 +181,9 @@ allsame:
+ 	SETGT	AX	// 1 if alen > blen
+ 	SETEQ	CX	// 1 if alen == blen
+ 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVQ	AX, (R9)
++#endif
+ 	RET
+ 
+ 	// this works for >= 64 bytes of data.
+diff --git a/src/internal/bytealg/equal_amd64.s b/src/internal/bytealg/equal_amd64.s
+index c816409545..6f12d2a169 100644
+--- a/src/internal/bytealg/equal_amd64.s
++++ b/src/internal/bytealg/equal_amd64.s
+@@ -6,7 +6,21 @@
+ #include "textflag.h"
+ 
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT,$0-25
++TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT,$0-25
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = a    (want in SI)
++	// BX = b    (want in DI)
++	// CX = size (want in BX)
++	CMPQ	AX, BX
++	JNE	neq
++	MOVQ	$1, AX	// return 1
++	RET
++neq:
++	MOVQ	AX, SI
++	MOVQ	BX, DI
++	MOVQ	CX, BX
++	JMP	memeqbody<>(SB)
++#else
+ 	MOVQ	a+0(FP), SI
+ 	MOVQ	b+8(FP), DI
+ 	CMPQ	SI, DI
+@@ -17,9 +31,24 @@ TEXT runtime·memequal(SB),NOSPLIT,$0-25
+ eq:
+ 	MOVB	$1, ret+24(FP)
+ 	RET
++#endif
+ 
+ // memequal_varlen(a, b unsafe.Pointer) bool
+-TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
++TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT,$0-17
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = a       (want in SI)
++	// BX = b       (want in DI)
++	// 8(DX) = size (want in BX)
++	CMPQ	AX, BX
++	JNE	neq
++	MOVQ	$1, AX	// return 1
++	RET
++neq:
++	MOVQ	AX, SI
++	MOVQ	BX, DI
++	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
++	JMP	memeqbody<>(SB)
++#else
+ 	MOVQ	a+0(FP), SI
+ 	MOVQ	b+8(FP), DI
+ 	CMPQ	SI, DI
+@@ -30,11 +59,18 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
+ eq:
+ 	MOVB	$1, ret+16(FP)
+ 	RET
+-
+-// a in SI
+-// b in DI
+-// count in BX
+-// address of result byte in AX
++#endif
++
++// Input:
++//   a in SI
++//   b in DI
++//   count in BX
++#ifndef GOEXPERIMENT_regabiargs
++//   address of result byte in AX
++#else
++// Output:
++//   result in AX
++#endif
+ TEXT memeqbody<>(SB),NOSPLIT,$0-0
+ 	CMPQ	BX, $8
+ 	JB	small
+@@ -68,7 +104,11 @@ hugeloop:
+ 	SUBQ	$64, BX
+ 	CMPL	DX, $0xffff
+ 	JEQ	hugeloop
++#ifdef GOEXPERIMENT_regabiargs
++	XORQ	AX, AX	// return 0
++#else
+ 	MOVB	$0, (AX)
++#endif
+ 	RET
+ 
+ 	// 64 bytes at a time using ymm registers
+@@ -89,7 +129,11 @@ hugeloop_avx2:
+ 	CMPL	DX, $0xffffffff
+ 	JEQ	hugeloop_avx2
+ 	VZEROUPPER
++#ifdef GOEXPERIMENT_regabiargs
++	XORQ	AX, AX	// return 0
++#else
+ 	MOVB	$0, (AX)
++#endif
+ 	RET
+ 
+ bigloop_avx2:
+@@ -106,7 +150,11 @@ bigloop:
+ 	SUBQ	$8, BX
+ 	CMPQ	CX, DX
+ 	JEQ	bigloop
++#ifdef GOEXPERIMENT_regabiargs
++	XORQ	AX, AX	// return 0
++#else
+ 	MOVB	$0, (AX)
++#endif
+ 	RET
+ 
+ 	// remaining 0-8 bytes
+@@ -114,7 +162,11 @@ leftover:
+ 	MOVQ	-8(SI)(BX*1), CX
+ 	MOVQ	-8(DI)(BX*1), DX
+ 	CMPQ	CX, DX
++#ifdef GOEXPERIMENT_regabiargs
++	SETEQ	AX
++#else
+ 	SETEQ	(AX)
++#endif
+ 	RET
+ 
+ small:
+@@ -149,6 +201,10 @@ di_finish:
+ 	SUBQ	SI, DI
+ 	SHLQ	CX, DI
+ equal:
++#ifdef GOEXPERIMENT_regabiargs
++	SETEQ	AX
++#else
+ 	SETEQ	(AX)
++#endif
+ 	RET
+ 

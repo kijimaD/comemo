@@ -9,6 +9,22 @@ Date:   Sat Feb 2 11:41:04 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7284044
-
+---
  src/pkg/runtime/signal_windows_386.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/signal_windows_386.c b/src/pkg/runtime/signal_windows_386.c
+index fc2a2459a0..d76d5bf4bd 100644
+--- a/src/pkg/runtime/signal_windows_386.c
++++ b/src/pkg/runtime/signal_windows_386.c
+@@ -75,8 +75,8 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+-		runtime·traceback((void*)r->Eip, (void*)r->Esp, 0, m->curg);
+-		runtime·tracebackothers(m->curg);
++		runtime·traceback((void*)r->Eip, (void*)r->Esp, 0, gp);
++		runtime·tracebackothers(gp);
+ 		runtime·dumpregs(r);
+ 	}
+ 

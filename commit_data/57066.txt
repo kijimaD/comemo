@@ -15,7 +15,7 @@ Date:   Tue Jun 13 23:01:11 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/asm/internal/asm/parse.go                              | 2 +-
  src/cmd/asm/internal/asm/testdata/amd64error.s                 | 2 +-
  src/cmd/cgo/internal/test/test.go                              | 2 +-
@@ -84,3 +84,942 @@ Date:   Tue Jun 13 23:01:11 2023 +0000
  src/syscall/exec_linux_test.go                                 | 2 +-
  src/syscall/syscall_linux.go                                   | 2 +-
  67 files changed, 77 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index e26c945a8a..37f8e6c0bc 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -1149,7 +1149,7 @@ ListLoop:
+ 		}
+ 		a.Offset = offset
+ 	default:
+-		p.errorf("register list not supported on this architecuture")
++		p.errorf("register list not supported on this architecture")
+ 	}
+ }
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64error.s b/src/cmd/asm/internal/asm/testdata/amd64error.s
+index 1ca2d3147c..e9a1d0acb2 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64error.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64error.s
+@@ -132,7 +132,7 @@ TEXT errors(SB),$0
+ 	VADDPD.BCST X3, X2, K1, X1       // ERROR "illegal broadcast without memory argument"
+ 	VADDPD.BCST X3, X2, K1, X1       // ERROR "illegal broadcast without memory argument"
+ 	VADDPD.BCST X3, X2, K1, X1       // ERROR "illegal broadcast without memory argument"
+-	// CLWB instuctions:
++	// CLWB instructions:
+ 	CLWB BX                          // ERROR "invalid instruction"
+ 	// CLDEMOTE instructions:
+ 	CLDEMOTE BX                      // ERROR "invalid instruction"
+diff --git a/src/cmd/cgo/internal/test/test.go b/src/cmd/cgo/internal/test/test.go
+index 1529ca5928..8e24f2e618 100644
+--- a/src/cmd/cgo/internal/test/test.go
++++ b/src/cmd/cgo/internal/test/test.go
+@@ -115,7 +115,7 @@ int add(int x, int y) {
+ 	return x+y;
+ };
+ 
+-// Following mimicks vulkan complex definitions for benchmarking cgocheck overhead.
++// Following mimics vulkan complex definitions for benchmarking cgocheck overhead.
+ 
+ typedef uint32_t VkFlags;
+ typedef VkFlags  VkDeviceQueueCreateFlags;
+diff --git a/src/cmd/compile/internal/base/timings.go b/src/cmd/compile/internal/base/timings.go
+index f599f4e05f..f48ac93699 100644
+--- a/src/cmd/compile/internal/base/timings.go
++++ b/src/cmd/compile/internal/base/timings.go
+@@ -14,7 +14,7 @@ import (
+ var Timer Timings
+ 
+ // Timings collects the execution times of labeled phases
+-// which are added trough a sequence of Start/Stop calls.
++// which are added through a sequence of Start/Stop calls.
+ // Events may be associated with each phase via AddEvent.
+ type Timings struct {
+ 	list   []timestamp
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index e88cae0969..c69eca1998 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -115,7 +115,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		args := call.Args
+ 		if recv := fntype.Recv(); recv != nil {
+ 			if recvp == nil {
+-				// Function call using method expression. Recevier argument is
++				// Function call using method expression. Receiver argument is
+ 				// at the front of the regular arguments list.
+ 				recvp = &args[0]
+ 				args = args[1:]
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 7b2016bff2..bb9ad1006d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -62,7 +62,7 @@
+ (Sqrt32 ...) => (FSQRTS ...)
+ 
+ // lowering rotates
+-// we do rotate detection in generic rules, if the following rules need to be changed, chcek generic rules first.
++// we do rotate detection in generic rules, if the following rules need to be changed, check generic rules first.
+ (RotateLeft8  <t> x (MOVDconst [c])) => (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
+ (RotateLeft8  <t> x y) => (OR <t> (SLL <t> x (ANDconst <typ.Int64> [7] y)) (SRL <t> (ZeroExt8to64 x) (ANDconst <typ.Int64> [7] (NEG <typ.Int64> y))))
+ (RotateLeft16 <t> x (MOVDconst [c])) => (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 0740d9b7b0..43f9f0affc 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -143,7 +143,7 @@ type Logger interface {
+ type Frontend interface {
+ 	Logger
+ 
+-	// CanSSA reports whether variabbles of type t are SSA-able.
++	// CanSSA reports whether variables of type t are SSA-able.
+ 	CanSSA(t *types.Type) bool
+ 
+ 	// StringData returns a symbol pointing to the given string's contents.
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 0af052294b..63934662a5 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -969,7 +969,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
+ 	}
+ 
+ 	state.currentState.reset(abt.T{})
+-	// The normal logic of "reset" is incuded in the intersection loop below.
++	// The normal logic of "reset" is included in the intersection loop below.
+ 
+ 	slotLocs := state.currentState.slots
+ 
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index dcd8078353..e0b0b59992 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -276,7 +276,7 @@ func (x *expandState) indent(n int) {
+ 	x.indentLevel += n
+ }
+ 
+-// Printf does an indented fmt.Printf on te format and args.
++// Printf does an indented fmt.Printf on the format and args.
+ func (x *expandState) Printf(format string, a ...interface{}) (n int, err error) {
+ 	if x.indentLevel > 0 {
+ 		fmt.Printf("%[1]*s", x.indentLevel, "")
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index 19d9f9004d..fd2887d020 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -964,7 +964,7 @@ func (po *poset) NonEqual(n1, n2 *Value) bool {
+ 		return false
+ 	}
+ 
+-	// Check if we recored inequality
++	// Check if we recorded inequality
+ 	if po.isnoneq(i1, i2) {
+ 		return true
+ 	}
+@@ -1166,7 +1166,7 @@ func (po *poset) SetEqual(n1, n2 *Value) bool {
+ 		}
+ 
+ 		// If we already knew that n1<=n2, we can collapse the path to
+-		// record n1==n2 (and viceversa).
++		// record n1==n2 (and vice versa).
+ 		if po.reaches(i1, i2, false) {
+ 			return po.collapsepath(n1, n2)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 94d2c525b9..38758c3361 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1195,7 +1195,7 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
+ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation) {
+ 	if t == 0 {
+ 		// Trivial case: nothing to do.
+-		// Shoult not happen, but just in case.
++		// Should not happen, but just in case.
+ 		return
+ 	}
+ 	for i := domain(1); i <= t; i <<= 1 {
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 29fd89c28a..6ee661dbbd 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1555,7 +1555,7 @@ func mergePPC64AndSrwi(m, s int64) int64 {
+ // Return the encoded RLWINM constant, or 0 if they cannot be merged.
+ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
+ 	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
+-	// for CLRLSLDI, it's more convient to think of it as a mask left bits then rotate left.
++	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
+ 	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+ 
+ 	// Rewrite mask to apply after the final left shift.
+@@ -1575,7 +1575,7 @@ func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
+ // the encoded RLWINM constant, or 0 if they cannot be merged.
+ func mergePPC64ClrlsldiRlwinm(sld int32, rlw int64) int64 {
+ 	r_1, _, _, mask_1 := DecodePPC64RotateMask(rlw)
+-	// for CLRLSLDI, it's more convient to think of it as a mask left bits then rotate left.
++	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
+ 	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
+ 
+ 	// combine the masks, and adjust for the final left shift.
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 49bad25765..19b98cc4b8 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -185,7 +185,7 @@ func schedule(f *Func) {
+ 				// Schedule flag register generation as late as possible.
+ 				// This makes sure that we only have one live flags
+ 				// value at a time.
+-				// Note that this case is afer the case above, so values
++				// Note that this case is after the case above, so values
+ 				// which both read and generate flags are given ScoreReadFlags.
+ 				score[v.ID] = ScoreFlags
+ 			default:
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 1d757a62a5..38479b323f 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -199,7 +199,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		hu := typecheck.Temp(types.Types[types.TUINTPTR])
+ 		init = append(init, ir.NewAssignStmt(base.Pos, hu, huVal))
+ 
+-		// Convert hu to hp at the top of the loop (afer the condition has been checked).
++		// Convert hu to hp at the top of the loop (after the condition has been checked).
+ 		hpVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], hu)
+ 		hpVal.SetCheckPtr(true) // disable checkptr on this conversion
+ 		hpVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, elem.PtrTo(), hpVal)
+diff --git a/src/cmd/compile/internal/walk/temp.go b/src/cmd/compile/internal/walk/temp.go
+index 9879a6c69d..d2ffb226a9 100644
+--- a/src/cmd/compile/internal/walk/temp.go
++++ b/src/cmd/compile/internal/walk/temp.go
+@@ -28,7 +28,7 @@ func stackTempAddr(init *ir.Nodes, typ *types.Type) *ir.AddrExpr {
+ 	return initStackTemp(init, typecheck.Temp(typ), nil)
+ }
+ 
+-// stackBufAddr returns thte expression &tmp, where tmp is a newly
++// stackBufAddr returns the expression &tmp, where tmp is a newly
+ // allocated temporary variable of type [len]elem. This variable is
+ // initialized, and elem must not contain pointers.
+ func stackBufAddr(len int64, elem *types.Type) *ir.AddrExpr {
+diff --git a/src/cmd/covdata/metamerge.go b/src/cmd/covdata/metamerge.go
+index c5a1a73a48..6c68e0c722 100644
+--- a/src/cmd/covdata/metamerge.go
++++ b/src/cmd/covdata/metamerge.go
+@@ -160,7 +160,7 @@ func (mm *metaMerge) beginPod() {
+ // the things in a pod -- counter files and meta-data file. There are
+ // three cases of interest here:
+ //
+-// Case 1: in an unconditonal merge (we're not selecting a specific set of
++// Case 1: in an unconditional merge (we're not selecting a specific set of
+ // packages using "-pkg", and the "-pcombine" option is not in use),
+ // we can simply copy over the meta-data file from input to output.
+ //
+diff --git a/src/cmd/covdata/tool_test.go b/src/cmd/covdata/tool_test.go
+index b6c2465812..d99113ebc5 100644
+--- a/src/cmd/covdata/tool_test.go
++++ b/src/cmd/covdata/tool_test.go
+@@ -672,7 +672,7 @@ func testMergeCombinePrograms(t *testing.T, s state) {
+ 		t.Errorf("merge run produced unexpected output: %v", lines)
+ 	}
+ 
+-	// We expect the merge tool to produce exacty two files: a meta
++	// We expect the merge tool to produce exactly two files: a meta
+ 	// data file and a counter file. If we get more than just this one
+ 	// pair, something went wrong.
+ 	podlist, err := pods.CollectPods([]string{moutdir}, true)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a4b523f2c9..c0e6265e29 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2940,7 +2940,7 @@ func setPGOProfilePath(pkgs []*Package) {
+ 		// Locate PGO profiles from the main packages, and
+ 		// attach the profile to the main package and its
+ 		// dependencies.
+-		// If we're builing multiple main packages, they may
++		// If we're building multiple main packages, they may
+ 		// have different profiles. We may need to split (unshare)
+ 		// the dependency graph so they can attach different
+ 		// profiles.
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 5d9eb70489..37befa39c9 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -344,7 +344,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 			// The result of any version query for a given module — even "upgrade" or
+ 			// "patch" — is always relative to the build list at the start of
+ 			// the 'go get' command, not an intermediate state, and is therefore
+-			// dederministic and therefore cachable, and the constraints on the
++			// deterministic and therefore cachable, and the constraints on the
+ 			// selected version of each module can only narrow as we iterate.
+ 			//
+ 			// "all" is functionally very similar to a wildcard pattern. The set of
+@@ -359,7 +359,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 		// When we load imports, we detect the following conditions:
+ 		//
+-		// - missing transitive depencies that need to be resolved from outside the
++		// - missing transitive dependencies that need to be resolved from outside the
+ 		//   current build list (note that these may add new matches for existing
+ 		//   pattern queries!)
+ 		//
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index 6612f9b112..68706e7c79 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -98,7 +98,7 @@ type query struct {
+ 	resolved []module.Version
+ 
+ 	// matchesPackages is true if the resolved modules provide at least one
+-	// package mathcing q.pattern.
++	// package matching q.pattern.
+ 	matchesPackages bool
+ }
+ 
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 1c53e8314f..238355732c 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -61,7 +61,7 @@ func moduleHash(modroot string, ismodcache bool) (cache.ActionID, error) {
+ 		//
+ 		// Note that this is true even for modules in GOROOT/src: non-release builds
+ 		// of the Go toolchain may have arbitrary development changes on top of the
+-		// commit reported by runtime.Version, or could be completly artificial due
++		// commit reported by runtime.Version, or could be completely artificial due
+ 		// to lacking a `git` binary (like "devel gomote.XXXXX", as synthesized by
+ 		// "gomote push" as of 2022-06-15). (Release builds shouldn't have
+ 		// modifications, but we don't want to use a behavior for releases that we
+diff --git a/src/cmd/go/internal/vcweb/vcweb.go b/src/cmd/go/internal/vcweb/vcweb.go
+index e1f12827c1..f748b34358 100644
+--- a/src/cmd/go/internal/vcweb/vcweb.go
++++ b/src/cmd/go/internal/vcweb/vcweb.go
+@@ -362,7 +362,7 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request) {
+ 	fmt.Fprintf(w, "<title>vcweb</title>\n<pre>\n")
+ 	fmt.Fprintf(w, "<b>vcweb</b>\n\n")
+ 	fmt.Fprintf(w, "This server serves various version control repos for testing the go command.\n\n")
+-	fmt.Fprintf(w, "For an overview of the script lanugage, see <a href=\"/help\">/help</a>.\n\n")
++	fmt.Fprintf(w, "For an overview of the script language, see <a href=\"/help\">/help</a>.\n\n")
+ 
+ 	fmt.Fprintf(w, "<b>cache</b>\n")
+ 
+diff --git a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+index b2c84a387c..e5bcdc6cfa 100644
+--- a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
++++ b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+@@ -18,7 +18,7 @@
+ # non-standard host objects.
+ #
+ # As of 1.21 we continue to use internal linking for programs whose
+-# CGO use comes ony from stdlib packages in the absence of any flag
++# CGO use comes only from stdlib packages in the absence of any flag
+ # funny business, however if the Go command sees flags that may be suspicious,
+ # it signals the Go linker to invoke the external linker.
+ 
+diff --git a/src/cmd/go/testdata/script/env_cross_build.txt b/src/cmd/go/testdata/script/env_cross_build.txt
+index 3feeba6b14..91d1cb936d 100644
+--- a/src/cmd/go/testdata/script/env_cross_build.txt
++++ b/src/cmd/go/testdata/script/env_cross_build.txt
+@@ -1,4 +1,4 @@
+-# Test that the corect default GOEXPERIMENT is used when cross
++# Test that the correct default GOEXPERIMENT is used when cross
+ # building with GOENV (#46815).
+ 
+ # Unset variables set by the TestScript harness. Users typically won't
+diff --git a/src/cmd/go/testdata/script/mod_deprecate_message.txt b/src/cmd/go/testdata/script/mod_deprecate_message.txt
+index 8e2771dc1f..1fb12468a5 100644
+--- a/src/cmd/go/testdata/script/mod_deprecate_message.txt
++++ b/src/cmd/go/testdata/script/mod_deprecate_message.txt
+@@ -17,7 +17,7 @@ stderr '^go: module long is deprecated: \(message omitted: too long\)$'
+ go list -m -u -f '{{.Deprecated}}' long
+ stdout '^aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa$'
+ 
+-# When a message contains unprintable chracters, 'go get' should say that
++# When a message contains unprintable characters, 'go get' should say that
+ # without printing the message.
+ go get unprintable
+ stderr '^go: module unprintable is deprecated: \(message omitted: contains non-printable characters\)$'
+diff --git a/src/cmd/go/testdata/script/mod_get_moved.txt b/src/cmd/go/testdata/script/mod_get_moved.txt
+index ba79c8263c..cc35b4c8fa 100644
+--- a/src/cmd/go/testdata/script/mod_get_moved.txt
++++ b/src/cmd/go/testdata/script/mod_get_moved.txt
+@@ -8,7 +8,7 @@ go get example.com/split/subpkg@v1.0.0
+ go list -m all
+ stdout 'example.com/split v1.0.0'
+ 
+-# A 'go get' that simultaneously upgrades away conflicting package defitions is not ambiguous.
++# A 'go get' that simultaneously upgrades away conflicting package definitions is not ambiguous.
+ go get example.com/split/subpkg@v1.1.0
+ 
+ # A 'go get' without an upgrade should find the package.
+diff --git a/src/cmd/go/testdata/script/mod_get_split.txt b/src/cmd/go/testdata/script/mod_get_split.txt
+index 0552da24ea..6c2f00d37e 100644
+--- a/src/cmd/go/testdata/script/mod_get_split.txt
++++ b/src/cmd/go/testdata/script/mod_get_split.txt
+@@ -52,7 +52,7 @@ stderr '^go: example.net/split/nested: ambiguous import: found package example.n
+ # (perhaps 'latest' or 'none'), or we can report an error and the let the user
+ # disambiguate. We would rather not choose arbitrarily, so we do the latter.
+ #
+-# TODO(#27899): Should we instead upgrade or downgrade to an arbirary version?
++# TODO(#27899): Should we instead upgrade or downgrade to an arbitrary version?
+ 
+ ! go get example.net/split/nested/...@v0.1.0
+ stderr '^go: example.net/split/nested/\.\.\.@v0.1.0 matches packages in example.net/split@v0.2.0 but not example.net/split@v0.1.0: specify a different version for module example.net/split$'
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index a4a26ba9f3..89dfc1458c 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -142,7 +142,7 @@ stderr '^go: example.com/cmd/nomatch\.\.\.@v1.0.0: module example.com/cmd@v1.0.0
+ go install example.com/cmd/a@v1.0.0 example.com/cmd/nomatch...@v1.0.0
+ stderr '^go: warning: "example.com/cmd/nomatch\.\.\." matched no packages$'
+ 
+-# If a wildcard matches only non-main packges, we should see a different warning.
++# If a wildcard matches only non-main packages, we should see a different warning.
+ go install example.com/cmd/err...@v1.0.0
+ stderr '^go: warning: "example.com/cmd/err\.\.\." matched only non-main packages$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_added.txt b/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
+index 7a4a9f9672..b3f75adfe9 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
+@@ -23,9 +23,9 @@ cmp go.mod go.mod.orig
+ 
+ 
+ # When we run 'go mod tidy -e', we should proceed past the first error and follow
+-# it with a second error describing the version descrepancy.
++# it with a second error describing the version discrepancy.
+ #
+-# We should not provide advice on how to push past the version descrepancy,
++# We should not provide advice on how to push past the version discrepancy,
+ # because the '-e' flag should already do that, writing out an otherwise-tidied
+ # go.mod file.
+ 
+diff --git a/src/cmd/internal/cov/readcovdata.go b/src/cmd/internal/cov/readcovdata.go
+index 65076d72e8..086be40e90 100644
+--- a/src/cmd/internal/cov/readcovdata.go
++++ b/src/cmd/internal/cov/readcovdata.go
+@@ -108,7 +108,7 @@ type CovDataVisitor interface {
+ 	EndCounters()
+ 
+ 	// Invoked for each package in the meta-data file for the pod,
+-	// first the 'begin' method when processinf of the package starts,
++	// first the 'begin' method when processing of the package starts,
+ 	// then the 'end' method when we're done
+ 	BeginPackage(pd *decodemeta.CoverageMetaDataDecoder, pkgIdx uint32)
+ 	EndPackage(pd *decodemeta.CoverageMetaDataDecoder, pkgIdx uint32)
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 15cbd0371e..fc170e737d 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -193,8 +193,8 @@ const (
+ // compiler allocates external registers F26 down
+ const (
+ 	REGMIN = REG_R7  // register variables allocated from here to REGMAX
+-	REGRT1 = REG_R16 // ARM64 IP0, external linker may use as a scrach register in trampoline
+-	REGRT2 = REG_R17 // ARM64 IP1, external linker may use as a scrach register in trampoline
++	REGRT1 = REG_R16 // ARM64 IP0, external linker may use as a scratch register in trampoline
++	REGRT2 = REG_R17 // ARM64 IP1, external linker may use as a scratch register in trampoline
+ 	REGPR  = REG_R18 // ARM64 platform register, unused in the Go toolchain
+ 	REGMAX = REG_R25
+ 
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 83b9329f12..23f51f8b42 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -228,7 +228,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			for _, f := range wi.Params {
+ 				// Each load instructions will consume the value of sp on the stack, so
+ 				// we need to read sp for each param. WASM appears to not have a stack dup instruction
+-				// (a strange ommission for a stack-based VM), if it did, we'd be using the dup here.
++				// (a strange omission for a stack-based VM), if it did, we'd be using the dup here.
+ 				p = appendp(p, AGet, regAddr(REG_SP))
+ 
+ 				// Offset is the location of the param on the Go stack (ie relative to sp).
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 0b231855ec..996c300d95 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -84,7 +84,7 @@ const (
+ 	R_USETYPE
+ 	// R_USEIFACE marks a type is converted to an interface in the function this
+ 	// relocation is applied to. The target is a type descriptor or an itab
+-	// (in the latter case it refers to the conrete type contained in the itab).
++	// (in the latter case it refers to the concrete type contained in the itab).
+ 	// This is a marker relocation (0-sized), for the linker's reachabililty
+ 	// analysis.
+ 	R_USEIFACE
+@@ -230,7 +230,7 @@ const (
+ 	R_ADDRPOWER_GOT
+ 
+ 	// R_ADDRPOWER_GOT_PCREL34 is identical to R_ADDRPOWER_GOT, but uses a PC relative
+-	// sequence to generate a GOT symbol addresss.
++	// sequence to generate a GOT symbol addresses.
+ 	R_ADDRPOWER_GOT_PCREL34
+ 
+ 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index f10dacb974..f5bd44eef2 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -201,7 +201,7 @@ func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, p
+ 	return runcmd(cmd...)
+ }
+ 
+-var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once availabe. Also below.
++var stdlibImportcfgStringOnce sync.Once // TODO(#56102): Use sync.OnceValue once available. Also below.
+ var stdlibImportcfgString string
+ 
+ func stdlibImportcfg() string {
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index aef46872bb..a601fe5a0d 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1989,7 +1989,7 @@ type dwUnitSyms struct {
+ 
+ // dwUnitPortion assembles the DWARF content for a given compilation
+ // unit: debug_info, debug_lines, debug_ranges, debug_loc (debug_frame
+-// is handled elsewere). Order is important; the calls to writelines
++// is handled elsewhere). Order is important; the calls to writelines
+ // and writepcranges below make updates to the compilation unit DIE,
+ // hence they have to happen before the call to writeUnitInfo.
+ func (d *dwctxt) dwUnitPortion(u *sym.CompilationUnit, abbrevsym loader.Sym, us *dwUnitSyms) {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 9f4b00371a..1502b3eb39 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -779,7 +779,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
+ 				//  - https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#export-address-table
+ 				//  - https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/pe-dll.c;h=e7b82ba6ffadf74dc1b9ee71dc13d48336941e51;hb=HEAD#l972)
+ 				//
+-				// CL 317917 changes "." to ":" in symbols name, so theses symbols can not be
++				// CL 317917 changes "." to ":" in symbols name, so these symbols can not be
+ 				// found by external linker anymore. So a hacky way is adding the
+ 				// underscore prefix for these 2 symbols. I don't have enough knowledge to
+ 				// verify whether adding the underscore for all STEXT/STYPE symbols are
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 49199bdd69..4d0b497d8e 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1126,7 +1126,7 @@ func (l *Loader) SetAttrReadOnly(i Sym, v bool) {
+ //
+ // - Outer symbol covers the address ranges of its sub-symbols.
+ //   Outer.Sub is set in this case.
+-// - Outer symbol doesn't conver the address ranges. It is zero-sized
++// - Outer symbol doesn't cover the address ranges. It is zero-sized
+ //   and doesn't have sub-symbols. In the case, the inner symbol is
+ //   not actually a "SubSymbol". (Tricky!)
+ //
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 0e4d882c97..9e9e7f3e49 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -124,7 +124,7 @@ func main() {
+ 
+ 	log.Print("Splitting trace...")
+ 	ranges = splitTrace(res)
+-	reportMemoryUsage("after spliting trace")
++	reportMemoryUsage("after splitting trace")
+ 	debug.FreeOSMemory()
+ 
+ 	addr := "http://" + ln.Addr().String()
+diff --git a/src/compress/flate/deflate_test.go b/src/compress/flate/deflate_test.go
+index 6d2043091a..3610c7bf87 100644
+--- a/src/compress/flate/deflate_test.go
++++ b/src/compress/flate/deflate_test.go
+@@ -801,7 +801,7 @@ func checkErrors(got []error, want error, t *testing.T) {
+ 	t.Helper()
+ 	for _, err := range got {
+ 		if err != want {
+-			t.Errorf("Errors dosn't match\nWant: %s\nGot: %s", want, got)
++			t.Errorf("Error doesn't match\nWant: %s\nGot: %s", want, got)
+ 		}
+ 	}
+ }
+diff --git a/src/crypto/sha256/sha256block_amd64.s b/src/crypto/sha256/sha256block_amd64.s
+index 03535fb51c..bbde6285d1 100644
+--- a/src/crypto/sha256/sha256block_amd64.s
++++ b/src/crypto/sha256/sha256block_amd64.s
+@@ -564,7 +564,7 @@
+ #define digestPtr	DI	// input/output, base pointer to digest hash vector H0, H1, ..., H7
+ #define dataPtr		SI	// input, base pointer to first input data block
+ #define numBytes	DX	// input, number of input bytes to be processed
+-#define sha256Constants	AX	// round contants from K256 table, indexed by round number x 32
++#define sha256Constants	AX	// round contents from K256 table, indexed by round number x 32
+ #define msg		X0	// input data
+ #define state0		X1	// round intermediates and outputs
+ #define state1		X2
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index fdb20c0887..ce6605d972 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -2420,7 +2420,7 @@ func TestPathBuilding(t *testing.T) {
+ 		{
+ 			// A name constraint on the root should apply to any names that appear
+ 			// on the intermediate, meaning there is no valid chain.
+-			name: "contrained root, invalid intermediate",
++			name: "constrained root, invalid intermediate",
+ 			graph: trustGraphDescription{
+ 				Roots: []rootDescription{
+ 					{
+@@ -2455,7 +2455,7 @@ func TestPathBuilding(t *testing.T) {
+ 		{
+ 			// A name constraint on the intermediate does not apply to the intermediate
+ 			// itself, so this is a valid chain.
+-			name: "contrained intermediate, non-matching SAN",
++			name: "constrained intermediate, non-matching SAN",
+ 			graph: trustGraphDescription{
+ 				Roots: []rootDescription{{Subject: "root"}},
+ 				Leaf:  "leaf",
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 32298a2b0c..19deeab54d 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -154,7 +154,7 @@ wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
+ -----END RSA TESTING KEY-----
+ `)
+ 
+-// pemEd25519Key is the example from RFC 8410, Secrion 4.
++// pemEd25519Key is the example from RFC 8410, Section 4.
+ var pemEd25519Key = `
+ -----BEGIN PUBLIC KEY-----
+ MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index 65c8520b49..0848aca22a 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -573,7 +573,7 @@ type x int // comment
+ var parseDepthTests = []struct {
+ 	name   string
+ 	format string
+-	// multipler is used when a single statement may result in more than one
++	// multiplier is used when a single statement may result in more than one
+ 	// change in the depth level, for instance "1+(..." produces a BinaryExpr
+ 	// followed by a UnaryExpr, which increments the depth twice. The test
+ 	// case comment explains which nodes are triggering the multiple depth
+diff --git a/src/hash/maphash/maphash_test.go b/src/hash/maphash/maphash_test.go
+index 7526989073..ed70f0ce51 100644
+--- a/src/hash/maphash/maphash_test.go
++++ b/src/hash/maphash/maphash_test.go
+@@ -141,7 +141,7 @@ func TestRepeat(t *testing.T) {
+ 	sum2 := h1.Sum64()
+ 
+ 	if sum1 != sum2 {
+-		t.Errorf("different sum after reseting: %#x != %#x", sum1, sum2)
++		t.Errorf("different sum after resetting: %#x != %#x", sum1, sum2)
+ 	}
+ 
+ 	h2 := new(Hash)
+diff --git a/src/math/pow_s390x.s b/src/math/pow_s390x.s
+index 9a0fff334b..c8758fc5f8 100644
+--- a/src/math/pow_s390x.s
++++ b/src/math/pow_s390x.s
+@@ -133,7 +133,7 @@ DATA ·powtm<> + 176(SB)/8, $0xe00003d4a9c6f
+ DATA ·powtm<> + 184(SB)/8, $0xf00003d846c66
+ GLOBL ·powtm<> + 0(SB), RODATA, $192
+ 
+-// Table of indeces into multiplier tables
++// Table of indices into multiplier tables
+ // Adjusted from asm to remove offset and convert
+ DATA ·powtabi<> + 0(SB)/8, $0x1010101
+ DATA ·powtabi<> + 8(SB)/8, $0x101020202020203
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index f8258a961c..85bad2a4cb 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -86,7 +86,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 	// since metadata is always stored in memory, not disk.
+ 	//
+ 	// maxMemoryBytes is the maximum bytes we will store in memory, including file content,
+-	// non-file part values, metdata, and map entry overhead.
++	// non-file part values, metadata, and map entry overhead.
+ 	//
+ 	// We reserve an additional 10 MB in maxMemoryBytes for non-file data.
+ 	//
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 7f9ed1f8c8..94c3ad04f3 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3005,7 +3005,7 @@ func TestDirFS(t *testing.T) {
+ 		t.Error("expected DirFS result to implement fs.ReadDirFS")
+ 	}
+ 	if _, err := rdfs.ReadDir("nonexistent"); err == nil {
+-		t.Error("fs.ReadDir of nonexistent directory suceeded")
++		t.Error("fs.ReadDir of nonexistent directory succeeded")
+ 	}
+ 
+ 	// Test that the error message does not contain a backslash,
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index a65d703ebf..e0d2328ba1 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -245,7 +245,7 @@ const (
+ 	minDynamicTimeout = 1 * time.Millisecond
+ 
+ 	// maxDynamicTimeout is the maximum timeout to attempt for
+-	// tests that automatically increase timeouts until succeess.
++	// tests that automatically increase timeouts until success.
+ 	//
+ 	// This should be a strict upper bound on the latency required to hit a
+ 	// timeout accurately, even on a slow or heavily-loaded machine. If a test
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 71b01e7c75..67ffc24353 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -803,7 +803,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOVL	savedm-4(SP), DX
+ 	CMPL	DX, $0
+ 	JNE	droppedm
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 9befd6fb38..edf0909a77 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1066,7 +1066,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOVQ	savedm-8(SP), BX
+ 	CMPQ	BX, $0
+ 	JNE	done
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index f2be89586d..e3206a1d27 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -741,7 +741,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOVW	savedm-4(SP), R6
+ 	CMP	$0, R6
+ 	B.NE	done
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 4822594cb3..7866e35e4f 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1128,7 +1128,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOVD	savedm-8(SP), R6
+ 	CBNZ	R6, droppedm
+ 
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index aa1603da1a..6ffa1392c4 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -567,7 +567,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOVV	savedm-8(SP), R12
+ 	BNE	R12, droppedm
+ 
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 582aec8c38..19592b5695 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -575,7 +575,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOVV	savedm-8(SP), R3
+ 	BNE	R3, droppedm
+ 
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 5cfb7de64f..eed4a05b38 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -565,7 +565,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOVW	savedm-4(SP), R3
+ 	BNE	R3, droppedm
+ 
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 40f51c68f0..66d0447c9d 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -741,7 +741,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOVD	savedm-8(SP), R6
+ 	CMP	R6, $0
+ 	BNE	droppedm
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 805d09f67c..eb53cbbf47 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -625,7 +625,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOV	savedm-8(SP), X5
+ 	BNE	ZERO, X5, droppedm
+ 
+@@ -740,7 +740,7 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+ //
+ // gcWriteBarrier does NOT follow the Go ABI. It accepts the
+ // number of bytes of buffer needed in X24, and returns a pointer
+-// to the buffer spcae in X24.
++// to the buffer space in X24.
+ // It clobbers X31 aka T6 (the linker temp register - REG_TMP).
+ // The act of CALLing gcWriteBarrier will clobber RA (LR).
+ // It does not clobber any other general-purpose registers,
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 17cfd439b2..a7f414ef91 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -670,7 +670,7 @@ havem:
+ 	// If the m on entry wasn't nil,
+ 	// 1. the thread might be a Go thread,
+ 	// 2. or it wasn't the first call from a C thread on pthread platforms,
+-	//    since then we skip dropm to resue the m in the first call.
++	//    since then we skip dropm to reuse the m in the first call.
+ 	MOVD	savedm-8(SP), R6
+ 	CMPBNE	R6, $0, droppedm
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 0d0e827315..87f7c20f5d 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -121,7 +121,7 @@ func (t *itabTableType) find(inter *interfacetype, typ *_type) *itab {
+ // itabLock must be held.
+ func itabAdd(m *itab) {
+ 	// Bugs can lead to calling this while mallocing is set,
+-	// typically because this is called while panicing.
++	// typically because this is called while panicking.
+ 	// Crash reliably, rather than only when we need to grow
+ 	// the hash table.
+ 	if getg().m.mallocing != 0 {
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index c3a196e496..44479cc2be 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1164,7 +1164,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	publicationBarrier()
+ 	// As x and the heap bits are initialized, update
+ 	// freeIndexForScan now so x is seen by the GC
+-	// (including convervative scan) as an allocated object.
++	// (including conservative scan) as an allocated object.
+ 	// While this pointer can't escape into user code as a
+ 	// _live_ pointer until we return, conservative scanning
+ 	// may find a dead pointer that happens to point into this
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index 96d9b28d9d..d771e0b747 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -304,7 +304,7 @@ search:
+ 				if goarch.PtrSize == 8 {
+ 					*(*unsafe.Pointer)(k) = nil
+ 				} else {
+-					// There are three ways to squeeze at one ore more 32 bit pointers into 64 bits.
++					// There are three ways to squeeze at one or more 32 bit pointers into 64 bits.
+ 					// Just call memclrHasPointers instead of trying to handle all cases here.
+ 					memclrHasPointers(k, 8)
+ 				}
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 23dc72f8bc..3af45e6892 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -66,7 +66,7 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
+ 	if goarch.PtrSize == 4 {
+ 		// We only have a pointer-sized field to store into,
+ 		// so on a 32-bit system we get no sequence protection.
+-		// TODO(iant): If we notice any problems we could at leaset
++		// TODO(iant): If we notice any problems we could at least
+ 		// steal the low-order 2 bits for a tiny sequence number.
+ 		ev[0].udata = (*byte)(unsafe.Pointer(pd))
+ 	} else {
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index d240dc4404..67eadeac9e 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -1044,16 +1044,16 @@ func testPreemptionAfterSyscall(t *testing.T, syscallDuration time.Duration) {
+ 
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
+ 
+-	interations := 10
++	iterations := 10
+ 	if testing.Short() {
+-		interations = 1
++		iterations = 1
+ 	}
+ 	const (
+ 		maxDuration = 5 * time.Second
+ 		nroutines   = 8
+ 	)
+ 
+-	for i := 0; i < interations; i++ {
++	for i := 0; i < iterations; i++ {
+ 		c := make(chan bool, nroutines)
+ 		stop := uint32(0)
+ 
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 96d37b839c..600e80d8bf 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -335,7 +335,7 @@ func TestDeferLeafSigpanic(t *testing.T) {
+ 	}()
+ 	// Call a leaf function. We must set up the exact call stack:
+ 	//
+-	//  defering function -> leaf function -> sigpanic
++	//  deferring function -> leaf function -> sigpanic
+ 	//
+ 	// On LR machines, the leaf function will have the same SP as
+ 	// the SP pushed for the defer frame.
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 93c927f57c..c05351cb8e 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -1137,7 +1137,7 @@ func siftdownTimer(t []*timer, i int) {
+ 
+ // badTimer is called if the timer data structures have been corrupted,
+ // presumably due to racy use by the program. We panic here rather than
+-// panicing due to invalid slice access while holding locks.
++// panicking due to invalid slice access while holding locks.
+ // See issue #25686.
+ func badTimer() {
+ 	throw("timer data corruption")
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 7ec10ce3a7..f4ff7bf81b 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -484,7 +484,7 @@ func TestCloneTimeNamespace(t *testing.T) {
+ 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+ 	}
+ 
+-	// Inode numer of the time namespaces should be different.
++	// Inode number of the time namespaces should be different.
+ 	// Based on https://man7.org/linux/man-pages/man7/time_namespaces.7.html#EXAMPLES
+ 	timens, err := os.Readlink("/proc/self/ns/time")
+ 	if err != nil {
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index a2768e1845..8b0a57b502 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -243,7 +243,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
+ 
+ func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
+-	// Linux fchmodat doesn't support the flags parameter. Mimick glibc's behavior
++	// Linux fchmodat doesn't support the flags parameter. Mimic glibc's behavior
+ 	// and check the flags. Otherwise the mode would be applied to the symlink
+ 	// destination which is not what the user expects.
+ 	if flags&^_AT_SYMLINK_NOFOLLOW != 0 {

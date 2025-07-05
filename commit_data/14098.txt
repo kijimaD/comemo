@@ -10,7 +10,7 @@ Date:   Wed Oct 10 00:55:48 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6620075
-
+---
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/issue4029.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/6l/asm.c           | 39 ++++++++++++++++++++++---------
@@ -20,3 +20,325 @@ Date:   Wed Oct 10 00:55:48 2012 +0800
  src/cmd/ld/lib.c           |  1 +
  src/cmd/ld/lib.h           |  4 ++++
  8 files changed, 185 insertions(+), 17 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 3b866290fe..682e292a70 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -31,5 +31,6 @@ func TestHelpers(t *testing.T)             { testHelpers(t) }
+ func TestLibgcc(t *testing.T)              { testLibgcc(t) }
+ func Test1635(t *testing.T)                { test1635(t) }
+ func TestPrintf(t *testing.T)              { testPrintf(t) }
++func Test4029(t *testing.T)                { test4029(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue4029.go b/misc/cgo/test/issue4029.go
+new file mode 100644
+index 0000000000..b8a0a6d985
+--- /dev/null
++++ b/misc/cgo/test/issue4029.go
+@@ -0,0 +1,57 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++#include <dlfcn.h> 
++*/
++import "C"
++
++import (
++	"fmt"
++	"testing"
++)
++
++//export IMPIsOpaque
++func IMPIsOpaque() {
++	fmt.Println("isOpaque")
++}
++
++//export IMPInitWithFrame
++func IMPInitWithFrame() {
++	fmt.Println("IInitWithFrame")
++}
++
++//export IMPDrawRect
++func IMPDrawRect() {
++	fmt.Println("drawRect:")
++}
++
++//export IMPWindowResize
++func IMPWindowResize() {
++	fmt.Println("windowDidResize:")
++}
++
++func test4029(t *testing.T) {
++	loadThySelf(t, "IMPWindowResize")
++	loadThySelf(t, "IMPDrawRect")
++	loadThySelf(t, "IMPInitWithFrame")
++	loadThySelf(t, "IMPIsOpaque")
++}
++
++func loadThySelf(t *testing.T, symbol string) {
++	this_process := C.dlopen(nil, C.RTLD_NOW)
++	if this_process == nil {
++		t.Fatal("dlopen:", C.GoString(C.dlerror()))
++	}
++	defer C.dlclose(this_process)
++
++	symbol_address := C.dlsym(this_process, C.CString(symbol))
++	if symbol_address == nil {
++		t.Fatal("dlsym:", C.GoString(C.dlerror()))
++	} else {
++		t.Log(symbol, symbol_address)
++	}
++}
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 05732d081d..8af8606603 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -435,6 +435,7 @@ adddynsym(Sym *s)
+ 	Sym *d, *str;
+ 	int t;
+ 	char *name;
++	vlong off;
+ 
+ 	if(s->dynid >= 0)
+ 		return;
+@@ -503,35 +504,51 @@ adddynsym(Sym *s)
+ 		name = s->dynimpname;
+ 		if(name == nil)
+ 			name = s->name;
+-		s->dynid = d->size/16;
++		if(d->size == 0 && ndynexp > 0) { // pre-allocate for dynexps
++			symgrow(d, ndynexp*16);
++		}
++		if(s->dynid <= -100) { // pre-allocated, see cmd/ld/go.c:^sortdynexp()
++			s->dynid = -s->dynid-100;
++			off = s->dynid*16;
++		} else {
++			off = d->size;
++			s->dynid = off/16;
++		}
+ 		// darwin still puts _ prefixes on all C symbols
+ 		str = lookup(".dynstr", 0);
+-		adduint32(d, str->size);
++		setuint32(d, off, str->size);
++		off += 4;
+ 		adduint8(str, '_');
+ 		addstring(str, name);
+ 		if(s->type == SDYNIMPORT) {
+-			adduint8(d, 0x01);	// type - N_EXT - external symbol
+-			adduint8(d, 0);	// section
++			setuint8(d, off, 0x01); // type - N_EXT - external symbol
++			off++;
++			setuint8(d, off, 0); // section
++			off++;
+ 		} else {
+-			adduint8(d, 0x0f);
++			setuint8(d, off, 0x0f);
++			off++;
+ 			switch(s->type) {
+ 			default:
+ 			case STEXT:
+-				adduint8(d, 1);
++				setuint8(d, off, 1);
+ 				break;
+ 			case SDATA:
+-				adduint8(d, 2);
++				setuint8(d, off, 2);
+ 				break;
+ 			case SBSS:
+-				adduint8(d, 4);
++				setuint8(d, off, 4);
+ 				break;
+ 			}
++			off++;
+ 		}
+-		adduint16(d, 0);	// desc
++		setuint16(d, off, 0); // desc
++		off += 2;
+ 		if(s->type == SDYNIMPORT)
+-			adduint64(d, 0);	// value
++			setuint64(d, off, 0); // value
+ 		else
+-			addaddr(d, s);
++			setaddr(d, off, s);
++		off += 8;
+ 	} else if(HEADTYPE != Hwindows) {
+ 		diag("adddynsym: unsupported binary format");
+ 	}
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 4d7734f046..44cd77cbac 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -416,6 +416,7 @@ adddynsym(Sym *s)
+ 	Sym *d, *str;
+ 	int t;
+ 	char *name;
++	vlong off;
+ 	
+ 	if(s->dynid >= 0)
+ 		return;
+@@ -479,16 +480,51 @@ adddynsym(Sym *s)
+ 		name = s->dynimpname;
+ 		if(name == nil)
+ 			name = s->name;
+-		s->dynid = d->size/12;
++		if(d->size == 0 && ndynexp > 0) { // pre-allocate for dynexps
++			symgrow(d, ndynexp*12);
++		}
++		if(s->dynid <= -100) { // pre-allocated, see cmd/ld/go.c:^sortdynexp()
++			s->dynid = -s->dynid-100;
++			off = s->dynid*12;
++		} else {
++			off = d->size;
++			s->dynid = off/12;
++		}
+ 		// darwin still puts _ prefixes on all C symbols
+ 		str = lookup(".dynstr", 0);
+-		adduint32(d, str->size);
++		setuint32(d, off, str->size);
++		off += 4;
+ 		adduint8(str, '_');
+ 		addstring(str, name);
+-		adduint8(d, 0x01);	// type - N_EXT - external symbol
+-		adduint8(d, 0);	// section
+-		adduint16(d, 0);	// desc
+-		adduint32(d, 0);	// value
++		if(s->type == SDYNIMPORT) {
++			setuint8(d, off, 0x01); // type - N_EXT - external symbol
++			off++;
++			setuint8(d, off, 0); // section
++			off++;
++		} else {
++			setuint8(d, off, 0x0f);
++			off++;
++			switch(s->type) {
++			default:
++			case STEXT:
++				setuint8(d, off, 1);
++				break;
++			case SDATA:
++				setuint8(d, off, 2);
++				break;
++			case SBSS:
++				setuint8(d, off, 4);
++				break;
++			}
++			off++;
++		}
++		setuint16(d, off, 0); // desc
++		off += 2;
++		if(s->type == SDYNIMPORT)
++			setuint32(d, off, 0); // value
++		else
++			setaddr(d, off, s);
++		off += 4;
+ 	} else if(HEADTYPE != Hwindows) {
+ 		diag("adddynsym: unsupported binary format");
+ 	}
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 4afe4b801c..e551f72903 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -793,6 +793,33 @@ addaddr(Sym *s, Sym *t)
+ 	return addaddrplus(s, t, 0);
+ }
+ 
++vlong
++setaddrplus(Sym *s, vlong off, Sym *t, int32 add)
++{
++	Reloc *r;
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	if(off+PtrSize > s->size) {
++		s->size = off + PtrSize;
++		symgrow(s, s->size);
++	}
++	r = addrel(s);
++	r->sym = t;
++	r->off = off;
++	r->siz = PtrSize;
++	r->type = D_ADDR;
++	r->add = add;
++	return off;
++}
++
++vlong
++setaddr(Sym *s, vlong off, Sym *t)
++{
++	return setaddrplus(s, off, t, 0);
++}
++
+ vlong
+ addsize(Sym *s, Sym *t)
+ {
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 28cf06b8bd..8def9b7301 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -932,3 +932,28 @@ importcycles(void)
+ 	for(p=pkgall; p; p=p->all)
+ 		cycle(p);
+ }
++
++static int
++scmp(const void *p1, const void *p2)
++{
++	Sym *s1, *s2;
++
++	s1 = *(Sym**)p1;
++	s2 = *(Sym**)p2;
++	return strcmp(s1->dynimpname, s2->dynimpname);
++}
++void
++sortdynexp(void)
++{
++	int i;
++
++	// On Mac OS X Mountain Lion, we must sort exported symbols
++	// So we sort them here and pre-allocate dynid for them
++	// See http://golang.org/issue/4029
++	if(HEADTYPE != Hdarwin)
++		return;
++	qsort(dynexp, ndynexp, sizeof dynexp[0], scmp);
++	for(i=0; i<ndynexp; i++) {
++		dynexp[i]->dynid = -i-100; // also known to [68]l/asm.c:^adddynsym
++	}
++}
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 135426473f..8e3a8dd690 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -309,6 +309,7 @@ loadlib(void)
+ 		debug['d'] = 1;
+ 	
+ 	importcycles();
++	sortdynexp();
+ }
+ 
+ /*
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index d322df5c6b..162e16180f 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -196,6 +196,8 @@ vlong	addaddr(Sym*, Sym*);
+ vlong	addaddrplus(Sym*, Sym*, int32);
+ vlong	addpcrelplus(Sym*, Sym*, int32);
+ vlong	addsize(Sym*, Sym*);
++vlong	setaddrplus(Sym*, vlong, Sym*, int32);
++vlong	setaddr(Sym*, vlong, Sym*);
+ void	setuint8(Sym*, vlong, uint8);
+ void	setuint16(Sym*, vlong, uint16);
+ void	setuint32(Sym*, vlong, uint32);
+@@ -341,3 +343,5 @@ char*	decodetype_structfieldname(Sym*, int);
+ Sym*	decodetype_structfieldtype(Sym*, int);
+ vlong	decodetype_structfieldoffs(Sym*, int);
+ vlong	decodetype_ifacemethodcount(Sym*);
++
++void	sortdynexp(void);

@@ -23,7 +23,7 @@ Date:   Fri Oct 30 11:03:02 2015 -0400
     Change-Id: I82ca8b99b5d86dceb3f7102d38d2659d45dbe0db
     Reviewed-on: https://go-review.googlesource.com/16512
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/extern.go         | 23 +++++++++-------
  src/runtime/os3_plan9.go      |  4 ++-
  src/runtime/panic.go          | 11 +++++---
@@ -36,3 +36,320 @@ Date:   Fri Oct 30 11:03:02 2015 -0400
  src/runtime/signal_windows.go |  4 +--
  src/runtime/traceback.go      | 10 +++----
  11 files changed, 79 insertions(+), 56 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index cdb66ba24e..5a5d432f62 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -106,15 +106,20 @@ the limit.
+ 
+ The GOTRACEBACK variable controls the amount of output generated when a Go
+ program fails due to an unrecovered panic or an unexpected runtime condition.
+-By default, a failure prints a stack trace for every extant goroutine, eliding functions
+-internal to the run-time system, and then exits with exit code 2.
+-If GOTRACEBACK=0, the per-goroutine stack traces are omitted entirely.
+-If GOTRACEBACK=1, the default behavior is used.
+-If GOTRACEBACK=2, the per-goroutine stack traces include run-time functions.
+-If GOTRACEBACK=crash, the per-goroutine stack traces include run-time functions,
+-and if possible the program crashes in an operating-specific manner instead of
+-exiting. For example, on Unix systems, the program raises SIGABRT to trigger a
+-core dump.
++By default, a failure prints a stack trace for the current goroutine,
++eliding functions internal to the run-time system, and then exits with exit code 2.
++The failure prints stack traces for all goroutines if there is no current goroutine
++or the failure is internal to the run-time.
++GOTRACEBACK=none omits the goroutine stack traces entirely.
++GOTRACEBACK=single (the default) behaves as described above.
++GOTRACEBACK=all adds stack traces for all user-created goroutines.
++GOTRACEBACK=system is like ``all'' but adds stack frames for run-time functions
++and shows goroutines created internally by the run-time.
++GOTRACEBACK=crash is like ``system'' but crashes in an operating system-specific
++manner instead of exiting. For example, on Unix systems, the crash raises
++SIGABRT to trigger a core dump.
++For historical reasons, the GOTRACEBACK settings 0, 1, and 2 are synonyms for
++none, all, and system, respectively.
+ 
+ The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
+ the set of Go environment variables. They influence the building of Go programs
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 03e9410424..43918bb054 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -14,6 +14,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 	var docrash bool
+ 	var sig int
+ 	var flags int
++	var level int32
+ 
+ 	c := &sigctxt{_ureg}
+ 	notestr := gostringnocopy(note)
+@@ -97,7 +98,8 @@ Throw:
+ 	print(notestr, "\n")
+ 	print("PC=", hex(c.pc()), "\n")
+ 	print("\n")
+-	if gotraceback(&docrash) > 0 {
++	level, _, docrash = gotraceback()
++	if level > 0 {
+ 		goroutineheader(gp)
+ 		tracebacktrap(c.pc(), c.sp(), 0, gp)
+ 		tracebackothers(gp)
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index f603d109b2..8d858e851c 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -605,18 +605,21 @@ func dopanic_m(gp *g, pc, sp uintptr) {
+ 		print("[signal ", hex(gp.sig), " code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
+ 	}
+ 
+-	var docrash bool
++	level, all, docrash := gotraceback()
+ 	_g_ := getg()
+-	if t := gotraceback(&docrash); t > 0 {
++	if level > 0 {
++		if gp != gp.m.curg {
++			all = true
++		}
+ 		if gp != gp.m.g0 {
+ 			print("\n")
+ 			goroutineheader(gp)
+ 			traceback(pc, sp, 0, gp)
+-		} else if t >= 2 || _g_.m.throwing > 0 {
++		} else if level >= 2 || _g_.m.throwing > 0 {
+ 			print("\nruntime stack:\n")
+ 			traceback(pc, sp, 0, gp)
+ 		}
+-		if !didothers {
++		if !didothers && all {
+ 			didothers = true
+ 			tracebackothers(gp)
+ 		}
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index e476bca8e5..8878817aab 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -8,30 +8,37 @@ import "unsafe"
+ 
+ // Keep a cached value to make gotraceback fast,
+ // since we call it on every call to gentraceback.
+-// The cached value is a uint32 in which the low bit
+-// is the "crash" setting and the top 31 bits are the
+-// gotraceback value.
+-var traceback_cache uint32 = 2 << 1
+-
+-// The GOTRACEBACK environment variable controls the
+-// behavior of a Go program that is crashing and exiting.
+-//	GOTRACEBACK=0   suppress all tracebacks
+-//	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
+-//	GOTRACEBACK=2   show tracebacks including runtime frames
+-//	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
++// The cached value is a uint32 in which the low bits
++// are the "crash" and "all" settings and the remaining
++// bits are the traceback value (0 off, 1 on, 2 include system).
++const (
++	tracebackCrash = 1 << iota
++	tracebackAll
++	tracebackShift = iota
++)
++
++var traceback_cache uint32 = 2 << tracebackShift
++
++// gotraceback returns the current traceback settings.
++//
++// If level is 0, suppress all tracebacks.
++// If level is 1, show tracebacks, but exclude runtime frames.
++// If level is 2, show tracebacks including runtime frames.
++// If all is set, print all goroutine stacks. Otherwise, print just the current goroutine.
++// If crash is set, crash (core dump, etc) after tracebacking.
++//
+ //go:nosplit
+-func gotraceback(crash *bool) int32 {
++func gotraceback() (level int32, all, crash bool) {
+ 	_g_ := getg()
+-	if crash != nil {
+-		*crash = false
+-	}
++	all = _g_.m.throwing > 0
+ 	if _g_.m.traceback != 0 {
+-		return int32(_g_.m.traceback)
+-	}
+-	if crash != nil {
+-		*crash = traceback_cache&1 != 0
++		level = int32(_g_.m.traceback)
++		return
+ 	}
+-	return int32(traceback_cache >> 1)
++	crash = traceback_cache&tracebackCrash != 0
++	all = all || traceback_cache&tracebackAll != 0
++	level = int32(traceback_cache >> tracebackShift)
++	return
+ }
+ 
+ var (
+@@ -365,17 +372,23 @@ func parsedebugvars() {
+ 	}
+ 
+ 	switch p := gogetenv("GOTRACEBACK"); p {
+-	case "":
+-		traceback_cache = 1 << 1
++	case "none":
++		traceback_cache = 0
++	case "single", "":
++		traceback_cache = 1 << tracebackShift
++	case "all":
++		traceback_cache = 1<<tracebackShift | tracebackAll
++	case "system":
++		traceback_cache = 2<<tracebackShift | tracebackAll
+ 	case "crash":
+-		traceback_cache = 2<<1 | 1
++		traceback_cache = 2<<tracebackShift | tracebackAll | tracebackCrash
+ 	default:
+-		traceback_cache = uint32(atoi(p)) << 1
++		traceback_cache = uint32(atoi(p))<<tracebackShift | tracebackAll
+ 	}
+ 	// when C owns the process, simply exit'ing the process on fatal errors
+ 	// and panics is surprising. Be louder and abort instead.
+ 	if islibrary || isarchive {
+-		traceback_cache |= 1
++		traceback_cache |= tracebackCrash
+ 	}
+ 
+ 	if debug.gcstackbarrierall > 0 {
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index ca189421f7..04218f97ea 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -131,8 +131,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 	print("\n")
+ 
+-	var docrash bool
+-	if gotraceback(&docrash) > 0 {
++	level, _, docrash := gotraceback()
++	if level > 0 {
+ 		goroutineheader(gp)
+ 
+ 		// On Linux/386, all system calls go through the vdso kernel_vsyscall routine.
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index 3e14480ac3..473f762918 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -165,8 +165,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 	print("\n")
+ 
+-	var docrash bool
+-	if gotraceback(&docrash) > 0 {
++	level, _, docrash := gotraceback()
++	if level > 0 {
+ 		goroutineheader(gp)
+ 		tracebacktrap(uintptr(c.rip()), uintptr(c.rsp()), 0, gp)
+ 		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index 1b8a2f5277..c00e43d0c2 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -126,8 +126,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 	print("\n")
+ 
+-	var docrash bool
+-	if gotraceback(&docrash) > 0 {
++	level, _, docrash := gotraceback()
++	if level > 0 {
+ 		goroutineheader(gp)
+ 		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.lr()), gp)
+ 		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 4a7c8b980b..18ecdc29ce 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -139,8 +139,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 	print("\n")
+ 
+-	var docrash bool
+-	if gotraceback(&docrash) > 0 {
++	level, _, docrash := gotraceback()
++	if level > 0 {
+ 		goroutineheader(gp)
+ 		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.lr()), gp)
+ 		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index 71055b6bdb..e1e690efc7 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -144,8 +144,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 	print("\n")
+ 
+-	var docrash bool
+-	if gotraceback(&docrash) > 0 {
++	level, _, docrash := gotraceback()
++	if level > 0 {
+ 		goroutineheader(gp)
+ 		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp)
+ 		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index d80cc97755..5cfa20fbfe 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -134,8 +134,8 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	}
+ 	print("\n")
+ 
+-	var docrash bool
+-	if gotraceback(&docrash) > 0 {
++	level, _, docrash := gotraceback()
++	if level > 0 {
+ 		tracebacktrap(r.ip(), r.sp(), 0, gp)
+ 		tracebackothers(gp)
+ 		dumpregs(r)
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index b99920ab4f..e6412a35e5 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -139,7 +139,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		// instead on the g0 stack.
+ 		throw("gentraceback cannot trace user goroutine on its own stack")
+ 	}
+-	gotraceback := gotraceback(nil)
++	level, _, _ := gotraceback()
+ 
+ 	// Fix up returns to the stack barrier by fetching the
+ 	// original return PC from gp.stkbar.
+@@ -367,7 +367,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				if frame.pc > f.entry {
+ 					print(" +", hex(frame.pc-f.entry))
+ 				}
+-				if g.m.throwing > 0 && gp == g.m.curg || gotraceback >= 2 {
++				if g.m.throwing > 0 && gp == g.m.curg || level >= 2 {
+ 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp))
+ 				}
+ 				print("\n")
+@@ -582,7 +582,7 @@ func showframe(f *_func, gp *g) bool {
+ 	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
+ 		return true
+ 	}
+-	traceback := gotraceback(nil)
++	level, _, _ := gotraceback()
+ 	name := funcname(f)
+ 
+ 	// Special case: always show runtime.panic frame, so that we can
+@@ -592,7 +592,7 @@ func showframe(f *_func, gp *g) bool {
+ 		return true
+ 	}
+ 
+-	return traceback > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
++	return level > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
+ }
+ 
+ // isExportedRuntime reports whether name is an exported runtime function.
+@@ -658,7 +658,7 @@ func goroutineheader(gp *g) {
+ }
+ 
+ func tracebackothers(me *g) {
+-	level := gotraceback(nil)
++	level, _, _ := gotraceback()
+ 
+ 	// Show the current goroutine first, if we haven't already.
+ 	g := getg()

@@ -12,6 +12,20 @@ Date:   Mon Apr 14 12:33:51 2014 -0400
     R=golang-codereviews, bradfitz, minux.ma
     CC=golang-codereviews, iant, r
     https://golang.org/cl/87630043
-
+---
  src/cmd/dist/build.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 8cb7dcd73b..adec8543e2 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -373,6 +373,8 @@ static char *oldtool[] = {
+ // Unreleased directories (relative to $GOROOT) that should
+ // not be in release branches.
+ static char *unreleased[] = {
++	"src/cmd/link",
++	"src/pkg/debug/goobj",
+ 	"src/pkg/old",
+ };
+ 

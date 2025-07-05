@@ -21,8 +21,68 @@ Date:   Thu Feb 4 11:16:25 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/decl.go           | 8 ++++++--
  src/go/types/errorcodes.go     | 7 +++++--
  src/go/types/testdata/main.src | 9 +++++++++
  3 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index df01e92530..571e172351 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -751,8 +751,12 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	obj.typ = sig // guard against cycles
+ 	fdecl := decl.fdecl
+ 	check.funcType(sig, fdecl.Recv, fdecl.Type)
+-	if sig.recv == nil && obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
+-		check.errorf(fdecl, _InvalidInitSig, "func init must have no arguments and no return values")
++	if sig.recv == nil {
++		if obj.name == "init" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
++			check.errorf(fdecl, _InvalidInitDecl, "func init must have no arguments and no return values")
++		} else if obj.name == "main" && check.pkg.name == "main" && (sig.params.Len() > 0 || sig.results.Len() > 0) {
++			check.errorf(fdecl, _InvalidMainDecl, "func main must have no arguments and no return values")
++		}
+ 		// ok to continue
+ 	}
+ 
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index c01a12c346..d27abdf4d4 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -386,8 +386,8 @@ const (
+ 	// _InvalidInitSig occurs when an init function declares parameters or
+ 	// results.
+ 	//
+-	// Example:
+-	//  func init() int { return 1 }
++	// Deprecated: no longer emitted by the type checker. _InvalidInitDecl is
++	// used instead.
+ 	_InvalidInitSig
+ 
+ 	// _InvalidInitDecl occurs when init is declared as anything other than a
+@@ -395,6 +395,9 @@ const (
+ 	//
+ 	// Example:
+ 	//  var init = 1
++	//
++	// Example:
++	//  func init() int { return 1 }
+ 	_InvalidInitDecl
+ 
+ 	// _InvalidMainDecl occurs when main is declared as anything other than a
+diff --git a/src/go/types/testdata/main.src b/src/go/types/testdata/main.src
+new file mode 100644
+index 0000000000..f892938d4a
+--- /dev/null
++++ b/src/go/types/testdata/main.src
+@@ -0,0 +1,9 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main()
++func /* ERROR "no arguments and no return values" */ main /* ERROR redeclared */ (int)
++func /* ERROR "no arguments and no return values" */ main /* ERROR redeclared */ () int

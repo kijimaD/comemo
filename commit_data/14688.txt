@@ -8,7 +8,7 @@ Date:   Wed Dec 19 03:04:09 2012 +0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/6949072
-
+---
  src/cmd/go/doc.go                        | 2 +-
  src/cmd/vet/main.go                      | 2 +-
  src/cmd/yacc/yacc.go                     | 4 ++--
@@ -28,3 +28,299 @@ Date:   Wed Dec 19 03:04:09 2012 +0800
  src/pkg/strconv/ftoa.go                  | 4 ++--
  src/pkg/time/zoneinfo_read.go            | 2 +-
  18 files changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 588a061733..ab3189c6bf 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -625,7 +625,7 @@ The meta tag has the form:
+ 
+ 	<meta name="go-import" content="import-prefix vcs repo-root">
+ 
+-The import-prefix is the import path correponding to the repository
++The import-prefix is the import path corresponding to the repository
+ root. It must be a prefix or an exact match of the package being
+ fetched with "go get". If it's not an exact match, another http
+ request is made at the prefix to verify the <meta> tags match.
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 76a4896bfa..ec751972cf 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -255,7 +255,7 @@ func (f *File) walkInterfaceType(t *ast.InterfaceType) {
+ 	}
+ }
+ 
+-// walkRangeStmt walks a range statment.
++// walkRangeStmt walks a range statement.
+ func (f *File) walkRangeStmt(n *ast.RangeStmt) {
+ 	checkRangeLoop(f, n)
+ }
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index 25bd222987..62655e7cd2 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -2893,7 +2893,7 @@ func others() {
+ 		j = tokset[i].value
+ 		if j >= 0 && j < 256 {
+ 			if temp1[j] != 0 {
+-				fmt.Print("yacc bug -- cant have 2 different Ts with same value\n")
++				fmt.Print("yacc bug -- cannot have 2 different Ts with same value\n")
+ 				fmt.Printf("	%s and %s\n", tokset[i].name, tokset[temp1[j]].name)
+ 				nerrors++
+ 			}
+@@ -2917,7 +2917,7 @@ func others() {
+ 		j = tokset[i].value - PRIVATE
+ 		if j >= 0 && j < 256 {
+ 			if temp1[j] != 0 {
+-				fmt.Print("yacc bug -- cant have 2 different Ts with same value\n")
++				fmt.Print("yacc bug -- cannot have 2 different Ts with same value\n")
+ 				fmt.Printf("	%s and %s\n", tokset[i].name, tokset[temp1[j]].name)
+ 				nerrors++
+ 			}
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index e511b50fd1..d357fe361a 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -22,7 +22,7 @@ const (
+ 	logMaxOffsetSize   = 15  // Standard DEFLATE
+ 	minMatchLength     = 3   // The smallest match that the compressor looks for
+ 	maxMatchLength     = 258 // The longest match for the compressor
+-	minOffsetSize      = 1   // The shortest offset that makes any sence
++	minOffsetSize      = 1   // The shortest offset that makes any sense
+ 
+ 	// The maximum number of tokens we put into a single flat block, just too
+ 	// stop things from getting too large.
+diff --git a/src/pkg/crypto/cipher/example_test.go b/src/pkg/crypto/cipher/example_test.go
+index c888eb2c6a..e0027cac23 100644
+--- a/src/pkg/crypto/cipher/example_test.go
++++ b/src/pkg/crypto/cipher/example_test.go
+@@ -241,7 +241,7 @@ func ExampleStreamReader() {
+ 
+ 	// Note that this example is simplistic in that it omits any
+ 	// authentication of the encrypted data. It you were actually to use
+-	// StreamReader in this manner, an attacker could flip arbitary bits in
++	// StreamReader in this manner, an attacker could flip arbitrary bits in
+ 	// the output.
+ }
+ 
+@@ -278,6 +278,6 @@ func ExampleStreamWriter() {
+ 
+ 	// Note that this example is simplistic in that it omits any
+ 	// authentication of the encrypted data. It you were actually to use
+-	// StreamReader in this manner, an attacker could flip arbitary bits in
++	// StreamReader in this manner, an attacker could flip arbitrary bits in
+ 	// the decrypted result.
+ }
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index a13f4598d5..b2d6fe3d55 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -439,7 +439,7 @@ func TestECDSA(t *testing.T) {
+ 			t.Errorf("%d: public key algorithm is %v, want ECDSA", i, pka)
+ 		}
+ 		if err = cert.CheckSignatureFrom(cert); err != nil {
+-			t.Errorf("%d: certificate verfication failed: %s", i, err)
++			t.Errorf("%d: certificate verification failed: %s", i, err)
+ 		}
+ 	}
+ }
+@@ -519,7 +519,7 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
+ 	}
+ 	// test cert is self-signed
+ 	if err = cert.CheckSignatureFrom(cert); err != nil {
+-		t.Fatalf("DSA Certificate verfication failed: %s", err)
++		t.Fatalf("DSA Certificate verification failed: %s", err)
+ 	}
+ }
+ 
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index e59d0130d5..e7c7780ef2 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -266,7 +266,7 @@ func (db *DB) connIfFree(wanted driver.Conn) (conn driver.Conn, ok bool) {
+ var putConnHook func(*DB, driver.Conn)
+ 
+ // putConn adds a connection to the db's free pool.
+-// err is optionally the last error that occured on this connection.
++// err is optionally the last error that occurred on this connection.
+ func (db *DB) putConn(c driver.Conn, err error) {
+ 	if err == driver.ErrBadConn {
+ 		// Don't reuse bad connections.
+diff --git a/src/pkg/encoding/csv/writer.go b/src/pkg/encoding/csv/writer.go
+index 221542456b..1faecb6648 100644
+--- a/src/pkg/encoding/csv/writer.go
++++ b/src/pkg/encoding/csv/writer.go
+@@ -92,7 +92,7 @@ func (w *Writer) Write(record []string) (err error) {
+ }
+ 
+ // Flush writes any buffered data to the underlying io.Writer.
+-// To check if an error occured during the Flush, call Error.
++// To check if an error occurred during the Flush, call Error.
+ func (w *Writer) Flush() {
+ 	w.w.Flush()
+ }
+diff --git a/src/pkg/exp/locale/collate/build/trie.go b/src/pkg/exp/locale/collate/build/trie.go
+index f5214279e2..9404a3465b 100644
+--- a/src/pkg/exp/locale/collate/build/trie.go
++++ b/src/pkg/exp/locale/collate/build/trie.go
+@@ -20,7 +20,7 @@ import (
+ 
+ const (
+ 	blockSize   = 64
+-	blockOffset = 2 // Substract 2 blocks to compensate for the 0x80 added to continuation bytes.
++	blockOffset = 2 // Subtract 2 blocks to compensate for the 0x80 added to continuation bytes.
+ )
+ 
+ type trieHandle struct {
+diff --git a/src/pkg/exp/norm/iter.go b/src/pkg/exp/norm/iter.go
+index c0ab25e565..def822d8e1 100644
+--- a/src/pkg/exp/norm/iter.go
++++ b/src/pkg/exp/norm/iter.go
+@@ -179,7 +179,7 @@ doNorm:
+ 	i.rb.src.copySlice(out[outCopyStart:], inCopyStart, i.p)
+ 	if !i.rb.insertDecomposed(out[i.outStart:outp]) {
+ 		// Start over to prevent decompositions from crossing segment boundaries.
+-		// This is a rare occurance.
++		// This is a rare occurrence.
+ 		i.p = i.inStart
+ 		i.info = i.rb.f.info(i.rb.src, i.p)
+ 	}
+diff --git a/src/pkg/exp/norm/normalize_test.go b/src/pkg/exp/norm/normalize_test.go
+index 8b970598b4..1a118f2d14 100644
+--- a/src/pkg/exp/norm/normalize_test.go
++++ b/src/pkg/exp/norm/normalize_test.go
+@@ -31,7 +31,7 @@ func runPosTests(t *testing.T, name string, f Form, fn positionFunc, tests []Pos
+ 		}
+ 		runes := []rune(test.buffer)
+ 		if rb.nrune != len(runes) {
+-			t.Errorf("%s:%d: reorder buffer lenght is %d; want %d", name, i, rb.nrune, len(runes))
++			t.Errorf("%s:%d: reorder buffer length is %d; want %d", name, i, rb.nrune, len(runes))
+ 			continue
+ 		}
+ 		for j, want := range runes {
+diff --git a/src/pkg/exp/norm/triegen.go b/src/pkg/exp/norm/triegen.go
+index 1780ac7129..52c88b039a 100644
+--- a/src/pkg/exp/norm/triegen.go
++++ b/src/pkg/exp/norm/triegen.go
+@@ -21,7 +21,7 @@ import (
+ 
+ const (
+ 	blockSize        = 64
+-	blockOffset      = 2 // Substract two blocks to compensate for the 0x80 added to continuation bytes.
++	blockOffset      = 2 // Subtract two blocks to compensate for the 0x80 added to continuation bytes.
+ 	maxSparseEntries = 16
+ )
+ 
+diff --git a/src/pkg/exp/types/expr.go b/src/pkg/exp/types/expr.go
+index 2f53bc085e..2f5f2b3f1e 100644
+--- a/src/pkg/exp/types/expr.go
++++ b/src/pkg/exp/types/expr.go
+@@ -598,7 +598,7 @@ func (check *checker) recordType(x *operand) {
+ }
+ 
+ // rawExpr typechecks expression e and initializes x with the expression
+-// value or type. If an error occured, x.mode is set to invalid.
++// value or type. If an error occurred, x.mode is set to invalid.
+ // A hint != nil is used as operand type for untyped shifted operands;
+ // iota >= 0 indicates that the expression is part of a constant declaration.
+ // cycleOk indicates whether it is ok for a type expression to refer to itself.
+@@ -667,7 +667,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		x.typ = obj.Type.(Type)
+ 
+ 	case *ast.Ellipsis:
+-		// ellipses are handled explictly where they are legal
++		// ellipses are handled explicitly where they are legal
+ 		// (array composite literals and parameter lists)
+ 		check.errorf(e.Pos(), "invalid use of '...'")
+ 		goto Error
+@@ -1284,14 +1284,14 @@ func (check *checker) rawTyp(e ast.Expr, cycleOk, nilOk bool) Type {
+ }
+ 
+ // typOrNil is like rawExpr but reports an error if e doesn't represents a type or the predeclared value nil.
+-// It returns e's type, nil, or Typ[Invalid] if an error occured.
++// It returns e's type, nil, or Typ[Invalid] if an error occurred.
+ //
+ func (check *checker) typOrNil(e ast.Expr, cycleOk bool) Type {
+ 	return check.rawTyp(e, cycleOk, true)
+ }
+ 
+ // typ is like rawExpr but reports an error if e doesn't represents a type.
+-// It returns e's type, or Typ[Invalid] if an error occured.
++// It returns e's type, or Typ[Invalid] if an error occurred.
+ //
+ func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
+ 	return check.rawTyp(e, cycleOk, false)
+diff --git a/src/pkg/go/format/format.go b/src/pkg/go/format/format.go
+index 286296ebc6..65b0e4e4b7 100644
+--- a/src/pkg/go/format/format.go
++++ b/src/pkg/go/format/format.go
+@@ -46,7 +46,7 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
+ 	// Sort imports if necessary.
+ 	if file != nil && hasUnsortedImports(file) {
+ 		// Make a copy of the AST because ast.SortImports is destructive.
+-		// TODO(gri) Do this more efficently.
++		// TODO(gri) Do this more efficiently.
+ 		var buf bytes.Buffer
+ 		err := config.Fprint(&buf, fset, file)
+ 		if err != nil {
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index cd5b67b82d..3bed0cc657 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -83,7 +83,7 @@ func (p *printer) setComment(g *ast.CommentGroup) {
+ 	// don't overwrite any pending comment in the p.comment cache
+ 	// (there may be a pending comment when a line comment is
+ 	// immediately followed by a lead comment with no other
+-	// tokens inbetween)
++	// tokens between)
+ 	if p.commentOffset == infinity {
+ 		p.nextComment() // get comment ready for use
+ 	}
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 13a623a703..9d09f97b77 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -826,7 +826,7 @@ func (x nat) string(charset string) string {
+ 
+ // Convert words of q to base b digits in s. If q is large, it is recursively "split in half"
+ // by nat/nat division using tabulated divisors. Otherwise, it is converted iteratively using
+-// repeated nat/Word divison.
++// repeated nat/Word division.
+ //
+ // The iterative method processes n Words by n divW() calls, each of which visits every Word in the
+ // incrementally shortened q for a total of n + (n-1) + (n-2) ... + 2 + 1, or n(n+1)/2 divW()'s.
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index 8067881e0d..1a9c41b85a 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -255,7 +255,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 
+ 	// d = mant << (exp - mantbits)
+ 	// Next highest floating point number is mant+1 << exp-mantbits.
+-	// Our upper bound is halfway inbetween, mant*2+1 << exp-mantbits-1.
++	// Our upper bound is halfway between, mant*2+1 << exp-mantbits-1.
+ 	upper := new(decimal)
+ 	upper.Assign(mant*2 + 1)
+ 	upper.Shift(exp - int(flt.mantbits) - 1)
+@@ -265,7 +265,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 	// unless mant-1 drops the significant bit and exp is not the minimum exp,
+ 	// in which case the next lowest is mant*2-1 << exp-mantbits-1.
+ 	// Either way, call it mantlo << explo-mantbits.
+-	// Our lower bound is halfway inbetween, mantlo*2+1 << explo-mantbits-1.
++	// Our lower bound is halfway between, mantlo*2+1 << explo-mantbits-1.
+ 	var mantlo uint64
+ 	var explo int
+ 	if mant > 1<<flt.mantbits || exp == minexp {
+diff --git a/src/pkg/time/zoneinfo_read.go b/src/pkg/time/zoneinfo_read.go
+index 0eb20c7637..a5a2de218e 100644
+--- a/src/pkg/time/zoneinfo_read.go
++++ b/src/pkg/time/zoneinfo_read.go
+@@ -174,7 +174,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
+ 		}
+ 	}
+ 
+-	// Commited to succeed.
++	// Committed to succeed.
+ 	l = &Location{zone: zone, tx: tx}
+ 
+ 	// Fill in the cache with information about right now,

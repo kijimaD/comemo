@@ -17,6 +17,21 @@ Date:   Thu Sep 14 13:36:38 2023 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/debug/elf/file.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 4765c468d8..800c37fcd9 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -628,6 +628,9 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
+ 	if err != nil {
+ 		return nil, nil, fmt.Errorf("cannot load symbol section: %w", err)
+ 	}
++	if len(data) == 0 {
++		return nil, nil, errors.New("symbol section is empty")
++	}
+ 	if len(data)%Sym32Size != 0 {
+ 		return nil, nil, errors.New("length of symbol section is not a multiple of SymSize")
+ 	}

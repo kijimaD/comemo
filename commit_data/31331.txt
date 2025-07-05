@@ -20,7 +20,7 @@ Date:   Tue Jan 3 16:15:38 2017 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  3 +-
  src/cmd/compile/internal/gc/builtin/runtime.go |  3 +-
  src/cmd/compile/internal/gc/go.go              |  3 +-
@@ -32,3 +32,338 @@ Date:   Tue Jan 3 16:15:38 2017 -0800
  src/runtime/plugin.go                          |  2 +-
  src/runtime/runtime2.go                        |  6 ++-
  10 files changed, 64 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 70200c624b..47dcf0bb4b 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -54,7 +54,8 @@ var runtimeDecls = [...]struct {
+ 	{"assertE2I2", funcTag, 54},
+ 	{"assertI2I", funcTag, 52},
+ 	{"assertI2I2", funcTag, 54},
+-	{"panicdottype", funcTag, 55},
++	{"panicdottypeE", funcTag, 55},
++	{"panicdottypeI", funcTag, 55},
+ 	{"panicnildottype", funcTag, 56},
+ 	{"ifaceeq", funcTag, 57},
+ 	{"efaceeq", funcTag, 57},
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index e9d41a3095..618f1c421e 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -67,7 +67,8 @@ func assertE2I(typ *byte, iface any) (ret any)
+ func assertE2I2(typ *byte, iface any) (ret any, b bool)
+ func assertI2I(typ *byte, iface any) (ret any)
+ func assertI2I2(typ *byte, iface any) (ret any, b bool)
+-func panicdottype(have, want, iface *byte)
++func panicdottypeE(have, want, iface *byte)
++func panicdottypeI(have, want, iface *byte)
+ func panicnildottype(want *byte)
+ 
+ func ifaceeq(i1 any, i2 any) (ret bool)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index c6fcfd7347..9e5d1843d0 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -376,7 +376,8 @@ var (
+ 	panicslice,
+ 	panicdivide,
+ 	growslice,
+-	panicdottype,
++	panicdottypeE,
++	panicdottypeI,
+ 	panicnildottype,
+ 	assertE2I,
+ 	assertE2I2,
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 1acbbf3b1e..e612cf6a33 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -306,7 +306,8 @@ func compile(fn *Node) {
+ 		panicslice = Sysfunc("panicslice")
+ 		panicdivide = Sysfunc("panicdivide")
+ 		growslice = Sysfunc("growslice")
+-		panicdottype = Sysfunc("panicdottype")
++		panicdottypeE = Sysfunc("panicdottypeE")
++		panicdottypeI = Sysfunc("panicdottypeI")
+ 		panicnildottype = Sysfunc("panicnildottype")
+ 		assertE2I = Sysfunc("assertE2I")
+ 		assertE2I2 = Sysfunc("assertE2I2")
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 9d744c6a96..b6bda3c86b 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1411,13 +1411,17 @@ func dumptypestructs() {
+ 		//   inter  *interfacetype
+ 		//   _type  *_type
+ 		//   link   *itab
+-		//   bad    int32
+-		//   unused int32
++		//   hash   uint32
++		//   bad    bool
++		//   inhash bool
++		//   unused [2]byte
+ 		//   fun    [1]uintptr // variable sized
+ 		// }
+ 		o := dsymptr(i.sym, 0, dtypesym(i.itype), 0)
+ 		o = dsymptr(i.sym, o, dtypesym(i.t), 0)
+-		o += Widthptr + 8                      // skip link/bad/inhash fields
++		o += Widthptr                          // skip link field
++		o = duint32(i.sym, o, typehash(i.t))   // copy of type hash
++		o += 4                                 // skip bad/inhash/unused fields
+ 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
+ 		// at runtime the itab will contain pointers to types, other itabs and
+ 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ca198575d1..6871a9eed8 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4013,48 +4013,6 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ 	return s.variable(n, n.Type)
+ }
+ 
+-// ifaceType returns the value for the word containing the type.
+-// t is the type of the interface expression.
+-// v is the corresponding value.
+-func (s *state) ifaceType(t *Type, v *ssa.Value) *ssa.Value {
+-	byteptr := ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
+-
+-	if t.IsEmptyInterface() {
+-		// Have eface. The type is the first word in the struct.
+-		return s.newValue1(ssa.OpITab, byteptr, v)
+-	}
+-
+-	// Have iface.
+-	// The first word in the struct is the itab.
+-	// If the itab is nil, return 0.
+-	// Otherwise, the second word in the itab is the type.
+-
+-	tab := s.newValue1(ssa.OpITab, byteptr, v)
+-	s.vars[&typVar] = tab
+-	isnonnil := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], tab, s.constNil(byteptr))
+-	b := s.endBlock()
+-	b.Kind = ssa.BlockIf
+-	b.SetControl(isnonnil)
+-	b.Likely = ssa.BranchLikely
+-
+-	bLoad := s.f.NewBlock(ssa.BlockPlain)
+-	bEnd := s.f.NewBlock(ssa.BlockPlain)
+-
+-	b.AddEdgeTo(bLoad)
+-	b.AddEdgeTo(bEnd)
+-	bLoad.AddEdgeTo(bEnd)
+-
+-	s.startBlock(bLoad)
+-	off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), tab)
+-	s.vars[&typVar] = s.newValue2(ssa.OpLoad, byteptr, off, s.mem())
+-	s.endBlock()
+-
+-	s.startBlock(bEnd)
+-	typ := s.variable(&typVar, byteptr)
+-	delete(s.vars, &typVar)
+-	return typ
+-}
+-
+ // dottype generates SSA for a type assertion node.
+ // commaok indicates whether to panic or return a bool.
+ // If commaok is false, resok will be nil.
+@@ -4157,11 +4115,18 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 
+ 	// Converting to a concrete type.
+ 	direct := isdirectiface(n.Type)
+-	typ := s.ifaceType(n.Left.Type, iface) // actual concrete type of input interface
+-
++	itab := s.newValue1(ssa.OpITab, byteptr, iface) // type word of interface
+ 	if Debug_typeassert > 0 {
+ 		Warnl(n.Pos, "type assertion inlined")
+ 	}
++	var targetITab *ssa.Value
++	if n.Left.Type.IsEmptyInterface() {
++		// Looking for pointer to target type.
++		targetITab = target
++	} else {
++		// Looking for pointer to itab for target type and source interface.
++		targetITab = s.expr(itabname(n.Type, n.Left.Type))
++	}
+ 
+ 	var tmp *Node       // temporary for use with large types
+ 	var addr *ssa.Value // address of tmp
+@@ -4173,9 +4138,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
+ 	}
+ 
+-	// TODO:  If we have a nonempty interface and its itab field is nil,
+-	// then this test is redundant and ifaceType should just branch directly to bFail.
+-	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], typ, target)
++	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], itab, targetITab)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.SetControl(cond)
+@@ -4190,7 +4153,11 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		// on failure, panic by calling panicdottype
+ 		s.startBlock(bFail)
+ 		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{Typ: byteptr, Sym: Linksym(typenamesym(n.Left.Type))}, s.sb)
+-		s.rtcall(panicdottype, false, nil, typ, target, taddr)
++		if n.Left.Type.IsEmptyInterface() {
++			s.rtcall(panicdottypeE, false, nil, itab, target, taddr)
++		} else {
++			s.rtcall(panicdottypeI, false, nil, itab, target, taddr)
++		}
+ 
+ 		// on success, return data from interface
+ 		s.startBlock(bOk)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 8f6ffa2690..f48894d77b 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -729,11 +729,13 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	// Use a similar strategy for non-empty interfaces.
+ 
+ 	// Get interface descriptor word.
+-	typ := nod(OITAB, s.facename, nil)
++	// For empty interfaces this will be the type.
++	// For non-empty interfaces this will be the itab.
++	itab := nod(OITAB, s.facename, nil)
+ 
+ 	// Check for nil first.
+ 	i := nod(OIF, nil, nil)
+-	i.Left = nod(OEQ, typ, nodnil())
++	i.Left = nod(OEQ, itab, nodnil())
+ 	if clauses.niljmp != nil {
+ 		// Do explicit nil case right here.
+ 		i.Nbody.Set1(clauses.niljmp)
+@@ -749,16 +751,16 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	i.Left = typecheck(i.Left, Erv)
+ 	cas = append(cas, i)
+ 
+-	if !cond.Right.Type.IsEmptyInterface() {
+-		// Load type from itab.
+-		typ = itabType(typ)
+-	}
+-	// Load hash from type.
+-	h := nodSym(ODOTPTR, typ, nil)
++	// Load hash from type or itab.
++	h := nodSym(ODOTPTR, itab, nil)
+ 	h.Type = Types[TUINT32]
+ 	h.Typecheck = 1
+-	h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
+-	h.Bounded = true                // guaranteed not to fault
++	if cond.Right.Type.IsEmptyInterface() {
++		h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
++	} else {
++		h.Xoffset = int64(3 * Widthptr) // offset of hash in runtime.itab
++	}
++	h.Bounded = true // guaranteed not to fault
+ 	a = nod(OAS, s.hashname, h)
+ 	a = typecheck(a, Etop)
+ 	cas = append(cas, a)
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index b5c31a301d..f043724a56 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -53,7 +53,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 		}
+ 		for m = (*itab)(atomic.Loadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
+ 			if m.inter == inter && m._type == typ {
+-				if m.bad != 0 {
++				if m.bad {
+ 					if !canfail {
+ 						// this can only happen if the conversion
+ 						// was already done once using the , ok form
+@@ -78,7 +78,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 	m._type = typ
+ 	additab(m, true, canfail)
+ 	unlock(&ifaceLock)
+-	if m.bad != 0 {
++	if m.bad {
+ 		return nil
+ 	}
+ 	return m
+@@ -130,7 +130,7 @@ func additab(m *itab, locked, canfail bool) {
+ 			}
+ 			panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), iname})
+ 		}
+-		m.bad = 1
++		m.bad = true
+ 		break
+ 	nextimethod:
+ 	}
+@@ -139,7 +139,7 @@ func additab(m *itab, locked, canfail bool) {
+ 	}
+ 	h := itabhash(inter, typ)
+ 	m.link = hash[h]
+-	m.inhash = 1
++	m.inhash = true
+ 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
+ }
+ 
+@@ -152,7 +152,7 @@ func itabsinit() {
+ 			// and thanks to the way global symbol resolution works, the
+ 			// pointed-to itab may already have been inserted into the
+ 			// global 'hash'.
+-			if i.inhash == 0 {
++			if !i.inhash {
+ 				additab(i, true, false)
+ 			}
+ 		}
+@@ -160,11 +160,11 @@ func itabsinit() {
+ 	unlock(&ifaceLock)
+ }
+ 
+-// panicdottype is called when doing an i.(T) conversion and the conversion fails.
++// panicdottypeE is called when doing an e.(T) conversion and the conversion fails.
+ // have = the dynamic type we have.
+ // want = the static type we're trying to convert to.
+ // iface = the static type we're converting from.
+-func panicdottype(have, want, iface *_type) {
++func panicdottypeE(have, want, iface *_type) {
+ 	haveString := ""
+ 	if have != nil {
+ 		haveString = have.string()
+@@ -172,6 +172,16 @@ func panicdottype(have, want, iface *_type) {
+ 	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
+ }
+ 
++// panicdottypeI is called when doing an i.(T) conversion and the conversion fails.
++// Same args as panicdottypeE, but "have" is the dynamic itab we have.
++func panicdottypeI(have *itab, want, iface *_type) {
++	var t *_type
++	if have != nil {
++		t = have._type
++	}
++	panicdottypeE(t, want, iface)
++}
++
+ // panicnildottype is called when doing a i.(T) conversion and the interface i is nil.
+ // want = the static type we're trying to convert to.
+ func panicnildottype(want *_type) {
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 8edb29c9fe..ea246509cc 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -56,7 +56,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
+ 
+ 	lock(&ifaceLock)
+ 	for _, i := range md.itablinks {
+-		if i.inhash == 0 {
++		if !i.inhash {
+ 			additab(i, true, false)
+ 		}
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 9cb2b85f33..8cf13e96d8 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -644,8 +644,10 @@ type itab struct {
+ 	inter  *interfacetype
+ 	_type  *_type
+ 	link   *itab
+-	bad    int32
+-	inhash int32      // has this itab been added to hash?
++	hash   uint32 // copy of _type.hash. Used for type switches.
++	bad    bool   // type does not implement interface
++	inhash bool   // has this itab been added to hash?
++	unused [2]byte
+ 	fun    [1]uintptr // variable sized
+ }
+ 

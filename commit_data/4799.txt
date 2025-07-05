@@ -20,7 +20,7 @@ Date:   Fri Feb 5 05:42:02 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/201049
-
+---
  src/pkg/asn1/asn1.go         |   5 --
  src/pkg/asn1/asn1_test.go    |  49 ++++++++---------
  src/pkg/asn1/common.go       |   6 +++
@@ -28,3 +28,402 @@ Date:   Fri Feb 5 05:42:02 2010 -0500
  src/pkg/asn1/marshal_test.go |  18 +++++--
  src/pkg/crypto/x509/x509.go  |   4 +-
  6 files changed, 161 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index 430b035f58..fb33afcc28 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -410,11 +410,6 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
+ 		}
+ 	}
+ 
+-	// We magically map SET and SET OF to SEQUENCE and SEQUENCE OF
+-	// because we treat everything as ordered.
+-	if ret.tag == tagSet {
+-		ret.tag = tagSequence
+-	}
+ 	return
+ }
+ 
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index 43c746895a..d5779d017b 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -224,16 +224,17 @@ func newString(s string) *string { return &s }
+ func newBool(b bool) *bool { return &b }
+ 
+ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParametersTest{
+-	parseFieldParametersTest{"", fieldParameters{false, false, nil, nil, 0}},
+-	parseFieldParametersTest{"ia5", fieldParameters{false, false, nil, nil, tagIA5String}},
+-	parseFieldParametersTest{"printable", fieldParameters{false, false, nil, nil, tagPrintableString}},
+-	parseFieldParametersTest{"optional", fieldParameters{true, false, nil, nil, 0}},
+-	parseFieldParametersTest{"explicit", fieldParameters{false, true, nil, new(int), 0}},
+-	parseFieldParametersTest{"optional,explicit", fieldParameters{true, true, nil, new(int), 0}},
+-	parseFieldParametersTest{"default:42", fieldParameters{false, false, newInt64(42), nil, 0}},
+-	parseFieldParametersTest{"tag:17", fieldParameters{false, false, nil, newInt(17), 0}},
+-	parseFieldParametersTest{"optional,explicit,default:42,tag:17", fieldParameters{true, true, newInt64(42), newInt(17), 0}},
+-	parseFieldParametersTest{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, newInt64(42), newInt(17), 0}},
++	parseFieldParametersTest{"", fieldParameters{}},
++	parseFieldParametersTest{"ia5", fieldParameters{stringType: tagIA5String}},
++	parseFieldParametersTest{"printable", fieldParameters{stringType: tagPrintableString}},
++	parseFieldParametersTest{"optional", fieldParameters{optional: true}},
++	parseFieldParametersTest{"explicit", fieldParameters{explicit: true, tag: new(int)}},
++	parseFieldParametersTest{"optional,explicit", fieldParameters{optional: true, explicit: true, tag: new(int)}},
++	parseFieldParametersTest{"default:42", fieldParameters{defaultValue: newInt64(42)}},
++	parseFieldParametersTest{"tag:17", fieldParameters{tag: newInt(17)}},
++	parseFieldParametersTest{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
++	parseFieldParametersTest{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, newInt64(42), newInt(17), 0, false}},
++	parseFieldParametersTest{"set", fieldParameters{set: true}},
+ }
+ 
+ func TestParseFieldParameters(t *testing.T) {
+@@ -321,9 +322,9 @@ type AlgorithmIdentifier struct {
+ 	Algorithm ObjectIdentifier
+ }
+ 
+-type RDNSequence []RelativeDistinguishedName
++type RDNSequence []RelativeDistinguishedNameSET
+ 
+-type RelativeDistinguishedName []AttributeTypeAndValue
++type RelativeDistinguishedNameSET []AttributeTypeAndValue
+ 
+ type AttributeTypeAndValue struct {
+ 	Type  ObjectIdentifier
+@@ -392,21 +393,21 @@ var derEncodedSelfSignedCert = Certificate{
+ 		SerialNumber: RawValue{Class: 0, Tag: 2, IsCompound: false, Bytes: []uint8{0x0, 0x8c, 0xc3, 0x37, 0x92, 0x10, 0xec, 0x2c, 0x98}},
+ 		SignatureAlgorithm: AlgorithmIdentifier{Algorithm: ObjectIdentifier{1, 2, 840, 113549, 1, 1, 5}},
+ 		Issuer: RDNSequence{
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 7}, Value: "City"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 10}, Value: "Internet Widgits Pty Ltd"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 7}, Value: "City"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 10}, Value: "Internet Widgits Pty Ltd"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
+ 		},
+ 		Validity: Validity{NotBefore: &time.Time{Year: 2009, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: ""}, NotAfter: &time.Time{Year: 2010, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: ""}},
+ 		Subject: RDNSequence{
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 7}, Value: "City"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 10}, Value: "Internet Widgits Pty Ltd"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
+-			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 7}, Value: "City"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 10}, Value: "Internet Widgits Pty Ltd"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
++			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
+ 		},
+ 		PublicKey: PublicKeyInfo{
+ 			Algorithm: AlgorithmIdentifier{Algorithm: ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}},
+diff --git a/src/pkg/asn1/common.go b/src/pkg/asn1/common.go
+index a3278b6392..87cb670ea2 100644
+--- a/src/pkg/asn1/common.go
++++ b/src/pkg/asn1/common.go
+@@ -68,6 +68,7 @@ type fieldParameters struct {
+ 	defaultValue *int64 // a default value for INTEGER typed fields (maybe nil).
+ 	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
+ 	stringType   int    // the string tag to use when marshaling.
++	set          bool   // true iff this should be encoded as a SET
+ 
+ 	// Invariants:
+ 	//   if explicit is set, tag is non-nil.
+@@ -103,6 +104,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
+ 				ret.tag = new(int)
+ 				*ret.tag = i
+ 			}
++		case part == "set":
++			ret.set = true
+ 		}
+ 	}
+ 	return
+@@ -132,6 +135,9 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
+ 		if _, ok := t.(*reflect.SliceType).Elem().(*reflect.Uint8Type); ok {
+ 			return tagOctetString, false, true
+ 		}
++		if strings.HasSuffix(t.Name(), "SET") {
++			return tagSet, true, true
++		}
+ 		return tagSequence, true, true
+ 	case *reflect.StringType:
+ 		return tagPrintableString, false, true
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index 40a52b6624..0ee593ef8d 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -71,23 +71,27 @@ func (f *forkableWriter) writeTo(out io.Writer) (n int, err os.Error) {
+ 	return
+ }
+ 
+-func marshalBase128Int(out *forkableWriter, i int64) (err os.Error) {
+-	if i == 0 {
++func marshalBase128Int(out *forkableWriter, n int64) (err os.Error) {
++	if n == 0 {
+ 		err = out.WriteByte(0)
+ 		return
+ 	}
+ 
+-	for i > 0 {
+-		next := i >> 7
+-		o := byte(i & 0x7f)
+-		if next > 0 {
++	l := 0
++	for i := n; i > 0; i >>= 7 {
++		l++
++	}
++
++	for i := l - 1; i >= 0; i-- {
++		o := byte(n >> uint(i*7))
++		o &= 0x7f
++		if i != 0 {
+ 			o |= 0x80
+ 		}
+ 		err = out.WriteByte(o)
+ 		if err != nil {
+ 			return
+ 		}
+-		i = next
+ 	}
+ 
+ 	return nil
+@@ -106,6 +110,32 @@ func base128Length(i int) (numBytes int) {
+ 	return
+ }
+ 
++func marshalInt64(out *forkableWriter, i int64) (err os.Error) {
++	n := int64Length(i)
++
++	for ; n > 0; n-- {
++		err = out.WriteByte(byte(i >> uint((n-1)*8)))
++		if err != nil {
++			return
++		}
++	}
++
++	return nil
++}
++
++func int64Length(i int64) (numBytes int) {
++	if i == 0 {
++		return 1
++	}
++
++	for i > 0 {
++		numBytes++
++		i >>= 8
++	}
++
++	return
++}
++
+ func marshalTagAndLength(out *forkableWriter, t tagAndLength) (err os.Error) {
+ 	b := uint8(t.class) << 6
+ 	if t.isCompound {
+@@ -130,11 +160,12 @@ func marshalTagAndLength(out *forkableWriter, t tagAndLength) (err os.Error) {
+ 	}
+ 
+ 	if t.length >= 128 {
+-		err = out.WriteByte(byte(base128Length(t.length)))
++		l := int64Length(int64(t.length))
++		err = out.WriteByte(0x80 | byte(l))
+ 		if err != nil {
+ 			return
+ 		}
+-		err = marshalBase128Int(out, int64(t.length))
++		err = marshalInt64(out, int64(t.length))
+ 		if err != nil {
+ 			return
+ 		}
+@@ -276,6 +307,14 @@ func marshalUTCTime(out *forkableWriter, t *time.Time) (err os.Error) {
+ 	return
+ }
+ 
++func stripTagAndLength(in []byte) []byte {
++	_, offset, err := parseTagAndLength(in, 0)
++	if err != nil {
++		return in
++	}
++	return in[offset:]
++}
++
+ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameters) (err os.Error) {
+ 	switch value.Type() {
+ 	case timeType:
+@@ -294,12 +333,35 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 			return out.WriteByte(0)
+ 		}
+ 	case *reflect.IntValue:
+-		return marshalBase128Int(out, int64(v.Get()))
++		return marshalInt64(out, int64(v.Get()))
+ 	case *reflect.Int64Value:
+-		return marshalBase128Int(out, v.Get())
++		return marshalInt64(out, v.Get())
+ 	case *reflect.StructValue:
+ 		t := v.Type().(*reflect.StructType)
+-		for i := 0; i < t.NumField(); i++ {
++
++		startingField := 0
++
++		// If the first element of the structure is a non-empty
++		// RawContents, then we don't bother serialising the rest.
++		if t.NumField() > 0 && t.Field(0).Type == rawContentsType {
++			s := v.Field(0).(*reflect.SliceValue)
++			if s.Len() > 0 {
++				bytes := make([]byte, s.Len())
++				for i := 0; i < s.Len(); i++ {
++					bytes[i] = s.Elem(i).(*reflect.Uint8Value).Get()
++				}
++				/* The RawContents will contain the tag and
++				 * length fields but we'll also be writing
++				 * those outselves, so we strip them out of
++				 * bytes */
++				_, err = out.Write(stripTagAndLength(bytes))
++				return
++			} else {
++				startingField = 1
++			}
++		}
++
++		for i := startingField; i < t.NumField(); i++ {
+ 			var pre *forkableWriter
+ 			pre, out = out.fork()
+ 			err = marshalField(pre, v.Field(i), parseFieldParameters(t.Field(i).Tag))
+@@ -321,7 +383,9 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 
+ 		var params fieldParameters
+ 		for i := 0; i < v.Len(); i++ {
+-			err = marshalField(out, v.Elem(i), params)
++			var pre *forkableWriter
++			pre, out = out.fork()
++			err = marshalField(pre, v.Elem(i), params)
+ 			if err != nil {
+ 				return
+ 			}
+@@ -340,6 +404,25 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ }
+ 
+ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) (err os.Error) {
++	// If the field is an interface{} then recurse into it.
++	if v, ok := v.(*reflect.InterfaceValue); ok && v.Type().(*reflect.InterfaceType).NumMethod() == 0 {
++		return marshalField(out, v.Elem(), params)
++	}
++
++	if v.Type() == rawValueType {
++		rv := v.Interface().(RawValue)
++		err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
++		if err != nil {
++			return
++		}
++		_, err = out.Write(rv.Bytes)
++		return
++	}
++
++	if params.optional && reflect.DeepEqual(v.Interface(), reflect.MakeZero(v.Type()).Interface()) {
++		return
++	}
++
+ 	tag, isCompound, ok := getUniversalType(v.Type())
+ 	if !ok {
+ 		err = StructuralError{fmt.Sprintf("unknown Go type: %v", v.Type())}
+@@ -354,6 +437,13 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 		tag = params.stringType
+ 	}
+ 
++	if params.set {
++		if tag != tagSequence {
++			return StructuralError{"Non sequence tagged as set"}
++		}
++		tag = tagSet
++	}
++
+ 	tags, body := out.fork()
+ 
+ 	err = marshalBody(body, v, params)
+@@ -403,3 +493,13 @@ func Marshal(out io.Writer, val interface{}) os.Error {
+ 	_, err = f.writeTo(out)
+ 	return err
+ }
++
++// MarshalToMemory performs the same actions as Marshal, but returns the result
++// as a byte slice.
++func MarshalToMemory(val interface{}) ([]byte, os.Error) {
++	var out bytes.Buffer
++	if err := Marshal(&out, val); err != nil {
++		return nil, err
++	}
++	return out.Bytes(), nil
++}
+diff --git a/src/pkg/asn1/marshal_test.go b/src/pkg/asn1/marshal_test.go
+index da4a03c041..8050031a7c 100644
+--- a/src/pkg/asn1/marshal_test.go
++++ b/src/pkg/asn1/marshal_test.go
+@@ -24,9 +24,9 @@ type nestedStruct struct {
+ 	A intStruct
+ }
+ 
+-type marshalTest struct {
+-	in  interface{}
+-	out string // hex encoded
++type rawContentsStruct struct {
++	Raw RawContent
++	A   int
+ }
+ 
+ type implicitTagTest struct {
+@@ -45,11 +45,18 @@ type printableStringTest struct {
+ 	A string "printable"
+ }
+ 
++type testSET []int
++
+ func setPST(t *time.Time) *time.Time {
+ 	t.ZoneOffset = -28800
+ 	return t
+ }
+ 
++type marshalTest struct {
++	in  interface{}
++	out string // hex encoded
++}
++
+ var marshalTests = []marshalTest{
+ 	marshalTest{10, "02010a"},
+ 	marshalTest{intStruct{64}, "3003020140"},
+@@ -64,9 +71,14 @@ var marshalTests = []marshalTest{
+ 	marshalTest{BitString{[]byte{0x80}, 1}, "03020780"},
+ 	marshalTest{BitString{[]byte{0x81, 0xf0}, 12}, "03030481f0"},
+ 	marshalTest{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},
++	marshalTest{ObjectIdentifier([]int{1, 2, 840, 133549, 1, 1, 5}), "06092a864888932d010105"},
+ 	marshalTest{"test", "130474657374"},
+ 	marshalTest{ia5StringTest{"test"}, "3006160474657374"},
+ 	marshalTest{printableStringTest{"test"}, "3006130474657374"},
++	marshalTest{rawContentsStruct{nil, 64}, "3003020140"},
++	marshalTest{rawContentsStruct{[]byte{0x30, 3, 1, 2, 3}, 64}, "3003010203"},
++	marshalTest{RawValue{Tag: 1, Class: 2, IsCompound: false, Bytes: []byte{1, 2, 3}}, "8103010203"},
++	marshalTest{testSET([]int{10}), "310302010a"},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index dcd12f05fb..a850228599 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -95,9 +95,9 @@ type algorithmIdentifier struct {
+ 	Algorithm asn1.ObjectIdentifier
+ }
+ 
+-type rdnSequence []relativeDistinguishedName
++type rdnSequence []relativeDistinguishedNameSET
+ 
+-type relativeDistinguishedName []attributeTypeAndValue
++type relativeDistinguishedNameSET []attributeTypeAndValue
+ 
+ type attributeTypeAndValue struct {
+ 	Type  asn1.ObjectIdentifier

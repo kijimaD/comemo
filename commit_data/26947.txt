@@ -14,9 +14,211 @@ Date:   Thu Mar 3 18:26:36 2016 -0800
     Change-Id: I98b124bcc9ad9e9bd987943719be27864423cb5d
     Reviewed-on: https://go-review.googlesource.com/20199
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/big/float.go      | 26 ++++++++++-------
  src/cmd/compile/internal/big/float_test.go | 47 ++++++++++++++++++++++++++++++
  src/cmd/compile/internal/big/floatconv.go  |  2 +-
  test/fixedbugs/issue14553.go               | 42 ++++++++++++++++++++++++++
  4 files changed, 105 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/big/float.go b/src/cmd/compile/internal/big/float.go
+index b1c748c9a5..eca85d4bb0 100644
+--- a/src/cmd/compile/internal/big/float.go
++++ b/src/cmd/compile/internal/big/float.go
+@@ -874,15 +874,15 @@ func (x *Float) Float32() (float32, Accuracy) {
+ 			emax  = bias              //   127  largest unbiased exponent (normal)
+ 		)
+ 
+-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for floatxx mantissa.
++		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for float32 mantissa.
+ 		e := x.exp - 1 // exponent for mantissa m with 1.0 <= m < 2.0
+ 		p := mbits + 1 // precision of normal float
+ 
+ 		// If the exponent is too small, we may have a denormal number
+-		// in which case we have fewer mantissa bits available: reduce
+-		// precision accordingly.
++		// in which case we have fewer mantissa bits available: recompute
++		// precision.
+ 		if e < emin {
+-			p -= emin - int(e)
++			p = mbits + 1 - emin + int(e)
+ 			// Make sure we have at least 1 bit so that we don't
+ 			// lose numbers rounded up to the smallest denormal.
+ 			if p < 1 {
+@@ -931,7 +931,9 @@ func (x *Float) Float32() (float32, Accuracy) {
+ 				return 0.0, Below
+ 			}
+ 			// bexp = 0
+-			mant = msb32(r.mant) >> (fbits - r.prec)
++			// recompute precision
++			p = mbits + 1 - emin + int(e)
++			mant = msb32(r.mant) >> uint(fbits-p)
+ 		} else {
+ 			// normal number: emin <= e <= emax
+ 			bexp = uint32(e+bias) << mbits
+@@ -981,15 +983,15 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 			emax  = bias              //  1023  largest unbiased exponent (normal)
+ 		)
+ 
+-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for floatxx mantissa.
++		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for float64 mantissa.
+ 		e := x.exp - 1 // exponent for mantissa m with 1.0 <= m < 2.0
+ 		p := mbits + 1 // precision of normal float
+ 
+ 		// If the exponent is too small, we may have a denormal number
+-		// in which case we have fewer mantissa bits available: reduce
+-		// precision accordingly.
++		// in which case we have fewer mantissa bits available: recompute
++		// precision.
+ 		if e < emin {
+-			p -= emin - int(e)
++			p = mbits + 1 - emin + int(e)
+ 			// Make sure we have at least 1 bit so that we don't
+ 			// lose numbers rounded up to the smallest denormal.
+ 			if p < 1 {
+@@ -1038,7 +1040,9 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 				return 0.0, Below
+ 			}
+ 			// bexp = 0
+-			mant = msb64(r.mant) >> (fbits - r.prec)
++			// recompute precision
++			p = mbits + 1 - emin + int(e)
++			mant = msb64(r.mant) >> uint(fbits-p)
+ 		} else {
+ 			// normal number: emin <= e <= emax
+ 			bexp = uint64(e+bias) << mbits
+@@ -1427,7 +1431,7 @@ func (z *Float) Add(x, y *Float) *Float {
+ 	}
+ 
+ 	if x.form == finite && y.form == finite {
+-		// x + y (commom case)
++		// x + y (common case)
+ 		z.neg = x.neg
+ 		if x.neg == y.neg {
+ 			// x + y == x + y
+diff --git a/src/cmd/compile/internal/big/float_test.go b/src/cmd/compile/internal/big/float_test.go
+index d3b214b631..6fb44026de 100644
+--- a/src/cmd/compile/internal/big/float_test.go
++++ b/src/cmd/compile/internal/big/float_test.go
+@@ -843,6 +843,32 @@ func TestFloatFloat32(t *testing.T) {
+ 		{"1p-149", math.SmallestNonzeroFloat32, Exact},
+ 		{"0x.fffffep-126", math.Float32frombits(0x7fffff), Exact}, // largest denormal
+ 
++		// special cases (see issue 14553)
++		{"0x0.bp-149", math.Float32frombits(0x000000000), Below}, // ToNearestEven rounds down (to even)
++		{"0x0.cp-149", math.Float32frombits(0x000000001), Above},
++
++		{"0x1.0p-149", math.Float32frombits(0x000000001), Exact},
++		{"0x1.7p-149", math.Float32frombits(0x000000001), Below},
++		{"0x1.8p-149", math.Float32frombits(0x000000002), Above},
++		{"0x1.9p-149", math.Float32frombits(0x000000002), Above},
++
++		{"0x2.0p-149", math.Float32frombits(0x000000002), Exact},
++		{"0x2.8p-149", math.Float32frombits(0x000000002), Below}, // ToNearestEven rounds down (to even)
++		{"0x2.9p-149", math.Float32frombits(0x000000003), Above},
++
++		{"0x3.0p-149", math.Float32frombits(0x000000003), Exact},
++		{"0x3.7p-149", math.Float32frombits(0x000000003), Below},
++		{"0x3.8p-149", math.Float32frombits(0x000000004), Above}, // ToNearestEven rounds up (to even)
++
++		{"0x4.0p-149", math.Float32frombits(0x000000004), Exact},
++		{"0x4.8p-149", math.Float32frombits(0x000000004), Below}, // ToNearestEven rounds down (to even)
++		{"0x4.9p-149", math.Float32frombits(0x000000005), Above},
++
++		// specific case from issue 14553
++		{"0x7.7p-149", math.Float32frombits(0x000000007), Below},
++		{"0x7.8p-149", math.Float32frombits(0x000000008), Above},
++		{"0x7.9p-149", math.Float32frombits(0x000000008), Above},
++
+ 		// normals
+ 		{"0x.ffffffp-126", math.Float32frombits(0x00800000), Above}, // rounded up to smallest normal
+ 		{"1p-126", math.Float32frombits(0x00800000), Exact},         // smallest normal
+@@ -915,6 +941,27 @@ func TestFloatFloat64(t *testing.T) {
+ 		{"1p-1074", math.SmallestNonzeroFloat64, Exact},
+ 		{"0x.fffffffffffffp-1022", math.Float64frombits(0x000fffffffffffff), Exact}, // largest denormal
+ 
++		// special cases (see issue 14553)
++		{"0x0.bp-1074", math.Float64frombits(0x00000000000000000), Below}, // ToNearestEven rounds down (to even)
++		{"0x0.cp-1074", math.Float64frombits(0x00000000000000001), Above},
++
++		{"0x1.0p-1074", math.Float64frombits(0x00000000000000001), Exact},
++		{"0x1.7p-1074", math.Float64frombits(0x00000000000000001), Below},
++		{"0x1.8p-1074", math.Float64frombits(0x00000000000000002), Above},
++		{"0x1.9p-1074", math.Float64frombits(0x00000000000000002), Above},
++
++		{"0x2.0p-1074", math.Float64frombits(0x00000000000000002), Exact},
++		{"0x2.8p-1074", math.Float64frombits(0x00000000000000002), Below}, // ToNearestEven rounds down (to even)
++		{"0x2.9p-1074", math.Float64frombits(0x00000000000000003), Above},
++
++		{"0x3.0p-1074", math.Float64frombits(0x00000000000000003), Exact},
++		{"0x3.7p-1074", math.Float64frombits(0x00000000000000003), Below},
++		{"0x3.8p-1074", math.Float64frombits(0x00000000000000004), Above}, // ToNearestEven rounds up (to even)
++
++		{"0x4.0p-1074", math.Float64frombits(0x00000000000000004), Exact},
++		{"0x4.8p-1074", math.Float64frombits(0x00000000000000004), Below}, // ToNearestEven rounds down (to even)
++		{"0x4.9p-1074", math.Float64frombits(0x00000000000000005), Above},
++
+ 		// normals
+ 		{"0x.fffffffffffff8p-1022", math.Float64frombits(0x0010000000000000), Above}, // rounded up to smallest normal
+ 		{"1p-1022", math.Float64frombits(0x0010000000000000), Exact},                 // smallest normal
+diff --git a/src/cmd/compile/internal/big/floatconv.go b/src/cmd/compile/internal/big/floatconv.go
+index 37d5c06a6f..a884df6fe1 100644
+--- a/src/cmd/compile/internal/big/floatconv.go
++++ b/src/cmd/compile/internal/big/floatconv.go
+@@ -85,7 +85,7 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ 	if fcount < 0 {
+ 		// The mantissa has a "decimal" point ddd.dddd; and
+ 		// -fcount is the number of digits to the right of '.'.
+-		// Adjust relevant exponent accodingly.
++		// Adjust relevant exponent accordingly.
+ 		d := int64(fcount)
+ 		switch b {
+ 		case 10:
+diff --git a/test/fixedbugs/issue14553.go b/test/fixedbugs/issue14553.go
+new file mode 100644
+index 0000000000..ab886b7f2c
+--- /dev/null
++++ b/test/fixedbugs/issue14553.go
+@@ -0,0 +1,42 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test checks if the compiler's internal constant
++// arithmetic correctly rounds denormal float32 values.
++
++package main
++
++import (
++	"fmt"
++	"math"
++)
++
++func main() {
++	for _, t := range []struct {
++		value float32
++		bits  uint32
++	}{
++		{0e+00, 0x00000000},
++		{1e-45, 0x00000000},
++		{2e-45, 0x00000001},
++		{3e-45, 0x00000002},
++		{4e-45, 0x00000003},
++		{5e-45, 0x00000004},
++		{6e-45, 0x00000004},
++		{7e-45, 0x00000005},
++		{8e-45, 0x00000006},
++		{9e-45, 0x00000006},
++		{1.0e-44, 0x00000007},
++		{1.1e-44, 0x00000008},
++		{1.2e-44, 0x00000009},
++	} {
++		got := math.Float32bits(t.value)
++		want := t.bits
++		if got != want {
++			panic(fmt.Sprintf("bits(%g) = 0x%08x; want 0x%08x", t.value, got, want))
++		}
++	}
++}

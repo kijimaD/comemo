@@ -17,7 +17,7 @@ Date:   Wed Jun 1 15:23:22 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4564046
-
+---
  src/pkg/crypto/cipher/ocfb.go                      |  8 +-
  src/pkg/crypto/openpgp/packet/literal.go           | 37 +++++++++
  src/pkg/crypto/openpgp/packet/packet.go            | 62 ++++++++++++++-
@@ -31,3 +31,728 @@ Date:   Wed Jun 1 15:23:22 2011 -0400
  src/pkg/crypto/openpgp/write.go                    | 34 ++++++++
  src/pkg/crypto/openpgp/write_test.go               | 35 ++++++++
  12 files changed, 492 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/crypto/cipher/ocfb.go b/src/pkg/crypto/cipher/ocfb.go
+index b2d8775911..031e74a9dc 100644
+--- a/src/pkg/crypto/cipher/ocfb.go
++++ b/src/pkg/crypto/cipher/ocfb.go
+@@ -80,9 +80,10 @@ type ocfbDecrypter struct {
+ // NewOCFBDecrypter returns a Stream which decrypts data with OpenPGP's cipher
+ // feedback mode using the given Block. Prefix must be the first blockSize + 2
+ // bytes of the ciphertext, where blockSize is the Block's block size. If an
+-// incorrect key is detected then nil is returned. Resync determines if the
+-// "resynchronization step" from RFC 4880, 13.9 step 7 is performed. Different
+-// parts of OpenPGP vary on this point.
++// incorrect key is detected then nil is returned. On successful exit,
++// blockSize+2 bytes of decrypted data are written into prefix. Resync
++// determines if the "resynchronization step" from RFC 4880, 13.9 step 7 is
++// performed. Different parts of OpenPGP vary on this point.
+ func NewOCFBDecrypter(block Block, prefix []byte, resync OCFBResyncOption) Stream {
+ 	blockSize := block.BlockSize()
+ 	if len(prefix) != blockSize+2 {
+@@ -118,6 +119,7 @@ func NewOCFBDecrypter(block Block, prefix []byte, resync OCFBResyncOption) Strea
+ 		x.fre[1] = prefix[blockSize+1]
+ 		x.outUsed = 2
+ 	}
++	copy(prefix, prefixCopy)
+ 	return x
+ }
+ 
+diff --git a/src/pkg/crypto/openpgp/packet/literal.go b/src/pkg/crypto/openpgp/packet/literal.go
+index 04f50e53e1..9411572d7c 100644
+--- a/src/pkg/crypto/openpgp/packet/literal.go
++++ b/src/pkg/crypto/openpgp/packet/literal.go
+@@ -51,3 +51,40 @@ func (l *LiteralData) parse(r io.Reader) (err os.Error) {
+ 	l.Body = r
+ 	return
+ }
++
++// SerializeLiteral serializes a literal data packet to w and returns a
++// WriteCloser to which the data itself can be written and which MUST be closed
++// on completion. The fileName is truncated to 255 bytes.
++func SerializeLiteral(w io.WriteCloser, isBinary bool, fileName string, time uint32) (plaintext io.WriteCloser, err os.Error) {
++	var buf [4]byte
++	buf[0] = 't'
++	if isBinary {
++		buf[0] = 'b'
++	}
++	if len(fileName) > 255 {
++		fileName = fileName[:255]
++	}
++	buf[1] = byte(len(fileName))
++
++	inner, err := serializeStreamHeader(w, packetTypeLiteralData)
++	if err != nil {
++		return
++	}
++
++	_, err = inner.Write(buf[:2])
++	if err != nil {
++		return
++	}
++	_, err = inner.Write([]byte(fileName))
++	if err != nil {
++		return
++	}
++	binary.BigEndian.PutUint32(buf[:], time)
++	_, err = inner.Write(buf[:])
++	if err != nil {
++		return
++	}
++
++	plaintext = inner
++	return
++}
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index e583670fb2..640a5b76f3 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -92,6 +92,46 @@ func (r *partialLengthReader) Read(p []byte) (n int, err os.Error) {
+ 	return
+ }
+ 
++// partialLengthWriter writes a stream of data using OpenPGP partial lengths.
++// See RFC 4880, section 4.2.2.4.
++type partialLengthWriter struct {
++	w          io.WriteCloser
++	lengthByte [1]byte
++}
++
++func (w *partialLengthWriter) Write(p []byte) (n int, err os.Error) {
++	for len(p) > 0 {
++		for power := uint(14); power < 32; power-- {
++			l := 1 << power
++			if len(p) >= l {
++				w.lengthByte[0] = 224 + uint8(power)
++				_, err = w.w.Write(w.lengthByte[:])
++				if err != nil {
++					return
++				}
++				var m int
++				m, err = w.w.Write(p[:l])
++				n += m
++				if err != nil {
++					return
++				}
++				p = p[l:]
++				break
++			}
++		}
++	}
++	return
++}
++
++func (w *partialLengthWriter) Close() os.Error {
++	w.lengthByte[0] = 0
++	_, err := w.w.Write(w.lengthByte[:])
++	if err != nil {
++		return err
++	}
++	return w.w.Close()
++}
++
+ // A spanReader is an io.LimitReader, but it returns ErrUnexpectedEOF if the
+ // underlying Reader returns EOF before the limit has been reached.
+ type spanReader struct {
+@@ -195,6 +235,20 @@ func serializeHeader(w io.Writer, ptype packetType, length int) (err os.Error) {
+ 	return
+ }
+ 
++// serializeStreamHeader writes an OpenPGP packet header to w where the
++// length of the packet is unknown. It returns a io.WriteCloser which can be
++// used to write the contents of the packet. See RFC 4880, section 4.2.
++func serializeStreamHeader(w io.WriteCloser, ptype packetType) (out io.WriteCloser, err os.Error) {
++	var buf [1]byte
++	buf[0] = 0x80 | 0x40 | byte(ptype)
++	_, err = w.Write(buf[:])
++	if err != nil {
++		return
++	}
++	out = &partialLengthWriter{w: w}
++	return
++}
++
+ // Packet represents an OpenPGP packet. Users are expected to try casting
+ // instances of this interface to specific packet types.
+ type Packet interface {
+@@ -327,10 +381,10 @@ const (
+ type CipherFunction uint8
+ 
+ const (
+-	CipherCAST5  = 3
+-	CipherAES128 = 7
+-	CipherAES192 = 8
+-	CipherAES256 = 9
++	CipherCAST5  CipherFunction = 3
++	CipherAES128 CipherFunction = 7
++	CipherAES192 CipherFunction = 8
++	CipherAES256 CipherFunction = 9
+ )
+ 
+ // keySize returns the key size, in bytes, of cipher.
+diff --git a/src/pkg/crypto/openpgp/packet/packet_test.go b/src/pkg/crypto/openpgp/packet/packet_test.go
+index 1a4692cd4f..23d9978ae1 100644
+--- a/src/pkg/crypto/openpgp/packet/packet_test.go
++++ b/src/pkg/crypto/openpgp/packet/packet_test.go
+@@ -210,3 +210,47 @@ func TestSerializeHeader(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestPartialLengths(t *testing.T) {
++	buf := bytes.NewBuffer(nil)
++	w := new(partialLengthWriter)
++	w.w = noOpCloser{buf}
++
++	const maxChunkSize = 64
++
++	var b [maxChunkSize]byte
++	var n uint8
++	for l := 1; l <= maxChunkSize; l++ {
++		for i := 0; i < l; i++ {
++			b[i] = n
++			n++
++		}
++		m, err := w.Write(b[:l])
++		if m != l {
++			t.Errorf("short write got: %d want: %d", m, l)
++		}
++		if err != nil {
++			t.Errorf("error from write: %s", err)
++		}
++	}
++	w.Close()
++
++	want := (maxChunkSize * (maxChunkSize + 1)) / 2
++	copyBuf := bytes.NewBuffer(nil)
++	r := &partialLengthReader{buf, 0, true}
++	m, err := io.Copy(copyBuf, r)
++	if m != int64(want) {
++		t.Errorf("short copy got: %d want: %d", m, want)
++	}
++	if err != nil {
++		t.Errorf("error from copy: %s", err)
++	}
++
++	copyBytes := copyBuf.Bytes()
++	for i := 0; i < want; i++ {
++		if copyBytes[i] != uint8(i) {
++			t.Errorf("bad pattern in copy at %d", i)
++			break
++		}
++	}
++}
+diff --git a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
+index d9010f88a3..25d264acf9 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
++++ b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
+@@ -5,6 +5,7 @@
+ package packet
+ 
+ import (
++	"bytes"
+ 	"crypto/cipher"
+ 	"crypto/openpgp/error"
+ 	"crypto/openpgp/s2k"
+@@ -27,6 +28,8 @@ type SymmetricKeyEncrypted struct {
+ 	encryptedKey []byte
+ }
+ 
++const symmetricKeyEncryptedVersion = 4
++
+ func (ske *SymmetricKeyEncrypted) parse(r io.Reader) (err os.Error) {
+ 	// RFC 4880, section 5.3.
+ 	var buf [2]byte
+@@ -34,7 +37,7 @@ func (ske *SymmetricKeyEncrypted) parse(r io.Reader) (err os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	if buf[0] != 4 {
++	if buf[0] != symmetricKeyEncryptedVersion {
+ 		return error.UnsupportedError("SymmetricKeyEncrypted version")
+ 	}
+ 	ske.CipherFunc = CipherFunction(buf[1])
+@@ -100,3 +103,60 @@ func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) os.Error {
+ 	ske.Encrypted = false
+ 	return nil
+ }
++
++// SerializeSymmetricKeyEncrypted serializes a symmetric key packet to w. The
++// packet contains a random session key, encrypted by a key derived from the
++// given passphrase. The session key is returned and must be passed to
++// SerializeSymmetricallyEncrypted.
++func SerializeSymmetricKeyEncrypted(w io.Writer, rand io.Reader, passphrase []byte, cipherFunc CipherFunction) (key []byte, err os.Error) {
++	keySize := cipherFunc.keySize()
++	if keySize == 0 {
++		return nil, error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(cipherFunc)))
++	}
++
++	s2kBuf := new(bytes.Buffer)
++	keyEncryptingKey := make([]byte, keySize)
++	// s2k.Serialize salts and stretches the passphrase, and writes the
++	// resulting key to keyEncryptingKey and the s2k descriptor to s2kBuf.
++	err = s2k.Serialize(s2kBuf, keyEncryptingKey, rand, passphrase)
++	if err != nil {
++		return
++	}
++	s2kBytes := s2kBuf.Bytes()
++
++	packetLength := 2 /* header */ + len(s2kBytes) + 1 /* cipher type */ + keySize
++	err = serializeHeader(w, packetTypeSymmetricKeyEncrypted, packetLength)
++	if err != nil {
++		return
++	}
++
++	var buf [2]byte
++	buf[0] = symmetricKeyEncryptedVersion
++	buf[1] = byte(cipherFunc)
++	_, err = w.Write(buf[:])
++	if err != nil {
++		return
++	}
++	_, err = w.Write(s2kBytes)
++	if err != nil {
++		return
++	}
++
++	sessionKey := make([]byte, keySize)
++	_, err = io.ReadFull(rand, sessionKey)
++	if err != nil {
++		return
++	}
++	iv := make([]byte, cipherFunc.blockSize())
++	c := cipher.NewCFBEncrypter(cipherFunc.new(keyEncryptingKey), iv)
++	encryptedCipherAndKey := make([]byte, keySize+1)
++	c.XORKeyStream(encryptedCipherAndKey, buf[1:])
++	c.XORKeyStream(encryptedCipherAndKey[1:], sessionKey)
++	_, err = w.Write(encryptedCipherAndKey)
++	if err != nil {
++		return
++	}
++
++	key = sessionKey
++	return
++}
+diff --git a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted_test.go b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted_test.go
+index 717c8ffa6d..823ec400d4 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted_test.go
++++ b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted_test.go
+@@ -6,6 +6,7 @@ package packet
+ 
+ import (
+ 	"bytes"
++	"crypto/rand"
+ 	"encoding/hex"
+ 	"io/ioutil"
+ 	"os"
+@@ -60,3 +61,41 @@ func TestSymmetricKeyEncrypted(t *testing.T) {
+ 
+ const symmetricallyEncryptedHex = "8c0d04030302371a0b38d884f02060c91cf97c9973b8e58e028e9501708ccfe618fb92afef7fa2d80ddadd93cf"
+ const symmetricallyEncryptedContentsHex = "cb1062004d14c4df636f6e74656e74732e0a"
++
++func TestSerializeSymmetricKeyEncrypted(t *testing.T) {
++	buf := bytes.NewBuffer(nil)
++	passphrase := []byte("testing")
++	cipherFunc := CipherAES128
++
++	key, err := SerializeSymmetricKeyEncrypted(buf, rand.Reader, passphrase, cipherFunc)
++	if err != nil {
++		t.Errorf("failed to serialize: %s", err)
++		return
++	}
++
++	p, err := Read(buf)
++	if err != nil {
++		t.Errorf("failed to reparse: %s", err)
++		return
++	}
++	ske, ok := p.(*SymmetricKeyEncrypted)
++	if !ok {
++		t.Errorf("parsed a different packet type: %#v", p)
++		return
++	}
++
++	if !ske.Encrypted {
++		t.Errorf("SKE not encrypted but should be")
++	}
++	if ske.CipherFunc != cipherFunc {
++		t.Errorf("SKE cipher function is %d (expected %d)", ske.CipherFunc, cipherFunc)
++	}
++	err = ske.Decrypt(passphrase)
++	if err != nil {
++		t.Errorf("failed to decrypt reparsed SKE: %s", err)
++		return
++	}
++	if !bytes.Equal(key, ske.Key) {
++		t.Errorf("keys don't match after Decrpyt: %x (original) vs %x (parsed)", key, ske.Key)
++	}
++}
+diff --git a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+index fc19ffe809..236c367745 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
++++ b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+@@ -7,6 +7,7 @@ package packet
+ import (
+ 	"crypto/cipher"
+ 	"crypto/openpgp/error"
++	"crypto/rand"
+ 	"crypto/sha1"
+ 	"crypto/subtle"
+ 	"hash"
+@@ -24,6 +25,8 @@ type SymmetricallyEncrypted struct {
+ 	prefix   []byte
+ }
+ 
++const symmetricallyEncryptedVersion = 1
++
+ func (se *SymmetricallyEncrypted) parse(r io.Reader) os.Error {
+ 	if se.MDC {
+ 		// See RFC 4880, section 5.13.
+@@ -32,7 +35,7 @@ func (se *SymmetricallyEncrypted) parse(r io.Reader) os.Error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		if buf[0] != 1 {
++		if buf[0] != symmetricallyEncryptedVersion {
+ 			return error.UnsupportedError("unknown SymmetricallyEncrypted version")
+ 		}
+ 	}
+@@ -174,6 +177,9 @@ func (ser *seMDCReader) Read(buf []byte) (n int, err os.Error) {
+ 	return
+ }
+ 
++// This is a new-format packet tag byte for a type 19 (MDC) packet.
++const mdcPacketTagByte = byte(0x80) | 0x40 | 19
++
+ func (ser *seMDCReader) Close() os.Error {
+ 	if ser.error {
+ 		return error.SignatureError("error during reading")
+@@ -191,16 +197,95 @@ func (ser *seMDCReader) Close() os.Error {
+ 		}
+ 	}
+ 
+-	// This is a new-format packet tag byte for a type 19 (MDC) packet.
+-	const mdcPacketTagByte = byte(0x80) | 0x40 | 19
+ 	if ser.trailer[0] != mdcPacketTagByte || ser.trailer[1] != sha1.Size {
+ 		return error.SignatureError("MDC packet not found")
+ 	}
+ 	ser.h.Write(ser.trailer[:2])
+ 
+ 	final := ser.h.Sum()
+-	if subtle.ConstantTimeCompare(final, ser.trailer[2:]) == 1 {
++	if subtle.ConstantTimeCompare(final, ser.trailer[2:]) != 1 {
+ 		return error.SignatureError("hash mismatch")
+ 	}
+ 	return nil
+ }
++
++// An seMDCWriter writes through to an io.WriteCloser while maintains a running
++// hash of the data written. On close, it emits an MDC packet containing the
++// running hash.
++type seMDCWriter struct {
++	w io.WriteCloser
++	h hash.Hash
++}
++
++func (w *seMDCWriter) Write(buf []byte) (n int, err os.Error) {
++	w.h.Write(buf)
++	return w.w.Write(buf)
++}
++
++func (w *seMDCWriter) Close() (err os.Error) {
++	var buf [mdcTrailerSize]byte
++
++	buf[0] = mdcPacketTagByte
++	buf[1] = sha1.Size
++	w.h.Write(buf[:2])
++	digest := w.h.Sum()
++	copy(buf[2:], digest)
++
++	_, err = w.w.Write(buf[:])
++	if err != nil {
++		return
++	}
++	return w.w.Close()
++}
++
++// noOpCloser is like an ioutil.NopCloser, but for an io.Writer.
++type noOpCloser struct {
++	w io.Writer
++}
++
++func (c noOpCloser) Write(data []byte) (n int, err os.Error) {
++	return c.w.Write(data)
++}
++
++func (c noOpCloser) Close() os.Error {
++	return nil
++}
++
++// SerializeSymmetricallyEncrypted serializes a symmetrically encrypted packet
++// to w and returns a WriteCloser to which the to-be-encrypted packets can be
++// written.
++func SerializeSymmetricallyEncrypted(w io.Writer, c CipherFunction, key []byte) (contents io.WriteCloser, err os.Error) {
++	if c.keySize() != len(key) {
++		return nil, error.InvalidArgumentError("SymmetricallyEncrypted.Serialize: bad key length")
++	}
++	writeCloser := noOpCloser{w}
++	ciphertext, err := serializeStreamHeader(writeCloser, packetTypeSymmetricallyEncryptedMDC)
++	if err != nil {
++		return
++	}
++
++	_, err = ciphertext.Write([]byte{symmetricallyEncryptedVersion})
++	if err != nil {
++		return
++	}
++
++	block := c.new(key)
++	blockSize := block.BlockSize()
++	iv := make([]byte, blockSize)
++	_, err = rand.Reader.Read(iv)
++	if err != nil {
++		return
++	}
++	s, prefix := cipher.NewOCFBEncrypter(block, iv, cipher.OCFBNoResync)
++	_, err = ciphertext.Write(prefix)
++	if err != nil {
++		return
++	}
++	plaintext := cipher.StreamWriter{S: s, W: ciphertext}
++
++	h := sha1.New()
++	h.Write(iv)
++	h.Write(iv[blockSize-2:])
++	contents = &seMDCWriter{w: plaintext, h: h}
++	return
++}
+diff --git a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
+index 5543b20297..ba5606e6ce 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
++++ b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"crypto/openpgp/error"
+ 	"crypto/sha1"
+ 	"encoding/hex"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"testing"
+@@ -76,3 +77,48 @@ func testMDCReader(t *testing.T) {
+ }
+ 
+ const mdcPlaintextHex = "a302789c3b2d93c4e0eb9aba22283539b3203335af44a134afb800c849cb4c4de10200aff40b45d31432c80cb384299a0655966d6939dfdeed1dddf980"
++
++func TestSerialize(t *testing.T) {
++	buf := bytes.NewBuffer(nil)
++	c := CipherAES128
++	key := make([]byte, c.keySize())
++
++	w, err := SerializeSymmetricallyEncrypted(buf, c, key)
++	if err != nil {
++		t.Errorf("error from SerializeSymmetricallyEncrypted: %s", err)
++		return
++	}
++
++	contents := []byte("hello world\n")
++
++	w.Write(contents)
++	w.Close()
++
++	p, err := Read(buf)
++	if err != nil {
++		t.Errorf("error from Read: %s", err)
++		return
++	}
++
++	se, ok := p.(*SymmetricallyEncrypted)
++	if !ok {
++		t.Errorf("didn't read a *SymmetricallyEncrypted")
++		return
++	}
++
++	r, err := se.Decrypt(c, key)
++	if err != nil {
++		t.Errorf("error from Decrypt: %s", err)
++		return
++	}
++
++	contentsCopy := bytes.NewBuffer(nil)
++	_, err = io.Copy(contentsCopy, r)
++	if err != nil {
++		t.Errorf("error from io.Copy: %s", err)
++		return
++	}
++	if !bytes.Equal(contentsCopy.Bytes(), contents) {
++		t.Errorf("contents not equal got: %x want: %x", contentsCopy.Bytes(), contents)
++	}
++}
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k.go b/src/pkg/crypto/openpgp/s2k/s2k.go
+index 80b81bd3a5..da926a76ed 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k.go
+@@ -123,6 +123,26 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
+ 	return nil, error.UnsupportedError("S2K function")
+ }
+ 
++// Serialize salts and stretches the given passphrase and writes the resulting
++// key into key. It also serializes an S2K descriptor to w.
++func Serialize(w io.Writer, key []byte, rand io.Reader, passphrase []byte) os.Error {
++	var buf [11]byte
++	buf[0] = 3 /* iterated and salted */
++	buf[1], _ = HashToHashId(crypto.SHA1)
++	salt := buf[2:10]
++	if _, err := io.ReadFull(rand, salt); err != nil {
++		return err
++	}
++	const count = 65536 // this is the default in gpg
++	buf[10] = 96        // 65536 iterations
++	if _, err := w.Write(buf[:]); err != nil {
++		return err
++	}
++
++	Iterated(key, crypto.SHA1.New(), passphrase, salt, count)
++	return nil
++}
++
+ // hashToHashIdMapping contains pairs relating OpenPGP's hash identifier with
+ // Go's crypto.Hash type. See RFC 4880, section 9.4.
+ var hashToHashIdMapping = []struct {
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k_test.go b/src/pkg/crypto/openpgp/s2k/s2k_test.go
+index 75bc47ec10..27d2e9ae0b 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k_test.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k_test.go
+@@ -7,6 +7,7 @@ package s2k
+ import (
+ 	"bytes"
+ 	"crypto/sha1"
++	"crypto/rand"
+ 	"encoding/hex"
+ 	"testing"
+ )
+@@ -95,3 +96,26 @@ func TestParse(t *testing.T) {
+ 		}
+ 	}
+ }
++
++
++func TestSerialize(t *testing.T) {
++	buf := bytes.NewBuffer(nil)
++	key := make([]byte, 16)
++	passphrase := []byte("testing")
++	err := Serialize(buf, key, rand.Reader, passphrase)
++	if err != nil {
++		t.Errorf("failed to serialize: %s", err)
++		return
++	}
++
++	f, err := Parse(buf)
++	if err != nil {
++		t.Errorf("failed to reparse: %s", err)
++		return
++	}
++	key2 := make([]byte, len(key))
++	f(key2, passphrase)
++	if !bytes.Equal(key2, key) {
++		t.Errorf("keys don't match: %x (serialied) vs %x (parsed)", key, key2)
++	}
++}
+diff --git a/src/pkg/crypto/openpgp/write.go b/src/pkg/crypto/openpgp/write.go
+index a1ede564e2..48c86f604e 100644
+--- a/src/pkg/crypto/openpgp/write.go
++++ b/src/pkg/crypto/openpgp/write.go
+@@ -9,6 +9,7 @@ import (
+ 	"crypto/openpgp/armor"
+ 	"crypto/openpgp/error"
+ 	"crypto/openpgp/packet"
++	"crypto/rand"
+ 	_ "crypto/sha256"
+ 	"io"
+ 	"os"
+@@ -81,3 +82,36 @@ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.S
+ 
+ 	return sig.Serialize(w)
+ }
++
++// FileHints contains metadata about encrypted files. This metadata is, itself,
++// encrypted.
++type FileHints struct {
++	// IsBinary can be set to hint that the contents are binary data.
++	IsBinary bool
++	// FileName hints at the name of the file that should be written. It's
++	// truncated to 255 bytes if longer. It may be empty to suggest that the
++	// file should not be written to disk. It may be equal to "_CONSOLE" to
++	// suggest the data should not be written to disk.
++	FileName string
++	// EpochSeconds contains the modification time of the file, or 0 if not applicable.
++	EpochSeconds uint32
++}
++
++// SymmetricallyEncrypt acts like gpg -c: it encrypts a file with a passphrase.
++// The resulting WriteCloser MUST be closed after the contents of the file have
++// been written.
++func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHints) (plaintext io.WriteCloser, err os.Error) {
++	if hints == nil {
++		hints = &FileHints{}
++	}
++
++	key, err := packet.SerializeSymmetricKeyEncrypted(ciphertext, rand.Reader, passphrase, packet.CipherAES128)
++	if err != nil {
++		return
++	}
++	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, packet.CipherAES128, key)
++	if err != nil {
++		return
++	}
++	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
++}
+diff --git a/src/pkg/crypto/openpgp/write_test.go b/src/pkg/crypto/openpgp/write_test.go
+index a74a84b2b7..8551aeb638 100644
+--- a/src/pkg/crypto/openpgp/write_test.go
++++ b/src/pkg/crypto/openpgp/write_test.go
+@@ -7,6 +7,8 @@ package openpgp
+ import (
+ 	"bytes"
+ 	"crypto/rand"
++	"os"
++	"io"
+ 	"testing"
+ 	"time"
+ )
+@@ -85,3 +87,36 @@ func TestNewEntity(t *testing.T) {
+ 		t.Errorf("results differed")
+ 	}
+ }
++
++func TestSymmetricEncryption(t *testing.T) {
++	buf := new(bytes.Buffer)
++	plaintext, err := SymmetricallyEncrypt(buf, []byte("testing"), nil)
++	if err != nil {
++		t.Errorf("error writing headers: %s", err)
++		return
++	}
++	message := []byte("hello world\n")
++	_, err = plaintext.Write(message)
++	if err != nil {
++		t.Errorf("error writing to plaintext writer: %s", err)
++	}
++	err = plaintext.Close()
++	if err != nil {
++		t.Errorf("error closing plaintext writer: %s", err)
++	}
++
++	md, err := ReadMessage(buf, nil, func(keys []Key, symmetric bool) ([]byte, os.Error) {
++		return []byte("testing"), nil
++	})
++	if err != nil {
++		t.Errorf("error rereading message: %s", err)
++	}
++	messageBuf := bytes.NewBuffer(nil)
++	_, err = io.Copy(messageBuf, md.UnverifiedBody)
++	if err != nil {
++		t.Errorf("error rereading message: %s", err)
++	}
++	if !bytes.Equal(message, messageBuf.Bytes()) {
++		t.Errorf("recovered message incorrect got '%s', want '%s'", messageBuf.Bytes(), message)
++	}
++}

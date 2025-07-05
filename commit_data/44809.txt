@@ -19,7 +19,74 @@ Date:   Tue Sep 1 15:41:36 2020 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/get/vcs_test.go        |  7 ++----
  src/cmd/go/testdata/script/get_unicode.txt | 40 ------------------------------
  2 files changed, 2 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/vcs_test.go b/src/cmd/go/internal/get/vcs_test.go
+index 91800baa83..195bc231eb 100644
+--- a/src/cmd/go/internal/get/vcs_test.go
++++ b/src/cmd/go/internal/get/vcs_test.go
+@@ -32,13 +32,10 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 				Repo: "https://github.com/golang/groupcache",
+ 			},
+ 		},
+-		// Unicode letters in directories (issue 18660).
++		// Unicode letters in directories are not valid.
+ 		{
+ 			"github.com/user/unicode/испытание",
+-			&RepoRoot{
+-				vcs:  vcsGit,
+-				Repo: "https://github.com/user/unicode",
+-			},
++			nil,
+ 		},
+ 		// IBM DevOps Services tests
+ 		{
+diff --git a/src/cmd/go/testdata/script/get_unicode.txt b/src/cmd/go/testdata/script/get_unicode.txt
+deleted file mode 100644
+index d3b82bdf25..0000000000
+--- a/src/cmd/go/testdata/script/get_unicode.txt
++++ /dev/null
+@@ -1,40 +0,0 @@
+-env GO111MODULE=off
+-
+-[!exec:git] skip
+-[short] skip
+-
+-# Construct a repository that imports a non-ASCII path.
+-cd $WORK/_origin/example.com/unicode
+-exec git init
+-exec git config user.name 'Nameless Gopher'
+-exec git config user.email 'nobody@golang.org'
+-exec git add unicode.go
+-exec git commit -m 'add unicode.go'
+-
+-# Clone the repo into GOPATH so that 'go get -u' can find it.
+-mkdir $GOPATH/src/example.com/unicode
+-cd $GOPATH/src/example.com/unicode
+-exec git clone $WORK/_origin/example.com/unicode .
+-
+-# Construct the imported repository.
+-cd $WORK/_origin/example.com/испытание
+-exec git init
+-exec git config user.name 'Nameless Gopher'
+-exec git config user.email 'nobody@golang.org'
+-exec git add испытание.go
+-exec git commit -m 'add испытание.go'
+-
+-# Clone that repo into GOPATH too.
+-mkdir $GOPATH/src/example.com/испытание
+-cd $GOPATH/src/example.com/испытание
+-exec git clone $WORK/_origin/example.com/испытание .
+-
+-# Upgrading the importer should pull from the non-ASCII repo.
+-cd $GOPATH
+-go get -u example.com/unicode
+-
+--- $WORK/_origin/example.com/unicode/unicode.go --
+-package unicode
+-import _ "example.com/испытание"
+--- $WORK/_origin/example.com/испытание/испытание.go --
+-package испытание

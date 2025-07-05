@@ -17,7 +17,7 @@ Date:   Fri Feb 15 10:40:17 2013 -0500
     R=golang-dev, mikioh.mikioh, bradfitz
     CC=golang-dev
     https://golang.org/cl/7336046
-
+---
  src/pkg/crypto/tls/generate_cert.go | 60 ++++++++++++++++++++++++++++++-----
  src/pkg/crypto/x509/verify.go       | 41 +++++++++++++++++++++---
  src/pkg/crypto/x509/x509.go         | 29 ++++++++++++++---
@@ -25,3 +25,388 @@ Date:   Fri Feb 15 10:40:17 2013 -0500
  src/pkg/go/build/deps_test.go       |  2 +-
  src/pkg/net/http/httptest/server.go | 37 +++++++++++-----------
  6 files changed, 194 insertions(+), 38 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index 84be5bfd85..215644d243 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -16,36 +16,80 @@ import (
+ 	"crypto/x509/pkix"
+ 	"encoding/pem"
+ 	"flag"
++	"fmt"
+ 	"log"
+ 	"math/big"
++	"net"
+ 	"os"
++	"strings"
+ 	"time"
+ )
+ 
+-var hostName *string = flag.String("host", "127.0.0.1", "Hostname to generate a certificate for")
++var (
++	host      = flag.String("host", "", "Comma-separated hostnames and IPs to generate a certificate for")
++	validFrom = flag.String("start-date", "", "Creation date formatted as Jan 1 15:04:05 2011")
++	validFor  = flag.Duration("duration", 365*24*time.Hour, "Duration that certificate is valid for")
++	isCA      = flag.Bool("ca", false, "whether this cert should be its own Certificate Authority")
++	rsaBits   = flag.Int("rsa-bits", 1024, "Size of RSA key to generate")
++)
+ 
+ func main() {
+ 	flag.Parse()
+ 
+-	priv, err := rsa.GenerateKey(rand.Reader, 1024)
++	if len(*host) == 0 {
++		log.Fatalf("Missing required --host parameter")
++	}
++
++	priv, err := rsa.GenerateKey(rand.Reader, *rsaBits)
+ 	if err != nil {
+ 		log.Fatalf("failed to generate private key: %s", err)
+ 		return
+ 	}
+ 
+-	now := time.Now()
++	var notBefore time.Time
++	if len(*validFrom) == 0 {
++		notBefore = time.Now()
++	} else {
++		notBefore, err = time.Parse("Jan 2 15:04:05 2006", *validFrom)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "Failed to parse creation date: %s\n", err)
++			os.Exit(1)
++		}
++	}
++
++	notAfter := notBefore.Add(*validFor)
++
++	// end of ASN.1 time
++	endOfTime := time.Date(2049, 12, 31, 23, 59, 59, 0, time.UTC)
++	if notAfter.After(endOfTime) {
++		notAfter = endOfTime
++	}
+ 
+ 	template := x509.Certificate{
+ 		SerialNumber: new(big.Int).SetInt64(0),
+ 		Subject: pkix.Name{
+-			CommonName:   *hostName,
+ 			Organization: []string{"Acme Co"},
+ 		},
+-		NotBefore: now.Add(-5 * time.Minute).UTC(),
+-		NotAfter:  now.AddDate(1, 0, 0).UTC(), // valid for 1 year.
++		NotBefore: notBefore,
++		NotAfter:  notAfter,
++
++		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
++		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
++		BasicConstraintsValid: true,
++	}
++
++	hosts := strings.Split(*host, ",")
++	for _, h := range hosts {
++		if ip := net.ParseIP(h); ip != nil {
++			template.IPAddresses = append(template.IPAddresses, ip)
++		} else {
++			template.DNSNames = append(template.DNSNames, h)
++		}
++	}
+ 
+-		SubjectKeyId: []byte{1, 2, 3, 4},
+-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
++	if *isCA {
++		template.IsCA = true
++		template.KeyUsage |= x509.KeyUsageCertSign
+ 	}
+ 
+ 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 2ec75c7539..b29ddbc80f 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"net"
+ 	"runtime"
+ 	"strings"
+ 	"time"
+@@ -63,14 +64,28 @@ type HostnameError struct {
+ }
+ 
+ func (h HostnameError) Error() string {
+-	var valid string
+ 	c := h.Certificate
+-	if len(c.DNSNames) > 0 {
+-		valid = strings.Join(c.DNSNames, ", ")
++
++	var valid string
++	if ip := net.ParseIP(h.Host); ip != nil {
++		// Trying to validate an IP
++		if len(c.IPAddresses) == 0 {
++			return "x509: cannot validate certificate for " + h.Host + " because it doesn't contain any IP SANs"
++		}
++		for _, san := range c.IPAddresses {
++			if len(valid) > 0 {
++				valid += ", "
++			}
++			valid += san.String()
++		}
+ 	} else {
+-		valid = c.Subject.CommonName
++		if len(c.DNSNames) > 0 {
++			valid = strings.Join(c.DNSNames, ", ")
++		} else {
++			valid = c.Subject.CommonName
++		}
+ 	}
+-	return "certificate is valid for " + valid + ", not " + h.Host
++	return "x509: certificate is valid for " + valid + ", not " + h.Host
+ }
+ 
+ // UnknownAuthorityError results when the certificate issuer is unknown
+@@ -334,6 +349,22 @@ func toLowerCaseASCII(in string) string {
+ // VerifyHostname returns nil if c is a valid certificate for the named host.
+ // Otherwise it returns an error describing the mismatch.
+ func (c *Certificate) VerifyHostname(h string) error {
++	// IP addresses may be written in [ ].
++	candidateIP := h
++	if len(h) >= 3 && h[0] == '[' && h[len(h)-1] == ']' {
++		candidateIP = h[1 : len(h)-1]
++	}
++	if ip := net.ParseIP(candidateIP); ip != nil {
++		// We only match IP addresses against IP SANs.
++		// https://tools.ietf.org/html/rfc6125#appendix-B.2
++		for _, candidate := range c.IPAddresses {
++			if ip.Equal(candidate) {
++				return nil
++			}
++		}
++		return HostnameError{c, candidateIP}
++	}
++
+ 	lowered := toLowerCaseASCII(h)
+ 
+ 	if len(c.DNSNames) > 0 {
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 85131e1235..b802bf4ebf 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -19,6 +19,8 @@ import (
+ 	"errors"
+ 	"io"
+ 	"math/big"
++	"net"
++	"strconv"
+ 	"time"
+ )
+ 
+@@ -464,6 +466,7 @@ type Certificate struct {
+ 	// Subject Alternate Name values
+ 	DNSNames       []string
+ 	EmailAddresses []string
++	IPAddresses    []net.IP
+ 
+ 	// Name constraints
+ 	PermittedDNSDomainsCritical bool // if true then the name constraints are marked critical.
+@@ -841,6 +844,13 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 					case 2:
+ 						out.DNSNames = append(out.DNSNames, string(v.Bytes))
+ 						parsedName = true
++					case 7:
++						switch len(v.Bytes) {
++						case net.IPv4len, net.IPv6len:
++							out.IPAddresses = append(out.IPAddresses, v.Bytes)
++						default:
++							return nil, errors.New("x509: certificate contained IP address of length " + strconv.Itoa(len(v.Bytes)))
++						}
+ 					}
+ 				}
+ 
+@@ -1085,11 +1095,22 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
+ 		n++
+ 	}
+ 
+-	if len(template.DNSNames) > 0 {
++	if len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 {
+ 		ret[n].Id = oidExtensionSubjectAltName
+-		rawValues := make([]asn1.RawValue, len(template.DNSNames))
+-		for i, name := range template.DNSNames {
+-			rawValues[i] = asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)}
++		var rawValues []asn1.RawValue
++		for _, name := range template.DNSNames {
++			rawValues = append(rawValues, asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)})
++		}
++		for _, email := range template.EmailAddresses {
++			rawValues = append(rawValues, asn1.RawValue{Tag: 1, Class: 2, Bytes: []byte(email)})
++		}
++		for _, rawIP := range template.IPAddresses {
++			// If possible, we always want to encode IPv4 addresses in 4 bytes.
++			ip := rawIP.To4()
++			if ip == nil {
++				ip = rawIP
++			}
++			rawValues = append(rawValues, asn1.RawValue{Tag: 7, Class: 2, Bytes: ip})
+ 		}
+ 		ret[n].Value, err = asn1.Marshal(rawValues)
+ 		if err != nil {
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index b2d6fe3d55..abd4fe84d7 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -19,6 +19,7 @@ import (
+ 	"encoding/hex"
+ 	"encoding/pem"
+ 	"math/big"
++	"net"
+ 	"reflect"
+ 	"testing"
+ 	"time"
+@@ -174,6 +175,49 @@ func TestMatchHostnames(t *testing.T) {
+ 	}
+ }
+ 
++func TestMatchIP(t *testing.T) {
++	// Check that pattern matching is working.
++	c := &Certificate{
++		DNSNames: []string{"*.foo.bar.baz"},
++		Subject: pkix.Name{
++			CommonName: "*.foo.bar.baz",
++		},
++	}
++	err := c.VerifyHostname("quux.foo.bar.baz")
++	if err != nil {
++		t.Fatalf("VerifyHostname(quux.foo.bar.baz): %v", err)
++	}
++
++	// But check that if we change it to be matching against an IP address,
++	// it is rejected.
++	c = &Certificate{
++		DNSNames: []string{"*.2.3.4"},
++		Subject: pkix.Name{
++			CommonName: "*.2.3.4",
++		},
++	}
++	err = c.VerifyHostname("1.2.3.4")
++	if err == nil {
++		t.Fatalf("VerifyHostname(1.2.3.4) should have failed, did not")
++	}
++
++	c = &Certificate{
++		IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
++	}
++	err = c.VerifyHostname("127.0.0.1")
++	if err != nil {
++		t.Fatalf("VerifyHostname(127.0.0.1): %v", err)
++	}
++	err = c.VerifyHostname("::1")
++	if err != nil {
++		t.Fatalf("VerifyHostname(::1): %v", err)
++	}
++	err = c.VerifyHostname("[::1]")
++	if err != nil {
++		t.Fatalf("VerifyHostname([::1]): %v", err)
++	}
++}
++
+ func TestCertificateParse(t *testing.T) {
+ 	s, _ := hex.DecodeString(certBytes)
+ 	certs, err := ParseCertificates(s)
+@@ -284,8 +328,11 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			UnknownExtKeyUsage: testUnknownExtKeyUsage,
+ 
+ 			BasicConstraintsValid: true,
+-			IsCA:     true,
+-			DNSNames: []string{"test.example.com"},
++			IsCA: true,
++
++			DNSNames:       []string{"test.example.com"},
++			EmailAddresses: []string{"gopher@golang.org"},
++			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1).To4(), net.ParseIP("2001:4860:0:2001::68")},
+ 
+ 			PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+ 			PermittedDNSDomains: []string{".example.com", "example.com"},
+@@ -327,6 +374,18 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: unknown extkeyusage wasn't correctly copied from the template. Got %v, want %v", test.name, cert.UnknownExtKeyUsage, testUnknownExtKeyUsage)
+ 		}
+ 
++		if !reflect.DeepEqual(cert.DNSNames, template.DNSNames) {
++			t.Errorf("%s: SAN DNS names differ from template. Got %v, want %v", test.name, cert.DNSNames, template.DNSNames)
++		}
++
++		if !reflect.DeepEqual(cert.EmailAddresses, template.EmailAddresses) {
++			t.Errorf("%s: SAN emails differ from template. Got %v, want %v", test.name, cert.EmailAddresses, template.EmailAddresses)
++		}
++
++		if !reflect.DeepEqual(cert.IPAddresses, template.IPAddresses) {
++			t.Errorf("%s: SAN IPs differ from template. Got %v, want %v", test.name, cert.IPAddresses, template.IPAddresses)
++		}
++
+ 		if test.checkSig {
+ 			err = cert.CheckSignatureFrom(cert)
+ 			if err != nil {
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index f084659667..c78733a065 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -306,7 +306,7 @@ var pkgDeps = map[string][]string{
+ 	},
+ 	"crypto/x509": {
+ 		"L4", "CRYPTO-MATH", "OS", "CGO",
+-		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "syscall",
++		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "syscall",
+ 	},
+ 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
+ 
+diff --git a/src/pkg/net/http/httptest/server.go b/src/pkg/net/http/httptest/server.go
+index c54b76125e..7f265552f5 100644
+--- a/src/pkg/net/http/httptest/server.go
++++ b/src/pkg/net/http/httptest/server.go
+@@ -200,28 +200,29 @@ func (h *waitGroupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 	h.h.ServeHTTP(w, r)
+ }
+ 
+-// localhostCert is a PEM-encoded TLS cert with SAN DNS names
++// localhostCert is a PEM-encoded TLS cert with SAN IPs
+ // "127.0.0.1" and "[::1]", expiring at the last second of 2049 (the end
+ // of ASN.1 time).
++// generated from src/pkg/crypto/tls:
++// go run generate_cert.go  --rsa-bits 512 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+ var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
+-MIIBTTCB+qADAgECAgEAMAsGCSqGSIb3DQEBBTAAMB4XDTcwMDEwMTAwMDAwMFoX
+-DTQ5MTIzMTIzNTk1OVowADBaMAsGCSqGSIb3DQEBAQNLADBIAkEAsuA5mAFMj6Q7
+-qoBzcvKzIq4kzuT5epSp2AkcQfyBHm7K13Ws7u+0b5Vb9gqTf5cAiIKcrtrXVqkL
+-8i1UQF6AzwIDAQABo2MwYTAOBgNVHQ8BAf8EBAMCACQwEgYDVR0TAQH/BAgwBgEB
+-/wIBATANBgNVHQ4EBgQEAQIDBDAPBgNVHSMECDAGgAQBAgMEMBsGA1UdEQQUMBKC
+-CTEyNy4wLjAuMYIFWzo6MV0wCwYJKoZIhvcNAQEFA0EAj1Jsn/h2KHy7dgqutZNB
+-nCGlNN+8vw263Bax9MklR85Ti6a0VWSvp/fDQZUADvmFTDkcXeA24pqmdUxeQDWw
+-Pg==
++MIIBdzCCASOgAwIBAgIBADALBgkqhkiG9w0BAQUwEjEQMA4GA1UEChMHQWNtZSBD
++bzAeFw03MDAxMDEwMDAwMDBaFw00OTEyMzEyMzU5NTlaMBIxEDAOBgNVBAoTB0Fj
++bWUgQ28wWjALBgkqhkiG9w0BAQEDSwAwSAJBAN55NcYKZeInyTuhcCwFMhDHCmwa
++IUSdtXdcbItRB/yfXGBhiex00IaLXQnSU+QZPRZWYqeTEbFSgihqi1PUDy8CAwEA
++AaNoMGYwDgYDVR0PAQH/BAQDAgCkMBMGA1UdJQQMMAoGCCsGAQUFBwMBMA8GA1Ud
++EwEB/wQFMAMBAf8wLgYDVR0RBCcwJYILZXhhbXBsZS5jb22HBH8AAAGHEAAAAAAA
++AAAAAAAAAAAAAAEwCwYJKoZIhvcNAQEFA0EAAoQn/ytgqpiLcZu9XKbCJsJcvkgk
++Se6AbGXgSlq+ZCEVo0qIwSgeBqmsJxUu7NCSOwVJLYNEBO2DtIxoYVk+MA==
+ -----END CERTIFICATE-----`)
+ 
+ // localhostKey is the private key for localhostCert.
+ var localhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
+-MIIBPQIBAAJBALLgOZgBTI+kO6qAc3LysyKuJM7k+XqUqdgJHEH8gR5uytd1rO7v
+-tG+VW/YKk3+XAIiCnK7a11apC/ItVEBegM8CAwEAAQJBAI5sxq7naeR9ahyqRkJi
+-SIv2iMxLuPEHaezf5CYOPWjSjBPyVhyRevkhtqEjF/WkgL7C2nWpYHsUcBDBQVF0
+-3KECIQDtEGB2ulnkZAahl3WuJziXGLB+p8Wgx7wzSM6bHu1c6QIhAMEp++CaS+SJ
+-/TrU0zwY/fW4SvQeb49BPZUF3oqR8Xz3AiEA1rAJHBzBgdOQKdE3ksMUPcnvNJSN
+-poCcELmz2clVXtkCIQCLytuLV38XHToTipR4yMl6O+6arzAjZ56uq7m7ZRV0TwIh
+-AM65XAOw8Dsg9Kq78aYXiOEDc5DL0sbFUu/SlmRcCg93
+------END RSA PRIVATE KEY-----
+-`)
++MIIBPAIBAAJBAN55NcYKZeInyTuhcCwFMhDHCmwaIUSdtXdcbItRB/yfXGBhiex0
++0IaLXQnSU+QZPRZWYqeTEbFSgihqi1PUDy8CAwEAAQJBAQdUx66rfh8sYsgfdcvV
++NoafYpnEcB5s4m/vSVe6SU7dCK6eYec9f9wpT353ljhDUHq3EbmE4foNzJngh35d
++AekCIQDhRQG5Li0Wj8TM4obOnnXUXf1jRv0UkzE9AHWLG5q3AwIhAPzSjpYUDjVW
++MCUXgckTpKCuGwbJk7424Nb8bLzf3kllAiA5mUBgjfr/WtFSJdWcPQ4Zt9KTMNKD
++EUO0ukpTwEIl6wIhAMbGqZK3zAAFdq8DD2jPx+UJXnh0rnOkZBzDtJ6/iN69AiEA
++1Aq8MJgTaYsDQWyU/hDq5YkDJc9e9DSCvUIzqxQWMQE=
++-----END RSA PRIVATE KEY-----`)

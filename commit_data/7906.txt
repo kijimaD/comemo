@@ -7,10 +7,255 @@ Date:   Mon Mar 28 23:29:00 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/4278053
-
+---
  src/cmd/gofix/Makefile        |   1 +
  src/cmd/gofix/fix.go          |  17 +++++--
  src/cmd/gofix/main.go         |   2 +-
  src/cmd/gofix/netdial.go      | 114 ++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gofix/netdial_test.go |  51 +++++++++++++++++++
  5 files changed, 180 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 4143e0cbe1..f60b503d4b 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -7,6 +7,7 @@ include ../../Make.inc
+ TARG=gofix
+ GOFILES=\
+ 	fix.go\
++	netdial.go\
+ 	main.go\
+ 	httpserver.go\
+ 	procattr.go\
+diff --git a/src/cmd/gofix/fix.go b/src/cmd/gofix/fix.go
+index c7f461168a..93cbc94e21 100644
+--- a/src/cmd/gofix/fix.go
++++ b/src/cmd/gofix/fix.go
+@@ -242,7 +242,7 @@ func isPkgDot(t ast.Expr, pkg, name string) bool {
+ 	if !ok {
+ 		return false
+ 	}
+-	return isName(sel.X, pkg) && sel.Sel.String() == name
++	return isTopName(sel.X, pkg) && sel.Sel.String() == name
+ }
+ 
+ func isPtrPkgDot(t ast.Expr, pkg, name string) bool {
+@@ -253,6 +253,14 @@ func isPtrPkgDot(t ast.Expr, pkg, name string) bool {
+ 	return isPkgDot(ptr.X, pkg, name)
+ }
+ 
++func isTopName(n ast.Expr, name string) bool {
++	id, ok := n.(*ast.Ident)
++	if !ok {
++		return false
++	}
++	return id.Name == name && id.Obj == nil
++}
++
+ func isName(n ast.Expr, name string) bool {
+ 	id, ok := n.(*ast.Ident)
+ 	if !ok {
+@@ -291,9 +299,10 @@ func isEmptyString(n ast.Expr) bool {
+ }
+ 
+ func warn(pos token.Pos, msg string, args ...interface{}) {
+-	s := ""
+ 	if pos.IsValid() {
+-		s = fmt.Sprintf("%s: ", fset.Position(pos).String())
++		msg = "%s: " + msg
++		arg1 := []interface{}{fset.Position(pos).String()}
++		args = append(arg1, args...)
+ 	}
+-	fmt.Fprintf(os.Stderr, "%s"+msg+"\n", append([]interface{}{s}, args...))
++	fmt.Fprintf(os.Stderr, msg+"\n", args...)
+ }
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index 9ca2ddb461..e4802cdb89 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -124,7 +124,7 @@ func processFile(filename string, useStdin bool) os.Error {
+ 	if !fixed {
+ 		return nil
+ 	}
+-	fmt.Fprintf(os.Stderr, "%s: %s\n", filename, buf.String()[1:])
++	fmt.Fprintf(os.Stderr, "%s: fixed %s\n", filename, buf.String()[1:])
+ 
+ 	buf.Reset()
+ 	_, err = (&printer.Config{printerMode, tabWidth}).Fprint(&buf, fset, file)
+diff --git a/src/cmd/gofix/netdial.go b/src/cmd/gofix/netdial.go
+new file mode 100644
+index 0000000000..e9196f0669
+--- /dev/null
++++ b/src/cmd/gofix/netdial.go
+@@ -0,0 +1,114 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++var netdialFix = fix{
++	"netdial",
++	netdial,
++`Adapt 3-argument calls of net.Dial to use 2-argument form.
++
++http://codereview.appspot.com/4244055
++`,
++}
++
++var tlsdialFix = fix{
++	"tlsdial",
++	tlsdial,
++`Adapt 4-argument calls of tls.Dial to use 3-argument form.
++
++http://codereview.appspot.com/4244055
++`,
++}
++
++var netlookupFix = fix{
++	"netlookup",
++	netlookup,
++`Adapt 3-result calls to net.LookupHost to use 2-result form.
++
++http://codereview.appspot.com/4244055
++`,
++}
++
++func init() {
++	register(netdialFix)
++	register(tlsdialFix)
++	register(netlookupFix)
++}
++
++func netdial(f *ast.File) bool {
++	if !imports(f, "net") {
++		return false
++	}
++
++	fixed := false
++	rewrite(f, func(n interface{}) {
++		call, ok := n.(*ast.CallExpr)
++		if !ok || !isPkgDot(call.Fun, "net", "Dial") || len(call.Args) != 3 {
++			return
++		}
++		// net.Dial(a, "", b) -> net.Dial(a, b)
++		if !isEmptyString(call.Args[1]) {
++			warn(call.Pos(), "call to net.Dial with non-empty second argument")
++			return
++		}
++		call.Args[1] = call.Args[2]
++		call.Args = call.Args[:2]
++		fixed = true
++	})
++	return fixed
++}
++
++func tlsdial(f *ast.File) bool {
++	if !imports(f, "crypto/tls") {
++		return false
++	}
++
++	fixed := false
++	rewrite(f, func(n interface{}) {
++		call, ok := n.(*ast.CallExpr)
++		if !ok || !isPkgDot(call.Fun, "tls", "Dial") || len(call.Args) != 4 {
++			return
++		}
++		// tls.Dial(a, "", b, c) -> tls.Dial(a, b, c)
++		if !isEmptyString(call.Args[1]) {
++			warn(call.Pos(), "call to tls.Dial with non-empty second argument")
++			return
++		}
++		call.Args[1] = call.Args[2]
++		call.Args[2] = call.Args[3]
++		call.Args = call.Args[:3]
++		fixed = true
++	})
++	return fixed
++}
++
++func netlookup(f *ast.File) bool {
++	if !imports(f, "net") {
++		return false
++	}
++
++	fixed := false
++	rewrite(f, func(n interface{}) {
++		as, ok := n.(*ast.AssignStmt)
++		if !ok || len(as.Lhs) != 3 || len(as.Rhs) != 1 {
++			return
++		}
++		call, ok := as.Rhs[0].(*ast.CallExpr)
++		if !ok || !isPkgDot(call.Fun, "net", "LookupHost") {
++			return
++		}
++		if !isBlank(as.Lhs[2]) {
++			warn(as.Pos(), "call to net.LookupHost expecting cname; use net.LookupCNAME")
++			return
++		}
++		as.Lhs = as.Lhs[:2]
++		fixed = true
++	})
++	return fixed
++}
+diff --git a/src/cmd/gofix/netdial_test.go b/src/cmd/gofix/netdial_test.go
+new file mode 100644
+index 0000000000..272aa526a5
+--- /dev/null
++++ b/src/cmd/gofix/netdial_test.go
+@@ -0,0 +1,51 @@
++package main
++
++func init() {
++	addTestCases(netdialTests)
++}
++
++var netdialTests = []testCase{
++	{
++		Name: "netdial.0",
++		In: `package main
++
++import "net"
++
++func f() {
++	c, err := net.Dial(net, "", addr)
++	c, err = net.Dial(net, "", addr)
++}
++`,
++		Out: `package main
++
++import "net"
++
++func f() {
++	c, err := net.Dial(net, addr)
++	c, err = net.Dial(net, addr)
++}
++`,
++	},
++
++	{
++		Name: "netlookup.0",
++		In: `package main
++
++import "net"
++
++func f() {
++	foo, bar, _ := net.LookupHost(host)
++	foo, bar, _ = net.LookupHost(host)
++}
++`,
++		Out: `package main
++
++import "net"
++
++func f() {
++	foo, bar := net.LookupHost(host)
++	foo, bar = net.LookupHost(host)
++}
++`,
++	},
++}

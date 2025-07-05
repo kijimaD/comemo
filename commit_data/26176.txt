@@ -16,6 +16,46 @@ Date:   Mon Dec 21 13:49:12 2015 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/test.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index fc08cf7e69..9ac0161653 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -386,11 +386,15 @@ func (t *tester) registerTests() {
+ 		}
+ 
+ 		pkg := pkg
++		var run string
++		if pkg == "net" {
++			run = "TestTCPStress"
++		}
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "nolibgcc:" + pkg,
+ 			heading: "Testing without libgcc.",
+ 			fn: func() error {
+-				return t.dirCmd("src", "go", "test", "-short", "-ldflags=-linkmode=internal -libgcc=none", t.tags(), pkg).Run()
++				return t.dirCmd("src", "go", "test", "-short", "-ldflags=-linkmode=internal -libgcc=none", t.tags(), pkg, "-run="+run).Run()
+ 			},
+ 		})
+ 	}
+@@ -869,7 +873,7 @@ func (t *tester) raceTest() error {
+ 	if err := t.dirCmd("src", "go", "test", "-race", "-run=Output", "runtime/race").Run(); err != nil {
+ 		return err
+ 	}
+-	if err := t.dirCmd("src", "go", "test", "-race", "-short", "flag", "os/exec").Run(); err != nil {
++	if err := t.dirCmd("src", "go", "test", "-race", "-short", "-run=TestParse|TestEcho", "flag", "os/exec").Run(); err != nil {
+ 		return err
+ 	}
+ 	if t.cgoEnabled {
+@@ -882,7 +886,7 @@ func (t *tester) raceTest() error {
+ 	}
+ 	if t.extLink() {
+ 		// Test with external linking; see issue 9133.
+-		if err := t.dirCmd("src", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", "flag", "os/exec").Run(); err != nil {
++		if err := t.dirCmd("src", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", "-run=TestParse|TestEcho", "flag", "os/exec").Run(); err != nil {
+ 			return err
+ 		}
+ 	}

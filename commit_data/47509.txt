@@ -18,6 +18,20 @@ Date:   Wed Mar 24 11:02:46 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/math/big/link_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/link_test.go b/src/math/big/link_test.go
+index 42f9cefca0..6e33aa5e5e 100644
+--- a/src/math/big/link_test.go
++++ b/src/math/big/link_test.go
+@@ -42,7 +42,7 @@ func main() {}
+ 	if err != nil {
+ 		t.Fatalf("nm: %v, %s", err, nm)
+ 	}
+-	const want = "runtime.(*Frames).Next"
++	const want = "runtime.main"
+ 	if !bytes.Contains(nm, []byte(want)) {
+ 		// Test the test.
+ 		t.Errorf("expected symbol %q not found", want)

@@ -17,7 +17,7 @@ Date:   Mon Sep 2 14:17:23 2019 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/ctxutil.go       |  2 --
  src/encoding/json/decode_test.go  | 35 -----------------------------------
  src/encoding/xml/marshal_test.go  |  1 -
@@ -28,3 +28,214 @@ Date:   Mon Sep 2 14:17:23 2019 +0200
  src/reflect/type.go               |  9 ---------
  src/regexp/backtrack.go           |  2 +-
  9 files changed, 6 insertions(+), 84 deletions(-)
+
+diff --git a/src/database/sql/ctxutil.go b/src/database/sql/ctxutil.go
+index af2afd5aa5..4dbe6af6d2 100644
+--- a/src/database/sql/ctxutil.go
++++ b/src/database/sql/ctxutil.go
+@@ -94,8 +94,6 @@ func ctxDriverStmtQuery(ctx context.Context, si driver.Stmt, nvdargs []driver.Na
+ 	return si.Query(dargs)
+ }
+ 
+-var errLevelNotSupported = errors.New("sql: selected isolation level is not supported")
+-
+ func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (driver.Tx, error) {
+ 	if ciCtx, is := ci.(driver.ConnBeginTx); is {
+ 		dopts := driver.TxOptions{}
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 31ab61c733..72d384a80f 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1744,41 +1744,6 @@ type NullTest struct {
+ 	Struct struct{}
+ }
+ 
+-type NullTestStrings struct {
+-	Bool      bool              `json:",string"`
+-	Int       int               `json:",string"`
+-	Int8      int8              `json:",string"`
+-	Int16     int16             `json:",string"`
+-	Int32     int32             `json:",string"`
+-	Int64     int64             `json:",string"`
+-	Uint      uint              `json:",string"`
+-	Uint8     uint8             `json:",string"`
+-	Uint16    uint16            `json:",string"`
+-	Uint32    uint32            `json:",string"`
+-	Uint64    uint64            `json:",string"`
+-	Float32   float32           `json:",string"`
+-	Float64   float64           `json:",string"`
+-	String    string            `json:",string"`
+-	PBool     *bool             `json:",string"`
+-	Map       map[string]string `json:",string"`
+-	Slice     []string          `json:",string"`
+-	Interface interface{}       `json:",string"`
+-
+-	PRaw    *RawMessage           `json:",string"`
+-	PTime   *time.Time            `json:",string"`
+-	PBigInt *big.Int              `json:",string"`
+-	PText   *MustNotUnmarshalText `json:",string"`
+-	PBuffer *bytes.Buffer         `json:",string"`
+-	PStruct *struct{}             `json:",string"`
+-
+-	Raw    RawMessage           `json:",string"`
+-	Time   time.Time            `json:",string"`
+-	BigInt big.Int              `json:",string"`
+-	Text   MustNotUnmarshalText `json:",string"`
+-	Buffer bytes.Buffer         `json:",string"`
+-	Struct struct{}             `json:",string"`
+-}
+-
+ // JSON null values should be ignored for primitives and string values instead of resulting in an error.
+ // Issue 2540
+ func TestUnmarshalNulls(t *testing.T) {
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index a0ccf44028..8473158bcd 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -392,7 +392,6 @@ func stringptr(x string) *string {
+ 
+ type T1 struct{}
+ type T2 struct{}
+-type T3 struct{}
+ 
+ type IndirComment struct {
+ 	T1      T1
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index 985087254f..308cf98fc8 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -179,19 +179,6 @@ type emptyInterface struct {
+ 	word unsafe.Pointer
+ }
+ 
+-// nonEmptyInterface is the header for an interface value with methods.
+-type nonEmptyInterface struct {
+-	// see ../runtime/iface.go:/Itab
+-	itab *struct {
+-		ityp *rtype // static interface type
+-		typ  *rtype // dynamic concrete type
+-		hash uint32 // copy of typ.hash
+-		_    [4]byte
+-		fun  [100000]unsafe.Pointer // method table
+-	}
+-	word unsafe.Pointer
+-}
+-
+ // mustBeExported panics if f records that the value was obtained using
+ // an unexported field.
+ func (f flag) mustBeExported() {
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index ee7f0d0b70..0c78df6f3f 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -636,6 +636,11 @@ var readResponseCloseInMiddleTests = []struct {
+ 	{true, true},
+ }
+ 
++type readerAndCloser struct {
++	io.Reader
++	io.Closer
++}
++
+ // TestReadResponseCloseInMiddle tests that closing a body after
+ // reading only part of its contents advances the read to the end of
+ // the request, right up until the next request.
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index f5e482d3f7..b23e68f7b3 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -743,7 +743,6 @@ var (
+ 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
+ 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
+ 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
+-	errNotCachingH2Conn   = errors.New("http: not caching alternate protocol's connections")
+ 
+ 	// errServerClosedIdle is not seen by users for idempotent requests, but may be
+ 	// seen by a user if the server shuts down an idle connection and sends its FIN
+@@ -1350,19 +1349,6 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
+ 	}
+ }
+ 
+-// The connect method and the transport can both specify a TLS
+-// Host name.  The transport's name takes precedence if present.
+-func chooseTLSHost(cm connectMethod, t *Transport) string {
+-	tlsHost := ""
+-	if t.TLSClientConfig != nil {
+-		tlsHost = t.TLSClientConfig.ServerName
+-	}
+-	if tlsHost == "" {
+-		tlsHost = cm.tlsHost()
+-	}
+-	return tlsHost
+-}
+-
+ // Add TLS to a persistent connection, i.e. negotiate a TLS session. If pconn is already a TLS
+ // tunnel, this function establishes a nested TLS session inside the encrypted channel.
+ // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
+@@ -2625,11 +2611,6 @@ func (gz *gzipReader) Close() error {
+ 	return gz.body.Close()
+ }
+ 
+-type readerAndCloser struct {
+-	io.Reader
+-	io.Closer
+-}
+-
+ type tlsHandshakeTimeoutError struct{}
+ 
+ func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 856ed28de8..3307f790ea 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -129,10 +129,6 @@ func buildUser(pwd *C.struct_passwd) *User {
+ 	return u
+ }
+ 
+-func currentGroup() (*Group, error) {
+-	return lookupUnixGid(syscall.Getgid())
+-}
+-
+ func lookupGroup(groupname string) (*Group, error) {
+ 	var grp C.struct_group
+ 	var result *C.struct_group
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 4afe634bbf..b3df452ee8 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -527,11 +527,6 @@ func (n name) pkgPath() string {
+ 	return pkgPathName.name()
+ }
+ 
+-// round n up to a multiple of a.  a must be a power of 2.
+-func round(n, a uintptr) uintptr {
+-	return (n + a - 1) &^ (a - 1)
+-}
+-
+ func newName(n, tag string, exported bool) name {
+ 	if len(n) > 1<<16-1 {
+ 		panic("reflect.nameFrom: name too long: " + n)
+@@ -867,10 +862,6 @@ func (t *rtype) PkgPath() string {
+ 	return t.nameOff(ut.pkgPath).name()
+ }
+ 
+-func hasPrefix(s, prefix string) bool {
+-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+-}
+-
+ func (t *rtype) hasName() bool {
+ 	return t.tflag&tflagNamed != 0
+ }
+diff --git a/src/regexp/backtrack.go b/src/regexp/backtrack.go
+index 9fb7d1e493..41ae59bcaa 100644
+--- a/src/regexp/backtrack.go
++++ b/src/regexp/backtrack.go
+@@ -247,7 +247,7 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
+ 				b.cap[inst.Arg] = pos
+ 				continue
+ 			} else {
+-				if 0 <= inst.Arg && inst.Arg < uint32(len(b.cap)) {
++				if inst.Arg < uint32(len(b.cap)) {
+ 					// Capture pos to register, but save old value.
+ 					b.push(re, pc, b.cap[inst.Arg], true) // come back when we're done.
+ 					b.cap[inst.Arg] = pos

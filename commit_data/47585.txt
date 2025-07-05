@@ -50,7 +50,75 @@ Date:   Tue Mar 30 17:18:06 2021 +0000
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 16 ++++++++++++++++
  src/reflect/value.go    |  9 +++++----
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index accda7fa74..e4b74f72d9 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1942,6 +1942,22 @@ func BenchmarkCall(b *testing.B) {
+ 	})
+ }
+ 
++type myint int64
++
++func (i *myint) inc() {
++	*i = *i + 1
++}
++
++func BenchmarkCallMethod(b *testing.B) {
++	b.ReportAllocs()
++	z := new(myint)
++
++	v := ValueOf(z.inc)
++	for i := 0; i < b.N; i++ {
++		v.Call(nil)
++	}
++}
++
+ func BenchmarkCallArgCopy(b *testing.B) {
+ 	byteArray := func(n int) Value {
+ 		return Zero(ArrayOf(n, TypeOf(byte(0))))
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index eae1b9bf29..52639d5aad 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -378,8 +378,9 @@ func (v Value) call(op string, in []Value) []Value {
+ 
+ 	isSlice := op == "CallSlice"
+ 	n := t.NumIn()
++	isVariadic := t.IsVariadic()
+ 	if isSlice {
+-		if !t.IsVariadic() {
++		if !isVariadic {
+ 			panic("reflect: CallSlice of non-variadic function")
+ 		}
+ 		if len(in) < n {
+@@ -389,13 +390,13 @@ func (v Value) call(op string, in []Value) []Value {
+ 			panic("reflect: CallSlice with too many input arguments")
+ 		}
+ 	} else {
+-		if t.IsVariadic() {
++		if isVariadic {
+ 			n--
+ 		}
+ 		if len(in) < n {
+ 			panic("reflect: Call with too few input arguments")
+ 		}
+-		if !t.IsVariadic() && len(in) > n {
++		if !isVariadic && len(in) > n {
+ 			panic("reflect: Call with too many input arguments")
+ 		}
+ 	}
+@@ -409,7 +410,7 @@ func (v Value) call(op string, in []Value) []Value {
+ 			panic("reflect: " + op + " using " + xt.String() + " as type " + targ.String())
+ 		}
+ 	}
+-	if !isSlice && t.IsVariadic() {
++	if !isSlice && isVariadic {
+ 		// prepare slice for remaining values
+ 		m := len(in) - n
+ 		slice := MakeSlice(t.In(n), m, m)

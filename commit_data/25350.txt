@@ -7,6 +7,21 @@ Date:   Wed Oct 21 13:41:30 2015 -0700
     Change-Id: I8b41de496e4b58214b98267b529f3525ff6d9745
     Reviewed-on: https://go-review.googlesource.com/16171
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.6.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 182695fe87..57ded33b85 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -2,6 +2,9 @@ Tools:
+ 
+ cmd/go: vendoring enabled by default (https://golang.org/cl/13967/)
+ cmd/go: flags for tests must precede package name if present; also makes it easier to pass flags to test binaries (https://golang.org/cl/14826)
++cmd/go: add -msan option (https://golang.org/cl/16169)
++cmd/compile: add -msan option (https://golang.org/cl/16160)
++cmd/link: add -msan option (https://golang.org/cl/16161)
+ 
+ Ports:
+ 

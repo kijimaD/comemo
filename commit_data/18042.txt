@@ -7,6 +7,18 @@ Date:   Wed Dec 18 17:25:23 2013 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/43780043
-
+---
  src/pkg/log/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/log/example_test.go b/src/pkg/log/example_test.go
+index 09d1a2f096..74385a3a0a 100644
+--- a/src/pkg/log/example_test.go
++++ b/src/pkg/log/example_test.go
+@@ -17,5 +17,5 @@ func ExampleLogger() {
+ 
+ 	fmt.Print(&buf)
+ 	// Output:
+-	// logger: example_test.go:15: Hello, log file!
++	// logger: example_test.go:16: Hello, log file!
+ }

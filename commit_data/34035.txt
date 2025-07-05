@@ -13,7 +13,7 @@ Date:   Mon Sep 18 19:22:29 2017 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/export_android_test.go   |  4 +--
  src/time/export_windows_test.go   |  9 +++--
  src/time/internal_test.go         | 19 +++++++++++
@@ -27,3 +27,561 @@ Date:   Mon Sep 18 19:22:29 2017 +0200
  src/time/zoneinfo_windows.go      | 25 +++-----------
  src/time/zoneinfo_windows_test.go |  6 ++--
  12 files changed, 116 insertions(+), 182 deletions(-)
+
+diff --git a/src/time/export_android_test.go b/src/time/export_android_test.go
+index fa6a058a73..f80e7da717 100644
+--- a/src/time/export_android_test.go
++++ b/src/time/export_android_test.go
+@@ -5,8 +5,8 @@
+ package time
+ 
+ func ForceAndroidTzdataForTest(tzdata bool) {
+-	tzdataPaths = origTzdataPaths
++	forceZipFileForTesting(false)
+ 	if tzdata {
+-		tzdataPaths = tzdataPaths[:1]
++		zoneSources = zoneSources[:len(zoneSources)-1]
+ 	}
+ }
+diff --git a/src/time/export_windows_test.go b/src/time/export_windows_test.go
+index 6fd4509137..cc9d6dd321 100644
+--- a/src/time/export_windows_test.go
++++ b/src/time/export_windows_test.go
+@@ -4,9 +4,14 @@
+ 
+ package time
+ 
+-func ForceAusForTesting() {
++func ForceAusFromTZIForTesting() {
+ 	ResetLocalOnceForTest()
+-	localOnce.Do(initAusTestingZone)
++	localOnce.Do(func() { initLocalFromTZI(&aus) })
++}
++
++func ForceUSPacificFromTZIForTesting() {
++	ResetLocalOnceForTest()
++	localOnce.Do(func() { initLocalFromTZI(&usPacific) })
+ }
+ 
+ func ToEnglishName(stdname, dstname string) (string, error) {
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index edd523bc80..07ebe5e03d 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -9,6 +9,25 @@ func init() {
+ 	ForceUSPacificForTesting()
+ }
+ 
++func initTestingZone() {
++	z, err := loadLocation("America/Los_Angeles", zoneSources[len(zoneSources)-1:])
++	if err != nil {
++		panic("cannot load America/Los_Angeles for testing: " + err.Error())
++	}
++	z.name = "Local"
++	localLoc = *z
++}
++
++var origZoneSources = zoneSources
++
++func forceZipFileForTesting(zipOnly bool) {
++	zoneSources = make([]string, len(origZoneSources))
++	copy(zoneSources, origZoneSources)
++	if zipOnly {
++		zoneSources = zoneSources[len(zoneSources)-1:]
++	}
++}
++
+ var Interrupt = interrupt
+ var DaysIn = daysIn
+ 
+diff --git a/src/time/sys_unix.go b/src/time/sys_unix.go
+index d4db8f9afd..bb44b84b37 100644
+--- a/src/time/sys_unix.go
++++ b/src/time/sys_unix.go
+@@ -78,5 +78,3 @@ func preadn(fd uintptr, buf []byte, off int) error {
+ 	}
+ 	return nil
+ }
+-
+-func isNotExist(err error) bool { return err == syscall.ENOENT }
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 09687fd0ad..4424b44106 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -292,13 +292,14 @@ func LoadLocation(name string) (*Location, error) {
+ 		env, _ := syscall.Getenv("ZONEINFO")
+ 		zoneinfo = &env
+ 	})
+-	if zoneinfo != nil && *zoneinfo != "" {
+-		if z, err := loadZoneFile(*zoneinfo, name); err == nil {
+-			z.name = name
+-			return z, nil
++	if *zoneinfo != "" {
++		if zoneData, err := loadTzinfoFromDirOrZip(*zoneinfo, name); err == nil {
++			if z, err := newLocationFromTzinfo(name, zoneData); err == nil {
++				return z, nil
++			}
+ 		}
+ 	}
+-	return loadLocation(name)
++	return loadLocation(name, zoneSources)
+ }
+ 
+ // containsDotDot reports whether s contains "..".
+diff --git a/src/time/zoneinfo_android.go b/src/time/zoneinfo_android.go
+index 695a8adfaa..40c8ae04ea 100644
+--- a/src/time/zoneinfo_android.go
++++ b/src/time/zoneinfo_android.go
+@@ -13,62 +13,22 @@ import (
+ 	"runtime"
+ )
+ 
+-var tzdataPaths = []string{
++var zoneSources = []string{
+ 	"/system/usr/share/zoneinfo/tzdata",
+ 	"/data/misc/zoneinfo/current/tzdata",
+ 	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+ }
+ 
+-var origTzdataPaths = tzdataPaths
+-
+-func forceZipFileForTesting(zipOnly bool) {
+-	tzdataPaths = make([]string, len(origTzdataPaths))
+-	copy(tzdataPaths, origTzdataPaths)
+-	if zipOnly {
+-		for i := 0; i < len(tzdataPaths)-1; i++ {
+-			tzdataPaths[i] = "/XXXNOEXIST"
+-		}
+-	}
+-}
+-
+-func initTestingZone() {
+-	z, err := loadLocation("America/Los_Angeles")
+-	if err != nil {
+-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
+-	}
+-	z.name = "Local"
+-	localLoc = *z
+-}
+-
+ func initLocal() {
+ 	// TODO(elias.naur): getprop persist.sys.timezone
+ 	localLoc = *UTC
+ }
+ 
+-func loadLocation(name string) (*Location, error) {
+-	var firstErr error
+-	for _, path := range tzdataPaths {
+-		var z *Location
+-		var err error
+-		if len(path) > 4 && path[len(path)-4:] == ".zip" {
+-			z, err = loadZoneZip(path, name)
+-		} else {
+-			z, err = loadTzdataFile(path, name)
+-		}
+-		if err == nil {
+-			z.name = name
+-			return z, nil
+-		} else if firstErr == nil && !isNotExist(err) {
+-			firstErr = err
+-		}
+-	}
+-	if firstErr != nil {
+-		return nil, firstErr
+-	}
+-	return nil, errors.New("unknown time zone " + name)
++func init() {
++	loadTzinfoFromTzdata = androidLoadTzinfoFromTzdata
+ }
+ 
+-func loadTzdataFile(file, name string) (*Location, error) {
++func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
+ 	const (
+ 		headersize = 12 + 3*4
+ 		namesize   = 40
+@@ -113,7 +73,7 @@ func loadTzdataFile(file, name string) (*Location, error) {
+ 		if err := preadn(fd, buf, int(off+dataOff)); err != nil {
+ 			return nil, errors.New("corrupt tzdata file " + file)
+ 		}
+-		return loadZoneData(buf)
++		return buf, nil
+ 	}
+ 	return nil, errors.New("cannot find " + name + " in tzdata file " + file)
+ }
+diff --git a/src/time/zoneinfo_ios.go b/src/time/zoneinfo_ios.go
+index f09166c89e..6d7f975a11 100644
+--- a/src/time/zoneinfo_ios.go
++++ b/src/time/zoneinfo_ios.go
+@@ -9,43 +9,23 @@ package time
+ 
+ import "syscall"
+ 
+-var zoneFile string
++var zoneSources = []string{
++	getZipParent() + "/zoneinfo.zip",
++}
+ 
+-func init() {
++func getZipParent() string {
+ 	wd, err := syscall.Getwd()
+ 	if err != nil {
+-		return
++		return "/XXXNOEXIST"
+ 	}
+ 
+ 	// The working directory at initialization is the root of the
+ 	// app bundle: "/private/.../bundlename.app". That's where we
+ 	// keep zoneinfo.zip.
+-	zoneFile = wd + "/zoneinfo.zip"
+-}
+-
+-func forceZipFileForTesting(zipOnly bool) {
+-	// On iOS we only have the zip file.
+-}
+-
+-func initTestingZone() {
+-	z, err := loadZoneFile(zoneFile, "America/Los_Angeles")
+-	if err != nil {
+-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
+-	}
+-	z.name = "Local"
+-	localLoc = *z
++	return wd
+ }
+ 
+ func initLocal() {
+ 	// TODO(crawshaw): [NSTimeZone localTimeZone]
+ 	localLoc = *UTC
+ }
+-
+-func loadLocation(name string) (*Location, error) {
+-	z, err := loadZoneFile(zoneFile, name)
+-	if err != nil {
+-		return nil, err
+-	}
+-	z.name = name
+-	return z, nil
+-}
+diff --git a/src/time/zoneinfo_plan9.go b/src/time/zoneinfo_plan9.go
+index 26637a151f..4ae718c59e 100644
+--- a/src/time/zoneinfo_plan9.go
++++ b/src/time/zoneinfo_plan9.go
+@@ -11,6 +11,10 @@ import (
+ 	"syscall"
+ )
+ 
++var zoneSources = []string{
++	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
++}
++
+ func isSpace(r rune) bool {
+ 	return r == ' ' || r == '\t' || r == '\n'
+ }
+@@ -118,15 +122,6 @@ func loadZoneFilePlan9(name string) (*Location, error) {
+ 	return loadZoneDataPlan9(string(b))
+ }
+ 
+-func initTestingZone() {
+-	z, err := loadLocation("America/Los_Angeles")
+-	if err != nil {
+-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
+-	}
+-	z.name = "Local"
+-	localLoc = *z
+-}
+-
+ func initLocal() {
+ 	t, ok := syscall.Getenv("timezone")
+ 	if ok {
+@@ -145,16 +140,3 @@ func initLocal() {
+ 	// Fall back to UTC.
+ 	localLoc.name = "UTC"
+ }
+-
+-func loadLocation(name string) (*Location, error) {
+-	z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", name)
+-	if err != nil {
+-		return nil, err
+-	}
+-	z.name = name
+-	return z, nil
+-}
+-
+-func forceZipFileForTesting(zipOnly bool) {
+-	// We only use the zip file anyway.
+-}
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index b0cd9da923..191fabb409 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -9,7 +9,10 @@
+ 
+ package time
+ 
+-import "errors"
++import (
++	"errors"
++	"syscall"
++)
+ 
+ // maxFileSize is the max permitted size of files read by readFile.
+ // As reference, the zoneinfo.zip distributed by Go is ~350 KB,
+@@ -76,8 +79,11 @@ func byteString(p []byte) string {
+ 
+ var badData = errors.New("malformed time zone information")
+ 
+-func loadZoneData(bytes []byte) (l *Location, err error) {
+-	d := data{bytes, false}
++// newLocationFromTzinfo returns the Location described by Tzinfo with the given name.
++// The expected format for Tzinfo is that of a timezone file as they are found in the
++// the IANA Time Zone database.
++func newLocationFromTzinfo(name string, Tzinfo []byte) (*Location, error) {
++	d := data{Tzinfo, false}
+ 
+ 	// 4-byte magic "TZif"
+ 	if magic := d.read(4); string(magic) != "TZif" {
+@@ -195,7 +201,7 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
+ 	}
+ 
+ 	// Committed to succeed.
+-	l = &Location{zone: zone, tx: tx}
++	l := &Location{zone: zone, tx: tx, name: name}
+ 
+ 	// Fill in the cache with information about right now,
+ 	// since that will be the most common lookup.
+@@ -214,18 +220,16 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
+ 	return l, nil
+ }
+ 
+-func loadZoneFile(dir, name string) (l *Location, err error) {
++// loadTzinfoFromDirOrZip returns the contents of the file with the given name
++// in dir. dir can either be an uncompressed zip file, or a directory.
++func loadTzinfoFromDirOrZip(dir, name string) ([]byte, error) {
+ 	if len(dir) > 4 && dir[len(dir)-4:] == ".zip" {
+-		return loadZoneZip(dir, name)
++		return loadTzinfoFromZip(dir, name)
+ 	}
+ 	if dir != "" {
+ 		name = dir + "/" + name
+ 	}
+-	buf, err := readFile(name)
+-	if err != nil {
+-		return
+-	}
+-	return loadZoneData(buf)
++	return readFile(name)
+ }
+ 
+ // There are 500+ zoneinfo files. Rather than distribute them all
+@@ -252,7 +256,9 @@ func get2(b []byte) int {
+ 	return int(b[0]) | int(b[1])<<8
+ }
+ 
+-func loadZoneZip(zipfile, name string) (l *Location, err error) {
++// loadTzinfoFromZip returns the contents of the file with the given name
++// in the given uncompressed zip file.
++func loadTzinfoFromZip(zipfile, name string) ([]byte, error) {
+ 	fd, err := open(zipfile)
+ 	if err != nil {
+ 		return nil, errors.New("open " + zipfile + ": " + err.Error())
+@@ -354,8 +360,46 @@ func loadZoneZip(zipfile, name string) (l *Location, err error) {
+ 			return nil, errors.New("corrupt zip file " + zipfile)
+ 		}
+ 
+-		return loadZoneData(buf)
++		return buf, nil
+ 	}
+ 
+ 	return nil, errors.New("cannot find " + name + " in zip file " + zipfile)
+ }
++
++// loadTzinfoFromTzdata returns the time zone information of the time zone
++// with the given name, from a tzdata database file as they are typically
++// found on android.
++var loadTzinfoFromTzdata func(file, name string) ([]byte, error)
++
++// loadTzinfo returns the time zone information of the time zone
++// with the given name, from a given source. A source may be a
++// timezone database directory, tzdata database file or an uncompressed
++// zip file, containing the contents of such a directory.
++func loadTzinfo(name string, source string) ([]byte, error) {
++	if len(source) >= 6 && source[len(source)-6:] == "tzdata" {
++		return loadTzinfoFromTzdata(source, name)
++	}
++	return loadTzinfoFromDirOrZip(source, name)
++}
++
++// loadLocation returns the Location with the given name from one of
++// the specified sources. See loadTzinfo for a list of supported sources.
++// The first timezone data matching the given name that is successfully loaded
++// and parsed is returned as a Location.
++func loadLocation(name string, sources []string) (z *Location, firstErr error) {
++	for _, source := range sources {
++		var zoneData, err = loadTzinfo(name, source)
++		if err == nil {
++			if z, err = newLocationFromTzinfo(name, zoneData); err == nil {
++				return z, nil
++			}
++		}
++		if firstErr == nil && err != syscall.ENOENT {
++			firstErr = err
++		}
++	}
++	if firstErr != nil {
++		return nil, firstErr
++	}
++	return nil, errors.New("unknown time zone " + name)
++}
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index bbf263a16f..88313aa0ed 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -12,41 +12,19 @@
+ package time
+ 
+ import (
+-	"errors"
+ 	"runtime"
+ 	"syscall"
+ )
+ 
+-func initTestingZone() {
+-	z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", "America/Los_Angeles")
+-	if err != nil {
+-		panic("cannot load America/Los_Angeles for testing: " + err.Error())
+-	}
+-	z.name = "Local"
+-	localLoc = *z
+-}
+-
+ // Many systems use /usr/share/zoneinfo, Solaris 2 has
+ // /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
+-var zoneDirs = []string{
++var zoneSources = []string{
+ 	"/usr/share/zoneinfo/",
+ 	"/usr/share/lib/zoneinfo/",
+ 	"/usr/lib/locale/TZ/",
+ 	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+ }
+ 
+-var origZoneDirs = zoneDirs
+-
+-func forceZipFileForTesting(zipOnly bool) {
+-	zoneDirs = make([]string, len(origZoneDirs))
+-	copy(zoneDirs, origZoneDirs)
+-	if zipOnly {
+-		for i := 0; i < len(zoneDirs)-1; i++ {
+-			zoneDirs[i] = "/XXXNOEXIST"
+-		}
+-	}
+-}
+-
+ func initLocal() {
+ 	// consult $TZ to find the time zone to use.
+ 	// no $TZ means use the system default /etc/localtime.
+@@ -56,14 +34,14 @@ func initLocal() {
+ 	tz, ok := syscall.Getenv("TZ")
+ 	switch {
+ 	case !ok:
+-		z, err := loadZoneFile("", "/etc/localtime")
++		z, err := loadLocation("localtime", []string{"/etc/"})
+ 		if err == nil {
+ 			localLoc = *z
+ 			localLoc.name = "Local"
+ 			return
+ 		}
+ 	case tz != "" && tz != "UTC":
+-		if z, err := loadLocation(tz); err == nil {
++		if z, err := loadLocation(tz, zoneSources); err == nil {
+ 			localLoc = *z
+ 			return
+ 		}
+@@ -72,19 +50,3 @@ func initLocal() {
+ 	// Fall back to UTC.
+ 	localLoc.name = "UTC"
+ }
+-
+-func loadLocation(name string) (*Location, error) {
+-	var firstErr error
+-	for _, zoneDir := range zoneDirs {
+-		if z, err := loadZoneFile(zoneDir, name); err == nil {
+-			z.name = name
+-			return z, nil
+-		} else if firstErr == nil && !isNotExist(err) {
+-			firstErr = err
+-		}
+-	}
+-	if firstErr != nil {
+-		return nil, firstErr
+-	}
+-	return nil, errors.New("unknown time zone " + name)
+-}
+diff --git a/src/time/zoneinfo_windows.go b/src/time/zoneinfo_windows.go
+index c201f4b55e..2b69d06a1d 100644
+--- a/src/time/zoneinfo_windows.go
++++ b/src/time/zoneinfo_windows.go
+@@ -11,6 +11,10 @@ import (
+ 	"syscall"
+ )
+ 
++var zoneSources = []string{
++	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
++}
++
+ // TODO(rsc): Fall back to copy of zoneinfo files.
+ 
+ // BUG(brainman,rsc): On Windows, the operating system does not provide complete
+@@ -228,14 +232,6 @@ var aus = syscall.Timezoneinformation{
+ 	DaylightBias: -60,
+ }
+ 
+-func initTestingZone() {
+-	initLocalFromTZI(&usPacific)
+-}
+-
+-func initAusTestingZone() {
+-	initLocalFromTZI(&aus)
+-}
+-
+ func initLocal() {
+ 	var i syscall.Timezoneinformation
+ 	if _, err := syscall.GetTimeZoneInformation(&i); err != nil {
+@@ -244,16 +240,3 @@ func initLocal() {
+ 	}
+ 	initLocalFromTZI(&i)
+ }
+-
+-func loadLocation(name string) (*Location, error) {
+-	z, err := loadZoneFile(runtime.GOROOT()+`\lib\time\zoneinfo.zip`, name)
+-	if err != nil {
+-		return nil, err
+-	}
+-	z.name = name
+-	return z, nil
+-}
+-
+-func forceZipFileForTesting(zipOnly bool) {
+-	// We only use the zip file anyway.
+-}
+diff --git a/src/time/zoneinfo_windows_test.go b/src/time/zoneinfo_windows_test.go
+index cf3b428c09..d0f2a444fe 100644
+--- a/src/time/zoneinfo_windows_test.go
++++ b/src/time/zoneinfo_windows_test.go
+@@ -31,14 +31,14 @@ func testZoneAbbr(t *testing.T) {
+ 	}
+ }
+ 
+-func TestLocalZoneAbbr(t *testing.T) {
+-	ResetLocalOnceForTest() // reset the Once to trigger the race
++func TestUSPacificZoneAbbr(t *testing.T) {
++	ForceUSPacificFromTZIForTesting() // reset the Once to trigger the race
+ 	defer ForceUSPacificForTesting()
+ 	testZoneAbbr(t)
+ }
+ 
+ func TestAusZoneAbbr(t *testing.T) {
+-	ForceAusForTesting()
++	ForceAusFromTZIForTesting()
+ 	defer ForceUSPacificForTesting()
+ 	testZoneAbbr(t)
+ }

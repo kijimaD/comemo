@@ -7,6 +7,25 @@ Date:   Tue Sep 18 13:02:37 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6499121
-
+---
  src/pkg/syscall/syscall_windows.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index e21415ea9c..ee57f1d019 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -84,9 +84,10 @@ func (e Errno) Error() string {
+ 	b := make([]uint16, 300)
+ 	n, err := FormatMessage(flags, 0, uint32(e), langid(LANG_ENGLISH, SUBLANG_ENGLISH_US), b, nil)
+ 	if err != nil {
+-		// TODO(brainman): Call FormatMessage again asking for "native" error message.
+-		// http://code.google.com/p/go/issues/detail?id=3376 must be resolved first.
+-		return "winapi error #" + itoa(int(e))
++		n, err = FormatMessage(flags, 0, uint32(e), 0, b, nil)
++		if err != nil {
++			return "winapi error #" + itoa(int(e))
++		}
+ 	}
+ 	// trim terminating \r and \n
+ 	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {

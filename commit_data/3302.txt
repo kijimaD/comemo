@@ -7,9 +7,315 @@ Date:   Thu Sep 17 16:42:10 2009 -0700
     R=ken
     OCL=34732
     CL=34756
-
+---
  src/cmd/gc/go.h   |  8 +++++---
  src/cmd/gc/go.y   | 34 +++++++++++++++++++++++++++-------
  src/cmd/gc/lex.c  | 35 ++++++++++++++++++++++-------------
  src/cmd/gc/subr.c | 12 ++++++++++--
  4 files changed, 64 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index aa2e6d89d6..2c5e2242fc 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -236,6 +236,7 @@ struct	Node
+ 	// ONAME
+ 	Node*	ntype;
+ 	Node*	defn;
++	Node*	pack;	// real package for import . names
+ 
+ 	// ONAME func param with PHEAP
+ 	Node*	heapaddr;	// temp holding heap address of param
+@@ -246,7 +247,7 @@ struct	Node
+ 	Node*	outer;	// outer PPARAMREF in nested closure
+ 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
+ 
+-	Sym*	psym;		// import
++	char*	pline;
+ 	Sym*	sym;		// various
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 	int32	lineno;
+@@ -694,6 +695,7 @@ EXTERN	int	noargnames;
+ EXTERN	int	funcdepth;
+ EXTERN	int	typecheckok;
+ 
++EXTERN	char*	importline;
+ 
+ /*
+  *	y.tab.c
+@@ -704,7 +706,7 @@ int	yyparse(void);
+  *	lex.c
+  */
+ void	addidir(char*);
+-void	importfile(Val*);
++void	importfile(Val*, int line);
+ void	cannedimports(char*, char*);
+ void	unimportfile();
+ int32	yylex(void);
+@@ -788,7 +790,7 @@ uint32	stringhash(char*);
+ Sym*	lookup(char*);
+ Sym*	pkglookup(char*, char*);
+ Sym*	restrictlookup(char*, char*);
+-void	importdot(Sym*);
++void	importdot(Sym*, Node*);
+ void	yyerror(char*, ...);
+ int	parserline(void);
+ void	warn(char*, ...);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 7b1f772242..af7285d4a3 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -165,6 +165,7 @@ import_stmt:
+ 	import_here import_package import_there
+ 	{
+ 		Sym *import, *my;
++		Node *pack;
+ 
+ 		import = pkgimportname;
+ 		my = pkgmyname;
+@@ -173,10 +174,16 @@ import_stmt:
+ 
+ 		if(import == S)
+ 			break;
++
++		pack = nod(OPACK, N, N);
++		pack->sym = import;
++		pack->lineno = $1;
++		pack->pline = importline;
++
+ 		if(my == S)
+ 			my = import;
+ 		if(my->name[0] == '.') {
+-			importdot(import);
++			importdot(import, pack);
+ 			break;
+ 		}
+ 		if(my->name[0] == '_' && my->name[1] == '\0')
+@@ -191,8 +198,7 @@ import_stmt:
+ 		if(my->def && my->def->op == ONONAME)
+ 			my->def = N;
+ 
+-		my->def = nod(OPACK, N, N);
+-		my->def->sym = import;
++		my->def = pack;
+ 		my->lastlineno = $1;
+ 		import->block = 1;	// at top level
+ 	}
+@@ -209,7 +215,7 @@ import_here:
+ 		$$ = parserline();
+ 		pkgimportname = S;
+ 		pkgmyname = S;
+-		importfile(&$1);
++		importfile(&$1, $$);
+ 	}
+ |	sym LLITERAL
+ 	{
+@@ -219,14 +225,14 @@ import_here:
+ 		pkgmyname = $1;
+ 		if($1->def && ($1->name[0] != '_' || $1->name[1] != '\0'))
+ 			redeclare($1, "as imported package name");
+-		importfile(&$2);
++		importfile(&$2, $$);
+ 	}
+ |	'.' LLITERAL
+ 	{
+ 		// import into my name space
+ 		$$ = parserline();
+ 		pkgmyname = lookup(".");
+-		importfile(&$2);
++		importfile(&$2, $$);
+ 	}
+ 
+ import_package:
+@@ -811,6 +817,7 @@ pexpr:
+ 		if($1->op == OPACK) {
+ 			Sym *s;
+ 			s = restrictlookup($3->name, $1->sym->name);
++			$1->used = 1;
+ 			$$ = oldname(s);
+ 			break;
+ 		}
+@@ -910,6 +917,8 @@ name:
+ 	sym
+ 	{
+ 		$$ = oldname($1);
++		if($$->pack != N)
++			$$->pack->used = 1;
+ 	}
+ 
+ labelname:
+@@ -995,6 +1004,7 @@ dotname:
+ 		if($1->op == OPACK) {
+ 			Sym *s;
+ 			s = restrictlookup($3->name, $1->sym->name);
++			$1->used = 1;
+ 			$$ = oldname(s);
+ 			break;
+ 		}
+@@ -1245,6 +1255,14 @@ structdcl:
+ 
+ packname:
+ 	LNAME
++	{
++		Node *n;
++
++		$$ = $1;
++		n = oldname($1);
++		if(n->pack != N)
++			n->pack->used = 1;
++	}
+ |	LNAME '.' sym
+ 	{
+ 		char *pkg;
+@@ -1252,8 +1270,10 @@ packname:
+ 		if($1->def == N || $1->def->op != OPACK) {
+ 			yyerror("%S is not a package", $1);
+ 			pkg = $1->name;
+-		} else
++		} else {
++			$1->def->used = 1;
+ 			pkg = $1->def->sym->name;
++		}
+ 		$$ = restrictlookup($3->name, pkg);
+ 	}
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index fd78e446aa..05e71f87a3 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -97,6 +97,7 @@ main(int argc, char *argv[])
+ 			Bterm(curio.bin);
+ 	}
+ 	testdclstack();
++	mkpackage(package);	// final import not used checks
+ 	lexfini();
+ 
+ 	typecheckok = 1;
+@@ -259,13 +260,19 @@ findpkg(Strlit *name)
+ }
+ 
+ void
+-importfile(Val *f)
++importfile(Val *f, int line)
+ {
+ 	Biobuf *imp;
+ 	char *file, *p;
+ 	int32 c;
+ 	int len;
+ 
++	// Once we push the new file, we will not be able
++	// to print the current lineno correctly with %L.
++	// In case that line is the line of the import (likely),
++	// save the text for use in error messages.
++	importline = smprint("%L", line);
++
+ // TODO: don't bother reloading imports more than once
+ 
+ 	if(f->ctype != CTSTR) {
+@@ -339,6 +346,7 @@ unimportfile(void)
+ 		curio.bin = nil;
+ 	} else
+ 		lexlineno--;	// re correct sys.6 line number
++
+ 	curio = pushedio;
+ 	pushedio.bin = nil;
+ 	inimportsys = 0;
+@@ -1302,7 +1310,7 @@ lexinit(void)
+ 	s->def = nod(ONONAME, N, N);
+ 	s->def->iota = 1;
+ 	s->def->sym = s;
+-	
++
+ 	s = pkglookup("true", "/builtin/");
+ 	s->def = nodbool(1);
+ 	s->def->sym = lookup("true");
+@@ -1453,10 +1461,10 @@ mkpackage(char* pkg)
+ 	int32 h;
+ 	char *p;
+ 
+-	if(strcmp(pkg, "_") == 0)
+-		yyerror("invalid package name _");
+-
+ 	if(package == nopackage) {
++		if(strcmp(pkg, "_") == 0)
++			yyerror("invalid package name _");
++
+ 		// redefine all names to be this package.
+ 		for(h=0; h<NHASH; h++)
+ 			for(s = hash[h]; s != S; s = s->link)
+@@ -1476,12 +1484,21 @@ mkpackage(char* pkg)
+ 					// TODO(rsc): remember that there was a package
+ 					// name, so that the name cannot be redeclared
+ 					// as a non-package in other files.
++					if(!s->def->used) {
++						print("%s: imported and not used: %s\n", s->def->pline, s->def->sym->name);
++						nerrors++;
++					}
+ 					s->def = N;
+ 					continue;
+ 				}
+ 				if(s->def->sym != s) {
+ 					// throw away top-level name left over
+ 					// from previous import . "x"
++					if(s->def->pack != N && !s->def->pack->used) {
++						print("%s: imported and not used: %s\n", s->def->pack->pline, s->def->pack->sym->name);
++						nerrors++;
++						s->def->pack->used = 1;
++					}
+ 					s->def = N;
+ 					continue;
+ 				}
+@@ -1489,14 +1506,6 @@ mkpackage(char* pkg)
+ 		}
+ 	}
+ 
+-/*
+-	// declare this name as a package
+-	s = lookup(package);
+-	s->def = nod(OPACK, N, N);
+-	s->def->sym = s;
+-	s->block = -1;	// above top level
+-*/
+-
+ 	if(outfile == nil) {
+ 		p = strrchr(infile, '/');
+ 		if(p == nil)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index f2da5c003d..27c13b02d1 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -238,15 +238,16 @@ restrictlookup(char *name, char *pkg)
+ // find all the exported symbols in package opkg
+ // and make them available in the current package
+ void
+-importdot(Sym *opkg)
++importdot(Sym *opkg, Node *pack)
+ {
+ 	Sym *s, *s1;
+ 	uint32 h;
+-	int c;
++	int c, n;
+ 
+ 	if(strcmp(opkg->name, package) == 0)
+ 		return;
+ 
++	n = 0;
+ 	c = opkg->name[0];
+ 	for(h=0; h<NHASH; h++) {
+ 		for(s = hash[h]; s != S; s = s->link) {
+@@ -262,8 +263,15 @@ importdot(Sym *opkg)
+ 				continue;
+ 			}
+ 			s1->def = s->def;
++			s1->def->pack = pack;
++			n++;
+ 		}
+ 	}
++	if(n == 0) {
++		// can't possibly be used - there were no symbols
++		print("%L: imported and not used: %s\n", pack->pline, pack->sym->name);
++		nerrors++;
++	}
+ }
+ 
+ void

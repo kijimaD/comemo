@@ -10,6 +10,55 @@ Date:   Fri Jan 15 11:26:34 2021 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutator.txt | 22 ++++------------------
  1 file changed, 4 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index f858dcf354..bc7edf3cc5 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -14,7 +14,7 @@ go run check_logs.go fuzz fuzz.worker
+ ! go test -v -fuzz=Fuzz -parallel=1 -fuzztime=30s mutator_test.go
+ ! stdout ok
+ stdout FAIL
+-stdout 'mutator found enough edge cases'
++stdout 'mutator found enough unique mutations'
+ 
+ -- go.mod --
+ module m
+@@ -162,7 +162,6 @@ func checkWorkerLog(r io.Reader) error {
+ package fuzz_test
+ 
+ import (
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -175,22 +174,9 @@ func Fuzz(f *testing.F) {
+ 	crashes := make(map[string]bool)
+ 	// No seed corpus initiated
+ 	f.Fuzz(func(t *testing.T, b []byte) {
+-		if len(crashes) >= 150 {
+-			panic("mutator found enough edge cases")
+-		}
+-
+-		if len(b) < 5 {
+-			return // continue
+-		}
+-
+-		for i := 0; i < 256; i++ {
+-			s := string(byte(i))
+-			if strings.HasPrefix(string(b), s) {
+-				crashes["pre-" + s] = true
+-			}
+-			if strings.HasSuffix(string(b), s) {
+-				crashes["suffix-" + s] = true
+-			}
++		crashes[string(b)] = true
++		if len(crashes) >= 1000 {
++			panic("mutator found enough unique mutations")
+ 		}
+ 	})
+ }
+\ No newline at end of file

@@ -14,7 +14,7 @@ Date:   Fri Jul 16 16:16:17 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1752044
-
+---
  src/cmd/5l/obj.c |  4 ++++
  src/cmd/6l/l.h   |  2 +-
  src/cmd/6l/obj.c | 22 ++++++++++++++++------
@@ -22,3 +22,170 @@ Date:   Fri Jul 16 16:16:17 2010 -0700
  src/cmd/8l/obj.c | 22 ++++++++++++++++------
  src/cmd/ld/lib.c |  2 +-
  6 files changed, 39 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index e3597e0404..99aa5f0b69 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -506,6 +506,10 @@ loop:
+ 
+ 		if(debug['W'])
+ 			print("	ANAME	%s\n", s->name);
++		if(o < 0 || o >= nelem(h)) {
++			fprint(2, "%s: mangled input file\n", pn);
++			errorexit();
++		}
+ 		h[o] = s;
+ 		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
+ 			s->type = SXREF;
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 3db0b450ad..eb796e203b 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -441,7 +441,7 @@ void	wputb(uint16);
+ void	wputl(uint16);
+ void	xdefine(char*, int, vlong);
+ void	xfol(Prog*);
+-void	zaddr(Biobuf*, Adr*, Sym*[]);
++void	zaddr(char*, Biobuf*, Adr*, Sym*[]);
+ 
+ void	machseg(char*, vlong, vlong, vlong, vlong, uint32, uint32, uint32, uint32);
+ void	machsymseg(uint32, uint32);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 5a4b6a3fc0..fcef816e3c 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -401,9 +401,9 @@ main(int argc, char *argv[])
+ }
+ 
+ void
+-zaddr(Biobuf *f, Adr *a, Sym *h[])
++zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ {
+-	int t;
++	int o, t;
+ 	int32 l;
+ 	Sym *s;
+ 	Auto *u;
+@@ -424,8 +424,14 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 		}
+ 	}
+ 	a->sym = S;
+-	if(t & T_SYM)
+-		a->sym = h[Bgetc(f)];
++	if(t & T_SYM) {
++		o = Bgetc(f);
++		if(o < 0 || o >= NSYM || h[o] == nil) {
++			fprint(2, "%s: mangled input file\n", pn);
++			errorexit();
++		}
++		a->sym = h[o];
++	}
+ 	a->type = D_NONE;
+ 	if(t & T_FCONST) {
+ 		a->ieee.l = Bget4(f);
+@@ -557,6 +563,10 @@ loop:
+ 
+ 		if(debug['W'])
+ 			print("	ANAME	%s\n", s->name);
++		if(o < 0 || o >= nelem(h)) {
++			fprint(2, "%s: mangled input file\n", pn);
++			errorexit();
++		}
+ 		h[o] = s;
+ 		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
+ 			s->type = SXREF;
+@@ -582,9 +592,9 @@ loop:
+ 	p->mode = mode;
+ 	p->ft = 0;
+ 	p->tt = 0;
+-	zaddr(f, &p->from, h);
++	zaddr(pn, f, &p->from, h);
+ 	fromgotype = adrgotype;
+-	zaddr(f, &p->to, h);
++	zaddr(pn, f, &p->to, h);
+ 
+ 	if(debug['W'])
+ 		print("%P\n", p);
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 495c40d644..6473cc5013 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -385,7 +385,7 @@ void	wput(ushort);
+ void	wputl(ushort);
+ void	xdefine(char*, int, int32);
+ void	xfol(Prog*);
+-void	zaddr(Biobuf*, Adr*, Sym*[]);
++void	zaddr(char*, Biobuf*, Adr*, Sym*[]);
+ uint32	machheadr(void);
+ vlong		addaddr(Sym *s, Sym *t);
+ vlong		addsize(Sym *s, Sym *t);
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 1a3ecec1d8..c508c1de44 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -440,9 +440,9 @@ main(int argc, char *argv[])
+ }
+ 
+ void
+-zaddr(Biobuf *f, Adr *a, Sym *h[])
++zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ {
+-	int t;
++	int o, t;
+ 	int32 l;
+ 	Sym *s;
+ 	Auto *u;
+@@ -464,8 +464,14 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 		a->type = D_CONST2;
+ 	}
+ 	a->sym = S;
+-	if(t & T_SYM)
+-		a->sym = h[Bgetc(f)];
++	if(t & T_SYM) {
++		o = Bgetc(f);
++		if(o < 0 || o >= NSYM || h[o] == nil) {
++			fprint(2, "%s: mangled input file\n", pn);
++			errorexit();
++		}
++		a->sym = h[o];
++	}
+ 	if(t & T_FCONST) {
+ 		a->ieee.l = Bget4(f);
+ 		a->ieee.h = Bget4(f);
+@@ -599,6 +605,10 @@ loop:
+ 
+ 		if(debug['W'])
+ 			print("	ANAME	%s\n", s->name);
++		if(o < 0 || o >= nelem(h)) {
++			fprint(2, "%s: mangled input file\n", pn);
++			errorexit();
++		}
+ 		h[o] = s;
+ 		if((v == D_EXTERN || v == D_STATIC) && s->type == 0)
+ 			s->type = SXREF;
+@@ -623,9 +633,9 @@ loop:
+ 	p->back = 2;
+ 	p->ft = 0;
+ 	p->tt = 0;
+-	zaddr(f, &p->from, h);
++	zaddr(pn, f, &p->from, h);
+ 	fromgotype = adrgotype;
+-	zaddr(f, &p->to, h);
++	zaddr(pn, f, &p->to, h);
+ 
+ 	if(debug['W'])
+ 		print("%P\n", p);
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 1af9f7a41c..59e4d3d36e 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -118,7 +118,7 @@ addlib(char *src, char *obj)
+ 	}
+ 
+ 	for(; i<histfrogp; i++) {
+-		snprint(comp, sizeof comp, histfrog[i]->name+1);
++		snprint(comp, sizeof comp, "%s", histfrog[i]->name+1);
+ 		for(;;) {
+ 			p = strstr(comp, "$O");
+ 			if(p == 0)

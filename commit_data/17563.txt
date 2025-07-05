@@ -19,6 +19,22 @@ Date:   Wed Sep 11 14:42:34 2013 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/13385046
-
+---
  src/cmd/api/goapi.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 7102e9d409..a62c874210 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -145,6 +145,10 @@ func main() {
+ 			//   going to change w/o a language change.
+ 			// - We don't care about the API of commands.
+ 			if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
++				if name == "runtime/cgo" && !context.CgoEnabled {
++					// w.Import(name) will return nil
++					continue
++				}
+ 				w.export(w.Import(name))
+ 			}
+ 		}

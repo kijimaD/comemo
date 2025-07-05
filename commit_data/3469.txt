@@ -8,7 +8,7 @@ Date:   Tue Oct 6 19:41:51 2009 -0700
     DELTA=1359  (138 added, 32 deleted, 1189 changed)
     OCL=35408
     CL=35420
-
+---
  src/pkg/go/ast/ast.go                | 497 +++++++++++++++++++----------------
  src/pkg/go/ast/filter.go             |  22 +-
  src/pkg/go/parser/interface.go       |  26 +-
@@ -46,3 +46,5589 @@ Date:   Tue Oct 6 19:41:51 2009 -0700
  src/pkg/log/log.go                   |  60 ++---
  src/pkg/log/log_test.go              |  42 +--
  36 files changed, 1262 insertions(+), 1156 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 8861049aaf..c346c48b38 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -65,8 +65,8 @@ type Decl interface {
+ 
+ // A Comment node represents a single //-style or /*-style comment.
+ type Comment struct {
+-	token.Position;  // beginning position of the comment
+-	Text []byte;  // comment text (excluding '\n' for //-style comments)
++	token.Position;	// beginning position of the comment
++	Text		[]byte;	// comment text (excluding '\n' for //-style comments)
+ }
+ 
+ 
+@@ -74,8 +74,8 @@ type Comment struct {
+ // with no other tokens and no empty lines between.
+ //
+ type CommentGroup struct {
+-	List []*Comment;
+-	Next *CommentGroup;  // next comment group in source order
++	List	[]*Comment;
++	Next	*CommentGroup;	// next comment group in source order
+ }
+ 
+ 
+@@ -87,12 +87,12 @@ type CommentGroup struct {
+ // in a signature.
+ //
+ type Field struct {
+-	Doc *CommentGroup;  // associated documentation; or nil
+-	Names []*Ident;  // field/method/parameter names; or nil if anonymous field
+-	Type Expr;  // field/method/parameter type
+-	Tag []*BasicLit;  // field tag; or nil
+-	Comment *CommentGroup;  // line comments; or nil
+-};
++	Doc	*CommentGroup;	// associated documentation; or nil
++	Names	[]*Ident;	// field/method/parameter names; or nil if anonymous field
++	Type	Expr;		// field/method/parameter type
++	Tag	[]*BasicLit;	// field tag; or nil
++	Comment	*CommentGroup;	// line comments; or nil
++}
+ 
+ 
+ // An expression is represented by a tree consisting of one
+@@ -103,28 +103,28 @@ type (
+ 	// syntax errors for which no correct expression nodes can be
+ 	// created.
+ 	//
+-	BadExpr struct {
+-		token.Position;  // beginning position of bad expression
++	BadExpr	struct {
++		token.Position;	// beginning position of bad expression
+ 	};
+ 
+ 	// An Ident node represents an identifier.
+-	Ident struct {
+-		token.Position;  // identifier position
+-		Value string;  // identifier string (e.g. foobar)
++	Ident	struct {
++		token.Position;	// identifier position
++		Value		string;	// identifier string (e.g. foobar)
+ 	};
+ 
+ 	// An Ellipsis node stands for the "..." type in a
+ 	// parameter list or the "..." length in an array type.
+ 	//
+-	Ellipsis struct {
+-		token.Position;  // position of "..."
++	Ellipsis	struct {
++		token.Position;	// position of "..."
+ 	};
+ 
+ 	// A BasicLit node represents a literal of basic type.
+-	BasicLit struct {
+-		token.Position;  // literal position
+-		Kind token.Token;  //  token.INT, token.FLOAT, token.CHAR, or token.STRING
+-		Value []byte;  // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
++	BasicLit	struct {
++		token.Position;	// literal position
++		Kind		token.Token;	//  token.INT, token.FLOAT, token.CHAR, or token.STRING
++		Value		[]byte;		// literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
+ 	};
+ 
+ 	// A StringList node represents a sequence of adjacent string literals.
+@@ -132,93 +132,93 @@ type (
+ 	// node; StringList nodes are used only if there are two or more string
+ 	// literals in a sequence.
+ 	//
+-	StringList struct {
+-		Strings []*BasicLit;  // list of strings, len(Strings) > 1
++	StringList	struct {
++		Strings []*BasicLit;	// list of strings, len(Strings) > 1
+ 	};
+ 
+ 	// A FuncLit node represents a function literal.
+-	FuncLit struct {
+-		Type *FuncType;  // function type
+-		Body *BlockStmt;  // function body
++	FuncLit	struct {
++		Type	*FuncType;	// function type
++		Body	*BlockStmt;	// function body
+ 	};
+ 
+ 	// A CompositeLit node represents a composite literal.
+ 	//
+-	CompositeLit struct {
+-		Type Expr;  // literal type
+-		Lbrace token.Position;  // position of "{"
+-		Elts []Expr;  // list of composite elements
+-		Rbrace token.Position;  // position of "}"
++	CompositeLit	struct {
++		Type	Expr;		// literal type
++		Lbrace	token.Position;	// position of "{"
++		Elts	[]Expr;		// list of composite elements
++		Rbrace	token.Position;	// position of "}"
+ 	};
+ 
+ 	// A ParenExpr node represents a parenthesized expression.
+-	ParenExpr struct {
+-		token.Position;  // position of "("
+-		X Expr;  // parenthesized expression
+-		Rparen token.Position;  // position of ")"
++	ParenExpr	struct {
++		token.Position;	// position of "("
++		X		Expr;		// parenthesized expression
++		Rparen		token.Position;	// position of ")"
+ 	};
+ 
+ 	// A SelectorExpr node represents an expression followed by a selector.
+-	SelectorExpr struct {
+-		X Expr;  // expression
+-		Sel *Ident;  // field selector
++	SelectorExpr	struct {
++		X	Expr;	// expression
++		Sel	*Ident;	// field selector
+ 	};
+ 
+ 	// An IndexExpr node represents an expression followed by an index or slice.
+-	IndexExpr struct {
+-		X Expr;  // expression
+-		Index Expr;  // index expression or beginning of slice range
+-		End Expr;  // end of slice range; or nil
++	IndexExpr	struct {
++		X	Expr;	// expression
++		Index	Expr;	// index expression or beginning of slice range
++		End	Expr;	// end of slice range; or nil
+ 	};
+ 
+ 	// A TypeAssertExpr node represents an expression followed by a
+ 	// type assertion.
+ 	//
+-	TypeAssertExpr struct {
+-		X Expr;  // expression
+-		Type Expr;  // asserted type; nil means type switch X.(type)
++	TypeAssertExpr	struct {
++		X	Expr;	// expression
++		Type	Expr;	// asserted type; nil means type switch X.(type)
+ 	};
+ 
+ 	// A CallExpr node represents an expression followed by an argument list.
+-	CallExpr struct {
+-		Fun Expr;  // function expression
+-		Lparen token.Position;  // position of "("
+-		Args []Expr;  // function arguments
+-		Rparen token.Position;  // positions of ")"
++	CallExpr	struct {
++		Fun	Expr;		// function expression
++		Lparen	token.Position;	// position of "("
++		Args	[]Expr;		// function arguments
++		Rparen	token.Position;	// positions of ")"
+ 	};
+ 
+ 	// A StarExpr node represents an expression of the form "*" Expression.
+ 	// Semantically it could be a unary "*" expression, or a pointer type.
+-	StarExpr struct {
+-		token.Position;  // position of "*"
+-		X Expr;  // operand
++	StarExpr	struct {
++		token.Position;	// position of "*"
++		X		Expr;	// operand
+ 	};
+ 
+ 	// A UnaryExpr node represents a unary expression.
+ 	// Unary "*" expressions are represented via StarExpr nodes.
+ 	//
+-	UnaryExpr struct {
+-		token.Position;  // position of Op
+-		Op token.Token;  // operator
+-		X Expr;  // operand
++	UnaryExpr	struct {
++		token.Position;	// position of Op
++		Op		token.Token;	// operator
++		X		Expr;		// operand
+ 	};
+ 
+ 	// A BinaryExpr node represents a binary expression.
+ 	//
+-	BinaryExpr struct {
+-		X Expr;  // left operand
+-		OpPos token.Position;  // position of Op
+-		Op token.Token;  // operator
+-		Y Expr;  // right operand
++	BinaryExpr	struct {
++		X	Expr;		// left operand
++		OpPos	token.Position;	// position of Op
++		Op	token.Token;	// operator
++		Y	Expr;		// right operand
+ 	};
+ 
+ 	// A KeyValueExpr node represents (key : value) pairs
+ 	// in composite literals.
+ 	//
+-	KeyValueExpr struct {
+-		Key Expr;
+-		Colon token.Position;  // position of ":"
+-		Value Expr;
++	KeyValueExpr	struct {
++		Key	Expr;
++		Colon	token.Position;	// position of ":"
++		Value	Expr;
+ 	};
+ )
+ 
+@@ -227,8 +227,9 @@ type (
+ // of the following constants.
+ //
+ type ChanDir int
++
+ const (
+-	SEND ChanDir = 1 << iota;
++	SEND	ChanDir	= 1<<iota;
+ 	RECV;
+ )
+ 
+@@ -239,51 +240,51 @@ const (
+ //
+ type (
+ 	// An ArrayType node represents an array or slice type.
+-	ArrayType struct {
+-		token.Position;  // position of "["
+-		Len Expr;  // Ellipsis node for [...]T array types, nil for slice types
+-		Elt Expr;  // element type
++	ArrayType	struct {
++		token.Position;	// position of "["
++		Len		Expr;	// Ellipsis node for [...]T array types, nil for slice types
++		Elt		Expr;	// element type
+ 	};
+ 
+ 	// A StructType node represents a struct type.
+-	StructType struct {
+-		token.Position;  // position of "struct" keyword
+-		Lbrace token.Position;  // position of "{"
+-		Fields []*Field;  // list of field declarations
+-		Rbrace token.Position;  // position of "}"
+-		Incomplete bool;  // true if (source) fields are missing in the Fields list
++	StructType	struct {
++		token.Position;	// position of "struct" keyword
++		Lbrace		token.Position;	// position of "{"
++		Fields		[]*Field;	// list of field declarations
++		Rbrace		token.Position;	// position of "}"
++		Incomplete	bool;		// true if (source) fields are missing in the Fields list
+ 	};
+ 
+ 	// Pointer types are represented via StarExpr nodes.
+ 
+ 	// A FuncType node represents a function type.
+-	FuncType struct {
+-		token.Position;  // position of "func" keyword
+-		Params []*Field;  // (incoming) parameters
+-		Results []*Field;  // (outgoing) results
++	FuncType	struct {
++		token.Position;	// position of "func" keyword
++		Params		[]*Field;	// (incoming) parameters
++		Results		[]*Field;	// (outgoing) results
+ 	};
+ 
+ 	// An InterfaceType node represents an interface type.
+-	InterfaceType struct {
+-		token.Position;  // position of "interface" keyword
+-		Lbrace token.Position;  // position of "{"
+-		Methods []*Field; // list of methods
+-		Rbrace token.Position;  // position of "}"
+-		Incomplete bool;  // true if (source) methods are missing in the Methods list
++	InterfaceType	struct {
++		token.Position;	// position of "interface" keyword
++		Lbrace		token.Position;	// position of "{"
++		Methods		[]*Field;	// list of methods
++		Rbrace		token.Position;	// position of "}"
++		Incomplete	bool;		// true if (source) methods are missing in the Methods list
+ 	};
+ 
+ 	// A MapType node represents a map type.
+-	MapType struct {
+-		token.Position;  // position of "map" keyword
+-		Key Expr;
+-		Value Expr;
++	MapType	struct {
++		token.Position;	// position of "map" keyword
++		Key		Expr;
++		Value		Expr;
+ 	};
+ 
+ 	// A ChanType node represents a channel type.
+-	ChanType struct {
+-		token.Position;  // position of "chan" keyword or "<-" (whichever comes first)
+-		Dir ChanDir;  // channel direction
+-		Value Expr;  // value type
++	ChanType	struct {
++		token.Position;	// position of "chan" keyword or "<-" (whichever comes first)
++		Dir		ChanDir;	// channel direction
++		Value		Expr;		// value type
+ 	};
+ )
+ 
+@@ -291,15 +292,33 @@ type (
+ // Pos() implementations for expression/type where the position
+ // corresponds to the position of a sub-node.
+ //
+-func (x *StringList) Pos() token.Position  { return x.Strings[0].Pos(); }
+-func (x *FuncLit) Pos() token.Position  { return x.Type.Pos(); }
+-func (x *CompositeLit) Pos() token.Position  { return x.Type.Pos(); }
+-func (x *SelectorExpr) Pos() token.Position  { return x.X.Pos(); }
+-func (x *IndexExpr) Pos() token.Position  { return x.X.Pos(); }
+-func (x *TypeAssertExpr) Pos() token.Position  { return x.X.Pos(); }
+-func (x *CallExpr) Pos() token.Position  { return x.Fun.Pos(); }
+-func (x *BinaryExpr) Pos() token.Position  { return x.X.Pos(); }
+-func (x *KeyValueExpr) Pos() token.Position  { return x.Key.Pos(); }
++func (x *StringList) Pos() token.Position {
++	return x.Strings[0].Pos();
++}
++func (x *FuncLit) Pos() token.Position {
++	return x.Type.Pos();
++}
++func (x *CompositeLit) Pos() token.Position {
++	return x.Type.Pos();
++}
++func (x *SelectorExpr) Pos() token.Position {
++	return x.X.Pos();
++}
++func (x *IndexExpr) Pos() token.Position {
++	return x.X.Pos();
++}
++func (x *TypeAssertExpr) Pos() token.Position {
++	return x.X.Pos();
++}
++func (x *CallExpr) Pos() token.Position {
++	return x.Fun.Pos();
++}
++func (x *BinaryExpr) Pos() token.Position {
++	return x.X.Pos();
++}
++func (x *KeyValueExpr) Pos() token.Position {
++	return x.Key.Pos();
++}
+ 
+ 
+ // exprNode() ensures that only expression/type nodes can be
+@@ -358,12 +377,12 @@ type (
+ 	// syntax errors for which no correct statement nodes can be
+ 	// created.
+ 	//
+-	BadStmt struct {
+-		token.Position;  // beginning position of bad statement
++	BadStmt	struct {
++		token.Position;	// beginning position of bad statement
+ 	};
+ 
+ 	// A DeclStmt node represents a declaration in a statement list.
+-	DeclStmt struct {
++	DeclStmt	struct {
+ 		Decl Decl;
+ 	};
+ 
+@@ -371,145 +390,145 @@ type (
+ 	// The "position" of the empty statement is the position
+ 	// of the immediately preceeding semicolon.
+ 	//
+-	EmptyStmt struct {
+-		token.Position;  // position of preceeding ";"
++	EmptyStmt	struct {
++		token.Position;	// position of preceeding ";"
+ 	};
+ 
+ 	// A LabeledStmt node represents a labeled statement.
+-	LabeledStmt struct {
+-		Label *Ident;
+-		Stmt Stmt;
++	LabeledStmt	struct {
++		Label	*Ident;
++		Stmt	Stmt;
+ 	};
+ 
+ 	// An ExprStmt node represents a (stand-alone) expression
+ 	// in a statement list.
+ 	//
+-	ExprStmt struct {
+-		X Expr;  // expression
++	ExprStmt	struct {
++		X Expr;	// expression
+ 	};
+ 
+ 	// An IncDecStmt node represents an increment or decrement statement.
+-	IncDecStmt struct {
+-		X Expr;
+-		Tok token.Token;  // INC or DEC
++	IncDecStmt	struct {
++		X	Expr;
++		Tok	token.Token;	// INC or DEC
+ 	};
+ 
+ 	// An AssignStmt node represents an assignment or
+ 	// a short variable declaration.
+-	AssignStmt struct {
+-		Lhs []Expr;
+-		TokPos token.Position;  // position of Tok
+-		Tok token.Token;  // assignment token, DEFINE
+-		Rhs []Expr;
++	AssignStmt	struct {
++		Lhs	[]Expr;
++		TokPos	token.Position;	// position of Tok
++		Tok	token.Token;	// assignment token, DEFINE
++		Rhs	[]Expr;
+ 	};
+ 
+ 	// A GoStmt node represents a go statement.
+-	GoStmt struct {
+-		token.Position;  // position of "go" keyword
+-		Call *CallExpr;
++	GoStmt	struct {
++		token.Position;	// position of "go" keyword
++		Call		*CallExpr;
+ 	};
+ 
+ 	// A DeferStmt node represents a defer statement.
+-	DeferStmt struct {
+-		token.Position;  // position of "defer" keyword
+-		Call *CallExpr;
++	DeferStmt	struct {
++		token.Position;	// position of "defer" keyword
++		Call		*CallExpr;
+ 	};
+ 
+ 	// A ReturnStmt node represents a return statement.
+-	ReturnStmt struct {
+-		token.Position;  // position of "return" keyword
+-		Results []Expr;
++	ReturnStmt	struct {
++		token.Position;	// position of "return" keyword
++		Results		[]Expr;
+ 	};
+ 
+ 	// A BranchStmt node represents a break, continue, goto,
+ 	// or fallthrough statement.
+ 	//
+-	BranchStmt struct {
+-		token.Position;  // position of Tok
+-		Tok token.Token;  // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
+-		Label *Ident;
++	BranchStmt	struct {
++		token.Position;	// position of Tok
++		Tok		token.Token;	// keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
++		Label		*Ident;
+ 	};
+ 
+ 	// A BlockStmt node represents a braced statement list.
+-	BlockStmt struct {
+-		token.Position;  // position of "{"
+-		List []Stmt;
+-		Rbrace token.Position;  // position of "}"
++	BlockStmt	struct {
++		token.Position;	// position of "{"
++		List		[]Stmt;
++		Rbrace		token.Position;	// position of "}"
+ 	};
+ 
+ 	// An IfStmt node represents an if statement.
+-	IfStmt struct {
+-		token.Position;  // position of "if" keyword
+-		Init Stmt;
+-		Cond Expr;
+-		Body *BlockStmt;
+-		Else Stmt;
++	IfStmt	struct {
++		token.Position;	// position of "if" keyword
++		Init		Stmt;
++		Cond		Expr;
++		Body		*BlockStmt;
++		Else		Stmt;
+ 	};
+ 
+ 	// A CaseClause represents a case of an expression switch statement.
+-	CaseClause struct {
+-		token.Position;  // position of "case" or "default" keyword
+-		Values []Expr;  // nil means default case
+-		Colon token.Position;  // position of ":"
+-		Body []Stmt;  // statement list; or nil
++	CaseClause	struct {
++		token.Position;	// position of "case" or "default" keyword
++		Values		[]Expr;		// nil means default case
++		Colon		token.Position;	// position of ":"
++		Body		[]Stmt;		// statement list; or nil
+ 	};
+ 
+ 	// A SwitchStmt node represents an expression switch statement.
+-	SwitchStmt struct {
+-		token.Position;  // position of "switch" keyword
+-		Init Stmt;
+-		Tag Expr;
+-		Body *BlockStmt;  // CaseClauses only
++	SwitchStmt	struct {
++		token.Position;	// position of "switch" keyword
++		Init		Stmt;
++		Tag		Expr;
++		Body		*BlockStmt;	// CaseClauses only
+ 	};
+ 
+ 	// A TypeCaseClause represents a case of a type switch statement.
+-	TypeCaseClause struct {
+-		token.Position;  // position of "case" or "default" keyword
+-		Types []Expr;  // nil means default case
+-		Colon token.Position;  // position of ":"
+-		Body []Stmt;  // statement list; or nil
++	TypeCaseClause	struct {
++		token.Position;	// position of "case" or "default" keyword
++		Types		[]Expr;		// nil means default case
++		Colon		token.Position;	// position of ":"
++		Body		[]Stmt;		// statement list; or nil
+ 	};
+ 
+ 	// An TypeSwitchStmt node represents a type switch statement.
+-	TypeSwitchStmt struct {
+-		token.Position;  // position of "switch" keyword
+-		Init Stmt;
+-		Assign Stmt;  // x := y.(type)
+-		Body *BlockStmt;  // TypeCaseClauses only
++	TypeSwitchStmt	struct {
++		token.Position;	// position of "switch" keyword
++		Init		Stmt;
++		Assign		Stmt;		// x := y.(type)
++		Body		*BlockStmt;	// TypeCaseClauses only
+ 	};
+ 
+ 	// A CommClause node represents a case of a select statement.
+-	CommClause struct {
+-		token.Position;  // position of "case" or "default" keyword
+-		Tok token.Token;  // ASSIGN or DEFINE (valid only if Lhs != nil)
+-		Lhs, Rhs Expr;  // Rhs == nil means default case
+-		Colon token.Position;  // position of ":"
+-		Body []Stmt;  // statement list; or nil
++	CommClause	struct {
++		token.Position;	// position of "case" or "default" keyword
++		Tok		token.Token;	// ASSIGN or DEFINE (valid only if Lhs != nil)
++		Lhs, Rhs	Expr;		// Rhs == nil means default case
++		Colon		token.Position;	// position of ":"
++		Body		[]Stmt;		// statement list; or nil
+ 	};
+ 
+ 	// An SelectStmt node represents a select statement.
+-	SelectStmt struct {
+-		token.Position;  // position of "select" keyword
+-		Body *BlockStmt;  // CommClauses only
++	SelectStmt	struct {
++		token.Position;	// position of "select" keyword
++		Body		*BlockStmt;	// CommClauses only
+ 	};
+ 
+ 	// A ForStmt represents a for statement.
+-	ForStmt struct {
+-		token.Position;  // position of "for" keyword
+-		Init Stmt;
+-		Cond Expr;
+-		Post Stmt;
+-		Body *BlockStmt;
++	ForStmt	struct {
++		token.Position;	// position of "for" keyword
++		Init		Stmt;
++		Cond		Expr;
++		Post		Stmt;
++		Body		*BlockStmt;
+ 	};
+ 
+ 	// A RangeStmt represents a for statement with a range clause.
+-	RangeStmt struct {
+-		token.Position;  // position of "for" keyword
+-		Key, Value Expr;  // Value may be nil
+-		TokPos token.Position;  // position of Tok
+-		Tok token.Token;  // ASSIGN, DEFINE
+-		X Expr;  // value to range over
+-		Body *BlockStmt;
++	RangeStmt	struct {
++		token.Position;	// position of "for" keyword
++		Key, Value	Expr;		// Value may be nil
++		TokPos		token.Position;	// position of Tok
++		Tok		token.Token;	// ASSIGN, DEFINE
++		X		Expr;		// value to range over
++		Body		*BlockStmt;
+ 	};
+ )
+ 
+@@ -517,11 +536,21 @@ type (
+ // Pos() implementations for statement nodes where the position
+ // corresponds to the position of a sub-node.
+ //
+-func (s *DeclStmt) Pos() token.Position { return s.Decl.Pos(); }
+-func (s *LabeledStmt) Pos() token.Position { return s.Label.Pos(); }
+-func (s *ExprStmt) Pos() token.Position { return s.X.Pos(); }
+-func (s *IncDecStmt) Pos() token.Position { return s.X.Pos(); }
+-func (s *AssignStmt) Pos() token.Position { return s.Lhs[0].Pos(); }
++func (s *DeclStmt) Pos() token.Position {
++	return s.Decl.Pos();
++}
++func (s *LabeledStmt) Pos() token.Position {
++	return s.Label.Pos();
++}
++func (s *ExprStmt) Pos() token.Position {
++	return s.X.Pos();
++}
++func (s *IncDecStmt) Pos() token.Position {
++	return s.X.Pos();
++}
++func (s *AssignStmt) Pos() token.Position {
++	return s.Lhs[0].Pos();
++}
+ 
+ 
+ // stmtNode() ensures that only statement nodes can be
+@@ -558,34 +587,34 @@ func (s *RangeStmt) stmtNode() {}
+ //
+ type (
+ 	// The Spec type stands for any of *ImportSpec, *ValueSpec, and *TypeSpec.
+-	Spec interface {
++	Spec	interface {
+ 		specNode();
+ 	};
+ 
+ 	// An ImportSpec node represents a single package import.
+-	ImportSpec struct {
+-		Doc *CommentGroup;  // associated documentation; or nil
+-		Name *Ident;  // local package name (including "."); or nil
+-		Path []*BasicLit;  // package path
+-		Comment *CommentGroup;  // line comments; or nil
++	ImportSpec	struct {
++		Doc	*CommentGroup;	// associated documentation; or nil
++		Name	*Ident;		// local package name (including "."); or nil
++		Path	[]*BasicLit;	// package path
++		Comment	*CommentGroup;	// line comments; or nil
+ 	};
+ 
+ 	// A ValueSpec node represents a constant or variable declaration
+ 	// (ConstSpec or VarSpec production).
+-	ValueSpec struct {
+-		Doc *CommentGroup;  // associated documentation; or nil
+-		Names []*Ident;  // value names
+-		Type Expr;  // value type; or nil
+-		Values []Expr;  // initial values; or nil
+-		Comment *CommentGroup;  // line comments; or nil
++	ValueSpec	struct {
++		Doc	*CommentGroup;	// associated documentation; or nil
++		Names	[]*Ident;	// value names
++		Type	Expr;		// value type; or nil
++		Values	[]Expr;		// initial values; or nil
++		Comment	*CommentGroup;	// line comments; or nil
+ 	};
+ 
+ 	// A TypeSpec node represents a type declaration (TypeSpec production).
+-	TypeSpec struct {
+-		Doc *CommentGroup;  // associated documentation; or nil
+-		Name *Ident;  // type name
+-		Type Expr;
+-		Comment *CommentGroup;  // line comments; or nil
++	TypeSpec	struct {
++		Doc	*CommentGroup;	// associated documentation; or nil
++		Name	*Ident;		// type name
++		Type	Expr;
++		Comment	*CommentGroup;	// line comments; or nil
+ 	};
+ )
+ 
+@@ -605,8 +634,8 @@ type (
+ 	// syntax errors for which no correct declaration nodes can be
+ 	// created.
+ 	//
+-	BadDecl struct {
+-		token.Position;  // beginning position of bad declaration
++	BadDecl	struct {
++		token.Position;	// beginning position of bad declaration
+ 	};
+ 
+ 	// A GenDecl node (generic declaration node) represents an import,
+@@ -620,28 +649,30 @@ type (
+ 	//	token.TYPE    *TypeSpec
+ 	//	token.VAR     *ValueSpec
+ 	//
+-	GenDecl struct {
+-		Doc *CommentGroup;  // associated documentation; or nil
+-		token.Position;  // position of Tok
+-		Tok token.Token;  // IMPORT, CONST, TYPE, VAR
+-		Lparen token.Position;  // position of '(', if any
+-		Specs []Spec;
+-		Rparen token.Position;  // position of ')', if any
++	GenDecl	struct {
++		Doc		*CommentGroup;	// associated documentation; or nil
++		token.Position;	// position of Tok
++		Tok		token.Token;	// IMPORT, CONST, TYPE, VAR
++		Lparen		token.Position;	// position of '(', if any
++		Specs		[]Spec;
++		Rparen		token.Position;	// position of ')', if any
+ 	};
+ 
+ 	// A FuncDecl node represents a function declaration.
+-	FuncDecl struct {
+-		Doc *CommentGroup;  // associated documentation; or nil
+-		Recv *Field;  // receiver (methods); or nil (functions)
+-		Name *Ident;  // function/method name
+-		Type *FuncType;  // position of Func keyword, parameters and results
+-		Body *BlockStmt;  // function body; or nil (forward declaration)
++	FuncDecl	struct {
++		Doc	*CommentGroup;	// associated documentation; or nil
++		Recv	*Field;		// receiver (methods); or nil (functions)
++		Name	*Ident;		// function/method name
++		Type	*FuncType;	// position of Func keyword, parameters and results
++		Body	*BlockStmt;	// function body; or nil (forward declaration)
+ 	};
+ )
+ 
+ 
+ // The position of a FuncDecl node is the position of its function type.
+-func (d *FuncDecl) Pos() token.Position  { return d.Type.Pos(); }
++func (d *FuncDecl) Pos() token.Position {
++	return d.Type.Pos();
++}
+ 
+ 
+ // declNode() ensures that only declaration nodes can be
+@@ -658,11 +689,11 @@ func (d *FuncDecl) declNode() {}
+ // A File node represents a Go source file.
+ //
+ type File struct {
+-	Doc *CommentGroup;  // associated documentation; or nil
+-	token.Position;  // position of "package" keyword
+-	Name *Ident;  // package name
+-	Decls []Decl;  // top-level declarations
+-	Comments *CommentGroup;  // list of all comments in the source file
++	Doc		*CommentGroup;	// associated documentation; or nil
++	token.Position;	// position of "package" keyword
++	Name		*Ident;		// package name
++	Decls		[]Decl;		// top-level declarations
++	Comments	*CommentGroup;	// list of all comments in the source file
+ }
+ 
+ 
+@@ -670,7 +701,7 @@ type File struct {
+ // collectively building a Go package.
+ //
+ type Package struct {
+-	Name string;  // package name
+-	Path string;  // package path
+-	Files map[string]*File;  // path-relative filenames
++	Name	string;			// package name
++	Path	string;			// package path
++	Files	map[string]*File;	// path-relative filenames
+ }
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 467f772be8..9d0679a5ab 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -4,7 +4,7 @@
+ 
+ package ast
+ 
+-import "go/token";
++import "go/token"
+ 
+ 
+ func filterIdentList(list []*Ident) []*Ident {
+@@ -15,7 +15,7 @@ func filterIdentList(list []*Ident) []*Ident {
+ 			j++;
+ 		}
+ 	}
+-	return list[0 : j];
++	return list[0:j];
+ }
+ 
+ 
+@@ -65,7 +65,7 @@ func filterFieldList(list []*Field, incomplete *bool) []*Field {
+ 	if j < len(list) {
+ 		*incomplete = true;
+ 	}
+-	return list[0 : j];
++	return list[0:j];
+ }
+ 
+ 
+@@ -76,7 +76,7 @@ func filterParamList(list []*Field) {
+ }
+ 
+ 
+-var noPos token.Position;
++var noPos token.Position
+ 
+ func filterType(typ Expr) {
+ 	switch t := typ.(type) {
+@@ -126,7 +126,7 @@ func filterSpecList(list []Spec) []Spec {
+ 			j++;
+ 		}
+ 	}
+-	return list[0 : j];
++	return list[0:j];
+ }
+ 
+ 
+@@ -139,7 +139,7 @@ func filterDecl(decl Decl) bool {
+ 		// TODO consider removing function declaration altogether if
+ 		//      forward declaration (i.e., if d.Body == nil) because
+ 		//      in that case the actual declaration will come later.
+-		d.Body = nil;  // strip body
++		d.Body = nil;	// strip body
+ 		return d.Name.IsExported();
+ 	}
+ 	return false;
+@@ -164,7 +164,7 @@ func FileExports(src *File) bool {
+ 			j++;
+ 		}
+ 	}
+-	src.Decls = src.Decls[0 : j];
++	src.Decls = src.Decls[0:j];
+ 	return j > 0;
+ }
+ 
+@@ -190,7 +190,7 @@ func PackageExports(pkg *Package) bool {
+ // separator is an empty //-style comment that is interspersed between
+ // different comment groups when they are concatenated into a single group
+ //
+-var separator = &Comment{noPos, []byte{'/', '/'}};
++var separator = &Comment{noPos, []byte{'/', '/'}}
+ 
+ 
+ // MergePackageFiles creates a file AST by merging the ASTs of the
+@@ -203,7 +203,7 @@ func MergePackageFiles(pkg *Package) *File {
+ 	ndecls := 0;
+ 	for _, f := range pkg.Files {
+ 		if f.Doc != nil {
+-			ncomments += len(f.Doc.List) + 1;  // +1 for separator
++			ncomments += len(f.Doc.List) + 1;	// +1 for separator
+ 		}
+ 		ndecls += len(f.Decls);
+ 	}
+@@ -215,7 +215,7 @@ func MergePackageFiles(pkg *Package) *File {
+ 	// than drop them on the floor.
+ 	var doc *CommentGroup;
+ 	if ncomments > 0 {
+-		list := make([]*Comment, ncomments - 1);  // -1: no separator before first group
++		list := make([]*Comment, ncomments-1);	// -1: no separator before first group
+ 		i := 0;
+ 		for _, f := range pkg.Files {
+ 			if f.Doc != nil {
+@@ -226,7 +226,7 @@ func MergePackageFiles(pkg *Package) *File {
+ 				}
+ 				for _, c := range f.Doc.List {
+ 					list[i] = c;
+-					i++
++					i++;
+ 				}
+ 			}
+ 		}
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index f0a323b7ab..193a1e7d88 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -7,14 +7,14 @@
+ package parser
+ 
+ import (
+-	"bytes";
+-	"fmt";
+-	"go/ast";
+-	"go/scanner";
+-	"io";
+-	"os";
+-	pathutil "path";
+-	"strings";
++			"bytes";
++			"fmt";
++			"go/ast";
++			"go/scanner";
++			"io";
++			"os";
++	pathutil	"path";
++			"strings";
+ )
+ 
+ 
+@@ -63,7 +63,7 @@ func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
+ 
+ 	var p parser;
+ 	p.init(filename, data, 0);
+-	x := p.parseExpr();  // TODO 6g bug - function call order in expr lists
++	x := p.parseExpr();	// TODO 6g bug - function call order in expr lists
+ 	return x, p.GetError(scanner.Sorted);
+ }
+ 
+@@ -81,7 +81,7 @@ func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
+ 
+ 	var p parser;
+ 	p.init(filename, data, 0);
+-	list := p.parseStmtList();  // TODO 6g bug - function call order in expr lists
++	list := p.parseStmtList();	// TODO 6g bug - function call order in expr lists
+ 	return list, p.GetError(scanner.Sorted);
+ }
+ 
+@@ -99,7 +99,7 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
+ 
+ 	var p parser;
+ 	p.init(filename, data, 0);
+-	list := p.parseDeclList();  // TODO 6g bug - function call order in expr lists
++	list := p.parseDeclList();	// TODO 6g bug - function call order in expr lists
+ 	return list, p.GetError(scanner.Sorted);
+ }
+ 
+@@ -130,7 +130,7 @@ func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error
+ 
+ 	var p parser;
+ 	p.init(filename, data, mode);
+-	prog := p.parseFile();  // TODO 6g bug - function call order in expr lists
++	prog := p.parseFile();	// TODO 6g bug - function call order in expr lists
+ 	return prog, p.GetError(scanner.NoMultiples);
+ }
+ 
+@@ -158,7 +158,7 @@ func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
+ 	}
+ 
+ 	// ignore flags that control partial parsing
+-	return ParseFile(filename, src, mode &^ (PackageClauseOnly | ImportsOnly));
++	return ParseFile(filename, src, mode&^(PackageClauseOnly | ImportsOnly));
+ }
+ 
+ 
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index bb07f2928c..fc366bcc39 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ 
+-var illegalInputs = []interface{} {
++var illegalInputs = []interface{}{
+ 	nil,
+ 	3.14,
+ 	[]byte(nil),
+@@ -28,7 +28,7 @@ func TestParseIllegalInputs(t *testing.T) {
+ }
+ 
+ 
+-var validPrograms = []interface{} {
++var validPrograms = []interface{}{
+ 	`package main`,
+ 	`package main import "fmt" func main() { fmt.Println("Hello, World!") }`,
+ }
+@@ -44,7 +44,7 @@ func TestParseValidPrograms(t *testing.T) {
+ }
+ 
+ 
+-var validFiles = []string {
++var validFiles = []string{
+ 	"parser.go",
+ 	"parser_test.go",
+ }
+diff --git a/src/pkg/go/scanner/errors.go b/src/pkg/go/scanner/errors.go
+index fde2112165..73429f1fa4 100644
+--- a/src/pkg/go/scanner/errors.go
++++ b/src/pkg/go/scanner/errors.go
+@@ -63,8 +63,8 @@ func (h *ErrorVector) ErrorCount() int {
+ // token, and the error condition is described by Msg.
+ //
+ type Error struct {
+-	Pos token.Position;
+-	Msg string;
++	Pos	token.Position;
++	Msg	string;
+ }
+ 
+ 
+@@ -83,11 +83,15 @@ type ErrorList []*Error
+ 
+ 
+ // ErrorList implements the SortInterface.
+-func (p ErrorList) Len() int  { return len(p); }
+-func (p ErrorList) Swap(i, j int)  { p[i], p[j] = p[j], p[i]; }
++func (p ErrorList) Len() int {
++	return len(p);
++}
++func (p ErrorList) Swap(i, j int) {
++	p[i], p[j] = p[j], p[i];
++}
+ 
+ 
+-func (p ErrorList) Less(i, j int) bool  {
++func (p ErrorList) Less(i, j int) bool {
+ 	e := &p[i].Pos;
+ 	f := &p[j].Pos;
+ 	// Note that it is not sufficient to simply compare file offsets because
+@@ -115,7 +119,7 @@ func (p ErrorList) String() string {
+ 	case 1:
+ 		return p[0].String();
+ 	}
+-	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p) - 1);
++	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p)-1);
+ }
+ 
+ 
+@@ -123,9 +127,9 @@ func (p ErrorList) String() string {
+ // returned by GetErrors.
+ //
+ const (
+-	Raw = iota;  // leave error list unchanged
+-	Sorted;  // sort error list by file, line, and column number
+-	NoMultiples;  // sort error list and leave only the first error per line
++	Raw		= iota;	// leave error list unchanged
++	Sorted;		// sort error list by file, line, and column number
++	NoMultiples;	// sort error list and leave only the first error per line
+ )
+ 
+ 
+@@ -148,7 +152,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
+ 	}
+ 
+ 	if mode >= NoMultiples {
+-		var last token.Position;  // initial last.Line is != any legal error line
++		var last token.Position;	// initial last.Line is != any legal error line
+ 		i := 0;
+ 		for _, e := range list {
+ 			if e.Pos.Filename != last.Filename || e.Pos.Line != last.Line {
+@@ -157,7 +161,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
+ 				i++;
+ 			}
+ 		}
+-		list = list[0 : i];
++		list = list[0:i];
+ 	}
+ 
+ 	return list;
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index c4a5ad8387..03899a428f 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -24,17 +24,17 @@ import (
+ //
+ type Scanner struct {
+ 	// immutable state
+-	src []byte;  // source
+-	err ErrorHandler;  // error reporting; or nil
+-	mode uint;  // scanning mode
++	src	[]byte;		// source
++	err	ErrorHandler;	// error reporting; or nil
++	mode	uint;		// scanning mode
+ 
+ 	// scanning state
+-	pos token.Position;  // previous reading position (position before ch)
+-	offset int;  // current reading offset (position after ch)
+-	ch int;  // one char look-ahead
++	pos	token.Position;	// previous reading position (position before ch)
++	offset	int;		// current reading offset (position after ch)
++	ch	int;		// one char look-ahead
+ 
+ 	// public state - ok to modify
+-	ErrorCount int;  // number of errors encountered
++	ErrorCount	int;	// number of errors encountered
+ }
+ 
+ 
+@@ -58,7 +58,7 @@ func (S *Scanner) next() {
+ 		S.ch = r;
+ 	} else {
+ 		S.pos.Offset = len(S.src);
+-		S.ch = -1;  // eof
++		S.ch = -1;	// eof
+ 	}
+ }
+ 
+@@ -67,8 +67,8 @@ func (S *Scanner) next() {
+ // They control scanner behavior.
+ //
+ const (
+-	ScanComments = 1 << iota;  // return comments as COMMENT tokens
+-	AllowIllegalChars;  // do not report an error for illegal chars
++	ScanComments		= 1<<iota;	// return comments as COMMENT tokens
++	AllowIllegalChars;	// do not report an error for illegal chars
+ )
+ 
+ 
+@@ -95,17 +95,28 @@ func (S *Scanner) Init(filename string, src []byte, err ErrorHandler, mode uint)
+ func charString(ch int) string {
+ 	var s string;
+ 	switch ch {
+-	case -1: return `EOF`;
+-	case '\a': s = `\a`;
+-	case '\b': s = `\b`;
+-	case '\f': s = `\f`;
+-	case '\n': s = `\n`;
+-	case '\r': s = `\r`;
+-	case '\t': s = `\t`;
+-	case '\v': s = `\v`;
+-	case '\\': s = `\\`;
+-	case '\'': s = `\'`;
+-	default  : s = string(ch);
++	case -1:
++		return `EOF`;
++	case '\a':
++		s = `\a`;
++	case '\b':
++		s = `\b`;
++	case '\f':
++		s = `\f`;
++	case '\n':
++		s = `\n`;
++	case '\r':
++		s = `\r`;
++	case '\t':
++		s = `\t`;
++	case '\v':
++		s = `\v`;
++	case '\\':
++		s = `\\`;
++	case '\'':
++		s = `\'`;
++	default:
++		s = string(ch);
+ 	}
+ 	return "'" + s + "' (U+" + strconv.Itob(ch, 16) + ")";
+ }
+@@ -123,11 +134,11 @@ func (S *Scanner) expect(ch int) {
+ 	if S.ch != ch {
+ 		S.error(S.pos, "expected " + charString(ch) + ", found " + charString(S.ch));
+ 	}
+-	S.next();  // always make progress
++	S.next();	// always make progress
+ }
+ 
+ 
+-var prefix = []byte{'l', 'i', 'n', 'e', ' '};  // "line "
++var prefix = []byte{'l', 'i', 'n', 'e', ' '}	// "line "
+ 
+ func (S *Scanner) scanComment(pos token.Position) {
+ 	// first '/' already consumed
+@@ -140,7 +151,7 @@ func (S *Scanner) scanComment(pos token.Position) {
+ 				// '\n' is not part of the comment
+ 				// (the comment ends on the same line where it started)
+ 				if pos.Column == 1 {
+-					text := S.src[pos.Offset+2 : S.pos.Offset];
++					text := S.src[pos.Offset + 2 : S.pos.Offset];
+ 					if bytes.HasPrefix(text, prefix) {
+ 						// comment starts at beginning of line with "//line ";
+ 						// get filename and line number, if any
+@@ -149,7 +160,7 @@ func (S *Scanner) scanComment(pos token.Position) {
+ 							if line, err := strconv.Atoi(string(text[i+1 : len(text)])); err == nil && line > 0 {
+ 								// valid //line filename:line comment;
+ 								// update scanner position
+-								S.pos.Filename = string(text[len(prefix) : i]);
++								S.pos.Filename = string(text[len(prefix):i]);
+ 								S.pos.Line = line;
+ 							}
+ 						}
+@@ -177,18 +188,12 @@ func (S *Scanner) scanComment(pos token.Position) {
+ 
+ 
+ func isLetter(ch int) bool {
+-	return
+-		'a' <= ch && ch <= 'z' ||
+-		'A' <= ch && ch <= 'Z' ||
+-		ch == '_' ||
+-		ch >= 0x80 && unicode.IsLetter(ch);
++	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 0x80 && unicode.IsLetter(ch);
+ }
+ 
+ 
+ func isDigit(ch int) bool {
+-	return
+-		'0' <= ch && ch <= '9' ||
+-		ch >= 0x80 && unicode.IsDigit(ch);
++	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch);
+ }
+ 
+ 
+@@ -203,11 +208,14 @@ func (S *Scanner) scanIdentifier() token.Token {
+ 
+ func digitVal(ch int) int {
+ 	switch {
+-	case '0' <= ch && ch <= '9': return ch - '0';
+-	case 'a' <= ch && ch <= 'f': return ch - 'a' + 10;
+-	case 'A' <= ch && ch <= 'F': return ch - 'A' + 10;
++	case '0' <= ch && ch <= '9':
++		return ch-'0';
++	case 'a' <= ch && ch <= 'f':
++		return ch-'a'+10;
++	case 'A' <= ch && ch <= 'F':
++		return ch-'A'+10;
+ 	}
+-	return 16;  // larger than any legal digit val
++	return 16;	// larger than any legal digit val
+ }
+ 
+ 
+@@ -242,7 +250,7 @@ func (S *Scanner) scanNumber(seen_decimal_point bool) token.Token {
+ 				tok = token.FLOAT;
+ 				goto mantissa;
+ 			}
+-			// octal int
++		// octal int
+ 		}
+ 		goto exit;
+ 	}
+@@ -255,7 +263,7 @@ mantissa:
+ 		// float
+ 		tok = token.FLOAT;
+ 		S.next();
+-		S.scanMantissa(10)
++		S.scanMantissa(10);
+ 	}
+ 
+ exponent:
+@@ -291,9 +299,9 @@ func (S *Scanner) scanEscape(quote int) {
+ 	S.next();
+ 	switch ch {
+ 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
+-		// nothing to do
++	// nothing to do
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+-		S.scanDigits(8, 3 - 1);  // 1 char read already
++		S.scanDigits(8, 3-1);	// 1 char read already
+ 	case 'x':
+ 		S.scanDigits(16, 2);
+ 	case 'u':
+@@ -440,14 +448,22 @@ scan_again:
+ 	case digitVal(ch) < 10:
+ 		tok = S.scanNumber(false);
+ 	default:
+-		S.next();  // always make progress
++		S.next();	// always make progress
+ 		switch ch {
+-		case -1  : tok = token.EOF;
+-		case '"' : tok = token.STRING; S.scanString(pos);
+-		case '\'': tok = token.CHAR; S.scanChar(pos);
+-		case '`' : tok = token.STRING; S.scanRawString(pos);
+-		case ':' : tok = S.switch2(token.COLON, token.DEFINE);
+-		case '.' :
++		case -1:
++			tok = token.EOF;
++		case '"':
++			tok = token.STRING;
++			S.scanString(pos);
++		case '\'':
++			tok = token.CHAR;
++			S.scanChar(pos);
++		case '`':
++			tok = token.STRING;
++			S.scanRawString(pos);
++		case ':':
++			tok = S.switch2(token.COLON, token.DEFINE);
++		case '.':
+ 			if digitVal(S.ch) < 10 {
+ 				tok = S.scanNumber(true);
+ 			} else if S.ch == '.' {
+@@ -459,17 +475,28 @@ scan_again:
+ 			} else {
+ 				tok = token.PERIOD;
+ 			}
+-		case ',': tok = token.COMMA;
+-		case ';': tok = token.SEMICOLON;
+-		case '(': tok = token.LPAREN;
+-		case ')': tok = token.RPAREN;
+-		case '[': tok = token.LBRACK;
+-		case ']': tok = token.RBRACK;
+-		case '{': tok = token.LBRACE;
+-		case '}': tok = token.RBRACE;
+-		case '+': tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
+-		case '-': tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
+-		case '*': tok = S.switch2(token.MUL, token.MUL_ASSIGN);
++		case ',':
++			tok = token.COMMA;
++		case ';':
++			tok = token.SEMICOLON;
++		case '(':
++			tok = token.LPAREN;
++		case ')':
++			tok = token.RPAREN;
++		case '[':
++			tok = token.LBRACK;
++		case ']':
++			tok = token.RBRACK;
++		case '{':
++			tok = token.LBRACE;
++		case '}':
++			tok = token.RBRACE;
++		case '+':
++			tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
++		case '-':
++			tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
++		case '*':
++			tok = S.switch2(token.MUL, token.MUL_ASSIGN);
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+ 				S.scanComment(pos);
+@@ -480,8 +507,10 @@ scan_again:
+ 			} else {
+ 				tok = S.switch2(token.QUO, token.QUO_ASSIGN);
+ 			}
+-		case '%': tok = S.switch2(token.REM, token.REM_ASSIGN);
+-		case '^': tok = S.switch2(token.XOR, token.XOR_ASSIGN);
++		case '%':
++			tok = S.switch2(token.REM, token.REM_ASSIGN);
++		case '^':
++			tok = S.switch2(token.XOR, token.XOR_ASSIGN);
+ 		case '<':
+ 			if S.ch == '-' {
+ 				S.next();
+@@ -489,9 +518,12 @@ scan_again:
+ 			} else {
+ 				tok = S.switch4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN);
+ 			}
+-		case '>': tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
+-		case '=': tok = S.switch2(token.ASSIGN, token.EQL);
+-		case '!': tok = S.switch2(token.NOT, token.NEQ);
++		case '>':
++			tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
++		case '=':
++			tok = S.switch2(token.ASSIGN, token.EQL);
++		case '!':
++			tok = S.switch2(token.NOT, token.NEQ);
+ 		case '&':
+ 			if S.ch == '^' {
+ 				S.next();
+@@ -499,7 +531,8 @@ scan_again:
+ 			} else {
+ 				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
+ 			}
+-		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
++		case '|':
++			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
+ 		default:
+ 			if S.mode & AllowIllegalChars == 0 {
+ 				S.error(pos, "illegal character " + charString(ch));
+@@ -517,11 +550,11 @@ scan_again:
+ // false (usually when the token value is token.EOF). The result is the number
+ // of errors encountered.
+ //
+-func Tokenize(filename string, src []byte, err ErrorHandler, mode uint, f func (pos token.Position, tok token.Token, lit []byte) bool) int {
++func Tokenize(filename string, src []byte, err ErrorHandler, mode uint, f func(pos token.Position, tok token.Token, lit []byte) bool) int {
+ 	var s Scanner;
+ 	s.Init(filename, src, err, mode);
+ 	for f(s.Scan()) {
+-		// action happens in f
++	// action happens in f
+ 	}
+ 	return s.ErrorCount;
+ }
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 9f964a340a..dddc1ec054 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -17,18 +17,18 @@ import (
+ )
+ 
+ var (
+-	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range");
+-	errBadType = os.ErrorString("gob: unknown type id or corrupted data");
+-	errRange = os.ErrorString("gob: internal error: field numbers out of bounds");
+-	errNotStruct = os.ErrorString("gob: TODO: can only handle structs")
++	errBadUint	= os.ErrorString("gob: encoded unsigned integer out of range");
++	errBadType	= os.ErrorString("gob: unknown type id or corrupted data");
++	errRange	= os.ErrorString("gob: internal error: field numbers out of bounds");
++	errNotStruct	= os.ErrorString("gob: TODO: can only handle structs");
+ )
+ 
+ // The global execution state of an instance of the decoder.
+ type decodeState struct {
+-	b	*bytes.Buffer;
+-	err	os.Error;
++	b		*bytes.Buffer;
++	err		os.Error;
+ 	fieldnum	int;	// the last field number read.
+-	buf	[]byte;
++	buf		[]byte;
+ }
+ 
+ func newDecodeState(b *bytes.Buffer) *decodeState {
+@@ -47,11 +47,11 @@ func overflow(name string) os.ErrorString {
+ func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
+ 	_, err = r.Read(buf[0:1]);
+ 	if err != nil {
+-		return
++		return;
+ 	}
+ 	b := buf[0];
+ 	if b <= 0x7f {
+-		return uint64(b), nil
++		return uint64(b), nil;
+ 	}
+ 	nb := -int(int8(b));
+ 	if nb > uint64Size {
+@@ -62,16 +62,16 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
+ 	n, err = io.ReadFull(r, buf[0:nb]);
+ 	if err != nil {
+ 		if err == os.EOF {
+-			err = io.ErrUnexpectedEOF
++			err = io.ErrUnexpectedEOF;
+ 		}
+-		return
++		return;
+ 	}
+ 	// Could check that the high byte is zero but it's not worth it.
+ 	for i := 0; i < n; i++ {
+ 		x <<= 8;
+ 		x |= uint64(buf[i]);
+ 	}
+-	return
++	return;
+ }
+ 
+ // decodeUint reads an encoded unsigned integer from state.r.
+@@ -79,12 +79,12 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
+ // Does not check for overflow.
+ func decodeUint(state *decodeState) (x uint64) {
+ 	if state.err != nil {
+-		return
++		return;
+ 	}
+ 	var b uint8;
+ 	b, state.err = state.b.ReadByte();
+ 	if b <= 0x7f {	// includes state.err != nil
+-		return uint64(b)
++		return uint64(b);
+ 	}
+ 	nb := -int(int8(b));
+ 	if nb > uint64Size {
+@@ -108,21 +108,21 @@ func decodeUint(state *decodeState) (x uint64) {
+ func decodeInt(state *decodeState) int64 {
+ 	x := decodeUint(state);
+ 	if state.err != nil {
+-		return 0
++		return 0;
+ 	}
+-	if x & 1 != 0 {
+-		return ^int64(x>>1)
++	if x&1 != 0 {
++		return ^int64(x>>1);
+ 	}
+-	return int64(x >> 1)
++	return int64(x>>1);
+ }
+ 
+-type decOp func(i *decInstr, state *decodeState, p unsafe.Pointer);
++type decOp func(i *decInstr, state *decodeState, p unsafe.Pointer)
+ 
+ // The 'instructions' of the decoding machine
+ type decInstr struct {
+ 	op	decOp;
+-	field		int;	// field number of the wire type
+-	indir	int;	// how many pointer indirections to reach the value in the struct
++	field	int;		// field number of the wire type
++	indir	int;		// how many pointer indirections to reach the value in the struct
+ 	offset	uintptr;	// offset in the structure of the field to encode
+ 	ovfl	os.ErrorString;	// error message for overflow/underflow (for arrays, of the elements)
+ }
+@@ -143,7 +143,7 @@ func decIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
+ 		}
+ 		p = *(*unsafe.Pointer)(p);
+ 	}
+-	return p
++	return p;
+ }
+ 
+ func ignoreUint(i *decInstr, state *decodeState, p unsafe.Pointer) {
+@@ -169,9 +169,9 @@ func decInt8(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 	}
+ 	v := decodeInt(state);
+ 	if v < math.MinInt8 || math.MaxInt8 < v {
+-		state.err = i.ovfl
++		state.err = i.ovfl;
+ 	} else {
+-		*(*int8)(p) = int8(v)
++		*(*int8)(p) = int8(v);
+ 	}
+ }
+ 
+@@ -184,9 +184,9 @@ func decUint8(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 	}
+ 	v := decodeUint(state);
+ 	if math.MaxUint8 < v {
+-		state.err = i.ovfl
++		state.err = i.ovfl;
+ 	} else {
+-		*(*uint8)(p) = uint8(v)
++		*(*uint8)(p) = uint8(v);
+ 	}
+ }
+ 
+@@ -199,9 +199,9 @@ func decInt16(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 	}
+ 	v := decodeInt(state);
+ 	if v < math.MinInt16 || math.MaxInt16 < v {
+-		state.err = i.ovfl
++		state.err = i.ovfl;
+ 	} else {
+-		*(*int16)(p) = int16(v)
++		*(*int16)(p) = int16(v);
+ 	}
+ }
+ 
+@@ -214,9 +214,9 @@ func decUint16(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 	}
+ 	v := decodeUint(state);
+ 	if math.MaxUint16 < v {
+-		state.err = i.ovfl
++		state.err = i.ovfl;
+ 	} else {
+-		*(*uint16)(p) = uint16(v)
++		*(*uint16)(p) = uint16(v);
+ 	}
+ }
+ 
+@@ -229,9 +229,9 @@ func decInt32(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 	}
+ 	v := decodeInt(state);
+ 	if v < math.MinInt32 || math.MaxInt32 < v {
+-		state.err = i.ovfl
++		state.err = i.ovfl;
+ 	} else {
+-		*(*int32)(p) = int32(v)
++		*(*int32)(p) = int32(v);
+ 	}
+ }
+ 
+@@ -244,9 +244,9 @@ func decUint32(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 	}
+ 	v := decodeUint(state);
+ 	if math.MaxUint32 < v {
+-		state.err = i.ovfl
++		state.err = i.ovfl;
+ 	} else {
+-		*(*uint32)(p) = uint32(v)
++		*(*uint32)(p) = uint32(v);
+ 	}
+ }
+ 
+@@ -279,7 +279,7 @@ func floatFromBits(u uint64) float64 {
+ 	var v uint64;
+ 	for i := 0; i < 8; i++ {
+ 		v <<= 8;
+-		v |= u & 0xFF;
++		v |= u&0xFF;
+ 		u >>= 8;
+ 	}
+ 	return math.Float64frombits(v);
+@@ -295,12 +295,12 @@ func decFloat32(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 	v := floatFromBits(decodeUint(state));
+ 	av := v;
+ 	if av < 0 {
+-		av = -av
++		av = -av;
+ 	}
+ 	if math.MaxFloat32 < av {	// underflow is OK
+-		state.err = i.ovfl
++		state.err = i.ovfl;
+ 	} else {
+-		*(*float32)(p) = float32(v)
++		*(*float32)(p) = float32(v);
+ 	}
+ }
+ 
+@@ -350,7 +350,7 @@ func ignoreUint8Array(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ // The encoder engine is an array of instructions indexed by field number of the incoming
+ // data.  It is executed with random access according to field number.
+ type decEngine struct {
+-	instr	[]decInstr;
++	instr		[]decInstr;
+ 	numInstr	int;	// the number of active instructions
+ }
+ 
+@@ -372,10 +372,10 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer,
+ 		delta := int(decodeUint(state));
+ 		if delta < 0 {
+ 			state.err = os.ErrorString("gob decode: corrupted data: negative delta");
+-			break
++			break;
+ 		}
+ 		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
+-			break
++			break;
+ 		}
+ 		fieldnum := state.fieldnum + delta;
+ 		if fieldnum >= len(engine.instr) {
+@@ -383,14 +383,14 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer,
+ 			break;
+ 		}
+ 		instr := &engine.instr[fieldnum];
+-		p := unsafe.Pointer(basep+instr.offset);
++		p := unsafe.Pointer(basep + instr.offset);
+ 		if instr.indir > 1 {
+ 			p = decIndirect(p, instr.indir);
+ 		}
+ 		instr.op(instr, state, p);
+ 		state.fieldnum = fieldnum;
+ 	}
+-	return state.err
++	return state.err;
+ }
+ 
+ func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
+@@ -400,10 +400,10 @@ func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
+ 		delta := int(decodeUint(state));
+ 		if delta < 0 {
+ 			state.err = os.ErrorString("gob ignore decode: corrupted data: negative delta");
+-			break
++			break;
+ 		}
+ 		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
+-			break
++			break;
+ 		}
+ 		fieldnum := state.fieldnum + delta;
+ 		if fieldnum >= len(engine.instr) {
+@@ -414,7 +414,7 @@ func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
+ 		instr.op(instr, state, unsafe.Pointer(nil));
+ 		state.fieldnum = fieldnum;
+ 	}
+-	return state.err
++	return state.err;
+ }
+ 
+ func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.ErrorString) os.Error {
+@@ -427,7 +427,7 @@ func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uint
+ 		elemOp(instr, state, up);
+ 		p += uintptr(elemWid);
+ 	}
+-	return state.err
++	return state.err;
+ }
+ 
+ func decodeArray(atyp *reflect.ArrayType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.ErrorString) os.Error {
+@@ -452,7 +452,7 @@ func ignoreArrayHelper(state *decodeState, elemOp decOp, length int) os.Error {
+ 	for i := 0; i < length && state.err == nil; i++ {
+ 		elemOp(instr, state, nil);
+ 	}
+-	return state.err
++	return state.err;
+ }
+ 
+ func ignoreArray(state *decodeState, elemOp decOp, length int) os.Error {
+@@ -473,7 +473,7 @@ func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp
+ 		p = *(*uintptr)(up);
+ 	}
+ 	// Allocate storage for the slice elements, that is, the underlying array.
+-	data := make([]byte, length*atyp.Elem().Size());
++	data := make([]byte, length * atyp.Elem().Size());
+ 	// Always write a header at p.
+ 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p));
+ 	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));
+@@ -486,7 +486,7 @@ func ignoreSlice(state *decodeState, elemOp decOp) os.Error {
+ 	return ignoreArrayHelper(state, elemOp, int(decodeUint(state)));
+ }
+ 
+-var decOpMap = map[reflect.Type] decOp {
++var decOpMap = map[reflect.Type]decOp{
+ 	valueKind(false): decBool,
+ 	valueKind(int8(0)): decInt8,
+ 	valueKind(int16(0)): decInt16,
+@@ -501,7 +501,7 @@ var decOpMap = map[reflect.Type] decOp {
+ 	valueKind("x"): decString,
+ }
+ 
+-var decIgnoreOpMap = map[typeId] decOp {
++var decIgnoreOpMap = map[typeId]decOp{
+ 	tBool: ignoreUint,
+ 	tInt: ignoreUint,
+ 	tUint: ignoreUint,
+@@ -527,7 +527,7 @@ func decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error
+ 			elemId := wireId.gobType().(*sliceType).Elem;
+ 			elemOp, elemIndir, err := decOpFor(elemId, t.Elem(), name);
+ 			if err != nil {
+-				return nil, 0, err
++				return nil, 0, err;
+ 			}
+ 			ovfl := overflow(name);
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+@@ -539,7 +539,7 @@ func decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error
+ 			elemId := wireId.gobType().(*arrayType).Elem;
+ 			elemOp, elemIndir, err := decOpFor(elemId, t.Elem(), name);
+ 			if err != nil {
+-				return nil, 0, err
++				return nil, 0, err;
+ 			}
+ 			ovfl := overflow(name);
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+@@ -550,18 +550,18 @@ func decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error
+ 			// Generate a closure that calls out to the engine for the nested type.
+ 			enginePtr, err := getDecEnginePtr(wireId, typ);
+ 			if err != nil {
+-				return nil, 0, err
++				return nil, 0, err;
+ 			}
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 				// indirect through enginePtr to delay evaluation for recursive structs
+-				state.err = decodeStruct(*enginePtr, t, state.b, uintptr(p), i.indir)
++				state.err = decodeStruct(*enginePtr, t, state.b, uintptr(p), i.indir);
+ 			};
+ 		}
+ 	}
+ 	if op == nil {
+ 		return nil, 0, os.ErrorString("gob: decode can't handle type " + rt.String());
+ 	}
+-	return op, indir, nil
++	return op, indir, nil;
+ }
+ 
+ // Return the decoding op for a field that has no destination.
+@@ -574,7 +574,7 @@ func decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
+ 			elemId := wireId.gobType().(*sliceType).Elem;
+ 			elemOp, err := decIgnoreOpFor(elemId);
+ 			if err != nil {
+-				return nil, err
++				return nil, err;
+ 			}
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 				state.err = ignoreSlice(state, elemOp);
+@@ -584,7 +584,7 @@ func decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
+ 			elemId := wireId.gobType().(*arrayType).Elem;
+ 			elemOp, err := decIgnoreOpFor(elemId);
+ 			if err != nil {
+-				return nil, err
++				return nil, err;
+ 			}
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 				state.err = ignoreArray(state, elemOp, t.Len);
+@@ -594,11 +594,11 @@ func decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
+ 			// Generate a closure that calls out to the engine for the nested type.
+ 			enginePtr, err := getIgnoreEnginePtr(wireId);
+ 			if err != nil {
+-				return nil, err
++				return nil, err;
+ 			}
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 				// indirect through enginePtr to delay evaluation for recursive structs
+-				state.err = ignoreStruct(*enginePtr, state.b)
++				state.err = ignoreStruct(*enginePtr, state.b);
+ 			};
+ 		}
+ 	}
+@@ -662,7 +662,7 @@ func compatibleType(fr reflect.Type, fw typeId) bool {
+ 		// Is it an array of bytes?
+ 		et := t.Elem();
+ 		if _, ok := et.(*reflect.Uint8Type); ok {
+-			return fw == tBytes
++			return fw == tBytes;
+ 		}
+ 		sw, ok := fw.gobType().(*sliceType);
+ 		elem, _ := indirect(t.Elem());
+@@ -677,7 +677,7 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
+ 	srt, ok1 := rt.(*reflect.StructType);
+ 	wireStruct, ok2 := wireId.gobType().(*structType);
+ 	if !ok1 || !ok2 {
+-		return nil, errNotStruct
++		return nil, errNotStruct;
+ 	}
+ 	engine = new(decEngine);
+ 	engine.instr = make([]decInstr, len(wireStruct.field));
+@@ -691,7 +691,7 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
+ 		if !present {
+ 			op, err := decIgnoreOpFor(wireField.id);
+ 			if err != nil {
+-				return nil, err
++				return nil, err;
+ 			}
+ 			engine.instr[fieldnum] = decInstr{op, fieldnum, 0, 0, ovfl};
+ 			continue;
+@@ -702,7 +702,7 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
+ 		}
+ 		op, indir, err := decOpFor(wireField.id, localField.Type, localField.Name);
+ 		if err != nil {
+-			return nil, err
++			return nil, err;
+ 		}
+ 		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(localField.Offset), ovfl};
+ 		engine.numInstr++;
+@@ -710,14 +710,14 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
+ 	return;
+ }
+ 
+-var decoderCache = make(map[reflect.Type] map[typeId] **decEngine)
+-var ignorerCache = make(map[typeId] **decEngine)
++var decoderCache = make(map[reflect.Type]map[typeId]**decEngine)
++var ignorerCache = make(map[typeId]**decEngine)
+ 
+ // typeLock must be held.
+ func getDecEnginePtr(wireId typeId, rt reflect.Type) (enginePtr **decEngine, err os.Error) {
+ 	decoderMap, ok := decoderCache[rt];
+ 	if !ok {
+-		decoderMap = make(map[typeId] **decEngine);
++		decoderMap = make(map[typeId]**decEngine);
+ 		decoderCache[rt] = decoderMap;
+ 	}
+ 	if enginePtr, ok = decoderMap[wireId]; !ok {
+@@ -729,11 +729,12 @@ func getDecEnginePtr(wireId typeId, rt reflect.Type) (enginePtr **decEngine, err
+ 			decoderMap[wireId] = nil, false;
+ 		}
+ 	}
+-	return
++	return;
+ }
+ 
+ // When ignoring data, in effect we compile it into this type
+-type emptyStruct struct {}
++type emptyStruct struct{}
++
+ var emptyStructType = reflect.Typeof(emptyStruct{})
+ 
+ // typeLock must be held.
+@@ -748,7 +749,7 @@ func getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err os.Error) {
+ 			ignorerCache[wireId] = nil, false;
+ 		}
+ 	}
+-	return
++	return;
+ }
+ 
+ func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
+@@ -761,7 +762,7 @@ func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
+ 	var st *reflect.StructValue;
+ 	var ok bool;
+ 	if st, ok = v.(*reflect.StructValue); !ok {
+-		return os.ErrorString("gob: decode can't handle " + rt.String())
++		return os.ErrorString("gob: decode can't handle " + rt.String());
+ 	}
+ 	typeLock.Lock();
+ 	if _, ok := idToType[wireId]; !ok {
+@@ -771,12 +772,12 @@ func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
+ 	enginePtr, err := getDecEnginePtr(wireId, rt);
+ 	typeLock.Unlock();
+ 	if err != nil {
+-		return err
++		return err;
+ 	}
+ 	engine := *enginePtr;
+ 	if engine.numInstr == 0 && st.NumField() > 0 && len(wireId.gobType().(*structType).field) > 0 {
+ 		name := rt.Name();
+-		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
++		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name);
+ 	}
+ 	return decodeStruct(engine, rt.(*reflect.StructType), b, uintptr(v.Addr()), 0);
+ }
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index bc3564dbc5..745ed6952e 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -14,20 +14,20 @@ import (
+ // A Decoder manages the receipt of type and data information read from the
+ // remote side of a connection.
+ type Decoder struct {
+-	mutex	sync.Mutex;	// each item must be received atomically
+-	r	io.Reader;	// source of the data
+-	seen	map[typeId] *wireType;	// which types we've already seen described
+-	state	*decodeState;	// reads data from in-memory buffer
+-	countState	*decodeState;	// reads counts from wire
+-	buf	[]byte;
+-	oneByte	[]byte;
++	mutex		sync.Mutex;		// each item must be received atomically
++	r		io.Reader;		// source of the data
++	seen		map[typeId]*wireType;	// which types we've already seen described
++	state		*decodeState;		// reads data from in-memory buffer
++	countState	*decodeState;		// reads counts from wire
++	buf		[]byte;
++	oneByte		[]byte;
+ }
+ 
+ // NewDecoder returns a new decoder that reads from the io.Reader.
+ func NewDecoder(r io.Reader) *Decoder {
+ 	dec := new(Decoder);
+ 	dec.r = r;
+-	dec.seen = make(map[typeId] *wireType);
++	dec.seen = make(map[typeId]*wireType);
+ 	dec.state = newDecodeState(nil);	// buffer set in Decode(); rest is unimportant
+ 	dec.oneByte = make([]byte, 1);
+ 
+@@ -38,7 +38,7 @@ func (dec *Decoder) recvType(id typeId) {
+ 	// Have we already seen this type?  That's an error
+ 	if _, alreadySeen := dec.seen[id]; alreadySeen {
+ 		dec.state.err = os.ErrorString("gob: duplicate type received");
+-		return
++		return;
+ 	}
+ 
+ 	// Type:
+@@ -67,14 +67,14 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 		}
+ 		// Allocate the buffer.
+ 		if nbytes > uint64(len(dec.buf)) {
+-			dec.buf = make([]byte, nbytes + 1000);
++			dec.buf = make([]byte, nbytes+1000);
+ 		}
+ 		dec.state.b = bytes.NewBuffer(dec.buf[0:nbytes]);
+ 
+ 		// Read the data
+ 		_, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes]);
+ 		if dec.state.err != nil {
+-			if dec.state.err ==  os.EOF {
++			if dec.state.err == os.EOF {
+ 				dec.state.err = io.ErrUnexpectedEOF;
+ 			}
+ 			break;
+@@ -88,7 +88,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 
+ 		// Is it a new type?
+ 		if id < 0 {	// 0 is the error state, handled above
+-			// If the id is negative, we have a type.
++				// If the id is negative, we have a type.
+ 			dec.recvType(-id);
+ 			if dec.state.err != nil {
+ 				break;
+@@ -100,5 +100,5 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 		dec.state.err = decode(dec.state.b, id, e);
+ 		break;
+ 	}
+-	return dec.state.err
++	return dec.state.err;
+ }
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index be0fc9b592..33a0111a0a 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -20,10 +20,10 @@ const uint64Size = unsafe.Sizeof(uint64(0))
+ // number is initialized to -1 so 0 comes out as delta(1). A delta of
+ // 0 terminates the structure.
+ type encoderState struct {
+-	b	*bytes.Buffer;
+-	err	os.Error;	// error encountered during encoding;
+-	fieldnum	int;	// the last field number written.
+-	buf [1+uint64Size]byte;	// buffer used by the encoder; here to avoid allocation.
++	b		*bytes.Buffer;
++	err		os.Error;		// error encountered during encoding;
++	fieldnum	int;			// the last field number written.
++	buf		[1+uint64Size]byte;	// buffer used by the encoder; here to avoid allocation.
+ }
+ 
+ // Unsigned integers have a two-state encoding.  If the number is less
+@@ -35,7 +35,7 @@ type encoderState struct {
+ // If state.err is already non-nil, it does nothing.
+ func encodeUint(state *encoderState, x uint64) {
+ 	if state.err != nil {
+-		return
++		return;
+ 	}
+ 	if x <= 0x7F {
+ 		state.err = state.b.WriteByte(uint8(x));
+@@ -44,25 +44,25 @@ func encodeUint(state *encoderState, x uint64) {
+ 	var n, m int;
+ 	m = uint64Size;
+ 	for n = 1; x > 0; n++ {
+-		state.buf[m] = uint8(x & 0xFF);
++		state.buf[m] = uint8(x&0xFF);
+ 		x >>= 8;
+ 		m--;
+ 	}
+ 	state.buf[m] = uint8(-(n-1));
+-	n, state.err = state.b.Write(state.buf[m:uint64Size+1]);
++	n, state.err = state.b.Write(state.buf[m : uint64Size+1]);
+ }
+ 
+ // encodeInt writes an encoded signed integer to state.w.
+ // The low bit of the encoding says whether to bit complement the (other bits of the) uint to recover the int.
+ // Sets state.err. If state.err is already non-nil, it does nothing.
+-func encodeInt(state *encoderState, i int64){
++func encodeInt(state *encoderState, i int64) {
+ 	var x uint64;
+ 	if i < 0 {
+-		x = uint64(^i << 1) | 1
++		x = uint64(^i << 1) | 1;
+ 	} else {
+-		x = uint64(i << 1)
++		x = uint64(i<<1);
+ 	}
+-	encodeUint(state, uint64(x))
++	encodeUint(state, uint64(x));
+ }
+ 
+ type encOp func(i *encInstr, state *encoderState, p unsafe.Pointer)
+@@ -70,8 +70,8 @@ type encOp func(i *encInstr, state *encoderState, p unsafe.Pointer)
+ // The 'instructions' of the encoding machine
+ type encInstr struct {
+ 	op	encOp;
+-	field		int;	// field number
+-	indir	int;	// how many pointer indirections to reach the value in the struct
++	field	int;		// field number
++	indir	int;		// how many pointer indirections to reach the value in the struct
+ 	offset	uintptr;	// offset in the structure of the field to encode
+ }
+ 
+@@ -94,10 +94,10 @@ func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
+ 	for ; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+ 		if p == nil {
+-			return unsafe.Pointer(nil)
++			return unsafe.Pointer(nil);
+ 		}
+ 	}
+-	return p
++	return p;
+ }
+ 
+ func encBool(i *encInstr, state *encoderState, p unsafe.Pointer) {
+@@ -206,7 +206,7 @@ func floatBits(f float64) uint64 {
+ 	var v uint64;
+ 	for i := 0; i < 8; i++ {
+ 		v <<= 8;
+-		v |= u & 0xFF;
++		v |= u&0xFF;
+ 		u >>= 8;
+ 	}
+ 	return v;
+@@ -269,7 +269,7 @@ func encStructTerminator(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ // The encoder engine is an array of instructions indexed by field number of the encoding
+ // data, typically a struct.  It is executed top to bottom, walking the struct.
+ type encEngine struct {
+-	instr	[]encInstr
++	instr []encInstr;
+ }
+ 
+ func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) os.Error {
+@@ -278,18 +278,18 @@ func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) os.Error {
+ 	state.fieldnum = -1;
+ 	for i := 0; i < len(engine.instr); i++ {
+ 		instr := &engine.instr[i];
+-		p := unsafe.Pointer(basep+instr.offset);
++		p := unsafe.Pointer(basep + instr.offset);
+ 		if instr.indir > 0 {
+ 			if p = encIndirect(p, instr.indir); p == nil {
+-				continue
++				continue;
+ 			}
+ 		}
+ 		instr.op(instr, state, p);
+ 		if state.err != nil {
+-			break
++			break;
+ 		}
+ 	}
+-	return state.err
++	return state.err;
+ }
+ 
+ func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length int, elemIndir int) os.Error {
+@@ -303,17 +303,17 @@ func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length i
+ 		if elemIndir > 0 {
+ 			if up = encIndirect(up, elemIndir); up == nil {
+ 				state.err = os.ErrorString("gob: encodeArray: nil element");
+-				break
++				break;
+ 			}
+ 			elemp = uintptr(up);
+ 		}
+ 		op(nil, state, unsafe.Pointer(elemp));
+ 		p += uintptr(elemWid);
+ 	}
+-	return state.err
++	return state.err;
+ }
+ 
+-var encOpMap = map[reflect.Type] encOp {
++var encOpMap = map[reflect.Type]encOp{
+ 	valueKind(false): encBool,
+ 	valueKind(int(0)): encInt,
+ 	valueKind(int8(0)): encInt8,
+@@ -349,12 +349,12 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+ 			// Slices have a header; we decode it to find the underlying array.
+ 			elemOp, indir, err := encOpFor(t.Elem());
+ 			if err != nil {
+-				return nil, 0, err
++				return nil, 0, err;
+ 			}
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 				slice := (*reflect.SliceHeader)(p);
+ 				if slice.Len == 0 {
+-					return
++					return;
+ 				}
+ 				state.update(i);
+ 				state.err = encodeArray(state.b, slice.Data, elemOp, t.Elem().Size(), int(slice.Len), indir);
+@@ -363,7 +363,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+ 			// True arrays have size in the type.
+ 			elemOp, indir, err := encOpFor(t.Elem());
+ 			if err != nil {
+-				return nil, 0, err
++				return nil, 0, err;
+ 			}
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 				state.update(i);
+@@ -373,7 +373,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+ 			// Generate a closure that calls out to the engine for the nested type.
+ 			_, err := getEncEngine(typ);
+ 			if err != nil {
+-				return nil, 0, err
++				return nil, 0, err;
+ 			}
+ 			info := getTypeInfoNoError(typ);
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+@@ -386,7 +386,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+ 	if op == nil {
+ 		return op, indir, os.ErrorString("gob enc: can't happen: encode type" + rt.String());
+ 	}
+-	return op, indir, nil
++	return op, indir, nil;
+ }
+ 
+ // The local Type was compiled from the actual value, so we know it's compatible.
+@@ -396,12 +396,12 @@ func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
+ 		panicln("can't happen: non-struct");
+ 	}
+ 	engine := new(encEngine);
+-	engine.instr = make([]encInstr, srt.NumField()+1);	// +1 for terminator
++	engine.instr = make([]encInstr, srt.NumField() + 1);	// +1 for terminator
+ 	for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
+ 		f := srt.Field(fieldnum);
+ 		op, indir, err := encOpFor(f.Type);
+ 		if err != nil {
+-			return nil, err
++			return nil, err;
+ 		}
+ 		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)};
+ 	}
+@@ -414,7 +414,7 @@ func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
+ func getEncEngine(rt reflect.Type) (*encEngine, os.Error) {
+ 	info, err := getTypeInfo(rt);
+ 	if err != nil {
+-		return nil, err
++		return nil, err;
+ 	}
+ 	if info.encoder == nil {
+ 		// mark this engine as underway before compiling to handle recursive types.
+@@ -432,13 +432,13 @@ func encode(b *bytes.Buffer, e interface{}) os.Error {
+ 		v = reflect.Indirect(v);
+ 	}
+ 	if _, ok := v.(*reflect.StructValue); !ok {
+-		return os.ErrorString("gob: encode can't handle " + v.Type().String())
++		return os.ErrorString("gob: encode can't handle " + v.Type().String());
+ 	}
+ 	typeLock.Lock();
+ 	engine, err := getEncEngine(rt);
+ 	typeLock.Unlock();
+ 	if err != nil {
+-		return err
++		return err;
+ 	}
+ 	return encodeStruct(engine, b, v.Addr());
+ }
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index bda4557643..207785982a 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -51,8 +51,8 @@
+ 
+ 		struct { a int; b uint }	// change of signedness for b
+ 		struct { a int; b float }	// change of type for b
+-		struct { }	// no field names in common
+-		struct { c, d int }	// no field names in common
++		struct { }			// no field names in common
++		struct { c, d int }		// no field names in common
+ 
+ 	Integers are transmitted two ways: arbitrary precision signed integers or
+ 	arbitrary precision unsigned integers.  There is no int8, int16 etc.
+@@ -161,12 +161,12 @@
+ 	For simplicity in setup, the connection is defined to understand these types a
+ 	priori, as well as the basic gob types int, uint, etc.  Their ids are:
+ 
+-		bool	1
+-		int	2
+-		uint	3
+-		float	4
+-		[]byte	5
+-		string	6
++		bool		1
++		int		2
++		uint		3
++		float		4
++		[]byte		5
++		string		6
+ 		wireType	7
+ 		structType	8
+ 		commonType	9
+@@ -192,19 +192,19 @@ import (
+ // An Encoder manages the transmission of type and data information to the
+ // other side of a connection.
+ type Encoder struct {
+-	mutex	sync.Mutex;	// each item must be sent atomically
+-	w	io.Writer;	// where to send the data
+-	sent	map[reflect.Type] typeId;	// which types we've already sent
+-	state	*encoderState;	// so we can encode integers, strings directly
+-	countState	*encoderState;	// stage for writing counts
+-	buf	[]byte;	// for collecting the output.
++	mutex		sync.Mutex;			// each item must be sent atomically
++	w		io.Writer;			// where to send the data
++	sent		map[reflect.Type]typeId;	// which types we've already sent
++	state		*encoderState;			// so we can encode integers, strings directly
++	countState	*encoderState;			// stage for writing counts
++	buf		[]byte;				// for collecting the output.
+ }
+ 
+ // NewEncoder returns a new encoder that will transmit on the io.Writer.
+ func NewEncoder(w io.Writer) *Encoder {
+ 	enc := new(Encoder);
+ 	enc.w = w;
+-	enc.sent = make(map[reflect.Type] typeId);
++	enc.sent = make(map[reflect.Type]typeId);
+ 	enc.state = new(encoderState);
+ 	enc.state.b = new(bytes.Buffer);	// the rest isn't important; all we need is buffer and writer
+ 	enc.countState = new(encoderState);
+@@ -260,7 +260,7 @@ func (enc *Encoder) sendType(origt reflect.Type) {
+ 
+ 	// Have we already sent this type?  This time we ask about the base type.
+ 	if _, alreadySent := enc.sent[rt]; alreadySent {
+-		return
++		return;
+ 	}
+ 
+ 	// Need to send it.
+@@ -287,14 +287,14 @@ func (enc *Encoder) sendType(origt reflect.Type) {
+ 	for i := 0; i < st.NumField(); i++ {
+ 		enc.sendType(st.Field(i).Type);
+ 	}
+-	return
++	return;
+ }
+ 
+ // Encode transmits the data item represented by the empty interface value,
+ // guaranteeing that all necessary type information has been transmitted first.
+ func (enc *Encoder) Encode(e interface{}) os.Error {
+ 	if enc.state.b.Len() > 0 || enc.countState.b.Len() > 0 {
+-		panicln("Encoder: buffer not empty")
++		panicln("Encoder: buffer not empty");
+ 	}
+ 	rt, _ := indirect(reflect.Typeof(e));
+ 
+@@ -310,7 +310,7 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
+ 		if enc.state.err != nil {
+ 			enc.state.b.Reset();
+ 			enc.countState.b.Reset();
+-			return enc.state.err
++			return enc.state.err;
+ 		}
+ 	}
+ 
+@@ -321,5 +321,5 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
+ 	encode(enc.state.b, e);
+ 	enc.send();
+ 
+-	return enc.state.err
++	return enc.state.err;
+ }
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 79dbd7e487..c8110216e7 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -39,19 +39,19 @@ func valueKind(v interface{}) reflect.Type {
+ // Internally, typeIds are used as keys to a map to recover the underlying type info.
+ type typeId int32
+ 
+-var nextId	typeId	// incremented for each new type we build
+-var typeLock	sync.Mutex	// set while building a type
++var nextId typeId	// incremented for each new type we build
++var typeLock sync.Mutex	// set while building a type
+ 
+ type gobType interface {
+-	id()	typeId;
++	id() typeId;
+ 	setId(id typeId);
+-	Name()	string;
+-	String()	string;
+-	safeString(seen map[typeId] bool)	string;
++	Name() string;
++	String() string;
++	safeString(seen map[typeId]bool) string;
+ }
+ 
+-var types = make(map[reflect.Type] gobType)
+-var idToType = make(map[typeId] gobType)
++var types = make(map[reflect.Type]gobType)
++var idToType = make(map[typeId]gobType)
+ 
+ func setTypeId(typ gobType) {
+ 	nextId++;
+@@ -61,19 +61,19 @@ func setTypeId(typ gobType) {
+ 
+ func (t typeId) gobType() gobType {
+ 	if t == 0 {
+-		return nil
++		return nil;
+ 	}
+-	return idToType[t]
++	return idToType[t];
+ }
+ 
+ // String returns the string representation of the type associated with the typeId.
+ func (t typeId) String() string {
+-	return t.gobType().String()
++	return t.gobType().String();
+ }
+ 
+ // Name returns the name of the type associated with the typeId.
+ func (t typeId) Name() string {
+-	return t.gobType().Name()
++	return t.gobType().Name();
+ }
+ 
+ // Common elements of all types.
+@@ -83,23 +83,23 @@ type commonType struct {
+ }
+ 
+ func (t *commonType) id() typeId {
+-	return t._id
++	return t._id;
+ }
+ 
+ func (t *commonType) setId(id typeId) {
+-	t._id = id
++	t._id = id;
+ }
+ 
+ func (t *commonType) String() string {
+-	return t.name
++	return t.name;
+ }
+ 
+-func (t *commonType) safeString(seen map[typeId] bool) string {
+-	return t.name
++func (t *commonType) safeString(seen map[typeId]bool) string {
++	return t.name;
+ }
+ 
+ func (t *commonType) Name() string {
+-	return t.name
++	return t.name;
+ }
+ 
+ // Create and check predefined types
+@@ -130,21 +130,21 @@ type arrayType struct {
+ }
+ 
+ func newArrayType(name string, elem gobType, length int) *arrayType {
+-	a := &arrayType{ commonType{ name: name }, elem.id(), length };
++	a := &arrayType{commonType{name: name}, elem.id(), length};
+ 	setTypeId(a);
+ 	return a;
+ }
+ 
+-func (a *arrayType) safeString(seen map[typeId] bool) string {
++func (a *arrayType) safeString(seen map[typeId]bool) string {
+ 	if _, ok := seen[a._id]; ok {
+-		return a.name
++		return a.name;
+ 	}
+ 	seen[a._id] = true;
+ 	return fmt.Sprintf("[%d]%s", a.Len, a.Elem.gobType().safeString(seen));
+ }
+ 
+ func (a *arrayType) String() string {
+-	return a.safeString(make(map[typeId] bool))
++	return a.safeString(make(map[typeId]bool));
+ }
+ 
+ // Slice type
+@@ -154,21 +154,21 @@ type sliceType struct {
+ }
+ 
+ func newSliceType(name string, elem gobType) *sliceType {
+-	s := &sliceType{ commonType{ name: name }, elem.id() };
++	s := &sliceType{commonType{name: name}, elem.id()};
+ 	setTypeId(s);
+ 	return s;
+ }
+ 
+-func (s *sliceType) safeString(seen map[typeId] bool) string {
++func (s *sliceType) safeString(seen map[typeId]bool) string {
+ 	if _, ok := seen[s._id]; ok {
+-		return s.name
++		return s.name;
+ 	}
+ 	seen[s._id] = true;
+ 	return fmt.Sprintf("[]%s", s.Elem.gobType().safeString(seen));
+ }
+ 
+ func (s *sliceType) String() string {
+-	return s.safeString(make(map[typeId] bool))
++	return s.safeString(make(map[typeId]bool));
+ }
+ 
+ // Struct type
+@@ -182,12 +182,12 @@ type structType struct {
+ 	field	[]*fieldType;
+ }
+ 
+-func (s *structType) safeString(seen map[typeId] bool) string {
++func (s *structType) safeString(seen map[typeId]bool) string {
+ 	if s == nil {
+-		return "<nil>"
++		return "<nil>";
+ 	}
+ 	if _, ok := seen[s._id]; ok {
+-		return s.name
++		return s.name;
+ 	}
+ 	seen[s._id] = true;
+ 	str := s.name + " = struct { ";
+@@ -199,11 +199,11 @@ func (s *structType) safeString(seen map[typeId] bool) string {
+ }
+ 
+ func (s *structType) String() string {
+-	return s.safeString(make(map[typeId] bool))
++	return s.safeString(make(map[typeId]bool));
+ }
+ 
+ func newStructType(name string) *structType {
+-	s := &structType{ commonType{ name: name }, nil };
++	s := &structType{commonType{name: name}, nil};
+ 	setTypeId(s);
+ 	return s;
+ }
+@@ -227,57 +227,57 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
+ 	switch t := rt.(type) {
+ 	// All basic types are easy: they are predefined.
+ 	case *reflect.BoolType:
+-		return tBool.gobType(), nil
++		return tBool.gobType(), nil;
+ 
+ 	case *reflect.IntType:
+-		return tInt.gobType(), nil
++		return tInt.gobType(), nil;
+ 	case *reflect.Int8Type:
+-		return tInt.gobType(), nil
++		return tInt.gobType(), nil;
+ 	case *reflect.Int16Type:
+-		return tInt.gobType(), nil
++		return tInt.gobType(), nil;
+ 	case *reflect.Int32Type:
+-		return tInt.gobType(), nil
++		return tInt.gobType(), nil;
+ 	case *reflect.Int64Type:
+-		return tInt.gobType(), nil
++		return tInt.gobType(), nil;
+ 
+ 	case *reflect.UintType:
+-		return tUint.gobType(), nil
++		return tUint.gobType(), nil;
+ 	case *reflect.Uint8Type:
+-		return tUint.gobType(), nil
++		return tUint.gobType(), nil;
+ 	case *reflect.Uint16Type:
+-		return tUint.gobType(), nil
++		return tUint.gobType(), nil;
+ 	case *reflect.Uint32Type:
+-		return tUint.gobType(), nil
++		return tUint.gobType(), nil;
+ 	case *reflect.Uint64Type:
+-		return tUint.gobType(), nil
++		return tUint.gobType(), nil;
+ 	case *reflect.UintptrType:
+-		return tUint.gobType(), nil
++		return tUint.gobType(), nil;
+ 
+ 	case *reflect.FloatType:
+-		return tFloat.gobType(), nil
++		return tFloat.gobType(), nil;
+ 	case *reflect.Float32Type:
+-		return tFloat.gobType(), nil
++		return tFloat.gobType(), nil;
+ 	case *reflect.Float64Type:
+-		return tFloat.gobType(), nil
++		return tFloat.gobType(), nil;
+ 
+ 	case *reflect.StringType:
+-		return tString.gobType(), nil
++		return tString.gobType(), nil;
+ 
+ 	case *reflect.ArrayType:
+ 		gt, err := getType("", t.Elem());
+ 		if err != nil {
+-			return nil, err
++			return nil, err;
+ 		}
+ 		return newArrayType(name, gt, t.Len()), nil;
+ 
+ 	case *reflect.SliceType:
+ 		// []byte == []uint8 is a special case
+ 		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
+-			return tBytes.gobType(), nil
++			return tBytes.gobType(), nil;
+ 		}
+ 		gt, err := getType(t.Elem().Name(), t.Elem());
+ 		if err != nil {
+-			return nil, err
++			return nil, err;
+ 		}
+ 		return newSliceType(name, gt), nil;
+ 
+@@ -297,9 +297,9 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
+ 			}
+ 			gt, err := getType(tname, f.Type);
+ 			if err != nil {
+-				return nil, err
++				return nil, err;
+ 			}
+-			field[i] =  &fieldType{ f.Name, gt.id() };
++			field[i] = &fieldType{f.Name, gt.id()};
+ 		}
+ 		strType.field = field;
+ 		return strType, nil;
+@@ -307,7 +307,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
+ 	default:
+ 		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String());
+ 	}
+-	return nil, nil
++	return nil, nil;
+ }
+ 
+ // getType returns the Gob type describing the given reflect.Type.
+@@ -323,13 +323,13 @@ func getType(name string, rt reflect.Type) (gobType, os.Error) {
+ 	}
+ 	typ, present := types[rt];
+ 	if present {
+-		return typ, nil
++		return typ, nil;
+ 	}
+ 	typ, err := newTypeObject(name, rt);
+ 	if err == nil {
+-		types[rt] = typ
++		types[rt] = typ;
+ 	}
+-	return typ, err
++	return typ, err;
+ }
+ 
+ func checkId(want, got typeId) {
+@@ -345,11 +345,11 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
+ 	if present {
+ 		panicln("bootstrap type already present:", name);
+ 	}
+-	typ := &commonType{ name: name };
++	typ := &commonType{name: name};
+ 	types[rt] = typ;
+ 	setTypeId(typ);
+ 	checkId(expect, nextId);
+-	return nextId
++	return nextId;
+ }
+ 
+ // Representation of the information we send and receive about this type.
+@@ -363,12 +363,12 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
+ // are built in encode.go's init() function.
+ 
+ type wireType struct {
+-	s	*structType;
++	s *structType;
+ }
+ 
+ func (w *wireType) name() string {
+ 	// generalize once we can have non-struct types on the wire.
+-	return w.s.name
++	return w.s.name;
+ }
+ 
+ type typeInfo struct {
+@@ -377,13 +377,13 @@ type typeInfo struct {
+ 	wire	*wireType;
+ }
+ 
+-var typeInfoMap = make(map[reflect.Type] *typeInfo)	// protected by typeLock
++var typeInfoMap = make(map[reflect.Type]*typeInfo)	// protected by typeLock
+ 
+ // The reflection type must have all its indirections processed out.
+ // typeLock must be held.
+ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
+ 	if _, ok := rt.(*reflect.PtrType); ok {
+-		panicln("pointer type in getTypeInfo:", rt.String())
++		panicln("pointer type in getTypeInfo:", rt.String());
+ 	}
+ 	info, ok := typeInfoMap[rt];
+ 	if !ok {
+@@ -391,7 +391,7 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
+ 		name := rt.Name();
+ 		gt, err := getType(name, rt);
+ 		if err != nil {
+-			return nil, err
++			return nil, err;
+ 		}
+ 		info.id = gt.id();
+ 		// assume it's a struct type
+@@ -407,5 +407,5 @@ func getTypeInfoNoError(rt reflect.Type) *typeInfo {
+ 	if err != nil {
+ 		panicln("getTypeInfo:", err.String());
+ 	}
+-	return t
++	return t;
+ }
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/gob/type_test.go
+index 72149a60bd..5a137e772b 100644
+--- a/src/pkg/gob/type_test.go
++++ b/src/pkg/gob/type_test.go
+@@ -13,13 +13,14 @@ type typeT struct {
+ 	id	typeId;
+ 	str	string;
+ }
+-var basicTypes = []typeT {
+-	typeT { tBool, "bool" },
+-	typeT { tInt, "int" },
+-	typeT { tUint, "uint" },
+-	typeT { tFloat, "float" },
+-	typeT { tBytes, "bytes" },
+-	typeT { tString, "string" },
++
++var basicTypes = []typeT{
++	typeT{tBool, "bool"},
++	typeT{tInt, "int"},
++	typeT{tUint, "uint"},
++	typeT{tFloat, "float"},
++	typeT{tBytes, "bytes"},
++	typeT{tString, "string"},
+ }
+ 
+ func getTypeUnlocked(name string, rt reflect.Type) gobType {
+@@ -27,7 +28,7 @@ func getTypeUnlocked(name string, rt reflect.Type) gobType {
+ 	defer typeLock.Unlock();
+ 	t, err := getType(name, rt);
+ 	if err != nil {
+-		panicln("getTypeUnlocked:", err.String())
++		panicln("getTypeUnlocked:", err.String());
+ 	}
+ 	return t;
+ }
+@@ -36,10 +37,10 @@ func getTypeUnlocked(name string, rt reflect.Type) gobType {
+ func TestBasic(t *testing.T) {
+ 	for _, tt := range basicTypes {
+ 		if tt.id.String() != tt.str {
+-			t.Errorf("checkType: expected %q got %s", tt.str, tt.id.String())
++			t.Errorf("checkType: expected %q got %s", tt.str, tt.id.String());
+ 		}
+ 		if tt.id == 0 {
+-			t.Errorf("id for %q is zero", tt.str)
++			t.Errorf("id for %q is zero", tt.str);
+ 		}
+ 	}
+ }
+@@ -48,15 +49,15 @@ func TestBasic(t *testing.T) {
+ func TestReregistration(t *testing.T) {
+ 	newtyp := getTypeUnlocked("int", reflect.Typeof(int(0)));
+ 	if newtyp != tInt.gobType() {
+-		t.Errorf("reregistration of %s got new type", newtyp.String())
++		t.Errorf("reregistration of %s got new type", newtyp.String());
+ 	}
+ 	newtyp = getTypeUnlocked("uint", reflect.Typeof(uint(0)));
+ 	if newtyp != tUint.gobType() {
+-		t.Errorf("reregistration of %s got new type", newtyp.String())
++		t.Errorf("reregistration of %s got new type", newtyp.String());
+ 	}
+ 	newtyp = getTypeUnlocked("string", reflect.Typeof("hello"));
+ 	if newtyp != tString.gobType() {
+-		t.Errorf("reregistration of %s got new type", newtyp.String())
++		t.Errorf("reregistration of %s got new type", newtyp.String());
+ 	}
+ }
+ 
+@@ -105,20 +106,20 @@ func TestSliceType(t *testing.T) {
+ }
+ 
+ type Bar struct {
+-	x string
++	x string;
+ }
+ 
+ // This structure has pointers and refers to itself, making it a good test case.
+ type Foo struct {
+-	a int;
+-	b int32;	// will become int
+-	c string;
+-	d []byte;
+-	e *float;	// will become float
+-	f ****float64;	// will become float
+-	g *Bar;
+-	h *Bar;	// should not interpolate the definition of Bar again
+-	i *Foo;	// will not explode
++	a	int;
++	b	int32;	// will become int
++	c	string;
++	d	[]byte;
++	e	*float;		// will become float
++	f	****float64;	// will become float
++	g	*Bar;
++	h	*Bar;	// should not interpolate the definition of Bar again
++	i	*Foo;	// will not explode
+ }
+ 
+ func TestStructType(t *testing.T) {
+diff --git a/src/pkg/hash/adler32/adler32_test.go b/src/pkg/hash/adler32/adler32_test.go
+index 87ca2e008b..0197270b22 100644
+--- a/src/pkg/hash/adler32/adler32_test.go
++++ b/src/pkg/hash/adler32/adler32_test.go
+@@ -10,43 +10,43 @@ import (
+ )
+ 
+ type _Adler32Test struct {
+-	out uint32;
+-	in string;
++	out	uint32;
++	in	string;
+ }
+ 
+-var golden = []_Adler32Test {
+-	_Adler32Test{ 0x1, "" },
+-	_Adler32Test{ 0x620062, "a" },
+-	_Adler32Test{ 0x12600c4, "ab" },
+-	_Adler32Test{ 0x24d0127, "abc" },
+-	_Adler32Test{ 0x3d8018b, "abcd" },
+-	_Adler32Test{ 0x5c801f0, "abcde" },
+-	_Adler32Test{ 0x81e0256, "abcdef" },
+-	_Adler32Test{ 0xadb02bd, "abcdefg" },
+-	_Adler32Test{ 0xe000325, "abcdefgh" },
+-	_Adler32Test{ 0x118e038e, "abcdefghi" },
+-	_Adler32Test{ 0x158603f8, "abcdefghij" },
+-	_Adler32Test{ 0x3f090f02, "Discard medicine more than two years old." },
+-	_Adler32Test{ 0x46d81477, "He who has a shady past knows that nice guys finish last." },
+-	_Adler32Test{ 0x40ee0ee1, "I wouldn't marry him with a ten foot pole." },
+-	_Adler32Test{ 0x16661315, "Free! Free!/A trip/to Mars/for 900/empty jars/Burma Shave" },
+-	_Adler32Test{ 0x5b2e1480, "The days of the digital watch are numbered.  -Tom Stoppard" },
+-	_Adler32Test{ 0x8c3c09ea, "Nepal premier won't resign." },
+-	_Adler32Test{ 0x45ac18fd, "For every action there is an equal and opposite government program." },
+-	_Adler32Test{ 0x53c61462, "His money is twice tainted: 'taint yours and 'taint mine." },
+-	_Adler32Test{ 0x7e511e63, "There is no reason for any individual to have a computer in their home. -Ken Olsen, 1977" },
+-	_Adler32Test{ 0xe4801a6a, "It's a tiny change to the code and not completely disgusting. - Bob Manchek" },
+-	_Adler32Test{ 0x61b507df, "size:  a.out:  bad magic" },
+-	_Adler32Test{ 0xb8631171, "The major problem is with sendmail.  -Mark Horton" },
+-	_Adler32Test{ 0x8b5e1904, "Give me a rock, paper and scissors and I will move the world.  CCFestoon" },
+-	_Adler32Test{ 0x7cc6102b, "If the enemy is within range, then so are you." },
+-	_Adler32Test{ 0x700318e7, "It's well we cannot hear the screams/That we create in others' dreams." },
+-	_Adler32Test{ 0x1e601747, "You remind me of a TV show, but that's all right: I watch it anyway." },
+-	_Adler32Test{ 0xb55b0b09, "C is as portable as Stonehedge!!" },
+-	_Adler32Test{ 0x39111dd0, "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley" },
+-	_Adler32Test{ 0x91dd304f, "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule" },
+-	_Adler32Test{ 0x2e5d1316, "How can you write a big system without C++?  -Paul Glick" },
+-	_Adler32Test{ 0xd0201df6, "'Invariant assertions' is the most elegant programming technique!  -Tom Szymanski" },
++var golden = []_Adler32Test{
++	_Adler32Test{0x1, ""},
++	_Adler32Test{0x620062, "a"},
++	_Adler32Test{0x12600c4, "ab"},
++	_Adler32Test{0x24d0127, "abc"},
++	_Adler32Test{0x3d8018b, "abcd"},
++	_Adler32Test{0x5c801f0, "abcde"},
++	_Adler32Test{0x81e0256, "abcdef"},
++	_Adler32Test{0xadb02bd, "abcdefg"},
++	_Adler32Test{0xe000325, "abcdefgh"},
++	_Adler32Test{0x118e038e, "abcdefghi"},
++	_Adler32Test{0x158603f8, "abcdefghij"},
++	_Adler32Test{0x3f090f02, "Discard medicine more than two years old."},
++	_Adler32Test{0x46d81477, "He who has a shady past knows that nice guys finish last."},
++	_Adler32Test{0x40ee0ee1, "I wouldn't marry him with a ten foot pole."},
++	_Adler32Test{0x16661315, "Free! Free!/A trip/to Mars/for 900/empty jars/Burma Shave"},
++	_Adler32Test{0x5b2e1480, "The days of the digital watch are numbered.  -Tom Stoppard"},
++	_Adler32Test{0x8c3c09ea, "Nepal premier won't resign."},
++	_Adler32Test{0x45ac18fd, "For every action there is an equal and opposite government program."},
++	_Adler32Test{0x53c61462, "His money is twice tainted: 'taint yours and 'taint mine."},
++	_Adler32Test{0x7e511e63, "There is no reason for any individual to have a computer in their home. -Ken Olsen, 1977"},
++	_Adler32Test{0xe4801a6a, "It's a tiny change to the code and not completely disgusting. - Bob Manchek"},
++	_Adler32Test{0x61b507df, "size:  a.out:  bad magic"},
++	_Adler32Test{0xb8631171, "The major problem is with sendmail.  -Mark Horton"},
++	_Adler32Test{0x8b5e1904, "Give me a rock, paper and scissors and I will move the world.  CCFestoon"},
++	_Adler32Test{0x7cc6102b, "If the enemy is within range, then so are you."},
++	_Adler32Test{0x700318e7, "It's well we cannot hear the screams/That we create in others' dreams."},
++	_Adler32Test{0x1e601747, "You remind me of a TV show, but that's all right: I watch it anyway."},
++	_Adler32Test{0xb55b0b09, "C is as portable as Stonehedge!!"},
++	_Adler32Test{0x39111dd0, "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley"},
++	_Adler32Test{0x91dd304f, "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"},
++	_Adler32Test{0x2e5d1316, "How can you write a big system without C++?  -Paul Glick"},
++	_Adler32Test{0xd0201df6, "'Invariant assertions' is the most elegant programming technique!  -Tom Szymanski"},
+ }
+ 
+ func TestGolden(t *testing.T) {
+@@ -61,4 +61,3 @@ func TestGolden(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+diff --git a/src/pkg/hash/crc32/crc32.go b/src/pkg/hash/crc32/crc32.go
+index 22a0f68f6c..2f5fb8f894 100644
+--- a/src/pkg/hash/crc32/crc32.go
++++ b/src/pkg/hash/crc32/crc32.go
+@@ -12,23 +12,23 @@ import (
+ )
+ 
+ // The size of a CRC-32 checksum in bytes.
+-const Size = 4;
++const Size = 4
+ 
+ // Predefined polynomials.
+ const (
+ 	// Far and away the most common CRC-32 polynomial.
+ 	// Used by ethernet (IEEE 802.3), v.42, fddi, gzip, zip, png, mpeg-2, ...
+-	IEEE = 0xedb88320;
++	IEEE	= 0xedb88320;
+ 
+ 	// Castagnoli's polynomial, used in iSCSI.
+ 	// Has better error detection characteristics than IEEE.
+ 	// http://dx.doi.org/10.1109/26.231911
+-	Castagnoli = 0x82f63b78;
++	Castagnoli	= 0x82f63b78;
+ 
+ 	// Koopman's polynomial.
+ 	// Also has better error detection characteristics than IEEE.
+ 	// http://dx.doi.org/10.1109/DSN.2002.1028931
+-	Koopman = 0xeb31d82e;
++	Koopman	= 0xeb31d82e;
+ )
+ 
+ // Table is a 256-word table representing the polynomial for efficient processing.
+@@ -41,7 +41,7 @@ func MakeTable(poly uint32) *Table {
+ 		crc := uint32(i);
+ 		for j := 0; j < 8; j++ {
+ 			if crc&1 == 1 {
+-				crc = (crc>>1) ^ poly;
++				crc = (crc>>1)^poly;
+ 			} else {
+ 				crc >>= 1;
+ 			}
+@@ -52,12 +52,12 @@ func MakeTable(poly uint32) *Table {
+ }
+ 
+ // IEEETable is the table for the IEEE polynomial.
+-var IEEETable = MakeTable(IEEE);
++var IEEETable = MakeTable(IEEE)
+ 
+ // digest represents the partial evaluation of a checksum.
+ type digest struct {
+-	crc uint32;
+-	tab *Table;
++	crc	uint32;
++	tab	*Table;
+ }
+ 
+ // New creates a new Hash computing the CRC-32 checksum
+@@ -83,7 +83,7 @@ func (d *digest) Reset() {
+ func update(crc uint32, tab *Table, p []byte) uint32 {
+ 	crc = ^crc;
+ 	for i := 0; i < len(p); i++ {
+-		crc = tab[byte(crc) ^ p[i]] ^ (crc >> 8);
++		crc = tab[byte(crc)^p[i]]^(crc>>8);
+ 	}
+ 	return ^crc;
+ }
+@@ -94,7 +94,7 @@ func (d *digest) Write(p []byte) (n int, err os.Error) {
+ }
+ 
+ func (d *digest) Sum32() uint32 {
+-	return d.crc
++	return d.crc;
+ }
+ 
+ func (d *digest) Sum() []byte {
+diff --git a/src/pkg/hash/crc32/crc32_test.go b/src/pkg/hash/crc32/crc32_test.go
+index 687389894f..f42530e7bd 100644
+--- a/src/pkg/hash/crc32/crc32_test.go
++++ b/src/pkg/hash/crc32/crc32_test.go
+@@ -10,42 +10,42 @@ import (
+ )
+ 
+ type _Crc32Test struct {
+-	out uint32;
+-	in string;
++	out	uint32;
++	in	string;
+ }
+ 
+-var golden = []_Crc32Test {
+-	_Crc32Test{ 0x0, "" },
+-	_Crc32Test{ 0xe8b7be43, "a" },
+-	_Crc32Test{ 0x9e83486d, "ab" },
+-	_Crc32Test{ 0x352441c2, "abc" },
+-	_Crc32Test{ 0xed82cd11, "abcd" },
+-	_Crc32Test{ 0x8587d865, "abcde" },
+-	_Crc32Test{ 0x4b8e39ef, "abcdef" },
+-	_Crc32Test{ 0x312a6aa6, "abcdefg" },
+-	_Crc32Test{ 0xaeef2a50, "abcdefgh" },
+-	_Crc32Test{ 0x8da988af, "abcdefghi" },
+-	_Crc32Test{ 0x3981703a, "abcdefghij" },
+-	_Crc32Test{ 0x6b9cdfe7, "Discard medicine more than two years old." },
+-	_Crc32Test{ 0xc90ef73f, "He who has a shady past knows that nice guys finish last." },
+-	_Crc32Test{ 0xb902341f, "I wouldn't marry him with a ten foot pole." },
+-	_Crc32Test{ 0x42080e8, "Free! Free!/A trip/to Mars/for 900/empty jars/Burma Shave" },
+-	_Crc32Test{ 0x154c6d11, "The days of the digital watch are numbered.  -Tom Stoppard" },
+-	_Crc32Test{ 0x4c418325, "Nepal premier won't resign." },
+-	_Crc32Test{ 0x33955150, "For every action there is an equal and opposite government program." },
+-	_Crc32Test{ 0x26216a4b, "His money is twice tainted: 'taint yours and 'taint mine." },
+-	_Crc32Test{ 0x1abbe45e, "There is no reason for any individual to have a computer in their home. -Ken Olsen, 1977" },
+-	_Crc32Test{ 0xc89a94f7, "It's a tiny change to the code and not completely disgusting. - Bob Manchek" },
+-	_Crc32Test{ 0xab3abe14, "size:  a.out:  bad magic" },
+-	_Crc32Test{ 0xbab102b6, "The major problem is with sendmail.  -Mark Horton" },
+-	_Crc32Test{ 0x999149d7, "Give me a rock, paper and scissors and I will move the world.  CCFestoon" },
+-	_Crc32Test{ 0x6d52a33c, "If the enemy is within range, then so are you." },
+-	_Crc32Test{ 0x90631e8d, "It's well we cannot hear the screams/That we create in others' dreams." },
+-	_Crc32Test{ 0x78309130, "You remind me of a TV show, but that's all right: I watch it anyway." },
+-	_Crc32Test{ 0x7d0a377f, "C is as portable as Stonehedge!!" },
+-	_Crc32Test{ 0x8c79fd79, "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley" },
+-	_Crc32Test{ 0xa20b7167, "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule" },
+-	_Crc32Test{ 0x8e0bb443, "How can you write a big system without C++?  -Paul Glick" },
++var golden = []_Crc32Test{
++	_Crc32Test{0x0, ""},
++	_Crc32Test{0xe8b7be43, "a"},
++	_Crc32Test{0x9e83486d, "ab"},
++	_Crc32Test{0x352441c2, "abc"},
++	_Crc32Test{0xed82cd11, "abcd"},
++	_Crc32Test{0x8587d865, "abcde"},
++	_Crc32Test{0x4b8e39ef, "abcdef"},
++	_Crc32Test{0x312a6aa6, "abcdefg"},
++	_Crc32Test{0xaeef2a50, "abcdefgh"},
++	_Crc32Test{0x8da988af, "abcdefghi"},
++	_Crc32Test{0x3981703a, "abcdefghij"},
++	_Crc32Test{0x6b9cdfe7, "Discard medicine more than two years old."},
++	_Crc32Test{0xc90ef73f, "He who has a shady past knows that nice guys finish last."},
++	_Crc32Test{0xb902341f, "I wouldn't marry him with a ten foot pole."},
++	_Crc32Test{0x42080e8, "Free! Free!/A trip/to Mars/for 900/empty jars/Burma Shave"},
++	_Crc32Test{0x154c6d11, "The days of the digital watch are numbered.  -Tom Stoppard"},
++	_Crc32Test{0x4c418325, "Nepal premier won't resign."},
++	_Crc32Test{0x33955150, "For every action there is an equal and opposite government program."},
++	_Crc32Test{0x26216a4b, "His money is twice tainted: 'taint yours and 'taint mine."},
++	_Crc32Test{0x1abbe45e, "There is no reason for any individual to have a computer in their home. -Ken Olsen, 1977"},
++	_Crc32Test{0xc89a94f7, "It's a tiny change to the code and not completely disgusting. - Bob Manchek"},
++	_Crc32Test{0xab3abe14, "size:  a.out:  bad magic"},
++	_Crc32Test{0xbab102b6, "The major problem is with sendmail.  -Mark Horton"},
++	_Crc32Test{0x999149d7, "Give me a rock, paper and scissors and I will move the world.  CCFestoon"},
++	_Crc32Test{0x6d52a33c, "If the enemy is within range, then so are you."},
++	_Crc32Test{0x90631e8d, "It's well we cannot hear the screams/That we create in others' dreams."},
++	_Crc32Test{0x78309130, "You remind me of a TV show, but that's all right: I watch it anyway."},
++	_Crc32Test{0x7d0a377f, "C is as portable as Stonehedge!!"},
++	_Crc32Test{0x8c79fd79, "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley"},
++	_Crc32Test{0xa20b7167, "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"},
++	_Crc32Test{0x8e0bb443, "How can you write a big system without C++?  -Paul Glick"},
+ }
+ 
+ func TestGolden(t *testing.T) {
+@@ -60,4 +60,3 @@ func TestGolden(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+diff --git a/src/pkg/hash/hash.go b/src/pkg/hash/hash.go
+index a7c08cfed2..62ec13ba8c 100644
+--- a/src/pkg/hash/hash.go
++++ b/src/pkg/hash/hash.go
+@@ -4,7 +4,7 @@
+ 
+ package hash
+ 
+-import "io";
++import "io"
+ 
+ // Hash is the common interface implemented by all hash functions.
+ // The Write method never returns an error.
+@@ -21,4 +21,3 @@ type Hash32 interface {
+ 	Hash;
+ 	Sum32() uint32;
+ }
+-
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 71f9aa7101..e5e45293ec 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -18,8 +18,8 @@ import (
+ 
+ // Response represents the response from an HTTP request.
+ type Response struct {
+-	Status string; // e.g. "200 OK"
+-	StatusCode int; // e.g. 200
++	Status		string;	// e.g. "200 OK"
++	StatusCode	int;	// e.g. 200
+ 
+ 	// Header maps header keys to values.  If the response had multiple
+ 	// headers with the same key, they will be concatenated, with comma
+@@ -27,10 +27,10 @@ type Response struct {
+ 	// be semantically equivalent to a comma-delimited sequence.)
+ 	//
+ 	// Keys in the map are canonicalized (see CanonicalHeaderKey).
+-	Header map [string] string;
++	Header	map[string]string;
+ 
+ 	// Stream from which the response body can be read.
+-	Body io.ReadCloser;
++	Body	io.ReadCloser;
+ }
+ 
+ // GetHeader returns the value of the response header with the given
+@@ -49,7 +49,7 @@ func (r *Response) AddHeader(key, value string) {
+ 
+ 	oldValues, oldValuesPresent := r.Header[key];
+ 	if oldValuesPresent {
+-		r.Header[key] = oldValues + "," + value;
++		r.Header[key] = oldValues+","+value;
+ 	} else {
+ 		r.Header[key] = value;
+ 	}
+@@ -74,7 +74,7 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
+ 	resp := new(Response);
+ 
+ 	// Parse the first line of the response.
+-	resp.Header = make(map[string] string);
++	resp.Header = make(map[string]string);
+ 
+ 	line, err := readLine(r);
+ 	if err != nil {
+@@ -84,7 +84,7 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
+ 	if len(f) < 3 {
+ 		return nil, &badStringError{"malformed HTTP response", line};
+ 	}
+-	resp.Status = f[1] + " " + f[2];
++	resp.Status = f[1]+" "+f[2];
+ 	resp.StatusCode, err = strconv.Atoi(f[1]);
+ 	if err != nil {
+ 		return nil, &badStringError{"malformed HTTP status code", f[1]};
+@@ -97,7 +97,7 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
+ 			return nil, err;
+ 		}
+ 		if key == "" {
+-			break; // end of response header
++			break;	// end of response header
+ 		}
+ 		resp.AddHeader(key, value);
+ 	}
+@@ -148,7 +148,7 @@ func send(req *Request) (resp *Response, err os.Error) {
+ 		}
+ 		r = io.LimitReader(r, n);
+ 	}
+-	resp.Body = readClose{ r, conn };
++	resp.Body = readClose{r, conn};
+ 
+ 	return;
+ }
+@@ -179,7 +179,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
+ 	// TODO: if/when we add cookie support, the redirected request shouldn't
+ 	// necessarily supply the same cookies as the original.
+ 	// TODO: set referrer header on redirects.
+-	for redirect := 0;; redirect++ {
++	for redirect := 0; ; redirect++ {
+ 		if redirect >= 10 {
+ 			err = os.ErrorString("stopped after 10 redirects");
+ 			break;
+@@ -215,7 +215,7 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
+ 	var req Request;
+ 	req.Method = "POST";
+ 	req.Body = body;
+-	req.Header = map[string] string{
++	req.Header = map[string]string{
+ 		"Content-Type": bodyType,
+ 		"Transfer-Encoding": "chunked",
+ 	};
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index d45e0ed6b5..94da01521e 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -9,25 +9,25 @@ import (
+ 	"testing";
+ )
+ 
+-type stringMultimap map[string] []string
++type stringMultimap map[string][]string
+ 
+ type parseTest struct {
+-	query string;
+-	out stringMultimap;
++	query	string;
++	out	stringMultimap;
+ }
+ 
+ var parseTests = []parseTest{
+ 	parseTest{
+ 		query: "a=1&b=2",
+-		out: stringMultimap{ "a": []string{ "1" }, "b": []string{ "2" } },
++		out: stringMultimap{"a": []string{"1"}, "b": []string{"2"}},
+ 	},
+ 	parseTest{
+ 		query: "a=1&a=2&a=banana",
+-		out: stringMultimap{ "a": []string{ "1", "2", "banana" } },
++		out: stringMultimap{"a": []string{"1", "2", "banana"}},
+ 	},
+ 	parseTest{
+ 		query: "ascii=%3Ckey%3A+0x90%3E",
+-		out: stringMultimap{ "ascii": []string{ "<key: 0x90>" } },
++		out: stringMultimap{"ascii": []string{"<key: 0x90>"}},
+ 	},
+ }
+ 
+@@ -36,7 +36,7 @@ func TestParseForm(t *testing.T) {
+ 		form, err := parseForm(test.query);
+ 		if err != nil {
+ 			t.Errorf("test %d: Unexpected error: %v", i, err);
+-			continue
++			continue;
+ 		}
+ 		if len(form) != len(test.out) {
+ 			t.Errorf("test %d: len(form) = %d, want %d", i, len(form), len(test.out));
+@@ -45,11 +45,11 @@ func TestParseForm(t *testing.T) {
+ 			vs, ok := form[k];
+ 			if !ok {
+ 				t.Errorf("test %d: Missing key %q", i, k);
+-				continue
++				continue;
+ 			}
+ 			if len(vs) != len(evs) {
+ 				t.Errorf("test %d: len(form[%q]) = %d, want %d", i, k, len(vs), len(evs));
+-				continue
++				continue;
+ 			}
+ 			for j, ev := range evs {
+ 				if v := vs[j]; v != ev {
+@@ -61,7 +61,7 @@ func TestParseForm(t *testing.T) {
+ }
+ 
+ func TestQuery(t *testing.T) {
+-	req := &Request{ Method: "GET" };
++	req := &Request{Method: "GET"};
+ 	req.Url, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
+ 	if q := req.FormValue("q"); q != "foo" {
+ 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q);
+@@ -70,22 +70,16 @@ func TestQuery(t *testing.T) {
+ 
+ type stringMap map[string]string
+ type parseContentTypeTest struct {
+-	contentType stringMap;
+-	error bool;
++	contentType	stringMap;
++	error		bool;
+ }
+ 
+ var parseContentTypeTests = []parseContentTypeTest{
++	parseContentTypeTest{contentType: stringMap{"Content-Type": "text/plain"}},
++	parseContentTypeTest{contentType: stringMap{"Content-Type": ""}},
++	parseContentTypeTest{contentType: stringMap{"Content-Type": "text/plain; boundary="}},
+ 	parseContentTypeTest{
+-		contentType: stringMap{ "Content-Type": "text/plain" },
+-	},
+-	parseContentTypeTest{
+-		contentType: stringMap{ "Content-Type": "" },
+-	},
+-	parseContentTypeTest{
+-		contentType: stringMap{ "Content-Type": "text/plain; boundary=" },
+-	},
+-	parseContentTypeTest{
+-		contentType: stringMap{ "Content-Type": "application/unknown" },
++		contentType: stringMap{"Content-Type": "application/unknown"},
+ 		error: true,
+ 	},
+ }
+@@ -93,9 +87,9 @@ var parseContentTypeTests = []parseContentTypeTest{
+ func TestPostContentTypeParsing(t *testing.T) {
+ 	for i, test := range parseContentTypeTests {
+ 		req := &Request{
+-				Method: "POST",
+-				Header: test.contentType,
+-				Body: bytes.NewBufferString("body")
++			Method: "POST",
++			Header: test.contentType,
++			Body: bytes.NewBufferString("body"),
+ 		};
+ 		err := req.ParseForm();
+ 		if !test.error && err != nil {
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 2944e50bc9..5e8a67f51a 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -25,8 +25,8 @@ import (
+ 
+ // Errors introduced by the HTTP server.
+ var (
+-	ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush");
+-	ErrHijacked = os.NewError("Conn has been hijacked");
++	ErrWriteAfterFlush	= os.NewError("Conn.Write called after Flush");
++	ErrHijacked		= os.NewError("Conn has been hijacked");
+ )
+ 
+ // Objects implemeting the Handler interface can be
+@@ -38,21 +38,21 @@ type Handler interface {
+ 
+ // A Conn represents the server side of a single active HTTP connection.
+ type Conn struct {
+-	RemoteAddr string;	// network address of remote side
+-	Req *Request;		// current HTTP request
++	RemoteAddr	string;		// network address of remote side
++	Req		*Request;	// current HTTP request
+ 
+-	rwc io.ReadWriteCloser;	// i/o connection
+-	buf *bufio.ReadWriter;	// buffered rwc
+-	handler Handler;	// request handler
+-	hijacked bool;	// connection has been hijacked by handler
++	rwc		io.ReadWriteCloser;	// i/o connection
++	buf		*bufio.ReadWriter;	// buffered rwc
++	handler		Handler;		// request handler
++	hijacked	bool;			// connection has been hijacked by handler
+ 
+ 	// state for the current reply
+-	closeAfterReply bool;	// close connection after this reply
+-	chunking bool;	// using chunked transfer encoding for reply body
+-	wroteHeader bool;	// reply header has been written
+-	header map[string] string;	// reply header parameters
+-	written int64;	// number of bytes written in body
+-	status int;	// status code passed to WriteHeader
++	closeAfterReply	bool;			// close connection after this reply
++	chunking	bool;			// using chunked transfer encoding for reply body
++	wroteHeader	bool;			// reply header has been written
++	header		map[string]string;	// reply header parameters
++	written		int64;			// number of bytes written in body
++	status		int;			// status code passed to WriteHeader
+ }
+ 
+ // Create new connection from rwc.
+@@ -64,20 +64,20 @@ func newConn(rwc io.ReadWriteCloser, raddr string, handler Handler) (c *Conn, er
+ 	br := bufio.NewReader(rwc);
+ 	bw := bufio.NewWriter(rwc);
+ 	c.buf = bufio.NewReadWriter(br, bw);
+-	return c, nil
++	return c, nil;
+ }
+ 
+ // Read next request from connection.
+ func (c *Conn) readRequest() (req *Request, err os.Error) {
+ 	if c.hijacked {
+-		return nil, ErrHijacked
++		return nil, ErrHijacked;
+ 	}
+ 	if req, err = ReadRequest(c.buf.Reader); err != nil {
+-		return nil, err
++		return nil, err;
+ 	}
+ 
+ 	// Reset per-request connection state.
+-	c.header = make(map[string] string);
++	c.header = make(map[string]string);
+ 	c.wroteHeader = false;
+ 	c.Req = req;
+ 
+@@ -100,7 +100,7 @@ func (c *Conn) readRequest() (req *Request, err os.Error) {
+ 		c.chunking = false;
+ 	}
+ 
+-	return req, nil
++	return req, nil;
+ }
+ 
+ // SetHeader sets a header line in the eventual reply.
+@@ -125,17 +125,17 @@ func (c *Conn) SetHeader(hdr, val string) {
+ func (c *Conn) WriteHeader(code int) {
+ 	if c.hijacked {
+ 		log.Stderr("http: Conn.WriteHeader on hijacked connection");
+-		return
++		return;
+ 	}
+ 	if c.wroteHeader {
+ 		log.Stderr("http: multiple Conn.WriteHeader calls");
+-		return
++		return;
+ 	}
+ 	c.wroteHeader = true;
+ 	c.status = code;
+ 	c.written = 0;
+ 	if !c.Req.ProtoAtLeast(1, 0) {
+-		return
++		return;
+ 	}
+ 	proto := "HTTP/1.0";
+ 	if c.Req.ProtoAtLeast(1, 1) {
+@@ -146,9 +146,9 @@ func (c *Conn) WriteHeader(code int) {
+ 	if !ok {
+ 		text = "status code " + codestring;
+ 	}
+-	io.WriteString(c.buf, proto + " " + codestring + " " + text + "\r\n");
+-	for k,v := range c.header {
+-		io.WriteString(c.buf, k + ": " + v + "\r\n");
++	io.WriteString(c.buf, proto+" "+codestring+" "+text+"\r\n");
++	for k, v := range c.header {
++		io.WriteString(c.buf, k+": "+v+"\r\n");
+ 	}
+ 	io.WriteString(c.buf, "\r\n");
+ }
+@@ -159,13 +159,13 @@ func (c *Conn) WriteHeader(code int) {
+ func (c *Conn) Write(data []byte) (n int, err os.Error) {
+ 	if c.hijacked {
+ 		log.Stderr("http: Conn.Write on hijacked connection");
+-		return 0, ErrHijacked
++		return 0, ErrHijacked;
+ 	}
+ 	if !c.wroteHeader {
+ 		c.WriteHeader(StatusOK);
+ 	}
+ 	if len(data) == 0 {
+-		return 0, nil
++		return 0, nil;
+ 	}
+ 
+ 	c.written += int64(len(data));	// ignoring errors, for errorKludge
+@@ -200,7 +200,7 @@ func errorKludge(c *Conn, req *Request) {
+ 	const min = 1024;
+ 
+ 	// Is this an error?
+-	if kind := c.status/100; kind != 4 && kind != 5 {
++	if kind := c.status / 100; kind != 4 && kind != 5 {
+ 		return;
+ 	}
+ 
+@@ -268,7 +268,7 @@ func (c *Conn) serve() {
+ 	for {
+ 		req, err := c.readRequest();
+ 		if err != nil {
+-			break
++			break;
+ 		}
+ 		// HTTP cannot have multiple simultaneous active requests.
+ 		// Until the server replies to this request, it can't read another,
+@@ -325,7 +325,7 @@ func NotFound(c *Conn, req *Request) {
+ // NotFoundHandler returns a simple request handler
+ // that replies to each request with a ``404 page not found'' reply.
+ func NotFoundHandler() Handler {
+-	return HandlerFunc(NotFound)
++	return HandlerFunc(NotFound);
+ }
+ 
+ // Redirect replies to the request with a redirect to url,
+@@ -340,7 +340,7 @@ func Redirect(c *Conn, url string, code int) {
+ 
+ 	u, err := ParseURL(url);
+ 	if err != nil {
+-		goto finish
++		goto finish;
+ 	}
+ 
+ 	// If url was relative, make absolute by
+@@ -361,20 +361,20 @@ func Redirect(c *Conn, url string, code int) {
+ 	// So do we.
+ 	oldpath := c.Req.Url.Path;
+ 	if oldpath == "" {	// should not happen, but avoid a crash if it does
+-		oldpath = "/"
++		oldpath = "/";
+ 	}
+ 	if u.Scheme == "" {
+ 		// no leading http://server
+ 		if url == "" || url[0] != '/' {
+ 			// make relative path absolute
+ 			olddir, _ := path.Split(oldpath);
+-			url = olddir + url;
++			url = olddir+url;
+ 		}
+ 
+ 		// clean up but preserve trailing slash
+-		trailing := url[len(url) - 1] == '/';
++		trailing := url[len(url)-1] == '/';
+ 		url = path.Clean(url);
+-		if trailing && url[len(url) - 1] != '/' {
++		if trailing && url[len(url)-1] != '/' {
+ 			url += "/";
+ 		}
+ 	}
+@@ -387,9 +387,10 @@ finish:
+ 
+ // Redirect to a fixed URL
+ type redirectHandler struct {
+-	url string;
+-	code int;
++	url	string;
++	code	int;
+ }
++
+ func (rh *redirectHandler) ServeHTTP(c *Conn, req *Request) {
+ 	Redirect(c, rh.url, rh.code);
+ }
+@@ -398,7 +399,7 @@ func (rh *redirectHandler) ServeHTTP(c *Conn, req *Request) {
+ // each request it receives to the given url using the given
+ // status code.
+ func RedirectHandler(url string, code int) Handler {
+-	return &redirectHandler{ url, code }
++	return &redirectHandler{url, code};
+ }
+ 
+ // ServeMux is an HTTP request multiplexer.
+@@ -426,26 +427,26 @@ func RedirectHandler(url string, code int) Handler {
+ // redirecting any request containing . or .. elements to an
+ // equivalent .- and ..-free URL.
+ type ServeMux struct {
+-	m map[string] Handler
++	m map[string]Handler;
+ }
+ 
+ // NewServeMux allocates and returns a new ServeMux.
+ func NewServeMux() *ServeMux {
+-	return &ServeMux{make(map[string] Handler)};
++	return &ServeMux{make(map[string]Handler)};
+ }
+ 
+ // DefaultServeMux is the default ServeMux used by Serve.
+-var DefaultServeMux = NewServeMux();
++var DefaultServeMux = NewServeMux()
+ 
+ // Does path match pattern?
+ func pathMatch(pattern, path string) bool {
+ 	if len(pattern) == 0 {
+ 		// should not happen
+-		return false
++		return false;
+ 	}
+ 	n := len(pattern);
+ 	if pattern[n-1] != '/' {
+-		return pattern == path
++		return pattern == path;
+ 	}
+ 	return len(path) >= n && path[0:n] == pattern;
+ }
+@@ -456,7 +457,7 @@ func cleanPath(p string) string {
+ 		return "/";
+ 	}
+ 	if p[0] != '/' {
+-		p = "/" + p;
++		p = "/"+p;
+ 	}
+ 	np := path.Clean(p);
+ 	// path.Clean removes trailing slash except for root;
+@@ -507,7 +508,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 	// If pattern is /tree/, insert permanent redirect for /tree.
+ 	n := len(pattern);
+ 	if n > 0 && pattern[n-1] == '/' {
+-		mux.m[pattern[0:n-1]] = RedirectHandler(pattern, StatusMovedPermanently);
++		mux.m[pattern[0 : n-1]] = RedirectHandler(pattern, StatusMovedPermanently);
+ 	}
+ }
+ 
+@@ -528,7 +529,7 @@ func Serve(l net.Listener, handler Handler) os.Error {
+ 	for {
+ 		rw, raddr, e := l.Accept();
+ 		if e != nil {
+-			return e
++			return e;
+ 		}
+ 		c, err := newConn(rw, raddr, handler);
+ 		if err != nil {
+@@ -536,7 +537,7 @@ func Serve(l net.Listener, handler Handler) os.Error {
+ 		}
+ 		go c.serve();
+ 	}
+-	panic("not reached")
++	panic("not reached");
+ }
+ 
+ // ListenAndServe listens on the TCP network address addr
+@@ -567,10 +568,9 @@ func Serve(l net.Listener, handler Handler) os.Error {
+ func ListenAndServe(addr string, handler Handler) os.Error {
+ 	l, e := net.Listen("tcp", addr);
+ 	if e != nil {
+-		return e
++		return e;
+ 	}
+ 	e = Serve(l, handler);
+ 	l.Close();
+-	return e
++	return e;
+ }
+-
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index 0c74aed123..183e7fdc62 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -19,7 +19,8 @@ import (
+ 
+ 
+ // hello world, the web server
+-var helloRequests = expvar.NewInt("hello-requests");
++var helloRequests = expvar.NewInt("hello-requests")
++
+ func HelloServer(c *http.Conn, req *http.Request) {
+ 	helloRequests.Add(1);
+ 	io.WriteString(c, "hello, world!\n");
+@@ -33,7 +34,7 @@ type Counter struct {
+ // This makes Counter satisfy the expvar.Var interface, so we can export
+ // it directly.
+ func (ctr *Counter) String() string {
+-	return fmt.Sprintf("%d", ctr.n)
++	return fmt.Sprintf("%d", ctr.n);
+ }
+ 
+ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+@@ -56,7 +57,8 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+ 
+ // simple file server
+ var webroot = flag.String("root", "/home/rsc", "web root directory")
+-var pathVar = expvar.NewMap("file-requests");
++var pathVar = expvar.NewMap("file-requests")
++
+ func FileServer(c *http.Conn, req *http.Request) {
+ 	c.SetHeader("content-type", "text/plain; charset=utf-8");
+ 	pathVar.Add(req.Url.Path, 1);
+@@ -74,10 +76,11 @@ func FileServer(c *http.Conn, req *http.Request) {
+ 
+ // simple flag server
+ var booleanflag = flag.Bool("boolean", true, "another flag for testing")
++
+ func FlagServer(c *http.Conn, req *http.Request) {
+ 	c.SetHeader("content-type", "text/plain; charset=utf-8");
+ 	fmt.Fprint(c, "Flags:\n");
+-	flag.VisitAll(func (f *flag.Flag) {
++	flag.VisitAll(func(f *flag.Flag) {
+ 		if f.Value.String() != f.DefValue {
+ 			fmt.Fprintf(c, "%s = %s [default = %s]\n", f.Name, f.Value.String(), f.DefValue);
+ 		} else {
+@@ -99,8 +102,8 @@ type Chan chan int
+ func ChanCreate() Chan {
+ 	c := make(Chan);
+ 	go func(c Chan) {
+-		for x := 0;; x++ {
+-			c <- x
++		for x := 0; ; x++ {
++			c <- x;
+ 		}
+ 	}(c);
+ 	return c;
+@@ -153,7 +156,6 @@ func main() {
+ 	http.Handle("/date", http.HandlerFunc(DateServer));
+ 	err := http.ListenAndServe(":12345", nil);
+ 	if err != nil {
+-		log.Crash("ListenAndServe: ", err)
++		log.Crash("ListenAndServe: ", err);
+ 	}
+ }
+-
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index bd73cd4ad2..65ad186e66 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -15,9 +15,9 @@ import (
+ 
+ // URLError reports an error and the operation and URL that caused it.
+ type URLError struct {
+-	Op string;
+-	URL string;
+-	Error os.Error;
++	Op	string;
++	URL	string;
++	Error	os.Error;
+ }
+ 
+ func (e *URLError) String() string {
+@@ -33,22 +33,23 @@ func ishex(c byte) bool {
+ 	case 'A' <= c && c <= 'F':
+ 		return true;
+ 	}
+-	return false
++	return false;
+ }
+ 
+ func unhex(c byte) byte {
+ 	switch {
+ 	case '0' <= c && c <= '9':
+-		return c - '0';
++		return c-'0';
+ 	case 'a' <= c && c <= 'f':
+-		return c - 'a' + 10;
++		return c-'a'+10;
+ 	case 'A' <= c && c <= 'F':
+-		return c - 'A' + 10;
++		return c-'A'+10;
+ 	}
+-	return 0
++	return 0;
+ }
+ 
+ type URLEscapeError string
++
+ func (e URLEscapeError) String() string {
+ 	return "invalid URL escape " + strconv.Quote(string(e));
+ }
+@@ -90,20 +91,20 @@ func URLUnescape(s string) (string, os.Error) {
+ 			hasPlus = true;
+ 			i++;
+ 		default:
+-			i++
++			i++;
+ 		}
+ 	}
+ 
+ 	if n == 0 && !hasPlus {
+-		return s, nil
++		return s, nil;
+ 	}
+ 
+-	t := make([]byte, len(s)-2*n);
++	t := make([]byte, len(s) - 2*n);
+ 	j := 0;
+ 	for i := 0; i < len(s); {
+ 		switch s[i] {
+ 		case '%':
+-			t[j] = unhex(s[i+1]) << 4 | unhex(s[i+2]);
++			t[j] = unhex(s[i+1])<<4 | unhex(s[i+2]);
+ 			j++;
+ 			i += 3;
+ 		case '+':
+@@ -137,7 +138,7 @@ func URLEscape(s string) string {
+ 		return s;
+ 	}
+ 
+-	t := make([]byte, len(s)+2*hexCount);
++	t := make([]byte, len(s) + 2*hexCount);
+ 	j := 0;
+ 	for i := 0; i < len(s); i++ {
+ 		switch c := s[i]; {
+@@ -167,15 +168,15 @@ func URLEscape(s string) string {
+ // Note, the reason for using wire format for the query is that it needs
+ // to be split into key/value pairs before decoding.
+ type URL struct {
+-	Raw string;		// the original string
+-	Scheme string;		// scheme
+-	RawPath string;		// //[userinfo@]host/path[?query][#fragment]
+-	Authority string;	// [userinfo@]host
+-	Userinfo string;	// userinfo
+-	Host string;		// host
+-	Path string;		// /path
+-	RawQuery string;	// query
+-	Fragment string;	// fragment
++	Raw		string;	// the original string
++	Scheme		string;	// scheme
++	RawPath		string;	// //[userinfo@]host/path[?query][#fragment]
++	Authority	string;	// [userinfo@]host
++	Userinfo	string;	// userinfo
++	Host		string;	// host
++	Path		string;	// /path
++	RawQuery	string;	// query
++	Fragment	string;	// fragment
+ }
+ 
+ // Maybe rawurl is of the form scheme:path.
+@@ -185,24 +186,24 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
+ 	for i := 0; i < len(rawurl); i++ {
+ 		c := rawurl[i];
+ 		switch {
+-		case 'a' <= c && c <= 'z' ||'A' <= c && c <= 'Z':
+-			// do nothing
++		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
++		// do nothing
+ 		case '0' <= c && c <= '9' || c == '+' || c == '-' || c == '.':
+ 			if i == 0 {
+-				return "", rawurl, nil
++				return "", rawurl, nil;
+ 			}
+ 		case c == ':':
+ 			if i == 0 {
+-				return "", "", os.ErrorString("missing protocol scheme")
++				return "", "", os.ErrorString("missing protocol scheme");
+ 			}
+-			return rawurl[0:i], rawurl[i+1:len(rawurl)], nil
++			return rawurl[0:i], rawurl[i+1 : len(rawurl)], nil;
+ 		default:
+ 			// we have encountered an invalid character,
+ 			// so there is no valid scheme
+-			return "", rawurl, nil
++			return "", rawurl, nil;
+ 		}
+ 	}
+-	return "", rawurl, nil
++	return "", rawurl, nil;
+ }
+ 
+ // Maybe s is of the form t c u.
+@@ -212,12 +213,12 @@ func split(s string, c byte, cutc bool) (string, string) {
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] == c {
+ 			if cutc {
+-				return s[0:i], s[i+1:len(s)]
++				return s[0:i], s[i+1 : len(s)];
+ 			}
+-			return s[0:i], s[i:len(s)]
++			return s[0:i], s[i:len(s)];
+ 		}
+ 	}
+-	return s, ""
++	return s, "";
+ }
+ 
+ // TODO(rsc): The BUG comment is supposed to appear in the godoc output
+@@ -227,7 +228,6 @@ func split(s string, c byte, cutc bool) (string, string) {
+ // removing unnecessary . and .. elements.
+ 
+ 
+-
+ // ParseURL parses rawurl into a URL structure.
+ // The string rawurl is assumed not to have a #fragment suffix.
+ // (Web browsers strip #fragment before sending the URL to a web server.)
+@@ -290,7 +290,7 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 	return url, nil;
+ 
+ Error:
+-	return nil, &URLError{"parse", rawurl, err}
++	return nil, &URLError{"parse", rawurl, err};
+ 
+ }
+ 
+@@ -299,12 +299,12 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
+ 	// Cut off #frag.
+ 	rawurl, frag := split(rawurlref, '#', true);
+ 	if url, err = ParseURL(rawurl); err != nil {
+-		return nil, err
++		return nil, err;
+ 	}
+ 	if url.Fragment, err = URLUnescape(frag); err != nil {
+-		return nil, &URLError{"parse", rawurl, err}
++		return nil, &URLError{"parse", rawurl, err};
+ 	}
+-	return url, nil
++	return url, nil;
+ }
+ 
+ // String reassembles url into a valid URL string.
+diff --git a/src/pkg/image/color.go b/src/pkg/image/color.go
+index 6f2abc6d0e..757be84ce0 100644
+--- a/src/pkg/image/color.go
++++ b/src/pkg/image/color.go
+@@ -121,7 +121,7 @@ func toRGBAColor(c Color) Color {
+ 		return c;
+ 	}
+ 	r, g, b, a := c.RGBA();
+-	return RGBAColor{ uint8(r>>24), uint8(g>>24), uint8(b>>24), uint8(a>>24) };
++	return RGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), uint8(a>>24)};
+ }
+ 
+ func toRGBA64Color(c Color) Color {
+@@ -129,7 +129,7 @@ func toRGBA64Color(c Color) Color {
+ 		return c;
+ 	}
+ 	r, g, b, a := c.RGBA();
+-	return RGBA64Color{ uint16(r>>16), uint16(g>>16), uint16(b>>16), uint16(a>>16) };
++	return RGBA64Color{uint16(r>>16), uint16(g>>16), uint16(b>>16), uint16(a>>16)};
+ }
+ 
+ func toNRGBAColor(c Color) Color {
+@@ -139,19 +139,19 @@ func toNRGBAColor(c Color) Color {
+ 	r, g, b, a := c.RGBA();
+ 	a >>= 16;
+ 	if a == 0xffff {
+-		return NRGBAColor{ uint8(r>>24), uint8(g>>24), uint8(b>>24), 0xff };
++		return NRGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), 0xff};
+ 	}
+ 	if a == 0 {
+-		return NRGBAColor{ 0, 0, 0, 0 };
++		return NRGBAColor{0, 0, 0, 0};
+ 	}
+ 	r >>= 16;
+ 	g >>= 16;
+ 	b >>= 16;
+ 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
+-	r = (r * 0xffff) / a;
+-	g = (g * 0xffff) / a;
+-	b = (b * 0xffff) / a;
+-	return NRGBAColor{ uint8(r>>8), uint8(g>>8), uint8(b>>8), uint8(a>>8) };
++	r = (r*0xffff)/a;
++	g = (g*0xffff)/a;
++	b = (b*0xffff)/a;
++	return NRGBAColor{uint8(r>>8), uint8(g>>8), uint8(b>>8), uint8(a>>8)};
+ }
+ 
+ func toNRGBA64Color(c Color) Color {
+@@ -164,27 +164,26 @@ func toNRGBA64Color(c Color) Color {
+ 	g >>= 16;
+ 	b >>= 16;
+ 	if a == 0xffff {
+-		return NRGBA64Color{ uint16(r), uint16(g), uint16(b), 0xffff };
++		return NRGBA64Color{uint16(r), uint16(g), uint16(b), 0xffff};
+ 	}
+ 	if a == 0 {
+-		return NRGBA64Color{ 0, 0, 0, 0 };
++		return NRGBA64Color{0, 0, 0, 0};
+ 	}
+ 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
+-	r = (r * 0xffff) / a;
+-	g = (g * 0xffff) / a;
+-	b = (b * 0xffff) / a;
+-	return NRGBA64Color{ uint16(r), uint16(g), uint16(b), uint16(a) };
++	r = (r*0xffff)/a;
++	g = (g*0xffff)/a;
++	b = (b*0xffff)/a;
++	return NRGBA64Color{uint16(r), uint16(g), uint16(b), uint16(a)};
+ }
+ 
+ // The ColorModel associated with RGBAColor.
+-var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor);
++var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor)
+ 
+ // The ColorModel associated with RGBA64Color.
+-var RGBA64ColorModel ColorModel = ColorModelFunc(toRGBA64Color);
++var RGBA64ColorModel ColorModel = ColorModelFunc(toRGBA64Color)
+ 
+ // The ColorModel associated with NRGBAColor.
+-var NRGBAColorModel ColorModel = ColorModelFunc(toNRGBAColor);
++var NRGBAColorModel ColorModel = ColorModelFunc(toNRGBAColor)
+ 
+ // The ColorModel associated with NRGBA64Color.
+-var NRGBA64ColorModel ColorModel = ColorModelFunc(toNRGBA64Color);
+-
++var NRGBA64ColorModel ColorModel = ColorModelFunc(toNRGBA64Color)
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index 10f959da8d..2b5d096421 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -50,7 +50,7 @@ func NewRGBA(w, h int) *RGBA {
+ 	for y := 0; y < int(h); y++ {
+ 		pixel[y] = make([]RGBAColor, w);
+ 	}
+-	return &RGBA{ pixel };
++	return &RGBA{pixel};
+ }
+ 
+ // An RGBA64 is an in-memory image backed by a 2-D slice of RGBA64Color values.
+@@ -88,7 +88,7 @@ func NewRGBA64(w, h int) *RGBA64 {
+ 	for y := 0; y < int(h); y++ {
+ 		pixel[y] = make([]RGBA64Color, w);
+ 	}
+-	return &RGBA64{ pixel };
++	return &RGBA64{pixel};
+ }
+ 
+ // A NRGBA is an in-memory image backed by a 2-D slice of NRGBAColor values.
+@@ -126,7 +126,7 @@ func NewNRGBA(w, h int) *NRGBA {
+ 	for y := 0; y < int(h); y++ {
+ 		pixel[y] = make([]NRGBAColor, w);
+ 	}
+-	return &NRGBA{ pixel };
++	return &NRGBA{pixel};
+ }
+ 
+ // A NRGBA64 is an in-memory image backed by a 2-D slice of NRGBA64Color values.
+@@ -164,17 +164,17 @@ func NewNRGBA64(w, h int) *NRGBA64 {
+ 	for y := 0; y < int(h); y++ {
+ 		pixel[y] = make([]NRGBA64Color, w);
+ 	}
+-	return &NRGBA64{ pixel };
++	return &NRGBA64{pixel};
+ }
+ 
+ // A PalettedColorModel represents a fixed palette of colors.
+-type PalettedColorModel []Color;
++type PalettedColorModel []Color
+ 
+ func diff(a, b uint32) uint32 {
+ 	if a > b {
+-		return a - b;
++		return a-b;
+ 	}
+-	return b - a;
++	return b-a;
+ }
+ 
+ // Convert returns the palette color closest to c in Euclidean R,G,B space.
+@@ -198,7 +198,7 @@ func (p PalettedColorModel) Convert(c Color) Color {
+ 		vg >>= 17;
+ 		vb >>= 17;
+ 		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb);
+-		ssd := (dr * dr) + (dg * dg) + (db * db);
++		ssd := (dr*dr)+(dg*dg)+(db*db);
+ 		if ssd < bestSSD {
+ 			bestSSD = ssd;
+ 			result = v;
+@@ -210,8 +210,8 @@ func (p PalettedColorModel) Convert(c Color) Color {
+ // A Paletted is an in-memory image backed by a 2-D slice of uint8 values and a PalettedColorModel.
+ type Paletted struct {
+ 	// The Pixel field's indices are y first, then x, so that At(x, y) == Palette[Pixel[y][x]].
+-	Pixel [][]uint8;
+-	Palette PalettedColorModel;
++	Pixel	[][]uint8;
++	Palette	PalettedColorModel;
+ }
+ 
+ func (p *Paletted) ColorModel() ColorModel {
+@@ -247,6 +247,5 @@ func NewPaletted(w, h int, m PalettedColorModel) *Paletted {
+ 	for y := 0; y < int(h); y++ {
+ 		pixel[y] = make([]uint8, w);
+ 	}
+-	return &Paletted{ pixel, m };
++	return &Paletted{pixel, m};
+ }
+-
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index ed13abe78f..8e6ae489bc 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -18,20 +18,20 @@ import (
+ 
+ // Color type, as per the PNG spec.
+ const (
+-	ctGrayscale = 0;
+-	ctTrueColor = 2;
+-	ctPaletted = 3;
+-	ctGrayscaleAlpha = 4;
+-	ctTrueColorAlpha = 6;
++	ctGrayscale		= 0;
++	ctTrueColor		= 2;
++	ctPaletted		= 3;
++	ctGrayscaleAlpha	= 4;
++	ctTrueColorAlpha	= 6;
+ )
+ 
+ // Filter type, as per the PNG spec.
+ const (
+-	ftNone = 0;
+-	ftSub = 1;
+-	ftUp = 2;
+-	ftAverage = 3;
+-	ftPaeth = 4;
++	ftNone		= 0;
++	ftSub		= 1;
++	ftUp		= 2;
++	ftAverage	= 3;
++	ftPaeth		= 4;
+ )
+ 
+ // Decoding stage.
+@@ -40,23 +40,23 @@ const (
+ // IDAT chunks must be sequential (i.e. they may not have any other chunks
+ // between them).
+ const (
+-	dsStart = iota;
++	dsStart	= iota;
+ 	dsSeenIHDR;
+ 	dsSeenPLTE;
+ 	dsSeenIDAT;
+ 	dsSeenIEND;
+ )
+ 
+-const pngHeader = "\x89PNG\r\n\x1a\n";
++const pngHeader = "\x89PNG\r\n\x1a\n"
+ 
+ type decoder struct {
+-	width, height int;
+-	image image.Image;
+-	colorType uint8;
+-	stage int;
+-	idatWriter io.WriteCloser;
+-	idatDone chan os.Error;
+-	tmp [3*256]byte;
++	width, height	int;
++	image		image.Image;
++	colorType	uint8;
++	stage		int;
++	idatWriter	io.WriteCloser;
++	idatDone	chan os.Error;
++	tmp		[3*256]byte;
+ }
+ 
+ // A FormatError reports that the input is not a valid PNG.
+@@ -123,7 +123,7 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	if w < 0 || h < 0 {
+ 		return FormatError("negative dimension");
+ 	}
+-	nPixels := int64(w) * int64(h);
++	nPixels := int64(w)*int64(h);
+ 	if nPixels != int64(int(nPixels)) {
+ 		return UnsupportedError("dimension overflow");
+ 	}
+@@ -143,11 +143,11 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ }
+ 
+ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Error {
+-	np := int(length / 3);	// The number of palette entries.
+-	if length % 3 != 0 || np <= 0 || np > 256 {
++	np := int(length/3);	// The number of palette entries.
++	if length%3 != 0 || np <= 0 || np > 256 {
+ 		return FormatError("bad PLTE length");
+ 	}
+-	n, err := io.ReadFull(r, d.tmp[0:3 * np]);
++	n, err := io.ReadFull(r, d.tmp[0 : 3*np]);
+ 	if err != nil {
+ 		return err;
+ 	}
+@@ -156,7 +156,7 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	case ctPaletted:
+ 		palette := make([]image.Color, np);
+ 		for i := 0; i < np; i++ {
+-			palette[i] = image.RGBAColor{ d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff };
++			palette[i] = image.RGBAColor{d.tmp[3*i + 0], d.tmp[3*i + 1], d.tmp[3*i + 2], 0xff};
+ 		}
+ 		d.image.(*image.Paletted).Palette = image.PalettedColorModel(palette);
+ 	case ctTrueColor, ctTrueColorAlpha:
+@@ -171,10 +171,10 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 
+ // The Paeth filter function, as per the PNG specification.
+ func paeth(a, b, c uint8) uint8 {
+-	p := int(a) + int(b) - int(c);
+-	pa := abs(p - int(a));
+-	pb := abs(p - int(b));
+-	pc := abs(p - int(c));
++	p := int(a)+int(b)-int(c);
++	pa := abs(p-int(a));
++	pb := abs(p-int(b));
++	pc := abs(p-int(c));
+ 	if pa <= pb && pa <= pc {
+ 		return a;
+ 	} else if pb <= pc {
+@@ -192,10 +192,10 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 	bpp := 0;	// Bytes per pixel.
+ 	maxPalette := uint8(0);
+ 	var (
+-		rgba *image.RGBA;
+-		nrgba *image.NRGBA;
+-		paletted *image.Paletted;
+-	);
++		rgba		*image.RGBA;
++		nrgba		*image.NRGBA;
++		paletted	*image.Paletted;
++	)
+ 	switch d.colorType {
+ 	case ctTrueColor:
+ 		bpp = 3;
+@@ -227,10 +227,10 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 		// Apply the filter.
+ 		switch filter[0] {
+ 		case ftNone:
+-			// No-op.
++		// No-op.
+ 		case ftSub:
+ 			for i := bpp; i < n; i++ {
+-				cr[i] += cr[i - bpp];
++				cr[i] += cr[i-bpp];
+ 			}
+ 		case ftUp:
+ 			for i := 0; i < n; i++ {
+@@ -238,17 +238,17 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 			}
+ 		case ftAverage:
+ 			for i := 0; i < bpp; i++ {
+-				cr[i] += pr[i] / 2;
++				cr[i] += pr[i]/2;
+ 			}
+ 			for i := bpp; i < n; i++ {
+-				cr[i] += uint8((int(cr[i - bpp]) + int(pr[i])) / 2);
++				cr[i] += uint8((int(cr[i-bpp])+int(pr[i]))/2);
+ 			}
+ 		case ftPaeth:
+ 			for i := 0; i < bpp; i++ {
+ 				cr[i] += paeth(0, pr[i], 0);
+ 			}
+ 			for i := bpp; i < n; i++ {
+-				cr[i] += paeth(cr[i - bpp], pr[i], pr[i - bpp]);
++				cr[i] += paeth(cr[i-bpp], pr[i], pr[i-bpp]);
+ 			}
+ 		default:
+ 			return FormatError("bad filter type");
+@@ -258,7 +258,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 		switch d.colorType {
+ 		case ctTrueColor:
+ 			for x := 0; x < d.width; x++ {
+-				rgba.Set(x, y, image.RGBAColor{ cr[3*x+0], cr[3*x+1], cr[3*x+2], 0xff });
++				rgba.Set(x, y, image.RGBAColor{cr[3*x + 0], cr[3*x + 1], cr[3*x + 2], 0xff});
+ 			}
+ 		case ctPaletted:
+ 			for x := 0; x < d.width; x++ {
+@@ -269,7 +269,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 			}
+ 		case ctTrueColorAlpha:
+ 			for x := 0; x < d.width; x++ {
+-				nrgba.Set(x, y, image.NRGBAColor{ cr[4*x+0], cr[4*x+1], cr[4*x+2], cr[4*x+3] });
++				nrgba.Set(x, y, image.NRGBAColor{cr[4*x + 0], cr[4*x + 1], cr[4*x + 2], cr[4*x + 3]});
+ 			}
+ 		}
+ 
+@@ -300,7 +300,7 @@ func (d *decoder) parseIDAT(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	}
+ 	var buf [4096]byte;
+ 	for length > 0 {
+-		n, err1 := r.Read(buf[0:min(len(buf), int(length))]);
++		n, err1 := r.Read(buf[0 : min(len(buf), int(length))]);
+ 		// We delay checking err1. It is possible to get n bytes and an error,
+ 		// but if the n bytes themselves contain a FormatError, for example, we
+ 		// want to report that error, and not the one that made the Read stop.
+@@ -376,7 +376,7 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
+ 		// Ignore this chunk (of a known length).
+ 		var ignored [4096]byte;
+ 		for length > 0 {
+-			n, err = io.ReadFull(r, ignored[0:min(len(ignored), int(length))]);
++			n, err = io.ReadFull(r, ignored[0 : min(len(ignored), int(length))]);
+ 			if err != nil {
+ 				return err;
+ 			}
+@@ -437,4 +437,3 @@ func Decode(r io.Reader) (image.Image, os.Error) {
+ 	}
+ 	return d.image, nil;
+ }
+-
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 8ed5e70943..2dbcb15678 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -15,21 +15,21 @@ import (
+ )
+ 
+ type encoder struct {
+-	w io.Writer;
+-	m image.Image;
+-	colorType uint8;
+-	err os.Error;
+-	header [8]byte;
+-	footer [4]byte;
+-	tmp [3*256]byte;
++	w		io.Writer;
++	m		image.Image;
++	colorType	uint8;
++	err		os.Error;
++	header		[8]byte;
++	footer		[4]byte;
++	tmp		[3*256]byte;
+ }
+ 
+ // Big-endian.
+ func writeUint32(b []uint8, u uint32) {
+-	b[0] = uint8(u >> 24);
+-	b[1] = uint8(u >> 16);
+-	b[2] = uint8(u >> 8);
+-	b[3] = uint8(u >> 0);
++	b[0] = uint8(u>>24);
++	b[1] = uint8(u>>16);
++	b[2] = uint8(u>>8);
++	b[3] = uint8(u>>0);
+ }
+ 
+ // Returns whether or not the image is fully opaque.
+@@ -97,11 +97,11 @@ func (e *encoder) writePLTE(p image.PalettedColorModel) {
+ 			e.err = UnsupportedError("non-opaque palette color");
+ 			return;
+ 		}
+-		e.tmp[3*i + 0] = uint8(r >> 24);
+-		e.tmp[3*i + 1] = uint8(g >> 24);
+-		e.tmp[3*i + 2] = uint8(b >> 24);
++		e.tmp[3*i + 0] = uint8(r>>24);
++		e.tmp[3*i + 1] = uint8(g>>24);
++		e.tmp[3*i + 2] = uint8(b>>24);
+ 	}
+-	e.writeChunk(e.tmp[0:3*len(p)], "PLTE");
++	e.writeChunk(e.tmp[0 : 3*len(p)], "PLTE");
+ }
+ 
+ // An encoder is an io.Writer that satisfies writes by writing PNG IDAT chunks,
+@@ -160,13 +160,13 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
+ 			for x := 0; x < m.Width(); x++ {
+ 				// We have previously verified that the alpha value is fully opaque.
+ 				r, g, b, _ := m.At(x, y).RGBA();
+-				cr[3*x + 1] = uint8(r >> 24);
+-				cr[3*x + 2] = uint8(g >> 24);
+-				cr[3*x + 3] = uint8(b >> 24);
++				cr[3*x + 1] = uint8(r>>24);
++				cr[3*x + 2] = uint8(g>>24);
++				cr[3*x + 3] = uint8(b>>24);
+ 			}
+ 		case ctPaletted:
+ 			for x := 0; x < m.Width(); x++ {
+-				cr[x + 1] = paletted.ColorIndexAt(x, y);
++				cr[x+1] = paletted.ColorIndexAt(x, y);
+ 			}
+ 		case ctTrueColorAlpha:
+ 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+@@ -200,7 +200,7 @@ func (e *encoder) writeIDATs() {
+ 		return;
+ 	}
+ 	var bw *bufio.Writer;
+-	bw, e.err = bufio.NewWriterSize(e, 1 << 15);
++	bw, e.err = bufio.NewWriterSize(e, 1<<15);
+ 	if e.err != nil {
+ 		return;
+ 	}
+@@ -243,4 +243,3 @@ func Encode(w io.Writer, m image.Image) os.Error {
+ 	e.writeIEND();
+ 	return e.err;
+ }
+-
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 070a428f6a..286ca69dd2 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -16,7 +16,7 @@ import (
+ 
+ // Error represents an unexpected I/O behavior.
+ type Error struct {
+-	os.ErrorString
++	os.ErrorString;
+ }
+ 
+ // ErrShortWrite means that a write accepted fewer bytes than requested
+@@ -143,7 +143,7 @@ type WriterAt interface {
+ 
+ // WriteString writes the contents of the string s to w, which accepts an array of bytes.
+ func WriteString(w Writer, s string) (n int, err os.Error) {
+-	return w.Write(strings.Bytes(s))
++	return w.Write(strings.Bytes(s));
+ }
+ 
+ // ReadAtLeast reads from r into buf until it has read at least min bytes.
+@@ -156,16 +156,16 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
+ 	for n < min {
+ 		nn, e := r.Read(buf[n:len(buf)]);
+ 		if nn > 0 {
+-			n += nn
++			n += nn;
+ 		}
+ 		if e != nil {
+ 			if e == os.EOF && n > 0 {
+ 				e = ErrUnexpectedEOF;
+ 			}
+-			return n, e
++			return n, e;
+ 		}
+ 	}
+-	return n, nil
++	return n, nil;
+ }
+ 
+ // ReadFull reads exactly len(buf) bytes from r into buf.
+@@ -183,12 +183,12 @@ func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for written < n {
+ 		l := len(buf);
+-		if d := n - written; d < int64(l) {
++		if d := n-written; d < int64(l) {
+ 			l = int(d);
+ 		}
+-		nr, er := src.Read(buf[0 : l]);
++		nr, er := src.Read(buf[0:l]);
+ 		if nr > 0 {
+-			nw, ew := dst.Write(buf[0 : nr]);
++			nw, ew := dst.Write(buf[0:nr]);
+ 			if nw > 0 {
+ 				written += int64(nw);
+ 			}
+@@ -206,7 +206,7 @@ func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
+ 			break;
+ 		}
+ 	}
+-	return written, err
++	return written, err;
+ }
+ 
+ // Copy copies from src to dst until either EOF is reached
+@@ -238,7 +238,7 @@ func Copy(src Reader, dst Writer) (written int64, err os.Error) {
+ 			break;
+ 		}
+ 	}
+-	return written, err
++	return written, err;
+ }
+ 
+ // LimitReader returns a Reader that reads from r
+@@ -248,8 +248,8 @@ func LimitReader(r Reader, n int64) Reader {
+ }
+ 
+ type limitedReader struct {
+-	r Reader;
+-	n int64;
++	r	Reader;
++	n	int64;
+ }
+ 
+ func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
+@@ -257,7 +257,7 @@ func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
+ 		return 0, os.EOF;
+ 	}
+ 	if int64(len(p)) > l.n {
+-		p = p[0:l.n];
++		p = p[0 : l.n];
+ 	}
+ 	n, err = l.r.Read(p);
+ 	l.n -= int64(n);
+@@ -273,10 +273,10 @@ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
+ // SectionReader implements Read, Seek, and ReadAt on a section
+ // of an underlying ReaderAt.
+ type SectionReader struct {
+-	r ReaderAt;
+-	base int64;
+-	off int64;
+-	limit int64;
++	r	ReaderAt;
++	base	int64;
++	off	int64;
++	limit	int64;
+ }
+ 
+ func (s *SectionReader) Read(p []byte) (n int, err os.Error) {
+@@ -294,19 +294,19 @@ func (s *SectionReader) Read(p []byte) (n int, err os.Error) {
+ func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error) {
+ 	switch whence {
+ 	default:
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	case 0:
+-		offset += s.base
++		offset += s.base;
+ 	case 1:
+-		offset += s.off
++		offset += s.off;
+ 	case 2:
+-		offset += s.limit
++		offset += s.limit;
+ 	}
+ 	if offset < s.off || offset > s.limit {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	s.off = offset;
+-	return offset - s.base, nil
++	return offset - s.base, nil;
+ }
+ 
+ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
+@@ -322,5 +322,5 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
+ 
+ // Size returns the size of the section in bytes.
+ func (s *SectionReader) Size() int64 {
+-	return s.limit - s.base
++	return s.limit - s.base;
+ }
+diff --git a/src/pkg/io/pipe.go b/src/pkg/io/pipe.go
+index 151f3ca68e..5cb60bd85f 100644
+--- a/src/pkg/io/pipe.go
++++ b/src/pkg/io/pipe.go
+@@ -13,20 +13,20 @@ import (
+ )
+ 
+ type pipeReturn struct {
+-	n int;
+-	err os.Error;
++	n	int;
++	err	os.Error;
+ }
+ 
+ // Shared pipe structure.
+ type pipe struct {
+-	rclosed bool;		// Read end closed?
+-	rerr os.Error;		// Error supplied to CloseReader
+-	wclosed bool;		// Write end closed?
+-	werr os.Error;		// Error supplied to CloseWriter
+-	wpend []byte;		// Written data waiting to be read.
+-	wtot int;		// Bytes consumed so far in current write.
+-	cr chan []byte;		// Write sends data here...
+-	cw chan pipeReturn;	// ... and reads the n, err back from here.
++	rclosed	bool;			// Read end closed?
++	rerr	os.Error;		// Error supplied to CloseReader
++	wclosed	bool;			// Write end closed?
++	werr	os.Error;		// Error supplied to CloseWriter
++	wpend	[]byte;			// Written data waiting to be read.
++	wtot	int;			// Bytes consumed so far in current write.
++	cr	chan []byte;		// Write sends data here...
++	cw	chan pipeReturn;	// ... and reads the n, err back from here.
+ }
+ 
+ func (p *pipe) Read(data []byte) (n int, err os.Error) {
+@@ -54,7 +54,7 @@ func (p *pipe) Read(data []byte) (n int, err os.Error) {
+ 		data[i] = p.wpend[i];
+ 	}
+ 	p.wtot += n;
+-	p.wpend = p.wpend[n:len(p.wpend)];
++	p.wpend = p.wpend[n : len(p.wpend)];
+ 
+ 	// If write block is done, finish the write.
+ 	if len(p.wpend) == 0 {
+@@ -132,8 +132,8 @@ func (p *pipe) CloseWriter(werr os.Error) os.Error {
+ 
+ // A PipeReader is the read half of a pipe.
+ type PipeReader struct {
+-	lock sync.Mutex;
+-	p *pipe;
++	lock	sync.Mutex;
++	p	*pipe;
+ }
+ 
+ // Read implements the standard Read interface:
+@@ -172,8 +172,8 @@ func (r *PipeReader) finish() {
+ 
+ // Write half of pipe.
+ type PipeWriter struct {
+-	lock sync.Mutex;
+-	p *pipe;
++	lock	sync.Mutex;
++	p	*pipe;
+ }
+ 
+ // Write implements the standard Write interface:
+@@ -225,4 +225,3 @@ func Pipe() (*PipeReader, *PipeWriter) {
+ 	w.p = p;
+ 	return r, w;
+ }
+-
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index f936376973..4d593d145e 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -5,12 +5,12 @@
+ package io_test
+ 
+ import (
+-	"fmt";
+-	. "io";
+-	"os";
+-	"strings";
+-	"testing";
+-	"time";
++		"fmt";
++	.	"io";
++		"os";
++		"strings";
++		"testing";
++		"time";
+ )
+ 
+ func checkWrite(t *testing.T, w Writer, data []byte, c chan int) {
+@@ -33,8 +33,7 @@ func TestPipe1(t *testing.T) {
+ 	n, err := r.Read(buf);
+ 	if err != nil {
+ 		t.Errorf("read: %v", err);
+-	}
+-	else if n != 12 || string(buf[0:12]) != "hello, world" {
++	} else if n != 12 || string(buf[0:12]) != "hello, world" {
+ 		t.Errorf("bad read: got %q", buf[0:n]);
+ 	}
+ 	<-c;
+@@ -64,7 +63,7 @@ func TestPipe2(t *testing.T) {
+ 	go reader(t, r, c);
+ 	var buf = make([]byte, 64);
+ 	for i := 0; i < 5; i++ {
+-		p := buf[0:5+i*10];
++		p := buf[0 : 5 + i*10];
+ 		n, err := w.Write(p);
+ 		if n != len(p) {
+ 			t.Errorf("wrote %d, got %d", len(p), n);
+@@ -85,8 +84,8 @@ func TestPipe2(t *testing.T) {
+ }
+ 
+ type pipeReturn struct {
+-	n int;
+-	err os.Error;
++	n	int;
++	err	os.Error;
+ }
+ 
+ // Test a large write that requires multiple reads to satisfy.
+@@ -107,7 +106,7 @@ func TestPipe3(t *testing.T) {
+ 	var rdat = make([]byte, 1024);
+ 	tot := 0;
+ 	for n := 1; n <= 256; n *= 2 {
+-		nn, err := r.Read(rdat[tot:tot+n]);
++		nn, err := r.Read(rdat[tot : tot+n]);
+ 		if err != nil && err != os.EOF {
+ 			t.Fatalf("read: %v", err);
+ 		}
+@@ -149,22 +148,22 @@ type closer interface {
+ }
+ 
+ type pipeTest struct {
+-	async bool;
+-	err os.Error;
+-	closeWithError bool;
++	async		bool;
++	err		os.Error;
++	closeWithError	bool;
+ }
+ 
+ func (p pipeTest) String() string {
+ 	return fmt.Sprintf("async=%v err=%v closeWithError=%v", p.async, p.err, p.closeWithError);
+ }
+ 
+-var pipeTests = []pipeTest {
+-	pipeTest{ true, nil, false },
+-	pipeTest{ true, nil, true },
+-	pipeTest{ true, ErrShortWrite, true },
+-	pipeTest{ false, nil, false },
+-	pipeTest{ false, nil, true },
+-	pipeTest{ false, ErrShortWrite, true },
++var pipeTests = []pipeTest{
++	pipeTest{true, nil, false},
++	pipeTest{true, nil, true},
++	pipeTest{true, ErrShortWrite, true},
++	pipeTest{false, nil, false},
++	pipeTest{false, nil, true},
++	pipeTest{false, ErrShortWrite, true},
+ }
+ 
+ func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {
+diff --git a/src/pkg/io/utils_test.go b/src/pkg/io/utils_test.go
+index a16a40b574..9153fb1996 100644
+--- a/src/pkg/io/utils_test.go
++++ b/src/pkg/io/utils_test.go
+@@ -5,10 +5,10 @@
+ package io_test
+ 
+ import (
+-	. "io";
+-	"os";
+-	"strings";
+-	"testing";
++	.	"io";
++		"os";
++		"strings";
++		"testing";
+ )
+ 
+ func checkSize(t *testing.T, path string, size uint64) {
+@@ -39,8 +39,7 @@ func TestReadFile(t *testing.T) {
+ 
+ func TestWriteFile(t *testing.T) {
+ 	filename := "_obj/rumpelstilzchen";
+-	data :=
+-		"Programming today is a race between software engineers striving to "
++	data := "Programming today is a race between software engineers striving to "
+ 		"build bigger and better idiot-proof programs, and the Universe trying "
+ 		"to produce bigger and better idiots. So far, the Universe is winning.";
+ 
+@@ -58,5 +57,5 @@ func TestWriteFile(t *testing.T) {
+ 	}
+ 
+ 	// cleanup
+-	os.Remove(filename);  // ignore error
++	os.Remove(filename);	// ignore error
+ }
+diff --git a/src/pkg/json/generic.go b/src/pkg/json/generic.go
+index 9fa1ae5505..7486db5679 100644
+--- a/src/pkg/json/generic.go
++++ b/src/pkg/json/generic.go
+@@ -16,9 +16,9 @@ import (
+ 
+ // Integers identifying the data type in the Json interface.
+ const (
+-	StringKind = iota;
++	StringKind	= iota;
+ 	NumberKind;
+-	MapKind;		// JSON term is "Object", but in Go, it's a map
++	MapKind;	// JSON term is "Object", but in Go, it's a map
+ 	ArrayKind;
+ 	BoolKind;
+ 	NullKind;
+@@ -43,34 +43,64 @@ type Json interface {
+ // j.String() == `abc`, but JsonToString(j) == `"abc"`.
+ func JsonToString(j Json) string {
+ 	if j == nil {
+-		return "null"
++		return "null";
+ 	}
+ 	if j.Kind() == StringKind {
+-		return Quote(j.String())
++		return Quote(j.String());
+ 	}
+-	return j.String()
++	return j.String();
+ }
+ 
+-type _Null struct { }
++type _Null struct{}
+ 
+ // Null is the JSON object representing the null data object.
+ var Null Json = &_Null{}
+ 
+-func (*_Null) Kind() int { return NullKind }
+-func (*_Null) String() string { return "null" }
+-func (*_Null) Number() float64 { return 0 }
+-func (*_Null) Bool() bool { return false }
+-func (*_Null) Get(s string) Json { return Null }
+-func (*_Null) Elem(int) Json { return Null }
+-func (*_Null) Len() int { return 0 }
+-
+-type _String struct { s string; _Null }
+-func (j *_String) Kind() int { return StringKind }
+-func (j *_String) String() string { return j.s }
+-
+-type _Number struct { f float64; _Null }
+-func (j *_Number) Kind() int { return NumberKind }
+-func (j *_Number) Number() float64 { return j.f }
++func (*_Null) Kind() int {
++	return NullKind;
++}
++func (*_Null) String() string {
++	return "null";
++}
++func (*_Null) Number() float64 {
++	return 0;
++}
++func (*_Null) Bool() bool {
++	return false;
++}
++func (*_Null) Get(s string) Json {
++	return Null;
++}
++func (*_Null) Elem(int) Json {
++	return Null;
++}
++func (*_Null) Len() int {
++	return 0;
++}
++
++type _String struct {
++	s	string;
++	_Null;
++}
++
++func (j *_String) Kind() int {
++	return StringKind;
++}
++func (j *_String) String() string {
++	return j.s;
++}
++
++type _Number struct {
++	f	float64;
++	_Null;
++}
++
++func (j *_Number) Kind() int {
++	return NumberKind;
++}
++func (j *_Number) Number() float64 {
++	return j.f;
++}
+ func (j *_Number) String() string {
+ 	if math.Floor(j.f) == j.f {
+ 		return fmt.Sprintf("%.0f", j.f);
+@@ -78,14 +108,22 @@ func (j *_Number) String() string {
+ 	return fmt.Sprintf("%g", j.f);
+ }
+ 
+-type _Array struct { a *vector.Vector; _Null }
+-func (j *_Array) Kind() int { return ArrayKind }
+-func (j *_Array) Len() int { return j.a.Len() }
++type _Array struct {
++	a	*vector.Vector;
++	_Null;
++}
++
++func (j *_Array) Kind() int {
++	return ArrayKind;
++}
++func (j *_Array) Len() int {
++	return j.a.Len();
++}
+ func (j *_Array) Elem(i int) Json {
+ 	if i < 0 || i >= j.a.Len() {
+-		return Null
++		return Null;
+ 	}
+-	return j.a.At(i).(Json)
++	return j.a.At(i).(Json);
+ }
+ func (j *_Array) String() string {
+ 	s := "[";
+@@ -99,33 +137,49 @@ func (j *_Array) String() string {
+ 	return s;
+ }
+ 
+-type _Bool struct { b bool; _Null }
+-func (j *_Bool) Kind() int { return BoolKind }
+-func (j *_Bool) Bool() bool { return j.b }
++type _Bool struct {
++	b	bool;
++	_Null;
++}
++
++func (j *_Bool) Kind() int {
++	return BoolKind;
++}
++func (j *_Bool) Bool() bool {
++	return j.b;
++}
+ func (j *_Bool) String() string {
+ 	if j.b {
+-		return "true"
++		return "true";
+ 	}
+-	return "false"
++	return "false";
+ }
+ 
+-type _Map struct { m map[string]Json; _Null }
+-func (j *_Map) Kind() int { return MapKind }
+-func (j *_Map) Len() int { return len(j.m) }
++type _Map struct {
++	m	map[string]Json;
++	_Null;
++}
++
++func (j *_Map) Kind() int {
++	return MapKind;
++}
++func (j *_Map) Len() int {
++	return len(j.m);
++}
+ func (j *_Map) Get(s string) Json {
+ 	if j.m == nil {
+-		return Null
++		return Null;
+ 	}
+ 	v, ok := j.m[s];
+ 	if !ok {
+-		return Null
++		return Null;
+ 	}
+ 	return v;
+ }
+ func (j *_Map) String() string {
+ 	s := "{";
+ 	first := true;
+-	for k,v := range j.m {
++	for k, v := range j.m {
+ 		if first {
+ 			first = false;
+ 		} else {
+@@ -152,7 +206,7 @@ func Walk(j Json, path string) Json {
+ 		var elem string;
+ 		if i := strings.Index(path, "/"); i >= 0 {
+ 			elem = path[0:i];
+-			path = path[i+1:len(path)];
++			path = path[i+1 : len(path)];
+ 		} else {
+ 			elem = path;
+ 			path = "";
+@@ -161,16 +215,16 @@ func Walk(j Json, path string) Json {
+ 		case ArrayKind:
+ 			indx, err := strconv.Atoi(elem);
+ 			if err != nil {
+-				return Null
++				return Null;
+ 			}
+ 			j = j.Elem(indx);
+ 		case MapKind:
+ 			j = j.Get(elem);
+ 		default:
+-			return Null
++			return Null;
+ 		}
+ 	}
+-	return j
++	return j;
+ }
+ 
+ // Equal returns whether a and b are indistinguishable JSON objects.
+@@ -208,7 +262,7 @@ func Equal(a, b Json) bool {
+ 		if len(m) != len(b.(*_Map).m) {
+ 			return false;
+ 		}
+-		for k,v := range m {
++		for k, v := range m {
+ 			if !Equal(v, b.Get(k)) {
+ 				return false;
+ 			}
+@@ -225,15 +279,15 @@ func Equal(a, b Json) bool {
+ 
+ type _JsonBuilder struct {
+ 	// either writing to *ptr
+-	ptr *Json;
++	ptr	*Json;
+ 
+ 	// or to a[i] (can't set ptr = &a[i])
+-	a *vector.Vector;
+-	i int;
++	a	*vector.Vector;
++	i	int;
+ 
+ 	// or to m[k] (can't set ptr = &m[k])
+-	m map[string] Json;
+-	k string;
++	m	map[string]Json;
++	k	string;
+ }
+ 
+ func (b *_JsonBuilder) Put(j Json) {
+@@ -256,40 +310,40 @@ func (b *_JsonBuilder) Get() Json {
+ 	case b.m != nil:
+ 		return b.m[b.k];
+ 	}
+-	return nil
++	return nil;
+ }
+ 
+ func (b *_JsonBuilder) Float64(f float64) {
+-	b.Put(&_Number{f, _Null{}})
++	b.Put(&_Number{f, _Null{}});
+ }
+ 
+ func (b *_JsonBuilder) Int64(i int64) {
+-	b.Float64(float64(i))
++	b.Float64(float64(i));
+ }
+ 
+ func (b *_JsonBuilder) Uint64(i uint64) {
+-	b.Float64(float64(i))
++	b.Float64(float64(i));
+ }
+ 
+ func (b *_JsonBuilder) Bool(tf bool) {
+-	b.Put(&_Bool{tf, _Null{}})
++	b.Put(&_Bool{tf, _Null{}});
+ }
+ 
+ func (b *_JsonBuilder) Null() {
+-	b.Put(Null)
++	b.Put(Null);
+ }
+ 
+ func (b *_JsonBuilder) String(s string) {
+-	b.Put(&_String{s, _Null{}})
++	b.Put(&_String{s, _Null{}});
+ }
+ 
+ 
+ func (b *_JsonBuilder) Array() {
+-	b.Put(&_Array{vector.New(0), _Null{}})
++	b.Put(&_Array{vector.New(0), _Null{}});
+ }
+ 
+ func (b *_JsonBuilder) Map() {
+-	b.Put(&_Map{make(map[string]Json), _Null{}})
++	b.Put(&_Map{make(map[string]Json), _Null{}});
+ }
+ 
+ func (b *_JsonBuilder) Elem(i int) Builder {
+@@ -297,9 +351,9 @@ func (b *_JsonBuilder) Elem(i int) Builder {
+ 	bb.a = b.Get().(*_Array).a;
+ 	bb.i = i;
+ 	for i >= bb.a.Len() {
+-		bb.a.Push(Null)
++		bb.a.Push(Null);
+ 	}
+-	return bb
++	return bb;
+ }
+ 
+ func (b *_JsonBuilder) Key(k string) Builder {
+@@ -307,7 +361,7 @@ func (b *_JsonBuilder) Key(k string) Builder {
+ 	bb.m = b.Get().(*_Map).m;
+ 	bb.k = k;
+ 	bb.m[k] = Null;
+-	return bb
++	return bb;
+ }
+ 
+ // StringToJson parses the string s as a JSON-syntax string
+@@ -321,9 +375,9 @@ func StringToJson(s string) (json Json, ok bool, errtok string) {
+ 	b.ptr = &j;
+ 	ok, _, errtok = Parse(s, b);
+ 	if !ok {
+-		return nil, false, errtok
++		return nil, false, errtok;
+ 	}
+-	return j, true, ""
++	return j, true, "";
+ }
+ 
+ // BUG(rsc): StringToJson should return an os.Error instead of a bool.
+diff --git a/src/pkg/json/generic_test.go b/src/pkg/json/generic_test.go
+index 3d82c8e35d..522d82dcd2 100644
+--- a/src/pkg/json/generic_test.go
++++ b/src/pkg/json/generic_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"testing";
+ )
+ 
+-var jsontests = []string {
++var jsontests = []string{
+ 	`null`,
+ 	`true`,
+ 	`false`,
+@@ -65,9 +65,9 @@ func TestJsonMap(t *testing.T) {
+ 	}
+ 	if cnt := mapv.Len(); cnt != len(jsontests) {
+ 		t.Errorf("StringToJson(%#q).Len() => %v, want %v", mapstr, cnt,
+-		         len(jsontests));
++			len(jsontests));
+ 	}
+-	for k,v := range values {
++	for k, v := range values {
+ 		if v1 := mapv.Get(k); !Equal(v1, v) {
+ 			t.Errorf("MapTest: Walk(%#q) => %v, want %v", k, v1, v);
+ 		}
+diff --git a/src/pkg/json/parse.go b/src/pkg/json/parse.go
+index 6937e28168..af610b5d1b 100644
+--- a/src/pkg/json/parse.go
++++ b/src/pkg/json/parse.go
+@@ -26,16 +26,16 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
+ 	v = 0;
+ 	for i := r; i < l; i++ {
+ 		if i >= len(p) {
+-			return 0, false
++			return 0, false;
+ 		}
+ 		v *= 16;
+ 		switch {
+ 		case '0' <= p[i] && p[i] <= '9':
+-			v += int(p[i] - '0');
++			v += int(p[i]-'0');
+ 		case 'a' <= p[i] && p[i] <= 'f':
+-			v += int(p[i] - 'a' + 10);
++			v += int(p[i]-'a'+10);
+ 		case 'A' <= p[i] && p[i] <= 'F':
+-			v += int(p[i] - 'A' + 10);
++			v += int(p[i]-'A'+10);
+ 		default:
+ 			return 0, false;
+ 		}
+@@ -48,7 +48,7 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
+ // JSON-quoted string, Unquote returns with ok set to false.
+ func Unquote(s string) (t string, ok bool) {
+ 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
+-		return
++		return;
+ 	}
+ 	b := make([]byte, len(s));
+ 	w := 0;
+@@ -57,7 +57,7 @@ func Unquote(s string) (t string, ok bool) {
+ 		case s[r] == '\\':
+ 			r++;
+ 			if r >= len(s)-1 {
+-				return
++				return;
+ 			}
+ 			switch s[r] {
+ 			default:
+@@ -90,7 +90,7 @@ func Unquote(s string) (t string, ok bool) {
+ 				r++;
+ 				rune, ok := _UnHex(s, r, 4);
+ 				if !ok {
+-					return
++					return;
+ 				}
+ 				r += 4;
+ 				w += utf8.EncodeRune(rune, b[w:len(b)]);
+@@ -116,7 +116,7 @@ func Unquote(s string) (t string, ok bool) {
+ 			w += utf8.EncodeRune(rune, b[w:len(b)]);
+ 		}
+ 	}
+-	return string(b[0:w]), true
++	return string(b[0:w]), true;
+ }
+ 
+ // Quote quotes the raw string s using JSON syntax,
+@@ -129,7 +129,7 @@ func Quote(s string) string {
+ 	b.Write(chr0);
+ 	for i := 0; i < len(s); i++ {
+ 		switch {
+-		case s[i]=='"' || s[i]=='\\':
++		case s[i] == '"' || s[i] == '\\':
+ 			chr[0] = '\\';
+ 			chr[1] = s[i];
+ 			b.Write(chr[0:2]);
+@@ -173,44 +173,44 @@ func Quote(s string) string {
+ // _Lexer
+ 
+ type _Lexer struct {
+-	s string;
+-	i int;
+-	kind int;
+-	token string;
++	s	string;
++	i	int;
++	kind	int;
++	token	string;
+ }
+ 
+ func punct(c byte) bool {
+-	return c=='"' || c=='[' || c==']' || c==':' || c=='{' || c=='}' || c==','
++	return c == '"' || c == '[' || c == ']' || c == ':' || c == '{' || c == '}' || c == ',';
+ }
+ 
+ func white(c byte) bool {
+-	return c==' ' || c=='\t' || c=='\n' || c=='\v'
++	return c == ' ' || c == '\t' || c == '\n' || c == '\v';
+ }
+ 
+ func skipwhite(p string, i int) int {
+ 	for i < len(p) && white(p[i]) {
+-		i++
++		i++;
+ 	}
+-	return i
++	return i;
+ }
+ 
+ func skiptoken(p string, i int) int {
+ 	for i < len(p) && !punct(p[i]) && !white(p[i]) {
+-		i++
++		i++;
+ 	}
+-	return i
++	return i;
+ }
+ 
+ func skipstring(p string, i int) int {
+ 	for i++; i < len(p) && p[i] != '"'; i++ {
+ 		if p[i] == '\\' {
+-			i++
++			i++;
+ 		}
+ 	}
+ 	if i >= len(p) {
+-		return i
++		return i;
+ 	}
+-	return i+1
++	return i+1;
+ }
+ 
+ func (t *_Lexer) Next() {
+@@ -245,12 +245,12 @@ func (t *_Lexer) Next() {
+ 
+ 	case c == '[', c == ']', c == ':', c == '{', c == '}', c == ',':
+ 		t.kind = int(c);
+-		t.token = s[i:i+1];
++		t.token = s[i : i+1];
+ 		i++;
+ 
+ 	default:
+ 		t.kind = '?';
+-		t.token = s[i:i+1];
++		t.token = s[i : i+1];
+ 	}
+ 
+ 	t.i = i;
+@@ -274,7 +274,7 @@ func (t *_Lexer) Next() {
+ // nested data structure, using the "map keys"
+ // as struct field names.
+ 
+-type _Value interface {}
++type _Value interface{}
+ 
+ // BUG(rsc): The json Builder interface needs to be
+ // reconciled with the xml Builder interface.
+@@ -309,13 +309,12 @@ Switch:
+ 		if i, err := strconv.Atoi64(lex.token); err == nil {
+ 			build.Int64(i);
+ 			ok = true;
+-		}
+-		else if i, err := strconv.Atoui64(lex.token); err == nil {
++		} else if i, err := strconv.Atoui64(lex.token); err == nil {
+ 			build.Uint64(i);
+ 			ok = true;
+-		}
++		} else
+ 		// Fall back to floating point.
+-		else if f, err := strconv.Atof64(lex.token); err == nil {
++		if f, err := strconv.Atof64(lex.token); err == nil {
+ 			build.Float64(f);
+ 			ok = true;
+ 		}
+@@ -408,9 +407,8 @@ func Parse(s string, builder Builder) (ok bool, errindx int, errtok string) {
+ 	lex.Next();
+ 	if parse(lex, builder) {
+ 		if lex.kind == 0 {	// EOF
+-			return true, 0, ""
++			return true, 0, "";
+ 		}
+ 	}
+-	return false, lex.i, lex.token
++	return false, lex.i, lex.token;
+ }
+-
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index 250fe7da2a..4fc70a814b 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ type _StructBuilder struct {
+-	val reflect.Value
++	val reflect.Value;
+ }
+ 
+ var nobuilder *_StructBuilder
+@@ -64,7 +64,7 @@ func setint(v reflect.Value, i int64) {
+ 
+ func (b *_StructBuilder) Int64(i int64) {
+ 	if b == nil {
+-		return
++		return;
+ 	}
+ 	v := b.val;
+ 	if isfloat(v) {
+@@ -76,7 +76,7 @@ func (b *_StructBuilder) Int64(i int64) {
+ 
+ func (b *_StructBuilder) Uint64(i uint64) {
+ 	if b == nil {
+-		return
++		return;
+ 	}
+ 	v := b.val;
+ 	if isfloat(v) {
+@@ -88,7 +88,7 @@ func (b *_StructBuilder) Uint64(i uint64) {
+ 
+ func (b *_StructBuilder) Float64(f float64) {
+ 	if b == nil {
+-		return
++		return;
+ 	}
+ 	v := b.val;
+ 	if isfloat(v) {
+@@ -98,12 +98,11 @@ func (b *_StructBuilder) Float64(f float64) {
+ 	}
+ }
+ 
+-func (b *_StructBuilder) Null() {
+-}
++func (b *_StructBuilder) Null() {}
+ 
+ func (b *_StructBuilder) String(s string) {
+ 	if b == nil {
+-		return
++		return;
+ 	}
+ 	if v, ok := b.val.(*reflect.StringValue); ok {
+ 		v.Set(s);
+@@ -112,7 +111,7 @@ func (b *_StructBuilder) String(s string) {
+ 
+ func (b *_StructBuilder) Bool(tf bool) {
+ 	if b == nil {
+-		return
++		return;
+ 	}
+ 	if v, ok := b.val.(*reflect.BoolValue); ok {
+ 		v.Set(tf);
+@@ -121,7 +120,7 @@ func (b *_StructBuilder) Bool(tf bool) {
+ 
+ func (b *_StructBuilder) Array() {
+ 	if b == nil {
+-		return
++		return;
+ 	}
+ 	if v, ok := b.val.(*reflect.SliceValue); ok {
+ 		if v.IsNil() {
+@@ -132,21 +131,21 @@ func (b *_StructBuilder) Array() {
+ 
+ func (b *_StructBuilder) Elem(i int) Builder {
+ 	if b == nil || i < 0 {
+-		return nobuilder
++		return nobuilder;
+ 	}
+ 	switch v := b.val.(type) {
+ 	case *reflect.ArrayValue:
+ 		if i < v.Len() {
+-			return &_StructBuilder{ v.Elem(i) }
++			return &_StructBuilder{v.Elem(i)};
+ 		}
+ 	case *reflect.SliceValue:
+ 		if i > v.Cap() {
+ 			n := v.Cap();
+ 			if n < 8 {
+-				n = 8
++				n = 8;
+ 			}
+ 			for n <= i {
+-				n *= 2
++				n *= 2;
+ 			}
+ 			nv := reflect.MakeSlice(v.Type().(*reflect.SliceType), v.Len(), n);
+ 			reflect.ArrayCopy(nv, v);
+@@ -156,7 +155,7 @@ func (b *_StructBuilder) Elem(i int) Builder {
+ 			v.SetLen(i+1);
+ 		}
+ 		if i < v.Len() {
+-			return &_StructBuilder{ v.Elem(i) }
++			return &_StructBuilder{v.Elem(i)};
+ 		}
+ 	}
+ 	return nobuilder;
+@@ -164,18 +163,18 @@ func (b *_StructBuilder) Elem(i int) Builder {
+ 
+ func (b *_StructBuilder) Map() {
+ 	if b == nil {
+-		return
++		return;
+ 	}
+ 	if v, ok := b.val.(*reflect.PtrValue); ok {
+ 		if v.IsNil() {
+-			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()))
++			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()));
+ 		}
+ 	}
+ }
+ 
+ func (b *_StructBuilder) Key(k string) Builder {
+ 	if b == nil {
+-		return nobuilder
++		return nobuilder;
+ 	}
+ 	if v, ok := reflect.Indirect(b.val).(*reflect.StructValue); ok {
+ 		t := v.Type().(*reflect.StructType);
+@@ -183,11 +182,11 @@ func (b *_StructBuilder) Key(k string) Builder {
+ 		k = strings.ToLower(k);
+ 		for i := 0; i < t.NumField(); i++ {
+ 			if strings.ToLower(t.Field(i).Name) == k {
+-				return &_StructBuilder{ v.Field(i) }
++				return &_StructBuilder{v.Field(i)};
+ 			}
+ 		}
+ 	}
+-	return nobuilder
++	return nobuilder;
+ }
+ 
+ // Unmarshal parses the JSON syntax string s and fills in
+@@ -232,7 +231,7 @@ func (b *_StructBuilder) Key(k string) Builder {
+ //
+ //	r = Result{
+ //		"Grace R. Emlin",	// name
+-//		"phone",	// no phone given
++//		"phone",		// no phone given
+ //		[]Email{
+ //			Email{ "home", "gre@example.com" },
+ //			Email{ "work", "gre@work.com" }
+@@ -250,10 +249,10 @@ func (b *_StructBuilder) Key(k string) Builder {
+ // On a syntax error, it returns with ok set to false and errtok
+ // set to the offending token.
+ func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
+-	b := &_StructBuilder{ reflect.NewValue(val) };
++	b := &_StructBuilder{reflect.NewValue(val)};
+ 	ok, _, errtok = Parse(s, b);
+ 	if !ok {
+-		return false, errtok
++		return false, errtok;
+ 	}
+-	return true, ""
++	return true, "";
+ }
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+index ce0ab3473a..42b54b9dbb 100644
+--- a/src/pkg/json/struct_test.go
++++ b/src/pkg/json/struct_test.go
+@@ -9,32 +9,31 @@ import (
+ )
+ 
+ type _MyStruct struct {
+-	T bool;
+-	F bool;
+-	S string;
+-	I8 int8;
+-	I16 int16;
+-	I32 int32;
+-	I64 int64;
+-	U8 uint8;
+-	U16 uint16;
+-	U32 uint32;
+-	U64 uint64;
+-	I int;
+-	U uint;
+-	Fl float;
+-	Fl32 float32;
+-	Fl64 float64;
+-	A []string;
+-	My *_MyStruct;
+-};
++	T	bool;
++	F	bool;
++	S	string;
++	I8	int8;
++	I16	int16;
++	I32	int32;
++	I64	int64;
++	U8	uint8;
++	U16	uint16;
++	U32	uint32;
++	U64	uint64;
++	I	int;
++	U	uint;
++	Fl	float;
++	Fl32	float32;
++	Fl64	float64;
++	A	[]string;
++	My	*_MyStruct;
++}
+ 
+-const _Encoded =
+-	`{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
++const _Encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
+ 	` "u8":5,"u16":6,"u32":7,"u64":8,`
+ 	` "i":-9,"u":10,"bogusfield":"should be ignored",`
+ 	` "fl":11.5,"fl32":12.25,"fl64":13.75,`
+-	` "a":["x","y","z"],"my":{"s":"subguy"}}`;
++	` "a":["x","y","z"],"my":{"s":"subguy"}}`
+ 
+ 
+ func _Check(t *testing.T, ok bool, name string, v interface{}) {
+@@ -52,30 +51,30 @@ func TestUnmarshal(t *testing.T) {
+ 	if !ok {
+ 		t.Fatalf("Unmarshal failed near %s", errtok);
+ 	}
+-	_Check(t, m.T==true, "t", m.T);
+-	_Check(t, m.F==false, "f", m.F);
+-	_Check(t, m.S=="abc", "s", m.S);
+-	_Check(t, m.I8==1, "i8", m.I8);
+-	_Check(t, m.I16==2, "i16", m.I16);
+-	_Check(t, m.I32==3, "i32", m.I32);
+-	_Check(t, m.I64==4, "i64", m.I64);
+-	_Check(t, m.U8==5, "u8", m.U8);
+-	_Check(t, m.U16==6, "u16", m.U16);
+-	_Check(t, m.U32==7, "u32", m.U32);
+-	_Check(t, m.U64==8, "u64", m.U64);
+-	_Check(t, m.I==-9, "i", m.I);
+-	_Check(t, m.U==10, "u", m.U);
+-	_Check(t, m.Fl==11.5, "fl", m.Fl);
+-	_Check(t, m.Fl32==12.25, "fl32", m.Fl32);
+-	_Check(t, m.Fl64==13.75, "fl64", m.Fl64);
+-	_Check(t, m.A!=nil, "a", m.A);
++	_Check(t, m.T == true, "t", m.T);
++	_Check(t, m.F == false, "f", m.F);
++	_Check(t, m.S == "abc", "s", m.S);
++	_Check(t, m.I8 == 1, "i8", m.I8);
++	_Check(t, m.I16 == 2, "i16", m.I16);
++	_Check(t, m.I32 == 3, "i32", m.I32);
++	_Check(t, m.I64 == 4, "i64", m.I64);
++	_Check(t, m.U8 == 5, "u8", m.U8);
++	_Check(t, m.U16 == 6, "u16", m.U16);
++	_Check(t, m.U32 == 7, "u32", m.U32);
++	_Check(t, m.U64 == 8, "u64", m.U64);
++	_Check(t, m.I == -9, "i", m.I);
++	_Check(t, m.U == 10, "u", m.U);
++	_Check(t, m.Fl == 11.5, "fl", m.Fl);
++	_Check(t, m.Fl32 == 12.25, "fl32", m.Fl32);
++	_Check(t, m.Fl64 == 13.75, "fl64", m.Fl64);
++	_Check(t, m.A != nil, "a", m.A);
+ 	if m.A != nil {
+-		_Check(t, m.A[0]=="x", "a[0]", m.A[0]);
+-		_Check(t, m.A[1]=="y", "a[1]", m.A[1]);
+-		_Check(t, m.A[2]=="z", "a[2]", m.A[2]);
++		_Check(t, m.A[0] == "x", "a[0]", m.A[0]);
++		_Check(t, m.A[1] == "y", "a[1]", m.A[1]);
++		_Check(t, m.A[2] == "z", "a[2]", m.A[2]);
+ 	}
+-	_Check(t, m.My!=nil, "my", m.My);
++	_Check(t, m.My != nil, "my", m.My);
+ 	if m.My != nil {
+-		_Check(t, m.My.S=="subguy", "my.s", m.My.S);
++		_Check(t, m.My.S == "subguy", "my.s", m.My.S);
+ 	}
+ }
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index 3d48285b45..f29359ee36 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -22,27 +22,27 @@ import (
+ // These flags define the properties of the Logger and the output they produce.
+ const (
+ 	// Flags
+-	Lok = iota;
++	Lok	= iota;
+ 	Lexit;	// terminate execution when written
+ 	Lcrash;	// crash (panic) when written
+ 	// Bits or'ed together to control what's printed. There is no control over the
+ 	// order they appear (the order listed here) or the format they present (as
+ 	// described in the comments).  A colon appears after these items:
+ 	//	2009/0123 01:23:23.123123 /a/b/c/d.go:23: message
+-	Ldate = 1 << iota;	// the date: 2009/0123
+-	Ltime;	// the time: 01:23:23
++	Ldate		= 1<<iota;	// the date: 2009/0123
++	Ltime;		// the time: 01:23:23
+ 	Lmicroseconds;	// microsecond resolution: 01:23:23.123123.  assumes Ltime.
+ 	Llongfile;	// full file name and line number: /a/b/c/d.go:23
+ 	Lshortfile;	// final file name element and line number: d.go:23. overrides Llongfile
+-	lAllBits = Ldate | Ltime | Lmicroseconds | Llongfile | Lshortfile;
++	lAllBits	= Ldate | Ltime | Lmicroseconds | Llongfile | Lshortfile;
+ )
+ 
+ // Logger represents an active logging object.
+ type Logger struct {
+ 	out0	io.Writer;	// first destination for output
+ 	out1	io.Writer;	// second destination for output; may be nil
+-	prefix string;	// prefix to write at beginning of each line
+-	flag int;	// properties
++	prefix	string;		// prefix to write at beginning of each line
++	flag	int;		// properties
+ }
+ 
+ // New creates a new Logger.   The out0 and out1 variables set the
+@@ -50,23 +50,23 @@ type Logger struct {
+ // The prefix appears at the beginning of each generated log line.
+ // The flag argument defines the logging properties.
+ func New(out0, out1 io.Writer, prefix string, flag int) *Logger {
+-	return &Logger{out0, out1, prefix, flag}
++	return &Logger{out0, out1, prefix, flag};
+ }
+ 
+ var (
+-	stdout = New(os.Stdout, nil, "", Lok|Ldate|Ltime);
+-	stderr = New(os.Stderr, nil, "", Lok|Ldate|Ltime);
+-	exit = New(os.Stderr, nil, "", Lexit|Ldate|Ltime);
+-	crash = New(os.Stderr, nil, "", Lcrash|Ldate|Ltime);
++	stdout	= New(os.Stdout, nil, "", Lok|Ldate|Ltime);
++	stderr	= New(os.Stderr, nil, "", Lok|Ldate|Ltime);
++	exit	= New(os.Stderr, nil, "", Lexit|Ldate|Ltime);
++	crash	= New(os.Stderr, nil, "", Lcrash|Ldate|Ltime);
+ )
+ 
+-var shortnames = make(map[string] string)	// cache of short names to avoid allocation.
++var shortnames = make(map[string]string)	// cache of short names to avoid allocation.
+ 
+ // Cheap integer to fixed-width decimal ASCII.  Use a negative width to avoid zero-padding
+ func itoa(i int, wid int) string {
+ 	var u uint = uint(i);
+ 	if u == 0 && wid <= 1 {
+-		return "0"
++		return "0";
+ 	}
+ 
+ 	// Assemble decimal in reverse order.
+@@ -78,7 +78,7 @@ func itoa(i int, wid int) string {
+ 		b[bp] = byte(u%10) + '0';
+ 	}
+ 
+-	return string(b[bp:len(b)])
++	return string(b[bp:len(b)]);
+ }
+ 
+ func (l *Logger) formatHeader(ns int64, calldepth int) string {
+@@ -86,26 +86,26 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
+ 	if l.flag & (Ldate | Ltime | Lmicroseconds) != 0 {
+ 		t := time.SecondsToLocalTime(ns/1e9);
+ 		if l.flag & (Ldate) != 0 {
+-			h += itoa(int(t.Year), 4) + "/" + itoa(t.Month, 2) + itoa(t.Day, 2) + " "
++			h += itoa(int(t.Year), 4) + "/" + itoa(t.Month, 2) + itoa(t.Day, 2) + " ";
+ 		}
+ 		if l.flag & (Ltime | Lmicroseconds) != 0 {
+ 			h += itoa(t.Hour, 2) + ":" + itoa(t.Minute, 2) + ":" + itoa(t.Second, 2);
+ 			if l.flag & Lmicroseconds != 0 {
+-				h += "." + itoa(int(ns % 1e9)/1e3, 6);
++				h += "." + itoa(int(ns%1e9) / 1e3, 6);
+ 			}
+ 			h += " ";
+ 		}
+ 	}
+-	if l.flag & (Lshortfile | Llongfile) != 0 {
++	if l.flag & (Lshortfile|Llongfile) != 0 {
+ 		_, file, line, ok := runtime.Caller(calldepth);
+ 		if ok {
+ 			if l.flag & Lshortfile != 0 {
+ 				short, ok := shortnames[file];
+ 				if !ok {
+ 					short = file;
+-					for i := len(file) - 1; i > 0; i-- {
++					for i := len(file)-1; i > 0; i-- {
+ 						if file[i] == '/' {
+-							short = file[i+1:len(file)];
++							short = file[i+1 : len(file)];
+ 							break;
+ 						}
+ 					}
+@@ -129,7 +129,7 @@ func (l *Logger) Output(calldepth int, s string) {
+ 	now := time.Nanoseconds();	// get this early.
+ 	newline := "\n";
+ 	if len(s) > 0 && s[len(s)-1] == '\n' {
+-		newline = ""
++		newline = "";
+ 	}
+ 	s = l.formatHeader(now, calldepth+1) + s + newline;
+ 	io.WriteString(l.out0, s);
+@@ -146,50 +146,50 @@ func (l *Logger) Output(calldepth int, s string) {
+ 
+ // Logf is analogous to Printf() for a Logger.
+ func (l *Logger) Logf(format string, v ...) {
+-	l.Output(2, fmt.Sprintf(format, v))
++	l.Output(2, fmt.Sprintf(format, v));
+ }
+ 
+ // Log is analogouts to Print() for a Logger.
+ func (l *Logger) Log(v ...) {
+-	l.Output(2, fmt.Sprintln(v))
++	l.Output(2, fmt.Sprintln(v));
+ }
+ 
+ // Stdout is a helper function for easy logging to stdout. It is analogous to Print().
+ func Stdout(v ...) {
+-	stdout.Output(2, fmt.Sprint(v))
++	stdout.Output(2, fmt.Sprint(v));
+ }
+ 
+ // Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
+ func Stderr(v ...) {
+-	stderr.Output(2, fmt.Sprintln(v))
++	stderr.Output(2, fmt.Sprintln(v));
+ }
+ 
+ // Stdoutf is a helper functions for easy formatted logging to stdout. It is analogous to Printf().
+ func Stdoutf(format string, v ...) {
+-	stdout.Output(2, fmt.Sprintf(format, v))
++	stdout.Output(2, fmt.Sprintf(format, v));
+ }
+ 
+ // Stderrf is a helper function for easy formatted logging to stderr. It is analogous to Fprintf(os.Stderr).
+ func Stderrf(format string, v ...) {
+-	stderr.Output(2, fmt.Sprintf(format, v))
++	stderr.Output(2, fmt.Sprintf(format, v));
+ }
+ 
+ // Exit is equivalent to Stderr() followed by a call to os.Exit(1).
+ func Exit(v ...) {
+-	exit.Output(2, fmt.Sprintln(v))
++	exit.Output(2, fmt.Sprintln(v));
+ }
+ 
+ // Exitf is equivalent to Stderrf() followed by a call to os.Exit(1).
+ func Exitf(format string, v ...) {
+-	exit.Output(2, fmt.Sprintf(format, v))
++	exit.Output(2, fmt.Sprintf(format, v));
+ }
+ 
+ // Crash is equivalent to Stderr() followed by a call to panic().
+ func Crash(v ...) {
+-	crash.Output(2, fmt.Sprintln(v))
++	crash.Output(2, fmt.Sprintln(v));
+ }
+ 
+ // Crashf is equivalent to Stderrf() followed by a call to panic().
+ func Crashf(format string, v ...) {
+-	crash.Output(2, fmt.Sprintf(format, v))
++	crash.Output(2, fmt.Sprintf(format, v));
+ }
+diff --git a/src/pkg/log/log_test.go b/src/pkg/log/log_test.go
+index a78aee6ad2..540a33891e 100644
+--- a/src/pkg/log/log_test.go
++++ b/src/pkg/log/log_test.go
+@@ -14,12 +14,12 @@ import (
+ )
+ 
+ const (
+-	Rdate = `[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]`;
+-	Rtime = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`;
+-	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`;
+-	Rline = `[0-9]+:`;
+-	Rlongfile = `/[A-Za-z0-9_/\-]+\.go:` + Rline;
+-	Rshortfile = `[A-Za-z0-9_\-]+\.go:` + Rline;
++	Rdate		= `[0-9][0-9][0-9][0-9]/[0-9][0-9][0-9][0-9]`;
++	Rtime		= `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`;
++	Rmicroseconds	= `\.[0-9][0-9][0-9][0-9][0-9][0-9]`;
++	Rline		= `[0-9]+:`;
++	Rlongfile	= `/[A-Za-z0-9_/\-]+\.go:` + Rline;
++	Rshortfile	= `[A-Za-z0-9_\-]+\.go:` + Rline;
+ )
+ 
+ type tester struct {
+@@ -28,20 +28,20 @@ type tester struct {
+ 	pattern	string;	// regexp that log output must match; we add ^ and expected_text$ always
+ }
+ 
+-var tests = []tester {
++var tests = []tester{
+ 	// individual pieces:
+-	tester{ 0,	"", "" },
+-	tester{ 0, "XXX", "XXX" },
+-	tester{ Lok|Ldate, "", Rdate+" " },
+-	tester{ Lok|Ltime, "", Rtime+" " },
+-	tester{ Lok|Ltime|Lmicroseconds, "", Rtime+Rmicroseconds+" " },
+-	tester{ Lok|Lmicroseconds, "", Rtime+Rmicroseconds+" " },	// microsec implies time
+-	tester{ Lok|Llongfile, "", Rlongfile+" " },
+-	tester{ Lok|Lshortfile, "", Rshortfile+" " },
+-	tester{ Lok|Llongfile|Lshortfile, "", Rshortfile+" " },	// shortfile overrides longfile
++	tester{0, "", ""},
++	tester{0, "XXX", "XXX"},
++	tester{Lok|Ldate, "", Rdate+" "},
++	tester{Lok|Ltime, "", Rtime+" "},
++	tester{Lok | Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
++	tester{Lok | Lmicroseconds, "", Rtime + Rmicroseconds + " "},	// microsec implies time
++	tester{Lok|Llongfile, "", Rlongfile+" "},
++	tester{Lok|Lshortfile, "", Rshortfile+" "},
++	tester{Lok|Llongfile|Lshortfile, "", Rshortfile+" "},	// shortfile overrides longfile
+ 	// everything at once:
+-	tester{ Lok|Ldate|Ltime|Lmicroseconds|Llongfile, "XXX", "XXX"+Rdate+" "+Rtime+Rmicroseconds+" "+Rlongfile+" " },
+-	tester{ Lok|Ldate|Ltime|Lmicroseconds|Lshortfile, "XXX", "XXX"+Rdate+" "+Rtime+Rmicroseconds+" "+Rshortfile+" " },
++	tester{Lok | Ldate | Ltime | Lmicroseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " "},
++	tester{Lok | Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},
+ }
+ 
+ // Test using Log("hello", 23, "world") or using Logf("hello %d world", 23)
+@@ -63,10 +63,10 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
+ 	if err3 != nil {
+ 		t.Fatal("log error", err3);
+ 	}
+-	line = line[0:len(line)-1];
+-	pattern = "^"+pattern+"hello 23 world$";
++	line = line[0 : len(line)-1];
++	pattern = "^" + pattern + "hello 23 world$";
+ 	matched, err4 := regexp.MatchString(pattern, line);
+-	if err4 != nil{
++	if err4 != nil {
+ 		t.Fatal("pattern did not compile:", err4);
+ 	}
+ 	if !matched {

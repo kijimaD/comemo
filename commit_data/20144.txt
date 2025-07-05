@@ -8,6 +8,26 @@ Date:   Wed Aug 20 12:58:01 2014 +0400
     R=golang-codereviews, daniel.morsing, khr, rsc
     CC=golang-codereviews, khr, rlh
     https://golang.org/cl/131950043
-
+---
  src/pkg/runtime/asm_amd64p32.s | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 71ea4f385a..3e84d95d3f 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -660,6 +660,14 @@ TEXT runtime·atomicstore64(SB), NOSPLIT, $0-16
+ 	XCHGQ	AX, 0(BX)
+ 	RET
+ 
++// void	runtime·atomicor8(byte volatile*, byte);
++TEXT runtime·atomicor8(SB), NOSPLIT, $0-8
++	MOVL	ptr+0(FP), BX
++	MOVB	val+4(FP), AX
++	LOCK
++	ORB	AX, 0(BX)
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller

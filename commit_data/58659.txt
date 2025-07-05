@@ -15,7 +15,7 @@ Date:   Wed Nov 22 15:09:57 2023 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  .github/ISSUE_TEMPLATE/archived/00-bug.md          | 45 ----------------
  .github/ISSUE_TEMPLATE/archived/01-pkgsite.md      | 49 -----------------
  .../ISSUE_TEMPLATE/archived/02-pkgsite-removal.md  | 39 --------------
@@ -24,3 +24,361 @@ Date:   Wed Nov 22 15:09:57 2023 -0500
  .github/ISSUE_TEMPLATE/archived/10-proposal.md     | 13 -----
  .../ISSUE_TEMPLATE/archived/11-language-change.md  | 55 -------------------
  7 files changed, 315 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/archived/00-bug.md b/.github/ISSUE_TEMPLATE/archived/00-bug.md
+deleted file mode 100644
+index f056dab7dd..0000000000
+--- a/.github/ISSUE_TEMPLATE/archived/00-bug.md
++++ /dev/null
+@@ -1,45 +0,0 @@
+----
+-name: Bugs
+-about: The go command, standard library, or anything else
+-title: "affected/package: "
+----
+-
+-<!--
+-Please answer these questions before submitting your issue. Thanks!
+--->
+-
+-### What version of Go are you using (`go version`)?
+-
+-<pre>
+-$ go version
+-
+-</pre>
+-
+-### Does this issue reproduce with the latest release?
+-
+-
+-
+-### What operating system and processor architecture are you using (`go env`)?
+-
+-<details><summary><code>go env</code> Output</summary><br><pre>
+-$ go env
+-
+-</pre></details>
+-
+-### What did you do?
+-
+-<!--
+-If possible, provide a recipe for reproducing the error.
+-A complete runnable program is good.
+-A link on go.dev/play is best.
+--->
+-
+-
+-
+-### What did you expect to see?
+-
+-
+-
+-### What did you see instead?
+-
+-
+diff --git a/.github/ISSUE_TEMPLATE/archived/01-pkgsite.md b/.github/ISSUE_TEMPLATE/archived/01-pkgsite.md
+deleted file mode 100644
+index 31f0fd16b1..0000000000
+--- a/.github/ISSUE_TEMPLATE/archived/01-pkgsite.md
++++ /dev/null
+@@ -1,49 +0,0 @@
+----
+-name: Pkg.go.dev bugs or feature requests
+-about: Issues or feature requests for the documentation site
+-title: "x/pkgsite: "
+-labels: pkgsite
+----
+-
+-<!--
+-Please answer these questions before submitting your issue. Thanks!
+--->
+-
+-### What is the URL of the page with the issue?
+-
+-
+-
+-### What is your user agent?
+-
+-<!--
+-You can find your user agent here:
+-https://www.google.com/search?q=what+is+my+user+agent
+--->
+-
+-
+-
+-### Screenshot
+-
+-<!--
+-Please paste a screenshot of the page.
+--->
+-
+-
+-
+-### What did you do?
+-
+-<!--
+-If possible, provide a recipe for reproducing the error.
+-
+-Starting with a Private/Incognito tab/window may help rule out problematic browser extensions.
+--->
+-
+-
+-
+-### What did you expect to see?
+-
+-
+-
+-### What did you see instead?
+-
+-
+diff --git a/.github/ISSUE_TEMPLATE/archived/02-pkgsite-removal.md b/.github/ISSUE_TEMPLATE/archived/02-pkgsite-removal.md
+deleted file mode 100644
+index 97fe317f5b..0000000000
+--- a/.github/ISSUE_TEMPLATE/archived/02-pkgsite-removal.md
++++ /dev/null
+@@ -1,39 +0,0 @@
+----
+-name: Pkg.go.dev package removal request
+-about: Request a package be removed from the documentation site (pkg.go.dev)
+-title: "x/pkgsite: package removal request for [type path here]"
+-labels: pkgsite/package-removal
+----
+-
+-<!--
+-Please answer these questions before submitting your issue. Thanks!
+--->
+-
+-### What is the path of the package that you would like to have removed?
+-
+-<!---
+-We can remove packages with a shared path prefix.
+-For example, a request for "github.com/author" would remove all pkg.go.dev pages with that package path prefix.
+---->
+-
+-
+-
+-### Are you the owner of this package?
+-
+-<!---
+-Only the package owners can request to have their packages removed from pkg.go.dev.
+---->
+-
+-
+-
+-### What is the reason that you could not retract this package instead?
+-
+-<!---
+-If you would like to have your module removed from pkg.go.dev, we recommend that you retract them, so that they can be removed from the go command and proxy.golang.org as well.
+-
+-Retracting a module version involves adding a retract directive to your go.mod file and publishing a new version. For example: https://github.com/jba/retract-demo/blob/main/go.mod#L5-L8
+-
+-See https://pkg.go.dev/about#removing-a-package for additional tips on retractions.
+---->
+-
+-
+diff --git a/.github/ISSUE_TEMPLATE/archived/03-gopls.md b/.github/ISSUE_TEMPLATE/archived/03-gopls.md
+deleted file mode 100644
+index a6b9d913c1..0000000000
+--- a/.github/ISSUE_TEMPLATE/archived/03-gopls.md
++++ /dev/null
+@@ -1,63 +0,0 @@
+----
+-name: Gopls bugs or feature requests
+-about: Issues or feature requests for the Go language server (gopls)
+-title: "x/tools/gopls: "
+-labels:
+-  - gopls
+-  - Tools
+----
+-
+-<!--
+-Please answer these questions before submitting your issue. Thanks!
+--->
+-
+-### gopls version
+-
+-<!--
+-Output of `gopls -v version` on the command line
+--->
+-
+-
+-
+-### go env
+-
+-<!--
+-Output of `go env` on the command line in your workspace directory
+--->
+-
+-
+-### What did you do?
+-
+-<!--
+-If possible, provide a recipe for reproducing the error.
+-A complete runnable program is good.
+-A link on go.dev/play is better.
+-A failing unit test is the best.
+--->
+-
+-
+-
+-### What did you expect to see?
+-
+-
+-
+-### What did you see instead?
+-
+-
+-
+-### Editor and settings
+-
+-<!--
+-Your editor and any settings you have configured (for example, your VSCode settings.json file)
+--->
+-
+-
+-
+-### Logs
+-
+-<!--
+-If possible please include gopls logs. Instructions for capturing them can be found here:
+-https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md#capture-logs
+--->
+-
+-
+diff --git a/.github/ISSUE_TEMPLATE/archived/04-vuln.md b/.github/ISSUE_TEMPLATE/archived/04-vuln.md
+deleted file mode 100644
+index 7e129d78db..0000000000
+--- a/.github/ISSUE_TEMPLATE/archived/04-vuln.md
++++ /dev/null
+@@ -1,51 +0,0 @@
+----
+-name: Go vulnerability management - bugs and feature requests
+-about: Issues or feature requests about Go vulnerability management
+-title: "x/vuln: "
+-labels: "vulncheck or vulndb"
+----
+-
+-<!--
+-Please answer these questions before submitting your issue. Thanks!
+-
+-To add a new vulnerability to the Go vulnerability database
+-(https://vuln.go.dev), see https://go.dev/s/vulndb-report-new.
+-
+-To report an issue about a report, see https://go.dev/s/vulndb-report-feedback.
+--->
+-
+-### What version of Go are you using (`go version`)?
+-
+-<pre>
+-$ go version
+-
+-</pre>
+-
+-### Does this issue reproduce at the latest version of golang.org/x/vuln?
+-
+-
+-
+-### What operating system and processor architecture are you using (`go env`)?
+-
+-<details><summary><code>go env</code> Output</summary><br><pre>
+-$ go env
+-
+-</pre></details>
+-
+-### What did you do?
+-
+-<!--
+-If possible, provide a recipe for reproducing the error.
+-A complete runnable program is good.
+-A link on go.dev/play is best.
+--->
+-
+-
+-
+-### What did you expect to see?
+-
+-
+-
+-### What did you see instead?
+-
+-
+diff --git a/.github/ISSUE_TEMPLATE/archived/10-proposal.md b/.github/ISSUE_TEMPLATE/archived/10-proposal.md
+deleted file mode 100644
+index ab30ddf417..0000000000
+--- a/.github/ISSUE_TEMPLATE/archived/10-proposal.md
++++ /dev/null
+@@ -1,13 +0,0 @@
+----
+-name: Proposals
+-about: New external API or other notable changes
+-title: "proposal: affected/package: "
+-labels: Proposal
+----
+-
+-<!--
+-Our proposal process is documented here:
+-https://go.dev/s/proposal-process
+--->
+-
+-
+diff --git a/.github/ISSUE_TEMPLATE/archived/11-language-change.md b/.github/ISSUE_TEMPLATE/archived/11-language-change.md
+deleted file mode 100644
+index cc9b82b3b7..0000000000
+--- a/.github/ISSUE_TEMPLATE/archived/11-language-change.md
++++ /dev/null
+@@ -1,55 +0,0 @@
+----
+-name: Language Change Proposals
+-about: Changes to the language
+-title: "proposal: Go 2: "
+-labels:
+-  - Proposal
+-  - v2
+-  - LanguageChange
+----
+-
+-<!--
+-Our process for evaluating language changes can be found here:
+-https://go.googlesource.com/proposal/+/refs/heads/master#language-changes
+--->
+-
+-### Author background
+-
+-- **Would you consider yourself a novice, intermediate, or experienced Go programmer?**
+-- **What other languages do you have experience with?**
+-
+-### Related proposals
+-
+-- **Has this idea, or one like it, been proposed before?**
+-  - **If so, how does this proposal differ?**
+-- **Does this affect error handling?**
+-  - **If so, how does this differ from previous error handling proposals?**
+-- **Is this about generics?**
+-  - **If so, how does this relate to the accepted design and other generics proposals?**
+-
+-### Proposal
+-
+-- **What is the proposed change?**
+-- **Who does this proposal help, and why?**
+-- **Please describe as precisely as possible the change to the language.**
+-- **What would change in the language spec?**
+-- **Please also describe the change informally, as in a class teaching Go.**
+-- **Is this change backward compatible?**
+-  - Breaking the Go 1 compatibility guarantee is a large cost and requires a large benefit.
+-    Show example code before and after the change.
+-  - **Before**
+-  - **After**
+-- **Orthogonality: how does this change interact or overlap with existing features?**
+-- **Is the goal of this change a performance improvement?**
+-  - **If so, what quantifiable improvement should we expect?**
+-  - **How would we measure it?**
+-
+-### Costs
+-
+-- **Would this change make Go easier or harder to learn, and why?**
+-- **What is the cost of this proposal? (Every language change has a cost).**
+-- **How many tools (such as vet, gopls, gofmt, goimports, etc.) would be affected?**
+-- **What is the compile time cost?**
+-- **What is the run time cost?**
+-- **Can you describe a possible implementation?**
+-- **Do you have a prototype? (This is not required.)**

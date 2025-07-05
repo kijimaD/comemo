@@ -9,6 +9,28 @@ Date:   Tue Jan 26 18:55:35 2016 +0000
     Change-Id: I89963643eccc902b809e04b7a14153acb0d242e1
     Reviewed-on: https://go-review.googlesource.com/18933
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/server.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 2ec106927b..004a1f92fc 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -648,10 +648,12 @@ func (ecr *expectContinueReader) Close() error {
+ 	return ecr.readCloser.Close()
+ }
+ 
+-// TimeFormat is the time format to use with
+-// time.Parse and time.Time.Format when parsing
+-// or generating times in HTTP headers.
+-// It is like time.RFC1123 but hard codes GMT as the time zone.
++// TimeFormat is the time format to use when generating times in HTTP
++// headers. It is like time.RFC1123 but hard-codes GMT as the time
++// zone. The time being formatted must be in UTC for Format to
++// generate the correct format.
++//
++// For parsing this time format, see ParseTime.
+ const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
+ 
+ // appendTime is a non-allocating version of []byte(t.UTC().Format(TimeFormat))

@@ -8,7 +8,61 @@ Date:   Sat Nov 14 11:46:09 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/154126
-
+---
  src/pkg/xml/xml.go      |  4 ++--
  src/pkg/xml/xml_test.go | 10 +++++++---
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index b8809422d8..202cd46262 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -497,11 +497,11 @@ func (p *Parser) RawToken() (Token, os.Error) {
+ 
+ 		case '[':	// <![
+ 			// Probably <![CDATA[.
+-			for i := 0; i < 7; i++ {
++			for i := 0; i < 6; i++ {
+ 				if b, ok = p.getc(); !ok {
+ 					return nil, p.err
+ 				}
+-				if b != "[CDATA["[i] {
++				if b != "CDATA["[i] {
+ 					p.err = SyntaxError("invalid <![ sequence");
+ 					return nil, p.err;
+ 				}
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index 058c1e7658..11918428b2 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -24,7 +24,7 @@ const testInput = `
+     <inner/>
+   </outer>
+   <tag:name>
+-    Some text here.
++    <![CDATA[Some text here.]]>
+   </tag:name>
+ </body><!-- missing final newline -->`
+ 
+@@ -52,7 +52,9 @@ var rawTokens = []Token{
+ 	EndElement{Name{"", "outer"}},
+ 	CharData(strings.Bytes("\n  ")),
+ 	StartElement{Name{"tag", "name"}, nil},
+-	CharData(strings.Bytes("\n    Some text here.\n  ")),
++	CharData(strings.Bytes("\n    ")),
++	CharData(strings.Bytes("Some text here.")),
++	CharData(strings.Bytes("\n  ")),
+ 	EndElement{Name{"tag", "name"}},
+ 	CharData(strings.Bytes("\n")),
+ 	EndElement{Name{"", "body"}},
+@@ -83,7 +85,9 @@ var cookedTokens = []Token{
+ 	EndElement{Name{"ns2", "outer"}},
+ 	CharData(strings.Bytes("\n  ")),
+ 	StartElement{Name{"ns3", "name"}, nil},
+-	CharData(strings.Bytes("\n    Some text here.\n  ")),
++	CharData(strings.Bytes("\n    ")),
++	CharData(strings.Bytes("Some text here.")),
++	CharData(strings.Bytes("\n  ")),
+ 	EndElement{Name{"ns3", "name"}},
+ 	CharData(strings.Bytes("\n")),
+ 	EndElement{Name{"ns2", "body"}},

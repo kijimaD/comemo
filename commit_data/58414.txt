@@ -23,7 +23,54 @@ Date:   Sun Nov 5 22:40:01 2023 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/loopbce.go |  7 +++++++
  test/fixedbugs/issue63955.go            | 22 ++++++++++++++++++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index 3dbd7350ae..dd1f39dbef 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -129,6 +129,13 @@ func findIndVar(f *Func) []indVar {
+ 			less = false
+ 		}
+ 
++		if ind.Block != b {
++			// TODO: Could be extended to include disjointed loop headers.
++			// I don't think this is causing missed optimizations in real world code often.
++			// See https://go.dev/issue/63955
++			continue
++		}
++
+ 		// Expect the increment to be a nonzero constant.
+ 		if !inc.isGenericIntConst() {
+ 			continue
+diff --git a/test/fixedbugs/issue63955.go b/test/fixedbugs/issue63955.go
+new file mode 100644
+index 0000000000..258e874220
+--- /dev/null
++++ b/test/fixedbugs/issue63955.go
+@@ -0,0 +1,22 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package j
++
++func f(try func() int, shouldInc func() bool, N func(int) int) {
++	var n int
++loop: // we want to have 3 preds here, the function entry and both gotos
++	if v := try(); v == 42 || v == 1337 { // the two || are to trick findIndVar
++		if n < 30 { // this aims to be the matched block
++			if shouldInc() {
++				n++
++				goto loop
++			}
++			n = N(n) // try to prevent some block joining
++			goto loop
++		}
++	}
++}

@@ -11,7 +11,55 @@ Date:   Fri Mar 24 09:00:17 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/esc.go |  9 +++++++++
  test/escape5.go                    | 14 ++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 0a26bf4aae..72b136fe11 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -2118,4 +2118,13 @@ func (e *EscState) esctag(fn *Node) {
+ 		case EscHeap: // touched by escflood, moved to heap
+ 		}
+ 	}
++
++	// Unnamed parameters are unused and therefore do not escape.
++	// (Unnamed parameters are not in the Dcl list in the loop above
++	// so we need to mark them separately.)
++	for _, f := range fn.Type.Params().Fields().Slice() {
++		if f.Sym == nil || isblanksym(f.Sym) {
++			f.Note = mktag(EscNone)
++		}
++	}
+ }
+diff --git a/test/escape5.go b/test/escape5.go
+index c4bf17b2ac..7d6ef554a5 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -9,6 +9,8 @@
+ 
+ package foo
+ 
++import "runtime"
++
+ func noleak(p *int) int { // ERROR "p does not escape"
+ 	return *p
+ }
+@@ -149,3 +151,15 @@ func f10() {
+ 	var y = make([]byte, 1<<30) // ERROR "make\(\[\]byte, 1 << 30\) escapes to heap"
+ 	_ = x[0] + y[0]
+ }
++
++// Test for issue 19687 (passing to unnamed parameters does not escape).
++func f11(**int) {
++}
++func f12(_ **int) {
++}
++func f13() {
++	var x *int
++	f11(&x)               // ERROR "&x does not escape"
++	f12(&x)               // ERROR "&x does not escape"
++	runtime.KeepAlive(&x) // ERROR "&x does not escape"
++}

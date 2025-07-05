@@ -7,6 +7,20 @@ Date:   Wed Oct 6 22:04:18 2010 +1100
     R=golang-dev, r2
     CC=golang-dev
     https://golang.org/cl/2372042
-
+---
  src/pkg/http/request.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index d0de2732d2..45533fab52 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -249,6 +249,8 @@ func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
+ 		// If the caller asked for a line, there should be a line.
+ 		if err == os.EOF {
+ 			err = io.ErrUnexpectedEOF
++		} else if err == bufio.ErrBufferFull {
++			err = ErrLineTooLong
+ 		}
+ 		return nil, err
+ 	}

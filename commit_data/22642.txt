@@ -16,7 +16,182 @@ Date:   Sun Mar 29 21:03:05 2015 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/lib.go    | 23 ++++++++++----
  src/cmd/internal/ld/symtab.go | 70 +++++++++++++++----------------------------
  2 files changed, 41 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index caca87c180..48fd8bc956 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -430,7 +430,6 @@ func loadlib() {
+ 		tlsg.Type = STLSBSS
+ 	}
+ 	tlsg.Size = int64(Thearch.Ptrsize)
+-	tlsg.Hide = 1
+ 	tlsg.Reachable = true
+ 	Ctxt.Tlsg = tlsg
+ 
+@@ -1375,7 +1374,6 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 				continue
+ 			}
+ 			put(s, s.Name, 'D', Symaddr(s), s.Size, int(s.Version), s.Gotype)
+-			continue
+ 
+ 		case SBSS,
+ 			SNOPTRBSS:
+@@ -1386,18 +1384,31 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 				Diag("%s should not be bss (size=%d type=%d special=%d)", s.Name, int(len(s.P)), s.Type, s.Special)
+ 			}
+ 			put(s, s.Name, 'B', Symaddr(s), s.Size, int(s.Version), s.Gotype)
+-			continue
+ 
+ 		case SFILE:
+ 			put(nil, s.Name, 'f', s.Value, 0, int(s.Version), nil)
+-			continue
+ 
+ 		case SHOSTOBJ:
+-			if HEADTYPE == Hwindows {
++			if HEADTYPE == Hwindows || Iself {
+ 				put(s, s.Name, 'U', s.Value, 0, int(s.Version), nil)
+ 			}
+-			continue
+ 
++		case SDYNIMPORT:
++			if !s.Reachable {
++				continue
++			}
++			put(s, s.Extname, 'U', 0, 0, int(s.Version), nil)
++
++		case STLSBSS:
++			if Linkmode == LinkExternal && HEADTYPE != Hopenbsd {
++				var type_ int
++				if goos == "android" {
++					type_ = 'B'
++				} else {
++					type_ = 't'
++				}
++				put(s, s.Name, type_, Symaddr(s), s.Size, int(s.Version), s.Gotype)
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index e1ac864426..e165c8c855 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -98,22 +98,34 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 
+ 	case 'B':
+ 		type_ = STT_OBJECT
++
++	case 'U':
++		type_ = STT_NOTYPE
++
++	case 't':
++		type_ = STT_TLS
+ 	}
+ 
+ 	xo := x
+ 	for xo.Outer != nil {
+ 		xo = xo.Outer
+ 	}
+-	if xo.Sect == nil {
+-		Ctxt.Cursym = x
+-		Diag("missing section in putelfsym")
+-		return
+-	}
+ 
+-	if (xo.Sect.(*Section)).Elfsect == nil {
+-		Ctxt.Cursym = x
+-		Diag("missing ELF section in putelfsym")
+-		return
++	var elfshnum int
++	if xo.Type == SDYNIMPORT || xo.Type == SHOSTOBJ {
++		elfshnum = SHN_UNDEF
++	} else {
++		if xo.Sect == nil {
++			Ctxt.Cursym = x
++			Diag("missing section in putelfsym")
++			return
++		}
++		if (xo.Sect.(*Section)).Elfsect == nil {
++			Ctxt.Cursym = x
++			Diag("missing ELF section in putelfsym")
++			return
++		}
++		elfshnum = ((xo.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum
+ 	}
+ 
+ 	// One pass for each binding: STB_LOCAL, STB_GLOBAL,
+@@ -128,7 +140,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 	// to get the exported symbols put into the dynamic symbol table.
+ 	// To avoid filling the dynamic table with lots of unnecessary symbols,
+ 	// mark all Go symbols local (not global) in the final executable.
+-	if Linkmode == LinkExternal && x.Cgoexport&CgoExportStatic == 0 {
++	if Linkmode == LinkExternal && x.Cgoexport&CgoExportStatic == 0 && elfshnum != SHN_UNDEF {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -137,14 +149,14 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 	}
+ 
+ 	off := putelfstr(s)
+-	if Linkmode == LinkExternal {
++	if Linkmode == LinkExternal && elfshnum != SHN_UNDEF {
+ 		addr -= int64((xo.Sect.(*Section)).Vaddr)
+ 	}
+ 	other := STV_DEFAULT
+ 	if x.Type&SHIDDEN != 0 {
+ 		other = STV_HIDDEN
+ 	}
+-	putelfsyment(off, addr, size, bind<<4|type_&0xf, ((xo.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum, other)
++	putelfsyment(off, addr, size, bind<<4|type_&0xf, elfshnum, other)
+ 	x.Elfsym = int32(numelfsym)
+ 	numelfsym++
+ }
+@@ -178,43 +190,9 @@ func Asmelfsym() {
+ 	elfbind = STB_LOCAL
+ 	genasmsym(putelfsym)
+ 
+-	if Linkmode == LinkExternal && HEADTYPE != Hopenbsd {
+-		s := Linklookup(Ctxt, "runtime.tlsg", 0)
+-		if s.Sect == nil {
+-			Ctxt.Cursym = nil
+-			Diag("missing section for %s", s.Name)
+-			Errorexit()
+-		}
+-
+-		if goos == "android" {
+-			// Android emulates runtime.tlsg as a regular variable.
+-			putelfsyment(putelfstr(s.Name), 0, s.Size, STB_LOCAL<<4|STT_OBJECT, ((s.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum, 0)
+-		} else {
+-			putelfsyment(putelfstr(s.Name), 0, s.Size, STB_LOCAL<<4|STT_TLS, ((s.Sect.(*Section)).Elfsect.(*ElfShdr)).shnum, 0)
+-		}
+-
+-		s.Elfsym = int32(numelfsym)
+-		numelfsym++
+-	}
+-
+ 	elfbind = STB_GLOBAL
+ 	elfglobalsymndx = numelfsym
+ 	genasmsym(putelfsym)
+-
+-	var name string
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+-		if s.Type != SHOSTOBJ && (s.Type != SDYNIMPORT || !s.Reachable) {
+-			continue
+-		}
+-		if s.Type == SDYNIMPORT {
+-			name = s.Extname
+-		} else {
+-			name = s.Name
+-		}
+-		putelfsyment(putelfstr(name), 0, 0, STB_GLOBAL<<4|STT_NOTYPE, 0, 0)
+-		s.Elfsym = int32(numelfsym)
+-		numelfsym++
+-	}
+ }
+ 
+ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {

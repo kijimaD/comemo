@@ -11,7 +11,7 @@ Date:   Wed Jun 12 15:22:26 2013 -0400
     R=dvyukov, minux.ma
     CC=golang-dev
     https://golang.org/cl/10036044
-
+---
  misc/cgo/test/callback.go       |  2 +-
  src/pkg/runtime/asm_386.s       | 67 ++++++++++++++---------------------------
  src/pkg/runtime/asm_amd64.s     | 63 ++++++++++++--------------------------
@@ -27,3 +27,787 @@ Date:   Wed Jun 12 15:22:26 2013 -0400
  src/pkg/runtime/traceback_arm.c | 20 ++++++------
  src/pkg/runtime/traceback_x86.c | 11 ++-----
  14 files changed, 188 insertions(+), 187 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index b6e2e3c1ce..43707d1442 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -148,7 +148,7 @@ func testCallbackCallers(t *testing.T) {
+ 		"test.goCallback",
+ 		"runtime.cgocallbackg",
+ 		"runtime.cgocallback_gofunc",
+-		"return",
++		"runtime.asmcgocall",
+ 		"runtime.cgocall",
+ 		"test._Cfunc_callback",
+ 		"test.nestedCall",
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 8c771c3947..2aa1a2d0e4 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -134,6 +134,8 @@ TEXT runtime·gosave(SB), 7, $0
+ 	MOVL	BX, gobuf_sp(AX)
+ 	MOVL	0(SP), BX		// caller's PC
+ 	MOVL	BX, gobuf_pc(AX)
++	MOVL	$0, gobuf_ret(AX)
++	MOVL	$0, gobuf_ctxt(AX)
+ 	get_tls(CX)
+ 	MOVL	g(CX), BX
+ 	MOVL	BX, gobuf_g(AX)
+@@ -142,50 +144,20 @@ TEXT runtime·gosave(SB), 7, $0
+ // void gogo(Gobuf*, uintptr)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), 7, $0
+-	MOVL	8(SP), AX		// return 2nd arg
+ 	MOVL	4(SP), BX		// gobuf
+ 	MOVL	gobuf_g(BX), DX
+ 	MOVL	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+ 	MOVL	DX, g(CX)
+ 	MOVL	gobuf_sp(BX), SP	// restore SP
++	MOVL	gobuf_ret(BX), AX
++	MOVL	gobuf_ctxt(BX), DX
++	MOVL	$0, gobuf_sp(BX)	// clear to help garbage collector
++	MOVL	$0, gobuf_ret(BX)
++	MOVL	$0, gobuf_ctxt(BX)
+ 	MOVL	gobuf_pc(BX), BX
+ 	JMP	BX
+ 
+-// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
+-// restore state from Gobuf but then call fn.
+-// (call fn, returning to state in Gobuf)
+-TEXT runtime·gogocall(SB), 7, $0
+-	MOVL	12(SP), DX	// context
+-	MOVL	8(SP), AX		// fn
+-	MOVL	4(SP), BX		// gobuf
+-	MOVL	gobuf_g(BX), DI
+-	get_tls(CX)
+-	MOVL	DI, g(CX)
+-	MOVL	0(DI), CX		// make sure g != nil
+-	MOVL	gobuf_sp(BX), SP	// restore SP
+-	MOVL	gobuf_pc(BX), BX
+-	PUSHL	BX
+-	JMP	AX
+-	POPL	BX	// not reached
+-
+-// void gogocallfn(Gobuf*, FuncVal*)
+-// restore state from Gobuf but then call fn.
+-// (call fn, returning to state in Gobuf)
+-TEXT runtime·gogocallfn(SB), 7, $0
+-	MOVL	8(SP), DX		// fn
+-	MOVL	4(SP), BX		// gobuf
+-	MOVL	gobuf_g(BX), DI
+-	get_tls(CX)
+-	MOVL	DI, g(CX)
+-	MOVL	0(DI), CX		// make sure g != nil
+-	MOVL	gobuf_sp(BX), SP	// restore SP
+-	MOVL	gobuf_pc(BX), BX
+-	PUSHL	BX
+-	MOVL	0(DX), BX
+-	JMP	BX
+-	POPL	BX	// not reached
+-
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+@@ -469,11 +441,20 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVL	0(DX), BX
+ 	JMP	BX	// but first run the deferred function
+ 
+-// Dummy function to use in saved gobuf.PC,
+-// to match SP pointing at a return address.
+-// The gobuf.PC is unused by the contortions here
+-// but setting it to return will make the traceback code work.
+-TEXT return<>(SB),7,$0
++// Save state of caller into g->sched.
++TEXT gosave<>(SB),7,$0
++	PUSHL	AX
++	PUSHL	BX
++	get_tls(BX)
++	MOVL	g(BX), BX
++	LEAL	arg+0(FP), AX
++	MOVL	AX, (g_sched+gobuf_sp)(BX)
++	MOVL	-4(AX), AX
++	MOVL	AX, (g_sched+gobuf_pc)(BX)
++	MOVL	$0, (g_sched+gobuf_ret)(BX)
++	MOVL	$0, (g_sched+gobuf_ctxt)(BX)
++	POPL	BX
++	POPL	AX
+ 	RET
+ 
+ // asmcgocall(void(*fn)(void*), void *arg)
+@@ -493,10 +474,8 @@ TEXT runtime·asmcgocall(SB),7,$0
+ 	MOVL	m_g0(BP), SI
+ 	MOVL	g(CX), DI
+ 	CMPL	SI, DI
+-	JEQ	6(PC)
+-	MOVL	SP, (g_sched+gobuf_sp)(DI)
+-	MOVL	$return<>(SB), (g_sched+gobuf_pc)(DI)
+-	MOVL	DI, (g_sched+gobuf_g)(DI)
++	JEQ	4(PC)
++	CALL	gosave<>(SB)
+ 	MOVL	SI, g(CX)
+ 	MOVL	(g_sched+gobuf_sp)(SI), SP
+ 
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 7b7c1b55d0..be3ae0d32a 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -121,6 +121,8 @@ TEXT runtime·gosave(SB), 7, $0
+ 	MOVQ	BX, gobuf_sp(AX)
+ 	MOVQ	0(SP), BX		// caller's PC
+ 	MOVQ	BX, gobuf_pc(AX)
++	MOVQ	$0, gobuf_ret(AX)
++	MOVQ	$0, gobuf_ctxt(AX)
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	BX, gobuf_g(AX)
+@@ -129,50 +131,20 @@ TEXT runtime·gosave(SB), 7, $0
+ // void gogo(Gobuf*, uintptr)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), 7, $0
+-	MOVQ	16(SP), AX		// return 2nd arg
+ 	MOVQ	8(SP), BX		// gobuf
+ 	MOVQ	gobuf_g(BX), DX
+ 	MOVQ	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+ 	MOVQ	DX, g(CX)
+ 	MOVQ	gobuf_sp(BX), SP	// restore SP
++	MOVQ	gobuf_ret(BX), AX
++	MOVQ	gobuf_ctxt(BX), DX
++	MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
++	MOVQ	$0, gobuf_ret(BX)
++	MOVQ	$0, gobuf_ctxt(BX)
+ 	MOVQ	gobuf_pc(BX), BX
+ 	JMP	BX
+ 
+-// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
+-// restore state from Gobuf but then call fn.
+-// (call fn, returning to state in Gobuf)
+-TEXT runtime·gogocall(SB), 7, $0
+-	MOVQ	24(SP), DX	// context
+-	MOVQ	16(SP), AX		// fn
+-	MOVQ	8(SP), BX		// gobuf
+-	MOVQ	gobuf_g(BX), DI
+-	get_tls(CX)
+-	MOVQ	DI, g(CX)
+-	MOVQ	0(DI), CX	// make sure g != nil
+-	MOVQ	gobuf_sp(BX), SP	// restore SP
+-	MOVQ	gobuf_pc(BX), BX
+-	PUSHQ	BX
+-	JMP	AX
+-	POPQ	BX	// not reached
+-
+-// void gogocallfn(Gobuf*, FuncVal*)
+-// restore state from Gobuf but then call fn.
+-// (call fn, returning to state in Gobuf)
+-TEXT runtime·gogocallfn(SB), 7, $0
+-	MOVQ	16(SP), DX		// fn
+-	MOVQ	8(SP), BX		// gobuf
+-	MOVQ	gobuf_g(BX), AX
+-	get_tls(CX)
+-	MOVQ	AX, g(CX)
+-	MOVQ	0(AX), CX	// make sure g != nil
+-	MOVQ	gobuf_sp(BX), SP	// restore SP
+-	MOVQ	gobuf_pc(BX), BX
+-	PUSHQ	BX
+-	MOVQ	0(DX), BX
+-	JMP	BX
+-	POPQ	BX	// not reached
+-
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+@@ -505,11 +477,16 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVQ	0(DX), BX
+ 	JMP	BX	// but first run the deferred function
+ 
+-// Dummy function to use in saved gobuf.PC,
+-// to match SP pointing at a return address.
+-// The gobuf.PC is unused by the contortions here
+-// but setting it to return will make the traceback code work.
+-TEXT return<>(SB),7,$0
++// Save state of caller into g->sched. Smashes R8, R9.
++TEXT gosave<>(SB),7,$0
++	get_tls(R8)
++	MOVQ	g(R8), R8
++	MOVQ	0(SP), R9
++	MOVQ	R9, (g_sched+gobuf_pc)(R8)
++	LEAQ	8(SP), R9
++	MOVQ	R9, (g_sched+gobuf_sp)(R8)
++	MOVQ	$0, (g_sched+gobuf_ret)(R8)
++	MOVQ	$0, (g_sched+gobuf_ctxt)(R8)
+ 	RET
+ 
+ // asmcgocall(void(*fn)(void*), void *arg)
+@@ -529,10 +506,8 @@ TEXT runtime·asmcgocall(SB),7,$0
+ 	MOVQ	m_g0(BP), SI
+ 	MOVQ	g(CX), DI
+ 	CMPQ	SI, DI
+-	JEQ	6(PC)
+-	MOVQ	SP, (g_sched+gobuf_sp)(DI)
+-	MOVQ	$return<>(SB), (g_sched+gobuf_pc)(DI)
+-	MOVQ	DI, (g_sched+gobuf_g)(DI)
++	JEQ	4(PC)
++	CALL	gosave<>(SB)
+ 	MOVQ	SI, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(SI), SP
+ 
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 892a742cbf..7d6123c0e5 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -102,6 +102,10 @@ TEXT runtime·gosave(SB), 7, $-4
+ 	MOVW	SP, gobuf_sp(R0)
+ 	MOVW	LR, gobuf_pc(R0)
+ 	MOVW	g, gobuf_g(R0)
++	MOVW	$0, R11
++	MOVW	R11, gobuf_lr(R0)
++	MOVW	R11, gobuf_ret(R0)
++	MOVW	R11, gobuf_ctxt(R0)
+ 	RET
+ 
+ // void gogo(Gobuf*, uintptr)
+@@ -113,44 +117,17 @@ TEXT runtime·gogo(SB), 7, $-4
+ 	MOVW	_cgo_save_gm(SB), R2
+ 	CMP 	$0, R2 // if in Cgo, we have to save g and m
+ 	BL.NE	(R2) // this call will clobber R0
+-	MOVW	4(FP), R0		// return 2nd arg
+ 	MOVW	gobuf_sp(R1), SP	// restore SP
++	MOVW	gobuf_lr(R1), LR
++	MOVW	gobuf_ret(R1), R0
++	MOVW	gobuf_ctxt(R1), R7
++	MOVW	$0, R11
++	MOVW	R11, gobuf_sp(R1)	// clear to help garbage collector
++	MOVW	R11, gobuf_ret(R1)
++	MOVW	R11, gobuf_lr(R1)
++	MOVW	R11, gobuf_ctxt(R1)
+ 	MOVW	gobuf_pc(R1), PC
+ 
+-// void gogocall(Gobuf*, void (*fn)(void), uintptr r7)
+-// restore state from Gobuf but then call fn.
+-// (call fn, returning to state in Gobuf)
+-// using frame size $-4 means do not save LR on stack.
+-TEXT runtime·gogocall(SB), 7, $-4
+-	MOVW	0(FP), R3		// gobuf
+-	MOVW	4(FP), R1		// fn
+-	MOVW	gobuf_g(R3), g
+-	MOVW	0(g), R0		// make sure g != nil
+-	MOVW	_cgo_save_gm(SB), R0
+-	CMP 	$0, R0 // if in Cgo, we have to save g and m
+-	BL.NE	(R0) // this call will clobber R0
+-	MOVW	8(FP), R7	// context
+-	MOVW	gobuf_sp(R3), SP	// restore SP
+-	MOVW	gobuf_pc(R3), LR
+-	MOVW	R1, PC
+-
+-// void gogocallfn(Gobuf*, FuncVal*)
+-// restore state from Gobuf but then call fn.
+-// (call fn, returning to state in Gobuf)
+-// using frame size $-4 means do not save LR on stack.
+-TEXT runtime·gogocallfn(SB), 7, $-4
+-	MOVW	0(FP), R3		// gobuf
+-	MOVW	4(FP), R1		// fn
+-	MOVW	gobuf_g(R3), g
+-	MOVW	0(g), R0		// make sure g != nil
+-	MOVW	_cgo_save_gm(SB), R0
+-	CMP 	$0, R0 // if in Cgo, we have to save g and m
+-	BL.NE	(R0) // this call will clobber R0
+-	MOVW	gobuf_sp(R3), SP	// restore SP
+-	MOVW	gobuf_pc(R3), LR
+-	MOVW	R1, R7
+-	MOVW	0(R1), PC
+-
+ // void mcall(void (*fn)(G*))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+@@ -271,11 +248,14 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVW	0(R7), R1
+ 	B	(R1)
+ 
+-// Dummy function to use in saved gobuf.PC,
+-// to match SP pointing at a return address.
+-// The gobuf.PC is unused by the contortions here
+-// but setting it to return will make the traceback code work.
+-TEXT return<>(SB),7,$0
++// Save state of caller into g->sched. Smashes R11.
++TEXT gosave<>(SB),7,$0
++	MOVW	LR, (g_sched+gobuf_pc)(g)
++	MOVW	R13, (g_sched+gobuf_sp)(g)
++	MOVW	$0, R11
++	MOVW	R11, (g_sched+gobuf_lr)(g)
++	MOVW	R11, (g_sched+gobuf_ret)(g)
++	MOVW	R11, (g_sched+gobuf_ctxt)(g)
+ 	RET
+ 
+ // asmcgocall(void(*fn)(void*), void *arg)
+@@ -293,11 +273,8 @@ TEXT	runtime·asmcgocall(SB),7,$0
+ 	// come in on the m->g0 stack already.
+ 	MOVW	m_g0(m), R3
+ 	CMP	R3, g
+-	BEQ	7(PC)
+-	MOVW	R13, (g_sched + gobuf_sp)(g)
+-	MOVW	$return<>(SB), R4
+-	MOVW	R4, (g_sched+gobuf_pc)(g)
+-	MOVW	g, (g_sched+gobuf_g)(g)
++	BEQ	4(PC)
++	BL	gosave<>(SB)
+ 	MOVW	R3, g
+ 	MOVW	(g_sched+gobuf_sp)(g), R13
+ 
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index ad1ee885e7..dc38e2aff5 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1428,7 +1428,9 @@ addstackroots(G *gp)
+ 	M *mp;
+ 	int32 n;
+ 	Stktop *stk;
+-	uintptr sp, guard, pc;
++	uintptr sp, guard, pc, lr;
++	void *base;
++	uintptr size;
+ 
+ 	stk = (Stktop*)gp->stackbase;
+ 	guard = gp->stackguard;
+@@ -1445,6 +1447,7 @@ addstackroots(G *gp)
+ 		// the system call instead, since that won't change underfoot.
+ 		sp = gp->gcsp;
+ 		pc = gp->gcpc;
++		lr = 0;
+ 		stk = (Stktop*)gp->gcstack;
+ 		guard = gp->gcguard;
+ 	} else {
+@@ -1452,11 +1455,16 @@ addstackroots(G *gp)
+ 		// The goroutine is usually asleep (the world is stopped).
+ 		sp = gp->sched.sp;
+ 		pc = gp->sched.pc;
++		lr = gp->sched.lr;
++
++		// For function about to start, context argument is a root too.
++		if(gp->sched.ctxt != 0 && runtime·mlookup(gp->sched.ctxt, &base, &size, nil))
++			addroot((Obj){base, size, 0});
+ 	}
+ 	if(ScanStackByFrames) {
+ 		USED(stk);
+ 		USED(guard);
+-		runtime·gentraceback(pc, sp, 0, gp, 0, nil, 0x7fffffff, addframeroots, nil);
++		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, addframeroots, nil);
+ 	} else {
+ 		USED(pc);
+ 		n = 0;
+@@ -2031,7 +2039,7 @@ mgc(G *gp)
+ 	gc(gp->param);
+ 	gp->status = Grunning;
+ 	gp->param = nil;
+-	runtime·gogo(&gp->sched, 0);
++	runtime·gogo(&gp->sched);
+ }
+ 
+ static void
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index b7075995f9..f6e9dba4e6 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -277,7 +277,8 @@ recovery(G *gp)
+ 	else
+ 		gp->sched.sp = (uintptr)argp - 2*sizeof(uintptr);
+ 	gp->sched.pc = pc;
+-	runtime·gogo(&gp->sched, 1);
++	gp->sched.ret = 1;
++	runtime·gogo(&gp->sched);
+ }
+ 
+ // Free stack frames until we hit the last one
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5b3dbab7e0..9d2f765136 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1000,9 +1000,7 @@ execute(G *gp)
+ 	if(m->profilehz != hz)
+ 		runtime·resetcpuprofiler(hz);
+ 
+-	if(gp->sched.pc == (uintptr)runtime·goexit)  // kickoff
+-		runtime·gogocallfn(&gp->sched, gp->fnstart);
+-	runtime·gogo(&gp->sched, 0);
++	runtime·gogo(&gp->sched);
+ }
+ 
+ // Finds a runnable goroutine to execute.
+@@ -1254,7 +1252,6 @@ static void
+ goexit0(G *gp)
+ {
+ 	gp->status = Gdead;
+-	gp->fnstart = nil;
+ 	gp->m = nil;
+ 	gp->lockedm = nil;
+ 	m->curg = nil;
+@@ -1269,6 +1266,19 @@ goexit0(G *gp)
+ 	schedule();
+ }
+ 
++static void
++save(void *pc, uintptr sp)
++{
++	g->gcpc = (uintptr)pc;
++	g->gcsp = sp;
++	g->sched.pc = (uintptr)pc;
++	g->sched.sp = sp;
++	g->sched.lr = 0;
++	g->sched.ret = 0;
++	g->sched.ctxt = 0;
++	g->sched.g = g;
++}
++
+ // The goroutine g is about to enter a system call.
+ // Record that it's not using the cpu anymore.
+ // This is called only from the go syscall library and cgocall,
+@@ -1285,11 +1295,8 @@ void
+ 		runtime·setprof(false);
+ 
+ 	// Leave SP around for gc and traceback.
+-	g->sched.sp = (uintptr)runtime·getcallersp(&dummy);
+-	g->sched.pc = (uintptr)runtime·getcallerpc(&dummy);
+-	g->sched.g = g;
+-	g->gcsp = g->sched.sp;
+-	g->gcpc = g->sched.pc;
++	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
++
+ 	g->gcstack = g->stackbase;
+ 	g->gcguard = g->stackguard;
+ 	g->status = Gsyscall;
+@@ -1306,7 +1313,7 @@ void
+ 			runtime·notewakeup(&runtime·sched.sysmonnote);
+ 		}
+ 		runtime·unlock(&runtime·sched);
+-		runtime·gosave(&g->sched);  // re-save for traceback
++		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 	}
+ 
+ 	m->mcache = nil;
+@@ -1320,7 +1327,7 @@ void
+ 				runtime·notewakeup(&runtime·sched.stopnote);
+ 		}
+ 		runtime·unlock(&runtime·sched);
+-		runtime·gosave(&g->sched);  // re-save for traceback
++		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 	}
+ }
+ 
+@@ -1335,9 +1342,7 @@ void
+ 		runtime·setprof(false);
+ 
+ 	// Leave SP around for gc and traceback.
+-	g->sched.sp = runtime·getcallersp(&dummy);
+-	g->sched.pc = (uintptr)runtime·getcallerpc(&dummy);
+-	g->sched.g = g;
++	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 	g->gcsp = g->sched.sp;
+ 	g->gcpc = g->sched.pc;
+ 	g->gcstack = g->stackbase;
+@@ -1353,7 +1358,9 @@ void
+ 	handoffp(p);
+ 	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
+ 		inclocked(1);
+-	runtime·gosave(&g->sched);  // re-save for traceback
++
++	// Resave for traceback during blocked call.
++	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ }
+ 
+ // The goroutine g exited its system call.
+@@ -1450,7 +1457,7 @@ static void
+ mstackalloc(G *gp)
+ {
+ 	gp->param = runtime·stackalloc((uintptr)gp->param);
+-	runtime·gogo(&gp->sched, 0);
++	runtime·gogo(&gp->sched);
+ }
+ 
+ // Allocate a new g, with a stack big enough for stacksize bytes.
+@@ -1552,10 +1559,11 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 		*(void**)sp = nil;
+ 	}
+ 
++	runtime·memclr((byte*)&newg->sched, sizeof newg->sched);
+ 	newg->sched.sp = (uintptr)sp;
+ 	newg->sched.pc = (uintptr)runtime·goexit;
+ 	newg->sched.g = newg;
+-	newg->fnstart = fn;
++	runtime·gostartcallfn(&newg->sched, fn);
+ 	newg->gopc = (uintptr)callerpc;
+ 	newg->status = Grunnable;
+ 	newg->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
+@@ -2421,3 +2429,12 @@ runtime·testSchedLocalQueueSteal(void)
+ 	}
+ }
+ 
++bool
++runtime·haszeroargs(uintptr pc)
++{
++	return pc == (uintptr)runtime·goexit ||
++		pc == (uintptr)runtime·mcall ||
++		pc == (uintptr)runtime·mstart ||
++		pc == (uintptr)_rt0_go;
++}
++
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index cbaff4bb52..f004f1a42c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -209,10 +209,13 @@ struct	Slice
+ };
+ struct	Gobuf
+ {
+-	// The offsets of these fields are known to (hard-coded in) libmach.
++	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
+ 	uintptr	sp;
+ 	uintptr	pc;
+ 	G*	g;
++	uintptr	ret;
++	void*	ctxt;
++	uintptr	lr;
+ };
+ struct	GCStats
+ {
+@@ -238,7 +241,6 @@ struct	G
+ 	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
+ 	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
+ 	uintptr	stack0;
+-	FuncVal*	fnstart;		// initial function
+ 	G*	alllink;	// on allg
+ 	void*	param;		// passed parameter on wakeup
+ 	int16	status;
+@@ -671,6 +673,7 @@ struct Stkframe
+ int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*);
+ void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
+ void	runtime·tracebackothers(G*);
++bool	runtime·haszeroargs(uintptr pc);
+ 
+ /*
+  * external data
+@@ -711,9 +714,9 @@ int32	runtime·charntorune(int32*, uint8*, int32);
+  */
+ #define FLUSH(x)	USED(x)
+ 
+-void	runtime·gogo(Gobuf*, uintptr);
+-void	runtime·gogocall(Gobuf*, void(*)(void), uintptr);
+-void	runtime·gogocallfn(Gobuf*, FuncVal*);
++void	runtime·gogo(Gobuf*);
++void	runtime·gostartcall(Gobuf*, void(*)(void), void*);
++void	runtime·gostartcallfn(Gobuf*, FuncVal*);
+ void	runtime·gosave(Gobuf*);
+ void	runtime·lessstack(void);
+ void	runtime·goargs(void);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 68477ad8da..a63e3b0c90 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -130,7 +130,6 @@ runtime·oldstack(void)
+ 	Stktop *top;
+ 	Gobuf label;
+ 	uint32 argsize;
+-	uintptr cret;
+ 	byte *sp, *old;
+ 	uintptr *src, *dst, *dstend;
+ 	G *gp;
+@@ -161,9 +160,9 @@ runtime·oldstack(void)
+ 	if(top->free != 0)
+ 		runtime·stackfree(old, top->free);
+ 
+-	cret = m->cret;
++	label.ret = m->cret;
+ 	m->cret = 0;  // drop reference
+-	runtime·gogo(&label, cret);
++	runtime·gogo(&label);
+ }
+ 
+ // Called from reflect·call or from runtime·morestack when a new
+@@ -270,13 +269,26 @@ runtime·newstack(void)
+ 
+ 	// Continue as if lessstack had just called m->morepc
+ 	// (the PC that decided to grow the stack).
++	runtime·memclr((byte*)&label, sizeof label);
+ 	label.sp = sp;
+ 	label.pc = (uintptr)runtime·lessstack;
+ 	label.g = m->curg;
+ 	if(reflectcall)
+-		runtime·gogocallfn(&label, (FuncVal*)m->morepc);
+-	else
+-		runtime·gogocall(&label, m->morepc, m->cret);
++		runtime·gostartcallfn(&label, (FuncVal*)m->morepc);
++	else {
++		// The stack growth code saves ctxt (not ret) in m->cret.
++		runtime·gostartcall(&label, m->morepc, (void*)m->cret);
++		m->cret = 0;
++	}
++	runtime·gogo(&label);
+ 
+ 	*(int32*)345 = 123;	// never return
+ }
++
++// adjust Gobuf as if it executed a call to fn
++// and then did an immediate gosave.
++void
++runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
++{
++	runtime·gostartcall(gobuf, fv->fn, fv);
++}
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index 0d36c94afb..a349c1f1be 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -104,7 +104,7 @@ enum {
+ 	// The assumed size of the top-of-stack data block.
+ 	// The actual size can be smaller than this but cannot be larger.
+ 	// Checked in proc.c's runtime.malg.
+-	StackTop = 72,
++	StackTop = 96,
+ 
+ 	// Goroutine preemption request.
+ 	// Stored into g->stackguard0 to cause split stack check failure.
+diff --git a/src/pkg/runtime/sys_arm.c b/src/pkg/runtime/sys_arm.c
+new file mode 100644
+index 0000000000..68ea49a557
+--- /dev/null
++++ b/src/pkg/runtime/sys_arm.c
+@@ -0,0 +1,17 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++// adjust Gobuf as if it executed a call to fn with context ctxt
++// and then did an immediate Gosave.
++void
++runtime·gostartcall(Gobuf *gobuf, void (*fn)(void), void *ctxt)
++{
++	if(gobuf->lr != 0)
++		runtime·throw("invalid use of gostartcall");
++	gobuf->lr = gobuf->pc;
++	gobuf->pc = (uintptr)fn;
++	gobuf->ctxt = ctxt;
++}
+diff --git a/src/pkg/runtime/sys_x86.c b/src/pkg/runtime/sys_x86.c
+new file mode 100644
+index 0000000000..c786a0c9f8
+--- /dev/null
++++ b/src/pkg/runtime/sys_x86.c
+@@ -0,0 +1,21 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build amd64 386
++
++#include "runtime.h"
++
++// adjust Gobuf as it if executed a call to fn with context ctxt
++// and then did an immediate gosave.
++void
++runtime·gostartcall(Gobuf *gobuf, void (*fn)(void), void *ctxt)
++{
++	uintptr *sp;
++	
++	sp = (uintptr*)gobuf->sp;
++	*--sp = (uintptr)gobuf->pc;
++	gobuf->sp = (uintptr)sp;
++	gobuf->pc = (uintptr)fn;
++	gobuf->ctxt = ctxt;
++}
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 85c0f2fa97..04914f0912 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -19,13 +19,15 @@ void _modu(void);
+ int32
+ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, void (*callback)(Stkframe*, void*), void *v)
+ {
+-	int32 i, n;
++	int32 i, n, skip0;
+ 	uintptr x, tracepc;
+ 	bool waspanic, printing;
+ 	Func *f, *f2;
+ 	Stkframe frame;
+ 	Stktop *stk;
+ 
++	skip0 = skip;
++
+ 	runtime·memclr((byte*)&frame, sizeof frame);
+ 	frame.pc = pc0;
+ 	frame.lr = lr0;
+@@ -33,12 +35,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 	waspanic = false;
+ 	printing = pcbuf==nil && callback==nil;
+ 
+-	// If the PC is goexit, the goroutine hasn't started yet.
+-	if(frame.pc == (uintptr)runtime·goexit && gp->fnstart != nil) {
+-		frame.pc = (uintptr)gp->fnstart->fn;
+-		frame.lr = (uintptr)runtime·goexit;
+-	}
+-
+ 	// If the PC is zero, it's likely a nil function call.
+ 	// Start in the caller's frame.
+ 	if(frame.pc == 0) {
+@@ -69,8 +65,10 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		}
+ 		
+ 		if(frame.pc <= 0x1000 || (frame.fn = f = runtime·findfunc(frame.pc)) == nil) {
+-			if(callback != nil)
+-				runtime·throw("unknown pc");
++			if(callback != nil) {
++				runtime·printf("runtime: unknown pc %p at frame %d\n", frame.pc, skip0-skip+n);
++				runtime·throw("invalid stack");
++			}
+ 			break;
+ 		}
+ 		
+@@ -89,12 +87,12 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		frame.arglen = 0;
+ 		if(f->args != ArgsSizeUnknown)
+ 			frame.arglen = f->args;
+-		else if(frame.pc == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mcall || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
++		else if(runtime·haszeroargs(f->entry))
+ 			frame.arglen = 0;
+ 		else if(frame.lr == (uintptr)runtime·lessstack)
+ 			frame.arglen = stk->argsize;
+ 		else if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
+-			frame.arglen = 2*sizeof(uintptr) + ((uintptr*)frame.argp)[1];
++			frame.arglen = 3*sizeof(uintptr) + *(int32*)frame.argp;
+ 		else if((f2 = runtime·findfunc(frame.lr)) != nil && f2->frame >= sizeof(uintptr))
+ 			frame.arglen = f2->frame; // conservative overestimate
+ 		else {
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index e6e132e253..ec66647005 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -38,13 +38,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 	frame.sp = sp0;
+ 	waspanic = false;
+ 	printing = pcbuf==nil && callback==nil;
+-
+-	// If the PC is goexit, the goroutine hasn't started yet.
+-	if(frame.pc == gp->sched.pc && frame.sp == gp->sched.sp && frame.pc == (uintptr)runtime·goexit && gp->fnstart != nil) {
+-		frame.fp = frame.sp;
+-		frame.lr = frame.pc;
+-		frame.pc = (uintptr)gp->fnstart->fn;
+-	}
+ 	
+ 	// If the PC is zero, it's likely a nil function call.
+ 	// Start in the caller's frame.
+@@ -98,12 +91,12 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		frame.arglen = 0;
+ 		if(f->args != ArgsSizeUnknown)
+ 			frame.arglen = f->args;
+-		else if(frame.pc == (uintptr)runtime·goexit || f->entry == (uintptr)runtime·mcall || f->entry == (uintptr)runtime·mstart || f->entry == (uintptr)_rt0_go)
++		else if(runtime·haszeroargs(f->entry))
+ 			frame.arglen = 0;
+ 		else if(frame.lr == (uintptr)runtime·lessstack)
+ 			frame.arglen = stk->argsize;
+ 		else if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
+-			frame.arglen = 2*sizeof(uintptr) + ((uintptr*)frame.argp)[1];
++			frame.arglen = 2*sizeof(uintptr) + *(int32*)frame.argp;
+ 		else if((f2 = runtime·findfunc(frame.lr)) != nil && f2->frame >= sizeof(uintptr))
+ 			frame.arglen = f2->frame; // conservative overestimate
+ 		else {

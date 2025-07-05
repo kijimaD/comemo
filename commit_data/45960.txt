@@ -12,7 +12,32 @@ Date:   Tue Dec 1 03:52:20 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274436
     Reviewed-by: Russ Cox <rsc@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go | 2 +-
  test/live.go                       | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 637587392a..3b60496c5c 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -84,7 +84,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
+ 			base.Pos = n.Pos()
+ 			base.Fatalf("automatic outside function")
+ 		}
+-		if Curfn != nil && ctxt != ir.PFUNC {
++		if Curfn != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
+ 			Curfn.Dcl = append(Curfn.Dcl, n)
+ 		}
+ 		if n.Op() == ir.OTYPE {
+diff --git a/test/live.go b/test/live.go
+index 3df7ab01af..d52ce7f007 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -718,5 +718,5 @@ func f44(f func() [2]*int) interface{} { // ERROR "live at entry to f44: f"
+ 	}
+ 	ret := T{}
+ 	ret.s[0] = f()
+-	return ret // ERROR "stack object .autotmp_5 T"
++	return ret // ERROR "stack object .autotmp_[0-9]+ T"
+ }

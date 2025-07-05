@@ -9,6 +9,30 @@ Date:   Tue Nov 5 16:19:42 2019 +0000
     GitHub-Pull-Request: golang/go#30018
     Reviewed-on: https://go-review.googlesource.com/c/go/+/160442
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/smtp/smtp_test.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index 2ad7dd0978..cfda0790e9 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -656,9 +656,16 @@ func TestSendMailWithAuth(t *testing.T) {
+ 		tc := textproto.NewConn(conn)
+ 		tc.PrintfLine("220 hello world")
+ 		msg, err := tc.ReadLine()
+-		if msg == "EHLO localhost" {
+-			tc.PrintfLine("250 mx.google.com at your service")
++		if err != nil {
++			errCh <- fmt.Errorf("ReadLine error: %v", err)
++			return
++		}
++		const wantMsg = "EHLO localhost"
++		if msg != wantMsg {
++			errCh <- fmt.Errorf("unexpected response %q; want %q", msg, wantMsg)
++			return
+ 		}
++		err = tc.PrintfLine("250 mx.google.com at your service")
+ 		if err != nil {
+ 			errCh <- fmt.Errorf("PrintfLine: %v", err)
+ 			return

@@ -14,7 +14,51 @@ Date:   Mon Dec 30 14:55:57 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212879
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                        | 12 ------------
  src/cmd/go/testdata/script/run_hello_pkg.txt | 14 ++++++++++++++
  2 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 7d37f512bf..364186ff53 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1026,18 +1026,6 @@ func TestInternalPackagesOutsideGOROOTAreRespected(t *testing.T) {
+ 	tg.grepBoth(`testinternal2(\/|\\)p\.go\:3\:8\: use of internal package .*internal/w not allowed`, "wrote error message for testdata/testinternal2")
+ }
+ 
+-func TestRunPkg(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	dir := filepath.Join(tg.pwd(), "testdata")
+-	tg.setenv("GOPATH", dir)
+-	tg.run("run", "hello")
+-	tg.grepStderr("hello, world", "did not find hello, world")
+-	tg.cd(filepath.Join(dir, "src/hello"))
+-	tg.run("run", ".")
+-	tg.grepStderr("hello, world", "did not find hello, world")
+-}
+-
+ func TestInternalPackageErrorsAreHandled(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/run_hello_pkg.txt b/src/cmd/go/testdata/script/run_hello_pkg.txt
+new file mode 100644
+index 0000000000..03fba13c77
+--- /dev/null
++++ b/src/cmd/go/testdata/script/run_hello_pkg.txt
+@@ -0,0 +1,14 @@
++cd $GOPATH
++go run hello
++stderr 'hello, world'
++
++cd src/hello
++go run .
++stderr 'hello, world'
++
++-- hello/hello.go --
++package main
++
++func main() {
++	println("hello, world")
++}

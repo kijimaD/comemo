@@ -7,7 +7,35 @@ Date:   Fri Sep 7 10:24:55 2012 -0700
     R=r
     CC=dsymonds, gobot, golang-dev
     https://golang.org/cl/6495085
-
+---
  src/pkg/mime/multipart/multipart.go | 2 +-
  src/pkg/net/mail/message.go         | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index e9e337b922..fb07e1a56d 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -71,7 +71,7 @@ func (p *Part) parseContentDisposition() {
+ 	}
+ }
+ 
+-// NewReader creates a new multipart Reader reading from r using the
++// NewReader creates a new multipart Reader reading from reader using the
+ // given MIME boundary.
+ func NewReader(reader io.Reader, boundary string) *Reader {
+ 	b := []byte("\r\n--" + boundary + "--")
+diff --git a/src/pkg/net/mail/message.go b/src/pkg/net/mail/message.go
+index b610ccf3f0..93cc4d1edd 100644
+--- a/src/pkg/net/mail/message.go
++++ b/src/pkg/net/mail/message.go
+@@ -47,7 +47,8 @@ type Message struct {
+ }
+ 
+ // ReadMessage reads a message from r.
+-// The headers are parsed, and the body of the message will be reading from r.
++// The headers are parsed, and the body of the message will be available
++// for reading from r.
+ func ReadMessage(r io.Reader) (msg *Message, err error) {
+ 	tp := textproto.NewReader(bufio.NewReader(r))
+ 

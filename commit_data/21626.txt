@@ -10,6 +10,20 @@ Date:   Wed Jan 21 21:19:58 2015 +0100
     Change-Id: Ib4ff5182cb71cc79a99663ce727fa4c28d15d7ad
     Reviewed-on: https://go-review.googlesource.com/3122
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  include/plan9/libc.h | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/include/plan9/libc.h b/include/plan9/libc.h
+index fe7667b861..9a880505a4 100644
+--- a/include/plan9/libc.h
++++ b/include/plan9/libc.h
+@@ -14,6 +14,8 @@ char*	getgoversion(void);
+ char*	getgoarm(void);
+ char*	getgo386(void);
+ char*	getgoextlinkenabled(void);
++char*	getgohostos(void);
++char*	getgohostarch(void);
+ 
+ int	runcmd(char**);
+ 

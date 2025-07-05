@@ -8,7 +8,7 @@ Date:   Wed Sep 14 21:39:49 2011 +1000
     R=rsc, bsiegert, r
     CC=golang-dev
     https://golang.org/cl/4964073
-
+---
  src/cmd/gofix/Makefile           |  1 +
  src/cmd/gofix/imagenew.go        | 82 ++++++++++++++++++++++++++++++++++++++++
  src/cmd/gofix/imagenew_test.go   | 53 ++++++++++++++++++++++++++
@@ -22,3 +22,506 @@ Date:   Wed Sep 14 21:39:49 2011 +1000
  src/pkg/image/png/writer_test.go |  8 ++--
  src/pkg/image/tiff/reader.go     |  8 ++--
  12 files changed, 198 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index d1f3ac605b..b2725c572a 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -12,6 +12,7 @@ GOFILES=\
+ 	httpfs.go\
+ 	httpheaders.go\
+ 	httpserver.go\
++	imagenew.go\
+ 	main.go\
+ 	netdial.go\
+ 	netudpgroup.go\
+diff --git a/src/cmd/gofix/imagenew.go b/src/cmd/gofix/imagenew.go
+new file mode 100644
+index 0000000000..0b3c0a3078
+--- /dev/null
++++ b/src/cmd/gofix/imagenew.go
+@@ -0,0 +1,82 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++var imagenewFix = fix{
++	"imagenew",
++	imagenew,
++	`Adapt image.NewXxx calls to pass an image.Rectangle instead of (w, h int).
++
++http://codereview.appspot.com/4964073
++`,
++}
++
++func init() {
++	register(imagenewFix)
++}
++
++var imagenewFuncs = map[string]bool{
++	"NewRGBA":    true,
++	"NewRGBA64":  true,
++	"NewNRGBA":   true,
++	"NewNRGBA64": true,
++	"NewAlpha":   true,
++	"NewAlpha16": true,
++	"NewGray":    true,
++	"NewGray16":  true,
++}
++
++func imagenew(f *ast.File) bool {
++	if !imports(f, "image") {
++		return false
++	}
++
++	fixed := false
++	walk(f, func(n interface{}) {
++		call, ok := n.(*ast.CallExpr)
++		if !ok {
++			return
++		}
++		isNewFunc := false
++		for newFunc := range imagenewFuncs {
++			if len(call.Args) == 2 && isPkgDot(call.Fun, "image", newFunc) {
++				isNewFunc = true
++				break
++			}
++		}
++		if len(call.Args) == 3 && isPkgDot(call.Fun, "image", "NewPaletted") {
++			isNewFunc = true
++		}
++		if !isNewFunc {
++			return
++		}
++		// Replace image.NewXxx(w, h) with image.NewXxx(image.Rect(0, 0, w, h)).
++		rectArgs := []ast.Expr{
++			&ast.BasicLit{Value: "0"},
++			&ast.BasicLit{Value: "0"},
++		}
++		rectArgs = append(rectArgs, call.Args[:2]...)
++		rect := []ast.Expr{
++			&ast.CallExpr{
++				Fun: &ast.SelectorExpr{
++					X: &ast.Ident{
++						Name: "image",
++					},
++					Sel: &ast.Ident{
++						Name: "Rect",
++					},
++				},
++				Args: rectArgs,
++			},
++		}
++		call.Args = append(rect, call.Args[2:]...)
++		fixed = true
++	})
++	return fixed
++}
+diff --git a/src/cmd/gofix/imagenew_test.go b/src/cmd/gofix/imagenew_test.go
+new file mode 100644
+index 0000000000..3d40fea81f
+--- /dev/null
++++ b/src/cmd/gofix/imagenew_test.go
+@@ -0,0 +1,53 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(imagenewTests)
++}
++
++var imagenewTests = []testCase{
++	{
++		Name: "imagenew.0",
++		In: `package main
++
++import (
++	"image"
++)
++
++func f() {
++	image.NewRGBA(1, 2)
++	image.NewRGBA64(1, 2)
++	image.NewNRGBA(1, 2)
++	image.NewNRGBA64(1, 2)
++	image.NewAlpha(1, 2)
++	image.NewAlpha16(1, 2)
++	image.NewGray(1, 2)
++	image.NewGray16(1, 2)
++	var m image.PalettedColorModel
++	image.NewPaletted(1, 2, m)
++}
++`,
++		Out: `package main
++
++import (
++	"image"
++)
++
++func f() {
++	image.NewRGBA(image.Rect(0, 0, 1, 2))
++	image.NewRGBA64(image.Rect(0, 0, 1, 2))
++	image.NewNRGBA(image.Rect(0, 0, 1, 2))
++	image.NewNRGBA64(image.Rect(0, 0, 1, 2))
++	image.NewAlpha(image.Rect(0, 0, 1, 2))
++	image.NewAlpha16(image.Rect(0, 0, 1, 2))
++	image.NewGray(image.Rect(0, 0, 1, 2))
++	image.NewGray16(image.Rect(0, 0, 1, 2))
++	var m image.PalettedColorModel
++	image.NewPaletted(image.Rect(0, 0, 1, 2), m)
++}
++`,
++	},
++}
+diff --git a/src/pkg/exp/gui/x11/conn.go b/src/pkg/exp/gui/x11/conn.go
+index 1d237816ab..4645073c48 100644
+--- a/src/pkg/exp/gui/x11/conn.go
++++ b/src/pkg/exp/gui/x11/conn.go
+@@ -618,7 +618,7 @@ func NewWindowDisplay(display string) (gui.Window, os.Error) {
+ 		return nil, err
+ 	}
+ 
+-	c.img = image.NewRGBA(windowWidth, windowHeight)
++	c.img = image.NewRGBA(image.Rect(0, 0, windowWidth, windowHeight))
+ 	c.eventc = make(chan interface{}, 16)
+ 	c.flush = make(chan bool, 1)
+ 	go c.readSocket()
+diff --git a/src/pkg/image/bmp/reader.go b/src/pkg/image/bmp/reader.go
+index 357da1dacd..6bf4b1dbb1 100644
+--- a/src/pkg/image/bmp/reader.go
++++ b/src/pkg/image/bmp/reader.go
+@@ -28,7 +28,7 @@ func readUint32(b []byte) uint32 {
+ // decodePaletted reads an 8 bit-per-pixel BMP image from r.
+ func decodePaletted(r io.Reader, c image.Config) (image.Image, os.Error) {
+ 	var tmp [4]byte
+-	paletted := image.NewPaletted(c.Width, c.Height, c.ColorModel.(image.PalettedColorModel))
++	paletted := image.NewPaletted(image.Rect(0, 0, c.Width, c.Height), c.ColorModel.(image.PalettedColorModel))
+ 	// BMP images are stored bottom-up rather than top-down.
+ 	for y := c.Height - 1; y >= 0; y-- {
+ 		p := paletted.Pix[y*paletted.Stride : y*paletted.Stride+c.Width]
+@@ -49,7 +49,7 @@ func decodePaletted(r io.Reader, c image.Config) (image.Image, os.Error) {
+ 
+ // decodeRGBA reads a 24 bit-per-pixel BMP image from r.
+ func decodeRGBA(r io.Reader, c image.Config) (image.Image, os.Error) {
+-	rgba := image.NewRGBA(c.Width, c.Height)
++	rgba := image.NewRGBA(image.Rect(0, 0, c.Width, c.Height))
+ 	// There are 3 bytes per pixel, and each row is 4-byte aligned.
+ 	b := make([]byte, (3*c.Width+3)&^3)
+ 	// BMP images are stored bottom-up rather than top-down.
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index e39b797460..48876f3a63 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -334,10 +334,7 @@ func (d *decoder) newImageFromDescriptor() (*image.Paletted, os.Error) {
+ 	width := int(d.tmp[4]) + int(d.tmp[5])<<8
+ 	height := int(d.tmp[6]) + int(d.tmp[7])<<8
+ 	d.imageFields = d.tmp[8]
+-	m := image.NewPaletted(width, height, nil)
+-	// Overwrite the rectangle to take account of left and top.
+-	m.Rect = image.Rect(left, top, left+width, top+height)
+-	return m, nil
++	return image.NewPaletted(image.Rect(left, top, left+width, top+height), nil), nil
+ }
+ 
+ func (d *decoder) readBlock() (int, os.Error) {
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index a01cda864e..1ff0c023a4 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -118,9 +118,10 @@ func (p *RGBA) Opaque() bool {
+ }
+ 
+ // NewRGBA returns a new RGBA with the given width and height.
+-func NewRGBA(w, h int) *RGBA {
++func NewRGBA(r Rectangle) *RGBA {
++	w, h := r.Dx(), r.Dy()
+ 	buf := make([]uint8, 4*w*h)
+-	return &RGBA{buf, 4 * w, Rectangle{ZP, Point{w, h}}}
++	return &RGBA{buf, 4 * w, r}
+ }
+ 
+ // RGBA64 is an in-memory image of RGBA64Color values.
+@@ -219,9 +220,10 @@ func (p *RGBA64) Opaque() bool {
+ }
+ 
+ // NewRGBA64 returns a new RGBA64 with the given width and height.
+-func NewRGBA64(w, h int) *RGBA64 {
++func NewRGBA64(r Rectangle) *RGBA64 {
++	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 8*w*h)
+-	return &RGBA64{pix, 8 * w, Rectangle{ZP, Point{w, h}}}
++	return &RGBA64{pix, 8 * w, r}
+ }
+ 
+ // NRGBA is an in-memory image of NRGBAColor values.
+@@ -307,9 +309,10 @@ func (p *NRGBA) Opaque() bool {
+ }
+ 
+ // NewNRGBA returns a new NRGBA with the given width and height.
+-func NewNRGBA(w, h int) *NRGBA {
++func NewNRGBA(r Rectangle) *NRGBA {
++	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 4*w*h)
+-	return &NRGBA{pix, 4 * w, Rectangle{ZP, Point{w, h}}}
++	return &NRGBA{pix, 4 * w, r}
+ }
+ 
+ // NRGBA64 is an in-memory image of NRGBA64Color values.
+@@ -408,9 +411,10 @@ func (p *NRGBA64) Opaque() bool {
+ }
+ 
+ // NewNRGBA64 returns a new NRGBA64 with the given width and height.
+-func NewNRGBA64(w, h int) *NRGBA64 {
++func NewNRGBA64(r Rectangle) *NRGBA64 {
++	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 8*w*h)
+-	return &NRGBA64{pix, 8 * w, Rectangle{ZP, Point{w, h}}}
++	return &NRGBA64{pix, 8 * w, r}
+ }
+ 
+ // Alpha is an in-memory image of AlphaColor values.
+@@ -489,9 +493,10 @@ func (p *Alpha) Opaque() bool {
+ }
+ 
+ // NewAlpha returns a new Alpha with the given width and height.
+-func NewAlpha(w, h int) *Alpha {
++func NewAlpha(r Rectangle) *Alpha {
++	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 1*w*h)
+-	return &Alpha{pix, 1 * w, Rectangle{ZP, Point{w, h}}}
++	return &Alpha{pix, 1 * w, r}
+ }
+ 
+ // Alpha16 is an in-memory image of Alpha16Color values.
+@@ -573,9 +578,10 @@ func (p *Alpha16) Opaque() bool {
+ }
+ 
+ // NewAlpha16 returns a new Alpha16 with the given width and height.
+-func NewAlpha16(w, h int) *Alpha16 {
++func NewAlpha16(r Rectangle) *Alpha16 {
++	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 2*w*h)
+-	return &Alpha16{pix, 2 * w, Rectangle{ZP, Point{w, h}}}
++	return &Alpha16{pix, 2 * w, r}
+ }
+ 
+ // Gray is an in-memory image of GrayColor values.
+@@ -641,9 +647,10 @@ func (p *Gray) Opaque() bool {
+ }
+ 
+ // NewGray returns a new Gray with the given width and height.
+-func NewGray(w, h int) *Gray {
++func NewGray(r Rectangle) *Gray {
++	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 1*w*h)
+-	return &Gray{pix, 1 * w, Rectangle{ZP, Point{w, h}}}
++	return &Gray{pix, 1 * w, r}
+ }
+ 
+ // Gray16 is an in-memory image of Gray16Color values.
+@@ -712,9 +719,10 @@ func (p *Gray16) Opaque() bool {
+ }
+ 
+ // NewGray16 returns a new Gray16 with the given width and height.
+-func NewGray16(w, h int) *Gray16 {
++func NewGray16(r Rectangle) *Gray16 {
++	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 2*w*h)
+-	return &Gray16{pix, 2 * w, Rectangle{ZP, Point{w, h}}}
++	return &Gray16{pix, 2 * w, r}
+ }
+ 
+ // A PalettedColorModel represents a fixed palette of at most 256 colors.
+@@ -858,7 +866,8 @@ func (p *Paletted) Opaque() bool {
+ }
+ 
+ // NewPaletted returns a new Paletted with the given width, height and palette.
+-func NewPaletted(w, h int, m PalettedColorModel) *Paletted {
++func NewPaletted(r Rectangle, m PalettedColorModel) *Paletted {
++	w, h := r.Dx(), r.Dy()
+ 	pix := make([]uint8, 1*w*h)
+-	return &Paletted{pix, 1 * w, Rectangle{ZP, Point{w, h}}, m}
++	return &Paletted{pix, 1 * w, r, m}
+ }
+diff --git a/src/pkg/image/image_test.go b/src/pkg/image/image_test.go
+index a368e71e63..e23a3c259a 100644
+--- a/src/pkg/image/image_test.go
++++ b/src/pkg/image/image_test.go
+@@ -23,15 +23,15 @@ func cmp(t *testing.T, cm ColorModel, c0, c1 Color) bool {
+ 
+ func TestImage(t *testing.T) {
+ 	testImage := []image{
+-		NewRGBA(10, 10),
+-		NewRGBA64(10, 10),
+-		NewNRGBA(10, 10),
+-		NewNRGBA64(10, 10),
+-		NewAlpha(10, 10),
+-		NewAlpha16(10, 10),
+-		NewGray(10, 10),
+-		NewGray16(10, 10),
+-		NewPaletted(10, 10, PalettedColorModel{
++		NewRGBA(Rect(0, 0, 10, 10)),
++		NewRGBA64(Rect(0, 0, 10, 10)),
++		NewNRGBA(Rect(0, 0, 10, 10)),
++		NewNRGBA64(Rect(0, 0, 10, 10)),
++		NewAlpha(Rect(0, 0, 10, 10)),
++		NewAlpha16(Rect(0, 0, 10, 10)),
++		NewGray(Rect(0, 0, 10, 10)),
++		NewGray16(Rect(0, 0, 10, 10)),
++		NewPaletted(Rect(0, 0, 10, 10), PalettedColorModel{
+ 			Transparent,
+ 			Opaque,
+ 		}),
+@@ -96,10 +96,10 @@ func Test16BitsPerColorChannel(t *testing.T) {
+ 		}
+ 	}
+ 	testImage := []image{
+-		NewRGBA64(10, 10),
+-		NewNRGBA64(10, 10),
+-		NewAlpha16(10, 10),
+-		NewGray16(10, 10),
++		NewRGBA64(Rect(0, 0, 10, 10)),
++		NewNRGBA64(Rect(0, 0, 10, 10)),
++		NewAlpha16(Rect(0, 0, 10, 10)),
++		NewGray16(Rect(0, 0, 10, 10)),
+ 	}
+ 	for _, m := range testImage {
+ 		m.Set(1, 2, NRGBA64Color{0xffff, 0xffff, 0xffff, 0x1357}) // Non-premultiplied alpha.
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index 3f22c5271f..af69cfcec9 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -199,7 +199,7 @@ func (d *decoder) processDQT(n int) os.Error {
+ // makeImg allocates and initializes the destination image.
+ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
+ 	if d.nComp == nGrayComponent {
+-		m := image.NewGray(8*mxx, 8*myy)
++		m := image.NewGray(image.Rect(0, 0, 8*mxx, 8*myy))
+ 		d.img1 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.Gray)
+ 		return
+ 	}
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index 9582091057..19cb248c15 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -314,40 +314,40 @@ func (d *decoder) decode() (image.Image, os.Error) {
+ 	switch d.cb {
+ 	case cbG1, cbG2, cbG4, cbG8:
+ 		bitsPerPixel = d.depth
+-		gray = image.NewGray(d.width, d.height)
++		gray = image.NewGray(image.Rect(0, 0, d.width, d.height))
+ 		img = gray
+ 	case cbGA8:
+ 		bitsPerPixel = 16
+-		nrgba = image.NewNRGBA(d.width, d.height)
++		nrgba = image.NewNRGBA(image.Rect(0, 0, d.width, d.height))
+ 		img = nrgba
+ 	case cbTC8:
+ 		bitsPerPixel = 24
+-		rgba = image.NewRGBA(d.width, d.height)
++		rgba = image.NewRGBA(image.Rect(0, 0, d.width, d.height))
+ 		img = rgba
+ 	case cbP1, cbP2, cbP4, cbP8:
+ 		bitsPerPixel = d.depth
+-		paletted = image.NewPaletted(d.width, d.height, d.palette)
++		paletted = image.NewPaletted(image.Rect(0, 0, d.width, d.height), d.palette)
+ 		img = paletted
+ 		maxPalette = uint8(len(d.palette) - 1)
+ 	case cbTCA8:
+ 		bitsPerPixel = 32
+-		nrgba = image.NewNRGBA(d.width, d.height)
++		nrgba = image.NewNRGBA(image.Rect(0, 0, d.width, d.height))
+ 		img = nrgba
+ 	case cbG16:
+ 		bitsPerPixel = 16
+-		gray16 = image.NewGray16(d.width, d.height)
++		gray16 = image.NewGray16(image.Rect(0, 0, d.width, d.height))
+ 		img = gray16
+ 	case cbGA16:
+ 		bitsPerPixel = 32
+-		nrgba64 = image.NewNRGBA64(d.width, d.height)
++		nrgba64 = image.NewNRGBA64(image.Rect(0, 0, d.width, d.height))
+ 		img = nrgba64
+ 	case cbTC16:
+ 		bitsPerPixel = 48
+-		rgba64 = image.NewRGBA64(d.width, d.height)
++		rgba64 = image.NewRGBA64(image.Rect(0, 0, d.width, d.height))
+ 		img = rgba64
+ 	case cbTCA16:
+ 		bitsPerPixel = 64
+-		nrgba64 = image.NewNRGBA64(d.width, d.height)
++		nrgba64 = image.NewNRGBA64(image.Rect(0, 0, d.width, d.height))
+ 		img = nrgba64
+ 	}
+ 	bytesPerPixel := (bitsPerPixel + 7) / 8
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index 046aad9d27..a3864e0964 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -82,7 +82,7 @@ func TestWriter(t *testing.T) {
+ }
+ 
+ func TestSubImage(t *testing.T) {
+-	m0 := image.NewRGBA(256, 256)
++	m0 := image.NewRGBA(image.Rect(0, 0, 256, 256))
+ 	for y := 0; y < 256; y++ {
+ 		for x := 0; x < 256; x++ {
+ 			m0.Set(x, y, image.RGBAColor{uint8(x), uint8(y), 0, 255})
+@@ -103,7 +103,7 @@ func TestSubImage(t *testing.T) {
+ 
+ func BenchmarkEncodePaletted(b *testing.B) {
+ 	b.StopTimer()
+-	img := image.NewPaletted(640, 480,
++	img := image.NewPaletted(image.Rect(0, 0, 640, 480),
+ 		[]image.Color{
+ 			image.RGBAColor{0, 0, 0, 255},
+ 			image.RGBAColor{255, 255, 255, 255},
+@@ -117,7 +117,7 @@ func BenchmarkEncodePaletted(b *testing.B) {
+ 
+ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+ 	b.StopTimer()
+-	img := image.NewRGBA(640, 480)
++	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	// Set all pixels to 0xFF alpha to force opaque mode.
+ 	bo := img.Bounds()
+ 	for y := bo.Min.Y; y < bo.Max.Y; y++ {
+@@ -137,7 +137,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+ 
+ func BenchmarkEncodeRGBA(b *testing.B) {
+ 	b.StopTimer()
+-	img := image.NewRGBA(640, 480)
++	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	if img.Opaque() {
+ 		panic("expected image to not be opaque")
+ 	}
+diff --git a/src/pkg/image/tiff/reader.go b/src/pkg/image/tiff/reader.go
+index c963992214..c1c0a1b169 100644
+--- a/src/pkg/image/tiff/reader.go
++++ b/src/pkg/image/tiff/reader.go
+@@ -378,13 +378,13 @@ func Decode(r io.Reader) (img image.Image, err os.Error) {
+ 
+ 	switch d.mode {
+ 	case mGray, mGrayInvert:
+-		img = image.NewGray(d.config.Width, d.config.Height)
++		img = image.NewGray(image.Rect(0, 0, d.config.Width, d.config.Height))
+ 	case mPaletted:
+-		img = image.NewPaletted(d.config.Width, d.config.Height, d.palette)
++		img = image.NewPaletted(image.Rect(0, 0, d.config.Width, d.config.Height), d.palette)
+ 	case mNRGBA:
+-		img = image.NewNRGBA(d.config.Width, d.config.Height)
++		img = image.NewNRGBA(image.Rect(0, 0, d.config.Width, d.config.Height))
+ 	case mRGB, mRGBA:
+-		img = image.NewRGBA(d.config.Width, d.config.Height)
++		img = image.NewRGBA(image.Rect(0, 0, d.config.Width, d.config.Height))
+ 	}
+ 
+ 	for i := 0; i < numStrips; i++ {

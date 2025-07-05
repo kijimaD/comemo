@@ -21,10 +21,119 @@ Date:   Sat Dec 22 16:46:46 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6996054
-
+---
  doc/progs/error.go  |  6 +++++-
  src/cmd/gc/go.h     |  1 +
  src/cmd/gc/lex.c    |  5 +++--
  src/cmd/gc/pgen.c   | 11 +++++++----
  src/cmd/go/build.go | 17 +++++++++++++++++
  5 files changed, 33 insertions(+), 7 deletions(-)
+
+diff --git a/doc/progs/error.go b/doc/progs/error.go
+index f507326652..57854c5fe5 100644
+--- a/doc/progs/error.go
++++ b/doc/progs/error.go
+@@ -20,7 +20,11 @@ import (
+ 
+ type File struct{}
+ 
+-func Open(name string) (file *File, err error)
++func Open(name string) (file *File, err error) {
++	// OMIT
++	panic(1)
++	// STOP OMIT
++}
+ 
+ func openFile() { // OMIT
+ 	f, err := os.Open("filename.ext")
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 36bc4b2954..071422367c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -937,6 +937,7 @@ EXTERN	int	funcdepth;
+ EXTERN	int	typecheckok;
+ EXTERN	int	compiling_runtime;
+ EXTERN	int	compiling_wrappers;
++EXTERN	int	pure_go;
+ 
+ EXTERN	int	nointerface;
+ EXTERN	int	fieldtrack_enabled;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index eabeaeb646..6fd61d1e34 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -293,8 +293,9 @@ main(int argc, char *argv[])
+ 	if(argc < 1)
+ 		usage();
+ 
+-	// special flag to detect compilation of package runtime
+-	compiling_runtime = debug['+'];
++	// special flags used during build.
++	compiling_runtime = debug['+']; // detect compilation of package runtime
++	pure_go = debug['=']; // package is completely go (no C or assembly)
+ 
+ 	pathname = mal(1000);
+ 	if(getwd(pathname, 999) == 0)
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 7be254fff1..e388fe6a5e 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -29,16 +29,19 @@ compile(Node *fn)
+ 		throwreturn = sysfunc("throwreturn");
+ 	}
+ 
+-	if(fn->nbody == nil)
+-		return;
++	lno = setlineno(fn);
++
++	if(fn->nbody == nil) {
++		if(pure_go || memcmp(fn->nname->sym->name, "init·", 6) == 0)
++			yyerror("missing function body", fn);
++		goto ret;
++	}
+ 
+ 	saveerrors();
+ 
+ 	// set up domain for labels
+ 	clearlabels();
+ 
+-	lno = setlineno(fn);
+-
+ 	curfn = fn;
+ 	dowidth(curfn->type);
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index f2d81c02d1..73dd93fd25 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1311,6 +1311,8 @@ func (gcToolchain) linker() string {
+ 	return tool(archChar + "l")
+ }
+ 
++var rsc = flag.Bool("rsc", false, "rsc")
++
+ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
+ 	out := "_go_." + archChar
+ 	ofile = obj + out
+@@ -1321,6 +1323,21 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
+ 		gcargs = append(gcargs, "-+")
+ 	}
+ 
++	// If we're giving the compiler the entire package (no C etc files), tell it that,
++	// so that it can give good error messages about forward declarations.
++	// Exceptions: a few standard packages have forward declarations for
++	// pieces supplied behind-the-scenes by package runtime.
++	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
++	if p.Standard {
++		switch p.ImportPath {
++		case "os", "runtime/pprof", "sync", "time":
++			extFiles++
++		}
++	}
++	if extFiles == 0 {
++		gcargs = append(gcargs, "-=")
++	}
++
+ 	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))

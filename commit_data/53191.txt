@@ -13,8 +13,119 @@ Date:   Fri Jul 29 12:06:50 2022 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 24 ++++++++++++++++++++++++
  src/go/internal/gcimporter/testdata/g.go      | 23 +++++++++++++++++++++++
  src/go/internal/gcimporter/ureader.go         | 21 ++++++++++++++++++++-
  3 files changed, 67 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index b32de17910..68a077c190 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -583,6 +583,30 @@ func TestIssue13566(t *testing.T) {
+ 	}
+ }
+ 
++func TestTypeNamingOrder(t *testing.T) {
++	skipSpecialPlatforms(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++	}
++
++	// On windows, we have to set the -D option for the compiler to avoid having a drive
++	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
++	if runtime.GOOS == "windows" {
++		t.Skip("avoid dealing with relative paths/drive letters on windows")
++	}
++
++	tmpdir := mktmpdir(t)
++	defer os.RemoveAll(tmpdir)
++	testoutdir := filepath.Join(tmpdir, "testdata")
++
++	compile(t, "testdata", "g.go", testoutdir)
++
++	// import must succeed (test for issue at hand)
++	_ = importPkg(t, "./testdata/g", tmpdir)
++}
++
+ func TestIssue13898(t *testing.T) {
+ 	skipSpecialPlatforms(t)
+ 
+diff --git a/src/go/internal/gcimporter/testdata/g.go b/src/go/internal/gcimporter/testdata/g.go
+new file mode 100644
+index 0000000000..301c1429e6
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/g.go
+@@ -0,0 +1,23 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Input for TestTypeNamingOrder
++
++// ensures that the order in which "type A B" declarations are
++// processed is correct; this was a problem for unified IR imports.
++
++package g
++
++type Client struct {
++	common service
++	A      *AService
++	B      *BService
++}
++
++type service struct {
++	client *Client
++}
++
++type AService service
++type BService service
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 5e133f890b..97f0664fe3 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -31,6 +31,8 @@ type pkgReader struct {
+ 	// laterFns holds functions that need to be invoked at the end of
+ 	// import reading.
+ 	laterFns []func()
++	// laterFors is used in case of 'type A B' to ensure that B is processed before A.
++	laterFors map[types.Type]int
+ }
+ 
+ // later adds a function to be invoked at the end of import reading.
+@@ -38,6 +40,15 @@ func (pr *pkgReader) later(fn func()) {
+ 	pr.laterFns = append(pr.laterFns, fn)
+ }
+ 
++// laterFor adds a function to be invoked at the end of import reading, and records the type that function is finishing.
++func (pr *pkgReader) laterFor(t types.Type, fn func()) {
++	if pr.laterFors == nil {
++		pr.laterFors = make(map[types.Type]int)
++	}
++	pr.laterFors[t] = len(pr.laterFns)
++	pr.laterFns = append(pr.laterFns, fn)
++}
++
+ // readUnifiedPackage reads a package description from the given
+ // unified IR export data decoder.
+ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[string]*types.Package, input pkgbits.PkgDecoder) *types.Package {
+@@ -487,7 +498,15 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 			// unit tests expected that), but cmd/compile doesn't care
+ 			// about it, so maybe we can avoid worrying about that here.
+ 			rhs := r.typ()
+-			r.p.later(func() {
++			pk := r.p
++			pk.laterFor(named, func() {
++				// First be sure that the rhs is initialized, if it needs to be initialized.
++				delete(pk.laterFors, named) // prevent cycles
++				if i, ok := pk.laterFors[rhs]; ok {
++					f := pk.laterFns[i]
++					pk.laterFns[i] = func() {} // function is running now, so replace it with a no-op
++					f()                        // initialize RHS
++				}
+ 				underlying := rhs.Underlying()
+ 				named.SetUnderlying(underlying)
+ 			})

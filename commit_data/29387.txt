@@ -14,7 +14,69 @@ Date:   Wed Sep 7 18:07:45 2016 -0400
     Change-Id: I930584ca030dd12849195d45e49ed2fb74e0c9ac
     Reviewed-on: https://go-review.googlesource.com/28730
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/example_test.go | 18 ++++++++----------
  src/time/time.go         | 10 ++++++++++
  2 files changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 4170d5110d..7dc2bb5e7e 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -251,20 +251,18 @@ func ExampleTime_Truncate() {
+ 		2 * time.Second,
+ 		time.Minute,
+ 		10 * time.Minute,
+-		time.Hour,
+ 	}
+ 
+ 	for _, d := range trunc {
+-		fmt.Printf("t.Truncate(%6s) = %s\n", d, t.Truncate(d).Format("15:04:05.999999999"))
++		fmt.Printf("t.Truncate(%5s) = %s\n", d, t.Truncate(d).Format("15:04:05.999999999"))
+ 	}
+ 
+ 	// Output:
+-	// t.Truncate(   1ns) = 12:15:30.918273645
+-	// t.Truncate(   1µs) = 12:15:30.918273
+-	// t.Truncate(   1ms) = 12:15:30.918
+-	// t.Truncate(    1s) = 12:15:30
+-	// t.Truncate(    2s) = 12:15:30
+-	// t.Truncate(  1m0s) = 12:15:00
+-	// t.Truncate( 10m0s) = 12:10:00
+-	// t.Truncate(1h0m0s) = 12:00:00
++	// t.Truncate(  1ns) = 12:15:30.918273645
++	// t.Truncate(  1µs) = 12:15:30.918273
++	// t.Truncate(  1ms) = 12:15:30.918
++	// t.Truncate(   1s) = 12:15:30
++	// t.Truncate(   2s) = 12:15:30
++	// t.Truncate( 1m0s) = 12:15:00
++	// t.Truncate(10m0s) = 12:10:00
+ }
+diff --git a/src/time/time.go b/src/time/time.go
+index a6e100fa71..d04e30fa1f 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1103,6 +1103,11 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
+ 
+ // Truncate returns the result of rounding t down to a multiple of d (since the zero time).
+ // If d <= 0, Truncate returns t unchanged.
++//
++// Truncate operates on the time as an absolute duration since the
++// zero time; it does not operate on the presentation form of the
++// time. Thus, Truncate(Hour) may return a time with a non-zero
++// minute, depending on the time's Location.
+ func (t Time) Truncate(d Duration) Time {
+ 	if d <= 0 {
+ 		return t
+@@ -1114,6 +1119,11 @@ func (t Time) Truncate(d Duration) Time {
+ // Round returns the result of rounding t to the nearest multiple of d (since the zero time).
+ // The rounding behavior for halfway values is to round up.
+ // If d <= 0, Round returns t unchanged.
++//
++// Round operates on the time as an absolute duration since the
++// zero time; it does not operate on the presentation form of the
++// time. Thus, Round(Hour) may return a time with a non-zero
++// minute, depending on the time's Location.
+ func (t Time) Round(d Duration) Time {
+ 	if d <= 0 {
+ 		return t

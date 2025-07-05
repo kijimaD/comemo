@@ -7,10 +7,158 @@ Date:   Wed Mar 20 23:53:27 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7518050
-
+---
  src/cmd/gc/closure.c     |  3 ++-
  src/cmd/gc/esc.c         | 11 +++++++++++
  src/cmd/gc/fmt.c         |  4 +++-
  test/escape2.go          | 22 ++++++++++++++++++++++
  test/fixedbugs/bug474.go | 29 +++++++++++++++++++++++++++++
  5 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 9b429c4212..133936e0f1 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -270,8 +270,9 @@ typecheckpartialcall(Node *fn, Node *sym)
+ 
+ 	// Create top-level function.
+ 	fn->nname = makepartialcall(fn, fn->type, sym);
++	fn->right = sym;
+ 	fn->op = OCALLPART;
+-	fn->type = fn->right->type;
++	fn->type = fn->nname->type;
+ }
+ 
+ static Node*
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 7be7b53413..df273e3927 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -596,6 +596,14 @@ esc(EscState *e, Node *n)
+ 		// Contents make it to memory, lose track.
+ 		escassign(e, &e->theSink, n->left);
+ 		break;
++	
++	case OCALLPART:
++		n->esc = EscNone; // until proven otherwise
++		e->noesc = list(e->noesc, n);
++		n->escloopdepth = e->loopdepth;
++		// Contents make it to memory, lose track.
++		escassign(e, &e->theSink, n->left);
++		break;
+ 
+ 	case OMAPLIT:
+ 		n->esc = EscNone;  // until proven otherwise
+@@ -667,6 +675,7 @@ escassign(EscState *e, Node *dst, Node *src)
+ 	case OCONVNOP:
+ 	case OMAPLIT:
+ 	case OSTRUCTLIT:
++	case OCALLPART:
+ 		break;
+ 
+ 	case ONAME:
+@@ -713,6 +722,7 @@ escassign(EscState *e, Node *dst, Node *src)
+ 	case OMAKESLICE:
+ 	case ONEW:
+ 	case OCLOSURE:
++	case OCALLPART:
+ 		escflows(e, dst, src);
+ 		break;
+ 
+@@ -1073,6 +1083,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 	case OMAPLIT:
+ 	case ONEW:
+ 	case OCLOSURE:
++	case OCALLPART:
+ 		if(leaks) {
+ 			src->esc = EscHeap;
+ 			if(debug['m'])
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index ab81e6c887..1ffddd5384 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1022,6 +1022,7 @@ static int opprec[] = {
+ 	[ODOTTYPE] = 8,
+ 	[ODOT] = 8,
+ 	[OXDOT] = 8,
++	[OCALLPART] = 8,
+ 
+ 	[OPLUS] = 7,
+ 	[ONOT] = 7,
+@@ -1269,9 +1270,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ODOTPTR:
+ 	case ODOTINTER:
+ 	case ODOTMETH:
++	case OCALLPART:
+ 		exprfmt(f, n->left, nprec);
+ 		if(n->right == N || n->right->sym == S)
+-			fmtstrcpy(f, ".<nil>");
++			return fmtstrcpy(f, ".<nil>");
+ 		return fmtprint(f, ".%hhS", n->right->sym);
+ 
+ 	case ODOTTYPE:
+diff --git a/test/escape2.go b/test/escape2.go
+index 3473e4fa45..511b74a1cc 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1303,3 +1303,25 @@ func G() {
+ 	var buf4 [10]byte // ERROR "moved to heap: buf4"
+ 	F4(buf4[:]) // ERROR "buf4 escapes to heap"
+ }
++
++type Tm struct {
++	x int
++}
++
++func (t *Tm) M() { // ERROR "t does not escape"
++}
++
++func foo141() {
++	var f func()
++	
++	t := new(Tm) // ERROR "escapes to heap"
++	f = t.M // ERROR "t.M does not escape"
++	_ = f
++}
++
++var gf func()
++
++func foo142() {
++	t := new(Tm) // ERROR "escapes to heap"
++	gf = t.M // ERROR "t.M escapes to heap"
++}
+diff --git a/test/fixedbugs/bug474.go b/test/fixedbugs/bug474.go
+new file mode 100644
+index 0000000000..b8264872a9
+--- /dev/null
++++ b/test/fixedbugs/bug474.go
+@@ -0,0 +1,29 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Bug in method values: escape analysis was off.
++
++package main
++
++import "sync"
++
++var called = false
++
++type T struct {
++	once sync.Once
++}
++
++func (t *T) M() {
++	called = true
++}
++
++func main() {
++	var t T
++	t.once.Do(t.M)
++	if !called {
++		panic("not called")
++	}
++}

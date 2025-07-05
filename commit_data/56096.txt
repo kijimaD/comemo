@@ -14,7 +14,7 @@ Date:   Sun Apr 9 08:36:12 2023 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/386.rules     |  4 +-
  src/cmd/compile/internal/ssa/_gen/AMD64.rules   |  4 +-
  src/cmd/compile/internal/ssa/_gen/ARM.rules     | 12 ++--
@@ -35,3 +35,1354 @@ Date:   Sun Apr 9 08:36:12 2023 -0700
  src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 24 +++----
  src/cmd/compile/internal/ssa/rewriteS390X.go    | 24 +++----
  19 files changed, 197 insertions(+), 201 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/386.rules b/src/cmd/compile/internal/ssa/_gen/386.rules
+index 9abc981079..4dfe05d0e9 100644
+--- a/src/cmd/compile/internal/ssa/_gen/386.rules
++++ b/src/cmd/compile/internal/ssa/_gen/386.rules
+@@ -206,8 +206,8 @@
+ (Load <t> ptr mem) && is64BitFloat(t) => (MOVSDload ptr mem)
+ 
+ // Lowering stores
+-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVSDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVSSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVSDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVSSstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVLstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index 905bffe3bf..6f9cb3698f 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -234,8 +234,8 @@
+ (Load <t> ptr mem) && is64BitFloat(t) => (MOVSDload ptr mem)
+ 
+ // Lowering stores
+-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVSDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVSSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVSDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVSSstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVQstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVLstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVWstore ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM.rules b/src/cmd/compile/internal/ssa/_gen/ARM.rules
+index 0947b77231..a60afb000a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM.rules
+@@ -253,10 +253,10 @@
+ 
+ // loads
+ (Load <t> ptr mem) && t.IsBoolean() => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) => (MOVBload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) => (MOVHload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
+ (Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) => (MOVWload ptr mem)
+ (Load <t> ptr mem) && is32BitFloat(t) => (MOVFload ptr mem)
+ (Load <t> ptr mem) && is64BitFloat(t) => (MOVDload ptr mem)
+@@ -265,8 +265,8 @@
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVFstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVFstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVDstore ptr val mem)
+ 
+ // zero instructions
+ (Zero [0] _ mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 70d286b62a..6dd45f11dc 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -327,12 +327,12 @@
+ 
+ // loads
+ (Load <t> ptr mem) && t.IsBoolean() => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t)  && isSigned(t))  => (MOVBload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t)  && !isSigned(t)) => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t))  => (MOVHload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
+-(Load <t> ptr mem) && (is32BitInt(t) && isSigned(t))  => (MOVWload ptr mem)
+-(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) => (MOVWUload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) &&  t.IsSigned()) => (MOVWload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
+ (Load <t> ptr mem) && is32BitFloat(t) => (FMOVSload ptr mem)
+ (Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
+@@ -342,8 +342,8 @@
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (FMOVSstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (FMOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
+ 
+ // zeroing
+ (Zero [0] _   mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index d15bf1bd63..ab7774ed4e 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -233,12 +233,12 @@
+ 
+ // loads
+ (Load <t> ptr mem) && t.IsBoolean() => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) => (MOVBload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) => (MOVHload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
+-(Load <t> ptr mem) && (is32BitInt(t) && isSigned(t)) => (MOVWload ptr mem)
+-(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) => (MOVWUload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) &&  t.IsSigned()) => (MOVWload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVVload ptr mem)
+ (Load <t> ptr mem) && is32BitFloat(t) => (MOVFload ptr mem)
+ (Load <t> ptr mem) && is64BitFloat(t) => (MOVDload ptr mem)
+@@ -248,8 +248,8 @@
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVVstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVFstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVFstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVDstore ptr val mem)
+ 
+ // zeroing
+ (Zero [0] _ mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS.rules b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+index d07f657982..aeb117da17 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+@@ -215,10 +215,10 @@
+ 
+ // loads
+ (Load <t> ptr mem) && t.IsBoolean() => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) => (MOVBload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) => (MOVHload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
+ (Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) => (MOVWload ptr mem)
+ (Load <t> ptr mem) && is32BitFloat(t) => (MOVFload ptr mem)
+ (Load <t> ptr mem) && is64BitFloat(t) => (MOVDload ptr mem)
+@@ -227,8 +227,8 @@
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVFstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVFstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVDstore ptr val mem)
+ 
+ // zero instructions
+ (Zero [0] _ mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+index d6cc63cdb0..0c14d503f6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+@@ -224,12 +224,12 @@
+ 
+ // loads
+ (Load <t> ptr mem) && t.IsBoolean() => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) => (MOVBload ptr mem)
+-(Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) => (MOVHload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
+-(Load <t> ptr mem) && (is32BitInt(t) && isSigned(t)) => (MOVWload ptr mem)
+-(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) => (MOVWUload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  &&  t.IsSigned()) => (MOVBload ptr mem)
++(Load <t> ptr mem) && (is8BitInt(t)  && !t.IsSigned()) => (MOVBUload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) &&  t.IsSigned()) => (MOVWload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVVload ptr mem)
+ (Load <t> ptr mem) && is32BitFloat(t) => (MOVFload ptr mem)
+ (Load <t> ptr mem) && is64BitFloat(t) => (MOVDload ptr mem)
+@@ -239,8 +239,8 @@
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVVstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVFstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVFstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVDstore ptr val mem)
+ 
+ // zeroing
+ (Zero [0] _ mem) => mem
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 9e0b44bd2d..bdb630a28f 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -84,11 +84,11 @@
+ (ZeroExt16to(32|64) ...) => (MOVHZreg ...)
+ (ZeroExt32to64 ...) => (MOVWZreg ...)
+ 
+-(Trunc(16|32|64)to8 <t> x) && isSigned(t) => (MOVBreg x)
++(Trunc(16|32|64)to8 <t> x) && t.IsSigned() => (MOVBreg x)
+ (Trunc(16|32|64)to8  x) => (MOVBZreg x)
+-(Trunc(32|64)to16 <t> x) && isSigned(t) => (MOVHreg x)
++(Trunc(32|64)to16 <t> x) && t.IsSigned() => (MOVHreg x)
+ (Trunc(32|64)to16 x) => (MOVHZreg x)
+-(Trunc64to32 <t> x) && isSigned(t) => (MOVWreg x)
++(Trunc64to32 <t> x) && t.IsSigned() => (MOVWreg x)
+ (Trunc64to32 x) => (MOVWZreg x)
+ 
+ // Lowering constants
+@@ -274,14 +274,14 @@
+ // Lowering comparisons
+ (EqB x y)  => (Select0 <typ.Int> (ANDCCconst [1] (EQV x y)))
+ // Sign extension dependence on operand sign sets up for sign/zero-extension elision later
+-(Eq(8|16) x y) && isSigned(x.Type) && isSigned(y.Type) => (Equal (CMPW (SignExt(8|16)to32 x) (SignExt(8|16)to32 y)))
++(Eq(8|16) x y) && x.Type.IsSigned() && y.Type.IsSigned() => (Equal (CMPW (SignExt(8|16)to32 x) (SignExt(8|16)to32 y)))
+ (Eq(8|16) x y) => (Equal (CMPW (ZeroExt(8|16)to32 x) (ZeroExt(8|16)to32 y)))
+ (Eq(32|64|Ptr) x y) => (Equal ((CMPW|CMP|CMP) x y))
+ (Eq(32|64)F x y) => (Equal (FCMPU x y))
+ 
+ (NeqB ...) => (XOR ...)
+ // Like Eq8 and Eq16, prefer sign extension likely to enable later elision.
+-(Neq(8|16) x y) && isSigned(x.Type) && isSigned(y.Type) => (NotEqual (CMPW (SignExt(8|16)to32 x) (SignExt(8|16)to32 y)))
++(Neq(8|16) x y) && x.Type.IsSigned() && y.Type.IsSigned() => (NotEqual (CMPW (SignExt(8|16)to32 x) (SignExt(8|16)to32 y)))
+ (Neq(8|16) x y)  => (NotEqual (CMPW (ZeroExt(8|16)to32 x) (ZeroExt(8|16)to32 y)))
+ (Neq(32|64|Ptr) x y) => (NotEqual ((CMPW|CMP|CMP) x y))
+ (Neq(32|64)F x y) => (NotEqual (FCMPU x y))
+@@ -419,19 +419,19 @@
+ 
+ // Lowering loads
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
+-(Load <t> ptr mem) && is32BitInt(t) && isSigned(t) => (MOVWload ptr mem)
+-(Load <t> ptr mem) && is32BitInt(t) && !isSigned(t) => (MOVWZload ptr mem)
+-(Load <t> ptr mem) && is16BitInt(t) && isSigned(t) => (MOVHload ptr mem)
+-(Load <t> ptr mem) && is16BitInt(t) && !isSigned(t) => (MOVHZload ptr mem)
++(Load <t> ptr mem) && is32BitInt(t) &&  t.IsSigned() => (MOVWload ptr mem)
++(Load <t> ptr mem) && is32BitInt(t) && !t.IsSigned() => (MOVWZload ptr mem)
++(Load <t> ptr mem) && is16BitInt(t) &&  t.IsSigned() => (MOVHload ptr mem)
++(Load <t> ptr mem) && is16BitInt(t) && !t.IsSigned() => (MOVHZload ptr mem)
+ (Load <t> ptr mem) && t.IsBoolean() => (MOVBZload ptr mem)
+-(Load <t> ptr mem) && is8BitInt(t) && isSigned(t) => (MOVBreg (MOVBZload ptr mem)) // PPC has no signed-byte load.
+-(Load <t> ptr mem) && is8BitInt(t) && !isSigned(t) => (MOVBZload ptr mem)
++(Load <t> ptr mem) && is8BitInt(t) &&  t.IsSigned() => (MOVBreg (MOVBZload ptr mem)) // PPC has no signed-byte load.
++(Load <t> ptr mem) && is8BitInt(t) && !t.IsSigned() => (MOVBZload ptr mem)
+ 
+ (Load <t> ptr mem) && is32BitFloat(t) => (FMOVSload ptr mem)
+ (Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
+ 
+-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (FMOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (FMOVSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVSstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+@@ -804,12 +804,12 @@
+ (MOV(B|W)Zreg x:(Select0 (LoweredAtomicLoad(8|32) _ _))) => x
+ 
+ // don't extend if argument is already extended
+-(MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) => x
+-(MOVBZreg x:(Arg <t>)) && is8BitInt(t) && !isSigned(t) => x
+-(MOVHreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && isSigned(t) => x
+-(MOVHZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && !isSigned(t) => x
+-(MOVWreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t) => x
+-(MOVWZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t) => x
++(MOVBreg x:(Arg <t>)) && is8BitInt(t) && t.IsSigned() => x
++(MOVBZreg x:(Arg <t>)) && is8BitInt(t) && !t.IsSigned() => x
++(MOVHreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && t.IsSigned() => x
++(MOVHZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && !t.IsSigned() => x
++(MOVWreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && t.IsSigned() => x
++(MOVWZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !t.IsSigned() => x
+ 
+ (MOVBZreg (MOVDconst [c]))  => (MOVDconst [int64(uint8(c))])
+ (MOVBreg (MOVDconst [c]))  => (MOVDconst [int64(int8(c))])
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index b6700cc6ee..eb1f10de96 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -282,16 +282,16 @@
+ (Neq32F ...) => (FNES ...)
+ 
+ // Loads
+-(Load <t> ptr mem) &&  t.IsBoolean()                  => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && ( is8BitInt(t) &&  isSigned(t)) => (MOVBload  ptr mem)
+-(Load <t> ptr mem) && ( is8BitInt(t) && !isSigned(t)) => (MOVBUload ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) &&  isSigned(t)) => (MOVHload  ptr mem)
+-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
+-(Load <t> ptr mem) && (is32BitInt(t) &&  isSigned(t)) => (MOVWload  ptr mem)
+-(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) => (MOVWUload ptr mem)
+-(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t))     => (MOVDload  ptr mem)
+-(Load <t> ptr mem) &&  is32BitFloat(t)                => (FMOVWload ptr mem)
+-(Load <t> ptr mem) &&  is64BitFloat(t)                => (FMOVDload ptr mem)
++(Load <t> ptr mem) &&  t.IsBoolean()                   => (MOVBUload ptr mem)
++(Load <t> ptr mem) && ( is8BitInt(t) &&  t.IsSigned()) => (MOVBload  ptr mem)
++(Load <t> ptr mem) && ( is8BitInt(t) && !t.IsSigned()) => (MOVBUload ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload  ptr mem)
++(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) &&  t.IsSigned()) => (MOVWload  ptr mem)
++(Load <t> ptr mem) && (is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
++(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t))      => (MOVDload  ptr mem)
++(Load <t> ptr mem) &&  is32BitFloat(t)                 => (FMOVWload ptr mem)
++(Load <t> ptr mem) &&  is64BitFloat(t)                 => (FMOVDload ptr mem)
+ 
+ // Stores
+ (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/_gen/S390X.rules b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+index c85c559b48..8c8c6ae251 100644
+--- a/src/cmd/compile/internal/ssa/_gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+@@ -336,18 +336,18 @@
+ 
+ // Lowering loads
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
+-(Load <t> ptr mem) && is32BitInt(t) && isSigned(t) => (MOVWload ptr mem)
+-(Load <t> ptr mem) && is32BitInt(t) && !isSigned(t) => (MOVWZload ptr mem)
+-(Load <t> ptr mem) && is16BitInt(t) && isSigned(t) => (MOVHload ptr mem)
+-(Load <t> ptr mem) && is16BitInt(t) && !isSigned(t) => (MOVHZload ptr mem)
+-(Load <t> ptr mem) && is8BitInt(t) && isSigned(t) => (MOVBload ptr mem)
+-(Load <t> ptr mem) && (t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) => (MOVBZload ptr mem)
++(Load <t> ptr mem) && is32BitInt(t) &&  t.IsSigned() => (MOVWload ptr mem)
++(Load <t> ptr mem) && is32BitInt(t) && !t.IsSigned() => (MOVWZload ptr mem)
++(Load <t> ptr mem) && is16BitInt(t) &&  t.IsSigned() => (MOVHload ptr mem)
++(Load <t> ptr mem) && is16BitInt(t) && !t.IsSigned() => (MOVHZload ptr mem)
++(Load <t> ptr mem) && is8BitInt(t)  &&  t.IsSigned() => (MOVBload ptr mem)
++(Load <t> ptr mem) && (t.IsBoolean() || (is8BitInt(t) && !t.IsSigned())) => (MOVBZload ptr mem)
+ (Load <t> ptr mem) && is32BitFloat(t) => (FMOVSload ptr mem)
+ (Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
+ 
+ // Lowering stores
+-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (FMOVDstore ptr val mem)
+-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (FMOVSstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
++(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVSstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index afd56018d3..6dffa0309f 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -235,10 +235,6 @@ func isPtr(t *types.Type) bool {
+ 	return t.IsPtrShaped()
+ }
+ 
+-func isSigned(t *types.Type) bool {
+-	return t.IsSigned()
+-}
+-
+ // mergeSym merges two symbolic offsets. There is no real merging of
+ // offsets, we just pick the non-nil one.
+ func mergeSym(x, y Sym) Sym {
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index b495a9cbe8..70cacb90ed 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -13952,13 +13952,13 @@ func rewriteValueARM_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && isSigned(t))
++	// cond: (is8BitInt(t) && t.IsSigned())
+ 	// result: (MOVBload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && isSigned(t)) {
++		if !(is8BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVBload)
+@@ -13966,13 +13966,13 @@ func rewriteValueARM_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && !isSigned(t))
++	// cond: (is8BitInt(t) && !t.IsSigned())
+ 	// result: (MOVBUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && !isSigned(t)) {
++		if !(is8BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVBUload)
+@@ -13980,13 +13980,13 @@ func rewriteValueARM_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && isSigned(t))
++	// cond: (is16BitInt(t) && t.IsSigned())
+ 	// result: (MOVHload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && isSigned(t)) {
++		if !(is16BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVHload)
+@@ -13994,13 +13994,13 @@ func rewriteValueARM_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && !isSigned(t))
++	// cond: (is16BitInt(t) && !t.IsSigned())
+ 	// result: (MOVHUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && !isSigned(t)) {
++		if !(is16BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVHUload)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index f6e57962d1..ca1704fe41 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -25150,13 +25150,13 @@ func rewriteValueARM64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && isSigned(t))
++	// cond: (is8BitInt(t) && t.IsSigned())
+ 	// result: (MOVBload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && isSigned(t)) {
++		if !(is8BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBload)
+@@ -25164,13 +25164,13 @@ func rewriteValueARM64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && !isSigned(t))
++	// cond: (is8BitInt(t) && !t.IsSigned())
+ 	// result: (MOVBUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && !isSigned(t)) {
++		if !(is8BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBUload)
+@@ -25178,13 +25178,13 @@ func rewriteValueARM64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && isSigned(t))
++	// cond: (is16BitInt(t) && t.IsSigned())
+ 	// result: (MOVHload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && isSigned(t)) {
++		if !(is16BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHload)
+@@ -25192,13 +25192,13 @@ func rewriteValueARM64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && !isSigned(t))
++	// cond: (is16BitInt(t) && !t.IsSigned())
+ 	// result: (MOVHUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && !isSigned(t)) {
++		if !(is16BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHUload)
+@@ -25206,13 +25206,13 @@ func rewriteValueARM64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is32BitInt(t) && isSigned(t))
++	// cond: (is32BitInt(t) && t.IsSigned())
+ 	// result: (MOVWload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && isSigned(t)) {
++		if !(is32BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWload)
+@@ -25220,13 +25220,13 @@ func rewriteValueARM64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is32BitInt(t) && !isSigned(t))
++	// cond: (is32BitInt(t) && !t.IsSigned())
+ 	// result: (MOVWUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && !isSigned(t)) {
++		if !(is32BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWUload)
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 1581e82698..d0fb54fc03 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -4582,13 +4582,13 @@ func rewriteValueLOONG64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && isSigned(t))
++	// cond: (is8BitInt(t) && t.IsSigned())
+ 	// result: (MOVBload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && isSigned(t)) {
++		if !(is8BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVBload)
+@@ -4596,13 +4596,13 @@ func rewriteValueLOONG64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && !isSigned(t))
++	// cond: (is8BitInt(t) && !t.IsSigned())
+ 	// result: (MOVBUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && !isSigned(t)) {
++		if !(is8BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVBUload)
+@@ -4610,13 +4610,13 @@ func rewriteValueLOONG64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && isSigned(t))
++	// cond: (is16BitInt(t) && t.IsSigned())
+ 	// result: (MOVHload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && isSigned(t)) {
++		if !(is16BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVHload)
+@@ -4624,13 +4624,13 @@ func rewriteValueLOONG64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && !isSigned(t))
++	// cond: (is16BitInt(t) && !t.IsSigned())
+ 	// result: (MOVHUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && !isSigned(t)) {
++		if !(is16BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVHUload)
+@@ -4638,13 +4638,13 @@ func rewriteValueLOONG64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is32BitInt(t) && isSigned(t))
++	// cond: (is32BitInt(t) && t.IsSigned())
+ 	// result: (MOVWload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && isSigned(t)) {
++		if !(is32BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVWload)
+@@ -4652,13 +4652,13 @@ func rewriteValueLOONG64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is32BitInt(t) && !isSigned(t))
++	// cond: (is32BitInt(t) && !t.IsSigned())
+ 	// result: (MOVWUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && !isSigned(t)) {
++		if !(is32BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64MOVWUload)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 85be0336ad..b3650c4200 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -1553,13 +1553,13 @@ func rewriteValueMIPS_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && isSigned(t))
++	// cond: (is8BitInt(t) && t.IsSigned())
+ 	// result: (MOVBload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && isSigned(t)) {
++		if !(is8BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSMOVBload)
+@@ -1567,13 +1567,13 @@ func rewriteValueMIPS_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && !isSigned(t))
++	// cond: (is8BitInt(t) && !t.IsSigned())
+ 	// result: (MOVBUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && !isSigned(t)) {
++		if !(is8BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSMOVBUload)
+@@ -1581,13 +1581,13 @@ func rewriteValueMIPS_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && isSigned(t))
++	// cond: (is16BitInt(t) && t.IsSigned())
+ 	// result: (MOVHload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && isSigned(t)) {
++		if !(is16BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSMOVHload)
+@@ -1595,13 +1595,13 @@ func rewriteValueMIPS_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && !isSigned(t))
++	// cond: (is16BitInt(t) && !t.IsSigned())
+ 	// result: (MOVHUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && !isSigned(t)) {
++		if !(is16BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSMOVHUload)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index af4ab1efd7..3d1ec08ada 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -1720,13 +1720,13 @@ func rewriteValueMIPS64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && isSigned(t))
++	// cond: (is8BitInt(t) && t.IsSigned())
+ 	// result: (MOVBload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && isSigned(t)) {
++		if !(is8BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVBload)
+@@ -1734,13 +1734,13 @@ func rewriteValueMIPS64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is8BitInt(t) && !isSigned(t))
++	// cond: (is8BitInt(t) && !t.IsSigned())
+ 	// result: (MOVBUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && !isSigned(t)) {
++		if !(is8BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVBUload)
+@@ -1748,13 +1748,13 @@ func rewriteValueMIPS64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && isSigned(t))
++	// cond: (is16BitInt(t) && t.IsSigned())
+ 	// result: (MOVHload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && isSigned(t)) {
++		if !(is16BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVHload)
+@@ -1762,13 +1762,13 @@ func rewriteValueMIPS64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && !isSigned(t))
++	// cond: (is16BitInt(t) && !t.IsSigned())
+ 	// result: (MOVHUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && !isSigned(t)) {
++		if !(is16BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVHUload)
+@@ -1776,13 +1776,13 @@ func rewriteValueMIPS64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is32BitInt(t) && isSigned(t))
++	// cond: (is32BitInt(t) && t.IsSigned())
+ 	// result: (MOVWload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && isSigned(t)) {
++		if !(is32BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVWload)
+@@ -1790,13 +1790,13 @@ func rewriteValueMIPS64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is32BitInt(t) && !isSigned(t))
++	// cond: (is32BitInt(t) && !t.IsSigned())
+ 	// result: (MOVWUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && !isSigned(t)) {
++		if !(is32BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVWUload)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index e4ef3934ae..c9930516bc 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -1702,13 +1702,13 @@ func rewriteValuePPC64_OpEq16(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Eq16 x y)
+-	// cond: isSigned(x.Type) && isSigned(y.Type)
++	// cond: x.Type.IsSigned() && y.Type.IsSigned()
+ 	// result: (Equal (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			x := v_0
+ 			y := v_1
+-			if !(isSigned(x.Type) && isSigned(y.Type)) {
++			if !(x.Type.IsSigned() && y.Type.IsSigned()) {
+ 				continue
+ 			}
+ 			v.reset(OpPPC64Equal)
+@@ -1809,13 +1809,13 @@ func rewriteValuePPC64_OpEq8(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Eq8 x y)
+-	// cond: isSigned(x.Type) && isSigned(y.Type)
++	// cond: x.Type.IsSigned() && y.Type.IsSigned()
+ 	// result: (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			x := v_0
+ 			y := v_1
+-			if !(isSigned(x.Type) && isSigned(y.Type)) {
++			if !(x.Type.IsSigned() && y.Type.IsSigned()) {
+ 				continue
+ 			}
+ 			v.reset(OpPPC64Equal)
+@@ -2310,13 +2310,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is32BitInt(t) && isSigned(t)
++	// cond: is32BitInt(t) && t.IsSigned()
+ 	// result: (MOVWload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && isSigned(t)) {
++		if !(is32BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVWload)
+@@ -2324,13 +2324,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is32BitInt(t) && !isSigned(t)
++	// cond: is32BitInt(t) && !t.IsSigned()
+ 	// result: (MOVWZload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && !isSigned(t)) {
++		if !(is32BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVWZload)
+@@ -2338,13 +2338,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is16BitInt(t) && isSigned(t)
++	// cond: is16BitInt(t) && t.IsSigned()
+ 	// result: (MOVHload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && isSigned(t)) {
++		if !(is16BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVHload)
+@@ -2352,13 +2352,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is16BitInt(t) && !isSigned(t)
++	// cond: is16BitInt(t) && !t.IsSigned()
+ 	// result: (MOVHZload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && !isSigned(t)) {
++		if !(is16BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVHZload)
+@@ -2380,13 +2380,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is8BitInt(t) && isSigned(t)
++	// cond: is8BitInt(t) && t.IsSigned()
+ 	// result: (MOVBreg (MOVBZload ptr mem))
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && isSigned(t)) {
++		if !(is8BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBreg)
+@@ -2396,13 +2396,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is8BitInt(t) && !isSigned(t)
++	// cond: is8BitInt(t) && !t.IsSigned()
+ 	// result: (MOVBZload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && !isSigned(t)) {
++		if !(is8BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBZload)
+@@ -3617,13 +3617,13 @@ func rewriteValuePPC64_OpNeq16(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Neq16 x y)
+-	// cond: isSigned(x.Type) && isSigned(y.Type)
++	// cond: x.Type.IsSigned() && y.Type.IsSigned()
+ 	// result: (NotEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			x := v_0
+ 			y := v_1
+-			if !(isSigned(x.Type) && isSigned(y.Type)) {
++			if !(x.Type.IsSigned() && y.Type.IsSigned()) {
+ 				continue
+ 			}
+ 			v.reset(OpPPC64NotEqual)
+@@ -3724,13 +3724,13 @@ func rewriteValuePPC64_OpNeq8(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Neq8 x y)
+-	// cond: isSigned(x.Type) && isSigned(y.Type)
++	// cond: x.Type.IsSigned() && y.Type.IsSigned()
+ 	// result: (NotEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			x := v_0
+ 			y := v_1
+-			if !(isSigned(x.Type) && isSigned(y.Type)) {
++			if !(x.Type.IsSigned() && y.Type.IsSigned()) {
+ 				continue
+ 			}
+ 			v.reset(OpPPC64NotEqual)
+@@ -6649,7 +6649,7 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(Arg <t>))
+-	// cond: is8BitInt(t) && !isSigned(t)
++	// cond: is8BitInt(t) && !t.IsSigned()
+ 	// result: x
+ 	for {
+ 		x := v_0
+@@ -6657,7 +6657,7 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
+ 			break
+ 		}
+ 		t := x.Type
+-		if !(is8BitInt(t) && !isSigned(t)) {
++		if !(is8BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -6859,7 +6859,7 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBreg x:(Arg <t>))
+-	// cond: is8BitInt(t) && isSigned(t)
++	// cond: is8BitInt(t) && t.IsSigned()
+ 	// result: x
+ 	for {
+ 		x := v_0
+@@ -6867,7 +6867,7 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
+ 			break
+ 		}
+ 		t := x.Type
+-		if !(is8BitInt(t) && isSigned(t)) {
++		if !(is8BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -8818,7 +8818,7 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHZreg x:(Arg <t>))
+-	// cond: (is8BitInt(t) || is16BitInt(t)) && !isSigned(t)
++	// cond: (is8BitInt(t) || is16BitInt(t)) && !t.IsSigned()
+ 	// result: x
+ 	for {
+ 		x := v_0
+@@ -8826,7 +8826,7 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
+ 			break
+ 		}
+ 		t := x.Type
+-		if !((is8BitInt(t) || is16BitInt(t)) && !isSigned(t)) {
++		if !((is8BitInt(t) || is16BitInt(t)) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -9191,7 +9191,7 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHreg x:(Arg <t>))
+-	// cond: (is8BitInt(t) || is16BitInt(t)) && isSigned(t)
++	// cond: (is8BitInt(t) || is16BitInt(t)) && t.IsSigned()
+ 	// result: x
+ 	for {
+ 		x := v_0
+@@ -9199,7 +9199,7 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
+ 			break
+ 		}
+ 		t := x.Type
+-		if !((is8BitInt(t) || is16BitInt(t)) && isSigned(t)) {
++		if !((is8BitInt(t) || is16BitInt(t)) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -10155,7 +10155,7 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWZreg x:(Arg <t>))
+-	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t)
++	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !t.IsSigned()
+ 	// result: x
+ 	for {
+ 		x := v_0
+@@ -10163,7 +10163,7 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
+ 			break
+ 		}
+ 		t := x.Type
+-		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t)) {
++		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -10549,7 +10549,7 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(Arg <t>))
+-	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t)
++	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && t.IsSigned()
+ 	// result: x
+ 	for {
+ 		x := v_0
+@@ -10557,7 +10557,7 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
+ 			break
+ 		}
+ 		t := x.Type
+-		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t)) {
++		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.copyOf(x)
+@@ -16150,12 +16150,12 @@ func rewriteValuePPC64_OpStore(v *Value) bool {
+ func rewriteValuePPC64_OpTrunc16to8(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Trunc16to8 <t> x)
+-	// cond: isSigned(t)
++	// cond: t.IsSigned()
+ 	// result: (MOVBreg x)
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(isSigned(t)) {
++		if !(t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBreg)
+@@ -16174,12 +16174,12 @@ func rewriteValuePPC64_OpTrunc16to8(v *Value) bool {
+ func rewriteValuePPC64_OpTrunc32to16(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Trunc32to16 <t> x)
+-	// cond: isSigned(t)
++	// cond: t.IsSigned()
+ 	// result: (MOVHreg x)
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(isSigned(t)) {
++		if !(t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVHreg)
+@@ -16198,12 +16198,12 @@ func rewriteValuePPC64_OpTrunc32to16(v *Value) bool {
+ func rewriteValuePPC64_OpTrunc32to8(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Trunc32to8 <t> x)
+-	// cond: isSigned(t)
++	// cond: t.IsSigned()
+ 	// result: (MOVBreg x)
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(isSigned(t)) {
++		if !(t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBreg)
+@@ -16222,12 +16222,12 @@ func rewriteValuePPC64_OpTrunc32to8(v *Value) bool {
+ func rewriteValuePPC64_OpTrunc64to16(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Trunc64to16 <t> x)
+-	// cond: isSigned(t)
++	// cond: t.IsSigned()
+ 	// result: (MOVHreg x)
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(isSigned(t)) {
++		if !(t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVHreg)
+@@ -16246,12 +16246,12 @@ func rewriteValuePPC64_OpTrunc64to16(v *Value) bool {
+ func rewriteValuePPC64_OpTrunc64to32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Trunc64to32 <t> x)
+-	// cond: isSigned(t)
++	// cond: t.IsSigned()
+ 	// result: (MOVWreg x)
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(isSigned(t)) {
++		if !(t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVWreg)
+@@ -16270,12 +16270,12 @@ func rewriteValuePPC64_OpTrunc64to32(v *Value) bool {
+ func rewriteValuePPC64_OpTrunc64to8(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Trunc64to8 <t> x)
+-	// cond: isSigned(t)
++	// cond: t.IsSigned()
+ 	// result: (MOVBreg x)
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(isSigned(t)) {
++		if !(t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBreg)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 021db10ce6..f1debe0c21 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -1479,13 +1479,13 @@ func rewriteValueRISCV64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: ( is8BitInt(t) && isSigned(t))
++	// cond: ( is8BitInt(t) && t.IsSigned())
+ 	// result: (MOVBload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && isSigned(t)) {
++		if !(is8BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64MOVBload)
+@@ -1493,13 +1493,13 @@ func rewriteValueRISCV64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: ( is8BitInt(t) && !isSigned(t))
++	// cond: ( is8BitInt(t) && !t.IsSigned())
+ 	// result: (MOVBUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && !isSigned(t)) {
++		if !(is8BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64MOVBUload)
+@@ -1507,13 +1507,13 @@ func rewriteValueRISCV64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && isSigned(t))
++	// cond: (is16BitInt(t) && t.IsSigned())
+ 	// result: (MOVHload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && isSigned(t)) {
++		if !(is16BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64MOVHload)
+@@ -1521,13 +1521,13 @@ func rewriteValueRISCV64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is16BitInt(t) && !isSigned(t))
++	// cond: (is16BitInt(t) && !t.IsSigned())
+ 	// result: (MOVHUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && !isSigned(t)) {
++		if !(is16BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64MOVHUload)
+@@ -1535,13 +1535,13 @@ func rewriteValueRISCV64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is32BitInt(t) && isSigned(t))
++	// cond: (is32BitInt(t) && t.IsSigned())
+ 	// result: (MOVWload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && isSigned(t)) {
++		if !(is32BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64MOVWload)
+@@ -1549,13 +1549,13 @@ func rewriteValueRISCV64_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (is32BitInt(t) && !isSigned(t))
++	// cond: (is32BitInt(t) && !t.IsSigned())
+ 	// result: (MOVWUload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && !isSigned(t)) {
++		if !(is32BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64MOVWUload)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index bd920ef4a9..fdd15f31a4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -2346,13 +2346,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is32BitInt(t) && isSigned(t)
++	// cond: is32BitInt(t) && t.IsSigned()
+ 	// result: (MOVWload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && isSigned(t)) {
++		if !(is32BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVWload)
+@@ -2360,13 +2360,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is32BitInt(t) && !isSigned(t)
++	// cond: is32BitInt(t) && !t.IsSigned()
+ 	// result: (MOVWZload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is32BitInt(t) && !isSigned(t)) {
++		if !(is32BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVWZload)
+@@ -2374,13 +2374,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is16BitInt(t) && isSigned(t)
++	// cond: is16BitInt(t) && t.IsSigned()
+ 	// result: (MOVHload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && isSigned(t)) {
++		if !(is16BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVHload)
+@@ -2388,13 +2388,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is16BitInt(t) && !isSigned(t)
++	// cond: is16BitInt(t) && !t.IsSigned()
+ 	// result: (MOVHZload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is16BitInt(t) && !isSigned(t)) {
++		if !(is16BitInt(t) && !t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVHZload)
+@@ -2402,13 +2402,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is8BitInt(t) && isSigned(t)
++	// cond: is8BitInt(t) && t.IsSigned()
+ 	// result: (MOVBload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(is8BitInt(t) && isSigned(t)) {
++		if !(is8BitInt(t) && t.IsSigned()) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVBload)
+@@ -2416,13 +2416,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (t.IsBoolean() || (is8BitInt(t) && !isSigned(t)))
++	// cond: (t.IsBoolean() || (is8BitInt(t) && !t.IsSigned()))
+ 	// result: (MOVBZload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) {
++		if !(t.IsBoolean() || (is8BitInt(t) && !t.IsSigned())) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVBZload)

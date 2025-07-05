@@ -12,6 +12,20 @@ Date:   Sat May 20 00:39:50 2023 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/maps/maps_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/maps/maps_test.go b/src/maps/maps_test.go
+index a7a8c10f71..bab884ef35 100644
+--- a/src/maps/maps_test.go
++++ b/src/maps/maps_test.go
+@@ -234,8 +234,6 @@ func TestCloneWithMapAssign(t *testing.T) {
+ 	}
+ }
+ 
+-var keysArr []int
+-
+ func BenchmarkKeys(b *testing.B) {
+ 	m := make(map[int]int, 1000000)
+ 	for i := 0; i < 1000000; i++ {

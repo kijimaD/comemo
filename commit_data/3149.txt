@@ -10,7 +10,7 @@ Date:   Mon Aug 31 13:01:25 2009 -0700
     DELTA=41  (19 added, 3 deleted, 19 changed)
     OCL=34123
     CL=34129
-
+---
  src/pkg/Make.deps               |  6 +++---
  src/pkg/strconv/quote.go        |  3 ++-
  src/pkg/strings/strings_test.go |  5 +++--
@@ -20,3 +20,209 @@ Date:   Mon Aug 31 13:01:25 2009 -0700
  src/pkg/unicode/script_test.go  |  7 +++++--
  src/pkg/utf8/utf8.go            |  7 ++++---
  8 files changed, 37 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 0ae5ddf32e..b77974f47c 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -48,14 +48,14 @@ regexp.install: bytes.install container/vector.install io.install os.install run
+ rpc.install: bufio.install fmt.install gob.install http.install io.install log.install net.install os.install reflect.install sort.install strconv.install strings.install sync.install template.install unicode.install utf8.install
+ runtime.install:
+ sort.install:
+-strconv.install: bytes.install math.install os.install utf8.install
++strconv.install: bytes.install math.install os.install unicode.install utf8.install
+ strings.install: utf8.install
+ sync.install:
+ syscall.install: sync.install
+ tabwriter.install: bytes.install container/vector.install io.install os.install utf8.install
+ template.install: bytes.install container/vector.install fmt.install io.install os.install reflect.install runtime.install strings.install
+ testing.install: flag.install fmt.install os.install runtime.install utf8.install
+-testing/iotest.install: io.install log.install os.install
++testing/iotest.install: bytes.install io.install log.install os.install
+ time.install: io.install once.install os.install syscall.install
+ unicode.install:
+-utf8.install:
++utf8.install: unicode.install
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index f970ef5189..e343f670cd 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -6,6 +6,7 @@ package strconv
+ 
+ import (
+ 	"os";
++	"unicode";
+ 	"utf8";
+ )
+ 
+@@ -175,7 +176,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string,
+ 			value = v;
+ 			break;
+ 		}
+-		if v > utf8.RuneMax {
++		if v > unicode.MaxRune {
+ 			err = os.EINVAL;
+ 			return;
+ 		}
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 714507b6d9..cd9679e948 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package strings
++package strings_test
+ 
+ import (
++	. "strings";
+ 	"testing";
+ )
+ 
+@@ -92,7 +93,7 @@ var explodetests = []ExplodeTest {
+ }
+ func TestExplode(t *testing.T) {
+ 	for _, tt := range explodetests {
+-		a := explode(tt.s, tt.n);
++		a := Split(tt.s, "", tt.n);
+ 		if !eq(a, tt.a) {
+ 			t.Errorf("explode(%q, %d) = %v; want %v", tt.s, tt.n, a, tt.a);
+ 			continue;
+diff --git a/src/pkg/unicode/digit_test.go b/src/pkg/unicode/digit_test.go
+index 19a55bb673..a63404ebd8 100644
+--- a/src/pkg/unicode/digit_test.go
++++ b/src/pkg/unicode/digit_test.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package unicode
++package unicode_test
+ 
+-import "testing"
++import (
++	"testing";
++	. "unicode";
++)
+ 
+ var testDigit = []int {
+ 	0x0030,
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index c68ec47e36..f67b7e5cf0 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -3,9 +3,14 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This package provides data and functions to test some properties of Unicode code points.
+-// It is rudimentary but will improve.
+ package unicode
+ 
++const (
++	MaxRune	= 0x10FFFF;	// Maximum valid Unicode code point.
++	ReplacementChar	= 0xFFFD;	// Represents invalid code points.
++)
++
++
+ // The representation of a range of Unicode code points.  The range runs from Lo to Hi
+ // inclusive and has the specified stride.
+ type Range struct {
+@@ -42,8 +47,7 @@ type d [MaxCase]int32	// to make the CaseRanges text shorter
+ // this CaseRange represents a sequence of the form (say)
+ // Upper Lower Upper Lower.
+ const (
+-	MaxChar		= 0x10FFFF;	// Maximum valid Unicode character value.
+-	UpperLower      = MaxChar + 1;	// (Cannot be a valid delta.)
++	UpperLower      = MaxRune + 1;	// (Cannot be a valid delta.)
+ )
+ 
+ // Is tests whether rune is in the specified table of ranges.
+@@ -113,10 +117,10 @@ func IsLetter(rune int) bool {
+ 	return Is(Letter, rune);
+ }
+ 
+-// To maps the rune to the specified case, UpperCase, LowerCase, or TitleCase
++// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase
+ func To(_case int, rune int) int {
+ 	if _case < 0 || MaxCase <= _case {
+-		return 0xFFFD	// as reasonable an error as any
++		return ReplacementChar	// as reasonable an error as any
+ 	}
+ 	// binary search over ranges
+ 	lo := 0;
+@@ -126,7 +130,7 @@ func To(_case int, rune int) int {
+ 		r := CaseRanges[m];
+ 		if r.Lo <= rune && rune <= r.Hi {
+ 			delta := int(r.Delta[_case]);
+-			if delta > MaxChar {
++			if delta > MaxRune {
+ 				// In an Upper-Lower sequence, which always starts with
+ 				// an UpperCase letter, the real deltas always look like:
+ 				//	{0, 1, 0}    UpperCase (Lower is next)
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index 13daa03422..0ccb29f0a2 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package unicode
++package unicode_test
+ 
+-import "testing"
++import (
++	"testing";
++	. "unicode";
++)
+ 
+ var upperTest = []int{
+ 	0x41,
+diff --git a/src/pkg/unicode/script_test.go b/src/pkg/unicode/script_test.go
+index 390e47b360..da525c5418 100644
+--- a/src/pkg/unicode/script_test.go
++++ b/src/pkg/unicode/script_test.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package unicode
++package unicode_test
+ 
+-import "testing"
++import (
++	"testing";
++	. "unicode";
++)
+ 
+ type T struct {
+ 	rune	int;
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index 9c2ac790d0..62adcd9e01 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -6,11 +6,12 @@
+ // This package calls a Unicode character a rune for brevity.
+ package utf8
+ 
++import "unicode"	// only needed for a couple of constants
++
+ // Numbers fundamental to the encoding.
+ const (
+-	RuneError = 0xFFFD;	// the "error" Rune or "replacement character".
++	RuneError = unicode.ReplacementChar;	// the "error" Rune or "replacement character".
+ 	RuneSelf = 0x80;	// characters below Runeself are represented as themselves in a single byte.
+-	RuneMax = 0x10FFFF;	// maximum Unicode code point.
+ 	UTFMax = 4;	// maximum number of bytes of a UTF-8 encoded Unicode character.
+ )
+ 
+@@ -239,7 +240,7 @@ func EncodeRune(rune int, p []byte) int {
+ 		return 2;
+ 	}
+ 
+-	if rune > RuneMax {
++	if rune > unicode.MaxRune {
+ 		rune = RuneError
+ 	}
+ 

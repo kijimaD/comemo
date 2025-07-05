@@ -11,6 +11,20 @@ Date:   Mon Nov 1 23:46:47 2021 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/regexp/regexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index f975bb3894..7d56bd6b8e 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -46,7 +46,7 @@
+ // the match of the first parenthesized subexpression, and so on.
+ //
+ // If 'Index' is present, matches and submatches are identified by byte index
+-// pairs within the input string: result[2*n:2*n+1] identifies the indexes of
++// pairs within the input string: result[2*n:2*n+2] identifies the indexes of
+ // the nth submatch. The pair for n==0 identifies the match of the entire
+ // expression. If 'Index' is not present, the match is identified by the text
+ // of the match/submatch. If an index is negative or text is nil, it means that

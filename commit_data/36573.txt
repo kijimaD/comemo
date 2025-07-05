@@ -16,6 +16,20 @@ Date:   Mon May 7 16:18:11 2018 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ip_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 60329e9cfe..95dd109e28 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -129,7 +129,7 @@ func TestMarshalEmptyIP(t *testing.T) {
+ 	}
+ }
+ 
+-var ipStringTests = []struct {
++var ipStringTests = []*struct {
+ 	in  IP     // see RFC 791 and RFC 4291
+ 	str string // see RFC 791, RFC 4291 and RFC 5952
+ 	byt []byte

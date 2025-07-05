@@ -13,10 +13,221 @@ Date:   Wed Sep 28 10:20:24 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go         |  9 ++++
  src/cmd/compile/internal/ssa/gen/generic.rules | 22 +++++-----
  src/cmd/compile/internal/ssa/rewrite.go        |  9 ++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 58 ++++++++++++++++++++++++++
  test/nilptr3.go                                |  7 ++++
  5 files changed, 95 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 1b51f7ff9c..201dcd4a38 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -17,6 +17,7 @@ type Config struct {
+ 	arch            string                     // "amd64", etc.
+ 	IntSize         int64                      // 4 or 8
+ 	PtrSize         int64                      // 4 or 8
++	RegSize         int64                      // 4 or 8
+ 	lowerBlock      func(*Block, *Config) bool // lowering function
+ 	lowerValue      func(*Value, *Config) bool // lowering function
+ 	registers       []Register                 // machine registers
+@@ -132,6 +133,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	case "amd64":
+ 		c.IntSize = 8
+ 		c.PtrSize = 8
++		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockAMD64
+ 		c.lowerValue = rewriteValueAMD64
+ 		c.registers = registersAMD64[:]
+@@ -142,6 +144,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	case "amd64p32":
+ 		c.IntSize = 4
+ 		c.PtrSize = 4
++		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockAMD64
+ 		c.lowerValue = rewriteValueAMD64
+ 		c.registers = registersAMD64[:]
+@@ -153,6 +156,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	case "386":
+ 		c.IntSize = 4
+ 		c.PtrSize = 4
++		c.RegSize = 4
+ 		c.lowerBlock = rewriteBlock386
+ 		c.lowerValue = rewriteValue386
+ 		c.registers = registers386[:]
+@@ -163,6 +167,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	case "arm":
+ 		c.IntSize = 4
+ 		c.PtrSize = 4
++		c.RegSize = 4
+ 		c.lowerBlock = rewriteBlockARM
+ 		c.lowerValue = rewriteValueARM
+ 		c.registers = registersARM[:]
+@@ -173,6 +178,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	case "arm64":
+ 		c.IntSize = 8
+ 		c.PtrSize = 8
++		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockARM64
+ 		c.lowerValue = rewriteValueARM64
+ 		c.registers = registersARM64[:]
+@@ -187,6 +193,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	case "ppc64le":
+ 		c.IntSize = 8
+ 		c.PtrSize = 8
++		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockPPC64
+ 		c.lowerValue = rewriteValuePPC64
+ 		c.registers = registersPPC64[:]
+@@ -199,6 +206,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	case "mips64", "mips64le":
+ 		c.IntSize = 8
+ 		c.PtrSize = 8
++		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockMIPS64
+ 		c.lowerValue = rewriteValueMIPS64
+ 		c.registers = registersMIPS64[:]
+@@ -210,6 +218,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	case "s390x":
+ 		c.IntSize = 8
+ 		c.PtrSize = 8
++		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockS390X
+ 		c.lowerValue = rewriteValueS390X
+ 		c.registers = registersS390X[:]
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 7539a36ab4..c0492b5531 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -958,13 +958,15 @@
+ 	-> mem
+ // nil checks just need to rewrite to something useless.
+ // they will be deadcode eliminated soon afterwards.
+-        //(NilCheck (Load (OffPtr [c] (SP)) mem) mem)
+-        //        && mem.Op == OpStaticCall
+-        //	&& isSameSym(mem.Aux, "runtime.newobject")
+-        //	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+-        //	-> (Invalid)
+-        //(NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
+-        //        && mem.Op == OpStaticCall
+-        //	&& isSameSym(mem.Aux, "runtime.newobject")
+-        //	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+-        //	-> (Invalid)
++(NilCheck (Load (OffPtr [c] (SP)) mem) mem)
++	&& mem.Op == OpStaticCall
++	&& isSameSym(mem.Aux, "runtime.newobject")
++	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
++	&& warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")
++	-> (Invalid)
++(NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
++	&& mem.Op == OpStaticCall
++	&& isSameSym(mem.Aux, "runtime.newobject")
++	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
++	&& warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")
++	-> (Invalid)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 5d6710f042..0a419f6e4e 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -370,6 +370,15 @@ func noteRule(s string) bool {
+ 	return true
+ }
+ 
++// warnRule generates a compiler debug output with string s when
++// cond is true and the rule is fired.
++func warnRule(cond bool, v *Value, s string) bool {
++	if cond {
++		v.Block.Func.Config.Warnl(v.Line, "removed nil check")
++	}
++	return true
++}
++
+ // logRule logs the use of the rule s. This will only be enabled if
+ // rewrite rules were generated with the -log option, see gen/rulegen.go.
+ func logRule(s string) {
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index ecb2901fac..7dff179a2c 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -6380,6 +6380,64 @@ func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (NilCheck (Load (OffPtr [c] (SP)) mem) mem)
++	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")
++	// result: (Invalid)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLoad {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpOffPtr {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpSP {
++			break
++		}
++		mem := v_0.Args[1]
++		if mem != v.Args[1] {
++			break
++		}
++		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")) {
++			break
++		}
++		v.reset(OpInvalid)
++		return true
++	}
++	// match: (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
++	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")
++	// result: (Invalid)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpOffPtr {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpLoad {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpOffPtr {
++			break
++		}
++		c := v_0_0_0.AuxInt
++		v_0_0_0_0 := v_0_0_0.Args[0]
++		if v_0_0_0_0.Op != OpSP {
++			break
++		}
++		mem := v_0_0.Args[1]
++		if mem != v.Args[1] {
++			break
++		}
++		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(config.Debug_checknil() && int(v.Line) > 1, v, "removed nil check")) {
++			break
++		}
++		v.reset(OpInvalid)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNot(v *Value, config *Config) bool {
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index b965cd262d..8fdae8c075 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -247,3 +247,10 @@ func f(t *TT) *byte {
+ 	s := &t.SS  // ERROR "removed nil check"
+ 	return &s.x // ERROR "generated nil check"
+ }
++
++// make sure not to do nil check for newobject
++func f7() (*Struct, float64) {
++	t := new(Struct)
++	p := &t.Y    // ERROR "removed nil check"
++	return t, *p // ERROR "removed nil check"
++}

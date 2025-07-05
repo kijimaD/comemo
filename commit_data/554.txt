@@ -8,6 +8,57 @@ Date:   Fri Aug 29 17:16:47 2008 -0700
     R=r
     OCL=14672
     CL=14672
-
+---
  doc/go_spec.txt | 25 +++++++++++--------------
  1 file changed, 11 insertions(+), 14 deletions(-)
+
+diff --git a/doc/go_spec.txt b/doc/go_spec.txt
+index b9b1eb6e23..574913dba2 100644
+--- a/doc/go_spec.txt
++++ b/doc/go_spec.txt
+@@ -4,7 +4,7 @@ The Go Programming Language Specification (DRAFT)
+ Robert Griesemer, Rob Pike, Ken Thompson
+ 
+ ----
+-(August 28, 2008)
++(August 29, 2008)
+ 
+ 
+ This document is a semi-formal specification of the Go systems
+@@ -351,12 +351,11 @@ Operators and delimitors
+ 
+ The following special character sequences serve as operators or delimitors:
+ 
+-	+    &     +=    &=     ==    (    ,
+-	-    |     -=    |=     !=    )    ;
+-	*    ^     *=    ^=     <     [    :
+-	/    <<    /=    <<=    <=    ]    .
+-	%    >>    %=    >>=    >     {    !
+-	<-   -<    =     :=     >=    }	
++	+    &     +=    &=     &&    ==    !=    (    )
++	-    |     -=    |=     ||    <     >=    [    ]
++	*    ^     *=    ^=     <-    >     <=    {    }
++	/    <<    /=    <<=    -<    ++    --    =    :=
++	%    >>    %=    >>=    !     .     ,     ;    :
+ 
+ 
+ Reserved words
+@@ -364,13 +363,11 @@ Reserved words
+ 
+ The following words are reserved and must not be used as identifiers:
+ 
+-	break           export          import          select
+-	case            fallthrough     interface       struct
+-	const           for             iota            switch
+-	chan            func            map             type
+-	continue        go              package         var
+-	default         goto            range
+-	else            if              return
++	break        default      func         interface    select
++	case         else         go           map          struct
++	const        export       goto         package      switch
++	chan         fallthrough  if           range        type
++	continue     for          import       return       var
+ 
+ 
+ Declaration and scope rules

@@ -28,7 +28,39 @@ Date:   Mon Nov 30 21:18:48 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 7 ++++++-
  src/cmd/compile/internal/ir/type.go  | 2 +-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 3c161d8e12..4dee373bfa 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -118,7 +118,12 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
+ 	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
+ 		// Can't always set n.Type directly on OLITERAL nodes.
+ 		// See discussion on CL 20813.
+-		n = n.RawCopy()
++		old := n
++		n = ir.Copy(old)
++		if old.Op() == ir.OLITERAL {
++			// Keep untyped constants in their original untyped syntax for error messages.
++			n.(ir.OrigNode).SetOrig(old)
++		}
+ 	}
+ 
+ 	// Nil is technically not a constant, so handle it specially.
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index 39411ed431..519a7291b0 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -92,7 +92,7 @@ func (n *ChanType) DeepCopy(pos src.XPos) Node {
+ 	return NewChanType(n.posOr(pos), DeepCopy(pos, n.Elem), n.Dir)
+ }
+ 
+-// A MapType represents a map[Key]Value type syntax.u
++// A MapType represents a map[Key]Value type syntax.
+ type MapType struct {
+ 	miniType
+ 	Key  Node

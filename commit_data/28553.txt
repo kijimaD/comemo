@@ -12,6 +12,21 @@ Date:   Thu Jun 2 09:25:30 2016 +0200
     Change-Id: I932011b1491d68767709559f515f699c04ce70d4
     Reviewed-on: https://go-review.googlesource.com/23681
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/reflect/type.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1dff74df62..c9e14707fa 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2351,6 +2351,9 @@ type structTypeFixed32 struct {
+ // StructOf returns the struct type containing fields.
+ // The Offset and Index fields are ignored and computed as they would be
+ // by the compiler.
++//
++// StructOf currently does not generate wrapper methods for embedded fields.
++// This limitation may be lifted in a future version.
+ func StructOf(fields []StructField) Type {
+ 	var (
+ 		hash       = fnv1(0, []byte("struct {")...)

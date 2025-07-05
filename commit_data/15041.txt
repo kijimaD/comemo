@@ -9,9 +9,114 @@ Date:   Wed Jan 30 20:21:08 2013 +0100
     R=cldorian, rsc
     CC=golang-dev
     https://golang.org/cl/6845113
-
+---
  src/cmd/gc/typecheck.c      |  7 +++++++
  test/64bit.go               | 25 +++++++++++++++++++++++--
  test/fixedbugs/bug410.go    |  2 +-
  test/fixedbugs/issue4264.go | 19 +++++++++++++++++++
  4 files changed, 50 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d00e436719..3846f7b8f1 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -640,6 +640,13 @@ reswitch:
+ 				n->op = OCMPIFACE;
+ 			}
+ 		}
++
++		if((op == ODIV || op == OMOD) && isconst(r, CTINT))
++		if(mpcmpfixc(r->val.u.xval, 0) == 0) {
++			yyerror("division by zero");
++			goto error;
++		} 
++
+ 		n->type = t;
+ 		goto ret;
+ 
+diff --git a/test/64bit.go b/test/64bit.go
+index 7ad28ad4bc..d99d8e83f0 100644
+--- a/test/64bit.go
++++ b/test/64bit.go
+@@ -594,6 +594,19 @@ const binaryConstR = "func test%vBinaryR%v(a, add, sub, mul, div, mod, and, or,
+ 	"}\n" +
+ 	"\n"
+ 
++const binaryConstR0 = "func test%vBinaryR%v(a, add, sub, mul, div, mod, and, or, xor, andnot %v, dodiv bool) {\n" +
++	"	const b %v = %v;\n" +
++	"	const typ = `%s`;\n" +
++	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
++	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
++	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
++	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
++	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
++	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
++	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
++	"}\n" +
++	"\n"
++
+ const shiftConstL = "func test%vShiftL%v(b uint64, left, right %v) {\n" +
+ 	"	const a %v = %v;\n" +
+ 	"	const typ = `%s`;\n" +
+@@ -621,12 +634,20 @@ const shiftConstR = "func test%vShiftR%v(a, left, right %v) {\n" +
+ func constTests() {
+ 	for i, a := range int64Values {
+ 		fmt.Fprintf(bout, binaryConstL, "Int64", i, "int64", "int64", a, "int64")
+-		fmt.Fprintf(bout, binaryConstR, "Int64", i, "int64", "int64", a, "int64")
++		if a.hi == 0 && a.lo == 0 {
++			fmt.Fprintf(bout, binaryConstR0, "Int64", i, "int64", "int64", a, "int64")
++		} else {
++			fmt.Fprintf(bout, binaryConstR, "Int64", i, "int64", "int64", a, "int64")
++		}
+ 		fmt.Fprintf(bout, shiftConstL, "Int64", i, "int64", "int64", a, "int64")
+ 	}
+ 	for i, a := range uint64Values {
+ 		fmt.Fprintf(bout, binaryConstL, "Uint64", i, "uint64", "uint64", a, "uint64")
+-		fmt.Fprintf(bout, binaryConstR, "Uint64", i, "uint64", "uint64", a, "uint64")
++		if a.hi == 0 && a.lo == 0 {
++			fmt.Fprintf(bout, binaryConstR0, "Uint64", i, "uint64", "uint64", a, "uint64")
++		} else {
++			fmt.Fprintf(bout, binaryConstR, "Uint64", i, "uint64", "uint64", a, "uint64")
++		}
+ 		fmt.Fprintf(bout, shiftConstL, "Uint64", i, "uint64", "uint64", a, "uint64")
+ 	}
+ 	for i, a := range shiftValues {
+diff --git a/test/fixedbugs/bug410.go b/test/fixedbugs/bug410.go
+index 35ecbfc05c..430ddcbb52 100644
+--- a/test/fixedbugs/bug410.go
++++ b/test/fixedbugs/bug410.go
+@@ -18,7 +18,7 @@ func zzz () {
+     for s := range arr {
+         x := make([]byte, 10)
+         for i := 0; i < 100 ; i++ {
+-            x[i] ^= k[i-arr[s].num%0]
++            x[i] ^= k[i-arr[s].num%3]
+         }
+     }
+ }
+diff --git a/test/fixedbugs/issue4264.go b/test/fixedbugs/issue4264.go
+new file mode 100644
+index 0000000000..627393211e
+--- /dev/null
++++ b/test/fixedbugs/issue4264.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 4264: reject int division by const 0
++
++package main
++
++func main() {
++	var x int
++	var y float64
++	var z complex128
++
++	println(x/0) // ERROR "division by zero"
++	println(y/0)
++	println(z/0)
++}
+\ No newline at end of file

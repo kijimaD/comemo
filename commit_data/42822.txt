@@ -20,7 +20,53 @@ Date:   Sat Feb 1 22:14:30 2020 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/net/mail/message.go      |  9 +++++++++
  src/net/mail/message_test.go | 14 ++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 0781310ed3..6833cfaec1 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -274,6 +274,15 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
+ 	var list []*Address
+ 	for {
+ 		p.skipSpace()
++
++		// allow skipping empty entries (RFC5322 obs-addr-list)
++		if p.consume(',') {
++			continue
++		}
++		if p.empty() {
++			break
++		}
++
+ 		addrs, err := p.parseAddress(true)
+ 		if err != nil {
+ 			return nil, err
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index acab538e18..75db767547 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -431,6 +431,20 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// RFC5322 4.4 obs-addr-list
++		{
++			` , joe@where.test,,John <jdoe@one.test>,`,
++			[]*Address{
++				{
++					Name:    "",
++					Address: "joe@where.test",
++				},
++				{
++					Name:    "John",
++					Address: "jdoe@one.test",
++				},
++			},
++		},
+ 		{
+ 			`Group1: <addr1@example.com>;, Group 2: addr2@example.com;, John <addr3@example.com>`,
+ 			[]*Address{

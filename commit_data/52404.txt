@@ -16,7 +16,7 @@ Date:   Mon May 2 13:57:07 2022 +0200
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/hook_cloexec.go        |  2 +-
  src/internal/poll/sock_cloexec.go        |  2 +-
  src/internal/poll/sys_cloexec.go         |  2 +-
@@ -29,3 +29,225 @@ Date:   Mon May 2 13:57:07 2022 +0200
  src/syscall/syscall_solaris.go           | 20 ++++++++++++++++++++
  src/syscall/zsyscall_solaris_amd64.go    | 14 ++++++++++++++
  11 files changed, 43 insertions(+), 32 deletions(-)
+
+diff --git a/src/internal/poll/hook_cloexec.go b/src/internal/poll/hook_cloexec.go
+index c941cb5235..5b3cdcec28 100644
+--- a/src/internal/poll/hook_cloexec.go
++++ b/src/internal/poll/hook_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || illumos || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sock_cloexec.go b/src/internal/poll/sock_cloexec.go
+index d849fda0b0..e106b28377 100644
+--- a/src/internal/poll/sock_cloexec.go
++++ b/src/internal/poll/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements accept for platforms that provide a fast path for
+ // setting SetNonblock and CloseOnExec.
+ 
+-//go:build dragonfly || freebsd || illumos || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sys_cloexec.go b/src/internal/poll/sys_cloexec.go
+index 312ed24a44..7cd80019f4 100644
+--- a/src/internal/poll/sys_cloexec.go
++++ b/src/internal/poll/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements accept for platforms that do not provide a fast path for
+ // setting SetNonblock and CloseOnExec.
+ 
+-//go:build aix || darwin || (js && wasm) || (solaris && !illumos)
++//go:build aix || darwin || (js && wasm)
+ 
+ package poll
+ 
+diff --git a/src/net/internal/socktest/sys_cloexec.go b/src/net/internal/socktest/sys_cloexec.go
+index cc7cefbe2c..d57f44d9ee 100644
+--- a/src/net/internal/socktest/sys_cloexec.go
++++ b/src/net/internal/socktest/sys_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || illumos || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package socktest
+ 
+diff --git a/src/net/main_cloexec_test.go b/src/net/main_cloexec_test.go
+index ca7fc78491..6ea99ad646 100644
+--- a/src/net/main_cloexec_test.go
++++ b/src/net/main_cloexec_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || illumos || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package net
+ 
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index 56dab31b14..f4c1165028 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket for platforms that provide a fast path for
+ // setting SetNonblock and CloseOnExec.
+ 
+-//go:build dragonfly || freebsd || illumos || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package net
+ 
+diff --git a/src/net/sys_cloexec.go b/src/net/sys_cloexec.go
+index 26eac5585a..6e61d40c19 100644
+--- a/src/net/sys_cloexec.go
++++ b/src/net/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket for platforms that do not provide a fast path
+ // for setting SetNonblock and CloseOnExec.
+ 
+-//go:build aix || darwin || (solaris && !illumos)
++//go:build aix || darwin
+ 
+ package net
+ 
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index 8d72d792b1..298aa63675 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -21,7 +21,7 @@ package cgo
+ #cgo openbsd LDFLAGS: -lpthread
+ #cgo aix LDFLAGS: -Wl,-berok
+ #cgo solaris LDFLAGS: -lxnet
+-#cgo illumos LDFLAGS: -lsocket
++#cgo solaris LDFLAGS: -lsocket
+ 
+ #cgo CFLAGS: -Wall -Werror
+ 
+diff --git a/src/syscall/syscall_illumos.go b/src/syscall/syscall_illumos.go
+index de6b160048..04f9e7e5d6 100644
+--- a/src/syscall/syscall_illumos.go
++++ b/src/syscall/syscall_illumos.go
+@@ -10,34 +10,11 @@ package syscall
+ 
+ import "unsafe"
+ 
+-//go:cgo_import_dynamic libc_accept4 accept4 "libsocket.so"
+ //go:cgo_import_dynamic libc_flock flock "libc.so"
+ 
+-//go:linkname procAccept4 libc_accept4
+ //go:linkname procFlock libc_flock
+ 
+-var (
+-	procAccept4,
+-	procFlock libcFunc
+-)
+-
+-func Accept4(fd int, flags int) (int, Sockaddr, error) {
+-	var rsa RawSockaddrAny
+-	var addrlen _Socklen = SizeofSockaddrAny
+-	nfd, _, errno := sysvicall6(uintptr(unsafe.Pointer(&procAccept4)), 4, uintptr(fd), uintptr(unsafe.Pointer(&rsa)), uintptr(unsafe.Pointer(&addrlen)), uintptr(flags), 0, 0)
+-	if errno != 0 {
+-		return 0, nil, errno
+-	}
+-	if addrlen > SizeofSockaddrAny {
+-		panic("RawSockaddrAny too small")
+-	}
+-	sa, err := anyToSockaddr(&rsa)
+-	if err != nil {
+-		Close(int(nfd))
+-		return 0, nil, err
+-	}
+-	return int(nfd), sa, nil
+-}
++var procFlock libcFunc
+ 
+ func Flock(fd int, how int) error {
+ 	_, _, errno := sysvicall6(uintptr(unsafe.Pointer(&procFlock)), 2, uintptr(fd), uintptr(how), 0, 0, 0, 0)
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index e591ae6671..0363597c9e 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -71,6 +71,26 @@ func Pipe2(p []int, flags int) error {
+ 	return err
+ }
+ 
++//sys   accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) = libsocket.accept4
++
++func Accept4(fd int, flags int) (int, Sockaddr, error) {
++	var rsa RawSockaddrAny
++	var addrlen _Socklen = SizeofSockaddrAny
++	nfd, err := accept4(fd, &rsa, &addrlen, flags)
++	if err != nil {
++		return 0, nil, err
++	}
++	if addrlen > SizeofSockaddrAny {
++		panic("RawSockaddrAny too small")
++	}
++	sa, err := anyToSockaddr(&rsa)
++	if err != nil {
++		Close(nfd)
++		return 0, nil, err
++	}
++	return nfd, sa, nil
++}
++
+ func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
+ 	if sa.Port < 0 || sa.Port > 0xFFFF {
+ 		return nil, 0, EINVAL
+diff --git a/src/syscall/zsyscall_solaris_amd64.go b/src/syscall/zsyscall_solaris_amd64.go
+index 5bb50caaae..a2bbeed844 100644
+--- a/src/syscall/zsyscall_solaris_amd64.go
++++ b/src/syscall/zsyscall_solaris_amd64.go
+@@ -8,6 +8,7 @@ package syscall
+ import "unsafe"
+ 
+ //go:cgo_import_dynamic libc_pipe2 pipe2 "libc.so"
++//go:cgo_import_dynamic libc_accept4 accept4 "libsocket.so"
+ //go:cgo_import_dynamic libc_Getcwd getcwd "libc.so"
+ //go:cgo_import_dynamic libc_getgroups getgroups "libc.so"
+ //go:cgo_import_dynamic libc_setgroups setgroups "libc.so"
+@@ -94,6 +95,7 @@ import "unsafe"
+ //go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
+ 
+ //go:linkname libc_pipe2 libc_pipe2
++//go:linkname libc_accept4 libc_accept4
+ //go:linkname libc_Getcwd libc_Getcwd
+ //go:linkname libc_getgroups libc_getgroups
+ //go:linkname libc_setgroups libc_setgroups
+@@ -183,6 +185,7 @@ type libcFunc uintptr
+ 
+ var (
+ 	libc_pipe2,
++	libc_accept4,
+ 	libc_Getcwd,
+ 	libc_getgroups,
+ 	libc_setgroups,
+@@ -281,6 +284,17 @@ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {
++	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_accept4)), 4, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getcwd(buf []byte) (n int, err error) {
+ 	var _p0 *byte
+ 	if len(buf) > 0 {

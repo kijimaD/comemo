@@ -12,6 +12,83 @@ Date:   Mon Sep 25 14:54:37 2017 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/strings/strings.go | 52 +++++++++++++++++++++++---------------------------
  1 file changed, 24 insertions(+), 28 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index caabc5affd..a7941fbb90 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -166,22 +166,20 @@ func IndexRune(s string, r rune) int {
+ // IndexAny returns the index of the first instance of any Unicode code point
+ // from chars in s, or -1 if no Unicode code point from chars is present in s.
+ func IndexAny(s, chars string) int {
+-	if len(chars) > 0 {
+-		if len(s) > 8 {
+-			if as, isASCII := makeASCIISet(chars); isASCII {
+-				for i := 0; i < len(s); i++ {
+-					if as.contains(s[i]) {
+-						return i
+-					}
++	if len(s) > 8 {
++		if as, isASCII := makeASCIISet(chars); isASCII {
++			for i := 0; i < len(s); i++ {
++				if as.contains(s[i]) {
++					return i
+ 				}
+-				return -1
+ 			}
++			return -1
+ 		}
+-		for i, c := range s {
+-			for _, m := range chars {
+-				if c == m {
+-					return i
+-				}
++	}
++	for i, c := range s {
++		for _, m := range chars {
++			if c == m {
++				return i
+ 			}
+ 		}
+ 	}
+@@ -192,24 +190,22 @@ func IndexAny(s, chars string) int {
+ // point from chars in s, or -1 if no Unicode code point from chars is
+ // present in s.
+ func LastIndexAny(s, chars string) int {
+-	if len(chars) > 0 {
+-		if len(s) > 8 {
+-			if as, isASCII := makeASCIISet(chars); isASCII {
+-				for i := len(s) - 1; i >= 0; i-- {
+-					if as.contains(s[i]) {
+-						return i
+-					}
++	if len(s) > 8 {
++		if as, isASCII := makeASCIISet(chars); isASCII {
++			for i := len(s) - 1; i >= 0; i-- {
++				if as.contains(s[i]) {
++					return i
+ 				}
+-				return -1
+ 			}
++			return -1
+ 		}
+-		for i := len(s); i > 0; {
+-			r, size := utf8.DecodeLastRuneInString(s[:i])
+-			i -= size
+-			for _, c := range chars {
+-				if r == c {
+-					return i
+-				}
++	}
++	for i := len(s); i > 0; {
++		r, size := utf8.DecodeLastRuneInString(s[:i])
++		i -= size
++		for _, c := range chars {
++			if r == c {
++				return i
+ 			}
+ 		}
+ 	}

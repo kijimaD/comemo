@@ -7,9 +7,97 @@ Date:   Tue May 24 19:50:13 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4529084
-
+---
  src/cmd/6l/obj.c   |  2 +-
  src/cmd/8l/obj.c   |  2 +-
  src/cmd/ld/macho.c | 23 +++++++++++++++++++++--
  src/cmd/ld/macho.h |  2 +-
  4 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index d53814a745..e3191bb4dc 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -177,7 +177,7 @@ main(int argc, char *argv[])
+ 		 */
+ 		tlsoffset = 0x8a0;
+ 		machoinit();
+-		HEADR = MACHORESERVE;
++		HEADR = INITIAL_MACHO_HEADR;
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		if(INITTEXT == -1)
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index f84a30f390..440dcb77f8 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -218,7 +218,7 @@ main(int argc, char *argv[])
+ 		 */
+ 		tlsoffset = 0x468;
+ 		machoinit();
+-		HEADR = MACHORESERVE;
++		HEADR = INITIAL_MACHO_HEADR;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 4096+HEADR;
+ 		if(INITDAT == -1)
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 01349bb10a..0b12ac17bf 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -17,6 +17,14 @@ static	MachoSeg	seg[16];
+ static	MachoDebug	xdebug[16];
+ static	int	nload, mload, nseg, ndebug, nsect;
+ 
++// Amount of space left for adding load commands
++// that refer to dynamic libraries.  Because these have
++// to go in the Mach-O header, we can't just pick a
++// "big enough" header size.  The initial header is 
++// one page, the non-dynamic library stuff takes
++// up about 1300 bytes; we overestimate that as 2k.
++static	int	load_budget = INITIAL_MACHO_HEADR - 2*1024;
++
+ void
+ machoinit(void)
+ {
+@@ -267,6 +275,17 @@ domacho(void)
+ void
+ machoadddynlib(char *lib)
+ {
++	// Will need to store the library name rounded up
++	// and 24 bytes of header metadata.  If not enough
++	// space, grab another page of initial space at the
++	// beginning of the output file.
++	load_budget -= (strlen(lib)+7)/8*8 + 24;
++	if(load_budget < 0) {
++		HEADR += 4096;
++		INITTEXT += 4096;
++		load_budget += 4096;
++	}
++
+ 	if(ndylib%32 == 0) {
+ 		dylib = realloc(dylib, (ndylib+32)*sizeof dylib[0]);
+ 		if(dylib == nil) {
+@@ -463,8 +482,8 @@ asmbmacho(void)
+ 	}
+ 
+ 	a = machowrite();
+-	if(a > MACHORESERVE)
+-		diag("MACHORESERVE too small: %d > %d", a, MACHORESERVE);
++	if(a > HEADR)
++		diag("HEADR too small: %d > %d", a, HEADR);
+ }
+ 
+ vlong
+diff --git a/src/cmd/ld/macho.h b/src/cmd/ld/macho.h
+index 4cc7edc80d..f551041502 100644
+--- a/src/cmd/ld/macho.h
++++ b/src/cmd/ld/macho.h
+@@ -63,7 +63,7 @@ void	machoinit(void);
+  * for Header, PHeaders, and SHeaders.
+  * May waste some.
+  */
+-#define	MACHORESERVE	3*1024
++#define	INITIAL_MACHO_HEADR	4*1024
+ 
+ enum {
+ 	MACHO_CPU_AMD64 = (1<<24)|7,

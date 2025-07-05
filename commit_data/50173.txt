@@ -66,9 +66,411 @@ Date:   Mon Sep 13 15:28:55 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go   |  33 +++--
  src/cmd/compile/internal/walk/compare.go |  21 +--
  src/cmd/internal/sys/arch.go             | 215 +++++++++++++++++--------------
  test/inline_endian.go                    |  22 ++++
  4 files changed, 166 insertions(+), 125 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 04d751869b..51270a3315 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -275,14 +275,31 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		}
+ 		if n.X.Op() == ir.OMETHEXPR {
+ 			if meth := ir.MethodExprName(n.X); meth != nil {
+-				fn := meth.Func
+-				if fn != nil && types.IsRuntimePkg(fn.Sym().Pkg) && fn.Sym().Name == "heapBits.nextArena" {
+-					// Special case: explicitly allow
+-					// mid-stack inlining of
+-					// runtime.heapBits.next even though
+-					// it calls slow-path
+-					// runtime.heapBits.nextArena.
+-					break
++				if fn := meth.Func; fn != nil {
++					s := fn.Sym()
++					var cheap bool
++					if types.IsRuntimePkg(s.Pkg) && s.Name == "heapBits.nextArena" {
++						// Special case: explicitly allow mid-stack inlining of
++						// runtime.heapBits.next even though it calls slow-path
++						// runtime.heapBits.nextArena.
++						cheap = true
++					}
++					// Special case: on architectures that can do unaligned loads,
++					// explicitly mark encoding/binary methods as cheap,
++					// because in practice they are, even though our inlining
++					// budgeting system does not see that. See issue 42958.
++					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "encoding/binary" {
++						switch s.Name {
++						case "littleEndian.Uint64", "littleEndian.Uint32", "littleEndian.Uint16",
++							"bigEndian.Uint64", "bigEndian.Uint32", "bigEndian.Uint16",
++							"littleEndian.PutUint64", "littleEndian.PutUint32", "littleEndian.PutUint16",
++							"bigEndian.PutUint64", "bigEndian.PutUint32", "bigEndian.PutUint16":
++							cheap = true
++						}
++					}
++					if cheap {
++						break // treat like any other node, that is, cost of 1
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index daebc47965..625e216050 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -5,7 +5,6 @@
+ package walk
+ 
+ import (
+-	"encoding/binary"
+ 	"go/constant"
+ 
+ 	"cmd/compile/internal/base"
+@@ -14,7 +13,6 @@ import (
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/sys"
+ )
+ 
+ // The result of walkCompare MUST be assigned back to n, e.g.
+@@ -81,7 +79,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 	var inline bool
+ 
+ 	maxcmpsize := int64(4)
+-	unalignedLoad := canMergeLoads()
++	unalignedLoad := ssagen.Arch.LinkArch.CanMergeLoads
+ 	if unalignedLoad {
+ 		// Keep this low enough to generate less code than a function call.
+ 		maxcmpsize = 2 * int64(ssagen.Arch.LinkArch.RegSize)
+@@ -311,7 +309,7 @@ func walkCompareString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		maxRewriteLen := 6
+ 		// Some architectures can load unaligned byte sequence as 1 word.
+ 		// So we can cover longer strings with the same amount of code.
+-		canCombineLoads := canMergeLoads()
++		canCombineLoads := ssagen.Arch.LinkArch.CanMergeLoads
+ 		combine64bit := false
+ 		if canCombineLoads {
+ 			// Keep this low enough to generate less code than a function call.
+@@ -491,18 +489,3 @@ func tracecmpArg(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
+ 
+ 	return typecheck.Conv(n, t)
+ }
+-
+-// canMergeLoads reports whether the backend optimization passes for
+-// the current architecture can combine adjacent loads into a single
+-// larger, possibly unaligned, load. Note that currently the
+-// optimizations must be able to handle little endian byte order.
+-func canMergeLoads() bool {
+-	switch ssagen.Arch.LinkArch.Family {
+-	case sys.ARM64, sys.AMD64, sys.I386, sys.S390X:
+-		return true
+-	case sys.PPC64:
+-		// Load combining only supported on ppc64le.
+-		return ssagen.Arch.LinkArch.ByteOrder == binary.LittleEndian
+-	}
+-	return false
+-}
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index 4b2b4c38a0..ea76b596c1 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -47,6 +47,11 @@ type Arch struct {
+ 	// Loads or stores smaller than Alignment must be naturally aligned.
+ 	// Loads or stores larger than Alignment need only be Alignment-aligned.
+ 	Alignment int8
++
++	// CanMergeLoads reports whether the backend optimization passes
++	// can combine adjacent loads into a single larger, possibly unaligned, load.
++	// Note that currently the optimizations must be able to handle little endian byte order.
++	CanMergeLoads bool
+ }
+ 
+ // InFamily reports whether a is a member of any of the specified
+@@ -61,143 +66,157 @@ func (a *Arch) InFamily(xs ...ArchFamily) bool {
+ }
+ 
+ var Arch386 = &Arch{
+-	Name:      "386",
+-	Family:    I386,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   4,
+-	RegSize:   4,
+-	MinLC:     1,
+-	Alignment: 1,
++	Name:          "386",
++	Family:        I386,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       4,
++	RegSize:       4,
++	MinLC:         1,
++	Alignment:     1,
++	CanMergeLoads: true,
+ }
+ 
+ var ArchAMD64 = &Arch{
+-	Name:      "amd64",
+-	Family:    AMD64,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     1,
+-	Alignment: 1,
++	Name:          "amd64",
++	Family:        AMD64,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         1,
++	Alignment:     1,
++	CanMergeLoads: true,
+ }
+ 
+ var ArchARM = &Arch{
+-	Name:      "arm",
+-	Family:    ARM,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   4,
+-	RegSize:   4,
+-	MinLC:     4,
+-	Alignment: 4, // TODO: just for arm5?
++	Name:          "arm",
++	Family:        ARM,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       4,
++	RegSize:       4,
++	MinLC:         4,
++	Alignment:     4, // TODO: just for arm5?
++	CanMergeLoads: false,
+ }
+ 
+ var ArchARM64 = &Arch{
+-	Name:      "arm64",
+-	Family:    ARM64,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     4,
+-	Alignment: 1,
++	Name:          "arm64",
++	Family:        ARM64,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         4,
++	Alignment:     1,
++	CanMergeLoads: true,
+ }
+ 
+ var ArchLoong64 = &Arch{
+-	Name:      "loong64",
+-	Family:    Loong64,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     4,
+-	Alignment: 8, // Unaligned accesses are not guaranteed to be fast
++	Name:          "loong64",
++	Family:        Loong64,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         4,
++	Alignment:     8, // Unaligned accesses are not guaranteed to be fast
++	CanMergeLoads: false,
+ }
+ 
+ var ArchMIPS = &Arch{
+-	Name:      "mips",
+-	Family:    MIPS,
+-	ByteOrder: binary.BigEndian,
+-	PtrSize:   4,
+-	RegSize:   4,
+-	MinLC:     4,
+-	Alignment: 4,
++	Name:          "mips",
++	Family:        MIPS,
++	ByteOrder:     binary.BigEndian,
++	PtrSize:       4,
++	RegSize:       4,
++	MinLC:         4,
++	Alignment:     4,
++	CanMergeLoads: false,
+ }
+ 
+ var ArchMIPSLE = &Arch{
+-	Name:      "mipsle",
+-	Family:    MIPS,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   4,
+-	RegSize:   4,
+-	MinLC:     4,
+-	Alignment: 4,
++	Name:          "mipsle",
++	Family:        MIPS,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       4,
++	RegSize:       4,
++	MinLC:         4,
++	Alignment:     4,
++	CanMergeLoads: false,
+ }
+ 
+ var ArchMIPS64 = &Arch{
+-	Name:      "mips64",
+-	Family:    MIPS64,
+-	ByteOrder: binary.BigEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     4,
+-	Alignment: 8,
++	Name:          "mips64",
++	Family:        MIPS64,
++	ByteOrder:     binary.BigEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         4,
++	Alignment:     8,
++	CanMergeLoads: false,
+ }
+ 
+ var ArchMIPS64LE = &Arch{
+-	Name:      "mips64le",
+-	Family:    MIPS64,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     4,
+-	Alignment: 8,
++	Name:          "mips64le",
++	Family:        MIPS64,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         4,
++	Alignment:     8,
++	CanMergeLoads: false,
+ }
+ 
+ var ArchPPC64 = &Arch{
+-	Name:      "ppc64",
+-	Family:    PPC64,
+-	ByteOrder: binary.BigEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     4,
+-	Alignment: 1,
++	Name:          "ppc64",
++	Family:        PPC64,
++	ByteOrder:     binary.BigEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         4,
++	Alignment:     1,
++	CanMergeLoads: false,
+ }
+ 
+ var ArchPPC64LE = &Arch{
+-	Name:      "ppc64le",
+-	Family:    PPC64,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     4,
+-	Alignment: 1,
++	Name:          "ppc64le",
++	Family:        PPC64,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         4,
++	Alignment:     1,
++	CanMergeLoads: true,
+ }
+ 
+ var ArchRISCV64 = &Arch{
+-	Name:      "riscv64",
+-	Family:    RISCV64,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     4,
+-	Alignment: 8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
++	Name:          "riscv64",
++	Family:        RISCV64,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         4,
++	Alignment:     8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
++	CanMergeLoads: false,
+ }
+ 
+ var ArchS390X = &Arch{
+-	Name:      "s390x",
+-	Family:    S390X,
+-	ByteOrder: binary.BigEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     2,
+-	Alignment: 1,
++	Name:          "s390x",
++	Family:        S390X,
++	ByteOrder:     binary.BigEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         2,
++	Alignment:     1,
++	CanMergeLoads: true,
+ }
+ 
+ var ArchWasm = &Arch{
+-	Name:      "wasm",
+-	Family:    Wasm,
+-	ByteOrder: binary.LittleEndian,
+-	PtrSize:   8,
+-	RegSize:   8,
+-	MinLC:     1,
+-	Alignment: 1,
++	Name:          "wasm",
++	Family:        Wasm,
++	ByteOrder:     binary.LittleEndian,
++	PtrSize:       8,
++	RegSize:       8,
++	MinLC:         1,
++	Alignment:     1,
++	CanMergeLoads: false,
+ }
+ 
+ var Archs = [...]*Arch{
+diff --git a/test/inline_endian.go b/test/inline_endian.go
+new file mode 100644
+index 0000000000..baca133452
+--- /dev/null
++++ b/test/inline_endian.go
+@@ -0,0 +1,22 @@
++// errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
++
++//go:build 386 || amd64 || arm64 || ppc64le || s390x
++// +build 386 amd64 arm64 ppc64le s390x
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Similar to inline.go, but only for architectures that can merge loads.
++
++package foo
++
++import (
++	"encoding/binary"
++)
++
++// Ensure that simple encoding/binary functions are cheap enough
++// that functions using them can also be inlined (issue 42958).
++func endian(b []byte) uint64 { // ERROR "can inline endian" "b does not escape"
++	return binary.LittleEndian.Uint64(b) + binary.BigEndian.Uint64(b) // ERROR "inlining call to binary.littleEndian.Uint64" "inlining call to binary.bigEndian.Uint64"
++}

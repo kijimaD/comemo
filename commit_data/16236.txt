@@ -7,6 +7,20 @@ Date:   Mon Apr 29 17:34:47 2013 +0200
     R=golang-dev, minux.ma, r
     CC=golang-dev
     https://golang.org/cl/8545047
-
+---
  src/pkg/net/http/httptest/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/httptest/example_test.go b/src/pkg/net/http/httptest/example_test.go
+index 239470d971..42a0ec953b 100644
+--- a/src/pkg/net/http/httptest/example_test.go
++++ b/src/pkg/net/http/httptest/example_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"net/http/httptest"
+ )
+ 
+-func ExampleRecorder() {
++func ExampleResponseRecorder() {
+ 	handler := func(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, "something failed", http.StatusInternalServerError)
+ 	}

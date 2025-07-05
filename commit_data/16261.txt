@@ -7,6 +7,25 @@ Date:   Thu May 2 15:01:31 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9103046
-
+---
  doc/go1.1.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 20c7d36447..1ab5c173df 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -272,10 +272,10 @@ values.
+ </p>
+ 
+ <p>
+-The Unicode byte order marks U+FFFE and U+FEFF, encoded in UTF-8, are now permitted as the first
++The Unicode byte order mark U+FEFF, encoded in UTF-8, is now permitted as the first
+ character of a Go source file.
+-Even though their appearance in the byte-order-free UTF-8 encoding is clearly unnecessary,
+-some editors add them as a kind of "magic number" identifying a UTF-8 encoded file.
++Even though its appearance in the byte-order-free UTF-8 encoding is clearly unnecessary,
++some editors add the mark as a kind of "magic number" identifying a UTF-8 encoded file.
+ </p>
+ 
+ <p>

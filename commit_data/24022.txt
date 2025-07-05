@@ -7,6 +7,33 @@ Date:   Mon Jun 29 13:32:09 2015 -0400
     Change-Id: I08de33aacb3fc932722286d69b1dd70ffe787c89
     Reviewed-on: https://go-review.googlesource.com/11697
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/symtab.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index f02f592413..44d08e0e7a 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -130,10 +130,18 @@ func moduledataverify1(datap *moduledata) {
+ 		}
+ 
+ 		if debugPcln || nftab-i < 5 {
++			// Check a PC near but not at the very end.
++			// The very end might be just padding that is not covered by the tables.
++			// No architecture rounds function entries to more than 16 bytes,
++			// but if one came along we'd need to subtract more here.
++			end := datap.ftab[i+1].entry - 16
++			if end < datap.ftab[i].entry {
++				end = datap.ftab[i].entry
++			}
+ 			f := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff]))
+-			pcvalue(f, f.pcfile, datap.ftab[i+1].entry-1, true)
+-			pcvalue(f, f.pcln, datap.ftab[i+1].entry-1, true)
+-			pcvalue(f, f.pcsp, datap.ftab[i+1].entry-1, true)
++			pcvalue(f, f.pcfile, end, true)
++			pcvalue(f, f.pcln, end, true)
++			pcvalue(f, f.pcsp, end, true)
+ 		}
+ 	}
+ 

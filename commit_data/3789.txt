@@ -12,8 +12,253 @@ Date:   Wed Nov 4 22:07:13 2009 -0800
     
     R=rsc
     http://go/go-review/1016047
-
+---
  src/pkg/go/printer/printer.go               | 56 +++++++++++++++--------
  src/pkg/go/printer/testdata/comments.golden | 69 ++++++++++++++++++++++++++---
  src/pkg/go/printer/testdata/comments.input  | 59 ++++++++++++++++++++++++
  3 files changed, 160 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 6c649eb38c..84238d8d3d 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -443,27 +443,45 @@ func stripCommonPrefix(lines [][]byte) {
+ 		// Determine the white space on the first line after the /*
+ 		// and before the beginning of the comment text, assume two
+ 		// blanks instead of the /* unless the first character after
+-		// the /* is a tab. This whitespace may be found as suffix
+-		// in the common prefix.
++		// the /* is a tab. If the first comment line is empty but
++		// for the opening /*, assume up to 3 blanks or a tab. This
++		// whitespace may be found as suffix in the common prefix.
+ 		first := lines[0];
+-		suffix := make([]byte, len(first));
+-		n := 2;
+-		for n < len(first) && first[n] <= ' ' {
+-			suffix[n] = first[n];
+-			n++;
+-		}
+-		if n > 2 && suffix[2] == '\t' {
+-			// assume the '\t' compensates for the /*
+-			suffix = suffix[2:n];
++		if isBlank(first[2 : len(first)]) {
++			// no comment text on the first line:
++			// reduce prefix by up to 3 blanks or a tab
++			// if present - this keeps comment text indented
++			// relative to the /* and */'s if it was indented
++			// in the first place
++			i := len(prefix);
++			for n := 0; n < 3 && i > 0 && prefix[i-1] == ' '; n++ {
++				i--;
++			}
++			if i == len(prefix) && i > 0 && prefix[i-1] == '\t' {
++				i--;
++			}
++			prefix = prefix[0:i];
+ 		} else {
+-			// otherwise assume two blanks
+-			suffix[0], suffix[1] = ' ', ' ';
+-			suffix = suffix[0:n];
+-		}
+-		// Shorten the computed common prefix by the length of
+-		// suffix, if it is found as suffix of the prefix.
+-		if bytes.HasSuffix(prefix, suffix) {
+-			prefix = prefix[0 : len(prefix) - len(suffix)];
++			// comment text on the first line
++			suffix := make([]byte, len(first));
++			n := 2;
++			for n < len(first) && first[n] <= ' ' {
++				suffix[n] = first[n];
++				n++;
++			}
++			if n > 2 && suffix[2] == '\t' {
++				// assume the '\t' compensates for the /*
++				suffix = suffix[2:n];
++			} else {
++				// otherwise assume two blanks
++				suffix[0], suffix[1] = ' ', ' ';
++				suffix = suffix[0:n];
++			}
++			// Shorten the computed common prefix by the length of
++			// suffix, if it is found as suffix of the prefix.
++			if bytes.HasSuffix(prefix, suffix) {
++				prefix = prefix[0 : len(prefix) - len(suffix)];
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 5772c56298..7bed90bb10 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -168,6 +168,53 @@ func _() {
+ }
+ 
+ 
++func _() {
++	/*
++	   freestanding comment
++	   aligned		line
++	   aligned line
++	*/
++}
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned		line
++	   aligned line
++	*/
++}
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned		line
++	   aligned line */
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned		line
++		aligned line
++	*/
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned		line
++		aligned line
++	*/
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned		line
++		aligned line */
++}
++
++
+ /*
+  * line
+  * of
+@@ -194,6 +241,18 @@ blank line in middle:
+ with no leading spaces on blank line.
+ */
+ 
++/*
++   aligned in middle
++   here
++           not here
++*/
++
++/*
++	blank line in middle:
++
++	with no leading spaces on blank line.
++*/
++
+ func _() {
+ 	/*
+ 	 * line
+@@ -202,15 +261,15 @@ func _() {
+ 	 */
+ 
+ 	/*
+-	aligned in middle
+-	here
+-		not here
++		aligned in middle
++		here
++			not here
+ 	*/
+ 
+ 	/*
+-	blank line in middle:
++		blank line in middle:
+ 
+-	with no leading spaces on blank line.
++		with no leading spaces on blank line.
+ 	*/
+ }
+ 
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 05399a3c6d..b562241671 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -168,6 +168,53 @@ func _() {
+ }
+ 
+ 
++func _() {
++	/*
++	   freestanding comment
++	   aligned		line
++	   aligned line
++	*/
++}
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned		line
++	   aligned line
++	   */
++}
++
++func _() {
++	/*
++	   freestanding comment
++	   aligned		line
++	   aligned line */
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned		line
++		aligned line
++	*/
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned		line
++		aligned line
++		*/
++}
++
++func _() {
++	/*
++		freestanding comment
++		aligned		line
++		aligned line */
++}
++
++
+ /*
+  * line
+  * of
+@@ -194,6 +241,18 @@ blank line in middle:
+ with no leading spaces on blank line.
+ */
+ 
++/*
++   aligned in middle
++   here
++           not here
++*/
++
++/*
++	blank line in middle:
++
++	with no leading spaces on blank line.
++*/
++
+ func _() {
+ 	/*
+ 	 * line

@@ -17,9 +17,75 @@ Date:   Tue Nov 15 14:48:54 2016 -0800
     Change-Id: I000a1ebcc48684667e48f2b9b24605867b9e06cd
     Reviewed-on: https://go-review.googlesource.com/33293
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/bug.go     | 2 +-
  src/cmd/go/env.go     | 2 +-
  src/cmd/go/go_test.go | 6 ++++++
  src/cmd/go/main.go    | 4 +++-
  4 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/bug.go b/src/cmd/go/bug.go
+index 5506b3a0ba..2977c94c14 100644
+--- a/src/cmd/go/bug.go
++++ b/src/cmd/go/bug.go
+@@ -39,7 +39,7 @@ func runBug(cmd *Command, args []string) {
+ 	fmt.Fprint(&buf, "#### System details\n\n")
+ 	fmt.Fprintln(&buf, "```")
+ 	fmt.Fprintf(&buf, "go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+-	env := mkEnv()
++	env := newEnv
+ 	env = append(env, extraEnvVars()...)
+ 	for _, e := range env {
+ 		fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index cf614bb356..7de72ef289 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -104,7 +104,7 @@ func extraEnvVars() []envVar {
+ }
+ 
+ func runEnv(cmd *Command, args []string) {
+-	env := mkEnv()
++	env := newEnv
+ 	env = append(env, extraEnvVars()...)
+ 	if len(args) > 0 {
+ 		for _, name := range args {
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 632a1a5e6a..0eef6eef04 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3586,6 +3586,12 @@ func TestGoEnv(t *testing.T) {
+ 	tg.setenv("CGO_CFLAGS", "-foobar")
+ 	tg.run("env", "CGO_CFLAGS")
+ 	tg.grepStdout("^-foobar$", "CGO_CFLAGS not honored")
++
++	tg.setenv("CC", "gcc -fmust -fgo -ffaster")
++	tg.run("env", "CC")
++	tg.grepStdout("gcc", "CC not found")
++	tg.run("env", "GOGCCFLAGS")
++	tg.grepStdout("-ffaster", "CC arguments not found")
+ }
+ 
+ const (
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 27d02924c0..07fc4e2a90 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -115,6 +115,7 @@ func setExitStatus(n int) {
+ }
+ 
+ var origEnv []string
++var newEnv []envVar
+ 
+ func main() {
+ 	_ = go11tag
+@@ -164,7 +165,8 @@ func main() {
+ 	// but in practice there might be skew
+ 	// This makes sure we all agree.
+ 	origEnv = os.Environ()
+-	for _, env := range mkEnv() {
++	newEnv = mkEnv()
++	for _, env := range newEnv {
+ 		if os.Getenv(env.name) != env.value {
+ 			os.Setenv(env.name, env.value)
+ 		}

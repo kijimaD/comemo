@@ -9,6 +9,20 @@ Date:   Tue Jul 31 06:20:02 2018 +0530
     Change-Id: I4f3a64b42fce76cc5ea6cfe2888d103c7423457d
     Reviewed-on: https://go-review.googlesource.com/c/126736
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/go/build/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 91fe4cfc74..5e683aef98 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -34,7 +34,7 @@ type Context struct {
+ 	GOOS        string // target operating system
+ 	GOROOT      string // Go root
+ 	GOPATH      string // Go path
+-	CgoEnabled  bool   // whether cgo can be used
++	CgoEnabled  bool   // whether cgo files are included
+ 	UseAllFiles bool   // use files regardless of +build lines, file names
+ 	Compiler    string // compiler to assume when computing target paths
+ 

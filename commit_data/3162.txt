@@ -7,6 +7,30 @@ Date:   Mon Aug 31 18:05:12 2009 -0700
     R=ken
     OCL=34164
     CL=34164
-
+---
  src/cmd/8g/gsubr.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index c5b71597cb..f051596641 100755
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1289,7 +1289,7 @@ gmove(Node *f, Node *t)
+ 		if(t->op == OREGISTER)
+ 			goto hardmem;
+ 		nodreg(&r1, types[ft], D_F0);
+-		if(ft == TFLOAT32)
++		if(ft == TFLOAT32 && f->op != OREGISTER)
+ 			gins(AFMOVF, f, &r1);
+ 		else
+ 			gins(AFMOVD, f, &r1);
+@@ -1630,6 +1630,9 @@ gins(int as, Node *f, Node *t)
+ {
+ 	Prog *p;
+ 
++	if(as == AFMOVF && f && f->op == OREGISTER && t && t->op == OREGISTER)
++		fatal("gins MOVF reg, reg");
++
+ 	switch(as) {
+ 	case AMOVB:
+ 	case AMOVW:

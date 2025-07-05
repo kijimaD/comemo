@@ -44,7 +44,7 @@ Date:   Sun Apr 11 15:44:25 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssagen/abi.go     | 49 +++++++++++++++++++++++++++---
  src/cmd/link/internal/ld/go.go             | 40 +++++++++++++-----------
  src/cmd/link/internal/ld/macho.go          | 28 ++++++++++++++---
@@ -55,3 +55,394 @@ Date:   Sun Apr 11 15:44:25 2021 -0400
  src/cmd/link/internal/loadpe/ldpe.go       | 13 +++-----
  src/cmd/link/internal/loadxcoff/ldxcoff.go |  2 +-
  9 files changed, 139 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 9229d0212c..8103b08ce5 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -108,12 +108,20 @@ func (s *SymABIs) ReadSymABIs(file string) {
+ // GenABIWrappers applies ABI information to Funcs and generates ABI
+ // wrapper functions where necessary.
+ func (s *SymABIs) GenABIWrappers() {
+-	// The linker expects an ABI0 wrapper for all cgo-exported
+-	// functions.
+-	for _, prag := range typecheck.Target.CgoPragmas {
++	// For cgo exported symbols, we tell the linker to export the
++	// definition ABI to C. That also means that we don't want to
++	// create ABI wrappers even if there's a linkname.
++	//
++	// TODO(austin): Maybe we want to create the ABI wrappers, but
++	// ensure the linker exports the right ABI definition under
++	// the unmangled name?
++	cgoExports := make(map[string][]*[]string)
++	for i, prag := range typecheck.Target.CgoPragmas {
+ 		switch prag[0] {
+ 		case "cgo_export_static", "cgo_export_dynamic":
+-			s.refs[s.canonicalize(prag[1])] |= obj.ABISetOf(obj.ABI0)
++			symName := s.canonicalize(prag[1])
++			pprag := &typecheck.Target.CgoPragmas[i]
++			cgoExports[symName] = append(cgoExports[symName], pprag)
+ 		}
+ 	}
+ 
+@@ -153,6 +161,27 @@ func (s *SymABIs) GenABIWrappers() {
+ 			fn.ABI = obj.ABI0
+ 		}
+ 
++		// If cgo-exported, add the definition ABI to the cgo
++		// pragmas.
++		cgoExport := cgoExports[symName]
++		for _, pprag := range cgoExport {
++			// The export pragmas have the form:
++			//
++			//   cgo_export_* <local> [<remote>]
++			//
++			// If <remote> is omitted, it's the same as
++			// <local>.
++			//
++			// Expand to
++			//
++			//   cgo_export_* <local> <remote> <ABI>
++			if len(*pprag) == 2 {
++				*pprag = append(*pprag, (*pprag)[1])
++			}
++			// Add the ABI argument.
++			*pprag = append(*pprag, fn.ABI.String())
++		}
++
+ 		// Apply references.
+ 		if abis, ok := s.refs[symName]; ok {
+ 			fn.ABIRefs |= abis
+@@ -169,11 +198,21 @@ func (s *SymABIs) GenABIWrappers() {
+ 		// it's defined in this package since other packages
+ 		// may "pull" symbols using linkname and we don't want
+ 		// to create duplicate ABI wrappers.
++		//
++		// However, if it's given a linkname for exporting to
++		// C, then we don't make ABI wrappers because the cgo
++		// tool wants the original definition.
+ 		hasBody := len(fn.Body) != 0
+-		if sym.Linkname != "" && (hasBody || hasDefABI) {
++		if sym.Linkname != "" && (hasBody || hasDefABI) && len(cgoExport) == 0 {
+ 			fn.ABIRefs |= obj.ABISetCallable
+ 		}
+ 
++		// Double check that cgo-exported symbols don't get
++		// any wrappers.
++		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
++			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
++		}
++
+ 		if !objabi.Experiment.RegabiWrappers {
+ 			// We'll generate ABI aliases instead of
+ 			// wrappers once we have LSyms in InitLSym.
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 5dbf6c7153..fc63b30c80 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -9,6 +9,7 @@ package ld
+ import (
+ 	"bytes"
+ 	"cmd/internal/bio"
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+@@ -184,7 +185,7 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
+ 			continue
+ 
+ 		case "cgo_export_static", "cgo_export_dynamic":
+-			if len(f) < 2 || len(f) > 3 {
++			if len(f) < 2 || len(f) > 4 {
+ 				break
+ 			}
+ 			local := f[1]
+@@ -193,13 +194,20 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
+ 				remote = f[2]
+ 			}
+ 			local = expandpkg(local, pkg)
++			// The compiler adds a fourth argument giving
++			// the definition ABI of function symbols.
++			abi := obj.ABI0
++			if len(f) > 3 {
++				var ok bool
++				abi, ok = obj.ParseABI(f[3])
++				if !ok {
++					fmt.Fprintf(os.Stderr, "%s: bad ABI in cgo_export directive %s\n", os.Args[0], f)
++					nerrors++
++					return
++				}
++			}
+ 
+-			// The compiler arranges for an ABI0 wrapper
+-			// to be available for all cgo-exported
+-			// functions. Link.loadlib will resolve any
+-			// ABI aliases we find here (since we may not
+-			// yet know it's an alias).
+-			s := l.LookupOrCreateSym(local, 0)
++			s := l.LookupOrCreateSym(local, sym.ABIToVersion(abi))
+ 
+ 			if l.SymType(s) == sym.SHOSTOBJ {
+ 				hostObjSyms[s] = struct{}{}
+@@ -239,6 +247,14 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
+ 					// in the exported symbol table.
+ 					ctxt.dynexp = append(ctxt.dynexp, s)
+ 				}
++				if ctxt.LinkMode == LinkInternal {
++					// For internal linking, we're
++					// responsible for resolving
++					// relocations from host objects.
++					// Record the right Go symbol
++					// version to use.
++					l.AddCgoExport(s)
++				}
+ 				l.SetAttrCgoExportStatic(s, true)
+ 			} else {
+ 				if ctxt.LinkMode == LinkInternal && !l.AttrCgoExportDynamic(s) {
+@@ -437,16 +453,6 @@ func (ctxt *Link) addexport() {
+ 			panic("dynexp entry not reachable")
+ 		}
+ 
+-		// Resolve ABI aliases in the list of cgo-exported functions.
+-		// This is necessary because we load the ABI0 symbol for all
+-		// cgo exports.
+-		if ctxt.loader.SymType(s) == sym.SABIALIAS {
+-			t := ctxt.loader.ResolveABIAlias(s)
+-			ctxt.loader.CopyAttributes(s, t)
+-			ctxt.loader.SetSymExtname(t, ctxt.loader.SymExtname(s))
+-			s = t
+-		}
+-
+ 		Adddynsym(ctxt.loader, &ctxt.Target, &ctxt.ArchSyms, s)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 872144e723..4c55c5761f 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -7,6 +7,7 @@ package ld
+ import (
+ 	"bytes"
+ 	"cmd/internal/codesign"
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+@@ -535,12 +536,31 @@ func (ctxt *Link) domacho() {
+ 		sb.AddUint8(0)
+ 	}
+ 
+-	// Do not export C symbols dynamically in plugins, as runtime C symbols like crosscall2
+-	// are in pclntab and end up pointing at the host binary, breaking unwinding.
+-	// See Issue #18190.
++	// Un-export runtime symbols from plugins. Since the runtime
++	// is included in both the main binary and each plugin, these
++	// symbols appear in both images. If we leave them exported in
++	// the plugin, then the dynamic linker will resolve
++	// relocations to these functions in the plugin's functab to
++	// point to the main image, causing the runtime to think the
++	// plugin's functab is corrupted. By unexporting them, these
++	// become static references, which are resolved to the
++	// plugin's text.
++	//
++	// It would be better to omit the runtime from plugins. (Using
++	// relative PCs in the functab instead of relocations would
++	// also address this.)
++	//
++	// See issue #18190.
+ 	if ctxt.BuildMode == BuildModePlugin {
+ 		for _, name := range []string{"_cgo_topofstack", "__cgo_topofstack", "_cgo_panic", "crosscall2"} {
+-			s := ctxt.loader.Lookup(name, 0)
++			// Most of these are data symbols or C
++			// symbols, so they have symbol version 0.
++			ver := 0
++			// _cgo_panic is a Go function, so it uses ABIInternal.
++			if name == "_cgo_panic" {
++				ver = sym.ABIToVersion(obj.ABIInternal)
++			}
++			s := ctxt.loader.Lookup(name, ver)
+ 			if s != 0 {
+ 				ctxt.loader.SetAttrCgoExportDynamic(s, false)
+ 			}
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index bd8e4cb4bd..dcb9d7eb48 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -837,33 +837,20 @@ func mangleABIName(ldr *loader.Loader, x loader.Sym, name string) string {
+ 	// For functions with ABI wrappers, we have to make sure that we
+ 	// don't wind up with two elf symbol table entries with the same
+ 	// name (since this will generated an error from the external
+-	// linker). In the CgoExportStatic case, we want the ABI0 symbol
+-	// to have the primary symbol table entry (since it's going to be
+-	// called from C), so we rename the ABIInternal symbol. In all
+-	// other cases, we rename the ABI0 symbol, since we want
+-	// cross-load-module calls to target ABIInternal.
+-	//
+-	// TODO: this is currently only used on ELF and PE. Other platforms?
++	// linker). If we have wrappers, keep the ABIInternal name
++	// unmangled since we want cross-load-module calls to target
++	// ABIInternal, and rename other symbols.
+ 	//
+ 	// TODO: avoid the ldr.Lookup calls below by instead using an aux
+ 	// sym or marker relocation to associate the wrapper with the
+ 	// wrapped function.
+-	//
+ 	if !objabi.Experiment.RegabiWrappers {
+ 		return name
+ 	}
+-	if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT {
+-		// First case
+-		if ldr.SymVersion(x) == sym.SymVerABIInternal {
+-			if s2 := ldr.Lookup(name, sym.SymVerABI0); s2 != 0 && ldr.AttrCgoExportStatic(s2) && ldr.SymType(s2) == sym.STEXT {
+-				name = name + ".abiinternal"
+-			}
+-		}
+-		// Second case
+-		if ldr.SymVersion(x) == sym.SymVerABI0 && !ldr.AttrCgoExportStatic(x) {
+-			if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
+-				name = name + ".abi0"
+-			}
++
++	if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) != sym.SymVerABIInternal {
++		if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
++			name = fmt.Sprintf("%s.abi%d", name, ldr.SymVersion(x))
+ 		}
+ 	}
+ 	return name
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 28284e9de0..c6956297f6 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -245,9 +245,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 	newSym := func(name string, version int) loader.Sym {
+ 		return l.CreateStaticSym(name)
+ 	}
+-	lookup := func(name string, version int) loader.Sym {
+-		return l.LookupOrCreateSym(name, version)
+-	}
++	lookup := l.LookupOrCreateCgoExport
+ 	errorf := func(str string, args ...interface{}) ([]loader.Sym, uint32, error) {
+ 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
+ 	}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index adc8195ace..141dd0ac68 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -257,6 +257,9 @@ type Loader struct {
+ 	// the symbol that triggered the marking of symbol K as live.
+ 	Reachparent []Sym
+ 
++	// CgoExports records cgo-exported symbols by SymName.
++	CgoExports map[string]Sym
++
+ 	flags uint32
+ 
+ 	hasUnknownPkgPath bool // if any Go object has unknown package path
+@@ -514,6 +517,36 @@ func (l *Loader) LookupOrCreateSym(name string, ver int) Sym {
+ 	return i
+ }
+ 
++// AddCgoExport records a cgo-exported symbol in l.CgoExports.
++// This table is used to identify the correct Go symbol ABI to use
++// to resolve references from host objects (which don't have ABIs).
++func (l *Loader) AddCgoExport(s Sym) {
++	if l.CgoExports == nil {
++		l.CgoExports = make(map[string]Sym)
++	}
++	l.CgoExports[l.SymName(s)] = s
++}
++
++// LookupOrCreateCgoExport is like LookupOrCreateSym, but if ver
++// indicates a global symbol, it uses the CgoExport table to determine
++// the appropriate symbol version (ABI) to use. ver must be either 0
++// or a static symbol version.
++func (l *Loader) LookupOrCreateCgoExport(name string, ver int) Sym {
++	if ver >= sym.SymVerStatic {
++		return l.LookupOrCreateSym(name, ver)
++	}
++	if ver != 0 {
++		panic("ver must be 0 or a static version")
++	}
++	// Look for a cgo-exported symbol from Go.
++	if s, ok := l.CgoExports[name]; ok {
++		return s
++	}
++	// Otherwise, this must just be a symbol in the host object.
++	// Create a version 0 symbol for it.
++	return l.LookupOrCreateSym(name, 0)
++}
++
+ func (l *Loader) IsExternal(i Sym) bool {
+ 	r, _ := l.toLocal(i)
+ 	return l.isExtReader(r)
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index 6d1d9bb29e..e7d9eebc33 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -607,7 +607,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		if machsym.type_&N_EXT == 0 {
+ 			v = localSymVersion
+ 		}
+-		s := l.LookupOrCreateSym(name, v)
++		s := l.LookupOrCreateCgoExport(name, v)
+ 		if machsym.type_&N_EXT == 0 {
+ 			l.SetAttrDuplicateOK(s, true)
+ 		}
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index f474dfb276..9cc7effe1f 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -178,11 +178,7 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
+ // If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
+ // returned as rsrc.
+ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc []loader.Sym, err error) {
+-	lookup := func(name string, version int) (*loader.SymbolBuilder, loader.Sym) {
+-		s := l.LookupOrCreateSym(name, version)
+-		sb := l.MakeSymbolUpdater(s)
+-		return sb, s
+-	}
++	lookup := l.LookupOrCreateCgoExport
+ 	sectsyms := make(map[*pe.Section]loader.Sym)
+ 	sectdata := make(map[*pe.Section][]byte)
+ 
+@@ -214,7 +210,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		}
+ 
+ 		name := fmt.Sprintf("%s(%s)", pkg, sect.Name)
+-		bld, s := lookup(name, localSymVersion)
++		s := lookup(name, localSymVersion)
++		bld := l.MakeSymbolUpdater(s)
+ 
+ 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
+ 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
+@@ -272,7 +269,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
+ 			}
+ 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
+-			_, gosym, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
++			_, gosym, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
+ 			if err != nil {
+ 				return nil, nil, err
+ 			}
+@@ -414,7 +411,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 			}
+ 		}
+ 
+-		bld, s, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
++		bld, s, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
+ 		if err != nil {
+ 			return nil, nil, err
+ 		}
+diff --git a/src/cmd/link/internal/loadxcoff/ldxcoff.go b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+index a5744216d6..920e1c85fd 100644
+--- a/src/cmd/link/internal/loadxcoff/ldxcoff.go
++++ b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+@@ -121,7 +121,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		}
+ 		sb := l.MakeSymbolUpdater(sect.sym)
+ 		for _, rx := range sect.Relocs {
+-			rSym := l.LookupOrCreateSym(rx.Symbol.Name, 0)
++			rSym := l.LookupOrCreateCgoExport(rx.Symbol.Name, 0)
+ 			if uint64(int32(rx.VirtualAddress)) != rx.VirtualAddress {
+ 				return errorf("virtual address of a relocation is too big: 0x%x", rx.VirtualAddress)
+ 			}

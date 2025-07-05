@@ -7,6 +7,20 @@ Date:   Mon Aug 16 06:42:41 2010 +1000
     R=gri
     CC=golang-dev
     https://golang.org/cl/1960044
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 53b63fa4de..12c3627881 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4056,7 +4056,7 @@ RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
+ For all the send and receive expressions in the "select"
+ statement, the channel expressions are evaluated in top-to-bottom order, along with
+ any expressions that appear on the right hand side of send expressions.
+-A channel pointer may be <code>nil</code>,
++A channel may be <code>nil</code>,
+ which is equivalent to that case not
+ being present in the select statement
+ except, if a send, its expression is still evaluated.

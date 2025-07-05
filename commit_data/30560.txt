@@ -31,7 +31,7 @@ Date:   Wed Nov 9 14:49:12 2016 -0800
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/weekly.html                | 12 ++++++------
  doc/progs/json1.go                   |  6 +++---
  doc/progs/json3.go                   |  2 +-
@@ -54,3 +54,410 @@ Date:   Wed Nov 9 14:49:12 2016 -0800
  src/syscall/dir_plan9.go             |  2 +-
  test/fixedbugs/issue13171.go         |  2 +-
  21 files changed, 40 insertions(+), 40 deletions(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 143727fb07..7166a76507 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -2450,7 +2450,7 @@ The http package's URL parsing and query escaping code (such as ParseURL and
+ URLEscape) has been moved to the new url package, with several simplifications
+ to the names. Client code can be updated automatically with gofix.
+ 
+-* asn1: support unmarshalling structs with int32 members (thanks Dave Cheney).
++* asn1: support unmarshaling structs with int32 members (thanks Dave Cheney).
+ * build: allow builds without cgo or hg,
+ 	support versioning without hg (thanks Gustavo Niemeyer).
+ * builtin: add documentation for builtins.
+@@ -3030,7 +3030,7 @@ Other changes:
+ * 5g: alignment fixes.
+ * 6l, 8l: fix Mach-O binaries with many dynamic libraries.
+ * 8l: emit resources (.rsrc) in Windows PE.  (thanks Wei Guangjing).
+-* asn1: fix marshalling of empty optional RawValues (thanks Mikkel Krautz).
++* asn1: fix marshaling of empty optional RawValues (thanks Mikkel Krautz).
+ * big: make Int and Rat implement fmt.Scanner (thanks Evan Shaw),
+ 	~8x faster number scanning,
+ 	remove some unnecessary conversions.
+@@ -4238,7 +4238,7 @@ example: http://golang.org/pkg/xml/
+ <pre>
+ The json, gob, and template packages have changed, and code that uses them
+ may need to be updated after this release. They will no longer read or write
+-unexported struct fields. When marshalling a struct with json or gob the
++unexported struct fields. When marshaling a struct with json or gob the
+ unexported fields will be silently ignored. Attempting to unmarshal json or
+ gob data into an unexported field will generate an error. Accessing an
+ unexported field from a template will cause the Execute function to return
+@@ -5682,7 +5682,7 @@ Other changes:
+ 	pidigits ~10% performance win by using adds instead of shifts.
+ * time: remove incorrect time.ISO8601 and add time.RFC3339 (thanks Micah Stetson).
+ * utf16: add DecodeRune, EncodeRune.
+-* xml: add support for XML marshalling embedded structs (thanks Raif S. Naffah),
++* xml: add support for XML marshaling embedded structs (thanks Raif S. Naffah),
+ 	new "innerxml" tag to collect inner XML.
+ </pre>
+ 
+@@ -5925,10 +5925,10 @@ Other changes and fixes:
+ * 8a/8l: Added CMOVcc instructions (thanks Evan Shaw)
+ * 8l: pe executable building code changed to include import table for kernel32.dll functions (thanks Alex Brainman)
+ * 5g/6g/8g: bug fixes
+-* asn1: bug fixes and additions (incl marshalling)
++* asn1: bug fixes and additions (incl marshaling)
+ * build: fix build for Native Client, Linux/ARM
+ * dashboard: show benchmarks, add garbage collector benchmarks
+-* encoding/pem: add marshalling support
++* encoding/pem: add marshaling support
+ * exp/draw: fast paths for a nil mask
+ * godoc: support for directories outside $GOROOT
+ * http: sort header keys when writing Response or Request to wire (thanks Petar Maymounkov)
+diff --git a/doc/progs/json1.go b/doc/progs/json1.go
+index 9e10f4743d..9804efbaae 100644
+--- a/doc/progs/json1.go
++++ b/doc/progs/json1.go
+@@ -28,7 +28,7 @@ func Encode() {
+ 
+ 	expected := []byte(`{"Name":"Alice","Body":"Hello","Time":1294706395881547000}`)
+ 	if !reflect.DeepEqual(b, expected) {
+-		log.Panicf("Error marshalling %q, expected %q, got %q.", m, expected, b)
++		log.Panicf("Error marshaling %q, expected %q, got %q.", m, expected, b)
+ 	}
+ 
+ }
+@@ -49,7 +49,7 @@ func Decode() {
+ 	}
+ 
+ 	if !reflect.DeepEqual(m, expected) {
+-		log.Panicf("Error unmarshalling %q, expected %q, got %q.", b, expected, m)
++		log.Panicf("Error unmarshaling %q, expected %q, got %q.", b, expected, m)
+ 	}
+ 
+ 	m = Message{
+@@ -77,7 +77,7 @@ func PartialDecode() {
+ 	}
+ 
+ 	if !reflect.DeepEqual(expected, m) {
+-		log.Panicf("Error unmarshalling %q, expected %q, got %q.", b, expected, m)
++		log.Panicf("Error unmarshaling %q, expected %q, got %q.", b, expected, m)
+ 	}
+ }
+ 
+diff --git a/doc/progs/json3.go b/doc/progs/json3.go
+index a04fdfa506..442c155b08 100644
+--- a/doc/progs/json3.go
++++ b/doc/progs/json3.go
+@@ -33,7 +33,7 @@ func Decode() {
+ 	}
+ 
+ 	if !reflect.DeepEqual(f, expected) {
+-		log.Panicf("Error unmarshalling %q, expected %q, got %q", b, expected, f)
++		log.Panicf("Error unmarshaling %q, expected %q, got %q", b, expected, f)
+ 	}
+ 
+ 	f = map[string]interface{}{
+diff --git a/doc/progs/json4.go b/doc/progs/json4.go
+index 4926302206..1c7e5b4cfa 100644
+--- a/doc/progs/json4.go
++++ b/doc/progs/json4.go
+@@ -36,7 +36,7 @@ func Decode() {
+ 	}
+ 
+ 	if !reflect.DeepEqual(expected, m) {
+-		log.Panicf("Error unmarshalling %q, expected %q, got %q", b, expected, m)
++		log.Panicf("Error unmarshaling %q, expected %q, got %q", b, expected, m)
+ 	}
+ }
+ 
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index 7f3f1a2118..902c414383 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -28,7 +28,7 @@ func TestOffCurve(t *testing.T) {
+ 	b := Marshal(p224, x, y)
+ 	x1, y1 := Unmarshal(p224, b)
+ 	if x1 != nil || y1 != nil {
+-		t.Errorf("FAIL: unmarshalling a point not on the curve succeeded")
++		t.Errorf("FAIL: unmarshaling a point not on the curve succeeded")
+ 	}
+ }
+ 
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 28d111afc0..4b2702a716 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -996,7 +996,7 @@ func (c *Conn) readHandshake() (interface{}, error) {
+ 		return nil, c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+ 	}
+ 
+-	// The handshake message unmarshallers
++	// The handshake message unmarshalers
+ 	// expect to be able to keep references to data,
+ 	// so pass in a fresh copy that won't be overwritten.
+ 	data = append([]byte(nil), data...)
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index b8da5801c7..d9077db653 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1966,7 +1966,7 @@ func newRawAttributes(attributes []pkix.AttributeTypeAndValueSET) ([]asn1.RawVal
+ 		return nil, err
+ 	}
+ 	if len(rest) != 0 {
+-		return nil, errors.New("x509: failed to unmarshall raw CSR Attributes")
++		return nil, errors.New("x509: failed to unmarshal raw CSR Attributes")
+ 	}
+ 	return rawAttributes, nil
+ }
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index af84b1b527..bd38ddd319 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1755,8 +1755,8 @@ func TestStringKind(t *testing.T) {
+ 	}
+ }
+ 
+-// Custom types with []byte as underlying type could not be marshalled
+-// and then unmarshalled.
++// Custom types with []byte as underlying type could not be marshaled
++// and then unmarshaled.
+ // Issue 8962.
+ func TestByteKind(t *testing.T) {
+ 	type byteKind []byte
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index ebcf07cf38..6d574cfc47 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -501,7 +501,7 @@ func TestEncodePointerString(t *testing.T) {
+ 		t.Fatalf("Unmarshal: %v", err)
+ 	}
+ 	if back.N == nil {
+-		t.Fatalf("Unmarshalled nil N field")
++		t.Fatalf("Unmarshaled nil N field")
+ 	}
+ 	if *back.N != 42 {
+ 		t.Fatalf("*N = %d; want 42", *back.N)
+@@ -632,7 +632,7 @@ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
+ 
+ var re = regexp.MustCompile
+ 
+-// syntactic checks on form of marshalled floating point numbers.
++// syntactic checks on form of marshaled floating point numbers.
+ var badFloatREs = []*regexp.Regexp{
+ 	re(`p`),                     // no binary exponential notation
+ 	re(`^\+`),                   // no leading + sign
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index d1879c1167..1176f5d717 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -24,10 +24,10 @@ const (
+ 
+ // Marshal returns the XML encoding of v.
+ //
+-// Marshal handles an array or slice by marshalling each of the elements.
+-// Marshal handles a pointer by marshalling the value it points at or, if the
++// Marshal handles an array or slice by marshaling each of the elements.
++// Marshal handles a pointer by marshaling the value it points at or, if the
+ // pointer is nil, by writing nothing. Marshal handles an interface value by
+-// marshalling the value it contains or, if the interface value is nil, by
++// marshaling the value it contains or, if the interface value is nil, by
+ // writing nothing. Marshal handles all other data by writing one or more XML
+ // elements containing the data.
+ //
+@@ -36,9 +36,9 @@ const (
+ //     - the value of the XMLName field of type Name
+ //     - the tag of the struct field used to obtain the data
+ //     - the name of the struct field used to obtain the data
+-//     - the name of the marshalled type
++//     - the name of the marshaled type
+ //
+-// The XML element for a struct contains marshalled elements for each of the
++// The XML element for a struct contains marshaled elements for each of the
+ // exported fields of the struct, with these exceptions:
+ //     - the XMLName field, described above, is omitted.
+ //     - a field with tag "-" is omitted.
+@@ -51,9 +51,9 @@ const (
+ //     - a field with tag ",cdata" is written as character data
+ //       wrapped in one or more <![CDATA[ ... ]]> tags, not as an XML element.
+ //     - a field with tag ",innerxml" is written verbatim, not subject
+-//       to the usual marshalling procedure.
++//       to the usual marshaling procedure.
+ //     - a field with tag ",comment" is written as an XML comment, not
+-//       subject to the usual marshalling procedure. It must not contain
++//       subject to the usual marshaling procedure. It must not contain
+ //       the "--" string within it.
+ //     - a field with a tag including the "omitempty" option is omitted
+ //       if the field value is empty. The empty values are false, 0, any
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 1cc07549b7..d79b99a1e0 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -396,7 +396,7 @@ var (
+ // Unless explicitly stated as such (or *Plain), all of the
+ // tests below are two-way tests. When introducing new tests,
+ // please try to make them two-way as well to ensure that
+-// marshalling and unmarshalling are as symmetrical as feasible.
++// marshaling and unmarshaling are as symmetrical as feasible.
+ var marshalTests = []struct {
+ 	Value         interface{}
+ 	ExpectXML     string
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index ed4470f3eb..5a89d5f504 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -90,7 +90,7 @@ import (
+ //   * An anonymous struct field is handled as if the fields of its
+ //      value were part of the outer struct.
+ //
+-//   * A struct field with tag "-" is never unmarshalled into.
++//   * A struct field with tag "-" is never unmarshaled into.
+ //
+ // Unmarshal maps an XML element to a string or []byte by saving the
+ // concatenation of that element's character data in the string or
+@@ -142,7 +142,7 @@ func (d *Decoder) DecodeElement(v interface{}, start *StartElement) error {
+ 	return d.unmarshal(val.Elem(), start)
+ }
+ 
+-// An UnmarshalError represents an error in the unmarshalling process.
++// An UnmarshalError represents an error in the unmarshaling process.
+ type UnmarshalError string
+ 
+ func (e UnmarshalError) Error() string { return string(e) }
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index b53d72c716..273c303d16 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -705,7 +705,7 @@ func TestUnmarshalIntoInterface(t *testing.T) {
+ 	}
+ 	pea, ok := pod.Pea.(*Pea)
+ 	if !ok {
+-		t.Fatalf("unmarshalled into wrong type: have %T want *Pea", pod.Pea)
++		t.Fatalf("unmarshaled into wrong type: have %T want *Pea", pod.Pea)
+ 	}
+ 	have, want := pea.Cotelydon, "Green stuff"
+ 	if have != want {
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index b9996a164b..6623c78308 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -48,7 +48,7 @@ var tinfoLock sync.RWMutex
+ var nameType = reflect.TypeOf(Name{})
+ 
+ // getTypeInfo returns the typeInfo structure with details necessary
+-// for marshalling and unmarshalling typ.
++// for marshaling and unmarshaling typ.
+ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
+ 	tinfoLock.RLock()
+ 	tinfo, ok := tinfoMap[typ]
+@@ -214,7 +214,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 	}
+ 
+ 	// If the field type has an XMLName field, the names must match
+-	// so that the behavior of both marshalling and unmarshalling
++	// so that the behavior of both marshaling and unmarshaling
+ 	// is straightforward and unambiguous.
+ 	if finfo.flags&fElement != 0 {
+ 		ftyp := f.Type
+@@ -334,7 +334,7 @@ Loop:
+ 	return nil
+ }
+ 
+-// A TagPathError represents an error in the unmarshalling process
++// A TagPathError represents an error in the unmarshaling process
+ // caused by the use of field tags with conflicting paths.
+ type TagPathError struct {
+ 	Struct       reflect.Type
+diff --git a/src/html/template/doc.go b/src/html/template/doc.go
+index e1e9cad0af..cb89812743 100644
+--- a/src/html/template/doc.go
++++ b/src/html/template/doc.go
+@@ -129,7 +129,7 @@ then the template output is
+ 
+   <script>var pair = {"A": "foo", "B": "bar"};</script>
+ 
+-See package json to understand how non-string content is marshalled for
++See package json to understand how non-string content is marshaled for
+ embedding in JavaScript contexts.
+ 
+ 
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 8e58f463ee..8f1185c81e 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -162,14 +162,14 @@ func jsValEscaper(args ...interface{}) string {
+ 		// a division operator it is not turned into a line comment:
+ 		//     x/{{y}}
+ 		// turning into
+-		//     x//* error marshalling y:
++		//     x//* error marshaling y:
+ 		//          second line of error message */null
+ 		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.Error(), "*/", "* /", -1))
+ 	}
+ 
+ 	// TODO: maybe post-process output to prevent it from containing
+ 	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
+-	// in case custom marshallers produce output containing those.
++	// in case custom marshalers produce output containing those.
+ 
+ 	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
+ 	if len(b) == 0 {
+diff --git a/src/math/big/floatmarsh.go b/src/math/big/floatmarsh.go
+index 3725d4b834..d1c1dab069 100644
+--- a/src/math/big/floatmarsh.go
++++ b/src/math/big/floatmarsh.go
+@@ -16,7 +16,7 @@ const floatGobVersion byte = 1
+ 
+ // GobEncode implements the gob.GobEncoder interface.
+ // The Float value and all its attributes (precision,
+-// rounding mode, accuracy) are marshalled.
++// rounding mode, accuracy) are marshaled.
+ func (x *Float) GobEncode() ([]byte, error) {
+ 	if x == nil {
+ 		return nil, nil
+diff --git a/src/math/big/intmarsh.go b/src/math/big/intmarsh.go
+index 34bc73e978..ee1e4143ed 100644
+--- a/src/math/big/intmarsh.go
++++ b/src/math/big/intmarsh.go
+@@ -59,7 +59,7 @@ func (z *Int) UnmarshalText(text []byte) error {
+ 	return nil
+ }
+ 
+-// The JSON marshallers are only here for API backward compatibility
++// The JSON marshalers are only here for API backward compatibility
+ // (programs that explicitly look for these two methods). JSON works
+ // fine with the TextMarshaler only.
+ 
+diff --git a/src/net/dnsmsg.go b/src/net/dnsmsg.go
+index afdb44c0ea..8f6c7b6350 100644
+--- a/src/net/dnsmsg.go
++++ b/src/net/dnsmsg.go
+@@ -69,7 +69,7 @@ const (
+ )
+ 
+ // A dnsStruct describes how to iterate over its fields to emulate
+-// reflective marshalling.
++// reflective marshaling.
+ type dnsStruct interface {
+ 	// Walk iterates over fields of a structure and calls f
+ 	// with a reference to that field, the name of the field
+diff --git a/src/syscall/dir_plan9.go b/src/syscall/dir_plan9.go
+index 15b267411c..4ed052de76 100644
+--- a/src/syscall/dir_plan9.go
++++ b/src/syscall/dir_plan9.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Plan 9 directory marshalling. See intro(5).
++// Plan 9 directory marshaling. See intro(5).
+ 
+ package syscall
+ 
+diff --git a/test/fixedbugs/issue13171.go b/test/fixedbugs/issue13171.go
+index 5d127a5426..addb872781 100644
+--- a/test/fixedbugs/issue13171.go
++++ b/test/fixedbugs/issue13171.go
+@@ -14,7 +14,7 @@ import "fmt"
+ func f(x float64) float64 {
+ 	// y is allocated to X0
+ 	y := x + 5
+-	// marshals z before y.  Marshalling z
++	// marshals z before y.  Marshaling z
+ 	// calls DUFFCOPY.
+ 	return g(z, y)
+ }

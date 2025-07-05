@@ -15,7 +15,84 @@ Date:   Tue Mar 22 22:00:22 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 27 ++++++++++++++-------------
  src/cmd/go/internal/list/list.go | 27 ++++++++++++++-------------
  2 files changed, 28 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d770ad82e5..fdb7a085b0 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -930,19 +930,20 @@
+ // applied to a Go struct, but now a Module struct:
+ //
+ //	type Module struct {
+-//	    Path      string       // module path
+-//	    Version   string       // module version
+-//	    Versions  []string     // available module versions (with -versions)
+-//	    Replace   *Module      // replaced by this module
+-//	    Time      *time.Time   // time version was created
+-//	    Update    *Module      // available update, if any (with -u)
+-//	    Main      bool         // is this the main module?
+-//	    Indirect  bool         // is this module only an indirect dependency of main module?
+-//	    Dir       string       // directory holding files for this module, if any
+-//	    GoMod     string       // path to go.mod file used when loading this module, if any
+-//	    GoVersion string       // go version used in module
+-//	    Retracted string       // retraction information, if any (with -retracted or -u)
+-//	    Error     *ModuleError // error loading module
++//	    Path       string        // module path
++//	    Version    string        // module version
++//	    Versions   []string      // available module versions
++//	    Replace    *Module       // replaced by this module
++//	    Time       *time.Time    // time version was created
++//	    Update     *Module       // available update (with -u)
++//	    Main       bool          // is this the main module?
++//	    Indirect   bool          // module is only indirectly needed by main module
++//	    Dir        string        // directory holding local copy of files, if any
++//	    GoMod      string        // path to go.mod file describing module, if any
++//	    GoVersion  string        // go version used in module
++//	    Retracted  []string      // retraction information, if any (with -retracted or -u)
++//	    Deprecated string        // deprecation message, if any (with -u)
++//	    Error      *ModuleError  // error loading module
+ //	}
+ //
+ //	type ModuleError struct {
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 770127c1cd..9c651f2bf3 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -222,19 +222,20 @@ When listing modules, the -f flag still specifies a format template
+ applied to a Go struct, but now a Module struct:
+ 
+     type Module struct {
+-        Path      string       // module path
+-        Version   string       // module version
+-        Versions  []string     // available module versions (with -versions)
+-        Replace   *Module      // replaced by this module
+-        Time      *time.Time   // time version was created
+-        Update    *Module      // available update, if any (with -u)
+-        Main      bool         // is this the main module?
+-        Indirect  bool         // is this module only an indirect dependency of main module?
+-        Dir       string       // directory holding files for this module, if any
+-        GoMod     string       // path to go.mod file used when loading this module, if any
+-        GoVersion string       // go version used in module
+-        Retracted string       // retraction information, if any (with -retracted or -u)
+-        Error     *ModuleError // error loading module
++        Path       string        // module path
++        Version    string        // module version
++        Versions   []string      // available module versions
++        Replace    *Module       // replaced by this module
++        Time       *time.Time    // time version was created
++        Update     *Module       // available update (with -u)
++        Main       bool          // is this the main module?
++        Indirect   bool          // module is only indirectly needed by main module
++        Dir        string        // directory holding local copy of files, if any
++        GoMod      string        // path to go.mod file describing module, if any
++        GoVersion  string        // go version used in module
++        Retracted  []string      // retraction information, if any (with -retracted or -u)
++        Deprecated string        // deprecation message, if any (with -u)
++        Error      *ModuleError  // error loading module
+     }
+ 
+     type ModuleError struct {

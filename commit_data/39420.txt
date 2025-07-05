@@ -11,7 +11,44 @@ Date:   Thu Dec 27 14:23:29 2018 -1000
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/zoneinfo_read.go | 8 +++++++-
  src/time/zoneinfo_test.go | 9 +++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index d54632fb49..1e559a62cc 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -216,7 +216,13 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 	// Now we can build up a useful data structure.
+ 	// First the zone information.
+ 	//	utcoff[4] isdst[1] nameindex[1]
+-	zone := make([]zone, n[NZone])
++	nzone := n[NZone]
++	if nzone == 0 {
++		// Reject tzdata files with no zones. There's nothing useful in them.
++		// This also avoids a panic later when we add and then use a fake transition (golang.org/issue/29437).
++		return nil, badData
++	}
++	zone := make([]zone, nzone)
+ 	for i := range zone {
+ 		var ok bool
+ 		var n uint32
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index cd0731768e..a7ef10c6bc 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -173,3 +173,12 @@ func TestEarlyLocation(t *testing.T) {
+ 		t.Errorf("Zone offset == %d, want %d", tzOffset, want)
+ 	}
+ }
++
++func TestMalformedTZData(t *testing.T) {
++	// The goal here is just that malformed tzdata results in an error, not a panic.
++	issue29437 := "TZif\x00000000000000000\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0000"
++	_, err := time.LoadLocationFromTZData("abc", []byte(issue29437))
++	if err == nil {
++		t.Error("expected error, got none")
++	}
++}

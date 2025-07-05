@@ -16,7 +16,51 @@ Date:   Thu Apr 2 18:32:57 2009 -0700
     R=ken
     OCL=27050
     CL=27050
-
+---
  src/cmd/gc/dcl.c |  2 +-
  src/cmd/gc/lex.c | 12 ++++++++++--
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 2e467249bb..51c76be752 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -583,7 +583,7 @@ funclit1(Type *type, Node *body)
+ 
+ 	// declare function.
+ 	vargen++;
+-	snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
++	snprint(namebuf, sizeof(namebuf), "_f%.3ld·%s", vargen, filename);
+ 	f = newname(lookup(namebuf));
+ 	addvar(f, ft, PFUNC);
+ 	f->funcdepth = 0;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 3477a2cffc..4e577a63c8 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -138,15 +138,23 @@ void
+ setfilename(char *file)
+ {
+ 	char *p;
++	int c;
+ 
+ 	p = strrchr(file, '/');
+ 	if(p != nil)
+ 		file = p+1;
+ 	strncpy(namebuf, file, sizeof(namebuf));
+-	p = strchr(namebuf, '.');
+-	if(p != nil)
++	p = strrchr(namebuf, '.');
++	if(p != nil && strcmp(p, ".go") == 0)
+ 		*p = 0;
+ 	filename = strdup(namebuf);
++	
++	// turn invalid identifier chars into _
++	for(p=filename; *p; p++) {
++		c = *p & 0xFF;
++		if(c < 0x80 && !isalpha(c) && !isdigit(c) && c != '_')
++			*p = '_';
++	}
+ }
+ 
+ int

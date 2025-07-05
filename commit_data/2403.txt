@@ -8,7 +8,7 @@ Date:   Fri Jun 5 22:18:21 2009 -0700
     DELTA=761  (1 added, 433 deleted, 327 changed)
     OCL=29927
     CL=29966
-
+---
  src/lib/bignum/Makefile           | 20 ++++++--------------
  src/lib/bufio/Makefile            | 20 ++++++--------------
  src/lib/bytes/Makefile            | 20 ++++++--------------
@@ -59,3 +59,2263 @@ Date:   Fri Jun 5 22:18:21 2009 -0700
  src/lib/unicode/Makefile          | 20 ++++++--------------
  src/lib/utf8/Makefile             | 20 ++++++--------------
  49 files changed, 295 insertions(+), 687 deletions(-)
+
+diff --git a/src/lib/bignum/Makefile b/src/lib/bignum/Makefile
+index fae6ed6477..098b909753 100644
+--- a/src/lib/bignum/Makefile
++++ b/src/lib/bignum/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/bignum.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/bignum.a
+ 
+ packages: _obj$D/bignum.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/bignum.a $(GOROOT)/pkg$D/bignum.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/bignum.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/bignum.a
+diff --git a/src/lib/bufio/Makefile b/src/lib/bufio/Makefile
+index 7cd095aa8c..abb826e7fd 100644
+--- a/src/lib/bufio/Makefile
++++ b/src/lib/bufio/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/bufio.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/bufio.a
+ 
+ packages: _obj$D/bufio.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/bufio.a $(GOROOT)/pkg$D/bufio.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/bufio.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/bufio.a
+diff --git a/src/lib/bytes/Makefile b/src/lib/bytes/Makefile
+index 7f10585c85..5220d28800 100644
+--- a/src/lib/bytes/Makefile
++++ b/src/lib/bytes/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/bytes.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/bytes.a
+ 
+ packages: _obj$D/bytes.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/bytes.a $(GOROOT)/pkg$D/bytes.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/bytes.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/bytes.a
+diff --git a/src/lib/container/list/Makefile b/src/lib/container/list/Makefile
+index e40a81345e..2a647eb2a3 100644
+--- a/src/lib/container/list/Makefile
++++ b/src/lib/container/list/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/container/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/list.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/list.a
+ 
+ packages: _obj$D/list.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/list.a $(GOROOT)/pkg$D/list.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/list.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/list.a
+diff --git a/src/lib/container/vector/Makefile b/src/lib/container/vector/Makefile
+index 02c8e35b6b..20490549d3 100644
+--- a/src/lib/container/vector/Makefile
++++ b/src/lib/container/vector/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/container/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -68,10 +60,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/vector.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/vector.a
+ 
+ packages: _obj$D/vector.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/vector.a $(GOROOT)/pkg$D/vector.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/vector.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/vector.a
+diff --git a/src/lib/crypto/aes/Makefile b/src/lib/crypto/aes/Makefile
+index f301d0cefb..c62275b3c2 100644
+--- a/src/lib/crypto/aes/Makefile
++++ b/src/lib/crypto/aes/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/crypto/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -75,10 +67,10 @@ $(O3): a2
+ $(O4): a3
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/aes.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/aes.a
+ 
+ packages: _obj$D/aes.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/aes.a $(GOROOT)/pkg$D/aes.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/aes.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/aes.a
+diff --git a/src/lib/crypto/block/Makefile b/src/lib/crypto/block/Makefile
+index d80954beff..e8bc8e9071 100644
+--- a/src/lib/crypto/block/Makefile
++++ b/src/lib/crypto/block/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/crypto/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -81,10 +73,10 @@ $(O3): a2
+ $(O4): a3
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/block.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/block.a
+ 
+ packages: _obj$D/block.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/block.a $(GOROOT)/pkg$D/block.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/block.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/block.a
+diff --git a/src/lib/crypto/hmac/Makefile b/src/lib/crypto/hmac/Makefile
+index c7a430b150..1da3f58dd5 100644
+--- a/src/lib/crypto/hmac/Makefile
++++ b/src/lib/crypto/hmac/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/crypto/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/hmac.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/hmac.a
+ 
+ packages: _obj$D/hmac.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/hmac.a $(GOROOT)/pkg$D/hmac.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/hmac.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/hmac.a
+diff --git a/src/lib/crypto/md5/Makefile b/src/lib/crypto/md5/Makefile
+index 8867b84a52..b6c88d45a6 100644
+--- a/src/lib/crypto/md5/Makefile
++++ b/src/lib/crypto/md5/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/crypto/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -67,10 +59,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/md5.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/md5.a
+ 
+ packages: _obj$D/md5.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/md5.a $(GOROOT)/pkg$D/md5.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/md5.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/md5.a
+diff --git a/src/lib/crypto/sha1/Makefile b/src/lib/crypto/sha1/Makefile
+index f4e1ea0dd5..03ffe4fd75 100644
+--- a/src/lib/crypto/sha1/Makefile
++++ b/src/lib/crypto/sha1/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/crypto/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -67,10 +59,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/sha1.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/sha1.a
+ 
+ packages: _obj$D/sha1.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/sha1.a $(GOROOT)/pkg$D/sha1.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/sha1.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/sha1.a
+diff --git a/src/lib/datafmt/Makefile b/src/lib/datafmt/Makefile
+index 494b11ef91..1546faf7ed 100644
+--- a/src/lib/datafmt/Makefile
++++ b/src/lib/datafmt/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -67,10 +59,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/datafmt.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/datafmt.a
+ 
+ packages: _obj$D/datafmt.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/datafmt.a $(GOROOT)/pkg$D/datafmt.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/datafmt.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/datafmt.a
+diff --git a/src/lib/exec/Makefile b/src/lib/exec/Makefile
+index 2738143bab..679cc39c07 100644
+--- a/src/lib/exec/Makefile
++++ b/src/lib/exec/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/exec.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/exec.a
+ 
+ packages: _obj$D/exec.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/exec.a $(GOROOT)/pkg$D/exec.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/exec.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/exec.a
+diff --git a/src/lib/exvar/Makefile b/src/lib/exvar/Makefile
+index fa63fde50b..a65a1ee6bc 100644
+--- a/src/lib/exvar/Makefile
++++ b/src/lib/exvar/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/exvar.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/exvar.a
+ 
+ packages: _obj$D/exvar.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/exvar.a $(GOROOT)/pkg$D/exvar.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/exvar.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/exvar.a
+diff --git a/src/lib/flag/Makefile b/src/lib/flag/Makefile
+index 5966391210..466e19564c 100644
+--- a/src/lib/flag/Makefile
++++ b/src/lib/flag/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/flag.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/flag.a
+ 
+ packages: _obj$D/flag.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/flag.a $(GOROOT)/pkg$D/flag.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/flag.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/flag.a
+diff --git a/src/lib/fmt/Makefile b/src/lib/fmt/Makefile
+index cb7aa5db71..5d0281a0c3 100644
+--- a/src/lib/fmt/Makefile
++++ b/src/lib/fmt/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -67,10 +59,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/fmt.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/fmt.a
+ 
+ packages: _obj$D/fmt.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/fmt.a $(GOROOT)/pkg$D/fmt.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/fmt.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/fmt.a
+diff --git a/src/lib/go/ast/Makefile b/src/lib/go/ast/Makefile
+index 5518580c55..1fd22ae71f 100644
+--- a/src/lib/go/ast/Makefile
++++ b/src/lib/go/ast/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/go/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -67,10 +59,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/ast.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/ast.a
+ 
+ packages: _obj$D/ast.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/ast.a $(GOROOT)/pkg$D/ast.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/ast.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/ast.a
+diff --git a/src/lib/go/doc/Makefile b/src/lib/go/doc/Makefile
+index cd62d02c4d..d7c6acaac3 100644
+--- a/src/lib/go/doc/Makefile
++++ b/src/lib/go/doc/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/go/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -67,10 +59,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/doc.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/doc.a
+ 
+ packages: _obj$D/doc.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/doc.a $(GOROOT)/pkg$D/doc.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/doc.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/doc.a
+diff --git a/src/lib/go/parser/Makefile b/src/lib/go/parser/Makefile
+index 27cacfc99a..08d83646f9 100644
+--- a/src/lib/go/parser/Makefile
++++ b/src/lib/go/parser/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/go/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/parser.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/parser.a
+ 
+ packages: _obj$D/parser.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/parser.a $(GOROOT)/pkg$D/parser.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/parser.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/parser.a
+diff --git a/src/lib/go/scanner/Makefile b/src/lib/go/scanner/Makefile
+index fc1ecf9901..d47fecb7c1 100644
+--- a/src/lib/go/scanner/Makefile
++++ b/src/lib/go/scanner/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/go/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/scanner.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/scanner.a
+ 
+ packages: _obj$D/scanner.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/scanner.a $(GOROOT)/pkg$D/scanner.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/scanner.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/scanner.a
+diff --git a/src/lib/go/token/Makefile b/src/lib/go/token/Makefile
+index b4e948fc9c..12ef2a4aa1 100644
+--- a/src/lib/go/token/Makefile
++++ b/src/lib/go/token/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/go/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/token.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/token.a
+ 
+ packages: _obj$D/token.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/token.a $(GOROOT)/pkg$D/token.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/token.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/token.a
+diff --git a/src/lib/hash/Makefile b/src/lib/hash/Makefile
+index 1ac4d12602..bdbb6f347e 100644
+--- a/src/lib/hash/Makefile
++++ b/src/lib/hash/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/hash.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/hash.a
+ 
+ packages: _obj$D/hash.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/hash.a $(GOROOT)/pkg$D/hash.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/hash.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/hash.a
+diff --git a/src/lib/hash/adler32/Makefile b/src/lib/hash/adler32/Makefile
+index 2b47ef1558..1341312591 100644
+--- a/src/lib/hash/adler32/Makefile
++++ b/src/lib/hash/adler32/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/hash/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/adler32.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/adler32.a
+ 
+ packages: _obj$D/adler32.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/adler32.a $(GOROOT)/pkg$D/adler32.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/adler32.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/adler32.a
+diff --git a/src/lib/hash/crc32/Makefile b/src/lib/hash/crc32/Makefile
+index b9fd5f9524..08d4f5e4e0 100644
+--- a/src/lib/hash/crc32/Makefile
++++ b/src/lib/hash/crc32/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/hash/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/crc32.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/crc32.a
+ 
+ packages: _obj$D/crc32.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/crc32.a $(GOROOT)/pkg$D/crc32.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/crc32.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/crc32.a
+diff --git a/src/lib/http/Makefile b/src/lib/http/Makefile
+index 9de40c4689..0a029497c9 100644
+--- a/src/lib/http/Makefile
++++ b/src/lib/http/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -84,10 +76,10 @@ $(O4): a3
+ $(O5): a4
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/http.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/http.a
+ 
+ packages: _obj$D/http.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/http.a $(GOROOT)/pkg$D/http.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/http.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/http.a
+diff --git a/src/lib/io/Makefile b/src/lib/io/Makefile
+index 2e82070143..219ea776be 100644
+--- a/src/lib/io/Makefile
++++ b/src/lib/io/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -69,10 +61,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/io.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/io.a
+ 
+ packages: _obj$D/io.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/io.a $(GOROOT)/pkg$D/io.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/io.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/io.a
+diff --git a/src/lib/json/Makefile b/src/lib/json/Makefile
+index d2dfbb3bc3..2d70c2cf8b 100644
+--- a/src/lib/json/Makefile
++++ b/src/lib/json/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -68,10 +60,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/json.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/json.a
+ 
+ packages: _obj$D/json.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/json.a $(GOROOT)/pkg$D/json.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/json.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/json.a
+diff --git a/src/lib/log/Makefile b/src/lib/log/Makefile
+index b135ec31fe..4b1c4b5a2f 100644
+--- a/src/lib/log/Makefile
++++ b/src/lib/log/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/log.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/log.a
+ 
+ packages: _obj$D/log.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/log.a $(GOROOT)/pkg$D/log.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/log.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/log.a
+diff --git a/src/lib/malloc/Makefile b/src/lib/malloc/Makefile
+index 771896005b..61894f71f4 100644
+--- a/src/lib/malloc/Makefile
++++ b/src/lib/malloc/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/malloc.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/malloc.a
+ 
+ packages: _obj$D/malloc.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/malloc.a $(GOROOT)/pkg$D/malloc.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/malloc.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/malloc.a
+diff --git a/src/lib/math/Makefile b/src/lib/math/Makefile
+index 1a85275624..058049072f 100644
+--- a/src/lib/math/Makefile
++++ b/src/lib/math/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -97,10 +89,10 @@ $(O4): a3
+ $(O5): a4
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/math.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/math.a
+ 
+ packages: _obj$D/math.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/math.a $(GOROOT)/pkg$D/math.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/math.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/math.a
+diff --git a/src/lib/net/Makefile b/src/lib/net/Makefile
+index 0bbc4a0db3..61c8720892 100644
+--- a/src/lib/net/Makefile
++++ b/src/lib/net/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -95,10 +87,10 @@ $(O5): a4
+ $(O6): a5
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/net.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/net.a
+ 
+ packages: _obj$D/net.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/net.a $(GOROOT)/pkg$D/net.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/net.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/net.a
+diff --git a/src/lib/once/Makefile b/src/lib/once/Makefile
+index 7e700520d7..6350402c2e 100644
+--- a/src/lib/once/Makefile
++++ b/src/lib/once/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/once.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/once.a
+ 
+ packages: _obj$D/once.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/once.a $(GOROOT)/pkg$D/once.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/once.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/once.a
+diff --git a/src/lib/os/Makefile b/src/lib/os/Makefile
+index 4a53a26f9b..c5f790f15d 100644
+--- a/src/lib/os/Makefile
++++ b/src/lib/os/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -90,10 +82,10 @@ $(O4): a3
+ $(O5): a4
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/os.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/os.a
+ 
+ packages: _obj$D/os.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/os.a $(GOROOT)/pkg$D/os.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/os.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/os.a
+diff --git a/src/lib/path/Makefile b/src/lib/path/Makefile
+index 020a66035c..d9f9fd562b 100644
+--- a/src/lib/path/Makefile
++++ b/src/lib/path/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/path.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/path.a
+ 
+ packages: _obj$D/path.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/path.a $(GOROOT)/pkg$D/path.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/path.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/path.a
+diff --git a/src/lib/rand/Makefile b/src/lib/rand/Makefile
+index b0a415f27a..63d26ac99c 100644
+--- a/src/lib/rand/Makefile
++++ b/src/lib/rand/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/rand.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/rand.a
+ 
+ packages: _obj$D/rand.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/rand.a $(GOROOT)/pkg$D/rand.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/rand.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/rand.a
+diff --git a/src/lib/reflect/Makefile b/src/lib/reflect/Makefile
+index d6e5fc17b5..d622ffd51e 100644
+--- a/src/lib/reflect/Makefile
++++ b/src/lib/reflect/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -77,10 +69,10 @@ $(O3): a2
+ $(O4): a3
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/reflect.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/reflect.a
+ 
+ packages: _obj$D/reflect.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/reflect.a $(GOROOT)/pkg$D/reflect.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/reflect.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/reflect.a
+diff --git a/src/lib/regexp/Makefile b/src/lib/regexp/Makefile
+index 4acc7ddb6f..0312d510ef 100644
+--- a/src/lib/regexp/Makefile
++++ b/src/lib/regexp/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/regexp.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/regexp.a
+ 
+ packages: _obj$D/regexp.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/regexp.a $(GOROOT)/pkg$D/regexp.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/regexp.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/regexp.a
+diff --git a/src/lib/runtime/Makefile b/src/lib/runtime/Makefile
+index 1cdc617df7..21bf4a8a88 100644
+--- a/src/lib/runtime/Makefile
++++ b/src/lib/runtime/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/runtime.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/runtime.a
+ 
+ packages: _obj$D/runtime.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/runtime.a $(GOROOT)/pkg$D/runtime.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/runtime.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/runtime.a
+diff --git a/src/lib/sort/Makefile b/src/lib/sort/Makefile
+index 0a360ac4d2..4d193f8597 100644
+--- a/src/lib/sort/Makefile
++++ b/src/lib/sort/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/sort.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/sort.a
+ 
+ packages: _obj$D/sort.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/sort.a $(GOROOT)/pkg$D/sort.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/sort.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/sort.a
+diff --git a/src/lib/strconv/Makefile b/src/lib/strconv/Makefile
+index 956c479123..499f8c1c14 100644
+--- a/src/lib/strconv/Makefile
++++ b/src/lib/strconv/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -78,10 +70,10 @@ $(O3): a2
+ $(O4): a3
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/strconv.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/strconv.a
+ 
+ packages: _obj$D/strconv.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/strconv.a $(GOROOT)/pkg$D/strconv.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/strconv.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/strconv.a
+diff --git a/src/lib/strings/Makefile b/src/lib/strings/Makefile
+index 9372f4d16e..b6660cfc70 100644
+--- a/src/lib/strings/Makefile
++++ b/src/lib/strings/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/strings.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/strings.a
+ 
+ packages: _obj$D/strings.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/strings.a $(GOROOT)/pkg$D/strings.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/strings.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/strings.a
+diff --git a/src/lib/sync/Makefile b/src/lib/sync/Makefile
+index e8e45ad476..566853d576 100644
+--- a/src/lib/sync/Makefile
++++ b/src/lib/sync/Makefile
+@@ -3,20 +3,12 @@
+ # license that can be found in the LICENSE file.
+ 
+ # DO NOT EDIT.  Automatically generated by gobuild.
+-# gobuild -m >Makefile
++# gobuild -m asm_${GOARCH}.s mutex.go >Makefile
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -60,10 +52,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/sync.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/sync.a
+ 
+ packages: _obj$D/sync.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/sync.a $(GOROOT)/pkg$D/sync.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/sync.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/sync.a
+diff --git a/src/lib/syscall/Makefile b/src/lib/syscall/Makefile
+index 0e25b22a72..a5cc042d7b 100644
+--- a/src/lib/syscall/Makefile
++++ b/src/lib/syscall/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -96,10 +88,10 @@ $(O5): a4
+ $(O6): a5
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/syscall.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/syscall.a
+ 
+ packages: _obj$D/syscall.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/syscall.a $(GOROOT)/pkg$D/syscall.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/syscall.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/syscall.a
+diff --git a/src/lib/tabwriter/Makefile b/src/lib/tabwriter/Makefile
+index 1af7625dc0..1c45180661 100644
+--- a/src/lib/tabwriter/Makefile
++++ b/src/lib/tabwriter/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/tabwriter.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/tabwriter.a
+ 
+ packages: _obj$D/tabwriter.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/tabwriter.a $(GOROOT)/pkg$D/tabwriter.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/tabwriter.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/tabwriter.a
+diff --git a/src/lib/template/Makefile b/src/lib/template/Makefile
+index 063683cf3b..e91c088186 100644
+--- a/src/lib/template/Makefile
++++ b/src/lib/template/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -67,10 +59,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/template.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/template.a
+ 
+ packages: _obj$D/template.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/template.a $(GOROOT)/pkg$D/template.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/template.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/template.a
+diff --git a/src/lib/testing/Makefile b/src/lib/testing/Makefile
+index f8adc5934d..493eba6f28 100644
+--- a/src/lib/testing/Makefile
++++ b/src/lib/testing/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/testing.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/testing.a
+ 
+ packages: _obj$D/testing.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/testing.a $(GOROOT)/pkg$D/testing.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/testing.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/testing.a
+diff --git a/src/lib/testing/iotest/Makefile b/src/lib/testing/iotest/Makefile
+index 1ca8d81603..1d01041f53 100644
+--- a/src/lib/testing/iotest/Makefile
++++ b/src/lib/testing/iotest/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=/testing/
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -60,10 +52,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/iotest.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/iotest.a
+ 
+ packages: _obj$D/iotest.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/iotest.a $(GOROOT)/pkg$D/iotest.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/iotest.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/iotest.a
+diff --git a/src/lib/time/Makefile b/src/lib/time/Makefile
+index 178ee72992..8d3c3b65f6 100644
+--- a/src/lib/time/Makefile
++++ b/src/lib/time/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -76,10 +68,10 @@ $(O3): a2
+ $(O4): a3
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/time.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/time.a
+ 
+ packages: _obj$D/time.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/time.a $(GOROOT)/pkg$D/time.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/time.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/time.a
+diff --git a/src/lib/unicode/Makefile b/src/lib/unicode/Makefile
+index e21c0066a0..de1677b8de 100644
+--- a/src/lib/unicode/Makefile
++++ b/src/lib/unicode/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -67,10 +59,10 @@ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/unicode.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/unicode.a
+ 
+ packages: _obj$D/unicode.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/unicode.a $(GOROOT)/pkg$D/unicode.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/unicode.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/unicode.a
+diff --git a/src/lib/utf8/Makefile b/src/lib/utf8/Makefile
+index 2919ddb4e0..b5ad083b2d 100644
+--- a/src/lib/utf8/Makefile
++++ b/src/lib/utf8/Makefile
+@@ -7,16 +7,8 @@
+ 
+ D=
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
++include $(GOROOT)/src/Make.$(GOARCH)
++AR=gopack
+ 
+ default: packages
+ 
+@@ -31,7 +23,7 @@ coverage: packages
+ 	6cov -g `pwd` | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) -I_obj $*.go
+ 
+ %.$O: %.c
+ 	$(CC) $*.c
+@@ -59,10 +51,10 @@ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/utf8.a
++	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/utf8.a
+ 
+ packages: _obj$D/utf8.a
+ 
+ install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/utf8.a $(GOROOT)/pkg$D/utf8.a
++	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D
++	cp _obj$D/utf8.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/utf8.a

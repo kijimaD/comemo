@@ -32,6 +32,29 @@ Date:   Fri Aug 19 10:24:08 2022 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/token/position.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 5ca86a28e5..b12a8e4086 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -286,7 +286,6 @@ func searchLineInfos(a []lineInfo, x int) int {
+ // possibly adjusted by //line comments; otherwise those comments are ignored.
+ func (f *File) unpack(offset int, adjusted bool) (filename string, line, column int) {
+ 	f.mutex.Lock()
+-	defer f.mutex.Unlock()
+ 	filename = f.name
+ 	if i := searchInts(f.lines, offset); i >= 0 {
+ 		line, column = i+1, offset-f.lines[i]+1
+@@ -314,6 +313,9 @@ func (f *File) unpack(offset int, adjusted bool) (filename string, line, column
+ 			}
+ 		}
+ 	}
++	// TODO(mvdan): move Unlock back under Lock with a defer statement once
++	// https://go.dev/issue/38471 is fixed to remove the performance penalty.
++	f.mutex.Unlock()
+ 	return
+ }
+ 

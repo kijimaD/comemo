@@ -5,6 +5,19 @@ Date:   Fri Jun 6 17:08:21 2008 -0700
     fixed \\ secape in strings
     
     SVN=121553
-
+---
  src/cmd/gc/lex.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 2ed4bd63e9..5757614c21 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -749,6 +749,7 @@ loop:
+ 	case 'r': return '\r';
+ 	case 't': return '\t';
+ 	case 'v': return '\v';
++	case '\\': return '\\';
+ 
+ 	default:
+ 		if(c != e)

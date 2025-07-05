@@ -7,6 +7,21 @@ Date:   Fri May 13 09:25:25 2016 +0200
     Change-Id: Iaf455d1a2863ff752e0c398e1c364373b4d36614
     Reviewed-on: https://go-review.googlesource.com/23084
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  doc/go1.7.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go1.7.txt b/doc/go1.7.txt
+index adac6a367a..d50f1f1032 100644
+--- a/doc/go1.7.txt
++++ b/doc/go1.7.txt
+@@ -7,6 +7,9 @@ cmd/compile: smaller binaries (many CLs)
+ cmd/go, go/build: add support for Fortran (CL 19670, CL 4114)
+ cmd/doc: group constructors with types (CL 22354)
+ cmd/go, go/build: binary-only package support (CL 22433)
++cmd/trace: file:line is embed into traces (CL 21732) which makes binary argument optional (CL 22410)
++cmd/trace: now supports visualization of very large traces by splitting them into parts (CL 22731)
++cmd/trace: tracing has become significantly faster (CL 21512)
+ 
+ Ports:
+ 

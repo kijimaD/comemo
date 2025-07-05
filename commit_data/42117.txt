@@ -16,7 +16,7 @@ Date:   Fri Nov 8 19:47:40 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go                              |  4 ++++
  src/cmd/go/internal/cfg/cfg.go                     | 11 +++++-----
  src/cmd/go/internal/envcmd/env.go                  |  1 +
@@ -28,3 +28,203 @@ Date:   Fri Nov 8 19:47:40 2019 +0000
  src/cmd/go/testdata/script/mod_sumdb_cache.txt     |  7 +++++++
  src/internal/cfg/cfg.go                            |  1 +
  10 files changed, 87 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index fad2d9f0fe..0be368d560 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1604,6 +1604,10 @@
+ // 		Because the entries are space-separated, flag values must
+ // 		not contain spaces. Flags listed on the command line
+ // 		are applied after this list and therefore override it.
++// 	GOINSECURE
++// 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
++// 		of module path prefixes that should always be fetched in an insecure
++// 		manner. Only applies to dependencies that are being fetched directly.
+ // 	GOOS
+ // 		The operating system for which to compile code.
+ // 		Examples are linux, darwin, windows, netbsd.
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 1f7ece7165..61dc6bdda6 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -245,11 +245,12 @@ var (
+ 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
+ 	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
+ 
+-	GOPROXY   = envOr("GOPROXY", "https://proxy.golang.org,direct")
+-	GOSUMDB   = envOr("GOSUMDB", "sum.golang.org")
+-	GOPRIVATE = Getenv("GOPRIVATE")
+-	GONOPROXY = envOr("GONOPROXY", GOPRIVATE)
+-	GONOSUMDB = envOr("GONOSUMDB", GOPRIVATE)
++	GOPROXY    = envOr("GOPROXY", "https://proxy.golang.org,direct")
++	GOSUMDB    = envOr("GOSUMDB", "sum.golang.org")
++	GOPRIVATE  = Getenv("GOPRIVATE")
++	GONOPROXY  = envOr("GONOPROXY", GOPRIVATE)
++	GONOSUMDB  = envOr("GONOSUMDB", GOPRIVATE)
++	GOINSECURE = Getenv("GOINSECURE")
+ )
+ 
+ // GetArchEnv returns the name and setting of the
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 023d542d88..ff4a7e4a46 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -75,6 +75,7 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
+ 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
+ 		{Name: "GOHOSTOS", Value: runtime.GOOS},
++		{Name: "GOINSECURE", Value: cfg.GOINSECURE},
+ 		{Name: "GONOPROXY", Value: cfg.GONOPROXY},
+ 		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB},
+ 		{Name: "GOOS", Value: cfg.Goos},
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 1dc892cb32..ac16312aaf 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -506,6 +506,10 @@ General-purpose environment variables:
+ 		Because the entries are space-separated, flag values must
+ 		not contain spaces. Flags listed on the command line
+ 		are applied after this list and therefore override it.
++	GOINSECURE
++		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
++		of module path prefixes that should always be fetched in an insecure
++		manner. Only applies to dependencies that are being fetched directly.
+ 	GOOS
+ 		The operating system for which to compile code.
+ 		Examples are linux, darwin, windows, netbsd.
+diff --git a/src/cmd/go/internal/modfetch/insecure.go b/src/cmd/go/internal/modfetch/insecure.go
+new file mode 100644
+index 0000000000..8420432d6c
+--- /dev/null
++++ b/src/cmd/go/internal/modfetch/insecure.go
+@@ -0,0 +1,16 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package modfetch
++
++import (
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/get"
++	"cmd/go/internal/str"
++)
++
++// allowInsecure reports whether we are allowed to fetch this path in an insecure manner.
++func allowInsecure(path string) bool {
++	return get.Insecure || str.GlobsMatchPath(cfg.GOINSECURE, path)
++}
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 39a3c076cd..4273da0317 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -257,7 +257,8 @@ var (
+ 
+ func lookupDirect(path string) (Repo, error) {
+ 	security := web.SecureOnly
+-	if get.Insecure {
++
++	if allowInsecure(path) {
+ 		security = web.Insecure
+ 	}
+ 	rr, err := get.RepoRootForImportPath(path, get.PreferMod, security)
+@@ -302,7 +303,7 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
+ 	// version control system, we ignore meta tags about modules
+ 	// and use only direct source control entries (get.IgnoreMod).
+ 	security := web.SecureOnly
+-	if get.Insecure {
++	if allowInsecure(path) {
+ 		security = web.Insecure
+ 	}
+ 	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, security)
+diff --git a/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt b/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
+new file mode 100644
+index 0000000000..f0d0b27777
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_convert_tsv_insecure.txt
+@@ -0,0 +1,24 @@
++env GO111MODULE=on
++
++# secure fetch should report insecure warning
++cd $WORK/test
++go mod init
++stderr 'redirected .* to insecure URL'
++
++# insecure fetch should not
++env GOINSECURE=*.golang.org
++rm go.mod
++go mod init
++! stderr 'redirected .* to insecure URL'
++
++# insecure fetch invalid path should report insecure warning
++env GOINSECURE=foo.golang.org
++rm go.mod
++go mod init
++stderr 'redirected .* to insecure URL'
++
++-- $WORK/test/dependencies.tsv --
++vcs-test.golang.org/insecure/go/insecure	git	6fecd21f7c0c	2019-09-04T18:39:48Z 
++
++-- $WORK/test/x.go --
++package x // import "m"
+diff --git a/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt b/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
+index a83b17672d..3755f17633 100644
+--- a/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
+@@ -11,3 +11,24 @@ env GOSUMDB=off
+ stderr 'redirected .* to insecure URL'
+ 
+ go get -d -insecure vcs-test.golang.org/insecure/go/insecure
++
++# insecure host
++env GOINSECURE=vcs-test.golang.org
++go clean -modcache
++go get -d vcs-test.golang.org/insecure/go/insecure
++
++# insecure glob host
++env GOINSECURE=*.golang.org
++go clean -modcache
++go get -d vcs-test.golang.org/insecure/go/insecure
++
++# insecure multiple host
++env GOINSECURE=somewhere-else.com,*.golang.org
++go clean -modcache
++go get -d vcs-test.golang.org/insecure/go/insecure
++
++# different insecure host does not fetch
++env GOINSECURE=somewhere-else.com
++go clean -modcache
++! go get -d vcs-test.golang.org/insecure/go/insecure
++stderr 'redirected .* to insecure URL'
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_cache.txt b/src/cmd/go/testdata/script/mod_sumdb_cache.txt
+index 486bdf5ecf..2937b2e4dc 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_cache.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_cache.txt
+@@ -37,7 +37,14 @@ env GOPROXY=$proxy/sumdb-504
+ ! go get -d rsc.io/quote@v1.5.2
+ stderr 504
+ 
++# GOINSECURE does not bypass checksum lookup
++env GOINSECURE=rsc.io
++env GOPROXY=$proxy/sumdb-504
++! go get -d rsc.io/quote@v1.5.2
++stderr 504
++
+ # but -insecure bypasses the checksum lookup entirely
++env GOINSECURE=
+ go get -d -insecure rsc.io/quote@v1.5.2
+ 
+ # and then it is in go.sum again
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index 4c2cf8ee8b..0d227ecd10 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -43,6 +43,7 @@ const KnownEnv = `
+ 	GOGCCFLAGS
+ 	GOHOSTARCH
+ 	GOHOSTOS
++	GOINSECURE
+ 	GOMIPS
+ 	GOMIPS64
+ 	GONOPROXY

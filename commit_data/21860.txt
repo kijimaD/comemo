@@ -9,6 +9,30 @@ Date:   Sun Feb 8 19:00:43 2015 +0300
     Change-Id: I074282a9d6e2c2a1063ab311a1b95e10fe65219f
     Reviewed-on: https://go-review.googlesource.com/4119
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index e6f0436cdd..0424ed250f 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -159,13 +159,15 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
+ 	if err != nil {
+ 		return nil, &OpError{Op: "dial", Net: network, Addr: nil, Err: err}
+ 	}
+-	dialer := func(deadline time.Time) (Conn, error) {
+-		return dialSingle(network, address, d.LocalAddr, ra.toAddr(), deadline)
+-	}
++	var dialer func(deadline time.Time) (Conn, error)
+ 	if ras, ok := ra.(addrList); ok && d.DualStack && network == "tcp" {
+ 		dialer = func(deadline time.Time) (Conn, error) {
+ 			return dialMulti(network, address, d.LocalAddr, ras, deadline)
+ 		}
++	} else {
++		dialer = func(deadline time.Time) (Conn, error) {
++			return dialSingle(network, address, d.LocalAddr, ra.toAddr(), deadline)
++		}
+ 	}
+ 	c, err := dial(network, ra.toAddr(), dialer, d.deadline())
+ 	if d.KeepAlive > 0 && err == nil {

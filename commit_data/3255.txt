@@ -8,7 +8,7 @@ Date:   Thu Sep 10 17:33:01 2009 -0700
     R=ken
     OCL=34535
     CL=34546
-
+---
  src/cmd/6g/cgen.c                  | 21 +++++++--
  src/cmd/6g/gg.h                    |  2 +
  src/cmd/6g/ggen.c                  | 95 ++++++++++++++++++++++----------------
@@ -16,3 +16,317 @@ Date:   Thu Sep 10 17:33:01 2009 -0700
  test/{bugs => fixedbugs}/bug206.go |  0
  test/golden.out                    |  3 --
  6 files changed, 77 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 0b01ada3d6..5cceefd8f9 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -898,7 +898,7 @@ stkof(Node *n)
+ void
+ sgen(Node *n, Node *ns, int32 w)
+ {
+-	Node nodl, nodr;
++	Node nodl, nodr, oldl, oldr, cx, oldcx;
+ 	int32 c, q, odst, osrc;
+ 
+ 	if(debug['g']) {
+@@ -919,20 +919,30 @@ sgen(Node *n, Node *ns, int32 w)
+ 	osrc = stkof(n);
+ 	odst = stkof(ns);
+ 
+-	nodreg(&nodl, types[tptr], D_DI);
+-	nodreg(&nodr, types[tptr], D_SI);
+ 
+ 	if(n->ullman >= ns->ullman) {
++		savex(D_SI, &nodr, &oldr, N, types[tptr]);
+ 		agen(n, &nodr);
++
++		regalloc(&nodr, types[tptr], &nodr);	// mark nodr as live
++		savex(D_DI, &nodl, &oldl, N, types[tptr]);
+ 		agen(ns, &nodl);
++		regfree(&nodr);
+ 	} else {
++		savex(D_DI, &nodl, &oldl, N, types[tptr]);
+ 		agen(ns, &nodl);
++
++		regalloc(&nodl, types[tptr], &nodl);	// mark nodl as live
++		savex(D_SI, &nodr, &oldr, N, types[tptr]);
+ 		agen(n, &nodr);
++		regfree(&nodl);
+ 	}
+ 
+ 	c = w % 8;	// bytes
+ 	q = w / 8;	// quads
+ 
++	savex(D_CX, &cx, &oldcx, N, types[TINT64]);
++
+ 	// if we are copying forward on the stack and
+ 	// the src and dst overlap, then reverse direction
+ 	if(osrc < odst && odst < osrc+w) {
+@@ -982,4 +992,9 @@ sgen(Node *n, Node *ns, int32 w)
+ 			c--;
+ 		}
+ 	}
++
++
++	restx(&nodl, &oldl);
++	restx(&nodr, &oldr);
++	restx(&cx, &oldcx);
+ }
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 388a1069a7..75f6c7918b 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -95,6 +95,8 @@ int	samaddr(Node*, Node*);
+ void	naddr(Node*, Addr*);
+ void	cgen_aret(Node*, Node*);
+ int	cgen_inline(Node*, Node*);
++void	restx(Node*, Node*);
++void	savex(int, Node*, Node*, Node*, Type*);
+ 
+ /*
+  * gsubr.c
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index e94b3e5fdb..ba6199f6db 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -461,6 +461,8 @@ ret:
+ int
+ samereg(Node *a, Node *b)
+ {
++	if(a == N || b == N)
++		return 0;
+ 	if(a->op != OREGISTER)
+ 		return 0;
+ 	if(b->op != OREGISTER)
+@@ -481,11 +483,12 @@ samereg(Node *a, Node *b)
+  * according to op.
+  */
+ void
+-dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
++dodiv(int op, Node *nl, Node *nr, Node *res)
+ {
+ 	int a;
+ 	Node n3, n4;
+ 	Type *t;
++	Node ax, dx, oldax, olddx;
+ 
+ 	t = nl->type;
+ 	if(t->width == 1) {
+@@ -495,62 +498,73 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 			t = types[TUINT32];
+ 	}
+ 	a = optoas(op, t);
+-	ax->type = t;
+-	dx->type = t;
+ 
+ 	regalloc(&n3, t, N);
+ 	if(nl->ullman >= nr->ullman) {
+-		cgen(nl, ax);
+-		if(!issigned[t->etype]) {
+-			nodconst(&n4, t, 0);
+-			gmove(&n4, dx);
+-		} else
+-			gins(optoas(OEXTEND, t), N, N);
++		savex(D_AX, &ax, &oldax, res, t);
++		cgen(nl, &ax);
++		regalloc(&ax, t, &ax);	// mark ax live during cgen
+ 		cgen(nr, &n3);
++		regfree(&ax);
+ 	} else {
+ 		cgen(nr, &n3);
+-		cgen(nl, ax);
+-		if(!issigned[t->etype]) {
+-			nodconst(&n4, t, 0);
+-			gmove(&n4, dx);
+-		} else
+-			gins(optoas(OEXTEND, t), N, N);
++		savex(D_AX, &ax, &oldax, res, t);
++		cgen(nl, &ax);
+ 	}
++	savex(D_DX, &dx, &olddx, res, t);
++	if(!issigned[t->etype]) {
++		nodconst(&n4, t, 0);
++		gmove(&n4, &dx);
++	} else
++		gins(optoas(OEXTEND, t), N, N);
+ 	gins(a, &n3, N);
+ 	regfree(&n3);
+ 
+ 	if(op == ODIV)
+-		gmove(ax, res);
++		gmove(&ax, res);
+ 	else
+-		gmove(dx, res);
++		gmove(&dx, res);
++	restx(&ax, &oldax);
++	restx(&dx, &olddx);
+ }
+ 
+-static void
++/*
++ * register dr is one of the special ones (AX, CX, DI, SI, etc.).
++ * we need to use it.  if it is already allocated as a temporary
++ * (r > 1; can only happen if a routine like sgen passed a
++ * special as cgen's res and then cgen used regalloc to reuse
++ * it as its own temporary), then move it for now to another
++ * register.  caller must call restx to move it back.
++ * the move is not necessary if dr == res, because res is
++ * known to be dead.
++ */
++void
+ savex(int dr, Node *x, Node *oldx, Node *res, Type *t)
+ {
+ 	int r;
+ 
+ 	r = reg[dr];
+-	nodreg(x, types[TINT64], dr);
+ 
+ 	// save current ax and dx if they are live
+ 	// and not the destination
+ 	memset(oldx, 0, sizeof *oldx);
+-	if(r > 0 && !samereg(x, res)) {
++	nodreg(x, t, dr);
++	if(r > 1 && !samereg(x, res)) {
+ 		regalloc(oldx, types[TINT64], N);
++		x->type = types[TINT64];
+ 		gmove(x, oldx);
++		x->type = t;
++		oldx->ostk = r;	// squirrel away old r value
++		reg[dr] = 1;
+ 	}
+-
+-	regalloc(x, t, x);
+ }
+ 
+-static void
++void
+ restx(Node *x, Node *oldx)
+ {
+-	regfree(x);
+-
+ 	if(oldx->op != 0) {
+ 		x->type = types[TINT64];
++		reg[x->val.u.reg] = oldx->ostk;
+ 		gmove(oldx, x);
+ 		regfree(oldx);
+ 	}
+@@ -564,8 +578,8 @@ restx(Node *x, Node *oldx)
+ void
+ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ {
+-	Node ax, dx, oldax, olddx;
+ 	Node n1, n2, n3, savl, savr;
++	Node ax, dx, oldax, olddx;
+ 	int n, w, s, a;
+ 	Magic m;
+ 
+@@ -701,12 +715,12 @@ divbymul:
+ 		if(op == OMOD)
+ 			goto longmod;
+ 
+-		savex(D_AX, &ax, &oldax, res, nl->type);
+-		savex(D_DX, &dx, &olddx, res, nl->type);
+-
+ 		regalloc(&n1, nl->type, N);
+ 		cgen(nl, &n1);				// num -> reg(n1)
+ 
++		savex(D_AX, &ax, &oldax, res, nl->type);
++		savex(D_DX, &dx, &olddx, res, nl->type);
++
+ 		nodconst(&n2, nl->type, m.um);
+ 		gmove(&n2, &ax);			// const->ax
+ 
+@@ -751,12 +765,12 @@ divbymul:
+ 		if(op == OMOD)
+ 			goto longmod;
+ 
+-		savex(D_AX, &ax, &oldax, res, nl->type);
+-		savex(D_DX, &dx, &olddx, res, nl->type);
+-
+ 		regalloc(&n1, nl->type, N);
+ 		cgen(nl, &n1);				// num -> reg(n1)
+ 
++		savex(D_AX, &ax, &oldax, res, nl->type);
++		savex(D_DX, &dx, &olddx, res, nl->type);
++
+ 		nodconst(&n2, nl->type, m.sm);
+ 		gmove(&n2, &ax);			// const->ax
+ 
+@@ -798,11 +812,7 @@ divbymul:
+ 
+ longdiv:
+ 	// division and mod using (slow) hardware instruction
+-	savex(D_AX, &ax, &oldax, res, nl->type);
+-	savex(D_DX, &dx, &olddx, res, nl->type);
+-	dodiv(op, nl, nr, res, &ax, &dx);
+-	restx(&ax, &oldax);
+-	restx(&dx, &olddx);
++	dodiv(op, nl, nr, res);
+ 	return;
+ 
+ longmod:
+@@ -979,7 +989,7 @@ void
+ clearfat(Node *nl)
+ {
+ 	uint32 w, c, q;
+-	Node n1;
++	Node n1, oldn1, ax, oldax;
+ 
+ 	/* clear a fat object */
+ 	if(debug['g'])
+@@ -989,10 +999,12 @@ clearfat(Node *nl)
+ 	c = w % 8;	// bytes
+ 	q = w / 8;	// quads
+ 
+-	gconreg(AMOVQ, 0, D_AX);
+-	nodreg(&n1, types[tptr], D_DI);
++	savex(D_DI, &n1, &oldn1, N, types[tptr]);
+ 	agen(nl, &n1);
+ 
++	savex(D_AX, &ax, &oldax, N, types[tptr]);
++	gconreg(AMOVQ, 0, D_AX);
++
+ 	if(q >= 4) {
+ 		gconreg(AMOVQ, q, D_CX);
+ 		gins(AREP, N, N);	// repeat
+@@ -1012,6 +1024,9 @@ clearfat(Node *nl)
+ 		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
+ 		c--;
+ 	}
++
++	restx(&n1, &oldn1);
++	restx(&ax, &oldax);
+ }
+ 
+ int
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index e2fdceff48..8358abf16b 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -192,8 +192,8 @@ afunclit(Addr *a)
+ 
+ static	int	resvd[] =
+ {
+-//	D_DI,	// for movstring
+-//	D_SI,	// for movstring
++	D_DI,	// for movstring
++	D_SI,	// for movstring
+ 
+ 	D_AX,	// for divide
+ 	D_CX,	// for shift
+diff --git a/test/bugs/bug206.go b/test/fixedbugs/bug206.go
+similarity index 100%
+rename from test/bugs/bug206.go
+rename to test/fixedbugs/bug206.go
+diff --git a/test/golden.out b/test/golden.out
+index f9bdb78378..148471660a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -174,6 +174,3 @@ bugs/bug198.go:8: T is not a type
+ bugs/bug198.go:8: too many arguments to return
+ bugs/bug198.go:10: too many arguments to CALL
+ BUG: errchk: compiler crashed
+-
+-=========== bugs/bug206.go
+-BUG: bug206

@@ -28,7 +28,7 @@ Date:   Wed Dec 23 19:49:39 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/asm/internal/lex/input.go | 10 ++++++++++
  src/cmd/dist/build.go             | 16 ++++------------
  src/cmd/dist/buildruntime.go      |  6 ++----
@@ -42,3 +42,288 @@ Date:   Wed Dec 23 19:49:39 2020 -0800
  src/runtime/internal/sys/arch.go  |  2 ++
  src/runtime/proc.go               |  2 +-
  12 files changed, 51 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index da4ebe6d6e..1d4d4be7bd 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -45,6 +45,16 @@ func NewInput(name string) *Input {
+ // predefine installs the macros set by the -D flag on the command line.
+ func predefine(defines flags.MultiFlag) map[string]*Macro {
+ 	macros := make(map[string]*Macro)
++
++	if *flags.CompilingRuntime && objabi.Regabi_enabled != 0 {
++		const name = "GOEXPERIMENT_REGABI"
++		macros[name] = &Macro{
++			name:   name,
++			args:   nil,
++			tokens: Tokenize("1"),
++		}
++	}
++
+ 	for _, name := range defines {
+ 		value := "1"
+ 		i := strings.IndexRune(name, '=')
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 158cedbadc..b2d13e7db4 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -39,6 +39,7 @@ var (
+ 	goextlinkenabled string
+ 	gogcflags        string // For running built compiler
+ 	goldflags        string
++	goexperiment     string
+ 	workdir          string
+ 	tooldir          string
+ 	oldgoos          string
+@@ -194,6 +195,9 @@ func xinit() {
+ 		goextlinkenabled = b
+ 	}
+ 
++	goexperiment = os.Getenv("GOEXPERIMENT")
++	// TODO(mdempsky): Validate known experiments?
++
+ 	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
+ 	goldflags = os.Getenv("BOOT_GO_LDFLAGS")
+ 
+@@ -834,18 +838,6 @@ func runInstall(pkg string, ch chan struct{}) {
+ 	goasmh := pathf("%s/go_asm.h", workdir)
+ 	if IsRuntimePackagePath(pkg) {
+ 		asmArgs = append(asmArgs, "-compiling-runtime")
+-		if os.Getenv("GOEXPERIMENT") == "regabi" {
+-			// In order to make it easier to port runtime assembly
+-			// to the register ABI, we introduce a macro
+-			// indicating the experiment is enabled.
+-			//
+-			// Note: a similar change also appears in
+-			// cmd/go/internal/work/gc.go.
+-			//
+-			// TODO(austin): Remove this once we commit to the
+-			// register ABI (#40724).
+-			asmArgs = append(asmArgs, "-D=GOEXPERIMENT_REGABI=1")
+-		}
+ 	}
+ 
+ 	// Collect symabis from assembly code.
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 2744951597..e0a101a353 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -20,7 +20,6 @@ import (
+ //	package sys
+ //
+ //	const TheVersion = <version>
+-//	const Goexperiment = <goexperiment>
+ //	const StackGuardMultiplier = <multiplier value>
+ //
+ func mkzversion(dir, file string) {
+@@ -30,7 +29,6 @@ func mkzversion(dir, file string) {
+ 	fmt.Fprintf(&buf, "package sys\n")
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "const TheVersion = `%s`\n", findgoversion())
+-	fmt.Fprintf(&buf, "const Goexperiment = `%s`\n", os.Getenv("GOEXPERIMENT"))
+ 	fmt.Fprintf(&buf, "const StackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
+ 
+ 	writefile(buf.String(), file, writeSkipSame)
+@@ -48,10 +46,10 @@ func mkzversion(dir, file string) {
+ //	const defaultGOPPC64 = <goppc64>
+ //	const defaultGOOS = runtime.GOOS
+ //	const defaultGOARCH = runtime.GOARCH
++//	const defaultGOEXPERIMENT = <goexperiment>
+ //	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
+ //	const version = <version>
+ //	const stackGuardMultiplierDefault = <multiplier value>
+-//	const goexperiment = <goexperiment>
+ //
+ // The use of runtime.GOOS and runtime.GOARCH makes sure that
+ // a cross-compiled compiler expects to compile for its own target
+@@ -77,11 +75,11 @@ func mkzbootstrap(file string) {
+ 	fmt.Fprintf(&buf, "const defaultGOPPC64 = `%s`\n", goppc64)
+ 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
+ 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
++	fmt.Fprintf(&buf, "const defaultGOEXPERIMENT = `%s`\n", goexperiment)
+ 	fmt.Fprintf(&buf, "const defaultGO_EXTLINK_ENABLED = `%s`\n", goextlinkenabled)
+ 	fmt.Fprintf(&buf, "const defaultGO_LDSO = `%s`\n", defaultldso)
+ 	fmt.Fprintf(&buf, "const version = `%s`\n", findgoversion())
+ 	fmt.Fprintf(&buf, "const stackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
+-	fmt.Fprintf(&buf, "const goexperiment = `%s`\n", os.Getenv("GOEXPERIMENT"))
+ 
+ 	writefile(buf.String(), file, writeSkipSame)
+ }
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 810189c15d..a91b6a57b9 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -252,12 +252,13 @@ var (
+ 	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+-	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
+-	GO386    = envOr("GO386", objabi.GO386)
+-	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
+-	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
+-	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
+-	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
++	GOARM        = envOr("GOARM", fmt.Sprint(objabi.GOARM))
++	GO386        = envOr("GO386", objabi.GO386)
++	GOMIPS       = envOr("GOMIPS", objabi.GOMIPS)
++	GOMIPS64     = envOr("GOMIPS64", objabi.GOMIPS64)
++	GOPPC64      = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
++	GOWASM       = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
++	GOEXPERIMENT = envOr("GOEXPERIMENT", objabi.GOEXPERIMENT)
+ 
+ 	GOPROXY    = envOr("GOPROXY", "https://proxy.golang.org,direct")
+ 	GOSUMDB    = envOr("GOSUMDB", "sum.golang.org")
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 3980c5f898..bd5ae46739 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -276,6 +276,10 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		key, val := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
++		if exp := cfg.Getenv("GOEXPERIMENT"); exp != "" {
++			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", exp)
++		}
++
+ 		// TODO(rsc): Convince compiler team not to add more magic environment variables,
+ 		// or perhaps restrict the environment variables passed to subprocesses.
+ 		// Because these are clumsy, undocumented special-case hacks
+@@ -1246,6 +1250,10 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 		key, val := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
++		if exp := cfg.Getenv("GOEXPERIMENT"); exp != "" {
++			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", exp)
++		}
++
+ 		// The linker writes source file paths that say GOROOT_FINAL, but
+ 		// only if -trimpath is not specified (see ld() in gc.go).
+ 		gorootFinal := cfg.GOROOT_FINAL
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 2087855b3c..3cb7c5aff3 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -343,18 +343,6 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
+ 	}
+ 	if objabi.IsRuntimePackagePath(pkgpath) {
+ 		args = append(args, "-compiling-runtime")
+-		if objabi.Regabi_enabled != 0 {
+-			// In order to make it easier to port runtime assembly
+-			// to the register ABI, we introduce a macro
+-			// indicating the experiment is enabled.
+-			//
+-			// Note: a similar change also appears in
+-			// cmd/dist/build.go.
+-			//
+-			// TODO(austin): Remove this once we commit to the
+-			// register ABI (#40724).
+-			args = append(args, "-D=GOEXPERIMENT_REGABI=1")
+-		}
+ 	}
+ 
+ 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 1f99f8ed5d..de8e6de4e6 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -21,17 +21,18 @@ func envOr(key, value string) string {
+ var (
+ 	defaultGOROOT string // set by linker
+ 
+-	GOROOT   = envOr("GOROOT", defaultGOROOT)
+-	GOARCH   = envOr("GOARCH", defaultGOARCH)
+-	GOOS     = envOr("GOOS", defaultGOOS)
+-	GO386    = envOr("GO386", defaultGO386)
+-	GOARM    = goarm()
+-	GOMIPS   = gomips()
+-	GOMIPS64 = gomips64()
+-	GOPPC64  = goppc64()
+-	GOWASM   = gowasm()
+-	GO_LDSO  = defaultGO_LDSO
+-	Version  = version
++	GOROOT       = envOr("GOROOT", defaultGOROOT)
++	GOARCH       = envOr("GOARCH", defaultGOARCH)
++	GOOS         = envOr("GOOS", defaultGOOS)
++	GOEXPERIMENT = envOr("GOEXPERIMENT", defaultGOEXPERIMENT)
++	GO386        = envOr("GO386", defaultGO386)
++	GOARM        = goarm()
++	GOMIPS       = gomips()
++	GOMIPS64     = gomips64()
++	GOPPC64      = goppc64()
++	GOWASM       = gowasm()
++	GO_LDSO      = defaultGO_LDSO
++	Version      = version
+ )
+ 
+ const (
+@@ -124,7 +125,7 @@ func Getgoextlinkenabled() string {
+ }
+ 
+ func init() {
+-	for _, f := range strings.Split(goexperiment, ",") {
++	for _, f := range strings.Split(GOEXPERIMENT, ",") {
+ 		if f != "" {
+ 			addexp(f)
+ 		}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 68dee18598..8e9a9b9207 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -119,6 +119,8 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+ 	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
+ 
++	addstrdata1(ctxt, "runtime/internal/sys.GOEXPERIMENT="+objabi.GOEXPERIMENT)
++
+ 	// TODO(matloob): define these above and then check flag values here
+ 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+ 		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index 553021374d..815994b679 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -39,6 +39,7 @@ const KnownEnv = `
+ 	GOCACHE
+ 	GOENV
+ 	GOEXE
++	GOEXPERIMENT
+ 	GOFLAGS
+ 	GOGCCFLAGS
+ 	GOHOSTARCH
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 1b8c19b476..e0913162a4 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -532,7 +532,7 @@ func dumpparams() {
+ 	dumpint(uint64(arenaStart))
+ 	dumpint(uint64(arenaEnd))
+ 	dumpstr(sys.GOARCH)
+-	dumpstr(sys.Goexperiment)
++	dumpstr(sys.GOEXPERIMENT)
+ 	dumpint(uint64(ncpu))
+ }
+ 
+diff --git a/src/runtime/internal/sys/arch.go b/src/runtime/internal/sys/arch.go
+index 3c99a2f7da..f00c55913f 100644
+--- a/src/runtime/internal/sys/arch.go
++++ b/src/runtime/internal/sys/arch.go
+@@ -52,3 +52,5 @@ const MinFrameSize = _MinFrameSize
+ // StackAlign is the required alignment of the SP register.
+ // The stack must be at least word aligned, but some architectures require more.
+ const StackAlign = _StackAlign
++
++var GOEXPERIMENT string // set by cmd/link
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5f372bb063..8db3b767d1 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6027,7 +6027,7 @@ func setMaxThreads(in int) (out int) {
+ }
+ 
+ func haveexperiment(name string) bool {
+-	x := sys.Goexperiment
++	x := sys.GOEXPERIMENT
+ 	for x != "" {
+ 		xname := ""
+ 		i := bytealg.IndexByteString(x, ',')

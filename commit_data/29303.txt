@@ -9,7 +9,7 @@ Date:   Mon Aug 29 16:26:57 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/arm64/prog.go       |  30 ++-
  src/cmd/compile/internal/arm64/ssa.go        | 144 ++++++++++++-
  src/cmd/compile/internal/gc/ssa.go           |  84 ++++----
@@ -23,3 +23,1207 @@ Date:   Mon Aug 29 16:26:57 2016 -0400
  src/cmd/internal/obj/arm64/obj7.go           |   6 +-
  test/intrinsic.go                            |   2 +-
  12 files changed, 801 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index 183a8c4a39..2757c59656 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -78,6 +78,10 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
+ 	arm64.AREV & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
+ 	arm64.AREVW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
+ 	arm64.AREV16W & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
++	arm64.ARBIT & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
++	arm64.ARBITW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
++	arm64.ACLZ & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
++	arm64.ACLZW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
+ 
+ 	// Floating point.
+ 	arm64.AFADDD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+@@ -119,15 +123,23 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
+ 	arm64.AUCVTFWS & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+ 
+ 	// Moves
+-	arm64.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVBU & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVH & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVHU & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVWU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AMOVD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+-	arm64.AFMOVS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+-	arm64.AFMOVD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.AMOVB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVBU & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVH & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVHU & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVWU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AMOVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.AFMOVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
++	arm64.AFMOVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.ALDARW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.ALDAR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.ALDAXRW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.ALDAXR & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.ASTLRW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.ASTLR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.ASTLXRW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
++	arm64.ASTLXR & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+ 
+ 	// Jumps
+ 	arm64.AB & obj.AMask:    {Flags: gc.Jump | gc.Break},
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 9275d736eb..f3e3c5a6c9 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -80,8 +80,7 @@ var ssaRegToReg = []int16{
+ 	arm64.REG_F30,
+ 	arm64.REG_F31,
+ 
+-	arm64.REG_NZCV, // flag
+-	0,              // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
++	0, // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
+ }
+ 
+ // Smallest possible faulting page at address zero,
+@@ -405,12 +404,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpARM64LDAR,
++		ssa.OpARM64LDARW:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum0(v)
+ 	case ssa.OpARM64MOVBstore,
+ 		ssa.OpARM64MOVHstore,
+ 		ssa.OpARM64MOVWstore,
+ 		ssa.OpARM64MOVDstore,
+ 		ssa.OpARM64FMOVSstore,
+-		ssa.OpARM64FMOVDstore:
++		ssa.OpARM64FMOVDstore,
++		ssa.OpARM64STLR,
++		ssa.OpARM64STLRW:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = gc.SSARegNum(v.Args[1])
+@@ -427,6 +436,120 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = gc.SSARegNum(v.Args[0])
+ 		gc.AddAux(&p.To, v)
++	case ssa.OpARM64LoweredAtomicExchange64,
++		ssa.OpARM64LoweredAtomicExchange32:
++		// LDAXR	(Rarg0), Rout
++		// STLXR	Rarg1, (Rarg0), Rtmp
++		// CBNZ		Rtmp, -2(PC)
++		ld := arm64.ALDAXR
++		st := arm64.ASTLXR
++		if v.Op == ssa.OpARM64LoweredAtomicExchange32 {
++			ld = arm64.ALDAXRW
++			st = arm64.ASTLXRW
++		}
++		r0 := gc.SSARegNum(v.Args[0])
++		r1 := gc.SSARegNum(v.Args[1])
++		out := gc.SSARegNum0(v)
++		p := gc.Prog(ld)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = out
++		p1 := gc.Prog(st)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.To.Type = obj.TYPE_MEM
++		p1.To.Reg = r0
++		p1.RegTo2 = arm64.REGTMP
++		p2 := gc.Prog(arm64.ACBNZ)
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = arm64.REGTMP
++		p2.To.Type = obj.TYPE_BRANCH
++		gc.Patch(p2, p)
++	case ssa.OpARM64LoweredAtomicAdd64,
++		ssa.OpARM64LoweredAtomicAdd32:
++		// LDAXR	(Rarg0), Rout
++		// ADD		Rarg1, Rout
++		// STLXR	Rout, (Rarg0), Rtmp
++		// CBNZ		Rtmp, -3(PC)
++		ld := arm64.ALDAXR
++		st := arm64.ASTLXR
++		if v.Op == ssa.OpARM64LoweredAtomicAdd32 {
++			ld = arm64.ALDAXRW
++			st = arm64.ASTLXRW
++		}
++		r0 := gc.SSARegNum(v.Args[0])
++		r1 := gc.SSARegNum(v.Args[1])
++		out := gc.SSARegNum0(v)
++		p := gc.Prog(ld)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = out
++		p1 := gc.Prog(arm64.AADD)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = out
++		p2 := gc.Prog(st)
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = out
++		p2.To.Type = obj.TYPE_MEM
++		p2.To.Reg = r0
++		p2.RegTo2 = arm64.REGTMP
++		p3 := gc.Prog(arm64.ACBNZ)
++		p3.From.Type = obj.TYPE_REG
++		p3.From.Reg = arm64.REGTMP
++		p3.To.Type = obj.TYPE_BRANCH
++		gc.Patch(p3, p)
++	case ssa.OpARM64LoweredAtomicCas64,
++		ssa.OpARM64LoweredAtomicCas32:
++		// LDAXR	(Rarg0), Rtmp
++		// CMP		Rarg1, Rtmp
++		// BNE		3(PC)
++		// STLXR	Rarg2, (Rarg0), Rtmp
++		// CBNZ		Rtmp, -4(PC)
++		// CSET		EQ, Rout
++		ld := arm64.ALDAXR
++		st := arm64.ASTLXR
++		cmp := arm64.ACMP
++		if v.Op == ssa.OpARM64LoweredAtomicCas32 {
++			ld = arm64.ALDAXRW
++			st = arm64.ASTLXRW
++			cmp = arm64.ACMPW
++		}
++		r0 := gc.SSARegNum(v.Args[0])
++		r1 := gc.SSARegNum(v.Args[1])
++		r2 := gc.SSARegNum(v.Args[2])
++		out := gc.SSARegNum0(v)
++		p := gc.Prog(ld)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = arm64.REGTMP
++		p1 := gc.Prog(cmp)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.Reg = arm64.REGTMP
++		p2 := gc.Prog(arm64.ABNE)
++		p2.To.Type = obj.TYPE_BRANCH
++		p3 := gc.Prog(st)
++		p3.From.Type = obj.TYPE_REG
++		p3.From.Reg = r2
++		p3.To.Type = obj.TYPE_MEM
++		p3.To.Reg = r0
++		p3.RegTo2 = arm64.REGTMP
++		p4 := gc.Prog(arm64.ACBNZ)
++		p4.From.Type = obj.TYPE_REG
++		p4.From.Reg = arm64.REGTMP
++		p4.To.Type = obj.TYPE_BRANCH
++		gc.Patch(p4, p)
++		p5 := gc.Prog(arm64.ACSET)
++		p5.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
++		p5.From.Reg = arm64.COND_EQ
++		p5.To.Type = obj.TYPE_REG
++		p5.To.Reg = out
++		gc.Patch(p2, p5)
+ 	case ssa.OpARM64MOVBreg,
+ 		ssa.OpARM64MOVBUreg,
+ 		ssa.OpARM64MOVHreg,
+@@ -485,7 +608,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64FCVTDS,
+ 		ssa.OpARM64REV,
+ 		ssa.OpARM64REVW,
+-		ssa.OpARM64REV16W:
++		ssa.OpARM64REV16W,
++		ssa.OpARM64RBIT,
++		ssa.OpARM64RBITW,
++		ssa.OpARM64CLZ,
++		ssa.OpARM64CLZW:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = gc.SSARegNum(v.Args[0])
+@@ -636,9 +763,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			case ssa.OpARM64MOVBload, ssa.OpARM64MOVBUload, ssa.OpARM64MOVHload, ssa.OpARM64MOVHUload,
+ 				ssa.OpARM64MOVWload, ssa.OpARM64MOVWUload, ssa.OpARM64MOVDload,
+ 				ssa.OpARM64FMOVSload, ssa.OpARM64FMOVDload,
++				ssa.OpARM64LDAR, ssa.OpARM64LDARW,
+ 				ssa.OpARM64MOVBstore, ssa.OpARM64MOVHstore, ssa.OpARM64MOVWstore, ssa.OpARM64MOVDstore,
+ 				ssa.OpARM64FMOVSstore, ssa.OpARM64FMOVDstore,
+-				ssa.OpARM64MOVBstorezero, ssa.OpARM64MOVHstorezero, ssa.OpARM64MOVWstorezero, ssa.OpARM64MOVDstorezero:
++				ssa.OpARM64MOVBstorezero, ssa.OpARM64MOVHstorezero, ssa.OpARM64MOVWstorezero, ssa.OpARM64MOVDstorezero,
++				ssa.OpARM64STLR, ssa.OpARM64STLRW,
++				ssa.OpARM64LoweredAtomicExchange64, ssa.OpARM64LoweredAtomicExchange32,
++				ssa.OpARM64LoweredAtomicAdd64, ssa.OpARM64LoweredAtomicAdd32,
++				ssa.OpARM64LoweredAtomicCas64, ssa.OpARM64LoweredAtomicCas32:
+ 				// arg0 is ptr, auxint is offset
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+ 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+@@ -664,7 +796,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 				}
+ 			default:
+ 			}
+-			if w.Type.IsMemory() {
++			if w.Type.IsMemory() || w.Type.IsTuple() && w.Type.FieldType(1).IsMemory() {
+ 				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+ 					// these ops are OK
+ 					mem = w
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e3c1afb2a2..549259aff8 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2545,6 +2545,14 @@ type sizedIntrinsicKey struct {
+ 	size int
+ }
+ 
++// enableOnArch returns fn on given archs, nil otherwise
++func enableOnArch(fn func(*state, *Node) *ssa.Value, archs ...sys.ArchFamily) func(*state, *Node) *ssa.Value {
++	if Thearch.LinkArch.InFamily(archs...) {
++		return fn
++	}
++	return nil
++}
++
+ func intrinsicInit() {
+ 	i := &intrinsicInfo{}
+ 	intrinsics = i
+@@ -2552,90 +2560,90 @@ func intrinsicInit() {
+ 	// initial set of intrinsics.
+ 	i.std = map[intrinsicKey]intrinsicBuilder{
+ 		/******** runtime/internal/sys ********/
+-		intrinsicKey{"runtime/internal/sys", "Ctz32"}: func(s *state, n *Node) *ssa.Value {
++		intrinsicKey{"runtime/internal/sys", "Ctz32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
+-		},
+-		intrinsicKey{"runtime/internal/sys", "Ctz64"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/sys", "Ctz64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
+-		},
+-		intrinsicKey{"runtime/internal/sys", "Bswap32"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/sys", "Bswap32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap32, Types[TUINT32], s.intrinsicFirstArg(n))
+-		},
+-		intrinsicKey{"runtime/internal/sys", "Bswap64"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/sys", "Bswap64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
+-		},
++		}, sys.AMD64, sys.ARM64),
+ 
+ 		/******** runtime/internal/atomic ********/
+-		intrinsicKey{"runtime/internal/atomic", "Load"}: func(s *state, n *Node) *ssa.Value {
++		intrinsicKey{"runtime/internal/atomic", "Load"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
+-		},
+-		intrinsicKey{"runtime/internal/atomic", "Load64"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/atomic", "Load64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
+-		},
+-		intrinsicKey{"runtime/internal/atomic", "Loadp"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/atomic", "Loadp"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadPtr, ssa.MakeTuple(Ptrto(Types[TUINT8]), ssa.TypeMem), s.intrinsicArg(n, 0), s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Ptrto(Types[TUINT8]), v)
+-		},
++		}, sys.AMD64, sys.ARM64),
+ 
+-		intrinsicKey{"runtime/internal/atomic", "Store"}: func(s *state, n *Node) *ssa.Value {
++		intrinsicKey{"runtime/internal/atomic", "Store"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore32, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 			return nil
+-		},
+-		intrinsicKey{"runtime/internal/atomic", "Store64"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/atomic", "Store64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore64, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 			return nil
+-		},
+-		intrinsicKey{"runtime/internal/atomic", "StorepNoWB"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/atomic", "StorepNoWB"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 			return nil
+-		},
++		}, sys.AMD64, sys.ARM64),
+ 
+-		intrinsicKey{"runtime/internal/atomic", "Xchg"}: func(s *state, n *Node) *ssa.Value {
++		intrinsicKey{"runtime/internal/atomic", "Xchg"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicExchange32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
+-		},
+-		intrinsicKey{"runtime/internal/atomic", "Xchg64"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/atomic", "Xchg64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicExchange64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
+-		},
++		}, sys.AMD64, sys.ARM64),
+ 
+-		intrinsicKey{"runtime/internal/atomic", "Xadd"}: func(s *state, n *Node) *ssa.Value {
++		intrinsicKey{"runtime/internal/atomic", "Xadd"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
+-		},
+-		intrinsicKey{"runtime/internal/atomic", "Xadd64"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/atomic", "Xadd64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
+-		},
++		}, sys.AMD64, sys.ARM64),
+ 
+-		intrinsicKey{"runtime/internal/atomic", "Cas"}: func(s *state, n *Node) *ssa.Value {
++		intrinsicKey{"runtime/internal/atomic", "Cas"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2), s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TBOOL], v)
+-		},
+-		intrinsicKey{"runtime/internal/atomic", "Cas64"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64, sys.ARM64),
++		intrinsicKey{"runtime/internal/atomic", "Cas64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2), s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TBOOL], v)
+-		},
++		}, sys.AMD64, sys.ARM64),
+ 
+-		intrinsicKey{"runtime/internal/atomic", "And8"}: func(s *state, n *Node) *ssa.Value {
++		intrinsicKey{"runtime/internal/atomic", "And8"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 			return nil
+-		},
+-		intrinsicKey{"runtime/internal/atomic", "Or8"}: func(s *state, n *Node) *ssa.Value {
++		}, sys.AMD64),
++		intrinsicKey{"runtime/internal/atomic", "Or8"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+ 			return nil
+-		},
++		}, sys.AMD64),
+ 	}
+ 
+ 	// aliases internal to runtime/internal/atomic
+@@ -2749,11 +2757,9 @@ func findIntrinsic(sym *Sym) intrinsicBuilder {
+ 	// so far has only been noticed for Bswap32 and the 16-bit count
+ 	// leading/trailing instructions, but heuristics might change
+ 	// in the future or on different architectures).
+-	if !ssaEnabled || ssa.IntrinsicsDisable || Thearch.LinkArch.Family != sys.AMD64 {
++	if !ssaEnabled || ssa.IntrinsicsDisable {
+ 		return nil
+ 	}
+-	// TODO: parameterize this code by architecture. Maybe we should ask the SSA
+-	// backend if it can lower the ops involved?
+ 	if sym == nil || sym.Pkg == nil {
+ 		return nil
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 8dbf8f2ba9..32f73eb392 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -86,6 +86,12 @@
+ 
+ (Sqrt x) -> (FSQRTD x)
+ 
++(Ctz64 <t> x) -> (CLZ (RBIT <t> x))
++(Ctz32 <t> x) -> (CLZW (RBITW <t> x))
++
++(Bswap64 x) -> (REV x)
++(Bswap32 x) -> (REVW x)
++
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB x y) -> (AND x y)
+ (OrB x y) -> (OR x y)
+@@ -466,6 +472,25 @@
+ 
+ (If cond yes no) -> (NE (CMPconst [0] cond) yes no)
+ 
++// atomic intrinsics
++// Note: these ops do not accept offset.
++(AtomicLoad32  ptr mem) -> (LDARW ptr mem)
++(AtomicLoad64  ptr mem) -> (LDAR  ptr mem)
++(AtomicLoadPtr ptr mem) -> (LDAR  ptr mem)
++
++(AtomicStore32      ptr val mem) -> (STLRW ptr val mem)
++(AtomicStore64      ptr val mem) -> (STLR  ptr val mem)
++(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
++
++(AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange32 ptr val mem)
++(AtomicExchange64 ptr val mem) -> (LoweredAtomicExchange64 ptr val mem)
++
++(AtomicAdd32 ptr val mem) -> (LoweredAtomicAdd32 ptr val mem)
++(AtomicAdd64 ptr val mem) -> (LoweredAtomicAdd64 ptr val mem)
++
++(AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
++(AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
++
+ // Optimizations
+ 
+ // Absorb boolean tests into block
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 917c4a7424..607f571014 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -141,18 +141,13 @@ func init() {
+ 		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+ 		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
+ 		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+-		//gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
+-		//gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+-		//gp3flags  = regInfo{inputs: []regMask{gp, gp, gp}}
+-		//gp3flags1 = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+-		gpload   = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+-		gpstore  = regInfo{inputs: []regMask{gpspsbg, gpg}}
+-		gpstore0 = regInfo{inputs: []regMask{gpspsbg}}
+-		//gp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+-		//gp2store  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
+-		fp01 = regInfo{inputs: nil, outputs: []regMask{fp}}
+-		fp11 = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+-		//fp1flags  = regInfo{inputs: []regMask{fp}}
++		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
++		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
++		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
++		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
++		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
++		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
++		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+ 		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+ 		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+ 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+@@ -209,6 +204,10 @@ func init() {
+ 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},       // byte reverse, 64-bit
+ 		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},     // byte reverse, 32-bit
+ 		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"}, // byte reverse in each 16-bit halfword, 32-bit
++		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},     // bit reverse, 64-bit
++		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},   // bit reverse, 32-bit
++		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},       // count leading zero, 64-bit
++		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},     // count leading zero, 32-bit
+ 
+ 		// shifts
+ 		{name: "SLL", argLength: 2, reg: gp21, asm: "LSL"},                      // arg0 << arg1, shift amount is mod 64
+@@ -425,6 +424,51 @@ func init() {
+ 		// (InvertFlags (CMP a b)) == (CMP b a)
+ 		// InvertFlags is a pseudo-op which can't appear in assembly output.
+ 		{name: "InvertFlags", argLength: 1}, // reverse direction of arg0
++
++		// atomic loads.
++		// load from arg0. arg1=mem.
++		// returns <value,memory> so they can be properly ordered with other loads.
++		{name: "LDAR", argLength: 2, reg: gpload, asm: "LDAR"},
++		{name: "LDARW", argLength: 2, reg: gpload, asm: "LDARW"},
++
++		// atomic stores.
++		// store arg1 to arg0. arg2=mem. returns memory.
++		{name: "STLR", argLength: 3, reg: gpstore, asm: "STLR"},
++		{name: "STLRW", argLength: 3, reg: gpstore, asm: "STLRW"},
++
++		// atomic exchange.
++		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>.
++		// LDAXR	(Rarg0), Rout
++		// STLXR	Rarg1, (Rarg0), Rtmp
++		// CBNZ		Rtmp, -2(PC)
++		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true},
++		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true},
++
++		// atomic add.
++		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
++		// LDAXR	(Rarg0), Rout
++		// ADD		Rarg1, Rout
++		// STLXR	Rout, (Rarg0), Rtmp
++		// CBNZ		Rtmp, -3(PC)
++		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true},
++		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true},
++
++		// atomic compare and swap.
++		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
++		// if *arg0 == arg1 {
++		//   *arg0 = arg2
++		//   return (true, memory)
++		// } else {
++		//   return (false, memory)
++		// }
++		// LDAXR	(Rarg0), Rtmp
++		// CMP		Rarg1, Rtmp
++		// BNE		3(PC)
++		// STLXR	Rarg2, (Rarg0), Rtmp
++		// CBNZ		Rtmp, -4(PC)
++		// CSET		EQ, Rout
++		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true},
++		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 29f3fa5388..64be4049fb 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -44,6 +44,7 @@ type opData struct {
+ 	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
+ 	commutative       bool  // this operation is commutative on its first 2 arguments (e.g. addition)
+ 	resultInArg0      bool  // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
++	resultNotInArgs   bool  // outputs must not be allocated to the same registers as inputs
+ 	clobberFlags      bool  // this op clobbers flags register
+ }
+ 
+@@ -168,6 +169,9 @@ func genOp() {
+ 					log.Fatalf("input[1] and output[0] must use the same registers for %s", v.name)
+ 				}
+ 			}
++			if v.resultNotInArgs {
++				fmt.Fprintln(w, "resultNotInArgs: true,")
++			}
+ 			if v.clobberFlags {
+ 				fmt.Fprintln(w, "clobberFlags: true,")
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 887cce1511..0166c7fc57 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -26,7 +26,8 @@ type opInfo struct {
+ 	generic           bool // this is a generic (arch-independent) opcode
+ 	rematerializeable bool // this op is rematerializeable
+ 	commutative       bool // this operation is commutative (e.g. addition)
+-	resultInArg0      bool // last output of v and v.Args[0] must be allocated to the same register
++	resultInArg0      bool // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
++	resultNotInArgs   bool // outputs must not be allocated to the same registers as inputs
+ 	clobberFlags      bool // this op clobbers flags register
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 229009fa5f..575383a6f0 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -867,6 +867,10 @@ const (
+ 	OpARM64REV
+ 	OpARM64REVW
+ 	OpARM64REV16W
++	OpARM64RBIT
++	OpARM64RBITW
++	OpARM64CLZ
++	OpARM64CLZW
+ 	OpARM64SLL
+ 	OpARM64SLLconst
+ 	OpARM64SRL
+@@ -984,6 +988,16 @@ const (
+ 	OpARM64FlagGT_UGT
+ 	OpARM64FlagGT_ULT
+ 	OpARM64InvertFlags
++	OpARM64LDAR
++	OpARM64LDARW
++	OpARM64STLR
++	OpARM64STLRW
++	OpARM64LoweredAtomicExchange64
++	OpARM64LoweredAtomicExchange32
++	OpARM64LoweredAtomicAdd64
++	OpARM64LoweredAtomicAdd32
++	OpARM64LoweredAtomicCas64
++	OpARM64LoweredAtomicCas32
+ 
+ 	OpMIPS64ADDV
+ 	OpMIPS64ADDVconst
+@@ -10621,6 +10635,58 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "RBIT",
++		argLen: 1,
++		asm:    arm64.ARBIT,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:   "RBITW",
++		argLen: 1,
++		asm:    arm64.ARBITW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:   "CLZ",
++		argLen: 1,
++		asm:    arm64.ACLZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:   "CLZW",
++		argLen: 1,
++		asm:    arm64.ACLZW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
+ 	{
+ 		name:   "SLL",
+ 		argLen: 2,
+@@ -12046,6 +12112,142 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg:    regInfo{},
+ 	},
++	{
++		name:   "LDAR",
++		argLen: 2,
++		asm:    arm64.ALDAR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:   "LDARW",
++		argLen: 2,
++		asm:    arm64.ALDARW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:   "STLR",
++		argLen: 3,
++		asm:    arm64.ASTLR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++		},
++	},
++	{
++		name:   "STLRW",
++		argLen: 3,
++		asm:    arm64.ASTLRW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicExchange64",
++		argLen:          3,
++		resultNotInArgs: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicExchange32",
++		argLen:          3,
++		resultNotInArgs: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicAdd64",
++		argLen:          3,
++		resultNotInArgs: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicAdd32",
++		argLen:          3,
++		resultNotInArgs: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicCas64",
++		argLen:          4,
++		resultNotInArgs: true,
++		clobberFlags:    true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{2, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicCas32",
++		argLen:          4,
++		resultNotInArgs: true,
++		clobberFlags:    true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{2, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
++				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
++			},
++			outputs: []outputInfo{
++				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
++			},
++		},
++	},
+ 
+ 	{
+ 		name:        "ADDV",
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index e853f66316..77b27c4e76 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1189,8 +1189,10 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			// Before we pick a register for the output value, allow input registers
+ 			// to be deallocated. We do this here so that the output can use the
+ 			// same register as a dying input.
+-			s.nospill = 0
+-			s.advanceUses(v) // frees any registers holding args that are no longer live
++			if !opcodeTable[v.Op].resultNotInArgs {
++				s.nospill = 0
++				s.advanceUses(v) // frees any registers holding args that are no longer live
++			}
+ 
+ 			// Dump any registers which will be clobbered
+ 			s.freeRegs(regspec.clobbers)
+@@ -1264,6 +1266,12 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				}
+ 			}
+ 
++			// deallocate dead args, if we have not done so
++			if opcodeTable[v.Op].resultNotInArgs {
++				s.nospill = 0
++				s.advanceUses(v) // frees any registers holding args that are no longer live
++			}
++
+ 			// Issue the Value itself.
+ 			for i, a := range args {
+ 				v.SetArg(i, a) // use register version of arguments
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index db3ad730d8..08aa8abe50 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -220,8 +220,36 @@ func rewriteValueARM64(v *Value, config *Config) bool {
+ 		return rewriteValueARM64_OpAnd8(v, config)
+ 	case OpAndB:
+ 		return rewriteValueARM64_OpAndB(v, config)
++	case OpAtomicAdd32:
++		return rewriteValueARM64_OpAtomicAdd32(v, config)
++	case OpAtomicAdd64:
++		return rewriteValueARM64_OpAtomicAdd64(v, config)
++	case OpAtomicCompareAndSwap32:
++		return rewriteValueARM64_OpAtomicCompareAndSwap32(v, config)
++	case OpAtomicCompareAndSwap64:
++		return rewriteValueARM64_OpAtomicCompareAndSwap64(v, config)
++	case OpAtomicExchange32:
++		return rewriteValueARM64_OpAtomicExchange32(v, config)
++	case OpAtomicExchange64:
++		return rewriteValueARM64_OpAtomicExchange64(v, config)
++	case OpAtomicLoad32:
++		return rewriteValueARM64_OpAtomicLoad32(v, config)
++	case OpAtomicLoad64:
++		return rewriteValueARM64_OpAtomicLoad64(v, config)
++	case OpAtomicLoadPtr:
++		return rewriteValueARM64_OpAtomicLoadPtr(v, config)
++	case OpAtomicStore32:
++		return rewriteValueARM64_OpAtomicStore32(v, config)
++	case OpAtomicStore64:
++		return rewriteValueARM64_OpAtomicStore64(v, config)
++	case OpAtomicStorePtrNoWB:
++		return rewriteValueARM64_OpAtomicStorePtrNoWB(v, config)
+ 	case OpAvg64u:
+ 		return rewriteValueARM64_OpAvg64u(v, config)
++	case OpBswap32:
++		return rewriteValueARM64_OpBswap32(v, config)
++	case OpBswap64:
++		return rewriteValueARM64_OpBswap64(v, config)
+ 	case OpClosureCall:
+ 		return rewriteValueARM64_OpClosureCall(v, config)
+ 	case OpCom16:
+@@ -250,6 +278,10 @@ func rewriteValueARM64(v *Value, config *Config) bool {
+ 		return rewriteValueARM64_OpConstNil(v, config)
+ 	case OpConvert:
+ 		return rewriteValueARM64_OpConvert(v, config)
++	case OpCtz32:
++		return rewriteValueARM64_OpCtz32(v, config)
++	case OpCtz64:
++		return rewriteValueARM64_OpCtz64(v, config)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueARM64_OpCvt32Fto32(v, config)
+ 	case OpCvt32Fto32U:
+@@ -9064,6 +9096,208 @@ func rewriteValueARM64_OpAndB(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpAtomicAdd32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicAdd32 ptr val mem)
++	// cond:
++	// result: (LoweredAtomicAdd32 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64LoweredAtomicAdd32)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicAdd64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicAdd64 ptr val mem)
++	// cond:
++	// result: (LoweredAtomicAdd64 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64LoweredAtomicAdd64)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicCompareAndSwap32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
++	// cond:
++	// result: (LoweredAtomicCas32 ptr old new_ mem)
++	for {
++		ptr := v.Args[0]
++		old := v.Args[1]
++		new_ := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARM64LoweredAtomicCas32)
++		v.AddArg(ptr)
++		v.AddArg(old)
++		v.AddArg(new_)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicCompareAndSwap64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicCompareAndSwap64 ptr old new_ mem)
++	// cond:
++	// result: (LoweredAtomicCas64 ptr old new_ mem)
++	for {
++		ptr := v.Args[0]
++		old := v.Args[1]
++		new_ := v.Args[2]
++		mem := v.Args[3]
++		v.reset(OpARM64LoweredAtomicCas64)
++		v.AddArg(ptr)
++		v.AddArg(old)
++		v.AddArg(new_)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicExchange32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicExchange32 ptr val mem)
++	// cond:
++	// result: (LoweredAtomicExchange32 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64LoweredAtomicExchange32)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicExchange64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicExchange64 ptr val mem)
++	// cond:
++	// result: (LoweredAtomicExchange64 ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64LoweredAtomicExchange64)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicLoad32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicLoad32  ptr mem)
++	// cond:
++	// result: (LDARW ptr mem)
++	for {
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARM64LDARW)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicLoad64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicLoad64  ptr mem)
++	// cond:
++	// result: (LDAR  ptr mem)
++	for {
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARM64LDAR)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicLoadPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicLoadPtr ptr mem)
++	// cond:
++	// result: (LDAR  ptr mem)
++	for {
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARM64LDAR)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicStore32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicStore32      ptr val mem)
++	// cond:
++	// result: (STLRW ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64STLRW)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicStore64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicStore64      ptr val mem)
++	// cond:
++	// result: (STLR  ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64STLR)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueARM64_OpAtomicStorePtrNoWB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AtomicStorePtrNoWB ptr val mem)
++	// cond:
++	// result: (STLR  ptr val mem)
++	for {
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64STLR)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueARM64_OpAvg64u(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -9097,6 +9331,32 @@ func rewriteValueARM64_OpAvg64u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpBswap32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Bswap32 x)
++	// cond:
++	// result: (REVW x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARM64REVW)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueARM64_OpBswap64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Bswap64 x)
++	// cond:
++	// result: (REV x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARM64REV)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM64_OpClosureCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -9286,6 +9546,38 @@ func rewriteValueARM64_OpConvert(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpCtz32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Ctz32 <t> x)
++	// cond:
++	// result: (CLZW (RBITW <t> x))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARM64CLZW)
++		v0 := b.NewValue0(v.Line, OpARM64RBITW, t)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM64_OpCtz64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Ctz64 <t> x)
++	// cond:
++	// result: (CLZ (RBIT <t> x))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARM64CLZ)
++		v0 := b.NewValue0(v.Line, OpARM64RBIT, t)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM64_OpCvt32Fto32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index c6c422b82c..718769ba61 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -465,9 +465,13 @@ func relinv(a obj.As) obj.As {
+ 		return ABLE
+ 	case ABLE:
+ 		return ABGT
++	case ACBZ:
++		return ACBNZ
++	case ACBNZ:
++		return ACBZ
+ 	}
+ 
+-	log.Fatalf("unknown relation: %s", Anames[a])
++	log.Fatalf("unknown relation: %s", Anames[a-obj.ABaseARM64])
+ 	return 0
+ }
+ 
+diff --git a/test/intrinsic.go b/test/intrinsic.go
+index f77412852d..57a9decc1f 100644
+--- a/test/intrinsic.go
++++ b/test/intrinsic.go
+@@ -1,5 +1,5 @@
+ // errorcheckandrundir -0 -d=ssa/intrinsics/debug
+-// +build !ppc64,!ppc64le,amd64
++// +build amd64 arm64
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

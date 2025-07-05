@@ -12,6 +12,20 @@ Date:   Thu Apr 8 17:03:18 2021 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/mod_list_update_nolatest.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_list_update_nolatest.txt b/src/cmd/go/testdata/script/mod_list_update_nolatest.txt
+index 6d00f8ce1e..c6bbbb04ec 100644
+--- a/src/cmd/go/testdata/script/mod_list_update_nolatest.txt
++++ b/src/cmd/go/testdata/script/mod_list_update_nolatest.txt
+@@ -6,7 +6,7 @@
+ # but has no /@latest (410) because the go.mod at the tip of the default
+ # branch has a different major version suffix.
+ env testproxy=$GOPROXY
+-env GOPROXY=file://$WORK/proxy
++env GOPROXY=file:///$WORK/proxy
+ env GOSUMDB=off
+ 
+ # If the proxy does not return a list of versions (404/410)

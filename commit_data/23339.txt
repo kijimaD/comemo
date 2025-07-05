@@ -14,8 +14,85 @@ Date:   Sat May 2 16:40:21 2015 +1000
     Change-Id: I63a922ca4e4ad2fc9e9be3e5b47f59fae7d0eb5c
     Reviewed-on: https://go-review.googlesource.com/9663
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/debug/dwarf/entry.go    |  7 +++++++
  src/debug/dwarf/type.go     | 10 ++++++++++
  src/debug/dwarf/typeunit.go |  5 +++++
  3 files changed, 22 insertions(+)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 1915d78dc9..a94be32a21 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -522,6 +522,12 @@ func (d *Data) Reader() *Reader {
+ 	return r
+ }
+ 
++// AddressSize returns the size in bytes of addresses in the current compilation
++// unit.
++func (r *Reader) AddressSize() int {
++	return r.d.unit[r.unit].asize
++}
++
+ // Seek positions the Reader at offset off in the encoded entry stream.
+ // Offset 0 can be used to denote the first entry.
+ func (r *Reader) Seek(off Offset) {
+@@ -541,6 +547,7 @@ func (r *Reader) Seek(off Offset) {
+ 	i := d.offsetToUnit(off)
+ 	if i == -1 {
+ 		r.err = errors.New("offset out of range")
++		return
+ 	}
+ 	u := &d.unit[i]
+ 	r.unit = i
+diff --git a/src/debug/dwarf/type.go b/src/debug/dwarf/type.go
+index 6986b19e72..a5daa1d0bb 100644
+--- a/src/debug/dwarf/type.go
++++ b/src/debug/dwarf/type.go
+@@ -268,6 +268,9 @@ type typeReader interface {
+ 	Next() (*Entry, error)
+ 	clone() typeReader
+ 	offset() Offset
++	// AddressSize returns the size in bytes of addresses in the current
++	// compilation unit.
++	AddressSize() int
+ }
+ 
+ // Type reads the type at off in the DWARF ``info'' section.
+@@ -286,6 +289,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	addressSize := r.AddressSize()
+ 	if e == nil || e.Offset != off {
+ 		return nil, DecodeError{name, off, "no type at offset"}
+ 	}
+@@ -668,6 +672,12 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 		b, ok := e.Val(AttrByteSize).(int64)
+ 		if !ok {
+ 			b = -1
++			switch t := typ.(type) {
++			case *TypedefType:
++				b = t.Type.Size()
++			case *PtrType:
++				b = int64(addressSize)
++			}
+ 		}
+ 		typ.Common().ByteSize = b
+ 	}
+diff --git a/src/debug/dwarf/typeunit.go b/src/debug/dwarf/typeunit.go
+index 98a46857fa..9cfb4a8b25 100644
+--- a/src/debug/dwarf/typeunit.go
++++ b/src/debug/dwarf/typeunit.go
+@@ -129,6 +129,11 @@ func (tur *typeUnitReader) Seek(off Offset) {
+ 	tur.b = makeBuf(tur.d, tur.tu, tur.tu.name, off, tur.tu.data[doff:])
+ }
+ 
++// AddressSize returns the size in bytes of addresses in the current type unit.
++func (tur *typeUnitReader) AddressSize() int {
++	return tur.tu.unit.asize
++}
++
+ // Next reads the next Entry from the type unit.
+ func (tur *typeUnitReader) Next() (*Entry, error) {
+ 	if tur.err != nil {

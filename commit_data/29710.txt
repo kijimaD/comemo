@@ -9,8 +9,51 @@ Date:   Mon Oct 3 13:32:11 2016 -0700
     Change-Id: I8927f40e0fd166795f41c784ad92449743f73af5
     Reviewed-on: https://go-review.googlesource.com/30213
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/check_test.go          |  1 +
  src/go/types/resolver.go            |  3 +++
  src/go/types/testdata/aliasdecl.src | 10 ++++++++++
  3 files changed, 14 insertions(+)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 5a3032282f..d823344066 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -72,6 +72,7 @@ var tests = [][]string{
+ 	{"testdata/const1.src"},
+ 	{"testdata/constdecl.src"},
+ 	{"testdata/vardecl.src"},
++	{"testdata/aliasdecl.src"},
+ 	{"testdata/expr0.src"},
+ 	{"testdata/expr1.src"},
+ 	{"testdata/expr2.src"},
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 2b81b4a84b..15722dec8d 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -274,6 +274,9 @@ func (check *Checker) collectObjects() {
+ 							check.declare(fileScope, nil, obj, token.NoPos)
+ 						}
+ 
++					case *ast.AliasSpec:
++						check.errorf(s.Name.Pos(), "cannot handle alias declarations yet")
++
+ 					case *ast.ValueSpec:
+ 						switch d.Tok {
+ 						case token.CONST:
+diff --git a/src/go/types/testdata/aliasdecl.src b/src/go/types/testdata/aliasdecl.src
+new file mode 100644
+index 0000000000..d1153516f2
+--- /dev/null
++++ b/src/go/types/testdata/aliasdecl.src
+@@ -0,0 +1,10 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aliasdecl
++
++import "math"
++
++const _ = math.Pi
++const c /* ERROR "cannot handle alias declarations yet" */ => math.Pi

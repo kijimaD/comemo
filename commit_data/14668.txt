@@ -8,6 +8,20 @@ Date:   Mon Dec 17 23:37:02 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6946063
-
+---
  src/pkg/os/env.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index eb265f2413..db7fc72b8a 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -9,7 +9,7 @@ package os
+ import "syscall"
+ 
+ // Expand replaces ${var} or $var in the string based on the mapping function.
+-// Invocations of undefined variables are replaced with the empty string.
++// For example, os.ExpandEnv(s) is equivalent to os.Expand(s, os.Getenv).
+ func Expand(s string, mapping func(string) string) string {
+ 	buf := make([]byte, 0, 2*len(s))
+ 	// ${} is all ASCII, so bytes are fine for this operation.

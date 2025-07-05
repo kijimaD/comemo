@@ -35,7 +35,7 @@ Date:   Tue Apr 25 18:29:54 2017 +0800
     Reviewed-on: https://go-review.googlesource.com/41654
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go        | 160 +++++++++++
  src/cmd/asm/internal/asm/parse.go         | 177 +++++++++++--
  src/cmd/asm/internal/asm/testdata/arm64.s |  46 +++-
@@ -49,3 +49,1660 @@ Date:   Tue Apr 25 18:29:54 2017 +0800
  src/cmd/internal/obj/link.go              |  26 +-
  src/cmd/internal/obj/util.go              |  57 ++--
  12 files changed, 1204 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 4320a299ff..2fd21b58b8 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -11,6 +11,7 @@ package arch
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
++	"errors"
+ )
+ 
+ var arm64LS = map[string]uint8{
+@@ -118,3 +119,162 @@ func arm64RegisterNumber(name string, n int16) (int16, bool) {
+ 	}
+ 	return 0, false
+ }
++
++// ARM64RegisterExtension parses an ARM64 register with extension or arrangment.
++func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, isIndex bool) error {
++	rm := uint32(reg)
++	switch ext {
++	case "UXTB":
++		if !isAmount {
++			return errors.New("invalid register extension")
++		}
++		a.Reg = arm64.REG_UXTB + (reg & 31) + int16(num<<5)
++		a.Offset = int64(((rm & 31) << 16) | (uint32(num) << 10))
++	case "UXTH":
++		if !isAmount {
++			return errors.New("invalid register extension")
++		}
++		a.Reg = arm64.REG_UXTH + (num & 31) + int16(num<<5)
++		a.Offset = int64(((rm & 31) << 16) | (1 << 13) | (uint32(num) << 10))
++	case "UXTW":
++		if !isAmount {
++			return errors.New("invalid register extension")
++		}
++		a.Reg = arm64.REG_UXTW + (reg & 31) + int16(num<<5)
++		a.Offset = int64(((rm & 31) << 16) | (2 << 13) | (uint32(num) << 10))
++	case "UXTX":
++		if !isAmount {
++			return errors.New("invalid register extension")
++		}
++		a.Reg = arm64.REG_UXTX + (reg & 31) + int16(num<<5)
++		a.Offset = int64(((rm & 31) << 16) | (3 << 13) | (uint32(num) << 10))
++	case "SXTB":
++		if !isAmount {
++			return errors.New("invalid register extension")
++		}
++		a.Reg = arm64.REG_SXTB + (reg & 31) + int16(num<<5)
++		a.Offset = int64(((rm & 31) << 16) | (4 << 13) | (uint32(num) << 10))
++	case "SXTH":
++		if !isAmount {
++			return errors.New("invalid register extension")
++		}
++		a.Reg = arm64.REG_SXTH + (reg & 31) + int16(num<<5)
++		a.Offset = int64(((rm & 31) << 16) | (5 << 13) | (uint32(num) << 10))
++	case "SXTW":
++		if !isAmount {
++			return errors.New("invalid register extension")
++		}
++		a.Reg = arm64.REG_SXTW + (reg & 31) + int16(num<<5)
++		a.Offset = int64(((rm & 31) << 16) | (6 << 13) | (uint32(num) << 10))
++	case "SXTX":
++		if !isAmount {
++			return errors.New("invalid register extension")
++		}
++		a.Reg = arm64.REG_SXTX + (reg & 31) + int16(num<<5)
++		a.Offset = int64(((rm & 31) << 16) | (7 << 13) | (uint32(num) << 10))
++	case "B8":
++		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_8B & 15) << 5)
++	case "B16":
++		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_16B & 15) << 5)
++	case "H4":
++		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_4H & 15) << 5)
++	case "H8":
++		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_8H & 15) << 5)
++	case "S2":
++		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_2S & 15) << 5)
++	case "S4":
++		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_4S & 15) << 5)
++	case "D2":
++		a.Reg = arm64.REG_ARNG + (reg & 31) + ((arm64.ARNG_2D & 15) << 5)
++	case "B":
++		if !isIndex {
++			return nil
++		}
++		a.Reg = arm64.REG_ELEM + (reg & 31) + ((arm64.ARNG_B & 15) << 5)
++		a.Index = num
++	case "H":
++		if !isIndex {
++			return nil
++		}
++		a.Reg = arm64.REG_ELEM + (reg & 31) + ((arm64.ARNG_H & 15) << 5)
++		a.Index = num
++	case "S":
++		if !isIndex {
++			return nil
++		}
++		a.Reg = arm64.REG_ELEM + (reg & 31) + ((arm64.ARNG_S & 15) << 5)
++		a.Index = num
++	case "D":
++		if !isIndex {
++			return nil
++		}
++		a.Reg = arm64.REG_ELEM + (reg & 31) + ((arm64.ARNG_D & 15) << 5)
++		a.Index = num
++	default:
++		return errors.New("unsupported register extension type: " + ext)
++	}
++	a.Type = obj.TYPE_REG
++	return nil
++}
++
++// ARM64RegisterArrangement parses an ARM64 vector register arrangment.
++func ARM64RegisterArrangement(reg int16, name, arng string) (int64, error) {
++	var curQ, curSize uint16
++	if name[0] != 'V' {
++		return 0, errors.New("expect V0 through V31; found: " + name)
++	}
++	if reg < 0 {
++		return 0, errors.New("invalid register number: " + name)
++	}
++	switch arng {
++	case "B8":
++		curSize = 0
++		curQ = 0
++	case "B16":
++		curSize = 0
++		curQ = 1
++	case "H4":
++		curSize = 1
++		curQ = 0
++	case "H8":
++		curSize = 1
++		curQ = 1
++	case "S2":
++		curSize = 1
++		curQ = 0
++	case "S4":
++		curSize = 2
++		curQ = 1
++	case "D1":
++		curSize = 3
++		curQ = 0
++	case "D2":
++		curSize = 3
++		curQ = 1
++	default:
++		return 0, errors.New("invalid arrangement in ARM64 register list")
++	}
++	return (int64(curQ) & 1 << 30) | (int64(curSize&3) << 10), nil
++}
++
++// ARM64RegisterListOffset generates offset encoding according to AArch64 specification.
++func ARM64RegisterListOffset(firstReg, regCnt int, arrangement int64) (int64, error) {
++	offset := int64(firstReg)
++	switch regCnt {
++	case 1:
++		offset |= 0x7 << 12
++	case 2:
++		offset |= 0xa << 12
++	case 3:
++		offset |= 0x6 << 12
++	case 4:
++		offset |= 0x2 << 12
++	default:
++		return 0, errors.New("invalid register numbers in ARM64 register list")
++	}
++	offset |= arrangement
++	// arm64 uses the 60th bit to differentiate from other archs
++	// For more details, refer to: obj/arm64/list7.go
++	offset |= 1 << 60
++	return offset, nil
++}
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index c0dd2db341..1d5d07344d 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -321,6 +321,10 @@ func (p *Parser) operand(a *obj.Addr) {
+ 				a.Reg, _ = p.registerReference(name)
+ 				p.get(')')
+ 			}
++		} else if p.atRegisterExtension() {
++			p.registerExtension(a, tok.String(), prefix)
++			p.expectOperandEnd()
++			return
+ 		} else if r1, r2, scale, ok := p.register(tok.String(), prefix); ok {
+ 			if scale != 0 {
+ 				p.errorf("expected simple register reference")
+@@ -439,6 +443,20 @@ func (p *Parser) atRegisterShift() bool {
+ 	return p.at('(', scanner.Int, ')') && lex.IsRegisterShift(p.input[p.inputPos+3].ScanToken)
+ }
+ 
++// atRegisterExtension reports whether we are at the start of an ARM64 extended register.
++// We have consumed the register or R prefix.
++func (p *Parser) atRegisterExtension() bool {
++	// ARM64 only.
++	if p.arch.Family != sys.ARM64 {
++		return false
++	}
++	// R1.xxx
++	if p.peek() == '.' {
++		return true
++	}
++	return false
++}
++
+ // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
+ func (p *Parser) registerReference(name string) (int16, bool) {
+ 	r, present := p.arch.Register[name]
+@@ -573,6 +591,59 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
+ 	}
+ }
+ 
++// registerExtension parses a register with extension or arrangment.
++// There is known to be a register (current token) and an extension operator (peeked token).
++func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
++	if prefix != 0 {
++		p.errorf("prefix %c not allowed for shifted register: $%s", prefix, name)
++	}
++
++	reg, ok := p.registerReference(name)
++	if !ok {
++		p.errorf("unexpected %s in register extension", name)
++		return
++	}
++
++	p.get('.')
++	tok := p.next()
++	ext := tok.String()
++	isIndex := false
++	num := int16(0)
++	isAmount := true // Amount is zero by default
++	if p.peek() == lex.LSH {
++		// parses left shift amount applied after extension: <<Amount
++		p.get(lex.LSH)
++		tok := p.get(scanner.Int)
++		amount, err := strconv.ParseInt(tok.String(), 10, 16)
++		if err != nil {
++			p.errorf("parsing left shift amount: %s", err)
++		}
++		num = int16(amount)
++	} else if p.peek() == '[' {
++		// parses an element: [Index]
++		p.get('[')
++		tok := p.get(scanner.Int)
++		index, err := strconv.ParseInt(tok.String(), 10, 16)
++		p.get(']')
++		if err != nil {
++			p.errorf("parsing element index: %s", err)
++		}
++		isIndex = true
++		isAmount = false
++		num = int16(index)
++	}
++
++	switch p.arch.Family {
++	case sys.ARM64:
++		err := arch.ARM64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
++		if err != nil {
++			p.errorf(err.Error())
++		}
++	default:
++		p.errorf("register extension not supported on this architecture")
++	}
++}
++
+ // symbolReference parses a symbol that is known not to be a register.
+ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 	// Identifier is a name.
+@@ -720,7 +791,12 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ 			p.errorf("unimplemented two-register form")
+ 		}
+ 		a.Index = r1
+-		a.Scale = int16(scale)
++		if scale == 0 && p.arch.Family == sys.ARM64 {
++			// scale is 1 by default for ARM64
++			a.Scale = 1
++		} else {
++			a.Scale = int16(scale)
++		}
+ 		p.get(')')
+ 	} else if scale != 0 {
+ 		// First (R) was missing, all we have is (R*scale).
+@@ -730,14 +806,28 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ 	}
+ }
+ 
+-// registerList parses an ARM register list expression, a list of registers in [].
+-// There may be comma-separated ranges or individual registers, as in
+-// [R1,R3-R5]. Only R0 through R15 may appear.
++// registerList parses an ARM or ARM64 register list expression, a list of
++// registers in []. There may be comma-separated ranges or individual
++// registers, as in [R1,R3-R5] or [V1.S4, V2.S4, V3.S4, V4.S4].
++// For ARM, only R0 through R15 may appear.
++// For ARM64, V0 through V31 with arrangement may appear.
+ // The opening bracket has been consumed.
+ func (p *Parser) registerList(a *obj.Addr) {
+ 	// One range per loop.
+-	const maxReg = 16
++	var maxReg int
+ 	var bits uint16
++	var arrangement int64
++	switch p.arch.Family {
++	case sys.ARM:
++		maxReg = 16
++	case sys.ARM64:
++		maxReg = 32
++	default:
++		p.errorf("unexpected register list")
++	}
++	firstReg := -1
++	nextReg := -1
++	regCnt := 0
+ ListLoop:
+ 	for {
+ 		tok := p.next()
+@@ -748,30 +838,73 @@ ListLoop:
+ 			p.errorf("missing ']' in register list")
+ 			return
+ 		}
+-		// Parse the upper and lower bounds.
+-		lo := p.registerNumber(tok.String())
+-		hi := lo
+-		if p.peek() == '-' {
+-			p.next()
+-			hi = p.registerNumber(p.next().String())
+-		}
+-		if hi < lo {
+-			lo, hi = hi, lo
+-		}
+-		// Check there are no duplicates in the register list.
+-		for i := 0; lo <= hi && i < maxReg; i++ {
+-			if bits&(1<<lo) != 0 {
+-				p.errorf("register R%d already in list", lo)
++		switch p.arch.Family {
++		case sys.ARM64:
++			// Vn.T
++			name := tok.String()
++			r, ok := p.registerReference(name)
++			if !ok {
++				p.errorf("invalid register: %s", name)
+ 			}
+-			bits |= 1 << lo
+-			lo++
++			reg := r - p.arch.Register["V0"]
++			p.get('.')
++			tok := p.next()
++			ext := tok.String()
++			curArrangement, err := arch.ARM64RegisterArrangement(reg, name, ext)
++			if err != nil {
++				p.errorf(err.Error())
++			}
++			if firstReg == -1 {
++				// only record the first register and arrangement
++				firstReg = int(reg)
++				nextReg = firstReg
++				arrangement = curArrangement
++			} else if curArrangement != arrangement {
++				p.errorf("inconsistent arrangement in ARM64 register list")
++			} else if nextReg != int(reg) {
++				p.errorf("incontiguous register in ARM64 register list: %s", name)
++			}
++			regCnt++
++			nextReg = (nextReg + 1) % 32
++		case sys.ARM:
++			// Parse the upper and lower bounds.
++			lo := p.registerNumber(tok.String())
++			hi := lo
++			if p.peek() == '-' {
++				p.next()
++				hi = p.registerNumber(p.next().String())
++			}
++			if hi < lo {
++				lo, hi = hi, lo
++			}
++			// Check there are no duplicates in the register list.
++			for i := 0; lo <= hi && i < maxReg; i++ {
++				if bits&(1<<lo) != 0 {
++					p.errorf("register R%d already in list", lo)
++				}
++				bits |= 1 << lo
++				lo++
++			}
++		default:
++			p.errorf("unexpected register list")
+ 		}
+ 		if p.peek() != ']' {
+ 			p.get(',')
+ 		}
+ 	}
+ 	a.Type = obj.TYPE_REGLIST
+-	a.Offset = int64(bits)
++	switch p.arch.Family {
++	case sys.ARM:
++		a.Offset = int64(bits)
++	case sys.ARM64:
++		offset, err := arch.ARM64RegisterListOffset(firstReg, regCnt, arrangement)
++		if err != nil {
++			p.errorf(err.Error())
++		}
++		a.Offset = offset
++	default:
++		p.errorf("register list not supported on this architecuture")
++	}
+ }
+ 
+ // register number is ARM-specific. It returns the number of the specified register.
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 1b6dc188c4..6d890275ad 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -29,6 +29,28 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	ADD	R1<<22, R2, R3
+ 	ADD	R1->33, R2, R3
+ 	AND	R1@>33, R2, R3
++	ADD	R1.UXTB, R2, R3                 // 4360218b
++	ADD	R1.UXTB<<4, R2, R3              // 4370218b
++	VADDP	V1.B16, V2.B16, V3.B16          // 43bc214e
++	VADDP	V1.S4, V2.S4, V3.S4             // 43bca14e
++	VADDP	V1.D2, V2.D2, V3.D2             // 43bce14e
++	VAND	V21.B8, V12.B8, V3.B8           // 831d350e
++	VCMEQ	V1.H4, V2.H4, V3.H4             // 438c612e
++	VORR	V5.B16, V4.B16, V3.B16          // 831ca54e
++	VADD	V16.S4, V5.S4, V9.S4            // a984b04e
++	VEOR	V0.B16, V1.B16, V0.B16          // 201c206e
++	SHA256H	V9.S4, V3, V2                   // 6240095e
++	SHA256H2	V9.S4, V4, V3           // 8350095e
++	SHA256SU0	V8.S4, V7.S4            // 0729285e
++	SHA256SU1	V6.S4, V5.S4, V7.S4     // a760065e
++	SHA1SU0	V11.S4, V8.S4, V6.S4            // 06310b5e
++	SHA1SU1	V5.S4, V1.S4                    // a118285e
++	SHA1C	V1.S4, V2, V3                   // 4300015e
++	SHA1H	V5, V4                          // a408285e
++	SHA1M	V8.S4, V7, V6                   // e620085e
++	SHA1P	V11.S4, V10, V9                 // 49110b5e
++	VADDV	V0.S4, V0                       // 00b8b14e
++	VMOVI	$82, V0.B16                     // 40e6024f
+ 
+ //	LTYPE1 imsr ',' spreg ','
+ //	{
+@@ -84,6 +106,18 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	MOVD	$1, ZR
+ 	MOVD	$1, R1
+ 	MOVD	ZR, (R1)
++	VLD1	(R8), [V1.B16, V2.B16]                          // 01a1404c
++	VLD1.P	(R3), [V31.H8, V0.H8]                           // 7fa4df4c
++	VLD1.P	(R8)(R20), [V21.B16, V22.B16]                   // VLD1.P	(R8)(R20*1), [V21.B16,V22.B16] // 15a1d44c
++	VLD1.P	64(R1), [V5.B16, V6.B16, V7.B16, V8.B16]        // 2520df4c
++	VST1.P	[V4.S4, V5.S4], 32(R1)                          // 24a89f4c
++	VST1	[V0.S4, V1.S4], (R0)                            // 00a8004c
++	VMOVS	V20, (R0)                                       // 140000bd
++	VMOVS.P	V20, 4(R0)                                      // 144400bc
++	VMOVS.W	V20, 4(R0)                                      // 144c00bc
++	VMOVS	(R0), V20                                       // 140040bd
++	VMOVS.P	8(R0), V20                                      // 148440bc
++	VMOVS.W	8(R0), V20                                      // 148c40bc
+ 
+ 	// small offset fits into instructions
+ 	MOVB	1(R1), R2 // 22048039
+@@ -147,7 +181,16 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ //		outcode($1, &$2, NREG, &$4);
+ //	}
+ 	MOVK	$1, R1
+-
++	VMOV	V8.S[1], R1       // 013d0c0e
++	VMOV	V0.D[0], R11      // 0b3c084e
++	VMOV	V0.D[1], R11      // 0b3c184e
++	VMOV	R20, V1.S[0]      // 811e044e
++	VMOV	R1, V9.H4         // 290c020e
++	VMOV	R22, V11.D2       // cb0e084e
++	VMOV 	V2.B16, V4.B16    // 441ca24e
++	VMOV	V20.S[0], V20     // 9406045e
++	VREV32	V5.B16, V5.B16    // a508206e
++	VDUP	V19.S[0], V17.S4  // 7106044e
+ //
+ // B/BL
+ //
+@@ -193,6 +236,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	CMP	R1->11, R2
+ 	CMP	R1>>22, R2
+ 	CMP	R1<<33, R2
++	CMP	R22.SXTX, RSP // ffe336eb
+ //
+ // CBZ
+ //
+diff --git a/src/cmd/internal/obj/arm/list5.go b/src/cmd/internal/obj/arm/list5.go
+index 169a7f5ad9..6522f9aff8 100644
+--- a/src/cmd/internal/obj/arm/list5.go
++++ b/src/cmd/internal/obj/arm/list5.go
+@@ -38,6 +38,7 @@ import (
+ func init() {
+ 	obj.RegisterRegister(obj.RBaseARM, MAXREG, rconv)
+ 	obj.RegisterOpcode(obj.ABaseARM, Anames)
++	obj.RegisterRegisterList(obj.RegListARMLo, obj.RegListARMHi, rlconv)
+ }
+ 
+ func rconv(r int) string {
+@@ -81,3 +82,25 @@ func DRconv(a int) string {
+ 	fp += s
+ 	return fp
+ }
++
++func rlconv(list int64) string {
++	str := ""
++	for i := 0; i < 16; i++ {
++		if list&(1<<uint(i)) != 0 {
++			if str == "" {
++				str += "["
++			} else {
++				str += ","
++			}
++			// This is ARM-specific; R10 is g.
++			if i == REGG-REG_R0 {
++				str += "g"
++			} else {
++				str += fmt.Sprintf("R%d", i)
++			}
++		}
++	}
++
++	str += "]"
++	return str
++}
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index c4bd8ff39e..2b0b27f6c5 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -166,6 +166,14 @@ const (
+ 	REG_RSP = REG_V31 + 32 // to differentiate ZR/SP, REG_RSP&0x1f = 31
+ )
+ 
++// bits 0-4 indicates register: Vn
++// bits 5-8 indicates arrangement: <T>
++const (
++	REG_ARNG = obj.RBaseARM64 + 1<<10 + iota<<9 // Vn.<T>
++	REG_ELEM                                    // Vn.<T>[index]
++	REG_ELEM_END
++)
++
+ // Not registers, but flags that can be combined with regular register
+ // constants to indicate extended register conversion. When checking,
+ // you should subtract obj.RBaseARM64 first. From this difference, bit 11
+@@ -264,9 +272,12 @@ const (
+ 	C_VREG   // V0..V31
+ 	C_PAIR   // (Rn, Rm)
+ 	C_SHIFT  // Rn<<2
+-	C_EXTREG // Rn.UXTB<<3
++	C_EXTREG // Rn.UXTB[<<3]
+ 	C_SPR    // REG_NZCV
+ 	C_COND   // EQ, NE, etc
++	C_ARNG   // Vn.<T>
++	C_ELEM   // Vn.<T>[index]
++	C_LIST   // [V1, V2, V3]
+ 
+ 	C_ZCON     // $0 or ZR
+ 	C_ABCON0   // could be C_ADDCON0 or C_BITCON
+@@ -720,6 +731,20 @@ const (
+ 	ASHA256H2
+ 	ASHA256SU0
+ 	ASHA256SU1
++	AVADD
++	AVADDP
++	AVAND
++	AVCMEQ
++	AVEOR
++	AVMOV
++	AVLD1
++	AVORR
++	AVREV32
++	AVST1
++	AVDUP
++	AVMOVS
++	AVADDV
++	AVMOVI
+ 	ALAST
+ 	AB  = obj.AJMP
+ 	ABL = obj.ACALL
+@@ -731,3 +756,20 @@ const (
+ 	SHIFT_LR = 1 << 22
+ 	SHIFT_AR = 2 << 22
+ )
++
++// Arrangement for ARM64 SIMD instructions
++const (
++	// arrangement types
++	ARNG_8B = iota
++	ARNG_16B
++	ARNG_1D
++	ARNG_4H
++	ARNG_8H
++	ARNG_2S
++	ARNG_4S
++	ARNG_2D
++	ARNG_B
++	ARNG_H
++	ARNG_S
++	ARNG_D
++)
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 4ee4043af7..3fe8025e80 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -366,5 +366,19 @@ var Anames = []string{
+ 	"SHA256H2",
+ 	"SHA256SU0",
+ 	"SHA256SU1",
++	"VADD",
++	"VADDP",
++	"VAND",
++	"VCMEQ",
++	"VEOR",
++	"VMOV",
++	"VLD1",
++	"VORR",
++	"VREV32",
++	"VST1",
++	"VDUP",
++	"VMOVS",
++	"VADDV",
++	"VMOVI",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/arm64/anames7.go b/src/cmd/internal/obj/arm64/anames7.go
+index a9cccc19f6..cb4b13934d 100644
+--- a/src/cmd/internal/obj/arm64/anames7.go
++++ b/src/cmd/internal/obj/arm64/anames7.go
+@@ -16,6 +16,9 @@ var cnames7 = []string{
+ 	"EXTREG",
+ 	"SPR",
+ 	"COND",
++	"ARNG",
++	"ELEM",
++	"LIST",
+ 	"ZCON",
+ 	"ABCON0",
+ 	"ADDCON0",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index a7f4b010ee..31cec14f00 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -320,6 +320,10 @@ var optab = []Optab{
+ 	{AMOVW, C_REG, C_NONE, C_ZOREG, 20, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_UOREG16K, 20, 4, 0, 0, 0},
+ 
++	{AVMOVS, C_VREG, C_NONE, C_UAUTO16K, 20, 4, REGSP, 0, 0},
++	{AVMOVS, C_VREG, C_NONE, C_ZOREG, 20, 4, 0, 0, 0},
++	{AVMOVS, C_VREG, C_NONE, C_UOREG16K, 20, 4, 0, 0, 0},
++
+ 	/* unscaled 9-bit signed displacement store */
+ 	{AMOVB, C_REG, C_NONE, C_NSAUTO, 20, 4, REGSP, 0, 0},
+ 	{AMOVB, C_REG, C_NONE, C_NSOREG, 20, 4, 0, 0, 0},
+@@ -368,6 +372,10 @@ var optab = []Optab{
+ 	{AMOVD, C_UOREG32K, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+ 	{AMOVD, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+ 
++	{AVMOVS, C_UAUTO16K, C_NONE, C_VREG, 21, 4, REGSP, 0, 0},
++	{AVMOVS, C_ZOREG, C_NONE, C_VREG, 21, 4, 0, 0, 0},
++	{AVMOVS, C_UOREG16K, C_NONE, C_VREG, 21, 4, 0, 0, 0},
++
+ 	/* long displacement store */
+ 	{AMOVB, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+ 	{AMOVB, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+@@ -403,6 +411,7 @@ var optab = []Optab{
+ 	{AMOVBU, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPOST},
+ 	{AFMOVS, C_LOREG, C_NONE, C_FREG, 22, 4, 0, 0, C_XPOST},
+ 	{AFMOVD, C_LOREG, C_NONE, C_FREG, 22, 4, 0, 0, C_XPOST},
++	{AVMOVS, C_LOREG, C_NONE, C_VREG, 22, 4, 0, 0, C_XPOST},
+ 	{AMOVD, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPRE},
+ 	{AMOVW, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPRE},
+ 	{AMOVH, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPRE},
+@@ -410,6 +419,7 @@ var optab = []Optab{
+ 	{AMOVBU, C_LOREG, C_NONE, C_REG, 22, 4, 0, 0, C_XPRE},
+ 	{AFMOVS, C_LOREG, C_NONE, C_FREG, 22, 4, 0, 0, C_XPRE},
+ 	{AFMOVD, C_LOREG, C_NONE, C_FREG, 22, 4, 0, 0, C_XPRE},
++	{AVMOVS, C_LOREG, C_NONE, C_VREG, 22, 4, 0, 0, C_XPRE},
+ 
+ 	/* pre/post-indexed store (unscaled, signed 9-bit offset) */
+ 	{AMOVD, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
+@@ -419,6 +429,7 @@ var optab = []Optab{
+ 	{AMOVBU, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
+ 	{AFMOVS, C_FREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
+ 	{AFMOVD, C_FREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
++	{AVMOVS, C_VREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPOST},
+ 	{AMOVD, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
+ 	{AMOVW, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
+ 	{AMOVH, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
+@@ -426,6 +437,7 @@ var optab = []Optab{
+ 	{AMOVBU, C_REG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
+ 	{AFMOVS, C_FREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
+ 	{AFMOVD, C_FREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
++	{AVMOVS, C_VREG, C_NONE, C_LOREG, 23, 4, 0, 0, C_XPRE},
+ 
+ 	/* pre/post-indexed/signed-offset load/store register pair
+ 	   (unscaled, signed 10-bit quad-aligned and long offset) */
+@@ -557,8 +569,27 @@ var optab = []Optab{
+ 
+ 	//	{ ASTXP,		C_REG, C_NONE,	C_ZOREG,		59, 4, 0 , 0}, // TODO(aram):
+ 
+-	{AAESD, C_VREG, C_NONE, C_VREG, 29, 4, 0, 0, 0},
++	{AAESD, C_VREG, C_NONE, C_VREG, 29, 4, 0, 0, 0}, // for compatibility with old code
++	{AAESD, C_ARNG, C_NONE, C_ARNG, 29, 4, 0, 0, 0}, // recommend using the new one for better readability
+ 	{ASHA1C, C_VREG, C_REG, C_VREG, 1, 4, 0, 0, 0},
++	{ASHA1C, C_ARNG, C_VREG, C_VREG, 1, 4, 0, 0, 0},
++	{ASHA1H, C_VREG, C_NONE, C_VREG, 29, 4, 0, 0, 0},
++	{ASHA1SU0, C_ARNG, C_ARNG, C_ARNG, 1, 4, 0, 0, 0},
++	{ASHA256H, C_ARNG, C_VREG, C_VREG, 1, 4, 0, 0, 0},
++	{AVADDP, C_ARNG, C_ARNG, C_ARNG, 72, 4, 0, 0, 0},
++	{AVLD1, C_ZOREG, C_NONE, C_LIST, 81, 4, 0, 0, 0},
++	{AVLD1, C_LOREG, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
++	{AVMOV, C_ELEM, C_NONE, C_REG, 73, 4, 0, 0, 0},
++	{AVMOV, C_REG, C_NONE, C_ARNG, 82, 4, 0, 0, 0},
++	{AVMOV, C_ARNG, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
++	{AVMOV, C_REG, C_NONE, C_ELEM, 78, 4, 0, 0, 0},
++	{AVMOV, C_ELEM, C_NONE, C_VREG, 80, 4, 0, 0, 0},
++	{AVREV32, C_ARNG, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
++	{AVST1, C_LIST, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
++	{AVST1, C_LIST, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
++	{AVDUP, C_ELEM, C_NONE, C_ARNG, 79, 4, 0, 0, 0},
++	{AVADDV, C_ARNG, C_NONE, C_VREG, 85, 4, 0, 0, 0},
++	{AVMOVI, C_ADDCON, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
+ 
+ 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 90, 4, 0, 0, 0},
+ 	{obj.APCDATA, C_VCON, C_NONE, C_VCON, 0, 0, 0, 0, 0},
+@@ -1154,7 +1185,11 @@ func rclass(r int16) int {
+ 		return C_COND
+ 	case r == REGSP:
+ 		return C_RSP
+-	case r&REG_EXT != 0:
++	case r >= REG_ARNG && r < REG_ELEM:
++		return C_ARNG
++	case r >= REG_ELEM && r < REG_ELEM_END:
++		return C_ELEM
++	case r >= REG_UXTB && r < REG_SPECIAL:
+ 		return C_EXTREG
+ 	case r >= REG_SPECIAL:
+ 		return C_SPR
+@@ -1176,6 +1211,9 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 	case obj.TYPE_SHIFT:
+ 		return C_SHIFT
+ 
++	case obj.TYPE_REGLIST:
++		return C_LIST
++
+ 	case obj.TYPE_MEM:
+ 		switch a.Name {
+ 		case obj.NAME_EXTERN, obj.NAME_STATIC:
+@@ -2011,22 +2049,41 @@ func buildop(ctxt *obj.Link) {
+ 		case ASTXP:
+ 			oprangeset(ASTXPW, t)
+ 
++		case AVADDP:
++			oprangeset(AVAND, t)
++			oprangeset(AVCMEQ, t)
++			oprangeset(AVORR, t)
++			oprangeset(AVADD, t)
++			oprangeset(AVEOR, t)
++
+ 		case AAESD:
+ 			oprangeset(AAESE, t)
+ 			oprangeset(AAESMC, t)
+ 			oprangeset(AAESIMC, t)
+-			oprangeset(ASHA1H, t)
+ 			oprangeset(ASHA1SU1, t)
+ 			oprangeset(ASHA256SU0, t)
+ 
+ 		case ASHA1C:
+ 			oprangeset(ASHA1P, t)
+ 			oprangeset(ASHA1M, t)
+-			oprangeset(ASHA1SU0, t)
+-			oprangeset(ASHA256H, t)
++
++		case ASHA256H:
+ 			oprangeset(ASHA256H2, t)
++
++		case ASHA1SU0:
+ 			oprangeset(ASHA256SU1, t)
+ 
++		case ASHA1H,
++			AVMOV,
++			AVLD1,
++			AVREV32,
++			AVST1,
++			AVDUP,
++			AVMOVS,
++			AVADDV,
++			AVMOVI:
++			break
++
+ 		case obj.ANOP,
+ 			obj.AUNDEF,
+ 			obj.AFUNCDATA,
+@@ -2512,8 +2569,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = c.opxrrr(p, p.As)
+ 
+ 		if (p.From.Reg-obj.RBaseARM64)&REG_EXT != 0 {
+-			c.ctxt.Diag("extended register not implemented\n%v", p)
+-			// o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
++			o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
+ 		} else {
+ 			o1 |= uint32(p.From.Reg&31) << 16
+ 		}
+@@ -3148,6 +3204,81 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rel.Add = 0
+ 		rel.Type = objabi.R_ARM64_GOTPCREL
+ 
++	case 72: /* vaddp/vand/vcmeq/vorr/vadd/veor Vm.<T>, Vn.<T>, Vd.<T> */
++		af := int((p.From.Reg >> 5) & 15)
++		af3 := int((p.Reg >> 5) & 15)
++		at := int((p.To.Reg >> 5) & 15)
++		if af != af3 || af != at {
++			c.ctxt.Diag("invalid arrangement: %v\n", p)
++		}
++		o1 = c.oprrr(p, p.As)
++		rf := int((p.From.Reg) & 31)
++		rt := int((p.To.Reg) & 31)
++		r := int((p.Reg) & 31)
++
++		Q := 0
++		size := 0
++		switch af {
++		case ARNG_16B:
++			Q = 1
++			size = 0
++		case ARNG_2D:
++			Q = 1
++			size = 3
++		case ARNG_2S:
++			Q = 0
++			size = 2
++		case ARNG_4H:
++			Q = 0
++			size = 1
++		case ARNG_4S:
++			Q = 1
++			size = 2
++		case ARNG_8B:
++			Q = 0
++			size = 0
++		case ARNG_8H:
++			Q = 1
++			size = 1
++		default:
++			c.ctxt.Diag("invalid arrangement: %v\n", p)
++		}
++
++		if (p.As == AVORR || p.As == AVAND || p.As == AVEOR) &&
++			(af != ARNG_16B && af != ARNG_8B) {
++			c.ctxt.Diag("invalid arrangement on op %v", p.As)
++		} else if p.As == AVORR {
++			size = 2
++		} else if p.As == AVAND || p.As == AVEOR {
++			size = 0
++		}
++
++		o1 |= (uint32(Q&1) << 30) | (uint32(size&3) << 22) | (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
++
++	case 73: /* vmov V.<T>[index], R */
++		rf := int(p.From.Reg)
++		rt := int(p.To.Reg)
++		imm5 := 0
++		o1 = 7<<25 | 0xf<<10
++		switch (p.From.Reg >> 5) & 15 {
++		case ARNG_B:
++			imm5 |= 1
++			imm5 |= int(p.From.Index) << 1
++		case ARNG_H:
++			imm5 |= 2
++			imm5 |= int(p.From.Index) << 2
++		case ARNG_S:
++			imm5 |= 4
++			imm5 |= int(p.From.Index) << 3
++		case ARNG_D:
++			imm5 |= 8
++			imm5 |= int(p.From.Index) << 4
++			o1 |= 1 << 30
++		default:
++			c.ctxt.Diag("invalid arrangement on op V.<T>[index], R: %v\n", p)
++		}
++		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
++
+ 	case 74:
+ 		//	add $O, R, Rtmp
+ 		//	ldp (Rtmp), (R1, R2)
+@@ -3256,6 +3387,248 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o2 |= uint32(REGTMP & 31)
+ 		o3 |= uint32(int64(2<<30|5<<27) | (p.From.Offset&31)<<10 | int64(uint32(REGTMP&31)<<5) | int64(p.From.Reg&31))
+ 
++	case 78: /* vmov R, V.<T>[index] */
++		rf := int(p.From.Reg)
++		rt := int(p.To.Reg)
++		imm5 := 0
++		o1 = 1<<30 | 7<<25 | 7<<10
++		switch (p.To.Reg >> 5) & 15 {
++		case ARNG_B:
++			imm5 |= 1
++			imm5 |= int(p.From.Index) << 1
++		case ARNG_H:
++			imm5 |= 2
++			imm5 |= int(p.From.Index) << 2
++		case ARNG_S:
++			imm5 |= 4
++			imm5 |= int(p.From.Index) << 3
++		case ARNG_D:
++			imm5 |= 8
++			imm5 |= int(p.From.Index) << 4
++		default:
++			c.ctxt.Diag("invalid arrangement on op R, V.<T>[index]: %v\n", p)
++		}
++		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
++
++	case 79: /* vdup Vn.<T>[index], Vd.<T> */
++		rf := int(p.From.Reg)
++		rt := int(p.To.Reg)
++		o1 = 7<<25 | 1<<10
++		var imm5, Q uint32
++		switch (p.To.Reg >> 5) & 15 {
++		case ARNG_16B:
++			Q = 1
++			imm5 = 1
++			imm5 |= uint32(p.From.Index) << 1
++		case ARNG_2D:
++			Q = 1
++			imm5 = 8
++			imm5 |= uint32(p.From.Index) << 4
++		case ARNG_2S:
++			Q = 0
++			imm5 = 4
++			imm5 |= uint32(p.From.Index) << 3
++		case ARNG_4H:
++			Q = 0
++			imm5 = 2
++			imm5 |= uint32(p.From.Index) << 2
++		case ARNG_4S:
++			Q = 1
++			imm5 = 4
++			imm5 |= uint32(p.From.Index) << 3
++		case ARNG_8B:
++			Q = 0
++			imm5 = 1
++			imm5 |= uint32(p.From.Index) << 1
++		case ARNG_8H:
++			Q = 1
++			imm5 = 2
++			imm5 |= uint32(p.From.Index) << 2
++		default:
++			c.ctxt.Diag("invalid arrangement on VDUP Vn.<T>[index], Vd.<T>: %v\n", p)
++		}
++		o1 |= (uint32(Q&1) << 30) | (uint32(imm5&0x1f) << 16)
++		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
++
++	case 80: /* vmov V.<T>[index], Vn */
++		rf := int(p.From.Reg)
++		rt := int(p.To.Reg)
++		imm5 := 0
++		switch p.As {
++		case AVMOV:
++			o1 = 1<<30 | 15<<25 | 1<<10
++			switch (p.From.Reg >> 5) & 15 {
++			case ARNG_B:
++				imm5 |= 1
++				imm5 |= int(p.From.Index) << 1
++			case ARNG_H:
++				imm5 |= 2
++				imm5 |= int(p.From.Index) << 2
++			case ARNG_S:
++				imm5 |= 4
++				imm5 |= int(p.From.Index) << 3
++			case ARNG_D:
++				imm5 |= 8
++				imm5 |= int(p.From.Index) << 4
++			default:
++				c.ctxt.Diag("invalid arrangement on op V.<T>[index], Vn: %v\n", p)
++			}
++		default:
++			c.ctxt.Diag("unsupported op %v", p.As)
++		}
++		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
++
++	case 81: /* vld1 (Rn), [Vt1.<T>, Vt2.<T>, ...] */
++		r := int(p.From.Reg)
++		o1 = 3<<26 | 1<<22
++		if o.scond == C_XPOST {
++			o1 |= 1 << 23
++			if p.From.Index == 0 {
++				// immediate offset variant
++				o1 |= 0x1f << 16
++			} else {
++				// register offset variant
++				o1 |= uint32(p.From.Index&31) << 16
++			}
++		}
++		o1 |= uint32(p.To.Offset)
++		o1 |= uint32(r&31) << 5
++
++	case 82: /* vmov Rn, Vd.<T> */
++		rf := int(p.From.Reg)
++		rt := int(p.To.Reg)
++		o1 = 7<<25 | 3<<10
++		var imm5, Q uint32
++		switch (p.To.Reg >> 5) & 15 {
++		case ARNG_16B:
++			Q = 1
++			imm5 = 1
++		case ARNG_2D:
++			Q = 1
++			imm5 = 8
++		case ARNG_2S:
++			Q = 0
++			imm5 = 4
++		case ARNG_4H:
++			Q = 0
++			imm5 = 2
++		case ARNG_4S:
++			Q = 1
++			imm5 = 4
++		case ARNG_8B:
++			Q = 0
++			imm5 = 1
++		case ARNG_8H:
++			Q = 1
++			imm5 = 2
++		default:
++			c.ctxt.Diag("invalid arrangement on VMOV Rn, Vd.<T>: %v\n", p)
++		}
++		o1 |= (uint32(Q&1) << 30) | (uint32(imm5&0x1f) << 16)
++		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
++
++	case 83: /* vmov Vn.<T>, Vd.<T> */
++		af := int((p.From.Reg >> 5) & 15)
++		at := int((p.To.Reg >> 5) & 15)
++		if af != at {
++			c.ctxt.Diag("invalid arrangement: %v\n", p)
++		}
++		o1 = c.oprrr(p, p.As)
++		rf := int((p.From.Reg) & 31)
++		rt := int((p.To.Reg) & 31)
++
++		Q := 0
++		size := 0
++		switch af {
++		case ARNG_8B:
++			Q = 0
++			size = 0
++		case ARNG_16B:
++			Q = 1
++			size = 0
++		case ARNG_4H:
++			Q = 0
++			size = 1
++		case ARNG_8H:
++			Q = 1
++			size = 1
++		default:
++			c.ctxt.Diag("invalid arrangement: %v\n", p)
++		}
++
++		if (p.As == AVMOV) && (af != ARNG_16B && af != ARNG_8B) {
++			c.ctxt.Diag("invalid arrangement on op %v", p.As)
++		}
++
++		if p.As == AVMOV {
++			o1 |= uint32(rf&31) << 16
++		}
++
++		o1 |= (uint32(Q&1) << 30) | (uint32(size&3) << 22) | (uint32(rf&31) << 5) | uint32(rt&31)
++
++	case 84: /* vst1 [Vt1.<T>, Vt2.<T>, ...], (Rn) */
++		r := int(p.To.Reg)
++		o1 = 3 << 26
++		if o.scond == C_XPOST {
++			o1 |= 1 << 23
++			if p.To.Index == 0 {
++				// immediate offset variant
++				o1 |= 0x1f << 16
++			} else {
++				// register offset variant
++				o1 |= uint32(p.To.Index&31) << 16
++			}
++		}
++		o1 |= uint32(p.From.Offset)
++		o1 |= uint32(r&31) << 5
++
++	case 85: /* vaddv Vn.<T>, Vd*/
++		af := int((p.From.Reg >> 5) & 15)
++		o1 = c.oprrr(p, p.As)
++		rf := int((p.From.Reg) & 31)
++		rt := int((p.To.Reg) & 31)
++		Q := 0
++		size := 0
++		switch af {
++		case ARNG_8B:
++			Q = 0
++			size = 0
++		case ARNG_16B:
++			Q = 1
++			size = 0
++		case ARNG_4H:
++			Q = 0
++			size = 1
++		case ARNG_8H:
++			Q = 1
++			size = 1
++		case ARNG_4S:
++			Q = 1
++			size = 2
++		default:
++			c.ctxt.Diag("invalid arrangement: %v\n", p)
++		}
++		o1 |= (uint32(Q&1) << 30) | (uint32(size&3) << 22) | (uint32(rf&31) << 5) | uint32(rt&31)
++
++	case 86: /* vmovi $imm8, Vd.<T>*/
++		at := int((p.To.Reg >> 5) & 15)
++		r := int(p.From.Offset)
++		if r > 255 || r < 0 {
++			c.ctxt.Diag("immediate constant out of range: %v\n", p)
++		}
++		rt := int((p.To.Reg) & 31)
++		Q := 0
++		switch at {
++		case ARNG_8B:
++			Q = 0
++		case ARNG_16B:
++			Q = 1
++		default:
++			c.ctxt.Diag("invalid arrangement: %v\n", p)
++		}
++		o1 = 0xf<<24 | 0xe<<12 | 1<<10
++		o1 |= (uint32(Q&1) << 30) | (uint32((r>>5)&7) << 16) | (uint32(r&0x1f) << 5) | uint32(rt&31)
++
+ 	// This is supposed to be something that stops execution.
+ 	// It's not supposed to be reached, ever, but if it is, we'd
+ 	// like to be able to tell how we got there. Assemble as
+@@ -3279,6 +3652,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+  * basic Rm op Rn -> Rd (using shifted register with 0)
+  * also op Rn -> Rt
+  * also Rm*Rn op Ra -> Rd
++ * also Vm op Vn -> Vd
+  */
+ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
+ 	switch a {
+@@ -3792,6 +4166,33 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
+ 
+ 	case AFCVTHD:
+ 		return FPOP1S(0, 0, 3, 5)
++
++	case AVADD:
++		return 7<<25 | 1<<21 | 1<<15 | 1<<10
++
++	case AVADDP:
++		return 7<<25 | 1<<21 | 1<<15 | 15<<10
++
++	case AVAND:
++		return 7<<25 | 1<<21 | 7<<10
++
++	case AVCMEQ:
++		return 1<<29 | 0x71<<21 | 0x23<<10
++
++	case AVEOR:
++		return 1<<29 | 0x71<<21 | 7<<10
++
++	case AVORR:
++		return 7<<25 | 5<<21 | 7<<10
++
++	case AVREV32:
++		return 11<<26 | 2<<24 | 1<<21 | 1<<11
++
++	case AVMOV:
++		return 7<<25 | 5<<21 | 7<<10
++
++	case AVADDV:
++		return 7<<25 | 3<<20 | 3<<15 | 7<<11
+ 	}
+ 
+ 	c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
+@@ -4396,6 +4797,9 @@ func (c *ctxt7) opldr12(p *obj.Prog, a obj.As) uint32 {
+ 
+ 	case AFMOVD:
+ 		return LDSTR12U(3, 1, 1)
++
++	case AVMOVS:
++		return LDSTR12U(2, 1, 1)
+ 	}
+ 
+ 	c.ctxt.Diag("bad opldr12 %v\n%v", a, p)
+@@ -4479,6 +4883,9 @@ func (c *ctxt7) opldrpp(p *obj.Prog, a obj.As) uint32 {
+ 
+ 	case AMOVBU:
+ 		return 0<<30 | 7<<27 | 0<<26 | 0<<24 | 1<<22
++
++	case AVMOVS:
++		return 2<<30 | 7<<27 | 1<<26 | 0<<24 | 1<<22
+ 	}
+ 
+ 	c.ctxt.Diag("bad opldr %v\n%v", a, p)
+@@ -4698,7 +5105,7 @@ func movesize(a obj.As) int {
+ 	case AMOVD:
+ 		return 3
+ 
+-	case AMOVW, AMOVWU:
++	case AMOVW, AMOVWU, AVMOVS:
+ 		return 2
+ 
+ 	case AMOVH, AMOVHU:
+diff --git a/src/cmd/internal/obj/arm64/doc.go b/src/cmd/internal/obj/arm64/doc.go
+new file mode 100644
+index 0000000000..9f8606a5ec
+--- /dev/null
++++ b/src/cmd/internal/obj/arm64/doc.go
+@@ -0,0 +1,143 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package arm64
++
++/*
++
++Go Assembly for ARM64 Reference Manual
++
++1. Alphabetical list of basic instructions
++    // TODO
++
++2. Alphabetical list of float-point instructions
++    // TODO
++
++3. Alphabetical list of SIMD instructions
++
++    VADD: Add (vector).
++      VADD	<Vm>.T, <Vn>.<T>, <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        8B, 16B, H4, H8, S2, S4, D2
++
++    VADDP: Add Pairwise (vector)
++      VADDP	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16, H4, H8, S2, S4, D2
++
++    VADDV: Add across Vector.
++      VADDV	<Vn>.<T>, Vd
++        <T> Is an arrangement specifier and can have the following values:
++        8B, 16B, H4, H8, S4
++
++    VAND: Bitwise AND (vector)
++      VAND	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16
++
++    VCMEQ: Compare bitwise Equal (vector)
++      VCMEQ	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16, H4, H8, S2, S4, D2
++
++    VDUP: Duplicate vector element to vector or scalar.
++      VDUP	<Vn>.<Ts>[index], <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        8B, 16B, H4, H8, S2, S4, D2
++        <Ts> Is an element size specifier and can have the following values:
++        B, H, S, D
++
++    VEOR: Bitwise exclusive OR (vector, register)
++      VEOR	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16
++
++    VLD1: Load multiple single-element structures
++      VLD1	(Rn), [<Vt>.<T>, <Vt2>.<T> ...]     // no offset
++      VLD1.P	imm(Rn), [<Vt>.<T>, <Vt2>.<T> ...]  // immediate offset variant
++      VLD1.P	(Rn)(Rm), [<Vt>.<T>, <Vt2>.<T> ...] // register offset variant
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16, H4, H8, S2, S4, D1, D2
++
++    VMOV: move
++      VMOV	<Vn>.<T>[index], Rd // Move vector element to general-purpose register.
++        <T> Is a source width specifier and can have the following values:
++        B, H, S (Wd)
++        D (Xd)
++
++      VMOV	Rn, <Vd>.<T> // Duplicate general-purpose register to vector.
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16, H4, H8, S2, S4 (Wn)
++        D2 (Xn)
++
++      VMOV	<Vn>.<T>, <Vd>.<T> // Move vector.
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16
++
++      VMOV	Rn, <Vd>.<T>[index] // Move general-purpose register to a vector element.
++        <T> Is a source width specifier and can have the following values:
++        B, H, S (Wd)
++        D (Xd)
++
++      VMOV	<Vn>.<T>[index], Vn  // Move vector element to scalar.
++        <T> Is an element size specifier and can have the following values:
++        B, H, S, D
++
++    VMOVI: Move Immediate (vector).
++      VMOVI	$imm8, <Vd>.<T>
++        <T> is an arrangement specifier and can have the following values:
++        8B, 16B
++
++    VMOVS: Load SIMD&FP Register (immediate offset). ARMv8: LDR (immediate, SIMD&FP)
++      Store SIMD&FP register (immediate offset). ARMv8: STR (immediate, SIMD&FP)
++      VMOVS	(Rn), Vn
++      VMOVS.W	imm(Rn), Vn
++      VMOVS.P	imm(Rn), Vn
++      VMOVS	Vn, (Rn)
++      VMOVS.W	Vn, imm(Rn)
++      VMOVS.P	Vn, imm(Rn)
++
++    VORR: Bitwise inclusive OR (vector, register)
++      VORR	<Vm>.<T>, <Vn>.<T>, <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16
++
++    VREV32: Reverse elements in 32-bit words (vector).
++      REV32 <Vn>.<T>, <Vd>.<T>
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16, H4, H8
++
++    VST1: Store multiple single-element structures
++      VST1	[<Vt>.<T>, <Vt2>.<T> ...], (Rn)         // no offset
++      VST1.P	[<Vt>.<T>, <Vt2>.<T> ...], imm(Rn)      // immediate offset variant
++      VST1.P	[<Vt>.<T>, <Vt2>.<T> ...], (Rn)(Rm)     // register offset variant
++        <T> Is an arrangement specifier and can have the following values:
++        B8, B16, H4, H8, S2, S4, D1, D2
++
++4. Alphabetical list of cryptographic extension instructions
++
++    SHA1C, SHA1M, SHA1P: SHA1 hash update.
++      SHA1C	<Vm>.S4, Vn, Vd
++      SHA1M	<Vm>.S4, Vn, Vd
++      SHA1P	<Vm>.S4, Vn, Vd
++
++    SHA1H: SHA1 fixed rotate.
++      SHA1H	Vn, Vd
++
++    SHA1SU0:   SHA1 schedule update 0.
++    SHA256SU1: SHA256 schedule update 1.
++      SHA1SU0	<Vm>.S4, <Vn>.S4, <Vd>.S4
++      SHA256SU1	<Vm>.S4, <Vn>.S4, <Vd>.S4
++
++    SHA1SU1:   SHA1 schedule update 1.
++    SHA256SU0: SHA256 schedule update 0.
++      SHA1SU1	<Vn>.S4, <Vd>.S4
++      SHA256SU0	<Vn>.S4, <Vd>.S4
++
++    SHA256H, SHA256H2: SHA256 hash update.
++      SHA256H	<Vm>.S4, Vn, Vd
++      SHA256H2	<Vm>.S4, Vn, Vd
++
++
++*/
+diff --git a/src/cmd/internal/obj/arm64/list7.go b/src/cmd/internal/obj/arm64/list7.go
+index 65be486cee..9a9f4b45b7 100644
+--- a/src/cmd/internal/obj/arm64/list7.go
++++ b/src/cmd/internal/obj/arm64/list7.go
+@@ -57,6 +57,38 @@ var strcond = [16]string{
+ func init() {
+ 	obj.RegisterRegister(obj.RBaseARM64, REG_SPECIAL+1024, rconv)
+ 	obj.RegisterOpcode(obj.ABaseARM64, Anames)
++	obj.RegisterRegisterList(obj.RegListARM64Lo, obj.RegListARM64Hi, rlconv)
++}
++
++func arrange(a int) string {
++	switch a {
++	case ARNG_8B:
++		return "B8"
++	case ARNG_16B:
++		return "B16"
++	case ARNG_4H:
++		return "H4"
++	case ARNG_8H:
++		return "H8"
++	case ARNG_2S:
++		return "S2"
++	case ARNG_4S:
++		return "S4"
++	case ARNG_1D:
++		return "D1"
++	case ARNG_2D:
++		return "D2"
++	case ARNG_B:
++		return "B"
++	case ARNG_H:
++		return "H"
++	case ARNG_S:
++		return "S"
++	case ARNG_D:
++		return "D"
++	default:
++		return ""
++	}
+ }
+ 
+ func rconv(r int) string {
+@@ -102,6 +134,58 @@ func rconv(r int) string {
+ 		return "DAIFSet"
+ 	case r == REG_DAIFClr:
+ 		return "DAIFClr"
++	case REG_UXTB <= r && r < REG_UXTH:
++		if (r>>5)&7 != 0 {
++			return fmt.Sprintf("R%d.UXTB<<%d", r&31, (r>>5)&7)
++		} else {
++			return fmt.Sprintf("R%d.UXTB", r&31)
++		}
++	case REG_UXTH <= r && r < REG_UXTW:
++		if (r>>5)&7 != 0 {
++			return fmt.Sprintf("R%d.UXTH<<%d", r&31, (r>>5)&7)
++		} else {
++			return fmt.Sprintf("R%d.UXTH", r&31)
++		}
++	case REG_UXTW <= r && r < REG_UXTX:
++		if (r>>5)&7 != 0 {
++			return fmt.Sprintf("R%d.UXTW<<%d", r&31, (r>>5)&7)
++		} else {
++			return fmt.Sprintf("R%d.UXTW", r&31)
++		}
++	case REG_UXTX <= r && r < REG_SXTB:
++		if (r>>5)&7 != 0 {
++			return fmt.Sprintf("R%d.UXTX<<%d", r&31, (r>>5)&7)
++		} else {
++			return fmt.Sprintf("R%d.UXTX", r&31)
++		}
++	case REG_SXTB <= r && r < REG_SXTH:
++		if (r>>5)&7 != 0 {
++			return fmt.Sprintf("R%d.SXTB<<%d", r&31, (r>>5)&7)
++		} else {
++			return fmt.Sprintf("R%d.SXTB", r&31)
++		}
++	case REG_SXTH <= r && r < REG_SXTW:
++		if (r>>5)&7 != 0 {
++			return fmt.Sprintf("R%d.SXTH<<%d", r&31, (r>>5)&7)
++		} else {
++			return fmt.Sprintf("R%d.SXTH", r&31)
++		}
++	case REG_SXTW <= r && r < REG_SXTX:
++		if (r>>5)&7 != 0 {
++			return fmt.Sprintf("R%d.SXTW<<%d", r&31, (r>>5)&7)
++		} else {
++			return fmt.Sprintf("R%d.SXTW", r&31)
++		}
++	case REG_SXTX <= r && r < REG_SPECIAL:
++		if (r>>5)&7 != 0 {
++			return fmt.Sprintf("R%d.SXTX<<%d", r&31, (r>>5)&7)
++		} else {
++			return fmt.Sprintf("R%d.SXTX", r&31)
++		}
++	case REG_ARNG <= r && r < REG_ELEM:
++		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
++	case REG_ELEM <= r && r < REG_ELEM_END:
++		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
+ 	}
+ 	return fmt.Sprintf("badreg(%d)", r)
+ }
+@@ -112,3 +196,60 @@ func DRconv(a int) string {
+ 	}
+ 	return "C_??"
+ }
++
++func rlconv(list int64) string {
++	str := ""
++
++	// ARM64 register list follows ARM64 instruction decode schema
++	// | 31 | 30 | ... | 15 - 12 | 11 - 10 | ... |
++	// +----+----+-----+---------+---------+-----+
++	// |    | Q  | ... | opcode  |   size  | ... |
++
++	firstReg := int(list & 31)
++	opcode := (list >> 12) & 15
++	var regCnt int
++	var t string
++	switch opcode {
++	case 0x7:
++		regCnt = 1
++	case 0xa:
++		regCnt = 2
++	case 0x6:
++		regCnt = 3
++	case 0x2:
++		regCnt = 4
++	default:
++		regCnt = -1
++	}
++	// Q:size
++	arng := ((list>>30)&1)<<2 | (list>>10)&3
++	switch arng {
++	case 0:
++		t = "B8"
++	case 4:
++		t = "B16"
++	case 1:
++		t = "H4"
++	case 5:
++		t = "H8"
++	case 2:
++		t = "S2"
++	case 6:
++		t = "S4"
++	case 3:
++		t = "D1"
++	case 7:
++		t = "D2"
++	}
++	for i := 0; i < regCnt; i++ {
++		if str == "" {
++			str += "["
++		} else {
++			str += ","
++		}
++		str += fmt.Sprintf("V%d.", (firstReg+i)&31)
++		str += t
++	}
++	str += "]"
++	return str
++}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 00453f2d3a..5041a820df 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -138,10 +138,13 @@ import (
+ //			offset = second register
+ //
+ //	[reg, reg, reg-reg]
+-//		Register list for ARM.
++//		Register list for ARM and ARM64.
+ //		Encoding:
+ //			type = TYPE_REGLIST
++//		On ARM:
+ //			offset = bit mask of registers in list; R0 is low bit.
++//		On ARM64:
++//			offset = register count (Q:size) | arrangement (opcode) | first register
+ //
+ //	reg, reg
+ //		Register pair for ARM.
+@@ -155,6 +158,27 @@ import (
+ //			index = second register
+ //			scale = 1
+ //
++//	reg.[US]XT[BHWX]
++//		Register extension for ARM64
++//		Encoding:
++//			type = TYPE_REG
++//			reg = REG_[US]XT[BHWX] + register + shift amount
++//			offset = ((reg&31) << 16) | (exttype << 13) | (amount<<10)
++//
++//	reg.<T>
++//		Register arrangement for ARM64 SIMD register
++//		e.g.: V1.S4, V2.S2, V7.D2, V2.H4, V6.B16
++//		Encoding:
++//			type = TYPE_REG
++//			reg = REG_ARNG + register + arrangement
++//
++//	reg.<T>[index]
++//		Register element for ARM64
++//		Encoding:
++//			type = TYPE_REG
++//			reg = REG_ELEM + register + arrangement
++//			index = element index
++
+ type Addr struct {
+ 	Reg    int16
+ 	Index  int16
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 67c74c2f89..f1ac1a8808 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -186,7 +186,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 		//	PINSRQ	CX,$1,X6
+ 		// where the $1 is included in the p->to Addr.
+ 		// Move into a new field.
+-		if a.Offset != 0 {
++		if a.Offset != 0 && (a.Reg < RBaseARM64 || a.Reg >= RBaseMIPS) {
+ 			str = fmt.Sprintf("$%d,%v", a.Offset, Rconv(int(a.Reg)))
+ 			break
+ 		}
+@@ -195,6 +195,10 @@ func Dconv(p *Prog, a *Addr) string {
+ 		if a.Name != NAME_NONE || a.Sym != nil {
+ 			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
+ 		}
++		if (RBaseARM64+1<<10+1<<9) /* arm64.REG_ELEM */ <= a.Reg &&
++			a.Reg < (RBaseARM64+1<<11) /* arm64.REG_ELEM_END */ {
++			str += fmt.Sprintf("[%d]", a.Index)
++		}
+ 
+ 	case TYPE_BRANCH:
+ 		if a.Sym != nil {
+@@ -272,7 +276,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 		str = fmt.Sprintf("%v, %v", Rconv(int(a.Offset)), Rconv(int(a.Reg)))
+ 
+ 	case TYPE_REGLIST:
+-		str = regListConv(int(a.Offset))
++		str = RLconv(a.Offset)
+ 	}
+ 
+ 	return str
+@@ -409,27 +413,40 @@ func Rconv(reg int) string {
+ 	return fmt.Sprintf("R???%d", reg)
+ }
+ 
+-func regListConv(list int) string {
+-	str := ""
++type regListSet struct {
++	lo     int64
++	hi     int64
++	RLconv func(int64) string
++}
+ 
+-	for i := 0; i < 16; i++ { // TODO: 16 is ARM-specific.
+-		if list&(1<<uint(i)) != 0 {
+-			if str == "" {
+-				str += "["
+-			} else {
+-				str += ","
+-			}
+-			// This is ARM-specific; R10 is g.
+-			if i == 10 {
+-				str += "g"
+-			} else {
+-				str += fmt.Sprintf("R%d", i)
+-			}
++var regListSpace []regListSet
++
++// Each architecture is allotted a distinct subspace: [Lo, Hi) for declaring its
++// arch-specific register list numbers.
++const (
++	RegListARMLo = 0
++	RegListARMHi = 1 << 16
++
++	// arm64 uses the 60th bit to differentiate from other archs
++	RegListARM64Lo = 1 << 60
++	RegListARM64Hi = 1<<61 - 1
++)
++
++// RegisterRegisterList binds a pretty-printer (RLconv) for register list
++// numbers to a given register list number range. Lo is inclusive,
++// hi exclusive (valid register list are lo through hi-1).
++func RegisterRegisterList(lo, hi int64, rlconv func(int64) string) {
++	regListSpace = append(regListSpace, regListSet{lo, hi, rlconv})
++}
++
++func RLconv(list int64) string {
++	for i := range regListSpace {
++		rls := &regListSpace[i]
++		if rls.lo <= list && list < rls.hi {
++			return rls.RLconv(list)
+ 		}
+ 	}
+-
+-	str += "]"
+-	return str
++	return fmt.Sprintf("RL???%d", list)
+ }
+ 
+ type opSet struct {

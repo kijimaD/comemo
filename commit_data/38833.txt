@@ -9,6 +9,28 @@ Date:   Fri Nov 30 12:09:59 2018 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+index 96f4874378..0ccee07cee 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+@@ -8,6 +8,7 @@ package filelock_test
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -183,6 +184,8 @@ func TestRLockExcludesOnlyLock(t *testing.T) {
+ }
+ 
+ func TestLockNotDroppedByExecCommand(t *testing.T) {
++	testenv.MustHaveExec(t)
++
+ 	f, remove := mustTempFile(t)
+ 	defer remove()
+ 

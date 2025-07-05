@@ -8,7 +8,59 @@ Date:   Fri Dec 5 15:18:07 2008 -0800
     DELTA=12  (3 added, 1 deleted, 8 changed)
     OCL=20631
     CL=20634
-
+---
  src/lib/Makefile        | 2 +-
  src/lib/reflect/type.go | 9 +++++----
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index b920aa6198..197e535d71 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -97,7 +97,7 @@ io.dirinstall: os.dirinstall syscall.dirinstall
+ net.dirinstall: once.install os.dirinstall strconv.dirinstall
+ os.dirinstall: syscall.dirinstall
+ regexp.dirinstall: os.dirinstall
+-reflect.dirinstall: strconv.dirinstall
++reflect.dirinstall: strconv.dirinstall sync.dirinstall
+ strconv.dirinstall: os.dirinstall utf8.install
+ tabwriter.dirinstall: os.dirinstall io.dirinstall container/array.dirinstall
+ time.dirinstall: once.install os.dirinstall
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 279f6f3150..5258cf5b5a 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -7,6 +7,8 @@
+ 
+ package reflect
+ 
++import "sync"
++
+ export type Type interface
+ 
+ export func ExpandType(name string) Type
+@@ -390,21 +392,20 @@ var MissingStub *StubType;
+ var DotDotDotStub *StubType;
+ 
+ // The database stored in the maps is global; use locking to guarantee safety.
+-var lockchan *chan bool  // Channel with buffer of 1, used as a mutex
++var typestringlock sync.Mutex
+ 
+ func Lock() {
+-	lockchan <- true	// block if buffer is full
++	typestringlock.Lock()
+ }
+ 
+ func Unlock() {
+-	<-lockchan	// release waiters
++	typestringlock.Unlock()
+ }
+ 
+ func init() {
+ 	ptrsize = 8;	// TODO: compute this
+ 	interfacesize = 2*ptrsize;	// TODO: compute this
+ 
+-	lockchan = new(chan bool, 1);	// unlocked at creation - buffer is empty
+ 	Lock();	// not necessary because of init ordering but be safe.
+ 
+ 	types = new(map[string] *Type);

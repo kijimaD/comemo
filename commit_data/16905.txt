@@ -14,6 +14,26 @@ Date:   Mon Jul 29 22:58:26 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12047043
-
+---
  src/pkg/runtime/os_freebsd.c | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 7987a58340..98de6dc346 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -61,7 +61,13 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 		return;
+ 
+ fail:
+-	runtime·printf("umtx_wait addr=%p val=%d ret=%d\n", addr, val, ret);
++	runtime·prints("umtx_wait addr=");
++	runtime·printpointer(addr);
++	runtime·prints(" val=");
++	runtime·printint(val);
++	runtime·prints(" ret=");
++	runtime·printint(ret);
++	runtime·prints("\n");
+ 	*(int32*)0x1005 = 0x1005;
+ }
+ 

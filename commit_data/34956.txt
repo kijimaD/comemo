@@ -51,9 +51,237 @@ Date:   Wed Nov 29 13:20:08 2017 -0600
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa_test.go       | 36 ++++++++++++++++++++++++------------
  src/crypto/elliptic/elliptic_test.go | 27 ++++++++++++++++++---------
  src/crypto/elliptic/p256_amd64.go    | 16 ++++++++++++++++
  src/crypto/elliptic/p256_asm_amd64.s | 18 ++++++++++++------
  4 files changed, 70 insertions(+), 27 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 2b3d44ac7a..9224a039f3 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -48,10 +48,13 @@ func BenchmarkSignP256(b *testing.B) {
+ 	hashed := []byte("testing")
+ 	priv, _ := GenerateKey(p256, rand.Reader)
+ 
++	b.ReportAllocs()
+ 	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		_, _, _ = Sign(rand.Reader, priv, hashed)
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			_, _, _ = Sign(rand.Reader, priv, hashed)
++		}
++	})
+ }
+ 
+ func BenchmarkSignP384(b *testing.B) {
+@@ -60,10 +63,13 @@ func BenchmarkSignP384(b *testing.B) {
+ 	hashed := []byte("testing")
+ 	priv, _ := GenerateKey(p384, rand.Reader)
+ 
++	b.ReportAllocs()
+ 	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		_, _, _ = Sign(rand.Reader, priv, hashed)
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			_, _, _ = Sign(rand.Reader, priv, hashed)
++		}
++	})
+ }
+ 
+ func BenchmarkVerifyP256(b *testing.B) {
+@@ -73,20 +79,26 @@ func BenchmarkVerifyP256(b *testing.B) {
+ 	priv, _ := GenerateKey(p256, rand.Reader)
+ 	r, s, _ := Sign(rand.Reader, priv, hashed)
+ 
++	b.ReportAllocs()
+ 	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		Verify(&priv.PublicKey, hashed, r, s)
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Verify(&priv.PublicKey, hashed, r, s)
++		}
++	})
+ }
+ 
+ func BenchmarkKeyGeneration(b *testing.B) {
+ 	b.ResetTimer()
+ 	p256 := elliptic.P256()
+ 
++	b.ReportAllocs()
+ 	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		GenerateKey(p256, rand.Reader)
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			GenerateKey(p256, rand.Reader)
++		}
++	})
+ }
+ 
+ func testSignAndVerify(t *testing.T, c elliptic.Curve, tag string) {
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index 55c6e894b0..f661359c35 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -523,10 +523,13 @@ func BenchmarkBaseMult(b *testing.B) {
+ 	p224 := P224()
+ 	e := p224BaseMultTests[25]
+ 	k, _ := new(big.Int).SetString(e.k, 10)
++	b.ReportAllocs()
+ 	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		p224.ScalarBaseMult(k.Bytes())
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			p224.ScalarBaseMult(k.Bytes())
++		}
++	})
+ }
+ 
+ func BenchmarkBaseMultP256(b *testing.B) {
+@@ -534,10 +537,13 @@ func BenchmarkBaseMultP256(b *testing.B) {
+ 	p256 := P256()
+ 	e := p224BaseMultTests[25]
+ 	k, _ := new(big.Int).SetString(e.k, 10)
++	b.ReportAllocs()
+ 	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		p256.ScalarBaseMult(k.Bytes())
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			p256.ScalarBaseMult(k.Bytes())
++		}
++	})
+ }
+ 
+ func BenchmarkScalarMultP256(b *testing.B) {
+@@ -546,10 +552,13 @@ func BenchmarkScalarMultP256(b *testing.B) {
+ 	_, x, y, _ := GenerateKey(p256, rand.Reader)
+ 	priv, _, _, _ := GenerateKey(p256, rand.Reader)
+ 
++	b.ReportAllocs()
+ 	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		p256.ScalarMult(x, y, priv)
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			p256.ScalarMult(x, y, priv)
++		}
++	})
+ }
+ 
+ func TestMarshal(t *testing.T) {
+diff --git a/src/crypto/elliptic/p256_amd64.go b/src/crypto/elliptic/p256_amd64.go
+index bde8e3dfbb..6f8c9999e6 100644
+--- a/src/crypto/elliptic/p256_amd64.go
++++ b/src/crypto/elliptic/p256_amd64.go
+@@ -52,46 +52,62 @@ func (curve p256Curve) Params() *CurveParams {
+ 
+ // Functions implemented in p256_asm_amd64.s
+ // Montgomery multiplication modulo P256
++//go:noescape
+ func p256Mul(res, in1, in2 []uint64)
+ 
+ // Montgomery square modulo P256
++//go:noescape
+ func p256Sqr(res, in []uint64)
+ 
+ // Montgomery multiplication by 1
++//go:noescape
+ func p256FromMont(res, in []uint64)
+ 
+ // iff cond == 1  val <- -val
++//go:noescape
+ func p256NegCond(val []uint64, cond int)
+ 
+ // if cond == 0 res <- b; else res <- a
++//go:noescape
+ func p256MovCond(res, a, b []uint64, cond int)
+ 
+ // Endianness swap
++//go:noescape
+ func p256BigToLittle(res []uint64, in []byte)
++
++//go:noescape
+ func p256LittleToBig(res []byte, in []uint64)
+ 
+ // Constant time table access
++//go:noescape
+ func p256Select(point, table []uint64, idx int)
++
++//go:noescape
+ func p256SelectBase(point, table []uint64, idx int)
+ 
+ // Montgomery multiplication modulo Ord(G)
++//go:noescape
+ func p256OrdMul(res, in1, in2 []uint64)
+ 
+ // Montgomery square modulo Ord(G), repeated n times
++//go:noescape
+ func p256OrdSqr(res, in []uint64, n int)
+ 
+ // Point add with in2 being affine point
+ // If sign == 1 -> in2 = -in2
+ // If sel == 0 -> res = in1
+ // if zero == 0 -> res = in2
++//go:noescape
+ func p256PointAddAffineAsm(res, in1, in2 []uint64, sign, sel, zero int)
+ 
+ // Point add. Returns one if the two input points were equal and zero
+ // otherwise. (Note that, due to the way that the equations work out, some
+ // representations of ∞ are considered equal to everything by this function.)
++//go:noescape
+ func p256PointAddAsm(res, in1, in2 []uint64) int
+ 
+ // Point double
++//go:noescape
+ func p256PointDoubleAsm(res, in []uint64)
+ 
+ func (curve p256Curve) Inverse(k *big.Int) *big.Int {
+diff --git a/src/crypto/elliptic/p256_asm_amd64.s b/src/crypto/elliptic/p256_asm_amd64.s
+index 73f0fdd159..3f9d624270 100644
+--- a/src/crypto/elliptic/p256_asm_amd64.s
++++ b/src/crypto/elliptic/p256_asm_amd64.s
+@@ -81,17 +81,23 @@ TEXT ·p256MovCond(SB),NOSPLIT,$0
+ 	PCMPEQL X13, X12
+ 
+ 	MOVOU X12, X0
+-	PANDN (16*0)(x_ptr), X0
++	MOVOU (16*0)(x_ptr), X6
++	PANDN X6, X0
+ 	MOVOU X12, X1
+-	PANDN (16*1)(x_ptr), X1
++	MOVOU (16*1)(x_ptr), X7
++	PANDN X7, X1
+ 	MOVOU X12, X2
+-	PANDN (16*2)(x_ptr), X2
++	MOVOU (16*2)(x_ptr), X8
++	PANDN X8, X2
+ 	MOVOU X12, X3
+-	PANDN (16*3)(x_ptr), X3
++	MOVOU (16*3)(x_ptr), X9
++	PANDN X9, X3
+ 	MOVOU X12, X4
+-	PANDN (16*4)(x_ptr), X4
++	MOVOU (16*4)(x_ptr), X10
++	PANDN X10, X4
+ 	MOVOU X12, X5
+-	PANDN (16*5)(x_ptr), X5
++	MOVOU (16*5)(x_ptr), X11
++	PANDN X11, X5
+ 
+ 	MOVOU (16*0)(y_ptr), X6
+ 	MOVOU (16*1)(y_ptr), X7

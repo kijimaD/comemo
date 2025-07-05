@@ -22,7 +22,7 @@ Date:   Tue Jan 30 12:16:52 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/90835
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64enc.s |   1 +
  src/cmd/compile/internal/arm64/ssa.go        |  14 +++
  src/cmd/compile/internal/gc/asm_test.go      |  24 +++++
@@ -35,3 +35,510 @@ Date:   Tue Jan 30 12:16:52 2018 -0500
  src/cmd/internal/obj/arm64/anames.go         |   1 +
  src/cmd/internal/obj/arm64/asm7.go           |   5 +
  11 files changed, 277 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index b02e0b32ec..b684e5d9e0 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -388,6 +388,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    UMULL R18, R22, R19                        // d37eb29b
+    UXTBW R2, R6                               // 461c0053
+    UXTHW R7, R20                              // f43c0053
++   VCNT V0.B8, V0.B8                          // 0058200e
+    WFE                                        // 5f2003d5
+    WFI                                        // 7f2003d5
+    YIELD                                      // 3f2003d5
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 80dbfe113b..736823b719 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -530,6 +530,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		fallthrough
+ 	case ssa.OpARM64MVN,
+ 		ssa.OpARM64NEG,
++		ssa.OpARM64FMOVDfpgp,
++		ssa.OpARM64FMOVDgpfp,
+ 		ssa.OpARM64FNEGS,
+ 		ssa.OpARM64FNEGD,
+ 		ssa.OpARM64FSQRTD,
+@@ -563,6 +565,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpARM64VCNT:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = (v.Args[0].Reg()-arm64.REG_F0)&31 + arm64.REG_ARNG + ((arm64.ARNG_8B & 15) << 5)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = (v.Reg()-arm64.REG_F0)&31 + arm64.REG_ARNG + ((arm64.ARNG_8B & 15) << 5)
++	case ssa.OpARM64VUADDLV:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = (v.Args[0].Reg()-arm64.REG_F0)&31 + arm64.REG_ARNG + ((arm64.ARNG_8B & 15) << 5)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg() - arm64.REG_F0 + arm64.REG_V0
+ 	case ssa.OpARM64CSELULT,
+ 		ssa.OpARM64CSELULT0:
+ 		r1 := int16(arm64.REGZERO)
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index f1ab3f5a8d..0bea56ea3c 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -2751,6 +2751,30 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"TBZ"},
+ 	},
++	{
++		fn: `
++		func $(x uint64) int {
++			return bits.OnesCount64(x)
++		}
++		`,
++		pos: []string{"\tVCNT\t", "\tVUADDLV\t"},
++	},
++	{
++		fn: `
++		func $(x uint32) int {
++			return bits.OnesCount32(x)
++		}
++		`,
++		pos: []string{"\tVCNT\t", "\tVUADDLV\t"},
++	},
++	{
++		fn: `
++		func $(x uint16) int {
++			return bits.OnesCount16(x)
++		}
++		`,
++		pos: []string{"\tVCNT\t", "\tVUADDLV\t"},
++	},
+ 	// Load-combining tests.
+ 	{
+ 		fn: `
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b746eec690..e369e0c5d0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3156,7 +3156,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount64, types.Types[TINT], args[0])
+ 		},
+-		sys.PPC64)
++		sys.PPC64, sys.ARM64)
+ 	addF("math/bits", "OnesCount32",
+ 		makeOnesCountAMD64(ssa.OpPopCount32, ssa.OpPopCount32),
+ 		sys.AMD64)
+@@ -3164,10 +3164,15 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount32, types.Types[TINT], args[0])
+ 		},
+-		sys.PPC64)
++		sys.PPC64, sys.ARM64)
+ 	addF("math/bits", "OnesCount16",
+ 		makeOnesCountAMD64(ssa.OpPopCount16, ssa.OpPopCount16),
+ 		sys.AMD64)
++	addF("math/bits", "OnesCount16",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpPopCount16, types.Types[TINT], args[0])
++		},
++		sys.ARM64)
+ 	// Note: no OnesCount8, the Go implementation is faster - just a table load.
+ 	addF("math/bits", "OnesCount",
+ 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index f9af4c6da8..44c1c84288 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -86,6 +86,16 @@
+ (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
+ (Ctz32 <t> x) -> (CLZW (RBITW <t> x))
+ 
++(PopCount64 <t> x) -> (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> x))))
++(PopCount32 <t> x) -> (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> (ZeroExt32to64 x)))))
++(PopCount16 <t> x) -> (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> (ZeroExt16to64 x)))))
++
++// Load args directly into the register class where it will be used.
++(FMOVDgpfp <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
++// Similarly for stores, if we see a store after FPR <-> GPR move, then redirect store to use the other register set.
++(MOVDstore ptr (FMOVDfpgp val) mem) -> (FMOVDstore ptr val mem)
++(FMOVDstore ptr (FMOVDgpfp val) mem) -> (MOVDstore ptr val mem)
++
+ (BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <typ.Int> x))
+ 
+ (Bswap64 x) -> (REV x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 583599186c..f053109fb3 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -199,18 +199,20 @@ func init() {
+ 		{name: "BICconst", argLength: 1, reg: gp11, asm: "BIC", aux: "Int64"}, // arg0 &^ auxInt
+ 
+ 		// unary ops
+-		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},       // ^arg0
+-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},       // -arg0
+-		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},   // -arg0, float32
+-		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},   // -arg0, float64
+-		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"}, // sqrt(arg0), float64
+-		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},       // byte reverse, 64-bit
+-		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},     // byte reverse, 32-bit
+-		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"}, // byte reverse in each 16-bit halfword, 32-bit
+-		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},     // bit reverse, 64-bit
+-		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},   // bit reverse, 32-bit
+-		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},       // count leading zero, 64-bit
+-		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},     // count leading zero, 32-bit
++		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
++		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},         // -arg0
++		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},     // -arg0, float32
++		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},     // -arg0, float64
++		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},   // sqrt(arg0), float64
++		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},         // byte reverse, 64-bit
++		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},       // byte reverse, 32-bit
++		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},   // byte reverse in each 16-bit halfword, 32-bit
++		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},       // bit reverse, 64-bit
++		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},     // bit reverse, 32-bit
++		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},         // count leading zero, 64-bit
++		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},       // count leading zero, 32-bit
++		{name: "VCNT", argLength: 1, reg: fp11, asm: "VCNT"},       // count set bits for each 8-bit unit and store the result in each 8-bit unit
++		{name: "VUADDLV", argLength: 1, reg: fp11, asm: "VUADDLV"}, // unsigned sum of eight bytes in a 64-bit value, zero extended to 64-bit.
+ 
+ 		// shifts
+ 		{name: "SLL", argLength: 2, reg: gp21, asm: "LSL"},                      // arg0 << arg1, shift amount is mod 64
+@@ -288,6 +290,9 @@ func init() {
+ 		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+ 		{name: "MOVQstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "STP", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // store 16 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+ 
++		{name: "FMOVDgpfp", argLength: 1, reg: gpfp, asm: "FMOVD"}, // move int64 to float64 (no conversion)
++		{name: "FMOVDfpgp", argLength: 1, reg: fpgp, asm: "FMOVD"}, // move float64 to int64 (no conversion)
++
+ 		// conversions
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
+ 		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 43343d7d5c..ee95e77d5a 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -999,6 +999,8 @@ const (
+ 	OpARM64RBITW
+ 	OpARM64CLZ
+ 	OpARM64CLZW
++	OpARM64VCNT
++	OpARM64VUADDLV
+ 	OpARM64SLL
+ 	OpARM64SLLconst
+ 	OpARM64SRL
+@@ -1063,6 +1065,8 @@ const (
+ 	OpARM64MOVWstorezero
+ 	OpARM64MOVDstorezero
+ 	OpARM64MOVQstorezero
++	OpARM64FMOVDgpfp
++	OpARM64FMOVDfpgp
+ 	OpARM64MOVBreg
+ 	OpARM64MOVBUreg
+ 	OpARM64MOVHreg
+@@ -12689,6 +12693,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "VCNT",
++		argLen: 1,
++		asm:    arm64.AVCNT,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "VUADDLV",
++		argLen: 1,
++		asm:    arm64.AVUADDLV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "SLL",
+ 		argLen: 2,
+@@ -13577,6 +13607,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FMOVDgpfp",
++		argLen: 1,
++		asm:    arm64.AFMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FMOVDfpgp",
++		argLen: 1,
++		asm:    arm64.AFMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:   "MOVBreg",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 953e06e06e..546ce9067e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -69,6 +69,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64DIVW_0(v)
+ 	case OpARM64Equal:
+ 		return rewriteValueARM64_OpARM64Equal_0(v)
++	case OpARM64FMOVDgpfp:
++		return rewriteValueARM64_OpARM64FMOVDgpfp_0(v)
+ 	case OpARM64FMOVDload:
+ 		return rewriteValueARM64_OpARM64FMOVDload_0(v)
+ 	case OpARM64FMOVDstore:
+@@ -599,6 +601,12 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpOr8_0(v)
+ 	case OpOrB:
+ 		return rewriteValueARM64_OpOrB_0(v)
++	case OpPopCount16:
++		return rewriteValueARM64_OpPopCount16_0(v)
++	case OpPopCount32:
++		return rewriteValueARM64_OpPopCount32_0(v)
++	case OpPopCount64:
++		return rewriteValueARM64_OpPopCount64_0(v)
+ 	case OpRound32F:
+ 		return rewriteValueARM64_OpRound32F_0(v)
+ 	case OpRound64F:
+@@ -2871,6 +2879,30 @@ func rewriteValueARM64_OpARM64Equal_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64FMOVDgpfp_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	// match: (FMOVDgpfp <t> (Arg [off] {sym}))
++	// cond:
++	// result: @b.Func.Entry (Arg <t> [off] {sym})
++	for {
++		t := v.Type
++		v_0 := v.Args[0]
++		if v_0.Op != OpArg {
++			break
++		}
++		off := v_0.AuxInt
++		sym := v_0.Aux
++		b = b.Func.Entry
++		v0 := b.NewValue0(v.Pos, OpArg, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2932,6 +2964,24 @@ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (FMOVDstore ptr (FMOVDgpfp val) mem)
++	// cond:
++	// result: (MOVDstore ptr val mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FMOVDgpfp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v.Args[2]
++		v.reset(OpARM64MOVDstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+ 	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVDstore [off1+off2] {sym} ptr val mem)
+@@ -4600,6 +4650,24 @@ func rewriteValueARM64_OpARM64MOVDstore_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (MOVDstore ptr (FMOVDfpgp val) mem)
++	// cond:
++	// result: (FMOVDstore ptr val mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FMOVDfpgp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v.Args[2]
++		v.reset(OpARM64FMOVDstore)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+ 	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVDstore [off1+off2] {sym} ptr val mem)
+@@ -14576,6 +14644,79 @@ func rewriteValueARM64_OpOrB_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpPopCount16_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (PopCount16 <t> x)
++	// cond:
++	// result: (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> (ZeroExt16to64 x)))))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARM64FMOVDfpgp)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpARM64VUADDLV, typ.Float64)
++		v1 := b.NewValue0(v.Pos, OpARM64VCNT, typ.Float64)
++		v2 := b.NewValue0(v.Pos, OpARM64FMOVDgpfp, typ.Float64)
++		v3 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
++		v3.AddArg(x)
++		v2.AddArg(v3)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM64_OpPopCount32_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (PopCount32 <t> x)
++	// cond:
++	// result: (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> (ZeroExt32to64 x)))))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARM64FMOVDfpgp)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpARM64VUADDLV, typ.Float64)
++		v1 := b.NewValue0(v.Pos, OpARM64VCNT, typ.Float64)
++		v2 := b.NewValue0(v.Pos, OpARM64FMOVDgpfp, typ.Float64)
++		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
++		v3.AddArg(x)
++		v2.AddArg(v3)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueARM64_OpPopCount64_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (PopCount64 <t> x)
++	// cond:
++	// result: (FMOVDfpgp <t> (VUADDLV <typ.Float64> (VCNT <typ.Float64> (FMOVDgpfp <typ.Float64> x))))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpARM64FMOVDfpgp)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpARM64VUADDLV, typ.Float64)
++		v1 := b.NewValue0(v.Pos, OpARM64VCNT, typ.Float64)
++		v2 := b.NewValue0(v.Pos, OpARM64FMOVDgpfp, typ.Float64)
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueARM64_OpRound32F_0(v *Value) bool {
+ 	// match: (Round32F x)
+ 	// cond:
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index e8be3cd4a3..93322c77e1 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -753,6 +753,7 @@ const (
+ 	AVADDP
+ 	AVAND
+ 	AVCMEQ
++	AVCNT
+ 	AVEOR
+ 	AVMOV
+ 	AVLD1
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 4070a43641..13dbaae894 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -370,6 +370,7 @@ var Anames = []string{
+ 	"VADDP",
+ 	"VAND",
+ 	"VCMEQ",
++	"VCNT",
+ 	"VEOR",
+ 	"VMOV",
+ 	"VLD1",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 362fd9367d..423f55f741 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -598,6 +598,7 @@ var optab = []Optab{
+ 	{AVST1, C_LIST, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
+ 	{AVDUP, C_ELEM, C_NONE, C_ARNG, 79, 4, 0, 0, 0},
+ 	{AVADDV, C_ARNG, C_NONE, C_VREG, 85, 4, 0, 0, 0},
++	{AVCNT, C_ARNG, C_NONE, C_ARNG, 29, 4, 0, 0, 0},
+ 	{AVMOVI, C_ADDCON, C_NONE, C_ARNG, 86, 4, 0, 0, 0},
+ 
+ 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 90, 4, 0, 0, 0},
+@@ -2126,6 +2127,7 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(AVUADDLV, t)
+ 
+ 		case ASHA1H,
++			AVCNT,
+ 			AVMOV,
+ 			AVLD1,
+ 			AVREV32,
+@@ -4323,6 +4325,9 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
+ 	case AVCMEQ:
+ 		return 1<<29 | 0x71<<21 | 0x23<<10
+ 
++	case AVCNT:
++		return 0<<31 | 0<<29 | 0xE<<24 | 0x10<<17 | 5<<12 | 2<<10
++
+ 	case AVEOR:
+ 		return 1<<29 | 0x71<<21 | 7<<10
+ 

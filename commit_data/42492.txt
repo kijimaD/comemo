@@ -15,8 +15,62 @@ Date:   Mon Dec 30 14:15:11 2019 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                               | 14 --------------
  src/cmd/go/testdata/script/generate_bad_imports.txt | 11 +++++++++++
  src/cmd/go/testdata/src/gencycle/gencycle.go        |  5 -----
  3 files changed, 11 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 364186ff53..626fd46c36 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2738,20 +2738,6 @@ func TestGoGenerateXTestPkgName(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGoGenerateBadImports(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping because windows has no echo command")
+-	}
+-
+-	// This package has an invalid import causing an import cycle,
+-	// but go generate is supposed to still run.
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("generate", "gencycle")
+-	tg.grepStdout("hello world", "go generate gencycle did not run generator")
+-}
+-
+ func TestGoGetCustomDomainWildcard(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 	testenv.MustHaveExecPath(t, "git")
+diff --git a/src/cmd/go/testdata/script/generate_bad_imports.txt b/src/cmd/go/testdata/script/generate_bad_imports.txt
+new file mode 100644
+index 0000000000..59a2f5786b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/generate_bad_imports.txt
+@@ -0,0 +1,11 @@
++[windows] skip # skip because windows has no echo command
++
++go generate gencycle
++stdout 'hello world' # check go generate gencycle ran the generator
++
++-- gencycle/gencycle.go --
++//go:generate echo hello world
++
++package gencycle
++
++import _ "gencycle"
+diff --git a/src/cmd/go/testdata/src/gencycle/gencycle.go b/src/cmd/go/testdata/src/gencycle/gencycle.go
+deleted file mode 100644
+index 600afd93e9..0000000000
+--- a/src/cmd/go/testdata/src/gencycle/gencycle.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-//go:generate echo hello world
+-
+-package gencycle
+-
+-import _ "gencycle"

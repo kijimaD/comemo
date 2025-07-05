@@ -9,6 +9,22 @@ Date:   Mon Dec 15 09:30:53 2014 +1100
     Change-Id: I0410a9ed82b861686a0a986c9ca4eeeacac8f296
     Reviewed-on: https://go-review.googlesource.com/1534
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/json/encode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index fca2a0980b..e59a0b3bbf 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -79,8 +79,8 @@ import (
+ //
+ // The "string" option signals that a field is stored as JSON inside a
+ // JSON-encoded string. It applies only to fields of string, floating point,
+-// or integer types. This extra level of encoding is sometimes used when
+-// communicating with JavaScript programs:
++// integer, or boolean types. This extra level of encoding is sometimes used
++// when communicating with JavaScript programs:
+ //
+ //    Int64String int64 `json:",string"`
+ //

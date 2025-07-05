@@ -11,6 +11,19 @@ Date:   Fri Feb 15 18:12:28 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/link/link_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index e0aae02884..74238a2000 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -139,6 +139,7 @@ func TestUnresolved(t *testing.T) {
+ 	// linker would find an undefined reference to "zero" created
+ 	// by the runtime package.
+ 
++	write("go.mod", "module testunresolved\n")
+ 	write("main.go", `package main
+ 
+ func main() {

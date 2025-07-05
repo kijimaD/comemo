@@ -11,6 +11,18 @@ Date:   Mon Oct 31 11:41:24 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 61b4245062..1192f3fac9 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1429,6 +1429,4 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
+ 		}
+ 		return true
+ 	}
+-
+-	return false
+ }

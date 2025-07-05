@@ -7,7 +7,40 @@ Date:   Tue Nov 13 16:50:44 2012 +0100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6849046
-
+---
  doc/code.html | 4 ++++
  doc/docs.html | 6 ++++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index d11685f796..096f5bfc9e 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -10,6 +10,10 @@ introduces the <a href="/cmd/go/">go command</a>, the standard way to fetch,
+ build, and install Go packages and commands.
+ </p>
+ 
++<p>
++This content is also available as a <a href="http://www.youtube.com/watch?v=XCsL89YtqCs">screencast</a>.
++</p>
++
+ 
+ <h2 id="GOPATH">Code organization</h2>
+ 
+diff --git a/doc/docs.html b/doc/docs.html
+index 1f9ae76369..9bb012a50a 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -45,8 +45,10 @@ learned. You can <a href="http://tour.golang.org/">take the tour online</a> or
+ 
+ <h3 id="code"><a href="code.html">How to write Go code</a></h3>
+ <p>
+-How to use the <a href="/cmd/go/">go command</a> to fetch, build, and install
+-packages, commands, and run tests.
++Also available as a
++<a href="http://www.youtube.com/watch?v=XCsL89YtqCs">screencast</a>, this doc
++explains how to use the <a href="/cmd/go/">go command</a> to fetch, build, and
++install packages, commands, and run tests.
+ </p>
+ 
+ <h3 id="effective_go"><a href="effective_go.html">Effective Go</a></h3>

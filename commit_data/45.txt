@@ -3,7 +3,7 @@ Author: Ken Thompson <ken@golang.org>
 Date:   Fri Mar 28 13:56:47 2008 -0700
 
     SVN=114204
-
+---
  src/lib/math/asin.go  |  60 ++++++++++++++
  src/lib/math/atan.go  |  84 ++++++++++++++++++++
  src/lib/math/atan2.go |  40 ++++++++++
@@ -24,3 +24,1306 @@ Date:   Fri Mar 28 13:56:47 2008 -0700
  src/lib/math/tan.go   |  74 ++++++++++++++++++
  src/lib/math/tanh.go  |  32 ++++++++
  19 files changed, 1188 insertions(+)
+
+diff --git a/src/lib/math/asin.go b/src/lib/math/asin.go
+new file mode 100644
+index 0000000000..6297064dbe
+--- /dev/null
++++ b/src/lib/math/asin.go
+@@ -0,0 +1,60 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asin
++
++import	sys "sys"
++import	atan "atan"
++import	sqrt "sqrt"
++export	asin, acos
++
++/*
++ * asin(arg) and acos(arg) return the arcsin, arccos,
++ * respectively of their arguments.
++ *
++ * Arctan is called after appropriate range reduction.
++ */
++
++const
++(
++	pio2	= .15707963267948966192313216e1;
++)
++
++func
++asin(arg double)double
++{
++	var temp, x double;
++	var sign bool;
++
++	sign = false;
++	x = arg;
++	if x < 0 {
++		x = -x;
++		sign = true;
++	}
++	if arg > 1 {
++		return sys.NaN();
++	}
++
++	temp = sqrt.sqrt(1 - x*x);
++	if x > 0.7 {
++		temp = pio2 - atan.atan(temp/x);
++	} else {
++		temp = atan.atan(x/temp);
++	}
++
++	if sign {
++		temp = -temp;
++	}
++	return temp;
++}
++
++func
++acos(arg double)double
++{
++	if(arg > 1 || arg < -1) {
++		return sys.NaN();
++	}
++	return pio2 - asin(arg);
++}
+diff --git a/src/lib/math/atan.go b/src/lib/math/atan.go
+new file mode 100644
+index 0000000000..4751389968
+--- /dev/null
++++ b/src/lib/math/atan.go
+@@ -0,0 +1,84 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package atan
++
++export	atan
++
++/*
++	floating-point arctangent
++
++	atan returns the value of the arctangent of its
++	argument in the range [-pi/2,pi/2].
++	there are no error returns.
++	coefficients are #5077 from Hart & Cheney. (19.56D)
++*/
++
++
++const
++(
++	p4	= .161536412982230228262e2;
++	p3	= .26842548195503973794141e3;
++	p2	= .11530293515404850115428136e4;
++	p1	= .178040631643319697105464587e4;
++	p0	= .89678597403663861959987488e3;
++	q4	= .5895697050844462222791e2;
++	q3	= .536265374031215315104235e3;
++	q2	= .16667838148816337184521798e4;
++	q1	= .207933497444540981287275926e4;
++	q0	= .89678597403663861962481162e3;
++	pio2	= .15707963267948966192313216e1;
++	pio4	= .7853981633974483096156608e0;
++	sq2p1	= .2414213562373095048802e1;		// sqrt(2)+1
++	sq2m1	= .414213562373095048802e0;		// sqrt(2)-1
++)
++
++/*
++	xatan evaluates a series valid in the
++	range [-0.414...,+0.414...]. (tan(pi/8))
++ */
++
++func
++xatan(arg double) double
++{
++	var argsq, value double;
++
++	argsq = arg*arg;
++	value = ((((p4*argsq + p3)*argsq + p2)*argsq + p1)*argsq + p0);
++	value = value/(((((argsq + q4)*argsq + q3)*argsq + q2)*argsq + q1)*argsq + q0);
++	return value*arg;
++}
++
++/*
++	satan reduces its argument (known to be positive)
++	to the range [0,0.414...] and calls xatan.
++ */
++
++func
++satan(arg double) double
++{
++
++	if arg < sq2m1 {
++		return xatan(arg);
++	}
++	if arg > sq2p1 {
++		return pio2 - xatan(1/arg);
++	}
++	return pio4 + xatan((arg-1)/(arg+1));
++}
++
++/*
++	atan makes its argument positive and
++	calls the inner routine satan.
++ */
++
++func
++atan(arg double) double
++{
++
++	if arg > 0 {
++		return satan(arg);
++	}
++	return -satan(-arg);
++}
+diff --git a/src/lib/math/atan2.go b/src/lib/math/atan2.go
+new file mode 100644
+index 0000000000..2e1093f9d9
+--- /dev/null
++++ b/src/lib/math/atan2.go
+@@ -0,0 +1,40 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package atan2
++
++import	atan "atan"
++export	atan2
++
++/*
++	atan2 discovers what quadrant the angle
++	is in and calls atan.
++*/
++
++const
++(
++	pio2	= .15707963267948966192313216e1;
++	pi	= .3141592653589793238462643383276e1;
++)
++
++func
++atan2(arg1, arg2 double) double
++{
++	var x double;
++
++	if arg1+arg2 == arg1 {
++		if arg1 >= 0 {
++			return pio2;
++		}
++		return -pio2;
++	}
++	x = atan.atan(arg1/arg2);
++	if arg2 < 0 {
++		if x <= 0 {
++			return x + pi;
++		}
++		return x - pi;
++	}
++	return x;
++}
+diff --git a/src/lib/math/exp.go b/src/lib/math/exp.go
+new file mode 100644
+index 0000000000..8a9542a358
+--- /dev/null
++++ b/src/lib/math/exp.go
+@@ -0,0 +1,54 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exp
++
++import	sys "sys"
++import	floor "floor"
++export	exp
++
++/*
++	exp returns the exponential func of its
++	floating-point argument.
++
++	The coefficients are #1069 from Hart and Cheney. (22.35D)
++*/
++
++const
++(
++	p0	= .2080384346694663001443843411e7;
++	p1	= .3028697169744036299076048876e5;
++	p2	= .6061485330061080841615584556e2;
++	q0	= .6002720360238832528230907598e7;
++	q1	= .3277251518082914423057964422e6;
++	q2	= .1749287689093076403844945335e4;
++	log2e	= .14426950408889634073599247e1;
++	sqrt2	= .14142135623730950488016887e1;
++	maxf	= 10000;
++)
++
++func
++exp(arg double) double
++{
++	var x, fract, temp1, temp2, xsq double;
++	var ent int;
++
++	if arg == 0 {
++		return 1;
++	}
++	if arg < -maxf {
++		return 0;
++	}
++	if arg > maxf {
++		return sys.Inf(1);
++	}
++
++	x = arg*log2e;
++	ent = int(floor.floor(x));
++	fract = (x-double(ent)) - 0.5;
++	xsq = fract*fract;
++	temp1 = ((p2*xsq+p1)*xsq+p0)*fract;
++	temp2 = ((xsq+q2)*xsq+q1)*xsq + q0;
++	return sys.ldexp(sqrt2*(temp2+temp1)/(temp2-temp1), ent);
++}
+diff --git a/src/lib/math/fabs.go b/src/lib/math/fabs.go
+new file mode 100644
+index 0000000000..34d0de9698
+--- /dev/null
++++ b/src/lib/math/fabs.go
+@@ -0,0 +1,17 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fabs
++
++export	fabs
++
++func
++fabs(arg double) double
++{
++
++	if arg < 0 {
++		return -arg;
++	}
++	return arg;
++}
+diff --git a/src/lib/math/floor.go b/src/lib/math/floor.go
+new file mode 100644
+index 0000000000..581836a8c2
+--- /dev/null
++++ b/src/lib/math/floor.go
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package floor
++
++import	sys "sys"
++export	floor, ceil
++
++/*
++ * floor and ceil-- greatest integer <= arg
++ * (resp least >=)
++ */
++
++func
++floor(arg double) double
++{
++	var fract, d double;
++
++	d = arg;
++	if d < 0 {
++		d,fract = sys.modf(-d);
++		if fract != 0.0 {
++			d = d+1;
++		}
++		d = -d;
++	} else {
++		d,fract = sys.modf(d);
++	}
++	return d;
++}
++
++func
++ceil(arg double) double
++{
++	return -floor(-arg);
++}
+diff --git a/src/lib/math/fmod.go b/src/lib/math/fmod.go
+new file mode 100644
+index 0000000000..fc26b5068f
+--- /dev/null
++++ b/src/lib/math/fmod.go
+@@ -0,0 +1,48 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fmod
++
++import	sys "sys"
++export	fmod
++
++/*
++	floating-point mod func without infinity or NaN checking
++ */
++
++func
++fmod(x, y double) double
++{
++	var yexp, rexp int;
++	var r, yfr, rfr double;
++	var sign bool;
++
++	if y == 0 {
++		return x;
++	}
++	if y < 0 {
++		y = -y;
++	}
++
++	yexp,yfr = sys.frexp(y);
++	sign = false;
++	if x < 0 {
++		r = -x;
++		sign = true;
++	} else {
++		r = x;
++	}
++
++	for r >= y {
++		rexp,rfr = sys.frexp(r);
++		if rfr < yfr {
++			rexp = rexp - 1;
++		}
++		r = r - sys.ldexp(y, rexp-yexp);
++	}
++	if sign {
++		r = -r;
++	}
++	return r;
++}
+diff --git a/src/lib/math/hypot.go b/src/lib/math/hypot.go
+new file mode 100644
+index 0000000000..a1e9e729e4
+--- /dev/null
++++ b/src/lib/math/hypot.go
+@@ -0,0 +1,54 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package hypot
++
++export	hypot
++
++/*
++	hypot -- sqrt(p*p + q*q), but overflows only if the result does.
++	See Cleve Moler and Donald Morrison,
++	Replacing Square Roots by Pythagorean Sums
++	IBM Journal of Research and Development,
++	Vol. 27, Number 6, pp. 577-581, Nov. 1983
++ */
++
++func
++hypot(p, q double) double
++{
++	var r, s, pfac double;
++
++	if p < 0 {
++		p = -p;
++	}
++	if q < 0 {
++		q = -q;
++	}
++
++	if p < q {
++		r = p;
++		p = q;
++		q = r;
++	}
++
++	if p == 0 {
++		return 0;
++	}
++
++	pfac = p;
++	q = q/p;
++	r = q;
++	p = 1;
++	for ;; {
++		r = r*r;
++		s = r+4;
++		if s == 4 {
++			return p*pfac;
++		}
++		r = r/s;
++		p = p + 2*r*p;
++		q = q*r;
++		r = q/p;
++	}
++}
+diff --git a/src/lib/math/log.go b/src/lib/math/log.go
+new file mode 100644
+index 0000000000..cc7ebf06c7
+--- /dev/null
++++ b/src/lib/math/log.go
+@@ -0,0 +1,70 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package log
++
++import	sys "sys"
++export	log, log10
++
++/*
++	log returns the natural logarithm of its floating
++	point argument.
++
++	The coefficients are #2705 from Hart & Cheney. (19.38D)
++
++	It calls frexp.
++*/
++
++const
++(
++	log2	=   .693147180559945309e0;
++	ln10o1	=   .4342944819032518276511;
++	sqrto2	=   .707106781186547524e0;
++	p0	=  -.240139179559210510e2;
++	p1	=   .309572928215376501e2;
++	p2	=  -.963769093377840513e1;
++	p3	=   .421087371217979714e0;
++	q0	=  -.120069589779605255e2;
++	q1	=   .194809660700889731e2;
++	q2	=  -.891110902798312337e1;
++)
++
++func
++log(arg double) double
++{
++	var x, z, zsq, temp double;
++	var exp int;
++
++	if arg <= 0 {
++		return sys.NaN();
++	}
++
++	exp,x = sys.frexp(arg);
++	for x < 0.5 {
++		x = x*2;
++		exp = exp-1;
++	}
++	if x < sqrto2 {
++		x = x*2;
++		exp = exp-1;
++	}
++
++	z = (x-1) / (x+1);
++	zsq = z*z;
++
++	temp = ((p3*zsq + p2)*zsq + p1)*zsq + p0;
++	temp = temp/(((zsq + q2)*zsq + q1)*zsq + q0);
++	temp = temp*z + double(exp)*log2;
++	return temp;
++}
++
++func
++log10(arg double) double
++{
++
++	if arg <= 0 {
++		return sys.NaN();
++	}
++	return log(arg) * ln10o1;
++}
+diff --git a/src/lib/math/main.go b/src/lib/math/main.go
+new file mode 100644
+index 0000000000..2fa7ea152f
+--- /dev/null
++++ b/src/lib/math/main.go
+@@ -0,0 +1,212 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++import math "math"
++
++const
++(
++	length	= 10;
++)
++
++var
++(
++	vf	[length]double;
++	asin	[length]double;
++	atan	[length]double;
++	exp	[length]double;
++	floor	[length]double;
++	log	[length]double;
++	pow	[length]double;
++	sin	[length]double;
++	sinh	[length]double;
++	sqrt	[length]double;
++	tan	[length]double;
++	tanh	[length]double;
++)
++
++func	init();
++func	ck(a,b double);
++
++func
++main()
++{
++	init();
++	for i:=0; i<length; i=i+1 {
++		f := vf[i];
++
++		ck(asin[i], math.asin(f/10));
++		ck(atan[i], math.atan(f));
++		ck(exp[i], math.exp(f));
++		ck(floor[i], math.floor(f));
++		ck(log[i], math.log(math.fabs(f)));
++		ck(pow[i], math.pow(10, f));
++		ck(sin[i], math.sin(f));
++		ck(sinh[i], math.sinh(f));
++		ck(sqrt[i], math.sqrt(math.fabs(f)));
++		ck(tan[i], math.tan(f));
++		ck(tanh[i], math.tanh(f));
++		ck(math.fabs(tanh[i]*math.sqrt(2)),
++			math.hypot(tanh[i], tanh[i]));
++	}
++}
++
++func
++ck(a,b double)
++{
++	d := a-b;
++	if d < 0 {
++		d = -d;
++	}
++
++	e := 1e-14;
++	if a != 0 {
++		e = e*a;
++		if e < 0 {
++			e = -e;
++		}
++	}
++
++	if d > e {
++		panic a, " ", b, "\n";
++	}
++}
++
++func
++init()
++{
++	vf[0]		=  4.9790119248836735e+00;
++	vf[1]		=  7.7388724745781045e+00;
++	vf[2]		= -2.7688005719200159e-01;
++	vf[3]		= -5.0106036182710749e+00;
++	vf[4]		=  9.6362937071984173e+00;
++	vf[5]		=  2.9263772392439646e+00;
++	vf[6]		=  5.2290834314593066e+00;
++	vf[7]		=  2.7279399104360102e+00;
++	vf[8]		=  1.8253080916808550e+00;
++	vf[9]		= -8.6859247685756013e+00;
++
++	asin[0]		=  5.2117697218417440e-01;
++	asin[1]		=  8.8495619865825236e-01;
++	asin[2]		= -2.7691544662819413e-02;
++	asin[3]		= -5.2482360935268932e-01;
++	asin[4]		=  1.3002662421166553e+00;
++	asin[5]		=  2.9698415875871901e-01;
++	asin[6]		=  5.5025938468083364e-01;
++	asin[7]		=  2.7629597861677200e-01;
++	asin[8]		=  1.8355989225745148e-01;
++	asin[9]		= -1.0523547536021498e+00;
++
++	atan[0]		=  1.3725902621296217e+00;
++	atan[1]		=  1.4422906096452980e+00;
++	atan[2]		= -2.7011324359471755e-01;
++	atan[3]		= -1.3738077684543379e+00;
++	atan[4]		=  1.4673921193587666e+00;
++	atan[5]		=  1.2415173565870167e+00;
++	atan[6]		=  1.3818396865615167e+00;
++	atan[7]		=  1.2194305844639670e+00;
++	atan[8]		=  1.0696031952318783e+00;
++	atan[9]		= -1.4561721938838085e+00;
++
++	exp[0]		=  1.4533071302642137e+02;
++	exp[1]		=  2.2958822575694450e+03;
++	exp[2]		=  7.5814542574851664e-01;
++	exp[3]		=  6.6668778421791010e-03;
++	exp[4]		=  1.5310493273896035e+04;
++	exp[5]		=  1.8659907517999329e+01;
++	exp[6]		=  1.8662167355098713e+02;
++	exp[7]		=  1.5301332413189379e+01;
++	exp[8]		=  6.2047063430646876e+00;
++	exp[9]		=  1.6894712385826522e-04;
++
++	floor[0]	=  4.0000000000000000e+00;
++	floor[1]	=  7.0000000000000000e+00;
++	floor[2]	= -1.0000000000000000e+00;
++	floor[3]	= -6.0000000000000000e+00;
++	floor[4]	=  9.0000000000000000e+00;
++	floor[5]	=  2.0000000000000000e+00;
++	floor[6]	=  5.0000000000000000e+00;
++	floor[7]	=  2.0000000000000000e+00;
++	floor[8]	=  1.0000000000000000e+00;
++	floor[9]	= -9.0000000000000000e+00;
++
++	log[0]		=  1.6052314626930630e+00;
++	log[1]		=  2.0462560018708768e+00;
++	log[2]		= -1.2841708730962657e+00;
++	log[3]		=  1.6115563905281544e+00;
++	log[4]		=  2.2655365644872018e+00;
++	log[5]		=  1.0737652208918380e+00;
++	log[6]		=  1.6542360106073545e+00;
++	log[7]		=  1.0035467127723465e+00;
++	log[8]		=  6.0174879014578053e-01;
++	log[9]		=  2.1617038728473527e+00;
++
++	pow[0]		=  9.5282232631648415e+04;
++	pow[1]		=  5.4811599352999900e+07;
++	pow[2]		=  5.2859121715894400e-01;
++	pow[3]		=  9.7587991957286472e-06;
++	pow[4]		=  4.3280643293460450e+09;
++	pow[5]		=  8.4406761805034551e+02;
++	pow[6]		=  1.6946633276191194e+05;
++	pow[7]		=  5.3449040147551940e+02;
++	pow[8]		=  6.6881821384514159e+01;
++	pow[9]		=  2.0609869004248744e-09;
++
++	sin[0]		= -9.6466616586009283e-01;
++	sin[1]		=  9.9338225271646543e-01;
++	sin[2]		= -2.7335587039794395e-01;
++	sin[3]		=  9.5586257685042800e-01;
++	sin[4]		= -2.0994210667799692e-01;
++	sin[5]		=  2.1355787807998605e-01;
++	sin[6]		= -8.6945689711673619e-01;
++	sin[7]		=  4.0195666811555783e-01;
++	sin[8]		=  9.6778633541688000e-01;
++	sin[9]		= -6.7344058690503452e-01;
++
++	sinh[0]		=  7.2661916084208533e+01;
++	sinh[1]		=  1.1479409110035194e+03;
++	sinh[2]		= -2.8043136512812520e-01;
++	sinh[3]		= -7.4994290911815868e+01;
++	sinh[4]		=  7.6552466042906761e+03;
++	sinh[5]		=  9.3031583421672010e+00;
++	sinh[6]		=  9.3308157558281088e+01;
++	sinh[7]		=  7.6179893137269143e+00;
++	sinh[8]		=  3.0217691805496156e+00;
++	sinh[9]		= -2.9595057572444951e+03;
++
++	sqrt[0]		=  2.2313699659365484e+00;
++	sqrt[1]		=  2.7818829009464263e+00;
++	sqrt[2]		=  5.2619393496314792e-01;
++	sqrt[3]		=  2.2384377628763938e+00;
++	sqrt[4]		=  3.1042380236055380e+00;
++	sqrt[5]		=  1.7106657298385224e+00;
++	sqrt[6]		=  2.2867189227054791e+00;
++	sqrt[7]		=  1.6516476350711160e+00;
++	sqrt[8]		=  1.3510396336454586e+00;
++	sqrt[9]		=  2.9471892997524950e+00;
++
++	tan[0]		= -3.6613165650402277e+00;
++	tan[1]		=  8.6490023264859754e+00;
++	tan[2]		= -2.8417941955033615e-01;
++	tan[3]		=  3.2532901859747287e+00;
++	tan[4]		=  2.1472756403802937e-01;
++	tan[5]		= -2.1860091071106700e-01;
++	tan[6]		= -1.7600028178723679e+00;
++	tan[7]		= -4.3898089147528178e-01;
++	tan[8]		= -3.8438855602011305e+00;
++	tan[9]		=  9.1098879337768517e-01;
++
++	tanh[0]		=  9.9990531206936328e-01;
++	tanh[1]		=  9.9999962057085307e-01;
++	tanh[2]		= -2.7001505097318680e-01;
++	tanh[3]		= -9.9991110943061700e-01;
++	tanh[4]		=  9.9999999146798441e-01;
++	tanh[5]		=  9.9427249436125233e-01;
++	tanh[6]		=  9.9994257600983156e-01;
++	tanh[7]		=  9.9149409509772863e-01;
++	tanh[8]		=  9.4936501296239700e-01;
++	tanh[9]		= -9.9999994291374019e-01;
++}
+diff --git a/src/lib/math/math.go b/src/lib/math/math.go
+new file mode 100644
+index 0000000000..9e6be9527a
+--- /dev/null
++++ b/src/lib/math/math.go
+@@ -0,0 +1,48 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++import
++(
++	math	"asin"
++	math	"atan"
++	math	"atan2"
++	math	"exp"
++	math	"fabs"
++	math	"floor"
++	math	"fmod"
++	math	"hypot"
++	math	"log"
++	math	"pow"
++	math	"pow10"
++	math	"sin"
++	math	"sinh"
++	math	"sqrt"
++	math	"sys"
++	math	"tan"
++	math	"tanh"
++)
++
++export
++(
++	asin, acos
++	atan
++	atan2
++	exp
++	fabs
++	floor, ceil
++	fmod
++	hypot
++	log, log10
++	pow
++	pow10
++	sin, cos
++	sinh, cosh
++	sqrt
++	modf, frexp, ldexp
++	NaN, isInf, Inf
++	tan
++	tanh
++)
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+new file mode 100644
+index 0000000000..b2a954fb1b
+--- /dev/null
++++ b/src/lib/math/pow.go
+@@ -0,0 +1,70 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pow
++
++import		sys "sys"
++import		floor "floor"
++import		sqrt "sqrt"
++import		log "log"
++import		exp "exp"
++export		pow
++
++/*
++	arg1 ^ arg2 (exponentiation)
++ */
++
++func
++pow(arg1,arg2 double) double
++{
++	var temp double;
++	var l long;
++
++	if arg2 < 0 {
++		return 1/pow(arg1, -arg2);
++	}
++	if arg1 <= 0 {
++		if(arg1 == 0) {
++			if arg2 <= 0 {
++				return sys.NaN();
++			}
++			return 0;
++		}
++
++		temp = floor.floor(arg2);
++		if temp != arg2 {
++			return sys.NaN();
++		}
++
++		l = long(temp);
++		if l&1 != 0 {
++			return -pow(-arg1, arg2);
++		}
++		return pow(-arg1, arg2);
++	}
++
++	temp = floor.floor(arg2);
++	if temp != arg2 {
++		if arg2-temp == .5 {
++			if temp == 0 {
++				return sqrt.sqrt(arg1);
++			}
++			return pow(arg1, temp) * sqrt.sqrt(arg1);
++		}
++		return exp.exp(arg2 * log.log(arg1));
++	}
++
++	l = long(temp);
++	temp = 1;
++	for {
++		if l&1 != 0 {
++			temp = temp*arg1;
++		}
++		l = l>>1;
++		if l == 0 {
++			return temp;
++		}
++		arg1 = arg1*arg1;
++	}
++}
+diff --git a/src/lib/math/pow10.go b/src/lib/math/pow10.go
+new file mode 100644
+index 0000000000..1eb9bd1f18
+--- /dev/null
++++ b/src/lib/math/pow10.go
+@@ -0,0 +1,60 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pow10
++
++export	pow10
++
++/*
++ * this table might overflow 127-bit exponent representations.
++ * in that case, truncate it after 1.0e38.
++ * it is important to get all one can from this
++ * routine since it is used in atof to scale numbers.
++ * the presumption is that GO converts fp numbers better
++ * than multipication of lower powers of 10.
++ */
++const
++(
++	tabsize		= 70;
++)
++
++var	tab[tabsize] double;
++func	init();
++var	initdone bool;
++
++//{
++//	1.0e0, 1.0e1, 1.0e2, 1.0e3, 1.0e4, 1.0e5, 1.0e6, 1.0e7, 1.0e8, 1.0e9,
++//	1.0e10,1.0e11,1.0e12,1.0e13,1.0e14,1.0e15,1.0e16,1.0e17,1.0e18,1.0e19,
++//	1.0e20,1.0e21,1.0e22,1.0e23,1.0e24,1.0e25,1.0e26,1.0e27,1.0e28,1.0e29,
++//	1.0e30,1.0e31,1.0e32,1.0e33,1.0e34,1.0e35,1.0e36,1.0e37,1.0e38,1.0e39,
++//	1.0e40,1.0e41,1.0e42,1.0e43,1.0e44,1.0e45,1.0e46,1.0e47,1.0e48,1.0e49,
++//	1.0e50,1.0e51,1.0e52,1.0e53,1.0e54,1.0e55,1.0e56,1.0e57,1.0e58,1.0e59,
++//	1.0e60,1.0e61,1.0e62,1.0e63,1.0e64,1.0e65,1.0e66,1.0e67,1.0e68,1.0e69,
++//};
++
++func
++pow10(e int) double 
++{
++	if !initdone {
++		init();
++	}
++	if e < 0 {
++		return 1/pow10(-e);
++	}
++	if e < tabsize {
++		return tab[e];
++	}
++	m := e/2;
++	return pow10(m) * pow10(e-m);
++}
++
++func
++init()
++{
++	initdone = true;
++	tab[0] = 1.0;
++	for i:=1; i<tabsize; i=i+1 {
++		tab[i] = tab[i-1]*10;
++	}
++}
+diff --git a/src/lib/math/sin.go b/src/lib/math/sin.go
+new file mode 100644
+index 0000000000..ccadd1c82a
+--- /dev/null
++++ b/src/lib/math/sin.go
+@@ -0,0 +1,73 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sin
++
++import	sys "sys"
++export	sin, cos
++
++const
++(
++	p0	=  .1357884097877375669092680e8;
++	p1	= -.4942908100902844161158627e7;
++	p2	=  .4401030535375266501944918e6;
++	p3	= -.1384727249982452873054457e5;
++	p4	=  .1459688406665768722226959e3;
++	q0	=  .8644558652922534429915149e7;
++	q1	=  .4081792252343299749395779e6;
++	q2	=  .9463096101538208180571257e4;
++	q3	=  .1326534908786136358911494e3;
++        piu2	=  .6366197723675813430755350e0;	// 2/pi
++)
++
++func
++sinus(arg double, quad int) double
++{
++	var e, f, ysq, x, y, temp1, temp2 double;
++	var k long;
++
++	x = arg;
++	if(x < 0) {
++		x = -x;
++		quad = quad+2;
++	}
++	x = x * piu2;	/* underflow? */
++	if x > 32764 {
++		e,y = sys.modf(x);
++		e = e + double(quad);
++		temp1,f = sys.modf(0.25*e);
++		quad = int(e - 4*f);
++	} else {
++		k = long(x);
++		y = x - double(k);
++		quad = (quad + k) & 3;
++	}
++
++	if quad&1 != 0 {
++		y = 1-y;
++	}
++	if quad > 1 {
++		y = -y;
++	}
++
++	ysq = y*y;
++	temp1 = ((((p4*ysq+p3)*ysq+p2)*ysq+p1)*ysq+p0)*y;
++	temp2 = ((((ysq+q3)*ysq+q2)*ysq+q1)*ysq+q0);
++	return temp1/temp2;
++}
++
++func
++cos(arg double) double
++{
++	if arg < 0 {
++		arg = -arg;
++	}
++	return sinus(arg, 1);
++}
++
++func
++sin(arg double) double
++{
++	return sinus(arg, 0);
++}
+diff --git a/src/lib/math/sinh.go b/src/lib/math/sinh.go
+new file mode 100644
+index 0000000000..a26031ba52
+--- /dev/null
++++ b/src/lib/math/sinh.go
+@@ -0,0 +1,75 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sinh
++
++import	exp "exp"
++export	sinh, cosh
++
++/*
++	sinh(arg) returns the hyperbolic sine of its floating-
++	point argument.
++
++	The exponential func is called for arguments
++	greater in magnitude than 0.5.
++
++	A series is used for arguments smaller in magnitude than 0.5.
++	The coefficients are #2029 from Hart & Cheney. (20.36D)
++
++	cosh(arg) is computed from the exponential func for
++	all arguments.
++ */
++
++const
++(
++	p0	= -0.6307673640497716991184787251e+6;
++	p1	= -0.8991272022039509355398013511e+5;
++	p2	= -0.2894211355989563807284660366e+4;
++	p3	= -0.2630563213397497062819489e+2;
++	q0	= -0.6307673640497716991212077277e+6;
++	q1	=  0.1521517378790019070696485176e+5;
++	q2	= -0.173678953558233699533450911e+3;
++)
++
++func
++sinh(arg double) double
++{
++	var temp, argsq double;
++	var sign bool;
++
++	sign = false;
++	if arg < 0 {
++		arg = -arg;
++		sign = true;
++	}
++	switch true {
++	case arg > 21:
++		temp = exp.exp(arg)/2;
++
++	case arg > 0.5:
++		temp = (exp.exp(arg) - exp.exp(-arg))/2;
++
++	default:
++		argsq = arg*arg;
++		temp = (((p3*argsq+p2)*argsq+p1)*argsq+p0)*arg;
++		temp = temp/(((argsq+q2)*argsq+q1)*argsq+q0);
++	}
++
++	if sign {
++		temp = -temp;
++	}
++	return temp;
++}
++
++func
++cosh(arg double) double
++{
++	if arg < 0 {
++		arg = - arg;
++	}
++	if arg > 21 {
++		return exp.exp(arg)/2;
++	}
++	return (exp.exp(arg) + exp.exp(-arg))/2;
++}
+diff --git a/src/lib/math/sqrt.go b/src/lib/math/sqrt.go
+new file mode 100644
+index 0000000000..8209a3ac49
+--- /dev/null
++++ b/src/lib/math/sqrt.go
+@@ -0,0 +1,64 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sqrt
++
++import		sys "sys"
++export		sqrt
++
++/*
++	sqrt returns the square root of its floating
++	point argument. Newton's method.
++
++	calls frexp
++*/
++
++func
++sqrt(arg double) double
++{
++	var x, temp double;
++	var exp, i int;
++
++	if sys.isInf(arg, 1) {
++		return arg;
++	}
++
++	if arg <= 0 {
++		if arg < 0 {
++			return sys.NaN();
++		}
++		return 0;
++	}
++
++	exp,x = sys.frexp(arg);
++	for x < 0.5 {
++		x = x*2;
++		exp = exp-1;
++	}
++
++	if exp&1 != 0 {
++		x = x*2;
++		exp = exp-1;
++	}
++	temp = 0.5 * (1+x);
++
++	for exp > 60 {
++		temp = temp * double(1<<30);
++		exp = exp - 60;
++	}
++	for exp < -60 {
++		temp = temp / double(1<<30);
++		exp = exp + 60;
++	}
++	if exp >= 0 {
++		temp = temp * double(1 << (exp/2));
++	} else {
++		temp = temp / double(1 << (-exp/2));
++	}
++
++	for i=0; i<=4; i=i+1 {
++		temp = 0.5*(temp + arg/temp);
++	}
++	return temp;
++}
+diff --git a/src/lib/math/sys.go b/src/lib/math/sys.go
+new file mode 100644
+index 0000000000..3f7ee232ad
+--- /dev/null
++++ b/src/lib/math/sys.go
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++func	modf(a double) (double, double);
++func	frexp(a double) (int, double);
++func	ldexp(double, int) double;
++
++func	Inf(n int) double;
++func	NaN() double;
++func	isInf(arg double, n int) bool;
++
++export	modf, frexp, ldexp
++export	NaN, isInf, Inf
+diff --git a/src/lib/math/tan.go b/src/lib/math/tan.go
+new file mode 100644
+index 0000000000..913d942c21
+--- /dev/null
++++ b/src/lib/math/tan.go
+@@ -0,0 +1,74 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tan
++
++import		sys "sys"
++export		tan
++
++/*
++	floating point tangent
++	Coefficients are #4285 from Hart & Cheney. (19.74D)
++ */
++
++const
++(
++	p0	= -.1306820264754825668269611177e+5;
++	p1	=  .1055970901714953193602353981e+4;
++	p2	= -.1550685653483266376941705728e+2;
++	p3	=  .3422554387241003435328470489e-1;
++	p4	=  .3386638642677172096076369e-4;
++	q0	= -.1663895238947119001851464661e+5;
++	q1	=  .4765751362916483698926655581e+4;
++	q2	= -.1555033164031709966900124574e+3;
++        piu4	=  .1273239544735162686151070107e+1;	// 4/pi
++)
++
++func
++tan(arg double) double
++{
++	var temp, e, x, xsq double;
++	var i long;
++	var flag, sign bool;
++
++	flag = false;
++	sign = false;
++	x = arg;
++	if(x < 0) {
++		x = -x;
++		sign = true;
++	}
++	x = x * piu4;   /* overflow? */
++	e,x = sys.modf(x);
++	i = long(e);
++
++	switch i & 3 {
++	case 1:
++		x = 1 - x;
++		flag = true;
++
++	case 2:
++		sign = !sign;
++		flag = true;
++
++	case 3:
++		x = 1 - x;
++		sign = !sign;
++	}
++
++	xsq = x*x;
++	temp = ((((p4*xsq+p3)*xsq+p2)*xsq+p1)*xsq+p0)*x;
++	temp = temp/(((xsq+q2)*xsq+q1)*xsq+q0);
++
++	if flag {
++		if(temp == 0) {
++			return sys.NaN();
++		}
++		temp = 1/temp;
++	}
++	if sign {
++		temp = -temp;
++	}
++	return temp;
++}
+diff --git a/src/lib/math/tanh.go b/src/lib/math/tanh.go
+new file mode 100644
+index 0000000000..8d1748205c
+--- /dev/null
++++ b/src/lib/math/tanh.go
+@@ -0,0 +1,32 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tanh
++
++import		sinh "sinh"
++export		tanh
++
++/*
++	tanh(arg) computes the hyperbolic tangent of its floating
++	point argument.
++
++	sinh and cosh are called except for large arguments, which
++	would cause overflow improperly.
++ */
++
++func
++tanh(arg double) double
++{
++	if arg < 0 {
++		arg = -arg;
++		if arg > 21 {
++			return -1;
++		}
++		return -sinh.sinh(arg)/sinh.cosh(arg);
++	}
++	if arg > 21 {
++		return 1;
++	}
++	return sinh.sinh(arg)/sinh.cosh(arg);
++}

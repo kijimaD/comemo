@@ -28,7 +28,7 @@ Date:   Fri Nov 2 15:18:43 2018 +0000
     Change-Id: Ided502237f5ab0d25cb625dbab12529c361a8b9f
     Reviewed-on: https://go-review.googlesource.com/c/147037
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/asm/internal/lex/input.go              | 2 +-
  src/cmd/compile/internal/gc/closure.go         | 2 +-
  src/cmd/compile/internal/gc/syntax.go          | 2 +-
@@ -77,3 +77,741 @@ Date:   Fri Nov 2 15:18:43 2018 +0000
  src/sync/runtime.go                            | 2 +-
  src/syscall/mksyscall_windows.go               | 2 +-
  47 files changed, 61 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 5186635fe7..a43953b515 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -139,7 +139,7 @@ func (in *Input) Text() string {
+ 	return in.text
+ }
+ 
+-// hash processes a # preprocessor directive. It returns true iff it completes.
++// hash processes a # preprocessor directive. It reports whether it completes.
+ func (in *Input) hash() bool {
+ 	// We have a '#'; it must be followed by a known word (define, include, etc.).
+ 	tok := in.Stack.Next()
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index ec19f5c112..5123df8e9d 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -314,7 +314,7 @@ func transformclosure(xfunc *Node) {
+ 	lineno = lno
+ }
+ 
+-// hasemptycvars returns true iff closure clo has an
++// hasemptycvars reports whether closure clo has an
+ // empty list of captured vars.
+ func hasemptycvars(clo *Node) bool {
+ 	xfunc := clo.Func.Closure
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 0fe6defe99..e29a3d7657 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -929,7 +929,7 @@ type nodeQueue struct {
+ 	head, tail int
+ }
+ 
+-// empty returns true if q contains no Nodes.
++// empty reports whether q contains no Nodes.
+ func (q *nodeQueue) empty() bool {
+ 	return q.head == q.tail
+ }
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index e79629695a..558c4b7db8 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -112,7 +112,7 @@ type Logger interface {
+ 	// Logf logs a message from the compiler.
+ 	Logf(string, ...interface{})
+ 
+-	// Log returns true if logging is not a no-op
++	// Log reports whether logging is not a no-op
+ 	// some logging calls account for more than a few heap allocations.
+ 	Log() bool
+ 
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 8df8a94b76..3d0be0fe1c 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -790,7 +790,7 @@ func (e *pendingEntry) clear() {
+ 	}
+ }
+ 
+-// canMerge returns true if the location description for new is the same as
++// canMerge reports whether the location description for new is the same as
+ // pending.
+ func canMerge(pending, new VarLoc) bool {
+ 	if pending.absent() && new.absent() {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 2ed4086fd1..d73d39ce28 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -621,7 +621,7 @@ func (f *Func) invalidateCFG() {
+ 	f.cachedLoopnest = nil
+ }
+ 
+-// DebugHashMatch returns true if environment variable evname
++// DebugHashMatch reports whether environment variable evname
+ // 1) is empty (this is a special more-quickly implemented case of 3)
+ // 2) is "y" or "Y"
+ // 3) is a suffix of the sha1 hash of name
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 522ccbf893..ba8d93cf2c 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -529,7 +529,7 @@ var genericOps = []opData{
+ 	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+ 	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+ 	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+-	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, returns true if store happens and new memory.
++	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, reports whether store happens and new memory.
+ 	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                       // *arg0 &= arg1.  arg2=memory.  Returns memory.
+ 	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                        // *arg0 |= arg1.  arg2=memory.  Returns memory.
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index faaad974c4..34517b4cb9 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -6,7 +6,7 @@
+ 
+ // This program generates Go code that applies rewrite rules to a Value.
+ // The generated code implements a function of type func (v *Value) bool
+-// which returns true iff if did something.
++// which reports whether if did something.
+ // Ideas stolen from Swift: http://www.hpl.hp.com/techreports/Compaq-DEC/WRL-2000-2.html
+ 
+ package main
+@@ -386,7 +386,7 @@ func genRules(arch arch) {
+ 	}
+ }
+ 
+-// genMatch returns true if the match can fail.
++// genMatch reports whether the match can fail.
+ func genMatch(w io.Writer, arch arch, match string, loc string) bool {
+ 	return genMatch0(w, arch, match, "v", map[string]struct{}{}, true, loc)
+ }
+@@ -623,7 +623,7 @@ outer:
+ 	return r
+ }
+ 
+-// isBlock returns true if this op is a block opcode.
++// isBlock reports whether this op is a block opcode.
+ func isBlock(name string, arch arch) bool {
+ 	for _, b := range genericBlocks {
+ 		if b.name == name {
+@@ -768,7 +768,7 @@ func typeName(typ string) string {
+ 	}
+ }
+ 
+-// unbalanced returns true if there aren't the same number of ( and ) in the string.
++// unbalanced reports whether there aren't the same number of ( and ) in the string.
+ func unbalanced(s string) bool {
+ 	var left, right int
+ 	for _, c := range s {
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index 0e0e2789b1..4ebfb89e52 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -781,7 +781,7 @@ func (po *poset) DotDump(fn string, title string) error {
+ 	return nil
+ }
+ 
+-// Ordered returns true if n1<n2. It returns false either when it is
++// Ordered reports whether n1<n2. It returns false either when it is
+ // certain that n1<n2 is false, or if there is not enough information
+ // to tell.
+ // Complexity is O(n).
+@@ -799,7 +799,7 @@ func (po *poset) Ordered(n1, n2 *Value) bool {
+ 	return i1 != i2 && po.dominates(i1, i2, true)
+ }
+ 
+-// Ordered returns true if n1<=n2. It returns false either when it is
++// Ordered reports whether n1<=n2. It returns false either when it is
+ // certain that n1<=n2 is false, or if there is not enough information
+ // to tell.
+ // Complexity is O(n).
+@@ -818,7 +818,7 @@ func (po *poset) OrderedOrEqual(n1, n2 *Value) bool {
+ 		(po.dominates(i2, i1, false) && !po.dominates(i2, i1, true))
+ }
+ 
+-// Equal returns true if n1==n2. It returns false either when it is
++// Equal reports whether n1==n2. It returns false either when it is
+ // certain that n1==n2 is false, or if there is not enough information
+ // to tell.
+ // Complexity is O(1).
+@@ -832,7 +832,7 @@ func (po *poset) Equal(n1, n2 *Value) bool {
+ 	return f1 && f2 && i1 == i2
+ }
+ 
+-// NonEqual returns true if n1!=n2. It returns false either when it is
++// NonEqual reports whether n1!=n2. It returns false either when it is
+ // certain that n1!=n2 is false, or if there is not enough information
+ // to tell.
+ // Complexity is O(n) (because it internally calls Ordered to see if we
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 13a2da9a2f..ed5bce861e 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -485,7 +485,7 @@ func auxTo64F(i int64) float64 {
+ 	return math.Float64frombits(uint64(i))
+ }
+ 
+-// uaddOvf returns true if unsigned a+b would overflow.
++// uaddOvf reports whether unsigned a+b would overflow.
+ func uaddOvf(a, b int64) bool {
+ 	return uint64(a)+uint64(b) < uint64(a)
+ }
+diff --git a/src/cmd/compile/internal/ssa/trim.go b/src/cmd/compile/internal/ssa/trim.go
+index d97c6baaa1..1293548aad 100644
+--- a/src/cmd/compile/internal/ssa/trim.go
++++ b/src/cmd/compile/internal/ssa/trim.go
+@@ -94,7 +94,7 @@ func trim(f *Func) {
+ 	}
+ }
+ 
+-// emptyBlock returns true if the block does not contain actual
++// emptyBlock reports whether the block does not contain actual
+ // instructions
+ func emptyBlock(b *Block) bool {
+ 	for _, v := range b.Values {
+@@ -105,7 +105,7 @@ func emptyBlock(b *Block) bool {
+ 	return true
+ }
+ 
+-// trimmableBlock returns true if the block can be trimmed from the CFG,
++// trimmableBlock reports whether the block can be trimmed from the CFG,
+ // subject to the following criteria:
+ //  - it should not be the first block
+ //  - it should be BlockPlain
+diff --git a/src/cmd/fix/fix.go b/src/cmd/fix/fix.go
+index 03c828a581..2c64e9b414 100644
+--- a/src/cmd/fix/fix.go
++++ b/src/cmd/fix/fix.go
+@@ -478,7 +478,7 @@ func newPkgDot(pos token.Pos, pkg, name string) ast.Expr {
+ }
+ 
+ // renameTop renames all references to the top-level name old.
+-// It returns true if it makes any changes.
++// It reports whether it makes any changes.
+ func renameTop(f *ast.File, old, new string) bool {
+ 	var fixed bool
+ 
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 21512a80bd..8ad84105a4 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -967,7 +967,7 @@ Outer:
+ 	}
+ }
+ 
+-// HasChildren returns true if 'die' uses an abbrev that supports children.
++// HasChildren reports whether 'die' uses an abbrev that supports children.
+ func HasChildren(die *DWDie) bool {
+ 	return abbrevs[die.Abbrev].children != 0
+ }
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 9905456b46..a4933b51bf 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -508,7 +508,7 @@ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping tim
+ 	return overlapping
+ }
+ 
+-// overlappingInstant returns true if the instantaneous event, ev, occurred during
++// overlappingInstant reports whether the instantaneous event, ev, occurred during
+ // any of the task's region if ev is a goroutine-local event, or overlaps with the
+ // task's lifetime if ev is a global event.
+ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index a55da1d3c8..3a2eea0beb 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -531,7 +531,7 @@ func printfNameAndKind(pkg *Package, called ast.Expr) (pkgpath, name string, kin
+ 	return pkgpath, name, kind
+ }
+ 
+-// isStringer returns true if the provided declaration is a "String() string"
++// isStringer reports whether the provided declaration is a "String() string"
+ // method, an implementation of fmt.Stringer.
+ func isStringer(f *File, d *ast.FuncDecl) bool {
+ 	return d.Recv != nil && d.Name.Name == "String" && d.Type.Results != nil &&
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 7e8f675886..b0d366c245 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1147,7 +1147,7 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
+ 	return
+ }
+ 
+-// isValidIPMask returns true iff mask consists of zero or more 1 bits, followed by zero bits.
++// isValidIPMask reports whether mask consists of zero or more 1 bits, followed by zero bits.
+ func isValidIPMask(mask []byte) bool {
+ 	seenZero := false
+ 
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 16f1c9fce8..099701ce7c 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2691,7 +2691,7 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
+ 	return false, true
+ }
+ 
+-// NextResultSet prepares the next result set for reading. It returns true if
++// NextResultSet prepares the next result set for reading. It reports whether
+ // there is further result sets, or false if there is no further result set
+ // or if there is an error advancing to it. The Err method should be consulted
+ // to distinguish between the two cases.
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 1ed357adff..3cfd9d1276 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -633,7 +633,7 @@ var (
+ 	bigIntType           = reflect.TypeOf(new(big.Int))
+ )
+ 
+-// invalidLength returns true iff offset + length > sliceLength, or if the
++// invalidLength reports whether offset + length > sliceLength, or if the
+ // addition would overflow.
+ func invalidLength(offset, length, sliceLength int) bool {
+ 	return offset+length < offset || offset+length > sliceLength
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 1de7cd81b2..a307d8395e 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -1134,7 +1134,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
+ // than starting at the first line break).
+ //
+ func (p *printer) indentList(list []ast.Expr) bool {
+-	// Heuristic: indentList returns true if there are more than one multi-
++	// Heuristic: indentList reports whether there are more than one multi-
+ 	// line element in the list, or if there is any element that is not
+ 	// starting on the same line as the previous one ends.
+ 	if len(list) >= 2 {
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 882c773db4..ece6d4f530 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ // builtin type-checks a call to the built-in specified by id and
+-// returns true if the call is valid, with *x holding the result;
++// reports whether the call is valid, with *x holding the result;
+ // but x.expr is not set. If the call is invalid, the result is
+ // false, and *x is undefined.
+ //
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 6cf5cc66f9..b50ee2fd5f 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -115,7 +115,7 @@ func (s *Scope) Insert(obj Object) Object {
+ func (s *Scope) Pos() token.Pos { return s.pos }
+ func (s *Scope) End() token.Pos { return s.end }
+ 
+-// Contains returns true if pos is within the scope's extent.
++// Contains reports whether pos is within the scope's extent.
+ // The result is guaranteed to be valid only if the type-checked
+ // AST has complete position information.
+ func (s *Scope) Contains(pos token.Pos) bool {
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 77426ba618..3dd9eb97f5 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -340,7 +340,7 @@ func (t *Interface) NumMethods() int { return len(t.allMethods) }
+ // The methods are ordered by their unique Id.
+ func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
+ 
+-// Empty returns true if t is the empty interface.
++// Empty reports whether t is the empty interface.
+ func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
+ 
+ // Complete computes the interface's method set. It must be called by users of
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 2291f47c33..98e821b73c 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -371,7 +371,7 @@ func isJSIdentPart(r rune) bool {
+ 	return false
+ }
+ 
+-// isJSType returns true if the given MIME type should be considered JavaScript.
++// isJSType reports whether the given MIME type should be considered JavaScript.
+ //
+ // It is used to determine whether a script tag with a type attribute is a javascript container.
+ func isJSType(mimeType string) bool {
+diff --git a/src/html/template/url.go b/src/html/template/url.go
+index 8a4f727e50..6f8185a4e9 100644
+--- a/src/html/template/url.go
++++ b/src/html/template/url.go
+@@ -86,7 +86,7 @@ func urlProcessor(norm bool, args ...interface{}) string {
+ }
+ 
+ // processURLOnto appends a normalized URL corresponding to its input to b
+-// and returns true if the appended content differs from s.
++// and reports whether the appended content differs from s.
+ func processURLOnto(s string, norm bool, b *bytes.Buffer) bool {
+ 	b.Grow(len(s) + 16)
+ 	written := 0
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index fce2285931..0fce32915e 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -193,7 +193,7 @@ func isInterrupted(err error) bool {
+ 	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
+ }
+ 
+-// IsPollDescriptor returns true if fd is the descriptor being used by the poller.
++// IsPollDescriptor reports whether fd is the descriptor being used by the poller.
+ // This is only used for testing.
+ func IsPollDescriptor(fd uintptr) bool {
+ 	return false
+diff --git a/src/internal/poll/fd_poll_nacljs.go b/src/internal/poll/fd_poll_nacljs.go
+index e0d3f976f1..0871f342d4 100644
+--- a/src/internal/poll/fd_poll_nacljs.go
++++ b/src/internal/poll/fd_poll_nacljs.go
+@@ -92,7 +92,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+ 	return nil
+ }
+ 
+-// IsPollDescriptor returns true if fd is the descriptor being used by the poller.
++// IsPollDescriptor reports whether fd is the descriptor being used by the poller.
+ // This is only used for testing.
+ func IsPollDescriptor(fd uintptr) bool {
+ 	return false
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index 2ee8e7c2c9..687f702556 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -154,7 +154,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+ 	return nil
+ }
+ 
+-// IsPollDescriptor returns true if fd is the descriptor being used by the poller.
++// IsPollDescriptor reports whether fd is the descriptor being used by the poller.
+ // This is only used for testing.
+ func IsPollDescriptor(fd uintptr) bool {
+ 	return runtime_isPollServerDescriptor(fd)
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index d5e801b2c8..b3c3295201 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -327,7 +327,7 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
+ 	return z
+ }
+ 
+-// Signbit returns true if x is negative or negative zero.
++// Signbit reports whether x is negative or negative zero.
+ func (x *Float) Signbit() bool {
+ 	return x.neg
+ }
+diff --git a/src/math/cmplx/isinf.go b/src/math/cmplx/isinf.go
+index d5a65b44b3..6273cd3a6c 100644
+--- a/src/math/cmplx/isinf.go
++++ b/src/math/cmplx/isinf.go
+@@ -6,7 +6,7 @@ package cmplx
+ 
+ import "math"
+ 
+-// IsInf returns true if either real(x) or imag(x) is an infinity.
++// IsInf reports whether either real(x) or imag(x) is an infinity.
+ func IsInf(x complex128) bool {
+ 	if math.IsInf(real(x), 0) || math.IsInf(imag(x), 0) {
+ 		return true
+diff --git a/src/math/cmplx/isnan.go b/src/math/cmplx/isnan.go
+index 05d0cce633..d3382c05ee 100644
+--- a/src/math/cmplx/isnan.go
++++ b/src/math/cmplx/isnan.go
+@@ -6,7 +6,7 @@ package cmplx
+ 
+ import "math"
+ 
+-// IsNaN returns true if either real(x) or imag(x) is NaN
++// IsNaN reports whether either real(x) or imag(x) is NaN
+ // and neither is an infinity.
+ func IsNaN(x complex128) bool {
+ 	switch {
+diff --git a/src/math/signbit.go b/src/math/signbit.go
+index 670cc1a667..f6e61d660e 100644
+--- a/src/math/signbit.go
++++ b/src/math/signbit.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-// Signbit returns true if x is negative or negative zero.
++// Signbit reports whether x is negative or negative zero.
+ func Signbit(x float64) bool {
+ 	return Float64bits(x)&(1<<63) != 0
+ }
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index f4700f5818..271ff5f843 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -10,7 +10,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-// isNulName returns true if name is NUL file name.
++// isNulName reports whether name is NUL file name.
+ // For example, it returns true for both "NUL" and "nul".
+ func isNulName(name string) bool {
+ 	if len(name) != 3 {
+diff --git a/src/path/filepath/match_test.go b/src/path/filepath/match_test.go
+index 1d91c274c7..b8657626bc 100644
+--- a/src/path/filepath/match_test.go
++++ b/src/path/filepath/match_test.go
+@@ -106,7 +106,7 @@ func TestMatch(t *testing.T) {
+ 	}
+ }
+ 
+-// contains returns true if vector contains the string s.
++// contains reports whether vector contains the string s.
+ func contains(vector []string, s string) bool {
+ 	for _, elem := range vector {
+ 		if elem == s {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index d8971d620e..a04234ca69 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2314,7 +2314,7 @@ type structTypeFixed32 struct {
+ 	m [32]method
+ }
+ 
+-// isLetter returns true if a given 'rune' is classified as a Letter.
++// isLetter reports whether a given 'rune' is classified as a Letter.
+ func isLetter(ch rune) bool {
+ 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
+ }
+diff --git a/src/regexp/syntax/regexp.go b/src/regexp/syntax/regexp.go
+index a3f56f8c90..ae5fa053f9 100644
+--- a/src/regexp/syntax/regexp.go
++++ b/src/regexp/syntax/regexp.go
+@@ -59,7 +59,7 @@ const (
+ 
+ const opPseudo Op = 128 // where pseudo-ops start
+ 
+-// Equal returns true if x and y have identical structure.
++// Equal reports whether x and y have identical structure.
+ func (x *Regexp) Equal(y *Regexp) bool {
+ 	if x == nil || y == nil {
+ 		return x == y
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 4854c0e632..67d99900a2 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -517,7 +517,7 @@ func (h heapBits) bits() uint32 {
+ 	return uint32(*h.bitp) >> (h.shift & 31)
+ }
+ 
+-// morePointers returns true if this word and all remaining words in this object
++// morePointers reports whether this word and all remaining words in this object
+ // are scalars.
+ // h must not describe the second word of the object.
+ func (h heapBits) morePointers() bool {
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index d9bc8b4719..f108bfc31e 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -203,7 +203,7 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ // and, based on the number of free objects in s,
+ // moves s to the appropriate list of c or returns it
+ // to the heap.
+-// freeSpan returns true if s was returned to the heap.
++// freeSpan reports whether s was returned to the heap.
+ // If preserve=true, it does not move s (the caller
+ // must take care of it).
+ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index e12df7f7d2..f4646db67a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -735,7 +735,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+ 	return gp
+ }
+ 
+-// pollFractionalWorkerExit returns true if a fractional mark worker
++// pollFractionalWorkerExit reports whether a fractional mark worker
+ // should self-preempt. It assumes it is called from the fractional
+ // worker.
+ func pollFractionalWorkerExit() bool {
+@@ -1157,7 +1157,7 @@ const (
+ 	gcTriggerCycle
+ )
+ 
+-// test returns true if the trigger condition is satisfied, meaning
++// test reports whether the trigger condition is satisfied, meaning
+ // that the exit condition for the _GCoff phase has been met. The exit
+ // condition should be tested when allocating.
+ func (t gcTrigger) test() bool {
+@@ -1867,7 +1867,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 	}
+ }
+ 
+-// gcMarkWorkAvailable returns true if executing a mark worker
++// gcMarkWorkAvailable reports whether executing a mark worker
+ // on p is potentially useful. p may be nil, in which case it only
+ // checks the global sources of work.
+ func gcMarkWorkAvailable(p *p) bool {
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index c32c5eddd7..f2f20fcdac 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -138,7 +138,7 @@ func (w *gcWork) put(obj uintptr) {
+ 	}
+ }
+ 
+-// putFast does a put and returns true if it can be done quickly
++// putFast does a put and reports whether it can be done quickly
+ // otherwise it returns false and the caller needs to call put.
+ //go:nowritebarrierrec
+ func (w *gcWork) putFast(obj uintptr) bool {
+@@ -299,7 +299,7 @@ func (w *gcWork) balance() {
+ 	}
+ }
+ 
+-// empty returns true if w has no mark work available.
++// empty reports whether w has no mark work available.
+ //go:nowritebarrierrec
+ func (w *gcWork) empty() bool {
+ 	return w.wbuf1 == nil || (w.wbuf1.nobj == 0 && w.wbuf2.nobj == 0)
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index f35f7286ac..c91cea254e 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -107,7 +107,7 @@ func (b *wbBuf) discard() {
+ 	b.next = uintptr(unsafe.Pointer(&b.buf[0]))
+ }
+ 
+-// empty returns true if b contains no pointers.
++// empty reports whether b contains no pointers.
+ func (b *wbBuf) empty() bool {
+ 	return b.next == uintptr(unsafe.Pointer(&b.buf[0]))
+ }
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 75db8c6c2f..71ca993cc0 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -95,7 +95,7 @@ func netpollinited() bool {
+ 
+ //go:linkname poll_runtime_isPollServerDescriptor internal/poll.runtime_isPollServerDescriptor
+ 
+-// poll_runtime_isPollServerDescriptor returns true if fd is a
++// poll_runtime_isPollServerDescriptor reports whether fd is a
+ // descriptor being used by netpoll.
+ func poll_runtime_isPollServerDescriptor(fd uintptr) bool {
+ 	fds := netpolldescriptor()
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 45be886196..5b989d28e9 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -849,7 +849,7 @@ func canpanic(gp *g) bool {
+ 	return true
+ }
+ 
+-// shouldPushSigpanic returns true if pc should be used as sigpanic's
++// shouldPushSigpanic reports whether pc should be used as sigpanic's
+ // return PC (pushing a frame for the call). Otherwise, it should be
+ // left alone so that LR is used as sigpanic's return PC, effectively
+ // replacing the top-most frame with sigpanic. This is used by
+@@ -887,7 +887,7 @@ func shouldPushSigpanic(gp *g, pc, lr uintptr) bool {
+ 	return true
+ }
+ 
+-// isAbortPC returns true if pc is the program counter at which
++// isAbortPC reports whether pc is the program counter at which
+ // runtime.abort raises a signal.
+ //
+ // It is nosplit because it's part of the isgoexception
+diff --git a/src/runtime/pprof/internal/profile/profile.go b/src/runtime/pprof/internal/profile/profile.go
+index 84e607e9a8..a6f8354b1e 100644
+--- a/src/runtime/pprof/internal/profile/profile.go
++++ b/src/runtime/pprof/internal/profile/profile.go
+@@ -573,7 +573,7 @@ func (p *Profile) Demangle(d Demangler) error {
+ 	return nil
+ }
+ 
+-// Empty returns true if the profile contains no samples.
++// Empty reports whether the profile contains no samples.
+ func (p *Profile) Empty() bool {
+ 	return len(p.Sample) == 0
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 542cf1ed70..864efcdfed 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2400,7 +2400,7 @@ stop:
+ 	goto top
+ }
+ 
+-// pollWork returns true if there is non-background work this P could
++// pollWork reports whether there is non-background work this P could
+ // be doing. This is a fairly lightweight check to be used for
+ // background work loops, like idle GC. It checks a subset of the
+ // conditions checked by the actual scheduler.
+@@ -4713,7 +4713,7 @@ func pidleget() *p {
+ 	return _p_
+ }
+ 
+-// runqempty returns true if _p_ has no Gs on its local run queue.
++// runqempty reports whether _p_ has no Gs on its local run queue.
+ // It never returns true spuriously.
+ func runqempty(_p_ *p) bool {
+ 	// Defend against a race where 1) _p_ has G1 in runqnext but runqhead == runqtail,
+@@ -4934,7 +4934,7 @@ type gQueue struct {
+ 	tail guintptr
+ }
+ 
+-// empty returns true if q is empty.
++// empty reports whether q is empty.
+ func (q *gQueue) empty() bool {
+ 	return q.head == 0
+ }
+@@ -5000,7 +5000,7 @@ type gList struct {
+ 	head guintptr
+ }
+ 
+-// empty returns true if l is empty.
++// empty reports whether l is empty.
+ func (l *gList) empty() bool {
+ 	return l.head == 0
+ }
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 873ce66abe..e8a64da657 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -38,7 +38,7 @@ func initExceptionHandler() {
+ 	}
+ }
+ 
+-// isgoexception returns true if this exception should be translated
++// isgoexception reports whether this exception should be translated
+ // into a Go panic.
+ //
+ // It is nosplit to avoid growing the stack in case we're aborting
+diff --git a/src/sync/runtime.go b/src/sync/runtime.go
+index a13d9f6cf1..b6b9e480a4 100644
+--- a/src/sync/runtime.go
++++ b/src/sync/runtime.go
+@@ -54,7 +54,7 @@ func init() {
+ }
+ 
+ // Active spinning runtime support.
+-// runtime_canSpin returns true if spinning makes sense at the moment.
++// runtime_canSpin reports whether spinning makes sense at the moment.
+ func runtime_canSpin(i int) bool
+ 
+ // runtime_doSpin does active spinning.
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index dd84e33c0f..ee2123f939 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -694,7 +694,7 @@ func (src *Source) ParseFile(path string) error {
+ 	return nil
+ }
+ 
+-// IsStdRepo returns true if src is part of standard library.
++// IsStdRepo reports whether src is part of standard library.
+ func (src *Source) IsStdRepo() (bool, error) {
+ 	if len(src.Files) == 0 {
+ 		return false, errors.New("no input files provided")

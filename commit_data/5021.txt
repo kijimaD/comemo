@@ -9,7 +9,7 @@ Date:   Tue Mar 9 12:49:24 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/362041
-
+---
  src/cmd/6g/Makefile       |   3 +
  src/cmd/6g/gg.h           |   4 +-
  src/cmd/6g/gsubr.c        |   2 +-
@@ -30,3 +30,967 @@ Date:   Tue Mar 9 12:49:24 2010 -0800
  test/ken/cplx3.go         |   6 +-
  test/ken/cplx4.go         |   4 +-
  19 files changed, 271 insertions(+), 265 deletions(-)
+
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index f1e76692ef..712cfc60cb 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -38,3 +38,6 @@ clean:
+ 
+ install: $(TARG)
+ 	cp $(TARG) "$(GOBIN)"/$(TARG)
++
++%.$O: ../gc/%.c
++	$(CC) $(CFLAGS) -c -I. -o $@ ../gc/$*.c
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index bfa7974352..34b28c0574 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -134,12 +134,12 @@ void	nodfconst(Node*, Type*, Mpflt*);
+  * cplx.c
+  */
+ int	complexop(Node*, Node*);
+-void	complexmove(Node*, Node*, int);
++void	complexmove(Node*, Node*);
+ void	complexgen(Node*, Node*);
+ void	complexbool(int, Node*, Node*, int, Prog*);
+ 
+ /*
+- * obj.c
++ * gobj.c
+  */
+ void	datastring(char*, int, Addr*);
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index bf043892ca..c5f4dbe451 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -483,7 +483,7 @@ gmove(Node *f, Node *t)
+ 	cvt = t->type;
+ 
+ 	if(iscomplex[ft] || iscomplex[tt]) {
+-		complexmove(f, t, 0);
++		complexmove(f, t);
+ 		return;
+ 	}
+ 
+diff --git a/src/cmd/8g/Makefile b/src/cmd/8g/Makefile
+index ea1f178d28..d2431182f4 100644
+--- a/src/cmd/8g/Makefile
++++ b/src/cmd/8g/Makefile
+@@ -22,6 +22,7 @@ OFILES=\
+ 	gsubr.$O\
+ 	cgen.$O\
+ 	cgen64.$O\
++	cplx.$O\
+ 	peep.$O\
+ 	reg.$O\
+ 
+@@ -38,3 +39,6 @@ clean:
+ 
+ install: $(TARG)
+ 	cp $(TARG) "$(GOBIN)"/$(TARG)
++
++%.$O: ../gc/%.c
++	$(CC) $(CFLAGS) -c -I. -o $@ ../gc/$*.c
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 3f2a64caa2..6ea637a282 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -57,12 +57,6 @@ cgen(Node *n, Node *res)
+ 	if(res == N || res->type == T)
+ 		fatal("cgen: res nil");
+ 
+-	// TODO compile complex
+-	if(n != N && n->type != T && iscomplex[n->type->etype])
+-		return;
+-	if(res != N && res->type != T && iscomplex[res->type->etype])
+-		return;
+-
+ 	// inline slices
+ 	if(cgen_inline(n, res))
+ 		return;
+@@ -98,6 +92,12 @@ cgen(Node *n, Node *res)
+ 		break;
+ 	}
+ 
++	// complex types
++	if(complexop(n, res)) {
++		complexgen(n, res);
++		return;
++	}
++
+ 	// if both are addressable, move
+ 	if(n->addable && res->addable) {
+ 		gmove(n, res);
+@@ -741,12 +741,6 @@ bgen(Node *n, int true, Prog *to)
+ 	nl = n->left;
+ 	nr = n->right;
+ 
+-	// TODO compile complex
+-	if(nl != N && nl->type != T && iscomplex[nl->type->etype])
+-		return;
+-	if(nr != N && nr->type != T && iscomplex[nr->type->etype])
+-		return;
+-
+ 	if(n->type == T) {
+ 		convlit(&n, types[TBOOL]);
+ 		if(n->type == T)
+@@ -857,6 +851,7 @@ bgen(Node *n, int true, Prog *to)
+ 				break;
+ 			}				
+ 			a = brcom(a);
++			true = !true;
+ 		}
+ 
+ 		// make simplest on right
+@@ -960,6 +955,10 @@ bgen(Node *n, int true, Prog *to)
+ 				patch(gbranch(optoas(a, nr->type), T), to);
+ 			break;
+ 		}
++		if(iscomplex[nl->type->etype]) {
++			complexbool(a, nl, nr, true, to);
++			break;
++		}
+ 
+ 		if(is64(nr->type)) {
+ 			if(!nl->addable) {
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 81c2658213..fcef11c3e1 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -157,6 +157,14 @@ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
+ void	nswap(Node*, Node*);
+ 
++/*
++ * cplx.c
++ */
++int	complexop(Node*, Node*);
++void	complexmove(Node*, Node*);
++void	complexgen(Node*, Node*);
++void	complexbool(int, Node*, Node*, int, Prog*);
++
+ /*
+  * gobj.c
+  */
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 07ad153e0c..27fec96a73 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1059,6 +1059,11 @@ gmove(Node *f, Node *t)
+ 	tt = simsimtype(t->type);
+ 	cvt = t->type;
+ 
++	if(iscomplex[ft] || iscomplex[tt]) {
++		complexmove(f, t);
++		return;
++	}
++
+ 	// cannot have two integer memory operands;
+ 	// except 64-bit, which always copies via registers anyway.
+ 	if(isint[ft] && isint[tt] && !is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))
+@@ -1489,13 +1494,13 @@ gmove(Node *f, Node *t)
+ 		// on the floating point stack.  So toss it away here.
+ 		// Also, F0 is the *only* register we ever evaluate
+ 		// into, so we should only see register/register as F0/F0.
++		if(ismem(f) && ismem(t))
++			goto hard;
+ 		if(f->op == OREGISTER && t->op == OREGISTER) {
+ 			if(f->val.u.reg != D_F0 || t->val.u.reg != D_F0)
+ 				goto fatal;
+ 			return;
+ 		}
+-		if(ismem(f) && ismem(t))
+-			goto hard;
+ 		a = AFMOVF;
+ 		if(ft == TFLOAT64)
+ 			a = AFMOVD;
+@@ -1509,6 +1514,8 @@ gmove(Node *f, Node *t)
+ 		break;
+ 
+ 	case CASE(TFLOAT32, TFLOAT64):
++		if(ismem(f) && ismem(t))
++			goto hard;
+ 		if(f->op == OREGISTER && t->op == OREGISTER) {
+ 			if(f->val.u.reg != D_F0 || t->val.u.reg != D_F0)
+ 				goto fatal;
+@@ -1521,6 +1528,8 @@ gmove(Node *f, Node *t)
+ 		return;
+ 
+ 	case CASE(TFLOAT64, TFLOAT32):
++		if(ismem(f) && ismem(t))
++			goto hard;
+ 		if(f->op == OREGISTER && t->op == OREGISTER) {
+ 			tempname(&r1, types[TFLOAT32]);
+ 			gins(AFMOVFP, f, &r1);
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 3114d75807..bc39ed65a1 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -79,6 +79,7 @@ char *runtimeimport =
+ 	"func \"\".uint64mod (? uint64, ? uint64) uint64\n"
+ 	"func \"\".float64toint64 (? float64) int64\n"
+ 	"func \"\".int64tofloat64 (? int64) float64\n"
++	"func \"\".complex128div (num complex128, den complex128) (quo complex128)\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+diff --git a/src/cmd/6g/cplx.c b/src/cmd/gc/cplx.c
+similarity index 52%
+rename from src/cmd/6g/cplx.c
+rename to src/cmd/gc/cplx.c
+index 967b6bfb90..23f339914a 100644
+--- a/src/cmd/6g/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -4,10 +4,12 @@
+ 
+ #include "gg.h"
+ 
+-static void	subnode(Node *nr, Node *ni, Node *nc);
+-static void	negate(Node *n);
+-static void	zero(Node *n);
+-static int	isimag1i(Node*);
++static	void	subnode(Node *nr, Node *ni, Node *nc);
++static	void	zero(Node *n);
++static	void	minus(Node *nl, Node *res);
++	void	complexminus(Node*, Node*);
++	void	complexadd(int op, Node*, Node*, Node*);
++	void	complexmul(Node*, Node*, Node*);
+ 
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+ 
+@@ -15,16 +17,12 @@ static int	isimag1i(Node*);
+  * generate:
+  *	res = n;
+  * simplifies and calls gmove.
+- * perm is
+- *	0 (r,i) -> (r,i)
+- *	1 (r,i) -> (-i,r)   *1i
+- *	2 (r,i) -> (i,-r)   /1i
+  */
+ void
+-complexmove(Node *f, Node *t, int perm)
++complexmove(Node *f, Node *t)
+ {
+ 	int ft, tt;
+-	Node n1, n2, n3, n4, nc;
++	Node n1, n2, n3, n4;
+ 
+ 	if(debug['g']) {
+ 		dump("\ncomplexmove-f", f);
+@@ -50,65 +48,27 @@ complexmove(Node *f, Node *t, int perm)
+ 		// make from addable
+ 		if(!f->addable) {
+ 			tempname(&n1, f->type);
+-			complexmove(f, &n1, 0);
++			complexmove(f, &n1);
+ 			f = &n1;
+ 		}
+ 
+ 		subnode(&n1, &n2, f);
+ 		subnode(&n3, &n4, t);
+ 
+-		// perform the permutations.
+-		switch(perm) {
+-		case 0:	// r,i => r,i
+-			gmove(&n1, &n3);
+-			gmove(&n2, &n4);
+-			break;
+-		case 1: // r,i => -i,r
+-			regalloc(&nc, n3.type, N);
+-			gmove(&n2, &nc);
+-			negate(&nc);
+-			gmove(&n1, &n4);
+-			gmove(&nc, &n3);
+-			regfree(&nc);
+-			break;
+-		case 2: // r,i => i,-r
+-			regalloc(&nc, n4.type, N);
+-			gmove(&n1, &nc);
+-			negate(&nc);
+-			gmove(&n2, &n3);
+-			gmove(&nc, &n4);
+-			regfree(&nc);
+-			break;
+-		}
++		cgen(&n1, &n3);
++		cgen(&n2, &n4);
+ 		break;
+ 
++	// these are depricated
+ 	case CASE(TFLOAT32,TCOMPLEX64):
+ 	case CASE(TFLOAT32,TCOMPLEX128):
+ 	case CASE(TFLOAT64,TCOMPLEX64):
+ 	case CASE(TFLOAT64,TCOMPLEX128):
+ 		// float to complex goes to real part
+ 
+-		regalloc(&n1, types[ft], N);
++		subnode(&n1, &n2, t);
+ 		cgen(f, &n1);
+-		subnode(&n3, &n4, t);
+-
+-		// perform the permutations.
+-		switch(perm) {
+-		case 0:	// no permutations
+-			gmove(&n1, &n3);
+-			zero(&n4);
+-			break;
+-		case 1:
+-			gmove(&n1, &n4);
+-			zero(&n3);
+-			break;
+-		case 2:
+-			negate(&n1);
+-			gmove(&n1, &n4);
+-			zero(&n3);
+-			break;
+-		}
+-		regfree(&n1);
++		zero(&n2);
+ 		break;
+ 	}
+ }
+@@ -118,40 +78,44 @@ complexop(Node *n, Node *res)
+ {
+ 	if(n != N && n->type != T)
+ 	if(iscomplex[n->type->etype]) {
+-		goto yes;
++		goto maybe;
+ 	}
+ 	if(res != N && res->type != T)
+ 	if(iscomplex[res->type->etype]) {
+-		goto yes;
++		goto maybe;
+ 	}
+ 
+ 	if(n->op == OREAL || n->op == OIMAG)
+-		return 1;
++		goto yes;
+ 
+-	return 0;
++	goto no;
+ 
+-yes:
++maybe:
+ 	switch(n->op) {
+ 	case OCONV:	// implemented ops
+ 	case OADD:
+ 	case OSUB:
+ 	case OMUL:
+-	case ODIV:
+ 	case OMINUS:
+ 	case OCMPLX:
+ 	case OREAL:
+ 	case OIMAG:
+-		return 1;
++		goto yes;
+ 
+-	case ODOT:	// sudoaddr
++	case ODOT:
+ 	case ODOTPTR:
+ 	case OINDEX:
+ 	case OIND:
+ 	case ONAME:
+-		return 1;
++		goto yes;
+ 	}
+ 
++no:
++//dump("\ncomplex-no", n);
+ 	return 0;
++yes:
++//dump("\ncomplex-yes", n);
++	return 1;
+ }
+ 
+ void
+@@ -159,8 +123,7 @@ complexgen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr;
+ 	Node tnl, tnr;
+-	Node n1, n2, n3, n4, n5, n6;
+-	Node ra, rb, rc, rd;
++	Node n1, n2;
+ 	int tl, tr;
+ 
+ 	if(debug['g']) {
+@@ -171,35 +134,18 @@ complexgen(Node *n, Node *res)
+ 	// pick off float/complex opcodes
+ 	switch(n->op) {
+ 	case OCMPLX:
+-		tempname(&tnr, n->type);
+-		tr = simsimtype(n->type);
+-		tr = cplxsubtype(tr);
+-
+-		n1 = tnr;
+-		n1.type = types[tr];
+-
+-		n2 = tnr;
+-		n2.type = types[tr];
+-		n2.xoffset += n2.type->width;
+-
++		subnode(&n1, &n2, res);
+ 		cgen(n->left, &n1);
+ 		cgen(n->right, &n2);
+-		cgen(&tnr, res);
+ 		return;
+ 
+ 	case OREAL:
+-		n = n->left;
+-		tr = simsimtype(n->type);
+-		tr = cplxsubtype(tr);
+-		subnode(&n1, &n2, n);
++		subnode(&n1, &n2, n->left);
+ 		cgen(&n1, res);
+ 		return;
+ 
+ 	case OIMAG:
+-		n = n->left;
+-		tr = simsimtype(n->type);
+-		tr = cplxsubtype(tr);
+-		subnode(&n1, &n2, n);
++		subnode(&n1, &n2, n->left);
+ 		cgen(&n2, res);
+ 		return;
+ 	}
+@@ -212,10 +158,10 @@ complexgen(Node *n, Node *res)
+ 	if(tl != tr) {
+ 		if(!n->addable) {
+ 			tempname(&n1, n->type);
+-			complexmove(n, &n1, 0);
++			complexmove(n, &n1);
+ 			n = &n1;
+ 		}
+-		complexmove(n, res, 0);
++		complexmove(n, res);
+ 		return;
+ 	}
+ 
+@@ -226,7 +172,7 @@ complexgen(Node *n, Node *res)
+ 		return;
+ 	}
+ 	if(n->addable) {
+-		complexmove(n, res, 0);
++		complexmove(n, res);
+ 		return;
+ 	}
+ 
+@@ -241,7 +187,7 @@ complexgen(Node *n, Node *res)
+ 	case OIND:
+ 	case ONAME:	// PHEAP or PPARAMREF var
+ 		igen(n, &n1, res);
+-		complexmove(&n1, res, 0);
++		complexmove(&n1, res);
+ 		regfree(&n1);
+ 		return;
+ 
+@@ -249,7 +195,6 @@ complexgen(Node *n, Node *res)
+ 	case OADD:
+ 	case OSUB:
+ 	case OMUL:
+-	case ODIV:
+ 	case OMINUS:
+ 	case OCMPLX:
+ 	case OREAL:
+@@ -287,132 +232,22 @@ complexgen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OCONV:
+-		complexmove(nl, res, 0);
++		complexmove(nl, res);
+ 		break;
+ 
+ 	case OMINUS:
+-		subnode(&n1, &n2, nl);
+-		subnode(&n5, &n6, res);
+-
+-		regalloc(&ra, n5.type, N);
+-		gmove(&n1, &ra);
+-		negate(&ra);
+-		gmove(&ra, &n5);
+-		regfree(&ra);
+-
+-		regalloc(&ra, n5.type, N);
+-		gmove(&n2, &ra);
+-		negate(&ra);
+-		gmove(&ra, &n6);
+-		regfree(&ra);
++		complexminus(nl, res);
+ 		break;
+ 
+ 	case OADD:
+ 	case OSUB:
+-
+-		subnode(&n1, &n2, nl);
+-		subnode(&n3, &n4, nr);
+-		subnode(&n5, &n6, res);
+-
+-		regalloc(&ra, n5.type, N);
+-		gmove(&n1, &ra);
+-		gins(optoas(n->op, n5.type), &n3, &ra);
+-		gmove(&ra, &n5);
+-		regfree(&ra);
+-
+-		regalloc(&ra, n6.type, N);
+-		gmove(&n2, &ra);
+-		gins(optoas(n->op, n6.type), &n4, &ra);
+-		gmove(&ra, &n6);
+-		regfree(&ra);
++		complexadd(n->op, nl, nr, res);
+ 		break;
+ 
+ 	case OMUL:
+-		if(isimag1i(nr)) {
+-			complexmove(nl, res, 1);
+-			break;
+-		}
+-		if(isimag1i(nl)) {
+-			complexmove(nr, res, 1);
+-			break;
+-		}
+-
+-		subnode(&n1, &n2, nl);
+-		subnode(&n3, &n4, nr);
+-		subnode(&n5, &n6, res);
+-
+-		regalloc(&ra, n5.type, N);
+-		regalloc(&rb, n5.type, N);
+-		regalloc(&rc, n6.type, N);
+-		regalloc(&rd, n6.type, N);
+-
+-		gmove(&n1, &ra);
+-		gmove(&n3, &rc);
+-		gins(optoas(OMUL, n5.type), &rc, &ra);	// ra = a*c
+-		
+-		gmove(&n2, &rb);
+-		gmove(&n4, &rd);
+-		gins(optoas(OMUL, n5.type), &rd, &rb);	// rb = b*d
+-		gins(optoas(OSUB, n5.type), &rb, &ra);	// ra = (a*c - b*d)
+-
+-		gins(optoas(OMUL, n5.type), &n2, &rc);	// rc = b*c
+-		gins(optoas(OMUL, n5.type), &n1, &rd);	// rd = a*d
+-		gins(optoas(OADD, n5.type), &rd, &rc);	// rc = (b*c + a*d)
+-
+-		gmove(&ra, &n5);
+-		gmove(&rc, &n6);
+-
+-		regfree(&ra);
+-		regfree(&rb);
+-		regfree(&rc);
+-		regfree(&rd);
+-		break;
+-
+-	case ODIV:
+-		if(isimag1i(nr)) {
+-			complexmove(nl, res, 2);
+-			break;
+-		}
+-
+-		subnode(&n1, &n2, nl);
+-		subnode(&n3, &n4, nr);
+-		subnode(&n5, &n6, res);
+-
+-		regalloc(&ra, n5.type, N);
+-		regalloc(&rb, n5.type, N);
+-		regalloc(&rc, n6.type, N);
+-		regalloc(&rd, n6.type, N);
+-
+-		gmove(&n1, &ra);
+-		gmove(&n3, &rc);
+-		gins(optoas(OMUL, n5.type), &rc, &ra);	// ra = a*c
+-		
+-		gmove(&n2, &rb);
+-		gmove(&n4, &rd);
+-		gins(optoas(OMUL, n5.type), &rd, &rb);	// rb = b*d
+-		gins(optoas(OADD, n5.type), &rb, &ra);	// ra = (a*c + b*d)
+-
+-		gins(optoas(OMUL, n5.type), &n2, &rc);	// rc = b*c
+-		gins(optoas(OMUL, n5.type), &n1, &rd);	// rd = a*d
+-		gins(optoas(OSUB, n5.type), &rd, &rc);	// rc = (b*c - a*d)
+-
+-		gmove(&n3, &rb);
+-		gins(optoas(OMUL, n5.type), &rb, &rb);	// rb = c*c
+-		gmove(&n4, &rd);
+-		gins(optoas(OMUL, n5.type), &rd, &rd);	// rd = d*d
+-		gins(optoas(OADD, n5.type), &rd, &rb);	// rb = (c*c + d*d)
+-
+-		gins(optoas(ODIV, n5.type), &rb, &ra);	// ra = (a*c + b*d)/(c*c + d*d)
+-		gins(optoas(ODIV, n5.type), &rb, &rc);	// rc = (b*c - a*d)/(c*c + d*d)
+-
+-		gmove(&ra, &n5);
+-		gmove(&rc, &n6);
+-
+-		regfree(&ra);
+-		regfree(&rb);
+-		regfree(&rc);
+-		regfree(&rd);
++		complexmul(nl, nr, res);
+ 		break;
++	// ODIV call a runtime function
+ 	}
+ }
+ 
+@@ -487,18 +322,6 @@ nodfconst(Node *n, Type *t, Mpflt* fval)
+ 		fatal("nodfconst: bad type %T", t);
+ }
+ 
+-static int
+-isimag1i(Node *n)
+-{
+-	if(n != N)
+-	if(n->op == OLITERAL)
+-	if(n->val.ctype == CTCPLX)
+-	if(mpgetflt(&n->val.u.cval->real) == 0.0)
+-	if(mpgetflt(&n->val.u.cval->imag) == 1.0)
+-		return 1;
+-	return 0;
+-}
+-
+ // break addable nc-complex into nr-real and ni-imaginary
+ static void
+ subnode(Node *nr, Node *ni, Node *nc)
+@@ -527,9 +350,9 @@ subnode(Node *nr, Node *ni, Node *nc)
+ 	ni->xoffset += t->width;
+ }
+ 
+-// generate code to negate register nr
++// generate code to zero addable dest nr
+ static void
+-negate(Node *nr)
++zero(Node *nr)
+ {
+ 	Node nc;
+ 	Mpflt fval;
+@@ -542,26 +365,118 @@ negate(Node *nr)
+ 	nc.val.ctype = CTFLT;
+ 	nc.type = nr->type;
+ 
+-	mpmovecflt(nc.val.u.fval, -1.0);
+-	gins(optoas(OMUL, nr->type), &nc, nr);
++	mpmovecflt(nc.val.u.fval, 0.0);
++
++	cgen(&nc, nr);
+ }
+ 
+-// generate code to zero addable dest nr
++// generate code res = -nl
+ static void
+-zero(Node *nr)
++minus(Node *nl, Node *res)
+ {
+-	Node nc;
+-	Mpflt fval;
++	Node ra;
+ 
+-	memset(&nc, 0, sizeof(nc));
+-	nc.op = OLITERAL;
+-	nc.addable = 1;
+-	ullmancalc(&nc);
+-	nc.val.u.fval = &fval;
+-	nc.val.ctype = CTFLT;
+-	nc.type = nr->type;
++	memset(&ra, 0, sizeof(ra));
++	ra.op = OMINUS;
++	ra.left = nl;
++	ra.type = nl->type;
++	cgen(&ra, res);
++}
+ 
+-	mpmovecflt(nc.val.u.fval, 0.0);
++// build and execute tree
++//	real(res) = -real(nl)
++//	imag(res) = -imag(nl)
++void
++complexminus(Node *nl, Node *res)
++{
++	Node n1, n2, n5, n6;
++
++	subnode(&n1, &n2, nl);
++	subnode(&n5, &n6, res);
+ 
+-	gmove(&nc, nr);
++	minus(&n1, &n5);
++	minus(&n2, &n6);
++}
++
++
++// build and execute tree
++//	real(res) = real(nl) op real(nr)
++//	imag(res) = imag(nl) op imag(nr)
++void
++complexadd(int op, Node *nl, Node *nr, Node *res)
++{
++	Node n1, n2, n3, n4, n5, n6;
++	Node ra;
++
++	subnode(&n1, &n2, nl);
++	subnode(&n3, &n4, nr);
++	subnode(&n5, &n6, res);
++
++	memset(&ra, 0, sizeof(ra));
++	ra.op = op;
++	ra.left = &n1;
++	ra.right = &n3;
++	ra.type = n1.type;
++	cgen(&ra, &n5);
++
++	memset(&ra, 0, sizeof(ra));
++	ra.op = op;
++	ra.left = &n2;
++	ra.right = &n4;
++	ra.type = n2.type;
++	cgen(&ra, &n6);
++}
++
++// build and execute tree
++//	real(res) = real(nl)*real(nr) - imag(nl)*imag(nr)
++//	imag(res) = real(nl)*imag(nr) + imag(nl)*real(nr)
++void
++complexmul(Node *nl, Node *nr, Node *res)
++{
++	Node n1, n2, n3, n4, n5, n6;
++	Node rm1, rm2, ra;
++
++	subnode(&n1, &n2, nl);
++	subnode(&n3, &n4, nr);
++	subnode(&n5, &n6, res);
++
++	// real part
++	memset(&rm1, 0, sizeof(ra));
++	rm1.op = OMUL;
++	rm1.left = &n1;
++	rm1.right = &n3;
++	rm1.type = n1.type;
++
++	memset(&rm2, 0, sizeof(ra));
++	rm2.op = OMUL;
++	rm2.left = &n2;
++	rm2.right = &n4;
++	rm2.type = n2.type;
++
++	memset(&ra, 0, sizeof(ra));
++	ra.op = OSUB;
++	ra.left = &rm1;
++	ra.right = &rm2;
++	ra.type = rm1.type;
++	cgen(&ra, &n5);
++
++	// imag part
++	memset(&rm1, 0, sizeof(ra));
++	rm1.op = OMUL;
++	rm1.left = &n1;
++	rm1.right = &n4;
++	rm1.type = n1.type;
++
++	memset(&rm2, 0, sizeof(ra));
++	rm2.op = OMUL;
++	rm2.left = &n2;
++	rm2.right = &n3;
++	rm2.type = n2.type;
++
++	memset(&ra, 0, sizeof(ra));
++	ra.op = OADD;
++	ra.left = &rm1;
++	ra.right = &rm2;
++	ra.type = rm1.type;
++	cgen(&ra, &n6);
+ }
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index ca3b6a1bc1..e5930790d4 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -101,3 +101,5 @@ func int64mod(int64, int64) int64
+ func uint64mod(uint64, uint64) uint64
+ func float64toint64(float64) int64
+ func int64tofloat64(int64) float64
++
++func complex128div(num complex128, den complex128) (quo complex128)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ab4f946bdf..65ab491f6f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -851,13 +851,22 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case ODIV:
+ 	case OMOD:
++		walkexpr(&n->left, init);
++		walkexpr(&n->right, init);
++		/*
++		 * rewrite complex div into function call.
++		 */
++		et = n->left->type->etype;
++		if(iscomplex[et] && n->op == ODIV) {
++			n = mkcall("complex128div", n->type, init,
++				conv(n->left, types[TCOMPLEX128]),
++				conv(n->right, types[TCOMPLEX128]));
++			goto ret;
++		}
+ 		/*
+ 		 * rewrite div and mod into function calls
+ 		 * on 32-bit architectures.
+ 		 */
+-		walkexpr(&n->left, init);
+-		walkexpr(&n->right, init);
+-		et = n->left->type->etype;
+ 		if(widthptr > 4 || (et != TUINT64 && et != TINT64))
+ 			goto ret;
+ 		if(et == TINT64)
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 7674720635..103515c13a 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -48,6 +48,7 @@ OFILES=\
+ 	chan.$O\
+ 	closure.$O\
+ 	float.$O\
++	complex.$O\
+ 	hashmap.$O\
+ 	iface.$O\
+ 	malloc.$O\
+diff --git a/src/pkg/runtime/complex.c b/src/pkg/runtime/complex.c
+new file mode 100644
+index 0000000000..72c65467d4
+--- /dev/null
++++ b/src/pkg/runtime/complex.c
+@@ -0,0 +1,36 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++// complex128div(num, den complex128) (quo complex128)
++void
++·complex128div(float64 numreal, float64 numimag,
++	float64 denreal, float64 denimag,
++	float64 quoreal, float64 quoimag)
++{
++	float64 a, b, ratio, denom;
++
++	a = denreal;
++	if(a < 0)
++		a = -a;
++	b = denimag;
++	if(b < 0)
++		b = -b;
++	if(a <= b) {
++		if(b == 0)
++			throw("complex divide");
++		ratio = denreal/denimag;
++		denom = denreal*ratio + denimag;
++		quoreal = (numreal*ratio + numimag) / denom;
++		quoimag = (numimag*ratio - numreal) / denom;
++	} else {
++		ratio = denimag/denreal;
++		denom = denimag*ratio + denreal;
++		quoreal = (numimag*ratio + numreal) / denom;
++		quoimag = (numimag - numreal*ratio) / denom;
++	}
++	FLUSH(&quoreal);
++	FLUSH(&quoimag);
++}
+diff --git a/test/golden.out b/test/golden.out
+index cd9335f462..cc67944426 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -56,6 +56,25 @@ Hello World!
+ 
+ == ken/
+ 
++=========== ken/cplx0.go
++(+5.000000e+000+6.000000e+000i)
++(+5.000000e+000+6.000000e+000i)
++(+5.000000e+000+6.000000e+000i)
++(+5.000000e+000+6.000000e+000i)
++
++=========== ken/cplx3.go
++(+1.292308e+000-1.384615e-001i)
++(+1.292308e+000-1.384615e-001i)
++64
++
++=========== ken/cplx4.go
++c = (-5.000000-6.000000i)
++c = (5.000000+6.000000i)
++c = (5.000000+6.000000i)
++c = (5.000000+6.000000i)
++c = (5+6i)
++c = (13+7i)
++
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+ 
+diff --git a/test/ken/cplx0.go b/test/ken/cplx0.go
+index b9e7830297..6e9bfd023d 100644
+--- a/test/ken/cplx0.go
++++ b/test/ken/cplx0.go
+@@ -1,6 +1,6 @@
+-// true
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/test/ken/cplx1.go b/test/ken/cplx1.go
+index d2953fc264..379e2e10b8 100644
+--- a/test/ken/cplx1.go
++++ b/test/ken/cplx1.go
+@@ -1,6 +1,6 @@
+-// [ $GOARCH != amd64 ] || ($G $D/$F.go && $L $F.$A && ./$A.out)
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/test/ken/cplx2.go b/test/ken/cplx2.go
+index 684cc6537a..7d3e5d735a 100644
+--- a/test/ken/cplx2.go
++++ b/test/ken/cplx2.go
+@@ -1,6 +1,6 @@
+-// [ $GOARCH != amd64 ] || ($G $D/$F.go && $L $F.$A && ./$A.out)
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/test/ken/cplx3.go b/test/ken/cplx3.go
+index f08e9def9b..8d79646493 100644
+--- a/test/ken/cplx3.go
++++ b/test/ken/cplx3.go
+@@ -1,6 +1,6 @@
+-// true
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -20,7 +20,7 @@ var complexBits = reflect.Typeof(complex(0i)).Size() * 8
+ 
+ func main() {
+ 	c0 := C1
+-	c0 = (c0+c0+c0) / (c0+c0)
++	c0 = (c0+c0+c0) / (c0+c0+3i)
+ 	println(c0)
+ 
+ 	c := *(*complex)(unsafe.Pointer(&c0))
+diff --git a/test/ken/cplx4.go b/test/ken/cplx4.go
+index d29a1c80c1..34577a21e1 100644
+--- a/test/ken/cplx4.go
++++ b/test/ken/cplx4.go
+@@ -1,6 +1,6 @@
+-// true
++// $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 

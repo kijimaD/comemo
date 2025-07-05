@@ -8,6 +8,20 @@ Date:   Wed Mar 13 02:40:56 2013 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7519045
-
+---
  src/pkg/os/signal/signal.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/signal/signal.go b/src/pkg/os/signal/signal.go
+index dfdcf40617..0861f59aa9 100644
+--- a/src/pkg/os/signal/signal.go
++++ b/src/pkg/os/signal/signal.go
+@@ -5,7 +5,7 @@
+ // Package signal implements access to incoming signals.
+ package signal
+ 
+-// BUG(rsc): This package is not yet implemented on Plan 9 and Windows.
++// BUG(rsc): This package is not yet implemented on Plan 9.
+ 
+ import (
+ 	"os"

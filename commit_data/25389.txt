@@ -43,6 +43,88 @@ Date:   Wed Sep 9 10:43:06 2015 +0200
     Change-Id: I674d2ee4917b975a37717bbfa1082cc84dcd275e
     Reviewed-on: https://go-review.googlesource.com/14431
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/unicode/utf8/utf8_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++-
  1 file changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index 758d7a0f8e..36d3959eee 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -404,17 +404,57 @@ func TestValidRune(t *testing.T) {
+ }
+ 
+ func BenchmarkRuneCountTenASCIIChars(b *testing.B) {
++	s := []byte("0123456789")
+ 	for i := 0; i < b.N; i++ {
+-		RuneCountInString("0123456789")
++		RuneCount(s)
+ 	}
+ }
+ 
+ func BenchmarkRuneCountTenJapaneseChars(b *testing.B) {
++	s := []byte("日本語日本語日本語日")
++	for i := 0; i < b.N; i++ {
++		RuneCount(s)
++	}
++}
++
++func BenchmarkRuneCountInStringTenASCIIChars(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		RuneCountInString("0123456789")
++	}
++}
++
++func BenchmarkRuneCountInStringTenJapaneseChars(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		RuneCountInString("日本語日本語日本語日")
+ 	}
+ }
+ 
++func BenchmarkValidTenASCIIChars(b *testing.B) {
++	s := []byte("0123456789")
++	for i := 0; i < b.N; i++ {
++		Valid(s)
++	}
++}
++
++func BenchmarkValidTenJapaneseChars(b *testing.B) {
++	s := []byte("日本語日本語日本語日")
++	for i := 0; i < b.N; i++ {
++		Valid(s)
++	}
++}
++
++func BenchmarkValidStringTenASCIIChars(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ValidString("0123456789")
++	}
++}
++
++func BenchmarkValidStringTenJapaneseChars(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ValidString("日本語日本語日本語日")
++	}
++}
++
+ func BenchmarkEncodeASCIIRune(b *testing.B) {
+ 	buf := make([]byte, UTFMax)
+ 	for i := 0; i < b.N; i++ {
+@@ -442,3 +482,17 @@ func BenchmarkDecodeJapaneseRune(b *testing.B) {
+ 		DecodeRune(nihon)
+ 	}
+ }
++
++func BenchmarkFullASCIIRune(b *testing.B) {
++	a := []byte{'a'}
++	for i := 0; i < b.N; i++ {
++		FullRune(a)
++	}
++}
++
++func BenchmarkFullJapaneseRune(b *testing.B) {
++	nihon := []byte("本")
++	for i := 0; i < b.N; i++ {
++		FullRune(nihon)
++	}
++}

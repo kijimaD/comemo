@@ -33,7 +33,7 @@ Date:   Fri Feb 28 16:07:16 2025 +0100
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/trace/base.go            |   2 +-
  src/internal/trace/batch.go           |   7 ++-
  src/internal/trace/generation.go      | 106 +++++++++++++++++++++++++++-------
@@ -43,3 +43,438 @@ Date:   Fri Feb 28 16:07:16 2025 +0100
  src/runtime/trace.go                  |  29 ++++++----
  src/runtime/tracetime.go              |  28 ++++++---
  8 files changed, 148 insertions(+), 53 deletions(-)
+
+diff --git a/src/internal/trace/base.go b/src/internal/trace/base.go
+index 693dbc6fa6..1f17daa5f5 100644
+--- a/src/internal/trace/base.go
++++ b/src/internal/trace/base.go
+@@ -41,7 +41,7 @@ func (e *baseEvent) extra(v version.Version) []uint64 {
+ // evTable contains the per-generation data necessary to
+ // interpret an individual event.
+ type evTable struct {
+-	freq    frequency
++	sync
+ 	strings dataTable[stringID, string]
+ 	stacks  dataTable[stackID, stack]
+ 	pcs     map[uint64]frame
+diff --git a/src/internal/trace/batch.go b/src/internal/trace/batch.go
+index 58f18d6381..3ff056f604 100644
+--- a/src/internal/trace/batch.go
++++ b/src/internal/trace/batch.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ // timestamp is an unprocessed timestamp.
+@@ -37,8 +38,10 @@ func (b *batch) isCPUSamplesBatch() bool {
+ 	return b.exp == tracev2.NoExperiment && len(b.data) > 0 && tracev2.EventType(b.data[0]) == tracev2.EvCPUSamples
+ }
+ 
+-func (b *batch) isFreqBatch() bool {
+-	return b.exp == tracev2.NoExperiment && len(b.data) > 0 && tracev2.EventType(b.data[0]) == tracev2.EvFrequency
++func (b *batch) isSyncBatch(ver version.Version) bool {
++	return (b.exp == tracev2.NoExperiment && len(b.data) > 0) &&
++		((tracev2.EventType(b.data[0]) == tracev2.EvFrequency && ver < version.Go125) ||
++			(tracev2.EventType(b.data[0]) == tracev2.EvSync && ver >= version.Go125))
+ }
+ 
+ // readBatch reads the next full batch from r.
+diff --git a/src/internal/trace/generation.go b/src/internal/trace/generation.go
+index 90a7f3b6c6..e91ba80f7d 100644
+--- a/src/internal/trace/generation.go
++++ b/src/internal/trace/generation.go
+@@ -13,8 +13,10 @@ import (
+ 	"io"
+ 	"slices"
+ 	"strings"
++	"time"
+ 
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ // generation contains all the trace data for a single
+@@ -45,7 +47,7 @@ type spilledBatch struct {
+ //
+ // If gen is non-nil, it is valid and must be processed before handling the returned
+ // error.
+-func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilledBatch, error) {
++func readGeneration(r *bufio.Reader, spill *spilledBatch, ver version.Version) (*generation, *spilledBatch, error) {
+ 	g := &generation{
+ 		evTable: &evTable{
+ 			pcs: make(map[uint64]frame),
+@@ -55,7 +57,8 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
+ 	// Process the spilled batch.
+ 	if spill != nil {
+ 		g.gen = spill.gen
+-		if err := processBatch(g, *spill.batch); err != nil {
++		g.minTs = spill.batch.time
++		if err := processBatch(g, *spill.batch, ver); err != nil {
+ 			return nil, nil, err
+ 		}
+ 		spill = nil
+@@ -103,7 +106,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
+ 		if g.minTs == 0 || b.time < g.minTs {
+ 			g.minTs = b.time
+ 		}
+-		if err := processBatch(g, b); err != nil {
++		if err := processBatch(g, b, ver); err != nil {
+ 			return nil, nil, err
+ 		}
+ 	}
+@@ -112,6 +115,10 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
+ 	if g.freq == 0 {
+ 		return nil, nil, fmt.Errorf("no frequency event found")
+ 	}
++	if ver >= version.Go125 && !g.hasClockSnapshot {
++		return nil, nil, fmt.Errorf("no clock snapshot event found")
++	}
++
+ 	// N.B. Trust that the batch order is correct. We can't validate the batch order
+ 	// by timestamp because the timestamps could just be plain wrong. The source of
+ 	// truth is the order things appear in the trace and the partial order sequence
+@@ -140,7 +147,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
+ }
+ 
+ // processBatch adds the batch to the generation.
+-func processBatch(g *generation, b batch) error {
++func processBatch(g *generation, b batch, ver version.Version) error {
+ 	switch {
+ 	case b.isStringsBatch():
+ 		if err := addStrings(&g.strings, b); err != nil {
+@@ -156,15 +163,10 @@ func processBatch(g *generation, b batch) error {
+ 			return err
+ 		}
+ 		g.cpuSamples = samples
+-	case b.isFreqBatch():
+-		freq, err := parseFreq(b)
+-		if err != nil {
++	case b.isSyncBatch(ver):
++		if err := setSyncBatch(&g.sync, b, ver); err != nil {
+ 			return err
+ 		}
+-		if g.freq != 0 {
+-			return fmt.Errorf("found multiple frequency events")
+-		}
+-		g.freq = freq
+ 	case b.exp != tracev2.NoExperiment:
+ 		if g.expBatches == nil {
+ 			g.expBatches = make(map[tracev2.Experiment][]ExperimentalBatch)
+@@ -421,21 +423,81 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
+ 	return samples, nil
+ }
+ 
+-// parseFreq parses out a lone EvFrequency from a batch.
+-func parseFreq(b batch) (frequency, error) {
+-	if !b.isFreqBatch() {
+-		return 0, fmt.Errorf("internal error: parseFreq called on non-frequency batch")
++// sync holds the per-generation sync data.
++type sync struct {
++	freq             frequency
++	hasClockSnapshot bool
++	snapTime         timestamp
++	snapMono         uint64
++	snapWall         time.Time
++}
++
++func setSyncBatch(s *sync, b batch, ver version.Version) error {
++	if !b.isSyncBatch(ver) {
++		return fmt.Errorf("internal error: setSyncBatch called on non-sync batch")
+ 	}
+ 	r := bytes.NewReader(b.data)
+-	r.ReadByte() // Consume the EvFrequency byte.
++	if ver >= version.Go125 {
++		hdr, err := r.ReadByte() // Consume the EvSync byte.
++		if err != nil || tracev2.EventType(hdr) != tracev2.EvSync {
++			return fmt.Errorf("missing sync batch header")
++		}
++	}
+ 
+-	// Read the frequency. It'll come out as timestamp units per second.
+-	f, err := binary.ReadUvarint(r)
+-	if err != nil {
+-		return 0, err
++	lastTs := b.time
++	for r.Len() != 0 {
++		// Read the header
++		ev, err := r.ReadByte()
++		if err != nil {
++			return err
++		}
++		et := tracev2.EventType(ev)
++		switch {
++		case et == tracev2.EvFrequency:
++			if s.freq != 0 {
++				return fmt.Errorf("found multiple frequency events")
++			}
++			// Read the frequency. It'll come out as timestamp units per second.
++			f, err := binary.ReadUvarint(r)
++			if err != nil {
++				return err
++			}
++			// Convert to nanoseconds per timestamp unit.
++			s.freq = frequency(1.0 / (float64(f) / 1e9))
++		case et == tracev2.EvClockSnapshot && ver >= version.Go125:
++			if s.hasClockSnapshot {
++				return fmt.Errorf("found multiple clock snapshot events")
++			}
++			s.hasClockSnapshot = true
++			// Read the EvClockSnapshot arguments.
++			tdiff, err := binary.ReadUvarint(r)
++			if err != nil {
++				return err
++			}
++			lastTs += timestamp(tdiff)
++			s.snapTime = lastTs
++			mono, err := binary.ReadUvarint(r)
++			if err != nil {
++				return err
++			}
++			s.snapMono = mono
++			sec, err := binary.ReadUvarint(r)
++			if err != nil {
++				return err
++			}
++			nsec, err := binary.ReadUvarint(r)
++			if err != nil {
++				return err
++			}
++			// TODO(felixge): In theory we could inject s.snapMono into the time
++			// value below to make it comparable. But there is no API for this
++			// in the time package right now.
++			s.snapWall = time.Unix(int64(sec), int64(nsec))
++		default:
++			return fmt.Errorf("expected frequency or clock snapshot event, got %d", ev)
++		}
+ 	}
+-	// Convert to nanoseconds per timestamp unit.
+-	return frequency(1.0 / (float64(f) / 1e9)), nil
++	return nil
+ }
+ 
+ // addExperimentalBatch takes an experimental batch and adds it to the list of experimental
+diff --git a/src/internal/trace/reader.go b/src/internal/trace/reader.go
+index 7212a424d7..83b5a2f123 100644
+--- a/src/internal/trace/reader.go
++++ b/src/internal/trace/reader.go
+@@ -54,7 +54,7 @@ func NewReader(r io.Reader) (*Reader, error) {
+ 		return &Reader{
+ 			v1Events: convertV1Trace(tr),
+ 		}, nil
+-	case version.Go122, version.Go123:
++	case version.Go122, version.Go123, version.Go125:
+ 		return &Reader{
+ 			version: v,
+ 			r:       br,
+@@ -158,7 +158,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 			return syncEvent(nil, r.lastTs, r.syncs), nil
+ 		}
+ 		// Read the next generation.
+-		r.gen, r.spill, r.spillErr = readGeneration(r.r, r.spill)
++		r.gen, r.spill, r.spillErr = readGeneration(r.r, r.spill, r.version)
+ 		if r.gen == nil {
+ 			r.spillErrSync = true
+ 			r.syncs++
+@@ -183,11 +183,8 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 			r.frontier = heapInsert(r.frontier, bc)
+ 		}
+ 		r.syncs++
+-		if r.lastTs == 0 {
+-			r.lastTs = r.gen.freq.mul(r.gen.minTs)
+-		}
+ 		// Always emit a sync event at the beginning of the generation.
+-		return syncEvent(r.gen.evTable, r.lastTs, r.syncs), nil
++		return syncEvent(r.gen.evTable, r.gen.freq.mul(r.gen.minTs), r.syncs), nil
+ 	}
+ 	tryAdvance := func(i int) (bool, error) {
+ 		bc := r.frontier[i]
+diff --git a/src/internal/trace/tracev2/events.go b/src/internal/trace/tracev2/events.go
+index 2f3581ab5b..fc7b27720a 100644
+--- a/src/internal/trace/tracev2/events.go
++++ b/src/internal/trace/tracev2/events.go
+@@ -83,6 +83,10 @@ const (
+ 	// Batch event for an experimental batch with a custom format. Added in Go 1.23.
+ 	EvExperimentalBatch // start of extra data [experiment ID, generation, M ID, timestamp, batch length, batch data...]
+ 
++	// Sync batch. Added in Go 1.25. Previously a lone EvFrequency event.
++	EvSync          // start of a sync batch [...EvFrequency|EvClockSnapshot]
++	EvClockSnapshot // snapshot of trace, mono and wall clocks [timestamp, mono, sec, nsec]
++
+ 	NumEvents
+ )
+ 
+@@ -182,6 +186,9 @@ var specs = [...]EventSpec{
+ 		Args:    []string{"exp", "gen", "m", "time"},
+ 		HasData: true, // Easier to represent for raw readers.
+ 	},
++	EvSync: {
++		Name: "Sync",
++	},
+ 
+ 	// "Timed" Events.
+ 	EvProcsChange: {
+@@ -419,6 +426,11 @@ var specs = [...]EventSpec{
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{4},
+ 	},
++	EvClockSnapshot: {
++		Name:         "ClockSnapshot",
++		Args:         []string{"dt", "mono", "sec", "nsec"},
++		IsTimedEvent: true,
++	},
+ 
+ 	// Experimental events.
+ 
+diff --git a/src/internal/trace/version/version.go b/src/internal/trace/version/version.go
+index 8c460734ce..ce994bbf4a 100644
+--- a/src/internal/trace/version/version.go
++++ b/src/internal/trace/version/version.go
+@@ -20,7 +20,8 @@ const (
+ 	Go121   Version = 21 // v1
+ 	Go122   Version = 22 // v2
+ 	Go123   Version = 23 // v2
+-	Current         = Go123
++	Go125   Version = 25 // v2
++	Current         = Go125
+ )
+ 
+ var versions = map[Version][]tracev2.EventSpec{
+@@ -30,8 +31,9 @@ var versions = map[Version][]tracev2.EventSpec{
+ 	Go119: nil,
+ 	Go121: nil,
+ 
+-	Go122: tracev2.Specs()[:tracev2.EvUserLog+1], // All events after are Go 1.23+.
+-	Go123: tracev2.Specs(),
++	Go122: tracev2.Specs()[:tracev2.EvUserLog+1],           // All events after are Go 1.23+.
++	Go123: tracev2.Specs()[:tracev2.EvExperimentalBatch+1], // All events after are Go 1.25+.
++	Go125: tracev2.Specs(),
+ }
+ 
+ // Specs returns the set of event.Specs for this version.
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index bc2978bb4b..c4d68cb714 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -184,6 +184,10 @@ func StartTrace() error {
+ 	// Register some basic strings in the string tables.
+ 	traceRegisterLabelsAndReasons(firstGen)
+ 
++	// N.B. This may block for quite a while to get a frequency estimate. Do it
++	// here to minimize the time that the world is stopped.
++	frequency := traceClockUnitsPerSecond()
++
+ 	// Stop the world.
+ 	//
+ 	// The purpose of stopping the world is to make sure that no goroutine is in a
+@@ -280,8 +284,9 @@ func StartTrace() error {
+ 	//
+ 	// N.B. This will also emit a status event for this goroutine.
+ 	tl := traceAcquire()
+-	tl.Gomaxprocs(gomaxprocs)  // Get this as early in the trace as possible. See comment in traceAdvance.
+-	tl.STWStart(stwStartTrace) // We didn't trace this above, so trace it now.
++	traceSyncBatch(firstGen, frequency) // Get this as early in the trace as possible. See comment in traceAdvance.
++	tl.Gomaxprocs(gomaxprocs)           // Get this as early in the trace as possible. See comment in traceAdvance.
++	tl.STWStart(stwStartTrace)          // We didn't trace this above, so trace it now.
+ 
+ 	// Record the fact that a GC is active, if applicable.
+ 	if gcphase == _GCmark || gcphase == _GCmarktermination {
+@@ -340,12 +345,6 @@ func traceAdvance(stopTrace bool) {
+ 		return
+ 	}
+ 
+-	// Write an EvFrequency event for this generation.
+-	//
+-	// N.B. This may block for quite a while to get a good frequency estimate, so make sure we do
+-	// this here and not e.g. on the trace reader.
+-	traceFrequency(gen)
+-
+ 	// Collect all the untraced Gs.
+ 	type untracedG struct {
+ 		gp           *g
+@@ -410,6 +409,10 @@ func traceAdvance(stopTrace bool) {
+ 		traceRegisterLabelsAndReasons(traceNextGen(gen))
+ 	}
+ 
++	// N.B. This may block for quite a while to get a frequency estimate. Do it
++	// here to minimize the time that we prevent the world from stopping.
++	frequency := traceClockUnitsPerSecond()
++
+ 	// Now that we've done some of the heavy stuff, prevent the world from stopping.
+ 	// This is necessary to ensure the consistency of the STW events. If we're feeling
+ 	// adventurous we could lift this restriction and add a STWActive event, but the
+@@ -441,14 +444,16 @@ func traceAdvance(stopTrace bool) {
+ 		trace.gen.Store(traceNextGen(gen))
+ 	}
+ 
+-	// Emit a ProcsChange event so we have one on record for each generation.
+-	// Let's emit it as soon as possible so that downstream tools can rely on the value
+-	// being there fairly soon in a generation.
++	// Emit a sync batch which contains a ClockSnapshot. Also emit a ProcsChange
++	// event so we have one on record for each generation. Let's emit it as soon
++	// as possible so that downstream tools can rely on the value being there
++	// fairly soon in a generation.
+ 	//
+ 	// It's important that we do this before allowing stop-the-worlds again,
+ 	// because the procs count could change.
+ 	if !stopTrace {
+ 		tl := traceAcquire()
++		traceSyncBatch(tl.gen, frequency)
+ 		tl.Gomaxprocs(gomaxprocs)
+ 		traceRelease(tl)
+ 	}
+@@ -820,7 +825,7 @@ func readTrace0() (buf []byte, park bool) {
+ 	if !trace.headerWritten {
+ 		trace.headerWritten = true
+ 		unlock(&trace.lock)
+-		return []byte("go 1.23 trace\x00\x00\x00"), false
++		return []byte("go 1.25 trace\x00\x00\x00"), false
+ 	}
+ 
+ 	// Read the next buffer.
+diff --git a/src/runtime/tracetime.go b/src/runtime/tracetime.go
+index bfda0aac9a..df52f00ad4 100644
+--- a/src/runtime/tracetime.go
++++ b/src/runtime/tracetime.go
+@@ -74,18 +74,32 @@ func traceClockUnitsPerSecond() uint64 {
+ 	return uint64(1.0 / float64(traceTimeDiv) * 1e9)
+ }
+ 
+-// traceFrequency writes a batch with a single EvFrequency event.
+-//
+-// freq is the number of trace clock units per second.
+-func traceFrequency(gen uintptr) {
++func traceSyncBatch(gen uintptr, frequency uint64) {
+ 	w := unsafeTraceWriter(gen, nil)
+ 
+ 	// Ensure we have a place to write to.
+-	w, _ = w.ensure(1 + traceBytesPerNumber /* tracev2.EvFrequency + frequency */)
++	w, _ = w.ensure(3 /* EvSync + EvFrequency + EvClockSnapshot */ + 5*traceBytesPerNumber /* frequency, timestamp, mono, sec, nsec */)
++
++	// Write out the sync batch event.
++	w.byte(byte(tracev2.EvSync))
+ 
+-	// Write out the string.
++	// Write out the frequency event.
+ 	w.byte(byte(tracev2.EvFrequency))
+-	w.varint(traceClockUnitsPerSecond())
++	w.varint(frequency)
++
++	// Write out the clock snapshot event.
++	sec, nsec, mono := time_now()
++	ts := traceClockNow()
++	if ts <= w.traceBuf.lastTime {
++		ts = w.traceBuf.lastTime + 1
++	}
++	tsDiff := uint64(ts - w.traceBuf.lastTime)
++	w.traceBuf.lastTime = ts
++	w.byte(byte(tracev2.EvClockSnapshot))
++	w.varint(tsDiff)
++	w.varint(uint64(mono))
++	w.varint(uint64(sec))
++	w.varint(uint64(nsec))
+ 
+ 	// Immediately flush the buffer.
+ 	systemstack(func() {

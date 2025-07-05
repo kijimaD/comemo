@@ -31,7 +31,40 @@ Date:   Fri May 29 16:01:17 2020 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/runtime-gdb_test.go           | 6 ++++++
  src/runtime/testdata/testprogcgo/eintr.go | 3 ++-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 2818ada3e0..7cfd5b95dd 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -19,6 +19,12 @@ import (
+ 	"testing"
+ )
+ 
++// NOTE: In some configurations, GDB will segfault when sent a SIGWINCH signal.
++// Some runtime tests send SIGWINCH to the entire process group, so those tests
++// must never run in parallel with GDB tests.
++//
++// See issue 39021 and https://sourceware.org/bugzilla/show_bug.cgi?id=26056.
++
+ func checkGdbEnvironment(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	switch runtime.GOOS {
+diff --git a/src/runtime/testdata/testprogcgo/eintr.go b/src/runtime/testdata/testprogcgo/eintr.go
+index 9d9435d9a6..791ff1bedc 100644
+--- a/src/runtime/testdata/testprogcgo/eintr.go
++++ b/src/runtime/testdata/testprogcgo/eintr.go
+@@ -89,8 +89,9 @@ func spin() (float64, []byte) {
+ func winch() {
+ 	ticker := time.NewTicker(100 * time.Microsecond)
+ 	defer ticker.Stop()
++	pid := syscall.Getpid()
+ 	for n := 10; n > 0; n-- {
+-		syscall.Kill(0, syscall.SIGWINCH)
++		syscall.Kill(pid, syscall.SIGWINCH)
+ 		<-ticker.C
+ 	}
+ }

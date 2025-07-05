@@ -17,6 +17,20 @@ Date:   Mon Jun 29 14:20:04 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240597
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/fix/typecheck.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index 66e0cdcec0..f45155b06d 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -207,7 +207,7 @@ func typecheck(cfg *TypeConfig, f *ast.File) (typeof map[interface{}]string, ass
+ 			return nil
+ 		}()
+ 		if err != nil {
+-			fmt.Printf("warning: no cgo types: %s\n", err)
++			fmt.Fprintf(os.Stderr, "go fix: warning: no cgo types: %s\n", err)
+ 		}
+ 	}
+ 

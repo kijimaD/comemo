@@ -7,6 +7,27 @@ Date:   Sun Jan 4 11:36:54 2015 -0800
     Change-Id: I8f518e273c02110042b08f7c50c3d38a648c8b6e
     Reviewed-on: https://go-review.googlesource.com/2281
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/sigqueue.go | 9 ++-------
  1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 543651076d..fbe3425fa6 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -160,13 +160,8 @@ func badsignal(sig uintptr) {
+ 	// call to cgocallback below will bring down the whole process.
+ 	// It's better to miss a few SIGPROF signals than to abort in this case.
+ 	// See http://golang.org/issue/9456.
+-	switch GOOS {
+-	case "windows", "plan9":
+-		// no actual SIGPROF is defined, nothing to do
+-	default:
+-		if sig == _SIGPROF && needextram != 0 {
+-			return
+-		}
++	if _SIGPROF != 0 && sig == _SIGPROF && needextram != 0 {
++		return
+ 	}
+ 	cgocallback(unsafe.Pointer(funcPC(sigsend)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
+ }

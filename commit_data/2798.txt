@@ -7,8 +7,56 @@ Date:   Mon Jul 27 17:58:25 2009 -0700
     R=ken
     OCL=32261
     CL=32261
-
+---
  src/cmd/gc/sinit.c       |  3 +++
  src/cmd/gc/walk.c        |  2 +-
  test/fixedbugs/bug176.go | 14 ++++++++++++++
  3 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index e0581e64ce..e41d115849 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -458,6 +458,9 @@ initfix(NodeList *l)
+ if(0)
+ return xxx.list;
+ 
++	if(nerrors != 0)
++		return xxx.list;
++
+ 	// look for the copy-out reference
+ 	for(l=xxx.list; l; l=l->next) {
+ 		r = l->n;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 31b52434a3..a97ea72314 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -4534,7 +4534,7 @@ arraylit(Node *n, Node *var, NodeList **init)
+ 		if(r->op == OKEY) {
+ 			b = nonnegconst(r->left);
+ 			if(b < 0) {
+-				yyerror("array index must be non-negative integer");
++				yyerror("array index must be non-negative constant");
+ 				break;
+ 			}
+ 			r = r->right;
+diff --git a/test/fixedbugs/bug176.go b/test/fixedbugs/bug176.go
+new file mode 100644
+index 0000000000..5820df3084
+--- /dev/null
++++ b/test/fixedbugs/bug176.go
+@@ -0,0 +1,14 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var x int
++
++var a = []int{ x: 1}	// ERROR "constant"
++var b = [...]int{ x : 1}	// ERROR "constant"
++var c = map[int]int{ x: 1}
++

@@ -12,7 +12,100 @@ Date:   Tue Nov 18 15:19:48 2014 -0500
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/180840043
-
+---
  src/runtime/defs_linux_power64.go   | 16 ++++++++++++++--
  src/runtime/defs_linux_power64le.go | 16 ++++++++++++++--
  2 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/defs_linux_power64.go b/src/runtime/defs_linux_power64.go
+index df877a67f7..0dfc09caa4 100644
+--- a/src/runtime/defs_linux_power64.go
++++ b/src/runtime/defs_linux_power64.go
+@@ -79,7 +79,7 @@ const (
+ 	_EPOLLERR      = 0x8
+ 	_EPOLLHUP      = 0x10
+ 	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = -0x80000000
++	_EPOLLET       = 0x80000000
+ 	_EPOLL_CLOEXEC = 0x80000
+ 	_EPOLL_CTL_ADD = 0x1
+ 	_EPOLL_CTL_DEL = 0x2
+@@ -96,11 +96,23 @@ type timespec struct {
+ 	tv_nsec int64
+ }
+ 
++func (ts *timespec) set_sec(x int64) {
++	ts.tv_sec = x
++}
++
++func (ts *timespec) set_nsec(x int32) {
++	ts.tv_nsec = int64(x)
++}
++
+ type timeval struct {
+ 	tv_sec  int64
+ 	tv_usec int64
+ }
+ 
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = int64(x)
++}
++
+ type sigactiont struct {
+ 	sa_handler  uintptr
+ 	sa_flags    uint64
+@@ -160,7 +172,7 @@ type sigaltstackt struct {
+ 	ss_sp     *byte
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+-	ss_size   uint64
++	ss_size   uintptr
+ }
+ 
+ type sigcontext struct {
+diff --git a/src/runtime/defs_linux_power64le.go b/src/runtime/defs_linux_power64le.go
+index df877a67f7..0dfc09caa4 100644
+--- a/src/runtime/defs_linux_power64le.go
++++ b/src/runtime/defs_linux_power64le.go
+@@ -79,7 +79,7 @@ const (
+ 	_EPOLLERR      = 0x8
+ 	_EPOLLHUP      = 0x10
+ 	_EPOLLRDHUP    = 0x2000
+-	_EPOLLET       = -0x80000000
++	_EPOLLET       = 0x80000000
+ 	_EPOLL_CLOEXEC = 0x80000
+ 	_EPOLL_CTL_ADD = 0x1
+ 	_EPOLL_CTL_DEL = 0x2
+@@ -96,11 +96,23 @@ type timespec struct {
+ 	tv_nsec int64
+ }
+ 
++func (ts *timespec) set_sec(x int64) {
++	ts.tv_sec = x
++}
++
++func (ts *timespec) set_nsec(x int32) {
++	ts.tv_nsec = int64(x)
++}
++
+ type timeval struct {
+ 	tv_sec  int64
+ 	tv_usec int64
+ }
+ 
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = int64(x)
++}
++
+ type sigactiont struct {
+ 	sa_handler  uintptr
+ 	sa_flags    uint64
+@@ -160,7 +172,7 @@ type sigaltstackt struct {
+ 	ss_sp     *byte
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+-	ss_size   uint64
++	ss_size   uintptr
+ }
+ 
+ type sigcontext struct {

@@ -21,6 +21,41 @@ Date:   Mon May 9 15:11:24 2016 +0200
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/race/testdata/chan_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/race/testdata/chan_test.go b/src/runtime/race/testdata/chan_test.go
+index cddd9a6e78..449191639e 100644
+--- a/src/runtime/race/testdata/chan_test.go
++++ b/src/runtime/race/testdata/chan_test.go
+@@ -285,17 +285,20 @@ func TestRaceChanWrongClose(t *testing.T) {
+ 	v1 := 0
+ 	v2 := 0
+ 	c := make(chan int, 1)
++	done := make(chan bool)
+ 	go func() {
+ 		defer func() {
+ 			recover()
+ 		}()
+ 		v1 = 1
+ 		c <- 1
++		done <- true
+ 	}()
+ 	go func() {
+ 		time.Sleep(1e7)
+ 		v2 = 2
+ 		close(c)
++		done <- true
+ 	}()
+ 	time.Sleep(2e7)
+ 	if _, who := <-c; who {
+@@ -303,6 +306,8 @@ func TestRaceChanWrongClose(t *testing.T) {
+ 	} else {
+ 		v1 = 2
+ 	}
++	<-done
++	<-done
+ }
+ 
+ func TestRaceChanSendClose(t *testing.T) {

@@ -16,6 +16,28 @@ Date:   Fri Aug 18 15:52:34 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index a65e466fe4..0806fd738b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Aug 18, 2023",
++	"Subtitle": "Version of Aug 21, 2023",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -5570,7 +5570,7 @@ myString([]myRune{0x1f30e})              // "\U0001f30e" == "🌎"
+ 
+ <li>
+ Converting a value of a string type to a slice of bytes type
+-yields a slice whose successive elements are the bytes of the string.
++yields a non-nil slice whose successive elements are the bytes of the string.
+ 
+ <pre>
+ []byte("hellø")             // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}

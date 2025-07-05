@@ -9,7 +9,32 @@ Date:   Thu Feb 13 16:43:28 2014 -0800
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/63620043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 42a5505f1b..bdfefd01e3 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -239,6 +239,7 @@ Marko Juhani Silokunnas <marko.silokunnas@gmail.com>
+ Marko Tiikkaja <marko@joh.to>
+ Markus Duft <markus.duft@salomon.at>
+ Markus Sonderegger <marraison@gmail.com>
++Markus Zimmermann <zimmski@gmail.com>
+ Martin Neubauer <m.ne@gmx.net>
+ Martin Olsson <martin@minimum.se>
+ Mateusz Czapliński <czapkofan@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6c5ad199d0..a928db1493 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -343,6 +343,7 @@ Marko Mikulicic <mkm@google.com>
+ Marko Tiikkaja <marko@joh.to>
+ Markus Duft <markus.duft@salomon.at>
+ Markus Sonderegger <marraison@gmail.com>
++Markus Zimmermann <zimmski@gmail.com>
+ Martin Neubauer <m.ne@gmx.net>
+ Martin Olsson <martin@minimum.se>
+ Mateusz Czapliński <czapkofan@gmail.com>

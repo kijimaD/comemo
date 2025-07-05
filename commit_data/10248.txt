@@ -7,6 +7,20 @@ Date:   Fri Nov 4 07:24:39 2011 -0400
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5353041
-
+---
  src/pkg/runtime/openbsd/amd64/sys.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/openbsd/amd64/sys.s b/src/pkg/runtime/openbsd/amd64/sys.s
+index dfbb2547fa..7bb44d6a95 100644
+--- a/src/pkg/runtime/openbsd/amd64/sys.s
++++ b/src/pkg/runtime/openbsd/amd64/sys.s
+@@ -139,7 +139,7 @@ TEXT runtime·nanotime(SB),7,$32
+ 	MOVL	$116, AX		// sys_gettimeofday
+ 	SYSCALL
+ 	MOVQ	8(SP), AX		// sec
+-	MOVL	16(SP), BX		// usec
++	MOVL	16(SP), DX	// usec
+ 
+ 	// sec is in AX, usec in DX
+ 	// return nsec in AX

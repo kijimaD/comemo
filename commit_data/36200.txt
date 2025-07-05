@@ -14,8 +14,178 @@ Date:   Wed Apr 11 17:03:14 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 80 ---------------------------------
  test/codegen/memcombine.go              | 19 +++++++-
  test/codegen/stack.go                   | 12 +++++
  3 files changed, 30 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 1b7c94837f..b71dc20889 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -221,23 +221,6 @@ func (ats *asmTests) runGo(t *testing.T, args ...string) string {
+ }
+ 
+ var allAsmTests = []*asmTests{
+-	{
+-		arch:    "amd64",
+-		os:      "linux",
+-		imports: []string{"runtime"},
+-		tests:   linuxAMD64Tests,
+-	},
+-	{
+-		arch:    "arm",
+-		os:      "linux",
+-		imports: []string{"runtime"},
+-		tests:   linuxARMTests,
+-	},
+-	{
+-		arch:  "arm64",
+-		os:    "linux",
+-		tests: linuxARM64Tests,
+-	},
+ 	{
+ 		arch:  "amd64",
+ 		os:    "plan9",
+@@ -245,69 +228,6 @@ var allAsmTests = []*asmTests{
+ 	},
+ }
+ 
+-var linuxAMD64Tests = []*asmTest{
+-	{
+-		// make sure assembly output has matching offset and base register.
+-		fn: `
+-		func f72(a, b int) int {
+-			runtime.GC() // use some frame
+-			return b
+-		}
+-		`,
+-		pos: []string{"b\\+24\\(SP\\)"},
+-	},
+-	// Make sure we don't put pointers in SSE registers across safe points.
+-	{
+-		fn: `
+-		func $(p, q *[2]*int)  {
+-		    a, b := p[0], p[1]
+-		    runtime.GC()
+-		    q[0], q[1] = a, b
+-		}
+-		`,
+-		neg: []string{"MOVUPS"},
+-	},
+-}
+-
+-var linuxARMTests = []*asmTest{
+-	{
+-		// make sure assembly output has matching offset and base register.
+-		fn: `
+-		func f13(a, b int) int {
+-			runtime.GC() // use some frame
+-			return b
+-		}
+-		`,
+-		pos: []string{"b\\+4\\(FP\\)"},
+-	},
+-}
+-
+-var linuxARM64Tests = []*asmTest{
+-	// Load-combining tests.
+-	{
+-		fn: `
+-		func $(s []byte) uint16 {
+-			return uint16(s[0]) | uint16(s[1]) << 8
+-		}
+-		`,
+-		pos: []string{"\tMOVHU\t\\(R[0-9]+\\)"},
+-		neg: []string{"ORR\tR[0-9]+<<8\t"},
+-	},
+-	{
+-		// make sure that CSEL is emitted for conditional moves
+-		fn: `
+-		func f37(c int) int {
+-		     x := c + 4
+-		     if c < 0 {
+-		     	x = 182
+-		     }
+-		     return x
+-		}
+-		`,
+-		pos: []string{"\tCSEL\t"},
+-	},
+-}
+-
+ var plan9AMD64Tests = []*asmTest{
+ 	// We should make sure that the compiler doesn't generate floating point
+ 	// instructions for non-float operations on Plan 9, because floating point
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index ec86a79317..17323bd2ab 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -6,7 +6,10 @@
+ 
+ package codegen
+ 
+-import "encoding/binary"
++import (
++	"encoding/binary"
++	"runtime"
++)
+ 
+ var sink64 uint64
+ var sink32 uint32
+@@ -98,6 +101,11 @@ func load_be16_idx(b []byte, idx int) {
+ 	sink16 = binary.BigEndian.Uint16(b[idx:])
+ }
+ 
++func load_byte2_uint16(s []byte) uint16 {
++	// arm64:`MOVHU\t\(R[0-9]+\)`,-`ORR\tR[0-9]+<<8`
++	return uint16(s[0]) | uint16(s[1])<<8
++}
++
+ // Check load combining across function calls.
+ 
+ func fcall_byte(a, b byte) (byte, byte) {
+@@ -132,6 +140,15 @@ func offsets_fold(_, a [20]byte) (b [20]byte) {
+ 	return
+ }
+ 
++// Make sure we don't put pointers in SSE registers across safe
++// points.
++
++func safe_point(p, q *[2]*int) {
++	a, b := p[0], p[1] // amd64:-`MOVUPS`
++	runtime.GC()
++	q[0], q[1] = a, b // amd64:-`MOVUPS`
++}
++
+ // ------------- //
+ //    Storing    //
+ // ------------- //
+diff --git a/test/codegen/stack.go b/test/codegen/stack.go
+index 987d6a5b1f..da5ef24e13 100644
+--- a/test/codegen/stack.go
++++ b/test/codegen/stack.go
+@@ -6,6 +6,8 @@
+ 
+ package codegen
+ 
++import "runtime"
++
+ // This file contains code generation tests related to the use of the
+ // stack.
+ 
+@@ -22,3 +24,13 @@ func StackStore() int {
+ 	var x int
+ 	return *(&x)
+ }
++
++// Check that assembly output has matching offset and base register
++// (Issue #21064).
++
++// amd64:`.*b\+24\(SP\)`
++// arm:`.*b\+4\(FP\)`
++func check_asmout(a, b int) int {
++	runtime.GC() // use some frame
++	return b
++}

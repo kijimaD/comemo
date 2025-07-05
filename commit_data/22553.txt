@@ -9,6 +9,20 @@ Date:   Mon Mar 23 12:08:11 2015 -0700
     Change-Id: I21037379b4667575e51ab0b6b683138c505c3f68
     Reviewed-on: https://go-review.googlesource.com/7960
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/regexp/regexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index f20d1099b5..70ba9d0efe 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -7,7 +7,7 @@
+ // The syntax of the regular expressions accepted is the same
+ // general syntax used by Perl, Python, and other languages.
+ // More precisely, it is the syntax accepted by RE2 and described at
+-// http://code.google.com/p/re2/wiki/Syntax, except for \C.
++// https://golang.org/s/re2syntax, except for \C.
+ // For an overview of the syntax, run
+ //   godoc regexp/syntax
+ //

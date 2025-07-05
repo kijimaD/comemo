@@ -7,6 +7,22 @@ Date:   Wed Sep 6 16:17:11 2017 -0400
     Change-Id: I0d02e5e44053f02fee3d84c782995ea4ce209a80
     Reviewed-on: https://go-review.googlesource.com/62070
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  doc/debugging_with_gdb.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index f0e65ea291..e145d4cdf6 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -31,8 +31,8 @@ In time, a more Go-centric debugging architecture may be required.
+ 
+ <p>
+ When you compile and link your Go programs with the <code>gc</code> toolchain
+-on Linux, Mac OS X, FreeBSD or NetBSD, the resulting binaries contain DWARFv3
+-debugging information that recent versions (&gt;7.1) of the GDB debugger can
++on Linux, Mac OS X, FreeBSD or NetBSD, the resulting binaries contain DWARFv4
++debugging information that recent versions (&gt;7.5) of the GDB debugger can
+ use to inspect a live process or a core dump.
+ </p>
+ 

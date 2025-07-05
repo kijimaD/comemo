@@ -13,7 +13,53 @@ Date:   Mon Nov 23 18:45:18 2015 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go     | 8 ++++----
  src/runtime/mgcwork.go | 8 --------
  2 files changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 94301c6dc7..df8b4536fa 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1555,8 +1555,8 @@ func gcMark(start_time int64) {
+ 
+ 	gchelperstart()
+ 
+-	var gcw gcWork
+-	gcDrain(&gcw, gcDrainBlock)
++	gcw := &getg().m.p.ptr().gcw
++	gcDrain(gcw, gcDrainBlock)
+ 	gcw.dispose()
+ 
+ 	gcMarkRootCheck()
+@@ -1798,8 +1798,8 @@ func gchelper() {
+ 
+ 	// Parallel mark over GC roots and heap
+ 	if gcphase == _GCmarktermination {
+-		var gcw gcWork
+-		gcDrain(&gcw, gcDrainBlock) // blocks in getfull
++		gcw := &_g_.m.p.ptr().gcw
++		gcDrain(gcw, gcDrainBlock) // blocks in getfull
+ 		gcw.dispose()
+ 	}
+ 
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index e97039bed6..35bc12db22 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -44,14 +44,6 @@ func (wp wbufptr) ptr() *workbuf {
+ //
+ // A gcWork can be used on the stack as follows:
+ //
+-//     var gcw gcWork
+-//     disable preemption
+-//     .. call gcw.put() to produce and gcw.get() to consume ..
+-//     gcw.dispose()
+-//     enable preemption
+-//
+-// Or from the per-P gcWork cache:
+-//
+ //     (preemption must be disabled)
+ //     gcw := &getg().m.p.ptr().gcw
+ //     .. call gcw.put() to produce and gcw.get() to consume ..

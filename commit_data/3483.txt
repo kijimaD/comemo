@@ -8,7 +8,7 @@ Date:   Thu Oct 8 23:03:34 2009 -0700
     R=ken
     OCL=35504
     CL=35507
-
+---
  src/cmd/gc/dcl.c                   |  8 ++++++++
  src/cmd/gc/go.h                    |  1 +
  src/cmd/gc/typecheck.c             | 15 +++++++++++----
@@ -16,3 +16,155 @@ Date:   Thu Oct 8 23:03:34 2009 -0700
  test/fixedbugs/bug208.go           | 20 ++++++++++++++++++++
  test/golden.out                    |  7 -------
  6 files changed, 42 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 37177c58d9..2a154ab5a7 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -781,6 +781,10 @@ stotype(NodeList *l, int et, Type **t)
+ 		if(n->right != N) {
+ 			typecheck(&n->right, Etype);
+ 			n->type = n->right->type;
++			if(n->type == T) {
++				*t0 = T;
++				return t0;
++			}
+ 			if(n->left != N)
+ 				n->left->type = n->type;
+ 			n->right = N;
+@@ -886,6 +890,10 @@ dostruct(NodeList *l, int et)
+ 	t = typ(et);
+ 	t->funarg = funarg;
+ 	stotype(l, et, &t->type);
++	if(t->type == T && l != nil) {
++		t->broke = 1;
++		return t;
++	}
+ 	if(!funarg)
+ 		checkwidth(t);
+ 	return t;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2d88342841..4cb0d29608 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -145,6 +145,7 @@ struct	Type
+ 	uchar	copyany;
+ 	uchar	local;		// created in this file
+ 	uchar	deferwidth;
++	uchar	broke;
+ 
+ 	Node*	nod;		// canonical OTYPE node
+ 	int		lineno;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f1271408a8..9a3b429784 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -81,10 +81,12 @@ typecheck(Node **np, int top)
+ 	n->typecheck = 2;
+ 
+ redo:
+-	if(n->sym)
+-		walkdef(n);
+-
+ 	lno = setlineno(n);
++	if(n->sym) {
++		walkdef(n);
++		if(n->op == ONONAME)
++			goto error;
++	}
+ 
+ reswitch:
+ 	ok = 0;
+@@ -683,6 +685,8 @@ reswitch:
+ 		ok |= Erv;
+ 		if(t->outtuple == 1) {
+ 			t = getoutargx(l->type)->type;
++			if(t == T)
++				goto error;
+ 			if(t->etype == TFIELD)
+ 				t = t->type;
+ 			n->type = t;
+@@ -1384,6 +1388,9 @@ typecheckaste(int op, Type *tstruct, NodeList *nl)
+ 
+ 	lno = lineno;
+ 
++	if(tstruct->broke)
++		goto out;
++
+ 	if(nl != nil && nl->next == nil && (n = nl->n)->type != T)
+ 	if(n->type->etype == TSTRUCT && n->type->funarg) {
+ 		setlineno(n);
+@@ -1592,7 +1599,6 @@ typecheckcomplit(Node **np)
+ 
+ 	memset(hash, 0, sizeof hash);
+ 
+-	// TODO: dup detection
+ 	l = typecheck(&n->right /* sic */, Etype /* TODO | Edotarray */);
+ 	if((t = l->type) == T)
+ 		goto error;
+@@ -1699,6 +1705,7 @@ typecheckcomplit(Node **np)
+ 					typecheck(&l->right, Erv);
+ 					continue;
+ 				}
++				l->left = newname(l->left->sym);
+ 				l->left->typecheck = 1;
+ 				f = lookdot1(l->left->sym, t, t->type);
+ 				typecheck(&l->right, Erv);
+diff --git a/test/bugs/bug198.go b/test/fixedbugs/bug198.go
+similarity index 80%
+rename from test/bugs/bug198.go
+rename to test/fixedbugs/bug198.go
+index 510658cdd1..ea71fad58e 100644
+--- a/test/bugs/bug198.go
++++ b/test/fixedbugs/bug198.go
+@@ -5,7 +5,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
+-func f(a T) T {	return a }	// ERROR "T"
++func f(a T) T { return a }	// ERROR "undefined"
+ func main() {
+ 	x := f(0);
++	_ = x;
+ }
+diff --git a/test/fixedbugs/bug208.go b/test/fixedbugs/bug208.go
+new file mode 100644
+index 0000000000..0a05d80c1a
+--- /dev/null
++++ b/test/fixedbugs/bug208.go
+@@ -0,0 +1,20 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type	T struct
++{
++	f int;
++}
++
++var _ = T{f: 1}
++
++// 6g used to get confused by the f:1 above
++// and allow uses of f that would be silently
++// dropped during the compilation.
++var _ = f;	// ERROR "undefined"
++
+diff --git a/test/golden.out b/test/golden.out
+index 148471660a..42a1cec846 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -167,10 +167,3 @@ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+ too many calls: 5
+ panic PC=xxx
+ BUG: bug196
+-
+-=========== bugs/bug198.go
+-bugs/bug198.go:8: undefined: T
+-bugs/bug198.go:8: T is not a type
+-bugs/bug198.go:8: too many arguments to return
+-bugs/bug198.go:10: too many arguments to CALL
+-BUG: errchk: compiler crashed

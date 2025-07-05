@@ -58,7 +58,7 @@ Date:   Thu Feb 13 23:49:50 2025 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/walk/order.go | 22 +++++++++++++---
  src/cmd/compile/internal/walk/walk.go  | 47 ++++++++++++++++++++++++++++++++++
  src/fmt/fmt_test.go                    |  2 +-
@@ -67,3 +67,361 @@ Date:   Thu Feb 13 23:49:50 2025 -0500
  test/live.go                           | 46 ++++++++++++++++++++++++++++-----
  test/live_regabi.go                    | 46 ++++++++++++++++++++++++++++-----
  7 files changed, 172 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 8967b7dbba..af3bfcbac6 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -226,7 +226,8 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
+ 	// for the implicit conversion of "foo" to any, and we can't handle
+ 	// the relocations in that temp.
+ 	if n.Op() == ir.ONIL || (n.Op() == ir.OLITERAL && !base.Ctxt.IsFIPS()) {
+-		// TODO: expand this to all static composite literal nodes?
++		// This is a basic literal or nil that we can store
++		// directly in the read-only data section.
+ 		n = typecheck.DefaultLit(n, nil)
+ 		types.CalcSize(n.Type())
+ 		vstat := readonlystaticname(n.Type())
+@@ -239,6 +240,21 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
+ 		return vstat
+ 	}
+ 
++	// Check now for a composite literal to possibly store
++	// in the read-only data section.
++	v := staticValue(n)
++	if v == nil {
++		v = n
++	}
++	if (v.Op() == ir.OSTRUCTLIT || v.Op() == ir.OARRAYLIT) && isStaticCompositeLiteral(v) && !base.Ctxt.IsFIPS() {
++		// v can be directly represented in the read-only data section.
++		lit := v.(*ir.CompLitExpr)
++		vstat := readonlystaticname(lit.Type())
++		fixedlit(inInitFunction, initKindStatic, lit, vstat, nil) // nil init
++		vstat = typecheck.Expr(vstat).(*ir.Name)
++		return vstat
++	}
++
+ 	// Prevent taking the address of an SSA-able local variable (#63332).
+ 	//
+ 	// TODO(mdempsky): Note that OuterValue unwraps OCONVNOPs, but
+@@ -337,8 +353,8 @@ func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.
+ //
+ // Note that this code does not handle the case:
+ //
+-//      s := string(k)
+-//      x = m[s]
++//	s := string(k)
++//	x = m[s]
+ //
+ // Cases like this are handled during SSA, search for slicebytetostring
+ // in ../ssa/_gen/generic.rules.
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 25e03359fd..2fa51f1280 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -24,6 +24,13 @@ const tmpstringbufsize = 32
+ 
+ func Walk(fn *ir.Func) {
+ 	ir.CurFunc = fn
++
++	// Set and then clear a package-level cache of static values for this fn.
++	// (At some point, it might be worthwhile to have a walkState structure
++	// that gets passed everywhere where things like this can go.)
++	staticValues = findStaticValues(fn)
++	defer func() { staticValues = nil }()
++
+ 	errorsBefore := base.Errors()
+ 	order(fn)
+ 	if base.Errors() > errorsBefore {
+@@ -422,3 +429,43 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
+ 	ind.SetBounded(true)
+ 	return ind
+ }
++
++// staticValue returns the earliest expression it can find that always
++// evaluates to n, with similar semantics to [ir.StaticValue].
++//
++// It only returns results for the ir.CurFunc being processed in [Walk],
++// including its closures, and uses a cache to reduce duplicative work.
++// It can return n or nil if it does not find an earlier expression.
++//
++// The current use case is reducing OCONVIFACE allocations, and hence
++// staticValue is currently only useful when given an *ir.ConvExpr.X as n.
++func staticValue(n ir.Node) ir.Node {
++	if staticValues == nil {
++		base.Fatalf("staticValues is nil. staticValue called outside of walk.Walk?")
++	}
++	return staticValues[n]
++}
++
++// staticValues is a cache of static values for use by staticValue.
++var staticValues map[ir.Node]ir.Node
++
++// findStaticValues returns a map of static values for fn.
++func findStaticValues(fn *ir.Func) map[ir.Node]ir.Node {
++	// We can't use an ir.ReassignOracle or ir.StaticValue in the
++	// middle of walk because they don't currently handle
++	// transformed assignments (e.g., will complain about 'RHS == nil').
++	// So we instead build this map to use in walk.
++	ro := &ir.ReassignOracle{}
++	ro.Init(fn)
++	m := make(map[ir.Node]ir.Node)
++	ir.Visit(fn, func(n ir.Node) {
++		if n.Op() == ir.OCONVIFACE {
++			x := n.(*ir.ConvExpr).X
++			v := ro.StaticValue(x)
++			if v != nil && v != x {
++				m[x] = v
++			}
++		}
++	})
++	return m
++}
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index a896b8fe24..86e458ae64 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1502,7 +1502,7 @@ var mallocTest = []struct {
+ 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", i) }},
+ 	{1, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", noliteral(i)) }},
+ 	{4, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); s := []int{1, 2}; Fprintf(&mallocBuf, "%v", s) }},
+-	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", P{1, 2}) }},
++	{0, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", P{1, 2}) }},
+ 	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", noliteral(P{1, 2})) }},
+ 	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)
+ 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
+diff --git a/test/codegen/zerosize.go b/test/codegen/zerosize.go
+index ecf3305461..86c4819400 100644
+--- a/test/codegen/zerosize.go
++++ b/test/codegen/zerosize.go
+@@ -18,8 +18,27 @@ func zeroSize() {
+ 	g(&s, 1, 2, 3, 4, 5)
+ 
+ 	// amd64:`LEAQ\tcommand-line-arguments\..*\+55\(SP\)`
++	c <- noliteral(struct{}{})
++}
++
++// Like zeroSize, but without hiding the zero-sized struct.
++func zeroSize2() {
++	c := make(chan struct{})
++	// amd64:`MOVQ\t\$0, command-line-arguments\.s\+48\(SP\)`
++	var s *int
++	// force s to be a stack object, also use some (fixed) stack space
++	g(&s, 1, 2, 3, 4, 5)
++
++	// amd64:`LEAQ\tcommand-line-arguments\..*stmp_\d+\(SB\)`
+ 	c <- struct{}{}
+ }
+ 
+ //go:noinline
+ func g(**int, int, int, int, int, int) {}
++
++// noliteral prevents the compiler from recognizing a literal value.
++//
++//go:noinline
++func noliteral[T any](t T) T {
++	return t
++}
+diff --git a/test/escape_iface_data.go b/test/escape_iface_data.go
+index 46814f3a9f..fd993fb892 100644
+--- a/test/escape_iface_data.go
++++ b/test/escape_iface_data.go
+@@ -208,32 +208,32 @@ func named7b(v MyInt) {
+ type S struct{ a, b int64 }
+ 
+ func struct1() {
+-	sink = S{1, 1}
++	sink = S{1, 1} // ERROR "using global for interface value"
+ }
+ 
+ func struct2() {
+ 	v := S{1, 1}
+-	sink = v
++	sink = v // ERROR "using global for interface value"
+ }
+ 
+ func struct3() {
+-	sink = S{}
++	sink = S{} // ERROR "using global for interface value"
+ }
+ 
+ func struct4() {
+ 	v := S{}
+-	sink = v
++	sink = v // ERROR "using global for interface value"
+ }
+ 
+ func struct5() {
+-	var a any = S{1, 1} // ERROR "using stack temporary for interface value"
++	var a any = S{1, 1} // ERROR "using global for interface value"
+ 	_ = a
+ }
+ 
+ func struct6() {
+ 	var a any
+ 	v := S{1, 1}
+-	a = v // ERROR "using stack temporary for interface value"
++	a = v // ERROR "using global for interface value"
+ 	_ = a
+ }
+ 
+diff --git a/test/live.go b/test/live.go
+index c0b0fcd274..46e5e3e757 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -337,23 +337,47 @@ func f20() {
+ 	ch <- byteptr()
+ }
+ 
+-func f21() {
++func f21(x, y string) { // ERROR "live at entry to f21: x y"
+ 	// key temporary for mapaccess using array literal key.
+ 	var z *byte
+ 	if b {
+-		z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++		z = m2[[2]string{x, y}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+ 	z = m2[[2]string{"x", "y"}]
+ 	z = m2[[2]string{"x", "y"}]
+ 	printbytepointer(z)
+ }
+ 
+-func f23() {
++func f21b() {
++	// key temporary for mapaccess using array literal key.
++	var z *byte
++	if b {
++		z = m2[[2]string{"x", "y"}]
++	}
++	z = m2[[2]string{"x", "y"}]
++	z = m2[[2]string{"x", "y"}]
++	printbytepointer(z)
++}
++
++func f23(x, y string) { // ERROR "live at entry to f23: x y"
++	// key temporary for two-result map access using array literal key.
++	var z *byte
++	var ok bool
++	if b {
++		z, ok = m2[[2]string{x, y}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++	}
++	z, ok = m2[[2]string{"x", "y"}]
++	z, ok = m2[[2]string{"x", "y"}]
++	printbytepointer(z)
++	print(ok)
++}
++
++func f23b() {
+ 	// key temporary for two-result map access using array literal key.
+ 	var z *byte
+ 	var ok bool
+ 	if b {
+-		z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++		z, ok = m2[[2]string{"x", "y"}]
+ 	}
+ 	z, ok = m2[[2]string{"x", "y"}]
+ 	z, ok = m2[[2]string{"x", "y"}]
+@@ -361,11 +385,21 @@ func f23() {
+ 	print(ok)
+ }
+ 
+-func f24() {
++func f24(x, y string) { // ERROR "live at entry to f24: x y"
++	// key temporary for map access using array literal key.
++	// value temporary too.
++	if b {
++		m2[[2]string{x, y}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++	}
++	m2[[2]string{"x", "y"}] = nil
++	m2[[2]string{"x", "y"}] = nil
++}
++
++func f24b() {
+ 	// key temporary for map access using array literal key.
+ 	// value temporary too.
+ 	if b {
+-		m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++		m2[[2]string{"x", "y"}] = nil
+ 	}
+ 	m2[[2]string{"x", "y"}] = nil
+ 	m2[[2]string{"x", "y"}] = nil
+diff --git a/test/live_regabi.go b/test/live_regabi.go
+index 35f874ecc3..ddb4caed1a 100644
+--- a/test/live_regabi.go
++++ b/test/live_regabi.go
+@@ -335,23 +335,34 @@ func f20() {
+ 	ch <- byteptr()
+ }
+ 
+-func f21() {
++func f21(x, y string) { // ERROR "live at entry to f21: x y"
+ 	// key temporary for mapaccess using array literal key.
+ 	var z *byte
+ 	if b {
+-		z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++		z = m2[[2]string{x, y}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+ 	z = m2[[2]string{"x", "y"}]
+ 	z = m2[[2]string{"x", "y"}]
+ 	printbytepointer(z)
+ }
+ 
+-func f23() {
++func f21b() {
++	// key temporary for mapaccess using array literal key.
++	var z *byte
++	if b {
++		z = m2[[2]string{"x", "y"}]
++	}
++	z = m2[[2]string{"x", "y"}]
++	z = m2[[2]string{"x", "y"}]
++	printbytepointer(z)
++}
++
++func f23(x, y string) { // ERROR "live at entry to f23: x y"
+ 	// key temporary for two-result map access using array literal key.
+ 	var z *byte
+ 	var ok bool
+ 	if b {
+-		z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++		z, ok = m2[[2]string{x, y}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+ 	z, ok = m2[[2]string{"x", "y"}]
+ 	z, ok = m2[[2]string{"x", "y"}]
+@@ -359,11 +370,34 @@ func f23() {
+ 	print(ok)
+ }
+ 
+-func f24() {
++func f23b() {
++	// key temporary for two-result map access using array literal key.
++	var z *byte
++	var ok bool
++	if b {
++		z, ok = m2[[2]string{"x", "y"}]
++	}
++	z, ok = m2[[2]string{"x", "y"}]
++	z, ok = m2[[2]string{"x", "y"}]
++	printbytepointer(z)
++	print(ok)
++}
++
++func f24(x, y string) { // ERROR "live at entry to f24: x y"
++	// key temporary for map access using array lit3ral key.
++	// value temporary too.
++	if b {
++		m2[[2]string{x, y}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++	}
++	m2[[2]string{"x", "y"}] = nil
++	m2[[2]string{"x", "y"}] = nil
++}
++
++func f24b() {
+ 	// key temporary for map access using array literal key.
+ 	// value temporary too.
+ 	if b {
+-		m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
++		m2[[2]string{"x", "y"}] = nil
+ 	}
+ 	m2[[2]string{"x", "y"}] = nil
+ 	m2[[2]string{"x", "y"}] = nil

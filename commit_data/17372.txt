@@ -10,7 +10,7 @@ Date:   Sat Aug 24 01:50:24 2013 +1000
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/13088044
-
+---
  src/pkg/runtime/defs_dragonfly.go        | 126 ++++++++++++
  src/pkg/runtime/defs_dragonfly_amd64.h   | 208 +++++++++++++++++++
  src/pkg/runtime/env_posix.c              |   2 +-
@@ -31,3 +31,1356 @@ Date:   Sat Aug 24 01:50:24 2013 +1000
  src/pkg/runtime/signals_dragonfly.h      |  51 +++++
  src/pkg/runtime/sys_dragonfly_amd64.s    | 330 +++++++++++++++++++++++++++++++
  19 files changed, 1176 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_dragonfly.go b/src/pkg/runtime/defs_dragonfly.go
+new file mode 100644
+index 0000000000..8ebc3a9e1a
+--- /dev/null
++++ b/src/pkg/runtime/defs_dragonfly.go
+@@ -0,0 +1,126 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++/*
++Input to cgo.
++
++GOARCH=amd64 go tool cgo -cdefs defs_dragonfly.go >defs_dragonfly_amd64.h
++GOARCH=386 go tool cgo -cdefs defs_dragonfly.go >defs_dragonfly_386.h
++*/
++
++package runtime
++
++/*
++#include <sys/user.h>
++#include <sys/time.h>
++#include <sys/event.h>
++#include <sys/mman.h>
++#include <sys/ucontext.h>
++#include <sys/rtprio.h>
++#include <sys/signal.h>
++#include <sys/unistd.h>
++#include <errno.h>
++#include <signal.h>
++*/
++import "C"
++
++const (
++	EINTR  = C.EINTR
++	EFAULT = C.EFAULT
++	EBUSY  = C.EBUSY
++	EAGAIN = C.EAGAIN
++
++	PROT_NONE  = C.PROT_NONE
++	PROT_READ  = C.PROT_READ
++	PROT_WRITE = C.PROT_WRITE
++	PROT_EXEC  = C.PROT_EXEC
++
++	MAP_ANON    = C.MAP_ANON
++	MAP_PRIVATE = C.MAP_PRIVATE
++	MAP_FIXED   = C.MAP_FIXED
++
++	MADV_FREE = C.MADV_FREE
++
++	SA_SIGINFO = C.SA_SIGINFO
++	SA_RESTART = C.SA_RESTART
++	SA_ONSTACK = C.SA_ONSTACK
++
++	SIGHUP    = C.SIGHUP
++	SIGINT    = C.SIGINT
++	SIGQUIT   = C.SIGQUIT
++	SIGILL    = C.SIGILL
++	SIGTRAP   = C.SIGTRAP
++	SIGABRT   = C.SIGABRT
++	SIGEMT    = C.SIGEMT
++	SIGFPE    = C.SIGFPE
++	SIGKILL   = C.SIGKILL
++	SIGBUS    = C.SIGBUS
++	SIGSEGV   = C.SIGSEGV
++	SIGSYS    = C.SIGSYS
++	SIGPIPE   = C.SIGPIPE
++	SIGALRM   = C.SIGALRM
++	SIGTERM   = C.SIGTERM
++	SIGURG    = C.SIGURG
++	SIGSTOP   = C.SIGSTOP
++	SIGTSTP   = C.SIGTSTP
++	SIGCONT   = C.SIGCONT
++	SIGCHLD   = C.SIGCHLD
++	SIGTTIN   = C.SIGTTIN
++	SIGTTOU   = C.SIGTTOU
++	SIGIO     = C.SIGIO
++	SIGXCPU   = C.SIGXCPU
++	SIGXFSZ   = C.SIGXFSZ
++	SIGVTALRM = C.SIGVTALRM
++	SIGPROF   = C.SIGPROF
++	SIGWINCH  = C.SIGWINCH
++	SIGINFO   = C.SIGINFO
++	SIGUSR1   = C.SIGUSR1
++	SIGUSR2   = C.SIGUSR2
++
++	FPE_INTDIV = C.FPE_INTDIV
++	FPE_INTOVF = C.FPE_INTOVF
++	FPE_FLTDIV = C.FPE_FLTDIV
++	FPE_FLTOVF = C.FPE_FLTOVF
++	FPE_FLTUND = C.FPE_FLTUND
++	FPE_FLTRES = C.FPE_FLTRES
++	FPE_FLTINV = C.FPE_FLTINV
++	FPE_FLTSUB = C.FPE_FLTSUB
++
++	BUS_ADRALN = C.BUS_ADRALN
++	BUS_ADRERR = C.BUS_ADRERR
++	BUS_OBJERR = C.BUS_OBJERR
++
++	SEGV_MAPERR = C.SEGV_MAPERR
++	SEGV_ACCERR = C.SEGV_ACCERR
++
++	ITIMER_REAL    = C.ITIMER_REAL
++	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
++	ITIMER_PROF    = C.ITIMER_PROF
++
++	EV_ADD       = C.EV_ADD
++	EV_DELETE    = C.EV_DELETE
++	EV_CLEAR     = C.EV_CLEAR
++	EV_ERROR     = C.EV_ERROR
++	EVFILT_READ  = C.EVFILT_READ
++	EVFILT_WRITE = C.EVFILT_WRITE
++)
++
++type Rtprio C.struct_rtprio
++type Lwpparams C.struct_lwp_params
++type Sigaltstack C.struct_sigaltstack
++type Sigset C.struct___sigset
++type StackT C.stack_t
++
++type Siginfo C.siginfo_t
++
++type Mcontext C.mcontext_t
++type Ucontext C.ucontext_t
++
++type Timespec C.struct_timespec
++type Timeval C.struct_timeval
++type Itimerval C.struct_itimerval
++
++type Kevent C.struct_kevent
+diff --git a/src/pkg/runtime/defs_dragonfly_amd64.h b/src/pkg/runtime/defs_dragonfly_amd64.h
+new file mode 100644
+index 0000000000..74581cc94c
+--- /dev/null
++++ b/src/pkg/runtime/defs_dragonfly_amd64.h
+@@ -0,0 +1,208 @@
++// Created by cgo -cdefs - DO NOT EDIT
++// cgo -cdefs defs_dragonfly.go
++
++
++enum {
++	EINTR	= 0x4,
++	EFAULT	= 0xe,
++	EBUSY	= 0x10,
++	EAGAIN	= 0x23,
++
++	PROT_NONE	= 0x0,
++	PROT_READ	= 0x1,
++	PROT_WRITE	= 0x2,
++	PROT_EXEC	= 0x4,
++
++	MAP_ANON	= 0x1000,
++	MAP_PRIVATE	= 0x2,
++	MAP_FIXED	= 0x10,
++
++	MADV_FREE	= 0x5,
++
++	SA_SIGINFO	= 0x40,
++	SA_RESTART	= 0x2,
++	SA_ONSTACK	= 0x1,
++
++	SIGHUP		= 0x1,
++	SIGINT		= 0x2,
++	SIGQUIT		= 0x3,
++	SIGILL		= 0x4,
++	SIGTRAP		= 0x5,
++	SIGABRT		= 0x6,
++	SIGEMT		= 0x7,
++	SIGFPE		= 0x8,
++	SIGKILL		= 0x9,
++	SIGBUS		= 0xa,
++	SIGSEGV		= 0xb,
++	SIGSYS		= 0xc,
++	SIGPIPE		= 0xd,
++	SIGALRM		= 0xe,
++	SIGTERM		= 0xf,
++	SIGURG		= 0x10,
++	SIGSTOP		= 0x11,
++	SIGTSTP		= 0x12,
++	SIGCONT		= 0x13,
++	SIGCHLD		= 0x14,
++	SIGTTIN		= 0x15,
++	SIGTTOU		= 0x16,
++	SIGIO		= 0x17,
++	SIGXCPU		= 0x18,
++	SIGXFSZ		= 0x19,
++	SIGVTALRM	= 0x1a,
++	SIGPROF		= 0x1b,
++	SIGWINCH	= 0x1c,
++	SIGINFO		= 0x1d,
++	SIGUSR1		= 0x1e,
++	SIGUSR2		= 0x1f,
++
++	FPE_INTDIV	= 0x2,
++	FPE_INTOVF	= 0x1,
++	FPE_FLTDIV	= 0x3,
++	FPE_FLTOVF	= 0x4,
++	FPE_FLTUND	= 0x5,
++	FPE_FLTRES	= 0x6,
++	FPE_FLTINV	= 0x7,
++	FPE_FLTSUB	= 0x8,
++
++	BUS_ADRALN	= 0x1,
++	BUS_ADRERR	= 0x2,
++	BUS_OBJERR	= 0x3,
++
++	SEGV_MAPERR	= 0x1,
++	SEGV_ACCERR	= 0x2,
++
++	ITIMER_REAL	= 0x0,
++	ITIMER_VIRTUAL	= 0x1,
++	ITIMER_PROF	= 0x2,
++
++	EV_ADD		= 0x1,
++	EV_DELETE	= 0x2,
++	EV_CLEAR	= 0x20,
++	EV_ERROR	= 0x4000,
++	EVFILT_READ	= -0x1,
++	EVFILT_WRITE	= -0x2,
++};
++
++typedef struct Rtprio Rtprio;
++typedef struct Lwpparams Lwpparams;
++typedef struct Sigaltstack Sigaltstack;
++typedef struct Sigset Sigset;
++typedef struct StackT StackT;
++typedef struct Siginfo Siginfo;
++typedef struct Mcontext Mcontext;
++typedef struct Ucontext Ucontext;
++typedef struct Timespec Timespec;
++typedef struct Timeval Timeval;
++typedef struct Itimerval Itimerval;
++typedef struct Kevent Kevent;
++
++#pragma pack on
++
++struct Rtprio {
++	uint16	type;
++	uint16	prio;
++};
++struct Lwpparams {
++	void	*func;
++	byte	*arg;
++	byte	*stack;
++	int32	*tid1;
++	int32	*tid2;
++};
++struct Sigaltstack {
++	int8	*ss_sp;
++	uint64	ss_size;
++	int32	ss_flags;
++	byte	Pad_cgo_0[4];
++};
++struct Sigset {
++	uint32	__bits[4];
++};
++struct StackT {
++	int8	*ss_sp;
++	uint64	ss_size;
++	int32	ss_flags;
++	byte	Pad_cgo_0[4];
++};
++
++struct Siginfo {
++	int32	si_signo;
++	int32	si_errno;
++	int32	si_code;
++	int32	si_pid;
++	uint32	si_uid;
++	int32	si_status;
++	byte	*si_addr;
++	byte	si_value[8];
++	int64	si_band;
++	int32	__spare__[7];
++	byte	Pad_cgo_0[4];
++};
++
++struct Mcontext {
++	int64	mc_onstack;
++	int64	mc_rdi;
++	int64	mc_rsi;
++	int64	mc_rdx;
++	int64	mc_rcx;
++	int64	mc_r8;
++	int64	mc_r9;
++	int64	mc_rax;
++	int64	mc_rbx;
++	int64	mc_rbp;
++	int64	mc_r10;
++	int64	mc_r11;
++	int64	mc_r12;
++	int64	mc_r13;
++	int64	mc_r14;
++	int64	mc_r15;
++	int64	mc_xflags;
++	int64	mc_trapno;
++	int64	mc_addr;
++	int64	mc_flags;
++	int64	mc_err;
++	int64	mc_rip;
++	int64	mc_cs;
++	int64	mc_rflags;
++	int64	mc_rsp;
++	int64	mc_ss;
++	uint32	mc_len;
++	uint32	mc_fpformat;
++	uint32	mc_ownedfp;
++	uint32	mc_reserved;
++	uint32	mc_unused[8];
++	int32	mc_fpregs[256];
++};
++struct Ucontext {
++	Sigset	uc_sigmask;
++	byte	Pad_cgo_0[48];
++	Mcontext	uc_mcontext;
++	Ucontext	*uc_link;
++	StackT	uc_stack;
++	int32	__spare__[8];
++};
++
++struct Timespec {
++	int64	tv_sec;
++	int64	tv_nsec;
++};
++struct Timeval {
++	int64	tv_sec;
++	int64	tv_usec;
++};
++struct Itimerval {
++	Timeval	it_interval;
++	Timeval	it_value;
++};
++
++struct Kevent {
++	uint64	ident;
++	int16	filter;
++	uint16	flags;
++	uint32	fflags;
++	int64	data;
++	byte	*udata;
++};
++
++
++#pragma pack off
+diff --git a/src/pkg/runtime/env_posix.c b/src/pkg/runtime/env_posix.c
+index 58da085085..00ce577d00 100644
+--- a/src/pkg/runtime/env_posix.c
++++ b/src/pkg/runtime/env_posix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ #include "runtime.h"
+ 
+diff --git a/src/pkg/runtime/export_futex_test.go b/src/pkg/runtime/export_futex_test.go
+index bcab60fbef..1477828a7d 100644
+--- a/src/pkg/runtime/export_futex_test.go
++++ b/src/pkg/runtime/export_futex_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux freebsd
++// +build dragonfly freebsd linux
+ 
+ package runtime
+ 
+diff --git a/src/pkg/runtime/futex_test.go b/src/pkg/runtime/futex_test.go
+index 7f3e55c989..f4054b7e78 100644
+--- a/src/pkg/runtime/futex_test.go
++++ b/src/pkg/runtime/futex_test.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Futex is only available on Linux and FreeBSD.
++// Futex is only available on Dragonfly, FreeBSD and Linux.
+ // The race detector emits calls to split stack functions so it breaks the test.
+-// +build linux freebsd
++// +build dragonfly freebsd linux
+ // +build !race
+ 
+ package runtime_test
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 5626e4ae13..e6e9be9239 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux
++// +build dragonfly freebsd linux
+ 
+ #include "runtime.h"
+ #include "stack.h"
+diff --git a/src/pkg/runtime/mem_dragonfly.c b/src/pkg/runtime/mem_dragonfly.c
+new file mode 100644
+index 0000000000..cc45cc96c1
+--- /dev/null
++++ b/src/pkg/runtime/mem_dragonfly.c
+@@ -0,0 +1,94 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "arch_GOARCH.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "malloc.h"
++
++enum
++{
++	ENOMEM = 12,
++};
++
++void*
++runtime·SysAlloc(uintptr n)
++{
++	void *v;
++
++	mstats.sys += n;
++	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
++	if(v < (void*)4096)
++		return nil;
++	return v;
++}
++
++void
++runtime·SysUnused(void *v, uintptr n)
++{
++	runtime·madvise(v, n, MADV_FREE);
++}
++
++void
++runtime·SysUsed(void *v, uintptr n)
++{
++	USED(v);
++	USED(n);
++}
++
++void
++runtime·SysFree(void *v, uintptr n)
++{
++	mstats.sys -= n;
++	runtime·munmap(v, n);
++}
++
++void*
++runtime·SysReserve(void *v, uintptr n)
++{
++	void *p;
++
++	// On 64-bit, people with ulimit -v set complain if we reserve too
++	// much address space.  Instead, assume that the reservation is okay
++	// and check the assumption in SysMap.
++	if(sizeof(void*) == 8)
++		return v;
++	
++	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
++	if(p < (void*)4096)
++		return nil;
++	return p;
++}
++
++void
++runtime·SysMap(void *v, uintptr n)
++{
++	void *p;
++	
++	mstats.sys += n;
++
++	// On 64-bit, we don't actually have v reserved, so tread carefully.
++	if(sizeof(void*) == 8) {
++		// TODO(jsing): For some reason DragonFly seems to return
++		// memory at a different address than we requested, even when
++		// there should be no reason for it to do so. This can be
++		// avoided by using MAP_FIXED, but I'm not sure we should need
++		// to do this - we do not on other platforms.
++		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
++		if(p == (void*)ENOMEM)
++			runtime·throw("runtime: out of memory");
++		if(p != v) {
++			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
++			runtime·throw("runtime: address space conflict");
++		}
++		return;
++	}
++
++	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
++	if(p == (void*)ENOMEM)
++		runtime·throw("runtime: out of memory");
++	if(p != v)
++		runtime·throw("runtime: cannot map pages in arena address space");
++}
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 9bf8ac56b7..467476951d 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/runtime/netpoll_kqueue.c b/src/pkg/runtime/netpoll_kqueue.c
+index 95fab40d5a..afc8d68591 100644
+--- a/src/pkg/runtime/netpoll_kqueue.c
++++ b/src/pkg/runtime/netpoll_kqueue.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+new file mode 100644
+index 0000000000..cf427b78c0
+--- /dev/null
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -0,0 +1,282 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++#include "signal_unix.h"
++#include "stack.h"
++#include "../../cmd/ld/textflag.h"
++
++extern SigTab runtime·sigtab[];
++extern int32 runtime·sys_umtx_sleep(uint32*, int32, int32);
++extern int32 runtime·sys_umtx_wakeup(uint32*, int32);
++
++// From DragonFly's <sys/sysctl.h>
++#define	CTL_HW	6
++#define	HW_NCPU	3
++
++static Sigset sigset_none;
++static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
++
++static int32
++getncpu(void)
++{
++	uint32 mib[2];
++	uint32 out;
++	int32 ret;
++	uintptr nout;
++
++	// Fetch hw.ncpu via sysctl.
++	mib[0] = CTL_HW;
++	mib[1] = HW_NCPU;
++	nout = sizeof out;
++	out = 0;
++	ret = runtime·sysctl(mib, 2, (byte*)&out, &nout, nil, 0);
++	if(ret >= 0)
++		return out;
++	else
++		return 1;
++}
++
++#pragma textflag NOSPLIT
++void
++runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
++{
++	int32 timeout = 0;
++	int32 ret;
++
++	if(ns >= 0) {
++		// The timeout is specified in microseconds - ensure that we
++		// do not end up dividing to zero, which would put us to sleep
++		// indefinitely...
++		timeout = runtime·timediv(ns, 1000, nil);
++		if(timeout == 0)
++			timeout = 1;
++	}
++
++	// sys_umtx_sleep will return EWOULDBLOCK (EAGAIN) when the timeout
++	// expires or EBUSY if the mutex value does not match. 
++	ret = runtime·sys_umtx_sleep(addr, val, timeout);
++	if(ret >= 0 || ret == -EINTR || ret == -EAGAIN || ret == -EBUSY)
++		return;
++
++	runtime·prints("umtx_wait addr=");
++	runtime·printpointer(addr);
++	runtime·prints(" val=");
++	runtime·printint(val);
++	runtime·prints(" ret=");
++	runtime·printint(ret);
++	runtime·prints("\n");
++	*(int32*)0x1005 = 0x1005;
++}
++
++void
++runtime·futexwakeup(uint32 *addr, uint32 cnt)
++{
++	int32 ret;
++
++	ret = runtime·sys_umtx_wakeup(addr, cnt);
++	if(ret >= 0)
++		return;
++
++	runtime·printf("umtx_wake addr=%p ret=%d\n", addr, ret);
++	*(int32*)0x1006 = 0x1006;
++}
++
++void runtime·lwp_start(void*);
++
++void
++runtime·newosproc(M *mp, void *stk)
++{
++	Lwpparams params;
++	Sigset oset;
++
++	if(0){
++		runtime·printf("newosproc stk=%p m=%p g=%p id=%d/%d ostk=%p\n",
++			stk, mp, mp->g0, mp->id, (int32)mp->tls[0], &mp);
++	}
++
++	runtime·sigprocmask(&sigset_all, &oset);
++	runtime·memclr((byte*)&params, sizeof params);
++
++	params.func = runtime·lwp_start;
++	params.arg = (byte*)mp;
++	params.stack = (byte*)stk;
++	params.tid1 = (int32*)&mp->procid;
++	params.tid2 = nil;
++
++	mp->tls[0] = mp->id;	// so 386 asm can find it
++
++	runtime·lwp_create(&params);
++	runtime·sigprocmask(&oset, nil);
++}
++
++void
++runtime·osinit(void)
++{
++	runtime·ncpu = getncpu();
++}
++
++void
++runtime·get_random_data(byte **rnd, int32 *rnd_len)
++{
++	static byte urandom_data[HashRandomBytes];
++	int32 fd;
++	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
++	if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
++		*rnd = urandom_data;
++		*rnd_len = HashRandomBytes;
++	} else {
++		*rnd = nil;
++		*rnd_len = 0;
++	}
++	runtime·close(fd);
++}
++
++void
++runtime·goenvs(void)
++{
++	runtime·goenvs_unix();
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++void
++runtime·mpreinit(M *mp)
++{
++	mp->gsignal = runtime·malg(32*1024);
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
++void
++runtime·minit(void)
++{
++	// Initialize signal handling
++	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·sigprocmask(&sigset_none, nil);
++}
++
++// Called from dropm to undo the effect of an minit.
++void
++runtime·unminit(void)
++{
++	runtime·signalstack(nil, 0);
++}
++
++void
++runtime·sigpanic(void)
++{
++	switch(g->sig) {
++	case SIGBUS:
++		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
++			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
++		runtime·printf("unexpected fault address %p\n", g->sigcode1);
++		runtime·throw("fault");
++	case SIGSEGV:
++		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000) {
++			if(g->sigpc == 0)
++				runtime·panicstring("call of nil func value");
++			runtime·panicstring("invalid memory address or nil pointer dereference");
++		}
++		runtime·printf("unexpected fault address %p\n", g->sigcode1);
++		runtime·throw("fault");
++	case SIGFPE:
++		switch(g->sigcode0) {
++		case FPE_INTDIV:
++			runtime·panicstring("integer divide by zero");
++		case FPE_INTOVF:
++			runtime·panicstring("integer overflow");
++		}
++		runtime·panicstring("floating point error");
++	}
++	runtime·panicstring(runtime·sigtab[g->sig].name);
++}
++
++uintptr
++runtime·memlimit(void)
++{
++	Rlimit rl;
++	extern byte text[], end[];
++	uintptr used;
++	
++	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
++		return 0;
++	if(rl.rlim_cur >= 0x7fffffff)
++		return 0;
++
++	// Estimate our VM footprint excluding the heap.
++	// Not an exact science: use size of binary plus
++	// some room for thread stacks.
++	used = end - text + (64<<20);
++	if(used >= rl.rlim_cur)
++		return 0;
++
++	// If there's not at least 16 MB left, we're probably
++	// not going to be able to do much.  Treat as no limit.
++	rl.rlim_cur -= used;
++	if(rl.rlim_cur < (16<<20))
++		return 0;
++
++	return rl.rlim_cur - used;
++}
++
++extern void runtime·sigtramp(void);
++
++typedef struct sigaction {
++	union {
++		void    (*__sa_handler)(int32);
++		void    (*__sa_sigaction)(int32, Siginfo*, void *);
++	} __sigaction_u;		/* signal handler */
++	int32	sa_flags;		/* see signal options below */
++	Sigset	sa_mask;		/* signal mask to apply */
++} Sigaction;
++
++void
++runtime·setsig(int32 i, GoSighandler *fn, bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask.__bits[0] = ~(uint32)0;
++	sa.sa_mask.__bits[1] = ~(uint32)0;
++	sa.sa_mask.__bits[2] = ~(uint32)0;
++	sa.sa_mask.__bits[3] = ~(uint32)0;
++	if(fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
++	sa.__sigaction_u.__sa_sigaction = (void*)fn;
++	runtime·sigaction(i, &sa, nil);
++}
++
++GoSighandler*
++runtime·getsig(int32 i)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	runtime·sigaction(i, nil, &sa);
++	if((void*)sa.__sigaction_u.__sa_sigaction == runtime·sigtramp)
++		return runtime·sighandler;
++	return (void*)sa.__sigaction_u.__sa_sigaction;
++}
++
++void
++runtime·signalstack(byte *p, int32 n)
++{
++	StackT st;
++
++	st.ss_sp = (void*)p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	if(p == nil)
++		st.ss_flags = SS_DISABLE;
++	runtime·sigaltstack(&st, nil);
++}
+diff --git a/src/pkg/runtime/os_dragonfly.h b/src/pkg/runtime/os_dragonfly.h
+new file mode 100644
+index 0000000000..ebbd0eb15d
+--- /dev/null
++++ b/src/pkg/runtime/os_dragonfly.h
+@@ -0,0 +1,28 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SS_DISABLE 4
++
++typedef byte* kevent_udata;
++
++int32	runtime·lwp_create(Lwpparams*);
++void	runtime·sigpanic(void);
++void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
++struct	sigaction;
++void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
++void	runtime·sigprocmask(Sigset *, Sigset *);
++void	runtime·setitimer(int32, Itimerval*, Itimerval*);
++int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
++
++
++#define	NSIG 33
++#define	SI_USER	0x10001
++
++#define RLIMIT_AS 10
++typedef struct Rlimit Rlimit;
++struct Rlimit {
++	int64	rlim_cur;
++	int64	rlim_max;
++};
++int32	runtime·getrlimit(int32, Rlimit*);
+diff --git a/src/pkg/runtime/rt0_dragonfly_amd64.s b/src/pkg/runtime/rt0_dragonfly_amd64.s
+new file mode 100644
+index 0000000000..fc7e745983
+--- /dev/null
++++ b/src/pkg/runtime/rt0_dragonfly_amd64.s
+@@ -0,0 +1,15 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_amd64_dragonfly(SB),NOSPLIT,$-8
++	LEAQ	8(DI), SI // argv
++	MOVQ	0(DI), DI // argc
++	MOVQ	$main(SB), AX
++	JMP	AX
++
++TEXT main(SB),NOSPLIT,$-8
++	MOVQ	$_rt0_go(SB), AX
++	JMP	AX
+diff --git a/src/pkg/runtime/signal_386.c b/src/pkg/runtime/signal_386.c
+index 0a5b7e543f..5a913c6461 100644
+--- a/src/pkg/runtime/signal_386.c
++++ b/src/pkg/runtime/signal_386.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/signal_amd64.c b/src/pkg/runtime/signal_amd64.c
+index a9b2049169..f0cbb1f8cf 100644
+--- a/src/pkg/runtime/signal_amd64.c
++++ b/src/pkg/runtime/signal_amd64.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index 0e1740b741..a6e2396010 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/signal_dragonfly_amd64.h b/src/pkg/runtime/signal_dragonfly_amd64.h
+new file mode 100644
+index 0000000000..5b4f977822
+--- /dev/null
++++ b/src/pkg/runtime/signal_dragonfly_amd64.h
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext)
++
++#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).mc_rax)
++#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).mc_rbx)
++#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).mc_rcx)
++#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).mc_rdx)
++#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).mc_rdi)
++#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).mc_rsi)
++#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).mc_rbp)
++#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).mc_rsp)
++#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).mc_r8)
++#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).mc_r9)
++#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).mc_r10)
++#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).mc_r11)
++#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).mc_r12)
++#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).mc_r13)
++#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).mc_r14)
++#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).mc_r15)
++#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).mc_rip)
++#define SIG_RFLAGS(info, ctxt) (SIG_REGS(ctxt).mc_rflags)
++
++#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).mc_cs)
++#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).mc_ss)
++#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).mc_ss)
++
++#define SIG_CODE0(info, ctxt) ((info)->si_code)
++#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index 8bc7b8401b..4d14b22086 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd netbsd
++// +build darwin dragonfly freebsd linux openbsd netbsd
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/signals_dragonfly.h b/src/pkg/runtime/signals_dragonfly.h
+new file mode 100644
+index 0000000000..4d27e050d0
+--- /dev/null
++++ b/src/pkg/runtime/signals_dragonfly.h
+@@ -0,0 +1,51 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define N SigNotify
++#define K SigKill
++#define T SigThrow
++#define P SigPanic
++#define D SigDefault
++
++SigTab runtime·sigtab[] = {
++	/* 0 */	0, "SIGNONE: no trap",
++	/* 1 */	N+K, "SIGHUP: terminal line hangup",
++	/* 2 */	N+K, "SIGINT: interrupt",
++	/* 3 */	N+T, "SIGQUIT: quit",
++	/* 4 */	T, "SIGILL: illegal instruction",
++	/* 5 */	T, "SIGTRAP: trace trap",
++	/* 6 */	N+T, "SIGABRT: abort",
++	/* 7 */	T, "SIGEMT: emulate instruction executed",
++	/* 8 */	P, "SIGFPE: floating-point exception",
++	/* 9 */	0, "SIGKILL: kill",
++	/* 10 */	P, "SIGBUS: bus error",
++	/* 11 */	P, "SIGSEGV: segmentation violation",
++	/* 12 */	T, "SIGSYS: bad system call",
++	/* 13 */	N, "SIGPIPE: write to broken pipe",
++	/* 14 */	N, "SIGALRM: alarm clock",
++	/* 15 */	N+K, "SIGTERM: termination",
++	/* 16 */	N, "SIGURG: urgent condition on socket",
++	/* 17 */	0, "SIGSTOP: stop",
++	/* 18 */	N+D, "SIGTSTP: keyboard stop",
++	/* 19 */	0, "SIGCONT: continue after stop",
++	/* 20 */	N, "SIGCHLD: child status has changed",
++	/* 21 */	N+D, "SIGTTIN: background read from tty",
++	/* 22 */	N+D, "SIGTTOU: background write to tty",
++	/* 23 */	N, "SIGIO: i/o now possible",
++	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
++	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
++	/* 26 */	N, "SIGVTALRM: virtual alarm clock",
++	/* 27 */	N, "SIGPROF: profiling alarm clock",
++	/* 28 */	N, "SIGWINCH: window size change",
++	/* 29 */	N, "SIGINFO: status request from keyboard",
++	/* 30 */	N, "SIGUSR1: user-defined signal 1",
++	/* 31 */	N, "SIGUSR2: user-defined signal 2",
++	/* 32 */	N, "SIGTHR: reserved",
++};
++
++#undef N
++#undef K
++#undef T
++#undef P
++#undef D
+diff --git a/src/pkg/runtime/sys_dragonfly_amd64.s b/src/pkg/runtime/sys_dragonfly_amd64.s
+new file mode 100644
+index 0000000000..2fa97f2074
+--- /dev/null
++++ b/src/pkg/runtime/sys_dragonfly_amd64.s
+@@ -0,0 +1,330 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// System calls and other sys.stuff for AMD64, FreeBSD
++// /usr/src/sys/kern/syscalls.master for syscall numbers.
++//
++
++#include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
++	
++TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$0
++	MOVQ 8(SP), DI		// arg 1 - ptr
++	MOVL 16(SP), SI		// arg 2 - value
++	MOVL 20(SP), DX		// arg 3 - timeout
++	MOVL $469, AX		// umtx_sleep
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++TEXT runtime·sys_umtx_wakeup(SB),NOSPLIT,$0
++	MOVQ 8(SP), DI		// arg 1 - ptr
++	MOVL 16(SP), SI		// arg 2 - count
++	MOVL $470, AX		// umtx_wakeup
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++TEXT runtime·lwp_create(SB),NOSPLIT,$0
++	MOVQ 8(SP), DI		// arg 1 - params
++	MOVL $495, AX		// lwp_create
++	SYSCALL
++	RET
++
++TEXT runtime·lwp_start(SB),NOSPLIT,$0
++	MOVQ	DI, R13 // m
++
++	// set up FS to point at m->tls
++	LEAQ	m_tls(R13), DI
++	CALL	runtime·settls(SB)	// smashes DI
++
++	// set up m, g
++	get_tls(CX)
++	MOVQ	R13, m(CX)
++	MOVQ	m_g0(R13), DI
++	MOVQ	DI, g(CX)
++
++	CALL	runtime·stackcheck(SB)
++	CALL	runtime·mstart(SB)
++
++	MOVQ 0, AX			// crash (not reached)
++
++// Exit the entire program (like C exit)
++TEXT runtime·exit(SB),NOSPLIT,$-8
++	MOVL	8(SP), DI		// arg 1 exit status
++	MOVL	$1, AX
++	SYSCALL
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·exit1(SB),NOSPLIT,$-8
++	MOVQ	8(SP), DI		// arg 1 exit status
++	MOVL	$431, AX
++	SYSCALL
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·open(SB),NOSPLIT,$-8
++	MOVQ	8(SP), DI		// arg 1 pathname
++	MOVL	16(SP), SI		// arg 2 flags
++	MOVL	20(SP), DX		// arg 3 mode
++	MOVL	$5, AX
++	SYSCALL
++	RET
++
++TEXT runtime·close(SB),NOSPLIT,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	$6, AX
++	SYSCALL
++	RET
++
++TEXT runtime·read(SB),NOSPLIT,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVQ	16(SP), SI		// arg 2 buf
++	MOVL	24(SP), DX		// arg 3 count
++	MOVL	$3, AX
++	SYSCALL
++	RET
++
++TEXT runtime·write(SB),NOSPLIT,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVQ	16(SP), SI		// arg 2 buf
++	MOVL	24(SP), DX		// arg 3 count
++	MOVL	$4, AX
++	SYSCALL
++	RET
++
++TEXT runtime·getrlimit(SB),NOSPLIT,$-8
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVL	$194, AX
++	SYSCALL
++	RET
++
++TEXT runtime·raise(SB),NOSPLIT,$16
++	MOVL	$496, AX	// lwp_gettid
++	SYSCALL
++	MOVQ	$-1, DI		// arg 1 - pid
++	MOVQ	8(SP), DI	// arg 2 - tid
++	MOVL	sig+0(FP), SI	// arg 3 - signum
++	MOVL	$497, AX	// lwp_kill
++	SYSCALL
++	RET
++
++TEXT runtime·setitimer(SB), NOSPLIT, $-8
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	$83, AX
++	SYSCALL
++	RET
++
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), NOSPLIT, $32
++	MOVL	$232, AX
++	MOVQ	$0, DI
++	LEAQ	8(SP), SI
++	SYSCALL
++	MOVQ	8(SP), AX	// sec
++	MOVQ	16(SP), DX	// nsec
++
++	// sec is in AX, nsec in DX
++	MOVQ	AX, sec+0(FP)
++	MOVL	DX, nsec+8(FP)
++	RET
++
++TEXT runtime·nanotime(SB), NOSPLIT, $32
++	MOVL	$232, AX
++	MOVQ	$0, DI
++	LEAQ	8(SP), SI
++	SYSCALL
++	MOVQ	8(SP), AX	// sec
++	MOVQ	16(SP), DX	// nsec
++
++	// sec is in AX, nsec in DX
++	// return nsec in AX
++	IMULQ	$1000000000, AX
++	ADDQ	DX, AX
++	RET
++
++TEXT runtime·sigaction(SB),NOSPLIT,$-8
++	MOVL	8(SP), DI		// arg 1 sig
++	MOVQ	16(SP), SI		// arg 2 act
++	MOVQ	24(SP), DX		// arg 3 oact
++	MOVL	$342, AX
++	SYSCALL
++	JCC	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·sigtramp(SB),NOSPLIT,$64
++	get_tls(BX)
++
++	// check that m exists
++	MOVQ	m(BX), BP
++	CMPQ	BP, $0
++	JNE	5(PC)
++	MOVQ	DI, 0(SP)
++	MOVQ	$runtime·badsignal(SB), AX
++	CALL	AX
++	RET
++
++	// save g
++	MOVQ	g(BX), R10
++	MOVQ	R10, 40(SP)
++	
++	// g = m->signal
++	MOVQ	m_gsignal(BP), BP
++	MOVQ	BP, g(BX)
++	
++	MOVQ	DI, 0(SP)
++	MOVQ	SI, 8(SP)
++	MOVQ	DX, 16(SP)
++	MOVQ	R10, 24(SP)
++
++	CALL	runtime·sighandler(SB)
++
++	// restore g
++	get_tls(BX)
++	MOVQ	40(SP), R10
++	MOVQ	R10, g(BX)
++	RET
++
++TEXT runtime·mmap(SB),NOSPLIT,$0
++	MOVQ	8(SP), DI		// arg 1 - addr
++	MOVQ	16(SP), SI		// arg 2 - len
++	MOVL	24(SP), DX		// arg 3 - prot
++	MOVL	28(SP), R10		// arg 4 - flags
++	MOVL	32(SP), R8		// arg 5 - fd
++	MOVL	36(SP), R9
++	SUBQ	$16, SP
++	MOVQ	R9, 8(SP)		// arg 7 - offset (passed on stack)
++	MOVQ	$0, R9			// arg 6 - pad
++	MOVL	$197, AX
++	SYSCALL
++	ADDQ	$16, SP
++	RET
++
++TEXT runtime·munmap(SB),NOSPLIT,$0
++	MOVQ	8(SP), DI		// arg 1 addr
++	MOVQ	16(SP), SI		// arg 2 len
++	MOVL	$73, AX
++	SYSCALL
++	JCC	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·madvise(SB),NOSPLIT,$0
++	MOVQ	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVQ	$75, AX	// madvise
++	SYSCALL
++	// ignore failure - maybe pages are locked
++	RET
++	
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
++	MOVQ	new+8(SP), DI
++	MOVQ	old+16(SP), SI
++	MOVQ	$53, AX
++	SYSCALL
++	JCC	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·usleep(SB),NOSPLIT,$16
++	MOVL	$0, DX
++	MOVL	usec+0(FP), AX
++	MOVL	$1000000, CX
++	DIVL	CX
++	MOVQ	AX, 0(SP)		// tv_sec
++	MOVL	$1000, AX
++	MULL	DX
++	MOVQ	AX, 8(SP)		// tv_nsec
++
++	MOVQ	SP, DI			// arg 1 - rqtp
++	MOVQ	$0, SI			// arg 2 - rmtp
++	MOVL	$240, AX		// sys_nanosleep
++	SYSCALL
++	RET
++
++// set tls base to DI
++TEXT runtime·settls(SB),NOSPLIT,$16
++	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
++	MOVQ	DI, 0(SP)
++	MOVQ	$16, 8(SP)
++	MOVQ	$0, DI			// arg 1 - which
++	MOVQ	SP, SI			// arg 2 - tls_info
++	MOVQ	$16, DX			// arg 3 - infosize
++	MOVQ	$472, AX		// set_tls_area
++	SYSCALL
++	JCC	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++TEXT runtime·sysctl(SB),NOSPLIT,$0
++	MOVQ	8(SP), DI		// arg 1 - name
++	MOVL	16(SP), SI		// arg 2 - namelen
++	MOVQ	24(SP), DX		// arg 3 - oldp
++	MOVQ	32(SP), R10		// arg 4 - oldlenp
++	MOVQ	40(SP), R8		// arg 5 - newp
++	MOVQ	48(SP), R9		// arg 6 - newlen
++	MOVQ	$202, AX		// sys___sysctl
++	SYSCALL
++	JCC 3(PC)
++	NEGQ	AX
++	RET
++	MOVL	$0, AX
++	RET
++
++TEXT runtime·osyield(SB),NOSPLIT,$-4
++	MOVL	$331, AX		// sys_sched_yield
++	SYSCALL
++	RET
++
++TEXT runtime·sigprocmask(SB),NOSPLIT,$0
++	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
++	MOVQ	8(SP), SI		// arg 2 - set
++	MOVQ	16(SP), DX		// arg 3 - oset
++	MOVL	$340, AX		// sys_sigprocmask
++	SYSCALL
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1  // crash
++	RET
++
++// int32 runtime·kqueue(void);
++TEXT runtime·kqueue(SB),NOSPLIT,$0
++	MOVQ	$0, DI
++	MOVQ	$0, SI
++	MOVQ	$0, DX
++	MOVL	$362, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
++TEXT runtime·kevent(SB),NOSPLIT,$0
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVL	24(SP), DX
++	MOVQ	32(SP), R10
++	MOVL	40(SP), R8
++	MOVQ	48(SP), R9
++	MOVL	$363, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	RET
++
++// void runtime·closeonexec(int32 fd);
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
++	MOVL	8(SP), DI	// fd
++	MOVQ	$2, SI		// F_SETFD
++	MOVQ	$1, DX		// FD_CLOEXEC
++	MOVL	$92, AX		// fcntl
++	SYSCALL
++	RET

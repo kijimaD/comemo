@@ -12,7 +12,39 @@ Date:   Mon Feb 29 16:46:18 2016 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/link.go | 1 +
  src/cmd/link/internal/ld/sym.go  | 8 ++++++--
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 73d23c6cf0..5a02aca728 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -158,6 +158,7 @@ type Link struct {
+ 	Nhistfile  int32
+ 	Filesyms   *LSym
+ 	Moduledata *LSym
++	LSymBatch  []LSym
+ }
+ 
+ // The smallest possible offset from the hardware stack pointer to a local
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 099243442b..5f31e59e09 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -157,8 +157,12 @@ func linknew(arch *LinkArch) *Link {
+ }
+ 
+ func linknewsym(ctxt *Link, symb string, v int) *LSym {
+-	s := new(LSym)
+-	*s = LSym{}
++	batch := ctxt.LSymBatch
++	if len(batch) == 0 {
++		batch = make([]LSym, 1000)
++	}
++	s := &batch[0]
++	ctxt.LSymBatch = batch[1:]
+ 
+ 	s.Dynid = -1
+ 	s.Plt = -1

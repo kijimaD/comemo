@@ -18,7 +18,43 @@ Date:   Fri Mar 31 16:52:50 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go     | 7 +++++--
  src/cmd/compile/internal/gc/universe.go | 1 +
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 71d9b8f9e3..06b7e5a691 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -207,7 +207,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		if ls, ok := l.(ssa.LocalSlot); ok {
+ 			ls.N.(*Node).SetUsed(true)
+ 		}
+-
+ 	}
+ 
+ 	scratchUsed := false
+@@ -215,7 +214,11 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		for _, v := range b.Values {
+ 			switch a := v.Aux.(type) {
+ 			case *ssa.ArgSymbol:
+-				a.Node.(*Node).SetUsed(true)
++				n := a.Node.(*Node)
++				// Don't modify nodfp; it is a global.
++				if n != nodfp {
++					n.SetUsed(true)
++				}
+ 			case *ssa.AutoSymbol:
+ 				a.Node.(*Node).SetUsed(true)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index fea0103b33..50f7335cd0 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -463,4 +463,5 @@ func finishUniverse() {
+ 	nodfp = newname(lookup(".fp"))
+ 	nodfp.Type = Types[TINT32]
+ 	nodfp.Class = PPARAM
++	nodfp.SetUsed(true)
+ }

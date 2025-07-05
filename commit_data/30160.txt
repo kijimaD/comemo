@@ -13,6 +13,42 @@ Date:   Tue Oct 25 22:35:01 2016 -0400
     Change-Id: I6b4693f8eb6db7c66fd9b9cd1df8927f50d46d50
     Reviewed-on: https://go-review.googlesource.com/32091
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go | 18 ++++++++++++------
  1 file changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 5b0bbe2170..37a6a60fe4 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1078,18 +1078,24 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
+ 	return
+ }
+ 
+-// ParseForm parses the raw query from the URL and updates r.Form.
++// ParseForm populates r.Form and r.PostForm.
+ //
+-// For POST or PUT requests, it also parses the request body as a form and
+-// put the results into both r.PostForm and r.Form.
+-// POST and PUT body parameters take precedence over URL query string values
+-// in r.Form.
++// For all requests, ParseForm parses the raw query from the URL and updates
++// r.Form.
++//
++// For POST, PUT, and PATCH requests, it also parses the request body as a form
++// and puts the results into both r.PostForm and r.Form. Request body parameters
++// take precedence over URL query string values in r.Form.
++//
++// For other HTTP methods, or when the Content-Type is not
++// application/x-www-form-urlencoded, the request Body is not read, and
++// r.PostForm is initialized to a non-nil, empty value.
+ //
+ // If the request Body's size has not already been limited by MaxBytesReader,
+ // the size is capped at 10MB.
+ //
+ // ParseMultipartForm calls ParseForm automatically.
+-// It is idempotent.
++// ParseForm is idempotent.
+ func (r *Request) ParseForm() error {
+ 	var err error
+ 	if r.PostForm == nil {

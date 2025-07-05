@@ -25,7 +25,36 @@ Date:   Fri Jun 26 11:26:33 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/test.go | 4 ++++
  src/cmd/cgo/out.go    | 5 +++++
  2 files changed, 9 insertions(+)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index b5009d43ce..8c69ad91ac 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -2200,3 +2200,7 @@ func test32579(t *testing.T) {
+ // issue 38649
+ 
+ var issue38649 C.netbsd_gid = 42
++
++// issue 39877
++
++var issue39877 *C.void = nil
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 6b40a255d5..6c221473e0 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -98,6 +98,11 @@ func (p *Package) writeDefs() {
+ 
+ 	typedefNames := make([]string, 0, len(typedef))
+ 	for name := range typedef {
++		if name == "_Ctype_void" {
++			// We provide an appropriate declaration for
++			// _Ctype_void below (#39877).
++			continue
++		}
+ 		typedefNames = append(typedefNames, name)
+ 	}
+ 	sort.Strings(typedefNames)

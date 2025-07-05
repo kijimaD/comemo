@@ -9,6 +9,21 @@ Date:   Thu Oct 6 18:22:19 2016 +0000
     Change-Id: I942fb2eacd1b54bab66cc147a6b047a3ffce0b84
     Reviewed-on: https://go-review.googlesource.com/30595
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/time/time.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 8f16986044..f04fba85fa 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -4,7 +4,8 @@
+ 
+ // Package time provides functionality for measuring and displaying time.
+ //
+-// The calendrical calculations always assume a Gregorian calendar.
++// The calendrical calculations always assume a Gregorian calendar, with
++// no leap seconds.
+ package time
+ 
+ import "errors"

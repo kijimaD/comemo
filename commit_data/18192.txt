@@ -8,6 +8,22 @@ Date:   Wed Jan 8 21:22:18 2014 +0100
     R=golang-codereviews
     CC=0intro, golang-codereviews, rsc
     https://golang.org/cl/49060043
-
+---
  src/pkg/net/lookup_plan9.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+index a755ff2aac..95c0f0b068 100644
+--- a/src/pkg/net/lookup_plan9.go
++++ b/src/pkg/net/lookup_plan9.go
+@@ -16,6 +16,10 @@ func query(filename, query string, bufSize int) (res []string, err error) {
+ 	}
+ 	defer file.Close()
+ 
++	_, err = file.Seek(0, 0)
++	if err != nil {
++		return
++	}
+ 	_, err = file.WriteString(query)
+ 	if err != nil {
+ 		return

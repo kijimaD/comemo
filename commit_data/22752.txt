@@ -12,7 +12,113 @@ Date:   Mon Apr 6 15:58:26 2015 -0700
     Change-Id: Ia62b25203fbe87c95d71a70ebc1db8d202eaa4a4
     Reviewed-on: https://go-review.googlesource.com/8511
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/decode.go       | 44 ++++++++++++++++++++++------------------
  src/encoding/gob/encoder_test.go | 14 +++++++++++++
  2 files changed, 38 insertions(+), 20 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 855a43f1a0..f1c597086d 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -182,6 +182,17 @@ func (state *decoderState) decodeInt() int64 {
+ 	return int64(x >> 1)
+ }
+ 
++// getLength decodes the next uint and makes sure it is a possible
++// size for a data item that follows, which means it must fit in a
++// non-negative int and fit in the buffer.
++func (state *decoderState) getLength() (int, bool) {
++	n := int(state.decodeUint())
++	if n < 0 || state.b.Len() < n || tooBig <= n {
++		return 0, false
++	}
++	return n, true
++}
++
+ // decOp is the signature of a decoding operator for a given type.
+ type decOp func(i *decInstr, state *decoderState, v reflect.Value)
+ 
+@@ -363,16 +374,9 @@ func decComplex128(i *decInstr, state *decoderState, value reflect.Value) {
+ // describing the data.
+ // uint8 slices are encoded as an unsigned count followed by the raw bytes.
+ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
+-	u := state.decodeUint()
+-	n := int(u)
+-	if n < 0 || uint64(n) != u {
+-		errorf("length of %s exceeds input size (%d bytes)", value.Type(), u)
+-	}
+-	if n > state.b.Len() {
+-		errorf("%s data too long for buffer: %d", value.Type(), n)
+-	}
+-	if n > tooBig {
+-		errorf("byte slice too big: %d", n)
++	n, ok := state.getLength()
++	if !ok {
++		errorf("bad %s slice length: %d", value.Type(), n)
+ 	}
+ 	if value.Cap() < n {
+ 		value.Set(reflect.MakeSlice(value.Type(), n, n))
+@@ -388,13 +392,9 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
+ // describing the data.
+ // Strings are encoded as an unsigned count followed by the raw bytes.
+ func decString(i *decInstr, state *decoderState, value reflect.Value) {
+-	u := state.decodeUint()
+-	n := int(u)
+-	if n < 0 || uint64(n) != u || n > state.b.Len() {
+-		errorf("length of %s exceeds input size (%d bytes)", value.Type(), u)
+-	}
+-	if n > state.b.Len() {
+-		errorf("%s data too long for buffer: %d", value.Type(), n)
++	n, ok := state.getLength()
++	if !ok {
++		errorf("bad %s slice length: %d", value.Type(), n)
+ 	}
+ 	// Read the data.
+ 	data := make([]byte, n)
+@@ -406,7 +406,11 @@ func decString(i *decInstr, state *decoderState, value reflect.Value) {
+ 
+ // ignoreUint8Array skips over the data for a byte slice value with no destination.
+ func ignoreUint8Array(i *decInstr, state *decoderState, value reflect.Value) {
+-	b := make([]byte, state.decodeUint())
++	n, ok := state.getLength()
++	if !ok {
++		errorf("slice length too large")
++	}
++	b := make([]byte, n)
+ 	state.b.Read(b)
+ }
+ 
+@@ -688,8 +692,8 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
+ 		error_(dec.err)
+ 	}
+ 	// At this point, the decoder buffer contains a delimited value. Just toss it.
+-	n := int(state.decodeUint())
+-	if n < 0 || state.b.Len() < n {
++	n, ok := state.getLength()
++	if !ok {
+ 		errorf("bad interface encoding: length too large for buffer")
+ 	}
+ 	state.b.Drop(n)
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 7607b17dee..b4c8675d34 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -968,3 +968,17 @@ func TestErrorBadDrop(t *testing.T) {
+ 		t.Fatalf("decode: expected interface encoding error, got %s", err.Error())
+ 	}
+ }
++
++// Don't crash, just give error with corrupted slice.
++// Issue 10273.
++func TestErrorBadSliceLength(t *testing.T) {
++	data := []byte{0x13, 0x0a, 0x00, 0xfb, 0x5d, 0xad, 0x0b, 0xf8, 0xff, 0x02, 0x02, 0x63, 0xe7, 0x00, 0x02, 0xfa, 0x28, 0x02, 0x02, 0x02, 0xa8, 0x98, 0x59}
++	d := NewDecoder(bytes.NewReader(data))
++	err := d.Decode(nil)
++	if err == nil {
++		t.Fatal("decode: no error")
++	}
++	if !strings.Contains(err.Error(), "slice length too large") {
++		t.Fatalf("decode: expected slice length too large error, got %s", err.Error())
++	}
++}

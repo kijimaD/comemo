@@ -12,6 +12,24 @@ Date:   Mon Feb 14 13:14:59 2022 -0500
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.18.html | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 2e5eef2051..243df2b7d4 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -225,12 +225,6 @@ Do not send CLs removing the interior tags from such phrases.
+   FreeBSD 13.0+ will require a kernel with the COMPAT_FREEBSD12 option set (this is the default).
+ </p>
+ 
+-<h3 id="ppc64">PPC64</h3>
+-
+-<p><!-- CL 353969 -->
+-  TODO: <a href="https://golang.org/cl/353969">https://golang.org/cl/353969</a>: enable register ABI for PPC64
+-</p>
+-
+ <h2 id="tools">Tools</h2>
+ 
+ <h3 id="fuzzing">Fuzzing</h3>

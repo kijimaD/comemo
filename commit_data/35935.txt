@@ -75,8 +75,339 @@ Date:   Thu Jan 4 18:23:27 2018 -0200
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go    | 51 ++++++++++++++++----------------
  src/runtime/internal/atomic/asm_ppc64x.s | 24 +++++++--------
  src/sync/atomic/asm_ppc64x.s             | 18 +++++------
  3 files changed, 43 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 7a2e2c1878..8d843f0756 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -154,16 +154,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 	case ssa.OpPPC64LoweredAtomicAnd8,
+ 		ssa.OpPPC64LoweredAtomicOr8:
+-		// SYNC
++		// LWSYNC
+ 		// LBAR		(Rarg0), Rtmp
+ 		// AND/OR	Rarg1, Rtmp
+ 		// STBCCC	Rtmp, (Rarg0)
+ 		// BNE		-3(PC)
+-		// ISYNC
+ 		r0 := v.Args[0].Reg()
+ 		r1 := v.Args[1].Reg()
+-		psync := s.Prog(ppc64.ASYNC)
+-		psync.To.Type = obj.TYPE_NONE
++		// LWSYNC - Assuming shared data not write-through-required nor
++		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
++		plwsync := s.Prog(ppc64.ALWSYNC)
++		plwsync.To.Type = obj.TYPE_NONE
+ 		p := s.Prog(ppc64.ALBAR)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = r0
+@@ -183,17 +184,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p3 := s.Prog(ppc64.ABNE)
+ 		p3.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p3, p)
+-		pisync := s.Prog(ppc64.AISYNC)
+-		pisync.To.Type = obj.TYPE_NONE
+ 
+ 	case ssa.OpPPC64LoweredAtomicAdd32,
+ 		ssa.OpPPC64LoweredAtomicAdd64:
+-		// SYNC
++		// LWSYNC
+ 		// LDAR/LWAR    (Rarg0), Rout
+ 		// ADD		Rarg1, Rout
+ 		// STDCCC/STWCCC Rout, (Rarg0)
+ 		// BNE         -3(PC)
+-		// ISYNC
+ 		// MOVW		Rout,Rout (if Add32)
+ 		ld := ppc64.ALDAR
+ 		st := ppc64.ASTDCCC
+@@ -204,9 +202,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		r0 := v.Args[0].Reg()
+ 		r1 := v.Args[1].Reg()
+ 		out := v.Reg0()
+-		// SYNC
+-		psync := s.Prog(ppc64.ASYNC)
+-		psync.To.Type = obj.TYPE_NONE
++		// LWSYNC - Assuming shared data not write-through-required nor
++		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
++		plwsync := s.Prog(ppc64.ALWSYNC)
++		plwsync.To.Type = obj.TYPE_NONE
+ 		// LDAR or LWAR
+ 		p := s.Prog(ld)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -229,9 +228,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p4 := s.Prog(ppc64.ABNE)
+ 		p4.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p4, p)
+-		// ISYNC
+-		pisync := s.Prog(ppc64.AISYNC)
+-		pisync.To.Type = obj.TYPE_NONE
+ 
+ 		// Ensure a 32 bit result
+ 		if v.Op == ssa.OpPPC64LoweredAtomicAdd32 {
+@@ -244,7 +240,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 	case ssa.OpPPC64LoweredAtomicExchange32,
+ 		ssa.OpPPC64LoweredAtomicExchange64:
+-		// SYNC
++		// LWSYNC
+ 		// LDAR/LWAR    (Rarg0), Rout
+ 		// STDCCC/STWCCC Rout, (Rarg0)
+ 		// BNE         -2(PC)
+@@ -258,9 +254,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		r0 := v.Args[0].Reg()
+ 		r1 := v.Args[1].Reg()
+ 		out := v.Reg0()
+-		// SYNC
+-		psync := s.Prog(ppc64.ASYNC)
+-		psync.To.Type = obj.TYPE_NONE
++		// LWSYNC - Assuming shared data not write-through-required nor
++		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
++		plwsync := s.Prog(ppc64.ALWSYNC)
++		plwsync.To.Type = obj.TYPE_NONE
+ 		// LDAR or LWAR
+ 		p := s.Prog(ld)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -342,14 +339,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 	case ssa.OpPPC64LoweredAtomicCas64,
+ 		ssa.OpPPC64LoweredAtomicCas32:
+-		// SYNC
++		// LWSYNC
+ 		// loop:
+ 		// LDAR        (Rarg0), Rtmp
+ 		// CMP         Rarg1, Rtmp
+ 		// BNE         fail
+ 		// STDCCC      Rarg2, (Rarg0)
+ 		// BNE         loop
+-		// ISYNC
++		// LWSYNC
+ 		// MOVD        $1, Rout
+ 		// BR          end
+ 		// fail:
+@@ -367,9 +364,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		r1 := v.Args[1].Reg()
+ 		r2 := v.Args[2].Reg()
+ 		out := v.Reg0()
+-		// SYNC
+-		psync := s.Prog(ppc64.ASYNC)
+-		psync.To.Type = obj.TYPE_NONE
++		// LWSYNC - Assuming shared data not write-through-required nor
++		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
++		plwsync1 := s.Prog(ppc64.ALWSYNC)
++		plwsync1.To.Type = obj.TYPE_NONE
+ 		// LDAR or LWAR
+ 		p := s.Prog(ld)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -395,9 +393,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p4 := s.Prog(ppc64.ABNE)
+ 		p4.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p4, p)
+-		// ISYNC
+-		pisync := s.Prog(ppc64.AISYNC)
+-		pisync.To.Type = obj.TYPE_NONE
++		// LWSYNC - Assuming shared data not write-through-required nor
++		// caching-inhibited. See Appendix B.2.1.1 in the ISA 2.07b.
++		plwsync2 := s.Prog(ppc64.ALWSYNC)
++		plwsync2.To.Type = obj.TYPE_NONE
+ 		// return true
+ 		p5 := s.Prog(ppc64.AMOVD)
+ 		p5.From.Type = obj.TYPE_CONST
+diff --git a/src/runtime/internal/atomic/asm_ppc64x.s b/src/runtime/internal/atomic/asm_ppc64x.s
+index 7117aef158..a2ed4adc91 100644
+--- a/src/runtime/internal/atomic/asm_ppc64x.s
++++ b/src/runtime/internal/atomic/asm_ppc64x.s
+@@ -17,7 +17,7 @@ TEXT runtime∕internal∕atomic·Cas(SB), NOSPLIT, $0-17
+ 	MOVD	ptr+0(FP), R3
+ 	MOVWZ	old+8(FP), R4
+ 	MOVWZ	new+12(FP), R5
+-	SYNC
++	LWSYNC
+ cas_again:
+ 	LWAR	(R3), R6
+ 	CMPW	R6, R4
+@@ -25,7 +25,7 @@ cas_again:
+ 	STWCCC	R5, (R3)
+ 	BNE	cas_again
+ 	MOVD	$1, R3
+-	ISYNC
++	LWSYNC
+ 	MOVB	R3, ret+16(FP)
+ 	RET
+ cas_fail:
+@@ -44,7 +44,7 @@ TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-25
+ 	MOVD	ptr+0(FP), R3
+ 	MOVD	old+8(FP), R4
+ 	MOVD	new+16(FP), R5
+-	SYNC
++	LWSYNC
+ cas64_again:
+ 	LDAR	(R3), R6
+ 	CMP	R6, R4
+@@ -52,7 +52,7 @@ cas64_again:
+ 	STDCCC	R5, (R3)
+ 	BNE	cas64_again
+ 	MOVD	$1, R3
+-	ISYNC
++	LWSYNC
+ 	MOVB	R3, ret+24(FP)
+ 	RET
+ cas64_fail:
+@@ -97,31 +97,29 @@ TEXT runtime∕internal∕atomic·Casp1(SB), NOSPLIT, $0-25
+ TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-20
+ 	MOVD	ptr+0(FP), R4
+ 	MOVW	delta+8(FP), R5
+-	SYNC
++	LWSYNC
+ 	LWAR	(R4), R3
+ 	ADD	R5, R3
+ 	STWCCC	R3, (R4)
+ 	BNE	-3(PC)
+-	ISYNC
+ 	MOVW	R3, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-24
+ 	MOVD	ptr+0(FP), R4
+ 	MOVD	delta+8(FP), R5
+-	SYNC
++	LWSYNC
+ 	LDAR	(R4), R3
+ 	ADD	R5, R3
+ 	STDCCC	R3, (R4)
+ 	BNE	-3(PC)
+-	ISYNC
+ 	MOVD	R3, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
+ 	MOVD	ptr+0(FP), R4
+ 	MOVW	new+8(FP), R5
+-	SYNC
++	LWSYNC
+ 	LWAR	(R4), R3
+ 	STWCCC	R5, (R4)
+ 	BNE	-2(PC)
+@@ -132,7 +130,7 @@ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
+ TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
+ 	MOVD	ptr+0(FP), R4
+ 	MOVD	new+8(FP), R5
+-	SYNC
++	LWSYNC
+ 	LDAR	(R4), R3
+ 	STDCCC	R5, (R4)
+ 	BNE	-2(PC)
+@@ -165,24 +163,22 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
+ TEXT runtime∕internal∕atomic·Or8(SB), NOSPLIT, $0-9
+ 	MOVD	ptr+0(FP), R3
+ 	MOVBZ	val+8(FP), R4
+-	SYNC
++	LWSYNC
+ again:
+ 	LBAR	(R3), R6
+ 	OR	R4, R6
+ 	STBCCC	R6, (R3)
+ 	BNE	again
+-	ISYNC
+ 	RET
+ 
+ // void runtime∕internal∕atomic·And8(byte volatile*, byte);
+ TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
+ 	MOVD	ptr+0(FP), R3
+ 	MOVBZ	val+8(FP), R4
+-	SYNC
++	LWSYNC
+ again:
+ 	LBAR	(R3),R6
+ 	AND	R4,R6
+ 	STBCCC	R6,(R3)
+ 	BNE	again
+-	ISYNC
+ 	RET
+diff --git a/src/sync/atomic/asm_ppc64x.s b/src/sync/atomic/asm_ppc64x.s
+index 44e26698b4..dc93ed8e1d 100644
+--- a/src/sync/atomic/asm_ppc64x.s
++++ b/src/sync/atomic/asm_ppc64x.s
+@@ -12,7 +12,7 @@ TEXT ·SwapInt32(SB),NOSPLIT,$0-20
+ TEXT ·SwapUint32(SB),NOSPLIT,$0-20
+ 	MOVD	addr+0(FP), R3
+ 	MOVW	new+8(FP), R4
+-	SYNC
++	LWSYNC
+ 	LWAR	(R3), R5
+ 	STWCCC	R4, (R3)
+ 	BNE	-2(PC)
+@@ -26,7 +26,7 @@ TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+ TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+ 	MOVD	addr+0(FP), R3
+ 	MOVD	new+8(FP), R4
+-	SYNC
++	LWSYNC
+ 	LDAR	(R3), R5
+ 	STDCCC	R4, (R3)
+ 	BNE	-2(PC)
+@@ -44,13 +44,13 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
+ 	MOVD	addr+0(FP), R3
+ 	MOVW	old+8(FP), R4
+ 	MOVW	new+12(FP), R5
+-	SYNC
++	LWSYNC
+ 	LWAR	(R3), R6
+ 	CMPW	R6, R4
+ 	BNE	7(PC)
+ 	STWCCC	R5, (R3)
+ 	BNE	-4(PC)
+-	ISYNC
++	LWSYNC
+ 	MOVD	$1, R3
+ 	MOVB	R3, swapped+16(FP)
+ 	RET
+@@ -67,13 +67,13 @@ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
+ 	MOVD	addr+0(FP), R3
+ 	MOVD	old+8(FP), R4
+ 	MOVD	new+16(FP), R5
+-	SYNC
++	LWSYNC
+ 	LDAR	(R3), R6
+ 	CMP	R6, R4
+ 	BNE	7(PC)
+ 	STDCCC	R5, (R3)
+ 	BNE	-4(PC)
+-	ISYNC
++	LWSYNC
+ 	MOVD	$1, R3
+ 	MOVB	R3, swapped+24(FP)
+ 	RET
+@@ -86,12 +86,11 @@ TEXT ·AddInt32(SB),NOSPLIT,$0-20
+ TEXT ·AddUint32(SB),NOSPLIT,$0-20
+ 	MOVD	addr+0(FP), R3
+ 	MOVW	delta+8(FP), R4
+-	SYNC
++	LWSYNC
+ 	LWAR	(R3), R5
+ 	ADD	R4, R5
+ 	STWCCC	R5, (R3)
+ 	BNE	-3(PC)
+-	ISYNC
+ 	MOVW	R5, new+16(FP)
+ 	RET
+ 
+@@ -104,12 +103,11 @@ TEXT ·AddInt64(SB),NOSPLIT,$0-24
+ TEXT ·AddUint64(SB),NOSPLIT,$0-24
+ 	MOVD	addr+0(FP), R3
+ 	MOVD	delta+8(FP), R4
+-	SYNC
++	LWSYNC
+ 	LDAR	(R3), R5
+ 	ADD	R4, R5
+ 	STDCCC	R5, (R3)
+ 	BNE	-3(PC)
+-	ISYNC
+ 	MOVD	R5, new+16(FP)
+ 	RET
+ 

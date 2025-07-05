@@ -13,8 +13,647 @@ Date:   Wed Jul 15 17:02:06 2015 -0700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/addrselect.go      | 381 +++++++++++++++++++++++++++++++++++++++++++++
  src/net/addrselect_test.go | 218 ++++++++++++++++++++++++++
  src/net/dnsclient_unix.go  |   5 +-
  3 files changed, 602 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/addrselect.go b/src/net/addrselect.go
+new file mode 100644
+index 0000000000..56a618aa26
+--- /dev/null
++++ b/src/net/addrselect.go
+@@ -0,0 +1,381 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++// Minimal RFC 6724 address selection.
++
++package net
++
++import "sort"
++
++func sortByRFC6724(addrs []IPAddr) {
++	if len(addrs) < 2 {
++		return
++	}
++	sortByRFC6724withSrcs(addrs, srcAddrs(addrs))
++}
++
++func sortByRFC6724withSrcs(addrs []IPAddr, srcs []IP) {
++	if len(addrs) != len(srcs) {
++		panic("internal error")
++	}
++	addrAttr := make([]ipAttr, len(addrs))
++	srcAttr := make([]ipAttr, len(srcs))
++	for i, v := range addrs {
++		addrAttr[i] = ipAttrOf(v.IP)
++		srcAttr[i] = ipAttrOf(srcs[i])
++	}
++	sort.Stable(&byRFC6724{
++		addrs:    addrs,
++		addrAttr: addrAttr,
++		srcs:     srcs,
++		srcAttr:  srcAttr,
++	})
++}
++
++// srcsAddrs tries to UDP-connect to each address to see if it has a
++// route. (This doesn't send any packets). The destination port
++// number is irrelevant.
++func srcAddrs(addrs []IPAddr) []IP {
++	srcs := make([]IP, len(addrs))
++	for i := range addrs {
++		conn, err := Dial("udp", JoinHostPort(addrs[i].IP.String(), "1234"))
++		if err == nil {
++			if ua, ok := conn.LocalAddr().(*UDPAddr); ok {
++				srcs[i] = ua.IP
++			}
++			conn.Close()
++		}
++	}
++	return srcs
++}
++
++type ipAttr struct {
++	Scope      scope
++	Precedence uint8
++	Label      uint8
++}
++
++func ipAttrOf(ip IP) ipAttr {
++	if ip == nil {
++		return ipAttr{}
++	}
++	match := rfc6724policyTable.Classify(ip)
++	return ipAttr{
++		Scope:      classifyScope(ip),
++		Precedence: match.Precedence,
++		Label:      match.Label,
++	}
++}
++
++type byRFC6724 struct {
++	addrs    []IPAddr // addrs to sort
++	addrAttr []ipAttr
++	srcs     []IP // or nil if unreachable
++	srcAttr  []ipAttr
++}
++
++func (s *byRFC6724) Len() int { return len(s.addrs) }
++
++func (s *byRFC6724) Swap(i, j int) {
++	s.addrs[i], s.addrs[j] = s.addrs[j], s.addrs[i]
++	s.srcs[i], s.srcs[j] = s.srcs[j], s.srcs[i]
++	s.addrAttr[i], s.addrAttr[j] = s.addrAttr[j], s.addrAttr[i]
++	s.srcAttr[i], s.srcAttr[j] = s.srcAttr[j], s.srcAttr[i]
++}
++
++// Less reports whether i is a better destination address for this
++// host than j.
++//
++// The algorithm and variable names comes from RFC 6724 section 6.
++func (s *byRFC6724) Less(i, j int) bool {
++	DA := s.addrs[i].IP
++	DB := s.addrs[j].IP
++	SourceDA := s.srcs[i]
++	SourceDB := s.srcs[j]
++	attrDA := &s.addrAttr[i]
++	attrDB := &s.addrAttr[j]
++	attrSourceDA := &s.srcAttr[i]
++	attrSourceDB := &s.srcAttr[j]
++
++	const preferDA = true
++	const preferDB = false
++
++	// Rule 1: Avoid unusable destinations.
++	// If DB is known to be unreachable or if Source(DB) is undefined, then
++	// prefer DA.  Similarly, if DA is known to be unreachable or if
++	// Source(DA) is undefined, then prefer DB.
++	if SourceDA == nil && SourceDB == nil {
++		return false // "equal"
++	}
++	if SourceDB == nil {
++		return preferDA
++	}
++	if SourceDA == nil {
++		return preferDB
++	}
++
++	// Rule 2: Prefer matching scope.
++	// If Scope(DA) = Scope(Source(DA)) and Scope(DB) <> Scope(Source(DB)),
++	// then prefer DA.  Similarly, if Scope(DA) <> Scope(Source(DA)) and
++	// Scope(DB) = Scope(Source(DB)), then prefer DB.
++	if attrDA.Scope == attrSourceDA.Scope && attrDB.Scope != attrSourceDB.Scope {
++		return preferDA
++	}
++	if attrDA.Scope != attrSourceDA.Scope && attrDB.Scope == attrSourceDB.Scope {
++		return preferDB
++	}
++
++	// Rule 3: Avoid deprecated addresses.
++	// If Source(DA) is deprecated and Source(DB) is not, then prefer DB.
++	// Similarly, if Source(DA) is not deprecated and Source(DB) is
++	// deprecated, then prefer DA.
++
++	// TODO(bradfitz): implement? low priority for now.
++
++	// Rule 4: Prefer home addresses.
++	// If Source(DA) is simultaneously a home address and care-of address
++	// and Source(DB) is not, then prefer DA.  Similarly, if Source(DB) is
++	// simultaneously a home address and care-of address and Source(DA) is
++	// not, then prefer DB.
++
++	// TODO(bradfitz): implement? low priority for now.
++
++	// Rule 5: Prefer matching label.
++	// If Label(Source(DA)) = Label(DA) and Label(Source(DB)) <> Label(DB),
++	// then prefer DA.  Similarly, if Label(Source(DA)) <> Label(DA) and
++	// Label(Source(DB)) = Label(DB), then prefer DB.
++	if attrSourceDA.Label == attrDA.Label &&
++		attrSourceDB.Label != attrDB.Label {
++		return preferDA
++	}
++	if attrSourceDA.Label != attrDA.Label &&
++		attrSourceDB.Label == attrDB.Label {
++		return preferDB
++	}
++
++	// Rule 6: Prefer higher precedence.
++	// If Precedence(DA) > Precedence(DB), then prefer DA.  Similarly, if
++	// Precedence(DA) < Precedence(DB), then prefer DB.
++	if attrDA.Precedence > attrDB.Precedence {
++		return preferDA
++	}
++	if attrDA.Precedence < attrDB.Precedence {
++		return preferDB
++	}
++
++	// Rule 7: Prefer native transport.
++	// If DA is reached via an encapsulating transition mechanism (e.g.,
++	// IPv6 in IPv4) and DB is not, then prefer DB.  Similarly, if DB is
++	// reached via encapsulation and DA is not, then prefer DA.
++
++	// TODO(bradfitz): implement? low priority for now.
++
++	// Rule 8: Prefer smaller scope.
++	// If Scope(DA) < Scope(DB), then prefer DA.  Similarly, if Scope(DA) >
++	// Scope(DB), then prefer DB.
++	if attrDA.Scope < attrDB.Scope {
++		return preferDA
++	}
++	if attrDA.Scope > attrDB.Scope {
++		return preferDB
++	}
++
++	// Rule 9: Use longest matching prefix.
++	// When DA and DB belong to the same address family (both are IPv6 or
++	// both are IPv4): If CommonPrefixLen(Source(DA), DA) >
++	// CommonPrefixLen(Source(DB), DB), then prefer DA.  Similarly, if
++	// CommonPrefixLen(Source(DA), DA) < CommonPrefixLen(Source(DB), DB),
++	// then prefer DB.
++	da4 := DA.To4() != nil
++	db4 := DB.To4() != nil
++	if da4 == db4 {
++		commonA := commonPrefixLen(SourceDA, DA)
++		commonB := commonPrefixLen(SourceDB, DB)
++		if commonA > commonB {
++			return preferDA
++		}
++		if commonA < commonB {
++			return preferDB
++		}
++	}
++
++	// Rule 10: Otherwise, leave the order unchanged.
++	// If DA preceded DB in the original list, prefer DA.
++	// Otherwise, prefer DB.
++	return false // "equal"
++}
++
++type policyTableEntry struct {
++	Prefix     *IPNet
++	Precedence uint8
++	Label      uint8
++}
++
++type policyTable []policyTableEntry
++
++// RFC 6724 section 2.1.
++var rfc6724policyTable = policyTable{
++	{
++		Prefix:     mustCIDR("::1/128"),
++		Precedence: 50,
++		Label:      0,
++	},
++	{
++		Prefix:     mustCIDR("::/0"),
++		Precedence: 40,
++		Label:      1,
++	},
++	{
++		// IPv4-compatible, etc.
++		Prefix:     mustCIDR("::ffff:0:0/96"),
++		Precedence: 35,
++		Label:      4,
++	},
++	{
++		// 6to4
++		Prefix:     mustCIDR("2002::/16"),
++		Precedence: 30,
++		Label:      2,
++	},
++	{
++		// Teredo
++		Prefix:     mustCIDR("2001::/32"),
++		Precedence: 5,
++		Label:      5,
++	},
++	{
++		Prefix:     mustCIDR("fc00::/7"),
++		Precedence: 3,
++		Label:      13,
++	},
++	{
++		Prefix:     mustCIDR("::/96"),
++		Precedence: 1,
++		Label:      3,
++	},
++	{
++		Prefix:     mustCIDR("fec0::/10"),
++		Precedence: 1,
++		Label:      11,
++	},
++	{
++		Prefix:     mustCIDR("3ffe::/16"),
++		Precedence: 1,
++		Label:      12,
++	},
++}
++
++func init() {
++	sort.Sort(sort.Reverse(byMaskLength(rfc6724policyTable)))
++}
++
++// byMaskLength sorts policyTableEntry by the size of their Prefix.Mask.Size,
++// from smallest mask, to largest.
++type byMaskLength []policyTableEntry
++
++func (s byMaskLength) Len() int      { return len(s) }
++func (s byMaskLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
++func (s byMaskLength) Less(i, j int) bool {
++	isize, _ := s[i].Prefix.Mask.Size()
++	jsize, _ := s[j].Prefix.Mask.Size()
++	return isize < jsize
++}
++
++// mustCIDR calls ParseCIDR and panics on any error, or if the network
++// is not IPv6.
++func mustCIDR(s string) *IPNet {
++	ip, ipNet, err := ParseCIDR(s)
++	if err != nil {
++		panic(err.Error())
++	}
++	if len(ip) != IPv6len {
++		panic("unexpected IP length")
++	}
++	return ipNet
++}
++
++// Classify returns the policyTableEntry of the entry with the longest
++// matching prefix that contains ip.
++// The table t must be sorted from largest mask size to smallest.
++func (t policyTable) Classify(ip IP) policyTableEntry {
++	for _, ent := range t {
++		if ent.Prefix.Contains(ip) {
++			return ent
++		}
++	}
++	return policyTableEntry{}
++}
++
++// RFC 6724 section 3.1.
++type scope uint8
++
++const (
++	scopeInterfaceLocal scope = 0x1
++	scopeLinkLocal      scope = 0x2
++	scopeAdminLocal     scope = 0x4
++	scopeSiteLocal      scope = 0x5
++	scopeOrgLocal       scope = 0x8
++	scopeGlobal         scope = 0xe
++)
++
++func classifyScope(ip IP) scope {
++	if ip.IsLoopback() || ip.IsLinkLocalUnicast() {
++		return scopeLinkLocal
++	}
++	if len(ip) == IPv6len && ip.To4() == nil && ip.IsMulticast() {
++		return scope(ip[1] & 0xf)
++	}
++	// TODO: are there unicast scopeAdminLocal, scopeSiteLocal,
++	// scopeOrgLocal? Better question: are those even used?
++	return scopeGlobal
++}
++
++// commonPrefixLen reports the length of the longest prefix (looking
++// at the most significant, or leftmost, bits) that the
++// two addresses have in common, up to the length of a's prefix (i.e.,
++// the portion of the address not including the interface ID).
++//
++// If a or b is an IPv4 address as an IPv6 address, the IPv4 addresses
++// are compared (with max common prefix length of 32).
++// If a and b are different IP versions, 0 is returned.
++//
++// See https://tools.ietf.org/html/rfc6724#section-2.2
++func commonPrefixLen(a, b IP) (cpl int) {
++	if a4 := a.To4(); a4 != nil {
++		a = a4
++	}
++	if b4 := b.To4(); b4 != nil {
++		b = b4
++	}
++	if len(a) != len(b) {
++		return 0
++	}
++	// If IPv6, only up to the prefix (first 64 bits)
++	if len(a) > 8 {
++		a = a[:8]
++		b = b[:8]
++	}
++	for len(a) > 0 {
++		if a[0] == b[0] {
++			cpl += 8
++			a = a[1:]
++			b = b[1:]
++			continue
++		}
++		bits := 8
++		ab, bb := a[0], b[0]
++		for {
++			ab >>= 1
++			bb >>= 1
++			bits--
++			if ab == bb {
++				cpl += bits
++				return
++			}
++		}
++	}
++	return
++}
+diff --git a/src/net/addrselect_test.go b/src/net/addrselect_test.go
+new file mode 100644
+index 0000000000..7f7cb1b827
+--- /dev/null
++++ b/src/net/addrselect_test.go
+@@ -0,0 +1,218 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package net
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestSortByRFC6724(t *testing.T) {
++	tests := []struct {
++		in      []IPAddr
++		srcs    []IP
++		want    []IPAddr
++		reverse bool // also test it starting backwards
++	}{
++		// Examples from RFC 6724 section 10.2:
++
++		// Prefer matching scope.
++		{
++			in: []IPAddr{
++				{IP: ParseIP("2001:db8:1::1")},
++				{IP: ParseIP("198.51.100.121")},
++			},
++			srcs: []IP{
++				ParseIP("2001:db8:1::2"),
++				ParseIP("169.254.13.78"),
++			},
++			want: []IPAddr{
++				{IP: ParseIP("2001:db8:1::1")},
++				{IP: ParseIP("198.51.100.121")},
++			},
++			reverse: true,
++		},
++
++		// Prefer matching scope.
++		{
++			in: []IPAddr{
++				{IP: ParseIP("2001:db8:1::1")},
++				{IP: ParseIP("198.51.100.121")},
++			},
++			srcs: []IP{
++				ParseIP("fe80::1"),
++				ParseIP("198.51.100.117"),
++			},
++			want: []IPAddr{
++				{IP: ParseIP("198.51.100.121")},
++				{IP: ParseIP("2001:db8:1::1")},
++			},
++			reverse: true,
++		},
++
++		// Prefer higher precedence.
++		{
++			in: []IPAddr{
++				{IP: ParseIP("2001:db8:1::1")},
++				{IP: ParseIP("10.1.2.3")},
++			},
++			srcs: []IP{
++				ParseIP("2001:db8:1::2"),
++				ParseIP("10.1.2.4"),
++			},
++			want: []IPAddr{
++				{IP: ParseIP("2001:db8:1::1")},
++				{IP: ParseIP("10.1.2.3")},
++			},
++			reverse: true,
++		},
++
++		// Prefer smaller scope.
++		{
++			in: []IPAddr{
++				{IP: ParseIP("2001:db8:1::1")},
++				{IP: ParseIP("fe80::1")},
++			},
++			srcs: []IP{
++				ParseIP("2001:db8:1::2"),
++				ParseIP("fe80::2"),
++			},
++			want: []IPAddr{
++				{IP: ParseIP("fe80::1")},
++				{IP: ParseIP("2001:db8:1::1")},
++			},
++			reverse: true,
++		},
++	}
++	for i, tt := range tests {
++		inCopy := make([]IPAddr, len(tt.in))
++		copy(inCopy, tt.in)
++		srcCopy := make([]IP, len(tt.in))
++		copy(srcCopy, tt.srcs)
++		sortByRFC6724withSrcs(inCopy, srcCopy)
++		if !reflect.DeepEqual(inCopy, tt.want) {
++			t.Errorf("test %d:\nin = %s\ngot: %s\nwant: %s\n", i, tt.in, inCopy, tt.want)
++		}
++		if tt.reverse {
++			copy(inCopy, tt.in)
++			copy(srcCopy, tt.srcs)
++			for j := 0; j < len(inCopy)/2; j++ {
++				k := len(inCopy) - j - 1
++				inCopy[j], inCopy[k] = inCopy[k], inCopy[j]
++				srcCopy[j], srcCopy[k] = srcCopy[k], srcCopy[j]
++			}
++			sortByRFC6724withSrcs(inCopy, srcCopy)
++			if !reflect.DeepEqual(inCopy, tt.want) {
++				t.Errorf("test %d, starting backwards:\nin = %s\ngot: %s\nwant: %s\n", i, tt.in, inCopy, tt.want)
++			}
++		}
++
++	}
++
++}
++
++func TestRFC6724PolicyTableClassify(t *testing.T) {
++	tests := []struct {
++		ip   IP
++		want policyTableEntry
++	}{
++		{
++			ip: ParseIP("127.0.0.1"),
++			want: policyTableEntry{
++				Prefix:     &IPNet{IP: ParseIP("::ffff:0:0"), Mask: CIDRMask(96, 128)},
++				Precedence: 35,
++				Label:      4,
++			},
++		},
++		{
++			ip: ParseIP("2601:645:8002:a500:986f:1db8:c836:bd65"),
++			want: policyTableEntry{
++				Prefix:     &IPNet{IP: ParseIP("::"), Mask: CIDRMask(0, 128)},
++				Precedence: 40,
++				Label:      1,
++			},
++		},
++		{
++			ip: ParseIP("::1"),
++			want: policyTableEntry{
++				Prefix:     &IPNet{IP: ParseIP("::1"), Mask: CIDRMask(128, 128)},
++				Precedence: 50,
++				Label:      0,
++			},
++		},
++		{
++			ip: ParseIP("2002::ab12"),
++			want: policyTableEntry{
++				Prefix:     &IPNet{IP: ParseIP("2002::"), Mask: CIDRMask(16, 128)},
++				Precedence: 30,
++				Label:      2,
++			},
++		},
++	}
++	for i, tt := range tests {
++		got := rfc6724policyTable.Classify(tt.ip)
++		if !reflect.DeepEqual(got, tt.want) {
++			t.Errorf("%d. Classify(%s) = %v; want %v", i, tt.ip, got, tt.want)
++		}
++	}
++}
++
++func TestRFC6724ClassifyScope(t *testing.T) {
++	tests := []struct {
++		ip   IP
++		want scope
++	}{
++		{ParseIP("127.0.0.1"), scopeLinkLocal},   // rfc6724#section-3.2
++		{ParseIP("::1"), scopeLinkLocal},         // rfc4007#section-4
++		{ParseIP("169.254.1.2"), scopeLinkLocal}, // rfc6724#section-3.2
++		{ParseIP("8.8.8.8"), scopeGlobal},
++
++		{ParseIP("ff02::"), scopeLinkLocal},  // IPv6 multicast
++		{ParseIP("ff05::"), scopeSiteLocal},  // IPv6 multicast
++		{ParseIP("ff04::"), scopeAdminLocal}, // IPv6 multicast
++		{ParseIP("ff0e::"), scopeGlobal},     // IPv6 multicast
++
++		{IPv4(0xe0, 0, 0, 0), scopeGlobal},       // IPv4 link-local multicast as 16 bytes
++		{IPv4(0xe0, 2, 2, 2), scopeGlobal},       // IPv4 global multicast as 16 bytes
++		{IPv4(0xe0, 0, 0, 0).To4(), scopeGlobal}, // IPv4 link-local multicast as 4 bytes
++		{IPv4(0xe0, 2, 2, 2).To4(), scopeGlobal}, // IPv4 global multicast as 4 bytes
++	}
++	for i, tt := range tests {
++		got := classifyScope(tt.ip)
++		if got != tt.want {
++			t.Errorf("%d. classifyScope(%s) = %x; want %x", i, tt.ip, got, tt.want)
++		}
++	}
++}
++
++func TestRFC6724CommonPrefixLength(t *testing.T) {
++	tests := []struct {
++		a, b IP
++		want int
++	}{
++		{ParseIP("fe80::1"), ParseIP("fe80::2"), 64},
++		{ParseIP("fe81::1"), ParseIP("fe80::2"), 15},
++		{ParseIP("127.0.0.1"), ParseIP("fe80::1"), 0}, // diff size
++		{IPv4(1, 2, 3, 4), IP{1, 2, 3, 4}, 32},
++		{IP{1, 2, 255, 255}, IP{1, 2, 0, 0}, 16},
++		{IP{1, 2, 127, 255}, IP{1, 2, 0, 0}, 17},
++		{IP{1, 2, 63, 255}, IP{1, 2, 0, 0}, 18},
++		{IP{1, 2, 31, 255}, IP{1, 2, 0, 0}, 19},
++		{IP{1, 2, 15, 255}, IP{1, 2, 0, 0}, 20},
++		{IP{1, 2, 7, 255}, IP{1, 2, 0, 0}, 21},
++		{IP{1, 2, 3, 255}, IP{1, 2, 0, 0}, 22},
++		{IP{1, 2, 1, 255}, IP{1, 2, 0, 0}, 23},
++		{IP{1, 2, 0, 255}, IP{1, 2, 0, 0}, 24},
++	}
++	for i, tt := range tests {
++		got := commonPrefixLen(tt.a, tt.b)
++		if got != tt.want {
++			t.Errorf("%d. commonPrefixLen(%s, %s) = %d; want %d", i, tt.a, tt.b, got, tt.want)
++		}
++	}
++
++}
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 8f636055ab..6b775f713e 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -419,12 +419,12 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
+ 			addrs = append(addrs, addr)
+ 		}
+ 	}
++	sortByRFC6724(addrs)
+ 	return
+ }
+ 
+ // goLookupIP is the native Go implementation of LookupIP.
+-// Used only if cgoLookupIP refuses to handle the request
+-// (that is, only if cgoLookupIP is the stub in cgo_stub.go).
++// The libc versions are in cgo_*.go.
+ func goLookupIP(name string) (addrs []IPAddr, err error) {
+ 	return goLookupIPOrder(name, hostLookupFilesDNS)
+ }
+@@ -458,6 +458,7 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
+ 		}
+ 		addrs = append(addrs, addrRecordList(racer.rrs)...)
+ 	}
++	sortByRFC6724(addrs)
+ 	if len(addrs) == 0 {
+ 		if lastErr != nil {
+ 			return nil, lastErr

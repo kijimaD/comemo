@@ -12,6 +12,24 @@ Date:   Fri Nov 6 18:37:01 2020 +1100
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/race/testdata/sync_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/testdata/sync_test.go b/src/runtime/race/testdata/sync_test.go
+index 2b2d95d76b..b5fcd6c4cf 100644
+--- a/src/runtime/race/testdata/sync_test.go
++++ b/src/runtime/race/testdata/sync_test.go
+@@ -126,11 +126,11 @@ func TestNoRaceAfterFunc1(t *testing.T) {
+ 
+ func TestNoRaceAfterFunc2(t *testing.T) {
+ 	var x int
++	_ = x
+ 	timer := time.AfterFunc(10, func() {
+ 		x = 1
+ 	})
+ 	defer timer.Stop()
+-	_ = x
+ }
+ 
+ func TestNoRaceAfterFunc3(t *testing.T) {

@@ -8,6 +8,20 @@ Date:   Thu Apr 20 16:26:58 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/41291
     Reviewed-by: Dan Peterson <dpiddy@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bufio/bufio.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index e1e8fb2272..936854b24f 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -513,7 +513,7 @@ func (b *Reader) writeBuf(w io.Writer) (int64, error) {
+ 
+ // Writer implements buffering for an io.Writer object.
+ // If an error occurs writing to a Writer, no more data will be
+-// accepted and all subsequent writes will return the error.
++// accepted and all subsequent writes, and Flush, will return the error.
+ // After all data has been written, the client should call the
+ // Flush method to guarantee all data has been forwarded to
+ // the underlying io.Writer.

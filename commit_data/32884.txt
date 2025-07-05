@@ -11,7 +11,44 @@ Date:   Sat Jun 10 10:36:28 2017 +0900
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/parser/parser.go      |  2 +-
  src/go/parser/parser_test.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 40c4a3e58d..1b4309b5da 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -327,7 +327,7 @@ func (p *parser) next() {
+ 			// The comment is on same line as the previous token; it
+ 			// cannot be a lead comment but may be a line comment.
+ 			comment, endline = p.consumeCommentGroup(0)
+-			if p.file.Line(p.pos) != endline {
++			if p.file.Line(p.pos) != endline || p.tok == token.EOF {
+ 				// The next token is on a different line, thus
+ 				// the last comment group is a line comment.
+ 				p.lineComment = comment
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index c7bb36d789..fb35a88ba1 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -531,3 +531,18 @@ func TestIncompleteSelection(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestLastLineComment(t *testing.T) {
++	const src = `package main
++type x int // comment
++`
++	fset := token.NewFileSet()
++	f, err := ParseFile(fset, "", src, ParseComments)
++	if err != nil {
++		t.Fatal(err)
++	}
++	comment := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Comment.List[0].Text
++	if comment != "// comment" {
++		t.Errorf("got %q, want %q", comment, "// comment")
++	}
++}

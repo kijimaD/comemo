@@ -15,8 +15,781 @@ Date:   Mon Feb 13 14:39:58 2017 -0500
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go      |  39 +-
  src/cmd/compile/internal/ssa/gen/S390X.rules |  34 ++
  src/cmd/compile/internal/ssa/rewriteS390X.go | 622 ++++++++++++++++++++++++++-
  3 files changed, 674 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index edd6e3f393..c9b2e2f8b4 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -227,7 +227,7 @@ func f(b []byte) uint32 {
+ 	return binary.LittleEndian.Uint32(b)
+ }
+ `,
+-		[]string{"\tMOVWZ\t\\(.*\\),"},
++		[]string{"\tMOVWBR\t\\(.*\\),"},
+ 	},
+ 	{"s390x", "linux", `
+ import "encoding/binary"
+@@ -235,7 +235,7 @@ func f(b []byte, i int) uint32 {
+ 	return binary.LittleEndian.Uint32(b[i:])
+ }
+ `,
+-		[]string{"\tMOVWZ\t\\(.*\\)\\(.*\\*1\\),"},
++		[]string{"\tMOVWBR\t\\(.*\\)\\(.*\\*1\\),"},
+ 	},
+ 	{"s390x", "linux", `
+ import "encoding/binary"
+@@ -243,17 +243,48 @@ func f(b []byte) uint64 {
+ 	return binary.LittleEndian.Uint64(b)
+ }
+ `,
+-		[]string{"\tMOVD\t\\(.*\\),"},
++		[]string{"\tMOVDBR\t\\(.*\\),"},
+ 	},
+ 	{"s390x", "linux", `
+ import "encoding/binary"
+ func f(b []byte, i int) uint64 {
+ 	return binary.LittleEndian.Uint64(b[i:])
+ }
++`,
++		[]string{"\tMOVDBR\t\\(.*\\)\\(.*\\*1\\),"},
++	},
++	{"s390x", "linux", `
++import "encoding/binary"
++func f(b []byte) uint32 {
++	return binary.BigEndian.Uint32(b)
++}
++`,
++		[]string{"\tMOVWZ\t\\(.*\\),"},
++	},
++	{"s390x", "linux", `
++import "encoding/binary"
++func f(b []byte, i int) uint32 {
++	return binary.BigEndian.Uint32(b[i:])
++}
++`,
++		[]string{"\tMOVWZ\t\\(.*\\)\\(.*\\*1\\),"},
++	},
++	{"s390x", "linux", `
++import "encoding/binary"
++func f(b []byte) uint64 {
++	return binary.BigEndian.Uint64(b)
++}
++`,
++		[]string{"\tMOVD\t\\(.*\\),"},
++	},
++	{"s390x", "linux", `
++import "encoding/binary"
++func f(b []byte, i int) uint64 {
++	return binary.BigEndian.Uint64(b[i:])
++}
+ `,
+ 		[]string{"\tMOVD\t\\(.*\\)\\(.*\\*1\\),"},
+ 	},
+-	// TODO: s390x big-endian tests.
+ 
+ 	// Structure zeroing.  See issue #18370.
+ 	{"amd64", "linux", `
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 32c5977fe6..abca8bf519 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -457,6 +457,40 @@
+ // MOVDnop doesn't emit instruction, only for ensuring the type.
+ (MOVDreg x) && x.Uses == 1 -> (MOVDnop x)
+ 
++// Fold type changes into loads.
++(MOVDreg <t> x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <t> [off] {sym} ptr mem)
++(MOVDreg <t> x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <t> [off] {sym} ptr mem)
++(MOVDreg <t> x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <t> [off] {sym} ptr mem)
++(MOVDreg <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <t> [off] {sym} ptr mem)
++(MOVDreg <t> x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <t> [off] {sym} ptr mem)
++(MOVDreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <t> [off] {sym} ptr mem)
++(MOVDreg <t> x:(MOVDload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDload  <t> [off] {sym} ptr mem)
++
++(MOVDnop <t> x:(MOVBZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZload <t> [off] {sym} ptr mem)
++(MOVDnop <t> x:(MOVBload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload  <t> [off] {sym} ptr mem)
++(MOVDnop <t> x:(MOVHZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZload <t> [off] {sym} ptr mem)
++(MOVDnop <t> x:(MOVHload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHload  <t> [off] {sym} ptr mem)
++(MOVDnop <t> x:(MOVWZload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZload <t> [off] {sym} ptr mem)
++(MOVDnop <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload  <t> [off] {sym} ptr mem)
++(MOVDnop <t> x:(MOVDload  [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDload  <t> [off] {sym} ptr mem)
++
++// TODO(mundaym): uncomment rules once signed indexed loads are added.
++(MOVDreg <t> x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
++//(MOVDreg <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
++(MOVDreg <t> x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
++//(MOVDreg <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
++(MOVDreg <t> x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
++//(MOVDreg <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
++(MOVDreg <t> x:(MOVDloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
++
++(MOVDnop <t> x:(MOVBZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
++//(MOVDnop <t> x:(MOVBloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx  <t> [off] {sym} ptr idx mem)
++(MOVDnop <t> x:(MOVHZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
++//(MOVDnop <t> x:(MOVHloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVHloadidx  <t> [off] {sym} ptr idx mem)
++(MOVDnop <t> x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
++//(MOVDnop <t> x:(MOVWloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx  <t> [off] {sym} ptr idx mem)
++(MOVDnop <t> x:(MOVDloadidx  [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
++
+ // Fold sign extensions into conditional moves of constants.
+ // Designed to remove the MOVBZreg inserted by the If lowering.
+ (MOVBZreg x:(MOVDLT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 08a2ddd846..23fb675636 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -10289,6 +10289,300 @@ func rewriteValueS390X_OpS390XMOVDnop(v *Value, config *Config) bool {
+ 		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (MOVDnop <t> x:(MOVBZload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBZload <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVBZload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVBZload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVBload  [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBload  <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVBload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVBload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVHZload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVHZload <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVHZload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVHload  [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVHload  <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVHload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVHload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVWZload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWZload <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVWZload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVWload  [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWload  <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVWload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVWload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVDload  [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVDload  <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVDload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVDload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVBZloadidx [off] {sym} ptr idx mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVBZloadidx {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		idx := x.Args[1]
++		mem := x.Args[2]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVBZloadidx, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(idx)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVHZloadidx [off] {sym} ptr idx mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVHZloadidx {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		idx := x.Args[1]
++		mem := x.Args[2]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVHZloadidx, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(idx)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVWZloadidx [off] {sym} ptr idx mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVWZloadidx {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		idx := x.Args[1]
++		mem := x.Args[2]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVWZloadidx, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(idx)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDnop <t> x:(MOVDloadidx  [off] {sym} ptr idx mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVDloadidx {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		idx := x.Args[1]
++		mem := x.Args[2]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVDloadidx, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(idx)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVDreg(v *Value, config *Config) bool {
+@@ -10300,37 +10594,331 @@ func rewriteValueS390X_OpS390XMOVDreg(v *Value, config *Config) bool {
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
+-		if !(t.Compare(x.Type) == CMPeq) {
++		if !(t.Compare(x.Type) == CMPeq) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVDreg (MOVDconst [c]))
++	// cond:
++	// result: (MOVDconst [c])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = c
++		return true
++	}
++	// match: (MOVDreg x)
++	// cond: x.Uses == 1
++	// result: (MOVDnop x)
++	for {
++		x := v.Args[0]
++		if !(x.Uses == 1) {
++			break
++		}
++		v.reset(OpS390XMOVDnop)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVDreg <t> x:(MOVBZload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBZload <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVBZload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
+ 			break
+ 		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVBZload, t)
+ 		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVDreg (MOVDconst [c]))
+-	// cond:
+-	// result: (MOVDconst [c])
++	// match: (MOVDreg <t> x:(MOVBload  [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBload  <t> [off] {sym} ptr mem)
+ 	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XMOVDconst {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVBload {
+ 			break
+ 		}
+-		c := v_0.AuxInt
+-		v.reset(OpS390XMOVDconst)
+-		v.AuxInt = c
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVBload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVDreg x)
+-	// cond: x.Uses == 1
+-	// result: (MOVDnop x)
++	// match: (MOVDreg <t> x:(MOVHZload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVHZload <t> [off] {sym} ptr mem)
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		if !(x.Uses == 1) {
++		if x.Op != OpS390XMOVHZload {
+ 			break
+ 		}
+-		v.reset(OpS390XMOVDnop)
+-		v.AddArg(x)
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVHZload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDreg <t> x:(MOVHload  [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVHload  <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVHload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVHload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDreg <t> x:(MOVWZload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWZload <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVWZload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVWZload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDreg <t> x:(MOVWload  [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWload  <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVWload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVWload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDreg <t> x:(MOVDload  [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVDload  <t> [off] {sym} ptr mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVDload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVDload, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDreg <t> x:(MOVBZloadidx [off] {sym} ptr idx mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBZloadidx <t> [off] {sym} ptr idx mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVBZloadidx {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		idx := x.Args[1]
++		mem := x.Args[2]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVBZloadidx, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(idx)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDreg <t> x:(MOVHZloadidx [off] {sym} ptr idx mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVHZloadidx <t> [off] {sym} ptr idx mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVHZloadidx {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		idx := x.Args[1]
++		mem := x.Args[2]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVHZloadidx, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(idx)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDreg <t> x:(MOVWZloadidx [off] {sym} ptr idx mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWZloadidx <t> [off] {sym} ptr idx mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVWZloadidx {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		idx := x.Args[1]
++		mem := x.Args[2]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVWZloadidx, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(idx)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVDreg <t> x:(MOVDloadidx  [off] {sym} ptr idx mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVDloadidx  <t> [off] {sym} ptr idx mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if x.Op != OpS390XMOVDloadidx {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		idx := x.Args[1]
++		mem := x.Args[2]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Pos, OpS390XMOVDloadidx, t)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(idx)
++		v0.AddArg(mem)
+ 		return true
+ 	}
+ 	return false

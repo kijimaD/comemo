@@ -14,7 +14,7 @@ Date:   Fri Nov 2 09:12:08 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Clément Chigot <clement.chigot@atos.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/asm_solaris.s |  2 +-
  src/internal/syscall/unix/at_aix.go     | 14 +++++++
  src/internal/syscall/unix/at_libc.go    | 64 +++++++++++++++++++++++++++++++
@@ -23,3 +23,236 @@ Date:   Fri Nov 2 09:12:08 2018 +0100
  src/os/removeall_noat.go                |  2 +-
  src/os/removeall_test.go                |  4 +-
  7 files changed, 89 insertions(+), 67 deletions(-)
+
+diff --git a/src/internal/syscall/unix/asm_solaris.s b/src/internal/syscall/unix/asm_solaris.s
+index a7ad26df9b..2057338315 100644
+--- a/src/internal/syscall/unix/asm_solaris.s
++++ b/src/internal/syscall/unix/asm_solaris.s
+@@ -6,5 +6,5 @@
+ 
+ // System calls for Solaris are implemented in runtime/syscall_solaris.go
+ 
+-TEXT ·sysvicall6(SB),NOSPLIT,$0-88
++TEXT ·syscall6(SB),NOSPLIT,$0-88
+ 	JMP	syscall·sysvicall6(SB)
+diff --git a/src/internal/syscall/unix/at_aix.go b/src/internal/syscall/unix/at_aix.go
+new file mode 100644
+index 0000000000..425df98211
+--- /dev/null
++++ b/src/internal/syscall/unix/at_aix.go
+@@ -0,0 +1,14 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++//go:cgo_import_dynamic libc_fstatat fstatat "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_openat openat "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_unlinkat unlinkat "libc.a/shr_64.o"
++
++const (
++	AT_REMOVEDIR        = 0x1
++	AT_SYMLINK_NOFOLLOW = 0x1
++)
+diff --git a/src/internal/syscall/unix/at_libc.go b/src/internal/syscall/unix/at_libc.go
+new file mode 100644
+index 0000000000..6c3a8c9160
+--- /dev/null
++++ b/src/internal/syscall/unix/at_libc.go
+@@ -0,0 +1,64 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix solaris
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++//go:linkname procFstatat libc_fstatat
++//go:linkname procOpenat libc_openat
++//go:linkname procUnlinkat libc_unlinkat
++
++var (
++	procFstatat,
++	procOpenat,
++	procUnlinkat uintptr
++)
++
++func Unlinkat(dirfd int, path string, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procUnlinkat)), 3, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), 0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++
++	return nil
++}
++
++func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return 0, err
++	}
++
++	fd, _, errno := syscall6(uintptr(unsafe.Pointer(&procOpenat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), uintptr(perm), 0, 0)
++	if errno != 0 {
++		return 0, errno
++	}
++
++	return int(fd), nil
++}
++
++func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFstatat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if errno != 0 {
++		return errno
++	}
++
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_solaris.go b/src/internal/syscall/unix/at_solaris.go
+index d63ee990fd..e917c4fc9b 100644
+--- a/src/internal/syscall/unix/at_solaris.go
++++ b/src/internal/syscall/unix/at_solaris.go
+@@ -4,72 +4,16 @@
+ 
+ package unix
+ 
+-import (
+-	"syscall"
+-	"unsafe"
+-)
++import "syscall"
+ 
+-// Implemented in runtime/syscall_solaris.go.
+-func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
++// Implemented as sysvicall6 in runtime/syscall_solaris.go.
++func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
+ 
+ //go:cgo_import_dynamic libc_fstatat fstatat "libc.so"
+ //go:cgo_import_dynamic libc_openat openat "libc.so"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.so"
+ 
+-//go:linkname procFstatat libc_fstatat
+-//go:linkname procOpenat libc_openat
+-//go:linkname procUnlinkat libc_unlinkat
+-
+-var (
+-	procFstatat,
+-	procOpenat,
+-	procUnlinkat uintptr
++const (
++	AT_REMOVEDIR        = 0x1
++	AT_SYMLINK_NOFOLLOW = 0x1000
+ )
+-
+-const AT_REMOVEDIR = 0x1
+-const AT_SYMLINK_NOFOLLOW = 0x1000
+-
+-func Unlinkat(dirfd int, path string, flags int) error {
+-	var p *byte
+-	p, err := syscall.BytePtrFromString(path)
+-	if err != nil {
+-		return err
+-	}
+-
+-	_, _, errno := sysvicall6(uintptr(unsafe.Pointer(&procUnlinkat)), 3, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), 0, 0, 0)
+-	if errno != 0 {
+-		return errno
+-	}
+-
+-	return nil
+-}
+-
+-func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
+-	var p *byte
+-	p, err := syscall.BytePtrFromString(path)
+-	if err != nil {
+-		return 0, err
+-	}
+-
+-	fd, _, errno := sysvicall6(uintptr(unsafe.Pointer(&procOpenat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), uintptr(perm), 0, 0)
+-	if errno != 0 {
+-		return 0, errno
+-	}
+-
+-	return int(fd), nil
+-}
+-
+-func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
+-	var p *byte
+-	p, err := syscall.BytePtrFromString(path)
+-	if err != nil {
+-		return err
+-	}
+-
+-	_, _, errno := sysvicall6(uintptr(unsafe.Pointer(&procFstatat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
+-	if errno != 0 {
+-		return errno
+-	}
+-
+-	return nil
+-}
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index 12d8152bec..eb220bd103 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index f8af0da87f..d1dd43ff6a 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !linux,!darwin,!freebsd,!openbsd,!netbsd,!dragonfly,!solaris
++// +build !aix,!darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd,!solaris
+ 
+ package os
+ 
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 4daf8c298b..5eec8cd154 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -162,7 +162,7 @@ func TestRemoveAllLarge(t *testing.T) {
+ 
+ func TestRemoveAllLongPath(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "linux", "darwin", "freebsd", "openbsd", "netbsd", "dragonfly", "solaris":
++	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+ 		break
+ 	default:
+ 		t.Skip("skipping for not implemented platforms")
+@@ -212,7 +212,7 @@ func TestRemoveAllLongPath(t *testing.T) {
+ 
+ func TestRemoveAllDot(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "linux", "darwin", "freebsd", "openbsd", "netbsd", "dragonfly", "solaris":
++	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+ 		break
+ 	default:
+ 		t.Skip("skipping for not implemented platforms")

@@ -7,6 +7,20 @@ Date:   Tue Aug 24 20:43:31 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2024043
-
+---
  src/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 923c062baa..99155bd0f9 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -92,7 +92,7 @@ installed() {
+ 	*":$GOBIN" | *":$GOBIN:"*)
+ 		;;
+ 	*)
+-		echo '***' You need to add $GOBIN to your "'$PATH.' '***'
++		echo '***' "You need to add $GOBIN to your "'$PATH.' '***'
+ 	esac
+ 	echo The compiler is $GC.
+ 	if [ "$(uname)" = "Darwin" ]; then

@@ -12,7 +12,7 @@ Date:   Thu Oct 24 16:10:53 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/aes/aes_gcm.go                          | 2 +-
  src/crypto/aes/cbc_ppc64x.go                       | 2 +-
  src/crypto/aes/cbc_s390x.go                        | 2 +-
@@ -34,3 +34,265 @@ Date:   Thu Oct 24 16:10:53 2024 +0200
  src/go/build/deps_test.go                          | 5 +++--
  src/slices/slices.go                               | 2 +-
  20 files changed, 20 insertions(+), 19 deletions(-)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index d9a9545f12..c1de6bfb3d 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ 	"errors"
+ )
+diff --git a/src/crypto/aes/cbc_ppc64x.go b/src/crypto/aes/cbc_ppc64x.go
+index d5b491e8e1..6311a115f7 100644
+--- a/src/crypto/aes/cbc_ppc64x.go
++++ b/src/crypto/aes/cbc_ppc64x.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ )
+ 
+ // Assert that aesCipherAsm implements the cbcEncAble and cbcDecAble interfaces.
+diff --git a/src/crypto/aes/cbc_s390x.go b/src/crypto/aes/cbc_s390x.go
+index 09c19ff394..3cc531e50b 100644
+--- a/src/crypto/aes/cbc_s390x.go
++++ b/src/crypto/aes/cbc_s390x.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ )
+ 
+ // Assert that aesCipherAsm implements the cbcEncAble and cbcDecAble interfaces.
+diff --git a/src/crypto/aes/cipher.go b/src/crypto/aes/cipher.go
+index cde2e45d2c..c9a7625215 100644
+--- a/src/crypto/aes/cipher.go
++++ b/src/crypto/aes/cipher.go
+@@ -6,8 +6,8 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
+ 	"crypto/internal/boring"
++	"crypto/internal/fips/alias"
+ 	"strconv"
+ )
+ 
+diff --git a/src/crypto/aes/cipher_asm.go b/src/crypto/aes/cipher_asm.go
+index 3e5f589c2c..84f8e91f6f 100644
+--- a/src/crypto/aes/cipher_asm.go
++++ b/src/crypto/aes/cipher_asm.go
+@@ -8,8 +8,8 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
+ 	"crypto/internal/boring"
++	"crypto/internal/fips/alias"
+ 	"internal/cpu"
+ 	"internal/goarch"
+ )
+diff --git a/src/crypto/aes/cipher_s390x.go b/src/crypto/aes/cipher_s390x.go
+index 1541890dea..08de1caa11 100644
+--- a/src/crypto/aes/cipher_s390x.go
++++ b/src/crypto/aes/cipher_s390x.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"internal/cpu"
+ )
+ 
+diff --git a/src/crypto/aes/ctr_s390x.go b/src/crypto/aes/ctr_s390x.go
+index 56b82d5885..df335dcea3 100644
+--- a/src/crypto/aes/ctr_s390x.go
++++ b/src/crypto/aes/ctr_s390x.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"internal/byteorder"
+ )
+ 
+diff --git a/src/crypto/aes/gcm_ppc64x.go b/src/crypto/aes/gcm_ppc64x.go
+index e3fa48ed8d..d9aa5cf0ea 100644
+--- a/src/crypto/aes/gcm_ppc64x.go
++++ b/src/crypto/aes/gcm_ppc64x.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"internal/byteorder"
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index 492ae5d83b..8524cbb51c 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"internal/byteorder"
+diff --git a/src/crypto/cipher/cbc.go b/src/crypto/cipher/cbc.go
+index 51a142071f..61a6b7a396 100644
+--- a/src/crypto/cipher/cbc.go
++++ b/src/crypto/cipher/cbc.go
+@@ -13,7 +13,7 @@ package cipher
+ 
+ import (
+ 	"bytes"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ )
+ 
+diff --git a/src/crypto/cipher/cfb.go b/src/crypto/cipher/cfb.go
+index 7e3f9695b7..7a18f1c231 100644
+--- a/src/crypto/cipher/cfb.go
++++ b/src/crypto/cipher/cfb.go
+@@ -7,7 +7,7 @@
+ package cipher
+ 
+ import (
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ )
+ 
+diff --git a/src/crypto/cipher/ctr.go b/src/crypto/cipher/ctr.go
+index eac8e266cf..8974bf3d88 100644
+--- a/src/crypto/cipher/ctr.go
++++ b/src/crypto/cipher/ctr.go
+@@ -14,7 +14,7 @@ package cipher
+ 
+ import (
+ 	"bytes"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ )
+ 
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 9b86b06c98..ec5090b326 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -5,7 +5,7 @@
+ package cipher
+ 
+ import (
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"internal/byteorder"
+diff --git a/src/crypto/cipher/ofb.go b/src/crypto/cipher/ofb.go
+index bdfc977d5e..339864f4e2 100644
+--- a/src/crypto/cipher/ofb.go
++++ b/src/crypto/cipher/ofb.go
+@@ -7,7 +7,7 @@
+ package cipher
+ 
+ import (
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ )
+ 
+diff --git a/src/crypto/des/cipher.go b/src/crypto/des/cipher.go
+index 04b73e7d3b..361b9621fe 100644
+--- a/src/crypto/des/cipher.go
++++ b/src/crypto/des/cipher.go
+@@ -6,7 +6,7 @@ package des
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"internal/byteorder"
+ 	"strconv"
+ )
+diff --git a/src/crypto/internal/alias/alias.go b/src/crypto/internal/fips/alias/alias.go
+similarity index 100%
+rename from src/crypto/internal/alias/alias.go
+rename to src/crypto/internal/fips/alias/alias.go
+diff --git a/src/crypto/internal/alias/alias_test.go b/src/crypto/internal/fips/alias/alias_test.go
+similarity index 100%
+rename from src/crypto/internal/alias/alias_test.go
+rename to src/crypto/internal/fips/alias/alias_test.go
+diff --git a/src/crypto/rc4/rc4.go b/src/crypto/rc4/rc4.go
+index 67452ec39f..4c6bab1681 100644
+--- a/src/crypto/rc4/rc4.go
++++ b/src/crypto/rc4/rc4.go
+@@ -10,7 +10,7 @@
+ package rc4
+ 
+ import (
+-	"crypto/internal/alias"
++	"crypto/internal/fips/alias"
+ 	"strconv"
+ )
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index bb2bfba6e4..d8992f8bb8 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -452,6 +452,7 @@ var depsRules = `
+ 	# backwards compatibility with older versions of the module.
+ 	STR, crypto/internal/impl
+ 	< crypto/internal/fips
++	< crypto/internal/fips/alias
+ 	< crypto/internal/fips/subtle
+ 	< crypto/internal/fips/sha256
+ 	< crypto/internal/fips/sha512
+@@ -474,7 +475,6 @@ var depsRules = `
+ 	hash, embed
+ 	< crypto
+ 	< crypto/subtle
+-	< crypto/internal/alias
+ 	< crypto/cipher;
+ 
+ 	crypto/cipher,
+@@ -482,7 +482,8 @@ var depsRules = `
+ 	< crypto/internal/boring
+ 	< crypto/boring;
+ 
+-	crypto/internal/alias, math/rand/v2
++	crypto/internal/fips/alias, math/rand/v2,
++	crypto/subtle, embed
+ 	< crypto/internal/randutil
+ 	< crypto/internal/nistec/fiat
+ 	< crypto/internal/nistec
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index f53c93be52..13e41ae0d8 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -449,7 +449,7 @@ func overlaps[E any](a, b []E) bool {
+ 		return false
+ 	}
+ 	// TODO: use a runtime/unsafe facility once one becomes available. See issue 12445.
+-	// Also see crypto/internal/alias/alias.go:AnyOverlap
++	// Also see crypto/internal/fips/alias/alias.go:AnyOverlap
+ 	return uintptr(unsafe.Pointer(&a[0])) <= uintptr(unsafe.Pointer(&b[len(b)-1]))+(elemSize-1) &&
+ 		uintptr(unsafe.Pointer(&b[0])) <= uintptr(unsafe.Pointer(&a[len(a)-1]))+(elemSize-1)
+ }

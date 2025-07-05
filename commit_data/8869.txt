@@ -27,9 +27,617 @@ Date:   Mon Jun 27 19:07:28 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4539082
-
+---
  src/pkg/xml/Makefile        |   1 +
  src/pkg/xml/atom_test.go    |  50 ++++++++
  src/pkg/xml/marshal.go      | 228 +++++++++++++++++++++++++++++++++
  src/pkg/xml/marshal_test.go | 299 ++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 578 insertions(+)
+
+diff --git a/src/pkg/xml/Makefile b/src/pkg/xml/Makefile
+index b780face63..d66c4988a8 100644
+--- a/src/pkg/xml/Makefile
++++ b/src/pkg/xml/Makefile
+@@ -7,6 +7,7 @@ include ../../Make.inc
+ TARG=xml
+ 
+ GOFILES=\
++	marshal.go\
+ 	read.go\
+ 	xml.go\
+ 
+diff --git a/src/pkg/xml/atom_test.go b/src/pkg/xml/atom_test.go
+new file mode 100644
+index 0000000000..d365510bf5
+--- /dev/null
++++ b/src/pkg/xml/atom_test.go
+@@ -0,0 +1,50 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package xml
++
++var atomValue = &Feed{
++	Title:   "Example Feed",
++	Link:    []Link{{Href: "http://example.org/"}},
++	Updated: ParseTime("2003-12-13T18:30:02Z"),
++	Author:  Person{Name: "John Doe"},
++	Id:      "urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6",
++
++	Entry: []Entry{
++		{
++			Title:   "Atom-Powered Robots Run Amok",
++			Link:    []Link{{Href: "http://example.org/2003/12/13/atom03"}},
++			Id:      "urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a",
++			Updated: ParseTime("2003-12-13T18:30:02Z"),
++			Summary: NewText("Some text."),
++		},
++	},
++}
++
++var atomXml = `` +
++	`<feed xmlns="http://www.w3.org/2005/Atom">` +
++	`<Title>Example Feed</Title>` +
++	`<Id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</Id>` +
++	`<Link href="http://example.org/"></Link>` +
++	`<Updated>2003-12-13T18:30:02Z</Updated>` +
++	`<Author><Name>John Doe</Name><URI></URI><Email></Email></Author>` +
++	`<Entry>` +
++	`<Title>Atom-Powered Robots Run Amok</Title>` +
++	`<Id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</Id>` +
++	`<Link href="http://example.org/2003/12/13/atom03"></Link>` +
++	`<Updated>2003-12-13T18:30:02Z</Updated>` +
++	`<Author><Name></Name><URI></URI><Email></Email></Author>` +
++	`<Summary>Some text.</Summary>` +
++	`</Entry>` +
++	`</feed>`
++
++func ParseTime(str string) Time {
++	return Time(str)
++}
++
++func NewText(text string) Text {
++	return Text{
++		Body: text,
++	}
++}
+diff --git a/src/pkg/xml/marshal.go b/src/pkg/xml/marshal.go
+new file mode 100644
+index 0000000000..d3a1f95367
+--- /dev/null
++++ b/src/pkg/xml/marshal.go
+@@ -0,0 +1,228 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package xml
++
++import (
++	"bufio"
++	"io"
++	"os"
++	"reflect"
++	"strconv"
++	"strings"
++)
++
++const (
++	// A generic XML header suitable for use with the output of Marshal and MarshalIndent.
++	// This is not automatically added to any output of this package, it is provided as a
++	// convenience.
++	Header = `<?xml version="1.0" encoding="UTF-8">\n`
++)
++
++// A Marshaler can produce well-formatted XML representing its internal state.
++// It is used by both Marshal and MarshalIndent.
++type Marshaler interface {
++	MarshalXML() ([]byte, os.Error)
++}
++
++type printer struct {
++	*bufio.Writer
++}
++
++// Marshal writes an XML-formatted representation of v to w.
++//
++// If v implements Marshaler, then Marshal calls its MarshalXML method.
++// Otherwise, Marshal uses the following procedure to create the XML.
++//
++// Marshal handles an array or slice by marshalling each of the elements.
++// Marshal handles a pointer by marshalling the value it points at or, if the
++// pointer is nil, by writing nothing.  Marshal handles an interface value by
++// marshalling the value it contains or, if the interface value is nil, by
++// writing nothing.  Marshal handles all other data by writing a single XML
++// element containing the data.
++//
++// The name of that XML element is taken from, in order of preference:
++//     - the tag on an XMLName field, if the data is a struct
++//     - the value of an XMLName field of type xml.Name
++//     - the tag of the struct field used to obtain the data
++//     - the name of the struct field used to obtain the data
++//     - the name '???'.
++//
++// The XML element for a struct contains marshalled elements for each of the
++// exported fields of the struct, with these exceptions:
++//     - the XMLName field, described above, is omitted.
++//     - a field with tag "attr" becomes an attribute in the XML element.
++//     - a field with tag "chardata" is written as character data,
++//        not as an XML element.
++//     - a field with tag "innerxml" is written verbatim,
++//        not subject to the usual marshalling procedure.
++//
++// Marshal will return an error if asked to marshal a channel, function, or map.
++func Marshal(w io.Writer, v interface{}) (err os.Error) {
++	p := &printer{bufio.NewWriter(w)}
++	err = p.marshalValue(reflect.ValueOf(v), "???")
++	p.Flush()
++	return err
++}
++
++func (p *printer) marshalValue(val reflect.Value, name string) os.Error {
++	if !val.IsValid() {
++		return nil
++	}
++
++	kind := val.Kind()
++	typ := val.Type()
++
++	// Try Marshaler
++	if typ.NumMethod() > 0 {
++		if marshaler, ok := val.Interface().(Marshaler); ok {
++			bytes, err := marshaler.MarshalXML()
++			if err != nil {
++				return err
++			}
++			p.Write(bytes)
++			return nil
++		}
++	}
++
++	// Drill into pointers/interfaces
++	if kind == reflect.Ptr || kind == reflect.Interface {
++		if val.IsNil() {
++			return nil
++		}
++		return p.marshalValue(val.Elem(), name)
++	}
++
++	// Slices and arrays iterate over the elements. They do not have an enclosing tag.
++	if (kind == reflect.Slice || kind == reflect.Array) && typ.Elem().Kind() != reflect.Uint8 {
++		for i, n := 0, val.Len(); i < n; i++ {
++			if err := p.marshalValue(val.Index(i), name); err != nil {
++				return err
++			}
++		}
++		return nil
++	}
++
++	// Find XML name
++	xmlns := ""
++	if kind == reflect.Struct {
++		if f, ok := typ.FieldByName("XMLName"); ok {
++			if tag := f.Tag; tag != "" {
++				if i := strings.Index(tag, " "); i >= 0 {
++					xmlns, name = tag[:i], tag[i+1:]
++				} else {
++					name = tag
++				}
++			} else if v, ok := val.FieldByIndex(f.Index).Interface().(Name); ok && v.Local != "" {
++				xmlns, name = v.Space, v.Local
++			}
++		}
++	}
++
++	p.WriteByte('<')
++	p.WriteString(name)
++
++	// Attributes
++	if kind == reflect.Struct {
++		if len(xmlns) > 0 {
++			p.WriteString(` xmlns="`)
++			Escape(p, []byte(xmlns))
++			p.WriteByte('"')
++		}
++
++		for i, n := 0, typ.NumField(); i < n; i++ {
++			if f := typ.Field(i); f.PkgPath == "" && f.Tag == "attr" {
++				if f.Type.Kind() == reflect.String {
++					if str := val.Field(i).String(); str != "" {
++						p.WriteByte(' ')
++						p.WriteString(strings.ToLower(f.Name))
++						p.WriteString(`="`)
++						Escape(p, []byte(str))
++						p.WriteByte('"')
++					}
++				}
++			}
++		}
++	}
++	p.WriteByte('>')
++
++	switch k := val.Kind(); k {
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		p.WriteString(strconv.Itoa64(val.Int()))
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		p.WriteString(strconv.Uitoa64(val.Uint()))
++	case reflect.Float32, reflect.Float64:
++		p.WriteString(strconv.Ftoa64(val.Float(), 'g', -1))
++	case reflect.String:
++		Escape(p, []byte(val.String()))
++	case reflect.Bool:
++		p.WriteString(strconv.Btoa(val.Bool()))
++	case reflect.Array:
++		// will be [...]byte
++		bytes := make([]byte, val.Len())
++		for i := range bytes {
++			bytes[i] = val.Index(i).Interface().(byte)
++		}
++		Escape(p, bytes)
++	case reflect.Slice:
++		// will be []byte
++		bytes := val.Interface().([]byte)
++		Escape(p, bytes)
++	case reflect.Struct:
++		for i, n := 0, val.NumField(); i < n; i++ {
++			if f := typ.Field(i); f.Name != "XMLName" && f.PkgPath == "" {
++				name := f.Name
++				switch tag := f.Tag; tag {
++				case "":
++				case "chardata":
++					if tk := f.Type.Kind(); tk == reflect.String {
++						p.Write([]byte(val.Field(i).String()))
++					} else if tk == reflect.Slice {
++						if elem, ok := val.Field(i).Interface().([]byte); ok {
++							Escape(p, elem)
++						}
++					}
++					continue
++				case "innerxml":
++					iface := val.Field(i).Interface()
++					switch raw := iface.(type) {
++					case []byte:
++						p.Write(raw)
++						continue
++					case string:
++						p.WriteString(raw)
++						continue
++					}
++				case "attr":
++					continue
++				default:
++					name = tag
++				}
++
++				if err := p.marshalValue(val.Field(i), name); err != nil {
++					return err
++				}
++			}
++		}
++	default:
++		return &UnsupportedTypeError{typ}
++	}
++
++	p.WriteByte('<')
++	p.WriteByte('/')
++	p.WriteString(name)
++	p.WriteByte('>')
++
++	return nil
++}
++
++// A MarshalXMLError is returned when Marshal or MarshalIndent encounter a type
++// that cannot be converted into XML.
++type UnsupportedTypeError struct {
++	Type reflect.Type
++}
++
++func (e *UnsupportedTypeError) String() string {
++	return "xml: unsupported type: " + e.Type.String()
++}
+diff --git a/src/pkg/xml/marshal_test.go b/src/pkg/xml/marshal_test.go
+new file mode 100644
+index 0000000000..3408f6d508
+--- /dev/null
++++ b/src/pkg/xml/marshal_test.go
+@@ -0,0 +1,299 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package xml
++
++import (
++	"reflect"
++	"testing"
++
++	"os"
++	"bytes"
++	"strings"
++	"strconv"
++)
++
++type DriveType int
++
++const (
++	HyperDrive DriveType = iota
++	ImprobabilityDrive
++)
++
++type Passenger struct {
++	Name   []string "name"
++	Weight float32  "weight"
++}
++
++type Ship struct {
++	XMLName Name "spaceship"
++
++	Name      string       "attr"
++	Pilot     string       "attr"
++	Drive     DriveType    "drive"
++	Age       uint         "age"
++	Passenger []*Passenger "passenger"
++	secret    string
++}
++
++type RawXML string
++
++func (rx RawXML) MarshalXML() ([]byte, os.Error) {
++	return []byte(rx), nil
++}
++
++type NamedType string
++
++type Port struct {
++	XMLName Name   "port"
++	Type    string "attr"
++	Number  string "chardata"
++}
++
++type Domain struct {
++	XMLName Name   "domain"
++	Country string "attr"
++	Name    []byte "chardata"
++}
++
++type SecretAgent struct {
++	XMLName   Name   "agent"
++	Handle    string "attr"
++	Identity  string
++	Obfuscate string "innerxml"
++}
++
++var nilStruct *Ship
++
++var marshalTests = []struct {
++	Value     interface{}
++	ExpectXML string
++}{
++	// Test nil marshals to nothing
++	{Value: nil, ExpectXML: ``},
++	{Value: nilStruct, ExpectXML: ``},
++
++	// Test value types (no tag name, so ???)
++	{Value: true, ExpectXML: `<???>true</???>`},
++	{Value: int(42), ExpectXML: `<???>42</???>`},
++	{Value: int8(42), ExpectXML: `<???>42</???>`},
++	{Value: int16(42), ExpectXML: `<???>42</???>`},
++	{Value: int32(42), ExpectXML: `<???>42</???>`},
++	{Value: uint(42), ExpectXML: `<???>42</???>`},
++	{Value: uint8(42), ExpectXML: `<???>42</???>`},
++	{Value: uint16(42), ExpectXML: `<???>42</???>`},
++	{Value: uint32(42), ExpectXML: `<???>42</???>`},
++	{Value: float32(1.25), ExpectXML: `<???>1.25</???>`},
++	{Value: float64(1.25), ExpectXML: `<???>1.25</???>`},
++	{Value: uintptr(0xFFDD), ExpectXML: `<???>65501</???>`},
++	{Value: "gopher", ExpectXML: `<???>gopher</???>`},
++	{Value: []byte("gopher"), ExpectXML: `<???>gopher</???>`},
++	{Value: "</>", ExpectXML: `<???>&lt;/&gt;</???>`},
++	{Value: []byte("</>"), ExpectXML: `<???>&lt;/&gt;</???>`},
++	{Value: [3]byte{'<', '/', '>'}, ExpectXML: `<???>&lt;/&gt;</???>`},
++	{Value: NamedType("potato"), ExpectXML: `<???>potato</???>`},
++	{Value: []int{1, 2, 3}, ExpectXML: `<???>1</???><???>2</???><???>3</???>`},
++	{Value: [3]int{1, 2, 3}, ExpectXML: `<???>1</???><???>2</???><???>3</???>`},
++
++	// Test innerxml
++	{Value: RawXML("</>"), ExpectXML: `</>`},
++	{
++		Value: &SecretAgent{
++			Handle:    "007",
++			Identity:  "James Bond",
++			Obfuscate: "<redacted/>",
++		},
++		//ExpectXML: `<agent handle="007"><redacted/></agent>`,
++		ExpectXML: `<agent handle="007"><Identity>James Bond</Identity><redacted/></agent>`,
++	},
++
++	// Test structs
++	{Value: &Port{Type: "ssl", Number: "443"}, ExpectXML: `<port type="ssl">443</port>`},
++	{Value: &Port{Number: "443"}, ExpectXML: `<port>443</port>`},
++	{Value: &Port{Type: "<unix>"}, ExpectXML: `<port type="&lt;unix&gt;"></port>`},
++	{Value: &Domain{Name: []byte("google.com&friends")}, ExpectXML: `<domain>google.com&amp;friends</domain>`},
++	{Value: atomValue, ExpectXML: atomXml},
++	{
++		Value: &Ship{
++			Name:  "Heart of Gold",
++			Pilot: "Computer",
++			Age:   1,
++			Drive: ImprobabilityDrive,
++			Passenger: []*Passenger{
++				&Passenger{
++					Name:   []string{"Zaphod", "Beeblebrox"},
++					Weight: 7.25,
++				},
++				&Passenger{
++					Name:   []string{"Trisha", "McMillen"},
++					Weight: 5.5,
++				},
++				&Passenger{
++					Name:   []string{"Ford", "Prefect"},
++					Weight: 7,
++				},
++				&Passenger{
++					Name:   []string{"Arthur", "Dent"},
++					Weight: 6.75,
++				},
++			},
++		},
++		ExpectXML: `<spaceship name="Heart of Gold" pilot="Computer">` +
++			`<drive>` + strconv.Itoa(int(ImprobabilityDrive)) + `</drive>` +
++			`<age>1</age>` +
++			`<passenger>` +
++			`<name>Zaphod</name>` +
++			`<name>Beeblebrox</name>` +
++			`<weight>7.25</weight>` +
++			`</passenger>` +
++			`<passenger>` +
++			`<name>Trisha</name>` +
++			`<name>McMillen</name>` +
++			`<weight>5.5</weight>` +
++			`</passenger>` +
++			`<passenger>` +
++			`<name>Ford</name>` +
++			`<name>Prefect</name>` +
++			`<weight>7</weight>` +
++			`</passenger>` +
++			`<passenger>` +
++			`<name>Arthur</name>` +
++			`<name>Dent</name>` +
++			`<weight>6.75</weight>` +
++			`</passenger>` +
++			`</spaceship>`,
++	},
++}
++
++func TestMarshal(t *testing.T) {
++	for idx, test := range marshalTests {
++		buf := bytes.NewBuffer(nil)
++		err := Marshal(buf, test.Value)
++		if err != nil {
++			t.Errorf("#%d: Error: %s", idx, err)
++			continue
++		}
++		if got, want := buf.String(), test.ExpectXML; got != want {
++			if strings.Contains(want, "\n") {
++				t.Errorf("#%d: marshal(%#v) - GOT:\n%s\nWANT:\n%s", idx, test.Value, got, want)
++			} else {
++				t.Errorf("#%d: marshal(%#v) = %#q want %#q", idx, test.Value, got, want)
++			}
++		}
++	}
++}
++
++var marshalErrorTests = []struct {
++	Value      interface{}
++	ExpectErr  string
++	ExpectKind reflect.Kind
++}{
++	{
++		Value:      make(chan bool),
++		ExpectErr:  "xml: unsupported type: chan bool",
++		ExpectKind: reflect.Chan,
++	},
++	{
++		Value: map[string]string{
++			"question": "What do you get when you multiply six by nine?",
++			"answer":   "42",
++		},
++		ExpectErr:  "xml: unsupported type: map[string] string",
++		ExpectKind: reflect.Map,
++	},
++	{
++		Value:      map[*Ship]bool{nil: false},
++		ExpectErr:  "xml: unsupported type: map[*xml.Ship] bool",
++		ExpectKind: reflect.Map,
++	},
++}
++
++func TestMarshalErrors(t *testing.T) {
++	for idx, test := range marshalErrorTests {
++		buf := bytes.NewBuffer(nil)
++		err := Marshal(buf, test.Value)
++		if got, want := err, test.ExpectErr; got == nil {
++			t.Errorf("#%d: want error %s", idx, want)
++			continue
++		} else if got.String() != want {
++			t.Errorf("#%d: marshal(%#v) = [error] %q, want %q", idx, test.Value, got, want)
++		}
++		if got, want := err.(*UnsupportedTypeError).Type.Kind(), test.ExpectKind; got != want {
++			t.Errorf("#%d: marshal(%#v) = [error kind] %s, want %s", idx, test.Value, got, want)
++		}
++	}
++}
++
++// Do invertibility testing on the various structures that we test
++func TestUnmarshal(t *testing.T) {
++	for i, test := range marshalTests {
++		// Skip the nil pointers
++		if i <= 1 {
++			continue
++		}
++
++		var dest interface{}
++
++		switch test.Value.(type) {
++		case *Ship, Ship:
++			dest = &Ship{}
++		case *Port, Port:
++			dest = &Port{}
++		case *Domain, Domain:
++			dest = &Domain{}
++		case *Feed, Feed:
++			dest = &Feed{}
++		default:
++			continue
++		}
++
++		buffer := bytes.NewBufferString(test.ExpectXML)
++		err := Unmarshal(buffer, dest)
++
++		// Don't compare XMLNames
++		switch fix := dest.(type) {
++		case *Ship:
++			fix.XMLName = Name{}
++		case *Port:
++			fix.XMLName = Name{}
++		case *Domain:
++			fix.XMLName = Name{}
++		case *Feed:
++			fix.XMLName = Name{}
++			fix.Author.InnerXML = ""
++			for i := range fix.Entry {
++				fix.Entry[i].Author.InnerXML = ""
++			}
++		}
++
++		if err != nil {
++			t.Errorf("#%d: unexpected error: %#v", i, err)
++		} else if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
++			t.Errorf("#%d: unmarshal(%#s) = %#v, want %#v", i, test.ExpectXML, got, want)
++		}
++	}
++}
++
++func BenchmarkMarshal(b *testing.B) {
++	idx := len(marshalTests) - 1
++	test := marshalTests[idx]
++
++	buf := bytes.NewBuffer(nil)
++	for i := 0; i < b.N; i++ {
++		Marshal(buf, test.Value)
++		buf.Truncate(0)
++	}
++}
++
++func BenchmarkUnmarshal(b *testing.B) {
++	idx := len(marshalTests) - 1
++	test := marshalTests[idx]
++	sm := &Ship{}
++	xml := []byte(test.ExpectXML)
++
++	for i := 0; i < b.N; i++ {
++		buffer := bytes.NewBuffer(xml)
++		Unmarshal(buffer, sm)
++	}
++}

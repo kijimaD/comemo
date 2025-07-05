@@ -14,10 +14,763 @@ Date:   Wed May 16 01:52:20 2012 +1000
     R=golang-dev, m4dh4tt3r, rsc
     CC=golang-dev
     https://golang.org/cl/6190070
-
+---
  src/pkg/runtime/defs_netbsd.go       |  19 ++-
  src/pkg/runtime/defs_netbsd_386.go   |  42 ++++++
  src/pkg/runtime/defs_netbsd_386.h    | 259 +++++++++++++++++---------------
  src/pkg/runtime/defs_netbsd_amd64.go |  49 ++++++
  src/pkg/runtime/defs_netbsd_amd64.h  | 282 ++++++++++++++++++-----------------
  5 files changed, 385 insertions(+), 266 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_netbsd.go b/src/pkg/runtime/defs_netbsd.go
+index 47c30cf101..6c46bb2f29 100644
+--- a/src/pkg/runtime/defs_netbsd.go
++++ b/src/pkg/runtime/defs_netbsd.go
+@@ -7,18 +7,21 @@
+ /*
+ Input to cgo.
+ 
+-GOARCH=amd64 cgo -cdefs defs.go >amd64/defs.h
+-GOARCH=386 cgo -cdefs defs.go >386/defs.h
++GOARCH=amd64 go tool cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go >defs_netbsd_amd64.h
++GOARCH=386 go tool cgo -cdefs defs_netbsd.go defs_netbsd_386.go >defs_netbsd_386.h
+ */
+ 
++// +godefs map __fpregset_t [644]byte
++
+ package runtime
+ 
+ /*
+ #include <sys/types.h>
+ #include <sys/mman.h>
++#include <sys/signal.h>
+ #include <sys/time.h>
++#include <sys/ucontext.h>
+ #include <sys/unistd.h>
+-#include <sys/signal.h>
+ #include <errno.h>
+ #include <signal.h>
+ */
+@@ -95,8 +98,7 @@ const (
+ 
+ type Sigaltstack C.struct_sigaltstack
+ type Sigset C.sigset_t
+-type Siginfo C.siginfo_t
+-type Sigval C.union_sigval
++type Siginfo C.struct__ksiginfo
+ 
+ type StackT C.stack_t
+ 
+@@ -104,8 +106,5 @@ type Timespec C.struct_timespec
+ type Timeval C.struct_timeval
+ type Itimerval C.struct_itimerval
+ 
+-// This is a hack to avoid pulling in machine/fpu.h.
+-type sfxsave64 struct{}
+-type usavefpu struct{}
+-
+-type Sigcontext C.struct_sigcontext
++type McontextT C.mcontext_t
++type UcontextT C.ucontext_t
+diff --git a/src/pkg/runtime/defs_netbsd_386.go b/src/pkg/runtime/defs_netbsd_386.go
+new file mode 100644
+index 0000000000..e9e36608e4
+--- /dev/null
++++ b/src/pkg/runtime/defs_netbsd_386.go
+@@ -0,0 +1,42 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++/*
++Input to cgo.
++
++GOARCH=amd64 go tool cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go >defs_netbsd_amd64.h
++GOARCH=386 go tool cgo -cdefs defs_netbsd.go defs_netbsd_386.go >defs_netbsd_386.h
++*/
++
++package runtime
++
++/*
++#include <sys/types.h>
++#include <machine/mcontext.h>
++*/
++import "C"
++
++const (
++	REG_GS     = C._REG_GS
++	REG_FS     = C._REG_FS
++	REG_ES     = C._REG_ES
++	REG_DS     = C._REG_DS
++	REG_EDI    = C._REG_EDI
++	REG_ESI    = C._REG_ESI
++	REG_EBP    = C._REG_EBP
++	REG_ESP    = C._REG_ESP
++	REG_EBX    = C._REG_EBX
++	REG_EDX    = C._REG_EDX
++	REG_ECX    = C._REG_ECX
++	REG_EAX    = C._REG_EAX
++	REG_TRAPNO = C._REG_TRAPNO
++	REG_ERR    = C._REG_ERR
++	REG_EIP    = C._REG_EIP
++	REG_CS     = C._REG_CS
++	REG_EFL    = C._REG_EFL
++	REG_UESP   = C._REG_UESP
++	REG_SS     = C._REG_SS
++)
+diff --git a/src/pkg/runtime/defs_netbsd_386.h b/src/pkg/runtime/defs_netbsd_386.h
+index aff87fb3b1..89b3ab4899 100644
+--- a/src/pkg/runtime/defs_netbsd_386.h
++++ b/src/pkg/runtime/defs_netbsd_386.h
+@@ -1,146 +1,161 @@
+-// godefs -f -m32 defs.c
++// Created by cgo -cdefs - DO NOT EDIT
++// cgo -cdefs defs_netbsd.go defs_netbsd_386.go
+ 
+-// MACHINE GENERATED - DO NOT EDIT.
+ 
+-// Constants
+ enum {
+-	PROT_NONE = 0,
+-	PROT_READ = 0x1,
+-	PROT_WRITE = 0x2,
+-	PROT_EXEC = 0x4,
+-	MAP_ANON = 0x1000,
+-	MAP_PRIVATE = 0x2,
+-	MAP_FIXED = 0x10,
+-	SA_SIGINFO = 0x40,
+-	SA_RESTART = 0x2,
+-	SA_ONSTACK = 0x1,
+-	EINTR = 0x4,
+-	SIGHUP = 0x1,
+-	SIGINT = 0x2,
+-	SIGQUIT = 0x3,
+-	SIGILL = 0x4,
+-	SIGTRAP = 0x5,
+-	SIGABRT = 0x6,
+-	SIGEMT = 0x7,
+-	SIGFPE = 0x8,
+-	SIGKILL = 0x9,
+-	SIGBUS = 0xa,
+-	SIGSEGV = 0xb,
+-	SIGSYS = 0xc,
+-	SIGPIPE = 0xd,
+-	SIGALRM = 0xe,
+-	SIGTERM = 0xf,
+-	SIGURG = 0x10,
+-	SIGSTOP = 0x11,
+-	SIGTSTP = 0x12,
+-	SIGCONT = 0x13,
+-	SIGCHLD = 0x14,
+-	SIGTTIN = 0x15,
+-	SIGTTOU = 0x16,
+-	SIGIO = 0x17,
+-	SIGXCPU = 0x18,
+-	SIGXFSZ = 0x19,
+-	SIGVTALRM = 0x1a,
+-	SIGPROF = 0x1b,
+-	SIGWINCH = 0x1c,
+-	SIGINFO = 0x1d,
+-	SIGUSR1 = 0x1e,
+-	SIGUSR2 = 0x1f,
+-	FPE_INTDIV = 0x1,
+-	FPE_INTOVF = 0x2,
+-	FPE_FLTDIV = 0x3,
+-	FPE_FLTOVF = 0x4,
+-	FPE_FLTUND = 0x5,
+-	FPE_FLTRES = 0x6,
+-	FPE_FLTINV = 0x7,
+-	FPE_FLTSUB = 0x8,
+-	BUS_ADRALN = 0x1,
+-	BUS_ADRERR = 0x2,
+-	BUS_OBJERR = 0x3,
+-	SEGV_MAPERR = 0x1,
+-	SEGV_ACCERR = 0x2,
+-	ITIMER_REAL = 0,
+-	ITIMER_VIRTUAL = 0x1,
+-	ITIMER_PROF = 0x2,
++	PROT_NONE	= 0x0,
++	PROT_READ	= 0x1,
++	PROT_WRITE	= 0x2,
++	PROT_EXEC	= 0x4,
++
++	MAP_ANON	= 0x1000,
++	MAP_PRIVATE	= 0x2,
++	MAP_FIXED	= 0x10,
++
++	SA_SIGINFO	= 0x40,
++	SA_RESTART	= 0x2,
++	SA_ONSTACK	= 0x1,
++
++	EINTR	= 0x4,
++
++	SIGHUP		= 0x1,
++	SIGINT		= 0x2,
++	SIGQUIT		= 0x3,
++	SIGILL		= 0x4,
++	SIGTRAP		= 0x5,
++	SIGABRT		= 0x6,
++	SIGEMT		= 0x7,
++	SIGFPE		= 0x8,
++	SIGKILL		= 0x9,
++	SIGBUS		= 0xa,
++	SIGSEGV		= 0xb,
++	SIGSYS		= 0xc,
++	SIGPIPE		= 0xd,
++	SIGALRM		= 0xe,
++	SIGTERM		= 0xf,
++	SIGURG		= 0x10,
++	SIGSTOP		= 0x11,
++	SIGTSTP		= 0x12,
++	SIGCONT		= 0x13,
++	SIGCHLD		= 0x14,
++	SIGTTIN		= 0x15,
++	SIGTTOU		= 0x16,
++	SIGIO		= 0x17,
++	SIGXCPU		= 0x18,
++	SIGXFSZ		= 0x19,
++	SIGVTALRM	= 0x1a,
++	SIGPROF		= 0x1b,
++	SIGWINCH	= 0x1c,
++	SIGINFO		= 0x1d,
++	SIGUSR1		= 0x1e,
++	SIGUSR2		= 0x1f,
++
++	FPE_INTDIV	= 0x1,
++	FPE_INTOVF	= 0x2,
++	FPE_FLTDIV	= 0x3,
++	FPE_FLTOVF	= 0x4,
++	FPE_FLTUND	= 0x5,
++	FPE_FLTRES	= 0x6,
++	FPE_FLTINV	= 0x7,
++	FPE_FLTSUB	= 0x8,
++
++	BUS_ADRALN	= 0x1,
++	BUS_ADRERR	= 0x2,
++	BUS_OBJERR	= 0x3,
++
++	SEGV_MAPERR	= 0x1,
++	SEGV_ACCERR	= 0x2,
++
++	ITIMER_REAL	= 0x0,
++	ITIMER_VIRTUAL	= 0x1,
++	ITIMER_PROF	= 0x2,
+ };
+ 
+-// Types
++typedef struct Sigaltstack Sigaltstack;
++typedef struct Sigset Sigset;
++typedef struct Siginfo Siginfo;
++typedef struct StackT StackT;
++typedef struct Timespec Timespec;
++typedef struct Timeval Timeval;
++typedef struct Itimerval Itimerval;
++typedef struct McontextT McontextT;
++typedef struct UcontextT UcontextT;
++
+ #pragma pack on
+ 
+-typedef struct Sigaltstack Sigaltstack;
+ struct Sigaltstack {
+-	void *ss_sp;
+-	uint32 ss_size;
+-	int32 ss_flags;
++	byte	*ss_sp;
++	uint32	ss_size;
++	int32	ss_flags;
+ };
+-
+-typedef uint32 Sigset;
+-
+-typedef struct Siginfo Siginfo;
+-struct Siginfo {
+-	int32 si_signo;
+-	int32 si_code;
+-	int32 si_errno;
+-	byte _data[116];
++struct Sigset {
++	uint32	__bits[4];
+ };
+-
+-typedef union Sigval Sigval;
+-union Sigval {
+-	int32 sival_int;
+-	void *sival_ptr;
++struct Siginfo {
++	int32	_signo;
++	int32	_code;
++	int32	_errno;
++	byte	_reason[20];
+ };
+ 
+-typedef struct StackT StackT;
+ struct StackT {
+-	void *ss_sp;
+-	uint32 ss_size;
+-	int32 ss_flags;
++	byte	*ss_sp;
++	uint32	ss_size;
++	int32	ss_flags;
+ };
+ 
+-typedef struct Timespec Timespec;
+ struct Timespec {
+-	int32 tv_sec;
+-	int32 tv_nsec;
++	int64	tv_sec;
++	int32	tv_nsec;
+ };
+-
+-typedef struct Timeval Timeval;
+ struct Timeval {
+-	int32 tv_sec;
+-	int32 tv_usec;
++	int64	tv_sec;
++	int32	tv_usec;
+ };
+-
+-typedef struct Itimerval Itimerval;
+ struct Itimerval {
+-	Timeval it_interval;
+-	Timeval it_value;
++	Timeval	it_interval;
++	Timeval	it_value;
+ };
+ 
+-typedef void sfxsave64;
+-
+-typedef void usavefpu;
+-
+-typedef struct Sigcontext Sigcontext;
+-struct Sigcontext {
+-	int32 sc_gs;
+-	int32 sc_fs;
+-	int32 sc_es;
+-	int32 sc_ds;
+-	int32 sc_edi;
+-	int32 sc_esi;
+-	int32 sc_ebp;
+-	int32 sc_ebx;
+-	int32 sc_edx;
+-	int32 sc_ecx;
+-	int32 sc_eax;
+-	int32 sc_eip;
+-	int32 sc_cs;
+-	int32 sc_eflags;
+-	int32 sc_esp;
+-	int32 sc_ss;
+-	int32 sc_onstack;
+-	int32 sc_mask;
+-	int32 sc_trapno;
+-	int32 sc_err;
+-	usavefpu *sc_fpstate;
++struct McontextT {
++	int32	__gregs[19];
++	byte	__fpregs[644];
++	int32	_mc_tlsbase;
++};
++struct UcontextT {
++	uint32	uc_flags;
++	UcontextT	*uc_link;
++	Sigset	uc_sigmask;
++	StackT	uc_stack;
++	McontextT	uc_mcontext;
++	int32	__uc_pad[4];
+ };
++
++
+ #pragma pack off
++// Created by cgo -cdefs - DO NOT EDIT
++// cgo -cdefs defs_netbsd.go defs_netbsd_386.go
++
++
++enum {
++	REG_GS		= 0x0,
++	REG_FS		= 0x1,
++	REG_ES		= 0x2,
++	REG_DS		= 0x3,
++	REG_EDI		= 0x4,
++	REG_ESI		= 0x5,
++	REG_EBP		= 0x6,
++	REG_ESP		= 0x7,
++	REG_EBX		= 0x8,
++	REG_EDX		= 0x9,
++	REG_ECX		= 0xa,
++	REG_EAX		= 0xb,
++	REG_TRAPNO	= 0xc,
++	REG_ERR		= 0xd,
++	REG_EIP		= 0xe,
++	REG_CS		= 0xf,
++	REG_EFL		= 0x10,
++	REG_UESP	= 0x11,
++	REG_SS		= 0x12,
++};
++
+diff --git a/src/pkg/runtime/defs_netbsd_amd64.go b/src/pkg/runtime/defs_netbsd_amd64.go
+new file mode 100644
+index 0000000000..68f586b2f9
+--- /dev/null
++++ b/src/pkg/runtime/defs_netbsd_amd64.go
+@@ -0,0 +1,49 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++/*
++Input to cgo.
++
++GOARCH=amd64 go tool cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go >defs_netbsd_amd64.h
++GOARCH=386 go tool cgo -cdefs defs_netbsd.go defs_netbsd_386.go >defs_netbsd_386.h
++*/
++
++package runtime
++
++/*
++#include <sys/types.h>
++#include <machine/mcontext.h>
++*/
++import "C"
++
++const (
++	REG_RDI    = C._REG_RDI
++	REG_RSI    = C._REG_RSI
++	REG_RDX    = C._REG_RDX
++	REG_RCX    = C._REG_RCX
++	REG_R8     = C._REG_R8
++	REG_R9     = C._REG_R9
++	REG_R10    = C._REG_R10
++	REG_R11    = C._REG_R11
++	REG_R12    = C._REG_R12
++	REG_R13    = C._REG_R13
++	REG_R14    = C._REG_R14
++	REG_R15    = C._REG_R15
++	REG_RBP    = C._REG_RBP
++	REG_RBX    = C._REG_RBX
++	REG_RAX    = C._REG_RAX
++	REG_GS     = C._REG_GS
++	REG_FS     = C._REG_FS
++	REG_ES     = C._REG_ES
++	REG_DS     = C._REG_DS
++	REG_TRAPNO = C._REG_TRAPNO
++	REG_ERR    = C._REG_ERR
++	REG_RIP    = C._REG_RIP
++	REG_CS     = C._REG_CS
++	REG_RFLAGS = C._REG_RFLAGS
++	REG_RSP    = C._REG_RSP
++	REG_SS     = C._REG_SS
++)
+diff --git a/src/pkg/runtime/defs_netbsd_amd64.h b/src/pkg/runtime/defs_netbsd_amd64.h
+index 27bf4b9d65..c6ee7d8c26 100644
+--- a/src/pkg/runtime/defs_netbsd_amd64.h
++++ b/src/pkg/runtime/defs_netbsd_amd64.h
+@@ -1,158 +1,172 @@
+-// godefs -f -m64 defs.c
++// Created by cgo -cdefs - DO NOT EDIT
++// cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go
+ 
+-// MACHINE GENERATED - DO NOT EDIT.
+ 
+-// Constants
+ enum {
+-	PROT_NONE = 0,
+-	PROT_READ = 0x1,
+-	PROT_WRITE = 0x2,
+-	PROT_EXEC = 0x4,
+-	MAP_ANON = 0x1000,
+-	MAP_PRIVATE = 0x2,
+-	MAP_FIXED = 0x10,
+-	SA_SIGINFO = 0x40,
+-	SA_RESTART = 0x2,
+-	SA_ONSTACK = 0x1,
+-	EINTR = 0x4,
+-	SIGHUP = 0x1,
+-	SIGINT = 0x2,
+-	SIGQUIT = 0x3,
+-	SIGILL = 0x4,
+-	SIGTRAP = 0x5,
+-	SIGABRT = 0x6,
+-	SIGEMT = 0x7,
+-	SIGFPE = 0x8,
+-	SIGKILL = 0x9,
+-	SIGBUS = 0xa,
+-	SIGSEGV = 0xb,
+-	SIGSYS = 0xc,
+-	SIGPIPE = 0xd,
+-	SIGALRM = 0xe,
+-	SIGTERM = 0xf,
+-	SIGURG = 0x10,
+-	SIGSTOP = 0x11,
+-	SIGTSTP = 0x12,
+-	SIGCONT = 0x13,
+-	SIGCHLD = 0x14,
+-	SIGTTIN = 0x15,
+-	SIGTTOU = 0x16,
+-	SIGIO = 0x17,
+-	SIGXCPU = 0x18,
+-	SIGXFSZ = 0x19,
+-	SIGVTALRM = 0x1a,
+-	SIGPROF = 0x1b,
+-	SIGWINCH = 0x1c,
+-	SIGINFO = 0x1d,
+-	SIGUSR1 = 0x1e,
+-	SIGUSR2 = 0x1f,
+-	FPE_INTDIV = 0x1,
+-	FPE_INTOVF = 0x2,
+-	FPE_FLTDIV = 0x3,
+-	FPE_FLTOVF = 0x4,
+-	FPE_FLTUND = 0x5,
+-	FPE_FLTRES = 0x6,
+-	FPE_FLTINV = 0x7,
+-	FPE_FLTSUB = 0x8,
+-	BUS_ADRALN = 0x1,
+-	BUS_ADRERR = 0x2,
+-	BUS_OBJERR = 0x3,
+-	SEGV_MAPERR = 0x1,
+-	SEGV_ACCERR = 0x2,
+-	ITIMER_REAL = 0,
+-	ITIMER_VIRTUAL = 0x1,
+-	ITIMER_PROF = 0x2,
++	PROT_NONE	= 0x0,
++	PROT_READ	= 0x1,
++	PROT_WRITE	= 0x2,
++	PROT_EXEC	= 0x4,
++
++	MAP_ANON	= 0x1000,
++	MAP_PRIVATE	= 0x2,
++	MAP_FIXED	= 0x10,
++
++	SA_SIGINFO	= 0x40,
++	SA_RESTART	= 0x2,
++	SA_ONSTACK	= 0x1,
++
++	EINTR	= 0x4,
++
++	SIGHUP		= 0x1,
++	SIGINT		= 0x2,
++	SIGQUIT		= 0x3,
++	SIGILL		= 0x4,
++	SIGTRAP		= 0x5,
++	SIGABRT		= 0x6,
++	SIGEMT		= 0x7,
++	SIGFPE		= 0x8,
++	SIGKILL		= 0x9,
++	SIGBUS		= 0xa,
++	SIGSEGV		= 0xb,
++	SIGSYS		= 0xc,
++	SIGPIPE		= 0xd,
++	SIGALRM		= 0xe,
++	SIGTERM		= 0xf,
++	SIGURG		= 0x10,
++	SIGSTOP		= 0x11,
++	SIGTSTP		= 0x12,
++	SIGCONT		= 0x13,
++	SIGCHLD		= 0x14,
++	SIGTTIN		= 0x15,
++	SIGTTOU		= 0x16,
++	SIGIO		= 0x17,
++	SIGXCPU		= 0x18,
++	SIGXFSZ		= 0x19,
++	SIGVTALRM	= 0x1a,
++	SIGPROF		= 0x1b,
++	SIGWINCH	= 0x1c,
++	SIGINFO		= 0x1d,
++	SIGUSR1		= 0x1e,
++	SIGUSR2		= 0x1f,
++
++	FPE_INTDIV	= 0x1,
++	FPE_INTOVF	= 0x2,
++	FPE_FLTDIV	= 0x3,
++	FPE_FLTOVF	= 0x4,
++	FPE_FLTUND	= 0x5,
++	FPE_FLTRES	= 0x6,
++	FPE_FLTINV	= 0x7,
++	FPE_FLTSUB	= 0x8,
++
++	BUS_ADRALN	= 0x1,
++	BUS_ADRERR	= 0x2,
++	BUS_OBJERR	= 0x3,
++
++	SEGV_MAPERR	= 0x1,
++	SEGV_ACCERR	= 0x2,
++
++	ITIMER_REAL	= 0x0,
++	ITIMER_VIRTUAL	= 0x1,
++	ITIMER_PROF	= 0x2,
+ };
+ 
+-// Types
++typedef struct Sigaltstack Sigaltstack;
++typedef struct Sigset Sigset;
++typedef struct Siginfo Siginfo;
++typedef struct StackT StackT;
++typedef struct Timespec Timespec;
++typedef struct Timeval Timeval;
++typedef struct Itimerval Itimerval;
++typedef struct McontextT McontextT;
++typedef struct UcontextT UcontextT;
++
+ #pragma pack on
+ 
+-typedef struct Sigaltstack Sigaltstack;
+ struct Sigaltstack {
+-	void *ss_sp;
+-	uint64 ss_size;
+-	int32 ss_flags;
+-	byte pad_godefs_0[4];
++	byte	*ss_sp;
++	uint64	ss_size;
++	int32	ss_flags;
++	byte	Pad_cgo_0[4];
+ };
+-
+-typedef uint32 Sigset;
+-
+-typedef struct Siginfo Siginfo;
+-struct Siginfo {
+-	int32 si_signo;
+-	int32 si_code;
+-	int32 si_errno;
+-	byte pad_godefs_0[4];
+-	byte _data[120];
++struct Sigset {
++	uint32	__bits[4];
+ };
+-
+-typedef union Sigval Sigval;
+-union Sigval {
+-	int32 sival_int;
+-	void *sival_ptr;
++struct Siginfo {
++	int32	_signo;
++	int32	_code;
++	int32	_errno;
++	int32	_pad;
++	byte	_reason[24];
+ };
+ 
+-typedef struct StackT StackT;
+ struct StackT {
+-	void *ss_sp;
+-	uint64 ss_size;
+-	int32 ss_flags;
+-	byte pad_godefs_0[4];
++	byte	*ss_sp;
++	uint64	ss_size;
++	int32	ss_flags;
++	byte	Pad_cgo_0[4];
+ };
+ 
+-typedef struct Timespec Timespec;
+ struct Timespec {
+-	int32 tv_sec;
+-	byte pad_godefs_0[4];
+-	int64 tv_nsec;
++	int64	tv_sec;
++	int64	tv_nsec;
+ };
+-
+-typedef struct Timeval Timeval;
+ struct Timeval {
+-	int64 tv_sec;
+-	int64 tv_usec;
++	int64	tv_sec;
++	int32	tv_usec;
++	byte	Pad_cgo_0[4];
+ };
+-
+-typedef struct Itimerval Itimerval;
+ struct Itimerval {
+-	Timeval it_interval;
+-	Timeval it_value;
++	Timeval	it_interval;
++	Timeval	it_value;
+ };
+ 
+-typedef void sfxsave64;
+-
+-typedef void usavefpu;
+-
+-typedef struct Sigcontext Sigcontext;
+-struct Sigcontext {
+-	int64 sc_rdi;
+-	int64 sc_rsi;
+-	int64 sc_rdx;
+-	int64 sc_rcx;
+-	int64 sc_r8;
+-	int64 sc_r9;
+-	int64 sc_r10;
+-	int64 sc_r11;
+-	int64 sc_r12;
+-	int64 sc_r13;
+-	int64 sc_r14;
+-	int64 sc_r15;
+-	int64 sc_rbp;
+-	int64 sc_rbx;
+-	int64 sc_rax;
+-	int64 sc_gs;
+-	int64 sc_fs;
+-	int64 sc_es;
+-	int64 sc_ds;
+-	int64 sc_trapno;
+-	int64 sc_err;
+-	int64 sc_rip;
+-	int64 sc_cs;
+-	int64 sc_rflags;
+-	int64 sc_rsp;
+-	int64 sc_ss;
+-	sfxsave64 *sc_fpstate;
+-	int32 sc_onstack;
+-	int32 sc_mask;
++struct McontextT {
++	uint64	__gregs[26];
++	uint64	_mc_tlsbase;
++	int8	__fpregs[512];
++};
++struct UcontextT {
++	uint32	uc_flags;
++	byte	Pad_cgo_0[4];
++	UcontextT	*uc_link;
++	Sigset	uc_sigmask;
++	StackT	uc_stack;
++	McontextT	uc_mcontext;
+ };
++
++
+ #pragma pack off
++// Created by cgo -cdefs - DO NOT EDIT
++// cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go
++
++
++enum {
++	REG_RDI		= 0x0,
++	REG_RSI		= 0x1,
++	REG_RDX		= 0x2,
++	REG_RCX		= 0x3,
++	REG_R8		= 0x4,
++	REG_R9		= 0x5,
++	REG_R10		= 0x6,
++	REG_R11		= 0x7,
++	REG_R12		= 0x8,
++	REG_R13		= 0x9,
++	REG_R14		= 0xa,
++	REG_R15		= 0xb,
++	REG_RBP		= 0xc,
++	REG_RBX		= 0xd,
++	REG_RAX		= 0xe,
++	REG_GS		= 0xf,
++	REG_FS		= 0x10,
++	REG_ES		= 0x11,
++	REG_DS		= 0x12,
++	REG_TRAPNO	= 0x13,
++	REG_ERR		= 0x14,
++	REG_RIP		= 0x15,
++	REG_CS		= 0x16,
++	REG_RFLAGS	= 0x17,
++	REG_RSP		= 0x18,
++	REG_SS		= 0x19,
++};
++

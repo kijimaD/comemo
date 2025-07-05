@@ -14,6 +14,30 @@ Date:   Fri May 12 15:09:03 2023 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  doc/go1.21.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 14a2e5fabc..e483e1e556 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -105,6 +105,18 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl>
+ 
++<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
++  <dd>
++    <p><!-- CL 408826, CL 413474 -->
++      In Go 1.21, <a href="/pkg/reflect/#ValueOf"><code>ValueOf</code></a>
++      no longer forces its argument to be allocated on the heap, allowing
++      a <code>Value</code>'s content to be allocated on the stack. Most
++      operations on a <code>Value</code> also allow the underlying value
++      to be stack allocated.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/56102, CL 451356 -->

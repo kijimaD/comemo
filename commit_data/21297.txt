@@ -7,6 +7,19 @@ Date:   Thu Dec 18 17:34:19 2014 -0500
     Change-Id: Ia6739c164575751a63cc0d4d41d1f6887fbbaee3
     Reviewed-on: https://go-review.googlesource.com/1803
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/ld/elf.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index c20232c550..b17d66890f 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -49,6 +49,7 @@ elfinit(void)
+ 			hdr.flags = 1;		/* Version 1 ABI */
+ 		else
+ 			hdr.flags = 2;		/* Version 2 ABI */
++		// fallthrough
+ 	case '6':
+ 		elf64 = 1;
+ 		hdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */

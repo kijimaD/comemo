@@ -16,7 +16,37 @@ Date:   Sun Nov 17 19:53:18 2024 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/staticinit/sched.go | 3 +++
  src/cmd/compile/internal/walk/complit.go     | 4 +++-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index fae4eb0d8b..ce2e921771 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -332,6 +332,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		if ir.IsZero(r) {
+ 			return true
+ 		}
++		if disableGlobalAddrs && r.Type().IsString() {
++			return false
++		}
+ 		staticdata.InitConst(l, loff, r, int(typ.Size()))
+ 		return true
+ 
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 70750ab037..6452618f6c 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -85,7 +85,9 @@ const (
+ func getdyn(n ir.Node, top bool) initGenType {
+ 	switch n.Op() {
+ 	default:
+-		if ir.IsConstNode(n) {
++		// Handle constants in linker, except that linker cannot do
++		// the relocations necessary for string constants in FIPS packages.
++		if ir.IsConstNode(n) && (!n.Type().IsString() || !base.Ctxt.IsFIPS()) {
+ 			return initConst
+ 		}
+ 		return initDynamic

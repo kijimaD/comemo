@@ -24,8 +24,159 @@ Date:   Wed Dec 15 18:42:00 2021 -0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/stmt.go  |   3 +
  src/cmd/compile/internal/noder/types.go |   9 ++-
  test/typeparam/issue50177.go            | 101 ++++++++++++++++++++++++++++++++
  3 files changed, 112 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index 1e996b95c4..a349a7ef10 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -13,8 +13,10 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
++// stmts creates nodes for a slice of statements that form a scope.
+ func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
+ 	var nodes []ir.Node
++	types.Markdcl()
+ 	for _, stmt := range stmts {
+ 		switch s := g.stmt(stmt).(type) {
+ 		case nil: // EmptyStmt
+@@ -24,6 +26,7 @@ func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
+ 			nodes = append(nodes, s)
+ 		}
+ 	}
++	types.Popdcl()
+ 	return nodes
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 4f6d828720..ed816b4955 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -123,7 +123,14 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 			// Make sure the base generic type exists in type1 (it may
+ 			// not yet if we are referecing an imported generic type, as
+ 			// opposed to a generic type declared in this package).
+-			_ = g.obj(typ.Origin().Obj())
++			base := g.obj(typ.Origin().Obj())
++			if base.Class == ir.PAUTO {
++				// If the base type is a local type, we want to pop
++				// this instantiated type symbol/definition when we
++				// leave the containing block, so we don't use it
++				// incorrectly later.
++				types.Pushdcl(s)
++			}
+ 
+ 			// Create a forwarding type first and put it in the g.typs
+ 			// map, in order to deal with recursive generic types
+diff --git a/test/typeparam/issue50177.go b/test/typeparam/issue50177.go
+new file mode 100644
+index 0000000000..5fd62ad4f6
+--- /dev/null
++++ b/test/typeparam/issue50177.go
+@@ -0,0 +1,101 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++type Fn[T any] func(T)
++type FnErr[T any] func(T) error
++
++// Test that local generic types across functions don't conflict, and they also don't
++// conflict with local non-generic types and local variables.
++func caller0() {
++	type X[T any] struct {
++		fn Fn[int]
++	}
++
++	x := X[int]{func(v int) { fmt.Println(v) }}
++	x.fn(0)
++}
++
++func caller1(val int) {
++	type X[T any] struct {
++		fn FnErr[int]
++	}
++
++	x := X[int]{func(v int) error { fmt.Println(v); return nil }}
++	x.fn(0)
++}
++
++func caller1a(val int) {
++	type X struct {
++		fn func(float64) error
++	}
++
++	x := X{func(v float64) error { fmt.Println(v); return nil }}
++	x.fn(float64(3.2))
++}
++
++func caller1b(val int) {
++	type Y struct {
++		fn func(float64) error
++	}
++
++	X := Y{func(v float64) error { fmt.Println(v); return nil }}
++	X.fn(float64(3.2))
++}
++
++// Test that local generic types within different if clauses don't conflict.
++func caller2(val int) {
++	if val > 2 {
++		type X[T any] struct {
++			fn func(v int) float64
++		}
++
++		x := X[int]{func(v int) float64 { fmt.Println(v); return 1.5 }}
++		x.fn(0)
++	} else {
++		type X[T any] struct {
++			fn func(v int) int
++		}
++		x := X[int]{func(v int) int { fmt.Println(v); return 5 }}
++		x.fn(0)
++	}
++}
++
++// Test that local generic types within different cases don't conflict with each
++// other or with local non-generic types or local variables.
++func caller3(val int) {
++	switch val {
++	case 0:
++		type X[T any] struct {
++			fn func(v int) float64
++		}
++
++		x := X[int]{func(v int) float64 { fmt.Println(v); return 1.5 }}
++		x.fn(0)
++	case 1:
++		type X[T any] struct {
++			fn func(v int) int
++		}
++		x := X[int]{func(v int) int { fmt.Println(v); return 5 }}
++		x.fn(0)
++	case 2:
++		type X struct {
++			fn func(v int) bool
++		}
++		x := X{func(v int) bool { fmt.Println(v); return false }}
++		x.fn(0)
++	case 3:
++		type Y struct {
++			fn func(v int) bool
++		}
++		X := Y{func(v int) bool { fmt.Println(v); return false }}
++		X.fn(0)
++
++	}
++}

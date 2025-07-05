@@ -12,7 +12,7 @@ Date:   Wed Dec 23 05:40:11 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/expr.go        |  8 ++++----
  src/cmd/compile/internal/ir/fmt.go         |  5 +----
  src/cmd/compile/internal/ir/node_gen.go    |  7 ++++---
@@ -21,3 +21,178 @@ Date:   Wed Dec 23 05:40:11 2020 -0800
  src/cmd/compile/internal/walk/builtin.go   |  9 ++++++---
  src/cmd/compile/internal/walk/expr.go      |  4 ++--
  7 files changed, 24 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 640cc03954..d862a645d0 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -695,16 +695,16 @@ func (o Op) IsSlice3() bool {
+ // A SliceHeader expression constructs a slice header from its parts.
+ type SliceHeaderExpr struct {
+ 	miniExpr
+-	Ptr    Node
+-	LenCap Nodes // TODO(rsc): Split into two Node fields
++	Ptr Node
++	Len Node
++	Cap Node
+ }
+ 
+ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *SliceHeaderExpr {
+-	n := &SliceHeaderExpr{Ptr: ptr}
++	n := &SliceHeaderExpr{Ptr: ptr, Len: len, Cap: cap}
+ 	n.pos = pos
+ 	n.op = OSLICEHEADER
+ 	n.typ = typ
+-	n.LenCap = []Node{len, cap}
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 2682908539..8cfc38a9ae 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -800,10 +800,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 
+ 	case OSLICEHEADER:
+ 		n := n.(*SliceHeaderExpr)
+-		if len(n.LenCap) != 2 {
+-			base.Fatalf("bad OSLICEHEADER list length %d", len(n.LenCap))
+-		}
+-		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.LenCap[0], n.LenCap[1])
++		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.Len, n.Cap)
+ 
+ 	case OCOMPLEX, OCOPY:
+ 		n := n.(*BinaryExpr)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 89b1c0ba23..d11e7bf918 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -858,20 +858,21 @@ func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *SliceHeaderExpr) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.LenCap = c.LenCap.Copy()
+ 	return &c
+ }
+ func (n *SliceHeaderExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.Ptr, err, do)
+-	err = maybeDoList(n.LenCap, err, do)
++	err = maybeDo(n.Len, err, do)
++	err = maybeDo(n.Cap, err, do)
+ 	return err
+ }
+ func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.Ptr = maybeEdit(n.Ptr, edit)
+-	editList(n.LenCap, edit)
++	n.Len = maybeEdit(n.Len, edit)
++	n.Cap = maybeEdit(n.Cap, edit)
+ }
+ 
+ func (n *SliceType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index a77e57a5b6..6b2ba5a781 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2844,8 +2844,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 	case ir.OSLICEHEADER:
+ 		n := n.(*ir.SliceHeaderExpr)
+ 		p := s.expr(n.Ptr)
+-		l := s.expr(n.LenCap[0])
+-		c := s.expr(n.LenCap[1])
++		l := s.expr(n.Len)
++		c := s.expr(n.Cap)
+ 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
+ 
+ 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR:
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index f940a2e73d..00615c506c 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -924,30 +924,22 @@ func tcSliceHeader(n *ir.SliceHeaderExpr) ir.Node {
+ 		base.Fatalf("need unsafe.Pointer for OSLICEHEADER")
+ 	}
+ 
+-	if x := len(n.LenCap); x != 2 {
+-		base.Fatalf("expected 2 params (len, cap) for OSLICEHEADER, got %d", x)
+-	}
+-
+ 	n.Ptr = Expr(n.Ptr)
+-	l := Expr(n.LenCap[0])
+-	c := Expr(n.LenCap[1])
+-	l = DefaultLit(l, types.Types[types.TINT])
+-	c = DefaultLit(c, types.Types[types.TINT])
++	n.Len = DefaultLit(Expr(n.Len), types.Types[types.TINT])
++	n.Cap = DefaultLit(Expr(n.Cap), types.Types[types.TINT])
+ 
+-	if ir.IsConst(l, constant.Int) && ir.Int64Val(l) < 0 {
++	if ir.IsConst(n.Len, constant.Int) && ir.Int64Val(n.Len) < 0 {
+ 		base.Fatalf("len for OSLICEHEADER must be non-negative")
+ 	}
+ 
+-	if ir.IsConst(c, constant.Int) && ir.Int64Val(c) < 0 {
++	if ir.IsConst(n.Cap, constant.Int) && ir.Int64Val(n.Cap) < 0 {
+ 		base.Fatalf("cap for OSLICEHEADER must be non-negative")
+ 	}
+ 
+-	if ir.IsConst(l, constant.Int) && ir.IsConst(c, constant.Int) && constant.Compare(l.Val(), token.GTR, c.Val()) {
++	if ir.IsConst(n.Len, constant.Int) && ir.IsConst(n.Cap, constant.Int) && constant.Compare(n.Len.Val(), token.GTR, n.Cap.Val()) {
+ 		base.Fatalf("len larger than cap for OSLICEHEADER")
+ 	}
+ 
+-	n.LenCap[0] = l
+-	n.LenCap[1] = c
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 61a555b773..63f7925863 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -438,7 +438,8 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 	fn := typecheck.LookupRuntime(fnname)
+ 	m.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype), typecheck.Conv(cap, argtype))
+ 	m.Ptr.MarkNonNil()
+-	m.LenCap = []ir.Node{typecheck.Conv(len, types.Types[types.TINT]), typecheck.Conv(cap, types.Types[types.TINT])}
++	m.Len = typecheck.Conv(len, types.Types[types.TINT])
++	m.Cap = typecheck.Conv(cap, types.Types[types.TINT])
+ 	return walkExpr(typecheck.Expr(m), init)
+ }
+ 
+@@ -471,7 +472,8 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		sh := ir.NewSliceHeaderExpr(base.Pos, nil, nil, nil, nil)
+ 		sh.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, size, typecheck.NodNil(), ir.NewBool(false))
+ 		sh.Ptr.MarkNonNil()
+-		sh.LenCap = []ir.Node{length, length}
++		sh.Len = length
++		sh.Cap = length
+ 		sh.SetType(t)
+ 
+ 		s := typecheck.Temp(t)
+@@ -493,7 +495,8 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 	s := ir.NewSliceHeaderExpr(base.Pos, nil, nil, nil, nil)
+ 	s.Ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.TypePtr(t.Elem()), length, copylen, typecheck.Conv(copyptr, types.Types[types.TUNSAFEPTR]))
+ 	s.Ptr.MarkNonNil()
+-	s.LenCap = []ir.Node{length, length}
++	s.Len = length
++	s.Cap = length
+ 	s.SetType(t)
+ 	return walkExpr(typecheck.Expr(s), init)
+ }
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 2029a6aef6..4f57962205 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -817,8 +817,8 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
+ // walkSliceHeader walks an OSLICEHEADER node.
+ func walkSliceHeader(n *ir.SliceHeaderExpr, init *ir.Nodes) ir.Node {
+ 	n.Ptr = walkExpr(n.Ptr, init)
+-	n.LenCap[0] = walkExpr(n.LenCap[0], init)
+-	n.LenCap[1] = walkExpr(n.LenCap[1], init)
++	n.Len = walkExpr(n.Len, init)
++	n.Cap = walkExpr(n.Cap, init)
+ 	return n
+ }
+ 

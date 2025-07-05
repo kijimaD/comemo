@@ -14,7 +14,199 @@ Date:   Thu Jun 3 11:49:52 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/interface.go | 48 ++++++++++++++++++++++++++++++++-----
  src/go/types/type.go      | 60 ++---------------------------------------------
  2 files changed, 44 insertions(+), 64 deletions(-)
+
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 288e421cae..fd3fe0ef91 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -5,6 +5,7 @@
+ package types
+ 
+ import (
++	"fmt"
+ 	"go/ast"
+ 	"go/internal/typeparams"
+ 	"go/token"
+@@ -142,8 +143,13 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 	if check == nil {
+ 		panic("internal error: incomplete interface")
+ 	}
++	completeInterface(check, pos, ityp)
++}
++
++func completeInterface(check *Checker, pos token.Pos, ityp *Interface) {
++	assert(ityp.allMethods == nil)
+ 
+-	if trace {
++	if check != nil && trace {
+ 		// Types don't generally have position information.
+ 		// If we don't have a valid pos provided, try to use
+ 		// one close enough.
+@@ -179,6 +185,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 	// we can get rid of the mpos map below and simply use the cloned method's
+ 	// position.
+ 
++	var todo []*Func
+ 	var seen objset
+ 	var methods []*Func
+ 	mpos := make(map[*Func]token.Pos) // method specification or method embedding position, for good error messages
+@@ -188,6 +195,9 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 			methods = append(methods, m)
+ 			mpos[m] = pos
+ 		case explicit:
++			if check == nil {
++				panic(fmt.Sprintf("%v: duplicate method %s", m.pos, m.name))
++			}
+ 			check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
+ 			check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+ 		default:
+@@ -196,6 +206,11 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
+ 			// error here as well (even though we could do it eagerly) because it's the same
+ 			// error message.
++			if check == nil {
++				// check method signatures after all locally embedded interfaces are computed
++				todo = append(todo, m, other.(*Func))
++				break
++			}
+ 			check.later(func() {
+ 				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
+ 					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
+@@ -212,9 +227,15 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 	// collect types
+ 	allTypes := ityp.types
+ 
+-	posList := check.posMap[ityp]
++	var posList []token.Pos
++	if check != nil {
++		posList = check.posMap[ityp]
++	}
+ 	for i, typ := range ityp.embeddeds {
+-		pos := posList[i] // embedding position
++		var pos token.Pos // embedding position
++		if posList != nil {
++			pos = posList[i]
++		}
+ 		utyp := under(typ)
+ 		etyp := asInterface(utyp)
+ 		if etyp == nil {
+@@ -225,18 +246,33 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 				} else {
+ 					format = "%s is not an interface"
+ 				}
+-				// TODO: correct error code.
+-				check.errorf(atPos(pos), _InvalidIfaceEmbed, format, typ)
++				if check != nil {
++					// TODO: correct error code.
++					check.errorf(atPos(pos), _InvalidIfaceEmbed, format, typ)
++				} else {
++					panic(fmt.Sprintf(format, typ))
++				}
+ 			}
+ 			continue
+ 		}
+-		check.completeInterface(pos, etyp)
++		if etyp.allMethods == nil {
++			completeInterface(check, pos, etyp)
++		}
+ 		for _, m := range etyp.allMethods {
+ 			addMethod(pos, m, false) // use embedding position pos rather than m.pos
+ 		}
+ 		allTypes = intersect(allTypes, etyp.allTypes)
+ 	}
+ 
++	// process todo's (this only happens if check == nil)
++	for i := 0; i < len(todo); i += 2 {
++		m := todo[i]
++		other := todo[i+1]
++		if !Identical(m.typ, other.typ) {
++			panic(fmt.Sprintf("%v: duplicate method %s", m.pos, m.name))
++		}
++	}
++
+ 	if methods != nil {
+ 		sort.Sort(byUniqueMethodName(methods))
+ 		ityp.allMethods = methods
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 55b5c81540..fff8541c42 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -5,7 +5,6 @@
+ package types
+ 
+ import (
+-	"fmt"
+ 	"go/token"
+ 	"sync/atomic"
+ )
+@@ -538,64 +537,9 @@ func (t *Interface) isSatisfiedBy(typ Type) bool {
+ // form other types. The interface must not contain duplicate methods or a
+ // panic occurs. Complete returns the receiver.
+ func (t *Interface) Complete() *Interface {
+-	// TODO(gri) consolidate this method with Checker.completeInterface
+-	if t.allMethods != nil {
+-		return t
+-	}
+-
+-	t.allMethods = markComplete // avoid infinite recursion
+-
+-	var todo []*Func
+-	var methods []*Func
+-	var seen objset
+-	addMethod := func(m *Func, explicit bool) {
+-		switch other := seen.insert(m); {
+-		case other == nil:
+-			methods = append(methods, m)
+-		case explicit:
+-			panic("duplicate method " + m.name)
+-		default:
+-			// check method signatures after all locally embedded interfaces are computed
+-			todo = append(todo, m, other.(*Func))
+-		}
+-	}
+-
+-	for _, m := range t.methods {
+-		addMethod(m, true)
+-	}
+-
+-	allTypes := t.types
+-
+-	for _, typ := range t.embeddeds {
+-		utyp := under(typ)
+-		etyp := asInterface(utyp)
+-		if etyp == nil {
+-			if utyp != Typ[Invalid] {
+-				panic(fmt.Sprintf("%s is not an interface", typ))
+-			}
+-			continue
+-		}
+-		etyp.Complete()
+-		for _, m := range etyp.allMethods {
+-			addMethod(m, false)
+-		}
+-		allTypes = intersect(allTypes, etyp.allTypes)
+-	}
+-
+-	for i := 0; i < len(todo); i += 2 {
+-		m := todo[i]
+-		other := todo[i+1]
+-		if !Identical(m.typ, other.typ) {
+-			panic("duplicate method " + m.name)
+-		}
+-	}
+-
+-	if methods != nil {
+-		sortMethods(methods)
+-		t.allMethods = methods
++	if t.allMethods == nil {
++		completeInterface(nil, token.NoPos, t)
+ 	}
+-	t.allTypes = allTypes
+-
+ 	return t
+ }
+ 

@@ -7,6 +7,23 @@ Date:   Sun Sep 30 15:46:37 2012 +1000
     R=gri, dave
     CC=golang-dev
     https://golang.org/cl/6587046
-
+---
  src/pkg/exp/types/gcimporter_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/types/gcimporter_test.go b/src/pkg/exp/types/gcimporter_test.go
+index 8954f40859..c01267984c 100644
+--- a/src/pkg/exp/types/gcimporter_test.go
++++ b/src/pkg/exp/types/gcimporter_test.go
+@@ -41,10 +41,9 @@ func compile(t *testing.T, dirname, filename string) string {
+ 	cmd.Dir = dirname
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
++		t.Logf("%s", out)
+ 		t.Fatalf("%s %s failed: %s", gcPath, filename, err)
+-		return ""
+ 	}
+-	t.Logf("%s", string(out))
+ 	archCh, _ := build.ArchChar(runtime.GOARCH)
+ 	// filename should end with ".go"
+ 	return filepath.Join(dirname, filename[:len(filename)-2]+archCh)

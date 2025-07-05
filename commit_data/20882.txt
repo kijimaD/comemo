@@ -678,3 +678,6252 @@ Date:   Wed Oct 22 15:51:54 2014 -0400
  test/recover.go                                    |    44 +-
  test/run.go                                        |     4 +
  663 files changed, 60099 insertions(+), 33996 deletions(-)
+
+diff --cc src/cmd/9a/lex.c
+index 116618f25a,0000000000..bd38493d5a
+mode 100644,000000..100644
+--- a/src/cmd/9a/lex.c
++++ b/src/cmd/9a/lex.c
+@@@ -1,725 -1,0 +1,726 @@@
+ +// cmd/9a/lex.c from Vita Nuova.
+ +//
+ +//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ +//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ +//	Portions Copyright © 1997-1999 Vita Nuova Limited
+ +//	Portions Copyright © 2000-2008 Vita Nuova Holdings Limited (www.vitanuova.com)
+ +//	Portions Copyright © 2004,2006 Bruce Ellis
+ +//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+ +//	Revisions Copyright © 2000-2008 Lucent Technologies Inc. and others
+ +//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+ +//
+ +// Permission is hereby granted, free of charge, to any person obtaining a copy
+ +// of this software and associated documentation files (the "Software"), to deal
+ +// in the Software without restriction, including without limitation the rights
+ +// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ +// copies of the Software, and to permit persons to whom the Software is
+ +// furnished to do so, subject to the following conditions:
+ +//
+ +// The above copyright notice and this permission notice shall be included in
+ +// all copies or substantial portions of the Software.
+ +//
+ +// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ +// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ +// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ +// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ +// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ +// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ +// THE SOFTWARE.
+ +
+ +#define	EXTERN
+ +#include <u.h>
+ +#include <libc.h>
+ +#include "a.h"
+ +#include "y.tab.h"
+ +
+ +enum
+ +{
+ +	Plan9	= 1<<0,
+ +	Unix	= 1<<1,
+ +	Windows	= 1<<2,
+ +};
+ +
+ +int
+ +systemtype(int sys)
+ +{
+ +#ifdef _WIN32
+ +	return sys&Windows;
+ +#else
+ +	return sys&Plan9;
+ +#endif
+ +}
+ +
+ +int
+ +pathchar(void)
+ +{
+ +	return '/';
+ +}
+ +
+ +int
+ +Lconv(Fmt *fp)
+ +{
+ +	return linklinefmt(ctxt, fp);
+ +}
+ +
+ +void
+ +dodef(char *p)
+ +{
+ +	if(nDlist%8 == 0)
+ +		Dlist = allocn(Dlist, nDlist*sizeof(char *),
+ +			8*sizeof(char *));
+ +	Dlist[nDlist++] = p;
+ +}
+ +
+ +LinkArch*       thelinkarch = &linkpower64;
+ +
+ +void
+ +usage(void)
+ +{
+ +	print("usage: %ca [options] file.c...\n", thechar);
+ +	flagprint(1);
+ +	errorexit();
+ +}
+ +
+ +void
+ +main(int argc, char *argv[])
+ +{
+ +	char *p;
+ +
+ +	thechar = '9';
+ +	thestring = "power64";
+ +
+ +	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+ +	// but not other values.	
+ +	p = getgoarch();
+ +	if(strncmp(p, thestring, strlen(thestring)) != 0)
+ +		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
+ +	if(strcmp(p, "power64le") == 0)
+ +		thelinkarch = &linkpower64le;
+ +
+ +	ctxt = linknew(thelinkarch);
+ +	ctxt->diag = yyerror;
+ +	ctxt->bso = &bstdout;
+++	ctxt->enforce_data_order = 1;
+ +	Binit(&bstdout, 1, OWRITE);
+ +	listinit9();
+ +	fmtinstall('L', Lconv);
+ +
+ +	ensuresymb(NSYMB);
+ +	memset(debug, 0, sizeof(debug));
+ +	cinit();
+ +	outfile = 0;
+ +	setinclude(".");
+ +
+ +	flagfn1("D", "name[=value]: add #define", dodef);
+ +	flagfn1("I", "dir: add dir to include path", setinclude);
+ +	flagcount("S", "print assembly and machine code", &debug['S']);
+ +	flagcount("m", "debug preprocessor macros", &debug['m']);
+ +	flagstr("o", "file: set output file", &outfile);
+ +	flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt->trimpath);
+ +
+ +	flagparse(&argc, &argv, usage);
+ +	ctxt->debugasm = debug['S'];
+ +
+ +	if(argc < 1)
+ +		usage();
+ +	if(argc > 1){
+ +		print("can't assemble multiple files\n");
+ +		errorexit();
+ +	}
+ +
+ +	if(assemble(argv[0]))
+ +		errorexit();
+ +	Bflush(&bstdout);
+ +	exits(0);
+ +}
+ +
+ +int
+ +assemble(char *file)
+ +{
+ +	char *ofile, *p;
+ +	int i, of;
+ +
+ +	ofile = alloc(strlen(file)+3); // +3 for .x\0 (x=thechar)
+ +	strcpy(ofile, file);
+ +	p = utfrrune(ofile, pathchar());
+ +	if(p) {
+ +		include[0] = ofile;
+ +		*p++ = 0;
+ +	} else
+ +		p = ofile;
+ +	if(outfile == 0) {
+ +		outfile = p;
+ +		if(outfile){
+ +			p = utfrrune(outfile, '.');
+ +			if(p)
+ +				if(p[1] == 's' && p[2] == 0)
+ +					p[0] = 0;
+ +			p = utfrune(outfile, 0);
+ +			p[0] = '.';
+ +			p[1] = thechar;
+ +			p[2] = 0;
+ +		} else
+ +			outfile = "/dev/null";
+ +	}
+ +
+ +	of = create(outfile, OWRITE, 0664);
+ +	if(of < 0) {
+ +		yyerror("%ca: cannot create %s", thechar, outfile);
+ +		errorexit();
+ +	}
+ +	Binit(&obuf, of, OWRITE);
+ +	Bprint(&obuf, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
+ +	Bprint(&obuf, "!\n");
+ +
+ +	for(pass = 1; pass <= 2; pass++) {
+ +		nosched = 0;
+ +		pinit(file);
+ +		for(i=0; i<nDlist; i++)
+ +			dodefine(Dlist[i]);
+ +		yyparse();
+ +		cclean();
+ +		if(nerrors)
+ +			return nerrors;
+ +	}
+ +
+ +	writeobj(ctxt, &obuf);
+ +	Bflush(&obuf);
+ +	return 0;
+ +}
+ +
+ +struct
+ +{
+ +	char	*name;
+ +	ushort	type;
+ +	ushort	value;
+ +} itab[] =
+ +{
+ +	"SP",		LSP,	D_AUTO,
+ +	"SB",		LSB,	D_EXTERN,
+ +	"FP",		LFP,	D_PARAM,
+ +	"PC",		LPC,	D_BRANCH,
+ +
+ +	"LR",		LLR,	D_LR,
+ +	"CTR",		LCTR,	D_CTR,
+ +
+ +	"XER",		LSPREG,	D_XER,
+ +	"MSR",		LMSR,	D_MSR,
+ +	"FPSCR",	LFPSCR,	D_FPSCR,
+ +	"SPR",		LSPR,	D_SPR,
+ +	"DCR",		LSPR,	D_DCR,
+ +
+ +	"CR",		LCR,	0,
+ +	"CR0",		LCREG,	0,
+ +	"CR1",		LCREG,	1,
+ +	"CR2",		LCREG,	2,
+ +	"CR3",		LCREG,	3,
+ +	"CR4",		LCREG,	4,
+ +	"CR5",		LCREG,	5,
+ +	"CR6",		LCREG,	6,
+ +	"CR7",		LCREG,	7,
+ +
+ +	"R",		LR,	0,
+ +	"R0",		LREG,	0,
+ +	"R1",		LREG,	1,
+ +	"R2",		LREG,	2,
+ +	"R3",		LREG,	3,
+ +	"R4",		LREG,	4,
+ +	"R5",		LREG,	5,
+ +	"R6",		LREG,	6,
+ +	"R7",		LREG,	7,
+ +	"R8",		LREG,	8,
+ +	"R9",		LREG,	9,
+ +	"R10",		LREG,	10,
+ +	"R11",		LREG,	11,
+ +	"R12",		LREG,	12,
+ +	"R13",		LREG,	13,
+ +	"R14",		LREG,	14,
+ +	"R15",		LREG,	15,
+ +	"R16",		LREG,	16,
+ +	"R17",		LREG,	17,
+ +	"R18",		LREG,	18,
+ +	"R19",		LREG,	19,
+ +	"R20",		LREG,	20,
+ +	"R21",		LREG,	21,
+ +	"R22",		LREG,	22,
+ +	"R23",		LREG,	23,
+ +	"R24",		LREG,	24,
+ +	"R25",		LREG,	25,
+ +	"R26",		LREG,	26,
+ +	"R27",		LREG,	27,
+ +	"R28",		LREG,	28,
+ +	"R29",		LREG,	29,
+ +	"R30",		LREG,	30,
+ +	"R31",		LREG,	31,
+ +
+ +	"F",		LF,	0,
+ +	"F0",		LFREG,	0,
+ +	"F1",		LFREG,	1,
+ +	"F2",		LFREG,	2,
+ +	"F3",		LFREG,	3,
+ +	"F4",		LFREG,	4,
+ +	"F5",		LFREG,	5,
+ +	"F6",		LFREG,	6,
+ +	"F7",		LFREG,	7,
+ +	"F8",		LFREG,	8,
+ +	"F9",		LFREG,	9,
+ +	"F10",		LFREG,	10,
+ +	"F11",		LFREG,	11,
+ +	"F12",		LFREG,	12,
+ +	"F13",		LFREG,	13,
+ +	"F14",		LFREG,	14,
+ +	"F15",		LFREG,	15,
+ +	"F16",		LFREG,	16,
+ +	"F17",		LFREG,	17,
+ +	"F18",		LFREG,	18,
+ +	"F19",		LFREG,	19,
+ +	"F20",		LFREG,	20,
+ +	"F21",		LFREG,	21,
+ +	"F22",		LFREG,	22,
+ +	"F23",		LFREG,	23,
+ +	"F24",		LFREG,	24,
+ +	"F25",		LFREG,	25,
+ +	"F26",		LFREG,	26,
+ +	"F27",		LFREG,	27,
+ +	"F28",		LFREG,	28,
+ +	"F29",		LFREG,	29,
+ +	"F30",		LFREG,	30,
+ +	"F31",		LFREG,	31,
+ +
+ +	"CREQV",	LCROP, ACREQV,
+ +	"CRXOR",	LCROP, ACRXOR,
+ +	"CRAND",	LCROP, ACRAND,
+ +	"CROR",		LCROP, ACROR,
+ +	"CRANDN",	LCROP, ACRANDN,
+ +	"CRORN",	LCROP, ACRORN,
+ +	"CRNAND",	LCROP, ACRNAND,
+ +	"CRNOR",	LCROP, ACRNOR,
+ +
+ +	"ADD",		LADDW, AADD,
+ +	"ADDV",		LADDW, AADDV,
+ +	"ADDCC",	LADDW, AADDCC,
+ +	"ADDVCC",	LADDW, AADDVCC,
+ +	"ADDC",		LADDW, AADDC,
+ +	"ADDCV",	LADDW, AADDCV,
+ +	"ADDCCC",	LADDW, AADDCCC,
+ +	"ADDCVCC",	LADDW, AADDCVCC,
+ +	"ADDE",		LLOGW, AADDE,
+ +	"ADDEV",	LLOGW, AADDEV,
+ +	"ADDECC",	LLOGW, AADDECC,
+ +	"ADDEVCC",	LLOGW, AADDEVCC,
+ +
+ +	"ADDME",	LABS, AADDME,
+ +	"ADDMEV",	LABS, AADDMEV,
+ +	"ADDMECC",	LABS, AADDMECC,
+ +	"ADDMEVCC",	LABS, AADDMEVCC,
+ +	"ADDZE",	LABS, AADDZE,
+ +	"ADDZEV",	LABS, AADDZEV,
+ +	"ADDZECC",	LABS, AADDZECC,
+ +	"ADDZEVCC",	LABS, AADDZEVCC,
+ +
+ +	"SUB",		LADDW, ASUB,
+ +	"SUBV",		LADDW, ASUBV,
+ +	"SUBCC",	LADDW, ASUBCC,
+ +	"SUBVCC",	LADDW, ASUBVCC,
+ +	"SUBE",		LLOGW, ASUBE,
+ +	"SUBECC",	LLOGW, ASUBECC,
+ +	"SUBEV",	LLOGW, ASUBEV,
+ +	"SUBEVCC",	LLOGW, ASUBEVCC,
+ +	"SUBC",		LADDW, ASUBC,
+ +	"SUBCCC",	LADDW, ASUBCCC,
+ +	"SUBCV",	LADDW, ASUBCV,
+ +	"SUBCVCC",	LADDW, ASUBCVCC,
+ +
+ +	"SUBME",	LABS, ASUBME,
+ +	"SUBMEV",	LABS, ASUBMEV,
+ +	"SUBMECC",	LABS, ASUBMECC,
+ +	"SUBMEVCC",	LABS, ASUBMEVCC,
+ +	"SUBZE",	LABS, ASUBZE,
+ +	"SUBZEV",	LABS, ASUBZEV,
+ +	"SUBZECC",	LABS, ASUBZECC,
+ +	"SUBZEVCC",	LABS, ASUBZEVCC,
+ +
+ +	"AND",		LADDW, AAND,
+ +	"ANDCC",	LADDW, AANDCC,	/* includes andil & andiu */
+ +	"ANDN",		LLOGW, AANDN,
+ +	"ANDNCC",	LLOGW, AANDNCC,
+ +	"EQV",		LLOGW, AEQV,
+ +	"EQVCC",	LLOGW, AEQVCC,
+ +	"NAND",		LLOGW, ANAND,
+ +	"NANDCC",	LLOGW, ANANDCC,
+ +	"NOR",		LLOGW, ANOR,
+ +	"NORCC",	LLOGW, ANORCC,
+ +	"OR",		LADDW, AOR,	/* includes oril & oriu */
+ +	"ORCC",		LADDW, AORCC,
+ +	"ORN",		LLOGW, AORN,
+ +	"ORNCC",	LLOGW, AORNCC,
+ +	"XOR",		LADDW, AXOR,	/* includes xoril & xoriu */
+ +	"XORCC",	LLOGW, AXORCC,
+ +
+ +	"EXTSB",	LABS,	AEXTSB,
+ +	"EXTSBCC",	LABS,	AEXTSBCC,
+ +	"EXTSH",	LABS, AEXTSH,
+ +	"EXTSHCC",	LABS, AEXTSHCC,
+ +
+ +	"CNTLZW",	LABS, ACNTLZW,
+ +	"CNTLZWCC",	LABS, ACNTLZWCC,
+ +
+ +	"RLWMI",	LRLWM, ARLWMI,
+ +	"RLWMICC",	LRLWM, ARLWMICC,
+ +	"RLWNM",	LRLWM, ARLWNM,
+ +	"RLWNMCC", LRLWM, ARLWNMCC,
+ +
+ +	"SLW",		LSHW, ASLW,
+ +	"SLWCC",	LSHW, ASLWCC,
+ +	"SRW",		LSHW, ASRW,
+ +	"SRWCC",	LSHW, ASRWCC,
+ +	"SRAW",		LSHW, ASRAW,
+ +	"SRAWCC",	LSHW, ASRAWCC,
+ +
+ +	"BR",		LBRA, ABR,
+ +	"BC",		LBRA, ABC,
+ +	"BCL",		LBRA, ABC,
+ +	"BL",		LBRA, ABL,
+ +	"BEQ",		LBRA, ABEQ,
+ +	"BNE",		LBRA, ABNE,
+ +	"BGT",		LBRA, ABGT,
+ +	"BGE",		LBRA, ABGE,
+ +	"BLT",		LBRA, ABLT,
+ +	"BLE",		LBRA, ABLE,
+ +	"BVC",		LBRA, ABVC,
+ +	"BVS",		LBRA, ABVS,
+ +
+ +	"CMP",		LCMP, ACMP,
+ +	"CMPU",		LCMP, ACMPU,
+ +	"CMPW",		LCMP, ACMPW,
+ +	"CMPWU",	LCMP, ACMPWU,
+ +
+ +	"DIVW",		LLOGW, ADIVW,
+ +	"DIVWV",	LLOGW, ADIVWV,
+ +	"DIVWCC",	LLOGW, ADIVWCC,
+ +	"DIVWVCC",	LLOGW, ADIVWVCC,
+ +	"DIVWU",	LLOGW, ADIVWU,
+ +	"DIVWUV",	LLOGW, ADIVWUV,
+ +	"DIVWUCC",	LLOGW, ADIVWUCC,
+ +	"DIVWUVCC",	LLOGW, ADIVWUVCC,
+ +
+ +	"FABS",		LFCONV,	AFABS,
+ +	"FABSCC",	LFCONV,	AFABSCC,
+ +	"FNEG",		LFCONV,	AFNEG,
+ +	"FNEGCC",	LFCONV,	AFNEGCC,
+ +	"FNABS",	LFCONV,	AFNABS,
+ +	"FNABSCC",	LFCONV,	AFNABSCC,
+ +
+ +	"FADD",		LFADD,	AFADD,
+ +	"FADDCC",	LFADD,	AFADDCC,
+ +	"FSUB",		LFADD,  AFSUB,
+ +	"FSUBCC",	LFADD,	AFSUBCC,
+ +	"FMUL",		LFADD,	AFMUL,
+ +	"FMULCC",	LFADD,	AFMULCC,
+ +	"FDIV",		LFADD,	AFDIV,
+ +	"FDIVCC",	LFADD,	AFDIVCC,
+ +	"FRSP",		LFCONV,	AFRSP,
+ +	"FRSPCC",	LFCONV,	AFRSPCC,
+ +	"FCTIW",	LFCONV,	AFCTIW,
+ +	"FCTIWCC",	LFCONV,	AFCTIWCC,
+ +	"FCTIWZ",	LFCONV,	AFCTIWZ,
+ +	"FCTIWZCC",	LFCONV,	AFCTIWZCC,
+ +
+ +	"FMADD",	LFMA, AFMADD,
+ +	"FMADDCC",	LFMA, AFMADDCC,
+ +	"FMSUB",	LFMA, AFMSUB,
+ +	"FMSUBCC",	LFMA, AFMSUBCC,
+ +	"FNMADD",	LFMA, AFNMADD,
+ +	"FNMADDCC",	LFMA, AFNMADDCC,
+ +	"FNMSUB",	LFMA, AFNMSUB,
+ +	"FNMSUBCC",	LFMA, AFNMSUBCC,
+ +	"FMADDS",	LFMA, AFMADDS,
+ +	"FMADDSCC",	LFMA, AFMADDSCC,
+ +	"FMSUBS",	LFMA, AFMSUBS,
+ +	"FMSUBSCC",	LFMA, AFMSUBSCC,
+ +	"FNMADDS",	LFMA, AFNMADDS,
+ +	"FNMADDSCC",	LFMA, AFNMADDSCC,
+ +	"FNMSUBS",	LFMA, AFNMSUBS,
+ +	"FNMSUBSCC",	LFMA, AFNMSUBSCC,
+ +
+ +	"FCMPU",	LFCMP, AFCMPU,
+ +	"FCMPO",	LFCMP, AFCMPO,
+ +	"MTFSB0",	LMTFSB, AMTFSB0,
+ +	"MTFSB1",	LMTFSB,	AMTFSB1,
+ +
+ +	"FMOVD",	LFMOV, AFMOVD,
+ +	"FMOVS",	LFMOV, AFMOVS,
+ +	"FMOVDCC",	LFCONV,	AFMOVDCC,	/* fmr. */
+ +
+ +	"GLOBL",	LTEXT, AGLOBL,
+ +
+ +	"MOVB",		LMOVB, AMOVB,
+ +	"MOVBZ",	LMOVB, AMOVBZ,
+ +	"MOVBU",	LMOVB, AMOVBU,
+ +	"MOVBZU", LMOVB, AMOVBZU,
+ +	"MOVH",		LMOVB, AMOVH,
+ +	"MOVHZ",	LMOVB, AMOVHZ,
+ +	"MOVHU",	LMOVB, AMOVHU,
+ +	"MOVHZU", LMOVB, AMOVHZU,
+ +	"MOVHBR", 	LXMV, AMOVHBR,
+ +	"MOVWBR",	LXMV, AMOVWBR,
+ +	"MOVW",		LMOVW, AMOVW,
+ +	"MOVWU",	LMOVW, AMOVWU,
+ +	"MOVMW",	LMOVMW, AMOVMW,
+ +	"MOVFL",	LMOVW,	AMOVFL,
+ +
+ +	"MULLW",	LADDW, AMULLW,		/* includes multiply immediate 10-139 */
+ +	"MULLWV",	LLOGW, AMULLWV,
+ +	"MULLWCC",	LLOGW, AMULLWCC,
+ +	"MULLWVCC",	LLOGW, AMULLWVCC,
+ +
+ +	"MULHW",	LLOGW, AMULHW,
+ +	"MULHWCC",	LLOGW, AMULHWCC,
+ +	"MULHWU",	LLOGW, AMULHWU,
+ +	"MULHWUCC",	LLOGW, AMULHWUCC,
+ +
+ +	"NEG",		LABS, ANEG,
+ +	"NEGV",		LABS, ANEGV,
+ +	"NEGCC",	LABS, ANEGCC,
+ +	"NEGVCC",	LABS, ANEGVCC,
+ +
+ +	"NOP",		LNOP, ANOP,	/* ori 0,0,0 */
+ +	"SYSCALL",	LNOP, ASYSCALL,
+ +	"UNDEF",	LNOP, AUNDEF,
+ +
+ +	"RETURN",	LRETRN, ARETURN,
+ +	"RFI",		LRETRN,	ARFI,
+ +	"RFCI",		LRETRN,	ARFCI,
+ +
+ +	"DATA",		LDATA, ADATA,
+ +	"END",		LEND, AEND,
+ +	"TEXT",		LTEXT, ATEXT,
+ +
+ +	/* 64-bit instructions */
+ +	"CNTLZD",	LABS,	ACNTLZD,
+ +	"CNTLZDCC",	LABS,	ACNTLZDCC,
+ +	"DIVD",	LLOGW,	ADIVD,
+ +	"DIVDCC",	LLOGW,	ADIVDCC,
+ +	"DIVDVCC",	LLOGW,	ADIVDVCC,
+ +	"DIVDV",	LLOGW,	ADIVDV,
+ +	"DIVDU",	LLOGW,	ADIVDU,
+ +	"DIVDUCC",	LLOGW,	ADIVDUCC,
+ +	"DIVDUVCC",	LLOGW,	ADIVDUVCC,
+ +	"DIVDUV",	LLOGW,	ADIVDUV,
+ +	"EXTSW",	LABS, AEXTSW,
+ +	"EXTSWCC",	LABS, AEXTSWCC,
+ +	"FCTID",	LFCONV,	AFCTID,
+ +	"FCTIDCC",	LFCONV,	AFCTIDCC,
+ +	"FCTIDZ",	LFCONV,	AFCTIDZ,
+ +	"FCTIDZCC",	LFCONV,	AFCTIDZCC,
+ +	"FCFID",	LFCONV,	AFCFID,
+ +	"FCFIDCC",	LFCONV,	AFCFIDCC,
+ +	"LDAR", LXLD, ALDAR,
+ +	"MOVD",	LMOVW,	AMOVD,
+ +	"MOVDU",	LMOVW,	AMOVDU,
+ +	"MOVWZ",	LMOVW,	AMOVWZ,
+ +	"MOVWZU",	LMOVW,	AMOVWZU,
+ +	"MULHD",	LLOGW,	AMULHD,
+ +	"MULHDCC",	LLOGW,	AMULHDCC,
+ +	"MULHDU",	LLOGW,	AMULHDU,
+ +	"MULHDUCC",	LLOGW,	AMULHDUCC,
+ +	"MULLD",	LADDW,	AMULLD,	/* includes multiply immediate? */
+ +	"MULLDCC",	LLOGW,	AMULLDCC,
+ +	"MULLDVCC",	LLOGW,	AMULLDVCC,
+ +	"MULLDV",	LLOGW,	AMULLDV,
+ +	"RFID",	LRETRN,	ARFID,
+ +	"HRFID", LRETRN, AHRFID,
+ +	"RLDMI",	LRLWM,	ARLDMI,
+ +	"RLDMICC",	LRLWM,	ARLDMICC,
+ +	"RLDC",	LRLWM,	ARLDC,
+ +	"RLDCCC",	LRLWM,	ARLDCCC,
+ +	"RLDCR",	LRLWM,	ARLDCR,
+ +	"RLDCRCC",	LRLWM,	ARLDCRCC,
+ +	"RLDCL",	LRLWM,	ARLDCL,
+ +	"RLDCLCC",	LRLWM,	ARLDCLCC,
+ +	"SLBIA",	LNOP,	ASLBIA,
+ +	"SLBIE",	LNOP,	ASLBIE,
+ +	"SLBMFEE",	LABS,	ASLBMFEE,
+ +	"SLBMFEV",	LABS,	ASLBMFEV,
+ +	"SLBMTE",	LABS,	ASLBMTE,
+ +	"SLD",	LSHW,	ASLD,
+ +	"SLDCC",	LSHW,	ASLDCC,
+ +	"SRD",	LSHW,	ASRD,
+ +	"SRAD",	LSHW,	ASRAD,
+ +	"SRADCC",	LSHW,	ASRADCC,
+ +	"SRDCC",	LSHW,	ASRDCC,
+ +	"STDCCC",	LXST,	ASTDCCC,
+ +	"TD",	LADDW,	ATD,
+ +
+ +	/* pseudo instructions */
+ +	"REM",	LLOGW,	AREM,
+ +	"REMCC",	LLOGW,	AREMCC,
+ +	"REMV",	LLOGW,	AREMV,
+ +	"REMVCC",	LLOGW,	AREMVCC,
+ +	"REMU",	LLOGW,	AREMU,
+ +	"REMUCC",	LLOGW,	AREMUCC,
+ +	"REMUV",	LLOGW,	AREMUV,
+ +	"REMUVCC",	LLOGW,	AREMUVCC,
+ +	"REMD",	LLOGW,	AREMD,
+ +	"REMDCC",	LLOGW,	AREMDCC,
+ +	"REMDV",	LLOGW,	AREMDV,
+ +	"REMDVCC",	LLOGW,	AREMDVCC,
+ +	"REMDU",	LLOGW,	AREMDU,
+ +	"REMDUCC",	LLOGW,	AREMDUCC,
+ +	"REMDUV",	LLOGW,	AREMDUV,
+ +	"REMDUVCC",	LLOGW,	AREMDUVCC,
+ +
+ +/* special instructions */
+ +	"DCBF",		LXOP,	ADCBF,
+ +	"DCBI",		LXOP,	ADCBI,
+ +	"DCBST",	LXOP,	ADCBST,
+ +	"DCBT",		LXOP,	ADCBT,
+ +	"DCBTST",	LXOP,	ADCBTST,
+ +	"DCBZ",		LXOP,	ADCBZ,
+ +	"ICBI",		LXOP,	AICBI,
+ +
+ +	"ECIWX",	LXLD,	AECIWX,
+ +	"ECOWX",	LXST,	AECOWX,
+ +	"LWAR", LXLD, ALWAR,
+ +	"LWAR", LXLD, ALWAR,
+ +	"STWCCC", LXST, ASTWCCC,
+ +	"EIEIO",	LRETRN,	AEIEIO,
+ +	"TLBIE",	LNOP,	ATLBIE,
+ +	"TLBIEL",	LNOP,	ATLBIEL,
+ +	"LSW",	LXLD, ALSW,
+ +	"STSW",	LXST, ASTSW,
+ +	
+ +	"ISYNC",	LRETRN, AISYNC,
+ +	"SYNC",		LRETRN, ASYNC,
+ +	"TLBSYNC",	LRETRN,	ATLBSYNC,
+ +	"PTESYNC",	LRETRN,	APTESYNC,
+ +/*	"TW",		LADDW,	ATW,*/
+ +
+ +	"WORD",		LWORD, AWORD,
+ +	"DWORD",	LWORD, ADWORD,
+ +	"SCHED",	LSCHED, 0,
+ +	"NOSCHED",	LSCHED,	0x80,
+ +
+ +	"PCDATA",	LPCDAT,	APCDATA,
+ +	"FUNCDATA",	LFUNCDAT,	AFUNCDATA,
+ +
+ +	0
+ +};
+ +
+ +void
+ +cinit(void)
+ +{
+ +	Sym *s;
+ +	int i;
+ +
+ +	nullgen.type = D_NONE;
+ +	nullgen.name = D_NONE;
+ +	nullgen.reg = NREG;
+ +	nullgen.scale = NREG; // replaced Gen.xreg with Prog.scale
+ +
+ +	nerrors = 0;
+ +	iostack = I;
+ +	iofree = I;
+ +	peekc = IGN;
+ +	nhunk = 0;
+ +	for(i=0; i<NHASH; i++)
+ +		hash[i] = S;
+ +	for(i=0; itab[i].name; i++) {
+ +		s = slookup(itab[i].name);
+ +		s->type = itab[i].type;
+ +		s->value = itab[i].value;
+ +	}
+ +}
+ +
+ +void
+ +syminit(Sym *s)
+ +{
+ +
+ +	s->type = LNAME;
+ +	s->value = 0;
+ +}
+ +
+ +void
+ +cclean(void)
+ +{
+ +
+ +	outcode(AEND, &nullgen, NREG, &nullgen);
+ +}
+ +
+ +static Prog *lastpc;
+ +
+ +void
+ +outcode(int a, Addr *g1, int reg, Addr *g2)
+ +{
+ +	Prog *p;
+ +	Plist *pl;
+ +
+ +	if(pass == 1)
+ +		goto out;
+ +
+ +	if(g1->scale != NREG) {
+ +		if(reg != NREG || g2->scale != NREG)
+ +			yyerror("bad addressing modes");
+ +		reg = g1->scale;
+ +	} else
+ +	if(g2->scale != NREG) {
+ +		if(reg != NREG)
+ +			yyerror("bad addressing modes");
+ +		reg = g2->scale;
+ +	}
+ +
+ +	p = ctxt->arch->prg();
+ +	p->as = a;
+ +	p->lineno = lineno;
+ +	if(nosched)
+ +		p->mark |= NOSCHED;
+ +	p->from = *g1;
+ +	p->reg = reg;
+ +	p->to = *g2;
+ +	p->pc = pc;
+ +
+ +	if(lastpc == nil) {
+ +		pl = linknewplist(ctxt);
+ +		pl->firstpc = p;
+ +	} else
+ +		lastpc->link = p;
+ +	lastpc = p;
+ +out:
+ +	if(a != AGLOBL && a != ADATA)
+ +		pc++;
+ +}
+ +
+ +void
+ +outgcode(int a, Addr *g1, int reg, Addr *g2, Addr *g3)
+ +{
+ +	Prog *p;
+ +	Plist *pl;
+ +
+ +	if(pass == 1)
+ +		goto out;
+ +
+ +	p = ctxt->arch->prg();
+ +	p->as = a;
+ +	p->lineno = lineno;
+ +	if(nosched)
+ +		p->mark |= NOSCHED;
+ +	p->from = *g1;
+ +	p->reg = reg;
+ +	p->to = *g2;
+ +	p->from3 = *g3;
+ +	p->pc = pc;
+ +	print("oc: %P\n", p);
+ +
+ +	if(lastpc == nil) {
+ +		pl = linknewplist(ctxt);
+ +		pl->firstpc = p;
+ +	} else
+ +		lastpc->link = p;
+ +	lastpc = p;
+ +out:
+ +	if(a != AGLOBL && a != ADATA)
+ +		pc++;
+ +}
+ +
+ +#include "../cc/lexbody"
+ +#include "../cc/macbody"
+diff --cc src/cmd/9c/cgen.c
+index d756af93bb,0000000000..bd1f7b28f6
+mode 100644,000000..100644
+--- a/src/cmd/9c/cgen.c
++++ b/src/cmd/9c/cgen.c
+@@@ -1,1151 -1,0 +1,1147 @@@
+ +// cmd/9c/cgen.c from Vita Nuova.
+ +//
+ +//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ +//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ +//	Portions Copyright © 1997-1999 Vita Nuova Limited
+ +//	Portions Copyright © 2000-2008 Vita Nuova Holdings Limited (www.vitanuova.com)
+ +//	Portions Copyright © 2004,2006 Bruce Ellis
+ +//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+ +//	Revisions Copyright © 2000-2008 Lucent Technologies Inc. and others
+ +//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+ +//
+ +// Permission is hereby granted, free of charge, to any person obtaining a copy
+ +// of this software and associated documentation files (the "Software"), to deal
+ +// in the Software without restriction, including without limitation the rights
+ +// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ +// copies of the Software, and to permit persons to whom the Software is
+ +// furnished to do so, subject to the following conditions:
+ +//
+ +// The above copyright notice and this permission notice shall be included in
+ +// all copies or substantial portions of the Software.
+ +//
+ +// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ +// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ +// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ +// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ +// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ +// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ +// THE SOFTWARE.
+ +
+ +#include "gc.h"
+ +#include "../../runtime/funcdata.h"
+ +
+ +void
+ +cgen(Node *n, Node *nn)
+ +{
+ +	Node *l, *r;
+ +	Prog *p1;
+ +	Node nod, nod1, nod2, nod3, nod4;
+ +	int o;
+ +	int32 v, curs;
+ +
+ +	if(debug['g']) {
+ +		prtree(nn, "cgen lhs");
+ +		prtree(n, "cgen");
+ +	}
+ +	if(n == Z || n->type == T)
+ +		return;
+ +	if(typesu[n->type->etype] && (n->op != OFUNC || nn != Z)) {
+ +		sugen(n, nn, n->type->width);
+ +		return;
+ +	}
+ +	l = n->left;
+ +	r = n->right;
+ +	o = n->op;
+ +	if(n->addable >= INDEXED) {
+ +		if(nn == Z) {
+ +			switch(o) {
+ +			default:
+ +				nullwarn(Z, Z);
+ +				break;
+ +			case OINDEX:
+ +				nullwarn(l, r);
+ +				break;
+ +			}
+ +			return;
+ +		}
+ +		gmove(n, nn);
+ +		return;
+ +	}
+ +	curs = cursafe;
+ +
+ +	if(n->complex >= FNX)
+ +	if(l->complex >= FNX)
+ +	if(r != Z && r->complex >= FNX)
+ +	switch(o) {
+ +	default:
+ +		regret(&nod, r, 0, 0);
+ +		cgen(r, &nod);
+ +
+ +		regsalloc(&nod1, r);
+ +		gopcode(OAS, &nod, Z, &nod1);
+ +
+ +		regfree(&nod);
+ +		nod = *n;
+ +		nod.right = &nod1;
+ +		cgen(&nod, nn);
+ +		return;
+ +
+ +	case OFUNC:
+ +	case OCOMMA:
+ +	case OANDAND:
+ +	case OOROR:
+ +	case OCOND:
+ +	case ODOT:
+ +		break;
+ +	}
+ +
+ +	switch(o) {
+ +	default:
+ +		diag(n, "unknown op in cgen: %O", o);
+ +		break;
+ +
+ +	case OAS:
+ +		if(l->op == OBIT)
+ +			goto bitas;
+ +		if(l->addable >= INDEXED) {
+ +			if(nn != Z || r->addable < INDEXED) {
+ +				regalloc(&nod, r, nn);
+ +				cgen(r, &nod);
+ +				gmove(&nod, l);
+ +				regfree(&nod);
+ +			} else
+ +				gmove(r, l);
+ +			break;
+ +		}
+ +		if(l->complex >= r->complex) {
+ +			reglcgen(&nod1, l, Z);
+ +			if(r->addable >= INDEXED) {
+ +				gmove(r, &nod1);
+ +				if(nn != Z)
+ +					gmove(r, nn);
+ +				regfree(&nod1);
+ +				break;
+ +			}
+ +			regalloc(&nod, r, nn);
+ +			cgen(r, &nod);
+ +		} else {
+ +			regalloc(&nod, r, nn);
+ +			cgen(r, &nod);
+ +			reglcgen(&nod1, l, Z);
+ +		}
+ +		gmove(&nod, &nod1);
+ +		regfree(&nod);
+ +		regfree(&nod1);
+ +		break;
+ +
+ +	bitas:
+ +		n = l->left;
+ +		regalloc(&nod, r, nn);
+ +		if(l->complex >= r->complex) {
+ +			reglcgen(&nod1, n, Z);
+ +			cgen(r, &nod);
+ +		} else {
+ +			cgen(r, &nod);
+ +			reglcgen(&nod1, n, Z);
+ +		}
+ +		regalloc(&nod2, n, Z);
+ +		gopcode(OAS, &nod1, Z, &nod2);
+ +		bitstore(l, &nod, &nod1, &nod2, nn);
+ +		break;
+ +
+ +	case OBIT:
+ +		if(nn == Z) {
+ +			nullwarn(l, Z);
+ +			break;
+ +		}
+ +		bitload(n, &nod, Z, Z, nn);
+ +		gopcode(OAS, &nod, Z, nn);
+ +		regfree(&nod);
+ +		break;
+ +
+ +	case OXOR:
+ +		if(nn != Z)
+ +		if(r->op == OCONST && r->vconst == -1){
+ +			cgen(l, nn);
+ +			gopcode(OCOM, nn, Z, nn);
+ +			break;
+ +		}
+ +
+ +	case OADD:
+ +	case OSUB:
+ +	case OAND:
+ +	case OOR:
+ +	case OLSHR:
+ +	case OASHL:
+ +	case OASHR:
+ +		/*
+ +		 * immediate operands
+ +		 */
+ +		if(nn != Z &&
+ +		   r->op == OCONST &&
+ +		   !typefd[n->type->etype] &&
+ +		   immconst(r)) {
+ +			cgen(l, nn);
+ +			if(r->vconst == 0)
+ +			if(o != OAND)
+ +				break;
+ +			if(nn != Z)
+ +				gopcode(o, r, Z, nn);
+ +			break;
+ +		}
+ +
+ +	case OMUL:
+ +	case OLMUL:
+ +	case OLDIV:
+ +	case OLMOD:
+ +	case ODIV:
+ +	case OMOD:
+ +		if(nn == Z) {
+ +			nullwarn(l, r);
+ +			break;
+ +		}
+ +		if(o == OMUL || o == OLMUL) {
+ +			if(mulcon(n, nn))
+ +				break;
+ +			if(debug['M'])
+ +				print("%L multiply\n", n->lineno);
+ +		}
+ +		if(l->complex >= r->complex) {
+ +			regalloc(&nod, l, nn);
+ +			cgen(l, &nod);
+ +			regalloc(&nod1, l, Z);		/* note: l used for type, so shifts work! */
+ +			cgen(r, &nod1);
+ +			gopcode(o, &nod1, Z, &nod);
+ +		} else {
+ +			regalloc(&nod, l, nn);		/* note: l used for type, so shifts work! */
+ +			cgen(r, &nod);
+ +			regalloc(&nod1, l, Z);
+ +			cgen(l, &nod1);
+ +			gopcode(o, &nod, &nod1, &nod);
+ +		}
+ +		gopcode(OAS, &nod, Z, nn);
+ +		regfree(&nod);
+ +		regfree(&nod1);
+ +		break;
+ +
+ +	case OASLSHR:
+ +	case OASASHL:
+ +	case OASASHR:
+ +	case OASAND:
+ +	case OASADD:
+ +	case OASSUB:
+ +	case OASXOR:
+ +	case OASOR:
+ +		if(l->op == OBIT)
+ +			goto asbitop;
+ +		if(r->op == OCONST &&
+ +		   !typefd[n->type->etype] &&
+ +		   immconst(r)) {
+ +			if(l->addable < INDEXED)
+ +				reglcgen(&nod2, l, Z);
+ +			else
+ +				nod2 = *l;
+ +			regalloc(&nod, l, nn);		/* note: l used for type, so shifts work! */
+ +			gopcode(OAS, &nod2, Z, &nod);
+ +			gopcode(o, r, Z, &nod);
+ +			gopcode(OAS, &nod, Z, &nod2);
+ +	
+ +			regfree(&nod);
+ +			if(l->addable < INDEXED)
+ +				regfree(&nod2);
+ +			break;
+ +		}
+ +
+ +	case OASLMUL:
+ +	case OASLDIV:
+ +	case OASLMOD:
+ +	case OASMUL:
+ +	case OASDIV:
+ +	case OASMOD:
+ +		if(l->op == OBIT)
+ +			goto asbitop;
+ +		if(l->complex >= r->complex) {
+ +			if(l->addable < INDEXED)
+ +				reglcgen(&nod2, l, Z);
+ +			else
+ +				nod2 = *l;
+ +			regalloc(&nod, n, nn);
+ +			cgen(r, &nod);
+ +		} else {
+ +			regalloc(&nod, n, nn);
+ +			cgen(r, &nod);
+ +			if(l->addable < INDEXED)
+ +				reglcgen(&nod2, l, Z);
+ +			else
+ +				nod2 = *l;
+ +		}
+ +		regalloc(&nod1, n, Z);
+ +		gopcode(OAS, &nod2, Z, &nod1);
+ +		if(nod1.type->etype != nod.type->etype){
+ +			regalloc(&nod3, &nod, Z);
+ +			gmove(&nod1, &nod3);
+ +			regfree(&nod1);
+ +			nod1 = nod3;
+ +		}
+ +		gopcode(o, &nod, &nod1, &nod);
+ +		gmove(&nod, &nod2);
+ +		if(nn != Z)
+ +			gmove(&nod, nn);
+ +		regfree(&nod);
+ +		regfree(&nod1);
+ +		if(l->addable < INDEXED)
+ +			regfree(&nod2);
+ +		break;
+ +
+ +	asbitop:
+ +		regalloc(&nod4, n, nn);
+ +		regalloc(&nod3, r, Z);
+ +		if(l->complex >= r->complex) {
+ +			bitload(l, &nod, &nod1, &nod2, &nod4);
+ +			cgen(r, &nod3);
+ +		} else {
+ +			cgen(r, &nod3);
+ +			bitload(l, &nod, &nod1, &nod2, &nod4);
+ +		}
+ +		gmove(&nod, &nod4);
+ +		gopcode(n->op, &nod3, Z, &nod4);
+ +		regfree(&nod3);
+ +		gmove(&nod4, &nod);
+ +		regfree(&nod4);
+ +		bitstore(l, &nod, &nod1, &nod2, nn);
+ +		break;
+ +
+ +	case OADDR:
+ +		if(nn == Z) {
+ +			nullwarn(l, Z);
+ +			break;
+ +		}
+ +		lcgen(l, nn);
+ +		break;
+ +
+ +	case OFUNC:
+ +		if(l->complex >= FNX) {
+ +			if(l->op != OIND)
+ +				diag(n, "bad function call");
+ +
+ +			regret(&nod, l->left, 0, 0);
+ +			cgen(l->left, &nod);
+ +			regsalloc(&nod1, l->left);
+ +			gopcode(OAS, &nod, Z, &nod1);
+ +			regfree(&nod);
+ +
+ +			nod = *n;
+ +			nod.left = &nod2;
+ +			nod2 = *l;
+ +			nod2.left = &nod1;
+ +			nod2.complex = 1;
+ +			cgen(&nod, nn);
+ +
+ +			return;
+ +		}
+ +		if(REGARG >= 0)
+ +			o = reg[REGARG];
+ +		gargs(r, &nod, &nod1);
+- 		gpcdata(PCDATA_ArgSize, curarg);
+ +		if(l->addable < INDEXED) {
+ +			reglcgen(&nod, l, Z);
+ +			gopcode(OFUNC, Z, Z, &nod);
+ +			regfree(&nod);
+ +		} else
+ +			gopcode(OFUNC, Z, Z, l);
+- 		gpcdata(PCDATA_ArgSize, -1);
+ +		if(REGARG>=0)
+ +			if(o != reg[REGARG])
+ +				reg[REGARG]--;
+ +		regret(&nod, n, l->type, 1); // update maxarg if nothing else
+- 		gpcdata(PCDATA_ArgSize, curarg);
+- 		gpcdata(PCDATA_ArgSize, -1);
+ +		if(nn != Z)
+ +			gopcode(OAS, &nod, Z, nn);
+ +		if(nod.op == OREGISTER)
+ +			regfree(&nod);
+ +		break;
+ +
+ +	case OIND:
+ +		if(nn == Z) {
+ +			cgen(l, nn);
+ +			break;
+ +		}
+ +		regialloc(&nod, n, nn);
+ +		r = l;
+ +		while(r->op == OADD)
+ +			r = r->right;
+ +		if(sconst(r)) {
+ +			v = r->vconst;
+ +			r->vconst = 0;
+ +			cgen(l, &nod);
+ +			nod.xoffset += v;
+ +			r->vconst = v;
+ +		} else
+ +			cgen(l, &nod);
+ +		regind(&nod, n);
+ +		gopcode(OAS, &nod, Z, nn);
+ +		regfree(&nod);
+ +		break;
+ +
+ +	case OEQ:
+ +	case ONE:
+ +	case OLE:
+ +	case OLT:
+ +	case OGE:
+ +	case OGT:
+ +	case OLO:
+ +	case OLS:
+ +	case OHI:
+ +	case OHS:
+ +		if(nn == Z) {
+ +			nullwarn(l, r);
+ +			break;
+ +		}
+ +		boolgen(n, 1, nn);
+ +		break;
+ +
+ +	case OANDAND:
+ +	case OOROR:
+ +		boolgen(n, 1, nn);
+ +		if(nn == Z)
+ +			patch(p, pc);
+ +		break;
+ +
+ +	case ONOT:
+ +		if(nn == Z) {
+ +			nullwarn(l, Z);
+ +			break;
+ +		}
+ +		boolgen(n, 1, nn);
+ +		break;
+ +
+ +	case OCOMMA:
+ +		cgen(l, Z);
+ +		cgen(r, nn);
+ +		break;
+ +
+ +	case OCAST:
+ +		if(nn == Z) {
+ +			nullwarn(l, Z);
+ +			break;
+ +		}
+ +		/*
+ +		 * convert from types l->n->nn
+ +		 */
+ +		if(nocast(l->type, n->type) && nocast(n->type, nn->type)) {
+ +			/* both null, gen l->nn */
+ +			cgen(l, nn);
+ +			break;
+ +		}
+ +		regalloc(&nod, l, nn);
+ +		cgen(l, &nod);
+ +		regalloc(&nod1, n, &nod);
+ +		gopcode(OAS, &nod, Z, &nod1);
+ +		gopcode(OAS, &nod1, Z, nn);
+ +		regfree(&nod1);
+ +		regfree(&nod);
+ +		break;
+ +
+ +	case ODOT:
+ +		sugen(l, nodrat, l->type->width);
+ +		if(nn != Z) {
+ +			warn(n, "non-interruptable temporary");
+ +			nod = *nodrat;
+ +			if(!r || r->op != OCONST) {
+ +				diag(n, "DOT and no offset");
+ +				break;
+ +			}
+ +			nod.xoffset += (int32)r->vconst;
+ +			nod.type = n->type;
+ +			cgen(&nod, nn);
+ +		}
+ +		break;
+ +
+ +	case OCOND:
+ +		bcgen(l, 1);
+ +		p1 = p;
+ +		cgen(r->left, nn);
+ +		gbranch(OGOTO);
+ +		patch(p1, pc);
+ +		p1 = p;
+ +		cgen(r->right, nn);
+ +		patch(p1, pc);
+ +		break;
+ +
+ +	case OPOSTINC:
+ +	case OPOSTDEC:
+ +		v = 1;
+ +		if(l->type->etype == TIND)
+ +			v = l->type->link->width;
+ +		if(o == OPOSTDEC)
+ +			v = -v;
+ +		if(l->op == OBIT)
+ +			goto bitinc;
+ +		if(nn == Z)
+ +			goto pre;
+ +
+ +		if(l->addable < INDEXED)
+ +			reglcgen(&nod2, l, Z);
+ +		else
+ +			nod2 = *l;
+ +
+ +		regalloc(&nod, l, nn);
+ +		gopcode(OAS, &nod2, Z, &nod);
+ +		regalloc(&nod1, l, Z);
+ +		if(typefd[l->type->etype]) {
+ +			regalloc(&nod3, l, Z);
+ +			if(v < 0) {
+ +				gopcode(OAS, nodfconst(-v), Z, &nod3);
+ +				gopcode(OSUB, &nod3, &nod, &nod1);
+ +			} else {
+ +				gopcode(OAS, nodfconst(v), Z, &nod3);
+ +				gopcode(OADD, &nod3, &nod, &nod1);
+ +			}
+ +			regfree(&nod3);
+ +		} else
+ +			gopcode(OADD, nodconst(v), &nod, &nod1);
+ +		gopcode(OAS, &nod1, Z, &nod2);
+ +
+ +		regfree(&nod);
+ +		regfree(&nod1);
+ +		if(l->addable < INDEXED)
+ +			regfree(&nod2);
+ +		break;
+ +
+ +	case OPREINC:
+ +	case OPREDEC:
+ +		v = 1;
+ +		if(l->type->etype == TIND)
+ +			v = l->type->link->width;
+ +		if(o == OPREDEC)
+ +			v = -v;
+ +		if(l->op == OBIT)
+ +			goto bitinc;
+ +
+ +	pre:
+ +		if(l->addable < INDEXED)
+ +			reglcgen(&nod2, l, Z);
+ +		else
+ +			nod2 = *l;
+ +
+ +		regalloc(&nod, l, nn);
+ +		gopcode(OAS, &nod2, Z, &nod);
+ +		if(typefd[l->type->etype]) {
+ +			regalloc(&nod3, l, Z);
+ +			if(v < 0) {
+ +				gopcode(OAS, nodfconst(-v), Z, &nod3);
+ +				gopcode(OSUB, &nod3, Z, &nod);
+ +			} else {
+ +				gopcode(OAS, nodfconst(v), Z, &nod3);
+ +				gopcode(OADD, &nod3, Z, &nod);
+ +			}
+ +			regfree(&nod3);
+ +		} else
+ +			gopcode(OADD, nodconst(v), Z, &nod);
+ +		gopcode(OAS, &nod, Z, &nod2);
+ +		if(nn && l->op == ONAME)	/* in x=++i, emit USED(i) */
+ +			gins(ANOP, l, Z);
+ +
+ +		regfree(&nod);
+ +		if(l->addable < INDEXED)
+ +			regfree(&nod2);
+ +		break;
+ +
+ +	bitinc:
+ +		if(nn != Z && (o == OPOSTINC || o == OPOSTDEC)) {
+ +			bitload(l, &nod, &nod1, &nod2, Z);
+ +			gopcode(OAS, &nod, Z, nn);
+ +			gopcode(OADD, nodconst(v), Z, &nod);
+ +			bitstore(l, &nod, &nod1, &nod2, Z);
+ +			break;
+ +		}
+ +		bitload(l, &nod, &nod1, &nod2, nn);
+ +		gopcode(OADD, nodconst(v), Z, &nod);
+ +		bitstore(l, &nod, &nod1, &nod2, nn);
+ +		break;
+ +	}
+ +	cursafe = curs;
+ +}
+ +
+ +void
+ +reglcgen(Node *t, Node *n, Node *nn)
+ +{
+ +	Node *r;
+ +	int32 v;
+ +
+ +	regialloc(t, n, nn);
+ +	if(n->op == OIND) {
+ +		r = n->left;
+ +		while(r->op == OADD)
+ +			r = r->right;
+ +		if(sconst(r)) {
+ +			v = r->vconst;
+ +			r->vconst = 0;
+ +			lcgen(n, t);
+ +			t->xoffset += v;
+ +			r->vconst = v;
+ +			regind(t, n);
+ +			return;
+ +		}
+ +	}
+ +	lcgen(n, t);
+ +	regind(t, n);
+ +}
+ +
+ +void
+ +lcgen(Node *n, Node *nn)
+ +{
+ +	Prog *p1;
+ +	Node nod;
+ +
+ +	if(debug['g']) {
+ +		prtree(nn, "lcgen lhs");
+ +		prtree(n, "lcgen");
+ +	}
+ +	if(n == Z || n->type == T)
+ +		return;
+ +	if(nn == Z) {
+ +		nn = &nod;
+ +		regalloc(&nod, n, Z);
+ +	}
+ +	switch(n->op) {
+ +	default:
+ +		if(n->addable < INDEXED) {
+ +			diag(n, "unknown op in lcgen: %O", n->op);
+ +			break;
+ +		}
+ +		nod = *n;
+ +		nod.op = OADDR;
+ +		nod.left = n;
+ +		nod.right = Z;
+ +		nod.type = types[TIND];
+ +		gopcode(OAS, &nod, Z, nn);
+ +		break;
+ +
+ +	case OCOMMA:
+ +		cgen(n->left, n->left);
+ +		lcgen(n->right, nn);
+ +		break;
+ +
+ +	case OIND:
+ +		cgen(n->left, nn);
+ +		break;
+ +
+ +	case OCOND:
+ +		bcgen(n->left, 1);
+ +		p1 = p;
+ +		lcgen(n->right->left, nn);
+ +		gbranch(OGOTO);
+ +		patch(p1, pc);
+ +		p1 = p;
+ +		lcgen(n->right->right, nn);
+ +		patch(p1, pc);
+ +		break;
+ +	}
+ +}
+ +
+ +void
+ +bcgen(Node *n, int true)
+ +{
+ +
+ +	if(n->type == T)
+ +		gbranch(OGOTO);
+ +	else
+ +		boolgen(n, true, Z);
+ +}
+ +
+ +void
+ +boolgen(Node *n, int true, Node *nn)
+ +{
+ +	int o;
+ +	Prog *p1, *p2;
+ +	Node *l, *r, nod, nod1;
+ +	int32 curs;
+ +
+ +	if(debug['g']) {
+ +		prtree(nn, "boolgen lhs");
+ +		prtree(n, "boolgen");
+ +	}
+ +	curs = cursafe;
+ +	l = n->left;
+ +	r = n->right;
+ +	switch(n->op) {
+ +
+ +	default:
+ +		if(n->op == OCONST) {
+ +			o = vconst(n);
+ +			if(!true)
+ +				o = !o;
+ +			gbranch(OGOTO);
+ +			if(o) {
+ +				p1 = p;
+ +				gbranch(OGOTO);
+ +				patch(p1, pc);
+ +			}
+ +			goto com;
+ +		}
+ +		regalloc(&nod, n, nn);
+ +		cgen(n, &nod);
+ +		o = ONE;
+ +		if(true)
+ +			o = comrel[relindex(o)];
+ +		if(typefd[n->type->etype]) {
+ +			nodreg(&nod1, n, NREG+FREGZERO);
+ +			gopcode(o, &nod, Z, &nod1);
+ +		} else
+ +			gopcode(o, &nod, Z, nodconst(0));
+ +		regfree(&nod);
+ +		goto com;
+ +
+ +	case OCOMMA:
+ +		cgen(l, Z);
+ +		boolgen(r, true, nn);
+ +		break;
+ +
+ +	case ONOT:
+ +		boolgen(l, !true, nn);
+ +		break;
+ +
+ +	case OCOND:
+ +		bcgen(l, 1);
+ +		p1 = p;
+ +		bcgen(r->left, true);
+ +		p2 = p;
+ +		gbranch(OGOTO);
+ +		patch(p1, pc);
+ +		p1 = p;
+ +		bcgen(r->right, !true);
+ +		patch(p2, pc);
+ +		p2 = p;
+ +		gbranch(OGOTO);
+ +		patch(p1, pc);
+ +		patch(p2, pc);
+ +		goto com;
+ +
+ +	case OANDAND:
+ +		if(!true)
+ +			goto caseor;
+ +
+ +	caseand:
+ +		bcgen(l, true);
+ +		p1 = p;
+ +		bcgen(r, !true);
+ +		p2 = p;
+ +		patch(p1, pc);
+ +		gbranch(OGOTO);
+ +		patch(p2, pc);
+ +		goto com;
+ +
+ +	case OOROR:
+ +		if(!true)
+ +			goto caseand;
+ +
+ +	caseor:
+ +		bcgen(l, !true);
+ +		p1 = p;
+ +		bcgen(r, !true);
+ +		p2 = p;
+ +		gbranch(OGOTO);
+ +		patch(p1, pc);
+ +		patch(p2, pc);
+ +		goto com;
+ +
+ +	case OEQ:
+ +	case ONE:
+ +	case OLE:
+ +	case OLT:
+ +	case OGE:
+ +	case OGT:
+ +	case OHI:
+ +	case OHS:
+ +	case OLO:
+ +	case OLS:
+ +		o = n->op;
+ +		if(true)
+ +			o = comrel[relindex(o)];
+ +		if(l->complex >= FNX && r->complex >= FNX) {
+ +			regret(&nod, r, 0, 0);
+ +			cgen(r, &nod);
+ +			regsalloc(&nod1, r);
+ +			gopcode(OAS, &nod, Z, &nod1);
+ +			regfree(&nod);
+ +			nod = *n;
+ +			nod.right = &nod1;
+ +			boolgen(&nod, true, nn);
+ +			break;
+ +		}
+ +		if(sconst(r)) {
+ +			regalloc(&nod, l, nn);
+ +			cgen(l, &nod);
+ +			gopcode(o, &nod, Z, r);
+ +			regfree(&nod);
+ +			goto com;
+ +		}
+ +		if(l->complex >= r->complex) {
+ +			regalloc(&nod1, l, nn);
+ +			cgen(l, &nod1);
+ +			regalloc(&nod, r, Z);
+ +			cgen(r, &nod);
+ +		} else {
+ +			regalloc(&nod, r, nn);
+ +			cgen(r, &nod);
+ +			regalloc(&nod1, l, Z);
+ +			cgen(l, &nod1);
+ +		}
+ +		gopcode(o, &nod1, Z, &nod);
+ +		regfree(&nod);
+ +		regfree(&nod1);
+ +
+ +	com:
+ +		if(nn != Z) {
+ +			p1 = p;
+ +			gopcode(OAS, nodconst(1L), Z, nn);
+ +			gbranch(OGOTO);
+ +			p2 = p;
+ +			patch(p1, pc);
+ +			gopcode(OAS, nodconst(0L), Z, nn);
+ +			patch(p2, pc);
+ +		}
+ +		break;
+ +	}
+ +	cursafe = curs;
+ +}
+ +
+ +void
+ +sugen(Node *n, Node *nn, int32 w)
+ +{
+ +	Prog *p1;
+ +	Node nod0, nod1, nod2, nod3, nod4, *l, *r;
+ +	Type *t;
+ +	int32 pc1;
+ +	int i, m, c;
+ +
+ +	if(n == Z || n->type == T)
+ +		return;
+ +	if(debug['g']) {
+ +		prtree(nn, "sugen lhs");
+ +		prtree(n, "sugen");
+ +	}
+ +	if(nn == nodrat)
+ +		if(w > nrathole)
+ +			nrathole = w;
+ +	switch(n->op) {
+ +	case OIND:
+ +		if(nn == Z) {
+ +			nullwarn(n->left, Z);
+ +			break;
+ +		}
+ +
+ +	default:
+ +		goto copy;
+ +
+ +	case OCONST:
+ +		if(n->type && typev[n->type->etype]) {
+ +			if(nn == Z) {
+ +				nullwarn(n->left, Z);
+ +				break;
+ +			}
+ +
+ +			t = nn->type;
+ +			nn->type = types[TLONG];
+ +			reglcgen(&nod1, nn, Z);
+ +			nn->type = t;
+ +
+ +			if(align(0, types[TCHAR], Aarg1, nil))	/* isbigendian */
+ +				gopcode(OAS, nod32const(n->vconst>>32), Z, &nod1);
+ +			else
+ +				gopcode(OAS, nod32const(n->vconst), Z, &nod1);
+ +			nod1.xoffset += SZ_LONG;
+ +			if(align(0, types[TCHAR], Aarg1, nil))	/* isbigendian */
+ +				gopcode(OAS, nod32const(n->vconst), Z, &nod1);
+ +			else
+ +				gopcode(OAS, nod32const(n->vconst>>32), Z, &nod1);
+ +
+ +			regfree(&nod1);
+ +			break;
+ +		}
+ +		goto copy;
+ +
+ +	case ODOT:
+ +		l = n->left;
+ +		sugen(l, nodrat, l->type->width);
+ +		if(nn != Z) {
+ +			warn(n, "non-interruptable temporary");
+ +			nod1 = *nodrat;
+ +			r = n->right;
+ +			if(!r || r->op != OCONST) {
+ +				diag(n, "DOT and no offset");
+ +				break;
+ +			}
+ +			nod1.xoffset += (int32)r->vconst;
+ +			nod1.type = n->type;
+ +			sugen(&nod1, nn, w);
+ +		}
+ +		break;
+ +
+ +	case OSTRUCT:
+ +		/*
+ +		 * rewrite so lhs has no side effects
+ +		 */
+ +		if(nn != Z && side(nn)) {
+ +			nod1 = *n;
+ +			nod1.type = typ(TIND, n->type);
+ +			regalloc(&nod2, &nod1, Z);
+ +			lcgen(nn, &nod2);
+ +			regsalloc(&nod0, &nod1);
+ +			gopcode(OAS, &nod2, Z, &nod0);
+ +			regfree(&nod2);
+ +
+ +			nod1 = *n;
+ +			nod1.op = OIND;
+ +			nod1.left = &nod0;
+ +			nod1.right = Z;
+ +			nod1.complex = 1;
+ +
+ +			sugen(n, &nod1, w);
+ +			return;
+ +		}
+ +
+ +		r = n->left;
+ +		for(t = n->type->link; t != T; t = t->down) {
+ +			l = r;
+ +			if(r->op == OLIST) {
+ +				l = r->left;
+ +				r = r->right;
+ +			}
+ +			if(nn == Z) {
+ +				cgen(l, nn);
+ +				continue;
+ +			}
+ +			/*
+ +			 * hand craft *(&nn + o) = l
+ +			 */
+ +			nod0 = znode;
+ +			nod0.op = OAS;
+ +			nod0.type = t;
+ +			nod0.left = &nod1;
+ +			nod0.right = l;
+ +
+ +			nod1 = znode;
+ +			nod1.op = OIND;
+ +			nod1.type = t;
+ +			nod1.left = &nod2;
+ +
+ +			nod2 = znode;
+ +			nod2.op = OADD;
+ +			nod2.type = typ(TIND, t);
+ +			nod2.left = &nod3;
+ +			nod2.right = &nod4;
+ +
+ +			nod3 = znode;
+ +			nod3.op = OADDR;
+ +			nod3.type = nod2.type;
+ +			nod3.left = nn;
+ +
+ +			nod4 = znode;
+ +			nod4.op = OCONST;
+ +			nod4.type = nod2.type;
+ +			nod4.vconst = t->offset;
+ +
+ +			ccom(&nod0);
+ +			acom(&nod0);
+ +			xcom(&nod0);
+ +			nod0.addable = 0;
+ +
+ +			/* prtree(&nod0, "hand craft"); /* */
+ +			cgen(&nod0, Z);
+ +		}
+ +		break;
+ +
+ +	case OAS:
+ +		if(nn == Z) {
+ +			if(n->addable < INDEXED)
+ +				sugen(n->right, n->left, w);
+ +			break;
+ +		}
+ +		/* BOTCH -- functions can clobber rathole */
+ +		sugen(n->right, nodrat, w);
+ +		warn(n, "non-interruptable temporary");
+ +		sugen(nodrat, n->left, w);
+ +		sugen(nodrat, nn, w);
+ +		break;
+ +
+ +	case OFUNC:
+ +		if(!hasdotdotdot(n->left->type)) {
+ +			cgen(n, Z);
+ +			if(nn != Z) {
+ +				curarg -= n->type->width;
+ +				regret(&nod1, n, n->left->type, 1);
+ +				if(nn->complex >= FNX) {
+ +					regsalloc(&nod2, n);
+ +					cgen(&nod1, &nod2);
+ +					nod1 = nod2;
+ +				}
+ +				cgen(&nod1, nn);
+ +			}
+ +			break;
+ +		}
+ +		if(nn == Z) {
+ +			sugen(n, nodrat, w);
+ +			break;
+ +		}
+ +		if(nn->op != OIND) {
+ +			nn = new1(OADDR, nn, Z);
+ +			nn->type = types[TIND];
+ +			nn->addable = 0;
+ +		} else
+ +			nn = nn->left;
+ +		n = new(OFUNC, n->left, new(OLIST, nn, n->right));
+ +		n->type = types[TVOID];
+ +		n->left->type = types[TVOID];
+ +		cgen(n, Z);
+ +		break;
+ +
+ +	case OCOND:
+ +		bcgen(n->left, 1);
+ +		p1 = p;
+ +		sugen(n->right->left, nn, w);
+ +		gbranch(OGOTO);
+ +		patch(p1, pc);
+ +		p1 = p;
+ +		sugen(n->right->right, nn, w);
+ +		patch(p1, pc);
+ +		break;
+ +
+ +	case OCOMMA:
+ +		cgen(n->left, Z);
+ +		sugen(n->right, nn, w);
+ +		break;
+ +	}
+ +	return;
+ +
+ +copy:
+ +	if(nn == Z)
+ +		return;
+ +	if(n->complex >= FNX && nn->complex >= FNX) {
+ +		t = nn->type;
+ +		nn->type = types[TLONG];
+ +		regialloc(&nod1, nn, Z);
+ +		lcgen(nn, &nod1);
+ +		regsalloc(&nod2, nn);
+ +		nn->type = t;
+ +
+ +		gopcode(OAS, &nod1, Z, &nod2);
+ +		regfree(&nod1);
+ +
+ +		nod2.type = typ(TIND, t);
+ +
+ +		nod1 = nod2;
+ +		nod1.op = OIND;
+ +		nod1.left = &nod2;
+ +		nod1.right = Z;
+ +		nod1.complex = 1;
+ +		nod1.type = t;
+ +
+ +		sugen(n, &nod1, w);
+ +		return;
+ +	}
+ +
+ +	if(n->complex > nn->complex) {
+ +		t = n->type;
+ +		n->type = types[TLONG];
+ +		reglcgen(&nod1, n, Z);
+ +		n->type = t;
+ +
+ +		t = nn->type;
+ +		nn->type = types[TLONG];
+ +		reglcgen(&nod2, nn, Z);
+ +		nn->type = t;
+ +	} else {
+ +		t = nn->type;
+ +		nn->type = types[TLONG];
+ +		reglcgen(&nod2, nn, Z);
+ +		nn->type = t;
+ +
+ +		t = n->type;
+ +		n->type = types[TLONG];
+ +		reglcgen(&nod1, n, Z);
+ +		n->type = t;
+ +	}
+ +
+ +	w /= SZ_LONG;
+ +	if(w <= 5) {
+ +		layout(&nod1, &nod2, w, 0, Z);
+ +		goto out;
+ +	}
+ +
+ +	/*
+ +	 * minimize space for unrolling loop
+ +	 * 3,4,5 times. (6 or more is never minimum)
+ +	 * if small structure, try 2 also.
+ +	 */
+ +	c = 0; /* set */
+ +	m = 100;
+ +	i = 3;
+ +	if(w <= 15)
+ +		i = 2;
+ +	for(; i<=5; i++)
+ +		if(i + w%i <= m) {
+ +			c = i;
+ +			m = c + w%c;
+ +		}
+ +
+ +	regalloc(&nod3, &regnode, Z);
+ +	layout(&nod1, &nod2, w%c, w/c, &nod3);
+ +	
+ +	pc1 = pc;
+ +	layout(&nod1, &nod2, c, 0, Z);
+ +
+ +	gopcode(OSUB, nodconst(1L), Z, &nod3);
+ +	nod1.op = OREGISTER;
+ +	gopcode(OADD, nodconst(c*SZ_LONG), Z, &nod1);
+ +	nod2.op = OREGISTER;
+ +	gopcode(OADD, nodconst(c*SZ_LONG), Z, &nod2);
+ +	
+ +	gopcode(OGT, &nod3, Z, nodconst(0));
+ +	patch(p, pc1);
+ +
+ +	regfree(&nod3);
+ +out:
+ +	regfree(&nod1);
+ +	regfree(&nod2);
+ +}
+ +
+ +void
+ +layout(Node *f, Node *t, int c, int cv, Node *cn)
+ +{
+ +	Node t1, t2;
+ +
+ +	while(c > 3) {
+ +		layout(f, t, 2, 0, Z);
+ +		c -= 2;
+ +	}
+ +
+ +	regalloc(&t1, &regnode, Z);
+ +	regalloc(&t2, &regnode, Z);
+ +	if(c > 0) {
+ +		gopcode(OAS, f, Z, &t1);
+ +		f->xoffset += SZ_LONG;
+ +	}
+ +	if(cn != Z)
+ +		gopcode(OAS, nodconst(cv), Z, cn);
+ +	if(c > 1) {
+ +		gopcode(OAS, f, Z, &t2);
+ +		f->xoffset += SZ_LONG;
+ +	}
+ +	if(c > 0) {
+ +		gopcode(OAS, &t1, Z, t);
+ +		t->xoffset += SZ_LONG;
+ +	}
+ +	if(c > 2) {
+ +		gopcode(OAS, f, Z, &t1);
+ +		f->xoffset += SZ_LONG;
+ +	}
+ +	if(c > 1) {
+ +		gopcode(OAS, &t2, Z, t);
+ +		t->xoffset += SZ_LONG;
+ +	}
+ +	if(c > 2) {
+ +		gopcode(OAS, &t1, Z, t);
+ +		t->xoffset += SZ_LONG;
+ +	}
+ +	regfree(&t1);
+ +	regfree(&t2);
+ +}
+diff --cc src/cmd/9c/reg.c
+index 38bb2e9def,0000000000..81a7c7fe4a
+mode 100644,000000..100644
+--- a/src/cmd/9c/reg.c
++++ b/src/cmd/9c/reg.c
+@@@ -1,1169 -1,0 +1,1163 @@@
+ +// cmd/9c/reg.c from Vita Nuova.
+ +//
+ +//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ +//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ +//	Portions Copyright © 1997-1999 Vita Nuova Limited
+ +//	Portions Copyright © 2000-2008 Vita Nuova Holdings Limited (www.vitanuova.com)
+ +//	Portions Copyright © 2004,2006 Bruce Ellis
+ +//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+ +//	Revisions Copyright © 2000-2008 Lucent Technologies Inc. and others
+ +//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+ +//
+ +// Permission is hereby granted, free of charge, to any person obtaining a copy
+ +// of this software and associated documentation files (the "Software"), to deal
+ +// in the Software without restriction, including without limitation the rights
+ +// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ +// copies of the Software, and to permit persons to whom the Software is
+ +// furnished to do so, subject to the following conditions:
+ +//
+ +// The above copyright notice and this permission notice shall be included in
+ +// all copies or substantial portions of the Software.
+ +//
+ +// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ +// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ +// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ +// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ +// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ +// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ +// THE SOFTWARE.
+ +
+ +#include "gc.h"
+ +
+ +Reg*
+ +rega(void)
+ +{
+ +	Reg *r;
+ +
+ +	r = freer;
+ +	if(r == R) {
+ +		r = alloc(sizeof(*r));
+ +	} else
+ +		freer = r->link;
+ +
+ +	*r = zreg;
+ +	return r;
+ +}
+ +
+ +int
+ +rcmp(const void *a1, const void *a2)
+ +{
+ +	const Rgn *p1, *p2;
+ +	int c1, c2;
+ +
+ +	p1 = a1;
+ +	p2 = a2;
+ +	c1 = p2->cost;
+ +	c2 = p1->cost;
+ +	if(c1 -= c2)
+ +		return c1;
+ +	return p2->varno - p1->varno;
+ +}
+ +
+ +void
+ +regopt(Prog *p)
+ +{
+ +	Reg *r, *r1, *r2;
+ +	Prog *p1;
+ +	int i, z;
+ +	int32 initpc, val, npc;
+ +	uint32 vreg;
+ +	Bits bit;
+ +	struct
+ +	{
+ +		int32	m;
+ +		int32	c;
+ +		Reg*	p;
+ +	} log5[6], *lp;
+ +
+ +	firstr = R;
+ +	lastr = R;
+ +	nvar = 0;
+ +	regbits = 0;
+ +	for(z=0; z<BITS; z++) {
+ +		externs.b[z] = 0;
+ +		params.b[z] = 0;
+ +		consts.b[z] = 0;
+ +		addrs.b[z] = 0;
+ +	}
+ +
+ +	/*
+ +	 * pass 1
+ +	 * build aux data structure
+ +	 * allocate pcs
+ +	 * find use and set of variables
+ +	 */
+ +	val = 5L * 5L * 5L * 5L * 5L;
+ +	lp = log5;
+ +	for(i=0; i<5; i++) {
+ +		lp->m = val;
+ +		lp->c = 0;
+ +		lp->p = R;
+ +		val /= 5L;
+ +		lp++;
+ +	}
+ +	val = 0;
+ +	for(; p != P; p = p->link) {
+ +		switch(p->as) {
+ +		case ADATA:
+ +		case AGLOBL:
+ +		case ANAME:
+ +		case ASIGNAME:
+ +		case AFUNCDATA:
+ +			continue;
+ +		}
+ +		r = rega();
+ +		if(firstr == R) {
+ +			firstr = r;
+ +			lastr = r;
+ +		} else {
+ +			lastr->link = r;
+ +			r->p1 = lastr;
+ +			lastr->s1 = r;
+ +			lastr = r;
+ +		}
+ +		r->prog = p;
+ +		r->pc = val;
+ +		val++;
+ +
+ +		lp = log5;
+ +		for(i=0; i<5; i++) {
+ +			lp->c--;
+ +			if(lp->c <= 0) {
+ +				lp->c = lp->m;
+ +				if(lp->p != R)
+ +					lp->p->log5 = r;
+ +				lp->p = r;
+ +				(lp+1)->c = 0;
+ +				break;
+ +			}
+ +			lp++;
+ +		}
+ +
+ +		r1 = r->p1;
+ +		if(r1 != R)
+ +		switch(r1->prog->as) {
+ +		case ARETURN:
+ +		case ABR:
+ +		case ARFI:
+ +		case ARFCI:
+ +		case ARFID:
+ +			r->p1 = R;
+ +			r1->s1 = R;
+ +		}
+ +
+ +		/*
+ +		 * left side always read
+ +		 */
+ +		bit = mkvar(&p->from, p->as==AMOVW || p->as == AMOVWZ || p->as == AMOVD);
+ +		for(z=0; z<BITS; z++)
+ +			r->use1.b[z] |= bit.b[z];
+ +
+ +		/*
+ +		 * right side depends on opcode
+ +		 */
+ +		bit = mkvar(&p->to, 0);
+ +		if(bany(&bit))
+ +		switch(p->as) {
+ +		default:
+ +			diag(Z, "reg: unknown asop: %A", p->as);
+ +			break;
+ +
+ +		/*
+ +		 * right side write
+ +		 */
+ +		case ANOP:
+ +		case AMOVB:
+ +		case AMOVBU:
+ +		case AMOVBZ:
+ +		case AMOVBZU:
+ +		case AMOVH:
+ +		case AMOVHBR:
+ +		case AMOVWBR:
+ +		case AMOVHU:
+ +		case AMOVHZ:
+ +		case AMOVHZU:
+ +		case AMOVW:
+ +		case AMOVWU:
+ +		case AMOVWZ:
+ +		case AMOVWZU:
+ +		case AMOVD:
+ +		case AMOVDU:
+ +		case AFMOVD:
+ +		case AFMOVDCC:
+ +		case AFMOVDU:
+ +		case AFMOVS:
+ +		case AFMOVSU:
+ +		case AFRSP:
+ +			for(z=0; z<BITS; z++)
+ +				r->set.b[z] |= bit.b[z];
+ +			break;
+ +
+ +		/*
+ +		 * funny
+ +		 */
+ +		case ABL:
+ +			for(z=0; z<BITS; z++)
+ +				addrs.b[z] |= bit.b[z];
+ +			break;
+ +		}
+ +	}
+ +	if(firstr == R)
+ +		return;
+ +	initpc = pc - val;
+ +	npc = val;
+ +
+ +	/*
+ +	 * pass 2
+ +	 * turn branch references to pointers
+ +	 * build back pointers
+ +	 */
+ +	for(r = firstr; r != R; r = r->link) {
+ +		p = r->prog;
+ +		if(p->to.type == D_BRANCH) {
+ +			val = p->to.offset - initpc;
+ +			r1 = firstr;
+ +			while(r1 != R) {
+ +				r2 = r1->log5;
+ +				if(r2 != R && val >= r2->pc) {
+ +					r1 = r2;
+ +					continue;
+ +				}
+ +				if(r1->pc == val)
+ +					break;
+ +				r1 = r1->link;
+ +			}
+ +			if(r1 == R) {
+ +				nearln = p->lineno;
+ +				diag(Z, "ref not found\n%P", p);
+ +				continue;
+ +			}
+ +			if(r1 == r) {
+ +				nearln = p->lineno;
+ +				diag(Z, "ref to self\n%P", p);
+ +				continue;
+ +			}
+ +			r->s2 = r1;
+ +			r->p2link = r1->p2;
+ +			r1->p2 = r;
+ +		}
+ +	}
+ +	if(debug['R']) {
+ +		p = firstr->prog;
+ +		print("\n%L %D\n", p->lineno, &p->from);
+ +	}
+ +
+ +	/*
+ +	 * pass 2.5
+ +	 * find looping structure
+ +	 */
+ +	for(r = firstr; r != R; r = r->link)
+ +		r->active = 0;
+ +	change = 0;
+ +	loopit(firstr, npc);
+ +	if(debug['R'] && debug['v']) {
+ +		print("\nlooping structure:\n");
+ +		for(r = firstr; r != R; r = r->link) {
+ +			print("%ld:%P", r->loop, r->prog);
+ +			for(z=0; z<BITS; z++)
+ +				bit.b[z] = r->use1.b[z] |
+ +					r->use2.b[z] | r->set.b[z];
+ +			if(bany(&bit)) {
+ +				print("\t");
+ +				if(bany(&r->use1))
+ +					print(" u1=%B", r->use1);
+ +				if(bany(&r->use2))
+ +					print(" u2=%B", r->use2);
+ +				if(bany(&r->set))
+ +					print(" st=%B", r->set);
+ +			}
+ +			print("\n");
+ +		}
+ +	}
+ +
+ +	/*
+ +	 * pass 3
+ +	 * iterate propagating usage
+ +	 * 	back until flow graph is complete
+ +	 */
+ +loop1:
+ +	change = 0;
+ +	for(r = firstr; r != R; r = r->link)
+ +		r->active = 0;
+ +	for(r = firstr; r != R; r = r->link)
+ +		if(r->prog->as == ARETURN)
+ +			prop(r, zbits, zbits);
+ +loop11:
+ +	/* pick up unreachable code */
+ +	i = 0;
+ +	for(r = firstr; r != R; r = r1) {
+ +		r1 = r->link;
+ +		if(r1 && r1->active && !r->active) {
+ +			prop(r, zbits, zbits);
+ +			i = 1;
+ +		}
+ +	}
+ +	if(i)
+ +		goto loop11;
+ +	if(change)
+ +		goto loop1;
+ +
+ +
+ +	/*
+ +	 * pass 4
+ +	 * iterate propagating register/variable synchrony
+ +	 * 	forward until graph is complete
+ +	 */
+ +loop2:
+ +	change = 0;
+ +	for(r = firstr; r != R; r = r->link)
+ +		r->active = 0;
+ +	synch(firstr, zbits);
+ +	if(change)
+ +		goto loop2;
+ +
+ +
+ +	/*
+ +	 * pass 5
+ +	 * isolate regions
+ +	 * calculate costs (paint1)
+ +	 */
+ +	r = firstr;
+ +	if(r) {
+ +		for(z=0; z<BITS; z++)
+ +			bit.b[z] = (r->refahead.b[z] | r->calahead.b[z]) &
+ +			  ~(externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z]);
+ +		if(bany(&bit)) {
+ +			nearln = r->prog->lineno;
+ +			warn(Z, "used and not set: %B", bit);
+ +			if(debug['R'] && !debug['w'])
+ +				print("used and not set: %B\n", bit);
+ +		}
+ +	}
+ +	if(debug['R'] && debug['v'])
+ +		print("\nprop structure:\n");
+ +	for(r = firstr; r != R; r = r->link)
+ +		r->act = zbits;
+ +	rgp = region;
+ +	nregion = 0;
+ +	for(r = firstr; r != R; r = r->link) {
+ +		if(debug['R'] && debug['v'])
+ +			print("%P\n	set = %B; rah = %B; cal = %B\n",
+ +				r->prog, r->set, r->refahead, r->calahead);
+ +		for(z=0; z<BITS; z++)
+ +			bit.b[z] = r->set.b[z] &
+ +			  ~(r->refahead.b[z] | r->calahead.b[z] | addrs.b[z]);
+ +		if(bany(&bit)) {
+ +			nearln = r->prog->lineno;
+ +			warn(Z, "set and not used: %B", bit);
+ +			if(debug['R'])
+ +				print("set an not used: %B\n", bit);
+ +			excise(r);
+ +		}
+ +		for(z=0; z<BITS; z++)
+ +			bit.b[z] = LOAD(r) & ~(r->act.b[z] | addrs.b[z]);
+ +		while(bany(&bit)) {
+ +			i = bnum(bit);
+ +			rgp->enter = r;
+ +			rgp->varno = i;
+ +			change = 0;
+ +			if(debug['R'] && debug['v'])
+ +				print("\n");
+ +			paint1(r, i);
+ +			bit.b[i/32] &= ~(1L<<(i%32));
+ +			if(change <= 0) {
+ +				if(debug['R'])
+ +					print("%L$%d: %B\n",
+ +						r->prog->lineno, change, blsh(i));
+ +				continue;
+ +			}
+ +			rgp->cost = change;
+ +			nregion++;
+- 			if(nregion >= NRGN) {
+- 				warn(Z, "too many regions");
+- 				goto brk;
+- 			}
+++			if(nregion >= NRGN)
+++				fatal(Z, "too many regions");
+ +			rgp++;
+ +		}
+ +	}
+- brk:
+ +	qsort(region, nregion, sizeof(region[0]), rcmp);
+ +
+ +	/*
+ +	 * pass 6
+ +	 * determine used registers (paint2)
+ +	 * replace code (paint3)
+ +	 */
+ +	rgp = region;
+ +	for(i=0; i<nregion; i++) {
+ +		bit = blsh(rgp->varno);
+ +		vreg = paint2(rgp->enter, rgp->varno);
+ +		vreg = allreg(vreg, rgp);
+ +		if(debug['R']) {
+ +			if(rgp->regno >= NREG)
+ +				print("%L$%d F%d: %B\n",
+ +					rgp->enter->prog->lineno,
+ +					rgp->cost,
+ +					rgp->regno-NREG,
+ +					bit);
+ +			else
+ +				print("%L$%d R%d: %B\n",
+ +					rgp->enter->prog->lineno,
+ +					rgp->cost,
+ +					rgp->regno,
+ +					bit);
+ +		}
+ +		if(rgp->regno != 0)
+ +			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
+ +		rgp++;
+ +	}
+ +	/*
+ +	 * pass 7
+ +	 * peep-hole on basic block
+ +	 */
+ +	if(!debug['R'] || debug['P'])
+ +		peep();
+ +
+ +	/*
+ +	 * pass 8
+ +	 * recalculate pc
+ +	 */
+ +	val = initpc;
+ +	for(r = firstr; r != R; r = r1) {
+ +		r->pc = val;
+ +		p = r->prog;
+ +		p1 = P;
+ +		r1 = r->link;
+ +		if(r1 != R)
+ +			p1 = r1->prog;
+ +		for(; p != p1; p = p->link) {
+ +			switch(p->as) {
+ +			default:
+ +				val++;
+ +				break;
+ +
+ +			case ANOP:
+ +			case ADATA:
+ +			case AGLOBL:
+ +			case ANAME:
+ +			case ASIGNAME:
+ +			case AFUNCDATA:
+ +				break;
+ +			}
+ +		}
+ +	}
+ +	pc = val;
+ +
+ +	/*
+ +	 * fix up branches
+ +	 */
+ +	if(debug['R'])
+ +		if(bany(&addrs))
+ +			print("addrs: %B\n", addrs);
+ +
+ +	r1 = 0; /* set */
+ +	for(r = firstr; r != R; r = r->link) {
+ +		p = r->prog;
+ +		if(p->to.type == D_BRANCH) {
+ +			p->to.offset = r->s2->pc;
+ +			p->to.u.branch = r->s2->prog;
+ +		}
+ +		r1 = r;
+ +	}
+ +
+ +	/*
+ +	 * last pass
+ +	 * eliminate nops
+ +	 * free aux structures
+ +	 */
+ +	for(p = firstr->prog; p != P; p = p->link){
+ +		while(p->link && p->link->as == ANOP)
+ +			p->link = p->link->link;
+ +	}
+ +	if(r1 != R) {
+ +		r1->link = freer;
+ +		freer = firstr;
+ +	}
+ +}
+ +
+ +/*
+ + * add mov b,rn
+ + * just after r
+ + */
+ +void
+ +addmove(Reg *r, int bn, int rn, int f)
+ +{
+ +	Prog *p, *p1;
+ +	Addr *a;
+ +	Var *v;
+ +
+ +	p1 = alloc(sizeof(*p1));
+ +	*p1 = zprog;
+ +	p = r->prog;
+ +
+ +	p1->link = p->link;
+ +	p->link = p1;
+ +	p1->lineno = p->lineno;
+ +
+ +	v = var + bn;
+ +
+ +	a = &p1->to;
+ +	a->sym = v->sym;
+ +	a->name = v->name;
+ +	a->offset = v->offset;
+ +	a->etype = v->etype;
+ +	a->type = D_OREG;
+ +	if(a->etype == TARRAY || a->sym == nil)
+ +		a->type = D_CONST;
+ +
+ +	p1->as = AMOVW;
+ +	if(v->etype == TCHAR || v->etype == TUCHAR)
+ +		p1->as = AMOVB;
+ +	if(v->etype == TSHORT || v->etype == TUSHORT)
+ +		p1->as = AMOVH;
+ +	if(v->etype == TVLONG || v->etype == TUVLONG || v->etype == TIND)
+ +		p1->as = AMOVD;
+ +	if(v->etype == TFLOAT)
+ +		p1->as = AFMOVS;
+ +	if(v->etype == TDOUBLE)
+ +		p1->as = AFMOVD;
+ +
+ +	p1->from.type = D_REG;
+ +	p1->from.reg = rn;
+ +	if(rn >= NREG) {
+ +		p1->from.type = D_FREG;
+ +		p1->from.reg = rn-NREG;
+ +	}
+ +	if(!f) {
+ +		p1->from = *a;
+ +		*a = zprog.from;
+ +		a->type = D_REG;
+ +		a->reg = rn;
+ +		if(rn >= NREG) {
+ +			a->type = D_FREG;
+ +			a->reg = rn-NREG;
+ +		}
+ +		if(v->etype == TUCHAR)
+ +			p1->as = AMOVBZ;
+ +		if(v->etype == TUSHORT)
+ +			p1->as = AMOVHZ;
+ +		if(v->etype == TUINT || v->etype == TULONG)
+ +			p1->as = AMOVWZ;
+ +	}
+ +	if(debug['R'])
+ +		print("%P\t.a%P\n", p, p1);
+ +}
+ +
+ +Bits
+ +mkvar(Addr *a, int docon)
+ +{
+ +	Var *v;
+ +	int i, t, n, et, z;
+ +	int64 o;
+ +	Bits bit;
+ +	LSym *s;
+ +
+ +	t = a->type;
+ +	if(t == D_REG && a->reg != NREG)
+ +		regbits |= RtoB(a->reg);
+ +	if(t == D_FREG && a->reg != NREG)
+ +		regbits |= FtoB(a->reg);
+ +	s = a->sym;
+ +	o = a->offset;
+ +	et = a->etype;
+ +	if(s == nil) {
+ +		if(t != D_CONST || !docon || a->reg != NREG)
+ +			goto none;
+ +		et = TLONG;
+ +	}
+ +	if(t == D_CONST) {
+ +		if(s == nil && sval(o))
+ +			goto none;
+ +	}
+ +	n = a->name;
+ +	v = var;
+ +	for(i=0; i<nvar; i++) {
+ +		if(s == v->sym)
+ +		if(n == v->name)
+ +		if(o == v->offset)
+ +			goto out;
+ +		v++;
+ +	}
+ +	if(s)
+ +		if(s->name[0] == '.')
+ +			goto none;
+- 	if(nvar >= NVAR) {
+- 		if(debug['w'] > 1 && s)
+- 			warn(Z, "variable not optimized: %s", s->name);
+- 		goto none;
+- 	}
+++	if(nvar >= NVAR)
+++		fatal(Z, "variable not optimized: %s", s->name);
+ +	i = nvar;
+ +	nvar++;
+ +	v = &var[i];
+ +	v->sym = s;
+ +	v->offset = o;
+ +	v->etype = et;
+ +	v->name = n;
+ +	if(debug['R'])
+ +		print("bit=%2d et=%2d %D\n", i, et, a);
+ +out:
+ +	bit = blsh(i);
+ +	if(n == D_EXTERN || n == D_STATIC)
+ +		for(z=0; z<BITS; z++)
+ +			externs.b[z] |= bit.b[z];
+ +	if(n == D_PARAM)
+ +		for(z=0; z<BITS; z++)
+ +			params.b[z] |= bit.b[z];
+ +	if(v->etype != et || !(typechlpfd[et] || typev[et]))	/* funny punning */
+ +		for(z=0; z<BITS; z++)
+ +			addrs.b[z] |= bit.b[z];
+ +	if(t == D_CONST) {
+ +		if((int32)o != o)
+ +			v->etype = TVLONG;
+ +		if(s == nil) {
+ +			for(z=0; z<BITS; z++)
+ +				consts.b[z] |= bit.b[z];
+ +			return bit;
+ +		}
+ +		if(et != TARRAY)
+ +			for(z=0; z<BITS; z++)
+ +				addrs.b[z] |= bit.b[z];
+ +		for(z=0; z<BITS; z++)
+ +			params.b[z] |= bit.b[z];
+ +		return bit;
+ +	}
+ +	if(t == D_OREG)
+ +		return bit;
+ +
+ +none:
+ +	return zbits;
+ +}
+ +
+ +void
+ +prop(Reg *r, Bits ref, Bits cal)
+ +{
+ +	Reg *r1, *r2;
+ +	int z;
+ +
+ +	for(r1 = r; r1 != R; r1 = r1->p1) {
+ +		for(z=0; z<BITS; z++) {
+ +			ref.b[z] |= r1->refahead.b[z];
+ +			if(ref.b[z] != r1->refahead.b[z]) {
+ +				r1->refahead.b[z] = ref.b[z];
+ +				change++;
+ +			}
+ +			cal.b[z] |= r1->calahead.b[z];
+ +			if(cal.b[z] != r1->calahead.b[z]) {
+ +				r1->calahead.b[z] = cal.b[z];
+ +				change++;
+ +			}
+ +		}
+ +		switch(r1->prog->as) {
+ +		case ABL:
+ +			for(z=0; z<BITS; z++) {
+ +				cal.b[z] |= ref.b[z] | externs.b[z];
+ +				ref.b[z] = 0;
+ +			}
+ +			break;
+ +
+ +		case ATEXT:
+ +			for(z=0; z<BITS; z++) {
+ +				cal.b[z] = 0;
+ +				ref.b[z] = 0;
+ +			}
+ +			break;
+ +
+ +		case ARETURN:
+ +			for(z=0; z<BITS; z++) {
+ +				cal.b[z] = externs.b[z];
+ +				ref.b[z] = 0;
+ +			}
+ +		}
+ +		for(z=0; z<BITS; z++) {
+ +			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
+ +				r1->use1.b[z] | r1->use2.b[z];
+ +			cal.b[z] &= ~(r1->set.b[z] | r1->use1.b[z] | r1->use2.b[z]);
+ +			r1->refbehind.b[z] = ref.b[z];
+ +			r1->calbehind.b[z] = cal.b[z];
+ +		}
+ +		if(r1->active)
+ +			break;
+ +		r1->active = 1;
+ +	}
+ +	for(; r != r1; r = r->p1)
+ +		for(r2 = r->p2; r2 != R; r2 = r2->p2link)
+ +			prop(r2, r->refbehind, r->calbehind);
+ +}
+ +
+ +/*
+ + * find looping structure
+ + *
+ + * 1) find reverse postordering
+ + * 2) find approximate dominators,
+ + *	the actual dominators if the flow graph is reducible
+ + *	otherwise, dominators plus some other non-dominators.
+ + *	See Matthew S. Hecht and Jeffrey D. Ullman,
+ + *	"Analysis of a Simple Algorithm for Global Data Flow Problems",
+ + *	Conf.  Record of ACM Symp. on Principles of Prog. Langs, Boston, Massachusetts,
+ + *	Oct. 1-3, 1973, pp.  207-217.
+ + * 3) find all nodes with a predecessor dominated by the current node.
+ + *	such a node is a loop head.
+ + *	recursively, all preds with a greater rpo number are in the loop
+ + */
+ +int32
+ +postorder(Reg *r, Reg **rpo2r, int32 n)
+ +{
+ +	Reg *r1;
+ +
+ +	r->rpo = 1;
+ +	r1 = r->s1;
+ +	if(r1 && !r1->rpo)
+ +		n = postorder(r1, rpo2r, n);
+ +	r1 = r->s2;
+ +	if(r1 && !r1->rpo)
+ +		n = postorder(r1, rpo2r, n);
+ +	rpo2r[n] = r;
+ +	n++;
+ +	return n;
+ +}
+ +
+ +int32
+ +rpolca(int32 *idom, int32 rpo1, int32 rpo2)
+ +{
+ +	int32 t;
+ +
+ +	if(rpo1 == -1)
+ +		return rpo2;
+ +	while(rpo1 != rpo2){
+ +		if(rpo1 > rpo2){
+ +			t = rpo2;
+ +			rpo2 = rpo1;
+ +			rpo1 = t;
+ +		}
+ +		while(rpo1 < rpo2){
+ +			t = idom[rpo2];
+ +			if(t >= rpo2)
+ +				fatal(Z, "bad idom");
+ +			rpo2 = t;
+ +		}
+ +	}
+ +	return rpo1;
+ +}
+ +
+ +int
+ +doms(int32 *idom, int32 r, int32 s)
+ +{
+ +	while(s > r)
+ +		s = idom[s];
+ +	return s == r;
+ +}
+ +
+ +int
+ +loophead(int32 *idom, Reg *r)
+ +{
+ +	int32 src;
+ +
+ +	src = r->rpo;
+ +	if(r->p1 != R && doms(idom, src, r->p1->rpo))
+ +		return 1;
+ +	for(r = r->p2; r != R; r = r->p2link)
+ +		if(doms(idom, src, r->rpo))
+ +			return 1;
+ +	return 0;
+ +}
+ +
+ +void
+ +loopmark(Reg **rpo2r, int32 head, Reg *r)
+ +{
+ +	if(r->rpo < head || r->active == head)
+ +		return;
+ +	r->active = head;
+ +	r->loop += LOOP;
+ +	if(r->p1 != R)
+ +		loopmark(rpo2r, head, r->p1);
+ +	for(r = r->p2; r != R; r = r->p2link)
+ +		loopmark(rpo2r, head, r);
+ +}
+ +
+ +void
+ +loopit(Reg *r, int32 nr)
+ +{
+ +	Reg *r1;
+ +	int32 i, d, me;
+ +
+ +	if(nr > maxnr) {
+ +		rpo2r = alloc(nr * sizeof(Reg*));
+ +		idom = alloc(nr * sizeof(int32));
+ +		maxnr = nr;
+ +	}
+ +
+ +	d = postorder(r, rpo2r, 0);
+ +	if(d > nr)
+ +		fatal(Z, "too many reg nodes");
+ +	nr = d;
+ +	for(i = 0; i < nr / 2; i++){
+ +		r1 = rpo2r[i];
+ +		rpo2r[i] = rpo2r[nr - 1 - i];
+ +		rpo2r[nr - 1 - i] = r1;
+ +	}
+ +	for(i = 0; i < nr; i++)
+ +		rpo2r[i]->rpo = i;
+ +
+ +	idom[0] = 0;
+ +	for(i = 0; i < nr; i++){
+ +		r1 = rpo2r[i];
+ +		me = r1->rpo;
+ +		d = -1;
+ +		if(r1->p1 != R && r1->p1->rpo < me)
+ +			d = r1->p1->rpo;
+ +		for(r1 = r1->p2; r1 != nil; r1 = r1->p2link)
+ +			if(r1->rpo < me)
+ +				d = rpolca(idom, d, r1->rpo);
+ +		idom[i] = d;
+ +	}
+ +
+ +	for(i = 0; i < nr; i++){
+ +		r1 = rpo2r[i];
+ +		r1->loop++;
+ +		if(r1->p2 != R && loophead(idom, r1))
+ +			loopmark(rpo2r, i, r1);
+ +	}
+ +}
+ +
+ +void
+ +synch(Reg *r, Bits dif)
+ +{
+ +	Reg *r1;
+ +	int z;
+ +
+ +	for(r1 = r; r1 != R; r1 = r1->s1) {
+ +		for(z=0; z<BITS; z++) {
+ +			dif.b[z] = (dif.b[z] &
+ +				~(~r1->refbehind.b[z] & r1->refahead.b[z])) |
+ +					r1->set.b[z] | r1->regdiff.b[z];
+ +			if(dif.b[z] != r1->regdiff.b[z]) {
+ +				r1->regdiff.b[z] = dif.b[z];
+ +				change++;
+ +			}
+ +		}
+ +		if(r1->active)
+ +			break;
+ +		r1->active = 1;
+ +		for(z=0; z<BITS; z++)
+ +			dif.b[z] &= ~(~r1->calbehind.b[z] & r1->calahead.b[z]);
+ +		if(r1->s2 != R)
+ +			synch(r1->s2, dif);
+ +	}
+ +}
+ +
+ +uint32
+ +allreg(uint32 b, Rgn *r)
+ +{
+ +	Var *v;
+ +	int i;
+ +
+ +	v = var + r->varno;
+ +	r->regno = 0;
+ +	switch(v->etype) {
+ +
+ +	default:
+ +		diag(Z, "unknown etype %d/%d", bitno(b), v->etype);
+ +		break;
+ +
+ +	case TCHAR:
+ +	case TUCHAR:
+ +	case TSHORT:
+ +	case TUSHORT:
+ +	case TINT:
+ +	case TUINT:
+ +	case TLONG:
+ +	case TULONG:
+ +	case TIND:
+ +	case TVLONG:
+ +	case TUVLONG:
+ +	case TARRAY:
+ +		i = BtoR(~b);
+ +		if(i && r->cost > 0) {
+ +			r->regno = i;
+ +			return RtoB(i);
+ +		}
+ +		break;
+ +
+ +	case TDOUBLE:
+ +	case TFLOAT:
+ +		i = BtoF(~b);
+ +		if(i && r->cost > 0) {
+ +			r->regno = i+NREG;
+ +			return FtoB(i);
+ +		}
+ +		break;
+ +	}
+ +	return 0;
+ +}
+ +
+ +void
+ +paint1(Reg *r, int bn)
+ +{
+ +	Reg *r1;
+ +	Prog *p;
+ +	int z;
+ +	uint32 bb;
+ +
+ +	z = bn/32;
+ +	bb = 1L<<(bn%32);
+ +	if(r->act.b[z] & bb)
+ +		return;
+ +	for(;;) {
+ +		if(!(r->refbehind.b[z] & bb))
+ +			break;
+ +		r1 = r->p1;
+ +		if(r1 == R)
+ +			break;
+ +		if(!(r1->refahead.b[z] & bb))
+ +			break;
+ +		if(r1->act.b[z] & bb)
+ +			break;
+ +		r = r1;
+ +	}
+ +
+ +	if(LOAD(r) & ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z])) & bb) {
+ +		change -= CLOAD * r->loop;
+ +		if(debug['R'] && debug['v'])
+ +			print("%ld%P\tld %B $%d\n", r->loop,
+ +				r->prog, blsh(bn), change);
+ +	}
+ +	for(;;) {
+ +		r->act.b[z] |= bb;
+ +		p = r->prog;
+ +
+ +		if(r->use1.b[z] & bb) {
+ +			change += CREF * r->loop;
+ +			if(p->to.type == D_FREG && (p->as == AMOVW || p->as == AMOVD))
+ +				change = -CINF;		/* cant go Rreg to Freg */
+ +			if(debug['R'] && debug['v'])
+ +				print("%ld%P\tu1 %B $%d\n", r->loop,
+ +					p, blsh(bn), change);
+ +		}
+ +
+ +		if((r->use2.b[z]|r->set.b[z]) & bb) {
+ +			change += CREF * r->loop;
+ +			if(p->from.type == D_FREG && (p->as == AMOVW || p->as == AMOVD))
+ +				change = -CINF;		/* cant go Rreg to Freg */
+ +			if(debug['R'] && debug['v'])
+ +				print("%ld%P\tu2 %B $%d\n", r->loop,
+ +					p, blsh(bn), change);
+ +		}
+ +
+ +		if(STORE(r) & r->regdiff.b[z] & bb) {
+ +			change -= CLOAD * r->loop;
+ +			if(debug['R'] && debug['v'])
+ +				print("%ld%P\tst %B $%d\n", r->loop,
+ +					p, blsh(bn), change);
+ +		}
+ +
+ +		if(r->refbehind.b[z] & bb)
+ +			for(r1 = r->p2; r1 != R; r1 = r1->p2link)
+ +				if(r1->refahead.b[z] & bb)
+ +					paint1(r1, bn);
+ +
+ +		if(!(r->refahead.b[z] & bb))
+ +			break;
+ +		r1 = r->s2;
+ +		if(r1 != R)
+ +			if(r1->refbehind.b[z] & bb)
+ +				paint1(r1, bn);
+ +		r = r->s1;
+ +		if(r == R)
+ +			break;
+ +		if(r->act.b[z] & bb)
+ +			break;
+ +		if(!(r->refbehind.b[z] & bb))
+ +			break;
+ +	}
+ +}
+ +
+ +uint32
+ +paint2(Reg *r, int bn)
+ +{
+ +	Reg *r1;
+ +	int z;
+ +	uint32 bb, vreg;
+ +
+ +	z = bn/32;
+ +	bb = 1L << (bn%32);
+ +	vreg = regbits;
+ +	if(!(r->act.b[z] & bb))
+ +		return vreg;
+ +	for(;;) {
+ +		if(!(r->refbehind.b[z] & bb))
+ +			break;
+ +		r1 = r->p1;
+ +		if(r1 == R)
+ +			break;
+ +		if(!(r1->refahead.b[z] & bb))
+ +			break;
+ +		if(!(r1->act.b[z] & bb))
+ +			break;
+ +		r = r1;
+ +	}
+ +	for(;;) {
+ +		r->act.b[z] &= ~bb;
+ +
+ +		vreg |= r->regu;
+ +
+ +		if(r->refbehind.b[z] & bb)
+ +			for(r1 = r->p2; r1 != R; r1 = r1->p2link)
+ +				if(r1->refahead.b[z] & bb)
+ +					vreg |= paint2(r1, bn);
+ +
+ +		if(!(r->refahead.b[z] & bb))
+ +			break;
+ +		r1 = r->s2;
+ +		if(r1 != R)
+ +			if(r1->refbehind.b[z] & bb)
+ +				vreg |= paint2(r1, bn);
+ +		r = r->s1;
+ +		if(r == R)
+ +			break;
+ +		if(!(r->act.b[z] & bb))
+ +			break;
+ +		if(!(r->refbehind.b[z] & bb))
+ +			break;
+ +	}
+ +	return vreg;
+ +}
+ +
+ +void
+ +paint3(Reg *r, int bn, int32 rb, int rn)
+ +{
+ +	Reg *r1;
+ +	Prog *p;
+ +	int z;
+ +	uint32 bb;
+ +
+ +	z = bn/32;
+ +	bb = 1L << (bn%32);
+ +	if(r->act.b[z] & bb)
+ +		return;
+ +	for(;;) {
+ +		if(!(r->refbehind.b[z] & bb))
+ +			break;
+ +		r1 = r->p1;
+ +		if(r1 == R)
+ +			break;
+ +		if(!(r1->refahead.b[z] & bb))
+ +			break;
+ +		if(r1->act.b[z] & bb)
+ +			break;
+ +		r = r1;
+ +	}
+ +
+ +	if(LOAD(r) & ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z])) & bb)
+ +		addmove(r, bn, rn, 0);
+ +	for(;;) {
+ +		r->act.b[z] |= bb;
+ +		p = r->prog;
+ +
+ +		if(r->use1.b[z] & bb) {
+ +			if(debug['R'])
+ +				print("%P", p);
+ +			addreg(&p->from, rn);
+ +			if(debug['R'])
+ +				print("\t.c%P\n", p);
+ +		}
+ +		if((r->use2.b[z]|r->set.b[z]) & bb) {
+ +			if(debug['R'])
+ +				print("%P", p);
+ +			addreg(&p->to, rn);
+ +			if(debug['R'])
+ +				print("\t.c%P\n", p);
+ +		}
+ +
+ +		if(STORE(r) & r->regdiff.b[z] & bb)
+ +			addmove(r, bn, rn, 1);
+ +		r->regu |= rb;
+ +
+ +		if(r->refbehind.b[z] & bb)
+ +			for(r1 = r->p2; r1 != R; r1 = r1->p2link)
+ +				if(r1->refahead.b[z] & bb)
+ +					paint3(r1, bn, rb, rn);
+ +
+ +		if(!(r->refahead.b[z] & bb))
+ +			break;
+ +		r1 = r->s2;
+ +		if(r1 != R)
+ +			if(r1->refbehind.b[z] & bb)
+ +				paint3(r1, bn, rb, rn);
+ +		r = r->s1;
+ +		if(r == R)
+ +			break;
+ +		if(r->act.b[z] & bb)
+ +			break;
+ +		if(!(r->refbehind.b[z] & bb))
+ +			break;
+ +	}
+ +}
+ +
+ +void
+ +addreg(Addr *a, int rn)
+ +{
+ +
+ +	a->sym = 0;
+ +	a->name = D_NONE;
+ +	a->type = D_REG;
+ +	a->reg = rn;
+ +	if(rn >= NREG) {
+ +		a->type = D_FREG;
+ +		a->reg = rn-NREG;
+ +	}
+ +}
+ +
+ +/*
+ + * track register variables including external registers:
+ + *	bit	reg
+ + *	0	R7
+ + *	1	R8
+ + *	...	...
+ + *	21	R28
+ + */
+ +int32
+ +RtoB(int r)
+ +{
+ +
+ +	if(r >= REGMIN && r <= REGMAX)
+ +		return 1L << (r-REGMIN);
+ +	return 0;
+ +}
+ +
+ +int
+ +BtoR(int32 b)
+ +{
+ +	b &= 0x001fffffL;
+ +	if(b == 0)
+ +		return 0;
+ +	return bitno(b) + REGMIN;
+ +}
+ +
+ +/*
+ + *	bit	reg
+ + *	22	F17
+ + *	23	F18
+ + *	...	...
+ + *	31	F26
+ + */
+ +int32
+ +FtoB(int f)
+ +{
+ +	if(f < FREGMIN || f > FREGEXT)
+ +		return 0;
+ +	return 1L << (f - FREGMIN + 22);
+ +}
+ +
+ +int
+ +BtoF(int32 b)
+ +{
+ +
+ +	b &= 0xffc00000L;
+ +	if(b == 0)
+ +		return 0;
+ +	return bitno(b) - 22 + FREGMIN;
+ +}
+diff --cc src/cmd/9g/gg.h
+index 2eb516b403,0000000000..703fbd0a87
+mode 100644,000000..100644
+--- a/src/cmd/9g/gg.h
++++ b/src/cmd/9g/gg.h
+@@@ -1,118 -1,0 +1,117 @@@
+ +// Copyright 2014 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +#ifndef	EXTERN
+ +#define	EXTERN	extern
+ +#endif
+ +
+ +#include "../gc/go.h"
+ +#include "../9l/9.out.h"
+ +
+ +// TODO(minux): Remove when no longer used.
+ +#define noimpl sysfatal("%s not implemented (%s:%d).", __func__, __FILE__, __LINE__)
+ +
+ +#define TEXTFLAG reg
+ +
+ +EXTERN	int32	dynloc;
+ +EXTERN	uchar	reg[NREG+NFREG];
+ +EXTERN	int32	pcloc;		// instruction counter
+ +EXTERN	Strlit	emptystring;
+ +EXTERN	Prog	zprog;
+ +EXTERN	Node*	newproc;
+ +EXTERN	Node*	deferproc;
+ +EXTERN	Node*	deferreturn;
+ +EXTERN	Node*	panicindex;
+ +EXTERN	Node*	panicslice;
+ +EXTERN	Node*	panicdiv;
+ +EXTERN	Node*	throwreturn;
+ +extern	vlong	unmappedzero;
+ +
+ +/*
+ + * ggen.c
+ + */
+ +void	compile(Node*);
+ +void	gen(Node*);
+ +Node*	lookdot(Node*, Node*, int);
+ +void	cgen_as(Node*, Node*);
+ +void	cgen_callmeth(Node*, int);
+ +void	cgen_callinter(Node*, Node*, int);
+ +void	cgen_proc(Node*, int);
+ +void	cgen_callret(Node*, Node*);
+ +void	cgen_div(int, Node*, Node*, Node*);
+ +void	cgen_hmul(Node*, Node*, Node*);
+ +void	cgen_shift(int, int, Node*, Node*, Node*);
+ +void	cgen_dcl(Node*);
+ +int	needconvert(Type*, Type*);
+ +void	genconv(Type*, Type*);
+ +void	allocparams(void);
+ +void	checklabels(void);
+ +void	ginscall(Node*, int);
+ +int	gen_as_init(Node*);
+ +
+ +/*
+ + * cgen.c
+ + */
+ +void	agen(Node*, Node*);
+ +void	agenr(Node*, Node*, Node*);
+ +void	cgenr(Node*, Node*, Node*);
+ +void	igen(Node*, Node*, Node*);
+ +vlong	fieldoffset(Type*, Node*);
+ +void	sgen(Node*, Node*, int64);
+ +void	gmove(Node*, Node*);
+ +Prog*	gins(int, Node*, Node*);
+ +void	naddr(Node*, Addr*, int);
+ +void	cgen_aret(Node*, Node*);
+ +int	componentgen(Node*, Node*);
+ +
+ +/*
+ + * gsubr.c
+ + */
+ +void	clearp(Prog*);
+ +Prog*	gbranch(int, Type*, int);
+ +Prog*	prog(int);
+ +void	gconv(int, int);
+ +int	conv2pt(Type*);
+ +vlong	convvtox(vlong, int);
+ +void	fnparam(Type*, int, int);
+ +Prog*	gop(int, Node*, Node*, Node*);
+ +int	optoas(int, Type*);
+ +void	ginit(void);
+ +void	gclean(void);
+ +void	regalloc(Node*, Type*, Node*);
+ +void	regfree(Node*);
+ +Node*	nodarg(Type*, int);
+ +void	nodreg(Node*, Type*, int);
+ +void	nodindreg(Node*, Type*, int);
+ +void	ginscon(int, vlong, Node*);
+ +void	ginscon2(int, Node*, vlong);
+ +void	buildtxt(void);
+ +Plist*	newplist(void);
+ +int	isfat(Type*);
+ +void	sudoclean(void);
+ +int	sudoaddable(int, Node*, Addr*);
+ +void	afunclit(Addr*, Node*);
+ +void	nodfconst(Node*, Type*, Mpflt*);
+ +void	gtrack(Sym*);
+- void	gargsize(vlong);
+ +void	fixlargeoffset(Node *n);
+ +
+ +/*
+ + * cplx.c
+ + */
+ +int	complexop(Node*, Node*);
+ +void	complexmove(Node*, Node*);
+ +void	complexgen(Node*, Node*);
+ +
+ +/*
+ + * gobj.c
+ + */
+ +void	datastring(char*, int, Addr*);
+ +void	datagostring(Strlit*, Addr*);
+ +
+ +/*
+ + * list.c
+ + */
+ +void	listinit(void);
+ +
+ +void	zaddr(Biobuf*, Addr*, int, int);
+diff --cc src/cmd/9g/ggen.c
+index 708a9392c9,0000000000..c41d8eb414
+mode 100644,000000..100644
+--- a/src/cmd/9g/ggen.c
++++ b/src/cmd/9g/ggen.c
+@@@ -1,1053 -1,0 +1,1034 @@@
+ +// Copyright 2009 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +#undef	EXTERN
+ +#define	EXTERN
+ +#include <u.h>
+ +#include <libc.h>
+ +#include "gg.h"
+ +#include "opt.h"
+ +
+ +static Prog *appendpp(Prog *p, int as, int ftype, int freg, vlong foffset, int ttype, int treg, vlong toffset);
+ +static Prog *zerorange(Prog *p, vlong frame, vlong lo, vlong hi);
+ +
+ +void
+ +defframe(Prog *ptxt)
+ +{
+ +	uint32 frame;
+ +	Prog *p;
+ +	vlong hi, lo;
+ +	NodeList *l;
+ +	Node *n;
+ +
+ +	// fill in argument size
+ +	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
+ +
+ +	// fill in final stack size
+ +	ptxt->to.offset <<= 32;
+ +	frame = rnd(stksize+maxarg, widthreg);
+ +	ptxt->to.offset |= frame;
+ +	
+ +	// insert code to zero ambiguously live variables
+ +	// so that the garbage collector only sees initialized values
+ +	// when it looks for pointers.
+ +	p = ptxt;
+ +	lo = hi = 0;
+ +	// iterate through declarations - they are sorted in decreasing xoffset order.
+ +	for(l=curfn->dcl; l != nil; l = l->next) {
+ +		n = l->n;
+ +		if(!n->needzero)
+ +			continue;
+ +		if(n->class != PAUTO)
+ +			fatal("needzero class %d", n->class);
+ +		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
+ +			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
+ +
+ +		if(lo != hi && n->xoffset + n->type->width >= lo - 2*widthreg) {
+ +			// merge with range we already have
+ +			lo = n->xoffset;
+ +			continue;
+ +		}
+ +		// zero old range
+ +		p = zerorange(p, frame, lo, hi);
+ +
+ +		// set new range
+ +		hi = n->xoffset + n->type->width;
+ +		lo = n->xoffset;
+ +	}
+ +	// zero final range
+ +	zerorange(p, frame, lo, hi);
+ +}
+ +
+ +static Prog*
+ +zerorange(Prog *p, vlong frame, vlong lo, vlong hi)
+ +{
+ +	vlong cnt, i;
+ +	Prog *p1;
+ +	Node *f;
+ +
+ +	cnt = hi - lo;
+ +	if(cnt == 0)
+ +		return p;
+ +	if(cnt < 4*widthptr) {
+ +		for(i = 0; i < cnt; i += widthptr)
+ +			p = appendpp(p, AMOVD, D_REG, REGZERO, 0, D_OREG, REGSP, 8+frame+lo+i);
+ +	} else if(cnt <= 128*widthptr) {
+ +		p = appendpp(p, AADD, D_CONST, NREG, 8+frame+lo-8, D_REG, REGRT1, 0);
+ +		p->reg = REGSP;
+ +		p = appendpp(p, ADUFFZERO, D_NONE, NREG, 0, D_OREG, NREG, 0);
+ +		f = sysfunc("duffzero");
+ +		naddr(f, &p->to, 1);
+ +		afunclit(&p->to, f);
+ +		p->to.offset = 4*(128-cnt/widthptr);
+ +	} else {
+ +		p = appendpp(p, AMOVD, D_CONST, NREG, 8+frame+lo-8, D_REG, REGTMP, 0);
+ +		p = appendpp(p, AADD, D_REG, REGTMP, 0, D_REG, REGRT1, 0);
+ +		p->reg = REGSP;
+ +		p = appendpp(p, AMOVD, D_CONST, NREG, cnt, D_REG, REGTMP, 0);
+ +		p = appendpp(p, AADD, D_REG, REGTMP, 0, D_REG, REGRT2, 0);
+ +		p->reg = REGRT1;
+ +		p1 = p = appendpp(p, AMOVDU, D_REG, REGZERO, 0, D_OREG, REGRT1, widthptr);
+ +		p = appendpp(p, ACMP, D_REG, REGRT1, 0, D_REG, REGRT2, 0);
+ +		p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);
+ +		patch(p, p1);
+ +	}
+ +	return p;
+ +}
+ +
+ +static Prog*
+ +appendpp(Prog *p, int as, int ftype, int freg, vlong foffset, int ttype, int treg, vlong toffset)
+ +{
+ +	Prog *q;
+ +	q = mal(sizeof(*q));
+ +	clearp(q);
+ +	q->as = as;
+ +	q->lineno = p->lineno;
+ +	q->from.type = ftype;
+ +	q->from.reg = freg;
+ +	q->from.offset = foffset;
+ +	q->to.type = ttype;
+ +	q->to.reg = treg;
+ +	q->to.offset = toffset;
+ +	q->link = p->link;
+ +	p->link = q;
+ +	return q;
+ +}
+ +
+ +// Sweep the prog list to mark any used nodes.
+ +void
+ +markautoused(Prog *p)
+ +{
+ +	for (; p; p = p->link) {
+ +		if (p->as == ATYPE || p->as == AVARDEF || p->as == AVARKILL)
+ +			continue;
+ +
+ +		if (p->from.node)
+ +			p->from.node->used = 1;
+ +
+ +		if (p->to.node)
+ +			p->to.node->used = 1;
+ +	}
+ +}
+ +
+ +// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
+ +void
+ +fixautoused(Prog *p)
+ +{
+ +	Prog **lp;
+ +
+ +	for (lp=&p; (p=*lp) != P; ) {
+ +		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !p->from.node->used) {
+ +			*lp = p->link;
+ +			continue;
+ +		}
+ +		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
+ +			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ +			// VARDEFs are interspersed with other code, and a jump might be using the
+ +			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+ +			// the no-ops.
+ +			p->to.type = D_NONE;
+ +			p->to.node = N;
+ +			p->as = ANOP;
+ +			continue;
+ +		}
+ +		if (p->from.name == D_AUTO && p->from.node)
+ +			p->from.offset += p->from.node->stkdelta;
+ +
+ +		if (p->to.name == D_AUTO && p->to.node)
+ +			p->to.offset += p->to.node->stkdelta;
+ +
+ +		lp = &p->link;
+ +	}
+ +}
+ +
+ +/*
+ + * generate: BL reg, f
+ + * where both reg and f are registers.
+ + * On power, f must be moved to CTR first.
+ + */
+ +static void
+ +ginsBL(Node *reg, Node *f)
+ +{
+ +	Prog *p;
+ +	p = gins(AMOVD, f, N);
+ +	p->to.type = D_SPR;
+ +	p->to.offset = D_CTR;
+ +	p = gins(ABL, reg, N);
+ +	p->to.type = D_SPR;
+ +	p->to.offset = D_CTR;
+ +}
+ +
+ +/*
+ + * generate:
+ + *	call f
+ + *	proc=-1	normal call but no return
+ + *	proc=0	normal call
+ + *	proc=1	goroutine run in new proc
+ + *	proc=2	defer call save away stack
+ +  *	proc=3	normal call to C pointer (not Go func value)
+ + */
+ +void
+ +ginscall(Node *f, int proc)
+ +{
+- 	int32 arg;
+ +	Prog *p;
+ +	Node reg, con, reg2;
+ +	Node r1;
+ +
+ +	if(f->type != T)
+ +		setmaxarg(f->type);
+ +
+- 	arg = -1;
+- 	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
+- 	// Not all, though: there are some variadic functions in package runtime,
+- 	// and for those we emit call-specific metadata recorded by caller.
+- 	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
+- 	// so we do this for all indirect calls as well.
+- 	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
+- 		arg = f->type->argwid;
+- 		if(proc == 1 || proc == 2)
+- 			arg += 3*widthptr;
+- 	}
+- 
+- 	if(arg != -1)
+- 		gargsize(arg);
+- 
+ +	switch(proc) {
+ +	default:
+ +		fatal("ginscall: bad proc %d", proc);
+ +		break;
+ +
+ +	case 0:	// normal call
+ +	case -1:	// normal call but no return
+ +		if(f->op == ONAME && f->class == PFUNC) {
+ +			if(f == deferreturn) {
+ +				// Deferred calls will appear to be returning to
+ +				// the CALL deferreturn(SB) that we are about to emit.
+ +				// However, the stack trace code will show the line
+ +				// of the instruction byte before the return PC. 
+ +				// To avoid that being an unrelated instruction,
+ +				// insert a Power64 NOP that we will have the right line number.
+ +				// Power64 NOP is really or r0, r0, r0; use that description
+ +				// because the NOP pseudo-instruction would be removed by
+ +				// the linker.
+ +				nodreg(&reg, types[TINT], D_R0);
+ +				gins(AOR, &reg, &reg);
+ +			}
+ +			p = gins(ABL, N, f);
+ +			afunclit(&p->to, f);
+ +			if(proc == -1 || noreturn(p))
+ +				gins(AUNDEF, N, N);
+ +			break;
+ +		}
+ +		nodreg(&reg, types[tptr], D_R0+REGENV);
+ +		nodreg(&r1, types[tptr], D_R0+3);
+ +		gmove(f, &reg);
+ +		reg.op = OINDREG;
+ +		gmove(&reg, &r1);
+ +		reg.op = OREGISTER;
+ +		ginsBL(&reg, &r1);
+ +		break;
+ +	
+ +	case 3:	// normal call of c function pointer
+ +		ginsBL(N, f);
+ +		break;
+ +
+ +	case 1:	// call in new proc (go)
+ +	case 2:	// deferred call (defer)
+ +		nodconst(&con, types[TINT64], argsize(f->type));
+ +		nodreg(&reg, types[TINT64], D_R0+3);
+ +		nodreg(&reg2, types[TINT64], D_R0+4);
+ +		gmove(f, &reg);
+ +
+ +		p = gins(ASUB, N, N);
+ +		p->from.type = D_CONST;
+ +		p->from.offset = 3 * 8;
+ +		p->to.type = D_REG;
+ +		p->to.reg = REGSP;
+ +
+ +		gmove(&con, &reg2);
+ +		p = gins(AMOVW, &reg2, N);
+ +		p->to.type = D_OREG;
+ +		p->to.reg = REGSP;
+ +		p->to.offset = 8;
+ +
+ +		p = gins(AMOVD, &reg, N);
+ +		p->to.type = D_OREG;
+ +		p->to.reg = REGSP;
+ +		p->to.offset = 16;
+ +
+ +		if(proc == 1)
+ +			ginscall(newproc, 0);
+ +		else {
+ +			if(!hasdefer)
+ +				fatal("hasdefer=0 but has defer");
+ +			ginscall(deferproc, 0);
+ +		}
+ +
+ +		p = gins(AADD, N, N);
+ +		p->from.type = D_CONST;
+ +		p->from.offset = 3 * 8;
+ +		p->to.type = D_REG;
+ +		p->to.reg = REGSP;
+ +
+ +		if(proc == 2) {
+ +			nodreg(&reg, types[TINT64], D_R0+3);
+ +			p = gins(ACMP, &reg, N);
+ +			p->to.type = D_REG;
+ +			p->to.reg = D_R0;
+ +			p = gbranch(ABEQ, T, +1);
+ +			cgen_ret(N);
+ +			patch(p, pc);
+ +		}
+ +		break;
+ +	}
+- 
+- 	if(arg != -1)
+- 		gargsize(-1);
+ +}
+ +
+ +/*
+ + * n is call to interface method.
+ + * generate res = n.
+ + */
+ +void
+ +cgen_callinter(Node *n, Node *res, int proc)
+ +{
+ +	Node *i, *f;
+ +	Node tmpi, nodi, nodo, nodr, nodsp;
+ +	Prog *p;
+ +
+ +	i = n->left;
+ +	if(i->op != ODOTINTER)
+ +		fatal("cgen_callinter: not ODOTINTER %O", i->op);
+ +
+ +	f = i->right;		// field
+ +	if(f->op != ONAME)
+ +		fatal("cgen_callinter: not ONAME %O", f->op);
+ +
+ +	i = i->left;		// interface
+ +
+ +	if(!i->addable) {
+ +		tempname(&tmpi, i->type);
+ +		cgen(i, &tmpi);
+ +		i = &tmpi;
+ +	}
+ +
+ +	genlist(n->list);		// assign the args
+ +
+ +	// i is now addable, prepare an indirected
+ +	// register to hold its address.
+ +	igen(i, &nodi, res);		// REG = &inter
+ +
+ +	nodindreg(&nodsp, types[tptr], D_R0+REGSP);
+ +	nodsp.xoffset = widthptr;
+ +	nodi.type = types[tptr];
+ +	nodi.xoffset += widthptr;
+ +	cgen(&nodi, &nodsp);	// 0(SP) = 8(REG) -- i.data
+ +
+ +	regalloc(&nodo, types[tptr], res);
+ +	nodi.type = types[tptr];
+ +	nodi.xoffset -= widthptr;
+ +	cgen(&nodi, &nodo);	// REG = 0(REG) -- i.tab
+ +	regfree(&nodi);
+ +
+ +	regalloc(&nodr, types[tptr], &nodo);
+ +	if(n->left->xoffset == BADWIDTH)
+ +		fatal("cgen_callinter: badwidth");
+ +	cgen_checknil(&nodo); // in case offset is huge
+ +	nodo.op = OINDREG;
+ +	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
+ +	if(proc == 0) {
+ +		// plain call: use direct c function pointer - more efficient
+ +		cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.tab->fun[f]
+ +		proc = 3;
+ +	} else {
+ +		// go/defer. generate go func value.
+ +		p = gins(AMOVD, &nodo, &nodr);	// REG = &(32+offset(REG)) -- i.tab->fun[f]
+ +		p->from.type = D_CONST;
+ +	}
+ +
+ +	nodr.type = n->left->type;
+ +	ginscall(&nodr, proc);
+ +
+ +	regfree(&nodr);
+ +	regfree(&nodo);
+ +}
+ +
+ +/*
+ + * generate function call;
+ + *	proc=0	normal call
+ + *	proc=1	goroutine run in new proc
+ + *	proc=2	defer call save away stack
+ + */
+ +void
+ +cgen_call(Node *n, int proc)
+ +{
+ +	Type *t;
+ +	Node nod, afun;
+ +
+ +	if(n == N)
+ +		return;
+ +
+ +	if(n->left->ullman >= UINF) {
+ +		// if name involves a fn call
+ +		// precompute the address of the fn
+ +		tempname(&afun, types[tptr]);
+ +		cgen(n->left, &afun);
+ +	}
+ +
+ +	genlist(n->list);		// assign the args
+ +	t = n->left->type;
+ +
+ +	// call tempname pointer
+ +	if(n->left->ullman >= UINF) {
+ +		regalloc(&nod, types[tptr], N);
+ +		cgen_as(&nod, &afun);
+ +		nod.type = t;
+ +		ginscall(&nod, proc);
+ +		regfree(&nod);
+ +		return;
+ +	}
+ +
+ +	// call pointer
+ +	if(n->left->op != ONAME || n->left->class != PFUNC) {
+ +		regalloc(&nod, types[tptr], N);
+ +		cgen_as(&nod, n->left);
+ +		nod.type = t;
+ +		ginscall(&nod, proc);
+ +		regfree(&nod);
+ +		return;
+ +	}
+ +
+ +	// call direct
+ +	n->left->method = 1;
+ +	ginscall(n->left, proc);
+ +}
+ +
+ +/*
+ + * call to n has already been generated.
+ + * generate:
+ + *	res = return value from call.
+ + */
+ +void
+ +cgen_callret(Node *n, Node *res)
+ +{
+ +	Node nod;
+ +	Type *fp, *t;
+ +	Iter flist;
+ +
+ +	t = n->left->type;
+ +	if(t->etype == TPTR32 || t->etype == TPTR64)
+ +		t = t->type;
+ +
+ +	fp = structfirst(&flist, getoutarg(t));
+ +	if(fp == T)
+ +		fatal("cgen_callret: nil");
+ +
+ +	memset(&nod, 0, sizeof(nod));
+ +	nod.op = OINDREG;
+ +	nod.val.u.reg = D_R0+REGSP;
+ +	nod.addable = 1;
+ +
+ +	nod.xoffset = fp->width + widthptr; // +widthptr: saved LR at 0(R1)
+ +	nod.type = fp->type;
+ +	cgen_as(res, &nod);
+ +}
+ +
+ +/*
+ + * call to n has already been generated.
+ + * generate:
+ + *	res = &return value from call.
+ + */
+ +void
+ +cgen_aret(Node *n, Node *res)
+ +{
+ +	Node nod1, nod2;
+ +	Type *fp, *t;
+ +	Iter flist;
+ +
+ +	t = n->left->type;
+ +	if(isptr[t->etype])
+ +		t = t->type;
+ +
+ +	fp = structfirst(&flist, getoutarg(t));
+ +	if(fp == T)
+ +		fatal("cgen_aret: nil");
+ +
+ +	memset(&nod1, 0, sizeof(nod1));
+ +	nod1.op = OINDREG;
+ +	nod1.val.u.reg = D_R0 + REGSP;
+ +	nod1.addable = 1;
+ +
+ +	nod1.xoffset = fp->width + widthptr; // +widthptr: saved lr at 0(SP)
+ +	nod1.type = fp->type;
+ +
+ +	if(res->op != OREGISTER) {
+ +		regalloc(&nod2, types[tptr], res);
+ +		agen(&nod1, &nod2);
+ +		gins(AMOVD, &nod2, res);
+ +		regfree(&nod2);
+ +	} else
+ +		agen(&nod1, res);
+ +}
+ +
+ +/*
+ + * generate return.
+ + * n->left is assignments to return values.
+ + */
+ +void
+ +cgen_ret(Node *n)
+ +{
+ +	Prog *p;
+ +
+ +	if(n != N)
+ +		genlist(n->list);		// copy out args
+ +	if(hasdefer)
+ +		ginscall(deferreturn, 0);
+ +	genlist(curfn->exit);
+ +	p = gins(ARET, N, N);
+ +	if(n != N && n->op == ORETJMP) {
+ +		p->to.name = D_EXTERN;
+ +		p->to.type = D_CONST;
+ +		p->to.sym = linksym(n->left->sym);
+ +	}
+ +}
+ +
+ +void
+ +cgen_asop(Node *n)
+ +{
+ +	USED(n);
+ +	fatal("cgen_asop"); // no longer used
+ +}
+ +
+ +int
+ +samereg(Node *a, Node *b)
+ +{
+ +	if(a == N || b == N)
+ +		return 0;
+ +	if(a->op != OREGISTER)
+ +		return 0;
+ +	if(b->op != OREGISTER)
+ +		return 0;
+ +	if(a->val.u.reg != b->val.u.reg)
+ +		return 0;
+ +	return 1;
+ +}
+ +
+ +/*
+ + * generate division.
+ + * generates one of:
+ + *	res = nl / nr
+ + *	res = nl % nr
+ + * according to op.
+ + */
+ +void
+ +dodiv(int op, Node *nl, Node *nr, Node *res)
+ +{
+ +	int a, check;
+ +	Type *t, *t0;
+ +	Node tl, tr, tl2, tr2, nm1, nz, tm;
+ +	Prog *p1, *p2;
+ +
+ +	// Have to be careful about handling
+ +	// most negative int divided by -1 correctly.
+ +	// The hardware will generate undefined result.
+ +	// Also need to explicitly trap on division on zero,
+ +	// the hardware will silently generate undefined result.
+ +	// DIVW will leave unpredicable result in higher 32-bit,
+ +	// so always use DIVD/DIVDU.
+ +	t = nl->type;
+ +	t0 = t;
+ +	check = 0;
+ +	if(issigned[t->etype]) {
+ +		check = 1;
+ +		if(isconst(nl, CTINT) && mpgetfix(nl->val.u.xval) != -(1ULL<<(t->width*8-1)))
+ +			check = 0;
+ +		else if(isconst(nr, CTINT) && mpgetfix(nr->val.u.xval) != -1)
+ +			check = 0;
+ +	}
+ +	if(t->width < 8) {
+ +		if(issigned[t->etype])
+ +			t = types[TINT64];
+ +		else
+ +			t = types[TUINT64];
+ +		check = 0;
+ +	}
+ +
+ +	a = optoas(ODIV, t);
+ +
+ +	regalloc(&tl, t0, N);
+ +	regalloc(&tr, t0, N);
+ +	if(nl->ullman >= nr->ullman) {
+ +		cgen(nl, &tl);
+ +		cgen(nr, &tr);
+ +	} else {
+ +		cgen(nr, &tr);
+ +		cgen(nl, &tl);
+ +	}
+ +	if(t != t0) {
+ +		// Convert
+ +		tl2 = tl;
+ +		tr2 = tr;
+ +		tl.type = t;
+ +		tr.type = t;
+ +		gmove(&tl2, &tl);
+ +		gmove(&tr2, &tr);
+ +	}
+ +
+ +	// Handle divide-by-zero panic.
+ +	p1 = gins(optoas(OCMP, t), &tr, N);
+ +	p1->to.type = D_REG;
+ +	p1->to.reg = REGZERO;
+ +	p1 = gbranch(optoas(ONE, t), T, +1);
+ +	if(panicdiv == N)
+ +		panicdiv = sysfunc("panicdivide");
+ +	ginscall(panicdiv, -1);
+ +	patch(p1, pc);
+ +
+ +	if(check) {
+ +		nodconst(&nm1, t, -1);
+ +		gins(optoas(OCMP, t), &tr, &nm1);
+ +		p1 = gbranch(optoas(ONE, t), T, +1);
+ +		if(op == ODIV) {
+ +			// a / (-1) is -a.
+ +			gins(optoas(OMINUS, t), N, &tl);
+ +			gmove(&tl, res);
+ +		} else {
+ +			// a % (-1) is 0.
+ +			nodconst(&nz, t, 0);
+ +			gmove(&nz, res);
+ +		}
+ +		p2 = gbranch(AJMP, T, 0);
+ +		patch(p1, pc);
+ +	}
+ +	p1 = gins(a, &tr, &tl);
+ +	if(op == ODIV) {
+ +		regfree(&tr);
+ +		gmove(&tl, res);
+ +	} else {
+ +		// A%B = A-(A/B*B)
+ +		regalloc(&tm, t, N);
+ +		// patch div to use the 3 register form
+ +		// TODO(minux): add gins3?
+ +		p1->reg = p1->to.reg;
+ +		p1->to.reg = tm.val.u.reg;
+ +		gins(optoas(OMUL, t), &tr, &tm);
+ +		regfree(&tr);
+ +		gins(optoas(OSUB, t), &tm, &tl);
+ +		regfree(&tm);
+ +		gmove(&tl, res);
+ +	}
+ +	regfree(&tl);
+ +	if(check)
+ +		patch(p2, pc);
+ +}
+ +
+ +/*
+ + * generate division according to op, one of:
+ + *	res = nl / nr
+ + *	res = nl % nr
+ + */
+ +void
+ +cgen_div(int op, Node *nl, Node *nr, Node *res)
+ +{
+ +	Node n1, n2, n3;
+ +	int w, a;
+ +	Magic m;
+ +
+ +	// TODO(minux): enable division by magic multiply (also need to fix longmod below)
+ +	//if(nr->op != OLITERAL)
+ +		goto longdiv;
+ +	w = nl->type->width*8;
+ +
+ +	// Front end handled 32-bit division. We only need to handle 64-bit.
+ +	// try to do division by multiply by (2^w)/d
+ +	// see hacker's delight chapter 10
+ +	switch(simtype[nl->type->etype]) {
+ +	default:
+ +		goto longdiv;
+ +
+ +	case TUINT64:
+ +		m.w = w;
+ +		m.ud = mpgetfix(nr->val.u.xval);
+ +		umagic(&m);
+ +		if(m.bad)
+ +			break;
+ +		if(op == OMOD)
+ +			goto longmod;
+ +
+ +		cgenr(nl, &n1, N);
+ +		nodconst(&n2, nl->type, m.um);
+ +		regalloc(&n3, nl->type, res);
+ +		cgen_hmul(&n1, &n2, &n3);
+ +
+ +		if(m.ua) {
+ +			// need to add numerator accounting for overflow
+ +			gins(optoas(OADD, nl->type), &n1, &n3);
+ +			nodconst(&n2, nl->type, 1);
+ +			gins(optoas(ORROTC, nl->type), &n2, &n3);
+ +			nodconst(&n2, nl->type, m.s-1);
+ +			gins(optoas(ORSH, nl->type), &n2, &n3);
+ +		} else {
+ +			nodconst(&n2, nl->type, m.s);
+ +			gins(optoas(ORSH, nl->type), &n2, &n3);	// shift dx
+ +		}
+ +
+ +		gmove(&n3, res);
+ +		regfree(&n1);
+ +		regfree(&n3);
+ +		return;
+ +
+ +	case TINT64:
+ +		m.w = w;
+ +		m.sd = mpgetfix(nr->val.u.xval);
+ +		smagic(&m);
+ +		if(m.bad)
+ +			break;
+ +		if(op == OMOD)
+ +			goto longmod;
+ +
+ +		cgenr(nl, &n1, res);
+ +		nodconst(&n2, nl->type, m.sm);
+ +		regalloc(&n3, nl->type, N);
+ +		cgen_hmul(&n1, &n2, &n3);
+ +
+ +		if(m.sm < 0) {
+ +			// need to add numerator
+ +			gins(optoas(OADD, nl->type), &n1, &n3);
+ +		}
+ +
+ +		nodconst(&n2, nl->type, m.s);
+ +		gins(optoas(ORSH, nl->type), &n2, &n3);	// shift n3
+ +
+ +		nodconst(&n2, nl->type, w-1);
+ +		gins(optoas(ORSH, nl->type), &n2, &n1);	// -1 iff num is neg
+ +		gins(optoas(OSUB, nl->type), &n1, &n3);	// added
+ +
+ +		if(m.sd < 0) {
+ +			// this could probably be removed
+ +			// by factoring it into the multiplier
+ +			gins(optoas(OMINUS, nl->type), N, &n3);
+ +		}
+ +
+ +		gmove(&n3, res);
+ +		regfree(&n1);
+ +		regfree(&n3);
+ +		return;
+ +	}
+ +	goto longdiv;
+ +
+ +longdiv:
+ +	// division and mod using (slow) hardware instruction
+ +	dodiv(op, nl, nr, res);
+ +	return;
+ +
+ +longmod:
+ +	// mod using formula A%B = A-(A/B*B) but
+ +	// we know that there is a fast algorithm for A/B
+ +	regalloc(&n1, nl->type, res);
+ +	cgen(nl, &n1);
+ +	regalloc(&n2, nl->type, N);
+ +	cgen_div(ODIV, &n1, nr, &n2);
+ +	a = optoas(OMUL, nl->type);
+ +	if(w == 8) {
+ +		// use 2-operand 16-bit multiply
+ +		// because there is no 2-operand 8-bit multiply
+ +		//a = AIMULW;
+ +	}
+ +	if(!smallintconst(nr)) {
+ +		regalloc(&n3, nl->type, N);
+ +		cgen(nr, &n3);
+ +		gins(a, &n3, &n2);
+ +		regfree(&n3);
+ +	} else
+ +		gins(a, nr, &n2);
+ +	gins(optoas(OSUB, nl->type), &n2, &n1);
+ +	gmove(&n1, res);
+ +	regfree(&n1);
+ +	regfree(&n2);
+ +}
+ +
+ +/*
+ + * generate high multiply:
+ + *   res = (nl*nr) >> width
+ + */
+ +void
+ +cgen_hmul(Node *nl, Node *nr, Node *res)
+ +{
+ +	int w;
+ +	Node n1, n2, *tmp;
+ +	Type *t;
+ +	Prog *p;
+ +
+ +	// largest ullman on left.
+ +	if(nl->ullman < nr->ullman) {
+ +		tmp = nl;
+ +		nl = nr;
+ +		nr = tmp;
+ +	}
+ +	t = nl->type;
+ +	w = t->width * 8;
+ +	cgenr(nl, &n1, res);
+ +	cgenr(nr, &n2, N);
+ +	switch(simtype[t->etype]) {
+ +	case TINT8:
+ +	case TINT16:
+ +	case TINT32:
+ +		gins(optoas(OMUL, t), &n2, &n1);
+ +		p = gins(ASRAD, N, &n1);
+ +		p->from.type = D_CONST;
+ +		p->from.offset = w;
+ +		break;
+ +	case TUINT8:
+ +	case TUINT16:
+ +	case TUINT32:
+ +		gins(optoas(OMUL, t), &n2, &n1);
+ +		p = gins(ASRD, N, &n1);
+ +		p->from.type = D_CONST;
+ +		p->from.offset = w;
+ +		break;
+ +	case TINT64:
+ +	case TUINT64:
+ +		if(issigned[t->etype])
+ +			p = gins(AMULHD, &n2, &n1);
+ +		else
+ +			p = gins(AMULHDU, &n2, &n1);
+ +		break;
+ +	default:
+ +		fatal("cgen_hmul %T", t);
+ +		break;
+ +	}
+ +	cgen(&n1, res);
+ +	regfree(&n1);
+ +	regfree(&n2);
+ +}
+ +
+ +/*
+ + * generate shift according to op, one of:
+ + *	res = nl << nr
+ + *	res = nl >> nr
+ + */
+ +void
+ +cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ +{
+ +	Node n1, n2, n3, n4, n5;
+ +	int a;
+ +	Prog *p1;
+ +	uvlong sc;
+ +	Type *tcount;
+ +
+ +	a = optoas(op, nl->type);
+ +
+ +	if(nr->op == OLITERAL) {
+ +		regalloc(&n1, nl->type, res);
+ +		cgen(nl, &n1);
+ +		sc = mpgetfix(nr->val.u.xval);
+ +		if(sc >= nl->type->width*8) {
+ +			// large shift gets 2 shifts by width-1
+ +			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
+ +			gins(a, &n3, &n1);
+ +			gins(a, &n3, &n1);
+ +		} else
+ +			gins(a, nr, &n1);
+ +		gmove(&n1, res);
+ +		regfree(&n1);
+ +		goto ret;
+ +	}
+ +
+ +	if(nl->ullman >= UINF) {
+ +		tempname(&n4, nl->type);
+ +		cgen(nl, &n4);
+ +		nl = &n4;
+ +	}
+ +	if(nr->ullman >= UINF) {
+ +		tempname(&n5, nr->type);
+ +		cgen(nr, &n5);
+ +		nr = &n5;
+ +	}
+ +
+ +	// Allow either uint32 or uint64 as shift type,
+ +	// to avoid unnecessary conversion from uint32 to uint64
+ +	// just to do the comparison.
+ +	tcount = types[simtype[nr->type->etype]];
+ +	if(tcount->etype < TUINT32)
+ +		tcount = types[TUINT32];
+ +
+ +	regalloc(&n1, nr->type, N);		// to hold the shift type in CX
+ +	regalloc(&n3, tcount, &n1);	// to clear high bits of CX
+ +
+ +	regalloc(&n2, nl->type, res);
+ +	if(nl->ullman >= nr->ullman) {
+ +		cgen(nl, &n2);
+ +		cgen(nr, &n1);
+ +		gmove(&n1, &n3);
+ +	} else {
+ +		cgen(nr, &n1);
+ +		gmove(&n1, &n3);
+ +		cgen(nl, &n2);
+ +	}
+ +	regfree(&n3);
+ +
+ +	// test and fix up large shifts
+ +	if(!bounded) {
+ +		nodconst(&n3, tcount, nl->type->width*8);
+ +		gins(optoas(OCMP, tcount), &n1, &n3);
+ +		p1 = gbranch(optoas(OLT, tcount), T, +1);
+ +		if(op == ORSH && issigned[nl->type->etype]) {
+ +			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
+ +			gins(a, &n3, &n2);
+ +		} else {
+ +			nodconst(&n3, nl->type, 0);
+ +			gmove(&n3, &n2);
+ +		}
+ +		patch(p1, pc);
+ +	}
+ +
+ +	gins(a, &n1, &n2);
+ +
+ +	gmove(&n2, res);
+ +
+ +	regfree(&n1);
+ +	regfree(&n2);
+ +
+ +ret:
+ +	;
+ +}
+ +
+ +void
+ +clearfat(Node *nl)
+ +{
+ +	uint64 w, c, q, t;
+ +	Node dst, end, r0, *f;
+ +	Prog *p, *pl;
+ +
+ +	/* clear a fat object */
+ +	if(debug['g']) {
+ +		print("clearfat %N (%T, size: %lld)\n", nl, nl->type, nl->type->width);
+ +	}
+ +
+ +	w = nl->type->width;
+ +	// Avoid taking the address for simple enough types.
+ +	//if(componentgen(N, nl))
+ +	//	return;
+ +
+ +	c = w % 8;	// bytes
+ +	q = w / 8;	// dwords
+ +
+ +	if(reg[REGRT1] > 0)
+ +		fatal("R%d in use during clearfat", REGRT1);
+ +
+ +	nodreg(&r0, types[TUINT64], 0); // r0 is always zero
+ +	nodreg(&dst, types[tptr], D_R0+REGRT1);
+ +	reg[REGRT1]++;
+ +	agen(nl, &dst);
+ +
+ +	if(q > 128) {
+ +		p = gins(ASUB, N, &dst);
+ +		p->from.type = D_CONST;
+ +		p->from.offset = 8;
+ +
+ +		regalloc(&end, types[tptr], N);
+ +		p = gins(AMOVD, &dst, &end);
+ +		p->from.type = D_CONST;
+ +		p->from.offset = q*8;
+ +
+ +		p = gins(AMOVDU, &r0, &dst);
+ +		p->to.type = D_OREG;
+ +		p->to.offset = 8;
+ +		pl = p;
+ +
+ +		p = gins(ACMP, &dst, &end);
+ +		patch(gbranch(ABNE, T, 0), pl);
+ +
+ +		regfree(&end);
+ +	} else if(q >= 4) {
+ +		p = gins(ASUB, N, &dst);
+ +		p->from.type = D_CONST;
+ +		p->from.offset = 8;
+ +		f = sysfunc("duffzero");
+ +		p = gins(ADUFFZERO, N, f);
+ +		afunclit(&p->to, f);
+ +		// 4 and 128 = magic constants: see ../../runtime/asm_power64x.s
+ +		p->to.offset = 4*(128-q);
+ +	} else
+ +	for(t = 0; t < q; t++) {
+ +		p = gins(AMOVD, &r0, &dst);
+ +		p->to.type = D_OREG;
+ +		p->to.offset = 8*t;
+ +	}
+ +
+ +	for(t = 0; t < c; t++) {
+ +		p = gins(AMOVB, &r0, &dst);
+ +		p->to.type = D_OREG;
+ +		p->to.offset = t;
+ +	}
+ +	reg[REGRT1]--;
+ +}
+ +
+ +// Called after regopt and peep have run.
+ +// Expand CHECKNIL pseudo-op into actual nil pointer check.
+ +void
+ +expandchecks(Prog *firstp)
+ +{
+ +	Prog *p, *p1, *p2;
+ +
+ +	for(p = firstp; p != P; p = p->link) {
+ +		if(debug_checknil && ctxt->debugvlog)
+ +			print("expandchecks: %P\n", p);
+ +		if(p->as != ACHECKNIL)
+ +			continue;
+ +		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
+ +			warnl(p->lineno, "generated nil check");
+ +		if(p->from.type != D_REG)
+ +			fatal("invalid nil check %P\n", p);
+ +		/*
+ +		// check is
+ +		//	TD $4, R0, arg (R0 is always zero)
+ +		// eqv. to:
+ +		// 	tdeq r0, arg
+ +		// NOTE: this needs special runtime support to make SIGTRAP recoverable.
+ +		reg = p->from.reg;
+ +		p->as = ATD;
+ +		p->from = p->to = p->from3 = zprog.from;
+ +		p->from.type = D_CONST;
+ +		p->from.offset = 4;
+ +		p->from.reg = NREG;
+ +		p->reg = 0;
+ +		p->to.type = D_REG;
+ +		p->to.reg = reg;
+ +		*/
+ +		// check is
+ +		//	CMP arg, R0
+ +		//	BNE 2(PC) [likely]
+ +		//	MOVD R0, 0(R0)
+ +		p1 = mal(sizeof *p1);
+ +		p2 = mal(sizeof *p2);
+ +		clearp(p1);
+ +		clearp(p2);
+ +		p1->link = p2;
+ +		p2->link = p->link;
+ +		p->link = p1;
+ +		p1->lineno = p->lineno;
+ +		p2->lineno = p->lineno;
+ +		p1->pc = 9999;
+ +		p2->pc = 9999;
+ +		p->as = ACMP;
+ +		p->to.type = D_REG;
+ +		p->to.reg = REGZERO;
+ +		p1->as = ABNE;
+ +		//p1->from.type = D_CONST;
+ +		//p1->from.offset = 1; // likely
+ +		p1->to.type = D_BRANCH;
+ +		p1->to.u.branch = p2->link;
+ +		// crash by write to memory address 0.
+ +		p2->as = AMOVD;
+ +		p2->from.type = D_REG;
+ +		p2->from.reg = 0;
+ +		p2->to.type = D_OREG;
+ +		p2->to.reg = 0;
+ +		p2->to.offset = 0;
+ +	}
+ +}
+diff --cc src/cmd/9g/gsubr.c
+index a84056bbef,0000000000..d8b62b1da2
+mode 100644,000000..100644
+--- a/src/cmd/9g/gsubr.c
++++ b/src/cmd/9g/gsubr.c
+@@@ -1,1715 -1,0 +1,1705 @@@
+ +// Derived from Inferno utils/6c/txt.c
+ +// http://code.google.com/p/inferno-os/source/browse/utils/6c/txt.c
+ +//
+ +//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ +//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+ +//	Portions Copyright © 1997-1999 Vita Nuova Limited
+ +//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+ +//	Portions Copyright © 2004,2006 Bruce Ellis
+ +//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+ +//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+ +//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+ +//
+ +// Permission is hereby granted, free of charge, to any person obtaining a copy
+ +// of this software and associated documentation files (the "Software"), to deal
+ +// in the Software without restriction, including without limitation the rights
+ +// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ +// copies of the Software, and to permit persons to whom the Software is
+ +// furnished to do so, subject to the following conditions:
+ +//
+ +// The above copyright notice and this permission notice shall be included in
+ +// all copies or substantial portions of the Software.
+ +//
+ +// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ +// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ +// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ +// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ +// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ +// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ +// THE SOFTWARE.
+ +
+ +#include <u.h>
+ +#include <libc.h>
+ +#include "gg.h"
+ +#include "../../runtime/funcdata.h"
+ +
+ +// TODO(rsc): Can make this bigger if we move
+ +// the text segment up higher in 6l for all GOOS.
+ +// At the same time, can raise StackBig in ../../runtime/stack.h.
+ +vlong unmappedzero = 4096;
+ +
+ +void
+ +clearp(Prog *p)
+ +{
+ +	*p = zprog;
+ +	p->as = AEND;
+ +	p->pc = pcloc;
+ +	pcloc++;
+ +}
+ +
+ +static int ddumped;
+ +static Prog *dfirst;
+ +static Prog *dpc;
+ +
+ +/*
+ + * generate and return proc with p->as = as,
+ + * linked into program. pc is next instruction.
+ + */
+ +Prog*
+ +prog(int as)
+ +{
+ +	Prog *p;
+ +
+ +	if(as == ADATA || as == AGLOBL) {
+ +		if(ddumped)
+ +			fatal("already dumped data");
+ +		if(dpc == nil) {
+ +			dpc = mal(sizeof(*dpc));
+ +			dfirst = dpc;
+ +		}
+ +		p = dpc;
+ +		dpc = mal(sizeof(*dpc));
+ +		p->link = dpc;
+ +		p->reg = 0; // used for flags
+ +	} else {
+ +		p = pc;
+ +		pc = mal(sizeof(*pc));
+ +		clearp(pc);
+ +		p->link = pc;
+ +	}
+ +
+ +	if(lineno == 0) {
+ +		if(debug['K'])
+ +			warn("prog: line 0");
+ +	}
+ +
+ +	p->as = as;
+ +	p->lineno = lineno;
+ +	return p;
+ +}
+ +
+ +void
+ +dumpdata(void)
+ +{
+ +	ddumped = 1;
+ +	if(dfirst == nil)
+ +		return;
+ +	newplist();
+ +	*pc = *dfirst;
+ +	pc = dpc;
+ +	clearp(pc);
+ +}
+ +
+ +/*
+ + * generate a branch.
+ + * t is ignored.
+ + * likely values are for branch prediction:
+ + *	-1 unlikely
+ + *	0 no opinion
+ + *	+1 likely
+ + */
+ +Prog*
+ +gbranch(int as, Type *t, int likely)
+ +{
+ +	Prog *p;
+ +	
+ +	USED(t);
+ +
+ +	p = prog(as);
+ +	p->to.type = D_BRANCH;
+ +	p->to.u.branch = P;
+ +	// TODO(minux): Enable this code.
+ +	// Note: liblink used Bcc CR0, label form, so we need another way
+ +	// to set likely/unlikely flag. Also note the y bit is not exactly
+ +	// likely/unlikely bit.
+ +	if(0 && as != ABR && likely != 0) {
+ +		p->from.type = D_CONST;
+ +		p->from.offset = likely > 0;
+ +	}
+ +	return p;
+ +}
+ +
+ +/*
+ + * patch previous branch to jump to to.
+ + */
+ +void
+ +patch(Prog *p, Prog *to)
+ +{
+ +	if(p->to.type != D_BRANCH)
+ +		fatal("patch: not a branch");
+ +	p->to.u.branch = to;
+ +	p->to.offset = to->pc;
+ +}
+ +
+ +Prog*
+ +unpatch(Prog *p)
+ +{
+ +	Prog *q;
+ +
+ +	if(p->to.type != D_BRANCH)
+ +		fatal("unpatch: not a branch");
+ +	q = p->to.u.branch;
+ +	p->to.u.branch = P;
+ +	p->to.offset = 0;
+ +	return q;
+ +}
+ +
+ +/*
+ + * start a new Prog list.
+ + */
+ +Plist*
+ +newplist(void)
+ +{
+ +	Plist *pl;
+ +
+ +	pl = linknewplist(ctxt);
+ +
+ +	pc = mal(sizeof(*pc));
+ +	clearp(pc);
+ +	pl->firstpc = pc;
+ +
+ +	return pl;
+ +}
+ +
+ +void
+ +gused(Node *n)
+ +{
+ +	gins(ANOP, n, N);	// used
+ +}
+ +
+ +Prog*
+ +gjmp(Prog *to)
+ +{
+ +	Prog *p;
+ +
+ +	p = gbranch(ABR, T, 0);
+ +	if(to != P)
+ +		patch(p, to);
+ +	return p;
+ +}
+ +
+ +void
+ +ggloblnod(Node *nam)
+ +{
+ +	Prog *p;
+ +
+ +	p = gins(AGLOBL, nam, N);
+ +	p->lineno = nam->lineno;
+ +	p->from.sym->gotype = linksym(ngotype(nam));
+ +	p->to.sym = nil;
+ +	p->to.type = D_CONST;
+ +	p->to.offset = nam->type->width;
+ +	if(nam->readonly)
+ +		p->reg = RODATA;
+ +	if(nam->type != T && !haspointers(nam->type))
+ +		p->reg |= NOPTR;
+ +}
+ +
+ +void
+ +gtrack(Sym *s)
+ +{
+ +	Prog *p;
+ +	
+ +	p = gins(AUSEFIELD, N, N);
+ +	p->from.type = D_OREG;
+ +	p->from.name = D_EXTERN;
+ +	p->from.sym = linksym(s);
+ +}
+ +
+- void
+- gargsize(vlong size)
+- {
+- 	Node n1, n2;
+- 	
+- 	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
+- 	nodconst(&n2, types[TINT32], size);
+- 	gins(APCDATA, &n1, &n2);
+- }
+- 
+ +void
+ +ggloblsym(Sym *s, int32 width, int8 flags)
+ +{
+ +	Prog *p;
+ +
+ +	p = gins(AGLOBL, N, N);
+ +	p->from.type = D_OREG;
+ +	p->from.name = D_EXTERN;
+ +	p->from.sym = linksym(s);
+ +	p->to.type = D_CONST;
+ +	p->to.name = D_NONE;
+ +	p->to.offset = width;
+ +	p->reg = flags;
+ +}
+ +
+ +int
+ +isfat(Type *t)
+ +{
+ +	if(t != T)
+ +	switch(t->etype) {
+ +	case TSTRUCT:
+ +	case TARRAY:
+ +	case TSTRING:
+ +	case TINTER:	// maybe remove later
+ +		return 1;
+ +	}
+ +	return 0;
+ +}
+ +
+ +/*
+ + * naddr of func generates code for address of func.
+ + * if using opcode that can take address implicitly,
+ + * call afunclit to fix up the argument.
+ + */
+ +void
+ +afunclit(Addr *a, Node *n)
+ +{
+ +	if(a->type == D_CONST && a->name == D_EXTERN) {
+ +		a->type = D_OREG;
+ +		a->sym = linksym(n->sym);
+ +	}
+ +}
+ +
+ +static	int	resvd[] =
+ +{
+ +	REGZERO,
+ +	REGSP,	// reserved for SP, XXX: not reserved in 9c.
+ +	30,	// for g
+ +	REGTMP,	// REGTMP
+ +	FREGCVI+NREG,
+ +	FREGZERO+NREG,
+ +	FREGHALF+NREG,
+ +	FREGONE+NREG,
+ +	FREGTWO+NREG,
+ +};
+ +
+ +void
+ +ginit(void)
+ +{
+ +	int i;
+ +
+ +	for(i=0; i<nelem(reg); i++)
+ +		reg[i] = 1;
+ +	for(i=0; i<NREG; i++)
+ +		reg[i] = 0;
+ +	for(i=NREG; i<NREG+NREG; i++)
+ +		reg[i] = 0;
+ +
+ +	for(i=0; i<nelem(resvd); i++)
+ +		reg[resvd[i]]++;
+ +}
+ +
+ +static	uintptr	regpc[nelem(reg)];
+ +
+ +void
+ +gclean(void)
+ +{
+ +	int i;
+ +
+ +	for(i=0; i<nelem(resvd); i++)
+ +		reg[resvd[i]]--;
+ +
+ +	for(i=0; i<nelem(reg); i++)
+ +		if(reg[i])
+ +			yyerror("reg %R left allocated, %p\n", i, regpc[i]);
+ +}
+ +
+ +int32
+ +anyregalloc(void)
+ +{
+ +	int i, j;
+ +
+ +	for(i=0; i<nelem(reg); i++) {
+ +		if(reg[i] == 0)
+ +			goto ok;
+ +		for(j=0; j<nelem(resvd); j++)
+ +			if(resvd[j] == i)
+ +				goto ok;
+ +		return 1;
+ +	ok:;
+ +	}
+ +	return 0;
+ +}
+ +
+ +/*
+ + * allocate register of type t, leave in n.
+ + * if o != N, o is desired fixed register.
+ + * caller must regfree(n).
+ + */
+ +void
+ +regalloc(Node *n, Type *t, Node *o)
+ +{
+ +	int i, et;
+ +	int fixfree, fltfree;
+ +
+ +	if(t == T)
+ +		fatal("regalloc: t nil");
+ +	et = simtype[t->etype];
+ +
+ +	if(debug['r']) {
+ +		fixfree = 0;
+ +		fltfree = 0;
+ +		for(i = D_R0; i < D_F0+NREG; i++)
+ +			if(reg[i] == 0) {
+ +				if(i < D_F0)
+ +					fixfree++;
+ +				else
+ +					fltfree++;
+ +			}
+ +		print("regalloc fix %d flt %d free\n", fixfree, fltfree);
+ +	}
+ +
+ +	switch(et) {
+ +	case TINT8:
+ +	case TUINT8:
+ +	case TINT16:
+ +	case TUINT16:
+ +	case TINT32:
+ +	case TUINT32:
+ +	case TINT64:
+ +	case TUINT64:
+ +	case TPTR32:
+ +	case TPTR64:
+ +	case TBOOL:
+ +		if(o != N && o->op == OREGISTER) {
+ +			i = o->val.u.reg;
+ +			if(i >= D_R0+REGMIN && i <= D_R0+REGMAX)
+ +				goto out;
+ +		}
+ +		for(i=D_R0+REGMIN; i<=D_R0+REGMAX; i++)
+ +			if(reg[i] == 0) {
+ +				regpc[i] = (uintptr)getcallerpc(&n);
+ +				goto out;
+ +			}
+ +		flusherrors();
+ +		for(i=D_R0; i<D_R0+NREG; i++)
+ +			print("R%d %p\n", i, regpc[i]);
+ +		fatal("out of fixed registers");
+ +
+ +	case TFLOAT32:
+ +	case TFLOAT64:
+ +		if(o != N && o->op == OREGISTER) {
+ +			i = o->val.u.reg;
+ +			if(i >= D_F0+FREGMIN && i <= D_F0+FREGMAX)
+ +				goto out;
+ +		}
+ +		for(i=D_F0+FREGMIN; i<=D_F0+FREGMAX; i++)
+ +			if(reg[i] == 0) {
+ +				regpc[i] = (uintptr)getcallerpc(&n);
+ +				goto out;
+ +			}
+ +		flusherrors();
+ +		for(i=D_F0; i<D_F0+NREG; i++)
+ +			print("F%d %p\n", i, regpc[i]);
+ +		fatal("out of floating registers");
+ +
+ +	case TCOMPLEX64:
+ +	case TCOMPLEX128:
+ +		tempname(n, t);
+ +		return;
+ +	}
+ +	fatal("regalloc: unknown type %T", t);
+ +	return;
+ +
+ +out:
+ +	reg[i]++;
+ +	nodreg(n, t, i);
+ +}
+ +
+ +void
+ +regfree(Node *n)
+ +{
+ +	int i;
+ +
+ +	if(n->op == ONAME)
+ +		return;
+ +	if(n->op != OREGISTER && n->op != OINDREG)
+ +		fatal("regfree: not a register");
+ +	i = n->val.u.reg;
+ +	if(i == D_R0 + REGSP)
+ +		return;
+ +	if(i < 0 || i >= nelem(reg))
+ +		fatal("regfree: reg out of range");
+ +	if(reg[i] <= 0)
+ +		fatal("regfree: reg not allocated");
+ +	reg[i]--;
+ +	if(reg[i] == 0)
+ +		regpc[i] = 0;
+ +}
+ +
+ +/*
+ + * initialize n to be register r of type t.
+ + */
+ +void
+ +nodreg(Node *n, Type *t, int r)
+ +{
+ +	if(t == T)
+ +		fatal("nodreg: t nil");
+ +
+ +	memset(n, 0, sizeof(*n));
+ +	n->op = OREGISTER;
+ +	n->addable = 1;
+ +	ullmancalc(n);
+ +	n->val.u.reg = r;
+ +	n->type = t;
+ +}
+ +
+ +/*
+ + * initialize n to be indirect of register r; n is type t.
+ + */
+ +void
+ +nodindreg(Node *n, Type *t, int r)
+ +{
+ +	nodreg(n, t, r);
+ +	n->op = OINDREG;
+ +}
+ +
+ +Node*
+ +nodarg(Type *t, int fp)
+ +{
+ +	Node *n;
+ +	NodeList *l;
+ +	Type *first;
+ +	Iter savet;
+ +
+ +	// entire argument struct, not just one arg
+ +	if(t->etype == TSTRUCT && t->funarg) {
+ +		n = nod(ONAME, N, N);
+ +		n->sym = lookup(".args");
+ +		n->type = t;
+ +		first = structfirst(&savet, &t);
+ +		if(first == nil)
+ +			fatal("nodarg: bad struct");
+ +		if(first->width == BADWIDTH)
+ +			fatal("nodarg: offset not computed for %T", t);
+ +		n->xoffset = first->width;
+ +		n->addable = 1;
+ +		goto fp;
+ +	}
+ +
+ +	if(t->etype != TFIELD)
+ +		fatal("nodarg: not field %T", t);
+ +	
+ +	if(fp == 1) {
+ +		for(l=curfn->dcl; l; l=l->next) {
+ +			n = l->n;
+ +			if((n->class == PPARAM || n->class == PPARAMOUT) && !isblanksym(t->sym) && n->sym == t->sym)
+ +				return n;
+ +		}
+ +	}
+ +
+ +	n = nod(ONAME, N, N);
+ +	n->type = t->type;
+ +	n->sym = t->sym;
+ +	
+ +	if(t->width == BADWIDTH)
+ +		fatal("nodarg: offset not computed for %T", t);
+ +	n->xoffset = t->width;
+ +	n->addable = 1;
+ +	n->orig = t->nname;
+ +
+ +fp:
+ +	// Rewrite argument named _ to __,
+ +	// or else the assignment to _ will be
+ +	// discarded during code generation.
+ +	if(isblank(n))
+ +		n->sym = lookup("__");
+ +
+ +	switch(fp) {
+ +	default:
+ +		fatal("nodarg %T %d", t, fp);
+ +
+ +	case 0:		// output arg for calling another function
+ +		n->op = OINDREG;
+ +		n->val.u.reg = D_R0+REGSP;
+ +		n->xoffset += 8;
+ +		break;
+ +
+ +	case 1:		// input arg to current function
+ +		n->class = PPARAM;
+ +		break;
+ +
+ +	case 2:		// offset output arg
+ +fatal("shouldn't be used");
+ +		n->op = OINDREG;
+ +		n->val.u.reg = D_R0 + REGSP;
+ +		n->xoffset += types[tptr]->width;
+ +		break;
+ +	}
+ +	n->typecheck = 1;
+ +	return n;
+ +}
+ +
+ +/*
+ + * generate
+ + *	as $c, n
+ + */
+ +void
+ +ginscon(int as, vlong c, Node *n2)
+ +{
+ +	Node n1, ntmp;
+ +
+ +	nodconst(&n1, types[TINT64], c);
+ +
+ +	if(as != AMOVD && (c < -BIG || c > BIG)) {
+ +		// cannot have more than 16-bit of immediate in ADD, etc.
+ +		// instead, MOV into register first.
+ +		regalloc(&ntmp, types[TINT64], N);
+ +		gins(AMOVD, &n1, &ntmp);
+ +		gins(as, &ntmp, n2);
+ +		regfree(&ntmp);
+ +		return;
+ +	}
+ +	gins(as, &n1, n2);
+ +}
+ +
+ +/*
+ + * generate
+ + *	as n, $c (CMP/CMPU)
+ + */
+ +void
+ +ginscon2(int as, Node *n2, vlong c)
+ +{
+ +	Node n1, ntmp;
+ +
+ +	nodconst(&n1, types[TINT64], c);
+ +
+ +	switch(as) {
+ +	default:
+ +		fatal("ginscon2");
+ +	case ACMP:
+ +		if(-BIG <= c && c <= BIG) {
+ +			gins(as, n2, &n1);
+ +			return;
+ +		}
+ +		break;
+ +	case ACMPU:
+ +		if(0 <= c && c <= 2*BIG) {
+ +			gins(as, n2, &n1);
+ +			return;
+ +		}
+ +		break;
+ +	}
+ +	// MOV n1 into register first
+ +	regalloc(&ntmp, types[TINT64], N);
+ +	gins(AMOVD, &n1, &ntmp);
+ +	gins(as, n2, &ntmp);
+ +	regfree(&ntmp);
+ +}
+ +
+ +#define	CASE(a,b)	(((a)<<16)|((b)<<0))
+ +/*c2go int CASE(int, int); */
+ +
+ +/*
+ + * Is this node a memory operand?
+ + */
+ +int
+ +ismem(Node *n)
+ +{
+ +	switch(n->op) {
+ +	case OITAB:
+ +	case OSPTR:
+ +	case OLEN:
+ +	case OCAP:
+ +	case OINDREG:
+ +	case ONAME:
+ +	case OPARAM:
+ +	case OCLOSUREVAR:
+ +	case OADDR:
+ +		return 1;
+ +	}
+ +	return 0;
+ +}
+ +
+ +/*
+ + * set up nodes representing 2^63
+ + */
+ +Node bigi;
+ +Node bigf;
+ +
+ +void
+ +bignodes(void)
+ +{
+ +	static int did;
+ +
+ +	if(did)
+ +		return;
+ +	did = 1;
+ +
+ +	nodconst(&bigi, types[TUINT64], 1);
+ +	mpshiftfix(bigi.val.u.xval, 63);
+ +
+ +	bigf = bigi;
+ +	bigf.type = types[TFLOAT64];
+ +	bigf.val.ctype = CTFLT;
+ +	bigf.val.u.fval = mal(sizeof *bigf.val.u.fval);
+ +	mpmovefixflt(bigf.val.u.fval, bigi.val.u.xval);
+ +}
+ +
+ +/*
+ + * generate move:
+ + *	t = f
+ + * hard part is conversions.
+ + */
+ +void
+ +gmove(Node *f, Node *t)
+ +{
+ +	int a, ft, tt;
+ +	Type *cvt;
+ +	Node r1, r2, r3, con;
+ +	Prog *p1, *p2;
+ +
+ +	if(debug['M'])
+ +		print("gmove %lN -> %lN\n", f, t);
+ +
+ +	ft = simsimtype(f->type);
+ +	tt = simsimtype(t->type);
+ +	cvt = t->type;
+ +
+ +	if(iscomplex[ft] || iscomplex[tt]) {
+ +		complexmove(f, t);
+ +		return;
+ +	}
+ +
+ +	// cannot have two memory operands
+ +	if(ismem(f) && ismem(t))
+ +		goto hard;
+ +
+ +	// convert constant to desired type
+ +	if(f->op == OLITERAL) {
+ +		switch(tt) {
+ +		default:
+ +			convconst(&con, t->type, &f->val);
+ +			break;
+ +
+ +		case TINT32:
+ +		case TINT16:
+ +		case TINT8:
+ +			convconst(&con, types[TINT64], &f->val);
+ +			regalloc(&r1, con.type, t);
+ +			gins(AMOVD, &con, &r1);
+ +			gmove(&r1, t);
+ +			regfree(&r1);
+ +			return;
+ +
+ +		case TUINT32:
+ +		case TUINT16:
+ +		case TUINT8:
+ +			convconst(&con, types[TUINT64], &f->val);
+ +			regalloc(&r1, con.type, t);
+ +			gins(AMOVD, &con, &r1);
+ +			gmove(&r1, t);
+ +			regfree(&r1);
+ +			return;
+ +		}
+ +
+ +		f = &con;
+ +		ft = tt;	// so big switch will choose a simple mov
+ +
+ +		// constants can't move directly to memory.
+ +		if(ismem(t)) {
+ +			goto hard;
+ +			// float constants come from memory.
+ +			//if(isfloat[tt])
+ +			//	goto hard;
+ +
+ +			// 64-bit immediates are also from memory.
+ +			//if(isint[tt])
+ +			//	goto hard;
+ +			//// 64-bit immediates are really 32-bit sign-extended
+ +			//// unless moving into a register.
+ +			//if(isint[tt]) {
+ +			//	if(mpcmpfixfix(con.val.u.xval, minintval[TINT32]) < 0)
+ +			//		goto hard;
+ +			//	if(mpcmpfixfix(con.val.u.xval, maxintval[TINT32]) > 0)
+ +			//		goto hard;
+ +			//}
+ +		}
+ +	}
+ +
+ +	// value -> value copy, only one memory operand.
+ +	// figure out the instruction to use.
+ +	// break out of switch for one-instruction gins.
+ +	// goto rdst for "destination must be register".
+ +	// goto hard for "convert to cvt type first".
+ +	// otherwise handle and return.
+ +
+ +	switch(CASE(ft, tt)) {
+ +	default:
+ +		fatal("gmove %lT -> %lT", f->type, t->type);
+ +
+ +	/*
+ +	 * integer copy and truncate
+ +	 */
+ +	case CASE(TINT8, TINT8):	// same size
+ +	case CASE(TUINT8, TINT8):
+ +	case CASE(TINT16, TINT8):	// truncate
+ +	case CASE(TUINT16, TINT8):
+ +	case CASE(TINT32, TINT8):
+ +	case CASE(TUINT32, TINT8):
+ +	case CASE(TINT64, TINT8):
+ +	case CASE(TUINT64, TINT8):
+ +		a = AMOVB;
+ +		break;
+ +
+ +	case CASE(TINT8, TUINT8):	// same size
+ +	case CASE(TUINT8, TUINT8):
+ +	case CASE(TINT16, TUINT8):	// truncate
+ +	case CASE(TUINT16, TUINT8):
+ +	case CASE(TINT32, TUINT8):
+ +	case CASE(TUINT32, TUINT8):
+ +	case CASE(TINT64, TUINT8):
+ +	case CASE(TUINT64, TUINT8):
+ +		a = AMOVBZ;
+ +		break;
+ +
+ +	case CASE(TINT16, TINT16):	// same size
+ +	case CASE(TUINT16, TINT16):
+ +	case CASE(TINT32, TINT16):	// truncate
+ +	case CASE(TUINT32, TINT16):
+ +	case CASE(TINT64, TINT16):
+ +	case CASE(TUINT64, TINT16):
+ +		a = AMOVH;
+ +		break;
+ +
+ +	case CASE(TINT16, TUINT16):	// same size
+ +	case CASE(TUINT16, TUINT16):
+ +	case CASE(TINT32, TUINT16):	// truncate
+ +	case CASE(TUINT32, TUINT16):
+ +	case CASE(TINT64, TUINT16):
+ +	case CASE(TUINT64, TUINT16):
+ +		a = AMOVHZ;
+ +		break;
+ +
+ +	case CASE(TINT32, TINT32):	// same size
+ +	case CASE(TUINT32, TINT32):
+ +	case CASE(TINT64, TINT32):	// truncate
+ +	case CASE(TUINT64, TINT32):
+ +		a = AMOVW;
+ +		break;
+ +
+ +	case CASE(TINT32, TUINT32):	// same size
+ +	case CASE(TUINT32, TUINT32):
+ +	case CASE(TINT64, TUINT32):
+ +	case CASE(TUINT64, TUINT32):
+ +		a = AMOVWZ;
+ +		break;
+ +
+ +	case CASE(TINT64, TINT64):	// same size
+ +	case CASE(TINT64, TUINT64):
+ +	case CASE(TUINT64, TINT64):
+ +	case CASE(TUINT64, TUINT64):
+ +		a = AMOVD;
+ +		break;
+ +
+ +	/*
+ +	 * integer up-conversions
+ +	 */
+ +	case CASE(TINT8, TINT16):	// sign extend int8
+ +	case CASE(TINT8, TUINT16):
+ +	case CASE(TINT8, TINT32):
+ +	case CASE(TINT8, TUINT32):
+ +	case CASE(TINT8, TINT64):
+ +	case CASE(TINT8, TUINT64):
+ +		a = AMOVB;
+ +		goto rdst;
+ +
+ +	case CASE(TUINT8, TINT16):	// zero extend uint8
+ +	case CASE(TUINT8, TUINT16):
+ +	case CASE(TUINT8, TINT32):
+ +	case CASE(TUINT8, TUINT32):
+ +	case CASE(TUINT8, TINT64):
+ +	case CASE(TUINT8, TUINT64):
+ +		a = AMOVBZ;
+ +		goto rdst;
+ +
+ +	case CASE(TINT16, TINT32):	// sign extend int16
+ +	case CASE(TINT16, TUINT32):
+ +	case CASE(TINT16, TINT64):
+ +	case CASE(TINT16, TUINT64):
+ +		a = AMOVH;
+ +		goto rdst;
+ +
+ +	case CASE(TUINT16, TINT32):	// zero extend uint16
+ +	case CASE(TUINT16, TUINT32):
+ +	case CASE(TUINT16, TINT64):
+ +	case CASE(TUINT16, TUINT64):
+ +		a = AMOVHZ;
+ +		goto rdst;
+ +
+ +	case CASE(TINT32, TINT64):	// sign extend int32
+ +	case CASE(TINT32, TUINT64):
+ +		a = AMOVW;
+ +		goto rdst;
+ +
+ +	case CASE(TUINT32, TINT64):	// zero extend uint32
+ +	case CASE(TUINT32, TUINT64):
+ +		a = AMOVWZ;
+ +		goto rdst;
+ +
+ +	/*
+ +	* float to integer
+ +	*/
+ +	case CASE(TFLOAT32, TINT32):
+ +	case CASE(TFLOAT64, TINT32):
+ +	case CASE(TFLOAT32, TINT64):
+ +	case CASE(TFLOAT64, TINT64):
+ +	case CASE(TFLOAT32, TINT16):
+ +	case CASE(TFLOAT32, TINT8):
+ +	case CASE(TFLOAT32, TUINT16):
+ +	case CASE(TFLOAT32, TUINT8):
+ +	case CASE(TFLOAT64, TINT16):
+ +	case CASE(TFLOAT64, TINT8):
+ +	case CASE(TFLOAT64, TUINT16):
+ +	case CASE(TFLOAT64, TUINT8):
+ +	case CASE(TFLOAT32, TUINT32):
+ +	case CASE(TFLOAT64, TUINT32):
+ +	case CASE(TFLOAT32, TUINT64):
+ +	case CASE(TFLOAT64, TUINT64):
+ +		//warn("gmove: convert float to int not implemented: %N -> %N\n", f, t);
+ +		//return;
+ +		// algorithm is:
+ +		//	if small enough, use native float64 -> int64 conversion.
+ +		//	otherwise, subtract 2^63, convert, and add it back.
+ +		bignodes();
+ +		regalloc(&r1, types[ft], f);
+ +		gmove(f, &r1);
+ +		if(tt == TUINT64) {
+ +			regalloc(&r2, types[TFLOAT64], N);
+ +			gmove(&bigf, &r2);
+ +			gins(AFCMPU, &r1, &r2);
+ +			p1 = gbranch(optoas(OLT, types[TFLOAT64]), T, +1);
+ +			gins(AFSUB, &r2, &r1);
+ +			patch(p1, pc);
+ +			regfree(&r2);
+ +		}
+ +		regalloc(&r2, types[TFLOAT64], N);
+ +		regalloc(&r3, types[TINT64], t);
+ +		gins(AFCTIDZ, &r1, &r2);
+ +		p1 = gins(AFMOVD, &r2, N);
+ +		p1->to.type = D_OREG;
+ +		p1->to.reg = REGSP;
+ +		p1->to.offset = -8;
+ +		p1 = gins(AMOVD, N, &r3);
+ +		p1->from.type = D_OREG;
+ +		p1->from.reg = REGSP;
+ +		p1->from.offset = -8;
+ +		regfree(&r2);
+ +		regfree(&r1);
+ +		if(tt == TUINT64) {
+ +			p1 = gbranch(optoas(OLT, types[TFLOAT64]), T, +1); // use CR0 here again
+ +			nodreg(&r1, types[TINT64], D_R0+REGTMP);
+ +			gins(AMOVD, &bigi, &r1);
+ +			gins(AADD, &r1, &r3);
+ +			patch(p1, pc);
+ +		}
+ +		gmove(&r3, t);
+ +		regfree(&r3);
+ +		return;
+ +
+ +	/*
+ +	 * integer to float
+ +	 */
+ +	case CASE(TINT32, TFLOAT32):
+ +	case CASE(TINT32, TFLOAT64):
+ +	case CASE(TINT64, TFLOAT32):
+ +	case CASE(TINT64, TFLOAT64):
+ +	case CASE(TINT16, TFLOAT32):
+ +	case CASE(TINT16, TFLOAT64):
+ +	case CASE(TINT8, TFLOAT32):
+ +	case CASE(TINT8, TFLOAT64):
+ +	case CASE(TUINT16, TFLOAT32):
+ +	case CASE(TUINT16, TFLOAT64):
+ +	case CASE(TUINT8, TFLOAT32):
+ +	case CASE(TUINT8, TFLOAT64):
+ +	case CASE(TUINT32, TFLOAT32):
+ +	case CASE(TUINT32, TFLOAT64):
+ +	case CASE(TUINT64, TFLOAT32):
+ +	case CASE(TUINT64, TFLOAT64):
+ +		//warn("gmove: convert int to float not implemented: %N -> %N\n", f, t);
+ +		//return;
+ +		// algorithm is:
+ +		//	if small enough, use native int64 -> uint64 conversion.
+ +		//	otherwise, halve (rounding to odd?), convert, and double.
+ +		bignodes();
+ +		regalloc(&r1, types[TINT64], N);
+ +		gmove(f, &r1);
+ +		if(ft == TUINT64) {
+ +			nodreg(&r2, types[TUINT64], D_R0+REGTMP);
+ +			gmove(&bigi, &r2);
+ +			gins(ACMPU, &r1, &r2);
+ +			p1 = gbranch(optoas(OLT, types[TUINT64]), T, +1);
+ +			p2 = gins(ASRD, N, &r1);
+ +			p2->from.type = D_CONST;
+ +			p2->from.offset = 1;
+ +			patch(p1, pc);
+ +		}
+ +		regalloc(&r2, types[TFLOAT64], t);
+ +		p1 = gins(AMOVD, &r1, N);
+ +		p1->to.type = D_OREG;
+ +		p1->to.reg = REGSP;
+ +		p1->to.offset = -8;
+ +		p1 = gins(AFMOVD, N, &r2);
+ +		p1->from.type = D_OREG;
+ +		p1->from.reg = REGSP;
+ +		p1->from.offset = -8;
+ +		gins(AFCFID, &r2, &r2);
+ +		regfree(&r1);
+ +		if(ft == TUINT64) {
+ +			p1 = gbranch(optoas(OLT, types[TUINT64]), T, +1); // use CR0 here again
+ +			nodreg(&r1, types[TFLOAT64], D_F0+FREGTWO);
+ +			gins(AFMUL, &r1, &r2);
+ +			patch(p1, pc);
+ +		}
+ +		gmove(&r2, t);
+ +		regfree(&r2);
+ +		return;
+ +
+ +	/*
+ +	 * float to float
+ +	 */
+ +	case CASE(TFLOAT32, TFLOAT32):
+ +		a = AFMOVS;
+ +		break;
+ +
+ +	case CASE(TFLOAT64, TFLOAT64):
+ +		a = AFMOVD;
+ +		break;
+ +
+ +	case CASE(TFLOAT32, TFLOAT64):
+ +		a = AFMOVS;
+ +		goto rdst;
+ +
+ +	case CASE(TFLOAT64, TFLOAT32):
+ +		a = AFRSP;
+ +		goto rdst;
+ +	}
+ +
+ +	gins(a, f, t);
+ +	return;
+ +
+ +rdst:
+ +	// requires register destination
+ +	regalloc(&r1, t->type, t);
+ +	gins(a, f, &r1);
+ +	gmove(&r1, t);
+ +	regfree(&r1);
+ +	return;
+ +
+ +hard:
+ +	// requires register intermediate
+ +	regalloc(&r1, cvt, t);
+ +	gmove(f, &r1);
+ +	gmove(&r1, t);
+ +	regfree(&r1);
+ +	return;
+ +}
+ +
+ +/*
+ + * generate one instruction:
+ + *	as f, t
+ + */
+ +Prog*
+ +gins(int as, Node *f, Node *t)
+ +{
+ +	//int32 w;
+ +	Prog *p;
+ +	Addr af, at;
+ +
+ +	memset(&af, 0, sizeof af);
+ +	memset(&at, 0, sizeof at);
+ +	if(f != N)
+ +		naddr(f, &af, 1);
+ +	if(t != N)
+ +		naddr(t, &at, 1);
+ +	p = prog(as);
+ +	if(f != N)
+ +		p->from = af;
+ +	if(t != N)
+ +		p->to = at;
+ +	if(as == ATEXT)
+ +		p->reg = 0;
+ +	if(debug['g'])
+ +		print("%P\n", p);
+ +
+ +	// TODO(minux): enable these.
+ +	// right now it fails on MOVD $type."".TypeAssertionError(SB) [width=1], R7 [width=8]
+ +	/*
+ +	w = 0;
+ +	switch(as) {
+ +	case AMOVB:
+ +	case AMOVBU:
+ +	case AMOVBZ:
+ +	case AMOVBZU:
+ +		w = 1;
+ +		break;
+ +	case AMOVH:
+ +	case AMOVHU:
+ +	case AMOVHZ:
+ +	case AMOVHZU:
+ +		w = 2;
+ +		break;
+ +	case AMOVW:
+ +	case AMOVWU:
+ +	case AMOVWZ:
+ +	case AMOVWZU:
+ +		w = 4;
+ +		break;
+ +	case AMOVD:
+ +	case AMOVDU:
+ +		w = 8;
+ +		break;
+ +	}
+ +	if(w != 0 && ((f != N && af.width < w) || (t != N && at.width > w))) {
+ +		dump("f", f);
+ +		dump("t", t);
+ +		fatal("bad width: %P (%d, %d)\n", p, af.width, at.width);
+ +	}
+ +	*/
+ +
+ +	return p;
+ +}
+ +
+ +void
+ +fixlargeoffset(Node *n)
+ +{
+ +	Node a;
+ +
+ +	if(n == N)
+ +		return;
+ +	if(n->op != OINDREG)
+ +		return;
+ +	if(n->val.u.reg == D_R0+REGSP) // stack offset cannot be large
+ +		return;
+ +	if(n->xoffset != (int32)n->xoffset) {
+ +		// TODO(minux): offset too large, move into R31 and add to R31 instead.
+ +		// this is used only in test/fixedbugs/issue6036.go.
+ +		print("offset too large: %N\n", n);
+ +		noimpl;
+ +		a = *n;
+ +		a.op = OREGISTER;
+ +		a.type = types[tptr];
+ +		a.xoffset = 0;
+ +		cgen_checknil(&a);
+ +		ginscon(optoas(OADD, types[tptr]), n->xoffset, &a);
+ +		n->xoffset = 0;
+ +	}
+ +}
+ +
+ +/*
+ + * generate code to compute n;
+ + * make a refer to result.
+ + */
+ +void
+ +naddr(Node *n, Addr *a, int canemitcode)
+ +{
+ +	Sym *s;
+ +
+ +	a->type = D_NONE;
+ +	a->name = D_NONE;
+ +	a->reg = NREG;
+ +	a->gotype = nil;
+ +	a->node = N;
+ +	a->etype = 0;
+ +	a->width = 0;
+ +	if(n == N)
+ +		return;
+ +
+ +	if(n->type != T && n->type->etype != TIDEAL) {
+ +		dowidth(n->type);
+ +		a->width = n->type->width;
+ +	}
+ +
+ +	switch(n->op) {
+ +	default:
+ +		fatal("naddr: bad %O %D", n->op, a);
+ +		break;
+ +
+ +	case ONAME:
+ +		a->etype = 0;
+ +		a->width = 0;
+ +		a->reg = NREG;
+ +		if(n->type != T) {
+ +			a->etype = simtype[n->type->etype];
+ +			a->width = n->type->width;
+ +		}
+ +		a->offset = n->xoffset;
+ +		s = n->sym;
+ +		a->node = n->orig;
+ +		//if(a->node >= (Node*)&n)
+ +		//	fatal("stack node");
+ +		if(s == S)
+ +			s = lookup(".noname");
+ +		if(n->method) {
+ +			if(n->type != T)
+ +			if(n->type->sym != S)
+ +			if(n->type->sym->pkg != nil)
+ +				s = pkglookup(s->name, n->type->sym->pkg);
+ +		}
+ +
+ +		a->type = D_OREG;
+ +		switch(n->class) {
+ +		default:
+ +			fatal("naddr: ONAME class %S %d\n", n->sym, n->class);
+ +		case PEXTERN:
+ +			a->name = D_EXTERN;
+ +			break;
+ +		case PAUTO:
+ +			a->name = D_AUTO;
+ +			break;
+ +		case PPARAM:
+ +		case PPARAMOUT:
+ +			a->name = D_PARAM;
+ +			break;
+ +		case PFUNC:
+ +			a->name = D_EXTERN;
+ +			a->type = D_CONST;
+ +			a->width = widthptr;
+ +			s = funcsym(s);
+ +			break;
+ +		}
+ +		a->sym = linksym(s);
+ +		break;
+ +
+ +	case OLITERAL:
+ +		switch(n->val.ctype) {
+ +		default:
+ +			fatal("naddr: const %lT", n->type);
+ +			break;
+ +		case CTFLT:
+ +			a->type = D_FCONST;
+ +			a->u.dval = mpgetflt(n->val.u.fval);
+ +			break;
+ +		case CTINT:
+ +		case CTRUNE:
+ +			a->sym = nil;
+ +			a->type = D_CONST;
+ +			a->offset = mpgetfix(n->val.u.xval);
+ +			break;
+ +		case CTSTR:
+ +			datagostring(n->val.u.sval, a);
+ +			break;
+ +		case CTBOOL:
+ +			a->sym = nil;
+ +			a->type = D_CONST;
+ +			a->offset = n->val.u.bval;
+ +			break;
+ +		case CTNIL:
+ +			a->sym = nil;
+ +			a->type = D_CONST;
+ +			a->offset = 0;
+ +			break;
+ +		}
+ +		break;
+ +
+ +	case OREGISTER:
+ +		if(n->val.u.reg < D_F0) {
+ +			a->type = D_REG;
+ +			a->reg = n->val.u.reg;
+ +		} else {
+ +			a->type = D_FREG;
+ +			a->reg = n->val.u.reg - D_F0;
+ +		}
+ +		a->sym = nil;
+ +		break;
+ +
+ +	case OINDREG:
+ +		a->type = D_OREG;
+ +		a->reg = n->val.u.reg;
+ +		a->sym = linksym(n->sym);
+ +		a->offset = n->xoffset;
+ +		if(a->offset != (int32)a->offset)
+ +			yyerror("offset %lld too large for OINDREG", a->offset);
+ +		break;
+ +
+ +	case OPARAM:
+ +		// n->left is PHEAP ONAME for stack parameter.
+ +		// compute address of actual parameter on stack.
+ +		a->etype = simtype[n->left->type->etype];
+ +		a->width = n->left->type->width;
+ +		a->offset = n->xoffset;
+ +		a->sym = linksym(n->left->sym);
+ +		a->type = D_OREG;
+ +		a->name = D_PARAM;
+ +		a->node = n->left->orig;
+ +		break;
+ +
+ +	case OCLOSUREVAR:
+ +		if(!curfn->needctxt)
+ +			fatal("closurevar without needctxt");
+ +		a->type = D_OREG;
+ +		a->reg = REGENV;
+ +		a->offset = n->xoffset;
+ +		a->sym = nil;
+ +		break;
+ +
+ +	case OCFUNC:
+ +		naddr(n->left, a, canemitcode);
+ +		a->sym = linksym(n->left->sym);
+ +		break;
+ +
+ +	case OITAB:
+ +		// itable of interface value
+ +		naddr(n->left, a, canemitcode);
+ +		a->etype = simtype[tptr];
+ +		if(a->type == D_CONST && a->offset == 0)
+ +			break;	// len(nil)
+ +		break;
+ +
+ +	case OSPTR:
+ +		// pointer in a string or slice
+ +		naddr(n->left, a, canemitcode);
+ +		if(a->type == D_CONST && a->offset == 0)
+ +			break;	// ptr(nil)
+ +		a->etype = simtype[tptr];
+ +		a->offset += Array_array;
+ +		a->width = widthptr;
+ +		break;
+ +
+ +	case OLEN:
+ +		// len of string or slice
+ +		naddr(n->left, a, canemitcode);
+ +		a->etype = simtype[TINT];
+ +		if(a->type == D_CONST && a->offset == 0)
+ +			break;	// len(nil)
+ +		a->offset += Array_nel;
+ +		break;
+ +
+ +	case OCAP:
+ +		// cap of string or slice
+ +		naddr(n->left, a, canemitcode);
+ +		a->etype = simtype[TINT];
+ +		if(a->type == D_CONST && a->offset == 0)
+ +			break;	// cap(nil)
+ +		a->offset += Array_cap;
+ +		break;
+ +
+ +	case OADDR:
+ +		naddr(n->left, a, canemitcode);
+ +		a->etype = tptr;
+ +		switch(a->type) {
+ +		case D_OREG:
+ +			a->type = D_CONST;
+ +			break;
+ +
+ +		case D_REG:
+ +		case D_CONST:
+ +			break;
+ +
+ +		default:
+ +			fatal("naddr: OADDR %d\n", a->type);
+ +		}
+ +	}
+ +}
+ +
+ +/*
+ + * return Axxx for Oxxx on type t.
+ + */
+ +int
+ +optoas(int op, Type *t)
+ +{
+ +	int a;
+ +
+ +	if(t == T)
+ +		fatal("optoas: t is nil");
+ +
+ +	a = AGOK;
+ +	switch(CASE(op, simtype[t->etype])) {
+ +	default:
+ +		fatal("optoas: no entry for op=%O type=%T", op, t);
+ +		break;
+ +
+ +	case CASE(OEQ, TBOOL):
+ +	case CASE(OEQ, TINT8):
+ +	case CASE(OEQ, TUINT8):
+ +	case CASE(OEQ, TINT16):
+ +	case CASE(OEQ, TUINT16):
+ +	case CASE(OEQ, TINT32):
+ +	case CASE(OEQ, TUINT32):
+ +	case CASE(OEQ, TINT64):
+ +	case CASE(OEQ, TUINT64):
+ +	case CASE(OEQ, TPTR32):
+ +	case CASE(OEQ, TPTR64):
+ +	case CASE(OEQ, TFLOAT32):
+ +	case CASE(OEQ, TFLOAT64):
+ +		a = ABEQ;
+ +		break;
+ +
+ +	case CASE(ONE, TBOOL):
+ +	case CASE(ONE, TINT8):
+ +	case CASE(ONE, TUINT8):
+ +	case CASE(ONE, TINT16):
+ +	case CASE(ONE, TUINT16):
+ +	case CASE(ONE, TINT32):
+ +	case CASE(ONE, TUINT32):
+ +	case CASE(ONE, TINT64):
+ +	case CASE(ONE, TUINT64):
+ +	case CASE(ONE, TPTR32):
+ +	case CASE(ONE, TPTR64):
+ +	case CASE(ONE, TFLOAT32):
+ +	case CASE(ONE, TFLOAT64):
+ +		a = ABNE;
+ +		break;
+ +
+ +	case CASE(OLT, TINT8):	// ACMP
+ +	case CASE(OLT, TINT16):
+ +	case CASE(OLT, TINT32):
+ +	case CASE(OLT, TINT64):
+ +	case CASE(OLT, TUINT8):	// ACMPU
+ +	case CASE(OLT, TUINT16):
+ +	case CASE(OLT, TUINT32):
+ +	case CASE(OLT, TUINT64):
+ +	case CASE(OLT, TFLOAT32): // AFCMPU
+ +	case CASE(OLT, TFLOAT64):
+ +		a = ABLT;
+ +		break;
+ +
+ +	case CASE(OLE, TINT8):	// ACMP
+ +	case CASE(OLE, TINT16):
+ +	case CASE(OLE, TINT32):
+ +	case CASE(OLE, TINT64):
+ +	case CASE(OLE, TUINT8):	// ACMPU
+ +	case CASE(OLE, TUINT16):
+ +	case CASE(OLE, TUINT32):
+ +	case CASE(OLE, TUINT64):
+ +	case CASE(OLE, TFLOAT32): // AFCMPU
+ +	case CASE(OLE, TFLOAT64):
+ +		a = ABLE;
+ +		break;
+ +
+ +	case CASE(OGT, TINT8):
+ +	case CASE(OGT, TINT16):
+ +	case CASE(OGT, TINT32):
+ +	case CASE(OGT, TINT64):
+ +	case CASE(OGT, TUINT8):
+ +	case CASE(OGT, TUINT16):
+ +	case CASE(OGT, TUINT32):
+ +	case CASE(OGT, TUINT64):
+ +	case CASE(OGT, TFLOAT32):
+ +	case CASE(OGT, TFLOAT64):
+ +		a = ABGT;
+ +		break;
+ +
+ +	case CASE(OGE, TINT8):
+ +	case CASE(OGE, TINT16):
+ +	case CASE(OGE, TINT32):
+ +	case CASE(OGE, TINT64):
+ +	case CASE(OGE, TUINT8):
+ +	case CASE(OGE, TUINT16):
+ +	case CASE(OGE, TUINT32):
+ +	case CASE(OGE, TUINT64):
+ +	case CASE(OGE, TFLOAT32):
+ +	case CASE(OGE, TFLOAT64):
+ +		a = ABGE;
+ +		break;
+ +
+ +	case CASE(OCMP, TBOOL):
+ +	case CASE(OCMP, TINT8):
+ +	case CASE(OCMP, TINT16):
+ +	case CASE(OCMP, TINT32):
+ +	case CASE(OCMP, TPTR32):
+ +	case CASE(OCMP, TINT64):
+ +		a = ACMP;
+ +		break;
+ +
+ +	case CASE(OCMP, TUINT8):
+ +	case CASE(OCMP, TUINT16):
+ +	case CASE(OCMP, TUINT32):
+ +	case CASE(OCMP, TUINT64):
+ +	case CASE(OCMP, TPTR64):
+ +		a = ACMPU;
+ +		break;
+ +
+ +	case CASE(OCMP, TFLOAT32):
+ +	case CASE(OCMP, TFLOAT64):
+ +		a = AFCMPU;
+ +		break;
+ +
+ +	case CASE(OAS, TBOOL):
+ +	case CASE(OAS, TINT8):
+ +		a = AMOVB;
+ +		break;
+ +
+ +	case CASE(OAS, TUINT8):
+ +		a = AMOVBZ;
+ +		break;
+ +
+ +	case CASE(OAS, TINT16):
+ +		a = AMOVH;
+ +		break;
+ +
+ +	case CASE(OAS, TUINT16):
+ +		a = AMOVHZ;
+ +		break;
+ +
+ +	case CASE(OAS, TINT32):
+ +		a = AMOVW;
+ +		break;
+ +
+ +	case CASE(OAS, TUINT32):
+ +	case CASE(OAS, TPTR32):
+ +		a = AMOVWZ;
+ +		break;
+ +
+ +	case CASE(OAS, TINT64):
+ +	case CASE(OAS, TUINT64):
+ +	case CASE(OAS, TPTR64):
+ +		a = AMOVD;
+ +		break;
+ +
+ +	case CASE(OAS, TFLOAT32):
+ +		a = AFMOVS;
+ +		break;
+ +
+ +	case CASE(OAS, TFLOAT64):
+ +		a = AFMOVD;
+ +		break;
+ +
+ +	case CASE(OADD, TINT8):
+ +	case CASE(OADD, TUINT8):
+ +	case CASE(OADD, TINT16):
+ +	case CASE(OADD, TUINT16):
+ +	case CASE(OADD, TINT32):
+ +	case CASE(OADD, TUINT32):
+ +	case CASE(OADD, TPTR32):
+ +	case CASE(OADD, TINT64):
+ +	case CASE(OADD, TUINT64):
+ +	case CASE(OADD, TPTR64):
+ +		a = AADD;
+ +		break;
+ +
+ +	case CASE(OADD, TFLOAT32):
+ +		a = AFADDS;
+ +		break;
+ +
+ +	case CASE(OADD, TFLOAT64):
+ +		a = AFADD;
+ +		break;
+ +
+ +	case CASE(OSUB, TINT8):
+ +	case CASE(OSUB, TUINT8):
+ +	case CASE(OSUB, TINT16):
+ +	case CASE(OSUB, TUINT16):
+ +	case CASE(OSUB, TINT32):
+ +	case CASE(OSUB, TUINT32):
+ +	case CASE(OSUB, TPTR32):
+ +	case CASE(OSUB, TINT64):
+ +	case CASE(OSUB, TUINT64):
+ +	case CASE(OSUB, TPTR64):
+ +		a = ASUB;
+ +		break;
+ +
+ +	case CASE(OSUB, TFLOAT32):
+ +		a = AFSUBS;
+ +		break;
+ +
+ +	case CASE(OSUB, TFLOAT64):
+ +		a = AFSUB;
+ +		break;
+ +
+ +	case CASE(OMINUS, TINT8):
+ +	case CASE(OMINUS, TUINT8):
+ +	case CASE(OMINUS, TINT16):
+ +	case CASE(OMINUS, TUINT16):
+ +	case CASE(OMINUS, TINT32):
+ +	case CASE(OMINUS, TUINT32):
+ +	case CASE(OMINUS, TPTR32):
+ +	case CASE(OMINUS, TINT64):
+ +	case CASE(OMINUS, TUINT64):
+ +	case CASE(OMINUS, TPTR64):
+ +		a = ANEG;
+ +		break;
+ +
+ +	case CASE(OAND, TINT8):
+ +	case CASE(OAND, TUINT8):
+ +	case CASE(OAND, TINT16):
+ +	case CASE(OAND, TUINT16):
+ +	case CASE(OAND, TINT32):
+ +	case CASE(OAND, TUINT32):
+ +	case CASE(OAND, TPTR32):
+ +	case CASE(OAND, TINT64):
+ +	case CASE(OAND, TUINT64):
+ +	case CASE(OAND, TPTR64):
+ +		a = AAND;
+ +		break;
+ +
+ +	case CASE(OOR, TINT8):
+ +	case CASE(OOR, TUINT8):
+ +	case CASE(OOR, TINT16):
+ +	case CASE(OOR, TUINT16):
+ +	case CASE(OOR, TINT32):
+ +	case CASE(OOR, TUINT32):
+ +	case CASE(OOR, TPTR32):
+ +	case CASE(OOR, TINT64):
+ +	case CASE(OOR, TUINT64):
+ +	case CASE(OOR, TPTR64):
+ +		a = AOR;
+ +		break;
+ +
+ +	case CASE(OXOR, TINT8):
+ +	case CASE(OXOR, TUINT8):
+ +	case CASE(OXOR, TINT16):
+ +	case CASE(OXOR, TUINT16):
+ +	case CASE(OXOR, TINT32):
+ +	case CASE(OXOR, TUINT32):
+ +	case CASE(OXOR, TPTR32):
+ +	case CASE(OXOR, TINT64):
+ +	case CASE(OXOR, TUINT64):
+ +	case CASE(OXOR, TPTR64):
+ +		a = AXOR;
+ +		break;
+ +
+ +	// TODO(minux): handle rotates
+ +	//case CASE(OLROT, TINT8):
+ +	//case CASE(OLROT, TUINT8):
+ +	//case CASE(OLROT, TINT16):
+ +	//case CASE(OLROT, TUINT16):
+ +	//case CASE(OLROT, TINT32):
+ +	//case CASE(OLROT, TUINT32):
+ +	//case CASE(OLROT, TPTR32):
+ +	//case CASE(OLROT, TINT64):
+ +	//case CASE(OLROT, TUINT64):
+ +	//case CASE(OLROT, TPTR64):
+ +	//	a = 0//???; RLDC?
+ +	//	break;
+ +
+ +	case CASE(OLSH, TINT8):
+ +	case CASE(OLSH, TUINT8):
+ +	case CASE(OLSH, TINT16):
+ +	case CASE(OLSH, TUINT16):
+ +	case CASE(OLSH, TINT32):
+ +	case CASE(OLSH, TUINT32):
+ +	case CASE(OLSH, TPTR32):
+ +	case CASE(OLSH, TINT64):
+ +	case CASE(OLSH, TUINT64):
+ +	case CASE(OLSH, TPTR64):
+ +		a = ASLD;
+ +		break;
+ +
+ +	case CASE(ORSH, TUINT8):
+ +	case CASE(ORSH, TUINT16):
+ +	case CASE(ORSH, TUINT32):
+ +	case CASE(ORSH, TPTR32):
+ +	case CASE(ORSH, TUINT64):
+ +	case CASE(ORSH, TPTR64):
+ +		a = ASRD;
+ +		break;
+ +
+ +	case CASE(ORSH, TINT8):
+ +	case CASE(ORSH, TINT16):
+ +	case CASE(ORSH, TINT32):
+ +	case CASE(ORSH, TINT64):
+ +		a = ASRAD;
+ +		break;
+ +
+ +	// TODO(minux): handle rotates
+ +	//case CASE(ORROTC, TINT8):
+ +	//case CASE(ORROTC, TUINT8):
+ +	//case CASE(ORROTC, TINT16):
+ +	//case CASE(ORROTC, TUINT16):
+ +	//case CASE(ORROTC, TINT32):
+ +	//case CASE(ORROTC, TUINT32):
+ +	//case CASE(ORROTC, TINT64):
+ +	//case CASE(ORROTC, TUINT64):
+ +	//	a = 0//??? RLDC??
+ +	//	break;
+ +
+ +	case CASE(OHMUL, TINT64):
+ +		a = AMULHD;
+ +		break;
+ +	case CASE(OHMUL, TUINT64):
+ +	case CASE(OHMUL, TPTR64):
+ +		a = AMULHDU;
+ +		break;
+ +
+ +	case CASE(OMUL, TINT8):
+ +	case CASE(OMUL, TINT16):
+ +	case CASE(OMUL, TINT32):
+ +	case CASE(OMUL, TINT64):
+ +		a = AMULLD;
+ +		break;
+ +
+ +	case CASE(OMUL, TUINT8):
+ +	case CASE(OMUL, TUINT16):
+ +	case CASE(OMUL, TUINT32):
+ +	case CASE(OMUL, TPTR32):
+ +		// don't use word multiply, the high 32-bit are undefined.
+ +		// fallthrough
+ +	case CASE(OMUL, TUINT64):
+ +	case CASE(OMUL, TPTR64):
+ +		a = AMULLD; // for 64-bit multiplies, signedness doesn't matter.
+ +		break;
+ +
+ +	case CASE(OMUL, TFLOAT32):
+ +		a = AFMULS;
+ +		break;
+ +
+ +	case CASE(OMUL, TFLOAT64):
+ +		a = AFMUL;
+ +		break;
+ +
+ +	case CASE(ODIV, TINT8):
+ +	case CASE(ODIV, TINT16):
+ +	case CASE(ODIV, TINT32):
+ +	case CASE(ODIV, TINT64):
+ +		a = ADIVD;
+ +		break;
+ +
+ +	case CASE(ODIV, TUINT8):
+ +	case CASE(ODIV, TUINT16):
+ +	case CASE(ODIV, TUINT32):
+ +	case CASE(ODIV, TPTR32):
+ +	case CASE(ODIV, TUINT64):
+ +	case CASE(ODIV, TPTR64):
+ +		a = ADIVDU;
+ +		break;
+ +
+ +	case CASE(ODIV, TFLOAT32):
+ +		a = AFDIVS;
+ +		break;
+ +
+ +	case CASE(ODIV, TFLOAT64):
+ +		a = AFDIV;
+ +		break;
+ +
+ +	}
+ +	return a;
+ +}
+ +
+ +enum
+ +{
+ +	ODynam		= 1<<0,
+ +	OAddable	= 1<<1,
+ +};
+ +
+ +int
+ +xgen(Node *n, Node *a, int o)
+ +{
+ +	// TODO(minux)
+ +	USED(n); USED(a); USED(o);
+ +	return -1;
+ +}
+ +
+ +void
+ +sudoclean(void)
+ +{
+ +	return;
+ +}
+ +
+ +/*
+ + * generate code to compute address of n,
+ + * a reference to a (perhaps nested) field inside
+ + * an array or struct.
+ + * return 0 on failure, 1 on success.
+ + * on success, leaves usable address in a.
+ + *
+ + * caller is responsible for calling sudoclean
+ + * after successful sudoaddable,
+ + * to release the register used for a.
+ + */
+ +int
+ +sudoaddable(int as, Node *n, Addr *a)
+ +{
+ +	// TODO(minux)
+ +	USED(as); USED(n); USED(a);
+ +	return 0;
+ +}
+diff --cc src/runtime/mgc0.c
+index 7ec9640eb6,2ff64aaa30..d376c1cf69
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@@ -64,8 -64,8 +64,8 @@@
+  
+  enum {
+  	Debug		= 0,
++ 	DebugPtrs	= 0, // if 1, print trace of every pointer load during GC
+ -	ConcurrentSweep	= 1,
+ +	ConcurrentSweep	= 0,
+- 	PreciseScan	= 1,
+  
+  	WorkbufSize	= 4*1024,
+  	FinBlockSize	= 4*1024,
+diff --cc src/runtime/panic.go
+index 75d155b3fc,685ff5ca0b..91b5da2943
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@@ -214,3 -297,209 +297,209 @@@ func Goexit() 
+  	}
+  	goexit()
+  }
++ 
++ func canpanic(*g) bool
++ 
++ // Print all currently active panics.  Used when crashing.
++ func printpanics(p *_panic) {
++ 	if p.link != nil {
++ 		printpanics(p.link)
++ 		print("\t")
++ 	}
++ 	print("panic: ")
++ 	printany(p.arg)
++ 	if p.recovered {
++ 		print(" [recovered]")
++ 	}
++ 	print("\n")
++ }
++ 
++ // The implementation of the predeclared function panic.
++ func gopanic(e interface{}) {
++ 	gp := getg()
++ 	if gp.m.curg != gp {
++ 		gothrow("panic on m stack")
++ 	}
++ 
++ 	// m.softfloat is set during software floating point.
++ 	// It increments m.locks to avoid preemption.
++ 	// We moved the memory loads out, so there shouldn't be
++ 	// any reason for it to panic anymore.
++ 	if gp.m.softfloat != 0 {
++ 		gp.m.locks--
++ 		gp.m.softfloat = 0
++ 		gothrow("panic during softfloat")
++ 	}
++ 	if gp.m.mallocing != 0 {
++ 		print("panic: ")
++ 		printany(e)
++ 		print("\n")
++ 		gothrow("panic during malloc")
++ 	}
++ 	if gp.m.gcing != 0 {
++ 		print("panic: ")
++ 		printany(e)
++ 		print("\n")
++ 		gothrow("panic during gc")
++ 	}
++ 	if gp.m.locks != 0 {
++ 		print("panic: ")
++ 		printany(e)
++ 		print("\n")
++ 		gothrow("panic holding locks")
++ 	}
++ 
++ 	var p _panic
++ 	p.arg = e
++ 	p.link = gp._panic
++ 	gp._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
++ 
++ 	for {
++ 		d := gp._defer
++ 		if d == nil {
++ 			break
++ 		}
++ 
++ 		// If defer was started by earlier panic or Goexit (and, since we're back here, that triggered a new panic),
++ 		// take defer off list. The earlier panic or Goexit will not continue running.
++ 		if d.started {
++ 			if d._panic != nil {
++ 				d._panic.aborted = true
++ 			}
++ 			d._panic = nil
++ 			d.fn = nil
++ 			gp._defer = d.link
++ 			freedefer(d)
++ 			continue
++ 		}
++ 
++ 		// Mark defer as started, but keep on list, so that traceback
++ 		// can find and update the defer's argument frame if stack growth
++ 		// or a garbage collection hapens before reflectcall starts executing d.fn.
++ 		d.started = true
++ 
++ 		// Record the panic that is running the defer.
++ 		// If there is a new panic during the deferred call, that panic
++ 		// will find d in the list and will mark d._panic (this panic) aborted.
++ 		d._panic = (*_panic)(noescape((unsafe.Pointer)(&p)))
++ 
++ 		p.argp = unsafe.Pointer(getargp(0))
++ 		reflectcall(unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
++ 		p.argp = nil
++ 
++ 		// reflectcall did not panic. Remove d.
++ 		if gp._defer != d {
++ 			gothrow("bad defer entry in panic")
++ 		}
++ 		d._panic = nil
++ 		d.fn = nil
++ 		gp._defer = d.link
++ 
++ 		// trigger shrinkage to test stack copy.  See stack_test.go:TestStackPanic
++ 		//GC()
++ 
++ 		pc := d.pc
++ 		argp := unsafe.Pointer(d.argp) // must be pointer so it gets adjusted during stack copy
++ 		freedefer(d)
++ 		if p.recovered {
++ 			gp._panic = p.link
++ 			// Aborted panics are marked but remain on the g.panic list.
++ 			// Remove them from the list.
++ 			for gp._panic != nil && gp._panic.aborted {
++ 				gp._panic = gp._panic.link
++ 			}
++ 			if gp._panic == nil { // must be done with signal
++ 				gp.sig = 0
++ 			}
++ 			// Pass information about recovering frame to recovery.
++ 			gp.sigcode0 = uintptr(argp)
++ 			gp.sigcode1 = pc
++ 			mcall(recovery_m)
++ 			gothrow("recovery failed") // mcall should not return
++ 		}
++ 	}
++ 
++ 	// ran out of deferred calls - old-school panic now
++ 	startpanic()
++ 	printpanics(gp._panic)
++ 	dopanic(0)       // should not return
++ 	*(*int)(nil) = 0 // not reached
++ }
++ 
++ // getargp returns the location where the caller
++ // writes outgoing function call arguments.
++ //go:nosplit
++ func getargp(x int) uintptr {
++ 	// x is an argument mainly so that we can return its address.
++ 	// However, we need to make the function complex enough
++ 	// that it won't be inlined. We always pass x = 0, so this code
++ 	// does nothing other than keep the compiler from thinking
++ 	// the function is simple enough to inline.
++ 	if x > 0 {
++ 		return getcallersp(unsafe.Pointer(&x)) * 0
++ 	}
++ 	return uintptr(noescape(unsafe.Pointer(&x)))
++ }
++ 
++ // The implementation of the predeclared function recover.
++ // Cannot split the stack because it needs to reliably
++ // find the stack segment of its caller.
++ //
++ // TODO(rsc): Once we commit to CopyStackAlways,
++ // this doesn't need to be nosplit.
++ //go:nosplit
++ func gorecover(argp uintptr) interface{} {
++ 	// Must be in a function running as part of a deferred call during the panic.
++ 	// Must be called from the topmost function of the call
++ 	// (the function used in the defer statement).
++ 	// p.argp is the argument pointer of that topmost deferred function call.
++ 	// Compare against argp reported by caller.
++ 	// If they match, the caller is the one who can recover.
++ 	gp := getg()
++ 	p := gp._panic
++ 	if p != nil && !p.recovered && argp == uintptr(p.argp) {
++ 		p.recovered = true
++ 		return p.arg
++ 	}
++ 	return nil
++ }
++ 
++ //go:nosplit
++ func startpanic() {
++ 	onM_signalok(startpanic_m)
++ }
++ 
++ //go:nosplit
++ func dopanic(unused int) {
++ 	gp := getg()
++ 	mp := acquirem()
++ 	mp.ptrarg[0] = unsafe.Pointer(gp)
++ 	mp.scalararg[0] = getcallerpc((unsafe.Pointer)(&unused))
++ 	mp.scalararg[1] = getcallersp((unsafe.Pointer)(&unused))
++ 	onM_signalok(dopanic_m) // should never return
++ 	*(*int)(nil) = 0
++ }
++ 
++ //go:nosplit
++ func throw(s *byte) {
++ 	gp := getg()
++ 	if gp.m.throwing == 0 {
++ 		gp.m.throwing = 1
++ 	}
++ 	startpanic()
++ 	print("fatal error: ", gostringnocopy(s), "\n")
++ 	dopanic(0)
++ 	*(*int)(nil) = 0 // not reached
++ }
++ 
++ //go:nosplit
++ func gothrow(s string) {
+++	print("fatal error: ", s, "\n")
++ 	gp := getg()
++ 	if gp.m.throwing == 0 {
++ 		gp.m.throwing = 1
++ 	}
++ 	startpanic()
+ -	print("fatal error: ", s, "\n")
++ 	dopanic(0)
++ 	*(*int)(nil) = 0 // not reached
++ }
+diff --cc src/runtime/proc.c
+index d77f20abf9,1426790f40..11af6a1eaa
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@@ -2301,10 -2180,11 +2180,11 @@@ runtime·newproc1(FuncVal *fn, byte *ar
+  	if(runtime·readgstatus(newg) != Gdead) 
+  		runtime·throw("newproc1: new g is not Gdead");
+  
+- 	sp = (byte*)newg->stackbase;
++ 	sp = (byte*)newg->stack.hi;
++ 	sp -= 4*sizeof(uintreg); // extra space in case of reads slightly beyond frame
+  	sp -= siz;
+  	runtime·memmove(sp, argp, narg);
+ -	if(thechar == '5') {
+ +	if(thechar == '5' || thechar == '9') {
+  		// caller's LR
+  		sp -= sizeof(void*);
+  		*(void**)sp = nil;
+diff --cc test/nosplit.go
+index 8dab2fc7a7,953a5bf0a6..3a63e8731d
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@@ -231,18 -230,13 +231,21 @@@ TestCases
+  			continue
+  		}
+  
++ 		var gobuf bytes.Buffer
++ 		fmt.Fprintf(&gobuf, "package main\n")
++ 
+  		var buf bytes.Buffer
+ -		if goarch == "arm" {
+ +		ptrSize := 4
+ +		switch goarch {
+ +		case "power64", "power64le":
+ +			ptrSize = 8
+ +			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n#define RET RETURN\n")
+ +		case "arm":
+  			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (R0)\n")
+ -		} else {
+ +		case "amd64":
+ +			ptrSize = 8
+ +			fmt.Fprintf(&buf, "#define REGISTER AX\n")
+ +		default:
+  			fmt.Fprintf(&buf, "#define REGISTER AX\n")
+  		}
+  

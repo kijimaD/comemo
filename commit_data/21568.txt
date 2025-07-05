@@ -13,6 +13,24 @@ Date:   Fri Jan 16 10:34:07 2015 -0500
     Change-Id: I741498d4d9321607e7a65792a33faf8187bd18e4
     Reviewed-on: https://go-review.googlesource.com/2908
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testso/test.bash | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/misc/cgo/testso/test.bash b/misc/cgo/testso/test.bash
+index f4061c68e6..dce9efc09c 100755
+--- a/misc/cgo/testso/test.bash
++++ b/misc/cgo/testso/test.bash
+@@ -5,6 +5,12 @@
+ 
+ set -e
+ 
++if [ "$(uname -m)" == ppc64 -o "$(uname -m)" == ppc64le ]; then
++	# External linking not implemented on ppc64
++	echo "skipping test on ppc64 (issue #8912)"
++	exit
++fi
++
+ args=
+ dyld_envvar=LD_LIBRARY_PATH
+ ext=so

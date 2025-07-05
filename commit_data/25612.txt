@@ -8,6 +8,20 @@ Date:   Thu Sep 10 11:33:48 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/14458
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/debug/garbage_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/debug/garbage_test.go b/src/runtime/debug/garbage_test.go
+index 3e3483d418..549d360bbf 100644
+--- a/src/runtime/debug/garbage_test.go
++++ b/src/runtime/debug/garbage_test.go
+@@ -88,7 +88,7 @@ func TestReadGCStats(t *testing.T) {
+ var big = make([]byte, 1<<20)
+ 
+ func TestFreeOSMemory(t *testing.T) {
+-	if runtime.GOARCH == "arm64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" ||
++	if runtime.GOARCH == "arm64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "mips64" || runtime.GOARCH == "mips64le" ||
+ 		runtime.GOOS == "nacl" {
+ 		t.Skip("issue 9993; scavenger temporarily disabled on systems with physical pages larger than logical pages")
+ 	}

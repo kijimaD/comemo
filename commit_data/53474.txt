@@ -13,8 +13,66 @@ Date:   Wed Aug 17 17:39:01 2022 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/runtime/proc.go      | 2 +-
  src/runtime/runtime2.go  | 8 ++++----
  src/runtime/traceback.go | 5 ++---
  3 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 01f9ed5f57..1b33d59736 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4609,7 +4609,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 		// cgoCallers.  We are running in a signal handler
+ 		// with all signals blocked, so we don't have to worry
+ 		// about any other code interrupting us.
+-		if atomic.Load(&mp.cgoCallersUse) == 0 && mp.cgoCallers != nil && mp.cgoCallers[0] != 0 {
++		if mp.cgoCallersUse.Load() == 0 && mp.cgoCallers != nil && mp.cgoCallers[0] != 0 {
+ 			for cgoOff < len(mp.cgoCallers) && mp.cgoCallers[cgoOff] != 0 {
+ 				cgoOff++
+ 			}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 79c8ccb6ec..21dba96a59 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -550,10 +550,10 @@ type m struct {
+ 	fastrand      uint64
+ 	needextram    bool
+ 	traceback     uint8
+-	ncgocall      uint64      // number of cgo calls in total
+-	ncgo          int32       // number of cgo calls currently in progress
+-	cgoCallersUse uint32      // if non-zero, cgoCallers in use temporarily
+-	cgoCallers    *cgoCallers // cgo traceback if crashing in cgo call
++	ncgocall      uint64        // number of cgo calls in total
++	ncgo          int32         // number of cgo calls currently in progress
++	cgoCallersUse atomic.Uint32 // if non-zero, cgoCallers in use temporarily
++	cgoCallers    *cgoCallers   // cgo traceback if crashing in cgo call
+ 	park          note
+ 	alllink       *m // on allm
+ 	schedlink     muintptr
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 96cf82c23e..599141af94 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -7,7 +7,6 @@ package runtime
+ import (
+ 	"internal/bytealg"
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -819,10 +818,10 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
+ 		// concurrently with a signal handler.
+ 		// We just have to stop a signal handler from interrupting
+ 		// in the middle of our copy.
+-		atomic.Store(&gp.m.cgoCallersUse, 1)
++		gp.m.cgoCallersUse.Store(1)
+ 		cgoCallers := *gp.m.cgoCallers
+ 		gp.m.cgoCallers[0] = 0
+-		atomic.Store(&gp.m.cgoCallersUse, 0)
++		gp.m.cgoCallersUse.Store(0)
+ 
+ 		printCgoTraceback(&cgoCallers)
+ 	}

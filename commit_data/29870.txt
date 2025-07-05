@@ -14,7 +14,94 @@ Date:   Thu Oct 13 17:08:54 2016 -0400
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/aes/cbc_s390x.go      |  4 ++-
  src/crypto/cipher/cipher_test.go | 54 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/aes/cbc_s390x.go b/src/crypto/aes/cbc_s390x.go
+index 427b30b2a7..739e1febc3 100644
+--- a/src/crypto/aes/cbc_s390x.go
++++ b/src/crypto/aes/cbc_s390x.go
+@@ -48,7 +48,9 @@ func (x *cbc) CryptBlocks(dst, src []byte) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/cipher: output smaller than input")
+ 	}
+-	cryptBlocksChain(x.c, &x.iv[0], &x.b.key[0], &dst[0], &src[0], len(src))
++	if len(src) > 0 {
++		cryptBlocksChain(x.c, &x.iv[0], &x.b.key[0], &dst[0], &src[0], len(src))
++	}
+ }
+ 
+ func (x *cbc) SetIV(iv []byte) {
+diff --git a/src/crypto/cipher/cipher_test.go b/src/crypto/cipher/cipher_test.go
+index 1faa7b87e5..4d7cd6b5dd 100644
+--- a/src/crypto/cipher/cipher_test.go
++++ b/src/crypto/cipher/cipher_test.go
+@@ -5,8 +5,10 @@
+ package cipher_test
+ 
+ import (
++	"bytes"
+ 	"crypto/aes"
+ 	"crypto/cipher"
++	"crypto/des"
+ 	"testing"
+ )
+ 
+@@ -34,3 +36,55 @@ func mustPanic(t *testing.T, msg string, f func()) {
+ 	}()
+ 	f()
+ }
++
++func TestEmptyPlaintext(t *testing.T) {
++	var key [16]byte
++	a, err := aes.NewCipher(key[:16])
++	if err != nil {
++		t.Fatal(err)
++	}
++	d, err := des.NewCipher(key[:8])
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	s := 16
++	pt := make([]byte, s)
++	ct := make([]byte, s)
++	for i := 0; i < 16; i++ {
++		pt[i], ct[i] = byte(i), byte(i)
++	}
++
++	assertEqual := func(name string, got, want []byte) {
++		if !bytes.Equal(got, want) {
++			t.Fatalf("%s: got %v, want %v", name, got, want)
++		}
++	}
++
++	for _, b := range []cipher.Block{a, d} {
++		iv := make([]byte, b.BlockSize())
++		cbce := cipher.NewCBCEncrypter(b, iv)
++		cbce.CryptBlocks(ct, pt[:0])
++		assertEqual("CBC encrypt", ct, pt)
++
++		cbcd := cipher.NewCBCDecrypter(b, iv)
++		cbcd.CryptBlocks(ct, pt[:0])
++		assertEqual("CBC decrypt", ct, pt)
++
++		cfbe := cipher.NewCFBEncrypter(b, iv)
++		cfbe.XORKeyStream(ct, pt[:0])
++		assertEqual("CFB encrypt", ct, pt)
++
++		cfbd := cipher.NewCFBDecrypter(b, iv)
++		cfbd.XORKeyStream(ct, pt[:0])
++		assertEqual("CFB decrypt", ct, pt)
++
++		ctr := cipher.NewCTR(b, iv)
++		ctr.XORKeyStream(ct, pt[:0])
++		assertEqual("CTR", ct, pt)
++
++		ofb := cipher.NewOFB(b, iv)
++		ofb.XORKeyStream(ct, pt[:0])
++		assertEqual("OFB", ct, pt)
++	}
++}

@@ -14,6 +14,30 @@ Date:   Wed May 13 15:28:11 2015 -0700
     Change-Id: I9ba4fd7268df233d40b09f0431f37cd85a049847
     Reviewed-on: https://go-review.googlesource.com/10024
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/internal/obj/util.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index b0b209184f..ac49543fdf 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -213,10 +213,17 @@ func Getgoos() string {
+ }
+ 
+ func Getgoarm() string {
+-	return envOr("GOARM", defaultGOARM)
++	switch v := envOr("GOARM", defaultGOARM); v {
++	case "5", "6", "7":
++		return v
++	}
++	// Fail here, rather than validate at multiple call sites.
++	log.Fatalf("Invalid GOARM value. Must be 5, 6, or 7.")
++	panic("unreachable")
+ }
+ 
+ func Getgo386() string {
++	// Validated by cmd/8g.
+ 	return envOr("GO386", defaultGO386)
+ }
+ 

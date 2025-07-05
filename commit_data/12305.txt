@@ -7,6 +7,20 @@ Date:   Thu Mar 1 11:46:13 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5711052
-
+---
  src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 66b5c1f183..cd2581c3a8 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -586,7 +586,7 @@ install(char *dir)
+ 		splitfields(&gccargs, bstr(&b));
+ 		for(i=0; i<nelem(proto_gccargs); i++)
+ 			vadd(&gccargs, proto_gccargs[i]);
+-		if(xstrstr(gccargs.p[0], "clang") != nil) {
++		if(xstrstr(bstr(&b), "clang") != nil) {
+ 			vadd(&gccargs, "-Wno-dangling-else");
+ 			vadd(&gccargs, "-Wno-unused-value");
+ 		}

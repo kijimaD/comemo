@@ -9,6 +9,22 @@ Date:   Tue Jul 26 04:13:15 2016 +0900
     Change-Id: I86bec2f9bd7965449c43e94733791f7cb18c5c4c
     Reviewed-on: https://go-review.googlesource.com/25165
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/syscall/mksyscall_windows.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index 1e0d9401e7..4f9c5d2ff9 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -708,6 +708,10 @@ func (src *Source) IsStdRepo() (bool, error) {
+ 		abspath = strings.ToLower(abspath)
+ 		goroot = strings.ToLower(goroot)
+ 	}
++	sep := string(os.PathSeparator)
++	if !strings.HasSuffix(goroot, sep) {
++		goroot += sep
++	}
+ 	return strings.HasPrefix(abspath, goroot), nil
+ }
+ 

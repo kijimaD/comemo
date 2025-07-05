@@ -11,9 +11,102 @@ Date:   Thu Aug 29 15:53:34 2013 -0700
     R=golang-dev, cshapiro
     CC=golang-dev
     https://golang.org/cl/13012044
-
+---
  src/pkg/runtime/asm_386.s   | 8 +++++---
  src/pkg/runtime/asm_amd64.s | 8 ++++----
  src/pkg/runtime/asm_arm.s   | 5 +++--
  src/pkg/runtime/proc.c      | 6 ++++--
  4 files changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index c61b75cfb2..79f2e79296 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -181,14 +181,16 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ 	MOVL	m(CX), BX
+ 	MOVL	m_g0(BX), SI
+ 	CMPL	SI, AX	// if g == m->g0 call badmcall
+-	JNE	2(PC)
+-	CALL	runtime·badmcall(SB)
++	JNE	3(PC)
++	MOVL	$runtime·badmcall(SB), AX
++	JMP	AX
+ 	MOVL	SI, g(CX)	// g = m->g0
+ 	MOVL	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
+ 	PUSHL	AX
+ 	CALL	DI
+ 	POPL	AX
+-	CALL	runtime·badmcall2(SB)
++	MOVL	$runtime·badmcall2(SB), AX
++	JMP	AX
+ 	RET
+ 
+ /*
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index fcc75a9229..a85056c9ea 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -169,16 +169,16 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ 	MOVQ	m_g0(BX), SI
+ 	CMPQ	SI, AX	// if g == m->g0 call badmcall
+ 	JNE	3(PC)
+-	ARGSIZE(0)
+-	CALL	runtime·badmcall(SB)
++	MOVQ	$runtime·badmcall(SB), AX
++	JMP	AX
+ 	MOVQ	SI, g(CX)	// g = m->g0
+ 	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
+ 	PUSHQ	AX
+ 	ARGSIZE(8)
+ 	CALL	DI
+ 	POPQ	AX
+-	ARGSIZE(0)
+-	CALL	runtime·badmcall2(SB)
++	MOVQ	$runtime·badmcall2(SB), AX
++	JMP	AX
+ 	RET
+ 
+ /*
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 0d12b6a0d8..b66f80e2c6 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -157,12 +157,13 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
+ 	MOVW	g, R1
+ 	MOVW	m_g0(m), g
+ 	CMP	g, R1
+-	BL.EQ	runtime·badmcall(SB)
++	B.NE	2(PC)
++	B	runtime·badmcall(SB)
+ 	MOVW	(g_sched+gobuf_sp)(g), SP
+ 	SUB	$8, SP
+ 	MOVW	R1, 4(SP)
+ 	BL	(R0)
+-	BL	runtime·badmcall2(SB)
++	B	runtime·badmcall2(SB)
+ 	RET
+ 
+ /*
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index dab62ad69b..d37014f3a5 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1997,14 +1997,16 @@ runtime·mcount(void)
+ }
+ 
+ void
+-runtime·badmcall(void)  // called from assembly
++runtime·badmcall(void (*fn)(G*))  // called from assembly
+ {
++	USED(fn); // TODO: print fn?
+ 	runtime·throw("runtime: mcall called on m->g0 stack");
+ }
+ 
+ void
+-runtime·badmcall2(void)  // called from assembly
++runtime·badmcall2(void (*fn)(G*))  // called from assembly
+ {
++	USED(fn);
+ 	runtime·throw("runtime: mcall function returned");
+ }
+ 

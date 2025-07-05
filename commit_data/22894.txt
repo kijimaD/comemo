@@ -7,6 +7,50 @@ Date:   Mon Apr 13 15:29:09 2015 -0700
     Change-Id: Ic35dff4c9a7fc6716ef9d5553a7b1769bed9be01
     Reviewed-on: https://go-review.googlesource.com/8892
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  test/fixedbugs/gcc65755.go | 37 +++++++++++++++++++++++++++++++++++++
  1 file changed, 37 insertions(+)
+
+diff --git a/test/fixedbugs/gcc65755.go b/test/fixedbugs/gcc65755.go
+new file mode 100644
+index 0000000000..e76f4d1f57
+--- /dev/null
++++ b/test/fixedbugs/gcc65755.go
+@@ -0,0 +1,37 @@
++// run
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PR65755: Incorrect type descriptor for type defined within method.
++
++package main
++
++import "reflect"
++
++type S1 struct{}
++
++func (S1) Fix() string {
++	type s struct {
++		f int
++	}
++	return reflect.TypeOf(s{}).Field(0).Name
++}
++
++type S2 struct{}
++
++func (S2) Fix() string {
++	type s struct {
++		g bool
++	}
++	return reflect.TypeOf(s{}).Field(0).Name
++}
++
++func main() {
++	f1 := S1{}.Fix()
++	f2 := S2{}.Fix()
++	if f1 != "f" || f2 != "g" {
++		panic(f1 + f2)
++	}
++}

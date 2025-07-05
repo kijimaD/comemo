@@ -20,8 +20,167 @@ Date:   Fri Jun 28 09:30:36 2019 -0400
     Reviewed-by: Meng Zhuo <mzh@golangcn.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Meng Zhuo <mzh@golangcn.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  9 ++++--
  src/cmd/compile/internal/ssa/opGen.go        |  6 ++--
  src/runtime/asm_arm64.s                      | 47 +++++++++++++---------------
  3 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 148843cd8d..65e54202bf 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -512,13 +512,14 @@ func init() {
+ 		// auxint = offset into duffzero code to start executing
+ 		// returns mem
+ 		// R20 changed as side effect
++		// R16 and R17 may be clobbered by linker trampoline.
+ 		{
+ 			name:      "DUFFZERO",
+ 			aux:       "Int64",
+ 			argLength: 2,
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("R20")},
+-				clobbers: buildReg("R20 R30"),
++				clobbers: buildReg("R16 R17 R20 R30"),
+ 			},
+ 			faultOnNilArg0: true,
+ 			unsafePoint:    true, // FP maintenance around DUFFZERO can be clobbered by interrupts
+@@ -552,13 +553,14 @@ func init() {
+ 		// auxint = offset into duffcopy code to start executing
+ 		// returns mem
+ 		// R20, R21 changed as side effect
++		// R16 and R17 may be clobbered by linker trampoline.
+ 		{
+ 			name:      "DUFFCOPY",
+ 			aux:       "Int64",
+ 			argLength: 3,
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
+-				clobbers: buildReg("R20 R21 R26 R30"),
++				clobbers: buildReg("R16 R17 R20 R21 R26 R30"),
+ 			},
+ 			faultOnNilArg0: true,
+ 			faultOnNilArg1: true,
+@@ -717,7 +719,8 @@ func init() {
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers R30 (LR) because it's a call.
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R30")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// R16 and R17 may be clobbered by linker trampoline.
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R16 R17 R30")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 3f84a09289..8c753ea2a3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -21066,7 +21066,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1048576}, // R20
+ 			},
+-			clobbers: 537919488, // R20 R30
++			clobbers: 538116096, // R16 R17 R20 R30
+ 		},
+ 	},
+ 	{
+@@ -21094,7 +21094,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 2097152}, // R21
+ 				{1, 1048576}, // R20
+ 			},
+-			clobbers: 607125504, // R20 R21 R26 R30
++			clobbers: 607322112, // R16 R17 R20 R21 R26 R30
+ 		},
+ 	},
+ 	{
+@@ -21591,7 +21591,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4}, // R2
+ 				{1, 8}, // R3
+ 			},
+-			clobbers: 9223372035244163072, // R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			clobbers: 9223372035244359680, // R16 R17 R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 		},
+ 	},
+ 	{
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 3709f1d95e..2e120dcf1e 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1158,10 +1158,10 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ // It does not clobber any general-purpose registers,
+ // but may clobber others (e.g., floating point registers)
+ // The act of CALLing gcWriteBarrier will clobber R30 (LR).
+-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
++TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$200
+ 	// Save the registers clobbered by the fast path.
+-	MOVD	R0, 200(RSP)
+-	MOVD	R1, 208(RSP)
++	MOVD	R0, 184(RSP)
++	MOVD	R1, 192(RSP)
+ 	MOVD	g_m(g), R0
+ 	MOVD	m_p(R0), R0
+ 	MOVD	(p_wbBuf+wbBuf_next)(R0), R1
+@@ -1177,8 +1177,8 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
+ 	// Is the buffer full? (flags set in CMP above)
+ 	BEQ	flush
+ ret:
+-	MOVD	200(RSP), R0
+-	MOVD	208(RSP), R1
++	MOVD	184(RSP), R0
++	MOVD	192(RSP), R1
+ 	// Do the write.
+ 	MOVD	R3, (R2)
+ 	RET
+@@ -1202,17 +1202,16 @@ flush:
+ 	MOVD	R13, 96(RSP)
+ 	MOVD	R14, 104(RSP)
+ 	MOVD	R15, 112(RSP)
+-	MOVD	R16, 120(RSP)
+-	MOVD	R17, 128(RSP)
++	// R16, R17 may be clobbered by linker trampoline
+ 	// R18 is unused.
+-	MOVD	R19, 136(RSP)
+-	MOVD	R20, 144(RSP)
+-	MOVD	R21, 152(RSP)
+-	MOVD	R22, 160(RSP)
+-	MOVD	R23, 168(RSP)
+-	MOVD	R24, 176(RSP)
+-	MOVD	R25, 184(RSP)
+-	MOVD	R26, 192(RSP)
++	MOVD	R19, 120(RSP)
++	MOVD	R20, 128(RSP)
++	MOVD	R21, 136(RSP)
++	MOVD	R22, 144(RSP)
++	MOVD	R23, 152(RSP)
++	MOVD	R24, 160(RSP)
++	MOVD	R25, 168(RSP)
++	MOVD	R26, 176(RSP)
+ 	// R27 is temp register.
+ 	// R28 is g.
+ 	// R29 is frame pointer (unused).
+@@ -1236,16 +1235,14 @@ flush:
+ 	MOVD	96(RSP), R13
+ 	MOVD	104(RSP), R14
+ 	MOVD	112(RSP), R15
+-	MOVD	120(RSP), R16
+-	MOVD	128(RSP), R17
+-	MOVD	136(RSP), R19
+-	MOVD	144(RSP), R20
+-	MOVD	152(RSP), R21
+-	MOVD	160(RSP), R22
+-	MOVD	168(RSP), R23
+-	MOVD	176(RSP), R24
+-	MOVD	184(RSP), R25
+-	MOVD	192(RSP), R26
++	MOVD	120(RSP), R19
++	MOVD	128(RSP), R20
++	MOVD	136(RSP), R21
++	MOVD	144(RSP), R22
++	MOVD	152(RSP), R23
++	MOVD	160(RSP), R24
++	MOVD	168(RSP), R25
++	MOVD	176(RSP), R26
+ 	JMP	ret
+ 
+ // Note: these functions use a special calling convention to save generated code space.

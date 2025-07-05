@@ -31,7 +31,7 @@ Date:   Fri Jun 4 13:14:32 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go         | 120 +------------------
  src/cmd/compile/internal/gc/obj.go            |   3 +-
  src/cmd/compile/internal/inline/inl.go        |  56 ---------
@@ -39,3 +39,540 @@ Date:   Fri Jun 4 13:14:32 2021 -0700
  src/cmd/compile/internal/typecheck/crawler.go | 164 ++++++++++++++++++++++++++
  src/cmd/compile/internal/typecheck/iexport.go |  38 ++++--
  6 files changed, 224 insertions(+), 183 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index a11e5fdd30..9bf3c7240a 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -5,41 +5,16 @@
+ package gc
+ 
+ import (
++	"fmt"
++	"go/constant"
++
+ 	"cmd/compile/internal/base"
+-	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/bio"
+-	"fmt"
+-	"go/constant"
+ )
+ 
+-func exportf(bout *bio.Writer, format string, args ...interface{}) {
+-	fmt.Fprintf(bout, format, args...)
+-	if base.Debug.Export != 0 {
+-		fmt.Printf(format, args...)
+-	}
+-}
+-
+-func dumpexport(bout *bio.Writer) {
+-	p := &exporter{marked: make(map[*types.Type]bool)}
+-	for _, n := range typecheck.Target.Exports {
+-		p.markObject(n)
+-	}
+-
+-	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
+-	exportf(bout, "\n$$B\n") // indicate binary export format
+-	off := bout.Offset()
+-	typecheck.WriteExports(bout.Writer)
+-	size := bout.Offset() - off
+-	exportf(bout, "\n$$\n")
+-
+-	if base.Debug.Export != 0 {
+-		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", base.Ctxt.Pkgpath, size)
+-	}
+-}
+-
+ func dumpasmhdr() {
+ 	b, err := bio.Create(base.Flag.AsmHdr)
+ 	if err != nil {
+@@ -74,92 +49,3 @@ func dumpasmhdr() {
+ 
+ 	b.Close()
+ }
+-
+-type exporter struct {
+-	marked map[*types.Type]bool // types already seen by markType
+-}
+-
+-// markObject visits a reachable object.
+-func (p *exporter) markObject(n ir.Node) {
+-	if n.Op() == ir.ONAME {
+-		n := n.(*ir.Name)
+-		if n.Class == ir.PFUNC {
+-			inline.Inline_Flood(n, typecheck.Export)
+-		}
+-	}
+-
+-	p.markType(n.Type())
+-}
+-
+-// markType recursively visits types reachable from t to identify
+-// functions whose inline bodies may be needed.
+-func (p *exporter) markType(t *types.Type) {
+-	if t.IsInstantiatedGeneric() {
+-		// Re-instantiated types don't add anything new, so don't follow them.
+-		return
+-	}
+-	if p.marked[t] {
+-		return
+-	}
+-	p.marked[t] = true
+-
+-	// If this is a named type, mark all of its associated
+-	// methods. Skip interface types because t.Methods contains
+-	// only their unexpanded method set (i.e., exclusive of
+-	// interface embeddings), and the switch statement below
+-	// handles their full method set.
+-	if t.Sym() != nil && t.Kind() != types.TINTER {
+-		for _, m := range t.Methods().Slice() {
+-			if types.IsExported(m.Sym.Name) {
+-				p.markObject(ir.AsNode(m.Nname))
+-			}
+-		}
+-	}
+-
+-	// Recursively mark any types that can be produced given a
+-	// value of type t: dereferencing a pointer; indexing or
+-	// iterating over an array, slice, or map; receiving from a
+-	// channel; accessing a struct field or interface method; or
+-	// calling a function.
+-	//
+-	// Notably, we don't mark function parameter types, because
+-	// the user already needs some way to construct values of
+-	// those types.
+-	switch t.Kind() {
+-	case types.TPTR, types.TARRAY, types.TSLICE:
+-		p.markType(t.Elem())
+-
+-	case types.TCHAN:
+-		if t.ChanDir().CanRecv() {
+-			p.markType(t.Elem())
+-		}
+-
+-	case types.TMAP:
+-		p.markType(t.Key())
+-		p.markType(t.Elem())
+-
+-	case types.TSTRUCT:
+-		for _, f := range t.FieldSlice() {
+-			if types.IsExported(f.Sym.Name) || f.Embedded != 0 {
+-				p.markType(f.Type)
+-			}
+-		}
+-
+-	case types.TFUNC:
+-		for _, f := range t.Results().FieldSlice() {
+-			p.markType(f.Type)
+-		}
+-
+-	case types.TINTER:
+-		// TODO(danscales) - will have to deal with the types in interface
+-		// elements here when implemented in types2 and represented in types1.
+-		for _, f := range t.AllMethods().Slice() {
+-			if types.IsExported(f.Sym.Name) {
+-				p.markType(f.Type)
+-			}
+-		}
+-
+-	case types.TTYPEPARAM:
+-		// No other type that needs to be followed.
+-	}
+-}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 0b10cb8a9e..a52696fbb6 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/noder"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/staticdata"
+@@ -103,7 +104,7 @@ func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
+ 
+ func dumpCompilerObj(bout *bio.Writer) {
+ 	printObjHeader(bout)
+-	dumpexport(bout)
++	noder.WriteExports(bout)
+ }
+ 
+ func dumpdata() {
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 594f280f03..e12a30f936 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -225,62 +225,6 @@ func canDelayResults(fn *ir.Func) bool {
+ 	return true
+ }
+ 
+-// Inline_Flood marks n's inline body for export and recursively ensures
+-// all called functions are marked too.
+-func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
+-	if n == nil {
+-		return
+-	}
+-	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
+-		base.Fatalf("Inline_Flood: unexpected %v, %v, %v", n, n.Op(), n.Class)
+-	}
+-	fn := n.Func
+-	if fn == nil {
+-		base.Fatalf("Inline_Flood: missing Func on %v", n)
+-	}
+-	if fn.Inl == nil {
+-		return
+-	}
+-
+-	if fn.ExportInline() {
+-		return
+-	}
+-	fn.SetExportInline(true)
+-
+-	typecheck.ImportedBody(fn)
+-
+-	var doFlood func(n ir.Node)
+-	doFlood = func(n ir.Node) {
+-		switch n.Op() {
+-		case ir.OMETHEXPR, ir.ODOTMETH:
+-			Inline_Flood(ir.MethodExprName(n), exportsym)
+-
+-		case ir.ONAME:
+-			n := n.(*ir.Name)
+-			switch n.Class {
+-			case ir.PFUNC:
+-				Inline_Flood(n, exportsym)
+-				exportsym(n)
+-			case ir.PEXTERN:
+-				exportsym(n)
+-			}
+-
+-		case ir.OCALLPART:
+-			// Okay, because we don't yet inline indirect
+-			// calls to method values.
+-		case ir.OCLOSURE:
+-			// VisitList doesn't visit closure bodies, so force a
+-			// recursive call to VisitList on the body of the closure.
+-			ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doFlood)
+-		}
+-	}
+-
+-	// Recursively identify all referenced functions for
+-	// reexport. We want to include even non-called functions,
+-	// because after inlining they might be callable.
+-	ir.VisitList(ir.Nodes(fn.Inl.Body), doFlood)
+-}
+-
+ // hairyVisitor visits a function body to determine its inlining
+ // hairiness and whether or not it can be inlined.
+ type hairyVisitor struct {
+diff --git a/src/cmd/compile/internal/noder/export.go b/src/cmd/compile/internal/noder/export.go
+new file mode 100644
+index 0000000000..9fb3b4da10
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/export.go
+@@ -0,0 +1,26 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"fmt"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/typecheck"
++	"cmd/internal/bio"
++)
++
++func WriteExports(out *bio.Writer) {
++	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
++	out.WriteString("\n$$B\n") // indicate binary export format
++	off := out.Offset()
++	typecheck.WriteExports(out, true)
++	size := out.Offset() - off
++	out.WriteString("\n$$\n")
++
++	if base.Debug.Export != 0 {
++		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", base.Ctxt.Pkgpath, size)
++	}
++}
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+new file mode 100644
+index 0000000000..48fc61dbfd
+--- /dev/null
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -0,0 +1,164 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package typecheck
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
++)
++
++// crawlExports crawls the type/object graph rooted at the given list
++// of exported objects. Any functions that are found to be potentially
++// callable by importers are marked with ExportInline so that
++// iexport.go knows to re-export their inline body.
++func crawlExports(exports []*ir.Name) {
++	p := crawler{marked: make(map[*types.Type]bool)}
++	for _, n := range exports {
++		p.markObject(n)
++	}
++}
++
++type crawler struct {
++	marked map[*types.Type]bool // types already seen by markType
++}
++
++// markObject visits a reachable object.
++func (p *crawler) markObject(n *ir.Name) {
++	if n.Op() == ir.ONAME && n.Class == ir.PFUNC {
++		p.markInlBody(n)
++	}
++
++	p.markType(n.Type())
++}
++
++// markType recursively visits types reachable from t to identify
++// functions whose inline bodies may be needed.
++func (p *crawler) markType(t *types.Type) {
++	if t.IsInstantiatedGeneric() {
++		// Re-instantiated types don't add anything new, so don't follow them.
++		return
++	}
++	if p.marked[t] {
++		return
++	}
++	p.marked[t] = true
++
++	// If this is a named type, mark all of its associated
++	// methods. Skip interface types because t.Methods contains
++	// only their unexpanded method set (i.e., exclusive of
++	// interface embeddings), and the switch statement below
++	// handles their full method set.
++	if t.Sym() != nil && t.Kind() != types.TINTER {
++		for _, m := range t.Methods().Slice() {
++			if types.IsExported(m.Sym.Name) {
++				p.markObject(m.Nname.(*ir.Name))
++			}
++		}
++	}
++
++	// Recursively mark any types that can be produced given a
++	// value of type t: dereferencing a pointer; indexing or
++	// iterating over an array, slice, or map; receiving from a
++	// channel; accessing a struct field or interface method; or
++	// calling a function.
++	//
++	// Notably, we don't mark function parameter types, because
++	// the user already needs some way to construct values of
++	// those types.
++	switch t.Kind() {
++	case types.TPTR, types.TARRAY, types.TSLICE:
++		p.markType(t.Elem())
++
++	case types.TCHAN:
++		if t.ChanDir().CanRecv() {
++			p.markType(t.Elem())
++		}
++
++	case types.TMAP:
++		p.markType(t.Key())
++		p.markType(t.Elem())
++
++	case types.TSTRUCT:
++		for _, f := range t.FieldSlice() {
++			if types.IsExported(f.Sym.Name) || f.Embedded != 0 {
++				p.markType(f.Type)
++			}
++		}
++
++	case types.TFUNC:
++		for _, f := range t.Results().FieldSlice() {
++			p.markType(f.Type)
++		}
++
++	case types.TINTER:
++		// TODO(danscales) - will have to deal with the types in interface
++		// elements here when implemented in types2 and represented in types1.
++		for _, f := range t.AllMethods().Slice() {
++			if types.IsExported(f.Sym.Name) {
++				p.markType(f.Type)
++			}
++		}
++
++	case types.TTYPEPARAM:
++		// No other type that needs to be followed.
++	}
++}
++
++// markInlBody marks n's inline body for export and recursively
++// ensures all called functions are marked too.
++func (p *crawler) markInlBody(n *ir.Name) {
++	if n == nil {
++		return
++	}
++	if n.Op() != ir.ONAME || n.Class != ir.PFUNC {
++		base.Fatalf("markInlBody: unexpected %v, %v, %v", n, n.Op(), n.Class)
++	}
++	fn := n.Func
++	if fn == nil {
++		base.Fatalf("markInlBody: missing Func on %v", n)
++	}
++	if fn.Inl == nil {
++		return
++	}
++
++	if fn.ExportInline() {
++		return
++	}
++	fn.SetExportInline(true)
++
++	ImportedBody(fn)
++
++	var doFlood func(n ir.Node)
++	doFlood = func(n ir.Node) {
++		switch n.Op() {
++		case ir.OMETHEXPR, ir.ODOTMETH:
++			p.markInlBody(ir.MethodExprName(n))
++
++		case ir.ONAME:
++			n := n.(*ir.Name)
++			switch n.Class {
++			case ir.PFUNC:
++				p.markInlBody(n)
++				Export(n)
++			case ir.PEXTERN:
++				Export(n)
++			}
++
++		case ir.OCALLPART:
++			// Okay, because we don't yet inline indirect
++			// calls to method values.
++		case ir.OCLOSURE:
++			// VisitList doesn't visit closure bodies, so force a
++			// recursive call to VisitList on the body of the closure.
++			ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doFlood)
++		}
++	}
++
++	// Recursively identify all referenced functions for
++	// reexport. We want to include even non-called functions,
++	// because after inlining they might be callable.
++	ir.VisitList(fn.Inl.Body, doFlood)
++}
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 3bfbea11c0..6987bc9918 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -204,7 +204,6 @@
+ package typecheck
+ 
+ import (
+-	"bufio"
+ 	"bytes"
+ 	"crypto/md5"
+ 	"encoding/binary"
+@@ -264,13 +263,22 @@ const (
+ 	magic = 0x6742937dc293105
+ )
+ 
+-func WriteExports(out *bufio.Writer) {
++// WriteExports writes the indexed export format to out. If extensions
++// is true, then the compiler-only extensions are included.
++func WriteExports(out io.Writer, extensions bool) {
++	if extensions {
++		// If we're exporting inline bodies, invoke the crawler to mark
++		// which bodies to include.
++		crawlExports(Target.Exports)
++	}
++
+ 	p := iexporter{
+ 		allPkgs:     map[*types.Pkg]bool{},
+ 		stringIndex: map[string]uint64{},
+ 		declIndex:   map[*types.Sym]uint64{},
+ 		inlineIndex: map[*types.Sym]uint64{},
+ 		typIndex:    map[*types.Type]uint64{},
++		extensions:  extensions,
+ 	}
+ 
+ 	for i, pt := range predeclared() {
+@@ -397,6 +405,8 @@ type iexporter struct {
+ 	declIndex   map[*types.Sym]uint64
+ 	inlineIndex map[*types.Sym]uint64
+ 	typIndex    map[*types.Type]uint64
++
++	extensions bool
+ }
+ 
+ // stringOff returns the offset of s within the string section.
+@@ -467,7 +477,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			w.tag('V')
+ 			w.pos(n.Pos())
+ 			w.typ(n.Type())
+-			w.varExt(n)
++			if w.p.extensions {
++				w.varExt(n)
++			}
+ 
+ 		case ir.PFUNC:
+ 			if ir.IsMethod(n) {
+@@ -487,7 +499,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 				w.tparamList(n.Type().TParams().FieldSlice())
+ 			}
+ 			w.signature(n.Type())
+-			w.funcExt(n)
++			if w.p.extensions {
++				w.funcExt(n)
++			}
+ 
+ 		default:
+ 			base.Fatalf("unexpected class: %v, %v", n, n.Class)
+@@ -503,7 +517,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 		w.tag('C')
+ 		w.pos(n.Pos())
+ 		w.value(n.Type(), n.Val())
+-		w.constExt(n)
++		if w.p.extensions {
++			w.constExt(n)
++		}
+ 
+ 	case ir.OTYPE:
+ 		if n.Type().Kind() == types.TTYPEPARAM && n.Type().Underlying() == n.Type() {
+@@ -551,7 +567,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 
+ 		t := n.Type()
+ 		if t.IsInterface() {
+-			w.typeExt(t)
++			if w.p.extensions {
++				w.typeExt(t)
++			}
+ 			break
+ 		}
+ 
+@@ -567,9 +585,11 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			w.signature(m.Type)
+ 		}
+ 
+-		w.typeExt(t)
+-		for _, m := range methods {
+-			w.methExt(m)
++		if w.p.extensions {
++			w.typeExt(t)
++			for _, m := range methods {
++				w.methExt(m)
++			}
+ 		}
+ 
+ 	default:

@@ -17,7 +17,47 @@ Date:   Wed Mar 29 09:57:33 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/log/slog/json_handler.go      | 3 ++-
  src/log/slog/json_handler_test.go | 7 +++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/log/slog/json_handler.go b/src/log/slog/json_handler.go
+index 96545d58d6..ce249acfd3 100644
+--- a/src/log/slog/json_handler.go
++++ b/src/log/slog/json_handler.go
+@@ -135,7 +135,8 @@ func appendJSONValue(s *handleState, v Value) error {
+ 		s.appendTime(v.Time())
+ 	case KindAny:
+ 		a := v.Any()
+-		if err, ok := a.(error); ok {
++		_, jm := a.(json.Marshaler)
++		if err, ok := a.(error); ok && !jm {
+ 			s.appendString(err.Error())
+ 		} else {
+ 			return appendJSONMarshal(s.buf, a)
+diff --git a/src/log/slog/json_handler_test.go b/src/log/slog/json_handler_test.go
+index 0a38969f46..7c683f0d34 100644
+--- a/src/log/slog/json_handler_test.go
++++ b/src/log/slog/json_handler_test.go
+@@ -67,6 +67,12 @@ func (j jsonMarshaler) MarshalJSON() ([]byte, error) {
+ 	return []byte(fmt.Sprintf(`[%q]`, j.s)), nil
+ }
+ 
++type jsonMarshalerError struct {
++	jsonMarshaler
++}
++
++func (jsonMarshalerError) Error() string { return "oops" }
++
+ func TestAppendJSONValue(t *testing.T) {
+ 	// On most values, jsonAppendAttrValue should agree with json.Marshal.
+ 	for _, value := range []any{
+@@ -82,6 +88,7 @@ func TestAppendJSONValue(t *testing.T) {
+ 		time.Minute,
+ 		testTime,
+ 		jsonMarshaler{"xyz"},
++		jsonMarshalerError{jsonMarshaler{"pqr"}},
+ 	} {
+ 		got := jsonValueString(t, AnyValue(value))
+ 		want, err := marshalJSON(value)

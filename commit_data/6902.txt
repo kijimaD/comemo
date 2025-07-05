@@ -7,7 +7,41 @@ Date:   Thu Dec 9 10:11:00 2010 -0800
     R=iant, r2
     CC=golang-dev
     https://golang.org/cl/3532042
-
+---
  src/pkg/go/scanner/scanner.go | 4 ++--
  src/pkg/go/token/position.go  | 6 +++---
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index cb50fa1ea9..4374dec728 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -7,9 +7,9 @@
+ // Typical use:
+ //
+ //	var s Scanner
+-//      fset := token.NewFileSet()  // position information is relative to fset
++//	fset := token.NewFileSet()  // position information is relative to fset
+ //	s.Init(fset, filename, src, nil /* no error handler */, 0)
+-//      for {
++//	for {
+ //		pos, tok, lit := s.Scan()
+ //		if tok == token.EOF {
+ //			break
+diff --git a/src/pkg/go/token/position.go b/src/pkg/go/token/position.go
+index 10ec0e39b7..8eb8d138e6 100644
+--- a/src/pkg/go/token/position.go
++++ b/src/pkg/go/token/position.go
+@@ -32,9 +32,9 @@ func (pos *Position) IsValid() bool { return pos.Line > 0 }
+ // String returns a string in one of several forms:
+ //
+ //	file:line:column    valid position with file name
+-//      line:column         valid position without file name
+-//      file                invalid position with file name
+-//      -                   invalid position without file name
++//	line:column         valid position without file name
++//	file                invalid position with file name
++//	-                   invalid position without file name
+ //
+ func (pos Position) String() string {
+ 	s := pos.Filename

@@ -22,8 +22,98 @@ Date:   Tue Jul 21 13:59:35 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/get.go         | 12 ++++++++++++
  src/cmd/go/list.go        | 12 ++++++++++++
  src/cmd/go/vendor_test.go | 31 +++++++++++++++++++++++++++++++
  3 files changed, 55 insertions(+)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 320698ec47..f331c298e2 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -287,10 +287,22 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 		if getTestDeps {
+ 			// Process test dependencies when -t is specified.
+ 			// (Don't get test dependencies for test dependencies.)
++			//
++			// We apply vendoredImportPath here.  It's not
++			// needed for Imports, because it was done
++			// while loading the package.
+ 			for _, path := range p.TestImports {
++				if path == "C" {
++					continue
++				}
++				path, _ = vendoredImportPath(p, path)
+ 				download(path, p, stk, false)
+ 			}
+ 			for _, path := range p.XTestImports {
++				if path == "C" {
++					continue
++				}
++				path, _ = vendoredImportPath(p, path)
+ 				download(path, p, stk, false)
+ 			}
+ 		}
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index e500ece474..b24444026b 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -175,6 +175,18 @@ func runList(cmd *Command, args []string) {
+ 	}
+ 
+ 	for _, pkg := range load(args) {
++		// We apply vendoredImportPath here for test imports.
++		// It's not needed for regular imports, because it was
++		// done while loading the package.
++		for i, path := range pkg.TestImports {
++			path, _ = vendoredImportPath(pkg, path)
++			pkg.TestImports[i] = path
++		}
++		for i, path := range pkg.XTestImports {
++			path, _ = vendoredImportPath(pkg, path)
++			pkg.XTestImports[i] = path
++		}
++
+ 		do(pkg)
+ 	}
+ }
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index 389fd5efb0..b99b4f1185 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -142,3 +142,34 @@ func splitLines(s string) []string {
+ 	}
+ 	return x
+ }
++
++func TestVendorGet(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempFile("src/v/m.go", `
++		package main
++		import ("fmt"; "vendor.org/p")
++		func main() {
++			fmt.Println(p.C)
++		}`)
++	tg.tempFile("src/v/m_test.go", `
++		package main
++		import ("fmt"; "testing"; "vendor.org/p")
++		func TestNothing(t *testing.T) {
++			fmt.Println(p.C)
++		}`)
++	tg.tempFile("src/v/vendor/vendor.org/p/p.go", `
++		package p
++		const C = 1`)
++	tg.setenv("GOPATH", tg.path("."))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	tg.cd(tg.path("src/v"))
++	tg.run("run", "m.go")
++	tg.run("test")
++	tg.run("list", "-f", "{{.Imports}}")
++	tg.grepStdout("v/vendor/vendor.org/p", "import not in vendor directory")
++	tg.run("list", "-f", "{{.TestImports}}")
++	tg.grepStdout("v/vendor/vendor.org/p", "test import not in vendor directory")
++	tg.run("get")
++	tg.run("get", "-t")
++}

@@ -9,6 +9,27 @@ Date:   Wed Nov 18 23:39:53 2015 -0500
     Change-Id: I3a96a6707982629caf89656c479d096891783328
     Reviewed-on: https://go-review.googlesource.com/17050
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/main.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/main.go b/src/cmd/compile/main.go
+index 91c48313b7..3d11f515a2 100644
+--- a/src/cmd/compile/main.go
++++ b/src/cmd/compile/main.go
+@@ -13,10 +13,15 @@ import (
+ 	"cmd/compile/internal/x86"
+ 	"cmd/internal/obj"
+ 	"fmt"
++	"log"
+ 	"os"
+ )
+ 
+ func main() {
++	// disable timestamps for reproducible output
++	log.SetFlags(0)
++	log.SetPrefix("compile: ")
++
+ 	switch obj.Getgoarch() {
+ 	default:
+ 		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.Getgoarch())

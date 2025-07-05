@@ -11,7 +11,7 @@ Date:   Mon Feb 6 14:09:00 2012 +1100
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5637043
-
+---
  src/pkg/bufio/bufio_test.go            | 2 +-
  src/pkg/compress/flate/deflate_test.go | 6 +++---
  src/pkg/compress/lzw/reader_test.go    | 6 +++---
@@ -31,3 +31,319 @@ Date:   Mon Feb 6 14:09:00 2012 +1100
  src/pkg/image/png/writer_test.go       | 6 +++---
  src/pkg/old/template/template_test.go  | 4 ++--
  18 files changed, 37 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 6463bbb9cb..a2ee849f58 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -688,7 +688,7 @@ func TestReadAfterLines(t *testing.T) {
+ }
+ 
+ func TestReadEmptyBuffer(t *testing.T) {
+-	l, _ := NewReaderSize(bytes.NewBuffer(nil), minReadBufferSize)
++	l, _ := NewReaderSize(new(bytes.Buffer), minReadBufferSize)
+ 	line, isPrefix, err := l.ReadLine()
+ 	if err != io.EOF {
+ 		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index 24881d31c0..75d801df40 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -229,14 +229,14 @@ func testToFromWithLevel(t *testing.T, level int, input []byte, name string) err
+ }
+ 
+ func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name string, limit int) error {
+-	buffer := bytes.NewBuffer(nil)
+-	w := NewWriter(buffer, level)
++	var buffer bytes.Buffer
++	w := NewWriter(&buffer, level)
+ 	w.Write(input)
+ 	w.Close()
+ 	if limit > 0 && buffer.Len() > limit {
+ 		t.Errorf("level: %d, len(compress(data)) = %d > limit = %d", level, buffer.Len(), limit)
+ 	}
+-	r := NewReader(buffer)
++	r := NewReader(&buffer)
+ 	out, err := ioutil.ReadAll(r)
+ 	if err != nil {
+ 		t.Errorf("read: %s", err)
+diff --git a/src/pkg/compress/lzw/reader_test.go b/src/pkg/compress/lzw/reader_test.go
+index 09821573cc..e5be12f54e 100644
+--- a/src/pkg/compress/lzw/reader_test.go
++++ b/src/pkg/compress/lzw/reader_test.go
+@@ -81,7 +81,7 @@ var lzwTests = []lzwTest{
+ }
+ 
+ func TestReader(t *testing.T) {
+-	b := bytes.NewBuffer(nil)
++	var b bytes.Buffer
+ 	for _, tt := range lzwTests {
+ 		d := strings.Split(tt.desc, ";")
+ 		var order Order
+@@ -97,7 +97,7 @@ func TestReader(t *testing.T) {
+ 		rc := NewReader(strings.NewReader(tt.compressed), order, litWidth)
+ 		defer rc.Close()
+ 		b.Reset()
+-		n, err := io.Copy(b, rc)
++		n, err := io.Copy(&b, rc)
+ 		if err != nil {
+ 			if err != tt.err {
+ 				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
+@@ -116,7 +116,7 @@ func benchmarkDecoder(b *testing.B, n int) {
+ 	b.SetBytes(int64(n))
+ 	buf0, _ := ioutil.ReadFile("../testdata/e.txt")
+ 	buf0 = buf0[:10000]
+-	compressed := bytes.NewBuffer(nil)
++	compressed := new(bytes.Buffer)
+ 	w := NewWriter(compressed, LSB, 8)
+ 	for i := 0; i < n; i += len(buf0) {
+ 		io.Copy(w, bytes.NewBuffer(buf0))
+diff --git a/src/pkg/compress/zlib/writer_test.go b/src/pkg/compress/zlib/writer_test.go
+index a71894da32..1c75d088dd 100644
+--- a/src/pkg/compress/zlib/writer_test.go
++++ b/src/pkg/compress/zlib/writer_test.go
+@@ -124,8 +124,8 @@ func TestWriterDict(t *testing.T) {
+ 
+ func TestWriterDictIsUsed(t *testing.T) {
+ 	var input = []byte("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
+-	buf := bytes.NewBuffer(nil)
+-	compressor, err := NewWriterDict(buf, BestCompression, input)
++	var buf bytes.Buffer
++	compressor, err := NewWriterDict(&buf, BestCompression, input)
+ 	if err != nil {
+ 		t.Errorf("error in NewWriterDict: %s", err)
+ 		return
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index c181e43f97..774bee74ba 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -24,7 +24,7 @@ type forkableWriter struct {
+ }
+ 
+ func newForkableWriter() *forkableWriter {
+-	return &forkableWriter{bytes.NewBuffer(nil), nil, nil}
++	return &forkableWriter{new(bytes.Buffer), nil, nil}
+ }
+ 
+ func (f *forkableWriter) fork() (pre, post *forkableWriter) {
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index 7a30f9107e..9a62cf9c2a 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -570,8 +570,7 @@ func TestGobMapInterfaceEncode(t *testing.T) {
+ 		"bo": []bool{false},
+ 		"st": []string{"s"},
+ 	}
+-	buf := bytes.NewBuffer(nil)
+-	enc := NewEncoder(buf)
++	enc := NewEncoder(new(bytes.Buffer))
+ 	err := enc.Encode(m)
+ 	if err != nil {
+ 		t.Errorf("encode map: %s", err)
+@@ -579,7 +578,7 @@ func TestGobMapInterfaceEncode(t *testing.T) {
+ }
+ 
+ func TestSliceReusesMemory(t *testing.T) {
+-	buf := bytes.NewBuffer(nil)
++	buf := new(bytes.Buffer)
+ 	// Bytes
+ 	{
+ 		x := []byte("abcd")
+diff --git a/src/pkg/encoding/hex/hex.go b/src/pkg/encoding/hex/hex.go
+index eb7e7ca8d3..e7c22dac72 100644
+--- a/src/pkg/encoding/hex/hex.go
++++ b/src/pkg/encoding/hex/hex.go
+@@ -103,8 +103,8 @@ func DecodeString(s string) ([]byte, error) {
+ // Dump returns a string that contains a hex dump of the given data. The format
+ // of the hex dump matches the output of `hexdump -C` on the command line.
+ func Dump(data []byte) string {
+-	buf := bytes.NewBuffer(nil)
+-	dumper := Dumper(buf)
++	var buf bytes.Buffer
++	dumper := Dumper(&buf)
+ 	dumper.Write(data)
+ 	dumper.Close()
+ 	return string(buf.Bytes())
+diff --git a/src/pkg/encoding/hex/hex_test.go b/src/pkg/encoding/hex/hex_test.go
+index 8e1838e51e..ff60e89353 100644
+--- a/src/pkg/encoding/hex/hex_test.go
++++ b/src/pkg/encoding/hex/hex_test.go
+@@ -155,8 +155,8 @@ func TestDumper(t *testing.T) {
+ 	}
+ 
+ 	for stride := 1; stride < len(in); stride++ {
+-		out := bytes.NewBuffer(nil)
+-		dumper := Dumper(out)
++		var out bytes.Buffer
++		dumper := Dumper(&out)
+ 		done := 0
+ 		for done < len(in) {
+ 			todo := done + stride
+diff --git a/src/pkg/encoding/pem/pem.go b/src/pkg/encoding/pem/pem.go
+index 3eb7c9fa0d..38afbb42af 100644
+--- a/src/pkg/encoding/pem/pem.go
++++ b/src/pkg/encoding/pem/pem.go
+@@ -251,7 +251,7 @@ func Encode(out io.Writer, b *Block) (err error) {
+ }
+ 
+ func EncodeToMemory(b *Block) []byte {
+-	buf := bytes.NewBuffer(nil)
+-	Encode(buf, b)
++	var buf bytes.Buffer
++	Encode(&buf, b)
+ 	return buf.Bytes()
+ }
+diff --git a/src/pkg/encoding/pem/pem_test.go b/src/pkg/encoding/pem/pem_test.go
+index 11efe55448..9ae1578a50 100644
+--- a/src/pkg/encoding/pem/pem_test.go
++++ b/src/pkg/encoding/pem/pem_test.go
+@@ -73,7 +73,7 @@ var lineBreakerTests = []lineBreakerTest{
+ 
+ func TestLineBreaker(t *testing.T) {
+ 	for i, test := range lineBreakerTests {
+-		buf := bytes.NewBuffer(nil)
++		buf := new(bytes.Buffer)
+ 		var breaker lineBreaker
+ 		breaker.out = buf
+ 		_, err := breaker.Write([]byte(test.in))
+@@ -93,7 +93,7 @@ func TestLineBreaker(t *testing.T) {
+ 	}
+ 
+ 	for i, test := range lineBreakerTests {
+-		buf := bytes.NewBuffer(nil)
++		buf := new(bytes.Buffer)
+ 		var breaker lineBreaker
+ 		breaker.out = buf
+ 
+diff --git a/src/pkg/exp/html/escape.go b/src/pkg/exp/html/escape.go
+index 42be865ef0..8f62a8c288 100644
+--- a/src/pkg/exp/html/escape.go
++++ b/src/pkg/exp/html/escape.go
+@@ -233,8 +233,8 @@ func EscapeString(s string) string {
+ 	if strings.IndexAny(s, escapedChars) == -1 {
+ 		return s
+ 	}
+-	buf := bytes.NewBuffer(nil)
+-	escape(buf, s)
++	var buf bytes.Buffer
++	escape(&buf, s)
+ 	return buf.String()
+ }
+ 
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index 1528dffaaf..f3f966cf58 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -159,9 +159,9 @@ func dump(n *Node) (string, error) {
+ 	if n == nil || len(n.Child) == 0 {
+ 		return "", nil
+ 	}
+-	b := bytes.NewBuffer(nil)
++	var b bytes.Buffer
+ 	for _, child := range n.Child {
+-		if err := dumpLevel(b, child, 0); err != nil {
++		if err := dumpLevel(&b, child, 0); err != nil {
+ 			return "", err
+ 		}
+ 	}
+diff --git a/src/pkg/exp/html/token.go b/src/pkg/exp/html/token.go
+index 5a385a1b5c..b5e9c2d6ea 100644
+--- a/src/pkg/exp/html/token.go
++++ b/src/pkg/exp/html/token.go
+@@ -77,8 +77,7 @@ func (t Token) tagString() string {
+ 	if len(t.Attr) == 0 {
+ 		return t.Data
+ 	}
+-	buf := bytes.NewBuffer(nil)
+-	buf.WriteString(t.Data)
++	buf := bytes.NewBufferString(t.Data)
+ 	for _, a := range t.Attr {
+ 		buf.WriteByte(' ')
+ 		buf.WriteString(a.Key)
+diff --git a/src/pkg/exp/html/token_test.go b/src/pkg/exp/html/token_test.go
+index 672d60c420..61d74006ea 100644
+--- a/src/pkg/exp/html/token_test.go
++++ b/src/pkg/exp/html/token_test.go
+@@ -555,8 +555,8 @@ func TestUnescapeEscape(t *testing.T) {
+ 
+ func TestBufAPI(t *testing.T) {
+ 	s := "0<a>1</a>2<b>3<a>4<a>5</a>6</b>7</a>8<a/>9"
+-	z := NewTokenizer(bytes.NewBuffer([]byte(s)))
+-	result := bytes.NewBuffer(nil)
++	z := NewTokenizer(bytes.NewBufferString(s))
++	var result bytes.Buffer
+ 	depth := 0
+ loop:
+ 	for {
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index dbe1b9cd37..fee771a578 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -238,8 +238,8 @@ func EscapeString(s string) string {
+ 	if strings.IndexAny(s, escapedChars) == -1 {
+ 		return s
+ 	}
+-	buf := bytes.NewBuffer(nil)
+-	escape(buf, s)
++	var buf bytes.Buffer
++	escape(&buf, s)
+ 	return buf.String()
+ }
+ 
+diff --git a/src/pkg/image/jpeg/writer_test.go b/src/pkg/image/jpeg/writer_test.go
+index e4b56d2884..b8e8fa34e1 100644
+--- a/src/pkg/image/jpeg/writer_test.go
++++ b/src/pkg/image/jpeg/writer_test.go
+@@ -54,14 +54,14 @@ func TestWriter(t *testing.T) {
+ 			continue
+ 		}
+ 		// Encode that image as JPEG.
+-		buf := bytes.NewBuffer(nil)
+-		err = Encode(buf, m0, &Options{Quality: tc.quality})
++		var buf bytes.Buffer
++		err = Encode(&buf, m0, &Options{Quality: tc.quality})
+ 		if err != nil {
+ 			t.Error(tc.filename, err)
+ 			continue
+ 		}
+ 		// Decode that JPEG.
+-		m1, err := Decode(buf)
++		m1, err := Decode(&buf)
+ 		if err != nil {
+ 			t.Error(tc.filename, err)
+ 			continue
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index 228ecccfb4..644c4fb44b 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -35,12 +35,12 @@ func diff(m0, m1 image.Image) error {
+ }
+ 
+ func encodeDecode(m image.Image) (image.Image, error) {
+-	b := bytes.NewBuffer(nil)
+-	err := Encode(b, m)
++	var b bytes.Buffer
++	err := Encode(&b, m)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	m, err = Decode(b)
++	m, err = Decode(&b)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/old/template/template_test.go b/src/pkg/old/template/template_test.go
+index f42a61a1b1..854a548e5a 100644
+--- a/src/pkg/old/template/template_test.go
++++ b/src/pkg/old/template/template_test.go
+@@ -795,8 +795,8 @@ func TestFormatters(t *testing.T) {
+ 				t.Errorf("For %q, expected error, got none.", c.in)
+ 				continue
+ 			}
+-			buf := bytes.NewBuffer(nil)
+-			err = tmpl.Execute(buf, data)
++			var buf bytes.Buffer
++			err = tmpl.Execute(&buf, data)
+ 			if err != nil {
+ 				t.Error("unexpected Execute error: ", err)
+ 				continue

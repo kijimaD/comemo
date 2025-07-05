@@ -11,6 +11,22 @@ Date:   Fri Jun 8 10:33:54 2018 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cover/cover_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index a677ab67e9..8462b2d015 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -310,8 +310,8 @@ func TestCoverHTML(t *testing.T) {
+ 	if err := ioutil.WriteFile(htmlHTML, out.Bytes(), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	// diff -ud testdata/html/html.html testdata/html/html.golden
+-	cmd = exec.Command("diff", "-udw", htmlHTML, htmlGolden)
++	// diff -uw testdata/html/html.html testdata/html/html.golden
++	cmd = exec.Command("diff", "-u", "-w", htmlHTML, htmlGolden)
+ 	run(cmd, t)
+ }
+ 

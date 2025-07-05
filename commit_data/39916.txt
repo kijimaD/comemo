@@ -33,9 +33,115 @@ Date:   Sat Mar 30 03:16:44 2019 +0700
     Change-Id: I775aff91ae4a1bb16eb18a48d55e3b606f3f3352
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170157
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go          |  6 +++++-
  test/fixedbugs/issue29612.dir/main.go       | 24 ++++++++++++++++++++++++
  test/fixedbugs/issue29612.dir/p1/ssa/ssa.go | 18 ++++++++++++++++++
  test/fixedbugs/issue29612.dir/p2/ssa/ssa.go | 28 ++++++++++++++++++++++++++++
  4 files changed, 75 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 12f341b660..67b521feed 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -752,7 +752,11 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 			case types.IsExported(f.Sym.Name):
+ 				buf = append(buf, sconv(f.Sym, FmtShort, mode)...)
+ 			default:
+-				buf = append(buf, sconv(f.Sym, FmtUnsigned, mode)...)
++				flag1 := FmtLeft
++				if flag&FmtUnsigned != 0 {
++					flag1 = FmtUnsigned
++				}
++				buf = append(buf, sconv(f.Sym, flag1, mode)...)
+ 			}
+ 			buf = append(buf, tconv(f.Type, FmtShort, mode, depth)...)
+ 		}
+diff --git a/test/fixedbugs/issue29612.dir/main.go b/test/fixedbugs/issue29612.dir/main.go
+new file mode 100644
+index 0000000000..9dbc4c4cd9
+--- /dev/null
++++ b/test/fixedbugs/issue29612.dir/main.go
+@@ -0,0 +1,24 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Do not panic on conversion to anonymous interface, which
++// is similar-looking interface types in different packages.
++
++package main
++
++import (
++	ssa1 "./p1/ssa"
++	ssa2 "./p2/ssa"
++)
++
++func main() {
++	v1 := &ssa1.T{}
++	_ = v1
++
++	v2 := &ssa2.T{}
++	ssa2.Works(v2)
++	ssa2.Panics(v2) // This call must not panic
++}
+diff --git a/test/fixedbugs/issue29612.dir/p1/ssa/ssa.go b/test/fixedbugs/issue29612.dir/p1/ssa/ssa.go
+new file mode 100644
+index 0000000000..8f6eb97f8f
+--- /dev/null
++++ b/test/fixedbugs/issue29612.dir/p1/ssa/ssa.go
+@@ -0,0 +1,18 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++type T struct{}
++
++func (T) foo() {}
++
++type fooer interface {
++	foo()
++}
++
++func Unused(v interface{}) {
++	v.(fooer).foo()
++	v.(interface{ foo() }).foo()
++}
+diff --git a/test/fixedbugs/issue29612.dir/p2/ssa/ssa.go b/test/fixedbugs/issue29612.dir/p2/ssa/ssa.go
+new file mode 100644
+index 0000000000..df57314b8c
+--- /dev/null
++++ b/test/fixedbugs/issue29612.dir/p2/ssa/ssa.go
+@@ -0,0 +1,28 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++type T struct{}
++
++func (T) foo() {}
++
++type fooer interface {
++	foo()
++}
++
++func Works(v interface{}) {
++	switch v.(type) {
++	case interface{}:
++		v.(fooer).foo()
++	}
++}
++
++func Panics(v interface{}) {
++	switch v.(type) {
++	case interface{}:
++		v.(fooer).foo()
++		v.(interface{ foo() }).foo()
++	}
++}

@@ -11,6 +11,20 @@ Date:   Thu Sep 29 21:45:51 2022 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/fuzz/worker.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index fca3aea578..467c39bdc9 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -792,7 +792,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 
+ func (ws *workerServer) minimize(ctx context.Context, args minimizeArgs) (resp minimizeResponse) {
+ 	start := time.Now()
+-	defer func() { resp.Duration = time.Now().Sub(start) }()
++	defer func() { resp.Duration = time.Since(start) }()
+ 	mem := <-ws.memMu
+ 	defer func() { ws.memMu <- mem }()
+ 	vals, err := unmarshalCorpusFile(mem.valueCopy())

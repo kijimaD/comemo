@@ -10,7 +10,7 @@ Date:   Tue Oct 20 13:00:16 2009 -0700
     DELTA=3190  (1884 added, 1297 deleted, 9 changed)
     OCL=35923
     CL=35929
-
+---
  src/pkg/Make.deps                                  |  15 +-
  src/pkg/Makefile                                   |   7 +-
  src/pkg/debug/dwarf/buf.go                         |   2 +-
@@ -33,3 +33,1249 @@ Date:   Tue Oct 20 13:00:16 2009 -0700
  src/pkg/{base85 => encoding/git85}/git.go          |  69 +++--
  src/pkg/{base85 => encoding/git85}/git_test.go     |  84 +++---
  21 files changed, 676 insertions(+), 89 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 1114f5515a..49862d2dc6 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -1,7 +1,5 @@
+ archive/tar.install: bytes.install io.install os.install strconv.install strings.install
+ asn1.install: fmt.install os.install reflect.install strconv.install strings.install time.install
+-base64.install: bytes.install io.install os.install strconv.install
+-base85.install: bytes.install io.install os.install strconv.install
+ big.install:
+ bignum.install: fmt.install
+ bufio.install: io.install os.install strconv.install utf8.install
+@@ -19,13 +17,16 @@ crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.inst
+ crypto/md5.install: hash.install os.install
+ crypto/rc4.install: os.install strconv.install
+ crypto/sha1.install: hash.install os.install
+-debug/binary.install: io.install math.install os.install reflect.install
+-debug/dwarf.install: debug/binary.install os.install strconv.install
+-debug/macho.install: bytes.install debug/binary.install debug/dwarf.install fmt.install io.install os.install strconv.install
+-debug/elf.install: debug/binary.install debug/dwarf.install fmt.install io.install os.install strconv.install
+-debug/gosym.install: debug/binary.install fmt.install os.install strconv.install strings.install
++debug/dwarf.install: encoding/binary.install os.install strconv.install
++debug/macho.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
++debug/elf.install: debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
++debug/gosym.install: encoding/binary.install fmt.install os.install strconv.install strings.install
+ debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
+ ebnf.install: container/vector.install go/scanner.install go/token.install os.install strconv.install unicode.install utf8.install
++encoding/ascii85.install: bytes.install io.install os.install strconv.install
++encoding/base64.install: bytes.install io.install os.install strconv.install
++encoding/binary.install: io.install math.install os.install reflect.install
++encoding/git85.install: bytes.install io.install os.install strconv.install
+ exec.install: os.install strings.install
+ exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+ exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install strconv.install strings.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 8761558de2..cd50bb92fb 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -14,8 +14,6 @@ all: install
+ DIRS=\
+ 	archive/tar\
+ 	asn1\
+-	base64\
+-	base85\
+ 	big\
+ 	bignum\
+ 	bufio\
+@@ -33,13 +31,16 @@ DIRS=\
+ 	crypto/md5\
+ 	crypto/rc4\
+ 	crypto/sha1\
+-	debug/binary\
+ 	debug/dwarf\
+ 	debug/macho\
+ 	debug/elf\
+ 	debug/gosym\
+ 	debug/proc\
+ 	ebnf\
++	encoding/ascii85\
++	encoding/base64\
++	encoding/binary\
++	encoding/git85\
+ 	exec\
+ 	exp/datafmt\
+ 	exp/eval\
+diff --git a/src/pkg/debug/dwarf/buf.go b/src/pkg/debug/dwarf/buf.go
+index 2d82110900..34880a5d5f 100644
+--- a/src/pkg/debug/dwarf/buf.go
++++ b/src/pkg/debug/dwarf/buf.go
+@@ -7,7 +7,7 @@
+ package dwarf
+ 
+ import (
+-	"debug/binary";
++	"encoding/binary";
+ 	"os";
+ 	"strconv";
+ )
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+index f2cfa4c930..6fc34fed30 100644
+--- a/src/pkg/debug/dwarf/open.go
++++ b/src/pkg/debug/dwarf/open.go
+@@ -8,7 +8,7 @@
+ package dwarf
+ 
+ import (
+-	"debug/binary";
++	"encoding/binary";
+ 	"os";
+ )
+ 
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 0c5d6f3179..0b5ff3fa10 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -6,8 +6,8 @@
+ package elf
+ 
+ import (
+-	"debug/binary";
+ 	"debug/dwarf";
++	"encoding/binary";
+ 	"fmt";
+ 	"io";
+ 	"os";
+diff --git a/src/pkg/debug/elf/file_test.go b/src/pkg/debug/elf/file_test.go
+index 01e638eea2..9b756aea12 100644
+--- a/src/pkg/debug/elf/file_test.go
++++ b/src/pkg/debug/elf/file_test.go
+@@ -5,7 +5,7 @@
+ package elf
+ 
+ import (
+-	"debug/binary";
++	"encoding/binary";
+ 	"reflect";
+ 	"testing";
+ )
+diff --git a/src/pkg/debug/gosym/pclntab.go b/src/pkg/debug/gosym/pclntab.go
+index 24c368616d..8008ada83c 100644
+--- a/src/pkg/debug/gosym/pclntab.go
++++ b/src/pkg/debug/gosym/pclntab.go
+@@ -8,7 +8,7 @@
+ 
+ package gosym
+ 
+-import "debug/binary"
++import "encoding/binary"
+ 
+ type LineTable struct {
+ 	Data	[]byte;
+diff --git a/src/pkg/debug/gosym/symtab.go b/src/pkg/debug/gosym/symtab.go
+index b531db6e06..7edbc03907 100644
+--- a/src/pkg/debug/gosym/symtab.go
++++ b/src/pkg/debug/gosym/symtab.go
+@@ -13,7 +13,7 @@ package gosym
+ // and the Go format is the runtime source, specifically ../../runtime/symtab.c.
+ 
+ import (
+-	"debug/binary";
++	"encoding/binary";
+ 	"fmt";
+ 	"os";
+ 	"strconv";
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index fee02fb27a..67af39be5f 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -10,8 +10,8 @@ package macho
+ 
+ import (
+ 	"bytes";
+-	"debug/binary";
+ 	"debug/dwarf";
++	"encoding/binary";
+ 	"fmt";
+ 	"io";
+ 	"os";
+diff --git a/src/pkg/encoding/ascii85/Makefile b/src/pkg/encoding/ascii85/Makefile
+new file mode 100644
+index 0000000000..5a7bc176c4
+--- /dev/null
++++ b/src/pkg/encoding/ascii85/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=encoding/ascii85
++GOFILES=\
++	ascii85.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/base85/base85.go b/src/pkg/encoding/ascii85/ascii85.go
+similarity index 94%
+rename from src/pkg/base85/base85.go
+rename to src/pkg/encoding/ascii85/ascii85.go
+index b8d250a173..27256eeca3 100644
+--- a/src/pkg/base85/base85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -2,8 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package base85 implements radix 85 encoding/decoding.
+-package base85
++// Package ascii85 implements the ascii85 data encoding
++// as used in the btoa tool and Adobe's PostScript and PDF document formats.
++package ascii85
+ 
+ import (
+ 	"bytes";
+@@ -18,12 +19,13 @@ import (
+ 
+ // Encode encodes src into at most MaxEncodedLen(len(src))
+ // bytes of dst, returning the actual number of bytes written.
+-// Encode implements the ascii85 encoding as used in the btoa
+-// tool and Adobe's PostScript and PDF document formats.
+ //
+ // The encoding handles 4-byte chunks, using a special encoding
+ // for the last fragment, so Encode is not appropriate for use on
+ // individual blocks of a large data stream.  Use NewEncoder() instead.
++//
++// Often, ascii85-encoded data is wrapped in <~ and ~> symbols.
++// Encode does not add these.
+ func Encode(src, dst []byte) int {
+ 	if len(src) == 0 {
+ 		return 0;
+@@ -183,6 +185,8 @@ func (e CorruptInputError) String() string {
+ // If src contains invalid ascii85 data, Decode will return the
+ // number of bytes successfully written and a CorruptInputError.
+ // Decode ignores space and control characters in src.
++// Often, ascii85-encoded data is wrapped in <~ and ~> symbols.
++// Decode expects these to have been stripped by the caller.
+ //
+ // If flush is true, Decode assumes that src represents the
+ // end of the input stream and processes it completely rather
+diff --git a/src/pkg/base85/base85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+similarity index 99%
+rename from src/pkg/base85/base85_test.go
+rename to src/pkg/encoding/ascii85/ascii85_test.go
+index 01f3298306..0264333abd 100644
+--- a/src/pkg/base85/base85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package base85
++package ascii85
+ 
+ import (
+ 	"bytes";
+diff --git a/src/pkg/encoding/base64/Makefile b/src/pkg/encoding/base64/Makefile
+new file mode 100644
+index 0000000000..1afb0ebb8e
+--- /dev/null
++++ b/src/pkg/encoding/base64/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=encoding/base64
++GOFILES=\
++	base64.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+new file mode 100644
+index 0000000000..b4daee3cc1
+--- /dev/null
++++ b/src/pkg/encoding/base64/base64.go
+@@ -0,0 +1,334 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package base64 implements base64 encoding as specified by RFC 4648.
++package base64
++
++import (
++	"bytes";
++	"io";
++	"os";
++	"strconv";
++)
++
++/*
++ * Encodings
++ */
++
++// An Encoding is a radix 64 encoding/decoding scheme, defined by a
++// 64-character alphabet.  The most common encoding is the "base64"
++// encoding defined in RFC 4648 and used in MIME (RFC 2045) and PEM
++// (RFC 1421).  RFC 4648 also defines an alternate encoding, which is
++// the standard encoding with - and _ substituted for + and /.
++type Encoding struct {
++	encode		string;
++	decodeMap	[256]byte;
++}
++
++const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
++const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
++
++// NewEncoding returns a new Encoding defined by the given alphabet,
++// which must be a 64-byte string.
++func NewEncoding(encoder string) *Encoding {
++	e := new(Encoding);
++	e.encode = encoder;
++	for i := 0; i < len(e.decodeMap); i++ {
++		e.decodeMap[i] = 0xFF;
++	}
++	for i := 0; i < len(encoder); i++ {
++		e.decodeMap[encoder[i]] = byte(i);
++	}
++	return e;
++}
++
++// StdEncoding is the standard base64 encoding, as defined in
++// RFC 4648.
++var StdEncoding = NewEncoding(encodeStd)
++
++// URLEncoding is the alternate base64 encoding defined in RFC 4648.
++// It is typically used in URLs and file names.
++var URLEncoding = NewEncoding(encodeURL)
++
++/*
++ * Encoder
++ */
++
++// Encode encodes src using the encoding enc, writing
++// EncodedLen(len(src)) bytes to dst.
++//
++// The encoding pads the output to a multiple of 4 bytes,
++// so Encode is not appropriate for use on individual blocks
++// of a large data stream.  Use NewEncoder() instead.
++func (enc *Encoding) Encode(src, dst []byte) {
++	if len(src) == 0 {
++		return;
++	}
++
++	for len(src) > 0 {
++		dst[0] = 0;
++		dst[1] = 0;
++		dst[2] = 0;
++		dst[3] = 0;
++
++		// Unpack 4x 6-bit source blocks into a 4 byte
++		// destination quantum
++		switch len(src) {
++		default:
++			dst[3] |= src[2]&0x3F;
++			dst[2] |= src[2]>>6;
++			fallthrough;
++		case 2:
++			dst[2] |= (src[1]<<2)&0x3F;
++			dst[1] |= src[1]>>4;
++			fallthrough;
++		case 1:
++			dst[1] |= (src[0]<<4)&0x3F;
++			dst[0] |= src[0]>>2;
++		}
++
++		// Encode 6-bit blocks using the base64 alphabet
++		for j := 0; j < 4; j++ {
++			dst[j] = enc.encode[dst[j]];
++		}
++
++		// Pad the final quantum
++		if len(src) < 3 {
++			dst[3] = '=';
++			if len(src) < 2 {
++				dst[2] = '=';
++			}
++			break;
++		}
++
++		src = src[3:len(src)];
++		dst = dst[4:len(dst)];
++	}
++}
++
++type encoder struct {
++	err	os.Error;
++	enc	*Encoding;
++	w	io.Writer;
++	buf	[3]byte;	// buffered data waiting to be encoded
++	nbuf	int;		// number of bytes in buf
++	out	[1024]byte;	// output buffer
++}
++
++func (e *encoder) Write(p []byte) (n int, err os.Error) {
++	if e.err != nil {
++		return 0, e.err;
++	}
++
++	// Leading fringe.
++	if e.nbuf > 0 {
++		var i int;
++		for i = 0; i < len(p) && e.nbuf < 3; i++ {
++			e.buf[e.nbuf] = p[i];
++			e.nbuf++;
++		}
++		n += i;
++		p = p[i:len(p)];
++		if e.nbuf < 3 {
++			return;
++		}
++		e.enc.Encode(&e.buf, &e.out);
++		if _, e.err = e.w.Write(e.out[0:4]); e.err != nil {
++			return n, e.err;
++		}
++		e.nbuf = 0;
++	}
++
++	// Large interior chunks.
++	for len(p) >= 3 {
++		nn := len(e.out)/4*3;
++		if nn > len(p) {
++			nn = len(p);
++		}
++		nn -= nn%3;
++		if nn > 0 {
++			e.enc.Encode(p[0:nn], &e.out);
++			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
++				return n, e.err;
++			}
++		}
++		n += nn;
++		p = p[nn:len(p)];
++	}
++
++	// Trailing fringe.
++	for i := 0; i < len(p); i++ {
++		e.buf[i] = p[i];
++	}
++	e.nbuf = len(p);
++	n += len(p);
++	return;
++}
++
++// Close flushes any pending output from the encoder.
++// It is an error to call Write after calling Close.
++func (e *encoder) Close() os.Error {
++	// If there's anything left in the buffer, flush it out
++	if e.err == nil && e.nbuf > 0 {
++		e.enc.Encode(e.buf[0 : e.nbuf], &e.out);
++		e.nbuf = 0;
++		_, e.err = e.w.Write(e.out[0:4]);
++	}
++	return e.err;
++}
++
++// NewEncoder returns a new base64 stream encoder.  Data written to
++// the returned writer will be encoded using enc and then written to w.
++// Base64 encodings operate in 4-byte blocks; when finished
++// writing, the caller must Close the returned encoder to flush any
++// partially written blocks.
++func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
++	return &encoder{enc: enc, w: w};
++}
++
++// EncodedLen returns the length in bytes of the base64 encoding
++// of an input buffer of length n.
++func (enc *Encoding) EncodedLen(n int) int {
++	return (n+2)/3*4;
++}
++
++/*
++ * Decoder
++ */
++
++type CorruptInputError int64
++
++func (e CorruptInputError) String() string {
++	return "illegal base64 data at input byte" + strconv.Itoa64(int64(e));
++}
++
++// decode is like Decode but returns an additional 'end' value, which
++// indicates if end-of-message padding was encountered and thus any
++// additional data is an error.  decode also assumes len(src)%4==0,
++// since it is meant for internal use.
++func (enc *Encoding) decode(src, dst []byte) (n int, end bool, err os.Error) {
++	for i := 0; i < len(src)/4 && !end; i++ {
++		// Decode quantum using the base64 alphabet
++		var dbuf [4]byte;
++		dlen := 4;
++
++	dbufloop:
++		for j := 0; j < 4; j++ {
++			in := src[i*4 + j];
++			if in == '=' && j >= 2 && i == len(src)/4 - 1 {
++				// We've reached the end and there's
++				// padding
++				if src[i*4 + 3] != '=' {
++					return n, false, CorruptInputError(i*4 + 2);
++				}
++				dlen = j;
++				end = true;
++				break dbufloop;
++			}
++			dbuf[j] = enc.decodeMap[in];
++			if dbuf[j] == 0xFF {
++				return n, false, CorruptInputError(i*4 + j);
++			}
++		}
++
++		// Pack 4x 6-bit source blocks into 3 byte destination
++		// quantum
++		switch dlen {
++		case 4:
++			dst[i*3 + 2] = dbuf[2]<<6 | dbuf[3];
++			fallthrough;
++		case 3:
++			dst[i*3 + 1] = dbuf[1]<<4 | dbuf[2]>>2;
++			fallthrough;
++		case 2:
++			dst[i*3 + 0] = dbuf[0]<<2 | dbuf[1]>>4;
++		}
++		n += dlen-1;
++	}
++
++	return n, end, nil;
++}
++
++// Decode decodes src using the encoding enc.  It writes at most
++// DecodedLen(len(src)) bytes to dst and returns the number of bytes
++// written.  If src contains invalid base64 data, it will return the
++// number of bytes successfully written and CorruptInputError.
++func (enc *Encoding) Decode(src, dst []byte) (n int, err os.Error) {
++	if len(src)%4 != 0 {
++		return 0, CorruptInputError(len(src)/4*4);
++	}
++
++	n, _, err = enc.decode(src, dst);
++	return;
++}
++
++type decoder struct {
++	err	os.Error;
++	enc	*Encoding;
++	r	io.Reader;
++	end	bool;		// saw end of message
++	buf	[1024]byte;	// leftover input
++	nbuf	int;
++	out	[]byte;	// leftover decoded output
++	outbuf	[1024/4*3]byte;
++}
++
++func (d *decoder) Read(p []byte) (n int, err os.Error) {
++	if d.err != nil {
++		return 0, d.err;
++	}
++
++	// Use leftover decoded output from last read.
++	if len(d.out) > 0 {
++		n = bytes.Copy(p, d.out);
++		d.out = d.out[n:len(d.out)];
++		return n, nil;
++	}
++
++	// Read a chunk.
++	nn := len(p)/3*4;
++	if nn < 4 {
++		nn = 4;
++	}
++	if nn > len(d.buf) {
++		nn = len(d.buf);
++	}
++	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf : nn], 4 - d.nbuf);
++	d.nbuf += nn;
++	if d.nbuf < 4 {
++		return 0, d.err;
++	}
++
++	// Decode chunk into p, or d.out and then p if p is too small.
++	nr := d.nbuf / 4 * 4;
++	nw := d.nbuf / 4 * 3;
++	if nw > len(p) {
++		nw, d.end, d.err = d.enc.decode(d.buf[0:nr], &d.outbuf);
++		d.out = d.outbuf[0:nw];
++		n = bytes.Copy(p, d.out);
++		d.out = d.out[n:len(d.out)];
++	} else {
++		n, d.end, d.err = d.enc.decode(d.buf[0:nr], p);
++	}
++	d.nbuf -= nr;
++	for i := 0; i < d.nbuf; i++ {
++		d.buf[i] = d.buf[i+nr];
++	}
++
++	if d.err == nil {
++		d.err = err;
++	}
++	return n, d.err;
++}
++
++// NewDecoder constructs a new base64 stream decoder.
++func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
++	return &decoder{enc: enc, r: r};
++}
++
++// DecodeLen returns the maximum length in bytes of the decoded data
++// corresponding to n bytes of base64-encoded data.
++func (enc *Encoding) DecodedLen(n int) int {
++	return n/4*3;
++}
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+new file mode 100644
+index 0000000000..54d2326f58
+--- /dev/null
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -0,0 +1,201 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package base64
++
++import (
++	"bytes";
++	"io";
++	"os";
++	"reflect";
++	"strings";
++	"testing";
++)
++
++type testpair struct {
++	decoded, encoded string;
++}
++
++var pairs = []testpair{
++	// RFC 3548 examples
++	testpair{"\x14\xfb\x9c\x03\xd9\x7e", "FPucA9l+"},
++	testpair{"\x14\xfb\x9c\x03\xd9", "FPucA9k="},
++	testpair{"\x14\xfb\x9c\x03", "FPucAw=="},
++
++	// RFC 4648 examples
++	testpair{"", ""},
++	testpair{"f", "Zg=="},
++	testpair{"fo", "Zm8="},
++	testpair{"foo", "Zm9v"},
++	testpair{"foob", "Zm9vYg=="},
++	testpair{"fooba", "Zm9vYmE="},
++	testpair{"foobar", "Zm9vYmFy"},
++
++	// Wikipedia examples
++	testpair{"sure.", "c3VyZS4="},
++	testpair{"sure", "c3VyZQ=="},
++	testpair{"sur", "c3Vy"},
++	testpair{"su", "c3U="},
++	testpair{"leasure.", "bGVhc3VyZS4="},
++	testpair{"easure.", "ZWFzdXJlLg=="},
++	testpair{"asure.", "YXN1cmUu"},
++	testpair{"sure.", "c3VyZS4="},
++}
++
++var bigtest = testpair{
++	"Twas brillig, and the slithy toves",
++	"VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw==",
++}
++
++func testEqual(t *testing.T, msg string, args ...) bool {
++	v := reflect.NewValue(args).(*reflect.StructValue);
++	v1 := v.Field(v.NumField() - 2);
++	v2 := v.Field(v.NumField() - 1);
++	if v1.Interface() != v2.Interface() {
++		t.Errorf(msg, args);
++		return false;
++	}
++	return true;
++}
++
++func TestEncode(t *testing.T) {
++	for _, p := range pairs {
++		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)));
++		StdEncoding.Encode(strings.Bytes(p.decoded), buf);
++		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
++	}
++}
++
++func TestEncoder(t *testing.T) {
++	for _, p := range pairs {
++		bb := &bytes.Buffer{};
++		encoder := NewEncoder(StdEncoding, bb);
++		encoder.Write(strings.Bytes(p.decoded));
++		encoder.Close();
++		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded);
++	}
++}
++
++func TestEncoderBuffering(t *testing.T) {
++	input := strings.Bytes(bigtest.decoded);
++	for bs := 1; bs <= 12; bs++ {
++		bb := &bytes.Buffer{};
++		encoder := NewEncoder(StdEncoding, bb);
++		for pos := 0; pos < len(input); pos += bs {
++			end := pos+bs;
++			if end > len(input) {
++				end = len(input);
++			}
++			n, err := encoder.Write(input[pos:end]);
++			testEqual(t, "Write(%q) gave error %v, want %v", input[pos:end], err, os.Error(nil));
++			testEqual(t, "Write(%q) gave length %v, want %v", input[pos:end], n, end-pos);
++		}
++		err := encoder.Close();
++		testEqual(t, "Close gave error %v, want %v", err, os.Error(nil));
++		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, bb.String(), bigtest.encoded);
++	}
++}
++
++func TestDecode(t *testing.T) {
++	for _, p := range pairs {
++		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
++		count, end, err := StdEncoding.decode(strings.Bytes(p.encoded), dbuf);
++		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
++		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded));
++		if len(p.encoded) > 0 {
++			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='));
++		}
++		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded);
++	}
++}
++
++func TestDecoder(t *testing.T) {
++	for _, p := range pairs {
++		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(p.encoded));
++		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
++		count, err := decoder.Read(dbuf);
++		if err != nil && err != os.EOF {
++			t.Fatal("Read failed", err);
++		}
++		testEqual(t, "Read from %q = length %v, want %v", p.encoded, count, len(p.decoded));
++		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded);
++		if err != os.EOF {
++			count, err = decoder.Read(dbuf);
++		}
++		testEqual(t, "Read from %q = %v, want %v", p.encoded, err, os.EOF);
++	}
++}
++
++func TestDecoderBuffering(t *testing.T) {
++	for bs := 1; bs <= 12; bs++ {
++		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(bigtest.encoded));
++		buf := make([]byte, len(bigtest.decoded)+12);
++		var total int;
++		for total = 0; total < len(bigtest.decoded); {
++			n, err := decoder.Read(buf[total : total+bs]);
++			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, os.Error(nil));
++			total += n;
++		}
++		testEqual(t, "Decoding/%d of %q = %q, want %q", bs, bigtest.encoded, string(buf[0:total]), bigtest.decoded);
++	}
++}
++
++func TestDecodeCorrupt(t *testing.T) {
++	type corrupt struct {
++		e	string;
++		p	int;
++	}
++	examples := []corrupt{
++		corrupt{"!!!!", 0},
++		corrupt{"x===", 1},
++		corrupt{"AA=A", 2},
++		corrupt{"AAA=AAAA", 3},
++		corrupt{"AAAAA", 4},
++		corrupt{"AAAAAA", 4},
++	};
++
++	for _, e := range examples {
++		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)));
++		_, err := StdEncoding.Decode(strings.Bytes(e.e), dbuf);
++		switch err := err.(type) {
++		case CorruptInputError:
++			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
++		default:
++			t.Error("Decoder failed to detect corruption in", e);
++		}
++	}
++}
++
++func TestBig(t *testing.T) {
++	n := 3*1000 + 1;
++	raw := make([]byte, n);
++	const alpha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
++	for i := 0; i < n; i++ {
++		raw[i] = alpha[i%len(alpha)];
++	}
++	encoded := new(bytes.Buffer);
++	w := NewEncoder(StdEncoding, encoded);
++	nn, err := w.Write(raw);
++	if nn != n || err != nil {
++		t.Fatalf("Encoder.Write(raw) = %d, %v want %d, nil", nn, err, n);
++	}
++	err = w.Close();
++	if err != nil {
++		t.Fatalf("Encoder.Close() = %v want nil", err);
++	}
++	decoded, err := io.ReadAll(NewDecoder(StdEncoding, encoded));
++	if err != nil {
++		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err);
++	}
++
++	if !bytes.Equal(raw, decoded) {
++		var i int;
++		for i = 0; i < len(decoded) && i < len(raw); i++ {
++			if decoded[i] != raw[i] {
++				break;
++			}
++		}
++		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i);
++	}
++}
+diff --git a/src/pkg/debug/binary/Makefile b/src/pkg/encoding/binary/Makefile
+similarity index 92%
+rename from src/pkg/debug/binary/Makefile
+rename to src/pkg/encoding/binary/Makefile
+index 4d681e1046..69fd57c67b 100644
+--- a/src/pkg/debug/binary/Makefile
++++ b/src/pkg/encoding/binary/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=debug/binary
++TARG=encoding/binary
+ GOFILES=\
+ 	binary.go\
+ 
+diff --git a/src/pkg/debug/binary/binary.go b/src/pkg/encoding/binary/binary.go
+similarity index 100%
+rename from src/pkg/debug/binary/binary.go
+rename to src/pkg/encoding/binary/binary.go
+diff --git a/src/pkg/debug/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+similarity index 100%
+rename from src/pkg/debug/binary/binary_test.go
+rename to src/pkg/encoding/binary/binary_test.go
+diff --git a/src/pkg/base85/Makefile b/src/pkg/encoding/git85/Makefile
+similarity index 91%
+rename from src/pkg/base85/Makefile
+rename to src/pkg/encoding/git85/Makefile
+index 2dae5b1244..10587743ac 100644
+--- a/src/pkg/base85/Makefile
++++ b/src/pkg/encoding/git85/Makefile
+@@ -4,9 +4,8 @@
+ 
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-TARG=base85
++TARG=encoding/git85
+ GOFILES=\
+-	base85.go\
+ 	git.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/base85/git.go b/src/pkg/encoding/git85/git.go
+similarity index 75%
+rename from src/pkg/base85/git.go
+rename to src/pkg/encoding/git85/git.go
+index 813645e867..2dcd4d8772 100644
+--- a/src/pkg/base85/git.go
++++ b/src/pkg/encoding/git85/git.go
+@@ -2,19 +2,28 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package base85
++// Package git85 implements the radix 85 data encoding
++// used in the GIT version control system.
++package git85
+ 
+ import (
+ 	"bytes";
+ 	"io";
+ 	"os";
++	"strconv";
+ )
+ 
+-const gitEncode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~"
++type CorruptInputError int64
++
++func (e CorruptInputError) String() string {
++	return "illegal git85 data at input byte" + strconv.Itoa64(int64(e));
++}
++
++const encode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~"
+ 
+ // The decodings are 1+ the actual value, so that the
+ // default zero value can be used to mean "not valid".
+-var gitDecode = [256]uint8{
++var decode = [256]uint8{
+ 	'0':	1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+ 	'A':	11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+ 		24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+@@ -31,15 +40,15 @@ var gitDecode = [256]uint8{
+ 	'{':	82, 83, 84, 85
+ }
+ 
+-// GitEncode encodes src into GitEncodedLen(len(src))
++// Encode encodes src into EncodedLen(len(src))
+ // bytes of dst.  As a convenience, it returns the number
+-// of bytes written to dst, but this value is always GitEncodedLen(len(src)).
+-// GitEncode implements the radix 85 encoding used in the
++// of bytes written to dst, but this value is always EncodedLen(len(src)).
++// Encode implements the radix 85 encoding used in the
+ // Git version control tool.
+ //
+ // The encoding splits src into chunks of at most 52 bytes
+ // and encodes each chunk on its own line.
+-func GitEncode(src, dst []byte) int {
++func Encode(src, dst []byte) int {
+ 	ndst := 0;
+ 	for len(src) > 0 {
+ 		n := len(src);
+@@ -58,7 +67,7 @@ func GitEncode(src, dst []byte) int {
+ 				v |= uint32(src[i+j]) << uint(24 - j*8);
+ 			}
+ 			for j := 4; j >= 0; j-- {
+-				dst[ndst+j] = gitEncode[v%85];
++				dst[ndst+j] = encode[v%85];
+ 				v /= 85;
+ 			}
+ 			ndst += 5;
+@@ -70,8 +79,8 @@ func GitEncode(src, dst []byte) int {
+ 	return ndst;
+ }
+ 
+-// GitEncodedLen returns the length of an encoding of n source bytes.
+-func GitEncodedLen(n int) int {
++// EncodedLen returns the length of an encoding of n source bytes.
++func EncodedLen(n int) int {
+ 	if n == 0 {
+ 		return 0;
+ 	}
+@@ -82,12 +91,12 @@ func GitEncodedLen(n int) int {
+ 
+ var newline = []byte{'\n'}
+ 
+-// GitDecode decodes src into at most MaxGitDecodedLen(len(src))
++// Decode decodes src into at most MaxDecodedLen(len(src))
+ // bytes, returning the actual number of bytes written to dst.
+ //
+-// If GitDecode encounters invalid input, it returns a CorruptInputError.
++// If Decode encounters invalid input, it returns a CorruptInputError.
+ //
+-func GitDecode(src, dst []byte) (n int, err os.Error) {
++func Decode(src, dst []byte) (n int, err os.Error) {
+ 	ndst := 0;
+ 	nsrc := 0;
+ 	for nsrc < len(src) {
+@@ -111,7 +120,7 @@ func GitDecode(src, dst []byte) (n int, err os.Error) {
+ 		for i := 0; i < el; i += 5 {
+ 			var v uint32;
+ 			for j := 0; j < 5; j++ {
+-				ch := gitDecode[line[i+j]];
++				ch := decode[line[i+j]];
+ 				if ch == 0 {
+ 					return ndst, CorruptInputError(nsrc+1+i+j);
+ 				}
+@@ -133,7 +142,7 @@ func GitDecode(src, dst []byte) (n int, err os.Error) {
+ 	return ndst, nil;
+ }
+ 
+-func MaxGitDecodedLen(n int) int {
++func MaxDecodedLen(n int) int {
+ 	return n/5*4;
+ }
+ 
+@@ -142,11 +151,11 @@ func MaxGitDecodedLen(n int) int {
+ // The Git encoding operates on 52-byte blocks; when finished
+ // writing, the caller must Close the returned encoder to flush any
+ // partially written blocks.
+-func NewGitEncoder(w io.Writer) io.WriteCloser {
+-	return &gitEncoder{w: w};
++func NewEncoder(w io.Writer) io.WriteCloser {
++	return &encoder{w: w};
+ }
+ 
+-type gitEncoder struct {
++type encoder struct {
+ 	w io.Writer;
+ 	err os.Error;
+ 	buf [52]byte;
+@@ -155,7 +164,7 @@ type gitEncoder struct {
+ 	nout int;
+ }
+ 
+-func (e *gitEncoder) Write(p []byte) (n int, err os.Error) {
++func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 	if e.err != nil {
+ 		return 0, e.err;
+ 	}
+@@ -172,7 +181,7 @@ func (e *gitEncoder) Write(p []byte) (n int, err os.Error) {
+ 		if e.nbuf < 52 {
+ 			return;
+ 		}
+-		nout := GitEncode(&e.buf, &e.out);
++		nout := Encode(&e.buf, &e.out);
+ 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 			return n, e.err;
+ 		}
+@@ -186,7 +195,7 @@ func (e *gitEncoder) Write(p []byte) (n int, err os.Error) {
+ 			nn = len(p)/52 * 52;
+ 		}
+ 		if nn > 0 {
+-			nout := GitEncode(p[0:nn], &e.out);
++			nout := Encode(p[0:nn], &e.out);
+ 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 				return n, e.err;
+ 			}
+@@ -204,22 +213,22 @@ func (e *gitEncoder) Write(p []byte) (n int, err os.Error) {
+ 	return;
+ }
+ 
+-func (e *gitEncoder) Close() os.Error {
++func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		nout := GitEncode(e.buf[0:e.nbuf], &e.out);
++		nout := Encode(e.buf[0:e.nbuf], &e.out);
+ 		e.nbuf = 0;
+ 		_, e.err = e.w.Write(e.out[0:nout]);
+ 	}
+ 	return e.err;
+ }
+ 
+-// NewGitDecoder returns a new Git base85 stream decoder.
+-func NewGitDecoder(r io.Reader) io.Reader {
+-	return &gitDecoder{r: r};
++// NewDecoder returns a new Git base85 stream decoder.
++func NewDecoder(r io.Reader) io.Reader {
++	return &decoder{r: r};
+ }
+ 
+-type gitDecoder struct {
++type decoder struct {
+ 	r io.Reader;
+ 	err os.Error;
+ 	readErr os.Error;
+@@ -230,7 +239,7 @@ type gitDecoder struct {
+ 	off int64;
+ }
+ 
+-func (d *gitDecoder) Read(p []byte) (n int, err os.Error) {
++func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 	if len(p) == 0 {
+ 		return 0, nil;
+ 	}
+@@ -257,12 +266,12 @@ func (d *gitDecoder) Read(p []byte) (n int, err os.Error) {
+ 		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
+ 		d.nbuf += nn;
+ 
+-		// Send complete lines to GitDecode.
++		// Send complete lines to Decode.
+ 		nl := bytes.LastIndex(d.buf[0:d.nbuf], newline);
+ 		if nl < 0 {
+ 			continue;
+ 		}
+-		nn, d.err = GitDecode(d.buf[0:nl+1], &d.outbuf);
++		nn, d.err = Decode(d.buf[0:nl+1], &d.outbuf);
+ 		if e, ok := d.err.(CorruptInputError); ok {
+ 			d.err = CorruptInputError(int64(e)+d.off);
+ 		}
+diff --git a/src/pkg/base85/git_test.go b/src/pkg/encoding/git85/git_test.go
+similarity index 64%
+rename from src/pkg/base85/git_test.go
+rename to src/pkg/encoding/git85/git_test.go
+index 9168599426..e83e941f15 100644
+--- a/src/pkg/base85/git_test.go
++++ b/src/pkg/encoding/git85/git_test.go
+@@ -2,27 +2,43 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package base85
++package git85
+ 
+ import (
+ 	"bytes";
+ 	"io";
+ 	"os";
++	"reflect";
+ 	"strings";
+ 	"testing";
+ )
+ 
++type testpair struct {
++	decoded, encoded string;
++}
++
++func testEqual(t *testing.T, msg string, args ...) bool {
++	v := reflect.NewValue(args).(*reflect.StructValue);
++	v1 := v.Field(v.NumField() - 2);
++	v2 := v.Field(v.NumField() - 1);
++	if v1.Interface() != v2.Interface() {
++		t.Errorf(msg, args);
++		return false;
++	}
++	return true;
++}
++
+ func TestGitTable(t *testing.T) {
+ 	var saw [256]bool;
+-	for i, c := range gitEncode {
+-		if gitDecode[c] != uint8(i+1) {
+-			t.Errorf("gitDecode['%c'] = %d, want %d", c, gitDecode[c], i+1);
++	for i, c := range encode {
++		if decode[c] != uint8(i+1) {
++			t.Errorf("decode['%c'] = %d, want %d", c, decode[c], i+1);
+ 		}
+ 		saw[c] = true;
+ 	}
+ 	for i, b := range saw {
+-		if !b && gitDecode[i] != 0 {
+-			t.Errorf("gitDecode[%d] = %d, want 0", i, gitDecode[i]);
++		if !b && decode[i] != 0 {
++			t.Errorf("decode[%d] = %d, want 0", i, decode[i]);
+ 		}
+ 	}
+ }
+@@ -46,33 +62,33 @@ var gitPairs = []testpair{
+ 
+ var gitBigtest = gitPairs[len(gitPairs)-1];
+ 
+-func TestGitEncode(t *testing.T) {
++func TestEncode(t *testing.T) {
+ 	for _, p := range gitPairs {
+-		buf := make([]byte, GitEncodedLen(len(p.decoded)));
+-		n := GitEncode(strings.Bytes(p.decoded), buf);
++		buf := make([]byte, EncodedLen(len(p.decoded)));
++		n := Encode(strings.Bytes(p.decoded), buf);
+ 		if n != len(buf) {
+-			t.Errorf("GitEncodedLen does not agree with GitEncode");
++			t.Errorf("EncodedLen does not agree with Encode");
+ 		}
+ 		buf = buf[0:n];
+-		testEqual(t, "GitEncode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
++		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
+ 	}
+ }
+ 
+-func TestGitEncoder(t *testing.T) {
++func TestEncoder(t *testing.T) {
+ 	for _, p := range gitPairs {
+ 		bb := &bytes.Buffer{};
+-		encoder := NewGitEncoder(bb);
++		encoder := NewEncoder(bb);
+ 		encoder.Write(strings.Bytes(p.decoded));
+ 		encoder.Close();
+-		testEqual(t, "GitEncode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded);
++		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded);
+ 	}
+ }
+ 
+-func TestGitEncoderBuffering(t *testing.T) {
++func TestEncoderBuffering(t *testing.T) {
+ 	input := strings.Bytes(gitBigtest.decoded);
+ 	for bs := 1; bs <= 12; bs++ {
+ 		bb := &bytes.Buffer{};
+-		encoder := NewGitEncoder(bb);
++		encoder := NewEncoder(bb);
+ 		for pos := 0; pos < len(input); pos += bs {
+ 			end := pos+bs;
+ 			if end > len(input) {
+@@ -88,19 +104,19 @@ func TestGitEncoderBuffering(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGitDecode(t *testing.T) {
++func TestDecode(t *testing.T) {
+ 	for _, p := range gitPairs {
+ 		dbuf := make([]byte, 4*len(p.encoded));
+-		ndst, err := GitDecode(strings.Bytes(p.encoded), dbuf);
+-		testEqual(t, "GitDecode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
+-		testEqual(t, "GitDecode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded));
+-		testEqual(t, "GitDecode(%q) = %q, want %q", p.encoded, string(dbuf[0:ndst]), p.decoded);
++		ndst, err := Decode(strings.Bytes(p.encoded), dbuf);
++		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
++		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded));
++		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:ndst]), p.decoded);
+ 	}
+ }
+ 
+-func TestGitDecoder(t *testing.T) {
++func TestDecoder(t *testing.T) {
+ 	for _, p := range gitPairs {
+-		decoder := NewGitDecoder(bytes.NewBufferString(p.encoded));
++		decoder := NewDecoder(bytes.NewBufferString(p.encoded));
+ 		dbuf, err := io.ReadAll(decoder);
+ 		if err != nil {
+ 			t.Fatal("Read failed", err);
+@@ -113,9 +129,9 @@ func TestGitDecoder(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGitDecoderBuffering(t *testing.T) {
++func TestDecoderBuffering(t *testing.T) {
+ 	for bs := 1; bs <= 12; bs++ {
+-		decoder := NewGitDecoder(bytes.NewBufferString(gitBigtest.encoded));
++		decoder := NewDecoder(bytes.NewBufferString(gitBigtest.encoded));
+ 		buf := make([]byte, len(gitBigtest.decoded)+12);
+ 		var total int;
+ 		for total = 0; total < len(gitBigtest.decoded); {
+@@ -127,7 +143,7 @@ func TestGitDecoderBuffering(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGitDecodeCorrupt(t *testing.T) {
++func TestDecodeCorrupt(t *testing.T) {
+ 	type corrupt struct {
+ 		e	string;
+ 		p	int;
+@@ -139,12 +155,12 @@ func TestGitDecodeCorrupt(t *testing.T) {
+ 
+ 	for _, e := range examples {
+ 		dbuf := make([]byte, 2*len(e.e));
+-		_, err := GitDecode(strings.Bytes(e.e), dbuf);
++		_, err := Decode(strings.Bytes(e.e), dbuf);
+ 		switch err := err.(type) {
+ 		case CorruptInputError:
+ 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
+ 		default:
+-			t.Error("GitDecoder failed to detect corruption in", e);
++			t.Error("Decoder failed to detect corruption in", e);
+ 		}
+ 	}
+ }
+@@ -157,18 +173,18 @@ func TestGitBig(t *testing.T) {
+ 		raw[i] = alpha[i%len(alpha)];
+ 	}
+ 	encoded := new(bytes.Buffer);
+-	w := NewGitEncoder(encoded);
++	w := NewEncoder(encoded);
+ 	nn, err := w.Write(raw);
+ 	if nn != n || err != nil {
+-		t.Fatalf("GitEncoder.Write(raw) = %d, %v want %d, nil", nn, err, n);
++		t.Fatalf("Encoder.Write(raw) = %d, %v want %d, nil", nn, err, n);
+ 	}
+ 	err = w.Close();
+ 	if err != nil {
+-		t.Fatalf("GitEncoder.Close() = %v want nil", err);
++		t.Fatalf("Encoder.Close() = %v want nil", err);
+ 	}
+-	decoded, err := io.ReadAll(NewGitDecoder(encoded));
++	decoded, err := io.ReadAll(NewDecoder(encoded));
+ 	if err != nil {
+-		t.Fatalf("io.ReadAll(NewGitDecoder(...)): %v", err);
++		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err);
+ 	}
+ 
+ 	if !bytes.Equal(raw, decoded) {
+@@ -178,6 +194,6 @@ func TestGitBig(t *testing.T) {
+ 				break;
+ 			}
+ 		}
+-		t.Errorf("GitDecode(GitEncode(%d-byte string)) failed at offset %d", n, i);
++		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i);
+ 	}
+ }

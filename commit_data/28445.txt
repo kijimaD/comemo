@@ -9,6 +9,28 @@ Date:   Wed May 25 08:03:46 2016 -0400
     Change-Id: I3ce8d4016854d41860c5a9f05a54cda3de49f337
     Reviewed-on: https://go-review.googlesource.com/23430
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 74607d7ca5..db249dd053 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -1049,6 +1049,16 @@ is like
+ but distinguishes the tag not containing the given key
+ from the tag associating an empty string with the given key.
+ </p>
++
++<p>
++The
++<a href="/pkg/reflect/#Type.Method"><code>Method</code></a> and
++<a href="/pkg/reflect/#Type.NumMethod"><code>NumMethod</code></a>
++methods of
++<a href="/pkg/reflect/#Type"><code>Type</code></a> and
++<a href="/pkg/reflect/#Value"><code>Value</code></a>
++no longer return or count unexported methods.
++</p>
+ </dd>
+ 
+ <dl id="strings"><a href="/pkg/strings/">strings</a></dl>

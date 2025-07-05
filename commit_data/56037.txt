@@ -28,7 +28,7 @@ Date:   Wed Apr 5 13:16:58 2023 +0200
     Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/fallocate_test.go         |  3 ++-
  src/cmd/link/internal/ld/outbuf_freebsd.go         | 12 ++++++++++--
  src/internal/syscall/unix/at_sysnum_freebsd.go     |  5 +++--
@@ -37,3 +37,162 @@ Date:   Wed Apr 5 13:16:58 2023 +0200
  .../syscall/unix/fallocate_freebsd_64bit.go        | 11 +++++------
  src/internal/syscall/unix/fallocate_freebsd_arm.go | 22 ++++++++++++++++++++++
  7 files changed, 59 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/fallocate_test.go b/src/cmd/link/internal/ld/fallocate_test.go
+index ad77be536f..d95fec788a 100644
+--- a/src/cmd/link/internal/ld/fallocate_test.go
++++ b/src/cmd/link/internal/ld/fallocate_test.go
+@@ -7,6 +7,7 @@
+ package ld
+ 
+ import (
++	"errors"
+ 	"os"
+ 	"path/filepath"
+ 	"syscall"
+@@ -26,7 +27,7 @@ func TestFallocate(t *testing.T) {
+ 	// Try fallocate first.
+ 	for {
+ 		err = out.fallocate(1 << 10)
+-		if err == syscall.EOPNOTSUPP { // The underlying file system may not support fallocate
++		if errors.Is(err, errors.ErrUnsupported) || err == errNoFallocate { // The underlying file system may not support fallocate
+ 			t.Skip("fallocate is not supported")
+ 		}
+ 		if err == syscall.EINTR {
+diff --git a/src/cmd/link/internal/ld/outbuf_freebsd.go b/src/cmd/link/internal/ld/outbuf_freebsd.go
+index 5ff17300c1..7e718c1408 100644
+--- a/src/cmd/link/internal/ld/outbuf_freebsd.go
++++ b/src/cmd/link/internal/ld/outbuf_freebsd.go
+@@ -6,8 +6,16 @@
+ 
+ package ld
+ 
+-import "internal/syscall/unix"
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
+ 
+ func (out *OutBuf) fallocate(size uint64) error {
+-	return unix.PosixFallocate(int(out.f.Fd()), 0, int64(size))
++	err := unix.PosixFallocate(int(out.f.Fd()), 0, int64(size))
++	// ZFS on FreeBSD does not support posix_fallocate and returns EINVAL in that case.
++	if err == syscall.EINVAL {
++		return errNoFallocate
++	}
++	return err
+ }
+diff --git a/src/internal/syscall/unix/at_sysnum_freebsd.go b/src/internal/syscall/unix/at_sysnum_freebsd.go
+index adfbbcb92b..530f5c2a2b 100644
+--- a/src/internal/syscall/unix/at_sysnum_freebsd.go
++++ b/src/internal/syscall/unix/at_sysnum_freebsd.go
+@@ -10,6 +10,7 @@ const (
+ 	AT_REMOVEDIR        = 0x800
+ 	AT_SYMLINK_NOFOLLOW = 0x200
+ 
+-	unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-	openatTrap   uintptr = syscall.SYS_OPENAT
++	unlinkatTrap       uintptr = syscall.SYS_UNLINKAT
++	openatTrap         uintptr = syscall.SYS_OPENAT
++	posixFallocateTrap uintptr = syscall.SYS_POSIX_FALLOCATE
+ )
+diff --git a/src/internal/syscall/unix/fallocate_freebsd_32bit.go b/src/internal/syscall/unix/fallocate_freebsd_32bit.go
+deleted file mode 100644
+index d821eea81c..0000000000
+--- a/src/internal/syscall/unix/fallocate_freebsd_32bit.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build freebsd && (386 || arm)
+-
+-package unix
+-
+-import "syscall"
+-
+-// FreeBSD posix_fallocate system call number.
+-const posixFallocateTrap uintptr = 530
+-
+-func PosixFallocate(fd int, off int64, size int64) error {
+-	_, _, errno := syscall.Syscall6(posixFallocateTrap, uintptr(fd), uintptr(off), uintptr(off>>32), uintptr(size), uintptr(size>>32), 0)
+-	if errno != 0 {
+-		return errno
+-	}
+-	return nil
+-}
+diff --git a/src/internal/syscall/unix/fallocate_freebsd_386.go b/src/internal/syscall/unix/fallocate_freebsd_386.go
+new file mode 100644
+index 0000000000..535b23dbc5
+--- /dev/null
++++ b/src/internal/syscall/unix/fallocate_freebsd_386.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import "syscall"
++
++func PosixFallocate(fd int, off int64, size int64) error {
++	// If successful, posix_fallocate() returns zero. It returns an error on failure, without
++	// setting errno. See https://man.freebsd.org/cgi/man.cgi?query=posix_fallocate&sektion=2&n=1
++	r1, _, _ := syscall.Syscall6(posixFallocateTrap, uintptr(fd), uintptr(off), uintptr(off>>32), uintptr(size), uintptr(size>>32), 0)
++	if r1 != 0 {
++		return syscall.Errno(r1)
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/fallocate_freebsd_64bit.go b/src/internal/syscall/unix/fallocate_freebsd_64bit.go
+index f1ef6e347c..a9d52283f0 100644
+--- a/src/internal/syscall/unix/fallocate_freebsd_64bit.go
++++ b/src/internal/syscall/unix/fallocate_freebsd_64bit.go
+@@ -8,13 +8,12 @@ package unix
+ 
+ import "syscall"
+ 
+-// FreeBSD posix_fallocate system call number.
+-const posixFallocateTrap uintptr = 530
+-
+ func PosixFallocate(fd int, off int64, size int64) error {
+-	_, _, errno := syscall.Syscall(posixFallocateTrap, uintptr(fd), uintptr(off), uintptr(size))
+-	if errno != 0 {
+-		return errno
++	// If successful, posix_fallocate() returns zero. It returns an error on failure, without
++	// setting errno. See https://man.freebsd.org/cgi/man.cgi?query=posix_fallocate&sektion=2&n=1
++	r1, _, _ := syscall.Syscall(posixFallocateTrap, uintptr(fd), uintptr(off), uintptr(size))
++	if r1 != 0 {
++		return syscall.Errno(r1)
+ 	}
+ 	return nil
+ }
+diff --git a/src/internal/syscall/unix/fallocate_freebsd_arm.go b/src/internal/syscall/unix/fallocate_freebsd_arm.go
+new file mode 100644
+index 0000000000..1ded50f3b9
+--- /dev/null
++++ b/src/internal/syscall/unix/fallocate_freebsd_arm.go
+@@ -0,0 +1,22 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import "syscall"
++
++func PosixFallocate(fd int, off int64, size int64) error {
++	// If successful, posix_fallocate() returns zero. It returns an error on failure, without
++	// setting errno. See https://man.freebsd.org/cgi/man.cgi?query=posix_fallocate&sektion=2&n=1
++	//
++	// The padding 0 argument is needed because the ARM calling convention requires that if an
++	// argument (off in this case) needs double-word alignment (8-byte), the NCRN (next core
++	// register number) is rounded up to the next even register number.
++	// See https://github.com/ARM-software/abi-aa/blob/2bcab1e3b22d55170c563c3c7940134089176746/aapcs32/aapcs32.rst#parameter-passing
++	r1, _, _ := syscall.Syscall6(posixFallocateTrap, uintptr(fd), 0, uintptr(off), uintptr(off>>32), uintptr(size), uintptr(size>>32))
++	if r1 != 0 {
++		return syscall.Errno(r1)
++	}
++	return nil
++}

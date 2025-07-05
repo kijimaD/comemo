@@ -14,6 +14,23 @@ Date:   Sat Apr 21 22:24:25 2018 +0000
     GitHub-Pull-Request: golang/go#24989
     Reviewed-on: https://go-review.googlesource.com/108676
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go1.10.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 4c0e847c05..2974fef9a3 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -43,9 +43,9 @@ There are no significant changes to the language specification.
+ </p>
+ 
+ <p><!-- CL 60230 -->
+-A corner case involving shifts by untyped constants has been clarified,
++A corner case involving shifts of untyped constants has been clarified,
+ and as a result the compilers have been updated to allow the index expression
+-<code>x[1.0</code>&nbsp;<code>&lt;&lt;</code>&nbsp;<code>s]</code> where <code>s</code> is an untyped constant;
++<code>x[1.0</code>&nbsp;<code>&lt;&lt;</code>&nbsp;<code>s]</code> where <code>s</code> is an unsigned integer;
+ the <a href="/pkg/go/types/">go/types</a> package already did.
+ </p>
+ 

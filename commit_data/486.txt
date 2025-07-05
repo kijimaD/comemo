@@ -7,7 +7,37 @@ Date:   Tue Aug 5 11:14:35 2008 -0700
     R=ken,gri
     OCL=13879
     CL=13879
-
+---
  src/runtime/map.c     | 2 +-
  src/runtime/runtime.c | 7 ++++---
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/map.c b/src/runtime/map.c
+index 93a985f15e..f945e8c47b 100644
+--- a/src/runtime/map.c
++++ b/src/runtime/map.c
+@@ -40,7 +40,7 @@ sys·newmap(uint32 keysize, uint32 valsize,
+ {
+ 	Hmap *m;
+ 
+-	if(keyalg >= 2 ||
++	if(keyalg >= 3 ||
+ 	   valalg >= 3) {
+ 		prints("0<=");
+ 		sys·printint(keyalg);
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 75d23d50d8..ec2951b0af 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -777,7 +777,8 @@ pointercopy(uint32 s, void **a, void **b)
+ Alg
+ algarray[3] =
+ {
+-	{	&memhash,	&memequal,	&memprint,	&memcopy	},
+-	{	&stringhash,	&stringequal,	&stringprint,	&stringcopy	},
+-	{	&pointerhash,	&pointerequal,	&pointerprint,	&pointercopy	},
++	{	&memhash,	&memequal,	&memprint,	&memcopy	},  // 0
++	{	&stringhash,	&stringequal,	&stringprint,	&stringcopy	},  // 1
++//	{	&pointerhash,	&pointerequal,	&pointerprint,	&pointercopy	},  // 2
++	{	&memhash,	&memequal,	&memprint,	&memcopy	},  // 2 - treat pointers as ints
+ };

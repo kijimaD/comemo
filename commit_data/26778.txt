@@ -38,9 +38,193 @@ Date:   Thu Feb 25 16:07:04 2016 -0800
     Change-Id: Iaf5f784223d0385fa3a5b09ef2b2ad447feab02f
     Reviewed-on: https://go-review.googlesource.com/19925
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go     |  5 +++--
  src/cmd/compile/internal/gc/lex.go    | 19 +++++++------------
  src/cmd/compile/internal/gc/parser.go | 22 ++++++++++++----------
  src/cmd/compile/internal/gc/subr.go   | 14 ++++----------
  4 files changed, 26 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 1523c5efb3..d0e4824649 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -425,12 +425,13 @@ var sizeof_String int // runtime sizeof(String)
+ 
+ var dotlist [10]Dlist // size is max depth of embeddeds
+ 
++// lexlineno is the line number _after_ the most recently read rune.
++// In particular, it's advanced (or rewound) as newlines are read (or unread).
+ var lexlineno int32
+ 
++// lineno is the line number at the start of the most recently lexed token.
+ var lineno int32
+ 
+-var prevlineno int32
+-
+ var pragcgobuf string
+ 
+ var infile string
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 8809ac4016..a051214b9c 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -923,8 +923,6 @@ const (
+ )
+ 
+ func (l *lexer) next() {
+-	prevlineno = lineno
+-
+ 	nlsemi := l.nlsemi
+ 	l.nlsemi = false
+ 
+@@ -933,12 +931,12 @@ l0:
+ 	c := l.getr()
+ 	for isSpace(c) {
+ 		if c == '\n' && nlsemi {
+-			// TODO(gri) we may be able avoid the ungetr and simply use lexlineno-1 below
+-			l.ungetr(c) // for correct line number
+ 			if Debug['x'] != 0 {
+ 				fmt.Printf("lex: implicit semi\n")
+ 			}
+-			lineno = lexlineno
++			// Insert implicit semicolon on previous line,
++			// before the newline character.
++			lineno = lexlineno - 1
+ 			l.tok = ';'
+ 			return
+ 		}
+@@ -1231,9 +1229,9 @@ l0:
+ lx:
+ 	if Debug['x'] != 0 {
+ 		if c > 0xff {
+-			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lexlineno)), lexname(c))
++			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lineno)), lexname(c))
+ 		} else {
+-			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lexlineno)), c)
++			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lineno)), c)
+ 		}
+ 	}
+ 
+@@ -1850,8 +1848,7 @@ redo:
+ 	c := obj.Bgetc(l.bin)
+ 	if c < utf8.RuneSelf {
+ 		if c == 0 {
+-			// TODO(gri) do we need lineno = lexlineno here? Why not?
+-			Yyerror("illegal NUL byte")
++			yyerrorl(int(lexlineno), "illegal NUL byte")
+ 			return 0
+ 		}
+ 		if c == '\n' && importpkg == nil {
+@@ -1872,15 +1869,13 @@ redo:
+ 
+ 	r, w := utf8.DecodeRune(buf[:i])
+ 	if r == utf8.RuneError && w == 1 {
+-		lineno = lexlineno
+ 		// The string conversion here makes a copy for passing
+ 		// to fmt.Printf, so that buf itself does not escape and
+ 		// can be allocated on the stack.
+-		Yyerror("illegal UTF-8 sequence % x", string(buf[:i]))
++		yyerrorl(int(lexlineno), "illegal UTF-8 sequence % x", string(buf[:i]))
+ 	}
+ 
+ 	if r == BOM {
+-		// TODO(gri) can we use Yyerror here? Why not?
+ 		yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
+ 		goto redo
+ 	}
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 6165684574..25754e5663 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -110,11 +110,11 @@ func (p *parser) syntax_error(msg string) {
+ }
+ 
+ // Like syntax_error, but reports error at given line rather than current lexer line.
+-func (p *parser) syntax_error_at(lineno int32, msg string) {
+-	defer func(lineno int32) {
+-		lexlineno = lineno
+-	}(lexlineno)
+-	lexlineno = lineno
++func (p *parser) syntax_error_at(lno int32, msg string) {
++	defer func(lno int32) {
++		lineno = lno
++	}(lineno)
++	lineno = lno
+ 	p.syntax_error(msg)
+ }
+ 
+@@ -687,7 +687,7 @@ func (p *parser) labeled_stmt(label *Node) *Node {
+ 		ls = p.stmt()
+ 		if ls == missing_stmt {
+ 			// report error at line of ':' token
+-			p.syntax_error_at(prevlineno, "missing statement after label")
++			p.syntax_error_at(label.Lineno, "missing statement after label")
+ 			// we are already at the end of the labeled statement - no need to advance
+ 			return missing_stmt
+ 		}
+@@ -1609,13 +1609,15 @@ func (p *parser) new_name(sym *Sym) *Node {
+ 	return nil
+ }
+ 
+-func (p *parser) dcl_name(sym *Sym) *Node {
++func (p *parser) dcl_name() *Node {
+ 	if trace && Debug['x'] != 0 {
+ 		defer p.trace("dcl_name")()
+ 	}
+ 
++	symlineno := lineno
++	sym := p.sym()
+ 	if sym == nil {
+-		yyerrorl(int(prevlineno), "invalid declaration")
++		yyerrorl(int(symlineno), "invalid declaration")
+ 		return nil
+ 	}
+ 	return dclname(sym)
+@@ -2637,9 +2639,9 @@ func (p *parser) dcl_name_list() *NodeList {
+ 		defer p.trace("dcl_name_list")()
+ 	}
+ 
+-	l := list1(p.dcl_name(p.sym()))
++	l := list1(p.dcl_name())
+ 	for p.got(',') {
+-		l = list(l, p.dcl_name(p.sym()))
++		l = list(l, p.dcl_name())
+ 	}
+ 	return l
+ }
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b6a26489e6..0c8b4cd57f 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -109,7 +109,7 @@ func yyerrorl(line int, format string, args ...interface{}) {
+ 	}
+ }
+ 
+-var yyerror_lastsyntax int
++var yyerror_lastsyntax int32
+ 
+ func Yyerror(format string, args ...interface{}) {
+ 	msg := fmt.Sprintf(format, args...)
+@@ -117,18 +117,12 @@ func Yyerror(format string, args ...interface{}) {
+ 		nsyntaxerrors++
+ 
+ 		// only one syntax error per line
+-		if int32(yyerror_lastsyntax) == lexlineno {
++		if yyerror_lastsyntax == lineno {
+ 			return
+ 		}
+-		yyerror_lastsyntax = int(lexlineno)
++		yyerror_lastsyntax = lineno
+ 
+-		// plain "syntax error" gets "near foo" added
+-		if msg == "syntax error" {
+-			yyerrorl(int(lexlineno), "syntax error near %s", lexbuf.String())
+-			return
+-		}
+-
+-		yyerrorl(int(lexlineno), "%s", msg)
++		yyerrorl(int(lineno), "%s", msg)
+ 		return
+ 	}
+ 

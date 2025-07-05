@@ -8,6 +8,20 @@ Date:   Sat Mar 10 05:11:51 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5784065
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 96786b5e6a..e71fd3848e 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -514,7 +514,7 @@ addidir(char* dir)
+ static int
+ islocalname(Strlit *name)
+ {
+-	if(!windows && name->len >= 1 && name->s[0] == '/')
++	if(name->len >= 1 && name->s[0] == '/')
+ 		return 1;
+ 	if(windows && name->len >= 3 &&
+ 	   yy_isalpha(name->s[0]) && name->s[1] == ':' && name->s[2] == '/')

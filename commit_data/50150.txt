@@ -10,7 +10,60 @@ Date:   Tue Oct 5 10:51:53 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/pcln.go | 8 +-------
  src/runtime/symtab.go            | 6 ------
  2 files changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 8f025f91e2..0bcf6c980a 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -591,8 +591,7 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
+ 	size := int64(int(state.nfunc)*2*4 + 4)
+ 
+ 	// Now find the space for the func objects. We do this in a running manner,
+-	// so that we can find individual starting locations, and because funcdata
+-	// requires alignment.
++	// so that we can find individual starting locations.
+ 	for i, s := range funcs {
+ 		size = Rnd(size, int64(ctxt.Arch.PtrSize))
+ 		startLocations[i] = uint32(size)
+@@ -607,9 +606,6 @@ func (state pclntab) calculateFunctabSize(ctxt *Link, funcs []loader.Sym) (int64
+ 				}
+ 			}
+ 			size += int64(numPCData(ldr, s, fi) * 4)
+-			if numFuncData > 0 { // Func data is aligned.
+-				size = Rnd(size, int64(ctxt.Arch.PtrSize))
+-			}
+ 			size += int64(numFuncData * 4)
+ 		}
+ 	}
+@@ -747,10 +743,8 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
+ 
+ 		// Write funcdata refs as offsets from go.func.* and go.funcrel.*.
+ 		funcdata = funcData(ldr, s, fi, inlSyms[s], funcdata)
+-		// funcdata must be pointer-aligned and we're only int32-aligned.
+ 		// Missing funcdata will be ^0. See runtime/symtab.go:funcdata.
+ 		off = uint32(startLocations[i] + funcSize + numPCData(ldr, s, fi)*4)
+-		off = uint32(Rnd(int64(off), int64(ctxt.Arch.PtrSize)))
+ 		for j := range funcdata {
+ 			dataoff := off + uint32(4*j)
+ 			fdsym := funcdata[j]
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 647300b0c4..fc02cb4ae5 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -1088,12 +1088,6 @@ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
+ 		return nil
+ 	}
+ 	p := add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(f.npcdata)*4)
+-	if goarch.PtrSize == 8 && uintptr(p)&4 != 0 {
+-		if uintptr(unsafe.Pointer(f._func))&4 != 0 {
+-			println("runtime: misaligned func", f._func)
+-		}
+-		p = add(p, 4)
+-	}
+ 	p = add(p, uintptr(i)*4)
+ 	off := *(*uint32)(p)
+ 	// Return off == ^uint32(0) ? 0 : f.datap.gofunc + uintptr(off), but without branches.

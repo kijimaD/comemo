@@ -9,7 +9,63 @@ Date:   Tue May 3 10:38:37 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4444087
-
+---
  src/pkg/reflect/all_test.go | 18 ++++++++++++++++++
  src/pkg/reflect/value.go    |  9 +++++++--
  2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 00d59d8081..991d5ca8b7 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -726,6 +726,24 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
+ 	}
+ }
+ 
++type UnexpT struct {
++	m map[int]int
++}
++
++func TestDeepEqualUnexportedMap(t *testing.T) {
++	// Check that DeepEqual can look at unexported fields.
++	x1 := UnexpT{map[int]int{1: 2}}
++	x2 := UnexpT{map[int]int{1: 2}}
++	if !DeepEqual(&x1, &x2) {
++		t.Error("DeepEqual(x1, x2) = false, want true")
++	}
++
++	y1 := UnexpT{map[int]int{2: 3}}
++	if DeepEqual(&x1, &y1) {
++		t.Error("DeepEqual(x1, y1) = true, want false")
++	}
++}
++
+ 
+ func check2ndField(x interface{}, offs uintptr, t *testing.T) {
+ 	s := ValueOf(x)
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 6dffb07833..2c2158a3cd 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -958,14 +958,19 @@ func (v Value) MapIndex(key Value) Value {
+ 	iv.mustBe(Map)
+ 	typ := iv.typ.toType()
+ 
++	// Do not require ikey to be exported, so that DeepEqual
++	// and other programs can use all the keys returned by
++	// MapKeys as arguments to MapIndex.  If either the map
++	// or the key is unexported, though, the result will be
++	// considered unexported.
++
+ 	ikey := key.internal()
+-	ikey.mustBeExported()
+ 	ikey = convertForAssignment("reflect.Value.MapIndex", nil, typ.Key(), ikey)
+ 	if iv.word == 0 {
+ 		return Value{}
+ 	}
+ 
+-	flag := iv.flag & flagRO
++	flag := (iv.flag | ikey.flag) & flagRO
+ 	elemType := typ.Elem()
+ 	elemWord, ok := mapaccess(iv.word, ikey.word)
+ 	if !ok {

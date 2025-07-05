@@ -9,8 +9,130 @@ Date:   Wed Aug 26 18:40:52 2015 -0500
     Change-Id: If92be96ec9a7a86aeb3ce566d6758aab01c2fa7d
     Reviewed-on: https://go-review.googlesource.com/13961
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 | 38 ++++++++++++++++-
  src/cmd/compile/internal/gc/testdata/map_ssa.go    | 47 ++++++++++++++++++++++
  src/cmd/compile/internal/gc/testdata/string_ssa.go |  4 ++
  3 files changed, 87 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0c0a6a36da..d672eb58e0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1440,8 +1440,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		case n.Left.Type.IsString(): // string; not reachable for OCAP
+ 			return s.newValue1(ssa.OpStringLen, Types[TINT], s.expr(n.Left))
+ 		case n.Left.Type.IsMap():
+-			s.Unimplementedf("unhandled len(map)")
+-			return nil
++			return s.lenMap(n, s.expr(n.Left))
+ 		case n.Left.Type.IsChan():
+ 			if n.Op == OCAP {
+ 				s.Unimplementedf("unhandled cap(chan)")
+@@ -1998,6 +1997,41 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ 	return s.variable(n, n.Type)
+ }
+ 
++func (s *state) lenMap(n *Node, x *ssa.Value) *ssa.Value {
++	// if n == nil {
++	//   return 0
++	// } else {
++	//   return *((*int)n)
++	// }
++	lenType := n.Type
++	cmp := s.newValue2(ssa.OpEqPtr, Types[TBOOL], x, s.zeroVal(lenType))
++	b := s.endBlock()
++	b.Kind = ssa.BlockIf
++	b.Control = cmp
++	b.Likely = ssa.BranchUnlikely
++
++	bThen := s.f.NewBlock(ssa.BlockPlain)
++	bElse := s.f.NewBlock(ssa.BlockPlain)
++	bAfter := s.f.NewBlock(ssa.BlockPlain)
++
++	// length of a nil map is zero
++	addEdge(b, bThen)
++	s.startBlock(bThen)
++	s.vars[n] = s.zeroVal(lenType)
++	s.endBlock()
++	addEdge(bThen, bAfter)
++
++	// the length is stored in the first word
++	addEdge(b, bElse)
++	s.startBlock(bElse)
++	s.vars[n] = s.newValue2(ssa.OpLoad, lenType, x, s.mem())
++	s.endBlock()
++	addEdge(bElse, bAfter)
++
++	s.startBlock(bAfter)
++	return s.variable(n, lenType)
++}
++
+ // checkgoto checks that a goto from from to to does not
+ // jump into a block or jump over variable declarations.
+ // It is a copy of checkgoto in the pre-SSA backend,
+diff --git a/src/cmd/compile/internal/gc/testdata/map_ssa.go b/src/cmd/compile/internal/gc/testdata/map_ssa.go
+new file mode 100644
+index 0000000000..41c949a9f2
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/map_ssa.go
+@@ -0,0 +1,47 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// map_ssa.go tests map operations.
++package main
++
++import "fmt"
++
++var failed = false
++
++func lenMap_ssa(v map[int]int) int {
++	switch { // prevent inlining
++
++	}
++	return len(v)
++}
++
++func testLenMap() {
++
++	v := make(map[int]int)
++	v[0] = 0
++	v[1] = 0
++	v[2] = 0
++
++	if want, got := 3, lenMap_ssa(v); got != want {
++		fmt.Printf("expected len(map) = %d, got %d", want, got)
++		failed = true
++	}
++}
++
++func testLenNilMap() {
++
++	var v map[int]int
++	if want, got := 0, lenMap_ssa(v); got != want {
++		fmt.Printf("expected len(nil) = %d, got %d", want, got)
++		failed = true
++	}
++}
++func main() {
++	testLenMap()
++	testLenNilMap()
++
++	if failed {
++		panic("failed")
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/testdata/string_ssa.go b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+index 5987412933..efc734e1a2 100644
+--- a/src/cmd/compile/internal/gc/testdata/string_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // string_ssa.go tests string operations.
+ package main
+ 

@@ -9,6 +9,20 @@ Date:   Sun Jan 9 12:11:16 2011 -0500
     R=golang-dev, agl1
     CC=golang-dev
     https://golang.org/cl/3937041
-
+---
  src/pkg/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index c0937ca300..bfe2ef39db 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -547,7 +547,7 @@ func TrimRight(s []byte, cutset string) []byte {
+ }
+ 
+ // TrimSpace returns a subslice of s by slicing off all leading and
+-// trailing white space, as as defined by Unicode.
++// trailing white space, as defined by Unicode.
+ func TrimSpace(s []byte) []byte {
+ 	return TrimFunc(s, unicode.IsSpace)
+ }

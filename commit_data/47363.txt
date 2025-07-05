@@ -10,6 +10,32 @@ Date:   Sat Mar 13 18:00:17 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/io/fs/walk_test.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/io/fs/walk_test.go b/src/io/fs/walk_test.go
+index ebc4e50fb3..5e127e71cd 100644
+--- a/src/io/fs/walk_test.go
++++ b/src/io/fs/walk_test.go
+@@ -6,7 +6,6 @@ package fs_test
+ 
+ import (
+ 	. "io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	pathpkg "path"
+ 	"testing"
+@@ -96,11 +95,7 @@ func mark(entry DirEntry, err error, errors *[]error, clear bool) error {
+ }
+ 
+ func TestWalkDir(t *testing.T) {
+-	tmpDir, err := ioutil.TempDir("", "TestWalk")
+-	if err != nil {
+-		t.Fatal("creating temp dir:", err)
+-	}
+-	defer os.RemoveAll(tmpDir)
++	tmpDir := t.TempDir()
+ 
+ 	origDir, err := os.Getwd()
+ 	if err != nil {

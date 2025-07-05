@@ -11,6 +11,20 @@ Date:   Fri Jun 29 19:56:56 2018 +0000
     GitHub-Pull-Request: golang/go#26146
     Reviewed-on: https://go-review.googlesource.com/121696
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 7bcfac44aa..6608dbd74a 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -164,7 +164,7 @@ func shouldEscape(c byte, mode encoding) bool {
+ 
+ // QueryUnescape does the inverse transformation of QueryEscape,
+ // converting each 3-byte encoded substring of the form "%AB" into the
+-// hex-decoded byte 0xAB. It also converts '+' into ' ' (space).
++// hex-decoded byte 0xAB.
+ // It returns an error if any % is not followed by two hexadecimal
+ // digits.
+ func QueryUnescape(s string) (string, error) {

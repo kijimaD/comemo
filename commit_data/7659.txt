@@ -7,6 +7,37 @@ Date:   Sun Mar 6 21:52:37 2011 -0500
     R=niemeyer
     CC=golang-dev
     https://golang.org/cl/4256057
-
+---
  src/pkg/io/ioutil/tempfile_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/io/ioutil/tempfile_test.go b/src/pkg/io/ioutil/tempfile_test.go
+index 6013ec1d4a..80c62f672c 100644
+--- a/src/pkg/io/ioutil/tempfile_test.go
++++ b/src/pkg/io/ioutil/tempfile_test.go
+@@ -7,6 +7,7 @@ package ioutil_test
+ import (
+ 	. "io/ioutil"
+ 	"os"
++	"path/filepath"
+ 	"regexp"
+ 	"testing"
+ )
+@@ -25,7 +26,7 @@ func TestTempFile(t *testing.T) {
+ 	if f != nil {
+ 		f.Close()
+ 		os.Remove(f.Name())
+-		re := regexp.MustCompile("^" + regexp.QuoteMeta(dir) + "/ioutil_test[0-9]+$")
++		re := regexp.MustCompile("^" + regexp.QuoteMeta(filepath.Join(dir, "ioutil_test")) + "[0-9]+$")
+ 		if !re.MatchString(f.Name()) {
+ 			t.Errorf("TempFile(`"+dir+"`, `ioutil_test`) created bad name %s", f.Name())
+ 		}
+@@ -45,7 +46,7 @@ func TestTempDir(t *testing.T) {
+ 	}
+ 	if name != "" {
+ 		os.Remove(name)
+-		re := regexp.MustCompile("^" + regexp.QuoteMeta(dir) + "/ioutil_test[0-9]+$")
++		re := regexp.MustCompile("^" + regexp.QuoteMeta(filepath.Join(dir, "ioutil_test")) + "[0-9]+$")
+ 		if !re.MatchString(name) {
+ 			t.Errorf("TempDir(`"+dir+"`, `ioutil_test`) created bad name %s", name)
+ 		}

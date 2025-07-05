@@ -11,6 +11,22 @@ Date:   Thu Aug 18 14:49:01 2016 -0700
     Change-Id: Ib615b06c9141b914648b6abbeeb688c5ffa0d2e3
     Reviewed-on: https://go-review.googlesource.com/27360
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index dba512f488..d6bcc192d4 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -134,8 +134,8 @@ func macSHA1(version uint16, key []byte) macFunction {
+ 	return tls10MAC{hmac.New(sha1.New, key)}
+ }
+ 
+-// macSHA1 returns a SHA-256 based MAC. These are only supported in TLS 1.2 so
+-// the given version is ignored.
++// macSHA256 returns a SHA-256 based MAC. These are only supported in TLS 1.2
++// so the given version is ignored.
+ func macSHA256(version uint16, key []byte) macFunction {
+ 	return tls10MAC{hmac.New(sha256.New, key)}
+ }

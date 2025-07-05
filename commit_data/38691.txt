@@ -11,7 +11,7 @@ Date:   Mon Nov 5 16:26:45 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/http/export_test.go       |  2 ++
  src/net/http/header.go            |  7 ++++++
  src/net/http/request.go           |  8 +++++-
@@ -20,3 +20,195 @@ Date:   Mon Nov 5 16:26:45 2018 +0000
  src/net/http/transport.go         |  9 +++++++
  src/net/http/transport_test.go    | 53 +++++++++++++++++++++++++++++++++++++++
  7 files changed, 111 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 716e8ecac7..b6965c239e 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -242,3 +242,5 @@ func ExportSetH2GoawayTimeout(d time.Duration) (restore func()) {
+ 	http2goAwayTimeout = d
+ 	return func() { http2goAwayTimeout = old }
+ }
++
++func (r *Request) ExportIsReplayable() bool { return r.isReplayable() }
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index 611ee04705..6cf13e5c44 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -52,6 +52,13 @@ func (h Header) get(key string) string {
+ 	return ""
+ }
+ 
++// has reports whether h has the provided key defined, even if it's
++// set to 0-length slice.
++func (h Header) has(key string) bool {
++	_, ok := h[key]
++	return ok
++}
++
+ // Del deletes the values associated with key.
+ // The key is case insensitive; it is canonicalized by
+ // textproto.CanonicalMIMEHeaderKey.
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 0bcdeae0df..5b7e6564ae 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -579,7 +579,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
+ 	// Use the defaultUserAgent unless the Header contains one, which
+ 	// may be blank to not send the header.
+ 	userAgent := defaultUserAgent
+-	if _, ok := r.Header["User-Agent"]; ok {
++	if r.Header.has("User-Agent") {
+ 		userAgent = r.Header.Get("User-Agent")
+ 	}
+ 	if userAgent != "" {
+@@ -1345,6 +1345,12 @@ func (r *Request) isReplayable() bool {
+ 		case "GET", "HEAD", "OPTIONS", "TRACE":
+ 			return true
+ 		}
++		// The Idempotency-Key, while non-standard, is widely used to
++		// mean a POST or other request is idempotent. See
++		// https://golang.org/issue/19943#issuecomment-421092421
++		if r.Header.has("Idempotency-Key") || r.Header.has("X-Idempotency-Key") {
++			return true
++		}
+ 	}
+ 	return false
+ }
+diff --git a/src/net/http/requestwrite_test.go b/src/net/http/requestwrite_test.go
+index 246fb4e65d..7dbf0d4e8a 100644
+--- a/src/net/http/requestwrite_test.go
++++ b/src/net/http/requestwrite_test.go
+@@ -544,6 +544,38 @@ var reqWriteTests = []reqWriteTest{
+ 			"User-Agent: Go-http-client/1.1\r\n" +
+ 			"\r\n",
+ 	},
++
++	// Verify that a nil header value doesn't get written.
++	23: {
++		Req: Request{
++			Method: "GET",
++			URL:    mustParseURL("/foo"),
++			Header: Header{
++				"X-Foo":             []string{"X-Bar"},
++				"X-Idempotency-Key": nil,
++			},
++		},
++
++		WantWrite: "GET /foo HTTP/1.1\r\n" +
++			"Host: \r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"X-Foo: X-Bar\r\n\r\n",
++	},
++	24: {
++		Req: Request{
++			Method: "GET",
++			URL:    mustParseURL("/foo"),
++			Header: Header{
++				"X-Foo":             []string{"X-Bar"},
++				"X-Idempotency-Key": []string{},
++			},
++		},
++
++		WantWrite: "GET /foo HTTP/1.1\r\n" +
++			"Host: \r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"X-Foo: X-Bar\r\n\r\n",
++	},
+ }
+ 
+ func TestRequestWrite(t *testing.T) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index a7e79c2d91..cf03b09f84 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1390,7 +1390,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		}
+ 	}
+ 
+-	if _, ok := header["Date"]; !ok {
++	if !header.has("Date") {
+ 		setHeader.date = appendTime(cw.res.dateBuf[:0], time.Now())
+ 	}
+ 
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 7ef414ba53..aa76e4f537 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -91,6 +91,15 @@ func init() {
+ // considered a terminal status and returned by RoundTrip. To see the
+ // ignored 1xx responses, use the httptrace trace package's
+ // ClientTrace.Got1xxResponse.
++//
++// Transport only retries a request upon encountering a network error
++// if the request is idempotent and either has no body or has its
++// Request.GetBody defined. HTTP requests are considered idempotent if
++// they have HTTP methods GET, HEAD, OPTIONS, or TRACE; or if their
++// Header map contains an "Idempotency-Key" or "X-Idempotency-Key"
++// entry. If the idempotency key value is an zero-length slice, the
++// request is treated as idempotent but the header is not sent on the
++// wire.
+ type Transport struct {
+ 	idleMu     sync.Mutex
+ 	wantIdle   bool                                // user has requested to close all idle conns
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 3f9750392c..22ca3f9550 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4952,3 +4952,56 @@ func TestTransportCONNECTBidi(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestTransportRequestReplayable(t *testing.T) {
++	someBody := ioutil.NopCloser(strings.NewReader(""))
++	tests := []struct {
++		name string
++		req  *Request
++		want bool
++	}{
++		{
++			name: "GET",
++			req:  &Request{Method: "GET"},
++			want: true,
++		},
++		{
++			name: "GET_http.NoBody",
++			req:  &Request{Method: "GET", Body: NoBody},
++			want: true,
++		},
++		{
++			name: "GET_body",
++			req:  &Request{Method: "GET", Body: someBody},
++			want: false,
++		},
++		{
++			name: "POST",
++			req:  &Request{Method: "POST"},
++			want: false,
++		},
++		{
++			name: "POST_idempotency-key",
++			req:  &Request{Method: "POST", Header: Header{"Idempotency-Key": {"x"}}},
++			want: true,
++		},
++		{
++			name: "POST_x-idempotency-key",
++			req:  &Request{Method: "POST", Header: Header{"X-Idempotency-Key": {"x"}}},
++			want: true,
++		},
++		{
++			name: "POST_body",
++			req:  &Request{Method: "POST", Header: Header{"Idempotency-Key": {"x"}}, Body: someBody},
++			want: false,
++		},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			got := tt.req.ExportIsReplayable()
++			if got != tt.want {
++				t.Errorf("replyable = %v; want %v", got, tt.want)
++			}
++		})
++	}
++}

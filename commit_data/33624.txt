@@ -8,6 +8,20 @@ Date:   Sat Jul 22 09:11:35 2017 +0900
     Reviewed-on: https://go-review.googlesource.com/50730
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Avelino <t@avelino.xxx>
-
+---
  src/cmd/link/internal/ld/data.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index c096338232..ad7bf0a5ff 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -841,7 +841,7 @@ func dynreloc(ctxt *Link, data *[SXREF][]*Symbol) {
+ 		return
+ 	}
+ 	if ctxt.Debugvlog != 0 {
+-		ctxt.Logf("%5.2f reloc\n", Cputime())
++		ctxt.Logf("%5.2f dynreloc\n", Cputime())
+ 	}
+ 
+ 	for _, s := range ctxt.Textp {

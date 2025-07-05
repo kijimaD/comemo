@@ -22,7 +22,51 @@ Date:   Sat Jun 20 11:25:59 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/11282
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/format/format_test.go  | 6 +++++-
  src/internal/format/format.go | 8 +++++---
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/format/format_test.go b/src/go/format/format_test.go
+index d7846bec65..000c611aa2 100644
+--- a/src/go/format/format_test.go
++++ b/src/go/format/format_test.go
+@@ -91,7 +91,11 @@ var tests = []string{
+ 	"\n\t\t\n\n\t\t\tx := 0\n\t\t\tconst s = `\n\t\tfoo\n`\n\n\n", // no indentation removed inside raw strings
+ 
+ 	// comments
+-	"i := 5 /* Comment */", // Issue 5551.
++	"i := 5 /* Comment */",         // Issue 5551.
++	"\ta()\n//line :1",             // Issue 11276.
++	"\t//xxx\n\ta()\n//line :2",    // Issue 11276.
++	"\ta() //line :1\n\tb()\n",     // Issue 11276.
++	"x := 0\n//line :1\n//line :2", // Issue 11276.
+ 
+ 	// erroneous programs
+ 	"ERROR1 + 2 +",
+diff --git a/src/internal/format/format.go b/src/internal/format/format.go
+index f8812ffe97..a8270ba669 100644
+--- a/src/internal/format/format.go
++++ b/src/internal/format/format.go
+@@ -58,8 +58,9 @@ func Parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
+ 	// by inserting a package clause and turning the list
+ 	// into a function body.  This handles expressions too.
+ 	// Insert using a ;, not a newline, so that the line numbers
+-	// in fsrc match the ones in src.
+-	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '}')
++	// in fsrc match the ones in src. Add an extra '\n' before the '}'
++	// to make sure comments are flushed before the '}'.
++	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '\n', '}')
+ 	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
+ 	if err == nil {
+ 		sourceAdj = func(src []byte, indent int) []byte {
+@@ -71,7 +72,8 @@ func Parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
+ 			// Gofmt has turned the ; into a \n\n.
+ 			// There will be two non-blank lines with indent, hence 2*indent.
+ 			src = src[2*indent+len("package p\n\nfunc _() {"):]
+-			src = src[:len(src)-(indent+len("\n}\n"))]
++			// Remove only the "}\n" suffix: remaining whitespaces will be trimmed anyway
++			src = src[:len(src)-len("}\n")]
+ 			return bytes.TrimSpace(src)
+ 		}
+ 		// Gofmt has also indented the function body one level.

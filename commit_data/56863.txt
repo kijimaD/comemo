@@ -16,6 +16,21 @@ Date:   Thu May 25 11:31:28 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/io/io.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index bcb9f774f6..01f36e0ce1 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -74,6 +74,9 @@ var ErrNoProgress = errors.New("multiple Read calls return no data or error")
+ // that happen after reading some bytes and also both of the
+ // allowed EOF behaviors.
+ //
++// If len(p) == 0, Read should always return n == 0. It may return a
++// non-nil error if some error condition is known, such as EOF.
++//
+ // Implementations of Read are discouraged from returning a
+ // zero byte count with a nil error, except when len(p) == 0.
+ // Callers should treat a return of 0 and nil as indicating that

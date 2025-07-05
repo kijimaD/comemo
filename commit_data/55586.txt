@@ -16,6 +16,21 @@ Date:   Thu Feb 23 19:03:00 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/url/url.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index d530a50d40..9ffd858a86 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -883,9 +883,6 @@ type Values map[string][]string
+ // the empty string. To access multiple values, use the map
+ // directly.
+ func (v Values) Get(key string) string {
+-	if v == nil {
+-		return ""
+-	}
+ 	vs := v[key]
+ 	if len(vs) == 0 {
+ 		return ""

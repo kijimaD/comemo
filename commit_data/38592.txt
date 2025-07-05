@@ -14,7 +14,7 @@ Date:   Mon Nov 5 11:00:01 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/bytes/bytes.go                          | 19 ++++++++++++
  src/bytes/bytes_decl.go                     | 24 ---------------
  src/cmd/vet/all/whitelist/386.txt           |  1 -
@@ -61,3 +61,1050 @@ Date:   Mon Nov 5 11:00:01 2018 -0800
  src/strings/strings.go                      |  5 ++++
  src/strings/strings_decl.go                 | 10 -------
  45 files changed, 24 insertions(+), 538 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 6492db088a..daf4a32f26 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -12,6 +12,13 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++// Equal returns a boolean reporting whether a and b
++// are the same length and contain the same bytes.
++// A nil argument is equivalent to an empty slice.
++func Equal(a, b []byte) bool {
++	return bytealg.Equal(a, b)
++}
++
+ func equalPortable(a, b []byte) bool {
+ 	if len(a) != len(b) {
+ 		return false
+@@ -24,6 +31,13 @@ func equalPortable(a, b []byte) bool {
+ 	return true
+ }
+ 
++// Compare returns an integer comparing two byte slices lexicographically.
++// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
++// A nil argument is equivalent to an empty slice.
++func Compare(a, b []byte) int {
++	return bytealg.Compare(a, b)
++}
++
+ // explode splits s into a slice of UTF-8 sequences, one per Unicode code point (still slices of bytes),
+ // up to a maximum of n byte slices. Invalid UTF-8 sequences are chopped into individual bytes.
+ func explode(s []byte, n int) [][]byte {
+@@ -83,6 +97,11 @@ func ContainsRune(b []byte, r rune) bool {
+ 	return IndexRune(b, r) >= 0
+ }
+ 
++// IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
++func IndexByte(b []byte, c byte) int {
++	return bytealg.IndexByte(b, c)
++}
++
+ func indexBytePortable(s []byte, c byte) int {
+ 	for i, b := range s {
+ 		if b == c {
+diff --git a/src/bytes/bytes_decl.go b/src/bytes/bytes_decl.go
+deleted file mode 100644
+index af0f8b179f..0000000000
+--- a/src/bytes/bytes_decl.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package bytes
+-
+-//go:noescape
+-
+-// IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
+-func IndexByte(b []byte, c byte) int // in internal/bytealg
+-
+-//go:noescape
+-
+-// Equal returns a boolean reporting whether a and b
+-// are the same length and contain the same bytes.
+-// A nil argument is equivalent to an empty slice.
+-func Equal(a, b []byte) bool // in internal/bytealg
+-
+-//go:noescape
+-
+-// Compare returns an integer comparing two byte slices lexicographically.
+-// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+-// A nil argument is equivalent to an empty slice.
+-func Compare(a, b []byte) int // in internal/bytealg
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index f59094eb14..2495d831aa 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -1,6 +1,5 @@
+ // 386-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_386.s: [386] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_386.s: [386] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // startup code uses non-standard calling convention and intentionally
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 5425f84fc6..c2dabeece4 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -11,11 +11,8 @@ go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have
+ 
+ // Nothing much to do about cross-package assembly. Unfortunate.
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: call is in package reflect
+-internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
+ internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal is in package runtime
+ internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal_varlen is in package runtime
+-internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
+-internal/bytealg/indexbyte_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
+ 
+ // The write barrier is called directly by the compiler, so no Go def
+ runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 20e0d48d53..94f782aa2f 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -3,7 +3,6 @@
+ // False positives.
+ 
+ // Nothing much to do about cross-package assembly. Unfortunate.
+-internal/bytealg/compare_amd64.s: [amd64] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_amd64.s: [amd64] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 8f98782f94..5dc2766e10 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -1,6 +1,5 @@
+ // arm-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_arm.s: [arm] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_arm.s: [arm] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // Intentionally missing declarations.
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index ee0292b415..72528c5145 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -1,6 +1,5 @@
+ // arm64-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_arm64.s: [arm64] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_arm64.s: [arm64] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // Intentionally missing declarations.
+diff --git a/src/cmd/vet/all/whitelist/mipsx.txt b/src/cmd/vet/all/whitelist/mipsx.txt
+index 1a2cd3ff62..bd53e9acdf 100644
+--- a/src/cmd/vet/all/whitelist/mipsx.txt
++++ b/src/cmd/vet/all/whitelist/mipsx.txt
+@@ -1,6 +1,5 @@
+ // mips/mipsle-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_mipsx.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_mipsx.s: [GOARCH] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ runtime/tls_mipsx.s: [GOARCH] save_g: function save_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 1ec11f7ca8..5625e3c55d 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -1,6 +1,5 @@
+ // nacl/amd64p32-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_amd64p32.s: [amd64p32] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+diff --git a/src/cmd/vet/all/whitelist/ppc64x.txt b/src/cmd/vet/all/whitelist/ppc64x.txt
+index 65a904ed48..39f8c0da31 100644
+--- a/src/cmd/vet/all/whitelist/ppc64x.txt
++++ b/src/cmd/vet/all/whitelist/ppc64x.txt
+@@ -1,6 +1,5 @@
+ // ppc64-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_ppc64x.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_ppc64x.s: [GOARCH] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ runtime/asm_ppc64x.s: [GOARCH] reginit: function reginit missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index 5bc48e5afc..4b84242038 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -1,4 +1,3 @@
+-internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: cmpstring is in package runtime
+ runtime/asm_s390x.s: [s390x] addmoduledata: function addmoduledata missing Go declaration
+ runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl_xc missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/wasm.txt b/src/cmd/vet/all/whitelist/wasm.txt
+index 7a8037f085..d066e5b76f 100644
+--- a/src/cmd/vet/all/whitelist/wasm.txt
++++ b/src/cmd/vet/all/whitelist/wasm.txt
+@@ -3,7 +3,6 @@
+ // False positives.
+ 
+ // Nothing much to do about cross-package assembly. Unfortunate.
+-internal/bytealg/compare_wasm.s: [wasm] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_wasm.s: [wasm] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // morestack intentionally omits arg size.
+diff --git a/src/internal/bytealg/compare_386.s b/src/internal/bytealg/compare_386.s
+index f73e3f8b35..0981983d20 100644
+--- a/src/internal/bytealg/compare_386.s
++++ b/src/internal/bytealg/compare_386.s
+@@ -13,15 +13,6 @@ TEXT ·Compare(SB),NOSPLIT,$0-28
+ 	LEAL	ret+24(FP), AX
+ 	JMP	cmpbody<>(SB)
+ 
+-TEXT bytes·Compare(SB),NOSPLIT,$0-28
+-	FUNCDATA $0, ·Compare·args_stackmap(SB)
+-	MOVL	a_base+0(FP), SI
+-	MOVL	a_len+4(FP), BX
+-	MOVL	b_base+12(FP), DI
+-	MOVL	b_len+16(FP), DX
+-	LEAL	ret+24(FP), AX
+-	JMP	cmpbody<>(SB)
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	a_base+0(FP), SI
+ 	MOVL	a_len+4(FP), BX
+diff --git a/src/internal/bytealg/compare_amd64.s b/src/internal/bytealg/compare_amd64.s
+index 25effbc56f..900b92a21e 100644
+--- a/src/internal/bytealg/compare_amd64.s
++++ b/src/internal/bytealg/compare_amd64.s
+@@ -13,15 +13,6 @@ TEXT ·Compare(SB),NOSPLIT,$0-56
+ 	LEAQ	ret+48(FP), R9
+ 	JMP	cmpbody<>(SB)
+ 
+-TEXT bytes·Compare(SB),NOSPLIT,$0-56
+-	FUNCDATA $0, ·Compare·args_stackmap(SB)
+-	MOVQ	a_base+0(FP), SI
+-	MOVQ	a_len+8(FP), BX
+-	MOVQ	b_base+24(FP), DI
+-	MOVQ	b_len+32(FP), DX
+-	LEAQ	ret+48(FP), R9
+-	JMP	cmpbody<>(SB)
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+ 	MOVQ	a_base+0(FP), SI
+ 	MOVQ	a_len+8(FP), BX
+diff --git a/src/internal/bytealg/compare_amd64p32.s b/src/internal/bytealg/compare_amd64p32.s
+index 4687fd8a04..cb4107386e 100644
+--- a/src/internal/bytealg/compare_amd64p32.s
++++ b/src/internal/bytealg/compare_amd64p32.s
+@@ -14,16 +14,6 @@ TEXT ·Compare(SB),NOSPLIT,$0-28
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·Compare(SB),NOSPLIT,$0-28
+-	FUNCDATA $0, ·Compare·args_stackmap(SB)
+-	MOVL	a_base+0(FP), SI
+-	MOVL	a_len+4(FP), BX
+-	MOVL	b_base+12(FP), DI
+-	MOVL	b_len+16(FP), DX
+-	CALL	cmpbody<>(SB)
+-	MOVL	AX, ret+24(FP)
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	a_base+0(FP), SI
+ 	MOVL	a_len+4(FP), BX
+diff --git a/src/internal/bytealg/compare_arm.s b/src/internal/bytealg/compare_arm.s
+index d58345223f..c5bfdda33f 100644
+--- a/src/internal/bytealg/compare_arm.s
++++ b/src/internal/bytealg/compare_arm.s
+@@ -13,15 +13,6 @@ TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-28
+ 	ADD	$28, R13, R7
+ 	B	cmpbody<>(SB)
+ 
+-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-28
+-	FUNCDATA $0, ·Compare·args_stackmap(SB)
+-	MOVW	a_base+0(FP), R2
+-	MOVW	a_len+4(FP), R0
+-	MOVW	b_base+12(FP), R3
+-	MOVW	b_len+16(FP), R1
+-	ADD	$28, R13, R7
+-	B	cmpbody<>(SB)
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVW	a_base+0(FP), R2
+ 	MOVW	a_len+4(FP), R0
+diff --git a/src/internal/bytealg/compare_arm64.s b/src/internal/bytealg/compare_arm64.s
+index db614b6afe..32e2ba200d 100644
+--- a/src/internal/bytealg/compare_arm64.s
++++ b/src/internal/bytealg/compare_arm64.s
+@@ -13,15 +13,6 @@ TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-56
+ 	MOVD	$ret+48(FP), R7
+ 	B	cmpbody<>(SB)
+ 
+-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
+-	FUNCDATA $0, ·Compare·args_stackmap(SB)
+-	MOVD	a_base+0(FP), R2
+-	MOVD	a_len+8(FP), R0
+-	MOVD	b_base+24(FP), R3
+-	MOVD	b_len+32(FP), R1
+-	MOVD	$ret+48(FP), R7
+-	B	cmpbody<>(SB)
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVD	a_base+0(FP), R2
+ 	MOVD	a_len+8(FP), R0
+diff --git a/src/internal/bytealg/compare_generic.go b/src/internal/bytealg/compare_generic.go
+index 5c35a1ac4a..2ac60f3df9 100644
+--- a/src/internal/bytealg/compare_generic.go
++++ b/src/internal/bytealg/compare_generic.go
+@@ -35,34 +35,6 @@ samebytes:
+ 	return 0
+ }
+ 
+-//go:linkname bytes_Compare bytes.Compare
+-func bytes_Compare(a, b []byte) int {
+-	l := len(a)
+-	if len(b) < l {
+-		l = len(b)
+-	}
+-	if l == 0 || &a[0] == &b[0] {
+-		goto samebytes
+-	}
+-	for i := 0; i < l; i++ {
+-		c1, c2 := a[i], b[i]
+-		if c1 < c2 {
+-			return -1
+-		}
+-		if c1 > c2 {
+-			return +1
+-		}
+-	}
+-samebytes:
+-	if len(a) < len(b) {
+-		return -1
+-	}
+-	if len(a) > len(b) {
+-		return +1
+-	}
+-	return 0
+-}
+-
+ //go:linkname runtime_cmpstring runtime.cmpstring
+ func runtime_cmpstring(a, b string) int {
+ 	l := len(a)
+diff --git a/src/internal/bytealg/compare_mipsx.s b/src/internal/bytealg/compare_mipsx.s
+index 85ba1a9455..9ac5ba5687 100644
+--- a/src/internal/bytealg/compare_mipsx.s
++++ b/src/internal/bytealg/compare_mipsx.s
+@@ -39,39 +39,6 @@ cmp_ret:
+ 	MOVW	R8, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·Compare(SB),NOSPLIT,$0-28
+-	FUNCDATA $0, ·Compare·args_stackmap(SB)
+-	MOVW	a_base+0(FP), R3
+-	MOVW	b_base+12(FP), R4
+-	MOVW	a_len+4(FP), R1
+-	MOVW	b_len+16(FP), R2
+-	BEQ	R3, R4, samebytes
+-	SGTU	R1, R2, R7
+-	MOVW	R1, R8
+-	CMOVN	R7, R2, R8	// R8 is min(R1, R2)
+-
+-	ADDU	R3, R8	// R3 is current byte in a, R8 is last byte in a to compare
+-loop:
+-	BEQ	R3, R8, samebytes
+-
+-	MOVBU	(R3), R6
+-	ADDU	$1, R3
+-	MOVBU	(R4), R7
+-	ADDU	$1, R4
+-	BEQ	R6, R7 , loop
+-
+-	SGTU	R6, R7, R8
+-	MOVW	$-1, R6
+-	CMOVZ	R8, R6, R8
+-	JMP	cmp_ret
+-samebytes:
+-	SGTU	R1, R2, R6
+-	SGTU	R2, R1, R7
+-	SUBU	R7, R6, R8
+-cmp_ret:
+-	MOVW	R8, ret+24(FP)
+-	RET
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVW	a_base+0(FP), R3
+ 	MOVW	a_len+4(FP), R1
+diff --git a/src/internal/bytealg/compare_ppc64x.s b/src/internal/bytealg/compare_ppc64x.s
+index 67bfcd1116..7819da31cd 100644
+--- a/src/internal/bytealg/compare_ppc64x.s
++++ b/src/internal/bytealg/compare_ppc64x.s
+@@ -23,37 +23,6 @@ TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-56
+ 	BR      cmpbodyBE<>(SB)
+ #endif
+ 
+-equal:
+-	BEQ	CR6,done
+-	MOVD	$1, R8
+-	BGT	CR6,greater
+-	NEG	R8
+-
+-greater:
+-	MOVD	R8, (R7)
+-	RET
+-
+-done:
+-	MOVD	$0, (R7)
+-	RET
+-
+-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
+-	FUNCDATA $0, ·Compare·args_stackmap(SB)
+-	MOVD	a_base+0(FP), R5
+-	MOVD	b_base+24(FP), R6
+-	MOVD	a_len+8(FP), R3
+-	CMP	R5,R6,CR7
+-	MOVD	b_len+32(FP), R4
+-	MOVD	$ret+48(FP), R7
+-	CMP	R3,R4,CR6
+-	BEQ	CR7,equal
+-
+-#ifdef	GOARCH_ppc64le
+-	BR	cmpbodyLE<>(SB)
+-#else
+-	BR      cmpbodyBE<>(SB)
+-#endif
+-
+ equal:
+ 	BEQ	CR6,done
+ 	MOVD	$1, R8
+diff --git a/src/internal/bytealg/compare_s390x.s b/src/internal/bytealg/compare_s390x.s
+index 4bc4624906..539454870d 100644
+--- a/src/internal/bytealg/compare_s390x.s
++++ b/src/internal/bytealg/compare_s390x.s
+@@ -13,15 +13,6 @@ TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-56
+ 	LA	ret+48(FP), R7
+ 	BR	cmpbody<>(SB)
+ 
+-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
+-	FUNCDATA $0, ·Compare·args_stackmap(SB)
+-	MOVD	a_base+0(FP), R3
+-	MOVD	a_len+8(FP), R4
+-	MOVD	b_base+24(FP), R5
+-	MOVD	b_len+32(FP), R6
+-	LA	ret+48(FP), R7
+-	BR	cmpbody<>(SB)
+-
+ TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVD	a_base+0(FP), R3
+ 	MOVD	a_len+8(FP), R4
+diff --git a/src/internal/bytealg/compare_wasm.s b/src/internal/bytealg/compare_wasm.s
+index 1eb63c70da..b2a20a08f6 100644
+--- a/src/internal/bytealg/compare_wasm.s
++++ b/src/internal/bytealg/compare_wasm.s
+@@ -15,17 +15,6 @@ TEXT ·Compare(SB), NOSPLIT, $0-56
+ 	I64Store ret+48(FP)
+ 	RET
+ 
+-TEXT bytes·Compare(SB), NOSPLIT, $0-56
+-	FUNCDATA $0, ·Compare·args_stackmap(SB)
+-	Get SP
+-	I64Load a_base+0(FP)
+-	I64Load a_len+8(FP)
+-	I64Load b_base+24(FP)
+-	I64Load b_len+32(FP)
+-	Call cmpbody<>(SB)
+-	I64Store ret+48(FP)
+-	RET
+-
+ TEXT runtime·cmpstring(SB), NOSPLIT, $0-40
+ 	Get SP
+ 	I64Load a_base+0(FP)
+diff --git a/src/internal/bytealg/equal_386.s b/src/internal/bytealg/equal_386.s
+index 273389284e..ad7da0ea8b 100644
+--- a/src/internal/bytealg/equal_386.s
++++ b/src/internal/bytealg/equal_386.s
+@@ -23,25 +23,6 @@ eq:
+ 	MOVB	$1, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT,$0-25
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	MOVL	a_len+4(FP), BX
+-	MOVL	b_len+16(FP), CX
+-	CMPL	BX, CX
+-	JNE	neq
+-	MOVL	a_base+0(FP), SI
+-	MOVL	b_base+12(FP), DI
+-	CMPL	SI, DI
+-	JEQ	eq
+-	LEAL	ret+24(FP), AX
+-	JMP	memeqbody<>(SB)
+-neq:
+-	MOVB	$0, ret+24(FP)
+-	RET
+-eq:
+-	MOVB	$1, ret+24(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$0-13
+ 	MOVL	a+0(FP), SI
+diff --git a/src/internal/bytealg/equal_amd64.s b/src/internal/bytealg/equal_amd64.s
+index b695d9cf42..fa82589644 100644
+--- a/src/internal/bytealg/equal_amd64.s
++++ b/src/internal/bytealg/equal_amd64.s
+@@ -23,25 +23,6 @@ eq:
+ 	MOVB	$1, ret+48(FP)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT,$0-49
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	MOVQ	a_len+8(FP), BX
+-	MOVQ	b_len+32(FP), CX
+-	CMPQ	BX, CX
+-	JNE	neq
+-	MOVQ	a_base+0(FP), SI
+-	MOVQ	b_base+24(FP), DI
+-	CMPQ	SI, DI
+-	JEQ	eq
+-	LEAQ	ret+48(FP), AX
+-	JMP	memeqbody<>(SB)
+-neq:
+-	MOVB	$0, ret+48(FP)
+-	RET
+-eq:
+-	MOVB	$1, ret+48(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$0-25
+ 	MOVQ	a+0(FP), SI
+diff --git a/src/internal/bytealg/equal_amd64p32.s b/src/internal/bytealg/equal_amd64p32.s
+index 9be4274c11..00d5c0afcc 100644
+--- a/src/internal/bytealg/equal_amd64p32.s
++++ b/src/internal/bytealg/equal_amd64p32.s
+@@ -24,26 +24,6 @@ eq:
+ 	MOVB    $1, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT,$0-25
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	MOVL	a_len+4(FP), BX
+-	MOVL	b_len+16(FP), CX
+-	CMPL	BX, CX
+-	JNE	neq
+-	MOVL	a_base+0(FP), SI
+-	MOVL	b_base+12(FP), DI
+-	CMPL	SI, DI
+-	JEQ	eq
+-	CALL	memeqbody<>(SB)
+-	MOVB	AX, ret+24(FP)
+-	RET
+-neq:
+-	MOVB	$0, ret+24(FP)
+-	RET
+-eq:
+-	MOVB    $1, ret+24(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$0-17
+ 	MOVL	a+0(FP), SI
+diff --git a/src/internal/bytealg/equal_arm.s b/src/internal/bytealg/equal_arm.s
+index e8a92b3cf2..0d23260945 100644
+--- a/src/internal/bytealg/equal_arm.s
++++ b/src/internal/bytealg/equal_arm.s
+@@ -35,10 +35,6 @@ equal:
+ 	MOVBU	R0, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT,$0-25
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	JMP	·Equal(SB)
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-13
+ 	MOVW	a+0(FP), R1
+diff --git a/src/internal/bytealg/equal_arm64.s b/src/internal/bytealg/equal_arm64.s
+index dd4840dae1..2c6af01e0a 100644
+--- a/src/internal/bytealg/equal_arm64.s
++++ b/src/internal/bytealg/equal_arm64.s
+@@ -25,27 +25,6 @@ not_equal:
+ 	MOVB	ZR, ret+48(FP)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT,$0-49
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	MOVD	a_len+8(FP), R1
+-	MOVD	b_len+32(FP), R3
+-	CMP	R1, R3
+-	// unequal lengths are not equal
+-	BNE	not_equal
+-	// short path to handle 0-byte case
+-	CBZ	R1, equal
+-	MOVD	a_base+0(FP), R0
+-	MOVD	b_base+24(FP), R2
+-	MOVD	$ret+48(FP), R8
+-	B	memeqbody<>(SB)
+-equal:
+-	MOVD	$1, R0
+-	MOVB	R0, ret+48(FP)
+-	RET
+-not_equal:
+-	MOVB	ZR, ret+48(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	MOVD	size+16(FP), R1
+diff --git a/src/internal/bytealg/equal_mips64x.s b/src/internal/bytealg/equal_mips64x.s
+index a005864483..a75b957e8b 100644
+--- a/src/internal/bytealg/equal_mips64x.s
++++ b/src/internal/bytealg/equal_mips64x.s
+@@ -35,10 +35,6 @@ equal:
+ 	MOVB	R1, ret+48(FP)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT,$0-49
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	JMP	·Equal(SB)
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	MOVV	a+0(FP), R1
+diff --git a/src/internal/bytealg/equal_mipsx.s b/src/internal/bytealg/equal_mipsx.s
+index 22ab450e66..70d579d5d4 100644
+--- a/src/internal/bytealg/equal_mipsx.s
++++ b/src/internal/bytealg/equal_mipsx.s
+@@ -35,10 +35,6 @@ equal:
+ 	MOVB	R1, ret+24(FP)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT,$0-25
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	JMP	·Equal(SB)
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$0-13
+ 	MOVW	a+0(FP), R1
+diff --git a/src/internal/bytealg/equal_ppc64x.s b/src/internal/bytealg/equal_ppc64x.s
+index 34d2a2574b..74ea34834d 100644
+--- a/src/internal/bytealg/equal_ppc64x.s
++++ b/src/internal/bytealg/equal_ppc64x.s
+@@ -26,26 +26,6 @@ equal:
+ 	MOVBZ	R3,ret+48(FP)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT|NOFRAME,$0-49
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	MOVD	a_len+8(FP), R4
+-	MOVD	b_len+32(FP), R5
+-	CMP	R5, R4		// unequal lengths are not equal
+-	BNE	noteq
+-	MOVD	a_base+0(FP), R3
+-	MOVD	b_base+24(FP), R4
+-	MOVD	$ret+48(FP), R10
+-	BR	memeqbody<>(SB)
+-
+-noteq:
+-	MOVBZ	$0,ret+48(FP)
+-	RET
+-
+-equal:
+-	MOVD	$1,R3
+-	MOVBZ	R3,ret+48(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	MOVD    a+0(FP), R3
+diff --git a/src/internal/bytealg/equal_s390x.s b/src/internal/bytealg/equal_s390x.s
+index 84dbdbfe18..d7724747d4 100644
+--- a/src/internal/bytealg/equal_s390x.s
++++ b/src/internal/bytealg/equal_s390x.s
+@@ -17,19 +17,6 @@ notequal:
+ 	MOVB	$0, ret+48(FP)
+ 	RET
+ 
+-TEXT bytes·Equal(SB),NOSPLIT|NOFRAME,$0-49
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	MOVD	a_len+8(FP), R2
+-	MOVD	b_len+32(FP), R6
+-	MOVD	a_base+0(FP), R3
+-	MOVD	b_base+24(FP), R5
+-	LA	ret+48(FP), R7
+-	CMPBNE	R2, R6, notequal
+-	BR	memeqbody<>(SB)
+-notequal:
+-	MOVB	$0, ret+48(FP)
+-	RET
+-
+ // memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	MOVD	a+0(FP), R3
+diff --git a/src/internal/bytealg/equal_wasm.s b/src/internal/bytealg/equal_wasm.s
+index cb85a934c7..cac3fb2d13 100644
+--- a/src/internal/bytealg/equal_wasm.s
++++ b/src/internal/bytealg/equal_wasm.s
+@@ -25,27 +25,6 @@ TEXT ·Equal(SB), NOSPLIT, $0-49
+ 	End
+ 	RET
+ 
+-TEXT bytes·Equal(SB), NOSPLIT, $0-49
+-	FUNCDATA $0, ·Equal·args_stackmap(SB)
+-	MOVD a_len+8(FP), R0
+-	MOVD b_len+32(FP), R1
+-	Get R0
+-	Get R1
+-	I64Eq
+-	If
+-		Get SP
+-		I64Load a+0(FP)
+-		I64Load b+24(FP)
+-		Get R0
+-		Call memeqbody<>(SB)
+-		I64Store8 ret+48(FP)
+-	Else
+-		Get SP
+-		I64Const $0
+-		I64Store8 ret+48(FP)
+-	End
+-	RET
+-
+ // memequal(p, q unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB), NOSPLIT, $0-25
+ 	Get SP
+diff --git a/src/internal/bytealg/indexbyte_386.s b/src/internal/bytealg/indexbyte_386.s
+index ce7645e771..8a030542d4 100644
+--- a/src/internal/bytealg/indexbyte_386.s
++++ b/src/internal/bytealg/indexbyte_386.s
+@@ -32,11 +32,3 @@ TEXT ·IndexByteString(SB),NOSPLIT,$0-16
+ 	SUBL	$1, DI
+ 	MOVL	DI, ret+12(FP)
+ 	RET
+-
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	JMP ·IndexByte(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	JMP ·IndexByteString(SB)
+diff --git a/src/internal/bytealg/indexbyte_amd64.s b/src/internal/bytealg/indexbyte_amd64.s
+index 5bf8866476..f78093c539 100644
+--- a/src/internal/bytealg/indexbyte_amd64.s
++++ b/src/internal/bytealg/indexbyte_amd64.s
+@@ -19,30 +19,6 @@ TEXT	·IndexByteString(SB), NOSPLIT, $0-32
+ 	LEAQ ret+24(FP), R8
+ 	JMP  indexbytebody<>(SB)
+ 
+-	// Provide direct access to these functions from other packages.
+-	// This is the equivlant of doing:
+-	//     package bytes
+-	//     func IndexByte(b []byte, c byte) int {
+-	//         return bytealg.IndexByte(s, c)
+-	//     }
+-	// but involves no call overhead.
+-	// TODO: remove this hack when midstack inlining is enabled?
+-TEXT	bytes·IndexByte(SB), NOSPLIT, $0-40
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	MOVQ b_base+0(FP), SI
+-	MOVQ b_len+8(FP), BX
+-	MOVB c+24(FP), AL
+-	LEAQ ret+32(FP), R8
+-	JMP  indexbytebody<>(SB)
+-
+-TEXT	strings·IndexByte(SB), NOSPLIT, $0-32
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	MOVQ s_base+0(FP), SI
+-	MOVQ s_len+8(FP), BX
+-	MOVB c+16(FP), AL
+-	LEAQ ret+24(FP), R8
+-	JMP  indexbytebody<>(SB)
+-
+ // input:
+ //   SI: data
+ //   BX: data len
+diff --git a/src/internal/bytealg/indexbyte_amd64p32.s b/src/internal/bytealg/indexbyte_amd64p32.s
+index a791c7396a..c445a7ebc1 100644
+--- a/src/internal/bytealg/indexbyte_amd64p32.s
++++ b/src/internal/bytealg/indexbyte_amd64p32.s
+@@ -21,24 +21,6 @@ TEXT ·IndexByteString(SB),NOSPLIT,$0-20
+ 	MOVL AX, ret+16(FP)
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	MOVL b_base+0(FP), SI
+-	MOVL b_len+4(FP), BX
+-	MOVB c+12(FP), AL
+-	CALL indexbytebody<>(SB)
+-	MOVL AX, ret+16(FP)
+-	RET
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-20
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	MOVL s_base+0(FP), SI
+-	MOVL s_len+4(FP), BX
+-	MOVB c+8(FP), AL
+-	CALL indexbytebody<>(SB)
+-	MOVL AX, ret+16(FP)
+-	RET
+-
+ // input:
+ //   SI: data
+ //   BX: data len
+diff --git a/src/internal/bytealg/indexbyte_arm.s b/src/internal/bytealg/indexbyte_arm.s
+index 6c746c6869..7d9bbb183d 100644
+--- a/src/internal/bytealg/indexbyte_arm.s
++++ b/src/internal/bytealg/indexbyte_arm.s
+@@ -52,11 +52,3 @@ _sib_notfound:
+ 	MOVW	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+-
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	JMP ·IndexByte(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	JMP ·IndexByteString(SB)
+diff --git a/src/internal/bytealg/indexbyte_arm64.s b/src/internal/bytealg/indexbyte_arm64.s
+index 6991ccec15..40843fbc5b 100644
+--- a/src/internal/bytealg/indexbyte_arm64.s
++++ b/src/internal/bytealg/indexbyte_arm64.s
+@@ -18,22 +18,6 @@ TEXT ·IndexByteString(SB),NOSPLIT,$0-32
+ 	MOVD	$ret+24(FP), R8
+ 	B	indexbytebody<>(SB)
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	MOVD	b_base+0(FP), R0
+-	MOVD	b_len+8(FP), R2
+-	MOVBU	c+24(FP), R1
+-	MOVD	$ret+32(FP), R8
+-	B	indexbytebody<>(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	MOVD	s_base+0(FP), R0
+-	MOVD	s_len+8(FP), R2
+-	MOVBU	c+16(FP), R1
+-	MOVD	$ret+24(FP), R8
+-	B	indexbytebody<>(SB)
+-
+ // input:
+ //   R0: data
+ //   R1: byte to search
+diff --git a/src/internal/bytealg/indexbyte_generic.go b/src/internal/bytealg/indexbyte_generic.go
+index ef7801e5e1..6bff31ceee 100644
+--- a/src/internal/bytealg/indexbyte_generic.go
++++ b/src/internal/bytealg/indexbyte_generic.go
+@@ -6,8 +6,6 @@
+ 
+ package bytealg
+ 
+-import _ "unsafe" // for go:linkname
+-
+ func IndexByte(b []byte, c byte) int {
+ 	for i, x := range b {
+ 		if x == c {
+@@ -25,23 +23,3 @@ func IndexByteString(s string, c byte) int {
+ 	}
+ 	return -1
+ }
+-
+-//go:linkname bytes_IndexByte bytes.IndexByte
+-func bytes_IndexByte(b []byte, c byte) int {
+-	for i, x := range b {
+-		if x == c {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+-
+-//go:linkname strings_IndexByte strings.IndexByte
+-func strings_IndexByte(s string, c byte) int {
+-	for i := 0; i < len(s); i++ {
+-		if s[i] == c {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+diff --git a/src/internal/bytealg/indexbyte_mips64x.s b/src/internal/bytealg/indexbyte_mips64x.s
+index 9c421174b9..6ebf0dee24 100644
+--- a/src/internal/bytealg/indexbyte_mips64x.s
++++ b/src/internal/bytealg/indexbyte_mips64x.s
+@@ -52,11 +52,3 @@ notfound:
+ 	MOVV	$-1, R1
+ 	MOVV	R1, ret+24(FP)
+ 	RET
+-
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	JMP ·IndexByte(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	JMP ·IndexByteString(SB)
+diff --git a/src/internal/bytealg/indexbyte_mipsx.s b/src/internal/bytealg/indexbyte_mipsx.s
+index bc7258f1d1..e44440b5f9 100644
+--- a/src/internal/bytealg/indexbyte_mipsx.s
++++ b/src/internal/bytealg/indexbyte_mipsx.s
+@@ -50,11 +50,3 @@ notfound:
+ 	MOVW	$-1, R1
+ 	MOVW	R1, ret+12(FP)
+ 	RET
+-
+-TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	JMP ·IndexByte(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	JMP ·IndexByteString(SB)
+diff --git a/src/internal/bytealg/indexbyte_ppc64x.s b/src/internal/bytealg/indexbyte_ppc64x.s
+index 61b33bc9cb..6e14e80af1 100644
+--- a/src/internal/bytealg/indexbyte_ppc64x.s
++++ b/src/internal/bytealg/indexbyte_ppc64x.s
+@@ -21,22 +21,6 @@ TEXT ·IndexByteString(SB),NOSPLIT|NOFRAME,$0-32
+ 	MOVD	$ret+24(FP), R14  // R14 = &ret
+ 	BR	indexbytebody<>(SB)
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	MOVD	b_base+0(FP), R3	// R3 = byte array pointer
+-	MOVD	b_len+8(FP), R4		// R4 = length
+-	MOVBZ	c+24(FP), R5		// R5 = byte
+-	MOVD	$ret+32(FP), R14	// R14 = &ret
+-	BR	indexbytebody<>(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	MOVD	s_base+0(FP), R3  // R3 = string
+-	MOVD	s_len+8(FP), R4	  // R4 = length
+-	MOVBZ	c+16(FP), R5	  // R5 = byte
+-	MOVD	$ret+24(FP), R14  // R14 = &ret
+-	BR	indexbytebody<>(SB)
+-
+ TEXT indexbytebody<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	R3,R17		// Save base address for calculating the index later.
+ 	RLDICR	$0,R3,$60,R8	// Align address to doubleword boundary in R8.
+diff --git a/src/internal/bytealg/indexbyte_s390x.s b/src/internal/bytealg/indexbyte_s390x.s
+index 24f5ce17fa..cf88d92a24 100644
+--- a/src/internal/bytealg/indexbyte_s390x.s
++++ b/src/internal/bytealg/indexbyte_s390x.s
+@@ -19,22 +19,6 @@ TEXT ·IndexByteString(SB),NOSPLIT|NOFRAME,$0-32
+ 	MOVD	$ret+24(FP), R2 // &ret => R9
+ 	BR	indexbytebody<>(SB)
+ 
+-TEXT bytes·IndexByte(SB),NOSPLIT|NOFRAME,$0-40
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	MOVD	b_base+0(FP), R3// b_base => R3
+-	MOVD	b_len+8(FP), R4 // b_len => R4
+-	MOVBZ	c+24(FP), R5    // c => R5
+-	MOVD	$ret+32(FP), R2 // &ret => R9
+-	BR	indexbytebody<>(SB)
+-
+-TEXT strings·IndexByte(SB),NOSPLIT|NOFRAME,$0-32
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	MOVD	s_base+0(FP), R3// s_base => R3
+-	MOVD	s_len+8(FP), R4 // s_len => R4
+-	MOVBZ	c+16(FP), R5    // c => R5
+-	MOVD	$ret+24(FP), R2 // &ret => R9
+-	BR	indexbytebody<>(SB)
+-
+ // input:
+ // R3: s
+ // R4: s_len
+diff --git a/src/internal/bytealg/indexbyte_wasm.s b/src/internal/bytealg/indexbyte_wasm.s
+index 5e64aa031a..aae11b30a6 100644
+--- a/src/internal/bytealg/indexbyte_wasm.s
++++ b/src/internal/bytealg/indexbyte_wasm.s
+@@ -49,51 +49,6 @@ TEXT ·IndexByteString(SB), NOSPLIT, $0-32
+ 
+ 	RET
+ 
+-TEXT bytes·IndexByte(SB), NOSPLIT, $0-40
+-	FUNCDATA $0, ·IndexByte·args_stackmap(SB)
+-	Get SP
+-	I64Load b_base+0(FP)
+-	I32WrapI64
+-	I32Load8U c+24(FP)
+-	I64Load b_len+8(FP)
+-	I32WrapI64
+-	Call memchr<>(SB)
+-	I64ExtendSI32
+-	Set R0
+-
+-	I64Const $-1
+-	Get R0
+-	I64Load b_base+0(FP)
+-	I64Sub
+-	Get R0
+-	I64Eqz $0
+-	Select
+-	I64Store ret+32(FP)
+-
+-	RET
+-
+-TEXT strings·IndexByte(SB), NOSPLIT, $0-32
+-	FUNCDATA $0, ·IndexByteString·args_stackmap(SB)
+-	Get SP
+-	I64Load s_base+0(FP)
+-	I32WrapI64
+-	I32Load8U c+16(FP)
+-	I64Load s_len+8(FP)
+-	I32WrapI64
+-	Call memchr<>(SB)
+-	I64ExtendSI32
+-	Set R0
+-
+-	I64Const $-1
+-	Get R0
+-	I64Load s_base+0(FP)
+-	I64Sub
+-	Get R0
+-	I64Eqz $0
+-	Select
+-	I64Store ret+24(FP)
+-	RET
+-
+ // compiled with emscripten
+ // params: s, c, len
+ // ret: index
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 8ce2abfdf8..a98f5d8ff1 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -146,6 +146,11 @@ func LastIndex(s, substr string) int {
+ 	return -1
+ }
+ 
++// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
++func IndexByte(s string, c byte) int {
++	return bytealg.IndexByteString(s, c)
++}
++
+ // IndexRune returns the index of the first instance of the Unicode code point
+ // r, or -1 if rune is not present in s.
+ // If r is utf8.RuneError, it returns the first instance of any
+diff --git a/src/strings/strings_decl.go b/src/strings/strings_decl.go
+deleted file mode 100644
+index 6718c3ace4..0000000000
+--- a/src/strings/strings_decl.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package strings
+-
+-//go:noescape
+-
+-// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+-func IndexByte(s string, c byte) int // in internal/bytealg

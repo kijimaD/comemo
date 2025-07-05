@@ -10,7 +10,7 @@ Date:   Wed Jan 11 09:53:32 2012 +0900
     R=rsc, fullung
     CC=golang-dev
     https://golang.org/cl/5494067
-
+---
  src/pkg/net/Makefile                               |  34 +++-
  src/pkg/net/interface.go                           |  20 ++-
  src/pkg/net/multicast_test.go                      |  87 +++++++++-
@@ -30,3 +30,1551 @@ Date:   Wed Jan 11 09:53:32 2012 +0900
  src/pkg/net/unicast_test.go                        |  99 +++++++++++
  src/pkg/syscall/syscall_windows.go                 |  12 ++
  18 files changed, 1071 insertions(+), 153 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 15b733c5a9..f3d77c744f 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -36,7 +36,11 @@ GOFILES_darwin=\
+ 	port.go\
+ 	sendfile_stub.go\
+ 	sock.go\
+-	sock_bsd.go\
++	sockopt.go\
++	sockopt_bsd.go\
++	sockoptip.go\
++	sockoptip_bsd.go\
++	sockoptip_darwin.go\
+ 	tcpsock_posix.go\
+ 	udpsock_posix.go\
+ 	unixsock_posix.go\
+@@ -64,7 +68,11 @@ GOFILES_freebsd=\
+ 	port.go\
+ 	sendfile_stub.go\
+ 	sock.go\
+-	sock_bsd.go\
++	sockopt.go\
++	sockopt_bsd.go\
++	sockoptip.go\
++	sockoptip_bsd.go\
++	sockoptip_freebsd.go\
+ 	tcpsock_posix.go\
+ 	udpsock_posix.go\
+ 	unixsock_posix.go\
+@@ -91,7 +99,10 @@ GOFILES_linux=\
+ 	port.go\
+ 	sendfile_linux.go\
+ 	sock.go\
+-	sock_linux.go\
++	sockopt.go\
++	sockopt_linux.go\
++	sockoptip.go\
++	sockoptip_linux.go\
+ 	tcpsock_posix.go\
+ 	udpsock_posix.go\
+ 	unixsock_posix.go\
+@@ -119,7 +130,11 @@ GOFILES_netbsd=\
+ 	port.go\
+ 	sendfile_stub.go\
+ 	sock.go\
+-	sock_bsd.go\
++	sockopt.go\
++	sockopt_bsd.go\
++	sockoptip.go\
++	sockoptip_bsd.go\
++	sockoptip_netbsd.go\
+ 	tcpsock_posix.go\
+ 	udpsock_posix.go\
+ 	unixsock_posix.go\
+@@ -140,7 +155,11 @@ GOFILES_openbsd=\
+ 	port.go\
+ 	sendfile_stub.go\
+ 	sock.go\
+-	sock_bsd.go\
++	sockopt.go\
++	sockopt_bsd.go\
++	sockoptip.go\
++	sockoptip_bsd.go\
++	sockoptip_openbsd.go\
+ 	tcpsock_posix.go\
+ 	udpsock_posix.go\
+ 	unixsock_posix.go\
+@@ -165,7 +184,10 @@ GOFILES_windows=\
+ 	lookup_windows.go\
+ 	sendfile_windows.go\
+ 	sock.go\
+-	sock_windows.go\
++	sockopt.go\
++	sockopt_windows.go\
++	sockoptip.go\
++	sockoptip_windows.go\
+ 	tcpsock_posix.go\
+ 	udpsock_posix.go\
+ 	unixsock_posix.go\
+diff --git a/src/pkg/net/interface.go b/src/pkg/net/interface.go
+index 95486a6301..5e7b352ed5 100644
+--- a/src/pkg/net/interface.go
++++ b/src/pkg/net/interface.go
+@@ -12,6 +12,14 @@ import (
+ 	"fmt"
+ )
+ 
++var (
++	errInvalidInterface         = errors.New("net: invalid interface")
++	errInvalidInterfaceIndex    = errors.New("net: invalid interface index")
++	errInvalidInterfaceName     = errors.New("net: invalid interface name")
++	errNoSuchInterface          = errors.New("net: no such interface")
++	errNoSuchMulticastInterface = errors.New("net: no such multicast interface")
++)
++
+ // A HardwareAddr represents a physical hardware address.
+ type HardwareAddr []byte
+ 
+@@ -131,7 +139,7 @@ func (f Flags) String() string {
+ // Addrs returns interface addresses for a specific interface.
+ func (ifi *Interface) Addrs() ([]Addr, error) {
+ 	if ifi == nil {
+-		return nil, errors.New("net: invalid interface")
++		return nil, errInvalidInterface
+ 	}
+ 	return interfaceAddrTable(ifi.Index)
+ }
+@@ -140,7 +148,7 @@ func (ifi *Interface) Addrs() ([]Addr, error) {
+ // a specific interface.
+ func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
+ 	if ifi == nil {
+-		return nil, errors.New("net: invalid interface")
++		return nil, errInvalidInterface
+ 	}
+ 	return interfaceMulticastAddrTable(ifi.Index)
+ }
+@@ -159,7 +167,7 @@ func InterfaceAddrs() ([]Addr, error) {
+ // InterfaceByIndex returns the interface specified by index.
+ func InterfaceByIndex(index int) (*Interface, error) {
+ 	if index <= 0 {
+-		return nil, errors.New("net: invalid interface index")
++		return nil, errInvalidInterfaceIndex
+ 	}
+ 	ift, err := interfaceTable(index)
+ 	if err != nil {
+@@ -168,13 +176,13 @@ func InterfaceByIndex(index int) (*Interface, error) {
+ 	for _, ifi := range ift {
+ 		return &ifi, nil
+ 	}
+-	return nil, errors.New("net: no such interface")
++	return nil, errNoSuchInterface
+ }
+ 
+ // InterfaceByName returns the interface specified by name.
+ func InterfaceByName(name string) (*Interface, error) {
+ 	if name == "" {
+-		return nil, errors.New("net: invalid interface name")
++		return nil, errInvalidInterfaceName
+ 	}
+ 	ift, err := interfaceTable(0)
+ 	if err != nil {
+@@ -185,5 +193,5 @@ func InterfaceByName(name string) (*Interface, error) {
+ 			return &ifi, nil
+ 		}
+ 	}
+-	return nil, errors.New("net: no such interface")
++	return nil, errNoSuchInterface
+ }
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index a66250c844..96bac458da 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -13,7 +13,7 @@ import (
+ 
+ var multicast = flag.Bool("multicast", false, "enable multicast tests")
+ 
+-var joinAndLeaveGroupUDPTests = []struct {
++var multicastUDPTests = []struct {
+ 	net   string
+ 	laddr IP
+ 	gaddr IP
+@@ -32,8 +32,8 @@ var joinAndLeaveGroupUDPTests = []struct {
+ 	{"udp6", IPv6unspecified, ParseIP("ff0e::114"), (FlagUp | FlagLoopback), true},
+ }
+ 
+-func TestJoinAndLeaveGroupUDP(t *testing.T) {
+-	if runtime.GOOS == "windows" {
++func TestMulticastUDP(t *testing.T) {
++	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+ 		return
+ 	}
+ 	if !*multicast {
+@@ -41,7 +41,7 @@ func TestJoinAndLeaveGroupUDP(t *testing.T) {
+ 		return
+ 	}
+ 
+-	for _, tt := range joinAndLeaveGroupUDPTests {
++	for _, tt := range multicastUDPTests {
+ 		var (
+ 			ifi   *Interface
+ 			found bool
+@@ -51,7 +51,7 @@ func TestJoinAndLeaveGroupUDP(t *testing.T) {
+ 		}
+ 		ift, err := Interfaces()
+ 		if err != nil {
+-			t.Fatalf("Interfaces() failed: %v", err)
++			t.Fatalf("Interfaces failed: %v", err)
+ 		}
+ 		for _, x := range ift {
+ 			if x.Flags&tt.flags == tt.flags {
+@@ -65,15 +65,20 @@ func TestJoinAndLeaveGroupUDP(t *testing.T) {
+ 		}
+ 		c, err := ListenUDP(tt.net, &UDPAddr{IP: tt.laddr})
+ 		if err != nil {
+-			t.Fatal(err)
++			t.Fatalf("ListenUDP failed: %v", err)
+ 		}
+ 		defer c.Close()
+ 		if err := c.JoinGroup(ifi, tt.gaddr); err != nil {
+-			t.Fatal(err)
++			t.Fatalf("JoinGroup failed: %v", err)
++		}
++		if !tt.ipv6 {
++			testIPv4MulticastSocketOptions(t, c.fd, ifi)
++		} else {
++			testIPv6MulticastSocketOptions(t, c.fd, ifi)
+ 		}
+ 		ifmat, err := ifi.MulticastAddrs()
+ 		if err != nil {
+-			t.Fatalf("MulticastAddrs() failed: %v", err)
++			t.Fatalf("MulticastAddrs failed: %v", err)
+ 		}
+ 		for _, ifma := range ifmat {
+ 			if ifma.(*IPAddr).IP.Equal(tt.gaddr) {
+@@ -85,7 +90,71 @@ func TestJoinAndLeaveGroupUDP(t *testing.T) {
+ 			t.Fatalf("%q not found in RIB", tt.gaddr.String())
+ 		}
+ 		if err := c.LeaveGroup(ifi, tt.gaddr); err != nil {
+-			t.Fatal(err)
++			t.Fatalf("LeaveGroup failed: %v", err)
+ 		}
+ 	}
+ }
++
++func testIPv4MulticastSocketOptions(t *testing.T, fd *netFD, ifi *Interface) {
++	ifmc, err := ipv4MulticastInterface(fd)
++	if err != nil {
++		t.Fatalf("ipv4MulticastInterface failed: %v", err)
++	}
++	t.Logf("IPv4 multicast interface: %v", ifmc)
++	err = setIPv4MulticastInterface(fd, ifi)
++	if err != nil {
++		t.Fatalf("setIPv4MulticastInterface failed: %v", err)
++	}
++
++	ttl, err := ipv4MulticastTTL(fd)
++	if err != nil {
++		t.Fatalf("ipv4MulticastTTL failed: %v", err)
++	}
++	t.Logf("IPv4 multicast TTL: %v", ttl)
++	err = setIPv4MulticastTTL(fd, 1)
++	if err != nil {
++		t.Fatalf("setIPv4MulticastTTL failed: %v", err)
++	}
++
++	loop, err := ipv4MulticastLoopback(fd)
++	if err != nil {
++		t.Fatalf("ipv4MulticastLoopback failed: %v", err)
++	}
++	t.Logf("IPv4 multicast loopback: %v", loop)
++	err = setIPv4MulticastLoopback(fd, false)
++	if err != nil {
++		t.Fatalf("setIPv4MulticastLoopback failed: %v", err)
++	}
++}
++
++func testIPv6MulticastSocketOptions(t *testing.T, fd *netFD, ifi *Interface) {
++	ifmc, err := ipv6MulticastInterface(fd)
++	if err != nil {
++		t.Fatalf("ipv6MulticastInterface failed: %v", err)
++	}
++	t.Logf("IPv6 multicast interface: %v", ifmc)
++	err = setIPv6MulticastInterface(fd, ifi)
++	if err != nil {
++		t.Fatalf("setIPv6MulticastInterface failed: %v", err)
++	}
++
++	hoplim, err := ipv6MulticastHopLimit(fd)
++	if err != nil {
++		t.Fatalf("ipv6MulticastHopLimit failed: %v", err)
++	}
++	t.Logf("IPv6 multicast hop limit: %v", hoplim)
++	err = setIPv6MulticastHopLimit(fd, 1)
++	if err != nil {
++		t.Fatalf("setIPv6MulticastHopLimit failed: %v", err)
++	}
++
++	loop, err := ipv6MulticastLoopback(fd)
++	if err != nil {
++		t.Fatalf("ipv6MulticastLoopback failed: %v", err)
++	}
++	t.Logf("IPv6 multicast loopback: %v", loop)
++	err = setIPv6MulticastLoopback(fd, false)
++	if err != nil {
++		t.Fatalf("setIPv6MulticastLoopback failed: %v", err)
++	}
++}
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index dc073927eb..3ed0720477 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -10,19 +10,10 @@ package net
+ 
+ import (
+ 	"io"
+-	"os"
+ 	"reflect"
+ 	"syscall"
+ )
+ 
+-// Boolean to int.
+-func boolint(b bool) int {
+-	if b {
+-		return 1
+-	}
+-	return 0
+-}
+-
+ // Generic socket creation.
+ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	// See ../syscall/exec.go for description of ForkLock.
+@@ -67,83 +58,6 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	return fd, nil
+ }
+ 
+-func setsockoptInt(fd *netFD, level, opt int, value int) error {
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, level, opt, value))
+-}
+-
+-func setsockoptNsec(fd *netFD, level, opt int, nsec int64) error {
+-	var tv = syscall.NsecToTimeval(nsec)
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptTimeval(fd.sysfd, level, opt, &tv))
+-}
+-
+-func setReadBuffer(fd *netFD, bytes int) error {
+-	fd.incref()
+-	defer fd.decref()
+-	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes)
+-}
+-
+-func setWriteBuffer(fd *netFD, bytes int) error {
+-	fd.incref()
+-	defer fd.decref()
+-	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes)
+-}
+-
+-func setReadTimeout(fd *netFD, nsec int64) error {
+-	fd.rdeadline_delta = nsec
+-	return nil
+-}
+-
+-func setWriteTimeout(fd *netFD, nsec int64) error {
+-	fd.wdeadline_delta = nsec
+-	return nil
+-}
+-
+-func setTimeout(fd *netFD, nsec int64) error {
+-	if e := setReadTimeout(fd, nsec); e != nil {
+-		return e
+-	}
+-	return setWriteTimeout(fd, nsec)
+-}
+-
+-func setReuseAddr(fd *netFD, reuse bool) error {
+-	fd.incref()
+-	defer fd.decref()
+-	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse))
+-}
+-
+-func setDontRoute(fd *netFD, dontroute bool) error {
+-	fd.incref()
+-	defer fd.decref()
+-	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute))
+-}
+-
+-func setKeepAlive(fd *netFD, keepalive bool) error {
+-	fd.incref()
+-	defer fd.decref()
+-	return setsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive))
+-}
+-
+-func setNoDelay(fd *netFD, noDelay bool) error {
+-	fd.incref()
+-	defer fd.decref()
+-	return setsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay))
+-}
+-
+-func setLinger(fd *netFD, sec int) error {
+-	var l syscall.Linger
+-	if sec >= 0 {
+-		l.Onoff = 1
+-		l.Linger = int32(sec)
+-	} else {
+-		l.Onoff = 0
+-		l.Linger = 0
+-	}
+-	fd.incref()
+-	defer fd.decref()
+-	e := syscall.SetsockoptLinger(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_LINGER, &l)
+-	return os.NewSyscallError("setsockopt", e)
+-}
+-
+ type UnknownSocketError struct {
+ 	sa syscall.Sockaddr
+ }
+diff --git a/src/pkg/net/sockopt.go b/src/pkg/net/sockopt.go
+new file mode 100644
+index 0000000000..7fa1052b12
+--- /dev/null
++++ b/src/pkg/net/sockopt.go
+@@ -0,0 +1,171 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd windows
++
++// Socket options
++
++package net
++
++import (
++	"bytes"
++	"os"
++	"syscall"
++)
++
++// Boolean to int.
++func boolint(b bool) int {
++	if b {
++		return 1
++	}
++	return 0
++}
++
++func ipv4AddrToInterface(ip IP) (*Interface, error) {
++	ift, err := Interfaces()
++	if err != nil {
++		return nil, err
++	}
++	for _, ifi := range ift {
++		ifat, err := ifi.Addrs()
++		if err != nil {
++			return nil, err
++		}
++		for _, ifa := range ifat {
++			switch v := ifa.(type) {
++			case *IPAddr:
++				if ip.Equal(v.IP) {
++					return &ifi, nil
++				}
++			case *IPNet:
++				if ip.Equal(v.IP) {
++					return &ifi, nil
++				}
++			}
++		}
++	}
++	if ip.Equal(IPv4zero) {
++		return nil, nil
++	}
++	return nil, errNoSuchInterface
++}
++
++func interfaceToIPv4Addr(ifi *Interface) (IP, error) {
++	if ifi == nil {
++		return IPv4zero, nil
++	}
++	ifat, err := ifi.Addrs()
++	if err != nil {
++		return nil, err
++	}
++	for _, ifa := range ifat {
++		switch v := ifa.(type) {
++		case *IPAddr:
++			if v.IP.To4() != nil {
++				return v.IP, nil
++			}
++		case *IPNet:
++			if v.IP.To4() != nil {
++				return v.IP, nil
++			}
++		}
++	}
++	return nil, errNoSuchInterface
++}
++
++func setIPv4MreqToInterface(mreq *syscall.IPMreq, ifi *Interface) error {
++	if ifi == nil {
++		return nil
++	}
++	ifat, err := ifi.Addrs()
++	if err != nil {
++		return err
++	}
++	for _, ifa := range ifat {
++		switch v := ifa.(type) {
++		case *IPAddr:
++			if a := v.IP.To4(); a != nil {
++				copy(mreq.Interface[:], a)
++				goto done
++			}
++		case *IPNet:
++			if a := v.IP.To4(); a != nil {
++				copy(mreq.Interface[:], a)
++				goto done
++			}
++		}
++	}
++done:
++	if bytes.Equal(mreq.Multiaddr[:], IPv4zero.To4()) {
++		return errNoSuchMulticastInterface
++	}
++	return nil
++}
++
++func setReadBuffer(fd *netFD, bytes int) error {
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes))
++}
++
++func setWriteBuffer(fd *netFD, bytes int) error {
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes))
++}
++
++func setReadTimeout(fd *netFD, nsec int64) error {
++	fd.rdeadline_delta = nsec
++	return nil
++}
++
++func setWriteTimeout(fd *netFD, nsec int64) error {
++	fd.wdeadline_delta = nsec
++	return nil
++}
++
++func setTimeout(fd *netFD, nsec int64) error {
++	if e := setReadTimeout(fd, nsec); e != nil {
++		return e
++	}
++	return setWriteTimeout(fd, nsec)
++}
++
++func setReuseAddr(fd *netFD, reuse bool) error {
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse)))
++}
++
++func setDontRoute(fd *netFD, dontroute bool) error {
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute)))
++}
++
++func setKeepAlive(fd *netFD, keepalive bool) error {
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive)))
++}
++
++func setNoDelay(fd *netFD, noDelay bool) error {
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay)))
++}
++
++func setLinger(fd *netFD, sec int) error {
++	var l syscall.Linger
++	if sec >= 0 {
++		l.Onoff = 1
++		l.Linger = int32(sec)
++	} else {
++		l.Onoff = 0
++		l.Linger = 0
++	}
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptLinger(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_LINGER, &l))
++}
+diff --git a/src/pkg/net/sock_bsd.go b/src/pkg/net/sockopt_bsd.go
+similarity index 96%
+rename from src/pkg/net/sock_bsd.go
+rename to src/pkg/net/sockopt_bsd.go
+index 816e4fc3f7..370831fe5f 100644
+--- a/src/pkg/net/sock_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -4,7 +4,7 @@
+ 
+ // +build darwin freebsd netbsd openbsd
+ 
+-// Sockets for BSD variants
++// Socket options for BSD variants
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sock_linux.go b/src/pkg/net/sockopt_linux.go
+similarity index 95%
+rename from src/pkg/net/sock_linux.go
+rename to src/pkg/net/sockopt_linux.go
+index ec31e803b6..e55c3c5ce8 100644
+--- a/src/pkg/net/sock_linux.go
++++ b/src/pkg/net/sockopt_linux.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Sockets for Linux
++// Socket options for Linux
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sock_windows.go b/src/pkg/net/sockopt_windows.go
+similarity index 96%
+rename from src/pkg/net/sock_windows.go
+rename to src/pkg/net/sockopt_windows.go
+index 9b9cd9e368..df15b8c4c8 100644
+--- a/src/pkg/net/sock_windows.go
++++ b/src/pkg/net/sockopt_windows.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Sockets for Windows
++// Socket options for Windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sockoptip.go b/src/pkg/net/sockoptip.go
+new file mode 100644
+index 0000000000..90b6f751e1
+--- /dev/null
++++ b/src/pkg/net/sockoptip.go
+@@ -0,0 +1,187 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd windows
++
++// IP-level socket options
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func ipv4TOS(fd *netFD) (int, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_TOS)
++	if err != nil {
++		return -1, os.NewSyscallError("getsockopt", err)
++	}
++	return v, nil
++}
++
++func setIPv4TOS(fd *netFD, v int) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_TOS, v)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4TTL(fd *netFD) (int, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_TTL)
++	if err != nil {
++		return -1, os.NewSyscallError("getsockopt", err)
++	}
++	return v, nil
++}
++
++func setIPv4TTL(fd *netFD, v int) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_TTL, v)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
++	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
++	if err := setIPv4MreqToInterface(mreq, ifi); err != nil {
++		return err
++	}
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
++}
++
++func leaveIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
++	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
++	if err := setIPv4MreqToInterface(mreq, ifi); err != nil {
++		return err
++	}
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq))
++}
++
++func ipv6HopLimit(fd *netFD) (int, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS)
++	if err != nil {
++		return -1, os.NewSyscallError("getsockopt", err)
++	}
++	return v, nil
++}
++
++func setIPv6HopLimit(fd *netFD, v int) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, v)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv6MulticastInterface(fd *netFD) (*Interface, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_IF)
++	if err != nil {
++		return nil, os.NewSyscallError("getsockopt", err)
++	}
++	if v == 0 {
++		return nil, nil
++	}
++	ifi, err := InterfaceByIndex(v)
++	if err != nil {
++		return nil, err
++	}
++	return ifi, nil
++}
++
++func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
++	var v int
++	if ifi != nil {
++		v = ifi.Index
++	}
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_IF, v)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv6MulticastHopLimit(fd *netFD) (int, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_HOPS)
++	if err != nil {
++		return -1, os.NewSyscallError("getsockopt", err)
++	}
++	return v, nil
++}
++
++func setIPv6MulticastHopLimit(fd *netFD, v int) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_HOPS, v)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv6MulticastLoopback(fd *netFD) (bool, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_LOOP)
++	if err != nil {
++		return false, os.NewSyscallError("getsockopt", err)
++	}
++	return v == 1, nil
++}
++
++func setIPv6MulticastLoopback(fd *netFD, v bool) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_LOOP, boolint(v))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func joinIPv6Group(fd *netFD, ifi *Interface, ip IP) error {
++	mreq := &syscall.IPv6Mreq{}
++	copy(mreq.Multiaddr[:], ip)
++	if ifi != nil {
++		mreq.Interface = uint32(ifi.Index)
++	}
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_JOIN_GROUP, mreq))
++}
++
++func leaveIPv6Group(fd *netFD, ifi *Interface, ip IP) error {
++	mreq := &syscall.IPv6Mreq{}
++	copy(mreq.Multiaddr[:], ip)
++	if ifi != nil {
++		mreq.Interface = uint32(ifi.Index)
++	}
++	fd.incref()
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_LEAVE_GROUP, mreq))
++}
+diff --git a/src/pkg/net/sockoptip_bsd.go b/src/pkg/net/sockoptip_bsd.go
+new file mode 100644
+index 0000000000..5f7dff248a
+--- /dev/null
++++ b/src/pkg/net/sockoptip_bsd.go
+@@ -0,0 +1,54 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd netbsd openbsd
++
++// IP-level socket options for BSD variants
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func ipv4MulticastTTL(fd *netFD) (int, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL)
++	if err != nil {
++		return -1, os.NewSyscallError("getsockopt", err)
++	}
++	return int(v), nil
++}
++
++func setIPv4MulticastTTL(fd *netFD, v int) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL, byte(v))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv6TrafficClass(fd *netFD) (int, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS)
++	if err != nil {
++		return -1, os.NewSyscallError("getsockopt", err)
++	}
++	return v, nil
++}
++
++func setIPv6TrafficClass(fd *netFD, v int) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, v)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
+diff --git a/src/pkg/net/sockoptip_darwin.go b/src/pkg/net/sockoptip_darwin.go
+new file mode 100644
+index 0000000000..dedfd6f4c3
+--- /dev/null
++++ b/src/pkg/net/sockoptip_darwin.go
+@@ -0,0 +1,78 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// IP-level socket options for Darwin
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func ipv4MulticastInterface(fd *netFD) (*Interface, error) {
++	fd.incref()
++	defer fd.decref()
++	a, err := syscall.GetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF)
++	if err != nil {
++		return nil, os.NewSyscallError("getsockopt", err)
++	}
++	return ipv4AddrToInterface(IPv4(a[0], a[1], a[2], a[3]))
++}
++
++func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
++	ip, err := interfaceToIPv4Addr(ifi)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	var x [4]byte
++	copy(x[:], ip.To4())
++	fd.incref()
++	defer fd.decref()
++	err = syscall.SetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, x)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4MulticastLoopback(fd *netFD) (bool, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP)
++	if err != nil {
++		return false, os.NewSyscallError("getsockopt", err)
++	}
++	return v == 1, nil
++}
++
++func setIPv4MulticastLoopback(fd *netFD, v bool) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, boolint(v))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4ReceiveInterface(fd *netFD) (bool, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_RECVIF)
++	if err != nil {
++		return false, os.NewSyscallError("getsockopt", err)
++	}
++	return v == 1, nil
++}
++
++func setIPv4ReceiveInterface(fd *netFD, v bool) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_RECVIF, boolint(v))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
+diff --git a/src/pkg/net/sockoptip_freebsd.go b/src/pkg/net/sockoptip_freebsd.go
+new file mode 100644
+index 0000000000..55f7b1a602
+--- /dev/null
++++ b/src/pkg/net/sockoptip_freebsd.go
+@@ -0,0 +1,80 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// IP-level socket options for FreeBSD
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func ipv4MulticastInterface(fd *netFD) (*Interface, error) {
++	fd.incref()
++	defer fd.decref()
++	mreq, err := syscall.GetsockoptIPMreqn(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF)
++	if err != nil {
++		return nil, os.NewSyscallError("getsockopt", err)
++	}
++	if int(mreq.Ifindex) == 0 {
++		return nil, nil
++	}
++	return InterfaceByIndex(int(mreq.Ifindex))
++}
++
++func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
++	var v int32
++	if ifi != nil {
++		v = int32(ifi.Index)
++	}
++	mreq := &syscall.IPMreqn{Ifindex: v}
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptIPMreqn(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, mreq)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4MulticastLoopback(fd *netFD) (bool, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP)
++	if err != nil {
++		return false, os.NewSyscallError("getsockopt", err)
++	}
++	return v == 1, nil
++}
++
++func setIPv4MulticastLoopback(fd *netFD, v bool) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, boolint(v))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4ReceiveInterface(fd *netFD) (bool, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_RECVIF)
++	if err != nil {
++		return false, os.NewSyscallError("getsockopt", err)
++	}
++	return v == 1, nil
++}
++
++func setIPv4ReceiveInterface(fd *netFD, v bool) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_RECVIF, boolint(v))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
+diff --git a/src/pkg/net/sockoptip_linux.go b/src/pkg/net/sockoptip_linux.go
+new file mode 100644
+index 0000000000..360f8dea60
+--- /dev/null
++++ b/src/pkg/net/sockoptip_linux.go
+@@ -0,0 +1,120 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// IP-level socket options for Linux
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func ipv4MulticastInterface(fd *netFD) (*Interface, error) {
++	fd.incref()
++	defer fd.decref()
++	mreq, err := syscall.GetsockoptIPMreqn(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF)
++	if err != nil {
++		return nil, os.NewSyscallError("getsockopt", err)
++	}
++	if int(mreq.Ifindex) == 0 {
++		return nil, nil
++	}
++	return InterfaceByIndex(int(mreq.Ifindex))
++}
++
++func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
++	var v int32
++	if ifi != nil {
++		v = int32(ifi.Index)
++	}
++	mreq := &syscall.IPMreqn{Ifindex: v}
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptIPMreqn(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, mreq)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4MulticastTTL(fd *netFD) (int, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL)
++	if err != nil {
++		return -1, os.NewSyscallError("getsockopt", err)
++	}
++	return v, nil
++}
++
++func setIPv4MulticastTTL(fd *netFD, v int) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_TTL, v)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4MulticastLoopback(fd *netFD) (bool, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP)
++	if err != nil {
++		return false, os.NewSyscallError("getsockopt", err)
++	}
++	return v == 1, nil
++}
++
++func setIPv4MulticastLoopback(fd *netFD, v bool) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, boolint(v))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4ReceiveInterface(fd *netFD) (bool, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_PKTINFO)
++	if err != nil {
++		return false, os.NewSyscallError("getsockopt", err)
++	}
++	return v == 1, nil
++}
++
++func setIPv4ReceiveInterface(fd *netFD, v bool) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_PKTINFO, boolint(v))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv6TrafficClass(fd *netFD) (int, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS)
++	if err != nil {
++		return -1, os.NewSyscallError("getsockopt", err)
++	}
++	return v, nil
++}
++
++func setIPv6TrafficClass(fd *netFD, v int) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, v)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
+diff --git a/src/pkg/net/sockoptip_openbsd.go b/src/pkg/net/sockoptip_openbsd.go
+new file mode 100644
+index 0000000000..89b8e45920
+--- /dev/null
++++ b/src/pkg/net/sockoptip_openbsd.go
+@@ -0,0 +1,78 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// IP-level socket options for OpenBSD
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func ipv4MulticastInterface(fd *netFD) (*Interface, error) {
++	fd.incref()
++	defer fd.decref()
++	a, err := syscall.GetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF)
++	if err != nil {
++		return nil, os.NewSyscallError("getsockopt", err)
++	}
++	return ipv4AddrToInterface(IPv4(a[0], a[1], a[2], a[3]))
++}
++
++func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
++	ip, err := interfaceToIPv4Addr(ifi)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	var x [4]byte
++	copy(x[:], ip.To4())
++	fd.incref()
++	defer fd.decref()
++	err = syscall.SetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, x)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4MulticastLoopback(fd *netFD) (bool, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP)
++	if err != nil {
++		return false, os.NewSyscallError("getsockopt", err)
++	}
++	return v == 1, nil
++}
++
++func setIPv4MulticastLoopback(fd *netFD, v bool) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, byte(boolint(v)))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
++
++func ipv4ReceiveInterface(fd *netFD) (bool, error) {
++	fd.incref()
++	defer fd.decref()
++	v, err := syscall.GetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_RECVIF)
++	if err != nil {
++		return false, os.NewSyscallError("getsockopt", err)
++	}
++	return v == 1, nil
++}
++
++func setIPv4ReceiveInterface(fd *netFD, v bool) error {
++	fd.incref()
++	defer fd.decref()
++	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_RECVIF, boolint(v))
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	return nil
++}
+diff --git a/src/pkg/net/sockoptip_windows.go b/src/pkg/net/sockoptip_windows.go
+new file mode 100644
+index 0000000000..a60384311f
+--- /dev/null
++++ b/src/pkg/net/sockoptip_windows.go
+@@ -0,0 +1,61 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// IP-level socket options for Windows
++
++package net
++
++import (
++	"os"
++)
++
++func ipv4MulticastInterface(fd *netFD) (*Interface, error) {
++	// TODO: Implement this
++	return nil, os.EWINDOWS
++}
++
++func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
++	// TODO: Implement this
++	return os.EWINDOWS
++}
++
++func ipv4MulticastTTL(fd *netFD) (int, error) {
++	// TODO: Implement this
++	return -1, os.EWINDOWS
++}
++
++func setIPv4MulticastTTL(fd *netFD, v int) error {
++	// TODO: Implement this
++	return os.EWINDOWS
++}
++
++func ipv4MultiastLoopback(fd *netFD) (bool, error) {
++	// TODO: Implement this
++	return false, os.EWINDOWS
++}
++
++func setIPv4MulticastLoopback(fd *netFD, v bool) error {
++	// TODO: Implement this
++	return os.EWINDOWS
++}
++
++func ipv4ReceiveInterface(fd *netFD) (bool, error) {
++	// TODO: Implement this
++	return false, os.EWINDOWS
++}
++
++func setIPv4ReceiveInterface(fd *netFD, v bool) error {
++	// TODO: Implement this
++	return os.EWINDOWS
++}
++
++func ipv6TrafficClass(fd *netFD) (int, error) {
++	// TODO: Implement this
++	return os.EWINDOWS
++}
++
++func setIPv6TrafficClass(fd *netFD, v int) error {
++	// TODO: Implement this
++	return os.EWINDOWS
++}
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index b7e8e03aec..7bc4cb9f7e 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -9,7 +9,6 @@
+ package net
+ 
+ import (
+-	"bytes"
+ 	"os"
+ 	"syscall"
+ )
+@@ -272,66 +271,32 @@ func (c *UDPConn) LeaveGroup(ifi *Interface, addr IP) error {
+ }
+ 
+ func joinIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
+-	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
+-	if err := setIPv4InterfaceToJoin(mreq, ifi); err != nil {
+-		return &OpError{"joinipv4group", "udp", &IPAddr{ip}, err}
+-	}
+-	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)); err != nil {
++	err := joinIPv4Group(c.fd, ifi, ip)
++	if err != nil {
+ 		return &OpError{"joinipv4group", "udp", &IPAddr{ip}, err}
+ 	}
+ 	return nil
+ }
+ 
+ func leaveIPv4GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
+-	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
+-	if err := setIPv4InterfaceToJoin(mreq, ifi); err != nil {
+-		return &OpError{"leaveipv4group", "udp", &IPAddr{ip}, err}
+-	}
+-	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(c.fd.sysfd, syscall.IPPROTO_IP, syscall.IP_DROP_MEMBERSHIP, mreq)); err != nil {
+-		return &OpError{"leaveipv4group", "udp", &IPAddr{ip}, err}
+-	}
+-	return nil
+-}
+-
+-func setIPv4InterfaceToJoin(mreq *syscall.IPMreq, ifi *Interface) error {
+-	if ifi == nil {
+-		return nil
+-	}
+-	ifat, err := ifi.Addrs()
++	err := leaveIPv4Group(c.fd, ifi, ip)
+ 	if err != nil {
+-		return err
+-	}
+-	for _, ifa := range ifat {
+-		if x := ifa.(*IPAddr).IP.To4(); x != nil {
+-			copy(mreq.Interface[:], x)
+-			break
+-		}
+-	}
+-	if bytes.Equal(mreq.Multiaddr[:], IPv4zero) {
+-		return os.EINVAL
++		return &OpError{"leaveipv4group", "udp", &IPAddr{ip}, err}
+ 	}
+ 	return nil
+ }
+ 
+ func joinIPv6GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
+-	mreq := &syscall.IPv6Mreq{}
+-	copy(mreq.Multiaddr[:], ip)
+-	if ifi != nil {
+-		mreq.Interface = uint32(ifi.Index)
+-	}
+-	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(c.fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_JOIN_GROUP, mreq)); err != nil {
++	err := joinIPv6Group(c.fd, ifi, ip)
++	if err != nil {
+ 		return &OpError{"joinipv6group", "udp", &IPAddr{ip}, err}
+ 	}
+ 	return nil
+ }
+ 
+ func leaveIPv6GroupUDP(c *UDPConn, ifi *Interface, ip IP) error {
+-	mreq := &syscall.IPv6Mreq{}
+-	copy(mreq.Multiaddr[:], ip)
+-	if ifi != nil {
+-		mreq.Interface = uint32(ifi.Index)
+-	}
+-	if err := os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(c.fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_LEAVE_GROUP, mreq)); err != nil {
++	err := leaveIPv6Group(c.fd, ifi, ip)
++	if err != nil {
+ 		return &OpError{"leaveipv6group", "udp", &IPAddr{ip}, err}
+ 	}
+ 	return nil
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+new file mode 100644
+index 0000000000..6ed6f59cdd
+--- /dev/null
++++ b/src/pkg/net/unicast_test.go
+@@ -0,0 +1,99 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"runtime"
++	"testing"
++)
++
++var unicastTests = []struct {
++	net    string
++	laddr  string
++	ipv6   bool
++	packet bool
++}{
++	{"tcp4", "127.0.0.1:0", false, false},
++	{"tcp6", "[::1]:0", true, false},
++	{"udp4", "127.0.0.1:0", false, true},
++	{"udp6", "[::1]:0", true, true},
++}
++
++func TestUnicastTCPAndUDP(t *testing.T) {
++	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
++		return
++	}
++
++	for _, tt := range unicastTests {
++		if tt.ipv6 && !supportsIPv6 {
++			continue
++		}
++		var fd *netFD
++		if !tt.packet {
++			c, err := Listen(tt.net, tt.laddr)
++			if err != nil {
++				t.Fatalf("Listen failed: %v", err)
++			}
++			defer c.Close()
++			fd = c.(*TCPListener).fd
++		} else {
++			c, err := ListenPacket(tt.net, tt.laddr)
++			if err != nil {
++				t.Fatalf("ListenPacket failed: %v", err)
++			}
++			defer c.Close()
++			fd = c.(*UDPConn).fd
++		}
++		if !tt.ipv6 {
++			testIPv4UnicastSocketOptions(t, fd)
++		} else {
++			testIPv6UnicastSocketOptions(t, fd)
++		}
++	}
++}
++
++func testIPv4UnicastSocketOptions(t *testing.T, fd *netFD) {
++	tos, err := ipv4TOS(fd)
++	if err != nil {
++		t.Fatalf("ipv4TOS failed: %v", err)
++	}
++	t.Logf("IPv4 TOS: %v", tos)
++	err = setIPv4TOS(fd, 1)
++	if err != nil {
++		t.Fatalf("setIPv4TOS failed: %v", err)
++	}
++
++	ttl, err := ipv4TTL(fd)
++	if err != nil {
++		t.Fatalf("ipv4TTL failed: %v", err)
++	}
++	t.Logf("IPv4 TTL: %v", ttl)
++	err = setIPv4TTL(fd, 1)
++	if err != nil {
++		t.Fatalf("setIPv4TTL failed: %v", err)
++	}
++}
++
++func testIPv6UnicastSocketOptions(t *testing.T, fd *netFD) {
++	tos, err := ipv6TrafficClass(fd)
++	if err != nil {
++		t.Fatalf("ipv6TrafficClass failed: %v", err)
++	}
++	t.Logf("IPv6 TrafficClass: %v", tos)
++	err = setIPv6TrafficClass(fd, 1)
++	if err != nil {
++		t.Fatalf("setIPv6TrafficClass failed: %v", err)
++	}
++
++	hoplim, err := ipv6HopLimit(fd)
++	if err != nil {
++		t.Fatalf("ipv6HopLimit failed: %v", err)
++	}
++	t.Logf("IPv6 HopLimit: %v", hoplim)
++	err = setIPv6HopLimit(fd, 1)
++	if err != nil {
++		t.Fatalf("setIPv6HopLimit failed: %v", err)
++	}
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 5f33364704..7ed14a4dc2 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -641,10 +641,21 @@ type Linger struct {
+ }
+ 
+ const (
++	IP_TOS             = 0x3
++	IP_TTL             = 0x4
+ 	IP_ADD_MEMBERSHIP  = 0xc
+ 	IP_DROP_MEMBERSHIP = 0xd
+ )
+ 
++const (
++	IPV6_UNICAST_HOPS   = 0x4
++	IPV6_MULTICAST_IF   = 0x9
++	IPV6_MULTICAST_HOPS = 0xa
++	IPV6_MULTICAST_LOOP = 0xb
++	IPV6_JOIN_GROUP     = 0xc
++	IPV6_LEAVE_GROUP    = 0xd
++)
++
+ type IPMreq struct {
+ 	Multiaddr [4]byte /* in_addr */
+ 	Interface [4]byte /* in_addr */
+@@ -655,6 +666,7 @@ type IPv6Mreq struct {
+ 	Interface uint32
+ }
+ 
++func GetsockoptInt(fd Handle, level, opt int) (int, error)              { return -1, EWINDOWS }
+ func SetsockoptLinger(fd Handle, level, opt int, l *Linger) (err error) { return EWINDOWS }
+ func SetsockoptIPMreq(fd Handle, level, opt int, mreq *IPMreq) (err error) {
+ 	return Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(mreq)), int32(unsafe.Sizeof(*mreq)))

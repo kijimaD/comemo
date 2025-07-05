@@ -9,6 +9,19 @@ Date:   Fri May 4 18:34:04 2012 +0800
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/5988057
-
+---
  src/pkg/go/build/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index d749aef151..ea2990ba94 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -215,6 +215,7 @@ var cgoEnabled = map[string]bool{
+ 	"darwin/amd64":  true,
+ 	"linux/386":     true,
+ 	"linux/amd64":   true,
++	"linux/arm":     true,
+ 	"freebsd/386":   true,
+ 	"freebsd/amd64": true,
+ 	"windows/386":   true,

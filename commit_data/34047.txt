@@ -18,7 +18,47 @@ Date:   Wed Sep 27 10:51:24 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/swt.go |  5 +++++
  test/fixedbugs/issue22063.go       | 17 +++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index dc285ae91c..08ce8c44ed 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -640,6 +640,11 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
+ 			if ct := consttype(n); ct < 0 || ct == CTBOOL {
+ 				continue
+ 			}
++			// If the value has no type, we have
++			// already printed an error about it.
++			if n.Type == nil {
++				continue
++			}
+ 			tv := typeVal{
+ 				typ: n.Type.LongString(),
+ 				val: n.Val().Interface(),
+diff --git a/test/fixedbugs/issue22063.go b/test/fixedbugs/issue22063.go
+new file mode 100644
+index 0000000000..bfdb2e0027
+--- /dev/null
++++ b/test/fixedbugs/issue22063.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 22063: panic on interface switch case with invalid name
++
++package p
++
++const X = Wrong(0) // ERROR "undefined: Wrong"
++
++func _() {
++	switch interface{}(nil) {
++	case X:
++	}
++}

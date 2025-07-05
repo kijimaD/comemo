@@ -22,8 +22,79 @@ Date:   Wed Dec 21 16:35:57 2022 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 12 ++++++------
  src/cmd/link/internal/ld/elf.go  |  2 +-
  src/runtime/libfuzzer.go         |  9 ++-------
  3 files changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index faae153bab..94f8fc32d6 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1860,9 +1860,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 
+ 	// Coverage instrumentation counters for libfuzzer.
+ 	if len(state.data[sym.SLIBFUZZER_8BIT_COUNTER]) > 0 {
+-		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, "__sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, sym.Sxxx, 06)
+-		ldr.SetSymSect(ldr.LookupOrCreateSym("__start___sancov_cntrs", 0), sect)
+-		ldr.SetSymSect(ldr.LookupOrCreateSym("__stop___sancov_cntrs", 0), sect)
++		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".go.fuzzcntrs", sym.SLIBFUZZER_8BIT_COUNTER, sym.Sxxx, 06)
++		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.__start___sancov_cntrs", 0), sect)
++		ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.__stop___sancov_cntrs", 0), sect)
+ 		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._counters", 0), sect)
+ 		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._ecounters", 0), sect)
+ 	}
+@@ -2643,7 +2643,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 			bss = s
+ 		case ".noptrbss":
+ 			noptrbss = s
+-		case "__sancov_cntrs":
++		case ".go.fuzzcntrs":
+ 			fuzzCounters = s
+ 		}
+ 	}
+@@ -2764,8 +2764,8 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
+ 
+ 	if fuzzCounters != nil {
+-		ctxt.xdefine("__start___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))
+-		ctxt.xdefine("__stop___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
++		ctxt.xdefine("runtime.__start___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))
++		ctxt.xdefine("runtime.__stop___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
+ 		ctxt.xdefine("internal/fuzz._counters", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))
+ 		ctxt.xdefine("internal/fuzz._ecounters", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 082adcc3c7..a1ae7eab57 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1371,7 +1371,7 @@ func (ctxt *Link) doelf() {
+ 	shstrtab.Addstring(".data")
+ 	shstrtab.Addstring(".bss")
+ 	shstrtab.Addstring(".noptrbss")
+-	shstrtab.Addstring("__sancov_cntrs")
++	shstrtab.Addstring(".go.fuzzcntrs")
+ 	shstrtab.Addstring(".go.buildinfo")
+ 	if ctxt.IsMIPS() {
+ 		shstrtab.Addstring(".MIPS.abiflags")
+diff --git a/src/runtime/libfuzzer.go b/src/runtime/libfuzzer.go
+index 013e7165b2..0ece035405 100644
+--- a/src/runtime/libfuzzer.go
++++ b/src/runtime/libfuzzer.go
+@@ -148,13 +148,8 @@ var __sanitizer_cov_trace_const_cmp8 byte
+ //go:cgo_import_static __sanitizer_cov_8bit_counters_init
+ var __sanitizer_cov_8bit_counters_init byte
+ 
+-//go:linkname __start___sancov_cntrs __start___sancov_cntrs
+-//go:cgo_import_static __start___sancov_cntrs
+-var __start___sancov_cntrs byte
+-
+-//go:linkname __stop___sancov_cntrs __stop___sancov_cntrs
+-//go:cgo_import_static __stop___sancov_cntrs
+-var __stop___sancov_cntrs byte
++// start, stop markers of counters, set by the linker
++var __start___sancov_cntrs, __stop___sancov_cntrs byte
+ 
+ //go:linkname __sanitizer_cov_pcs_init __sanitizer_cov_pcs_init
+ //go:cgo_import_static __sanitizer_cov_pcs_init

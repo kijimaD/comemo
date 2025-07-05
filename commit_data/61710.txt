@@ -14,7 +14,7 @@ Date:   Tue Apr 23 11:14:19 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/67002.txt                         |   9 +
  doc/next/6-stdlib/1-os-root.md             |  16 +
  doc/next/6-stdlib/99-minor/os/67002.md     |   1 +
@@ -33,3 +33,2512 @@ Date:   Tue Apr 23 11:14:19 2024 -0700
  src/os/root_windows.go                     | 203 ++++++
  src/os/root_windows_test.go                |  46 ++
  17 files changed, 2243 insertions(+), 70 deletions(-)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+new file mode 100644
+index 0000000000..861ffe9516
+--- /dev/null
++++ b/api/next/67002.txt
+@@ -0,0 +1,9 @@
++pkg os, func OpenRoot(string) (*Root, error) #67002
++pkg os, method (*Root) Close() error #67002
++pkg os, method (*Root) Create(string) (*File, error) #67002
++pkg os, method (*Root) Mkdir(string, fs.FileMode) error #67002
++pkg os, method (*Root) Name() string #67002
++pkg os, method (*Root) Open(string) (*File, error) #67002
++pkg os, method (*Root) OpenFile(string, int, fs.FileMode) (*File, error) #67002
++pkg os, method (*Root) OpenRoot(string) (*Root, error) #67002
++pkg os, type Root struct #67002
+diff --git a/doc/next/6-stdlib/1-os-root.md b/doc/next/6-stdlib/1-os-root.md
+new file mode 100644
+index 0000000000..a5b6dace8c
+--- /dev/null
++++ b/doc/next/6-stdlib/1-os-root.md
+@@ -0,0 +1,16 @@
++### Directory-limited filesystem access
++
++<!-- go.dev/issue/67002 -->
++The new [os.Root] type provides the ability to perform filesystem
++operations within a specific directory.
++
++The [os.OpenRoot] function opens a directory and returns an [os.Root].
++Methods on [os.Root] operate within the directory and do not permit
++paths that refer to locations outside the directory, including
++ones that follow symbolic links out of the directory.
++
++- [os.Root.Open] opens a file for reading.
++- [os.Root.Create] creates a file.
++- [os.Root.OpenFile] is the generalized open call.
++- [os.Root.Mkdir] creates a directory.
++
+diff --git a/doc/next/6-stdlib/99-minor/os/67002.md b/doc/next/6-stdlib/99-minor/os/67002.md
+new file mode 100644
+index 0000000000..f0fa13b7cb
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/os/67002.md
+@@ -0,0 +1 @@
++<!-- os.Root -->
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index ad4a0ab25b..af8167dd06 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -42,7 +42,7 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
+ 	}
+ 	if flag&syscall.O_APPEND != 0 {
+ 		access |= FILE_APPEND_DATA
+-		// Remove GENERIC_WRITE access unless O_TRUNC is set,
++		// Remove FILE_WRITE_DATA access unless O_TRUNC is set,
+ 		// in which case we need it to truncate the file.
+ 		if flag&syscall.O_TRUNC == 0 {
+ 			access &^= FILE_WRITE_DATA
+@@ -99,7 +99,7 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
+ 		fileAttrs,
+ 		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+ 		disposition,
+-		FILE_SYNCHRONOUS_IO_NONALERT|options,
++		FILE_SYNCHRONOUS_IO_NONALERT|FILE_OPEN_FOR_BACKUP_INTENT|options,
+ 		0,
+ 		0,
+ 	)
+diff --git a/src/os/file.go b/src/os/file.go
+index 0341469e2d..0e2948867c 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -398,6 +398,8 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+ 	return f, nil
+ }
+ 
++var errPathEscapes = errors.New("path escapes from parent")
++
+ // openDir opens a file which is assumed to be a directory. As such, it skips
+ // the syscalls that make the file descriptor non-blocking as these take time
+ // and will fail on file descriptors for directories.
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 465cf5d186..2160f1e6ff 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -415,10 +415,13 @@ func readReparseLink(path string) (string, error) {
+ 		return "", err
+ 	}
+ 	defer syscall.CloseHandle(h)
++	return readReparseLinkHandle(h)
++}
+ 
++func readReparseLinkHandle(h syscall.Handle) (string, error) {
+ 	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+ 	var bytesReturned uint32
+-	err = syscall.DeviceIoControl(h, syscall.FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
++	err := syscall.DeviceIoControl(h, syscall.FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
+ 	if err != nil {
+ 		return "", err
+ 	}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 4470acd83b..e891c1a422 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1779,15 +1779,24 @@ func TestSeekError(t *testing.T) {
+ 
+ func TestOpenError(t *testing.T) {
+ 	t.Parallel()
+-
+-	dir := t.TempDir()
+-	if err := WriteFile(filepath.Join(dir, "is-a-file"), nil, 0o666); err != nil {
+-		t.Fatal(err)
+-	}
+-	if err := Mkdir(filepath.Join(dir, "is-a-dir"), 0o777); err != nil {
+-		t.Fatal(err)
++	dir := makefs(t, []string{
++		"is-a-file",
++		"is-a-dir/",
++	})
++	t.Run("NoRoot", func(t *testing.T) { testOpenError(t, dir, false) })
++	t.Run("InRoot", func(t *testing.T) { testOpenError(t, dir, true) })
++}
++func testOpenError(t *testing.T, dir string, rooted bool) {
++	t.Parallel()
++	var r *Root
++	if rooted {
++		var err error
++		r, err = OpenRoot(dir)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer r.Close()
+ 	}
+-
+ 	for _, tt := range []struct {
+ 		path  string
+ 		mode  int
+@@ -1805,16 +1814,25 @@ func TestOpenError(t *testing.T) {
+ 		O_WRONLY,
+ 		syscall.ENOTDIR,
+ 	}} {
+-		path := filepath.Join(dir, tt.path)
+-		f, err := OpenFile(path, tt.mode, 0)
++		var f *File
++		var err error
++		var name string
++		if rooted {
++			name = fmt.Sprintf("Root(%q).OpenFile(%q, %d)", dir, tt.path, tt.mode)
++			f, err = r.OpenFile(tt.path, tt.mode, 0)
++		} else {
++			path := filepath.Join(dir, tt.path)
++			name = fmt.Sprintf("OpenFile(%q, %d)", path, tt.mode)
++			f, err = OpenFile(path, tt.mode, 0)
++		}
+ 		if err == nil {
+-			t.Errorf("Open(%q, %d) succeeded", tt.path, tt.mode)
++			t.Errorf("%v succeeded", name)
+ 			f.Close()
+ 			continue
+ 		}
+ 		perr, ok := err.(*PathError)
+ 		if !ok {
+-			t.Errorf("Open(%q, %d) returns error of %T type; want *PathError", tt.path, tt.mode, err)
++			t.Errorf("%v returns error of %T type; want *PathError", name, err)
+ 		}
+ 		if perr.Err != tt.error {
+ 			if runtime.GOOS == "plan9" {
+@@ -1827,7 +1845,7 @@ func TestOpenError(t *testing.T) {
+ 					if tt.error == syscall.EISDIR && strings.HasSuffix(syscallErrStr, syscall.EACCES.Error()) {
+ 						continue
+ 					}
+-					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
++					t.Errorf("%v = _, %q; want suffix %q", name, syscallErrStr, expectedErrStr)
+ 				}
+ 				continue
+ 			}
+@@ -1838,7 +1856,7 @@ func TestOpenError(t *testing.T) {
+ 					continue
+ 				}
+ 			}
+-			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Err.Error(), tt.error.Error())
++			t.Errorf("%v = _, %q; want %q", name, perr.Err.Error(), tt.error.Error())
+ 		}
+ 	}
+ }
+@@ -2070,8 +2088,15 @@ func TestWriteAtInAppendMode(t *testing.T) {
+ 	}
+ }
+ 
+-func writeFile(t *testing.T, fname string, flag int, text string) string {
+-	f, err := OpenFile(fname, flag, 0666)
++func writeFile(t *testing.T, r *Root, fname string, flag int, text string) string {
++	t.Helper()
++	var f *File
++	var err error
++	if r == nil {
++		f, err = OpenFile(fname, flag, 0666)
++	} else {
++		f, err = r.OpenFile(fname, flag, 0666)
++	}
+ 	if err != nil {
+ 		t.Fatalf("Open: %v", err)
+ 	}
+@@ -2088,35 +2113,180 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
+ }
+ 
+ func TestAppend(t *testing.T) {
+-	t.Chdir(t.TempDir())
+-	const f = "append.txt"
+-	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
+-	if s != "new" {
+-		t.Fatalf("writeFile: have %q want %q", s, "new")
+-	}
+-	s = writeFile(t, f, O_APPEND|O_RDWR, "|append")
+-	if s != "new|append" {
+-		t.Fatalf("writeFile: have %q want %q", s, "new|append")
+-	}
+-	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "|append")
+-	if s != "new|append|append" {
+-		t.Fatalf("writeFile: have %q want %q", s, "new|append|append")
+-	}
+-	err := Remove(f)
+-	if err != nil {
+-		t.Fatalf("Remove: %v", err)
+-	}
+-	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
+-	if s != "new&append" {
+-		t.Fatalf("writeFile: after append have %q want %q", s, "new&append")
++	testMaybeRooted(t, func(t *testing.T, r *Root) {
++		const f = "append.txt"
++		s := writeFile(t, r, f, O_CREATE|O_TRUNC|O_RDWR, "new")
++		if s != "new" {
++			t.Fatalf("writeFile: have %q want %q", s, "new")
++		}
++		s = writeFile(t, r, f, O_APPEND|O_RDWR, "|append")
++		if s != "new|append" {
++			t.Fatalf("writeFile: have %q want %q", s, "new|append")
++		}
++		s = writeFile(t, r, f, O_CREATE|O_APPEND|O_RDWR, "|append")
++		if s != "new|append|append" {
++			t.Fatalf("writeFile: have %q want %q", s, "new|append|append")
++		}
++		err := Remove(f)
++		if err != nil {
++			t.Fatalf("Remove: %v", err)
++		}
++		s = writeFile(t, r, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
++		if s != "new&append" {
++			t.Fatalf("writeFile: after append have %q want %q", s, "new&append")
++		}
++		s = writeFile(t, r, f, O_CREATE|O_RDWR, "old")
++		if s != "old&append" {
++			t.Fatalf("writeFile: after create have %q want %q", s, "old&append")
++		}
++		s = writeFile(t, r, f, O_CREATE|O_TRUNC|O_RDWR, "new")
++		if s != "new" {
++			t.Fatalf("writeFile: after truncate have %q want %q", s, "new")
++		}
++	})
++}
++
++// TestFilePermissions tests setting Unix permission bits on file creation.
++func TestFilePermissions(t *testing.T) {
++	if Getuid() == 0 {
++		t.Skip("skipping test when running as root")
+ 	}
+-	s = writeFile(t, f, O_CREATE|O_RDWR, "old")
+-	if s != "old&append" {
+-		t.Fatalf("writeFile: after create have %q want %q", s, "old&append")
++	for _, test := range []struct {
++		name string
++		mode FileMode
++	}{
++		{"r", 0o444},
++		{"w", 0o222},
++		{"rw", 0o666},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			switch runtime.GOOS {
++			case "windows":
++				if test.mode&0444 == 0 {
++					t.Skip("write-only files not supported on " + runtime.GOOS)
++				}
++			case "wasip1":
++				t.Skip("file permissions not supported on " + runtime.GOOS)
++			}
++			testMaybeRooted(t, func(t *testing.T, r *Root) {
++				const filename = "f"
++				var f *File
++				var err error
++				if r == nil {
++					f, err = OpenFile(filename, O_RDWR|O_CREATE|O_EXCL, test.mode)
++				} else {
++					f, err = r.OpenFile(filename, O_RDWR|O_CREATE|O_EXCL, test.mode)
++				}
++				if err != nil {
++					t.Fatal(err)
++				}
++				f.Close()
++				b, err := ReadFile(filename)
++				if test.mode&0o444 != 0 {
++					if err != nil {
++						t.Errorf("ReadFile = %v; want success", err)
++					}
++				} else {
++					if err == nil {
++						t.Errorf("ReadFile = %q, <nil>; want failure", string(b))
++					}
++				}
++				_, err = Stat(filename)
++				if err != nil {
++					t.Errorf("Stat = %v; want success", err)
++				}
++				err = WriteFile(filename, nil, 0666)
++				if test.mode&0o222 != 0 {
++					if err != nil {
++						t.Errorf("WriteFile = %v; want success", err)
++						b, err := ReadFile(filename)
++						t.Errorf("ReadFile: %v", err)
++						t.Errorf("file contents: %q", b)
++					}
++				} else {
++					if err == nil {
++						t.Errorf("WriteFile(%q) = <nil>; want failure", filename)
++						st, err := Stat(filename)
++						if err == nil {
++							t.Errorf("mode: %s", st.Mode())
++						}
++						b, err := ReadFile(filename)
++						t.Errorf("ReadFile: %v", err)
++						t.Errorf("file contents: %q", b)
++					}
++				}
++			})
++		})
+ 	}
+-	s = writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
+-	if s != "new" {
+-		t.Fatalf("writeFile: after truncate have %q want %q", s, "new")
++
++}
++
++// TestFileRDWRFlags tests the O_RDONLY, O_WRONLY, and O_RDWR flags.
++func TestFileRDWRFlags(t *testing.T) {
++	for _, test := range []struct {
++		name string
++		flag int
++	}{
++		{"O_RDONLY", O_RDONLY},
++		{"O_WRONLY", O_WRONLY},
++		{"O_RDWR", O_RDWR},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			testMaybeRooted(t, func(t *testing.T, r *Root) {
++				const filename = "f"
++				content := []byte("content")
++				if err := WriteFile(filename, content, 0666); err != nil {
++					t.Fatal(err)
++				}
++				var f *File
++				var err error
++				if r == nil {
++					f, err = OpenFile(filename, test.flag, 0)
++				} else {
++					f, err = r.OpenFile(filename, test.flag, 0)
++				}
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer f.Close()
++				got, err := io.ReadAll(f)
++				if test.flag == O_WRONLY {
++					if err == nil {
++						t.Errorf("read file: %q, %v; want error", got, err)
++					}
++				} else {
++					if err != nil || !bytes.Equal(got, content) {
++						t.Errorf("read file: %q, %v; want %q, <nil>", got, err, content)
++					}
++				}
++				if _, err := f.Seek(0, 0); err != nil {
++					t.Fatalf("f.Seek: %v", err)
++				}
++				newcontent := []byte("CONTENT")
++				_, err = f.Write(newcontent)
++				if test.flag == O_RDONLY {
++					if err == nil {
++						t.Errorf("write file: succeeded, want error")
++					}
++				} else {
++					if err != nil {
++						t.Errorf("write file: %v, want success", err)
++					}
++				}
++				f.Close()
++				got, err = ReadFile(filename)
++				if err != nil {
++					t.Fatal(err)
++				}
++				want := content
++				if test.flag != O_RDONLY {
++					want = newcontent
++				}
++				if !bytes.Equal(got, want) {
++					t.Fatalf("after write, file contains %q, want %q", got, want)
++				}
++			})
++		})
+ 	}
+ }
+ 
+@@ -2937,6 +3107,22 @@ func isDeadlineExceeded(err error) bool {
+ 
+ // Test that opening a file does not change its permissions.  Issue 38225.
+ func TestOpenFileKeepsPermissions(t *testing.T) {
++	t.Run("OpenFile", func(t *testing.T) {
++		testOpenFileKeepsPermissions(t, OpenFile)
++	})
++	t.Run("RootOpenFile", func(t *testing.T) {
++		testOpenFileKeepsPermissions(t, func(name string, flag int, perm FileMode) (*File, error) {
++			dir, file := filepath.Split(name)
++			r, err := OpenRoot(dir)
++			if err != nil {
++				return nil, err
++			}
++			defer r.Close()
++			return r.OpenFile(file, flag, perm)
++		})
++	})
++}
++func testOpenFileKeepsPermissions(t *testing.T, openf func(name string, flag int, perm FileMode) (*File, error)) {
+ 	t.Parallel()
+ 
+ 	dir := t.TempDir()
+@@ -2948,7 +3134,7 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
+ 	if err := f.Close(); err != nil {
+ 		t.Error(err)
+ 	}
+-	f, err = OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, 0)
++	f, err = openf(name, O_WRONLY|O_CREATE|O_TRUNC, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -3597,27 +3783,35 @@ func TestCopyFSWithSymlinks(t *testing.T) {
+ }
+ 
+ func TestAppendDoesntOverwrite(t *testing.T) {
+-	name := filepath.Join(t.TempDir(), "file")
+-	if err := WriteFile(name, []byte("hello"), 0666); err != nil {
+-		t.Fatal(err)
+-	}
+-	f, err := OpenFile(name, O_APPEND|O_WRONLY, 0)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if _, err := f.Write([]byte(" world")); err != nil {
+-		f.Close()
+-		t.Fatal(err)
+-	}
+-	if err := f.Close(); err != nil {
+-		t.Fatal(err)
+-	}
+-	got, err := ReadFile(name)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	want := "hello world"
+-	if string(got) != want {
+-		t.Fatalf("got %q, want %q", got, want)
+-	}
++	testMaybeRooted(t, func(t *testing.T, r *Root) {
++		name := "file"
++		if err := WriteFile(name, []byte("hello"), 0666); err != nil {
++			t.Fatal(err)
++		}
++		var f *File
++		var err error
++		if r == nil {
++			f, err = OpenFile(name, O_APPEND|O_WRONLY, 0)
++		} else {
++			f, err = r.OpenFile(name, O_APPEND|O_WRONLY, 0)
++		}
++		if err != nil {
++			t.Fatal(err)
++		}
++		if _, err := f.Write([]byte(" world")); err != nil {
++			f.Close()
++			t.Fatal(err)
++		}
++		if err := f.Close(); err != nil {
++			t.Fatal(err)
++		}
++		got, err := ReadFile(name)
++		if err != nil {
++			t.Fatal(err)
++		}
++		want := "hello world"
++		if string(got) != want {
++			t.Fatalf("got %q, want %q", got, want)
++		}
++	})
+ }
+diff --git a/src/os/root.go b/src/os/root.go
+new file mode 100644
+index 0000000000..1574817098
+--- /dev/null
++++ b/src/os/root.go
+@@ -0,0 +1,185 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"errors"
++	"internal/testlog"
++	"runtime"
++)
++
++// Root may be used to only access files within a single directory tree.
++//
++// Methods on Root can only access files and directories beneath a root directory.
++// If any component of a file name passed to a method of Root references a location
++// outside the root, the method returns an error.
++// File names may reference the directory itself (.).
++//
++// Methods on Root will follow symbolic links, but symbolic links may not
++// reference a location outside the root.
++// Symbolic links must not be absolute.
++//
++// Methods on Root do not prohibit traversal of filesystem boundaries,
++// Linux bind mounts, /proc special files, or access to Unix device files.
++//
++// Methods on Root are safe to be used from multiple goroutines simultaneously.
++//
++// On most platforms, creating a Root opens a file descriptor or handle referencing
++// the directory. If the directory is moved, methods on Root reference the original
++// directory in its new location.
++//
++// Root's behavior differs on some platforms:
++//
++//   - When GOOS=windows, file names may not reference Windows reserved device names
++//     such as NUL and COM1.
++//   - When GOOS=js, Root is vulnerable to TOCTOU (time-of-check-time-of-use)
++//     attacks in symlink validation, and cannot ensure that operations will not
++//     escape the root.
++//   - When GOOS=plan9 or GOOS=js, Root does not track directories across renames.
++//     On these platforms, a Root references a directory name, not a file descriptor.
++type Root struct {
++	root root
++}
++
++const (
++	// Maximum number of symbolic links we will follow when resolving a file in a root.
++	// 8 is __POSIX_SYMLOOP_MAX (the minimum allowed value for SYMLOOP_MAX),
++	// and a common limit.
++	rootMaxSymlinks = 8
++)
++
++// OpenRoot opens the named directory.
++// If there is an error, it will be of type *PathError.
++func OpenRoot(name string) (*Root, error) {
++	testlog.Open(name)
++	return openRootNolog(name)
++}
++
++// Name returns the name of the directory presented to OpenRoot.
++//
++// It is safe to call Name after [Close].
++func (r *Root) Name() string {
++	return r.root.Name()
++}
++
++// Close closes the Root.
++// After Close is called, methods on Root return errors.
++func (r *Root) Close() error {
++	return r.root.Close()
++}
++
++// Open opens the named file in the root for reading.
++// See [Open] for more details.
++func (r *Root) Open(name string) (*File, error) {
++	return r.OpenFile(name, O_RDONLY, 0)
++}
++
++// Create creates or truncates the named file in the root.
++// See [Create] for more details.
++func (r *Root) Create(name string) (*File, error) {
++	return r.OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
++}
++
++// OpenFile opens the named file in the root.
++// See [OpenFile] for more details.
++//
++// If perm contains bits other than the nine least-significant bits (0o777),
++// OpenFile returns an error.
++func (r *Root) OpenFile(name string, flag int, perm FileMode) (*File, error) {
++	if perm&0o777 != perm {
++		return nil, &PathError{Op: "openat", Path: name, Err: errors.New("unsupported file mode")}
++	}
++	r.logOpen(name)
++	rf, err := rootOpenFileNolog(r, name, flag, perm)
++	if err != nil {
++		return nil, err
++	}
++	rf.appendMode = flag&O_APPEND != 0
++	return rf, nil
++}
++
++// OpenRoot opens the named directory in the root.
++// If there is an error, it will be of type *PathError.
++func (r *Root) OpenRoot(name string) (*Root, error) {
++	r.logOpen(name)
++	return openRootInRoot(r, name)
++}
++
++// Mkdir creates a new directory in the root
++// with the specified name and permission bits (before umask).
++// See [Mkdir] for more details.
++//
++// If perm contains bits other than the nine least-significant bits (0o777),
++// OpenFile returns an error.
++func (r *Root) Mkdir(name string, perm FileMode) error {
++	if perm&0o777 != perm {
++		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
++	}
++	return rootMkdir(r, name, perm)
++}
++
++func (r *Root) logOpen(name string) {
++	if log := testlog.Logger(); log != nil {
++		// This won't be right if r's name has changed since it was opened,
++		// but it's the best we can do.
++		log.Open(joinPath(r.Name(), name))
++	}
++}
++
++// splitPathInRoot splits a path into components
++// and joins it with the given prefix and suffix.
++//
++// The path is relative to a Root, and must not be
++// absolute, volume-relative, or "".
++//
++// "." components are removed, except in the last component.
++//
++// Path separators following the last component are preserved.
++func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error) {
++	if len(s) == 0 {
++		return nil, errors.New("empty path")
++	}
++	if IsPathSeparator(s[0]) {
++		return nil, errPathEscapes
++	}
++
++	if runtime.GOOS == "windows" {
++		// Windows cleans paths before opening them.
++		s, err = rootCleanPath(s, prefix, suffix)
++		if err != nil {
++			return nil, err
++		}
++		prefix = nil
++		suffix = nil
++	}
++
++	parts := append([]string{}, prefix...)
++	i, j := 0, 1
++	for {
++		if j < len(s) && !IsPathSeparator(s[j]) {
++			// Keep looking for the end of this component.
++			j++
++			continue
++		}
++		parts = append(parts, s[i:j])
++		// Advance to the next component, or end of the path.
++		for j < len(s) && IsPathSeparator(s[j]) {
++			j++
++		}
++		if j == len(s) {
++			// If this is the last path component,
++			// preserve any trailing path separators.
++			parts[len(parts)-1] = s[i:]
++			break
++		}
++		if parts[len(parts)-1] == "." {
++			// Remove "." components, except at the end.
++			parts = parts[:len(parts)-1]
++		}
++		i = j
++	}
++	parts = append(parts, suffix...)
++	return parts, nil
++}
+diff --git a/src/os/root_js.go b/src/os/root_js.go
+new file mode 100644
+index 0000000000..72138d1e89
+--- /dev/null
++++ b/src/os/root_js.go
+@@ -0,0 +1,79 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build js && wasm
++
++package os
++
++import (
++	"errors"
++	"slices"
++	"syscall"
++)
++
++func checkPathEscapes(r *Root, name string) error {
++	if r.root.closed.Load() {
++		return ErrClosed
++	}
++	parts, err := splitPathInRoot(name, nil, nil)
++	if err != nil {
++		return err
++	}
++
++	i := 0
++	symlinks := 0
++	base := r.root.name
++	for i < len(parts) {
++		if parts[i] == ".." {
++			// Resolve one or more parent ("..") path components.
++			end := i + 1
++			for end < len(parts) && parts[end] == ".." {
++				end++
++			}
++			count := end - i
++			if count > i {
++				return errPathEscapes
++			}
++			parts = slices.Delete(parts, i-count, end)
++			i -= count
++			base = r.root.name
++			for j := range i {
++				base = joinPath(base, parts[j])
++			}
++			continue
++		}
++
++		next := joinPath(base, parts[i])
++		fi, err := Lstat(next)
++		if err != nil {
++			if IsNotExist(err) {
++				return nil
++			}
++			return underlyingError(err)
++		}
++		if fi.Mode()&ModeSymlink != 0 {
++			link, err := Readlink(next)
++			if err != nil {
++				return errPathEscapes
++			}
++			symlinks++
++			if symlinks > rootMaxSymlinks {
++				return errors.New("too many symlinks")
++			}
++			newparts, err := splitPathInRoot(link, parts[:i], parts[i+1:])
++			if err != nil {
++				return err
++			}
++			parts = newparts
++			continue
++		}
++		if !fi.IsDir() && i < len(parts)-1 {
++			return syscall.ENOTDIR
++		}
++
++		base = next
++		i++
++	}
++	return nil
++}
+diff --git a/src/os/root_nonwindows.go b/src/os/root_nonwindows.go
+new file mode 100644
+index 0000000000..e40ce4d7d6
+--- /dev/null
++++ b/src/os/root_nonwindows.go
+@@ -0,0 +1,11 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !windows
++
++package os
++
++func rootCleanPath(s string, prefix, suffix []string) (string, error) {
++	return s, nil
++}
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+new file mode 100644
+index 0000000000..be7f5507eb
+--- /dev/null
++++ b/src/os/root_noopenat.go
+@@ -0,0 +1,86 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (js && wasm) || plan9
++
++package os
++
++import (
++	"errors"
++	"sync/atomic"
++)
++
++// root implementation for platforms with no openat.
++// Currently plan9 and js.
++type root struct {
++	name   string
++	closed atomic.Bool
++}
++
++// openRootNolog is OpenRoot.
++func openRootNolog(name string) (*Root, error) {
++	r, err := newRoot(name)
++	if err != nil {
++		return nil, &PathError{Op: "open", Path: name, Err: err}
++	}
++	return r, nil
++}
++
++// openRootInRoot is Root.OpenRoot.
++func openRootInRoot(r *Root, name string) (*Root, error) {
++	if err := checkPathEscapes(r, name); err != nil {
++		return nil, &PathError{Op: "openat", Path: name, Err: err}
++	}
++	r, err := newRoot(joinPath(r.root.name, name))
++	if err != nil {
++		return nil, &PathError{Op: "openat", Path: name, Err: err}
++	}
++	return r, nil
++}
++
++// newRoot returns a new Root.
++// If fd is not a directory, it closes it and returns an error.
++func newRoot(name string) (*Root, error) {
++	fi, err := Stat(name)
++	if err != nil {
++		return nil, err.(*PathError).Err
++	}
++	if !fi.IsDir() {
++		return nil, errors.New("not a directory")
++	}
++	return &Root{root{name: name}}, nil
++}
++
++func (r *root) Close() error {
++	// For consistency with platforms where Root.Close closes a handle,
++	// mark the Root as closed and return errors from future calls.
++	r.closed.Store(true)
++	return nil
++}
++
++func (r *root) Name() string {
++	return r.name
++}
++
++// rootOpenFileNolog is Root.OpenFile.
++func rootOpenFileNolog(r *Root, name string, flag int, perm FileMode) (*File, error) {
++	if err := checkPathEscapes(r, name); err != nil {
++		return nil, &PathError{Op: "openat", Path: name, Err: err}
++	}
++	f, err := openFileNolog(joinPath(r.root.name, name), flag, perm)
++	if err != nil {
++		return nil, &PathError{Op: "openat", Path: name, Err: underlyingError(err)}
++	}
++	return f, nil
++}
++
++func rootMkdir(r *Root, name string, perm FileMode) error {
++	if err := checkPathEscapes(r, name); err != nil {
++		return &PathError{Op: "mkdirat", Path: name, Err: err}
++	}
++	if err := Mkdir(joinPath(r.root.name, name), perm); err != nil {
++		return &PathError{Op: "mkdirat", Path: name, Err: underlyingError(err)}
++	}
++	return nil
++}
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+new file mode 100644
+index 0000000000..7f6619bab4
+--- /dev/null
++++ b/src/os/root_openat.go
+@@ -0,0 +1,199 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || windows || wasip1
++
++package os
++
++import (
++	"runtime"
++	"slices"
++	"sync"
++	"syscall"
++)
++
++// root implementation for platforms with a function to open a file
++// relative to a directory.
++type root struct {
++	name string
++
++	// refs is incremented while an operation is using fd.
++	// closed is set when Close is called.
++	// fd is closed when closed is true and refs is 0.
++	mu     sync.Mutex
++	fd     sysfdType
++	refs   int  // number of active operations
++	closed bool // set when closed
++}
++
++func (r *root) Close() error {
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	if !r.closed && r.refs == 0 {
++		syscall.Close(r.fd)
++	}
++	r.closed = true
++	runtime.SetFinalizer(r, nil) // no need for a finalizer any more
++	return nil
++}
++
++func (r *root) incref() error {
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	if r.closed {
++		return ErrClosed
++	}
++	r.refs++
++	return nil
++}
++
++func (r *root) decref() {
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	if r.refs <= 0 {
++		panic("bad Root refcount")
++	}
++	r.refs--
++	if r.closed && r.refs == 0 {
++		syscall.Close(r.fd)
++	}
++}
++
++func (r *root) Name() string {
++	return r.name
++}
++
++func rootMkdir(r *Root, name string, perm FileMode) error {
++	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++		return struct{}{}, mkdirat(parent, name, perm)
++	})
++	if err != nil {
++		return &PathError{Op: "mkdirat", Path: name, Err: err}
++	}
++	return err
++}
++
++// doInRoot performs an operation on a path in a Root.
++//
++// It opens the directory containing the final element of the path,
++// and calls f with the directory FD and name of the final element.
++//
++// If the path refers to a symlink which should be followed,
++// then f must return errSymlink.
++// doInRoot will follow the symlink and call f again.
++func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string) (T, error)) (ret T, err error) {
++	if err := r.root.incref(); err != nil {
++		return ret, err
++	}
++	defer r.root.decref()
++
++	parts, err := splitPathInRoot(name, nil, nil)
++	if err != nil {
++		return ret, err
++	}
++
++	rootfd := r.root.fd
++	dirfd := rootfd
++	defer func() {
++		if dirfd != rootfd {
++			syscall.Close(dirfd)
++		}
++	}()
++
++	// When resolving .. path components, we restart path resolution from the root.
++	// (We can't openat(dir, "..") to move up to the parent directory,
++	// because dir may have moved since we opened it.)
++	// To limit how many opens a malicious path can cause us to perform, we set
++	// a limit on the total number of path steps and the total number of restarts
++	// caused by .. components. If *both* limits are exceeded, we halt the operation.
++	const maxSteps = 255
++	const maxRestarts = 8
++
++	i := 0
++	steps := 0
++	restarts := 0
++	symlinks := 0
++	for {
++		steps++
++		if steps > maxSteps && restarts > maxRestarts {
++			return ret, syscall.ENAMETOOLONG
++		}
++
++		if parts[i] == ".." {
++			// Resolve one or more parent ("..") path components.
++			//
++			// Rewrite the original path,
++			// removing the elements eliminated by ".." components,
++			// and start over from the beginning.
++			restarts++
++			end := i + 1
++			for end < len(parts) && parts[end] == ".." {
++				end++
++			}
++			count := end - i
++			if count > i {
++				return ret, errPathEscapes
++			}
++			parts = slices.Delete(parts, i-count, end)
++			i = 0
++			if dirfd != rootfd {
++				syscall.Close(dirfd)
++			}
++			dirfd = rootfd
++			continue
++		}
++
++		if i == len(parts)-1 {
++			// This is the last path element.
++			// Call f to decide what to do with it.
++			// If f returns errSymlink, this element is a symlink
++			// which should be followed.
++			ret, err = f(dirfd, parts[i])
++			if _, ok := err.(errSymlink); !ok {
++				return ret, err
++			}
++		} else {
++			var fd sysfdType
++			fd, err = rootOpenDir(dirfd, parts[i])
++			if err == nil {
++				if dirfd != rootfd {
++					syscall.Close(dirfd)
++				}
++				dirfd = fd
++			} else if _, ok := err.(errSymlink); !ok {
++				return ret, err
++			}
++		}
++
++		if e, ok := err.(errSymlink); ok {
++			symlinks++
++			if symlinks > rootMaxSymlinks {
++				return ret, syscall.ELOOP
++			}
++			newparts, err := splitPathInRoot(string(e), parts[:i], parts[i+1:])
++			if err != nil {
++				return ret, err
++			}
++			if len(newparts) < i || !slices.Equal(parts[:i], newparts[:i]) {
++				// Some component in the path which we have already traversed
++				// has changed. We need to restart parsing from the root.
++				i = 0
++				if dirfd != rootfd {
++					syscall.Close(dirfd)
++				}
++				dirfd = rootfd
++			}
++			parts = newparts
++			continue
++		}
++
++		i++
++	}
++}
++
++// errSymlink reports that a file being operated on is actually a symlink,
++// and the target of that symlink.
++type errSymlink string
++
++func (errSymlink) Error() string { panic("errSymlink is not user-visible") }
+diff --git a/src/os/root_plan9.go b/src/os/root_plan9.go
+new file mode 100644
+index 0000000000..0a26e7352a
+--- /dev/null
++++ b/src/os/root_plan9.go
+@@ -0,0 +1,21 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build plan9
++
++package os
++
++import (
++	"internal/filepathlite"
++)
++
++func checkPathEscapes(r *Root, name string) error {
++	if r.root.closed.Load() {
++		return ErrClosed
++	}
++	if !filepathlite.IsLocal(name) {
++		return errPathEscapes
++	}
++	return nil
++}
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+new file mode 100644
+index 0000000000..1edccf362c
+--- /dev/null
++++ b/src/os/root_test.go
+@@ -0,0 +1,960 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os_test
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"io"
++	"io/fs"
++	"net"
++	"os"
++	"path"
++	"path/filepath"
++	"runtime"
++	"slices"
++	"strings"
++	"testing"
++	"time"
++)
++
++// testMaybeRooted calls f in two subtests,
++// one with a Root and one with a nil r.
++func testMaybeRooted(t *testing.T, f func(t *testing.T, r *os.Root)) {
++	t.Run("NoRoot", func(t *testing.T) {
++		t.Chdir(t.TempDir())
++		f(t, nil)
++	})
++	t.Run("InRoot", func(t *testing.T) {
++		t.Chdir(t.TempDir())
++		r, err := os.OpenRoot(".")
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer r.Close()
++		f(t, r)
++	})
++}
++
++// makefs creates a test filesystem layout and returns the path to its root.
++//
++// Each entry in the slice is a file, directory, or symbolic link to create:
++//
++//   - "d/": directory d
++//   - "f": file f with contents f
++//   - "a => b": symlink a with target b
++//
++// The directory containing the filesystem is always named ROOT.
++// $ABS is replaced with the absolute path of the directory containing the filesystem.
++//
++// Parent directories are automatically created as needed.
++//
++// makefs calls t.Skip if the layout contains features not supported by the current GOOS.
++func makefs(t *testing.T, fs []string) string {
++	root := path.Join(t.TempDir(), "ROOT")
++	if err := os.Mkdir(root, 0o777); err != nil {
++		t.Fatal(err)
++	}
++	for _, ent := range fs {
++		ent = strings.ReplaceAll(ent, "$ABS", root)
++		base, link, isLink := strings.Cut(ent, " => ")
++		if isLink {
++			if runtime.GOOS == "wasip1" && path.IsAbs(link) {
++				t.Skip("absolute link targets not supported on " + runtime.GOOS)
++			}
++			if runtime.GOOS == "plan9" {
++				t.Skip("symlinks not supported on " + runtime.GOOS)
++			}
++			ent = base
++		}
++		if err := os.MkdirAll(path.Join(root, path.Dir(base)), 0o777); err != nil {
++			t.Fatal(err)
++		}
++		if isLink {
++			if err := os.Symlink(link, path.Join(root, base)); err != nil {
++				t.Fatal(err)
++			}
++		} else if strings.HasSuffix(ent, "/") {
++			if err := os.MkdirAll(path.Join(root, ent), 0o777); err != nil {
++				t.Fatal(err)
++			}
++		} else {
++			if err := os.WriteFile(path.Join(root, ent), []byte(ent), 0o666); err != nil {
++				t.Fatal(err)
++			}
++		}
++	}
++	return root
++}
++
++// A rootTest is a test case for os.Root.
++type rootTest struct {
++	name string
++
++	// fs is the test filesystem layout. See makefs above.
++	fs []string
++
++	// open is the filename to access in the test.
++	open string
++
++	// target is the filename that we expect to be accessed, after resolving all symlinks.
++	// For test cases where the operation fails due to an escaping path such as ../ROOT/x,
++	// the target is the filename that should not have been opened.
++	target string
++
++	// wantError is true if accessing the file should fail.
++	wantError bool
++
++	// alwaysFails is true if the open operation is expected to fail
++	// even when using non-openat operations.
++	//
++	// This lets us check that tests that are expected to fail because (for example)
++	// a path escapes the directory root will succeed when the escaping checks are not
++	// performed.
++	alwaysFails bool
++}
++
++// run sets up the test filesystem layout, os.OpenDirs the root, and calls f.
++func (test *rootTest) run(t *testing.T, f func(t *testing.T, target string, d *os.Root)) {
++	t.Run(test.name, func(t *testing.T) {
++		root := makefs(t, test.fs)
++		d, err := os.OpenRoot(root)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer d.Close()
++		// The target is a file that will be accessed,
++		// or a file that should not be accessed
++		// (because doing so escapes the root).
++		target := test.target
++		if test.target != "" {
++			target = filepath.Join(root, test.target)
++		}
++		f(t, target, d)
++	})
++}
++
++// errEndsTest checks the error result of a test,
++// verifying that it succeeded or failed as expected.
++//
++// It returns true if the test is done due to encountering an expected error.
++// false if the test should continue.
++func errEndsTest(t *testing.T, err error, wantError bool, format string, args ...any) bool {
++	t.Helper()
++	if wantError {
++		if err == nil {
++			op := fmt.Sprintf(format, args...)
++			t.Fatalf("%v = nil; want error", op)
++		}
++		return true
++	} else {
++		if err != nil {
++			op := fmt.Sprintf(format, args...)
++			t.Fatalf("%v = %v; want success", op, err)
++		}
++		return false
++	}
++}
++
++var rootTestCases = []rootTest{{
++	name:   "plain path",
++	fs:     []string{},
++	open:   "target",
++	target: "target",
++}, {
++	name: "path in directory",
++	fs: []string{
++		"a/b/c/",
++	},
++	open:   "a/b/c/target",
++	target: "a/b/c/target",
++}, {
++	name: "symlink",
++	fs: []string{
++		"link => target",
++	},
++	open:   "link",
++	target: "target",
++}, {
++	name: "symlink chain",
++	fs: []string{
++		"link => a/b/c/target",
++		"a/b => e",
++		"a/e => ../f",
++		"f => g/h/i",
++		"g/h/i => ..",
++		"g/c/",
++	},
++	open:   "link",
++	target: "g/c/target",
++}, {
++	name: "path with dot",
++	fs: []string{
++		"a/b/",
++	},
++	open:   "./a/./b/./target",
++	target: "a/b/target",
++}, {
++	name: "path with dotdot",
++	fs: []string{
++		"a/b/",
++	},
++	open:   "a/../a/b/../../a/b/../b/target",
++	target: "a/b/target",
++}, {
++	name: "dotdot no symlink",
++	fs: []string{
++		"a/",
++	},
++	open:   "a/../target",
++	target: "target",
++}, {
++	name: "dotdot after symlink",
++	fs: []string{
++		"a => b/c",
++		"b/c/",
++	},
++	open: "a/../target",
++	target: func() string {
++		if runtime.GOOS == "windows" {
++			// On Windows, the path is cleaned before symlink resolution.
++			return "target"
++		}
++		return "b/target"
++	}(),
++}, {
++	name: "dotdot before symlink",
++	fs: []string{
++		"a => b/c",
++		"b/c/",
++	},
++	open:   "b/../a/target",
++	target: "b/c/target",
++}, {
++	name:        "directory does not exist",
++	fs:          []string{},
++	open:        "a/file",
++	wantError:   true,
++	alwaysFails: true,
++}, {
++	name:        "empty path",
++	fs:          []string{},
++	open:        "",
++	wantError:   true,
++	alwaysFails: true,
++}, {
++	name: "symlink cycle",
++	fs: []string{
++		"a => a",
++	},
++	open:        "a",
++	wantError:   true,
++	alwaysFails: true,
++}, {
++	name:      "path escapes",
++	fs:        []string{},
++	open:      "../ROOT/target",
++	target:    "target",
++	wantError: true,
++}, {
++	name: "long path escapes",
++	fs: []string{
++		"a/",
++	},
++	open:      "a/../../ROOT/target",
++	target:    "target",
++	wantError: true,
++}, {
++	name: "absolute symlink",
++	fs: []string{
++		"link => $ABS/target",
++	},
++	open:      "link",
++	target:    "target",
++	wantError: true,
++}, {
++	name: "relative symlink",
++	fs: []string{
++		"link => ../ROOT/target",
++	},
++	open:      "link",
++	target:    "target",
++	wantError: true,
++}, {
++	name: "symlink chain escapes",
++	fs: []string{
++		"link => a/b/c/target",
++		"a/b => e",
++		"a/e => ../../ROOT",
++		"c/",
++	},
++	open:      "link",
++	target:    "c/target",
++	wantError: true,
++}}
++
++func TestRootOpen_File(t *testing.T) {
++	want := []byte("target")
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			if target != "" {
++				if err := os.WriteFile(target, want, 0o666); err != nil {
++					t.Fatal(err)
++				}
++			}
++			f, err := root.Open(test.open)
++			if errEndsTest(t, err, test.wantError, "root.Open(%q)", test.open) {
++				return
++			}
++			defer f.Close()
++			got, err := io.ReadAll(f)
++			if err != nil || !bytes.Equal(got, want) {
++				t.Errorf(`Dir.Open(%q): read content %q, %v; want %q`, test.open, string(got), err, string(want))
++			}
++		})
++	}
++}
++
++func TestRootOpen_Directory(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			if target != "" {
++				if err := os.Mkdir(target, 0o777); err != nil {
++					t.Fatal(err)
++				}
++				if err := os.WriteFile(target+"/found", nil, 0o666); err != nil {
++					t.Fatal(err)
++				}
++			}
++			f, err := root.Open(test.open)
++			if errEndsTest(t, err, test.wantError, "root.Open(%q)", test.open) {
++				return
++			}
++			defer f.Close()
++			got, err := f.Readdirnames(-1)
++			if err != nil {
++				t.Errorf(`Dir.Open(%q).Readdirnames: %v`, test.open, err)
++			}
++			if want := []string{"found"}; !slices.Equal(got, want) {
++				t.Errorf(`Dir.Open(%q).Readdirnames: %q, want %q`, test.open, got, want)
++			}
++		})
++	}
++}
++
++func TestRootCreate(t *testing.T) {
++	want := []byte("target")
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			f, err := root.Create(test.open)
++			if errEndsTest(t, err, test.wantError, "root.Create(%q)", test.open) {
++				return
++			}
++			if _, err := f.Write(want); err != nil {
++				t.Fatal(err)
++			}
++			f.Close()
++			got, err := os.ReadFile(target)
++			if err != nil {
++				t.Fatalf(`reading file created with root.Create(%q): %v`, test.open, err)
++			}
++			if !bytes.Equal(got, want) {
++				t.Fatalf(`reading file created with root.Create(%q): got %q; want %q`, test.open, got, want)
++			}
++		})
++	}
++}
++
++func TestRootMkdir(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			wantError := test.wantError
++			if !wantError {
++				fi, err := os.Lstat(filepath.Join(root.Name(), test.open))
++				if err == nil && fi.Mode().Type() == fs.ModeSymlink {
++					// This case is trying to mkdir("some symlink"),
++					// which is an error.
++					wantError = true
++				}
++			}
++
++			err := root.Mkdir(test.open, 0o777)
++			if errEndsTest(t, err, wantError, "root.Create(%q)", test.open) {
++				return
++			}
++			fi, err := os.Lstat(target)
++			if err != nil {
++				t.Fatalf(`stat file created with Root.Mkdir(%q): %v`, test.open, err)
++			}
++			if !fi.IsDir() {
++				t.Fatalf(`stat file created with Root.Mkdir(%q): not a directory`, test.open)
++			}
++		})
++	}
++}
++
++func TestRootOpenRoot(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			if target != "" {
++				if err := os.Mkdir(target, 0o777); err != nil {
++					t.Fatal(err)
++				}
++				if err := os.WriteFile(target+"/f", nil, 0o666); err != nil {
++					t.Fatal(err)
++				}
++			}
++			rr, err := root.OpenRoot(test.open)
++			if errEndsTest(t, err, test.wantError, "root.OpenRoot(%q)", test.open) {
++				return
++			}
++			defer rr.Close()
++			f, err := rr.Open("f")
++			if err != nil {
++				t.Fatalf(`root.OpenRoot(%q).Open("f") = %v`, test.open, err)
++			}
++			f.Close()
++		})
++	}
++}
++
++func TestRootOpenFileAsRoot(t *testing.T) {
++	dir := t.TempDir()
++	target := filepath.Join(dir, "target")
++	if err := os.WriteFile(target, nil, 0o666); err != nil {
++		t.Fatal(err)
++	}
++	_, err := os.OpenRoot(target)
++	if err == nil {
++		t.Fatal("os.OpenRoot(file) succeeded; want failure")
++	}
++	r, err := os.OpenRoot(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r.Close()
++	_, err = r.OpenRoot("target")
++	if err == nil {
++		t.Fatal("Root.OpenRoot(file) succeeded; want failure")
++	}
++}
++
++// A rootConsistencyTest is a test case comparing os.Root behavior with
++// the corresponding non-Root function.
++//
++// These tests verify that, for example, Root.Open("file/./") and os.Open("file/./")
++// have the same result, although the specific result may vary by platform.
++type rootConsistencyTest struct {
++	name string
++
++	// fs is the test filesystem layout. See makefs above.
++	// fsFunc is called to modify the test filesystem, or replace it.
++	fs     []string
++	fsFunc func(t *testing.T, dir string) string
++
++	// open is the filename to access in the test.
++	open string
++
++	// detailedErrorMismatch indicates that os.Root and the corresponding non-Root
++	// function return different errors for this test.
++	detailedErrorMismatch func(t *testing.T) bool
++}
++
++var rootConsistencyTestCases = []rootConsistencyTest{{
++	name: "file",
++	fs: []string{
++		"target",
++	},
++	open: "target",
++}, {
++	name: "dir slash dot",
++	fs: []string{
++		"target/file",
++	},
++	open: "target/.",
++}, {
++	name: "dot",
++	fs: []string{
++		"file",
++	},
++	open: ".",
++}, {
++	name: "file slash dot",
++	fs: []string{
++		"target",
++	},
++	open: "target/.",
++	detailedErrorMismatch: func(t *testing.T) bool {
++		// FreeBSD returns EPERM in the non-Root case.
++		return runtime.GOOS == "freebsd" && strings.HasPrefix(t.Name(), "TestRootConsistencyRemove")
++	},
++}, {
++	name: "dir slash",
++	fs: []string{
++		"target/file",
++	},
++	open: "target/",
++}, {
++	name: "dot slash",
++	fs: []string{
++		"file",
++	},
++	open: "./",
++}, {
++	name: "file slash",
++	fs: []string{
++		"target",
++	},
++	open: "target/",
++	detailedErrorMismatch: func(t *testing.T) bool {
++		// os.Create returns ENOTDIR or EISDIR depending on the platform.
++		return runtime.GOOS == "js"
++	},
++}, {
++	name: "file in path",
++	fs: []string{
++		"file",
++	},
++	open: "file/target",
++}, {
++	name: "directory in path missing",
++	open: "dir/target",
++}, {
++	name: "target does not exist",
++	open: "target",
++}, {
++	name: "symlink slash",
++	fs: []string{
++		"target/file",
++		"link => target",
++	},
++	open: "link/",
++}, {
++	name: "unresolved symlink",
++	fs: []string{
++		"link => target",
++	},
++	open: "link",
++}, {
++	name: "resolved symlink",
++	fs: []string{
++		"link => target",
++		"target",
++	},
++	open: "link",
++}, {
++	name: "dotdot in path after symlink",
++	fs: []string{
++		"a => b/c",
++		"b/c/",
++		"b/target",
++	},
++	open: "a/../target",
++}, {
++	name: "long file name",
++	open: strings.Repeat("a", 500),
++}, {
++	name: "unreadable directory",
++	fs: []string{
++		"dir/target",
++	},
++	fsFunc: func(t *testing.T, dir string) string {
++		os.Chmod(filepath.Join(dir, "dir"), 0)
++		t.Cleanup(func() {
++			os.Chmod(filepath.Join(dir, "dir"), 0o700)
++		})
++		return dir
++	},
++	open: "dir/target",
++}, {
++	name: "unix domain socket target",
++	fsFunc: func(t *testing.T, dir string) string {
++		return tempDirWithUnixSocket(t, "a")
++	},
++	open: "a",
++}, {
++	name: "unix domain socket in path",
++	fsFunc: func(t *testing.T, dir string) string {
++		return tempDirWithUnixSocket(t, "a")
++	},
++	open: "a/b",
++	detailedErrorMismatch: func(t *testing.T) bool {
++		// On Windows, os.Root.Open returns "The directory name is invalid."
++		// and os.Open returns "The file cannot be accessed by the system.".
++		return runtime.GOOS == "windows"
++	},
++}, {
++	name: "question mark",
++	open: "?",
++}, {
++	name: "nul byte",
++	open: "\x00",
++}}
++
++func tempDirWithUnixSocket(t *testing.T, name string) string {
++	dir, err := os.MkdirTemp("", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() {
++		if err := os.RemoveAll(dir); err != nil {
++			t.Error(err)
++		}
++	})
++	addr, err := net.ResolveUnixAddr("unix", filepath.Join(dir, name))
++	if err != nil {
++		t.Skipf("net.ResolveUnixAddr: %v", err)
++	}
++	conn, err := net.ListenUnix("unix", addr)
++	if err != nil {
++		t.Skipf("net.ListenUnix: %v", err)
++	}
++	t.Cleanup(func() {
++		conn.Close()
++	})
++	return dir
++}
++
++func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path string, r *os.Root) (string, error)) {
++	if runtime.GOOS == "wasip1" {
++		// On wasip, non-Root functions clean paths before opening them,
++		// resulting in inconsistent behavior.
++		// https://go.dev/issue/69509
++		t.Skip("#69509: inconsistent results on wasip1")
++	}
++
++	t.Run(test.name, func(t *testing.T) {
++		dir1 := makefs(t, test.fs)
++		dir2 := makefs(t, test.fs)
++		if test.fsFunc != nil {
++			dir1 = test.fsFunc(t, dir1)
++			dir2 = test.fsFunc(t, dir2)
++		}
++
++		r, err := os.OpenRoot(dir1)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer r.Close()
++
++		res1, err1 := f(t, test.open, r)
++		res2, err2 := f(t, dir2+"/"+test.open, nil)
++
++		if res1 != res2 || ((err1 == nil) != (err2 == nil)) {
++			t.Errorf("with root:    res=%v", res1)
++			t.Errorf("              err=%v", err1)
++			t.Errorf("without root: res=%v", res2)
++			t.Errorf("              err=%v", err2)
++			t.Errorf("want consistent results, got mismatch")
++		}
++
++		if err1 != nil || err2 != nil {
++			e1, ok := err1.(*os.PathError)
++			if !ok {
++				t.Fatalf("with root, expected PathError; got: %v", err1)
++			}
++			e2, ok := err2.(*os.PathError)
++			if !ok {
++				t.Fatalf("without root, expected PathError; got: %v", err1)
++			}
++			detailedErrorMismatch := false
++			if f := test.detailedErrorMismatch; f != nil {
++				detailedErrorMismatch = f(t)
++			}
++			if !detailedErrorMismatch && e1.Err != e2.Err {
++				t.Errorf("with root:    err=%v", e1.Err)
++				t.Errorf("without root: err=%v", e2.Err)
++				t.Errorf("want consistent results, got mismatch")
++			}
++		}
++	})
++}
++
++func TestRootConsistencyOpen(t *testing.T) {
++	for _, test := range rootConsistencyTestCases {
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			var f *os.File
++			var err error
++			if r == nil {
++				f, err = os.Open(path)
++			} else {
++				f, err = r.Open(path)
++			}
++			if err != nil {
++				return "", err
++			}
++			defer f.Close()
++			fi, err := f.Stat()
++			if err == nil && !fi.IsDir() {
++				b, err := io.ReadAll(f)
++				return string(b), err
++			} else {
++				names, err := f.Readdirnames(-1)
++				slices.Sort(names)
++				return fmt.Sprintf("%q", names), err
++			}
++		})
++	}
++}
++
++func TestRootConsistencyCreate(t *testing.T) {
++	for _, test := range rootConsistencyTestCases {
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			var f *os.File
++			var err error
++			if r == nil {
++				f, err = os.Create(path)
++			} else {
++				f, err = r.Create(path)
++			}
++			if err == nil {
++				f.Write([]byte("file contents"))
++				f.Close()
++			}
++			return "", err
++		})
++	}
++}
++
++func TestRootConsistencyMkdir(t *testing.T) {
++	for _, test := range rootConsistencyTestCases {
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			var err error
++			if r == nil {
++				err = os.Mkdir(path, 0o777)
++			} else {
++				err = r.Mkdir(path, 0o777)
++			}
++			return "", err
++		})
++	}
++}
++
++func TestRootRenameAfterOpen(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows":
++		t.Skip("renaming open files not supported on " + runtime.GOOS)
++	case "js", "plan9":
++		t.Skip("openat not supported on " + runtime.GOOS)
++	case "wasip1":
++		if os.Getenv("GOWASIRUNTIME") == "wazero" {
++			t.Skip("wazero does not track renamed directories")
++		}
++	}
++
++	dir := t.TempDir()
++
++	// Create directory "a" and open it.
++	if err := os.Mkdir(filepath.Join(dir, "a"), 0o777); err != nil {
++		t.Fatal(err)
++	}
++	dirf, err := os.OpenRoot(filepath.Join(dir, "a"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer dirf.Close()
++
++	// Rename "a" => "b", and create "b/f".
++	if err := os.Rename(filepath.Join(dir, "a"), filepath.Join(dir, "b")); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(dir, "b/f"), []byte("hello"), 0o666); err != nil {
++		t.Fatal(err)
++	}
++
++	// Open "f", and confirm that we see it.
++	f, err := dirf.OpenFile("f", os.O_RDONLY, 0)
++	if err != nil {
++		t.Fatalf("reading file after renaming parent: %v", err)
++	}
++	defer f.Close()
++	b, err := io.ReadAll(f)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got, want := string(b), "hello"; got != want {
++		t.Fatalf("file contents: %q, want %q", got, want)
++	}
++
++	// f.Name reflects the original path we opened the directory under (".../a"), not "b".
++	if got, want := f.Name(), dirf.Name()+string(os.PathSeparator)+"f"; got != want {
++		t.Errorf("f.Name() = %q, want %q", got, want)
++	}
++}
++
++func TestRootNonPermissionMode(t *testing.T) {
++	r, err := os.OpenRoot(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r.Close()
++	if _, err := r.OpenFile("file", os.O_RDWR|os.O_CREATE, 0o1777); err == nil {
++		t.Errorf("r.OpenFile(file, O_RDWR|O_CREATE, 0o1777) succeeded; want error")
++	}
++	if err := r.Mkdir("file", 0o1777); err == nil {
++		t.Errorf("r.Mkdir(file, 0o1777) succeeded; want error")
++	}
++}
++
++func TestRootUseAfterClose(t *testing.T) {
++	r, err := os.OpenRoot(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
++	r.Close()
++	for _, test := range []struct {
++		name string
++		f    func(r *os.Root, filename string) error
++	}{{
++		name: "Open",
++		f: func(r *os.Root, filename string) error {
++			_, err := r.Open(filename)
++			return err
++		},
++	}, {
++		name: "Create",
++		f: func(r *os.Root, filename string) error {
++			_, err := r.Create(filename)
++			return err
++		},
++	}, {
++		name: "OpenFile",
++		f: func(r *os.Root, filename string) error {
++			_, err := r.OpenFile(filename, os.O_RDWR, 0o666)
++			return err
++		},
++	}, {
++		name: "OpenRoot",
++		f: func(r *os.Root, filename string) error {
++			_, err := r.OpenRoot(filename)
++			return err
++		},
++	}, {
++		name: "Mkdir",
++		f: func(r *os.Root, filename string) error {
++			return r.Mkdir(filename, 0o777)
++		},
++	}} {
++		err := test.f(r, "target")
++		pe, ok := err.(*os.PathError)
++		if !ok || pe.Path != "target" || pe.Err != os.ErrClosed {
++			t.Errorf(`r.%v = %v; want &PathError{Path: "target", Err: ErrClosed}`, test.name, err)
++		}
++	}
++}
++
++func TestRootConcurrentClose(t *testing.T) {
++	r, err := os.OpenRoot(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
++	ch := make(chan error, 1)
++	go func() {
++		defer close(ch)
++		first := true
++		for {
++			f, err := r.OpenFile("file", os.O_RDWR|os.O_CREATE, 0o666)
++			if err != nil {
++				ch <- err
++				return
++			}
++			if first {
++				ch <- nil
++				first = false
++			}
++			f.Close()
++		}
++	}()
++	if err := <-ch; err != nil {
++		t.Errorf("OpenFile: %v, want success", err)
++	}
++	r.Close()
++	if err := <-ch; !errors.Is(err, os.ErrClosed) {
++		t.Errorf("OpenFile: %v, want ErrClosed", err)
++	}
++}
++
++// TestRootRaceRenameDir attempts to escape a Root by renaming a path component mid-parse.
++//
++// We create a deeply nested directory:
++//
++//	base/a/a/a/a/ [...] /a
++//
++// And a path that descends into the tree, then returns to the top using ..:
++//
++//	base/a/a/a/a/ [...] /a/../../../ [..] /../a/f
++//
++// While opening this file, we rename base/a/a to base/b.
++// A naive lookup operation will resolve the path to base/f.
++func TestRootRaceRenameDir(t *testing.T) {
++	dir := t.TempDir()
++	r, err := os.OpenRoot(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r.Close()
++
++	const depth = 4
++
++	os.MkdirAll(dir+"/base/"+strings.Repeat("/a", depth), 0o777)
++
++	path := "base/" + strings.Repeat("a/", depth) + strings.Repeat("../", depth) + "a/f"
++	os.WriteFile(dir+"/f", []byte("secret"), 0o666)
++	os.WriteFile(dir+"/base/a/f", []byte("public"), 0o666)
++
++	// Compute how long it takes to open the path in the common case.
++	const tries = 10
++	var total time.Duration
++	for range tries {
++		start := time.Now()
++		f, err := r.Open(path)
++		if err != nil {
++			t.Fatal(err)
++		}
++		b, err := io.ReadAll(f)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if string(b) != "public" {
++			t.Fatalf("read %q, want %q", b, "public")
++		}
++		f.Close()
++		total += time.Since(start)
++	}
++	avg := total / tries
++
++	// We're trying to exploit a race, so try this a number of times.
++	for range 100 {
++		// Start a goroutine to open the file.
++		gotc := make(chan []byte)
++		go func() {
++			f, err := r.Open(path)
++			if err != nil {
++				gotc <- nil
++			}
++			defer f.Close()
++			b, _ := io.ReadAll(f)
++			gotc <- b
++		}()
++
++		// Wait for the open operation to partially complete,
++		// and then rename a directory near the root.
++		time.Sleep(avg / 4)
++		if err := os.Rename(dir+"/base/a", dir+"/b"); err != nil {
++			// Windows won't let us rename a directory if we have
++			// an open handle for it, so an error here is expected.
++			if runtime.GOOS != "windows" {
++				t.Fatal(err)
++			}
++		}
++
++		got := <-gotc
++		os.Rename(dir+"/b", dir+"/base/a")
++		if len(got) > 0 && string(got) != "public" {
++			t.Errorf("read file: %q; want error or 'public'", got)
++		}
++	}
++}
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+new file mode 100644
+index 0000000000..496a11903b
+--- /dev/null
++++ b/src/os/root_unix.go
+@@ -0,0 +1,158 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || wasip1
++
++package os
++
++import (
++	"errors"
++	"internal/syscall/unix"
++	"runtime"
++	"syscall"
++)
++
++type sysfdType = int
++
++// openRootNolog is OpenRoot.
++func openRootNolog(name string) (*Root, error) {
++	var fd int
++	err := ignoringEINTR(func() error {
++		var err error
++		fd, _, err = open(name, syscall.O_CLOEXEC, 0)
++		return err
++	})
++	if err != nil {
++		return nil, &PathError{Op: "open", Path: name, Err: err}
++	}
++	return newRoot(fd, name)
++}
++
++// newRoot returns a new Root.
++// If fd is not a directory, it closes it and returns an error.
++func newRoot(fd int, name string) (*Root, error) {
++	var fs fileStat
++	err := ignoringEINTR(func() error {
++		return syscall.Fstat(fd, &fs.sys)
++	})
++	fillFileStatFromSys(&fs, name)
++	if err == nil && !fs.IsDir() {
++		syscall.Close(fd)
++		return nil, &PathError{Op: "open", Path: name, Err: errors.New("not a directory")}
++	}
++
++	// There's a race here with fork/exec, which we are
++	// content to live with. See ../syscall/exec_unix.go.
++	if !supportsCloseOnExec {
++		syscall.CloseOnExec(fd)
++	}
++
++	r := &Root{root{
++		fd:   fd,
++		name: name,
++	}}
++	runtime.SetFinalizer(&r.root, (*root).Close)
++	return r, nil
++}
++
++// openRootInRoot is Root.OpenRoot.
++func openRootInRoot(r *Root, name string) (*Root, error) {
++	fd, err := doInRoot(r, name, func(parent int, name string) (fd int, err error) {
++		ignoringEINTR(func() error {
++			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
++			if err == syscall.ELOOP || err == syscall.EMLINK {
++				err = checkSymlink(parent, name, err)
++			}
++			return err
++		})
++		return fd, err
++	})
++	if err != nil {
++		return nil, &PathError{Op: "openat", Path: name, Err: err}
++	}
++	return newRoot(fd, name)
++}
++
++// rootOpenFileNolog is Root.OpenFile.
++func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
++	fd, err := doInRoot(root, name, func(parent int, name string) (fd int, err error) {
++		ignoringEINTR(func() error {
++			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|flag, uint32(perm))
++			if err == syscall.ELOOP || err == syscall.ENOTDIR || err == syscall.EMLINK {
++				err = checkSymlink(parent, name, err)
++			}
++			return err
++		})
++		return fd, err
++	})
++	if err != nil {
++		return nil, &PathError{Op: "openat", Path: name, Err: err}
++	}
++	f := newFile(fd, joinPath(root.Name(), name), kindOpenFile, unix.HasNonblockFlag(flag))
++	return f, nil
++}
++
++func rootOpenDir(parent int, name string) (int, error) {
++	var (
++		fd  int
++		err error
++	)
++	ignoringEINTR(func() error {
++		fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|syscall.O_DIRECTORY, 0)
++		if err == syscall.ELOOP || err == syscall.ENOTDIR || err == syscall.EMLINK {
++			err = checkSymlink(parent, name, err)
++		} else if err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP {
++			// ENOTSUP and EOPNOTSUPP are often, but not always, the same errno.
++			// Translate both to ENOTDIR, since this indicates a non-terminal
++			// path component was not a directory.
++			err = syscall.ENOTDIR
++		}
++		return err
++	})
++	return fd, err
++}
++
++func mkdirat(fd int, name string, perm FileMode) error {
++	return ignoringEINTR(func() error {
++		return unix.Mkdirat(fd, name, syscallMode(perm))
++	})
++}
++
++// checkSymlink resolves the symlink name in parent,
++// and returns errSymlink with the link contents.
++//
++// If name is not a symlink, return origError.
++func checkSymlink(parent int, name string, origError error) error {
++	link, err := readlinkat(parent, name)
++	if err != nil {
++		return origError
++	}
++	return errSymlink(link)
++}
++
++func readlinkat(fd int, name string) (string, error) {
++	for len := 128; ; len *= 2 {
++		b := make([]byte, len)
++		var (
++			n int
++			e error
++		)
++		ignoringEINTR(func() error {
++			n, e = unix.Readlinkat(fd, name, b)
++			return e
++		})
++		if e == syscall.ERANGE {
++			continue
++		}
++		if e != nil {
++			return "", e
++		}
++		if n < 0 {
++			n = 0
++		}
++		if n < len {
++			return string(b[0:n]), nil
++		}
++	}
++}
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+new file mode 100644
+index 0000000000..685737ea44
+--- /dev/null
++++ b/src/os/root_windows.go
+@@ -0,0 +1,203 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build windows
++
++package os
++
++import (
++	"errors"
++	"internal/filepathlite"
++	"internal/stringslite"
++	"internal/syscall/windows"
++	"runtime"
++	"syscall"
++	"unsafe"
++)
++
++// rootCleanPath uses GetFullPathName to perform lexical path cleaning.
++//
++// On Windows, file names are lexically cleaned at the start of a file operation.
++// For example, on Windows the path `a\..\b` is exactly equivalent to `b` alone,
++// even if `a` does not exist or is not a directory.
++//
++// We use the Windows API function GetFullPathName to perform this cleaning.
++// We could do this ourselves, but there are a number of subtle behaviors here,
++// and deferring to the OS maintains consistency.
++// (For example, `a\.\` cleans to `a\`.)
++//
++// GetFullPathName operates on absolute paths, and our input path is relative.
++// We make the path absolute by prepending a fixed prefix of \\?\?\.
++//
++// We want to detect paths which use .. components to escape the root.
++// We do this by ensuring the cleaned path still begins with \\?\?\.
++// We catch the corner case of a path which includes a ..\?\. component
++// by rejecting any input paths which contain a ?, which is not a valid character
++// in a Windows filename.
++func rootCleanPath(s string, prefix, suffix []string) (string, error) {
++	// Reject paths which include a ? component (see above).
++	if stringslite.IndexByte(s, '?') >= 0 {
++		return "", windows.ERROR_INVALID_NAME
++	}
++
++	const fixedPrefix = `\\?\?`
++	buf := []byte(fixedPrefix)
++	for _, p := range prefix {
++		buf = append(buf, '\\')
++		buf = append(buf, []byte(p)...)
++	}
++	buf = append(buf, '\\')
++	buf = append(buf, []byte(s)...)
++	for _, p := range suffix {
++		buf = append(buf, '\\')
++		buf = append(buf, []byte(p)...)
++	}
++	s = string(buf)
++
++	s, err := syscall.FullPath(s)
++	if err != nil {
++		return "", err
++	}
++
++	s, ok := stringslite.CutPrefix(s, fixedPrefix)
++	if !ok {
++		return "", errPathEscapes
++	}
++	s = stringslite.TrimPrefix(s, `\`)
++	if s == "" {
++		s = "."
++	}
++
++	if !filepathlite.IsLocal(s) {
++		return "", errPathEscapes
++	}
++
++	return s, nil
++}
++
++type sysfdType = syscall.Handle
++
++// openRootNolog is OpenRoot.
++func openRootNolog(name string) (*Root, error) {
++	if name == "" {
++		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
++	}
++	path := fixLongPath(name)
++	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_CLOEXEC, 0)
++	if err != nil {
++		return nil, &PathError{Op: "open", Path: name, Err: err}
++	}
++	return newRoot(fd, name)
++}
++
++// newRoot returns a new Root.
++// If fd is not a directory, it closes it and returns an error.
++func newRoot(fd syscall.Handle, name string) (*Root, error) {
++	// Check that this is a directory.
++	//
++	// If we get any errors here, ignore them; worst case we create a Root
++	// which returns errors when you try to use it.
++	var fi syscall.ByHandleFileInformation
++	err := syscall.GetFileInformationByHandle(fd, &fi)
++	if err == nil && fi.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY == 0 {
++		syscall.CloseHandle(fd)
++		return nil, &PathError{Op: "open", Path: name, Err: errors.New("not a directory")}
++	}
++
++	r := &Root{root{
++		fd:   fd,
++		name: name,
++	}}
++	runtime.SetFinalizer(&r.root, (*root).Close)
++	return r, nil
++}
++
++// openRootInRoot is Root.OpenRoot.
++func openRootInRoot(r *Root, name string) (*Root, error) {
++	fd, err := doInRoot(r, name, rootOpenDir)
++	if err != nil {
++		return nil, &PathError{Op: "openat", Path: name, Err: err}
++	}
++	return newRoot(fd, name)
++}
++
++// rootOpenFileNolog is Root.OpenFile.
++func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
++	fd, err := doInRoot(root, name, func(parent syscall.Handle, name string) (syscall.Handle, error) {
++		return openat(parent, name, flag, perm)
++	})
++	if err != nil {
++		return nil, &PathError{Op: "openat", Path: name, Err: err}
++	}
++	return newFile(fd, joinPath(root.Name(), name), "file"), nil
++}
++
++func openat(dirfd syscall.Handle, name string, flag int, perm FileMode) (syscall.Handle, error) {
++	h, err := windows.Openat(dirfd, name, flag|syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY, syscallMode(perm))
++	if err == syscall.ELOOP || err == syscall.ENOTDIR {
++		if link, err := readReparseLinkAt(dirfd, name); err == nil {
++			return syscall.InvalidHandle, errSymlink(link)
++		}
++	}
++	return h, err
++}
++
++func readReparseLinkAt(dirfd syscall.Handle, name string) (string, error) {
++	objectName, err := windows.NewNTUnicodeString(name)
++	if err != nil {
++		return "", err
++	}
++	objAttrs := &windows.OBJECT_ATTRIBUTES{
++		ObjectName: objectName,
++	}
++	if dirfd != syscall.InvalidHandle {
++		objAttrs.RootDirectory = dirfd
++	}
++	objAttrs.Length = uint32(unsafe.Sizeof(*objAttrs))
++	var h syscall.Handle
++	err = windows.NtCreateFile(
++		&h,
++		windows.FILE_GENERIC_READ,
++		objAttrs,
++		&windows.IO_STATUS_BLOCK{},
++		nil,
++		uint32(syscall.FILE_ATTRIBUTE_NORMAL),
++		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE,
++		windows.FILE_OPEN,
++		windows.FILE_SYNCHRONOUS_IO_NONALERT|windows.FILE_OPEN_REPARSE_POINT,
++		0,
++		0,
++	)
++	if err != nil {
++		return "", err
++	}
++	defer syscall.CloseHandle(h)
++	return readReparseLinkHandle(h)
++}
++
++func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
++	h, err := openat(parent, name, syscall.O_RDONLY|syscall.O_CLOEXEC|windows.O_DIRECTORY, 0)
++	if err == syscall.ERROR_FILE_NOT_FOUND {
++		// Windows returns:
++		//   - ERROR_PATH_NOT_FOUND if any path compoenent before the leaf
++		//     does not exist or is not a directory.
++		//   - ERROR_FILE_NOT_FOUND if the leaf does not exist.
++		//
++		// This differs from Unix behavior, which is:
++		//   - ENOENT if any path component does not exist, including the leaf.
++		//   - ENOTDIR if any path component before the leaf is not a directory.
++		//
++		// We map syscall.ENOENT to ERROR_FILE_NOT_FOUND and syscall.ENOTDIR
++		// to ERROR_PATH_NOT_FOUND, but the Windows errors don't quite match.
++		//
++		// For consistency with os.Open, convert ERROR_FILE_NOT_FOUND here into
++		// ERROR_PATH_NOT_FOUND, since we're opening a non-leaf path component.
++		err = syscall.ERROR_PATH_NOT_FOUND
++	}
++	return h, err
++}
++
++func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
++	return windows.Mkdirat(dirfd, name, syscallMode(perm))
++}
+diff --git a/src/os/root_windows_test.go b/src/os/root_windows_test.go
+new file mode 100644
+index 0000000000..f9bddc0d67
+--- /dev/null
++++ b/src/os/root_windows_test.go
+@@ -0,0 +1,46 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build windows
++
++package os_test
++
++import (
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++// Verify that Root.Open rejects Windows reserved names.
++func TestRootWindowsDeviceNames(t *testing.T) {
++	r, err := os.OpenRoot(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r.Close()
++	if f, err := r.Open("NUL"); err == nil {
++		t.Errorf(`r.Open("NUL") succeeded; want error"`)
++		f.Close()
++	}
++}
++
++// Verify that Root.Open is case-insensitive.
++// (The wrong options to NtOpenFile could make operations case-sensitive,
++// so this is worth checking.)
++func TestRootWindowsCaseInsensitivity(t *testing.T) {
++	dir := t.TempDir()
++	if err := os.WriteFile(filepath.Join(dir, "file"), nil, 0666); err != nil {
++		t.Fatal(err)
++	}
++	r, err := os.OpenRoot(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r.Close()
++	f, err := r.Open("FILE")
++	if err != nil {
++		t.Fatal(err)
++	}
++	f.Close()
++}

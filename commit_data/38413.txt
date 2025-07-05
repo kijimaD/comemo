@@ -15,6 +15,19 @@ Date:   Fri Oct 26 16:43:13 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 3b0293025d..73630faa49 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -9,7 +9,6 @@
+ 
+ // TODO(rsc):
+ //	Could potentially handle many outstanding lookups faster.
+-//	Could have a small cache.
+ //	Random UDP source port (net.Dial should do that for us).
+ //	Random request IDs.
+ 

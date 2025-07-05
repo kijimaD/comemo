@@ -16,7 +16,7 @@ Date:   Tue Apr 27 18:38:55 2021 +0000
     Reviewed-by: Robert Findley <rfindley@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Findley <rfindley@google.com>
-
+---
  src/go/internal/srcimporter/srcimporter.go | 2 +-
  src/go/parser/error_test.go                | 2 +-
  src/go/parser/parser.go                    | 2 +-
@@ -25,3 +25,95 @@ Date:   Tue Apr 27 18:38:55 2021 +0000
  src/go/scanner/scanner.go                  | 2 +-
  src/go/types/infer.go                      | 2 +-
  7 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index 438ae0ff2e..e4225eb4d7 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -30,7 +30,7 @@ type Importer struct {
+ 	packages map[string]*types.Package
+ }
+ 
+-// NewImporter returns a new Importer for the given context, file set, and map
++// New returns a new Importer for the given context, file set, and map
+ // of packages. The context is used to resolve import paths to package paths,
+ // and identifying the files belonging to the package. If the context provides
+ // non-nil file system functions, they are used instead of the regular package
+diff --git a/src/go/parser/error_test.go b/src/go/parser/error_test.go
+index 5d45a7b817..f4f0a5240a 100644
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@ -90,7 +90,7 @@ func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.
+ 				if s[1] == "HERE" {
+ 					pos = here
+ 				}
+-				errors[pos] = string(s[2])
++				errors[pos] = s[2]
+ 			}
+ 		case token.SEMICOLON:
+ 			// don't use the position of auto-inserted (invisible) semicolons
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index a4db57170b..36a044e3a2 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -891,7 +891,7 @@ func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.Field
+ 		rbrack := p.expect(token.RBRACK)
+ 		tparams = &ast.FieldList{Opening: opening, List: list, Closing: rbrack}
+ 		// Type parameter lists must not be empty.
+-		if tparams != nil && tparams.NumFields() == 0 {
++		if tparams.NumFields() == 0 {
+ 			p.error(tparams.Closing, "empty type parameter list")
+ 			tparams = nil // avoid follow-on errors
+ 		}
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index f02c1b847b..ba61f78226 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -844,7 +844,7 @@ func (p *printer) writeWhitespace(n int) {
+ // ----------------------------------------------------------------------------
+ // Printing interface
+ 
+-// nlines limits n to maxNewlines.
++// nlimit limits n to maxNewlines.
+ func nlimit(n int) int {
+ 	if n > maxNewlines {
+ 		n = maxNewlines
+diff --git a/src/go/scanner/errors.go b/src/go/scanner/errors.go
+index bf7bfa30e4..3114f4b645 100644
+--- a/src/go/scanner/errors.go
++++ b/src/go/scanner/errors.go
+@@ -86,7 +86,7 @@ func (p *ErrorList) RemoveMultiples() {
+ 			i++
+ 		}
+ 	}
+-	(*p) = (*p)[0:i]
++	*p = (*p)[0:i]
+ }
+ 
+ // An ErrorList implements the error interface.
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 299c03fc97..29cbf39721 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -430,7 +430,7 @@ func (s *Scanner) digits(base int, invalid *int) (digsep int) {
+ 			if s.ch == '_' {
+ 				ds = 2
+ 			} else if s.ch >= max && *invalid < 0 {
+-				*invalid = int(s.offset) // record invalid rune offset
++				*invalid = s.offset // record invalid rune offset
+ 			}
+ 			digsep |= ds
+ 			s.next()
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 8b491eb3ba..9a45d5e994 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -215,7 +215,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type,
+ 	}
+ 
+ 	// At least one type argument couldn't be inferred.
+-	assert(targs != nil && index >= 0 && targs[index] == nil)
++	assert(index >= 0 && targs[index] == nil)
+ 	tpar := tparams[index]
+ 	if report {
+ 		check.errorf(posn, _Todo, "cannot infer %s (%v) (%v)", tpar.name, tpar.pos, targs)

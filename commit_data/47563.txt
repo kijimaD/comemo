@@ -22,7 +22,7 @@ Date:   Sat Mar 27 10:14:30 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go             | 7 +++++++
  src/cmd/compile/internal/ir/name.go             | 2 +-
  src/cmd/compile/internal/reflectdata/alg.go     | 2 ++
@@ -30,3 +30,93 @@ Date:   Sat Mar 27 10:14:30 2021 -0400
  src/cmd/compile/internal/typecheck/syms.go      | 1 +
  src/cmd/compile/internal/walk/compare.go        | 1 +
  6 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 49b9fa8e54..c95ea36909 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -528,6 +528,13 @@ func (n *SelectorExpr) FuncName() *Name {
+ 	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
+ 	fn.Class = PFUNC
+ 	fn.SetType(n.Type())
++	if n.Selection.Nname != nil {
++		// TODO(austin): Nname is nil for interface method
++		// expressions (I.M), so we can't attach a Func to
++		// those here. reflectdata.methodWrapper generates the
++		// Func.
++		fn.Func = n.Selection.Nname.(*Name).Func
++	}
+ 	return fn
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 5738aa1f3f..5697213eac 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -41,7 +41,7 @@ type Name struct {
+ 	pragma    PragmaFlag // int16
+ 	flags     bitset16
+ 	sym       *types.Sym
+-	Func      *Func
++	Func      *Func // TODO(austin): nil for I.M, eqFor, hashfor, and hashmem
+ 	Offset_   int64
+ 	val       constant.Value
+ 	Opt       interface{} // for use by escape analysis
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index faa431a9d1..9f2efbc3a0 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -287,6 +287,7 @@ func hashfor(t *types.Type) ir.Node {
+ 		sym = TypeSymPrefix(".hash", t)
+ 	}
+ 
++	// TODO(austin): This creates an ir.Name with a nil Func.
+ 	n := typecheck.NewName(sym)
+ 	ir.MarkFunc(n)
+ 	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+@@ -775,6 +776,7 @@ func memrun(t *types.Type, start int) (size int64, next int) {
+ func hashmem(t *types.Type) ir.Node {
+ 	sym := ir.Pkgs.Runtime.Lookup("memhash")
+ 
++	// TODO(austin): This creates an ir.Name with a nil Func.
+ 	n := typecheck.NewName(sym)
+ 	ir.MarkFunc(n)
+ 	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 4c974ea324..c1cded826c 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1741,6 +1741,9 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+ 		typecheck.NewFuncParams(method.Type.Params(), true),
+ 		typecheck.NewFuncParams(method.Type.Results(), false))
+ 
++	// TODO(austin): SelectorExpr may have created one or more
++	// ir.Names for these already with a nil Func field. We should
++	// consolidate these and always attach a Func to the Name.
+ 	fn := typecheck.DeclFunc(newnam, tfn)
+ 	fn.SetDupok(true)
+ 
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index 202a932e6c..f29af82db2 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -32,6 +32,7 @@ func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
+ 	n := ir.NewNameAt(old.Pos(), old.Sym())
+ 	n.Class = old.Class
+ 	n.SetType(types.SubstAny(old.Type(), &types_))
++	n.Func = old.Func
+ 	if len(types_) > 0 {
+ 		base.Fatalf("SubstArgTypes: too many argument types")
+ 	}
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index f4b5387c06..b18615f61a 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -426,6 +426,7 @@ func eqFor(t *types.Type) (n ir.Node, needsize bool) {
+ 		return n, true
+ 	case types.ASPECIAL:
+ 		sym := reflectdata.TypeSymPrefix(".eq", t)
++		// TODO(austin): This creates an ir.Name with a nil Func.
+ 		n := typecheck.NewName(sym)
+ 		ir.MarkFunc(n)
+ 		n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{

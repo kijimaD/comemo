@@ -10,7 +10,7 @@ Date:   Thu Feb 28 22:14:55 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7448044
-
+---
  src/pkg/runtime/cgo/asm_386.s   | 29 +++++++++++++++++++++++++
  src/pkg/runtime/cgo/asm_amd64.s | 45 ++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/cgo/asm_arm.s   | 22 +++++++++++++++++++
@@ -19,3 +19,276 @@ Date:   Thu Feb 28 22:14:55 2013 -0800
  src/pkg/runtime/cgo/gcc_amd64.S | 48 -----------------------------------------
  src/pkg/runtime/cgo/gcc_arm.S   | 21 ------------------
  7 files changed, 100 insertions(+), 98 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/asm_386.s b/src/pkg/runtime/cgo/asm_386.s
+new file mode 100644
+index 0000000000..7faaa40971
+--- /dev/null
++++ b/src/pkg/runtime/cgo/asm_386.s
+@@ -0,0 +1,29 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * void crosscall2(void (*fn)(void*, int32), void*, int32)
++ * Save registers and call fn with two arguments.
++ */
++TEXT crosscall2(SB),7,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	PUSHL	BX
++	PUSHL	SI
++	PUSHL	DI
++	
++	SUBL	$8, SP
++	MOVL	16(BP), AX
++	MOVL	AX, 4(SP)
++	MOVL	12(BP), AX
++	MOVL	AX, 0(SP)
++	MOVL	8(BP), AX
++	CALL	AX
++	ADDL	$8, SP
++	
++	POPL	DI
++	POPL	SI
++	POPL	BX
++	POPL	BP
++	RET
+diff --git a/src/pkg/runtime/cgo/asm_amd64.s b/src/pkg/runtime/cgo/asm_amd64.s
+new file mode 100644
+index 0000000000..53f7148a24
+--- /dev/null
++++ b/src/pkg/runtime/cgo/asm_amd64.s
+@@ -0,0 +1,45 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * void crosscall2(void (*fn)(void*, int32), void*, int32)
++ * Save registers and call fn with two arguments.
++ */
++TEXT crosscall2(SB),7,$0
++	SUBQ	$0x58, SP	/* keeps stack pointer 32-byte aligned */
++	MOVQ	BX, 0x10(SP)
++	MOVQ	BP, 0x18(SP)
++	MOVQ	R12, 0x20(SP)
++	MOVQ	R13, 0x28(SP)
++	MOVQ	R14, 0x30(SP)
++	MOVQ	R15, 0x38(SP)
++
++#ifdef GOOS_windows
++	// Win64 save RBX, RBP, RDI, RSI, RSP, R12, R13, R14, and R15
++	MOVQ	DI, 0x40(SP)
++	MOVQ	SI, 0x48(SP)
++
++	MOVQ	DX, 0(SP)	/* arg */
++	MOVQ	R8, 8(SP)	/* argsize (includes padding) */
++	
++	CALL	CX	/* fn */
++	
++	MOVQ	0x40(SP), DI
++	MOVQ	0x48(SP), SI
++#else
++	MOVQ	SI, 0(SP)	/* arg */
++	MOVQ	DX, 8(SP)	/* argsize (includes padding) */
++
++	CALL	DI	/* fn */
++#endif
++
++	MOVQ	0x10(SP), BX
++	MOVQ	0x18(SP), BP
++	MOVQ	0x20(SP), R12
++	MOVQ	0x28(SP), R13
++	MOVQ	0x30(SP), R14
++	MOVQ	0x38(SP), R15
++	
++	ADDQ	$0x58, SP
++	RET
+diff --git a/src/pkg/runtime/cgo/asm_arm.s b/src/pkg/runtime/cgo/asm_arm.s
+new file mode 100644
+index 0000000000..1aa760e8b7
+--- /dev/null
++++ b/src/pkg/runtime/cgo/asm_arm.s
+@@ -0,0 +1,22 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * void crosscall2(void (*fn)(void*, int32), void*, int32)
++ * Save registers and call fn with two arguments.
++ */
++TEXT crosscall2(SB),7,$-4
++	/* 
++	 * We still need to save all callee save register as before, and then
++	 *  push 2 args for fn (R1 and R2).
++	 * Also note that at procedure entry in 5c/5g world, 4(R13) will be the
++	 *  first arg, so we must push another dummy reg (R0) for 0(R13).
++	 *  Additionally, cgo_tls_set_gm will clobber R0, so we need to save R0
++	 *  nevertheless.
++	 */
++	MOVM.WP	[R0, R1, R2, R4, R5, R6, R7, R8, R9, R10, R11, R12, R14], (R13)
++	BL	x_cgo_load_gm(SB)
++	MOVW	PC, R14
++	MOVW	-4(R13), PC
++	MOVM.IAW	(R13), [R0, R1, R2, R4, R5, R6, R7, R8, R9, R10, R11, R12, PC]
+diff --git a/src/pkg/runtime/cgo/callbacks.c b/src/pkg/runtime/cgo/callbacks.c
+index 86de808fb1..51bd529ecb 100644
+--- a/src/pkg/runtime/cgo/callbacks.c
++++ b/src/pkg/runtime/cgo/callbacks.c
+@@ -78,18 +78,18 @@ _cgo_panic(void *a, int32 n)
+ 	runtime·cgocallback((void(*)(void))_cgo_panic_internal, a, n);
+ }
+ 
+-#pragma cgo_static_import x_cgo_init
++#pragma cgo_import_static x_cgo_init
+ extern void x_cgo_init(G*);
+ void (*_cgo_init)(G*) = x_cgo_init;
+ 
+-#pragma cgo_static_import x_cgo_malloc
++#pragma cgo_import_static x_cgo_malloc
+ extern void x_cgo_malloc(void*);
+ void (*_cgo_malloc)(void*) = x_cgo_malloc;
+ 
+-#pragma cgo_static_import x_cgo_free
++#pragma cgo_import_static x_cgo_free
+ extern void x_cgo_free(void*);
+ void (*_cgo_free)(void*) = x_cgo_free;
+ 
+-#pragma cgo_static_import x_cgo_thread_start
++#pragma cgo_import_static x_cgo_thread_start
+ extern void x_cgo_thread_start(void*);
+ void (*_cgo_thread_start)(void*) = x_cgo_thread_start;
+diff --git a/src/pkg/runtime/cgo/gcc_386.S b/src/pkg/runtime/cgo/gcc_386.S
+index 9abab7ebd2..94ba5842f1 100644
+--- a/src/pkg/runtime/cgo/gcc_386.S
++++ b/src/pkg/runtime/cgo/gcc_386.S
+@@ -35,31 +35,6 @@ EXT(crosscall_386):
+ 	popl %ebp
+ 	ret
+ 
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void*, int32)
+- *
+- * Save registers and call fn with two arguments.
+- */
+-.globl EXT(crosscall2)
+-EXT(crosscall2):
+-	pushl %ebp
+-	movl %esp, %ebp
+-	pushl %ebx
+-	pushl %esi
+-	pushl %edi
+-
+-	pushl 16(%ebp)
+-	pushl 12(%ebp)
+-	mov 8(%ebp), %eax
+-	call *%eax
+-	addl $8,%esp
+-
+-	popl %edi
+-	popl %esi
+-	popl %ebx
+-	popl %ebp
+-	ret
+-
+ .globl EXT(__stack_chk_fail_local)
+ EXT(__stack_chk_fail_local):
+ 1:
+diff --git a/src/pkg/runtime/cgo/gcc_amd64.S b/src/pkg/runtime/cgo/gcc_amd64.S
+index 706ee6b584..81b270195d 100644
+--- a/src/pkg/runtime/cgo/gcc_amd64.S
++++ b/src/pkg/runtime/cgo/gcc_amd64.S
+@@ -19,9 +19,6 @@
+  * are callee-save so they must be saved explicitly.
+  * The standard x86-64 ABI passes the three arguments m, g, fn
+  * in %rdi, %rsi, %rdx.
+- *
+- * Also need to set %r15 to g and %r14 to m (see ../pkg/runtime/mkasmh.sh)
+- * during the call.
+  */
+ .globl EXT(crosscall_amd64)
+ EXT(crosscall_amd64):
+@@ -45,48 +42,3 @@ EXT(crosscall_amd64):
+ 	popq %rbp
+ 	popq %rbx
+ 	ret
+-
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void *arg, int32 argsize)
+- *
+- * Save registers and call fn with two arguments.  fn is a Go function
+- * which takes parameters on the stack rather than in registers.
+- */
+-.globl EXT(crosscall2)
+-EXT(crosscall2):
+-	subq  $0x58, %rsp	/* keeps stack pointer 32-byte aligned */
+-	movq  %rbx, 0x10(%rsp)
+-	movq  %rbp, 0x18(%rsp)
+-	movq  %r12, 0x20(%rsp)
+-	movq  %r13, 0x28(%rsp)
+-	movq  %r14, 0x30(%rsp)
+-	movq  %r15, 0x38(%rsp)
+-
+-#if defined(_WIN64)
+-	// Win64 save RBX, RBP, RDI, RSI, RSP, R12, R13, R14, and R15
+-	movq	%rdi, 0x40(%rsp)
+-	movq	%rsi, 0x48(%rsp)
+-
+-	movq  %rdx, 0(%rsp)	/* arg */
+-	movq  %r8, 8(%rsp)	/* argsize (includes padding) */
+-	
+-	call *%rcx	/* fn */
+-#else
+-	movq  %rsi, 0(%rsp)	/* arg */
+-	movq  %rdx, 8(%rsp)	/* argsize (includes padding) */
+-
+-	call *%rdi	/* fn */
+-#endif
+-
+-	movq  0x10(%rsp), %rbx
+-	movq  0x18(%rsp), %rbp
+-	movq  0x20(%rsp), %r12
+-	movq  0x28(%rsp), %r13
+-	movq  0x30(%rsp), %r14
+-	movq  0x38(%rsp), %r15
+-#if defined(__WIN64)
+-	movq	0x40(%rsp), %rdi
+-	movq	0x48(%rsp), %rsi
+-#endif	
+-	addq  $0x58, %rsp
+-	ret
+diff --git a/src/pkg/runtime/cgo/gcc_arm.S b/src/pkg/runtime/cgo/gcc_arm.S
+index d788d42488..809fcb9a06 100644
+--- a/src/pkg/runtime/cgo/gcc_arm.S
++++ b/src/pkg/runtime/cgo/gcc_arm.S
+@@ -29,27 +29,6 @@ EXT(crosscall_arm2):
+ 	mov pc, r3
+ 	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
+ 
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void*, int32)
+- *
+- * Save registers and call fn with two arguments.
+- */
+-.globl EXT(crosscall2)
+-EXT(crosscall2):
+-	/* 
+-	 * We still need to save all callee save register as before, and then
+-	 *  push 2 args for fn (R1 and R2).
+-	 * Also note that at procedure entry in 5c/5g world, 4(R13) will be the
+-	 *  first arg, so we must push another dummy reg (R0) for 0(R13).
+-	 *  Additionally, cgo_tls_set_gm will clobber R0, so we need to save R0
+-	 *  nevertheless.
+-	 */
+-	push {r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
+-	bl EXT(x_cgo_load_gm) // set up g and m from TLS
+-	mov lr, pc
+-	ldr pc, [sp, #0]
+-	pop {r0, r1, r2, r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
+-
+ .globl EXT(__stack_chk_fail_local)
+ EXT(__stack_chk_fail_local):
+ 1:

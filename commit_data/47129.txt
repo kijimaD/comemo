@@ -13,7 +13,7 @@ Date:   Wed Feb 24 09:43:59 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/defs_dragonfly.go       |  4 ++++
  src/runtime/defs_dragonfly_amd64.go |  4 ++++
  src/runtime/export_pipe2_test.go    |  4 ++--
@@ -23,3 +23,141 @@ Date:   Wed Feb 24 09:43:59 2021 +0100
  src/runtime/os_dragonfly.go         |  5 +++--
  src/runtime/sys_dragonfly_amd64.s   | 18 ++++++++++++++++++
  8 files changed, 37 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/defs_dragonfly.go b/src/runtime/defs_dragonfly.go
+index 225258901f..aca2bf9001 100644
+--- a/src/runtime/defs_dragonfly.go
++++ b/src/runtime/defs_dragonfly.go
+@@ -32,6 +32,10 @@ const (
+ 	EFAULT = C.EFAULT
+ 	EBUSY  = C.EBUSY
+ 	EAGAIN = C.EAGAIN
++	ENOSYS = C.ENOSYS
++
++	O_NONBLOCK = C.O_NONBLOCK
++	O_CLOEXEC  = C.O_CLOEXEC
+ 
+ 	PROT_NONE  = C.PROT_NONE
+ 	PROT_READ  = C.PROT_READ
+diff --git a/src/runtime/defs_dragonfly_amd64.go b/src/runtime/defs_dragonfly_amd64.go
+index 30f1b33845..f3c6ecd04b 100644
+--- a/src/runtime/defs_dragonfly_amd64.go
++++ b/src/runtime/defs_dragonfly_amd64.go
+@@ -10,6 +10,10 @@ const (
+ 	_EFAULT = 0xe
+ 	_EBUSY  = 0x10
+ 	_EAGAIN = 0x23
++	_ENOSYS = 0x4e
++
++	_O_NONBLOCK = 0x4
++	_O_CLOEXEC  = 0x20000
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+diff --git a/src/runtime/export_pipe2_test.go b/src/runtime/export_pipe2_test.go
+index 31c8e43b3f..26d8b7d185 100644
+--- a/src/runtime/export_pipe2_test.go
++++ b/src/runtime/export_pipe2_test.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build freebsd || linux || netbsd || openbsd || solaris
+-// +build freebsd linux netbsd openbsd solaris
++//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
++// +build dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package runtime
+ 
+diff --git a/src/runtime/export_pipe_test.go b/src/runtime/export_pipe_test.go
+index 82032e6bfb..a0c6c0440d 100644
+--- a/src/runtime/export_pipe_test.go
++++ b/src/runtime/export_pipe_test.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly
+-// +build aix darwin dragonfly
++//go:build aix || darwin
++// +build aix darwin
+ 
+ package runtime
+ 
+diff --git a/src/runtime/nbpipe_pipe.go b/src/runtime/nbpipe_pipe.go
+index d92cf97217..b17257e9ec 100644
+--- a/src/runtime/nbpipe_pipe.go
++++ b/src/runtime/nbpipe_pipe.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly
+-// +build aix darwin dragonfly
++//go:build aix || darwin
++// +build aix darwin
+ 
+ package runtime
+ 
+diff --git a/src/runtime/nbpipe_pipe2.go b/src/runtime/nbpipe_pipe2.go
+index f138d1f956..f22b2b591f 100644
+--- a/src/runtime/nbpipe_pipe2.go
++++ b/src/runtime/nbpipe_pipe2.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build freebsd || linux || netbsd || openbsd || solaris
+-// +build freebsd linux netbsd openbsd solaris
++//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
++// +build dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package runtime
+ 
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 2e930b6e94..5c688a3109 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -60,10 +60,11 @@ func kqueue() int32
+ 
+ //go:noescape
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+-func closeonexec(fd int32)
+-func setNonblock(fd int32)
+ 
+ func pipe() (r, w int32, errno int32)
++func pipe2(flags int32) (r, w int32, errno int32)
++func closeonexec(fd int32)
++func setNonblock(fd int32)
+ 
+ // From DragonFly's <sys/sysctl.h>
+ const (
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 580633af55..9cb268d740 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -123,6 +123,24 @@ pipeok:
+ 	MOVL	$0, errno+8(FP)
+ 	RET
+ 
++// func pipe2(flags int32) (r, w int32, errno int32)
++TEXT runtime·pipe2(SB),NOSPLIT,$0-20
++	MOVL	$0, DI
++	// dragonfly expects flags as the 2nd argument
++	MOVL	flags+0(FP), SI
++	MOVL	$538, AX
++	SYSCALL
++	JCC	pipe2ok
++	MOVL	$-1,r+8(FP)
++	MOVL	$-1,w+12(FP)
++	MOVL	AX, errno+16(FP)
++	RET
++pipe2ok:
++	MOVL	AX, r+8(FP)
++	MOVL	DX, w+12(FP)
++	MOVL	$0, errno+16(FP)
++	RET
++
+ TEXT runtime·write1(SB),NOSPLIT,$-8
+ 	MOVQ	fd+0(FP), DI		// arg 1 fd
+ 	MOVQ	p+8(FP), SI		// arg 2 buf

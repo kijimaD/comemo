@@ -9,6 +9,28 @@ Date:   Tue Apr 30 09:47:23 2013 -0400
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/9049043
-
+---
  doc/go1.1.html | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 5e99820d59..20c7d36447 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -398,16 +398,6 @@ To update pre-Go 1 code to Go 1.1, use a Go 1.0 tool chain
+ to convert the code to Go 1.0 first.
+ </p>
+ 
+-<h3 id="gorun">Changes to the go run command</h3>
+-
+-<p>
+-The <a href="/cmd/go/#hdr-Compile_and_run_Go_program"><code>go run</code></a>
+-command now runs all files in the current working
+-directory if no file arguments are listed. Also, the <code>go run</code>
+-command now returns an error if test files are provided on the command line. In
+-this sense, "<code>go run</code>" replaces "<code>go run *.go</code>".
+-</p>
+-
+ <h3 id="tags">Build constraints</h3>
+ 
+ <p>

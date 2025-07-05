@@ -7,7 +7,7 @@ Date:   Tue Dec 13 17:46:54 2011 -0500
     R=golang-dev, r, gri, bradfitz
     CC=golang-dev
     https://golang.org/cl/5487067
-
+---
  src/run.bash                                       |   2 +-
  test/bench/{ => shootout}/Makefile                 |   0
  test/bench/{ => shootout}/binary-tree-freelist.go  |   0
@@ -62,3 +62,446 @@ Date:   Tue Dec 13 17:46:54 2011 -0500
  test/bench/{ => shootout}/timing.log               |   0
  test/bench/{ => shootout}/timing.sh                |   0
  53 files changed, 38 insertions(+), 48 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 64514bce62..5e27fc24f8 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -101,7 +101,7 @@ do
+ done
+ 
+ [ "$GOARCH" == arm ] ||
+-(xcd ../test/bench
++(xcd ../test/bench/shootout
+ ./timing.sh -test
+ ) || exit $?
+ 
+diff --git a/test/bench/Makefile b/test/bench/shootout/Makefile
+similarity index 100%
+rename from test/bench/Makefile
+rename to test/bench/shootout/Makefile
+diff --git a/test/bench/binary-tree-freelist.go b/test/bench/shootout/binary-tree-freelist.go
+similarity index 100%
+rename from test/bench/binary-tree-freelist.go
+rename to test/bench/shootout/binary-tree-freelist.go
+diff --git a/test/bench/binary-tree-freelist.txt b/test/bench/shootout/binary-tree-freelist.txt
+similarity index 100%
+rename from test/bench/binary-tree-freelist.txt
+rename to test/bench/shootout/binary-tree-freelist.txt
+diff --git a/test/bench/binary-tree.c b/test/bench/shootout/binary-tree.c
+similarity index 100%
+rename from test/bench/binary-tree.c
+rename to test/bench/shootout/binary-tree.c
+diff --git a/test/bench/binary-tree.go b/test/bench/shootout/binary-tree.go
+similarity index 100%
+rename from test/bench/binary-tree.go
+rename to test/bench/shootout/binary-tree.go
+diff --git a/test/bench/binary-tree.txt b/test/bench/shootout/binary-tree.txt
+similarity index 100%
+rename from test/bench/binary-tree.txt
+rename to test/bench/shootout/binary-tree.txt
+diff --git a/test/bench/chameneosredux.c b/test/bench/shootout/chameneosredux.c
+similarity index 100%
+rename from test/bench/chameneosredux.c
+rename to test/bench/shootout/chameneosredux.c
+diff --git a/test/bench/chameneosredux.go b/test/bench/shootout/chameneosredux.go
+similarity index 95%
+rename from test/bench/chameneosredux.go
+rename to test/bench/shootout/chameneosredux.go
+index 2cb1440041..3395798620 100644
+--- a/test/bench/chameneosredux.go
++++ b/test/bench/shootout/chameneosredux.go
+@@ -49,20 +49,20 @@ const (
+ )
+ 
+ var complement = [...]int{
+-	red | red<<2: red,
+-	red | yellow<<2: blue,
+-	red | blue<<2: yellow,
+-	yellow | red<<2: blue,
++	red | red<<2:       red,
++	red | yellow<<2:    blue,
++	red | blue<<2:      yellow,
++	yellow | red<<2:    blue,
+ 	yellow | yellow<<2: yellow,
+-	yellow | blue<<2: red,
+-	blue | red<<2: yellow,
+-	blue | yellow<<2: red,
+-	blue | blue<<2: blue,
++	yellow | blue<<2:   red,
++	blue | red<<2:      yellow,
++	blue | yellow<<2:   red,
++	blue | blue<<2:     blue,
+ }
+ 
+ var colname = [...]string{
+-	blue: "blue",
+-	red: "red",
++	blue:   "blue",
++	red:    "red",
+ 	yellow: "yellow",
+ }
+ 
+diff --git a/test/bench/chameneosredux.txt b/test/bench/shootout/chameneosredux.txt
+similarity index 100%
+rename from test/bench/chameneosredux.txt
+rename to test/bench/shootout/chameneosredux.txt
+diff --git a/test/bench/fannkuch-parallel.go b/test/bench/shootout/fannkuch-parallel.go
+similarity index 100%
+rename from test/bench/fannkuch-parallel.go
+rename to test/bench/shootout/fannkuch-parallel.go
+diff --git a/test/bench/fannkuch-parallel.txt b/test/bench/shootout/fannkuch-parallel.txt
+similarity index 100%
+rename from test/bench/fannkuch-parallel.txt
+rename to test/bench/shootout/fannkuch-parallel.txt
+diff --git a/test/bench/fannkuch.c b/test/bench/shootout/fannkuch.c
+similarity index 100%
+rename from test/bench/fannkuch.c
+rename to test/bench/shootout/fannkuch.c
+diff --git a/test/bench/fannkuch.go b/test/bench/shootout/fannkuch.go
+similarity index 100%
+rename from test/bench/fannkuch.go
+rename to test/bench/shootout/fannkuch.go
+diff --git a/test/bench/fannkuch.txt b/test/bench/shootout/fannkuch.txt
+similarity index 100%
+rename from test/bench/fannkuch.txt
+rename to test/bench/shootout/fannkuch.txt
+diff --git a/test/bench/fasta-1000.out b/test/bench/shootout/fasta-1000.out
+similarity index 100%
+rename from test/bench/fasta-1000.out
+rename to test/bench/shootout/fasta-1000.out
+diff --git a/test/bench/fasta.c b/test/bench/shootout/fasta.c
+similarity index 100%
+rename from test/bench/fasta.c
+rename to test/bench/shootout/fasta.c
+diff --git a/test/bench/fasta.go b/test/bench/shootout/fasta.go
+similarity index 99%
+rename from test/bench/fasta.go
+rename to test/bench/shootout/fasta.go
+index d13edd5dcf..17ff5dae55 100644
+--- a/test/bench/fasta.go
++++ b/test/bench/shootout/fasta.go
+@@ -70,7 +70,7 @@ const (
+ 	IA = 3877
+ 	IC = 29573
+ 
+-	LookupSize  = 4096
++	LookupSize          = 4096
+ 	LookupScale float64 = LookupSize - 1
+ )
+ 
+@@ -178,7 +178,6 @@ func main() {
+ 	Random(homosapiens, 5**n)
+ }
+ 
+-
+ type buffer []byte
+ 
+ func (b *buffer) Flush() {
+diff --git a/test/bench/fasta.txt b/test/bench/shootout/fasta.txt
+similarity index 100%
+rename from test/bench/fasta.txt
+rename to test/bench/shootout/fasta.txt
+diff --git a/test/bench/k-nucleotide-parallel.go b/test/bench/shootout/k-nucleotide-parallel.go
+similarity index 100%
+rename from test/bench/k-nucleotide-parallel.go
+rename to test/bench/shootout/k-nucleotide-parallel.go
+diff --git a/test/bench/k-nucleotide-parallel.txt b/test/bench/shootout/k-nucleotide-parallel.txt
+similarity index 100%
+rename from test/bench/k-nucleotide-parallel.txt
+rename to test/bench/shootout/k-nucleotide-parallel.txt
+diff --git a/test/bench/k-nucleotide.c b/test/bench/shootout/k-nucleotide.c
+similarity index 100%
+rename from test/bench/k-nucleotide.c
+rename to test/bench/shootout/k-nucleotide.c
+diff --git a/test/bench/k-nucleotide.go b/test/bench/shootout/k-nucleotide.go
+similarity index 100%
+rename from test/bench/k-nucleotide.go
+rename to test/bench/shootout/k-nucleotide.go
+diff --git a/test/bench/k-nucleotide.txt b/test/bench/shootout/k-nucleotide.txt
+similarity index 100%
+rename from test/bench/k-nucleotide.txt
+rename to test/bench/shootout/k-nucleotide.txt
+diff --git a/test/bench/mandelbrot.c b/test/bench/shootout/mandelbrot.c
+similarity index 100%
+rename from test/bench/mandelbrot.c
+rename to test/bench/shootout/mandelbrot.c
+diff --git a/test/bench/mandelbrot.go b/test/bench/shootout/mandelbrot.go
+similarity index 100%
+rename from test/bench/mandelbrot.go
+rename to test/bench/shootout/mandelbrot.go
+diff --git a/test/bench/mandelbrot.txt b/test/bench/shootout/mandelbrot.txt
+similarity index 100%
+rename from test/bench/mandelbrot.txt
+rename to test/bench/shootout/mandelbrot.txt
+diff --git a/test/bench/meteor-contest.c b/test/bench/shootout/meteor-contest.c
+similarity index 100%
+rename from test/bench/meteor-contest.c
+rename to test/bench/shootout/meteor-contest.c
+diff --git a/test/bench/meteor-contest.go b/test/bench/shootout/meteor-contest.go
+similarity index 99%
+rename from test/bench/meteor-contest.go
+rename to test/bench/shootout/meteor-contest.go
+index 6660810ebd..34a4e23f97 100644
+--- a/test/bench/meteor-contest.go
++++ b/test/bench/shootout/meteor-contest.go
+@@ -43,7 +43,6 @@ import (
+ 
+ var max_solutions = flag.Int("n", 2100, "maximum number of solutions")
+ 
+-
+ func boolInt(b bool) int8 {
+ 	if b {
+ 		return 1
+@@ -115,7 +114,6 @@ var piece_def = [10][4]int8{
+ 	[4]int8{E, E, E, SW},
+ }
+ 
+-
+ /* To minimize the amount of work done in the recursive solve function below,
+  * I'm going to allocate enough space for all legal rotations of each piece
+  * at each position on the board. That's 10 pieces x 50 board positions x
+@@ -138,7 +136,6 @@ func rotate(dir int8) int8 { return (dir + 2) % PIVOT }
+ /* Returns the direction flipped on the horizontal axis */
+ func flip(dir int8) int8 { return (PIVOT - dir) % PIVOT }
+ 
+-
+ /* Returns the new cell index from the specified cell in the
+  * specified direction.  The index is only valid if the
+  * starting cell and direction have been checked by the
+@@ -322,7 +319,6 @@ func record_piece(piece int, minimum int8, first_empty int8, piece_mask uint64)
+ 	piece_counts[piece][minimum]++
+ }
+ 
+-
+ /* Fill the entire board going cell by cell.  If any cells are "trapped"
+  * they will be left alone.
+  */
+@@ -351,7 +347,6 @@ func fill_contiguous_space(board []int8, index int8) {
+ 	}
+ }
+ 
+-
+ /* To thin the number of pieces, I calculate if any of them trap any empty
+  * cells at the edges.  There are only a handful of exceptions where the
+  * the board can be solved with the trapped cells.  For example:  piece 8 can
+@@ -382,7 +377,6 @@ func has_island(cell []int8, piece int) bool {
+ 	return true
+ }
+ 
+-
+ /* Calculate all six rotations of the specified piece at the specified index.
+  * We calculate only half of piece 3's rotations.  This is because any solution
+  * found has an identical solution rotated 180 degrees.  Thus we can reduce the
+@@ -417,7 +411,6 @@ func calc_pieces() {
+ 	}
+ }
+ 
+-
+ /* Calculate all 32 possible states for a 5-bit row and all rows that will
+  * create islands that follow any of the 32 possible rows.  These pre-
+  * calculated 5-bit rows will be used to find islands in a partially solved
+@@ -530,7 +523,6 @@ func calc_rows() {
+ 	}
+ }
+ 
+-
+ /* Calculate islands while solving the board.
+  */
+ func boardHasIslands(cell int8) int8 {
+@@ -545,7 +537,6 @@ func boardHasIslands(cell int8) int8 {
+ 	return bad_even_triple[current_triple]
+ }
+ 
+-
+ /* The recursive solve algorithm.  Try to place each permutation in the upper-
+  * leftmost empty cell.  Mark off available pieces as it goes along.
+  * Because the board is a bit mask, the piece number and bit mask must be saved
+diff --git a/test/bench/meteor-contest.txt b/test/bench/shootout/meteor-contest.txt
+similarity index 100%
+rename from test/bench/meteor-contest.txt
+rename to test/bench/shootout/meteor-contest.txt
+diff --git a/test/bench/nbody.c b/test/bench/shootout/nbody.c
+similarity index 100%
+rename from test/bench/nbody.c
+rename to test/bench/shootout/nbody.c
+diff --git a/test/bench/nbody.go b/test/bench/shootout/nbody.go
+similarity index 80%
+rename from test/bench/nbody.go
+rename to test/bench/shootout/nbody.go
+index e9f4517e8e..988f3ba9cc 100644
+--- a/test/bench/nbody.go
++++ b/test/bench/shootout/nbody.go
+@@ -125,39 +125,39 @@ func (sys System) advance(dt float64) {
+ 
+ var (
+ 	jupiter = Body{
+-		x: 4.84143144246472090e+00,
+-		y: -1.16032004402742839e+00,
+-		z: -1.03622044471123109e-01,
+-		vx: 1.66007664274403694e-03 * daysPerYear,
+-		vy: 7.69901118419740425e-03 * daysPerYear,
+-		vz: -6.90460016972063023e-05 * daysPerYear,
++		x:    4.84143144246472090e+00,
++		y:    -1.16032004402742839e+00,
++		z:    -1.03622044471123109e-01,
++		vx:   1.66007664274403694e-03 * daysPerYear,
++		vy:   7.69901118419740425e-03 * daysPerYear,
++		vz:   -6.90460016972063023e-05 * daysPerYear,
+ 		mass: 9.54791938424326609e-04 * solarMass,
+ 	}
+ 	saturn = Body{
+-		x: 8.34336671824457987e+00,
+-		y: 4.12479856412430479e+00,
+-		z: -4.03523417114321381e-01,
+-		vx: -2.76742510726862411e-03 * daysPerYear,
+-		vy: 4.99852801234917238e-03 * daysPerYear,
+-		vz: 2.30417297573763929e-05 * daysPerYear,
++		x:    8.34336671824457987e+00,
++		y:    4.12479856412430479e+00,
++		z:    -4.03523417114321381e-01,
++		vx:   -2.76742510726862411e-03 * daysPerYear,
++		vy:   4.99852801234917238e-03 * daysPerYear,
++		vz:   2.30417297573763929e-05 * daysPerYear,
+ 		mass: 2.85885980666130812e-04 * solarMass,
+ 	}
+ 	uranus = Body{
+-		x: 1.28943695621391310e+01,
+-		y: -1.51111514016986312e+01,
+-		z: -2.23307578892655734e-01,
+-		vx: 2.96460137564761618e-03 * daysPerYear,
+-		vy: 2.37847173959480950e-03 * daysPerYear,
+-		vz: -2.96589568540237556e-05 * daysPerYear,
++		x:    1.28943695621391310e+01,
++		y:    -1.51111514016986312e+01,
++		z:    -2.23307578892655734e-01,
++		vx:   2.96460137564761618e-03 * daysPerYear,
++		vy:   2.37847173959480950e-03 * daysPerYear,
++		vz:   -2.96589568540237556e-05 * daysPerYear,
+ 		mass: 4.36624404335156298e-05 * solarMass,
+ 	}
+ 	neptune = Body{
+-		x: 1.53796971148509165e+01,
+-		y: -2.59193146099879641e+01,
+-		z: 1.79258772950371181e-01,
+-		vx: 2.68067772490389322e-03 * daysPerYear,
+-		vy: 1.62824170038242295e-03 * daysPerYear,
+-		vz: -9.51592254519715870e-05 * daysPerYear,
++		x:    1.53796971148509165e+01,
++		y:    -2.59193146099879641e+01,
++		z:    1.79258772950371181e-01,
++		vx:   2.68067772490389322e-03 * daysPerYear,
++		vy:   1.62824170038242295e-03 * daysPerYear,
++		vz:   -9.51592254519715870e-05 * daysPerYear,
+ 		mass: 5.15138902046611451e-05 * solarMass,
+ 	}
+ 	sun = Body{
+diff --git a/test/bench/nbody.txt b/test/bench/shootout/nbody.txt
+similarity index 100%
+rename from test/bench/nbody.txt
+rename to test/bench/shootout/nbody.txt
+diff --git a/test/bench/pidigits.c b/test/bench/shootout/pidigits.c
+similarity index 100%
+rename from test/bench/pidigits.c
+rename to test/bench/shootout/pidigits.c
+diff --git a/test/bench/pidigits.go b/test/bench/shootout/pidigits.go
+similarity index 100%
+rename from test/bench/pidigits.go
+rename to test/bench/shootout/pidigits.go
+diff --git a/test/bench/pidigits.txt b/test/bench/shootout/pidigits.txt
+similarity index 100%
+rename from test/bench/pidigits.txt
+rename to test/bench/shootout/pidigits.txt
+diff --git a/test/bench/regex-dna-parallel.go b/test/bench/shootout/regex-dna-parallel.go
+similarity index 100%
+rename from test/bench/regex-dna-parallel.go
+rename to test/bench/shootout/regex-dna-parallel.go
+index 1335e4d34f..9c6d42101d 100644
+--- a/test/bench/regex-dna-parallel.go
++++ b/test/bench/shootout/regex-dna-parallel.go
+@@ -39,8 +39,8 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+-	"runtime"
+ 	"regexp"
++	"runtime"
+ )
+ 
+ var variants = []string{
+diff --git a/test/bench/regex-dna-parallel.txt b/test/bench/shootout/regex-dna-parallel.txt
+similarity index 100%
+rename from test/bench/regex-dna-parallel.txt
+rename to test/bench/shootout/regex-dna-parallel.txt
+diff --git a/test/bench/regex-dna.c b/test/bench/shootout/regex-dna.c
+similarity index 100%
+rename from test/bench/regex-dna.c
+rename to test/bench/shootout/regex-dna.c
+diff --git a/test/bench/regex-dna.go b/test/bench/shootout/regex-dna.go
+similarity index 100%
+rename from test/bench/regex-dna.go
+rename to test/bench/shootout/regex-dna.go
+diff --git a/test/bench/regex-dna.txt b/test/bench/shootout/regex-dna.txt
+similarity index 100%
+rename from test/bench/regex-dna.txt
+rename to test/bench/shootout/regex-dna.txt
+diff --git a/test/bench/reverse-complement.c b/test/bench/shootout/reverse-complement.c
+similarity index 100%
+rename from test/bench/reverse-complement.c
+rename to test/bench/shootout/reverse-complement.c
+diff --git a/test/bench/reverse-complement.go b/test/bench/shootout/reverse-complement.go
+similarity index 100%
+rename from test/bench/reverse-complement.go
+rename to test/bench/shootout/reverse-complement.go
+diff --git a/test/bench/reverse-complement.txt b/test/bench/shootout/reverse-complement.txt
+similarity index 100%
+rename from test/bench/reverse-complement.txt
+rename to test/bench/shootout/reverse-complement.txt
+diff --git a/test/bench/spectral-norm-parallel.go b/test/bench/shootout/spectral-norm-parallel.go
+similarity index 100%
+rename from test/bench/spectral-norm-parallel.go
+rename to test/bench/shootout/spectral-norm-parallel.go
+diff --git a/test/bench/spectral-norm.c b/test/bench/shootout/spectral-norm.c
+similarity index 100%
+rename from test/bench/spectral-norm.c
+rename to test/bench/shootout/spectral-norm.c
+diff --git a/test/bench/spectral-norm.go b/test/bench/shootout/spectral-norm.go
+similarity index 100%
+rename from test/bench/spectral-norm.go
+rename to test/bench/shootout/spectral-norm.go
+diff --git a/test/bench/spectral-norm.txt b/test/bench/shootout/spectral-norm.txt
+similarity index 100%
+rename from test/bench/spectral-norm.txt
+rename to test/bench/shootout/spectral-norm.txt
+diff --git a/test/bench/threadring.c b/test/bench/shootout/threadring.c
+similarity index 100%
+rename from test/bench/threadring.c
+rename to test/bench/shootout/threadring.c
+diff --git a/test/bench/threadring.go b/test/bench/shootout/threadring.go
+similarity index 99%
+rename from test/bench/threadring.go
+rename to test/bench/shootout/threadring.go
+index 031908a20f..e76dd0b452 100644
+--- a/test/bench/threadring.go
++++ b/test/bench/shootout/threadring.go
+@@ -52,7 +52,7 @@ func f(i int, in <-chan int, out chan<- int) {
+ 			fmt.Printf("%d\n", i)
+ 			os.Exit(0)
+ 		}
+-		out <- n-1
++		out <- n - 1
+ 	}
+ }
+ 
+diff --git a/test/bench/threadring.txt b/test/bench/shootout/threadring.txt
+similarity index 100%
+rename from test/bench/threadring.txt
+rename to test/bench/shootout/threadring.txt
+diff --git a/test/bench/timing.log b/test/bench/shootout/timing.log
+similarity index 100%
+rename from test/bench/timing.log
+rename to test/bench/shootout/timing.log
+diff --git a/test/bench/timing.sh b/test/bench/shootout/timing.sh
+similarity index 100%
+rename from test/bench/timing.sh
+rename to test/bench/shootout/timing.sh

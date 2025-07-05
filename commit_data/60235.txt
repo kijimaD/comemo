@@ -18,6 +18,48 @@ Date:   Thu May 30 19:28:39 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Commit-Queue: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go | 13 ++++++-------
  1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+index 9cb67e7a1d..85c8f7bbfb 100644
+--- a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+@@ -13,8 +13,13 @@ import (
+ )
+ 
+ func TestLibFuzzer(t *testing.T) {
++	// Skip tests in short mode.
++	if testing.Short() {
++		t.Skip("libfuzzer tests can take upwards of minutes to run; skipping in short mode")
++	}
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
++
+ 	goos, err := goEnv("GOOS")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -33,9 +38,8 @@ func TestLibFuzzer(t *testing.T) {
+ 		goSrc         string
+ 		cSrc          string
+ 		expectedError string
+-		short         bool
+ 	}{
+-		{goSrc: "libfuzzer1.go", expectedError: "panic: found it", short: true},
++		{goSrc: "libfuzzer1.go", expectedError: "panic: found it"},
+ 		{goSrc: "libfuzzer2.go", cSrc: "libfuzzer2.c", expectedError: "panic: found it"},
+ 	}
+ 	for _, tc := range cases {
+@@ -44,11 +48,6 @@ func TestLibFuzzer(t *testing.T) {
+ 		t.Run(name, func(t *testing.T) {
+ 			t.Parallel()
+ 
+-			// Skip long-running tests in short mode.
+-			if testing.Short() && !tc.short {
+-				t.Skipf("%s can take upwards of minutes to run; skipping in short mode", name)
+-			}
+-
+ 			dir := newTempDir(t)
+ 			defer dir.RemoveAll(t)
+ 

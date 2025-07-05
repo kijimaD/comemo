@@ -14,6 +14,20 @@ Date:   Wed Jul 5 15:06:39 2023 -0600
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/logger_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index d151c0490c..130f2e6ac8 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -106,7 +106,7 @@ func TestConnections(t *testing.T) {
+ 	// log.Logger's output goes through the handler.
+ 	SetDefault(New(NewTextHandler(&slogbuf, &HandlerOptions{AddSource: true})))
+ 	log.Print("msg2")
+-	checkLogOutput(t, slogbuf.String(), "time="+timeRE+` level=INFO source=.*logger_test.go:\d{3} msg=msg2`)
++	checkLogOutput(t, slogbuf.String(), "time="+timeRE+` level=INFO source=.*logger_test.go:\d{3}"? msg=msg2`)
+ 
+ 	// The default log.Logger always outputs at Info level.
+ 	slogbuf.Reset()

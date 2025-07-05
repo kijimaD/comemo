@@ -7,7 +7,36 @@ Date:   Sun Jul 8 12:09:15 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6344088
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 397faf7195..6b535df4d6 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -145,8 +145,8 @@ Martin Neubauer <m.ne@gmx.net>
+ Mateusz Czapliński <czapkofan@gmail.com>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Mats Lidell <mats.lidell@cag.se>
++Matt Jibson <matt.jibson@gmail.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
+-Matthew William Jibson <matt.jibson@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Chaten <mchaten@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 5806c7c501..4913640ebb 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -215,8 +215,8 @@ Mateusz Czapliński <czapkofan@gmail.com>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Mats Lidell <mats.lidell@cag.se> <mats.lidell@gmail.com>
+ Matt Jones <mrjones@google.com>
++Matt Jibson <matt.jibson@gmail.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
+-Matthew William Jibson <matt.jibson@gmail.com>
+ Maxim Pimenov <mpimenov@google.com>
+ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>

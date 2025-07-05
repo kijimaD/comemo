@@ -8,9 +8,208 @@ Date:   Thu Oct 30 17:29:53 2008 -0700
     DELTA=86  (77 added, 0 deleted, 9 changed)
     OCL=18201
     CL=18203
-
+---
  src/lib/reflect/test.go     |  2 ++
  src/lib/reflect/tostring.go | 30 ++++++++++++++++++++--
  src/lib/reflect/type.go     | 61 ++++++++++++++++++++++++++++++++++++++++-----
  src/lib/reflect/value.go    |  2 +-
  4 files changed, 86 insertions(+), 9 deletions(-)
+
+diff --git a/src/lib/reflect/test.go b/src/lib/reflect/test.go
+index 34acbda6e0..0ed53a3ac4 100644
+--- a/src/lib/reflect/test.go
++++ b/src/lib/reflect/test.go
+@@ -118,6 +118,8 @@ func main() {
+ 	typedump("struct {a int8; b int8; c int8; b int32}", "struct{a int8; b int8; c int8; b int32}");
+ 	typedump("struct {a int8; b int8; c int8; d int8; b int32}", "struct{a int8; b int8; c int8; d int8; b int32}");
+ 	typedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}", "struct{a int8; b int8; c int8; d int8; e int8; b int32}");
++	typedump("struct {a int8 \"hi there\"; }", "struct{a int8 \"hi there\"}");
++	typedump("struct {a int8 \"hi \\0there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\0there\\t\\n\\\"\\\\\"}");
+ 
+ 	valuedump("int8", "8");
+ 	valuedump("int16", "16");
+diff --git a/src/lib/reflect/tostring.go b/src/lib/reflect/tostring.go
+index 767886a759..c57e1995f5 100644
+--- a/src/lib/reflect/tostring.go
++++ b/src/lib/reflect/tostring.go
+@@ -15,16 +15,42 @@ import (
+ export func TypeToString(typ Type, expand bool) string
+ export func ValueToString(val Value) string
+ 
++func DoubleQuote(s string) string {
++	out := "\"";
++	for i := 0; i < len(s); i++ {
++		c := s[i];
++		switch c {
++		case '\n':
++			out += `\n`;
++		case '\t':
++			out += `\t`;
++		case '\x00':
++			out += `\0`;
++		case '"':
++			out += `\"`;
++		case '\\':
++			out += `\\`;
++		default:
++			out += string(c);
++		}
++	}
++	out += "\"";
++	return out;
++}
++
+ type HasFields interface {
+-	Field(i int)	(name string, typ Type, offset uint64);
++	Field(i int)	(name string, typ Type, tag string, offset uint64);
+ 	Len()	int;
+ }
+ 
+ func TypeFieldsToString(t HasFields, sep string) string {
+ 	var str string;
+ 	for i := 0; i < t.Len(); i++ {
+-		str1, typ, offset := t.Field(i);
++		str1, typ, tag, offset := t.Field(i);
+ 		str1 +=  " " + TypeToString(typ, false);
++		if tag != "" {
++			str1 += " " + DoubleQuote(tag);
++		}
+ 		if i < t.Len() - 1 {
+ 			str1 += sep + " ";
+ 		}
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 987c17138d..06fab4be55 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -245,13 +245,14 @@ func (t *ChanTypeStruct) Elem() Type {
+ // -- Struct
+ 
+ export type StructType interface {
+-	Field(int)	(name string, typ Type, offset uint64);
++	Field(int)	(name string, typ Type, tag string, offset uint64);
+ 	Len()	int;
+ }
+ 
+ type Field struct {
+ 	name	string;
+ 	typ	*StubType;
++	tag	string;
+ 	size	uint64;
+ 	offset	uint64;
+ }
+@@ -289,11 +290,11 @@ func (t *StructTypeStruct) Size() uint64 {
+ 	return size;
+ }
+ 
+-func (t *StructTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
++func (t *StructTypeStruct) Field(i int) (name string, typ Type, tag string, offset uint64) {
+ 	if t.field[i].offset == 0 {
+ 		t.Size();	// will compute offsets
+ 	}
+-	return t.field[i].name, t.field[i].typ.Get(), t.field[i].offset
++	return t.field[i].name, t.field[i].typ.Get(), t.field[i].tag, t.field[i].offset
+ }
+ 
+ func (t *StructTypeStruct) Len() int {
+@@ -303,7 +304,7 @@ func (t *StructTypeStruct) Len() int {
+ // -- Interface
+ 
+ export type InterfaceType interface {
+-	Field(int)	(name string, typ Type, offset uint64);
++	Field(int)	(name string, typ Type, tag string, offset uint64);
+ 	Len()	int;
+ }
+ 
+@@ -316,8 +317,8 @@ func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
+ 	return &InterfaceTypeStruct{ Common{InterfaceKind, name, interfacesize}, field }
+ }
+ 
+-func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
+-	return t.field[i].name, t.field[i].typ.Get(), 0
++func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, tag string, offset uint64) {
++	return t.field[i].name, t.field[i].typ.Get(), "", 0
+ }
+ 
+ func (t *InterfaceTypeStruct) Len() int {
+@@ -489,6 +490,33 @@ func special(c uint8) bool {
+ 	return false;
+ }
+ 
++// Process backslashes.  String known to be well-formed.
++// Initial double-quote is left in, as an indication this token is a string.
++func unescape(s string, backslash bool) string {
++	if !backslash {
++		return s
++	}
++	out := "\"";
++	for i := 1; i < len(s); i++ {
++		c := s[i];
++		if c == '\\' {
++			i++;
++			c = s[i];
++			switch c {
++			case 'n':
++				c = '\n';
++			case 't':
++				c = '\t';
++			case '0':	// it's not a legal go string but \0 means NUL
++				c = '\x00';
++			// default is correct already; \\ is \; \" is "
++			}
++		}
++		out += string(c);
++	}
++	return out;
++}
++
+ // Simple parser for type strings
+ type Parser struct {
+ 	str	string;	// string being parsed
+@@ -525,6 +553,23 @@ func (p *Parser) Next() {
+ 		}
+ 		p.token = p.str[start : p.index];
+ 		return;
++	case c == '"':	// double-quoted string for struct field annotation
++		backslash := false;
++		for p.index < len(p.str) && p.str[p.index] != '"' {
++			if p.str[p.index] == '\\' {
++				if p.index+1 == len(p.str) {	// bad final backslash
++					break;
++				}
++				p.index++;	// skip (and accept) backslash
++				backslash = true;
++			}
++			p.index++
++		}
++		p.token = unescape(p.str[start : p.index], backslash);
++		if p.index < len(p.str) {	// properly terminated string
++			p.index++;	// skip the terminating double-quote
++		}
++		return;
+ 	}
+ 	for p.index < len(p.str) && p.str[p.index] != ' ' && !special(p.str[p.index]) {
+ 		p.index++
+@@ -598,6 +643,10 @@ func (p *Parser) Fields(sep string) *[]Field {
+ 		a[nf].name = p.token;
+ 		p.Next();
+ 		a[nf].typ = p.Type("");
++		if p.token != "" && p.token[0] == '"' {
++			a[nf].tag = p.token[1:len(p.token)];
++			p.Next();
++		}
+ 		nf++;
+ 		if p.token != sep {
+ 			break;
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index c39b1cb3e6..9f3e4ab7df 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -609,7 +609,7 @@ func StructCreator(typ Type, addr Addr) Value {
+ 	nfield := t.Len();
+ 	v := &StructValueStruct{ CommonV{StructKind, typ, addr}, new([]Value, nfield) };
+ 	for i := 0; i < nfield; i++ {
+-		name, ftype, offset := t.Field(i);
++		name, ftype, str, offset := t.Field(i);
+ 		v.field[i] = NewValueAddr(ftype, addr + offset);
+ 	}
+ 	v.typ = typ;

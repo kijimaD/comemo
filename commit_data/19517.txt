@@ -14,6 +14,42 @@ Date:   Wed Jun 11 20:34:46 2014 -0400
     R=dvyukov, rsc
     CC=golang-codereviews
     https://golang.org/cl/108840043
-
+---
  test/fixedbugs/issue8047.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/test/fixedbugs/issue8047.go b/test/fixedbugs/issue8047.go
+new file mode 100644
+index 0000000000..fe7ada5c0b
+--- /dev/null
++++ b/test/fixedbugs/issue8047.go
+@@ -0,0 +1,29 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8047.  Stack copier shouldn't crash if there
++// is a nil defer.
++
++package main
++
++func stackit(n int) {
++	if n == 0 {
++		return
++	}
++	stackit(n - 1)
++}
++
++func main() {
++	defer func() {
++		// catch & ignore panic from nil defer below
++		err := recover()
++		if err == nil {
++			panic("defer of nil func didn't panic")
++		}
++	}()
++	defer ((func())(nil))()
++	stackit(1000)
++}

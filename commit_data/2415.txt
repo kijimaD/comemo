@@ -8,8 +8,803 @@ Date:   Sat Jun 6 19:27:48 2009 -0700
     R=ken
     OCL=29987
     CL=29998
-
+---
  src/cmd/gc/go.h  |   5 +
  src/cmd/gc/go.y  | 414 ++++++++++++++++++-------------------------------------
  src/cmd/gc/lex.c |  44 +++++-
  3 files changed, 179 insertions(+), 284 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c8d6107af3..4d95316253 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -622,6 +622,7 @@ void	importfile(Val*);
+ void	cannedimports(char*, char*);
+ void	unimportfile();
+ int32	yylex(void);
++void	yyoptsemi(int);
+ void	typeinit(void);
+ void	lexinit(void);
+ char*	lexname(int);
+@@ -1017,6 +1018,10 @@ EXTERN	Prog*	breakpc;
+ EXTERN	Prog*	pc;
+ EXTERN	Prog*	firstpc;
+ 
++EXTERN	int	yylast;
++EXTERN	int	yynext;
++EXTERN	int	yysemi;
++
+ void	allocparams(void);
+ void	cgen_as(Node *nl, Node *nr);
+ void	cgen_callmeth(Node *n, int proc);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index f774df2941..2208693aad 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -20,10 +20,9 @@
+  *  3. semicolons can be omitted before and after the closing ) or }
+  *	on a list of statements or declarations.
+  *
+- * Thus the grammar must distinguish productions that
+- * can omit the semicolon terminator and those that can't.
+- * Names like Astmt, Avardcl, etc. can drop the semicolon.
+- * Names like Bstmt, Bvardcl, etc. can't.
++ * This is accomplished by calling yyoptsemi() to mark the places
++ * where semicolons are optional.  That tells the lexer that if a
++ * semicolon isn't the next token, it should insert one for us.
+  */
+ 
+ %{
+@@ -49,16 +48,16 @@
+ 
+ %token		LANDAND LANDNOT LBODY LCOMM LDEC LEQ LGE LGT
+ %token		LIGNORE LINC LLE LLSH LLT LNE LOROR LRSH
++%token		LSEMIBRACE
+ 
+ %type	<lint>	lbrace
+ %type	<sym>	sym packname
+ %type	<val>	oliteral
+ 
+-%type	<node>	Acommon_dcl Aelse_stmt Afnres Astmt Astmt_list_r
+-%type	<node>	Avardcl Bcommon_dcl Belse_stmt Bfnres Bstmt
+-%type	<node>	Bstmt_list_r Bvardcl arg_type arg_type_list
++%type	<node>	stmt
++%type	<node>	arg_type arg_type_list
+ %type	<node>	arg_type_list_r braced_keyexpr_list case caseblock
+-%type	<node>	caseblock_list_r common_dcl complex_stmt
++%type	<node>	caseblock_list_r common_dcl
+ %type	<node>	compound_stmt dotname embed expr expr_list
+ %type	<node>	expr_list_r expr_or_type expr_or_type_list
+ %type	<node>	expr_or_type_list_r fnbody fndcl fnliteral fnres
+@@ -69,16 +68,15 @@
+ %type	<node>	new_name oarg_type_list ocaseblock_list oexpr
+ %type	<node>	oexpr_list oexpr_or_type_list onew_name
+ %type	<node>	osimple_stmt ostmt_list oxdcl_list pexpr
+-%type	<node>	pseudocall range_stmt select_stmt semi_stmt
++%type	<node>	pseudocall range_stmt select_stmt
+ %type	<node>	simple_stmt stmt_list_r structdcl structdcl_list_r
+ %type	<node>	switch_body switch_stmt uexpr vardcl vardcl_list_r
+ %type	<node>	xdcl xdcl_list_r xfndcl
+ 
+-%type	<type>	Achantype Afntype Anon_chan_type Anon_fn_type
+-%type	<type>	Aothertype Atype Bchantype Bfntype Bnon_chan_type
+-%type	<type>	Bnon_fn_type Bothertype Btype convtype dotdotdot
+-%type	<type>	fnlitdcl fntype indcl interfacetype nametype
++%type	<type>	convtype dotdotdot
++%type	<type>	fnlitdcl fntype indcl interfacetype
+ %type	<type>	new_type structtype type typedclname
++%type	<type>	chantype non_chan_type othertype non_fn_type
+ 
+ %type	<sym>	hidden_importsym hidden_pkg_importsym
+ 
+@@ -285,86 +283,71 @@ xdcl:
+ 	}
+ 
+ common_dcl:
+-	Acommon_dcl
+-|	Bcommon_dcl
+-
+-Acommon_dcl:
+-	LVAR Avardcl
++	LVAR vardcl
+ 	{
+ 		$$ = $2;
++		if(yylast == LSEMIBRACE)
++			yyoptsemi(0);
+ 	}
+ |	LVAR '(' vardcl_list_r osemi ')'
+ 	{
+ 		$$ = rev($3);
++		yyoptsemi(0);
+ 	}
+ |	LVAR '(' ')'
+ 	{
+ 		$$ = N;
++		yyoptsemi(0);
++	}
++|	LCONST constdcl
++	{
++		$$ = N;
++		iota = 0;
++		lastconst = N;
+ 	}
+ |	LCONST '(' constdcl osemi ')'
+ 	{
+ 		iota = 0;
+ 		lastconst = N;
+ 		$$ = N;
++		yyoptsemi(0);
+ 	}
+ |	LCONST '(' constdcl ';' constdcl_list_r osemi ')'
+ 	{
+ 		iota = 0;
+ 		lastconst = N;
+ 		$$ = N;
++		yyoptsemi(0);
+ 	}
+ |	LCONST '(' ')'
+ 	{
+ 		$$ = N;
++		yyoptsemi(0);
+ 	}
+-|	LTYPE Atypedcl
++|	LTYPE typedcl
+ 	{
+ 		$$ = N;
++		if(yylast == LSEMIBRACE)
++			yyoptsemi(0);
+ 	}
+ |	LTYPE '(' typedcl_list_r osemi ')'
+ 	{
+ 		$$ = N;
++		yyoptsemi(0);
+ 	}
+ |	LTYPE '(' ')'
+ 	{
+ 		$$ = N;
++		yyoptsemi(0);
+ 	}
+ 
+-Bcommon_dcl:
+-	LVAR Bvardcl
++varoptsemi:
+ 	{
+-		$$ = $2;
+-	}
+-|	LCONST constdcl
+-	{
+-		$$ = N;
+-		iota = 0;
+-		lastconst = N;
+-	}
+-|	LTYPE Btypedcl
+-	{
+-		$$ = N;
++		yyoptsemi('=');
+ 	}
+ 
+ vardcl:
+-	Avardcl
+-|	Bvardcl
+-
+-Avardcl:
+-	name_list Atype
+-	{
+-		dodclvar($$, $2);
+-
+-		if(funcdepth == 0) {
+-			$$ = N;
+-		} else {
+-			$$ = nod(OAS, $$, N);
+-			addtotop($$);
+-		}
+-	}
+-
+-Bvardcl:
+-	name_list Btype
++	name_list type varoptsemi
+ 	{
+ 		dodclvar($$, $2);
+ 
+@@ -375,12 +358,12 @@ Bvardcl:
+ 			addtotop($$);
+ 		}
+ 	}
+-|	name_list type '=' expr_list
++|	name_list type varoptsemi '=' expr_list
+ 	{
+ 		if(addtop != N)
+ 			fatal("new_name_list_r type '=' expr_list");
+ 
+-		$$ = variter($1, $2, $4);
++		$$ = variter($1, $2, $5);
+ 		addtotop($$);
+ 	}
+ |	name_list '=' expr_list
+@@ -421,18 +404,7 @@ typedclname:
+ 	}
+ 
+ typedcl:
+-	Atypedcl
+-|	Btypedcl
+-
+-Atypedcl:
+-	typedclname Atype
+-	{
+-		updatetype($1, $2);
+-		resumecheckwidth();
+-	}
+-
+-Btypedcl:
+-	typedclname Btype
++	typedclname type
+ 	{
+ 		updatetype($1, $2);
+ 		resumecheckwidth();
+@@ -448,18 +420,6 @@ Btypedcl:
+ 		resumecheckwidth();
+ 	}
+ 
+-Aelse_stmt:
+-	complex_stmt
+-|	compound_stmt
+-
+-Belse_stmt:
+-	simple_stmt
+-|	semi_stmt
+-|	';'
+-	{
+-		$$ = N;
+-	}
+-
+ simple_stmt:
+ 	expr
+ 	{
+@@ -498,22 +458,6 @@ simple_stmt:
+ 		$$->etype = OSUB;
+ 	}
+ 
+-complex_stmt:
+-	for_stmt
+-|	switch_stmt
+-|	select_stmt
+-|	if_stmt
+-	{
+-		popdcl();
+-		$$ = $1;
+-	}
+-|	if_stmt LELSE Aelse_stmt
+-	{
+-		popdcl();
+-		$$ = $1;
+-		$$->nelse = $3;
+-	}
+-
+ case:
+ 	LCASE expr_list ':'
+ 	{
+@@ -576,43 +520,6 @@ case:
+ 		$$ = nod(OXCASE, N, N);
+ 	}
+ 
+-semi_stmt:
+-	LFALL
+-	{
+-		// will be converted to OFALL
+-		$$ = nod(OXFALL, N, N);
+-	}
+-|	LBREAK onew_name
+-	{
+-		$$ = nod(OBREAK, $2, N);
+-	}
+-|	LCONTINUE onew_name
+-	{
+-		$$ = nod(OCONTINUE, $2, N);
+-	}
+-|	LGO pseudocall
+-	{
+-		$$ = nod(OPROC, $2, N);
+-	}
+-|	LDEFER pseudocall
+-	{
+-		$$ = nod(ODEFER, $2, N);
+-	}
+-|	LGOTO new_name
+-	{
+-		$$ = nod(OGOTO, $2, N);
+-	}
+-|	LRETURN oexpr_list
+-	{
+-		$$ = nod(ORETURN, $2, N);
+-	}
+-|	if_stmt LELSE Belse_stmt
+-	{
+-		popdcl();
+-		$$ = $1;
+-		$$->nelse = $3;
+-	}
+-
+ compound_stmt:
+ 	'{'
+ 	{
+@@ -624,6 +531,7 @@ compound_stmt:
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+ 		popdcl();
++		yyoptsemi(0);
+ 	}
+ 
+ switch_body:
+@@ -637,6 +545,7 @@ switch_body:
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+ 		popdcl();
++		yyoptsemi(0);
+ 	}
+ 
+ caseblock:
+@@ -708,6 +617,7 @@ for_body:
+ 	{
+ 		$$ = $1;
+ 		$$->nbody = list($$->nbody, $2);
++		yyoptsemi(0);
+ 	}
+ 
+ for_stmt:
+@@ -747,6 +657,7 @@ if_stmt:
+ 		$$ = $3;
+ 		$$->nbody = $4;
+ 		// no popdcl; maybe there's an LELSE
++		yyoptsemi(LELSE);
+ 	}
+ 
+ switch_stmt:
+@@ -1099,73 +1010,40 @@ convtype:
+ 
+ /*
+  * to avoid parsing conflicts, type is split into
+- *	named types
+  *	channel types
+  *	function types
++ *	parenthesized types
+  *	any other type
+- *
+- * (and also into A/B as described above).
+- *
+  * the type system makes additional restrictions,
+  * but those are not implemented in the grammar.
+  */
+-type:
+-	Atype
+-|	Btype
+-
+-Atype:
+-	Achantype
+-|	Afntype
+-|	Aothertype
+-
+-Btype:
+-	nametype
+-|	Bchantype
+-|	Bfntype
+-|	Bothertype
+-|	'(' type ')'
+-	{
+-		$$ = $2;
+-	}
+-
+ dotdotdot:
+ 	LDDD
+ 	{
+ 		$$ = typ(TDDD);
+ 	}
+ 
+-Anon_chan_type:
+-	Afntype
+-|	Aothertype
+-
+-Bnon_chan_type:
+-	nametype
+-|	Bfntype
+-|	Bothertype
+-|	'(' Btype ')'
++type:
++	chantype
++|	fntype
++|	othertype
++|	'(' type ')'
+ 	{
+ 		$$ = $2;
+ 	}
+ 
+-Anon_fn_type:
+-	Achantype
+-|	Aothertype
+-
+-Bnon_fn_type:
+-	nametype
+-|	Bchantype
+-|	Bothertype
+-
+-nametype:
+-	dotname
++non_chan_type:
++	fntype
++|	othertype
++|	'(' type ')'
+ 	{
+-		if($1->op == OTYPE)
+-		if($1->type->etype == TANY)
+-		if(strcmp(package, "PACKAGE") != 0)
+-			yyerror("the any type is restricted");
+-		$$ = oldtype($1->sym);
++		$$ = $2;
+ 	}
+ 
++non_fn_type:
++	chantype
++|	othertype
++
+ dotname:
+ 	name	%prec NotDot
+ |	name '.' sym
+@@ -1180,70 +1058,44 @@ dotname:
+ 		$$ = adddot($$);
+ 	}
+ 
+-Aothertype:
+-	'[' oexpr ']' Atype
++othertype:
++	'[' oexpr ']' type
+ 	{
+ 		$$ = aindex($2, $4);
+ 	}
+-|	LCOMM LCHAN Atype
++|	LCOMM LCHAN type
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Crecv;
+ 	}
+-|	LCHAN LCOMM Anon_chan_type
++|	LCHAN LCOMM non_chan_type
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Csend;
+ 	}
+-|	LMAP '[' type ']' Atype
++|	LMAP '[' type ']' type
+ 	{
+ 		$$ = maptype($3, $5);
+ 	}
+-|	'*' Atype
++|	'*' type
+ 	{
+ 		$$ = ptrto($2);
+ 	}
+ |	structtype
+ |	interfacetype
+-
+-Bothertype:
+-	'[' oexpr ']' Btype
+-	{
+-		$$ = aindex($2, $4);
+-	}
+-|	LCOMM LCHAN Btype
++|	dotname
+ 	{
+-		$$ = typ(TCHAN);
+-		$$->type = $3;
+-		$$->chan = Crecv;
+-	}
+-|	LCHAN LCOMM Bnon_chan_type
+-	{
+-		$$ = typ(TCHAN);
+-		$$->type = $3;
+-		$$->chan = Csend;
+-	}
+-|	LMAP '[' type ']' Btype
+-	{
+-		$$ = maptype($3, $5);
+-	}
+-|	'*' Btype
+-	{
+-		$$ = ptrto($2);
+-	}
+-
+-Achantype:
+-	LCHAN Atype
+-	{
+-		$$ = typ(TCHAN);
+-		$$->type = $2;
+-		$$->chan = Cboth;
++		if($1->op == OTYPE)
++		if($1->type->etype == TANY)
++		if(strcmp(package, "PACKAGE") != 0)
++			yyerror("the any type is restricted");
++		$$ = oldtype($1->sym);
+ 	}
+ 
+-Bchantype:
+-	LCHAN Btype
++chantype:
++	LCHAN type
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $2;
+@@ -1254,10 +1106,15 @@ structtype:
+ 	LSTRUCT '{' structdcl_list_r osemi '}'
+ 	{
+ 		$$ = dostruct(rev($3), TSTRUCT);
++		// Distinguish closing brace in struct from
++		// other closing braces by explicitly marking it.
++		// Used above (yylast == LSEMIBRACE).
++		yylast = LSEMIBRACE;
+ 	}
+ |	LSTRUCT '{' '}'
+ 	{
+ 		$$ = dostruct(N, TSTRUCT);
++		yylast = LSEMIBRACE;
+ 	}
+ 
+ interfacetype:
+@@ -1265,10 +1122,12 @@ interfacetype:
+ 	{
+ 		$$ = dostruct(rev($3), TINTER);
+ 		$$ = sortinter($$);
++		yylast = LSEMIBRACE;
+ 	}
+ |	LINTERFACE '{' '}'
+ 	{
+ 		$$ = dostruct(N, TINTER);
++		yylast = LSEMIBRACE;
+ 	}
+ 
+ keyval:
+@@ -1322,21 +1181,10 @@ fndcl:
+ 			$$->type = functype(N, $6, $8);
+ 			funchdr($$);
+ 		}
+-
+ 	}
+ 
+ fntype:
+-	Afntype
+-|	Bfntype
+-
+-Afntype:
+-	LFUNC '(' oarg_type_list ')' Afnres
+-	{
+-		$$ = functype(N, $3, $5);
+-	}
+-
+-Bfntype:
+-	LFUNC '(' oarg_type_list ')' Bfnres
++	LFUNC '(' oarg_type_list ')' fnres
+ 	{
+ 		$$ = functype(N, $3, $5);
+ 	}
+@@ -1361,29 +1209,18 @@ fnbody:
+ 		$$ = $2;
+ 		if($$ == N)
+ 			$$ = nod(ORETURN, N, N);
++		yyoptsemi(0);
+ 	}
+ |	{
+ 		$$ = N;
+ 	}
+ 
+ fnres:
+-	Afnres
+-|	Bfnres
+-
+-Afnres:
+-	Anon_fn_type
+-	{
+-		$$ = nod(ODCLFIELD, N, N);
+-		$$->type = $1;
+-		$$ = cleanidlist($$);
+-	}
+-
+-Bfnres:
+ 	%prec NotParen
+ 	{
+ 		$$ = N;
+ 	}
+-|	Bnon_fn_type
++|	non_fn_type
+ 	{
+ 		$$ = nod(ODCLFIELD, N, N);
+ 		$$->type = $1;
+@@ -1558,57 +1395,73 @@ arg_type_list:
+ 	}
+ 
+ /*
+- * statement that doesn't need semicolon terminator
++ * statement
+  */
+-Astmt:
+-	complex_stmt
+-|	compound_stmt
+-|	Acommon_dcl
+-|	';'
++stmt:
+ 	{
+ 		$$ = N;
+ 	}
+-|	error Astmt
++|	simple_stmt
++|	compound_stmt
++|	common_dcl
++|	for_stmt
++|	switch_stmt
++|	select_stmt
++|	if_stmt
++	{
++		popdcl();
++		$$ = $1;
++	}
++|	if_stmt LELSE stmt
++	{
++		popdcl();
++		$$ = $1;
++		$$->nelse = $3;
++	}
++|	error
+ 	{
+ 		$$ = N;
+ 	}
+-|	labelname ':'
++|	labelname ':' stmt
+ 	{
+-		$$ = nod(OLABEL, $1, N);
++		$$ = nod(OLIST, nod(OLABEL, $1, N), $3);
+ 	}
+-|	Bstmt ';'
+-
+-/*
+- * statement that does
+- */
+-Bstmt:
+-	semi_stmt
+-|	Bcommon_dcl
+-|	simple_stmt
+-
+-/*
+- * statement list that doesn't need semicolon terminator
+- */
+-Astmt_list_r:
+-	Astmt
+-|	Astmt_list_r Astmt
++|	LFALL
+ 	{
+-		$$ = list($1, $2);
++		// will be converted to OFALL
++		$$ = nod(OXFALL, N, N);
+ 	}
+-
+-/*
+- * statement list that needs semicolon terminator
+- */
+-Bstmt_list_r:
+-	Bstmt
+-|	Astmt_list_r Bstmt
++|	LBREAK onew_name
+ 	{
+-		$$ = list($1, $2);
++		$$ = nod(OBREAK, $2, N);
++	}
++|	LCONTINUE onew_name
++	{
++		$$ = nod(OCONTINUE, $2, N);
++	}
++|	LGO pseudocall
++	{
++		$$ = nod(OPROC, $2, N);
++	}
++|	LDEFER pseudocall
++	{
++		$$ = nod(ODEFER, $2, N);
++	}
++|	LGOTO new_name
++	{
++		$$ = nod(OGOTO, $2, N);
++	}
++|	LRETURN oexpr_list
++	{
++		$$ = nod(ORETURN, $2, N);
+ 	}
+ 
+ stmt_list_r:
+-	Astmt_list_r
+-|	Bstmt_list_r
++	stmt
++|	stmt_list_r ';' stmt
++	{
++		$$ = list($1, $3);
++	}
+ 
+ name_list_r:
+ 	name
+@@ -1765,10 +1618,7 @@ osimple_stmt:
+ |	simple_stmt
+ 
+ ostmt_list:
+-	{
+-		$$ = N;
+-	}
+-|	stmt_list_r
++	stmt_list_r
+ 	{
+ 		$$ = rev($1);
+ 	}
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 58e3ba6ce8..0efa665ee9 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -8,6 +8,8 @@
+ #include	"y.tab.h"
+ #include <ar.h>
+ 
++extern int yychar;
++
+ #define	DBG	if(!debug['x']);else print
+ enum
+ {
+@@ -366,8 +368,8 @@ isfrog(int c)
+ 	return 0;
+ }
+ 
+-int32
+-yylex(void)
++static int32
++_yylex(void)
+ {
+ 	int c, c1, clen;
+ 	vlong v;
+@@ -941,6 +943,44 @@ caseout:
+ 	return LLITERAL;
+ }
+ 
++/*
++ * help the parser.  if the next token is not c and not ';',
++ * insert a ';' before it.
++ */
++void
++yyoptsemi(int c)
++{
++	if(c == 0)
++		c = -1;
++	if(yychar <= 0)
++		yysemi = c;
++}
++
++int32
++yylex(void)
++{
++	// if we delayed a token, return that one.
++	if(yynext) {
++		yylast = yynext;
++		yynext = 0;
++		return yylast;
++	}
++
++	yylast = _yylex();
++
++	// if there's an optional semicolon needed,
++	// delay the token we just read.
++	if(yysemi) {
++		if(yylast != ';' && yylast != yysemi) {
++			yynext = yylast;
++			yylast = ';';
++		}
++		yysemi = 0;
++	}
++
++	return yylast;
++}
++
+ int
+ getc(void)
+ {

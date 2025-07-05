@@ -12,6 +12,20 @@ Date:   Fri Nov 1 21:50:12 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/io/fs/fs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/fs/fs.go b/src/io/fs/fs.go
+index 6583bcd7b9..9e19e6a797 100644
+--- a/src/io/fs/fs.go
++++ b/src/io/fs/fs.go
+@@ -44,7 +44,7 @@ type FS interface {
+ // Path names passed to open are UTF-8-encoded,
+ // unrooted, slash-separated sequences of path elements, like “x/y/z”.
+ // Path names must not contain an element that is “.” or “..” or the empty string,
+-// except for the special case that the root directory is named “.”.
++// except for the special case that the name "." may be used for the root directory.
+ // Paths must not start or end with a slash: “/x” and “x/” are invalid.
+ //
+ // Note that paths are slash-separated on all systems, even Windows.

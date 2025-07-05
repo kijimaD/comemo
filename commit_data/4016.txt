@@ -8,6 +8,19 @@ Date:   Thu Nov 12 14:55:26 2009 -0800
     
     R=r
     https://golang.org/cl/152106
-
+---
  test/run | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/run b/test/run
+index 93382d17cc..1f921e7a1b 100755
+--- a/test/run
++++ b/test/run
+@@ -29,6 +29,7 @@ export G=${A}g
+ export L=${A}l
+ export GOTRACEBACK=0
+ export LANG=C
++unset GREP_OPTIONS	# in case user has a non-standard set
+ 
+ failed=0
+ 

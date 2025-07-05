@@ -9,6 +9,39 @@ Date:   Wed Jun 13 18:58:09 2018 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/example_test.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/src/math/example_test.go b/src/math/example_test.go
+index feaf9d8252..a1f764bcda 100644
+--- a/src/math/example_test.go
++++ b/src/math/example_test.go
+@@ -89,3 +89,27 @@ func ExampleSqrt() {
+ 	fmt.Printf("%.1f", c)
+ 	// Output: 5.0
+ }
++
++func ExampleCeil() {
++	c := math.Ceil(1.49)
++	fmt.Printf("%.1f", c)
++	// Output: 2.0
++}
++
++func ExampleFloor() {
++	c := math.Floor(1.51)
++	fmt.Printf("%.1f", c)
++	// Output: 1.0
++}
++
++func ExamplePow() {
++	c := math.Pow(2, 3)
++	fmt.Printf("%.1f", c)
++	// Output: 8.0
++}
++
++func ExamplePow10() {
++	c := math.Pow10(2)
++	fmt.Printf("%.1f", c)
++	// Output: 100.0
++}

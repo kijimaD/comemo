@@ -7,8 +7,192 @@ Date:   Tue Jan 20 16:41:31 2015 -0800
     Change-Id: Ida20bf95e8f0fdadb459c2daa6d22edae9c3ad16
     Reviewed-on: https://go-review.googlesource.com/3091
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/nat.go      |  3 ++
  src/math/big/rat.go      | 76 +++++++++++++++++++++++++++++++++---------------
  src/math/big/rat_test.go | 20 ++++++-------
  3 files changed, 65 insertions(+), 34 deletions(-)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 4d65c5fba1..c26734f903 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -626,6 +626,9 @@ func maxPow(b Word) (p Word, n int) {
+ 
+ // pow returns x**n for n > 0, and 1 otherwise.
+ func pow(x Word, n int) (p Word) {
++	// n == sum of bi * 2**i, for 0 <= i < imax, and bi is 0 or 1
++	// thus x**n == product of x**(2**i) for all i where bi == 1
++	// (Russian Peasant Method for exponentiation)
+ 	p = 1
+ 	for n > 0 {
+ 		if n&1 != 0 {
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index d5d0470f66..e21b4a9309 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -10,7 +10,9 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
++	"io"
+ 	"math"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -540,11 +542,11 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	if len(s) == 0 {
+ 		return nil, false
+ 	}
++	// len(s) > 0
+ 
+-	// check for a quotient
+-	sep := strings.Index(s, "/")
+-	if sep >= 0 {
+-		if _, ok := z.a.SetString(s[0:sep], 10); !ok {
++	// parse fraction a/b, if any
++	if sep := strings.Index(s, "/"); sep >= 0 {
++		if _, ok := z.a.SetString(s[:sep], 10); !ok {
+ 			return nil, false
+ 		}
+ 		s = s[sep+1:]
+@@ -558,38 +560,64 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 		return z.norm(), true
+ 	}
+ 
+-	// check for a decimal point
+-	sep = strings.Index(s, ".")
+-	// check for an exponent
+-	e := strings.IndexAny(s, "eE")
+-	var exp Int
+-	if e >= 0 {
+-		if e < sep {
+-			// The E must come after the decimal point.
+-			return nil, false
+-		}
+-		if _, ok := exp.SetString(s[e+1:], 10); !ok {
++	// parse floating-point number
++
++	// parse sign
++	var neg bool
++	switch s[0] {
++	case '-':
++		neg = true
++		fallthrough
++	case '+':
++		s = s[1:]
++	}
++
++	// parse exponent, if any
++	var exp int64
++	if sep := strings.IndexAny(s, "eE"); sep >= 0 {
++		var err error
++		if exp, err = strconv.ParseInt(s[sep+1:], 10, 64); err != nil {
+ 			return nil, false
+ 		}
+-		s = s[0:e]
++		s = s[:sep]
+ 	}
+-	if sep >= 0 {
+-		s = s[0:sep] + s[sep+1:]
+-		exp.Sub(&exp, NewInt(int64(len(s)-sep)))
++
++	// parse mantissa
++	var err error
++	var ecorr int // exponent correction, valid if ecorr <= 0
++	r := strings.NewReader(s)
++	if z.a.abs, _, ecorr, err = z.a.abs.scan(r, 1); err != nil {
++		return nil, false
+ 	}
+ 
+-	if _, ok := z.a.SetString(s, 10); !ok {
++	// there should be no unread characters left
++	if _, _, err = r.ReadRune(); err != io.EOF {
+ 		return nil, false
+ 	}
+-	powTen := nat(nil).expNN(natTen, exp.abs, nil)
+-	if exp.neg {
++
++	// correct exponent
++	if ecorr < 0 {
++		exp += int64(ecorr)
++	}
++
++	// compute exponent factor
++	expabs := exp
++	if expabs < 0 {
++		expabs = -expabs
++	}
++	powTen := nat(nil).expNN(natTen, nat(nil).setWord(Word(expabs)), nil)
++
++	// complete fraction
++	if exp < 0 {
+ 		z.b.abs = powTen
+ 		z.norm()
+ 	} else {
+ 		z.a.abs = z.a.abs.mul(z.a.abs, powTen)
+-		z.b.abs = z.b.abs.make(0)
++		z.b.abs = z.b.abs[:0]
+ 	}
+ 
++	z.a.neg = neg && len(z.a.abs) > 0 // 0 has no sign
++
+ 	return z, true
+ }
+ 
+@@ -667,7 +695,7 @@ func (x *Rat) GobEncode() ([]byte, error) {
+ 	}
+ 	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b.abs))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
+ 	i := x.b.abs.bytes(buf)
+-	j := x.a.abs.bytes(buf[0:i])
++	j := x.a.abs.bytes(buf[:i])
+ 	n := i - j
+ 	if int(uint32(n)) != n {
+ 		// this should never happen
+diff --git a/src/math/big/rat_test.go b/src/math/big/rat_test.go
+index 5dbbb3510f..a4fc610062 100644
+--- a/src/math/big/rat_test.go
++++ b/src/math/big/rat_test.go
+@@ -67,13 +67,13 @@ var setStringTests = []struct {
+ 	{"1.", "1", true},
+ 	{"1e0", "1", true},
+ 	{"1.e1", "10", true},
+-	{in: "1e", ok: false},
+-	{in: "1.e", ok: false},
+-	{in: "1e+14e-5", ok: false},
+-	{in: "1e4.5", ok: false},
+-	{in: "r", ok: false},
+-	{in: "a/b", ok: false},
+-	{in: "a.b", ok: false},
++	{in: "1e"},
++	{in: "1.e"},
++	{in: "1e+14e-5"},
++	{in: "1e4.5"},
++	{in: "r"},
++	{in: "a/b"},
++	{in: "a.b"},
+ 	{"-0.1", "-1/10", true},
+ 	{"-.1", "-1/10", true},
+ 	{"2/4", "1/2", true},
+@@ -89,7 +89,7 @@ var setStringTests = []struct {
+ 	{"53/70893980658822810696", "53/70893980658822810696", true},
+ 	{"106/141787961317645621392", "53/70893980658822810696", true},
+ 	{"204211327800791583.81095", "4084226556015831676219/20000", true},
+-	{in: "1/0", ok: false},
++	{in: "1/0"},
+ }
+ 
+ func TestRatSetString(t *testing.T) {
+@@ -118,9 +118,9 @@ func TestRatScan(t *testing.T) {
+ 		_, err := fmt.Fscanf(&buf, "%v", x)
+ 		if err == nil != test.ok {
+ 			if test.ok {
+-				t.Errorf("#%d error: %s", i, err)
++				t.Errorf("#%d (%s) error: %s", i, test.in, err)
+ 			} else {
+-				t.Errorf("#%d expected error", i)
++				t.Errorf("#%d (%s) expected error", i, test.in)
+ 			}
+ 			continue
+ 		}

@@ -7,6 +7,16 @@ Date:   Wed Oct 4 11:37:20 2017 -0700
     Change-Id: I711b38738a7f6fade42a2821908234940f3cf280
     Reviewed-on: https://go-review.googlesource.com/68233
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  VERSION | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/VERSION b/VERSION
+index f213576692..66a2beedba 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-go1.9
+\ No newline at end of file
++go1.9.1
+\ No newline at end of file

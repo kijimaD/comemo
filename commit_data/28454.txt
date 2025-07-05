@@ -15,8 +15,101 @@ Date:   Tue May 17 20:55:55 2016 +0300
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/sha1/issue15617_test.go | 28 ++++++++++++++++++++++++++++
  src/crypto/sha1/sha1_test.go       | 16 +++++++++-------
  src/crypto/sha1/sha1block_amd64.go | 17 +++++++++++++----
  3 files changed, 50 insertions(+), 11 deletions(-)
+
+diff --git a/src/crypto/sha1/issue15617_test.go b/src/crypto/sha1/issue15617_test.go
+new file mode 100644
+index 0000000000..98038e5807
+--- /dev/null
++++ b/src/crypto/sha1/issue15617_test.go
+@@ -0,0 +1,28 @@
++// +build amd64
++// +build linux darwin
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha1_test
++
++import (
++	"crypto/sha1"
++	"syscall"
++	"testing"
++)
++
++func TestOutOfBoundsRead(t *testing.T) {
++	const pageSize = 4 << 10
++	data, err := syscall.Mmap(0, 0, 2*pageSize, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
++	if err != nil {
++		panic(err)
++	}
++	if err := syscall.Mprotect(data[pageSize:], syscall.PROT_NONE); err != nil {
++		panic(err)
++	}
++	for i := 0; i < pageSize; i++ {
++		sha1.Sum(data[pageSize-i : pageSize])
++	}
++}
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index daab2aeaef..214afc51e1 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -94,13 +94,15 @@ func TestBlockSize(t *testing.T) {
+ 
+ // Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
+ func TestBlockGeneric(t *testing.T) {
+-	gen, asm := New().(*digest), New().(*digest)
+-	buf := make([]byte, BlockSize*20) // arbitrary factor
+-	rand.Read(buf)
+-	blockGeneric(gen, buf)
+-	block(asm, buf)
+-	if *gen != *asm {
+-		t.Error("block and blockGeneric resulted in different states")
++	for i := 1; i < 30; i++ { // arbitrary factor
++		gen, asm := New().(*digest), New().(*digest)
++		buf := make([]byte, BlockSize*i)
++		rand.Read(buf)
++		blockGeneric(gen, buf)
++		block(asm, buf)
++		if *gen != *asm {
++			t.Errorf("For %#v block and blockGeneric resulted in different states", buf)
++		}
+ 	}
+ }
+ 
+diff --git a/src/crypto/sha1/sha1block_amd64.go b/src/crypto/sha1/sha1block_amd64.go
+index a36f334b11..fd85a4262b 100644
+--- a/src/crypto/sha1/sha1block_amd64.go
++++ b/src/crypto/sha1/sha1block_amd64.go
+@@ -12,13 +12,22 @@ func blockAVX2(dig *digest, p []byte)
+ func blockAMD64(dig *digest, p []byte)
+ func checkAVX2() bool
+ 
+-// TODO(TocarIP): fix AVX2 crash (golang.org/issue/15617) and
+-// then re-enable this:
+-var hasAVX2 = false // checkAVX2()
++var hasAVX2 = checkAVX2()
+ 
+ func block(dig *digest, p []byte) {
+ 	if hasAVX2 && len(p) >= 256 {
+-		blockAVX2(dig, p)
++		// blockAVX2 calculates sha1 for 2 block per iteration
++		// it also interleaves precalculation for next block.
++		// So it may read up-to 192 bytes past end of p
++		// We may add checks inside blockAVX2, but this will
++		// just turn it into a copy of blockAMD64,
++		// so call it directly, instead.
++		safeLen := len(p) - 128
++		if safeLen%128 != 0 {
++			safeLen -= 64
++		}
++		blockAVX2(dig, p[:safeLen])
++		blockAMD64(dig, p[safeLen:])
+ 	} else {
+ 		blockAMD64(dig, p)
+ 	}

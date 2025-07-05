@@ -9,6 +9,42 @@ Date:   Mon May 2 22:22:25 2016 +0000
     Change-Id: Ie0724efea2b4da67503c074e265ec7f8d7de7791
     Reviewed-on: https://go-review.googlesource.com/22709
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 032d8af4a1..7fdd94e05b 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -68,8 +68,8 @@ const DefaultMaxIdleConnsPerHost = 2
+ // See the package docs for more about HTTP/2.
+ type Transport struct {
+ 	idleMu     sync.Mutex
+-	wantIdle   bool // user has requested to close all idle conns
+-	idleConn   map[connectMethodKey][]*persistConn
++	wantIdle   bool                                // user has requested to close all idle conns
++	idleConn   map[connectMethodKey][]*persistConn // most recently used at end
+ 	idleConnCh map[connectMethodKey]chan *persistConn
+ 	idleLRU    connLRU
+ 
+@@ -690,7 +690,7 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
+ 			delete(t.idleConn, key)
+ 		} else {
+ 			// 2 or more cached connections; use the most
+-			// recently used one.
++			// recently used one at the end.
+ 			pconn = pconns[len(pconns)-1]
+ 			t.idleConn[key] = pconns[:len(pconns)-1]
+ 		}
+@@ -740,7 +740,9 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
+ 			if v != pconn {
+ 				continue
+ 			}
+-			pconns[i] = pconns[len(pconns)-1]
++			// Slide down, keeping most recently-used
++			// conns at the end.
++			copy(pconns[i:], pconns[i+1:])
+ 			t.idleConn[key] = pconns[:len(pconns)-1]
+ 			break
+ 		}

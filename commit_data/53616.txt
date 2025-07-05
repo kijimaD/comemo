@@ -33,7 +33,7 @@ Date:   Tue Aug 23 16:33:01 2022 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/bug/bug.go     |  3 ++
  src/cmd/go/internal/envcmd/env.go  |  6 ++++
  src/cmd/go/internal/list/list.go   |  6 ++++
@@ -45,3 +45,306 @@ Date:   Tue Aug 23 16:33:01 2022 -0400
  src/cmd/go/internal/work/init.go   |  8 +++++
  src/cmd/go/script_test.go          |  5 +++
  10 files changed, 101 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index 9c9e9dd68a..f1c6b41328 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -22,6 +22,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/envcmd"
+ 	"cmd/go/internal/web"
++	"cmd/go/internal/work"
+ )
+ 
+ var CmdBug = &base.Command{
+@@ -42,6 +43,8 @@ func runBug(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) > 0 {
+ 		base.Fatalf("go: bug takes no arguments")
+ 	}
++	work.BuildInit()
++
+ 	var buf bytes.Buffer
+ 	buf.WriteString(bugHeader)
+ 	printGoVersion(&buf)
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index bbd3318d26..6dd8657bfc 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -175,6 +175,11 @@ func ExtraEnvVars() []cfg.EnvVar {
+ // but are costly to evaluate.
+ func ExtraEnvVarsCostly() []cfg.EnvVar {
+ 	b := work.NewBuilder("")
++	defer func() {
++		if err := b.Close(); err != nil {
++			base.Fatalf("go: %v", err)
++		}
++	}()
+ 
+ 	cppflags, cflags, cxxflags, fflags, ldflags, err := b.CFlags(&load.Package{})
+ 	if err != nil {
+@@ -272,6 +277,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 	if needCostly {
++		work.BuildInit()
+ 		env = append(env, ExtraEnvVarsCostly()...)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 0b928d27e6..66c33d9ade 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -690,6 +690,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
+ 	if needStale || *listExport || *listCompiled {
+ 		b := work.NewBuilder("")
++		defer func() {
++			if err := b.Close(); err != nil {
++				base.Fatalf("go: %v", err)
++			}
++		}()
++
+ 		b.IsCmdList = true
+ 		b.NeedExport = *listExport
+ 		b.NeedCompiledGoFiles = *listCompiled
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 6b253a2c9e..2804db2296 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -92,6 +92,11 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	work.BuildInit()
+ 	b := work.NewBuilder("")
++	defer func() {
++		if err := b.Close(); err != nil {
++			base.Fatalf("go: %v", err)
++		}
++	}()
+ 	b.Print = printStderr
+ 
+ 	i := 0
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 028db84cc4..7e6747055e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -745,6 +745,11 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	b := work.NewBuilder("")
++	defer func() {
++		if err := b.Close(); err != nil {
++			base.Fatalf("go: %v", err)
++		}
++	}()
+ 
+ 	if cfg.BuildI {
+ 		fmt.Fprint(os.Stderr, "go: -i flag is deprecated\n")
+@@ -808,6 +813,9 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		//
+ 		// Maybe this has the effect of removing actions that were registered by the
+ 		// call to CompileAction above?
++		if err := b.Close(); err != nil {
++			base.Fatalf("go: %v", err)
++		}
+ 		b = work.NewBuilder("")
+ 	}
+ 
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 085c7d23b2..ee672d1a30 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -95,6 +95,11 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	b := work.NewBuilder("")
++	defer func() {
++		if err := b.Close(); err != nil {
++			base.Fatalf("go: %v", err)
++		}
++	}()
+ 
+ 	root := &work.Action{Mode: "go vet"}
+ 	for _, p := range pkgs {
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 4bbd23ab8e..ae9afd2f12 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -16,7 +16,6 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -25,6 +24,7 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/trace"
+ 	"cmd/internal/buildid"
+ )
+@@ -244,6 +244,8 @@ const (
+ //
+ // If workDir is the empty string, NewBuilder creates a WorkDir if needed
+ // and arranges for it to be removed in case of an unclean exit.
++// The caller must Close the builder explicitly to clean up the WorkDir
++// before a clean exit.
+ func NewBuilder(workDir string) *Builder {
+ 	b := new(Builder)
+ 
+@@ -260,6 +262,9 @@ func NewBuilder(workDir string) *Builder {
+ 	} else if cfg.BuildN {
+ 		b.WorkDir = "$WORK"
+ 	} else {
++		if !buildInitStarted {
++			panic("internal error: NewBuilder called before BuildInit")
++		}
+ 		tmp, err := os.MkdirTemp(cfg.Getenv("GOTMPDIR"), "go-build")
+ 		if err != nil {
+ 			base.Fatalf("go: creating work dir: %v", err)
+@@ -273,32 +278,10 @@ func NewBuilder(workDir string) *Builder {
+ 			tmp = abs
+ 		}
+ 		b.WorkDir = tmp
++		builderWorkDirs.Store(b, b.WorkDir)
+ 		if cfg.BuildX || cfg.BuildWork {
+ 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
+ 		}
+-		if !cfg.BuildWork {
+-			workdir := b.WorkDir
+-			base.AtExit(func() {
+-				start := time.Now()
+-				for {
+-					err := os.RemoveAll(workdir)
+-					if err == nil {
+-						return
+-					}
+-
+-					// On some configurations of Windows, directories containing executable
+-					// files may be locked for a while after the executable exits (perhaps
+-					// due to antivirus scans?). It's probably worth a little extra latency
+-					// on exit to avoid filling up the user's temporary directory with leaked
+-					// files. (See golang.org/issue/30789.)
+-					if runtime.GOOS != "windows" || time.Since(start) >= 500*time.Millisecond {
+-						fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
+-						return
+-					}
+-					time.Sleep(5 * time.Millisecond)
+-				}
+-			})
+-		}
+ 	}
+ 
+ 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
+@@ -318,6 +301,44 @@ func NewBuilder(workDir string) *Builder {
+ 	return b
+ }
+ 
++var builderWorkDirs sync.Map // *Builder → WorkDir
++
++func (b *Builder) Close() error {
++	wd, ok := builderWorkDirs.Load(b)
++	if !ok {
++		return nil
++	}
++	defer builderWorkDirs.Delete(b)
++
++	if b.WorkDir != wd.(string) {
++		base.Errorf("go: internal error: Builder WorkDir unexpectedly changed from %s to %s", wd, b.WorkDir)
++	}
++
++	if !cfg.BuildWork {
++		if err := robustio.RemoveAll(b.WorkDir); err != nil {
++			return err
++		}
++	}
++	b.WorkDir = ""
++	return nil
++}
++
++func closeBuilders() {
++	leakedBuilders := 0
++	builderWorkDirs.Range(func(bi, _ any) bool {
++		leakedBuilders++
++		if err := bi.(*Builder).Close(); err != nil {
++			base.Errorf("go: %v", err)
++		}
++		return true
++	})
++
++	if leakedBuilders > 0 && base.GetExitStatus() == 0 {
++		fmt.Fprintf(os.Stderr, "go: internal error: Builder leaked on successful exit\n")
++		base.SetExitStatus(1)
++	}
++}
++
+ func CheckGOOSARCHPair(goos, goarch string) error {
+ 	if _, ok := cfg.OSArchSupportsCgo[goos+"/"+goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
+ 		return fmt.Errorf("unsupported GOOS/GOARCH pair %s/%s", goos, goarch)
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index e34cacca03..bce923a459 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -404,6 +404,11 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.InitWorkfile()
+ 	BuildInit()
+ 	b := NewBuilder("")
++	defer func() {
++		if err := b.Close(); err != nil {
++			base.Fatalf("go: %v", err)
++		}
++	}()
+ 
+ 	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{AutoVCS: true}, args)
+ 	load.CheckPackageErrors(pkgs)
+@@ -728,6 +733,11 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
+ 	base.ExitIfErrors()
+ 
+ 	b := NewBuilder("")
++	defer func() {
++		if err := b.Close(); err != nil {
++			base.Fatalf("go: %v", err)
++		}
++	}()
+ 
+ 	depMode := ModeBuild
+ 	if cfg.BuildI {
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 255ff3a0c5..67bd6a4c67 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -24,7 +24,15 @@ import (
+ 	"sync"
+ )
+ 
++var buildInitStarted = false
++
+ func BuildInit() {
++	if buildInitStarted {
++		base.Fatalf("go: internal error: work.BuildInit called more than once")
++	}
++	buildInitStarted = true
++	base.AtExit(closeBuilders)
++
+ 	modload.Init()
+ 	instrumentInit()
+ 	buildModeInit()
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index ca76ab5ab8..b2f68b67f9 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -577,6 +577,11 @@ func (ts *testScript) cmdCc(want simpleStatus, args []string) {
+ 	}
+ 
+ 	b := work.NewBuilder(ts.workdir)
++	defer func() {
++		if err := b.Close(); err != nil {
++			ts.fatalf("%v", err)
++		}
++	}()
+ 	ts.cmdExec(want, append(b.GccCmd(".", ""), args...))
+ }
+ 

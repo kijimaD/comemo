@@ -11,8 +11,105 @@ Date:   Thu Aug 8 10:44:01 2013 -0700
     R=golang-dev, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/12261043
-
+---
  src/pkg/os/export_test.go  |  1 +
  src/pkg/os/file_unix.go    | 11 ++++++++---
  src/pkg/os/os_unix_test.go | 40 +++++++++++++++++++++++++++++++++++++++-
  3 files changed, 48 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/os/export_test.go b/src/pkg/os/export_test.go
+index 9c6ef42974..9fa7936ae6 100644
+--- a/src/pkg/os/export_test.go
++++ b/src/pkg/os/export_test.go
+@@ -7,3 +7,4 @@ package os
+ // Export for testing.
+ 
+ var Atime = atime
++var LstatP = &lstat
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 3c7226769c..06ff5bbfae 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -149,6 +149,9 @@ func Lstat(name string) (fi FileInfo, err error) {
+ 	return fileInfoFromStat(&stat, name), nil
+ }
+ 
++// lstat is overridden in tests.
++var lstat = Lstat
++
+ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ 	dirname := f.name
+ 	if dirname == "" {
+@@ -158,12 +161,14 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ 	names, err := f.Readdirnames(n)
+ 	fi = make([]FileInfo, len(names))
+ 	for i, filename := range names {
+-		fip, lerr := Lstat(dirname + filename)
+-		if err == nil {
++		fip, lerr := lstat(dirname + filename)
++		if lerr == nil {
+ 			fi[i] = fip
+-			err = lerr
+ 		} else {
+ 			fi[i] = &fileStat{name: filename}
++			if err == nil {
++				err = lerr
++			}
+ 		}
+ 	}
+ 	return fi, err
+diff --git a/src/pkg/os/os_unix_test.go b/src/pkg/os/os_unix_test.go
+index f8e330beba..90bbdab789 100644
+--- a/src/pkg/os/os_unix_test.go
++++ b/src/pkg/os/os_unix_test.go
+@@ -28,7 +28,7 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
+ }
+ 
+ func TestChown(t *testing.T) {
+-	// Chown is not supported under windows or Plan 9.
++	// Chown is not supported under windows os Plan 9.
+ 	// Plan9 provides a native ChownPlan9 version instead.
+ 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+@@ -74,3 +74,41 @@ func TestChown(t *testing.T) {
+ 		checkUidGid(t, f.Name(), int(sys.Uid), gid)
+ 	}
+ }
++
++func TestReaddirWithBadLstat(t *testing.T) {
++	handle, err := Open(sfdir)
++	failfile := sfdir + "/" + sfname
++	if err != nil {
++		t.Fatalf("Couldn't open %s: %s", sfdir, err)
++	}
++
++	*LstatP = func(file string) (FileInfo, error) {
++		if file == failfile {
++			var fi FileInfo
++			return fi, ErrInvalid
++		}
++		return Lstat(file)
++	}
++	defer func() { *LstatP = Lstat }()
++
++	dirs, err := handle.Readdir(-1)
++	if err != ErrInvalid {
++		t.Fatalf("Expected Readdir to return ErrInvalid, got %v", err)
++	}
++	foundfail := false
++	for _, dir := range dirs {
++		if dir.Name() == sfname {
++			foundfail = true
++			if dir.Sys() != nil {
++				t.Errorf("Expected Readdir for %s should not contain Sys", failfile)
++			}
++		} else {
++			if dir.Sys() == nil {
++				t.Errorf("Readdir for every file other than %s should contain Sys, but %s/%s didn't either", failfile, sfdir, dir.Name())
++			}
++		}
++	}
++	if !foundfail {
++		t.Fatalf("Expected %s from Readdir, but didn't find it", failfile)
++	}
++}

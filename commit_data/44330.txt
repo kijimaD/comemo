@@ -11,8 +11,52 @@ Date:   Thu Jun 11 12:01:52 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  misc/cgo/testgodefs/testdata/issue39534.go | 12 ++++++++++++
  misc/cgo/testgodefs/testgodefs_test.go     |  1 +
  src/cmd/cgo/gcc.go                         |  2 +-
  3 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testgodefs/testdata/issue39534.go b/misc/cgo/testgodefs/testdata/issue39534.go
+new file mode 100644
+index 0000000000..9899ba1673
+--- /dev/null
++++ b/misc/cgo/testgodefs/testdata/issue39534.go
+@@ -0,0 +1,12 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ignore
++
++package main
++
++// enum { ENUMVAL = 0x1 };
++import "C"
++
++const ENUMVAL = C.ENUMVAL
+diff --git a/misc/cgo/testgodefs/testgodefs_test.go b/misc/cgo/testgodefs/testgodefs_test.go
+index 178fff3fbc..e4085f9ca8 100644
+--- a/misc/cgo/testgodefs/testgodefs_test.go
++++ b/misc/cgo/testgodefs/testgodefs_test.go
+@@ -24,6 +24,7 @@ var filePrefixes = []string{
+ 	"issue37479",
+ 	"issue37621",
+ 	"issue38649",
++	"issue39534",
+ }
+ 
+ func TestGoDefs(t *testing.T) {
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d903a7afb5..a59534ebd0 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1354,7 +1354,7 @@ func (p *Package) rewriteRef(f *File) {
+ 
+ 		if *godefs {
+ 			// Substitute definition for mangled type name.
+-			if r.Name.Type != nil {
++			if r.Name.Type != nil && r.Name.Kind == "type" {
+ 				expr = r.Name.Type.Go
+ 			}
+ 			if id, ok := expr.(*ast.Ident); ok {

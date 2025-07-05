@@ -18,8 +18,187 @@ Date:   Thu Feb 22 12:05:29 2018 -0800
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/name_constraints_test.go | 75 ++++++++++++++++++++++++++++++--
  src/crypto/x509/verify.go                |  7 ++-
  src/crypto/x509/x509.go                  | 18 +++-----
  3 files changed, 82 insertions(+), 18 deletions(-)
+
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+index 1474159203..40caf03552 100644
+--- a/src/crypto/x509/name_constraints_test.go
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"crypto/rand"
+ 	"crypto/x509/pkix"
+ 	"encoding/asn1"
++	"encoding/hex"
+ 	"encoding/pem"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -1482,6 +1483,64 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 		},
+ 		requestedEKUs: []ExtKeyUsage{ExtKeyUsageServerAuth},
+ 	},
++
++	// An invalid DNS SAN should be detected only at validation time so
++	// that we can process CA certificates in the wild that have invalid SANs.
++	// See https://github.com/golang/go/issues/23995
++
++	// #77: an invalid DNS or mail SAN will not be detected if name constaint
++	// checking is not triggered.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:this is invalid", "email:this @ is invalid"},
++		},
++	},
++
++	// #78: an invalid DNS SAN will be detected if any name constraint checking
++	// is triggered.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"uri:"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:this is invalid"},
++		},
++		expectedError: "cannot parse dnsName",
++	},
++
++	// #79: an invalid email SAN will be detected if any name constraint
++	// checking is triggered.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"uri:"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"email:this @ is invalid"},
++		},
++		expectedError: "cannot parse rfc822Name",
++	},
+ }
+ 
+ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
+@@ -1550,6 +1609,13 @@ func makeConstraintsLeafCert(leaf leafSpec, key *ecdsa.PrivateKey, parent *Certi
+ 			}
+ 			template.IPAddresses = append(template.IPAddresses, ip)
+ 
++		case strings.HasPrefix(name, "invalidip:"):
++			ipBytes, err := hex.DecodeString(name[10:])
++			if err != nil {
++				return nil, fmt.Errorf("cannot parse invalid IP: %s", err)
++			}
++			template.IPAddresses = append(template.IPAddresses, net.IP(ipBytes))
++
+ 		case strings.HasPrefix(name, "email:"):
+ 			template.EmailAddresses = append(template.EmailAddresses, name[6:])
+ 
+@@ -2011,12 +2077,13 @@ func TestBadNamesInConstraints(t *testing.T) {
+ }
+ 
+ func TestBadNamesInSANs(t *testing.T) {
+-	// Bad names in SANs should not parse.
++	// Bad names in URI and IP SANs should not parse. Bad DNS and email SANs
++	// will parse and are tested in name constraint tests at the top of this
++	// file.
+ 	badNames := []string{
+-		"dns:foo.com.",
+-		"email:abc@foo.com.",
+-		"email:foo.com.",
+ 		"uri:https://example.com./dsf",
++		"invalidip:0102",
++		"invalidip:0102030405",
+ 	}
+ 
+ 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 8b0c41ddbc..95a48b1de6 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -640,8 +640,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 				name := string(data)
+ 				mailbox, ok := parseRFC2821Mailbox(name)
+ 				if !ok {
+-					// This certificate should not have parsed.
+-					return errors.New("x509: internal error: rfc822Name SAN failed to parse")
++					return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
+ 				}
+ 
+ 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
+@@ -653,6 +652,10 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 
+ 			case nameTypeDNS:
+ 				name := string(data)
++				if _, ok := domainToReverseLabels(name); !ok {
++					return fmt.Errorf("x509: cannot parse dnsName %q", name)
++				}
++
+ 				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
+ 					func(parsedName, constraint interface{}) (bool, error) {
+ 						return matchDomainConstraint(parsedName.(string), constraint.(string))
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 86d9e82aca..8c50a0d474 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -706,7 +706,9 @@ type Certificate struct {
+ 	OCSPServer            []string
+ 	IssuingCertificateURL []string
+ 
+-	// Subject Alternate Name values
++	// Subject Alternate Name values. (Note that these values may not be valid
++	// if invalid values were contained within a parsed certificate. For
++	// example, an element of DNSNames may not be a valid DNS domain name.)
+ 	DNSNames       []string
+ 	EmailAddresses []string
+ 	IPAddresses    []net.IP
+@@ -1126,17 +1128,9 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
+ 	err = forEachSAN(value, func(tag int, data []byte) error {
+ 		switch tag {
+ 		case nameTypeEmail:
+-			mailbox := string(data)
+-			if _, ok := parseRFC2821Mailbox(mailbox); !ok {
+-				return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
+-			}
+-			emailAddresses = append(emailAddresses, mailbox)
++			emailAddresses = append(emailAddresses, string(data))
+ 		case nameTypeDNS:
+-			domain := string(data)
+-			if _, ok := domainToReverseLabels(domain); !ok {
+-				return fmt.Errorf("x509: cannot parse dnsName %q", string(data))
+-			}
+-			dnsNames = append(dnsNames, domain)
++			dnsNames = append(dnsNames, string(data))
+ 		case nameTypeURI:
+ 			uri, err := url.Parse(string(data))
+ 			if err != nil {
+@@ -1153,7 +1147,7 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
+ 			case net.IPv4len, net.IPv6len:
+ 				ipAddresses = append(ipAddresses, data)
+ 			default:
+-				return errors.New("x509: certificate contained IP address of length " + strconv.Itoa(len(data)))
++				return errors.New("x509: cannot parse IP address of length " + strconv.Itoa(len(data)))
+ 			}
+ 		}
+ 

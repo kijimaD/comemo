@@ -15,6 +15,20 @@ Date:   Wed Nov 28 16:22:05 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/doc/dirs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/doc/dirs.go b/src/cmd/doc/dirs.go
+index 24bd797eb5..c6f5cd9af8 100644
+--- a/src/cmd/doc/dirs.go
++++ b/src/cmd/doc/dirs.go
+@@ -162,7 +162,7 @@ func findCodeRoots() []Dir {
+ 		// Check for use of modules by 'go env GOMOD',
+ 		// which reports a go.mod file path if modules are enabled.
+ 		stdout, _ := exec.Command("go", "env", "GOMOD").Output()
+-		usingModules = bytes.Contains(stdout, []byte("go.mod"))
++		usingModules = len(bytes.TrimSpace(stdout)) > 0
+ 	}
+ 
+ 	if !usingModules {

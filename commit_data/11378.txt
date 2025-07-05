@@ -7,6 +7,21 @@ Date:   Wed Jan 25 08:58:41 2012 -0800
     R=adg, iant
     CC=golang-dev
     https://golang.org/cl/5573062
-
+---
  src/cmd/gofmt/test.sh | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index 2325d6b835..c18987f4d1 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -43,7 +43,8 @@ apply1() {
+ 	bug226.go | bug228.go | bug248.go | bug274.go | bug280.go | \
+ 	bug282.go | bug287.go | bug298.go | bug299.go | bug300.go | \
+ 	bug302.go | bug306.go | bug322.go | bug324.go | bug335.go | \
+-	bug340.go | bug349.go | bug351.go | bug358.go | bug367.go ) return ;;
++	bug340.go | bug349.go | bug351.go | bug358.go | bug367.go | \
++	bug388.go | bug394.go ) return ;;
+ 	esac
+ 	# the following directories are skipped because they contain test
+ 	# cases for syntax errors and thus won't parse in the first place:

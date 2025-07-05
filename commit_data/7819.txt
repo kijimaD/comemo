@@ -12,6 +12,26 @@ Date:   Mon Mar 21 00:07:22 2011 -0300
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4291058
-
+---
  src/pkg/rpc/server_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 9e32b740f1..d4041ae70c 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -312,12 +312,12 @@ func (WriteFailCodec) WriteRequest(*Request, interface{}) os.Error {
+ }
+ 
+ func (WriteFailCodec) ReadResponseHeader(*Response) os.Error {
+-	time.Sleep(60e9)
++	time.Sleep(120e9)
+ 	panic("unreachable")
+ }
+ 
+ func (WriteFailCodec) ReadResponseBody(interface{}) os.Error {
+-	time.Sleep(60e9)
++	time.Sleep(120e9)
+ 	panic("unreachable")
+ }
+ 

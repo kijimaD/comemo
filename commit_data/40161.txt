@@ -7,6 +7,19 @@ Date:   Tue Apr 23 14:16:05 2019 +0200
     Change-Id: I1380229c250a6100dc7e0bcf59be8df425a3efac
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173399
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  AUTHORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8b8105b1ad..b2a6b3fc45 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -928,6 +928,7 @@ Maxim Khitrov <max@mxcrypt.com>
+ Maxime de Roucy <maxime.deroucy@gmail.com>
+ Máximo Cuadros Ortiz <mcuadros@gmail.com>
+ Maxwell Krohn <themax@gmail.com>
++Maya Rashish <maya@netbsd.org>
+ Mayank Kumar <krmayankk@gmail.com>
+ MediaMath, Inc
+ Meir Fischer <meirfischer@gmail.com>

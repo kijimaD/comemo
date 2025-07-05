@@ -22,7 +22,7 @@ Date:   Wed Mar 13 13:27:03 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/571096
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/go/go_test.go                             | 19 ++++-----
  src/cmd/go/internal/base/base.go                  | 11 +++--
  src/cmd/go/main.go                                | 19 ++++-----
@@ -32,3 +32,314 @@ Date:   Wed Mar 13 13:27:03 2024 -0400
  src/cmd/internal/telemetry/telemetry.go           | 51 +++++++++++++++++++++++
  src/cmd/internal/telemetry/telemetry_bootstrap.go | 19 +++++++++
  8 files changed, 95 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 34a3cf15c9..5e5d539033 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -44,8 +44,6 @@ import (
+ 	"cmd/internal/sys"
+ 
+ 	cmdgo "cmd/go"
+-
+-	"golang.org/x/telemetry/counter/countertest"
+ )
+ 
+ func init() {
+@@ -155,15 +153,6 @@ func TestMain(m *testing.M) {
+ 			web.EnableTestHooks(interceptors)
+ 		}
+ 
+-		cmdgo.TelemetryStart = func() {
+-			// TODO(matloob): we'll ideally want to call telemetry.Start here
+-			// but it calls counter.Open, which we don't want to do because
+-			// we want to call countertest.Open.
+-			if telemetryDir := os.Getenv("TESTGO_TELEMETRY_DIR"); telemetryDir != "" {
+-				countertest.Open(telemetryDir)
+-			}
+-		}
+-
+ 		cmdgo.Main()
+ 		os.Exit(0)
+ 	}
+@@ -1286,6 +1275,10 @@ func TestDefaultGOPATH(t *testing.T) {
+ 	tg.parallel()
+ 	tg.tempDir("home/go")
+ 	tg.setenv(homeEnvName(), tg.path("home"))
++	// Set TEST_TELEMETRY_DIR to a path that doesn't exist
++	// so that the counter uploading code doesn't write
++	// the counter token file to the temp dir after the test finishes.
++	tg.setenv("TEST_TELEMETRY_DIR", "/no-telemetry-dir")
+ 
+ 	tg.run("env", "GOPATH")
+ 	tg.grepStdout(regexp.QuoteMeta(tg.path("home/go")), "want GOPATH=$HOME/go")
+@@ -1306,6 +1299,10 @@ func TestDefaultGOPATHPrintedSearchList(t *testing.T) {
+ 	tg.setenv("GOPATH", "")
+ 	tg.tempDir("home")
+ 	tg.setenv(homeEnvName(), tg.path("home"))
++	// Set TEST_TELEMETRY_DIR to a path that doesn't exist
++	// so that the counter uploading code doesn't write
++	// the counter token file to the temp dir after the test finishes.
++	tg.setenv("TEST_TELEMETRY_DIR", "/no-telemetry-dir")
+ 
+ 	tg.runFail("install", "github.com/golang/example/hello")
+ 	tg.grepStderr(regexp.QuoteMeta(tg.path("home/go/src/github.com/golang/example/hello"))+`.*from \$GOPATH`, "expected default GOPATH")
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 73082df763..cc3f94e56c 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -7,6 +7,7 @@
+ package base
+ 
+ import (
++	"cmd/internal/telemetry"
+ 	"context"
+ 	"flag"
+ 	"fmt"
+@@ -20,8 +21,6 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/str"
+-
+-	"golang.org/x/telemetry/counter"
+ )
+ 
+ // A Command is an implementation of a go command
+@@ -227,14 +226,18 @@ var Usage func()
+ 
+ var counterNames = map[string]bool{}
+ 
++type Counter interface {
++	Inc()
++}
++
+ // NewCounter registers a new counter. It must be called from an init function
+ // or global variable initializer.
+-func NewCounter(name string) *counter.Counter {
++func NewCounter(name string) Counter {
+ 	if counterNames[name] {
+ 		panic(fmt.Errorf("counter %q initialized twice", name))
+ 	}
+ 	counterNames[name] = true
+-	return counter.New(name)
++	return telemetry.NewCounter(name)
+ }
+ 
+ func RegisteredCounterNames() []string {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 3638367bdb..4e23d7b3da 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -8,6 +8,7 @@
+ package main
+ 
+ import (
++	"cmd/internal/telemetry"
+ 	"context"
+ 	"flag"
+ 	"fmt"
+@@ -43,8 +44,6 @@ import (
+ 	"cmd/go/internal/vet"
+ 	"cmd/go/internal/work"
+ 	"cmd/go/internal/workcmd"
+-
+-	"golang.org/x/telemetry/counter"
+ )
+ 
+ func init() {
+@@ -94,13 +93,13 @@ var counterErrorsGOPATHEntryRelative = base.NewCounter("go/errors:gopath-entry-r
+ 
+ func main() {
+ 	log.SetFlags(0)
+-	TelemetryStart() // Open the telemetry counter file so counters can be written to it.
++	telemetry.StartWithUpload() // Open the telemetry counter file so counters can be written to it.
+ 	handleChdirFlag()
+ 	toolchain.Select()
+ 
+ 	flag.Usage = base.Usage
+ 	flag.Parse()
+-	counter.CountFlags("go/flag:", *flag.CommandLine)
++	telemetry.CountFlags("go/flag:", *flag.CommandLine)
+ 
+ 	args := flag.Args()
+ 	if len(args) < 1 {
+@@ -109,7 +108,7 @@ func main() {
+ 
+ 	cfg.CmdName = args[0] // for error messages
+ 	if args[0] == "help" {
+-		counter.Inc("go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
++		telemetry.Inc("go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
+ 		help.Help(os.Stdout, args[1:])
+ 		return
+ 	}
+@@ -166,7 +165,7 @@ func main() {
+ 		}
+ 		if args[used] == "help" {
+ 			// Accept 'go mod help' and 'go mod help foo' for 'go help mod' and 'go help mod foo'.
+-			counter.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-" + strings.Join(args[used:], "-"))
++			telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-" + strings.Join(args[used:], "-"))
+ 			help.Help(os.Stdout, append(slices.Clip(args[:used]), args[used+1:]...))
+ 			base.Exit()
+ 		}
+@@ -178,12 +177,12 @@ func main() {
+ 		if cmdName == "" {
+ 			cmdName = args[0]
+ 		}
+-		counter.Inc("go/subcommand:unknown")
++		telemetry.Inc("go/subcommand:unknown")
+ 		fmt.Fprintf(os.Stderr, "go %s: unknown command\nRun 'go help%s' for usage.\n", cmdName, helpArg)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+-	counter.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
++	telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
+ 	invoke(cmd, args[used-1:])
+ 	base.Exit()
+ }
+@@ -248,7 +247,7 @@ func invoke(cmd *base.Command, args []string) {
+ 	} else {
+ 		base.SetFromGOFLAGS(&cmd.Flag)
+ 		cmd.Flag.Parse(args[1:])
+-		counter.CountFlags("go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
++		telemetry.CountFlags("go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
+ 		args = cmd.Flag.Args()
+ 	}
+ 
+@@ -333,7 +332,7 @@ func handleChdirFlag() {
+ 		_, dir, _ = strings.Cut(a, "=")
+ 		os.Args = slices.Delete(os.Args, used, used+1)
+ 	}
+-	counter.Inc("go/flag:C")
++	telemetry.Inc("go/flag:C")
+ 
+ 	if err := os.Chdir(dir); err != nil {
+ 		base.Fatalf("go: %v", err)
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index d36de720cd..0c494c0514 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -195,7 +195,7 @@ func initScriptDirs(t testing.TB, s *script.State) (telemetryDir string) {
+ 
+ 	telemetryDir = filepath.Join(work, "telemetry")
+ 	must(os.MkdirAll(telemetryDir, 0777))
+-	must(s.Setenv("TESTGO_TELEMETRY_DIR", filepath.Join(work, "telemetry")))
++	must(s.Setenv("TEST_TELEMETRY_DIR", filepath.Join(work, "telemetry")))
+ 
+ 	must(os.MkdirAll(filepath.Join(work, "tmp"), 0777))
+ 	must(s.Setenv(tempEnvName(), filepath.Join(work, "tmp")))
+diff --git a/src/cmd/go/telemetry.go b/src/cmd/go/telemetry.go
+deleted file mode 100644
+index ac7a6a9ed4..0000000000
+--- a/src/cmd/go/telemetry.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !cmd_go_bootstrap
+-
+-package main
+-
+-import "golang.org/x/telemetry"
+-
+-var TelemetryStart = func() {
+-	telemetry.Start(telemetry.Config{Upload: true})
+-}
+diff --git a/src/cmd/go/telemetry_bootstrap.go b/src/cmd/go/telemetry_bootstrap.go
+deleted file mode 100644
+index 8bacf219a2..0000000000
+--- a/src/cmd/go/telemetry_bootstrap.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build cmd_go_bootstrap
+-
+-package main
+-
+-var TelemetryStart = func() {}
+diff --git a/src/cmd/internal/telemetry/telemetry.go b/src/cmd/internal/telemetry/telemetry.go
+new file mode 100644
+index 0000000000..0e223442ff
+--- /dev/null
++++ b/src/cmd/internal/telemetry/telemetry.go
+@@ -0,0 +1,51 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !cmd_go_bootstrap
++
++// Package telemetry is a shim package around the golang.org/x/telemetry
++// and golang.org/x/telemetry/counter packages that has code build tagged
++// out for cmd_go_bootstrap so that the bootstrap Go command does not
++// depend on net (which is a dependency of golang.org/x/telemetry/counter
++// on Windows).
++package telemetry
++
++import (
++	"flag"
++	"os"
++
++	"golang.org/x/telemetry"
++	"golang.org/x/telemetry/counter"
++)
++
++// Start opens the counter files for writing if telemetry is supported
++// on the current platform (and does nothing otherwise).
++func Start() {
++	telemetry.Start(telemetry.Config{
++		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
++	})
++}
++
++// StartWithUpload opens the counter files for writing if telemetry
++// is supported on the current platform and also enables a once a day
++// check to see if the weekly reports are ready to be uploaded.
++// It should only be called by cmd/go
++func StartWithUpload() {
++	telemetry.Start(telemetry.Config{
++		Upload:       true,
++		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
++	})
++}
++
++func Inc(name string) {
++	counter.Inc(name)
++}
++
++func NewCounter(name string) *counter.Counter {
++	return counter.New(name)
++}
++
++func CountFlags(prefix string, flagSet flag.FlagSet) {
++	counter.CountFlags(prefix, flagSet)
++}
+diff --git a/src/cmd/internal/telemetry/telemetry_bootstrap.go b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+new file mode 100644
+index 0000000000..9fb03507d9
+--- /dev/null
++++ b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+@@ -0,0 +1,19 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cmd_go_bootstrap
++
++package telemetry
++
++import "flag"
++
++type dummyCounter struct{}
++
++func (dc dummyCounter) Inc() {}
++
++func Start()                                       {}
++func StartWithUpload()                             {}
++func Inc(name string)                              {}
++func NewCounter(name string) dummyCounter          { return dummyCounter{} }
++func CountFlags(name string, flagSet flag.FlagSet) {}

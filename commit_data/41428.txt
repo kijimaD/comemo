@@ -12,9 +12,99 @@ Date:   Wed Oct 2 14:42:46 2019 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go     |  8 ++++----
  src/cmd/compile/internal/gc/subr.go      |  5 +++++
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue31747.go             | 10 +++++-----
  4 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 2922f9a872..a4f834b5ab 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1327,7 +1327,7 @@ func checkLangCompat(lit *syntax.BasicLit) {
+ 	}
+ 	// len(s) > 2
+ 	if strings.Contains(s, "_") {
+-		yyerror("underscores in numeric literals only supported as of -lang=go1.13")
++		yyerrorv("go1.13", "underscores in numeric literals")
+ 		return
+ 	}
+ 	if s[0] != '0' {
+@@ -1335,15 +1335,15 @@ func checkLangCompat(lit *syntax.BasicLit) {
+ 	}
+ 	base := s[1]
+ 	if base == 'b' || base == 'B' {
+-		yyerror("binary literals only supported as of -lang=go1.13")
++		yyerrorv("go1.13", "binary literals")
+ 		return
+ 	}
+ 	if base == 'o' || base == 'O' {
+-		yyerror("0o/0O-style octal literals only supported as of -lang=go1.13")
++		yyerrorv("go1.13", "0o/0O-style octal literals")
+ 		return
+ 	}
+ 	if lit.Kind != syntax.IntLit && (base == 'x' || base == 'X') {
+-		yyerror("hexadecimal floating-point literals only supported as of -lang=go1.13")
++		yyerrorv("go1.13", "hexadecimal floating-point literals")
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b4be5dcbfb..3fc59194e4 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -154,6 +154,11 @@ func yyerrorl(pos src.XPos, format string, args ...interface{}) {
+ 	}
+ }
+ 
++func yyerrorv(lang string, format string, args ...interface{}) {
++	what := fmt.Sprintf(format, args...)
++	yyerrorl(lineno, "%s requires %s or later (-lang was set to %s; check go.mod)", what, lang, flag_lang)
++}
++
+ func yyerror(format string, args ...interface{}) {
+ 	yyerrorl(lineno, format, args...)
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index c9b7e3b1e8..d5483c9ce5 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -604,7 +604,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 				return n
+ 			}
+ 			if t.IsSigned() && !langSupported(1, 13) {
+-				yyerror("invalid operation: %v (signed shift count type %v, only supported as of -lang=go1.13)", n, r.Type)
++				yyerrorv("go1.13", "invalid operation: %v (signed shift count type %v)", n, r.Type)
+ 				n.Type = nil
+ 				return n
+ 			}
+diff --git a/test/fixedbugs/issue31747.go b/test/fixedbugs/issue31747.go
+index dfb585c613..420fe30735 100644
+--- a/test/fixedbugs/issue31747.go
++++ b/test/fixedbugs/issue31747.go
+@@ -8,11 +8,11 @@ package p
+ 
+ // numeric literals
+ const (
+-	_ = 1_000 // ERROR "underscores in numeric literals only supported as of -lang=go1.13"
+-	_ = 0b111 // ERROR "binary literals only supported as of -lang=go1.13"
+-	_ = 0o567 // ERROR "0o/0O-style octal literals only supported as of -lang=go1.13"
++	_ = 1_000 // ERROR "underscores in numeric literals requires go1.13 or later \(-lang was set to go1.12; check go.mod\)"
++	_ = 0b111 // ERROR "binary literals requires go1.13 or later"
++	_ = 0o567 // ERROR "0o/0O-style octal literals requires go1.13 or later"
+ 	_ = 0xabc // ok
+-	_ = 0x0p1 // ERROR "hexadecimal floating-point literals only supported as of -lang=go1.13"
++	_ = 0x0p1 // ERROR "hexadecimal floating-point literals requires go1.13 or later"
+ 
+ 	_ = 0B111 // ERROR "binary"
+ 	_ = 0O567 // ERROR "octal"
+@@ -29,6 +29,6 @@ const (
+ // signed shift counts
+ var (
+ 	s int
+-	_ = 1 << s // ERROR "signed shift count type int, only supported as of -lang=go1.13"
++	_ = 1 << s // ERROR "invalid operation: 1 << s \(signed shift count type int\) requires go1.13 or later"
+ 	_ = 1 >> s // ERROR "signed shift count"
+ )

@@ -19,7 +19,7 @@ Date:   Wed May 3 20:59:12 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/internal/boring/sha.go        | 28 -------------
  src/crypto/sha512/sha512.go              | 67 ++++++--------------------------
  src/crypto/sha512/sha512_test.go         | 34 +---------------
@@ -34,3 +34,427 @@ Date:   Wed May 3 20:59:12 2023 +0000
  src/crypto/sha512/sha512block_s390x.go   |  9 +----
  src/crypto/sha512/sha512block_s390x.s    |  6 +--
  13 files changed, 40 insertions(+), 186 deletions(-)
+
+diff --git a/src/crypto/internal/boring/sha.go b/src/crypto/internal/boring/sha.go
+index 702c68759a..c9772aa6f1 100644
+--- a/src/crypto/internal/boring/sha.go
++++ b/src/crypto/internal/boring/sha.go
+@@ -428,20 +428,6 @@ func (h *sha384Hash) Write(p []byte) (int, error) {
+ 	return len(p), nil
+ }
+ 
+-func (h *sha384Hash) WriteString(s string) (int, error) {
+-	if len(s) > 0 && C._goboringcrypto_SHA384_Update(h.noescapeCtx(), unsafe.Pointer(unsafe.StringData(s)), C.size_t(len(s))) == 0 {
+-		panic("boringcrypto: SHA384_Update failed")
+-	}
+-	return len(s), nil
+-}
+-
+-func (h *sha384Hash) WriteByte(c byte) error {
+-	if C._goboringcrypto_SHA384_Update(h.noescapeCtx(), unsafe.Pointer(&c), 1) == 0 {
+-		panic("boringcrypto: SHA384_Update failed")
+-	}
+-	return nil
+-}
+-
+ func (h0 *sha384Hash) sum(dst []byte) []byte {
+ 	h := *h0 // make copy so future Write+Sum is valid
+ 	if C._goboringcrypto_SHA384_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
+@@ -480,20 +466,6 @@ func (h *sha512Hash) Write(p []byte) (int, error) {
+ 	return len(p), nil
+ }
+ 
+-func (h *sha512Hash) WriteString(s string) (int, error) {
+-	if len(s) > 0 && C._goboringcrypto_SHA512_Update(h.noescapeCtx(), unsafe.Pointer(unsafe.StringData(s)), C.size_t(len(s))) == 0 {
+-		panic("boringcrypto: SHA512_Update failed")
+-	}
+-	return len(s), nil
+-}
+-
+-func (h *sha512Hash) WriteByte(c byte) error {
+-	if C._goboringcrypto_SHA512_Update(h.noescapeCtx(), unsafe.Pointer(&c), 1) == 0 {
+-		panic("boringcrypto: SHA512_Update failed")
+-	}
+-	return nil
+-}
+-
+ func (h0 *sha512Hash) sum(dst []byte) []byte {
+ 	h := *h0 // make copy so future Write+Sum is valid
+ 	if C._goboringcrypto_SHA512_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index b22c50be6c..9ae1b3aae2 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -254,10 +254,20 @@ func (d *digest) Size() int {
+ func (d *digest) BlockSize() int { return BlockSize }
+ 
+ func (d *digest) Write(p []byte) (nn int, err error) {
++	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
++		boring.Unreachable()
++	}
+ 	nn = len(p)
+ 	d.len += uint64(nn)
+-	n := fillChunk(d, p)
+-	p = p[n:]
++	if d.nx > 0 {
++		n := copy(d.x[d.nx:], p)
++		d.nx += n
++		if d.nx == chunk {
++			block(d, d.x[:])
++			d.nx = 0
++		}
++		p = p[n:]
++	}
+ 	if len(p) >= chunk {
+ 		n := len(p) &^ (chunk - 1)
+ 		block(d, p[:n])
+@@ -269,59 +279,6 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d *digest) WriteString(s string) (nn int, err error) {
+-	nn = len(s)
+-	d.len += uint64(nn)
+-	n := fillChunk(d, s)
+-
+-	// This duplicates the code in Write, except that it calls
+-	// blockString rather than block. It would be nicer to pass
+-	// in a func, but as of this writing (Go 1.20) that causes
+-	// memory allocations that we want to avoid.
+-
+-	s = s[n:]
+-	if len(s) >= chunk {
+-		n := len(s) &^ (chunk - 1)
+-		blockString(d, s[:n])
+-		s = s[n:]
+-	}
+-	if len(s) > 0 {
+-		d.nx = copy(d.x[:], s)
+-	}
+-	return
+-}
+-
+-// fillChunk fills the remainder of the current chunk, if any.
+-func fillChunk[S []byte | string](d *digest, p S) int {
+-	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
+-		boring.Unreachable()
+-	}
+-	if d.nx == 0 {
+-		return 0
+-	}
+-	n := copy(d.x[d.nx:], p)
+-	d.nx += n
+-	if d.nx == chunk {
+-		block(d, d.x[:])
+-		d.nx = 0
+-	}
+-	return n
+-}
+-
+-func (d *digest) WriteByte(c byte) error {
+-	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
+-		boring.Unreachable()
+-	}
+-	d.len++
+-	d.x[d.nx] = c
+-	d.nx++
+-	if d.nx == chunk {
+-		block(d, d.x[:])
+-		d.nx = 0
+-	}
+-	return nil
+-}
+-
+ func (d *digest) Sum(in []byte) []byte {
+ 	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
+ 		boring.Unreachable()
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index cbe195e338..921cdbb7bb 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -676,15 +676,6 @@ func testHash(t *testing.T, name, in, outHex string, oneShotResult []byte, diges
+ 		}
+ 		digestFunc.Reset()
+ 	}
+-
+-	bw := digestFunc.(io.ByteWriter)
+-	for i := 0; i < len(in); i++ {
+-		bw.WriteByte(in[i])
+-	}
+-	if calculated := hex.EncodeToString(digestFunc.Sum(nil)); calculated != outHex {
+-		t.Errorf("%s(%q) = %q using WriteByte but expected %q", name, in, calculated, outHex)
+-	}
+-	digestFunc.Reset()
+ }
+ 
+ func TestGolden(t *testing.T) {
+@@ -905,8 +896,7 @@ func TestAllocations(t *testing.T) {
+ 	if boring.Enabled {
+ 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+ 	}
+-	const ins = "hello, world!"
+-	in := []byte(ins)
++	in := []byte("hello, world!")
+ 	out := make([]byte, 0, Size)
+ 	h := New()
+ 	n := int(testing.AllocsPerRun(10, func() {
+@@ -917,28 +907,6 @@ func TestAllocations(t *testing.T) {
+ 	if n > 0 {
+ 		t.Errorf("allocs = %d, want 0", n)
+ 	}
+-
+-	sw := h.(io.StringWriter)
+-	n = int(testing.AllocsPerRun(10, func() {
+-		h.Reset()
+-		sw.WriteString(ins)
+-		out = h.Sum(out[:0])
+-	}))
+-	if n > 0 {
+-		t.Errorf("string allocs = %d, want 0", n)
+-	}
+-
+-	bw := h.(io.ByteWriter)
+-	n = int(testing.AllocsPerRun(10, func() {
+-		h.Reset()
+-		for _, b := range in {
+-			bw.WriteByte(b)
+-		}
+-		out = h.Sum(out[:0])
+-	}))
+-	if n > 0 {
+-		t.Errorf("byte allocs = %d, want 0", n)
+-	}
+ }
+ 
+ var bench = New()
+diff --git a/src/crypto/sha512/sha512block.go b/src/crypto/sha512/sha512block.go
+index b0dcf27d95..81569c5f84 100644
+--- a/src/crypto/sha512/sha512block.go
++++ b/src/crypto/sha512/sha512block.go
+@@ -93,7 +93,7 @@ var _K = []uint64{
+ 	0x6c44198c4a475817,
+ }
+ 
+-func blockGeneric[S []byte | string](dig *digest, p S) {
++func blockGeneric(dig *digest, p []byte) {
+ 	var w [80]uint64
+ 	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7]
+ 	for len(p) >= chunk {
+diff --git a/src/crypto/sha512/sha512block_amd64.go b/src/crypto/sha512/sha512block_amd64.go
+index 4d9ec5ac1c..8da3e1473f 100644
+--- a/src/crypto/sha512/sha512block_amd64.go
++++ b/src/crypto/sha512/sha512block_amd64.go
+@@ -6,31 +6,20 @@
+ 
+ package sha512
+ 
+-import (
+-	"internal/cpu"
+-	"unsafe"
+-)
++import "internal/cpu"
+ 
+ //go:noescape
+-func blockAVX2(dig *digest, p *byte, n int)
++func blockAVX2(dig *digest, p []byte)
+ 
+ //go:noescape
+-func blockAMD64(dig *digest, p *byte, n int)
++func blockAMD64(dig *digest, p []byte)
+ 
+ var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+ 
+ func block(dig *digest, p []byte) {
+ 	if useAVX2 {
+-		blockAVX2(dig, unsafe.SliceData(p), len(p))
++		blockAVX2(dig, p)
+ 	} else {
+-		blockAMD64(dig, unsafe.SliceData(p), len(p))
+-	}
+-}
+-
+-func blockString(dig *digest, s string) {
+-	if useAVX2 {
+-		blockAVX2(dig, unsafe.StringData(s), len(s))
+-	} else {
+-		blockAMD64(dig, unsafe.StringData(s), len(s))
++		blockAMD64(dig, p)
+ 	}
+ }
+diff --git a/src/crypto/sha512/sha512block_amd64.s b/src/crypto/sha512/sha512block_amd64.s
+index e8a89e31fa..0fa0df2f60 100644
+--- a/src/crypto/sha512/sha512block_amd64.s
++++ b/src/crypto/sha512/sha512block_amd64.s
+@@ -141,9 +141,9 @@
+ 	MSGSCHEDULE1(index); \
+ 	SHA512ROUND(index, const, a, b, c, d, e, f, g, h)
+ 
+-TEXT ·blockAMD64(SB),0,$648-24
+-	MOVQ	p+8(FP), SI
+-	MOVQ	n+16(FP), DX
++TEXT ·blockAMD64(SB),0,$648-32
++	MOVQ	p_base+8(FP), SI
++	MOVQ	p_len+16(FP), DX
+ 	SHRQ	$7, DX
+ 	SHLQ	$7, DX
+ 
+@@ -319,10 +319,10 @@ DATA MASK_YMM_LO<>+0x18(SB)/8, $0xFFFFFFFFFFFFFFFF
+ 
+ GLOBL MASK_YMM_LO<>(SB), (NOPTR+RODATA), $32
+ 
+-TEXT ·blockAVX2(SB), NOSPLIT, $56-24
++TEXT ·blockAVX2(SB), NOSPLIT, $56-32
+ 	MOVQ dig+0(FP), SI
+-	MOVQ p+8(FP), DI
+-	MOVQ n+16(FP), DX
++	MOVQ p_base+8(FP), DI
++	MOVQ p_len+16(FP), DX
+ 
+ 	SHRQ $7, DX
+ 	SHLQ $7, DX
+diff --git a/src/crypto/sha512/sha512block_arm64.go b/src/crypto/sha512/sha512block_arm64.go
+index a916a0a98e..243eb5c1d6 100644
+--- a/src/crypto/sha512/sha512block_arm64.go
++++ b/src/crypto/sha512/sha512block_arm64.go
+@@ -4,26 +4,15 @@
+ 
+ package sha512
+ 
+-import (
+-	"internal/cpu"
+-	"unsafe"
+-)
++import "internal/cpu"
+ 
+ func block(dig *digest, p []byte) {
+ 	if cpu.ARM64.HasSHA512 {
+-		blockAsm(dig, unsafe.SliceData(p), len(p))
++		blockAsm(dig, p)
+ 		return
+ 	}
+ 	blockGeneric(dig, p)
+ }
+ 
+-func blockString(dig *digest, s string) {
+-	if cpu.ARM64.HasSHA512 {
+-		blockAsm(dig, unsafe.StringData(s), len(s))
+-		return
+-	}
+-	blockGeneric(dig, s)
+-}
+-
+ //go:noescape
+-func blockAsm(dig *digest, p *byte, n int)
++func blockAsm(dig *digest, p []byte)
+diff --git a/src/crypto/sha512/sha512block_arm64.s b/src/crypto/sha512/sha512block_arm64.s
+index 647ee6273f..dfc35d69c3 100644
+--- a/src/crypto/sha512/sha512block_arm64.s
++++ b/src/crypto/sha512/sha512block_arm64.s
+@@ -38,11 +38,11 @@
+ 	VADD	i3.D2, i1.D2, i4.D2 \
+ 	SHA512H2	i0.D2, i1, i3
+ 
+-// func blockAsm(dig *digest, p *byte, n int)
++// func blockAsm(dig *digest, p []byte)
+ TEXT ·blockAsm(SB),NOSPLIT,$0
+ 	MOVD	dig+0(FP), R0
+-	MOVD	p+8(FP), R1
+-	MOVD	n+16(FP), R2
++	MOVD	p_base+8(FP), R1
++	MOVD	p_len+16(FP), R2
+ 	MOVD	·_K+0(SB), R3
+ 
+ 	// long enough to prefetch
+diff --git a/src/crypto/sha512/sha512block_decl.go b/src/crypto/sha512/sha512block_decl.go
+index 399f13caf7..4ad4418bc0 100644
+--- a/src/crypto/sha512/sha512block_decl.go
++++ b/src/crypto/sha512/sha512block_decl.go
+@@ -6,15 +6,5 @@
+ 
+ package sha512
+ 
+-import "unsafe"
+-
+ //go:noescape
+-func doBlock(dig *digest, p *byte, n int)
+-
+-func block(dig *digest, p []byte) {
+-	doBlock(dig, unsafe.SliceData(p), len(p))
+-}
+-
+-func blockString(dig *digest, s string) {
+-	doBlock(dig, unsafe.StringData(s), len(s))
+-}
++func block(dig *digest, p []byte)
+diff --git a/src/crypto/sha512/sha512block_generic.go b/src/crypto/sha512/sha512block_generic.go
+index 116d6c8c52..02ecc2c794 100644
+--- a/src/crypto/sha512/sha512block_generic.go
++++ b/src/crypto/sha512/sha512block_generic.go
+@@ -9,7 +9,3 @@ package sha512
+ func block(dig *digest, p []byte) {
+ 	blockGeneric(dig, p)
+ }
+-
+-func blockString(dig *digest, s string) {
+-	blockGeneric(dig, s)
+-}
+diff --git a/src/crypto/sha512/sha512block_ppc64x.s b/src/crypto/sha512/sha512block_ppc64x.s
+index df9a7bbaf8..90dbf0f02b 100644
+--- a/src/crypto/sha512/sha512block_ppc64x.s
++++ b/src/crypto/sha512/sha512block_ppc64x.s
+@@ -304,11 +304,11 @@ GLOBL ·kcon(SB), RODATA, $1312
+ 	VADDUDM		S0, h, h; \
+ 	VADDUDM		s1, xj, xj
+ 
+-// func doBlock(dig *digest, p *byte, b int)
+-TEXT ·doBlock(SB),0,$0-24
++// func block(dig *digest, p []byte)
++TEXT ·block(SB),0,$0-32
+ 	MOVD	dig+0(FP), CTX
+-	MOVD	p+8(FP), INP
+-	MOVD	n+16(FP), LEN
++	MOVD	p_base+8(FP), INP
++	MOVD	p_len+16(FP), LEN
+ 
+ 	SRD	$6, LEN
+ 	SLD	$6, LEN
+diff --git a/src/crypto/sha512/sha512block_s390x.go b/src/crypto/sha512/sha512block_s390x.go
+index d7412ee8bf..7df29fd298 100644
+--- a/src/crypto/sha512/sha512block_s390x.go
++++ b/src/crypto/sha512/sha512block_s390x.go
+@@ -4,13 +4,6 @@
+ 
+ package sha512
+ 
+-import (
+-	"internal/cpu"
+-	"unsafe"
+-)
++import "internal/cpu"
+ 
+ var useAsm = cpu.S390X.HasSHA512
+-
+-func doBlockGeneric(dig *digest, p *byte, n int) {
+-	blockGeneric(dig, unsafe.String(p, n))
+-}
+diff --git a/src/crypto/sha512/sha512block_s390x.s b/src/crypto/sha512/sha512block_s390x.s
+index 3879bf8d90..f221bd1399 100644
+--- a/src/crypto/sha512/sha512block_s390x.s
++++ b/src/crypto/sha512/sha512block_s390x.s
+@@ -4,8 +4,8 @@
+ 
+ #include "textflag.h"
+ 
+-// func doBlock(dig *digest, p *byte, n int)
+-TEXT ·doBlock(SB), NOSPLIT|NOFRAME, $0-24
++// func block(dig *digest, p []byte)
++TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
+ 	MOVBZ  ·useAsm(SB), R4
+ 	LMG    dig+0(FP), R1, R3            // R2 = &p[0], R3 = len(p)
+ 	MOVBZ  $3, R0                       // SHA-512 function code
+@@ -17,4 +17,4 @@ loop:
+ 	RET
+ 
+ generic:
+-	BR ·doBlockGeneric(SB)
++	BR ·blockGeneric(SB)

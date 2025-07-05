@@ -14,6 +14,54 @@ Date:   Fri Apr 16 17:36:22 2021 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Trust: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/http/cgi/integration_test.go | 29 +++--------------------------
  1 file changed, 3 insertions(+), 26 deletions(-)
+
+diff --git a/src/net/http/cgi/integration_test.go b/src/net/http/cgi/integration_test.go
+index 76cbca8e60..ef2eaf748b 100644
+--- a/src/net/http/cgi/integration_test.go
++++ b/src/net/http/cgi/integration_test.go
+@@ -95,12 +95,6 @@ func (w *limitWriter) Write(p []byte) (n int, err error) {
+ func TestKillChildAfterCopyError(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 
+-	defer func() { testHookStartProcess = nil }()
+-	proc := make(chan *os.Process, 1)
+-	testHookStartProcess = func(p *os.Process) {
+-		proc <- p
+-	}
+-
+ 	h := &Handler{
+ 		Path: os.Args[0],
+ 		Root: "/test.go",
+@@ -112,26 +106,9 @@ func TestKillChildAfterCopyError(t *testing.T) {
+ 	const writeLen = 50 << 10
+ 	rw := &customWriterRecorder{&limitWriter{&out, writeLen}, rec}
+ 
+-	donec := make(chan bool, 1)
+-	go func() {
+-		h.ServeHTTP(rw, req)
+-		donec <- true
+-	}()
+-
+-	select {
+-	case <-donec:
+-		if out.Len() != writeLen || out.Bytes()[0] != 'a' {
+-			t.Errorf("unexpected output: %q", out.Bytes())
+-		}
+-	case <-time.After(5 * time.Second):
+-		t.Errorf("timeout. ServeHTTP hung and didn't kill the child process?")
+-		select {
+-		case p := <-proc:
+-			p.Kill()
+-			t.Logf("killed process")
+-		default:
+-			t.Logf("didn't kill process")
+-		}
++	h.ServeHTTP(rw, req)
++	if out.Len() != writeLen || out.Bytes()[0] != 'a' {
++		t.Errorf("unexpected output: %q", out.Bytes())
+ 	}
+ }
+ 

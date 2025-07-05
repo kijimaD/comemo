@@ -38,7 +38,7 @@ Date:   Fri Oct 28 10:57:14 2022 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/syscall/unix/asm_darwin.s  |  9 +++++
  src/internal/syscall/unix/net_darwin.go | 45 ++++++++++++++++++++++
  src/net/cgo_unix.go                     | 68 +++++++++++++++++++++++++--------
@@ -51,3 +51,472 @@ Date:   Fri Oct 28 10:57:14 2022 -0400
  src/net/lookup.go                       | 12 ++++++
  src/net/lookup_test.go                  |  2 +
  11 files changed, 249 insertions(+), 35 deletions(-)
+
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index 02c9a3e7f3..a0710c5d8b 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -18,3 +18,12 @@ TEXT ·libc_getnameinfo_trampoline(SB),NOSPLIT,$0-0
+ 
+ TEXT ·libc_gai_strerror_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_gai_strerror(SB)
++
++TEXT ·libresolv_res_9_ninit_trampoline(SB),NOSPLIT,$0-0
++	JMP	libresolv_res_9_ninit(SB)
++
++TEXT ·libresolv_res_9_nclose_trampoline(SB),NOSPLIT,$0-0
++	JMP	libresolv_res_9_nclose(SB)
++
++TEXT ·libresolv_res_9_nsearch_trampoline(SB),NOSPLIT,$0-0
++	JMP	libresolv_res_9_nsearch(SB)
+diff --git a/src/internal/syscall/unix/net_darwin.go b/src/internal/syscall/unix/net_darwin.go
+index e5a879c7e1..780aaaa05d 100644
+--- a/src/internal/syscall/unix/net_darwin.go
++++ b/src/internal/syscall/unix/net_darwin.go
+@@ -35,6 +35,8 @@ type Addrinfo struct {
+ 	Next      *Addrinfo
+ }
+ 
++//go:cgo_ldflag "-lresolv"
++
+ //go:cgo_import_dynamic libc_getaddrinfo getaddrinfo "/usr/lib/libSystem.B.dylib"
+ func libc_getaddrinfo_trampoline()
+ 
+@@ -114,3 +116,46 @@ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err s
+ 
+ //go:linkname syscall_syscall9 syscall.syscall9
+ func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
++
++type ResState struct {
++	unexported [70]uintptr
++}
++
++//go:cgo_import_dynamic libresolv_res_9_ninit res_9_ninit "/usr/lib/libresolv.9.dylib"
++func libresolv_res_9_ninit_trampoline()
++
++func ResNinit(state *ResState) error {
++	_, _, errno := syscall_syscall(abi.FuncPCABI0(libresolv_res_9_ninit_trampoline),
++		uintptr(unsafe.Pointer(state)),
++		0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
++
++//go:cgo_import_dynamic libresolv_res_9_nclose res_9_nclose "/usr/lib/libresolv.9.dylib"
++func libresolv_res_9_nclose_trampoline()
++
++func ResNclose(state *ResState) {
++	syscall_syscall(abi.FuncPCABI0(libresolv_res_9_nclose_trampoline),
++		uintptr(unsafe.Pointer(state)),
++		0, 0)
++}
++
++//go:cgo_import_dynamic libresolv_res_9_nsearch res_9_nsearch "/usr/lib/libresolv.9.dylib"
++func libresolv_res_9_nsearch_trampoline()
++
++func ResNsearch(state *ResState, dname *byte, class, typ int, ans *byte, anslen int) (int, error) {
++	r1, _, errno := syscall_syscall6(abi.FuncPCABI0(libresolv_res_9_nsearch_trampoline),
++		uintptr(unsafe.Pointer(state)),
++		uintptr(unsafe.Pointer(dname)),
++		uintptr(class),
++		uintptr(typ),
++		uintptr(unsafe.Pointer(ans)),
++		uintptr(anslen))
++	if errno != 0 {
++		return 0, errno
++	}
++	return int(int32(r1)), nil
++}
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 4ca0fbee73..77939640d2 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -13,8 +13,11 @@ package net
+ 
+ import (
+ 	"context"
++	"errors"
+ 	"syscall"
+ 	"unsafe"
++
++	"golang.org/x/net/dns/dnsmessage"
+ )
+ 
+ // An addrinfoErrno represents a getaddrinfo, getnameinfo-specific
+@@ -223,21 +226,6 @@ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err
+ 	}
+ }
+ 
+-func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
+-	if ctx.Done() == nil {
+-		_, cname, err = cgoLookupIPCNAME("ip", name)
+-		return cname, err, true
+-	}
+-	result := make(chan ipLookupResult, 1)
+-	go cgoIPLookup(result, "ip", name)
+-	select {
+-	case r := <-result:
+-		return r.cname, r.err, true
+-	case <-ctx.Done():
+-		return "", mapErr(ctx.Err()), false
+-	}
+-}
+-
+ // These are roughly enough for the following:
+ //
+ //	 Source		Encoding			Maximum length of single name entry
+@@ -327,3 +315,53 @@ func cgoSockaddr(ip IP, zone string) (*_C_struct_sockaddr, _C_socklen_t) {
+ 	}
+ 	return nil, 0
+ }
++
++func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
++	resources, err := resSearch(ctx, name, int(dnsmessage.TypeCNAME), int(dnsmessage.ClassINET))
++	if err != nil {
++		return
++	}
++	cname, err = parseCNAMEFromResources(resources)
++	if err != nil {
++		return "", err, false
++	}
++	return cname, nil, true
++}
++
++// resSearch will make a call to the 'res_nsearch' routine in the C library
++// and parse the output as a slice of DNS resources.
++func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
++	var state _C_struct___res_state
++	if err := _C_res_ninit(&state); err != nil {
++		return nil, errors.New("res_ninit failure: " + err.Error())
++	}
++	defer _C_res_nclose(&state)
++
++	// Some res_nsearch implementations (like macOS) do not set errno.
++	// They set h_errno, which is not per-thread and useless to us.
++	// res_nsearch returns the size of the DNS response packet.
++	// But if the DNS response packet contains failure-like response codes,
++	// res_search returns -1 even though it has copied the packet into buf,
++	// giving us no way to find out how big the packet is.
++	// For now, we are willing to take res_search's word that there's nothing
++	// useful in the response, even though there *is* a response.
++	var buf [1500]byte
++	s, err := syscall.BytePtrFromString(hostname)
++	if err != nil {
++		return nil, err
++	}
++	size, err := _C_res_nsearch(&state, (*_C_char)(unsafe.Pointer(s)), class, rtype, (*_C_uchar)(unsafe.Pointer(&buf[0])), len(buf))
++	if size <= 0 {
++		return nil, errors.New("res_nsearch failure")
++	}
++	var p dnsmessage.Parser
++	if _, err := p.Start(buf[:size]); err != nil {
++		return nil, err
++	}
++	p.SkipAllQuestions()
++	resources, err := p.AllAnswers()
++	if err != nil {
++		return nil, err
++	}
++	return resources, nil
++}
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+index 870ac8c944..7ff8154aeb 100644
+--- a/src/net/cgo_unix_cgo.go
++++ b/src/net/cgo_unix_cgo.go
+@@ -46,7 +46,6 @@ type (
+ )
+ 
+ func _C_GoString(p *_C_char) string { return C.GoString(p) }
+-func _C_CString(s string) *_C_char  { return C.CString(s) }
+ 
+ func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.ai_addr }
+ func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.ai_canonname }
+diff --git a/src/net/cgo_unix_cgo_res.go b/src/net/cgo_unix_cgo_res.go
+new file mode 100644
+index 0000000000..b9bdebadf6
+--- /dev/null
++++ b/src/net/cgo_unix_cgo_res.go
+@@ -0,0 +1,38 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// res_search, for cgo systems where that is thread-safe.
++
++//go:build cgo && !netgo && (android || openbsd)
++
++package net
++
++/*
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <netdb.h>
++#include <unistd.h>
++#include <string.h>
++#include <arpa/nameser.h>
++#include <resolv.h>
++
++#cgo !openbsd LDFLAGS: -lresolv
++*/
++import "C"
++
++type _C_struct___res_state = struct{}
++
++func _C_res_ninit(state *_C_struct___res_state) error {
++	return nil
++}
++
++func _C_res_nclose(state *_C_struct___res_state) {
++	return
++}
++
++func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_uchar, anslen int) (int, error) {
++	x, err := C.res_search(dname, C.int(class), C.int(typ), ans, C.int(anslen))
++	return int(x), err
++}
+diff --git a/src/net/cgo_unix_cgo_resn.go b/src/net/cgo_unix_cgo_resn.go
+new file mode 100644
+index 0000000000..5c2d7cdf47
+--- /dev/null
++++ b/src/net/cgo_unix_cgo_resn.go
+@@ -0,0 +1,39 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// res_nsearch, for cgo systems where that's available.
++
++//go:build cgo && !netgo && unix && !(android || darwin || openbsd)
++
++package net
++
++/*
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <netdb.h>
++#include <unistd.h>
++#include <string.h>
++#include <arpa/nameser.h>
++#include <resolv.h>
++
++#cgo !aix,!freebsd LDFLAGS: -lresolv
++*/
++import "C"
++
++type _C_struct___res_state = C.struct___res_state
++
++func _C_res_ninit(state *_C_struct___res_state) error {
++	_, err := C.res_ninit(state)
++	return err
++}
++
++func _C_res_nclose(state *_C_struct___res_state) {
++	C.res_nclose(state)
++}
++
++func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_uchar, anslen int) (int, error) {
++	x, err := C.res_nsearch(state, dname, C.int(class), C.int(typ), ans, C.int(anslen))
++	return int(x), err
++}
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index c5c27967b1..c0317f4d11 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -27,25 +27,20 @@ const (
+ )
+ 
+ type (
+-	_C_char            = byte
+-	_C_int             = int32
+-	_C_uchar           = byte
+-	_C_uint            = uint32
+-	_C_socklen_t       = int
+-	_C_struct_addrinfo = unix.Addrinfo
+-	_C_struct_sockaddr = syscall.RawSockaddr
++	_C_char               = byte
++	_C_int                = int32
++	_C_uchar              = byte
++	_C_uint               = uint32
++	_C_socklen_t          = int
++	_C_struct___res_state = unix.ResState
++	_C_struct_addrinfo    = unix.Addrinfo
++	_C_struct_sockaddr    = syscall.RawSockaddr
+ )
+ 
+ func _C_GoString(p *_C_char) string {
+ 	return unix.GoString(p)
+ }
+ 
+-func _C_CString(s string) *_C_char {
+-	b := make([]byte, len(s)+1)
+-	copy(b, s)
+-	return &b[0]
+-}
+-
+ func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.Addr }
+ func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.Canonname }
+ func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.Family }
+@@ -66,6 +61,19 @@ func _C_getaddrinfo(hostname, servname *byte, hints *_C_struct_addrinfo, res **_
+ 	return unix.Getaddrinfo(hostname, servname, hints, res)
+ }
+ 
++func _C_res_ninit(state *_C_struct___res_state) error {
++	unix.ResNinit(state)
++	return nil
++}
++
++func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) (int, error) {
++	return unix.ResNsearch(state, dname, class, typ, ans, anslen)
++}
++
++func _C_res_nclose(state *_C_struct___res_state) {
++	unix.ResNclose(state)
++}
++
+ func cgoNameinfoPTR(b []byte, sa *syscall.RawSockaddr, salen int) (int, error) {
+ 	gerrno, err := unix.Getnameinfo(sa, salen, &b[0], len(b), nil, 0, unix.NI_NAMEREQD)
+ 	return int(gerrno), err
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index b958db52b0..aed6a337de 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -618,6 +618,9 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
+ 	}
+ 	lane := make(chan result, 1)
+ 	qtypes := []dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
++	if network == "CNAME" {
++		qtypes = append(qtypes, dnsmessage.TypeCNAME)
++	}
+ 	switch ipVersion(network) {
+ 	case '4':
+ 		qtypes = []dnsmessage.Type{dnsmessage.TypeA}
+@@ -707,6 +710,9 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
+ 						break loop
+ 					}
+ 					addrs = append(addrs, IPAddr{IP: IP(a.A[:])})
++					if cname.Length == 0 && h.Name.Length != 0 {
++						cname = h.Name
++					}
+ 
+ 				case dnsmessage.TypeAAAA:
+ 					aaaa, err := result.p.AAAAResource()
+@@ -719,6 +725,23 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
+ 						break loop
+ 					}
+ 					addrs = append(addrs, IPAddr{IP: IP(aaaa.AAAA[:])})
++					if cname.Length == 0 && h.Name.Length != 0 {
++						cname = h.Name
++					}
++
++				case dnsmessage.TypeCNAME:
++					c, err := result.p.CNAMEResource()
++					if err != nil {
++						lastErr = &DNSError{
++							Err:    "cannot marshal DNS message",
++							Name:   name,
++							Server: result.server,
++						}
++						break loop
++					}
++					if cname.Length == 0 && c.CNAME.Length > 0 {
++						cname = c.CNAME
++					}
+ 
+ 				default:
+ 					if err := result.p.SkipAnswer(); err != nil {
+@@ -731,9 +754,6 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
+ 					}
+ 					continue
+ 				}
+-				if cname.Length == 0 && h.Name.Length != 0 {
+-					cname = h.Name
+-				}
+ 			}
+ 		}
+ 		if hitStrictError {
+@@ -743,7 +763,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
+ 			addrs = nil
+ 			break
+ 		}
+-		if len(addrs) > 0 {
++		if len(addrs) > 0 || network == "CNAME" && cname.Length > 0 {
+ 			break
+ 		}
+ 	}
+@@ -754,7 +774,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
+ 		lastErr.Name = name
+ 	}
+ 	sortByRFC6724(addrs)
+-	if len(addrs) == 0 {
++	if len(addrs) == 0 && !(network == "CNAME" && cname.Length > 0) {
+ 		if order == hostLookupDNSFiles {
+ 			addrs = goLookupIPFiles(name)
+ 		}
+@@ -768,7 +788,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
+ // goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
+ func (r *Resolver) goLookupCNAME(ctx context.Context, host string) (string, error) {
+ 	order := systemConf().hostLookupOrder(r, host)
+-	_, cname, err := r.goLookupIPCNAMEOrder(ctx, "ip", host, order)
++	_, cname, err := r.goLookupIPCNAMEOrder(ctx, "CNAME", host, order)
+ 	return cname.String(), err
+ }
+ 
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 20ee8bd062..63d3c51163 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -2282,6 +2282,10 @@ func TestLongDNSNames(t *testing.T) {
+ 				r.Answers[0].Body = &dnsmessage.SRVResource{
+ 					Target: dnsmessage.MustNewName("go.dev."),
+ 				}
++			case dnsmessage.TypeCNAME:
++				r.Answers[0].Body = &dnsmessage.CNAMEResource{
++					CNAME: dnsmessage.MustNewName("fake.cname."),
++				}
+ 			default:
+ 				panic("unknown dnsmessage type")
+ 			}
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 969c902b1d..8f828fb9b1 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"context"
++	"errors"
+ 	"internal/nettrace"
+ 	"internal/singleflight"
+ 	"net/netip"
+@@ -896,3 +897,14 @@ func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, erro
+ 	}
+ 	return txts, nil
+ }
++
++func parseCNAMEFromResources(resources []dnsmessage.Resource) (string, error) {
++	if len(resources) == 0 {
++		return "", errors.New("no CNAME record received")
++	}
++	c, ok := resources[0].Body.(*dnsmessage.CNAMEResource)
++	if !ok {
++		return "", errors.New("could not parse CNAME record")
++	}
++	return c.CNAME.String(), nil
++}
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 38618c7dd7..ccc25c0bd9 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -348,6 +348,8 @@ var lookupCNAMETests = []struct {
+ 	{"www.iana.org", "icann.org."},
+ 	{"www.iana.org.", "icann.org."},
+ 	{"www.google.com", "google.com."},
++	{"google.com", "google.com."},
++	{"cname-to-txt.go4.org", "test-txt-record.go4.org."},
+ }
+ 
+ func TestLookupCNAME(t *testing.T) {

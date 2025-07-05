@@ -25,9 +25,106 @@ Date:   Thu Mar 31 15:18:39 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go   | 11 +++++------
  src/cmd/compile/internal/gc/sinit.go     |  8 ++------
  src/cmd/compile/internal/gc/type.go      |  9 +++++++++
  src/cmd/compile/internal/gc/typecheck.go |  4 ++--
  4 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 082786acd9..f0953966d3 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -277,15 +277,15 @@ func (p *importer) typ() *Type {
+ 
+ 	case arrayTag, sliceTag:
+ 		t = p.newtyp(TARRAY)
+-		t.Bound = sliceBound
+ 		if i == arrayTag {
+-			t.Bound = p.int64()
++			t.SetNumElem(p.int64())
++		} else {
++			t.SetNumElem(sliceBound)
+ 		}
+ 		t.Type = p.typ()
+ 
+ 	case dddTag:
+ 		t = p.newtyp(TDDDFIELD)
+-		t.Bound = sliceBound
+ 		t.Type = p.typ()
+ 
+ 	case structTag:
+@@ -448,9 +448,8 @@ func (p *importer) param(named bool) *Node {
+ 
+ 	isddd := false
+ 	if typ.Etype == TDDDFIELD {
+-		// TDDDFIELD indicates ... type
+-		// TODO(mdempsky): Fix Type rekinding.
+-		typ.Etype = TARRAY
++		// TDDDFIELD indicates wrapped ... slice type
++		typ = typSlice(typ.Wrapped())
+ 		isddd = true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 4622877382..ade7772200 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -688,12 +688,8 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ }
+ 
+ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+-	// make an array type
+-	t := n.Type.Copy()
+-	t.Bound = n.Right.Int()
+-	t.Width = 0
+-	t.Sym = nil
+-	t.Haspointers = 0
++	// make an array type corresponding the number of elements we have
++	t := typArray(n.Type.Elem(), n.Right.Int())
+ 	dowidth(t)
+ 
+ 	if ctxt != 0 {
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index d81ccbbbe7..9d2da7f14b 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -936,6 +936,15 @@ func (t *Type) NumElem() int64 {
+ 	return t.Bound
+ }
+ 
++// SetNumElem sets the number of elements in an array type.
++// It should not be used if at all possible.
++// Create a new array/slice/dddArray with typX instead.
++// TODO(josharian): figure out how to get rid of this.
++func (t *Type) SetNumElem(n int64) {
++	t.wantEtype(TARRAY)
++	t.Bound = n
++}
++
+ func (t *Type) IsMemory() bool { return false }
+ func (t *Type) IsFlags() bool  { return false }
+ func (t *Type) IsVoid() bool   { return false }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 93c1136a9e..47c79b81d1 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2977,7 +2977,7 @@ func typecheckcomplit(n *Node) *Node {
+ 					setlineno(l)
+ 					Yyerror("array index %d out of bounds [0:%d]", length-1, t.NumElem())
+ 					// suppress any further errors out of bounds errors for the same type by pretending it is a slice
+-					t.Bound = sliceBound
++					t.SetNumElem(sliceBound)
+ 				}
+ 			}
+ 
+@@ -2989,7 +2989,7 @@ func typecheckcomplit(n *Node) *Node {
+ 		}
+ 
+ 		if t.isDDDArray() {
+-			t.Bound = length
++			t.SetNumElem(length)
+ 		}
+ 		if t.IsSlice() {
+ 			n.Right = Nodintconst(length)

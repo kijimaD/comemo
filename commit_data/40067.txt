@@ -7,6 +7,20 @@ Date:   Tue Apr 16 11:20:51 2019 +0200
     Change-Id: I3cb4fb7cacba51bfd611ade918f16c618e2569fd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172159
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 2945eb1c43..cc19c0f31a 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -791,7 +791,7 @@ for {
+       A new <a href="/pkg/runtime/debug/#BuildInfo"><code>BuildInfo</code></a> type
+       exposes the build information read from the running binary, available only in
+       binaries built with module support. This includes the main package path, main
+-      module information, and the module dependencies. This type is given though the
++      module information, and the module dependencies. This type is given through the
+       <a href="/pkg/runtime/debug/#ReadBuildInfo"><code>ReadBuildInfo</code></a> function
+       on <a href="/pkg/runtime/debug/#BuildInfo"><code>BuildInfo</code></a>.
+     </p>

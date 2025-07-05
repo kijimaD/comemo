@@ -7,6 +7,20 @@ Date:   Tue Jan 14 16:56:22 2014 +1100
     R=golang-codereviews, dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/51000043
-
+---
  src/cmd/api/run.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index 1e10dc600c..ede8ac99cc 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -46,7 +46,7 @@ func main() {
+ 	gopath := prepGoPath()
+ 
+ 	cmd := exec.Command("go", "install", "--tags=api_tool", "cmd/api")
+-	cmd.Env = append([]string{"GOPATH=" + gopath}, filterOut(os.Environ(), "GOARCH")...)
++	cmd.Env = append(filterOut(os.Environ(), "GOARCH", "GOPATH"), "GOPATH="+gopath)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		log.Fatalf("Error installing cmd/api: %v\n%s", err, out)

@@ -15,6 +15,20 @@ Date:   Tue Oct 28 11:35:00 2014 -0400
     R=r
     CC=golang-codereviews, mikioh.mikioh, p
     https://golang.org/cl/164140044
-
+---
  src/syscall/route_bsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/route_bsd.go b/src/syscall/route_bsd.go
+index 48af587450..1dabe42531 100644
+--- a/src/syscall/route_bsd.go
++++ b/src/syscall/route_bsd.go
+@@ -153,7 +153,7 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ 	// RTAX_NETMASK socket address on the FreeBSD kernel.
+ 	preferredFamily := uint8(AF_UNSPEC)
+ 	for i := uint(0); i < RTAX_MAX; i++ {
+-		if m.Header.Addrs&rtaIfaMask&(1<<i) == 0 {
++		if m.Header.Addrs&(1<<i) == 0 {
+ 			continue
+ 		}
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))

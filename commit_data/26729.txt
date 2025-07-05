@@ -13,7 +13,36 @@ Date:   Mon Feb 22 23:19:00 2016 -0800
     Change-Id: I6ea06aa887b0450d9ba4f11e319e5c263f5a98ba
     Reviewed-on: https://go-review.googlesource.com/19848
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go       | 5 ++++-
  src/cmd/compile/internal/ssa/critical.go | 1 +
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 13d8663706..598f120155 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3627,7 +3627,10 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		}
+ 		// Emit control flow instructions for block
+ 		var next *ssa.Block
+-		if i < len(f.Blocks)-1 {
++		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
++			// If -N, leave next==nil so every block with successors
++			// ends in a JMP.  Helps keep line numbers for otherwise
++			// empty blocks.
+ 			next = f.Blocks[i+1]
+ 		}
+ 		x := Pc
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index ba75450875..9fea0ec1cd 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -21,6 +21,7 @@ func critical(f *Func) {
+ 
+ 			// allocate a new block to place on the edge
+ 			d := f.NewBlock(BlockPlain)
++			d.Line = c.Line
+ 
+ 			// splice it in
+ 			d.Preds = append(d.Preds, c)

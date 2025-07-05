@@ -17,6 +17,19 @@ Date:   Fri Apr 5 10:33:43 2019 -0700
     Change-Id: Iad18780b8028f669f5a7841b74a5384d62fb6a7e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/driver/types.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/database/sql/driver/types.go b/src/database/sql/driver/types.go
+index 8b3cb6c8f6..64b41faaa8 100644
+--- a/src/database/sql/driver/types.go
++++ b/src/database/sql/driver/types.go
+@@ -38,6 +38,7 @@ type ValueConverter interface {
+ // themselves to a driver Value.
+ type Valuer interface {
+ 	// Value returns a driver Value.
++	// Value must not panic.
+ 	Value() (Value, error)
+ }
+ 

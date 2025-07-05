@@ -11,8 +11,59 @@ Date:   Thu Feb 25 17:39:45 2016 +1030
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/fortran/helloworld/helloworld.f90 |  3 +++
  misc/cgo/fortran/test.bash                 | 22 ++++++++++++++++++++++
  src/cmd/dist/test.go                       |  2 +-
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/fortran/helloworld/helloworld.f90 b/misc/cgo/fortran/helloworld/helloworld.f90
+new file mode 100644
+index 0000000000..cbc34c16ef
+--- /dev/null
++++ b/misc/cgo/fortran/helloworld/helloworld.f90
+@@ -0,0 +1,3 @@
++      program HelloWorldF90
++              write(*,*) "Hello World!"
++      end program HelloWorldF90
+diff --git a/misc/cgo/fortran/test.bash b/misc/cgo/fortran/test.bash
+new file mode 100755
+index 0000000000..9350dbe2d6
+--- /dev/null
++++ b/misc/cgo/fortran/test.bash
+@@ -0,0 +1,22 @@
++#!/usr/bin/env bash
++# Copyright 2016 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This directory is intended to test the use of Fortran with cgo.
++
++set -e
++
++FC=$1
++
++if ! $FC helloworld/helloworld.f90 -o main.exe >& /dev/null; then
++  echo "skipping Fortran test: could not build helloworld.f90 with $FC"
++  exit 0
++fi
++
++if ! go test; then
++  echo "FAIL: go test"
++  status=1
++fi
++
++exit $status
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index f23eb6299f..e268e1207e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -450,7 +450,7 @@ func (t *tester) registerTests() {
+ 				name:    "cgo_fortran",
+ 				heading: "../misc/cgo/fortran",
+ 				fn: func(dt *distTest) error {
+-					t.addCmd(dt, "misc/cgo/fortran", "go", "test")
++					t.addCmd(dt, "misc/cgo/fortran", "./test.bash", fortran)
+ 					return nil
+ 				},
+ 			})

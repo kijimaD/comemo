@@ -9,6 +9,27 @@ Date:   Sat Dec 10 10:04:33 2011 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5478058
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 85ee436a6b..725513e32f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of December 8, 2011 -->
++<!-- subtitle Version of December 10, 2011 -->
+ 
+ <!--
+ TODO
+@@ -3432,7 +3432,7 @@ const j = true             // j == true  (untyped boolean constant)
+ const k = 'w' + 1          // k == 'x'   (untyped character constant)
+ const l = "hi"             // l == "hi"  (untyped string constant)
+ const m = string(k)        // m == "x"   (type string)
+-const Σ = 1 - 0.707        //            (untyped complex constant)
++const Σ = 1 - 0.707i       //            (untyped complex constant)
+ const Δ = Σ + 2.0e-4       //            (untyped complex constant)
+ const Φ = iota*1i - 1/1i   //            (untyped complex constant)
+ </pre>

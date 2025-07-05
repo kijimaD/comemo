@@ -19,6 +19,21 @@ Date:   Thu Mar 22 12:32:59 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/range.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 91f0cd363e..d8e504dd14 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -425,8 +425,7 @@ func walkrange(n *Node) *Node {
+ 
+ 	if ifGuard != nil {
+ 		ifGuard.Ninit.Append(init...)
+-		typecheckslice(ifGuard.Left.Ninit.Slice(), Etop)
+-		ifGuard.Left = typecheck(ifGuard.Left, Erv)
++		ifGuard = typecheck(ifGuard, Etop)
+ 	} else {
+ 		n.Ninit.Append(init...)
+ 	}

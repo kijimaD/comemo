@@ -21,7 +21,7 @@ Date:   Thu Jan 25 12:15:23 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/test/issue9400/asm_mipsx.s          |  2 +-
  src/runtime/asm_mips64x.s                    | 34 +++++++++---------
  src/runtime/asm_mipsx.s                      | 16 ++++-----
@@ -39,3 +39,670 @@ Date:   Thu Jan 25 12:15:23 2018 -0500
  src/runtime/tls_mips64x.s                    |  4 +--
  src/runtime/tls_mipsx.s                      |  4 +--
  16 files changed, 71 insertions(+), 71 deletions(-)
+
+diff --git a/misc/cgo/test/issue9400/asm_mipsx.s b/misc/cgo/test/issue9400/asm_mipsx.s
+index ddf33e9f8e..7a92735194 100644
+--- a/misc/cgo/test/issue9400/asm_mipsx.s
++++ b/misc/cgo/test/issue9400/asm_mipsx.s
+@@ -7,7 +7,7 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·RewindAndSetgid(SB),NOSPLIT,$-4-0
++TEXT ·RewindAndSetgid(SB),NOSPLIT|NOFRAME,$0-0
+ 	// Rewind stack pointer so anything that happens on the stack
+ 	// will clobber the test pattern created by the caller
+ 	ADDU	$(1024*8), R29
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 12cea00adc..7d8d97d17a 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -78,11 +78,11 @@ nocgo:
+ DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+ GLOBL	runtime·mainPC(SB),RODATA,$8
+ 
+-TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
++TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVV	R0, 2(R0) // TODO: TD
+ 	RET
+ 
+-TEXT runtime·asminit(SB),NOSPLIT,$-8-0
++TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
+ 	RET
+ 
+ /*
+@@ -91,7 +91,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$-8-0
+ 
+ // void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB), NOSPLIT, $-8-8
++TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
+ 	MOVV	buf+0(FP), R1
+ 	MOVV	R29, gobuf_sp(R1)
+ 	MOVV	R31, gobuf_pc(R1)
+@@ -127,7 +127,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return. It should gogo(&g->sched)
+ // to keep running g.
+-TEXT runtime·mcall(SB), NOSPLIT, $-8-8
++TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
+ 	// Save caller state in g->sched
+ 	MOVV	R29, (g_sched+gobuf_sp)(g)
+ 	MOVV	R31, (g_sched+gobuf_pc)(g)
+@@ -233,7 +233,7 @@ noswitch:
+ // the top of a stack (for example, morestack calling newstack
+ // calling the scheduler calling newm calling gc), so we must
+ // record an argument size. For that purpose, it has no arguments.
+-TEXT runtime·morestack(SB),NOSPLIT,$-8-0
++TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVV	g_m(g), R7
+ 	MOVV	m_g0(R7), R8
+@@ -273,7 +273,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+ 	// is still in this function, and not the beginning of the next.
+ 	UNDEF
+ 
+-TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
++TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVV	R0, REGCTXT
+ 	JMP	runtime·morestack(SB)
+ 
+@@ -294,7 +294,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
+ TEXT reflect·call(SB), NOSPLIT, $0-0
+ 	JMP	·reflectcall(SB)
+ 
+-TEXT ·reflectcall(SB), NOSPLIT, $-8-32
++TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
+ 	MOVWU argsize+24(FP), R1
+ 	DISPATCH(runtime·call32, 32)
+ 	DISPATCH(runtime·call64, 64)
+@@ -405,7 +405,7 @@ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+ // 1. grab stored LR for caller
+ // 2. sub 8 bytes to get back to JAL deferreturn
+ // 3. JMP to fn
+-TEXT runtime·jmpdefer(SB), NOSPLIT, $-8-16
++TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVV	0(R29), R31
+ 	ADDV	$-8, R31
+ 
+@@ -417,7 +417,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $-8-16
+ 	JMP	(R4)
+ 
+ // Save state of caller into g->sched. Smashes R1.
+-TEXT gosave<>(SB),NOSPLIT,$-8
++TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	R31, (g_sched+gobuf_pc)(g)
+ 	MOVV	R29, (g_sched+gobuf_sp)(g)
+ 	MOVV	R0, (g_sched+gobuf_lr)(g)
+@@ -607,27 +607,27 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
+ 	JAL	runtime·save_g(SB)
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$-8-8
++TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVV	0(R29), R1		// LR saved by caller
+ 	MOVV	R1, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·abort(SB),NOSPLIT,$-8-0
++TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+ 
+ // AES hashing not implemented for mips64
+-TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
++TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R1
+-TEXT runtime·aeshash32(SB),NOSPLIT,$-8-0
++TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R1
+-TEXT runtime·aeshash64(SB),NOSPLIT,$-8-0
++TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R1
+-TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
++TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R1
+ 
+ // memequal(p, q unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal(SB),NOSPLIT,$-8-25
++TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
+ 	MOVV	a+0(FP), R1
+ 	MOVV	b+8(FP), R2
+ 	BEQ	R1, R2, eq
+@@ -766,7 +766,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$16
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT,$-8-0
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+ 	NOR	R0, R0	// NOP
+ 	JAL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index bba6a9501d..6a4eb0af25 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -92,7 +92,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ 
+ // void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB),NOSPLIT,$-4-4
++TEXT runtime·gosave(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVW	buf+0(FP), R1
+ 	MOVW	R29, gobuf_sp(R1)
+ 	MOVW	R31, gobuf_pc(R1)
+@@ -128,7 +128,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$8-4
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return. It should gogo(&g->sched)
+ // to keep running g.
+-TEXT runtime·mcall(SB),NOSPLIT,$-4-4
++TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
+ 	// Save caller state in g->sched
+ 	MOVW	R29, (g_sched+gobuf_sp)(g)
+ 	MOVW	R31, (g_sched+gobuf_pc)(g)
+@@ -234,7 +234,7 @@ noswitch:
+ // the top of a stack (for example, morestack calling newstack
+ // calling the scheduler calling newm calling gc), so we must
+ // record an argument size. For that purpose, it has no arguments.
+-TEXT runtime·morestack(SB),NOSPLIT,$-4-0
++TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVW	g_m(g), R7
+ 	MOVW	m_g0(R7), R8
+@@ -293,7 +293,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+ TEXT reflect·call(SB),NOSPLIT,$0-20
+ 	JMP	·reflectcall(SB)
+ 
+-TEXT ·reflectcall(SB),NOSPLIT,$-4-20
++TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVW	argsize+12(FP), R1
+ 
+ 	DISPATCH(runtime·call16, 16)
+@@ -418,7 +418,7 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
+ 	JMP	(R4)
+ 
+ // Save state of caller into g->sched. Smashes R1.
+-TEXT gosave<>(SB),NOSPLIT,$-4
++TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R31, (g_sched+gobuf_pc)(g)
+ 	MOVW	R29, (g_sched+gobuf_sp)(g)
+ 	MOVW	R0, (g_sched+gobuf_lr)(g)
+@@ -610,7 +610,7 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
+ 	JAL	runtime·save_g(SB)
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
++TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVW	0(R29), R1	// LR saved by caller
+ 	MOVW	R1, ret+0(FP)
+ 	RET
+@@ -826,7 +826,7 @@ TEXT runtime·return0(SB),NOSPLIT,$0
+ 
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+-TEXT _cgo_topofstack(SB),NOSPLIT,$-4
++TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+ 	// g (R30), R3 and REGTMP (R23) might be clobbered by load_g. R30 and R23
+ 	// are callee-save in the gcc calling convention, so save them.
+ 	MOVW	R23, R8
+@@ -846,7 +846,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$-4
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT,$-4-0
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+ 	NOR	R0, R0	// NOP
+ 	JAL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/atomic_mips64x.s b/src/runtime/atomic_mips64x.s
+index 0f849ca340..6f42412502 100644
+--- a/src/runtime/atomic_mips64x.s
++++ b/src/runtime/atomic_mips64x.s
+@@ -8,6 +8,6 @@
+ 
+ #define SYNC	WORD $0xf
+ 
+-TEXT ·publicationBarrier(SB),NOSPLIT,$-8-0
++TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	SYNC
+ 	RET
+diff --git a/src/runtime/cgo/asm_mips64x.s b/src/runtime/cgo/asm_mips64x.s
+index aae2767ed7..e928ff4792 100644
+--- a/src/runtime/cgo/asm_mips64x.s
++++ b/src/runtime/cgo/asm_mips64x.s
+@@ -10,7 +10,7 @@
+  * void crosscall2(void (*fn)(void*, int32, uintptr), void*, int32, uintptr)
+  * Save registers and call fn with two arguments.
+  */
+-TEXT crosscall2(SB),NOSPLIT,$-8
++TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	/*
+ 	 * We still need to save all callee save register as before, and then
+ 	 *  push 3 args for fn (R5, R6, R7).
+diff --git a/src/runtime/cgo/asm_mipsx.s b/src/runtime/cgo/asm_mipsx.s
+index 2483bdd7d4..e3090da223 100644
+--- a/src/runtime/cgo/asm_mipsx.s
++++ b/src/runtime/cgo/asm_mipsx.s
+@@ -10,7 +10,7 @@
+  * void crosscall2(void (*fn)(void*, int32, uintptr), void*, int32, uintptr)
+  * Save registers and call fn with two arguments.
+  */
+-TEXT crosscall2(SB),NOSPLIT,$-4
++TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	/*
+ 	 * We still need to save all callee save register as before, and then
+ 	 *  push 3 args for fn (R5, R6, R7).
+diff --git a/src/runtime/duff_mips64x.s b/src/runtime/duff_mips64x.s
+index e21b81dcd4..59c7adc8ee 100644
+--- a/src/runtime/duff_mips64x.s
++++ b/src/runtime/duff_mips64x.s
+@@ -6,7 +6,7 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
++TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+ 	MOVV	R0, 8(R1)
+ 	ADDV	$8, R1
+ 	MOVV	R0, 8(R1)
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.s b/src/runtime/internal/atomic/atomic_mips64x.s
+index 71d3f7fab6..087672f5cc 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.s
++++ b/src/runtime/internal/atomic/atomic_mips64x.s
+@@ -9,7 +9,7 @@
+ #define SYNC	WORD $0xf
+ 
+ // uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
+-TEXT ·Load(SB),NOSPLIT,$-8-12
++TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVV	ptr+0(FP), R1
+ 	SYNC
+ 	MOVWU	0(R1), R1
+@@ -18,7 +18,7 @@ TEXT ·Load(SB),NOSPLIT,$-8-12
+ 	RET
+ 
+ // uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
+-TEXT ·Load64(SB),NOSPLIT,$-8-16
++TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	ptr+0(FP), R1
+ 	SYNC
+ 	MOVV	0(R1), R1
+@@ -27,7 +27,7 @@ TEXT ·Load64(SB),NOSPLIT,$-8-16
+ 	RET
+ 
+ // void *runtime∕internal∕atomic·Loadp(void *volatile *ptr)
+-TEXT ·Loadp(SB),NOSPLIT,$-8-16
++TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	ptr+0(FP), R1
+ 	SYNC
+ 	MOVV	0(R1), R1
+diff --git a/src/runtime/memmove_mips64x.s b/src/runtime/memmove_mips64x.s
+index f0f68526dd..54663829a7 100644
+--- a/src/runtime/memmove_mips64x.s
++++ b/src/runtime/memmove_mips64x.s
+@@ -7,7 +7,7 @@
+ #include "textflag.h"
+ 
+ // void runtime·memmove(void*, void*, uintptr)
+-TEXT runtime·memmove(SB), NOSPLIT, $-8-24
++TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+ 	MOVV	to+0(FP), R1
+ 	MOVV	from+8(FP), R2
+ 	MOVV	n+16(FP), R3
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index dc7262f7b0..fcc7f83197 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -206,7 +206,7 @@ func zeroMIPS64x(w io.Writer) {
+ 	// R0: always zero
+ 	// R1 (aka REGRT1): ptr to memory to be zeroed - 8
+ 	// On return, R1 points to the last zeroed dword.
+-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
++	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
+ 	for i := 0; i < 128; i++ {
+ 		fmt.Fprintln(w, "\tMOVV\tR0, 8(R1)")
+ 		fmt.Fprintln(w, "\tADDV\t$8, R1")
+diff --git a/src/runtime/rt0_linux_mips64x.s b/src/runtime/rt0_linux_mips64x.s
+index 0891c68c69..55506755df 100644
+--- a/src/runtime/rt0_linux_mips64x.s
++++ b/src/runtime/rt0_linux_mips64x.s
+@@ -13,7 +13,7 @@ TEXT _rt0_mips64_linux(SB),NOSPLIT,$0
+ TEXT _rt0_mips64le_linux(SB),NOSPLIT,$0
+ 	JMP	_main<>(SB)
+ 
+-TEXT _main<>(SB),NOSPLIT,$-8
++TEXT _main<>(SB),NOSPLIT|NOFRAME,$0
+ 	// In a statically linked binary, the stack contains argc,
+ 	// argv as argc string pointers followed by a NULL, envv as a
+ 	// sequence of string pointers followed by a NULL, and auxv.
+@@ -26,7 +26,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
+ 	ADDV	$8, R29, R5 // argv
+ 	JMP	main(SB)
+ 
+-TEXT main(SB),NOSPLIT,$-8
++TEXT main(SB),NOSPLIT|NOFRAME,$0
+ 	// in external linking, glibc jumps to main with argc in R4
+ 	// and argv in R5
+ 
+diff --git a/src/runtime/rt0_linux_mipsx.s b/src/runtime/rt0_linux_mipsx.s
+index 9a2e561246..17f6c3b4c8 100644
+--- a/src/runtime/rt0_linux_mipsx.s
++++ b/src/runtime/rt0_linux_mipsx.s
+@@ -13,7 +13,7 @@ TEXT _rt0_mips_linux(SB),NOSPLIT,$0
+ TEXT _rt0_mipsle_linux(SB),NOSPLIT,$0
+ 	JMP	_main<>(SB)
+ 
+-TEXT _main<>(SB),NOSPLIT,$-4
++TEXT _main<>(SB),NOSPLIT|NOFRAME,$0
+ 	// In a statically linked binary, the stack contains argc,
+ 	// argv as argc string pointers followed by a NULL, envv as a
+ 	// sequence of string pointers followed by a NULL, and auxv.
+@@ -22,7 +22,7 @@ TEXT _main<>(SB),NOSPLIT,$-4
+ 	ADD	$4, R29, R5 // argv
+ 	JMP	main(SB)
+ 
+-TEXT main(SB),NOSPLIT,$-4
++TEXT main(SB),NOSPLIT|NOFRAME,$0
+         // In external linking, libc jumps to main with argc in R4, argv in R5
+ 	MOVW	$runtime·rt0_go(SB), R1
+ 	JMP	(R1)
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 7402ae21d4..784e187e73 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -47,14 +47,14 @@
+ #define SYS_epoll_create1	5285
+ #define SYS_brk			5012
+ 
+-TEXT runtime·exit(SB),NOSPLIT,$-8-4
++TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVW	code+0(FP), R4
+ 	MOVV	$SYS_exit_group, R2
+ 	SYSCALL
+ 	RET
+ 
+ // func exitThread(wait *uint32)
+-TEXT runtime·exitThread(SB),NOSPLIT,$-8-8
++TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVV	wait+0(FP), R1
+ 	// We're done using the stack.
+ 	MOVW	$0, R2
+@@ -66,7 +66,7 @@ TEXT runtime·exitThread(SB),NOSPLIT,$-8-8
+ 	SYSCALL
+ 	JMP	0(PC)
+ 
+-TEXT runtime·open(SB),NOSPLIT,$-8-20
++TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVV	name+0(FP), R4
+ 	MOVW	mode+8(FP), R5
+ 	MOVW	perm+12(FP), R6
+@@ -77,7 +77,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8-20
+ 	MOVW	R2, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·closefd(SB),NOSPLIT,$-8-12
++TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVW	fd+0(FP), R4
+ 	MOVV	$SYS_close, R2
+ 	SYSCALL
+@@ -86,7 +86,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$-8-12
+ 	MOVW	R2, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·write(SB),NOSPLIT,$-8-28
++TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVV	fd+0(FP), R4
+ 	MOVV	p+8(FP), R5
+ 	MOVW	n+16(FP), R6
+@@ -97,7 +97,7 @@ TEXT runtime·write(SB),NOSPLIT,$-8-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·read(SB),NOSPLIT,$-8-28
++TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	fd+0(FP), R4
+ 	MOVV	p+8(FP), R5
+ 	MOVW	n+16(FP), R6
+@@ -108,7 +108,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT,$-8-20
++TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVW	kind+0(FP), R4	// _RLIMIT_AS = 6 on linux/mips
+ 	MOVV	limit+8(FP), R5
+ 	MOVV	$SYS_getrlimit, R2
+@@ -144,7 +144,7 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
+ 	MOVW	R2, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·raise(SB),NOSPLIT,$-8
++TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	$SYS_gettid, R2
+ 	SYSCALL
+ 	MOVW	R2, R4	// arg 1 tid
+@@ -153,7 +153,7 @@ TEXT runtime·raise(SB),NOSPLIT,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raiseproc(SB),NOSPLIT,$-8
++TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	$SYS_getpid, R2
+ 	SYSCALL
+ 	MOVW	R2, R4	// arg 1 pid
+@@ -162,7 +162,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
++TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	MOVW	mode+0(FP), R4
+ 	MOVV	new+8(FP), R5
+ 	MOVV	old+16(FP), R6
+@@ -170,7 +170,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·mincore(SB),NOSPLIT,$-8-28
++TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVV	addr+0(FP), R4
+ 	MOVV	n+8(FP), R5
+ 	MOVV	dst+16(FP), R6
+@@ -208,7 +208,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	MOVV	R3, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
++TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	how+0(FP), R4
+ 	MOVV	new+8(FP), R5
+ 	MOVV	old+16(FP), R6
+@@ -219,7 +219,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
+ 	MOVV	R0, 0xf1(R0)	// crash
+ 	RET
+ 
+-TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
++TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
+ 	MOVV	sig+0(FP), R4
+ 	MOVV	new+8(FP), R5
+ 	MOVV	old+16(FP), R6
+@@ -259,7 +259,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	JMP	runtime·sigtramp(SB)
+ 
+-TEXT runtime·mmap(SB),NOSPLIT,$-8
++TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	addr+0(FP), R4
+ 	MOVV	n+8(FP), R5
+ 	MOVW	prot+16(FP), R6
+@@ -278,7 +278,7 @@ ok:
+ 	MOVV	$0, err+40(FP)
+ 	RET
+ 
+-TEXT runtime·munmap(SB),NOSPLIT,$-8
++TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	addr+0(FP), R4
+ 	MOVV	n+8(FP), R5
+ 	MOVV	$SYS_munmap, R2
+@@ -287,7 +287,7 @@ TEXT runtime·munmap(SB),NOSPLIT,$-8
+ 	MOVV	R0, 0xf3(R0)	// crash
+ 	RET
+ 
+-TEXT runtime·madvise(SB),NOSPLIT,$-8
++TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	addr+0(FP), R4
+ 	MOVV	n+8(FP), R5
+ 	MOVW	flags+16(FP), R6
+@@ -298,7 +298,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$-8
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+-TEXT runtime·futex(SB),NOSPLIT,$-8
++TEXT runtime·futex(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	addr+0(FP), R4
+ 	MOVW	op+8(FP), R5
+ 	MOVW	val+12(FP), R6
+@@ -311,7 +311,7 @@ TEXT runtime·futex(SB),NOSPLIT,$-8
+ 	RET
+ 
+ // int64 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
+-TEXT runtime·clone(SB),NOSPLIT,$-8
++TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	flags+0(FP), R4
+ 	MOVV	stk+8(FP), R5
+ 
+@@ -371,7 +371,7 @@ nog:
+ 	SYSCALL
+ 	JMP	-3(PC)	// keep exiting
+ 
+-TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
++TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	new+0(FP), R4
+ 	MOVV	old+8(FP), R5
+ 	MOVV	$SYS_sigaltstack, R2
+@@ -380,12 +380,12 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVV	R0, 0xf1(R0)	// crash
+ 	RET
+ 
+-TEXT runtime·osyield(SB),NOSPLIT,$-8
++TEXT runtime·osyield(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	$SYS_sched_yield, R2
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·sched_getaffinity(SB),NOSPLIT,$-8
++TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	pid+0(FP), R4
+ 	MOVV	len+8(FP), R5
+ 	MOVV	buf+16(FP), R6
+@@ -395,7 +395,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$-8
+ 	RET
+ 
+ // int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),NOSPLIT,$-8
++TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW    size+0(FP), R4
+ 	MOVV	$SYS_epoll_create, R2
+ 	SYSCALL
+@@ -403,7 +403,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$-8
+ 	RET
+ 
+ // int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),NOSPLIT,$-8
++TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	flags+0(FP), R4
+ 	MOVV	$SYS_epoll_create1, R2
+ 	SYSCALL
+@@ -411,7 +411,7 @@ TEXT runtime·epollcreate1(SB),NOSPLIT,$-8
+ 	RET
+ 
+ // func epollctl(epfd, op, fd int32, ev *epollEvent) int
+-TEXT runtime·epollctl(SB),NOSPLIT,$-8
++TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	epfd+0(FP), R4
+ 	MOVW	op+4(FP), R5
+ 	MOVW	fd+8(FP), R6
+@@ -422,7 +422,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$-8
+ 	RET
+ 
+ // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),NOSPLIT,$-8
++TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	epfd+0(FP), R4
+ 	MOVV	ev+8(FP), R5
+ 	MOVW	nev+16(FP), R6
+@@ -433,7 +433,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$-8
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT,$-8
++TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW    fd+0(FP), R4  // fd
+ 	MOVV    $2, R5  // F_SETFD
+ 	MOVV    $1, R6  // FD_CLOEXEC
+@@ -442,7 +442,7 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$-8
+ 	RET
+ 
+ // func sbrk0() uintptr
+-TEXT runtime·sbrk0(SB),NOSPLIT,$-8-8
++TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
+ 	// Implemented as brk(NULL).
+ 	MOVV	$0, R4
+ 	MOVV	$SYS_brk, R2
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index 6bd0267ea2..e6c8a2d41f 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -338,7 +338,7 @@ TEXT runtime·futex(SB),NOSPLIT,$20-28
+ 
+ 
+ // int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
+-TEXT runtime·clone(SB),NOSPLIT,$-4-24
++TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0-24
+ 	MOVW	flags+0(FP), R4
+ 	MOVW	stk+4(FP), R5
+ 	MOVW	R0, R6	// ptid
+diff --git a/src/runtime/tls_mips64x.s b/src/runtime/tls_mips64x.s
+index 53bd6f2615..888c0efec6 100644
+--- a/src/runtime/tls_mips64x.s
++++ b/src/runtime/tls_mips64x.s
+@@ -12,7 +12,7 @@
+ // If !iscgo, this is a no-op.
+ //
+ // NOTE: mcall() assumes this clobbers only R23 (REGTMP).
+-TEXT runtime·save_g(SB),NOSPLIT,$-8-0
++TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVB	runtime·iscgo(SB), R23
+ 	BEQ	R23, nocgo
+ 
+@@ -23,7 +23,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-8-0
+ nocgo:
+ 	RET
+ 
+-TEXT runtime·load_g(SB),NOSPLIT,$-8-0
++TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVV	runtime·tls_g(SB), g // TLS relocation clobbers R3
+ 	RET
+ 
+diff --git a/src/runtime/tls_mipsx.s b/src/runtime/tls_mipsx.s
+index a2c01d2167..d2ffcd954c 100644
+--- a/src/runtime/tls_mipsx.s
++++ b/src/runtime/tls_mipsx.s
+@@ -11,7 +11,7 @@
+ 
+ // If !iscgo, this is a no-op.
+ // NOTE: gogo asumes load_g only clobers g (R30) and REGTMP (R23)
+-TEXT runtime·save_g(SB),NOSPLIT,$-4-0
++TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVB	runtime·iscgo(SB), R23
+ 	BEQ	R23, nocgo
+ 
+@@ -22,7 +22,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4-0
+ nocgo:
+ 	RET
+ 
+-TEXT runtime·load_g(SB),NOSPLIT,$-4-0
++TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	runtime·tls_g(SB), g // TLS relocation clobbers R3
+ 	RET
+ 

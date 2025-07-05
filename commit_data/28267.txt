@@ -11,6 +11,23 @@ Date:   Mon Apr 18 03:18:13 2016 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/os_test.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index baa2f07fd2..545bc1c8b0 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1705,11 +1705,6 @@ func TestKillStartProcess(t *testing.T) {
+ }
+ 
+ func TestGetppid(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		// TODO: golang.org/issue/8206
+-		t.Skipf("skipping test on plan9; see issue 8206")
+-	}
+-
+ 	testenv.MustHaveExec(t)
+ 
+ 	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {

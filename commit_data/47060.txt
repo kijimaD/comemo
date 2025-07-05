@@ -23,7 +23,7 @@ Date:   Tue Dec 8 04:14:34 2020 +1100
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/dist/test.go                     |   2 +-
  src/cmd/internal/sys/supported.go        |   2 +-
  src/race.bash                            |   7 ++++++-
@@ -31,3 +31,83 @@ Date:   Tue Dec 8 04:14:34 2020 +1100
  src/runtime/race/race.go                 |   4 ++--
  src/runtime/race/race_openbsd_amd64.syso | Bin 0 -> 688784 bytes
  6 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index a22397aa16..0c8e2c56bc 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1633,7 +1633,7 @@ func raceDetectorSupported(goos, goarch string) bool {
+ 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
+ 	case "darwin":
+ 		return goarch == "amd64" || goarch == "arm64"
+-	case "freebsd", "netbsd", "windows":
++	case "freebsd", "netbsd", "openbsd", "windows":
+ 		return goarch == "amd64"
+ 	default:
+ 		return false
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index ef7c017bd4..291acf0862 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -15,7 +15,7 @@ func RaceDetectorSupported(goos, goarch string) bool {
+ 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
+ 	case "darwin":
+ 		return goarch == "amd64" || goarch == "arm64"
+-	case "freebsd", "netbsd", "windows":
++	case "freebsd", "netbsd", "openbsd", "windows":
+ 		return goarch == "amd64"
+ 	default:
+ 		return false
+diff --git a/src/race.bash b/src/race.bash
+index e2b96bcffe..81fb4be606 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -9,7 +9,7 @@
+ set -e
+ 
+ function usage {
+-	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
++	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, openbsd/amd64, darwin/amd64, and darwin/arm64' 1>&2
+ 	exit 1
+ }
+ 
+@@ -34,6 +34,11 @@ case $(uname) in
+ 		usage
+ 	fi
+ 	;;
++"OpenBSD")
++	if [ $(uname -m) != "amd64" ]; then
++		usage
++	fi
++	;;
+ *)
+ 	usage
+ 	;;
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index 178ab94ab5..dbff42dc8a 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -12,3 +12,4 @@ race_netbsd_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153
+ race_windows_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+ race_linux_arm64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+ race_darwin_arm64.syso built with LLVM 00da38ce2d36c07f12c287dc515d37bb7bc410e9 and Go fe70a3a0fd31441bcbb9932ecab11a6083cf2119.
++race_openbsd_amd64.syso built with LLVM fcf6ae2f070eba73074b6ec8d8281e54d29dbeeb and Go 8f2db14cd35bbd674cb2988a508306de6655e425.
+diff --git a/src/runtime/race/race.go b/src/runtime/race/race.go
+index fe50900ec8..84050e8771 100644
+--- a/src/runtime/race/race.go
++++ b/src/runtime/race/race.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (race && linux && amd64) || (race && freebsd && amd64) || (race && netbsd && amd64) || (race && darwin && amd64) || (race && windows && amd64) || (race && linux && ppc64le) || (race && linux && arm64) || (race && darwin && arm64)
+-// +build race,linux,amd64 race,freebsd,amd64 race,netbsd,amd64 race,darwin,amd64 race,windows,amd64 race,linux,ppc64le race,linux,arm64 race,darwin,arm64
++//go:build (race && linux && amd64) || (race && freebsd && amd64) || (race && netbsd && amd64) || (race && darwin && amd64) || (race && windows && amd64) || (race && linux && ppc64le) || (race && linux && arm64) || (race && darwin && arm64) || (race && openbsd && amd64)
++// +build race,linux,amd64 race,freebsd,amd64 race,netbsd,amd64 race,darwin,amd64 race,windows,amd64 race,linux,ppc64le race,linux,arm64 race,darwin,arm64 race,openbsd,amd64
+ 
+ package race
+ 
+diff --git a/src/runtime/race/race_openbsd_amd64.syso b/src/runtime/race/race_openbsd_amd64.syso
+new file mode 100644
+index 0000000000..9fefd87ec6
+Binary files /dev/null and b/src/runtime/race/race_openbsd_amd64.syso differ

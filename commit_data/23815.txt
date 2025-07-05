@@ -22,7 +22,7 @@ Date:   Mon Jun 15 11:06:59 2015 -0700
     Change-Id: Id4aff688f6a399f76bf92b84c7e793b8da8baa48
     Reviewed-on: https://go-review.googlesource.com/11122
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/vet/shadow.go                    |   2 +-
  src/cmd/vet/unused.go                    |   2 +-
  src/go/internal/gcimporter/gcimporter.go |   2 +-
@@ -44,3 +44,1141 @@ Date:   Mon Jun 15 11:06:59 2015 -0700
  src/go/types/typexpr.go                  |   6 +-
  src/go/types/universe.go                 |   2 +-
  20 files changed, 363 insertions(+), 249 deletions(-)
+
+diff --git a/src/cmd/vet/shadow.go b/src/cmd/vet/shadow.go
+index b3f362a080..2149e70ce2 100644
+--- a/src/cmd/vet/shadow.go
++++ b/src/cmd/vet/shadow.go
+@@ -212,7 +212,7 @@ func checkShadowing(f *File, ident *ast.Ident) {
+ 	}
+ 	// obj.Parent.Parent is the surrounding scope. If we can find another declaration
+ 	// starting from there, we have a shadowed identifier.
+-	_, shadowed := obj.Parent().Parent().LookupParent(obj.Name())
++	_, shadowed := obj.Parent().Parent().LookupParent(obj.Name(), obj.Pos())
+ 	if shadowed == nil {
+ 		return
+ 	}
+diff --git a/src/cmd/vet/unused.go b/src/cmd/vet/unused.go
+index 4287638586..df2317a436 100644
+--- a/src/cmd/vet/unused.go
++++ b/src/cmd/vet/unused.go
+@@ -31,7 +31,7 @@ func init() {
+ }
+ 
+ // func() string
+-var sigNoArgsStringResult = types.NewSignature(nil, nil, nil,
++var sigNoArgsStringResult = types.NewSignature(nil, nil,
+ 	types.NewTuple(types.NewVar(token.NoPos, nil, "", types.Typ[types.String])),
+ 	false)
+ 
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 7278c0c0a0..4e987f5e06 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -568,7 +568,7 @@ func (p *parser) parseSignature(recv *types.Var) *types.Signature {
+ 		}
+ 	}
+ 
+-	return types.NewSignature(nil, recv, types.NewTuple(params...), types.NewTuple(results...), isVariadic)
++	return types.NewSignature(recv, types.NewTuple(params...), types.NewTuple(results...), isVariadic)
+ }
+ 
+ // InterfaceType = "interface" "{" [ MethodList ] "}" .
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 14ee286bf6..93b842eaa0 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -161,7 +161,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+ 	var v *Var
+ 	var v_used bool
+ 	if ident != nil {
+-		if _, obj := check.scope.LookupParent(ident.Name); obj != nil {
++		if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
+ 			v, _ = obj.(*Var)
+ 			if v != nil {
+ 				v_used = v.used
+@@ -314,8 +314,13 @@ func (check *Checker) shortVarDecl(pos token.Pos, lhs, rhs []ast.Expr) {
+ 
+ 	// declare new variables
+ 	if len(newVars) > 0 {
++		// spec: "The scope of a constant or variable identifier declared inside
++		// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
++		// for short variable declarations) and ends at the end of the innermost
++		// containing block."
++		scopePos := rhs[len(rhs)-1].End()
+ 		for _, obj := range newVars {
+-			check.declare(scope, nil, obj) // recordObject already called
++			check.declare(scope, nil, obj, scopePos) // recordObject already called
+ 		}
+ 	} else {
+ 		check.softErrorf(pos, "no new variables on left side of :=")
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 7f366a8cd0..1e94212398 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -280,7 +280,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 	// can only appear in qualified identifiers which are mapped to
+ 	// selector expressions.
+ 	if ident, ok := e.X.(*ast.Ident); ok {
+-		_, obj := check.scope.LookupParent(ident.Name)
++		_, obj := check.scope.LookupParent(ident.Name, check.pos)
+ 		if pkg, _ := obj.(*PkgName); pkg != nil {
+ 			assert(pkg.pkg == check.pkg)
+ 			check.recordUse(ident, pkg)
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 7ae81eb2d0..a3c0538654 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -83,6 +83,7 @@ type Checker struct {
+ 	// context within which the current object is type-checked
+ 	// (valid only for the duration of type-checking a specific object)
+ 	context
++	pos token.Pos // if valid, identifiers are looked up as if at position pos (used by Eval)
+ 
+ 	// debugging
+ 	indent int // indentation for tracing
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 4af5b57798..ad90872106 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -19,7 +19,7 @@ func (check *Checker) reportAltDecl(obj Object) {
+ 	}
+ }
+ 
+-func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object) {
++func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token.Pos) {
+ 	// spec: "The blank identifier, represented by the underscore
+ 	// character _, may be used in a declaration like any other
+ 	// identifier but the declaration does not introduce a new
+@@ -30,6 +30,7 @@ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object) {
+ 			check.reportAltDecl(alt)
+ 			return
+ 		}
++		obj.setScopePos(pos)
+ 	}
+ 	if id != nil {
+ 		check.recordDef(id, obj)
+@@ -347,8 +348,13 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 
+ 					check.arityMatch(s, last)
+ 
++					// spec: "The scope of a constant or variable identifier declared
++					// inside a function begins at the end of the ConstSpec or VarSpec
++					// (ShortVarDecl for short variable declarations) and ends at the
++					// end of the innermost containing block."
++					scopePos := s.End()
+ 					for i, name := range s.Names {
+-						check.declare(check.scope, name, lhs[i])
++						check.declare(check.scope, name, lhs[i], scopePos)
+ 					}
+ 
+ 				case token.VAR:
+@@ -394,8 +400,10 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 
+ 					// declare all variables
+ 					// (only at this point are the variable scopes (parents) set)
++					scopePos := s.End() // see constant declarations
+ 					for i, name := range s.Names {
+-						check.declare(check.scope, name, lhs0[i])
++						// see constant declarations
++						check.declare(check.scope, name, lhs0[i], scopePos)
+ 					}
+ 
+ 				default:
+@@ -404,7 +412,11 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 
+ 			case *ast.TypeSpec:
+ 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
+-				check.declare(check.scope, s.Name, obj)
++				// spec: "The scope of a type identifier declared inside a function
++				// begins at the identifier in the TypeSpec and ends at the end of
++				// the innermost containing block."
++				scopePos := s.Name.Pos()
++				check.declare(check.scope, s.Name, obj, scopePos)
+ 				check.typeDecl(obj, s.Type, nil, nil)
+ 
+ 			default:
+diff --git a/src/go/types/eval.go b/src/go/types/eval.go
+index 7fa319e169..c09f2a3ba4 100644
+--- a/src/go/types/eval.go
++++ b/src/go/types/eval.go
+@@ -2,44 +2,30 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements New, Eval and EvalNode.
+-
+ package types
+ 
+ import (
+ 	"fmt"
+-	"go/ast"
+ 	"go/parser"
+ 	"go/token"
+ )
+ 
+-// New is a convenience function to create a new type from a given
+-// expression or type literal string evaluated in Universe scope.
+-// New(str) is shorthand for Eval(str, nil, nil), but only returns
+-// the type result, and panics in case of an error.
+-// Position info for objects in the result type is undefined.
+-//
+-func New(str string) Type {
+-	tv, err := Eval(str, nil, nil)
+-	if err != nil {
+-		panic(err)
+-	}
+-	return tv.Type
+-}
+-
+ // Eval returns the type and, if constant, the value for the
+-// expression or type literal string str evaluated in scope.
+-// If the expression contains function literals, the function
+-// bodies are ignored (though they must be syntactically correct).
++// expression expr, evaluated at position pos of package pkg,
++// which must have been derived from type-checking an AST with
++// complete position information relative to the provided file
++// set.
++//
++// If the expression contains function literals, their bodies
++// are ignored (i.e., the bodies are not type-checked).
+ //
+ // If pkg == nil, the Universe scope is used and the provided
+-// scope is ignored. Otherwise, the scope must belong to the
+-// package (either the package scope, or nested within the
+-// package scope).
++// position pos is ignored. If pkg != nil, and pos is invalid,
++// the package scope is used. Otherwise, pos must belong to the
++// package.
+ //
+-// An error is returned if the scope is incorrect, the string
+-// has syntax errors, or if it cannot be evaluated in the scope.
+-// Position info for objects in the result type is undefined.
++// An error is returned if pos is not within the package or
++// if the node cannot be evaluated.
+ //
+ // Note: Eval should not be used instead of running Check to compute
+ // types and values, but in addition to Check. Eval will re-evaluate
+@@ -48,48 +34,54 @@ func New(str string) Type {
+ // level untyped constants will return an untyped type rather then the
+ // respective context-specific type.
+ //
+-func Eval(str string, pkg *Package, scope *Scope) (TypeAndValue, error) {
+-	node, err := parser.ParseExpr(str)
+-	if err != nil {
+-		return TypeAndValue{}, err
+-	}
+-
+-	// Create a file set that looks structurally identical to the
+-	// one created by parser.ParseExpr for correct error positions.
+-	fset := token.NewFileSet()
+-	fset.AddFile("", len(str), fset.Base()).SetLinesForContent([]byte(str))
+-
+-	return EvalNode(fset, node, pkg, scope)
+-}
+-
+-// EvalNode is like Eval but instead of string it accepts
+-// an expression node and respective file set.
+-//
+-// An error is returned if the scope is incorrect
+-// if the node cannot be evaluated in the scope.
+-//
+-func EvalNode(fset *token.FileSet, node ast.Expr, pkg *Package, scope *Scope) (tv TypeAndValue, err error) {
+-	// verify package/scope relationship
++func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (tv TypeAndValue, err error) {
++	// determine scope
++	var scope *Scope
+ 	if pkg == nil {
+ 		scope = Universe
++		pos = token.NoPos
++	} else if !pos.IsValid() {
++		scope = pkg.scope
+ 	} else {
+-		s := scope
+-		for s != nil && s != pkg.scope {
+-			s = s.parent
++		// The package scope extent (position information) may be
++		// incorrect (files spread accross a wide range of fset
++		// positions) - ignore it and just consider its children
++		// (file scopes).
++		for _, fscope := range pkg.scope.children {
++			if scope = fscope.Innermost(pos); scope != nil {
++				break
++			}
+ 		}
+-		// s == nil || s == pkg.scope
+-		if s == nil {
+-			return TypeAndValue{}, fmt.Errorf("scope does not belong to package %s", pkg.name)
++		if scope == nil || debug {
++			s := scope
++			for s != nil && s != pkg.scope {
++				s = s.parent
++			}
++			// s == nil || s == pkg.scope
++			if s == nil {
++				return TypeAndValue{}, fmt.Errorf("no position %s found in package %s", fset.Position(pos), pkg.name)
++			}
+ 		}
+ 	}
+ 
++	// parse expressions
++	// BUG(gri) In case of type-checking errors below, the type checker
++	//          doesn't have the correct file set for expr. The correct
++	//          solution requires a ParseExpr that uses the incoming
++	//          file set fset.
++	node, err := parser.ParseExpr(expr)
++	if err != nil {
++		return TypeAndValue{}, err
++	}
++
+ 	// initialize checker
+ 	check := NewChecker(nil, fset, pkg, nil)
+ 	check.scope = scope
++	check.pos = pos
+ 	defer check.handleBailout(&err)
+ 
+ 	// evaluate node
+ 	var x operand
+ 	check.rawExpr(&x, node, nil)
+-	return TypeAndValue{x.mode, x.typ, x.val}, nil
++	return TypeAndValue{x.mode, x.typ, x.val}, err
+ }
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 36e1cb954e..7d932d5f4c 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -17,14 +17,14 @@ import (
+ 	. "go/types"
+ )
+ 
+-func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, typStr, valStr string) {
+-	gotTv, err := Eval(str, pkg, scope)
++func testEval(t *testing.T, fset *token.FileSet, pkg *Package, pos token.Pos, expr string, typ Type, typStr, valStr string) {
++	gotTv, err := Eval(fset, pkg, pos, expr)
+ 	if err != nil {
+-		t.Errorf("Eval(%q) failed: %s", str, err)
++		t.Errorf("Eval(%q) failed: %s", expr, err)
+ 		return
+ 	}
+ 	if gotTv.Type == nil {
+-		t.Errorf("Eval(%q) got nil type but no error", str)
++		t.Errorf("Eval(%q) got nil type but no error", expr)
+ 		return
+ 	}
+ 
+@@ -32,14 +32,14 @@ func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, ty
+ 	if typ != nil {
+ 		// we have a type, check identity
+ 		if !Identical(gotTv.Type, typ) {
+-			t.Errorf("Eval(%q) got type %s, want %s", str, gotTv.Type, typ)
++			t.Errorf("Eval(%q) got type %s, want %s", expr, gotTv.Type, typ)
+ 			return
+ 		}
+ 	} else {
+ 		// we have a string, compare type string
+ 		gotStr := gotTv.Type.String()
+ 		if gotStr != typStr {
+-			t.Errorf("Eval(%q) got type %s, want %s", str, gotStr, typStr)
++			t.Errorf("Eval(%q) got type %s, want %s", expr, gotStr, typStr)
+ 			return
+ 		}
+ 	}
+@@ -50,19 +50,21 @@ func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, ty
+ 		gotStr = gotTv.Value.String()
+ 	}
+ 	if gotStr != valStr {
+-		t.Errorf("Eval(%q) got value %s, want %s", str, gotStr, valStr)
++		t.Errorf("Eval(%q) got value %s, want %s", expr, gotStr, valStr)
+ 	}
+ }
+ 
+ func TestEvalBasic(t *testing.T) {
++	fset := token.NewFileSet()
+ 	for _, typ := range Typ[Bool : String+1] {
+-		testEval(t, nil, nil, typ.Name(), typ, "", "")
++		testEval(t, fset, nil, token.NoPos, typ.Name(), typ, "", "")
+ 	}
+ }
+ 
+ func TestEvalComposite(t *testing.T) {
++	fset := token.NewFileSet()
+ 	for _, test := range independentTestTypes {
+-		testEval(t, nil, nil, test.src, nil, test.str, "")
++		testEval(t, fset, nil, token.NoPos, test.src, nil, test.str, "")
+ 	}
+ }
+ 
+@@ -77,70 +79,104 @@ func TestEvalArith(t *testing.T) {
+ 		`"abc" <= "bcd"`,
+ 		`len([10]struct{}{}) == 2*5`,
+ 	}
++	fset := token.NewFileSet()
+ 	for _, test := range tests {
+-		testEval(t, nil, nil, test, Typ[UntypedBool], "", "true")
++		testEval(t, fset, nil, token.NoPos, test, Typ[UntypedBool], "", "true")
+ 	}
+ }
+ 
+-func TestEvalContext(t *testing.T) {
++func TestEvalPos(t *testing.T) {
+ 	skipSpecialPlatforms(t)
+ 
+-	src := `
+-package p
+-import "fmt"
+-import m "math"
+-const c = 3.0
+-type T []int
+-func f(a int, s string) float64 {
+-	fmt.Println("calling f")
+-	_ = m.Pi // use package math
+-	const d int = c + 1
+-	var x int
+-	x = a + len(s)
+-	return float64(x)
+-}
+-`
++	// The contents of /*-style comments are of the form
++	//	expr => value, type
++	// where value may be the empty string.
++	// Each expr is evaluated at the position of the comment
++	// and the result is compared with the expected value
++	// and type.
++	var sources = []string{
++		`
++		package p
++		import "fmt"
++		import m "math"
++		const c = 3.0
++		type T []int
++		func f(a int, s string) float64 {
++			fmt.Println("calling f")
++			_ = m.Pi // use package math
++			const d int = c + 1
++			var x int
++			x = a + len(s)
++			return float64(x)
++			/* true => true, untyped bool */
++			/* fmt.Println => , func(a ...interface{}) (n int, err error) */
++			/* c => 3, untyped float */
++			/* T => , p.T */
++			/* a => , int */
++			/* s => , string */
++			/* d => 4, int */
++			/* x => , int */
++			/* d/c => 1, int */
++			/* c/2 => 3/2, untyped float */
++			/* m.Pi < m.E => false, untyped bool */
++		}
++		`,
++		`
++		package p
++		/* c => 3, untyped float */
++		type T1 /* T1 => , p.T1 */ struct {}
++		var v1 /* v1 => , int */ = 42
++		func /* f1 => , func(v1 float64) */ f1(v1 float64) {
++			/* f1 => , func(v1 float64) */
++			/* v1 => , float64 */
++			var c /* c => 3, untyped float */ = "foo" /* c => , string */
++			{
++				var c struct {
++					c /* c => , string */ int
++				}
++				/* c => , struct{c int} */
++				_ = c
++			}
++			_ = func(a, b, c int) /* c => , string */ {
++				/* c => , int */
++			}
++			_ = c
++			type FT /* FT => , p.FT */ interface{}
++		}
++		`,
++		`
++		package p
++		/* T => , p.T */
++		`,
++	}
++
+ 	fset := token.NewFileSet()
+-	file, err := parser.ParseFile(fset, "p", src, 0)
+-	if err != nil {
+-		t.Fatal(err)
++	var files []*ast.File
++	for i, src := range sources {
++		file, err := parser.ParseFile(fset, "p", src, parser.ParseComments)
++		if err != nil {
++			t.Fatalf("could not parse file %d: %s", i, err)
++		}
++		files = append(files, file)
+ 	}
+ 
+ 	conf := Config{Importer: importer.Default()}
+-	pkg, err := conf.Check("p", fset, []*ast.File{file}, nil)
++	pkg, err := conf.Check("p", fset, files, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+-	pkgScope := pkg.Scope()
+-	if n := pkgScope.NumChildren(); n != 1 {
+-		t.Fatalf("got %d file scopes, want 1", n)
+-	}
+-
+-	fileScope := pkgScope.Child(0)
+-	if n := fileScope.NumChildren(); n != 1 {
+-		t.Fatalf("got %d functions scopes, want 1", n)
+-	}
+-
+-	funcScope := fileScope.Child(0)
+-
+-	var tests = []string{
+-		`true => true, untyped bool`,
+-		`fmt.Println => , func(a ...interface{}) (n int, err error)`,
+-		`c => 3, untyped float`,
+-		`T => , p.T`,
+-		`a => , int`,
+-		`s => , string`,
+-		`d => 4, int`,
+-		`x => , int`,
+-		`d/c => 1, int`,
+-		`c/2 => 3/2, untyped float`,
+-		`m.Pi < m.E => false, untyped bool`,
+-	}
+-	for _, test := range tests {
+-		str, typ := split(test, ", ")
+-		str, val := split(str, "=>")
+-		testEval(t, pkg, funcScope, str, nil, typ, val)
++	for _, file := range files {
++		for _, group := range file.Comments {
++			for _, comment := range group.List {
++				s := comment.Text
++				if len(s) >= 4 && s[:2] == "/*" && s[len(s)-2:] == "*/" {
++					str, typ := split(s[2:len(s)-2], ", ")
++					str, val := split(str, "=>")
++					testEval(t, fset, pkg, comment.Pos(), str, nil, typ, val)
++				}
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/go/types/labels.go b/src/go/types/labels.go
+index d6ffc52368..7364d4dbe6 100644
+--- a/src/go/types/labels.go
++++ b/src/go/types/labels.go
+@@ -12,7 +12,7 @@ import (
+ // labels checks correct label use in body.
+ func (check *Checker) labels(body *ast.BlockStmt) {
+ 	// set of all labels in this body
+-	all := NewScope(nil, "label")
++	all := NewScope(nil, body.Pos(), body.End(), "label")
+ 
+ 	fwdJumps := check.blockBranches(all, nil, nil, body.List)
+ 
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 829e7a96b3..ebbd760df4 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -44,6 +44,12 @@ type Object interface {
+ 
+ 	// sameId reports whether obj.Id() and Id(pkg, name) are the same.
+ 	sameId(pkg *Package, name string) bool
++
++	// scopePos returns the start position of the scope of this Object
++	scopePos() token.Pos
++
++	// setScopePos sets the start position of the scope for this Object.
++	setScopePos(pos token.Pos)
+ }
+ 
+ // Id returns name if it is exported, otherwise it
+@@ -73,26 +79,29 @@ func Id(pkg *Package, name string) string {
+ 
+ // An object implements the common parts of an Object.
+ type object struct {
+-	parent *Scope
+-	pos    token.Pos
+-	pkg    *Package
+-	name   string
+-	typ    Type
+-	order_ uint32
++	parent    *Scope
++	pos       token.Pos
++	pkg       *Package
++	name      string
++	typ       Type
++	order_    uint32
++	scopePos_ token.Pos
+ }
+ 
+-func (obj *object) Parent() *Scope { return obj.parent }
+-func (obj *object) Pos() token.Pos { return obj.pos }
+-func (obj *object) Pkg() *Package  { return obj.pkg }
+-func (obj *object) Name() string   { return obj.name }
+-func (obj *object) Type() Type     { return obj.typ }
+-func (obj *object) Exported() bool { return ast.IsExported(obj.name) }
+-func (obj *object) Id() string     { return Id(obj.pkg, obj.name) }
+-func (obj *object) String() string { panic("abstract") }
+-func (obj *object) order() uint32  { return obj.order_ }
+-
+-func (obj *object) setOrder(order uint32)   { assert(order > 0); obj.order_ = order }
+-func (obj *object) setParent(parent *Scope) { obj.parent = parent }
++func (obj *object) Parent() *Scope      { return obj.parent }
++func (obj *object) Pos() token.Pos      { return obj.pos }
++func (obj *object) Pkg() *Package       { return obj.pkg }
++func (obj *object) Name() string        { return obj.name }
++func (obj *object) Type() Type          { return obj.typ }
++func (obj *object) Exported() bool      { return ast.IsExported(obj.name) }
++func (obj *object) Id() string          { return Id(obj.pkg, obj.name) }
++func (obj *object) String() string      { panic("abstract") }
++func (obj *object) order() uint32       { return obj.order_ }
++func (obj *object) scopePos() token.Pos { return obj.scopePos_ }
++
++func (obj *object) setParent(parent *Scope)   { obj.parent = parent }
++func (obj *object) setOrder(order uint32)     { assert(order > 0); obj.order_ = order }
++func (obj *object) setScopePos(pos token.Pos) { obj.scopePos_ = pos }
+ 
+ func (obj *object) sameId(pkg *Package, name string) bool {
+ 	// spec:
+@@ -124,7 +133,7 @@ type PkgName struct {
+ }
+ 
+ func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
+-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0}, imported, false}
++	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, token.NoPos}, imported, false}
+ }
+ 
+ // Imported returns the package that was imported.
+@@ -139,7 +148,7 @@ type Const struct {
+ }
+ 
+ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val exact.Value) *Const {
+-	return &Const{object{nil, pos, pkg, name, typ, 0}, val, false}
++	return &Const{object{nil, pos, pkg, name, typ, 0, token.NoPos}, val, false}
+ }
+ 
+ func (obj *Const) Val() exact.Value { return obj.val }
+@@ -150,7 +159,7 @@ type TypeName struct {
+ }
+ 
+ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
+-	return &TypeName{object{nil, pos, pkg, name, typ, 0}}
++	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
+ }
+ 
+ // A Variable represents a declared variable (including function parameters and results, and struct fields).
+@@ -163,15 +172,15 @@ type Var struct {
+ }
+ 
+ func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0}}
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}}
+ }
+ 
+ func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0}, used: true} // parameters are always 'used'
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, used: true} // parameters are always 'used'
+ }
+ 
+ func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0}, anonymous: anonymous, isField: true}
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, anonymous: anonymous, isField: true}
+ }
+ 
+ func (obj *Var) Anonymous() bool { return obj.anonymous }
+@@ -191,7 +200,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
+ 	if sig != nil {
+ 		typ = sig
+ 	}
+-	return &Func{object{nil, pos, pkg, name, typ, 0}}
++	return &Func{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
+ }
+ 
+ // FullName returns the package- or receiver-type-qualified name of
+diff --git a/src/go/types/package.go b/src/go/types/package.go
+index 366ca3948d..27d6ea7339 100644
+--- a/src/go/types/package.go
++++ b/src/go/types/package.go
+@@ -4,7 +4,10 @@
+ 
+ package types
+ 
+-import "fmt"
++import (
++	"fmt"
++	"go/token"
++)
+ 
+ // A Package describes a Go package.
+ type Package struct {
+@@ -23,7 +26,7 @@ func NewPackage(path, name string) *Package {
+ 	if name == "_" {
+ 		panic("invalid package name _")
+ 	}
+-	scope := NewScope(Universe, fmt.Sprintf("package %q", path))
++	scope := NewScope(Universe, token.NoPos, token.NoPos, fmt.Sprintf("package %q", path))
+ 	return &Package{path: path, name: name, scope: scope}
+ }
+ 
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 64dcebe216..35a4f7c3b2 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -106,7 +106,7 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
+ 		return
+ 	}
+ 
+-	check.declare(check.pkg.scope, ident, obj)
++	check.declare(check.pkg.scope, ident, obj, token.NoPos)
+ 	check.objMap[obj] = d
+ 	obj.setOrder(uint32(len(check.objMap)))
+ }
+@@ -139,7 +139,14 @@ func (check *Checker) collectObjects() {
+ 		// but there is no corresponding package object.
+ 		check.recordDef(file.Name, nil)
+ 
+-		fileScope := NewScope(check.pkg.scope, check.filename(fileNo))
++		// Use the actual source file extent rather than *ast.File extent since the
++		// latter doesn't include comments which appear at the start or end of the file.
++		// Be conservative and use the *ast.File extent if we don't have a *token.File.
++		pos, end := file.Pos(), file.End()
++		if f := check.fset.File(file.Pos()); f != nil {
++			pos, end = token.Pos(f.Base()), token.Pos(f.Base()+f.Size())
++		}
++		fileScope := NewScope(check.pkg.scope, pos, end, check.filename(fileNo))
+ 		check.recordScope(file, fileScope)
+ 
+ 		for _, decl := range file.Decls {
+@@ -224,7 +231,7 @@ func (check *Checker) collectObjects() {
+ 									// information because the same package - found
+ 									// via Config.Packages - may be dot-imported in
+ 									// another package!)
+-									check.declare(fileScope, nil, obj)
++									check.declare(fileScope, nil, obj, token.NoPos)
+ 									check.recordImplicit(s, obj)
+ 								}
+ 							}
+@@ -233,7 +240,7 @@ func (check *Checker) collectObjects() {
+ 							check.addUnusedDotImport(fileScope, imp, s.Pos())
+ 						} else {
+ 							// declare imported package object in file scope
+-							check.declare(fileScope, nil, obj)
++							check.declare(fileScope, nil, obj, token.NoPos)
+ 						}
+ 
+ 					case *ast.ValueSpec:
+@@ -323,7 +330,7 @@ func (check *Checker) collectObjects() {
+ 							check.softErrorf(obj.pos, "missing function body")
+ 						}
+ 					} else {
+-						check.declare(pkg.scope, d.Name, obj)
++						check.declare(pkg.scope, d.Name, obj, token.NoPos)
+ 					}
+ 				} else {
+ 					// method
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index 5713065354..f48d380a1d 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -16,78 +16,6 @@ import (
+ 	. "go/types"
+ )
+ 
+-var sources = []string{
+-	`
+-	package p
+-	import "fmt"
+-	import "math"
+-	const pi = math.Pi
+-	func sin(x float64) float64 {
+-		return math.Sin(x)
+-	}
+-	var Println = fmt.Println
+-	`,
+-	`
+-	package p
+-	import "fmt"
+-	type errorStringer struct { fmt.Stringer; error }
+-	func f() string {
+-		_ = "foo"
+-		return fmt.Sprintf("%d", g())
+-	}
+-	func g() (x int) { return }
+-	`,
+-	`
+-	package p
+-	import . "go/parser"
+-	import "sync"
+-	func h() Mode { return ImportsOnly }
+-	var _, x int = 1, 2
+-	func init() {}
+-	type T struct{ *sync.Mutex; a, b, c int}
+-	type I interface{ m() }
+-	var _ = T{a: 1, b: 2, c: 3}
+-	func (_ T) m() {}
+-	func (T) _() {}
+-	var i I
+-	var _ = i.m
+-	func _(s []int) { for i, x := range s { _, _ = i, x } }
+-	func _(x interface{}) {
+-		switch x := x.(type) {
+-		case int:
+-			_ = x
+-		}
+-		switch {} // implicit 'true' tag
+-	}
+-	`,
+-	`
+-	package p
+-	type S struct{}
+-	func (T) _() {}
+-	func (T) _() {}
+-	`,
+-	`
+-	package p
+-	func _() {
+-	L0:
+-	L1:
+-		goto L0
+-		for {
+-			goto L1
+-		}
+-		if true {
+-			goto L2
+-		}
+-	L2:
+-	}
+-	`,
+-}
+-
+-var pkgnames = []string{
+-	"fmt",
+-	"math",
+-}
+-
+ type resolveTestImporter struct {
+ 	importer Importer
+ 	imported map[string]bool
+@@ -109,6 +37,78 @@ func (imp *resolveTestImporter) Import(path string) (*Package, error) {
+ func TestResolveIdents(t *testing.T) {
+ 	skipSpecialPlatforms(t)
+ 
++	sources := []string{
++		`
++		package p
++		import "fmt"
++		import "math"
++		const pi = math.Pi
++		func sin(x float64) float64 {
++			return math.Sin(x)
++		}
++		var Println = fmt.Println
++		`,
++		`
++		package p
++		import "fmt"
++		type errorStringer struct { fmt.Stringer; error }
++		func f() string {
++			_ = "foo"
++			return fmt.Sprintf("%d", g())
++		}
++		func g() (x int) { return }
++		`,
++		`
++		package p
++		import . "go/parser"
++		import "sync"
++		func h() Mode { return ImportsOnly }
++		var _, x int = 1, 2
++		func init() {}
++		type T struct{ *sync.Mutex; a, b, c int}
++		type I interface{ m() }
++		var _ = T{a: 1, b: 2, c: 3}
++		func (_ T) m() {}
++		func (T) _() {}
++		var i I
++		var _ = i.m
++		func _(s []int) { for i, x := range s { _, _ = i, x } }
++		func _(x interface{}) {
++			switch x := x.(type) {
++			case int:
++				_ = x
++			}
++			switch {} // implicit 'true' tag
++		}
++		`,
++		`
++		package p
++		type S struct{}
++		func (T) _() {}
++		func (T) _() {}
++		`,
++		`
++		package p
++		func _() {
++		L0:
++		L1:
++			goto L0
++			for {
++				goto L1
++			}
++			if true {
++				goto L2
++			}
++		L2:
++		}
++		`,
++	}
++
++	pkgnames := []string{
++		"fmt",
++		"math",
++	}
++
+ 	// parse package files
+ 	fset := token.NewFileSet()
+ 	var files []*ast.File
+diff --git a/src/go/types/return.go b/src/go/types/return.go
+index df5a482ad4..6628985214 100644
+--- a/src/go/types/return.go
++++ b/src/go/types/return.go
+@@ -31,7 +31,7 @@ func (check *Checker) isTerminating(s ast.Stmt, label string) bool {
+ 		// the predeclared (possibly parenthesized) panic() function is terminating
+ 		if call, _ := unparen(s.X).(*ast.CallExpr); call != nil {
+ 			if id, _ := call.Fun.(*ast.Ident); id != nil {
+-				if _, obj := check.scope.LookupParent(id.Name); obj != nil {
++				if _, obj := check.scope.LookupParent(id.Name, token.NoPos); obj != nil {
+ 					if b, _ := obj.(*Builtin); b != nil && b.id == _Panic {
+ 						return true
+ 					}
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 8ab0f64feb..dae5deff8a 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -9,6 +9,7 @@ package types
+ import (
+ 	"bytes"
+ 	"fmt"
++	"go/token"
+ 	"io"
+ 	"sort"
+ 	"strings"
+@@ -24,14 +25,15 @@ import (
+ type Scope struct {
+ 	parent   *Scope
+ 	children []*Scope
+-	comment  string            // for debugging only
+ 	elems    map[string]Object // lazily allocated
++	pos, end token.Pos         // scope extent; may be invalid
++	comment  string            // for debugging only
+ }
+ 
+ // NewScope returns a new, empty scope contained in the given parent
+ // scope, if any.  The comment is for debugging only.
+-func NewScope(parent *Scope, comment string) *Scope {
+-	s := &Scope{parent: parent, comment: comment}
++func NewScope(parent *Scope, pos, end token.Pos, comment string) *Scope {
++	s := &Scope{parent, nil, nil, pos, end, comment}
+ 	// don't add children to Universe scope!
+ 	if parent != nil && parent != Universe {
+ 		parent.children = append(parent.children, s)
+@@ -71,15 +73,17 @@ func (s *Scope) Lookup(name string) Object {
+ 
+ // LookupParent follows the parent chain of scopes starting with s until
+ // it finds a scope where Lookup(name) returns a non-nil object, and then
+-// returns that scope and object. If no such scope exists, the result is (nil, nil).
++// returns that scope and object. If a valid position pos is provided,
++// only objects that were declared at or before pos are considered.
++// If no such scope and object exists, the result is (nil, nil).
+ //
+ // Note that obj.Parent() may be different from the returned scope if the
+ // object was inserted into the scope and already had a parent at that
+ // time (see Insert, below). This can only happen for dot-imported objects
+ // whose scope is the scope of the package that exported them.
+-func (s *Scope) LookupParent(name string) (*Scope, Object) {
++func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
+ 	for ; s != nil; s = s.parent {
+-		if obj := s.elems[name]; obj != nil {
++		if obj := s.elems[name]; obj != nil && (!pos.IsValid() || obj.scopePos() <= pos) {
+ 			return s, obj
+ 		}
+ 	}
+@@ -106,6 +110,36 @@ func (s *Scope) Insert(obj Object) Object {
+ 	return nil
+ }
+ 
++// Pos and End describe the scope's source code extent [pos, end).
++// The results are guaranteed to be valid only if the type-checked
++// AST has complete position information. The extent is undefined
++// for Universe and package scopes.
++func (s *Scope) Pos() token.Pos { return s.pos }
++func (s *Scope) End() token.Pos { return s.end }
++
++// Contains returns true if pos is within the scope's extent.
++// The result is guaranteed to be valid only if the type-checked
++// AST has complete position information.
++func (s *Scope) Contains(pos token.Pos) bool {
++	return s.pos <= pos && pos < s.end
++}
++
++// Innermost returns the innermost (child) scope containing
++// pos. If pos is not within any scope, the result is nil.
++// The result is guaranteed to be valid only if the type-checked
++// AST has complete position information.
++func (s *Scope) Innermost(pos token.Pos) *Scope {
++	if s.Contains(pos) {
++		for _, s := range s.children {
++			if s.Contains(pos) {
++				return s.Innermost(pos)
++			}
++		}
++		return s
++	}
++	return nil
++}
++
+ // WriteTo writes a string representation of the scope to w,
+ // with the scope elements sorted by name.
+ // The level of indentation is controlled by n >= 0, with
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 586f6cc15c..6efe86c9f8 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -22,6 +22,10 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 		defer fmt.Println("--- <end>")
+ 	}
+ 
++	// set function scope extent
++	sig.scope.pos = body.Pos()
++	sig.scope.end = body.End()
++
+ 	// save/restore current context and setup function context
+ 	// (and use 0 indentation at function start)
+ 	defer func(ctxt context, indent int) {
+@@ -118,7 +122,7 @@ func (check *Checker) multipleDefaults(list []ast.Stmt) {
+ }
+ 
+ func (check *Checker) openScope(s ast.Stmt, comment string) {
+-	scope := NewScope(check.scope, comment)
++	scope := NewScope(check.scope, s.Pos(), s.End(), comment)
+ 	check.recordScope(s, scope)
+ 	check.scope = scope
+ }
+@@ -328,7 +332,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 				// list in a "return" statement if a different entity (constant, type, or variable)
+ 				// with the same name as a result parameter is in scope at the place of the return."
+ 				for _, obj := range res.vars {
+-					if _, alt := check.scope.LookupParent(obj.name); alt != nil && alt != obj {
++					if _, alt := check.scope.LookupParent(obj.name, check.pos); alt != nil && alt != obj {
+ 						check.errorf(s.Pos(), "result parameter %s not in scope at return", obj.name)
+ 						check.errorf(alt.Pos(), "\tinner declaration of %s", obj)
+ 						// ok to continue
+@@ -512,7 +516,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 					T = x.typ
+ 				}
+ 				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
+-				check.declare(check.scope, nil, obj)
++				scopePos := clause.End()
++				if len(clause.Body) > 0 {
++					scopePos = clause.Body[0].Pos()
++				}
++				check.declare(check.scope, nil, obj, scopePos)
+ 				check.recordImplicit(clause, obj)
+ 				// For the "declared but not used" error, all lhs variables act as
+ 				// one; i.e., if any one of them is 'used', all of them are 'used'.
+@@ -703,7 +711,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			// declare variables
+ 			if len(vars) > 0 {
+ 				for _, obj := range vars {
+-					check.declare(check.scope, nil /* recordDef already called */, obj)
++					// spec: "The scope of a constant or variable identifier declared inside
++					// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
++					// for short variable declarations) and ends at the end of the innermost
++					// containing block."
++					scopePos := s.End()
++					check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
+ 				}
+ 			} else {
+ 				check.error(s.TokPos, "no new variables on left side of :=")
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 4b4e5f68bf..3d1af20a10 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -196,7 +196,11 @@ func (t *Tuple) At(i int) *Var { return t.vars[i] }
+ 
+ // A Signature represents a (non-builtin) function or method type.
+ type Signature struct {
+-	scope    *Scope // function scope, always present
++	// We need to keep the scope in Signature (rather than passing it around
++	// and store it in the Func Object) because when type-checking a function
++	// literal we call the general type checker which returns a general Type.
++	// We then unpack the *Signature and use the scope for the literal body.
++	scope    *Scope // function scope, present for package-local signatures
+ 	recv     *Var   // nil if not a method
+ 	params   *Tuple // (incoming) parameters from left to right; or nil
+ 	results  *Tuple // (outgoing) results from left to right; or nil
+@@ -207,9 +211,7 @@ type Signature struct {
+ // and results, either of which may be nil. If variadic is set, the function
+ // is variadic, it must have at least one parameter, and the last parameter
+ // must be of unnamed slice type.
+-func NewSignature(scope *Scope, recv *Var, params, results *Tuple, variadic bool) *Signature {
+-	// TODO(gri) Should we rely on the correct (non-nil) incoming scope
+-	//           or should this function allocate and populate a scope?
++func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ 	if variadic {
+ 		n := params.Len()
+ 		if n == 0 {
+@@ -219,7 +221,7 @@ func NewSignature(scope *Scope, recv *Var, params, results *Tuple, variadic bool
+ 			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
+ 		}
+ 	}
+-	return &Signature{scope, recv, params, results, variadic}
++	return &Signature{nil, recv, params, results, variadic}
+ }
+ 
+ // Recv returns the receiver of signature s (if a method), or nil if a
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index a2e082e842..1160e9c511 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -22,7 +22,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
+ 	x.mode = invalid
+ 	x.expr = e
+ 
+-	scope, obj := check.scope.LookupParent(e.Name)
++	scope, obj := check.scope.LookupParent(e.Name, check.pos)
+ 	if obj == nil {
+ 		if e.Name == "_" {
+ 			check.errorf(e.Pos(), "cannot use _ as value or type")
+@@ -142,7 +142,7 @@ func (check *Checker) typ(e ast.Expr) Type {
+ 
+ // funcType type-checks a function or method type.
+ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
+-	scope := NewScope(check.scope, "function")
++	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
+ 	check.recordScope(ftyp, scope)
+ 
+ 	recvList, _ := check.collectParams(scope, recvPar, false)
+@@ -413,7 +413,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
+ 					// ok to continue
+ 				}
+ 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
+-				check.declare(scope, name, par)
++				check.declare(scope, name, par, scope.pos)
+ 				params = append(params, par)
+ 			}
+ 			named = true
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 5e445e2838..79f9db5265 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -176,7 +176,7 @@ func DefPredeclaredTestFuncs() {
+ }
+ 
+ func init() {
+-	Universe = NewScope(nil, "universe")
++	Universe = NewScope(nil, token.NoPos, token.NoPos, "universe")
+ 	Unsafe = NewPackage("unsafe", "unsafe")
+ 	Unsafe.complete = true
+ 

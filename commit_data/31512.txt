@@ -14,6 +14,21 @@ Date:   Mon Feb 27 20:39:49 2017 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/race.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index d8483c04c2..1034e35ceb 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -17,9 +17,6 @@ func RaceWrite(addr unsafe.Pointer)
+ func RaceReadRange(addr unsafe.Pointer, len int)
+ func RaceWriteRange(addr unsafe.Pointer, len int)
+ 
+-func RaceSemacquire(s *uint32)
+-func RaceSemrelease(s *uint32)
+-
+ func RaceErrors() int {
+ 	var n uint64
+ 	racecall(&__tsan_report_count, uintptr(unsafe.Pointer(&n)), 0, 0, 0)

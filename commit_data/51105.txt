@@ -18,6 +18,25 @@ Date:   Fri Dec 3 17:13:08 2021 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/internal/boring/boring.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index f34243fe26..b8804ceb68 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -7,7 +7,12 @@
+ 
+ package boring
+ 
+-// #include "goboringcrypto.h"
++/*
++// goboringcrypto_linux_amd64.syso references pthread functions.
++#cgo LDFLAGS: "-pthread"
++
++#include "goboringcrypto.h"
++*/
+ import "C"
+ import (
+ 	"crypto/internal/boring/sig"

@@ -16,8 +16,82 @@ Date:   Wed Dec 14 14:36:46 2022 -0500
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/mkpost.go               | 10 ++++++++--
  src/syscall/ztypes_linux_riscv64.go |  2 +-
  src/syscall/ztypes_linux_s390x.go   | 14 +++++++-------
  3 files changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/src/syscall/mkpost.go b/src/syscall/mkpost.go
+index 4f81b81b57..48d3511f54 100644
+--- a/src/syscall/mkpost.go
++++ b/src/syscall/mkpost.go
+@@ -40,15 +40,21 @@ func main() {
+ 		re = regexp.MustCompile("Pad_cgo[A-Za-z0-9_]*")
+ 		s = re.ReplaceAllString(s, "_")
+ 
+-		// We want to keep X__val in Fsid. Hide it and restore it later.
++		// We want to keep the X_ fields that are already consistently exported
++		// for the other linux GOARCH settings.
++		// Hide them and restore later.
+ 		s = strings.Replace(s, "X__val", "MKPOSTFSIDVAL", 1)
++		s = strings.Replace(s, "X__ifi_pad", "MKPOSTIFIPAD", 1)
++		s = strings.Replace(s, "X_f", "MKPOSTSYSINFOTF", 1)
+ 
+ 		// Replace other unwanted fields with blank identifiers.
+ 		re = regexp.MustCompile("X_[A-Za-z0-9_]*")
+ 		s = re.ReplaceAllString(s, "_")
+ 
+-		// Restore X__val in Fsid.
++		// Restore preserved fields.
+ 		s = strings.Replace(s, "MKPOSTFSIDVAL", "X__val", 1)
++		s = strings.Replace(s, "MKPOSTIFIPAD", "X__ifi_pad", 1)
++		s = strings.Replace(s, "MKPOSTSYSINFOTF", "X_f", 1)
+ 
+ 		// Force the type of RawSockaddr.Data to [14]int8 to match
+ 		// the existing gccgo API.
+diff --git a/src/syscall/ztypes_linux_riscv64.go b/src/syscall/ztypes_linux_riscv64.go
+index 6ee71ebbdc..f6b9cede0e 100644
+--- a/src/syscall/ztypes_linux_riscv64.go
++++ b/src/syscall/ztypes_linux_riscv64.go
+@@ -566,7 +566,7 @@ type Sysinfo_t struct {
+ 	Totalhigh uint64
+ 	Freehigh  uint64
+ 	Unit      uint32
+-	_         [0]uint8
++	X_f       [0]uint8
+ 	_         [4]byte
+ }
+ 
+diff --git a/src/syscall/ztypes_linux_s390x.go b/src/syscall/ztypes_linux_s390x.go
+index 91f5ceff20..b67877f065 100644
+--- a/src/syscall/ztypes_linux_s390x.go
++++ b/src/syscall/ztypes_linux_s390x.go
+@@ -449,12 +449,12 @@ type RtAttr struct {
+ }
+ 
+ type IfInfomsg struct {
+-	Family uint8
+-	_      uint8
+-	Type   uint16
+-	Index  int32
+-	Flags  uint32
+-	Change uint32
++	Family     uint8
++	X__ifi_pad uint8
++	Type       uint16
++	Index      int32
++	Flags      uint32
++	Change     uint32
+ }
+ 
+ type IfAddrmsg struct {
+@@ -564,7 +564,7 @@ type Sysinfo_t struct {
+ 	Totalhigh uint64
+ 	Freehigh  uint64
+ 	Unit      uint32
+-	_         [0]uint8
++	X_f       [0]uint8
+ 	_         [4]byte
+ }
+ 

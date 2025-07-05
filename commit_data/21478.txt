@@ -12,6 +12,27 @@ Date:   Wed Jan 7 23:32:34 2015 +0100
     Change-Id: Id9c2b0c4e59b103608565168655799b353afcd77
     Reviewed-on: https://go-review.googlesource.com/2462
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/run.rc | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/run.rc b/src/run.rc
+index b0995d8787..c0c66be359 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -29,13 +29,13 @@ if not {
+ GOROOT_FINAL = ()
+ 
+ echo '# Testing packages.'
+-time go test std -short -timeout 120s
++time go test std -short -timeout 240s
+ echo
+ 
+ # We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+ # creation of first goroutines and first garbage collections in the parallel setting.
+ echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
+-GOMAXPROCS=2 go test runtime -short -timeout 240s -cpu 1,2,4
++GOMAXPROCS=2 go test runtime -short -timeout 480s -cpu 1,2,4
+ echo
+ 
+ echo '# sync -cpu=10'

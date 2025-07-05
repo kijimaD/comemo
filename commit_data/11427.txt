@@ -10,8 +10,137 @@ Date:   Thu Jan 26 15:12:48 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5577054
-
+---
  src/pkg/database/sql/convert.go  |  9 +++++++++
  src/pkg/database/sql/sql.go      | 34 ++++++++++++++++++----------------
  src/pkg/database/sql/sql_test.go | 28 ++++++++++++++++++++++++++++
  3 files changed, 55 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/database/sql/convert.go b/src/pkg/database/sql/convert.go
+index 9835e38de7..e80420e5bb 100644
+--- a/src/pkg/database/sql/convert.go
++++ b/src/pkg/database/sql/convert.go
+@@ -40,6 +40,9 @@ func convertAssign(dest, src interface{}) error {
+ 		case *string:
+ 			*d = s
+ 			return nil
++		case *[]byte:
++			*d = []byte(s)
++			return nil
+ 		}
+ 	case []byte:
+ 		switch d := dest.(type) {
+@@ -50,6 +53,12 @@ func convertAssign(dest, src interface{}) error {
+ 			*d = s
+ 			return nil
+ 		}
++	case nil:
++		switch d := dest.(type) {
++		case *[]byte:
++			*d = nil
++			return nil
++		}
+ 	}
+ 
+ 	var sv reflect.Value
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 7e226b17dc..34a7652105 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -904,6 +904,12 @@ func (rs *Rows) Scan(dest ...interface{}) error {
+ 		if !ok {
+ 			continue
+ 		}
++		if *b == nil {
++			// If the []byte is now nil (for a NULL value),
++			// don't fall through to below which would
++			// turn it into a non-nil 0-length byte slice
++			continue
++		}
+ 		if _, ok = dp.(*RawBytes); ok {
+ 			continue
+ 		}
+@@ -945,17 +951,10 @@ func (r *Row) Scan(dest ...interface{}) error {
+ 	if r.err != nil {
+ 		return r.err
+ 	}
+-	defer r.rows.Close()
+-	if !r.rows.Next() {
+-		return ErrNoRows
+-	}
+-	err := r.rows.Scan(dest...)
+-	if err != nil {
+-		return err
+-	}
+ 
+ 	// TODO(bradfitz): for now we need to defensively clone all
+-	// []byte that the driver returned, since we're about to close
++	// []byte that the driver returned (not permitting 
++	// *RawBytes in Rows.Scan), since we're about to close
+ 	// the Rows in our defer, when we return from this function.
+ 	// the contract with the driver.Next(...) interface is that it
+ 	// can return slices into read-only temporary memory that's
+@@ -970,14 +969,17 @@ func (r *Row) Scan(dest ...interface{}) error {
+ 		if _, ok := dp.(*RawBytes); ok {
+ 			return errors.New("sql: RawBytes isn't allowed on Row.Scan")
+ 		}
+-		b, ok := dp.(*[]byte)
+-		if !ok {
+-			continue
+-		}
+-		clone := make([]byte, len(*b))
+-		copy(clone, *b)
+-		*b = clone
+ 	}
++
++	defer r.rows.Close()
++	if !r.rows.Next() {
++		return ErrNoRows
++	}
++	err := r.rows.Scan(dest...)
++	if err != nil {
++		return err
++	}
++
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 08db6d38ff..c5cadad849 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -358,6 +358,34 @@ func TestIssue2542Deadlock(t *testing.T) {
+ 	}
+ }
+ 
++// Tests fix for issue 2788, that we bind nil to a []byte if the
++// value in the column is sql null
++func TestNullByteSlice(t *testing.T) {
++	db := newTestDB(t, "")
++	defer closeDB(t, db)
++	exec(t, db, "CREATE|t|id=int32,name=nullstring")
++	exec(t, db, "INSERT|t|id=10,name=?", nil)
++
++	var name []byte
++
++	err := db.QueryRow("SELECT|t|name|id=?", 10).Scan(&name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if name != nil {
++		t.Fatalf("name []byte should be nil for null column value, got: %#v", name)
++	}
++
++	exec(t, db, "INSERT|t|id=11,name=?", "bob")
++	err = db.QueryRow("SELECT|t|name|id=?", 11).Scan(&name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(name) != "bob" {
++		t.Fatalf("name []byte should be bob, got: %q", string(name))
++	}
++}
++
+ func TestQueryRowClosingStmt(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)

@@ -13,6 +13,21 @@ Date:   Thu Nov 8 09:46:24 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 72a3d70607..616adcc57a 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1769,9 +1769,6 @@ func loadPackage(arg string, stk *ImportStack) *Package {
+ 		bp.ImportPath = arg
+ 		bp.Goroot = true
+ 		bp.BinDir = cfg.GOROOTbin
+-		if cfg.GOROOTbin != "" {
+-			bp.BinDir = cfg.GOROOTbin
+-		}
+ 		bp.Root = cfg.GOROOT
+ 		bp.SrcRoot = cfg.GOROOTsrc
+ 		p := new(Package)

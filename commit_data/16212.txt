@@ -7,8 +7,78 @@ Date:   Mon Apr 22 10:32:10 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8911044
-
+---
  src/pkg/net/http/serve_test.go  | 26 ++++++++++++++++++++++++++
  src/pkg/net/http/server.go      |  2 +-
  src/pkg/net/http/z_last_test.go |  1 +
  3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 102f489427..27085fa1e2 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1370,6 +1370,7 @@ func TestContentLengthZero(t *testing.T) {
+ }
+ 
+ func TestCloseNotifier(t *testing.T) {
++	defer afterTest(t)
+ 	gotReq := make(chan bool, 1)
+ 	sawClose := make(chan bool, 1)
+ 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+@@ -1405,6 +1406,31 @@ For:
+ 	ts.Close()
+ }
+ 
++func TestCloseNotifierChanLeak(t *testing.T) {
++	defer afterTest(t)
++	req := []byte(strings.Replace(`GET / HTTP/1.0
++Host: golang.org
++
++`, "\n", "\r\n", -1))
++	for i := 0; i < 20; i++ {
++		var output bytes.Buffer
++		conn := &rwTestConn{
++			Reader: bytes.NewReader(req),
++			Writer: &output,
++			closec: make(chan bool, 1),
++		}
++		ln := &oneConnListener{conn: conn}
++		handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
++			// Ignore the return value and never read from
++			// it, testing that we don't leak goroutines
++			// on the sending side:
++			_ = rw.(CloseNotifier).CloseNotify()
++		})
++		go Serve(ln, handler)
++		<-conn.closec
++	}
++}
++
+ func TestOptions(t *testing.T) {
+ 	uric := make(chan string, 2) // only expect 1, but leave space for 2
+ 	mux := NewServeMux()
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index eebefbbbf4..768a2b08cd 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -146,7 +146,7 @@ func (c *conn) closeNotify() <-chan bool {
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+ 	if c.closeNotifyc == nil {
+-		c.closeNotifyc = make(chan bool)
++		c.closeNotifyc = make(chan bool, 1)
+ 		if c.hijackedv {
+ 			// to obey the function signature, even though
+ 			// it'll never receive a value.
+diff --git a/src/pkg/net/http/z_last_test.go b/src/pkg/net/http/z_last_test.go
+index bf5e3f188c..2161db7365 100644
+--- a/src/pkg/net/http/z_last_test.go
++++ b/src/pkg/net/http/z_last_test.go
+@@ -76,6 +76,7 @@ func afterTest(t *testing.T) {
+ 		"created by net/http/httptest.(*Server).Start": "an httptest.Server",
+ 		"timeoutHandler":                               "a TimeoutHandler",
+ 		"net.(*netFD).connect(":                        "a timing out dial",
++		").noteClientGone(":                            "a closenotifier sender",
+ 	}
+ 	var stacks string
+ 	for i := 0; i < 4; i++ {

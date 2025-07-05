@@ -13,9 +13,209 @@ Date:   Wed Jan 30 10:02:01 2013 -0800
     R=rsc, mikioh.mikioh, dave
     CC=golang-dev
     https://golang.org/cl/7058062
-
+---
  src/pkg/net/unix_test.go         | 123 +++++++++++++++++++++++++++++++++++++++
  src/pkg/net/unixsock_posix.go    |  14 +++--
  src/pkg/syscall/syscall_bsd.go   |   4 +-
  src/pkg/syscall/syscall_linux.go |   4 +-
  4 files changed, 138 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/unix_test.go b/src/pkg/net/unix_test.go
+new file mode 100644
+index 0000000000..7ea3320417
+--- /dev/null
++++ b/src/pkg/net/unix_test.go
+@@ -0,0 +1,123 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++package net
++
++import (
++	"bytes"
++	"io/ioutil"
++	"os"
++	"syscall"
++	"testing"
++	"time"
++)
++
++// testUnixAddr uses ioutil.TempFile to get a name that is unique.
++func testUnixAddr() string {
++	f, err := ioutil.TempFile("", "nettest")
++	if err != nil {
++		panic(err)
++	}
++	addr := f.Name()
++	f.Close()
++	os.Remove(addr)
++	return addr
++}
++
++func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
++	addr := testUnixAddr()
++	la, err := ResolveUnixAddr("unixgram", addr)
++	if err != nil {
++		t.Fatalf("ResolveUnixAddr failed: %v", err)
++	}
++	c, err := ListenUnixgram("unixgram", la)
++	if err != nil {
++		t.Fatalf("ListenUnixgram failed: %v", err)
++	}
++	defer func() {
++		c.Close()
++		os.Remove(addr)
++	}()
++
++	off := make(chan bool)
++	data := [5]byte{1, 2, 3, 4, 5}
++
++	go func() {
++		defer func() { off <- true }()
++		s, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
++		if err != nil {
++			t.Errorf("syscall.Socket failed: %v", err)
++			return
++		}
++		defer syscall.Close(s)
++		rsa := &syscall.SockaddrUnix{Name: addr}
++		if err := syscall.Sendto(s, data[:], 0, rsa); err != nil {
++			t.Errorf("syscall.Sendto failed: %v", err)
++			return
++		}
++	}()
++
++	<-off
++	b := make([]byte, 64)
++	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
++	n, from, err := c.ReadFrom(b)
++	if err != nil {
++		t.Errorf("UnixConn.ReadFrom failed: %v", err)
++		return
++	}
++	if from != nil {
++		t.Errorf("neighbor address is %v", from)
++	}
++	if !bytes.Equal(b[:n], data[:]) {
++		t.Errorf("got %v, want %v", b[:n], data[:])
++		return
++	}
++}
++
++func TestReadUnixgramWithZeroBytesBuffer(t *testing.T) {
++	// issue 4352: Recvfrom failed with "address family not
++	// supported by protocol family" if zero-length buffer provided
++
++	addr := testUnixAddr()
++	la, err := ResolveUnixAddr("unixgram", addr)
++	if err != nil {
++		t.Fatalf("ResolveUnixAddr failed: %v", err)
++	}
++	c, err := ListenUnixgram("unixgram", la)
++	if err != nil {
++		t.Fatalf("ListenUnixgram failed: %v", err)
++	}
++	defer func() {
++		c.Close()
++		os.Remove(addr)
++	}()
++
++	off := make(chan bool)
++	go func() {
++		defer func() { off <- true }()
++		c, err := DialUnix("unixgram", nil, la)
++		if err != nil {
++			t.Errorf("DialUnix failed: %v", err)
++			return
++		}
++		defer c.Close()
++		if _, err := c.Write([]byte{1, 2, 3, 4, 5}); err != nil {
++			t.Errorf("UnixConn.Write failed: %v", err)
++			return
++		}
++	}()
++
++	<-off
++	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
++	var peer Addr
++	if _, peer, err = c.ReadFrom(nil); err != nil {
++		t.Errorf("UnixConn.ReadFrom failed: %v", err)
++		return
++	}
++	if peer != nil {
++		t.Errorf("peer adddress is %v", peer)
++	}
++}
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 653190c203..34f3ffe73a 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -124,18 +124,20 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
+ 	n, sa, err := c.fd.ReadFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrUnix:
+-		addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
++		if sa.Name != "" {
++			addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
++		}
+ 	}
+ 	return
+ }
+ 
+ // ReadFrom implements the PacketConn ReadFrom method.
+-func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
++func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+ 	}
+-	n, uaddr, err := c.ReadFromUnix(b)
+-	return n, uaddr.toAddr(), err
++	n, addr, err := c.ReadFromUnix(b)
++	return n, addr.toAddr(), err
+ }
+ 
+ // ReadMsgUnix reads a packet from c, copying the payload into b and
+@@ -149,7 +151,9 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
+ 	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrUnix:
+-		addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
++		if sa.Name != "" {
++			addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
++		}
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 0143e79a8b..85b6a942ca 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -450,7 +450,9 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
+ 	if n, err = recvfrom(fd, p, flags, &rsa, &len); err != nil {
+ 		return
+ 	}
+-	from, err = anyToSockaddr(&rsa)
++	if rsa.Addr.Family != AF_UNSPEC {
++		from, err = anyToSockaddr(&rsa)
++	}
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 40e9ed04b1..038eb4a017 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -574,7 +574,9 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
+ 	if n, err = recvfrom(fd, p, flags, &rsa, &len); err != nil {
+ 		return
+ 	}
+-	from, err = anyToSockaddr(&rsa)
++	if rsa.Addr.Family != AF_UNSPEC {
++		from, err = anyToSockaddr(&rsa)
++	}
+ 	return
+ }
+ 

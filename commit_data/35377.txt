@@ -22,7 +22,7 @@ Date:   Mon Jan 15 12:27:17 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go        |   2 +-
  src/cmd/compile/internal/gc/builtin.go         | 144 ++++++++++++-------------
  src/cmd/compile/internal/gc/builtin/runtime.go |   2 -
@@ -48,3 +48,772 @@ Date:   Mon Jan 15 12:27:17 2018 -0500
  test/fixedbugs/issue15747.go                   |  14 +--
  test/fixedbugs/issue20250.go                   |   8 +-
  24 files changed, 129 insertions(+), 251 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 50857e6533..73c55018f9 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -468,7 +468,7 @@ var linuxAMD64Tests = []*asmTest{
+ 			*t = T2{}
+ 		}
+ 		`,
+-		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.(writebarrierptr|gcWriteBarrier)\\(SB\\)"},
++		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.gcWriteBarrier\\(SB\\)"},
+ 	},
+ 	// Rotate tests
+ 	{
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 0733a460d5..3bb17673a5 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -105,56 +105,55 @@ var runtimeDecls = [...]struct {
+ 	{"chansend1", funcTag, 81},
+ 	{"closechan", funcTag, 23},
+ 	{"writeBarrier", varTag, 83},
+-	{"writebarrierptr", funcTag, 84},
+-	{"typedmemmove", funcTag, 85},
+-	{"typedmemclr", funcTag, 86},
+-	{"typedslicecopy", funcTag, 87},
+-	{"selectnbsend", funcTag, 88},
+-	{"selectnbrecv", funcTag, 89},
+-	{"selectnbrecv2", funcTag, 91},
+-	{"newselect", funcTag, 92},
+-	{"selectsend", funcTag, 93},
+-	{"selectrecv", funcTag, 94},
++	{"typedmemmove", funcTag, 84},
++	{"typedmemclr", funcTag, 85},
++	{"typedslicecopy", funcTag, 86},
++	{"selectnbsend", funcTag, 87},
++	{"selectnbrecv", funcTag, 88},
++	{"selectnbrecv2", funcTag, 90},
++	{"newselect", funcTag, 91},
++	{"selectsend", funcTag, 92},
++	{"selectrecv", funcTag, 93},
+ 	{"selectdefault", funcTag, 55},
+-	{"selectgo", funcTag, 95},
++	{"selectgo", funcTag, 94},
+ 	{"block", funcTag, 5},
+-	{"makeslice", funcTag, 97},
+-	{"makeslice64", funcTag, 98},
+-	{"growslice", funcTag, 99},
+-	{"memmove", funcTag, 100},
+-	{"memclrNoHeapPointers", funcTag, 101},
+-	{"memclrHasPointers", funcTag, 101},
+-	{"memequal", funcTag, 102},
+-	{"memequal8", funcTag, 103},
+-	{"memequal16", funcTag, 103},
+-	{"memequal32", funcTag, 103},
+-	{"memequal64", funcTag, 103},
+-	{"memequal128", funcTag, 103},
+-	{"int64div", funcTag, 104},
+-	{"uint64div", funcTag, 105},
+-	{"int64mod", funcTag, 104},
+-	{"uint64mod", funcTag, 105},
+-	{"float64toint64", funcTag, 106},
+-	{"float64touint64", funcTag, 107},
+-	{"float64touint32", funcTag, 108},
+-	{"int64tofloat64", funcTag, 109},
+-	{"uint64tofloat64", funcTag, 110},
+-	{"uint32tofloat64", funcTag, 111},
+-	{"complex128div", funcTag, 112},
+-	{"racefuncenter", funcTag, 113},
++	{"makeslice", funcTag, 96},
++	{"makeslice64", funcTag, 97},
++	{"growslice", funcTag, 98},
++	{"memmove", funcTag, 99},
++	{"memclrNoHeapPointers", funcTag, 100},
++	{"memclrHasPointers", funcTag, 100},
++	{"memequal", funcTag, 101},
++	{"memequal8", funcTag, 102},
++	{"memequal16", funcTag, 102},
++	{"memequal32", funcTag, 102},
++	{"memequal64", funcTag, 102},
++	{"memequal128", funcTag, 102},
++	{"int64div", funcTag, 103},
++	{"uint64div", funcTag, 104},
++	{"int64mod", funcTag, 103},
++	{"uint64mod", funcTag, 104},
++	{"float64toint64", funcTag, 105},
++	{"float64touint64", funcTag, 106},
++	{"float64touint32", funcTag, 107},
++	{"int64tofloat64", funcTag, 108},
++	{"uint64tofloat64", funcTag, 109},
++	{"uint32tofloat64", funcTag, 110},
++	{"complex128div", funcTag, 111},
++	{"racefuncenter", funcTag, 112},
+ 	{"racefuncexit", funcTag, 5},
+-	{"raceread", funcTag, 113},
+-	{"racewrite", funcTag, 113},
+-	{"racereadrange", funcTag, 114},
+-	{"racewriterange", funcTag, 114},
+-	{"msanread", funcTag, 114},
+-	{"msanwrite", funcTag, 114},
++	{"raceread", funcTag, 112},
++	{"racewrite", funcTag, 112},
++	{"racereadrange", funcTag, 113},
++	{"racewriterange", funcTag, 113},
++	{"msanread", funcTag, 113},
++	{"msanwrite", funcTag, 113},
+ 	{"support_popcnt", varTag, 11},
+ 	{"support_sse41", varTag, 11},
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [115]*types.Type
++	var typs [114]*types.Type
+ 	typs[0] = types.Bytetype
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[TANY]
+@@ -239,36 +238,35 @@ func runtimeTypes() []*types.Type {
+ 	typs[81] = functype(nil, []*Node{anonfield(typs[80]), anonfield(typs[3])}, nil)
+ 	typs[82] = types.NewArray(typs[0], 3)
+ 	typs[83] = tostruct([]*Node{namedfield("enabled", typs[11]), namedfield("pad", typs[82]), namedfield("needed", typs[11]), namedfield("cgo", typs[11]), namedfield("alignme", typs[17])})
+-	typs[84] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[2])}, nil)
+-	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
+-	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
+-	typs[87] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[32])})
+-	typs[88] = functype(nil, []*Node{anonfield(typs[80]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[89] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
+-	typs[90] = types.NewPtr(typs[11])
+-	typs[91] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[90]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
+-	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
+-	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[80]), anonfield(typs[3])}, nil)
+-	typs[94] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[77]), anonfield(typs[3]), anonfield(typs[90])}, nil)
+-	typs[95] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
+-	typs[96] = types.NewSlice(typs[2])
+-	typs[97] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[96])})
+-	typs[98] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[96])})
+-	typs[99] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[96]), anonfield(typs[32])}, []*Node{anonfield(typs[96])})
+-	typs[100] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, nil)
+-	typs[101] = functype(nil, []*Node{anonfield(typs[57]), anonfield(typs[48])}, nil)
+-	typs[102] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, []*Node{anonfield(typs[11])})
+-	typs[103] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[104] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
+-	typs[105] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
+-	typs[106] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
+-	typs[107] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
+-	typs[108] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[59])})
+-	typs[109] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
+-	typs[110] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
+-	typs[111] = functype(nil, []*Node{anonfield(typs[59])}, []*Node{anonfield(typs[13])})
+-	typs[112] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
+-	typs[113] = functype(nil, []*Node{anonfield(typs[48])}, nil)
+-	typs[114] = functype(nil, []*Node{anonfield(typs[48]), anonfield(typs[48])}, nil)
++	typs[84] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
++	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
++	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[32])})
++	typs[87] = functype(nil, []*Node{anonfield(typs[80]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[88] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
++	typs[89] = types.NewPtr(typs[11])
++	typs[90] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[89]), anonfield(typs[77])}, []*Node{anonfield(typs[11])})
++	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
++	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[80]), anonfield(typs[3])}, nil)
++	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[77]), anonfield(typs[3]), anonfield(typs[89])}, nil)
++	typs[94] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
++	typs[95] = types.NewSlice(typs[2])
++	typs[96] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[95])})
++	typs[97] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[95])})
++	typs[98] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[95]), anonfield(typs[32])}, []*Node{anonfield(typs[95])})
++	typs[99] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, nil)
++	typs[100] = functype(nil, []*Node{anonfield(typs[57]), anonfield(typs[48])}, nil)
++	typs[101] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[48])}, []*Node{anonfield(typs[11])})
++	typs[102] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[103] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
++	typs[104] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
++	typs[105] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
++	typs[106] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
++	typs[107] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[59])})
++	typs[108] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
++	typs[109] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
++	typs[110] = functype(nil, []*Node{anonfield(typs[59])}, []*Node{anonfield(typs[13])})
++	typs[111] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
++	typs[112] = functype(nil, []*Node{anonfield(typs[48])}, nil)
++	typs[113] = functype(nil, []*Node{anonfield(typs[48]), anonfield(typs[48])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index de17d51d8a..bda9d1d03c 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -136,8 +136,6 @@ var writeBarrier struct {
+ 	alignme uint64
+ }
+ 
+-func writebarrierptr(dst *any, src any)
+-
+ // *byte is really *runtime.Type
+ func typedmemmove(typ *byte, dst *any, src *any)
+ func typedmemclr(typ *byte, dst *any)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index dc94cf4f98..d6db7acc59 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -292,7 +292,6 @@ var (
+ 	assertI2I2,
+ 	goschedguarded,
+ 	writeBarrier,
+-	writebarrierptr,
+ 	gcWriteBarrier,
+ 	typedmemmove,
+ 	typedmemclr,
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 7f947530b1..f1591c16d2 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -44,7 +44,6 @@ var (
+ 	Debug_slice        int
+ 	Debug_vlog         bool
+ 	Debug_wb           int
+-	Debug_eagerwb      int
+ 	Debug_pctab        string
+ 	Debug_locationlist int
+ 	Debug_typecheckinl int
+@@ -73,7 +72,6 @@ var debugtab = []struct {
+ 	{"slice", "print information about slice compilation", &Debug_slice},
+ 	{"typeassert", "print information about type assertion inlining", &Debug_typeassert},
+ 	{"wb", "print information about write barriers", &Debug_wb},
+-	{"eagerwb", "use unbuffered write barrier", &Debug_eagerwb},
+ 	{"export", "print export data", &Debug_export},
+ 	{"pctab", "print named pc-value table", &Debug_pctab},
+ 	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
+@@ -407,14 +405,6 @@ func Main(archInit func(*Arch)) {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
+-	switch objabi.GOARCH {
+-	case "amd64", "amd64p32", "386", "arm", "arm64", "ppc64", "ppc64le", "mips64", "mips64le", "mips", "mipsle", "s390x":
+-	default:
+-		// Other architectures don't support the buffered
+-		// write barrier yet.
+-		Debug_eagerwb = 1
+-	}
+-
+ 	trackScopes = flagDWARF && ((Debug['l'] == 0 && Debug['N'] != 0) || Ctxt.Flag_locationlists)
+ 
+ 	Widthptr = thearch.LinkArch.PtrSize
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index fe062da409..5ec01b6a61 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -95,7 +95,6 @@ func initssaconfig() {
+ 	assertI2I2 = sysfunc("assertI2I2")
+ 	goschedguarded = sysfunc("goschedguarded")
+ 	writeBarrier = sysfunc("writeBarrier")
+-	writebarrierptr = sysfunc("writebarrierptr")
+ 	gcWriteBarrier = sysfunc("gcWriteBarrier")
+ 	typedmemmove = sysfunc("typedmemmove")
+ 	typedmemclr = sysfunc("typedmemclr")
+@@ -5380,10 +5379,6 @@ func (e *ssafn) Debug_checknil() bool {
+ 	return Debug_checknil != 0
+ }
+ 
+-func (e *ssafn) Debug_eagerwb() bool {
+-	return Debug_eagerwb != 0
+-}
+-
+ func (e *ssafn) UseWriteBarrier() bool {
+ 	return use_writebarrier
+ }
+@@ -5394,8 +5389,6 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ 		return goschedguarded
+ 	case "writeBarrier":
+ 		return writeBarrier
+-	case "writebarrierptr":
+-		return writebarrierptr
+ 	case "gcWriteBarrier":
+ 		return gcWriteBarrier
+ 	case "typedmemmove":
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 725cdcd9a4..13e5c50da1 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -89,7 +89,6 @@ type Logger interface {
+ 
+ 	// Forwards the Debug flags from gc
+ 	Debug_checknil() bool
+-	Debug_eagerwb() bool
+ }
+ 
+ type Frontend interface {
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 28ae494505..d1d6831eb3 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -134,7 +134,6 @@ func (d DummyFrontend) Log() bool                            { return true }
+ func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+ func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Debug_checknil() bool                               { return false }
+-func (d DummyFrontend) Debug_eagerwb() bool                                { return false }
+ 
+ var dummyTypes Types
+ 
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index b711d8d2bf..c41a677159 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -31,7 +31,7 @@ func needwb(v *Value) bool {
+ // and runtime calls, like
+ //
+ // if writeBarrier.enabled {
+-//   writebarrierptr(ptr, val)
++//   gcWriteBarrier(ptr, val)	// Not a regular Go call
+ // } else {
+ //   *ptr = val
+ // }
+@@ -44,7 +44,7 @@ func writebarrier(f *Func) {
+ 	}
+ 
+ 	var sb, sp, wbaddr, const0 *Value
+-	var writebarrierptr, typedmemmove, typedmemclr, gcWriteBarrier *obj.LSym
++	var typedmemmove, typedmemclr, gcWriteBarrier *obj.LSym
+ 	var stores, after []*Value
+ 	var sset *sparseSet
+ 	var storeNumber []int32
+@@ -96,10 +96,7 @@ func writebarrier(f *Func) {
+ 			}
+ 			wbsym := f.fe.Syslook("writeBarrier")
+ 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
+-			writebarrierptr = f.fe.Syslook("writebarrierptr")
+-			if !f.fe.Debug_eagerwb() {
+-				gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
+-			}
++			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
+ 			typedmemmove = f.fe.Syslook("typedmemmove")
+ 			typedmemclr = f.fe.Syslook("typedmemclr")
+ 			const0 = f.ConstInt32(initpos, f.Config.Types.UInt32, 0)
+@@ -198,7 +195,6 @@ func writebarrier(f *Func) {
+ 			var val *Value
+ 			switch w.Op {
+ 			case OpStoreWB:
+-				fn = writebarrierptr
+ 				val = w.Args[1]
+ 				nWBops--
+ 			case OpMoveWB:
+@@ -217,11 +213,13 @@ func writebarrier(f *Func) {
+ 			switch w.Op {
+ 			case OpStoreWB, OpMoveWB, OpZeroWB:
+ 				volatile := w.Op == OpMoveWB && isVolatile(val)
+-				if w.Op == OpStoreWB && !f.fe.Debug_eagerwb() {
++				if w.Op == OpStoreWB {
+ 					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
+ 				} else {
+ 					memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
+ 				}
++				// Note that we set up a writebarrier function call.
++				f.fe.SetWBPos(pos)
+ 			case OpVarDef, OpVarLive, OpVarKill:
+ 				memThen = bThen.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memThen)
+ 			}
+@@ -239,11 +237,6 @@ func writebarrier(f *Func) {
+ 			case OpVarDef, OpVarLive, OpVarKill:
+ 				memElse = bElse.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memElse)
+ 			}
+-
+-			if fn != nil {
+-				// Note that we set up a writebarrier function call.
+-				f.fe.SetWBPos(pos)
+-			}
+ 		}
+ 
+ 		// merge memory
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 744ac654fd..505856f368 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -25,5 +25,3 @@ runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go de
+ runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
+ 
+ runtime/asm_386.s: [386] stackcheck: function stackcheck missing Go declaration
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 6792d263a5..960ef6b541 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -15,6 +15,9 @@ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: E
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package bytes
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: IndexByte is in package strings
+ 
++// The write barrier is called directly by the compiler, so no Go def
++runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
++
+ // Legitimate vet complaints in which we are testing for correct runtime behavior
+ // in bad situations that vet can also detect statically.
+ encoding/json/decode_test.go: struct field m has json tag but is not exported
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index ebde7be58b..56a6e2eb8d 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -31,4 +31,3 @@ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+ runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
+ runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration
+ runtime/asm_amd64.s: [amd64] countByte: function countByte missing Go declaration
+-runtime/asm_amd64.s: [amd64] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 51b3d6bf51..770008c9f0 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -16,5 +16,3 @@ runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
+ runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
+ 
+ runtime/internal/atomic/asm_arm.s: [arm] cas: function cas missing Go declaration
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index af2d42a62f..24fc6f4223 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -9,5 +9,3 @@ runtime/duff_arm64.s: [arm64] duffzero: function duffzero missing Go declaration
+ runtime/duff_arm64.s: [arm64] duffcopy: function duffcopy missing Go declaration
+ runtime/tls_arm64.s: [arm64] load_g: function load_g missing Go declaration
+ runtime/tls_arm64.s: [arm64] save_g: function save_g missing Go declaration
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mips64x.txt b/src/cmd/vet/all/whitelist/mips64x.txt
+index 45efdc6ae4..5354d21c64 100644
+--- a/src/cmd/vet/all/whitelist/mips64x.txt
++++ b/src/cmd/vet/all/whitelist/mips64x.txt
+@@ -4,5 +4,3 @@ runtime/asm_mips64x.s: [GOARCH] abort: function abort missing Go declaration
+ runtime/duff_mips64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
+ runtime/tls_mips64x.s: [GOARCH] save_g: function save_g missing Go declaration
+ runtime/tls_mips64x.s: [GOARCH] load_g: function load_g missing Go declaration
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mipsx.txt b/src/cmd/vet/all/whitelist/mipsx.txt
+index fbf4499bdc..ff6c0e613b 100644
+--- a/src/cmd/vet/all/whitelist/mipsx.txt
++++ b/src/cmd/vet/all/whitelist/mipsx.txt
+@@ -7,5 +7,3 @@ runtime/asm_mipsx.s: [GOARCH] cannot check cross-package assembly function: Comp
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 12(R29) should be mp+8(FP)
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 4(R29) should be flags+0(FP)
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 8(R29) should be stk+4(FP)
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 5c6b3344a0..4b2aad2aac 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -27,5 +27,3 @@ runtime/asm_amd64p32.s: [amd64p32] indexbytebody: function indexbytebody missing
+ runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
+ 
+ runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/ppc64x.txt b/src/cmd/vet/all/whitelist/ppc64x.txt
+index 84b8f18b53..4f6444e102 100644
+--- a/src/cmd/vet/all/whitelist/ppc64x.txt
++++ b/src/cmd/vet/all/whitelist/ppc64x.txt
+@@ -10,5 +10,3 @@ runtime/asm_ppc64x.s: [GOARCH] addmoduledata: function addmoduledata missing Go
+ runtime/duff_ppc64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
+ runtime/tls_ppc64x.s: [GOARCH] save_g: function save_g missing Go declaration
+ runtime/tls_ppc64x.s: [GOARCH] load_g: function load_g missing Go declaration
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index 68e5461a3c..f18236c4f1 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -15,5 +15,3 @@ runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl
+ runtime/memmove_s390x.s: [s390x] memmove_s390x_exrl_mvc: function memmove_s390x_exrl_mvc missing Go declaration
+ runtime/tls_s390x.s: [s390x] save_g: function save_g missing Go declaration
+ runtime/tls_s390x.s: [s390x] load_g: function load_g missing Go declaration
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 576a61ca6c..82b7832ae3 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2397,7 +2397,13 @@ TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$120
+ 	CMPQ	R14, (p_wbBuf+wbBuf_end)(R13)
+ 	// Record the write.
+ 	MOVQ	AX, -16(R14)	// Record value
+-	MOVQ	(DI), R13	// TODO: This turns bad writes into bad reads.
++	// Note: This turns bad pointer writes into bad
++	// pointer reads, which could be confusing. We could avoid
++	// reading from obviously bad pointers, which would
++	// take care of the vast majority of these. We could
++	// patch this up in the signal handler, or use XCHG to
++	// combine the read and the write.
++	MOVQ	(DI), R13
+ 	MOVQ	R13, -8(R14)	// Record *slot
+ 	// Is the buffer full? (flags set in CMPQ above)
+ 	JEQ	flush
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index e28bdb8b8d..c071728900 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -6,10 +6,10 @@
+ //
+ // For the concurrent garbage collector, the Go compiler implements
+ // updates to pointer-valued fields that may be in heap objects by
+-// emitting calls to write barriers. This file contains the actual write barrier
+-// implementation, gcmarkwb_m, and the various wrappers called by the
+-// compiler to implement pointer assignment, slice assignment,
+-// typed memmove, and so on.
++// emitting calls to write barriers. The main write barrier for
++// individual pointer writes is gcWriteBarrier and is implemented in
++// assembly. This file contains write barrier entry points for bulk
++// operations. See also mwbbuf.go.
+ 
+ package runtime
+ 
+@@ -18,10 +18,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-// gcmarkwb_m is the mark-phase write barrier, the only barrier we have.
+-// The rest of this file exists only to make calls to this function.
+-//
+-// This is a hybrid barrier that combines a Yuasa-style deletion
++// Go uses a hybrid barrier that combines a Yuasa-style deletion
+ // barrier—which shades the object whose reference is being
+ // overwritten—with Dijkstra insertion barrier—which shades the object
+ // whose reference is being written. The insertion part of the barrier
+@@ -137,105 +134,17 @@ import (
+ // reachable by some goroutine that currently cannot reach it.
+ //
+ //
+-//go:nowritebarrierrec
+-//go:systemstack
+-func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+-	if writeBarrier.needed {
+-		// Note: This turns bad pointer writes into bad
+-		// pointer reads, which could be confusing. We avoid
+-		// reading from obviously bad pointers, which should
+-		// take care of the vast majority of these. We could
+-		// patch this up in the signal handler, or use XCHG to
+-		// combine the read and the write. Checking inheap is
+-		// insufficient since we need to track changes to
+-		// roots outside the heap.
+-		//
+-		// Note: profbuf.go omits a barrier during signal handler
+-		// profile logging; that's safe only because this deletion barrier exists.
+-		// If we remove the deletion barrier, we'll have to work out
+-		// a new way to handle the profile logging.
+-		if slot1 := uintptr(unsafe.Pointer(slot)); slot1 >= minPhysPageSize {
+-			if optr := *slot; optr != 0 {
+-				shade(optr)
+-			}
+-		}
+-		// TODO: Make this conditional on the caller's stack color.
+-		if ptr != 0 && inheap(ptr) {
+-			shade(ptr)
+-		}
+-	}
+-}
+-
+-// writebarrierptr_prewrite1 invokes a write barrier for *dst = src
+-// prior to the write happening.
+-//
+-// Write barrier calls must not happen during critical GC and scheduler
+-// related operations. In particular there are times when the GC assumes
+-// that the world is stopped but scheduler related code is still being
+-// executed, dealing with syscalls, dealing with putting gs on runnable
+-// queues and so forth. This code cannot execute write barriers because
+-// the GC might drop them on the floor. Stopping the world involves removing
+-// the p associated with an m. We use the fact that m.p == nil to indicate
+-// that we are in one these critical section and throw if the write is of
+-// a pointer to a heap object.
+-//go:nosplit
+-func writebarrierptr_prewrite1(dst *uintptr, src uintptr) {
+-	mp := acquirem()
+-	if mp.inwb || mp.dying > 0 {
+-		// We explicitly allow write barriers in startpanic_m,
+-		// since we're going down anyway. Ignore them here.
+-		releasem(mp)
+-		return
+-	}
+-	systemstack(func() {
+-		if mp.p == 0 && memstats.enablegc && !mp.inwb && inheap(src) {
+-			throw("writebarrierptr_prewrite1 called with mp.p == nil")
+-		}
+-		mp.inwb = true
+-		gcmarkwb_m(dst, src)
+-	})
+-	mp.inwb = false
+-	releasem(mp)
+-}
+-
+-// NOTE: Really dst *unsafe.Pointer, src unsafe.Pointer,
+-// but if we do that, Go inserts a write barrier on *dst = src.
+-//go:nosplit
+-func writebarrierptr(dst *uintptr, src uintptr) {
+-	if writeBarrier.cgo {
+-		cgoCheckWriteBarrier(dst, src)
+-	}
+-	if !writeBarrier.needed {
+-		*dst = src
+-		return
+-	}
+-	if src != 0 && src < minPhysPageSize {
+-		systemstack(func() {
+-			print("runtime: writebarrierptr *", dst, " = ", hex(src), "\n")
+-			throw("bad pointer in write barrier")
+-		})
+-	}
+-	writebarrierptr_prewrite1(dst, src)
+-	*dst = src
+-}
+-
+-// writebarrierptr_prewrite is like writebarrierptr, but the store
+-// will be performed by the caller after this call. The caller must
+-// not allow preemption between this call and the write.
++// Signal handler pointer writes:
+ //
+-//go:nosplit
+-func writebarrierptr_prewrite(dst *uintptr, src uintptr) {
+-	if writeBarrier.cgo {
+-		cgoCheckWriteBarrier(dst, src)
+-	}
+-	if !writeBarrier.needed {
+-		return
+-	}
+-	if src != 0 && src < minPhysPageSize {
+-		systemstack(func() { throw("bad pointer in write barrier") })
+-	}
+-	writebarrierptr_prewrite1(dst, src)
+-}
++// In general, the signal handler cannot safely invoke the write
++// barrier because it may run without a P or even during the write
++// barrier.
++//
++// There is exactly one exception: profbuf.go omits a barrier during
++// signal handler profile logging. That's safe only because of the
++// deletion barrier. See profbuf.go for a detailed argument. If we
++// remove the deletion barrier, we'll have to work out a new way to
++// handle the profile logging.
+ 
+ // typedmemmove copies a value of type t to dst from src.
+ // Must be nosplit, see #16026.
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 4a2d1ad988..c5619ed3fb 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -5,6 +5,9 @@
+ // This implements the write barrier buffer. The write barrier itself
+ // is gcWriteBarrier and is implemented in assembly.
+ //
++// See mbarrier.go for algorithmic details on the write barrier. This
++// file deals only with the buffer.
++//
+ // The write barrier has a fast path and a slow path. The fast path
+ // simply enqueues to a per-P write barrier buffer. It's written in
+ // assembly and doesn't clobber any general purpose registers, so it
+@@ -111,16 +114,21 @@ func (b *wbBuf) discard() {
+ //     if !buf.putFast(old, new) {
+ //         wbBufFlush(...)
+ //     }
++//     ... actual memory write ...
+ //
+ // The arguments to wbBufFlush depend on whether the caller is doing
+ // its own cgo pointer checks. If it is, then this can be
+ // wbBufFlush(nil, 0). Otherwise, it must pass the slot address and
+ // new.
+ //
+-// Since buf is a per-P resource, the caller must ensure there are no
+-// preemption points while buf is in use.
++// The caller must ensure there are no preemption points during the
++// above sequence. There must be no preemption points while buf is in
++// use because it is a per-P resource. There must be no preemption
++// points between the buffer put and the write to memory because this
++// could allow a GC phase change, which could result in missed write
++// barriers.
+ //
+-// It must be nowritebarrierrec to because write barriers here would
++// putFast must be nowritebarrierrec to because write barriers here would
+ // corrupt the write barrier buffer. It (and everything it calls, if
+ // it called anything) has to be nosplit to avoid scheduling on to a
+ // different P and a different buffer.
+@@ -214,6 +222,14 @@ func wbBufFlush1(_p_ *p) {
+ 	//
+ 	// TODO: Should scanobject/scanblock just stuff pointers into
+ 	// the wbBuf? Then this would become the sole greying path.
++	//
++	// TODO: We could avoid shading any of the "new" pointers in
++	// the buffer if the stack has been shaded, or even avoid
++	// putting them in the buffer at all (which would double its
++	// capacity). This is slightly complicated with the buffer; we
++	// could track whether any un-shaded goroutine has used the
++	// buffer, or just track globally whether there are any
++	// un-shaded stacks and flush after each stack scan.
+ 	gcw := &_p_.gcw
+ 	pos := 0
+ 	arenaStart := mheap_.arena_start
+diff --git a/test/fixedbugs/issue15747.go b/test/fixedbugs/issue15747.go
+index decabc754e..c7ef96d581 100644
+--- a/test/fixedbugs/issue15747.go
++++ b/test/fixedbugs/issue15747.go
+@@ -1,4 +1,4 @@
+-// errorcheck -0 -live -d=eagerwb
++// errorcheck -0 -live
+ 
+ // Copyright 2016 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,10 +7,6 @@
+ // Issue 15747: liveness analysis was marking heap-escaped params live too much,
+ // and worse was using the wrong bitmap bits to do so.
+ 
+-// TODO(austin): This expects function calls to the write barrier, so
+-// we enable the legacy eager write barrier. Fix this once the
+-// buffered write barrier works on all arches.
+-
+ package p
+ 
+ var global *[]byte
+@@ -21,14 +17,14 @@ type T struct{ M string }
+ 
+ var b bool
+ 
+-func f1(q *Q, xx []byte) interface{} { // ERROR "live at call to newobject: xx$" "live at call to writebarrierptr: &xx$" "live at entry to f1: xx$"
++func f1(q *Q, xx []byte) interface{} { // ERROR "live at call to newobject: xx$" "live at entry to f1: xx$"
+ 	// xx was copied from the stack to the heap on the previous line:
+ 	// xx was live for the first two prints but then it switched to &xx
+ 	// being live. We should not see plain xx again.
+ 	if b {
+-		global = &xx // ERROR "live at call to writebarrierptr: &xx$"
++		global = &xx
+ 	}
+-	xx, _, err := f2(xx, 5) // ERROR "live at call to f2: &xx$" "live at call to writebarrierptr: err.data err.type$"
++	xx, _, err := f2(xx, 5) // ERROR "live at call to f2: &xx$"
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -38,7 +34,7 @@ func f1(q *Q, xx []byte) interface{} { // ERROR "live at call to newobject: xx$"
+ //go:noinline
+ func f2(d []byte, n int) (odata, res []byte, e interface{}) { // ERROR "live at entry to f2: d$"
+ 	if n > len(d) {
+-		return d, nil, &T{M: "hello"} // ERROR "live at call to newobject: d" "live at call to writebarrierptr: d"
++		return d, nil, &T{M: "hello"} // ERROR "live at call to newobject: d"
+ 	}
+ 	res = d[:n]
+ 	odata = d[n:]
+diff --git a/test/fixedbugs/issue20250.go b/test/fixedbugs/issue20250.go
+index 525192a46b..6fc861a8dc 100644
+--- a/test/fixedbugs/issue20250.go
++++ b/test/fixedbugs/issue20250.go
+@@ -1,4 +1,4 @@
+-// errorcheck -0 -live -l -d=compilelater,eagerwb
++// errorcheck -0 -live -l -d=compilelater
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -8,10 +8,6 @@
+ // due to propagation of addrtaken to outer variables for
+ // closure variables.
+ 
+-// TODO(austin): This expects function calls to the write barrier, so
+-// we enable the legacy eager write barrier. Fix this once the
+-// buffered write barrier works on all arches.
+-
+ package p
+ 
+ type T struct {
+@@ -21,7 +17,7 @@ type T struct {
+ func f(a T) { // ERROR "live at entry to f: a"
+ 	var e interface{}
+ 	func() { // ERROR "live at entry to f.func1: a &e"
+-		e = a.s // ERROR "live at call to convT2Estring: a &e" "live at call to writebarrierptr: a"
++		e = a.s // ERROR "live at call to convT2Estring: a &e"
+ 	}() // ERROR "live at call to f.func1: e$"
+ 	// Before the fix, both a and e were live at the previous line.
+ 	_ = e

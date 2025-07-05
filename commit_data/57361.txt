@@ -20,7 +20,7 @@ Date:   Tue Jul 25 11:57:37 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go  | 55 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/types2/interface.go |  1 +
  src/cmd/compile/internal/types2/named.go     |  7 ++++
@@ -30,3 +30,268 @@ Date:   Tue Jul 25 11:57:37 2023 -0400
  src/go/types/named.go                        |  7 ++++
  src/go/types/subst.go                        |  6 +++
  8 files changed, 138 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index bf807c35be..c7a24fc3e5 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"regexp"
+ 	"sort"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 
+ 	. "cmd/compile/internal/types2"
+@@ -2295,6 +2296,60 @@ func TestInstantiate(t *testing.T) {
+ 	}
+ }
+ 
++func TestInstantiateConcurrent(t *testing.T) {
++	const src = `package p
++
++type I[P any] interface {
++	m(P)
++	n() P
++}
++
++type J = I[int]
++
++type Nested[P any] *interface{b(P)}
++
++type K = Nested[string]
++`
++	pkg := mustTypecheck(src, nil, nil)
++
++	insts := []*Interface{
++		pkg.Scope().Lookup("J").Type().Underlying().(*Interface),
++		pkg.Scope().Lookup("K").Type().Underlying().(*Pointer).Elem().(*Interface),
++	}
++
++	// Use the interface instances concurrently.
++	for _, inst := range insts {
++		var (
++			counts  [2]int      // method counts
++			methods [2][]string // method strings
++		)
++		var wg sync.WaitGroup
++		for i := 0; i < 2; i++ {
++			i := i
++			wg.Add(1)
++			go func() {
++				defer wg.Done()
++
++				counts[i] = inst.NumMethods()
++				for mi := 0; mi < counts[i]; mi++ {
++					methods[i] = append(methods[i], inst.Method(mi).String())
++				}
++			}()
++		}
++		wg.Wait()
++
++		if counts[0] != counts[1] {
++			t.Errorf("mismatching method counts for %s: %d vs %d", inst, counts[0], counts[1])
++			continue
++		}
++		for i := 0; i < counts[0]; i++ {
++			if m0, m1 := methods[0][i], methods[1][i]; m0 != m1 {
++				t.Errorf("mismatching methods for %s: %s vs %s", inst, m0, m1)
++			}
++		}
++	}
++}
++
+ func TestInstantiateErrors(t *testing.T) {
+ 	tests := []struct {
+ 		src    string // by convention, T must be the type being instantiated
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 872a3217c2..6623ff5575 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -112,6 +112,7 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
+ // Implementation
+ 
+ func (t *Interface) cleanup() {
++	t.typeSet() // any interface that escapes type checking must be safe for concurrent use
+ 	t.check = nil
+ 	t.embedPos = nil
+ }
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 5408c7e77f..7c9a46f231 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -633,11 +633,18 @@ func (n *Named) expandUnderlying() Type {
+ 				old := iface
+ 				iface = check.newInterface()
+ 				iface.embeddeds = old.embeddeds
++				assert(old.complete) // otherwise we are copying incomplete data
+ 				iface.complete = old.complete
+ 				iface.implicit = old.implicit // should be false but be conservative
+ 				underlying = iface
+ 			}
+ 			iface.methods = methods
++			iface.tset = nil // recompute type set with new methods
++
++			// If check != nil, check.newInterface will have saved the interface for later completion.
++			if check == nil { // golang/go#61561: all newly created interfaces must be fully evaluated
++				iface.typeSet()
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 74d6294dff..aefa53603f 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -170,6 +170,7 @@ func (subst *subster) typ(typ Type) Type {
+ 			iface := subst.check.newInterface()
+ 			iface.embeddeds = embeddeds
+ 			iface.implicit = t.implicit
++			assert(t.complete) // otherwise we are copying incomplete data
+ 			iface.complete = t.complete
+ 			// If we've changed the interface type, we may need to replace its
+ 			// receiver if the receiver type is the original interface. Receivers of
+@@ -185,6 +186,11 @@ func (subst *subster) typ(typ Type) Type {
+ 			// need to create new interface methods to hold the instantiated
+ 			// receiver. This is handled by Named.expandUnderlying.
+ 			iface.methods, _ = replaceRecvType(methods, t, iface)
++
++			// If check != nil, check.newInterface will have saved the interface for later completion.
++			if subst.check == nil { // golang/go#61561: all newly created interfaces must be completed
++				iface.typeSet()
++			}
+ 			return iface
+ 		}
+ 
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 363e6d48e9..cb1263863f 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"regexp"
+ 	"sort"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 
+ 	. "go/types"
+@@ -2300,6 +2301,60 @@ func TestInstantiate(t *testing.T) {
+ 	}
+ }
+ 
++func TestInstantiateConcurrent(t *testing.T) {
++	const src = `package p
++
++type I[P any] interface {
++	m(P)
++	n() P
++}
++
++type J = I[int]
++
++type Nested[P any] *interface{b(P)}
++
++type K = Nested[string]
++`
++	pkg := mustTypecheck(src, nil, nil)
++
++	insts := []*Interface{
++		pkg.Scope().Lookup("J").Type().Underlying().(*Interface),
++		pkg.Scope().Lookup("K").Type().Underlying().(*Pointer).Elem().(*Interface),
++	}
++
++	// Use the interface instances concurrently.
++	for _, inst := range insts {
++		var (
++			counts  [2]int      // method counts
++			methods [2][]string // method strings
++		)
++		var wg sync.WaitGroup
++		for i := 0; i < 2; i++ {
++			i := i
++			wg.Add(1)
++			go func() {
++				defer wg.Done()
++
++				counts[i] = inst.NumMethods()
++				for mi := 0; mi < counts[i]; mi++ {
++					methods[i] = append(methods[i], inst.Method(mi).String())
++				}
++			}()
++		}
++		wg.Wait()
++
++		if counts[0] != counts[1] {
++			t.Errorf("mismatching method counts for %s: %d vs %d", inst, counts[0], counts[1])
++			continue
++		}
++		for i := 0; i < counts[0]; i++ {
++			if m0, m1 := methods[0][i], methods[1][i]; m0 != m1 {
++				t.Errorf("mismatching methods for %s: %s vs %s", inst, m0, m1)
++			}
++		}
++	}
++}
++
+ func TestInstantiateErrors(t *testing.T) {
+ 	tests := []struct {
+ 		src    string // by convention, T must be the type being instantiated
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index f2bb15e84b..5fe9b57c3f 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -151,6 +151,7 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
+ // Implementation
+ 
+ func (t *Interface) cleanup() {
++	t.typeSet() // any interface that escapes type checking must be safe for concurrent use
+ 	t.check = nil
+ 	t.embedPos = nil
+ }
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 413eaada27..fae7341234 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -635,11 +635,18 @@ func (n *Named) expandUnderlying() Type {
+ 				old := iface
+ 				iface = check.newInterface()
+ 				iface.embeddeds = old.embeddeds
++				assert(old.complete) // otherwise we are copying incomplete data
+ 				iface.complete = old.complete
+ 				iface.implicit = old.implicit // should be false but be conservative
+ 				underlying = iface
+ 			}
+ 			iface.methods = methods
++			iface.tset = nil // recompute type set with new methods
++
++			// If check != nil, check.newInterface will have saved the interface for later completion.
++			if check == nil { // golang/go#61561: all newly created interfaces must be fully evaluated
++				iface.typeSet()
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 30c48e1bad..13d3dcbf1e 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -172,6 +172,7 @@ func (subst *subster) typ(typ Type) Type {
+ 			iface := subst.check.newInterface()
+ 			iface.embeddeds = embeddeds
+ 			iface.implicit = t.implicit
++			assert(t.complete) // otherwise we are copying incomplete data
+ 			iface.complete = t.complete
+ 			// If we've changed the interface type, we may need to replace its
+ 			// receiver if the receiver type is the original interface. Receivers of
+@@ -187,6 +188,11 @@ func (subst *subster) typ(typ Type) Type {
+ 			// need to create new interface methods to hold the instantiated
+ 			// receiver. This is handled by Named.expandUnderlying.
+ 			iface.methods, _ = replaceRecvType(methods, t, iface)
++
++			// If check != nil, check.newInterface will have saved the interface for later completion.
++			if subst.check == nil { // golang/go#61561: all newly created interfaces must be completed
++				iface.typeSet()
++			}
+ 			return iface
+ 		}
+ 

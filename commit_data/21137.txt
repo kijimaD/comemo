@@ -17,6 +17,28 @@ Date:   Tue Nov 18 15:18:52 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/178030043
-
+---
  src/cmd/9a/lex.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/9a/lex.c b/src/cmd/9a/lex.c
+index 26f21f7436..e2945ef89d 100644
+--- a/src/cmd/9a/lex.c
++++ b/src/cmd/9a/lex.c
+@@ -250,7 +250,7 @@ struct
+ 	"R27",		LREG,	27,
+ 	"R28",		LREG,	28,
+ 	"R29",		LREG,	29,
+-	"R30",		LREG,	30,
++	"g",		LREG,	30, // avoid unintentionally clobbering g using R30
+ 	"R31",		LREG,	31,
+ 
+ 	"F",		LF,	0,
+@@ -488,6 +488,7 @@ struct
+ 	"SYSCALL",	LNOP, ASYSCALL,
+ 	"UNDEF",	LNOP, AUNDEF,
+ 
++	"RET",		LRETRN, ARETURN,
+ 	"RETURN",	LRETRN, ARETURN,
+ 	"RFI",		LRETRN,	ARFI,
+ 	"RFCI",		LRETRN,	ARFCI,

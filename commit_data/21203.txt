@@ -10,7 +10,7 @@ Date:   Fri Dec 5 19:13:20 2014 -0500
     R=austin
     CC=golang-codereviews
     https://golang.org/cl/180600043
-
+---
  include/link.h                                     | 10 ++++-----
  src/cmd/9a/doc.go                                  |  4 ++--
  src/cmd/9a/lex.c                                   |  8 ++++----
@@ -86,3 +86,1201 @@ Date:   Fri Dec 5 19:13:20 2014 -0500
  test/nilptr3.go                                    |  4 ++--
  test/nosplit.go                                    |  6 +++---
  74 files changed, 131 insertions(+), 135 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 2b1d02102b..9e75350a80 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -93,10 +93,10 @@ struct	Prog
+ 
+ 	// operands
+ 	Addr	from;
+-	uchar	reg; // arm, power64 only (e.g., ADD from, reg, to);
++	uchar	reg; // arm, ppc64 only (e.g., ADD from, reg, to);
+ 		     // starts at 0 for both GPRs and FPRs;
+-		     // also used for ADATA width on arm, power64
+-	Addr	from3; // power64 only (e.g., RLWM/FMADD from, reg, from3, to)
++		     // also used for ADATA width on arm, ppc64
++	Addr	from3; // ppc64 only (e.g., RLWM/FMADD from, reg, from3, to)
+ 	Addr	to;
+ 	
+ 	// for 5g, 6g, 8g internal use
+@@ -636,8 +636,8 @@ extern	LinkArch	link386;
+ extern	LinkArch	linkamd64;
+ extern	LinkArch	linkamd64p32;
+ extern	LinkArch	linkarm;
+-extern	LinkArch	linkpower64;
+-extern	LinkArch	linkpower64le;
++extern	LinkArch	linkppc64;
++extern	LinkArch	linkppc64le;
+ 
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"E"	uint
+diff --git a/src/cmd/9a/doc.go b/src/cmd/9a/doc.go
+index 44bf89dc00..f6eed6d86e 100644
+--- a/src/cmd/9a/doc.go
++++ b/src/cmd/9a/doc.go
+@@ -14,8 +14,8 @@ Go-specific considerations are documented at
+ 
+ 	http://golang.org/doc/asm
+ 
+-Its target architecture is the Power64, referred to by these tools as
+-power64 (big endian) or power64le (little endian).
++Its target architecture is 64-bit PowerPC and Power Architecture processors,
++referred to by these tools as ppc64 (big endian) or ppc64le (little endian).
+ 
+ */
+ package main
+diff --git a/src/cmd/9a/lex.c b/src/cmd/9a/lex.c
+index e2945ef89d..c8073b07d0 100644
+--- a/src/cmd/9a/lex.c
++++ b/src/cmd/9a/lex.c
+@@ -71,7 +71,7 @@ dodef(char *p)
+ 	Dlist[nDlist++] = p;
+ }
+ 
+-LinkArch*       thelinkarch = &linkpower64;
++LinkArch*       thelinkarch = &linkppc64;
+ 
+ void
+ usage(void)
+@@ -87,15 +87,15 @@ main(int argc, char *argv[])
+ 	char *p;
+ 
+ 	thechar = '9';
+-	thestring = "power64";
++	thestring = "ppc64";
+ 
+ 	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
+ 	// but not other values.	
+ 	p = getgoarch();
+ 	if(strncmp(p, thestring, strlen(thestring)) != 0)
+ 		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
+-	if(strcmp(p, "power64le") == 0)
+-		thelinkarch = &linkpower64le;
++	if(strcmp(p, "ppc64le") == 0)
++		thelinkarch = &linkppc64le;
+ 
+ 	ctxt = linknew(thelinkarch);
+ 	ctxt->diag = yyerror;
+diff --git a/src/cmd/9g/doc.go b/src/cmd/9g/doc.go
+index 200be2eda2..56bb14344b 100644
+--- a/src/cmd/9g/doc.go
++++ b/src/cmd/9g/doc.go
+@@ -6,9 +6,9 @@
+ 
+ /*
+ 
+-9g is the version of the gc compiler for the Power64.
+-The $GOARCH for these tools is power64 (big endian) or
+-power64le (little endian).
++9g is the version of the gc compiler for 64-bit PowerPC or Power Architecture processors.
++The $GOARCH for these tools is ppc64 (big endian) or
++ppc64le (little endian).
+ 
+ It reads .go files and outputs .9 files. The flags are documented in ../gc/doc.go.
+ 
+diff --git a/src/cmd/9g/galign.c b/src/cmd/9g/galign.c
+index 97a5a5d06c..67514faa47 100644
+--- a/src/cmd/9g/galign.c
++++ b/src/cmd/9g/galign.c
+@@ -7,17 +7,17 @@
+ #include "gg.h"
+ 
+ int	thechar	= '9';
+-char*	thestring = "power64";
++char*	thestring = "ppc64";
+ LinkArch*	thelinkarch;
+ 
+ void
+ linkarchinit(void)
+ {
+ 	thestring = getgoarch();
+-	if(strcmp(thestring, "power64le") == 0)
+-		thelinkarch = &linkpower64le;
++	if(strcmp(thestring, "ppc64le") == 0)
++		thelinkarch = &linkppc64le;
+ 	else
+-		thelinkarch = &linkpower64;
++		thelinkarch = &linkppc64;
+ }
+ 
+ vlong MAXWIDTH = 1LL<<50;
+diff --git a/src/cmd/9g/ggen.c b/src/cmd/9g/ggen.c
+index 7d9cf5050d..f08c263c22 100644
+--- a/src/cmd/9g/ggen.c
++++ b/src/cmd/9g/ggen.c
+@@ -212,8 +212,8 @@ ginscall(Node *f, int proc)
+ 				// However, the stack trace code will show the line
+ 				// of the instruction byte before the return PC. 
+ 				// To avoid that being an unrelated instruction,
+-				// insert a Power64 NOP that we will have the right line number.
+-				// Power64 NOP is really or r0, r0, r0; use that description
++				// insert a ppc64 NOP that we will have the right line number.
++				// The ppc64 NOP is really or r0, r0, r0; use that description
+ 				// because the NOP pseudo-instruction would be removed by
+ 				// the linker.
+ 				nodreg(&reg, types[TINT], D_R0);
+@@ -953,7 +953,7 @@ clearfat(Node *nl)
+ 		f = sysfunc("duffzero");
+ 		p = gins(ADUFFZERO, N, f);
+ 		afunclit(&p->to, f);
+-		// 4 and 128 = magic constants: see ../../runtime/asm_power64x.s
++		// 4 and 128 = magic constants: see ../../runtime/asm_ppc64x.s
+ 		p->to.offset = 4*(128-q);
+ 		// duffzero leaves R3 on the last zeroed dword
+ 		boff = 8;
+diff --git a/src/cmd/9g/peep.c b/src/cmd/9g/peep.c
+index 1f430220e5..4e636b1484 100644
+--- a/src/cmd/9g/peep.c
++++ b/src/cmd/9g/peep.c
+@@ -935,7 +935,7 @@ copyau1(Prog *p, Addr *v)
+ }
+ 
+ // copysub replaces v with s in a if f!=0 or indicates it if could if f==0.
+-// Returns 1 on failure to substitute (it always succeeds on power64).
++// Returns 1 on failure to substitute (it always succeeds on ppc64).
+ static int
+ copysub(Addr *a, Addr *v, Addr *s, int f)
+ {
+@@ -946,7 +946,7 @@ copysub(Addr *a, Addr *v, Addr *s, int f)
+ }
+ 
+ // copysub1 replaces v with s in p1->reg if f!=0 or indicates if it could if f==0.
+-// Returns 1 on failure to substitute (it always succeeds on power64).
++// Returns 1 on failure to substitute (it always succeeds on ppc64).
+ static int
+ copysub1(Prog *p1, Addr *v, Addr *s, int f)
+ {
+diff --git a/src/cmd/9l/asm.c b/src/cmd/9l/asm.c
+index 65a36285d8..f9e2810ade 100644
+--- a/src/cmd/9l/asm.c
++++ b/src/cmd/9l/asm.c
+@@ -129,7 +129,7 @@ archreloc(Reloc *r, LSym *s, vlong *val)
+ 		*val = symaddr(r->sym) + r->add - symaddr(linklookup(ctxt, ".got", 0));
+ 		return 0;
+ 	case R_ADDRPOWER:
+-		// r->add is two power64 instructions holding an immediate 32-bit constant.
++		// r->add is two ppc64 instructions holding an immediate 32-bit constant.
+ 		// We want to add r->sym's address to that constant.
+ 		// The encoding of the immediate x<<16 + y,
+ 		// where x is the low 16 bits of the first instruction and y is the low 16
+diff --git a/src/cmd/9l/doc.go b/src/cmd/9l/doc.go
+index 9df5dc6148..3e3c48018d 100644
+--- a/src/cmd/9l/doc.go
++++ b/src/cmd/9l/doc.go
+@@ -6,9 +6,9 @@
+ 
+ /*
+ 
+-9l is the linker for the Power64.
+-The $GOARCH for these tools is power64 (big endian) or
+-power64le (little endian).
++9l is the linker for 64-bit PowerPC and Power Architecture processors.
++The $GOARCH for these tools is ppc64 (big endian) or
++ppc64le (little endian).
+ 
+ The flags are documented in ../ld/doc.go.
+ 
+diff --git a/src/cmd/9l/obj.c b/src/cmd/9l/obj.c
+index badb72a1ac..dab1ffb315 100644
+--- a/src/cmd/9l/obj.c
++++ b/src/cmd/9l/obj.c
+@@ -36,17 +36,17 @@
+ #include	"../ld/dwarf.h"
+ #include	<ar.h>
+ 
+-char *thestring = "power64";
++char *thestring = "ppc64";
+ LinkArch *thelinkarch;
+ 
+ void
+ linkarchinit(void)
+ {
+ 	thestring = getgoarch();
+-	if(strcmp(thestring, "power64le") == 0)
+-		thelinkarch = &linkpower64le;
++	if(strcmp(thestring, "ppc64le") == 0)
++		thelinkarch = &linkppc64le;
+ 	else
+-		thelinkarch = &linkpower64;
++		thelinkarch = &linkppc64;
+ }
+ 
+ void
+@@ -79,7 +79,7 @@ archinit(void)
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case Hlinux:	/* power64 elf */
++	case Hlinux:	/* ppc64 elf */
+ 		debug['d'] = 1;	// TODO(minux): dynamic linking is not supported yet.
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 28ded816d5..9112703833 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -130,23 +130,19 @@ func usage() {
+ }
+ 
+ var ptrSizeMap = map[string]int64{
+-	"386":       4,
+-	"amd64":     8,
+-	"arm":       4,
+-	"ppc64":     8,
+-	"ppc64le":   8,
+-	"power64":   8,
+-	"power64le": 8,
++	"386":     4,
++	"amd64":   8,
++	"arm":     4,
++	"ppc64":   8,
++	"ppc64le": 8,
+ }
+ 
+ var intSizeMap = map[string]int64{
+-	"386":       4,
+-	"amd64":     8,
+-	"arm":       4,
+-	"ppc64":     8,
+-	"ppc64le":   8,
+-	"power64":   8,
+-	"power64le": 8,
++	"386":     4,
++	"amd64":   8,
++	"arm":     4,
++	"ppc64":   8,
++	"ppc64le": 8,
+ }
+ 
+ var cPrefix string
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 3743b7300f..5feb77612b 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -48,8 +48,8 @@ static char *okgoarch[] = {
+ 	"amd64",
+ 	"amd64p32",
+ 	"386",
+-	"power64",
+-	"power64le",
++	"ppc64",
++	"ppc64le",
+ };
+ 
+ // The known operating systems.
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 893ed5cdd2..0fd17c1509 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -709,9 +709,9 @@ main(int argc, char **argv)
+ 		else if(contains(u.machine, "arm"))
+ 			gohostarch = "arm";
+ 		else if(contains(u.machine, "ppc64le"))
+-			gohostarch = "power64le";
++			gohostarch = "ppc64le";
+ 		else if(contains(u.machine, "ppc64"))
+-			gohostarch = "power64";
++			gohostarch = "ppc64";
+ 		else
+ 			fatal("unknown architecture: %s", u.machine);
+ 	}
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 1a339c3214..9838ce2856 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -240,9 +240,9 @@ var disasms = map[string]disasmFunc{
+ }
+ 
+ var byteOrders = map[string]binary.ByteOrder{
+-	"386":       binary.LittleEndian,
+-	"amd64":     binary.LittleEndian,
+-	"arm":       binary.LittleEndian,
+-	"power64":   binary.BigEndian,
+-	"power64le": binary.LittleEndian,
++	"386":     binary.LittleEndian,
++	"amd64":   binary.LittleEndian,
++	"arm":     binary.LittleEndian,
++	"ppc64":   binary.BigEndian,
++	"ppc64le": binary.LittleEndian,
+ }
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index 17755b84d2..305706d434 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -98,7 +98,7 @@ func (f *elfFile) goarch() string {
+ 	case elf.EM_ARM:
+ 		return "arm"
+ 	case elf.EM_PPC64:
+-		return "power64"
++		return "ppc64"
+ 	}
+ 	return ""
+ }
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index 7dd84a339d..a6cd02b930 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -104,7 +104,7 @@ func (f *machoFile) goarch() string {
+ 	case macho.CpuArm:
+ 		return "arm"
+ 	case macho.CpuPpc64:
+-		return "power64"
++		return "ppc64"
+ 	}
+ 	return ""
+ }
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index ec8e7c4eaf..243c8d8078 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -62,7 +62,7 @@ enum
+ 	ElfMachSparc32Plus,	/* SPARC V8+ */
+ 	ElfMach960,		/* Intel 80960 */
+ 	ElfMachPower,		/* PowerPC */
+-	ElfMachPower64,	/* PowerPC 64 */
++	ElfMachPower64,	/* PowerPC 64-bit */
+ 	ElfMachS390,		/* IBM System/390 */
+ 	ElfMachV800 = 36,	/* NEC V800 */
+ 	ElfMachFr20,		/* Fujitsu FR20 */
+@@ -438,7 +438,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		break;
+ 	case '9':
+ 		if(obj->machine != ElfMachPower64 || hdr->ident[4] != ElfClass64) {
+-			diag("%s: elf object but not power64", pn);
++			diag("%s: elf object but not ppc64", pn);
+ 			return;
+ 		}
+ 		break;
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index bd09ae9f93..513efbf96f 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -102,7 +102,7 @@ func testDisasm(t *testing.T, flags ...string) {
+ 
+ func TestDisasm(t *testing.T) {
+ 	switch runtime.GOARCH {
+-	case "power64", "power64le":
++	case "ppc64", "ppc64le":
+ 		t.Skipf("skipping on %s, issue 9039", runtime.GOARCH)
+ 	}
+ 	testDisasm(t)
+@@ -114,7 +114,7 @@ func TestDisasmExtld(t *testing.T) {
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+ 	switch runtime.GOARCH {
+-	case "power64", "power64le":
++	case "ppc64", "ppc64le":
+ 		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
+ 	}
+ 	testDisasm(t, "-ldflags=-linkmode=external")
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 46e9d5735d..0ead9792be 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -1414,7 +1414,7 @@ var rppcStrings = []intName{
+ func (i R_PPC) String() string   { return stringName(uint32(i), rppcStrings, false) }
+ func (i R_PPC) GoString() string { return stringName(uint32(i), rppcStrings, true) }
+ 
+-// Relocation types for PowerPC 64.
++// Relocation types for 64-bit PowerPC or Power Architecture processors.
+ type R_PPC64 int
+ 
+ const (
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index ab2976756b..12c20e58d8 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1386,7 +1386,7 @@ func ArchChar(goarch string) (string, error) {
+ 		return "6", nil
+ 	case "arm":
+ 		return "5", nil
+-	case "power64", "power64le":
++	case "ppc64", "ppc64le":
+ 		return "9", nil
+ 	}
+ 	return "", errors.New("unsupported GOARCH " + goarch)
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index 2ab53bb9cc..9246cbf557 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -5,4 +5,4 @@
+ package build
+ 
+ const goosList = "android darwin dragonfly freebsd linux nacl netbsd openbsd plan9 solaris windows "
+-const goarchList = "386 amd64 amd64p32 arm power64 power64le "
++const goarchList = "386 amd64 amd64p32 arm ppc64 ppc64le "
+diff --git a/src/hash/crc32/crc32_generic.go b/src/hash/crc32/crc32_generic.go
+index 1c7f806c60..6f597f556b 100644
+--- a/src/hash/crc32/crc32_generic.go
++++ b/src/hash/crc32/crc32_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 arm power64 power64le
++// +build 386 arm ppc64 ppc64le
+ 
+ package crc32
+ 
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index 10a1f16353..533dbc271b 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -484,7 +484,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				//	NOP
+ 				//
+ 				// The NOP is needed to give the jumps somewhere to land.
+-				// It is a liblink NOP, not a Power64 NOP: it encodes to 0 instruction bytes.
++				// It is a liblink NOP, not a ppc64 NOP: it encodes to 0 instruction bytes.
+ 
+ 
+ 				q = appendp(ctxt, q);
+@@ -988,8 +988,8 @@ prg(void)
+ 	return p;
+ }
+ 
+-LinkArch linkpower64 = {
+-	.name = "power64",
++LinkArch linkppc64 = {
++	.name = "ppc64",
+ 	.thechar = '9',
+ 	.endian = BigEndian,
+ 
+@@ -1035,8 +1035,8 @@ LinkArch linkpower64 = {
+ 	.AUSEFIELD = AUSEFIELD,
+ };
+ 
+-LinkArch linkpower64le = {
+-	.name = "power64le",
++LinkArch linkppc64le = {
++	.name = "ppc64le",
+ 	.thechar = '9',
+ 	.endian = LittleEndian,
+ 
+diff --git a/src/math/abs_power64x.s b/src/math/abs_ppc64x.s
+similarity index 91%
+rename from src/math/abs_power64x.s
+rename to src/math/abs_ppc64x.s
+index 3ba8201b3b..4fd86785ad 100644
+--- a/src/math/abs_power64x.s
++++ b/src/math/abs_ppc64x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/big/arith_power64x.s b/src/math/big/arith_ppc64x.s
+similarity index 96%
+rename from src/math/big/arith_power64x.s
+rename to src/math/big/arith_ppc64x.s
+index c33a9209f1..0cbd126d83 100644
+--- a/src/math/big/arith_power64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/math/stubs_power64x.s b/src/math/stubs_ppc64x.s
+similarity index 98%
+rename from src/math/stubs_power64x.s
+rename to src/math/stubs_ppc64x.s
+index 36b762554a..9369c5cf25 100644
+--- a/src/math/stubs_power64x.s
++++ b/src/math/stubs_ppc64x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/os/signal/sig.s b/src/os/signal/sig.s
+index 1826c37fbd..5a042a0964 100644
+--- a/src/os/signal/sig.s
++++ b/src/os/signal/sig.s
+@@ -4,17 +4,17 @@
+ 
+ // Assembly to get into package runtime without using exported symbols.
+ 
+-// +build amd64 amd64p32 arm 386 power64 power64le
++// +build amd64 amd64p32 arm 386 ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+ #ifdef GOARCH_arm
+ #define JMP B
+ #endif
+-#ifdef GOARCH_power64
++#ifdef GOARCH_ppc64
+ #define JMP BR
+ #endif
+-#ifdef GOARCH_power64le
++#ifdef GOARCH_ppc64le
+ #define JMP BR
+ #endif
+ 
+diff --git a/src/reflect/asm_power64x.s b/src/reflect/asm_ppc64x.s
+similarity index 97%
+rename from src/reflect/asm_power64x.s
+rename to src/reflect/asm_ppc64x.s
+index 4720638242..a87131e004 100644
+--- a/src/reflect/asm_power64x.s
++++ b/src/reflect/asm_ppc64x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ #include "funcdata.h"
+diff --git a/src/runtime/arch1_power64.go b/src/runtime/arch1_ppc64.go
+similarity index 100%
+rename from src/runtime/arch1_power64.go
+rename to src/runtime/arch1_ppc64.go
+diff --git a/src/runtime/arch1_power64le.go b/src/runtime/arch1_ppc64le.go
+similarity index 100%
+rename from src/runtime/arch1_power64le.go
+rename to src/runtime/arch1_ppc64le.go
+diff --git a/src/runtime/arch_power64.go b/src/runtime/arch_ppc64.go
+similarity index 100%
+rename from src/runtime/arch_power64.go
+rename to src/runtime/arch_ppc64.go
+diff --git a/src/runtime/arch_power64le.go b/src/runtime/arch_ppc64le.go
+similarity index 100%
+rename from src/runtime/arch_power64le.go
+rename to src/runtime/arch_ppc64le.go
+diff --git a/src/runtime/asm_power64x.s b/src/runtime/asm_ppc64x.s
+similarity index 99%
+rename from src/runtime/asm_power64x.s
+rename to src/runtime/asm_ppc64x.s
+index 3f2ab6d0e6..bfce3d0fd3 100644
+--- a/src/runtime/asm_power64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "go_asm.h"
+ #include "go_tls.h"
+@@ -550,7 +550,7 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-9
+ 	// R5 = (R3 << 0) & ~3
+ 	RLDCR	$0, R3, $~3, R5
+ 	// Compute val shift.
+-#ifdef GOARCH_power64
++#ifdef GOARCH_ppc64
+ 	// Big endian.  ptr = ptr ^ 3
+ 	XOR	$3, R3
+ #endif
+@@ -669,7 +669,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	MOVD	R3, ret+0(FP)
+ 	RETURN
+ 
+-// AES hashing not implemented for Power
++// AES hashing not implemented for ppc64
+ TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
+ 	MOVW	(R0), R1
+ TEXT runtime·aeshash32(SB),NOSPLIT,$-8-0
+diff --git a/src/runtime/atomic_power64x.go b/src/runtime/atomic_ppc64x.go
+similarity index 98%
+rename from src/runtime/atomic_power64x.go
+rename to src/runtime/atomic_ppc64x.go
+index a0dcf514b5..4080af6a56 100644
+--- a/src/runtime/atomic_power64x.go
++++ b/src/runtime/atomic_ppc64x.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ package runtime
+ 
+diff --git a/src/runtime/atomic_power64x.s b/src/runtime/atomic_ppc64x.s
+similarity index 96%
+rename from src/runtime/atomic_power64x.s
+rename to src/runtime/atomic_ppc64x.s
+index e72871761d..7ee08213d4 100644
+--- a/src/runtime/atomic_power64x.s
++++ b/src/runtime/atomic_ppc64x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/runtime/debug/stubs.s b/src/runtime/debug/stubs.s
+index 1e883b72c0..b117063e76 100644
+--- a/src/runtime/debug/stubs.s
++++ b/src/runtime/debug/stubs.s
+@@ -7,10 +7,10 @@
+ #ifdef GOARCH_arm
+ #define JMP B
+ #endif
+-#ifdef GOARCH_power64
++#ifdef GOARCH_ppc64
+ #define JMP BR
+ #endif
+-#ifdef GOARCH_power64le
++#ifdef GOARCH_ppc64le
+ #define JMP BR
+ #endif
+ 
+diff --git a/src/runtime/defs3_linux.go b/src/runtime/defs3_linux.go
+index 3551a4fa90..489c130d0f 100644
+--- a/src/runtime/defs3_linux.go
++++ b/src/runtime/defs3_linux.go
+@@ -7,7 +7,7 @@
+ /*
+ Input to cgo -cdefs
+ 
+-GOARCH=power64 cgo -cdefs defs_linux.go defs3_linux.go > defs_linux_power64.h
++GOARCH=ppc64 cgo -cdefs defs_linux.go defs3_linux.go > defs_linux_ppc64.h
+ */
+ 
+ package runtime
+diff --git a/src/runtime/defs_linux_power64.go b/src/runtime/defs_linux_ppc64.go
+similarity index 100%
+rename from src/runtime/defs_linux_power64.go
+rename to src/runtime/defs_linux_ppc64.go
+diff --git a/src/runtime/defs_linux_power64le.go b/src/runtime/defs_linux_ppc64le.go
+similarity index 100%
+rename from src/runtime/defs_linux_power64le.go
+rename to src/runtime/defs_linux_ppc64le.go
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index 2b45c8184d..93535ae9d7 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -134,7 +134,7 @@ func infoBigStruct() []byte {
+ 			BitsScalar, BitsScalar, BitsScalar, BitsScalar, // t int; y uint16; u uint64
+ 			BitsPointer, BitsDead, // i string
+ 		}
+-	case "amd64", "power64", "power64le":
++	case "amd64", "ppc64", "ppc64le":
+ 		return []byte{
+ 			BitsPointer,                        // q *int
+ 			BitsScalar, BitsScalar, BitsScalar, // w byte; e [17]byte
+diff --git a/src/runtime/lfstack_linux_power64x.go b/src/runtime/lfstack_linux_ppc64x.go
+similarity index 90%
+rename from src/runtime/lfstack_linux_power64x.go
+rename to src/runtime/lfstack_linux_ppc64x.go
+index 89e389fc72..7ed5025584 100644
+--- a/src/runtime/lfstack_linux_power64x.go
++++ b/src/runtime/lfstack_linux_ppc64x.go
+@@ -2,14 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ // +build linux
+ 
+ package runtime
+ 
+ import "unsafe"
+ 
+-// On Power64, Linux limits the user address space to 46 bits (see
++// On ppc64, Linux limits the user address space to 46 bits (see
+ // TASK_SIZE_USER64 in the Linux kernel).  This has grown over time,
+ // so here we allow 48 bit addresses.
+ //
+diff --git a/src/runtime/memclr_power64x.s b/src/runtime/memclr_ppc64x.s
+similarity index 93%
+rename from src/runtime/memclr_power64x.s
+rename to src/runtime/memclr_ppc64x.s
+index dfad64b6f5..535faa1c0e 100644
+--- a/src/runtime/memclr_power64x.s
++++ b/src/runtime/memclr_ppc64x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/runtime/memmove_power64x.s b/src/runtime/memmove_ppc64x.s
+similarity index 95%
+rename from src/runtime/memmove_power64x.s
+rename to src/runtime/memmove_ppc64x.s
+index 2b04d8319a..23725ed0f6 100644
+--- a/src/runtime/memmove_power64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index 43c16860b2..1337fc9a18 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -5,7 +5,7 @@
+ // Routines that are implemented in assembly in asm_{amd64,386}.s
+ // but are implemented in Go for arm.
+ 
+-// +build arm power64 power64le
++// +build arm ppc64 ppc64le
+ 
+ package runtime
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 95e780b1d9..7ec084acfc 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -66,7 +66,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 	// we can only call nosplit routines.
+ 	argp := uintptr(unsafe.Pointer(&fn))
+ 	argp += unsafe.Sizeof(fn)
+-	if GOARCH == "arm" || GOARCH == "power64" || GOARCH == "power64le" {
++	if GOARCH == "arm" || GOARCH == "ppc64" || GOARCH == "ppc64le" {
+ 		argp += ptrSize // skip caller's saved link register
+ 	}
+ 	callerpc := getcallerpc(unsafe.Pointer(&siz))
+diff --git a/src/runtime/panic1.go b/src/runtime/panic1.go
+index 17379f9630..96f07a0ca0 100644
+--- a/src/runtime/panic1.go
++++ b/src/runtime/panic1.go
+@@ -12,7 +12,7 @@ import "unsafe"
+ //uint32 runtime·panicking;
+ var paniclk mutex
+ 
+-const hasLinkRegister = GOARCH == "arm" || GOARCH == "power64" || GOARCH == "power64le"
++const hasLinkRegister = GOARCH == "arm" || GOARCH == "ppc64" || GOARCH == "ppc64le"
+ 
+ // Unwind the stack after a deferred function calls recover
+ // after a panic.  Then arrange to continue running as though
+diff --git a/src/runtime/rt0_linux_power64.s b/src/runtime/rt0_linux_ppc64.s
+similarity index 88%
+rename from src/runtime/rt0_linux_power64.s
+rename to src/runtime/rt0_linux_ppc64.s
+index 970b6a6733..33bbbbd1bf 100644
+--- a/src/runtime/rt0_linux_power64.s
++++ b/src/runtime/rt0_linux_ppc64.s
+@@ -1,7 +1,7 @@
+ #include "textflag.h"
+ 
+ // actually a function descriptor for _main<>(SB)
+-TEXT _rt0_power64_linux(SB),NOSPLIT,$0
++TEXT _rt0_ppc64_linux(SB),NOSPLIT,$0
+ 	DWORD $_main<>(SB)
+ 	DWORD $0
+ 	DWORD $0
+diff --git a/src/runtime/rt0_linux_power64le.s b/src/runtime/rt0_linux_ppc64le.s
+similarity index 83%
+rename from src/runtime/rt0_linux_power64le.s
+rename to src/runtime/rt0_linux_ppc64le.s
+index 85ce847334..a3b3cea0b5 100644
+--- a/src/runtime/rt0_linux_power64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -1,6 +1,6 @@
+ #include "textflag.h"
+ 
+-TEXT _rt0_power64le_linux(SB),NOSPLIT,$0
++TEXT _rt0_ppc64le_linux(SB),NOSPLIT,$0
+ 	BR _main<>(SB)
+ 
+ TEXT _main<>(SB),NOSPLIT,$-8
+diff --git a/src/runtime/signal_linux_power64x.go b/src/runtime/signal_linux_ppc64x.go
+similarity index 99%
+rename from src/runtime/signal_linux_power64x.go
+rename to src/runtime/signal_linux_ppc64x.go
+index 0a406b31fc..da3afc9e9e 100644
+--- a/src/runtime/signal_linux_power64x.go
++++ b/src/runtime/signal_linux_ppc64x.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ package runtime
+ 
+diff --git a/src/runtime/signal_power64x.go b/src/runtime/signal_ppc64x.go
+similarity index 99%
+rename from src/runtime/signal_power64x.go
+rename to src/runtime/signal_ppc64x.go
+index fc83beb1b6..ab32300f3f 100644
+--- a/src/runtime/signal_power64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_linux_power64x.s b/src/runtime/sys_linux_ppc64x.s
+similarity index 98%
+rename from src/runtime/sys_linux_power64x.s
+rename to src/runtime/sys_linux_ppc64x.s
+index 395f657bf7..4a4f440c53 100644
+--- a/src/runtime/sys_linux_power64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -3,10 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ //
+-// System calls and other sys.stuff for Power64, Linux
++// System calls and other sys.stuff for ppc64, Linux
+ //
+ 
+ #include "go_asm.h"
+@@ -179,8 +179,8 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
+ 	MOVW	R3, ret+32(FP)
+ 	RETURN
+ 
+-#ifdef GOARCH_power64le
+-// power64le doesn't need function descriptors
++#ifdef GOARCH_ppc64le
++// ppc64le doesn't need function descriptors
+ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ #else
+ // function descriptor for the real sigtramp
+diff --git a/src/runtime/sys_power64x.go b/src/runtime/sys_ppc64x.go
+similarity index 97%
+rename from src/runtime/sys_power64x.go
+rename to src/runtime/sys_ppc64x.go
+index 90ebde7b40..b0c0331fcb 100644
+--- a/src/runtime/sys_power64x.go
++++ b/src/runtime/sys_ppc64x.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ package runtime
+ 
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+index 241dd90afe..0714dc198a 100644
+--- a/src/runtime/thunk.s
++++ b/src/runtime/thunk.s
+@@ -9,10 +9,10 @@
+ #ifdef GOARCH_arm
+ #define JMP B
+ #endif
+-#ifdef GOARCH_power64
++#ifdef GOARCH_ppc64
+ #define JMP BR
+ #endif
+-#ifdef GOARCH_power64le
++#ifdef GOARCH_ppc64le
+ #define JMP BR
+ #endif
+ 
+diff --git a/src/runtime/zgoarch_386.go b/src/runtime/zgoarch_386.go
+index 057a746bb5..8aa3da98dd 100644
+--- a/src/runtime/zgoarch_386.go
++++ b/src/runtime/zgoarch_386.go
+@@ -8,5 +8,5 @@ const goarch_386 = 1
+ const goarch_amd64 = 0
+ const goarch_amd64p32 = 0
+ const goarch_arm = 0
+-const goarch_power64 = 0
+-const goarch_power64le = 0
++const goarch_ppc64 = 0
++const goarch_ppc64le = 0
+diff --git a/src/runtime/zgoarch_amd64.go b/src/runtime/zgoarch_amd64.go
+index a712407269..eb4f31d7cc 100644
+--- a/src/runtime/zgoarch_amd64.go
++++ b/src/runtime/zgoarch_amd64.go
+@@ -8,5 +8,5 @@ const goarch_386 = 0
+ const goarch_amd64 = 1
+ const goarch_amd64p32 = 0
+ const goarch_arm = 0
+-const goarch_power64 = 0
+-const goarch_power64le = 0
++const goarch_ppc64 = 0
++const goarch_ppc64le = 0
+diff --git a/src/runtime/zgoarch_amd64p32.go b/src/runtime/zgoarch_amd64p32.go
+index 2b6a142bb7..c2579e2127 100644
+--- a/src/runtime/zgoarch_amd64p32.go
++++ b/src/runtime/zgoarch_amd64p32.go
+@@ -8,5 +8,5 @@ const goarch_386 = 0
+ const goarch_amd64 = 0
+ const goarch_amd64p32 = 1
+ const goarch_arm = 0
+-const goarch_power64 = 0
+-const goarch_power64le = 0
++const goarch_ppc64 = 0
++const goarch_ppc64le = 0
+diff --git a/src/runtime/zgoarch_arm.go b/src/runtime/zgoarch_arm.go
+index 4030210050..3098bed7a7 100644
+--- a/src/runtime/zgoarch_arm.go
++++ b/src/runtime/zgoarch_arm.go
+@@ -8,5 +8,5 @@ const goarch_386 = 0
+ const goarch_amd64 = 0
+ const goarch_amd64p32 = 0
+ const goarch_arm = 1
+-const goarch_power64 = 0
+-const goarch_power64le = 0
++const goarch_ppc64 = 0
++const goarch_ppc64le = 0
+diff --git a/src/runtime/zgoarch_power64.go b/src/runtime/zgoarch_ppc64.go
+similarity index 66%
+rename from src/runtime/zgoarch_power64.go
+rename to src/runtime/zgoarch_ppc64.go
+index cc361f0505..3097322909 100644
+--- a/src/runtime/zgoarch_power64.go
++++ b/src/runtime/zgoarch_ppc64.go
+@@ -2,11 +2,11 @@
+ 
+ package runtime
+ 
+-const theGoarch = `power64`
++const theGoarch = `ppc64`
+ 
+ const goarch_386 = 0
+ const goarch_amd64 = 0
+ const goarch_amd64p32 = 0
+ const goarch_arm = 0
+-const goarch_power64 = 1
+-const goarch_power64le = 0
++const goarch_ppc64 = 1
++const goarch_ppc64le = 0
+diff --git a/src/runtime/zgoarch_power64le.go b/src/runtime/zgoarch_ppc64le.go
+similarity index 65%
+rename from src/runtime/zgoarch_power64le.go
+rename to src/runtime/zgoarch_ppc64le.go
+index 41294e61b9..f4102ac1e1 100644
+--- a/src/runtime/zgoarch_power64le.go
++++ b/src/runtime/zgoarch_ppc64le.go
+@@ -2,11 +2,11 @@
+ 
+ package runtime
+ 
+-const theGoarch = `power64le`
++const theGoarch = `ppc64le`
+ 
+ const goarch_386 = 0
+ const goarch_amd64 = 0
+ const goarch_amd64p32 = 0
+ const goarch_arm = 0
+-const goarch_power64 = 0
+-const goarch_power64le = 1
++const goarch_ppc64 = 0
++const goarch_ppc64le = 1
+diff --git a/src/sync/atomic/asm_power64x.s b/src/sync/atomic/asm_ppc64x.s
+similarity index 99%
+rename from src/sync/atomic/asm_power64x.s
+rename to src/sync/atomic/asm_ppc64x.s
+index 1130d3c168..bcd46c5cff 100644
+--- a/src/sync/atomic/asm_power64x.s
++++ b/src/sync/atomic/asm_ppc64x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/syscall/asm.s b/src/syscall/asm.s
+index 43561e2019..642b0b60ef 100644
+--- a/src/syscall/asm.s
++++ b/src/syscall/asm.s
+@@ -4,10 +4,10 @@
+ 
+ #include "textflag.h"
+ 
+-#ifdef GOARCH_power64
++#ifdef GOARCH_ppc64
+ #define RET RETURN
+ #endif
+-#ifdef GOARCH_power64le
++#ifdef GOARCH_ppc64le
+ #define RET RETURN
+ #endif
+ 
+diff --git a/src/syscall/asm_linux_power64x.s b/src/syscall/asm_linux_ppc64x.s
+similarity index 97%
+rename from src/syscall/asm_linux_power64x.s
+rename to src/syscall/asm_linux_ppc64x.s
+index be8518a455..5c47ac0f39 100644
+--- a/src/syscall/asm_linux_power64x.s
++++ b/src/syscall/asm_linux_ppc64x.s
+@@ -3,12 +3,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 
+ //
+-// System calls for Power64, Linux
++// System calls for ppc64, Linux
+ //
+ 
+ // func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index febd5a2625..29991f72fa 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -177,15 +177,15 @@ linux_arm)
+ 	mksysnum="curl -s 'http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/arch/arm/include/uapi/asm/unistd.h' | ./mksysnum_linux.pl"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+-linux_power64)
+-	GOOSARCH_in=syscall_linux_power64x.go
++linux_ppc64)
++	GOOSARCH_in=syscall_linux_ppc64x.go
+ 	unistd_h=/usr/include/asm/unistd.h
+ 	mkerrors="$mkerrors -m64"
+ 	mksysnum="./mksysnum_linux.pl $unistd_h"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+-linux_power64le)
+-	GOOSARCH_in=syscall_linux_power64x.go
++linux_ppc64le)
++	GOOSARCH_in=syscall_linux_ppc64x.go
+ 	unistd_h=/usr/include/powerpc64le-linux-gnu/asm/unistd.h
+ 	mkerrors="$mkerrors -m64"
+ 	mksysnum="./mksysnum_linux.pl $unistd_h"
+diff --git a/src/syscall/syscall_linux_power64x.go b/src/syscall/syscall_linux_ppc64x.go
+similarity index 99%
+rename from src/syscall/syscall_linux_power64x.go
+rename to src/syscall/syscall_linux_ppc64x.go
+index fd043627a2..65ba3567b2 100644
+--- a/src/syscall/syscall_linux_power64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build power64 power64le
++// +build ppc64 ppc64le
+ 
+ package syscall
+ 
+diff --git a/src/syscall/zerrors_linux_power64.go b/src/syscall/zerrors_linux_ppc64.go
+similarity index 100%
+rename from src/syscall/zerrors_linux_power64.go
+rename to src/syscall/zerrors_linux_ppc64.go
+diff --git a/src/syscall/zerrors_linux_power64le.go b/src/syscall/zerrors_linux_ppc64le.go
+similarity index 100%
+rename from src/syscall/zerrors_linux_power64le.go
+rename to src/syscall/zerrors_linux_ppc64le.go
+diff --git a/src/syscall/zsyscall_linux_power64.go b/src/syscall/zsyscall_linux_ppc64.go
+similarity index 99%
+rename from src/syscall/zsyscall_linux_power64.go
+rename to src/syscall/zsyscall_linux_ppc64.go
+index 7808059cc8..e78b81349a 100644
+--- a/src/syscall/zsyscall_linux_power64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -1,4 +1,4 @@
+-// mksyscall.pl syscall_linux.go syscall_linux_power64x.go
++// mksyscall.pl syscall_linux.go syscall_linux_ppc64x.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/syscall/zsyscall_linux_power64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+similarity index 99%
+rename from src/syscall/zsyscall_linux_power64le.go
+rename to src/syscall/zsyscall_linux_ppc64le.go
+index 7808059cc8..e78b81349a 100644
+--- a/src/syscall/zsyscall_linux_power64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -1,4 +1,4 @@
+-// mksyscall.pl syscall_linux.go syscall_linux_power64x.go
++// mksyscall.pl syscall_linux.go syscall_linux_ppc64x.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/syscall/zsysnum_linux_power64.go b/src/syscall/zsysnum_linux_ppc64.go
+similarity index 100%
+rename from src/syscall/zsysnum_linux_power64.go
+rename to src/syscall/zsysnum_linux_ppc64.go
+diff --git a/src/syscall/zsysnum_linux_power64le.go b/src/syscall/zsysnum_linux_ppc64le.go
+similarity index 100%
+rename from src/syscall/zsysnum_linux_power64le.go
+rename to src/syscall/zsysnum_linux_ppc64le.go
+diff --git a/src/syscall/ztypes_linux_power64.go b/src/syscall/ztypes_linux_ppc64.go
+similarity index 100%
+rename from src/syscall/ztypes_linux_power64.go
+rename to src/syscall/ztypes_linux_ppc64.go
+diff --git a/src/syscall/ztypes_linux_power64le.go b/src/syscall/ztypes_linux_ppc64le.go
+similarity index 100%
+rename from src/syscall/ztypes_linux_power64le.go
+rename to src/syscall/ztypes_linux_ppc64le.go
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 9d65e1e91b..cf26993ef9 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -1,6 +1,6 @@
+ // errorcheck -0 -d=nil
+-// Fails on power64x because of incomplete optimization.  See issue 9058.
+-// +build !power64,!power64le
++// Fails on ppc64x because of incomplete optimization.  See issue 9058.
++// +build !ppc64,!ppc64le
+ 
+ // Copyright 2013 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 3a63e8731d..d90cb9e4d7 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -127,7 +127,7 @@ main 136 nosplit; REJECT
+ # Calling a nosplit function from a nosplit function requires
+ # having room for the saved caller PC and the called frame.
+ # Because ARM doesn't save LR in the leaf, it gets an extra 4 bytes.
+-# Because Power64 doesn't save LR in the leaf, it gets an extra 8 bytes.
++# Because ppc64 doesn't save LR in the leaf, it gets an extra 8 bytes.
+ main 112 nosplit call f; f 0 nosplit
+ main 116 nosplit call f; f 0 nosplit
+ main 120 nosplit call f; f 0 nosplit; REJECT amd64
+@@ -139,7 +139,7 @@ main 136 nosplit call f; f 0 nosplit; REJECT
+ # Calling a splitting function from a nosplit function requires
+ # having room for the saved caller PC of the call but also the
+ # saved caller PC for the call to morestack.
+-# Again the ARM and Power64 work in less space.
++# Again the ARM and ppc64 work in less space.
+ main 104 nosplit call f; f 0 call f
+ main 108 nosplit call f; f 0 call f
+ main 112 nosplit call f; f 0 call f; REJECT amd64
+@@ -237,7 +237,7 @@ TestCases:
+ 		var buf bytes.Buffer
+ 		ptrSize := 4
+ 		switch goarch {
+-		case "power64", "power64le":
++		case "ppc64", "ppc64le":
+ 			ptrSize = 8
+ 			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n#define RET RETURN\n")
+ 		case "arm":

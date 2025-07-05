@@ -9,7 +9,63 @@ Date:   Thu Apr 21 12:09:25 2011 -0400
     R=golang-dev, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/4434053
-
+---
  src/pkg/runtime/proc.c       |  6 ++++++
  src/pkg/runtime/proc_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index e212c7820f..a823dc6928 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1196,6 +1196,12 @@ runtime·gomaxprocsfunc(int32 n)
+ 	if (n <= 0)
+ 		n = ret;
+ 	runtime·gomaxprocs = n;
++ 	if (runtime·gcwaiting != 0) {
++ 		if (runtime·sched.mcpumax != 1)
++ 			runtime·throw("invalid runtime·sched.mcpumax during gc");
++		schedunlock();
++		return ret;
++	}
+ 	runtime·sched.mcpumax = n;
+ 	// handle fewer procs?
+ 	if(runtime·sched.mcpu > runtime·sched.mcpumax) {
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+new file mode 100644
+index 0000000000..f5449440a8
+--- /dev/null
++++ b/src/pkg/runtime/proc_test.go
+@@ -0,0 +1,32 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"testing"
++)
++
++func perpetuumMobile() {
++	go perpetuumMobile()
++}
++
++func TestStopTheWorldDeadlock(t *testing.T) {
++	runtime.GOMAXPROCS(3)
++	compl := make(chan int, 1)
++	go func() {
++		for i := 0; i != 1000; i += 1 {
++			runtime.GC()
++		}
++		compl <- 0
++	}()
++	go func() {
++		for i := 0; i != 1000; i += 1 {
++			runtime.GOMAXPROCS(3)
++		}
++	}()
++	go perpetuumMobile()
++	<-compl
++}

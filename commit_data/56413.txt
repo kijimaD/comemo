@@ -12,6 +12,20 @@ Date:   Fri May 5 11:23:29 2023 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index bb36c07663..af3db5f590 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -136,7 +136,7 @@ func bootstrapBuildTools() {
+ 	xmkdirall(base)
+ 
+ 	// Copy source code into $GOROOT/pkg/bootstrap and rewrite import paths.
+-	writefile("module bootstrap\n", pathf("%s/%s", base, "go.mod"), 0)
++	writefile("module bootstrap\ngo 1.20\n", pathf("%s/%s", base, "go.mod"), 0)
+ 	for _, dir := range bootstrapDirs {
+ 		recurse := strings.HasSuffix(dir, "/...")
+ 		dir = strings.TrimSuffix(dir, "/...")

@@ -11,7 +11,276 @@ Date:   Tue May 24 12:50:38 2016 +0100
     Change-Id: I52e4f909fdca6f65c3616add444e3892783640f4
     Reviewed-on: https://go-review.googlesource.com/23324
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/trace/main.go  |  44 ++++++++++++++++++-
  src/cmd/trace/pprof.go | 113 +++++++++++++++++++++++--------------------------
  2 files changed, 97 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 3611012290..c7bf75ef68 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -15,6 +15,14 @@ Generate a trace file with 'go test':
+ 	go test -trace trace.out pkg
+ View the trace in a web browser:
+ 	go tool trace trace.out
++Generate a pprof-like profile from the trace:
++	go tool trace -pprof=TYPE trace.out > TYPE.pprof
++
++Supported profile types are:
++	- net: network blocking profile
++	- sync: synchronization blocking profile
++	- syscall: syscall blocking profile
++	- sched: scheduler latency profile
+ */
+ package main
+ 
+@@ -25,6 +33,7 @@ import (
+ 	"fmt"
+ 	"html/template"
+ 	"internal/trace"
++	"io"
+ 	"log"
+ 	"net"
+ 	"net/http"
+@@ -39,15 +48,27 @@ Given a trace file produced by 'go test':
+ 
+ Open a web browser displaying trace:
+ 	go tool trace [flags] [pkg.test] trace.out
++
++Generate a pprof-like profile from the trace:
++    go tool trace -pprof=TYPE [pkg.test] trace.out
++
+ [pkg.test] argument is required for traces produced by Go 1.6 and below.
+ Go 1.7 does not require the binary argument.
+ 
++Supported profile types are:
++    - net: network blocking profile
++    - sync: synchronization blocking profile
++    - syscall: syscall blocking profile
++    - sched: scheduler latency profile
++
+ Flags:
+ 	-http=addr: HTTP service address (e.g., ':6060')
++	-pprof=type: print a pprof-like profile instead
+ `
+ 
+ var (
+-	httpFlag = flag.String("http", "localhost:0", "HTTP service address (e.g., ':6060')")
++	httpFlag  = flag.String("http", "localhost:0", "HTTP service address (e.g., ':6060')")
++	pprofFlag = flag.String("pprof", "", "print a pprof-like profile instead")
+ 
+ 	// The binary file name, left here for serveSVGProfile.
+ 	programBinary string
+@@ -73,6 +94,27 @@ func main() {
+ 		flag.Usage()
+ 	}
+ 
++	var pprofFunc func(io.Writer) error
++	switch *pprofFlag {
++	case "net":
++		pprofFunc = pprofIO
++	case "sync":
++		pprofFunc = pprofBlock
++	case "syscall":
++		pprofFunc = pprofSyscall
++	case "sched":
++		pprofFunc = pprofSched
++	}
++	if pprofFunc != nil {
++		if err := pprofFunc(os.Stdout); err != nil {
++			dief("failed to generate pprof: %v\n", err)
++		}
++		os.Exit(0)
++	}
++	if *pprofFlag != "" {
++		dief("unknown pprof type %s\n", *pprofFlag)
++	}
++
+ 	ln, err := net.Listen("tcp", *httpFlag)
+ 	if err != nil {
+ 		dief("failed to create server socket: %v\n", err)
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index fdda6d89be..636d23dc06 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/pprof/profile"
+ 	"fmt"
+ 	"internal/trace"
++	"io"
+ 	"io/ioutil"
+ 	"net/http"
+ 	"os"
+@@ -18,10 +19,10 @@ import (
+ )
+ 
+ func init() {
+-	http.HandleFunc("/io", httpIO)
+-	http.HandleFunc("/block", httpBlock)
+-	http.HandleFunc("/syscall", httpSyscall)
+-	http.HandleFunc("/sched", httpSched)
++	http.HandleFunc("/io", serveSVGProfile(pprofIO))
++	http.HandleFunc("/block", serveSVGProfile(pprofBlock))
++	http.HandleFunc("/syscall", serveSVGProfile(pprofSyscall))
++	http.HandleFunc("/sched", serveSVGProfile(pprofSched))
+ }
+ 
+ // Record represents one entry in pprof-like profiles.
+@@ -31,12 +32,11 @@ type Record struct {
+ 	time int64
+ }
+ 
+-// httpIO serves IO pprof-like profile (time spent in IO wait).
+-func httpIO(w http.ResponseWriter, r *http.Request) {
++// pprofIO generates IO pprof-like profile (time spent in IO wait).
++func pprofIO(w io.Writer) error {
+ 	events, err := parseEvents()
+ 	if err != nil {
+-		http.Error(w, err.Error(), http.StatusInternalServerError)
+-		return
++		return err
+ 	}
+ 	prof := make(map[uint64]Record)
+ 	for _, ev := range events {
+@@ -49,15 +49,14 @@ func httpIO(w http.ResponseWriter, r *http.Request) {
+ 		rec.time += ev.Link.Ts - ev.Ts
+ 		prof[ev.StkID] = rec
+ 	}
+-	serveSVGProfile(w, r, prof)
++	return buildProfile(prof).Write(w)
+ }
+ 
+-// httpBlock serves blocking pprof-like profile (time spent blocked on synchronization primitives).
+-func httpBlock(w http.ResponseWriter, r *http.Request) {
++// pprofBlock generates blocking pprof-like profile (time spent blocked on synchronization primitives).
++func pprofBlock(w io.Writer) error {
+ 	events, err := parseEvents()
+ 	if err != nil {
+-		http.Error(w, err.Error(), http.StatusInternalServerError)
+-		return
++		return err
+ 	}
+ 	prof := make(map[uint64]Record)
+ 	for _, ev := range events {
+@@ -76,15 +75,14 @@ func httpBlock(w http.ResponseWriter, r *http.Request) {
+ 		rec.time += ev.Link.Ts - ev.Ts
+ 		prof[ev.StkID] = rec
+ 	}
+-	serveSVGProfile(w, r, prof)
++	return buildProfile(prof).Write(w)
+ }
+ 
+-// httpSyscall serves syscall pprof-like profile (time spent blocked in syscalls).
+-func httpSyscall(w http.ResponseWriter, r *http.Request) {
++// pprofSyscall generates syscall pprof-like profile (time spent blocked in syscalls).
++func pprofSyscall(w io.Writer) error {
+ 	events, err := parseEvents()
+ 	if err != nil {
+-		http.Error(w, err.Error(), http.StatusInternalServerError)
+-		return
++		return err
+ 	}
+ 	prof := make(map[uint64]Record)
+ 	for _, ev := range events {
+@@ -97,16 +95,15 @@ func httpSyscall(w http.ResponseWriter, r *http.Request) {
+ 		rec.time += ev.Link.Ts - ev.Ts
+ 		prof[ev.StkID] = rec
+ 	}
+-	serveSVGProfile(w, r, prof)
++	return buildProfile(prof).Write(w)
+ }
+ 
+-// httpSched serves scheduler latency pprof-like profile
++// pprofSched generates scheduler latency pprof-like profile
+ // (time between a goroutine become runnable and actually scheduled for execution).
+-func httpSched(w http.ResponseWriter, r *http.Request) {
++func pprofSched(w io.Writer) error {
+ 	events, err := parseEvents()
+ 	if err != nil {
+-		http.Error(w, err.Error(), http.StatusInternalServerError)
+-		return
++		return err
+ 	}
+ 	prof := make(map[uint64]Record)
+ 	for _, ev := range events {
+@@ -120,45 +117,43 @@ func httpSched(w http.ResponseWriter, r *http.Request) {
+ 		rec.time += ev.Link.Ts - ev.Ts
+ 		prof[ev.StkID] = rec
+ 	}
+-	serveSVGProfile(w, r, prof)
++	return buildProfile(prof).Write(w)
+ }
+ 
+-// generateSVGProfile generates pprof-like profile stored in prof and writes in to w.
+-func serveSVGProfile(w http.ResponseWriter, r *http.Request, prof map[uint64]Record) {
+-	if len(prof) == 0 {
+-		http.Error(w, "The profile is empty", http.StatusNotFound)
+-		return
+-	}
+-	blockf, err := ioutil.TempFile("", "block")
+-	if err != nil {
+-		http.Error(w, fmt.Sprintf("failed to create temp file: %v", err), http.StatusInternalServerError)
+-		return
+-	}
+-	defer func() {
+-		blockf.Close()
+-		os.Remove(blockf.Name())
+-	}()
+-	blockb := bufio.NewWriter(blockf)
+-	if err := buildProfile(prof).Write(blockb); err != nil {
+-		http.Error(w, fmt.Sprintf("failed to write profile: %v", err), http.StatusInternalServerError)
+-		return
+-	}
+-	if err := blockb.Flush(); err != nil {
+-		http.Error(w, fmt.Sprintf("failed to flush temp file: %v", err), http.StatusInternalServerError)
+-		return
+-	}
+-	if err := blockf.Close(); err != nil {
+-		http.Error(w, fmt.Sprintf("failed to close temp file: %v", err), http.StatusInternalServerError)
+-		return
+-	}
+-	svgFilename := blockf.Name() + ".svg"
+-	if output, err := exec.Command("go", "tool", "pprof", "-svg", "-output", svgFilename, blockf.Name()).CombinedOutput(); err != nil {
+-		http.Error(w, fmt.Sprintf("failed to execute go tool pprof: %v\n%s", err, output), http.StatusInternalServerError)
+-		return
++// serveSVGProfile serves pprof-like profile generated by prof as svg.
++func serveSVGProfile(prof func(w io.Writer) error) http.HandlerFunc {
++	return func(w http.ResponseWriter, r *http.Request) {
++		blockf, err := ioutil.TempFile("", "block")
++		if err != nil {
++			http.Error(w, fmt.Sprintf("failed to create temp file: %v", err), http.StatusInternalServerError)
++			return
++		}
++		defer func() {
++			blockf.Close()
++			os.Remove(blockf.Name())
++		}()
++		blockb := bufio.NewWriter(blockf)
++		if err := prof(blockb); err != nil {
++			http.Error(w, fmt.Sprintf("failed to generate profile: %v", err), http.StatusInternalServerError)
++			return
++		}
++		if err := blockb.Flush(); err != nil {
++			http.Error(w, fmt.Sprintf("failed to flush temp file: %v", err), http.StatusInternalServerError)
++			return
++		}
++		if err := blockf.Close(); err != nil {
++			http.Error(w, fmt.Sprintf("failed to close temp file: %v", err), http.StatusInternalServerError)
++			return
++		}
++		svgFilename := blockf.Name() + ".svg"
++		if output, err := exec.Command("go", "tool", "pprof", "-svg", "-output", svgFilename, blockf.Name()).CombinedOutput(); err != nil {
++			http.Error(w, fmt.Sprintf("failed to execute go tool pprof: %v\n%s", err, output), http.StatusInternalServerError)
++			return
++		}
++		defer os.Remove(svgFilename)
++		w.Header().Set("Content-Type", "image/svg+xml")
++		http.ServeFile(w, r, svgFilename)
+ 	}
+-	defer os.Remove(svgFilename)
+-	w.Header().Set("Content-Type", "image/svg+xml")
+-	http.ServeFile(w, r, svgFilename)
+ }
+ 
+ func buildProfile(prof map[uint64]Record) *profile.Profile {

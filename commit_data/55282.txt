@@ -25,6 +25,42 @@ Date:   Tue Jan 10 11:49:37 2023 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Sameer Ajmani <sameer@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/context/example_test.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/context/example_test.go b/src/context/example_test.go
+index 72ac5d2e49..7779f5f1b3 100644
+--- a/src/context/example_test.go
++++ b/src/context/example_test.go
+@@ -12,6 +12,8 @@ import (
+ 
+ const shortDuration = 1 * time.Millisecond // a reasonable duration to block in an example
+ 
++var neverReady = make(chan struct{}) // never closed
++
+ // This example demonstrates the use of a cancelable context to prevent a
+ // goroutine leak. By the end of the example function, the goroutine started
+ // by gen will return without leaking.
+@@ -66,8 +68,8 @@ func ExampleWithDeadline() {
+ 	defer cancel()
+ 
+ 	select {
+-	case <-time.After(1 * time.Second):
+-		fmt.Println("overslept")
++	case <-neverReady:
++		fmt.Println("ready")
+ 	case <-ctx.Done():
+ 		fmt.Println(ctx.Err())
+ 	}
+@@ -85,8 +87,8 @@ func ExampleWithTimeout() {
+ 	defer cancel()
+ 
+ 	select {
+-	case <-time.After(1 * time.Second):
+-		fmt.Println("overslept")
++	case <-neverReady:
++		fmt.Println("ready")
+ 	case <-ctx.Done():
+ 		fmt.Println(ctx.Err()) // prints "context deadline exceeded"
+ 	}

@@ -7,6 +7,36 @@ Date:   Sun Apr 7 18:42:47 2013 -0700
     R=golang-dev, adg, dvyukov
     CC=golang-dev
     https://golang.org/cl/8494045
-
+---
  src/pkg/reflect/value.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 5a37204895..80aa85723c 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1699,14 +1699,22 @@ func (v Value) UnsafeAddr() uintptr {
+ }
+ 
+ // StringHeader is the runtime representation of a string.
+-// It cannot be used safely or portably.
++// It cannot be used safely or portably and its representation may
++// change in a later release.
++// Moreover, the Data field is not sufficient to guarantee the data
++// it references will not be garbage collected, so programs must keep
++// a separate, correctly typed pointer to the underlying data.
+ type StringHeader struct {
+ 	Data uintptr
+ 	Len  int
+ }
+ 
+ // SliceHeader is the runtime representation of a slice.
+-// It cannot be used safely or portably.
++// It cannot be used safely or portably and its representation may
++// change in a later release.
++// Moreover, the Data field is not sufficient to guarantee the data
++// it references will not be garbage collected, so programs must keep
++// a separate, correctly typed pointer to the underlying data.
+ type SliceHeader struct {
+ 	Data uintptr
+ 	Len  int

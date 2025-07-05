@@ -11,8 +11,49 @@ Date:   Thu Feb 16 22:04:13 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5671076
-
+---
  src/pkg/log/syslog/syslog.go      | 2 ++
  src/pkg/log/syslog/syslog_test.go | 3 +++
  src/pkg/log/syslog/syslog_unix.go | 2 ++
  3 files changed, 7 insertions(+)
+
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index 3eb5353e9a..f53310cb0a 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !windows,!plan9
++
+ // Package syslog provides a simple interface to the system log service. It
+ // can send messages to the syslog daemon using UNIX domain sockets, UDP, or
+ // TCP connections.
+diff --git a/src/pkg/log/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+index 7f509b3666..0fd6239059 100644
+--- a/src/pkg/log/syslog/syslog_test.go
++++ b/src/pkg/log/syslog/syslog_test.go
+@@ -1,6 +1,9 @@
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
++// +build !windows,!plan9
++
+ package syslog
+ 
+ import (
+diff --git a/src/pkg/log/syslog/syslog_unix.go b/src/pkg/log/syslog/syslog_unix.go
+index b1c929ad2f..46a164dd57 100644
+--- a/src/pkg/log/syslog/syslog_unix.go
++++ b/src/pkg/log/syslog/syslog_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !windows,!plan9
++
+ package syslog
+ 
+ import (

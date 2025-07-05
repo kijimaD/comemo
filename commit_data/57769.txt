@@ -14,10 +14,168 @@ Date:   Sun Aug 27 14:10:29 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/dwarf/dwarf.go | 19 ++++---------------
  src/cmd/internal/obj/dwarf.go   |  2 --
  src/cmd/internal/obj/objfile.go |  4 ++--
  src/cmd/internal/obj/plist.go   | 13 +++++++++----
  src/cmd/internal/obj/sym.go     |  8 +++++---
  5 files changed, 20 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 90dff02b68..86bc9e6823 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -16,8 +16,6 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+-
+-	"cmd/internal/objabi"
+ )
+ 
+ // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
+@@ -86,7 +84,6 @@ type Range struct {
+ // creating the DWARF subprogram DIE(s) for a function.
+ type FnState struct {
+ 	Name          string
+-	Importpath    string
+ 	Info          Sym
+ 	Filesym       Sym
+ 	Loc           Sym
+@@ -1241,15 +1238,8 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
+ 	Uleb128put(ctxt, s.Absfn, int64(abbrev))
+ 
+ 	fullname := s.Name
+-	if strings.HasPrefix(s.Name, "\"\".") {
+-		// Generate a fully qualified name for the function in the
+-		// abstract case. This is so as to avoid the need for the
+-		// linker to process the DIE with patchDWARFName(); we can't
+-		// allow the name attribute of an abstract subprogram DIE to
+-		// be rewritten, since it would change the offsets of the
+-		// child DIEs (which we're relying on in order for abstract
+-		// origin references to work).
+-		fullname = objabi.PathToPrefix(s.Importpath) + "." + s.Name[3:]
++	if strings.HasPrefix(s.Name, `"".`) {
++		return fmt.Errorf("unqualified symbol name: %v", s.Name)
+ 	}
+ 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(fullname)), fullname)
+ 
+@@ -1436,10 +1426,9 @@ func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
+ 	}
+ 	Uleb128put(ctxt, s.Info, int64(abbrev))
+ 
+-	// Expand '"".' to import path.
+ 	name := s.Name
+-	if s.Importpath != "" {
+-		name = strings.Replace(name, "\"\".", objabi.PathToPrefix(s.Importpath)+".", -1)
++	if strings.HasPrefix(name, `"".`) {
++		return fmt.Errorf("unqualified symbol name: %v", name)
+ 	}
+ 
+ 	putattr(ctxt, s.Info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index f5578f341f..482222bb74 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -367,7 +367,6 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
+ 	filesym := ctxt.fileSymbol(s)
+ 	fnstate := &dwarf.FnState{
+ 		Name:          s.Name,
+-		Importpath:    myimportpath,
+ 		Info:          info,
+ 		Filesym:       filesym,
+ 		Loc:           loc,
+@@ -441,7 +440,6 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym) {
+ 	dwctxt := dwCtxt{ctxt}
+ 	fnstate := dwarf.FnState{
+ 		Name:          s.Name,
+-		Importpath:    ctxt.Pkgpath,
+ 		Info:          absfn,
+ 		Absfn:         absfn,
+ 		StartLine:     startLine,
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 36001b06d7..189c1ae915 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -292,8 +292,8 @@ func (w *writer) StringTable() {
+ 			// Don't include them if Flag_noRefName
+ 			return
+ 		}
+-		if w.pkgpath != "" {
+-			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
++		if strings.HasPrefix(s.Name, `"".`) {
++			w.ctxt.Diag("unqualified symbol name: %v", s.Name)
+ 		}
+ 		w.AddString(s.Name)
+ 	})
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 1471c6267f..6aa5888d3d 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -22,6 +22,10 @@ type Plist struct {
+ type ProgAlloc func() *Prog
+ 
+ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
++	if ctxt.Pkgpath == "" {
++		panic("Flushplist called without Pkgpath")
++	}
++
+ 	// Build list of symbols, and assign instructions to lists.
+ 	var curtext *LSym
+ 	var etext *Prog
+@@ -98,7 +102,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+ 	if ctxt.IsAsm {
+ 		pkgPrefix := objabi.PathToPrefix(ctxt.Pkgpath) + "."
+ 		for _, s := range text {
+-			if !strings.HasPrefix(s.Name, `"".`) && !strings.HasPrefix(s.Name, pkgPrefix) {
++			if !strings.HasPrefix(s.Name, pkgPrefix) {
+ 				continue
+ 			}
+ 			// The current args_stackmap generation in the compiler assumes
+@@ -187,15 +191,16 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
+ 		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(start), s.Name)
+ 		return
+ 	}
++	if strings.HasPrefix(s.Name, `"".`) {
++		ctxt.Diag("%s: unqualified symbol name: %s", ctxt.PosTable.Pos(start), s.Name)
++	}
+ 
+ 	// startLine should be the same line number that would be displayed via
+ 	// pcln, etc for the declaration (i.e., relative line number, as
+ 	// adjusted by //line).
+ 	_, startLine := ctxt.getFileSymbolAndLine(start)
+ 
+-	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
+-	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+-	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
++	s.Func().FuncID = objabi.GetFuncID(s.Name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
+ 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
+ 	s.Func().StartLine = startLine
+ 	s.Set(AttrOnList, true)
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index fd39f896dc..63d7d22e33 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -219,6 +219,10 @@ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
+ // asm is set to true if this is called by the assembler (i.e. not the compiler),
+ // in which case all the symbols are non-package (for now).
+ func (ctxt *Link) NumberSyms() {
++	if ctxt.Pkgpath == "" {
++		panic("NumberSyms called without package path")
++	}
++
+ 	if ctxt.Headtype == objabi.Haix {
+ 		// Data must be in a reliable order for reproducible builds.
+ 		// The original entries are in a reliable order, but the TOC symbols
+@@ -249,9 +253,7 @@ func (ctxt *Link) NumberSyms() {
+ 
+ 	var idx, hashedidx, hashed64idx, nonpkgidx int32
+ 	ctxt.traverseSyms(traverseDefs|traversePcdata, func(s *LSym) {
+-		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
+-		// may reference named symbols whose names are not fully expanded.
+-		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
++		if s.ContentAddressable() {
+ 			if s.Size <= 8 && len(s.R) == 0 && contentHashSection(s) == 0 {
+ 				// We can use short hash only for symbols without relocations.
+ 				// Don't use short hash for symbols that belong in a particular section

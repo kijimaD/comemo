@@ -11,6 +11,23 @@ Date:   Thu May 11 10:13:10 2017 -0700
     Run-TryBot: Tom Bergan <tombergan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 838b95aaed..45f8e1b16a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2920,7 +2920,10 @@ func (srv *Server) onceSetNextProtoDefaults() {
+ 	// Enable HTTP/2 by default if the user hasn't otherwise
+ 	// configured their TLSNextProto map.
+ 	if srv.TLSNextProto == nil {
+-		srv.nextProtoErr = http2ConfigureServer(srv, nil)
++		conf := &http2Server{
++			NewWriteScheduler: func() http2WriteScheduler { return http2NewPriorityWriteScheduler(nil) },
++		}
++		srv.nextProtoErr = http2ConfigureServer(srv, conf)
+ 	}
+ }
+ 

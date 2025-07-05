@@ -11,9 +11,258 @@ Date:   Tue Aug 18 10:41:26 2009 -0700
     DELTA=126  (46 added, 67 deleted, 13 changed)
     OCL=33461
     CL=33461
-
+---
  src/pkg/big/arith.go      |  6 ++--
  src/pkg/big/arith_386.s   | 32 ++++++++++++++++++++
  src/pkg/big/arith_amd64.s | 75 +++++++++--------------------------------------
  src/pkg/big/arith_test.go | 20 +++++--------
  4 files changed, 56 insertions(+), 77 deletions(-)
+
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index ae84bd9f55..04d0eb1bea 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -16,8 +16,6 @@ import "unsafe"
+ //
+ // These operations are used by the vector operations below.
+ 
+-func addWW_s(x, y, c Word) (z1, z0 Word)
+-
+ // z1<<_W + z0 = x+y+c, with c == 0 or 1
+ func addWW_g(x, y, c Word) (z1, z0 Word) {
+ 	yc := y+c;
+@@ -29,8 +27,6 @@ func addWW_g(x, y, c Word) (z1, z0 Word) {
+ }
+ 
+ 
+-func subWW_s(x, y, c Word) (z1, z0 Word)
+-
+ // z1<<_W + z0 = x-y-c, with c == 0 or 1
+ func subWW_g(x, y, c Word) (z1, z0 Word) {
+ 	yc := y+c;
+@@ -130,6 +126,7 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
+ }
+ 
+ 
++// TODO(gri) get rid of this eventually
+ func divWWW_s(x1, x0, y Word) (q, r Word)
+ 
+ // q = (x1<<_W + x0 - r)/y
+@@ -176,6 +173,7 @@ var (
+ )
+ 
+ 
++// UseAsm returns true if the assembly routines are enabled.
+ func useAsm() bool
+ 
+ func init() {
+diff --git a/src/pkg/big/arith_386.s b/src/pkg/big/arith_386.s
+new file mode 100644
+index 0000000000..b8f4dfc004
+--- /dev/null
++++ b/src/pkg/big/arith_386.s
+@@ -0,0 +1,32 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file provides fast assembly versions for the elementary
++// arithmetic operations on vectors implemented in arith.go.
++
++TEXT big·useAsm(SB),7,$0
++	MOVB $0, 4(SP)	// assembly routines disabled
++	RET
++
++
++// TODO(gri) Implement these routines and enable them.
++TEXT big·addVV_s(SB),7,$0
++TEXT big·subVV_s(SB),7,$0
++TEXT big·addVW_s(SB),7,$0
++TEXT big·subVW_s(SB),7,$0
++TEXT big·mulAddVWW_s(SB),7,$0
++TEXT big·addMulVVW_s(SB),7,$0
++TEXT big·divWVW_s(SB),7,$0
++	RET
++
++
++// TODO(gri) Implement this routine completely in Go.
++//           At the moment we need this assembly version.
++TEXT big·divWWW_s(SB),7,$0
++	MOVL a+0(FP), DX
++	MOVL a+4(FP), AX
++	DIVL a+8(FP)
++	MOVL AX, a+12(FP)
++	MOVL DX, a+16(FP)
++	RET
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+index c382847083..1309d0ebe7 100644
+--- a/src/pkg/big/arith_amd64.s
++++ b/src/pkg/big/arith_amd64.s
+@@ -2,72 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file provides fast assembly versions of the routines in arith.go.
++// This file provides fast assembly versions for the elementary
++// arithmetic operations on vectors implemented in arith.go.
+ 
+ TEXT big·useAsm(SB),7,$0
+-	MOVB $1, 8(SP)
++	MOVB $1, 8(SP)  // assembly routines enabled
+ 	RET
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Elementary operations on words
+-
+-// func addWW_s(x, y, c Word) (z1, z0 Word)
+-// z1<<_W + z0 = x+y+c, with c == 0 or 1
+-TEXT big·addWW_s(SB),7,$0
+-	MOVQ a+0(FP), AX
+-	XORQ DX, DX
+-	ADDQ a+8(FP), AX
+-	ADCQ $0, DX
+-	ADDQ a+16(FP), AX
+-	ADCQ $0, DX
+-	MOVQ DX, a+24(FP)
+-	MOVQ AX, a+32(FP)
+-	RET
+-
+-
+-// func subWW_s(x, y, c Word) (z1, z0 Word)
+-// z1<<_W + z0 = x-y-c, with c == 0 or 1
+-TEXT big·subWW_s(SB),7,$0
+-	MOVQ a+0(FP), AX
+-	XORQ DX, DX
+-	SUBQ a+8(FP), AX
+-	ADCQ $0, DX
+-	SUBQ a+16(FP), AX
+-	ADCQ $0, DX
+-	MOVQ DX, a+24(FP)
+-	MOVQ AX, a+32(FP)
+-	RET
+-
+-
+-// func mulAddWWW_s(x, y, c Word) (z1, z0 Word)
+-// z1<<64 + z0 = x*y + c
+-//
+-TEXT big·mulAddWWW_s(SB),7,$0
+-	MOVQ a+0(FP), AX
+-	MULQ a+8(FP)
+-	ADDQ a+16(FP), AX
+-	ADCQ $0, DX
+-	MOVQ DX, a+24(FP)
+-	MOVQ AX, a+32(FP)
+-	RET
+-
+-
+-// func divWWW_s(x1, x0, y Word) (q, r Word)
+-// q = (x1<<64 + x0)/y + r
+-//
+-TEXT big·divWWW_s(SB),7,$0
+-	MOVQ a+0(FP), DX
+-	MOVQ a+8(FP), AX
+-	DIVQ a+16(FP)
+-	MOVQ AX, a+24(FP)
+-	MOVQ DX, a+32(FP)
+-	RET
+-
+-
+-// ----------------------------------------------------------------------------
+-// Elementary operations on vectors
+-
+ // TODO(gri) - experiment with unrolled loops for faster execution
+ 
+ // func addVV_s(z, x, y *Word, n int) (c Word)
+@@ -234,3 +176,14 @@ E7:	SUBL $1, BX			// i--
+ 
+ 	MOVQ DX, a+40(FP)	// return r
+ 	RET
++
++
++// TODO(gri) Implement this routine completely in Go.
++//           At the moment we need this assembly version.
++TEXT big·divWWW_s(SB),7,$0
++	MOVQ a+0(FP), DX
++	MOVQ a+8(FP), AX
++	DIVQ a+16(FP)
++	MOVQ AX, a+24(FP)
++	MOVQ DX, a+32(FP)
++	RET
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/big/arith_test.go
+index f8e582e17c..8e6183ecc7 100644
+--- a/src/pkg/big/arith_test.go
++++ b/src/pkg/big/arith_test.go
+@@ -37,19 +37,15 @@ func TestFunWW(t *testing.T) {
+ 	for _, a := range sumWW {
+ 		arg := a;
+ 		testFunWW(t, "addWW_g", addWW_g, arg);
+-		testFunWW(t, "addWW_s", addWW_s, arg);
+ 
+ 		arg = argWW{a.y, a.x, a.c, a.z1, a.z0};
+ 		testFunWW(t, "addWW_g symmetric", addWW_g, arg);
+-		testFunWW(t, "addWW_s symmetric", addWW_s, arg);
+ 
+ 		arg = argWW{a.z0, a.x, a.c, a.z1, a.y};
+ 		testFunWW(t, "subWW_g", subWW_g, arg);
+-		testFunWW(t, "subWW_s", subWW_s, arg);
+ 
+ 		arg = argWW{a.z0, a.y, a.c, a.z1, a.x};
+ 		testFunWW(t, "subWW_g symmetric", subWW_g, arg);
+-		testFunWW(t, "subWW_s symmetric", subWW_s, arg);
+ 	}
+ }
+ 
+@@ -98,19 +94,19 @@ func TestFunVV(t *testing.T) {
+ 	for _, a := range sumVV {
+ 		arg := a;
+ 		testFunVV(t, "addVV_g", addVV_g, arg);
+-		testFunVV(t, "addVV_s", addVV_s, arg);
++		testFunVV(t, "addVV", addVV, arg);
+ 
+ 		arg = argVV{a.z, a.y, a.x, a.c};
+ 		testFunVV(t, "addVV_g symmetric", addVV_g, arg);
+-		testFunVV(t, "addVV_s symmetric", addVV_s, arg);
++		testFunVV(t, "addVV symmetric", addVV, arg);
+ 
+ 		arg = argVV{a.x, a.z, a.y, a.c};
+ 		testFunVV(t, "subVV_g", subVV_g, arg);
+-		testFunVV(t, "subVV_s", subVV_s, arg);
++		testFunVV(t, "subVV", subVV, arg);
+ 
+ 		arg = argVV{a.y, a.z, a.x, a.c};
+ 		testFunVV(t, "subVV_g symmetric", subVV_g, arg);
+-		testFunVV(t, "subVV_s symmetric", subVV_s, arg);
++		testFunVV(t, "subVV symmetric", subVV, arg);
+ 	}
+ }
+ 
+@@ -163,11 +159,11 @@ func TestFunVW(t *testing.T) {
+ 	for _, a := range sumVW {
+ 		arg := a;
+ 		testFunVW(t, "addVW_g", addVW_g, arg);
+-		testFunVW(t, "addVW_s", addVW_s, arg);
++		testFunVW(t, "addVW", addVW, arg);
+ 
+ 		arg = argVW{a.x, a.z, a.y, a.c};
+ 		testFunVW(t, "subVW_g", subVW_g, arg);
+-		testFunVW(t, "subVW_s", subVW_s, arg);
++		testFunVW(t, "subVW", subVW, arg);
+ 	}
+ }
+ 
+@@ -244,12 +240,12 @@ func TestFunVWW(t *testing.T) {
+ 	for _, a := range prodVWW {
+ 		arg := a;
+ 		testFunVWW(t, "mulAddVWW_g", mulAddVWW_g, arg);
+-		testFunVWW(t, "mulAddVWW_s", mulAddVWW_s, arg);
++		testFunVWW(t, "mulAddVWW", mulAddVWW, arg);
+ 
+ 		if a.y != 0 && a.r < a.y {
+ 			arg := argWVW{a.x, a.c, a.z, a.y, a.r};
+ 			testFunWVW(t, "divWVW_g", divWVW_g, arg);
+-			testFunWVW(t, "divWVW_s", divWVW_s, arg);
++			testFunWVW(t, "divWVW", divWVW, arg);
+ 		}
+ 	}
+ }

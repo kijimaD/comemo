@@ -13,7 +13,48 @@ Date:   Thu Feb 13 22:30:35 2014 -0500
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/63660043
-
+---
  src/cmd/5g/ggen.c | 3 +--
  src/cmd/8g/ggen.c | 4 ++--
  2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 16aef3d1a5..ebf2391f5a 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -766,14 +766,13 @@ clearfat(Node *nl)
+ 	if(debug['g'])
+ 		dump("\nclearfat", nl);
+ 
++	gvardef(nl);
+ 
+ 	w = nl->type->width;
+ 	// Avoid taking the address for simple enough types.
+ 	if(componentgen(N, nl))
+ 		return;
+ 
+-	gvardef(nl);
+-
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+ 
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index c0d25013fe..2ea92980c1 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -73,13 +73,13 @@ clearfat(Node *nl)
+ 	if(debug['g'])
+ 		dump("\nclearfat", nl);
+ 
++	gvardef(nl);
++
+ 	w = nl->type->width;
+ 	// Avoid taking the address for simple enough types.
+ 	if(componentgen(N, nl))
+ 		return;
+ 
+-	gvardef(nl);
+-
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+ 

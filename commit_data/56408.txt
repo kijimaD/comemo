@@ -16,9 +16,439 @@ Date:   Thu May 4 16:08:13 2023 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/escape/solve.go    |   5 +-
  src/cmd/compile/internal/gc/main.go         |  42 +--------
  src/cmd/compile/internal/logopt/log_opts.go |  57 ++++++++-----
  src/cmd/compile/internal/loopvar/loopvar.go | 127 +++++++++++++++++++++++++++-
  4 files changed, 165 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/solve.go b/src/cmd/compile/internal/escape/solve.go
+index 77d6b27dd7..a2d3b6d2fd 100644
+--- a/src/cmd/compile/internal/escape/solve.go
++++ b/src/cmd/compile/internal/escape/solve.go
+@@ -193,7 +193,7 @@ func (b *batch) explainFlow(pos string, dst, srcloc *location, derefs int, notes
+ 			epos = srcloc.n.Pos()
+ 		}
+ 		var e_curfn *ir.Func // TODO(mdempsky): Fix.
+-		explanation = append(explanation, logopt.NewLoggedOpt(epos, "escflow", "escape", ir.FuncName(e_curfn), flow))
++		explanation = append(explanation, logopt.NewLoggedOpt(epos, epos, "escflow", "escape", ir.FuncName(e_curfn), flow))
+ 	}
+ 
+ 	for note := notes; note != nil; note = note.next {
+@@ -202,7 +202,8 @@ func (b *batch) explainFlow(pos string, dst, srcloc *location, derefs int, notes
+ 		}
+ 		if logopt.Enabled() {
+ 			var e_curfn *ir.Func // TODO(mdempsky): Fix.
+-			explanation = append(explanation, logopt.NewLoggedOpt(note.where.Pos(), "escflow", "escape", ir.FuncName(e_curfn),
++			notePos := note.where.Pos()
++			explanation = append(explanation, logopt.NewLoggedOpt(notePos, notePos, "escflow", "escape", ir.FuncName(e_curfn),
+ 				fmt.Sprintf("     from %v (%v)", note.where, note.why)))
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 6a9ec90aa8..464707242a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -271,7 +271,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
+ 
+ 	// Devirtualize and get variable capture right in for loops
+-	var transformed []*ir.Name
++	var transformed []loopvar.VarAndLoop
+ 	for _, n := range typecheck.Target.Decls {
+ 		if n.Op() == ir.ODCLFUNC {
+ 			devirtualize.Func(n.(*ir.Func))
+@@ -300,45 +300,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	base.Timer.Start("fe", "escapes")
+ 	escape.Funcs(typecheck.Target.Decls)
+ 
+-	if 2 <= base.Debug.LoopVar && base.Debug.LoopVar != 11 || logopt.Enabled() { // 11 is do them all, quietly, 12 includes debugging.
+-		fileToPosBase := make(map[string]*src.PosBase) // used to remove inline context for innermost reporting.
+-		for _, n := range transformed {
+-			pos := n.Pos()
+-			if logopt.Enabled() {
+-				// For automated checking of coverage of this transformation, include this in the JSON information.
+-				if n.Esc() == ir.EscHeap {
+-					logopt.LogOpt(pos, "transform-escape", "loopvar", ir.FuncName(n.Curfn))
+-				} else {
+-					logopt.LogOpt(pos, "transform-noescape", "loopvar", ir.FuncName(n.Curfn))
+-				}
+-			}
+-			inner := base.Ctxt.InnermostPos(pos)
+-			outer := base.Ctxt.OutermostPos(pos)
+-			if inner == outer {
+-				if n.Esc() == ir.EscHeap {
+-					base.WarnfAt(pos, "transformed loop variable %v escapes", n)
+-				} else {
+-					base.WarnfAt(pos, "transformed loop variable %v does not escape", n)
+-				}
+-			} else {
+-				// Report the problem at the line where it actually occurred.
+-				afn := inner.AbsFilename()
+-				pb, ok := fileToPosBase[afn]
+-				if !ok {
+-					pb = src.NewFileBase(inner.Filename(), afn)
+-					fileToPosBase[afn] = pb
+-				}
+-				inner.SetBase(pb) // rebasing w/o inline context makes it print correctly in WarnfAt; otherwise it prints as outer.
+-				innerXPos := base.Ctxt.PosTable.XPos(inner)
+-
+-				if n.Esc() == ir.EscHeap {
+-					base.WarnfAt(innerXPos, "transformed loop variable %v escapes (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
+-				} else {
+-					base.WarnfAt(innerXPos, "transformed loop variable %v does not escape (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
+-				}
+-			}
+-		}
+-	}
++	loopvar.LogTransformations(transformed)
+ 
+ 	// Collect information for go:nowritebarrierrec
+ 	// checking. This must happen before transforming closures during Walk
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index d0be4d8818..f74be6a63c 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -225,6 +225,7 @@ type Diagnostic struct {
+ // to be converted to JSON for human or IDE consumption.
+ type LoggedOpt struct {
+ 	pos          src.XPos      // Source code position at which the event occurred. If it is inlined, outer and all inlined locations will appear in JSON.
++	lastPos      src.XPos      // Usually the same as pos; current exception is for reporting entire range of transformed loops
+ 	compilerPass string        // Compiler pass.  For human/adhoc consumption; does not appear in JSON (yet)
+ 	functionName string        // Function name.  For human/adhoc consumption; does not appear in JSON (yet)
+ 	what         string        // The (non) optimization; "nilcheck", "boundsCheck", "inline", "noInline"
+@@ -324,9 +325,9 @@ var mu = sync.Mutex{} // mu protects loggedOpts.
+ // Pos is the source position (including inlining), what is the message, pass is which pass created the message,
+ // funcName is the name of the function
+ // A typical use for this to accumulate an explanation for a missed optimization, for example, why did something escape?
+-func NewLoggedOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) *LoggedOpt {
++func NewLoggedOpt(pos, lastPos src.XPos, what, pass, funcName string, args ...interface{}) *LoggedOpt {
+ 	pass = strings.Replace(pass, " ", "_", -1)
+-	return &LoggedOpt{pos, pass, funcName, what, args}
++	return &LoggedOpt{pos, lastPos, pass, funcName, what, args}
+ }
+ 
+ // LogOpt logs information about a (usually missed) optimization performed by the compiler.
+@@ -336,7 +337,20 @@ func LogOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) {
+ 	if Format == None {
+ 		return
+ 	}
+-	lo := NewLoggedOpt(pos, what, pass, funcName, args...)
++	lo := NewLoggedOpt(pos, pos, what, pass, funcName, args...)
++	mu.Lock()
++	defer mu.Unlock()
++	// Because of concurrent calls from back end, no telling what the order will be, but is stable-sorted by outer Pos before use.
++	loggedOpts = append(loggedOpts, lo)
++}
++
++// LogOptRange is the same as LogOpt, but includes the ability to express a range of positions,
++// not just a point.
++func LogOptRange(pos, lastPos src.XPos, what, pass, funcName string, args ...interface{}) {
++	if Format == None {
++		return
++	}
++	lo := NewLoggedOpt(pos, lastPos, what, pass, funcName, args...)
+ 	mu.Lock()
+ 	defer mu.Unlock()
+ 	// Because of concurrent calls from back end, no telling what the order will be, but is stable-sorted by outer Pos before use.
+@@ -424,7 +438,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
+ 	switch Format {
+ 
+ 	case Json0: // LSP 3.15
+-		var posTmp []src.Pos
++		var posTmp, lastTmp []src.Pos
+ 		var encoder *json.Encoder
+ 		var w io.WriteCloser
+ 
+@@ -441,7 +455,8 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
+ 		// For LSP, make a subdirectory for the package, and for each file foo.go, create foo.json in that subdirectory.
+ 		currentFile := ""
+ 		for _, x := range loggedOpts {
+-			posTmp, p0 := x.parsePos(ctxt, posTmp)
++			posTmp, p0 := parsePos(ctxt, x.pos, posTmp)
++			lastTmp, l0 := parsePos(ctxt, x.lastPos, lastTmp) // These match posTmp/p0 except for most-inline, and that often also matches.
+ 			p0f := uprootedPath(p0.Filename())
+ 
+ 			if currentFile != p0f {
+@@ -462,25 +477,26 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
+ 
+ 			diagnostic.Code = x.what
+ 			diagnostic.Message = target
+-			diagnostic.Range = newPointRange(p0)
++			diagnostic.Range = newRange(p0, l0)
+ 			diagnostic.RelatedInformation = diagnostic.RelatedInformation[:0]
+ 
+-			appendInlinedPos(posTmp, &diagnostic)
++			appendInlinedPos(posTmp, lastTmp, &diagnostic)
+ 
+ 			// Diagnostic explanation is stored in RelatedInformation after inlining info
+ 			if len(x.target) > 1 {
+ 				switch y := x.target[1].(type) {
+ 				case []*LoggedOpt:
+ 					for _, z := range y {
+-						posTmp, p0 := z.parsePos(ctxt, posTmp)
+-						loc := newLocation(p0)
++						posTmp, p0 := parsePos(ctxt, z.pos, posTmp)
++						lastTmp, l0 := parsePos(ctxt, z.lastPos, lastTmp)
++						loc := newLocation(p0, l0)
+ 						msg := z.what
+ 						if len(z.target) > 0 {
+ 							msg = msg + ": " + fmt.Sprint(z.target[0])
+ 						}
+ 
+ 						diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: msg})
+-						appendInlinedPos(posTmp, &diagnostic)
++						appendInlinedPos(posTmp, lastTmp, &diagnostic)
+ 					}
+ 				}
+ 			}
+@@ -493,29 +509,30 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
+ 	}
+ }
+ 
+-// newPointRange returns a single-position Range for the compiler source location p.
+-func newPointRange(p src.Pos) Range {
++// newRange returns a single-position Range for the compiler source location p.
++func newRange(p, last src.Pos) Range {
+ 	return Range{Start: Position{p.Line(), p.Col()},
+-		End: Position{p.Line(), p.Col()}}
++		End: Position{last.Line(), last.Col()}}
+ }
+ 
+ // newLocation returns the Location for the compiler source location p.
+-func newLocation(p src.Pos) Location {
+-	loc := Location{URI: uriIfy(uprootedPath(p.Filename())), Range: newPointRange(p)}
++func newLocation(p, last src.Pos) Location {
++	loc := Location{URI: uriIfy(uprootedPath(p.Filename())), Range: newRange(p, last)}
+ 	return loc
+ }
+ 
+ // appendInlinedPos extracts inlining information from posTmp and append it to diagnostic.
+-func appendInlinedPos(posTmp []src.Pos, diagnostic *Diagnostic) {
++func appendInlinedPos(posTmp, lastTmp []src.Pos, diagnostic *Diagnostic) {
+ 	for i := 1; i < len(posTmp); i++ {
+-		p := posTmp[i]
+-		loc := newLocation(p)
++		loc := newLocation(posTmp[i], lastTmp[i])
+ 		diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: "inlineLoc"})
+ 	}
+ }
+ 
+-func (x *LoggedOpt) parsePos(ctxt *obj.Link, posTmp []src.Pos) ([]src.Pos, src.Pos) {
+-	posTmp = ctxt.AllPos(x.pos, posTmp)
++// parsePos expands a src.XPos into a slice of src.Pos, with the outermost first.
++// It returns the slice, and the outermost.
++func parsePos(ctxt *obj.Link, pos src.XPos, posTmp []src.Pos) ([]src.Pos, src.Pos) {
++	posTmp = ctxt.AllPos(pos, posTmp)
+ 	// Reverse posTmp to put outermost first.
+ 	l := len(posTmp)
+ 	for i := 0; i < l/2; i++ {
+diff --git a/src/cmd/compile/internal/loopvar/loopvar.go b/src/cmd/compile/internal/loopvar/loopvar.go
+index ce0c41c585..44ff449689 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar.go
++++ b/src/cmd/compile/internal/loopvar/loopvar.go
+@@ -9,11 +9,19 @@ package loopvar
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ 	"fmt"
+ )
+ 
++type VarAndLoop struct {
++	Name    *ir.Name
++	Loop    ir.Node  // the *ir.ForStmt or *ir.ForStmt. Used for identity and position
++	LastPos src.XPos // the last position observed within Loop
++}
++
+ // ForCapture transforms for and range loops that declare variables that might be
+ // captured by a closure or escaped to the heap, using a syntactic check that
+ // conservatively overestimates the loops where capture occurs, but still avoids
+@@ -36,9 +44,9 @@ import (
+ // base.Debug.LoopVar == 11 => transform ALL loops ignoring syntactic/potential escape. Do not log, can be in addition to GOEXPERIMENT.
+ //
+ // The effect of GOEXPERIMENT=loopvar is to change the default value (0) of base.Debug.LoopVar to 1 for all packages.
+-func ForCapture(fn *ir.Func) []*ir.Name {
++func ForCapture(fn *ir.Func) []VarAndLoop {
+ 	// if a loop variable is transformed it is appended to this slice for later logging
+-	var transformed []*ir.Name
++	var transformed []VarAndLoop
+ 
+ 	forCapture := func() {
+ 		seq := 1
+@@ -66,6 +74,18 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 			}
+ 		}
+ 
++		// For reporting, keep track of the last position within any loop.
++		// Loops nest, also need to be sensitive to inlining.
++		var lastPos src.XPos
++
++		updateLastPos := func(p src.XPos) {
++			pl, ll := p.Line(), lastPos.Line()
++			if p.SameFile(lastPos) &&
++				(pl > ll || pl == ll && p.Col() > lastPos.Col()) {
++				lastPos = p
++			}
++		}
++
+ 		// maybeReplaceVar unshares an iteration variable for a range loop,
+ 		// if that variable was actually (syntactically) leaked,
+ 		// subject to hash-variable debugging.
+@@ -73,7 +93,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 			if n, ok := k.(*ir.Name); ok && possiblyLeaked[n] {
+ 				if base.LoopVarHash.DebugHashMatchPos(n.Pos()) {
+ 					// Rename the loop key, prefix body with assignment from loop key
+-					transformed = append(transformed, n)
++					transformed = append(transformed, VarAndLoop{n, x, lastPos})
+ 					tk := typecheck.Temp(n.Type())
+ 					tk.SetTypecheck(1)
+ 					as := ir.NewAssignStmt(x.Pos(), n, tk)
+@@ -97,6 +117,11 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 		//  of iteration variables and the transformation is more involved, range loops have at most 2.
+ 		var scanChildrenThenTransform func(x ir.Node) bool
+ 		scanChildrenThenTransform = func(n ir.Node) bool {
++
++			if loopDepth > 0 {
++				updateLastPos(n.Pos())
++			}
++
+ 			switch x := n.(type) {
+ 			case *ir.ClosureExpr:
+ 				if returnInLoopDepth >= loopDepth {
+@@ -147,10 +172,15 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 				noteMayLeak(x.Key)
+ 				noteMayLeak(x.Value)
+ 				loopDepth++
++				savedLastPos := lastPos
++				lastPos = x.Pos() // this sets the file.
+ 				ir.DoChildren(n, scanChildrenThenTransform)
+ 				loopDepth--
+ 				x.Key = maybeReplaceVar(x.Key, x)
+ 				x.Value = maybeReplaceVar(x.Value, x)
++				thisLastPos := lastPos
++				lastPos = savedLastPos
++				updateLastPos(thisLastPos) // this will propagate lastPos if in the same file.
+ 				x.DistinctVars = false
+ 				return false
+ 
+@@ -160,6 +190,8 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 				}
+ 				forAllDefInInit(x, noteMayLeak)
+ 				loopDepth++
++				savedLastPos := lastPos
++				lastPos = x.Pos() // this sets the file.
+ 				ir.DoChildren(n, scanChildrenThenTransform)
+ 				loopDepth--
+ 				var leaked []*ir.Name
+@@ -248,7 +280,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 
+ 					// (1,2) initialize preBody and postBody
+ 					for _, z := range leaked {
+-						transformed = append(transformed, z)
++						transformed = append(transformed, VarAndLoop{z, x, lastPos})
+ 
+ 						tz := typecheck.Temp(z.Type())
+ 						tz.SetTypecheck(1)
+@@ -362,6 +394,9 @@ func ForCapture(fn *ir.Func) []*ir.Name {
+ 					// (11) post' = {}
+ 					x.Post = nil
+ 				}
++				thisLastPos := lastPos
++				lastPos = savedLastPos
++				updateLastPos(thisLastPos) // this will propagate lastPos if in the same file.
+ 				x.DistinctVars = false
+ 
+ 				return false
+@@ -475,3 +510,87 @@ func rewriteNodes(fn *ir.Func, editNodes func(c ir.Nodes) ir.Nodes) {
+ 	}
+ 	forNodes(fn)
+ }
++
++func LogTransformations(transformed []VarAndLoop) {
++	print := 2 <= base.Debug.LoopVar && base.Debug.LoopVar != 11
++
++	if print || logopt.Enabled() { // 11 is do them all, quietly, 12 includes debugging.
++		fileToPosBase := make(map[string]*src.PosBase) // used to remove inline context for innermost reporting.
++
++		// trueInlinedPos rebases inner w/o inline context so that it prints correctly in WarnfAt; otherwise it prints as outer.
++		trueInlinedPos := func(inner src.Pos) src.XPos {
++			afn := inner.AbsFilename()
++			pb, ok := fileToPosBase[afn]
++			if !ok {
++				pb = src.NewFileBase(inner.Filename(), afn)
++				fileToPosBase[afn] = pb
++			}
++			inner.SetBase(pb)
++			return base.Ctxt.PosTable.XPos(inner)
++		}
++
++		type unit struct{}
++		loopsSeen := make(map[ir.Node]unit)
++		type loopPos struct {
++			loop  ir.Node
++			last  src.XPos
++			curfn *ir.Func
++		}
++		var loops []loopPos
++		for _, lv := range transformed {
++			n := lv.Name
++			if _, ok := loopsSeen[lv.Loop]; !ok {
++				l := lv.Loop
++				loopsSeen[l] = unit{}
++				loops = append(loops, loopPos{l, lv.LastPos, n.Curfn})
++			}
++			pos := n.Pos()
++			if logopt.Enabled() {
++				// For automated checking of coverage of this transformation, include this in the JSON information.
++				if n.Esc() == ir.EscHeap {
++					logopt.LogOpt(pos, "transform-escape", "loopvar", ir.FuncName(n.Curfn))
++				} else {
++					logopt.LogOpt(pos, "transform-noescape", "loopvar", ir.FuncName(n.Curfn))
++				}
++			}
++			if print {
++				inner := base.Ctxt.InnermostPos(pos)
++				outer := base.Ctxt.OutermostPos(pos)
++				if inner == outer {
++					if n.Esc() == ir.EscHeap {
++						base.WarnfAt(pos, "transformed loop variable %v escapes", n)
++					} else {
++						base.WarnfAt(pos, "transformed loop variable %v does not escape", n)
++					}
++				} else {
++					innerXPos := trueInlinedPos(inner)
++					if n.Esc() == ir.EscHeap {
++						base.WarnfAt(innerXPos, "transformed loop variable %v escapes (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
++					} else {
++						base.WarnfAt(innerXPos, "transformed loop variable %v does not escape (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
++					}
++				}
++			}
++		}
++		for _, l := range loops {
++			pos := l.loop.Pos()
++			last := l.last
++			if logopt.Enabled() {
++				// Intended to
++				logopt.LogOptRange(pos, last, "transform-loop", "loopvar", ir.FuncName(l.curfn))
++			}
++			if print && 3 <= base.Debug.LoopVar {
++				// TODO decide if we want to keep this, or not.  It was helpful for validating logopt, otherwise, eh.
++				inner := base.Ctxt.InnermostPos(pos)
++				outer := base.Ctxt.OutermostPos(pos)
++				if inner == outer {
++					base.WarnfAt(pos, "loop ending at %d:%d was transformed", last.Line(), last.Col())
++				} else {
++					pos = trueInlinedPos(inner)
++					last = trueInlinedPos(base.Ctxt.InnermostPos(last))
++					base.WarnfAt(pos, "loop ending at %d:%d was transformed (loop inlined into %s:%d)", last.Line(), last.Col(), outer.Filename(), outer.Line())
++				}
++			}
++		}
++	}
++}

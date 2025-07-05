@@ -13,8 +13,69 @@ Date:   Thu Aug 17 00:03:13 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/syscall/syscall_windows.go      | 7 ++++++-
  src/syscall/syscall_windows_test.go | 9 +++++++++
  src/syscall/zsyscall_windows.go     | 7 ++-----
  3 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index e348905abf..28091f7690 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -264,7 +264,7 @@ func NewCallbackCDecl(fn any) uintptr {
+ //sys	OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err error)
+ //sys	TerminateProcess(handle Handle, exitcode uint32) (err error)
+ //sys	GetExitCodeProcess(handle Handle, exitcode *uint32) (err error)
+-//sys	GetStartupInfo(startupInfo *StartupInfo) (err error) = GetStartupInfoW
++//sys	getStartupInfo(startupInfo *StartupInfo) = GetStartupInfoW
+ //sys	GetCurrentProcess() (pseudoHandle Handle, err error)
+ //sys	GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime, kernelTime *Filetime, userTime *Filetime) (err error)
+ //sys	DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetProcessHandle Handle, lpTargetHandle *Handle, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (err error)
+@@ -1437,3 +1437,8 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
+ func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) {
+ 	return regEnumKeyEx(key, index, name, nameLen, reserved, class, classLen, lastWriteTime)
+ }
++
++func GetStartupInfo(startupInfo *StartupInfo) error {
++	getStartupInfo(startupInfo)
++	return nil
++}
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 81285e9a38..f67e899159 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -204,6 +204,15 @@ func TestGetwd_DoesNotPanicWhenPathIsLong(t *testing.T) {
+ 	syscall.Getwd()
+ }
+ 
++func TestGetStartupInfo(t *testing.T) {
++	var si syscall.StartupInfo
++	err := syscall.GetStartupInfo(&si)
++	if err != nil {
++		// see https://go.dev/issue/31316
++		t.Fatalf("GetStartupInfo: got error %v, want nil", err)
++	}
++}
++
+ func FuzzUTF16FromString(f *testing.F) {
+ 	f.Add("hi")           // ASCII
+ 	f.Add("â")            // latin1
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 68c29d809e..630270812d 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -858,11 +858,8 @@ func GetShortPathName(longpath *uint16, shortpath *uint16, buflen uint32) (n uin
+ 	return
+ }
+ 
+-func GetStartupInfo(startupInfo *StartupInfo) (err error) {
+-	r1, _, e1 := Syscall(procGetStartupInfoW.Addr(), 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
+-	if r1 == 0 {
+-		err = errnoErr(e1)
+-	}
++func getStartupInfo(startupInfo *StartupInfo) {
++	Syscall(procGetStartupInfoW.Addr(), 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
+ 	return
+ }
+ 

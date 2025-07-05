@@ -23,8 +23,105 @@ Date:   Mon Jun 21 14:48:54 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                 |  8 +++++++
  src/cmd/go/testdata/script/env_cross_build.txt | 29 ++++++++++++++++++++++++++
  src/internal/buildcfg/exp.go                   | 13 +++++++++---
  3 files changed, 47 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index b47eb812b5..fc6989097e 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -77,6 +77,14 @@ func defaultContext() build.Context {
+ 	ctxt.GOOS = envOr("GOOS", ctxt.GOOS)
+ 	ctxt.GOARCH = envOr("GOARCH", ctxt.GOARCH)
+ 
++	// The experiments flags are based on GOARCH, so they may
++	// need to change.  TODO: This should be cleaned up.
++	buildcfg.UpdateExperiments(ctxt.GOARCH)
++	ctxt.ToolTags = nil
++	for _, exp := range buildcfg.EnabledExperiments() {
++		ctxt.ToolTags = append(ctxt.ToolTags, "goexperiment."+exp)
++	}
++
+ 	// The go/build rule for whether cgo is enabled is:
+ 	//	1. If $CGO_ENABLED is set, respect it.
+ 	//	2. Otherwise, if this is a cross-compile, disable cgo.
+diff --git a/src/cmd/go/testdata/script/env_cross_build.txt b/src/cmd/go/testdata/script/env_cross_build.txt
+new file mode 100644
+index 0000000000..3feeba6b14
+--- /dev/null
++++ b/src/cmd/go/testdata/script/env_cross_build.txt
+@@ -0,0 +1,29 @@
++# Test that the corect default GOEXPERIMENT is used when cross
++# building with GOENV (#46815).
++
++# Unset variables set by the TestScript harness. Users typically won't
++# explicitly configure these, and #46815 doesn't repro if they are.
++env GOOS=
++env GOARCH=
++env GOEXPERIMENT=
++
++env GOENV=windows-amd64
++go build internal/abi
++
++env GOENV=ios-arm64
++go build internal/abi
++
++env GOENV=linux-mips
++go build internal/abi
++
++-- windows-amd64 --
++GOOS=windows
++GOARCH=amd64
++
++-- ios-arm64 --
++GOOS=ios
++GOARCH=arm64
++
++-- linux-mips --
++GOOS=linux
++GOARCH=mips
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 2435a79dce..640aa1934d 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -18,7 +18,7 @@ import (
+ //
+ // (This is not necessarily the set of experiments the compiler itself
+ // was built with.)
+-var Experiment goexperiment.Flags = parseExperiments()
++var Experiment goexperiment.Flags = parseExperiments(GOARCH)
+ 
+ var regabiSupported = GOARCH == "amd64" && (GOOS == "android" || GOOS == "linux" || GOOS == "darwin" || GOOS == "windows")
+ 
+@@ -42,7 +42,7 @@ var experimentBaseline = goexperiment.Flags{
+ // Note: must agree with runtime.framepointer_enabled.
+ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
+ 
+-func parseExperiments() goexperiment.Flags {
++func parseExperiments(goarch string) goexperiment.Flags {
+ 	// Start with the statically enabled set of experiments.
+ 	flags := experimentBaseline
+ 
+@@ -99,7 +99,7 @@ func parseExperiments() goexperiment.Flags {
+ 	}
+ 
+ 	// regabi is only supported on amd64.
+-	if GOARCH != "amd64" {
++	if goarch != "amd64" {
+ 		flags.RegabiWrappers = false
+ 		flags.RegabiG = false
+ 		flags.RegabiReflect = false
+@@ -165,3 +165,10 @@ func EnabledExperiments() []string {
+ func AllExperiments() []string {
+ 	return expList(&Experiment, nil, true)
+ }
++
++// UpdateExperiments updates the Experiment global based on a new GOARCH value.
++// This is only required for cmd/go, which can change GOARCH after
++// program startup due to use of "go env -w".
++func UpdateExperiments(goarch string) {
++	Experiment = parseExperiments(goarch)
++}

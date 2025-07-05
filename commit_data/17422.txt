@@ -11,6 +11,20 @@ Date:   Thu Aug 29 17:15:35 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13261048
-
+---
  src/cmd/go/vcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index ec5dc17c5f..58040e3d41 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -569,7 +569,7 @@ var vcsPaths = []*vcsPath{
+ 	// Google Code - new syntax
+ 	{
+ 		prefix: "code.google.com/",
+-		re:     `^(?P<root>code\.google\.com/p/(?P<project>[a-z0-9\-]+)(\.(?P<subrepo>[a-z0-9\-]+))?)(/[A-Za-z0-9_.\-]+)*$`,
++		re:     `^(?P<root>code\.google\.com/[pr]/(?P<project>[a-z0-9\-]+)(\.(?P<subrepo>[a-z0-9\-]+))?)(/[A-Za-z0-9_.\-]+)*$`,
+ 		repo:   "https://{root}",
+ 		check:  googleCodeVCS,
+ 	},

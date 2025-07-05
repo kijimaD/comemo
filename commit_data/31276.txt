@@ -11,6 +11,21 @@ Date:   Wed Feb 8 19:12:19 2017 -0800
     Change-Id: I62838a953ad2889881bfbfd1a36141661565f033
     Reviewed-on: https://go-review.googlesource.com/36638
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/plugin/plugin.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index b86099a4f6..3dc7964048 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -44,9 +44,6 @@ func (p *Plugin) Lookup(symName string) (Symbol, error) {
+ //
+ //	package main
+ //
+-//	// // No C code needed.
+-//	import "C"
+-//
+ //	import "fmt"
+ //
+ //	var V int

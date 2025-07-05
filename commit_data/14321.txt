@@ -10,6 +10,28 @@ Date:   Tue Nov 6 11:36:59 2012 -0800
     R=remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/6812089
-
+---
  src/cmd/gc/walk.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 11c9c2f435..2c1a32eaef 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2477,14 +2477,14 @@ sliceany(Node* n, NodeList **init)
+ 
+ 	if(isconst(hb, CTINT)) {
+ 		hbv = mpgetfix(hb->val.u.xval);
+-		if(hbv < 0 || hbv > bv || !smallintconst(hb)) {
++		if(hbv < 0 || hbv > bv) {
+ 			yyerror("slice index out of bounds");
+ 			hbv = -1;
+ 		}
+ 	}
+ 	if(isconst(lb, CTINT)) {
+ 		lbv = mpgetfix(lb->val.u.xval);
+-		if(lbv < 0 || lbv > bv || !smallintconst(lb)) {
++		if(lbv < 0 || lbv > bv) {
+ 			yyerror("slice index out of bounds");
+ 			lbv = -1;
+ 		}

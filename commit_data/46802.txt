@@ -13,6 +13,20 @@ Date:   Mon Feb 1 16:46:49 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/decodesym.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index c6e2d8ca7f..fc179fc6e4 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -279,7 +279,7 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
+ 	for _, shlib := range ctxt.Shlibs {
+ 		if shlib.Path == path {
+ 			for _, sect := range shlib.File.Sections[1:] { // skip the NULL section
+-				if sect.Addr <= addr && addr <= sect.Addr+sect.Size {
++				if sect.Addr <= addr && addr < sect.Addr+sect.Size {
+ 					return sect
+ 				}
+ 			}

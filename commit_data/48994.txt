@@ -27,7 +27,7 @@ Date:   Fri Jul 2 16:29:42 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/escape/call.go       |  4 +---
  src/cmd/compile/internal/escape/escape.go     | 10 ++++++++--
  src/cmd/compile/internal/escape/expr.go       |  3 ---
@@ -37,3 +37,206 @@ Date:   Fri Jul 2 16:29:42 2021 -0700
  src/cmd/compile/internal/typecheck/iimport.go |  9 ++-------
  src/cmd/compile/internal/walk/closure.go      |  9 +--------
  8 files changed, 43 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 46bfe65aff..5bd748027e 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -343,9 +343,7 @@ func (e *escape) wrapExpr(pos src.XPos, exprp *ir.Node, init *ir.Nodes, call ir.
+ 
+ 		e.oldLoc(tmp).captured = true
+ 
+-		cv := ir.NewClosureVar(pos, wrapper, tmp)
+-		cv.SetType(tmp.Type())
+-		tmp = typecheck.Expr(cv).(*ir.Name)
++		tmp = ir.NewClosureVar(pos, wrapper, tmp)
+ 	}
+ 
+ 	*exprp = tmp
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 04d0c2356c..61e0121a40 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -183,8 +183,14 @@ func (b *batch) initFunc(fn *ir.Func) {
+ 
+ 	// Allocate locations for local variables.
+ 	for _, n := range fn.Dcl {
+-		if n.Op() == ir.ONAME {
+-			e.newLoc(n, false)
++		e.newLoc(n, false)
++	}
++
++	// Also for hidden parameters (e.g., the ".this" parameter to a
++	// method value wrapper).
++	if fn.OClosure == nil {
++		for _, n := range fn.ClosureVars {
++			e.newLoc(n.Canonical(), false)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/escape/expr.go b/src/cmd/compile/internal/escape/expr.go
+index dfcd55734a..c2a679d474 100644
+--- a/src/cmd/compile/internal/escape/expr.go
++++ b/src/cmd/compile/internal/escape/expr.go
+@@ -46,9 +46,6 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		if n.Class == ir.PFUNC || n.Class == ir.PEXTERN {
+ 			return
+ 		}
+-		if n.IsClosureVar() && n.Defn == nil {
+-			return // ".this" from method value wrapper
+-		}
+ 		e.flow(k, e.oldLoc(n))
+ 
+ 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
+diff --git a/src/cmd/compile/internal/escape/graph.go b/src/cmd/compile/internal/escape/graph.go
+index 6316435dfe..d3ae1da693 100644
+--- a/src/cmd/compile/internal/escape/graph.go
++++ b/src/cmd/compile/internal/escape/graph.go
+@@ -222,7 +222,9 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
+ 	}
+ 
+ 	if n != nil && n.Op() == ir.ONAME {
+-		n = n.(*ir.Name).Canonical()
++		if canon := n.(*ir.Name).Canonical(); n != canon {
++			base.Fatalf("newLoc on non-canonical %v (canonical is %v)", n, canon)
++		}
+ 	}
+ 	loc := &location{
+ 		n:         n,
+@@ -234,7 +236,9 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
+ 	if n != nil {
+ 		if n.Op() == ir.ONAME {
+ 			n := n.(*ir.Name)
+-			if n.Curfn != e.curfn {
++			if n.Class == ir.PPARAM && n.Curfn == nil {
++				// ok; hidden parameter
++			} else if n.Curfn != e.curfn {
+ 				base.Fatalf("curfn mismatch: %v != %v for %v", n.Curfn, e.curfn, n)
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index ff9784df1b..a2eec05013 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -358,7 +358,7 @@ func (n *Name) Byval() bool {
+ 	return n.Canonical().flags&nameByval != 0
+ }
+ 
+-// NewClosureVar creates a new closure variable for fn to refer to
++// NewClosureVar returns a new closure variable for fn to refer to
+ // outer variable n.
+ func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
+ 	c := NewNameAt(pos, n.Sym())
+@@ -368,11 +368,33 @@ func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
+ 	c.Defn = n.Canonical()
+ 	c.Outer = n
+ 
++	c.SetType(n.Type())
++	c.SetTypecheck(n.Typecheck())
++
+ 	fn.ClosureVars = append(fn.ClosureVars, c)
+ 
+ 	return c
+ }
+ 
++// NewHiddenParam returns a new hidden parameter for fn with the given
++// name and type.
++func NewHiddenParam(pos src.XPos, fn *Func, sym *types.Sym, typ *types.Type) *Name {
++	if fn.OClosure != nil {
++		base.FatalfAt(fn.Pos(), "cannot add hidden parameters to closures")
++	}
++
++	fn.SetNeedctxt(true)
++
++	// Create a fake parameter, disassociated from any real function, to
++	// pretend to capture.
++	fake := NewNameAt(pos, sym)
++	fake.Class = PPARAM
++	fake.SetType(typ)
++	fake.SetByval(true)
++
++	return NewClosureVar(pos, fn, fake)
++}
++
+ // CaptureName returns a Name suitable for referring to n from within function
+ // fn or from the package block if fn is nil. If n is a free variable declared
+ // within a function that encloses fn, then CaptureName returns the closure
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 275baead04..14d982a1af 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1623,11 +1623,7 @@ func (r *reader) funcLit() ir.Node {
+ 
+ 	fn.ClosureVars = make([]*ir.Name, 0, r.len())
+ 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
+-		pos := r.pos()
+-		outer := r.useLocal()
+-
+-		cv := ir.NewClosureVar(pos, fn, outer)
+-		r.setType(cv, outer.Type())
++		ir.NewClosureVar(r.pos(), fn, r.useLocal())
+ 	}
+ 
+ 	r.addBody(fn)
+@@ -2204,17 +2200,10 @@ func (r *reader) methodValueWrapper(tbase *types.Type, method *types.Field, targ
+ 	pos := base.AutogeneratedPos
+ 
+ 	fn := r.newWrapperFunc(pos, sym, nil, method)
+-	fn.SetNeedctxt(true)
+ 	sym.Def = fn
+ 
+ 	// Declare and initialize variable holding receiver.
+-	recv := ir.NewNameAt(pos, typecheck.Lookup(".this"))
+-	recv.Class = ir.PAUTOHEAP
+-	recv.SetType(recvType)
+-	recv.Curfn = fn
+-	recv.SetIsClosureVar(true)
+-	recv.SetByval(true)
+-	fn.ClosureVars = append(fn.ClosureVars, recv)
++	recv := ir.NewHiddenParam(pos, fn, typecheck.Lookup(".this"), recvType)
+ 
+ 	addTailCall(pos, fn, recv, method)
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 7b61260e79..a45bbfd1f8 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1289,13 +1289,8 @@ func (r *importReader) node() ir.Node {
+ 		cvars := make([]*ir.Name, r.int64())
+ 		for i := range cvars {
+ 			cvars[i] = ir.CaptureName(r.pos(), fn, r.localName().Canonical())
+-			if go117ExportTypes {
+-				if cvars[i].Type() != nil || cvars[i].Defn == nil {
+-					base.Fatalf("bad import of closure variable")
+-				}
+-				// Closure variable should have Defn set, which is its captured
+-				// variable, and it gets the same type as the captured variable.
+-				cvars[i].SetType(cvars[i].Defn.Type())
++			if go117ExportTypes && cvars[i].Defn == nil {
++				base.Fatalf("bad import of closure variable")
+ 			}
+ 		}
+ 		fn.ClosureVars = cvars
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index a86ed2ab80..7f6ef473bf 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -238,17 +238,10 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
+ 
+ 	fn := typecheck.DeclFunc(sym, tfn)
+ 	fn.SetDupok(true)
+-	fn.SetNeedctxt(true)
+ 	fn.SetWrapper(true)
+ 
+ 	// Declare and initialize variable holding receiver.
+-	ptr := ir.NewNameAt(base.Pos, typecheck.Lookup(".this"))
+-	ptr.Class = ir.PAUTOHEAP
+-	ptr.SetType(rcvrtype)
+-	ptr.Curfn = fn
+-	ptr.SetIsClosureVar(true)
+-	ptr.SetByval(true)
+-	fn.ClosureVars = append(fn.ClosureVars, ptr)
++	ptr := ir.NewHiddenParam(base.Pos, fn, typecheck.Lookup(".this"), rcvrtype)
+ 
+ 	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
+ 	call.Args = ir.ParamNames(tfn.Type())

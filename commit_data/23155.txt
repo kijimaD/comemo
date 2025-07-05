@@ -45,8 +45,93 @@ Date:   Fri Apr 24 14:13:06 2015 -0400
     Change-Id: I03ce152852edec404538f6c20eb650fac82e2aa2
     Reviewed-on: https://go-review.googlesource.com/9224
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/gc/builtin.go         |  1 +
  src/cmd/internal/gc/builtin/runtime.go |  4 +++-
  src/cmd/internal/gc/cgen.go            | 27 ++++++++++++++++++++++-----
  3 files changed, 26 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/gc/builtin.go b/src/cmd/internal/gc/builtin.go
+index 6cf3a89671..6bdf78c8ab 100644
+--- a/src/cmd/internal/gc/builtin.go
++++ b/src/cmd/internal/gc/builtin.go
+@@ -87,6 +87,7 @@ const runtimeimport = "" +
+ 	"func @\"\".chanrecv2 (@\"\".chanType·2 *byte, @\"\".hchan·3 <-chan any, @\"\".elem·4 *any) (? bool)\n" +
+ 	"func @\"\".chansend1 (@\"\".chanType·1 *byte, @\"\".hchan·2 chan<- any, @\"\".elem·3 *any)\n" +
+ 	"func @\"\".closechan (@\"\".hchan·1 any)\n" +
++	"var @\"\".writeBarrierEnabled bool\n" +
+ 	"func @\"\".writebarrierptr (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+ 	"func @\"\".writebarrierstring (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+ 	"func @\"\".writebarrierslice (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
+diff --git a/src/cmd/internal/gc/builtin/runtime.go b/src/cmd/internal/gc/builtin/runtime.go
+index ec769e1e99..179a4ddd9a 100644
+--- a/src/cmd/internal/gc/builtin/runtime.go
++++ b/src/cmd/internal/gc/builtin/runtime.go
+@@ -108,7 +108,8 @@ func chanrecv2(chanType *byte, hchan <-chan any, elem *any) bool
+ func chansend1(chanType *byte, hchan chan<- any, elem *any)
+ func closechan(hchan any)
+ 
+-// *byte is really *runtime.Type
++var writeBarrierEnabled bool
++
+ func writebarrierptr(dst *any, src any)
+ func writebarrierstring(dst *any, src any)
+ func writebarrierslice(dst *any, src any)
+@@ -144,6 +145,7 @@ func writebarrierfat1101(dst *any, _ uintptr, src any)
+ func writebarrierfat1110(dst *any, _ uintptr, src any)
+ func writebarrierfat1111(dst *any, _ uintptr, src any)
+ 
++// *byte is really *runtime.Type
+ func typedmemmove(typ *byte, dst *any, src *any)
+ func typedslicecopy(typ *byte, dst any, src any) int
+ 
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 427c671947..6c8f7b56a8 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -793,10 +793,24 @@ func cgen_wbptr(n, res *Node) {
+ 	if Debug_wb > 0 {
+ 		Warn("write barrier")
+ 	}
++
+ 	var dst, src Node
+-	Agenr(res, &dst, nil)
+-	Cgenr(n, &src, nil)
+-	p := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &dst, nil)
++	Igen(res, &dst, nil)
++	if n.Op == OREGISTER {
++		src = *n
++		Regrealloc(&src)
++	} else {
++		Cgenr(n, &src, nil)
++	}
++
++	Thearch.Gins(Thearch.Optoas(OCMP, Types[TUINT8]), syslook("writeBarrierEnabled", 0), Nodintconst(0))
++	pbr := Gbranch(Thearch.Optoas(ONE, Types[TUINT32]), nil, -1)
++	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
++	pjmp := Gbranch(obj.AJMP, nil, 0)
++	Patch(pbr, Pc)
++	var adst Node
++	Agenr(&dst, &adst, &dst)
++	p := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &adst, nil)
+ 	a := &p.To
+ 	a.Type = obj.TYPE_MEM
+ 	a.Reg = int16(Thearch.REGSP)
+@@ -807,12 +821,15 @@ func cgen_wbptr(n, res *Node) {
+ 	p2 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, nil)
+ 	p2.To = p.To
+ 	p2.To.Offset += int64(Widthptr)
+-	Regfree(&dst)
+-	Regfree(&src)
++	Regfree(&adst)
+ 	if sys_wbptr == nil {
+ 		sys_wbptr = writebarrierfn("writebarrierptr", Types[Tptr], Types[Tptr])
+ 	}
+ 	Ginscall(sys_wbptr, 0)
++	Patch(pjmp, Pc)
++
++	Regfree(&dst)
++	Regfree(&src)
+ }
+ 
+ func cgen_wbfat(n, res *Node) {

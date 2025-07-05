@@ -11,7 +11,63 @@ Date:   Fri Apr 17 08:36:11 2015 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/6g/prog.go | 12 ++++++++++++
  src/cmd/6g/reg.go  | 16 +++++++---------
  2 files changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/6g/prog.go b/src/cmd/6g/prog.go
+index 4c41d87ccb..5aeaeaa4ed 100644
+--- a/src/cmd/6g/prog.go
++++ b/src/cmd/6g/prog.go
+@@ -293,4 +293,16 @@ func proginfo(p *obj.Prog) {
+ 	if p.To.Index != x86.REG_NONE {
+ 		info.Regindex |= RtoB(int(p.To.Index))
+ 	}
++	if gc.Ctxt.Flag_dynlink {
++		// When -dynlink is passed, many operations on external names (and
++		// also calling duffzero/duffcopy) use R15 as a scratch register.
++		if p.As == x86.ALEAQ || info.Flags == gc.Pseudo || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
++			return
++		}
++		if p.As == obj.ADUFFZERO || p.As == obj.ADUFFCOPY || p.From.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_EXTERN {
++			info.Reguse |= R15
++			info.Regset |= R15
++			return
++		}
++	}
+ }
+diff --git a/src/cmd/6g/reg.go b/src/cmd/6g/reg.go
+index ebca28262e..cab07b5b4e 100644
+--- a/src/cmd/6g/reg.go
++++ b/src/cmd/6g/reg.go
+@@ -102,12 +102,13 @@ func doregbits(r int) uint64 {
+ 
+ // For ProgInfo.
+ const (
+-	AX = 1 << (x86.REG_AX - x86.REG_AX)
+-	BX = 1 << (x86.REG_BX - x86.REG_AX)
+-	CX = 1 << (x86.REG_CX - x86.REG_AX)
+-	DX = 1 << (x86.REG_DX - x86.REG_AX)
+-	DI = 1 << (x86.REG_DI - x86.REG_AX)
+-	SI = 1 << (x86.REG_SI - x86.REG_AX)
++	AX  = 1 << (x86.REG_AX - x86.REG_AX)
++	BX  = 1 << (x86.REG_BX - x86.REG_AX)
++	CX  = 1 << (x86.REG_CX - x86.REG_AX)
++	DX  = 1 << (x86.REG_DX - x86.REG_AX)
++	DI  = 1 << (x86.REG_DI - x86.REG_AX)
++	SI  = 1 << (x86.REG_SI - x86.REG_AX)
++	R15 = 1 << (x86.REG_R15 - x86.REG_AX)
+ )
+ 
+ func RtoB(r int) uint64 {
+@@ -125,9 +126,6 @@ func BtoR(b uint64) int {
+ 		// BP is part of the calling convention if framepointer_enabled.
+ 		b &^= (1 << (x86.REG_BP - x86.REG_AX))
+ 	}
+-	if gc.Ctxt.Flag_dynlink {
+-		b &^= (1 << (x86.REG_R15 - x86.REG_AX))
+-	}
+ 	if b == 0 {
+ 		return 0
+ 	}

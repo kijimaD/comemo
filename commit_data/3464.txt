@@ -7,6 +7,25 @@ Date:   Tue Oct 6 16:06:34 2009 -0700
     TBR=gri
     OCL=35411
     CL=35411
-
+---
  src/pkg/go/doc/doc.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 9357830b57..9b6b34d6b6 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -232,6 +232,13 @@ var (
+ 	bug_content *regexp.Regexp;
+ )
+ 
++func makeRex(s string) *regexp.Regexp {
++	re, err := regexp.Compile(s);
++	if err != nil {
++		panic("MakeRegexp ", s, " ", err.String());
++	}
++	return re;
++}
+ 
+ // addFile adds the AST for a source file to the docReader.
+ // Adding the same AST multiple times is a no-op.

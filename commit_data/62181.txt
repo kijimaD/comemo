@@ -25,7 +25,7 @@ Date:   Fri Jan 24 20:36:51 2025 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/trace/main.go                              |   2 +-
  src/go/build/deps_test.go                          |  12 +-
  src/internal/trace/base.go                         |   8 +-
@@ -65,3 +65,2474 @@ Date:   Fri Jan 24 20:36:51 2025 +0000
  src/internal/trace/{ => tracev2}/event/event.go    |   0
  src/internal/trace/version/version.go              |   8 +-
  38 files changed, 480 insertions(+), 480 deletions(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 075212eacb..625adb1c0c 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -11,8 +11,8 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/trace"
+-	"internal/trace/event"
+ 	"internal/trace/raw"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/traceviewer"
+ 	"io"
+ 	"log"
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e992681da4..5212db740e 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -699,18 +699,18 @@ var depsRules = `
+ 
+ 	# v2 execution trace parser.
+ 	FMT
+-	< internal/trace/event;
++	< internal/trace/tracev2/event;
+ 
+-	internal/trace/event
+-	< internal/trace/event/go122;
++	internal/trace/tracev2/event
++	< internal/trace/tracev2;
+ 
+-	FMT, io, internal/trace/event/go122
++	FMT, io, internal/trace/tracev2
+ 	< internal/trace/version;
+ 
+ 	FMT, encoding/binary, internal/trace/version
+ 	< internal/trace/raw;
+ 
+-	FMT, internal/trace/event, internal/trace/version, io, sort, encoding/binary
++	FMT, internal/trace/tracev2/event, internal/trace/version, io, sort, encoding/binary
+ 	< internal/trace/internal/tracev1;
+ 
+ 	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand
+@@ -720,7 +720,7 @@ var depsRules = `
+ 	< internal/trace/testtrace;
+ 
+ 	regexp, internal/txtar, internal/trace, internal/trace/raw
+-	< internal/trace/internal/testgen/go122;
++	< internal/trace/internal/testgen;
+ 
+ 	# cmd/trace dependencies.
+ 	FMT,
+diff --git a/src/internal/trace/base.go b/src/internal/trace/base.go
+index 5d707bd6cc..c6cc08ff69 100644
+--- a/src/internal/trace/base.go
++++ b/src/internal/trace/base.go
+@@ -12,8 +12,8 @@ import (
+ 	"math"
+ 	"strings"
+ 
+-	"internal/trace/event"
+-	"internal/trace/event/go122"
++	"internal/trace/tracev2"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+@@ -38,7 +38,7 @@ type baseEvent struct {
+ func (e *baseEvent) extra(v version.Version) []uint64 {
+ 	switch v {
+ 	case version.Go122:
+-		return e.args[len(go122.Specs()[e.typ].Args)-1:]
++		return e.args[len(tracev2.Specs()[e.typ].Args)-1:]
+ 	}
+ 	panic(fmt.Sprintf("unsupported version: go 1.%d", v))
+ }
+@@ -239,7 +239,7 @@ func (s cpuSample) asEvent(table *evTable) Event {
+ 		table: table,
+ 		ctx:   s.schedCtx,
+ 		base: baseEvent{
+-			typ:  go122.EvCPUSample,
++			typ:  tracev2.EvCPUSample,
+ 			time: s.time,
+ 		},
+ 	}
+diff --git a/src/internal/trace/batch.go b/src/internal/trace/batch.go
+index 2b47c9b72c..ba22bfde38 100644
+--- a/src/internal/trace/batch.go
++++ b/src/internal/trace/batch.go
+@@ -10,8 +10,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/event"
+-	"internal/trace/event/go122"
++	"internal/trace/tracev2"
++	"internal/trace/tracev2/event"
+ )
+ 
+ // timestamp is an unprocessed timestamp.
+@@ -27,19 +27,19 @@ type batch struct {
+ }
+ 
+ func (b *batch) isStringsBatch() bool {
+-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStrings
++	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvStrings
+ }
+ 
+ func (b *batch) isStacksBatch() bool {
+-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvStacks
++	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvStacks
+ }
+ 
+ func (b *batch) isCPUSamplesBatch() bool {
+-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvCPUSamples
++	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvCPUSamples
+ }
+ 
+ func (b *batch) isFreqBatch() bool {
+-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == go122.EvFrequency
++	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvFrequency
+ }
+ 
+ // readBatch reads the next full batch from r.
+@@ -52,13 +52,13 @@ func readBatch(r interface {
+ 	if err != nil {
+ 		return batch{}, 0, err
+ 	}
+-	if typ := event.Type(b); typ != go122.EvEventBatch && typ != go122.EvExperimentalBatch {
+-		return batch{}, 0, fmt.Errorf("expected batch event, got %s", go122.EventString(typ))
++	if typ := event.Type(b); typ != tracev2.EvEventBatch && typ != tracev2.EvExperimentalBatch {
++		return batch{}, 0, fmt.Errorf("expected batch event, got %s", tracev2.EventString(typ))
+ 	}
+ 
+ 	// Read the experiment of we have one.
+ 	exp := event.NoExperiment
+-	if event.Type(b) == go122.EvExperimentalBatch {
++	if event.Type(b) == tracev2.EvExperimentalBatch {
+ 		e, err := r.ReadByte()
+ 		if err != nil {
+ 			return batch{}, 0, err
+@@ -86,8 +86,8 @@ func readBatch(r interface {
+ 	if err != nil {
+ 		return batch{}, gen, fmt.Errorf("error reading batch size: %w", err)
+ 	}
+-	if size > go122.MaxBatchSize {
+-		return batch{}, gen, fmt.Errorf("invalid batch size %d, maximum is %d", size, go122.MaxBatchSize)
++	if size > tracev2.MaxBatchSize {
++		return batch{}, gen, fmt.Errorf("invalid batch size %d, maximum is %d", size, tracev2.MaxBatchSize)
+ 	}
+ 
+ 	// Copy out the batch for later processing.
+diff --git a/src/internal/trace/batchcursor.go b/src/internal/trace/batchcursor.go
+index 66d297ee33..026f24f8b1 100644
+--- a/src/internal/trace/batchcursor.go
++++ b/src/internal/trace/batchcursor.go
+@@ -9,8 +9,8 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 
+-	"internal/trace/event"
+-	"internal/trace/event/go122"
++	"internal/trace/tracev2"
++	"internal/trace/tracev2/event"
+ )
+ 
+ type batchCursor struct {
+@@ -67,7 +67,7 @@ func (b *batchCursor) compare(a *batchCursor) int {
+ func readTimedBaseEvent(b []byte, e *baseEvent) (int, timestamp, error) {
+ 	// Get the event type.
+ 	typ := event.Type(b[0])
+-	specs := go122.Specs()
++	specs := tracev2.Specs()
+ 	if int(typ) >= len(specs) {
+ 		return 0, 0, fmt.Errorf("found invalid event type: %v", typ)
+ 	}
+diff --git a/src/internal/trace/event.go b/src/internal/trace/event.go
+index c86c3c0c99..67f1e38230 100644
+--- a/src/internal/trace/event.go
++++ b/src/internal/trace/event.go
+@@ -11,8 +11,8 @@ import (
+ 	"strings"
+ 	"time"
+ 
+-	"internal/trace/event"
+-	"internal/trace/event/go122"
++	"internal/trace/tracev2"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+@@ -342,7 +342,7 @@ type Event struct {
+ 
+ // Kind returns the kind of event that this is.
+ func (e Event) Kind() EventKind {
+-	return go122Type2Kind[e.base.typ]
++	return tracev2Type2Kind[e.base.typ]
+ }
+ 
+ // Time returns the timestamp of the event.
+@@ -394,10 +394,10 @@ func (e Event) Stack() Stack {
+ 	if e.base.typ == evSync {
+ 		return NoStack
+ 	}
+-	if e.base.typ == go122.EvCPUSample {
++	if e.base.typ == tracev2.EvCPUSample {
+ 		return Stack{table: e.table, id: stackID(e.base.args[0])}
+ 	}
+-	spec := go122.Specs()[e.base.typ]
++	spec := tracev2.Specs()[e.base.typ]
+ 	if len(spec.StackIDs) == 0 {
+ 		return NoStack
+ 	}
+@@ -420,17 +420,17 @@ func (e Event) Metric() Metric {
+ 	}
+ 	var m Metric
+ 	switch e.base.typ {
+-	case go122.EvProcsChange:
++	case tracev2.EvProcsChange:
+ 		m.Name = "/sched/gomaxprocs:threads"
+ 		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
+-	case go122.EvHeapAlloc:
++	case tracev2.EvHeapAlloc:
+ 		m.Name = "/memory/classes/heap/objects:bytes"
+ 		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
+-	case go122.EvHeapGoal:
++	case tracev2.EvHeapGoal:
+ 		m.Name = "/gc/heap/goal:bytes"
+ 		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
+ 	default:
+-		panic(fmt.Sprintf("internal error: unexpected event type for Metric kind: %s", go122.EventString(e.base.typ)))
++		panic(fmt.Sprintf("internal error: unexpected event type for Metric kind: %s", tracev2.EventString(e.base.typ)))
+ 	}
+ 	return m
+ }
+@@ -442,8 +442,8 @@ func (e Event) Label() Label {
+ 	if e.Kind() != EventLabel {
+ 		panic("Label called on non-Label event")
+ 	}
+-	if e.base.typ != go122.EvGoLabel {
+-		panic(fmt.Sprintf("internal error: unexpected event type for Label kind: %s", go122.EventString(e.base.typ)))
++	if e.base.typ != tracev2.EvGoLabel {
++		panic(fmt.Sprintf("internal error: unexpected event type for Label kind: %s", tracev2.EventString(e.base.typ)))
+ 	}
+ 	return Label{
+ 		Label:    e.table.strings.mustGet(stringID(e.base.args[0])),
+@@ -460,33 +460,33 @@ func (e Event) Range() Range {
+ 	}
+ 	var r Range
+ 	switch e.base.typ {
+-	case go122.EvSTWBegin, go122.EvSTWEnd:
++	case tracev2.EvSTWBegin, tracev2.EvSTWEnd:
+ 		// N.B. ordering.advance smuggles in the STW reason as e.base.args[0]
+-		// for go122.EvSTWEnd (it's already there for Begin).
++		// for tracev2.EvSTWEnd (it's already there for Begin).
+ 		r.Name = "stop-the-world (" + e.table.strings.mustGet(stringID(e.base.args[0])) + ")"
+ 		r.Scope = ResourceID{Kind: ResourceGoroutine, id: int64(e.Goroutine())}
+-	case go122.EvGCBegin, go122.EvGCActive, go122.EvGCEnd:
++	case tracev2.EvGCBegin, tracev2.EvGCActive, tracev2.EvGCEnd:
+ 		r.Name = "GC concurrent mark phase"
+ 		r.Scope = ResourceID{Kind: ResourceNone}
+-	case go122.EvGCSweepBegin, go122.EvGCSweepActive, go122.EvGCSweepEnd:
++	case tracev2.EvGCSweepBegin, tracev2.EvGCSweepActive, tracev2.EvGCSweepEnd:
+ 		r.Name = "GC incremental sweep"
+ 		r.Scope = ResourceID{Kind: ResourceProc}
+-		if e.base.typ == go122.EvGCSweepActive {
++		if e.base.typ == tracev2.EvGCSweepActive {
+ 			r.Scope.id = int64(e.base.args[0])
+ 		} else {
+ 			r.Scope.id = int64(e.Proc())
+ 		}
+ 		r.Scope.id = int64(e.Proc())
+-	case go122.EvGCMarkAssistBegin, go122.EvGCMarkAssistActive, go122.EvGCMarkAssistEnd:
++	case tracev2.EvGCMarkAssistBegin, tracev2.EvGCMarkAssistActive, tracev2.EvGCMarkAssistEnd:
+ 		r.Name = "GC mark assist"
+ 		r.Scope = ResourceID{Kind: ResourceGoroutine}
+-		if e.base.typ == go122.EvGCMarkAssistActive {
++		if e.base.typ == tracev2.EvGCMarkAssistActive {
+ 			r.Scope.id = int64(e.base.args[0])
+ 		} else {
+ 			r.Scope.id = int64(e.Goroutine())
+ 		}
+ 	default:
+-		panic(fmt.Sprintf("internal error: unexpected event type for Range kind: %s", go122.EventString(e.base.typ)))
++		panic(fmt.Sprintf("internal error: unexpected event type for Range kind: %s", tracev2.EventString(e.base.typ)))
+ 	}
+ 	return r
+ }
+@@ -498,7 +498,7 @@ func (e Event) RangeAttributes() []RangeAttribute {
+ 	if e.Kind() != EventRangeEnd {
+ 		panic("Range called on non-Range event")
+ 	}
+-	if e.base.typ != go122.EvGCSweepEnd {
++	if e.base.typ != tracev2.EvGCSweepEnd {
+ 		return nil
+ 	}
+ 	return []RangeAttribute{
+@@ -523,14 +523,14 @@ func (e Event) Task() Task {
+ 	parentID := NoTask
+ 	var typ string
+ 	switch e.base.typ {
+-	case go122.EvUserTaskBegin:
++	case tracev2.EvUserTaskBegin:
+ 		parentID = TaskID(e.base.args[1])
+ 		typ = e.table.strings.mustGet(stringID(e.base.args[2]))
+-	case go122.EvUserTaskEnd:
++	case tracev2.EvUserTaskEnd:
+ 		parentID = TaskID(e.base.extra(version.Go122)[0])
+ 		typ = e.table.getExtraString(extraStringID(e.base.extra(version.Go122)[1]))
+ 	default:
+-		panic(fmt.Sprintf("internal error: unexpected event type for Task kind: %s", go122.EventString(e.base.typ)))
++		panic(fmt.Sprintf("internal error: unexpected event type for Task kind: %s", tracev2.EventString(e.base.typ)))
+ 	}
+ 	return Task{
+ 		ID:     TaskID(e.base.args[0]),
+@@ -546,8 +546,8 @@ func (e Event) Region() Region {
+ 	if kind := e.Kind(); kind != EventRegionBegin && kind != EventRegionEnd {
+ 		panic("Region called on non-Region event")
+ 	}
+-	if e.base.typ != go122.EvUserRegionBegin && e.base.typ != go122.EvUserRegionEnd {
+-		panic(fmt.Sprintf("internal error: unexpected event type for Region kind: %s", go122.EventString(e.base.typ)))
++	if e.base.typ != tracev2.EvUserRegionBegin && e.base.typ != tracev2.EvUserRegionEnd {
++		panic(fmt.Sprintf("internal error: unexpected event type for Region kind: %s", tracev2.EventString(e.base.typ)))
+ 	}
+ 	return Region{
+ 		Task: TaskID(e.base.args[0]),
+@@ -562,8 +562,8 @@ func (e Event) Log() Log {
+ 	if e.Kind() != EventLog {
+ 		panic("Log called on non-Log event")
+ 	}
+-	if e.base.typ != go122.EvUserLog {
+-		panic(fmt.Sprintf("internal error: unexpected event type for Log kind: %s", go122.EventString(e.base.typ)))
++	if e.base.typ != tracev2.EvUserLog {
++		panic(fmt.Sprintf("internal error: unexpected event type for Log kind: %s", tracev2.EventString(e.base.typ)))
+ 	}
+ 	return Log{
+ 		Task:     TaskID(e.base.args[0]),
+@@ -581,14 +581,14 @@ func (e Event) StateTransition() StateTransition {
+ 	}
+ 	var s StateTransition
+ 	switch e.base.typ {
+-	case go122.EvProcStart:
++	case tracev2.EvProcStart:
+ 		s = procStateTransition(ProcID(e.base.args[0]), ProcIdle, ProcRunning)
+-	case go122.EvProcStop:
++	case tracev2.EvProcStop:
+ 		s = procStateTransition(e.ctx.P, ProcRunning, ProcIdle)
+-	case go122.EvProcSteal:
++	case tracev2.EvProcSteal:
+ 		// N.B. ordering.advance populates e.base.extra.
+ 		beforeState := ProcRunning
+-		if go122.ProcStatus(e.base.extra(version.Go122)[0]) == go122.ProcSyscallAbandoned {
++		if tracev2.ProcStatus(e.base.extra(version.Go122)[0]) == tracev2.ProcSyscallAbandoned {
+ 			// We've lost information because this ProcSteal advanced on a
+ 			// SyscallAbandoned state. Treat the P as idle because ProcStatus
+ 			// treats SyscallAbandoned as Idle. Otherwise we'll have an invalid
+@@ -596,53 +596,53 @@ func (e Event) StateTransition() StateTransition {
+ 			beforeState = ProcIdle
+ 		}
+ 		s = procStateTransition(ProcID(e.base.args[0]), beforeState, ProcIdle)
+-	case go122.EvProcStatus:
++	case tracev2.EvProcStatus:
+ 		// N.B. ordering.advance populates e.base.extra.
+-		s = procStateTransition(ProcID(e.base.args[0]), ProcState(e.base.extra(version.Go122)[0]), go122ProcStatus2ProcState[e.base.args[1]])
+-	case go122.EvGoCreate, go122.EvGoCreateBlocked:
++		s = procStateTransition(ProcID(e.base.args[0]), ProcState(e.base.extra(version.Go122)[0]), tracev2ProcStatus2ProcState[e.base.args[1]])
++	case tracev2.EvGoCreate, tracev2.EvGoCreateBlocked:
+ 		status := GoRunnable
+-		if e.base.typ == go122.EvGoCreateBlocked {
++		if e.base.typ == tracev2.EvGoCreateBlocked {
+ 			status = GoWaiting
+ 		}
+ 		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, status)
+ 		s.Stack = Stack{table: e.table, id: stackID(e.base.args[1])}
+-	case go122.EvGoCreateSyscall:
++	case tracev2.EvGoCreateSyscall:
+ 		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, GoSyscall)
+-	case go122.EvGoStart:
++	case tracev2.EvGoStart:
+ 		s = goStateTransition(GoID(e.base.args[0]), GoRunnable, GoRunning)
+-	case go122.EvGoDestroy:
++	case tracev2.EvGoDestroy:
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoNotExist)
+ 		s.Stack = e.Stack() // This event references the resource the event happened on.
+-	case go122.EvGoDestroySyscall:
++	case tracev2.EvGoDestroySyscall:
+ 		s = goStateTransition(e.ctx.G, GoSyscall, GoNotExist)
+-	case go122.EvGoStop:
++	case tracev2.EvGoStop:
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoRunnable)
+ 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
+ 		s.Stack = e.Stack() // This event references the resource the event happened on.
+-	case go122.EvGoBlock:
++	case tracev2.EvGoBlock:
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoWaiting)
+ 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
+ 		s.Stack = e.Stack() // This event references the resource the event happened on.
+-	case go122.EvGoUnblock, go122.EvGoSwitch, go122.EvGoSwitchDestroy:
++	case tracev2.EvGoUnblock, tracev2.EvGoSwitch, tracev2.EvGoSwitchDestroy:
+ 		// N.B. GoSwitch and GoSwitchDestroy both emit additional events, but
+ 		// the first thing they both do is unblock the goroutine they name,
+ 		// identically to an unblock event (even their arguments match).
+ 		s = goStateTransition(GoID(e.base.args[0]), GoWaiting, GoRunnable)
+-	case go122.EvGoSyscallBegin:
++	case tracev2.EvGoSyscallBegin:
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoSyscall)
+ 		s.Stack = e.Stack() // This event references the resource the event happened on.
+-	case go122.EvGoSyscallEnd:
++	case tracev2.EvGoSyscallEnd:
+ 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunning)
+ 		s.Stack = e.Stack() // This event references the resource the event happened on.
+-	case go122.EvGoSyscallEndBlocked:
++	case tracev2.EvGoSyscallEndBlocked:
+ 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
+ 		s.Stack = e.Stack() // This event references the resource the event happened on.
+-	case go122.EvGoStatus, go122.EvGoStatusStack:
++	case tracev2.EvGoStatus, tracev2.EvGoStatusStack:
+ 		packedStatus := e.base.args[2]
+ 		from, to := packedStatus>>32, packedStatus&((1<<32)-1)
+-		s = goStateTransition(GoID(e.base.args[0]), GoState(from), go122GoStatus2GoState[to])
++		s = goStateTransition(GoID(e.base.args[0]), GoState(from), tracev2GoStatus2GoState[to])
+ 	default:
+-		panic(fmt.Sprintf("internal error: unexpected event type for StateTransition kind: %s", go122.EventString(e.base.typ)))
++		panic(fmt.Sprintf("internal error: unexpected event type for StateTransition kind: %s", tracev2.EventString(e.base.typ)))
+ 	}
+ 	return s
+ }
+@@ -657,7 +657,7 @@ func (e Event) Sync() Sync {
+ 	if e.table != nil {
+ 		expBatches = make(map[string][]ExperimentalBatch)
+ 		for exp, batches := range e.table.expBatches {
+-			expBatches[go122.Experiments()[exp]] = batches
++			expBatches[tracev2.Experiments()[exp]] = batches
+ 		}
+ 	}
+ 	return Sync{
+@@ -683,11 +683,11 @@ func (e Event) Experimental() ExperimentalEvent {
+ 	if e.Kind() != EventExperimental {
+ 		panic("Experimental called on non-Experimental event")
+ 	}
+-	spec := go122.Specs()[e.base.typ]
++	spec := tracev2.Specs()[e.base.typ]
+ 	argNames := spec.Args[1:] // Skip timestamp; already handled.
+ 	return ExperimentalEvent{
+ 		Name:       spec.Name,
+-		Experiment: go122.Experiments()[spec.Experiment],
++		Experiment: tracev2.Experiments()[spec.Experiment],
+ 		ArgNames:   argNames,
+ 		Args:       e.base.args[:len(argNames)],
+ 	}
+@@ -695,72 +695,72 @@ func (e Event) Experimental() ExperimentalEvent {
+ 
+ const evSync = ^event.Type(0)
+ 
+-var go122Type2Kind = [...]EventKind{
+-	go122.EvCPUSample:           EventStackSample,
+-	go122.EvProcsChange:         EventMetric,
+-	go122.EvProcStart:           EventStateTransition,
+-	go122.EvProcStop:            EventStateTransition,
+-	go122.EvProcSteal:           EventStateTransition,
+-	go122.EvProcStatus:          EventStateTransition,
+-	go122.EvGoCreate:            EventStateTransition,
+-	go122.EvGoCreateSyscall:     EventStateTransition,
+-	go122.EvGoStart:             EventStateTransition,
+-	go122.EvGoDestroy:           EventStateTransition,
+-	go122.EvGoDestroySyscall:    EventStateTransition,
+-	go122.EvGoStop:              EventStateTransition,
+-	go122.EvGoBlock:             EventStateTransition,
+-	go122.EvGoUnblock:           EventStateTransition,
+-	go122.EvGoSyscallBegin:      EventStateTransition,
+-	go122.EvGoSyscallEnd:        EventStateTransition,
+-	go122.EvGoSyscallEndBlocked: EventStateTransition,
+-	go122.EvGoStatus:            EventStateTransition,
+-	go122.EvSTWBegin:            EventRangeBegin,
+-	go122.EvSTWEnd:              EventRangeEnd,
+-	go122.EvGCActive:            EventRangeActive,
+-	go122.EvGCBegin:             EventRangeBegin,
+-	go122.EvGCEnd:               EventRangeEnd,
+-	go122.EvGCSweepActive:       EventRangeActive,
+-	go122.EvGCSweepBegin:        EventRangeBegin,
+-	go122.EvGCSweepEnd:          EventRangeEnd,
+-	go122.EvGCMarkAssistActive:  EventRangeActive,
+-	go122.EvGCMarkAssistBegin:   EventRangeBegin,
+-	go122.EvGCMarkAssistEnd:     EventRangeEnd,
+-	go122.EvHeapAlloc:           EventMetric,
+-	go122.EvHeapGoal:            EventMetric,
+-	go122.EvGoLabel:             EventLabel,
+-	go122.EvUserTaskBegin:       EventTaskBegin,
+-	go122.EvUserTaskEnd:         EventTaskEnd,
+-	go122.EvUserRegionBegin:     EventRegionBegin,
+-	go122.EvUserRegionEnd:       EventRegionEnd,
+-	go122.EvUserLog:             EventLog,
+-	go122.EvGoSwitch:            EventStateTransition,
+-	go122.EvGoSwitchDestroy:     EventStateTransition,
+-	go122.EvGoCreateBlocked:     EventStateTransition,
+-	go122.EvGoStatusStack:       EventStateTransition,
+-	go122.EvSpan:                EventExperimental,
+-	go122.EvSpanAlloc:           EventExperimental,
+-	go122.EvSpanFree:            EventExperimental,
+-	go122.EvHeapObject:          EventExperimental,
+-	go122.EvHeapObjectAlloc:     EventExperimental,
+-	go122.EvHeapObjectFree:      EventExperimental,
+-	go122.EvGoroutineStack:      EventExperimental,
+-	go122.EvGoroutineStackAlloc: EventExperimental,
+-	go122.EvGoroutineStackFree:  EventExperimental,
+-	evSync:                      EventSync,
+-}
+-
+-var go122GoStatus2GoState = [...]GoState{
+-	go122.GoRunnable: GoRunnable,
+-	go122.GoRunning:  GoRunning,
+-	go122.GoWaiting:  GoWaiting,
+-	go122.GoSyscall:  GoSyscall,
+-}
+-
+-var go122ProcStatus2ProcState = [...]ProcState{
+-	go122.ProcRunning:          ProcRunning,
+-	go122.ProcIdle:             ProcIdle,
+-	go122.ProcSyscall:          ProcRunning,
+-	go122.ProcSyscallAbandoned: ProcIdle,
++var tracev2Type2Kind = [...]EventKind{
++	tracev2.EvCPUSample:           EventStackSample,
++	tracev2.EvProcsChange:         EventMetric,
++	tracev2.EvProcStart:           EventStateTransition,
++	tracev2.EvProcStop:            EventStateTransition,
++	tracev2.EvProcSteal:           EventStateTransition,
++	tracev2.EvProcStatus:          EventStateTransition,
++	tracev2.EvGoCreate:            EventStateTransition,
++	tracev2.EvGoCreateSyscall:     EventStateTransition,
++	tracev2.EvGoStart:             EventStateTransition,
++	tracev2.EvGoDestroy:           EventStateTransition,
++	tracev2.EvGoDestroySyscall:    EventStateTransition,
++	tracev2.EvGoStop:              EventStateTransition,
++	tracev2.EvGoBlock:             EventStateTransition,
++	tracev2.EvGoUnblock:           EventStateTransition,
++	tracev2.EvGoSyscallBegin:      EventStateTransition,
++	tracev2.EvGoSyscallEnd:        EventStateTransition,
++	tracev2.EvGoSyscallEndBlocked: EventStateTransition,
++	tracev2.EvGoStatus:            EventStateTransition,
++	tracev2.EvSTWBegin:            EventRangeBegin,
++	tracev2.EvSTWEnd:              EventRangeEnd,
++	tracev2.EvGCActive:            EventRangeActive,
++	tracev2.EvGCBegin:             EventRangeBegin,
++	tracev2.EvGCEnd:               EventRangeEnd,
++	tracev2.EvGCSweepActive:       EventRangeActive,
++	tracev2.EvGCSweepBegin:        EventRangeBegin,
++	tracev2.EvGCSweepEnd:          EventRangeEnd,
++	tracev2.EvGCMarkAssistActive:  EventRangeActive,
++	tracev2.EvGCMarkAssistBegin:   EventRangeBegin,
++	tracev2.EvGCMarkAssistEnd:     EventRangeEnd,
++	tracev2.EvHeapAlloc:           EventMetric,
++	tracev2.EvHeapGoal:            EventMetric,
++	tracev2.EvGoLabel:             EventLabel,
++	tracev2.EvUserTaskBegin:       EventTaskBegin,
++	tracev2.EvUserTaskEnd:         EventTaskEnd,
++	tracev2.EvUserRegionBegin:     EventRegionBegin,
++	tracev2.EvUserRegionEnd:       EventRegionEnd,
++	tracev2.EvUserLog:             EventLog,
++	tracev2.EvGoSwitch:            EventStateTransition,
++	tracev2.EvGoSwitchDestroy:     EventStateTransition,
++	tracev2.EvGoCreateBlocked:     EventStateTransition,
++	tracev2.EvGoStatusStack:       EventStateTransition,
++	tracev2.EvSpan:                EventExperimental,
++	tracev2.EvSpanAlloc:           EventExperimental,
++	tracev2.EvSpanFree:            EventExperimental,
++	tracev2.EvHeapObject:          EventExperimental,
++	tracev2.EvHeapObjectAlloc:     EventExperimental,
++	tracev2.EvHeapObjectFree:      EventExperimental,
++	tracev2.EvGoroutineStack:      EventExperimental,
++	tracev2.EvGoroutineStackAlloc: EventExperimental,
++	tracev2.EvGoroutineStackFree:  EventExperimental,
++	evSync:                        EventSync,
++}
++
++var tracev2GoStatus2GoState = [...]GoState{
++	tracev2.GoRunnable: GoRunnable,
++	tracev2.GoRunning:  GoRunning,
++	tracev2.GoWaiting:  GoWaiting,
++	tracev2.GoSyscall:  GoSyscall,
++}
++
++var tracev2ProcStatus2ProcState = [...]ProcState{
++	tracev2.ProcRunning:          ProcRunning,
++	tracev2.ProcIdle:             ProcIdle,
++	tracev2.ProcSyscall:          ProcRunning,
++	tracev2.ProcSyscallAbandoned: ProcIdle,
+ }
+ 
+ // String returns the event as a human-readable string.
+@@ -842,7 +842,7 @@ func (e Event) validateTableIDs() error {
+ 	if e.base.typ == evSync {
+ 		return nil
+ 	}
+-	spec := go122.Specs()[e.base.typ]
++	spec := tracev2.Specs()[e.base.typ]
+ 
+ 	// Check stacks.
+ 	for _, i := range spec.StackIDs {
+diff --git a/src/internal/trace/generation.go b/src/internal/trace/generation.go
+index 42c2526a20..89d0f6509b 100644
+--- a/src/internal/trace/generation.go
++++ b/src/internal/trace/generation.go
+@@ -14,8 +14,8 @@ import (
+ 	"slices"
+ 	"strings"
+ 
+-	"internal/trace/event"
+-	"internal/trace/event/go122"
++	"internal/trace/tracev2"
++	"internal/trace/tracev2/event"
+ )
+ 
+ // generation contains all the trace data for a single
+@@ -222,7 +222,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
+ 	}
+ 	r := bytes.NewReader(b.data)
+ 	hdr, err := r.ReadByte() // Consume the EvStrings byte.
+-	if err != nil || event.Type(hdr) != go122.EvStrings {
++	if err != nil || event.Type(hdr) != tracev2.EvStrings {
+ 		return fmt.Errorf("missing strings batch header")
+ 	}
+ 
+@@ -233,7 +233,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		if event.Type(ev) != go122.EvString {
++		if event.Type(ev) != tracev2.EvString {
+ 			return fmt.Errorf("expected string event, got %d", ev)
+ 		}
+ 
+@@ -248,8 +248,8 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		if len > go122.MaxStringSize {
+-			return fmt.Errorf("invalid string size %d, maximum is %d", len, go122.MaxStringSize)
++		if len > tracev2.MaxStringSize {
++			return fmt.Errorf("invalid string size %d, maximum is %d", len, tracev2.MaxStringSize)
+ 		}
+ 
+ 		// Copy out the string.
+@@ -280,7 +280,7 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
+ 	}
+ 	r := bytes.NewReader(b.data)
+ 	hdr, err := r.ReadByte() // Consume the EvStacks byte.
+-	if err != nil || event.Type(hdr) != go122.EvStacks {
++	if err != nil || event.Type(hdr) != tracev2.EvStacks {
+ 		return fmt.Errorf("missing stacks batch header")
+ 	}
+ 
+@@ -290,7 +290,7 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
+ 		if err != nil {
+ 			return err
+ 		}
+-		if event.Type(ev) != go122.EvStack {
++		if event.Type(ev) != tracev2.EvStack {
+ 			return fmt.Errorf("expected stack event, got %d", ev)
+ 		}
+ 
+@@ -305,8 +305,8 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
+ 		if err != nil {
+ 			return err
+ 		}
+-		if nFrames > go122.MaxFramesPerStack {
+-			return fmt.Errorf("invalid stack size %d, maximum is %d", nFrames, go122.MaxFramesPerStack)
++		if nFrames > tracev2.MaxFramesPerStack {
++			return fmt.Errorf("invalid stack size %d, maximum is %d", nFrames, tracev2.MaxFramesPerStack)
+ 		}
+ 
+ 		// Each frame consists of 4 fields: pc, funcID (string), fileID (string), line.
+@@ -358,7 +358,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
+ 	}
+ 	r := bytes.NewReader(b.data)
+ 	hdr, err := r.ReadByte() // Consume the EvCPUSamples byte.
+-	if err != nil || event.Type(hdr) != go122.EvCPUSamples {
++	if err != nil || event.Type(hdr) != tracev2.EvCPUSamples {
+ 		return nil, fmt.Errorf("missing CPU samples batch header")
+ 	}
+ 
+@@ -368,7 +368,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		if event.Type(ev) != go122.EvCPUSample {
++		if event.Type(ev) != tracev2.EvCPUSample {
+ 			return nil, fmt.Errorf("expected CPU sample event, got %d", ev)
+ 		}
+ 
+diff --git a/src/internal/trace/internal/testgen/go122/trace.go b/src/internal/trace/internal/testgen/trace.go
+similarity index 94%
+rename from src/internal/trace/internal/testgen/go122/trace.go
+rename to src/internal/trace/internal/testgen/trace.go
+index 5fd995ae9a..9e797da509 100644
+--- a/src/internal/trace/internal/testgen/go122/trace.go
++++ b/src/internal/trace/internal/testgen/trace.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package testkit
++package testgen
+ 
+ import (
+ 	"bytes"
+@@ -13,9 +13,9 @@ import (
+ 	"strings"
+ 
+ 	"internal/trace"
+-	"internal/trace/event"
+-	"internal/trace/event/go122"
+ 	"internal/trace/raw"
++	"internal/trace/tracev2"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ 	"internal/txtar"
+ )
+@@ -149,7 +149,7 @@ func (t *Trace) Generate() []byte {
+ 
+ func (t *Trace) createEvent(ev event.Type, data []byte, args ...uint64) raw.Event {
+ 	spec := t.specs[ev]
+-	if ev != go122.EvStack {
++	if ev != tracev2.EvStack {
+ 		if arity := len(spec.Args); len(args) != arity {
+ 			panic(fmt.Sprintf("expected %d args for %s, got %d", arity, spec.Name, len(args)))
+ 		}
+@@ -248,22 +248,22 @@ func (g *Generation) writeEventsTo(tw *raw.TextWriter) {
+ 
+ 	// Write frequency.
+ 	b := g.newStructuralBatch()
+-	b.RawEvent(go122.EvFrequency, nil, 15625000)
++	b.RawEvent(tracev2.EvFrequency, nil, 15625000)
+ 	b.writeEventsTo(tw)
+ 
+ 	// Write stacks.
+ 	b = g.newStructuralBatch()
+-	b.RawEvent(go122.EvStacks, nil)
++	b.RawEvent(tracev2.EvStacks, nil)
+ 	for stk, id := range g.stacks {
+ 		stk := stk.stk[:stk.len]
+ 		args := []uint64{id}
+ 		for _, f := range stk {
+ 			args = append(args, f.PC, g.String(f.Func), g.String(f.File), f.Line)
+ 		}
+-		b.RawEvent(go122.EvStack, nil, args...)
++		b.RawEvent(tracev2.EvStack, nil, args...)
+ 
+ 		// Flush the batch if necessary.
+-		if !g.ignoreStackBatchSizeLimit && b.size > go122.MaxBatchSize/2 {
++		if !g.ignoreStackBatchSizeLimit && b.size > tracev2.MaxBatchSize/2 {
+ 			b.writeEventsTo(tw)
+ 			b = g.newStructuralBatch()
+ 		}
+@@ -272,12 +272,12 @@ func (g *Generation) writeEventsTo(tw *raw.TextWriter) {
+ 
+ 	// Write strings.
+ 	b = g.newStructuralBatch()
+-	b.RawEvent(go122.EvStrings, nil)
++	b.RawEvent(tracev2.EvStrings, nil)
+ 	for s, id := range g.strings {
+-		b.RawEvent(go122.EvString, []byte(s), id)
++		b.RawEvent(tracev2.EvString, []byte(s), id)
+ 
+ 		// Flush the batch if necessary.
+-		if !g.ignoreStringBatchSizeLimit && b.size > go122.MaxBatchSize/2 {
++		if !g.ignoreStringBatchSizeLimit && b.size > tracev2.MaxBatchSize/2 {
+ 			b.writeEventsTo(tw)
+ 			b = g.newStructuralBatch()
+ 		}
+@@ -341,9 +341,9 @@ func (b *Batch) uintArgFor(arg any, argSpec string) uint64 {
+ 	case "seq":
+ 		u = uint64(arg.(Seq))
+ 	case "pstatus":
+-		u = uint64(arg.(go122.ProcStatus))
++		u = uint64(arg.(tracev2.ProcStatus))
+ 	case "gstatus":
+-		u = uint64(arg.(go122.GoStatus))
++		u = uint64(arg.(tracev2.GoStatus))
+ 	case "g":
+ 		u = uint64(arg.(trace.GoID))
+ 	case "m":
+@@ -385,7 +385,7 @@ func (b *Batch) RawEvent(typ event.Type, data []byte, args ...uint64) {
+ func (b *Batch) writeEventsTo(tw *raw.TextWriter) {
+ 	tw.WriteEvent(raw.Event{
+ 		Version: version.Go122,
+-		Ev:      go122.EvEventBatch,
++		Ev:      tracev2.EvEventBatch,
+ 		Args:    []uint64{b.gen.gen, uint64(b.thread), uint64(b.timestamp), b.size},
+ 	})
+ 	for _, e := range b.events {
+diff --git a/src/internal/trace/internal/tracev1/parser.go b/src/internal/trace/internal/tracev1/parser.go
+index b95f86e43d..b4ec7a342c 100644
+--- a/src/internal/trace/internal/tracev1/parser.go
++++ b/src/internal/trace/internal/tracev1/parser.go
+@@ -17,7 +17,7 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+-	"internal/trace/event"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ 	"io"
+ 	"math"
+diff --git a/src/internal/trace/order.go b/src/internal/trace/order.go
+index 131e05ce24..8028f61a83 100644
+--- a/src/internal/trace/order.go
++++ b/src/internal/trace/order.go
+@@ -9,8 +9,8 @@ import (
+ 	"slices"
+ 	"strings"
+ 
+-	"internal/trace/event"
+-	"internal/trace/event/go122"
++	"internal/trace/tracev2"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+@@ -92,97 +92,97 @@ type orderingHandleFunc func(o *ordering, ev *baseEvent, evt *evTable, m ThreadI
+ 
+ var orderingDispatch = [256]orderingHandleFunc{
+ 	// Procs.
+-	go122.EvProcsChange: (*ordering).advanceAnnotation,
+-	go122.EvProcStart:   (*ordering).advanceProcStart,
+-	go122.EvProcStop:    (*ordering).advanceProcStop,
+-	go122.EvProcSteal:   (*ordering).advanceProcSteal,
+-	go122.EvProcStatus:  (*ordering).advanceProcStatus,
++	tracev2.EvProcsChange: (*ordering).advanceAnnotation,
++	tracev2.EvProcStart:   (*ordering).advanceProcStart,
++	tracev2.EvProcStop:    (*ordering).advanceProcStop,
++	tracev2.EvProcSteal:   (*ordering).advanceProcSteal,
++	tracev2.EvProcStatus:  (*ordering).advanceProcStatus,
+ 
+ 	// Goroutines.
+-	go122.EvGoCreate:            (*ordering).advanceGoCreate,
+-	go122.EvGoCreateSyscall:     (*ordering).advanceGoCreateSyscall,
+-	go122.EvGoStart:             (*ordering).advanceGoStart,
+-	go122.EvGoDestroy:           (*ordering).advanceGoStopExec,
+-	go122.EvGoDestroySyscall:    (*ordering).advanceGoDestroySyscall,
+-	go122.EvGoStop:              (*ordering).advanceGoStopExec,
+-	go122.EvGoBlock:             (*ordering).advanceGoStopExec,
+-	go122.EvGoUnblock:           (*ordering).advanceGoUnblock,
+-	go122.EvGoSyscallBegin:      (*ordering).advanceGoSyscallBegin,
+-	go122.EvGoSyscallEnd:        (*ordering).advanceGoSyscallEnd,
+-	go122.EvGoSyscallEndBlocked: (*ordering).advanceGoSyscallEndBlocked,
+-	go122.EvGoStatus:            (*ordering).advanceGoStatus,
++	tracev2.EvGoCreate:            (*ordering).advanceGoCreate,
++	tracev2.EvGoCreateSyscall:     (*ordering).advanceGoCreateSyscall,
++	tracev2.EvGoStart:             (*ordering).advanceGoStart,
++	tracev2.EvGoDestroy:           (*ordering).advanceGoStopExec,
++	tracev2.EvGoDestroySyscall:    (*ordering).advanceGoDestroySyscall,
++	tracev2.EvGoStop:              (*ordering).advanceGoStopExec,
++	tracev2.EvGoBlock:             (*ordering).advanceGoStopExec,
++	tracev2.EvGoUnblock:           (*ordering).advanceGoUnblock,
++	tracev2.EvGoSyscallBegin:      (*ordering).advanceGoSyscallBegin,
++	tracev2.EvGoSyscallEnd:        (*ordering).advanceGoSyscallEnd,
++	tracev2.EvGoSyscallEndBlocked: (*ordering).advanceGoSyscallEndBlocked,
++	tracev2.EvGoStatus:            (*ordering).advanceGoStatus,
+ 
+ 	// STW.
+-	go122.EvSTWBegin: (*ordering).advanceGoRangeBegin,
+-	go122.EvSTWEnd:   (*ordering).advanceGoRangeEnd,
++	tracev2.EvSTWBegin: (*ordering).advanceGoRangeBegin,
++	tracev2.EvSTWEnd:   (*ordering).advanceGoRangeEnd,
+ 
+ 	// GC events.
+-	go122.EvGCActive:           (*ordering).advanceGCActive,
+-	go122.EvGCBegin:            (*ordering).advanceGCBegin,
+-	go122.EvGCEnd:              (*ordering).advanceGCEnd,
+-	go122.EvGCSweepActive:      (*ordering).advanceGCSweepActive,
+-	go122.EvGCSweepBegin:       (*ordering).advanceGCSweepBegin,
+-	go122.EvGCSweepEnd:         (*ordering).advanceGCSweepEnd,
+-	go122.EvGCMarkAssistActive: (*ordering).advanceGoRangeActive,
+-	go122.EvGCMarkAssistBegin:  (*ordering).advanceGoRangeBegin,
+-	go122.EvGCMarkAssistEnd:    (*ordering).advanceGoRangeEnd,
+-	go122.EvHeapAlloc:          (*ordering).advanceHeapMetric,
+-	go122.EvHeapGoal:           (*ordering).advanceHeapMetric,
++	tracev2.EvGCActive:           (*ordering).advanceGCActive,
++	tracev2.EvGCBegin:            (*ordering).advanceGCBegin,
++	tracev2.EvGCEnd:              (*ordering).advanceGCEnd,
++	tracev2.EvGCSweepActive:      (*ordering).advanceGCSweepActive,
++	tracev2.EvGCSweepBegin:       (*ordering).advanceGCSweepBegin,
++	tracev2.EvGCSweepEnd:         (*ordering).advanceGCSweepEnd,
++	tracev2.EvGCMarkAssistActive: (*ordering).advanceGoRangeActive,
++	tracev2.EvGCMarkAssistBegin:  (*ordering).advanceGoRangeBegin,
++	tracev2.EvGCMarkAssistEnd:    (*ordering).advanceGoRangeEnd,
++	tracev2.EvHeapAlloc:          (*ordering).advanceHeapMetric,
++	tracev2.EvHeapGoal:           (*ordering).advanceHeapMetric,
+ 
+ 	// Annotations.
+-	go122.EvGoLabel:         (*ordering).advanceAnnotation,
+-	go122.EvUserTaskBegin:   (*ordering).advanceUserTaskBegin,
+-	go122.EvUserTaskEnd:     (*ordering).advanceUserTaskEnd,
+-	go122.EvUserRegionBegin: (*ordering).advanceUserRegionBegin,
+-	go122.EvUserRegionEnd:   (*ordering).advanceUserRegionEnd,
+-	go122.EvUserLog:         (*ordering).advanceAnnotation,
++	tracev2.EvGoLabel:         (*ordering).advanceAnnotation,
++	tracev2.EvUserTaskBegin:   (*ordering).advanceUserTaskBegin,
++	tracev2.EvUserTaskEnd:     (*ordering).advanceUserTaskEnd,
++	tracev2.EvUserRegionBegin: (*ordering).advanceUserRegionBegin,
++	tracev2.EvUserRegionEnd:   (*ordering).advanceUserRegionEnd,
++	tracev2.EvUserLog:         (*ordering).advanceAnnotation,
+ 
+ 	// Coroutines. Added in Go 1.23.
+-	go122.EvGoSwitch:        (*ordering).advanceGoSwitch,
+-	go122.EvGoSwitchDestroy: (*ordering).advanceGoSwitch,
+-	go122.EvGoCreateBlocked: (*ordering).advanceGoCreate,
++	tracev2.EvGoSwitch:        (*ordering).advanceGoSwitch,
++	tracev2.EvGoSwitchDestroy: (*ordering).advanceGoSwitch,
++	tracev2.EvGoCreateBlocked: (*ordering).advanceGoCreate,
+ 
+ 	// GoStatus event with a stack. Added in Go 1.23.
+-	go122.EvGoStatusStack: (*ordering).advanceGoStatus,
++	tracev2.EvGoStatusStack: (*ordering).advanceGoStatus,
+ 
+ 	// Experimental events.
+ 
+ 	// Experimental heap span events. Added in Go 1.23.
+-	go122.EvSpan:      (*ordering).advanceAllocFree,
+-	go122.EvSpanAlloc: (*ordering).advanceAllocFree,
+-	go122.EvSpanFree:  (*ordering).advanceAllocFree,
++	tracev2.EvSpan:      (*ordering).advanceAllocFree,
++	tracev2.EvSpanAlloc: (*ordering).advanceAllocFree,
++	tracev2.EvSpanFree:  (*ordering).advanceAllocFree,
+ 
+ 	// Experimental heap object events. Added in Go 1.23.
+-	go122.EvHeapObject:      (*ordering).advanceAllocFree,
+-	go122.EvHeapObjectAlloc: (*ordering).advanceAllocFree,
+-	go122.EvHeapObjectFree:  (*ordering).advanceAllocFree,
++	tracev2.EvHeapObject:      (*ordering).advanceAllocFree,
++	tracev2.EvHeapObjectAlloc: (*ordering).advanceAllocFree,
++	tracev2.EvHeapObjectFree:  (*ordering).advanceAllocFree,
+ 
+ 	// Experimental goroutine stack events. Added in Go 1.23.
+-	go122.EvGoroutineStack:      (*ordering).advanceAllocFree,
+-	go122.EvGoroutineStackAlloc: (*ordering).advanceAllocFree,
+-	go122.EvGoroutineStackFree:  (*ordering).advanceAllocFree,
++	tracev2.EvGoroutineStack:      (*ordering).advanceAllocFree,
++	tracev2.EvGoroutineStackAlloc: (*ordering).advanceAllocFree,
++	tracev2.EvGoroutineStackFree:  (*ordering).advanceAllocFree,
+ }
+ 
+ func (o *ordering) advanceProcStatus(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
+ 	pid := ProcID(ev.args[0])
+-	status := go122.ProcStatus(ev.args[1])
+-	if int(status) >= len(go122ProcStatus2ProcState) {
++	status := tracev2.ProcStatus(ev.args[1])
++	if int(status) >= len(tracev2ProcStatus2ProcState) {
+ 		return curCtx, false, fmt.Errorf("invalid status for proc %d: %d", pid, status)
+ 	}
+-	oldState := go122ProcStatus2ProcState[status]
++	oldState := tracev2ProcStatus2ProcState[status]
+ 	if s, ok := o.pStates[pid]; ok {
+-		if status == go122.ProcSyscallAbandoned && s.status == go122.ProcSyscall {
++		if status == tracev2.ProcSyscallAbandoned && s.status == tracev2.ProcSyscall {
+ 			// ProcSyscallAbandoned is a special case of ProcSyscall. It indicates a
+ 			// potential loss of information, but if we're already in ProcSyscall,
+ 			// we haven't lost the relevant information. Promote the status and advance.
+ 			oldState = ProcRunning
+-			ev.args[1] = uint64(go122.ProcSyscall)
+-		} else if status == go122.ProcSyscallAbandoned && s.status == go122.ProcSyscallAbandoned {
++			ev.args[1] = uint64(tracev2.ProcSyscall)
++		} else if status == tracev2.ProcSyscallAbandoned && s.status == tracev2.ProcSyscallAbandoned {
+ 			// If we're passing through ProcSyscallAbandoned, then there's no promotion
+ 			// to do. We've lost the M that this P is associated with. However it got there,
+ 			// it's going to appear as idle in the API, so pass through as idle.
+ 			oldState = ProcIdle
+-			ev.args[1] = uint64(go122.ProcSyscallAbandoned)
++			ev.args[1] = uint64(tracev2.ProcSyscallAbandoned)
+ 		} else if s.status != status {
+ 			return curCtx, false, fmt.Errorf("inconsistent status for proc %d: old %v vs. new %v", pid, s.status, status)
+ 		}
+@@ -199,7 +199,7 @@ func (o *ordering) advanceProcStatus(ev *baseEvent, evt *evTable, m ThreadID, ge
+ 
+ 	// Bind the proc to the new context, if it's running.
+ 	newCtx := curCtx
+-	if status == go122.ProcRunning || status == go122.ProcSyscall {
++	if status == tracev2.ProcRunning || status == tracev2.ProcSyscall {
+ 		newCtx.P = pid
+ 	}
+ 	// If we're advancing through ProcSyscallAbandoned *but* oldState is running then we've
+@@ -208,7 +208,7 @@ func (o *ordering) advanceProcStatus(ev *baseEvent, evt *evTable, m ThreadID, ge
+ 	// thread it was bound to. Since this status is Running -> Running and Running is binding,
+ 	// we need to make sure we emit it in the right context: the context to which it is bound.
+ 	// Find it, and set our current context to it.
+-	if status == go122.ProcSyscallAbandoned && oldState == ProcRunning {
++	if status == tracev2.ProcSyscallAbandoned && oldState == ProcRunning {
+ 		// N.B. This is slow but it should be fairly rare.
+ 		found := false
+ 		for mid, ms := range o.mStates {
+@@ -235,7 +235,7 @@ func (o *ordering) advanceProcStart(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	// had a status emitted, or because we already have a P and we're in a syscall,
+ 	// and we haven't observed that it was stolen from us yet.
+ 	state, ok := o.pStates[pid]
+-	if !ok || state.status != go122.ProcIdle || !seq.succeeds(state.seq) || curCtx.P != NoProc {
++	if !ok || state.status != tracev2.ProcIdle || !seq.succeeds(state.seq) || curCtx.P != NoProc {
+ 		// We can't make an inference as to whether this is bad. We could just be seeing
+ 		// a ProcStart on a different M before the proc's state was emitted, or before we
+ 		// got to the right point in the trace.
+@@ -250,7 +250,7 @@ func (o *ordering) advanceProcStart(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	if err := validateCtx(curCtx, reqs); err != nil {
+ 		return curCtx, false, err
+ 	}
+-	state.status = go122.ProcRunning
++	state.status = tracev2.ProcRunning
+ 	state.seq = seq
+ 	newCtx := curCtx
+ 	newCtx.P = pid
+@@ -270,16 +270,16 @@ func (o *ordering) advanceProcStop(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	// ProcStop doesn't need a sequence number.
+ 	state, ok := o.pStates[curCtx.P]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("event %s for proc (%v) that doesn't exist", go122.EventString(ev.typ), curCtx.P)
++		return curCtx, false, fmt.Errorf("event %s for proc (%v) that doesn't exist", tracev2.EventString(ev.typ), curCtx.P)
+ 	}
+-	if state.status != go122.ProcRunning && state.status != go122.ProcSyscall {
+-		return curCtx, false, fmt.Errorf("%s event for proc that's not %s or %s", go122.EventString(ev.typ), go122.ProcRunning, go122.ProcSyscall)
++	if state.status != tracev2.ProcRunning && state.status != tracev2.ProcSyscall {
++		return curCtx, false, fmt.Errorf("%s event for proc that's not %s or %s", tracev2.EventString(ev.typ), tracev2.ProcRunning, tracev2.ProcSyscall)
+ 	}
+ 	reqs := schedReqs{M: mustHave, P: mustHave, G: mayHave}
+ 	if err := validateCtx(curCtx, reqs); err != nil {
+ 		return curCtx, false, err
+ 	}
+-	state.status = go122.ProcIdle
++	state.status = tracev2.ProcIdle
+ 	newCtx := curCtx
+ 	newCtx.P = NoProc
+ 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
+@@ -290,7 +290,7 @@ func (o *ordering) advanceProcSteal(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	pid := ProcID(ev.args[0])
+ 	seq := makeSeq(gen, ev.args[1])
+ 	state, ok := o.pStates[pid]
+-	if !ok || (state.status != go122.ProcSyscall && state.status != go122.ProcSyscallAbandoned) || !seq.succeeds(state.seq) {
++	if !ok || (state.status != tracev2.ProcSyscall && state.status != tracev2.ProcSyscallAbandoned) || !seq.succeeds(state.seq) {
+ 		// We can't make an inference as to whether this is bad. We could just be seeing
+ 		// a ProcStart on a different M before the proc's state was emitted, or before we
+ 		// got to the right point in the trace.
+@@ -311,12 +311,12 @@ func (o *ordering) advanceProcSteal(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	ev.extra(version.Go122)[0] = uint64(oldStatus)
+ 
+ 	// Update the P's status and sequence number.
+-	state.status = go122.ProcIdle
++	state.status = tracev2.ProcIdle
+ 	state.seq = seq
+ 
+ 	// If we've lost information then don't try to do anything with the M.
+ 	// It may have moved on and we can't be sure.
+-	if oldStatus == go122.ProcSyscallAbandoned {
++	if oldStatus == tracev2.ProcSyscallAbandoned {
+ 		o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
+ 		return curCtx, true, nil
+ 	}
+@@ -360,12 +360,12 @@ func (o *ordering) advanceProcSteal(ev *baseEvent, evt *evTable, m ThreadID, gen
+ func (o *ordering) advanceGoStatus(ev *baseEvent, evt *evTable, m ThreadID, gen uint64, curCtx schedCtx) (schedCtx, bool, error) {
+ 	gid := GoID(ev.args[0])
+ 	mid := ThreadID(ev.args[1])
+-	status := go122.GoStatus(ev.args[2])
++	status := tracev2.GoStatus(ev.args[2])
+ 
+-	if int(status) >= len(go122GoStatus2GoState) {
++	if int(status) >= len(tracev2GoStatus2GoState) {
+ 		return curCtx, false, fmt.Errorf("invalid status for goroutine %d: %d", gid, status)
+ 	}
+-	oldState := go122GoStatus2GoState[status]
++	oldState := tracev2GoStatus2GoState[status]
+ 	if s, ok := o.gStates[gid]; ok {
+ 		if s.status != status {
+ 			return curCtx, false, fmt.Errorf("inconsistent status for goroutine %d: old %v vs. new %v", gid, s.status, status)
+@@ -382,10 +382,10 @@ func (o *ordering) advanceGoStatus(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 
+ 	newCtx := curCtx
+ 	switch status {
+-	case go122.GoRunning:
++	case tracev2.GoRunning:
+ 		// Bind the goroutine to the new context, since it's running.
+ 		newCtx.G = gid
+-	case go122.GoSyscall:
++	case tracev2.GoSyscall:
+ 		if mid == NoThread {
+ 			return curCtx, false, fmt.Errorf("found goroutine %d in syscall without a thread", gid)
+ 		}
+@@ -442,17 +442,17 @@ func (o *ordering) advanceGoCreate(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 		return curCtx, false, err
+ 	}
+ 	// If we have a goroutine, it must be running.
+-	if state, ok := o.gStates[curCtx.G]; ok && state.status != go122.GoRunning {
+-		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", go122.EventString(ev.typ), GoRunning)
++	if state, ok := o.gStates[curCtx.G]; ok && state.status != tracev2.GoRunning {
++		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", tracev2.EventString(ev.typ), GoRunning)
+ 	}
+ 	// This goroutine created another. Add a state for it.
+ 	newgid := GoID(ev.args[0])
+ 	if _, ok := o.gStates[newgid]; ok {
+ 		return curCtx, false, fmt.Errorf("tried to create goroutine (%v) that already exists", newgid)
+ 	}
+-	status := go122.GoRunnable
+-	if ev.typ == go122.EvGoCreateBlocked {
+-		status = go122.GoWaiting
++	status := tracev2.GoRunnable
++	if ev.typ == tracev2.EvGoCreateBlocked {
++		status = tracev2.GoWaiting
+ 	}
+ 	o.gStates[newgid] = &gState{id: newgid, status: status, seq: makeSeq(gen, 0)}
+ 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
+@@ -468,26 +468,26 @@ func (o *ordering) advanceGoStopExec(ev *baseEvent, evt *evTable, m ThreadID, ge
+ 	}
+ 	state, ok := o.gStates[curCtx.G]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", go122.EventString(ev.typ), curCtx.G)
++		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", tracev2.EventString(ev.typ), curCtx.G)
+ 	}
+-	if state.status != go122.GoRunning {
+-		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", go122.EventString(ev.typ), GoRunning)
++	if state.status != tracev2.GoRunning {
++		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", tracev2.EventString(ev.typ), GoRunning)
+ 	}
+ 	// Handle each case slightly differently; we just group them together
+ 	// because they have shared preconditions.
+ 	newCtx := curCtx
+ 	switch ev.typ {
+-	case go122.EvGoDestroy:
++	case tracev2.EvGoDestroy:
+ 		// This goroutine is exiting itself.
+ 		delete(o.gStates, curCtx.G)
+ 		newCtx.G = NoGoroutine
+-	case go122.EvGoStop:
++	case tracev2.EvGoStop:
+ 		// Goroutine stopped (yielded). It's runnable but not running on this M.
+-		state.status = go122.GoRunnable
++		state.status = tracev2.GoRunnable
+ 		newCtx.G = NoGoroutine
+-	case go122.EvGoBlock:
++	case tracev2.EvGoBlock:
+ 		// Goroutine blocked. It's waiting now and not running on this M.
+-		state.status = go122.GoWaiting
++		state.status = tracev2.GoWaiting
+ 		newCtx.G = NoGoroutine
+ 	}
+ 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
+@@ -498,7 +498,7 @@ func (o *ordering) advanceGoStart(ev *baseEvent, evt *evTable, m ThreadID, gen u
+ 	gid := GoID(ev.args[0])
+ 	seq := makeSeq(gen, ev.args[1])
+ 	state, ok := o.gStates[gid]
+-	if !ok || state.status != go122.GoRunnable || !seq.succeeds(state.seq) {
++	if !ok || state.status != tracev2.GoRunnable || !seq.succeeds(state.seq) {
+ 		// We can't make an inference as to whether this is bad. We could just be seeing
+ 		// a GoStart on a different M before the goroutine was created, before it had its
+ 		// state emitted, or before we got to the right point in the trace yet.
+@@ -509,7 +509,7 @@ func (o *ordering) advanceGoStart(ev *baseEvent, evt *evTable, m ThreadID, gen u
+ 	if err := validateCtx(curCtx, reqs); err != nil {
+ 		return curCtx, false, err
+ 	}
+-	state.status = go122.GoRunning
++	state.status = tracev2.GoRunning
+ 	state.seq = seq
+ 	newCtx := curCtx
+ 	newCtx.G = gid
+@@ -522,13 +522,13 @@ func (o *ordering) advanceGoUnblock(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	gid := GoID(ev.args[0])
+ 	seq := makeSeq(gen, ev.args[1])
+ 	state, ok := o.gStates[gid]
+-	if !ok || state.status != go122.GoWaiting || !seq.succeeds(state.seq) {
++	if !ok || state.status != tracev2.GoWaiting || !seq.succeeds(state.seq) {
+ 		// We can't make an inference as to whether this is bad. We could just be seeing
+ 		// a GoUnblock on a different M before the goroutine was created and blocked itself,
+ 		// before it had its state emitted, or before we got to the right point in the trace yet.
+ 		return curCtx, false, nil
+ 	}
+-	state.status = go122.GoRunnable
++	state.status = tracev2.GoRunnable
+ 	state.seq = seq
+ 	// N.B. No context to validate. Basically anything can unblock
+ 	// a goroutine (e.g. sysmon).
+@@ -551,15 +551,15 @@ func (o *ordering) advanceGoSwitch(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	}
+ 	curGState, ok := o.gStates[curCtx.G]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", go122.EventString(ev.typ), curCtx.G)
++		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", tracev2.EventString(ev.typ), curCtx.G)
+ 	}
+-	if curGState.status != go122.GoRunning {
+-		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", go122.EventString(ev.typ), GoRunning)
++	if curGState.status != tracev2.GoRunning {
++		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", tracev2.EventString(ev.typ), GoRunning)
+ 	}
+ 	nextg := GoID(ev.args[0])
+ 	seq := makeSeq(gen, ev.args[1]) // seq is for nextg, not curCtx.G.
+ 	nextGState, ok := o.gStates[nextg]
+-	if !ok || nextGState.status != go122.GoWaiting || !seq.succeeds(nextGState.seq) {
++	if !ok || nextGState.status != tracev2.GoWaiting || !seq.succeeds(nextGState.seq) {
+ 		// We can't make an inference as to whether this is bad. We could just be seeing
+ 		// a GoSwitch on a different M before the goroutine was created, before it had its
+ 		// state emitted, or before we got to the right point in the trace yet.
+@@ -571,22 +571,22 @@ func (o *ordering) advanceGoSwitch(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	// (GoSwitch and GoSwitchDestroy will be interpreted as GoUnblock events
+ 	// for nextg).
+ 	switch ev.typ {
+-	case go122.EvGoSwitch:
++	case tracev2.EvGoSwitch:
+ 		// Goroutine blocked. It's waiting now and not running on this M.
+-		curGState.status = go122.GoWaiting
++		curGState.status = tracev2.GoWaiting
+ 
+ 		// Emit a GoBlock event.
+ 		// TODO(mknyszek): Emit a reason.
+-		o.queue.push(makeEvent(evt, curCtx, go122.EvGoBlock, ev.time, 0 /* no reason */, 0 /* no stack */))
+-	case go122.EvGoSwitchDestroy:
++		o.queue.push(makeEvent(evt, curCtx, tracev2.EvGoBlock, ev.time, 0 /* no reason */, 0 /* no stack */))
++	case tracev2.EvGoSwitchDestroy:
+ 		// This goroutine is exiting itself.
+ 		delete(o.gStates, curCtx.G)
+ 
+ 		// Emit a GoDestroy event.
+-		o.queue.push(makeEvent(evt, curCtx, go122.EvGoDestroy, ev.time))
++		o.queue.push(makeEvent(evt, curCtx, tracev2.EvGoDestroy, ev.time))
+ 	}
+ 	// Update the state of the next goroutine.
+-	nextGState.status = go122.GoRunning
++	nextGState.status = tracev2.GoRunning
+ 	nextGState.seq = seq
+ 	newCtx := curCtx
+ 	newCtx.G = nextg
+@@ -594,7 +594,7 @@ func (o *ordering) advanceGoSwitch(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	// Queue an event for the next goroutine starting to run.
+ 	startCtx := curCtx
+ 	startCtx.G = NoGoroutine
+-	o.queue.push(makeEvent(evt, startCtx, go122.EvGoStart, ev.time, uint64(nextg), ev.args[1]))
++	o.queue.push(makeEvent(evt, startCtx, tracev2.EvGoStart, ev.time, uint64(nextg), ev.args[1]))
+ 	return newCtx, true, nil
+ }
+ 
+@@ -606,18 +606,18 @@ func (o *ordering) advanceGoSyscallBegin(ev *baseEvent, evt *evTable, m ThreadID
+ 	}
+ 	state, ok := o.gStates[curCtx.G]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", go122.EventString(ev.typ), curCtx.G)
++		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", tracev2.EventString(ev.typ), curCtx.G)
+ 	}
+-	if state.status != go122.GoRunning {
+-		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", go122.EventString(ev.typ), GoRunning)
++	if state.status != tracev2.GoRunning {
++		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", tracev2.EventString(ev.typ), GoRunning)
+ 	}
+ 	// Goroutine entered a syscall. It's still running on this P and M.
+-	state.status = go122.GoSyscall
++	state.status = tracev2.GoSyscall
+ 	pState, ok := o.pStates[curCtx.P]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("uninitialized proc %d found during %s", curCtx.P, go122.EventString(ev.typ))
++		return curCtx, false, fmt.Errorf("uninitialized proc %d found during %s", curCtx.P, tracev2.EventString(ev.typ))
+ 	}
+-	pState.status = go122.ProcSyscall
++	pState.status = tracev2.ProcSyscall
+ 	// Validate the P sequence number on the event and advance it.
+ 	//
+ 	// We have a P sequence number for what is supposed to be a goroutine event
+@@ -631,7 +631,7 @@ func (o *ordering) advanceGoSyscallBegin(ev *baseEvent, evt *evTable, m ThreadID
+ 	// to back off and see if any other events will advance. This is a running P.
+ 	pSeq := makeSeq(gen, ev.args[0])
+ 	if !pSeq.succeeds(pState.seq) {
+-		return curCtx, false, fmt.Errorf("failed to advance %s: can't make sequence: %s -> %s", go122.EventString(ev.typ), pState.seq, pSeq)
++		return curCtx, false, fmt.Errorf("failed to advance %s: can't make sequence: %s -> %s", tracev2.EventString(ev.typ), pState.seq, pSeq)
+ 	}
+ 	pState.seq = pSeq
+ 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
+@@ -647,22 +647,22 @@ func (o *ordering) advanceGoSyscallEnd(ev *baseEvent, evt *evTable, m ThreadID,
+ 	}
+ 	state, ok := o.gStates[curCtx.G]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", go122.EventString(ev.typ), curCtx.G)
++		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", tracev2.EventString(ev.typ), curCtx.G)
+ 	}
+-	if state.status != go122.GoSyscall {
+-		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", go122.EventString(ev.typ), GoRunning)
++	if state.status != tracev2.GoSyscall {
++		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", tracev2.EventString(ev.typ), GoRunning)
+ 	}
+-	state.status = go122.GoRunning
++	state.status = tracev2.GoRunning
+ 
+ 	// Transfer the P back to running from syscall.
+ 	pState, ok := o.pStates[curCtx.P]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("uninitialized proc %d found during %s", curCtx.P, go122.EventString(ev.typ))
++		return curCtx, false, fmt.Errorf("uninitialized proc %d found during %s", curCtx.P, tracev2.EventString(ev.typ))
+ 	}
+-	if pState.status != go122.ProcSyscall {
+-		return curCtx, false, fmt.Errorf("expected proc %d in state %v, but got %v instead", curCtx.P, go122.ProcSyscall, pState.status)
++	if pState.status != tracev2.ProcSyscall {
++		return curCtx, false, fmt.Errorf("expected proc %d in state %v, but got %v instead", curCtx.P, tracev2.ProcSyscall, pState.status)
+ 	}
+-	pState.status = go122.ProcRunning
++	pState.status = tracev2.ProcRunning
+ 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
+ 	return curCtx, true, nil
+ }
+@@ -681,9 +681,9 @@ func (o *ordering) advanceGoSyscallEndBlocked(ev *baseEvent, evt *evTable, m Thr
+ 	if curCtx.P != NoProc {
+ 		pState, ok := o.pStates[curCtx.P]
+ 		if !ok {
+-			return curCtx, false, fmt.Errorf("uninitialized proc %d found during %s", curCtx.P, go122.EventString(ev.typ))
++			return curCtx, false, fmt.Errorf("uninitialized proc %d found during %s", curCtx.P, tracev2.EventString(ev.typ))
+ 		}
+-		if pState.status == go122.ProcSyscall {
++		if pState.status == tracev2.ProcSyscall {
+ 			return curCtx, false, nil
+ 		}
+ 	}
+@@ -694,14 +694,14 @@ func (o *ordering) advanceGoSyscallEndBlocked(ev *baseEvent, evt *evTable, m Thr
+ 	}
+ 	state, ok := o.gStates[curCtx.G]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", go122.EventString(ev.typ), curCtx.G)
++		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", tracev2.EventString(ev.typ), curCtx.G)
+ 	}
+-	if state.status != go122.GoSyscall {
+-		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", go122.EventString(ev.typ), GoRunning)
++	if state.status != tracev2.GoSyscall {
++		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %s", tracev2.EventString(ev.typ), GoRunning)
+ 	}
+ 	newCtx := curCtx
+ 	newCtx.G = NoGoroutine
+-	state.status = go122.GoRunnable
++	state.status = tracev2.GoRunnable
+ 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
+ 	return newCtx, true, nil
+ }
+@@ -718,7 +718,7 @@ func (o *ordering) advanceGoCreateSyscall(ev *baseEvent, evt *evTable, m ThreadI
+ 	if _, ok := o.gStates[newgid]; ok {
+ 		return curCtx, false, fmt.Errorf("tried to create goroutine (%v) in syscall that already exists", newgid)
+ 	}
+-	o.gStates[newgid] = &gState{id: newgid, status: go122.GoSyscall, seq: makeSeq(gen, 0)}
++	o.gStates[newgid] = &gState{id: newgid, status: tracev2.GoSyscall, seq: makeSeq(gen, 0)}
+ 	// Goroutine is executing. Bind it to the context.
+ 	newCtx := curCtx
+ 	newCtx.G = newgid
+@@ -749,10 +749,10 @@ func (o *ordering) advanceGoDestroySyscall(ev *baseEvent, evt *evTable, m Thread
+ 	// Check to make sure the goroutine exists in the right state.
+ 	state, ok := o.gStates[curCtx.G]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", go122.EventString(ev.typ), curCtx.G)
++		return curCtx, false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", tracev2.EventString(ev.typ), curCtx.G)
+ 	}
+-	if state.status != go122.GoSyscall {
+-		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %v", go122.EventString(ev.typ), GoSyscall)
++	if state.status != tracev2.GoSyscall {
++		return curCtx, false, fmt.Errorf("%s event for goroutine that's not %v", tracev2.EventString(ev.typ), GoSyscall)
+ 	}
+ 	// This goroutine is exiting itself.
+ 	delete(o.gStates, curCtx.G)
+@@ -763,18 +763,18 @@ func (o *ordering) advanceGoDestroySyscall(ev *baseEvent, evt *evTable, m Thread
+ 	if curCtx.P != NoProc {
+ 		pState, ok := o.pStates[curCtx.P]
+ 		if !ok {
+-			return curCtx, false, fmt.Errorf("found invalid proc %d during %s", curCtx.P, go122.EventString(ev.typ))
++			return curCtx, false, fmt.Errorf("found invalid proc %d during %s", curCtx.P, tracev2.EventString(ev.typ))
+ 		}
+-		if pState.status != go122.ProcSyscall {
+-			return curCtx, false, fmt.Errorf("proc %d in unexpected state %s during %s", curCtx.P, pState.status, go122.EventString(ev.typ))
++		if pState.status != tracev2.ProcSyscall {
++			return curCtx, false, fmt.Errorf("proc %d in unexpected state %s during %s", curCtx.P, pState.status, tracev2.EventString(ev.typ))
+ 		}
+ 		// See the go122-create-syscall-reuse-thread-id test case for more details.
+-		pState.status = go122.ProcSyscallAbandoned
++		pState.status = tracev2.ProcSyscallAbandoned
+ 		newCtx.P = NoProc
+ 
+ 		// Queue an extra self-ProcSteal event.
+-		extra := makeEvent(evt, curCtx, go122.EvProcSteal, ev.time, uint64(curCtx.P))
+-		extra.base.extra(version.Go122)[0] = uint64(go122.ProcSyscall)
++		extra := makeEvent(evt, curCtx, tracev2.EvProcSteal, ev.time, uint64(curCtx.P))
++		extra.base.extra(version.Go122)[0] = uint64(tracev2.ProcSyscall)
+ 		o.queue.push(extra)
+ 	}
+ 	o.queue.push(Event{table: evt, ctx: curCtx, base: *ev})
+@@ -1025,7 +1025,7 @@ func (o *ordering) advanceGoRangeBegin(ev *baseEvent, evt *evTable, m ThreadID,
+ 		return curCtx, false, err
+ 	}
+ 	desc := stringID(0)
+-	if ev.typ == go122.EvSTWBegin {
++	if ev.typ == tracev2.EvSTWBegin {
+ 		desc = stringID(ev.args[0])
+ 	}
+ 	gState, ok := o.gStates[curCtx.G]
+@@ -1046,7 +1046,7 @@ func (o *ordering) advanceGoRangeActive(ev *baseEvent, evt *evTable, m ThreadID,
+ 	// current scheduler context.
+ 	gState, ok := o.gStates[gid]
+ 	if !ok {
+-		return curCtx, false, fmt.Errorf("uninitialized goroutine %d found during %s", gid, go122.EventString(ev.typ))
++		return curCtx, false, fmt.Errorf("uninitialized goroutine %d found during %s", gid, tracev2.EventString(ev.typ))
+ 	}
+ 	if err := gState.activeRange(makeRangeType(ev.typ, 0), gen == o.initialGen); err != nil {
+ 		return curCtx, false, err
+@@ -1067,7 +1067,7 @@ func (o *ordering) advanceGoRangeEnd(ev *baseEvent, evt *evTable, m ThreadID, ge
+ 	if err != nil {
+ 		return curCtx, false, err
+ 	}
+-	if ev.typ == go122.EvSTWEnd {
++	if ev.typ == tracev2.EvSTWEnd {
+ 		// Smuggle the kind into the event.
+ 		// Don't use ev.extra here so we have symmetry with STWBegin.
+ 		ev.args[0] = uint64(desc)
+@@ -1168,7 +1168,7 @@ type rangeType struct {
+ 
+ // makeRangeType constructs a new rangeType.
+ func makeRangeType(typ event.Type, desc stringID) rangeType {
+-	if styp := go122.Specs()[typ].StartEv; styp != go122.EvNone {
++	if styp := tracev2.Specs()[typ].StartEv; styp != tracev2.EvNone {
+ 		typ = styp
+ 	}
+ 	return rangeType{typ, desc}
+@@ -1177,7 +1177,7 @@ func makeRangeType(typ event.Type, desc stringID) rangeType {
+ // gState is the state of a goroutine at a point in the trace.
+ type gState struct {
+ 	id     GoID
+-	status go122.GoStatus
++	status tracev2.GoStatus
+ 	seq    seqCounter
+ 
+ 	// regions are the active user regions for this goroutine.
+@@ -1209,7 +1209,7 @@ func (s *gState) endRegion(r userRegion) error {
+ // pState is the state of a proc at a point in the trace.
+ type pState struct {
+ 	id     ProcID
+-	status go122.ProcStatus
++	status tracev2.ProcStatus
+ 	seq    seqCounter
+ 
+ 	// rangeState is the state of special time ranges bound to this proc.
+@@ -1233,7 +1233,7 @@ type rangeState struct {
+ // Returns an error if the range is already in progress.
+ func (s *rangeState) beginRange(typ rangeType) error {
+ 	if s.hasRange(typ) {
+-		return fmt.Errorf("discovered event already in-flight for when starting event %v", go122.Specs()[typ.typ].Name)
++		return fmt.Errorf("discovered event already in-flight for when starting event %v", tracev2.Specs()[typ.typ].Name)
+ 	}
+ 	s.inFlight = append(s.inFlight, typ)
+ 	return nil
+@@ -1248,7 +1248,7 @@ func (s *rangeState) activeRange(typ rangeType, isInitialGen bool) error {
+ 		}
+ 		s.inFlight = append(s.inFlight, typ)
+ 	} else if !s.hasRange(typ) {
+-		return fmt.Errorf("resource is missing active range: %v %v", go122.Specs()[typ.typ].Name, s.inFlight)
++		return fmt.Errorf("resource is missing active range: %v %v", tracev2.Specs()[typ.typ].Name, s.inFlight)
+ 	}
+ 	return nil
+ }
+@@ -1262,7 +1262,7 @@ func (s *rangeState) hasRange(typ rangeType) bool {
+ //
+ // This must line up with the start event type  of the range the goroutine is currently in.
+ func (s *rangeState) endRange(typ event.Type) (stringID, error) {
+-	st := go122.Specs()[typ].StartEv
++	st := tracev2.Specs()[typ].StartEv
+ 	idx := -1
+ 	for i, r := range s.inFlight {
+ 		if r.typ == st {
+@@ -1271,7 +1271,7 @@ func (s *rangeState) endRange(typ event.Type) (stringID, error) {
+ 		}
+ 	}
+ 	if idx < 0 {
+-		return 0, fmt.Errorf("tried to end event %v, but not in-flight", go122.Specs()[st].Name)
++		return 0, fmt.Errorf("tried to end event %v, but not in-flight", tracev2.Specs()[st].Name)
+ 	}
+ 	// Swap remove.
+ 	desc := s.inFlight[idx].desc
+diff --git a/src/internal/trace/raw/event.go b/src/internal/trace/raw/event.go
+index e163a2c6ef..e3b6b5cd45 100644
+--- a/src/internal/trace/raw/event.go
++++ b/src/internal/trace/raw/event.go
+@@ -9,7 +9,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
+-	"internal/trace/event"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+diff --git a/src/internal/trace/raw/reader.go b/src/internal/trace/raw/reader.go
+index 37f36a1a24..3f90e2d454 100644
+--- a/src/internal/trace/raw/reader.go
++++ b/src/internal/trace/raw/reader.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/event"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+diff --git a/src/internal/trace/raw/textreader.go b/src/internal/trace/raw/textreader.go
+index 37bfcfefdf..666db134f1 100644
+--- a/src/internal/trace/raw/textreader.go
++++ b/src/internal/trace/raw/textreader.go
+@@ -12,7 +12,7 @@ import (
+ 	"strings"
+ 	"unicode"
+ 
+-	"internal/trace/event"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+diff --git a/src/internal/trace/raw/writer.go b/src/internal/trace/raw/writer.go
+index 9b87995aa7..971839b8d7 100644
+--- a/src/internal/trace/raw/writer.go
++++ b/src/internal/trace/raw/writer.go
+@@ -9,7 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/event"
++	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+diff --git a/src/internal/trace/reader.go b/src/internal/trace/reader.go
+index 6fc39e28ac..699febeed4 100644
+--- a/src/internal/trace/reader.go
++++ b/src/internal/trace/reader.go
+@@ -11,8 +11,8 @@ import (
+ 	"slices"
+ 	"strings"
+ 
+-	"internal/trace/event/go122"
+ 	"internal/trace/internal/tracev1"
++	"internal/trace/tracev2"
+ 	"internal/trace/version"
+ )
+ 
+@@ -248,7 +248,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ func dumpFrontier(frontier []*batchCursor) string {
+ 	var sb strings.Builder
+ 	for _, bc := range frontier {
+-		spec := go122.Specs()[bc.ev.typ]
++		spec := tracev2.Specs()[bc.ev.typ]
+ 		fmt.Fprintf(&sb, "M %d [%s time=%d", bc.m, spec.Name, bc.ev.time)
+ 		for i, arg := range spec.Args[1:] {
+ 			fmt.Fprintf(&sb, " %s=%d", arg, bc.ev.args[i])
+diff --git a/src/internal/trace/summary_test.go b/src/internal/trace/summary_test.go
+index 73865652eb..396bd5f096 100644
+--- a/src/internal/trace/summary_test.go
++++ b/src/internal/trace/summary_test.go
+@@ -416,10 +416,10 @@ func TestRelatedGoroutinesV2Trace(t *testing.T) {
+ 	targetg := trace.GoID(86)
+ 	got := trace.RelatedGoroutinesV2(events, targetg)
+ 	want := map[trace.GoID]struct{}{
+-		trace.GoID(86):  struct{}{}, // N.B. Result includes target.
+-		trace.GoID(71):  struct{}{},
+-		trace.GoID(25):  struct{}{},
+-		trace.GoID(122): struct{}{},
++		trace.GoID(86):  {}, // N.B. Result includes target.
++		trace.GoID(71):  {},
++		trace.GoID(25):  {},
++		trace.GoID(122): {},
+ 	}
+ 	for goid := range got {
+ 		if _, ok := want[goid]; ok {
+diff --git a/src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go b/src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go
+index 9f27ae046f..30f8597790 100644
+--- a/src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go
++++ b/src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go
+@@ -23,8 +23,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -36,13 +36,13 @@ func gen(t *testgen.Trace) {
+ 
+ 	// A running goroutine blocks.
+ 	b10 := g1.Batch(trace.ThreadID(0), 0)
+-	b10.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b10.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b10.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b10.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
+ 	b10.Event("GoStop", "whatever", testgen.NoStack)
+ 
+ 	// The running goroutine gets unblocked.
+ 	b11 := g1.Batch(trace.ThreadID(1), 0)
+-	b11.Event("ProcStatus", trace.ProcID(1), go122.ProcRunning)
++	b11.Event("ProcStatus", trace.ProcID(1), tracev2.ProcRunning)
+ 	b11.Event("GoStart", trace.GoID(1), testgen.Seq(1))
+ 	b11.Event("GoStop", "whatever", testgen.NoStack)
+ 
+@@ -50,13 +50,13 @@ func gen(t *testgen.Trace) {
+ 
+ 	// Start running the goroutine, but later.
+ 	b21 := g2.Batch(trace.ThreadID(1), 3)
+-	b21.Event("ProcStatus", trace.ProcID(1), go122.ProcRunning)
++	b21.Event("ProcStatus", trace.ProcID(1), tracev2.ProcRunning)
+ 	b21.Event("GoStart", trace.GoID(1), testgen.Seq(2))
+ 
+ 	// The goroutine starts running, then stops, then starts again.
+ 	b20 := g2.Batch(trace.ThreadID(0), 5)
+-	b20.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b20.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunnable)
++	b20.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b20.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunnable)
+ 	b20.Event("GoStart", trace.GoID(1), testgen.Seq(1))
+ 	b20.Event("GoStop", "whatever", testgen.NoStack)
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go b/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
+index e508159832..cdb53785b0 100644
+--- a/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
++++ b/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
+@@ -25,8 +25,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -41,9 +41,9 @@ func gen(t *testgen.Trace) {
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+ 	b0.Event("GoCreateSyscall", trace.GoID(4))
+ 	b0.Event("GoSyscallEndBlocked")
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcIdle)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcIdle)
+ 	b0.Event("ProcStart", trace.ProcID(0), testgen.Seq(1))
+-	b0.Event("GoStatus", trace.GoID(4), trace.NoThread, go122.GoRunnable)
++	b0.Event("GoStatus", trace.GoID(4), trace.NoThread, tracev2.GoRunnable)
+ 	b0.Event("GoStart", trace.GoID(4), testgen.Seq(1))
+ 	b0.Event("GoSyscallBegin", testgen.Seq(2), testgen.NoStack)
+ 	b0.Event("GoDestroySyscall")
+@@ -55,7 +55,7 @@ func gen(t *testgen.Trace) {
+ 	// have a self-steal here potentially that doesn't make
+ 	// sense.
+ 	b1 := g.Batch(trace.ThreadID(0), 0)
+-	b1.Event("ProcStatus", trace.ProcID(1), go122.ProcIdle)
++	b1.Event("ProcStatus", trace.ProcID(1), tracev2.ProcIdle)
+ 	b1.Event("ProcStart", trace.ProcID(1), testgen.Seq(1))
+ 	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(3), trace.ThreadID(0))
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go b/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
+index 681464ce19..ba74144e92 100644
+--- a/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
++++ b/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
+@@ -16,8 +16,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -39,7 +39,7 @@ func gen(t *testgen.Trace) {
+ 	// possible on other platforms, however.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+ 	b0.Event("GoCreateSyscall", trace.GoID(4))
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcIdle)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcIdle)
+ 	b0.Event("ProcStart", trace.ProcID(0), testgen.Seq(1))
+ 	b0.Event("GoSyscallEndBlocked")
+ 	b0.Event("GoStart", trace.GoID(4), testgen.Seq(1))
+diff --git a/src/internal/trace/testdata/generators/go122-fail-first-gen-first.go b/src/internal/trace/testdata/generators/go122-fail-first-gen-first.go
+index f0e02be155..ab396fcd4a 100644
+--- a/src/internal/trace/testdata/generators/go122-fail-first-gen-first.go
++++ b/src/internal/trace/testdata/generators/go122-fail-first-gen-first.go
+@@ -19,8 +19,8 @@
+ package main
+ 
+ import (
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -29,15 +29,15 @@ func main() {
+ 
+ func gen(t *testgen.Trace) {
+ 	// A running goroutine emits a task begin.
+-	t.RawEvent(go122.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
+-	t.RawEvent(go122.EvFrequency, nil, 15625000)
++	t.RawEvent(tracev2.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
++	t.RawEvent(tracev2.EvFrequency, nil, 15625000)
+ 
+ 	// A running goroutine emits a task begin.
+-	t.RawEvent(go122.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
+-	t.RawEvent(go122.EvGoCreate, nil, 0 /*timestamp delta*/, 1 /*go ID*/, 0, 0)
++	t.RawEvent(tracev2.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
++	t.RawEvent(tracev2.EvGoCreate, nil, 0 /*timestamp delta*/, 1 /*go ID*/, 0, 0)
+ 
+ 	// Write an invalid batch event for the next generation.
+-	t.RawEvent(go122.EvEventBatch, nil, 2 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 50 /*batch length (invalid)*/)
++	t.RawEvent(tracev2.EvEventBatch, nil, 2 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 50 /*batch length (invalid)*/)
+ 
+ 	// We should fail at the first issue, not the second one.
+ 	t.ExpectFailure("expected a proc but didn't have one")
+diff --git a/src/internal/trace/testdata/generators/go122-go-create-without-running-g.go b/src/internal/trace/testdata/generators/go122-go-create-without-running-g.go
+index 2170899758..3ce4f0243d 100644
+--- a/src/internal/trace/testdata/generators/go122-go-create-without-running-g.go
++++ b/src/internal/trace/testdata/generators/go122-go-create-without-running-g.go
+@@ -13,8 +13,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -26,7 +26,7 @@ func gen(t *testgen.Trace) {
+ 
+ 	// A goroutine gets created on a running P, then starts running.
+ 	b0 := g1.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
+ 	b0.Event("GoCreate", trace.GoID(5), testgen.NoStack, testgen.NoStack)
+ 	b0.Event("GoStart", trace.GoID(5), testgen.Seq(1))
+ 	b0.Event("GoStop", "whatever", testgen.NoStack)
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
+index 4e72969833..57d2a1a126 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
+@@ -15,8 +15,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -31,8 +31,8 @@ func gen(t *testgen.Trace) {
+ 	// One goroutine does a syscall without blocking, then another one where
+ 	// it's P gets stolen.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
+ 	b0.Event("GoSyscallBegin", testgen.Seq(1), testgen.NoStack)
+ 	b0.Event("GoSyscallEnd")
+ 	b0.Event("GoSyscallBegin", testgen.Seq(2), testgen.NoStack)
+@@ -40,7 +40,7 @@ func gen(t *testgen.Trace) {
+ 
+ 	// A running goroutine steals proc 0.
+ 	b1 := g.Batch(trace.ThreadID(1), 0)
+-	b1.Event("ProcStatus", trace.ProcID(2), go122.ProcRunning)
+-	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), go122.GoRunning)
++	b1.Event("ProcStatus", trace.ProcID(2), tracev2.ProcRunning)
++	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), tracev2.GoRunning)
+ 	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(3), trace.ThreadID(0))
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go
+index 1d7fe9c57c..e4f97ba530 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -22,12 +22,12 @@ func gen(t *testgen.Trace) {
+ 	// One goroutine is exiting with a syscall. It already
+ 	// acquired a new P.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(1), go122.ProcRunning)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoSyscall)
++	b0.Event("ProcStatus", trace.ProcID(1), tracev2.ProcRunning)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoSyscall)
+ 	b0.Event("GoSyscallEndBlocked")
+ 
+ 	// A bare M stole the goroutine's P at the generation boundary.
+ 	b1 := g.Batch(trace.ThreadID(1), 0)
+-	b1.Event("ProcStatus", trace.ProcID(0), go122.ProcSyscallAbandoned)
++	b1.Event("ProcStatus", trace.ProcID(0), tracev2.ProcSyscallAbandoned)
+ 	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(1), trace.ThreadID(0))
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go
+index a94b8f058d..fc8549814f 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -22,13 +22,13 @@ func gen(t *testgen.Trace) {
+ 	// One goroutine is exiting with a syscall. It already
+ 	// acquired a new P.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoSyscall)
+-	b0.Event("ProcStatus", trace.ProcID(1), go122.ProcIdle)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoSyscall)
++	b0.Event("ProcStatus", trace.ProcID(1), tracev2.ProcIdle)
+ 	b0.Event("ProcStart", trace.ProcID(1), testgen.Seq(1))
+ 	b0.Event("GoSyscallEndBlocked")
+ 
+ 	// A bare M stole the goroutine's P at the generation boundary.
+ 	b1 := g.Batch(trace.ThreadID(1), 0)
+-	b1.Event("ProcStatus", trace.ProcID(0), go122.ProcSyscallAbandoned)
++	b1.Event("ProcStatus", trace.ProcID(0), tracev2.ProcSyscallAbandoned)
+ 	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(1), trace.ThreadID(0))
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go
+index 04aef0644c..6a4f8bd1e3 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -22,15 +22,15 @@ func gen(t *testgen.Trace) {
+ 	// One goroutine is exiting with a syscall. It already
+ 	// acquired a new P.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoSyscall)
+-	b0.Event("ProcStatus", trace.ProcID(1), go122.ProcIdle)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoSyscall)
++	b0.Event("ProcStatus", trace.ProcID(1), tracev2.ProcIdle)
+ 	b0.Event("ProcStart", trace.ProcID(1), testgen.Seq(1))
+ 	b0.Event("GoSyscallEndBlocked")
+ 
+ 	// A running goroutine stole P0 at the generation boundary.
+ 	b1 := g.Batch(trace.ThreadID(1), 0)
+-	b1.Event("ProcStatus", trace.ProcID(2), go122.ProcRunning)
+-	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), go122.GoRunning)
+-	b1.Event("ProcStatus", trace.ProcID(0), go122.ProcSyscallAbandoned)
++	b1.Event("ProcStatus", trace.ProcID(2), tracev2.ProcRunning)
++	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), tracev2.GoRunning)
++	b1.Event("ProcStatus", trace.ProcID(0), tracev2.ProcSyscallAbandoned)
+ 	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(1), trace.ThreadID(0))
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go
+index 769203ab4a..0660996f3f 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -22,14 +22,14 @@ func gen(t *testgen.Trace) {
+ 	// One goroutine is exiting with a syscall. It already
+ 	// acquired a new P.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(1), go122.ProcRunning)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoSyscall)
++	b0.Event("ProcStatus", trace.ProcID(1), tracev2.ProcRunning)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoSyscall)
+ 	b0.Event("GoSyscallEndBlocked")
+ 
+ 	// A running goroutine stole P0 at the generation boundary.
+ 	b1 := g.Batch(trace.ThreadID(1), 0)
+-	b1.Event("ProcStatus", trace.ProcID(2), go122.ProcRunning)
+-	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), go122.GoRunning)
+-	b1.Event("ProcStatus", trace.ProcID(0), go122.ProcSyscallAbandoned)
++	b1.Event("ProcStatus", trace.ProcID(2), tracev2.ProcRunning)
++	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), tracev2.GoRunning)
++	b1.Event("ProcStatus", trace.ProcID(0), tracev2.ProcSyscallAbandoned)
+ 	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(1), trace.ThreadID(0))
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go
+index c1c39569f8..4a286b5eea 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -21,9 +21,9 @@ func gen(t *testgen.Trace) {
+ 
+ 	// One goroutine enters a syscall, grabs a P, and starts running.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(1), go122.ProcIdle)
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b0.Event("ProcStatus", trace.ProcID(1), tracev2.ProcIdle)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
+ 	b0.Event("GoSyscallBegin", testgen.Seq(1), testgen.NoStack)
+ 	b0.Event("ProcStart", trace.ProcID(1), testgen.Seq(1))
+ 	b0.Event("GoSyscallEndBlocked")
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go
+index 217e4e6f96..98ab35bad6 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -21,16 +21,16 @@ func gen(t *testgen.Trace) {
+ 
+ 	// One goroutine enters a syscall, grabs a P, and starts running.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(1), go122.ProcIdle)
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b0.Event("ProcStatus", trace.ProcID(1), tracev2.ProcIdle)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
+ 	b0.Event("GoSyscallBegin", testgen.Seq(1), testgen.NoStack)
+ 	b0.Event("ProcStart", trace.ProcID(1), testgen.Seq(1))
+ 	b0.Event("GoSyscallEndBlocked")
+ 
+ 	// A running goroutine steals proc 0.
+ 	b1 := g.Batch(trace.ThreadID(1), 0)
+-	b1.Event("ProcStatus", trace.ProcID(2), go122.ProcRunning)
+-	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), go122.GoRunning)
++	b1.Event("ProcStatus", trace.ProcID(2), tracev2.ProcRunning)
++	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), tracev2.GoRunning)
+ 	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(2), trace.ThreadID(0))
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go
+index a12f47177f..2c5aac39d6 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go
+@@ -12,8 +12,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -28,8 +28,8 @@ func gen(t *testgen.Trace) {
+ 	// A goroutine execute a syscall and steals its own P, then starts running
+ 	// on that P.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
+ 	b0.Event("GoSyscallBegin", testgen.Seq(1), testgen.NoStack)
+ 	b0.Event("ProcSteal", trace.ProcID(0), testgen.Seq(2), trace.ThreadID(0))
+ 	b0.Event("ProcStart", trace.ProcID(0), testgen.Seq(3))
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go
+index 34c7415cae..91dfa37740 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -21,8 +21,8 @@ func gen(t *testgen.Trace) {
+ 
+ 	// One goroutine enters a syscall.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
+ 	b0.Event("GoSyscallBegin", testgen.Seq(1), testgen.NoStack)
+ 	b0.Event("GoSyscallEndBlocked")
+ 
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go
+index 6304105af0..e09a70c7c9 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go
+@@ -8,8 +8,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -21,14 +21,14 @@ func gen(t *testgen.Trace) {
+ 
+ 	// One goroutine enters a syscall.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
+ 	b0.Event("GoSyscallBegin", testgen.Seq(1), testgen.NoStack)
+ 	b0.Event("GoSyscallEndBlocked")
+ 
+ 	// A running goroutine steals proc 0.
+ 	b1 := g.Batch(trace.ThreadID(1), 0)
+-	b1.Event("ProcStatus", trace.ProcID(2), go122.ProcRunning)
+-	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), go122.GoRunning)
++	b1.Event("ProcStatus", trace.ProcID(2), tracev2.ProcRunning)
++	b1.Event("GoStatus", trace.GoID(2), trace.ThreadID(1), tracev2.GoRunning)
+ 	b1.Event("ProcSteal", trace.ProcID(0), testgen.Seq(2), trace.ThreadID(0))
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go
+index ac84261f02..d3600e43e8 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go
+@@ -9,8 +9,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -23,10 +23,10 @@ func gen(t *testgen.Trace) {
+ 	// Steal proc from a goroutine that's been blocked
+ 	// in a syscall the entire generation.
+ 	b0 := g.Batch(trace.ThreadID(0), 0)
+-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcSyscallAbandoned)
++	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcSyscallAbandoned)
+ 	b0.Event("ProcSteal", trace.ProcID(0), testgen.Seq(1), trace.ThreadID(1))
+ 
+ 	// Status event for a goroutine blocked in a syscall for the entire generation.
+ 	bz := g.Batch(trace.NoThread, 0)
+-	bz.Event("GoStatus", trace.GoID(1), trace.ThreadID(1), go122.GoSyscall)
++	bz.Event("GoStatus", trace.GoID(1), trace.ThreadID(1), tracev2.GoSyscall)
+ }
+diff --git a/src/internal/trace/testdata/generators/go122-task-across-generations.go b/src/internal/trace/testdata/generators/go122-task-across-generations.go
+index 83b1bcdb5e..644176a1e3 100644
+--- a/src/internal/trace/testdata/generators/go122-task-across-generations.go
++++ b/src/internal/trace/testdata/generators/go122-task-across-generations.go
+@@ -14,8 +14,8 @@ package main
+ 
+ import (
+ 	"internal/trace"
+-	"internal/trace/event/go122"
+-	testgen "internal/trace/internal/testgen/go122"
++	"internal/trace/internal/testgen"
++	"internal/trace/tracev2"
+ )
+ 
+ func main() {
+@@ -27,15 +27,15 @@ func gen(t *testgen.Trace) {
+ 
+ 	// A running goroutine emits a task begin.
+ 	b1 := g1.Batch(trace.ThreadID(0), 0)
+-	b1.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b1.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b1.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b1.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
+ 	b1.Event("UserTaskBegin", trace.TaskID(2), trace.TaskID(0) /* 0 means no parent, not background */, "my task", testgen.NoStack)
+ 
+ 	g2 := t.Generation(2)
+ 
+ 	// That same goroutine emits a task end in the following generation.
+ 	b2 := g2.Batch(trace.ThreadID(0), 5)
+-	b2.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+-	b2.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b2.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
++	b2.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), tracev2.GoRunning)
+ 	b2.Event("UserTaskEnd", trace.TaskID(2), testgen.NoStack)
+ }
+diff --git a/src/internal/trace/tracev1.go b/src/internal/trace/tracev1.go
+index 91752efa99..9c2a1ebc14 100644
+--- a/src/internal/trace/tracev1.go
++++ b/src/internal/trace/tracev1.go
+@@ -30,9 +30,9 @@ package trace
+ import (
+ 	"errors"
+ 	"fmt"
+-	"internal/trace/event"
+-	"internal/trace/event/go122"
+ 	"internal/trace/internal/tracev1"
++	"internal/trace/tracev2"
++	"internal/trace/tracev2/event"
+ 	"io"
+ )
+ 
+@@ -259,7 +259,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 
+ 	switch ev.Type {
+ 	case tracev1.EvGomaxprocs:
+-		mappedType = go122.EvProcsChange
++		mappedType = tracev2.EvProcsChange
+ 		if it.preInit {
+ 			// The first EvGomaxprocs signals the end of trace initialization. At this point we've seen
+ 			// all goroutines that already existed at trace begin.
+@@ -277,9 +277,9 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 					},
+ 					table: it.evt,
+ 					base: baseEvent{
+-						typ:  go122.EvGoStatus,
++						typ:  tracev2.EvGoStatus,
+ 						time: Time(ev.Ts),
+-						args: timedEventArgs{uint64(gid), ^uint64(0), uint64(go122.GoRunnable)},
++						args: timedEventArgs{uint64(gid), ^uint64(0), uint64(tracev2.GoRunnable)},
+ 					},
+ 				})
+ 			}
+@@ -289,51 +289,51 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 	case tracev1.EvProcStart:
+ 		it.procMs[ProcID(ev.P)] = ThreadID(ev.Args[0])
+ 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
+-			mappedType = go122.EvProcStart
++			mappedType = tracev2.EvProcStart
+ 			mappedArgs = timedEventArgs{uint64(ev.P)}
+ 		} else {
+ 			it.seenProcs[ProcID(ev.P)] = struct{}{}
+-			mappedType = go122.EvProcStatus
+-			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcRunning)}
++			mappedType = tracev2.EvProcStatus
++			mappedArgs = timedEventArgs{uint64(ev.P), uint64(tracev2.ProcRunning)}
+ 		}
+ 	case tracev1.EvProcStop:
+ 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
+-			mappedType = go122.EvProcStop
++			mappedType = tracev2.EvProcStop
+ 			mappedArgs = timedEventArgs{uint64(ev.P)}
+ 		} else {
+ 			it.seenProcs[ProcID(ev.P)] = struct{}{}
+-			mappedType = go122.EvProcStatus
+-			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcIdle)}
++			mappedType = tracev2.EvProcStatus
++			mappedArgs = timedEventArgs{uint64(ev.P), uint64(tracev2.ProcIdle)}
+ 		}
+ 	case tracev1.EvGCStart:
+-		mappedType = go122.EvGCBegin
++		mappedType = tracev2.EvGCBegin
+ 	case tracev1.EvGCDone:
+-		mappedType = go122.EvGCEnd
++		mappedType = tracev2.EvGCEnd
+ 	case tracev1.EvSTWStart:
+ 		sid := it.builtinToStringID[sSTWUnknown+it.trace.STWReason(ev.Args[0])]
+ 		it.lastStwReason = sid
+-		mappedType = go122.EvSTWBegin
++		mappedType = tracev2.EvSTWBegin
+ 		mappedArgs = timedEventArgs{uint64(sid)}
+ 	case tracev1.EvSTWDone:
+-		mappedType = go122.EvSTWEnd
++		mappedType = tracev2.EvSTWEnd
+ 		mappedArgs = timedEventArgs{it.lastStwReason}
+ 	case tracev1.EvGCSweepStart:
+-		mappedType = go122.EvGCSweepBegin
++		mappedType = tracev2.EvGCSweepBegin
+ 	case tracev1.EvGCSweepDone:
+-		mappedType = go122.EvGCSweepEnd
++		mappedType = tracev2.EvGCSweepEnd
+ 	case tracev1.EvGoCreate:
+ 		if it.preInit {
+ 			it.createdPreInit[GoID(ev.Args[0])] = struct{}{}
+ 			return Event{}, errSkip
+ 		}
+-		mappedType = go122.EvGoCreate
++		mappedType = tracev2.EvGoCreate
+ 	case tracev1.EvGoStart:
+ 		if it.preInit {
+-			mappedType = go122.EvGoStatus
+-			mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoRunning)}
++			mappedType = tracev2.EvGoStatus
++			mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(tracev2.GoRunning)}
+ 			delete(it.createdPreInit, GoID(ev.Args[0]))
+ 		} else {
+-			mappedType = go122.EvGoStart
++			mappedType = tracev2.EvGoStart
+ 		}
+ 	case tracev1.EvGoStartLabel:
+ 		it.extra = []Event{{
+@@ -344,7 +344,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 			},
+ 			table: it.evt,
+ 			base: baseEvent{
+-				typ:  go122.EvGoLabel,
++				typ:  tracev2.EvGoLabel,
+ 				time: Time(ev.Ts),
+ 				args: timedEventArgs{ev.Args[2]},
+ 			},
+@@ -357,50 +357,50 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 			},
+ 			table: it.evt,
+ 			base: baseEvent{
+-				typ:  go122.EvGoStart,
++				typ:  tracev2.EvGoStart,
+ 				time: Time(ev.Ts),
+ 				args: mappedArgs,
+ 			},
+ 		}, nil
+ 	case tracev1.EvGoEnd:
+-		mappedType = go122.EvGoDestroy
++		mappedType = tracev2.EvGoDestroy
+ 	case tracev1.EvGoStop:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sForever]), uint64(ev.StkID)}
+ 	case tracev1.EvGoSched:
+-		mappedType = go122.EvGoStop
++		mappedType = tracev2.EvGoStop
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sGosched]), uint64(ev.StkID)}
+ 	case tracev1.EvGoPreempt:
+-		mappedType = go122.EvGoStop
++		mappedType = tracev2.EvGoStop
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sPreempted]), uint64(ev.StkID)}
+ 	case tracev1.EvGoSleep:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSleep]), uint64(ev.StkID)}
+ 	case tracev1.EvGoBlock:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sEmpty]), uint64(ev.StkID)}
+ 	case tracev1.EvGoUnblock:
+-		mappedType = go122.EvGoUnblock
++		mappedType = tracev2.EvGoUnblock
+ 	case tracev1.EvGoBlockSend:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanSend]), uint64(ev.StkID)}
+ 	case tracev1.EvGoBlockRecv:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanRecv]), uint64(ev.StkID)}
+ 	case tracev1.EvGoBlockSelect:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSelect]), uint64(ev.StkID)}
+ 	case tracev1.EvGoBlockSync:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSync]), uint64(ev.StkID)}
+ 	case tracev1.EvGoBlockCond:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSyncCond]), uint64(ev.StkID)}
+ 	case tracev1.EvGoBlockNet:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sNetwork]), uint64(ev.StkID)}
+ 	case tracev1.EvGoBlockGC:
+-		mappedType = go122.EvGoBlock
++		mappedType = tracev2.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sMarkAssistWait]), uint64(ev.StkID)}
+ 	case tracev1.EvGoSysCall:
+ 		// Look for the next event for the same G to determine if the syscall
+@@ -419,7 +419,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 			return false
+ 		})
+ 		if blocked {
+-			mappedType = go122.EvGoSyscallBegin
++			mappedType = tracev2.EvGoSyscallBegin
+ 			mappedArgs = timedEventArgs{1: uint64(ev.StkID)}
+ 		} else {
+ 			// Convert the old instantaneous syscall event to a pair of syscall
+@@ -433,7 +433,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 				},
+ 				table: it.evt,
+ 				base: baseEvent{
+-					typ:  go122.EvGoSyscallBegin,
++					typ:  tracev2.EvGoSyscallBegin,
+ 					time: Time(ev.Ts),
+ 					args: timedEventArgs{1: uint64(ev.StkID)},
+ 				},
+@@ -443,7 +443,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 				ctx:   out1.ctx,
+ 				table: it.evt,
+ 				base: baseEvent{
+-					typ:  go122.EvGoSyscallEnd,
++					typ:  tracev2.EvGoSyscallEnd,
+ 					time: Time(ev.Ts + 1),
+ 					args: timedEventArgs{},
+ 				},
+@@ -454,30 +454,30 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 		}
+ 
+ 	case tracev1.EvGoSysExit:
+-		mappedType = go122.EvGoSyscallEndBlocked
++		mappedType = tracev2.EvGoSyscallEndBlocked
+ 	case tracev1.EvGoSysBlock:
+ 		return Event{}, errSkip
+ 	case tracev1.EvGoWaiting:
+-		mappedType = go122.EvGoStatus
+-		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoWaiting)}
++		mappedType = tracev2.EvGoStatus
++		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(tracev2.GoWaiting)}
+ 		delete(it.createdPreInit, GoID(ev.Args[0]))
+ 	case tracev1.EvGoInSyscall:
+-		mappedType = go122.EvGoStatus
++		mappedType = tracev2.EvGoStatus
+ 		// In the new tracer, GoStatus with GoSyscall knows what thread the
+ 		// syscall is on. In trace v1, EvGoInSyscall doesn't contain that
+ 		// information and all we can do here is specify NoThread.
+-		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoSyscall)}
++		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(tracev2.GoSyscall)}
+ 		delete(it.createdPreInit, GoID(ev.Args[0]))
+ 	case tracev1.EvHeapAlloc:
+-		mappedType = go122.EvHeapAlloc
++		mappedType = tracev2.EvHeapAlloc
+ 	case tracev1.EvHeapGoal:
+-		mappedType = go122.EvHeapGoal
++		mappedType = tracev2.EvHeapGoal
+ 	case tracev1.EvGCMarkAssistStart:
+-		mappedType = go122.EvGCMarkAssistBegin
++		mappedType = tracev2.EvGCMarkAssistBegin
+ 	case tracev1.EvGCMarkAssistDone:
+-		mappedType = go122.EvGCMarkAssistEnd
++		mappedType = tracev2.EvGCMarkAssistEnd
+ 	case tracev1.EvUserTaskCreate:
+-		mappedType = go122.EvUserTaskBegin
++		mappedType = tracev2.EvUserTaskBegin
+ 		parent := ev.Args[1]
+ 		if parent == 0 {
+ 			parent = uint64(NoTask)
+@@ -486,7 +486,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 		name, _ := it.evt.strings.get(stringID(ev.Args[2]))
+ 		it.tasks[TaskID(ev.Args[0])] = taskState{name: name, parentID: TaskID(ev.Args[1])}
+ 	case tracev1.EvUserTaskEnd:
+-		mappedType = go122.EvUserTaskEnd
++		mappedType = tracev2.EvUserTaskEnd
+ 		// Event.Task expects the parent and name to be smuggled in extra args
+ 		// and as extra strings.
+ 		ts, ok := it.tasks[TaskID(ev.Args[0])]
+@@ -504,16 +504,16 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 	case tracev1.EvUserRegion:
+ 		switch ev.Args[1] {
+ 		case 0: // start
+-			mappedType = go122.EvUserRegionBegin
++			mappedType = tracev2.EvUserRegionBegin
+ 		case 1: // end
+-			mappedType = go122.EvUserRegionEnd
++			mappedType = tracev2.EvUserRegionEnd
+ 		}
+ 		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[2], uint64(ev.StkID)}
+ 	case tracev1.EvUserLog:
+-		mappedType = go122.EvUserLog
++		mappedType = tracev2.EvUserLog
+ 		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[1], it.inlineToStringID[ev.Args[3]], uint64(ev.StkID)}
+ 	case tracev1.EvCPUSample:
+-		mappedType = go122.EvCPUSample
++		mappedType = tracev2.EvCPUSample
+ 		// When emitted by the Go 1.22 tracer, CPU samples have 5 arguments:
+ 		// timestamp, M, P, G, stack. However, after they get turned into Event,
+ 		// they have the arguments stack, M, P, G.
+@@ -525,7 +525,7 @@ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR erro
+ 	}
+ 
+ 	if tracev1.EventDescriptions[ev.Type].Stack {
+-		if stackIDs := go122.Specs()[mappedType].StackIDs; len(stackIDs) > 0 {
++		if stackIDs := tracev2.Specs()[mappedType].StackIDs; len(stackIDs) > 0 {
+ 			mappedArgs[stackIDs[0]-1] = uint64(ev.StkID)
+ 		}
+ 	}
+diff --git a/src/internal/trace/tracev1_test.go b/src/internal/trace/tracev1_test.go
+index 0f8e24d2c4..008c7535c9 100644
+--- a/src/internal/trace/tracev1_test.go
++++ b/src/internal/trace/tracev1_test.go
+@@ -54,9 +54,9 @@ func TestTraceV1(t *testing.T) {
+ 				if testName == "user_task_region_1_21_good" {
+ 					testedUserRegions = true
+ 					validRegions := map[string]struct{}{
+-						"post-existing region": struct{}{},
+-						"region0":              struct{}{},
+-						"region1":              struct{}{},
++						"post-existing region": {},
++						"region0":              {},
++						"region1":              {},
+ 					}
+ 					// Check that we correctly convert user regions. These
+ 					// strings were generated by
+diff --git a/src/internal/trace/event/go122/event.go b/src/internal/trace/tracev2/event.go
+similarity index 99%
+rename from src/internal/trace/event/go122/event.go
+rename to src/internal/trace/tracev2/event.go
+index 5eadf0e571..48ed0eba1b 100644
+--- a/src/internal/trace/event/go122/event.go
++++ b/src/internal/trace/tracev2/event.go
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package go122
++package tracev2
+ 
+ import (
+ 	"fmt"
+-	"internal/trace/event"
++	"internal/trace/tracev2/event"
+ )
+ 
+ const (
+diff --git a/src/internal/trace/event/event.go b/src/internal/trace/tracev2/event/event.go
+similarity index 100%
+rename from src/internal/trace/event/event.go
+rename to src/internal/trace/tracev2/event/event.go
+diff --git a/src/internal/trace/version/version.go b/src/internal/trace/version/version.go
+index 4951bd97d7..a42cc708d2 100644
+--- a/src/internal/trace/version/version.go
++++ b/src/internal/trace/version/version.go
+@@ -8,8 +8,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/event"
+-	"internal/trace/event/go122"
++	"internal/trace/tracev2"
++	"internal/trace/tracev2/event"
+ )
+ 
+ // Version represents the version of a trace file.
+@@ -31,11 +31,11 @@ var versions = map[Version][]event.Spec{
+ 	Go119: nil,
+ 	Go121: nil,
+ 
+-	Go122: go122.Specs(),
++	Go122: tracev2.Specs(),
+ 	// Go 1.23 adds backwards-incompatible events, but
+ 	// traces produced by Go 1.22 are also always valid
+ 	// Go 1.23 traces.
+-	Go123: go122.Specs(),
++	Go123: tracev2.Specs(),
+ }
+ 
+ // Specs returns the set of event.Specs for this version.

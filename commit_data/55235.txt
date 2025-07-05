@@ -16,8 +16,62 @@ Date:   Fri Jan 20 13:36:51 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/liveness/plive.go | 9 ++++++++-
  test/live.go                               | 4 ++--
  test/live_regabi.go                        | 2 +-
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 689b5286c6..e828a6ebb6 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1106,11 +1106,18 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
+ 		s += "indirect call:"
+ 	}
+ 
++	// Sort variable names for display. Variables aren't in any particular order, and
++	// the order can change by architecture, particularly with differences in regabi.
++	var names []string
+ 	for j, n := range lv.vars {
+ 		if live.Get(int32(j)) {
+-			s += fmt.Sprintf(" %v", n)
++			names = append(names, n.Sym().Name)
+ 		}
+ 	}
++	sort.Strings(names)
++	for _, v := range names {
++		s += " " + v
++	}
+ 
+ 	base.WarnfAt(pos, s)
+ }
+diff --git a/test/live.go b/test/live.go
+index 6f3b86a35d..0e015db34c 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -698,9 +698,9 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
+ 	defer func() {
+ 		recover()
+ 	}()
+-	printint(0) // ERROR "live at call to printint: q r .autotmp_[0-9]+$"
++	printint(0) // ERROR "live at call to printint: .autotmp_[0-9]+ q r$"
+ 	r = q
+-	return // ERROR "live at call to f41.func1: r .autotmp_[0-9]+$"
++	return // ERROR "live at call to f41.func1: .autotmp_[0-9]+ r$"
+ }
+ 
+ func f42() {
+diff --git a/test/live_regabi.go b/test/live_regabi.go
+index 027d476ab2..6a8ff5d68a 100644
+--- a/test/live_regabi.go
++++ b/test/live_regabi.go
+@@ -693,7 +693,7 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
+ 	defer func() {
+ 		recover()
+ 	}()
+-	printint(0) // ERROR "live at call to printint: q .autotmp_[0-9]+ r$"
++	printint(0) // ERROR "live at call to printint: .autotmp_[0-9]+ q r$"
+ 	r = q
+ 	return // ERROR "live at call to f41.func1: .autotmp_[0-9]+ r$"
+ }

@@ -14,7 +14,7 @@ Date:   Tue Nov 11 17:07:06 2014 -0500
     R=r, dave
     CC=austin, dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/170330043
-
+---
  src/runtime/complex.go  |  39 +++--
  src/runtime/float.c     |  10 --
  src/runtime/runtime.c   | 399 -----------------------------------------------
@@ -23,3 +23,1264 @@ Date:   Tue Nov 11 17:07:06 2014 -0500
  src/runtime/string.c    | 226 ---------------------------
  src/runtime/string1.go  | 108 +++++++++++++
  7 files changed, 540 insertions(+), 649 deletions(-)
+
+diff --git a/src/runtime/complex.go b/src/runtime/complex.go
+index ec50f89470..73f1161a50 100644
+--- a/src/runtime/complex.go
++++ b/src/runtime/complex.go
+@@ -4,28 +4,47 @@
+ 
+ package runtime
+ 
++func isposinf(f float64) bool { return f > maxFloat64 }
++func isneginf(f float64) bool { return f < -maxFloat64 }
++func isnan(f float64) bool    { return f != f }
++
++func nan() float64 {
++	var f float64 = 0
++	return f / f
++}
++
++func posinf() float64 {
++	var f float64 = maxFloat64
++	return f * f
++}
++
++func neginf() float64 {
++	var f float64 = maxFloat64
++	return -f * f
++}
++
+ func complex128div(n complex128, d complex128) complex128 {
+ 	// Special cases as in C99.
+-	ninf := real(n) == posinf || real(n) == neginf ||
+-		imag(n) == posinf || imag(n) == neginf
+-	dinf := real(d) == posinf || real(d) == neginf ||
+-		imag(d) == posinf || imag(d) == neginf
++	ninf := isposinf(real(n)) || isneginf(real(n)) ||
++		isposinf(imag(n)) || isneginf(imag(n))
++	dinf := isposinf(real(d)) || isneginf(real(d)) ||
++		isposinf(imag(d)) || isneginf(imag(d))
+ 
+-	nnan := !ninf && (real(n) != real(n) || imag(n) != imag(n))
+-	dnan := !dinf && (real(d) != real(d) || imag(d) != imag(d))
++	nnan := !ninf && (isnan(real(n)) || isnan(imag(n)))
++	dnan := !dinf && (isnan(real(d)) || isnan(imag(d)))
+ 
+ 	switch {
+ 	case nnan || dnan:
+-		return complex(nan, nan)
++		return complex(nan(), nan())
+ 	case ninf && !dinf:
+-		return complex(posinf, posinf)
++		return complex(posinf(), posinf())
+ 	case !ninf && dinf:
+ 		return complex(0, 0)
+ 	case real(d) == 0 && imag(d) == 0:
+ 		if real(n) == 0 && imag(n) == 0 {
+-			return complex(nan, nan)
++			return complex(nan(), nan())
+ 		} else {
+-			return complex(posinf, posinf)
++			return complex(posinf(), posinf())
+ 		}
+ 	default:
+ 		// Standard complex arithmetic, factored to avoid unnecessary overflow.
+diff --git a/src/runtime/float.c b/src/runtime/float.c
+deleted file mode 100644
+index 42082e4347..0000000000
+--- a/src/runtime/float.c
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-
+-// used as float64 via runtime· names
+-uint64	·nan		= 0x7FF8000000000001ULL;
+-uint64	·posinf	= 0x7FF0000000000000ULL;
+-uint64	·neginf	= 0xFFF0000000000000ULL;
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+deleted file mode 100644
+index c823691ec5..0000000000
+--- a/src/runtime/runtime.c
++++ /dev/null
+@@ -1,399 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "stack.h"
+-#include "arch_GOARCH.h"
+-#include "textflag.h"
+-#include "malloc.h"
+-
+-// Keep a cached value to make gotraceback fast,
+-// since we call it on every call to gentraceback.
+-// The cached value is a uint32 in which the low bit
+-// is the "crash" setting and the top 31 bits are the
+-// gotraceback value.
+-static uint32 traceback_cache = 2<<1;
+-
+-// The GOTRACEBACK environment variable controls the
+-// behavior of a Go program that is crashing and exiting.
+-//	GOTRACEBACK=0   suppress all tracebacks
+-//	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
+-//	GOTRACEBACK=2   show tracebacks including runtime frames
+-//	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
+-#pragma textflag NOSPLIT
+-int32
+-runtime·gotraceback(bool *crash)
+-{
+-	if(crash != nil)
+-		*crash = false;
+-	if(g->m->traceback != 0)
+-		return g->m->traceback;
+-	if(crash != nil)
+-		*crash = traceback_cache&1;
+-	return traceback_cache>>1;
+-}
+-
+-int32
+-runtime·mcmp(byte *s1, byte *s2, uintptr n)
+-{
+-	uintptr i;
+-	byte c1, c2;
+-
+-	for(i=0; i<n; i++) {
+-		c1 = s1[i];
+-		c2 = s2[i];
+-		if(c1 < c2)
+-			return -1;
+-		if(c1 > c2)
+-			return +1;
+-	}
+-	return 0;
+-}
+-
+-
+-byte*
+-runtime·mchr(byte *p, byte c, byte *ep)
+-{
+-	for(; p < ep; p++)
+-		if(*p == c)
+-			return p;
+-	return nil;
+-}
+-
+-static int32	argc;
+-
+-#pragma dataflag NOPTR /* argv not a heap pointer */
+-static uint8**	argv;
+-
+-extern Slice runtime·argslice;
+-extern Slice runtime·envs;
+-
+-void (*runtime·sysargs)(int32, uint8**);
+-
+-void
+-runtime·args(int32 c, uint8 **v)
+-{
+-	argc = c;
+-	argv = v;
+-	if(runtime·sysargs != nil)
+-		runtime·sysargs(c, v);
+-}
+-
+-int32 runtime·isplan9;
+-int32 runtime·issolaris;
+-int32 runtime·iswindows;
+-
+-// Information about what cpu features are available.
+-// Set on startup in asm_{x86/amd64}.s.
+-uint32 runtime·cpuid_ecx;
+-uint32 runtime·cpuid_edx;
+-
+-void
+-runtime·goargs(void)
+-{
+-	String *s;
+-	int32 i;
+-
+-	// for windows implementation see "os" package
+-	if(Windows)
+-		return;
+-
+-	runtime·argslice = runtime·makeStringSlice(argc);
+-	s = (String*)runtime·argslice.array;
+-	for(i=0; i<argc; i++)
+-		s[i] = runtime·gostringnocopy(argv[i]);
+-}
+-
+-void
+-runtime·goenvs_unix(void)
+-{
+-	String *s;
+-	int32 i, n;
+-
+-	for(n=0; argv[argc+1+n] != 0; n++)
+-		;
+-
+-	runtime·envs = runtime·makeStringSlice(n);
+-	s = (String*)runtime·envs.array;
+-	for(i=0; i<n; i++)
+-		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
+-}
+-
+-#pragma textflag NOSPLIT
+-Slice
+-runtime·environ()
+-{
+-	return runtime·envs;
+-}
+-
+-int32
+-runtime·atoi(byte *p)
+-{
+-	int32 n;
+-
+-	n = 0;
+-	while('0' <= *p && *p <= '9')
+-		n = n*10 + *p++ - '0';
+-	return n;
+-}
+-
+-static void
+-TestAtomic64(void)
+-{
+-	uint64 z64, x64;
+-
+-	z64 = 42;
+-	x64 = 0;
+-	PREFETCH(&z64);
+-	if(runtime·cas64(&z64, x64, 1))
+-		runtime·throw("cas64 failed");
+-	if(x64 != 0)
+-		runtime·throw("cas64 failed");
+-	x64 = 42;
+-	if(!runtime·cas64(&z64, x64, 1))
+-		runtime·throw("cas64 failed");
+-	if(x64 != 42 || z64 != 1)
+-		runtime·throw("cas64 failed");
+-	if(runtime·atomicload64(&z64) != 1)
+-		runtime·throw("load64 failed");
+-	runtime·atomicstore64(&z64, (1ull<<40)+1);
+-	if(runtime·atomicload64(&z64) != (1ull<<40)+1)
+-		runtime·throw("store64 failed");
+-	if(runtime·xadd64(&z64, (1ull<<40)+1) != (2ull<<40)+2)
+-		runtime·throw("xadd64 failed");
+-	if(runtime·atomicload64(&z64) != (2ull<<40)+2)
+-		runtime·throw("xadd64 failed");
+-	if(runtime·xchg64(&z64, (3ull<<40)+3) != (2ull<<40)+2)
+-		runtime·throw("xchg64 failed");
+-	if(runtime·atomicload64(&z64) != (3ull<<40)+3)
+-		runtime·throw("xchg64 failed");
+-}
+-
+-void
+-runtime·check(void)
+-{
+-	int8 a;
+-	uint8 b;
+-	int16 c;
+-	uint16 d;
+-	int32 e;
+-	uint32 f;
+-	int64 g;
+-	uint64 h;
+-	float32 i, i1;
+-	float64 j, j1;
+-	byte *k, *k1;
+-	uint16* l;
+-	struct x1 {
+-		byte x;
+-	};
+-	struct y1 {
+-		struct x1 x1;
+-		byte y;
+-	};
+-
+-	if(sizeof(a) != 1) runtime·throw("bad a");
+-	if(sizeof(b) != 1) runtime·throw("bad b");
+-	if(sizeof(c) != 2) runtime·throw("bad c");
+-	if(sizeof(d) != 2) runtime·throw("bad d");
+-	if(sizeof(e) != 4) runtime·throw("bad e");
+-	if(sizeof(f) != 4) runtime·throw("bad f");
+-	if(sizeof(g) != 8) runtime·throw("bad g");
+-	if(sizeof(h) != 8) runtime·throw("bad h");
+-	if(sizeof(i) != 4) runtime·throw("bad i");
+-	if(sizeof(j) != 8) runtime·throw("bad j");
+-	if(sizeof(k) != sizeof(uintptr)) runtime·throw("bad k");
+-	if(sizeof(l) != sizeof(uintptr)) runtime·throw("bad l");
+-	if(sizeof(struct x1) != 1) runtime·throw("bad sizeof x1");
+-	if(offsetof(struct y1, y) != 1) runtime·throw("bad offsetof y1.y");
+-	if(sizeof(struct y1) != 2) runtime·throw("bad sizeof y1");
+-
+-	if(runtime·timediv(12345LL*1000000000+54321, 1000000000, &e) != 12345 || e != 54321)
+-		runtime·throw("bad timediv");
+-
+-	uint32 z;
+-	z = 1;
+-	if(!runtime·cas(&z, 1, 2))
+-		runtime·throw("cas1");
+-	if(z != 2)
+-		runtime·throw("cas2");
+-
+-	z = 4;
+-	if(runtime·cas(&z, 5, 6))
+-		runtime·throw("cas3");
+-	if(z != 4)
+-		runtime·throw("cas4");
+-
+-	k = (byte*)0xfedcb123;
+-	if(sizeof(void*) == 8)
+-		k = (byte*)((uintptr)k<<10);
+-	if(runtime·casp((void**)&k, nil, nil))
+-		runtime·throw("casp1");
+-	k1 = k+1;
+-	if(!runtime·casp((void**)&k, k, k1))
+-		runtime·throw("casp2");
+-	if(k != k1)
+-		runtime·throw("casp3");
+-
+-	*(uint64*)&j = ~0ULL;
+-	if(j == j)
+-		runtime·throw("float64nan");
+-	if(!(j != j))
+-		runtime·throw("float64nan1");
+-
+-	*(uint64*)&j1 = ~1ULL;
+-	if(j == j1)
+-		runtime·throw("float64nan2");
+-	if(!(j != j1))
+-		runtime·throw("float64nan3");
+-
+-	*(uint32*)&i = ~0UL;
+-	if(i == i)
+-		runtime·throw("float32nan");
+-	if(!(i != i))
+-		runtime·throw("float32nan1");
+-
+-	*(uint32*)&i1 = ~1UL;
+-	if(i == i1)
+-		runtime·throw("float32nan2");
+-	if(!(i != i1))
+-		runtime·throw("float32nan3");
+-
+-	TestAtomic64();
+-
+-	if(FixedStack != runtime·round2(FixedStack))
+-		runtime·throw("FixedStack is not power-of-2");
+-}
+-
+-#pragma dataflag NOPTR
+-DebugVars	runtime·debug;
+-
+-typedef struct DbgVar DbgVar;
+-struct DbgVar
+-{
+-	int8*	name;
+-	int32*	value;
+-};
+-
+-// Do we report invalid pointers found during stack or heap scans?
+-int32 runtime·invalidptr = 1;
+-
+-#pragma dataflag NOPTR /* dbgvar has no heap pointers */
+-static DbgVar dbgvar[] = {
+-	{"allocfreetrace", &runtime·debug.allocfreetrace},
+-	{"invalidptr", &runtime·invalidptr},
+-	{"efence", &runtime·debug.efence},
+-	{"gctrace", &runtime·debug.gctrace},
+-	{"gcdead", &runtime·debug.gcdead},
+-	{"scheddetail", &runtime·debug.scheddetail},
+-	{"schedtrace", &runtime·debug.schedtrace},
+-	{"scavenge", &runtime·debug.scavenge},
+-};
+-
+-void
+-runtime·parsedebugvars(void)
+-{
+-	byte *p;
+-	intgo i, n;
+-
+-	p = runtime·getenv("GODEBUG");
+-	if(p != nil){
+-		for(;;) {
+-			for(i=0; i<nelem(dbgvar); i++) {
+-				n = runtime·findnull((byte*)dbgvar[i].name);
+-				if(runtime·mcmp(p, (byte*)dbgvar[i].name, n) == 0 && p[n] == '=')
+-					*dbgvar[i].value = runtime·atoi(p+n+1);
+-			}
+-			p = runtime·strstr(p, (byte*)",");
+-			if(p == nil)
+-				break;
+-			p++;
+-		}
+-	}
+-
+-	p = runtime·getenv("GOTRACEBACK");
+-	if(p == nil)
+-		p = (byte*)"";
+-	if(p[0] == '\0')
+-		traceback_cache = 1<<1;
+-	else if(runtime·strcmp(p, (byte*)"crash") == 0)
+-		traceback_cache = (2<<1) | 1;
+-	else
+-		traceback_cache = runtime·atoi(p)<<1;	
+-}
+-
+-// Poor mans 64-bit division.
+-// This is a very special function, do not use it if you are not sure what you are doing.
+-// int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
+-// Handles overflow in a time-specific manner.
+-#pragma textflag NOSPLIT
+-int32
+-runtime·timediv(int64 v, int32 div, int32 *rem)
+-{
+-	int32 res, bit;
+-
+-	res = 0;
+-	for(bit = 30; bit >= 0; bit--) {
+-		if(v >= ((int64)div<<bit)) {
+-			v = v - ((int64)div<<bit);
+-			res += 1<<bit;
+-		}
+-	}
+-	if(v >= (int64)div) {
+-		if(rem != nil)
+-			*rem = 0;
+-		return 0x7fffffff;
+-	}
+-	if(rem != nil)
+-		*rem = v;
+-	return res;
+-}
+-
+-// Helpers for Go. Must be NOSPLIT, must only call NOSPLIT functions, and must not block.
+-
+-#pragma textflag NOSPLIT
+-G*
+-runtime·getg(void)
+-{
+-	return g;
+-}
+-
+-#pragma textflag NOSPLIT
+-M*
+-runtime·acquirem(void)
+-{
+-	g->m->locks++;
+-	return g->m;
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·releasem(M *mp)
+-{
+-	mp->locks--;
+-	if(mp->locks == 0 && g->preempt) {
+-		// restore the preemption request in case we've cleared it in newstack
+-		g->stackguard0 = StackPreempt;
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-MCache*
+-runtime·gomcache(void)
+-{
+-	return g->m->mcache;
+-}
+-
+-#pragma textflag NOSPLIT
+-Slice
+-reflect·typelinks(void)
+-{
+-	extern Type *runtime·typelink[], *runtime·etypelink[];
+-	Slice ret;
+-
+-	ret.array = (byte*)runtime·typelink;
+-	ret.len = runtime·etypelink - runtime·typelink;
+-	ret.cap = ret.len;
+-	return ret;
+-}
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+new file mode 100644
+index 0000000000..3530619016
+--- /dev/null
++++ b/src/runtime/runtime1.go
+@@ -0,0 +1,402 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// Keep a cached value to make gotraceback fast,
++// since we call it on every call to gentraceback.
++// The cached value is a uint32 in which the low bit
++// is the "crash" setting and the top 31 bits are the
++// gotraceback value.
++var traceback_cache uint32 = 2 << 1
++
++// The GOTRACEBACK environment variable controls the
++// behavior of a Go program that is crashing and exiting.
++//	GOTRACEBACK=0   suppress all tracebacks
++//	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
++//	GOTRACEBACK=2   show tracebacks including runtime frames
++//	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
++//go:nosplit
++func gotraceback(crash *bool) int32 {
++	_g_ := getg()
++	if crash != nil {
++		*crash = false
++	}
++	if _g_.m.traceback != 0 {
++		return int32(_g_.m.traceback)
++	}
++	if crash != nil {
++		*crash = traceback_cache&1 != 0
++	}
++	return int32(traceback_cache >> 1)
++}
++
++var (
++	argc int32
++	argv **byte
++)
++
++// nosplit for use in linux/386 startup linux_setup_vdso
++//go:nosplit
++func argv_index(argv **byte, i int32) *byte {
++	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*ptrSize))
++}
++
++func args(c int32, v **byte) {
++	argc = c
++	argv = v
++	sysargs(c, v)
++}
++
++var (
++	// TODO: Retire in favor of GOOS== checks.
++	isplan9   int32
++	issolaris int32
++	iswindows int32
++)
++
++// Information about what cpu features are available.
++// Set on startup in asm_{x86/amd64}.s.
++var (
++//cpuid_ecx uint32
++//cpuid_edx uint32
++)
++
++func goargs() {
++	if GOOS == "windows" {
++		return
++	}
++
++	argslice = make([]string, argc)
++	for i := int32(0); i < argc; i++ {
++		argslice[i] = gostringnocopy(argv_index(argv, i))
++	}
++}
++
++func goenvs_unix() {
++	n := int32(0)
++	for argv_index(argv, argc+1+n) != nil {
++		n++
++	}
++
++	envs = make([]string, n)
++	for i := int32(0); i < n; i++ {
++		envs[i] = gostringnocopy(argv_index(argv, argc+1+i))
++	}
++}
++
++func environ() []string {
++	return envs
++}
++
++func testAtomic64() {
++	var z64, x64 uint64
++
++	z64 = 42
++	x64 = 0
++	// TODO: PREFETCH((unsafe.Pointer)(&z64))
++	if cas64(&z64, x64, 1) {
++		gothrow("cas64 failed")
++	}
++	if x64 != 0 {
++		gothrow("cas64 failed")
++	}
++	x64 = 42
++	if !cas64(&z64, x64, 1) {
++		gothrow("cas64 failed")
++	}
++	if x64 != 42 || z64 != 1 {
++		gothrow("cas64 failed")
++	}
++	if atomicload64(&z64) != 1 {
++		gothrow("load64 failed")
++	}
++	atomicstore64(&z64, (1<<40)+1)
++	if atomicload64(&z64) != (1<<40)+1 {
++		gothrow("store64 failed")
++	}
++	if xadd64(&z64, (1<<40)+1) != (2<<40)+2 {
++		gothrow("xadd64 failed")
++	}
++	if atomicload64(&z64) != (2<<40)+2 {
++		gothrow("xadd64 failed")
++	}
++	if xchg64(&z64, (3<<40)+3) != (2<<40)+2 {
++		gothrow("xchg64 failed")
++	}
++	if atomicload64(&z64) != (3<<40)+3 {
++		gothrow("xchg64 failed")
++	}
++}
++
++func check() {
++	var (
++		a     int8
++		b     uint8
++		c     int16
++		d     uint16
++		e     int32
++		f     uint32
++		g     int64
++		h     uint64
++		i, i1 float32
++		j, j1 float64
++		k, k1 unsafe.Pointer
++		l     *uint16
++	)
++	type x1t struct {
++		x uint8
++	}
++	type y1t struct {
++		x1 x1t
++		y  uint8
++	}
++	var x1 x1t
++	var y1 y1t
++
++	if unsafe.Sizeof(a) != 1 {
++		gothrow("bad a")
++	}
++	if unsafe.Sizeof(b) != 1 {
++		gothrow("bad b")
++	}
++	if unsafe.Sizeof(c) != 2 {
++		gothrow("bad c")
++	}
++	if unsafe.Sizeof(d) != 2 {
++		gothrow("bad d")
++	}
++	if unsafe.Sizeof(e) != 4 {
++		gothrow("bad e")
++	}
++	if unsafe.Sizeof(f) != 4 {
++		gothrow("bad f")
++	}
++	if unsafe.Sizeof(g) != 8 {
++		gothrow("bad g")
++	}
++	if unsafe.Sizeof(h) != 8 {
++		gothrow("bad h")
++	}
++	if unsafe.Sizeof(i) != 4 {
++		gothrow("bad i")
++	}
++	if unsafe.Sizeof(j) != 8 {
++		gothrow("bad j")
++	}
++	if unsafe.Sizeof(k) != ptrSize {
++		gothrow("bad k")
++	}
++	if unsafe.Sizeof(l) != ptrSize {
++		gothrow("bad l")
++	}
++	if unsafe.Sizeof(x1) != 1 {
++		gothrow("bad unsafe.Sizeof x1")
++	}
++	if unsafe.Offsetof(y1.y) != 1 {
++		gothrow("bad offsetof y1.y")
++	}
++	if unsafe.Sizeof(y1) != 2 {
++		gothrow("bad unsafe.Sizeof y1")
++	}
++
++	if timediv(12345*1000000000+54321, 1000000000, &e) != 12345 || e != 54321 {
++		gothrow("bad timediv")
++	}
++
++	var z uint32
++	z = 1
++	if !cas(&z, 1, 2) {
++		gothrow("cas1")
++	}
++	if z != 2 {
++		gothrow("cas2")
++	}
++
++	z = 4
++	if cas(&z, 5, 6) {
++		gothrow("cas3")
++	}
++	if z != 4 {
++		gothrow("cas4")
++	}
++
++	k = unsafe.Pointer(uintptr(0xfedcb123))
++	if ptrSize == 8 {
++		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
++	}
++	if casp(&k, nil, nil) {
++		gothrow("casp1")
++	}
++	k1 = add(k, 1)
++	if !casp(&k, k, k1) {
++		gothrow("casp2")
++	}
++	if k != k1 {
++		gothrow("casp3")
++	}
++
++	*(*uint64)(unsafe.Pointer(&j)) = ^uint64(0)
++	if j == j {
++		gothrow("float64nan")
++	}
++	if !(j != j) {
++		gothrow("float64nan1")
++	}
++
++	*(*uint64)(unsafe.Pointer(&j1)) = ^uint64(1)
++	if j == j1 {
++		gothrow("float64nan2")
++	}
++	if !(j != j1) {
++		gothrow("float64nan3")
++	}
++
++	*(*uint32)(unsafe.Pointer(&i)) = ^uint32(0)
++	if i == i {
++		gothrow("float32nan")
++	}
++	if i == i {
++		gothrow("float32nan1")
++	}
++
++	*(*uint32)(unsafe.Pointer(&i1)) = ^uint32(1)
++	if i == i1 {
++		gothrow("float32nan2")
++	}
++	if i == i1 {
++		gothrow("float32nan3")
++	}
++
++	testAtomic64()
++
++	if _FixedStack != round2(_FixedStack) {
++		gothrow("FixedStack is not power-of-2")
++	}
++}
++
++type dbgVar struct {
++	name  string
++	value *int32
++}
++
++// Do we report invalid pointers found during stack or heap scans?
++//var invalidptr int32 = 1
++
++var dbgvars = []dbgVar{
++	{"allocfreetrace", &debug.allocfreetrace},
++	{"invalidptr", &invalidptr},
++	{"efence", &debug.efence},
++	{"gctrace", &debug.gctrace},
++	{"gcdead", &debug.gcdead},
++	{"scheddetail", &debug.scheddetail},
++	{"schedtrace", &debug.schedtrace},
++	{"scavenge", &debug.scavenge},
++}
++
++func parsedebugvars() {
++	for p := gogetenv("GODEBUG"); p != ""; {
++		field := ""
++		i := index(p, ",")
++		if i < 0 {
++			field, p = p, ""
++		} else {
++			field, p = p[:i], p[i+1:]
++		}
++		i = index(field, "=")
++		if i < 0 {
++			continue
++		}
++		key, value := field[:i], field[i+1:]
++		for _, v := range dbgvars {
++			if v.name == key {
++				*v.value = int32(goatoi(value))
++			}
++		}
++	}
++
++	switch p := gogetenv("GOTRACEBACK"); p {
++	case "":
++		traceback_cache = 1 << 1
++	case "crash":
++		traceback_cache = 2<<1 | 1
++	default:
++		traceback_cache = uint32(goatoi(p)) << 1
++	}
++}
++
++// Poor mans 64-bit division.
++// This is a very special function, do not use it if you are not sure what you are doing.
++// int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
++// Handles overflow in a time-specific manner.
++//go:nosplit
++func timediv(v int64, div int32, rem *int32) int32 {
++	res := int32(0)
++	for bit := 30; bit >= 0; bit-- {
++		if v >= int64(div)<<uint(bit) {
++			v = v - (int64(div) << uint(bit))
++			res += 1 << uint(bit)
++		}
++	}
++	if v >= int64(div) {
++		if rem != nil {
++			*rem = 0
++		}
++		return 0x7fffffff
++	}
++	if rem != nil {
++		*rem = int32(v)
++	}
++	return res
++}
++
++// Helpers for Go. Must be NOSPLIT, must only call NOSPLIT functions, and must not block.
++
++//go:nosplit
++func acquirem() *m {
++	_g_ := getg()
++	_g_.m.locks++
++	return _g_.m
++}
++
++//go:nosplit
++func releasem(mp *m) {
++	_g_ := getg()
++	mp.locks--
++	if mp.locks == 0 && _g_.preempt {
++		// restore the preemption request in case we've cleared it in newstack
++		_g_.stackguard0 = stackPreempt
++	}
++}
++
++//go:nosplit
++func gomcache() *mcache {
++	return getg().m.mcache
++}
++
++var typelink, etypelink [0]byte
++
++//go:nosplit
++func typelinks() []*_type {
++	var ret []*_type
++	sp := (*slice)(unsafe.Pointer(&ret))
++	sp.array = (*byte)(unsafe.Pointer(&typelink))
++	sp.len = uint((uintptr(unsafe.Pointer(&etypelink)) - uintptr(unsafe.Pointer(&typelink))) / unsafe.Sizeof(ret[0]))
++	sp.cap = sp.len
++	return ret
++}
++
++// TODO: move back into mgc0.c when converted to Go
++func readgogc() int32 {
++	p := gogetenv("GOGC")
++	if p == "" {
++		return 100
++	}
++	if p == "off" {
++		return -1
++	}
++	return int32(goatoi(p))
++}
+diff --git a/src/runtime/sqrt.go b/src/runtime/sqrt.go
+index 34a8c3806b..372ab62eb9 100644
+--- a/src/runtime/sqrt.go
++++ b/src/runtime/sqrt.go
+@@ -86,9 +86,6 @@ import "unsafe"
+ // Notes:  Rounding mode detection omitted.
+ 
+ const (
+-	uvnan      = 0x7FF8000000000001
+-	uvinf      = 0x7FF0000000000000
+-	uvneginf   = 0xFFF0000000000000
+ 	mask       = 0x7FF
+ 	shift      = 64 - 11 - 1
+ 	bias       = 1023
+@@ -104,7 +101,7 @@ func sqrt(x float64) float64 {
+ 	case x == 0 || x != x || x > maxFloat64:
+ 		return x
+ 	case x < 0:
+-		return nan
++		return nan()
+ 	}
+ 	ix := float64bits(x)
+ 	// normalize x
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+deleted file mode 100644
+index ed5debc33e..0000000000
+--- a/src/runtime/string.c
++++ /dev/null
+@@ -1,226 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "race.h"
+-#include "textflag.h"
+-
+-String	runtime·emptystring;
+-
+-#pragma textflag NOSPLIT
+-intgo
+-runtime·findnull(byte *s)
+-{
+-	intgo l;
+-
+-	if(s == nil)
+-		return 0;
+-	for(l=0; s[l]!=0; l++)
+-		;
+-	return l;
+-}
+-
+-intgo
+-runtime·findnullw(uint16 *s)
+-{
+-	intgo l;
+-
+-	if(s == nil)
+-		return 0;
+-	for(l=0; s[l]!=0; l++)
+-		;
+-	return l;
+-}
+-
+-uintptr runtime·maxstring = 256; // a hint for print
+-
+-#pragma textflag NOSPLIT
+-String
+-runtime·gostringnocopy(byte *str)
+-{
+-	String s;
+-	uintptr ms;
+-	
+-	s.str = str;
+-	s.len = runtime·findnull(str);
+-	while(true) {
+-		ms = runtime·maxstring;
+-		if(s.len <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)s.len))
+-			return s;
+-	}
+-}
+-
+-// TODO: move this elsewhere
+-enum
+-{
+-	Bit1	= 7,
+-	Bitx	= 6,
+-	Bit2	= 5,
+-	Bit3	= 4,
+-	Bit4	= 3,
+-	Bit5	= 2,
+-
+-	Tx	= ((1<<(Bitx+1))-1) ^ 0xFF,	/* 1000 0000 */
+-	T2	= ((1<<(Bit2+1))-1) ^ 0xFF,	/* 1100 0000 */
+-	T3	= ((1<<(Bit3+1))-1) ^ 0xFF,	/* 1110 0000 */
+-	T4	= ((1<<(Bit4+1))-1) ^ 0xFF,	/* 1111 0000 */
+-
+-	Rune1	= (1<<(Bit1+0*Bitx))-1,		/* 0000 0000 0111 1111 */
+-	Rune2	= (1<<(Bit2+1*Bitx))-1,		/* 0000 0111 1111 1111 */
+-	Rune3	= (1<<(Bit3+2*Bitx))-1,		/* 1111 1111 1111 1111 */
+-
+-	Maskx	= (1<<Bitx)-1,			/* 0011 1111 */
+-
+-	Runeerror	= 0xFFFD,
+-
+-	SurrogateMin = 0xD800,
+-	SurrogateMax = 0xDFFF,
+-
+-	Runemax	= 0x10FFFF,	/* maximum rune value */
+-};
+-
+-static int32
+-runetochar(byte *str, int32 rune)  /* note: in original, arg2 was pointer */
+-{
+-	/* Runes are signed, so convert to unsigned for range check. */
+-	uint32 c;
+-
+-	/*
+-	 * one character sequence
+-	 *	00000-0007F => 00-7F
+-	 */
+-	c = rune;
+-	if(c <= Rune1) {
+-		str[0] = c;
+-		return 1;
+-	}
+-
+-	/*
+-	 * two character sequence
+-	 *	0080-07FF => T2 Tx
+-	 */
+-	if(c <= Rune2) {
+-		str[0] = T2 | (c >> 1*Bitx);
+-		str[1] = Tx | (c & Maskx);
+-		return 2;
+-	}
+-
+-	/*
+-	 * If the Rune is out of range or a surrogate half, convert it to the error rune.
+-	 * Do this test here because the error rune encodes to three bytes.
+-	 * Doing it earlier would duplicate work, since an out of range
+-	 * Rune wouldn't have fit in one or two bytes.
+-	 */
+-	if (c > Runemax)
+-		c = Runeerror;
+-	if (SurrogateMin <= c && c <= SurrogateMax)
+-		c = Runeerror;
+-
+-	/*
+-	 * three character sequence
+-	 *	0800-FFFF => T3 Tx Tx
+-	 */
+-	if (c <= Rune3) {
+-		str[0] = T3 |  (c >> 2*Bitx);
+-		str[1] = Tx | ((c >> 1*Bitx) & Maskx);
+-		str[2] = Tx |  (c & Maskx);
+-		return 3;
+-	}
+-
+-	/*
+-	 * four character sequence (21-bit value)
+-	 *     10000-1FFFFF => T4 Tx Tx Tx
+-	 */
+-	str[0] = T4 | (c >> 3*Bitx);
+-	str[1] = Tx | ((c >> 2*Bitx) & Maskx);
+-	str[2] = Tx | ((c >> 1*Bitx) & Maskx);
+-	str[3] = Tx | (c & Maskx);
+-	return 4;
+-}
+-
+-String runtime·gostringsize(intgo);
+-
+-String
+-runtime·gostringw(uint16 *str)
+-{
+-	intgo n1, n2, i;
+-	byte buf[8];
+-	String s;
+-
+-	n1 = 0;
+-	for(i=0; str[i]; i++)
+-		n1 += runetochar(buf, str[i]);
+-	s = runtime·gostringsize(n1+4);
+-	n2 = 0;
+-	for(i=0; str[i]; i++) {
+-		// check for race
+-		if(n2 >= n1)
+-			break;
+-		n2 += runetochar(s.str+n2, str[i]);
+-	}
+-	s.len = n2;
+-	s.str[s.len] = 0;
+-	return s;
+-}
+-
+-int32
+-runtime·strcmp(byte *s1, byte *s2)
+-{
+-	uintptr i;
+-	byte c1, c2;
+-
+-	for(i=0;; i++) {
+-		c1 = s1[i];
+-		c2 = s2[i];
+-		if(c1 < c2)
+-			return -1;
+-		if(c1 > c2)
+-			return +1;
+-		if(c1 == 0)
+-			return 0;
+-	}
+-}
+-
+-int32
+-runtime·strncmp(byte *s1, byte *s2, uintptr n)
+-{
+-	uintptr i;
+-	byte c1, c2;
+-
+-	for(i=0; i<n; i++) {
+-		c1 = s1[i];
+-		c2 = s2[i];
+-		if(c1 < c2)
+-			return -1;
+-		if(c1 > c2)
+-			return +1;
+-		if(c1 == 0)
+-			break;
+-	}
+-	return 0;
+-}
+-
+-byte*
+-runtime·strstr(byte *s1, byte *s2)
+-{
+-	byte *sp1, *sp2;
+-
+-	if(*s2 == 0)
+-		return s1;
+-	for(; *s1; s1++) {
+-		if(*s1 != *s2)
+-			continue;
+-		sp1 = s1;
+-		sp2 = s2;
+-		for(;;) {
+-			if(*sp2 == 0)
+-				return s1;
+-			if(*sp1++ != *sp2++)
+-				break;
+-		}
+-	}
+-	return nil;
+-}
+diff --git a/src/runtime/string1.go b/src/runtime/string1.go
+new file mode 100644
+index 0000000000..35cde43be0
+--- /dev/null
++++ b/src/runtime/string1.go
+@@ -0,0 +1,108 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++//go:nosplit
++func findnull(s *byte) int {
++	if s == nil {
++		return 0
++	}
++	p := (*[_MaxMem/2 - 1]byte)(unsafe.Pointer(s))
++	l := 0
++	for p[l] != 0 {
++		l++
++	}
++	return l
++}
++
++func findnullw(s *uint16) int {
++	if s == nil {
++		return 0
++	}
++	p := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(s))
++	l := 0
++	for p[l] != 0 {
++		l++
++	}
++	return l
++}
++
++var maxstring uintptr = 256 // a hint for print
++
++//go:nosplit
++func gostringnocopy(str *byte) string {
++	var s string
++	sp := (*stringStruct)(unsafe.Pointer(&s))
++	sp.str = unsafe.Pointer(str)
++	sp.len = findnull(str)
++	for {
++		ms := maxstring
++		if uintptr(len(s)) <= ms || casuintptr(&maxstring, ms, uintptr(len(s))) {
++			break
++		}
++	}
++	return s
++}
++
++func gostringw(strw *uint16) string {
++	var buf [8]byte
++	str := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(strw))
++	n1 := 0
++	for i := 0; str[i] != 0; i++ {
++		n1 += runetochar(buf[:], rune(str[i]))
++	}
++	s, b := rawstring(n1 + 4)
++	n2 := 0
++	for i := 0; str[i] != 0; i++ {
++		// check for race
++		if n2 >= n1 {
++			break
++		}
++		n2 += runetochar(b[n2:], rune(str[i]))
++	}
++	b[n2] = 0 // for luck
++	return s[:n2]
++}
++
++func strcmp(s1, s2 *byte) int32 {
++	p1 := (*[_MaxMem/2 - 1]byte)(unsafe.Pointer(s1))
++	p2 := (*[_MaxMem/2 - 1]byte)(unsafe.Pointer(s2))
++
++	for i := uintptr(0); ; i++ {
++		c1 := p1[i]
++		c2 := p2[i]
++		if c1 < c2 {
++			return -1
++		}
++		if c1 > c2 {
++			return +1
++		}
++		if c1 == 0 {
++			return 0
++		}
++	}
++}
++
++func strncmp(s1, s2 *byte, n uintptr) int32 {
++	p1 := (*[_MaxMem/2 - 1]byte)(unsafe.Pointer(s1))
++	p2 := (*[_MaxMem/2 - 1]byte)(unsafe.Pointer(s2))
++
++	for i := uintptr(0); i < n; i++ {
++		c1 := p1[i]
++		c2 := p2[i]
++		if c1 < c2 {
++			return -1
++		}
++		if c1 > c2 {
++			return +1
++		}
++		if c1 == 0 {
++			break
++		}
++	}
++	return 0
++}

@@ -10,7 +10,46 @@ Date:   Mon Apr 25 12:14:30 2011 -0400
     R=golang-dev, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/4442080
-
+---
  src/cmd/8g/ggen.c | 4 ----
  src/cmd/8l/obj.c  | 3 +--
  2 files changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 8db5524934..920725c3ea 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -625,12 +625,8 @@ void
+ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ {
+ 	Node ax, dx, oldax, olddx;
+-	int rax, rdx;
+ 	Type *t;
+ 
+-	rax = reg[D_AX];
+-	rdx = reg[D_DX];
+-
+ 	if(is64(nl->type))
+ 		fatal("cgen_div %T", nl->type);
+ 
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index d512304b4e..2a38f7ef0a 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -431,7 +431,7 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	int32 ipc;
+ 	Prog *p;
+ 	int v, o, r, skip;
+-	Sym *h[NSYM], *s, *di;
++	Sym *h[NSYM], *s;
+ 	uint32 sig;
+ 	int ntext;
+ 	int32 eof;
+@@ -442,7 +442,6 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	lastp = nil;
+ 	ntext = 0;
+ 	eof = Boffset(f) + len;
+-	di = S;
+ 	src[0] = 0;
+ 
+ 

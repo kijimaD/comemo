@@ -12,6 +12,19 @@ Date:   Fri Jul 19 23:34:02 2024 +0100
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/slices/slices.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 857ab46314..b3cd4e2c05 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -15,6 +15,7 @@ import (
+ // elements equal. If the lengths are different, Equal returns false.
+ // Otherwise, the elements are compared in increasing index order, and the
+ // comparison stops at the first unequal pair.
++// Empty and nil slices are considered equal.
+ // Floating point NaNs are not considered equal.
+ func Equal[S ~[]E, E comparable](s1, s2 S) bool {
+ 	if len(s1) != len(s2) {

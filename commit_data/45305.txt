@@ -24,9 +24,145 @@ Date:   Wed Oct 14 08:06:54 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/flags/flags.go | 19 ++++++++++---------
  src/cmd/asm/main.go                 |  4 ++--
  src/cmd/dist/build.go               | 35 +++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/work/gc.go      | 22 ++++++++++++++--------
  4 files changed, 61 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 64024cc97d..0765439959 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -15,15 +15,16 @@ import (
+ )
+ 
+ var (
+-	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
+-	OutputFile = flag.String("o", "", "output file; default foo.o for /a/b/c/foo.s as first argument")
+-	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
+-	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+-	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+-	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
+-	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+-	Importpath = flag.String("p", "", "set expected package import to path")
+-	Spectre    = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
++	Debug            = flag.Bool("debug", false, "dump instructions as they are parsed")
++	OutputFile       = flag.String("o", "", "output file; default foo.o for /a/b/c/foo.s as first argument")
++	TrimPath         = flag.String("trimpath", "", "remove prefix from recorded source file paths")
++	Shared           = flag.Bool("shared", false, "generate code that can be linked into a shared library")
++	Dynlink          = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
++	AllErrors        = flag.Bool("e", false, "no limit on number of errors reported")
++	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
++	Importpath       = flag.String("p", "", "set expected package import to path")
++	Spectre          = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
++	CompilingRuntime = flag.Bool("compilingRuntime", false, "source to be compiled is part of the Go runtime")
+ )
+ 
+ var (
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 01c963ac72..149925d23f 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -52,7 +52,6 @@ func main() {
+ 	case "all", "ret":
+ 		ctxt.Retpoline = true
+ 	}
+-	compilingRuntime := objabi.IsRuntimePackagePath(*flags.Importpath)
+ 
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+@@ -75,7 +74,8 @@ func main() {
+ 	var failedFile string
+ 	for _, f := range flag.Args() {
+ 		lexer := lex.NewLexer(f)
+-		parser := asm.NewParser(ctxt, architecture, lexer, compilingRuntime)
++		parser := asm.NewParser(ctxt, architecture, lexer,
++			*flags.CompilingRuntime)
+ 		ctxt.DiagFunc = func(format string, args ...interface{}) {
+ 			diag = true
+ 			log.Printf(format, args...)
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 398ed6bce1..11da38ebdf 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -832,6 +832,21 @@ func runInstall(pkg string, ch chan struct{}) {
+ 		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
+ 	}
+ 	goasmh := pathf("%s/go_asm.h", workdir)
++	if IsRuntimePackagePath(pkg) {
++		asmArgs = append(asmArgs, "-compilingRuntime")
++		if os.Getenv("GOEXPERIMENT") == "regabi" {
++			// In order to make it easier to port runtime assembly
++			// to the register ABI, we introduce a macro
++			// indicating the experiment is enabled.
++			//
++			// Note: a similar change also appears in
++			// cmd/go/internal/work/gc.go.
++			//
++			// TODO(austin): Remove this once we commit to the
++			// register ABI (#40724).
++			asmArgs = append(asmArgs, "-D=GOEXPERIMENT_REGABI=1")
++		}
++	}
+ 
+ 	// Collect symabis from assembly code.
+ 	var symabis string
+@@ -1733,3 +1748,23 @@ func cmdlist() {
+ 		fatalf("write failed: %v", err)
+ 	}
+ }
++
++// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
++// belongs to the collection of "runtime-related" packages, including
++// "runtime" itself, "reflect", "syscall", and the
++// "runtime/internal/*" packages. See also the function of the same
++// name in cmd/internal/objabi/path.go.
++func IsRuntimePackagePath(pkgpath string) bool {
++	rval := false
++	switch pkgpath {
++	case "runtime":
++		rval = true
++	case "reflect":
++		rval = true
++	case "syscall":
++		rval = true
++	default:
++		rval = strings.HasPrefix(pkgpath, "runtime/internal")
++	}
++	return rval
++}
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 56ad1872be..2df4a52ba5 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -292,14 +292,20 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
+ 			}
+ 		}
+ 	}
+-	if p.ImportPath == "runtime" && objabi.Regabi_enabled != 0 {
+-		// In order to make it easier to port runtime assembly
+-		// to the register ABI, we introduce a macro
+-		// indicating the experiment is enabled.
+-		//
+-		// TODO(austin): Remove this once we commit to the
+-		// register ABI (#40724).
+-		args = append(args, "-D=GOEXPERIMENT_REGABI=1")
++	if objabi.IsRuntimePackagePath(pkgpath) {
++		args = append(args, "-compilingRuntime")
++		if objabi.Regabi_enabled != 0 {
++			// In order to make it easier to port runtime assembly
++			// to the register ABI, we introduce a macro
++			// indicating the experiment is enabled.
++			//
++			// Note: a similar change also appears in
++			// cmd/dist/build.go.
++			//
++			// TODO(austin): Remove this once we commit to the
++			// register ABI (#40724).
++			args = append(args, "-D=GOEXPERIMENT_REGABI=1")
++		}
+ 	}
+ 
+ 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {

@@ -13,7 +13,39 @@ Date:   Tue Dec 13 20:40:55 2011 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5485072
-
+---
  src/pkg/encoding/gob/decode.go       | 7 ++++++-
  src/pkg/encoding/gob/encoder_test.go | 2 +-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index 1515d1286d..ba1f2eb813 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -1068,7 +1068,12 @@ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *de
+ 	engine.instr = make([]decInstr, 1) // one item
+ 	name := rt.String()                // best we can do
+ 	if !dec.compatibleType(rt, remoteId, make(map[reflect.Type]typeId)) {
+-		return nil, errors.New("gob: wrong type received for local value " + name + ": " + dec.typeString(remoteId))
++		remoteType := dec.typeString(remoteId)
++		// Common confusing case: local interface type, remote concrete type.
++		if ut.base.Kind() == reflect.Interface && remoteId != tInterface {
++			return nil, errors.New("gob: local interface type " + name + " can only be decoded from remote interface type; received concrete type " + remoteType)
++		}
++		return nil, errors.New("gob: decoding into local type " + name + ", received remote type " + remoteType)
+ 	}
+ 	op, indir := dec.decOpFor(remoteId, rt, name, make(map[reflect.Type]*decOp))
+ 	ovfl := errors.New(`value for "` + name + `" out of range`)
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index 5bc957bb37..cd1500d077 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -309,7 +309,7 @@ var singleTests = []SingleTest{
+ 	{[7]int{4, 55, 1, 44, 22, 66, 1234}, &testArray, ""},
+ 
+ 	// Decode errors
+-	{172, &testFloat32, "wrong type"},
++	{172, &testFloat32, "type"},
+ }
+ 
+ func TestSingletons(t *testing.T) {

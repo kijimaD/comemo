@@ -10,9 +10,205 @@ Date:   Sat Sep 10 18:34:07 2016 +0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/error.go         | 13 +++++++++++++
  src/os/error_plan9.go   | 48 ++++++++++++++++--------------------------------
  src/os/error_unix.go    | 33 +++------------------------------
  src/os/error_windows.go | 33 +++------------------------------
  4 files changed, 35 insertions(+), 92 deletions(-)
+
+diff --git a/src/os/error.go b/src/os/error.go
+index e26ce27970..2612f58bd1 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -63,3 +63,16 @@ func IsNotExist(err error) bool {
+ func IsPermission(err error) bool {
+ 	return isPermission(err)
+ }
++
++// underlyingError returns the underlying error for known os error types.
++func underlyingError(err error) error {
++	switch err := err.(type) {
++	case *PathError:
++		return err.Err
++	case *LinkError:
++		return err.Err
++	case *SyscallError:
++		return err.Err
++	}
++	return err
++}
+diff --git a/src/os/error_plan9.go b/src/os/error_plan9.go
+index 2dc6b39c39..a67343981e 100644
+--- a/src/os/error_plan9.go
++++ b/src/os/error_plan9.go
+@@ -5,46 +5,30 @@
+ package os
+ 
+ func isExist(err error) bool {
+-	switch pe := err.(type) {
+-	case nil:
+-		return false
+-	case *PathError:
+-		err = pe.Err
+-	case *LinkError:
+-		err = pe.Err
+-	case *SyscallError:
+-		err = pe.Err
+-	}
+-	return contains(err.Error(), " exists")
++	return checkErrMessageContent(err, " exists")
+ }
+ 
+ func isNotExist(err error) bool {
+-	switch pe := err.(type) {
+-	case nil:
+-		return false
+-	case *PathError:
+-		err = pe.Err
+-	case *LinkError:
+-		err = pe.Err
+-	case *SyscallError:
+-		err = pe.Err
+-	}
+-	return contains(err.Error(), "does not exist") || contains(err.Error(), "not found") ||
+-		contains(err.Error(), "has been removed") || contains(err.Error(), "no parent")
++	return checkErrMessageContent(err, "does not exist", "not found",
++		"has been removed", "no parent")
+ }
+ 
+ func isPermission(err error) bool {
+-	switch pe := err.(type) {
+-	case nil:
++	return checkErrMessageContent(err, "permission denied")
++}
++
++// checkErrMessageContent checks if err message contains one of msgs.
++func checkErrMessageContent(err error, msgs ...string) bool {
++	if err == nil {
+ 		return false
+-	case *PathError:
+-		err = pe.Err
+-	case *LinkError:
+-		err = pe.Err
+-	case *SyscallError:
+-		err = pe.Err
+ 	}
+-	return contains(err.Error(), "permission denied")
++	err = underlyingError(err)
++	for _, msg := range msgs {
++		if contains(err.Error(), msg) {
++			return true
++		}
++	}
++	return false
+ }
+ 
+ // contains is a local version of strings.Contains. It knows len(sep) > 1.
+diff --git a/src/os/error_unix.go b/src/os/error_unix.go
+index 3c78eb4dd2..be1440cacb 100644
+--- a/src/os/error_unix.go
++++ b/src/os/error_unix.go
+@@ -9,43 +9,16 @@ package os
+ import "syscall"
+ 
+ func isExist(err error) bool {
+-	switch pe := err.(type) {
+-	case nil:
+-		return false
+-	case *PathError:
+-		err = pe.Err
+-	case *LinkError:
+-		err = pe.Err
+-	case *SyscallError:
+-		err = pe.Err
+-	}
++	err = underlyingError(err)
+ 	return err == syscall.EEXIST || err == syscall.ENOTEMPTY || err == ErrExist
+ }
+ 
+ func isNotExist(err error) bool {
+-	switch pe := err.(type) {
+-	case nil:
+-		return false
+-	case *PathError:
+-		err = pe.Err
+-	case *LinkError:
+-		err = pe.Err
+-	case *SyscallError:
+-		err = pe.Err
+-	}
++	err = underlyingError(err)
+ 	return err == syscall.ENOENT || err == ErrNotExist
+ }
+ 
+ func isPermission(err error) bool {
+-	switch pe := err.(type) {
+-	case nil:
+-		return false
+-	case *PathError:
+-		err = pe.Err
+-	case *LinkError:
+-		err = pe.Err
+-	case *SyscallError:
+-		err = pe.Err
+-	}
++	err = underlyingError(err)
+ 	return err == syscall.EACCES || err == syscall.EPERM || err == ErrPermission
+ }
+diff --git a/src/os/error_windows.go b/src/os/error_windows.go
+index 2c1c39c414..5a57c0d1e6 100644
+--- a/src/os/error_windows.go
++++ b/src/os/error_windows.go
+@@ -7,16 +7,7 @@ package os
+ import "syscall"
+ 
+ func isExist(err error) bool {
+-	switch pe := err.(type) {
+-	case nil:
+-		return false
+-	case *PathError:
+-		err = pe.Err
+-	case *LinkError:
+-		err = pe.Err
+-	case *SyscallError:
+-		err = pe.Err
+-	}
++	err = underlyingError(err)
+ 	return err == syscall.ERROR_ALREADY_EXISTS ||
+ 		err == syscall.ERROR_FILE_EXISTS || err == ErrExist
+ }
+@@ -24,31 +15,13 @@ func isExist(err error) bool {
+ const _ERROR_BAD_NETPATH = syscall.Errno(53)
+ 
+ func isNotExist(err error) bool {
+-	switch pe := err.(type) {
+-	case nil:
+-		return false
+-	case *PathError:
+-		err = pe.Err
+-	case *LinkError:
+-		err = pe.Err
+-	case *SyscallError:
+-		err = pe.Err
+-	}
++	err = underlyingError(err)
+ 	return err == syscall.ERROR_FILE_NOT_FOUND ||
+ 		err == _ERROR_BAD_NETPATH ||
+ 		err == syscall.ERROR_PATH_NOT_FOUND || err == ErrNotExist
+ }
+ 
+ func isPermission(err error) bool {
+-	switch pe := err.(type) {
+-	case nil:
+-		return false
+-	case *PathError:
+-		err = pe.Err
+-	case *LinkError:
+-		err = pe.Err
+-	case *SyscallError:
+-		err = pe.Err
+-	}
++	err = underlyingError(err)
+ 	return err == syscall.ERROR_ACCESS_DENIED || err == ErrPermission
+ }

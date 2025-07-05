@@ -7,7 +7,7 @@ Date:   Tue Sep 9 11:50:14 2008 -0700
     R=r
     OCL=14944
     CL=15013
-
+---
  src/runtime/amd64_darwin.h     |  21 ++
  src/runtime/amd64_linux.h      |   2 +-
  src/runtime/chan.c             |  52 +++--
@@ -19,3 +19,1102 @@ Date:   Tue Sep 9 11:50:14 2008 -0700
  src/runtime/sys_amd64_darwin.s | 135 +++++++++++-
  src/runtime/sys_amd64_linux.s  |  24 +--
  10 files changed, 666 insertions(+), 68 deletions(-)
+
+diff --git a/src/runtime/amd64_darwin.h b/src/runtime/amd64_darwin.h
+index 18d1b605fc..117c985a1d 100644
+--- a/src/runtime/amd64_darwin.h
++++ b/src/runtime/amd64_darwin.h
+@@ -22,6 +22,11 @@ struct timespec {
+ 	int64 tv_nsec;
+ };
+ 
++struct timeval {
++	time_t tv_sec;
++	int64 tv_usec;
++};
++
+ struct stat {	// really a stat64
+ 	dev_t st_dev;
+ 	mode_t st_mode;
+@@ -43,3 +48,19 @@ struct stat {	// really a stat64
+ };
+ 
+ #define	O_CREAT	0x0200
++
++void bsdthread_create(void*, M*, G*, void(*)(void));
++void bsdthread_register(void);
++int64 select(int32, void*, void*, void*, struct timeval*);
++
++
++// Mach calls
++
++typedef int32 kern_return_t;
++typedef uint32 mach_port_t;
++
++mach_port_t semcreate(void);
++void semacquire(mach_port_t);
++void semrelease(mach_port_t);
++void semreset(mach_port_t);
++void semdestroy(mach_port_t);
+diff --git a/src/runtime/amd64_linux.h b/src/runtime/amd64_linux.h
+index 4ec4f85e7a..fc70514ff0 100644
+--- a/src/runtime/amd64_linux.h
++++ b/src/runtime/amd64_linux.h
+@@ -49,5 +49,5 @@ struct stat {
+ // Linux-specific system calls
+ int64	futex(uint32*, int32, uint32, struct timespec*, uint32*, uint32);
+ int64	clone(int32, void*, M*, G*, void(*)(void));
+-int64	select(int32, void*, void*, void*, void*);
++int64	select(int32, void*, void*, void*, struct timeval*);
+ 
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index be7812c9d4..ffbab902f4 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -4,9 +4,8 @@
+ 
+ #include "runtime.h"
+ 
+-// TODO locking of select
+-
+ static	int32	debug	= 0;
++static	Lock		chanlock;
+ 
+ typedef	struct	Hchan	Hchan;
+ typedef	struct	Link	Link;
+@@ -32,7 +31,6 @@ struct	WaitQ
+ 
+ struct	Hchan
+ {
+-	Lock;
+ 	uint32	elemsize;
+ 	uint32	dataqsiz;		// size of the circular q
+ 	uint32	qcount;			// total data in the q
+@@ -162,7 +160,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
+ 		prints("\n");
+ 	}
+ 
+-	lock(c);
++	lock(&chanlock);
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+ 
+@@ -173,7 +171,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
+ 
+ 		gp = sg->g;
+ 		gp->param = sg;
+-		unlock(c);
++		unlock(&chanlock);
+ 		ready(gp);
+ 
+ 		if(pres != nil)
+@@ -182,7 +180,7 @@ sendchan(Hchan *c, byte *ep, bool *pres)
+ 	}
+ 
+ 	if(pres != nil) {
+-		unlock(c);
++		unlock(&chanlock);
+ 		*pres = false;
+ 		return;
+ 	}
+@@ -193,13 +191,13 @@ sendchan(Hchan *c, byte *ep, bool *pres)
+ 	g->param = nil;
+ 	g->status = Gwaiting;
+ 	enqueue(&c->sendq, sg);
+-	unlock(c);
++	unlock(&chanlock);
+ 	sys·gosched();
+ 
+-	lock(c);
++	lock(&chanlock);
+ 	sg = g->param;
+ 	freesg(c, sg);
+-	unlock(c);
++	unlock(&chanlock);
+ 	return;
+ 
+ asynch:
+@@ -208,9 +206,9 @@ asynch:
+ 		sg = allocsg(c);
+ 		g->status = Gwaiting;
+ 		enqueue(&c->sendq, sg);
+-		unlock(c);
++		unlock(&chanlock);
+ 		sys·gosched();
+-		lock(c);
++		lock(&chanlock);
+ 	}
+ 	if(ep != nil)
+ 		c->elemalg->copy(c->elemsize, c->senddataq->elem, ep);
+@@ -221,10 +219,10 @@ asynch:
+ 	if(sg != nil) {
+ 		gp = sg->g;
+ 		freesg(c, sg);
+-		unlock(c);
++		unlock(&chanlock);
+ 		ready(gp);
+ 	}else
+-		unlock(c);
++		unlock(&chanlock);
+ }
+ 
+ static void
+@@ -239,7 +237,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 		prints("\n");
+ 	}
+ 
+-	lock(c);
++	lock(&chanlock);
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+ 
+@@ -249,7 +247,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 
+ 		gp = sg->g;
+ 		gp->param = sg;
+-		unlock(c);
++		unlock(&chanlock);
+ 		ready(gp);
+ 
+ 		if(pres != nil)
+@@ -258,7 +256,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 	}
+ 
+ 	if(pres != nil) {
+-		unlock(c);
++		unlock(&chanlock);
+ 		*pres = false;
+ 		return;
+ 	}
+@@ -267,14 +265,14 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 	g->param = nil;
+ 	g->status = Gwaiting;
+ 	enqueue(&c->recvq, sg);
+-	unlock(c);
++	unlock(&chanlock);
+ 	sys·gosched();
+ 
+-	lock(c);
++	lock(&chanlock);
+ 	sg = g->param;
+ 	c->elemalg->copy(c->elemsize, ep, sg->elem);
+ 	freesg(c, sg);
+-	unlock(c);
++	unlock(&chanlock);
+ 	return;
+ 
+ asynch:
+@@ -282,9 +280,9 @@ asynch:
+ 		sg = allocsg(c);
+ 		g->status = Gwaiting;
+ 		enqueue(&c->recvq, sg);
+-		unlock(c);
++		unlock(&chanlock);
+ 		sys·gosched();
+-		lock(c);
++		lock(&chanlock);
+ 	}
+ 	c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
+ 	c->recvdataq = c->recvdataq->link;
+@@ -293,10 +291,10 @@ asynch:
+ 	if(sg != nil) {
+ 		gp = sg->g;
+ 		freesg(c, sg);
+-		unlock(c);
++		unlock(&chanlock);
+ 		ready(gp);
+ 	}else
+-		unlock(c);
++		unlock(&chanlock);
+ }
+ 
+ // chansend1(hchan *chan any, elem any);
+@@ -371,12 +369,14 @@ sys·newselect(int32 size, Select *sel)
+ 	if(size > 1)
+ 		n = size-1;
+ 
++	lock(&chanlock);
+ 	sel = nil;
+ 	if(size >= 1 && size < nelem(selfree)) {
+ 		sel = selfree[size];
+ 		if(sel != nil)
+ 			selfree[size] = sel->link;
+ 	}
++	unlock(&chanlock);
+ 	if(sel == nil)
+ 		sel = mal(sizeof(*sel) + n*sizeof(sel->scase[0]));
+ 
+@@ -517,6 +517,8 @@ sys·selectgo(Select *sel)
+ 	p %= sel->ncase;
+ 	o %= sel->ncase;
+ 
++	lock(&chanlock);
++
+ 	// pass 1 - look for something already waiting
+ 	for(i=0; i<sel->ncase; i++) {
+ 		cas = &sel->scase[o];
+@@ -598,8 +600,10 @@ sys·selectgo(Select *sel)
+ 	// (rsc) not correct to set Gwaiting after queueing;
+ 	// might already have been readied.
+ 	g->status = Gwaiting;
++	unlock(&chanlock);
+ 	sys·gosched();
+ 
++	lock(&chanlock);
+ 	sg = g->param;
+ 	o = sg->offset;
+ 	cas = &sel->scase[o];
+@@ -629,6 +633,7 @@ sys·selectgo(Select *sel)
+ 
+ asynr:
+ asyns:
++	unlock(&chanlock);
+ 	throw("asyn");
+ 	return;	// compiler doesn't know throw doesn't return
+ 
+@@ -671,6 +676,7 @@ retc:
+ 		sel->link = selfree[sel->ncase];
+ 		selfree[sel->ncase] = sel;
+ 	}
++	unlock(&chanlock);
+ 
+ 	sys·setcallerpc(&sel, cas->pc);
+ 	as = (byte*)&sel + cas->so;
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 5b4bc84a22..6a741f8822 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -341,8 +341,6 @@ scheduler(void)
+ {
+ 	G* gp;
+ 
+-	// Initialization.
+-	m->procid = getprocid();
+ 	lock(&sched);
+ 
+ 	if(gosave(&m->sched)){
+@@ -472,7 +470,7 @@ oldstack(void)
+ 		mcpy(top->oldsp+16, sp, siz2);
+ 	}
+ 
+-	// call  no more functions after this point - limit register disagrees with R15
++	// call  no more functions after this point - stackguard disagrees with SP
+ 	m->curg->stackbase = top->oldbase;
+ 	m->curg->stackguard = top->oldguard;
+ 	m->morestack.SP = top->oldsp+8;
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 2898da56b4..0200f35f48 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -33,6 +33,7 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	MOVQ	24(SP), AX		// copy argv
+ 	MOVQ	AX, 8(SP)
+ 	CALL	args(SB)
++	CALL	osinit(SB)
+ 	CALL	schedinit(SB)
+ 	CALL	main·init_function(SB) // initialization
+ 
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index e99d07984b..da10508a0e 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "amd64_darwin.h"
+ #include "signals.h"
+ 
+ typedef uint64 __uint64_t;
+@@ -185,53 +186,494 @@ unimplemented(int8 *name)
+ void
+ sys·sleep(int64 ms)
+ {
+-	unimplemented("sleep");
++	struct timeval tv;
++
++	tv.tv_sec = ms/1000;
++	tv.tv_usec = ms%1000 * 1000;
++	select(0, nil, nil, nil, &tv);
++}
++
++// Thread-safe allocation of a semaphore.
++// Psema points at a kernel semaphore key.
++// It starts out zero, meaning no semaphore.
++// Fill it in, being careful of others calling initsema
++// simultaneously.
++static void
++initsema(uint32 *psema)
++{
++	uint32 sema;
++
++	if(*psema != 0)	// already have one
++		return;
++
++	sema = semcreate();
++	if(!cas(psema, 0, sema)){
++		// Someone else filled it in.  Use theirs.
++		semdestroy(sema);
++		return;
++	}
++}
++
++
++// Atomic add and return new value.
++static uint32
++xadd(uint32 volatile *val, int32 delta)
++{
++	uint32 oval, nval;
++
++	for(;;){
++		oval = *val;
++		nval = oval + delta;
++		if(cas(val, oval, nval))
++			return nval;
++	}
+ }
+ 
++
++// Blocking locks.
++
++// Implement Locks, using semaphores.
++// l->key is the number of threads who want the lock.
++// In a race, one thread increments l->key from 0 to 1
++// and the others increment it from >0 to >1.  The thread
++// who does the 0->1 increment gets the lock, and the
++// others wait on the semaphore.  When the 0->1 thread
++// releases the lock by decrementing l->key, l->key will
++// be >0, so it will increment the semaphore to wake up
++// one of the others.  This is the same algorithm used
++// in Plan 9's user-space locks.
++//
++// Note that semaphores are never destroyed (the kernel
++// will clean up when the process exits).  We assume for now
++// that Locks are only used for long-lived structures like M and G.
++
+ void
+ lock(Lock *l)
+ {
+-	if(cas(&l->key, 0, 1))
+-		return;
+-	unimplemented("lock wait");
++	// Allocate semaphore if needed.
++	if(l->sema == 0)
++		initsema(&l->sema);
++
++	if(xadd(&l->key, 1) > 1)	// someone else has it; wait
++		semacquire(l->sema);
+ }
+ 
+ void
+ unlock(Lock *l)
+ {
+-	if(cas(&l->key, 1, 0))
+-		return;
+-	unimplemented("unlock wakeup");
++	if(xadd(&l->key, -1) > 0)	// someone else is waiting
++		semrelease(l->sema);
+ }
+ 
++
++// Event notifications.
+ void
+ noteclear(Note *n)
+ {
+-	n->lock.key = 0;
+-	lock(&n->lock);
++	n->wakeup = 0;
+ }
+ 
+ void
+ notesleep(Note *n)
+ {
+-	lock(&n->lock);
+-	unlock(&n->lock);
++	if(n->sema == 0)
++		initsema(&n->sema);
++	while(!n->wakeup)
++		semacquire(n->sema);
+ }
+ 
+ void
+ notewakeup(Note *n)
+ {
+-	unlock(&n->lock);
++	if(n->sema == 0)
++		initsema(&n->sema);
++	n->wakeup = 1;
++	semrelease(n->sema);
+ }
+ 
++
++// BSD interface for threading.
+ void
+-newosproc(M *mm, G *gg, void *stk, void (*fn)(void))
++osinit(void)
++{
++	// Register our thread-creation callback (see sys_amd64_darwin.s).
++	bsdthread_register();
++}
++
++void
++newosproc(M *m, G *g, void *stk, void (*fn)(void))
++{
++	bsdthread_create(stk, m, g, fn);
++}
++
++
++// Mach IPC, to get at semaphores
++// Definitions are in /usr/include/mach on a Mac.
++
++static void
++macherror(kern_return_t r, int8 *fn)
+ {
+-	unimplemented("newosproc");
++	prints("mach error ");
++	prints(fn);
++	prints(": ");
++	sys·printint(r);
++	prints("\n");
++	throw("mach error");
+ }
+ 
+-int32
+-getprocid(void)
++enum
++{
++	DebugMach = 0
++};
++
++typedef int32 mach_msg_option_t;
++typedef uint32 mach_msg_bits_t;
++typedef uint32 mach_msg_id_t;
++typedef uint32 mach_msg_size_t;
++typedef uint32 mach_msg_timeout_t;
++typedef uint32 mach_port_name_t;
++typedef uint64 mach_vm_address_t;
++
++typedef struct mach_msg_header_t mach_msg_header_t;
++typedef struct mach_msg_body_t mach_msg_body_t;
++typedef struct mach_msg_port_descriptor_t mach_msg_port_descriptor_t;
++typedef struct NDR_record_t NDR_record_t;
++
++enum
++{
++	MACH_MSG_TYPE_MOVE_RECEIVE = 16,
++	MACH_MSG_TYPE_MOVE_SEND = 17,
++	MACH_MSG_TYPE_MOVE_SEND_ONCE = 18,
++	MACH_MSG_TYPE_COPY_SEND = 19,
++	MACH_MSG_TYPE_MAKE_SEND = 20,
++	MACH_MSG_TYPE_MAKE_SEND_ONCE = 21,
++	MACH_MSG_TYPE_COPY_RECEIVE = 22,
++
++	MACH_MSG_PORT_DESCRIPTOR = 0,
++	MACH_MSG_OOL_DESCRIPTOR = 1,
++	MACH_MSG_OOL_PORTS_DESCRIPTOR = 2,
++	MACH_MSG_OOL_VOLATILE_DESCRIPTOR = 3,
++
++	MACH_MSGH_BITS_COMPLEX = 0x80000000,
++
++	MACH_SEND_MSG = 1,
++	MACH_RCV_MSG = 2,
++	MACH_RCV_LARGE = 4,
++
++	MACH_SEND_TIMEOUT = 0x10,
++	MACH_SEND_INTERRUPT = 0x40,
++	MACH_SEND_CANCEL = 0x80,
++	MACH_SEND_ALWAYS = 0x10000,
++	MACH_SEND_TRAILER = 0x20000,
++	MACH_RCV_TIMEOUT = 0x100,
++	MACH_RCV_NOTIFY = 0x200,
++	MACH_RCV_INTERRUPT = 0x400,
++	MACH_RCV_OVERWRITE = 0x1000,
++};
++
++mach_port_t mach_task_self(void);
++mach_port_t mach_thread_self(void);
++
++#pragma pack on
++struct mach_msg_header_t
++{
++	mach_msg_bits_t bits;
++	mach_msg_size_t size;
++	mach_port_t remote_port;
++	mach_port_t local_port;
++	mach_msg_size_t reserved;
++	mach_msg_id_t id;
++};
++
++struct mach_msg_body_t
++{
++	uint32 descriptor_count;
++};
++
++struct mach_msg_port_descriptor_t
++{
++	mach_port_t name;
++	uint32 pad1;
++	uint16 pad2;
++	uint8 disposition;
++	uint8 type;
++};
++
++enum
++{
++	NDR_PROTOCOL_2_0 = 0,
++	NDR_INT_BIG_ENDIAN = 0,
++	NDR_INT_LITTLE_ENDIAN = 1,
++	NDR_FLOAT_IEEE = 0,
++	NDR_CHAR_ASCII = 0
++};
++
++struct NDR_record_t
++{
++	uint8 mig_vers;
++	uint8 if_vers;
++	uint8 reserved1;
++	uint8 mig_encoding;
++	uint8 int_rep;
++	uint8 char_rep;
++	uint8 float_rep;
++	uint8 reserved2;
++};
++#pragma pack off
++
++static NDR_record_t zerondr;
++
++#define MACH_MSGH_BITS(a, b) ((a) | ((b)<<8))
++
++// Mach system calls (in sys_amd64_darwin.s)
++kern_return_t mach_msg_trap(mach_msg_header_t*,
++	mach_msg_option_t, mach_msg_size_t, mach_msg_size_t,
++	mach_port_name_t, mach_msg_timeout_t, mach_port_name_t);
++mach_port_t mach_reply_port(void);
++mach_port_t mach_task_self(void);
++mach_port_t mach_thread_self(void);
++
++static kern_return_t
++mach_msg(mach_msg_header_t *h,
++	mach_msg_option_t op,
++	mach_msg_size_t send_size,
++	mach_msg_size_t rcv_size,
++	mach_port_name_t rcv_name,
++	mach_msg_timeout_t timeout,
++	mach_port_name_t notify)
++{
++	// TODO: Loop on interrupt.
++	return mach_msg_trap(h, op, send_size, rcv_size, rcv_name, timeout, notify);
++}
++
++
++// Mach RPC (MIG)
++// I'm not using the Mach names anymore.  They're too long.
++
++enum
++{
++	MinMachMsg = 48,
++	Reply = 100,
++};
++
++#pragma pack on
++typedef struct CodeMsg CodeMsg;
++struct CodeMsg
+ {
++	mach_msg_header_t h;
++	NDR_record_t NDR;
++	kern_return_t code;
++};
++#pragma pack off
++
++static kern_return_t
++machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
++{
++	uint32 *p;
++	int32 i, ret, id;
++	mach_port_t port;
++	CodeMsg *c;
++
++	if((port = m->machport) == 0){
++		port = mach_reply_port();
++		m->machport = port;
++	}
++
++	h->bits |= MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, MACH_MSG_TYPE_MAKE_SEND_ONCE);
++	h->local_port = port;
++	h->reserved = 0;
++	id = h->id;
++
++	if(DebugMach){
++		p = (uint32*)h;
++		prints("send:\t");
++		for(i=0; i<h->size/sizeof(p[0]); i++){
++			prints(" ");
++			sys·printpointer((void*)p[i]);
++			if(i%8 == 7)
++				prints("\n\t");
++		}
++		if(i%8)
++			prints("\n");
++	}
++
++	ret = mach_msg(h, MACH_SEND_MSG|MACH_RCV_MSG,
++		h->size, maxsize, port, 0, 0);
++	if(ret != 0){
++		if(DebugMach){
++			prints("mach_msg error ");
++			sys·printint(ret);
++			prints("\n");
++		}
++		return ret;
++	}
++
++	if(DebugMach){
++		p = (uint32*)h;
++		prints("recv:\t");
++		for(i=0; i<h->size/sizeof(p[0]); i++){
++			prints(" ");
++			sys·printpointer((void*)p[i]);
++			if(i%8 == 7)
++				prints("\n\t");
++		}
++		if(i%8)
++			prints("\n");
++	}
++
++	if(h->id != id+Reply){
++		if(DebugMach){
++			prints("mach_msg reply id mismatch ");
++			sys·printint(h->id);
++			prints(" != ");
++			sys·printint(id+Reply);
++			prints("\n");
++		}
++		return -303;	// MIG_REPLY_MISMATCH
++	}
++
++	// Look for a response giving the return value.
++	// Any call can send this back with an error,
++	// and some calls only have return values so they
++	// send it back on success too.  I don't quite see how
++	// you know it's one of these and not the full response
++	// format, so just look if the message is right.
++	c = (CodeMsg*)h;
++	if(h->size == sizeof(CodeMsg)
++	&& !(h->bits & MACH_MSGH_BITS_COMPLEX)){
++		if(DebugMach){
++			prints("mig result ");
++			sys·printint(c->code);
++			prints("\n");
++		}
++		return c->code;
++	}
++
++	if(h->size != rxsize){
++		if(DebugMach){
++			prints("mach_msg reply size mismatch ");
++			sys·printint(h->size);
++			prints(" != ");
++			sys·printint(rxsize);
++			prints("\n");
++		}
++		return -307;	// MIG_ARRAY_TOO_LARGE
++	}
++
+ 	return 0;
+ }
++
++
++// Semaphores!
++
++enum
++{
++	Tsemcreate = 3418,
++	Rsemcreate = Tsemcreate + Reply,
++
++	Tsemdestroy = 3419,
++	Rsemdestroy = Tsemdestroy + Reply,
++};
++
++typedef struct TsemcreateMsg TsemcreateMsg;
++typedef struct RsemcreateMsg RsemcreateMsg;
++typedef struct TsemdestroyMsg TsemdestroyMsg;
++// RsemdestroyMsg = CodeMsg
++
++#pragma pack on
++struct TsemcreateMsg
++{
++	mach_msg_header_t h;
++	NDR_record_t ndr;
++	int32 policy;
++	int32 value;
++};
++
++struct RsemcreateMsg
++{
++	mach_msg_header_t h;
++	mach_msg_body_t body;
++	mach_msg_port_descriptor_t semaphore;
++};
++
++struct TsemdestroyMsg
++{
++	mach_msg_header_t h;
++	mach_msg_body_t body;
++	mach_msg_port_descriptor_t semaphore;
++};
++#pragma pack off
++
++mach_port_t
++semcreate(void)
++{
++	union {
++		TsemcreateMsg tx;
++		RsemcreateMsg rx;
++		uint8 pad[MinMachMsg];
++	} m;
++	kern_return_t r;
++
++	m.tx.h.bits = 0;
++	m.tx.h.size = sizeof(m.tx);
++	m.tx.h.remote_port = mach_task_self();
++	m.tx.h.id = Tsemcreate;
++	m.tx.ndr = zerondr;
++
++	m.tx.policy = 0;	// 0 = SYNC_POLICY_FIFO
++	m.tx.value = 0;
++
++	if((r = machcall(&m.tx.h, sizeof m, sizeof(m.rx))) != 0)
++		macherror(r, "semaphore_create");
++	if(m.rx.body.descriptor_count != 1)
++		unimplemented("semcreate desc count");
++	return m.rx.semaphore.name;
++}
++
++void
++semdestroy(mach_port_t sem)
++{
++	union {
++		TsemdestroyMsg tx;
++		uint8 pad[MinMachMsg];
++	} m;
++	kern_return_t r;
++
++	m.tx.h.bits = MACH_MSGH_BITS_COMPLEX;
++	m.tx.h.size = sizeof(m.tx);
++	m.tx.h.remote_port = mach_task_self();
++	m.tx.h.id = Tsemdestroy;
++	m.tx.body.descriptor_count = 1;
++	m.tx.semaphore.name = sem;
++	m.tx.semaphore.disposition = MACH_MSG_TYPE_MOVE_SEND;
++	m.tx.semaphore.type = 0;
++
++	if((r = machcall(&m.tx.h, sizeof m, 0)) != 0)
++		macherror(r, "semaphore_destroy");
++}
++
++// The other calls have simple system call traps
++// in sys_amd64_darwin.s
++kern_return_t mach_semaphore_wait(uint32 sema);
++kern_return_t mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
++kern_return_t mach_semaphore_signal(uint32 sema);
++kern_return_t mach_semaphore_signal_all(uint32 sema);
++
++void
++semacquire(mach_port_t sem)
++{
++	kern_return_t r;
++
++	if((r = mach_semaphore_wait(sem)) != 0)
++		macherror(r, "semaphore_wait");
++}
++
++void
++semrelease(mach_port_t sem)
++{
++	kern_return_t r;
++
++	if((r = mach_semaphore_signal(sem)) != 0)
++		macherror(r, "semaphore_signal");
++}
++
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index baff4889c9..c14b338525 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -427,3 +427,7 @@ sys·sleep(int64 ms)
+ 	select(0, nil, nil, nil, &tv);
+ }
+ 
++void
++osinit(void)
++{
++}
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index c7471cf3e6..c64e5b37e7 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -44,7 +44,7 @@ typedef	struct	M		M;
+ typedef	struct	Stktop		Stktop;
+ typedef	struct	Alg		Alg;
+ typedef	struct	Lock		Lock;
+-typedef	struct	Note	Note;
++typedef	union	Note	Note;
+ typedef	struct	Mem		Mem;
+ 
+ /*
+@@ -78,10 +78,17 @@ enum
+ struct	Lock
+ {
+ 	uint32	key;
++	uint32	sema;	// for OS X
+ };
+-struct	Note
++union	Note
+ {
+-	Lock	lock;
++	struct {	// Linux
++		Lock	lock;
++	};
++	struct {	// OS X
++		int32	wakeup;
++		uint32	sema;
++	};
+ };
+ struct String
+ {
+@@ -149,6 +156,7 @@ struct	M
+ 	G*	g0;		// g0 w interrupt stack - must not move
+ 	uint64	morearg;	// arg to morestack - must not move
+ 	uint64	cret;		// return value from C - must not move
++	uint64	procid;	// for debuggers - must not move
+ 	G*	curg;		// current running goroutine
+ 	G*	lastg;		// last running goroutine - to emulate fifo
+ 	Gobuf	sched;
+@@ -159,8 +167,8 @@ struct	M
+ 	Note	havenextg;
+ 	G*	nextg;
+ 	M*	schedlink;
+-	int32	procid;	// for debuggers
+ 	Mem	mem;
++	uint32	machport;	// Return address for Mach IPC (OS X)
+ };
+ struct	Stktop
+ {
+@@ -239,7 +247,6 @@ void	ready(G*);
+ byte*	getenv(int8*);
+ int32	atoi(byte*);
+ void	newosproc(M *m, G *g, void *stk, void (*fn)(void));
+-int32	getprocid(void);
+ 
+ /*
+  * mutual exclusion locks.  in the uncontended case,
+diff --git a/src/runtime/sys_amd64_darwin.s b/src/runtime/sys_amd64_darwin.s
+index 319c8a4dd9..19d8184efb 100644
+--- a/src/runtime/sys_amd64_darwin.s
++++ b/src/runtime/sys_amd64_darwin.s
+@@ -4,12 +4,11 @@
+ 
+ //
+ // System calls and other sys.stuff for AMD64, Darwin
++// See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
++// or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+ //
+ 
+-// TODO(rsc): Either sys·exit or exit1 is wrong!
+-// It looks like sys·exit is correct (exits the entire program)
+-// and exit1 should be mimicking the OS X library routine
+-// __bsdthread_terminate.
++// Exit the entire program (like C exit)
+ TEXT	sys·exit(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+1), AX	// syscall entry
+@@ -17,9 +16,11 @@ TEXT	sys·exit(SB),7,$-8
+ 	CALL	notok(SB)
+ 	RET
+ 
++// Exit this OS thread (like pthread_exit, which eventually
++// calls __bsdthread_terminate).
+ TEXT	exit1(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 exit status
+-	MOVL	$(0x2000000+1), AX	// syscall entry
++	MOVL	$(0x2000000+361), AX	// syscall entry
+ 	SYSCALL
+ 	CALL	notok(SB)
+ 	RET
+@@ -130,3 +131,127 @@ TEXT	sys·setcallerpc+0(SB),7,$0
+ 	MOVQ	x+8(FP), BX
+ 	MOVQ	BX, -8(AX)		// set calling pc
+ 	RET
++
++// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
++TEXT bsdthread_create(SB),7,$-8
++	// Set up arguments to bsdthread_create system call.
++	// The ones in quotes pass through to the thread callback
++	// uninterpreted, so we can put whatever we want there.
++	MOVQ	fn+32(SP), DI	// "func"
++	MOVQ	m+16(SP), SI	// "arg"
++	MOVQ	stk+8(SP), DX	// stack
++	MOVQ	g+24(SP), R10	// "pthread"
++	MOVQ	$0, R10	// flags
++	MOVQ	$(0x2000000+360), AX	// bsdthread_create
++	SYSCALL
++	JCC 2(PC)
++	CALL	notok(SB)
++	RET
++
++// The thread that bsdthread_create creates starts executing here,
++// because we registered this function using bsdthread_register
++// at startup.
++//	DI = "pthread" (= g)
++//	SI = mach thread port
++//	DX = "func" (= fn)
++//	CX = "arg" (= m)
++//	R8 = stack
++//	R9 = flags (= 0)
++//	SP = stack - C_64_REDZONE_LEN (= stack - 128)
++TEXT bsdthread_start(SB),7,$-8
++	MOVQ	CX, R14	// m
++	MOVQ	DI, R15	// g
++	MOVQ	SI, 24(R14)	// thread port is m->procid
++	CALL	DX	// fn
++	CALL	exit1(SB)
++	RET
++
++// void bsdthread_register(void)
++// registers callbacks for threadstart (see bsdthread_create above
++// and wqthread and pthsize (not used).  returns 0 on success.
++TEXT bsdthread_register(SB),7,$-8
++	MOVQ	$bsdthread_start(SB), DI	// threadstart
++	MOVQ	$0, SI	// wqthread, not used by us
++	MOVQ	$0, DX	// pthsize, not used by us
++	MOVQ	$(0x2000000+366), AX	// bsdthread_register
++	SYSCALL
++	JCC 2(PC)
++	CALL	notok(SB)
++	RET
++
++// int64 select(int32, void*, void*, void*, void*)
++TEXT select(SB),7,$0
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVQ	32(SP), R10
++	MOVQ	40(SP), R8
++	MOVL	$(0x2000000+407), AX	// select_nocancel
++	SYSCALL
++	RET
++
++// Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
++
++// uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
++TEXT mach_msg_trap(SB),7,$0
++	MOVQ	8(SP), DI
++	MOVL	16(SP), SI
++	MOVL	20(SP), DX
++	MOVL	24(SP), R10
++	MOVL	28(SP), R8
++	MOVL	32(SP), R9
++	MOVL	36(SP), R11
++	PUSHQ	R11	// seventh arg, on stack
++	MOVL	$(0x1000000+31), AX	// mach_msg_trap
++	SYSCALL
++	POPQ	R11
++	RET
++
++TEXT mach_task_self(SB),7,$0
++	MOVL	$(0x1000000+28), AX	// task_self_trap
++	SYSCALL
++	RET
++
++TEXT mach_thread_self(SB),7,$0
++	MOVL	$(0x1000000+27), AX	// thread_self_trap
++	SYSCALL
++	RET
++
++TEXT mach_reply_port(SB),7,$0
++	MOVL	$(0x1000000+26), AX	// mach_reply_port
++	SYSCALL
++	RET
++
++// Mach provides trap versions of the semaphore ops,
++// instead of requiring the use of RPC.
++
++// uint32 mach_semaphore_wait(uint32)
++TEXT mach_semaphore_wait(SB),7,$0
++	MOVL	8(SP), DI
++	MOVL	$(0x1000000+36), AX	// semaphore_wait_trap
++	SYSCALL
++	RET
++
++// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
++TEXT mach_semaphore_timedwait(SB),7,$0
++	MOVL	8(SP), DI
++	MOVL	12(SP), SI
++	MOVL	16(SP), DX
++	MOVL	$(0x1000000+38), AX	// semaphore_timedwait_trap
++	SYSCALL
++	RET
++
++// uint32 mach_semaphore_signal(uint32)
++TEXT mach_semaphore_signal(SB),7,$0
++	MOVL	8(SP), DI
++	MOVL	$(0x1000000+33), AX	// semaphore_signal_trap
++	SYSCALL
++	RET
++
++// uint32 mach_semaphore_signal_all(uint32)
++TEXT mach_semaphore_signal_all(SB),7,$0
++	MOVL	8(SP), DI
++	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
++	SYSCALL
++	RET
++
+diff --git a/src/runtime/sys_amd64_linux.s b/src/runtime/sys_amd64_linux.s
+index 2cb6258320..01f6f6280d 100644
+--- a/src/runtime/sys_amd64_linux.s
++++ b/src/runtime/sys_amd64_linux.s
+@@ -162,10 +162,17 @@ TEXT clone(SB),7,$0
+ 	JEQ	2(PC)
+ 	RET
+ 
+-	// In child, call fn on new stack
++	// In child, set up new stack
+ 	MOVQ	SI, SP
+ 	MOVQ	R8, R14	// m
+ 	MOVQ	R9, R15	// g
++	
++	// Initialize m->procid to Linux tid
++	MOVL	$186, AX	// gettid
++	SYSCALL
++	MOVQ	AX, 24(R14)
++	
++	// Call fn
+ 	CALL	R12
+ 
+ 	// It shouldn't return.  If it does, exi
+@@ -174,7 +181,7 @@ TEXT clone(SB),7,$0
+ 	SYSCALL
+ 	JMP	-3(PC)	// keep exiting
+ 
+-// int64 select(int32, void*, void*, void*, void*)
++// int64 select(int32, void*, void*, void*, struct timeval*)
+ TEXT select(SB),7,$0
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+@@ -185,16 +192,3 @@ TEXT select(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-// Linux allocates each thread its own pid, like Plan 9.
+-// But the getpid() system call returns the pid of the
+-// original thread (the one that exec started with),
+-// no matter which thread asks.  This system call,
+-// which Linux calls gettid, returns the actual pid of
+-// the calling thread, not the fake one.
+-//
+-// int32 getprocid(void)
+-TEXT getprocid(SB),7,$0
+-	MOVL	$186, AX
+-	SYSCALL
+-	RET
+-

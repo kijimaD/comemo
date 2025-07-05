@@ -8,7 +8,72 @@ Date:   Wed Aug 25 07:41:26 2010 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/1962048
-
+---
  src/pkg/time/format.go    | 14 ++++++++++++--
  src/pkg/time/time_test.go |  1 +
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 4ea09a1101..8166d2e77a 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -70,6 +70,7 @@ const (
+ 	stdISO8601TZ      = "Z0700"  // prints Z for UTC
+ 	stdISO8601ColonTZ = "Z07:00" // prints Z for UTC
+ 	stdNumTZ          = "-0700"  // always numeric
++	stdNumShortTZ     = "-07"    // always numeric
+ 	stdNumColonTZ     = "-07:00" // always numeric
+ )
+ 
+@@ -134,13 +135,16 @@ func nextStdChunk(layout string) (prefix, std, suffix string) {
+ 				return layout[0:i], layout[i : i+2], layout[i+2:]
+ 			}
+ 
+-		case '-': // -0700, -07:00
++		case '-': // -0700, -07:00, -07
+ 			if len(layout) >= i+5 && layout[i:i+5] == stdNumTZ {
+ 				return layout[0:i], layout[i : i+5], layout[i+5:]
+ 			}
+ 			if len(layout) >= i+6 && layout[i:i+6] == stdNumColonTZ {
+ 				return layout[0:i], layout[i : i+6], layout[i+6:]
+ 			}
++			if len(layout) >= i+3 && layout[i:i+3] == stdNumShortTZ {
++				return layout[0:i], layout[i : i+3], layout[i+3:]
++			}
+ 		case 'Z': // Z0700, Z07:00
+ 			if len(layout) >= i+5 && layout[i:i+5] == stdISO8601TZ {
+ 				return layout[0:i], layout[i : i+5], layout[i+5:]
+@@ -496,7 +500,7 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 			if t.Second < 0 || 60 <= t.Second {
+ 				rangeErrString = "second"
+ 			}
+-		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumColonTZ:
++		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ:
+ 			if std[0] == 'Z' && len(value) >= 1 && value[0] == 'Z' {
+ 				value = value[1:]
+ 				t.Zone = "UTC"
+@@ -513,6 +517,12 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 					break
+ 				}
+ 				sign, hh, mm, value = value[0:1], value[1:3], value[4:6], value[6:]
++			} else if std == stdNumShortTZ {
++				if len(value) < 3 {
++					err = errBad
++					break
++				}
++				sign, hh, mm, value = value[0:1], value[1:3], "00", value[3:]
+ 			} else {
+ 				if len(value) < 5 {
+ 					err = errBad
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 79933080e0..1574b0834f 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -169,6 +169,7 @@ var parseTests = []ParseTest{
+ 	ParseTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST", true, true, 1},
+ 	ParseTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST", true, true, 1},
+ 	ParseTest{"RFC3339", RFC3339, "2010-02-04T21:00:57-08:00", true, false, 1},
++	ParseTest{"custom: \"2006-01-02 15:04:05-07\"", "2006-01-02 15:04:05-07", "2010-02-04 21:00:57-08", true, false, 1},
+ 	// Amount of white space should not matter.
+ 	ParseTest{"ANSIC", ANSIC, "Thu Feb 4 21:00:57 2010", false, true, 1},
+ 	ParseTest{"ANSIC", ANSIC, "Thu      Feb     4     21:00:57     2010", false, true, 1},

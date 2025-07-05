@@ -11,7 +11,36 @@ Date:   Tue Sep 28 15:18:02 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2288041
-
+---
  src/cmd/6l/asm.c | 3 ++-
  src/cmd/8l/asm.c | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 1502ad6602..8cd256ca92 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -138,7 +138,8 @@ addstring(Sym *s, char *str)
+ 	s->reachable = 1;
+ 	r = s->size;
+ 	n = strlen(str)+1;
+-	elfsetstring(str, r);
++	if(strcmp(s->name, ".shstrtab") == 0)
++		elfsetstring(str, r);
+ 	while(n > 0) {
+ 		m = n;
+ 		if(m > sizeof(p->to.scon))
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index ec35d8d519..1dd24b5bea 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -129,7 +129,8 @@ addstring(Sym *s, char *str)
+ 	s->reachable = 1;
+ 	r = s->size;
+ 	n = strlen(str)+1;
+-	elfsetstring(str, r);
++	if(strcmp(s->name, ".shstrtab") == 0)
++		elfsetstring(str, r);
+ 	while(n > 0) {
+ 		m = n;
+ 		if(m > sizeof(p->to.scon))

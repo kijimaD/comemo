@@ -34,7 +34,7 @@ Date:   Sat May 8 00:45:06 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go              |  4 +-
  src/cmd/compile/internal/base/link.go           | 19 +++++-
  src/cmd/compile/internal/dwarfgen/dwarf.go      |  2 +-
@@ -73,3 +73,1483 @@ Date:   Sat May 8 00:45:06 2021 +0700
  test/codegen/strings.go                         |  2 +-
  test/fixedbugs/issue29312.go                    | 16 ++---
  37 files changed, 283 insertions(+), 231 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 756c4baa6b..634d7556a8 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -589,12 +589,12 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
+ 		return
+ 	}
+ 	for _, sym := range symbols {
+-		if sym.Name == "go.link.abihashbytes" {
++		if sym.Name == "go:link.abihashbytes" {
+ 			hashbytes = sym
+ 		}
+ 	}
+ 	if hashbytes.Name == "" {
+-		t.Errorf("no symbol called go.link.abihashbytes")
++		t.Errorf("no symbol called go:link.abihashbytes")
+ 		return
+ 	}
+ 	if elf.ST_BIND(hashbytes.Info) != elf.STB_LOCAL {
+diff --git a/src/cmd/compile/internal/base/link.go b/src/cmd/compile/internal/base/link.go
+index 49fe4352b2..d8aa5a7dcc 100644
+--- a/src/cmd/compile/internal/base/link.go
++++ b/src/cmd/compile/internal/base/link.go
+@@ -8,6 +8,19 @@ import (
+ 	"cmd/internal/obj"
+ )
+ 
++// ReservedImports are import paths used internally for generated
++// symbols by the compiler.
++//
++// The linker uses the magic symbol prefixes "go:" and "type:".
++// Avoid potential confusion between import paths and symbols
++// by rejecting these reserved imports for now. Also, people
++// "can do weird things in GOPATH and we'd prefer they didn't
++// do _that_ weird thing" (per rsc). See also #4257.
++var ReservedImports = map[string]bool{
++	"go":   true,
++	"type": true,
++}
++
+ var Ctxt *obj.Link
+ 
+ // TODO(mdempsky): These should probably be obj.Link methods.
+@@ -20,7 +33,11 @@ func PkgLinksym(prefix, name string, abi obj.ABI) *obj.LSym {
+ 		// TODO(mdempsky): Cleanup callers and Fatalf instead.
+ 		return linksym(prefix, "_", abi)
+ 	}
+-	return linksym(prefix, prefix+"."+name, abi)
++	sep := "."
++	if ReservedImports[prefix] {
++		sep = ":"
++	}
++	return linksym(prefix, prefix+sep+name, abi)
+ }
+ 
+ // Linkname returns the linker symbol for the given name as it might
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 4bbc04826a..bdaa043396 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -471,7 +471,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 
+ 	gotype := reflectdata.TypeLinksym(n.Type())
+ 	delete(fnsym.Func().Autot, gotype)
+-	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
++	typename := dwarf.InfoPrefix + gotype.Name[len("type:"):]
+ 	inlIndex := 0
+ 	if base.Flag.GenDwarfInl > 1 {
+ 		if n.InlFormal() || n.InlLocal() {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a5a2d56c46..c9493bf593 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -77,7 +77,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	// pseudo-package, for scoping
+ 	types.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
+-	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
++	types.BuiltinPkg.Prefix = "go:builtin"
+ 
+ 	// pseudo-package, accessed by import "unsafe"
+ 	types.UnsafePkg = types.NewPkg("unsafe", "unsafe")
+@@ -92,7 +92,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	// pseudo-packages used in symbol tables
+ 	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
+-	ir.Pkgs.Itab.Prefix = "go.itab" // not go%2eitab
++	ir.Pkgs.Itab.Prefix = "go:itab"
+ 
+ 	// pseudo-package used for methods with anonymous receivers
+ 	ir.Pkgs.Go = types.NewPkg("go", "")
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 5008aa212a..715b8ee263 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -148,7 +148,7 @@ func dumpdata() {
+ 	dumpglobls(typecheck.Target.Externs[numExterns:])
+ 
+ 	if reflectdata.ZeroSize > 0 {
+-		zero := base.PkgLinksym("go.map", "zero", obj.ABI0)
++		zero := base.PkgLinksym("go:map", "zero", obj.ABI0)
+ 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
+ 		zero.Set(obj.AttrStatic, true)
+ 	}
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 0058a98824..83105de253 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -1134,7 +1134,6 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
+ 	b.WriteString(".")
+ 	b.WriteString(msym.Name)
+ 	b.WriteString(suffix)
+-
+ 	return rpkg.LookupBytes(b.Bytes())
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 49b8fd142a..8b017ecfd5 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -355,16 +355,6 @@ func addFingerprint(path string, f *os.File, end int64) error {
+ 	return nil
+ }
+ 
+-// The linker uses the magic symbol prefixes "go." and "type."
+-// Avoid potential confusion between import paths and symbols
+-// by rejecting these reserved imports for now. Also, people
+-// "can do weird things in GOPATH and we'd prefer they didn't
+-// do _that_ weird thing" (per rsc). See also #4257.
+-var reservedimports = []string{
+-	"go",
+-	"type",
+-}
+-
+ func checkImportPath(path string, allowSpace bool) error {
+ 	if path == "" {
+ 		return errors.New("import path is empty")
+@@ -374,7 +364,7 @@ func checkImportPath(path string, allowSpace bool) error {
+ 		return errors.New("import path contains NUL")
+ 	}
+ 
+-	for _, ri := range reservedimports {
++	for ri := range base.ReservedImports {
+ 		if path == ri {
+ 			return fmt.Errorf("import path %q is reserved and cannot be used", path)
+ 		}
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index c4097947bf..af75b04c6b 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -853,7 +853,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			// Special case for a rule combines the bytes of gostring.
+ 			// The v alignment might seem OK, but we don't want to load it
+ 			// using an offset because relocation comes later.
+-			genAddr = strings.HasPrefix(fromAddr.Sym.Name, "go.string") || v.Type.Alignment()%4 != 0 || fromAddr.Offset%4 != 0
++			genAddr = strings.HasPrefix(fromAddr.Sym.Name, "go:string") || v.Type.Alignment()%4 != 0 || fromAddr.Offset%4 != 0
+ 		default:
+ 			genAddr = fromAddr.Offset%4 != 0
+ 		}
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 8fb2d50c40..5833c71f4c 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -411,7 +411,7 @@ func dimportpath(p *types.Pkg) {
+ 		return
+ 	}
+ 
+-	s := base.Ctxt.Lookup("type..importpath." + p.Prefix + ".")
++	s := base.Ctxt.Lookup("type:.importpath." + p.Prefix + ".")
+ 	ot := dnameData(s, 0, p.Path, "", nil, false, false)
+ 	objw.Global(s, int32(ot), obj.DUPOK|obj.RODATA)
+ 	s.Set(obj.AttrContentAddressable, true)
+@@ -426,10 +426,10 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
+ 	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
+ 		// If we don't know the full import path of the package being compiled
+ 		// (i.e. -p was not passed on the compiler command line), emit a reference to
+-		// type..importpath.""., which the linker will rewrite using the correct import path.
++		// type:.importpath.""., which the linker will rewrite using the correct import path.
+ 		// Every package that imports this one directly defines the symbol.
+ 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+-		ns := base.Ctxt.Lookup(`type..importpath."".`)
++		ns := base.Ctxt.Lookup(`type:.importpath."".`)
+ 		return objw.SymPtr(s, ot, ns, 0)
+ 	}
+ 
+@@ -445,10 +445,10 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
+ 	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
+ 		// If we don't know the full import path of the package being compiled
+ 		// (i.e. -p was not passed on the compiler command line), emit a reference to
+-		// type..importpath.""., which the linker will rewrite using the correct import path.
++		// type:.importpath.""., which the linker will rewrite using the correct import path.
+ 		// Every package that imports this one directly defines the symbol.
+ 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+-		ns := base.Ctxt.Lookup(`type..importpath."".`)
++		ns := base.Ctxt.Lookup(`type:.importpath."".`)
+ 		return objw.SymPtrOff(s, ot, ns)
+ 	}
+ 
+@@ -517,11 +517,11 @@ var dnameCount int
+ 
+ // dname creates a reflect.name for a struct field or method.
+ func dname(name, tag string, pkg *types.Pkg, exported, embedded bool) *obj.LSym {
+-	// Write out data as "type.." to signal two things to the
++	// Write out data as "type:." to signal two things to the
+ 	// linker, first that when dynamically linking, the symbol
+ 	// should be moved to a relro section, and second that the
+ 	// contents should not be decoded as a type.
+-	sname := "type..namedata."
++	sname := "type:.namedata."
+ 	if pkg == nil {
+ 		// In the common case, share data with other packages.
+ 		if name == "" {
+@@ -798,7 +798,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ // TrackSym returns the symbol for tracking use of field/method f, assumed
+ // to be a member of struct/interface type t.
+ func TrackSym(t *types.Type, f *types.Field) *obj.LSym {
+-	return base.PkgLinksym("go.track", t.LinkString()+"."+f.Sym.Name, obj.ABI0)
++	return base.PkgLinksym("go:track", t.LinkString()+"."+f.Sym.Name, obj.ABI0)
+ }
+ 
+ func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
+@@ -1358,7 +1358,7 @@ func WriteTabs() {
+ 	// process ptabs
+ 	if types.LocalPkg.Name == "main" && len(ptabs) > 0 {
+ 		ot := 0
+-		s := base.Ctxt.Lookup("go.plugin.tabs")
++		s := base.Ctxt.Lookup("go:plugin.tabs")
+ 		for _, p := range ptabs {
+ 			// Dump ptab symbol into go.pluginsym package.
+ 			//
+@@ -1381,7 +1381,7 @@ func WriteTabs() {
+ 		objw.Global(s, int32(ot), int16(obj.RODATA))
+ 
+ 		ot = 0
+-		s = base.Ctxt.Lookup("go.plugin.exports")
++		s = base.Ctxt.Lookup("go:plugin.exports")
+ 		for _, p := range ptabs {
+ 			ot = objw.SymPtr(s, ot, p.Linksym(), 0)
+ 		}
+@@ -1715,7 +1715,7 @@ func ZeroAddr(size int64) ir.Node {
+ 	if ZeroSize < size {
+ 		ZeroSize = size
+ 	}
+-	lsym := base.PkgLinksym("go.map", "zero", obj.ABI0)
++	lsym := base.PkgLinksym("go:map", "zero", obj.ABI0)
+ 	x := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
+ 	return typecheck.Expr(typecheck.NodAddr(x))
+ }
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 621da9cbf6..da0db5a573 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -61,7 +61,7 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
+ }
+ 
+ const (
+-	stringSymPrefix  = "go.string."
++	stringSymPrefix  = "go:string."
+ 	stringSymPattern = ".gostring.%d.%s"
+ )
+ 
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 8ba57371e6..4821efa963 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -21,15 +21,15 @@ import (
+ )
+ 
+ // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
+-const InfoPrefix = "go.info."
++const InfoPrefix = "go:info."
+ 
+ // ConstInfoPrefix is the prefix for all symbols containing DWARF info
+ // entries that contain constants.
+-const ConstInfoPrefix = "go.constinfo."
++const ConstInfoPrefix = "go:constinfo."
+ 
+ // CUInfoPrefix is the prefix for symbols containing information to
+ // populate the DWARF compilation unit info entries.
+-const CUInfoPrefix = "go.cuinfo."
++const CUInfoPrefix = "go:cuinfo."
+ 
+ // Used to form the symbol name assigned to the DWARF 'abstract subprogram"
+ // info entry for a function
+diff --git a/src/cmd/internal/goobj/builtinlist.go b/src/cmd/internal/goobj/builtinlist.go
+index 2d13222984..ae2e6cc004 100644
+--- a/src/cmd/internal/goobj/builtinlist.go
++++ b/src/cmd/internal/goobj/builtinlist.go
+@@ -214,40 +214,40 @@ var builtins = [...]struct {
+ 	{"runtime.morestack", 0},
+ 	{"runtime.morestackc", 0},
+ 	{"runtime.morestack_noctxt", 0},
+-	{"type.int8", 0},
+-	{"type.*int8", 0},
+-	{"type.uint8", 0},
+-	{"type.*uint8", 0},
+-	{"type.int16", 0},
+-	{"type.*int16", 0},
+-	{"type.uint16", 0},
+-	{"type.*uint16", 0},
+-	{"type.int32", 0},
+-	{"type.*int32", 0},
+-	{"type.uint32", 0},
+-	{"type.*uint32", 0},
+-	{"type.int64", 0},
+-	{"type.*int64", 0},
+-	{"type.uint64", 0},
+-	{"type.*uint64", 0},
+-	{"type.float32", 0},
+-	{"type.*float32", 0},
+-	{"type.float64", 0},
+-	{"type.*float64", 0},
+-	{"type.complex64", 0},
+-	{"type.*complex64", 0},
+-	{"type.complex128", 0},
+-	{"type.*complex128", 0},
+-	{"type.unsafe.Pointer", 0},
+-	{"type.*unsafe.Pointer", 0},
+-	{"type.uintptr", 0},
+-	{"type.*uintptr", 0},
+-	{"type.bool", 0},
+-	{"type.*bool", 0},
+-	{"type.string", 0},
+-	{"type.*string", 0},
+-	{"type.error", 0},
+-	{"type.*error", 0},
+-	{"type.func(error) string", 0},
+-	{"type.*func(error) string", 0},
++	{"type:int8", 0},
++	{"type:*int8", 0},
++	{"type:uint8", 0},
++	{"type:*uint8", 0},
++	{"type:int16", 0},
++	{"type:*int16", 0},
++	{"type:uint16", 0},
++	{"type:*uint16", 0},
++	{"type:int32", 0},
++	{"type:*int32", 0},
++	{"type:uint32", 0},
++	{"type:*uint32", 0},
++	{"type:int64", 0},
++	{"type:*int64", 0},
++	{"type:uint64", 0},
++	{"type:*uint64", 0},
++	{"type:float32", 0},
++	{"type:*float32", 0},
++	{"type:float64", 0},
++	{"type:*float64", 0},
++	{"type:complex64", 0},
++	{"type:*complex64", 0},
++	{"type:complex128", 0},
++	{"type:*complex128", 0},
++	{"type:unsafe.Pointer", 0},
++	{"type:*unsafe.Pointer", 0},
++	{"type:uintptr", 0},
++	{"type:*uintptr", 0},
++	{"type:bool", 0},
++	{"type:*bool", 0},
++	{"type:string", 0},
++	{"type:*string", 0},
++	{"type:error", 0},
++	{"type:*error", 0},
++	{"type:func(error) string", 0},
++	{"type:*func(error) string", 0},
+ }
+diff --git a/src/cmd/internal/goobj/mkbuiltin.go b/src/cmd/internal/goobj/mkbuiltin.go
+index c9995fcede..d9db63ad44 100644
+--- a/src/cmd/internal/goobj/mkbuiltin.go
++++ b/src/cmd/internal/goobj/mkbuiltin.go
+@@ -105,7 +105,7 @@ func mkbuiltin(w io.Writer) {
+ 	extras := append(fextras[:], enumerateBasicTypes()...)
+ 	for _, b := range extras {
+ 		prefix := ""
+-		if !strings.HasPrefix(b.name, "type.") {
++		if !strings.HasPrefix(b.name, "type:") {
+ 			prefix = pkg + "."
+ 		}
+ 		name := prefix + b.name
+@@ -130,8 +130,8 @@ func enumerateBasicTypes() []extra {
+ 		"func(error) string"}
+ 	result := []extra{}
+ 	for _, n := range names {
+-		result = append(result, extra{"type." + n, 0})
+-		result = append(result, extra{"type.*" + n, 0})
++		result = append(result, extra{"type:" + n, 0})
++		result = append(result, extra{"type:*" + n, 0})
+ 	}
+ 	return result
+ }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 89339b0147..ec699a7951 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -321,14 +321,14 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.ReflectMethod() {
+ 		flag |= goobj.SymFlagReflectMethod
+ 	}
+-	if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
++	if strings.HasPrefix(s.Name, "type:") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
+ 		flag |= goobj.SymFlagGoType
+ 	}
+ 	flag2 := uint8(0)
+ 	if s.UsedInIface() {
+ 		flag2 |= goobj.SymFlagUsedInIface
+ 	}
+-	if strings.HasPrefix(s.Name, "go.itab.") && s.Type == objabi.SRODATA {
++	if strings.HasPrefix(s.Name, "go:itab.") && s.Type == objabi.SRODATA {
+ 		flag2 |= goobj.SymFlagItab
+ 	}
+ 	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], ".") && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath)+1:], objabi.GlobalDictPrefix) {
+@@ -351,9 +351,9 @@ func (w *writer) Sym(s *LSym) {
+ 		// TODO: maybe the compiler could set the alignment for all
+ 		// data symbols more carefully.
+ 		switch {
+-		case strings.HasPrefix(s.Name, "go.string."),
+-			strings.HasPrefix(name, "type..namedata."),
+-			strings.HasPrefix(name, "type..importpath."),
++		case strings.HasPrefix(s.Name, "go:string."),
++			strings.HasPrefix(name, "type:.namedata."),
++			strings.HasPrefix(name, "type:.importpath."),
+ 			strings.HasPrefix(name, "runtime.gcbits."),
+ 			strings.HasSuffix(name, ".opendefer"),
+ 			strings.HasSuffix(name, ".arginfo0"),
+@@ -430,9 +430,9 @@ func contentHashSection(s *LSym) byte {
+ 		strings.HasSuffix(name, ".wrapinfo") ||
+ 		strings.HasSuffix(name, ".args_stackmap") ||
+ 		strings.HasSuffix(name, ".stkobj") {
+-		return 'F' // go.func.* or go.funcrel.*
++		return 'F' // go:func.* or go:funcrel.*
+ 	}
+-	if strings.HasPrefix(name, "type.") {
++	if strings.HasPrefix(name, "type:") {
+ 		return 'T'
+ 	}
+ 	return 0
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index cb2afeaa9a..c2668b29a4 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -222,7 +222,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				if ldr.SymName(rs) == "main.main" || (!target.IsPlugin() && ldr.SymName(rs) == "main..inittask") {
+ 					sb := ldr.MakeSymbolUpdater(rs)
+ 					sb.SetType(sym.SDYNIMPORT)
+-				} else if strings.HasPrefix(ldr.SymName(rs), "go.info.") {
++				} else if strings.HasPrefix(ldr.SymName(rs), "go:info.") {
+ 					// Skip go.info symbols. They are only needed to communicate
+ 					// DWARF info between the compiler and linker.
+ 					continue
+@@ -1108,7 +1108,7 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
+ 	}
+ 	if goType := l.SymGoType(s); goType == 0 {
+ 		return
+-	} else if typeName := l.SymName(goType); typeName != "type.string" {
++	} else if typeName := l.SymName(goType); typeName != "type:string" {
+ 		Errorf(nil, "%s: cannot set with -X: not a var of type string (%s)", name, typeName)
+ 		return
+ 	}
+@@ -2152,7 +2152,7 @@ func (ctxt *Link) textbuildid() {
+ 	}
+ 
+ 	ldr := ctxt.loader
+-	s := ldr.CreateSymForUpdate("go.buildid", 0)
++	s := ldr.CreateSymForUpdate("go:buildid", 0)
+ 	// The \xff is invalid UTF-8, meant to make it less likely
+ 	// to find one of these accidentally.
+ 	data := "\xff Go build ID: " + strconv.Quote(*flagBuildid) + "\n \xff"
+@@ -2627,7 +2627,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	}
+ 
+ 	if ctxt.BuildMode == BuildModeShared {
+-		s := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
++		s := ldr.LookupOrCreateSym("go:link.abihashbytes", 0)
+ 		sect := ldr.SymSect(ldr.LookupOrCreateSym(".note.go.abihash", 0))
+ 		ldr.SetSymSect(s, sect)
+ 		ldr.SetSymValue(s, int64(sect.Vaddr+16))
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 48f447b1fa..0738a51deb 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -72,11 +72,11 @@ func (d *deadcodePass) init() {
+ 	// We redirect unreachable methods to it.
+ 	names = append(names, "runtime.unreachableMethod")
+ 	if d.ctxt.BuildMode == BuildModePlugin {
+-		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
++		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go:plugin.tabs")
+ 
+ 		// We don't keep the go.plugin.exports symbol,
+ 		// but we do keep the symbols it refers to.
+-		exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
++		exportsIdx := d.ldr.Lookup("go:plugin.exports", 0)
+ 		if exportsIdx != 0 {
+ 			relocs := d.ldr.Relocs(exportsIdx)
+ 			for i := 0; i < relocs.Count(); i++ {
+diff --git a/src/cmd/link/internal/ld/deadcode_test.go b/src/cmd/link/internal/ld/deadcode_test.go
+index 6e128432dc..ed37a08812 100644
+--- a/src/cmd/link/internal/ld/deadcode_test.go
++++ b/src/cmd/link/internal/ld/deadcode_test.go
+@@ -23,7 +23,7 @@ func TestDeadcode(t *testing.T) {
+ 		pos, neg string // positive and negative patterns
+ 	}{
+ 		{"reflectcall", "", "main.T.M"},
+-		{"typedesc", "", "type.main.T"},
++		{"typedesc", "", "type:main.T"},
+ 		{"ifacemethod", "", "main.T.M"},
+ 		{"ifacemethod2", "main.T.M", ""},
+ 		{"ifacemethod3", "main.S.M", ""},
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index c42511ea3f..75fabb4bd8 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -43,18 +43,18 @@ type dwctxt struct {
+ 	arch     *sys.Arch
+ 
+ 	// This maps type name string (e.g. "uintptr") to loader symbol for
+-	// the DWARF DIE for that type (e.g. "go.info.type.uintptr")
++	// the DWARF DIE for that type (e.g. "go:info.type.uintptr")
+ 	tmap map[string]loader.Sym
+ 
+ 	// This maps loader symbol for the DWARF DIE symbol generated for
+-	// a type (e.g. "go.info.uintptr") to the type symbol itself
+-	// ("type.uintptr").
++	// a type (e.g. "go:info.uintptr") to the type symbol itself
++	// ("type:uintptr").
+ 	// FIXME: try converting this map (and the next one) to a single
+ 	// array indexed by loader.Sym -- this may perform better.
+ 	rtmap map[loader.Sym]loader.Sym
+ 
+-	// This maps Go type symbol (e.g. "type.XXX") to loader symbol for
+-	// the typedef DIE for that type (e.g. "go.info.XXX..def")
++	// This maps Go type symbol (e.g. "type:XXX") to loader symbol for
++	// the typedef DIE for that type (e.g. "go:info.XXX..def")
+ 	tdmap map[loader.Sym]loader.Sym
+ 
+ 	// Cache these type symbols, so as to avoid repeatedly looking them up
+@@ -337,8 +337,8 @@ func walktypedef(die *dwarf.DWDie) *dwarf.DWDie {
+ func (d *dwctxt) walksymtypedef(symIdx loader.Sym) loader.Sym {
+ 
+ 	// We're being given the loader symbol for the type DIE, e.g.
+-	// "go.info.type.uintptr". Map that first to the type symbol (e.g.
+-	// "type.uintptr") and then to the typedef DIE for the type.
++	// "go:info.type.uintptr". Map that first to the type symbol (e.g.
++	// "type:uintptr") and then to the typedef DIE for the type.
+ 	// FIXME: this seems clunky, maybe there is a better way to do this.
+ 
+ 	if ts, ok := d.rtmap[symIdx]; ok {
+@@ -519,8 +519,8 @@ func (d *dwctxt) defgotype(gotype loader.Sym) loader.Sym {
+ 	}
+ 
+ 	sn := d.ldr.SymName(gotype)
+-	if !strings.HasPrefix(sn, "type.") {
+-		d.linkctxt.Errorf(gotype, "dwarf: type name doesn't start with \"type.\"")
++	if !strings.HasPrefix(sn, "type:") {
++		d.linkctxt.Errorf(gotype, "dwarf: type name doesn't start with \"type:\"")
+ 		return d.mustFind("<unspecified>")
+ 	}
+ 	name := sn[5:] // could also decode from Type.string
+@@ -678,7 +678,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 			s := decodetypeStructFieldType(d.ldr, d.arch, gotype, i)
+ 			if f == "" {
+ 				sn := d.ldr.SymName(s)
+-				f = sn[5:] // skip "type."
++				f = sn[5:] // skip "type:"
+ 			}
+ 			fld := d.newdie(die, dwarf.DW_ABRV_STRUCTFIELD, f)
+ 			d.newrefattr(fld, dwarf.DW_AT_type, d.defgotype(s))
+@@ -747,7 +747,7 @@ func (d *dwctxt) defptrto(dwtype loader.Sym) loader.Sym {
+ 	// The DWARF info synthesizes pointer types that don't exist at the
+ 	// language level, like *hash<...> and *bucket<...>, and the data
+ 	// pointers of slices. Link to the ones we can find.
+-	gts := d.ldr.Lookup("type."+ptrname, 0)
++	gts := d.ldr.Lookup("type:"+ptrname, 0)
+ 	if gts != 0 && d.ldr.AttrReachable(gts) {
+ 		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(gts))
+ 	}
+@@ -814,7 +814,7 @@ func (d *dwctxt) findprotodie(ctxt *Link, name string) *dwarf.DWDie {
+ }
+ 
+ func (d *dwctxt) synthesizestringtypes(ctxt *Link, die *dwarf.DWDie) {
+-	prototype := walktypedef(d.findprotodie(ctxt, "type.runtime.stringStructDWARF"))
++	prototype := walktypedef(d.findprotodie(ctxt, "type:runtime.stringStructDWARF"))
+ 	if prototype == nil {
+ 		return
+ 	}
+@@ -828,7 +828,7 @@ func (d *dwctxt) synthesizestringtypes(ctxt *Link, die *dwarf.DWDie) {
+ }
+ 
+ func (d *dwctxt) synthesizeslicetypes(ctxt *Link, die *dwarf.DWDie) {
+-	prototype := walktypedef(d.findprotodie(ctxt, "type.runtime.slice"))
++	prototype := walktypedef(d.findprotodie(ctxt, "type:runtime.slice"))
+ 	if prototype == nil {
+ 		return
+ 	}
+@@ -870,8 +870,8 @@ func (d *dwctxt) mkinternaltype(ctxt *Link, abbrev int, typename, keyname, valna
+ }
+ 
+ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
+-	hash := walktypedef(d.findprotodie(ctxt, "type.runtime.hmap"))
+-	bucket := walktypedef(d.findprotodie(ctxt, "type.runtime.bmap"))
++	hash := walktypedef(d.findprotodie(ctxt, "type:runtime.hmap"))
++	bucket := walktypedef(d.findprotodie(ctxt, "type:runtime.bmap"))
+ 
+ 	if hash == nil {
+ 		return
+@@ -966,9 +966,9 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
+ }
+ 
+ func (d *dwctxt) synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
+-	sudog := walktypedef(d.findprotodie(ctxt, "type.runtime.sudog"))
+-	waitq := walktypedef(d.findprotodie(ctxt, "type.runtime.waitq"))
+-	hchan := walktypedef(d.findprotodie(ctxt, "type.runtime.hchan"))
++	sudog := walktypedef(d.findprotodie(ctxt, "type:runtime.sudog"))
++	waitq := walktypedef(d.findprotodie(ctxt, "type:runtime.waitq"))
++	hchan := walktypedef(d.findprotodie(ctxt, "type:runtime.hchan"))
+ 	if sudog == nil || waitq == nil || hchan == nil {
+ 		return
+ 	}
+@@ -1135,7 +1135,7 @@ func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
+ 		// symbol name here?
+ 		sn := d.ldr.SymName(rsym)
+ 		tn := sn[len(dwarf.InfoPrefix):]
+-		ts := d.ldr.Lookup("type."+tn, 0)
++		ts := d.ldr.Lookup("type:"+tn, 0)
+ 		d.defgotype(ts)
+ 	}
+ }
+@@ -1662,7 +1662,7 @@ func (d *dwctxt) mkBuiltinType(ctxt *Link, abrv int, tname string) *dwarf.DWDie
+ 	die := d.newdie(&dwtypes, abrv, tname)
+ 
+ 	// Look up type symbol.
+-	gotype := d.lookupOrDiag("type." + tname)
++	gotype := d.lookupOrDiag("type:" + tname)
+ 
+ 	// Map from die sym to type sym
+ 	ds := loader.Sym(die.Sym.(dwSym))
+@@ -1735,7 +1735,7 @@ func (d *dwctxt) dwarfVisitFunction(fnSym loader.Sym, unit *sym.CompilationUnit)
+ 
+ 		rsn := d.ldr.SymName(rsym)
+ 		tn := rsn[len(dwarf.InfoPrefix):]
+-		ts := d.ldr.Lookup("type."+tn, 0)
++		ts := d.ldr.Lookup("type:"+tn, 0)
+ 		d.defgotype(ts)
+ 	}
+ }
+@@ -1760,8 +1760,8 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 		tdmap:    make(map[loader.Sym]loader.Sym),
+ 		rtmap:    make(map[loader.Sym]loader.Sym),
+ 	}
+-	d.typeRuntimeEface = d.lookupOrDiag("type.runtime.eface")
+-	d.typeRuntimeIface = d.lookupOrDiag("type.runtime.iface")
++	d.typeRuntimeEface = d.lookupOrDiag("type:runtime.eface")
++	d.typeRuntimeIface = d.lookupOrDiag("type:runtime.iface")
+ 
+ 	if ctxt.HeadType == objabi.Haix {
+ 		// Initial map used to store package size for each DWARF section.
+@@ -1781,34 +1781,34 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 	newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
+ 	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(d.arch.PtrSize), 0)
+ 	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
+-	newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_ADDRESS, 0, dwSym(d.lookupOrDiag("type.uintptr")))
++	newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_ADDRESS, 0, dwSym(d.lookupOrDiag("type:uintptr")))
+ 
+ 	d.uintptrInfoSym = d.mustFind("uintptr")
+ 
+ 	// Prototypes needed for type synthesis.
+ 	prototypedies = map[string]*dwarf.DWDie{
+-		"type.runtime.stringStructDWARF": nil,
+-		"type.runtime.slice":             nil,
+-		"type.runtime.hmap":              nil,
+-		"type.runtime.bmap":              nil,
+-		"type.runtime.sudog":             nil,
+-		"type.runtime.waitq":             nil,
+-		"type.runtime.hchan":             nil,
++		"type:runtime.stringStructDWARF": nil,
++		"type:runtime.slice":             nil,
++		"type:runtime.hmap":              nil,
++		"type:runtime.bmap":              nil,
++		"type:runtime.sudog":             nil,
++		"type:runtime.waitq":             nil,
++		"type:runtime.hchan":             nil,
+ 	}
+ 
+ 	// Needed by the prettyprinter code for interface inspection.
+ 	for _, typ := range []string{
+-		"type.runtime._type",
+-		"type.runtime.arraytype",
+-		"type.runtime.chantype",
+-		"type.runtime.functype",
+-		"type.runtime.maptype",
+-		"type.runtime.ptrtype",
+-		"type.runtime.slicetype",
+-		"type.runtime.structtype",
+-		"type.runtime.interfacetype",
+-		"type.runtime.itab",
+-		"type.runtime.imethod"} {
++		"type:runtime._type",
++		"type:runtime.arraytype",
++		"type:runtime.chantype",
++		"type:runtime.functype",
++		"type:runtime.maptype",
++		"type:runtime.ptrtype",
++		"type:runtime.slicetype",
++		"type:runtime.structtype",
++		"type:runtime.interfacetype",
++		"type:runtime.itab",
++		"type:runtime.imethod"} {
+ 		d.defgotype(d.lookupOrDiag(typ))
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 040978e6fc..dd5844bd10 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1531,7 +1531,7 @@ func (ctxt *Link) doelf() {
+ 	if ctxt.IsShared() {
+ 		// The go.link.abihashbytes symbol will be pointed at the appropriate
+ 		// part of the .note.go.abihash section in data.go:func address().
+-		s := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
++		s := ldr.LookupOrCreateSym("go:link.abihashbytes", 0)
+ 		sb := ldr.MakeSymbolUpdater(s)
+ 		ldr.SetAttrLocal(s, true)
+ 		sb.SetType(sym.SRODATA)
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 1affe24916..171f3cef11 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -385,7 +385,7 @@ func Adddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym)
+ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
+ 	var buf bytes.Buffer
+ 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
+-		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
++		if name := l.SymName(i); strings.HasPrefix(name, "go:track.") {
+ 			if l.AttrReachable(i) {
+ 				l.SetAttrSpecial(i, true)
+ 				l.SetAttrNotInSymbolTable(i, true)
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index aaad152e6f..709a6d0be6 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -232,7 +232,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
+ 
+ 	// Create a new init func text symbol. Caller will populate this
+ 	// sym with arch-specific content.
+-	ifs := ctxt.loader.LookupOrCreateSym("go.link.addmoduledata", 0)
++	ifs := ctxt.loader.LookupOrCreateSym("go:link.addmoduledata", 0)
+ 	initfunc := ctxt.loader.MakeSymbolUpdater(ifs)
+ 	ctxt.loader.SetAttrReachable(ifs, true)
+ 	ctxt.loader.SetAttrLocal(ifs, true)
+@@ -245,7 +245,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
+ 	ctxt.Textp = append(ctxt.Textp, initfunc.Sym())
+ 
+ 	// Create an init array entry
+-	amdi := ctxt.loader.LookupOrCreateSym("go.link.addmoduledatainit", 0)
++	amdi := ctxt.loader.LookupOrCreateSym("go:link.addmoduledatainit", 0)
+ 	initarray_entry := ctxt.loader.MakeSymbolUpdater(amdi)
+ 	ctxt.loader.SetAttrReachable(amdi, true)
+ 	ctxt.loader.SetAttrLocal(amdi, true)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c265d73893..14dc5433fb 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -926,24 +926,24 @@ func (ctxt *Link) mangleTypeSym() {
+ 
+ // typeSymbolMangle mangles the given symbol name into something shorter.
+ //
+-// Keep the type.. prefix, which parts of the linker (like the
++// Keep the type:. prefix, which parts of the linker (like the
+ // DWARF generator) know means the symbol is not decodable.
+-// Leave type.runtime. symbols alone, because other parts of
++// Leave type:runtime. symbols alone, because other parts of
+ // the linker manipulates them.
+ func typeSymbolMangle(name string) string {
+-	if !strings.HasPrefix(name, "type.") {
++	if !strings.HasPrefix(name, "type:") {
+ 		return name
+ 	}
+-	if strings.HasPrefix(name, "type.runtime.") {
++	if strings.HasPrefix(name, "type:runtime.") {
+ 		return name
+ 	}
+ 	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
+ 		return name
+ 	}
+ 	hash := notsha256.Sum256([]byte(name))
+-	prefix := "type."
++	prefix := "type:"
+ 	if name[5] == '.' {
+-		prefix = "type.."
++		prefix = "type:."
+ 	}
+ 	return prefix + base64.StdEncoding.EncodeToString(hash[:6])
+ }
+@@ -2319,11 +2319,11 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			continue
+ 		}
+ 
+-		// Symbols whose names start with "type." are compiler
+-		// generated, so make functions with that prefix internal.
++		// Symbols whose names start with "type:" are compiler generated,
++		// so make functions with that prefix internal.
+ 		ver := 0
+ 		symname := elfsym.Name // (unmangled) symbol name
+-		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
++		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type:") {
+ 			ver = abiInternalVer
+ 		} else if buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+ 			// Demangle the ABI name. Keep in sync with symtab.go:mangleABIName.
+@@ -2357,7 +2357,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			// The decodetype_* functions in decodetype.go need access to
+ 			// the type data.
+ 			sname := l.SymName(s)
+-			if strings.HasPrefix(sname, "type.") && !strings.HasPrefix(sname, "type..") {
++			if strings.HasPrefix(sname, "type:") && !strings.HasPrefix(sname, "type:.") {
+ 				su.SetData(readelfsymboldata(ctxt, f, &elfsym))
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index e7fd1cde97..11cbf81486 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -1020,16 +1020,16 @@ func machoShouldExport(ctxt *Link, ldr *loader.Loader, s loader.Sym) bool {
+ 		return true
+ 	}
+ 	name := ldr.SymName(s)
+-	if strings.HasPrefix(name, "go.itab.") {
++	if strings.HasPrefix(name, "go:itab.") {
+ 		return true
+ 	}
+-	if strings.HasPrefix(name, "type.") && !strings.HasPrefix(name, "type..") {
++	if strings.HasPrefix(name, "type:") && !strings.HasPrefix(name, "type:.") {
+ 		// reduce runtime typemap pressure, but do not
+-		// export alg functions (type..*), as these
++		// export alg functions (type:.*), as these
+ 		// appear in pclntable.
+ 		return true
+ 	}
+-	if strings.HasPrefix(name, "go.link.pkghash") {
++	if strings.HasPrefix(name, "go:link.pkghash") {
+ 		return true
+ 	}
+ 	return ldr.SymType(s) >= sym.SFirstWritable // only writable sections
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 7a7a4833aa..45a4e07fb7 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -222,7 +222,7 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
+ 
+ 		// Write header.
+ 		// Keep in sync with runtime/symtab.go:pcHeader and package debug/gosym.
+-		header.SetUint32(ctxt.Arch, 0, 0xfffffff0)
++		header.SetUint32(ctxt.Arch, 0, 0xfffffff1)
+ 		header.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
+ 		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
+ 		off := header.SetUint(ctxt.Arch, 8, uint64(state.nfunc))
+@@ -627,7 +627,7 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
+ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
+ 	ldr := ctxt.loader
+ 	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
+-	gofunc := ldr.Lookup("go.func.*", 0)
++	gofunc := ldr.Lookup("go:func.*", 0)
+ 	gofuncBase := ldr.SymValue(gofunc)
+ 	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
+ 	funcdata := []loader.Sym{}
+@@ -716,7 +716,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
+ 			}
+ 		}
+ 
+-		// Write funcdata refs as offsets from go.func.* and go.funcrel.*.
++		// Write funcdata refs as offsets from go:func.* and go:funcrel.*.
+ 		funcdata = funcData(ldr, s, fi, inlSyms[s], funcdata)
+ 		// Missing funcdata will be ^0. See runtime/symtab.go:funcdata.
+ 		off = int64(startLocations[i] + funcSize + numPCData(ldr, s, fi)*4)
+@@ -729,7 +729,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
+ 			}
+ 
+ 			if outer := ldr.OuterSym(fdsym); outer != gofunc {
+-				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go.func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
++				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go:func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
+ 			}
+ 			sb.SetUint32(ctxt.Arch, dataoff, uint32(ldr.SymValue(fdsym)-gofuncBase))
+ 		}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 6d1cd7283a..0e291311a0 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -723,7 +723,27 @@ func (f *peFile) writeSymbols(ctxt *Link) {
+ 
+ 		// Only windows/386 requires underscore prefix on external symbols.
+ 		if ctxt.Is386() && ctxt.IsExternal() &&
+-			(t == sym.SHOSTOBJ || t == sym.SUNDEFEXT || ldr.AttrCgoExport(s)) {
++			(t == sym.SHOSTOBJ || t == sym.SUNDEFEXT || ldr.AttrCgoExport(s) ||
++				// TODO(cuonglm): remove this hack
++				//
++				// Previously, windows/386 requires underscore prefix on external symbols,
++				// but that's only applied for SHOSTOBJ/SUNDEFEXT or cgo export symbols.
++				// "go.buildid" is STEXT, "type.*" is STYPE, thus they are not prefixed
++				// with underscore.
++				//
++				// In external linking mode, the external linker can't resolve them as
++				// external symbols. But we are lucky that they have "." in their name,
++				// so the external linker see them as Forwarder RVA exports. See:
++				//
++				//  - https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#export-address-table
++				//  - https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/pe-dll.c;h=e7b82ba6ffadf74dc1b9ee71dc13d48336941e51;hb=HEAD#l972)
++				//
++				// CL 317917 changes "." to ":" in symbols name, so theses symbols can not be
++				// found by external linker anymore. So a hacky way is adding the
++				// underscore prefix for these 2 symbols. I don't have enough knowledge to
++				// verify whether adding the underscore for all STEXT/STYPE symbols are
++				// fine, even if it could be, that would be done in future CL.
++				name == "go:buildid" || name == "type:*") {
+ 			name = "_" + name
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index ee963bc366..02b384ba9d 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -472,7 +472,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	var symtype, symtyperel loader.Sym
+ 	if !ctxt.DynlinkingGo() {
+ 		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
+-			s = ldr.CreateSymForUpdate("type.*", 0)
++			s = ldr.CreateSymForUpdate("type:*", 0)
+ 			s.SetType(sym.STYPE)
+ 			s.SetSize(0)
+ 			s.SetAlign(int32(ctxt.Arch.PtrSize))
+@@ -484,7 +484,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			s.SetAlign(int32(ctxt.Arch.PtrSize))
+ 			symtyperel = s.Sym()
+ 		} else {
+-			s = ldr.CreateSymForUpdate("type.*", 0)
++			s = ldr.CreateSymForUpdate("type:*", 0)
+ 			s.SetType(sym.STYPE)
+ 			s.SetSize(0)
+ 			s.SetAlign(int32(ctxt.Arch.PtrSize))
+@@ -505,14 +505,14 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 		return s.Sym()
+ 	}
+ 	var (
+-		symgostring = groupSym("go.string.*", sym.SGOSTRING)
+-		symgofunc   = groupSym("go.func.*", sym.SGOFUNC)
++		symgostring = groupSym("go:string.*", sym.SGOSTRING)
++		symgofunc   = groupSym("go:func.*", sym.SGOFUNC)
+ 		symgcbits   = groupSym("runtime.gcbits.*", sym.SGCBITS)
+ 	)
+ 
+ 	symgofuncrel := symgofunc
+ 	if ctxt.UseRelro() {
+-		symgofuncrel = groupSym("go.funcrel.*", sym.SGOFUNCRELRO)
++		symgofuncrel = groupSym("go:funcrel.*", sym.SGOFUNCRELRO)
+ 	}
+ 
+ 	symt := ldr.CreateSymForUpdate("runtime.symtab", 0)
+@@ -538,13 +538,13 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 
+ 		name := ldr.SymName(s)
+ 		switch {
+-		case strings.HasPrefix(name, "go.string."):
++		case strings.HasPrefix(name, "go:string."):
+ 			symGroupType[s] = sym.SGOSTRING
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 			ldr.SetCarrierSym(s, symgostring)
+ 
+ 		case strings.HasPrefix(name, "runtime.gcbits."),
+-			strings.HasPrefix(name, "type..gcprog."):
++			strings.HasPrefix(name, "type:.gcprog."):
+ 			symGroupType[s] = sym.SGCBITS
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 			ldr.SetCarrierSym(s, symgcbits)
+@@ -582,10 +582,10 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 				liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
+ 			}
+ 
+-		// Note: Check for "type." prefix after checking for .arginfo1 suffix.
+-		// That way symbols like "type..eq.[2]interface {}.arginfo1" that belong
+-		// in go.func.* end up there.
+-		case strings.HasPrefix(name, "type."):
++		// Note: Check for "type:" prefix after checking for .arginfo1 suffix.
++		// That way symbols like "type:.eq.[2]interface {}.arginfo1" that belong
++		// in go:func.* end up there.
++		case strings.HasPrefix(name, "type:"):
+ 			if !ctxt.DynlinkingGo() {
+ 				ldr.SetAttrNotInSymbolTable(s, true)
+ 			}
+@@ -604,19 +604,19 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	}
+ 
+ 	if ctxt.BuildMode == BuildModeShared {
+-		abihashgostr := ldr.CreateSymForUpdate("go.link.abihash."+filepath.Base(*flagOutfile), 0)
++		abihashgostr := ldr.CreateSymForUpdate("go:link.abihash."+filepath.Base(*flagOutfile), 0)
+ 		abihashgostr.SetType(sym.SRODATA)
+-		hashsym := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
++		hashsym := ldr.LookupOrCreateSym("go:link.abihashbytes", 0)
+ 		abihashgostr.AddAddr(ctxt.Arch, hashsym)
+ 		abihashgostr.AddUint(ctxt.Arch, uint64(ldr.SymSize(hashsym)))
+ 	}
+ 	if ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
+ 		for _, l := range ctxt.Library {
+-			s := ldr.CreateSymForUpdate("go.link.pkghashbytes."+l.Pkg, 0)
++			s := ldr.CreateSymForUpdate("go:link.pkghashbytes."+l.Pkg, 0)
+ 			s.SetType(sym.SRODATA)
+ 			s.SetSize(int64(len(l.Fingerprint)))
+ 			s.SetData(l.Fingerprint[:])
+-			str := ldr.CreateSymForUpdate("go.link.pkghash."+l.Pkg, 0)
++			str := ldr.CreateSymForUpdate("go:link.pkghash."+l.Pkg, 0)
+ 			str.SetType(sym.SRODATA)
+ 			str.AddAddr(ctxt.Arch, s.Sym())
+ 			str.AddUint(ctxt.Arch, uint64(len(l.Fingerprint)))
+@@ -678,7 +678,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.types", 0))
+ 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypes", 0))
+ 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.rodata", 0))
+-	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go.func.*", 0))
++	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go:func.*", 0))
+ 
+ 	if ctxt.IsAIX() && ctxt.IsExternal() {
+ 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
+@@ -695,8 +695,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 		// important that the offsets we computed stay unchanged by the external
+ 		// linker, i.e. all symbols in Textp should not be removed.
+ 		// Most of them are actually referenced (our deadcode pass ensures that),
+-		// except go.buildid which is generated late and not used by the program.
+-		addRef("go.buildid")
++		// except go:buildid which is generated late and not used by the program.
++		addRef("go:buildid")
+ 	}
+ 
+ 	// text section information
+@@ -717,10 +717,10 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	moduledata.AddUint(ctxt.Arch, nitablinks)
+ 	moduledata.AddUint(ctxt.Arch, nitablinks)
+ 	// The ptab slice
+-	if ptab := ldr.Lookup("go.plugin.tabs", 0); ptab != 0 && ldr.AttrReachable(ptab) {
++	if ptab := ldr.Lookup("go:plugin.tabs", 0); ptab != 0 && ldr.AttrReachable(ptab) {
+ 		ldr.SetAttrLocal(ptab, true)
+ 		if ldr.SymType(ptab) != sym.SRODATA {
+-			panic(fmt.Sprintf("go.plugin.tabs is %v, not SRODATA", ldr.SymType(ptab)))
++			panic(fmt.Sprintf("go:plugin.tabs is %v, not SRODATA", ldr.SymType(ptab)))
+ 		}
+ 		nentries := uint64(len(ldr.Data(ptab)) / 8) // sizeof(nameOff) + sizeof(typeOff)
+ 		moduledata.AddAddr(ctxt.Arch, ptab)
+@@ -732,19 +732,19 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 		moduledata.AddUint(ctxt.Arch, 0)
+ 	}
+ 	if ctxt.BuildMode == BuildModePlugin {
+-		addgostring(ctxt, ldr, moduledata, "go.link.thispluginpath", objabi.PathToPrefix(*flagPluginPath))
++		addgostring(ctxt, ldr, moduledata, "go:link.thispluginpath", objabi.PathToPrefix(*flagPluginPath))
+ 
+-		pkghashes := ldr.CreateSymForUpdate("go.link.pkghashes", 0)
++		pkghashes := ldr.CreateSymForUpdate("go:link.pkghashes", 0)
+ 		pkghashes.SetLocal(true)
+ 		pkghashes.SetType(sym.SRODATA)
+ 
+ 		for i, l := range ctxt.Library {
+ 			// pkghashes[i].name
+-			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
++			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go:link.pkgname.%d", i), l.Pkg)
+ 			// pkghashes[i].linktimehash
+-			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.Fingerprint[:]))
++			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go:link.pkglinkhash.%d", i), string(l.Fingerprint[:]))
+ 			// pkghashes[i].runtimehash
+-			hash := ldr.Lookup("go.link.pkghash."+l.Pkg, 0)
++			hash := ldr.Lookup("go:link.pkghash."+l.Pkg, 0)
+ 			pkghashes.AddAddr(ctxt.Arch, hash)
+ 		}
+ 		moduledata.AddAddr(ctxt.Arch, pkghashes.Sym())
+@@ -765,22 +765,22 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			// it something slightly more comprehensible.
+ 			thismodulename = "the executable"
+ 		}
+-		addgostring(ctxt, ldr, moduledata, "go.link.thismodulename", thismodulename)
++		addgostring(ctxt, ldr, moduledata, "go:link.thismodulename", thismodulename)
+ 
+-		modulehashes := ldr.CreateSymForUpdate("go.link.abihashes", 0)
++		modulehashes := ldr.CreateSymForUpdate("go:link.abihashes", 0)
+ 		modulehashes.SetLocal(true)
+ 		modulehashes.SetType(sym.SRODATA)
+ 
+ 		for i, shlib := range ctxt.Shlibs {
+ 			// modulehashes[i].modulename
+ 			modulename := filepath.Base(shlib.Path)
+-			addgostring(ctxt, ldr, modulehashes, fmt.Sprintf("go.link.libname.%d", i), modulename)
++			addgostring(ctxt, ldr, modulehashes, fmt.Sprintf("go:link.libname.%d", i), modulename)
+ 
+ 			// modulehashes[i].linktimehash
+-			addgostring(ctxt, ldr, modulehashes, fmt.Sprintf("go.link.linkhash.%d", i), string(shlib.Hash))
++			addgostring(ctxt, ldr, modulehashes, fmt.Sprintf("go:link.linkhash.%d", i), string(shlib.Hash))
+ 
+ 			// modulehashes[i].runtimehash
+-			abihash := ldr.LookupOrCreateSym("go.link.abihash."+modulename, 0)
++			abihash := ldr.LookupOrCreateSym("go:link.abihash."+modulename, 0)
+ 			ldr.SetAttrReachable(abihash, true)
+ 			modulehashes.AddAddr(ctxt.Arch, abihash)
+ 		}
+@@ -807,7 +807,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	// When linking an object that does not contain the runtime we are
+ 	// creating the moduledata from scratch and it does not have a
+ 	// compiler-provided size, so read it from the type data.
+-	moduledatatype := ldr.Lookup("type.runtime.moduledata", 0)
++	moduledatatype := ldr.Lookup("type:runtime.moduledata", 0)
+ 	moduledata.SetSize(decodetypeSize(ctxt.Arch, ldr.Data(moduledatatype)))
+ 	moduledata.Grow(moduledata.Size())
+ 
+@@ -873,7 +873,7 @@ func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) st
+ 	// except symbols that are exported to C. Type symbols are always
+ 	// ABIInternal so they are not mangled.
+ 	if ctxt.IsShared() {
+-		if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type.") {
++		if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type:") {
+ 			name = fmt.Sprintf("%s.abiinternal", name)
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 259db131af..3fac071a04 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -598,16 +598,16 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
+ 		if !ctxt.DynlinkingGo() {
+ 			// runtime.types size must be removed, as it's a real symbol.
+ 			tsize := ldr.SymSize(ldr.Lookup("runtime.types", 0))
+-			outerSymSize["type.*"] = size - tsize
++			outerSymSize["type:*"] = size - tsize
+ 		}
+ 	case sym.SGOSTRING:
+-		outerSymSize["go.string.*"] = size
++		outerSymSize["go:string.*"] = size
+ 	case sym.SGOFUNC:
+ 		if !ctxt.DynlinkingGo() {
+-			outerSymSize["go.func.*"] = size
++			outerSymSize["go:func.*"] = size
+ 		}
+ 	case sym.SGOFUNCRELRO:
+-		outerSymSize["go.funcrel.*"] = size
++		outerSymSize["go:funcrel.*"] = size
+ 	case sym.SGCBITS:
+ 		outerSymSize["runtime.gcbits.*"] = size
+ 	case sym.SPCLNTAB:
+@@ -893,7 +893,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
+ 			syms = xfile.writeSymbolFunc(ctxt, x)
+ 		} else {
+ 			// Only runtime.text and runtime.etext come through this way
+-			if name != "runtime.text" && name != "runtime.etext" && name != "go.buildid" {
++			if name != "runtime.text" && name != "runtime.etext" && name != "go:buildid" {
+ 				Exitf("putaixsym: unknown text symbol %s", name)
+ 			}
+ 			s := &XcoffSymEnt64{
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 664f345ead..52c7d72835 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -722,9 +722,9 @@ func (l *Loader) checkdup(name string, r *oReader, li uint32, dup Sym) {
+ 	// here is that we get different line numbers on formal
+ 	// params; I am guessing that the pos is being inherited
+ 	// from the spot where the wrapper is needed.
+-	allowed := strings.HasPrefix(name, "go.info.go.interface") ||
+-		strings.HasPrefix(name, "go.info.go.builtin") ||
+-		strings.HasPrefix(name, "go.debuglines")
++	allowed := strings.HasPrefix(name, "go:info.go.interface") ||
++		strings.HasPrefix(name, "go:info.go.builtin") ||
++		strings.HasPrefix(name, "go:debuglines")
+ 	if !allowed {
+ 		l.strictDupMsgs++
+ 	}
+@@ -1704,7 +1704,7 @@ func (l *Loader) OuterSym(i Sym) Sym {
+ // SubSym gets the subsymbol for host object loaded symbols.
+ func (l *Loader) SubSym(i Sym) Sym {
+ 	// NB: note -- no check for l.isExternal(), since I am pretty sure
+-	// that later phases in the linker set subsym for "type." syms
++	// that later phases in the linker set subsym for "type:" syms
+ 	return l.sub[i]
+ }
+ 
+@@ -1717,7 +1717,7 @@ func (l *Loader) SubSym(i Sym) Sym {
+ // emits named string symbols (type SGOSTRING) when compiling a
+ // package; after being deduplicated, these symbols are collected into
+ // a single unit by assigning them a new carrier symbol named
+-// "go.string.*" (which appears in the final symbol table for the
++// "go:string.*" (which appears in the final symbol table for the
+ // output load module).
+ func (l *Loader) SetCarrierSym(s Sym, c Sym) {
+ 	if c == 0 {
+@@ -2133,7 +2133,7 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
+ 			l.SetAttrUsedInIface(gi, true)
+ 		}
+ 		if strings.HasPrefix(name, "runtime.") ||
+-			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
++			(loadingRuntimePkg && strings.HasPrefix(name, "type:")) {
+ 			if bi := goobj.BuiltinIdx(name, int(osym.ABI())); bi != -1 {
+ 				// This is a definition of a builtin symbol. Record where it is.
+ 				l.builtinSyms[bi] = gi
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index b22e2136bb..7d1031e9dc 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -39,9 +39,9 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	or := &dummyOreader
+ 
+ 	// Create some syms from a dummy object file symbol to get things going.
+-	ts1 := addDummyObjSym(t, ldr, or, "type.uint8")
++	ts1 := addDummyObjSym(t, ldr, or, "type:uint8")
+ 	ts2 := addDummyObjSym(t, ldr, or, "mumble")
+-	ts3 := addDummyObjSym(t, ldr, or, "type.string")
++	ts3 := addDummyObjSym(t, ldr, or, "type:string")
+ 
+ 	// Create some external symbols.
+ 	es1 := ldr.LookupOrCreateSym("extnew1", 0)
+@@ -52,7 +52,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	if es1x != es1 {
+ 		t.Fatalf("LookupOrCreateSym lookup: expected %d got %d for second lookup", es1, es1x)
+ 	}
+-	es2 := ldr.LookupOrCreateSym("go.info.type.uint8", 0)
++	es2 := ldr.LookupOrCreateSym("go:info.type.uint8", 0)
+ 	if es2 == 0 {
+ 		t.Fatalf("LookupOrCreateSym failed for go.info.type.uint8")
+ 	}
+@@ -252,7 +252,7 @@ func TestAddDataMethods(t *testing.T) {
+ 	or := &dummyOreader
+ 
+ 	// Populate loader with some symbols.
+-	addDummyObjSym(t, ldr, or, "type.uint8")
++	addDummyObjSym(t, ldr, or, "type:uint8")
+ 	ldr.LookupOrCreateSym("hello", 0)
+ 
+ 	arch := sys.ArchAMD64
+@@ -371,7 +371,7 @@ func TestOuterSub(t *testing.T) {
+ 	or := &dummyOreader
+ 
+ 	// Populate loader with some symbols.
+-	addDummyObjSym(t, ldr, or, "type.uint8")
++	addDummyObjSym(t, ldr, or, "type:uint8")
+ 	es1 := ldr.LookupOrCreateSym("outer", 0)
+ 	ldr.MakeSymbolUpdater(es1).SetSize(101)
+ 	es2 := ldr.LookupOrCreateSym("sub1", 0)
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 01c500ed70..45cb209e97 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -156,7 +156,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
+ 	fns := make([]*wasmFunc, len(ctxt.Textp))
+ 	for i, fn := range ctxt.Textp {
+ 		wfn := new(bytes.Buffer)
+-		if ldr.SymName(fn) == "go.buildid" {
++		if ldr.SymName(fn) == "go:buildid" {
+ 			writeUleb128(wfn, 0) // number of sets of locals
+ 			writeI32Const(wfn, 0)
+ 			wfn.WriteByte(0x0b) // end
+@@ -248,7 +248,7 @@ func writeSecSize(ctxt *ld.Link, sizeOffset int64) {
+ 
+ func writeBuildID(ctxt *ld.Link, buildid []byte) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionCustom)
+-	writeName(ctxt.Out, "go.buildid")
++	writeName(ctxt.Out, "go:buildid")
+ 	ctxt.Out.Write(buildid)
+ 	writeSecSize(ctxt, sizeOffset)
+ }
+diff --git a/src/crypto/tls/link_test.go b/src/crypto/tls/link_test.go
+index 8c392ff7c4..454d370c88 100644
+--- a/src/crypto/tls/link_test.go
++++ b/src/crypto/tls/link_test.go
+@@ -36,8 +36,8 @@ func main() {}
+ `,
+ 			bad: []string{
+ 				"tls.(*Conn)",
+-				"type.crypto/tls.clientHandshakeState",
+-				"type.crypto/tls.serverHandshakeState",
++				"type:crypto/tls.clientHandshakeState",
++				"type:crypto/tls.serverHandshakeState",
+ 			},
+ 		},
+ 		{
+diff --git a/src/debug/gosym/pclntab.go b/src/debug/gosym/pclntab.go
+index 2ceea3d46f..1aed5ed7e7 100644
+--- a/src/debug/gosym/pclntab.go
++++ b/src/debug/gosym/pclntab.go
+@@ -24,6 +24,7 @@ const (
+ 	ver12
+ 	ver116
+ 	ver118
++	ver120
+ )
+ 
+ // A LineTable is a data structure mapping program counters to line numbers.
+@@ -173,6 +174,7 @@ const (
+ 	go12magic  = 0xfffffffb
+ 	go116magic = 0xfffffffa
+ 	go118magic = 0xfffffff0
++	go120magic = 0xfffffff1
+ )
+ 
+ // uintptr returns the pointer-sized value encoded at b.
+@@ -229,6 +231,10 @@ func (t *LineTable) parsePclnTab() {
+ 		t.binary, possibleVersion = binary.LittleEndian, ver118
+ 	case beMagic == go118magic:
+ 		t.binary, possibleVersion = binary.BigEndian, ver118
++	case leMagic == go120magic:
++		t.binary, possibleVersion = binary.LittleEndian, ver120
++	case beMagic == go120magic:
++		t.binary, possibleVersion = binary.BigEndian, ver120
+ 	default:
+ 		return
+ 	}
+@@ -246,7 +252,7 @@ func (t *LineTable) parsePclnTab() {
+ 	}
+ 
+ 	switch possibleVersion {
+-	case ver118:
++	case ver118, ver120:
+ 		t.nfunctab = uint32(offset(0))
+ 		t.nfiletab = uint32(offset(1))
+ 		t.textStart = t.PC // use the start PC instead of reading from the table, which may be unrelocated
+@@ -527,7 +533,7 @@ func (t *LineTable) findFileLine(entry uint64, filetab, linetab uint32, filenum,
+ 	fileStartPC := filePC
+ 	for t.step(&fp, &filePC, &fileVal, filePC == entry) {
+ 		fileIndex := fileVal
+-		if t.version == ver116 || t.version == ver118 {
++		if t.version == ver116 || t.version == ver118 || t.version == ver120 {
+ 			fileIndex = int32(t.binary.Uint32(cutab[fileVal*4:]))
+ 		}
+ 		if fileIndex == filenum && fileStartPC < filePC {
+@@ -626,7 +632,7 @@ func (t *LineTable) go12LineToPC(file string, line int) (pc uint64) {
+ 		entry := f.entryPC()
+ 		filetab := f.pcfile()
+ 		linetab := f.pcln()
+-		if t.version == ver116 || t.version == ver118 {
++		if t.version == ver116 || t.version == ver118 || t.version == ver120 {
+ 			if f.cuOffset() == ^uint32(0) {
+ 				// skip functions without compilation unit (not real function, or linker generated)
+ 				continue
+diff --git a/src/debug/gosym/symtab.go b/src/debug/gosym/symtab.go
+index afc67198c3..d87b312b56 100644
+--- a/src/debug/gosym/symtab.go
++++ b/src/debug/gosym/symtab.go
+@@ -27,6 +27,8 @@ type Sym struct {
+ 	GoType uint64
+ 	// If this symbol is a function symbol, the corresponding Func
+ 	Func *Func
++
++	goVersion version
+ }
+ 
+ // Static reports whether this symbol is static (not visible outside its file).
+@@ -55,9 +57,16 @@ func (s *Sym) nameWithoutInst() string {
+ func (s *Sym) PackageName() string {
+ 	name := s.nameWithoutInst()
+ 
+-	// A prefix of "type." and "go." is a compiler-generated symbol that doesn't belong to any package.
+-	// See variable reservedimports in cmd/compile/internal/gc/subr.go
+-	if strings.HasPrefix(name, "go.") || strings.HasPrefix(name, "type.") {
++	// Since go1.20, a prefix of "type:" and "go:" is a compiler-generated symbol,
++	// they do not belong to any package.
++	//
++	// See cmd/compile/internal/base/link.go:ReservedImports variable.
++	if s.goVersion >= ver120 && (strings.HasPrefix(name, "go:") || strings.HasPrefix(name, "type:")) {
++		return ""
++	}
++
++	// For go1.18 and below, the prefix are "type." and "go." instead.
++	if s.goVersion <= ver118 && (strings.HasPrefix(name, "go.") || strings.HasPrefix(name, "type.")) {
+ 		return ""
+ 	}
+ 
+@@ -350,6 +359,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
+ 		ts.Type = s.typ
+ 		ts.Value = s.value
+ 		ts.GoType = s.gotype
++		ts.goVersion = pcln.version
+ 		switch s.typ {
+ 		default:
+ 			// rewrite name to use . instead of · (c2 b7)
+diff --git a/src/debug/gosym/symtab_test.go b/src/debug/gosym/symtab_test.go
+index da3c21209d..bb1f267a4d 100644
+--- a/src/debug/gosym/symtab_test.go
++++ b/src/debug/gosym/symtab_test.go
+@@ -62,16 +62,26 @@ func TestRemotePackage(t *testing.T) {
+ }
+ 
+ func TestIssue29551(t *testing.T) {
+-	symNames := []string{
+-		"type..eq.[9]debug/elf.intName",
+-		"type..hash.debug/elf.ProgHeader",
+-		"type..eq.runtime._panic",
+-		"type..hash.struct { runtime.gList; runtime.n int32 }",
+-		"go.(*struct { sync.Mutex; math/big.table [64]math/big",
++	tests := []struct {
++		sym     Sym
++		pkgName string
++	}{
++		{Sym{goVersion: ver120, Name: "type:.eq.[9]debug/elf.intName"}, ""},
++		{Sym{goVersion: ver120, Name: "type:.hash.debug/elf.ProgHeader"}, ""},
++		{Sym{goVersion: ver120, Name: "type:.eq.runtime._panic"}, ""},
++		{Sym{goVersion: ver120, Name: "type:.hash.struct { runtime.gList; runtime.n int32 }"}, ""},
++		{Sym{goVersion: ver120, Name: "go:(*struct { sync.Mutex; math/big.table [64]math/big"}, ""},
++		{Sym{goVersion: ver120, Name: "go.uber.org/zap/buffer.(*Buffer).AppendString"}, "go.uber.org/zap/buffer"},
++		{Sym{goVersion: ver118, Name: "type..eq.[9]debug/elf.intName"}, ""},
++		{Sym{goVersion: ver118, Name: "type..hash.debug/elf.ProgHeader"}, ""},
++		{Sym{goVersion: ver118, Name: "type..eq.runtime._panic"}, ""},
++		{Sym{goVersion: ver118, Name: "type..hash.struct { runtime.gList; runtime.n int32 }"}, ""},
++		{Sym{goVersion: ver118, Name: "go.(*struct { sync.Mutex; math/big.table [64]math/big"}, ""},
++		// unfortunate
++		{Sym{goVersion: ver118, Name: "go.uber.org/zap/buffer.(*Buffer).AppendString"}, ""},
+ 	}
+ 
+-	for _, symName := range symNames {
+-		s := Sym{Name: symName}
+-		assertString(t, fmt.Sprintf("package of %q", s.Name), s.PackageName(), "")
++	for _, tc := range tests {
++		assertString(t, fmt.Sprintf("package of %q", tc.sym.Name), tc.sym.PackageName(), tc.pkgName)
+ 	}
+ }
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index ad34b68c7d..4a2d1d90ed 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -393,7 +393,7 @@ const (
+ 
+ // pcHeader holds data used by the pclntab lookups.
+ type pcHeader struct {
+-	magic          uint32  // 0xFFFFFFF0
++	magic          uint32  // 0xFFFFFFF1
+ 	pad1, pad2     uint8   // 0,0
+ 	minLC          uint8   // min instruction size
+ 	ptrSize        uint8   // size of a ptr in bytes
+@@ -599,7 +599,7 @@ const debugPcln = false
+ func moduledataverify1(datap *moduledata) {
+ 	// Check that the pclntab's format is valid.
+ 	hdr := datap.pcHeader
+-	if hdr.magic != 0xfffffff0 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
++	if hdr.magic != 0xfffffff1 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
+ 		hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize || hdr.textStart != datap.text {
+ 		println("runtime: pcHeader: magic=", hex(hdr.magic), "pad1=", hdr.pad1, "pad2=", hdr.pad2,
+ 			"minLC=", hdr.minLC, "ptrSize=", hdr.ptrSize, "pcHeader.textStart=", hex(hdr.textStart),
+diff --git a/test/codegen/strings.go b/test/codegen/strings.go
+index 19e1dbda51..08425a418a 100644
+--- a/test/codegen/strings.go
++++ b/test/codegen/strings.go
+@@ -15,7 +15,7 @@ func CountRunes(s string) int { // Issue #24923
+ }
+ 
+ func ToByteSlice() []byte { // Issue #24698
+-	// amd64:`LEAQ\ttype\.\[3\]uint8`
++	// amd64:`LEAQ\ttype:\[3\]uint8`
+ 	// amd64:`CALL\truntime\.newobject`
+ 	// amd64:-`.*runtime.stringtoslicebyte`
+ 	return []byte("foo")
+diff --git a/test/fixedbugs/issue29312.go b/test/fixedbugs/issue29312.go
+index 4293e01004..cbf79f704c 100644
+--- a/test/fixedbugs/issue29312.go
++++ b/test/fixedbugs/issue29312.go
+@@ -22,14 +22,14 @@
+ // The type names for these types are as follows. Because we truncate
+ // the name at depth 250, the last few names are all identical:
+ //
+-//     type.[]*"".pwn
+-//     type.[][]*"".pwn
++//     type:[]*"".pwn
++//     type:[][]*"".pwn
+ //     ...
+-//     type.[][]...[][]*pwn       - 249 total "[]"
+-//     type.[][]...[][][]*<...>   - 250 total "[]"
+-//     type.[][]...[][][][]<...>  - 251 total "[]"
+-//     type.[][]...[][][][]<...>  - 252 total "[]" (but only 251 "[]" in the name)
+-//     type.[][]...[][][][]<...>  - 253 total "[]" (but only 251 "[]" in the name)
++//     type:[][]...[][]*pwn       - 249 total "[]"
++//     type:[][]...[][][]*<...>   - 250 total "[]"
++//     type:[][]...[][][][]<...>  - 251 total "[]"
++//     type:[][]...[][][][]<...>  - 252 total "[]" (but only 251 "[]" in the name)
++//     type:[][]...[][][][]<...>  - 253 total "[]" (but only 251 "[]" in the name)
+ //
+ // Because the names of the last 3 types are all identical, the
+ // compiler will generate only a single runtime.slicetype data
+@@ -37,7 +37,7 @@
+ // generates just the 251-entry one. There aren't any
+ // runtime.slicetypes generated for the final two types.
+ //
+-// The compiler passes type.[]...[]<...> (251 total "[]") to
++// The compiler passes type:[]...[]<...> (251 total "[]") to
+ // fmt.Sprintf (instead of the correct 253 one). But the data
+ // structure at runtime actually has 253 nesting levels. So we end up
+ // calling String on something that is of type [][]*pwn instead of

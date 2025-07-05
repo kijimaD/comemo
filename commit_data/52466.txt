@@ -12,8 +12,93 @@ Date:   Mon May 2 17:15:59 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ir/type.go        | 19 +++----------------
  src/cmd/compile/internal/typecheck/dcl.go  |  2 +-
  src/cmd/compile/internal/typecheck/type.go |  4 ----
  3 files changed, 4 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index d810a6d60d..b0b9e553b5 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -85,7 +85,6 @@ func (n *FuncType) SetOTYPE(t *types.Type) {
+ type Field struct {
+ 	Pos      src.XPos
+ 	Sym      *types.Sym
+-	Ntype    Ntype
+ 	Type     *types.Type
+ 	Embedded bool
+ 	IsDDD    bool
+@@ -94,20 +93,14 @@ type Field struct {
+ }
+ 
+ func NewField(pos src.XPos, sym *types.Sym, typ *types.Type) *Field {
+-	return &Field{Pos: pos, Sym: sym, Ntype: nil, Type: typ}
++	return &Field{Pos: pos, Sym: sym, Type: typ}
+ }
+ 
+ func (f *Field) String() string {
+-	var typ string
+-	if f.Type != nil {
+-		typ = fmt.Sprint(f.Type)
+-	} else {
+-		typ = fmt.Sprint(f.Ntype)
+-	}
+ 	if f.Sym != nil {
+-		return fmt.Sprintf("%v %v", f.Sym, typ)
++		return fmt.Sprintf("%v %v", f.Sym, f.Type)
+ 	}
+-	return typ
++	return fmt.Sprint(f.Type)
+ }
+ 
+ // TODO(mdempsky): Make Field a Node again so these can be generated?
+@@ -127,9 +120,6 @@ func doField(f *Field, do func(Node) bool) bool {
+ 	if f.Decl != nil && do(f.Decl) {
+ 		return true
+ 	}
+-	if f.Ntype != nil && do(f.Ntype) {
+-		return true
+-	}
+ 	return false
+ }
+ func editField(f *Field, edit func(Node) Node) {
+@@ -139,9 +129,6 @@ func editField(f *Field, edit func(Node) Node) {
+ 	if f.Decl != nil {
+ 		f.Decl = edit(f.Decl).(*Name)
+ 	}
+-	if f.Ntype != nil {
+-		f.Ntype = edit(f.Ntype).(Ntype)
+-	}
+ }
+ 
+ func copyFields(list []*Field) []*Field {
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 45e7a695ab..b92980194c 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -202,7 +202,7 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
+ 
+ 	name := ir.NewNameAt(n.Pos, n.Sym)
+ 	n.Decl = name
+-	name.Ntype = n.Ntype
++	name.Ntype = nil
+ 	Declare(name, ctxt)
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/type.go b/src/cmd/compile/internal/typecheck/type.go
+index 4ef2cbd55f..04cac888fc 100644
+--- a/src/cmd/compile/internal/typecheck/type.go
++++ b/src/cmd/compile/internal/typecheck/type.go
+@@ -40,10 +40,6 @@ func tcFuncType(n *ir.FuncType) ir.Node {
+ // misc can be provided to handle specialized typechecking.
+ func tcField(n *ir.Field, misc func(*types.Field, *ir.Field)) *types.Field {
+ 	base.Pos = n.Pos
+-	if n.Ntype != nil {
+-		n.Type = typecheckNtype(n.Ntype).Type()
+-		n.Ntype = nil
+-	}
+ 	f := types.NewField(n.Pos, n.Sym, n.Type)
+ 	if misc != nil {
+ 		misc(f, n)

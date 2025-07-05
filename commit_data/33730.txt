@@ -11,6 +11,21 @@ Date:   Tue Aug 29 18:56:59 2017 +0900
     Run-TryBot: Tom Bergan <tombergan@google.com>
     Reviewed-by: Tom Bergan <tombergan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 9b3efecb59..d29d3a462a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -729,6 +729,9 @@ func (cr *connReader) Read(p []byte) (n int, err error) {
+ 	cr.lock()
+ 	if cr.inRead {
+ 		cr.unlock()
++		if cr.conn.hijacked() {
++			panic("invalid Body.Read call. After hijacked, the original Request must not be used")
++		}
+ 		panic("invalid concurrent Body.Read call")
+ 	}
+ 	if cr.hitReadLimit() {

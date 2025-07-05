@@ -11,7 +11,7 @@ Date:   Tue Nov 17 08:20:58 2009 -0800
     
     R=rsc, VenkateshSrinivas
     https://golang.org/cl/152142
-
+---
  misc/cgo/stdio/test.bash                  |   4 +-
  src/cmd/6l/asm.c                          |  17 +-
  src/cmd/6l/obj.c                          |   6 +
@@ -49,3 +49,4298 @@ Date:   Tue Nov 17 08:20:58 2009 -0800
  src/pkg/syscall/ztypes_freebsd_amd64.go   | 227 +++++++++
  src/pkg/time/time_test.go                 |   2 +-
  36 files changed, 3956 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/stdio/test.bash b/misc/cgo/stdio/test.bash
+index 8849fa4788..82e3f7b45b 100755
+--- a/misc/cgo/stdio/test.bash
++++ b/misc/cgo/stdio/test.bash
+@@ -4,7 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-make hello fib chain
++gomake hello fib chain
+ echo '*' hello >run.out
+ ./hello >>run.out
+ echo '*' fib >>run.out
+@@ -12,4 +12,4 @@ echo '*' fib >>run.out
+ echo '*' chain >>run.out
+ ./chain >>run.out
+ diff run.out golden.out
+-make clean
++gomake clean
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 146245c7bd..a9ff7b47f7 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -38,6 +38,7 @@
+ #define PADDR(a)	((uint32)(a) & ~0x80000000)
+ 
+ char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
++char freebsddynld[] = "/libexec/ld-elf.so.1";
+ 
+ char	zeroes[32];
+ 
+@@ -284,7 +285,7 @@ doelf(void)
+ 	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
+ 	int h, nsym, t;
+ 
+-	if(HEADTYPE != 7)
++	if(HEADTYPE != 7 && HEADTYPE != 9)
+ 		return;
+ 
+ 	/* predefine strings we need for section headers */
+@@ -317,7 +318,14 @@ doelf(void)
+ 		s = lookup(".interp", 0);
+ 		s->reachable = 1;
+ 		s->type = SDATA;	// TODO: rodata
+-		addstring(lookup(".interp", 0), linuxdynld);
++		switch(HEADTYPE) {
++		case 7:
++			addstring(lookup(".interp", 0), linuxdynld);
++			break;
++		case 9:
++			addstring(lookup(".interp", 0), freebsddynld);
++			break;
++		}
+ 
+ 		/*
+ 		 * hash table.
+@@ -512,6 +520,7 @@ asmb(void)
+ 		break;
+ 
+ 	case 7:
++	case 9:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		v = rnd(HEADR+textsize, INITRND);
+ 		seek(cout, v, 0);
+@@ -565,6 +574,7 @@ asmb(void)
+ 			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND)+machlink;
+ 			break;
+ 		case 7:
++		case 9:
+ 			symo = rnd(HEADR+textsize, INITRND)+datsize;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+@@ -649,6 +659,7 @@ asmb(void)
+ 		asmbmacho(symdatva, symo);
+ 		break;
+ 	case 7:
++	case 9:
+ 		/* elf amd-64 */
+ 
+ 		eh = getElfEhdr();
+@@ -871,6 +882,8 @@ asmb(void)
+ 		eh->ident[EI_MAG1] = 'E';
+ 		eh->ident[EI_MAG2] = 'L';
+ 		eh->ident[EI_MAG3] = 'F';
++		if(HEADTYPE == 9)
++			eh->ident[EI_OSABI] = 9;
+ 		eh->ident[EI_CLASS] = ELFCLASS64;
+ 		eh->ident[EI_DATA] = ELFDATA2LSB;
+ 		eh->ident[EI_VERSION] = EV_CURRENT;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index ffe93fce4d..63e2f95269 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -46,6 +46,7 @@ char*	paramspace	= "FP";
+  *	-H5 -T0x80110000 -R4096		is ELF32
+  *	-H6 -Tx -Rx			is apple MH-exec
+  *	-H7 -Tx -Rx			is linux elf-exec
++ *      -H9 -Tx -Rx			is FreeBSD elf-exec
+  *
+  *	options used: 189BLQSWabcjlnpsvz
+  */
+@@ -149,6 +150,10 @@ main(int argc, char *argv[])
+ 		if(strcmp(goos, "darwin") == 0)
+ 			HEADTYPE = 6;
+ 		else
++		if(strcmp(goos, "freebsd") == 0) {
++			debug['d'] = 1;	/* no dynamic syms for now */
++			HEADTYPE = 9;
++		} else
+ 			print("goos is not known: %s\n", goos);
+ 	}
+ 
+@@ -194,6 +199,7 @@ main(int argc, char *argv[])
+ 			INITDAT = 0;
+ 		break;
+ 	case 7:	/* elf64 executable */
++	case 9: /* freebsd */
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index 2d849c6b8a..293ff399a5 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -24,6 +24,7 @@ clean:
+ 
+ install: install-$(shell uname | tr A-Z a-z)
+ install-linux: install-default
++install-freebsd: install-default
+ 
+ # on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
+ install-darwin: $(TARG)
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 7ebc19d63f..f9012577ee 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -24,6 +24,7 @@ clean:
+ 
+ install: install-$(shell uname | tr A-Z a-z)
+ install-linux: install-default
++install-freebsd: install-default
+ 
+ # on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
+ install-darwin: $(TARG)
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index 0cd19fbba4..254e4622d5 100644
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -16,6 +16,7 @@ CFLAGS_amd64=-m64
+ 
+ LDFLAGS_linux=-shared -lpthread -lm
+ LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
++LDFLAGS_freebsd=-pthread -shared -lm
+ 
+ %.o: %.c
+ 	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c
+diff --git a/src/libcgo/freebsd_amd64.c b/src/libcgo/freebsd_amd64.c
+new file mode 100644
+index 0000000000..14a409f5eb
+--- /dev/null
++++ b/src/libcgo/freebsd_amd64.c
+@@ -0,0 +1,46 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <pthread.h>
++#include "libcgo.h"
++
++static void* threadentry(void*);
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	pthread_t p;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	ts->g->stackguard = size;
++	pthread_create(&p, &attr, threadentry, ts);
++}
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	ts.g->stackbase = (uintptr)&ts;
++
++	/*
++	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++	crosscall_amd64(ts.m, ts.g, ts.fn);
++	return nil;
++}
+diff --git a/src/libmach/freebsd.c b/src/libmach/freebsd.c
+new file mode 100644
+index 0000000000..531861e94d
+--- /dev/null
++++ b/src/libmach/freebsd.c
+@@ -0,0 +1,41 @@
++// This is stubbed out for the moment. Will revisit when the time comes.
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <mach.h>
++
++int
++ctlproc(int pid, char *msg)
++{
++	sysfatal("ctlproc unimplemented in FreeBSD");
++}
++
++char*
++proctextfile(int pid)
++{
++	sysfatal("proctextfile unimplemented in FreeBSD");
++}
++
++char*
++procstatus(int pid)
++{
++	sysfatal("procstatus unimplemented in FreeBSD");
++}
++
++Map*
++attachproc(int pid, Fhdr *fp)
++{
++	sysfatal("attachproc unimplemented in FreeBSD");
++}
++
++void
++detachproc(Map *m)
++{
++	sysfatal("detachproc unimplemented in FreeBSD");
++}
++
++int
++procthreadpids(int pid, int *p, int np)
++{
++	sysfatal("procthreadpids unimplemented in FreeBSD");
++}
+diff --git a/src/pkg/debug/proc/proc_freebsd.go b/src/pkg/debug/proc/proc_freebsd.go
+new file mode 100644
+index 0000000000..f6474ce80c
+--- /dev/null
++++ b/src/pkg/debug/proc/proc_freebsd.go
+@@ -0,0 +1,17 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package proc
++
++import "os"
++
++// Process tracing is not supported on FreeBSD yet.
++
++func Attach(pid int) (Process, os.Error) {
++	return nil, os.NewError("debug/proc not implemented on FreeBSD")
++}
++
++func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
++	return Attach(0)
++}
+diff --git a/src/pkg/debug/proc/regs_freebsd_amd64.go b/src/pkg/debug/proc/regs_freebsd_amd64.go
+new file mode 100644
+index 0000000000..60c9ac719e
+--- /dev/null
++++ b/src/pkg/debug/proc/regs_freebsd_amd64.go
+@@ -0,0 +1,5 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package proc
+diff --git a/src/pkg/net/fd_freebsd.go b/src/pkg/net/fd_freebsd.go
+new file mode 100644
+index 0000000000..b9c016b745
+--- /dev/null
++++ b/src/pkg/net/fd_freebsd.go
+@@ -0,0 +1,106 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Waiting for FDs via kqueue/kevent.
++
++package net
++
++import (
++	"os";
++	"syscall";
++)
++
++type pollster struct {
++	kq		int;
++	eventbuf	[10]syscall.Kevent_t;
++	events		[]syscall.Kevent_t;
++}
++
++func newpollster() (p *pollster, err os.Error) {
++	p = new(pollster);
++	var e int;
++	if p.kq, e = syscall.Kqueue(); e != 0 {
++		return nil, os.NewSyscallError("kqueue", e)
++	}
++	p.events = p.eventbuf[0:0];
++	return p, nil;
++}
++
++func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
++	var kmode int;
++	if mode == 'r' {
++		kmode = syscall.EVFILT_READ
++	} else {
++		kmode = syscall.EVFILT_WRITE
++	}
++	var events [1]syscall.Kevent_t;
++	ev := &events[0];
++	// EV_ADD - add event to kqueue list
++	// EV_ONESHOT - delete the event the first time it triggers
++	flags := syscall.EV_ADD;
++	if !repeat {
++		flags |= syscall.EV_ONESHOT
++	}
++	syscall.SetKevent(ev, fd, kmode, flags);
++
++	n, e := syscall.Kevent(p.kq, &events, nil, nil);
++	if e != 0 {
++		return os.NewSyscallError("kevent", e)
++	}
++	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
++		return os.NewSyscallError("kqueue phase error", e)
++	}
++	if ev.Data != 0 {
++		return os.Errno(int(ev.Data))
++	}
++	return nil;
++}
++
++func (p *pollster) DelFD(fd int, mode int) {
++	var kmode int;
++	if mode == 'r' {
++		kmode = syscall.EVFILT_READ
++	} else {
++		kmode = syscall.EVFILT_WRITE
++	}
++	var events [1]syscall.Kevent_t;
++	ev := &events[0];
++	// EV_DELETE - delete event from kqueue list
++	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE);
++	syscall.Kevent(p.kq, &events, nil, nil);
++}
++
++func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
++	var t *syscall.Timespec;
++	for len(p.events) == 0 {
++		if nsec > 0 {
++			if t == nil {
++				t = new(syscall.Timespec)
++			}
++			*t = syscall.NsecToTimespec(nsec);
++		}
++		nn, e := syscall.Kevent(p.kq, nil, &p.eventbuf, t);
++		if e != 0 {
++			if e == syscall.EINTR {
++				continue
++			}
++			return -1, 0, os.NewSyscallError("kevent", e);
++		}
++		if nn == 0 {
++			return -1, 0, nil
++		}
++		p.events = p.eventbuf[0:nn];
++	}
++	ev := &p.events[0];
++	p.events = p.events[1:len(p.events)];
++	fd = int(ev.Ident);
++	if ev.Filter == syscall.EVFILT_READ {
++		mode = 'r'
++	} else {
++		mode = 'w'
++	}
++	return fd, mode, nil;
++}
++
++func (p *pollster) Close() os.Error	{ return os.NewSyscallError("close", syscall.Close(p.kq)) }
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 2faac1eca2..f717f0663f 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -18,6 +18,10 @@ import (
+ // Unfortunately, we need to run on kernels built without IPv6 support too.
+ // So probe the kernel to figure it out.
+ func kernelSupportsIPv6() bool {
++	// FreeBSD does not support this sort of interface.
++	if syscall.OS == "freebsd" {
++		return false
++	}
+ 	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
+ 	if fd >= 0 {
+ 		syscall.Close(fd)
+diff --git a/src/pkg/os/dir_freebsd.go b/src/pkg/os/dir_freebsd.go
+new file mode 100644
+index 0000000000..34f4b9f13f
+--- /dev/null
++++ b/src/pkg/os/dir_freebsd.go
+@@ -0,0 +1,74 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall";
++	"unsafe";
++)
++
++const (
++	blockSize = 4096;	// TODO(r): use statfs
++)
++
++func (file *File) Readdirnames(count int) (names []string, err Error) {
++	// If this file has no dirinfo, create one.
++	if file.dirinfo == nil {
++		file.dirinfo = new(dirInfo);
++		// The buffer must be at least a block long.
++		// TODO(r): use fstatfs to find fs block size.
++		file.dirinfo.buf = make([]byte, blockSize);
++	}
++	d := file.dirinfo;
++	size := count;
++	if size < 0 {
++		size = 100
++	}
++	names = make([]string, 0, size);	// Empty with room to grow.
++	for count != 0 {
++		// Refill the buffer if necessary
++		if d.bufp >= d.nbuf {
++			var errno int;
++			d.bufp = 0;
++			// Final argument is (basep *uintptr) and the syscall doesn't take nil.
++			d.nbuf, errno = syscall.Getdirentries(file.fd, d.buf, new(uintptr));
++			if errno != 0 {
++				d.nbuf = 0;
++				return names, NewSyscallError("getdirentries", errno);
++			}
++			if d.nbuf <= 0 {
++				break	// EOF
++			}
++		}
++		// Drain the buffer
++		for count != 0 && d.bufp < d.nbuf {
++			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
++			if dirent.Reclen == 0 {
++				d.bufp = d.nbuf;
++				break;
++			}
++			d.bufp += int(dirent.Reclen);
++			if dirent.Fileno == 0 {	// File absent in directory.
++				continue
++			}
++			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
++			var name = string(bytes[0:dirent.Namlen]);
++			if name == "." || name == ".." {	// Useless names
++				continue
++			}
++			count--;
++			if len(names) == cap(names) {
++				nnames := make([]string, len(names), 2*len(names));
++				for i := 0; i < len(names); i++ {
++					nnames[i] = names[i]
++				}
++				names = nnames;
++			}
++			names = names[0 : len(names)+1];
++			names[len(names)-1] = name;
++		}
++	}
++	return names, nil;
++}
+diff --git a/src/pkg/os/stat_freebsd.go b/src/pkg/os/stat_freebsd.go
+new file mode 100644
+index 0000000000..d2630d72d6
+--- /dev/null
++++ b/src/pkg/os/stat_freebsd.go
+@@ -0,0 +1,38 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++func isSymlink(stat *syscall.Stat_t) bool {
++	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
++}
++
++func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
++	dir.Dev = uint64(stat.Dev);
++	dir.Ino = uint64(stat.Ino);
++	dir.Nlink = uint64(stat.Nlink);
++	dir.Mode = uint32(stat.Mode);
++	dir.Uid = stat.Uid;
++	dir.Gid = stat.Gid;
++	dir.Rdev = uint64(stat.Rdev);
++	dir.Size = uint64(stat.Size);
++	dir.Blksize = uint64(stat.Blksize);
++	dir.Blocks = uint64(stat.Blocks);
++	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec));
++	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec));
++	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec));
++	for i := len(name) - 1; i >= 0; i-- {
++		if name[i] == '/' {
++			name = name[i+1 : len(name)];
++			break;
++		}
++	}
++	dir.Name = name;
++	if isSymlink(lstat) && !isSymlink(stat) {
++		dir.FollowedSymlink = true
++	}
++	return dir;
++}
+diff --git a/src/pkg/os/sys_freebsd.go b/src/pkg/os/sys_freebsd.go
+new file mode 100644
+index 0000000000..cc8daeca3e
+--- /dev/null
++++ b/src/pkg/os/sys_freebsd.go
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++func Hostname() (name string, err Error) {
++	var errno int;
++	name, errno = syscall.Sysctl("kern.hostname");
++	if errno != 0 {
++		return "", NewSyscallError("sysctl kern.hostname", errno)
++	}
++	return name, nil;
++}
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index df81c0eb79..aee4e9a3f7 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -5,10 +5,9 @@
+ #include "amd64/asm.h"
+ 
+ TEXT	_rt0_amd64(SB),7,$-8
+-
+ 	// copy arguments forward on an even stack
+-	MOVQ	0(SP), AX		// argc
+-	LEAQ	8(SP), BX		// argv
++	MOVQ	0(DI), AX		// argc
++	LEAQ	8(DI), BX		// argv
+ 	SUBQ	$(4*8+7), SP		// 2args 2auto
+ 	ANDQ	$~7, SP
+ 	MOVQ	AX, 16(SP)
+diff --git a/src/pkg/runtime/darwin/amd64/rt0.s b/src/pkg/runtime/darwin/amd64/rt0.s
+index 0a0011781d..1b706365ac 100644
+--- a/src/pkg/runtime/darwin/amd64/rt0.s
++++ b/src/pkg/runtime/darwin/amd64/rt0.s
+@@ -6,4 +6,5 @@
+ 
+ TEXT	_rt0_amd64_darwin(SB),7,$-8
+ 	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	SP, DI
+ 	JMP	AX
+diff --git a/src/pkg/runtime/freebsd/amd64/defs.h b/src/pkg/runtime/freebsd/amd64/defs.h
+new file mode 100644
+index 0000000000..06efcc27ae
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/amd64/defs.h
+@@ -0,0 +1,157 @@
++// godefs -f -m64 freebsd/defs.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++// Constants
++enum {
++	PROT_NONE = 0,
++	PROT_READ = 0x1,
++	PROT_WRITE = 0x2,
++	PROT_EXEC = 0x4,
++	MAP_ANON = 0x1000,
++	MAP_PRIVATE = 0x2,
++	SA_SIGINFO = 0x40,
++	SA_RESTART = 0x2,
++	SA_ONSTACK = 0x1,
++	UMTX_OP_WAIT = 0x2,
++	UMTX_OP_WAKE = 0x3,
++	EINTR = 0x4,
++};
++
++// Types
++#pragma pack on
++
++typedef struct Sigaltstack Sigaltstack;
++struct Sigaltstack {
++	int8 *ss_sp;
++	uint64 ss_size;
++	int32 ss_flags;
++	byte pad0[4];
++};
++
++typedef struct Sigset Sigset;
++struct Sigset {
++	uint32 __bits[4];
++};
++
++typedef union Sigval Sigval;
++union Sigval {
++	int32 sival_int;
++	void *sival_ptr;
++	int32 sigval_int;
++	void *sigval_ptr;
++};
++
++typedef struct StackT StackT;
++struct StackT {
++	int8 *ss_sp;
++	uint64 ss_size;
++	int32 ss_flags;
++	byte pad0[4];
++};
++
++typedef struct Siginfo Siginfo;
++struct Siginfo {
++	int32 si_signo;
++	int32 si_errno;
++	int32 si_code;
++	int32 si_pid;
++	uint32 si_uid;
++	int32 si_status;
++	void *si_addr;
++	Sigval si_value;
++	byte _reason[40];
++};
++
++typedef struct Mcontext Mcontext;
++struct Mcontext {
++	int64 mc_onstack;
++	int64 mc_rdi;
++	int64 mc_rsi;
++	int64 mc_rdx;
++	int64 mc_rcx;
++	int64 mc_r8;
++	int64 mc_r9;
++	int64 mc_rax;
++	int64 mc_rbx;
++	int64 mc_rbp;
++	int64 mc_r10;
++	int64 mc_r11;
++	int64 mc_r12;
++	int64 mc_r13;
++	int64 mc_r14;
++	int64 mc_r15;
++	uint32 mc_trapno;
++	uint16 mc_fs;
++	uint16 mc_gs;
++	int64 mc_addr;
++	uint32 mc_flags;
++	uint16 mc_es;
++	uint16 mc_ds;
++	int64 mc_err;
++	int64 mc_rip;
++	int64 mc_cs;
++	int64 mc_rflags;
++	int64 mc_rsp;
++	int64 mc_ss;
++	int64 mc_len;
++	int64 mc_fpformat;
++	int64 mc_ownedfp;
++	int64 mc_fpstate[64];
++	int64 mc_fsbase;
++	int64 mc_gsbase;
++	int64 mc_spare[6];
++};
++
++typedef struct Ucontext Ucontext;
++struct Ucontext {
++	Sigset uc_sigmask;
++	Mcontext uc_mcontext;
++	Ucontext *uc_link;
++	StackT uc_stack;
++	int32 uc_flags;
++	int32 __spare__[4];
++	byte pad0[12];
++};
++
++typedef struct Sigcontext Sigcontext;
++struct Sigcontext {
++	Sigset sc_mask;
++	int64 sc_onstack;
++	int64 sc_rdi;
++	int64 sc_rsi;
++	int64 sc_rdx;
++	int64 sc_rcx;
++	int64 sc_r8;
++	int64 sc_r9;
++	int64 sc_rax;
++	int64 sc_rbx;
++	int64 sc_rbp;
++	int64 sc_r10;
++	int64 sc_r11;
++	int64 sc_r12;
++	int64 sc_r13;
++	int64 sc_r14;
++	int64 sc_r15;
++	int32 sc_trapno;
++	int16 sc_fs;
++	int16 sc_gs;
++	int64 sc_addr;
++	int32 sc_flags;
++	int16 sc_es;
++	int16 sc_ds;
++	int64 sc_err;
++	int64 sc_rip;
++	int64 sc_cs;
++	int64 sc_rflags;
++	int64 sc_rsp;
++	int64 sc_ss;
++	int64 sc_len;
++	int64 sc_fpformat;
++	int64 sc_ownedfp;
++	int64 sc_fpstate[64];
++	int64 sc_fsbase;
++	int64 sc_gsbase;
++	int64 sc_spare[6];
++};
++#pragma pack off
+diff --git a/src/pkg/runtime/freebsd/amd64/rt0.s b/src/pkg/runtime/freebsd/amd64/rt0.s
+new file mode 100644
+index 0000000000..7903b7ccca
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/amd64/rt0.s
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Darwin and Linux use the same linkage to main
++
++TEXT	_rt0_amd64_freebsd(SB),7,$-8
++	MOVQ	$_rt0_amd64(SB), DX
++	JMP	DX
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+new file mode 100644
+index 0000000000..08d89727da
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -0,0 +1,117 @@
++#include "runtime.h"
++#include "defs.h"
++#include "signals.h"
++#include "os.h"
++
++extern void sigtramp(void);
++
++typedef struct sigaction {
++	union {
++		void    (*__sa_handler)(int32);
++		void    (*__sa_sigaction)(int32, Siginfo*, void *);
++	} __sigaction_u;		/* signal handler */
++	int32	sa_flags;		/* see signal options below */
++	int64	sa_mask;		/* signal mask to apply */
++} Sigaction;
++
++void
++dumpregs(Sigcontext *r)
++{
++	printf("rax     %X\n", r->sc_rax);
++	printf("rbx     %X\n", r->sc_rbx);
++	printf("rcx     %X\n", r->sc_rcx);
++	printf("rdx     %X\n", r->sc_rdx);
++	printf("rdi     %X\n", r->sc_rdi);
++	printf("rsi     %X\n", r->sc_rsi);
++	printf("rbp     %X\n", r->sc_rbp);
++	printf("rsp     %X\n", r->sc_rsp);
++	printf("r8      %X\n", r->sc_r8 );
++	printf("r9      %X\n", r->sc_r9 );
++	printf("r10     %X\n", r->sc_r10);
++	printf("r11     %X\n", r->sc_r11);
++	printf("r12     %X\n", r->sc_r12);
++	printf("r13     %X\n", r->sc_r13);
++	printf("r14     %X\n", r->sc_r14);
++	printf("r15     %X\n", r->sc_r15);
++	printf("rip     %X\n", r->sc_rip);
++	printf("rflags  %X\n", r->sc_flags);
++	printf("cs      %X\n", (uint64)r->sc_cs);
++	printf("fs      %X\n", (uint64)r->sc_fsbase);
++	printf("gs      %X\n", (uint64)r->sc_gsbase);
++}
++
++void
++sighandler(int32 sig, Siginfo* info, void* context)
++{
++	Ucontext *uc;
++	Mcontext *mc;
++	Sigcontext *sc;
++
++	if(panicking)	// traceback already printed
++		exit(2);
++	panicking = 1;
++
++	uc = context;
++	mc = &uc->uc_mcontext;
++	sc = (Sigcontext*)mc;	// same layout, more conveient names
++
++	if(sig < 0 || sig >= NSIG)
++		printf("Signal %d\n", sig);
++	else
++		printf("%s\n", sigtab[sig].name);
++
++	printf("Faulting address: %p\n", info->si_addr);
++	printf("PC=%X\n", sc->sc_rip);
++	printf("\n");
++
++	if(gotraceback()){
++		traceback((void*)sc->sc_rip, (void*)sc->sc_rsp, (void*)sc->sc_r15);
++		tracebackothers((void*)sc->sc_r15);
++		dumpregs(sc);
++	}
++
++	breakpoint();
++	exit(2);
++}
++
++void
++sigignore(void)
++{
++}
++
++void
++signalstack(byte *p, int32 n)
++{
++	Sigaltstack st;
++
++	st.ss_sp = (int8*)p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	sigaltstack(&st, nil);
++}
++
++void
++initsig(void)
++{
++	static Sigaction sa;
++
++	int32 i;
++	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
++	sa.sa_mask = ~0x0ull;
++	
++	for(i = 0; i < NSIG; i++) {
++		if(sigtab[i].flags) {
++			if(sigtab[i].flags & SigCatch)
++				sa.__sigaction_u.__sa_handler = (void*) sigtramp;
++			else
++				sa.__sigaction_u.__sa_handler = (void*) sigignore;
++
++			if(sigtab[i].flags & SigRestart)
++				sa.sa_flags |= SA_RESTART;
++			else
++				sa.sa_flags &= ~SA_RESTART;
++
++			sigaction(i, &sa, nil);
++		}
++	}
++}
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+new file mode 100644
+index 0000000000..1b62468105
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -0,0 +1,125 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// System calls and other sys.stuff for AMD64, FreeBSD
++// /usr/src/sys/kern/syscalls.master for syscall numbers.
++//
++
++#include "amd64/asm.h"
++	
++TEXT sys_umtx_op(SB),7,$0
++	MOVQ 8(SP), DI
++	MOVL 16(SP), SI
++	MOVL 20(SP), DX
++	MOVQ 24(SP), R10
++	MOVQ 32(SP), R8
++	MOVL $454, AX
++	SYSCALL
++	RET
++
++TEXT thr_new(SB),7,$0
++	MOVQ 8(SP), DI
++	MOVQ 16(SP), SI
++	MOVL $455, AX
++	SYSCALL
++	RET
++
++TEXT thr_start(SB),7,$0
++	MOVQ DI, m
++	MOVQ m_g0(m), g
++	CALL mstart(SB)
++	MOVQ 0, AX			// crash (not reached)
++
++
++// Exit the entire program (like C exit)
++TEXT	exit(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 exit status
++	MOVL	$1, AX
++	SYSCALL
++	CALL	notok(SB)
++	RET
++
++TEXT	exit1(SB),7,$-8
++	MOVQ	8(SP), DI		// arg 1 exit status
++	MOVL	$431, AX
++	SYSCALL
++	CALL	notok(SB)
++	RET
++
++TEXT	write(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVQ	16(SP), SI		// arg 2 buf
++	MOVL	24(SP), DX		// arg 3 count
++	MOVL	$4, AX
++	SYSCALL
++	JCC	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT	sigaction(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 sig
++	MOVQ	16(SP), SI		// arg 2 act
++	MOVQ	24(SP), DX		// arg 3 oact
++	MOVL	$416, AX
++	SYSCALL
++	JCC	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT	sigtramp(SB),7,$24-16
++	MOVQ	m_gsignal(m), g
++	MOVQ	DI, 0(SP)
++	MOVQ	SI, 8(SP)
++	MOVQ	DX, 16(SP)
++	CALL	sighandler(SB)
++	RET
++
++TEXT	runtime·mmap(SB),7,$-8
++	MOVQ	8(SP), DI		// arg 1 addr
++	MOVL	16(SP), SI		// arg 2 len
++	MOVL	20(SP), DX		// arg 3 prot
++	MOVL	24(SP), R10		// arg 4 flags
++	MOVL	28(SP), R8		// arg 5 fid
++	MOVL	32(SP), R9		// arg 6 offset
++	MOVL	$477, AX
++	SYSCALL
++	JCC	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT	notok(SB),7,$-8
++	MOVL	$0xf1, BP
++	MOVQ	BP, (BP)
++	RET
++
++TEXT	runtime·memclr(SB),7,$-8
++	MOVQ	8(SP), DI		// arg 1 addr
++	MOVL	16(SP), CX		// arg 2 count
++	ADDL	$7, CX
++	SHRL	$3, CX
++	MOVQ	$0, AX
++	CLD
++	REP
++	STOSQ
++	RET
++
++TEXT	runtime·getcallerpc+0(SB),7,$0
++	MOVQ	x+0(FP),AX		// addr of first arg
++	MOVQ	-8(AX),AX		// get calling pc
++	RET
++
++TEXT	runtime·setcallerpc+0(SB),7,$0
++	MOVQ	x+0(FP),AX		// addr of first arg
++	MOVQ	x+8(FP), BX
++	MOVQ	BX, -8(AX)		// set calling pc
++	RET
++
++TEXT sigaltstack(SB),7,$-8
++	MOVQ	new+8(SP), DI
++	MOVQ	old+16(SP), SI
++	MOVQ	$53, AX
++	SYSCALL
++	JCC	2(PC)
++	CALL	notok(SB)
++	RET
+diff --git a/src/pkg/runtime/freebsd/defs.c b/src/pkg/runtime/freebsd/defs.c
+new file mode 100644
+index 0000000000..414e7cd765
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/defs.c
+@@ -0,0 +1,49 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Input to godefs.
++ *
++	godefs -f -m64 defs.c >amd64/defs.h
++	godefs defs.c >386/defs.h
++ */
++
++#include <sys/types.h>
++#include <sys/time.h>
++#include <signal.h>
++#include <errno.h>
++#include <sys/mman.h>
++#include <sys/ucontext.h>
++#include <sys/umtx.h>
++#include <sys/_sigset.h>
++
++enum {
++	$PROT_NONE = PROT_NONE,
++	$PROT_READ = PROT_READ,
++	$PROT_WRITE = PROT_WRITE,
++	$PROT_EXEC = PROT_EXEC,
++
++	$MAP_ANON = MAP_ANON,
++	$MAP_PRIVATE = MAP_PRIVATE,
++
++	$SA_SIGINFO = SA_SIGINFO,
++	$SA_RESTART = SA_RESTART,
++	$SA_ONSTACK = SA_ONSTACK,
++
++	$UMTX_OP_WAIT = UMTX_OP_WAIT,
++	$UMTX_OP_WAKE = UMTX_OP_WAKE,
++
++	$EINTR = EINTR,
++};
++
++typedef struct sigaltstack $Sigaltstack;
++typedef struct __sigset $Sigset;
++typedef union sigval $Sigval;
++typedef stack_t	$StackT;
++
++typedef siginfo_t $Siginfo;
++
++typedef mcontext_t $Mcontext;
++typedef ucontext_t $Ucontext;
++typedef struct sigcontext $Sigcontext;
+diff --git a/src/pkg/runtime/freebsd/os.h b/src/pkg/runtime/freebsd/os.h
+new file mode 100644
+index 0000000000..ec91500b7b
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/os.h
+@@ -0,0 +1,19 @@
++// FreeBSD-specific system calls
++int32 ksem_init(uint64 *, uint32);
++int32 ksem_wait(uint32);
++int32 ksem_destroy(uint32);
++int32 ksem_post(uint32);
++
++struct thr_param {
++    void	(*start_func)(void *);	/* thread entry function. */
++    void	*arg;			/* argument for entry function. */
++    byte	*stack_base;		/* stack base address. */
++    int64	stack_size;		/* stack size. */
++    byte	*tls_base;		/* tls base address. */
++    int64	tls_size;		/* tls size. */
++    int64	*child_tid;		/* address to store new TID. */
++    int64	*parent_tid;		/* parent accesses the new TID here. */
++    int32		flags;			/* thread flags. */
++    void	*spare[4];		/* TODO: cpu affinity mask etc. */
++};
++int32 thr_new(struct thr_param*, uint64);
+diff --git a/src/pkg/runtime/freebsd/signals.h b/src/pkg/runtime/freebsd/signals.h
+new file mode 100644
+index 0000000000..c566481e05
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/signals.h
+@@ -0,0 +1,48 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define C SigCatch
++#define I SigIgnore
++#define R SigRestart
++
++static SigTab sigtab[] = {
++	/* 0 */		0, "SIGNONE: no trap",
++	/* 1 */		0, "SIGHUP: terminal line hangup",
++	/* 2 */		0, "SIGINT: interrupt",
++	/* 3 */		C, "SIGQUIT: quit",
++	/* 4 */		C, "SIGILL: illegal instruction",
++	/* 5 */		C, "SIGTRAP: trace trap",
++	/* 6 */		C, "SIGABRT: abort",
++	/* 7 */		C, "SIGEMT: EMT instruction",
++	/* 8 */		C, "SIGFPE: floating-point exception",
++	/* 9 */		0, "SIGKILL: kill",
++	/* 10 */	C, "SIGBUS: bus error",
++	/* 11 */	C, "SIGSEGV: segmentation violation",
++	/* 12 */	C, "SIGSYS: bad system call",
++	/* 13 */	I, "SIGPIPE: write to broken pipe",
++	/* 14 */	0, "SIGALRM: alarm clock",
++	/* 15 */	0, "SIGTERM: termination",
++	/* 16 */	0, "SIGURG: urgent condition on socket",
++	/* 17 */	0, "SIGSTOP: stop, unblockable",
++	/* 18 */	0, "SIGTSTP: stop from tty",
++	/* 19 */	0, "SIGCONT: continue",
++	/* 20 */	I+R, "SIGCHLD: child status has changed",
++	/* 21 */	0, "SIGTTIN: background read from tty",
++	/* 22 */	0, "SIGTTOU: background write to tty",
++	/* 23 */	0, "SIGIO: i/o now possible",
++	/* 24 */	0, "SIGXCPU: cpu limit exceeded",
++	/* 25 */	0, "SIGXFSZ: file size limit exceeded",
++	/* 26 */	0, "SIGVTALRM: virtual alarm clock",
++	/* 27 */	0, "SIGPROF: profiling alarm clock",
++	/* 28 */	I+R, "SIGWINCH: window size change",
++	/* 29 */	0, "SIGINFO: information request",
++	/* 30 */	0, "SIGUSR1: user-defined signal 1",
++	/* 31 */	0, "SIGUSR2: user-defined signal 2",
++	/* 32 */	0, "SIGTHR: reserved",
++};
++#undef C
++#undef I
++#undef R
++
++#define	NSIG 33
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+new file mode 100644
+index 0000000000..e7cd707d03
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -0,0 +1,162 @@
++// Use of this source file is governed by a BSD-style
++// license that can be found in the LICENSE file.`
++
++#include "runtime.h"
++#include "defs.h"
++#include "signals.h"
++#include "os.h"
++
++// FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
++// thus the code is largely similar. See linux/thread.c for comments.
++
++static void
++umtx_wait(uint32 *addr, uint32 val)
++{
++	int32 ret;
++
++	ret = sys_umtx_op(addr, UMTX_OP_WAIT, val, nil, nil);
++	if(ret >= 0 || ret == -EINTR)
++		return;
++
++	printf("umtx_wait addr=%p val=%d ret=%d\n", addr, val, ret);
++	*(int32*)0x1005 = 0x1005;
++}
++
++static void
++umtx_wake(uint32 *addr)
++{
++	int32 ret;
++
++	ret = sys_umtx_op(addr, UMTX_OP_WAKE, 1, nil, nil);
++	if(ret >= 0)
++		return;
++
++	printf("umtx_wake addr=%p ret=%d\n", addr, ret);
++	*(int32*)0x1006 = 0x1006;
++}
++
++// See linux/thread.c for comments about the algorithm.
++static void
++umtx_lock(Lock *l)
++{
++	uint32 v;
++
++again:
++	v = l->key;
++	if((v&1) == 0){
++		if(cas(&l->key, v, v|1))
++			return;
++		goto again;
++	}
++
++	if(!cas(&l->key, v, v+2))
++		goto again;
++
++	umtx_wait(&l->key, v+2);
++
++	for(;;){
++		v = l->key;
++		if(v < 2)
++			throw("bad lock key");
++		if(cas(&l->key, v, v-2))
++			break;
++	}
++
++	goto again;
++}
++
++static void
++umtx_unlock(Lock *l)
++{
++	uint32 v;
++
++again:
++	v = l->key;
++	if((v&1) == 0)
++		throw("unlock of unlocked lock");
++	if(!cas(&l->key, v, v&~1))
++		goto again;
++
++	if(v&~1)
++		umtx_wake(&l->key);
++}
++
++void
++lock(Lock *l)
++{
++	if(m->locks < 0)
++		throw("lock count");
++	m->locks++;
++	umtx_lock(l);
++}
++
++void 
++unlock(Lock *l)
++{
++	m->locks--;
++	if(m->locks < 0)
++		throw("lock count");
++	umtx_unlock(l);
++}
++
++// Event notifications.
++void
++noteclear(Note *n)
++{
++	n->lock.key = 0;
++	umtx_lock(&n->lock);
++}
++
++void
++notesleep(Note *n)
++{
++	umtx_lock(&n->lock);
++	umtx_unlock(&n->lock);
++}
++
++void
++notewakeup(Note *n)
++{
++	umtx_unlock(&n->lock);
++}
++
++void thr_start(void*);
++
++void
++newosproc(M *m, G *g, void *stk, void (*fn)(void))
++{
++	struct thr_param param;
++
++	USED(fn);	// thr_start assumes fn == mstart
++	USED(g);	// thr_start assumes g == m->g0
++
++	if(0){
++		printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
++			stk, m, g, fn, m->id, m->tls[0], &m);
++	}
++
++	runtime_memclr((byte*)&param, sizeof param);
++
++	param.start_func = thr_start;
++	param.arg = m;
++	param.stack_base = stk;
++	param.stack_size = g->stackbase - g->stackguard + 256;
++	param.child_tid = (int64*)&m->procid;
++	param.parent_tid = nil;
++
++	thr_new(&param, sizeof param);
++}
++
++void
++osinit(void)
++{
++}
++
++// Called to initialize a new m (including the bootstrap m).
++void
++minit(void)
++{
++	// Initialize signal handling
++	m->gsignal = malg(32*1024);
++	signalstack(m->gsignal->stackguard, 32*1024);
++}
+diff --git a/src/pkg/runtime/linux/amd64/rt0.s b/src/pkg/runtime/linux/amd64/rt0.s
+index e04866458a..6b1b297752 100644
+--- a/src/pkg/runtime/linux/amd64/rt0.s
++++ b/src/pkg/runtime/linux/amd64/rt0.s
+@@ -11,6 +11,7 @@ TEXT	_rt0_amd64_linux(SB),7,$-8
+ 	CALL	AX
+ 
+ 	MOVQ	$_rt0_amd64(SB), AX
++	MOVQ	SP, DI
+ 	JMP	AX
+ 
+ GLOBL initcgo(SB), $8
+diff --git a/src/pkg/syscall/asm_freebsd_amd64.s b/src/pkg/syscall/asm_freebsd_amd64.s
+new file mode 100644
+index 0000000000..1f0893ae5a
+--- /dev/null
++++ b/src/pkg/syscall/asm_freebsd_amd64.s
+@@ -0,0 +1,77 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System call support for AMD64, FreeBSD
++//
++
++// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
++// func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
++// Trap # in AX, args in DI SI DX, return in AX DX
++
++TEXT	syscall·Syscall(SB),7,$0
++	CALL	runtime·entersyscall(SB)
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	$0, R10
++	MOVQ	$0, R8
++	MOVQ	$0, R9
++	MOVQ	8(SP), AX	// syscall entry
++	SYSCALL
++	JCC	ok
++	MOVQ	$-1, 40(SP)	// r1
++	MOVQ	$0, 48(SP)	// r2
++	MOVQ	AX, 56(SP)  // errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok:
++	MOVQ	AX, 40(SP)	// r1
++	MOVQ	DX, 48(SP)	// r2
++	MOVQ	$0, 56(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT	syscall·Syscall6(SB),7,$0
++	CALL	runtime·entersyscall(SB)
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	40(SP), R10
++	MOVQ	48(SP), R8
++	MOVQ	56(SP), R9
++	MOVQ	8(SP), AX	// syscall entry
++	SYSCALL
++	JCC	ok6
++	MOVQ	$-1, 64(SP)	// r1
++	MOVQ	$0, 72(SP)	// r2
++	MOVQ	AX, 80(SP)  // errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok6:
++	MOVQ	AX, 64(SP)	// r1
++	MOVQ	DX, 72(SP)	// r2
++	MOVQ	$0, 80(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT syscall·RawSyscall(SB),7,$0
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	$0, R10
++	MOVQ	$0, R8
++	MOVQ	$0, R9
++	MOVQ	8(SP), AX	// syscall entry
++	SYSCALL
++	JCC	ok1
++	MOVQ	$-1, 40(SP)	// r1
++	MOVQ	$0, 48(SP)	// r2
++	MOVQ	AX, 56(SP)  // errno
++	RET
++ok1:
++	MOVQ	AX, 40(SP)	// r1
++	MOVQ	DX, 48(SP)	// r2
++	MOVQ	$0, 56(SP)	// errno
++	RET
+diff --git a/src/pkg/syscall/mksysnum_freebsd.sh b/src/pkg/syscall/mksysnum_freebsd.sh
+new file mode 100755
+index 0000000000..e52835d497
+--- /dev/null
++++ b/src/pkg/syscall/mksysnum_freebsd.sh
+@@ -0,0 +1,41 @@
++#!/usr/bin/perl
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++#
++# Generate system call table for FreeBSD from master list
++# (for example, /usr/src/sys/kern/syscalls.master).
++
++my $command = "mksysnum_freebsd.sh " . join(' ', @ARGV);
++
++print <<EOF;
++// $command
++// MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
++
++package syscall
++
++const (
++EOF
++
++while(<>){
++	if(/^([0-9]+)\s+\S+\s+STD\s+({ \S+\s+(\w+).*)$/){
++		my $num = $1;
++		my $proto = $2;
++		my $name = "SYS_$3";
++		$name =~ y/a-z/A-Z/;
++
++		# There are multiple entries for enosys and nosys, so comment them out.
++		if($name =~ /^SYS_E?NOSYS$/){
++			$name = "// $name";
++		}
++		if($name eq 'SYS_SYS_EXIT'){
++			$name = 'SYS_EXIT';
++		}
++
++		print "	$name = $num;  // $proto\n";
++	}
++}
++
++print <<EOF;
++)
++EOF
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+new file mode 100644
+index 0000000000..511eda5ad7
+--- /dev/null
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -0,0 +1,762 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// FreeBSD system calls.
++// This file is compiled as ordinary Go code,
++// but it is also input to mksyscall,
++// which parses the //sys lines and generates system call stubs.
++// Note that sometimes we use a lowercase //sys name and
++// wrap it in our own nicer implementation.
++
++package syscall
++
++import "unsafe"
++
++const OS = "freebsd"
++
++/*
++ * Pseudo-system calls
++ */
++// The const provides a compile-time constant so clients
++// can adjust to whether there is a working Getwd and avoid
++// even linking this function into the binary.  See ../os/getwd.go.
++const ImplementsGetwd = false
++
++func Getwd() (string, int)	{ return "", ENOTSUP }
++
++
++/*
++ * Wrapped
++ */
++
++//sys	getgroups(ngid int, gid *_Gid_t) (n int, errno int)
++//sys	setgroups(ngid int, gid *_Gid_t) (errno int)
++
++func Getgroups() (gids []int, errno int) {
++	n, err := getgroups(0, nil);
++	if err != 0 {
++		return nil, errno
++	}
++	if n == 0 {
++		return nil, 0
++	}
++
++	// Sanity check group count.  Max is 16 on BSD.
++	if n < 0 || n > 1000 {
++		return nil, EINVAL
++	}
++
++	a := make([]_Gid_t, n);
++	n, err = getgroups(n, &a[0]);
++	if err != 0 {
++		return nil, errno
++	}
++	gids = make([]int, n);
++	for i, v := range a[0:n] {
++		gids[i] = int(v)
++	}
++	return;
++}
++
++func Setgroups(gids []int) (errno int) {
++	if len(gids) == 0 {
++		return setgroups(0, nil)
++	}
++
++	a := make([]_Gid_t, len(gids));
++	for i, v := range gids {
++		a[i] = _Gid_t(v)
++	}
++	return setgroups(len(a), &a[0]);
++}
++
++// Wait status is 7 bits at bottom, either 0 (exited),
++// 0x7F (stopped), or a signal number that caused an exit.
++// The 0x80 bit is whether there was a core dump.
++// An extra number (exit code, signal causing a stop)
++// is in the high bits.
++
++type WaitStatus uint32
++
++const (
++	mask	= 0x7F;
++	core	= 0x80;
++	shift	= 8;
++
++	exited	= 0;
++	stopped	= 0x7F;
++)
++
++func (w WaitStatus) Exited() bool	{ return w&mask == exited }
++
++func (w WaitStatus) ExitStatus() int {
++	if w&mask != exited {
++		return -1
++	}
++	return int(w >> shift);
++}
++
++func (w WaitStatus) Signaled() bool	{ return w&mask != stopped && w&mask != 0 }
++
++func (w WaitStatus) Signal() int {
++	sig := int(w & mask);
++	if sig == stopped || sig == 0 {
++		return -1
++	}
++	return sig;
++}
++
++func (w WaitStatus) CoreDump() bool	{ return w.Signaled() && w&core != 0 }
++
++func (w WaitStatus) Stopped() bool	{ return w&mask == stopped && w>>shift != SIGSTOP }
++
++func (w WaitStatus) Continued() bool	{ return w&mask == stopped && w>>shift == SIGSTOP }
++
++func (w WaitStatus) StopSignal() int {
++	if !w.Stopped() {
++		return -1
++	}
++	return int(w>>shift) & 0xFF;
++}
++
++func (w WaitStatus) TrapCause() int {
++	// Darwin doesn't have trap causes
++	return -1
++}
++
++//sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
++
++func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
++	var status _C_int;
++	wpid, errno = wait4(pid, &status, options, rusage);
++	if wstatus != nil {
++		*wstatus = WaitStatus(status)
++	}
++	return;
++}
++
++//sys	pipe() (r int, w int, errno int)
++
++func Pipe(p []int) (errno int) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	p[0], p[1], errno = pipe();
++	return;
++}
++
++func Sleep(ns int64) (errno int) {
++	tv := NsecToTimeval(ns);
++	return Select(0, nil, nil, nil, &tv);
++}
++
++//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
++//sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
++//sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
++//sys	socket(domain int, typ int, proto int) (fd int, errno int)
++//sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
++//sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++
++// For testing: clients can set this flag to force
++// creation of IPv6 sockets to return EAFNOSUPPORT.
++var SocketDisableIPv6 bool
++
++type Sockaddr interface {
++	sockaddr() (ptr uintptr, len _Socklen, errno int);	// lowercase; only we can define Sockaddrs
++}
++
++type SockaddrInet4 struct {
++	Port	int;
++	Addr	[4]byte;
++	raw	RawSockaddrInet4;
++}
++
++func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
++	if sa.Port < 0 || sa.Port > 0xFFFF {
++		return 0, 0, EINVAL
++	}
++	sa.raw.Len = SizeofSockaddrInet4;
++	sa.raw.Family = AF_INET;
++	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
++	p[0] = byte(sa.Port >> 8);
++	p[1] = byte(sa.Port);
++	for i := 0; i < len(sa.Addr); i++ {
++		sa.raw.Addr[i] = sa.Addr[i]
++	}
++	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), 0;
++}
++
++type SockaddrInet6 struct {
++	Port	int;
++	Addr	[16]byte;
++	raw	RawSockaddrInet6;
++}
++
++func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
++	if sa.Port < 0 || sa.Port > 0xFFFF {
++		return 0, 0, EINVAL
++	}
++	sa.raw.Len = SizeofSockaddrInet6;
++	sa.raw.Family = AF_INET6;
++	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
++	p[0] = byte(sa.Port >> 8);
++	p[1] = byte(sa.Port);
++	for i := 0; i < len(sa.Addr); i++ {
++		sa.raw.Addr[i] = sa.Addr[i]
++	}
++	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), 0;
++}
++
++type SockaddrUnix struct {
++	Name	string;
++	raw	RawSockaddrUnix;
++}
++
++func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
++	name := sa.Name;
++	n := len(name);
++	if n >= len(sa.raw.Path) || n == 0 {
++		return 0, 0, EINVAL
++	}
++	sa.raw.Len = byte(3 + n);	// 2 for Family, Len; 1 for NUL
++	sa.raw.Family = AF_UNIX;
++	for i := 0; i < n; i++ {
++		sa.raw.Path[i] = int8(name[i])
++	}
++	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), 0;
++}
++
++func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
++	switch rsa.Addr.Family {
++	case AF_UNIX:
++		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa));
++		if pp.Len < 3 || pp.Len > SizeofSockaddrUnix {
++			return nil, EINVAL
++		}
++		sa := new(SockaddrUnix);
++		n := int(pp.Len) - 3;	// subtract leading Family, Len, terminating NUL
++		for i := 0; i < n; i++ {
++			if pp.Path[i] == 0 {
++				// found early NUL; assume Len is overestimating
++				n = i;
++				break;
++			}
++		}
++		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]));
++		sa.Name = string(bytes[0:n]);
++		return sa, 0;
++
++	case AF_INET:
++		pp := (*RawSockaddrInet4)(unsafe.Pointer(rsa));
++		sa := new(SockaddrInet4);
++		p := (*[2]byte)(unsafe.Pointer(&pp.Port));
++		sa.Port = int(p[0])<<8 + int(p[1]);
++		for i := 0; i < len(sa.Addr); i++ {
++			sa.Addr[i] = pp.Addr[i]
++		}
++		return sa, 0;
++
++	case AF_INET6:
++		pp := (*RawSockaddrInet6)(unsafe.Pointer(rsa));
++		sa := new(SockaddrInet6);
++		p := (*[2]byte)(unsafe.Pointer(&pp.Port));
++		sa.Port = int(p[0])<<8 + int(p[1]);
++		for i := 0; i < len(sa.Addr); i++ {
++			sa.Addr[i] = pp.Addr[i]
++		}
++		return sa, 0;
++	}
++	return nil, EAFNOSUPPORT;
++}
++
++func Accept(fd int) (nfd int, sa Sockaddr, errno int) {
++	var rsa RawSockaddrAny;
++	var len _Socklen = SizeofSockaddrAny;
++	nfd, errno = accept(fd, &rsa, &len);
++	if errno != 0 {
++		return
++	}
++	sa, errno = anyToSockaddr(&rsa);
++	if errno != 0 {
++		Close(nfd);
++		nfd = 0;
++	}
++	return;
++}
++
++func Getsockname(fd int) (sa Sockaddr, errno int) {
++	var rsa RawSockaddrAny;
++	var len _Socklen = SizeofSockaddrAny;
++	if errno = getsockname(fd, &rsa, &len); errno != 0 {
++		return
++	}
++	return anyToSockaddr(&rsa);
++}
++
++func Getpeername(fd int) (sa Sockaddr, errno int) {
++	var rsa RawSockaddrAny;
++	var len _Socklen = SizeofSockaddrAny;
++	if errno = getpeername(fd, &rsa, &len); errno != 0 {
++		return
++	}
++	return anyToSockaddr(&rsa);
++}
++
++func Bind(fd int, sa Sockaddr) (errno int) {
++	ptr, n, err := sa.sockaddr();
++	if err != 0 {
++		return err
++	}
++	return bind(fd, ptr, n);
++}
++
++func Connect(fd int, sa Sockaddr) (errno int) {
++	ptr, n, err := sa.sockaddr();
++	if err != 0 {
++		return err
++	}
++	return connect(fd, ptr, n);
++}
++
++func Socket(domain, typ, proto int) (fd, errno int) {
++	if domain == AF_INET6 && SocketDisableIPv6 {
++		return -1, EAFNOSUPPORT
++	}
++	fd, errno = socket(domain, typ, proto);
++	return;
++}
++
++func SetsockoptInt(fd, level, opt int, value int) (errno int) {
++	var n = int32(value);
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4);
++}
++
++func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
++}
++
++func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
++}
++
++
++//sys recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
++
++func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
++	var rsa RawSockaddrAny;
++	var len _Socklen = SizeofSockaddrAny;
++	if n, errno = recvfrom(fd, p, flags, &rsa, &len); errno != 0 {
++		return
++	}
++	from, errno = anyToSockaddr(&rsa);
++	return;
++}
++
++//sys sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
++
++func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
++	ptr, n, err := to.sockaddr();
++	if err != 0 {
++		return err
++	}
++	return sendto(fd, p, flags, ptr, n);
++}
++
++//sys	kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int)
++
++func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno int) {
++	var change, event uintptr;
++	if len(changes) > 0 {
++		change = uintptr(unsafe.Pointer(&changes[0]))
++	}
++	if len(events) > 0 {
++		event = uintptr(unsafe.Pointer(&events[0]))
++	}
++	return kevent(kq, change, len(changes), event, len(events), timeout);
++}
++
++//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (errno int) = SYS___SYSCTL
++
++// Translate "kern.hostname" to []_C_int{0,1,2,3}.
++func nametomib(name string) (mib []_C_int, errno int) {
++	const CTL_MAXNAME = 12;
++	const siz = uintptr(unsafe.Sizeof(mib[0]));
++
++	// NOTE(rsc): It seems strange to set the buffer to have
++	// size CTL_MAXNAME+2 but use only CTL_MAXNAME
++	// as the size.  I don't know why the +2 is here, but the
++	// kernel uses +2 for its own implementation of this function.
++	// I am scared that if we don't include the +2 here, the kernel
++	// will silently write 2 words farther than we specify
++	// and we'll get memory corruption.
++	var buf [CTL_MAXNAME + 2]_C_int;
++	n := uintptr(CTL_MAXNAME) * siz;
++
++	p := (*byte)(unsafe.Pointer(&buf[0]));
++	bytes := StringByteSlice(name);
++
++	// Magic sysctl: "setting" 0.3 to a string name
++	// lets you read back the array of integers form.
++	if errno = sysctl([]_C_int{0, 3}, p, &n, &bytes[0], uintptr(len(name))); errno != 0 {
++		return nil, errno
++	}
++	return buf[0 : n/siz], 0;
++}
++
++func Sysctl(name string) (value string, errno int) {
++	// Translate name to mib number.
++	mib, errno := nametomib(name);
++	if errno != 0 {
++		return "", errno
++	}
++
++	// Find size.
++	n := uintptr(0);
++	if errno = sysctl(mib, nil, &n, nil, 0); errno != 0 {
++		return "", errno
++	}
++	if n == 0 {
++		return "", 0
++	}
++
++	// Read into buffer of that size.
++	buf := make([]byte, n);
++	if errno = sysctl(mib, &buf[0], &n, nil, 0); errno != 0 {
++		return "", errno
++	}
++
++	// Throw away terminating NUL.
++	if n > 0 && buf[n-1] == '\x00' {
++		n--
++	}
++	return string(buf[0:n]), 0;
++}
++
++func SysctlUint32(name string) (value uint32, errno int) {
++	// Translate name to mib number.
++	mib, errno := nametomib(name);
++	if errno != 0 {
++		return 0, errno
++	}
++
++	// Read into buffer of that size.
++	n := uintptr(4);
++	buf := make([]byte, 4);
++	if errno = sysctl(mib, &buf[0], &n, nil, 0); errno != 0 {
++		return 0, errno
++	}
++	if n != 4 {
++		return 0, EIO
++	}
++	return *(*uint32)(unsafe.Pointer(&buf[0])), 0;
++}
++
++// TODO: wrap
++//	Acct(name nil-string) (errno int)
++//	Futimes(fd int, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
++//	Gethostuuid(uuid *byte, timeout *Timespec) (errno int)
++//	Getsockopt(s int, level int, name int, val *byte, vallen *int) (errno int)
++//	Madvise(addr *byte, len int, behav int) (errno int)
++//	Mprotect(addr *byte, len int, prot int) (errno int)
++//	Msync(addr *byte, len int, flags int) (errno int)
++//	Munmap(addr *byte, len int) (errno int)
++//	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, errno int)
++//	Recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
++//	Sendmsg(s int, msg *Msghdr, flags int) (n int, errno int)
++//	Utimes(path string, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
++//sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
++
++
++/*
++ * Exposed directly
++ */
++//sys	Access(path string, flags int) (errno int)
++//sys	Adjtime(delta *Timeval, olddelta *Timeval) (errno int)
++//sys	Chdir(path string) (errno int)
++//sys	Chflags(path string, flags int) (errno int)
++//sys	Chmod(path string, mode int) (errno int)
++//sys	Chown(path string, uid int, gid int) (errno int)
++//sys	Chroot(path string) (errno int)
++//sys	Close(fd int) (errno int)
++//sys	Dup(fd int) (nfd int, errno int)
++//sys	Dup2(from int, to int) (errno int)
++//sys	Exit(code int)
++//sys	Fchdir(fd int) (errno int)
++//sys	Fchflags(path string, flags int) (errno int)
++//sys	Fchmod(fd int, mode int) (errno int)
++//sys	Fchown(fd int, uid int, gid int) (errno int)
++//sys	Flock(fd int, how int) (errno int)
++//sys	Fpathconf(fd int, name int) (val int, errno int)
++//sys	Fstat(fd int, stat *Stat_t) (errno int)
++//sys	Fstatfs(fd int, stat *Statfs_t) (errno int)
++//sys	Fsync(fd int) (errno int)
++//sys	Ftruncate(fd int, length int64) (errno int)
++//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int)
++//sys	Getdtablesize() (size int)
++//sys	Getegid() (egid int)
++//sys	Geteuid() (uid int)
++//sys	Getfsstat(buf []Statfs_t, flags int) (n int, errno int)
++//sys	Getgid() (gid int)
++//sys	Getpgid(pid int) (pgid int, errno int)
++//sys	Getpgrp() (pgrp int)
++//sys	Getpid() (pid int)
++//sys	Getppid() (ppid int)
++//sys	Getpriority(which int, who int) (prio int, errno int)
++//sys	Getrlimit(which int, lim *Rlimit) (errno int)
++//sys	Getrusage(who int, rusage *Rusage) (errno int)
++//sys	Getsid(pid int) (sid int, errno int)
++//sys	Gettimeofday(tv *Timeval) (errno int)
++//sys	Getuid() (uid int)
++//sys	Issetugid() (tainted bool)
++//sys	Kill(pid int, signum int, posix int) (errno int)
++//sys	Kqueue() (fd int, errno int)
++//sys	Lchown(path string, uid int, gid int) (errno int)
++//sys	Link(path string, link string) (errno int)
++//sys	Listen(s int, backlog int) (errno int)
++//sys	Lstat(path string, stat *Stat_t) (errno int)
++//sys	Mkdir(path string, mode int) (errno int)
++//sys	Mkfifo(path string, mode int) (errno int)
++//sys	Mknod(path string, mode int, dev int) (errno int)
++//sys	Open(path string, mode int, perm int) (fd int, errno int)
++//sys	Pathconf(path string, name int) (val int, errno int)
++//sys	Pread(fd int, p []byte, offset int64) (n int, errno int)
++//sys	Pwrite(fd int, p []byte, offset int64) (n int, errno int)
++//sys	Read(fd int, p []byte) (n int, errno int)
++//sys	Readlink(path string, buf []byte) (n int, errno int)
++//sys	Rename(from string, to string) (errno int)
++//sys	Revoke(path string) (errno int)
++//sys	Rmdir(path string) (errno int)
++//sys	Seek(fd int, offset int64, whence int) (newoffset int64, errno int) = SYS_LSEEK
++//sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int)
++//sys	Setegid(egid int) (errno int)
++//sys	Seteuid(euid int) (errno int)
++//sys	Setgid(gid int) (errno int)
++//sys	Setlogin(name string) (errno int)
++//sys	Setpgid(pid int, pgid int) (errno int)
++//sys	Setpriority(which int, who int, prio int) (errno int)
++//sys	Setregid(rgid int, egid int) (errno int)
++//sys	Setreuid(ruid int, euid int) (errno int)
++//sys	Setrlimit(which int, lim *Rlimit) (errno int)
++//sys	Setsid() (pid int, errno int)
++//sys	Settimeofday(tp *Timeval) (errno int)
++//sys	Setuid(uid int) (errno int)
++//sys	Stat(path string, stat *Stat_t) (errno int)
++//sys	Statfs(path string, stat *Statfs_t) (errno int)
++//sys	Symlink(path string, link string) (errno int)
++//sys	Sync() (errno int)
++//sys	Truncate(path string, length int64) (errno int)
++//sys	Umask(newmask int) (errno int)
++//sys	Undelete(path string) (errno int)
++//sys	Unlink(path string) (errno int)
++//sys	Unmount(path string, flags int) (errno int)
++//sys	Write(fd int, p []byte) (n int, errno int)
++//sys	read(fd int, buf *byte, nbuf int) (n int, errno int)
++//sys	write(fd int, buf *byte, nbuf int) (n int, errno int)
++
++
++/*
++ * Unimplemented
++ */
++// Profil
++// Sigaction
++// Sigprocmask
++// Getlogin
++// Sigpending
++// Sigaltstack
++// Ioctl
++// Reboot
++// Execve
++// Vfork
++// Sbrk
++// Sstk
++// Ovadvise
++// Mincore
++// Setitimer
++// Swapon
++// Select
++// Sigsuspend
++// Readv
++// Writev
++// Nfssvc
++// Getfh
++// Quotactl
++// Mount
++// Csops
++// Waitid
++// Add_profil
++// Kdebug_trace
++// Sigreturn
++// Mmap
++// Mlock
++// Munlock
++// Atsocket
++// Kqueue_from_portset_np
++// Kqueue_portset
++// Getattrlist
++// Setattrlist
++// Getdirentriesattr
++// Searchfs
++// Delete
++// Copyfile
++// Poll
++// Watchevent
++// Waitevent
++// Modwatch
++// Getxattr
++// Fgetxattr
++// Setxattr
++// Fsetxattr
++// Removexattr
++// Fremovexattr
++// Listxattr
++// Flistxattr
++// Fsctl
++// Initgroups
++// Posix_spawn
++// Nfsclnt
++// Fhopen
++// Minherit
++// Semsys
++// Msgsys
++// Shmsys
++// Semctl
++// Semget
++// Semop
++// Msgctl
++// Msgget
++// Msgsnd
++// Msgrcv
++// Shmat
++// Shmctl
++// Shmdt
++// Shmget
++// Shm_open
++// Shm_unlink
++// Sem_open
++// Sem_close
++// Sem_unlink
++// Sem_wait
++// Sem_trywait
++// Sem_post
++// Sem_getvalue
++// Sem_init
++// Sem_destroy
++// Open_extended
++// Umask_extended
++// Stat_extended
++// Lstat_extended
++// Fstat_extended
++// Chmod_extended
++// Fchmod_extended
++// Access_extended
++// Settid
++// Gettid
++// Setsgroups
++// Getsgroups
++// Setwgroups
++// Getwgroups
++// Mkfifo_extended
++// Mkdir_extended
++// Identitysvc
++// Shared_region_check_np
++// Shared_region_map_np
++// __pthread_mutex_destroy
++// __pthread_mutex_init
++// __pthread_mutex_lock
++// __pthread_mutex_trylock
++// __pthread_mutex_unlock
++// __pthread_cond_init
++// __pthread_cond_destroy
++// __pthread_cond_broadcast
++// __pthread_cond_signal
++// Setsid_with_pid
++// __pthread_cond_timedwait
++// Aio_fsync
++// Aio_return
++// Aio_suspend
++// Aio_cancel
++// Aio_error
++// Aio_read
++// Aio_write
++// Lio_listio
++// __pthread_cond_wait
++// Iopolicysys
++// Mlockall
++// Munlockall
++// __pthread_kill
++// __pthread_sigmask
++// __sigwait
++// __disable_threadsignal
++// __pthread_markcancel
++// __pthread_canceled
++// __semwait_signal
++// Proc_info
++// Sendfile
++// Stat64_extended
++// Lstat64_extended
++// Fstat64_extended
++// __pthread_chdir
++// __pthread_fchdir
++// Audit
++// Auditon
++// Getauid
++// Setauid
++// Getaudit
++// Setaudit
++// Getaudit_addr
++// Setaudit_addr
++// Auditctl
++// Bsdthread_create
++// Bsdthread_terminate
++// Stack_snapshot
++// Bsdthread_register
++// Workq_open
++// Workq_ops
++// __mac_execve
++// __mac_syscall
++// __mac_get_file
++// __mac_set_file
++// __mac_get_link
++// __mac_set_link
++// __mac_get_proc
++// __mac_set_proc
++// __mac_get_fd
++// __mac_set_fd
++// __mac_get_pid
++// __mac_get_lcid
++// __mac_get_lctx
++// __mac_set_lctx
++// Setlcid
++// Read_nocancel
++// Write_nocancel
++// Open_nocancel
++// Close_nocancel
++// Wait4_nocancel
++// Recvmsg_nocancel
++// Sendmsg_nocancel
++// Recvfrom_nocancel
++// Accept_nocancel
++// Msync_nocancel
++// Fcntl_nocancel
++// Select_nocancel
++// Fsync_nocancel
++// Connect_nocancel
++// Sigsuspend_nocancel
++// Readv_nocancel
++// Writev_nocancel
++// Sendto_nocancel
++// Pread_nocancel
++// Pwrite_nocancel
++// Waitid_nocancel
++// Poll_nocancel
++// Msgsnd_nocancel
++// Msgrcv_nocancel
++// Sem_wait_nocancel
++// Aio_suspend_nocancel
++// __sigwait_nocancel
++// __semwait_signal_nocancel
++// __mac_mount
++// __mac_get_mount
++// __mac_getfsstat
+diff --git a/src/pkg/syscall/syscall_freebsd_amd64.go b/src/pkg/syscall/syscall_freebsd_amd64.go
+new file mode 100644
+index 0000000000..70a4df8f8e
+--- /dev/null
++++ b/src/pkg/syscall/syscall_freebsd_amd64.go
+@@ -0,0 +1,30 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++func Getpagesize() int	{ return 4096 }
++
++func TimespecToNsec(ts Timespec) int64	{ return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
++
++func NsecToTimespec(nsec int64) (ts Timespec) {
++	ts.Sec = nsec / 1e9;
++	ts.Nsec = nsec % 1e9;
++	return;
++}
++
++func TimevalToNsec(tv Timeval) int64	{ return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	nsec += 999;	// round up to microsecond
++	tv.Usec = nsec % 1e9 / 1e3;
++	tv.Sec = int64(nsec / 1e9);
++	return;
++}
++
++func SetKevent(k *Kevent_t, fd, mode, flags int) {
++	k.Ident = uint64(fd);
++	k.Filter = int16(mode);
++	k.Flags = uint16(flags);
++}
+diff --git a/src/pkg/syscall/types_freebsd.c b/src/pkg/syscall/types_freebsd.c
+new file mode 100644
+index 0000000000..13bec9f9fa
+--- /dev/null
++++ b/src/pkg/syscall/types_freebsd.c
+@@ -0,0 +1,146 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Input to godefs.  See also mkerrors.sh and mkall.sh
++ */
++
++#define KERNEL
++#include <sys/cdefs.h>
++#include <dirent.h>
++#include <fcntl.h>
++#include <sys/types.h>
++#include <netinet/in.h>
++#include <netinet/tcp.h>
++#include <signal.h>
++#include <stdio.h>
++#include <sys/event.h>
++#include <sys/mman.h>
++#include <sys/mount.h>
++#include <sys/param.h>
++#include <sys/ptrace.h>
++#include <sys/resource.h>
++#include <sys/select.h>
++#include <sys/signal.h>
++#include <sys/socket.h>
++#include <sys/stat.h>
++#include <sys/time.h>
++#include <sys/un.h>
++#include <sys/wait.h>
++#include <unistd.h>
++
++// Machine characteristics; for internal use.
++
++enum
++{
++	$sizeofPtr = sizeof(void*),
++	$sizeofShort = sizeof(short),
++	$sizeofInt = sizeof(int),
++	$sizeofLong = sizeof(long),
++	$sizeofLongLong = sizeof(long long),
++};
++
++
++// Basic types
++
++typedef short $_C_short;
++typedef int $_C_int;
++typedef long $_C_long;
++typedef long long $_C_long_long;
++
++// Time
++
++typedef struct timespec $Timespec;
++typedef struct timeval $Timeval;
++
++// Processes
++
++typedef struct rusage $Rusage;
++typedef struct rlimit $Rlimit;
++
++typedef gid_t $_Gid_t;
++
++// Files
++
++enum
++{
++	$O_CLOEXEC = 0,	// not supported
++};
++
++enum
++{	// Directory mode bits
++	$S_IFMT = S_IFMT,
++	$S_IFIFO = S_IFIFO,
++	$S_IFCHR = S_IFCHR,
++	$S_IFDIR = S_IFDIR,
++	$S_IFBLK = S_IFBLK,
++	$S_IFREG = S_IFREG,
++	$S_IFLNK = S_IFLNK,
++	$S_IFSOCK = S_IFSOCK,
++	$S_ISUID = S_ISUID,
++	$S_ISGID = S_ISGID,
++	$S_ISVTX = S_ISVTX,
++	$S_IRUSR = S_IRUSR,
++	$S_IWUSR = S_IWUSR,
++	$S_IXUSR = S_IXUSR,
++};
++
++typedef struct stat $Stat_t;
++typedef struct statfs $Statfs_t;
++typedef struct flock $Flock_t;
++
++typedef struct dirent $Dirent;
++
++// Wait status.
++
++// Sockets
++
++union sockaddr_all {
++	struct sockaddr s1;	// this one gets used for fields
++	struct sockaddr_in s2;	// these pad it out
++	struct sockaddr_in6 s3;
++	struct sockaddr_un s4;
++};
++
++struct sockaddr_any {
++	struct sockaddr addr;
++	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
++};
++
++typedef struct sockaddr_in $RawSockaddrInet4;
++typedef struct sockaddr_in6 $RawSockaddrInet6;
++typedef struct sockaddr_un $RawSockaddrUnix;
++typedef struct sockaddr $RawSockaddr;
++typedef struct sockaddr_any $RawSockaddrAny;
++typedef socklen_t $_Socklen;
++typedef struct linger $Linger;
++typedef struct iovec $Iovec;
++typedef struct msghdr $Msghdr;
++typedef struct cmsghdr $Cmsghdr;
++
++enum {
++	$SizeofSockaddrInet4 = sizeof(struct sockaddr_in),
++	$SizeofSockaddrInet6 = sizeof(struct sockaddr_in6),
++	$SizeofSockaddrAny = sizeof(struct sockaddr_any),
++	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
++	$SizeofLinger = sizeof(struct linger),
++	$SizeofMsghdr = sizeof(struct msghdr),
++	$SizeofCmsghdr = sizeof(struct cmsghdr),
++};
++
++// Ptrace requests
++enum {
++	$PTRACE_TRACEME = PT_TRACE_ME,
++	$PTRACE_CONT = PT_CONTINUE,
++	$PTRACE_KILL = PT_KILL,
++};
++
++
++// Events (kqueue, kevent)
++
++typedef struct kevent $Kevent_t;
++
++// Select
++
++typedef fd_set $FdSet;
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+new file mode 100644
+index 0000000000..0072b11b98
+--- /dev/null
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -0,0 +1,628 @@
++// mkerrors.sh
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++// godefs -gsyscall _const.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++package syscall
++
++// Constants
++const (
++	AF_APPLETALK			= 0x10;
++	AF_ARP				= 0x23;
++	AF_ATM				= 0x1e;
++	AF_BLUETOOTH			= 0x24;
++	AF_CCITT			= 0xa;
++	AF_CHAOS			= 0x5;
++	AF_CNT				= 0x15;
++	AF_COIP				= 0x14;
++	AF_DATAKIT			= 0x9;
++	AF_DECnet			= 0xc;
++	AF_DLI				= 0xd;
++	AF_E164				= 0x1a;
++	AF_ECMA				= 0x8;
++	AF_HYLINK			= 0xf;
++	AF_IEEE80211			= 0x25;
++	AF_IMPLINK			= 0x3;
++	AF_INET				= 0x2;
++	AF_INET6			= 0x1c;
++	AF_IPX				= 0x17;
++	AF_ISDN				= 0x1a;
++	AF_ISO				= 0x7;
++	AF_LAT				= 0xe;
++	AF_LINK				= 0x12;
++	AF_LOCAL			= 0x1;
++	AF_MAX				= 0x26;
++	AF_NATM				= 0x1d;
++	AF_NETBIOS			= 0x6;
++	AF_NETGRAPH			= 0x20;
++	AF_OSI				= 0x7;
++	AF_PUP				= 0x4;
++	AF_ROUTE			= 0x11;
++	AF_SCLUSTER			= 0x22;
++	AF_SIP				= 0x18;
++	AF_SLOW				= 0x21;
++	AF_SNA				= 0xb;
++	AF_UNIX				= 0x1;
++	AF_UNSPEC			= 0;
++	AF_VENDOR00			= 0x27;
++	AF_VENDOR01			= 0x29;
++	AF_VENDOR02			= 0x2b;
++	AF_VENDOR03			= 0x2d;
++	AF_VENDOR04			= 0x2f;
++	AF_VENDOR05			= 0x31;
++	AF_VENDOR06			= 0x33;
++	AF_VENDOR07			= 0x35;
++	AF_VENDOR08			= 0x37;
++	AF_VENDOR09			= 0x39;
++	AF_VENDOR10			= 0x3b;
++	AF_VENDOR11			= 0x3d;
++	AF_VENDOR12			= 0x3f;
++	AF_VENDOR13			= 0x41;
++	AF_VENDOR14			= 0x43;
++	AF_VENDOR15			= 0x45;
++	AF_VENDOR16			= 0x47;
++	AF_VENDOR17			= 0x49;
++	AF_VENDOR18			= 0x4b;
++	AF_VENDOR19			= 0x4d;
++	AF_VENDOR20			= 0x4f;
++	AF_VENDOR21			= 0x51;
++	AF_VENDOR22			= 0x53;
++	AF_VENDOR23			= 0x55;
++	AF_VENDOR24			= 0x57;
++	AF_VENDOR25			= 0x59;
++	AF_VENDOR26			= 0x5b;
++	AF_VENDOR27			= 0x5d;
++	AF_VENDOR28			= 0x5f;
++	AF_VENDOR29			= 0x61;
++	AF_VENDOR30			= 0x63;
++	AF_VENDOR31			= 0x65;
++	AF_VENDOR32			= 0x67;
++	AF_VENDOR33			= 0x69;
++	AF_VENDOR34			= 0x6b;
++	AF_VENDOR35			= 0x6d;
++	AF_VENDOR36			= 0x6f;
++	AF_VENDOR37			= 0x71;
++	AF_VENDOR38			= 0x73;
++	AF_VENDOR39			= 0x75;
++	AF_VENDOR40			= 0x77;
++	AF_VENDOR41			= 0x79;
++	AF_VENDOR42			= 0x7b;
++	AF_VENDOR43			= 0x7d;
++	AF_VENDOR44			= 0x7f;
++	AF_VENDOR45			= 0x81;
++	AF_VENDOR46			= 0x83;
++	AF_VENDOR47			= 0x85;
++	E2BIG				= 0x7;
++	EACCES				= 0xd;
++	EADDRINUSE			= 0x30;
++	EADDRNOTAVAIL			= 0x31;
++	EAFNOSUPPORT			= 0x2f;
++	EAGAIN				= 0x23;
++	EALREADY			= 0x25;
++	EAUTH				= 0x50;
++	EBADF				= 0x9;
++	EBADMSG				= 0x59;
++	EBADRPC				= 0x48;
++	EBUSY				= 0x10;
++	ECANCELED			= 0x55;
++	ECHILD				= 0xa;
++	ECONNABORTED			= 0x35;
++	ECONNREFUSED			= 0x3d;
++	ECONNRESET			= 0x36;
++	EDEADLK				= 0xb;
++	EDESTADDRREQ			= 0x27;
++	EDOM				= 0x21;
++	EDOOFUS				= 0x58;
++	EDQUOT				= 0x45;
++	EEXIST				= 0x11;
++	EFAULT				= 0xe;
++	EFBIG				= 0x1b;
++	EFTYPE				= 0x4f;
++	EHOSTDOWN			= 0x40;
++	EHOSTUNREACH			= 0x41;
++	EIDRM				= 0x52;
++	EILSEQ				= 0x56;
++	EINPROGRESS			= 0x24;
++	EINTR				= 0x4;
++	EINVAL				= 0x16;
++	EIO				= 0x5;
++	EISCONN				= 0x38;
++	EISDIR				= 0x15;
++	ELAST				= 0x5c;
++	ELOOP				= 0x3e;
++	EMFILE				= 0x18;
++	EMLINK				= 0x1f;
++	EMSGSIZE			= 0x28;
++	EMULTIHOP			= 0x5a;
++	ENAMETOOLONG			= 0x3f;
++	ENEEDAUTH			= 0x51;
++	ENETDOWN			= 0x32;
++	ENETRESET			= 0x34;
++	ENETUNREACH			= 0x33;
++	ENFILE				= 0x17;
++	ENOATTR				= 0x57;
++	ENOBUFS				= 0x37;
++	ENODEV				= 0x13;
++	ENOENT				= 0x2;
++	ENOEXEC				= 0x8;
++	ENOLCK				= 0x4d;
++	ENOLINK				= 0x5b;
++	ENOMEM				= 0xc;
++	ENOMSG				= 0x53;
++	ENOPROTOOPT			= 0x2a;
++	ENOSPC				= 0x1c;
++	ENOSYS				= 0x4e;
++	ENOTBLK				= 0xf;
++	ENOTCONN			= 0x39;
++	ENOTDIR				= 0x14;
++	ENOTEMPTY			= 0x42;
++	ENOTSOCK			= 0x26;
++	ENOTSUP				= 0x2d;
++	ENOTTY				= 0x19;
++	ENXIO				= 0x6;
++	EOPNOTSUPP			= 0x2d;
++	EOVERFLOW			= 0x54;
++	EPERM				= 0x1;
++	EPFNOSUPPORT			= 0x2e;
++	EPIPE				= 0x20;
++	EPROCLIM			= 0x43;
++	EPROCUNAVAIL			= 0x4c;
++	EPROGMISMATCH			= 0x4b;
++	EPROGUNAVAIL			= 0x4a;
++	EPROTO				= 0x5c;
++	EPROTONOSUPPORT			= 0x2b;
++	EPROTOTYPE			= 0x29;
++	ERANGE				= 0x22;
++	EREMOTE				= 0x47;
++	EROFS				= 0x1e;
++	ERPCMISMATCH			= 0x49;
++	ESHUTDOWN			= 0x3a;
++	ESOCKTNOSUPPORT			= 0x2c;
++	ESPIPE				= 0x1d;
++	ESRCH				= 0x3;
++	ESTALE				= 0x46;
++	ETIMEDOUT			= 0x3c;
++	ETOOMANYREFS			= 0x3b;
++	ETXTBSY				= 0x1a;
++	EUSERS				= 0x44;
++	EVFILT_AIO			= -0x3;
++	EVFILT_FS			= -0x9;
++	EVFILT_LIO			= -0xa;
++	EVFILT_NETDEV			= -0x8;
++	EVFILT_PROC			= -0x5;
++	EVFILT_READ			= -0x1;
++	EVFILT_SIGNAL			= -0x6;
++	EVFILT_SYSCOUNT			= 0xa;
++	EVFILT_TIMER			= -0x7;
++	EVFILT_VNODE			= -0x4;
++	EVFILT_WRITE			= -0x2;
++	EV_ADD				= 0x1;
++	EV_CLEAR			= 0x20;
++	EV_DELETE			= 0x2;
++	EV_DISABLE			= 0x8;
++	EV_ENABLE			= 0x4;
++	EV_EOF				= 0x8000;
++	EV_ERROR			= 0x4000;
++	EV_FLAG1			= 0x2000;
++	EV_ONESHOT			= 0x10;
++	EV_SYSFLAGS			= 0xf000;
++	EWOULDBLOCK			= 0x23;
++	EXDEV				= 0x12;
++	FD_CLOEXEC			= 0x1;
++	FD_SETSIZE			= 0x400;
++	F_CANCEL			= 0x5;
++	F_DUP2FD			= 0xa;
++	F_DUPFD				= 0;
++	F_GETFD				= 0x1;
++	F_GETFL				= 0x3;
++	F_GETLK				= 0xb;
++	F_GETOWN			= 0x5;
++	F_OGETLK			= 0x7;
++	F_OSETLK			= 0x8;
++	F_OSETLKW			= 0x9;
++	F_RDLCK				= 0x1;
++	F_SETFD				= 0x2;
++	F_SETFL				= 0x4;
++	F_SETLK				= 0xc;
++	F_SETLKW			= 0xd;
++	F_SETLK_REMOTE			= 0xe;
++	F_SETOWN			= 0x6;
++	F_UNLCK				= 0x2;
++	F_UNLCKSYS			= 0x4;
++	F_WRLCK				= 0x3;
++	IPPROTO_3PC			= 0x22;
++	IPPROTO_ADFS			= 0x44;
++	IPPROTO_AH			= 0x33;
++	IPPROTO_AHIP			= 0x3d;
++	IPPROTO_APES			= 0x63;
++	IPPROTO_ARGUS			= 0xd;
++	IPPROTO_AX25			= 0x5d;
++	IPPROTO_BHA			= 0x31;
++	IPPROTO_BLT			= 0x1e;
++	IPPROTO_BRSATMON		= 0x4c;
++	IPPROTO_CARP			= 0x70;
++	IPPROTO_CFTP			= 0x3e;
++	IPPROTO_CHAOS			= 0x10;
++	IPPROTO_CMTP			= 0x26;
++	IPPROTO_CPHB			= 0x49;
++	IPPROTO_CPNX			= 0x48;
++	IPPROTO_DDP			= 0x25;
++	IPPROTO_DGP			= 0x56;
++	IPPROTO_DIVERT			= 0x102;
++	IPPROTO_DONE			= 0x101;
++	IPPROTO_DSTOPTS			= 0x3c;
++	IPPROTO_EGP			= 0x8;
++	IPPROTO_EMCON			= 0xe;
++	IPPROTO_ENCAP			= 0x62;
++	IPPROTO_EON			= 0x50;
++	IPPROTO_ESP			= 0x32;
++	IPPROTO_ETHERIP			= 0x61;
++	IPPROTO_FRAGMENT		= 0x2c;
++	IPPROTO_GGP			= 0x3;
++	IPPROTO_GMTP			= 0x64;
++	IPPROTO_GRE			= 0x2f;
++	IPPROTO_HELLO			= 0x3f;
++	IPPROTO_HMP			= 0x14;
++	IPPROTO_HOPOPTS			= 0;
++	IPPROTO_ICMP			= 0x1;
++	IPPROTO_ICMPV6			= 0x3a;
++	IPPROTO_IDP			= 0x16;
++	IPPROTO_IDPR			= 0x23;
++	IPPROTO_IDRP			= 0x2d;
++	IPPROTO_IGMP			= 0x2;
++	IPPROTO_IGP			= 0x55;
++	IPPROTO_IGRP			= 0x58;
++	IPPROTO_IL			= 0x28;
++	IPPROTO_INLSP			= 0x34;
++	IPPROTO_INP			= 0x20;
++	IPPROTO_IP			= 0;
++	IPPROTO_IPCOMP			= 0x6c;
++	IPPROTO_IPCV			= 0x47;
++	IPPROTO_IPEIP			= 0x5e;
++	IPPROTO_IPIP			= 0x4;
++	IPPROTO_IPPC			= 0x43;
++	IPPROTO_IPV4			= 0x4;
++	IPPROTO_IPV6			= 0x29;
++	IPPROTO_IRTP			= 0x1c;
++	IPPROTO_KRYPTOLAN		= 0x41;
++	IPPROTO_LARP			= 0x5b;
++	IPPROTO_LEAF1			= 0x19;
++	IPPROTO_LEAF2			= 0x1a;
++	IPPROTO_MAX			= 0x100;
++	IPPROTO_MAXID			= 0x34;
++	IPPROTO_MEAS			= 0x13;
++	IPPROTO_MHRP			= 0x30;
++	IPPROTO_MICP			= 0x5f;
++	IPPROTO_MOBILE			= 0x37;
++	IPPROTO_MTP			= 0x5c;
++	IPPROTO_MUX			= 0x12;
++	IPPROTO_ND			= 0x4d;
++	IPPROTO_NHRP			= 0x36;
++	IPPROTO_NONE			= 0x3b;
++	IPPROTO_NSP			= 0x1f;
++	IPPROTO_NVPII			= 0xb;
++	IPPROTO_OLD_DIVERT		= 0xfe;
++	IPPROTO_OSPFIGP			= 0x59;
++	IPPROTO_PFSYNC			= 0xf0;
++	IPPROTO_PGM			= 0x71;
++	IPPROTO_PIGP			= 0x9;
++	IPPROTO_PIM			= 0x67;
++	IPPROTO_PRM			= 0x15;
++	IPPROTO_PUP			= 0xc;
++	IPPROTO_PVP			= 0x4b;
++	IPPROTO_RAW			= 0xff;
++	IPPROTO_RCCMON			= 0xa;
++	IPPROTO_RDP			= 0x1b;
++	IPPROTO_ROUTING			= 0x2b;
++	IPPROTO_RSVP			= 0x2e;
++	IPPROTO_RVD			= 0x42;
++	IPPROTO_SATEXPAK		= 0x40;
++	IPPROTO_SATMON			= 0x45;
++	IPPROTO_SCCSP			= 0x60;
++	IPPROTO_SCTP			= 0x84;
++	IPPROTO_SDRP			= 0x2a;
++	IPPROTO_SEP			= 0x21;
++	IPPROTO_SKIP			= 0x39;
++	IPPROTO_SPACER			= 0x7fff;
++	IPPROTO_SRPC			= 0x5a;
++	IPPROTO_ST			= 0x7;
++	IPPROTO_SVMTP			= 0x52;
++	IPPROTO_SWIPE			= 0x35;
++	IPPROTO_TCF			= 0x57;
++	IPPROTO_TCP			= 0x6;
++	IPPROTO_TLSP			= 0x38;
++	IPPROTO_TP			= 0x1d;
++	IPPROTO_TPXX			= 0x27;
++	IPPROTO_TRUNK1			= 0x17;
++	IPPROTO_TRUNK2			= 0x18;
++	IPPROTO_TTP			= 0x54;
++	IPPROTO_UDP			= 0x11;
++	IPPROTO_VINES			= 0x53;
++	IPPROTO_VISA			= 0x46;
++	IPPROTO_VMTP			= 0x51;
++	IPPROTO_WBEXPAK			= 0x4f;
++	IPPROTO_WBMON			= 0x4e;
++	IPPROTO_WSN			= 0x4a;
++	IPPROTO_XNET			= 0xf;
++	IPPROTO_XTP			= 0x24;
++	IP_ADD_MEMBERSHIP		= 0xc;
++	IP_ADD_SOURCE_MEMBERSHIP	= 0x46;
++	IP_BINDANY			= 0x18;
++	IP_BLOCK_SOURCE			= 0x48;
++	IP_DEFAULT_MULTICAST_LOOP	= 0x1;
++	IP_DEFAULT_MULTICAST_TTL	= 0x1;
++	IP_DONTFRAG			= 0x43;
++	IP_DROP_MEMBERSHIP		= 0xd;
++	IP_DROP_SOURCE_MEMBERSHIP	= 0x47;
++	IP_DUMMYNET_CONFIGURE		= 0x3c;
++	IP_DUMMYNET_DEL			= 0x3d;
++	IP_DUMMYNET_FLUSH		= 0x3e;
++	IP_DUMMYNET_GET			= 0x40;
++	IP_FAITH			= 0x16;
++	IP_FW_ADD			= 0x32;
++	IP_FW_DEL			= 0x33;
++	IP_FW_FLUSH			= 0x34;
++	IP_FW_GET			= 0x36;
++	IP_FW_NAT_CFG			= 0x38;
++	IP_FW_NAT_DEL			= 0x39;
++	IP_FW_NAT_GET_CONFIG		= 0x3a;
++	IP_FW_NAT_GET_LOG		= 0x3b;
++	IP_FW_RESETLOG			= 0x37;
++	IP_FW_TABLE_ADD			= 0x28;
++	IP_FW_TABLE_DEL			= 0x29;
++	IP_FW_TABLE_FLUSH		= 0x2a;
++	IP_FW_TABLE_GETSIZE		= 0x2b;
++	IP_FW_TABLE_LIST		= 0x2c;
++	IP_FW_ZERO			= 0x35;
++	IP_HDRINCL			= 0x2;
++	IP_IPSEC_POLICY			= 0x15;
++	IP_MAX_GROUP_SRC_FILTER		= 0x200;
++	IP_MAX_MEMBERSHIPS		= 0xfff;
++	IP_MAX_SOCK_MUTE_FILTER		= 0x80;
++	IP_MAX_SOCK_SRC_FILTER		= 0x80;
++	IP_MAX_SOURCE_FILTER		= 0x400;
++	IP_MINTTL			= 0x42;
++	IP_MIN_MEMBERSHIPS		= 0x1f;
++	IP_MSFILTER			= 0x4a;
++	IP_MULTICAST_IF			= 0x9;
++	IP_MULTICAST_LOOP		= 0xb;
++	IP_MULTICAST_TTL		= 0xa;
++	IP_MULTICAST_VIF		= 0xe;
++	IP_ONESBCAST			= 0x17;
++	IP_OPTIONS			= 0x1;
++	IP_PORTRANGE			= 0x13;
++	IP_PORTRANGE_DEFAULT		= 0;
++	IP_PORTRANGE_HIGH		= 0x1;
++	IP_PORTRANGE_LOW		= 0x2;
++	IP_RECVDSTADDR			= 0x7;
++	IP_RECVIF			= 0x14;
++	IP_RECVOPTS			= 0x5;
++	IP_RECVRETOPTS			= 0x6;
++	IP_RECVTTL			= 0x41;
++	IP_RETOPTS			= 0x8;
++	IP_RSVP_OFF			= 0x10;
++	IP_RSVP_ON			= 0xf;
++	IP_RSVP_VIF_OFF			= 0x12;
++	IP_RSVP_VIF_ON			= 0x11;
++	IP_SENDSRCADDR			= 0x7;
++	IP_TOS				= 0x3;
++	IP_TTL				= 0x4;
++	IP_UNBLOCK_SOURCE		= 0x49;
++	O_ACCMODE			= 0x3;
++	O_APPEND			= 0x8;
++	O_ASYNC				= 0x40;
++	O_CREAT				= 0x200;
++	O_DIRECT			= 0x10000;
++	O_DIRECTORY			= 0x20000;
++	O_EXCL				= 0x800;
++	O_EXEC				= 0x40000;
++	O_EXLOCK			= 0x20;
++	O_FSYNC				= 0x80;
++	O_NDELAY			= 0x4;
++	O_NOCTTY			= 0x8000;
++	O_NOFOLLOW			= 0x100;
++	O_NONBLOCK			= 0x4;
++	O_RDONLY			= 0;
++	O_RDWR				= 0x2;
++	O_SHLOCK			= 0x10;
++	O_SYNC				= 0x80;
++	O_TRUNC				= 0x400;
++	O_TTY_INIT			= 0x80000;
++	O_WRONLY			= 0x1;
++	SIGABRT				= 0x6;
++	SIGALRM				= 0xe;
++	SIGBUS				= 0xa;
++	SIGCHLD				= 0x14;
++	SIGCONT				= 0x13;
++	SIGEMT				= 0x7;
++	SIGFPE				= 0x8;
++	SIGHUP				= 0x1;
++	SIGILL				= 0x4;
++	SIGINFO				= 0x1d;
++	SIGINT				= 0x2;
++	SIGIO				= 0x17;
++	SIGIOT				= 0x6;
++	SIGKILL				= 0x9;
++	SIGLWP				= 0x20;
++	SIGPIPE				= 0xd;
++	SIGPROF				= 0x1b;
++	SIGQUIT				= 0x3;
++	SIGSEGV				= 0xb;
++	SIGSTOP				= 0x11;
++	SIGSYS				= 0xc;
++	SIGTERM				= 0xf;
++	SIGTHR				= 0x20;
++	SIGTRAP				= 0x5;
++	SIGTSTP				= 0x12;
++	SIGTTIN				= 0x15;
++	SIGTTOU				= 0x16;
++	SIGURG				= 0x10;
++	SIGUSR1				= 0x1e;
++	SIGUSR2				= 0x1f;
++	SIGVTALRM			= 0x1a;
++	SIGWINCH			= 0x1c;
++	SIGXCPU				= 0x18;
++	SIGXFSZ				= 0x19;
++	SOCK_DGRAM			= 0x2;
++	SOCK_MAXADDRLEN			= 0xff;
++	SOCK_RAW			= 0x3;
++	SOCK_RDM			= 0x4;
++	SOCK_SEQPACKET			= 0x5;
++	SOCK_STREAM			= 0x1;
++	SOL_SOCKET			= 0xffff;
++	SOMAXCONN			= 0x80;
++	SO_ACCEPTCONN			= 0x2;
++	SO_ACCEPTFILTER			= 0x1000;
++	SO_BINTIME			= 0x2000;
++	SO_BROADCAST			= 0x20;
++	SO_DEBUG			= 0x1;
++	SO_DONTROUTE			= 0x10;
++	SO_ERROR			= 0x1007;
++	SO_KEEPALIVE			= 0x8;
++	SO_LABEL			= 0x1009;
++	SO_LINGER			= 0x80;
++	SO_LISTENINCQLEN		= 0x1013;
++	SO_LISTENQLEN			= 0x1012;
++	SO_LISTENQLIMIT			= 0x1011;
++	SO_NOSIGPIPE			= 0x800;
++	SO_NO_DDP			= 0x8000;
++	SO_NO_OFFLOAD			= 0x4000;
++	SO_OOBINLINE			= 0x100;
++	SO_PEERLABEL			= 0x1010;
++	SO_RCVBUF			= 0x1002;
++	SO_RCVLOWAT			= 0x1004;
++	SO_RCVTIMEO			= 0x1006;
++	SO_REUSEADDR			= 0x4;
++	SO_REUSEPORT			= 0x200;
++	SO_SETFIB			= 0x1014;
++	SO_SNDBUF			= 0x1001;
++	SO_SNDLOWAT			= 0x1003;
++	SO_SNDTIMEO			= 0x1005;
++	SO_TIMESTAMP			= 0x400;
++	SO_TYPE				= 0x1008;
++	SO_USELOOPBACK			= 0x40;
++	TCP_CA_NAME_MAX			= 0x10;
++	TCP_CONGESTION			= 0x40;
++	TCP_INFO			= 0x20;
++	TCP_MAXBURST			= 0x4;
++	TCP_MAXHLEN			= 0x3c;
++	TCP_MAXOLEN			= 0x28;
++	TCP_MAXSEG			= 0x2;
++	TCP_MAXWIN			= 0xffff;
++	TCP_MAX_SACK			= 0x4;
++	TCP_MAX_WINSHIFT		= 0xe;
++	TCP_MD5SIG			= 0x10;
++	TCP_MINMSS			= 0xd8;
++	TCP_MSS				= 0x200;
++	TCP_NODELAY			= 0x1;
++	TCP_NOOPT			= 0x8;
++	TCP_NOPUSH			= 0x4;
++	WCONTINUED			= 0x4;
++	WCOREFLAG			= 0x80;
++	WLINUXCLONE			= 0x80000000;
++	WNOHANG				= 0x1;
++	WNOWAIT				= 0x8;
++	WSTOPPED			= 0x2;
++	WUNTRACED			= 0x2;
++)
++
++// Types
++
++
++// Error table
++var errors = [...]string{
++	90: "multihop attempted",
++	47: "address family not supported by protocol family",
++	13: "permission denied",
++	39: "destination address required",
++	86: "illegal byte sequence",
++	29: "illegal seek",
++	31: "too many links",
++	74: "RPC prog. not avail",
++	25: "inappropriate ioctl for device",
++	9: "bad file descriptor",
++	34: "result too large",
++	85: "operation canceled",
++	26: "text file busy",
++	12: "cannot allocate memory",
++	36: "operation now in progress",
++	66: "directory not empty",
++	15: "block device required",
++	41: "protocol wrong type for socket",
++	83: "no message of desired type",
++	73: "RPC version wrong",
++	20: "not a directory",
++	37: "operation already in progress",
++	60: "operation timed out",
++	81: "need authenticator",
++	4: "interrupted system call",
++	91: "link has been severed",
++	1: "operation not permitted",
++	50: "network is down",
++	70: "stale NFS file handle",
++	38: "socket operation on non-socket",
++	80: "authentication error",
++	10: "no child processes",
++	32: "broken pipe",
++	87: "attribute not found",
++	89: "bad message",
++	71: "too many levels of remote in path",
++	59: "too many references: can't splice",
++	46: "protocol family not supported",
++	76: "bad procedure for program",
++	48: "address already in use",
++	52: "network dropped connection on reset",
++	21: "is a directory",
++	82: "identifier removed",
++	88: "programming error",
++	22: "invalid argument",
++	58: "can't send after socket shutdown",
++	84: "value too large to be stored in data type",
++	16: "device busy",
++	67: "too many processes",
++	92: "protocol error",
++	19: "operation not supported by device",
++	30: "read-only file system",
++	7: "argument list too long",
++	11: "resource deadlock avoided",
++	54: "connection reset by peer",
++	6: "device not configured",
++	72: "RPC struct is bad",
++	63: "file name too long",
++	44: "socket type not supported",
++	49: "can't assign requested address",
++	43: "protocol not supported",
++	5: "input/output error",
++	51: "network is unreachable",
++	18: "cross-device link",
++	69: "disc quota exceeded",
++	28: "no space left on device",
++	8: "exec format error",
++	40: "message too long",
++	79: "inappropriate file type or format",
++	33: "numerical argument out of domain",
++	27: "file too large",
++	3: "no such process",
++	64: "host is down",
++	77: "no locks available",
++	23: "too many open files in system",
++	78: "function not implemented",
++	57: "socket is not connected",
++	45: "operation not supported",
++	53: "software caused connection abort",
++	56: "socket is already connected",
++	68: "too many users",
++	42: "protocol not available",
++	24: "too many open files",
++	62: "too many levels of symbolic links",
++	55: "no buffer space available",
++	14: "bad address",
++	35: "resource temporarily unavailable",
++	61: "connection refused",
++	17: "file exists",
++	75: "program version wrong",
++	2: "no such file or directory",
++	65: "no route to host",
++}
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+new file mode 100644
+index 0000000000..62771f247e
+--- /dev/null
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -0,0 +1,661 @@
++// mksyscall.sh syscall_freebsd.go syscall_freebsd_amd64.go
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++package syscall
++
++import "unsafe"
++
++func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func setgroups(ngid int, gid *_Gid_t) (errno int) {
++	_, _, e1 := Syscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0);
++	errno = int(e1);
++	return;
++}
++
++func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int) {
++	r0, _, e1 := Syscall6(SYS_WAIT4, uintptr(pid), uintptr(unsafe.Pointer(wstatus)), uintptr(options), uintptr(unsafe.Pointer(rusage)), 0, 0);
++	wpid = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func pipe() (r int, w int, errno int) {
++	r0, r1, e1 := Syscall(SYS_PIPE, 0, 0, 0);
++	r = int(r0);
++	w = int(r1);
++	errno = int(e1);
++	return;
++}
++
++func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
++	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
++	fd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
++	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
++
++func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
++	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
++
++func socket(domain int, typ int, proto int) (fd int, errno int) {
++	r0, _, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto));
++	fd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
++	errno = int(e1);
++	return;
++}
++
++func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
++	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
++	errno = int(e1);
++	return;
++}
++
++func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
++	_, _, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
++	errno = int(e1);
++	return;
++}
++
++func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
++
++func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int) {
++	r0, _, e1 := Syscall6(SYS_KEVENT, uintptr(kq), uintptr(change), uintptr(nchange), uintptr(event), uintptr(nevent), uintptr(unsafe.Pointer(timeout)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (errno int) {
++	var _p0 *_C_int;
++	if len(mib) > 0 {
++		_p0 = &mib[0]
++	}
++	_, _, e1 := Syscall6(SYS___SYSCTL, uintptr(unsafe.Pointer(_p0)), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen));
++	errno = int(e1);
++	return;
++}
++
++func fcntl(fd int, cmd int, arg int) (val int, errno int) {
++	r0, _, e1 := Syscall(SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg));
++	val = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Access(path string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), 0);
++	errno = int(e1);
++	return;
++}
++
++func Adjtime(delta *Timeval, olddelta *Timeval) (errno int) {
++	_, _, e1 := Syscall(SYS_ADJTIME, uintptr(unsafe.Pointer(delta)), uintptr(unsafe.Pointer(olddelta)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Chdir(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_CHDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Chflags(path string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_CHFLAGS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), 0);
++	errno = int(e1);
++	return;
++}
++
++func Chmod(path string, mode int) (errno int) {
++	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
++	errno = int(e1);
++	return;
++}
++
++func Chown(path string, uid int, gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Chroot(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_CHROOT, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Close(fd int) (errno int) {
++	_, _, e1 := Syscall(SYS_CLOSE, uintptr(fd), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Dup(fd int) (nfd int, errno int) {
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0);
++	nfd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Dup2(from int, to int) (errno int) {
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0);
++	errno = int(e1);
++	return;
++}
++
++func Exit(code int) {
++	Syscall(SYS_EXIT, uintptr(code), 0, 0);
++	return;
++}
++
++func Fchdir(fd int) (errno int) {
++	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Fchflags(path string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fchmod(fd int, mode int) (errno int) {
++	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fchown(fd int, uid int, gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Flock(fd int, how int) (errno int) {
++	_, _, e1 := Syscall(SYS_FLOCK, uintptr(fd), uintptr(how), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fpathconf(fd int, name int) (val int, errno int) {
++	r0, _, e1 := Syscall(SYS_FPATHCONF, uintptr(fd), uintptr(name), 0);
++	val = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Fstat(fd int, stat *Stat_t) (errno int) {
++	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fstatfs(fd int, stat *Statfs_t) (errno int) {
++	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fsync(fd int) (errno int) {
++	_, _, e1 := Syscall(SYS_FSYNC, uintptr(fd), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Ftruncate(fd int, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), 0);
++	errno = int(e1);
++	return;
++}
++
++func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r0, _, e1 := Syscall6(SYS_GETDIRENTRIES, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Getdtablesize() (size int) {
++	r0, _, _ := Syscall(SYS_GETDTABLESIZE, 0, 0, 0);
++	size = int(r0);
++	return;
++}
++
++func Getegid() (egid int) {
++	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0);
++	egid = int(r0);
++	return;
++}
++
++func Geteuid() (uid int) {
++	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0);
++	uid = int(r0);
++	return;
++}
++
++func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
++	var _p0 *Statfs_t;
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Getgid() (gid int) {
++	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0);
++	gid = int(r0);
++	return;
++}
++
++func Getpgid(pid int) (pgid int, errno int) {
++	r0, _, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0);
++	pgid = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Getpgrp() (pgrp int) {
++	r0, _, _ := Syscall(SYS_GETPGRP, 0, 0, 0);
++	pgrp = int(r0);
++	return;
++}
++
++func Getpid() (pid int) {
++	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0);
++	pid = int(r0);
++	return;
++}
++
++func Getppid() (ppid int) {
++	r0, _, _ := Syscall(SYS_GETPPID, 0, 0, 0);
++	ppid = int(r0);
++	return;
++}
++
++func Getpriority(which int, who int) (prio int, errno int) {
++	r0, _, e1 := Syscall(SYS_GETPRIORITY, uintptr(which), uintptr(who), 0);
++	prio = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Getrlimit(which int, lim *Rlimit) (errno int) {
++	_, _, e1 := Syscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Getrusage(who int, rusage *Rusage) (errno int) {
++	_, _, e1 := Syscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Getsid(pid int) (sid int, errno int) {
++	r0, _, e1 := Syscall(SYS_GETSID, uintptr(pid), 0, 0);
++	sid = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Gettimeofday(tv *Timeval) (errno int) {
++	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Getuid() (uid int) {
++	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0);
++	uid = int(r0);
++	return;
++}
++
++func Issetugid() (tainted bool) {
++	r0, _, _ := Syscall(SYS_ISSETUGID, 0, 0, 0);
++	tainted = bool(r0 != 0);
++	return;
++}
++
++func Kill(pid int, signum int, posix int) (errno int) {
++	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix));
++	errno = int(e1);
++	return;
++}
++
++func Kqueue() (fd int, errno int) {
++	r0, _, e1 := Syscall(SYS_KQUEUE, 0, 0, 0);
++	fd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Lchown(path string, uid int, gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_LCHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Link(path string, link string) (errno int) {
++	_, _, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(StringBytePtr(link))), 0);
++	errno = int(e1);
++	return;
++}
++
++func Listen(s int, backlog int) (errno int) {
++	_, _, e1 := Syscall(SYS_LISTEN, uintptr(s), uintptr(backlog), 0);
++	errno = int(e1);
++	return;
++}
++
++func Lstat(path string, stat *Stat_t) (errno int) {
++	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Mkdir(path string, mode int) (errno int) {
++	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
++	errno = int(e1);
++	return;
++}
++
++func Mkfifo(path string, mode int) (errno int) {
++	_, _, e1 := Syscall(SYS_MKFIFO, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
++	errno = int(e1);
++	return;
++}
++
++func Mknod(path string, mode int, dev int) (errno int) {
++	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev));
++	errno = int(e1);
++	return;
++}
++
++func Open(path string, mode int, perm int) (fd int, errno int) {
++	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm));
++	fd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Pathconf(path string, name int) (val int, errno int) {
++	r0, _, e1 := Syscall(SYS_PATHCONF, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(name), 0);
++	val = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Pread(fd int, p []byte, offset int64) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Read(fd int, p []byte) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Readlink(path string, buf []byte) (n int, errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Rename(from string, to string) (errno int) {
++	_, _, e1 := Syscall(SYS_RENAME, uintptr(unsafe.Pointer(StringBytePtr(from))), uintptr(unsafe.Pointer(StringBytePtr(to))), 0);
++	errno = int(e1);
++	return;
++}
++
++func Revoke(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_REVOKE, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Rmdir(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_RMDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
++	r0, _, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
++	newoffset = int64(r0);
++	errno = int(e1);
++	return;
++}
++
++func Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int) {
++	_, _, e1 := Syscall6(SYS_SELECT, uintptr(n), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setegid(egid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETEGID, uintptr(egid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Seteuid(euid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETEUID, uintptr(euid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setgid(gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setlogin(name string) (errno int) {
++	_, _, e1 := Syscall(SYS_SETLOGIN, uintptr(unsafe.Pointer(StringBytePtr(name))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setpgid(pid int, pgid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setpriority(which int, who int, prio int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETPRIORITY, uintptr(which), uintptr(who), uintptr(prio));
++	errno = int(e1);
++	return;
++}
++
++func Setregid(rgid int, egid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setreuid(ruid int, euid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setrlimit(which int, lim *Rlimit) (errno int) {
++	_, _, e1 := Syscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setsid() (pid int, errno int) {
++	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0);
++	pid = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Settimeofday(tp *Timeval) (errno int) {
++	_, _, e1 := Syscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setuid(uid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETUID, uintptr(uid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Stat(path string, stat *Stat_t) (errno int) {
++	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Statfs(path string, stat *Statfs_t) (errno int) {
++	_, _, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Symlink(path string, link string) (errno int) {
++	_, _, e1 := Syscall(SYS_SYMLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(StringBytePtr(link))), 0);
++	errno = int(e1);
++	return;
++}
++
++func Sync() (errno int) {
++	_, _, e1 := Syscall(SYS_SYNC, 0, 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Truncate(path string, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), 0);
++	errno = int(e1);
++	return;
++}
++
++func Umask(newmask int) (errno int) {
++	_, _, e1 := Syscall(SYS_UMASK, uintptr(newmask), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Undelete(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_UNDELETE, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Unlink(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_UNLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Unmount(path string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), 0);
++	errno = int(e1);
++	return;
++}
++
++func Write(fd int, p []byte) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func read(fd int, buf *byte, nbuf int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func write(fd int, buf *byte, nbuf int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
+diff --git a/src/pkg/syscall/zsysnum_freebsd_amd64.go b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+new file mode 100644
+index 0000000000..71d35cb618
+--- /dev/null
++++ b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+@@ -0,0 +1,320 @@
++// mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master
++// MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
++
++package syscall
++
++const (
++	// SYS_NOSYS = 0;  // { int nosys(void); } syscall nosys_args int
++	SYS_EXIT			= 1;	// { void sys_exit(int rval); } exit \
++	SYS_FORK			= 2;	// { int fork(void); }
++	SYS_READ			= 3;	// { ssize_t read(int fd, void *buf, \
++	SYS_WRITE			= 4;	// { ssize_t write(int fd, const void *buf, \
++	SYS_OPEN			= 5;	// { int open(char *path, int flags, int mode); }
++	SYS_CLOSE			= 6;	// { int close(int fd); }
++	SYS_WAIT4			= 7;	// { int wait4(int pid, int *status, \
++	SYS_LINK			= 9;	// { int link(char *path, char *link); }
++	SYS_UNLINK			= 10;	// { int unlink(char *path); }
++	SYS_CHDIR			= 12;	// { int chdir(char *path); }
++	SYS_FCHDIR			= 13;	// { int fchdir(int fd); }
++	SYS_MKNOD			= 14;	// { int mknod(char *path, int mode, int dev); }
++	SYS_CHMOD			= 15;	// { int chmod(char *path, int mode); }
++	SYS_CHOWN			= 16;	// { int chown(char *path, int uid, int gid); }
++	SYS_OBREAK			= 17;	// { int obreak(char *nsize); } break \
++	SYS_GETPID			= 20;	// { pid_t getpid(void); }
++	SYS_MOUNT			= 21;	// { int mount(char *type, char *path, \
++	SYS_UNMOUNT			= 22;	// { int unmount(char *path, int flags); }
++	SYS_SETUID			= 23;	// { int setuid(uid_t uid); }
++	SYS_GETUID			= 24;	// { uid_t getuid(void); }
++	SYS_GETEUID			= 25;	// { uid_t geteuid(void); }
++	SYS_PTRACE			= 26;	// { int ptrace(int req, pid_t pid, \
++	SYS_RECVMSG			= 27;	// { int recvmsg(int s, struct msghdr *msg, \
++	SYS_SENDMSG			= 28;	// { int sendmsg(int s, struct msghdr *msg, \
++	SYS_RECVFROM			= 29;	// { int recvfrom(int s, caddr_t buf, \
++	SYS_ACCEPT			= 30;	// { int accept(int s, \
++	SYS_GETPEERNAME			= 31;	// { int getpeername(int fdes, \
++	SYS_GETSOCKNAME			= 32;	// { int getsockname(int fdes, \
++	SYS_ACCESS			= 33;	// { int access(char *path, int flags); }
++	SYS_CHFLAGS			= 34;	// { int chflags(char *path, int flags); }
++	SYS_FCHFLAGS			= 35;	// { int fchflags(int fd, int flags); }
++	SYS_SYNC			= 36;	// { int sync(void); }
++	SYS_KILL			= 37;	// { int kill(int pid, int signum); }
++	SYS_GETPPID			= 39;	// { pid_t getppid(void); }
++	SYS_DUP				= 41;	// { int dup(u_int fd); }
++	SYS_PIPE			= 42;	// { int pipe(void); }
++	SYS_GETEGID			= 43;	// { gid_t getegid(void); }
++	SYS_PROFIL			= 44;	// { int profil(caddr_t samples, size_t size, \
++	SYS_KTRACE			= 45;	// { int ktrace(const char *fname, int ops, \
++	SYS_GETGID			= 47;	// { gid_t getgid(void); }
++	SYS_GETLOGIN			= 49;	// { int getlogin(char *namebuf, u_int \
++	SYS_SETLOGIN			= 50;	// { int setlogin(char *namebuf); }
++	SYS_ACCT			= 51;	// { int acct(char *path); }
++	SYS_SIGALTSTACK			= 53;	// { int sigaltstack(stack_t *ss, \
++	SYS_IOCTL			= 54;	// { int ioctl(int fd, u_long com, \
++	SYS_REBOOT			= 55;	// { int reboot(int opt); }
++	SYS_REVOKE			= 56;	// { int revoke(char *path); }
++	SYS_SYMLINK			= 57;	// { int symlink(char *path, char *link); }
++	SYS_READLINK			= 58;	// { ssize_t readlink(char *path, char *buf, \
++	SYS_EXECVE			= 59;	// { int execve(char *fname, char **argv, \
++	SYS_UMASK			= 60;	// { int umask(int newmask); } umask umask_args \
++	SYS_CHROOT			= 61;	// { int chroot(char *path); }
++	SYS_MSYNC			= 65;	// { int msync(void *addr, size_t len, \
++	SYS_VFORK			= 66;	// { int vfork(void); }
++	SYS_SBRK			= 69;	// { int sbrk(int incr); }
++	SYS_SSTK			= 70;	// { int sstk(int incr); }
++	SYS_OVADVISE			= 72;	// { int ovadvise(int anom); } vadvise \
++	SYS_MUNMAP			= 73;	// { int munmap(void *addr, size_t len); }
++	SYS_MPROTECT			= 74;	// { int mprotect(const void *addr, size_t len, \
++	SYS_MADVISE			= 75;	// { int madvise(void *addr, size_t len, \
++	SYS_MINCORE			= 78;	// { int mincore(const void *addr, size_t len, \
++	SYS_GETGROUPS			= 79;	// { int getgroups(u_int gidsetsize, \
++	SYS_SETGROUPS			= 80;	// { int setgroups(u_int gidsetsize, \
++	SYS_GETPGRP			= 81;	// { int getpgrp(void); }
++	SYS_SETPGID			= 82;	// { int setpgid(int pid, int pgid); }
++	SYS_SETITIMER			= 83;	// { int setitimer(u_int which, struct \
++	SYS_SWAPON			= 85;	// { int swapon(char *name); }
++	SYS_GETITIMER			= 86;	// { int getitimer(u_int which, \
++	SYS_GETDTABLESIZE		= 89;	// { int getdtablesize(void); }
++	SYS_DUP2			= 90;	// { int dup2(u_int from, u_int to); }
++	SYS_FCNTL			= 92;	// { int fcntl(int fd, int cmd, long arg); }
++	SYS_SELECT			= 93;	// { int select(int nd, fd_set *in, fd_set *ou, \
++	SYS_FSYNC			= 95;	// { int fsync(int fd); }
++	SYS_SETPRIORITY			= 96;	// { int setpriority(int which, int who, \
++	SYS_SOCKET			= 97;	// { int socket(int domain, int type, \
++	SYS_CONNECT			= 98;	// { int connect(int s, caddr_t name, \
++	SYS_GETPRIORITY			= 100;	// { int getpriority(int which, int who); }
++	SYS_BIND			= 104;	// { int bind(int s, caddr_t name, \
++	SYS_SETSOCKOPT			= 105;	// { int setsockopt(int s, int level, int name, \
++	SYS_LISTEN			= 106;	// { int listen(int s, int backlog); }
++	SYS_GETTIMEOFDAY		= 116;	// { int gettimeofday(struct timeval *tp, \
++	SYS_GETRUSAGE			= 117;	// { int getrusage(int who, \
++	SYS_GETSOCKOPT			= 118;	// { int getsockopt(int s, int level, int name, \
++	SYS_READV			= 120;	// { int readv(int fd, struct iovec *iovp, \
++	SYS_WRITEV			= 121;	// { int writev(int fd, struct iovec *iovp, \
++	SYS_SETTIMEOFDAY		= 122;	// { int settimeofday(struct timeval *tv, \
++	SYS_FCHOWN			= 123;	// { int fchown(int fd, int uid, int gid); }
++	SYS_FCHMOD			= 124;	// { int fchmod(int fd, int mode); }
++	SYS_SETREUID			= 126;	// { int setreuid(int ruid, int euid); }
++	SYS_SETREGID			= 127;	// { int setregid(int rgid, int egid); }
++	SYS_RENAME			= 128;	// { int rename(char *from, char *to); }
++	SYS_FLOCK			= 131;	// { int flock(int fd, int how); }
++	SYS_MKFIFO			= 132;	// { int mkfifo(char *path, int mode); }
++	SYS_SENDTO			= 133;	// { int sendto(int s, caddr_t buf, size_t len, \
++	SYS_SHUTDOWN			= 134;	// { int shutdown(int s, int how); }
++	SYS_SOCKETPAIR			= 135;	// { int socketpair(int domain, int type, \
++	SYS_MKDIR			= 136;	// { int mkdir(char *path, int mode); }
++	SYS_RMDIR			= 137;	// { int rmdir(char *path); }
++	SYS_UTIMES			= 138;	// { int utimes(char *path, \
++	SYS_ADJTIME			= 140;	// { int adjtime(struct timeval *delta, \
++	SYS_SETSID			= 147;	// { int setsid(void); }
++	SYS_QUOTACTL			= 148;	// { int quotactl(char *path, int cmd, int uid, \
++	SYS_LGETFH			= 160;	// { int lgetfh(char *fname, \
++	SYS_GETFH			= 161;	// { int getfh(char *fname, \
++	SYS_SYSARCH			= 165;	// { int sysarch(int op, char *parms); }
++	SYS_RTPRIO			= 166;	// { int rtprio(int function, pid_t pid, \
++	SYS_FREEBSD6_PREAD		= 173;	// { ssize_t freebsd6_pread(int fd, void *buf, \
++	SYS_FREEBSD6_PWRITE		= 174;	// { ssize_t freebsd6_pwrite(int fd, \
++	SYS_SETFIB			= 175;	// { int setfib(int fibnum); }
++	SYS_NTP_ADJTIME			= 176;	// { int ntp_adjtime(struct timex *tp); }
++	SYS_SETGID			= 181;	// { int setgid(gid_t gid); }
++	SYS_SETEGID			= 182;	// { int setegid(gid_t egid); }
++	SYS_SETEUID			= 183;	// { int seteuid(uid_t euid); }
++	SYS_STAT			= 188;	// { int stat(char *path, struct stat *ub); }
++	SYS_FSTAT			= 189;	// { int fstat(int fd, struct stat *sb); }
++	SYS_LSTAT			= 190;	// { int lstat(char *path, struct stat *ub); }
++	SYS_PATHCONF			= 191;	// { int pathconf(char *path, int name); }
++	SYS_FPATHCONF			= 192;	// { int fpathconf(int fd, int name); }
++	SYS_GETRLIMIT			= 194;	// { int getrlimit(u_int which, \
++	SYS_SETRLIMIT			= 195;	// { int setrlimit(u_int which, \
++	SYS_GETDIRENTRIES		= 196;	// { int getdirentries(int fd, char *buf, \
++	SYS_FREEBSD6_MMAP		= 197;	// { caddr_t freebsd6_mmap(caddr_t addr, \
++	SYS_FREEBSD6_LSEEK		= 199;	// { off_t freebsd6_lseek(int fd, int pad, \
++	SYS_FREEBSD6_TRUNCATE		= 200;	// { int freebsd6_truncate(char *path, int pad, \
++	SYS_FREEBSD6_FTRUNCATE		= 201;	// { int freebsd6_ftruncate(int fd, int pad, \
++	SYS___SYSCTL			= 202;	// { int __sysctl(int *name, u_int namelen, \
++	SYS_MLOCK			= 203;	// { int mlock(const void *addr, size_t len); }
++	SYS_MUNLOCK			= 204;	// { int munlock(const void *addr, size_t len); }
++	SYS_UNDELETE			= 205;	// { int undelete(char *path); }
++	SYS_FUTIMES			= 206;	// { int futimes(int fd, struct timeval *tptr); }
++	SYS_GETPGID			= 207;	// { int getpgid(pid_t pid); }
++	SYS_POLL			= 209;	// { int poll(struct pollfd *fds, u_int nfds, \
++	SYS_CLOCK_GETTIME		= 232;	// { int clock_gettime(clockid_t clock_id, \
++	SYS_CLOCK_SETTIME		= 233;	// { int clock_settime( \
++	SYS_CLOCK_GETRES		= 234;	// { int clock_getres(clockid_t clock_id, \
++	SYS_KTIMER_CREATE		= 235;	// { int ktimer_create(clockid_t clock_id, \
++	SYS_KTIMER_DELETE		= 236;	// { int ktimer_delete(int timerid); }
++	SYS_KTIMER_SETTIME		= 237;	// { int ktimer_settime(int timerid, int flags, \
++	SYS_KTIMER_GETTIME		= 238;	// { int ktimer_gettime(int timerid, struct \
++	SYS_KTIMER_GETOVERRUN		= 239;	// { int ktimer_getoverrun(int timerid); }
++	SYS_NANOSLEEP			= 240;	// { int nanosleep(const struct timespec *rqtp, \
++	SYS_NTP_GETTIME			= 248;	// { int ntp_gettime(struct ntptimeval *ntvp); }
++	SYS_MINHERIT			= 250;	// { int minherit(void *addr, size_t len, \
++	SYS_RFORK			= 251;	// { int rfork(int flags); }
++	SYS_OPENBSD_POLL		= 252;	// { int openbsd_poll(struct pollfd *fds, \
++	SYS_ISSETUGID			= 253;	// { int issetugid(void); }
++	SYS_LCHOWN			= 254;	// { int lchown(char *path, int uid, int gid); }
++	SYS_GETDENTS			= 272;	// { int getdents(int fd, char *buf, \
++	SYS_LCHMOD			= 274;	// { int lchmod(char *path, mode_t mode); }
++	SYS_LUTIMES			= 276;	// { int lutimes(char *path, \
++	SYS_NSTAT			= 278;	// { int nstat(char *path, struct nstat *ub); }
++	SYS_NFSTAT			= 279;	// { int nfstat(int fd, struct nstat *sb); }
++	SYS_NLSTAT			= 280;	// { int nlstat(char *path, struct nstat *ub); }
++	SYS_PREADV			= 289;	// { ssize_t preadv(int fd, struct iovec *iovp, \
++	SYS_PWRITEV			= 290;	// { ssize_t pwritev(int fd, struct iovec *iovp, \
++	SYS_FHOPEN			= 298;	// { int fhopen(const struct fhandle *u_fhp, \
++	SYS_FHSTAT			= 299;	// { int fhstat(const struct fhandle *u_fhp, \
++	SYS_MODNEXT			= 300;	// { int modnext(int modid); }
++	SYS_MODSTAT			= 301;	// { int modstat(int modid, \
++	SYS_MODFNEXT			= 302;	// { int modfnext(int modid); }
++	SYS_MODFIND			= 303;	// { int modfind(const char *name); }
++	SYS_KLDLOAD			= 304;	// { int kldload(const char *file); }
++	SYS_KLDUNLOAD			= 305;	// { int kldunload(int fileid); }
++	SYS_KLDFIND			= 306;	// { int kldfind(const char *file); }
++	SYS_KLDNEXT			= 307;	// { int kldnext(int fileid); }
++	SYS_KLDSTAT			= 308;	// { int kldstat(int fileid, struct \
++	SYS_KLDFIRSTMOD			= 309;	// { int kldfirstmod(int fileid); }
++	SYS_GETSID			= 310;	// { int getsid(pid_t pid); }
++	SYS_SETRESUID			= 311;	// { int setresuid(uid_t ruid, uid_t euid, \
++	SYS_SETRESGID			= 312;	// { int setresgid(gid_t rgid, gid_t egid, \
++	SYS_YIELD			= 321;	// { int yield(void); }
++	SYS_MLOCKALL			= 324;	// { int mlockall(int how); }
++	SYS_MUNLOCKALL			= 325;	// { int munlockall(void); }
++	SYS___GETCWD			= 326;	// { int __getcwd(u_char *buf, u_int buflen); }
++	SYS_SCHED_SETPARAM		= 327;	// { int sched_setparam (pid_t pid, \
++	SYS_SCHED_GETPARAM		= 328;	// { int sched_getparam (pid_t pid, struct \
++	SYS_SCHED_SETSCHEDULER		= 329;	// { int sched_setscheduler (pid_t pid, int \
++	SYS_SCHED_GETSCHEDULER		= 330;	// { int sched_getscheduler (pid_t pid); }
++	SYS_SCHED_YIELD			= 331;	// { int sched_yield (void); }
++	SYS_SCHED_GET_PRIORITY_MAX	= 332;	// { int sched_get_priority_max (int policy); }
++	SYS_SCHED_GET_PRIORITY_MIN	= 333;	// { int sched_get_priority_min (int policy); }
++	SYS_SCHED_RR_GET_INTERVAL	= 334;	// { int sched_rr_get_interval (pid_t pid, \
++	SYS_UTRACE			= 335;	// { int utrace(const void *addr, size_t len); }
++	SYS_KLDSYM			= 337;	// { int kldsym(int fileid, int cmd, \
++	SYS_JAIL			= 338;	// { int jail(struct jail *jail); }
++	SYS_SIGPROCMASK			= 340;	// { int sigprocmask(int how, \
++	SYS_SIGSUSPEND			= 341;	// { int sigsuspend(const sigset_t *sigmask); }
++	SYS_SIGPENDING			= 343;	// { int sigpending(sigset_t *set); }
++	SYS_SIGTIMEDWAIT		= 345;	// { int sigtimedwait(const sigset_t *set, \
++	SYS_SIGWAITINFO			= 346;	// { int sigwaitinfo(const sigset_t *set, \
++	SYS___ACL_GET_FILE		= 347;	// { int __acl_get_file(const char *path, \
++	SYS___ACL_SET_FILE		= 348;	// { int __acl_set_file(const char *path, \
++	SYS___ACL_GET_FD		= 349;	// { int __acl_get_fd(int filedes, \
++	SYS___ACL_SET_FD		= 350;	// { int __acl_set_fd(int filedes, \
++	SYS___ACL_DELETE_FILE		= 351;	// { int __acl_delete_file(const char *path, \
++	SYS___ACL_DELETE_FD		= 352;	// { int __acl_delete_fd(int filedes, \
++	SYS___ACL_ACLCHECK_FILE		= 353;	// { int __acl_aclcheck_file(const char *path, \
++	SYS___ACL_ACLCHECK_FD		= 354;	// { int __acl_aclcheck_fd(int filedes, \
++	SYS_EXTATTRCTL			= 355;	// { int extattrctl(const char *path, int cmd, \
++	SYS_EXTATTR_SET_FILE		= 356;	// { int extattr_set_file( \
++	SYS_EXTATTR_GET_FILE		= 357;	// { ssize_t extattr_get_file( \
++	SYS_EXTATTR_DELETE_FILE		= 358;	// { int extattr_delete_file(const char *path, \
++	SYS_GETRESUID			= 360;	// { int getresuid(uid_t *ruid, uid_t *euid, \
++	SYS_GETRESGID			= 361;	// { int getresgid(gid_t *rgid, gid_t *egid, \
++	SYS_KQUEUE			= 362;	// { int kqueue(void); }
++	SYS_KEVENT			= 363;	// { int kevent(int fd, \
++	SYS_EXTATTR_SET_FD		= 371;	// { int extattr_set_fd(int fd, \
++	SYS_EXTATTR_GET_FD		= 372;	// { ssize_t extattr_get_fd(int fd, \
++	SYS_EXTATTR_DELETE_FD		= 373;	// { int extattr_delete_fd(int fd, \
++	SYS___SETUGID			= 374;	// { int __setugid(int flag); }
++	SYS_EACCESS			= 376;	// { int eaccess(char *path, int flags); }
++	SYS_NMOUNT			= 378;	// { int nmount(struct iovec *iovp, \
++	SYS___MAC_GET_PROC		= 384;	// { int __mac_get_proc(struct mac *mac_p); }
++	SYS___MAC_SET_PROC		= 385;	// { int __mac_set_proc(struct mac *mac_p); }
++	SYS___MAC_GET_FD		= 386;	// { int __mac_get_fd(int fd, \
++	SYS___MAC_GET_FILE		= 387;	// { int __mac_get_file(const char *path_p, \
++	SYS___MAC_SET_FD		= 388;	// { int __mac_set_fd(int fd, \
++	SYS___MAC_SET_FILE		= 389;	// { int __mac_set_file(const char *path_p, \
++	SYS_KENV			= 390;	// { int kenv(int what, const char *name, \
++	SYS_LCHFLAGS			= 391;	// { int lchflags(const char *path, int flags); }
++	SYS_UUIDGEN			= 392;	// { int uuidgen(struct uuid *store, \
++	SYS_SENDFILE			= 393;	// { int sendfile(int fd, int s, off_t offset, \
++	SYS_MAC_SYSCALL			= 394;	// { int mac_syscall(const char *policy, \
++	SYS_GETFSSTAT			= 395;	// { int getfsstat(struct statfs *buf, \
++	SYS_STATFS			= 396;	// { int statfs(char *path, \
++	SYS_FSTATFS			= 397;	// { int fstatfs(int fd, struct statfs *buf); }
++	SYS_FHSTATFS			= 398;	// { int fhstatfs(const struct fhandle *u_fhp, \
++	SYS___MAC_GET_PID		= 409;	// { int __mac_get_pid(pid_t pid, \
++	SYS___MAC_GET_LINK		= 410;	// { int __mac_get_link(const char *path_p, \
++	SYS___MAC_SET_LINK		= 411;	// { int __mac_set_link(const char *path_p, \
++	SYS_EXTATTR_SET_LINK		= 412;	// { int extattr_set_link( \
++	SYS_EXTATTR_GET_LINK		= 413;	// { ssize_t extattr_get_link( \
++	SYS_EXTATTR_DELETE_LINK		= 414;	// { int extattr_delete_link( \
++	SYS___MAC_EXECVE		= 415;	// { int __mac_execve(char *fname, char **argv, \
++	SYS_SIGACTION			= 416;	// { int sigaction(int sig, \
++	SYS_SIGRETURN			= 417;	// { int sigreturn( \
++	SYS_GETCONTEXT			= 421;	// { int getcontext(struct __ucontext *ucp); }
++	SYS_SETCONTEXT			= 422;	// { int setcontext( \
++	SYS_SWAPCONTEXT			= 423;	// { int swapcontext(struct __ucontext *oucp, \
++	SYS_SWAPOFF			= 424;	// { int swapoff(const char *name); }
++	SYS___ACL_GET_LINK		= 425;	// { int __acl_get_link(const char *path, \
++	SYS___ACL_SET_LINK		= 426;	// { int __acl_set_link(const char *path, \
++	SYS___ACL_DELETE_LINK		= 427;	// { int __acl_delete_link(const char *path, \
++	SYS___ACL_ACLCHECK_LINK		= 428;	// { int __acl_aclcheck_link(const char *path, \
++	SYS_SIGWAIT			= 429;	// { int sigwait(const sigset_t *set, \
++	SYS_THR_CREATE			= 430;	// { int thr_create(ucontext_t *ctx, long *id, \
++	SYS_THR_EXIT			= 431;	// { void thr_exit(long *state); }
++	SYS_THR_SELF			= 432;	// { int thr_self(long *id); }
++	SYS_THR_KILL			= 433;	// { int thr_kill(long id, int sig); }
++	SYS__UMTX_LOCK			= 434;	// { int _umtx_lock(struct umtx *umtx); }
++	SYS__UMTX_UNLOCK		= 435;	// { int _umtx_unlock(struct umtx *umtx); }
++	SYS_JAIL_ATTACH			= 436;	// { int jail_attach(int jid); }
++	SYS_EXTATTR_LIST_FD		= 437;	// { ssize_t extattr_list_fd(int fd, \
++	SYS_EXTATTR_LIST_FILE		= 438;	// { ssize_t extattr_list_file( \
++	SYS_EXTATTR_LIST_LINK		= 439;	// { ssize_t extattr_list_link( \
++	SYS_THR_SUSPEND			= 442;	// { int thr_suspend( \
++	SYS_THR_WAKE			= 443;	// { int thr_wake(long id); }
++	SYS_KLDUNLOADF			= 444;	// { int kldunloadf(int fileid, int flags); }
++	SYS_AUDIT			= 445;	// { int audit(const void *record, \
++	SYS_AUDITON			= 446;	// { int auditon(int cmd, void *data, \
++	SYS_GETAUID			= 447;	// { int getauid(uid_t *auid); }
++	SYS_SETAUID			= 448;	// { int setauid(uid_t *auid); }
++	SYS_GETAUDIT			= 449;	// { int getaudit(struct auditinfo *auditinfo); }
++	SYS_SETAUDIT			= 450;	// { int setaudit(struct auditinfo *auditinfo); }
++	SYS_GETAUDIT_ADDR		= 451;	// { int getaudit_addr( \
++	SYS_SETAUDIT_ADDR		= 452;	// { int setaudit_addr( \
++	SYS_AUDITCTL			= 453;	// { int auditctl(char *path); }
++	SYS__UMTX_OP			= 454;	// { int _umtx_op(void *obj, int op, \
++	SYS_THR_NEW			= 455;	// { int thr_new(struct thr_param *param, \
++	SYS_SIGQUEUE			= 456;	// { int sigqueue(pid_t pid, int signum, void *value); }
++	SYS_ABORT2			= 463;	// { int abort2(const char *why, int nargs, void **args); }
++	SYS_THR_SET_NAME		= 464;	// { int thr_set_name(long id, const char *name); }
++	SYS_RTPRIO_THREAD		= 466;	// { int rtprio_thread(int function, \
++	SYS_SCTP_PEELOFF		= 471;	// { int sctp_peeloff(int sd, uint32_t name); }
++	SYS_SCTP_GENERIC_SENDMSG	= 472;	// { int sctp_generic_sendmsg(int sd, caddr_t msg, int mlen, \
++	SYS_SCTP_GENERIC_SENDMSG_IOV	= 473;	// { int sctp_generic_sendmsg_iov(int sd, struct iovec *iov, int iovlen, \
++	SYS_SCTP_GENERIC_RECVMSG	= 474;	// { int sctp_generic_recvmsg(int sd, struct iovec *iov, int iovlen, \
++	SYS_PREAD			= 475;	// { ssize_t pread(int fd, void *buf, \
++	SYS_PWRITE			= 476;	// { ssize_t pwrite(int fd, const void *buf, \
++	SYS_MMAP			= 477;	// { caddr_t mmap(caddr_t addr, size_t len, \
++	SYS_LSEEK			= 478;	// { off_t lseek(int fd, off_t offset, \
++	SYS_TRUNCATE			= 479;	// { int truncate(char *path, off_t length); }
++	SYS_FTRUNCATE			= 480;	// { int ftruncate(int fd, off_t length); }
++	SYS_THR_KILL2			= 481;	// { int thr_kill2(pid_t pid, long id, int sig); }
++	SYS_SHM_OPEN			= 482;	// { int shm_open(const char *path, int flags, \
++	SYS_SHM_UNLINK			= 483;	// { int shm_unlink(const char *path); }
++	SYS_CPUSET			= 484;	// { int cpuset(cpusetid_t *setid); }
++	SYS_CPUSET_SETID		= 485;	// { int cpuset_setid(cpuwhich_t which, id_t id, \
++	SYS_CPUSET_GETID		= 486;	// { int cpuset_getid(cpulevel_t level, \
++	SYS_CPUSET_GETAFFINITY		= 487;	// { int cpuset_getaffinity(cpulevel_t level, \
++	SYS_CPUSET_SETAFFINITY		= 488;	// { int cpuset_setaffinity(cpulevel_t level, \
++	SYS_FACCESSAT			= 489;	// { int faccessat(int fd, char *path, int mode, \
++	SYS_FCHMODAT			= 490;	// { int fchmodat(int fd, char *path, mode_t mode, \
++	SYS_FCHOWNAT			= 491;	// { int fchownat(int fd, char *path, uid_t uid, \
++	SYS_FEXECVE			= 492;	// { int fexecve(int fd, char **argv, \
++	SYS_FSTATAT			= 493;	// { int fstatat(int fd, char *path, \
++	SYS_FUTIMESAT			= 494;	// { int futimesat(int fd, char *path, \
++	SYS_LINKAT			= 495;	// { int linkat(int fd1, char *path1, int fd2, \
++	SYS_MKDIRAT			= 496;	// { int mkdirat(int fd, char *path, mode_t mode); }
++	SYS_MKFIFOAT			= 497;	// { int mkfifoat(int fd, char *path, mode_t mode); }
++	SYS_MKNODAT			= 498;	// { int mknodat(int fd, char *path, mode_t mode, \
++	SYS_OPENAT			= 499;	// { int openat(int fd, char *path, int flag, \
++	SYS_READLINKAT			= 500;	// { int readlinkat(int fd, char *path, char *buf, \
++	SYS_RENAMEAT			= 501;	// { int renameat(int oldfd, char *old, int newfd, \
++	SYS_SYMLINKAT			= 502;	// { int symlinkat(char *path1, int fd, \
++	SYS_UNLINKAT			= 503;	// { int unlinkat(int fd, char *path, int flag); }
++	SYS_POSIX_OPENPT		= 504;	// { int posix_openpt(int flags); }
++	SYS_JAIL_GET			= 506;	// { int jail_get(struct iovec *iovp, \
++	SYS_JAIL_SET			= 507;	// { int jail_set(struct iovec *iovp, \
++	SYS_JAIL_REMOVE			= 508;	// { int jail_remove(int jid); }
++	SYS_CLOSEFROM			= 509;	// { int closefrom(int lowfd); }
++	SYS_LPATHCONF			= 513;	// { int lpathconf(char *path, int name); }
++)
+diff --git a/src/pkg/syscall/ztypes_freebsd_amd64.go b/src/pkg/syscall/ztypes_freebsd_amd64.go
+new file mode 100644
+index 0000000000..076acc6980
+--- /dev/null
++++ b/src/pkg/syscall/ztypes_freebsd_amd64.go
+@@ -0,0 +1,227 @@
++// godefs -gsyscall -f-m64 types_freebsd.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++package syscall
++
++// Constants
++const (
++	sizeofPtr		= 0x8;
++	sizeofShort		= 0x2;
++	sizeofInt		= 0x4;
++	sizeofLong		= 0x8;
++	sizeofLongLong		= 0x8;
++	O_CLOEXEC		= 0;
++	S_IFMT			= 0xf000;
++	S_IFIFO			= 0x1000;
++	S_IFCHR			= 0x2000;
++	S_IFDIR			= 0x4000;
++	S_IFBLK			= 0x6000;
++	S_IFREG			= 0x8000;
++	S_IFLNK			= 0xa000;
++	S_IFSOCK		= 0xc000;
++	S_ISUID			= 0x800;
++	S_ISGID			= 0x400;
++	S_ISVTX			= 0x200;
++	S_IRUSR			= 0x100;
++	S_IWUSR			= 0x80;
++	S_IXUSR			= 0x40;
++	SizeofSockaddrInet4	= 0x10;
++	SizeofSockaddrInet6	= 0x1c;
++	SizeofSockaddrAny	= 0x6c;
++	SizeofSockaddrUnix	= 0x6a;
++	SizeofLinger		= 0x8;
++	SizeofMsghdr		= 0x30;
++	SizeofCmsghdr		= 0xc;
++	PTRACE_TRACEME		= 0;
++	PTRACE_CONT		= 0x7;
++	PTRACE_KILL		= 0x8;
++)
++
++// Types
++
++type _C_short int16
++
++type _C_int int32
++
++type _C_long int64
++
++type _C_long_long int64
++
++type Timespec struct {
++	Sec	int64;
++	Nsec	int64;
++}
++
++type Timeval struct {
++	Sec	int64;
++	Usec	int64;
++}
++
++type Rusage struct {
++	Utime		Timeval;
++	Stime		Timeval;
++	Maxrss		int64;
++	Ixrss		int64;
++	Idrss		int64;
++	Isrss		int64;
++	Minflt		int64;
++	Majflt		int64;
++	Nswap		int64;
++	Inblock		int64;
++	Oublock		int64;
++	Msgsnd		int64;
++	Msgrcv		int64;
++	Nsignals	int64;
++	Nvcsw		int64;
++	Nivcsw		int64;
++}
++
++type Rlimit struct {
++	Cur	int64;
++	Max	int64;
++}
++
++type _Gid_t uint32
++
++type Stat_t struct {
++	Dev		uint32;
++	Ino		uint32;
++	Mode		uint16;
++	Nlink		uint16;
++	Uid		uint32;
++	Gid		uint32;
++	Rdev		uint32;
++	Atimespec	Timespec;
++	Mtimespec	Timespec;
++	Ctimespec	Timespec;
++	Size		int64;
++	Blocks		int64;
++	Blksize		uint32;
++	Flags		uint32;
++	Gen		uint32;
++	Lspare		int32;
++	Birthtimespec	Timespec;
++	Pad0		uint8;
++	Pad1		uint8;
++}
++
++type Statfs_t struct {
++	Version		uint32;
++	Type		uint32;
++	Flags		uint64;
++	Bsize		uint64;
++	Iosize		uint64;
++	Blocks		uint64;
++	Bfree		uint64;
++	Bavail		int64;
++	Files		uint64;
++	Ffree		int64;
++	Syncwrites	uint64;
++	Asyncwrites	uint64;
++	Syncreads	uint64;
++	Asyncreads	uint64;
++	Spare		[10]uint64;
++	Namemax		uint32;
++	Owner		uint32;
++	Fsid		[8]byte;	/* fsid */
++	Charspare	[80]int8;
++	Fstypename	[16]int8;
++	Mntfromname	[88]int8;
++	Mntonname	[88]int8;
++}
++
++type Flock_t struct {
++	Start	int64;
++	Len	int64;
++	Pid	int32;
++	Type	int16;
++	Whence	int16;
++	Sysid	int32;
++	Pad0	[4]byte;
++}
++
++type Dirent struct {
++	Fileno	uint32;
++	Reclen	uint16;
++	Type	uint8;
++	Namlen	uint8;
++	Name	[256]int8;
++}
++
++type RawSockaddrInet4 struct {
++	Len	uint8;
++	Family	uint8;
++	Port	uint16;
++	Addr	[4]byte;	/* in_addr */
++	Zero	[8]int8;
++}
++
++type RawSockaddrInet6 struct {
++	Len		uint8;
++	Family		uint8;
++	Port		uint16;
++	Flowinfo	uint32;
++	Addr		[16]byte;	/* in6_addr */
++	Scope_id	uint32;
++}
++
++type RawSockaddrUnix struct {
++	Len	uint8;
++	Family	uint8;
++	Path	[104]int8;
++}
++
++type RawSockaddr struct {
++	Len	uint8;
++	Family	uint8;
++	Data	[14]int8;
++}
++
++type RawSockaddrAny struct {
++	Addr	RawSockaddr;
++	Pad	[92]int8;
++}
++
++type _Socklen uint32
++
++type Linger struct {
++	Onoff	int32;
++	Linger	int32;
++}
++
++type Iovec struct {
++	Base	*byte;
++	Len	uint64;
++}
++
++type Msghdr struct {
++	Name		*byte;
++	Namelen		uint32;
++	Pad0		[4]byte;
++	Iov		*Iovec;
++	Iovlen		int32;
++	Pad1		[4]byte;
++	Control		*byte;
++	Controllen	uint32;
++	Flags		int32;
++}
++
++type Cmsghdr struct {
++	Len	uint32;
++	Level	int32;
++	Type	int32;
++}
++
++type Kevent_t struct {
++	Ident	uint64;
++	Filter	int16;
++	Flags	uint16;
++	Fflags	uint32;
++	Data	int64;
++	Udata	*byte;
++}
++
++type FdSet struct {
++	X__fds_bits [16]uint64;
++}
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 93ddcee348..61ca979625 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -14,7 +14,7 @@ func init() {
+ 	// Force US Pacific time for daylight-savings
+ 	// tests below (localtests).  Needs to be set
+ 	// before the first call into the time library.
+-	os.Setenv("TZ", "US/Pacific")
++	os.Setenv("TZ", "America/Los_Angeles")
+ }
+ 
+ type TimeTest struct {

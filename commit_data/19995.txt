@@ -10,6 +10,19 @@ Date:   Mon Aug 11 17:10:23 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/123120043
-
+---
  src/pkg/runtime/signal_arm.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index 1f9a2325d1..3571cf3ac6 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -76,7 +76,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 			SIG_LR(info, ctxt) = gp->sigpc;
+ 		// In case we are panicking from external C code
+ 		SIG_R10(info, ctxt) = (uintptr)gp;
+-		SIG_R9(info, ctxt) = (uintptr)g->m;
+ 		SIG_PC(info, ctxt) = (uintptr)runtime·sigpanic;
+ 		return;
+ 	}

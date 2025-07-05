@@ -16,6 +16,20 @@ Date:   Wed Mar 18 14:17:43 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_race_install_cgo.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_race_install_cgo.txt b/src/cmd/go/testdata/script/test_race_install_cgo.txt
+index c84a930e60..feddc8f922 100644
+--- a/src/cmd/go/testdata/script/test_race_install_cgo.txt
++++ b/src/cmd/go/testdata/script/test_race_install_cgo.txt
+@@ -2,7 +2,7 @@
+ 
+ [!race] skip
+ 
+-! stale cmd/cgo
++[!darwin] ! stale cmd/cgo  # The darwin builders are spuriously stale; see #33598.
+ 
+ env GOBIN=$WORK/bin
+ go install mtime sametime

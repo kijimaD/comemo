@@ -9,10 +9,114 @@ Date:   Wed Nov 2 17:20:22 2016 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/opnames.go  |  1 -
  src/cmd/compile/internal/gc/racewalk.go |  3 +--
  src/cmd/compile/internal/gc/ssa.go      | 12 ++++++------
  src/cmd/compile/internal/gc/syntax.go   |  1 -
  src/cmd/compile/internal/gc/walk.go     | 10 ----------
  5 files changed, 7 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index bd56506e4d..01faaf827e 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -163,7 +163,6 @@ var opnames = []string{
+ 	ORETJMP:          "RETJMP",
+ 	OPS:              "PS",
+ 	OPC:              "PC",
+-	OSQRT:            "SQRT",
+ 	OGETG:            "GETG",
+ 	OEND:             "END",
+ }
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 671ed1eed7..78335ca76b 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -187,8 +187,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		OPLUS,
+ 		OREAL,
+ 		OIMAG,
+-		OCOM,
+-		OSQRT:
++		OCOM:
+ 		instrumentnode(&n.Left, init, wr, 0)
+ 		goto ret
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index da6b69fc5e..8d0c33a117 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -961,9 +961,6 @@ func (s *state) stmt(n *Node) {
+ 		p := s.expr(n.Left)
+ 		s.nilCheck(p)
+ 
+-	case OSQRT:
+-		s.expr(n.Left)
+-
+ 	default:
+ 		s.Fatalf("unhandled stmt %v", n.Op)
+ 	}
+@@ -1213,8 +1210,6 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OLROT, TUINT16}: ssa.OpLrot16,
+ 	opAndType{OLROT, TUINT32}: ssa.OpLrot32,
+ 	opAndType{OLROT, TUINT64}: ssa.OpLrot64,
+-
+-	opAndType{OSQRT, TFLOAT64}: ssa.OpSqrt,
+ }
+ 
+ func (s *state) concreteEtype(t *Type) EType {
+@@ -1953,7 +1948,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
+ 		}
+ 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+-	case ONOT, OCOM, OSQRT:
++	case ONOT, OCOM:
+ 		a := s.expr(n.Left)
+ 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+ 	case OIMAG, OREAL:
+@@ -2698,6 +2693,11 @@ func intrinsicInit() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		}, sys.AMD64, sys.ARM64, sys.MIPS),
++
++		/******** math ********/
++		intrinsicKey{"math", "Sqrt"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpSqrt, Types[TFLOAT64], args[0])
++		}, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X),
+ 	}
+ 
+ 	// aliases internal to runtime/internal/atomic
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index b0cf77d479..e9e5d8fbe1 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -505,7 +505,6 @@ const (
+ 	ORETJMP // return to other function
+ 	OPS     // compare parity set (for x86 NaN check)
+ 	OPC     // compare parity clear (for x86 NaN check)
+-	OSQRT   // sqrt(float64), on systems that have hw support
+ 	OGETG   // runtime.getg() (read g pointer)
+ 
+ 	OEND
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 87084bc82a..a380f66fb2 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -652,16 +652,6 @@ opswitch:
+ 		n.Left = walkexpr(n.Left, init)
+ 		walkexprlist(n.List.Slice(), init)
+ 
+-		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" &&
+-			(n.Left.Sym.Pkg.Path == "math" || n.Left.Sym.Pkg == localpkg && myimportpath == "math") {
+-			if Thearch.LinkArch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X) {
+-				n.Op = OSQRT
+-				n.Left = n.List.First()
+-				n.List.Set(nil)
+-				break opswitch
+-			}
+-		}
+-
+ 		ll := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
+ 		n.List.Set(reorder1(ll))
+ 

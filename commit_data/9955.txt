@@ -7,6 +7,17 @@ Date:   Thu Oct 13 12:17:08 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5245057
-
+---
  src/pkg/go/types/Makefile | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/go/types/Makefile b/src/pkg/go/types/Makefile
+index 4ca707c735..d21ebc128f 100644
+--- a/src/pkg/go/types/Makefile
++++ b/src/pkg/go/types/Makefile
+@@ -14,3 +14,5 @@ GOFILES=\
+ 	universe.go\
+ 
+ include ../../../Make.pkg
++
++CLEANFILES+=testdata/exports.[$(OS)]

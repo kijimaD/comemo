@@ -19,6 +19,29 @@ Date:   Sun Dec 5 16:39:20 2021 +0000
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/work/buildid.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 4e9189a363..76335e9bb1 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -570,6 +570,8 @@ func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string)
+ 			b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
+ 		}
+ 		if !cfg.BuildN {
++			b.output.Lock()
++			defer b.output.Unlock()
+ 			b.Print(string(stdout))
+ 		}
+ 	}
+@@ -578,6 +580,8 @@ func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string)
+ 
+ // flushOutput flushes the output being queued in a.
+ func (b *Builder) flushOutput(a *Action) {
++	b.output.Lock()
++	defer b.output.Unlock()
+ 	b.Print(string(a.output))
+ 	a.output = nil
+ }

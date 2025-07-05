@@ -11,7 +11,7 @@ Date:   Tue Jul 31 15:26:58 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa_test.go            |  20 ----
  .../internal/gc/testdata/{chan.go => chan_test.go} |  40 +++-----
  .../gc/testdata/{compound.go => compound_test.go}  |  63 +++++--------
@@ -23,3 +23,949 @@ Date:   Tue Jul 31 15:26:58 2018 -0700
  .../gc/testdata/{regalloc.go => regalloc_test.go}  |  25 ++---
  .../gc/testdata/{string.go => string_test.go}      | 101 +++++++++------------
  10 files changed, 155 insertions(+), 249 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 4f7bab9fc5..98230a15c6 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -26,10 +26,6 @@ func runTest(t *testing.T, filename string, flags ...string) {
+ 	t.Parallel()
+ 	doTest(t, filename, "run", flags...)
+ }
+-func buildTest(t *testing.T, filename string, flags ...string) {
+-	t.Parallel()
+-	doTest(t, filename, "build", flags...)
+-}
+ func doTest(t *testing.T, filename string, kind string, flags ...string) {
+ 	testenv.MustHaveGoBuild(t)
+ 	gotool := testenv.GoToolPath(t)
+@@ -227,22 +223,6 @@ func TestCode(t *testing.T) {
+ 	}
+ }
+ 
+-func TestChan(t *testing.T) { runTest(t, "chan.go") }
+-
+-func TestCompound(t *testing.T) { runTest(t, "compound.go") }
+-
+-func TestCtl(t *testing.T) { runTest(t, "ctl.go") }
+-
+-func TestLoadStore(t *testing.T) { runTest(t, "loadstore.go") }
+-
+-func TestMap(t *testing.T) { runTest(t, "map.go") }
+-
+-func TestRegalloc(t *testing.T) { runTest(t, "regalloc.go") }
+-
+-func TestString(t *testing.T) { runTest(t, "string.go") }
+-
+-func TestDeferNoReturn(t *testing.T) { buildTest(t, "deferNoReturn.go") }
+-
+ // TestClosure tests closure related behavior.
+ func TestClosure(t *testing.T) { runTest(t, "closure.go") }
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/chan.go b/src/cmd/compile/internal/gc/testdata/chan_test.go
+similarity index 53%
+rename from src/cmd/compile/internal/gc/testdata/chan.go
+rename to src/cmd/compile/internal/gc/testdata/chan_test.go
+index 0766fcda5b..628bd8f7f7 100644
+--- a/src/cmd/compile/internal/gc/testdata/chan.go
++++ b/src/cmd/compile/internal/gc/testdata/chan_test.go
+@@ -2,12 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// chan_ssa.go tests chan operations.
++// chan.go tests chan operations.
+ package main
+ 
+-import "fmt"
+-
+-var failed = false
++import "testing"
+ 
+ //go:noinline
+ func lenChan_ssa(v chan int) int {
+@@ -19,7 +17,7 @@ func capChan_ssa(v chan int) int {
+ 	return cap(v)
+ }
+ 
+-func testLenChan() {
++func testLenChan(t *testing.T) {
+ 
+ 	v := make(chan int, 10)
+ 	v <- 1
+@@ -27,47 +25,39 @@ func testLenChan() {
+ 	v <- 1
+ 
+ 	if want, got := 3, lenChan_ssa(v); got != want {
+-		fmt.Printf("expected len(chan) = %d, got %d", want, got)
+-		failed = true
++		t.Errorf("expected len(chan) = %d, got %d", want, got)
+ 	}
+ }
+ 
+-func testLenNilChan() {
++func testLenNilChan(t *testing.T) {
+ 
+ 	var v chan int
+ 	if want, got := 0, lenChan_ssa(v); got != want {
+-		fmt.Printf("expected len(nil) = %d, got %d", want, got)
+-		failed = true
++		t.Errorf("expected len(nil) = %d, got %d", want, got)
+ 	}
+ }
+ 
+-func testCapChan() {
++func testCapChan(t *testing.T) {
+ 
+ 	v := make(chan int, 25)
+ 
+ 	if want, got := 25, capChan_ssa(v); got != want {
+-		fmt.Printf("expected cap(chan) = %d, got %d", want, got)
+-		failed = true
++		t.Errorf("expected cap(chan) = %d, got %d", want, got)
+ 	}
+ }
+ 
+-func testCapNilChan() {
++func testCapNilChan(t *testing.T) {
+ 
+ 	var v chan int
+ 	if want, got := 0, capChan_ssa(v); got != want {
+-		fmt.Printf("expected cap(nil) = %d, got %d", want, got)
+-		failed = true
++		t.Errorf("expected cap(nil) = %d, got %d", want, got)
+ 	}
+ }
+ 
+-func main() {
+-	testLenChan()
+-	testLenNilChan()
+-
+-	testCapChan()
+-	testCapNilChan()
++func TestChan(t *testing.T) {
++	testLenChan(t)
++	testLenNilChan(t)
+ 
+-	if failed {
+-		panic("failed")
+-	}
++	testCapChan(t)
++	testCapNilChan(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/compound.go b/src/cmd/compile/internal/gc/testdata/compound_test.go
+similarity index 59%
+rename from src/cmd/compile/internal/gc/testdata/compound.go
+rename to src/cmd/compile/internal/gc/testdata/compound_test.go
+index de10cdc779..4ae464dbe3 100644
+--- a/src/cmd/compile/internal/gc/testdata/compound.go
++++ b/src/cmd/compile/internal/gc/testdata/compound_test.go
+@@ -1,5 +1,3 @@
+-// run
+-
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -8,7 +6,9 @@
+ 
+ package main
+ 
+-import "fmt"
++import (
++	"testing"
++)
+ 
+ func string_ssa(a, b string, x bool) string {
+ 	s := ""
+@@ -20,16 +20,14 @@ func string_ssa(a, b string, x bool) string {
+ 	return s
+ }
+ 
+-func testString() {
++func testString(t *testing.T) {
+ 	a := "foo"
+ 	b := "barz"
+ 	if want, got := a, string_ssa(a, b, true); got != want {
+-		fmt.Printf("string_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("string_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+ 	}
+ 	if want, got := b, string_ssa(a, b, false); got != want {
+-		fmt.Printf("string_ssa(%v, %v, false) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("string_ssa(%v, %v, false) = %v, want %v\n", a, b, got, want)
+ 	}
+ }
+ 
+@@ -55,31 +53,27 @@ func complex128_ssa(a, b complex128, x bool) complex128 {
+ 	return c
+ }
+ 
+-func testComplex64() {
++func testComplex64(t *testing.T) {
+ 	var a complex64 = 1 + 2i
+ 	var b complex64 = 3 + 4i
+ 
+ 	if want, got := a, complex64_ssa(a, b, true); got != want {
+-		fmt.Printf("complex64_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("complex64_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+ 	}
+ 	if want, got := b, complex64_ssa(a, b, false); got != want {
+-		fmt.Printf("complex64_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("complex64_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+ 	}
+ }
+ 
+-func testComplex128() {
++func testComplex128(t *testing.T) {
+ 	var a complex128 = 1 + 2i
+ 	var b complex128 = 3 + 4i
+ 
+ 	if want, got := a, complex128_ssa(a, b, true); got != want {
+-		fmt.Printf("complex128_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("complex128_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+ 	}
+ 	if want, got := b, complex128_ssa(a, b, false); got != want {
+-		fmt.Printf("complex128_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("complex128_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+ 	}
+ }
+ 
+@@ -93,16 +87,14 @@ func slice_ssa(a, b []byte, x bool) []byte {
+ 	return s
+ }
+ 
+-func testSlice() {
++func testSlice(t *testing.T) {
+ 	a := []byte{3, 4, 5}
+ 	b := []byte{7, 8, 9}
+ 	if want, got := byte(3), slice_ssa(a, b, true)[0]; got != want {
+-		fmt.Printf("slice_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("slice_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+ 	}
+ 	if want, got := byte(7), slice_ssa(a, b, false)[0]; got != want {
+-		fmt.Printf("slice_ssa(%v, %v, false) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("slice_ssa(%v, %v, false) = %v, want %v\n", a, b, got, want)
+ 	}
+ }
+ 
+@@ -116,28 +108,21 @@ func interface_ssa(a, b interface{}, x bool) interface{} {
+ 	return s
+ }
+ 
+-func testInterface() {
++func testInterface(t *testing.T) {
+ 	a := interface{}(3)
+ 	b := interface{}(4)
+ 	if want, got := 3, interface_ssa(a, b, true).(int); got != want {
+-		fmt.Printf("interface_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("interface_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+ 	}
+ 	if want, got := 4, interface_ssa(a, b, false).(int); got != want {
+-		fmt.Printf("interface_ssa(%v, %v, false) = %v, want %v\n", a, b, got, want)
+-		failed = true
++		t.Errorf("interface_ssa(%v, %v, false) = %v, want %v\n", a, b, got, want)
+ 	}
+ }
+ 
+-var failed = false
+-
+-func main() {
+-	testString()
+-	testSlice()
+-	testInterface()
+-	testComplex64()
+-	testComplex128()
+-	if failed {
+-		panic("failed")
+-	}
++func TestCompound(t *testing.T) {
++	testString(t)
++	testSlice(t)
++	testInterface(t)
++	testComplex64(t)
++	testComplex128(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/ctl.go b/src/cmd/compile/internal/gc/testdata/ctl_test.go
+similarity index 73%
+rename from src/cmd/compile/internal/gc/testdata/ctl.go
+rename to src/cmd/compile/internal/gc/testdata/ctl_test.go
+index 0656cb4ddb..16d571ce2c 100644
+--- a/src/cmd/compile/internal/gc/testdata/ctl.go
++++ b/src/cmd/compile/internal/gc/testdata/ctl_test.go
+@@ -1,5 +1,3 @@
+-// run
+-
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -8,6 +6,8 @@
+ 
+ package main
+ 
++import "testing"
++
+ // nor_ssa calculates NOR(a, b).
+ // It is implemented in a way that generates
+ // phi control values.
+@@ -25,7 +25,7 @@ func nor_ssa(a, b bool) bool {
+ 	return true
+ }
+ 
+-func testPhiControl() {
++func testPhiControl(t *testing.T) {
+ 	tests := [...][3]bool{ // a, b, want
+ 		{false, false, true},
+ 		{true, false, false},
+@@ -37,8 +37,7 @@ func testPhiControl() {
+ 		got := nor_ssa(a, b)
+ 		want := test[2]
+ 		if want != got {
+-			print("nor(", a, ", ", b, ")=", want, " got ", got, "\n")
+-			failed = true
++			t.Errorf("nor(%t, %t)=%t got %t", a, b, want, got)
+ 		}
+ 	}
+ }
+@@ -50,10 +49,9 @@ func emptyRange_ssa(b []byte) bool {
+ 	return true
+ }
+ 
+-func testEmptyRange() {
++func testEmptyRange(t *testing.T) {
+ 	if !emptyRange_ssa([]byte{}) {
+-		println("emptyRange_ssa([]byte{})=false, want true")
+-		failed = true
++		t.Errorf("emptyRange_ssa([]byte{})=false, want true")
+ 	}
+ }
+ 
+@@ -97,20 +95,18 @@ func fallthrough_ssa(a int) int {
+ 
+ }
+ 
+-func testFallthrough() {
++func testFallthrough(t *testing.T) {
+ 	for i := 0; i < 6; i++ {
+ 		if got := fallthrough_ssa(i); got != i {
+-			println("fallthrough_ssa(i) =", got, "wanted", i)
+-			failed = true
++			t.Errorf("fallthrough_ssa(i) = %d, wanted %d", got, i)
+ 		}
+ 	}
+ }
+ 
+-func testSwitch() {
++func testSwitch(t *testing.T) {
+ 	for i := 0; i < 6; i++ {
+ 		if got := switch_ssa(i); got != i {
+-			println("switch_ssa(i) =", got, "wanted", i)
+-			failed = true
++			t.Errorf("switch_ssa(i) = %d, wanted %d", got, i)
+ 		}
+ 	}
+ }
+@@ -135,26 +131,19 @@ func flagOverwrite_ssa(s *junk, c int) int {
+ 	return 3
+ }
+ 
+-func testFlagOverwrite() {
++func testFlagOverwrite(t *testing.T) {
+ 	j := junk{}
+ 	if got := flagOverwrite_ssa(&j, ' '); got != 3 {
+-		println("flagOverwrite_ssa =", got, "wanted 3")
+-		failed = true
++		t.Errorf("flagOverwrite_ssa = %d, wanted 3", got)
+ 	}
+ }
+ 
+-var failed = false
+-
+-func main() {
+-	testPhiControl()
+-	testEmptyRange()
++func TestCtl(t *testing.T) {
++	testPhiControl(t)
++	testEmptyRange(t)
+ 
+-	testSwitch()
+-	testFallthrough()
++	testSwitch(t)
++	testFallthrough(t)
+ 
+-	testFlagOverwrite()
+-
+-	if failed {
+-		panic("failed")
+-	}
++	testFlagOverwrite(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/deferNoReturn.go b/src/cmd/compile/internal/gc/testdata/deferNoReturn_test.go
+similarity index 72%
+rename from src/cmd/compile/internal/gc/testdata/deferNoReturn.go
+rename to src/cmd/compile/internal/gc/testdata/deferNoReturn_test.go
+index 7578dd56f2..308e897607 100644
+--- a/src/cmd/compile/internal/gc/testdata/deferNoReturn.go
++++ b/src/cmd/compile/internal/gc/testdata/deferNoReturn_test.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -7,7 +5,9 @@
+ // Test that a defer in a function with no return
+ // statement will compile correctly.
+ 
+-package foo
++package main
++
++import "testing"
+ 
+ func deferNoReturn_ssa() {
+ 	defer func() { println("returned") }()
+@@ -15,3 +15,7 @@ func deferNoReturn_ssa() {
+ 		println("loop")
+ 	}
+ }
++
++func TestDeferNoReturn(t *testing.T) {
++	// This is a compile-time test, no runtime testing required.
++}
+diff --git a/src/cmd/compile/internal/gc/testdata/loadstore.go b/src/cmd/compile/internal/gc/testdata/loadstore_test.go
+similarity index 75%
+rename from src/cmd/compile/internal/gc/testdata/loadstore.go
+rename to src/cmd/compile/internal/gc/testdata/loadstore_test.go
+index dcb61d4b7e..57571f5d17 100644
+--- a/src/cmd/compile/internal/gc/testdata/loadstore.go
++++ b/src/cmd/compile/internal/gc/testdata/loadstore_test.go
+@@ -1,5 +1,3 @@
+-// run
+-
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -8,14 +6,13 @@
+ 
+ package main
+ 
+-import "fmt"
++import "testing"
+ 
+ // testLoadStoreOrder tests for reordering of stores/loads.
+-func testLoadStoreOrder() {
++func testLoadStoreOrder(t *testing.T) {
+ 	z := uint32(1000)
+ 	if testLoadStoreOrder_ssa(&z, 100) == 0 {
+-		println("testLoadStoreOrder failed")
+-		failed = true
++		t.Errorf("testLoadStoreOrder failed")
+ 	}
+ }
+ 
+@@ -29,13 +26,12 @@ func testLoadStoreOrder_ssa(z *uint32, prec uint) int {
+ 	return 0
+ }
+ 
+-func testStoreSize() {
++func testStoreSize(t *testing.T) {
+ 	a := [4]uint16{11, 22, 33, 44}
+ 	testStoreSize_ssa(&a[0], &a[2], 77)
+ 	want := [4]uint16{77, 22, 33, 44}
+ 	if a != want {
+-		fmt.Println("testStoreSize failed.  want =", want, ", got =", a)
+-		failed = true
++		t.Errorf("testStoreSize failed.  want = %d, got = %d", want, a)
+ 	}
+ }
+ 
+@@ -55,8 +51,6 @@ func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
+ 	}
+ }
+ 
+-var failed = false
+-
+ //go:noinline
+ func testExtStore_ssa(p *byte, b bool) int {
+ 	x := *p
+@@ -67,12 +61,11 @@ func testExtStore_ssa(p *byte, b bool) int {
+ 	return 0
+ }
+ 
+-func testExtStore() {
++func testExtStore(t *testing.T) {
+ 	const start = 8
+ 	var b byte = start
+ 	if got := testExtStore_ssa(&b, true); got != start {
+-		fmt.Println("testExtStore failed.  want =", start, ", got =", got)
+-		failed = true
++		t.Errorf("testExtStore failed.  want = %d, got = %d", start, got)
+ 	}
+ }
+ 
+@@ -95,10 +88,9 @@ func testDeadStorePanic_ssa(a int) (r int) {
+ 	return
+ }
+ 
+-func testDeadStorePanic() {
++func testDeadStorePanic(t *testing.T) {
+ 	if want, got := 2, testDeadStorePanic_ssa(1); want != got {
+-		fmt.Println("testDeadStorePanic failed.  want =", want, ", got =", got)
+-		failed = true
++		t.Errorf("testDeadStorePanic failed.  want = %d, got = %d", want, got)
+ 	}
+ }
+ 
+@@ -144,7 +136,7 @@ func loadHitStoreU32(x uint32, p *uint32) uint64 {
+ 	return uint64(*p) // load and cast
+ }
+ 
+-func testLoadHitStore() {
++func testLoadHitStore(t *testing.T) {
+ 	// Test that sign/zero extensions are kept when a load-hit-store
+ 	// is replaced by a register-register move.
+ 	{
+@@ -153,8 +145,7 @@ func testLoadHitStore() {
+ 		got := loadHitStore8(in, &p)
+ 		want := int32(in * in)
+ 		if got != want {
+-			fmt.Println("testLoadHitStore (int8) failed. want =", want, ", got =", got)
+-			failed = true
++			t.Errorf("testLoadHitStore (int8) failed. want = %d, got = %d", want, got)
+ 		}
+ 	}
+ 	{
+@@ -163,8 +154,7 @@ func testLoadHitStore() {
+ 		got := loadHitStoreU8(in, &p)
+ 		want := uint32(in * in)
+ 		if got != want {
+-			fmt.Println("testLoadHitStore (uint8) failed. want =", want, ", got =", got)
+-			failed = true
++			t.Errorf("testLoadHitStore (uint8) failed. want = %d, got = %d", want, got)
+ 		}
+ 	}
+ 	{
+@@ -173,8 +163,7 @@ func testLoadHitStore() {
+ 		got := loadHitStore16(in, &p)
+ 		want := int32(in * in)
+ 		if got != want {
+-			fmt.Println("testLoadHitStore (int16) failed. want =", want, ", got =", got)
+-			failed = true
++			t.Errorf("testLoadHitStore (int16) failed. want = %d, got = %d", want, got)
+ 		}
+ 	}
+ 	{
+@@ -183,8 +172,7 @@ func testLoadHitStore() {
+ 		got := loadHitStoreU16(in, &p)
+ 		want := uint32(in * in)
+ 		if got != want {
+-			fmt.Println("testLoadHitStore (uint16) failed. want =", want, ", got =", got)
+-			failed = true
++			t.Errorf("testLoadHitStore (uint16) failed. want = %d, got = %d", want, got)
+ 		}
+ 	}
+ 	{
+@@ -193,8 +181,7 @@ func testLoadHitStore() {
+ 		got := loadHitStore32(in, &p)
+ 		want := int64(in * in)
+ 		if got != want {
+-			fmt.Println("testLoadHitStore (int32) failed. want =", want, ", got =", got)
+-			failed = true
++			t.Errorf("testLoadHitStore (int32) failed. want = %d, got = %d", want, got)
+ 		}
+ 	}
+ 	{
+@@ -203,21 +190,15 @@ func testLoadHitStore() {
+ 		got := loadHitStoreU32(in, &p)
+ 		want := uint64(in * in)
+ 		if got != want {
+-			fmt.Println("testLoadHitStore (uint32) failed. want =", want, ", got =", got)
+-			failed = true
++			t.Errorf("testLoadHitStore (uint32) failed. want = %d, got = %d", want, got)
+ 		}
+ 	}
+ }
+ 
+-func main() {
+-
+-	testLoadStoreOrder()
+-	testStoreSize()
+-	testExtStore()
+-	testDeadStorePanic()
+-	testLoadHitStore()
+-
+-	if failed {
+-		panic("failed")
+-	}
++func TestLoadStore(t *testing.T) {
++	testLoadStoreOrder(t)
++	testStoreSize(t)
++	testExtStore(t)
++	testDeadStorePanic(t)
++	testLoadHitStore(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/map.go b/src/cmd/compile/internal/gc/testdata/map_test.go
+similarity index 55%
+rename from src/cmd/compile/internal/gc/testdata/map.go
+rename to src/cmd/compile/internal/gc/testdata/map_test.go
+index 4a466003c7..71dc820c1c 100644
+--- a/src/cmd/compile/internal/gc/testdata/map.go
++++ b/src/cmd/compile/internal/gc/testdata/map_test.go
+@@ -2,19 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// map_ssa.go tests map operations.
++// map.go tests map operations.
+ package main
+ 
+-import "fmt"
+-
+-var failed = false
++import "testing"
+ 
+ //go:noinline
+ func lenMap_ssa(v map[int]int) int {
+ 	return len(v)
+ }
+ 
+-func testLenMap() {
++func testLenMap(t *testing.T) {
+ 
+ 	v := make(map[int]int)
+ 	v[0] = 0
+@@ -22,24 +20,18 @@ func testLenMap() {
+ 	v[2] = 0
+ 
+ 	if want, got := 3, lenMap_ssa(v); got != want {
+-		fmt.Printf("expected len(map) = %d, got %d", want, got)
+-		failed = true
++		t.Errorf("expected len(map) = %d, got %d", want, got)
+ 	}
+ }
+ 
+-func testLenNilMap() {
++func testLenNilMap(t *testing.T) {
+ 
+ 	var v map[int]int
+ 	if want, got := 0, lenMap_ssa(v); got != want {
+-		fmt.Printf("expected len(nil) = %d, got %d", want, got)
+-		failed = true
++		t.Errorf("expected len(nil) = %d, got %d", want, got)
+ 	}
+ }
+-func main() {
+-	testLenMap()
+-	testLenNilMap()
+-
+-	if failed {
+-		panic("failed")
+-	}
++func TestMap(t *testing.T) {
++	testLenMap(t)
++	testLenNilMap(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/novet.go b/src/cmd/compile/internal/gc/testdata/novet.go
+new file mode 100644
+index 0000000000..0fcbba290c
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/novet.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file exists just to convince vet not to check this directory.
++// (vet will not check a directory with two different packages in it.)
++// TODO: remove this hack & add failing tests to the whitelist.
++
++package foo
+diff --git a/src/cmd/compile/internal/gc/testdata/regalloc.go b/src/cmd/compile/internal/gc/testdata/regalloc_test.go
+similarity index 76%
+rename from src/cmd/compile/internal/gc/testdata/regalloc.go
+rename to src/cmd/compile/internal/gc/testdata/regalloc_test.go
+index f752692952..577f8e7684 100644
+--- a/src/cmd/compile/internal/gc/testdata/regalloc.go
++++ b/src/cmd/compile/internal/gc/testdata/regalloc_test.go
+@@ -1,5 +1,3 @@
+-// run
+-
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -8,6 +6,8 @@
+ 
+ package main
+ 
++import "testing"
++
+ func phiOverwrite_ssa() int {
+ 	var n int
+ 	for i := 0; i < 10; i++ {
+@@ -19,12 +19,11 @@ func phiOverwrite_ssa() int {
+ 	return n
+ }
+ 
+-func phiOverwrite() {
++func phiOverwrite(t *testing.T) {
+ 	want := 5
+ 	got := phiOverwrite_ssa()
+ 	if got != want {
+-		println("phiOverwrite_ssa()=", want, ", got", got)
+-		failed = true
++		t.Errorf("phiOverwrite_ssa()= %d, got %d", want, got)
+ 	}
+ }
+ 
+@@ -37,21 +36,15 @@ func phiOverwriteBig_ssa() int {
+ 	return a*1 + b*2 + c*3 + d*4 + e*5 + f*6 + g*7 + h*8 + i*9 + j*10 + k*11 + l*12 + m*13 + n*14 + o*15 + p*16 + q*17 + r*18 + s*19 + t*20 + u*21 + v*22 + w*23 + x*24 + y*25 + z*26
+ }
+ 
+-func phiOverwriteBig() {
++func phiOverwriteBig(t *testing.T) {
+ 	want := 1
+ 	got := phiOverwriteBig_ssa()
+ 	if got != want {
+-		println("phiOverwriteBig_ssa()=", want, ", got", got)
+-		failed = true
++		t.Errorf("phiOverwriteBig_ssa()= %d, got %d", want, got)
+ 	}
+ }
+ 
+-var failed = false
+-
+-func main() {
+-	phiOverwrite()
+-	phiOverwriteBig()
+-	if failed {
+-		panic("failed")
+-	}
++func TestRegalloc(t *testing.T) {
++	phiOverwrite(t)
++	phiOverwriteBig(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/string.go b/src/cmd/compile/internal/gc/testdata/string_test.go
+similarity index 58%
+rename from src/cmd/compile/internal/gc/testdata/string.go
+rename to src/cmd/compile/internal/gc/testdata/string_test.go
+index 03053a6134..5d086f0147 100644
+--- a/src/cmd/compile/internal/gc/testdata/string.go
++++ b/src/cmd/compile/internal/gc/testdata/string_test.go
+@@ -5,7 +5,7 @@
+ // string_ssa.go tests string operations.
+ package main
+ 
+-var failed = false
++import "testing"
+ 
+ //go:noinline
+ func testStringSlice1_ssa(a string, i, j int) string {
+@@ -22,7 +22,7 @@ func testStringSlice12_ssa(a string, i, j int) string {
+ 	return a[i:j]
+ }
+ 
+-func testStringSlice() {
++func testStringSlice(t *testing.T) {
+ 	tests := [...]struct {
+ 		fn        func(string, int, int) string
+ 		s         string
+@@ -44,10 +44,9 @@ func testStringSlice() {
+ 		{testStringSlice12_ssa, "", 0, 0, ""},
+ 	}
+ 
+-	for i, t := range tests {
+-		if got := t.fn(t.s, t.low, t.high); t.want != got {
+-			println("#", i, " ", t.s, "[", t.low, ":", t.high, "] = ", got, " want ", t.want)
+-			failed = true
++	for i, test := range tests {
++		if got := test.fn(test.s, test.low, test.high); test.want != got {
++			t.Errorf("#%d %s[%d,%d] = %s, want %s", i, test.s, test.low, test.high, got, test.want)
+ 		}
+ 	}
+ }
+@@ -61,26 +60,23 @@ func (p *prefix) slice_ssa() {
+ }
+ 
+ //go:noinline
+-func testStructSlice() {
++func testStructSlice(t *testing.T) {
+ 	p := &prefix{"prefix"}
+ 	p.slice_ssa()
+ 	if "pre" != p.prefix {
+-		println("wrong field slice: wanted %s got %s", "pre", p.prefix)
+-		failed = true
++		t.Errorf("wrong field slice: wanted %s got %s", "pre", p.prefix)
+ 	}
+ }
+ 
+-func testStringSlicePanic() {
++func testStringSlicePanic(t *testing.T) {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("panicked as expected")
++			//println("panicked as expected")
+ 		}
+ 	}()
+ 
+ 	str := "foobar"
+-	println("got ", testStringSlice12_ssa(str, 3, 9))
+-	println("expected to panic, but didn't")
+-	failed = true
++	t.Errorf("got %s and expected to panic, but didn't", testStringSlice12_ssa(str, 3, 9))
+ }
+ 
+ const _Accuracy_name = "BelowExactAbove"
+@@ -92,7 +88,7 @@ func testSmallIndexType_ssa(i int) string {
+ 	return _Accuracy_name[_Accuracy_index[i]:_Accuracy_index[i+1]]
+ }
+ 
+-func testSmallIndexType() {
++func testSmallIndexType(t *testing.T) {
+ 	tests := []struct {
+ 		i    int
+ 		want string
+@@ -102,10 +98,9 @@ func testSmallIndexType() {
+ 		{2, "Above"},
+ 	}
+ 
+-	for i, t := range tests {
+-		if got := testSmallIndexType_ssa(t.i); got != t.want {
+-			println("#", i, "got ", got, ", wanted", t.want)
+-			failed = true
++	for i, test := range tests {
++		if got := testSmallIndexType_ssa(test.i); got != test.want {
++			t.Errorf("#%d got %s wanted %s", i, got, test.want)
+ 		}
+ 	}
+ }
+@@ -120,7 +115,7 @@ func testInt64Slice_ssa(s string, i, j int64) string {
+ 	return s[i:j]
+ }
+ 
+-func testInt64Index() {
++func testInt64Index(t *testing.T) {
+ 	tests := []struct {
+ 		i int64
+ 		j int64
+@@ -133,42 +128,36 @@ func testInt64Index() {
+ 	}
+ 
+ 	str := "BelowExactAbove"
+-	for i, t := range tests {
+-		if got := testInt64Index_ssa(str, t.i); got != t.b {
+-			println("#", i, "got ", got, ", wanted", t.b)
+-			failed = true
++	for i, test := range tests {
++		if got := testInt64Index_ssa(str, test.i); got != test.b {
++			t.Errorf("#%d got %d wanted %d", i, got, test.b)
+ 		}
+-		if got := testInt64Slice_ssa(str, t.i, t.j); got != t.s {
+-			println("#", i, "got ", got, ", wanted", t.s)
+-			failed = true
++		if got := testInt64Slice_ssa(str, test.i, test.j); got != test.s {
++			t.Errorf("#%d got %s wanted %s", i, got, test.s)
+ 		}
+ 	}
+ }
+ 
+-func testInt64IndexPanic() {
++func testInt64IndexPanic(t *testing.T) {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("panicked as expected")
++			//println("panicked as expected")
+ 		}
+ 	}()
+ 
+ 	str := "foobar"
+-	println("got ", testInt64Index_ssa(str, 1<<32+1))
+-	println("expected to panic, but didn't")
+-	failed = true
++	t.Errorf("got %d and expected to panic, but didn't", testInt64Index_ssa(str, 1<<32+1))
+ }
+ 
+-func testInt64SlicePanic() {
++func testInt64SlicePanic(t *testing.T) {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("panicked as expected")
++			//println("panicked as expected")
+ 		}
+ 	}()
+ 
+ 	str := "foobar"
+-	println("got ", testInt64Slice_ssa(str, 1<<32, 1<<32+1))
+-	println("expected to panic, but didn't")
+-	failed = true
++	t.Errorf("got %s and expected to panic, but didn't", testInt64Slice_ssa(str, 1<<32, 1<<32+1))
+ }
+ 
+ //go:noinline
+@@ -176,7 +165,7 @@ func testStringElem_ssa(s string, i int) byte {
+ 	return s[i]
+ }
+ 
+-func testStringElem() {
++func testStringElem(t *testing.T) {
+ 	tests := []struct {
+ 		s string
+ 		i int
+@@ -186,10 +175,9 @@ func testStringElem() {
+ 		{"foobar", 0, 102},
+ 		{"foobar", 5, 114},
+ 	}
+-	for _, t := range tests {
+-		if got := testStringElem_ssa(t.s, t.i); got != t.n {
+-			print("testStringElem \"", t.s, "\"[", t.i, "]=", got, ", wanted ", t.n, "\n")
+-			failed = true
++	for _, test := range tests {
++		if got := testStringElem_ssa(test.s, test.i); got != test.n {
++			t.Errorf("testStringElem \"%s\"[%d] = %d, wanted %d", test.s, test.i, got, test.n)
+ 		}
+ 	}
+ }
+@@ -200,25 +188,20 @@ func testStringElemConst_ssa(i int) byte {
+ 	return s[i]
+ }
+ 
+-func testStringElemConst() {
++func testStringElemConst(t *testing.T) {
+ 	if got := testStringElemConst_ssa(3); got != 98 {
+-		println("testStringElemConst=", got, ", wanted 98")
+-		failed = true
++		t.Errorf("testStringElemConst= %d, wanted 98", got)
+ 	}
+ }
+ 
+-func main() {
+-	testStringSlice()
+-	testStringSlicePanic()
+-	testStructSlice()
+-	testSmallIndexType()
+-	testStringElem()
+-	testStringElemConst()
+-	testInt64Index()
+-	testInt64IndexPanic()
+-	testInt64SlicePanic()
+-
+-	if failed {
+-		panic("failed")
+-	}
++func TestString(t *testing.T) {
++	testStringSlice(t)
++	testStringSlicePanic(t)
++	testStructSlice(t)
++	testSmallIndexType(t)
++	testStringElem(t)
++	testStringElemConst(t)
++	testInt64Index(t)
++	testInt64IndexPanic(t)
++	testInt64SlicePanic(t)
+ }

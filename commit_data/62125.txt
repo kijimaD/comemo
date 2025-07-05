@@ -12,6 +12,20 @@ Date:   Wed Feb 5 13:52:56 2025 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/routebsd/address.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/routebsd/address.go b/src/internal/routebsd/address.go
+index 75fafb1a15..aa1bc21d3f 100644
+--- a/src/internal/routebsd/address.go
++++ b/src/internal/routebsd/address.go
+@@ -133,7 +133,7 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
+ 		}
+ 		var ip [ipv6Len]byte
+ 		sockAddrLen := int(b[0])
+-		if sockaddrLen != 0 {
++		if sockAddrLen != 0 {
+ 			n := off6 + ipv6Len
+ 			if sockAddrLen < n {
+ 				n = sockAddrLen

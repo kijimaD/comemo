@@ -24,7 +24,7 @@ Date:   Sat Mar 18 15:55:41 2017 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 127 +++++++++++++------------
  src/cmd/compile/internal/gc/builtin/runtime.go |  12 +--
  src/cmd/compile/internal/gc/order.go           |   8 +-
@@ -33,3 +33,423 @@ Date:   Sat Mar 18 15:55:41 2017 +0000
  src/reflect/value.go                           |   8 +-
  src/runtime/chan.go                            |  43 ++++-----
  7 files changed, 106 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 675de836ce..58d46dd67e 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -106,46 +106,46 @@ var runtimeDecls = [...]struct {
+ 	{"selectnbrecv", funcTag, 83},
+ 	{"selectnbrecv2", funcTag, 85},
+ 	{"newselect", funcTag, 86},
+-	{"selectsend", funcTag, 75},
+-	{"selectrecv", funcTag, 87},
++	{"selectsend", funcTag, 87},
++	{"selectrecv", funcTag, 88},
+ 	{"selectdefault", funcTag, 56},
+-	{"selectgo", funcTag, 88},
++	{"selectgo", funcTag, 89},
+ 	{"block", funcTag, 5},
+-	{"makeslice", funcTag, 90},
+-	{"makeslice64", funcTag, 91},
+-	{"growslice", funcTag, 92},
+-	{"memmove", funcTag, 93},
+-	{"memclrNoHeapPointers", funcTag, 95},
+-	{"memclrHasPointers", funcTag, 95},
+-	{"memequal", funcTag, 96},
+-	{"memequal8", funcTag, 97},
+-	{"memequal16", funcTag, 97},
+-	{"memequal32", funcTag, 97},
+-	{"memequal64", funcTag, 97},
+-	{"memequal128", funcTag, 97},
+-	{"int64div", funcTag, 98},
+-	{"uint64div", funcTag, 99},
+-	{"int64mod", funcTag, 98},
+-	{"uint64mod", funcTag, 99},
+-	{"float64toint64", funcTag, 100},
+-	{"float64touint64", funcTag, 101},
+-	{"float64touint32", funcTag, 103},
+-	{"int64tofloat64", funcTag, 104},
+-	{"uint64tofloat64", funcTag, 105},
+-	{"uint32tofloat64", funcTag, 106},
+-	{"complex128div", funcTag, 107},
+-	{"racefuncenter", funcTag, 108},
++	{"makeslice", funcTag, 91},
++	{"makeslice64", funcTag, 92},
++	{"growslice", funcTag, 93},
++	{"memmove", funcTag, 94},
++	{"memclrNoHeapPointers", funcTag, 96},
++	{"memclrHasPointers", funcTag, 96},
++	{"memequal", funcTag, 97},
++	{"memequal8", funcTag, 98},
++	{"memequal16", funcTag, 98},
++	{"memequal32", funcTag, 98},
++	{"memequal64", funcTag, 98},
++	{"memequal128", funcTag, 98},
++	{"int64div", funcTag, 99},
++	{"uint64div", funcTag, 100},
++	{"int64mod", funcTag, 99},
++	{"uint64mod", funcTag, 100},
++	{"float64toint64", funcTag, 101},
++	{"float64touint64", funcTag, 102},
++	{"float64touint32", funcTag, 104},
++	{"int64tofloat64", funcTag, 105},
++	{"uint64tofloat64", funcTag, 106},
++	{"uint32tofloat64", funcTag, 107},
++	{"complex128div", funcTag, 108},
++	{"racefuncenter", funcTag, 109},
+ 	{"racefuncexit", funcTag, 5},
+-	{"raceread", funcTag, 108},
+-	{"racewrite", funcTag, 108},
+-	{"racereadrange", funcTag, 109},
+-	{"racewriterange", funcTag, 109},
+-	{"msanread", funcTag, 109},
+-	{"msanwrite", funcTag, 109},
++	{"raceread", funcTag, 109},
++	{"racewrite", funcTag, 109},
++	{"racereadrange", funcTag, 110},
++	{"racewriterange", funcTag, 110},
++	{"msanread", funcTag, 110},
++	{"msanwrite", funcTag, 110},
+ }
+ 
+ func runtimeTypes() []*Type {
+-	var typs [110]*Type
++	var typs [111]*Type
+ 	typs[0] = bytetype
+ 	typs[1] = typPtr(typs[0])
+ 	typs[2] = Types[TANY]
+@@ -218,43 +218,44 @@ func runtimeTypes() []*Type {
+ 	typs[69] = typChan(typs[2], Cboth)
+ 	typs[70] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15])}, []*Node{anonfield(typs[69])})
+ 	typs[71] = typChan(typs[2], Crecv)
+-	typs[72] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[71]), anonfield(typs[3])}, nil)
+-	typs[73] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[71]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[72] = functype(nil, []*Node{anonfield(typs[71]), anonfield(typs[3])}, nil)
++	typs[73] = functype(nil, []*Node{anonfield(typs[71]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+ 	typs[74] = typChan(typs[2], Csend)
+-	typs[75] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[74]), anonfield(typs[3])}, nil)
++	typs[75] = functype(nil, []*Node{anonfield(typs[74]), anonfield(typs[3])}, nil)
+ 	typs[76] = typArray(typs[0], 3)
+ 	typs[77] = tostruct([]*Node{namedfield("enabled", typs[11]), namedfield("pad", typs[76]), namedfield("needed", typs[11]), namedfield("cgo", typs[11]), namedfield("alignme", typs[17])})
+ 	typs[78] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[2])}, nil)
+ 	typs[79] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
+ 	typs[80] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
+ 	typs[81] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[32])})
+-	typs[82] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[74]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[83] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[71])}, []*Node{anonfield(typs[11])})
++	typs[82] = functype(nil, []*Node{anonfield(typs[74]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[83] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[71])}, []*Node{anonfield(typs[11])})
+ 	typs[84] = typPtr(typs[11])
+-	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[84]), anonfield(typs[71])}, []*Node{anonfield(typs[11])})
++	typs[85] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[84]), anonfield(typs[71])}, []*Node{anonfield(typs[11])})
+ 	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
+-	typs[87] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[71]), anonfield(typs[3]), anonfield(typs[84])}, nil)
+-	typs[88] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
+-	typs[89] = typSlice(typs[2])
+-	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[89])})
+-	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[89])})
+-	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[89]), anonfield(typs[32])}, []*Node{anonfield(typs[89])})
+-	typs[93] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, nil)
+-	typs[94] = Types[TUNSAFEPTR]
+-	typs[95] = functype(nil, []*Node{anonfield(typs[94]), anonfield(typs[49])}, nil)
+-	typs[96] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, []*Node{anonfield(typs[11])})
+-	typs[97] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[98] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
+-	typs[99] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
+-	typs[100] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
+-	typs[101] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
+-	typs[102] = Types[TUINT32]
+-	typs[103] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[102])})
+-	typs[104] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
+-	typs[105] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
+-	typs[106] = functype(nil, []*Node{anonfield(typs[102])}, []*Node{anonfield(typs[13])})
+-	typs[107] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
+-	typs[108] = functype(nil, []*Node{anonfield(typs[49])}, nil)
+-	typs[109] = functype(nil, []*Node{anonfield(typs[49]), anonfield(typs[49])}, nil)
++	typs[87] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[74]), anonfield(typs[3])}, nil)
++	typs[88] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[71]), anonfield(typs[3]), anonfield(typs[84])}, nil)
++	typs[89] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
++	typs[90] = typSlice(typs[2])
++	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[90])})
++	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[90])})
++	typs[93] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[90]), anonfield(typs[32])}, []*Node{anonfield(typs[90])})
++	typs[94] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, nil)
++	typs[95] = Types[TUNSAFEPTR]
++	typs[96] = functype(nil, []*Node{anonfield(typs[95]), anonfield(typs[49])}, nil)
++	typs[97] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, []*Node{anonfield(typs[11])})
++	typs[98] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[99] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
++	typs[100] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
++	typs[101] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
++	typs[102] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
++	typs[103] = Types[TUINT32]
++	typs[104] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[103])})
++	typs[105] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
++	typs[106] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
++	typs[107] = functype(nil, []*Node{anonfield(typs[103])}, []*Node{anonfield(typs[13])})
++	typs[108] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
++	typs[109] = functype(nil, []*Node{anonfield(typs[49])}, nil)
++	typs[110] = functype(nil, []*Node{anonfield(typs[49]), anonfield(typs[49])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 168aaaf6f4..cdd8d96745 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -115,9 +115,9 @@ func mapiternext(hiter *any)
+ 
+ // *byte is really *runtime.Type
+ func makechan(chanType *byte, hint int64) (hchan chan any)
+-func chanrecv1(chanType *byte, hchan <-chan any, elem *any)
+-func chanrecv2(chanType *byte, hchan <-chan any, elem *any) bool
+-func chansend1(chanType *byte, hchan chan<- any, elem *any)
++func chanrecv1(hchan <-chan any, elem *any)
++func chanrecv2(hchan <-chan any, elem *any) bool
++func chansend1(hchan chan<- any, elem *any)
+ func closechan(hchan any)
+ 
+ var writeBarrier struct {
+@@ -135,9 +135,9 @@ func typedmemmove(typ *byte, dst *any, src *any)
+ func typedmemclr(typ *byte, dst *any)
+ func typedslicecopy(typ *byte, dst any, src any) int
+ 
+-func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
+-func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
+-func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool
++func selectnbsend(hchan chan<- any, elem *any) bool
++func selectnbrecv(elem *any, hchan <-chan any) bool
++func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
+ 
+ func newselect(sel *byte, selsize int64, size int32)
+ func selectsend(sel *byte, hchan chan<- any, elem *any)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index e6032c33d0..940cf1b4fb 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -916,7 +916,13 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 		n.Left = orderexpr(n.Left, order, nil)
+ 		n.Right = orderexpr(n.Right, order, nil)
+-		n.Right = orderaddrtemp(n.Right, order)
++		if instrumenting {
++			// Force copying to the stack so that (chan T)(nil) <- x
++			// is still instrumented as a read of x.
++			n.Right = ordercopyexpr(n.Right, n.Right.Type, order, 0)
++		} else {
++			n.Right = orderaddrtemp(n.Right, order)
++		}
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 975242c55d..10e75df100 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -225,21 +225,21 @@ func walkselect(sel *Node) {
+ 		case OSEND:
+ 			// if selectnbsend(c, v) { body } else { default body }
+ 			ch := n.Left
+-			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), ch, n.Right)
++			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, ch, n.Right)
+ 
+ 		case OSELRECV:
+ 			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
+ 			r = nod(OIF, nil, nil)
+ 			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+-			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, ch)
++			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, n.Left, ch)
+ 
+ 		case OSELRECV2:
+ 			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
+ 			r = nod(OIF, nil, nil)
+ 			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.First(), ch)
++			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, n.Left, n.List.First(), ch)
+ 		}
+ 
+ 		r.Left = typecheck(r.Left, Erv)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e21816653b..4dca20ef3b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -203,7 +203,7 @@ func walkstmt(n *Node) *Node {
+ 		n.Ninit.Set(nil)
+ 
+ 		n.Left = walkexpr(n.Left, &init)
+-		n = mkcall1(chanfn("chanrecv1", 2, n.Left.Type), nil, &init, typename(n.Left.Type), n.Left, nodnil())
++		n = mkcall1(chanfn("chanrecv1", 2, n.Left.Type), nil, &init, n.Left, nodnil())
+ 		n = walkexpr(n, &init)
+ 
+ 		n = addinit(n, init.Slice())
+@@ -719,7 +719,7 @@ opswitch:
+ 
+ 			n1 := nod(OADDR, n.Left, nil)
+ 			r := n.Right.Left // the channel
+-			n = mkcall1(chanfn("chanrecv1", 2, r.Type), nil, init, typename(r.Type), r, n1)
++			n = mkcall1(chanfn("chanrecv1", 2, r.Type), nil, init, r, n1)
+ 			n = walkexpr(n, init)
+ 			break opswitch
+ 
+@@ -790,7 +790,7 @@ opswitch:
+ 		n1.Etype = 1 // addr does not escape
+ 		fn := chanfn("chanrecv2", 2, r.Left.Type)
+ 		ok := n.List.Second()
+-		call := mkcall1(fn, ok.Type, init, typename(r.Left.Type), r.Left, n1)
++		call := mkcall1(fn, ok.Type, init, r.Left, n1)
+ 		n = nod(OAS, ok, call)
+ 		n = typecheck(n, Etop)
+ 
+@@ -1599,7 +1599,7 @@ opswitch:
+ 		n1 = assignconv(n1, n.Left.Type.Elem(), "chan send")
+ 		n1 = walkexpr(n1, init)
+ 		n1 = nod(OADDR, n1, nil)
+-		n = mkcall1(chanfn("chansend1", 2, n.Left.Type), nil, init, typename(n.Left.Type), n.Left, n1)
++		n = mkcall1(chanfn("chansend1", 2, n.Left.Type), nil, init, n.Left, n1)
+ 
+ 	case OCLOSURE:
+ 		n = walkclosure(n, init)
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index abd8489fb8..44a91f06c6 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1298,7 +1298,7 @@ func (v Value) recv(nb bool) (val Value, ok bool) {
+ 	} else {
+ 		p = unsafe.Pointer(&val.ptr)
+ 	}
+-	selected, ok := chanrecv(v.typ, v.pointer(), nb, p)
++	selected, ok := chanrecv(v.pointer(), nb, p)
+ 	if !selected {
+ 		val = Value{}
+ 	}
+@@ -1329,7 +1329,7 @@ func (v Value) send(x Value, nb bool) (selected bool) {
+ 	} else {
+ 		p = unsafe.Pointer(&x.ptr)
+ 	}
+-	return chansend(v.typ, v.pointer(), p, nb)
++	return chansend(v.pointer(), p, nb)
+ }
+ 
+ // Set assigns x to the value v.
+@@ -2465,10 +2465,10 @@ func chanlen(ch unsafe.Pointer) int
+ // (due to the escapes() call in ValueOf).
+ 
+ //go:noescape
+-func chanrecv(t *rtype, ch unsafe.Pointer, nb bool, val unsafe.Pointer) (selected, received bool)
++func chanrecv(ch unsafe.Pointer, nb bool, val unsafe.Pointer) (selected, received bool)
+ 
+ //go:noescape
+-func chansend(t *rtype, ch unsafe.Pointer, val unsafe.Pointer, nb bool) bool
++func chansend(ch unsafe.Pointer, val unsafe.Pointer, nb bool) bool
+ 
+ func makechan(typ *rtype, size uint64) (ch unsafe.Pointer)
+ func makemap(t *rtype) (m unsafe.Pointer)
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index e74cd8b93d..6294678d4a 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -109,8 +109,8 @@ func chanbuf(c *hchan, i uint) unsafe.Pointer {
+ 
+ // entry point for c <- x from compiled code
+ //go:nosplit
+-func chansend1(t *chantype, c *hchan, elem unsafe.Pointer) {
+-	chansend(t, c, elem, true, getcallerpc(unsafe.Pointer(&t)))
++func chansend1(c *hchan, elem unsafe.Pointer) {
++	chansend(c, elem, true, getcallerpc(unsafe.Pointer(&c)))
+ }
+ 
+ /*
+@@ -125,14 +125,7 @@ func chansend1(t *chantype, c *hchan, elem unsafe.Pointer) {
+  * been closed.  it is easiest to loop and re-run
+  * the operation; we'll see that it's now closed.
+  */
+-func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+-	if raceenabled {
+-		raceReadObjectPC(t.elem, ep, callerpc, funcPC(chansend))
+-	}
+-	if msanenabled {
+-		msanread(ep, t.elem.size)
+-	}
+-
++func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 	if c == nil {
+ 		if !block {
+ 			return false
+@@ -391,13 +384,13 @@ func closechan(c *hchan) {
+ 
+ // entry points for <- c from compiled code
+ //go:nosplit
+-func chanrecv1(t *chantype, c *hchan, elem unsafe.Pointer) {
+-	chanrecv(t, c, elem, true)
++func chanrecv1(c *hchan, elem unsafe.Pointer) {
++	chanrecv(c, elem, true)
+ }
+ 
+ //go:nosplit
+-func chanrecv2(t *chantype, c *hchan, elem unsafe.Pointer) (received bool) {
+-	_, received = chanrecv(t, c, elem, true)
++func chanrecv2(c *hchan, elem unsafe.Pointer) (received bool) {
++	_, received = chanrecv(c, elem, true)
+ 	return
+ }
+ 
+@@ -407,7 +400,7 @@ func chanrecv2(t *chantype, c *hchan, elem unsafe.Pointer) (received bool) {
+ // Otherwise, if c is closed, zeros *ep and returns (true, false).
+ // Otherwise, fills in *ep with an element and returns (true, true).
+ // A non-nil ep must point to the heap or the caller's stack.
+-func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, received bool) {
++func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool) {
+ 	// raceenabled: don't need to check ep, as it is always on the stack
+ 	// or is new memory allocated by reflect.
+ 
+@@ -600,8 +593,8 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+ //		... bar
+ //	}
+ //
+-func selectnbsend(t *chantype, c *hchan, elem unsafe.Pointer) (selected bool) {
+-	return chansend(t, c, elem, false, getcallerpc(unsafe.Pointer(&t)))
++func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
++	return chansend(c, elem, false, getcallerpc(unsafe.Pointer(&c)))
+ }
+ 
+ // compiler implements
+@@ -621,8 +614,8 @@ func selectnbsend(t *chantype, c *hchan, elem unsafe.Pointer) (selected bool) {
+ //		... bar
+ //	}
+ //
+-func selectnbrecv(t *chantype, elem unsafe.Pointer, c *hchan) (selected bool) {
+-	selected, _ = chanrecv(t, c, elem, false)
++func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected bool) {
++	selected, _ = chanrecv(c, elem, false)
+ 	return
+ }
+ 
+@@ -643,20 +636,20 @@ func selectnbrecv(t *chantype, elem unsafe.Pointer, c *hchan) (selected bool) {
+ //		... bar
+ //	}
+ //
+-func selectnbrecv2(t *chantype, elem unsafe.Pointer, received *bool, c *hchan) (selected bool) {
++func selectnbrecv2(elem unsafe.Pointer, received *bool, c *hchan) (selected bool) {
+ 	// TODO(khr): just return 2 values from this function, now that it is in Go.
+-	selected, *received = chanrecv(t, c, elem, false)
++	selected, *received = chanrecv(c, elem, false)
+ 	return
+ }
+ 
+ //go:linkname reflect_chansend reflect.chansend
+-func reflect_chansend(t *chantype, c *hchan, elem unsafe.Pointer, nb bool) (selected bool) {
+-	return chansend(t, c, elem, !nb, getcallerpc(unsafe.Pointer(&t)))
++func reflect_chansend(c *hchan, elem unsafe.Pointer, nb bool) (selected bool) {
++	return chansend(c, elem, !nb, getcallerpc(unsafe.Pointer(&c)))
+ }
+ 
+ //go:linkname reflect_chanrecv reflect.chanrecv
+-func reflect_chanrecv(t *chantype, c *hchan, nb bool, elem unsafe.Pointer) (selected bool, received bool) {
+-	return chanrecv(t, c, elem, !nb)
++func reflect_chanrecv(c *hchan, nb bool, elem unsafe.Pointer) (selected bool, received bool) {
++	return chanrecv(c, elem, !nb)
+ }
+ 
+ //go:linkname reflect_chanlen reflect.chanlen

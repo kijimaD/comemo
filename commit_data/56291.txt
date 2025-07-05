@@ -15,7 +15,34 @@ Date:   Sun Apr 23 18:44:05 2023 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: shuang cui <imcusg@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/html/template/escape.go     | 2 +-
  src/html/template/transition.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index c20e6b0c34..4ba1d6b318 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -758,7 +758,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
+ 		} else if isComment(c.state) && c.delim == delimNone {
+ 			switch c.state {
+ 			case stateJSBlockCmt:
+-				// https://es5.github.com/#x7.4:
++				// https://es5.github.io/#x7.4:
+ 				// "Comments behave like white space and are
+ 				// discarded except that, if a MultiLineComment
+ 				// contains a line terminator character, then
+diff --git a/src/html/template/transition.go b/src/html/template/transition.go
+index 92eb351906..3b9fbfb68f 100644
+--- a/src/html/template/transition.go
++++ b/src/html/template/transition.go
+@@ -397,7 +397,7 @@ func tLineCmt(c context, s []byte) (context, int) {
+ 		return c, len(s)
+ 	}
+ 	c.state = endState
+-	// Per section 7.4 of EcmaScript 5 : https://es5.github.com/#x7.4
++	// Per section 7.4 of EcmaScript 5 : https://es5.github.io/#x7.4
+ 	// "However, the LineTerminator at the end of the line is not
+ 	// considered to be part of the single-line comment; it is
+ 	// recognized separately by the lexical grammar and becomes part

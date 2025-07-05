@@ -7,7 +7,7 @@ Date:   Tue Feb 26 09:51:33 2013 -0800
     R=minux.ma, rsc, akumar, bradfitz
     CC=golang-dev
     https://golang.org/cl/7313070
-
+---
  src/cmd/dist/windows.c                |  3 ++-
  src/cmd/ld/dwarf.c                    |  6 ++++--
  src/cmd/prof/main.c                   |  3 ++-
@@ -24,3 +24,373 @@ Date:   Tue Feb 26 09:51:33 2013 -0800
  src/pkg/runtime/signal_linux_arm.c    |  3 ++-
  src/pkg/runtime/vdso_linux_amd64.c    | 12 +++++++++---
  15 files changed, 79 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index 385a60577f..7bcda4508f 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -852,7 +852,8 @@ xprintf(char *fmt, ...)
+ }
+ 
+ void
+-errprintf(char *fmt, ...) {
++errprintf(char *fmt, ...)
++{
+ 	va_list arg;
+ 	char *p;
+ 	DWORD n, w;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index bb5199fc15..d6a357e498 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1936,7 +1936,8 @@ writeinfo(void)
+  *  because we need die->offs and infoo/infosize;
+  */
+ static int
+-ispubname(DWDie *die) {
++ispubname(DWDie *die)
++{
+ 	DWAttr *a;
+ 
+ 	switch(die->abbrev) {
+@@ -1949,7 +1950,8 @@ ispubname(DWDie *die) {
+ }
+ 
+ static int
+-ispubtype(DWDie *die) {
++ispubtype(DWDie *die)
++{
+ 	return die->abbrev >= DW_ABRV_NULLTYPE;
+ }
+ 
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index 7a1d419611..6c591ba180 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -172,7 +172,8 @@ amd64_uregPC(void)
+ }
+ 
+ uvlong
+-amd64_uregSP(void) {
++amd64_uregSP(void)
++{
+ 	return ureg_amd64.sp;
+ }
+ 
+diff --git a/src/lib9/main.c b/src/lib9/main.c
+index f1bde9c95f..816494af03 100644
+--- a/src/lib9/main.c
++++ b/src/lib9/main.c
+@@ -30,7 +30,9 @@ THE SOFTWARE.
+ #ifdef WIN32
+ #include <windows.h>
+ 
+-static void crashhandler(int sig) {
++static void
++crashhandler(int sig)
++{
+ 	USED(sig);
+ 	fprint(2, "%s: internal fatal error.\n", argv0);
+ 	exit(1);
+diff --git a/src/lib9/utf/rune.c b/src/lib9/utf/rune.c
+index 676f27bba6..818771cfd9 100644
+--- a/src/lib9/utf/rune.c
++++ b/src/lib9/utf/rune.c
+@@ -247,7 +247,8 @@ bad:
+ }
+ 
+ int
+-isvalidcharntorune(const char* str, int length, Rune* rune, int* consumed) {
++isvalidcharntorune(const char* str, int length, Rune* rune, int* consumed)
++{
+ 	*consumed = charntorune(rune, str, length);
+ 	return *rune != Runeerror || *consumed == 3;
+ }
+diff --git a/src/lib9/windows.c b/src/lib9/windows.c
+index 90753bb8d2..d8ee402a2c 100644
+--- a/src/lib9/windows.c
++++ b/src/lib9/windows.c
+@@ -5,22 +5,26 @@
+ #include <u.h>
+ #include <libc.h>
+ 
+-int fork()
++int
++fork(void)
+ {
+ 	return -1;
+ }
+ 
+-int p9rfork(int flags)
++int
++p9rfork(int flags)
+ {
+ 	return -1;
+ }
+ 
+-Waitmsg *p9wait()
++Waitmsg*
++p9wait(void)
+ {
+ 	return 0;
+ }
+ 
+-int p9waitpid()
++int
++p9waitpid(void)
+ {
+ 	return -1;
+ }
+diff --git a/src/libmach/sym.c b/src/libmach/sym.c
+index bb758addb5..3ac020b428 100644
+--- a/src/libmach/sym.c
++++ b/src/libmach/sym.c
+@@ -591,7 +591,8 @@ lookup(char *fn, char *var, Symbol *s)
+  * strcmp, but allow '_' to match center dot (rune 00b7 == bytes c2 b7)
+  */
+ int
+-cdotstrcmp(char *sym, char *user) {
++cdotstrcmp(char *sym, char *user)
++{
+ 	for (;;) {
+ 		while (*sym == *user) {
+ 			if (*sym++ == '\0')
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_arm.c b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+index 70f4b571e0..3240af652d 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+@@ -18,7 +18,10 @@ static void *threadentry(void*);
+ void __aeabi_read_tp(void) __attribute__((naked));
+ void cgo_tls_set_gm(void) __attribute__((naked));
+ void cgo_tls_get_gm(void) __attribute__((naked));
+-void __aeabi_read_tp(void) {
++
++void
++__aeabi_read_tp(void)
++{
+ 	// read @ 0xffff1000
+ 	__asm__ __volatile__ (
+ 		"ldr r0, =0xffff1000\n\t"
+@@ -26,8 +29,11 @@ void __aeabi_read_tp(void) {
+ 		"mov pc, lr\n\t"
+ 	);
+ }
++
+ // g (R10) at 8(TP), m (R9) at 12(TP)
+-void cgo_tls_get_gm(void) {
++void
++cgo_tls_get_gm(void)
++{
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+ 		"bl __aeabi_read_tp\n\t"
+@@ -36,7 +42,10 @@ void cgo_tls_get_gm(void) {
+ 		"pop {pc}\n\t"
+ 	);
+ }
+-void cgo_tls_set_gm(void) {
++
++void
++cgo_tls_set_gm(void)
++{
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+ 		"bl __aeabi_read_tp\n\t"
+@@ -45,6 +54,7 @@ void cgo_tls_set_gm(void) {
+ 		"pop {pc}\n\t"
+ 	);
+ }
++
+ // both cgo_tls_{get,set}_gm can be called from runtime
+ void (*cgo_load_gm)(void) = cgo_tls_get_gm;
+ void (*cgo_save_gm)(void) = cgo_tls_set_gm;
+diff --git a/src/pkg/runtime/cgo/gcc_linux_arm.c b/src/pkg/runtime/cgo/gcc_linux_arm.c
+index 8af96cec69..b1436b3ce9 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_arm.c
++++ b/src/pkg/runtime/cgo/gcc_linux_arm.c
+@@ -18,7 +18,10 @@ static void *threadentry(void*);
+ void __aeabi_read_tp(void) __attribute__((naked));
+ void cgo_tls_set_gm(void) __attribute__((naked));
+ void cgo_tls_get_gm(void) __attribute__((naked));
+-void __aeabi_read_tp(void) {
++
++void
++__aeabi_read_tp(void)
++{
+ 	// b __kuser_get_tls @ 0xffff0fe0
+ 	__asm__ __volatile__ (
+ 		"mvn r0, #0xf000\n\t"
+@@ -26,8 +29,11 @@ void __aeabi_read_tp(void) {
+ 		"nop\n\tnop\n\t"
+ 	);
+ }
++
+ // g (R10) at 8(TP), m (R9) at 12(TP)
+-void cgo_tls_get_gm(void) {
++void
++cgo_tls_get_gm(void)
++{
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+ 		"bl __aeabi_read_tp\n\t"
+@@ -36,7 +42,10 @@ void cgo_tls_get_gm(void) {
+ 		"pop {pc}\n\t"
+ 	);
+ }
+-void cgo_tls_set_gm(void) {
++
++void
++cgo_tls_set_gm(void)
++{
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+ 		"bl __aeabi_read_tp\n\t"
+@@ -45,6 +54,7 @@ void cgo_tls_set_gm(void) {
+ 		"pop {pc}\n\t"
+ 	);
+ }
++
+ // both cgo_tls_{get,set}_gm can be called from runtime
+ void (*cgo_load_gm)(void) = cgo_tls_get_gm;
+ void (*cgo_save_gm)(void) = cgo_tls_set_gm;
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_arm.c b/src/pkg/runtime/cgo/gcc_netbsd_arm.c
+index 0adcac6e2f..1c156bdca7 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_arm.c
+@@ -20,7 +20,10 @@ static void *threadentry(void*);
+ void __aeabi_read_tp(void) __attribute__((naked));
+ void cgo_tls_set_gm(void) __attribute__((naked));
+ void cgo_tls_get_gm(void) __attribute__((naked));
+-void __aeabi_read_tp(void) {
++
++void
++__aeabi_read_tp(void)
++{
+ 	// this function is only allowed to clobber r0
+ 	__asm__ __volatile__ (
+ 		"mrc p15, 0, r0, c13, c0, 3\n\t"
+@@ -32,8 +35,11 @@ void __aeabi_read_tp(void) {
+ 		"mov pc, lr\n\t"
+ 	);
+ }
++
+ // g (R10) at 8(TP), m (R9) at 12(TP)
+-void cgo_tls_get_gm(void) {
++void
++cgo_tls_get_gm(void)
++{
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+ 		"bl __aeabi_read_tp\n\t"
+@@ -42,7 +48,10 @@ void cgo_tls_get_gm(void) {
+ 		"pop {pc}\n\t"
+ 	);
+ }
+-void cgo_tls_set_gm(void) {
++
++void
++cgo_tls_set_gm(void)
++{
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+ 		"bl __aeabi_read_tp\n\t"
+@@ -51,6 +60,7 @@ void cgo_tls_set_gm(void) {
+ 		"pop {pc}\n\t"
+ 	);
+ }
++
+ // both cgo_tls_{get,set}_gm can be called from runtime
+ void (*cgo_load_gm)(void) = cgo_tls_get_gm;
+ void (*cgo_save_gm)(void) = cgo_tls_set_gm;
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index dbbf5554fc..9a0606a225 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -115,7 +115,9 @@ static uintptr eod[3] = {0, 1, 0};
+ // LostProfileData is a no-op function used in profiles
+ // to mark the number of profiling stack traces that were
+ // discarded due to slow data writers.
+-static void LostProfileData(void) {
++static void
++LostProfileData(void)
++{
+ }
+ 
+ // SetCPUProfileRate sets the CPU profiling rate.
+diff --git a/src/pkg/runtime/race0.c b/src/pkg/runtime/race0.c
+index f91c12757f..1c5f05a7e1 100644
+--- a/src/pkg/runtime/race0.c
++++ b/src/pkg/runtime/race0.c
+@@ -128,6 +128,6 @@ runtime·racegostart(void *pc)
+ }
+ 
+ void
+-runtime·racegoend()
++runtime·racegoend(void)
+ {
+ }
+diff --git a/src/pkg/runtime/signal_freebsd_arm.c b/src/pkg/runtime/signal_freebsd_arm.c
+index 2a0e9ac913..50c3221bb4 100644
+--- a/src/pkg/runtime/signal_freebsd_arm.c
++++ b/src/pkg/runtime/signal_freebsd_arm.c
+@@ -184,7 +184,8 @@ runtime·checkgoarm(void)
+ 
+ #pragma textflag 7
+ int64
+-runtime·cputicks() {
++runtime·cputicks(void)
++{
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	// TODO: need more entropy to better seed fastrand1.
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+index b5a137c369..c26caa7cdb 100644
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -232,7 +232,8 @@ runtime·setup_auxv(int32 argc, void *argv_list)
+ 
+ #pragma textflag 7
+ int64
+-runtime·cputicks() {
++runtime·cputicks(void)
++{
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	// runtime·randomNumber provides better seeding of fastrand1.
+diff --git a/src/pkg/runtime/vdso_linux_amd64.c b/src/pkg/runtime/vdso_linux_amd64.c
+index b125c8b051..ab68c23c34 100644
+--- a/src/pkg/runtime/vdso_linux_amd64.c
++++ b/src/pkg/runtime/vdso_linux_amd64.c
+@@ -170,7 +170,9 @@ static symbol_key sym_keys[] = {
+ 	{ (byte*)"__vdso_clock_gettime", &runtime·__vdso_clock_gettime_sym },
+ };
+ 
+-static void vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr) {
++static void
++vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr* hdr)
++{
+ 	uint64 i;
+ 	bool found_vaddr = false;
+ 
+@@ -237,7 +239,9 @@ static void vdso_init_from_sysinfo_ehdr(struct vdso_info *vdso_info, Elf64_Ehdr*
+ 	vdso_info->valid = true;
+ }
+ 
+-static int32 vdso_find_version(struct vdso_info *vdso_info, version_key* ver) {
++static int32
++vdso_find_version(struct vdso_info *vdso_info, version_key* ver)
++{
+ 	if(vdso_info->valid == false) {
+ 		return 0;
+ 	}
+@@ -259,7 +263,9 @@ static int32 vdso_find_version(struct vdso_info *vdso_info, version_key* ver) {
+ 	return 0;
+ }
+ 
+-static void vdso_parse_symbols(struct vdso_info *vdso_info, int32 version) {
++static void
++vdso_parse_symbols(struct vdso_info *vdso_info, int32 version)
++{
+ 	int32 i, j;
+ 
+ 	if(vdso_info->valid == false)

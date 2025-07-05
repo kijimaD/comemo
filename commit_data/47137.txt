@@ -13,9 +13,150 @@ Date:   Thu Feb 25 21:32:29 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/296629
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/walk/expr.go | 32 ++++++++++++++------------------
  src/cmd/compile/internal/walk/stmt.go |  3 ---
  test/fixedbugs/issue24491a.go         | 30 ------------------------------
  test/fixedbugs/issue44415.go          | 21 ---------------------
  4 files changed, 14 insertions(+), 72 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index ce95fbc2b4..7b65db5100 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -503,8 +503,21 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 	}
+ 	n.SetWalked(true)
+ 
++	// If this is a method call t.M(...),
++	// rewrite into a function call T.M(t, ...).
+ 	// TODO(mdempsky): Do this right after type checking.
+-	rewriteMethodCall(n)
++	if n.Op() == ir.OCALLMETH {
++		withRecv := make([]ir.Node, len(n.Args)+1)
++		dot := n.X.(*ir.SelectorExpr)
++		withRecv[0] = dot.X
++		copy(withRecv[1:], n.Args)
++		n.Args = withRecv
++
++		dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
++
++		n.SetOp(ir.OCALLFUNC)
++		n.X = typecheck.Expr(dot)
++	}
+ 
+ 	args := n.Args
+ 	params := n.X.Type().Params()
+@@ -534,23 +547,6 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 	n.Args = args
+ }
+ 
+-// rewriteMethodCall rewrites a method call t.M(...) into a function call T.M(t, ...).
+-func rewriteMethodCall(n *ir.CallExpr) {
+-	if n.Op() != ir.OCALLMETH {
+-		return
+-	}
+-	withRecv := make([]ir.Node, len(n.Args)+1)
+-	dot := n.X.(*ir.SelectorExpr)
+-	withRecv[0] = dot.X
+-	copy(withRecv[1:], n.Args)
+-	n.Args = withRecv
+-
+-	dot = ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym)
+-
+-	n.SetOp(ir.OCALLFUNC)
+-	n.X = typecheck.Expr(dot)
+-}
+-
+ // walkDivMod walks an ODIV or OMOD node.
+ func walkDivMod(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 	n.X = walkExpr(n.X, init)
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 86f8819ec3..46a621c2ba 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -241,9 +241,6 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		init.Append(ir.TakeInit(n)...)
+ 	}
+ 
+-	// TODO(mdempsky): Do this right after type checking.
+-	rewriteMethodCall(n)
+-
+ 	isBuiltinCall := n.Op() != ir.OCALLFUNC && n.Op() != ir.OCALLMETH && n.Op() != ir.OCALLINTER
+ 
+ 	// Turn f(a, b, []T{c, d, e}...) back into f(a, b, c, d, e).
+diff --git a/test/fixedbugs/issue24491a.go b/test/fixedbugs/issue24491a.go
+index da734531a5..8accf8c0a3 100644
+--- a/test/fixedbugs/issue24491a.go
++++ b/test/fixedbugs/issue24491a.go
+@@ -48,30 +48,6 @@ func f() int {
+ 	return test("return", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+ }
+ 
+-type S struct{}
+-
+-//go:noinline
+-//go:uintptrescapes
+-func (S) test(s string, p, q uintptr, rest ...uintptr) int {
+-	runtime.GC()
+-	runtime.GC()
+-
+-	if *(*string)(unsafe.Pointer(p)) != "ok" {
+-		panic(s + ": p failed")
+-	}
+-	if *(*string)(unsafe.Pointer(q)) != "ok" {
+-		panic(s + ": q failed")
+-	}
+-	for _, r := range rest {
+-		if *(*string)(unsafe.Pointer(r)) != "ok" {
+-			panic(s + ": r[i] failed")
+-		}
+-	}
+-
+-	done <- true
+-	return 0
+-}
+-
+ func main() {
+ 	test("normal", uintptr(setup()), uintptr(setup()), uintptr(setup()), uintptr(setup()))
+ 	<-done
+@@ -84,12 +60,6 @@ func main() {
+ 	}()
+ 	<-done
+ 
+-	func() {
+-		s := &S{}
+-		defer s.test("method call", uintptr(setup()), uintptr(setup()))
+-	}()
+-	<-done
+-
+ 	f()
+ 	<-done
+ }
+diff --git a/test/fixedbugs/issue44415.go b/test/fixedbugs/issue44415.go
+deleted file mode 100644
+index 26820a9f09..0000000000
+--- a/test/fixedbugs/issue44415.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// compile
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build windows
+-
+-package p
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-var dllKernel = syscall.NewLazyDLL("Kernel32.dll")
+-
+-func Call() {
+-	procLocalFree := dllKernel.NewProc("LocalFree")
+-	defer procLocalFree.Call(uintptr(unsafe.Pointer(nil)))
+-}

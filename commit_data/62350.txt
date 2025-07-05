@@ -12,6 +12,29 @@ Date:   Sun Feb 23 10:43:23 2025 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/transport.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 41e674188f..4a6c928827 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1358,7 +1358,7 @@ func (w *wantConn) tryDeliver(pc *persistConn, err error, idleAt time.Time) bool
+ 
+ // cancel marks w as no longer wanting a result (for example, due to cancellation).
+ // If a connection has been delivered already, cancel returns it with t.putOrCloseIdleConn.
+-func (w *wantConn) cancel(t *Transport, err error) {
++func (w *wantConn) cancel(t *Transport) {
+ 	w.mu.Lock()
+ 	var pc *persistConn
+ 	if w.done {
+@@ -1507,7 +1507,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (_ *persis
+ 	}
+ 	defer func() {
+ 		if err != nil {
+-			w.cancel(t, err)
++			w.cancel(t)
+ 		}
+ 	}()
+ 

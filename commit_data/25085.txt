@@ -11,7 +11,57 @@ Date:   Tue Sep 15 16:59:20 2015 +1000
     Change-Id: I37f6850198f91dcb02a4a917b793339d7e30e934
     Reviewed-on: https://go-review.googlesource.com/14579
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/error_windows.go   |  3 +++
  src/os/os_windows_test.go | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/os/error_windows.go b/src/os/error_windows.go
+index 83db6c0784..6e2ece1227 100644
+--- a/src/os/error_windows.go
++++ b/src/os/error_windows.go
+@@ -19,6 +19,8 @@ func isExist(err error) bool {
+ 		err == syscall.ERROR_FILE_EXISTS || err == ErrExist
+ }
+ 
++const _ERROR_BAD_NETPATH = syscall.Errno(53)
++
+ func isNotExist(err error) bool {
+ 	switch pe := err.(type) {
+ 	case nil:
+@@ -29,6 +31,7 @@ func isNotExist(err error) bool {
+ 		err = pe.Err
+ 	}
+ 	return err == syscall.ERROR_FILE_NOT_FOUND ||
++		err == _ERROR_BAD_NETPATH ||
+ 		err == syscall.ERROR_PATH_NOT_FOUND || err == ErrNotExist
+ }
+ 
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index ee19b2b33a..4de208ee10 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -126,3 +126,23 @@ func TestStartProcessAttr(t *testing.T) {
+ 	defer p.Wait()
+ 	t.Fatalf("StartProcess expected to fail, but succeeded.")
+ }
++
++func TestShareNotExistError(t *testing.T) {
++	if testing.Short() {
++		t.Skip("slow test that uses network; skipping")
++	}
++	_, err := os.Stat(`\\no_such_server\no_such_share\no_such_file`)
++	if err == nil {
++		t.Fatal("stat succeeded, but expected to fail")
++	}
++	if !os.IsNotExist(err) {
++		t.Fatalf("os.Stat failed with %q, but os.IsNotExist(err) is false", err)
++	}
++}
++
++func TestBadNetPathError(t *testing.T) {
++	const ERROR_BAD_NETPATH = syscall.Errno(53)
++	if !os.IsNotExist(ERROR_BAD_NETPATH) {
++		t.Fatal("os.IsNotExist(syscall.Errno(53)) is false, but want true")
++	}
++}

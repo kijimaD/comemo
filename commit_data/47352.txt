@@ -12,6 +12,20 @@ Date:   Thu Mar 11 15:09:47 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  misc/cgo/testcarchive/testdata/main_unix.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcarchive/testdata/main_unix.c b/misc/cgo/testcarchive/testdata/main_unix.c
+index b23ac1c242..bd00f9d233 100644
+--- a/misc/cgo/testcarchive/testdata/main_unix.c
++++ b/misc/cgo/testcarchive/testdata/main_unix.c
+@@ -36,7 +36,7 @@ int install_handler() {
+ 		return 2;
+ 	}
+ 	// gccgo does not set SA_ONSTACK for SIGSEGV.
+-	if (getenv("GCCGO") == "" && (osa.sa_flags&SA_ONSTACK) == 0) {
++	if (getenv("GCCGO") == NULL && (osa.sa_flags&SA_ONSTACK) == 0) {
+ 		fprintf(stderr, "Go runtime did not install signal handler\n");
+ 		return 2;
+ 	}

@@ -7,7 +7,51 @@ Date:   Mon Apr 13 14:54:36 2015 -0400
     Change-Id: Ifbcc0eb24834f2f7d3b160d1dc911209723d9797
     Reviewed-on: https://go-review.googlesource.com/8863
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/main.c     | 10 ++++------
  misc/cgo/testcarchive/src/p/p.go |  2 +-
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main.c b/misc/cgo/testcarchive/main.c
+index 404e8f8e36..3ce12682b8 100644
+--- a/misc/cgo/testcarchive/main.c
++++ b/misc/cgo/testcarchive/main.c
+@@ -4,15 +4,13 @@
+ 
+ #include <stdint.h>
+ #include <stdio.h>
+-#include <string.h>
+ 
+-typedef struct { char *p; intmax_t n; } GoString;
+ extern signed char DidInitRun();
+ extern signed char DidMainRun();
+-extern GoString FromPkg();
++extern int32_t FromPkg();
+ 
+ int main(void) {
+-	GoString res;
++	int32_t res;
+ 
+ 	if (DidMainRun()) {
+ 		fprintf(stderr, "ERROR: buildmode=c-archive should not run main\n");
+@@ -25,8 +23,8 @@ int main(void) {
+ 	}
+ 
+ 	res = FromPkg();
+-	if (strcmp(res.p, "str")) {
+-		fprintf(stderr, "ERROR: FromPkg()='%s', want 'str'\n", res.p);
++	if (res != 1024) {
++		fprintf(stderr, "ERROR: FromPkg()=%d, want 1024\n", res);
+ 		return 2;
+ 	}
+ 
+diff --git a/misc/cgo/testcarchive/src/p/p.go b/misc/cgo/testcarchive/src/p/p.go
+index 50275227a5..82b445c121 100644
+--- a/misc/cgo/testcarchive/src/p/p.go
++++ b/misc/cgo/testcarchive/src/p/p.go
+@@ -7,4 +7,4 @@ package p
+ import "C"
+ 
+ //export FromPkg
+-func FromPkg() string { return "str" }
++func FromPkg() int32 { return 1024 }

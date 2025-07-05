@@ -17,10 +17,175 @@ Date:   Thu Jan 2 15:24:21 2020 -0500
     Change-Id: I97bc2cbb3ad5a297d7457476b8c831ee6e0f49b2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213126
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                            | 18 -------
  src/cmd/go/testdata/script/list_test_simple.txt  | 65 ++++++++++++++++++++++++
  src/cmd/go/testdata/src/testlist/bench_test.go   | 14 -----
  src/cmd/go/testdata/src/testlist/example_test.go | 21 --------
  src/cmd/go/testdata/src/testlist/test_test.go    | 10 ----
  5 files changed, 65 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 98838dd4c1..97f6ff68ec 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3856,24 +3856,6 @@ func main() {}`)
+ 	}))
+ }
+ 
+-func TestListTests(t *testing.T) {
+-	tooSlow(t)
+-	var tg *testgoData
+-	testWith := func(listName, expected string) func(*testing.T) {
+-		return func(t *testing.T) {
+-			tg = testgo(t)
+-			defer tg.cleanup()
+-			tg.run("test", "./testdata/src/testlist/...", fmt.Sprintf("-list=%s", listName))
+-			tg.grepStdout(expected, fmt.Sprintf("-test.list=%s returned %q, expected %s", listName, tg.getStdout(), expected))
+-		}
+-	}
+-
+-	t.Run("Test", testWith("Test", "TestSimple"))
+-	t.Run("Bench", testWith("Benchmark", "BenchmarkSimple"))
+-	t.Run("Example1", testWith("Example", "ExampleSimple"))
+-	t.Run("Example2", testWith("Example", "ExampleWithEmptyOutput"))
+-}
+-
+ func TestBuildmodePIE(t *testing.T) {
+ 	if testing.Short() && testenv.Builder() == "" {
+ 		t.Skipf("skipping in -short mode on non-builder")
+diff --git a/src/cmd/go/testdata/script/list_test_simple.txt b/src/cmd/go/testdata/script/list_test_simple.txt
+new file mode 100644
+index 0000000000..862b7a8fbb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_test_simple.txt
+@@ -0,0 +1,65 @@
++[short] skip
++
++cd $WORK
++
++# Test
++go test './gopath/src/testlist/...' -list=Test
++stdout TestSimple
++
++# Benchmark
++go test './gopath/src/testlist/...' -list=Benchmark
++stdout BenchmarkSimple
++
++# Examples
++go test './gopath/src/testlist/...' -list=Example
++stdout ExampleSimple
++stdout ExampleWithEmptyOutput
++
++-- testlist/bench_test.go --
++package testlist
++
++import (
++	"fmt"
++	"testing"
++)
++
++func BenchmarkSimplefunc(b *testing.B) {
++	b.StopTimer()
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		_ = fmt.Sprint("Test for bench")
++	}
++}
++-- testlist/example_test.go --
++package testlist
++
++import (
++	"fmt"
++)
++
++func ExampleSimple() {
++	fmt.Println("Test with Output.")
++
++	// Output: Test with Output.
++}
++
++func ExampleWithEmptyOutput() {
++	fmt.Println("")
++
++	// Output:
++}
++
++func ExampleNoOutput() {
++	_ = fmt.Sprint("Test with no output")
++}
++-- testlist/test_test.go --
++package testlist
++
++import (
++	"fmt"
++	"testing"
++)
++
++func TestSimple(t *testing.T) {
++	_ = fmt.Sprint("Test simple")
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/src/testlist/bench_test.go b/src/cmd/go/testdata/src/testlist/bench_test.go
+deleted file mode 100644
+index 22f147b633..0000000000
+--- a/src/cmd/go/testdata/src/testlist/bench_test.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-package testlist
+-
+-import (
+-	"fmt"
+-	"testing"
+-)
+-
+-func BenchmarkSimplefunc(b *testing.B) {
+-	b.StopTimer()
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		_ = fmt.Sprint("Test for bench")
+-	}
+-}
+diff --git a/src/cmd/go/testdata/src/testlist/example_test.go b/src/cmd/go/testdata/src/testlist/example_test.go
+deleted file mode 100644
+index 0298dfde81..0000000000
+--- a/src/cmd/go/testdata/src/testlist/example_test.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-package testlist
+-
+-import (
+-	"fmt"
+-)
+-
+-func ExampleSimple() {
+-	fmt.Println("Test with Output.")
+-
+-	// Output: Test with Output.
+-}
+-
+-func ExampleWithEmptyOutput() {
+-	fmt.Println("")
+-
+-	// Output:
+-}
+-
+-func ExampleNoOutput() {
+-	_ = fmt.Sprint("Test with no output")
+-}
+diff --git a/src/cmd/go/testdata/src/testlist/test_test.go b/src/cmd/go/testdata/src/testlist/test_test.go
+deleted file mode 100644
+index bdc09f27c5..0000000000
+--- a/src/cmd/go/testdata/src/testlist/test_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package testlist
+-
+-import (
+-	"fmt"
+-	"testing"
+-)
+-
+-func TestSimple(t *testing.T) {
+-	_ = fmt.Sprint("Test simple")
+-}

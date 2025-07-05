@@ -7,7 +7,94 @@ Date:   Fri Nov 16 13:25:01 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6847063
-
+---
  src/pkg/net/http/chunked.go          | 11 +++++------
  src/pkg/net/http/httputil/chunked.go | 11 +++++------
  2 files changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/net/http/chunked.go b/src/pkg/net/http/chunked.go
+index 91d7bb6575..7cf39cfa5f 100644
+--- a/src/pkg/net/http/chunked.go
++++ b/src/pkg/net/http/chunked.go
+@@ -13,6 +13,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"errors"
++	"fmt"
+ 	"io"
+ 	"strconv"
+ )
+@@ -39,6 +40,7 @@ type chunkedReader struct {
+ 	r   *bufio.Reader
+ 	n   uint64 // unread bytes in chunk
+ 	err error
++	buf [2]byte
+ }
+ 
+ func (cr *chunkedReader) beginChunk() {
+@@ -74,9 +76,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
+ 	cr.n -= uint64(n)
+ 	if cr.n == 0 && cr.err == nil {
+ 		// end of chunk (CRLF)
+-		b := make([]byte, 2)
+-		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
+-			if b[0] != '\r' || b[1] != '\n' {
++		if _, cr.err = io.ReadFull(cr.r, cr.buf[:]); cr.err == nil {
++			if cr.buf[0] != '\r' || cr.buf[1] != '\n' {
+ 				cr.err = errors.New("malformed chunked encoding")
+ 			}
+ 		}
+@@ -147,9 +148,7 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
+ 		return 0, nil
+ 	}
+ 
+-	head := strconv.FormatInt(int64(len(data)), 16) + "\r\n"
+-
+-	if _, err = io.WriteString(cw.Wire, head); err != nil {
++	if _, err = fmt.Fprintf(cw.Wire, "%x\r\n", len(data)); err != nil {
+ 		return 0, err
+ 	}
+ 	if n, err = cw.Wire.Write(data); err != nil {
+diff --git a/src/pkg/net/http/httputil/chunked.go b/src/pkg/net/http/httputil/chunked.go
+index 91a7eb6b1a..26daee5f2c 100644
+--- a/src/pkg/net/http/httputil/chunked.go
++++ b/src/pkg/net/http/httputil/chunked.go
+@@ -15,6 +15,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"errors"
++	"fmt"
+ 	"io"
+ 	"strconv"
+ )
+@@ -41,6 +42,7 @@ type chunkedReader struct {
+ 	r   *bufio.Reader
+ 	n   uint64 // unread bytes in chunk
+ 	err error
++	buf [2]byte
+ }
+ 
+ func (cr *chunkedReader) beginChunk() {
+@@ -76,9 +78,8 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
+ 	cr.n -= uint64(n)
+ 	if cr.n == 0 && cr.err == nil {
+ 		// end of chunk (CRLF)
+-		b := make([]byte, 2)
+-		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
+-			if b[0] != '\r' || b[1] != '\n' {
++		if _, cr.err = io.ReadFull(cr.r, cr.buf[:]); cr.err == nil {
++			if cr.buf[0] != '\r' || cr.buf[1] != '\n' {
+ 				cr.err = errors.New("malformed chunked encoding")
+ 			}
+ 		}
+@@ -149,9 +150,7 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
+ 		return 0, nil
+ 	}
+ 
+-	head := strconv.FormatInt(int64(len(data)), 16) + "\r\n"
+-
+-	if _, err = io.WriteString(cw.Wire, head); err != nil {
++	if _, err = fmt.Fprintf(cw.Wire, "%x\r\n", len(data)); err != nil {
+ 		return 0, err
+ 	}
+ 	if n, err = cw.Wire.Write(data); err != nil {

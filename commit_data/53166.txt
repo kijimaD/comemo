@@ -18,6 +18,49 @@ Date:   Fri Jul 22 23:35:41 2022 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go1.19.html | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 3ce2233ab0..ba8aa74ff5 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -471,14 +471,14 @@ as well as support for rendering them to HTML, Markdown, and text.
+   </dd>
+ </dl><!-- crypto/x509/pkix -->
+ 
+-<dl id="debug"><dt><a href="/pkg/debug/">debug</a></dt>
++<dl id="debug/elf"><dt><a href="/pkg/debug/elf">debug/elf</a></dt>
+   <dd>
+     <p><!-- CL 396735 -->
+       The new <code>EM_LONGARCH</code> and <code>R_LARCH_*</code> constants
+       support the loong64 port.
+     </p>
+   </dd>
+-</dl><!-- debug -->
++</dl><!-- debug/elf -->
+ 
+ <dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+   <dd>
+@@ -907,9 +907,9 @@ as well as support for rendering them to HTML, Markdown, and text.
+     </p>
+     <p><!-- https://go.dev/issue/50340 --><!-- CL 396514 -->
+       The new function
+-      <a href="/pkg/sort/#Find">Find</a>
++      <a href="/pkg/sort/#Find"><code>Find</code></a>
+       is like
+-      <a href="/pkg/sort/#Search">Search</a>
++      <a href="/pkg/sort/#Search"><code>Search</code></a>
+       but often easier to use: it returns an additional boolean reporting whether an equal value was found.
+     </p>
+   </dd>
+@@ -939,7 +939,7 @@ as well as support for rendering them to HTML, Markdown, and text.
+     </p>
+ 
+     <p><!-- CL 391434 -->
+-      On AIX and Solaris, <code>Getrusage</code> is now defined.
++      On AIX and Solaris, <a href="/pkg/syscall/#Getrusage"><code>Getrusage</code></a> is now defined.
+     </p>
+   </dd>
+ </dl><!-- syscall -->

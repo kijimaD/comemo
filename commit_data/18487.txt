@@ -13,6 +13,20 @@ Date:   Thu Feb 13 05:06:46 2014 +0000
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/62840043
-
+---
  lib/codereview/codereview.py | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index d171ef3e99..18ecc141d2 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -367,6 +367,8 @@ class CL(object):
+ 			msg = lines[0]
+ 			patchset = lines[1].strip()
+ 			patches = [x.split(" ", 1) for x in lines[2:]]
++		else:
++			print >>sys.stderr, "Server says there is nothing to upload (probably wrong):\n" + msg
+ 		if response_body.startswith("Issue updated.") and quiet:
+ 			pass
+ 		else:

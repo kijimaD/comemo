@@ -9,6 +9,43 @@ Date:   Wed Sep 30 10:25:22 2009 -0700
     R=ken
     OCL=35145
     CL=35151
-
+---
  src/cmd/cc/cc.y | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/cc/cc.y b/src/cmd/cc/cc.y
+index 50d2ecdd87..0ade1d162c 100644
+--- a/src/cmd/cc/cc.y
++++ b/src/cmd/cc/cc.y
+@@ -44,6 +44,8 @@
+ 	{
+ 		Type*	t1;
+ 		Type*	t2;
++		Type*	t3;
++		uchar	c;
+ 	} tyty;
+ 	struct
+ 	{
+@@ -925,16 +927,22 @@ sbody:
+ 	{
+ 		$<tyty>$.t1 = strf;
+ 		$<tyty>$.t2 = strl;
++		$<tyty>$.t3 = lasttype;
++		$<tyty>$.c = lastclass;
+ 		strf = T;
+ 		strl = T;
+ 		lastbit = 0;
+ 		firstbit = 1;
++		lastclass = CXXX;
++		lasttype = T;
+ 	}
+ 	edecl '}'
+ 	{
+ 		$$ = strf;
+ 		strf = $<tyty>2.t1;
+ 		strl = $<tyty>2.t2;
++		lasttype = $<tyty>2.t3;
++		lastclass = $<tyty>2.c;
+ 	}
+ 
+ zctlist:

@@ -7,6 +7,19 @@ Date:   Fri Sep 3 17:11:56 2010 +1000
     R=gri
     CC=golang-dev
     https://golang.org/cl/2147042
-
+---
  src/pkg/container/list/list.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 40c9680999..16f7a23f1d 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -25,6 +25,7 @@ func (e *Element) Next() *Element { return e.next }
+ func (e *Element) Prev() *Element { return e.prev }
+ 
+ // List represents a doubly linked list.
++// The zero value for List is an empty list ready to use.
+ type List struct {
+ 	front, back *Element
+ 	len         int

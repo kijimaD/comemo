@@ -14,7 +14,7 @@ Date:   Tue Nov 16 08:22:53 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/364335
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/context.go         |  41 ++++----
  src/cmd/compile/internal/types2/instantiate.go     |  43 +++++----
  .../compile/internal/types2/instantiate_test.go    | 107 +++++++++++++++++----
@@ -23,3 +23,343 @@ Date:   Tue Nov 16 08:22:53 2021 -0800
  src/cmd/compile/internal/types2/typestring.go      |   2 +-
  src/cmd/compile/internal/types2/typexpr.go         |   2 +-
  7 files changed, 140 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/context.go b/src/cmd/compile/internal/types2/context.go
+index 93a0cb8d40..7abea6b654 100644
+--- a/src/cmd/compile/internal/types2/context.go
++++ b/src/cmd/compile/internal/types2/context.go
+@@ -1,11 +1,13 @@
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package types2
+ 
+ import (
+ 	"bytes"
+ 	"fmt"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ )
+@@ -16,10 +18,10 @@ import (
+ //
+ // It is safe for concurrent use.
+ type Context struct {
+-	mu      sync.Mutex
+-	typeMap map[string][]ctxtEntry // type hash -> instances entries
+-	nextID  int                    // next unique ID
+-	seen    map[*Named]int         // assigned unique IDs
++	mu        sync.Mutex
++	typeMap   map[string][]ctxtEntry // type hash -> instances entries
++	nextID    int                    // next unique ID
++	originIDs map[Type]int           // origin type -> unique ID
+ }
+ 
+ type ctxtEntry struct {
+@@ -31,23 +33,25 @@ type ctxtEntry struct {
+ // NewContext creates a new Context.
+ func NewContext() *Context {
+ 	return &Context{
+-		typeMap: make(map[string][]ctxtEntry),
+-		seen:    make(map[*Named]int),
++		typeMap:   make(map[string][]ctxtEntry),
++		originIDs: make(map[Type]int),
+ 	}
+ }
+ 
+-// typeHash returns a string representation of typ instantiated with targs,
+-// which can be used as an exact type hash: types that are identical produce
+-// identical string representations. If targs is not empty, typ is printed as
+-// if it were instantiated with targs. The result is guaranteed to not contain
+-// blanks (" ").
+-func (ctxt *Context) typeHash(typ Type, targs []Type) string {
++// instanceHash returns a string representation of typ instantiated with targs.
++// The hash should be a perfect hash, though out of caution the type checker
++// does not assume this. The result is guaranteed to not contain blanks.
++func (ctxt *Context) instanceHash(orig Type, targs []Type) string {
+ 	assert(ctxt != nil)
+-	assert(typ != nil)
++	assert(orig != nil)
+ 	var buf bytes.Buffer
+ 
+ 	h := newTypeHasher(&buf, ctxt)
+-	h.typ(typ)
++	h.string(strconv.Itoa(ctxt.getID(orig)))
++	// Because we've already written the unique origin ID this call to h.typ is
++	// unnecessary, but we leave it for hash readability. It can be removed later
++	// if performance is an issue.
++	h.typ(orig)
+ 	if len(targs) > 0 {
+ 		// TODO(rfindley): consider asserting on isGeneric(typ) here, if and when
+ 		// isGeneric handles *Signature types.
+@@ -82,6 +86,7 @@ func (ctxt *Context) lookup(h string, orig Type, targs []Type) Type {
+ // h.
+ func (ctxt *Context) update(h string, orig Type, targs []Type, inst Type) Type {
+ 	assert(inst != nil)
++
+ 	ctxt.mu.Lock()
+ 	defer ctxt.mu.Unlock()
+ 
+@@ -104,14 +109,14 @@ func (ctxt *Context) update(h string, orig Type, targs []Type, inst Type) Type {
+ 	return inst
+ }
+ 
+-// idForType returns a unique ID for the pointer n.
+-func (ctxt *Context) idForType(n *Named) int {
++// getID returns a unique ID for the type t.
++func (ctxt *Context) getID(t Type) int {
+ 	ctxt.mu.Lock()
+ 	defer ctxt.mu.Unlock()
+-	id, ok := ctxt.seen[n]
++	id, ok := ctxt.originIDs[t]
+ 	if !ok {
+ 		id = ctxt.nextID
+-		ctxt.seen[n] = id
++		ctxt.originIDs[t] = id
+ 		ctxt.nextID++
+ 	}
+ 	return id
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 09ca1b7c16..35fcc7c040 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -52,30 +52,26 @@ func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, er
+ // instance creates a type or function instance using the given original type
+ // typ and arguments targs. For Named types the resulting instance will be
+ // unexpanded.
+-func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, ctxt *Context) Type {
++func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, ctxt *Context) (res Type) {
++	var h string
++	if ctxt != nil {
++		h = ctxt.instanceHash(orig, targs)
++		// typ may already have been instantiated with identical type arguments. In
++		// that case, re-use the existing instance.
++		if inst := ctxt.lookup(h, orig, targs); inst != nil {
++			return inst
++		}
++	}
++
+ 	switch orig := orig.(type) {
+ 	case *Named:
+-		var h string
+-		if ctxt != nil {
+-			h = ctxt.typeHash(orig, targs)
+-			// typ may already have been instantiated with identical type arguments. In
+-			// that case, re-use the existing instance.
+-			if inst := ctxt.lookup(h, orig, targs); inst != nil {
+-				return inst
+-			}
+-		}
+ 		tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
+ 		named := check.newNamed(tname, orig, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
+ 		named.targs = NewTypeList(targs)
+ 		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+ 			return expandNamed(ctxt, n, pos)
+ 		}
+-		if ctxt != nil {
+-			// It's possible that we've lost a race to add named to the context.
+-			// In this case, use whichever instance is recorded in the context.
+-			named = ctxt.update(h, orig, targs, named).(*Named)
+-		}
+-		return named
++		res = named
+ 
+ 	case *Signature:
+ 		tparams := orig.TypeParams()
+@@ -96,10 +92,19 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, ctxt *Co
+ 		// After instantiating a generic signature, it is not generic
+ 		// anymore; we need to set tparams to nil.
+ 		sig.tparams = nil
+-		return sig
++		res = sig
++	default:
++		// only types and functions can be generic
++		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))
++	}
++
++	if ctxt != nil {
++		// It's possible that we've lost a race to add named to the context.
++		// In this case, use whichever instance is recorded in the context.
++		res = ctxt.update(h, orig, targs, res)
+ 	}
+-	// only types and functions can be generic
+-	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))
++
++	return res
+ }
+ 
+ // validateTArgLen verifies that the length of targs and tparams matches,
+diff --git a/src/cmd/compile/internal/types2/instantiate_test.go b/src/cmd/compile/internal/types2/instantiate_test.go
+index 4f10dd929f..289fe98fd2 100644
+--- a/src/cmd/compile/internal/types2/instantiate_test.go
++++ b/src/cmd/compile/internal/types2/instantiate_test.go
+@@ -10,27 +10,98 @@ import (
+ )
+ 
+ func TestInstantiateEquality(t *testing.T) {
+-	const src = "package p; type T[P any] int"
+-	pkg, err := pkgFor(".", src, nil)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	T := pkg.Scope().Lookup("T").Type().(*Named)
+-	// Instantiating the same type twice should result in pointer-equivalent
+-	// instances.
+-	ctxt := NewContext()
+-	res1, err := Instantiate(ctxt, T, []Type{Typ[Int]}, false)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	res2, err := Instantiate(ctxt, T, []Type{Typ[Int]}, false)
+-	if err != nil {
+-		t.Fatal(err)
++	tests := []struct {
++		src       string
++		name1     string
++		targs1    []Type
++		name2     string
++		targs2    []Type
++		wantEqual bool
++	}{
++		{
++			"package basictype; type T[P any] int",
++			"T", []Type{Typ[Int]},
++			"T", []Type{Typ[Int]},
++			true,
++		},
++		{
++			"package differenttypeargs; type T[P any] int",
++			"T", []Type{Typ[Int]},
++			"T", []Type{Typ[String]},
++			false,
++		},
++		{
++			"package typeslice; type T[P any] int",
++			"T", []Type{NewSlice(Typ[Int])},
++			"T", []Type{NewSlice(Typ[Int])},
++			true,
++		},
++		{
++			"package basicfunc; func F[P any]() {}",
++			"F", []Type{Typ[Int]},
++			"F", []Type{Typ[Int]},
++			true,
++		},
++		{
++			"package funcslice; func F[P any]() {}",
++			"F", []Type{NewSlice(Typ[Int])},
++			"F", []Type{NewSlice(Typ[Int])},
++			true,
++		},
++		{
++			"package funcwithparams; func F[P any](x string) float64 { return 0 }",
++			"F", []Type{Typ[Int]},
++			"F", []Type{Typ[Int]},
++			true,
++		},
++		{
++			"package differentfuncargs; func F[P any](x string) float64 { return 0 }",
++			"F", []Type{Typ[Int]},
++			"F", []Type{Typ[String]},
++			false,
++		},
++		{
++			"package funcequality; func F1[P any](x int) {}; func F2[Q any](x int) {}",
++			"F1", []Type{Typ[Int]},
++			"F2", []Type{Typ[Int]},
++			false,
++		},
++		{
++			"package funcsymmetry; func F1[P any](x P) {}; func F2[Q any](x Q) {}",
++			"F1", []Type{Typ[Int]},
++			"F2", []Type{Typ[Int]},
++			false,
++		},
+ 	}
+-	if res1 != res2 {
+-		t.Errorf("first instance (%s) not pointer-equivalent to second instance (%s)", res1, res2)
++
++	for _, test := range tests {
++		pkg, err := pkgFor(".", test.src, nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		t.Run(pkg.Name(), func(t *testing.T) {
++			ctxt := NewContext()
++
++			T1 := pkg.Scope().Lookup(test.name1).Type()
++			res1, err := Instantiate(ctxt, T1, test.targs1, false)
++			if err != nil {
++				t.Fatal(err)
++			}
++
++			T2 := pkg.Scope().Lookup(test.name2).Type()
++			res2, err := Instantiate(ctxt, T2, test.targs2, false)
++			if err != nil {
++				t.Fatal(err)
++			}
++
++			if gotEqual := res1 == res2; gotEqual != test.wantEqual {
++				t.Errorf("%s == %s: %t, want %t", res1, res2, gotEqual, test.wantEqual)
++			}
++		})
+ 	}
+ }
++
+ func TestInstantiateNonEquality(t *testing.T) {
+ 	const src = "package p; type T[P any] int"
+ 	pkg1, err := pkgFor(".", src, nil)
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index e90c301a0d..a455489cd6 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -251,7 +251,7 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
+ 	if n.orig.tparams.Len() == n.targs.Len() {
+ 		// We must always have a context, to avoid infinite recursion.
+ 		ctxt = check.bestContext(ctxt)
+-		h := ctxt.typeHash(n.orig, n.targs.list())
++		h := ctxt.instanceHash(n.orig, n.targs.list())
+ 		// ensure that an instance is recorded for h to avoid infinite recursion.
+ 		ctxt.update(h, n.orig, n.TypeArgs().list(), n)
+ 
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 9b82f8889a..516f248127 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -207,7 +207,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 		// before creating a new named type, check if we have this one already
+-		h := subst.ctxt.typeHash(t.orig, newTArgs)
++		h := subst.ctxt.instanceHash(t.orig, newTArgs)
+ 		dump(">>> new type hash: %s", h)
+ 		if named := subst.ctxt.lookup(h, t.orig, newTArgs); named != nil {
+ 			dump(">>> found %s", named)
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 0c93a7e6e4..1857f58a4b 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -297,7 +297,7 @@ func (w *typeWriter) typ(typ Type) {
+ // nothing.
+ func (w *typeWriter) typePrefix(t *Named) {
+ 	if w.ctxt != nil {
+-		w.string(strconv.Itoa(w.ctxt.idForType(t)))
++		w.string(strconv.Itoa(w.ctxt.getID(t)))
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 4ba21fa9a0..0380c3461d 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -437,7 +437,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 	}
+ 
+ 	// create the instance
+-	h := check.conf.Context.typeHash(orig, targs)
++	h := check.conf.Context.instanceHash(orig, targs)
+ 	// targs may be incomplete, and require inference. In any case we should de-duplicate.
+ 	inst, _ := check.conf.Context.lookup(h, orig, targs).(*Named)
+ 	// If inst is non-nil, we can't just return here. Inst may have been

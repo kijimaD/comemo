@@ -12,7 +12,52 @@ Date:   Thu Jan 2 21:05:21 2025 +0000
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/alldocs.go               | 4 ++--
  src/cmd/go/internal/help/helpdoc.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 88f2e21f82..20d76de0c7 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2181,7 +2181,7 @@
+ // fields of all events to reconstruct the text format output, as it would
+ // have appeared from go build without the -json flag.
+ //
+-// Note that there may also be non-JSON error text on stdnard error, even
++// Note that there may also be non-JSON error text on standard error, even
+ // with the -json flag. Typically, this indicates an early, serious error.
+ // Consumers should be robust to this.
+ //
+@@ -2616,7 +2616,7 @@
+ //		Example: Data
+ //
+ //	If the server responds with any 4xx code, the go command will write the
+-//	following to the programs' stdin:
++//	following to the program's stdin:
+ //		Response      = StatusLine { HeaderLine } BlankLine .
+ //		StatusLine    = Protocol Space Status '\n' .
+ //		Protocol      = /* HTTP protocol */ .
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 311584d4f0..65d0f1a45c 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -1034,7 +1034,7 @@ command
+ 		Example: Data
+ 
+ 	If the server responds with any 4xx code, the go command will write the
+-	following to the programs' stdin:
++	following to the program's stdin:
+ 		Response      = StatusLine { HeaderLine } BlankLine .
+ 		StatusLine    = Protocol Space Status '\n' .
+ 		Protocol      = /* HTTP protocol */ .
+@@ -1102,7 +1102,7 @@ Furthermore, as with TestEvent, parsers can simply concatenate the Output
+ fields of all events to reconstruct the text format output, as it would
+ have appeared from go build without the -json flag.
+ 
+-Note that there may also be non-JSON error text on stdnard error, even
++Note that there may also be non-JSON error text on standard error, even
+ with the -json flag. Typically, this indicates an early, serious error.
+ Consumers should be robust to this.
+ 	`,

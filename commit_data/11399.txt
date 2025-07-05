@@ -15,8 +15,149 @@ Date:   Wed Jan 25 21:07:00 2012 -0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5572058
-
+---
  src/cmd/gofix/typecheck.go   |  2 +-
  src/cmd/gofix/xmlapi.go      | 27 +++++++++++++++++++++------
  src/cmd/gofix/xmlapi_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++--
  3 files changed, 64 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gofix/typecheck.go b/src/cmd/gofix/typecheck.go
+index 1614a90d33..8e54314d14 100644
+--- a/src/cmd/gofix/typecheck.go
++++ b/src/cmd/gofix/typecheck.go
+@@ -493,7 +493,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
+ 			// &x for x of type T has type *T.
+ 			t := typeof[n.X]
+ 			if t != "" && n.Op == token.AND {
+-				typeof[n] = "&" + t
++				typeof[n] = "*" + t
+ 			}
+ 
+ 		case *ast.CompositeLit:
+diff --git a/src/cmd/gofix/xmlapi.go b/src/cmd/gofix/xmlapi.go
+index 5621d0107e..e74425914d 100644
+--- a/src/cmd/gofix/xmlapi.go
++++ b/src/cmd/gofix/xmlapi.go
+@@ -25,10 +25,24 @@ http://codereview.appspot.com/5574053
+ 
+ var xmlapiTypeConfig = &TypeConfig{
+ 	Func: map[string]string{
+-		"xml.NewParser": "xml.Parser",
++		"xml.NewParser":         "*xml.Parser",
++		"os.Open":               "*os.File",
++		"os.OpenFile":           "*os.File",
++		"bytes.NewBuffer":       "*bytes.Buffer",
++		"bytes.NewBufferString": "*bytes.Buffer",
++		"bufio.NewReader":       "*bufio.Reader",
++		"bufio.NewReadWriter":   "*bufio.ReadWriter",
+ 	},
+ }
+ 
++var isReader = map[string]bool{
++	"*os.File":          true,
++	"*bytes.Buffer":     true,
++	"*bufio.Reader":     true,
++	"*bufio.ReadWriter": true,
++	"io.Reader":         true,
++}
++
+ func xmlapi(f *ast.File) bool {
+ 	if !imports(f, "encoding/xml") {
+ 		return false
+@@ -39,7 +53,7 @@ func xmlapi(f *ast.File) bool {
+ 	fixed := false
+ 	walk(f, func(n interface{}) {
+ 		s, ok := n.(*ast.SelectorExpr)
+-		if ok && typeof[s.X] == "xml.Parser" && s.Sel.Name == "Unmarshal" {
++		if ok && typeof[s.X] == "*xml.Parser" && s.Sel.Name == "Unmarshal" {
+ 			s.Sel.Name = "DecodeElement"
+ 			fixed = true
+ 			return
+@@ -58,10 +72,11 @@ func xmlapi(f *ast.File) bool {
+ 		case len(call.Args) == 2 && isPkgDot(call.Fun, "xml", "Marshal"):
+ 			*call = xmlMarshal(call.Args)
+ 			fixed = true
+-		// Can't fix without further diving into the type of call.Args[0].
+-		//case len(call.Args) == 2 && isPkgDot(call.Fun, "xml", "Unmarshal"):
+-		//	*call = xmlUnmarshal(call.Args)
+-		//	fixed = true
++		case len(call.Args) == 2 && isPkgDot(call.Fun, "xml", "Unmarshal"):
++			if isReader[typeof[call.Args[0]]] {
++				*call = xmlUnmarshal(call.Args)
++				fixed = true
++			}
+ 		case len(call.Args) == 1 && isPkgDot(call.Fun, "xml", "NewParser"):
+ 			sel := call.Fun.(*ast.SelectorExpr).Sel
+ 			sel.Name = "NewDecoder"
+diff --git a/src/cmd/gofix/xmlapi_test.go b/src/cmd/gofix/xmlapi_test.go
+index abf989c3e7..6486c81248 100644
+--- a/src/cmd/gofix/xmlapi_test.go
++++ b/src/cmd/gofix/xmlapi_test.go
+@@ -19,12 +19,32 @@ func f() {
+ 	xml.Marshal(a, b)
+ 	xml.Unmarshal(a, b)
+ 
++	var buf1 bytes.Buffer
++	buf2 := &bytes.Buffer{}
++	buf3 := bytes.NewBuffer(data)
++	buf4 := bytes.NewBufferString(data)
++	buf5 := bufio.NewReader(r)
++	xml.Unmarshal(&buf1, v)
++	xml.Unmarshal(buf2, v)
++	xml.Unmarshal(buf3, v)
++	xml.Unmarshal(buf4, v)
++	xml.Unmarshal(buf5, v)
++
++	f := os.Open("foo.xml")
++	xml.Unmarshal(f, v)
++
+ 	p1 := xml.NewParser(stream)
+ 	p1.Unmarshal(v, start)
+ 
+-	var p2 xml.Parser
++	var p2 *xml.Parser
+ 	p2.Unmarshal(v, start)
+ }
++
++func g(r io.Reader, f *os.File, b []byte) {
++	xml.Unmarshal(r, v)
++	xml.Unmarshal(f, v)
++	xml.Unmarshal(b, v)
++}
+ `,
+ 		Out: `package main
+ 
+@@ -34,12 +54,32 @@ func f() {
+ 	xml.NewEncoder(a).Encode(b)
+ 	xml.Unmarshal(a, b)
+ 
++	var buf1 bytes.Buffer
++	buf2 := &bytes.Buffer{}
++	buf3 := bytes.NewBuffer(data)
++	buf4 := bytes.NewBufferString(data)
++	buf5 := bufio.NewReader(r)
++	xml.NewDecoder(&buf1).Decode(v)
++	xml.NewDecoder(buf2).Decode(v)
++	xml.NewDecoder(buf3).Decode(v)
++	xml.NewDecoder(buf4).Decode(v)
++	xml.NewDecoder(buf5).Decode(v)
++
++	f := os.Open("foo.xml")
++	xml.NewDecoder(f).Decode(v)
++
+ 	p1 := xml.NewDecoder(stream)
+ 	p1.DecodeElement(v, start)
+ 
+-	var p2 xml.Decoder
++	var p2 *xml.Decoder
+ 	p2.DecodeElement(v, start)
+ }
++
++func g(r io.Reader, f *os.File, b []byte) {
++	xml.NewDecoder(r).Decode(v)
++	xml.NewDecoder(f).Decode(v)
++	xml.Unmarshal(b, v)
++}
+ `,
+ 	},
+ }

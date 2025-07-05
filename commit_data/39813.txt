@@ -22,7 +22,7 @@ Date:   Thu Dec 13 21:56:45 2018 +0100
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/work/build_test.go |  4 +--
  src/os/os_unix_test.go                 |  9 ++++++-
  src/os/sticky_bsd.go                   |  2 +-
@@ -30,3 +30,170 @@ Date:   Thu Dec 13 21:56:45 2018 +0100
  src/syscall/fs_js.go                   | 14 +++++++---
  src/syscall/syscall_js.go              | 47 ++++++++++++++++++++++++++++------
  6 files changed, 62 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index ef95a408ca..55e1eea25b 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -227,8 +227,8 @@ func TestRespectSetgidDir(t *testing.T) {
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+ 			t.Skip("can't set SetGID bit with chmod on iOS")
+ 		}
+-	case "windows", "plan9", "js":
+-		t.Skip("chown/chmod setgid are not supported on Windows, Plan 9, or JS")
++	case "windows", "plan9":
++		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
+ 	}
+ 
+ 	var b Builder
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index 2aa930ea80..87c3bcd8fa 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
+ 
+ package os_test
+ 
+@@ -152,6 +152,9 @@ func TestLchown(t *testing.T) {
+ 	gid := Getgid()
+ 	t.Log("gid:", gid)
+ 	if err = Lchown(linkname, -1, gid); err != nil {
++		if err, ok := err.(*PathError); ok && err.Err == syscall.ENOSYS {
++			t.Skip("lchown is unavailable")
++		}
+ 		t.Fatalf("lchown %s -1 %d: %s", linkname, gid, err)
+ 	}
+ 	sys := dir.Sys().(*syscall.Stat_t)
+@@ -231,6 +234,10 @@ func TestMkdirStickyUmask(t *testing.T) {
+ 
+ // See also issues: 22939, 24331
+ func newFileTest(t *testing.T, blocking bool) {
++	if runtime.GOOS == "js" {
++		t.Skipf("syscall.Pipe is not available on %s.", runtime.GOOS)
++	}
++
+ 	p := make([]int, 2)
+ 	if err := syscall.Pipe(p); err != nil {
+ 		t.Fatalf("pipe: %v", err)
+diff --git a/src/os/sticky_bsd.go b/src/os/sticky_bsd.go
+index ae2744f817..c09b1ac202 100644
+--- a/src/os/sticky_bsd.go
++++ b/src/os/sticky_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly freebsd netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd js,wasm netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/sticky_notbsd.go b/src/os/sticky_notbsd.go
+index edb5f69bf0..c15850692c 100644
+--- a/src/os/sticky_notbsd.go
++++ b/src/os/sticky_notbsd.go
+@@ -6,6 +6,7 @@
+ // +build !darwin
+ // +build !dragonfly
+ // +build !freebsd
++// +build !js !wasm
+ // +build !netbsd
+ // +build !openbsd
+ // +build !solaris
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index fcc5f038b8..b36cefc69a 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -244,18 +244,26 @@ func Chown(path string, uid, gid int) error {
+ 	if err := checkPath(path); err != nil {
+ 		return err
+ 	}
+-	return ENOSYS
++	_, err := fsCall("chown", path, uint32(uid), uint32(gid))
++	return err
+ }
+ 
+ func Fchown(fd int, uid, gid int) error {
+-	return ENOSYS
++	_, err := fsCall("fchown", fd, uint32(uid), uint32(gid))
++	return err
+ }
+ 
+ func Lchown(path string, uid, gid int) error {
+ 	if err := checkPath(path); err != nil {
+ 		return err
+ 	}
+-	return ENOSYS
++	if jsFS.Get("lchown") == js.Undefined() {
++		// fs.lchown is unavailable on Linux until Node.js 10.6.0
++		// TODO(neelance): remove when we require at least this Node.js version
++		return ENOSYS
++	}
++	_, err := fsCall("lchown", path, uint32(uid), uint32(gid))
++	return err
+ }
+ 
+ func UtimesNano(path string, ts []Timespec) error {
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index 4dfcc6ed64..99f9a935fe 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -285,14 +285,45 @@ func Getwd() (wd string, err error) {
+ 	return string(buf[:n]), nil
+ }
+ 
+-func Getegid() int                      { return 1 }
+-func Geteuid() int                      { return 1 }
+-func Getgid() int                       { return 1 }
+-func Getgroups() ([]int, error)         { return []int{1}, nil }
+-func Getppid() int                      { return 2 }
+-func Getpid() int                       { return 3 }
+-func Gettimeofday(tv *Timeval) error    { return ENOSYS }
+-func Getuid() int                       { return 1 }
++func Getuid() int {
++	return jsProcess.Call("getuid").Int()
++}
++
++func Getgid() int {
++	return jsProcess.Call("getgid").Int()
++}
++
++func Geteuid() int {
++	return jsProcess.Call("geteuid").Int()
++}
++
++func Getegid() int {
++	return jsProcess.Call("getegid").Int()
++}
++
++func Getgroups() ([]int, error) {
++	array := jsProcess.Call("getgroups")
++	groups := make([]int, array.Length())
++	for i := range groups {
++		groups[i] = array.Index(i).Int()
++	}
++	return groups, nil
++}
++
++func Getpid() int {
++	return jsProcess.Get("pid").Int()
++}
++
++func Getppid() int {
++	return jsProcess.Get("ppid").Int()
++}
++
++func Umask(mask int) (oldmask int) {
++	return jsProcess.Call("umask", mask).Int()
++}
++
++func Gettimeofday(tv *Timeval) error { return ENOSYS }
++
+ func Kill(pid int, signum Signal) error { return ENOSYS }
+ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	return 0, ENOSYS

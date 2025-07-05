@@ -17,6 +17,25 @@ Date:   Wed Feb 29 13:14:05 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5713044
-
+---
  src/pkg/time/sleep_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 9b0b7f7e06..526d58d75e 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -120,8 +120,11 @@ func TestAfterTick(t *testing.T) {
+ 	t1 := Now()
+ 	d := t1.Sub(t0)
+ 	target := Delta * Count
+-	if d < target*9/10 || d > target*30/10 {
+-		t.Fatalf("%d ticks of %s took %s, expected %s", Count, Delta, d, target)
++	if d < target*9/10 {
++		t.Fatalf("%d ticks of %s too fast: took %s, expected %s", Count, Delta, d, target)
++	}
++	if !testing.Short() && d > target*30/10 {
++		t.Fatalf("%d ticks of %s too slow: took %s, expected %s", Count, Delta, d, target)
+ 	}
+ }
+ 

@@ -13,10 +13,409 @@ Date:   Sun Mar 29 21:21:15 2015 +0200
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/type.go         |  64 ++++++++++++++-------
  src/mime/type_plan9.go   |  34 +++++++-----
  src/mime/type_test.go    | 142 ++++++++++++++++++++++++++++++-----------------
  src/mime/type_unix.go    |   6 +-
  src/mime/type_windows.go |   8 ++-
  5 files changed, 166 insertions(+), 88 deletions(-)
+
+diff --git a/src/mime/type.go b/src/mime/type.go
+index 89254f5001..d369259d8b 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -12,29 +12,45 @@ import (
+ )
+ 
+ var (
+-	mimeLock       sync.RWMutex
+-	mimeTypesLower = map[string]string{
+-		".css":  "text/css; charset=utf-8",
+-		".gif":  "image/gif",
+-		".htm":  "text/html; charset=utf-8",
+-		".html": "text/html; charset=utf-8",
+-		".jpg":  "image/jpeg",
+-		".js":   "application/x-javascript",
+-		".pdf":  "application/pdf",
+-		".png":  "image/png",
+-		".svg":  "image/svg+xml",
+-		".xml":  "text/xml; charset=utf-8",
+-	}
+-	mimeTypes  = clone(mimeTypesLower)
+-	extensions = invert(mimeTypesLower)
++	mimeLock       sync.RWMutex      // guards following 3 maps
++	mimeTypes      map[string]string // ".Z" => "application/x-compress"
++	mimeTypesLower map[string]string // ".z" => "application/x-compress"
++
++	// extensions maps from MIME type to list of lowercase file
++	// extensions: "image/jpeg" => [".jpg", ".jpeg"]
++	extensions map[string][]string
+ )
+ 
++// setMimeTypes is used by initMime's non-test path, and by tests.
++// The two maps must not be the same, or nil.
++func setMimeTypes(lowerExt, mixExt map[string]string) {
++	if lowerExt == nil || mixExt == nil {
++		panic("nil map")
++	}
++	mimeTypesLower = lowerExt
++	mimeTypes = mixExt
++	extensions = invert(lowerExt)
++}
++
++var builtinTypesLower = map[string]string{
++	".css":  "text/css; charset=utf-8",
++	".gif":  "image/gif",
++	".htm":  "text/html; charset=utf-8",
++	".html": "text/html; charset=utf-8",
++	".jpg":  "image/jpeg",
++	".js":   "application/x-javascript",
++	".pdf":  "application/pdf",
++	".png":  "image/png",
++	".svg":  "image/svg+xml",
++	".xml":  "text/xml; charset=utf-8",
++}
++
+ func clone(m map[string]string) map[string]string {
+ 	m2 := make(map[string]string, len(m))
+ 	for k, v := range m {
+ 		m2[k] = v
+ 		if strings.ToLower(k) != k {
+-			panic("keys in mimeTypesLower must be lowercase")
++			panic("keys in builtinTypesLower must be lowercase")
+ 		}
+ 	}
+ 	return m2
+@@ -54,6 +70,17 @@ func invert(m map[string]string) map[string][]string {
+ 
+ var once sync.Once // guards initMime
+ 
++var testInitMime, osInitMime func()
++
++func initMime() {
++	if fn := testInitMime; fn != nil {
++		fn()
++	} else {
++		setMimeTypes(builtinTypesLower, clone(builtinTypesLower))
++		osInitMime()
++	}
++}
++
+ // TypeByExtension returns the MIME type associated with the file extension ext.
+ // The extension ext should begin with a leading dot, as in ".html".
+ // When ext has no associated type, TypeByExtension returns "".
+@@ -77,8 +104,7 @@ func TypeByExtension(ext string) string {
+ 	defer mimeLock.RUnlock()
+ 
+ 	// Case-sensitive lookup.
+-	v := mimeTypes[ext]
+-	if v != "" {
++	if v := mimeTypes[ext]; v != "" {
+ 		return v
+ 	}
+ 
+@@ -130,7 +156,7 @@ func ExtensionsByType(typ string) ([]string, error) {
+ // a leading dot, as in ".html".
+ func AddExtensionType(ext, typ string) error {
+ 	if !strings.HasPrefix(ext, ".") {
+-		return fmt.Errorf(`mime: extension %q misses dot`, ext)
++		return fmt.Errorf("mime: extension %q missing leading dot", ext)
+ 	}
+ 	once.Do(initMime)
+ 	return setExtensionType(ext, typ)
+diff --git a/src/mime/type_plan9.go b/src/mime/type_plan9.go
+index 8cbf6777f1..c3ba186e7c 100644
+--- a/src/mime/type_plan9.go
++++ b/src/mime/type_plan9.go
+@@ -10,10 +10,29 @@ import (
+ 	"strings"
+ )
+ 
++func init() {
++	osInitMime = initMimePlan9
++}
++
++func initMimePlan9() {
++	for _, filename := range typeFiles {
++		loadMimeFile(filename)
++	}
++}
++
+ var typeFiles = []string{
+ 	"/sys/lib/mimetypes",
+ }
+ 
++func initMimeForTests() map[string]string {
++	typeFiles = []string{"testdata/test.types.plan9"}
++	return map[string]string{
++		".t1":  "application/test",
++		".t2":  "text/test; charset=utf-8",
++		".pNg": "image/png",
++	}
++}
++
+ func loadMimeFile(filename string) {
+ 	f, err := os.Open(filename)
+ 	if err != nil {
+@@ -36,18 +55,3 @@ func loadMimeFile(filename string) {
+ 		panic(err)
+ 	}
+ }
+-
+-func initMime() {
+-	for _, filename := range typeFiles {
+-		loadMimeFile(filename)
+-	}
+-}
+-
+-func initMimeForTests() map[string]string {
+-	typeFiles = []string{"testdata/test.types.plan9"}
+-	return map[string]string{
+-		".t1":  "application/test",
+-		".t2":  "text/test; charset=utf-8",
+-		".pNg": "image/png",
+-	}
+-}
+diff --git a/src/mime/type_test.go b/src/mime/type_test.go
+index dabb585e21..c6c1491a98 100644
+--- a/src/mime/type_test.go
++++ b/src/mime/type_test.go
+@@ -6,14 +6,40 @@ package mime
+ 
+ import (
+ 	"reflect"
+-	"sort"
+ 	"strings"
++	"sync"
+ 	"testing"
+ )
+ 
+-var typeTests = initMimeForTests()
++func setMimeInit(fn func()) (cleanup func()) {
++	once = sync.Once{}
++	testInitMime = fn
++	return func() { testInitMime = nil }
++}
++
++func clearMimeTypes() {
++	setMimeTypes(map[string]string{}, map[string]string{})
++}
++
++func setType(ext, typ string) {
++	if !strings.HasPrefix(ext, ".") {
++		panic("missing leading dot")
++	}
++	if err := setExtensionType(ext, typ); err != nil {
++		panic("bad test data: " + err.Error())
++	}
++}
+ 
+ func TestTypeByExtension(t *testing.T) {
++	once = sync.Once{}
++	// initMimeForTests returns the platform-specific extension =>
++	// type tests. On Unix and Plan 9, this also tests the parsing
++	// of MIME text files (in testdata/*). On Windows, we test the
++	// real registry on the machine and assume that ".png" exists
++	// there, which empirically it always has, for all versions of
++	// Windows.
++	typeTests := initMimeForTests()
++
+ 	for ext, want := range typeTests {
+ 		val := TypeByExtension(ext)
+ 		if val != want {
+@@ -22,15 +48,41 @@ func TestTypeByExtension(t *testing.T) {
+ 	}
+ }
+ 
++func TestTypeByExtension_LocalData(t *testing.T) {
++	cleanup := setMimeInit(func() {
++		clearMimeTypes()
++		setType(".foo", "x/foo")
++		setType(".bar", "x/bar")
++		setType(".Bar", "x/bar; capital=1")
++	})
++	defer cleanup()
++
++	tests := map[string]string{
++		".foo":          "x/foo",
++		".bar":          "x/bar",
++		".Bar":          "x/bar; capital=1",
++		".sdlkfjskdlfj": "",
++		".t1":           "", // testdata shouldn't be used
++	}
++
++	for ext, want := range tests {
++		val := TypeByExtension(ext)
++		if val != want {
++			t.Errorf("TypeByExtension(%q) = %q, want %q", ext, val, want)
++		}
++	}
++}
++
+ func TestTypeByExtensionCase(t *testing.T) {
+ 	const custom = "test/test; charset=iso-8859-1"
+ 	const caps = "test/test; WAS=ALLCAPS"
+-	if err := AddExtensionType(".TEST", caps); err != nil {
+-		t.Fatalf("error %s for AddExtension(%s)", err, custom)
+-	}
+-	if err := AddExtensionType(".tesT", custom); err != nil {
+-		t.Fatalf("error %s for AddExtension(%s)", err, custom)
+-	}
++
++	cleanup := setMimeInit(func() {
++		clearMimeTypes()
++		setType(".TEST", caps)
++		setType(".tesT", custom)
++	})
++	defer cleanup()
+ 
+ 	// case-sensitive lookup
+ 	if got := TypeByExtension(".tesT"); got != custom {
+@@ -47,58 +99,46 @@ func TestTypeByExtensionCase(t *testing.T) {
+ }
+ 
+ func TestExtensionsByType(t *testing.T) {
+-	for want, typ := range typeTests {
+-		val, err := ExtensionsByType(typ)
++	cleanup := setMimeInit(func() {
++		clearMimeTypes()
++		setType(".gif", "image/gif")
++		setType(".a", "foo/letter")
++		setType(".b", "foo/letter")
++		setType(".B", "foo/letter")
++		setType(".PNG", "image/png")
++	})
++	defer cleanup()
++
++	tests := []struct {
++		typ     string
++		want    []string
++		wantErr string
++	}{
++		{typ: "image/gif", want: []string{".gif"}},
++		{typ: "image/png", want: []string{".png"}}, // lowercase
++		{typ: "foo/letter", want: []string{".a", ".b"}},
++		{typ: "x/unknown", want: nil},
++	}
++
++	for _, tt := range tests {
++		got, err := ExtensionsByType(tt.typ)
++		if err != nil && tt.wantErr != "" && strings.Contains(err.Error(), tt.wantErr) {
++			continue
++		}
+ 		if err != nil {
+-			t.Errorf("error %s for ExtensionsByType(%q)", err, typ)
++			t.Errorf("ExtensionsByType(%q) error: %v", tt.typ, err)
+ 			continue
+ 		}
+-		if len(val) != 1 {
+-			t.Errorf("ExtensionsByType(%q) = %v; expected exactly 1 entry", typ, val)
++		if tt.wantErr != "" {
++			t.Errorf("ExtensionsByType(%q) = %q, %v; want error substring %q", tt.typ, got, err, tt.wantErr)
+ 			continue
+ 		}
+-		// We always expect lower case, test data includes upper-case.
+-		want = strings.ToLower(want)
+-		if val[0] != want {
+-			t.Errorf("ExtensionsByType(%q) = %q, want %q", typ, val[0], want)
++		if !reflect.DeepEqual(got, tt.want) {
++			t.Errorf("ExtensionsByType(%q) = %q; want %q", tt.typ, got, tt.want)
+ 		}
+ 	}
+ }
+ 
+-func TestExtensionsByTypeMultiple(t *testing.T) {
+-	const typ = "text/html"
+-	exts, err := ExtensionsByType(typ)
+-	if err != nil {
+-		t.Fatalf("ExtensionsByType(%q) error: %v", typ, err)
+-	}
+-	sort.Strings(exts)
+-	if want := []string{".htm", ".html"}; !reflect.DeepEqual(exts, want) {
+-		t.Errorf("ExtensionsByType(%q) = %v; want %v", typ, exts, want)
+-	}
+-}
+-
+-func TestExtensionsByTypeNoDuplicates(t *testing.T) {
+-	const (
+-		typ = "text/html"
+-		ext = ".html"
+-	)
+-	AddExtensionType(ext, typ)
+-	AddExtensionType(ext, typ)
+-	exts, err := ExtensionsByType(typ)
+-	if err != nil {
+-		t.Fatalf("ExtensionsByType(%q) error: %v", typ, err)
+-	}
+-	count := 0
+-	for _, v := range exts {
+-		if v == ext {
+-			count++
+-		}
+-	}
+-	if count != 1 {
+-		t.Errorf("ExtensionsByType(%q) = %v; want %v once", typ, exts, ext)
+-	}
+-}
+-
+ func TestLookupMallocs(t *testing.T) {
+ 	n := testing.AllocsPerRun(10000, func() {
+ 		TypeByExtension(".html")
+diff --git a/src/mime/type_unix.go b/src/mime/type_unix.go
+index 3e404cf742..bb06a77c45 100644
+--- a/src/mime/type_unix.go
++++ b/src/mime/type_unix.go
+@@ -12,6 +12,10 @@ import (
+ 	"strings"
+ )
+ 
++func init() {
++	osInitMime = initMimeUnix
++}
++
+ var typeFiles = []string{
+ 	"/etc/mime.types",
+ 	"/etc/apache2/mime.types",
+@@ -44,7 +48,7 @@ func loadMimeFile(filename string) {
+ 	}
+ }
+ 
+-func initMime() {
++func initMimeUnix() {
+ 	for _, filename := range typeFiles {
+ 		loadMimeFile(filename)
+ 	}
+diff --git a/src/mime/type_windows.go b/src/mime/type_windows.go
+index ae758d78b3..60362b4b37 100644
+--- a/src/mime/type_windows.go
++++ b/src/mime/type_windows.go
+@@ -9,7 +9,11 @@ import (
+ 	"unsafe"
+ )
+ 
+-func initMime() {
++func init() {
++	osInitMime = initMimeWindows
++}
++
++func initMimeWindows() {
+ 	var root syscall.Handle
+ 	rootpathp, _ := syscall.UTF16PtrFromString(`\`)
+ 	if syscall.RegOpenKeyEx(syscall.HKEY_CLASSES_ROOT, rootpathp,
+@@ -21,6 +25,7 @@ func initMime() {
+ 	if syscall.RegQueryInfoKey(root, nil, nil, nil, &count, nil, nil, nil, nil, nil, nil, nil) != nil {
+ 		return
+ 	}
++	contenttypep, _ := syscall.UTF16PtrFromString("Content Type")
+ 	var buf [1 << 10]uint16
+ 	for i := uint32(0); i < count; i++ {
+ 		n := uint32(len(buf))
+@@ -40,7 +45,6 @@ func initMime() {
+ 		}
+ 		var typ uint32
+ 		n = uint32(len(buf) * 2) // api expects array of bytes, not uint16
+-		contenttypep, _ := syscall.UTF16PtrFromString("Content Type")
+ 		if syscall.RegQueryValueEx(
+ 			h, contenttypep,
+ 			nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n) != nil {

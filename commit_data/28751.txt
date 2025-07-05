@@ -14,6 +14,25 @@ Date:   Mon Jul 4 23:57:05 2016 -0700
     Change-Id: Ibbace23e001b5e2eee053bd341de50f9b6d3fde8
     Reviewed-on: https://go-review.googlesource.com/24731
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.7.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 6605e4b366..d209a5ab0e 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -896,6 +896,13 @@ The server implementation now correctly sends only one "Transfer-Encoding" heade
+ is set explicitly, following <a href="https://tools.ietf.org/html/rfc7230#section-3.3.1">RFC 7230</a>.
+ </p>
+ 
++<p>
++The server implementation is now stricter about rejecting requests with invalid HTTP versions.
++Invalid requests claiming to be HTTP/0.x are now rejected (HTTP/0.9 was never fully supported),
++and plaintext HTTP/2 requests other than the "PRI * HTTP/2.0" upgrade request are now rejected as well.
++The server continues to handle encrypted HTTP/2 requests.
++</p>
++
+ <p>
+ In the server, a 200 status code is sent back by the timeout handler on an empty
+ response body, instead of sending back 0 as the status code.

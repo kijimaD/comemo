@@ -20,7 +20,72 @@ Date:   Tue Apr 19 12:08:33 2016 -0700
     Change-Id: I6af7814a9037bbc7043da9a96137fbee067bbe0e
     Reviewed-on: https://go-review.googlesource.com/22247
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 25 ++++++++++++++-----------
  src/cmd/compile/internal/gc/walk.go  |  2 +-
  2 files changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 1021609d3a..5a3a4dbe7f 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -564,8 +564,18 @@ func getdyn(n *Node, top int) initGenType {
+ }
+ 
+ // isStaticCompositeLiteral reports whether n is a compile-time constant.
+-// n must be a struct or array literal.
+ func isStaticCompositeLiteral(n *Node) bool {
++	switch n.Op {
++	case OARRAYLIT:
++		if n.Type.IsSlice() {
++			return false
++		}
++	case OSTRUCTLIT:
++	case OLITERAL:
++		return true
++	default:
++		return false
++	}
+ 	for _, r := range n.List.Slice() {
+ 		if r.Op != OKEY {
+ 			Fatalf("isStaticCompositeLiteral: rhs not OKEY: %v", r)
+@@ -575,15 +585,8 @@ func isStaticCompositeLiteral(n *Node) bool {
+ 			return false
+ 		}
+ 		value := r.Right
+-		switch value.Op {
+-		case OSTRUCTLIT, OARRAYLIT:
+-			if !isStaticCompositeLiteral(value) {
+-				return false
+-			}
+-		default:
+-			if value.Op != OLITERAL {
+-				return false
+-			}
++		if !isStaticCompositeLiteral(value) {
++			return false
+ 		}
+ 	}
+ 	return true
+@@ -1031,7 +1034,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 	t := n.Type
+ 	switch n.Op {
+ 	default:
+-		Fatalf("anylit: not lit")
++		Fatalf("anylit: not lit, op=%v node=%v", opnames[n.Op], n)
+ 
+ 	case OPTRLIT:
+ 		if !t.IsPtr() {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1a15bd93d0..e4d93339a9 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1531,7 +1531,7 @@ opswitch:
+ 		n = r
+ 
+ 	case OARRAYLIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
+-		if (n.Op == OSTRUCTLIT || (n.Op == OARRAYLIT && !n.Type.IsSlice())) && isStaticCompositeLiteral(n) {
++		if isStaticCompositeLiteral(n) {
+ 			// n can be directly represented in the read-only data section.
+ 			// Make direct reference to the static data. See issue 12841.
+ 			vstat := staticname(n.Type, 0)

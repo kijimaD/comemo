@@ -5,6 +5,52 @@ Date:   Thu Jul 3 18:05:20 2008 -0700
     better recovery after syntax error
     
     SVN=126003
-
+---
  src/cmd/gc/go.y | 20 ++++++++++++++++----
  1 file changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 5f223f5056..e3fe87a3bc 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -148,6 +148,14 @@ xdcl:
+ 	{
+ 		$$ = N;
+ 	}
++|	error '}'
++	{
++		$$ = N;
++	}
++|	error ';'
++	{
++		$$ = N;
++	}
+ 
+ common_dcl:
+ 	Acommon_dcl
+@@ -1194,6 +1202,14 @@ Astmt:
+ 	{
+ 		$$ = N;
+ 	}
++|	error ';'
++	{
++		$$ = N;
++	}
++|	error '}'
++	{
++		$$ = N;
++	}
+ 
+ /*
+  * need semi in front NO
+@@ -1262,10 +1278,6 @@ Bstmt_list_r:
+ stmt_list_r:
+ 	Astmt_list_r
+ |	Bstmt_list_r
+-|	error ';'
+-	{
+-		$$ = N;
+-	}
+ 
+ expr_list_r:
+ 	expr

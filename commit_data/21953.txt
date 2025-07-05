@@ -7,6 +7,34 @@ Date:   Fri Feb 13 15:12:03 2015 -0800
     Change-Id: Id544d435620efffaf5757dd9d9ebbc6e969a052c
     Reviewed-on: https://go-review.googlesource.com/4823
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 620ad7f85b..680d57145a 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -31,3 +31,22 @@ sort: number of Sort performance optimizations (https://golang.org/cl/2100, http
+ strconv: optimize decimal to string conversion (https://golang.org/cl/2105)
+ math/big: faster assembly kernels for amd64 and 386 (https://golang.org/cl/2503, https://golang.org/cl/2560)
+ math/big: faster "pure Go" kernels for platforms w/o assembly kernels (https://golang.org/cl/2480)
++
++Assembler:
++
++ARM assembly syntax has had some features removed.
++
++	- mentioning SP or PC as a hardware register
++		These are always pseudo-registers except that in some contexts
++		they're not, and it's confusing because the context should not affect
++		which register you mean. Change the references to the hardware
++		registers to be explicit: R13 for SP, R15 for PC.
++	- constant creation using assignment
++		The files say a=b when they could instead say #define a b.
++		There is no reason to have both mechanisms.
++	- R(0) to refer to R0.
++		Some macros use this to a great extent. Again, it's easy just to
++		use a #define to rename a register.
++	
++Also expression evaluation now uses uint64s instead of signed integers and the
++precedence of operators is now Go-like rather than C-like.

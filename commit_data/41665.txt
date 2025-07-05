@@ -19,10 +19,92 @@ Date:   Tue Sep 3 02:46:38 2019 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s    | 2 ++
  src/cmd/asm/internal/asm/testdata/arm64enc.s | 3 ++-
  src/cmd/internal/obj/arm64/a.out.go          | 1 +
  src/cmd/internal/obj/arm64/anames.go         | 1 +
  src/cmd/internal/obj/arm64/asm7.go           | 5 +++--
  5 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 4af47fc626..c0e2fb7e0e 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -1038,6 +1038,8 @@ again:
+ 	FSTPS	(F3, F4), 1024(RSP) // fb0310916313002d
+ 	FSTPS	(F3, F4), x(SB)
+ 	FSTPS	(F3, F4), x+8(SB)
++	NOOP                        // 1f2003d5
++	HINT $0                     // 1f2003d5
+ 
+ // System Register
+ 	MSR	$1, SPSel                          // bf4100d5
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index a2850e2e46..71270ce43f 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -152,6 +152,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    EXTR $35, R22, R12, R8                     // 888dd693
+    SEVL                                       // bf2003d5
+    HINT $6                                    // df2003d5
++   HINT $0                                    // 1f2003d5
+    HLT $65509                                 // a0fc5fd4
+    HVC $61428                                 // 82fe1dd4
+    ISB $1                                     // df3103d5
+@@ -281,7 +282,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    NGC R2, R7                                 // e70302da
+    NGCSW R10, R5                              // e5030a7a
+    NGCS R24, R16                              // f00318fa
+-   //TODO NOP                                 // 1f2003d5
++   NOOP                                        // 1f2003d5
+    ORNW R4@>11, R16, R3                       // 032ee42a
+    ORN R22@>19, R3, R3                        // 634cf6aa
+    ORRW $4294443071, R15, R24                 // f8490d32
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index bd9e9542b8..30362081e1 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -701,6 +701,7 @@ const (
+ 	ANGCS
+ 	ANGCSW
+ 	ANGCW
++	ANOOP
+ 	AORN
+ 	AORNW
+ 	AORR
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 2c277dfb95..e4dd5f2eb1 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -208,6 +208,7 @@ var Anames = []string{
+ 	"NGCS",
+ 	"NGCSW",
+ 	"NGCW",
++	"NOOP",
+ 	"ORN",
+ 	"ORNW",
+ 	"ORR",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 7c3e1d18a5..ff53738d81 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2486,6 +2486,7 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(AYIELD, t)
+ 			oprangeset(ASEV, t)
+ 			oprangeset(ASEVL, t)
++			oprangeset(ANOOP, t)
+ 			oprangeset(ADRPS, t)
+ 
+ 		case ACBZ:
+@@ -6036,8 +6037,8 @@ func (c *ctxt7) op0(p *obj.Prog, a obj.As) uint32 {
+ 	case AERET:
+ 		return 0x6B<<25 | 4<<21 | 0x1F<<16 | 0<<10 | 0x1F<<5
+ 
+-	// case ANOP:
+-	// 	return SYSHINT(0)
++	case ANOOP:
++		return SYSHINT(0)
+ 
+ 	case AYIELD:
+ 		return SYSHINT(1)

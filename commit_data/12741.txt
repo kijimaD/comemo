@@ -7,6 +7,31 @@ Date:   Sat Mar 24 10:14:25 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5900046
-
+---
  doc/articles/wiki/wiki.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/articles/wiki/wiki.html b/doc/articles/wiki/wiki.html
+index 10e1e4fe49..ef5d902c6c 100644
+--- a/doc/articles/wiki/wiki.html
++++ b/doc/articles/wiki/wiki.html
+@@ -36,7 +36,7 @@ Install Go (see the <a href="/doc/install">Installation Instructions</a>).
+ </p>
+ 
+ <p>
+-Make a new directory for this tutorial and cd to it:
++Make a new directory for this tutorial inside your <code>GOPATH</code> and cd to it:
+ </p>
+ 
+ <pre>
+@@ -551,8 +551,8 @@ to the user.
+ 
+ <p>
+ There is an inefficiency in this code: <code>renderTemplate</code> calls 
+-<code>ParseFile</code> every time a page is rendered. 
+-A better approach would be to call <code>ParseFile</code> once for each 
++<code>ParseFiles</code> every time a page is rendered. 
++A better approach would be to call <code>ParseFiles</code> once for each 
+ template at program initialization, and store the resultant 
+ <code>*Template</code> values in a data structure for later use.
+ </p>

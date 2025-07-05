@@ -10,6 +10,18 @@ Date:   Tue Sep 20 14:47:48 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5081047
-
+---
  test/fixedbugs/bug349.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug349.go b/test/fixedbugs/bug349.go
+index 07005973e7..e7612edb77 100644
+--- a/test/fixedbugs/bug349.go
++++ b/test/fixedbugs/bug349.go
+@@ -9,5 +9,5 @@
+ package main
+ 
+ func foo() (a, b, c int) {
+-	return 0, 1 2.01  // ERROR "unexpected literal 2.01"
++	return 0, 1 2.01  // ERROR "unexpected literal 2.01|expected ';' or '}' or newline|not enough arguments to return"
+ }

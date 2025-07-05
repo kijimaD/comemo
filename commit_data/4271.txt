@@ -9,10 +9,433 @@ Date:   Tue Dec 1 21:43:39 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/164068
-
+---
  src/pkg/syscall/syscall_freebsd.go        |   1 +
  src/pkg/syscall/zerrors_freebsd_386.go    | 157 +++++++++++++++---------------
  src/pkg/syscall/zerrors_freebsd_amd64.go  | 157 +++++++++++++++---------------
  src/pkg/syscall/zsyscall_freebsd_386.go   |   6 ++
  src/pkg/syscall/zsyscall_freebsd_amd64.go |   6 ++
  5 files changed, 173 insertions(+), 154 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 511eda5ad7..e0ad92fada 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -158,6 +158,7 @@ func Sleep(ns int64) (errno int) {
+ //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+ //sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sys	Shutdown(s int, how int) (errno int)
+ 
+ // For testing: clients can set this flag to force
+ // creation of IPv6 sockets to return EAFNOSUPPORT.
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+index dc1ee39fae..b198adb95b 100644
+--- a/src/pkg/syscall/zerrors_freebsd_386.go
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -431,6 +431,9 @@ const (
+ 	O_TRUNC				= 0x400;
+ 	O_TTY_INIT			= 0x80000;
+ 	O_WRONLY			= 0x1;
++	SHUT_RD				= 0;
++	SHUT_RDWR			= 0x2;
++	SHUT_WR				= 0x1;
+ 	SIGABRT				= 0x6;
+ 	SIGALRM				= 0xe;
+ 	SIGBUS				= 0xa;
+@@ -533,96 +536,96 @@ const (
+ 
+ // Error table
+ var errors = [...]string{
+-	90: "multihop attempted",
+-	47: "address family not supported by protocol family",
++	7: "argument list too long",
+ 	13: "permission denied",
+-	39: "destination address required",
+-	86: "illegal byte sequence",
+-	29: "illegal seek",
+-	31: "too many links",
+-	74: "RPC prog. not avail",
+-	25: "inappropriate ioctl for device",
+-	9: "bad file descriptor",
+-	34: "result too large",
+-	85: "operation canceled",
+-	26: "text file busy",
+-	12: "cannot allocate memory",
+-	36: "operation now in progress",
+-	66: "directory not empty",
+-	15: "block device required",
+-	41: "protocol wrong type for socket",
+-	83: "no message of desired type",
+-	73: "RPC version wrong",
++	48: "address already in use",
++	49: "can't assign requested address",
++	47: "address family not supported by protocol family",
++	35: "resource temporarily unavailable",
+ 	37: "operation already in progress",
+-	60: "operation timed out",
+-	81: "need authenticator",
+-	4: "interrupted system call",
+-	91: "link has been severed",
+-	1: "operation not permitted",
+-	50: "network is down",
+-	70: "stale NFS file handle",
+-	38: "socket operation on non-socket",
+ 	80: "authentication error",
+-	10: "no child processes",
+-	32: "broken pipe",
+-	87: "attribute not found",
++	9: "bad file descriptor",
+ 	89: "bad message",
+-	71: "too many levels of remote in path",
+-	59: "too many references: can't splice",
+-	46: "protocol family not supported",
+-	76: "bad procedure for program",
+-	48: "address already in use",
+-	52: "network dropped connection on reset",
+-	21: "is a directory",
+-	82: "identifier removed",
++	72: "RPC struct is bad",
++	16: "device busy",
++	85: "operation canceled",
++	10: "no child processes",
++	53: "software caused connection abort",
++	61: "connection refused",
++	54: "connection reset by peer",
++	11: "resource deadlock avoided",
++	39: "destination address required",
++	33: "numerical argument out of domain",
+ 	88: "programming error",
++	69: "disc quota exceeded",
++	17: "file exists",
++	14: "bad address",
++	27: "file too large",
++	79: "inappropriate file type or format",
++	64: "host is down",
++	65: "no route to host",
++	82: "identifier removed",
++	86: "illegal byte sequence",
++	36: "operation now in progress",
++	4: "interrupted system call",
+ 	22: "invalid argument",
+-	58: "can't send after socket shutdown",
+-	84: "value too large to be stored in data type",
+-	16: "device busy",
+-	67: "too many processes",
++	5: "input/output error",
++	56: "socket is already connected",
++	21: "is a directory",
+ 	92: "protocol error",
+-	19: "operation not supported by device",
+-	30: "read-only file system",
+-	7: "argument list too long",
+-	11: "resource deadlock avoided",
+-	20: "not a directory",
+-	54: "connection reset by peer",
+-	6: "device not configured",
+-	72: "RPC struct is bad",
++	62: "too many levels of symbolic links",
++	24: "too many open files",
++	31: "too many links",
++	40: "message too long",
++	90: "multihop attempted",
+ 	63: "file name too long",
+-	44: "socket type not supported",
+-	49: "can't assign requested address",
+-	43: "protocol not supported",
+-	5: "input/output error",
++	81: "need authenticator",
++	50: "network is down",
++	52: "network dropped connection on reset",
+ 	51: "network is unreachable",
+-	18: "cross-device link",
+-	69: "disc quota exceeded",
+-	28: "no space left on device",
++	23: "too many open files in system",
++	87: "attribute not found",
++	55: "no buffer space available",
++	19: "operation not supported by device",
++	2: "no such file or directory",
+ 	8: "exec format error",
+-	40: "message too long",
+-	79: "inappropriate file type or format",
+-	33: "numerical argument out of domain",
+-	27: "file too large",
+-	3: "no such process",
+-	64: "host is down",
+ 	77: "no locks available",
+-	23: "too many open files in system",
++	91: "link has been severed",
++	12: "cannot allocate memory",
++	83: "no message of desired type",
++	42: "protocol not available",
++	28: "no space left on device",
+ 	78: "function not implemented",
++	15: "block device required",
+ 	57: "socket is not connected",
++	20: "not a directory",
++	66: "directory not empty",
++	38: "socket operation on non-socket",
+ 	45: "operation not supported",
+-	53: "software caused connection abort",
+-	56: "socket is already connected",
+-	68: "too many users",
+-	42: "protocol not available",
+-	24: "too many open files",
+-	62: "too many levels of symbolic links",
+-	55: "no buffer space available",
+-	14: "bad address",
+-	35: "resource temporarily unavailable",
+-	61: "connection refused",
+-	17: "file exists",
++	25: "inappropriate ioctl for device",
++	6: "device not configured",
++	84: "value too large to be stored in data type",
++	1: "operation not permitted",
++	46: "protocol family not supported",
++	32: "broken pipe",
++	67: "too many processes",
++	76: "bad procedure for program",
+ 	75: "program version wrong",
+-	2: "no such file or directory",
+-	65: "no route to host",
++	74: "RPC prog. not avail",
++	43: "protocol not supported",
++	41: "protocol wrong type for socket",
++	34: "result too large",
++	71: "too many levels of remote in path",
++	30: "read-only file system",
++	73: "RPC version wrong",
++	58: "can't send after socket shutdown",
++	44: "socket type not supported",
++	29: "illegal seek",
++	3: "no such process",
++	70: "stale NFS file handle",
++	60: "operation timed out",
++	59: "too many references: can't splice",
++	26: "text file busy",
++	68: "too many users",
++	18: "cross-device link",
+ }
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+index 0072b11b98..b198adb95b 100644
+--- a/src/pkg/syscall/zerrors_freebsd_amd64.go
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -431,6 +431,9 @@ const (
+ 	O_TRUNC				= 0x400;
+ 	O_TTY_INIT			= 0x80000;
+ 	O_WRONLY			= 0x1;
++	SHUT_RD				= 0;
++	SHUT_RDWR			= 0x2;
++	SHUT_WR				= 0x1;
+ 	SIGABRT				= 0x6;
+ 	SIGALRM				= 0xe;
+ 	SIGBUS				= 0xa;
+@@ -533,96 +536,96 @@ const (
+ 
+ // Error table
+ var errors = [...]string{
+-	90: "multihop attempted",
+-	47: "address family not supported by protocol family",
++	7: "argument list too long",
+ 	13: "permission denied",
+-	39: "destination address required",
+-	86: "illegal byte sequence",
+-	29: "illegal seek",
+-	31: "too many links",
+-	74: "RPC prog. not avail",
+-	25: "inappropriate ioctl for device",
+-	9: "bad file descriptor",
+-	34: "result too large",
+-	85: "operation canceled",
+-	26: "text file busy",
+-	12: "cannot allocate memory",
+-	36: "operation now in progress",
+-	66: "directory not empty",
+-	15: "block device required",
+-	41: "protocol wrong type for socket",
+-	83: "no message of desired type",
+-	73: "RPC version wrong",
+-	20: "not a directory",
++	48: "address already in use",
++	49: "can't assign requested address",
++	47: "address family not supported by protocol family",
++	35: "resource temporarily unavailable",
+ 	37: "operation already in progress",
+-	60: "operation timed out",
+-	81: "need authenticator",
+-	4: "interrupted system call",
+-	91: "link has been severed",
+-	1: "operation not permitted",
+-	50: "network is down",
+-	70: "stale NFS file handle",
+-	38: "socket operation on non-socket",
+ 	80: "authentication error",
+-	10: "no child processes",
+-	32: "broken pipe",
+-	87: "attribute not found",
++	9: "bad file descriptor",
+ 	89: "bad message",
+-	71: "too many levels of remote in path",
+-	59: "too many references: can't splice",
+-	46: "protocol family not supported",
+-	76: "bad procedure for program",
+-	48: "address already in use",
+-	52: "network dropped connection on reset",
+-	21: "is a directory",
+-	82: "identifier removed",
++	72: "RPC struct is bad",
++	16: "device busy",
++	85: "operation canceled",
++	10: "no child processes",
++	53: "software caused connection abort",
++	61: "connection refused",
++	54: "connection reset by peer",
++	11: "resource deadlock avoided",
++	39: "destination address required",
++	33: "numerical argument out of domain",
+ 	88: "programming error",
++	69: "disc quota exceeded",
++	17: "file exists",
++	14: "bad address",
++	27: "file too large",
++	79: "inappropriate file type or format",
++	64: "host is down",
++	65: "no route to host",
++	82: "identifier removed",
++	86: "illegal byte sequence",
++	36: "operation now in progress",
++	4: "interrupted system call",
+ 	22: "invalid argument",
+-	58: "can't send after socket shutdown",
+-	84: "value too large to be stored in data type",
+-	16: "device busy",
+-	67: "too many processes",
++	5: "input/output error",
++	56: "socket is already connected",
++	21: "is a directory",
+ 	92: "protocol error",
+-	19: "operation not supported by device",
+-	30: "read-only file system",
+-	7: "argument list too long",
+-	11: "resource deadlock avoided",
+-	54: "connection reset by peer",
+-	6: "device not configured",
+-	72: "RPC struct is bad",
++	62: "too many levels of symbolic links",
++	24: "too many open files",
++	31: "too many links",
++	40: "message too long",
++	90: "multihop attempted",
+ 	63: "file name too long",
+-	44: "socket type not supported",
+-	49: "can't assign requested address",
+-	43: "protocol not supported",
+-	5: "input/output error",
++	81: "need authenticator",
++	50: "network is down",
++	52: "network dropped connection on reset",
+ 	51: "network is unreachable",
+-	18: "cross-device link",
+-	69: "disc quota exceeded",
+-	28: "no space left on device",
++	23: "too many open files in system",
++	87: "attribute not found",
++	55: "no buffer space available",
++	19: "operation not supported by device",
++	2: "no such file or directory",
+ 	8: "exec format error",
+-	40: "message too long",
+-	79: "inappropriate file type or format",
+-	33: "numerical argument out of domain",
+-	27: "file too large",
+-	3: "no such process",
+-	64: "host is down",
+ 	77: "no locks available",
+-	23: "too many open files in system",
++	91: "link has been severed",
++	12: "cannot allocate memory",
++	83: "no message of desired type",
++	42: "protocol not available",
++	28: "no space left on device",
+ 	78: "function not implemented",
++	15: "block device required",
+ 	57: "socket is not connected",
++	20: "not a directory",
++	66: "directory not empty",
++	38: "socket operation on non-socket",
+ 	45: "operation not supported",
+-	53: "software caused connection abort",
+-	56: "socket is already connected",
+-	68: "too many users",
+-	42: "protocol not available",
+-	24: "too many open files",
+-	62: "too many levels of symbolic links",
+-	55: "no buffer space available",
+-	14: "bad address",
+-	35: "resource temporarily unavailable",
+-	61: "connection refused",
+-	17: "file exists",
++	25: "inappropriate ioctl for device",
++	6: "device not configured",
++	84: "value too large to be stored in data type",
++	1: "operation not permitted",
++	46: "protocol family not supported",
++	32: "broken pipe",
++	67: "too many processes",
++	76: "bad procedure for program",
+ 	75: "program version wrong",
+-	2: "no such file or directory",
+-	65: "no route to host",
++	74: "RPC prog. not avail",
++	43: "protocol not supported",
++	41: "protocol wrong type for socket",
++	34: "result too large",
++	71: "too many levels of remote in path",
++	30: "read-only file system",
++	73: "RPC version wrong",
++	58: "can't send after socket shutdown",
++	44: "socket type not supported",
++	29: "illegal seek",
++	3: "no such process",
++	70: "stale NFS file handle",
++	60: "operation timed out",
++	59: "too many references: can't splice",
++	26: "text file busy",
++	68: "too many users",
++	18: "cross-device link",
+ }
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index ff96ebe4f7..5ce8c81300 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -77,6 +77,12 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	return;
+ }
+ 
++func Shutdown(s int, how int) (errno int) {
++	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(s), uintptr(how), 0);
++	errno = int(e1);
++	return;
++}
++
+ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
+ 	var _p0 *byte;
+ 	if len(p) > 0 {
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index 62771f247e..e619637d98 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -77,6 +77,12 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	return;
+ }
+ 
++func Shutdown(s int, how int) (errno int) {
++	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(s), uintptr(how), 0);
++	errno = int(e1);
++	return;
++}
++
+ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
+ 	var _p0 *byte;
+ 	if len(p) > 0 {

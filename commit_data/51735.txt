@@ -17,10 +17,149 @@ Date:   Tue Mar 8 14:54:53 2022 +0100
     Trust: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/pipe2_illumos.go | 34 ------------------------------
  src/os/pipe2_illumos.go                    | 25 ----------------------
  src/os/{pipe2_bsd.go => pipe2_unix.go}     |  4 ++--
  src/os/pipe_linux.go                       | 20 ------------------
  src/os/{pipe_bsd.go => pipe_unix.go}       |  2 +-
  5 files changed, 3 insertions(+), 82 deletions(-)
+
+diff --git a/src/internal/syscall/unix/pipe2_illumos.go b/src/internal/syscall/unix/pipe2_illumos.go
+deleted file mode 100644
+index c6280f85e5..0000000000
+--- a/src/internal/syscall/unix/pipe2_illumos.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build illumos
+-
+-package unix
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-//go:cgo_import_dynamic libc_pipe2 pipe2 "libc.so"
+-
+-//go:linkname procpipe2 libc_pipe2
+-
+-var procpipe2 uintptr
+-
+-type _C_int int32
+-
+-func Pipe2(p []int, flags int) error {
+-	if len(p) != 2 {
+-		return syscall.EINVAL
+-	}
+-	var pp [2]_C_int
+-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procpipe2)), 2, uintptr(unsafe.Pointer(&pp)), uintptr(flags), 0, 0, 0, 0)
+-	if errno != 0 {
+-		return errno
+-	}
+-	p[0] = int(pp[0])
+-	p[1] = int(pp[1])
+-	return nil
+-}
+diff --git a/src/os/pipe2_illumos.go b/src/os/pipe2_illumos.go
+deleted file mode 100644
+index 354b35cc46..0000000000
+--- a/src/os/pipe2_illumos.go
++++ /dev/null
+@@ -1,25 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build illumos
+-
+-package os
+-
+-import (
+-	"internal/syscall/unix"
+-	"syscall"
+-)
+-
+-// Pipe returns a connected pair of Files; reads from r return bytes written to w.
+-// It returns the files and an error, if any.
+-func Pipe() (r *File, w *File, err error) {
+-	var p [2]int
+-
+-	e := unix.Pipe2(p[0:], syscall.O_CLOEXEC)
+-	if e != nil {
+-		return nil, nil, NewSyscallError("pipe", e)
+-	}
+-
+-	return newFile(uintptr(p[0]), "|0", kindPipe), newFile(uintptr(p[1]), "|1", kindPipe), nil
+-}
+diff --git a/src/os/pipe2_bsd.go b/src/os/pipe2_unix.go
+similarity index 81%
+rename from src/os/pipe2_bsd.go
+rename to src/os/pipe2_unix.go
+index 7eb1350d02..1e2e8ccb67 100644
+--- a/src/os/pipe2_bsd.go
++++ b/src/os/pipe2_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package os
+ 
+@@ -15,7 +15,7 @@ func Pipe() (r *File, w *File, err error) {
+ 
+ 	e := syscall.Pipe2(p[0:], syscall.O_CLOEXEC)
+ 	if e != nil {
+-		return nil, nil, NewSyscallError("pipe", e)
++		return nil, nil, NewSyscallError("pipe2", e)
+ 	}
+ 
+ 	return newFile(uintptr(p[0]), "|0", kindPipe), newFile(uintptr(p[1]), "|1", kindPipe), nil
+diff --git a/src/os/pipe_linux.go b/src/os/pipe_linux.go
+deleted file mode 100644
+index 52f4e21e7c..0000000000
+--- a/src/os/pipe_linux.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-import "syscall"
+-
+-// Pipe returns a connected pair of Files; reads from r return bytes written to w.
+-// It returns the files and an error, if any.
+-func Pipe() (r *File, w *File, err error) {
+-	var p [2]int
+-
+-	e := syscall.Pipe2(p[0:], syscall.O_CLOEXEC)
+-	if e != nil {
+-		return nil, nil, NewSyscallError("pipe2", e)
+-	}
+-
+-	return newFile(uintptr(p[0]), "|0", kindPipe), newFile(uintptr(p[1]), "|1", kindPipe), nil
+-}
+diff --git a/src/os/pipe_bsd.go b/src/os/pipe_unix.go
+similarity index 91%
+rename from src/os/pipe_bsd.go
+rename to src/os/pipe_unix.go
+index 554d62111a..710f77670e 100644
+--- a/src/os/pipe_bsd.go
++++ b/src/os/pipe_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || (js && wasm) || (solaris && !illumos)
++//go:build aix || darwin || (js && wasm)
+ 
+ package os
+ 

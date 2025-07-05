@@ -9,7 +9,7 @@ Date:   Sun Jul 28 11:18:06 2013 +0900
     R=golang-dev, dave, alex.brainman
     CC=golang-dev
     https://golang.org/cl/8637049
-
+---
  src/pkg/net/sockopt_bsd.go       | 40 ++++++++++------------------------------
  src/pkg/net/sockopt_linux.go     | 37 +++++++++----------------------------
  src/pkg/net/sockopt_posix.go     | 10 ----------
@@ -21,3 +21,431 @@ Date:   Sun Jul 28 11:18:06 2013 +0900
  src/pkg/net/tcpsockopt_posix.go  | 17 +++--------------
  src/pkg/net/tcpsockopt_unix.go   | 31 +++++++++++++++++++++++++++++++
  10 files changed, 70 insertions(+), 151 deletions(-)
+
+diff --git a/src/pkg/net/sockopt_bsd.go b/src/pkg/net/sockopt_bsd.go
+index fff65f362b..6cedc3870e 100644
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -4,8 +4,6 @@
+ 
+ // +build darwin freebsd netbsd openbsd
+ 
+-// Socket options for BSD variants
+-
+ package net
+ 
+ import (
+@@ -13,49 +11,31 @@ import (
+ 	"syscall"
+ )
+ 
+-func setDefaultSockopts(s, f, t int, ipv6only bool) error {
+-	switch f {
+-	case syscall.AF_INET6:
+-		if ipv6only {
+-			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
+-		} else {
+-			// Allow both IP versions even if the OS default
+-			// is otherwise.  Note that some operating systems
+-			// never admit this option.
+-			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+-		}
++func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
++	if family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
++		// Allow both IP versions even if the OS default
++		// is otherwise.  Note that some operating systems
++		// never admit this option.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
+ 	}
+ 	// Allow broadcast.
+-	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
+ }
+ 
+ func setDefaultListenerSockopts(s int) error {
+ 	// Allow reuse of recently-used addresses.
+-	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
+ }
+ 
+ func setDefaultMulticastSockopts(s int) error {
+ 	// Allow multicast UDP and raw IP datagram sockets to listen
+ 	// concurrently across multiple listeners.
+-	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+-	if err != nil {
++	if err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
+ 		return os.NewSyscallError("setsockopt", err)
+ 	}
+ 	// Allow reuse of recently-used ports.
+ 	// This option is supported only in descendants of 4.4BSD,
+ 	// to make an effective multicast application that requires
+ 	// quick draw possible.
+-	err = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1))
+ }
+diff --git a/src/pkg/net/sockopt_linux.go b/src/pkg/net/sockopt_linux.go
+index 0f47538c54..54c20b1409 100644
+--- a/src/pkg/net/sockopt_linux.go
++++ b/src/pkg/net/sockopt_linux.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Socket options for Linux
+-
+ package net
+ 
+ import (
+@@ -11,41 +9,24 @@ import (
+ 	"syscall"
+ )
+ 
+-func setDefaultSockopts(s, f, t int, ipv6only bool) error {
+-	switch f {
+-	case syscall.AF_INET6:
+-		if ipv6only {
+-			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
+-		} else {
+-			// Allow both IP versions even if the OS default
+-			// is otherwise.  Note that some operating systems
+-			// never admit this option.
+-			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+-		}
++func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
++	if family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
++		// Allow both IP versions even if the OS default
++		// is otherwise.  Note that some operating systems
++		// never admit this option.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
+ 	}
+ 	// Allow broadcast.
+-	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
+ }
+ 
+ func setDefaultListenerSockopts(s int) error {
+ 	// Allow reuse of recently-used addresses.
+-	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
+ }
+ 
+ func setDefaultMulticastSockopts(s int) error {
+ 	// Allow multicast UDP and raw IP datagram sockets to listen
+ 	// concurrently across multiple listeners.
+-	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
+ }
+diff --git a/src/pkg/net/sockopt_posix.go b/src/pkg/net/sockopt_posix.go
+index 1590f4e98d..886afc2c75 100644
+--- a/src/pkg/net/sockopt_posix.go
++++ b/src/pkg/net/sockopt_posix.go
+@@ -4,8 +4,6 @@
+ 
+ // +build darwin freebsd linux netbsd openbsd windows
+ 
+-// Socket options
+-
+ package net
+ 
+ import (
+@@ -126,14 +124,6 @@ func setKeepAlive(fd *netFD, keepalive bool) error {
+ 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive)))
+ }
+ 
+-func setNoDelay(fd *netFD, noDelay bool) error {
+-	if err := fd.incref(false); err != nil {
+-		return err
+-	}
+-	defer fd.decref()
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay)))
+-}
+-
+ func setLinger(fd *netFD, sec int) error {
+ 	var l syscall.Linger
+ 	if sec >= 0 {
+diff --git a/src/pkg/net/sockopt_windows.go b/src/pkg/net/sockopt_windows.go
+index 509b5963bf..cb64a40c69 100644
+--- a/src/pkg/net/sockopt_windows.go
++++ b/src/pkg/net/sockopt_windows.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Socket options for Windows
+-
+ package net
+ 
+ import (
+@@ -11,17 +9,12 @@ import (
+ 	"syscall"
+ )
+ 
+-func setDefaultSockopts(s syscall.Handle, f, t int, ipv6only bool) error {
+-	switch f {
+-	case syscall.AF_INET6:
+-		if ipv6only {
+-			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 1)
+-		} else {
+-			// Allow both IP versions even if the OS default
+-			// is otherwise.  Note that some operating systems
+-			// never admit this option.
+-			syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+-		}
++func setDefaultSockopts(s syscall.Handle, family, sotype int, ipv6only bool) error {
++	if family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
++		// Allow both IP versions even if the OS default
++		// is otherwise.  Note that some operating systems
++		// never admit this option.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
+ 	}
+ 	// Allow broadcast.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+@@ -41,9 +34,5 @@ func setDefaultListenerSockopts(s syscall.Handle) error {
+ func setDefaultMulticastSockopts(s syscall.Handle) error {
+ 	// Allow multicast UDP and raw IP datagram sockets to listen
+ 	// concurrently across multiple listeners.
+-	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
+ }
+diff --git a/src/pkg/net/sockoptip_bsd.go b/src/pkg/net/sockoptip_bsd.go
+index 263f855217..bcae43c31d 100644
+--- a/src/pkg/net/sockoptip_bsd.go
++++ b/src/pkg/net/sockoptip_bsd.go
+@@ -22,11 +22,7 @@ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err = syscall.SetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, a)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, a))
+ }
+ 
+ func setIPv4MulticastLoopback(fd *netFD, v bool) error {
+@@ -34,9 +30,5 @@ func setIPv4MulticastLoopback(fd *netFD, v bool) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err := syscall.SetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, byte(boolint(v)))
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptByte(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, byte(boolint(v))))
+ }
+diff --git a/src/pkg/net/sockoptip_linux.go b/src/pkg/net/sockoptip_linux.go
+index 225fb0c4c6..f9cf938d70 100644
+--- a/src/pkg/net/sockoptip_linux.go
++++ b/src/pkg/net/sockoptip_linux.go
+@@ -19,11 +19,7 @@ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err := syscall.SetsockoptIPMreqn(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, mreq)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreqn(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, mreq))
+ }
+ 
+ func setIPv4MulticastLoopback(fd *netFD, v bool) error {
+@@ -31,9 +27,5 @@ func setIPv4MulticastLoopback(fd *netFD, v bool) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, boolint(v))
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, boolint(v)))
+ }
+diff --git a/src/pkg/net/sockoptip_posix.go b/src/pkg/net/sockoptip_posix.go
+index e4c56a0e4b..c82eef0f5f 100644
+--- a/src/pkg/net/sockoptip_posix.go
++++ b/src/pkg/net/sockoptip_posix.go
+@@ -20,11 +20,7 @@ func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err := syscall.SetsockoptIPMreq(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPMreq(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq))
+ }
+ 
+ func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
+@@ -36,11 +32,7 @@ func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_IF, v)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_IF, v))
+ }
+ 
+ func setIPv6MulticastLoopback(fd *netFD, v bool) error {
+@@ -48,11 +40,7 @@ func setIPv6MulticastLoopback(fd *netFD, v bool) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err := syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_LOOP, boolint(v))
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_MULTICAST_LOOP, boolint(v)))
+ }
+ 
+ func joinIPv6Group(fd *netFD, ifi *Interface, ip IP) error {
+@@ -65,9 +53,5 @@ func joinIPv6Group(fd *netFD, ifi *Interface, ip IP) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err := syscall.SetsockoptIPv6Mreq(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_JOIN_GROUP, mreq)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptIPv6Mreq(fd.sysfd, syscall.IPPROTO_IPV6, syscall.IPV6_JOIN_GROUP, mreq))
+ }
+diff --git a/src/pkg/net/sockoptip_windows.go b/src/pkg/net/sockoptip_windows.go
+index 3e248441ab..fbaf0ed6f4 100644
+--- a/src/pkg/net/sockoptip_windows.go
++++ b/src/pkg/net/sockoptip_windows.go
+@@ -21,11 +21,7 @@ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	err = syscall.Setsockopt(fd.sysfd, int32(syscall.IPPROTO_IP), int32(syscall.IP_MULTICAST_IF), (*byte)(unsafe.Pointer(&a[0])), 4)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.Setsockopt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, (*byte)(unsafe.Pointer(&a[0])), 4))
+ }
+ 
+ func setIPv4MulticastLoopback(fd *netFD, v bool) error {
+@@ -33,10 +29,5 @@ func setIPv4MulticastLoopback(fd *netFD, v bool) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	vv := int32(boolint(v))
+-	err := syscall.Setsockopt(fd.sysfd, int32(syscall.IPPROTO_IP), int32(syscall.IP_MULTICAST_LOOP), (*byte)(unsafe.Pointer(&vv)), 4)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-	return nil
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_LOOP, boolint(v)))
+ }
+diff --git a/src/pkg/net/tcpsockopt_posix.go b/src/pkg/net/tcpsockopt_posix.go
+index dfc0452d29..afd80644a1 100644
+--- a/src/pkg/net/tcpsockopt_posix.go
++++ b/src/pkg/net/tcpsockopt_posix.go
+@@ -2,30 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux netbsd
++// +build darwin freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+ import (
+ 	"os"
+ 	"syscall"
+-	"time"
+ )
+ 
+-// Set keep alive period.
+-func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++func setNoDelay(fd *netFD, noDelay bool) error {
+ 	if err := fd.incref(false); err != nil {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-
+-	// The kernel expects seconds so round to next highest second.
+-	d += (time.Second - time.Nanosecond)
+-	secs := int(d.Seconds())
+-
+-	err := os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs))
+-	if err != nil {
+-		return err
+-	}
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs))
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(noDelay)))
+ }
+diff --git a/src/pkg/net/tcpsockopt_unix.go b/src/pkg/net/tcpsockopt_unix.go
+new file mode 100644
+index 0000000000..dfc0452d29
+--- /dev/null
++++ b/src/pkg/net/tcpsockopt_unix.go
+@@ -0,0 +1,31 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd linux netbsd
++
++package net
++
++import (
++	"os"
++	"syscall"
++	"time"
++)
++
++// Set keep alive period.
++func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
++	if err := fd.incref(false); err != nil {
++		return err
++	}
++	defer fd.decref()
++
++	// The kernel expects seconds so round to next highest second.
++	d += (time.Second - time.Nanosecond)
++	secs := int(d.Seconds())
++
++	err := os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs))
++	if err != nil {
++		return err
++	}
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPIDLE, secs))
++}

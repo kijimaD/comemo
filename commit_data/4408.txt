@@ -8,7 +8,38 @@ Date:   Sun Dec 13 18:39:04 2009 -0800
     
     R=r
     https://golang.org/cl/176067
-
+---
  AUTHORS      | 2 ++
  CONTRIBUTORS | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 7471499e62..421683155b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -12,8 +12,10 @@ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
++Andy Davis <andy@bigandian.com>
+ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
++Arvindh Rajesh Tamilmani <art@a-30.net>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 2ee7f72d33..24950031e4 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -31,8 +31,10 @@ Adam Langley <agl@golang.org>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
++Andy Davis <andy@bigandian.com>
+ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
++Arvindh Rajesh Tamilmani <art@a-30.net>
+ Austin Clements <aclements@csail.mit.edu>
+ Ben Eitzen <eitzenb@golang.org>
+ Bill Neubauer <wcn@golang.org>

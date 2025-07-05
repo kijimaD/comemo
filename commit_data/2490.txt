@@ -12,7 +12,7 @@ Date:   Mon Jun 22 13:26:13 2009 -0700
     DELTA=295  (88 added, 105 deleted, 102 changed)
     OCL=30544
     CL=30588
-
+---
  src/pkg/archive/tar/untar.go         |  4 +-
  src/pkg/archive/tar/untar_test.go    |  4 +-
  src/pkg/bufio/bufio.go               | 19 +-------
@@ -37,3 +37,864 @@ Date:   Mon Jun 22 13:26:13 2009 -0700
  src/pkg/strconv/fp_test.go           |  2 +-
  src/pkg/time/zoneinfo.go             | 21 +--------
  23 files changed, 147 insertions(+), 164 deletions(-)
+
+diff --git a/src/pkg/archive/tar/untar.go b/src/pkg/archive/tar/untar.go
+index 8446cc2159..3770d1da3e 100644
+--- a/src/pkg/archive/tar/untar.go
++++ b/src/pkg/archive/tar/untar.go
+@@ -186,13 +186,13 @@ func (s *slicer) next(n int) (b []byte) {
+ func (tr *Reader) readHeader() *Header {
+ 	header := make([]byte, blockSize);
+ 	var n int;
+-	if n, tr.err = io.FullRead(tr.r, header); tr.err != nil {
++	if n, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+ 		return nil
+ 	}
+ 
+ 	// Two blocks of zero bytes marks the end of the archive.
+ 	if bytes.Equal(header, zeroBlock[0:blockSize]) {
+-		if n, tr.err = io.FullRead(tr.r, header); tr.err != nil {
++		if n, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+ 			return nil
+ 		}
+ 		if !bytes.Equal(header, zeroBlock[0:blockSize]) {
+diff --git a/src/pkg/archive/tar/untar_test.go b/src/pkg/archive/tar/untar_test.go
+index d692e1ae26..3241c171ec 100644
+--- a/src/pkg/archive/tar/untar_test.go
++++ b/src/pkg/archive/tar/untar_test.go
+@@ -124,7 +124,7 @@ func TestPartialRead(t *testing.T) {
+ 		t.Fatalf("Didn't get first file: %v", err);
+ 	}
+ 	buf := make([]byte, 4);
+-	if n, err := io.FullRead(tr, buf); err != nil {
++	if n, err := io.ReadFull(tr, buf); err != nil {
+ 		t.Fatalf("Unexpected error: %v", err);
+ 	}
+ 	if expected := io.StringBytes("Kilt"); !bytes.Equal(buf, expected) {
+@@ -137,7 +137,7 @@ func TestPartialRead(t *testing.T) {
+ 		t.Fatalf("Didn't get second file: %v", err);
+ 	}
+ 	buf = make([]byte, 6);
+-	if n, err := io.FullRead(tr, buf); err != nil {
++	if n, err := io.ReadFull(tr, buf); err != nil {
+ 		t.Fatalf("Unexpected error: %v", err);
+ 	}
+ 	if expected := io.StringBytes("Google"); !bytes.Equal(buf, expected) {
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 7bfbb089f7..520fd3afcb 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -113,7 +113,7 @@ func (b *Reader) fill() os.Error {
+ // It returns the number of bytes read into p.
+ // If nn < len(p), also returns an error explaining
+ // why the read is short.  At EOF, the count will be
+-// zero and err will be io.ErrEOF.
++// zero and err will be os.EOF.
+ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
+ 	nn = 0;
+ 	for len(p) > 0 {
+@@ -131,18 +131,12 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
+ 				if b.err != nil {
+ 					return nn, b.err
+ 				}
+-				if n == 0 {
+-					return nn, io.ErrEOF
+-				}
+ 				continue;
+ 			}
+ 			b.fill();
+ 			if b.err != nil {
+ 				return nn, b.err
+ 			}
+-			if b.w == b.r {
+-				return nn, io.ErrEOF
+-			}
+ 		}
+ 		if n > b.w - b.r {
+ 			n = b.w - b.r
+@@ -164,9 +158,6 @@ func (b *Reader) ReadByte() (c byte, err os.Error) {
+ 		if b.err != nil {
+ 			return 0, b.err
+ 		}
+-		if b.w == b.r {
+-			return 0, io.ErrEOF
+-		}
+ 	}
+ 	c = b.buf[b.r];
+ 	b.r++;
+@@ -205,9 +196,6 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
+ 		}
+ 		if b.w - b.r == n {
+ 			// no bytes read
+-			if b.r == b.w {
+-				return 0, 0, io.ErrEOF
+-			}
+ 			break;
+ 		}
+ 	}
+@@ -259,12 +247,9 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
+ 		n := b.Buffered();
+ 		b.fill();
+ 		if b.err != nil {
+-			return nil, b.err
+-		}
+-		if b.Buffered() == n {	// no data added; end of file
+ 			line := b.buf[b.r:b.w];
+ 			b.r = b.w;
+-			return line, io.ErrEOF
++			return line, b.err
+ 		}
+ 
+ 		// Search new part of buffer
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 6e5135df78..dfb9e3ac81 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -46,7 +46,7 @@ func readBytes(buf *Reader) string {
+ 	nb := 0;
+ 	for {
+ 		c, e := buf.ReadByte();
+-		if e == io.ErrEOF {
++		if e == os.EOF {
+ 			break
+ 		}
+ 		if e != nil {
+@@ -88,7 +88,7 @@ func readLines(b *Reader) string {
+ 	s := "";
+ 	for {
+ 		s1, e := b.ReadLineString('\n', true);
+-		if e == io.ErrEOF {
++		if e == os.EOF {
+ 			break
+ 		}
+ 		if e != nil {
+@@ -106,7 +106,7 @@ func reads(buf *Reader, m int) string {
+ 	for {
+ 		n, e := buf.Read(b[nb:nb+m]);
+ 		nb += n;
+-		if e == io.ErrEOF {
++		if e == os.EOF {
+ 			break
+ 		}
+ 	}
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index c07c94c6e1..1e81aff739 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -543,11 +543,8 @@ func (f *inflater) dataBlock() os.Error {
+ 	f.b = 0;
+ 
+ 	// Length then ones-complement of length.
+-	nr, err := f.r.Read(f.buf[0:4]);
++	nr, err := io.ReadFull(f.r, f.buf[0:4]);
+ 	f.roffset += int64(nr);
+-	if nr < 4 && err == nil {
+-		err = io.ErrEOF;
+-	}
+ 	if err != nil {
+ 		return &ReadError{f.roffset, err};
+ 	}
+@@ -564,11 +561,8 @@ func (f *inflater) dataBlock() os.Error {
+ 		if m > n {
+ 			m = n;
+ 		}
+-		m, err := f.r.Read(f.hist[f.hp:f.hp+m]);
++		m, err := io.ReadFull(f.r, f.hist[f.hp:f.hp+m]);
+ 		f.roffset += int64(m);
+-		if m == 0 && err == nil {
+-			err = io.ErrEOF;
+-		}
+ 		if err != nil {
+ 			return &ReadError{f.roffset, err};
+ 		}
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 32cc3ecb0f..f170e8bcd3 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -116,11 +116,8 @@ func (z *GzipInflater) read2() (uint32, os.Error) {
+ }
+ 
+ func (z *GzipInflater) readHeader(save bool) os.Error {
+-	n, err := io.FullRead(z.r, z.buf[0:10]);
++	n, err := io.ReadFull(z.r, z.buf[0:10]);
+ 	if err != nil {
+-		if n != 0 && err == io.ErrEOF {
+-			return HeaderError;
+-		}
+ 		return err;
+ 	}
+ 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
+@@ -134,7 +131,7 @@ func (z *GzipInflater) readHeader(save bool) os.Error {
+ 	}
+ 	z.digest.Reset();
+ 	z.digest.Write(z.buf[0:10]);
+-	
++
+ 	if z.flg & flagExtra != 0{
+ 		n, err := z.read2();
+ 		if err != nil {
+@@ -142,7 +139,7 @@ func (z *GzipInflater) readHeader(save bool) os.Error {
+ 		}
+ 		data := make([]byte, n);
+ 		var nn int;
+-		if nn, err = io.FullRead(z.r, data); err != nil {
++		if nn, err = io.ReadFull(z.r, data); err != nil {
+ 			return err;
+ 		}
+ 		if save {
+@@ -196,17 +193,13 @@ func (z *GzipInflater) Read(p []byte) (n int, err os.Error) {
+ 	n, err = z.inflater.Read(p);
+ 	z.digest.Write(p[0:n]);
+ 	z.size += uint32(n);
+-	if n != 0 || err != nil {
++	if n != 0 || err != os.EOF {
+ 		z.err = err;
+ 		return;
+ 	}
+ 
+ 	// Finished file; check checksum + size.
+-	if _, err := io.FullRead(z.r, z.buf[0:8]); err != nil {
+-		z.err = err;
+-		return 0, err;
+-	}
+-	if err != nil {
++	if _, err := io.ReadFull(z.r, z.buf[0:8]); err != nil {
+ 		z.err = err;
+ 		return 0, err;
+ 	}
+@@ -218,12 +211,7 @@ func (z *GzipInflater) Read(p []byte) (n int, err os.Error) {
+ 	}
+ 
+ 	// File is ok; is there another?
+-	switch err = z.readHeader(false); {
+-	case err == io.ErrEOF:
+-		err = nil;
+-		z.eof = true;
+-		return;
+-	case err != nil:
++	if err = z.readHeader(false); err != nil {
+ 		z.err = err;
+ 		return;
+ 	}
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index a481de9272..7771b3dae7 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -14,6 +14,7 @@ import (
+ 
+ type gzipTest struct {
+ 	name string;
++	desc string;
+ 	raw string;
+ 	gzip []byte;
+ 	err os.Error;
+@@ -21,6 +22,7 @@ type gzipTest struct {
+ 
+ var gzipTests = []gzipTest {
+ 	gzipTest {	// has 1 empty fixed-huffman block
++		"empty.txt",
+ 		"empty.txt",
+ 		"",
+ 		[]byte {
+@@ -32,6 +34,7 @@ var gzipTests = []gzipTest {
+ 		nil
+ 	},
+ 	gzipTest {	// has 1 non-empty fixed huffman block
++		"hello.txt",
+ 		"hello.txt",
+ 		"hello world\n",
+ 		[]byte {
+@@ -46,6 +49,7 @@ var gzipTests = []gzipTest {
+ 	},
+ 	gzipTest {	// concatenation
+ 		"hello.txt",
++		"hello.txt x2",
+ 		"hello world\n"
+ 		"hello world\n",
+ 		[]byte {
+@@ -65,6 +69,7 @@ var gzipTests = []gzipTest {
+ 		nil
+ 	},
+ 	gzipTest {	// has dynamic huffman blocks
++		"gettysburg",
+ 		"gettysburg",
+ 		"  Four score and seven years ago our fathers brought forth on\n"
+ 		"this continent, a new nation, conceived in Liberty, and dedicated\n"
+@@ -203,6 +208,7 @@ var gzipTests = []gzipTest {
+ 	},
+ 	gzipTest {	// has 1 non-empty fixed huffman block then garbage
+ 		"hello.txt",
++		"hello.txt + garbage",
+ 		"hello world\n",
+ 		[]byte {
+ 			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
+@@ -210,12 +216,27 @@ var gzipTests = []gzipTest {
+ 			0x74, 0x78, 0x74, 0x00, 0xcb, 0x48, 0xcd, 0xc9,
+ 			0xc9, 0x57, 0x28, 0xcf, 0x2f, 0xca, 0x49, 0xe1,
+ 			0x02, 0x00, 0x2d, 0x3b, 0x08, 0xaf, 0x0c, 0x00,
+-			0x00, 0x00, 'g', 'a', 'r', 'b', 'a', 'g', 'e', '!',
++			0x00, 0x00, 'g', 'a', 'r', 'b', 'a', 'g', 'e', '!', '!', '!',
+ 		},
+ 		HeaderError,
+ 	},
++	gzipTest {	// has 1 non-empty fixed huffman block not enough header
++		"hello.txt",
++		"hello.txt + garbage",
++		"hello world\n",
++		[]byte {
++			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
++			0x00, 0x03, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x2e,
++			0x74, 0x78, 0x74, 0x00, 0xcb, 0x48, 0xcd, 0xc9,
++			0xc9, 0x57, 0x28, 0xcf, 0x2f, 0xca, 0x49, 0xe1,
++			0x02, 0x00, 0x2d, 0x3b, 0x08, 0xaf, 0x0c, 0x00,
++			0x00, 0x00, gzipID1,
++		},
++		io.ErrUnexpectedEOF,
++	},
+ 	gzipTest {	// has 1 non-empty fixed huffman block but corrupt checksum
+ 		"hello.txt",
++		"hello.txt + corrupt checksum",
+ 		"hello world\n",
+ 		[]byte {
+ 			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
+@@ -229,6 +250,7 @@ var gzipTests = []gzipTest {
+ 	},
+ 	gzipTest {	// has 1 non-empty fixed huffman block but corrupt size
+ 		"hello.txt",
++		"hello.txt + corrupt size",
+ 		"hello world\n",
+ 		[]byte {
+ 			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
+@@ -257,7 +279,7 @@ func TestGzipInflater(t *testing.T) {
+ 		b.Reset();
+ 		n, err := io.Copy(gzip, b);
+ 		if err != tt.err {
+-			t.Errorf("%s: io.Copy: %s want %s", tt.name, err, tt.err);
++			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err);
+ 		}
+ 		s := string(b.Data());
+ 		if s != tt.raw {
+diff --git a/src/pkg/crypto/block/eax.go b/src/pkg/crypto/block/eax.go
+index 7e1d7475cb..3015640744 100644
+--- a/src/pkg/crypto/block/eax.go
++++ b/src/pkg/crypto/block/eax.go
+@@ -150,7 +150,7 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
+ 	tag := cr.tag;
+ 	if len(tag) < cap(tag) {
+ 		nt := len(tag);
+-		nn, err1 := io.FullRead(cr.r, tag[nt:cap(tag)]);
++		nn, err1 := io.ReadFull(cr.r, tag[nt:cap(tag)]);
+ 		tag = tag[0:nt+nn];
+ 		cr.tag = tag;
+ 		if err1 != nil {
+diff --git a/src/pkg/crypto/block/ecb.go b/src/pkg/crypto/block/ecb.go
+index 141d38cc8d..d1f1dee0e0 100644
+--- a/src/pkg/crypto/block/ecb.go
++++ b/src/pkg/crypto/block/ecb.go
+@@ -106,9 +106,9 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
+ 
+ 	// Read and decrypt directly in caller's buffer.
+ 	n, err = io.ReadAtLeast(x.r, p, x.blockSize);
+-	if err == io.ErrEOF && n == 0 {
+-		// EOF is okay on block boundary
+-		err = nil;
++	if err == os.EOF && n > 0 {
++		// EOF is only okay on block boundary
++		err = os.ErrorString("block fragment at EOF during decryption");
+ 		return;
+ 	}
+ 	var i int;
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index a1bb1f50e2..9a9fca2e7b 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -18,16 +18,15 @@ func TestRunCat(t *testing.T) {
+ 	}
+ 	io.WriteString(cmd.Stdin, "hello, world\n");
+ 	cmd.Stdin.Close();
+-	var buf [64]byte;
+-	n, err1 := io.FullRead(cmd.Stdout, &buf);
+-	if err1 != nil && err1 != io.ErrEOF {
+-		t.Fatalf("reading from /bin/cat: %v", err1);
++	buf, err := io.ReadAll(cmd.Stdout);
++	if err != nil {
++		t.Fatalf("reading from /bin/cat: %v", err);
+ 	}
+-	if string(buf[0:n]) != "hello, world\n" {
+-		t.Fatalf("reading from /bin/cat: got %q", buf[0:n]);
++	if string(buf) != "hello, world\n" {
++		t.Fatalf("reading from /bin/cat: got %q", buf);
+ 	}
+-	if err1 = cmd.Close(); err1 != nil {
+-		t.Fatalf("closing /bin/cat: %v", err1);
++	if err = cmd.Close(); err != nil {
++		t.Fatalf("closing /bin/cat: %v", err);
+ 	}
+ }
+ 
+@@ -37,15 +36,14 @@ func TestRunEcho(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("opencmd /bin/echo: %v", err);
+ 	}
+-	var buf [64]byte;
+-	n, err1 := io.FullRead(cmd.Stdout, &buf);
+-	if err1 != nil && err1 != io.ErrEOF {
+-		t.Fatalf("reading from /bin/echo: %v", err1);
++	buf, err := io.ReadAll(cmd.Stdout);
++	if err != nil {
++		t.Fatalf("reading from /bin/echo: %v", err);
+ 	}
+-	if string(buf[0:n]) != "hello world\n" {
+-		t.Fatalf("reading from /bin/echo: got %q", buf[0:n]);
++	if string(buf) != "hello world\n" {
++		t.Fatalf("reading from /bin/echo: got %q", buf);
+ 	}
+-	if err1 = cmd.Close(); err1 != nil {
+-		t.Fatalf("closing /bin/echo: %v", err1);
++	if err = cmd.Close(); err != nil {
++		t.Fatalf("closing /bin/echo: %v", err);
+ 	}
+ }
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 6cde4a41ca..ca4235879e 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -25,11 +25,7 @@ func TestClient(t *testing.T) {
+ 		r.Body.Close();
+ 	}
+ 
+-	// TODO: io.ErrEOF check is needed because we're sometimes getting
+-	// this error when nothing is actually wrong.  rsc suspects a bug
+-	// in bufio.  Can remove the ErrEOF check once the bug is fixed
+-	// (expected to occur within a few weeks of this writing, 6/9/09).
+-	if err != nil && err != io.ErrEOF {
++	if err != nil {
+ 		t.Errorf("Error fetching URL: %v", err);
+ 	} else {
+ 		s := string(b);
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 108734c47f..fd18096f0b 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -142,7 +142,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 	} else {
+ 		// read first chunk to decide between utf-8 text and binary
+ 		var buf [1024]byte;
+-		n, err := io.FullRead(f, &buf);
++		n, err := io.ReadFull(f, &buf);
+ 		b := buf[0:n];
+ 		if isText(b) {
+ 			c.SetHeader("Content-Type", "text-plain; charset=utf-8");
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 5356f55253..a0207ea71d 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -151,8 +151,8 @@ func (req *Request) write(w io.Writer) os.Error {
+ 	io.WriteString(w, "\r\n");
+ 
+ 	if req.Body != nil {
+-		nCopied, err := io.Copy(req.Body, w);
+-		if err != nil && err != io.ErrEOF {
++		_, err := io.Copy(req.Body, w);
++		if err != nil {
+ 			return err;
+ 		}
+ 	}
+diff --git a/src/pkg/io/bytebuffer.go b/src/pkg/io/bytebuffer.go
+index 000c05352d..11c8a1a87d 100644
+--- a/src/pkg/io/bytebuffer.go
++++ b/src/pkg/io/bytebuffer.go
+@@ -103,10 +103,10 @@ func (b *ByteBuffer) Read(p []byte) (n int, err os.Error) {
+ }
+ 
+ // ReadByte reads and returns the next byte from the buffer.
+-// If no byte is available, it returns error ErrEOF.
++// If no byte is available, it returns error os.EOF.
+ func (b *ByteBuffer) ReadByte() (c byte, err os.Error) {
+ 	if b.off >= len(b.buf) {
+-		return 0, ErrEOF;
++		return 0, os.EOF;
+ 	}
+         c = b.buf[b.off];
+ 	b.off++;
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index ba0449ac17..d01f9ee3d3 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -19,18 +19,25 @@ type Error struct {
+ 	os.ErrorString
+ }
+ 
+-// ErrEOF means that data was expected, but a read got EOF instead.
+-var ErrEOF os.Error = &Error{"EOF"}
+-
+ // ErrShortWrite means that a write accepted fewer bytes than requested
+ // but failed to return an explicit error.
+ var ErrShortWrite os.Error = &Error{"short write"}
+ 
++// ErrUnexpectedEOF means that os.EOF was encountered in the
++// middle of reading a fixed-size block or data structure.
++var ErrUnexpectedEOF os.Error = &Error{"unexpected EOF"}
+ 
+ // Reader is the interface that wraps the basic Read method.
+-// An implementation of Read is allowed to use all of p for
+-// scratch space during the call, even if it eventually returns
+-// n < len(p).
++//
++// Read reads up to len(p) bytes into p.  It returns the number of bytes
++// read and any error encountered.  Even if Read returns n < len(p),
++// it may use all of p as scratch space during the call.
++// If some data is available but not len(p) bytes, Read conventionally
++// returns what is available rather than block waiting for more.
++//
++// At the end of the input stream, Read returns 0, os.EOF.
++// Read may return a non-zero number of bytes with a non-nil err.
++// In particular, a Read that exhausts the input may return n > 0, os.EOF.
+ type Reader interface {
+ 	Read(p []byte) (n int, err os.Error);
+ }
+@@ -84,8 +91,11 @@ func WriteString(w Writer, s string) (n int, err os.Error) {
+ 	return w.Write(StringBytes(s))
+ }
+ 
+-// ReadAtLeast reads r into buf until at least min bytes have been read,
+-// or until EOF or error.
++// ReadAtLeast reads from r into buf until it has read at least min bytes.
++// It returns the number of bytes copied and an error if fewer bytes were read.
++// The error is os.EOF only if no bytes were read.
++// If an EOF happens after reading fewer than min bytes,
++// ReadAtLeast returns ErrUnexpectedEOF.
+ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
+ 	n = 0;
+ 	for n < min {
+@@ -94,44 +104,27 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
+ 			n += nn
+ 		}
+ 		if e != nil {
++			if e == os.EOF && n > 0 {
++				e = ErrUnexpectedEOF;
++			}
+ 			return n, e
+ 		}
+-		if nn <= 0 {
+-			return n, ErrEOF	// no error but insufficient data
+-		}
+ 	}
+ 	return n, nil
+ }
+ 
+-// FullRead reads r until the buffer buf is full, or until EOF or error.
+-func FullRead(r Reader, buf []byte) (n int, err os.Error) {
+-	// TODO(rsc): 6g bug prevents obvious return
++// ReadFull reads exactly len(buf) bytes from r into buf.
++// It returns the number of bytes copied and an error if fewer bytes were read.
++// The error is os.EOF only if no bytes were read.
++// If an EOF happens after reading some but not all the bytes,
++// ReadFull returns ErrUnexpectedEOF.
++func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
++	// TODO(rsc): 6g bug keeps us from writing the obvious 1-liner
+ 	n, err = ReadAtLeast(r, buf, len(buf));
+ 	return;
+ }
+ 
+-// Convert something that implements Read into something
+-// whose Reads are always FullReads
+-type fullRead struct {
+-	r	Reader;
+-}
+-
+-func (fr *fullRead) Read(p []byte) (n int, err os.Error) {
+-	n, err = FullRead(fr.r, p);
+-	return n, err
+-}
+-
+-// MakeFullReader takes r, an implementation of Read, and returns an object
+-// that still implements Read but always calls FullRead underneath.
+-func MakeFullReader(r Reader) Reader {
+-	if fr, ok := r.(*fullRead); ok {
+-		// already a fullRead
+-		return r
+-	}
+-	return &fullRead{r}
+-}
+-
+-// Copy n copies n bytes (or until EOF is reached) from src to dst.
++// Copyn copies n bytes (or until an error) from src to dst.
+ // It returns the number of bytes copied and the error, if any.
+ func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+@@ -151,7 +144,7 @@ func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
+ 				break;
+ 			}
+ 			if nr != nw {
+-				err = os.EIO;
++				err = ErrShortWrite;
+ 				break;
+ 			}
+ 		}
+@@ -159,16 +152,13 @@ func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
+ 			err = er;
+ 			break;
+ 		}
+-		if nr == 0 {
+-			err = ErrEOF;
+-			break;
+-		}
+ 	}
+ 	return written, err
+ }
+ 
+-// Copy copies from src to dst until EOF is reached.
+-// It returns the number of bytes copied and the error, if any.
++// Copy copies from src to dst until either EOF is reached
++// on src or an error occurs.  It returns the number of bytes
++// copied and the error, if any.
+ func Copy(src Reader, dst Writer) (written int64, err os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for {
+@@ -183,15 +173,15 @@ func Copy(src Reader, dst Writer) (written int64, err os.Error) {
+ 				break;
+ 			}
+ 			if nr != nw {
+-				err = os.EIO;
++				err = ErrShortWrite;
+ 				break;
+ 			}
+ 		}
+-		if er != nil {
+-			err = er;
++		if er == os.EOF {
+ 			break;
+ 		}
+-		if nr == 0 {
++		if er != nil {
++			err = er;
+ 			break;
+ 		}
+ 	}
+@@ -208,6 +198,9 @@ type ByteReader struct {
+ func (r ByteReader) Read(p []byte) (int, os.Error) {
+ 	n := len(p);
+ 	b := r.Data;
++	if len(b) == 0 {
++		return 0, os.EOF;
++	}
+ 	if n > len(b) {
+ 		n = len(b);
+ 	}
+diff --git a/src/pkg/io/pipe.go b/src/pkg/io/pipe.go
+index 1a443ddcec..729094fde3 100644
+--- a/src/pkg/io/pipe.go
++++ b/src/pkg/io/pipe.go
+@@ -104,6 +104,9 @@ func (p *pipe) CloseReader(rerr os.Error) os.Error {
+ }
+ 
+ func (p *pipe) CloseWriter(werr os.Error) os.Error {
++	if werr == nil {
++		werr = os.EOF;
++	}
+ 	if p == nil || p.wclosed {
+ 		return os.EINVAL;
+ 	}
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index 277f445250..02d5013f35 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -45,13 +45,14 @@ func reader(t *testing.T, r Reader, c chan int) {
+ 	var buf = make([]byte, 64);
+ 	for {
+ 		n, err := r.Read(buf);
++		if err == os.EOF {
++			c <- 0;
++			break;
++		}
+ 		if err != nil {
+ 			t.Errorf("read: %v", err);
+ 		}
+ 		c <- n;
+-		if n == 0 {
+-			break;
+-		}
+ 	}
+ }
+ 
+@@ -101,7 +102,7 @@ func TestPipe3(t *testing.T) {
+ 	tot := 0;
+ 	for n := 1; n <= 256; n *= 2 {
+ 		nn, err := r.Read(rdat[tot:tot+n]);
+-		if err != nil {
++		if err != nil && err != os.EOF {
+ 			t.Fatalf("read: %v", err);
+ 		}
+ 
+@@ -111,6 +112,9 @@ func TestPipe3(t *testing.T) {
+ 			expect = 1;
+ 		} else if n == 256 {
+ 			expect = 0;
++			if err != os.EOF {
++				t.Fatalf("read at end: %v", err);
++			}
+ 		}
+ 		if nn != expect {
+ 			t.Fatalf("read %d, expected %d, got %d", n, expect, nn);
+@@ -183,8 +187,12 @@ func TestPipeReadClose(t *testing.T) {
+ 		var buf = make([]byte, 64);
+ 		n, err := r.Read(buf);
+ 		<-c;
+-		if err != tt.err {
+-			t.Errorf("read from closed pipe: %v want %v", err, tt.err);
++		want := tt.err;
++		if want == nil {
++			want = os.EOF;
++		}
++		if err != want {
++			t.Errorf("read from closed pipe: %v want %v", err, want);
+ 		}
+ 		if n != 0 {
+ 			t.Errorf("read on closed pipe returned %d", n);
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 1e0c0aaf06..3792195ce7 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -24,7 +24,7 @@ func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+ 	n, err := fd.Write(req);
+ 
+ 	buf := make([]byte, 1000);
+-	n, err = io.FullRead(fd, buf);
++	n, err = io.ReadFull(fd, buf);
+ 
+ 	if n < 1000 {
+ 		t.Errorf("fetchGoogle: short HTTP read from %s %s - %v", network, addr, err);
+diff --git a/src/pkg/net/parse.go b/src/pkg/net/parse.go
+index de47cb812d..7d5dd8f888 100644
+--- a/src/pkg/net/parse.go
++++ b/src/pkg/net/parse.go
+@@ -50,7 +50,7 @@ func (f *file) readLine() (s string, ok bool) {
+ 	}
+ 	if len(f.data) < cap(f.data) {
+ 		ln := len(f.data);
+-		n, err := io.FullRead(f.file, f.data[ln:cap(f.data)]);
++		n, err := io.ReadFull(f.file, f.data[ln:cap(f.data)]);
+ 		if n >= 0 {
+ 			f.data = f.data[0:ln+n];
+ 		}
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 1562b1b0e4..5b6115932e 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -97,9 +97,21 @@ func (file *File) Close() Error {
+ 	return err;
+ }
+ 
++type eofError int
++func (eofError) String() string {
++	return "EOF"
++}
++
++// EOF is the Error returned by Read when no more input is available.
++// Functions should return EOF only to signal a graceful end of input.
++// If the EOF occurs unexpectedly in a structured data stream,
++// the appropriate error is either io.ErrUnexpectedEOF or some other error
++// giving more detail.
++var EOF Error = eofError(0)
++
+ // Read reads up to len(b) bytes from the File.
+ // It returns the number of bytes read and an Error, if any.
+-// EOF is signaled by a zero count with a nil Error.
++// EOF is signaled by a zero count with err set to EOF.
+ // TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
+ func (file *File) Read(b []byte) (ret int, err Error) {
+ 	if file == nil {
+@@ -109,6 +121,9 @@ func (file *File) Read(b []byte) (ret int, err Error) {
+ 	if n < 0 {
+ 		n = 0;
+ 	}
++	if n == 0 && e == 0 {
++		return 0, EOF
++	}
+ 	return n, ErrnoToError(e);
+ }
+ 
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 6a132f343e..77b69447d5 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -40,13 +40,13 @@ func size(name string, t *testing.T) uint64 {
+ 	len := 0;
+ 	for {
+ 		n, e := file.Read(&buf);
+-		if n < 0 || e != nil {
+-			t.Fatal("read failed:", err);
+-		}
+-		if n == 0 {
++		len += n;
++		if e == EOF {
+ 			break
+ 		}
+-		len += n;
++		if e != nil {
++			t.Fatal("read failed:", err);
++		}
+ 	}
+ 	return uint64(len)
+ }
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 60d7ce6cfb..f1993bb7e2 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -105,7 +105,7 @@ func TestFp(t *testing.T) {
+ 	lineno := 0;
+ 	for {
+ 		line, err2 := b.ReadLineString('\n', false);
+-		if err2 == io.ErrEOF {
++		if err2 == os.EOF {
+ 			break;
+ 		}
+ 		if err2 != nil {
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index 751afc9314..c4fe814c30 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -16,7 +16,6 @@ import (
+ )
+ 
+ const (
+-	maxFileSize = 8192;	// actual files are closer to 1K
+ 	headerSize = 4+16+4*7;
+ 
+ 	zoneDir = "/usr/share/zoneinfo/";
+@@ -29,7 +28,6 @@ type TimeZoneError struct {
+ 
+ var errShort = TimeZoneError{ "time: short zone file" }
+ var errInvalid = TimeZoneError{ "time: invalid zone file" }
+-var errLong = TimeZoneError{ "time: zone file too long" }
+ 
+ // Simple I/O interface to binary blob of data.
+ type data struct {
+@@ -206,25 +204,8 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 	return zt, nil
+ }
+ 
+-func readfile(name string, max int) (p []byte, err os.Error) {
+-	f, e := os.Open(name, os.O_RDONLY, 0);
+-	if e != nil {
+-		return nil, e;
+-	}
+-	p = make([]byte, max);
+-	n, err1 := io.FullRead(f, p);
+-	f.Close();
+-	if err1 == nil {	// too long
+-		return nil, errLong;
+-	}
+-	if err1 != io.ErrEOF {
+-		return nil, err1;
+-	}
+-	return p[0:n], nil;
+-}
+-
+ func readinfofile(name string) ([]zonetime, os.Error) {
+-	buf, err := readfile(name, maxFileSize);
++	buf, err := io.ReadFile(name);
+ 	if err != nil {
+ 		goto Error;
+ 	}

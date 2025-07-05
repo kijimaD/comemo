@@ -11,6 +11,19 @@ Date:   Fri Dec 5 21:33:07 2014 -0500
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/182580043
-
+---
  src/encoding/xml/xml.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index a4cd4e29e0..8c15b98c3a 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -29,7 +29,6 @@ import (
+ type SyntaxError struct {
+ 	Msg  string
+ 	Line int
+-	Byte int64 // byte offset from start of stream
+ }
+ 
+ func (e *SyntaxError) Error() string {

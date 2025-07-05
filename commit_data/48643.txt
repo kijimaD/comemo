@@ -18,6 +18,22 @@ Date:   Fri Jun 4 10:56:06 2021 -0400
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/syscall/zsyscall_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index b9e429693d..7bfff16be6 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -41,9 +41,9 @@ var (
+ 	moddnsapi   = NewLazyDLL(sysdll.Add("dnsapi.dll"))
+ 	modiphlpapi = NewLazyDLL(sysdll.Add("iphlpapi.dll"))
+ 	modkernel32 = NewLazyDLL(sysdll.Add("kernel32.dll"))
+-	modntdll    = NewLazyDLL(sysdll.Add("ntdll.dll"))
+ 	modmswsock  = NewLazyDLL(sysdll.Add("mswsock.dll"))
+ 	modnetapi32 = NewLazyDLL(sysdll.Add("netapi32.dll"))
++	modntdll    = NewLazyDLL(sysdll.Add("ntdll.dll"))
+ 	modsecur32  = NewLazyDLL(sysdll.Add("secur32.dll"))
+ 	modshell32  = NewLazyDLL(sysdll.Add("shell32.dll"))
+ 	moduserenv  = NewLazyDLL(sysdll.Add("userenv.dll"))

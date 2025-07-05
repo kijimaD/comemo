@@ -23,7 +23,57 @@ Date:   Tue Dec 1 12:02:16 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go  | 10 ++++++++++
  src/cmd/compile/internal/gc/walk.go |  3 +++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7c74054b60..d53bd1aa4f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2103,6 +2103,9 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		// Assume everything will work out, so set up our return value.
+ 		// Anything interesting that happens from here is a fatal.
+ 		x := s.expr(n.Left())
++		if to == from {
++			return x
++		}
+ 
+ 		// Special case for not confusing GC and liveness.
+ 		// We don't want pointers accidentally classified
+@@ -2966,6 +2969,10 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
+ 		s.stmtList(cond.Init())
+ 		s.condBranch(cond.Left(), no, yes, -likely)
+ 		return
++	case ir.OCONVNOP:
++		s.stmtList(cond.Init())
++		s.condBranch(cond.Left(), yes, no, likely)
++		return
+ 	}
+ 	c := s.expr(cond)
+ 	b := s.endBlock()
+@@ -4903,6 +4910,9 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 		return s.newValue1I(ssa.OpOffPtr, t, n.Offset(),
+ 			s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr))
+ 	case ir.OCONVNOP:
++		if n.Type() == n.Left().Type() {
++			return s.addr(n.Left())
++		}
+ 		addr := s.addr(n.Left())
+ 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
+ 	case ir.OCALLFUNC, ir.OCALLINTER, ir.OCALLMETH:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f439237936..c0f447f1a2 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -966,6 +966,9 @@ opswitch:
+ 
+ 	case ir.OCONV, ir.OCONVNOP:
+ 		n.SetLeft(walkexpr(n.Left(), init))
++		if n.Op() == ir.OCONVNOP && n.Type() == n.Left().Type() {
++			return n.Left()
++		}
+ 		if n.Op() == ir.OCONVNOP && checkPtr(Curfn, 1) {
+ 			if n.Type().IsPtr() && n.Left().Type().IsUnsafePtr() { // unsafe.Pointer to *T
+ 				n = walkCheckPtrAlignment(n, init, nil)

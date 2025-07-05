@@ -7,7 +7,7 @@ Date:   Tue Jul 16 16:24:43 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/11364043
-
+---
  src/cmd/5c/cgen.c |  4 +++-
  src/cmd/5c/gc.h   |  1 +
  src/cmd/5c/sgen.c |  7 ++++++-
@@ -23,3 +23,290 @@ Date:   Tue Jul 16 16:24:43 2013 -0400
  src/cmd/cc/cc.h   |  1 +
  src/cmd/cc/pgen.c | 11 +++++++++++
  14 files changed, 74 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5c/cgen.c b/src/cmd/5c/cgen.c
+index 5ff4f633d1..08ed36055a 100644
+--- a/src/cmd/5c/cgen.c
++++ b/src/cmd/5c/cgen.c
+@@ -28,8 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-
+ #include "gc.h"
++#include "../../pkg/runtime/funcdata.h"
+ 
+ void
+ _cgen(Node *n, Node *nn, int inrel)
+@@ -366,12 +366,14 @@ _cgen(Node *n, Node *nn, int inrel)
+ 		if(REGARG >= 0)
+ 			o = reg[REGARG];
+ 		gargs(r, &nod, &nod1);
++		gpcdata(PCDATA_ArgSize, curarg);
+ 		if(l->addable < INDEXED) {
+ 			reglcgen(&nod, l, Z);
+ 			gopcode(OFUNC, Z, Z, &nod);
+ 			regfree(&nod);
+ 		} else
+ 			gopcode(OFUNC, Z, Z, l);
++		gpcdata(PCDATA_ArgSize, -1);
+ 		if(REGARG >= 0)
+ 			if(o != reg[REGARG])
+ 				reg[REGARG]--;
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index a0fc63c608..084da7e6a5 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -298,6 +298,7 @@ int	sconst(Node*);
+ int	sval(int32);
+ void	gpseudo(int, Sym*, Node*);
+ void	gprefetch(Node*);
++void	gpcdata(int, int);
+ 
+ /*
+  * swt.c
+diff --git a/src/cmd/5c/sgen.c b/src/cmd/5c/sgen.c
+index 92a0f64f83..948791dbba 100644
+--- a/src/cmd/5c/sgen.c
++++ b/src/cmd/5c/sgen.c
+@@ -37,8 +37,13 @@ gtext(Sym *s, int32 stkoff)
+ 	int32 a;
+ 	
+ 	a = 0;
+-	if(!(textflag & NOSPLIT))
++	if(!(textflag & NOSPLIT) || !hasdotdotdot()) {
+ 		a = argsize();
++		// Change argsize 0 to 1 to be mark that
++		// the argument size is present.
++		if(a == 0)
++			a = 1;
++	}
+ 	else if(stkoff >= 128)
+ 		yyerror("stack frame too large for NOSPLIT function");
+ 
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index 8dfd586fd4..81da9fb801 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -1197,6 +1197,15 @@ gpseudo(int a, Sym *s, Node *n)
+ 		pc--;
+ }
+ 
++void
++gpcdata(int index, int value)
++{
++	Node n1;
++	
++	n1 = *nodconst(index);
++	gins(APCDATA, &n1, nodconst(value));
++}
++
+ void
+ gprefetch(Node *n)
+ {
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index e5887a315f..bdef76ff08 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include "gc.h"
++#include "../../pkg/runtime/funcdata.h"
+ 
+ /* ,x/^(print|prtree)\(/i/\/\/ */
+ int castup(Type*, Type*);
+@@ -944,6 +945,7 @@ cgen(Node *n, Node *nn)
+ 			return;
+ 		}
+ 		gargs(r, &nod, &nod1);
++		gpcdata(PCDATA_ArgSize, curarg);
+ 		if(l->addable < INDEXED) {
+ 			reglcgen(&nod, l, nn);
+ 			nod.op = OREGISTER;
+@@ -951,6 +953,7 @@ cgen(Node *n, Node *nn)
+ 			regfree(&nod);
+ 		} else
+ 			gopcode(OFUNC, n->type, Z, l);
++		gpcdata(PCDATA_ArgSize, -1);
+ 		if(REGARG >= 0 && reg[REGARG])
+ 			reg[REGARG]--;
+ 		if(nn != Z) {
+diff --git a/src/cmd/6c/gc.h b/src/cmd/6c/gc.h
+index d1133ee214..c466a3afe2 100644
+--- a/src/cmd/6c/gc.h
++++ b/src/cmd/6c/gc.h
+@@ -293,6 +293,7 @@ void	patch(Prog*, int32);
+ int	sconst(Node*);
+ void	gpseudo(int, Sym*, Node*);
+ void	gprefetch(Node*);
++void	gpcdata(int, int);
+ 
+ /*
+  * swt.c
+diff --git a/src/cmd/6c/sgen.c b/src/cmd/6c/sgen.c
+index 2402a020da..99c05ecc4e 100644
+--- a/src/cmd/6c/sgen.c
++++ b/src/cmd/6c/sgen.c
+@@ -29,15 +29,22 @@
+ // THE SOFTWARE.
+ 
+ #include "gc.h"
++#include "../../pkg/runtime/funcdata.h"
+ 
+ Prog*
+ gtext(Sym *s, int32 stkoff)
+ {
+ 	vlong v;
+-	
++
+ 	v = 0;
+-	if(!(textflag & NOSPLIT))
+-		v |= argsize() << 32;
++	if(!(textflag & NOSPLIT) || !hasdotdotdot()) {
++		v = argsize();
++		// Change argsize 0 to 1 to be mark that
++		// the argument size is present.
++		if(v == 0)
++			v = 1;
++		v <<= 32;
++	}
+ 	v |= stkoff & 0xffffffff;
+ 	if((textflag & NOSPLIT) && stkoff >= 128)
+ 		yyerror("stack frame too large for NOSPLIT function");
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index b91e22b399..6f5d42da57 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -1518,6 +1518,15 @@ gpseudo(int a, Sym *s, Node *n)
+ 		pc--;
+ }
+ 
++void
++gpcdata(int index, int value)
++{
++	Node n1;
++	
++	n1 = *nodconst(index);
++	gins(APCDATA, &n1, nodconst(value));
++}
++
+ void
+ gprefetch(Node *n)
+ {
+diff --git a/src/cmd/8c/cgen.c b/src/cmd/8c/cgen.c
+index 4d4ae13abe..f541022456 100644
+--- a/src/cmd/8c/cgen.c
++++ b/src/cmd/8c/cgen.c
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include "gc.h"
++#include "../../pkg/runtime/funcdata.h"
+ 
+ /* ,x/^(print|prtree)\(/i/\/\/ */
+ 
+@@ -937,6 +938,7 @@ cgen(Node *n, Node *nn)
+ 			return;
+ 		}
+ 		gargs(r, &nod, &nod1);
++		gpcdata(PCDATA_ArgSize, curarg);
+ 		if(l->addable < INDEXED) {
+ 			reglcgen(&nod, l, nn);
+ 			nod.op = OREGISTER;
+@@ -944,6 +946,7 @@ cgen(Node *n, Node *nn)
+ 			regfree(&nod);
+ 		} else
+ 			gopcode(OFUNC, n->type, Z, l);
++		gpcdata(PCDATA_ArgSize, -1);
+ 		if(REGARG >= 0 && reg[REGARG])
+ 			reg[REGARG]--;
+ 		if(nn != Z) {
+diff --git a/src/cmd/8c/gc.h b/src/cmd/8c/gc.h
+index bdf981b4c2..b668b4c639 100644
+--- a/src/cmd/8c/gc.h
++++ b/src/cmd/8c/gc.h
+@@ -298,6 +298,7 @@ void	patch(Prog*, int32);
+ int	sconst(Node*);
+ void	gpseudo(int, Sym*, Node*);
+ void	gprefetch(Node*);
++void	gpcdata(int, int);
+ 
+ /*
+  * swt.c
+diff --git a/src/cmd/8c/sgen.c b/src/cmd/8c/sgen.c
+index b0f2bc544c..f3c7e32f34 100644
+--- a/src/cmd/8c/sgen.c
++++ b/src/cmd/8c/sgen.c
+@@ -34,10 +34,15 @@ Prog*
+ gtext(Sym *s, int32 stkoff)
+ {
+ 	int32 a;
+-	
++
+ 	a = 0;
+-	if(!(textflag & NOSPLIT))
++	if(!(textflag & NOSPLIT) || !hasdotdotdot()) {
+ 		a = argsize();
++		// Change argsize 0 to 1 to be mark that
++		// the argument size is present.
++		if(a == 0)
++			a = 1;
++	}
+ 	else if(stkoff >= 128)
+ 		yyerror("stack frame too large for NOSPLIT function");
+ 
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 721322a531..5c486af38d 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -1397,6 +1397,15 @@ gpseudo(int a, Sym *s, Node *n)
+ 		pc--;
+ }
+ 
++void
++gpcdata(int index, int value)
++{
++	Node n1;
++	
++	n1 = *nodconst(index);
++	gins(APCDATA, &n1, nodconst(value));
++}
++
+ void
+ gprefetch(Node *n)
+ {
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 535e22d6f6..fe9f9f7985 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -777,6 +777,7 @@ void	xcom(Node*);
+ int32	exreg(Type*);
+ int32	align(int32, Type*, int, int32*);
+ int32	maxround(int32, int32);
++int	hasdotdotdot(void);
+ 
+ extern	schar	ewidth[];
+ 
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 628f858b63..ee7b0c57f8 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -30,6 +30,17 @@
+ 
+ #include "gc.h"
+ 
++int
++hasdotdotdot(void)
++{
++	Type *t;
++
++	for(t=thisfn->down; t!=T; t=t->down)
++		if(t->etype == TDOT)
++			return 1;
++	return 0;
++}
++
+ vlong
+ argsize(void)
+ {

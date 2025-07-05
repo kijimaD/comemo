@@ -7,7 +7,89 @@ Date:   Tue Sep 4 14:34:03 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6489065
-
+---
  src/pkg/runtime/cpuprof.c           | 14 ++++++++++++++
  src/pkg/runtime/pprof/pprof_test.go | 16 +++++++++++-----
  2 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index 05fa0cf61a..eded073320 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -99,6 +99,7 @@ struct Profile {
+ 	uint32 wtoggle;
+ 	bool wholding;	// holding & need to release a log half
+ 	bool flushing;	// flushing hash table - profile is over
++	bool eod_sent;  // special end-of-data record sent; => flushing
+ };
+ 
+ static Lock lk;
+@@ -109,6 +110,8 @@ static void add(Profile*, uintptr*, int32);
+ static bool evict(Profile*, Entry*);
+ static bool flushlog(Profile*);
+ 
++static uintptr eod[3] = {0, 1, 0};
++
+ // LostProfileData is a no-op function used in profiles
+ // to mark the number of profiling stack traces that were
+ // discarded due to slow data writers.
+@@ -163,6 +166,7 @@ runtime·SetCPUProfileRate(int32 hz)
+ 		prof->wholding = false;
+ 		prof->wtoggle = 0;
+ 		prof->flushing = false;
++		prof->eod_sent = false;
+ 		runtime·noteclear(&prof->wait);
+ 
+ 		runtime·setcpuprofilerate(tick, hz);
+@@ -409,6 +413,16 @@ breakflush:
+ 	}
+ 
+ 	// Made it through the table without finding anything to log.
++	if(!p->eod_sent) {
++		// We may not have space to append this to the partial log buf,
++		// so we always return a new slice for the end-of-data marker.
++		p->eod_sent = true;
++		ret.array = (byte*)eod;
++		ret.len = sizeof eod;
++		ret.cap = ret.len;
++		return ret;
++	}
++
+ 	// Finally done.  Clean up and return nil.
+ 	p->flushing = false;
+ 	if(!runtime·cas(&p->handoff, p->handoff, 0))
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 82bb2a2926..f8d65d483b 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -49,19 +49,25 @@ func TestCPUProfile(t *testing.T) {
+ 
+ 	// Convert []byte to []uintptr.
+ 	bytes := prof.Bytes()
++	l := len(bytes) / int(unsafe.Sizeof(uintptr(0)))
+ 	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
+-	val = val[:len(bytes)/int(unsafe.Sizeof(uintptr(0)))]
++	val = val[:l]
+ 
+-	if len(val) < 10 {
++	if l < 13 {
+ 		t.Fatalf("profile too short: %#x", val)
+ 	}
+-	if val[0] != 0 || val[1] != 3 || val[2] != 0 || val[3] != 1e6/100 || val[4] != 0 {
+-		t.Fatalf("unexpected header %#x", val[:5])
++
++	hd, val, tl := val[:5], val[5:l-3], val[l-3:]
++	if hd[0] != 0 || hd[1] != 3 || hd[2] != 0 || hd[3] != 1e6/100 || hd[4] != 0 {
++		t.Fatalf("unexpected header %#x", hd)
++	}
++
++	if tl[0] != 0 || tl[1] != 1 || tl[2] != 0 {
++		t.Fatalf("malformed end-of-data marker %#x", tl)
+ 	}
+ 
+ 	// Check that profile is well formed and contains ChecksumIEEE.
+ 	found := false
+-	val = val[5:]
+ 	for len(val) > 0 {
+ 		if len(val) < 2 || val[0] < 1 || val[1] < 1 || uintptr(len(val)) < 2+val[1] {
+ 			t.Fatalf("malformed profile.  leftover: %#x", val)

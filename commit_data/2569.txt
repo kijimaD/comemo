@@ -7,6 +7,20 @@ Date:   Thu Jul 2 09:47:25 2009 -0700
     R=gri
     OCL=31047
     CL=31047
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index d086cefce9..ac5beb5da4 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -99,7 +99,7 @@ var (
+ 
+ func init() {
+ 	goroot = os.Getenv("GOROOT");
+-	if goroot != "" {
++	if goroot == "" {
+ 		goroot = "/home/r/go-release/go";
+ 	}
+ 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");

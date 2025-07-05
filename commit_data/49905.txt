@@ -17,7 +17,7 @@ Date:   Tue Sep 14 17:25:00 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/types.go            |  9 ++-
  src/cmd/compile/internal/types2/call.go            | 51 ------------
  src/cmd/compile/internal/types2/decl.go            |  6 ++
@@ -29,3 +29,437 @@ Date:   Tue Sep 14 17:25:00 2021 -0700
  src/cmd/compile/internal/types2/sizeof_test.go     |  2 +-
  src/cmd/compile/internal/types2/subst.go           |  3 +-
  10 files changed, 182 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 03fb96c48b..99917ad974 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -42,7 +42,9 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
+ 		l := len(g.typesToFinalize)
+ 		info := g.typesToFinalize[l-1]
+ 		g.typesToFinalize = g.typesToFinalize[:l-1]
++		types.DeferCheckSize()
+ 		g.fillinMethods(info.typ, info.ntyp)
++		types.ResumeCheckSize()
+ 	}
+ 	return res
+ }
+@@ -283,15 +285,20 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
+ 		m := typ.Method(i)
+ 		recvType := deref2(types2.AsSignature(m.Type()).Recv().Type())
+ 		var meth *ir.Name
++		imported := false
+ 		if m.Pkg() != g.self {
+ 			// Imported methods cannot be loaded by name (what
+ 			// g.obj() does) - they must be loaded via their
+ 			// type.
+ 			meth = g.obj(recvType.(*types2.Named).Obj()).Type().Methods().Index(i).Nname.(*ir.Name)
++			// XXX Because Obj() returns the object of the base generic
++			// type, we have to still do the method translation below.
++			imported = true
+ 		} else {
+ 			meth = g.obj(m)
+ 		}
+-		if recvType != types2.Type(typ) {
++		assert(recvType == types2.Type(typ))
++		if imported {
+ 			// Unfortunately, meth is the type of the method of the
+ 			// generic type, so we have to do a substitution to get
+ 			// the name/type of the method of the instantiated type,
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index ba3bb475a3..0480b7bef4 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -528,58 +528,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 
+ 	// methods may not have a fully set up signature yet
+ 	if m, _ := obj.(*Func); m != nil {
+-		// check.dump("### found method %s", m)
+ 		check.objDecl(m, nil)
+-		// If m has a parameterized receiver type, infer the type arguments from
+-		// the actual receiver provided and then substitute the type parameters in
+-		// the signature accordingly.
+-		// TODO(gri) factor this code out
+-		sig := m.typ.(*Signature)
+-		if sig.RecvTypeParams().Len() > 0 {
+-			// For inference to work, we must use the receiver type
+-			// matching the receiver in the actual method declaration.
+-			// If the method is embedded, the matching receiver is the
+-			// embedded struct or interface that declared the method.
+-			// Traverse the embedding to find that type (issue #44688).
+-			recv := x.typ
+-			for i := 0; i < len(index)-1; i++ {
+-				// The embedded type is either a struct or a pointer to
+-				// a struct except for the last one (which we don't need).
+-				recv = asStruct(derefStructPtr(recv)).Field(index[i]).typ
+-			}
+-			//check.dump("### recv = %s", recv)
+-			//check.dump("### method = %s rparams = %s tparams = %s", m, sig.rparams, sig.tparams)
+-			// The method may have a pointer receiver, but the actually provided receiver
+-			// may be a (hopefully addressable) non-pointer value, or vice versa. Here we
+-			// only care about inferring receiver type parameters; to make the inference
+-			// work, match up pointer-ness of receiver and argument.
+-			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(recv) {
+-				if ptrRecv {
+-					recv = NewPointer(recv)
+-				} else {
+-					recv = recv.(*Pointer).base
+-				}
+-			}
+-			// Disable reporting of errors during inference below. If we're unable to infer
+-			// the receiver type arguments here, the receiver must be be otherwise invalid
+-			// and an error has been reported elsewhere.
+-			arg := operand{mode: variable, expr: x.expr, typ: recv}
+-			targs := check.infer(m.pos, sig.RecvTypeParams().list(), nil, NewTuple(sig.recv), []*operand{&arg}, false /* no error reporting */)
+-			//check.dump("### inferred targs = %s", targs)
+-			if targs == nil {
+-				// We may reach here if there were other errors (see issue #40056).
+-				goto Error
+-			}
+-			// Don't modify m. Instead - for now - make a copy of m and use that instead.
+-			// (If we modify m, some tests will fail; possibly because the m is in use.)
+-			// TODO(gri) investigate and provide a correct explanation here
+-			copy := *m
+-			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.RecvTypeParams().list(), targs), nil)
+-			obj = &copy
+-		}
+-		// TODO(gri) we also need to do substitution for parameterized interface methods
+-		//           (this breaks code in testdata/linalg.go2 at the moment)
+-		//           12/20/2019: Is this TODO still correct?
+ 	}
+ 
+ 	if x.mode == typexpr {
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 26e050511e..1926d93a86 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -66,6 +66,12 @@ func (check *Checker) objDecl(obj Object, def *Named) {
+ 		}()
+ 	}
+ 
++	// Funcs with m.instRecv set have not yet be completed. Complete them now
++	// so that they have a type when objDecl exits.
++	if m, _ := obj.(*Func); m != nil && m.instRecv != nil {
++		check.completeMethod(check.conf.Environment, m)
++	}
++
+ 	// Checking the declaration of obj means inferring its type
+ 	// (and possibly its value, for constants).
+ 	// An object's type (and thus the object) may be in one of
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index c2a8155dc7..b98c8211df 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -29,6 +29,7 @@ const useConstraintTypeInference = true
+ //
+ // Constraint type inference is used after each step to expand the set of type arguments.
+ //
++// TODO(gri): remove the report parameter: is no longer needed.
+ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, report bool) (result []Type) {
+ 	if debug {
+ 		defer func() {
+diff --git a/src/cmd/compile/internal/types2/instantiate_test.go b/src/cmd/compile/internal/types2/instantiate_test.go
+index 69a26491cb..5d37f29b6b 100644
+--- a/src/cmd/compile/internal/types2/instantiate_test.go
++++ b/src/cmd/compile/internal/types2/instantiate_test.go
+@@ -5,6 +5,7 @@ package types2_test
+ 
+ import (
+ 	. "cmd/compile/internal/types2"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -60,3 +61,84 @@ func TestInstantiateNonEquality(t *testing.T) {
+ 		t.Errorf("instance from pkg1 (%s) is identical to instance from pkg2 (%s)", res1, res2)
+ 	}
+ }
++
++func TestMethodInstantiation(t *testing.T) {
++	const prefix = genericPkg + `p
++
++type T[P any] struct{}
++
++var X T[int]
++
++`
++	tests := []struct {
++		decl string
++		want string
++	}{
++		{"func (r T[P]) m() P", "func (T[int]).m() int"},
++		{"func (r T[P]) m(P)", "func (T[int]).m(int)"},
++		{"func (r *T[P]) m(P)", "func (*T[int]).m(int)"},
++		{"func (r T[P]) m() T[P]", "func (T[int]).m() T[int]"},
++		{"func (r T[P]) m(T[P])", "func (T[int]).m(T[int])"},
++		{"func (r T[P]) m(T[P], P, string)", "func (T[int]).m(T[int], int, string)"},
++		{"func (r T[P]) m(T[P], T[string], T[int])", "func (T[int]).m(T[int], T[string], T[int])"},
++	}
++
++	for _, test := range tests {
++		src := prefix + test.decl
++		pkg, err := pkgFor(".", src, nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++		typ := NewPointer(pkg.Scope().Lookup("X").Type())
++		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
++		m, _ := obj.(*Func)
++		if m == nil {
++			t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
++		}
++		if got := ObjectString(m, RelativeTo(pkg)); got != test.want {
++			t.Errorf("instantiated %q, want %q", got, test.want)
++		}
++	}
++}
++
++func TestImmutableSignatures(t *testing.T) {
++	const src = genericPkg + `p
++
++type T[P any] struct{}
++
++func (T[P]) m() {}
++
++var _ T[int]
++`
++	pkg, err := pkgFor(".", src, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	typ := pkg.Scope().Lookup("T").Type().(*Named)
++	obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
++	if obj == nil {
++		t.Fatalf(`LookupFieldOrMethod(%s, "m") = %v, want func m`, typ, obj)
++	}
++
++	// Verify that the original method is not mutated by instantiating T (this
++	// bug manifested when subst did not return a new signature).
++	want := "func (T[P]).m()"
++	if got := stripAnnotations(ObjectString(obj, RelativeTo(pkg))); got != want {
++		t.Errorf("instantiated %q, want %q", got, want)
++	}
++}
++
++// Copied from errors.go.
++func stripAnnotations(s string) string {
++	var b strings.Builder
++	for _, r := range s {
++		// strip #'s and subscript digits
++		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
++			b.WriteRune(r)
++		}
++	}
++	if b.Len() < len(s) {
++		return b.String()
++	}
++	return s
++}
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 0e7a2b70e2..eb460ca200 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -344,8 +344,6 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 	}
+ 
+ 	// A concrete type implements T if it implements all methods of T.
+-	Vd, _ := deref(V)
+-	Vn := asNamed(Vd)
+ 	for _, m := range T.typeSet().methods {
+ 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
+ 		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name)
+@@ -380,26 +378,6 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 			panic("method with type parameters")
+ 		}
+ 
+-		// If V is a (instantiated) generic type, its methods are still
+-		// parameterized using the original (declaration) receiver type
+-		// parameters (subst simply copies the existing method list, it
+-		// does not instantiate the methods).
+-		// In order to compare the signatures, substitute the receiver
+-		// type parameters of ftyp with V's instantiation type arguments.
+-		// This lazily instantiates the signature of method f.
+-		if Vn != nil && Vn.TypeParams().Len() > 0 {
+-			// Be careful: The number of type arguments may not match
+-			// the number of receiver parameters. If so, an error was
+-			// reported earlier but the length discrepancy is still
+-			// here. Exit early in this case to prevent an assertion
+-			// failure in makeSubstMap.
+-			// TODO(gri) Can we avoid this check by fixing the lengths?
+-			if len(ftyp.RecvTypeParams().list()) != Vn.targs.Len() {
+-				return
+-			}
+-			ftyp = check.subst(nopos, ftyp, makeSubstMap(ftyp.RecvTypeParams().list(), Vn.targs.list()), nil).(*Signature)
+-		}
+-
+ 		// If the methods have type parameters we don't care whether they
+ 		// are the same or not, as long as they match up. Use unification
+ 		// to see if they can be made to match.
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index c844012e39..7fc84004e3 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -221,16 +221,17 @@ func (n *Named) setUnderlying(typ Type) {
+ 
+ // expandNamed ensures that the underlying type of n is instantiated.
+ // The underlying type will be Typ[Invalid] if there was an error.
+-func expandNamed(env *Environment, n *Named, instPos syntax.Pos) (*TypeParamList, Type, []*Func) {
++func expandNamed(env *Environment, n *Named, instPos syntax.Pos) (tparams *TypeParamList, underlying Type, methods []*Func) {
+ 	n.orig.resolve(env)
+ 
+-	var u Type
+-	if n.check.validateTArgLen(instPos, n.orig.tparams.Len(), n.targs.Len()) {
++	check := n.check
++
++	if check.validateTArgLen(instPos, n.orig.tparams.Len(), n.targs.Len()) {
+ 		// TODO(rfindley): handling an optional Checker and Environment here (and
+ 		// in subst) feels overly complicated. Can we simplify?
+ 		if env == nil {
+-			if n.check != nil {
+-				env = n.check.conf.Environment
++			if check != nil {
++				env = check.conf.Environment
+ 			} else {
+ 				// If we're instantiating lazily, we might be outside the scope of a
+ 				// type-checking pass. In that case we won't have a pre-existing
+@@ -239,16 +240,84 @@ func expandNamed(env *Environment, n *Named, instPos syntax.Pos) (*TypeParamList
+ 				env = NewEnvironment()
+ 			}
+ 			h := env.TypeHash(n.orig, n.targs.list())
+-			// add the instance to the environment to avoid infinite recursion.
+-			// addInstance may return a different, existing instance, but we
+-			// shouldn't return that instance from expand.
++			// ensure that an instance is recorded for h to avoid infinite recursion.
+ 			env.typeForHash(h, n)
+ 		}
+-		u = n.check.subst(instPos, n.orig.underlying, makeSubstMap(n.orig.tparams.list(), n.targs.list()), env)
++		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
++		underlying = n.check.subst(instPos, n.orig.underlying, smap, env)
++		for i := 0; i < n.orig.NumMethods(); i++ {
++			origm := n.orig.Method(i)
++
++			// During type checking origm may not have a fully set up type, so defer
++			// instantiation of its signature until later.
++			m := NewFunc(origm.pos, origm.pkg, origm.name, nil)
++			m.hasPtrRecv = ptrRecv(origm)
++			// Setting instRecv here allows us to complete later (we need the
++			// instRecv to get targs and the original method).
++			m.instRecv = n
++
++			methods = append(methods, m)
++		}
++	} else {
++		underlying = Typ[Invalid]
++	}
++
++	// Methods should not escape the type checker API without being completed. If
++	// we're in the context of a type checking pass, we need to defer this until
++	// later (not all methods may have types).
++	completeMethods := func() {
++		for _, m := range methods {
++			if m.instRecv != nil {
++				check.completeMethod(env, m)
++			}
++		}
++	}
++	if check != nil {
++		check.later(completeMethods)
++	} else {
++		completeMethods()
++	}
++
++	return n.orig.tparams, underlying, methods
++}
++
++func (check *Checker) completeMethod(env *Environment, m *Func) {
++	assert(m.instRecv != nil)
++	rbase := m.instRecv
++	m.instRecv = nil
++	m.setColor(black)
++
++	assert(rbase.TypeArgs().Len() > 0)
++
++	// Look up the original method.
++	_, orig := lookupMethod(rbase.orig.methods, rbase.obj.pkg, m.name)
++	assert(orig != nil)
++	if check != nil {
++		check.objDecl(orig, nil)
++	}
++	origSig := orig.typ.(*Signature)
++	if origSig.RecvTypeParams().Len() != rbase.targs.Len() {
++		m.typ = origSig // or new(Signature), but we can't use Typ[Invalid]: Funcs must have Signature type
++		return          // error reported elsewhere
++	}
++
++	smap := makeSubstMap(origSig.RecvTypeParams().list(), rbase.targs.list())
++	sig := check.subst(orig.pos, origSig, smap, env).(*Signature)
++	if sig == origSig {
++		// No substitution occurred, but we still need to create a new signature to
++		// hold the instantiated receiver.
++		copy := *origSig
++		sig = &copy
++	}
++	var rtyp Type
++	if ptrRecv(m) {
++		rtyp = NewPointer(rbase)
+ 	} else {
+-		u = Typ[Invalid]
++		rtyp = rbase
+ 	}
+-	return n.orig.tparams, u, n.orig.methods
++	sig.recv = NewParam(origSig.recv.pos, origSig.recv.pkg, origSig.recv.name, rtyp)
++
++	m.typ = sig
+ }
+ 
+ // safeUnderlying returns the underlying of typ without expanding instances, to
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 540cb3f44f..f44e1a9353 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -363,7 +363,8 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
+ // An abstract method may belong to many interfaces due to embedding.
+ type Func struct {
+ 	object
+-	hasPtrRecv bool // only valid for methods that don't have a type yet
++	instRecv   *Named // if non-nil, the receiver type for an incomplete instance method
++	hasPtrRecv bool   // only valid for methods that don't have a type yet
+ }
+ 
+ // NewFunc returns a new function with the given signature, representing
+@@ -374,7 +375,7 @@ func NewFunc(pos syntax.Pos, pkg *Package, name string, sig *Signature) *Func {
+ 	if sig != nil {
+ 		typ = sig
+ 	}
+-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false}
++	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, nil, false}
+ }
+ 
+ // FullName returns the package- or receiver-type-qualified name of
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index a7f1185fa8..d47e23f735 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -41,7 +41,7 @@ func TestSizeof(t *testing.T) {
+ 		{Const{}, 64, 104},
+ 		{TypeName{}, 56, 88},
+ 		{Var{}, 60, 96},
+-		{Func{}, 60, 96},
++		{Func{}, 64, 104},
+ 		{Label{}, 60, 96},
+ 		{Builtin{}, 60, 96},
+ 		{Nil{}, 56, 88},
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index fe73ef688c..dcff1f822c 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -125,8 +125,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		if recv != t.recv || params != t.params || results != t.results {
+ 			return &Signature{
+ 				rparams: t.rparams,
+-				// TODO(gri) Why can't we nil out tparams here, rather than in
+-				//           instantiate above?
++				// TODO(gri) why can't we nil out tparams here, rather than in instantiate?
+ 				tparams:  t.tparams,
+ 				scope:    t.scope,
+ 				recv:     recv,

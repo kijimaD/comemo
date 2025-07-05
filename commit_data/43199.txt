@@ -7,6 +7,38 @@ Date:   Mon Mar 16 03:31:32 2020 +1100
     Change-Id: Id9aa6ba268eee67f2dc74096d4ec3bc0a80aefe2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/223563
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/riscv/cpu.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 632b3e6690..76457dd8d2 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -106,7 +106,7 @@ const (
+ 
+ 	// General registers reassigned to ABI names.
+ 	REG_ZERO = REG_X0
+-	REG_RA   = REG_X1
++	REG_RA   = REG_X1 // aka REG_LR
+ 	REG_SP   = REG_X2
+ 	REG_GP   = REG_X3 // aka REG_SB
+ 	REG_TP   = REG_X4 // aka REG_G
+@@ -125,7 +125,7 @@ const (
+ 	REG_A7   = REG_X17
+ 	REG_S2   = REG_X18
+ 	REG_S3   = REG_X19
+-	REG_S4   = REG_X20
++	REG_S4   = REG_X20 // aka REG_CTXT
+ 	REG_S5   = REG_X21
+ 	REG_S6   = REG_X22
+ 	REG_S7   = REG_X23
+@@ -136,7 +136,7 @@ const (
+ 	REG_T3   = REG_X28
+ 	REG_T4   = REG_X29
+ 	REG_T5   = REG_X30
+-	REG_T6   = REG_X31
++	REG_T6   = REG_X31 // aka REG_TMP
+ 
+ 	// Go runtime register names.
+ 	REG_G    = REG_TP // G pointer.

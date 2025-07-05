@@ -9,6 +9,23 @@ Date:   Mon Nov 26 22:11:05 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6849093
-
+---
  src/cmd/gc/racewalk.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 5e2a456ff2..c7a802d21c 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -430,6 +430,11 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
+ 				n = treecopy(n);
+ 				f = nod(OXDOT, n, newname(t1->sym));
+ 				f->type = t1;
++<<<<<<< local
++				if(f->type->etype == TFIELD)
++					f->type = f->type->type;
++=======
++>>>>>>> other
+ 				if(callinstr(&f, init, wr, 0)) {
+ 					typecheck(&f, Erv);
+ 					res = 1;

@@ -20,8 +20,364 @@ Date:   Thu Oct 25 16:42:26 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/c/146381
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/codehost.go | 38 +++++++++----
  src/cmd/go/internal/modfetch/codehost/git.go      | 58 +++++++++++++-------
  src/cmd/go/internal/modfetch/codehost/vcs.go      | 66 +++++++++++++++++++++--
  3 files changed, 130 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 4205cd26bd..988504f4c8 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -20,6 +20,7 @@ import (
+ 	"time"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/str"
+ )
+ 
+@@ -131,9 +132,9 @@ var WorkRoot string
+ 
+ // WorkDir returns the name of the cached work directory to use for the
+ // given repository type and name.
+-func WorkDir(typ, name string) (string, error) {
++func WorkDir(typ, name string) (dir, lockfile string, err error) {
+ 	if WorkRoot == "" {
+-		return "", fmt.Errorf("codehost.WorkRoot not set")
++		return "", "", fmt.Errorf("codehost.WorkRoot not set")
+ 	}
+ 
+ 	// We name the work directory for the SHA256 hash of the type and name.
+@@ -142,22 +143,41 @@ func WorkDir(typ, name string) (string, error) {
+ 	// that one checkout is never nested inside another. That nesting has
+ 	// led to security problems in the past.
+ 	if strings.Contains(typ, ":") {
+-		return "", fmt.Errorf("codehost.WorkDir: type cannot contain colon")
++		return "", "", fmt.Errorf("codehost.WorkDir: type cannot contain colon")
+ 	}
+ 	key := typ + ":" + name
+-	dir := filepath.Join(WorkRoot, fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
++	dir = filepath.Join(WorkRoot, fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
++
++	if cfg.BuildX {
++		fmt.Fprintf(os.Stderr, "mkdir -p %s # %s %s\n", filepath.Dir(dir), typ, name)
++	}
++	if err := os.MkdirAll(filepath.Dir(dir), 0777); err != nil {
++		return "", "", err
++	}
++
++	lockfile = dir + ".lock"
++	if cfg.BuildX {
++		fmt.Fprintf(os.Stderr, "# lock %s", lockfile)
++	}
++
++	unlock, err := lockedfile.MutexAt(lockfile).Lock()
++	if err != nil {
++		return "", "", fmt.Errorf("codehost.WorkDir: can't find or create lock file: %v", err)
++	}
++	defer unlock()
++
+ 	data, err := ioutil.ReadFile(dir + ".info")
+ 	info, err2 := os.Stat(dir)
+ 	if err == nil && err2 == nil && info.IsDir() {
+ 		// Info file and directory both already exist: reuse.
+ 		have := strings.TrimSuffix(string(data), "\n")
+ 		if have != key {
+-			return "", fmt.Errorf("%s exists with wrong content (have %q want %q)", dir+".info", have, key)
++			return "", "", fmt.Errorf("%s exists with wrong content (have %q want %q)", dir+".info", have, key)
+ 		}
+ 		if cfg.BuildX {
+ 			fmt.Fprintf(os.Stderr, "# %s for %s %s\n", dir, typ, name)
+ 		}
+-		return dir, nil
++		return dir, lockfile, nil
+ 	}
+ 
+ 	// Info file or directory missing. Start from scratch.
+@@ -166,13 +186,13 @@ func WorkDir(typ, name string) (string, error) {
+ 	}
+ 	os.RemoveAll(dir)
+ 	if err := os.MkdirAll(dir, 0777); err != nil {
+-		return "", err
++		return "", "", err
+ 	}
+ 	if err := ioutil.WriteFile(dir+".info", []byte(key), 0666); err != nil {
+ 		os.RemoveAll(dir)
+-		return "", err
++		return "", "", err
+ 	}
+-	return dir, nil
++	return dir, lockfile, nil
+ }
+ 
+ type RunError struct {
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index bcf8609826..7b3775779b 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -17,6 +17,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
++	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/par"
+ )
+ 
+@@ -57,22 +58,29 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
+ 	r := &gitRepo{remote: remote}
+ 	if strings.Contains(remote, "://") {
+ 		// This is a remote path.
+-		dir, err := WorkDir(gitWorkDirType, r.remote)
++		var err error
++		r.dir, r.mu.Path, err = WorkDir(gitWorkDirType, r.remote)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		r.dir = dir
+-		if _, err := os.Stat(filepath.Join(dir, "objects")); err != nil {
+-			if _, err := Run(dir, "git", "init", "--bare"); err != nil {
+-				os.RemoveAll(dir)
++
++		unlock, err := r.mu.Lock()
++		if err != nil {
++			return nil, err
++		}
++		defer unlock()
++
++		if _, err := os.Stat(filepath.Join(r.dir, "objects")); err != nil {
++			if _, err := Run(r.dir, "git", "init", "--bare"); err != nil {
++				os.RemoveAll(r.dir)
+ 				return nil, err
+ 			}
+ 			// We could just say git fetch https://whatever later,
+ 			// but this lets us say git fetch origin instead, which
+ 			// is a little nicer. More importantly, using a named remote
+ 			// avoids a problem with Git LFS. See golang.org/issue/25605.
+-			if _, err := Run(dir, "git", "remote", "add", "origin", r.remote); err != nil {
+-				os.RemoveAll(dir)
++			if _, err := Run(r.dir, "git", "remote", "add", "origin", r.remote); err != nil {
++				os.RemoveAll(r.dir)
+ 				return nil, err
+ 			}
+ 			r.remote = "origin"
+@@ -97,6 +105,7 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
+ 			return nil, fmt.Errorf("%s exists but is not a directory", remote)
+ 		}
+ 		r.dir = remote
++		r.mu.Path = r.dir + ".lock"
+ 	}
+ 	return r, nil
+ }
+@@ -106,7 +115,8 @@ type gitRepo struct {
+ 	local  bool
+ 	dir    string
+ 
+-	mu         sync.Mutex // protects fetchLevel, some git repo state
++	mu lockedfile.Mutex // protects fetchLevel and git repo state
++
+ 	fetchLevel int
+ 
+ 	statCache par.Cache
+@@ -304,11 +314,11 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 	}
+ 
+ 	// Protect r.fetchLevel and the "fetch more and more" sequence.
+-	// TODO(rsc): Add LockDir and use it for protecting that
+-	// sequence, so that multiple processes don't collide in their
+-	// git commands.
+-	r.mu.Lock()
+-	defer r.mu.Unlock()
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return nil, err
++	}
++	defer unlock()
+ 
+ 	// Perhaps r.localTags did not have the ref when we loaded local tags,
+ 	// but we've since done fetches that pulled down the hash we need
+@@ -495,8 +505,11 @@ func (r *gitRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
+ 
+ 	// Protect r.fetchLevel and the "fetch more and more" sequence.
+ 	// See stat method above.
+-	r.mu.Lock()
+-	defer r.mu.Unlock()
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return nil, err
++	}
++	defer unlock()
+ 
+ 	var refs []string
+ 	var protoFlag []string
+@@ -658,8 +671,11 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+ 	// There are plausible tags, but we don't know if rev is a descendent of any of them.
+ 	// Fetch the history to find out.
+ 
+-	r.mu.Lock()
+-	defer r.mu.Unlock()
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return "", err
++	}
++	defer unlock()
+ 
+ 	if r.fetchLevel < fetchAll {
+ 		// Fetch all heads and tags and see if that gives us enough history.
+@@ -678,7 +694,7 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+ 	// unreachable for a reason).
+ 	//
+ 	// Try one last time in case some other goroutine fetched rev while we were
+-	// waiting on r.mu.
++	// waiting on the lock.
+ 	describe()
+ 	return tag, err
+ }
+@@ -694,6 +710,12 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 		return nil, "", err
+ 	}
+ 
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return nil, "", err
++	}
++	defer unlock()
++
+ 	if err := ensureGitAttributes(r.dir); err != nil {
+ 		return nil, "", err
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 9e862a0ef8..190f47cf8d 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -18,6 +18,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
++	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/str"
+ )
+@@ -56,6 +57,8 @@ func NewRepo(vcs, remote string) (Repo, error) {
+ var vcsRepoCache par.Cache
+ 
+ type vcsRepo struct {
++	mu lockedfile.Mutex // protects all commands, so we don't have to decide which are safe on a per-VCS basis
++
+ 	remote string
+ 	cmd    *vcsCmd
+ 	dir    string
+@@ -81,18 +84,27 @@ func newVCSRepo(vcs, remote string) (Repo, error) {
+ 	if !strings.Contains(remote, "://") {
+ 		return nil, fmt.Errorf("invalid vcs remote: %s %s", vcs, remote)
+ 	}
++
+ 	r := &vcsRepo{remote: remote, cmd: cmd}
++	var err error
++	r.dir, r.mu.Path, err = WorkDir(vcsWorkDirType+vcs, r.remote)
++	if err != nil {
++		return nil, err
++	}
++
+ 	if cmd.init == nil {
+ 		return r, nil
+ 	}
+-	dir, err := WorkDir(vcsWorkDirType+vcs, r.remote)
++
++	unlock, err := r.mu.Lock()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	r.dir = dir
+-	if _, err := os.Stat(filepath.Join(dir, "."+vcs)); err != nil {
+-		if _, err := Run(dir, cmd.init(r.remote)); err != nil {
+-			os.RemoveAll(dir)
++	defer unlock()
++
++	if _, err := os.Stat(filepath.Join(r.dir, "."+vcs)); err != nil {
++		if _, err := Run(r.dir, cmd.init(r.remote)); err != nil {
++			os.RemoveAll(r.dir)
+ 			return nil, err
+ 		}
+ 	}
+@@ -270,6 +282,12 @@ func (r *vcsRepo) loadBranches() {
+ }
+ 
+ func (r *vcsRepo) Tags(prefix string) ([]string, error) {
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return nil, err
++	}
++	defer unlock()
++
+ 	r.tagsOnce.Do(r.loadTags)
+ 
+ 	tags := []string{}
+@@ -283,6 +301,12 @@ func (r *vcsRepo) Tags(prefix string) ([]string, error) {
+ }
+ 
+ func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return nil, err
++	}
++	defer unlock()
++
+ 	if rev == "latest" {
+ 		rev = r.cmd.latest
+ 	}
+@@ -332,6 +356,14 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
++	// r.Stat acquires r.mu, so lock after that.
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return nil, err
++	}
++	defer unlock()
++
+ 	out, err := Run(r.dir, r.cmd.readFile(rev, file, r.remote))
+ 	if err != nil {
+ 		return nil, os.ErrNotExist
+@@ -340,14 +372,38 @@ func (r *vcsRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
+ }
+ 
+ func (r *vcsRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[string]*FileRev, error) {
++	// We don't technically need to lock here since we're returning an error
++	// uncondititonally, but doing so anyway will help to avoid baking in
++	// lock-inversion bugs.
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return nil, err
++	}
++	defer unlock()
++
+ 	return nil, fmt.Errorf("ReadFileRevs not implemented")
+ }
+ 
+ func (r *vcsRepo) RecentTag(rev, prefix string) (tag string, err error) {
++	// We don't technically need to lock here since we're returning an error
++	// uncondititonally, but doing so anyway will help to avoid baking in
++	// lock-inversion bugs.
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return "", err
++	}
++	defer unlock()
++
+ 	return "", fmt.Errorf("RecentTags not implemented")
+ }
+ 
+ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return nil, "", err
++	}
++	defer unlock()
++
+ 	if rev == "latest" {
+ 		rev = r.cmd.latest
+ 	}

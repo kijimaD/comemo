@@ -21,8 +21,85 @@ Date:   Wed Jun 23 16:23:37 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_deadline.txt | 37 +++++++++++++++++++++++
  src/testing/fuzz.go                               |  3 +-
  src/testing/testing.go                            |  2 +-
  3 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_deadline.txt b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+new file mode 100644
+index 0000000000..f0826478ec
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+@@ -0,0 +1,37 @@
++# TODO(jayconrod): support shared memory on more platforms.
++[!darwin] [!linux] [!windows] skip
++
++[short] skip
++
++# The fuzz function should be able to detect whether -timeout
++# was set with T.Deadline. Note there is no F.Deadline, and
++# there is no timeout while fuzzing, even if -fuzztime is set.
++go test -run=FuzzDeadline -wantdeadline=true # -timeout defaults to 10m
++go test -run=FuzzDeadline -timeout=0 -wantdeadline=false
++! go test -run=FuzzDeadline -timeout=1s -wantdeadline=false
++go test -run=FuzzDeadline -timeout=1s -wantdeadline=true
++go test -fuzz=FuzzDeadline -timeout=0 -fuzztime=1s -wantdeadline=false
++go test -fuzz=FuzzDeadline -timeout=0 -fuzztime=100x -wantdeadline=false
++
++-- go.mod --
++module fzz
++
++go 1.16
++-- fuzz_deadline_test.go --
++package fuzz_test
++
++import (
++	"flag"
++	"testing"
++)
++
++var wantDeadline = flag.Bool("wantdeadline", false, "whether the test should have a deadline")
++
++func FuzzDeadline(f *testing.F) {
++	f.Add("run once")
++	f.Fuzz(func (t *testing.T, _ string) {
++		if _, hasDeadline := t.Deadline(); hasDeadline != *wantDeadline {
++			t.Fatalf("function got %v; want %v", hasDeadline, *wantDeadline)
++		}
++	})
++}
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index fc1212b142..55e5397193 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -491,13 +491,14 @@ type fuzzContext struct {
+ // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
+ // only run the f.Fuzz function for each seed corpus without using the fuzzing
+ // engine to generate or mutate inputs.
+-func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool) {
++func runFuzzTargets(deps testDeps, fuzzTargets []InternalFuzzTarget, deadline time.Time) (ran, ok bool) {
+ 	ok = true
+ 	if len(fuzzTargets) == 0 || *isFuzzWorker {
+ 		return ran, ok
+ 	}
+ 	m := newMatcher(deps.MatchString, *match, "-test.run")
+ 	tctx := newTestContext(*parallel, m)
++	tctx.deadline = deadline
+ 	fctx := &fuzzContext{
+ 		importPath:       deps.ImportPath,
+ 		readCorpus:       deps.ReadCorpus,
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index fa92dbb005..581271e748 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1595,7 +1595,7 @@ func (m *M) Run() (code int) {
+ 		deadline := m.startAlarm()
+ 		haveExamples = len(m.examples) > 0
+ 		testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
+-		fuzzTargetsRan, fuzzTargetsOk := runFuzzTargets(m.deps, m.fuzzTargets)
++		fuzzTargetsRan, fuzzTargetsOk := runFuzzTargets(m.deps, m.fuzzTargets, deadline)
+ 		exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
+ 		m.stopAlarm()
+ 		if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {

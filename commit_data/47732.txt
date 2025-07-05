@@ -18,7 +18,7 @@ Date:   Wed Apr 7 22:21:35 2021 -0400
     Trust: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go       |  75 +++++++-----
  .../genCaller42/genCaller42.go                     |  71 +++++++++++
  .../genChecker42/genChecker42.go                   | 135 +++++++++++++++++++++
@@ -27,3 +27,454 @@ Date:   Wed Apr 7 22:21:35 2021 -0400
  test/abi/bad_select_crash.dir/go.mod               |   2 +
  test/abi/bad_select_crash.go                       |   2 +
  7 files changed, 332 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 36b6dcab9b..ede713f22a 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -173,24 +173,25 @@ func (c *registerCursor) hasRegs() bool {
+ }
+ 
+ type expandState struct {
+-	f               *Func
+-	abi1            *abi.ABIConfig
+-	debug           bool
+-	canSSAType      func(*types.Type) bool
+-	regSize         int64
+-	sp              *Value
+-	typs            *Types
+-	ptrSize         int64
+-	hiOffset        int64
+-	lowOffset       int64
+-	hiRo            Abi1RO
+-	loRo            Abi1RO
+-	namedSelects    map[*Value][]namedVal
+-	sdom            SparseTree
+-	commonSelectors map[selKey]*Value // used to de-dupe selectors
+-	commonArgs      map[selKey]*Value // used to de-dupe OpArg/OpArgIntReg/OpArgFloatReg
+-	memForCall      map[ID]*Value     // For a call, need to know the unique selector that gets the mem.
+-	indentLevel     int               // Indentation for debugging recursion
++	f                  *Func
++	abi1               *abi.ABIConfig
++	debug              bool
++	canSSAType         func(*types.Type) bool
++	regSize            int64
++	sp                 *Value
++	typs               *Types
++	ptrSize            int64
++	hiOffset           int64
++	lowOffset          int64
++	hiRo               Abi1RO
++	loRo               Abi1RO
++	namedSelects       map[*Value][]namedVal
++	sdom               SparseTree
++	commonSelectors    map[selKey]*Value // used to de-dupe selectors
++	commonArgs         map[selKey]*Value // used to de-dupe OpArg/OpArgIntReg/OpArgFloatReg
++	memForCall         map[ID]*Value     // For a call, need to know the unique selector that gets the mem.
++	transformedSelects map[ID]bool       // OpSelectN after rewriting, either created or renumbered.
++	indentLevel        int               // Indentation for debugging recursion
+ }
+ 
+ // intPairTypes returns the pair of 32-bit int types needed to encode a 64-bit integer type on a target
+@@ -393,10 +394,17 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 		call0 := call
+ 		aux := call.Aux.(*AuxCall)
+ 		which := selector.AuxInt
++		if x.transformedSelects[selector.ID] {
++			// This is a minor hack.  Either this select has had its operand adjusted (mem) or
++			// it is some other intermediate node that was rewritten to reference a register (not a generic arg).
++			// This can occur with chains of selection/indexing from single field/element aggregates.
++			leaf.copyOf(selector)
++			break
++		}
+ 		if which == aux.NResults() { // mem is after the results.
+ 			// rewrite v as a Copy of call -- the replacement call will produce a mem.
+ 			if leaf != selector {
+-				panic("Unexpected selector of memory")
++				panic(fmt.Errorf("Unexpected selector of memory, selector=%s, call=%s, leaf=%s", selector.LongString(), call.LongString(), leaf.LongString()))
+ 			}
+ 			if aux.abiInfo == nil {
+ 				panic(badVal("aux.abiInfo nil for call", call))
+@@ -404,6 +412,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 			if existing := x.memForCall[call.ID]; existing == nil {
+ 				selector.AuxInt = int64(aux.abiInfo.OutRegistersUsed())
+ 				x.memForCall[call.ID] = selector
++				x.transformedSelects[selector.ID] = true // operand adjusted
+ 			} else {
+ 				selector.copyOf(existing)
+ 			}
+@@ -421,6 +430,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 					call = mem
+ 				} else {
+ 					mem = call.Block.NewValue1I(call.Pos.WithNotStmt(), OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
++					x.transformedSelects[mem.ID] = true // select uses post-expansion indexing
+ 					x.memForCall[call.ID] = mem
+ 					call = mem
+ 				}
+@@ -436,8 +446,10 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 						leaf.SetArgs1(call0)
+ 						leaf.Type = leafType
+ 						leaf.AuxInt = reg
++						x.transformedSelects[leaf.ID] = true // leaf, rewritten to use post-expansion indexing.
+ 					} else {
+ 						w := call.Block.NewValue1I(leaf.Pos, OpSelectN, leafType, reg, call0)
++						x.transformedSelects[w.ID] = true // select, using post-expansion indexing.
+ 						leaf.copyOf(w)
+ 					}
+ 				} else {
+@@ -1026,18 +1038,19 @@ func expandCalls(f *Func) {
+ 	// memory output as their input.
+ 	sp, _ := f.spSb()
+ 	x := &expandState{
+-		f:            f,
+-		abi1:         f.ABI1,
+-		debug:        f.pass.debug > 0,
+-		canSSAType:   f.fe.CanSSA,
+-		regSize:      f.Config.RegSize,
+-		sp:           sp,
+-		typs:         &f.Config.Types,
+-		ptrSize:      f.Config.PtrSize,
+-		namedSelects: make(map[*Value][]namedVal),
+-		sdom:         f.Sdom(),
+-		commonArgs:   make(map[selKey]*Value),
+-		memForCall:   make(map[ID]*Value),
++		f:                  f,
++		abi1:               f.ABI1,
++		debug:              f.pass.debug > 0,
++		canSSAType:         f.fe.CanSSA,
++		regSize:            f.Config.RegSize,
++		sp:                 sp,
++		typs:               &f.Config.Types,
++		ptrSize:            f.Config.PtrSize,
++		namedSelects:       make(map[*Value][]namedVal),
++		sdom:               f.Sdom(),
++		commonArgs:         make(map[selKey]*Value),
++		memForCall:         make(map[ID]*Value),
++		transformedSelects: make(map[ID]bool),
+ 	}
+ 
+ 	// For 32-bit, need to deal with decomposition of 64-bit integers, which depends on endianness.
+diff --git a/test/abi/bad_select_crash.dir/genCaller42/genCaller42.go b/test/abi/bad_select_crash.dir/genCaller42/genCaller42.go
+new file mode 100644
+index 0000000000..d3fedff7c5
+--- /dev/null
++++ b/test/abi/bad_select_crash.dir/genCaller42/genCaller42.go
+@@ -0,0 +1,71 @@
++package genCaller42
++
++import "bad_select_crash.dir/genChecker42"
++import "bad_select_crash.dir/genUtils"
++import "reflect"
++
++
++func Caller2() {
++  genUtils.BeginFcn()
++  c0 := genChecker42.StructF2S0{F0: genChecker42.ArrayF2S1E1{genChecker42.New_3(float64(-0.4418990509835844))}}
++  c1 := genChecker42.ArrayF2S2E1{genChecker42.StructF2S1{/* _: "񊶿(z̽|" */F1: "􂊇񊶿"}}
++  c2 := int16(4162)
++  c3 := float32(-7.667096e+37)
++  c4 := int64(3202175648847048679)
++  var p0 genChecker42.ArrayF2S0E0
++  p0 = genChecker42.ArrayF2S0E0{}
++  var p1 uint8
++  p1 = uint8(57)
++  var p2 uint16
++  p2 = uint16(10920)
++  var p3 float64
++  p3 = float64(-1.597256501942112)
++  genUtils.Mode = ""
++  // 5 returns 4 params
++  r0, r1, r2, r3, r4 := genChecker42.Test2(p0, p1, p2, p3)
++  if !genChecker42.EqualStructF2S0(r0, c0) {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 0, true, uint64(0))
++  }
++  if r1 != c1 {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 1, true, uint64(0))
++  }
++  if r2 != c2 {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 2, true, uint64(0))
++  }
++  if r3 != c3 {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 3, true, uint64(0))
++  }
++  if r4 != c4 {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 4, true, uint64(0))
++  }
++  // same call via reflection
++  genUtils.Mode = "reflect"
++  rc := reflect.ValueOf(genChecker42.Test2)
++  rvslice :=   rc.Call([]reflect.Value{reflect.ValueOf(p0), reflect.ValueOf(p1), reflect.ValueOf(p2), reflect.ValueOf(p3)})
++  rr0i := rvslice[0].Interface()
++  rr0v:= rr0i.( genChecker42.StructF2S0)
++  if !genChecker42.EqualStructF2S0(rr0v, c0) {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 0, true, uint64(0))
++  }
++  rr1i := rvslice[1].Interface()
++  rr1v:= rr1i.( genChecker42.ArrayF2S2E1)
++  if rr1v != c1 {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 1, true, uint64(0))
++  }
++  rr2i := rvslice[2].Interface()
++  rr2v:= rr2i.( int16)
++  if rr2v != c2 {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 2, true, uint64(0))
++  }
++  rr3i := rvslice[3].Interface()
++  rr3v:= rr3i.( float32)
++  if rr3v != c3 {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 3, true, uint64(0))
++  }
++  rr4i := rvslice[4].Interface()
++  rr4v:= rr4i.( int64)
++  if rr4v != c4 {
++    genUtils.NoteFailure(9, 42, 2, "genChecker42", "return", 4, true, uint64(0))
++  }
++  genUtils.EndFcn()
++}
+diff --git a/test/abi/bad_select_crash.dir/genChecker42/genChecker42.go b/test/abi/bad_select_crash.dir/genChecker42/genChecker42.go
+new file mode 100644
+index 0000000000..90adf8e27a
+--- /dev/null
++++ b/test/abi/bad_select_crash.dir/genChecker42/genChecker42.go
+@@ -0,0 +1,135 @@
++package genChecker42
++
++import "bad_select_crash.dir/genUtils"
++
++type StructF0S0 struct {
++}
++
++type ArrayF0S0E2 [2]int16
++
++type ArrayF0S1E1 [1]StructF0S0
++
++type StructF1S0 struct {
++F0 StructF1S1
++_ ArrayF1S0E4
++}
++
++type StructF1S1 struct {
++}
++
++type StructF1S2 struct {
++F0 uint32
++F1 uint8
++F2 string
++F3 string
++F4 ArrayF1S1E1
++}
++
++type StructF1S3 struct {
++F0 float64
++}
++
++type StructF1S4 struct {
++_ int32
++F1 float32
++}
++
++type StructF1S5 struct {
++F0 uint16
++}
++
++type StructF1S6 struct {
++F0 uint8
++F1 uint32
++}
++
++type ArrayF1S0E4 [4]float64
++
++type ArrayF1S1E1 [1]StructF1S3
++
++type ArrayF1S2E2 [2]StructF1S4
++
++type ArrayF1S3E2 [2]StructF1S5
++
++type ArrayF1S4E4 [4]ArrayF1S5E3
++
++type ArrayF1S5E3 [3]string
++
++type ArrayF1S6E1 [1]float64
++
++type StructF2S0 struct {
++F0 ArrayF2S1E1
++}
++
++// equal func for StructF2S0
++//go:noinline
++func EqualStructF2S0(left StructF2S0, right StructF2S0) bool {
++  return   EqualArrayF2S1E1(left.F0, right.F0)
++}
++
++type StructF2S1 struct {
++_ string
++F1 string
++}
++
++type ArrayF2S0E0 [0]int8
++
++type ArrayF2S1E1 [1]*float64
++
++// equal func for ArrayF2S1E1
++//go:noinline
++func EqualArrayF2S1E1(left ArrayF2S1E1, right ArrayF2S1E1) bool {
++  return *left[0] == *right[0]
++}
++
++type ArrayF2S2E1 [1]StructF2S1
++
++// 5 returns 4 params
++//go:registerparams
++//go:noinline
++func Test2(p0 ArrayF2S0E0, p1 uint8, _ uint16, p3 float64) (r0 StructF2S0, r1 ArrayF2S2E1, r2 int16, r3 float32, r4 int64) {
++  // consume some stack space, so as to trigger morestack
++  var pad [16]uint64
++  pad[genUtils.FailCount&0x1]++
++  rc0 := StructF2S0{F0: ArrayF2S1E1{New_3(float64(-0.4418990509835844))}}
++  rc1 := ArrayF2S2E1{StructF2S1{/* _: "񊶿(z̽|" */F1: "􂊇񊶿"}}
++  rc2 := int16(4162)
++  rc3 := float32(-7.667096e+37)
++  rc4 := int64(3202175648847048679)
++  p1f0c := uint8(57)
++  if p1 != p1f0c {
++    genUtils.NoteFailureElem(9, 42, 2, "genChecker42", "parm", 1, 0, false, pad[0])
++    return
++  }
++  _ = uint16(10920)
++  p3f0c := float64(-1.597256501942112)
++  if p3 != p3f0c {
++    genUtils.NoteFailureElem(9, 42, 2, "genChecker42", "parm", 3, 0, false, pad[0])
++    return
++  }
++  defer func(p0 ArrayF2S0E0, p1 uint8) {
++  // check parm passed
++  // check parm passed
++  if p1 != p1f0c {
++    genUtils.NoteFailureElem(9, 42, 2, "genChecker42", "parm", 1, 0, false, pad[0])
++    return
++  }
++  // check parm captured
++  if p3 != p3f0c {
++    genUtils.NoteFailureElem(9, 42, 2, "genChecker42", "parm", 3, 0, false, pad[0])
++    return
++  }
++  } (p0, p1)
++
++  return rc0, rc1, rc2, rc3, rc4
++  // 0 addr-taken params, 0 addr-taken returns
++}
++
++
++//go:noinline
++func New_3(i float64)  *float64 {
++  x := new( float64)
++  *x = i
++  return x
++}
++
+diff --git a/test/abi/bad_select_crash.dir/genMain.go b/test/abi/bad_select_crash.dir/genMain.go
+new file mode 100644
+index 0000000000..2075e9b126
+--- /dev/null
++++ b/test/abi/bad_select_crash.dir/genMain.go
+@@ -0,0 +1,17 @@
++package main
++
++import (
++	"bad_select_crash.dir/genCaller42"
++	"bad_select_crash.dir/genUtils"
++	"fmt"
++	"os"
++)
++
++func main() {
++	// Only print if there is a problem
++	genCaller42.Caller2()
++	if genUtils.FailCount != 0 {
++		fmt.Fprintf(os.Stderr, "FAILURES: %d\n", genUtils.FailCount)
++		os.Exit(2)
++	}
++}
+diff --git a/test/abi/bad_select_crash.dir/genUtils/genUtils.go b/test/abi/bad_select_crash.dir/genUtils/genUtils.go
+new file mode 100644
+index 0000000000..90ed8d827e
+--- /dev/null
++++ b/test/abi/bad_select_crash.dir/genUtils/genUtils.go
+@@ -0,0 +1,61 @@
++package genUtils
++
++
++import "fmt"
++import "os"
++
++var ParamFailCount int
++
++var ReturnFailCount int
++
++var FailCount int
++
++var Mode string
++
++type UtilsType int
++
++//go:noinline
++func NoteFailure(cm int, pidx int, fidx int, pkg string, pref string, parmNo int, isret bool,_ uint64) {
++  if isret {
++    if ParamFailCount != 0 {
++      return
++    }
++    ReturnFailCount++
++  } else {
++    ParamFailCount++
++  }
++  fmt.Fprintf(os.Stderr, "Error: fail %s |%d|%d|%d| =%s.Test%d= %s %d\n", Mode, cm, pidx, fidx, pkg, fidx, pref, parmNo)
++
++  if (ParamFailCount + FailCount + ReturnFailCount > 9999) {
++    os.Exit(1)
++  }
++}
++
++//go:noinline
++func NoteFailureElem(cm int, pidx int, fidx int, pkg string, pref string, parmNo int, elem int, isret bool, _ uint64) {
++
++  if isret {
++    if ParamFailCount != 0 {
++      return
++    }
++    ReturnFailCount++
++  } else {
++    ParamFailCount++
++  }
++  fmt.Fprintf(os.Stderr, "Error: fail %s |%d|%d|%d| =%s.Test%d= %s %d elem %d\n", Mode, cm, pidx, fidx, pkg, fidx, pref, parmNo, elem)
++
++  if (ParamFailCount + FailCount + ReturnFailCount > 9999) {
++    os.Exit(1)
++  }
++}
++
++func BeginFcn() {
++  ParamFailCount = 0
++  ReturnFailCount = 0
++}
++
++func EndFcn() {
++  FailCount += ParamFailCount
++  FailCount += ReturnFailCount
++}
++
+diff --git a/test/abi/bad_select_crash.dir/go.mod b/test/abi/bad_select_crash.dir/go.mod
+new file mode 100644
+index 0000000000..1831ff9f32
+--- /dev/null
++++ b/test/abi/bad_select_crash.dir/go.mod
+@@ -0,0 +1,2 @@
++module bad_select_crash.dir
++go 1.14
+diff --git a/test/abi/bad_select_crash.go b/test/abi/bad_select_crash.go
+new file mode 100644
+index 0000000000..69b48e9a4c
+--- /dev/null
++++ b/test/abi/bad_select_crash.go
+@@ -0,0 +1,2 @@
++// runindir -goexperiment regabi,regabiargs
++

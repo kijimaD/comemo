@@ -16,7 +16,7 @@ Date:   Fri Sep 29 06:06:40 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/syscall/exec_bsd.go           |  6 +++---
  src/syscall/exec_freebsd.go       |  6 +++---
  src/syscall/exec_libc.go          |  6 +++---
@@ -27,3 +27,207 @@ Date:   Fri Sep 29 06:06:40 2023 +0000
  src/syscall/rlimit.go             | 12 +++++-------
  src/syscall/syscall_linux.go      |  2 +-
  9 files changed, 26 insertions(+), 28 deletions(-)
+
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 0b0cd24e69..149cc2f11c 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -64,7 +64,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		ngroups, groups uintptr
+ 	)
+ 
+-	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
++	rlim := origRlimitNofile.Load()
+ 
+ 	// guard against side effects of shuffling fds below.
+ 	// Make sure that nextfd is beyond any currently open files so
+@@ -276,8 +276,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Restore original rlimit.
+-	if rlimOK && rlim.Cur != 0 {
+-		RawSyscall(SYS_SETRLIMIT, uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(&rlim)), 0)
++	if rlim != nil {
++		RawSyscall(SYS_SETRLIMIT, uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(rlim)), 0)
+ 	}
+ 
+ 	// Time to exec.
+diff --git a/src/syscall/exec_freebsd.go b/src/syscall/exec_freebsd.go
+index bd198d09b4..3226cb88cd 100644
+--- a/src/syscall/exec_freebsd.go
++++ b/src/syscall/exec_freebsd.go
+@@ -71,7 +71,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		upid            uintptr
+ 	)
+ 
+-	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
++	rlim := origRlimitNofile.Load()
+ 
+ 	// Record parent PID so child can test if it has died.
+ 	ppid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
+@@ -300,8 +300,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Restore original rlimit.
+-	if rlimOK && rlim.Cur != 0 {
+-		RawSyscall(SYS_SETRLIMIT, uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(&rlim)), 0)
++	if rlim != nil {
++		RawSyscall(SYS_SETRLIMIT, uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(rlim)), 0)
+ 	}
+ 
+ 	// Time to exec.
+diff --git a/src/syscall/exec_libc.go b/src/syscall/exec_libc.go
+index 44557867eb..768e8c131c 100644
+--- a/src/syscall/exec_libc.go
++++ b/src/syscall/exec_libc.go
+@@ -91,7 +91,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		ngroups, groups uintptr
+ 	)
+ 
+-	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
++	rlim := origRlimitNofile.Load()
+ 
+ 	// guard against side effects of shuffling fds below.
+ 	// Make sure that nextfd is beyond any currently open files so
+@@ -296,8 +296,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Restore original rlimit.
+-	if rlimOK && rlim.Cur != 0 {
+-		setrlimit1(RLIMIT_NOFILE, unsafe.Pointer(&rlim))
++	if rlim != nil {
++		setrlimit1(RLIMIT_NOFILE, unsafe.Pointer(rlim))
+ 	}
+ 
+ 	// Time to exec.
+diff --git a/src/syscall/exec_libc2.go b/src/syscall/exec_libc2.go
+index 4fca701d6b..7a67500844 100644
+--- a/src/syscall/exec_libc2.go
++++ b/src/syscall/exec_libc2.go
+@@ -65,7 +65,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		ngroups, groups uintptr
+ 	)
+ 
+-	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
++	rlim := origRlimitNofile.Load()
+ 
+ 	// guard against side effects of shuffling fds below.
+ 	// Make sure that nextfd is beyond any currently open files so
+@@ -272,8 +272,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Restore original rlimit.
+-	if rlimOK && rlim.Cur != 0 {
+-		rawSyscall(abi.FuncPCABI0(libc_setrlimit_trampoline), uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(&rlim)), 0)
++	if rlim != nil {
++		rawSyscall(abi.FuncPCABI0(libc_setrlimit_trampoline), uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(rlim)), 0)
+ 	}
+ 
+ 	// Time to exec.
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index ac06fbf824..e1c71b5a34 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -248,7 +248,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		c                         uintptr
+ 	)
+ 
+-	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
++	rlim := origRlimitNofile.Load()
+ 
+ 	if sys.UidMappings != nil {
+ 		puid = []byte("/proc/self/uid_map\000")
+@@ -628,8 +628,8 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 	}
+ 
+ 	// Restore original rlimit.
+-	if rlimOK && rlim.Cur != 0 {
+-		rawSetrlimit(RLIMIT_NOFILE, &rlim)
++	if rlim != nil {
++		rawSetrlimit(RLIMIT_NOFILE, rlim)
+ 	}
+ 
+ 	// Enable tracing if requested.
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index c6a6caaa70..469b660198 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -281,9 +281,9 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
+ 	}
+ 	runtime_BeforeExec()
+ 
+-	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
+-	if rlimOK && rlim.Cur != 0 {
+-		Setrlimit(RLIMIT_NOFILE, &rlim)
++	rlim := origRlimitNofile.Load()
++	if rlim != nil {
++		Setrlimit(RLIMIT_NOFILE, rlim)
+ 	}
+ 
+ 	var err1 error
+diff --git a/src/syscall/export_rlimit_test.go b/src/syscall/export_rlimit_test.go
+index 320e331c58..25f0ef82c3 100644
+--- a/src/syscall/export_rlimit_test.go
++++ b/src/syscall/export_rlimit_test.go
+@@ -7,8 +7,8 @@
+ package syscall
+ 
+ func OrigRlimitNofile() Rlimit {
+-	if rlim, ok := origRlimitNofile.Load().(Rlimit); ok {
+-		return rlim
++	if rlim := origRlimitNofile.Load(); rlim != nil {
++		return *rlim
+ 	}
+ 	return Rlimit{0, 0}
+ }
+diff --git a/src/syscall/rlimit.go b/src/syscall/rlimit.go
+index cc7935d37b..fdc0d1bf1f 100644
+--- a/src/syscall/rlimit.go
++++ b/src/syscall/rlimit.go
+@@ -10,10 +10,8 @@ import (
+ 	"sync/atomic"
+ )
+ 
+-// origRlimitNofile, if not {0, 0}, is the original soft RLIMIT_NOFILE.
+-// When we can assume that we are bootstrapping with Go 1.19,
+-// this can be atomic.Pointer[Rlimit].
+-var origRlimitNofile atomic.Value // of Rlimit
++// origRlimitNofile, if non-nil, is the original soft RLIMIT_NOFILE.
++var origRlimitNofile atomic.Pointer[Rlimit]
+ 
+ // Some systems set an artificially low soft limit on open file count, for compatibility
+ // with code that uses select and its hard-coded maximum file descriptor
+@@ -32,7 +30,7 @@ var origRlimitNofile atomic.Value // of Rlimit
+ func init() {
+ 	var lim Rlimit
+ 	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
+-		origRlimitNofile.Store(lim)
++		origRlimitNofile.Store(&lim)
+ 		lim.Cur = lim.Max
+ 		adjustFileLimit(&lim)
+ 		setrlimit(RLIMIT_NOFILE, &lim)
+@@ -42,9 +40,9 @@ func init() {
+ func Setrlimit(resource int, rlim *Rlimit) error {
+ 	err := setrlimit(resource, rlim)
+ 	if err == nil && resource == RLIMIT_NOFILE {
+-		// Store zeroes in origRlimitNofile to tell StartProcess
++		// Store nil in origRlimitNofile to tell StartProcess
+ 		// to not adjust the rlimit in the child process.
+-		origRlimitNofile.Store(Rlimit{0, 0})
++		origRlimitNofile.Store(nil)
+ 	}
+ 	return err
+ }
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index aa0cf111fe..ad72a1d018 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -1277,7 +1277,7 @@ func Munmap(b []byte) (err error) {
+ func prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) {
+ 	err = prlimit1(pid, resource, newlimit, old)
+ 	if err == nil && newlimit != nil && resource == RLIMIT_NOFILE {
+-		origRlimitNofile.Store(Rlimit{0, 0})
++		origRlimitNofile.Store(nil)
+ 	}
+ 	return err
+ }

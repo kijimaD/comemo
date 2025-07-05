@@ -11,6 +11,20 @@ Date:   Thu Oct 19 16:12:02 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/types/api_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 4f54f684b8..57daf0efb8 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -118,6 +118,8 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package f7a; var _ complex128 = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
+ 		{`package f6b; var _            =  1e-2000i`, `1e-2000i`, `complex128`, `(0 + 0i)`},
+ 		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
++
++		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // issue #22341
+ 	}
+ 
+ 	for _, test := range tests {

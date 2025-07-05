@@ -11,6 +11,40 @@ Date:   Tue Mar 15 14:04:47 2011 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/4287045
-
+---
  src/cmd/gofmt/gofmt.go | 19 +++++++------------
  1 file changed, 7 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 0262875413..a688c8184c 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -158,21 +158,16 @@ func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
+ 
+ 
+ func walkDir(path string) {
+-	// start an error handler
+-	done := make(chan bool)
+ 	v := make(fileVisitor)
+ 	go func() {
+-		for err := range v {
+-			if err != nil {
+-				report(err)
+-			}
+-		}
+-		done <- true
++		filepath.Walk(path, v, v)
++		close(v)
+ 	}()
+-	// walk the tree
+-	filepath.Walk(path, v, v)
+-	close(v) // terminate error handler loop
+-	<-done   // wait for all errors to be reported
++	for err := range v {
++		if err != nil {
++			report(err)
++		}
++	}
+ }
+ 
+ 

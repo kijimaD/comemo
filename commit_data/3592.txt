@@ -7,8 +7,44 @@ Date:   Mon Oct 19 19:55:17 2009 -0700
     R=ken
     OCL=35899
     CL=35899
-
+---
  src/cmd/gc/lex.c                   | 6 ++++--
  test/{bugs => fixedbugs}/bug169.go | 0
  test/golden.out                    | 3 ---
  3 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 8cfa105ac3..f356906e50 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -537,8 +537,10 @@ l0:
+ 
+ 	case '\'':
+ 		/* '.' */
+-		if(escchar('\'', &escflag, &v))
+-			v = '\'';	// allow '''
++		if(escchar('\'', &escflag, &v)) {
++			yyerror("empty character literal or unescaped ' in character literal");
++			v = '\'';
++		}
+ 		if(!escchar('\'', &escflag, &v)) {
+ 			yyerror("missing '");
+ 			ungetc(v);
+diff --git a/test/bugs/bug169.go b/test/fixedbugs/bug169.go
+similarity index 100%
+rename from test/bugs/bug169.go
+rename to test/fixedbugs/bug169.go
+diff --git a/test/golden.out b/test/golden.out
+index 90f21172cf..6d70cb9e0d 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -147,9 +147,6 @@ BUG: errchk: command succeeded unexpectedly
+ 123
+ BUG: should fail
+ 
+-=========== bugs/bug169.go
+-BUG: errchk: command succeeded unexpectedly
+-
+ =========== bugs/bug193.go
+ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+ 

@@ -17,7 +17,58 @@ Date:   Mon Oct 3 20:08:11 2022 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/file.go    |  7 +++++++
  src/os/os_test.go | 16 ++++++++++++++--
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 78677c2f8f..e8d2de1b3c 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -644,6 +644,13 @@ func (dir dirFS) Open(name string) (fs.File, error) {
+ 	}
+ 	f, err := Open(dir.join(name))
+ 	if err != nil {
++		if runtime.GOOS == "windows" {
++			// Undo the backslash conversion done by dir.join.
++			perr := err.(*PathError)
++			if containsAny(perr.Path, `\`) {
++				perr.Path = string(dir) + "/" + name
++			}
++		}
+ 		return nil, err // nil fs.File
+ 	}
+ 	return f, nil
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 4c64afaef0..ff74598362 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2712,13 +2712,25 @@ func TestDirFS(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 	}
+-	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
++	fs := DirFS("./testdata/dirfs")
++	if err := fstest.TestFS(fs, "a", "b", "dir/x"); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
++	// Test that the error message does not contain a backslash.
++	const nonesuch = "dir/nonesuch"
++	_, err := fs.Open(nonesuch)
++	if err == nil {
++		t.Error("fs.Open of nonexistent file succeeded")
++	} else {
++		if !strings.Contains(err.Error(), nonesuch) {
++			t.Errorf("error %q does not contain %q", err, nonesuch)
++		}
++	}
++
+ 	// Test that Open does not accept backslash as separator.
+ 	d := DirFS(".")
+-	_, err := d.Open(`testdata\dirfs`)
++	_, err = d.Open(`testdata\dirfs`)
+ 	if err == nil {
+ 		t.Fatalf(`Open testdata\dirfs succeeded`)
+ 	}

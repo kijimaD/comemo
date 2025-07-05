@@ -15,7 +15,34 @@ Date:   Mon Apr 18 15:53:29 2016 -0700
     Change-Id: I3aa48a9499c1bc36fa5d3f40c088fdd7599e0db5
     Reviewed-on: https://go-review.googlesource.com/22202
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sigtab_linux_generic.go | 2 +-
  src/runtime/sigtab_linux_mips64x.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sigtab_linux_generic.go b/src/runtime/sigtab_linux_generic.go
+index 32c40c4768..e97497f18c 100644
+--- a/src/runtime/sigtab_linux_generic.go
++++ b/src/runtime/sigtab_linux_generic.go
+@@ -45,7 +45,7 @@ var sigtable = [...]sigTabT{
+ 	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
+ 	/* 29 */ {_SigNotify, "SIGIO: i/o now possible"},
+ 	/* 30 */ {_SigNotify, "SIGPWR: power failure restart"},
+-	/* 31 */ {_SigNotify, "SIGSYS: bad system call"},
++	/* 31 */ {_SigThrow + _SigUnblock, "SIGSYS: bad system call"},
+ 	/* 32 */ {_SigSetStack + _SigUnblock, "signal 32"}, /* SIGCANCEL; see issue 6997 */
+ 	/* 33 */ {_SigSetStack + _SigUnblock, "signal 33"}, /* SIGSETXID; see issues 3871, 9400, 12498 */
+ 	/* 34 */ {_SigNotify, "signal 34"},
+diff --git a/src/runtime/sigtab_linux_mips64x.go b/src/runtime/sigtab_linux_mips64x.go
+index dbd50f7b1f..f7d81811ba 100644
+--- a/src/runtime/sigtab_linux_mips64x.go
++++ b/src/runtime/sigtab_linux_mips64x.go
+@@ -25,7 +25,7 @@ var sigtable = [...]sigTabT{
+ 	/* 9 */ {0, "SIGKILL: kill"},
+ 	/* 10 */ {_SigPanic + _SigUnblock, "SIGBUS: bus error"},
+ 	/* 11 */ {_SigPanic + _SigUnblock, "SIGSEGV: segmentation violation"},
+-	/* 12 */ {_SigNotify, "SIGSYS: bad system call"},
++	/* 12 */ {_SigThrow + _SigUnblock, "SIGSYS: bad system call"},
+ 	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
+ 	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
+ 	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},

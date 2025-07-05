@@ -7,7 +7,46 @@ Date:   Thu Apr 1 15:36:44 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/838046
-
+---
  src/pkg/debug/macho/file.go      | 4 +++-
  src/pkg/debug/macho/file_test.go | 8 ++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index 7c492ef524..018f71e141 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -167,7 +167,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 
+ 	// Read and decode Mach magic to determine byte order, size.
+ 	// Magic32 and Magic64 differ only in the bottom bit.
+-	var ident [4]uint8
++	var ident [4]byte
+ 	if _, err := r.ReadAt(&ident, 0); err != nil {
+ 		return nil, err
+ 	}
+@@ -180,6 +180,8 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	case le &^ 1:
+ 		f.ByteOrder = binary.LittleEndian
+ 		f.Magic = le
++	default:
++		return nil, &FormatError{0, "invalid magic number", nil}
+ 	}
+ 
+ 	// Read entire file header.
+diff --git a/src/pkg/debug/macho/file_test.go b/src/pkg/debug/macho/file_test.go
+index d69e49cbfe..d4f3fc19c9 100644
+--- a/src/pkg/debug/macho/file_test.go
++++ b/src/pkg/debug/macho/file_test.go
+@@ -157,3 +157,11 @@ func TestOpen(t *testing.T) {
+ 
+ 	}
+ }
++
++func TestOpenFailure(t *testing.T) {
++	filename := "file.go"    // not a Mach-O file
++	_, err := Open(filename) // don't crash
++	if err == nil {
++		t.Errorf("open %s: succeeded unexpectedly", filename)
++	}
++}

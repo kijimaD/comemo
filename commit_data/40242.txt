@@ -16,8 +16,70 @@ Date:   Sun Dec 30 15:18:58 2018 +0100
     Change-Id: If99b38ba108830d0e5fe527171a2f5c96a3bcde7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/155960
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial.go                  | 13 +++++++------
  src/net/http/httputil/persist.go |  4 ++--
  src/net/tcpsock.go               |  4 ++--
  3 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 7c03b54ceb..e2e60530a9 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -63,12 +63,13 @@ type Dialer struct {
+ 	// A negative value disables Fast Fallback support.
+ 	FallbackDelay time.Duration
+ 
+-	// KeepAlive specifies the keep-alive period for an active
+-	// network connection.
+-	// If zero, keep-alives are enabled if supported by the protocol
+-	// and operating system. Network protocols or operating systems
+-	// that do not support keep-alives ignore this field.
+-	// If negative, keep-alives are disabled.
++	// KeepAlive specifies the interval between keep-alive
++	// probes for an active network connection.
++	// If zero, keep-alive probes are sent with a default value
++	// (currently 15 seconds), if supported by the protocol and operating
++	// system. Network protocols or operating systems that do
++	// not support keep-alives ignore this field.
++	// If negative, keep-alive probes are disabled.
+ 	KeepAlive time.Duration
+ 
+ 	// Resolver optionally specifies an alternate resolver to use.
+diff --git a/src/net/http/httputil/persist.go b/src/net/http/httputil/persist.go
+index cbedf25ad1..84b116df8c 100644
+--- a/src/net/http/httputil/persist.go
++++ b/src/net/http/httputil/persist.go
+@@ -292,8 +292,8 @@ func (cc *ClientConn) Close() error {
+ }
+ 
+ // Write writes a request. An ErrPersistEOF error is returned if the connection
+-// has been closed in an HTTP keepalive sense. If req.Close equals true, the
+-// keepalive connection is logically closed after this request and the opposing
++// has been closed in an HTTP keep-alive sense. If req.Close equals true, the
++// keep-alive connection is logically closed after this request and the opposing
+ // server is informed. An ErrUnexpectedEOF indicates the remote closed the
+ // underlying TCP connection, which is usually considered as graceful close.
+ func (cc *ClientConn) Write(req *http.Request) error {
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 666c804169..0daa2f6487 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -154,7 +154,7 @@ func (c *TCPConn) SetLinger(sec int) error {
+ }
+ 
+ // SetKeepAlive sets whether the operating system should send
+-// keepalive messages on the connection.
++// keep-alive messages on the connection.
+ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+@@ -165,7 +165,7 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ 	return nil
+ }
+ 
+-// SetKeepAlivePeriod sets period between keep alives.
++// SetKeepAlivePeriod sets period between keep-alives.
+ func (c *TCPConn) SetKeepAlivePeriod(d time.Duration) error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL

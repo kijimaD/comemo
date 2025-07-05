@@ -86,6 +86,38 @@ Date:   Fri Sep 28 13:19:27 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/all_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/regexp/all_test.go b/src/regexp/all_test.go
+index 8cbc2962cb..623f82df72 100644
+--- a/src/regexp/all_test.go
++++ b/src/regexp/all_test.go
+@@ -859,3 +859,26 @@ func BenchmarkQuoteMetaNone(b *testing.B) {
+ 		sink = QuoteMeta(s)
+ 	}
+ }
++
++func TestDeepEqual(t *testing.T) {
++	re1 := MustCompile("a.*b.*c.*d")
++	re2 := MustCompile("a.*b.*c.*d")
++	if !reflect.DeepEqual(re1, re2) { // has always been true, since Go 1.
++		t.Errorf("DeepEqual(re1, re2) = false, want true")
++	}
++
++	re1.MatchString("abcdefghijklmn")
++	if !reflect.DeepEqual(re1, re2) {
++		t.Errorf("DeepEqual(re1, re2) = false, want true")
++	}
++
++	re2.MatchString("abcdefghijklmn")
++	if !reflect.DeepEqual(re1, re2) {
++		t.Errorf("DeepEqual(re1, re2) = false, want true")
++	}
++
++	re2.MatchString(strings.Repeat("abcdefghijklmn", 100))
++	if !reflect.DeepEqual(re1, re2) {
++		t.Errorf("DeepEqual(re1, re2) = false, want true")
++	}
++}

@@ -8,7 +8,56 @@ Date:   Tue Dec 9 19:41:52 2014 -0500
     Reviewed-on: https://go-review.googlesource.com/1621
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/chrome/gophertool/gopher.js  |  7 ++++++-
  misc/chrome/gophertool/popup.html | 12 +++++++-----
  2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/misc/chrome/gophertool/gopher.js b/misc/chrome/gophertool/gopher.js
+index 686e2175f9..c09c4ef10c 100644
+--- a/misc/chrome/gophertool/gopher.js
++++ b/misc/chrome/gophertool/gopher.js
+@@ -3,7 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ var numericRE = /^\d+$/;
+-var commitRE = /^(?:\d+:)?([0-9a-f]{6,20})$/; // e.g "8486:ab29d2698a47" or "ab29d2698a47"
++var commitRE = /^(?:\d+:)?([0-9a-f]{6,40})$/; // e.g "8486:ab29d2698a47" or "ab29d2698a47"
++var gerritChangeIdRE = /^I[0-9a-f]{4,40}$/; // e.g. Id69c00d908d18151486007ec03da5495b34b05f5
+ var pkgRE = /^[a-z0-9_\/]+$/;
+ 
+ function urlForInput(t) {
+@@ -21,6 +22,10 @@ function urlForInput(t) {
+         return "https://golang.org/cl/" + t;
+     }
+ 
++    if (gerritChangeIdRE.test(t)) {
++        return "http://golang.org/cl/" + t;
++    }
++
+     var match = commitRE.exec(t);
+     if (match) {
+         return "https://golang.org/change/" + match[1];
+diff --git a/misc/chrome/gophertool/popup.html b/misc/chrome/gophertool/popup.html
+index 8bb7795fac..9740406276 100644
+--- a/misc/chrome/gophertool/popup.html
++++ b/misc/chrome/gophertool/popup.html
+@@ -9,11 +9,13 @@
+ <script src="popup.js"></script>
+ </head>
+ <body style='margin: 0.5em; font-family: sans;'>
+-<small><a href="#" url="http://code.google.com/p/go/issues/list">issue</a>,
+-<a href="#" url="http://codereview.appspot.com/">codereview</a>,
+-<a href="#" url="http://code.google.com/p/go/source/list">commit</a>, or
+-<a href="#" url="http://golang.org/pkg/">pkg</a> id/name:</small>
++<small><a href="#" url="https://golang.org/issue">issue</a>,
++<a href="#" url="https://golang.org/cl">codereview</a>,
++<a href="#" url="https://golang.org/change">commit</a>, or
++<a href="#" url="https://golang.org/pkg/">pkg</a> id/name:</small>
+ <form style='margin: 0' id='navform'><nobr><input id="inputbox" size=10 tabindex=1 /><input type="submit" value="go" /></nobr></form>
+-<small>Also: <a href="#" url="http://build.golang.org">buildbots</a></small>
++<small>Also: <a href="#" url="https://build.golang.org">buildbots</a>
++<a href="#" url="https://github.com/golang/go">Github</a>
++</small>
+ </body>
+ </html>

@@ -7,10 +7,226 @@ Date:   Wed Jan 27 15:42:37 2010 -0800
     R=agl1
     CC=golang-dev
     https://golang.org/cl/194116
-
+---
  misc/dashboard/README                 |  6 +++-
  misc/dashboard/buildcontrol.py        |  4 +--
  misc/dashboard/buildcron.sh           | 53 +++++++++++++++++++++++++++++++++++
  misc/dashboard/builder.sh             | 22 ++++++++++-----
  misc/dashboard/godashboard/gobuild.py | 40 +++++++++++++++++++++-----
  5 files changed, 108 insertions(+), 17 deletions(-)
+
+diff --git a/misc/dashboard/README b/misc/dashboard/README
+index 2878daef0c..b2bc3c2d37 100644
+--- a/misc/dashboard/README
++++ b/misc/dashboard/README
+@@ -6,11 +6,15 @@ The files in this directory constitute the continuous builder:
+ 
+ godashboard/: An AppEngine that acts as a server
+ builder.sh, buildcontrol.sh: used by the build slaves
++buildcron.sh: a build loop that can be run regularly via cron
+ 
+ If you wish to run a Go builder, please email golang-dev@googlegroups.com
+ 
+ 
+-Setting up a Go builder:
++To set up a Go builder automatically, run buildcron.sh
++(you might want to read it first to see what it does).
++
++To set up a Go builder by hand:
+ 
+ * (Optional) create a new user 'gobuild'
+ * Edit ~gobuild/.bash_profile and add the following:
+diff --git a/misc/dashboard/buildcontrol.py b/misc/dashboard/buildcontrol.py
+index b2f7728e97..91b684f799 100644
+--- a/misc/dashboard/buildcontrol.py
++++ b/misc/dashboard/buildcontrol.py
+@@ -35,12 +35,12 @@ def main(args):
+         buildport = int(os.environ['BUILDPORT'])
+ 
+     try:
+-        buildkey = file('%s/.gobuildkey' % os.environ['GOROOT'], 'r').read().strip()
++        buildkey = file('%s/.gobuildkey-%s' % (os.environ['HOME'], os.environ['BUILDER']), 'r').read().strip()
+     except IOError:
+         try:
+             buildkey = file('%s/.gobuildkey' % os.environ['HOME'], 'r').read().strip()
+         except IOError:
+-            print >>sys.stderr, "Need key in $GOROOT/.gobuildkey or ~/.gobuildkey"
++            print >>sys.stderr, "Need key in ~/.gobuildkey-%s or ~/.gobuildkey" % os.environ['BUILDER']
+             return
+ 
+     if args[1] == 'init':
+diff --git a/misc/dashboard/buildcron.sh b/misc/dashboard/buildcron.sh
+new file mode 100644
+index 0000000000..c344414a97
+--- /dev/null
++++ b/misc/dashboard/buildcron.sh
+@@ -0,0 +1,53 @@
++#!/bin/sh
++# Copyright 2010 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This script can be run to create a new builder and then
++# to keep it running via cron.  First, run it by hand until it
++# starts up without errors and can run the loop.  Then, once
++# you're confident that it works, add this to your crontab:
++#
++#   */5 * * * *  cd $HOME; path/to/buildcron.sh darwin 386 >/dev/null 2>/dev/null
++
++if [ $# != 2 ]; then
++	echo 'usage: buildcron.sh goos goarch' 1>&2
++	exit 2
++fi
++
++export GOOS=$1
++export GOARCH=$2
++
++# Check if we are already running.
++# First command must not be pipeline, to avoid seeing extra processes in ps.
++all=$(ps axwwu)
++pid=$(echo "$all" | grep "buildcron.sh $1 $2" | grep -v $$ | awk '{print $2}')
++if [ "$pid" != "" ]; then
++	exit 0
++fi
++
++export BUILDHOST=godashboard.appspot.com
++export BUILDER=${GOOS}-${GOARCH}
++export GOROOT=$HOME/go-$BUILDER/go
++export GOBIN=$HOME/go-$BUILDER/bin
++
++if [ ! -f ~/.gobuildkey-$BUILDER ]; then
++	echo "need gobuildkey for $BUILDER in ~/.gobuildkey-$BUILDER" 1>&2
++	exit 2
++fi
++
++if [ ! -d $GOROOT ]; then
++	mkdir -p $GOROOT
++	hg clone https://go.googlecode.com/hg/ $GOROOT
++fi
++mkdir -p $GOROOT/bin
++
++cd $GOROOT/..
++cp go/misc/dashboard/builder.sh go/misc/dashboard/buildcontrol.py .
++chmod a+x builder.sh buildcontrol.py
++cd go
++../buildcontrol.py next $BUILDER
++cd ..
++./builder.sh
++
++
+diff --git a/misc/dashboard/builder.sh b/misc/dashboard/builder.sh
+index d66ba08c35..0eaed8b344 100644
+--- a/misc/dashboard/builder.sh
++++ b/misc/dashboard/builder.sh
+@@ -52,20 +52,28 @@ while true ; do
+     mkdir -p candidate/bin || fatal "Cannot create candidate/bin"
+     cd candidate/src || fatal "Cannot cd into candidate/src"
+     echo "Building revision $rev"
+-    ./all.bash > ../log 2>&1
++    ALL=all.bash
++    if [ -f all-$GOOS.bash ]; then
++        ALL=all-$GOOS.bash
++    elif [ -f all-$GOARCH.bash ]; then
++        ALL=all-$GOARCH.bash
++    fi
++    ./$ALL > ../log 2>&1
+     if [ $? -ne 0 ] ; then
+         echo "Recording failure for $rev"
+         python ../../buildcontrol.py record $BUILDER $rev ../log || fatal "Cannot record result"
+     else
+         echo "Recording success for $rev"
+         python ../../buildcontrol.py record $BUILDER $rev ok || fatal "Cannot record result"
+-        echo "Running benchmarks"
+-        cd pkg || fatal "failed to cd to pkg"
+-        make bench > ../../benchmarks 2>&1
+-        if [ $? -eq 0 ] ; then
+-            python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
++        if [ "$ALL" = "all.bash" ]; then
++            echo "Running benchmarks"
++            cd pkg || fatal "failed to cd to pkg"
++            make bench > ../../benchmarks 2>&1
++            if [ $? -eq 0 ] ; then
++                python ../../../buildcontrol.py benchmarks $BUILDER $rev ../../benchmarks || fatal "Cannot record benchmarks"
++            fi
++            cd .. || fatal "failed to cd out of pkg"
+         fi
+-        cd .. || fatal "failed to cd out of pkg"
+     fi
+     cd ../.. || fatal "Cannot cd up"
+ done
+diff --git a/misc/dashboard/godashboard/gobuild.py b/misc/dashboard/godashboard/gobuild.py
+index 6cc9e5828d..32f95ca3d8 100644
+--- a/misc/dashboard/godashboard/gobuild.py
++++ b/misc/dashboard/godashboard/gobuild.py
+@@ -62,13 +62,15 @@ class Log(db.Model):
+ class Highwater(db.Model):
+     commit = db.StringProperty()
+ 
++N = 30
++
+ class MainPage(webapp.RequestHandler):
+     def get(self):
+         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
+ 
+         q = Commit.all()
+         q.order('-__key__')
+-        results = q.fetch(30)
++        results = q.fetch(N)
+ 
+         revs = [toRev(r) for r in results]
+         builders = {}
+@@ -104,17 +106,29 @@ class GetHighwater(webapp.RequestHandler):
+ 
+         hw = Highwater.get_by_key_name('hw-%s' % builder)
+         if hw is None:
+-            # If no highwater has been recorded for this builder, we find the
+-            # initial commit and return that.
++            # If no highwater has been recorded for this builder,
++            # we go back N+1 commits and return that.
+             q = Commit.all()
+-            q.filter('num =', 0)
+-            commitzero = q.get()
++            q.order('-__key__')
++            c = q.fetch(N+1)[-1]
+             self.response.set_status(200)
+-            self.response.out.write(commitzero.node)
++            self.response.out.write(c.node)
+             return
+ 
++        # if the proposed hw is too old, bump it forward
++        node = hw.commit
++        found = False
++        q = Commit.all()
++        q.order('-__key__')
++        recent = q.fetch(N+1)
++        for c in recent:
++            if c.node == node:
++                found = True
++                break
++        if not found:
++            node = recent[-1].node
+         self.response.set_status(200)
+-        self.response.out.write(hw.commit)
++        self.response.out.write(node)
+ 
+ def auth(req):
+     k = req.get('key')
+@@ -134,6 +148,18 @@ class SetHighwater(webapp.RequestHandler):
+         if c is None:
+             self.response.set_status(404)
+             return
++        
++        # if the proposed hw is too old, bump it forward
++        found = False
++        q = Commit.all()
++        q.order('-__key__')
++        recent = q.fetch(N+1)
++        for c in head:
++            if c.node == newhw:
++                found = True
++                break
++        if not found:
++            c = recent[-1]
+ 
+         hw = Highwater(key_name = 'hw-%s' % builder)
+         hw.commit = c.node

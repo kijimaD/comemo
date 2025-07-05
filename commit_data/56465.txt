@@ -18,9 +18,106 @@ Date:   Wed May 10 09:06:33 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go | 8 ++++----
  src/cmd/compile/internal/types2/call.go     | 4 ++--
  src/go/types/builtins.go                    | 8 ++++----
  src/go/types/call.go                        | 4 ++--
  4 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 3dcef64146..15769ead4b 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -133,17 +133,17 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// check general case by creating custom signature
+ 		sig := makeSig(S, S, NewSlice(T)) // []T required for variadic signature
+ 		sig.variadic = true
+-		var xlist []*operand
++		var alist2 []*operand
+ 		// convert []operand to []*operand
+ 		for i := range alist {
+-			xlist = append(xlist, &alist[i])
++			alist2 = append(alist2, &alist[i])
+ 		}
+ 		for i := len(alist); i < nargs; i++ {
+ 			var x operand
+ 			arg(&x, i)
+-			xlist = append(xlist, &x)
++			alist2 = append(alist2, &x)
+ 		}
+-		check.arguments(call, sig, nil, xlist, nil) // discard result (we know the result type)
++		check.arguments(call, sig, nil, nil, alist2) // discard result (we know the result type)
+ 		// ok to continue even if check.arguments reported errors
+ 
+ 		x.mode = value
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 54f6c7ee48..075dfd1efa 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -325,7 +325,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 
+ 	// evaluate arguments
+ 	args := check.genericExprList(call.ArgList)
+-	sig = check.arguments(call, sig, targs, args, xlist)
++	sig = check.arguments(call, sig, targs, xlist, args)
+ 
+ 	if wasGeneric && sig.TypeParams().Len() == 0 {
+ 		// update the recorded type of call.Fun to its instantiated type
+@@ -419,7 +419,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) []*operand {
+ }
+ 
+ // xlist is the list of type argument expressions supplied in the source code.
+-func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, args []*operand, xlist []syntax.Expr) (rsig *Signature) {
++func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, xlist []syntax.Expr, args []*operand) (rsig *Signature) {
+ 	rsig = sig
+ 
+ 	// TODO(gri) try to eliminate this extra verification loop
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 361a760211..e4b00cd757 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -134,17 +134,17 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// check general case by creating custom signature
+ 		sig := makeSig(S, S, NewSlice(T)) // []T required for variadic signature
+ 		sig.variadic = true
+-		var xlist []*operand
++		var alist2 []*operand
+ 		// convert []operand to []*operand
+ 		for i := range alist {
+-			xlist = append(xlist, &alist[i])
++			alist2 = append(alist2, &alist[i])
+ 		}
+ 		for i := len(alist); i < nargs; i++ {
+ 			var x operand
+ 			arg(&x, i)
+-			xlist = append(xlist, &x)
++			alist2 = append(alist2, &x)
+ 		}
+-		check.arguments(call, sig, nil, xlist, nil) // discard result (we know the result type)
++		check.arguments(call, sig, nil, nil, alist2) // discard result (we know the result type)
+ 		// ok to continue even if check.arguments reported errors
+ 
+ 		x.mode = value
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 5877a345df..640910424e 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -330,7 +330,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 
+ 	// evaluate arguments
+ 	args := check.genericExprList(call.Args)
+-	sig = check.arguments(call, sig, targs, args, xlist)
++	sig = check.arguments(call, sig, targs, xlist, args)
+ 
+ 	if wasGeneric && sig.TypeParams().Len() == 0 {
+ 		// Update the recorded type of call.Fun to its instantiated type.
+@@ -424,7 +424,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) []*operand {
+ }
+ 
+ // xlist is the list of type argument expressions supplied in the source code.
+-func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type, args []*operand, xlist []ast.Expr) (rsig *Signature) {
++func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type, xlist []ast.Expr, args []*operand) (rsig *Signature) {
+ 	rsig = sig
+ 
+ 	// TODO(gri) try to eliminate this extra verification loop

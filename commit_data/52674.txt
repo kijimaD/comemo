@@ -60,6 +60,24 @@ Date:   Tue May 17 08:13:47 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/compress/flate/deflate.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index 7c2dad22d7..93efd7cafb 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -210,11 +210,9 @@ func (d *compressor) fillWindow(b []byte) {
+ 
+ 		dst := d.hashMatch[:dstSize]
+ 		d.bulkHasher(toCheck, dst)
+-		var newH uint32
+ 		for i, val := range dst {
+ 			di := i + index
+-			newH = val
+-			hh := &d.hashHead[newH&hashMask]
++			hh := &d.hashHead[val&hashMask]
+ 			// Get previous value with the same hash.
+ 			// Our chain should point to the previous value.
+ 			d.hashPrev[di&windowMask] = *hh

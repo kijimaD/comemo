@@ -8,7 +8,85 @@ Date:   Wed Sep 24 22:01:52 2008 -0700
     R=r
     OCL=15822
     CL=15822
-
+---
  usr/gri/pretty/Makefile.iant | 11 +++++++++--
  usr/gri/pretty/parser.go     | 10 +++++-----
  2 files changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile.iant b/usr/gri/pretty/Makefile.iant
+index 2f8f8c3c4f..4ee2bb7144 100644
+--- a/usr/gri/pretty/Makefile.iant
++++ b/usr/gri/pretty/Makefile.iant
+@@ -28,12 +28,18 @@ install: pretty
+ clean:
+ 	rm -f pretty *.o  *~
+ 
+-pretty.o:	parser.o printer.o platform.o scanner.o
++pretty.o:	parser.o printer.o platform.o scanner.o flag.o
+ 
+ parser.o:	ast.o scanner.o utils.o printer.o
+ 
+ scanner.o:	utils.o platform.o
+ 
++flag.o:	fmt.o
++	$(GO) -O2 -c -g $(GOROOT)/src/lib/flag.go
++
++fmt.o:
++	$(GO) -O2 -c -g $(GOROOT)/src/lib/fmt.go
++
+ .SUFFIXES:
+ .SUFFIXES: .go .o
+ 
+@@ -49,7 +55,8 @@ PRETTY_OBJS = \
+ 	printer.o \
+ 	scanner.o \
+ 	utils.o \
+-
++	flag.o \
++	fmt.o \
+ 
+ pretty: $(PRETTY_OBJS)
+ 	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 8089b56126..7e3dda3ad3 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -110,9 +110,9 @@ func (P *Parser) CloseScope() {
+ // ----------------------------------------------------------------------------
+ // Common productions
+ 
+-func (P *Parser) TryType() (AST.Type, bool);
++func (P *Parser) TryType() (typ AST.Type, ok bool);
+ func (P *Parser) ParseExpression() AST.Expr;
+-func (P *Parser) TryStatement() (AST.Stat, bool);
++func (P *Parser) TryStatement() (stat AST.Stat, ok bool);
+ func (P *Parser) ParseDeclaration() AST.Node;
+ 
+ 
+@@ -444,7 +444,7 @@ func (P *Parser) ParsePointerType() *AST.PointerType {
+ 
+ 
+ // Returns false if no type was found.
+-func (P *Parser) TryType() (AST.Type, bool) {
++func (P *Parser) TryType() (typ_ AST.Type, ok_ bool) {
+ 	P.Trace("Type (try)");
+ 	
+ 	var typ AST.Type = AST.NIL;
+@@ -937,7 +937,7 @@ func (P *Parser) ParseControlFlowStat(tok int) {
+ }
+ 
+ 
+-func (P *Parser) ParseStatHeader(keyword int) (AST.Stat, AST.Expr, AST.Stat) {
++func (P *Parser) ParseStatHeader(keyword int) (init_ AST.Stat, expr_ AST.Expr, post_ AST.Stat) {
+ 	P.Trace("StatHeader");
+ 	
+ 	var (
+@@ -1150,7 +1150,7 @@ func (P *Parser) ParseSelectStat() {
+ }
+ 
+ 
+-func (P *Parser) TryStatement() (AST.Stat, bool) {
++func (P *Parser) TryStatement() (stat_ AST.Stat, ok_ bool) {
+ 	P.Trace("Statement (try)");
+ 	indent := P.indent;
+ 

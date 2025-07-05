@@ -9,10 +9,115 @@ Date:   Thu Nov 11 16:32:16 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go                       |  7 ++++++-
  src/cmd/compile/internal/types2/stmt.go                       | 11 ++++++-----
  src/cmd/compile/internal/types2/testdata/check/typeparams.go2 |  8 ++++----
  test/interface/explicit.go                                    |  2 +-
  test/typeswitch3.go                                           |  4 ++--
  5 files changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 17096ee418..25e2060100 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1459,9 +1459,14 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
++		// TODO(gri) we may want to permit type assertions on type parameter values at some point
++		if isTypeParam(x.typ) {
++			check.errorf(x, invalidOp+"cannot use type assertion on type parameter value %s", x)
++			goto Error
++		}
+ 		xtyp, _ := under(x.typ).(*Interface)
+ 		if xtyp == nil {
+-			check.errorf(x, "%s is not an interface type", x)
++			check.errorf(x, invalidOp+"%s is not an interface", x)
+ 			goto Error
+ 		}
+ 		// x.(type) expressions are encoded via TypeSwitchGuards
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index f9c07e38cd..6869c87929 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -733,13 +733,14 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 	if x.mode == invalid {
+ 		return
+ 	}
+-	// Caution: We're not using asInterface here because we don't want
+-	//          to switch on a suitably constrained type parameter (for
+-	//          now).
+-	// TODO(gri) Need to revisit this.
++	// TODO(gri) we may want to permit type switches on type parameter values at some point
++	if isTypeParam(x.typ) {
++		check.errorf(&x, "cannot use type switch on type parameter value %s", &x)
++		return
++	}
+ 	xtyp, _ := under(x.typ).(*Interface)
+ 	if xtyp == nil {
+-		check.errorf(&x, "%s is not an interface type", &x)
++		check.errorf(&x, "%s is not an interface", &x)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index b1d02efdb5..03c3f9a0b5 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -482,8 +482,8 @@ func (_ R2[X, Y]) m2(X) Y
+ // type assertions and type switches over generic types lead to errors for now
+ 
+ func _[T any](x T) {
+-	_ = x /* ERROR not an interface */ .(int)
+-	switch x /* ERROR not an interface */ .(type) {
++	_ = x /* ERROR cannot use type assertion */ .(int)
++	switch x /* ERROR cannot use type switch */ .(type) {
+ 	}
+ 
+ 	// work-around
+@@ -494,8 +494,8 @@ func _[T any](x T) {
+ }
+ 
+ func _[T interface{~int}](x T) {
+-	_ = x /* ERROR not an interface */ .(int)
+-	switch x /* ERROR not an interface */ .(type) {
++	_ = x /* ERROR cannot use type assertion */ .(int)
++	switch x /* ERROR cannot use type switch */ .(type) {
+ 	}
+ 
+ 	// work-around
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index 1b7af6712b..f769f5878c 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -57,7 +57,7 @@ func main() {
+ 
+ 	// cannot type-assert non-interfaces
+ 	f := 2.0
+-	_ = f.(int) // ERROR "non-interface type|only valid for interface types|not an interface type"
++	_ = f.(int) // ERROR "non-interface type|only valid for interface types|not an interface"
+ 
+ }
+ 
+diff --git a/test/typeswitch3.go b/test/typeswitch3.go
+index a57889bc1d..2e144d81c0 100644
+--- a/test/typeswitch3.go
++++ b/test/typeswitch3.go
+@@ -42,7 +42,7 @@ func main() {
+ 
+ func noninterface() {
+ 	var i int
+-	switch i.(type) { // ERROR "cannot type switch on non-interface value|not an interface type"
++	switch i.(type) { // ERROR "cannot type switch on non-interface value|not an interface"
+ 	case string:
+ 	case int:
+ 	}
+@@ -51,6 +51,6 @@ func noninterface() {
+ 		name string
+ 	}
+ 	var s S
+-	switch s.(type) { // ERROR "cannot type switch on non-interface value|not an interface type"
++	switch s.(type) { // ERROR "cannot type switch on non-interface value|not an interface"
+ 	}
+ }

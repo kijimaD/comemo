@@ -11,6 +11,32 @@ Date:   Mon Dec 26 09:34:27 2011 +0900
     R=mikioh.mikioh, rsc
     CC=golang-dev
     https://golang.org/cl/5504058
-
+---
  src/pkg/log/syslog/syslog.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index 914391af80..aef63480f1 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -93,13 +93,19 @@ func (w *Writer) Emerg(m string) (err error) {
+ 	return err
+ }
+ 
++// Alert logs a message using the LOG_ALERT priority.
++func (w *Writer) Alert(m string) (err error) {
++	_, err = w.writeString(LOG_ALERT, m)
++	return err
++}
++
+ // Crit logs a message using the LOG_CRIT priority.
+ func (w *Writer) Crit(m string) (err error) {
+ 	_, err = w.writeString(LOG_CRIT, m)
+ 	return err
+ }
+ 
+-// ERR logs a message using the LOG_ERR priority.
++// Err logs a message using the LOG_ERR priority.
+ func (w *Writer) Err(m string) (err error) {
+ 	_, err = w.writeString(LOG_ERR, m)
+ 	return err

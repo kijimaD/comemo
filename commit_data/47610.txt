@@ -21,7 +21,177 @@ Date:   Fri Mar 19 20:04:38 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/x86/a.out.go | 36 ++++++++++++++++++-----------------
  src/cmd/internal/obj/x86/obj6.go  | 40 ++++++++++++++++++++++-----------------
  2 files changed, 42 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 3be4b59da4..b121f6df7b 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -258,23 +258,25 @@ const (
+ 	REG_DR = REG_DR0
+ 	REG_TR = REG_TR0
+ 
+-	REGARG   = -1
+-	REGRET   = REG_AX
+-	FREGRET  = REG_X0
+-	REGSP    = REG_SP
+-	REGCTXT  = REG_DX
+-	REGG     = REG_R14     // g register in ABIInternal
+-	REGEXT   = REG_R15     // compiler allocates external registers R15 down
+-	FREGMIN  = REG_X0 + 5  // first register variable
+-	FREGEXT  = REG_X0 + 15 // first external register
+-	T_TYPE   = 1 << 0
+-	T_INDEX  = 1 << 1
+-	T_OFFSET = 1 << 2
+-	T_FCONST = 1 << 3
+-	T_SYM    = 1 << 4
+-	T_SCONST = 1 << 5
+-	T_64     = 1 << 6
+-	T_GOTYPE = 1 << 7
++	REGARG       = -1
++	REGRET       = REG_AX
++	FREGRET      = REG_X0
++	REGSP        = REG_SP
++	REGCTXT      = REG_DX
++	REGENTRYTMP0 = REG_R12     // scratch register available at function entry in ABIInternal
++	REGENTRYTMP1 = REG_R13     // scratch register available at function entry in ABIInternal
++	REGG         = REG_R14     // g register in ABIInternal
++	REGEXT       = REG_R15     // compiler allocates external registers R15 down
++	FREGMIN      = REG_X0 + 5  // first register variable
++	FREGEXT      = REG_X0 + 15 // first external register
++	T_TYPE       = 1 << 0
++	T_INDEX      = 1 << 1
++	T_OFFSET     = 1 << 2
++	T_FCONST     = 1 << 3
++	T_SYM        = 1 << 4
++	T_SCONST     = 1 << 5
++	T_64         = 1 << 6
++	T_GOTYPE     = 1 << 7
+ )
+ 
+ // https://www.uclibc.org/docs/psABI-x86_64.pdf, figure 3.36
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 2fbeaad572..a314583e49 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -658,6 +658,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			p = load_g(ctxt, p, newprog, regg) // load g into regg
+ 		}
+ 	}
++	var regEntryTmp0, regEntryTmp1 int16
++	if ctxt.Arch.Family == sys.AMD64 {
++		regEntryTmp0, regEntryTmp1 = REGENTRYTMP0, REGENTRYTMP1
++	} else {
++		regEntryTmp0, regEntryTmp1 = REG_BX, REG_DI
++	}
+ 
+ 	if !cursym.Func().Text.From.Sym.NoSplit() {
+ 		p = stacksplit(ctxt, cursym, p, newprog, autoffset, int32(textarg), regg) // emit split check
+@@ -712,17 +718,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		//   g._panic.argp = bottom-of-frame
+ 		// }
+ 		//
+-		//	MOVQ g_panic(g), BX
+-		//	TESTQ BX, BX
++		//	MOVQ g_panic(g), regEntryTmp0
++		//	TESTQ regEntryTmp0, regEntryTmp0
+ 		//	JNE checkargp
+ 		// end:
+ 		//	NOP
+ 		//  ... rest of function ...
+ 		// checkargp:
+-		//	LEAQ (autoffset+8)(SP), DI
+-		//	CMPQ panic_argp(BX), DI
++		//	LEAQ (autoffset+8)(SP), regEntryTmp1
++		//	CMPQ panic_argp(regEntryTmp0), regEntryTmp1
+ 		//	JNE end
+-		//  MOVQ SP, panic_argp(BX)
++		//  MOVQ SP, panic_argp(regEntryTmp0)
+ 		//  JMP end
+ 		//
+ 		// The NOP is needed to give the jumps somewhere to land.
+@@ -731,25 +737,25 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		// The layout is chosen to help static branch prediction:
+ 		// Both conditional jumps are unlikely, so they are arranged to be forward jumps.
+ 
+-		// MOVQ g_panic(CX), BX
++		// MOVQ g_panic(g), regEntryTmp0
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = AMOVQ
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = regg
+ 		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // g_panic
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_BX
++		p.To.Reg = regEntryTmp0
+ 		if ctxt.Arch.Family == sys.I386 {
+ 			p.As = AMOVL
+ 		}
+ 
+-		// TESTQ BX, BX
++		// TESTQ regEntryTmp0, regEntryTmp0
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = ATESTQ
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = REG_BX
++		p.From.Reg = regEntryTmp0
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_BX
++		p.To.Reg = regEntryTmp0
+ 		if ctxt.Arch.Family == sys.I386 {
+ 			p.As = ATESTL
+ 		}
+@@ -769,14 +775,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		for last = end; last.Link != nil; last = last.Link {
+ 		}
+ 
+-		// LEAQ (autoffset+8)(SP), DI
++		// LEAQ (autoffset+8)(SP), regEntryTmp1
+ 		p = obj.Appendp(last, newprog)
+ 		p.As = ALEAQ
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = REG_SP
+ 		p.From.Offset = int64(autoffset) + int64(ctxt.Arch.RegSize)
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_DI
++		p.To.Reg = regEntryTmp1
+ 		if ctxt.Arch.Family == sys.I386 {
+ 			p.As = ALEAL
+ 		}
+@@ -784,14 +790,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		// Set jne branch target.
+ 		jne.To.SetTarget(p)
+ 
+-		// CMPQ panic_argp(BX), DI
++		// CMPQ panic_argp(regEntryTmp0), regEntryTmp1
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = ACMPQ
+ 		p.From.Type = obj.TYPE_MEM
+-		p.From.Reg = REG_BX
++		p.From.Reg = regEntryTmp0
+ 		p.From.Offset = 0 // Panic.argp
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_DI
++		p.To.Reg = regEntryTmp1
+ 		if ctxt.Arch.Family == sys.I386 {
+ 			p.As = ACMPL
+ 		}
+@@ -802,13 +808,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p.To.Type = obj.TYPE_BRANCH
+ 		p.To.SetTarget(end)
+ 
+-		// MOVQ SP, panic_argp(BX)
++		// MOVQ SP, panic_argp(regEntryTmp0)
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = AMOVQ
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = REG_SP
+ 		p.To.Type = obj.TYPE_MEM
+-		p.To.Reg = REG_BX
++		p.To.Reg = regEntryTmp0
+ 		p.To.Offset = 0 // Panic.argp
+ 		if ctxt.Arch.Family == sys.I386 {
+ 			p.As = AMOVL

@@ -7,10 +7,89 @@ Date:   Mon Jun 7 14:18:42 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1514041
-
+---
  src/cmd/8l/obj.c                  |  2 +-
  src/pkg/runtime/Makefile          |  4 ++--
  src/pkg/runtime/tiny/386/rt0.s    |  2 +-
  src/pkg/runtime/tiny/386/signal.c | 11 ++++++++++-
  src/pkg/runtime/tiny/README       |  3 +++
  5 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index c4732b6681..7f99173796 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -171,7 +171,7 @@ main(int argc, char *argv[])
+ 		if(strcmp(goos, "windows") == 0)
+ 			HEADTYPE = 10;
+ 		else
+-		if(strcmp(goos, "pchw") == 0)
++		if(strcmp(goos, "tiny") == 0)
+ 			HEADTYPE = 11;
+ 		else
+ 			print("goos is not known: %s\n", goos);
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 881f15a1a1..0d5de29b33 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -26,8 +26,8 @@ GOFILES=\
+ 	type.go\
+ 	version.go\
+ 
+-GOFILES_pchw=\
+-	pchw/io.go\
++GOFILES_tiny=\
++	tiny/io.go\
+ 
+ OFILES_windows=\
+ 	syscall.$O\
+diff --git a/src/pkg/runtime/tiny/386/rt0.s b/src/pkg/runtime/tiny/386/rt0.s
+index d03fc2d7a2..ff7aae7acc 100644
+--- a/src/pkg/runtime/tiny/386/rt0.s
++++ b/src/pkg/runtime/tiny/386/rt0.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_pchw(SB), 7, $0
++TEXT _rt0_386_tiny(SB), 7, $0
+ 	// Disable interrupts.
+ 	CLI
+ 	
+diff --git a/src/pkg/runtime/tiny/386/signal.c b/src/pkg/runtime/tiny/386/signal.c
+index a39a481cc2..de06ba8db5 100644
+--- a/src/pkg/runtime/tiny/386/signal.c
++++ b/src/pkg/runtime/tiny/386/signal.c
+@@ -1,4 +1,8 @@
+-// just the write function
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file. 
++
++#include "runtime.h"
+ 
+ extern void ·write(int32 fd, void *v, int32 len, int32 cap);	// slice, spelled out
+ 
+@@ -8,3 +12,8 @@ write(int32 fd, void *v, int32 len)
+ 	·write(fd, v, len, len);
+ 	return len;
+ }
++
++void
++gettime(int64*, int32*) 
++{
++}
+diff --git a/src/pkg/runtime/tiny/README b/src/pkg/runtime/tiny/README
+index 1a39e4251e..bbe00f3eaa 100755
+--- a/src/pkg/runtime/tiny/README
++++ b/src/pkg/runtime/tiny/README
+@@ -24,6 +24,9 @@ and GOOS set to your normal GOOS (linux, darwin).  Then:
+ 	cat bootblock 8.out | dd of=disk conv=notrunc
+ 	bochs
+ 
++Use the built-in print(text string) function to print to the
++console.
++
+ You may have to tweak the .bochsrc depending on your system,
+ and you may need to install the Bochs emulator.
+ 

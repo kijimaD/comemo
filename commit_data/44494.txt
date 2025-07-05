@@ -23,7 +23,7 @@ Date:   Tue Jul 21 14:32:09 2020 -0400
     Change-Id: Id870a10dce2a0a7447a05029c6d0ab39b47d0a12
     Reviewed-on: https://go-review.googlesource.com/c/go/+/244017
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/asmb.go       |  1 -
  src/cmd/link/internal/ld/data.go       |  8 ++++----
  src/cmd/link/internal/ld/link.go       |  4 ++--
@@ -32,3 +32,188 @@ Date:   Tue Jul 21 14:32:09 2020 -0400
  src/cmd/link/internal/mips/asm.go      |  2 +-
  src/cmd/link/internal/mips64/asm.go    | 11 ++++-------
  7 files changed, 23 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index f3e898bec5..9316f34c2a 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -18,7 +18,6 @@ import (
+ //  - writing out the architecture specific pieces.
+ // This function handles the first part.
+ func asmb(ctxt *Link) {
+-	ctxt.loader.InitOutData()
+ 	if ctxt.IsExternal() && !ctxt.StreamExtRelocs() {
+ 		ctxt.loader.InitExtRelocs()
+ 	}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 26bad1b891..0bf6f53a46 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1026,9 +1026,9 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym,
+ 			out.WriteStringPad("", int(val-addr), pad)
+ 			addr = val
+ 		}
+-		out.WriteSym(ldr, s)
+-		st.relocsym(s, ldr.OutData(s))
+-		addr += int64(len(ldr.Data(s)))
++		P := out.WriteSym(ldr, s)
++		st.relocsym(s, P)
++		addr += int64(len(P))
+ 		siz := ldr.SymSize(s)
+ 		if addr < val+siz {
+ 			out.WriteStringPad("", int(val+siz-addr), pad)
+@@ -2677,8 +2677,8 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
+ 		if relocs.Count() != 0 {
+ 			relocbuf = append(relocbuf[:0], P...)
+ 			P = relocbuf
++			st.relocsym(s, P)
+ 		}
+-		st.relocsym(s, P)
+ 		if _, err := z.Write(P); err != nil {
+ 			log.Fatalf("compression failed: %s", err)
+ 		}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 51ea17243f..a2c8552e94 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -159,8 +159,8 @@ func (ctxt *Link) MaxVersion() int {
+ // Generator symbols shouldn't grow the symbol size, and might be called in
+ // parallel in the future.
+ //
+-// Generator Symbols have their Data and OutData set to the mmapped area when
+-// the generator is called.
++// Generator Symbols have their Data set to the mmapped area when the
++// generator is called.
+ type generatorFunc func(*Link, loader.Sym)
+ 
+ // createGeneratorSymbol is a convenience method for creating a generator
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index f0178288a6..d696a68088 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -277,23 +277,24 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
+ 	}
+ }
+ 
+-// WriteSym writes the content of a Symbol, then changes the Symbol's content
+-// to point to the output buffer that we just wrote, so we can apply further
+-// edit to the symbol content.
+-// If the output file is not Mmap'd, just writes the content.
+-func (out *OutBuf) WriteSym(ldr *loader.Loader, s loader.Sym) {
++// WriteSym writes the content of a Symbol, and returns the output buffer
++// that we just wrote, so we can apply further edit to the symbol content.
++// For generator symbols, it also sets the symbol's Data to the output
++// buffer.
++func (out *OutBuf) WriteSym(ldr *loader.Loader, s loader.Sym) []byte {
+ 	if !ldr.IsGeneratedSym(s) {
+ 		P := ldr.Data(s)
+ 		n := int64(len(P))
+ 		pos, buf := out.writeLoc(n)
+ 		copy(buf[pos:], P)
+ 		out.off += n
+-		ldr.SetOutData(s, buf[pos:pos+n])
++		ldr.FreeData(s)
++		return buf[pos : pos+n]
+ 	} else {
+ 		n := ldr.SymSize(s)
+ 		pos, buf := out.writeLoc(n)
+ 		out.off += n
+-		ldr.SetOutData(s, buf[pos:pos+n])
+ 		ldr.MakeSymbolUpdater(s).SetData(buf[pos : pos+n])
++		return buf[pos : pos+n]
+ 	}
+ }
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 86fdbeffd8..0a09716447 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -238,7 +238,6 @@ type Loader struct {
+ 
+ 	align []uint8 // symbol 2^N alignment, indexed by global index
+ 
+-	outdata   [][]byte     // symbol's data in the output buffer
+ 	extRelocs [][]ExtReloc // symbol's external relocations
+ 
+ 	itablink         map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+@@ -1230,30 +1229,16 @@ func (l *Loader) Data(i Sym) []byte {
+ 	return r.Data(li)
+ }
+ 
+-// Returns the data of the i-th symbol in the output buffer.
+-func (l *Loader) OutData(i Sym) []byte {
+-	if int(i) < len(l.outdata) && l.outdata[i] != nil {
+-		return l.outdata[i]
+-	}
+-	return l.Data(i)
+-}
+-
+-// SetOutData sets the position of the data of the i-th symbol in the output buffer.
++// FreeData clears the symbol data of an external symbol, allowing the memory
++// to be freed earlier. No-op for non-external symbols.
+ // i is global index.
+-func (l *Loader) SetOutData(i Sym, data []byte) {
++func (l *Loader) FreeData(i Sym) {
+ 	if l.IsExternal(i) {
+ 		pp := l.getPayload(i)
+ 		if pp != nil {
+-			pp.data = data
+-			return
++			pp.data = nil
+ 		}
+ 	}
+-	l.outdata[i] = data
+-}
+-
+-// InitOutData initializes the slice used to store symbol output data.
+-func (l *Loader) InitOutData() {
+-	l.outdata = make([][]byte, l.extStart)
+ }
+ 
+ // SetExtRelocs sets the external relocations of the i-th symbol. i is global index.
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 5344a72a31..b8443da4ad 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -77,7 +77,7 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
+ }
+ 
+ func applyrel(arch *sys.Arch, ldr *loader.Loader, rt objabi.RelocType, off int32, s loader.Sym, val int64, t int64) int64 {
+-	o := arch.ByteOrder.Uint32(ldr.OutData(s)[off:])
++	o := uint32(val)
+ 	switch rt {
+ 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSTLS:
+ 		return int64(o&0xffff0000 | uint32(t)&0xffff)
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 73b1542c84..f4fb13f2b5 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -129,25 +129,22 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 	case objabi.R_ADDRMIPS,
+ 		objabi.R_ADDRMIPSU:
+ 		t := ldr.SymValue(rs) + r.Add()
+-		o1 := target.Arch.ByteOrder.Uint32(ldr.OutData(s)[r.Off():])
+ 		if r.Type() == objabi.R_ADDRMIPS {
+-			return int64(o1&0xffff0000 | uint32(t)&0xffff), noExtReloc, isOk
++			return int64(val&0xffff0000 | t&0xffff), noExtReloc, isOk
+ 		}
+-		return int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff), noExtReloc, isOk
++		return int64(val&0xffff0000 | ((t+1<<15)>>16)&0xffff), noExtReloc, isOk
+ 	case objabi.R_ADDRMIPSTLS:
+ 		// thread pointer is at 0x7000 offset from the start of TLS data area
+ 		t := ldr.SymValue(rs) + r.Add() - 0x7000
+ 		if t < -32768 || t >= 32678 {
+ 			ldr.Errorf(s, "TLS offset out of range %d", t)
+ 		}
+-		o1 := target.Arch.ByteOrder.Uint32(ldr.OutData(s)[r.Off():])
+-		return int64(o1&0xffff0000 | uint32(t)&0xffff), noExtReloc, isOk
++		return int64(val&0xffff0000 | t&0xffff), noExtReloc, isOk
+ 	case objabi.R_CALLMIPS,
+ 		objabi.R_JMPMIPS:
+ 		// Low 26 bits = (S + A) >> 2
+ 		t := ldr.SymValue(rs) + r.Add()
+-		o1 := target.Arch.ByteOrder.Uint32(ldr.OutData(s)[r.Off():])
+-		return int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000), noExtReloc, isOk
++		return int64(val&0xfc000000 | (t>>2)&^0xfc000000), noExtReloc, isOk
+ 	}
+ 
+ 	return val, 0, false

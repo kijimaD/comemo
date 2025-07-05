@@ -13,7 +13,7 @@ Date:   Wed Dec 16 10:11:26 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/17900
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/big/decimal.go           |  18 ++-
  src/cmd/compile/internal/big/decimal_test.go      |  10 ++
  src/cmd/compile/internal/big/float.go             |   6 +-
@@ -33,3 +33,2361 @@ Date:   Wed Dec 16 10:11:26 2015 -0800
  src/cmd/compile/internal/big/rat_test.go          | 114 --------------
  src/cmd/compile/internal/big/ratconv.go           |  36 +++--
  18 files changed, 773 insertions(+), 698 deletions(-)
+
+diff --git a/src/cmd/compile/internal/big/decimal.go b/src/cmd/compile/internal/big/decimal.go
+index 2595e5f8c1..2c0c9daebc 100644
+--- a/src/cmd/compile/internal/big/decimal.go
++++ b/src/cmd/compile/internal/big/decimal.go
+@@ -20,7 +20,7 @@
+ package big
+ 
+ // A decimal represents an unsigned floating-point number in decimal representation.
+-// The value of a non-zero decimal x is x.mant * 10 ** x.exp with 0.5 <= x.mant < 1,
++// The value of a non-zero decimal d is d.mant * 10**d.exp with 0.5 <= d.mant < 1,
+ // with the most-significant mantissa digit at index 0. For the zero decimal, the
+ // mantissa length and exponent are 0.
+ // The zero value for decimal represents a ready-to-use 0.0.
+@@ -29,6 +29,14 @@ type decimal struct {
+ 	exp  int    // exponent
+ }
+ 
++// at returns the i'th mantissa digit, starting with the most significant digit at 0.
++func (d *decimal) at(i int) byte {
++	if 0 <= i && i < len(d.mant) {
++		return d.mant[i]
++	}
++	return '0'
++}
++
+ // Maximum shift amount that can be done in one pass without overflow.
+ // A Word has _W bits and (1<<maxShift - 1)*10 + 9 must fit into Word.
+ const maxShift = _W - 4
+@@ -72,7 +80,7 @@ func (x *decimal) init(m nat, shift int) {
+ 	}
+ 
+ 	// Convert mantissa into decimal representation.
+-	s := m.decimalString() // TODO(gri) avoid string conversion here
++	s := m.utoa(10)
+ 	n := len(s)
+ 	x.exp = n
+ 	// Trim trailing zeros; instead the exponent is tracking
+@@ -92,12 +100,6 @@ func (x *decimal) init(m nat, shift int) {
+ 	}
+ }
+ 
+-// Possibly optimization: The current implementation of nat.string takes
+-// a charset argument. When a right shift is needed, we could provide
+-// "\x00\x01...\x09" instead of "012..9" (as in nat.decimalString) and
+-// avoid the repeated +'0' and -'0' operations in decimal.shr (and do a
+-// single +'0' pass at the end).
+-
+ // shr implements x >> s, for s <= maxShift.
+ func shr(x *decimal, s uint) {
+ 	// Division by 1<<s using shift-and-subtract algorithm.
+diff --git a/src/cmd/compile/internal/big/decimal_test.go b/src/cmd/compile/internal/big/decimal_test.go
+index 81e022a47d..15bdb181e7 100644
+--- a/src/cmd/compile/internal/big/decimal_test.go
++++ b/src/cmd/compile/internal/big/decimal_test.go
+@@ -104,3 +104,13 @@ func TestDecimalRounding(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkDecimalConversion(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		for shift := -100; shift <= +100; shift++ {
++			var d decimal
++			d.init(natOne, shift)
++			d.String()
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/big/float.go b/src/cmd/compile/internal/big/float.go
+index 1f8edee5dd..b1c748c9a5 100644
+--- a/src/cmd/compile/internal/big/float.go
++++ b/src/cmd/compile/internal/big/float.go
+@@ -124,7 +124,7 @@ const (
+ // rounding error is described by the Float's Accuracy.
+ type RoundingMode byte
+ 
+-// The following rounding modes are supported.
++// These constants define supported rounding modes.
+ const (
+ 	ToNearestEven RoundingMode = iota // == IEEE 754-2008 roundTiesToEven
+ 	ToNearestAway                     // == IEEE 754-2008 roundTiesToAway
+@@ -298,7 +298,7 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
+ // not require 0.5 <= |mant| < 1.0. Specifically:
+ //
+ //	mant := new(Float)
+-//	new(Float).SetMantExp(mant, x.SetMantExp(mant)).Cmp(x).Eql() is true
++//	new(Float).SetMantExp(mant, x.MantExp(mant)).Cmp(x) == 0
+ //
+ // Special cases are:
+ //
+@@ -1123,7 +1123,7 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
+ 
+ // Rat returns the rational number corresponding to x;
+ // or nil if x is an infinity.
+-// The result is Exact is x is not an Inf.
++// The result is Exact if x is not an Inf.
+ // If a non-nil *Rat argument z is provided, Rat stores
+ // the result in z instead of allocating a new Rat.
+ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
+diff --git a/src/cmd/compile/internal/big/floatconv.go b/src/cmd/compile/internal/big/floatconv.go
+index 0e8b7b649e..37d5c06a6f 100644
+--- a/src/cmd/compile/internal/big/floatconv.go
++++ b/src/cmd/compile/internal/big/floatconv.go
+@@ -72,37 +72,46 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ 	// ebase**exp. Finally, mantissa normalization (shift left) requires
+ 	// a correcting multiplication by 2**(-shiftcount). Multiplications
+ 	// are commutative, so we can apply them in any order as long as there
+-	// is no loss of precision. We only have powers of 2 and 10; keep
+-	// track via separate exponents exp2 and exp10.
++	// is no loss of precision. We only have powers of 2 and 10, and
++	// we split powers of 10 into the product of the same powers of
++	// 2 and 5. This reduces the size of the multiplication factor
++	// needed for base-10 exponents.
+ 
+-	// normalize mantissa and get initial binary exponent
+-	var exp2 = int64(len(z.mant))*_W - fnorm(z.mant)
++	// normalize mantissa and determine initial exponent contributions
++	exp2 := int64(len(z.mant))*_W - fnorm(z.mant)
++	exp5 := int64(0)
+ 
+ 	// determine binary or decimal exponent contribution of decimal point
+-	var exp10 int64
+ 	if fcount < 0 {
+ 		// The mantissa has a "decimal" point ddd.dddd; and
+ 		// -fcount is the number of digits to the right of '.'.
+ 		// Adjust relevant exponent accodingly.
++		d := int64(fcount)
+ 		switch b {
+-		case 16:
+-			fcount *= 4 // hexadecimal digits are 4 bits each
+-			fallthrough
++		case 10:
++			exp5 = d
++			fallthrough // 10**e == 5**e * 2**e
+ 		case 2:
+-			exp2 += int64(fcount)
+-		default: // b == 10
+-			exp10 = int64(fcount)
++			exp2 += d
++		case 16:
++			exp2 += d * 4 // hexadecimal digits are 4 bits each
++		default:
++			panic("unexpected mantissa base")
+ 		}
+-		// we don't need fcount anymore
++		// fcount consumed - not needed anymore
+ 	}
+ 
+ 	// take actual exponent into account
+-	if ebase == 2 {
++	switch ebase {
++	case 10:
++		exp5 += exp
++		fallthrough
++	case 2:
+ 		exp2 += exp
+-	} else { // ebase == 10
+-		exp10 += exp
++	default:
++		panic("unexpected exponent base")
+ 	}
+-	// we don't need exp anymore
++	// exp consumed - not needed anymore
+ 
+ 	// apply 2**exp2
+ 	if MinExp <= exp2 && exp2 <= MaxExp {
+@@ -115,49 +124,76 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ 		return
+ 	}
+ 
+-	if exp10 == 0 {
+-		// no decimal exponent to consider
++	if exp5 == 0 {
++		// no decimal exponent contribution
+ 		z.round(0)
+ 		return
+ 	}
+-	// exp10 != 0
++	// exp5 != 0
+ 
+-	// apply 10**exp10
++	// apply 5**exp5
+ 	p := new(Float).SetPrec(z.Prec() + 64) // use more bits for p -- TODO(gri) what is the right number?
+-	if exp10 < 0 {
+-		z.Quo(z, p.pow10(-exp10))
++	if exp5 < 0 {
++		z.Quo(z, p.pow5(uint64(-exp5)))
+ 	} else {
+-		z.Mul(z, p.pow10(exp10))
++		z.Mul(z, p.pow5(uint64(exp5)))
+ 	}
+ 
+ 	return
+ }
+ 
+-// These powers of 10 can be represented exactly as a float64.
+-var pow10tab = [...]float64{
+-	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
+-	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
++// These powers of 5 fit into a uint64.
++//
++//	for p, q := uint64(0), uint64(1); p < q; p, q = q, q*5 {
++//		fmt.Println(q)
++//	}
++//
++var pow5tab = [...]uint64{
++	1,
++	5,
++	25,
++	125,
++	625,
++	3125,
++	15625,
++	78125,
++	390625,
++	1953125,
++	9765625,
++	48828125,
++	244140625,
++	1220703125,
++	6103515625,
++	30517578125,
++	152587890625,
++	762939453125,
++	3814697265625,
++	19073486328125,
++	95367431640625,
++	476837158203125,
++	2384185791015625,
++	11920928955078125,
++	59604644775390625,
++	298023223876953125,
++	1490116119384765625,
++	7450580596923828125,
+ }
+ 
+-// pow10 sets z to 10**n and returns z.
++// pow5 sets z to 5**n and returns z.
+ // n must not be negative.
+-func (z *Float) pow10(n int64) *Float {
+-	if n < 0 {
+-		panic("pow10 called with negative argument")
+-	}
+-
+-	const m = int64(len(pow10tab) - 1)
++func (z *Float) pow5(n uint64) *Float {
++	const m = uint64(len(pow5tab) - 1)
+ 	if n <= m {
+-		return z.SetFloat64(pow10tab[n])
++		return z.SetUint64(pow5tab[n])
+ 	}
+ 	// n > m
+ 
+-	z.SetFloat64(pow10tab[m])
++	z.SetUint64(pow5tab[m])
+ 	n -= m
+ 
+ 	// use more bits for f than for z
+ 	// TODO(gri) what is the right number?
+-	f := new(Float).SetPrec(z.Prec() + 64).SetInt64(10)
++	f := new(Float).SetPrec(z.Prec() + 64).SetUint64(5)
+ 
+ 	for n > 0 {
+ 		if n&1 != 0 {
+diff --git a/src/cmd/compile/internal/big/floatconv_test.go b/src/cmd/compile/internal/big/floatconv_test.go
+index 156e1af300..b6f9993608 100644
+--- a/src/cmd/compile/internal/big/floatconv_test.go
++++ b/src/cmd/compile/internal/big/floatconv_test.go
+@@ -139,6 +139,8 @@ func TestFloatSetFloat64String(t *testing.T) {
+ 	}
+ }
+ 
++func fdiv(a, b float64) float64 { return a / b }
++
+ const (
+ 	below1e23 = 99999999999999974834176
+ 	above1e23 = 100000000000000008388608
+@@ -187,11 +189,11 @@ func TestFloat64Text(t *testing.T) {
+ 		{1, 'e', 5, "1.00000e+00"},
+ 		{1, 'f', 5, "1.00000"},
+ 		{1, 'g', 5, "1"},
+-		// {1, 'g', -1, "1"},
+-		// {20, 'g', -1, "20"},
+-		// {1234567.8, 'g', -1, "1.2345678e+06"},
+-		// {200000, 'g', -1, "200000"},
+-		// {2000000, 'g', -1, "2e+06"},
++		{1, 'g', -1, "1"},
++		{20, 'g', -1, "20"},
++		{1234567.8, 'g', -1, "1.2345678e+06"},
++		{200000, 'g', -1, "200000"},
++		{2000000, 'g', -1, "2e+06"},
+ 
+ 		// g conversion and zero suppression
+ 		{400, 'g', 2, "4e+02"},
+@@ -207,22 +209,22 @@ func TestFloat64Text(t *testing.T) {
+ 		{0, 'e', 5, "0.00000e+00"},
+ 		{0, 'f', 5, "0.00000"},
+ 		{0, 'g', 5, "0"},
+-		// {0, 'g', -1, "0"},
++		{0, 'g', -1, "0"},
+ 
+ 		{-1, 'e', 5, "-1.00000e+00"},
+ 		{-1, 'f', 5, "-1.00000"},
+ 		{-1, 'g', 5, "-1"},
+-		// {-1, 'g', -1, "-1"},
++		{-1, 'g', -1, "-1"},
+ 
+ 		{12, 'e', 5, "1.20000e+01"},
+ 		{12, 'f', 5, "12.00000"},
+ 		{12, 'g', 5, "12"},
+-		// {12, 'g', -1, "12"},
++		{12, 'g', -1, "12"},
+ 
+ 		{123456700, 'e', 5, "1.23457e+08"},
+ 		{123456700, 'f', 5, "123456700.00000"},
+ 		{123456700, 'g', 5, "1.2346e+08"},
+-		// {123456700, 'g', -1, "1.234567e+08"},
++		{123456700, 'g', -1, "1.234567e+08"},
+ 
+ 		{1.2345e6, 'e', 5, "1.23450e+06"},
+ 		{1.2345e6, 'f', 5, "1234500.00000"},
+@@ -232,36 +234,38 @@ func TestFloat64Text(t *testing.T) {
+ 		{1e23, 'f', 17, "99999999999999991611392.00000000000000000"},
+ 		{1e23, 'g', 17, "9.9999999999999992e+22"},
+ 
+-		// {1e23, 'e', -1, "1e+23"},
+-		// {1e23, 'f', -1, "100000000000000000000000"},
+-		// {1e23, 'g', -1, "1e+23"},
++		{1e23, 'e', -1, "1e+23"},
++		{1e23, 'f', -1, "100000000000000000000000"},
++		{1e23, 'g', -1, "1e+23"},
+ 
+ 		{below1e23, 'e', 17, "9.99999999999999748e+22"},
+ 		{below1e23, 'f', 17, "99999999999999974834176.00000000000000000"},
+ 		{below1e23, 'g', 17, "9.9999999999999975e+22"},
+ 
+-		// {below1e23, 'e', -1, "9.999999999999997e+22"},
+-		// {below1e23, 'f', -1, "99999999999999970000000"},
+-		// {below1e23, 'g', -1, "9.999999999999997e+22"},
++		{below1e23, 'e', -1, "9.999999999999997e+22"},
++		{below1e23, 'f', -1, "99999999999999970000000"},
++		{below1e23, 'g', -1, "9.999999999999997e+22"},
+ 
+ 		{above1e23, 'e', 17, "1.00000000000000008e+23"},
+ 		{above1e23, 'f', 17, "100000000000000008388608.00000000000000000"},
+-		// {above1e23, 'g', 17, "1.0000000000000001e+23"},
++		{above1e23, 'g', 17, "1.0000000000000001e+23"},
+ 
+-		// {above1e23, 'e', -1, "1.0000000000000001e+23"},
+-		// {above1e23, 'f', -1, "100000000000000010000000"},
+-		// {above1e23, 'g', -1, "1.0000000000000001e+23"},
++		{above1e23, 'e', -1, "1.0000000000000001e+23"},
++		{above1e23, 'f', -1, "100000000000000010000000"},
++		{above1e23, 'g', -1, "1.0000000000000001e+23"},
+ 
+-		// {fdiv(5e-304, 1e20), 'g', -1, "5e-324"},
+-		// {fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"},
++		{5e-304 / 1e20, 'g', -1, "5e-324"},
++		{-5e-304 / 1e20, 'g', -1, "-5e-324"},
++		{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
++		{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
+ 
+-		// {32, 'g', -1, "32"},
+-		// {32, 'g', 0, "3e+01"},
++		{32, 'g', -1, "32"},
++		{32, 'g', 0, "3e+01"},
+ 
+-		// {100, 'x', -1, "%x"},
++		{100, 'x', -1, "%x"},
+ 
+-		// {math.NaN(), 'g', -1, "NaN"},
+-		// {-math.NaN(), 'g', -1, "NaN"},
++		// {math.NaN(), 'g', -1, "NaN"},  // Float doesn't support NaNs
++		// {-math.NaN(), 'g', -1, "NaN"}, // Float doesn't support NaNs
+ 		{math.Inf(0), 'g', -1, "+Inf"},
+ 		{math.Inf(-1), 'g', -1, "-Inf"},
+ 		{-math.Inf(0), 'g', -1, "-Inf"},
+@@ -279,18 +283,24 @@ func TestFloat64Text(t *testing.T) {
+ 		{1.5, 'f', 0, "2"},
+ 
+ 		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+-		// {2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
++		{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
+ 		// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+-		// {2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
++		{2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
+ 
+ 		// Issue 2625.
+ 		{383260575764816448, 'f', 0, "383260575764816448"},
+-		// {383260575764816448, 'g', -1, "3.8326057576481645e+17"},
++		{383260575764816448, 'g', -1, "3.8326057576481645e+17"},
+ 	} {
+-		f := new(Float).SetFloat64(test.x)
++		// The test cases are from the strconv package which tests float64 values.
++		// When formatting values with prec = -1 (shortest representation),
++		// the actually available mantissa precision matters.
++		// For denormalized values, that precision is < 53 (SetFloat64 default).
++		// Compute and set the actual precision explicitly.
++		f := new(Float).SetPrec(actualPrec(test.x)).SetFloat64(test.x)
+ 		got := f.Text(test.format, test.prec)
+ 		if got != test.want {
+ 			t.Errorf("%v: got %s; want %s", test, got, test.want)
++			continue
+ 		}
+ 
+ 		if test.format == 'b' && test.x == 0 {
+@@ -308,6 +318,15 @@ func TestFloat64Text(t *testing.T) {
+ 	}
+ }
+ 
++// actualPrec returns the number of actually used mantissa bits.
++func actualPrec(x float64) uint {
++	if bits := math.Float64bits(x); x != 0 && bits&(0x7ff<<52) == 0 {
++		// x is denormalized
++		return 64 - nlz64(bits&(1<<52-1))
++	}
++	return 53
++}
++
+ func TestFloatText(t *testing.T) {
+ 	for _, test := range []struct {
+ 		x      string
+@@ -367,10 +386,20 @@ func TestFloatText(t *testing.T) {
+ 
+ 		// make sure "stupid" exponents don't stall the machine
+ 		{"1e1000000", 64, 'p', 0, "0x.88b3a28a05eade3ap+3321929"},
++		{"1e646456992", 64, 'p', 0, "0x.e883a0c5c8c7c42ap+2147483644"},
++		{"1e646456993", 64, 'p', 0, "+Inf"},
+ 		{"1e1000000000", 64, 'p', 0, "+Inf"},
+ 		{"1e-1000000", 64, 'p', 0, "0x.efb4542cc8ca418ap-3321928"},
++		{"1e-646456993", 64, 'p', 0, "0x.e17c8956983d9d59p-2147483647"},
++		{"1e-646456994", 64, 'p', 0, "0"},
+ 		{"1e-1000000000", 64, 'p', 0, "0"},
+ 
++		// minimum and maximum values
++		{"1p2147483646", 64, 'p', 0, "0x.8p+2147483647"},
++		{"0x.8p2147483647", 64, 'p', 0, "0x.8p+2147483647"},
++		{"0x.8p-2147483647", 64, 'p', 0, "0x.8p-2147483647"},
++		{"1p-2147483649", 64, 'p', 0, "0x.8p-2147483648"},
++
+ 		// TODO(gri) need tests for actual large Floats
+ 
+ 		{"0", 53, 'b', 0, "0"},
+@@ -438,9 +467,6 @@ func TestFloatFormat(t *testing.T) {
+ 		value  interface{} // float32, float64, or string (== 512bit *Float)
+ 		want   string
+ 	}{
+-		// TODO(gri) uncomment the disabled 'g'/'G' formats
+-		// 	     below once (*Float).Text supports prec < 0
+-
+ 		// from fmt/fmt_test.go
+ 		{"%+.3e", 0.0, "+0.000e+00"},
+ 		{"%+.3e", 1.0, "+1.000e+00"},
+@@ -471,9 +497,9 @@ func TestFloatFormat(t *testing.T) {
+ 		{"%f", 1234.5678e-8, "0.000012"},
+ 		{"%f", -7.0, "-7.000000"},
+ 		{"%f", -1e-9, "-0.000000"},
+-		// {"%g", 1234.5678e3, "1.2345678e+06"},
+-		// {"%g", float32(1234.5678e3), "1.2345678e+06"},
+-		// {"%g", 1234.5678e-8, "1.2345678e-05"},
++		{"%g", 1234.5678e3, "1.2345678e+06"},
++		{"%g", float32(1234.5678e3), "1.2345678e+06"},
++		{"%g", 1234.5678e-8, "1.2345678e-05"},
+ 		{"%g", -7.0, "-7"},
+ 		{"%g", -1e-9, "-1e-09"},
+ 		{"%g", float32(-1e-9), "-1e-09"},
+@@ -482,9 +508,9 @@ func TestFloatFormat(t *testing.T) {
+ 		{"%E", 1234.5678e-8, "1.234568E-05"},
+ 		{"%E", -7.0, "-7.000000E+00"},
+ 		{"%E", -1e-9, "-1.000000E-09"},
+-		// {"%G", 1234.5678e3, "1.2345678E+06"},
+-		// {"%G", float32(1234.5678e3), "1.2345678E+06"},
+-		// {"%G", 1234.5678e-8, "1.2345678E-05"},
++		{"%G", 1234.5678e3, "1.2345678E+06"},
++		{"%G", float32(1234.5678e3), "1.2345678E+06"},
++		{"%G", 1234.5678e-8, "1.2345678E-05"},
+ 		{"%G", -7.0, "-7"},
+ 		{"%G", -1e-9, "-1E-09"},
+ 		{"%G", float32(-1e-9), "-1E-09"},
+@@ -500,9 +526,9 @@ func TestFloatFormat(t *testing.T) {
+ 		{"%-20f", 1.23456789e3, "1234.567890         "},
+ 		{"%20.8f", 1.23456789e3, "       1234.56789000"},
+ 		{"%20.8f", 1.23456789e-3, "          0.00123457"},
+-		// {"%g", 1.23456789e3, "1234.56789"},
+-		// {"%g", 1.23456789e-3, "0.00123456789"},
+-		// {"%g", 1.23456789e20, "1.23456789e+20"},
++		{"%g", 1.23456789e3, "1234.56789"},
++		{"%g", 1.23456789e-3, "0.00123456789"},
++		{"%g", 1.23456789e20, "1.23456789e+20"},
+ 		{"%20e", math.Inf(1), "                +Inf"},
+ 		{"%-20f", math.Inf(-1), "-Inf                "},
+ 
+@@ -541,7 +567,6 @@ func TestFloatFormat(t *testing.T) {
+ 		{"%v", -1e-9, "-1e-09"},
+ 		{"%v", float32(-1e-9), "-1e-09"},
+ 		{"%010v", 0.0, "0000000000"},
+-		{"%010v", 0.0, "0000000000"},
+ 
+ 		// *Float cases
+ 		{"%.20f", "1e-20", "0.00000000000000000001"},
+@@ -571,3 +596,67 @@ func TestFloatFormat(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkParseFloatSmallExp(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		for _, s := range []string{
++			"1e0",
++			"1e-1",
++			"1e-2",
++			"1e-3",
++			"1e-4",
++			"1e-5",
++			"1e-10",
++			"1e-20",
++			"1e-50",
++			"1e1",
++			"1e2",
++			"1e3",
++			"1e4",
++			"1e5",
++			"1e10",
++			"1e20",
++			"1e50",
++		} {
++			var x Float
++			_, _, err := x.Parse(s, 0)
++			if err != nil {
++				b.Fatalf("%s: %v", s, err)
++			}
++		}
++	}
++}
++
++func BenchmarkParseFloatLargeExp(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		for _, s := range []string{
++			"1e0",
++			"1e-10",
++			"1e-20",
++			"1e-30",
++			"1e-40",
++			"1e-50",
++			"1e-100",
++			"1e-500",
++			"1e-1000",
++			"1e-5000",
++			"1e-10000",
++			"1e10",
++			"1e20",
++			"1e30",
++			"1e40",
++			"1e50",
++			"1e100",
++			"1e500",
++			"1e1000",
++			"1e5000",
++			"1e10000",
++		} {
++			var x Float
++			_, _, err := x.Parse(s, 0)
++			if err != nil {
++				b.Fatalf("%s: %v", s, err)
++			}
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/big/floatexample_test.go b/src/cmd/compile/internal/big/floatexample_test.go
+index 6fd291c9c2..83c6bdacae 100644
+--- a/src/cmd/compile/internal/big/floatexample_test.go
++++ b/src/cmd/compile/internal/big/floatexample_test.go
+@@ -109,3 +109,33 @@ func ExampleFloat_Cmp() {
+ 	// +Inf   1.2    1
+ 	// +Inf  +Inf    0
+ }
++
++func ExampleRoundingMode() {
++	operands := []float64{2.6, 2.5, 2.1, -2.1, -2.5, -2.6}
++
++	fmt.Print("   x")
++	for mode := big.ToNearestEven; mode <= big.ToPositiveInf; mode++ {
++		fmt.Printf("  %s", mode)
++	}
++	fmt.Println()
++
++	for _, f64 := range operands {
++		fmt.Printf("%4g", f64)
++		for mode := big.ToNearestEven; mode <= big.ToPositiveInf; mode++ {
++			// sample operands above require 2 bits to represent mantissa
++			// set binary precision to 2 to round them to integer values
++			f := new(big.Float).SetPrec(2).SetMode(mode).SetFloat64(f64)
++			fmt.Printf("  %*g", len(mode.String()), f)
++		}
++		fmt.Println()
++	}
++
++	// Output:
++	//    x  ToNearestEven  ToNearestAway  ToZero  AwayFromZero  ToNegativeInf  ToPositiveInf
++	//  2.6              3              3       2             3              2              3
++	//  2.5              2              3       2             3              2              3
++	//  2.1              2              2       2             3              2              3
++	// -2.1             -2             -2      -2            -3             -3             -2
++	// -2.5             -2             -3      -2            -3             -3             -2
++	// -2.6             -3             -3      -2            -3             -3             -2
++}
+diff --git a/src/cmd/compile/internal/big/ftoa.go b/src/cmd/compile/internal/big/ftoa.go
+index 5c5f2cea46..c5cdb5eb70 100644
+--- a/src/cmd/compile/internal/big/ftoa.go
++++ b/src/cmd/compile/internal/big/ftoa.go
+@@ -9,9 +9,9 @@
+ package big
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"strconv"
+-	"strings"
+ )
+ 
+ // Text converts the floating-point number x to a string according
+@@ -37,16 +37,16 @@ import (
+ // printed by the 'e', 'E', 'f', 'g', and 'G' formats. For 'e', 'E', and 'f'
+ // it is the number of digits after the decimal point. For 'g' and 'G' it is
+ // the total number of digits. A negative precision selects the smallest
+-// number of digits necessary to identify the value x uniquely.
++// number of decimal digits necessary to identify the value x uniquely using
++// x.Prec() mantissa bits.
+ // The prec value is ignored for the 'b' or 'p' format.
+-//
+-// BUG(gri) Float.Text does not accept negative precisions (issue #10991).
+ func (x *Float) Text(format byte, prec int) string {
+ 	const extra = 10 // TODO(gri) determine a good/better value here
+ 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
+ }
+ 
+ // String formats x like x.Text('g', 10).
++// (String must be called explicitly, Float.Format does not support %s verb.)
+ func (x *Float) String() string {
+ 	return x.Text('g', 10)
+ }
+@@ -83,6 +83,7 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
+ 	// 1) convert Float to multiprecision decimal
+ 	var d decimal // == 0.0
+ 	if x.form == finite {
++		// x != 0
+ 		d.init(x.mant, int(x.exp)-x.mant.bitLen())
+ 	}
+ 
+@@ -90,9 +91,7 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
+ 	shortest := false
+ 	if prec < 0 {
+ 		shortest = true
+-		panic("unimplemented")
+-		// TODO(gri) complete this
+-		// roundShortest(&d, f.mant, int(f.exp))
++		roundShortest(&d, x)
+ 		// Precision for shortest representation mode.
+ 		switch fmt {
+ 		case 'e', 'E':
+@@ -158,6 +157,80 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
+ 	return append(buf, '%', fmt)
+ }
+ 
++func roundShortest(d *decimal, x *Float) {
++	// if the mantissa is zero, the number is zero - stop now
++	if len(d.mant) == 0 {
++		return
++	}
++
++	// Approach: All numbers in the interval [x - 1/2ulp, x + 1/2ulp]
++	// (possibly exclusive) round to x for the given precision of x.
++	// Compute the lower and upper bound in decimal form and find the
++	// shortest decimal number d such that lower <= d <= upper.
++
++	// TODO(gri) strconv/ftoa.do describes a shortcut in some cases.
++	// See if we can use it (in adjusted form) here as well.
++
++	// 1) Compute normalized mantissa mant and exponent exp for x such
++	// that the lsb of mant corresponds to 1/2 ulp for the precision of
++	// x (i.e., for mant we want x.prec + 1 bits).
++	mant := nat(nil).set(x.mant)
++	exp := int(x.exp) - mant.bitLen()
++	s := mant.bitLen() - int(x.prec+1)
++	switch {
++	case s < 0:
++		mant = mant.shl(mant, uint(-s))
++	case s > 0:
++		mant = mant.shr(mant, uint(+s))
++	}
++	exp += s
++	// x = mant * 2**exp with lsb(mant) == 1/2 ulp of x.prec
++
++	// 2) Compute lower bound by subtracting 1/2 ulp.
++	var lower decimal
++	var tmp nat
++	lower.init(tmp.sub(mant, natOne), exp)
++
++	// 3) Compute upper bound by adding 1/2 ulp.
++	var upper decimal
++	upper.init(tmp.add(mant, natOne), exp)
++
++	// The upper and lower bounds are possible outputs only if
++	// the original mantissa is even, so that ToNearestEven rounding
++	// would round to the original mantissa and not the neighbors.
++	inclusive := mant[0]&2 == 0 // test bit 1 since original mantissa was shifted by 1
++
++	// Now we can figure out the minimum number of digits required.
++	// Walk along until d has distinguished itself from upper and lower.
++	for i, m := range d.mant {
++		l := lower.at(i)
++		u := upper.at(i)
++
++		// Okay to round down (truncate) if lower has a different digit
++		// or if lower is inclusive and is exactly the result of rounding
++		// down (i.e., and we have reached the final digit of lower).
++		okdown := l != m || inclusive && i+1 == len(lower.mant)
++
++		// Okay to round up if upper has a different digit and either upper
++		// is inclusive or upper is bigger than the result of rounding up.
++		okup := m != u && (inclusive || m+1 < u || i+1 < len(upper.mant))
++
++		// If it's okay to do either, then round to the nearest one.
++		// If it's okay to do only one, do it.
++		switch {
++		case okdown && okup:
++			d.round(i + 1)
++			return
++		case okdown:
++			d.roundDown(i + 1)
++			return
++		case okup:
++			d.roundUp(i + 1)
++			return
++		}
++	}
++}
++
+ // %e: d.ddddde±dd
+ func fmtE(buf []byte, fmt byte, prec int, d decimal) []byte {
+ 	// first digit
+@@ -219,11 +292,7 @@ func fmtF(buf []byte, prec int, d decimal) []byte {
+ 	if prec > 0 {
+ 		buf = append(buf, '.')
+ 		for i := 0; i < prec; i++ {
+-			ch := byte('0')
+-			if j := d.exp + i; 0 <= j && j < len(d.mant) {
+-				ch = d.mant[j]
+-			}
+-			buf = append(buf, ch)
++			buf = append(buf, d.at(d.exp+i))
+ 		}
+ 	}
+ 
+@@ -255,7 +324,7 @@ func (x *Float) fmtB(buf []byte) []byte {
+ 		m = nat(nil).shr(m, uint(w-x.prec))
+ 	}
+ 
+-	buf = append(buf, m.decimalString()...)
++	buf = append(buf, m.utoa(10)...)
+ 	buf = append(buf, 'p')
+ 	e := int64(x.exp) - int64(x.prec)
+ 	if e >= 0 {
+@@ -289,7 +358,7 @@ func (x *Float) fmtP(buf []byte) []byte {
+ 	m = m[i:]
+ 
+ 	buf = append(buf, "0x."...)
+-	buf = append(buf, strings.TrimRight(m.hexString(), "0")...)
++	buf = append(buf, bytes.TrimRight(m.utoa(16), "0")...)
+ 	buf = append(buf, 'p')
+ 	if x.exp >= 0 {
+ 		buf = append(buf, '+')
+@@ -314,10 +383,6 @@ func min(x, y int) int {
+ // '+' and ' ' for sign control, '0' for space or zero padding,
+ // and '-' for left or right justification. See the fmt package
+ // for details.
+-//
+-// BUG(gri) A missing precision for the 'g' format, or a negative
+-//          (via '*') precision is not yet supported. Instead the
+-//          default precision (6) is used in that case (issue #10991).
+ func (x *Float) Format(s fmt.State, format rune) {
+ 	prec, hasPrec := s.Precision()
+ 	if !hasPrec {
+@@ -336,8 +401,7 @@ func (x *Float) Format(s fmt.State, format rune) {
+ 		fallthrough
+ 	case 'g', 'G':
+ 		if !hasPrec {
+-			// TODO(gri) uncomment once (*Float).Text handles prec < 0
+-			// prec = -1 // default precision for 'g', 'G'
++			prec = -1 // default precision for 'g', 'G'
+ 		}
+ 	default:
+ 		fmt.Fprintf(s, "%%!%c(*big.Float=%s)", format, x.String())
+diff --git a/src/cmd/compile/internal/big/int.go b/src/cmd/compile/internal/big/int.go
+index 65334e0ef5..16b7cd131b 100644
+--- a/src/cmd/compile/internal/big/int.go
++++ b/src/cmd/compile/internal/big/int.go
+@@ -551,8 +551,11 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
+ }
+ 
+ // ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
+-// If it returns true, x is prime with probability 1 - 1/4^n.
+-// If it returns false, x is not prime. n must be > 0.
++// If x is prime, it returns true.
++// If x is not prime, it returns false with probability at least 1 - ¼ⁿ.
++//
++// It is not suitable for judging primes that an adversary may have crafted
++// to fool this test.
+ func (x *Int) ProbablyPrime(n int) bool {
+ 	if n <= 0 {
+ 		panic("non-positive n for ProbablyPrime")
+@@ -640,23 +643,23 @@ func Jacobi(x, y *Int) int {
+ 	}
+ }
+ 
+-// ModSqrt sets z to a square root of x mod p if such a square root exists, and
+-// returns z. The modulus p must be an odd prime. If x is not a square mod p,
+-// ModSqrt leaves z unchanged and returns nil. This function panics if p is
+-// not an odd integer.
+-func (z *Int) ModSqrt(x, p *Int) *Int {
+-	switch Jacobi(x, p) {
+-	case -1:
+-		return nil // x is not a square mod p
+-	case 0:
+-		return z.SetInt64(0) // sqrt(0) mod p = 0
+-	case 1:
+-		break
+-	}
+-	if x.neg || x.Cmp(p) >= 0 { // ensure 0 <= x < p
+-		x = new(Int).Mod(x, p)
+-	}
++// modSqrt3Mod4 uses the identity
++//      (a^((p+1)/4))^2  mod p
++//   == u^(p+1)          mod p
++//   == u^2              mod p
++// to calculate the square root of any quadratic residue mod p quickly for 3
++// mod 4 primes.
++func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
++	z.Set(p)         // z = p
++	z.Add(z, intOne) // z = p + 1
++	z.Rsh(z, 2)      // z = (p + 1) / 4
++	z.Exp(x, z, p)   // z = x^z mod p
++	return z
++}
+ 
++// modSqrtTonelliShanks uses the Tonelli-Shanks algorithm to find the square
++// root of a quadratic residue modulo any prime.
++func (z *Int) modSqrtTonelliShanks(x, p *Int) *Int {
+ 	// Break p-1 into s*2^e such that s is odd.
+ 	var s Int
+ 	s.Sub(p, intOne)
+@@ -703,6 +706,31 @@ func (z *Int) ModSqrt(x, p *Int) *Int {
+ 	}
+ }
+ 
++// ModSqrt sets z to a square root of x mod p if such a square root exists, and
++// returns z. The modulus p must be an odd prime. If x is not a square mod p,
++// ModSqrt leaves z unchanged and returns nil. This function panics if p is
++// not an odd integer.
++func (z *Int) ModSqrt(x, p *Int) *Int {
++	switch Jacobi(x, p) {
++	case -1:
++		return nil // x is not a square mod p
++	case 0:
++		return z.SetInt64(0) // sqrt(0) mod p = 0
++	case 1:
++		break
++	}
++	if x.neg || x.Cmp(p) >= 0 { // ensure 0 <= x < p
++		x = new(Int).Mod(x, p)
++	}
++
++	// Check whether p is 3 mod 4, and if so, use the faster algorithm.
++	if len(p.abs) > 0 && p.abs[0]%4 == 3 {
++		return z.modSqrt3Mod4Prime(x, p)
++	}
++	// Otherwise, use Tonelli-Shanks.
++	return z.modSqrtTonelliShanks(x, p)
++}
++
+ // Lsh sets z = x << n and returns z.
+ func (z *Int) Lsh(x *Int, n uint) *Int {
+ 	z.abs = z.abs.shl(x.abs, n)
+@@ -904,65 +932,3 @@ func (z *Int) Not(x *Int) *Int {
+ 	z.neg = true // z cannot be zero if x is positive
+ 	return z
+ }
+-
+-// Gob codec version. Permits backward-compatible changes to the encoding.
+-const intGobVersion byte = 1
+-
+-// GobEncode implements the gob.GobEncoder interface.
+-func (x *Int) GobEncode() ([]byte, error) {
+-	if x == nil {
+-		return nil, nil
+-	}
+-	buf := make([]byte, 1+len(x.abs)*_S) // extra byte for version and sign bit
+-	i := x.abs.bytes(buf) - 1            // i >= 0
+-	b := intGobVersion << 1              // make space for sign bit
+-	if x.neg {
+-		b |= 1
+-	}
+-	buf[i] = b
+-	return buf[i:], nil
+-}
+-
+-// GobDecode implements the gob.GobDecoder interface.
+-func (z *Int) GobDecode(buf []byte) error {
+-	if len(buf) == 0 {
+-		// Other side sent a nil or default value.
+-		*z = Int{}
+-		return nil
+-	}
+-	b := buf[0]
+-	if b>>1 != intGobVersion {
+-		return fmt.Errorf("Int.GobDecode: encoding version %d not supported", b>>1)
+-	}
+-	z.neg = b&1 != 0
+-	z.abs = z.abs.setBytes(buf[1:])
+-	return nil
+-}
+-
+-// MarshalJSON implements the json.Marshaler interface.
+-func (z *Int) MarshalJSON() ([]byte, error) {
+-	// TODO(gri): get rid of the []byte/string conversions
+-	return []byte(z.String()), nil
+-}
+-
+-// UnmarshalJSON implements the json.Unmarshaler interface.
+-func (z *Int) UnmarshalJSON(text []byte) error {
+-	// TODO(gri): get rid of the []byte/string conversions
+-	if _, ok := z.SetString(string(text), 0); !ok {
+-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
+-	}
+-	return nil
+-}
+-
+-// MarshalText implements the encoding.TextMarshaler interface.
+-func (z *Int) MarshalText() (text []byte, err error) {
+-	return []byte(z.String()), nil
+-}
+-
+-// UnmarshalText implements the encoding.TextUnmarshaler interface.
+-func (z *Int) UnmarshalText(text []byte) error {
+-	if _, ok := z.SetString(string(text), 0); !ok {
+-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
+-	}
+-	return nil
+-}
+diff --git a/src/cmd/compile/internal/big/int_test.go b/src/cmd/compile/internal/big/int_test.go
+index bf3b832980..5d65217c61 100644
+--- a/src/cmd/compile/internal/big/int_test.go
++++ b/src/cmd/compile/internal/big/int_test.go
+@@ -6,10 +6,7 @@ package big
+ 
+ import (
+ 	"bytes"
+-	"encoding/gob"
+ 	"encoding/hex"
+-	"encoding/json"
+-	"encoding/xml"
+ 	"fmt"
+ 	"math/rand"
+ 	"testing"
+@@ -1187,6 +1184,53 @@ func BenchmarkBitsetNegOrig(b *testing.B) {
+ 	}
+ }
+ 
++// tri generates the trinomial 2**(n*2) - 2**n - 1, which is always 3 mod 4 and
++// 7 mod 8, so that 2 is always a quadratic residue.
++func tri(n uint) *Int {
++	x := NewInt(1)
++	x.Lsh(x, n)
++	x2 := new(Int).Lsh(x, n)
++	x2.Sub(x2, x)
++	x2.Sub(x2, intOne)
++	return x2
++}
++
++func BenchmarkModSqrt225_Tonelli(b *testing.B) {
++	p := tri(225)
++	x := NewInt(2)
++	for i := 0; i < b.N; i++ {
++		x.SetUint64(2)
++		x.modSqrtTonelliShanks(x, p)
++	}
++}
++
++func BenchmarkModSqrt224_3Mod4(b *testing.B) {
++	p := tri(225)
++	x := new(Int).SetUint64(2)
++	for i := 0; i < b.N; i++ {
++		x.SetUint64(2)
++		x.modSqrt3Mod4Prime(x, p)
++	}
++}
++
++func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
++	p := tri(5430)
++	x := new(Int).SetUint64(2)
++	for i := 0; i < b.N; i++ {
++		x.SetUint64(2)
++		x.modSqrtTonelliShanks(x, p)
++	}
++}
++
++func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
++	p := tri(5430)
++	x := new(Int).SetUint64(2)
++	for i := 0; i < b.N; i++ {
++		x.SetUint64(2)
++		x.modSqrt3Mod4Prime(x, p)
++	}
++}
++
+ func TestBitwise(t *testing.T) {
+ 	x := new(Int)
+ 	y := new(Int)
+@@ -1408,138 +1452,6 @@ func TestJacobiPanic(t *testing.T) {
+ 	panic(failureMsg)
+ }
+ 
+-var encodingTests = []string{
+-	"-539345864568634858364538753846587364875430589374589",
+-	"-678645873",
+-	"-100",
+-	"-2",
+-	"-1",
+-	"0",
+-	"1",
+-	"2",
+-	"10",
+-	"42",
+-	"1234567890",
+-	"298472983472983471903246121093472394872319615612417471234712061",
+-}
+-
+-func TestIntGobEncoding(t *testing.T) {
+-	var medium bytes.Buffer
+-	enc := gob.NewEncoder(&medium)
+-	dec := gob.NewDecoder(&medium)
+-	for _, test := range encodingTests {
+-		medium.Reset() // empty buffer for each test case (in case of failures)
+-		var tx Int
+-		tx.SetString(test, 10)
+-		if err := enc.Encode(&tx); err != nil {
+-			t.Errorf("encoding of %s failed: %s", &tx, err)
+-		}
+-		var rx Int
+-		if err := dec.Decode(&rx); err != nil {
+-			t.Errorf("decoding of %s failed: %s", &tx, err)
+-		}
+-		if rx.Cmp(&tx) != 0 {
+-			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
+-		}
+-	}
+-}
+-
+-// Sending a nil Int pointer (inside a slice) on a round trip through gob should yield a zero.
+-// TODO: top-level nils.
+-func TestGobEncodingNilIntInSlice(t *testing.T) {
+-	buf := new(bytes.Buffer)
+-	enc := gob.NewEncoder(buf)
+-	dec := gob.NewDecoder(buf)
+-
+-	var in = make([]*Int, 1)
+-	err := enc.Encode(&in)
+-	if err != nil {
+-		t.Errorf("gob encode failed: %q", err)
+-	}
+-	var out []*Int
+-	err = dec.Decode(&out)
+-	if err != nil {
+-		t.Fatalf("gob decode failed: %q", err)
+-	}
+-	if len(out) != 1 {
+-		t.Fatalf("wrong len; want 1 got %d", len(out))
+-	}
+-	var zero Int
+-	if out[0].Cmp(&zero) != 0 {
+-		t.Errorf("transmission of (*Int)(nill) failed: got %s want 0", out)
+-	}
+-}
+-
+-func TestIntJSONEncoding(t *testing.T) {
+-	for _, test := range encodingTests {
+-		var tx Int
+-		tx.SetString(test, 10)
+-		b, err := json.Marshal(&tx)
+-		if err != nil {
+-			t.Errorf("marshaling of %s failed: %s", &tx, err)
+-		}
+-		var rx Int
+-		if err := json.Unmarshal(b, &rx); err != nil {
+-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+-		}
+-		if rx.Cmp(&tx) != 0 {
+-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+-		}
+-	}
+-}
+-
+-var intVals = []string{
+-	"-141592653589793238462643383279502884197169399375105820974944592307816406286",
+-	"-1415926535897932384626433832795028841971",
+-	"-141592653589793",
+-	"-1",
+-	"0",
+-	"1",
+-	"141592653589793",
+-	"1415926535897932384626433832795028841971",
+-	"141592653589793238462643383279502884197169399375105820974944592307816406286",
+-}
+-
+-func TestIntJSONEncodingTextMarshaller(t *testing.T) {
+-	for _, num := range intVals {
+-		var tx Int
+-		tx.SetString(num, 0)
+-		b, err := json.Marshal(&tx)
+-		if err != nil {
+-			t.Errorf("marshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		var rx Int
+-		if err := json.Unmarshal(b, &rx); err != nil {
+-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		if rx.Cmp(&tx) != 0 {
+-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+-		}
+-	}
+-}
+-
+-func TestIntXMLEncodingTextMarshaller(t *testing.T) {
+-	for _, num := range intVals {
+-		var tx Int
+-		tx.SetString(num, 0)
+-		b, err := xml.Marshal(&tx)
+-		if err != nil {
+-			t.Errorf("marshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		var rx Int
+-		if err := xml.Unmarshal(b, &rx); err != nil {
+-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+-			continue
+-		}
+-		if rx.Cmp(&tx) != 0 {
+-			t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+-		}
+-	}
+-}
+-
+ func TestIssue2607(t *testing.T) {
+ 	// This code sequence used to hang.
+ 	n := NewInt(10)
+diff --git a/src/cmd/compile/internal/big/intconv.go b/src/cmd/compile/internal/big/intconv.go
+index 737d176cb8..56a75f87ae 100644
+--- a/src/cmd/compile/internal/big/intconv.go
++++ b/src/cmd/compile/internal/big/intconv.go
+@@ -12,30 +12,34 @@ import (
+ 	"io"
+ )
+ 
+-func (x *Int) String() string {
+-	switch {
+-	case x == nil:
++// TODO(gri) Should rename itoa to utoa (there's no sign). That
++// would permit the introduction of itoa which is like utoa but
++// reserves a byte for a possible sign that's passed in. That
++// would permit Int.Text to be implemented w/o the need for
++// string copy if the number is negative.
++
++// Text returns the string representation of x in the given base.
++// Base must be between 2 and 36, inclusive. The result uses the
++// lower-case letters 'a' to 'z' for digit values >= 10. No base
++// prefix (such as "0x") is added to the string.
++func (x *Int) Text(base int) string {
++	if x == nil {
+ 		return "<nil>"
+-	case x.neg:
+-		return "-" + x.abs.decimalString()
+ 	}
+-	return x.abs.decimalString()
++	return string(x.abs.itoa(x.neg, base))
+ }
+ 
+-func charset(ch rune) string {
+-	switch ch {
+-	case 'b':
+-		return lowercaseDigits[0:2]
+-	case 'o':
+-		return lowercaseDigits[0:8]
+-	case 'd', 's', 'v':
+-		return lowercaseDigits[0:10]
+-	case 'x':
+-		return lowercaseDigits[0:16]
+-	case 'X':
+-		return uppercaseDigits[0:16]
++// Append appends the string representation of x, as generated by
++// x.Text(base), to buf and returns the extended buffer.
++func (x *Int) Append(buf []byte, base int) []byte {
++	if x == nil {
++		return append(buf, "<nil>"...)
+ 	}
+-	return "" // unknown format
++	return append(buf, x.abs.itoa(x.neg, base)...)
++}
++
++func (x *Int) String() string {
++	return x.Text(10)
+ }
+ 
+ // write count copies of text to s
+@@ -60,15 +64,24 @@ func writeMultiple(s fmt.State, text string, count int) {
+ // right justification.
+ //
+ func (x *Int) Format(s fmt.State, ch rune) {
+-	cs := charset(ch)
+-
+-	// special cases
+-	switch {
+-	case cs == "":
++	// determine base
++	var base int
++	switch ch {
++	case 'b':
++		base = 2
++	case 'o':
++		base = 8
++	case 'd', 's', 'v':
++		base = 10
++	case 'x', 'X':
++		base = 16
++	default:
+ 		// unknown format
+ 		fmt.Fprintf(s, "%%!%c(big.Int=%s)", ch, x.String())
+ 		return
+-	case x == nil:
++	}
++
++	if x == nil {
+ 		fmt.Fprint(s, "<nil>")
+ 		return
+ 	}
+@@ -97,8 +110,15 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ 		}
+ 	}
+ 
+-	// determine digits with base set by len(cs) and digit characters from cs
+-	digits := x.abs.string(cs)
++	digits := x.abs.utoa(base)
++	if ch == 'X' {
++		// faster than bytes.ToUpper
++		for i, d := range digits {
++			if 'a' <= d && d <= 'z' {
++				digits[i] = 'A' + (d - 'a')
++			}
++		}
++	}
+ 
+ 	// number of characters for the three classes of number padding
+ 	var left int  // space characters to left of digits for right justification ("%8d")
+@@ -111,7 +131,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ 		switch {
+ 		case len(digits) < precision:
+ 			zeros = precision - len(digits) // count of zero padding
+-		case digits == "0" && precision == 0:
++		case len(digits) == 1 && digits[0] == '0' && precision == 0:
+ 			return // print nothing if zero value (x == 0) and zero precision ("." or ".0")
+ 		}
+ 	}
+@@ -137,7 +157,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ 	writeMultiple(s, sign, 1)
+ 	writeMultiple(s, prefix, 1)
+ 	writeMultiple(s, "0", zeros)
+-	writeMultiple(s, digits, 1)
++	s.Write(digits)
+ 	writeMultiple(s, " ", right)
+ }
+ 
+diff --git a/src/cmd/compile/internal/big/intconv_test.go b/src/cmd/compile/internal/big/intconv_test.go
+index 2deb84b48f..514208145f 100644
+--- a/src/cmd/compile/internal/big/intconv_test.go
++++ b/src/cmd/compile/internal/big/intconv_test.go
+@@ -17,19 +17,19 @@ var stringTests = []struct {
+ 	val  int64
+ 	ok   bool
+ }{
+-	{in: "", ok: false},
+-	{in: "a", ok: false},
+-	{in: "z", ok: false},
+-	{in: "+", ok: false},
+-	{in: "-", ok: false},
+-	{in: "0b", ok: false},
+-	{in: "0x", ok: false},
+-	{in: "2", base: 2, ok: false},
+-	{in: "0b2", base: 0, ok: false},
+-	{in: "08", ok: false},
+-	{in: "8", base: 8, ok: false},
+-	{in: "0xg", base: 0, ok: false},
+-	{in: "g", base: 16, ok: false},
++	{in: ""},
++	{in: "a"},
++	{in: "z"},
++	{in: "+"},
++	{in: "-"},
++	{in: "0b"},
++	{in: "0x"},
++	{in: "2", base: 2},
++	{in: "0b2", base: 0},
++	{in: "08"},
++	{in: "8", base: 8},
++	{in: "0xg", base: 0},
++	{in: "g", base: 16},
+ 	{"0", "0", 0, 0, true},
+ 	{"0", "0", 10, 0, true},
+ 	{"0", "0", 16, 0, true},
+@@ -41,7 +41,7 @@ var stringTests = []struct {
+ 	{"-10", "-10", 16, -16, true},
+ 	{"+10", "10", 16, 16, true},
+ 	{"0x10", "16", 0, 16, true},
+-	{in: "0x10", base: 16, ok: false},
++	{in: "0x10", base: 16},
+ 	{"-0x10", "-16", 0, -16, true},
+ 	{"+0x10", "16", 0, 16, true},
+ 	{"00", "0", 0, 0, true},
+@@ -58,6 +58,57 @@ var stringTests = []struct {
+ 	{"1001010111", "1001010111", 2, 0x257, true},
+ }
+ 
++func TestIntText(t *testing.T) {
++	z := new(Int)
++	for _, test := range stringTests {
++		if !test.ok {
++			continue
++		}
++
++		_, ok := z.SetString(test.in, test.base)
++		if !ok {
++			t.Errorf("%v: failed to parse", test)
++			continue
++		}
++
++		base := test.base
++		if base == 0 {
++			base = 10
++		}
++
++		if got := z.Text(base); got != test.out {
++			t.Errorf("%v: got %s; want %s", test, got, test.out)
++		}
++	}
++}
++
++func TestAppendText(t *testing.T) {
++	z := new(Int)
++	var buf []byte
++	for _, test := range stringTests {
++		if !test.ok {
++			continue
++		}
++
++		_, ok := z.SetString(test.in, test.base)
++		if !ok {
++			t.Errorf("%v: failed to parse", test)
++			continue
++		}
++
++		base := test.base
++		if base == 0 {
++			base = 10
++		}
++
++		i := len(buf)
++		buf = z.Append(buf, base)
++		if got := string(buf[i:]); got != test.out {
++			t.Errorf("%v: got %s; want %s", test, got, test.out)
++		}
++	}
++}
++
+ func format(base int) string {
+ 	switch base {
+ 	case 2:
+@@ -79,15 +130,13 @@ func TestGetString(t *testing.T) {
+ 		z.SetInt64(test.val)
+ 
+ 		if test.base == 10 {
+-			s := z.String()
+-			if s != test.out {
+-				t.Errorf("#%da got %s; want %s", i, s, test.out)
++			if got := z.String(); got != test.out {
++				t.Errorf("#%da got %s; want %s", i, got, test.out)
+ 			}
+ 		}
+ 
+-		s := fmt.Sprintf(format(test.base), z)
+-		if s != test.out {
+-			t.Errorf("#%db got %s; want %s", i, s, test.out)
++		if got := fmt.Sprintf(format(test.base), z); got != test.out {
++			t.Errorf("#%db got %s; want %s", i, got, test.out)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/big/nat.go b/src/cmd/compile/internal/big/nat.go
+index 6545bc17ed..e60318dc88 100644
+--- a/src/cmd/compile/internal/big/nat.go
++++ b/src/cmd/compile/internal/big/nat.go
+@@ -2,31 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package big implements multi-precision arithmetic (big numbers).
+-// The following numeric types are supported:
+-//
+-//   Int    signed integers
+-//   Rat    rational numbers
+-//   Float  floating-point numbers
+-//
+-// Methods are typically of the form:
+-//
+-//   func (z *T) Unary(x *T) *T        // z = op x
+-//   func (z *T) Binary(x, y *T) *T    // z = x op y
+-//   func (x *T) M() T1                // v = x.M()
+-//
+-// with T one of Int, Rat, or Float. For unary and binary operations, the
+-// result is the receiver (usually named z in that case); if it is one of
+-// the operands x or y it may be overwritten (and its memory reused).
+-// To enable chaining of operations, the result is also returned. Methods
+-// returning a result other than *Int, *Rat, or *Float take an operand as
+-// the receiver (usually named x in that case).
+-//
+-package big
++// This file implements unsigned multi-precision integers (natural
++// numbers). They are the building blocks for the implementation
++// of signed integers, rationals, and floating-point numbers.
+ 
+-// This file contains operations on unsigned multi-precision integers.
+-// These are the building blocks for the operations on signed integers
+-// and rationals.
++package big
+ 
+ import "math/rand"
+ 
+@@ -216,23 +196,36 @@ func basicMul(z, x, y nat) {
+ 	}
+ }
+ 
+-// montgomery computes x*y*2^(-n*_W) mod m,
+-// assuming k = -1/m mod 2^_W.
++// montgomery computes z mod m = x*y*2**(-n*_W) mod m,
++// assuming k = -1/m mod 2**_W.
+ // z is used for storing the result which is returned;
+ // z must not alias x, y or m.
++// See Gueron, "Efficient Software Implementations of Modular Exponentiation".
++// https://eprint.iacr.org/2011/239.pdf
++// In the terminology of that paper, this is an "Almost Montgomery Multiplication":
++// x and y are required to satisfy 0 <= z < 2**(n*_W) and then the result
++// z is guaranteed to satisfy 0 <= z < 2**(n*_W), but it may not be < m.
+ func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
+-	var c1, c2 Word
++	// This code assumes x, y, m are all the same length, n.
++	// (required by addMulVVW and the for loop).
++	// It also assumes that x, y are already reduced mod m,
++	// or else the result will not be properly reduced.
++	if len(x) != n || len(y) != n || len(m) != n {
++		panic("math/big: mismatched montgomery number lengths")
++	}
++	var c1, c2, c3 Word
+ 	z = z.make(n)
+ 	z.clear()
+ 	for i := 0; i < n; i++ {
+ 		d := y[i]
+-		c1 += addMulVVW(z, x, d)
++		c2 = addMulVVW(z, x, d)
+ 		t := z[0] * k
+-		c2 = addMulVVW(z, m, t)
+-
++		c3 = addMulVVW(z, m, t)
+ 		copy(z, z[1:])
+-		z[n-1] = c1 + c2
+-		if z[n-1] < c1 {
++		cx := c1 + c2
++		cy := cx + c3
++		z[n-1] = cy
++		if cx < c2 || cy < c3 {
+ 			c1 = 1
+ 		} else {
+ 			c1 = 0
+@@ -1082,7 +1075,7 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
+ 	x = rr
+ 
+ 	// Ideally the precomputations would be performed outside, and reused
+-	// k0 = -mˆ-1 mod 2ˆ_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
++	// k0 = -m**-1 mod 2**_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
+ 	// Iteration for Multiplicative Inverses Modulo Prime Powers".
+ 	k0 := 2 - m[0]
+ 	t := m[0] - 1
+@@ -1092,7 +1085,7 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
+ 	}
+ 	k0 = -k0
+ 
+-	// RR = 2ˆ(2*_W*len(m)) mod m
++	// RR = 2**(2*_W*len(m)) mod m
+ 	RR = RR.setWord(1)
+ 	zz = zz.shl(RR, uint(2*numWords*_W))
+ 	_, RR = RR.div(RR, zz, m)
+@@ -1141,9 +1134,12 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
+ 	return zz.norm()
+ }
+ 
+-// probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
+-// If it returns true, n is prime with probability 1 - 1/4^reps.
+-// If it returns false, n is not prime.
++// probablyPrime performs n Miller-Rabin tests to check whether x is prime.
++// If x is prime, it returns true.
++// If x is not prime, it returns false with probability at least 1 - ¼ⁿ.
++//
++// It is not suitable for judging primes that an adversary may have crafted
++// to fool this test.
+ func (n nat) probablyPrime(reps int) bool {
+ 	if len(n) == 0 {
+ 		return false
+diff --git a/src/cmd/compile/internal/big/nat_test.go b/src/cmd/compile/internal/big/nat_test.go
+index 7ac3cb8a84..56b62d24d6 100644
+--- a/src/cmd/compile/internal/big/nat_test.go
++++ b/src/cmd/compile/internal/big/nat_test.go
+@@ -158,7 +158,7 @@ var mulRangesN = []struct {
+ 
+ func TestMulRangeN(t *testing.T) {
+ 	for i, r := range mulRangesN {
+-		prod := nat(nil).mulRange(r.a, r.b).decimalString()
++		prod := string(nat(nil).mulRange(r.a, r.b).utoa(10))
+ 		if prod != r.prod {
+ 			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
+ 		}
+@@ -326,7 +326,7 @@ func TestTrailingZeroBits(t *testing.T) {
+ 	for i := uint(0); i <= 3*_W; i++ {
+ 		n := y.trailingZeroBits()
+ 		if n != i {
+-			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.hexString(), n, i)
++			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.utoa(16), n, i)
+ 		}
+ 		y = y.shl(y, 1)
+ 	}
+@@ -341,25 +341,57 @@ var montgomeryTests = []struct {
+ 		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
+ 		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
+ 		"0xfffffffffffffffffffffffffffffffffffffffffffffffff",
+-		0x0000000000000000,
+-		"0xffffffffffffffffffffffffffffffffffffffffff",
+-		"0xffffffffffffffffffffffffffffffffff",
++		1,
++		"0x1000000000000000000000000000000000000000000",
++		"0x10000000000000000000000000000000000",
+ 	},
+ 	{
+-		"0x0000000080000000",
+-		"0x00000000ffffffff",
++		"0x000000000ffffff5",
++		"0x000000000ffffff0",
+ 		"0x0000000010000001",
+ 		0xff0000000fffffff,
+-		"0x0000000088000000",
+-		"0x0000000007800001",
++		"0x000000000bfffff4",
++		"0x0000000003400001",
++	},
++	{
++		"0x0000000080000000",
++		"0x00000000ffffffff",
++		"0x1000000000000001",
++		0xfffffffffffffff,
++		"0x0800000008000001",
++		"0x0800000008000001",
++	},
++	{
++		"0x0000000080000000",
++		"0x0000000080000000",
++		"0xffffffff00000001",
++		0xfffffffeffffffff,
++		"0xbfffffff40000001",
++		"0xbfffffff40000001",
++	},
++	{
++		"0x0000000080000000",
++		"0x0000000080000000",
++		"0x00ffffff00000001",
++		0xfffffeffffffff,
++		"0xbfffff40000001",
++		"0xbfffff40000001",
+ 	},
+ 	{
+-		"0xffffffffffffffffffffffffffffffff00000000000022222223333333333444444444",
+-		"0xffffffffffffffffffffffffffffffff999999999999999aaabbbbbbbbcccccccccccc",
++		"0x0000000080000000",
++		"0x0000000080000000",
++		"0x0000ffff00000001",
++		0xfffeffffffff,
++		"0xbfff40000001",
++		"0xbfff40000001",
++	},
++	{
++		"0x3321ffffffffffffffffffffffffffff00000000000022222623333333332bbbb888c0",
++		"0x3321ffffffffffffffffffffffffffff00000000000022222623333333332bbbb888c0",
+ 		"0x33377fffffffffffffffffffffffffffffffffffffffffffff0000000000022222eee1",
+ 		0xdecc8f1249812adf,
+-		"0x22bb05b6d95eaaeca2bb7c05e51f807bce9064b5fbad177161695e4558f9474e91cd79",
+-		"0x14beb58d230f85b6d95eaaeca2bb7c05e51f807bce9064b5fb45669afa695f228e48cd",
++		"0x04eb0e11d72329dc0915f86784820fc403275bf2f6620a20e0dd344c5cd0875e50deb5",
++		"0x0d7144739a7d8e11d72329dc0915f86784820fc403275bf2f61ed96f35dd34dbb3d6a0",
+ 	},
+ 	{
+ 		"0x10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000022222223333333333444444444",
+@@ -372,10 +404,27 @@ var montgomeryTests = []struct {
+ }
+ 
+ func TestMontgomery(t *testing.T) {
++	one := NewInt(1)
++	_B := new(Int).Lsh(one, _W)
+ 	for i, test := range montgomeryTests {
+ 		x := natFromString(test.x)
+ 		y := natFromString(test.y)
+ 		m := natFromString(test.m)
++		for len(x) < len(m) {
++			x = append(x, 0)
++		}
++		for len(y) < len(m) {
++			y = append(y, 0)
++		}
++
++		if x.cmp(m) > 0 {
++			_, r := nat(nil).div(nil, x, m)
++			t.Errorf("#%d: x > m (0x%s > 0x%s; use 0x%s)", i, x.utoa(16), m.utoa(16), r.utoa(16))
++		}
++		if y.cmp(m) > 0 {
++			_, r := nat(nil).div(nil, x, m)
++			t.Errorf("#%d: y > m (0x%s > 0x%s; use 0x%s)", i, y.utoa(16), m.utoa(16), r.utoa(16))
++		}
+ 
+ 		var out nat
+ 		if _W == 32 {
+@@ -384,11 +433,31 @@ func TestMontgomery(t *testing.T) {
+ 			out = natFromString(test.out64)
+ 		}
+ 
+-		k0 := Word(test.k0 & _M) // mask k0 to ensure that it fits for 32-bit systems.
++		// t.Logf("#%d: len=%d\n", i, len(m))
++
++		// check output in table
++		xi := &Int{abs: x}
++		yi := &Int{abs: y}
++		mi := &Int{abs: m}
++		p := new(Int).Mod(new(Int).Mul(xi, new(Int).Mul(yi, new(Int).ModInverse(new(Int).Lsh(one, uint(len(m))*_W), mi))), mi)
++		if out.cmp(p.abs.norm()) != 0 {
++			t.Errorf("#%d: out in table=0x%s, computed=0x%s", i, out.utoa(16), p.abs.norm().utoa(16))
++		}
++
++		// check k0 in table
++		k := new(Int).Mod(&Int{abs: m}, _B)
++		k = new(Int).Sub(_B, k)
++		k = new(Int).Mod(k, _B)
++		k0 := Word(new(Int).ModInverse(k, _B).Uint64())
++		if k0 != Word(test.k0) {
++			t.Errorf("#%d: k0 in table=%#x, computed=%#x\n", i, test.k0, k0)
++		}
++
++		// check montgomery with correct k0 produces correct output
+ 		z := nat(nil).montgomery(x, y, m, k0, len(m))
+ 		z = z.norm()
+ 		if z.cmp(out) != 0 {
+-			t.Errorf("#%d got %s want %s", i, z.decimalString(), out.decimalString())
++			t.Errorf("#%d: got 0x%s want 0x%s", i, z.utoa(16), out.utoa(16))
+ 		}
+ 	}
+ }
+@@ -429,7 +498,7 @@ func TestExpNN(t *testing.T) {
+ 
+ 		z := nat(nil).expNN(x, y, m)
+ 		if z.cmp(out) != 0 {
+-			t.Errorf("#%d got %s want %s", i, z.decimalString(), out.decimalString())
++			t.Errorf("#%d got %s want %s", i, z.utoa(10), out.utoa(10))
+ 		}
+ 	}
+ }
+@@ -486,7 +555,7 @@ var fiboNums = []string{
+ func TestFibo(t *testing.T) {
+ 	for i, want := range fiboNums {
+ 		n := i * 10
+-		got := fibo(n).decimalString()
++		got := string(fibo(n).utoa(10))
+ 		if got != want {
+ 			t.Errorf("fibo(%d) failed: got %s want %s", n, got, want)
+ 		}
+diff --git a/src/cmd/compile/internal/big/natconv.go b/src/cmd/compile/internal/big/natconv.go
+index 80da307147..d2ce667fb6 100644
+--- a/src/cmd/compile/internal/big/natconv.go
++++ b/src/cmd/compile/internal/big/natconv.go
+@@ -14,6 +14,11 @@ import (
+ 	"sync"
+ )
+ 
++const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
++
++// Note: MaxBase = len(digits), but it must remain a rune constant
++//       for API compatibility.
++
+ // MaxBase is the largest number base accepted for string conversions.
+ const MaxBase = 'z' - 'a' + 10 + 1
+ 
+@@ -229,45 +234,33 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
+ 	return
+ }
+ 
+-// Character sets for string conversion.
+-const (
+-	lowercaseDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
+-	uppercaseDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+-)
+-
+-// decimalString returns a decimal representation of x.
+-// It calls x.string with the charset "0123456789".
+-func (x nat) decimalString() string {
+-	return x.string(lowercaseDigits[:10])
+-}
+-
+-// hexString returns a hexadecimal representation of x.
+-// It calls x.string with the charset "0123456789abcdef".
+-func (x nat) hexString() string {
+-	return x.string(lowercaseDigits[:16])
++// utoa converts x to an ASCII representation in the given base;
++// base must be between 2 and MaxBase, inclusive.
++func (x nat) utoa(base int) []byte {
++	return x.itoa(false, base)
+ }
+ 
+-// string converts x to a string using digits from a charset; a digit with
+-// value d is represented by charset[d]. The conversion base is determined
+-// by len(charset), which must be >= 2 and <= 256.
+-func (x nat) string(charset string) string {
+-	b := Word(len(charset))
+-	if b < 2 || b > 256 {
+-		panic("invalid character set length")
++// itoa is like utoa but it prepends a '-' if neg && x != 0.
++func (x nat) itoa(neg bool, base int) []byte {
++	if base < 2 || base > MaxBase {
++		panic("invalid base")
+ 	}
+ 
+ 	// x == 0
+ 	if len(x) == 0 {
+-		return string(charset[0])
++		return []byte("0")
+ 	}
+ 	// len(x) > 0
+ 
+ 	// allocate buffer for conversion
+-	i := int(float64(x.bitLen())/math.Log2(float64(b))) + 1 // off by one at most
++	i := int(float64(x.bitLen())/math.Log2(float64(base))) + 1 // off by 1 at most
++	if neg {
++		i++
++	}
+ 	s := make([]byte, i)
+ 
+ 	// convert power of two and non power of two bases separately
+-	if b == b&-b {
++	if b := Word(base); b == b&-b {
+ 		// shift is base b digit size in bits
+ 		shift := trailingZeroBits(b) // shift > 0 because b >= 2
+ 		mask := Word(1<<shift - 1)
+@@ -279,7 +272,7 @@ func (x nat) string(charset string) string {
+ 			// convert full digits
+ 			for nbits >= shift {
+ 				i--
+-				s[i] = charset[w&mask]
++				s[i] = digits[w&mask]
+ 				w >>= shift
+ 				nbits -= shift
+ 			}
+@@ -293,7 +286,7 @@ func (x nat) string(charset string) string {
+ 				// partial digit in current word w (== x[k-1]) and next word x[k]
+ 				w |= x[k] << nbits
+ 				i--
+-				s[i] = charset[w&mask]
++				s[i] = digits[w&mask]
+ 
+ 				// advance
+ 				w = x[k] >> (shift - nbits)
+@@ -304,7 +297,7 @@ func (x nat) string(charset string) string {
+ 		// convert digits of most-significant word w (omit leading zeros)
+ 		for w != 0 {
+ 			i--
+-			s[i] = charset[w&mask]
++			s[i] = digits[w&mask]
+ 			w >>= shift
+ 		}
+ 
+@@ -319,18 +312,23 @@ func (x nat) string(charset string) string {
+ 		q := nat(nil).set(x)
+ 
+ 		// convert q to string s in base b
+-		q.convertWords(s, charset, b, ndigits, bb, table)
++		q.convertWords(s, b, ndigits, bb, table)
+ 
+ 		// strip leading zeros
+ 		// (x != 0; thus s must contain at least one non-zero digit
+ 		// and the loop will terminate)
+ 		i = 0
+-		for zero := charset[0]; s[i] == zero; {
++		for s[i] == '0' {
+ 			i++
+ 		}
+ 	}
+ 
+-	return string(s[i:])
++	if neg {
++		i--
++		s[i] = '-'
++	}
++
++	return s[i:]
+ }
+ 
+ // Convert words of q to base b digits in s. If q is large, it is recursively "split in half"
+@@ -349,7 +347,7 @@ func (x nat) string(charset string) string {
+ // ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
+ // specific hardware.
+ //
+-func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word, table []divisor) {
++func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []divisor) {
+ 	// split larger blocks recursively
+ 	if table != nil {
+ 		// len(q) > leafSize > 0
+@@ -374,8 +372,8 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
+ 
+ 			// convert subblocks and collect results in s[:h] and s[h:]
+ 			h := len(s) - table[index].ndigits
+-			r.convertWords(s[h:], charset, b, ndigits, bb, table[0:index])
+-			s = s[:h] // == q.convertWords(s, charset, b, ndigits, bb, table[0:index+1])
++			r.convertWords(s[h:], b, ndigits, bb, table[0:index])
++			s = s[:h] // == q.convertWords(s, b, ndigits, bb, table[0:index+1])
+ 		}
+ 	}
+ 
+@@ -393,7 +391,7 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
+ 				// this appears to be faster for BenchmarkString10000Base10
+ 				// and smaller strings (but a bit slower for larger ones)
+ 				t := r / 10
+-				s[i] = charset[r-t<<3-t-t] // TODO(gri) replace w/ t*10 once compiler produces better code
++				s[i] = '0' + byte(r-t<<3-t-t) // TODO(gri) replace w/ t*10 once compiler produces better code
+ 				r = t
+ 			}
+ 		}
+@@ -403,17 +401,16 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
+ 			q, r = q.divW(q, bb)
+ 			for j := 0; j < ndigits && i > 0; j++ {
+ 				i--
+-				s[i] = charset[r%b]
++				s[i] = digits[r%b]
+ 				r /= b
+ 			}
+ 		}
+ 	}
+ 
+ 	// prepend high-order zeros
+-	zero := charset[0]
+ 	for i > 0 { // while need more leading zeros
+ 		i--
+-		s[i] = zero
++		s[i] = '0'
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/big/natconv_test.go b/src/cmd/compile/internal/big/natconv_test.go
+index f321fbc2df..028e5a858e 100644
+--- a/src/cmd/compile/internal/big/natconv_test.go
++++ b/src/cmd/compile/internal/big/natconv_test.go
+@@ -5,20 +5,19 @@
+ package big
+ 
+ import (
++	"bytes"
+ 	"io"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-func toString(x nat, charset string) string {
+-	base := len(charset)
+-
++func itoa(x nat, base int) []byte {
+ 	// special cases
+ 	switch {
+ 	case base < 2:
+ 		panic("illegal base")
+ 	case len(x) == 0:
+-		return string(charset[0])
++		return []byte("0")
+ 	}
+ 
+ 	// allocate buffer for conversion
+@@ -33,54 +32,53 @@ func toString(x nat, charset string) string {
+ 		i--
+ 		var r Word
+ 		q, r = q.divW(q, Word(base))
+-		s[i] = charset[r]
++		s[i] = digits[r]
+ 	}
+ 
+-	return string(s[i:])
++	return s[i:]
+ }
+ 
+ var strTests = []struct {
+ 	x nat    // nat value to be converted
+-	c string // conversion charset
++	b int    // conversion base
+ 	s string // expected result
+ }{
+-	{nil, "01", "0"},
+-	{nat{1}, "01", "1"},
+-	{nat{0xc5}, "01", "11000101"},
+-	{nat{03271}, lowercaseDigits[:8], "3271"},
+-	{nat{10}, lowercaseDigits[:10], "10"},
+-	{nat{1234567890}, uppercaseDigits[:10], "1234567890"},
+-	{nat{0xdeadbeef}, lowercaseDigits[:16], "deadbeef"},
+-	{nat{0xdeadbeef}, uppercaseDigits[:16], "DEADBEEF"},
+-	{nat{0x229be7}, lowercaseDigits[:17], "1a2b3c"},
+-	{nat{0x309663e6}, uppercaseDigits[:32], "O9COV6"},
++	{nil, 2, "0"},
++	{nat{1}, 2, "1"},
++	{nat{0xc5}, 2, "11000101"},
++	{nat{03271}, 8, "3271"},
++	{nat{10}, 10, "10"},
++	{nat{1234567890}, 10, "1234567890"},
++	{nat{0xdeadbeef}, 16, "deadbeef"},
++	{nat{0x229be7}, 17, "1a2b3c"},
++	{nat{0x309663e6}, 32, "o9cov6"},
+ }
+ 
+ func TestString(t *testing.T) {
+-	// test invalid character set explicitly
++	// test invalid base explicitly
+ 	var panicStr string
+ 	func() {
+ 		defer func() {
+ 			panicStr = recover().(string)
+ 		}()
+-		natOne.string("0")
++		natOne.utoa(1)
+ 	}()
+-	if panicStr != "invalid character set length" {
+-		t.Errorf("expected panic for invalid character set")
++	if panicStr != "invalid base" {
++		t.Errorf("expected panic for invalid base")
+ 	}
+ 
+ 	for _, a := range strTests {
+-		s := a.x.string(a.c)
++		s := string(a.x.utoa(a.b))
+ 		if s != a.s {
+ 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
+ 		}
+ 
+-		x, b, _, err := nat(nil).scan(strings.NewReader(a.s), len(a.c), false)
++		x, b, _, err := nat(nil).scan(strings.NewReader(a.s), a.b, false)
+ 		if x.cmp(a.x) != 0 {
+ 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
+ 		}
+-		if b != len(a.c) {
+-			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, len(a.c))
++		if b != a.b {
++			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, a.b)
+ 		}
+ 		if err != nil {
+ 			t.Errorf("scan%+v\n\tgot error = %s", a, err)
+@@ -236,7 +234,7 @@ func TestScanPi(t *testing.T) {
+ 	if err != nil {
+ 		t.Errorf("scanning pi: %s", err)
+ 	}
+-	if s := z.decimalString(); s != pi {
++	if s := string(z.utoa(10)); s != pi {
+ 		t.Errorf("scanning pi: got %s", s)
+ 	}
+ }
+@@ -265,12 +263,12 @@ func BenchmarkScanPi(b *testing.B) {
+ func BenchmarkStringPiParallel(b *testing.B) {
+ 	var x nat
+ 	x, _, _, _ = x.scan(strings.NewReader(pi), 0, false)
+-	if x.decimalString() != pi {
++	if string(x.utoa(10)) != pi {
+ 		panic("benchmark incorrect: conversion failed")
+ 	}
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+-			x.decimalString()
++			x.utoa(10)
+ 		}
+ 	})
+ }
+@@ -304,15 +302,14 @@ func ScanHelper(b *testing.B, base int, x, y Word) {
+ 	var z nat
+ 	z = z.expWW(x, y)
+ 
+-	var s string
+-	s = z.string(lowercaseDigits[:base])
+-	if t := toString(z, lowercaseDigits[:base]); t != s {
++	s := z.utoa(base)
++	if t := itoa(z, base); !bytes.Equal(s, t) {
+ 		b.Fatalf("scanning: got %s; want %s", s, t)
+ 	}
+ 	b.StartTimer()
+ 
+ 	for i := 0; i < b.N; i++ {
+-		z.scan(strings.NewReader(s), base, false)
++		z.scan(bytes.NewReader(s), base, false)
+ 	}
+ }
+ 
+@@ -344,11 +341,11 @@ func StringHelper(b *testing.B, base int, x, y Word) {
+ 	b.StopTimer()
+ 	var z nat
+ 	z = z.expWW(x, y)
+-	z.string(lowercaseDigits[:base]) // warm divisor cache
++	z.utoa(base) // warm divisor cache
+ 	b.StartTimer()
+ 
+ 	for i := 0; i < b.N; i++ {
+-		_ = z.string(lowercaseDigits[:base])
++		_ = z.utoa(base)
+ 	}
+ }
+ 
+@@ -372,7 +369,7 @@ func BenchmarkLeafSize16(b *testing.B) { LeafSizeHelper(b, 10, 16) }
+ func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths
+ func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
+ 
+-func LeafSizeHelper(b *testing.B, base Word, size int) {
++func LeafSizeHelper(b *testing.B, base, size int) {
+ 	b.StopTimer()
+ 	originalLeafSize := leafSize
+ 	resetTable(cacheBase10.table[:])
+@@ -382,12 +379,12 @@ func LeafSizeHelper(b *testing.B, base Word, size int) {
+ 	for d := 1; d <= 10000; d *= 10 {
+ 		b.StopTimer()
+ 		var z nat
+-		z = z.expWW(base, Word(d))           // build target number
+-		_ = z.string(lowercaseDigits[:base]) // warm divisor cache
++		z = z.expWW(Word(base), Word(d)) // build target number
++		_ = z.utoa(base)                 // warm divisor cache
+ 		b.StartTimer()
+ 
+ 		for i := 0; i < b.N; i++ {
+-			_ = z.string(lowercaseDigits[:base])
++			_ = z.utoa(base)
+ 		}
+ 	}
+ 
+@@ -408,13 +405,13 @@ func resetTable(table []divisor) {
+ }
+ 
+ func TestStringPowers(t *testing.T) {
+-	var b, p Word
+-	for b = 2; b <= 16; b++ {
++	var p Word
++	for b := 2; b <= 16; b++ {
+ 		for p = 0; p <= 512; p++ {
+-			x := nat(nil).expWW(b, p)
+-			xs := x.string(lowercaseDigits[:b])
+-			xs2 := toString(x, lowercaseDigits[:b])
+-			if xs != xs2 {
++			x := nat(nil).expWW(Word(b), p)
++			xs := x.utoa(b)
++			xs2 := itoa(x, b)
++			if !bytes.Equal(xs, xs2) {
+ 				t.Errorf("failed at %d ** %d in base %d: %s != %s", b, p, b, xs, xs2)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/big/rat.go b/src/cmd/compile/internal/big/rat.go
+index fb16f18a96..2cd9ed0938 100644
+--- a/src/cmd/compile/internal/big/rat.go
++++ b/src/cmd/compile/internal/big/rat.go
+@@ -7,8 +7,6 @@
+ package big
+ 
+ import (
+-	"encoding/binary"
+-	"errors"
+ 	"fmt"
+ 	"math"
+ )
+@@ -510,61 +508,3 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
+ 	z.a.neg = a.neg != b.neg
+ 	return z.norm()
+ }
+-
+-// Gob codec version. Permits backward-compatible changes to the encoding.
+-const ratGobVersion byte = 1
+-
+-// GobEncode implements the gob.GobEncoder interface.
+-func (x *Rat) GobEncode() ([]byte, error) {
+-	if x == nil {
+-		return nil, nil
+-	}
+-	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b.abs))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
+-	i := x.b.abs.bytes(buf)
+-	j := x.a.abs.bytes(buf[:i])
+-	n := i - j
+-	if int(uint32(n)) != n {
+-		// this should never happen
+-		return nil, errors.New("Rat.GobEncode: numerator too large")
+-	}
+-	binary.BigEndian.PutUint32(buf[j-4:j], uint32(n))
+-	j -= 1 + 4
+-	b := ratGobVersion << 1 // make space for sign bit
+-	if x.a.neg {
+-		b |= 1
+-	}
+-	buf[j] = b
+-	return buf[j:], nil
+-}
+-
+-// GobDecode implements the gob.GobDecoder interface.
+-func (z *Rat) GobDecode(buf []byte) error {
+-	if len(buf) == 0 {
+-		// Other side sent a nil or default value.
+-		*z = Rat{}
+-		return nil
+-	}
+-	b := buf[0]
+-	if b>>1 != ratGobVersion {
+-		return fmt.Errorf("Rat.GobDecode: encoding version %d not supported", b>>1)
+-	}
+-	const j = 1 + 4
+-	i := j + binary.BigEndian.Uint32(buf[j-4:j])
+-	z.a.neg = b&1 != 0
+-	z.a.abs = z.a.abs.setBytes(buf[j:i])
+-	z.b.abs = z.b.abs.setBytes(buf[i:])
+-	return nil
+-}
+-
+-// MarshalText implements the encoding.TextMarshaler interface.
+-func (r *Rat) MarshalText() (text []byte, err error) {
+-	return []byte(r.RatString()), nil
+-}
+-
+-// UnmarshalText implements the encoding.TextUnmarshaler interface.
+-func (r *Rat) UnmarshalText(text []byte) error {
+-	if _, ok := r.SetString(string(text)); !ok {
+-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Rat", text)
+-	}
+-	return nil
+-}
+diff --git a/src/cmd/compile/internal/big/rat_test.go b/src/cmd/compile/internal/big/rat_test.go
+index 012d0c47ec..3a06fca3c3 100644
+--- a/src/cmd/compile/internal/big/rat_test.go
++++ b/src/cmd/compile/internal/big/rat_test.go
+@@ -5,10 +5,6 @@
+ package big
+ 
+ import (
+-	"bytes"
+-	"encoding/gob"
+-	"encoding/json"
+-	"encoding/xml"
+ 	"math"
+ 	"testing"
+ )
+@@ -280,116 +276,6 @@ func TestRatSetFrac64Rat(t *testing.T) {
+ 	}
+ }
+ 
+-func TestRatGobEncoding(t *testing.T) {
+-	var medium bytes.Buffer
+-	enc := gob.NewEncoder(&medium)
+-	dec := gob.NewDecoder(&medium)
+-	for _, test := range encodingTests {
+-		medium.Reset() // empty buffer for each test case (in case of failures)
+-		var tx Rat
+-		tx.SetString(test + ".14159265")
+-		if err := enc.Encode(&tx); err != nil {
+-			t.Errorf("encoding of %s failed: %s", &tx, err)
+-		}
+-		var rx Rat
+-		if err := dec.Decode(&rx); err != nil {
+-			t.Errorf("decoding of %s failed: %s", &tx, err)
+-		}
+-		if rx.Cmp(&tx) != 0 {
+-			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
+-		}
+-	}
+-}
+-
+-// Sending a nil Rat pointer (inside a slice) on a round trip through gob should yield a zero.
+-// TODO: top-level nils.
+-func TestGobEncodingNilRatInSlice(t *testing.T) {
+-	buf := new(bytes.Buffer)
+-	enc := gob.NewEncoder(buf)
+-	dec := gob.NewDecoder(buf)
+-
+-	var in = make([]*Rat, 1)
+-	err := enc.Encode(&in)
+-	if err != nil {
+-		t.Errorf("gob encode failed: %q", err)
+-	}
+-	var out []*Rat
+-	err = dec.Decode(&out)
+-	if err != nil {
+-		t.Fatalf("gob decode failed: %q", err)
+-	}
+-	if len(out) != 1 {
+-		t.Fatalf("wrong len; want 1 got %d", len(out))
+-	}
+-	var zero Rat
+-	if out[0].Cmp(&zero) != 0 {
+-		t.Errorf("transmission of (*Int)(nill) failed: got %s want 0", out)
+-	}
+-}
+-
+-var ratNums = []string{
+-	"-141592653589793238462643383279502884197169399375105820974944592307816406286",
+-	"-1415926535897932384626433832795028841971",
+-	"-141592653589793",
+-	"-1",
+-	"0",
+-	"1",
+-	"141592653589793",
+-	"1415926535897932384626433832795028841971",
+-	"141592653589793238462643383279502884197169399375105820974944592307816406286",
+-}
+-
+-var ratDenoms = []string{
+-	"1",
+-	"718281828459045",
+-	"7182818284590452353602874713526624977572",
+-	"718281828459045235360287471352662497757247093699959574966967627724076630353",
+-}
+-
+-func TestRatJSONEncoding(t *testing.T) {
+-	for _, num := range ratNums {
+-		for _, denom := range ratDenoms {
+-			var tx Rat
+-			tx.SetString(num + "/" + denom)
+-			b, err := json.Marshal(&tx)
+-			if err != nil {
+-				t.Errorf("marshaling of %s failed: %s", &tx, err)
+-				continue
+-			}
+-			var rx Rat
+-			if err := json.Unmarshal(b, &rx); err != nil {
+-				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+-				continue
+-			}
+-			if rx.Cmp(&tx) != 0 {
+-				t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+-			}
+-		}
+-	}
+-}
+-
+-func TestRatXMLEncoding(t *testing.T) {
+-	for _, num := range ratNums {
+-		for _, denom := range ratDenoms {
+-			var tx Rat
+-			tx.SetString(num + "/" + denom)
+-			b, err := xml.Marshal(&tx)
+-			if err != nil {
+-				t.Errorf("marshaling of %s failed: %s", &tx, err)
+-				continue
+-			}
+-			var rx Rat
+-			if err := xml.Unmarshal(b, &rx); err != nil {
+-				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+-				continue
+-			}
+-			if rx.Cmp(&tx) != 0 {
+-				t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+-			}
+-		}
+-	}
+-}
+-
+ func TestIssue2379(t *testing.T) {
+ 	// 1) no aliasing
+ 	q := NewRat(3, 2)
+diff --git a/src/cmd/compile/internal/big/ratconv.go b/src/cmd/compile/internal/big/ratconv.go
+index 961ff649a5..4566ff4e39 100644
+--- a/src/cmd/compile/internal/big/ratconv.go
++++ b/src/cmd/compile/internal/big/ratconv.go
+@@ -188,11 +188,15 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
+ 
+ // String returns a string representation of x in the form "a/b" (even if b == 1).
+ func (x *Rat) String() string {
+-	s := "/1"
++	var buf []byte
++	buf = x.a.Append(buf, 10)
++	buf = append(buf, '/')
+ 	if len(x.b.abs) != 0 {
+-		s = "/" + x.b.abs.decimalString()
++		buf = x.b.Append(buf, 10)
++	} else {
++		buf = append(buf, '1')
+ 	}
+-	return x.a.String() + s
++	return string(buf)
+ }
+ 
+ // RatString returns a string representation of x in the form "a/b" if b != 1,
+@@ -208,12 +212,17 @@ func (x *Rat) RatString() string {
+ // digits of precision after the decimal point. The last digit is rounded to
+ // nearest, with halves rounded away from zero.
+ func (x *Rat) FloatString(prec int) string {
++	var buf []byte
++
+ 	if x.IsInt() {
+-		s := x.a.String()
++		buf = x.a.Append(buf, 10)
+ 		if prec > 0 {
+-			s += "." + strings.Repeat("0", prec)
++			buf = append(buf, '.')
++			for i := prec; i > 0; i-- {
++				buf = append(buf, '0')
++			}
+ 		}
+-		return s
++		return string(buf)
+ 	}
+ 	// x.b.abs != 0
+ 
+@@ -237,16 +246,19 @@ func (x *Rat) FloatString(prec int) string {
+ 		}
+ 	}
+ 
+-	s := q.decimalString()
+ 	if x.a.neg {
+-		s = "-" + s
++		buf = append(buf, '-')
+ 	}
++	buf = append(buf, q.utoa(10)...) // itoa ignores sign if q == 0
+ 
+ 	if prec > 0 {
+-		rs := r.decimalString()
+-		leadingZeros := prec - len(rs)
+-		s += "." + strings.Repeat("0", leadingZeros) + rs
++		buf = append(buf, '.')
++		rs := r.utoa(10)
++		for i := prec - len(rs); i > 0; i-- {
++			buf = append(buf, '0')
++		}
++		buf = append(buf, rs...)
+ 	}
+ 
+-	return s
++	return string(buf)
+ }

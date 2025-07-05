@@ -13,6 +13,20 @@ Date:   Wed Feb 8 11:17:47 2017 -0800
     Change-Id: I525a63a195dc6bb992c8ad0f10c2f2e1b2b952df
     Reviewed-on: https://go-review.googlesource.com/36564
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index f1a5b27998..1f8bd0fbfe 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -466,7 +466,7 @@ changes to Gerrit using <code>git</code> <code>push</code> <code>origin</code>
+ 
+ <p>
+ If your change relates to an open issue, please add a comment to the issue
+-announcing your proposed fix, including a link to your CL.
++announcing your proposed fix, including a link to your change.
+ </p>
+ 
+ <p>

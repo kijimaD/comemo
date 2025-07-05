@@ -22,6 +22,29 @@ Date:   Fri Apr 10 12:34:31 2015 +0300
     Change-Id: I142e5774c9f326ed38cb202693bd4edae93879ba
     Reviewed-on: https://go-review.googlesource.com/8723
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/syscall/syscall_linux_amd64.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 4111c075e8..fad9c32580 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -57,8 +57,6 @@ const _SYS_dup = SYS_DUP2
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
+ 
+-func Getpagesize() int { return 4096 }
+-
+ //go:noescape
+ func gettimeofday(tv *Timeval) (err Errno)
+ 
+@@ -70,6 +68,8 @@ func Gettimeofday(tv *Timeval) (err error) {
+ 	return nil
+ }
+ 
++func Getpagesize() int { return 4096 }
++
+ func Time(t *Time_t) (tt Time_t, err error) {
+ 	var tv Timeval
+ 	errno := gettimeofday(&tv)

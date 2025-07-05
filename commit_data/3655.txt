@@ -10,6 +10,25 @@ Date:   Mon Oct 26 16:06:46 2009 -0700
     
     R=rsc
     http://go/go-review/1015013
-
+---
  test/rename1.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/rename1.go b/test/rename1.go
+index eb98e7accf..2224773e9f 100644
+--- a/test/rename1.go
++++ b/test/rename1.go
+@@ -7,10 +7,10 @@
+ package main
+ 
+ func main() {
+-	var n byte;	// ERROR "not a type"
+-	var y = float(0);	// ERROR "cannot call"
++	var n byte;	// ERROR "not a type|expected type"
++	var y = float(0);	// ERROR "cannot call|expected function"
+ 	const (
+-		a = 1+iota;	// ERROR "string"
++		a = 1+iota;	// ERROR "string|incompatible types"
+ 	)
+ 
+ }

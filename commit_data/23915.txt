@@ -28,7 +28,37 @@ Date:   Mon Jun 22 11:18:23 2015 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/malloc.go | 5 ++++-
  src/runtime/mheap.go  | 2 +-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 37d3a1eea1..f6608309e8 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -405,7 +405,10 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+ 				// Keep everything page-aligned.
+ 				// Our pages are bigger than hardware pages.
+ 				h.arena_end = p + p_size
+-				h.arena_used = p + (-uintptr(p) & (_PageSize - 1))
++				used := p + (-uintptr(p) & (_PageSize - 1))
++				mHeap_MapBits(h, used)
++				mHeap_MapSpans(h, used)
++				h.arena_used = used
+ 				h.arena_reserved = reserved
+ 			} else {
+ 				var stat uint64
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index fceee7d464..b73a155700 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -41,7 +41,7 @@ type mheap struct {
+ 	bitmap         uintptr
+ 	bitmap_mapped  uintptr
+ 	arena_start    uintptr
+-	arena_used     uintptr
++	arena_used     uintptr // always mHeap_Map{Bits,Spans} before updating
+ 	arena_end      uintptr
+ 	arena_reserved bool
+ 

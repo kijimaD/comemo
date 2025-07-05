@@ -7,6 +7,32 @@ Date:   Sat Jan 4 10:53:22 2014 -0800
     R=golang-codereviews, r, aram
     CC=0intro, golang-codereviews, rsc
     https://golang.org/cl/43420045
-
+---
  src/pkg/runtime/os_plan9.c | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index 07db2c3055..dd2828b1d9 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -102,8 +102,18 @@ runtime·crash(void)
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
+-	*rnd = nil;
+-	*rnd_len = 0;
++	static byte random_data[HashRandomBytes];
++	int32 fd;
++
++	fd = runtime·open("/dev/random", 0 /* O_RDONLY */, 0);
++	if(runtime·read(fd, random_data, HashRandomBytes) == HashRandomBytes) {
++		*rnd = random_data;
++		*rnd_len = HashRandomBytes;
++	} else {
++		*rnd = nil;
++		*rnd_len = 0;
++	}
++	runtime·close(fd);
+ }
+ 
+ void

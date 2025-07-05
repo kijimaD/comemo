@@ -20,7 +20,48 @@ Date:   Fri Jun 3 09:18:57 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/go/doc/comment/parse.go           | 8 ++++++++
  src/go/doc/comment/testdata/quote.txt | 5 ++++-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/doc/comment/parse.go b/src/go/doc/comment/parse.go
+index 83b37c32c5..8a311ff817 100644
+--- a/src/go/doc/comment/parse.go
++++ b/src/go/doc/comment/parse.go
+@@ -840,6 +840,14 @@ func (d *parseDoc) parseText(out []Text, s string, autoLink bool) []Text {
+ 		}
+ 		switch {
+ 		case strings.HasPrefix(t, "``"):
++			if len(t) >= 3 && t[2] == '`' {
++				// Do not convert `` inside ```, in case people are mistakenly writing Markdown.
++				i += 3
++				for i < len(t) && t[i] == '`' {
++					i++
++				}
++				break
++			}
+ 			writeUntil(i)
+ 			w.WriteRune('“')
+ 			i += 2
+diff --git a/src/go/doc/comment/testdata/quote.txt b/src/go/doc/comment/testdata/quote.txt
+index 799663af80..b64adae0b3 100644
+--- a/src/go/doc/comment/testdata/quote.txt
++++ b/src/go/doc/comment/testdata/quote.txt
+@@ -1,12 +1,15 @@
+ -- input --
+ Doubled single quotes like `` and '' turn into Unicode double quotes,
+ but single quotes ` and ' do not.
++Misplaced markdown fences ``` do not either.
+ -- gofmt --
+ Doubled single quotes like “ and ” turn into Unicode double quotes,
+ but single quotes ` and ' do not.
++Misplaced markdown fences ``` do not either.
+ -- text --
+ Doubled single quotes like “ and ” turn into Unicode double quotes, but single
+-quotes ` and ' do not.
++quotes ` and ' do not. Misplaced markdown fences ``` do not either.
+ -- html --
+ <p>Doubled single quotes like “ and ” turn into Unicode double quotes,
+ but single quotes ` and &apos; do not.
++Misplaced markdown fences ``` do not either.

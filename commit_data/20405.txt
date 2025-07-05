@@ -11,7 +11,7 @@ Date:   Fri Sep 5 16:51:45 2014 -0400
     R=khr, iant
     CC=dvyukov, golang-codereviews, r
     https://golang.org/cl/139270043
-
+---
  misc/cgo/test/callback.go       |  1 +
  misc/cgo/test/issue7695_test.go |  3 ++
  src/cmd/dist/buildruntime.c     |  2 +
@@ -30,3 +30,981 @@ Date:   Fri Sep 5 16:51:45 2014 -0400
  test/fixedbugs/issue4388.go     |  6 +--
  test/fixedbugs/issue5856.go     |  2 +-
  17 files changed, 187 insertions(+), 284 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 98f653ef77..281e79494e 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -153,6 +153,7 @@ func testCallbackCallers(t *testing.T) {
+ 	n := 0
+ 	name := []string{
+ 		"test.goCallback",
++		"runtime.call16",
+ 		"runtime.cgocallbackg1",
+ 		"runtime.cgocallbackg",
+ 		"runtime.cgocallback_gofunc",
+diff --git a/misc/cgo/test/issue7695_test.go b/misc/cgo/test/issue7695_test.go
+index 4bd6f8e734..de2fc03d42 100644
+--- a/misc/cgo/test/issue7695_test.go
++++ b/misc/cgo/test/issue7695_test.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++// This test depends on running C code on Go stacks. Not allowed anymore.
++
+ // Demo of deferred C function with untrue prototype
+ // breaking stack copying. See golang.org/issue/7695.
+ 
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 3a274e05cc..246bd2710d 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -244,6 +244,8 @@ ok:
+ 				aggr = "seh";
+ 			else if(streq(fields.p[1], "Alg"))
+ 				aggr = "alg";
++			else if(streq(fields.p[1], "Panic"))
++				aggr = "panic";
+ 		}
+ 		if(hasprefix(lines.p[i], "}"))
+ 			aggr = nil;
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 76086c561b..b02b8ea0c2 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -563,7 +563,7 @@ func (v Value) call(op string, in []Value) []Value {
+ 	}
+ 
+ 	// Call.
+-	call(fn, args, uint32(frametype.size), uint32(retOffset))
++	call(fn, args, uint32(frametype.size), uint32(retOffset), nil)
+ 
+ 	// For testing; see TestCallMethodJump.
+ 	if callGC {
+@@ -761,7 +761,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
+ 	memmove(unsafe.Pointer(uintptr(args)+ptrSize), frame, argSize-ptrSize)
+ 
+ 	// Call.
+-	call(fn, args, uint32(frametype.size), uint32(retOffset))
++	call(fn, args, uint32(frametype.size), uint32(retOffset), nil)
+ 
+ 	// Copy return values. On amd64p32, the beginning of return values
+ 	// is 64-bit aligned, so the caller's frame layout (which doesn't have
+@@ -2700,7 +2700,9 @@ func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
+ func mapiternext(it unsafe.Pointer)
+ func maplen(m unsafe.Pointer) int
+ 
+-func call(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
++// panicpos is for use by runtime and should be nil in all calls in this package
++func call(fn, arg unsafe.Pointer, n uint32, retoffset uint32, panicpos unsafe.Pointer)
++
+ func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
+ 
+ // Dummy annotation marking that the value x escapes,
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 25911a5b9c..0b5ded6836 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -283,6 +283,12 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	JNE	2(PC)
+ 	INT	$3
+ 
++	// Cannot grow signal stack.
++	MOVL	m_gsignal(BX), SI
++	CMPL	g(CX), SI
++	JNE	2(PC)
++	INT	$3
++
+ 	// frame size in DI
+ 	// arg size in AX
+ 	// Save in m.
+@@ -322,56 +328,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+ 	MOVL	$0, DX
+ 	JMP runtime·morestack(SB)
+ 
+-// Called from panic.  Mimics morestack,
+-// reuses stack growth code to create a frame
+-// with the desired args running the desired function.
+-//
+-// func call(fn *byte, arg *byte, argsize uint32).
+-TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
+-	get_tls(CX)
+-	MOVL	g(CX), BX
+-	MOVL	g_m(BX), BX
+-
+-	// Save our caller's state as the PC and SP to
+-	// restore when returning from f.
+-	MOVL	0(SP), AX	// our caller's PC
+-	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
+-	LEAL	fv+0(FP), AX	// our caller's SP
+-	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
+-	MOVL	g(CX), AX
+-	MOVL	AX, (m_morebuf+gobuf_g)(BX)
+-
+-	// Save our own state as the PC and SP to restore
+-	// if this goroutine needs to be restarted.
+-	MOVL	$runtime·newstackcall(SB), (g_sched+gobuf_pc)(AX)
+-	MOVL	SP, (g_sched+gobuf_sp)(AX)
+-
+-	// Set up morestack arguments to call f on a new stack.
+-	// We set f's frame size to 1, as a hint to newstack
+-	// that this is a call from runtime·newstackcall.
+-	// If it turns out that f needs a larger frame than
+-	// the default stack, f's usual stack growth prolog will
+-	// allocate a new segment (and recopy the arguments).
+-	MOVL	fv+0(FP), AX	// fn
+-	MOVL	addr+4(FP), DX	// arg frame
+-	MOVL	size+8(FP), CX	// arg size
+-
+-	MOVL	AX, m_cret(BX)	// f's PC
+-	MOVL	DX, m_moreargp(BX)	// f's argument pointer
+-	MOVL	CX, m_moreargsize(BX)	// f's argument size
+-	MOVL	$1, m_moreframesize(BX)	// f's frame size
+-
+-	// Call newstack on m->g0's stack.
+-	MOVL	m_g0(BX), BP
+-	get_tls(CX)
+-	MOVL	BP, g(CX)
+-	MOVL	(g_sched+gobuf_sp)(BP), SP
+-	CALL	runtime·newstack(SB)
+-	MOVL	$0, 0x1103	// crash if newstack returns
+-	RET
+-
+ // reflect·call: call a function with the given argument list
+-// func call(f *FuncVal, arg *byte, argsize uint32).
++// func call(f *FuncVal, arg *byte, argsize, retoffset uint32, p *Panic).
+ // we don't have variable-sized frames, so we use a small number
+ // of constant-sized-frame functions to encode a few bits of size in the pc.
+ // Caution: ugly multiline assembly macros in your future!
+@@ -379,11 +337,11 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
+ #define DISPATCH(NAME,MAXSIZE)		\
+ 	CMPL	CX, $MAXSIZE;		\
+ 	JA	3(PC);			\
+-	MOVL	$NAME(SB), AX;	\
++	MOVL	$NAME(SB), AX;		\
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT reflect·call(SB), NOSPLIT, $0-16
++TEXT reflect·call(SB), NOSPLIT, $0-20
+ 	MOVL	argsize+8(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -415,11 +373,11 @@ TEXT reflect·call(SB), NOSPLIT, $0-16
+ 	MOVL	$runtime·badreflectcall(SB), AX
+ 	JMP	AX
+ 
+-// Argument map for the callXX frames.  Each has one
+-// stack map (for the single call) with 3 arguments.
++// Argument map for the callXX frames.  Each has one stack map.
+ DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_reflectcall<>+0x04(SB)/4, $6  // 3 args
+-DATA gcargs_reflectcall<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4))
++DATA gcargs_reflectcall<>+0x04(SB)/4, $10  // 5 words
++DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
++DATA gcargs_reflectcall<>+0x09(SB)/1, $(const_BitsPointer)
+ GLOBL gcargs_reflectcall<>(SB),RODATA,$12
+ 
+ // callXX frames have no locals
+@@ -428,7 +386,7 @@ DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
+ GLOBL gclocals_reflectcall<>(SB),RODATA,$8
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
++TEXT NAME(SB), WRAPPER, $MAXSIZE-20;	\
+ 	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
+ 	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
+ 	/* copy arguments to stack */		\
+@@ -436,11 +394,22 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
+ 	MOVL	argsize+8(FP), CX;		\
+ 	MOVL	SP, DI;				\
+ 	REP;MOVSB;				\
++	/* initialize panic argp */		\
++	MOVL	panic+16(FP), CX;		\
++	CMPL	CX, $0;				\
++	JEQ	3(PC);				\
++	LEAL	(MAXSIZE+4)(SP), BX;		\
++	MOVL	BX, panic_argp(CX);		\
+ 	/* call function */			\
+ 	MOVL	f+0(FP), DX;			\
+ 	MOVL	(DX), AX; 			\
+ 	PCDATA  $PCDATA_StackMapIndex, $0;	\
+ 	CALL	AX;				\
++	/* clear panic argp */			\
++	MOVL	panic+16(FP), CX;		\
++	CMPL	CX, $0;				\
++	JEQ	2(PC);				\
++	MOVL	$0, panic_argp(CX);		\
+ 	/* copy return values back */		\
+ 	MOVL	argptr+4(FP), DI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 962074582d..587fcf4806 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -274,6 +274,12 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	JNE	2(PC)
+ 	INT	$3
+ 
++	// Cannot grow signal stack (m->gsignal).
++	MOVQ	m_gsignal(BX), SI
++	CMPQ	g(CX), SI
++	JNE	2(PC)
++	INT	$3
++
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVQ	8(SP), AX	// f's caller's PC
+@@ -301,57 +307,8 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVQ	$0, 0x1003	// crash if newstack returns
+ 	RET
+ 
+-// Called from panic.  Mimics morestack,
+-// reuses stack growth code to create a frame
+-// with the desired args running the desired function.
+-//
+-// func call(fn *byte, arg *byte, argsize uint32).
+-TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
+-	get_tls(CX)
+-	MOVQ	g(CX), BX
+-	MOVQ	g_m(BX), BX
+-
+-	// Save our caller's state as the PC and SP to
+-	// restore when returning from f.
+-	MOVQ	0(SP), AX	// our caller's PC
+-	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
+-	LEAQ	fv+0(FP), AX	// our caller's SP
+-	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
+-	MOVQ	g(CX), AX
+-	MOVQ	AX, (m_morebuf+gobuf_g)(BX)
+-	
+-	// Save our own state as the PC and SP to restore
+-	// if this goroutine needs to be restarted.
+-	MOVQ	$runtime·newstackcall(SB), BP
+-	MOVQ	BP, (g_sched+gobuf_pc)(AX)
+-	MOVQ	SP, (g_sched+gobuf_sp)(AX)
+-
+-	// Set up morestack arguments to call f on a new stack.
+-	// We set f's frame size to 1, as a hint to newstack
+-	// that this is a call from runtime·newstackcall.
+-	// If it turns out that f needs a larger frame than
+-	// the default stack, f's usual stack growth prolog will
+-	// allocate a new segment (and recopy the arguments).
+-	MOVQ	fv+0(FP), AX	// fn
+-	MOVQ	addr+8(FP), DX	// arg frame
+-	MOVL	size+16(FP), CX	// arg size
+-
+-	MOVQ	AX, m_cret(BX)	// f's PC
+-	MOVQ	DX, m_moreargp(BX)	// argument frame pointer
+-	MOVL	CX, m_moreargsize(BX)	// f's argument size
+-	MOVL	$1, m_moreframesize(BX)	// f's frame size
+-
+-	// Call newstack on m->g0's stack.
+-	MOVQ	m_g0(BX), BP
+-	get_tls(CX)
+-	MOVQ	BP, g(CX)
+-	MOVQ	(g_sched+gobuf_sp)(BP), SP
+-	CALL	runtime·newstack(SB)
+-	MOVQ	$0, 0x1103	// crash if newstack returns
+-	RET
+-
+ // reflect·call: call a function with the given argument list
+-// func call(f *FuncVal, arg *byte, argsize uint32).
++// func call(f *FuncVal, arg *byte, argsize, retoffset uint32, p *Panic).
+ // we don't have variable-sized frames, so we use a small number
+ // of constant-sized-frame functions to encode a few bits of size in the pc.
+ // Caution: ugly multiline assembly macros in your future!
+@@ -363,7 +320,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT reflect·call(SB), NOSPLIT, $0-24
++TEXT reflect·call(SB), NOSPLIT, $0-32
+ 	MOVLQZX argsize+16(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -395,11 +352,10 @@ TEXT reflect·call(SB), NOSPLIT, $0-24
+ 	MOVQ	$runtime·badreflectcall(SB), AX
+ 	JMP	AX
+ 
+-// Argument map for the callXX frames.  Each has one
+-// stack map (for the single call) with 3 arguments.
++// Argument map for the callXX frames.  Each has one stack map.
+ DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_reflectcall<>+0x04(SB)/4, $6  // 3 args
+-DATA gcargs_reflectcall<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4))
++DATA gcargs_reflectcall<>+0x04(SB)/4, $8  // 4 words
++DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsPointer<<6))
+ GLOBL gcargs_reflectcall<>(SB),RODATA,$12
+ 
+ // callXX frames have no locals
+@@ -407,8 +363,16 @@ DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+ DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
+ GLOBL gclocals_reflectcall<>(SB),RODATA,$8
+ 
++// CALLFN is marked as a WRAPPER so that a deferred reflect.call func will
++// see the right answer for recover. However, CALLFN is also how we start
++// the panic in the first place. We record the panic argp if this is the start of
++// a panic. Since the wrapper adjustment has already happened, though
++// (in the implicit prologue), we have to write not SP but MAXSIZE+8+SP into
++// p.argp. The MAXSIZE+8 will counter the MAXSIZE+8 the wrapper prologue
++// added to g->panicwrap.
++
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT NAME(SB), WRAPPER, $MAXSIZE-24;	\
++TEXT NAME(SB), WRAPPER, $MAXSIZE-32;		\
+ 	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
+ 	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
+ 	/* copy arguments to stack */		\
+@@ -416,10 +380,21 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;	\
+ 	MOVLQZX argsize+16(FP), CX;		\
+ 	MOVQ	SP, DI;				\
+ 	REP;MOVSB;				\
++	/* initialize panic argp */		\
++	MOVQ	panic+24(FP), CX;		\
++	CMPQ	CX, $0;				\
++	JEQ	3(PC);				\
++	LEAQ	(MAXSIZE+8)(SP), BX;		\
++	MOVQ	BX, panic_argp(CX);		\
+ 	/* call function */			\
+ 	MOVQ	f+0(FP), DX;			\
+ 	PCDATA  $PCDATA_StackMapIndex, $0;	\
+ 	CALL	(DX);				\
++	/* clear panic argp */			\
++	MOVQ	panic+24(FP), CX;		\
++	CMPQ	CX, $0;				\
++	JEQ	2(PC);				\
++	MOVQ	$0, panic_argp(CX);		\
+ 	/* copy return values back */		\
+ 	MOVQ	argptr+8(FP), DI;		\
+ 	MOVLQZX	argsize+16(FP), CX;		\
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 64a436495f..5647d77627 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -247,6 +247,12 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	JNE	2(PC)
+ 	MOVL	0, AX
+ 
++	// Cannot grow signal stack (m->gsignal).
++	MOVL	m_gsignal(BX), SI
++	CMPL	g(CX), SI
++	JNE	2(PC)
++	MOVL	0, AX
++
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVL	8(SP), AX	// f's caller's PC
+@@ -274,57 +280,8 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	$0, 0x1003	// crash if newstack returns
+ 	RET
+ 
+-// Called from panic.  Mimics morestack,
+-// reuses stack growth code to create a frame
+-// with the desired args running the desired function.
+-//
+-// func call(fn *byte, arg *byte, argsize uint32).
+-TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
+-	get_tls(CX)
+-	MOVL	g(CX), BX
+-	MOVL	g_m(BX), BX
+-
+-	// Save our caller's state as the PC and SP to
+-	// restore when returning from f.
+-	MOVL	0(SP), AX	// our caller's PC
+-	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
+-	LEAL	fv+0(FP), AX	// our caller's SP
+-	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
+-	MOVL	g(CX), AX
+-	MOVL	AX, (m_morebuf+gobuf_g)(BX)
+-	
+-	// Save our own state as the PC and SP to restore
+-	// if this goroutine needs to be restarted.
+-	MOVL	$runtime·newstackcall(SB), DI
+-	MOVL	DI, (g_sched+gobuf_pc)(AX)
+-	MOVL	SP, (g_sched+gobuf_sp)(AX)
+-
+-	// Set up morestack arguments to call f on a new stack.
+-	// We set f's frame size to 1, as a hint to newstack
+-	// that this is a call from runtime·newstackcall.
+-	// If it turns out that f needs a larger frame than
+-	// the default stack, f's usual stack growth prolog will
+-	// allocate a new segment (and recopy the arguments).
+-	MOVL	fv+0(FP), AX	// fn
+-	MOVL	addr+4(FP), DX	// arg frame
+-	MOVL	size+8(FP), CX	// arg size
+-
+-	MOVQ	AX, m_cret(BX)	// f's PC
+-	MOVL	DX, m_moreargp(BX)	// argument frame pointer
+-	MOVL	CX, m_moreargsize(BX)	// f's argument size
+-	MOVL	$1, m_moreframesize(BX)	// f's frame size
+-
+-	// Call newstack on m->g0's stack.
+-	MOVL	m_g0(BX), BX
+-	get_tls(CX)
+-	MOVL	BX, g(CX)
+-	MOVL	(g_sched+gobuf_sp)(BX), SP
+-	CALL	runtime·newstack(SB)
+-	MOVL	$0, 0x1103	// crash if newstack returns
+-	RET
+-
+ // reflect·call: call a function with the given argument list
+-// func call(f *FuncVal, arg *byte, argsize uint32).
++// func call(f *FuncVal, arg *byte, argsize, retoffset uint32, p *Panic).
+ // we don't have variable-sized frames, so we use a small number
+ // of constant-sized-frame functions to encode a few bits of size in the pc.
+ // Caution: ugly multiline assembly macros in your future!
+@@ -368,17 +325,42 @@ TEXT reflect·call(SB), NOSPLIT, $0-20
+ 	MOVL	$runtime·badreflectcall(SB), AX
+ 	JMP	AX
+ 
++// Argument map for the callXX frames.  Each has one stack map.
++DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gcargs_reflectcall<>+0x04(SB)/4, $10  // 5 words
++DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
++DATA gcargs_reflectcall<>+0x09(SB)/1, $(const_BitsPointer)
++GLOBL gcargs_reflectcall<>(SB),RODATA,$12
++
++// callXX frames have no locals
++DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
++GLOBL gclocals_reflectcall<>(SB),RODATA,$8
++
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
++TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
++	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
++	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
+ 	/* copy arguments to stack */		\
+ 	MOVL	argptr+4(FP), SI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+ 	MOVL	SP, DI;				\
+ 	REP;MOVSB;				\
++	/* initialize panic argp */		\
++	MOVL	panic+16(FP), CX;		\
++	CMPL	CX, $0;				\
++	JEQ	3(PC);				\
++	LEAL	(MAXSIZE+8)(SP), BX;		\
++	MOVL	BX, panic_argp(CX);		\
+ 	/* call function */			\
+ 	MOVL	f+0(FP), DX;			\
+ 	MOVL	(DX), AX;				\
+ 	CALL	AX; \
++	/* clear panic argp */			\
++	MOVL	panic+16(FP), CX;		\
++	CMPL	CX, $0;				\
++	JEQ	2(PC);				\
++	MOVL	$0, panic_argp(CX);		\
+ 	/* copy return values back */		\
+ 	MOVL	argptr+4(FP), DI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 9e68e099e2..96a21ceac1 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -269,6 +269,11 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 	CMP	g, R4
+ 	BL.EQ	runtime·abort(SB)
+ 
++	// Cannot grow signal stack (m->gsignal).
++	MOVW	m_gsignal(R8), R4
++	CMP	g, R4
++	BL.EQ	runtime·abort(SB)
++
+ 	MOVW	R1, m_moreframesize(R8)
+ 	MOVW	R2, m_moreargsize(R8)
+ 
+@@ -300,49 +305,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R7
+ 	B runtime·morestack(SB)
+ 
+-// Called from panic.  Mimics morestack,
+-// reuses stack growth code to create a frame
+-// with the desired args running the desired function.
+-//
+-// func call(fn *byte, arg *byte, argsize uint32).
+-TEXT runtime·newstackcall(SB),NOSPLIT,$-4-12
+-	// Save our caller's state as the PC and SP to
+-	// restore when returning from f.
+-	MOVW	g_m(g), R8
+-	MOVW	LR, (m_morebuf+gobuf_pc)(R8)	// our caller's PC
+-	MOVW	SP, (m_morebuf+gobuf_sp)(R8)	// our caller's SP
+-	MOVW	g,  (m_morebuf+gobuf_g)(R8)
+-
+-	// Save our own state as the PC and SP to restore
+-	// if this goroutine needs to be restarted.
+-	MOVW	$runtime·newstackcall(SB), R11
+-	MOVW	R11, (g_sched+gobuf_pc)(g)
+-	MOVW	LR, (g_sched+gobuf_lr)(g)
+-	MOVW	SP, (g_sched+gobuf_sp)(g)
+-
+-	// Set up morestack arguments to call f on a new stack.
+-	// We set f's frame size to 1, as a hint to newstack
+-	// that this is a call from runtime·newstackcall.
+-	// If it turns out that f needs a larger frame than
+-	// the default stack, f's usual stack growth prolog will
+-	// allocate a new segment (and recopy the arguments).
+-	MOVW	4(SP), R0			// fn
+-	MOVW	8(SP), R1			// arg frame
+-	MOVW	12(SP), R2			// arg size
+-
+-	MOVW	R0, m_cret(R8)			// f's PC
+-	MOVW	R1, m_moreargp(R8)		// f's argument pointer
+-	MOVW	R2, m_moreargsize(R8)		// f's argument size
+-	MOVW	$1, R3
+-	MOVW	R3, m_moreframesize(R8)		// f's frame size
+-
+-	// Call newstack on m->g0's stack.
+-	MOVW	m_g0(R8), g
+-	MOVW	(g_sched+gobuf_sp)(g), SP
+-	B	runtime·newstack(SB)
+-
+ // reflect·call: call a function with the given argument list
+-// func call(f *FuncVal, arg *byte, argsize uint32).
++// func call(f *FuncVal, arg *byte, argsize, retoffset uint32, p *Panic).
+ // we don't have variable-sized frames, so we use a small number
+ // of constant-sized-frame functions to encode a few bits of size in the pc.
+ // Caution: ugly multiline assembly macros in your future!
+@@ -350,10 +314,10 @@ TEXT runtime·newstackcall(SB),NOSPLIT,$-4-12
+ #define DISPATCH(NAME,MAXSIZE)		\
+ 	CMP	$MAXSIZE, R0;		\
+ 	B.HI	3(PC);			\
+-	MOVW	$NAME(SB), R1;	\
++	MOVW	$NAME(SB), R1;		\
+ 	B	(R1)
+ 
+-TEXT reflect·call(SB),NOSPLIT,$-4-16
++TEXT reflect·call(SB),NOSPLIT,$-4-20
+ 	MOVW	argsize+8(FP), R0
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -385,11 +349,11 @@ TEXT reflect·call(SB),NOSPLIT,$-4-16
+ 	MOVW	$runtime·badreflectcall(SB), R1
+ 	B	(R1)
+ 
+-// Argument map for the callXX frames.  Each has one
+-// stack map (for the single call) with 3 arguments.
++// Argument map for the callXX frames.  Each has one stack map.
+ DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_reflectcall<>+0x04(SB)/4, $6  // 3 args
+-DATA gcargs_reflectcall<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4))
++DATA gcargs_reflectcall<>+0x04(SB)/4, $10  // 5 words
++DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
++DATA gcargs_reflectcall<>+0x09(SB)/1, $(const_BitsPointer)
+ GLOBL gcargs_reflectcall<>(SB),RODATA,$12
+ 
+ // callXX frames have no locals
+@@ -398,7 +362,7 @@ DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
+ GLOBL gclocals_reflectcall<>(SB),RODATA,$8
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
++TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
+ 	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
+ 	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
+ 	/* copy arguments to stack */		\
+@@ -411,11 +375,23 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
+ 	MOVBU.P R5, 1(R1);			\
+ 	SUB	$1, R2, R2;			\
+ 	B	-5(PC);				\
++	/* initialize panic argp */		\
++	MOVW	panic+16(FP), R4;		\
++	CMP	$0, R4;				\
++	B.EQ	3(PC);				\
++	ADD	$(4+MAXSIZE+4), R13, R5;	\
++	MOVW	R5, panic_argp(R4);		\
+ 	/* call function */			\
+ 	MOVW	f+0(FP), R7;			\
+ 	MOVW	(R7), R0;			\
+ 	PCDATA  $PCDATA_StackMapIndex, $0;	\
+ 	BL	(R0);				\
++	/* clear panic argp */			\
++	MOVW	panic+16(FP), R4;		\
++	CMP	$0, R4;				\
++	B.EQ	3(PC);				\
++	MOVW	$0, R5;				\
++	MOVW	R5, panic_argp(R4);		\
+ 	/* copy return values back */		\
+ 	MOVW	argptr+4(FP), R0;		\
+ 	MOVW	argsize+8(FP), R2;		\
+diff --git a/src/pkg/runtime/cgocall.go b/src/pkg/runtime/cgocall.go
+index 1037c5dc21..4040fee8e6 100644
+--- a/src/pkg/runtime/cgocall.go
++++ b/src/pkg/runtime/cgocall.go
+@@ -225,7 +225,7 @@ func cgocallbackg1() {
+ 	}
+ 
+ 	// Invoke callback.
+-	newstackcall(cb.fn, cb.arg, uint32(cb.argsize))
++	reflectcall(unsafe.Pointer(cb.fn), unsafe.Pointer(cb.arg), uint32(cb.argsize), 0, nil)
+ 
+ 	if raceenabled {
+ 		racereleasemerge(unsafe.Pointer(&racecgosync))
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index 883ca0cef7..664b03b151 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -743,7 +743,7 @@ func runfinq() {
+ 				default:
+ 					gothrow("bad kind in runfinq")
+ 				}
+-				reflectcall(unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz))
++				reflectcall(unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz), nil)
+ 
+ 				// drop finalizer queue references to finalized object
+ 				f.fn = nil
+diff --git a/src/pkg/runtime/panic.go b/src/pkg/runtime/panic.go
+index 1e35561d15..b8fa213f66 100644
+--- a/src/pkg/runtime/panic.go
++++ b/src/pkg/runtime/panic.go
+@@ -208,7 +208,7 @@ func Goexit() {
+ 	for gp._defer != nil {
+ 		d := gp._defer
+ 		gp._defer = d.link
+-		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz))
++		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz), nil)
+ 		freedefer(d)
+ 		// Note: we ignore recovers here because Goexit isn't a panic
+ 	}
+diff --git a/src/pkg/runtime/panic1.go b/src/pkg/runtime/panic1.go
+index 6d939703d4..7bdfb4b2c0 100644
+--- a/src/pkg/runtime/panic1.go
++++ b/src/pkg/runtime/panic1.go
+@@ -56,10 +56,17 @@ func gopanic(e interface{}) {
+ 		dabort.link = gp._defer
+ 		gp._defer = (*_defer)(noescape(unsafe.Pointer(&dabort)))
+ 		p._defer = d
++		p.outerwrap = gp.panicwrap
+ 
+-		newstackcall(d.fn, unsafe.Pointer(&d.args), uint32(d.siz))
++		// TODO(rsc): I am pretty sure the panicwrap manipulation here is not correct.
++		// It is close enough to pass all the tests we have, but I think it needs to be
++		// restored during recovery too. I will write better tests and fix it in a separate CL.
+ 
+-		// Newstackcall did not panic. Remove dabort.
++		gp.panicwrap = 0
++		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz), (*_panic)(noescape(unsafe.Pointer(&p))))
++		gp.panicwrap = p.outerwrap
++
++		// reflectcall did not panic. Remove dabort.
+ 		if gp._defer != &dabort {
+ 			gothrow("bad defer entry in panic")
+ 		}
+@@ -114,9 +121,11 @@ func gorecover(argp uintptr) interface{} {
+ 	// while they are active on the stack. The linker emits adjustments of
+ 	// g.panicwrap in the prologue and epilogue of functions marked as wrappers.
+ 	gp := getg()
+-	top := (*stktop)(unsafe.Pointer(gp.stackbase))
+ 	p := gp._panic
+-	if p != nil && !p.recovered && top._panic && argp == gp.stackbase-uintptr(top.argsize+gp.panicwrap) {
++	//	if p != nil {
++	//		println("recover?", p, p.recovered, hex(argp), hex(p.argp), uintptr(gp.panicwrap), p != nil && !p.recovered && argp == p.argp-uintptr(gp.panicwrap))
++	//	}
++	if p != nil && !p.recovered && argp == p.argp-uintptr(gp.panicwrap) {
+ 		p.recovered = true
+ 		return p.arg
+ 	}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index b3d1a94221..4f279db3fb 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -452,7 +452,6 @@ struct	Stktop
+ 	uint32	panicwrap;
+ 
+ 	uint8*	argp;	// pointer to arguments in old frame
+-	bool	panic;	// is this frame the top of a panic?
+ };
+ struct	SigTab
+ {
+@@ -658,6 +657,8 @@ struct Panic
+ 	Eface	arg;		// argument to panic
+ 	Panic*	link;		// link to earlier panic
+ 	Defer*	defer;		// current executing defer
++	uintptr	argp;		// pointer to arguments of deferred call, for recover
++	uint32	outerwrap;	// outer gp->panicwrap
+ 	bool	recovered;	// whether this panic is over
+ 	bool	aborted;	// the panic was aborted
+ };
+@@ -1015,8 +1016,6 @@ void	runtime·printcomplex(Complex128);
+ /*
+  * runtime go-called
+  */
+-void	runtime·newstackcall(FuncVal*, byte*, uint32);
+-void	reflect·call(FuncVal*, byte*, uint32, uint32);
+ void	runtime·gopanic(Eface);
+ void	runtime·panicindex(void);
+ void	runtime·panicslice(void);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index f0861e4085..facf0c5e82 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -25,6 +25,8 @@ enum
+ 	StackFaultOnFree = 0,	// old stacks are mapped noaccess to detect use after free
+ 
+ 	StackCache = 1,
++	
++	StackCopyAlways = 1,	// expect to be able to copy stacks 100% of the time
+ };
+ 
+ // Global pool of spans that have free stacks.
+@@ -324,6 +326,9 @@ runtime·oldstack(void)
+ 	int64 goid;
+ 	int32 oldstatus;
+ 
++	if(StackCopyAlways)
++		runtime·throw("unexpected call to oldstack");
++
+ 	gp = g->m->curg;
+ 	top = (Stktop*)gp->stackbase;
+ 	if(top == nil)
+@@ -442,14 +447,14 @@ checkframecopy(Stkframe *frame, void *arg)
+ 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+ 		if(stackmap == nil) {
+ 			cinfo->frames = -1;
+-			if(StackDebug >= 1)
+-				runtime·printf("copystack: no locals info for %s\n", runtime·funcname(f));
++			if(StackDebug >= 1 || StackCopyAlways)
++				runtime·printf("runtime: copystack: no locals info for %s\n", runtime·funcname(f));
+ 			return false;
+ 		}
+ 		if(stackmap->n <= 0) {
+ 			cinfo->frames = -1;
+-			if(StackDebug >= 1)
+-				runtime·printf("copystack: locals size info only for %s\n", runtime·funcname(f));
++			if(StackDebug >= 1 || StackCopyAlways)
++				runtime·printf("runtime: copystack: locals size info only for %s\n", runtime·funcname(f));
+ 			return false;
+ 		}
+ 	}
+@@ -457,8 +462,8 @@ checkframecopy(Stkframe *frame, void *arg)
+ 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+ 		if(stackmap == nil) {
+ 			cinfo->frames = -1;
+-			if(StackDebug >= 1)
+-				runtime·printf("copystack: no arg info for %s\n", runtime·funcname(f));
++			if(StackDebug >= 1 || StackCopyAlways)
++				runtime·printf("runtime: copystack: no arg info for %s\n", runtime·funcname(f));
+ 			return false;
+ 		}
+ 	}
+@@ -510,8 +515,8 @@ copyabletopsegment(G *gp)
+ 			continue;
+ 		f = runtime·findfunc((uintptr)fn->fn);
+ 		if(f == nil) {
+-			if(StackDebug >= 1)
+-				runtime·printf("copystack: no func for deferred pc %p\n", fn->fn);
++			if(StackDebug >= 1 || StackCopyAlways)
++				runtime·printf("runtime: copystack: no func for deferred pc %p\n", fn->fn);
+ 			return -1;
+ 		}
+ 
+@@ -522,14 +527,14 @@ copyabletopsegment(G *gp)
+ 		// C (particularly, cgo) lies to us.  See issue 7695.
+ 		stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+ 		if(stackmap == nil || stackmap->n <= 0) {
+-			if(StackDebug >= 1)
+-				runtime·printf("copystack: no arg info for deferred %s\n", runtime·funcname(f));
++			if(StackDebug >= 1 || StackCopyAlways)
++				runtime·printf("runtime: copystack: no arg info for deferred %s\n", runtime·funcname(f));
+ 			return -1;
+ 		}
+ 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+ 		if(stackmap == nil || stackmap->n <= 0) {
+-			if(StackDebug >= 1)
+-				runtime·printf("copystack: no local info for deferred %s\n", runtime·funcname(f));
++			if(StackDebug >= 1 || StackCopyAlways)
++				runtime·printf("runtime: copystack: no local info for deferred %s\n", runtime·funcname(f));
+ 			return -1;
+ 		}
+ 
+@@ -755,20 +760,17 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
+ static void
+ adjustpanics(G *gp, AdjustInfo *adjinfo)
+ {
+-	Panic *p;
++	Panic *p, **l;
+ 
+ 	// only the topmost panic is on the current stack
+-	p = gp->panic;
+-	if(p == nil)
+-		return;
+-	if(p->link != nil) {
+-		// only the topmost panic can be on the current stack
+-		// (because panic runs defers on a new stack)
+-		if(adjinfo->oldstk <= (byte*)p->link && (byte*)p->link < adjinfo->oldbase)
+-			runtime·throw("two panics on one stack");
++	for(l = &gp->panic; (p = *l) != nil; ) {
++		if(adjinfo->oldstk <= (byte*)p && (byte*)p < adjinfo->oldbase)
++			*l = (Panic*)((byte*)p + adjinfo->delta);
++		l = &p->link;
++		
++		if(adjinfo->oldstk <= (byte*)p->argp && (byte*)p->argp < adjinfo->oldbase)
++			p->argp += adjinfo->delta;
+ 	}
+-	if(adjinfo->oldstk <= (byte*)p && (byte*)p < adjinfo->oldbase)
+-		gp->panic = (Panic*)((byte*)p + adjinfo->delta);
+ }
+ 
+ static void
+@@ -867,11 +869,10 @@ runtime·round2(int32 x)
+ 	return 1 << s;
+ }
+ 
+-// Called from runtime·newstackcall or from runtime·morestack when a new
+-// stack segment is needed.  Allocate a new stack big enough for
+-// m->moreframesize bytes, copy m->moreargsize bytes to the new frame,
+-// and then act as though runtime·lessstack called the function at
+-// m->morepc.
++// Called from runtime·morestack when a new stack segment is needed.
++// Allocate a new stack big enough for m->moreframesize bytes,
++// copy m->moreargsize bytes to the new frame,
++// and then act as though runtime·lessstack called the function at m->morepc.
+ //
+ // g->atomicstatus will be Grunning, Gsyscall or Gscanrunning, Gscansyscall upon entry. 
+ // If the GC is trying to stop this g then it will set preemptscan to true.
+@@ -879,14 +880,13 @@ void
+ runtime·newstack(void)
+ {
+ 	int32 framesize, argsize, oldstatus, oldsize, newsize, nframes;
+-	Stktop *top, *oldtop;
++	Stktop *top;
+ 	byte *stk, *oldstk, *oldbase;
+ 	uintptr sp;
+ 	uintptr *src, *dst, *dstend;
+ 	G *gp;
+ 	Gobuf label, morebuf;
+ 	void *moreargp;
+-	bool newstackcall;
+ 
+ 	if(g->m->forkstackguard)
+ 		runtime·throw("split stack after fork");
+@@ -894,6 +894,8 @@ runtime·newstack(void)
+ 		runtime·printf("runtime: newstack called from g=%p\n"
+ 			"\tm=%p m->curg=%p m->g0=%p m->gsignal=%p\n",
+ 			g->m->morebuf.g, g->m, g->m->curg, g->m->g0, g->m->gsignal);
++		morebuf = g->m->morebuf;
++		runtime·traceback(morebuf.pc, morebuf.sp, morebuf.lr, morebuf.g);
+ 		runtime·throw("runtime: wrong goroutine in newstack");
+ 	}
+ 	if(g->throwsplit)
+@@ -917,13 +919,8 @@ runtime·newstack(void)
+ 
+ 	runtime·casgstatus(gp, oldstatus, Gwaiting); // oldstatus is not in a Gscan status
+ 	gp->waitreason = runtime·gostringnocopy((byte*)"stack growth");
+-	newstackcall = framesize==1;
+-	if(newstackcall)
+-		framesize = 0;
+ 
+-	// For newstackcall the context already points to beginning of runtime·newstackcall.
+-	if(!newstackcall)
+-		runtime·rewindmorestack(&gp->sched);
++	runtime·rewindmorestack(&gp->sched);
+ 
+ 	if(gp->stackbase == 0)
+ 		runtime·throw("nil stackbase");
+@@ -1008,6 +1005,9 @@ runtime·newstack(void)
+ 		// end of C code to trigger a copy as soon as C code exits.  That way, we'll
+ 		// have stack available if we get this deep again.
+ 	}
++	
++	if(StackCopyAlways)
++		runtime·throw("split stack not allowed");
+ 
+ 	// allocate new segment.
+ 	framesize += argsize;
+@@ -1033,17 +1033,6 @@ runtime·newstack(void)
+ 	top->argp = moreargp;
+ 	top->argsize = argsize;
+ 
+-	// copy flag from panic
+-	top->panic = gp->ispanic;
+-	gp->ispanic = false;
+-	
+-	// if this isn't a panic, maybe we're splitting the stack for a panic.
+-	// if we're splitting in the top frame, propagate the panic flag
+-	// forward so that recover will know we're in a panic.
+-	oldtop = (Stktop*)top->stackbase;
+-	if(oldtop != nil && oldtop->panic && top->argp == (byte*)oldtop - oldtop->argsize - gp->panicwrap)
+-		top->panic = true;
+-
+ 	top->panicwrap = gp->panicwrap;
+ 	gp->panicwrap = 0;
+ 
+@@ -1060,6 +1049,7 @@ runtime·newstack(void)
+ 		while(dst < dstend)
+ 			*dst++ = *src++;
+ 	}
++	
+ 	if(thechar == '5') {
+ 		// caller would have saved its LR below args.
+ 		sp -= sizeof(void*);
+@@ -1072,12 +1062,8 @@ runtime·newstack(void)
+ 	label.sp = sp;
+ 	label.pc = (uintptr)runtime·lessstack;
+ 	label.g = g->m->curg;
+-	if(newstackcall)
+-		runtime·gostartcallfn(&label, (FuncVal*)g->m->cret);
+-	else {
+-		runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
+-		gp->sched.ctxt = nil;
+-	}
++	runtime·gostartcall(&label, (void(*)(void))gp->sched.pc, gp->sched.ctxt);
++	gp->sched.ctxt = nil;
+ 	runtime·casgstatus(gp, Gwaiting, oldstatus); // oldstatus is Grunning or Gsyscall
+ 	runtime·gogo(&label);
+ 
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 7ed4aaa559..c97831a7c4 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -171,8 +171,7 @@ func cputicks() int64
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+ func munmap(addr unsafe.Pointer, n uintptr)
+ func madvise(addr unsafe.Pointer, n uintptr, flags int32)
+-func newstackcall(fv *funcval, addr unsafe.Pointer, size uint32)
+-func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
++func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32, p *_panic)
+ func osyield()
+ func procyield(cycles uint32)
+ func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
+diff --git a/test/fixedbugs/issue4388.go b/test/fixedbugs/issue4388.go
+index 2e052e138d..b18c98bacd 100644
+--- a/test/fixedbugs/issue4388.go
++++ b/test/fixedbugs/issue4388.go
+@@ -17,18 +17,18 @@ type T struct {
+ }
+ 
+ func f1() {
+-	// The 4 here and below depends on the number of internal runtime frames
++	// The 5 here and below depends on the number of internal runtime frames
+ 	// that sit between a deferred function called during panic and
+ 	// the original frame. If that changes, this test will start failing and
+ 	// the number here will need to be updated.
+-	defer checkLine(4)
++	defer checkLine(5)
+ 	var t *T
+ 	var c io.Closer = t
+ 	c.Close()
+ }
+ 
+ func f2() {
+-	defer checkLine(4)
++	defer checkLine(5)
+ 	var t T
+ 	var c io.Closer = t
+ 	c.Close()
+diff --git a/test/fixedbugs/issue5856.go b/test/fixedbugs/issue5856.go
+index 35cadf8c9e..78ca3b9f6a 100644
+--- a/test/fixedbugs/issue5856.go
++++ b/test/fixedbugs/issue5856.go
+@@ -29,7 +29,7 @@ func f() {
+ }
+ 
+ func g() {
+-	_, file, line, _ := runtime.Caller(2)
++	_, file, line, _ := runtime.Caller(3)
+ 	if !strings.HasSuffix(file, "issue5856.go") || line != 28 {
+ 		fmt.Printf("BUG: defer called from %s:%d, want issue5856.go:28\n", file, line)
+ 		os.Exit(1)

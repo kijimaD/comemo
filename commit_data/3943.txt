@@ -10,7 +10,7 @@ Date:   Mon Nov 9 23:11:36 2009 -0800
     
     R=r
     http://go/go-review/1026037
-
+---
  src/run.bash                   |  3 +++
  test/golden.out                | 60 ------------------------------------------
  test/nilptr/arrayindex.go      |  3 ++-
@@ -25,3 +25,213 @@ Date:   Mon Nov 9 23:11:36 2009 -0800
  test/nilptr/structfieldaddr.go |  3 ++-
  test/run                       |  3 +++
  13 files changed, 26 insertions(+), 70 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 9f1947c1da..c13eb22189 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -5,6 +5,9 @@
+ 
+ set -e
+ 
++# no core files, please
++ulimit -c 0
++
+ xcd() {
+ 	echo
+ 	echo --- cd $1
+diff --git a/test/golden.out b/test/golden.out
+index a7dcd090a2..7a752e0a5a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -94,66 +94,6 @@ panic PC=xxx
+ 
+ == nilptr/
+ 
+-=========== nilptr/arrayindex.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+-=========== nilptr/arrayindex1.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+-=========== nilptr/arraytoslice.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+-=========== nilptr/arraytoslice1.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+-=========== nilptr/arraytoslice2.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+-=========== nilptr/slicearray.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+-=========== nilptr/structfield.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+-=========== nilptr/structfield1.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+-=========== nilptr/structfield2.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+-=========== nilptr/structfieldaddr.go
+-SIGSEGV: segmentation violation
+-Faulting address: 0x0
+-pc: xxx
+-
+-
+ == fixedbugs/
+ 
+ =========== fixedbugs/bug016.go
+diff --git a/test/nilptr/arrayindex.go b/test/nilptr/arrayindex.go
+index 0bc6bf4a89..c42dedee81 100644
+--- a/test/nilptr/arrayindex.go
++++ b/test/nilptr/arrayindex.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr/arrayindex1.go b/test/nilptr/arrayindex1.go
+index ac72b789d6..59126f82d5 100644
+--- a/test/nilptr/arrayindex1.go
++++ b/test/nilptr/arrayindex1.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr/arraytoslice.go b/test/nilptr/arraytoslice.go
+index 07ecfe01f9..4864d68552 100644
+--- a/test/nilptr/arraytoslice.go
++++ b/test/nilptr/arraytoslice.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr/arraytoslice1.go b/test/nilptr/arraytoslice1.go
+index 78c0d8538d..1a479dcdb2 100644
+--- a/test/nilptr/arraytoslice1.go
++++ b/test/nilptr/arraytoslice1.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr/arraytoslice2.go b/test/nilptr/arraytoslice2.go
+index 52a238eb29..0990b899dd 100644
+--- a/test/nilptr/arraytoslice2.go
++++ b/test/nilptr/arraytoslice2.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr/slicearray.go b/test/nilptr/slicearray.go
+index d1d2a25d99..7a156b5e64 100644
+--- a/test/nilptr/slicearray.go
++++ b/test/nilptr/slicearray.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr/structfield.go b/test/nilptr/structfield.go
+index 51da7a9a57..22db500d7d 100644
+--- a/test/nilptr/structfield.go
++++ b/test/nilptr/structfield.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr/structfield1.go b/test/nilptr/structfield1.go
+index 5390a643d6..520136805f 100644
+--- a/test/nilptr/structfield1.go
++++ b/test/nilptr/structfield1.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr/structfield2.go b/test/nilptr/structfield2.go
+index f11e3df67d..a0a552c933 100644
+--- a/test/nilptr/structfield2.go
++++ b/test/nilptr/structfield2.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr/structfieldaddr.go b/test/nilptr/structfieldaddr.go
+index 5ac5deeb6b..32e9f79315 100644
+--- a/test/nilptr/structfieldaddr.go
++++ b/test/nilptr/structfieldaddr.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should fail)
++// $G $D/$F.go && $L $F.$A &&
++//	((! sh -c ./$A.out) >/dev/null 2>&1 || echo BUG: should fail)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run b/test/run
+index 4310348814..93382d17cc 100755
+--- a/test/run
++++ b/test/run
+@@ -42,6 +42,9 @@ TMP2FILE=/tmp/gotest2-$$-$USER
+ # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
+ ulimit -v 4000000
+ 
++# no core files please
++ulimit -c 0
++
+ true >pass.out >times.out
+ 
+ for dir in . ken chan interface nilptr fixedbugs bugs

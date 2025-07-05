@@ -11,9 +11,74 @@ Date:   Tue Aug 12 12:55:12 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/118690044
-
+---
  misc/cgo/errors/issue7757.go | 14 ++++++++++++++
  misc/cgo/errors/test.bash    |  1 +
  src/cmd/cgo/gcc.go           |  8 +++++++-
  src/cmd/cgo/out.go           |  2 +-
  4 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/errors/issue7757.go b/misc/cgo/errors/issue7757.go
+new file mode 100644
+index 0000000000..5eafd22e8a
+--- /dev/null
++++ b/misc/cgo/errors/issue7757.go
+@@ -0,0 +1,14 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++void foo() {}
++*/
++import "C"
++
++func main() {
++	C.foo = C.foo // ERROR HERE
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index f0f60c8445..e5bf47a0dd 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -27,6 +27,7 @@ check() {
+ check err1.go
+ check err2.go
+ check err3.go
++check issue7757.go
+ 
+ rm -rf errs _obj
+ exit 0
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b79725ab01..26def654d0 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -650,7 +650,13 @@ func (p *Package) rewriteRef(f *File) {
+ 					f.Name[fpName] = name
+ 				}
+ 				r.Name = name
+-				expr = ast.NewIdent(name.Mangle)
++				// Rewrite into call to _Cgo_ptr to prevent assignments.  The _Cgo_ptr
++				// function is defined in out.go and simply returns its argument. See
++				// issue 7757.
++				expr = &ast.CallExpr{
++					Fun:  &ast.Ident{NamePos: (*r.Expr).Pos(), Name: "_Cgo_ptr"},
++					Args: []ast.Expr{ast.NewIdent(name.Mangle)},
++				}
+ 			} else if r.Name.Kind == "type" {
+ 				// Okay - might be new(T)
+ 				expr = r.Name.Type.Go
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 1ef78b757c..6322e0604a 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -64,7 +64,7 @@ func (p *Package) writeDefs() {
+ 	if !*gccgo && *importRuntimeCgo {
+ 		fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
+ 	}
+-	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
++	fmt.Fprintf(fgo2, "func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }\n\n")
+ 	if *importSyscall {
+ 		fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int32) { *dst = syscall.Errno(x) }\n")
+ 	}

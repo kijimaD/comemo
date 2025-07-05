@@ -12,6 +12,19 @@ Date:   Tue Nov 6 19:43:55 2018 +0100
     Change-Id: I026ec88c334549a957a692c1652a860c57e23dae
     Reviewed-on: https://go-review.googlesource.com/c/147837
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/fmt_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index eaa2aa8dbd..05d13b58a5 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -660,6 +660,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/ssa.rbrank %d":              "",
+ 	"cmd/compile/internal/ssa.regMask %d":             "",
+ 	"cmd/compile/internal/ssa.register %d":            "",
++	"cmd/compile/internal/syntax.Error %q":            "",
+ 	"cmd/compile/internal/syntax.Expr %#v":            "",
+ 	"cmd/compile/internal/syntax.Node %T":             "",
+ 	"cmd/compile/internal/syntax.Operator %s":         "",

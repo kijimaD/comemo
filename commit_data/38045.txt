@@ -12,9 +12,74 @@ Date:   Thu Sep 27 08:46:08 2018 -0400
     Change-Id: Idbf0bdea24174808cddcb69974dab820eb13e521
     Reviewed-on: https://go-review.googlesource.com/138075
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue27836.dir/Äfoo.go  | 13 +++++++++++++
  test/fixedbugs/issue27836.dir/Ämain.go | 13 +++++++++++++
  test/fixedbugs/issue27836.go           |  7 +++++++
  test/run.go                            |  2 +-
  4 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue27836.dir/Äfoo.go b/test/fixedbugs/issue27836.dir/Äfoo.go
+new file mode 100644
+index 0000000000..8b6a814c3c
+--- /dev/null
++++ b/test/fixedbugs/issue27836.dir/Äfoo.go
+@@ -0,0 +1,13 @@
++package Äfoo
++
++var ÄbarV int = 101
++
++func Äbar(x int) int {
++	defer func() { ÄbarV += 3 }()
++	return Äblix(x)
++}
++
++func Äblix(x int) int {
++	defer func() { ÄbarV += 9 }()
++	return ÄbarV + x
++}
+diff --git a/test/fixedbugs/issue27836.dir/Ämain.go b/test/fixedbugs/issue27836.dir/Ämain.go
+new file mode 100644
+index 0000000000..25d2c71fc0
+--- /dev/null
++++ b/test/fixedbugs/issue27836.dir/Ämain.go
+@@ -0,0 +1,13 @@
++package main
++
++import (
++	"fmt"
++
++	"./Äfoo"
++	Äblix "./Äfoo"
++)
++
++func main() {
++	fmt.Printf("Äfoo.Äbar(33) returns %v\n", Äfoo.Äbar(33))
++	fmt.Printf("Äblix.Äbar(33) returns %v\n", Äblix.Äbar(33))
++}
+diff --git a/test/fixedbugs/issue27836.go b/test/fixedbugs/issue27836.go
+new file mode 100644
+index 0000000000..128cf9d06a
+--- /dev/null
++++ b/test/fixedbugs/issue27836.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/run.go b/test/run.go
+index d0dccb4f23..3af6d1466b 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -321,7 +321,7 @@ func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
+ 	return
+ }
+ 
+-var packageRE = regexp.MustCompile(`(?m)^package (\w+)`)
++var packageRE = regexp.MustCompile(`(?m)^package ([\p{Lu}\p{Ll}\w]+)`)
+ 
+ // If singlefilepkgs is set, each file is considered a separate package
+ // even if the package names are the same.

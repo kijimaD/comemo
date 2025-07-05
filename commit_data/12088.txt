@@ -7,8 +7,49 @@ Date:   Tue Feb 21 07:32:20 2012 +0900
     R=rsc, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5689046
-
+---
  src/pkg/runtime/sys_freebsd_386.s   | 4 ++++
  src/pkg/runtime/sys_freebsd_amd64.s | 4 ++++
  src/pkg/runtime/thread_freebsd.c    | 6 ------
  3 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index d8dc40d8f3..9f31e253f1 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -299,5 +299,9 @@ TEXT runtime·sysctl(SB),7,$28
+ 	MOVL	$0, AX
+ 	RET
+ 
++TEXT runtime·osyield(SB),7,$-4
++	MOVL	$331, AX		// sys_sched_yield
++	INT	$0x80
++	RET
+ 
+ GLOBL runtime·tlsoffset(SB),$4
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index dcd55855a9..b14b66556c 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -229,3 +229,7 @@ TEXT runtime·sysctl(SB),7,$0
+ 	MOVL	$0, AX
+ 	RET
+ 
++TEXT runtime·osyield(SB),7,$-4
++	MOVL	$331, AX		// sys_sched_yield
++	INT	$0x80
++	RET
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 1c48865a23..06e3a59d00 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -154,9 +154,3 @@ runtime·sigpanic(void)
+ 	}
+ 	runtime·panicstring(runtime·sigtab[g->sig].name);
+ }
+-
+-// TODO: fill this in properly.
+-void
+-runtime·osyield(void)
+-{
+-}

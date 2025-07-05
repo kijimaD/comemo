@@ -21,6 +21,55 @@ Date:   Wed Oct 28 20:54:27 2020 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/internal/obj/ppc64/obj9.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 3ab19de602..fddf552156 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -32,6 +32,7 @@ package ppc64
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -672,6 +673,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			// save the link register and update the stack, since that code is
+ 			// called directly from C/C++ and can't clobber REGTMP (R31).
+ 			if autosize != 0 && c.cursym.Name != "runtime.racecallbackthunk" {
++				var prologueEnd *obj.Prog
+ 				// Save the link register and update the SP.  MOVDU is used unless
+ 				// the frame size is too large.  The link register must be saved
+ 				// even for non-empty leaf functions so that traceback works.
+@@ -685,6 +687,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q.To.Type = obj.TYPE_REG
+ 					q.To.Reg = REGTMP
+ 
++					prologueEnd = q
++
+ 					q = obj.Appendp(q, c.newprog)
+ 					q.As = AMOVDU
+ 					q.Pos = p.Pos
+@@ -720,6 +724,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q.To.Offset = int64(-autosize)
+ 					q.To.Reg = REGSP
+ 
++					prologueEnd = q
++
+ 					q = obj.Appendp(q, c.newprog)
+ 					q.As = AADD
+ 					q.Pos = p.Pos
+@@ -730,8 +736,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q.Spadj = +autosize
+ 
+ 					q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+-
+ 				}
++				prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
+ 			} else if c.cursym.Func().Text.Mark&LEAF == 0 {
+ 				// A very few functions that do not return to their caller
+ 				// (e.g. gogo) are not identified as leaves but still have

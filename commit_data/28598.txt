@@ -15,8 +15,86 @@ Date:   Wed Jun 1 21:32:47 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/errors/issue13830.go | 26 ++++++++++++++++++++++++++
  misc/cgo/errors/test.bash     |  7 ++++---
  src/cmd/cgo/out.go            |  2 +-
  3 files changed, 31 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/errors/issue13830.go b/misc/cgo/errors/issue13830.go
+new file mode 100644
+index 0000000000..ac20c82b81
+--- /dev/null
++++ b/misc/cgo/errors/issue13830.go
+@@ -0,0 +1,26 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// cgo converts C void* to Go unsafe.Pointer, so despite appearances C
++// void** is Go *unsafe.Pointer. This test verifies that we detect the
++// problem at build time.
++
++package main
++
++// typedef void v;
++// void F(v** p) {}
++import "C"
++
++import "unsafe"
++
++type v [0]byte
++
++func f(p **v) {
++	C.F((**C.v)(unsafe.Pointer(p))) // ERROR HERE
++}
++
++func main() {
++	var p *v
++	f(&p)
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index 643d038205..429cec7627 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -18,16 +18,16 @@ expect() {
+ 	file=$1
+ 	shift
+ 	if go build $file >errs 2>&1; then
+-		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail but it succeeded
++		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail on $file but it succeeded
+ 		exit 1
+ 	fi
+ 	if ! test -s errs; then
+-		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output but saw none
++		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output for $file but saw none
+ 		exit 1
+ 	fi
+ 	for error; do
+ 		if ! fgrep $error errs >/dev/null 2>&1; then
+-			echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output to contain \"$error\" but saw:
++			echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output for $file to contain \"$error\" but saw:
+ 			cat 1>&2 errs
+ 			exit 1
+ 		fi
+@@ -44,6 +44,7 @@ check issue11097b.go
+ expect issue13129.go C.ushort
+ check issue13423.go
+ expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulonglong C.complexfloat C.complexdouble
++check issue13830.go
+ 
+ if ! go build issue14669.go; then
+ 	exit 1
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 13ee0c4ca7..294c27994e 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -113,7 +113,7 @@ func (p *Package) writeDefs() {
+ 
+ 	for i, t := range p.CgoChecks {
+ 		n := p.unsafeCheckPointerNameIndex(i)
+-		fmt.Fprintf(fgo2, "\nfunc %s(p interface{}, args ...interface{}) %s {\n", n, t)
++		fmt.Fprintf(fgo2, "\nfunc %s(p %s, args ...interface{}) %s {\n", n, t, t)
+ 		fmt.Fprintf(fgo2, "\treturn _cgoCheckPointer(p, args...).(%s)\n", t)
+ 		fmt.Fprintf(fgo2, "}\n")
+ 	}

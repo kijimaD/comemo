@@ -24,7 +24,7 @@ Date:   Wed Oct 28 13:35:57 2020 -0700
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/syscall/syscall_linux.go         |  8 +++--
  src/syscall/syscall_linux_386.go     |  6 ++++
  src/syscall/syscall_linux_amd64.go   |  6 ++++
@@ -37,3 +37,296 @@ Date:   Wed Oct 28 13:35:57 2020 -0700
  src/syscall/syscall_linux_s390x.go   |  6 ++++
  src/syscall/syscall_linux_test.go    | 60 +++++++++++++++++++-----------------
  11 files changed, 91 insertions(+), 31 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 54e5cfc2f2..3041f6f8fc 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -1003,7 +1003,9 @@ func (pc *allThreadsCaller) doSyscall(initial bool) bool {
+ 		pc.r1 = r1
+ 		pc.r2 = r2
+ 		pc.err = err
+-	} else if pc.r1 != r1 || pc.r2 != r2 || pc.err != err {
++	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
++		print("trap:", pc.trap, ", a123=[", pc.a1, ",", pc.a2, ",", pc.a3, "]\n")
++		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
+ 		panic("AllThreadsSyscall results differ between threads; runtime corrupted")
+ 	}
+ 	return err == 0
+@@ -1019,7 +1021,9 @@ func (pc *allThreadsCaller) doSyscall6(initial bool) bool {
+ 		pc.r1 = r1
+ 		pc.r2 = r2
+ 		pc.err = err
+-	} else if pc.r1 != r1 || pc.r2 != r2 || pc.err != err {
++	} else if pc.r1 != r1 || (archHonorsR2 && pc.r2 != r2) || pc.err != err {
++		print("trap:", pc.trap, ", a123456=[", pc.a1, ",", pc.a2, ",", pc.a3, ",", pc.a4, ",", pc.a5, ",", pc.a6, "]\n")
++		print("results: got {r1=", r1, ",r2=", r2, ",err=", err, "}, want {r1=", pc.r1, ",r2=", pc.r2, ",r3=", pc.err, "}\n")
+ 		panic("AllThreadsSyscall6 results differ between threads; runtime corrupted")
+ 	}
+ 	return err == 0
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index dd5f2735d8..ed52647403 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -6,6 +6,12 @@ package syscall
+ 
+ import "unsafe"
+ 
++// archHonorsR2 captures the fact that r2 is honored by the
++// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
++// syscall(trap, ...).  Not all architectures define r2 in their
++// ABI. See "man syscall".
++const archHonorsR2 = true
++
+ const _SYS_setgroups = SYS_SETGROUPS32
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 5518f44a07..5df3f796d1 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -4,6 +4,12 @@
+ 
+ package syscall
+ 
++// archHonorsR2 captures the fact that r2 is honored by the
++// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
++// syscall(trap, ...).  Not all architectures define r2 in their
++// ABI. See "man syscall".
++const archHonorsR2 = true
++
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index 61133a59fb..4a3729f898 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -6,6 +6,12 @@ package syscall
+ 
+ import "unsafe"
+ 
++// archHonorsR2 captures the fact that r2 is honored by the
++// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
++// syscall(trap, ...).  Not all architectures define r2 in their
++// ABI. See "man syscall". [EABI assumed.]
++const archHonorsR2 = true
++
+ const _SYS_setgroups = SYS_SETGROUPS32
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 16382102c8..f575c84c93 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -6,6 +6,12 @@ package syscall
+ 
+ import "unsafe"
+ 
++// archHonorsR2 captures the fact that r2 is honored by the
++// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
++// syscall(trap, ...).  Not all architectures define r2 in their
++// ABI. See "man syscall".
++const archHonorsR2 = true
++
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ func EpollCreate(size int) (fd int, err error) {
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 4986baa319..ab25b7be6f 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -7,6 +7,12 @@
+ 
+ package syscall
+ 
++// archHonorsR2 captures the fact that r2 is honored by the
++// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
++// syscall(trap, ...).  Not all architectures define r2 in their
++// ABI. See "man syscall".
++const archHonorsR2 = true
++
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 5126b0e43c..377946fc92 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -9,6 +9,12 @@ package syscall
+ 
+ import "unsafe"
+ 
++// archHonorsR2 captures the fact that r2 is honored by the
++// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
++// syscall(trap, ...).  Not all architectures define r2 in their
++// ABI. See "man syscall".
++const archHonorsR2 = true
++
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index bb2d904b5f..45bf667407 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -7,6 +7,12 @@
+ 
+ package syscall
+ 
++// archHonorsR2 captures the fact that r2 is honored by the
++// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
++// syscall(trap, ...).  Not all architectures define r2 in their
++// ABI. See "man syscall".
++const archHonorsR2 = false
++
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index aa1014f8ae..2a0fe64d25 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -6,6 +6,12 @@ package syscall
+ 
+ import "unsafe"
+ 
++// archHonorsR2 captures the fact that r2 is honored by the
++// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
++// syscall(trap, ...).  Not all architectures define r2 in their
++// ABI. See "man syscall".
++const archHonorsR2 = true
++
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ func EpollCreate(size int) (fd int, err error) {
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index dc97d5c65a..0f6f6277bb 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -6,6 +6,12 @@ package syscall
+ 
+ import "unsafe"
+ 
++// archHonorsR2 captures the fact that r2 is honored by the
++// runtime.GOARCH.  Syscall conventions are generally r1, r2, err :=
++// syscall(trap, ...).  Not all architectures define r2 in their
++// ABI. See "man syscall".
++const archHonorsR2 = true
++
+ const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index 0742ef5b07..41ae8cc5a1 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -410,9 +410,6 @@ const (
+ // syscalls that execute on all OSThreads - with which to support
+ // POSIX semantics for security state changes.
+ func TestAllThreadsSyscall(t *testing.T) {
+-	if runtime.GOARCH == "ppc64" {
+-		t.Skip("skipping on linux/ppc64; see issue #42178")
+-	}
+ 	if _, _, err := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, 0, 0); err == syscall.ENOTSUP {
+ 		t.Skip("AllThreadsSyscall disabled with cgo")
+ 	}
+@@ -544,7 +541,7 @@ func TestAllThreadsSyscall(t *testing.T) {
+ // compareStatus is used to confirm the contents of the thread
+ // specific status files match expectations.
+ func compareStatus(filter, expect string) error {
+-	expected := filter + "\t" + expect
++	expected := filter + expect
+ 	pid := syscall.Getpid()
+ 	fs, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/task", pid))
+ 	if err != nil {
+@@ -553,14 +550,22 @@ func compareStatus(filter, expect string) error {
+ 	for _, f := range fs {
+ 		tf := fmt.Sprintf("/proc/%s/status", f.Name())
+ 		d, err := ioutil.ReadFile(tf)
++		if os.IsNotExist(err) {
++			// We are racing against threads dying, which
++			// is out of our control, so ignore the
++			// missing file and skip to the next one.
++			continue
++		}
+ 		if err != nil {
+ 			return fmt.Errorf("unable to read %q: %v", tf, err)
+ 		}
+ 		lines := strings.Split(string(d), "\n")
+ 		for _, line := range lines {
++			// Different kernel vintages pad differently.
++			line = strings.TrimSpace(line)
+ 			if strings.HasPrefix(line, filter) {
+ 				if line != expected {
+-					return fmt.Errorf("%s %s (bad)\n", tf, line)
++					return fmt.Errorf("%q got:%q want:%q (bad)\n", tf, line, expected)
+ 				}
+ 				break
+ 			}
+@@ -580,9 +585,6 @@ func compareStatus(filter, expect string) error {
+ // the syscalls. Care should be taken to mirror any enhancements to
+ // this test here in that file too.
+ func TestSetuidEtc(t *testing.T) {
+-	if runtime.GOARCH == "ppc64" {
+-		t.Skip("skipping on linux/ppc64; see issue #42178")
+-	}
+ 	if syscall.Getuid() != 0 {
+ 		t.Skip("skipping root only test")
+ 	}
+@@ -591,34 +593,34 @@ func TestSetuidEtc(t *testing.T) {
+ 		fn             func() error
+ 		filter, expect string
+ 	}{
+-		{call: "Setegid(1)", fn: func() error { return syscall.Setegid(1) }, filter: "Gid:", expect: "0\t1\t0\t1"},
+-		{call: "Setegid(0)", fn: func() error { return syscall.Setegid(0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++		{call: "Setegid(1)", fn: func() error { return syscall.Setegid(1) }, filter: "Gid:", expect: "\t0\t1\t0\t1"},
++		{call: "Setegid(0)", fn: func() error { return syscall.Setegid(0) }, filter: "Gid:", expect: "\t0\t0\t0\t0"},
+ 
+-		{call: "Seteuid(1)", fn: func() error { return syscall.Seteuid(1) }, filter: "Uid:", expect: "0\t1\t0\t1"},
+-		{call: "Setuid(0)", fn: func() error { return syscall.Setuid(0) }, filter: "Uid:", expect: "0\t0\t0\t0"},
++		{call: "Seteuid(1)", fn: func() error { return syscall.Seteuid(1) }, filter: "Uid:", expect: "\t0\t1\t0\t1"},
++		{call: "Setuid(0)", fn: func() error { return syscall.Setuid(0) }, filter: "Uid:", expect: "\t0\t0\t0\t0"},
+ 
+-		{call: "Setgid(1)", fn: func() error { return syscall.Setgid(1) }, filter: "Gid:", expect: "1\t1\t1\t1"},
+-		{call: "Setgid(0)", fn: func() error { return syscall.Setgid(0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++		{call: "Setgid(1)", fn: func() error { return syscall.Setgid(1) }, filter: "Gid:", expect: "\t1\t1\t1\t1"},
++		{call: "Setgid(0)", fn: func() error { return syscall.Setgid(0) }, filter: "Gid:", expect: "\t0\t0\t0\t0"},
+ 
+-		{call: "Setgroups([]int{0,1,2,3})", fn: func() error { return syscall.Setgroups([]int{0, 1, 2, 3}) }, filter: "Groups:", expect: "0 1 2 3 "},
+-		{call: "Setgroups(nil)", fn: func() error { return syscall.Setgroups(nil) }, filter: "Groups:", expect: " "},
+-		{call: "Setgroups([]int{0})", fn: func() error { return syscall.Setgroups([]int{0}) }, filter: "Groups:", expect: "0 "},
++		{call: "Setgroups([]int{0,1,2,3})", fn: func() error { return syscall.Setgroups([]int{0, 1, 2, 3}) }, filter: "Groups:", expect: "\t0 1 2 3"},
++		{call: "Setgroups(nil)", fn: func() error { return syscall.Setgroups(nil) }, filter: "Groups:", expect: ""},
++		{call: "Setgroups([]int{0})", fn: func() error { return syscall.Setgroups([]int{0}) }, filter: "Groups:", expect: "\t0"},
+ 
+-		{call: "Setregid(101,0)", fn: func() error { return syscall.Setregid(101, 0) }, filter: "Gid:", expect: "101\t0\t0\t0"},
+-		{call: "Setregid(0,102)", fn: func() error { return syscall.Setregid(0, 102) }, filter: "Gid:", expect: "0\t102\t102\t102"},
+-		{call: "Setregid(0,0)", fn: func() error { return syscall.Setregid(0, 0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++		{call: "Setregid(101,0)", fn: func() error { return syscall.Setregid(101, 0) }, filter: "Gid:", expect: "\t101\t0\t0\t0"},
++		{call: "Setregid(0,102)", fn: func() error { return syscall.Setregid(0, 102) }, filter: "Gid:", expect: "\t0\t102\t102\t102"},
++		{call: "Setregid(0,0)", fn: func() error { return syscall.Setregid(0, 0) }, filter: "Gid:", expect: "\t0\t0\t0\t0"},
+ 
+-		{call: "Setreuid(1,0)", fn: func() error { return syscall.Setreuid(1, 0) }, filter: "Uid:", expect: "1\t0\t0\t0"},
+-		{call: "Setreuid(0,2)", fn: func() error { return syscall.Setreuid(0, 2) }, filter: "Uid:", expect: "0\t2\t2\t2"},
+-		{call: "Setreuid(0,0)", fn: func() error { return syscall.Setreuid(0, 0) }, filter: "Uid:", expect: "0\t0\t0\t0"},
++		{call: "Setreuid(1,0)", fn: func() error { return syscall.Setreuid(1, 0) }, filter: "Uid:", expect: "\t1\t0\t0\t0"},
++		{call: "Setreuid(0,2)", fn: func() error { return syscall.Setreuid(0, 2) }, filter: "Uid:", expect: "\t0\t2\t2\t2"},
++		{call: "Setreuid(0,0)", fn: func() error { return syscall.Setreuid(0, 0) }, filter: "Uid:", expect: "\t0\t0\t0\t0"},
+ 
+-		{call: "Setresgid(101,0,102)", fn: func() error { return syscall.Setresgid(101, 0, 102) }, filter: "Gid:", expect: "101\t0\t102\t0"},
+-		{call: "Setresgid(0,102,101)", fn: func() error { return syscall.Setresgid(0, 102, 101) }, filter: "Gid:", expect: "0\t102\t101\t102"},
+-		{call: "Setresgid(0,0,0)", fn: func() error { return syscall.Setresgid(0, 0, 0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++		{call: "Setresgid(101,0,102)", fn: func() error { return syscall.Setresgid(101, 0, 102) }, filter: "Gid:", expect: "\t101\t0\t102\t0"},
++		{call: "Setresgid(0,102,101)", fn: func() error { return syscall.Setresgid(0, 102, 101) }, filter: "Gid:", expect: "\t0\t102\t101\t102"},
++		{call: "Setresgid(0,0,0)", fn: func() error { return syscall.Setresgid(0, 0, 0) }, filter: "Gid:", expect: "\t0\t0\t0\t0"},
+ 
+-		{call: "Setresuid(1,0,2)", fn: func() error { return syscall.Setresuid(1, 0, 2) }, filter: "Uid:", expect: "1\t0\t2\t0"},
+-		{call: "Setresuid(0,2,1)", fn: func() error { return syscall.Setresuid(0, 2, 1) }, filter: "Uid:", expect: "0\t2\t1\t2"},
+-		{call: "Setresuid(0,0,0)", fn: func() error { return syscall.Setresuid(0, 0, 0) }, filter: "Uid:", expect: "0\t0\t0\t0"},
++		{call: "Setresuid(1,0,2)", fn: func() error { return syscall.Setresuid(1, 0, 2) }, filter: "Uid:", expect: "\t1\t0\t2\t0"},
++		{call: "Setresuid(0,2,1)", fn: func() error { return syscall.Setresuid(0, 2, 1) }, filter: "Uid:", expect: "\t0\t2\t1\t2"},
++		{call: "Setresuid(0,0,0)", fn: func() error { return syscall.Setresuid(0, 0, 0) }, filter: "Uid:", expect: "\t0\t0\t0\t0"},
+ 	}
+ 
+ 	for i, v := range vs {

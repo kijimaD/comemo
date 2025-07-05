@@ -16,7 +16,87 @@ Date:   Tue Oct 25 15:44:14 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/vet/structtag.go          | 11 +++++++++--
  src/cmd/vet/testdata/structtag.go | 10 ++++++----
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+index 1b92aaf51b..814bbda594 100644
+--- a/src/cmd/vet/structtag.go
++++ b/src/cmd/vet/structtag.go
+@@ -46,7 +46,7 @@ func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token
+ 
+ 	if err := validateStructTag(tag); err != nil {
+ 		raw, _ := strconv.Unquote(field.Tag.Value) // field.Tag.Value is known to be a quoted string
+-		f.Badf(field.Pos(), "struct field tag %q not compatible with reflect.StructTag.Get: %s", raw, err)
++		f.Badf(field.Pos(), "struct field tag %#q not compatible with reflect.StructTag.Get: %s", raw, err)
+ 	}
+ 
+ 	for _, key := range checkTagDups {
+@@ -91,6 +91,7 @@ var (
+ 	errTagSyntax      = errors.New("bad syntax for struct tag pair")
+ 	errTagKeySyntax   = errors.New("bad syntax for struct tag key")
+ 	errTagValueSyntax = errors.New("bad syntax for struct tag value")
++	errTagSpace       = errors.New("key:\"value\" pairs not separated by spaces")
+ )
+ 
+ // validateStructTag parses the struct tag and returns an error if it is not
+@@ -99,7 +100,13 @@ var (
+ func validateStructTag(tag string) error {
+ 	// This code is based on the StructTag.Get code in package reflect.
+ 
+-	for tag != "" {
++	n := 0
++	for ; tag != ""; n++ {
++		if n > 0 && tag != "" && tag[0] != ' ' {
++			// More restrictive than reflect, but catches likely mistakes
++			// like `x:"foo",y:"bar"`, which parses as `x:"foo" ,y:"bar"` with second key ",y".
++			return errTagSpace
++		}
+ 		// Skip leading space.
+ 		i := 0
+ 		for i < len(tag) && tag[i] == ' ' {
+diff --git a/src/cmd/vet/testdata/structtag.go b/src/cmd/vet/testdata/structtag.go
+index 74c7b541cb..cba990fccd 100644
+--- a/src/cmd/vet/testdata/structtag.go
++++ b/src/cmd/vet/testdata/structtag.go
+@@ -15,6 +15,8 @@ type StructTagTest struct {
+ 	F   int `:"emptykey"`      // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag key"
+ 	G   int `x:"noEndQuote`    // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag value"
+ 	H   int `x:"trunc\x0"`     // ERROR "not compatible with reflect.StructTag.Get: bad syntax for struct tag value"
++	I   int `x:"foo",y:"bar"`  // ERROR "not compatible with reflect.StructTag.Get: key:.value. pairs not separated by spaces"
++	J   int `x:"foo"y:"bar"`   // ERROR "not compatible with reflect.StructTag.Get: key:.value. pairs not separated by spaces"
+ 	OK0 int `x:"y" u:"v" w:""`
+ 	OK1 int `x:"y:z" u:"v" w:""` // note multiple colons.
+ 	OK2 int "k0:\"values contain spaces\" k1:\"literal\ttabs\" k2:\"and\\tescaped\\tabs\""
+@@ -37,12 +39,12 @@ type JSONEmbeddedField struct {
+ 
+ type DuplicateJSONFields struct {
+ 	JSON              int `json:"a"`
+-	DuplicateJSON     int `json:"a"` // ERROR "struct field DuplicateJSON repeats json tag .a. also at testdata/structtag.go:39"
++	DuplicateJSON     int `json:"a"` // ERROR "struct field DuplicateJSON repeats json tag .a. also at testdata/structtag.go:41"
+ 	IgnoredJSON       int `json:"-"`
+ 	OtherIgnoredJSON  int `json:"-"`
+ 	OmitJSON          int `json:",omitempty"`
+ 	OtherOmitJSON     int `json:",omitempty"`
+-	DuplicateOmitJSON int `json:"a,omitempty"` // ERROR "struct field DuplicateOmitJSON repeats json tag .a. also at testdata/structtag.go:39"
++	DuplicateOmitJSON int `json:"a,omitempty"` // ERROR "struct field DuplicateOmitJSON repeats json tag .a. also at testdata/structtag.go:41"
+ 	NonJSON           int `foo:"a"`
+ 	DuplicateNonJSON  int `foo:"a"`
+ 	Embedded          struct {
+@@ -50,12 +52,12 @@ type DuplicateJSONFields struct {
+ 	}
+ 
+ 	XML              int `xml:"a"`
+-	DuplicateXML     int `xml:"a"` // ERROR "struct field DuplicateXML repeats xml tag .a. also at testdata/structtag.go:52"
++	DuplicateXML     int `xml:"a"` // ERROR "struct field DuplicateXML repeats xml tag .a. also at testdata/structtag.go:54"
+ 	IgnoredXML       int `xml:"-"`
+ 	OtherIgnoredXML  int `xml:"-"`
+ 	OmitXML          int `xml:",omitempty"`
+ 	OtherOmitXML     int `xml:",omitempty"`
+-	DuplicateOmitXML int `xml:"a,omitempty"` // ERROR "struct field DuplicateOmitXML repeats xml tag .a. also at testdata/structtag.go:52"
++	DuplicateOmitXML int `xml:"a,omitempty"` // ERROR "struct field DuplicateOmitXML repeats xml tag .a. also at testdata/structtag.go:54"
+ 	NonXML           int `foo:"a"`
+ 	DuplicateNonXML  int `foo:"a"`
+ 	Embedded         struct {

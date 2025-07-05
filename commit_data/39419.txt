@@ -18,7 +18,64 @@ Date:   Tue Nov 6 16:27:58 2018 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go    | 12 ++++++++----
  src/cmd/compile/internal/types/type.go | 22 ++++++++++++++++++++++
  2 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1d6321212e..41a9d8e9dc 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -398,10 +398,14 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
+ 			return "convT32", false
+ 		case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
+ 			return "convT64", false
+-		case from.IsString():
+-			return "convTstring", false
+-		case from.IsSlice():
+-			return "convTslice", false
++		}
++		if sc := from.SoleComponent(); sc != nil {
++			switch {
++			case sc.IsString():
++				return "convTstring", false
++			case sc.IsSlice():
++				return "convTslice", false
++			}
+ 		}
+ 
+ 		switch tkind {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 7d123e4610..e2f3e66d8b 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1395,6 +1395,28 @@ func (t *Type) NumComponents(countBlank componentsIncludeBlankFields) int64 {
+ 	return 1
+ }
+ 
++// SoleComponent returns the only primitive component in t,
++// if there is exactly one. Otherwise, it returns nil.
++// Components are counted as in NumComponents, including blank fields.
++func (t *Type) SoleComponent() *Type {
++	switch t.Etype {
++	case TSTRUCT:
++		if t.IsFuncArgStruct() {
++			Fatalf("SoleComponent func arg struct")
++		}
++		if t.NumFields() != 1 {
++			return nil
++		}
++		return t.Field(0).Type.SoleComponent()
++	case TARRAY:
++		if t.NumElem() != 1 {
++			return nil
++		}
++		return t.Elem().SoleComponent()
++	}
++	return t
++}
++
+ // ChanDir returns the direction of a channel type t.
+ // The direction will be one of Crecv, Csend, or Cboth.
+ func (t *Type) ChanDir() ChanDir {

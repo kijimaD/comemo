@@ -16,6 +16,23 @@ Date:   Tue Nov 19 10:09:28 2019 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/out.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 6bee9b1909..e32a3a607b 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1313,8 +1313,10 @@ func gccgoPkgpathToSymbolNew(ppath string) string {
+ 	for _, c := range []byte(ppath) {
+ 		switch {
+ 		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
+-			'0' <= c && c <= '9', c == '_', c == '.':
++			'0' <= c && c <= '9', c == '_':
+ 			bsl = append(bsl, c)
++		case c == '.':
++			bsl = append(bsl, ".x2e"...)
+ 		default:
+ 			changed = true
+ 			encbytes := []byte(fmt.Sprintf("..z%02x", c))

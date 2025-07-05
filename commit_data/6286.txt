@@ -7,8 +7,56 @@ Date:   Wed Sep 15 17:00:00 2010 -0700
     R=iant
     CC=golang-dev, ken2
     https://golang.org/cl/2182043
-
+---
  test/errchk                        | 4 ++--
  test/{bugs => fixedbugs}/bug305.go | 2 +-
  test/golden.out                    | 8 --------
  3 files changed, 3 insertions(+), 11 deletions(-)
+
+diff --git a/test/errchk b/test/errchk
+index ab7192da2a..d65899be61 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -68,8 +68,8 @@ foreach $src (@src) {
+ 	}
+ 	$regexp = $1;
+ 
+-	@errmsg = grep { /$file:$line:/ } @out;
+-	@out = grep { !/$file:$line:/ } @out;
++	@errmsg = grep { /$file:$line[:[]/ } @out;
++	@out = grep { !/$file:$line[:[]/ } @out;
+ 	if(@errmsg == 0) {
+ 		bug();
+ 		print STDERR "errchk: $file:$line: missing expected error: '$regexp'\n";
+diff --git a/test/bugs/bug305.go b/test/fixedbugs/bug305.go
+similarity index 93%
+rename from test/bugs/bug305.go
+rename to test/fixedbugs/bug305.go
+index 1369d560e8..758fee2698 100644
+--- a/test/bugs/bug305.go
++++ b/test/fixedbugs/bug305.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Use //line to set the line number of the next line to 20.
+-//line bug305.go:20
++//line fixedbugs/bug305.go:20
+ 
+ package p
+ 
+diff --git a/test/golden.out b/test/golden.out
+index eb1f2320a1..49bca4b874 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -177,11 +177,3 @@ panic PC=xxx
+ =========== bugs/bug260.go
+ FAIL
+ BUG: bug260 failed
+-
+-=========== bugs/bug305.go
+-BUG: errchk: bugs/bug305.go:24: missing expected error: 'cannot|incompatible'
+-errchk: bugs/bug305.go: unmatched error messages:
+-==================================================
+-bug305.go:23[bugs/bug305.go:12]: cannot convert "bogus" to type int
+-bug305.go:23[bugs/bug305.go:12]: cannot use "bogus" (type string) as type int in assignment
+-==================================================

@@ -12,6 +12,20 @@ Date:   Wed Mar 8 11:30:16 2023 +0100
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 776e885aff..10aed03b96 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -724,7 +724,7 @@ func ReadFile(name string) ([]byte, error) {
+ // WriteFile writes data to the named file, creating it if necessary.
+ // If the file does not exist, WriteFile creates it with permissions perm (before umask);
+ // otherwise WriteFile truncates it before writing, without changing permissions.
+-// Since Writefile requires multiple system calls to complete, a failure mid-operation
++// Since WriteFile requires multiple system calls to complete, a failure mid-operation
+ // can leave the file in a partially written state.
+ func WriteFile(name string, data []byte, perm FileMode) error {
+ 	f, err := OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, perm)

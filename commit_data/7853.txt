@@ -9,8 +9,142 @@ Date:   Wed Mar 23 23:11:29 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4277070
-
+---
  src/cmd/5l/noop.c | 18 ++++++++++++------
  src/cmd/6l/pass.c |  9 +++++++--
  src/cmd/8l/pass.c | 15 +++++++++------
  3 files changed, 28 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index a5e66f0380..bdcc3cad89 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -364,14 +364,14 @@ noops(void)
+ 					p = appendp(p);
+ 					p->as = ABL;
+ 					p->scond = C_SCOND_LO;
+-	 				p->to.type = D_BRANCH;
++					p->to.type = D_BRANCH;
+ 					p->to.sym = symmorestack;
+ 					p->cond = pmorestack;
+ 	
+ 					// MOVW.W		R14,$-autosize(SP)
+ 					p = appendp(p);
+ 					p->as = AMOVW;
+-	 				p->scond |= C_WBIT;
++					p->scond |= C_WBIT;
+ 					p->from.type = D_REG;
+ 					p->from.reg = REGLINK;
+ 					p->to.type = D_OREG;
+@@ -413,14 +413,14 @@ noops(void)
+ 					// BL		runtime.morestack(SB) // modifies LR
+ 					p = appendp(p);
+ 					p->as = ABL;
+-	 				p->to.type = D_BRANCH;
++					p->to.type = D_BRANCH;
+ 					p->to.sym = symmorestack;
+ 					p->cond = pmorestack;
+ 	
+ 					// MOVW.W		R14,$-autosize(SP)
+ 					p = appendp(p);
+ 					p->as = AMOVW;
+-	 				p->scond |= C_WBIT;
++					p->scond |= C_WBIT;
+ 					p->from.type = D_REG;
+ 					p->from.reg = REGLINK;
+ 					p->to.type = D_OREG;
+@@ -450,6 +450,8 @@ noops(void)
+ 					}
+ 				}
+ 				if(thumb){
++					diag("thumb not maintained");
++					errorexit();
+ 					if(cursym->text->mark & LEAF){
+ 						if(autosize){
+ 							p->as = AADD;
+@@ -481,7 +483,7 @@ noops(void)
+ 							q->to.type = D_REG;
+ 							q->to.reg = REGSP;
+ 							q->link = p->link;
+-							p->link = 	q;
++							p->link =	q;
+ 						}
+ 						else
+ 							q = p;
+@@ -492,6 +494,8 @@ noops(void)
+ 					break;
+ 				}
+ 				if(foreign) {
++					diag("foreign not maintained");
++					errorexit();
+ // if(foreign) print("ABXRET 3 %s\n", cursym->name);
+ #define	R	1
+ 					p->as = AMOVW;
+@@ -530,7 +534,9 @@ noops(void)
+ 					p->from.reg = REGSP;
+ 					p->to.type = D_REG;
+ 					p->to.reg = REGPC;
+-					// no spadj because it doesn't fall through
++					// If there are instructions following
++					// this ARET, they come from a branch
++					// with the same stackframe, so no spadj.
+ 				}
+ 				break;
+ 	
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 8fda943923..0b0ee1253c 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -274,10 +274,10 @@ patch(void)
+ 		if(HEADTYPE == Hwindows) { 
+ 			// Windows
+ 			// Convert
+-			//   op   n(GS), reg
++			//   op	  n(GS), reg
+ 			// to
+ 			//   MOVL 0x58(GS), reg
+-			//   op   n(reg), reg
++			//   op	  n(reg), reg
+ 			// The purpose of this patch is to fix some accesses
+ 			// to extern register variables (TLS) on Windows, as
+ 			// a different method is used to access them.
+@@ -674,6 +674,11 @@ dostkoff(void)
+ 				p->spadj = -autoffset;
+ 				p = appendp(p);
+ 				p->as = ARET;
++				// If there are instructions following
++				// this ARET, they come from a branch
++				// with the same stackframe, so undo
++				// the cleanup.
++				p->spadj = +autoffset;
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 294926f293..28589b66a1 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -614,14 +614,17 @@ dostkoff(void)
+ 				diag("unbalanced PUSH/POP");
+ 	
+ 			if(autoffset) {
+-				q = p;
++				p->as = AADJSP;
++				p->from.type = D_CONST;
++				p->from.offset = -autoffset;
++				p->spadj = -autoffset;
+ 				p = appendp(p);
+ 				p->as = ARET;
+-	
+-				q->as = AADJSP;
+-				q->from.type = D_CONST;
+-				q->from.offset = -autoffset;
+-				p->spadj = -autoffset;
++				// If there are instructions following
++				// this ARET, they come from a branch
++				// with the same stackframe, so undo
++				// the cleanup.
++				p->spadj = +autoffset;
+ 			}
+ 		}
+ 	}

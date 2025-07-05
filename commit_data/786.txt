@@ -9,8 +9,830 @@ Date:   Tue Sep 30 18:50:29 2008 -0700
     R=r
     OCL=16272
     CL=16272
-
+---
  usr/gri/pretty/parser.go  |  34 ++++----
  usr/gri/pretty/printer.go | 209 ++++++++++++++++++++++------------------------
  usr/gri/pretty/scanner.go | 179 ++++++++++++++++++++-------------------
  3 files changed, 209 insertions(+), 213 deletions(-)
+
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 67ce5445ec..d9a3d31da2 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -14,9 +14,9 @@ export type Parser struct {
+ 	scanner *Scanner.Scanner;
+ 	tokchan *<-chan *Scanner.Token;
+ 	
+-	// Token
+-	tok int;  // one token look-ahead
++	// Scanner.Token
+ 	pos int;  // token source position
++	tok int;  // one token look-ahead
+ 	val string;  // token value (for IDENT, NUMBER, STRING only)
+ 
+ 	// Nesting level
+@@ -54,7 +54,7 @@ func (P *Parser) Ecart() {
+ 
+ func (P *Parser) Next() {
+ 	if P.tokchan == nil {
+-		P.tok, P.pos, P.val = P.scanner.Scan();
++		P.pos, P.tok, P.val = P.scanner.Scan();
+ 	} else {
+ 		t := <-P.tokchan;
+ 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
+@@ -336,22 +336,22 @@ func (P *Parser) ParseResultList() {
+ func (P *Parser) ParseResult() *AST.List {
+ 	P.Trace("Result");
+ 	
++	var result *AST.List;
+ 	if P.tok == Scanner.LPAREN {
+-		P.Next();
+-		P.ParseResultList();
+-		for P.tok == Scanner.COMMA {
+-			P.Next();
+-			P.ParseResultList();
+-		}
+-		P.Expect(Scanner.RPAREN);
+-
++		result = P.ParseParameters();
+ 	} else {
+-		// anonymous result
+-		P.TryType();
++		typ, ok := P.TryType();
++		if ok {
++			vars := new(AST.VarDeclList);
++			vars.typ = typ;
++			list := AST.NewList();
++			list.Add(vars);
++			result = list;
++		}
+ 	}
+ 
+ 	P.Ecart();
+-	return nil
++	return result;
+ }
+ 
+ 
+@@ -1008,11 +1008,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.ControlClause {
+ 				}
+ 			}
+ 		} else {
+-			//ctrl.expr, ctrl.has_expr = ctrl.init, ctrl.has_init;
+-			
+-			ctrl.expr = ctrl.init;
+-			ctrl.has_expr = ctrl.has_init;
+-			
++			ctrl.expr, ctrl.has_expr = ctrl.init, ctrl.has_init;
+ 			ctrl.init, ctrl.has_init = AST.NIL, false;
+ 		}
+ 	}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 747655d22f..5a6af88878 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -10,25 +10,50 @@ import AST "ast"
+ 
+ // Printer implements AST.Visitor
+ type Printer struct {
+-	indent int;
++	level int;  // true scope level
++	indent int;  // indentation level
++	semi bool;  // pending ";"
++	newl bool;  // pending "\n"
+ 	prec int;  // operator precedence
+ }
+ 
+ 
+-func (P *Printer) NewLine(delta int) {
+-	P.indent += delta;
+-	if P.indent < 0 {
+-		panic("negative indent");
++func (P *Printer) String(s string) {
++	if P.semi && P.level > 0 {  // no semicolons at level 0
++		print(";");
+ 	}
+-	print("\n");
+-	for i := P.indent; i > 0; i-- {
+-		print("\t");
++	if P.newl {
++		print("\n");
++		for i := P.indent; i > 0; i-- {
++			print("\t");
++		}
+ 	}
++	print(s);
++	P.newl, P.semi = false, false;
+ }
+ 
+ 
+-func (P *Printer) String(s string) {
+-	print(s);
++func (P *Printer) NewLine() {  // explicit "\n"
++	print("\n");
++	P.semi, P.newl = false, true;
++}
++
++
++func (P *Printer) OpenScope(paren string) {
++	P.semi, P.newl = false, false;
++	P.String(paren);
++	P.level++;
++	P.indent++;
++	P.newl = true;
++}
++
++
++func (P *Printer) CloseScope(paren string) {
++	P.level--;
++	P.indent--;
++	P.newl = true;
++	P.String(paren);
++	P.semi, P.newl = false, true;
+ }
+ 
+ 
+@@ -70,6 +95,11 @@ func (P *Printer) DoFunctionType(x *AST.FunctionType) {
+ 	P.String("(");
+ 	P.PrintList(x.params);
+ 	P.String(")");
++	if x.result != nil {
++		P.String(" (");
++		P.PrintList(x.result);
++		P.String(")");
++	}
+ }
+ 
+ 
+@@ -82,19 +112,13 @@ func (P *Printer) DoArrayType(x *AST.ArrayType) {
+ 
+ 
+ func (P *Printer) DoStructType(x *AST.StructType) {
+-	P.String("struct {");
+-	if x.fields.len() > 0 {
+-		P.NewLine(1);
+-		for i := 0; i < x.fields.len(); i++ {
+-			if i > 0 {
+-				P.NewLine(0);
+-			}
+-			P.Print(x.fields.at(i));
+-			P.String(";");
+-		}
+-		P.NewLine(-1);
++	P.String("struct ");
++	P.OpenScope("{");
++	for i := 0; i < x.fields.len(); i++ {
++		P.Print(x.fields.at(i));
++		P.newl, P.semi = true, true;
+ 	}
+-	P.String("}");
++	P.CloseScope("}");
+ }
+ 
+ 
+@@ -117,19 +141,13 @@ func (P *Printer) DoChannelType(x *AST.ChannelType) {
+ 
+ 
+ func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
+-	P.String("interface {");
+-	if x.methods.len() > 0 {
+-		P.NewLine(1);
+-		for i := 0; i < x.methods.len(); i++ {
+-			if i > 0 {
+-				P.NewLine(0);
+-			}
+-			P.Print(x.methods.at(i));
+-			P.String(";");
+-		}
+-		P.NewLine(-1);
++	P.String("interface ");
++	P.OpenScope("{");
++	for i := 0; i < x.methods.len(); i++ {
++		P.Print(x.methods.at(i));
++		P.newl, P.semi = true, true;
+ 	}
+-	P.String("}");
++	P.CloseScope("}");
+ }
+ 
+ 
+@@ -160,6 +178,7 @@ func (P *Printer) DoConstDecl(x *AST.ConstDecl) {
+ 	P.Print(x.typ);
+ 	P.String(" = ");
+ 	P.Print(x.val);
++	P.semi = true;
+ }
+ 
+ 
+@@ -167,6 +186,7 @@ func (P *Printer) DoTypeDecl(x *AST.TypeDecl) {
+ 	P.Print(x.ident);
+ 	P.String(" ");
+ 	P.Print(x.typ);
++	P.semi = true;
+ }
+ 
+ 
+@@ -178,6 +198,7 @@ func (P *Printer) DoVarDecl(x *AST.VarDecl) {
+ 		P.String(" = ");
+ 		P.PrintList(x.vals);
+ 	}
++	P.semi = true;
+ }
+ 
+ 
+@@ -199,15 +220,13 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
+ 	}
+ 	P.DoIdent(x.ident);
+ 	P.DoFunctionType(x.typ);
+-	P.String(" ");
+ 	if x.body != nil {
+ 		P.DoBlock(x.body);
+ 	} else {
+-		P.String(";");
++		P.String(" ;");
+ 	}
+-	P.NewLine(0);
+-	P.NewLine(0);
+-	P.NewLine(0);
++	P.NewLine();
++	P.NewLine();
+ }
+ 
+ 
+@@ -226,19 +245,17 @@ func (P *Printer) DoDeclaration(x *AST.Declaration) {
+ 	case 1:
+ 		P.Print(x.decls.at(0));
+ 	default:
+-		P.String("(");
+-		P.NewLine(1);
++		P.OpenScope(" (");
+ 		for i := 0; i < x.decls.len(); i++ {
+-			if i > 0 {
+-				P.NewLine(0);
+-			}
+ 			P.Print(x.decls.at(i));
+-			P.String(";");
++			P.newl, P.semi = true, true;
+ 		}
+-		P.NewLine(-1);
+-		P.String(")");
++		P.CloseScope(")");
++	}
++	if P.level == 0 {
++		P.NewLine();
+ 	}
+-	P.NewLine(0);
++	P.newl = true;
+ }
+ 
+ 
+@@ -326,23 +343,18 @@ func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
+ // Statements
+ 
+ func (P *Printer) DoBlock(x *AST.Block) {
+-	P.String("{");
+-	if x.stats != nil {
+-		P.NewLine(1);
+-		for i := 0; i < x.stats.len(); i++ {
+-			if i > 0 {
+-				P.NewLine(0);
+-			}
+-			P.Print(x.stats.at(i));
+-		}
+-		P.NewLine(-1);
++	P.OpenScope("{");
++	for i := 0; i < x.stats.len(); i++ {
++		P.Print(x.stats.at(i));
++		P.newl = true;
+ 	}
+-	P.String("}");
++	P.CloseScope("}");
+ }
+ 
+ 
+ func (P *Printer) DoLabel(x *AST.Label) {
+-	P.NewLine(-1);
++	P.indent--;
++	P.newl = true;
+ 	P.Print(x.ident);
+ 	P.String(":");
+ 	P.indent++;
+@@ -351,7 +363,7 @@ func (P *Printer) DoLabel(x *AST.Label) {
+ 
+ func (P *Printer) DoExprStat(x *AST.ExprStat) {
+ 	P.Print(x.expr);
+-	//P.String(";");
++	P.semi = true;
+ }
+ 
+ 
+@@ -359,7 +371,7 @@ func (P *Printer) DoAssignment(x *AST.Assignment) {
+ 	P.PrintList(x.lhs);
+ 	P.String(" " + Scanner.TokenName(x.tok) + " ");
+ 	P.PrintList(x.rhs);
+-	//P.String(";");
++	P.semi = true;
+ }
+ 
+ 
+@@ -367,15 +379,19 @@ func (P *Printer) PrintControlClause(x *AST.ControlClause) {
+ 	if x.has_init {
+ 		P.String(" ");
+ 		P.Print(x.init);
+-		P.String(";");
++		P.semi = true;
++		P.String("");
+ 	}
+ 	if x.has_expr {
+ 		P.String(" ");
+ 		P.Print(x.expr);
++		P.semi = false;
+ 	}
+ 	if x.has_post {
+-		P.String("; ");
++		P.semi = true;
++		P.String(" ");
+ 		P.Print(x.post);
++		P.semi = false;
+ 	}
+ 	P.String(" ");
+ }
+@@ -386,6 +402,7 @@ func (P *Printer) DoIfStat(x *AST.IfStat) {
+ 	P.PrintControlClause(x.ctrl);
+ 	P.DoBlock(x.then);
+ 	if x.has_else {
++		P.newl = false;
+ 		P.String(" else ");
+ 		P.Print(x.else_);
+ 	}
+@@ -399,19 +416,6 @@ func (P *Printer) DoForStat(x *AST.ForStat) {
+ }
+ 
+ 
+-/*
+-func AnalyzeCase(x *AST.SwitchStat) bool {
+-	for i := 0; i < x.cases.len(); i++ {
+-		clause := x.cases.at(i).(AST.CaseClause);
+-		if clause.stats.len() > 1 {
+-			return false;
+-		}
+-	}
+-	return true;
+-}
+-*/
+-
+-
+ func (P *Printer) DoCaseClause(x *AST.CaseClause) {
+ 	if x.exprs != nil {
+ 		P.String("case ");
+@@ -421,57 +425,42 @@ func (P *Printer) DoCaseClause(x *AST.CaseClause) {
+ 		P.String("default:");
+ 	}
+ 	
+-	n := x.stats.len();
+-	m := n;
+-	if x.falls {
+-		m++;
++	P.OpenScope("");
++	for i := 0; i < x.stats.len(); i++ {
++		P.Print(x.stats.at(i));
++		P.newl = true;
+ 	}
+-	
+-	if m == 0 {
+-		P.NewLine(0);
+-	} else {
+-		P.NewLine(1);
+-		for i := 0; i < n; i++ {
+-			if i > 0 {
+-				P.NewLine(0);
+-			}
+-			P.Print(x.stats.at(i));
+-		}
+-		if x.falls {
+-			if n > 0 {
+-				P.NewLine(0);
+-			}
+-			P.String("fallthrough;");
+-		}
+-		P.NewLine(-1);
++	if x.falls {
++		P.String("fallthrough");
+ 	}
++	P.CloseScope("");
+ }
+ 
+ 
+ func (P *Printer) DoSwitchStat(x *AST.SwitchStat) {
+-	P.String("switch");
++	P.String("switch ");
+ 	P.PrintControlClause(x.ctrl);
+-	P.String("{");
+-	P.NewLine(0);
++	P.OpenScope("{");
++	P.indent--;
+ 	for i := 0; i < x.cases.len(); i++ {
+ 		P.Print(x.cases.at(i));
+ 	}
+-	P.NewLine(0);
+-	P.String("}");
++	P.indent++;
++	P.CloseScope("}");
+ }
+ 
+ 
+ func (P *Printer) DoReturnStat(x *AST.ReturnStat) {
+ 	P.String("return ");
+ 	P.PrintList(x.res);
+-	P.String(";");
++	P.semi = true;
+ }
+ 
+ 
+ func (P *Printer) DoIncDecStat(x *AST.IncDecStat) {
+ 	P.Print(x.expr);
+ 	P.String(Scanner.TokenName(x.tok));
+-	//P.String(";");
++	P.semi = true;
+ }
+ 
+ 
+@@ -481,14 +470,14 @@ func (P *Printer) DoControlFlowStat(x *AST.ControlFlowStat) {
+ 		P.String(" ");
+ 		P.Print(x.label);
+ 	}
+-	P.String(";");
++	P.semi = true;
+ }
+ 
+ 
+ func (P *Printer) DoGoStat(x *AST.GoStat) {
+ 	P.String("go ");
+ 	P.Print(x.expr);
+-	P.String(";");
++	P.semi = true;
+ }
+ 
+ 
+@@ -498,10 +487,12 @@ func (P *Printer) DoGoStat(x *AST.GoStat) {
+ func (P *Printer) DoProgram(x *AST.Program) {
+ 	P.String("package ");
+ 	P.DoIdent(x.ident);
+-	P.NewLine(0);
++	P.NewLine();
+ 	for i := 0; i < x.decls.len(); i++ {
+ 		P.Print(x.decls.at(i));
+ 	}
++	P.newl = true;
++	P.String("");
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 02f5e56fe9..841f6eb621 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -10,54 +10,25 @@ import Utils "utils"
+ 
+ export const (
+ 	ILLEGAL = iota;
+-	EOF;
++
+ 	IDENT;
+ 	INT;
+ 	FLOAT;
+ 	STRING;
++	EOF;
+ 
+-	COMMA;
+-	COLON;
+-	SEMICOLON;
+-	PERIOD;
+-
+-	LPAREN;
+-	RPAREN;
+-	LBRACK;
+-	RBRACK;
+-	LBRACE;
+-	RBRACE;
+-	
+-	ASSIGN;
+-	DEFINE;
+-	
+-	INC;
+-	DEC;
+-	NOT;
+-	
+-	AND;
+-	OR;
+-	XOR;
+-	
+ 	ADD;
+ 	SUB;
+ 	MUL;
+ 	QUO;
+ 	REM;
+ 	
+-	EQL;
+-	NEQ;
+-	LSS;
+-	LEQ;
+-	GTR;
+-	GEQ;
+-
++	AND;
++	OR;
++	XOR;
+ 	SHL;
+ 	SHR;
+ 	
+-	ARROW;
+-	HASH;
+-
+ 	ADD_ASSIGN;
+ 	SUB_ASSIGN;
+ 	MUL_ASSIGN;
+@@ -67,13 +38,40 @@ export const (
+ 	AND_ASSIGN;
+ 	OR_ASSIGN;
+ 	XOR_ASSIGN;
+-	
+ 	SHL_ASSIGN;
+ 	SHR_ASSIGN;
+ 
+ 	LAND;
+ 	LOR;
++	ARROW;
++	INC;
++	DEC;
+ 	
++	EQL;
++	NEQ;
++	LSS;
++	LEQ;
++	GTR;
++	GEQ;
++
++	ASSIGN;
++	DEFINE;
++	NOT;
++	ELLIPSIS;
++	HASH;
++	
++	LPAREN;
++	RPAREN;
++	LBRACK;
++	RBRACK;
++	LBRACE;
++	RBRACE;
++	
++	COMMA;
++	SEMICOLON;
++	COLON;
++	PERIOD;
++
+ 	// keywords
+ 	KEYWORDS_BEG;
+ 	BREAK;
+@@ -81,21 +79,25 @@ export const (
+ 	CHAN;
+ 	CONST;
+ 	CONTINUE;
++	
+ 	DEFAULT;
+ 	ELSE;
+ 	EXPORT;
+ 	FALLTHROUGH;
+ 	FOR;
++	
+ 	FUNC;
+ 	GO;
+ 	GOTO;
+ 	IF;
+ 	IMPORT;
++	
+ 	INTERFACE;
+ 	MAP;
+ 	PACKAGE;
+ 	RANGE;
+ 	RETURN;
++	
+ 	SELECT;
+ 	STRUCT;
+ 	SWITCH;
+@@ -105,61 +107,28 @@ export const (
+ )
+ 
+ 
+-var Keywords *map [string] int;
+-var VerboseMsgs bool;  // error message customization
+-
+-
+ export func TokenName(tok int) string {
+ 	switch (tok) {
+-	case ILLEGAL: return "illegal";
+-	case EOF: return "eof";
+-	case IDENT: return "ident";
+-	case INT: return "int";
+-	case FLOAT: return "float";
+-	case STRING: return "string";
+-
+-	case COMMA: return ",";
+-	case COLON: return ":";
+-	case SEMICOLON: return ";";
+-	case PERIOD: return ".";
+-
+-	case LPAREN: return "(";
+-	case RPAREN: return ")";
+-	case LBRACK: return "[";
+-	case RBRACK: return "]";
+-	case LBRACE: return "LBRACE";
+-	case RBRACE: return "RBRACE";
+-
+-	case ASSIGN: return "=";
+-	case DEFINE: return ":=";
++	case ILLEGAL: return "ILLEGAL";
+ 	
+-	case INC: return "++";
+-	case DEC: return "--";
+-	case NOT: return "!";
++	case IDENT: return "IDENT";
++	case INT: return "INT";
++	case FLOAT: return "FLOAT";
++	case STRING: return "STRING";
++	case EOF: return "EOF";
+ 
+-	case AND: return "&";
+-	case OR: return "|";
+-	case XOR: return "^";
+-	
+ 	case ADD: return "+";
+ 	case SUB: return "-";
+ 	case MUL: return "*";
+ 	case QUO: return "/";
+ 	case REM: return "%";
+ 	
+-	case EQL: return "==";
+-	case NEQ: return "!=";
+-	case LSS: return "<";
+-	case LEQ: return "<=";
+-	case GTR: return ">";
+-	case GEQ: return ">=";
+-
++	case AND: return "&";
++	case OR: return "|";
++	case XOR: return "^";
+ 	case SHL: return "<<";
+ 	case SHR: return ">>";
+ 	
+-	case ARROW: return "<-";
+-	case HASH: return "#";
+-
+ 	case ADD_ASSIGN: return "+=";
+ 	case SUB_ASSIGN: return "-=";
+ 	case MUL_ASSIGN: return "+=";
+@@ -169,33 +138,64 @@ export func TokenName(tok int) string {
+ 	case AND_ASSIGN: return "&=";
+ 	case OR_ASSIGN: return "|=";
+ 	case XOR_ASSIGN: return "^=";
+-
+ 	case SHL_ASSIGN: return "<<=";
+ 	case SHR_ASSIGN: return ">>=";
+ 
+ 	case LAND: return "&&";
+ 	case LOR: return "||";
++	case ARROW: return "<-";
++	case INC: return "++";
++	case DEC: return "--";
++
++	case EQL: return "==";
++	case NEQ: return "!=";
++	case LSS: return "<";
++	case LEQ: return "<=";
++	case GTR: return ">";
++	case GEQ: return ">=";
++
++	case ASSIGN: return "=";
++	case DEFINE: return ":=";
++	case NOT: return "!";
++	case ELLIPSIS: return "...";
++	case HASH: return "#";
++
++	case LPAREN: return "(";
++	case RPAREN: return ")";
++	case LBRACK: return "[";
++	case RBRACK: return "]";
++	case LBRACE: return "LBRACE";
++	case RBRACE: return "RBRACE";
++
++	case COMMA: return ",";
++	case SEMICOLON: return ";";
++	case COLON: return ":";
++	case PERIOD: return ".";
+ 
+ 	case BREAK: return "break";
+ 	case CASE: return "case";
+ 	case CHAN: return "chan";
+ 	case CONST: return "const";
+ 	case CONTINUE: return "continue";
++
+ 	case DEFAULT: return "default";
+ 	case ELSE: return "else";
+ 	case EXPORT: return "export";
+ 	case FALLTHROUGH: return "fallthrough";
+ 	case FOR: return "for";
++
+ 	case FUNC: return "func";
+ 	case GO: return "go";
+ 	case GOTO: return "goto";
+ 	case IF: return "if";
+ 	case IMPORT: return "import";
++
+ 	case INTERFACE: return "interface";
+ 	case MAP: return "map";
+ 	case PACKAGE: return "package";
+ 	case RANGE: return "range";
+ 	case RETURN: return "return";
++
+ 	case SELECT: return "select";
+ 	case STRUCT: return "struct";
+ 	case SWITCH: return "switch";
+@@ -203,7 +203,7 @@ export func TokenName(tok int) string {
+ 	case VAR: return "var";
+ 	}
+ 	
+-	return "???";
++	panic("UNREACHABLE");
+ }
+ 
+ 
+@@ -227,10 +227,14 @@ export func Precedence(tok int) int {
+ }
+ 
+ 
++var Keywords *map [string] int;
++var VerboseMsgs bool;  // error message customization
++
++
+ func init() {
+ 	Keywords = new(map [string] int);
+ 	
+-	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
++	for i := KEYWORDS_BEG + 1; i < KEYWORDS_END; i++ {
+ 	  Keywords[TokenName(i)] = i;
+ 	}
+ 	
+@@ -277,7 +281,6 @@ export type Scanner struct {
+ 
+ // Read the next Unicode char into S.ch.
+ // S.ch < 0 means end-of-file.
+-//
+ func (S *Scanner) Next() {
+ 	const (
+ 		Bit1 = 7;
+@@ -718,12 +721,12 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
+ }
+ 
+ 
+-func (S *Scanner) Scan() (tok, pos int, val string) {
++func (S *Scanner) Scan() (pos, tok int, val string) {
+ 	S.SkipWhitespace();
+ 	
+ 	ch := S.ch;
+-	tok = ILLEGAL;
+ 	pos = S.chpos;
++	tok = ILLEGAL;
+ 	
+ 	switch {
+ 	case is_letter(ch): tok, val = S.ScanIdentifier();
+@@ -739,6 +742,12 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
+ 		case '.':
+ 			if digit_val(S.ch) < 10 {
+ 				tok, val = S.ScanNumber(true);
++			} else if S.ch == '.' {
++				S.Next();
++				if S.ch == '.' {
++					S.Next();
++					tok = ELLIPSIS;
++				}
+ 			} else {
+ 				tok = PERIOD;
+ 			}
+@@ -782,7 +791,7 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
+ 		}
+ 	}
+ 	
+-	return tok, pos, val;
++	return pos, tok, val;
+ }
+ 
+ 
+@@ -798,7 +807,7 @@ func (S *Scanner) TokenStream() *<-chan *Token {
+ 	go func(S *Scanner, ch *chan <- *Token) {
+ 		for {
+ 			t := new(Token);
+-			t.tok, t.pos, t.val = S.Scan();
++			t.pos, t.tok, t.val = S.Scan();
+ 			ch <- t;
+ 			if t.tok == EOF {
+ 				break;

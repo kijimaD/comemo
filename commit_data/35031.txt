@@ -11,8 +11,292 @@ Date:   Tue Dec 5 10:29:27 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/cache/cache.go      |  95 +++++++++++++++++++++++--
  src/cmd/go/internal/cache/cache_test.go | 121 ++++++++++++++++++++++++++++++++
  src/cmd/go/internal/work/exec.go        |   5 ++
  3 files changed, 215 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 311cd89f33..794d63d20b 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -178,9 +178,7 @@ func (c *Cache) get(id ActionID) (Entry, error) {
+ 
+ 	fmt.Fprintf(c.log, "%d get %x\n", c.now().Unix(), id)
+ 
+-	// Best-effort attempt to update mtime on file,
+-	// so that mtime reflects cache access time.
+-	os.Chtimes(c.fileName(id, "a"), c.now(), c.now())
++	c.used(c.fileName(id, "a"))
+ 
+ 	return Entry{buf, size, time.Unix(0, tm)}, nil
+ }
+@@ -203,12 +201,95 @@ func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
+ // OutputFile returns the name of the cache file storing output with the given OutputID.
+ func (c *Cache) OutputFile(out OutputID) string {
+ 	file := c.fileName(out, "d")
++	c.used(file)
++	return file
++}
+ 
+-	// Best-effort attempt to update mtime on file,
+-	// so that mtime reflects cache access time.
++// Time constants for cache expiration.
++//
++// We set the mtime on a cache file on each use, but at most one per mtimeInterval (1 hour),
++// to avoid causing many unnecessary inode updates. The mtimes therefore
++// roughly reflect "time of last use" but may in fact be older by at most an hour.
++//
++// We scan the cache for entries to delete at most once per trimInterval (1 day).
++//
++// When we do scan the cache, we delete entries that have not been used for
++// at least trimLimit (5 days). Statistics gathered from a month of usage by
++// Go developers found that essentially all reuse of cached entries happened
++// within 5 days of the previous reuse. See golang.org/issue/22990.
++const (
++	mtimeInterval = 1 * time.Hour
++	trimInterval  = 24 * time.Hour
++	trimLimit     = 5 * 24 * time.Hour
++)
++
++// used makes a best-effort attempt to update mtime on file,
++// so that mtime reflects cache access time.
++//
++// Because the reflection only needs to be approximate,
++// and to reduce the amount of disk activity caused by using
++// cache entries, used only updates the mtime if the current
++// mtime is more than an hour old. This heuristic eliminates
++// nearly all of the mtime updates that would otherwise happen,
++// while still keeping the mtimes useful for cache trimming.
++func (c *Cache) used(file string) {
++	info, err := os.Stat(file)
++	if err == nil && c.now().Sub(info.ModTime()) < mtimeInterval {
++		return
++	}
+ 	os.Chtimes(file, c.now(), c.now())
++}
+ 
+-	return file
++// Trim removes old cache entries that are likely not to be reused.
++func (c *Cache) Trim() {
++	now := c.now()
++
++	// We maintain in dir/trim.txt the time of the last completed cache trim.
++	// If the cache has been trimmed recently enough, do nothing.
++	// This is the common case.
++	data, _ := ioutil.ReadFile(filepath.Join(c.dir, "trim.txt"))
++	t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
++	if err == nil && now.Sub(time.Unix(t, 0)) < trimInterval {
++		return
++	}
++
++	// Trim each of the 256 subdirectories.
++	// We subtract an additional mtimeInterval
++	// to account for the imprecision of our "last used" mtimes.
++	cutoff := now.Add(-trimLimit - mtimeInterval)
++	for i := 0; i < 256; i++ {
++		subdir := filepath.Join(c.dir, fmt.Sprintf("%02x", i))
++		c.trimSubdir(subdir, cutoff)
++	}
++
++	ioutil.WriteFile(filepath.Join(c.dir, "trim.txt"), []byte(fmt.Sprintf("%d", now.Unix())), 0666)
++}
++
++// trimSubdir trims a single cache subdirectory.
++func (c *Cache) trimSubdir(subdir string, cutoff time.Time) {
++	// Read all directory entries from subdir before removing
++	// any files, in case removing files invalidates the file offset
++	// in the directory scan. Also, ignore error from f.Readdirnames,
++	// because we don't care about reporting the error and we still
++	// want to process any entries found before the error.
++	f, err := os.Open(subdir)
++	if err != nil {
++		return
++	}
++	names, _ := f.Readdirnames(-1)
++	f.Close()
++
++	for _, name := range names {
++		// Remove only cache entries (xxxx-a and xxxx-d).
++		if !strings.HasSuffix(name, "-a") && !strings.HasSuffix(name, "-d") {
++			continue
++		}
++		entry := filepath.Join(subdir, name)
++		info, err := os.Stat(entry)
++		if err == nil && info.ModTime().Before(cutoff) {
++			os.Remove(entry)
++		}
++	}
+ }
+ 
+ // putIndexEntry adds an entry to the cache recording that executing the action
+@@ -239,6 +320,7 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
+ 		os.Remove(file)
+ 		return err
+ 	}
++	os.Chtimes(file, c.now(), c.now()) // mainly for tests
+ 
+ 	fmt.Fprintf(c.log, "%d put %x %x %d\n", c.now().Unix(), id, out, size)
+ 	return nil
+@@ -365,6 +447,7 @@ func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
+ 		os.Remove(name)
+ 		return err
+ 	}
++	os.Chtimes(name, c.now(), c.now()) // mainly for tests
+ 
+ 	return nil
+ }
+diff --git a/src/cmd/go/internal/cache/cache_test.go b/src/cmd/go/internal/cache/cache_test.go
+index 84749a6965..d3dafccd13 100644
+--- a/src/cmd/go/internal/cache/cache_test.go
++++ b/src/cmd/go/internal/cache/cache_test.go
+@@ -5,7 +5,9 @@
+ package cache
+ 
+ import (
++	"bytes"
+ 	"encoding/binary"
++	"fmt"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -196,3 +198,122 @@ func dummyID(x int) [HashSize]byte {
+ 	binary.LittleEndian.PutUint64(out[:], uint64(x))
+ 	return out
+ }
++
++func TestCacheTrim(t *testing.T) {
++	dir, err := ioutil.TempDir("", "cachetest-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	c, err := Open(dir)
++	if err != nil {
++		t.Fatalf("Open: %v", err)
++	}
++	const start = 1000000000
++	now := int64(start)
++	c.now = func() time.Time { return time.Unix(now, 0) }
++
++	checkTime := func(name string, mtime int64) {
++		t.Helper()
++		file := filepath.Join(c.dir, name[:2], name)
++		info, err := os.Stat(file)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if info.ModTime().Unix() != mtime {
++			t.Fatalf("%s mtime = %d, want %d", name, info.ModTime().Unix(), mtime)
++		}
++	}
++
++	id := ActionID(dummyID(1))
++	c.PutBytes(id, []byte("abc"))
++	entry, _ := c.Get(id)
++	c.PutBytes(ActionID(dummyID(2)), []byte("def"))
++	mtime := now
++	checkTime(fmt.Sprintf("%x-a", id), mtime)
++	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime)
++
++	// Get should not change recent mtimes.
++	now = start + 10
++	c.Get(id)
++	checkTime(fmt.Sprintf("%x-a", id), mtime)
++	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime)
++
++	// Get should change distant mtimes.
++	now = start + 5000
++	mtime2 := now
++	if _, err := c.Get(id); err != nil {
++		t.Fatal(err)
++	}
++	c.OutputFile(entry.OutputID)
++	checkTime(fmt.Sprintf("%x-a", id), mtime2)
++	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime2)
++
++	// Trim should leave everything alone: it's all too new.
++	c.Trim()
++	if _, err := c.Get(id); err != nil {
++		t.Fatal(err)
++	}
++	c.OutputFile(entry.OutputID)
++	data, err := ioutil.ReadFile(filepath.Join(dir, "trim.txt"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	checkTime(fmt.Sprintf("%x-a", dummyID(2)), start)
++
++	// Trim less than a day later should not do any work at all.
++	now = start + 80000
++	c.Trim()
++	if _, err := c.Get(id); err != nil {
++		t.Fatal(err)
++	}
++	c.OutputFile(entry.OutputID)
++	data2, err := ioutil.ReadFile(filepath.Join(dir, "trim.txt"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(data, data2) {
++		t.Fatalf("second trim did work: %q -> %q", data, data2)
++	}
++
++	// Fast forward and do another trim just before the 5 day cutoff.
++	// Note that because of usedQuantum the cutoff is actually 5 days + 1 hour.
++	// We used c.Get(id) just now, so 5 days later it should still be kept.
++	// On the other hand almost a full day has gone by since we wrote dummyID(2)
++	// and we haven't looked at it since, so 5 days later it should be gone.
++	now += 5 * 86400
++	checkTime(fmt.Sprintf("%x-a", dummyID(2)), start)
++	c.Trim()
++	if _, err := c.Get(id); err != nil {
++		t.Fatal(err)
++	}
++	c.OutputFile(entry.OutputID)
++	mtime3 := now
++	if _, err := c.Get(dummyID(2)); err == nil { // haven't done a Get for this since original write above
++		t.Fatalf("Trim did not remove dummyID(2)")
++	}
++
++	// The c.Get(id) refreshed id's mtime again.
++	// Check that another 5 days later it is still not gone,
++	// but check by using checkTime, which doesn't bring mtime forward.
++	now += 5 * 86400
++	c.Trim()
++	checkTime(fmt.Sprintf("%x-a", id), mtime3)
++	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime3)
++
++	// Half a day later Trim should still be a no-op, because there was a Trim recently.
++	// Even though the entry for id is now old enough to be trimmed,
++	// it gets a reprieve until the time comes for a new Trim scan.
++	now += 86400 / 2
++	c.Trim()
++	checkTime(fmt.Sprintf("%x-a", id), mtime3)
++	checkTime(fmt.Sprintf("%x-d", entry.OutputID), mtime3)
++
++	// Another half a day later, Trim should actually run, and it should remove id.
++	now += 86400/2 + 1
++	c.Trim()
++	if _, err := c.Get(dummyID(1)); err == nil {
++		t.Fatal("Trim did not remove dummyID(1)")
++	}
++}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 43409de764..fc4a36ddf4 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -53,6 +53,11 @@ func actionList(root *Action) []*Action {
+ 
+ // do runs the action graph rooted at root.
+ func (b *Builder) Do(root *Action) {
++	if c := cache.Default(); c != nil && !b.ComputeStaleOnly {
++		// If we're doing real work, take time at the end to trim the cache.
++		defer c.Trim()
++	}
++
+ 	// Build list of all actions, assigning depth-first post-order priority.
+ 	// The original implementation here was a true queue
+ 	// (using a channel) but it had the effect of getting

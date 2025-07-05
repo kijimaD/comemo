@@ -17,6 +17,29 @@ Date:   Mon Dec 12 09:31:59 2022 -0600
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Paul Murphy <murp@ibm.com>
-
+---
  src/syscall/exec_linux_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index a035d415ed..1e21fffaef 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -8,6 +8,7 @@ package syscall_test
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+@@ -504,7 +505,8 @@ func prepareCgroupFD(t *testing.T) (int, string) {
+ 	// Need an ability to create a sub-cgroup.
+ 	subCgroup, err := os.MkdirTemp(prefix+string(bytes.TrimSpace(cg)), "subcg-")
+ 	if err != nil {
+-		if os.IsPermission(err) {
++		// Running in an unprivileged container, this may also return EROFS #57262.
++		if os.IsPermission(err) || errors.Is(err, syscall.EROFS) {
+ 			t.Skip(err)
+ 		}
+ 		t.Fatal(err)

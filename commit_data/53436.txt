@@ -15,6 +15,27 @@ Date:   Tue Aug 9 15:04:25 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: hopehook <hopehook@qq.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/archive/tar/reader_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index f21a6065b4..a8e9b929d7 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -657,7 +657,6 @@ func TestReader(t *testing.T) {
+ 			for i, hdr := range hdrs {
+ 				if i >= len(v.headers) {
+ 					t.Fatalf("entry %d: unexpected header:\ngot %+v", i, *hdr)
+-					continue
+ 				}
+ 				if !reflect.DeepEqual(*hdr, *v.headers[i]) {
+ 					t.Fatalf("entry %d: incorrect header:\ngot  %+v\nwant %+v", i, *hdr, *v.headers[i])
+@@ -670,7 +669,6 @@ func TestReader(t *testing.T) {
+ 			for i, sum := range chksums {
+ 				if i >= len(v.chksums) {
+ 					t.Fatalf("entry %d: unexpected sum: got %s", i, sum)
+-					continue
+ 				}
+ 				if sum != v.chksums[i] {
+ 					t.Fatalf("entry %d: incorrect checksum: got %s, want %s", i, sum, v.chksums[i])

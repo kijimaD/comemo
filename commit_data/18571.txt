@@ -12,9 +12,305 @@ Date:   Wed Feb 19 14:33:11 2014 -0500
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/66020043
-
+---
  src/cmd/addr2line/main.c  |  90 ----------------------------
  src/cmd/addr2line/main.go | 147 ++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/dist/build.c      |   2 -
  src/cmd/go/pkg.go         |  15 ++---
  4 files changed, 155 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/addr2line/main.c b/src/cmd/addr2line/main.c
+deleted file mode 100644
+index 54c4d90b5c..0000000000
+--- a/src/cmd/addr2line/main.c
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+- * addr2line simulation - only enough to make pprof work on Macs
+- */
+-
+-#include <u.h>
+-#include <libc.h>
+-#include <bio.h>
+-#include <mach.h>
+-
+-void
+-printusage(int fd)
+-{
+-	fprint(fd, "usage: addr2line binary\n");
+-	fprint(fd, "reads addresses from standard input and writes two lines for each:\n");
+-	fprint(fd, "\tfunction name\n");
+-	fprint(fd, "\tfile:line\n");
+-}
+-
+-void
+-usage(void)
+-{
+-	printusage(2);
+-	exits("usage");
+-}
+-
+-void
+-main(int argc, char **argv)
+-{
+-	int fd;
+-	char *p, *q;
+-	uvlong pc;
+-	Symbol s;
+-	Fhdr fhdr;
+-	Biobuf bin, bout;
+-	char file[1024];
+-
+-	if(argc > 1 && strcmp(argv[1], "--help") == 0) {
+-		printusage(1);
+-		exits(0);
+-	}
+-
+-	ARGBEGIN{
+-	default:
+-		usage();
+-	}ARGEND
+-
+-	if(argc != 1)
+-		usage();
+-
+-	fd = open(argv[0], OREAD);
+-	if(fd < 0)
+-		sysfatal("open %s: %r", argv[0]);
+-	if(crackhdr(fd, &fhdr) <= 0)
+-		sysfatal("crackhdr: %r");
+-	machbytype(fhdr.type);
+-	if(syminit(fd, &fhdr) <= 0)
+-		sysfatal("syminit: %r");
+-
+-	Binit(&bin, 0, OREAD);
+-	Binit(&bout, 1, OWRITE);
+-	for(;;) {
+-		p = Brdline(&bin, '\n');
+-		if(p == nil)
+-			break;
+-		p[Blinelen(&bin)-1] = '\0';
+-		q = strchr(p, ':');
+-		if(q != nil) {
+-			// reverse: translate file:line to pc
+-			*q++ = '\0';
+-			pc = file2pc(p, atoi(q));
+-			if(pc == ~(uvlong)0)
+-				Bprint(&bout, "!%r\n");
+-			else
+-				Bprint(&bout, "0x%llux\n", pc);
+-			continue;
+-		}			
+-		pc = strtoull(p, 0, 16);
+-		if(!findsym(pc, CTEXT, &s))
+-			s.name = "??";
+-		if(!fileline(file, sizeof file, pc))
+-			strcpy(file, "??:0");
+-		Bprint(&bout, "%s\n%s\n", s.name, file);
+-	}
+-	Bflush(&bout);
+-	exits(0);
+-}
+diff --git a/src/cmd/addr2line/main.go b/src/cmd/addr2line/main.go
+new file mode 100644
+index 0000000000..67168c2f9d
+--- /dev/null
++++ b/src/cmd/addr2line/main.go
+@@ -0,0 +1,147 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// addr2line simulation - only enough to make pprof work on Macs
++
++package main
++
++import (
++	"bufio"
++	"debug/elf"
++	"debug/gosym"
++	"debug/macho"
++	"debug/pe"
++	"flag"
++	"fmt"
++	"log"
++	"os"
++	"strconv"
++	"strings"
++)
++
++func printUsage(w *os.File) {
++	fmt.Fprintf(w, "usage: addr2line binary\n")
++	fmt.Fprintf(w, "reads addresses from standard input and writes two lines for each:\n")
++	fmt.Fprintf(w, "\tfunction name\n")
++	fmt.Fprintf(w, "\tfile:line\n")
++}
++
++func usage() {
++	printUsage(os.Stderr)
++	os.Exit(2)
++}
++
++func main() {
++	log.SetFlags(0)
++	log.SetPrefix("addr2line: ")
++
++	// pprof expects this behavior when checking for addr2line
++	if len(os.Args) > 1 && os.Args[1] == "--help" {
++		printUsage(os.Stdout)
++		os.Exit(0)
++	}
++
++	flag.Usage = usage
++	flag.Parse()
++	if flag.NArg() != 1 {
++		usage()
++	}
++
++	f, err := os.Open(flag.Arg(0))
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	textStart, symtab, pclntab, err := loadTables(f)
++	if err != nil {
++		log.Fatalf("reading %s: %v", flag.Arg(0), err)
++	}
++
++	pcln := gosym.NewLineTable(pclntab, textStart)
++	tab, err := gosym.NewTable(symtab, pcln)
++	if err != nil {
++		log.Fatalf("reading %s: %v", flag.Arg(0), err)
++	}
++
++	stdin := bufio.NewScanner(os.Stdin)
++	stdout := bufio.NewWriter(os.Stdout)
++
++	for stdin.Scan() {
++		p := stdin.Text()
++		if strings.Contains(p, ":") {
++			// Reverse translate file:line to pc.
++			// This was an extension in the old C version of 'go tool addr2line'
++			// and is probably not used by anyone, but recognize the syntax.
++			// We don't have an implementation.
++			fmt.Fprintf(stdout, "!reverse translation not implemented\n")
++			continue
++		}
++		pc, _ := strconv.ParseUint(p, 16, 64)
++		file, line, fn := tab.PCToLine(pc)
++		name := "?"
++		if fn != nil {
++			name = fn.Name
++		} else {
++			file = "?"
++			line = 0
++		}
++		fmt.Fprintf(stdout, "%s\n%s:%d\n", name, file, line)
++	}
++	stdout.Flush()
++}
++
++func loadTables(f *os.File) (textStart uint64, symtab, pclntab []byte, err error) {
++	if obj, err := elf.NewFile(f); err == nil {
++		if sect := obj.Section(".text"); sect != nil {
++			textStart = sect.Addr
++		}
++		if sect := obj.Section(".gosymtab"); sect != nil {
++			if symtab, err = sect.Data(); err != nil {
++				return 0, nil, nil, err
++			}
++		}
++		if sect := obj.Section(".gopclntab"); sect != nil {
++			if pclntab, err = sect.Data(); err != nil {
++				return 0, nil, nil, err
++			}
++		}
++		return textStart, symtab, pclntab, nil
++	}
++
++	if obj, err := macho.NewFile(f); err == nil {
++		if sect := obj.Section("__text"); sect != nil {
++			textStart = sect.Addr
++		}
++		if sect := obj.Section("__gosymtab"); sect != nil {
++			if symtab, err = sect.Data(); err != nil {
++				return 0, nil, nil, err
++			}
++		}
++		if sect := obj.Section("__gopclntab"); sect != nil {
++			if pclntab, err = sect.Data(); err != nil {
++				return 0, nil, nil, err
++			}
++		}
++		return textStart, symtab, pclntab, nil
++	}
++
++	if obj, err := pe.NewFile(f); err == nil {
++		if sect := obj.Section(".text"); sect != nil {
++			textStart = uint64(sect.VirtualAddress)
++		}
++		if sect := obj.Section(".gosymtab"); sect != nil {
++			if symtab, err = sect.Data(); err != nil {
++				return 0, nil, nil, err
++			}
++		}
++		if sect := obj.Section(".gopclntab"); sect != nil {
++			if pclntab, err = sect.Data(); err != nil {
++				return 0, nil, nil, err
++			}
++		}
++		return textStart, symtab, pclntab, nil
++	}
++
++	return 0, nil, nil, fmt.Errorf("unrecognized binary format")
++}
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 661daf23de..dff0a6e11d 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1297,7 +1297,6 @@ static char *buildorder[] = {
+ 
+ 	"misc/pprof",
+ 
+-	"cmd/addr2line",
+ 	"cmd/objdump",
+ 	"cmd/prof",
+ 
+@@ -1372,7 +1371,6 @@ static char *cleantab[] = {
+ 	"cmd/8c",
+ 	"cmd/8g",
+ 	"cmd/8l",
+-	"cmd/addr2line",
+ 	"cmd/cc",
+ 	"cmd/gc",
+ 	"cmd/go",	
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 3ff3862700..191d04c233 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -307,13 +307,14 @@ const (
+ 
+ // goTools is a map of Go program import path to install target directory.
+ var goTools = map[string]targetDir{
+-	"cmd/api":  toTool,
+-	"cmd/cgo":  toTool,
+-	"cmd/fix":  toTool,
+-	"cmd/link": toTool,
+-	"cmd/nm":   toTool,
+-	"cmd/pack": toTool,
+-	"cmd/yacc": toTool,
++	"cmd/addr2line": toTool,
++	"cmd/api":       toTool,
++	"cmd/cgo":       toTool,
++	"cmd/fix":       toTool,
++	"cmd/link":      toTool,
++	"cmd/nm":        toTool,
++	"cmd/pack":      toTool,
++	"cmd/yacc":      toTool,
+ 	"code.google.com/p/go.tools/cmd/benchcmp": toTool,
+ 	"code.google.com/p/go.tools/cmd/cover":    toTool,
+ 	"code.google.com/p/go.tools/cmd/godoc":    toBin,

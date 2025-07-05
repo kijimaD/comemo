@@ -18,7 +18,7 @@ Date:   Tue Feb 1 11:02:48 2011 -0500
     R=bradfitzgo, r, rsc
     CC=golang-dev
     https://golang.org/cl/4080046
-
+---
  src/pkg/Makefile                       |  2 +
  src/pkg/crypto/Makefile                | 11 +++++
  src/pkg/crypto/crypto.go               | 73 ++++++++++++++++++++++++++++++++++
@@ -36,3 +36,517 @@ Date:   Tue Feb 1 11:02:48 2011 -0500
  src/pkg/crypto/tls/key_agreement.go    |  5 ++-
  src/pkg/crypto/x509/x509.go            |  7 ++--
  16 files changed, 153 insertions(+), 60 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 619e8aa261..6ba6951afc 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -28,6 +28,7 @@ DIRS=\
+ 	container/list\
+ 	container/ring\
+ 	container/vector\
++	crypto\
+ 	crypto/aes\
+ 	crypto/block\
+ 	crypto/blowfish\
+@@ -154,6 +155,7 @@ DIRS+=\
+ endif
+ 
+ NOTEST=\
++	crypto\
+ 	debug/proc\
+ 	exp/draw/x11\
+ 	go/ast\
+diff --git a/src/pkg/crypto/Makefile b/src/pkg/crypto/Makefile
+new file mode 100644
+index 0000000000..738a520623
+--- /dev/null
++++ b/src/pkg/crypto/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.inc
++
++TARG=crypto
++GOFILES=\
++	crypto.go\
++
++include ../../Make.pkg
+diff --git a/src/pkg/crypto/crypto.go b/src/pkg/crypto/crypto.go
+new file mode 100644
+index 0000000000..be6b34adf2
+--- /dev/null
++++ b/src/pkg/crypto/crypto.go
+@@ -0,0 +1,73 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The crypto package collects common cryptographic constants.
++package crypto
++
++import (
++	"hash"
++)
++
++// Hash identifies a cryptographic hash function that is implemented in another
++// package.
++type Hash uint
++
++const (
++	MD4       Hash = 1 + iota // in package crypto/md4
++	MD5                       // in package crypto/md5
++	SHA1                      // in package crypto/sha1
++	SHA224                    // in package crypto/sha256
++	SHA256                    // in package crypto/sha256
++	SHA384                    // in package crypto/sha512
++	SHA512                    // in package crypto/sha512
++	MD5SHA1                   // no implementation; MD5+SHA1 used for TLS RSA
++	RIPEMD160                 // in package crypto/ripemd160
++	maxHash
++)
++
++var digestSizes = []uint8{
++	MD4:       16,
++	MD5:       16,
++	SHA1:      20,
++	SHA224:    28,
++	SHA256:    32,
++	SHA384:    48,
++	SHA512:    64,
++	MD5SHA1:   36,
++	RIPEMD160: 20,
++}
++
++// Size returns the length, in bytes, of a digest resulting from the given hash
++// function. It doesn't require that the hash function in question be linked
++// into the program.
++func (h Hash) Size() int {
++	if h > 0 && h < maxHash {
++		return int(digestSizes[h])
++	}
++	panic("crypto: Size of unknown hash function")
++}
++
++var hashes = make([]func() hash.Hash, maxHash)
++
++// New returns a new hash.Hash calculating the given hash function. If the
++// hash function is not linked into the binary, New returns nil.
++func (h Hash) New() hash.Hash {
++	if h > 0 && h < maxHash {
++		f := hashes[h]
++		if f != nil {
++			return f()
++		}
++	}
++	return nil
++}
++
++// RegisterHash registers a function that returns a new instance of the given
++// hash function. This is intended to be called from the init function in
++// packages that implement hash functions.
++func RegisterHash(h Hash, f func() hash.Hash) {
++	if h >= maxHash {
++		panic("crypto: RegisterHash of unknown hash function")
++	}
++	hashes[h] = f
++}
+diff --git a/src/pkg/crypto/md4/md4.go b/src/pkg/crypto/md4/md4.go
+index e13c986e68..ee46544a92 100644
+--- a/src/pkg/crypto/md4/md4.go
++++ b/src/pkg/crypto/md4/md4.go
+@@ -6,10 +6,15 @@
+ package md4
+ 
+ import (
++	"crypto"
+ 	"hash"
+ 	"os"
+ )
+ 
++func init() {
++	crypto.RegisterHash(crypto.MD4, New)
++}
++
+ // The size of an MD4 checksum in bytes.
+ const Size = 16
+ 
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index 54fddb63b9..8f93fc4b35 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -6,10 +6,15 @@
+ package md5
+ 
+ import (
++	"crypto"
+ 	"hash"
+ 	"os"
+ )
+ 
++func init() {
++	crypto.RegisterHash(crypto.MD5, New)
++}
++
+ // The size of an MD5 checksum in bytes.
+ const Size = 16
+ 
+diff --git a/src/pkg/crypto/ocsp/ocsp.go b/src/pkg/crypto/ocsp/ocsp.go
+index f3fa3bc834..f42d808888 100644
+--- a/src/pkg/crypto/ocsp/ocsp.go
++++ b/src/pkg/crypto/ocsp/ocsp.go
+@@ -9,8 +9,9 @@ package ocsp
+ 
+ import (
+ 	"asn1"
++	"crypto"
+ 	"crypto/rsa"
+-	"crypto/sha1"
++	_ "crypto/sha1"
+ 	"crypto/x509"
+ 	"os"
+ 	"time"
+@@ -168,8 +169,8 @@ func ParseResponse(bytes []byte) (*Response, os.Error) {
+ 		return nil, x509.UnsupportedAlgorithmError{}
+ 	}
+ 
+-	h := sha1.New()
+-	hashType := rsa.HashSHA1
++	hashType := crypto.SHA1
++	h := hashType.New()
+ 
+ 	pub := ret.Certificate.PublicKey.(*rsa.PublicKey)
+ 	h.Write(basicResp.TBSResponseData.Raw)
+diff --git a/src/pkg/crypto/ripemd160/ripemd160.go b/src/pkg/crypto/ripemd160/ripemd160.go
+index 5614f1360e..6e88521c3f 100644
+--- a/src/pkg/crypto/ripemd160/ripemd160.go
++++ b/src/pkg/crypto/ripemd160/ripemd160.go
+@@ -10,10 +10,15 @@ package ripemd160
+ // http://homes.esat.kuleuven.be/~cosicart/pdf/AB-9601/AB-9601.pdf.
+ 
+ import (
++	"crypto"
+ 	"hash"
+ 	"os"
+ )
+ 
++func init() {
++	crypto.RegisterHash(crypto.RIPEMD160, New)
++}
++
+ // The size of the checksum in bytes.
+ const Size = 20
+ 
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index e4fc7d14a6..2eaadee24c 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -6,6 +6,7 @@ package rsa
+ 
+ import (
+ 	"big"
++	"crypto"
+ 	"crypto/subtle"
+ 	"io"
+ 	"os"
+@@ -139,19 +140,6 @@ func nonZeroRandomBytes(s []byte, rand io.Reader) (err os.Error) {
+ 	return
+ }
+ 
+-// Due to the design of PKCS#1 v1.5, we need to know the exact hash function in
+-// use. A generic hash.Hash will not do.
+-type PKCS1v15Hash int
+-
+-const (
+-	HashMD5 PKCS1v15Hash = iota
+-	HashSHA1
+-	HashSHA256
+-	HashSHA384
+-	HashSHA512
+-	HashMD5SHA1 // combined MD5 and SHA1 hash used for RSA signing in TLS.
+-)
+-
+ // These are ASN1 DER structures:
+ //   DigestInfo ::= SEQUENCE {
+ //     digestAlgorithm AlgorithmIdentifier,
+@@ -160,25 +148,20 @@ const (
+ // For performance, we don't use the generic ASN1 encoder. Rather, we
+ // precompute a prefix of the digest value that makes a valid ASN1 DER string
+ // with the correct contents.
+-var hashPrefixes = [][]byte{
+-	// HashMD5
+-	{0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10},
+-	// HashSHA1
+-	{0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14},
+-	// HashSHA256
+-	{0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20},
+-	// HashSHA384
+-	{0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30},
+-	// HashSHA512
+-	{0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40},
+-	// HashMD5SHA1
+-	{}, // A special TLS case which doesn't use an ASN1 prefix.
++var hashPrefixes = map[crypto.Hash][]byte{
++	crypto.MD5:       []byte{0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10},
++	crypto.SHA1:      []byte{0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14},
++	crypto.SHA256:    []byte{0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20},
++	crypto.SHA384:    []byte{0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30},
++	crypto.SHA512:    {0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40},
++	crypto.MD5SHA1:   {}, // A special TLS case which doesn't use an ASN1 prefix.
++	crypto.RIPEMD160: {0x30, 0x20, 0x30, 0x08, 0x06, 0x06, 0x28, 0xcf, 0x06, 0x03, 0x00, 0x31, 0x04, 0x14},
+ }
+ 
+ // SignPKCS1v15 calculates the signature of hashed using RSASSA-PKCS1-V1_5-SIGN from RSA PKCS#1 v1.5.
+ // Note that hashed must be the result of hashing the input message using the
+ // given hash function.
+-func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash PKCS1v15Hash, hashed []byte) (s []byte, err os.Error) {
++func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) (s []byte, err os.Error) {
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+ 		return
+@@ -211,7 +194,7 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash PKCS1v15Hash, hashed []
+ // hashed is the result of hashing the input message using the given hash
+ // function and sig is the signature. A valid signature is indicated by
+ // returning a nil error.
+-func VerifyPKCS1v15(pub *PublicKey, hash PKCS1v15Hash, hashed []byte, sig []byte) (err os.Error) {
++func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) (err os.Error) {
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+ 		return
+@@ -246,28 +229,14 @@ func VerifyPKCS1v15(pub *PublicKey, hash PKCS1v15Hash, hashed []byte, sig []byte
+ 	return nil
+ }
+ 
+-func pkcs1v15HashInfo(hash PKCS1v15Hash, inLen int) (hashLen int, prefix []byte, err os.Error) {
+-	switch hash {
+-	case HashMD5:
+-		hashLen = 16
+-	case HashSHA1:
+-		hashLen = 20
+-	case HashSHA256:
+-		hashLen = 32
+-	case HashSHA384:
+-		hashLen = 48
+-	case HashSHA512:
+-		hashLen = 64
+-	case HashMD5SHA1:
+-		hashLen = 36
+-	default:
+-		return 0, nil, os.ErrorString("unknown hash function")
+-	}
+-
++func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, err os.Error) {
++	hashLen = hash.Size()
+ 	if inLen != hashLen {
+ 		return 0, nil, os.ErrorString("input must be hashed message")
+ 	}
+-
+-	prefix = hashPrefixes[int(hash)]
++	prefix, ok := hashPrefixes[hash]
++	if !ok {
++		return 0, nil, os.ErrorString("unsupported hash function")
++	}
+ 	return
+ }
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index bf6306dc29..7b2ce08cb0 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -7,6 +7,7 @@ package rsa
+ import (
+ 	"big"
+ 	"bytes"
++	"crypto"
+ 	"crypto/rand"
+ 	"crypto/sha1"
+ 	"encoding/base64"
+@@ -165,7 +166,7 @@ func TestSignPKCS1v15(t *testing.T) {
+ 		h.Write([]byte(test.in))
+ 		digest := h.Sum()
+ 
+-		s, err := SignPKCS1v15(nil, rsaPrivateKey, HashSHA1, digest)
++		s, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.SHA1, digest)
+ 		if err != nil {
+ 			t.Errorf("#%d %s", i, err)
+ 		}
+@@ -185,7 +186,7 @@ func TestVerifyPKCS1v15(t *testing.T) {
+ 
+ 		sig, _ := hex.DecodeString(test.out)
+ 
+-		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, HashSHA1, digest, sig)
++		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.SHA1, digest, sig)
+ 		if err != nil {
+ 			t.Errorf("#%d %s", i, err)
+ 		}
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index 8716c35910..e6aa096e2a 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -6,10 +6,15 @@
+ package sha1
+ 
+ import (
++	"crypto"
+ 	"hash"
+ 	"os"
+ )
+ 
++func init() {
++	crypto.RegisterHash(crypto.SHA1, New)
++}
++
+ // The size of a SHA1 checksum in bytes.
+ const Size = 20
+ 
+diff --git a/src/pkg/crypto/sha256/sha256.go b/src/pkg/crypto/sha256/sha256.go
+index 57a8ffa0d7..69b356b4e5 100644
+--- a/src/pkg/crypto/sha256/sha256.go
++++ b/src/pkg/crypto/sha256/sha256.go
+@@ -6,10 +6,16 @@
+ package sha256
+ 
+ import (
++	"crypto"
+ 	"hash"
+ 	"os"
+ )
+ 
++func init() {
++	crypto.RegisterHash(crypto.SHA224, New224)
++	crypto.RegisterHash(crypto.SHA256, New)
++}
++
+ // The size of a SHA256 checksum in bytes.
+ const Size = 32
+ 
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+index c3cda97d96..7e9f330e59 100644
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -6,10 +6,16 @@
+ package sha512
+ 
+ import (
++	"crypto"
+ 	"hash"
+ 	"os"
+ )
+ 
++func init() {
++	crypto.RegisterHash(crypto.SHA384, New384)
++	crypto.RegisterHash(crypto.SHA512, New)
++}
++
+ // The size of a SHA512 checksum in bytes.
+ const Size = 64
+ 
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 1ca33f59dd..19d2bfa3ba 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -5,6 +5,7 @@
+ package tls
+ 
+ import (
++	"crypto"
+ 	"crypto/rsa"
+ 	"crypto/subtle"
+ 	"crypto/x509"
+@@ -248,7 +249,7 @@ func (c *Conn) clientHandshake() os.Error {
+ 		var digest [36]byte
+ 		copy(digest[0:16], finishedHash.serverMD5.Sum())
+ 		copy(digest[16:36], finishedHash.serverSHA1.Sum())
+-		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, rsa.HashMD5SHA1, digest[0:])
++		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, crypto.MD5SHA1, digest[0:])
+ 		if err != nil {
+ 			return c.sendAlert(alertInternalError)
+ 		}
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 955811ada3..af46ea5113 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -5,6 +5,7 @@
+ package tls
+ 
+ import (
++	"crypto"
+ 	"crypto/rsa"
+ 	"crypto/subtle"
+ 	"crypto/x509"
+@@ -213,7 +214,7 @@ Curves:
+ 		digest := make([]byte, 36)
+ 		copy(digest[0:16], finishedHash.serverMD5.Sum())
+ 		copy(digest[16:36], finishedHash.serverSHA1.Sum())
+-		err = rsa.VerifyPKCS1v15(pub, rsa.HashMD5SHA1, digest, certVerify.signature)
++		err = rsa.VerifyPKCS1v15(pub, crypto.MD5SHA1, digest, certVerify.signature)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+ 			return os.ErrorString("could not validate signature of connection nonces: " + err.String())
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index 861c64f04b..8edbb11900 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -6,6 +6,7 @@ package tls
+ 
+ import (
+ 	"big"
++	"crypto"
+ 	"crypto/elliptic"
+ 	"crypto/md5"
+ 	"crypto/rsa"
+@@ -143,7 +144,7 @@ Curve:
+ 	copy(serverECDHParams[4:], ecdhePublic)
+ 
+ 	md5sha1 := md5SHA1Hash(clientHello.random, hello.random, serverECDHParams)
+-	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey, rsa.HashMD5SHA1, md5sha1)
++	sig, err := rsa.SignPKCS1v15(config.rand(), config.Certificates[0].PrivateKey, crypto.MD5SHA1, md5sha1)
+ 	if err != nil {
+ 		return nil, os.ErrorString("failed to sign ECDHE parameters: " + err.String())
+ 	}
+@@ -216,7 +217,7 @@ func (ka *ecdheRSAKeyAgreement) processServerKeyExchange(config *Config, clientH
+ 	sig = sig[2:]
+ 
+ 	md5sha1 := md5SHA1Hash(clientHello.random, serverHello.random, serverECDHParams)
+-	return rsa.VerifyPKCS1v15(cert.PublicKey.(*rsa.PublicKey), rsa.HashMD5SHA1, md5sha1, sig)
++	return rsa.VerifyPKCS1v15(cert.PublicKey.(*rsa.PublicKey), crypto.MD5SHA1, md5sha1, sig)
+ 
+ Error:
+ 	return os.ErrorString("invalid ServerKeyExchange")
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 6199e8db9f..599263432b 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -9,6 +9,7 @@ import (
+ 	"asn1"
+ 	"big"
+ 	"container/vector"
++	"crypto"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+ 	"hash"
+@@ -374,12 +375,12 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err os.Error) {
+ 	// TODO(agl): don't ignore the path length constraint.
+ 
+ 	var h hash.Hash
+-	var hashType rsa.PKCS1v15Hash
++	var hashType crypto.Hash
+ 
+ 	switch c.SignatureAlgorithm {
+ 	case SHA1WithRSA:
+ 		h = sha1.New()
+-		hashType = rsa.HashSHA1
++		hashType = crypto.SHA1
+ 	default:
+ 		return UnsupportedAlgorithmError{}
+ 	}
+@@ -840,7 +841,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ 	h.Write(tbsCertContents)
+ 	digest := h.Sum()
+ 
+-	signature, err := rsa.SignPKCS1v15(rand, priv, rsa.HashSHA1, digest)
++	signature, err := rsa.SignPKCS1v15(rand, priv, crypto.SHA1, digest)
+ 	if err != nil {
+ 		return
+ 	}

@@ -7,6 +7,20 @@ Date:   Thu Oct 27 21:17:47 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5305069
-
+---
  src/pkg/template/exec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/exec_test.go b/src/pkg/template/exec_test.go
+index 6c19f116b8..2d2b402942 100644
+--- a/src/pkg/template/exec_test.go
++++ b/src/pkg/template/exec_test.go
+@@ -98,7 +98,7 @@ var tVal = &T{
+ 	Empty3:            []int{7, 8},
+ 	Empty4:            &U{"UinEmpty"},
+ 	NonEmptyInterface: new(T),
+-	Str:               os.NewError("foozle"),
++	Str:               bytes.NewBuffer([]byte("foozle")),
+ 	PI:                newInt(23),
+ 	PSI:               newIntSlice(21, 22, 23),
+ 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X

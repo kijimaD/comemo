@@ -10,6 +10,40 @@ Date:   Thu Aug 7 12:55:28 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, khr, rlh, rsc
     https://golang.org/cl/122130043
-
+---
  src/pkg/runtime/mgc0.c | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 01e055cf04..16d616b3f6 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -559,6 +559,8 @@ markroot(ParFor *desc, uint32 i)
+ 		// needed only to output in traceback
+ 		if((gp->status == Gwaiting || gp->status == Gsyscall) && gp->waitsince == 0)
+ 			gp->waitsince = work.tstart;
++		// Shrink a stack if not much of it is being used.
++		runtime·shrinkstack(gp);
+ 		scanstack(gp);
+ 		break;
+ 		
+@@ -1391,7 +1393,6 @@ gc(struct gc_args *args)
+ 	int64 t0, t1, t2, t3, t4;
+ 	uint64 heap0, heap1, obj;
+ 	GCStats stats;
+-	uint32 i;
+ 
+ 	if(runtime·debug.allocfreetrace)
+ 		runtime·tracegc();
+@@ -1514,11 +1515,6 @@ gc(struct gc_args *args)
+ 			sweep.npausesweep++;
+ 	}
+ 
+-	// Shrink a stack if not much of it is being used.
+-	// TODO: do in a parfor
+-	for(i = 0; i < runtime·allglen; i++)
+-		runtime·shrinkstack(runtime·allg[i]);
+-
+ 	runtime·MProf_GC();
+ 	g->m->traceback = 0;
+ }

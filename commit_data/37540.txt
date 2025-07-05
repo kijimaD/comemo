@@ -9,6 +9,28 @@ Date:   Sat Jul 28 16:46:22 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime2.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index a3193b63c5..ad47d1275e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -842,11 +842,11 @@ var (
+ 	lfenceBeforeRdtsc    bool
+ 
+ 	// Set in runtime.cpuinit.
+-	support_erms         bool
+-	support_popcnt       bool
+-	support_sse2         bool
+-	support_sse41        bool
+-	arm64_support_atomics      bool
++	support_erms          bool
++	support_popcnt        bool
++	support_sse2          bool
++	support_sse41         bool
++	arm64_support_atomics bool
+ 
+ 	goarm                uint8 // set by cmd/link on arm systems
+ 	framepointer_enabled bool  // set by cmd/link

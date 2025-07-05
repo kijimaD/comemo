@@ -18,7 +18,201 @@ Date:   Thu Mar 3 17:06:43 2016 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
  src/fmt/print.go    | 50 +++++++++++++++------------------------
  2 files changed, 86 insertions(+), 32 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index e43bf1029c..797eeab1ea 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -422,8 +422,57 @@ var fmtTests = []struct {
+ 	{"%v", &slice, "&[1 2 3 4 5]"},
+ 	{"%v", &islice, "&[1 hello 2.5 <nil>]"},
+ 	{"%v", &bslice, "&[1 2 3 4 5]"},
+-	{"%v", []byte{1}, "[1]"},
++
++	// byte slices and arrays with %d and %v variants
++	{"%d", [0]byte{}, "[]"},
++	{"%d", [1]byte{123}, "[123]"},
++	{"%012d", []byte{}, "[]"},
++	{"%d", [3]byte{1, 11, 111}, "[1 11 111]"},
++	{"%d", [3]uint8{1, 11, 111}, "[1 11 111]"},
++	{"%06d", [3]byte{1, 11, 111}, "[000001 000011 000111]"},
++	{"%-6d", [3]byte{1, 11, 111}, "[1      11     111   ]"},
++	{"%-06d", [3]byte{1, 11, 111}, "[1      11     111   ]"}, // 0 has no effect when - is present.
+ 	{"%v", []byte{}, "[]"},
++	{"%012v", []byte{}, "[]"},
++	{"%#v", []byte{}, "[]byte{}"},
++	{"%#v", []uint8{}, "[]byte{}"},
++	{"%#012v", []byte{}, "[]byte{}"},
++	{"%v", []byte{123}, "[123]"},
++	{"%v", []byte{1, 11, 111}, "[1 11 111]"},
++	{"%6v", []byte{1, 11, 111}, "[     1     11    111]"},
++	{"%06v", []byte{1, 11, 111}, "[000001 000011 000111]"},
++	{"%-6v", []byte{1, 11, 111}, "[1      11     111   ]"},
++	{"%-06v", []byte{1, 11, 111}, "[1      11     111   ]"},
++	{"%#v", []byte{1, 11, 111}, "[]byte{0x1, 0xb, 0x6f}"},
++	{"%#6v", []byte{1, 11, 111}, "[]byte{   0x1,    0xb,   0x6f}"},
++	{"%#06v", []byte{1, 11, 111}, "[]byte{0x000001, 0x00000b, 0x00006f}"},
++	{"%#-6v", []byte{1, 11, 111}, "[]byte{0x1   , 0xb   , 0x6f  }"},
++	{"%#-06v", []byte{1, 11, 111}, "[]byte{0x1   , 0xb   , 0x6f  }"},
++	{"%v", [0]byte{}, "[]"},
++	{"%-12v", [0]byte{}, "[]"},
++	{"%#v", [0]byte{}, "[0]uint8{}"},
++	{"%#v", [0]uint8{}, "[0]uint8{}"},
++	{"%#-12v", [0]byte{}, "[0]uint8{}"},
++	{"%v", [1]byte{123}, "[123]"},
++	{"%v", [3]byte{1, 11, 111}, "[1 11 111]"},
++	{"%06v", [3]byte{1, 11, 111}, "[000001 000011 000111]"},
++	{"%-6v", [3]byte{1, 11, 111}, "[1      11     111   ]"},
++	{"%-06v", [3]byte{1, 11, 111}, "[1      11     111   ]"},
++	{"%#v", [3]byte{1, 11, 111}, "[3]uint8{0x1, 0xb, 0x6f}"},
++	{"%#6v", [3]byte{1, 11, 111}, "[3]uint8{   0x1,    0xb,   0x6f}"},
++	{"%#06v", [3]byte{1, 11, 111}, "[3]uint8{0x000001, 0x00000b, 0x00006f}"},
++	{"%#-6v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
++	{"%#-06v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
++	// f.space should and f.plus should not have an effect with %v.
++	{"% v", []byte{1, 11, 111}, "[ 1  11  111]"},
++	{"%+v", [3]byte{1, 11, 111}, "[1 11 111]"},
++	{"%# -6v", []byte{1, 11, 111}, "[]byte{ 0x1  ,  0xb  ,  0x6f }"},
++	{"%#+-6v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
++	// f.space and f.plus should have an effect with %d.
++	{"% d", []byte{1, 11, 111}, "[ 1  11  111]"},
++	{"%+d", [3]byte{1, 11, 111}, "[+1 +11 +111]"},
++	{"%# -6d", []byte{1, 11, 111}, "[ 1      11     111  ]"},
++	{"%#+-6d", [3]byte{1, 11, 111}, "[+1     +11    +111  ]"},
+ 
+ 	// complexes with %v
+ 	{"%v", 1 + 2i, "(1+2i)"},
+@@ -809,6 +858,14 @@ var fmtTests = []struct {
+ 
+ 	// invalid reflect.Value doesn't crash.
+ 	{"%v", reflect.Value{}, "<invalid reflect.Value>"},
++
++	// Tests to check that not supported verbs generate an error string.
++	{"%☠", nil, "%!☠(<nil>)"},
++	{"%☠", interface{}(nil), "%!☠(<nil>)"},
++	{"%☠", []byte{0}, "%!☠([]uint8=[0])"},
++	{"%☠", []uint8{0}, "%!☠([]uint8=[0])"},
++	{"%☠", [1]byte{0}, "%!☠([1]uint8=[0])"},
++	{"%☠", [1]uint8{0}, "%!☠([1]uint8=[0])"},
+ }
+ 
+ // zeroFill generates zero-filled strings of the specified width. The length
+@@ -1041,6 +1098,15 @@ func BenchmarkSprintfHexBytes(b *testing.B) {
+ 	})
+ }
+ 
++func BenchmarkSprintfBytes(b *testing.B) {
++	data := []byte("0123456789abcdef")
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Sprintf("%v", data)
++		}
++	})
++}
++
+ func BenchmarkManyArgs(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		var buf bytes.Buffer
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 32c9b70b16..5fe34c87f6 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -26,7 +26,7 @@ const (
+ 	badIndexString    = "(BADINDEX)"
+ 	panicString       = "(PANIC="
+ 	extraString       = "%!(EXTRA "
+-	bytesString       = "[]byte{"
++	bytesString       = "[]byte"
+ 	badWidthString    = "%!(BADWIDTH)"
+ 	badPrecString     = "%!(BADPREC)"
+ 	noVerbString      = "%!(NOVERB)"
+@@ -522,45 +522,33 @@ func (p *pp) fmtString(v string, verb rune) {
+ 	}
+ }
+ 
+-func (p *pp) fmtBytes(v []byte, verb rune, typ reflect.Type, depth int) {
+-	if verb == 'v' || verb == 'd' {
++func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
++	switch verb {
++	case 'v', 'd':
+ 		if p.fmt.sharpV {
++			p.buf.WriteString(typeString)
+ 			if v == nil {
+-				if typ == nil {
+-					p.buf.WriteString("[]byte(nil)")
+-				} else {
+-					p.buf.WriteString(typ.String())
+-					p.buf.WriteString(nilParenString)
+-				}
++				p.buf.WriteString(nilParenString)
+ 				return
+ 			}
+-			if typ == nil {
+-				p.buf.WriteString(bytesString)
+-			} else {
+-				p.buf.WriteString(typ.String())
+-				p.buf.WriteByte('{')
++			p.buf.WriteByte('{')
++			for i, c := range v {
++				if i > 0 {
++					p.buf.WriteString(commaSpaceString)
++				}
++				p.fmt0x64(uint64(c), true)
+ 			}
++			p.buf.WriteByte('}')
+ 		} else {
+ 			p.buf.WriteByte('[')
+-		}
+-		for i, c := range v {
+-			if i > 0 {
+-				if p.fmt.sharpV {
+-					p.buf.WriteString(commaSpaceString)
+-				} else {
++			for i, c := range v {
++				if i > 0 {
+ 					p.buf.WriteByte(' ')
+ 				}
++				p.fmt.integer(int64(c), 10, unsigned, ldigits)
+ 			}
+-			p.printArg(c, 'v', depth+1)
+-		}
+-		if p.fmt.sharpV {
+-			p.buf.WriteByte('}')
+-		} else {
+ 			p.buf.WriteByte(']')
+ 		}
+-		return
+-	}
+-	switch verb {
+ 	case 's':
+ 		p.fmt.fmt_s(string(v))
+ 	case 'x':
+@@ -788,7 +776,7 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) {
+ 	case string:
+ 		p.fmtString(f, verb)
+ 	case []byte:
+-		p.fmtBytes(f, verb, nil, depth)
++		p.fmtBytes(f, verb, bytesString)
+ 	case reflect.Value:
+ 		p.printReflectValue(f, verb, depth)
+ 		return
+@@ -957,13 +945,13 @@ BigSwitch:
+ 					bytes[i] = byte(f.Index(i).Uint())
+ 				}
+ 			}
+-			p.fmtBytes(bytes, verb, typ, depth)
++			p.fmtBytes(bytes, verb, typ.String())
+ 			break
+ 		}
+ 		if p.fmt.sharpV {
+ 			p.buf.WriteString(value.Type().String())
+ 			if f.Kind() == reflect.Slice && f.IsNil() {
+-				p.buf.WriteString("(nil)")
++				p.buf.WriteString(nilParenString)
+ 				break
+ 			}
+ 			p.buf.WriteByte('{')

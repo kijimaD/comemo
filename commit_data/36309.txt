@@ -11,6 +11,30 @@ Date:   Wed Apr 18 17:17:26 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/net/http/transport_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index a48e61e9ba..693d3f5b81 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3731,6 +3731,10 @@ func TestTransportEventTraceTLSVerify(t *testing.T) {
+ 		t.Error("Unexpected request")
+ 	}))
+ 	defer ts.Close()
++	ts.Config.ErrorLog = log.New(funcWriter(func(p []byte) (int, error) {
++		logf("%s", p)
++		return len(p), nil
++	}), "", 0)
+ 
+ 	certpool := x509.NewCertPool()
+ 	certpool.AddCert(ts.Certificate())
+@@ -4424,3 +4428,7 @@ func TestNoBodyOnChunked304Response(t *testing.T) {
+ 		t.Errorf("Unexpected body on 304 response")
+ 	}
+ }
++
++type funcWriter func([]byte) (int, error)
++
++func (f funcWriter) Write(p []byte) (int, error) { return f(p) }

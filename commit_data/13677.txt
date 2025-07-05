@@ -10,6 +10,28 @@ Date:   Thu Aug 23 16:44:44 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6474055
-
+---
  src/pkg/crypto/tls/conn.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 2a5115dc6a..455910af41 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -487,6 +487,16 @@ Again:
+ 		return err
+ 	}
+ 	typ := recordType(b.data[0])
++
++	// No valid TLS record has a type of 0x80, however SSLv2 handshakes
++	// start with a uint16 length where the MSB is set and the first record
++	// is always < 256 bytes long. Therefore typ == 0x80 strongly suggests
++	// an SSLv2 client.
++	if want == recordTypeHandshake && typ == 0x80 {
++		c.sendAlert(alertProtocolVersion)
++		return errors.New("tls: unsupported SSLv2 handshake received")
++	}
++
+ 	vers := uint16(b.data[1])<<8 | uint16(b.data[2])
+ 	n := int(b.data[3])<<8 | int(b.data[4])
+ 	if c.haveVers && vers != c.vers {

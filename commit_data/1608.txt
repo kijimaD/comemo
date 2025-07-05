@@ -19,10 +19,1370 @@ Date:   Tue Feb 3 15:00:09 2009 -0800
     DELTA=909  (576 added, 123 deleted, 210 changed)
     OCL=24240
     CL=24259
-
+---
  include/mach_amd64.h       |   2 +-
  src/cmd/prof/main.c        | 364 +++++++++++++++++----------
  src/libmach_amd64/8db.c    |  19 +-
  src/libmach_amd64/darwin.c |  19 +-
  src/libmach_amd64/linux.c  | 604 +++++++++++++++++++++++++++++++++++----------
  5 files changed, 729 insertions(+), 279 deletions(-)
+
+diff --git a/include/mach_amd64.h b/include/mach_amd64.h
+index 140240993e..3ad0efcbb8 100644
+--- a/include/mach_amd64.h
++++ b/include/mach_amd64.h
+@@ -415,7 +415,7 @@ int		ctlproc(int pid, char *msg);
+ void		detachproc(Map *m);
+ int		procnotes(int pid, char ***pnotes);
+ char*		proctextfile(int pid);
+-int		procthreadpids(int pid, int **thread);
++int		procthreadpids(int pid, int *tid, int ntid);
+ char*	procstatus(int);
+ 
+ Maprw	fdrw;
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index c4380b9b38..20ea7f28e0 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -11,17 +11,16 @@
+ #include <ureg_amd64.h>
+ #include <mach_amd64.h>
+ 
+-int pid;
+ char* file = "6.out";
+ static Fhdr fhdr;
+ int have_syms;
+ int fd;
+-Map *map;
+ Map	*symmap;
+ struct Ureg ureg;
+ int total_sec = 0;
+ int delta_msec = 100;
+-int collapse = 1;	// collapse histogram trace points in same function
++int nsample;
++int nsamplethread;
+ 
+ // output formats
+ int functions;	// print functions
+@@ -30,6 +29,12 @@ int linenums;	// print file and line numbers rather than function names
+ int registers;	// print registers
+ int stacks;		// print stack traces
+ 
++int pid;		// main process pid
++
++int nthread;	// number of threads
++int thread[32];	// thread pids
++Map *map[32];	// thread maps
++
+ void
+ Usage(void)
+ {
+@@ -40,12 +45,14 @@ Usage(void)
+ 	fprint(2, "\t\t-l: dynamic file and line numbers\n");
+ 	fprint(2, "\t\t-r: dynamic registers\n");
+ 	fprint(2, "\t\t-s: dynamic function stack traces\n");
++	fprint(2, "\t\t-hs: include stack info in histograms\n");
+ 	exit(2);
+ }
+ 
+ typedef struct PC PC;
+ struct PC {
+ 	uvlong pc;
++	uvlong callerpc;
+ 	unsigned int count;
+ 	PC* next;
+ };
+@@ -88,20 +95,105 @@ regprint(void)
+ }
+ 
+ int
+-sample(void)
++getthreads(void)
++{
++	int i, j, curn, found;
++	Map *curmap[nelem(map)];
++	int curthread[nelem(map)];
++	static int complained = 0;
++
++	curn = procthreadpids(pid, curthread, nelem(curthread));
++	if(curn <= 0)
++		return curn;
++
++	if(curn > nelem(map)) {
++		if(complained == 0) {
++			fprint(2, "prof: too many threads; limiting to %d\n", nthread, nelem(map));
++			complained = 1;
++		}
++		curn = nelem(map);
++	}
++	if(curn == nthread && memcmp(thread, curthread, curn*sizeof(*thread)) == 0)
++		return curn;	// no changes
++
++	// Number of threads has changed (might be the init case).
++	// A bit expensive but rare enough not to bother being clever.
++	for(i = 0; i < curn; i++) {
++		found = 0;
++		for(j = 0; j < nthread; j++) {
++			if(curthread[i] == thread[j]) {
++				found = 1;
++				curmap[i] = map[j];
++				map[j] = nil;
++				break;
++			}
++		}
++		if(found)
++			continue;
++
++		// map new thread
++		curmap[i] = attachproc(curthread[i], &fhdr);
++		if(curmap[i] == nil) {
++			fprint(2, "prof: can't attach to %d: %r\n", curthread[i]);
++			return -1;
++		}
++	}
++
++	for(j = 0; j < nthread; j++)
++		if(map[j] != nil)
++			detachproc(map[j]);
++
++	nthread = curn;
++	memmove(thread, curthread, nthread*sizeof thread[0]);
++	memmove(map, curmap, sizeof map);
++	return nthread;
++}
++
++int
++sample(Map *map)
+ {
+ 	int i;
+ 	static int n;
+ 
+ 	n++;
+-	for(i = 0; i < sizeof ureg; i+=8) {
+-		if(get8(map, (uvlong)i, &((uvlong*)&ureg)[i/8]) < 0) {
+-			if(n == 1)
+-				fprint(2, "prof: can't read registers at %d: %r\n", i);
+-			return 0;
++	if(registers) {
++		for(i = 0; i < sizeof ureg; i+=8) {
++			if(get8(map, (uvlong)i, &((uvlong*)&ureg)[i/8]) < 0)
++				goto bad;
+ 		}
++	} else {
++		// we need only two registers
++		if(get8(map, offsetof(struct Ureg, ip), (uvlong*)&ureg.ip) < 0)
++			goto bad;
++		if(get8(map, offsetof(struct Ureg, sp), (uvlong*)&ureg.sp) < 0)
++			goto bad;
+ 	}
+ 	return 1;
++bad:
++	if(n == 1)
++		fprint(2, "prof: can't read registers: %r\n");
++	return 0;
++}
++
++void
++addtohistogram(uvlong pc, uvlong callerpc, uvlong sp)
++{
++	int h;
++	PC *x;
++
++	h = (pc + callerpc*101) % Ncounters;
++	for(x = counters[h]; x != NULL; x = x->next) {
++		if(x->pc == pc && x->callerpc == callerpc) {
++			x->count++;
++			return;
++		}
++	}
++	x = malloc(sizeof(PC));
++	x->pc = pc;
++	x->callerpc = callerpc;
++	x->count = 1;
++	x->next = counters[h];
++	counters[h] = x;
+ }
+ 
+ uvlong nextpc;
+@@ -114,53 +206,40 @@ xptrace(Map *map, uvlong pc, uvlong sp, Symbol *sym)
+ 		print("syms\n");
+ 		return;
+ 	}
+-	if(nextpc == 0)
+-		nextpc = sym->value;
+-	print("%s(", sym->name);
+-	print(")");
+-	if(nextpc != sym->value)
+-		print("+%#llux ", nextpc - sym->value);
+-	if(have_syms && linenums && fileline(buf, sizeof buf, pc)) {
+-		print(" %s", buf);
++	if(histograms)
++		addtohistogram(nextpc, pc, sp);
++	if(!histograms || stacks > 1) {
++		if(nextpc == 0)
++			nextpc = sym->value;
++		print("%s(", sym->name);
++		print(")");
++		if(nextpc != sym->value)
++			print("+%#llux ", nextpc - sym->value);
++		if(have_syms && linenums && fileline(buf, sizeof buf, pc)) {
++			print(" %s", buf);
++		}
++		print("\n");
+ 	}
+-	print("\n");
+ 	nextpc = pc;
+ }
+ 
+ void
+-stacktracepcsp(uvlong pc, uvlong sp)
++stacktracepcsp(Map *map, uvlong pc, uvlong sp)
+ {
+-	nextpc = 0;
++	nextpc = pc;
+ 	if(machdata->ctrace==nil)
+ 		fprint(2, "no machdata->ctrace\n");
+ 	else if(machdata->ctrace(map, pc, sp, 0, xptrace) <= 0)
+ 		fprint(2, "no stack frame: pc=%#p sp=%#p\n", pc, sp);
+-	else
+-		print("\n");
+-}
+-
+-void
+-addtohistogram(uvlong pc, uvlong sp)
+-{
+-	int h;
+-	PC *x;
+-
+-	h = pc % Ncounters;
+-	for(x = counters[h]; x != NULL; x = x->next) {
+-		if(x->pc == pc) {
+-			x->count++;
+-			return;
+-		}
++	else {
++		addtohistogram(nextpc, 0, sp);
++		if(!histograms || stacks > 1)
++			print("\n");
+ 	}
+-	x = malloc(sizeof(PC));
+-	x->pc = pc;
+-	x->count = 1;
+-	x->next = counters[h];
+-	counters[h] = x;
+ }
+ 
+ void
+-printpc(uvlong pc, uvlong sp)
++printpc(Map *map, uvlong pc, uvlong sp)
+ {
+ 	char buf[1024];
+ 	if(registers)
+@@ -172,117 +251,136 @@ printpc(uvlong pc, uvlong sp)
+ 		print("%s\n", buf);
+ 	}
+ 	if(stacks){
+-		stacktracepcsp(pc, sp);
++		stacktracepcsp(map, pc, sp);
+ 	}
+-	if(histograms){
+-		addtohistogram(pc, sp);
++	else if(histograms){
++		addtohistogram(pc, 0, sp);
+ 	}
+ }
+ 
+ void
+ samples(void)
+ {
+-	int msec;
++	int i, pid, msec;
+ 	struct timespec req;
+ 
+ 	req.tv_sec = delta_msec/1000;
+ 	req.tv_nsec = 1000000*(delta_msec % 1000);
+ 	for(msec = 0; total_sec <= 0 || msec < 1000*total_sec; msec += delta_msec) {
+-		ctlproc(pid, "stop");
+-		if(!sample()) {
++		nsample++;
++		nsamplethread += nthread;
++		for(i = 0; i < nthread; i++) {
++			pid = thread[i];
++			if(ctlproc(pid, "stop") < 0)
++				return;
++			if(!sample(map[i])) {
++				ctlproc(pid, "start");
++				return;
++			}
++			printpc(map[i], ureg.ip, ureg.sp);
+ 			ctlproc(pid, "start");
+-			break;
+ 		}
+-		printpc(ureg.ip, ureg.sp);
+-		ctlproc(pid, "start");
+ 		nanosleep(&req, NULL);
++		getthreads();
++		if(nthread == 0)
++			break;
+ 	}
+ }
+ 
+-int
+-comparepc(const void *va, const void *vb)
++typedef struct Func Func;
++struct Func
+ {
+-	const PC *const*a = va;
+-	const PC *const*b = vb;
+-	return (*a)->pc - (*b)->pc;
+-}
++	Func *next;
++	Symbol s;
++	uint onstack;
++	uint leaf;
++};
+ 
+-int
+-comparecount(const void *va, const void *vb)
++Func *func[257];
++int nfunc;
++
++Func*
++findfunc(uvlong pc)
+ {
+-	const PC *const*a = va;
+-	const PC *const*b = vb;
+-	return (*b)->count - (*a)->count;  // sort downwards
++	Func *f;
++	uint h;
++	Symbol s;
++
++	if(pc == 0)
++		return nil;
++
++	if(!findsym(pc, CTEXT, &s))
++		return nil;
++
++	h = s.value % nelem(func);
++	for(f = func[h]; f != NULL; f = f->next)
++		if(f->s.value == s.value)
++			return f;
++
++	f = mallocz(sizeof *f, 1);
++	f->s = s;
++	f->next = func[h];
++	func[h] = f;
++	nfunc++;
++	return f;
+ }
+ 
+-void
+-func(char *s, int n, uvlong pc)
++int
++compareleaf(const void *va, const void *vb)
+ {
+-	char *p;
++	Func *a, *b;
+ 
+-	symoff(s, n, pc, CANY);
+-	p = strchr(s, '+');
+-	if(p != NULL)
+-		*p = 0;
++	a = *(Func**)va;
++	b = *(Func**)vb;
++	if(a->leaf != b->leaf)
++		return b->leaf - a->leaf;
++	if(a->onstack != b->onstack)
++		return b->onstack - a->onstack;
++	return strcmp(a->s.name, b->s.name);
+ }
+ 
+ void
+ dumphistogram()
+ {
+-	int h;
++	int i, h, n;
+ 	PC *x;
+-	PC **pcs;
+-	uint i;
+-	uint j;
+-	uint npc;
+-	uint ncount;
+-	char b1[100];
+-	char b2[100];
++	Func *f, **ff;
+ 
+ 	if(!histograms)
+ 		return;
+ 
+-	// count samples
+-	ncount = 0;
+-	npc = 0;
+-	for(h = 0; h < Ncounters; h++)
++	// assign counts to functions.
++	for(h = 0; h < Ncounters; h++) {
+ 		for(x = counters[h]; x != NULL; x = x->next) {
+-			ncount += x->count;
+-			npc++;
+-		}
+-	// build array
+-	pcs = malloc(npc*sizeof(PC*));
+-	i = 0;
+-	for(h = 0; h < Ncounters; h++)
+-		for(x = counters[h]; x != NULL; x = x->next)
+-			pcs[i++] = x;
+-	if(collapse) {
+-		// combine counts in same function
+-		// sort by address
+-		qsort(pcs, npc, sizeof(PC*), comparepc);
+-		for(i = j = 0; i < npc; i++){
+-			x = pcs[i];
+-			func(b2, sizeof(b2), x->pc);
+-			if(j > 0 && strcmp(b1, b2) == 0) {
+-				pcs[j-1]->count += x->count;
+-			} else {
+-				strcpy(b1, b2);
+-				pcs[j++] = x;
++			f = findfunc(x->pc);
++			if(f) {
++				f->onstack += x->count;
++				f->leaf += x->count;
+ 			}
++			f = findfunc(x->callerpc);
++			if(f)
++				f->leaf -= x->count;
+ 		}
+-		npc = j;
+ 	}
+-	// sort by count
+-	qsort(pcs, npc, sizeof(PC*), comparecount);
+-	// print array
+-	for(i = 0; i < npc; i++){
+-		x = pcs[i];
+-		print("%5.2f%%\t", 100.0*(double)x->count/(double)ncount);
+-		if(collapse)
+-			func(b2, sizeof b2, x->pc);
+-		else
+-			symoff(b2, sizeof(b2), x->pc, CANY);
+-		print("%s\n", b2);
++
++	// build array
++	ff = malloc(nfunc*sizeof ff[0]);
++	n = 0;
++	for(h = 0; h < nelem(func); h++)
++		for(f = func[h]; f != NULL; f = f->next)
++			ff[n++] = f;
++
++	// sort by leaf counts
++	qsort(ff, nfunc, sizeof ff[0], compareleaf);
++
++	// print.
++	print("%d samples (avg %.1g threads)\n", nsample, (double)nsamplethread/nsample);
++	for(i = 0; i < nfunc; i++) {
++		f = ff[i];
++		print("%6.2f%%\t", 100.0*(double)f->leaf/nsample);
++		if(stacks)
++			print("%6.2f%%\t", 100.0*(double)f->onstack/nsample);
++		print("%s\n", f->s.name);
+ 	}
+ }
+ 
+@@ -313,13 +411,21 @@ startprocess(char **argv)
+ 	return pid;
+ }
+ 
++void
++detach(void)
++{
++	int i;
++
++	for(i = 0; i < nthread; i++)
++		detachproc(map[i]);
++}
++
+ int
+ main(int argc, char *argv[])
+ {
++	int i;
++
+ 	ARGBEGIN{
+-	case 'c':
+-		collapse = 0;
+-		break;
+ 	case 'd':
+ 		delta_msec = atoi(EARGF(Usage()));
+ 		break;
+@@ -342,7 +448,7 @@ main(int argc, char *argv[])
+ 		registers = 1;
+ 		break;
+ 	case 's':
+-		stacks = 1;
++		stacks++;
+ 		break;
+ 	}ARGEND
+ 	if(pid <= 0 && argc == 0)
+@@ -355,18 +461,13 @@ main(int argc, char *argv[])
+ 	}
+ 	if(argc > 0)
+ 		file = argv[0];
++	else if(pid)
++		file = proctextfile(pid);
+ 	fd = open(file, 0);
+ 	if(fd < 0) {
+ 		fprint(2, "prof: can't open %s: %r\n", file);
+ 		exit(1);
+ 	}
+-	if(pid <= 0)
+-		pid = startprocess(argv);
+-	map = attachproc(pid, &fhdr);
+-	if(map == nil) {
+-		fprint(2, "prof: can't attach to %d: %r\n", pid);
+-		exit(1);
+-	}
+ 	if(crackhdr(fd, &fhdr)) {
+ 		have_syms = syminit(fd, &fhdr);
+ 		if(!have_syms) {
+@@ -376,9 +477,18 @@ main(int argc, char *argv[])
+ 		fprint(2, "prof: crack header for %s: %r\n", file);
+ 		exit(1);
+ 	}
+-	ctlproc(pid, "start");
++	if(pid <= 0)
++		pid = startprocess(argv);
++	attachproc(pid, &fhdr);	// initializes thread list
++	if(getthreads() <= 0) {
++		detach();
++		fprint(2, "prof: can't find threads for pid %d\n", pid);
++		exit(1);
++	}
++	for(i = 0; i < nthread; i++)
++		ctlproc(thread[i], "start");
+ 	samples();
+-	detachproc(map);
++	detach();
+ 	dumphistogram();
+ 	exit(0);
+ }
+diff --git a/src/libmach_amd64/8db.c b/src/libmach_amd64/8db.c
+index bab5ffb9b1..2a7d595b2c 100644
+--- a/src/libmach_amd64/8db.c
++++ b/src/libmach_amd64/8db.c
+@@ -145,7 +145,7 @@ static int
+ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ {
+ 	int i;
+-	uvlong osp;
++	uvlong osp, pc1;
+ 	Symbol s, f, s1;
+ 	extern Mach mamd64;
+ 	int isamd64;
+@@ -189,19 +189,30 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 			break;
+ 		}
+ 		s1 = s;
+-
++		pc1 = 0;
+ 		if(pc != s.value) {	/* not at first instruction */
+ 			if(findlocal(&s, FRAMENAME, &f) == 0)
+ 				break;
++			geta(map, sp, &pc1);
+ 			sp += f.value-mach->szaddr;
+ 		}
+-		if (geta(map, sp, &pc) < 0)
++		if(geta(map, sp, &pc) < 0)
+ 			break;
+ 
++		// If PC is not valid, assume we caught the function
++		// before it moved the stack pointer down or perhaps
++		// after it moved the stack pointer back up.
++		// Try the PC we'd have gotten without the stack
++		// pointer adjustment above (pc != s.value).
++		// This only matters for the first frame, and it is only
++		// a heuristic, but it does help.
++		if(!findsym(pc, CTEXT, &s) || strcmp(s.name, "etext") == 0)
++			pc = pc1;
++
+ 		if(pc == 0)
+ 			break;
+ 
+-		if (pc != retfromnewstack)
++		if(pc != retfromnewstack)
+ 			(*trace)(map, pc, sp, &s1);
+ 		sp += mach->szaddr;
+ 
+diff --git a/src/libmach_amd64/darwin.c b/src/libmach_amd64/darwin.c
+index 4adf03b1ad..00cf7171f1 100644
+--- a/src/libmach_amd64/darwin.c
++++ b/src/libmach_amd64/darwin.c
+@@ -341,11 +341,10 @@ attachproc(int id, Fhdr *fp)
+ 
+ // Return list of ids for threads in id.
+ int
+-procthreadpids(int id, int **thread)
++procthreadpids(int id, int *out, int nout)
+ {
+ 	Thread *t;
+ 	int i, n, pid;
+-	int *out;
+ 
+ 	t = idtotable(id);
+ 	if(t == nil)
+@@ -353,17 +352,13 @@ procthreadpids(int id, int **thread)
+ 	pid = t->pid;
+ 	addpid(pid, 1);	// force refresh of thread list
+ 	n = 0;
+-	for(i=0; i<nthr; i++)
+-		if(thr[i].pid == pid)
++	for(i=0; i<nthr; i++) {
++		if(thr[i].pid == pid) {
++			if(n < nout)
++				out[n] = -(i+1);
+ 			n++;
+-	out = malloc(n*sizeof out[0]);
+-	if(out == nil)
+-		return -1;
+-	n = 0;
+-	for(i=0; i<nthr; i++)
+-		if(thr[i].pid == pid)
+-			out[n++] = -(i+1);
+-	*thread = out;
++		}
++	}
+ 	return n;
+ }
+ 
+diff --git a/src/libmach_amd64/linux.c b/src/libmach_amd64/linux.c
+index b25d9a3f86..b9f18fd4ff 100644
+--- a/src/libmach_amd64/linux.c
++++ b/src/libmach_amd64/linux.c
+@@ -30,6 +30,7 @@
+ #include <u.h>
+ #include <sys/syscall.h>	/* for tkill */
+ #include <unistd.h>
++#include <dirent.h>
+ #include <sys/ptrace.h>
+ #include <sys/signal.h>
+ #include <sys/wait.h>
+@@ -55,96 +56,364 @@ struct user_regs_struct {
+ 	unsigned long ds,es,fs,gs;
+ };
+ 
+-// return pid's state letter or -1 on error.
+-// set *tpid to tracer pid
+-static int
+-procstate(int pid, int *tpid)
++// Linux gets very upset if a debugger forgets the reported state
++// of a debugged process, so we keep everything we know about
++// a debugged process in the LinuxThread structure.
++//
++// We can poll for state changes by calling waitpid and interpreting
++// the integer status code that comes back.  Wait1 does this.
++//
++// If the process is already running, it is an error to PTRACE_CONT it.
++//
++// If the process is already stopped, it is an error to stop it again.
++//
++// If the process is stopped because of a signal, the debugger must
++// relay the signal to the PTRACE_CONT call, or else the signal is
++// dropped.
++//
++// If the process exits, the debugger should detach so that the real
++// parent can reap the zombie.
++//
++// On first attach, the debugger should set a handful of flags in order
++// to catch future events like fork, clone, exec, etc.
++
++// One for every attached thread.
++typedef struct LinuxThread LinuxThread;
++struct LinuxThread
+ {
+-	char buf[1024];
+-	int fd, n;
+-	char *p;
++	int pid;
++	int tid;
++	int state;
++	int signal;
++	int child;
++	int exitcode;
++};
+ 
+-	snprint(buf, sizeof buf, "/proc/%d/stat", pid);
+-	if((fd = open(buf, OREAD)) < 0)
+-		return -1;
+-	n = read(fd, buf, sizeof buf-1);
+-	close(fd);
+-	if(n <= 0)
+-		return -1;
+-	buf[n] = 0;
++static int trace = 0;
+ 
+-	/* command name is in parens, no parens afterward */
+-	p = strrchr(buf, ')');
+-	if(p == nil || *++p != ' ')
+-		return -1;
+-	++p;
++static LinuxThread **thr;
++static int nthr;
++static int mthr;
++
++static int realpid(int pid);
++
++enum
++{
++	Unknown,
++	Detached,
++	Attached,
++	AttachStop,
++	Stopped,
++	Running,
++	Forking,
++	Vforking,
++	VforkDone,
++	Cloning,
++	Execing,
++	Exiting,
++	Exited,
++	Killed,
++
++	NSTATE,
++};
++
++static char* statestr[NSTATE] = {
++	"Unknown",
++	"Detached",
++	"Attached",
++	"AttachStop",
++	"Stopped",
++	"Running",
++	"Forking",
++	"Vforking",
++	"VforkDone",
++	"Cloning",
++	"Execing",
++	"Exiting",
++	"Exited",
++	"Killed"
++};
++
++static LinuxThread*
++attachthread(int pid, int tid, int *new, int newstate)
++{
++	int i, n, status;
++	LinuxThread **p, *t;
++	uintptr flags;
++
++	if(new)
++		*new = 0;
++
++	for(i=0; i<nthr; i++)
++		if((pid == 0 || thr[i]->pid == pid) && thr[i]->tid == tid) {
++			t = thr[i];
++			goto fixup;
++		}
++
++	if(!new)
++		return nil;
++
++	if(nthr >= mthr) {
++		n = mthr;
++		if(n == 0)
++			n = 64;
++		else
++			n *= 2;
++		p = realloc(thr, n*sizeof thr[0]);
++		if(p == nil)
++			return nil;
++		thr = p;
++		mthr = n;
++	}
++
++	t = malloc(sizeof *t);
++	if(t == nil)
++		return nil;
++
++	thr[nthr++] = t;
++	t->pid = pid;
++	t->tid = tid;
++	t->state = newstate;
++	if(trace)
++		fprint(2, "new thread %d %d\n", t->pid, t->tid);
++	if(new)
++		*new = 1;
++
++fixup:
++	if(t->state == Detached) {
++		if(ptrace(PTRACE_ATTACH, tid, 0, 0) < 0) {
++			fprint(2, "ptrace ATTACH %d: %r\n", tid);
++			return nil;
++		}
++		t->state = Attached;
++	}
++
++	if(t->state == Attached) {
++		// wait for stop, so we can set options
++		if(waitpid(tid, &status, __WALL|WUNTRACED|WSTOPPED) < 0)
++			return nil;
++		if(!WIFSTOPPED(status)) {
++			fprint(2, "waitpid %d: status=%#x not stopped\n", tid);
++			return nil;
++		}
++		t->state = AttachStop;
++	}
++
++	if(t->state == AttachStop) {
++		// set options so we'll find out about new threads
++		flags = PTRACE_O_TRACEFORK |
++			PTRACE_O_TRACEVFORK |
++			PTRACE_O_TRACECLONE |
++			PTRACE_O_TRACEEXEC |
++			PTRACE_O_TRACEVFORKDONE |
++			PTRACE_O_TRACEEXIT;
++		if(ptrace(PTRACE_SETOPTIONS, tid, 0, (void*)flags) < 0)	{
++			fprint(2, "ptrace PTRACE_SETOPTIONS %d: %r\n", tid);
++			return nil;
++		}
++		t->state = Stopped;
++	}
+ 
+-	/* p is now state letter.  p+1 is tracer pid */
+-	if(tpid)
+-		*tpid = atoi(p+1);
+-	return *p;
++	return t;
+ }
+ 
+-static int
+-attached(int pid)
++static LinuxThread*
++findthread(int tid)
++{
++	return attachthread(0, tid, nil, 0);
++}
++
++int
++procthreadpids(int pid, int *p, int np)
+ {
+-	int tpid;
++	int i, n;
++	LinuxThread *t;
+ 
+-	return procstate(pid, &tpid) == 'T' && tpid == pid;
++	n = 0;
++	for(i=0; i<nthr; i++) {
++		t = thr[i];
++		if(t->pid == pid) {
++			switch(t->state) {
++			case Exited:
++			case Detached:
++			case Killed:
++				break;
++
++			default:
++				if(n < np)
++					p[n] = t->tid;
++				n++;
++				break;
++			}
++		}
++	}
++	return n;
+ }
+ 
++// Execute a single wait and update the corresponding thread.
+ static int
+-waitstop(int pid)
++wait1(int nohang)
+ {
+-	int p, status;
+-
+-	p = procstate(pid, nil);
+-	if(p < 0)
++	int tid, new, status, event;
++	ulong data;
++	LinuxThread *t;
++	enum
++	{
++		NormalStop = 0x137f
++	};
++
++	if(nohang != 0)
++		nohang = WNOHANG;
++
++	tid = waitpid(-1, &status, __WALL|WUNTRACED|WSTOPPED|WCONTINUED|nohang);
++	if(tid < 0)
+ 		return -1;
+-	if(p == 'T')
++	if(tid == 0)
+ 		return 0;
+ 
+-	for(;;){
+-		p = waitpid(pid, &status, WUNTRACED|__WALL);
+-		if(p <= 0){
+-			if(errno == ECHILD){
+-				if(procstate(pid, nil) == 'T')
+-					return 0;
++	if(trace > 0 && status != NormalStop)
++		fprint(2, "TID %d: %#x\n", tid, status);
++
++	// If we've not heard of this tid, something is wrong.
++	t = findthread(tid);
++	if(t == nil) {
++		fprint(2, "ptrace waitpid: unexpected new tid %d status %#x\n", tid, status);
++		return -1;
++	}
++
++	if(WIFSTOPPED(status)) {
++		t->state = Stopped;
++		t->signal = WSTOPSIG(status);
++		if(trace)
++			fprint(2, "tid %d: stopped %#x%s\n", tid, status,
++				status != NormalStop ? " ***" : "");
++		if(t->signal == SIGTRAP && (event = status>>16) != 0) {	// ptrace event
++			switch(event) {
++			case PTRACE_EVENT_FORK:
++				t->state = Forking;
++				goto child;
++
++			case PTRACE_EVENT_VFORK:
++				t->state = Vforking;
++				goto child;
++
++			case PTRACE_EVENT_CLONE:
++				t->state = Cloning;
++				goto child;
++
++			child:
++				if(ptrace(PTRACE_GETEVENTMSG, t->tid, 0, &data) < 0) {
++					fprint(2, "ptrace GETEVENTMSG tid %d: %r\n", tid);
++					break;
++				}
++				t->child = data;
++				attachthread(t->pid, t->child, &new, Running);
++				if(!new)
++					fprint(2, "ptrace child: not new\n");
++				break;
++
++			case PTRACE_EVENT_EXEC:
++				t->state = Execing;
++				break;
++
++			case PTRACE_EVENT_VFORK_DONE:
++				t->state = VforkDone;
++				break;
++
++			case PTRACE_EVENT_EXIT:
++				if(trace)
++					fprint(2, "tid %d: exiting %#x\n", tid, status);
++				t->state = Exiting;
++				if(ptrace(PTRACE_GETEVENTMSG, t->tid, 0, &data) < 0) {
++					fprint(2, "ptrace GETEVENTMSG tid %d: %r\n", tid);
++					break;
++				}
++				t->exitcode = data;
++				break;
+ 			}
+-			return -1;
+ 		}
+-		if(WIFEXITED(status) || WIFSTOPPED(status))
+-			return 0;
+ 	}
++	if(WIFCONTINUED(status)) {
++		if(trace)
++			fprint(2, "tid %d: continued %#x\n", tid, status);
++		t->state = Running;
++	}
++	if(WIFEXITED(status)) {
++		if(trace)
++			fprint(2, "tid %d: exited %#x\n", tid, status);
++		t->state = Exited;
++		t->exitcode = WEXITSTATUS(status);
++		t->signal = -1;
++		ptrace(PTRACE_DETACH, t->tid, 0, 0);
++		if(trace)
++			fprint(2, "tid %d: detach exited\n", tid);
++	}
++	if(WIFSIGNALED(status)) {
++		if(trace)
++			fprint(2, "tid %d: signaled %#x\n", tid, status);
++		t->state = Exited;
++		t->signal = WTERMSIG(status);
++		t->exitcode = -1;
++		ptrace(PTRACE_DETACH, t->tid, 0, 0);
++		if(trace)
++			fprint(2, "tid %d: detach signaled\n", tid);
++	}
++	return 1;
+ }
+ 
+-static int attachedpids[1000];
+-static int nattached;
+-
+ static int
+-ptraceattach(int pid)
++waitstop(LinuxThread *t)
+ {
+-	int i;
++	while(t->state == Running)
++		if(wait1(0) < 0)
++			return -1;
++	return 0;
++}
+ 
+-	for(i=0; i<nattached; i++)
+-		if(attachedpids[i] == pid)
+-			return 0;
+-	if(nattached == nelem(attachedpids)){
+-		werrstr("attached to too many processes");
+-		return -1;
+-	}
++// Attach to and stop all threads in process pid.
++// Must stop everyone in order to make sure we set
++// the "tell me about new threads" option in every
++// task.
++int
++attachallthreads(int pid)
++{
++	int tid, foundnew, new;
++	char buf[100];
++	DIR *d;
++	struct dirent *de;
++	LinuxThread *t;
+ 
+-	if(!attached(pid) && ptrace(PTRACE_ATTACH, pid, 0, 0) < 0){
+-		werrstr("ptrace attach %d: %r", pid);
++	if(pid == 0) {
++		fprint(2, "attachallthreads(0)\n");
+ 		return -1;
+ 	}
+ 
+-	if(waitstop(pid) < 0){
+-		fprint(2, "waitstop %d: %r", pid);
+-		ptrace(PTRACE_DETACH, pid, 0, 0);
++	pid = realpid(pid);
++
++	snprint(buf, sizeof buf, "/proc/%d/task", pid);
++	if((d = opendir(buf)) == nil) {
++		fprint(2, "opendir %s: %r\n", buf);
+ 		return -1;
+ 	}
+-	attachedpids[nattached++] = pid;
++
++	// Loop in case new threads are being created right now.
++	// We stop every thread as we find it, so eventually
++	// this has to stop (or the system runs out of procs).
++	do {
++		foundnew = 0;
++		while((de = readdir(d)) != nil) {
++			tid = atoi(de->d_name);
++			if(tid == 0)
++				continue;
++			t = attachthread(pid, tid, &new, Detached);
++			foundnew |= new;
++			if(t)
++				waitstop(t);
++		}
++		rewinddir(d);
++	} while(foundnew);
++	closedir(d);
++
+ 	return 0;
+ }
+ 
+@@ -153,7 +422,12 @@ attachproc(int pid, Fhdr *fp)
+ {
+ 	Map *map;
+ 
+-	if(ptraceattach(pid) < 0)
++	if(pid == 0) {
++		fprint(2, "attachproc(0)\n");
++		return nil;
++	}
++
++	if(findthread(pid) == nil && attachallthreads(pid) < 0)
+ 		return nil;
+ 
+ 	map = newmap(0, 4);
+@@ -172,8 +446,16 @@ attachproc(int pid, Fhdr *fp)
+ void
+ detachproc(Map *m)
+ {
+-	if(m->pid > 0)
+-		ptrace(PTRACE_DETACH, m->pid, 0, 0);
++	LinuxThread *t;
++
++	t = findthread(m->pid);
++	if(t != nil) {
++		ptrace(PTRACE_DETACH, t->tid, 0, 0);
++		t->state = Detached;
++		if(trace)
++			fprint(2, "tid %d: detachproc\n", t->tid);
++		// TODO(rsc): Reclaim thread structs somehow?
++	}
+ 	free(m);
+ }
+ 
+@@ -219,22 +501,18 @@ detachproc(Map *m)
+ 	36. processor
+ */
+ 
+-int
+-procnotes(int pid, char ***pnotes)
++static int
++readstat(int pid, char *buf, int nbuf, char **f, int nf)
+ {
+-	char buf[1024], *f[40];
+-	int fd, i, n, nf;
+-	char *p, *s, **notes;
+-	ulong sigs;
+-	extern char *_p9sigstr(int, char*);
++	int fd, n;
++	char *p;
+ 
+-	*pnotes = nil;
+-	snprint(buf, sizeof buf, "/proc/%d/stat", pid);
++	snprint(buf, nbuf, "/proc/%d/stat", pid);
+ 	if((fd = open(buf, OREAD)) < 0){
+ 		fprint(2, "open %s: %r\n", buf);
+ 		return -1;
+ 	}
+-	n = read(fd, buf, sizeof buf-1);
++	n = read(fd, buf, nbuf-1);
+ 	close(fd);
+ 	if(n <= 0){
+ 		fprint(2, "read %s: %r\n", buf);
+@@ -250,10 +528,49 @@ procnotes(int pid, char ***pnotes)
+ 	}
+ 	++p;
+ 
+-	nf = tokenize(p, f, nelem(f));
++	nf = tokenize(p, f, nf);
+ 	if(0) print("code 0x%lux-0x%lux stack 0x%lux kstk 0x%lux keip 0x%lux pending 0x%lux\n",
+ 		strtoul(f[23], 0, 0), strtoul(f[24], 0, 0), strtoul(f[25], 0, 0),
+ 		strtoul(f[26], 0, 0), strtoul(f[27], 0, 0), strtoul(f[28], 0, 0));
++
++	return nf;
++}
++
++static char*
++readstatus(int pid, char *buf, int nbuf, char *key)
++{
++	int fd, n;
++	char *p;
++
++	snprint(buf, nbuf, "/proc/%d/status", pid);
++	if((fd = open(buf, OREAD)) < 0){
++		fprint(2, "open %s: %r\n", buf);
++		return nil;
++	}
++	n = read(fd, buf, nbuf-1);
++	close(fd);
++	if(n <= 0){
++		fprint(2, "read %s: %r\n", buf);
++		return nil;
++	}
++	buf[n] = 0;
++	p = strstr(buf, key);
++	if(p)
++		return p+strlen(key);
++	return nil;
++}
++
++int
++procnotes(int pid, char ***pnotes)
++{
++	char buf[1024], *f[40];
++	int i, n, nf;
++	char *s, **notes;
++	ulong sigs;
++	extern char *_p9sigstr(int, char*);
++
++	*pnotes = nil;
++	nf = readstat(pid, buf, sizeof buf, f, nelem(f));
+ 	if(nf <= 28)
+ 		return -1;
+ 
+@@ -278,20 +595,31 @@ procnotes(int pid, char ***pnotes)
+ 	return n;
+ }
+ 
++static int
++realpid(int pid)
++{
++	char buf[1024], *p;
++
++	p = readstatus(pid, buf, sizeof buf, "\nTgid:");
++	if(p == nil)
++		return pid;
++	return atoi(p);
++}
++
+ int
+ ctlproc(int pid, char *msg)
+ {
+-	int i;
++	int new;
++	LinuxThread *t;
++	uintptr data;
++
++	while(wait1(1) > 0)
++		;
+ 
+ 	if(strcmp(msg, "attached") == 0){
+-		for(i=0; i<nattached; i++)
+-			if(attachedpids[i]==pid)
+-				return 0;
+-		if(nattached == nelem(attachedpids)){
+-			werrstr("attached to too many processes");
++		t = attachthread(pid, pid, &new, Attached);
++		if(t == nil)
+ 			return -1;
+-		}
+-		attachedpids[nattached++] = pid;
+ 		return 0;
+ 	}
+ 
+@@ -301,32 +629,72 @@ ctlproc(int pid, char *msg)
+ 		werrstr("can only hang self");
+ 		return -1;
+ 	}
+-	if(strcmp(msg, "kill") == 0)
+-		return ptrace(PTRACE_KILL, pid, 0, 0);
++
++	t = findthread(pid);
++	if(t == nil) {
++		werrstr("not attached to pid %d", pid);
++		return -1;
++	}
++	if(t->state == Exited) {
++		werrstr("pid %d has exited", pid);
++		return -1;
++	}
++	if(t->state == Killed) {
++		werrstr("pid %d has been killed", pid);
++		return -1;
++	}
++
++	if(strcmp(msg, "kill") == 0) {
++		if(ptrace(PTRACE_KILL, pid, 0, 0) < 0)
++			return -1;
++		t->state = Killed;
++		return 0;
++	}
+ 	if(strcmp(msg, "startstop") == 0){
+-		if(ptrace(PTRACE_CONT, pid, 0, 0) < 0)
++		if(ctlproc(pid, "start") < 0)
+ 			return -1;
+-		return waitstop(pid);
++		return waitstop(t);
+ 	}
+ 	if(strcmp(msg, "sysstop") == 0){
+ 		if(ptrace(PTRACE_SYSCALL, pid, 0, 0) < 0)
+ 			return -1;
+-		return waitstop(pid);
++		t->state = Running;
++		return waitstop(t);
+ 	}
+ 	if(strcmp(msg, "stop") == 0){
++		if(trace > 1)
++			fprint(2, "tid %d: tkill stop\n", pid);
++		if(t->state == Stopped)
++			return 0;
+ 		if(syscall(__NR_tkill, pid, SIGSTOP) < 0)
+ 			return -1;
+-		return waitstop(pid);
++		return waitstop(t);
+ 	}
+ 	if(strcmp(msg, "step") == 0){
++		if(t->state == Running) {
++			werrstr("cannot single-step unstopped %d", pid);
++			return -1;
++		}
+ 		if(ptrace(PTRACE_SINGLESTEP, pid, 0, 0) < 0)
+ 			return -1;
+-		return waitstop(pid);
++		return waitstop(t);
++	}
++	if(strcmp(msg, "start") == 0) {
++		if(t->state == Running)
++			return 0;
++		data = 0;
++		if(t->state == Stopped && t->signal != SIGSTOP)
++			data = t->signal;
++		if(trace && data)
++			fprint(2, "tid %d: continue %lud\n", pid, (ulong)data);
++		if(ptrace(PTRACE_CONT, pid, 0, (void*)data) < 0)
++			return -1;
++		t->state = Running;
++		return 0;
++	}
++	if(strcmp(msg, "waitstop") == 0) {
++		return waitstop(t);
+ 	}
+-	if(strcmp(msg, "waitstop") == 0)
+-		return waitstop(pid);
+-	if(strcmp(msg, "start") == 0)
+-		return ptrace(PTRACE_CONT, pid, 0, 0);
+ 	werrstr("unknown control message '%s'", msg);
+ 	return -1;
+ }
+@@ -344,32 +712,6 @@ proctextfile(int pid)
+ 	return nil;
+ }
+ 
+-int
+-procthreadpids(int pid, int **thread)
+-{
+-	int i, fd, nd, *t, nt;
+-	char buf[100];
+-	Dir *d;
+-
+-	snprint(buf, sizeof buf, "/proc/%d/task", pid);
+-	if((fd = open(buf, OREAD)) < 0)
+-		return -1;
+-	nd = dirreadall(fd, &d);
+-	close(fd);
+-	if(nd < 0)
+-		return -1;
+-	nt = 0;
+-	for(i=0; i<nd; i++)
+-		if(d[i].mode&DMDIR)
+-			nt++;
+-	t = malloc(nt*sizeof t[0]);
+-	nt = 0;
+-	for(i=0; i<nd; i++)
+-		if(d[i].mode&DMDIR)
+-			t[nt++] = atoi(d[i].name);
+-	*thread = t;
+-	return nt;
+-}
+ 
+ static int
+ ptracerw(int type, int xtype, int isr, int pid, uvlong addr, void *v, uint n)
+@@ -544,19 +886,11 @@ ptraceerr:
+ char*
+ procstatus(int pid)
+ {
+-	int c;
+-
+-	c = procstate(pid, nil);
+-	if(c < 0)
+-		return "Dead";
+-	switch(c) {
+-	case 'T':
+-		return "Stopped";
+-	case 'Z':
+-		return "Zombie";
+-	case 'R':
+-		return "Running";
+-	// TODO: translate more characters here
+-	}
+-	return "Running";
++	LinuxThread *t;
++
++	t = findthread(pid);
++	if(t == nil)
++		return "???";
++
++	return statestr[t->state];
+ }

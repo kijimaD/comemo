@@ -16,6 +16,35 @@ Date:   Tue Feb 24 17:49:55 2015 -0500
     Change-Id: Ic25163f4689905fd810c90abfca777324005c02f
     Reviewed-on: https://go-review.googlesource.com/5861
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 1c1248936c..20709c0b54 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -339,7 +339,7 @@ func gc(mode int) {
+ 		})
+ 	} else {
+ 		// For non-concurrent GC (mode != gcBackgroundMode)
+-		// g stack have not been scanned so set gcscanvalid
++		// The g stacks have not been scanned so set gcscanvalid
+ 		// such that mark termination scans all stacks.
+ 		// No races here since we are in a STW phase.
+ 		for _, gp := range allgs {
+@@ -381,6 +381,14 @@ func gc(mode int) {
+ 
+ 		if debug.gctrace > 1 {
+ 			startTime = nanotime()
++			// The g stacks have been scanned so
++			// they have gcscanvalid==true and gcworkdone==true.
++			// Reset these so that all stacks will be rescanned.
++			// No races here since we are in a STW phase.
++			for _, gp := range allgs {
++				gp.gcworkdone = false  // set to true in gcphasework
++				gp.gcscanvalid = false // stack has not been scanned
++			}
+ 			finishsweep_m()
+ 			gcMark(startTime)
+ 			gcSweep(mode)

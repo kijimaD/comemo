@@ -11,9 +11,82 @@ Date:   Sun Mar 4 13:38:08 2018 +0100
     Change-Id: Id41a9d54920746d5019cbeedcff1b83874f2ef73
     Reviewed-on: https://go-review.googlesource.com/110095
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/crypto/rand/rand.go      |  1 +
  src/crypto/rand/rand_js.go   | 25 +++++++++++++++++++++++++
  src/crypto/x509/root_js.go   | 10 ++++++++++
  src/crypto/x509/root_unix.go |  2 +-
  4 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index 6f7523d9d7..e80ad368a2 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -15,6 +15,7 @@ import "io"
+ // On OpenBSD, Reader uses getentropy(2).
+ // On other Unix-like systems, Reader reads from /dev/urandom.
+ // On Windows systems, Reader uses the CryptGenRandom API.
++// On Wasm, Reader uses the Web Crypto API.
+ var Reader io.Reader
+ 
+ // Read is a helper function that calls Reader.Read using io.ReadFull.
+diff --git a/src/crypto/rand/rand_js.go b/src/crypto/rand/rand_js.go
+new file mode 100644
+index 0000000000..bc54ccd37d
+--- /dev/null
++++ b/src/crypto/rand/rand_js.go
+@@ -0,0 +1,25 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package rand
++
++import "syscall/js"
++
++func init() {
++	Reader = &reader{}
++}
++
++var jsCrypto = js.Global.Get("crypto")
++
++// reader implements a pseudorandom generator
++// using JavaScript crypto.getRandomValues method.
++// See https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues.
++type reader struct{}
++
++func (r *reader) Read(b []byte) (int, error) {
++	jsCrypto.Call("getRandomValues", b)
++	return len(b), nil
++}
+diff --git a/src/crypto/x509/root_js.go b/src/crypto/x509/root_js.go
+new file mode 100644
+index 0000000000..70abb73f99
+--- /dev/null
++++ b/src/crypto/x509/root_js.go
+@@ -0,0 +1,10 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package x509
++
++// Possible certificate files; stop after finding one.
++var certFiles = []string{}
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index 115af6b2f7..8e7036234d 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package x509
+ 

@@ -15,7 +15,63 @@ Date:   Mon Dec 17 14:39:05 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go     |  5 +++++
  src/runtime/mgcwork.go | 21 +++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 622750ed2e..36d48d2561 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1453,6 +1453,11 @@ top:
+ 				// there's a paused gcWork, then
+ 				// that's a bug.
+ 				_p_.gcw.pauseGen = gcWorkPauseGen
++				// Capture the G's stack.
++				for i := range _p_.gcw.pauseStack {
++					_p_.gcw.pauseStack[i] = 0
++				}
++				callers(1, _p_.gcw.pauseStack[:])
+ 			}
+ 		})
+ 		casgstatus(gp, _Gwaiting, _Grunning)
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index cdc94b8ffb..0ed0713442 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -97,6 +97,10 @@ type gcWork struct {
+ 	// pauseGen causes put operations to spin while pauseGen ==
+ 	// gcWorkPauseGen if debugCachedWork is true.
+ 	pauseGen uint32
++
++	// pauseStack is the stack at which this P was paused if
++	// debugCachedWork is true.
++	pauseStack [16]uintptr
+ }
+ 
+ // Most of the methods of gcWork are go:nowritebarrierrec because the
+@@ -128,6 +132,23 @@ func (w *gcWork) checkPut(ptr uintptr, ptrs []uintptr) {
+ 			for _, ptr := range ptrs {
+ 				gcDumpObject("ptrs", ptr, ^uintptr(0))
+ 			}
++			println("runtime: paused at")
++			for _, pc := range w.pauseStack {
++				if pc == 0 {
++					break
++				}
++				f := findfunc(pc)
++				if f.valid() {
++					// Obviously this doesn't
++					// relate to ancestor
++					// tracebacks, but this
++					// function prints what we
++					// want.
++					printAncestorTracebackFuncInfo(f, pc)
++				} else {
++					println("\tunknown PC ", hex(pc), "\n")
++				}
++			}
+ 			throw("throwOnGCWork")
+ 		}
+ 	}

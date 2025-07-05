@@ -12,7 +12,7 @@ Date:   Mon May 2 17:49:32 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go     |  9 ---------
  src/cmd/compile/internal/ir/fmt.go         | 10 ----------
  src/cmd/compile/internal/ir/name.go        |  1 -
@@ -22,3 +22,187 @@ Date:   Mon May 2 17:49:32 2022 -0700
  src/cmd/compile/internal/typecheck/func.go |  5 +----
  src/cmd/compile/internal/typecheck/type.go |  2 +-
  8 files changed, 11 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 1fbda92418..7ec007e922 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -483,10 +483,6 @@ func inlcopy(n ir.Node) ir.Node {
+ 			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
+ 			// XXX OK to share fn.Type() ??
+ 			newfn.Nname.SetType(oldfn.Nname.Type())
+-			// Ntype can be nil for -G=3 mode.
+-			if oldfn.Nname.Ntype != nil {
+-				newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
+-			}
+ 			newfn.Body = inlcopylist(oldfn.Body)
+ 			// Make shallow copy of the Dcl and ClosureVar slices
+ 			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
+@@ -1133,11 +1129,6 @@ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
+ 	oldfn := n.Func
+ 	newfn := ir.NewClosureFunc(oldfn.Pos(), true)
+ 
+-	// Ntype can be nil for -G=3 mode.
+-	if oldfn.Nname.Ntype != nil {
+-		newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
+-	}
+-
+ 	if subst.newclofn != nil {
+ 		//fmt.Printf("Inlining a closure with a nested closure\n")
+ 	}
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index a00667b309..004d698961 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1138,11 +1138,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 			fmt.Fprintf(w, "%+v", n.Op())
+ 		}
+ 		dumpNodeHeader(w, n)
+-		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
+-			indent(w, depth)
+-			fmt.Fprintf(w, "%+v-ntype", n.Op())
+-			dumpNode(w, n.Name().Ntype, depth+1)
+-		}
+ 		return
+ 
+ 	case OASOP:
+@@ -1153,11 +1148,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 	case OTYPE:
+ 		fmt.Fprintf(w, "%+v %+v", n.Op(), n.Sym())
+ 		dumpNodeHeader(w, n)
+-		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
+-			indent(w, depth)
+-			fmt.Fprintf(w, "%+v-ntype", n.Op())
+-			dumpNode(w, n.Name().Ntype, depth+1)
+-		}
+ 		return
+ 
+ 	case OCLOSURE:
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index d057b3eafa..925994fe96 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -59,7 +59,6 @@ type Name struct {
+ 	// The function, method, or closure in which local variable or param is declared.
+ 	Curfn *Func
+ 
+-	Ntype    Ntype
+ 	Heapaddr *Name // temp holding heap address of param
+ 
+ 	// ONAME closure linkage
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index c1167f23f8..754d1a8de0 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 184, 320},
+-		{Name{}, 108, 192},
++		{Name{}, 100, 176},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 4e00dbdfd5..b95dc23edb 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -153,10 +153,6 @@ type itabInfo2 struct {
+ func setType(n ir.Node, typ *types.Type) {
+ 	n.SetType(typ)
+ 	n.SetTypecheck(1)
+-
+-	if name, ok := n.(*ir.Name); ok {
+-		name.Ntype = ir.TypeNode(name.Type())
+-	}
+ }
+ 
+ func setValue(name *ir.Name, val constant.Value) {
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index b92980194c..3b426a6d07 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -16,7 +16,7 @@ import (
+ 
+ var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
+ 
+-func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
++func DeclFunc(sym *types.Sym, tfn *ir.FuncType) *ir.Func {
+ 	if tfn.Op() != ir.OTFUNC {
+ 		base.Fatalf("expected OTFUNC node, got %v", tfn)
+ 	}
+@@ -25,10 +25,8 @@ func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
+ 	fn.Nname = ir.NewNameAt(base.Pos, sym)
+ 	fn.Nname.Func = fn
+ 	fn.Nname.Defn = fn
+-	fn.Nname.Ntype = tfn
+ 	ir.MarkFunc(fn.Nname)
+-	StartFuncBody(fn)
+-	fn.Nname.Ntype = typecheckNtype(fn.Nname.Ntype)
++	StartFuncBody(fn, tfn)
+ 	return fn
+ }
+ 
+@@ -97,7 +95,7 @@ func Export(n *ir.Name) {
+ // and declare the arguments.
+ // called in extern-declaration context
+ // returns in auto-declaration context.
+-func StartFuncBody(fn *ir.Func) {
++func StartFuncBody(fn *ir.Func, tfn *ir.FuncType) {
+ 	// change the declaration context from extern to auto
+ 	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
+ 	ir.CurFunc = fn
+@@ -105,11 +103,11 @@ func StartFuncBody(fn *ir.Func) {
+ 
+ 	types.Markdcl()
+ 
+-	if fn.Nname.Ntype != nil {
+-		funcargs(fn.Nname.Ntype.(*ir.FuncType))
+-	} else {
+-		funcargs2(fn.Type())
+-	}
++	funcargs(tfn)
++
++	tfn = tcFuncType(tfn)
++	fn.Nname.SetType(tfn.Type())
++	fn.Nname.SetTypecheck(1)
+ }
+ 
+ // finish the body.
+@@ -202,7 +200,6 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
+ 
+ 	name := ir.NewNameAt(n.Pos, n.Sym)
+ 	n.Decl = name
+-	name.Ntype = nil
+ 	Declare(name, ctxt)
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index f407ab6133..0d9b18bc37 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -270,10 +270,7 @@ func tcFunc(n *ir.Func) {
+ 	}
+ 
+ 	if name := n.Nname; name.Typecheck() == 0 {
+-		if name.Ntype != nil {
+-			name.Ntype = typecheckNtype(name.Ntype)
+-			name.SetType(name.Ntype.Type())
+-		}
++		base.AssertfAt(name.Type() != nil, n.Pos(), "missing type: %v", name)
+ 		name.SetTypecheck(1)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/typecheck/type.go b/src/cmd/compile/internal/typecheck/type.go
+index 04cac888fc..ceebf2ab2f 100644
+--- a/src/cmd/compile/internal/typecheck/type.go
++++ b/src/cmd/compile/internal/typecheck/type.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ // tcFuncType typechecks an OTFUNC node.
+-func tcFuncType(n *ir.FuncType) ir.Node {
++func tcFuncType(n *ir.FuncType) *ir.FuncType {
+ 	misc := func(f *types.Field, nf *ir.Field) {
+ 		f.SetIsDDD(nf.IsDDD)
+ 		if nf.Decl != nil {

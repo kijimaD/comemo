@@ -12,9 +12,316 @@ Date:   Wed Dec 8 13:56:51 2010 -0500
     R=iant
     CC=golang-dev
     https://golang.org/cl/3504041
-
+---
  src/Make.pkg        | 50 ++++++++++++++++++++++--------------------
  src/cmd/cgo/main.go | 41 ++++++++++++++++++++++-------------
  src/cmd/cgo/out.go  | 62 +++++++++++++++++++++++++++++++++++++++++++----------
  src/cmd/cgo/util.go |  4 +---
  4 files changed, 105 insertions(+), 52 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index f9711671ac..6aa5e29c0c 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -36,12 +36,9 @@ INSTALLFILES+=$(pkgdir)/$(TARG).a
+ # The rest of the cgo rules are below, but these variable updates
+ # must be done here so they apply to the main rules.
+ ifdef CGOFILES
+-CGOTARG=cgo_$(subst /,_,$(TARG))
+-GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
+-GOFILES+=_cgo_gotypes.go
+-OFILES+=_cgo_defun.$O
++GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES)) _cgo_gotypes.go
+ GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
+-INSTALLFILES+=$(pkgdir)/$(CGOTARG).so
++OFILES+=_cgo_defun.$O _cgo_import.$O $(GCC_OFILES)
+ endif
+ 
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+@@ -50,7 +47,9 @@ coverage:
+ 	gotest
+ 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+-CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.* *.so _obj _test _testmain.go *.exe
++CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.*
++CLEANFILES+=_cgo_.c _cgo_import.c _cgo_main.c
++CLEANFILES+=*.so _obj _test _testmain.go *.exe
+ 
+ test:
+ 	gotest
+@@ -122,18 +121,34 @@ _cgo_gotypes.go _cgo_export.c _cgo_export.h: _cgo_defun.c
+ %.cgo1.go %.cgo2.c: _cgo_defun.c
+ 	@true
+ 
++# Compile rules for gcc source files.
+ %.cgo2.o: %.cgo2.c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
+ 
+ _cgo_export.o: _cgo_export.c _cgo_export.h
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_export.c
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_export.c
++
++# To find out which symbols are needed from external libraries
++# and which libraries are needed, we build a simple a.out that
++# links all the objects we just created and then use cgo -dynimport
++# to inspect it.  That is, we make gcc tell us which dynamic symbols
++# and libraries are involved, instead of duplicating gcc's logic ourselves.
++_cgo_main.c:
++	echo 'int main() { return 0; }' >$@
++
++_cgo_main.o: _cgo_main.c
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_main.c
++
++_cgo1_.o: _cgo_main.o $(GCC_OFILES)
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS)
++
++_cgo_import.c: _cgo1_.o
++	cgo -dynimport _cgo1_.o >_$@ && mv -f _$@ $@
+ 
+ # The rules above added x.cgo1.go and _cgo_gotypes.go to $(GOFILES),
+ # added _cgo_defun.$O to $OFILES, and added the installed copy of
+ # package_x.so (built from x.cgo2.c) to $(INSTALLFILES).
+ 
+-RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime"
+-
+ # Have to run gcc with the right size argument on hybrid 32/64 machines.
+ _CGO_CFLAGS_386=-m32
+ _CGO_CFLAGS_amd64=-m64
+@@ -142,24 +157,13 @@ _CGO_LDFLAGS_linux=-shared -lpthread -lm
+ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
+ _CGO_LDFLAGS_windows=-shared -lm -mthreads
+ 
+-# Compile x.cgo4.c with gcc to make package_x.so.
++# Have to compile the runtime header.
++RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime"
+ 
+ # Compile _cgo_defun.c with 6c; needs access to the runtime headers.
+ _cgo_defun.$O: _cgo_defun.c
+ 	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
+ 
+-$(CGOTARG).so: $(GCC_OFILES) $(CGO_DEPS)
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+-
+-$(pkgdir)/$(CGOTARG).so: $(CGOTARG).so
+-	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
+-	rm -f "$@"
+-	cp $(CGOTARG).so "$@"
+-
+-ifneq ($(CGOFILES),)
+-testpackage: $(CGOTARG).so
+-endif
+-
+ # Generic build rules.
+ # These come last so that the rules above can override them
+ # for more specific file names.
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 752e9a323a..ef7275023a 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -31,6 +31,8 @@ type Package struct {
+ 	Typedef     map[string]ast.Expr // accumulated Typedef from Files
+ 	ExpFunc     []*ExpFunc          // accumulated ExpFunc from Files
+ 	Decl        []ast.Decl
++	GoFiles     []string // list of Go files
++	GccFiles    []string // list of gcc output files
+ }
+ 
+ // A File collects information about a single Go input file.
+@@ -105,9 +107,31 @@ var ptrSizeMap = map[string]int64{
+ 
+ var fset = token.NewFileSet()
+ 
++var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
++
+ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
++
++	if *dynobj != "" {
++		// cgo -dynimport is essentially a separate helper command
++		// built into the cgo binary.  It scans a gcc-produced executable
++		// and dumps information about the imported symbols and the
++		// imported libraries.  The Make.pkg rules for cgo prepare an
++		// appropriate executable and then use its import information
++		// instead of needing to make the linkers duplicate all the
++		// specialized knowledge gcc has about where to look for imported
++		// symbols and which ones to use.
++		syms, imports := dynimport(*dynobj)
++		for _, sym := range syms {
++			fmt.Printf("#pragma dynimport %s %s %q\n", sym, sym, "")
++		}
++		for _, p := range imports {
++			fmt.Printf("#pragma dynimport %s %s %q\n", "_", "_", p)
++		}
++		return
++	}
++
+ 	args := flag.Args()
+ 	if len(args) < 1 {
+ 		usage()
+@@ -209,19 +233,6 @@ func (p *Package) Record(f *File) {
+ 		}
+ 	}
+ 
+-	if len(f.ExpFunc) > 0 {
+-		n := len(p.ExpFunc)
+-		ef := make([]*ExpFunc, n+len(f.ExpFunc))
+-		copy(ef, p.ExpFunc)
+-		copy(ef[n:], f.ExpFunc)
+-		p.ExpFunc = ef
+-	}
+-
+-	if len(f.AST.Decls) > 0 {
+-		n := len(p.Decl)
+-		d := make([]ast.Decl, n+len(f.AST.Decls))
+-		copy(d, p.Decl)
+-		copy(d[n:], f.AST.Decls)
+-		p.Decl = d
+-	}
++	p.ExpFunc = append(p.ExpFunc, f.ExpFunc...)
++	p.Decl = append(p.Decl, f.AST.Decls...)
+ }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 3285a70bb4..c7db2c7cc0 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -6,6 +6,8 @@ package main
+ 
+ import (
+ 	"bytes"
++	"debug/elf"
++	"debug/macho"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/printer"
+@@ -36,6 +38,7 @@ func (p *Package) writeDefs() {
+ 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
+ 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
+ 	fmt.Fprintf(fgo2, "import \"os\"\n\n")
++	fmt.Fprintf(fgo2, "import _ \"runtime/cgo\"\n\n")
+ 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
+ 	fmt.Fprintf(fgo2, "func _Cerrno(dst *os.Error, x int) { *dst = os.Errno(x) }\n")
+ 
+@@ -46,13 +49,19 @@ func (p *Package) writeDefs() {
+ 	}
+ 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
+ 
+-	fmt.Fprintf(fc, cProlog, soprefix, soprefix, soprefix, soprefix, soprefix)
++	fmt.Fprintf(fc, cProlog)
+ 
++	var cVars []string
+ 	for _, n := range p.Name {
+ 		if n.Kind != "var" {
+ 			continue
+ 		}
+-		fmt.Fprintf(fc, "#pragma dynimport ·%s %s \"%s%s.so\"\n", n.Mangle, n.C, soprefix, sopath)
++		cVars = append(cVars, n.C)
++
++		fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
++		fmt.Fprintf(fc, "void *·%s = &%s;\n", n.Mangle, n.C)
++		fmt.Fprintf(fc, "\n")
++
+ 		fmt.Fprintf(fgo2, "var %s ", n.Mangle)
+ 		printer.Fprint(fgo2, fset, &ast.StarExpr{X: n.Type.Go})
+ 		fmt.Fprintf(fgo2, "\n")
+@@ -78,6 +87,42 @@ func (p *Package) writeDefs() {
+ 	fc.Close()
+ }
+ 
++func dynimport(obj string) (syms, imports []string) {
++	var f interface {
++		ImportedLibraries() ([]string, os.Error)
++		ImportedSymbols() ([]string, os.Error)
++	}
++	var isMacho bool
++	var err1, err2 os.Error
++	if f, err1 = elf.Open(obj); err1 != nil {
++		if f, err2 = macho.Open(obj); err2 != nil {
++			fatal("cannot parse %s as ELF (%v) or Mach-O (%v)", obj, err1, err2)
++		}
++		isMacho = true
++	}
++
++	var err os.Error
++	syms, err = f.ImportedSymbols()
++	if err != nil {
++		fatal("cannot load dynamic symbols: %v", err)
++	}
++	if isMacho {
++		// remove leading _ that OS X insists on
++		for i, s := range syms {
++			if len(s) >= 2 && s[0] == '_' {
++				syms[i] = s[1:]
++			}
++		}
++	}
++
++	imports, err = f.ImportedLibraries()
++	if err != nil {
++		fatal("cannot load dynamic imports: %v", err)
++	}
++
++	return
++}
++
+ // Construct a gcc struct matching the 6c argument frame.
+ // Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
+ // These assumptions are checked by the gccProlog.
+@@ -167,9 +212,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath str
+ 	_, argSize = p.structType(n)
+ 
+ 	// C wrapper calls into gcc, passing a pointer to the argument frame.
+-	// Also emit #pragma to get a pointer to the gcc wrapper.
+-	fmt.Fprintf(fc, "#pragma dynimport _cgo%s _cgo%s \"%s%s.so\"\n", n.Mangle, n.Mangle, soprefix, sopath)
+-	fmt.Fprintf(fc, "void (*_cgo%s)(void*);\n", n.Mangle)
++	fmt.Fprintf(fc, "void _cgo%s(void*);\n", n.Mangle)
+ 	fmt.Fprintf(fc, "\n")
+ 	fmt.Fprintf(fc, "void\n")
+ 	fmt.Fprintf(fc, "·%s(struct{uint8 x[%d];}p)\n", n.Mangle, argSize)
+@@ -212,6 +255,9 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 	fgo1 := creat(base + ".cgo1.go")
+ 	fgcc := creat(base + ".cgo2.c")
+ 
++	p.GoFiles = append(p.GoFiles, base+".cgo1.go")
++	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
++
+ 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
+ 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n")
+ 	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
+@@ -592,12 +638,6 @@ const cProlog = `
+ #include "runtime.h"
+ #include "cgocall.h"
+ 
+-#pragma dynimport initcgo initcgo "%slibcgo.so"
+-#pragma dynimport libcgo_thread_start libcgo_thread_start "%slibcgo.so"
+-#pragma dynimport libcgo_set_scheduler libcgo_set_scheduler "%slibcgo.so"
+-#pragma dynimport _cgo_malloc _cgo_malloc "%slibcgo.so"
+-#pragma dynimport _cgo_free _cgo_free "%slibcgo.so"
+-
+ void ·_Cerrno(void*, int32);
+ 
+ void
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 09ff0a9cbc..a6f509dc48 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -45,9 +45,8 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 		w0.Close()
+ 		c <- true
+ 	}()
+-	var xstdout []byte // TODO(rsc): delete after 6g can take address of out parameter
+ 	go func() {
+-		xstdout, _ = ioutil.ReadAll(r1)
++		stdout, _ = ioutil.ReadAll(r1)
+ 		r1.Close()
+ 		c <- true
+ 	}()
+@@ -55,7 +54,6 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 	r2.Close()
+ 	<-c
+ 	<-c
+-	stdout = xstdout
+ 
+ 	w, err := os.Wait(pid, 0)
+ 	if err != nil {

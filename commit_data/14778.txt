@@ -16,7 +16,7 @@ Date:   Wed Jan 2 22:55:23 2013 +0100
     R=minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6962043
-
+---
  include/libc.h       |   1 +
  src/cmd/8g/cgen.c    | 134 ++---------
  src/cmd/8g/gg.h      |   2 +
@@ -30,3 +30,1772 @@ Date:   Wed Jan 2 22:55:23 2013 +0100
  src/cmd/gc/lex.c     |   1 +
  src/lib9/goos.c      |   6 +
  12 files changed, 1000 insertions(+), 258 deletions(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index ac83ea685f..42c653cf5e 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -290,6 +290,7 @@ extern	char*	getgoarch(void);
+ extern	char*	getgoroot(void);
+ extern	char*	getgoversion(void);
+ extern	char*	getgoarm(void);
++extern	char*	getgo386(void);
+ 
+ #ifdef _WIN32
+ 
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index d2935d3992..0b2f2b76e9 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -49,7 +49,7 @@ mfree(Node *n)
+ void
+ cgen(Node *n, Node *res)
+ {
+-	Node *nl, *nr, *r, n1, n2, nt, f0, f1;
++	Node *nl, *nr, *r, n1, n2, nt;
+ 	Prog *p1, *p2, *p3;
+ 	int a;
+ 
+@@ -188,8 +188,10 @@ cgen(Node *n, Node *res)
+ 		}
+ 	}
+ 
+-	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype])
+-		goto flt;
++	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype]) {
++		cgen_float(n, res);
++		return;
++	}
+ 
+ 	switch(n->op) {
+ 	default:
+@@ -431,40 +433,6 @@ uop:	// unary
+ 	gins(a, N, &n1);
+ 	gmove(&n1, res);
+ 	return;
+-
+-flt:	// floating-point.  387 (not SSE2) to interoperate with 8c
+-	nodreg(&f0, nl->type, D_F0);
+-	nodreg(&f1, n->type, D_F0+1);
+-	if(nr != N)
+-		goto flt2;
+-
+-	// unary
+-	cgen(nl, &f0);
+-	if(n->op != OCONV && n->op != OPLUS)
+-		gins(foptoas(n->op, n->type, 0), N, N);
+-	gmove(&f0, res);
+-	return;
+-
+-flt2:	// binary
+-	if(nl->ullman >= nr->ullman) {
+-		cgen(nl, &f0);
+-		if(nr->addable)
+-			gins(foptoas(n->op, n->type, 0), nr, &f0);
+-		else {
+-			cgen(nr, &f0);
+-			gins(foptoas(n->op, n->type, Fpop), &f0, &f1);
+-		}
+-	} else {
+-		cgen(nr, &f0);
+-		if(nl->addable)
+-			gins(foptoas(n->op, n->type, Frev), nl, &f0);
+-		else {
+-			cgen(nl, &f0);
+-			gins(foptoas(n->op, n->type, Frev|Fpop), &f0, &f1);
+-		}
+-	}
+-	gmove(&f0, res);
+-	return;
+ }
+ 
+ /*
+@@ -919,8 +887,7 @@ bgen(Node *n, int true, int likely, Prog *to)
+ {
+ 	int et, a;
+ 	Node *nl, *nr, *r;
+-	Node n1, n2, tmp, t1, t2, ax;
+-	NodeList *ll;
++	Node n1, n2, tmp;
+ 	Prog *p1, *p2;
+ 
+ 	if(debug['g']) {
+@@ -945,8 +912,14 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 		patch(gins(AEND, N, N), to);
+ 		return;
+ 	}
++	nl = n->left;
+ 	nr = N;
+ 
++	if(nl != N && isfloat[nl->type->etype]) {
++		bgen_float(n, true, likely, to);
++		return;
++	}
++
+ 	switch(n->op) {
+ 	default:
+ 	def:
+@@ -1031,19 +1004,6 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 	case OGE:
+ 		a = n->op;
+ 		if(!true) {
+-			if(isfloat[nl->type->etype]) {
+-				// brcom is not valid on floats when NaN is involved.
+-				p1 = gbranch(AJMP, T, 0);
+-				p2 = gbranch(AJMP, T, 0);
+-				patch(p1, pc);
+-				ll = n->ninit;  // avoid re-genning ninit
+-				n->ninit = nil;
+-				bgen(n, 1, -likely, p2);
+-				n->ninit = ll;
+-				patch(gbranch(AJMP, T, 0), to);
+-				patch(p2, pc);
+-				break;
+-			}				
+ 			a = brcom(a);
+ 			true = !true;
+ 		}
+@@ -1089,61 +1049,6 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 			break;
+ 		}
+ 
+-		if(isfloat[nr->type->etype]) {
+-			a = brrev(a);	// because the args are stacked
+-			if(a == OGE || a == OGT) {
+-				// only < and <= work right with NaN; reverse if needed
+-				r = nr;
+-				nr = nl;
+-				nl = r;
+-				a = brrev(a);
+-			}
+-			nodreg(&tmp, nr->type, D_F0);
+-			nodreg(&n2, nr->type, D_F0 + 1);
+-			nodreg(&ax, types[TUINT16], D_AX);
+-			et = simsimtype(nr->type);
+-			if(et == TFLOAT64) {
+-				if(nl->ullman > nr->ullman) {
+-					cgen(nl, &tmp);
+-					cgen(nr, &tmp);
+-					gins(AFXCHD, &tmp, &n2);
+-				} else {
+-					cgen(nr, &tmp);
+-					cgen(nl, &tmp);
+-				}
+-				gins(AFUCOMIP, &tmp, &n2);
+-				gins(AFMOVDP, &tmp, &tmp);	// annoying pop but still better than STSW+SAHF
+-			} else {
+-				// TODO(rsc): The moves back and forth to memory
+-				// here are for truncating the value to 32 bits.
+-				// This handles 32-bit comparison but presumably
+-				// all the other ops have the same problem.
+-				// We need to figure out what the right general
+-				// solution is, besides telling people to use float64.
+-				tempname(&t1, types[TFLOAT32]);
+-				tempname(&t2, types[TFLOAT32]);
+-				cgen(nr, &t1);
+-				cgen(nl, &t2);
+-				gmove(&t2, &tmp);
+-				gins(AFCOMFP, &t1, &tmp);
+-				gins(AFSTSW, N, &ax);
+-				gins(ASAHF, N, N);
+-			}
+-			if(a == OEQ) {
+-				// neither NE nor P
+-				p1 = gbranch(AJNE, T, -likely);
+-				p2 = gbranch(AJPS, T, -likely);
+-				patch(gbranch(AJMP, T, 0), to);
+-				patch(p1, pc);
+-				patch(p2, pc);
+-			} else if(a == ONE) {
+-				// either NE or P
+-				patch(gbranch(AJNE, T, likely), to);
+-				patch(gbranch(AJPS, T, likely), to);
+-			} else
+-				patch(gbranch(optoas(a, nr->type), T, likely), to);
+-			break;
+-		}
+ 		if(iscomplex[nl->type->etype]) {
+ 			complexbool(a, nl, nr, true, likely, to);
+ 			break;
+@@ -1164,8 +1069,6 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 			break;
+ 		}
+ 
+-		a = optoas(a, nr->type);
+-
+ 		if(nr->ullman >= UINF) {
+ 			if(!nl->addable) {
+ 				tempname(&n1, nl->type);
+@@ -1179,6 +1082,7 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 			}
+ 			regalloc(&n2, nr->type, N);
+ 			cgen(nr, &n2);
++			nr = &n2;
+ 			goto cmp;
+ 		}
+ 
+@@ -1190,7 +1094,7 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 
+ 		if(smallintconst(nr)) {
+ 			gins(optoas(OCMP, nr->type), nl, nr);
+-			patch(gbranch(a, nr->type, likely), to);
++			patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
+ 			break;
+ 		}
+ 
+@@ -1201,11 +1105,15 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 		}
+ 		regalloc(&n2, nr->type, N);
+ 		gmove(nr, &n2);
++		nr = &n2;
+ 
+ cmp:
+-		gins(optoas(OCMP, nr->type), nl, &n2);
+-		patch(gbranch(a, nr->type, likely), to);
+-		regfree(&n2);
++		gins(optoas(OCMP, nr->type), nl, nr);
++		patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
++
++		if(nl->op == OREGISTER)
++			regfree(nl);
++		regfree(nr);
+ 		break;
+ 	}
+ }
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index fed3093cc6..b67ca1f859 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -87,6 +87,8 @@ void	cgen_div(int, Node*, Node*, Node*);
+ void	cgen_bmul(int, Node*, Node*, Node*);
+ void	cgen_hmul(Node*, Node*, Node*);
+ void	cgen_shift(int, int, Node*, Node*, Node*);
++void	cgen_float(Node*, Node*);
++void	bgen_float(Node *n, int true, int likely, Prog *to);
+ void	cgen_dcl(Node*);
+ int	needconvert(Type*, Type*);
+ void	genconv(Type*, Type*);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 641b4389e9..2921853f2d 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -813,3 +813,310 @@ cgen_hmul(Node *nl, Node *nr, Node *res)
+ 	gmove(&dx, res);
+ }
+ 
++static void cgen_float387(Node *n, Node *res);
++static void cgen_floatsse(Node *n, Node *res);
++
++/*
++ * generate floating-point operation.
++ */
++void
++cgen_float(Node *n, Node *res)
++{
++	Node *nl;
++	Node n1, n2;
++	Prog *p1, *p2, *p3;
++
++	nl = n->left;
++	switch(n->op) {
++	case OEQ:
++	case ONE:
++	case OLT:
++	case OLE:
++	case OGE:
++		p1 = gbranch(AJMP, T, 0);
++		p2 = pc;
++		gmove(nodbool(1), res);
++		p3 = gbranch(AJMP, T, 0);
++		patch(p1, pc);
++		bgen(n, 1, 0, p2);
++		gmove(nodbool(0), res);
++		patch(p3, pc);
++		return;
++
++	case OPLUS:
++		cgen(nl, res);
++		return;
++
++	case OCONV:
++		if(eqtype(n->type, nl->type) || noconv(n->type, nl->type)) {
++			cgen(nl, res);
++			return;
++		}
++
++		tempname(&n2, n->type);
++		mgen(nl, &n1, res);
++		gmove(&n1, &n2);
++		gmove(&n2, res);
++		mfree(&n1);
++		return;
++	}
++
++	if(use_sse)
++		cgen_floatsse(n, res);
++	else
++		cgen_float387(n, res);
++}
++
++// floating-point.  387 (not SSE2)
++static void
++cgen_float387(Node *n, Node *res)
++{
++	Node f0, f1;
++	Node *nl, *nr;
++
++	nl = n->left;
++	nr = n->right;
++	nodreg(&f0, nl->type, D_F0);
++	nodreg(&f1, n->type, D_F0+1);
++	if(nr != N)
++		goto flt2;
++
++	// unary
++	cgen(nl, &f0);
++	if(n->op != OCONV && n->op != OPLUS)
++		gins(foptoas(n->op, n->type, 0), N, N);
++	gmove(&f0, res);
++	return;
++
++flt2:	// binary
++	if(nl->ullman >= nr->ullman) {
++		cgen(nl, &f0);
++		if(nr->addable)
++			gins(foptoas(n->op, n->type, 0), nr, &f0);
++		else {
++			cgen(nr, &f0);
++			gins(foptoas(n->op, n->type, Fpop), &f0, &f1);
++		}
++	} else {
++		cgen(nr, &f0);
++		if(nl->addable)
++			gins(foptoas(n->op, n->type, Frev), nl, &f0);
++		else {
++			cgen(nl, &f0);
++			gins(foptoas(n->op, n->type, Frev|Fpop), &f0, &f1);
++		}
++	}
++	gmove(&f0, res);
++	return;
++
++}
++
++static void
++cgen_floatsse(Node *n, Node *res)
++{
++	Node *nl, *nr, *r;
++	Node n1, n2, nt;
++	int a;
++
++	nl = n->left;
++	nr = n->right;
++	switch(n->op) {
++	default:
++		dump("cgen_floatsse", n);
++		fatal("cgen_floatsse %O", n->op);
++		return;
++
++	case OMINUS:
++	case OCOM:
++		nr = nodintconst(-1);
++		convlit(&nr, n->type);
++		a = foptoas(OMUL, nl->type, 0);
++		goto sbop;
++
++	// symmetric binary
++	case OADD:
++	case OMUL:
++		a = foptoas(n->op, nl->type, 0);
++		goto sbop;
++
++	// asymmetric binary
++	case OSUB:
++	case OMOD:
++	case ODIV:
++		a = foptoas(n->op, nl->type, 0);
++		goto abop;
++	}
++
++sbop:	// symmetric binary
++	if(nl->ullman < nr->ullman || nl->op == OLITERAL) {
++		r = nl;
++		nl = nr;
++		nr = r;
++	}
++
++abop:	// asymmetric binary
++	if(nl->ullman >= nr->ullman) {
++		tempname(&nt, nl->type);
++		cgen(nl, &nt);
++		mgen(nr, &n2, N);
++		regalloc(&n1, nl->type, res);
++		gmove(&nt, &n1);
++		gins(a, &n2, &n1);
++		gmove(&n1, res);
++		regfree(&n1);
++		mfree(&n2);
++	} else {
++		regalloc(&n2, nr->type, res);
++		cgen(nr, &n2);
++		regalloc(&n1, nl->type, N);
++		cgen(nl, &n1);
++		gins(a, &n2, &n1);
++		regfree(&n2);
++		gmove(&n1, res);
++		regfree(&n1);
++	}
++	return;
++}
++
++void
++bgen_float(Node *n, int true, int likely, Prog *to)
++{
++	int et, a;
++	Node *nl, *nr, *r;
++	Node n1, n2, n3, tmp, t1, t2, ax;
++	Prog *p1, *p2;
++
++	nl = n->left;
++	nr = n->right;
++	a = n->op;
++	if(!true) {
++		// brcom is not valid on floats when NaN is involved.
++		p1 = gbranch(AJMP, T, 0);
++		p2 = gbranch(AJMP, T, 0);
++		patch(p1, pc);
++		// No need to avoid re-genning ninit.
++		bgen_float(n, 1, -likely, p2);
++		patch(gbranch(AJMP, T, 0), to);
++		patch(p2, pc);
++		return;
++	}
++
++	if(use_sse)
++		goto sse;
++	else
++		goto x87;
++
++x87:
++	a = brrev(a);	// because the args are stacked
++	if(a == OGE || a == OGT) {
++		// only < and <= work right with NaN; reverse if needed
++		r = nr;
++		nr = nl;
++		nl = r;
++		a = brrev(a);
++	}
++
++	nodreg(&tmp, nr->type, D_F0);
++	nodreg(&n2, nr->type, D_F0 + 1);
++	nodreg(&ax, types[TUINT16], D_AX);
++	et = simsimtype(nr->type);
++	if(et == TFLOAT64) {
++		if(nl->ullman > nr->ullman) {
++			cgen(nl, &tmp);
++			cgen(nr, &tmp);
++			gins(AFXCHD, &tmp, &n2);
++		} else {
++			cgen(nr, &tmp);
++			cgen(nl, &tmp);
++		}
++		gins(AFUCOMIP, &tmp, &n2);
++		gins(AFMOVDP, &tmp, &tmp);	// annoying pop but still better than STSW+SAHF
++	} else {
++		// TODO(rsc): The moves back and forth to memory
++		// here are for truncating the value to 32 bits.
++		// This handles 32-bit comparison but presumably
++		// all the other ops have the same problem.
++		// We need to figure out what the right general
++		// solution is, besides telling people to use float64.
++		tempname(&t1, types[TFLOAT32]);
++		tempname(&t2, types[TFLOAT32]);
++		cgen(nr, &t1);
++		cgen(nl, &t2);
++		gmove(&t2, &tmp);
++		gins(AFCOMFP, &t1, &tmp);
++		gins(AFSTSW, N, &ax);
++		gins(ASAHF, N, N);
++	}
++
++	goto ret;
++
++sse:
++	if(nr->ullman >= UINF) {
++		if(!nl->addable) {
++			tempname(&n1, nl->type);
++			cgen(nl, &n1);
++			nl = &n1;
++		}
++		if(!nr->addable) {
++			tempname(&tmp, nr->type);
++			cgen(nr, &tmp);
++			nr = &tmp;
++		}
++		regalloc(&n2, nr->type, N);
++		cgen(nr, &n2);
++		nr = &n2;
++		goto ssecmp;
++	}
++
++	if(!nl->addable) {
++		tempname(&n1, nl->type);
++		cgen(nl, &n1);
++		nl = &n1;
++	}
++
++	if(!nr->addable) {
++		tempname(&tmp, nr->type);
++		cgen(nr, &tmp);
++		nr = &tmp;
++	}
++
++	regalloc(&n2, nr->type, N);
++	gmove(nr, &n2);
++	nr = &n2;
++
++	if(nl->op != OREGISTER) {
++		regalloc(&n3, nl->type, N);
++		gmove(nl, &n3);
++		nl = &n3;
++	}
++
++ssecmp:
++	if(a == OGE || a == OGT) {
++		// only < and <= work right with NaN; reverse if needed
++		r = nr;
++		nr = nl;
++		nl = r;
++		a = brrev(a);
++	}
++
++	gins(foptoas(OCMP, nr->type, 0), nl, nr);
++	if(nl->op == OREGISTER)
++		regfree(nl);
++	regfree(nr);
++
++ret:
++	if(a == OEQ) {
++		// neither NE nor P
++		p1 = gbranch(AJNE, T, -likely);
++		p2 = gbranch(AJPS, T, -likely);
++		patch(gbranch(AJMP, T, 0), to);
++		patch(p1, pc);
++		patch(p2, pc);
++	} else if(a == ONE) {
++		// either NE or P
++		patch(gbranch(AJNE, T, likely), to);
++		patch(gbranch(AJPS, T, likely), to);
++	} else
++		patch(gbranch(optoas(a, nr->type), T, likely), to);
++
++}
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index dbea45a201..7cd9ad64ad 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -690,10 +690,13 @@ optoas(int op, Type *t)
+ int
+ foptoas(int op, Type *t, int flg)
+ {
+-	int et;
++	int et, a;
+ 
+ 	et = simtype[t->etype];
+ 
++	if(use_sse)
++		goto sse;
++
+ 	// If we need Fpop, it means we're working on
+ 	// two different floating-point registers, not memory.
+ 	// There the instruction only has a float64 form.
+@@ -770,8 +773,65 @@ foptoas(int op, Type *t, int flg)
+ 
+ 	fatal("foptoas %O %T %#x", op, t, flg);
+ 	return 0;
++
++sse:
++	switch(CASE(op, et)) {
++	default:
++		fatal("foptoas-sse: no entry %O-%T", op, t);
++		break;
++
++	case CASE(OCMP, TFLOAT32):
++		a = AUCOMISS;
++		break;
++
++	case CASE(OCMP, TFLOAT64):
++		a = AUCOMISD;
++		break;
++
++	case CASE(OAS, TFLOAT32):
++		a = AMOVSS;
++		break;
++
++	case CASE(OAS, TFLOAT64):
++		a = AMOVSD;
++		break;
++
++	case CASE(OADD, TFLOAT32):
++		a = AADDSS;
++		break;
++
++	case CASE(OADD, TFLOAT64):
++		a = AADDSD;
++		break;
++
++	case CASE(OSUB, TFLOAT32):
++		a = ASUBSS;
++		break;
++
++	case CASE(OSUB, TFLOAT64):
++		a = ASUBSD;
++		break;
++
++	case CASE(OMUL, TFLOAT32):
++		a = AMULSS;
++		break;
++
++	case CASE(OMUL, TFLOAT64):
++		a = AMULSD;
++		break;
++
++	case CASE(ODIV, TFLOAT32):
++		a = ADIVSS;
++		break;
++
++	case CASE(ODIV, TFLOAT64):
++		a = ADIVSD;
++		break;
++	}
++	return a;
+ }
+ 
++
+ static	int	resvd[] =
+ {
+ //	D_DI,	// for movstring
+@@ -795,6 +855,8 @@ ginit(void)
+ 		reg[i] = 1;
+ 	for(i=D_AX; i<=D_DI; i++)
+ 		reg[i] = 0;
++	for(i=D_X0; i<=D_X7; i++)
++		reg[i] = 0;
+ 	for(i=0; i<nelem(resvd); i++)
+ 		reg[resvd[i]]++;
+ }
+@@ -812,6 +874,9 @@ gclean(void)
+ 	for(i=D_AX; i<=D_DI; i++)
+ 		if(reg[i])
+ 			yyerror("reg %R left allocated at %ux", i, regpc[i]);
++	for(i=D_X0; i<=D_X7; i++)
++		if(reg[i])
++			yyerror("reg %R left allocated\n", i);
+ }
+ 
+ int32
+@@ -828,6 +893,9 @@ anyregalloc(void)
+ 		return 1;
+ 	ok:;
+ 	}
++	for(i=D_X0; i<=D_X7; i++)
++		if(reg[i])
++			return 1;
+ 	return 0;
+ }
+ 
+@@ -846,14 +914,16 @@ regalloc(Node *n, Type *t, Node *o)
+ 	et = simtype[t->etype];
+ 
+ 	switch(et) {
++	case TINT64:
++	case TUINT64:
++		fatal("regalloc64");
++
+ 	case TINT8:
+ 	case TUINT8:
+ 	case TINT16:
+ 	case TUINT16:
+ 	case TINT32:
+ 	case TUINT32:
+-	case TINT64:
+-	case TUINT64:
+ 	case TPTR32:
+ 	case TPTR64:
+ 	case TBOOL:
+@@ -874,8 +944,22 @@ regalloc(Node *n, Type *t, Node *o)
+ 
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-		i = D_F0;
+-		goto out;
++		if(!use_sse) {
++			i = D_F0;
++			goto out;
++		}
++		if(o != N && o->op == OREGISTER) {
++			i = o->val.u.reg;
++			if(i >= D_X0 && i <= D_X7)
++				goto out;
++		}
++		for(i=D_X0; i<=D_X7; i++)
++			if(reg[i] == 0)
++				goto out;
++		fprint(2, "registers allocated at\n");
++		for(i=D_X0; i<=D_X7; i++)
++			fprint(2, "\t%R\t%#lux\n", i, regpc[i]);
++		fatal("out of floating registers");
+ 	}
+ 	yyerror("regalloc: unknown type %T", t);
+ 
+@@ -1179,13 +1263,16 @@ memname(Node *n, Type *t)
+ 	n->orig->sym = n->sym;
+ }
+ 
++static void floatmove(Node *f, Node *t);
++static void floatmove_387(Node *f, Node *t);
++static void floatmove_sse(Node *f, Node *t);
++
+ void
+ gmove(Node *f, Node *t)
+ {
+ 	int a, ft, tt;
+ 	Type *cvt;
+-	Node r1, r2, t1, t2, flo, fhi, tlo, thi, con, f0, f1, ax, dx, cx;
+-	Prog *p1, *p2, *p3;
++	Node r1, r2, flo, fhi, tlo, thi, con;
+ 
+ 	if(debug['M'])
+ 		print("gmove %N -> %N\n", f, t);
+@@ -1193,11 +1280,15 @@ gmove(Node *f, Node *t)
+ 	ft = simsimtype(f->type);
+ 	tt = simsimtype(t->type);
+ 	cvt = t->type;
+-
++	
+ 	if(iscomplex[ft] || iscomplex[tt]) {
+ 		complexmove(f, t);
+ 		return;
+ 	}
++	if(isfloat[ft] || isfloat[tt]) {
++		floatmove(f, t);
++		return;
++	}
+ 
+ 	// cannot have two integer memory operands;
+ 	// except 64-bit, which always copies via registers anyway.
+@@ -1206,19 +1297,9 @@ gmove(Node *f, Node *t)
+ 
+ 	// convert constant to desired type
+ 	if(f->op == OLITERAL) {
+-		if(tt == TFLOAT32)
+-			convconst(&con, types[TFLOAT64], &f->val);
+-		else
+-			convconst(&con, t->type, &f->val);
++		convconst(&con, t->type, &f->val);
+ 		f = &con;
+ 		ft = simsimtype(con.type);
+-
+-		// some constants can't move directly to memory.
+-		if(ismem(t)) {
+-			// float constants come from memory.
+-			if(isfloat[tt])
+-				goto hard;
+-		}
+ 	}
+ 
+ 	// value -> value copy, only one memory operand.
+@@ -1394,6 +1475,275 @@ gmove(Node *f, Node *t)
+ 		gins(AMOVL, ncon(0), &thi);
+ 		splitclean();
+ 		return;
++	}
++
++	gins(a, f, t);
++	return;
++
++rsrc:
++	// requires register source
++	regalloc(&r1, f->type, t);
++	gmove(f, &r1);
++	gins(a, &r1, t);
++	regfree(&r1);
++	return;
++
++rdst:
++	// requires register destination
++	regalloc(&r1, t->type, t);
++	gins(a, f, &r1);
++	gmove(&r1, t);
++	regfree(&r1);
++	return;
++
++hard:
++	// requires register intermediate
++	regalloc(&r1, cvt, t);
++	gmove(f, &r1);
++	gmove(&r1, t);
++	regfree(&r1);
++	return;
++
++fatal:
++	// should not happen
++	fatal("gmove %N -> %N", f, t);
++}
++
++static void
++floatmove(Node *f, Node *t)
++{
++	Node r1, r2, t1, t2, tlo, thi, con, f0, f1, ax, dx, cx;
++	Type *cvt;
++	int a, ft, tt;
++	Prog *p1, *p2, *p3;
++
++	ft = simsimtype(f->type);
++	tt = simsimtype(t->type);
++	cvt = t->type;
++
++	// cannot have two floating point memory operands.
++	if(isfloat[ft] && isfloat[tt] && ismem(f) && ismem(t))
++		goto hard;
++
++	// convert constant to desired type
++	if(f->op == OLITERAL) {
++		convconst(&con, t->type, &f->val);
++		f = &con;
++		ft = simsimtype(con.type);
++
++		// some constants can't move directly to memory.
++		if(ismem(t)) {
++			// float constants come from memory.
++			if(isfloat[tt])
++				goto hard;
++		}
++	}
++
++	// value -> value copy, only one memory operand.
++	// figure out the instruction to use.
++	// break out of switch for one-instruction gins.
++	// goto rdst for "destination must be register".
++	// goto hard for "convert to cvt type first".
++	// otherwise handle and return.
++
++	switch(CASE(ft, tt)) {
++	default:
++		if(use_sse)
++			floatmove_sse(f, t);
++		else
++			floatmove_387(f, t);
++		return;
++
++	// float to very long integer.
++	case CASE(TFLOAT32, TINT64):
++	case CASE(TFLOAT64, TINT64):
++		if(f->op == OREGISTER) {
++			cvt = f->type;
++			goto hardmem;
++		}
++		nodreg(&r1, types[ft], D_F0);
++		if(ft == TFLOAT32)
++			gins(AFMOVF, f, &r1);
++		else
++			gins(AFMOVD, f, &r1);
++
++		// set round to zero mode during conversion
++		memname(&t1, types[TUINT16]);
++		memname(&t2, types[TUINT16]);
++		gins(AFSTCW, N, &t1);
++		gins(AMOVW, ncon(0xf7f), &t2);
++		gins(AFLDCW, &t2, N);
++		if(tt == TINT16)
++			gins(AFMOVWP, &r1, t);
++		else if(tt == TINT32)
++			gins(AFMOVLP, &r1, t);
++		else
++			gins(AFMOVVP, &r1, t);
++		gins(AFLDCW, &t1, N);
++		return;
++
++	case CASE(TFLOAT32, TUINT64):
++	case CASE(TFLOAT64, TUINT64):
++		if(!ismem(f)) {
++			cvt = f->type;
++			goto hardmem;
++		}
++		bignodes();
++		nodreg(&f0, types[ft], D_F0);
++		nodreg(&f1, types[ft], D_F0 + 1);
++		nodreg(&ax, types[TUINT16], D_AX);
++
++		if(ft == TFLOAT32)
++			gins(AFMOVF, f, &f0);
++		else
++			gins(AFMOVD, f, &f0);
++
++		// if 0 > v { answer = 0 }
++		gins(AFMOVD, &zerof, &f0);
++		gins(AFUCOMIP, &f0, &f1);
++		p1 = gbranch(optoas(OGT, types[tt]), T, 0);
++		// if 1<<64 <= v { answer = 0 too }
++		gins(AFMOVD, &two64f, &f0);
++		gins(AFUCOMIP, &f0, &f1);
++		p2 = gbranch(optoas(OGT, types[tt]), T, 0);
++		patch(p1, pc);
++		gins(AFMOVVP, &f0, t);	// don't care about t, but will pop the stack
++		split64(t, &tlo, &thi);
++		gins(AMOVL, ncon(0), &tlo);
++		gins(AMOVL, ncon(0), &thi);
++		splitclean();
++		p1 = gbranch(AJMP, T, 0);
++		patch(p2, pc);
++
++		// in range; algorithm is:
++		//	if small enough, use native float64 -> int64 conversion.
++		//	otherwise, subtract 2^63, convert, and add it back.
++
++		// set round to zero mode during conversion
++		memname(&t1, types[TUINT16]);
++		memname(&t2, types[TUINT16]);
++		gins(AFSTCW, N, &t1);
++		gins(AMOVW, ncon(0xf7f), &t2);
++		gins(AFLDCW, &t2, N);
++
++		// actual work
++		gins(AFMOVD, &two63f, &f0);
++		gins(AFUCOMIP, &f0, &f1);
++		p2 = gbranch(optoas(OLE, types[tt]), T, 0);
++		gins(AFMOVVP, &f0, t);
++		p3 = gbranch(AJMP, T, 0);
++		patch(p2, pc);
++		gins(AFMOVD, &two63f, &f0);
++		gins(AFSUBDP, &f0, &f1);
++		gins(AFMOVVP, &f0, t);
++		split64(t, &tlo, &thi);
++		gins(AXORL, ncon(0x80000000), &thi);	// + 2^63
++		patch(p3, pc);
++		splitclean();
++		// restore rounding mode
++		gins(AFLDCW, &t1, N);
++
++		patch(p1, pc);
++		return;
++
++	/*
++	 * integer to float
++	 */
++	case CASE(TINT64, TFLOAT32):
++	case CASE(TINT64, TFLOAT64):
++		if(t->op == OREGISTER)
++			goto hardmem;
++		nodreg(&f0, t->type, D_F0);
++		gins(AFMOVV, f, &f0);
++		if(tt == TFLOAT32)
++			gins(AFMOVFP, &f0, t);
++		else
++			gins(AFMOVDP, &f0, t);
++		return;
++
++	case CASE(TUINT64, TFLOAT32):
++	case CASE(TUINT64, TFLOAT64):
++		// algorithm is:
++		//	if small enough, use native int64 -> float64 conversion.
++		//	otherwise, halve (rounding to odd?), convert, and double.
++		nodreg(&ax, types[TUINT32], D_AX);
++		nodreg(&dx, types[TUINT32], D_DX);
++		nodreg(&cx, types[TUINT32], D_CX);
++		tempname(&t1, f->type);
++		split64(&t1, &tlo, &thi);
++		gmove(f, &t1);
++		gins(ACMPL, &thi, ncon(0));
++		p1 = gbranch(AJLT, T, 0);
++		// native
++		t1.type = types[TINT64];
++		nodreg(&r1, types[tt], D_F0);
++		gins(AFMOVV, &t1, &r1);
++		if(tt == TFLOAT32)
++			gins(AFMOVFP, &r1, t);
++		else
++			gins(AFMOVDP, &r1, t);
++		p2 = gbranch(AJMP, T, 0);
++		// simulated
++		patch(p1, pc);
++		gmove(&tlo, &ax);
++		gmove(&thi, &dx);
++		p1 = gins(ASHRL, ncon(1), &ax);
++		p1->from.index = D_DX;	// double-width shift DX -> AX
++		p1->from.scale = 0;
++		gins(AMOVL, ncon(0), &cx);
++		gins(ASETCC, N, &cx);
++		gins(AORL, &cx, &ax);
++		gins(ASHRL, ncon(1), &dx);
++		gmove(&dx, &thi);
++		gmove(&ax, &tlo);
++		nodreg(&r1, types[tt], D_F0);
++		nodreg(&r2, types[tt], D_F0 + 1);
++		gins(AFMOVV, &t1, &r1);
++		gins(AFMOVD, &r1, &r1);
++		gins(AFADDDP, &r1, &r2);
++		if(tt == TFLOAT32)
++			gins(AFMOVFP, &r1, t);
++		else
++			gins(AFMOVDP, &r1, t);
++		patch(p2, pc);
++		splitclean();
++		return;
++	}
++
++	gins(a, f, t);
++	return;
++
++hard:
++	// requires register intermediate
++	regalloc(&r1, cvt, t);
++	gmove(f, &r1);
++	gmove(&r1, t);
++	regfree(&r1);
++	return;
++
++hardmem:
++	// requires memory intermediate
++	tempname(&r1, cvt);
++	gmove(f, &r1);
++	gmove(&r1, t);
++	return;
++}
++
++static void
++floatmove_387(Node *f, Node *t)
++{
++	Node r1, t1, t2;
++	Type *cvt;
++	Prog *p1, *p2, *p3;
++	int a, ft, tt;
++
++	ft = simsimtype(f->type);
++	tt = simsimtype(t->type);
++	cvt = t->type;
++
++	switch(CASE(ft, tt)) {
++	default:
++		goto fatal;
+ 
+ 	/*
+ 	* float to integer
+@@ -1473,73 +1823,8 @@ gmove(Node *f, Node *t)
+ 	case CASE(TFLOAT32, TUINT32):
+ 	case CASE(TFLOAT64, TUINT32):
+ 		// convert via int64.
+-		tempname(&t1, types[TINT64]);
+-		gmove(f, &t1);
+-		split64(&t1, &tlo, &thi);
+-		gins(ACMPL, &thi, ncon(0));
+-		p1 = gbranch(AJEQ, T, +1);
+-		gins(AMOVL, ncon(0), &tlo);
+-		patch(p1, pc);
+-		gmove(&tlo, t);
+-		splitclean();
+-		return;
+-
+-	case CASE(TFLOAT32, TUINT64):
+-	case CASE(TFLOAT64, TUINT64):
+-		bignodes();
+-		nodreg(&f0, types[ft], D_F0);
+-		nodreg(&f1, types[ft], D_F0 + 1);
+-		nodreg(&ax, types[TUINT16], D_AX);
+-
+-		gmove(f, &f0);
+-
+-		// if 0 > v { answer = 0 }
+-		gmove(&zerof, &f0);
+-		gins(AFUCOMIP, &f0, &f1);
+-		p1 = gbranch(optoas(OGT, types[tt]), T, 0);
+-		// if 1<<64 <= v { answer = 0 too }
+-		gmove(&two64f, &f0);
+-		gins(AFUCOMIP, &f0, &f1);
+-		p2 = gbranch(optoas(OGT, types[tt]), T, 0);
+-		patch(p1, pc);
+-		gins(AFMOVVP, &f0, t);	// don't care about t, but will pop the stack
+-		split64(t, &tlo, &thi);
+-		gins(AMOVL, ncon(0), &tlo);
+-		gins(AMOVL, ncon(0), &thi);
+-		splitclean();
+-		p1 = gbranch(AJMP, T, 0);
+-		patch(p2, pc);
+-
+-		// in range; algorithm is:
+-		//	if small enough, use native float64 -> int64 conversion.
+-		//	otherwise, subtract 2^63, convert, and add it back.
+-
+-		// set round to zero mode during conversion
+-		memname(&t1, types[TUINT16]);
+-		memname(&t2, types[TUINT16]);
+-		gins(AFSTCW, N, &t1);
+-		gins(AMOVW, ncon(0xf7f), &t2);
+-		gins(AFLDCW, &t2, N);
+-
+-		// actual work
+-		gmove(&two63f, &f0);
+-		gins(AFUCOMIP, &f0, &f1);
+-		p2 = gbranch(optoas(OLE, types[tt]), T, 0);
+-		gins(AFMOVVP, &f0, t);
+-		p3 = gbranch(AJMP, T, 0);
+-		patch(p2, pc);
+-		gmove(&two63f, &f0);
+-		gins(AFSUBDP, &f0, &f1);
+-		gins(AFMOVVP, &f0, t);
+-		split64(t, &tlo, &thi);
+-		gins(AXORL, ncon(0x80000000), &thi);	// + 2^63
+-		patch(p3, pc);
+-		splitclean();
+-		// restore rounding mode
+-		gins(AFLDCW, &t1, N);
+-
+-		patch(p1, pc);
+-		return;
++		cvt = types[TINT64];
++		goto hardmem;
+ 
+ 	/*
+ 	 * integer to float
+@@ -1585,46 +1870,6 @@ gmove(Node *f, Node *t)
+ 		cvt = types[TINT64];
+ 		goto hardmem;
+ 
+-	case CASE(TUINT64, TFLOAT32):
+-	case CASE(TUINT64, TFLOAT64):
+-		// algorithm is:
+-		//	if small enough, use native int64 -> uint64 conversion.
+-		//	otherwise, halve (rounding to odd?), convert, and double.
+-		nodreg(&ax, types[TUINT32], D_AX);
+-		nodreg(&dx, types[TUINT32], D_DX);
+-		nodreg(&cx, types[TUINT32], D_CX);
+-		tempname(&t1, f->type);
+-		split64(&t1, &tlo, &thi);
+-		gmove(f, &t1);
+-		gins(ACMPL, &thi, ncon(0));
+-		p1 = gbranch(AJLT, T, 0);
+-		// native
+-		t1.type = types[TINT64];
+-		gmove(&t1, t);
+-		p2 = gbranch(AJMP, T, 0);
+-		// simulated
+-		patch(p1, pc);
+-		gmove(&tlo, &ax);
+-		gmove(&thi, &dx);
+-		p1 = gins(ASHRL, ncon(1), &ax);
+-		p1->from.index = D_DX;	// double-width shift DX -> AX
+-		p1->from.scale = 0;
+-		gins(AMOVL, ncon(0), &cx);
+-		gins(ASETCC, N, &cx);
+-		gins(AORL, &cx, &ax);
+-		gins(ASHRL, ncon(1), &dx);
+-		gmove(&dx, &thi);
+-		gmove(&ax, &tlo);
+-		nodreg(&r1, types[tt], D_F0);
+-		nodreg(&r2, types[tt], D_F0 + 1);
+-		gmove(&t1, &r1);	// t1.type is TINT64 now, set above
+-		gins(AFMOVD, &r1, &r1);
+-		gins(AFADDDP, &r1, &r2);
+-		gmove(&r1, t);
+-		patch(p2, pc);
+-		splitclean();
+-		return;
+-
+ 	/*
+ 	 * float to float
+ 	 */
+@@ -1688,20 +1933,121 @@ gmove(Node *f, Node *t)
+ 	gins(a, f, t);
+ 	return;
+ 
+-rsrc:
+-	// requires register source
+-	regalloc(&r1, f->type, t);
++hard:
++	// requires register intermediate
++	regalloc(&r1, cvt, t);
+ 	gmove(f, &r1);
+-	gins(a, &r1, t);
++	gmove(&r1, t);
+ 	regfree(&r1);
+ 	return;
+ 
+-rdst:
+-	// requires register destination
+-	regalloc(&r1, t->type, t);
+-	gins(a, f, &r1);
++hardmem:
++	// requires memory intermediate
++	tempname(&r1, cvt);
++	gmove(f, &r1);
+ 	gmove(&r1, t);
+-	regfree(&r1);
++	return;
++
++fatal:
++	// should not happen
++	fatal("gmove %lN -> %lN", f, t);
++	return;
++}
++
++static void
++floatmove_sse(Node *f, Node *t)
++{
++	Node r1;
++	Type *cvt;
++	int a, ft, tt;
++
++	ft = simsimtype(f->type);
++	tt = simsimtype(t->type);
++
++	switch(CASE(ft, tt)) {
++	default:
++		// should not happen
++		fatal("gmove %N -> %N", f, t);
++		return;
++	/*
++	* float to integer
++	*/
++	case CASE(TFLOAT32, TINT16):
++	case CASE(TFLOAT32, TINT8):
++	case CASE(TFLOAT32, TUINT16):
++	case CASE(TFLOAT32, TUINT8):
++	case CASE(TFLOAT64, TINT16):
++	case CASE(TFLOAT64, TINT8):
++	case CASE(TFLOAT64, TUINT16):
++	case CASE(TFLOAT64, TUINT8):
++		// convert via int32.
++		cvt = types[TINT32];
++		goto hard;
++
++	case CASE(TFLOAT32, TUINT32):
++	case CASE(TFLOAT64, TUINT32):
++		// convert via int64.
++		cvt = types[TINT64];
++		goto hardmem;
++
++	case CASE(TFLOAT32, TINT32):
++		a = ACVTTSS2SL;
++		goto rdst;
++
++	case CASE(TFLOAT64, TINT32):
++		a = ACVTTSD2SL;
++		goto rdst;
++
++	/*
++	 * integer to float
++	 */
++	case CASE(TINT8, TFLOAT32):
++	case CASE(TINT8, TFLOAT64):
++	case CASE(TINT16, TFLOAT32):
++	case CASE(TINT16, TFLOAT64):
++	case CASE(TUINT16, TFLOAT32):
++	case CASE(TUINT16, TFLOAT64):
++	case CASE(TUINT8, TFLOAT32):
++	case CASE(TUINT8, TFLOAT64):
++		// convert via int32 memory
++		cvt = types[TINT32];
++		goto hard;
++
++	case CASE(TUINT32, TFLOAT32):
++	case CASE(TUINT32, TFLOAT64):
++		// convert via int64 memory
++		cvt = types[TINT64];
++		goto hardmem;
++
++	case CASE(TINT32, TFLOAT32):
++		a = ACVTSL2SS;
++		goto rdst;
++
++	case CASE(TINT32, TFLOAT64):
++		a = ACVTSL2SD;
++		goto rdst;
++
++	/*
++	 * float to float
++	 */
++	case CASE(TFLOAT32, TFLOAT32):
++		a = AMOVSS;
++		break;
++
++	case CASE(TFLOAT64, TFLOAT64):
++		a = AMOVSD;
++		break;
++
++	case CASE(TFLOAT32, TFLOAT64):
++		a = ACVTSS2SD;
++		goto rdst;
++
++	case CASE(TFLOAT64, TFLOAT32):
++		a = ACVTSD2SS;
++		goto rdst;
++	}
++
++	gins(a, f, t);
+ 	return;
+ 
+ hard:
+@@ -1719,9 +2065,13 @@ hardmem:
+ 	gmove(&r1, t);
+ 	return;
+ 
+-fatal:
+-	// should not happen
+-	fatal("gmove %N -> %N", f, t);
++rdst:
++	// requires register destination
++	regalloc(&r1, t->type, t);
++	gins(a, f, &r1);
++	gmove(&r1, t);
++	regfree(&r1);
++	return;
+ }
+ 
+ int
+@@ -1752,6 +2102,10 @@ gins(int as, Node *f, Node *t)
+ 
+ 	if(as == AFMOVF && f && f->op == OREGISTER && t && t->op == OREGISTER)
+ 		fatal("gins MOVF reg, reg");
++	if(as == ACVTSD2SS && f && f->op == OLITERAL)
++		fatal("gins CVTSD2SS const");
++	if(as == AMOVSD && t && t->op == OREGISTER && t->val.u.reg == D_F0)
++		fatal("gins MOVSD into F0");
+ 
+ 	switch(as) {
+ 	case AMOVB:
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+index 6e511978d3..7ed1c119d5 100644
+--- a/src/cmd/8g/list.c
++++ b/src/cmd/8g/list.c
+@@ -231,6 +231,15 @@ static	char*	regstr[] =
+ 	"TR6",
+ 	"TR7",
+ 
++	"X0",		/* [D_X0] */
++	"X1",
++	"X2",
++	"X3",
++	"X4",
++	"X5",
++	"X6",
++	"X7",
++
+ 	"NONE",		/* [D_NONE] */
+ };
+ 
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 31e871eeb8..4fe8986cb6 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -129,7 +129,7 @@ peep(void)
+ 			p = p->link;
+ 		}
+ 	}
+-  
++
+ 	// byte, word arithmetic elimination.
+ 	elimshortmov(r);
+ 
+@@ -149,6 +149,8 @@ peep(void)
+ 		case AMOVB:
+ 		case AMOVW:
+ 		case AMOVL:
++		case AMOVSS:
++		case AMOVSD:
+ 			if(regtyp(&p->to))
+ 			if(p->from.type == D_CONST)
+ 				conprop(r);
+@@ -165,6 +167,8 @@ loop1:
+ 		p = r->prog;
+ 		switch(p->as) {
+ 		case AMOVL:
++		case AMOVSS:
++		case AMOVSD:
+ 			if(regtyp(&p->to))
+ 			if(regtyp(&p->from)) {
+ 				if(copyprop(r)) {
+@@ -241,6 +245,19 @@ loop1:
+ 	}
+ 	if(t)
+ 		goto loop1;
++
++	// MOVSD removal.
++	// We never use packed registers, so a MOVSD between registers
++	// can be replaced by MOVAPD, which moves the pair of float64s
++	// instead of just the lower one.  We only use the lower one, but
++	// the processor can do better if we do moves using both.
++	for(r=firstr; r!=R; r=r->link) {
++		p = r->prog;
++		if(p->as == AMOVSD)
++		if(regtyp(&p->from))
++		if(regtyp(&p->to))
++			p->as = AMOVAPD;
++	}
+ }
+ 
+ void
+@@ -299,6 +316,8 @@ regtyp(Adr *a)
+ 	t = a->type;
+ 	if(t >= D_AX && t <= D_DI)
+ 		return 1;
++	if(t >= D_X0 && t <= D_X7)
++		return 1;
+ 	return 0;
+ }
+ 
+@@ -485,9 +504,16 @@ subprop(Reg *r0)
+ 		case ASTOSL:
+ 		case AMOVSB:
+ 		case AMOVSL:
++
++		case AFMOVF:
++		case AFMOVD:
++		case AFMOVFP:
++		case AFMOVDP:
+ 			return 0;
+ 
+ 		case AMOVL:
++		case AMOVSS:
++		case AMOVSD:
+ 			if(p->to.type == v1->type)
+ 				goto gotit;
+ 			break;
+@@ -672,6 +698,17 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case AMOVBLZX:
+ 	case AMOVWLSX:
+ 	case AMOVWLZX:
++	
++	case AMOVSS:
++	case AMOVSD:
++	case ACVTSD2SL:
++	case ACVTSD2SS:
++	case ACVTSL2SD:
++	case ACVTSL2SS:
++	case ACVTSS2SD:
++	case ACVTSS2SL:
++	case ACVTTSD2SL:
++	case ACVTTSS2SL:
+ 		if(copyas(&p->to, v)) {
+ 			if(s != A)
+ 				return copysub(&p->from, v, s, 1);
+@@ -733,6 +770,26 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case AXORW:
+ 	case AMOVB:
+ 	case AMOVW:
++
++	case AADDSD:
++	case AADDSS:
++	case ACMPSD:
++	case ACMPSS:
++	case ADIVSD:
++	case ADIVSS:
++	case AMAXSD:
++	case AMAXSS:
++	case AMINSD:
++	case AMINSS:
++	case AMULSD:
++	case AMULSS:
++	case ARCPSS:
++	case ARSQRTSS:
++	case ASQRTSD:
++	case ASQRTSS:
++	case ASUBSD:
++	case ASUBSS:
++	case AXORPD:
+ 		if(copyas(&p->to, v))
+ 			return 2;
+ 		goto caseread;
+@@ -740,6 +797,11 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case ACMPL:	/* read only */
+ 	case ACMPW:
+ 	case ACMPB:
++
++	case ACOMISD:
++	case ACOMISS:
++	case AUCOMISD:
++	case AUCOMISS:
+ 	caseread:
+ 		if(s != A) {
+ 			if(copysub(&p->from, v, s, 1))
+@@ -900,7 +962,7 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
+ 
+ 	if(copyas(a, v)) {
+ 		t = s->type;
+-		if(t >= D_AX && t <= D_DI) {
++		if(t >= D_AX && t <= D_DI || t >= D_X0 && t <= D_X7) {
+ 			if(f)
+ 				a->type = t;
+ 		}
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 2c7553620c..2ae819548b 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -33,8 +33,8 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
+-#define	NREGVAR	8
+-#define	REGBITS	((uint32)0xff)
++#define	NREGVAR	16	/* 8 integer + 8 floating */
++#define	REGBITS	((uint32)0xffff)
+ #define	P2R(p)	(Reg*)(p->reg)
+ 
+ static	int	first	= 1;
+@@ -119,7 +119,10 @@ setaddrs(Bits bit)
+ 	}
+ }
+ 
+-static char* regname[] = { ".ax", ".cx", ".dx", ".bx", ".sp", ".bp", ".si", ".di" };
++static char* regname[] = {
++	".ax", ".cx", ".dx", ".bx", ".sp", ".bp", ".si", ".di",
++	".x0", ".x1", ".x2", ".x3", ".x4", ".x5", ".x6", ".x7",
++};
+ 
+ static Node* regnodes[NREGVAR];
+ 
+@@ -236,6 +239,8 @@ regopt(Prog *firstp)
+ 		 * funny
+ 		 */
+ 		case ALEAL:
++		case AFMOVD:
++		case AFMOVF:
+ 		case AFMOVL: 
+ 		case AFMOVW:
+ 		case AFMOVV:
+@@ -276,6 +281,10 @@ regopt(Prog *firstp)
+ 		case ACMPB:
+ 		case ACMPL:
+ 		case ACMPW:
++		case ACOMISS:
++		case ACOMISD:
++		case AUCOMISS:
++		case AUCOMISD:
+ 		case ATESTB:
+ 		case ATESTL:
+ 		case ATESTW:
+@@ -299,6 +308,17 @@ regopt(Prog *firstp)
+ 		case AMOVWLSX:
+ 		case AMOVWLZX:
+ 		case APOPL:
++
++		case AMOVSS:
++		case AMOVSD:
++		case ACVTSD2SL:
++		case ACVTSD2SS:
++		case ACVTSL2SD:
++		case ACVTSL2SS:
++		case ACVTSS2SD:
++		case ACVTSS2SL:
++		case ACVTTSD2SL:
++		case ACVTTSS2SL:
+ 			for(z=0; z<BITS; z++)
+ 				r->set.b[z] |= bit.b[z];
+ 			break;
+@@ -383,6 +403,26 @@ regopt(Prog *firstp)
+ 		case AXCHGB:
+ 		case AXCHGW:
+ 		case AXCHGL:
++
++		case AADDSD:
++		case AADDSS:
++		case ACMPSD:
++		case ACMPSS:
++		case ADIVSD:
++		case ADIVSS:
++		case AMAXSD:
++		case AMAXSS:
++		case AMINSD:
++		case AMINSS:
++		case AMULSD:
++		case AMULSS:
++		case ARCPSS:
++		case ARSQRTSS:
++		case ASQRTSD:
++		case ASQRTSS:
++		case ASUBSD:
++		case ASUBSS:
++		case AXORPD:
+ 			for(z=0; z<BITS; z++) {
+ 				r->set.b[z] |= bit.b[z];
+ 				r->use2.b[z] |= bit.b[z];
+@@ -694,6 +734,14 @@ brk:
+ 				p->to.u.branch = p->to.u.branch->link;
+ 	}
+ 
++	if(!use_sse)
++	for(p=firstp; p!=P; p=p->link) {
++		if(p->from.type >= D_X0 && p->from.type <= D_X7)
++			fatal("invalid use of %R with GO386=387: %P", p->from.type, p);
++		if(p->to.type >= D_X0 && p->to.type <= D_X7)
++			fatal("invalid use of %R with GO386=387: %P", p->to.type, p);
++	}
++
+ 	if(lastr != R) {
+ 		lastr->link = freer;
+ 		freer = firstr;
+@@ -771,6 +819,12 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	case TUINT16:
+ 		p1->as = AMOVW;
+ 		break;
++	case TFLOAT32:
++		p1->as = AMOVSS;
++		break;
++	case TFLOAT64:
++		p1->as = AMOVSD;
++		break;
+ 	case TINT:
+ 	case TUINT:
+ 	case TINT32:
+@@ -810,6 +864,9 @@ doregbits(int r)
+ 	else
+ 	if(r >= D_AH && r <= D_BH)
+ 		b |= RtoB(r-D_AH+D_AX);
++	else
++	if(r >= D_X0 && r <= D_X0+7)
++		b |= FtoB(r);
+ 	return b;
+ }
+ 
+@@ -1209,6 +1266,13 @@ allreg(uint32 b, Rgn *r)
+ 
+ 	case TFLOAT32:
+ 	case TFLOAT64:
++		if(!use_sse)
++			break;
++		i = BtoF(~b);
++		if(i && r->cost > 0) {
++			r->regno = i;
++			return FtoB(i);
++		}
+ 		break;
+ 	}
+ 	return 0;
+@@ -1298,7 +1362,7 @@ regset(Reg *r, uint32 bb)
+ 	set = 0;
+ 	v = zprog.from;
+ 	while(b = bb & ~(bb-1)) {
+-		v.type = BtoR(b);
++		v.type = b & 0xFF ? BtoR(b): BtoF(b);
+ 		c = copyu(r->prog, &v, A);
+ 		if(c == 3)
+ 			set |= b;
+@@ -1317,7 +1381,7 @@ reguse(Reg *r, uint32 bb)
+ 	set = 0;
+ 	v = zprog.from;
+ 	while(b = bb & ~(bb-1)) {
+-		v.type = BtoR(b);
++		v.type = b & 0xFF ? BtoR(b): BtoF(b);
+ 		c = copyu(r->prog, &v, A);
+ 		if(c == 1 || c == 2 || c == 4)
+ 			set |= b;
+@@ -1487,6 +1551,23 @@ BtoR(int32 b)
+ 	return bitno(b) + D_AX;
+ }
+ 
++int32
++FtoB(int f)
++{
++	if(f < D_X0 || f > D_X7)
++		return 0;
++	return 1L << (f - D_X0 + 8);
++}
++
++int
++BtoF(int32 b)
++{
++	b &= 0xFF00L;
++	if(b == 0)
++		return 0;
++	return bitno(b) - 8 + D_X0;
++}
++
+ void
+ dumpone(Reg *r)
+ {
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index ade56efd5e..6f251d7430 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -17,6 +17,7 @@ char *gohostchar;
+ char *gohostos;
+ char *goos;
+ char *goarm;
++char *go386;
+ char *goroot = GOROOT_FINAL;
+ char *goroot_final = GOROOT_FINAL;
+ char *workdir;
+@@ -102,6 +103,11 @@ init(void)
+ 		bwritestr(&b, xgetgoarm());
+ 	goarm = btake(&b);
+ 
++	xgetenv(&b, "GO386");
++	if(b.len == 0)
++		bwritestr(&b, "387");
++	go386 = btake(&b);
++
+ 	p = bpathf(&b, "%s/include/u.h", goroot);
+ 	if(!isfile(p)) {
+ 		fatal("$GOROOT is not set correctly or not exported\n"
+@@ -133,6 +139,7 @@ init(void)
+ 	xsetenv("GOARCH", goarch);
+ 	xsetenv("GOOS", goos);
+ 	xsetenv("GOARM", goarm);
++	xsetenv("GO386", go386);
+ 
+ 	// Make the environment more predictable.
+ 	xsetenv("LANG", "C");
+@@ -892,6 +899,7 @@ install(char *dir)
+ 				vadd(&compile, bprintf(&b, "-DGOROOT=\"%s\"", bstr(&b1)));
+ 				vadd(&compile, bprintf(&b, "-DGOVERSION=\"%s\"", goversion));
+ 				vadd(&compile, bprintf(&b, "-DGOARM=\"%s\"", goarm));
++				vadd(&compile, bprintf(&b, "-DGO386=\"%s\"", go386));
+ 			}
+ 
+ 			// gc/lex.c records the GOEXPERIMENT setting used during the build.
+@@ -1383,6 +1391,8 @@ cmdenv(int argc, char **argv)
+ 	xprintf(format, "GOCHAR", gochar);
+ 	if(streq(goarch, "arm"))
+ 		xprintf(format, "GOARM", goarm);
++	if(streq(goarch, "386"))
++		xprintf(format, "GO386", go386);
+ 
+ 	if(pflag) {
+ 		sep = ":";
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index accb19cd99..79149f4d00 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -928,6 +928,7 @@ EXTERN	Node*	nblank;
+ 
+ extern	int	thechar;
+ extern	char*	thestring;
++EXTERN	int  	use_sse;
+ 
+ EXTERN	char*	hunk;
+ EXTERN	int32	nhunk;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 6fd61d1e34..d7f9e42f4d 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -239,6 +239,7 @@ main(int argc, char *argv[])
+ 	goroot = getgoroot();
+ 	goos = getgoos();
+ 	goarch = thestring;
++	use_sse = strcmp(getgo386(), "sse") == 0;
+ 	
+ 	setexp();
+ 
+diff --git a/src/lib9/goos.c b/src/lib9/goos.c
+index c892757498..3b00271117 100644
+--- a/src/lib9/goos.c
++++ b/src/lib9/goos.c
+@@ -45,3 +45,9 @@ getgoarm(void)
+ {
+ 	return defgetenv("GOARM", GOARM);
+ }
++
++char*
++getgo386(void)
++{
++	return defgetenv("GO386", GO386);
++}

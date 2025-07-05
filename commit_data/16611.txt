@@ -9,8 +9,47 @@ Date:   Fri Jun 21 15:17:13 2013 -0400
     R=golang-dev, minux.ma, dave, rsc
     CC=golang-dev
     https://golang.org/cl/10428043
-
+---
  src/cmd/6a/lex.c   | 1 +
  src/cmd/6l/6.out.h | 2 ++
  src/cmd/6l/optab.c | 2 ++
  3 files changed, 5 insertions(+)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index c969e98e5d..89143e7894 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -1019,6 +1019,7 @@ struct
+ 	"AESKEYGENASSIST", LTYPEX, AAESKEYGENASSIST,
+ 	"PSHUFD",	LTYPEX, APSHUFD,
+ 	"USEFIELD",	LTYPEN, AUSEFIELD,
++	"PCLMULQDQ",	LTYPEX, APCLMULQDQ,
+ 
+ 	0
+ };
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index e0aeafa94f..c4be74f135 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -766,6 +766,8 @@ enum	as
+ 	ANPTRS,
+ 	APTRS,
+ 
++	APCLMULQDQ,
++
+ 	ALAST
+ };
+ 
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 356910734a..5080dd7e90 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -1344,6 +1344,8 @@ Optab optab[] =
+ 	{ ANPTRS },
+ 	{ APTRS },
+ 
++	{ APCLMULQDQ,	yxshuf,	Pq, 0x3a,0x44,0 },
++
+ 	{ AEND },
+ 	0
+ };

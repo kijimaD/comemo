@@ -10,7 +10,63 @@ Date:   Tue Apr 8 14:55:12 2014 -0400
     R=golang-codereviews, rsc, r, mike
     CC=golang-codereviews
     https://golang.org/cl/33140043
-
+---
  src/pkg/encoding/xml/read.go      |  9 +++++++++
  src/pkg/encoding/xml/read_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 651d13d4d0..75b9f2ba1b 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -284,6 +284,15 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 		}
+ 	}
+ 
++	// Load value from interface, but only if the result will be
++	// usefully addressable.
++	if val.Kind() == reflect.Interface && !val.IsNil() {
++		e := val.Elem()
++		if e.Kind() == reflect.Ptr && !e.IsNil() {
++			val = e
++		}
++	}
++
+ 	if val.Kind() == reflect.Ptr {
+ 		if val.IsNil() {
+ 			val.Set(reflect.New(val.Type().Elem()))
+diff --git a/src/pkg/encoding/xml/read_test.go b/src/pkg/encoding/xml/read_test.go
+index 1404c900f5..01f55d0dd0 100644
+--- a/src/pkg/encoding/xml/read_test.go
++++ b/src/pkg/encoding/xml/read_test.go
+@@ -685,3 +685,30 @@ func TestUnmarshaler(t *testing.T) {
+ 		t.Errorf("m=%#+v\n", m)
+ 	}
+ }
++
++type Pea struct {
++	Cotelydon string
++}
++
++type Pod struct {
++	Pea interface{} `xml:"Pea"`
++}
++
++// https://code.google.com/p/go/issues/detail?id=6836
++func TestUnmarshalIntoInterface(t *testing.T) {
++	pod := new(Pod)
++	pod.Pea = new(Pea)
++	xml := `<Pod><Pea><Cotelydon>Green stuff</Cotelydon></Pea></Pod>`
++	err := Unmarshal([]byte(xml), pod)
++	if err != nil {
++		t.Fatalf("failed to unmarshal %q: %v", xml, err)
++	}
++	pea, ok := pod.Pea.(*Pea)
++	if !ok {
++		t.Fatalf("unmarshalled into wrong type: have %T want *Pea", pod.Pea)
++	}
++	have, want := pea.Cotelydon, "Green stuff"
++	if have != want {
++		t.Errorf("failed to unmarshal into interface, have %q want %q", have, want)
++	}
++}

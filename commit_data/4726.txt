@@ -7,7 +7,51 @@ Date:   Thu Jan 28 17:38:51 2010 -0800
     R=nigeltao_golang
     CC=golang-dev
     https://golang.org/cl/194132
-
+---
  src/pkg/io/pipe.go      |  2 +-
  src/pkg/io/pipe_test.go | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/io/pipe.go b/src/pkg/io/pipe.go
+index 8f821a9c66..909989ae6a 100644
+--- a/src/pkg/io/pipe.go
++++ b/src/pkg/io/pipe.go
+@@ -39,7 +39,7 @@ func (p *pipe) Read(data []byte) (n int, err os.Error) {
+ 		if !p.wclosed {
+ 			p.wpend = <-p.cr
+ 		}
+-		if p.wpend == nil {
++		if p.wclosed {
+ 			return 0, p.werr
+ 		}
+ 		p.wtot = 0
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index 793bed4596..b0ee0f20b3 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -236,3 +236,25 @@ func TestPipeWriteClose(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestWriteEmpty(t *testing.T) {
++	r, w := Pipe()
++	go func() {
++		w.Write([]byte{})
++		w.Close()
++	}()
++	var b [2]byte
++	ReadFull(r, b[0:2])
++	r.Close()
++}
++
++func TestWriteNil(t *testing.T) {
++	r, w := Pipe()
++	go func() {
++		w.Write(nil)
++		w.Close()
++	}()
++	var b [2]byte
++	ReadFull(r, b[0:2])
++	r.Close()
++}

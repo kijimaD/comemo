@@ -22,7 +22,7 @@ Date:   Thu Nov 14 14:09:13 2024 -0500
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/crypto/internal/fips140/hkdf/hkdf.go     |  4 +-
  src/crypto/internal/fips140/hmac/hmac.go     |  4 +-
  src/crypto/internal/fips140/pbkdf2/pbkdf2.go | 70 ++++++++++++++++++++++++++++
@@ -30,3 +30,235 @@ Date:   Thu Nov 14 14:09:13 2024 -0500
  src/crypto/pbkdf2/pbkdf2_test.go             | 39 ++++++++++++++++
  src/go/build/deps_test.go                    |  1 +
  6 files changed, 116 insertions(+), 39 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/hkdf/hkdf.go b/src/crypto/internal/fips140/hkdf/hkdf.go
+index 6ddae5c3f2..e612fbbc21 100644
+--- a/src/crypto/internal/fips140/hkdf/hkdf.go
++++ b/src/crypto/internal/fips140/hkdf/hkdf.go
+@@ -17,7 +17,7 @@ func Extract[H fips140.Hash](h func() H, secret, salt []byte) []byte {
+ 		salt = make([]byte, h().Size())
+ 	}
+ 	extractor := hmac.New(h, salt)
+-	hmac.MarkAsUsedInHKDF(extractor)
++	hmac.MarkAsUsedInKDF(extractor)
+ 	extractor.Write(secret)
+ 
+ 	return extractor.Sum(nil)
+@@ -26,7 +26,7 @@ func Extract[H fips140.Hash](h func() H, secret, salt []byte) []byte {
+ func Expand[H fips140.Hash](h func() H, pseudorandomKey []byte, info string, keyLen int) []byte {
+ 	out := make([]byte, 0, keyLen)
+ 	expander := hmac.New(h, pseudorandomKey)
+-	hmac.MarkAsUsedInHKDF(expander)
++	hmac.MarkAsUsedInKDF(expander)
+ 	var counter uint8
+ 	var buf []byte
+ 
+diff --git a/src/crypto/internal/fips140/hmac/hmac.go b/src/crypto/internal/fips140/hmac/hmac.go
+index 320d78f268..5a588d7c26 100644
+--- a/src/crypto/internal/fips140/hmac/hmac.go
++++ b/src/crypto/internal/fips140/hmac/hmac.go
+@@ -166,7 +166,7 @@ func New[H fips140.Hash](h func() H, key []byte) *HMAC {
+ 	return hm
+ }
+ 
+-// MarkAsUsedInHKDF records that this HMAC instance is used as part of HKDF.
+-func MarkAsUsedInHKDF(h *HMAC) {
++// MarkAsUsedInKDF records that this HMAC instance is used as part of a KDF.
++func MarkAsUsedInKDF(h *HMAC) {
+ 	h.forHKDF = true
+ }
+diff --git a/src/crypto/internal/fips140/pbkdf2/pbkdf2.go b/src/crypto/internal/fips140/pbkdf2/pbkdf2.go
+new file mode 100644
+index 0000000000..3d4e385017
+--- /dev/null
++++ b/src/crypto/internal/fips140/pbkdf2/pbkdf2.go
+@@ -0,0 +1,70 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pbkdf2
++
++import (
++	"crypto/internal/fips140"
++	_ "crypto/internal/fips140/check"
++	"crypto/internal/fips140/hmac"
++)
++
++func Key[Hash fips140.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
++	setServiceIndicator(salt, keyLength)
++
++	prf := hmac.New(h, []byte(password))
++	hmac.MarkAsUsedInKDF(prf)
++	hashLen := prf.Size()
++	numBlocks := (keyLength + hashLen - 1) / hashLen
++
++	var buf [4]byte
++	dk := make([]byte, 0, numBlocks*hashLen)
++	U := make([]byte, hashLen)
++	for block := 1; block <= numBlocks; block++ {
++		// N.B.: || means concatenation, ^ means XOR
++		// for each block T_i = U_1 ^ U_2 ^ ... ^ U_iter
++		// U_1 = PRF(password, salt || uint(i))
++		prf.Reset()
++		prf.Write(salt)
++		buf[0] = byte(block >> 24)
++		buf[1] = byte(block >> 16)
++		buf[2] = byte(block >> 8)
++		buf[3] = byte(block)
++		prf.Write(buf[:4])
++		dk = prf.Sum(dk)
++		T := dk[len(dk)-hashLen:]
++		copy(U, T)
++
++		// U_n = PRF(password, U_(n-1))
++		for n := 2; n <= iter; n++ {
++			prf.Reset()
++			prf.Write(U)
++			U = U[:0]
++			U = prf.Sum(U)
++			for x := range U {
++				T[x] ^= U[x]
++			}
++		}
++	}
++	return dk[:keyLength], nil
++}
++
++func setServiceIndicator(salt []byte, keyLength int) {
++	// The HMAC construction will handle the hash function considerations for the service
++	// indicator. The remaining PBKDF2 considerations outlined by SP 800-132 pertain to
++	// salt and keyLength.
++
++	// The length of the randomly-generated portion of the salt shall be at least 128 bits.
++	if len(salt) < 128/8 {
++		fips140.RecordNonApproved()
++	}
++
++	// Per FIPS 140-3 IG C.M, key lengths below 112 bits are only allowed for
++	// legacy use (i.e. verification only) and we don't support that.
++	if keyLength < 112/8 {
++		fips140.RecordNonApproved()
++	}
++
++	fips140.RecordApproved()
++}
+diff --git a/src/crypto/pbkdf2/pbkdf2.go b/src/crypto/pbkdf2/pbkdf2.go
+index 0887365388..e6fef68b29 100644
+--- a/src/crypto/pbkdf2/pbkdf2.go
++++ b/src/crypto/pbkdf2/pbkdf2.go
+@@ -19,7 +19,7 @@ pbkdf2.Key.
+ package pbkdf2
+ 
+ import (
+-	"crypto/hmac"
++	"crypto/internal/fips140/pbkdf2"
+ 	"hash"
+ )
+ 
+@@ -40,38 +40,5 @@ import (
+ // Using a higher iteration count will increase the cost of an exhaustive
+ // search but will also make derivation proportionally slower.
+ func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
+-	prf := hmac.New(func() hash.Hash { return h() }, []byte(password))
+-	hashLen := prf.Size()
+-	numBlocks := (keyLength + hashLen - 1) / hashLen
+-
+-	var buf [4]byte
+-	dk := make([]byte, 0, numBlocks*hashLen)
+-	U := make([]byte, hashLen)
+-	for block := 1; block <= numBlocks; block++ {
+-		// N.B.: || means concatenation, ^ means XOR
+-		// for each block T_i = U_1 ^ U_2 ^ ... ^ U_iter
+-		// U_1 = PRF(password, salt || uint(i))
+-		prf.Reset()
+-		prf.Write(salt)
+-		buf[0] = byte(block >> 24)
+-		buf[1] = byte(block >> 16)
+-		buf[2] = byte(block >> 8)
+-		buf[3] = byte(block)
+-		prf.Write(buf[:4])
+-		dk = prf.Sum(dk)
+-		T := dk[len(dk)-hashLen:]
+-		copy(U, T)
+-
+-		// U_n = PRF(password, U_(n-1))
+-		for n := 2; n <= iter; n++ {
+-			prf.Reset()
+-			prf.Write(U)
+-			U = U[:0]
+-			U = prf.Sum(U)
+-			for x := range U {
+-				T[x] ^= U[x]
+-			}
+-		}
+-	}
+-	return dk[:keyLength], nil
++	return pbkdf2.Key(h, password, salt, iter, keyLength)
+ }
+diff --git a/src/crypto/pbkdf2/pbkdf2_test.go b/src/crypto/pbkdf2/pbkdf2_test.go
+index ecce26f8ba..03980c7e54 100644
+--- a/src/crypto/pbkdf2/pbkdf2_test.go
++++ b/src/crypto/pbkdf2/pbkdf2_test.go
+@@ -6,6 +6,8 @@ package pbkdf2_test
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/boring"
++	"crypto/internal/fips140"
+ 	"crypto/pbkdf2"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+@@ -182,3 +184,40 @@ func BenchmarkHMACSHA1(b *testing.B) {
+ func BenchmarkHMACSHA256(b *testing.B) {
+ 	benchmark(b, sha256.New)
+ }
++
++func TestPBKDF2ServiceIndicator(t *testing.T) {
++	if boring.Enabled {
++		t.Skip("in BoringCrypto mode PBKDF2 is not from the Go FIPS module")
++	}
++
++	goodSalt := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10}
++
++	fips140.ResetServiceIndicator()
++	_, err := pbkdf2.Key(sha256.New, "password", goodSalt, 1, 32)
++	if err != nil {
++		t.Error(err)
++	}
++	if !fips140.ServiceIndicator() {
++		t.Error("FIPS service indicator should be set")
++	}
++
++	// Salt too short
++	fips140.ResetServiceIndicator()
++	_, err = pbkdf2.Key(sha256.New, "password", goodSalt[:8], 1, 32)
++	if err != nil {
++		t.Error(err)
++	}
++	if fips140.ServiceIndicator() {
++		t.Error("FIPS service indicator should not be set")
++	}
++
++	// Key length too short
++	fips140.ResetServiceIndicator()
++	_, err = pbkdf2.Key(sha256.New, "password", goodSalt, 1, 10)
++	if err != nil {
++		t.Error(err)
++	}
++	if fips140.ServiceIndicator() {
++		t.Error("FIPS service indicator should not be set")
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 662bb59439..4ff73b08c3 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -467,6 +467,7 @@ var depsRules = `
+ 	< crypto/internal/fips140/sha3
+ 	< crypto/internal/fips140/hmac
+ 	< crypto/internal/fips140/check
++	< crypto/internal/fips140/pbkdf2
+ 	< crypto/internal/fips140/aes
+ 	< crypto/internal/fips140/drbg
+ 	< crypto/internal/fips140/aes/gcm

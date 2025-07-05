@@ -26,7 +26,41 @@ Date:   Fri Apr 11 21:41:00 2025 +0000
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/internal/syscall/windows/types_windows.go | 2 ++
  src/net/fd_windows.go                         | 9 +++++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/internal/syscall/windows/types_windows.go b/src/internal/syscall/windows/types_windows.go
+index adc8b00bd8..6c81754e1a 100644
+--- a/src/internal/syscall/windows/types_windows.go
++++ b/src/internal/syscall/windows/types_windows.go
+@@ -14,6 +14,8 @@ const (
+ 	TCP_KEEPIDLE  = 0x03
+ 	TCP_KEEPCNT   = 0x10
+ 	TCP_KEEPINTVL = 0x11
++
++	SIO_UDP_NETRESET = syscall.IOC_IN | syscall.IOC_VENDOR | 15
+ )
+ 
+ const (
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index f7609a7cfe..4ad8e0204f 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -67,6 +67,15 @@ func (fd *netFD) init() error {
+ 		if err != nil {
+ 			return wrapSyscallError("wsaioctl", err)
+ 		}
++		// Disable reporting of NET_UNREACHABLE errors.
++		// See https://go.dev/issue/68614.
++		ret = 0
++		flag = 0
++		size = uint32(unsafe.Sizeof(flag))
++		err = syscall.WSAIoctl(fd.pfd.Sysfd, windows.SIO_UDP_NETRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
++		if err != nil {
++			return wrapSyscallError("wsaioctl", err)
++		}
+ 	}
+ 	return nil
+ }

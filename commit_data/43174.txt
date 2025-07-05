@@ -19,8 +19,127 @@ Date:   Wed Mar 11 21:51:09 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/os_linux.go     | 15 +++++++++++++++
  src/runtime/os_linux_x86.go | 35 +++++++++++++++++++++++++++--------
  src/runtime/panic.go        | 10 ++++++++++
  3 files changed, 52 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index e0e3f4e341..d8c1827852 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -479,7 +480,21 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+ func getpid() int
+ func tgkill(tgid, tid, sig int)
+ 
++// touchStackBeforeSignal stores an errno value. If non-zero, it means
++// that we should touch the signal stack before sending a signal.
++// This is used on systems that have a bug when the signal stack must
++// be faulted in.  See #35777 and #37436.
++//
++// This is accessed atomically as it is set and read in different threads.
++//
++// TODO(austin): Remove this after Go 1.15 when we remove the
++// mlockGsignal workaround.
++var touchStackBeforeSignal uint32
++
+ // signalM sends a signal to mp.
+ func signalM(mp *m, sig int) {
++	if atomic.Load(&touchStackBeforeSignal) != 0 {
++		atomic.Cas((*uint32)(unsafe.Pointer(mp.gsignal.stack.hi-4)), 0, 0)
++	}
+ 	tgkill(getpid(), int(mp.procid), sig)
+ }
+diff --git a/src/runtime/os_linux_x86.go b/src/runtime/os_linux_x86.go
+index 0e1c9185b1..d001e6ee59 100644
+--- a/src/runtime/os_linux_x86.go
++++ b/src/runtime/os_linux_x86.go
+@@ -7,6 +7,8 @@
+ 
+ package runtime
+ 
++import "runtime/internal/atomic"
++
+ //go:noescape
+ func uname(utsname *new_utsname) int
+ 
+@@ -58,17 +60,34 @@ func osArchInit() {
+ 		if m0.gsignal != nil {
+ 			throw("gsignal quirk too late")
+ 		}
++		throwReportQuirk = throwBadKernel
+ 	}
+ }
+ 
+ func mlockGsignal(gsignal *g) {
+-	if err := mlock(gsignal.stack.hi-physPageSize, physPageSize); err < 0 {
+-		printlock()
+-		println("runtime: mlock of signal stack failed:", -err)
+-		if err == -_ENOMEM {
+-			println("runtime: increase the mlock limit (ulimit -l) or")
+-		}
+-		println("runtime: update your kernel to 5.3.15+, 5.4.2+, or 5.5+")
+-		throw("mlock failed")
++	if atomic.Load(&touchStackBeforeSignal) != 0 {
++		// mlock has already failed, don't try again.
++		return
++	}
++
++	// This mlock call may fail, but we don't report the failure.
++	// Instead, if something goes badly wrong, we rely on prepareSignalM
++	// and throwBadKernel to do further mitigation and to report a problem
++	// to the user if mitigation fails. This is because many
++	// systems have a limit on the total mlock size, and many kernels
++	// that appear to have bad versions are actually patched to avoid the
++	// bug described above. We want Go 1.14 to run on those systems.
++	// See #37436.
++	if errno := mlock(gsignal.stack.hi-physPageSize, physPageSize); errno < 0 {
++		atomic.Store(&touchStackBeforeSignal, uint32(-errno))
++	}
++}
++
++// throwBadKernel is called, via throwReportQuirk, by throw.
++func throwBadKernel() {
++	if errno := atomic.Load(&touchStackBeforeSignal); errno != 0 {
++		println("runtime: note: your Linux kernel may be buggy")
++		println("runtime: note: see https://golang.org/wiki/LinuxKernelSignalVectorBug")
++		println("runtime: note: mlock workaround for kernel bug failed with errno", errno)
+ 	}
+ }
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index c6ab1bac3f..28b5cbefcc 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1281,6 +1281,12 @@ func startpanic_m() bool {
+ 	}
+ }
+ 
++// throwReportQuirk, if non-nil, is called by throw after dumping the stacks.
++//
++// TODO(austin): Remove this after Go 1.15 when we remove the
++// mlockGsignal workaround.
++var throwReportQuirk func()
++
+ var didothers bool
+ var deadlock mutex
+ 
+@@ -1327,6 +1333,10 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
+ 
+ 	printDebugLog()
+ 
++	if throwReportQuirk != nil {
++		throwReportQuirk()
++	}
++
+ 	return docrash
+ }
+ 

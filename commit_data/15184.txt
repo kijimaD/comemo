@@ -7,6 +7,19 @@ Date:   Sat Feb 9 13:43:15 2013 -0500
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7314071
-
+---
  src/pkg/testing/testing.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index d971f838e2..357d6f5f27 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -33,6 +33,7 @@
+ //         }
+ //     }
+ //
++// The benchmark function must run the target code b.N times.
+ // The benchmark package will vary b.N until the benchmark function lasts
+ // long enough to be timed reliably.  The output
+ //     BenchmarkHello    10000000    282 ns/op

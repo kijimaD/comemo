@@ -7,8 +7,2495 @@ Date:   Fri Mar 22 17:46:45 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7493048
-
+---
  src/cmd/vet/deadcode.go      |  280 ++++++
  src/cmd/vet/main.go          |   43 +-
  src/cmd/vet/test_deadcode.go | 2121 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 2426 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/vet/deadcode.go b/src/cmd/vet/deadcode.go
+new file mode 100644
+index 0000000000..f90fc14a49
+--- /dev/null
++++ b/src/cmd/vet/deadcode.go
+@@ -0,0 +1,280 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for syntactically unreachable code.
++
++package main
++
++import (
++	"go/ast"
++	"go/token"
++)
++
++type deadState struct {
++	f           *File
++	hasBreak    map[ast.Stmt]bool
++	hasGoto     map[string]bool
++	labels      map[string]ast.Stmt
++	breakTarget ast.Stmt
++
++	reachable bool
++}
++
++// checkUnreachable checks a function body for dead code.
++func (f *File) checkUnreachable(body *ast.BlockStmt) {
++	if !vet("unreachable") || body == nil {
++		return
++	}
++
++	d := &deadState{
++		f:        f,
++		hasBreak: make(map[ast.Stmt]bool),
++		hasGoto:  make(map[string]bool),
++		labels:   make(map[string]ast.Stmt),
++	}
++
++	d.findLabels(body)
++
++	d.reachable = true
++	d.findDead(body)
++}
++
++// findLabels gathers information about the labels defined and used by stmt
++// and about which statements break, whether a label is involved or not.
++func (d *deadState) findLabels(stmt ast.Stmt) {
++	switch x := stmt.(type) {
++	default:
++		d.f.Warnf(x.Pos(), "internal error in findLabels: unexpected statement %T", x)
++
++	case *ast.AssignStmt,
++		*ast.BadStmt,
++		*ast.DeclStmt,
++		*ast.DeferStmt,
++		*ast.EmptyStmt,
++		*ast.ExprStmt,
++		*ast.GoStmt,
++		*ast.IncDecStmt,
++		*ast.ReturnStmt,
++		*ast.SendStmt:
++		// no statements inside
++
++	case *ast.BlockStmt:
++		for _, stmt := range x.List {
++			d.findLabels(stmt)
++		}
++
++	case *ast.BranchStmt:
++		switch x.Tok {
++		case token.GOTO:
++			d.hasGoto[x.Label.Name] = true
++
++		case token.BREAK:
++			stmt := d.breakTarget
++			if x.Label != nil {
++				stmt = d.labels[x.Label.Name]
++			}
++			if stmt != nil {
++				d.hasBreak[stmt] = true
++			}
++		}
++
++	case *ast.IfStmt:
++		d.findLabels(x.Body)
++		if x.Else != nil {
++			d.findLabels(x.Else)
++		}
++
++	case *ast.LabeledStmt:
++		d.labels[x.Label.Name] = x.Stmt
++		d.findLabels(x.Stmt)
++
++	// These cases are all the same, but the x.Body only works
++	// when the specific type of x is known, so the cases cannot
++	// be merged.
++	case *ast.ForStmt:
++		outer := d.breakTarget
++		d.breakTarget = x
++		d.findLabels(x.Body)
++		d.breakTarget = outer
++
++	case *ast.RangeStmt:
++		outer := d.breakTarget
++		d.breakTarget = x
++		d.findLabels(x.Body)
++		d.breakTarget = outer
++
++	case *ast.SelectStmt:
++		outer := d.breakTarget
++		d.breakTarget = x
++		d.findLabels(x.Body)
++		d.breakTarget = outer
++
++	case *ast.SwitchStmt:
++		outer := d.breakTarget
++		d.breakTarget = x
++		d.findLabels(x.Body)
++		d.breakTarget = outer
++
++	case *ast.TypeSwitchStmt:
++		outer := d.breakTarget
++		d.breakTarget = x
++		d.findLabels(x.Body)
++		d.breakTarget = outer
++
++	case *ast.CommClause:
++		for _, stmt := range x.Body {
++			d.findLabels(stmt)
++		}
++
++	case *ast.CaseClause:
++		for _, stmt := range x.Body {
++			d.findLabels(stmt)
++		}
++	}
++}
++
++// findDead walks the statement looking for dead code.
++// If d.reachable is false on entry, stmt itself is dead.
++// When findDead returns, d.reachable tells whether the
++// statement following stmt is reachable.
++func (d *deadState) findDead(stmt ast.Stmt) {
++	// Is this a labeled goto target?
++	// If so, assume it is reachable due to the goto.
++	// This is slightly conservative, in that we don't
++	// check that the goto is reachable, so
++	//	L: goto L
++	// will not provoke a warning.
++	// But it's good enough.
++	if x, isLabel := stmt.(*ast.LabeledStmt); isLabel && d.hasGoto[x.Label.Name] {
++		d.reachable = true
++	}
++
++	if !d.reachable {
++		switch stmt.(type) {
++		case *ast.EmptyStmt:
++			// do not warn about unreachable empty statements
++		default:
++			d.f.Warnf(stmt.Pos(), "unreachable code")
++			d.reachable = true // silence error about next statement
++		}
++	}
++
++	switch x := stmt.(type) {
++	default:
++		d.f.Warnf(x.Pos(), "internal error in findDead: unexpected statement %T", x)
++
++	case *ast.AssignStmt,
++		*ast.BadStmt,
++		*ast.DeclStmt,
++		*ast.DeferStmt,
++		*ast.EmptyStmt,
++		*ast.GoStmt,
++		*ast.IncDecStmt,
++		*ast.SendStmt:
++		// no control flow
++
++	case *ast.BlockStmt:
++		for _, stmt := range x.List {
++			d.findDead(stmt)
++		}
++
++	case *ast.BranchStmt:
++		switch x.Tok {
++		case token.BREAK, token.GOTO, token.FALLTHROUGH:
++			d.reachable = false
++		case token.CONTINUE:
++			// NOTE: We accept "continue" statements as terminating.
++			// They are not necessary in the spec definition of terminating,
++			// because a continue statement cannot be the final statement
++			// before a return. But for the more general problem of syntactically
++			// identifying dead code, continue redirects control flow just
++			// like the other terminating statements.
++			d.reachable = false
++		}
++
++	case *ast.ExprStmt:
++		// Call to panic?
++		call, ok := x.X.(*ast.CallExpr)
++		if ok {
++			name, ok := call.Fun.(*ast.Ident)
++			if ok && name.Name == "panic" && name.Obj == nil {
++				d.reachable = false
++			}
++		}
++
++	case *ast.ForStmt:
++		d.findDead(x.Body)
++		d.reachable = x.Cond != nil || d.hasBreak[x]
++
++	case *ast.IfStmt:
++		d.findDead(x.Body)
++		if x.Else != nil {
++			r := d.reachable
++			d.reachable = true
++			d.findDead(x.Else)
++			d.reachable = d.reachable || r
++		} else {
++			// might not have executed if statement
++			d.reachable = true
++		}
++
++	case *ast.LabeledStmt:
++		d.findDead(x.Stmt)
++
++	case *ast.RangeStmt:
++		d.findDead(x.Body)
++		d.reachable = true
++
++	case *ast.ReturnStmt:
++		d.reachable = false
++
++	case *ast.SelectStmt:
++		// NOTE: Unlike switch and type switch below, we don't care
++		// whether a select has a default, because a select without a
++		// default blocks until one of the cases can run. That's different
++		// from a switch without a default, which behaves like it has
++		// a default with an empty body.
++		anyReachable := false
++		for _, comm := range x.Body.List {
++			d.reachable = true
++			for _, stmt := range comm.(*ast.CommClause).Body {
++				d.findDead(stmt)
++			}
++			anyReachable = anyReachable || d.reachable
++		}
++		d.reachable = anyReachable || d.hasBreak[x]
++
++	case *ast.SwitchStmt:
++		anyReachable := false
++		hasDefault := false
++		for _, cas := range x.Body.List {
++			cc := cas.(*ast.CaseClause)
++			if cc.List == nil {
++				hasDefault = true
++			}
++			d.reachable = true
++			for _, stmt := range cc.Body {
++				d.findDead(stmt)
++			}
++			anyReachable = anyReachable || d.reachable
++		}
++		d.reachable = anyReachable || d.hasBreak[x] || !hasDefault
++
++	case *ast.TypeSwitchStmt:
++		anyReachable := false
++		hasDefault := false
++		for _, cas := range x.Body.List {
++			cc := cas.(*ast.CaseClause)
++			if cc.List == nil {
++				hasDefault = true
++			}
++			d.reachable = true
++			for _, stmt := range cc.Body {
++				d.findDead(stmt)
++			}
++			anyReachable = anyReachable || d.reachable
++		}
++		d.reachable = anyReachable || d.hasBreak[x] || !hasDefault
++	}
++}
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 8ae829f853..2fefa0b47a 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -28,16 +28,17 @@ var exitCode = 0
+ // Flags to control which checks to perform. "all" is set to true here, and disabled later if
+ // a flag is set explicitly.
+ var report = map[string]*bool{
+-	"all":        flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
+-	"asmdecl":    flag.Bool("asmdecl", false, "check assembly against Go declarations"),
+-	"assign":     flag.Bool("assign", false, "check for useless assignments"),
+-	"atomic":     flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
+-	"buildtags":  flag.Bool("buildtags", false, "check that +build tags are valid"),
+-	"composites": flag.Bool("composites", false, "check that composite literals used type-tagged elements"),
+-	"methods":    flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
+-	"printf":     flag.Bool("printf", false, "check printf-like invocations"),
+-	"structtags": flag.Bool("structtags", false, "check that struct field tags have canonical format"),
+-	"rangeloops": flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
++	"all":         flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
++	"asmdecl":     flag.Bool("asmdecl", false, "check assembly against Go declarations"),
++	"assign":      flag.Bool("assign", false, "check for useless assignments"),
++	"atomic":      flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
++	"buildtags":   flag.Bool("buildtags", false, "check that +build tags are valid"),
++	"composites":  flag.Bool("composites", false, "check that composite literals used type-tagged elements"),
++	"methods":     flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
++	"printf":      flag.Bool("printf", false, "check printf-like invocations"),
++	"rangeloops":  flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
++	"structtags":  flag.Bool("structtags", false, "check that struct field tags have canonical format"),
++	"unreachable": flag.Bool("unreachable", false, "check for unreachable code"),
+ }
+ 
+ // vet tells whether to report errors for the named check, a flag name.
+@@ -336,7 +337,9 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 	case *ast.Field:
+ 		f.walkFieldTag(n)
+ 	case *ast.FuncDecl:
+-		f.walkMethodDecl(n)
++		f.walkFuncDecl(n)
++	case *ast.FuncLit:
++		f.walkFuncLit(n)
+ 	case *ast.InterfaceType:
+ 		f.walkInterfaceType(n)
+ 	case *ast.RangeStmt:
+@@ -379,18 +382,22 @@ func (f *File) walkFieldTag(field *ast.Field) {
+ 	f.checkCanonicalFieldTag(field)
+ }
+ 
+-// walkMethodDecl walks the method's signature.
++// walkMethod walks the method's signature.
+ func (f *File) walkMethod(id *ast.Ident, t *ast.FuncType) {
+ 	f.checkCanonicalMethod(id, t)
+ }
+ 
+-// walkMethodDecl walks the method signature in the declaration.
+-func (f *File) walkMethodDecl(d *ast.FuncDecl) {
+-	if d.Recv == nil {
+-		// not a method
+-		return
++// walkFuncDecl walks a function declaration.
++func (f *File) walkFuncDecl(d *ast.FuncDecl) {
++	f.checkUnreachable(d.Body)
++	if d.Recv != nil {
++		f.walkMethod(d.Name, d.Type)
+ 	}
+-	f.walkMethod(d.Name, d.Type)
++}
++
++// walkFuncLit walks a function literal.
++func (f *File) walkFuncLit(x *ast.FuncLit) {
++	f.checkUnreachable(x.Body)
+ }
+ 
+ // walkInterfaceType walks the method signatures of an interface.
+diff --git a/src/cmd/vet/test_deadcode.go b/src/cmd/vet/test_deadcode.go
+new file mode 100644
+index 0000000000..3ded80ca23
+--- /dev/null
++++ b/src/cmd/vet/test_deadcode.go
+@@ -0,0 +1,2121 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build vet_test
++// +build ignore
++
++// This file contains tests for the dead code checker.
++
++package main
++
++type T int
++
++var x interface{}
++var c chan int
++
++func external() int // ok
++
++func _() int {
++}
++
++func _() int {
++	print(1)
++}
++
++func _() int {
++	print(1)
++	return 2
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++L:
++	print(1)
++	goto L
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	panic(2)
++	println() // ERROR "unreachable code"
++}
++
++// but only builtin panic
++func _() int {
++	var panic = func(int) {}
++	print(1)
++	panic(2)
++	println() // ok
++}
++
++func _() int {
++	{
++		print(1)
++		return 2
++		println() // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++func _() int {
++	{
++		print(1)
++		return 2
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++L:
++	{
++		print(1)
++		goto L
++		println() // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++func _() int {
++L:
++	{
++		print(1)
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	{
++		panic(2)
++	}
++}
++
++func _() int {
++	print(1)
++	{
++		panic(2)
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	{
++		panic(2)
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	return 2
++	{
++	} // ERROR "unreachable code"
++}
++
++func _() int {
++L:
++	print(1)
++	goto L
++	{
++	} // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	panic(2)
++	{
++	} // ERROR "unreachable code"
++}
++
++func _() int {
++	{
++		print(1)
++		return 2
++		{
++		} // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++L:
++	{
++		print(1)
++		goto L
++		{
++		} // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	{
++		panic(2)
++		{
++		} // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	{
++		print(1)
++		return 2
++	}
++	{
++	} // ERROR "unreachable code"
++}
++
++func _() int {
++L:
++	{
++		print(1)
++		goto L
++	}
++	{
++	} // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	{
++		panic(2)
++	}
++	{
++	} // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	if x == nil {
++		panic(2)
++	} else {
++		panic(3)
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++L:
++	print(1)
++	if x == nil {
++		panic(2)
++	} else {
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++L:
++	print(1)
++	if x == nil {
++		panic(2)
++	} else if x == 1 {
++		return 0
++	} else if x != 2 {
++		panic(3)
++	} else {
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++// if-else chain missing final else is not okay, even if the
++// conditions cover every possible case.
++
++func _() int {
++	print(1)
++	if x == nil {
++		panic(2)
++	} else if x != nil {
++		panic(3)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	if x == nil {
++		panic(2)
++	}
++	println() // ok
++}
++
++func _() int {
++L:
++	print(1)
++	if x == nil {
++		panic(2)
++	} else if x == 1 {
++		return 0
++	} else if x != 1 {
++		panic(3)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	for {
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	for {
++		for {
++			break
++		}
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	for {
++		for {
++			break
++			println() // ERROR "unreachable code"
++		}
++	}
++}
++
++func _() int {
++	for {
++		for {
++			continue
++			println() // ERROR "unreachable code"
++		}
++	}
++}
++
++func _() int {
++	for {
++	L:
++		for {
++			break L
++		}
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	for {
++		break
++	}
++	println() // ok
++}
++
++func _() int {
++	for {
++		for {
++		}
++		break // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++func _() int {
++L:
++	for {
++		for {
++			break L
++		}
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	for x == nil {
++	}
++	println() // ok
++}
++
++func _() int {
++	for x == nil {
++		for {
++			break
++		}
++	}
++	println() // ok
++}
++
++func _() int {
++	for x == nil {
++	L:
++		for {
++			break L
++		}
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	for true {
++	}
++	println() // ok
++}
++
++func _() int {
++	for true {
++		for {
++			break
++		}
++	}
++	println() // ok
++}
++
++func _() int {
++	for true {
++	L:
++		for {
++			break L
++		}
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	select {}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		for {
++		}
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		for {
++		}
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++L:
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		println() // ERROR "unreachable code"
++	case c <- 1:
++		print(2)
++		goto L
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++L:
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	case c <- 1:
++		print(2)
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		println() // ERROR "unreachable code"
++	default:
++		select {}
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	default:
++		select {}
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++	}
++	println() // ok
++}
++
++func _() int {
++L:
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		goto L // ERROR "unreachable code"
++	case c <- 1:
++		print(2)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	default:
++		print(2)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	select {
++	default:
++		break
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		break // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++L:
++	select {
++	case <-c:
++		print(2)
++		for {
++			break L
++		}
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++L:
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	case c <- 1:
++		print(2)
++		break L
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	select {
++	case <-c:
++		print(1)
++		panic("abc")
++	default:
++		select {}
++		break // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++		println() // ERROR "unreachable code"
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++	default:
++		return 4
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	switch x {
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	case 1:
++		print(2)
++		panic(3)
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	switch x {
++	default:
++		return 4
++	case 1:
++		print(2)
++		panic(3)
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		fallthrough
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		fallthrough
++	default:
++		return 4
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	switch {
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++	case 2:
++		return 4
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x {
++	case 2:
++		return 4
++	case 1:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		fallthrough
++	case 2:
++		return 4
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++L:
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++		break L // ERROR "unreachable code"
++	default:
++		return 4
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x {
++	default:
++		return 4
++		break // ERROR "unreachable code"
++	case 1:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++L:
++	switch x {
++	case 1:
++		print(2)
++		for {
++			break L
++		}
++	default:
++		return 4
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++		println() // ERROR "unreachable code"
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++	default:
++		return 4
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	case int:
++		print(2)
++		panic(3)
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	default:
++		return 4
++	case int:
++		print(2)
++		panic(3)
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		fallthrough
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		fallthrough
++	default:
++		return 4
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	print(1)
++	switch {
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++	case float64:
++		return 4
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	case float64:
++		return 4
++	case int:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		fallthrough
++	case float64:
++		return 4
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++L:
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++		break L // ERROR "unreachable code"
++	default:
++		return 4
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++	switch x.(type) {
++	default:
++		return 4
++		break // ERROR "unreachable code"
++	case int:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++func _() int {
++	print(1)
++L:
++	switch x.(type) {
++	case int:
++		print(2)
++		for {
++			break L
++		}
++	default:
++		return 4
++	}
++	println() // ok
++}
++
++// again, but without the leading print(1).
++// testing that everything works when the terminating statement is first.
++
++func _() int {
++	println() // ok
++}
++
++func _() int {
++	return 2
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++L:
++	goto L
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	panic(2)
++	println() // ERROR "unreachable code"
++}
++
++// but only builtin panic
++func _() int {
++	var panic = func(int) {}
++	panic(2)
++	println() // ok
++}
++
++func _() int {
++	{
++		return 2
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	{
++		return 2
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++L:
++	{
++		goto L
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++L:
++	{
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	{
++		panic(2)
++		println() // ERROR "unreachable code"
++	}
++}
++
++func _() int {
++	{
++		panic(2)
++	}
++	println() // ERROR "unreachable code"
++}
++
++func _() int {
++	return 2
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++func _() int {
++L:
++	goto L
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++func _() int {
++	panic(2)
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++func _() int {
++	{
++		return 2
++		{
++		} // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++func _() int {
++L:
++	{
++		goto L
++		{
++		} // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++func _() int {
++	{
++		panic(2)
++		{
++		} // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++func _() int {
++	{
++		return 2
++	}
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++func _() int {
++L:
++	{
++		goto L
++	}
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++func _() int {
++	{
++		panic(2)
++	}
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++// again, with func literals
++
++var _ = func() int {
++}
++
++var _ = func() int {
++	print(1)
++}
++
++var _ = func() int {
++	print(1)
++	return 2
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++L:
++	print(1)
++	goto L
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	panic(2)
++	println() // ERROR "unreachable code"
++}
++
++// but only builtin panic
++var _ = func() int {
++	var panic = func(int) {}
++	print(1)
++	panic(2)
++	println() // ok
++}
++
++var _ = func() int {
++	{
++		print(1)
++		return 2
++		println() // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	{
++		print(1)
++		return 2
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++L:
++	{
++		print(1)
++		goto L
++		println() // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++var _ = func() int {
++L:
++	{
++		print(1)
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	{
++		panic(2)
++	}
++}
++
++var _ = func() int {
++	print(1)
++	{
++		panic(2)
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	{
++		panic(2)
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	return 2
++	{
++	} // ERROR "unreachable code"
++}
++
++var _ = func() int {
++L:
++	print(1)
++	goto L
++	{
++	} // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	panic(2)
++	{
++	} // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	{
++		print(1)
++		return 2
++		{
++		} // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++L:
++	{
++		print(1)
++		goto L
++		{
++		} // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	{
++		panic(2)
++		{
++		} // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	{
++		print(1)
++		return 2
++	}
++	{
++	} // ERROR "unreachable code"
++}
++
++var _ = func() int {
++L:
++	{
++		print(1)
++		goto L
++	}
++	{
++	} // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	{
++		panic(2)
++	}
++	{
++	} // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	if x == nil {
++		panic(2)
++	} else {
++		panic(3)
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++L:
++	print(1)
++	if x == nil {
++		panic(2)
++	} else {
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++L:
++	print(1)
++	if x == nil {
++		panic(2)
++	} else if x == 1 {
++		return 0
++	} else if x != 2 {
++		panic(3)
++	} else {
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++// if-else chain missing final else is not okay, even if the
++// conditions cover every possible case.
++
++var _ = func() int {
++	print(1)
++	if x == nil {
++		panic(2)
++	} else if x != nil {
++		panic(3)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	if x == nil {
++		panic(2)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++L:
++	print(1)
++	if x == nil {
++		panic(2)
++	} else if x == 1 {
++		return 0
++	} else if x != 1 {
++		panic(3)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	for {
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	for {
++		for {
++			break
++		}
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	for {
++		for {
++			break
++			println() // ERROR "unreachable code"
++		}
++	}
++}
++
++var _ = func() int {
++	for {
++		for {
++			continue
++			println() // ERROR "unreachable code"
++		}
++	}
++}
++
++var _ = func() int {
++	for {
++	L:
++		for {
++			break L
++		}
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	for {
++		break
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	for {
++		for {
++		}
++		break // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++var _ = func() int {
++L:
++	for {
++		for {
++			break L
++		}
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	for x == nil {
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	for x == nil {
++		for {
++			break
++		}
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	for x == nil {
++	L:
++		for {
++			break L
++		}
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	for true {
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	for true {
++		for {
++			break
++		}
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	for true {
++	L:
++		for {
++			break L
++		}
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	select {}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		for {
++		}
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		for {
++		}
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++L:
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		println() // ERROR "unreachable code"
++	case c <- 1:
++		print(2)
++		goto L
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++L:
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	case c <- 1:
++		print(2)
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		println() // ERROR "unreachable code"
++	default:
++		select {}
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	default:
++		select {}
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++L:
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		goto L // ERROR "unreachable code"
++	case c <- 1:
++		print(2)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	default:
++		print(2)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	default:
++		break
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++		break // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++L:
++	select {
++	case <-c:
++		print(2)
++		for {
++			break L
++		}
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++L:
++	select {
++	case <-c:
++		print(2)
++		panic("abc")
++	case c <- 1:
++		print(2)
++		break L
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	select {
++	case <-c:
++		print(1)
++		panic("abc")
++	default:
++		select {}
++		break // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++		println() // ERROR "unreachable code"
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++	default:
++		return 4
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	case 1:
++		print(2)
++		panic(3)
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	default:
++		return 4
++	case 1:
++		print(2)
++		panic(3)
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		fallthrough
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		fallthrough
++	default:
++		return 4
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	switch {
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++	case 2:
++		return 4
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	case 2:
++		return 4
++	case 1:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		fallthrough
++	case 2:
++		return 4
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++L:
++	switch x {
++	case 1:
++		print(2)
++		panic(3)
++		break L // ERROR "unreachable code"
++	default:
++		return 4
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x {
++	default:
++		return 4
++		break // ERROR "unreachable code"
++	case 1:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++L:
++	switch x {
++	case 1:
++		print(2)
++		for {
++			break L
++		}
++	default:
++		return 4
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++		println() // ERROR "unreachable code"
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++	default:
++		return 4
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	case int:
++		print(2)
++		panic(3)
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	default:
++		return 4
++	case int:
++		print(2)
++		panic(3)
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		fallthrough
++	default:
++		return 4
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		fallthrough
++	default:
++		return 4
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	print(1)
++	switch {
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++	case float64:
++		return 4
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	case float64:
++		return 4
++	case int:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		fallthrough
++	case float64:
++		return 4
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++L:
++	switch x.(type) {
++	case int:
++		print(2)
++		panic(3)
++		break L // ERROR "unreachable code"
++	default:
++		return 4
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++	switch x.(type) {
++	default:
++		return 4
++		break // ERROR "unreachable code"
++	case int:
++		print(2)
++		panic(3)
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	print(1)
++L:
++	switch x.(type) {
++	case int:
++		print(2)
++		for {
++			break L
++		}
++	default:
++		return 4
++	}
++	println() // ok
++}
++
++// again, but without the leading print(1).
++// testing that everything works when the terminating statement is first.
++
++var _ = func() int {
++	println() // ok
++}
++
++var _ = func() int {
++	return 2
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++L:
++	goto L
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	panic(2)
++	println() // ERROR "unreachable code"
++}
++
++// but only builtin panic
++var _ = func() int {
++	var panic = func(int) {}
++	panic(2)
++	println() // ok
++}
++
++var _ = func() int {
++	{
++		return 2
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	{
++		return 2
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++L:
++	{
++		goto L
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++L:
++	{
++		goto L
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	{
++		panic(2)
++		println() // ERROR "unreachable code"
++	}
++}
++
++var _ = func() int {
++	{
++		panic(2)
++	}
++	println() // ERROR "unreachable code"
++}
++
++var _ = func() int {
++	return 2
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++var _ = func() int {
++L:
++	goto L
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++var _ = func() int {
++	panic(2)
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++var _ = func() int {
++	{
++		return 2
++		{
++		} // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++var _ = func() int {
++L:
++	{
++		goto L
++		{
++		} // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	{
++		panic(2)
++		{
++		} // ERROR "unreachable code"
++	}
++	println() // ok
++}
++
++var _ = func() int {
++	{
++		return 2
++	}
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++var _ = func() int {
++L:
++	{
++		goto L
++	}
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}
++
++var _ = func() int {
++	{
++		panic(2)
++	}
++	{
++	} // ERROR "unreachable code"
++	println() // ok
++}

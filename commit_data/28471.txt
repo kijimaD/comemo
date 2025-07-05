@@ -71,7 +71,7 @@ Date:   Wed May 25 01:33:24 2016 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/gsubr.go  |   4 +-
  src/cmd/compile/internal/gc/align.go     |  13 ++-
  src/cmd/compile/internal/gc/bexport.go   |   4 +-
@@ -97,3 +97,1180 @@ Date:   Wed May 25 01:33:24 2016 -0400
  test/fixedbugs/issue15747.go             |  41 +++++++
  test/fixedbugs/issue15747b.go            |  19 +++
  24 files changed, 332 insertions(+), 221 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index f862e8a92b..5d9070ca13 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -116,7 +116,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 		base = n1.Left
+ 	}
+ 
+-	if base.Op == gc.ONAME && base.Class&gc.PHEAP == 0 || n1.Op == gc.OINDREG {
++	if base.Op == gc.ONAME && base.Class != gc.PAUTOHEAP || n1.Op == gc.OINDREG {
+ 		r1 = *n1
+ 	} else {
+ 		gc.Regalloc(&r1, t, n1)
+@@ -229,6 +229,8 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
++		gc.Dump("f", f)
++		gc.Dump("t", t)
+ 		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
+ 
+ 		/*
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 8123041318..2b62405544 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -55,12 +55,15 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		}
+ 		f.Offset = o
+ 		if f.Nname != nil {
+-			// this same stackparam logic is in addrescapes
+-			// in typecheck.go.  usually addrescapes runs after
+-			// widstruct, in which case we could drop this,
++			// addrescapes has similar code to update these offsets.
++			// Usually addrescapes runs after widstruct,
++			// in which case we could drop this,
+ 			// but function closure functions are the exception.
+-			if f.Nname.Name.Param.Stackparam != nil {
+-				f.Nname.Name.Param.Stackparam.Xoffset = o
++			// NOTE(rsc): This comment may be stale.
++			// It's possible the ordering has changed and this is
++			// now the common case. I'm not sure.
++			if f.Nname.Name.Param.Stackcopy != nil {
++				f.Nname.Name.Param.Stackcopy.Xoffset = o
+ 				f.Nname.Xoffset = 0
+ 			} else {
+ 				f.Nname.Xoffset = o
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 80b8e4f945..f533053cd7 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1408,8 +1408,8 @@ func (p *exporter) stmt(n *Node) {
+ 	switch op := n.Op; op {
+ 	case ODCL:
+ 		p.op(ODCL)
+-		switch n.Left.Class &^ PHEAP {
+-		case PPARAM, PPARAMOUT, PAUTO:
++		switch n.Left.Class {
++		case PPARAM, PPARAMOUT, PAUTO, PAUTOHEAP:
+ 			// TODO(gri) when is this not PAUTO?
+ 			// Also, originally this didn't look like
+ 			// the default case. Investigate.
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index fd57fbd4a7..c01a8fbda7 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -519,7 +519,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 		ODOTPTR,
+ 		OINDEX,
+ 		OIND,
+-		ONAME: // PHEAP or PPARAMREF var
++		ONAME: // PPARAMREF var
+ 		var n1 Node
+ 		Igen(n, &n1, res)
+ 
+@@ -1579,7 +1579,7 @@ func Agen(n *Node, res *Node) {
+ 		}
+ 
+ 		// should only get here for heap vars or paramref
+-		if n.Class&PHEAP == 0 && n.Class != PPARAMREF {
++		if n.Class != PPARAMREF {
+ 			Dump("bad agen", n)
+ 			Fatalf("agen: bad ONAME class %#x", n.Class)
+ 		}
+@@ -1646,7 +1646,7 @@ func Igen(n *Node, a *Node, res *Node) {
+ 
+ 	switch n.Op {
+ 	case ONAME:
+-		if (n.Class&PHEAP != 0) || n.Class == PPARAMREF {
++		if n.Class == PPARAMREF {
+ 			break
+ 		}
+ 		*a = *n
+diff --git a/src/cmd/compile/internal/gc/cplx.go b/src/cmd/compile/internal/gc/cplx.go
+index 9bb2027520..a5c04b2be5 100644
+--- a/src/cmd/compile/internal/gc/cplx.go
++++ b/src/cmd/compile/internal/gc/cplx.go
+@@ -405,7 +405,7 @@ func Complexgen(n *Node, res *Node) {
+ 		ODOTPTR,
+ 		OINDEX,
+ 		OIND,
+-		ONAME, // PHEAP or PPARAMREF var
++		ONAME, // PPARAMREF var
+ 		OCALLFUNC,
+ 		OCALLMETH,
+ 		OCALLINTER:
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 553dde8bf9..2991f6d225 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1068,7 +1068,6 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
+ 		OIND,    // dst = *x
+ 		ODOTPTR, // dst = (*x).f
+ 		ONAME,
+-		OPARAM,
+ 		ODDDARG,
+ 		OPTRLIT,
+ 		OARRAYLIT,
+@@ -1835,20 +1834,20 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 		}
+ 		if leaks {
+ 			src.Esc = EscHeap
+-			addrescapes(src.Left)
+ 			if Debug['m'] != 0 && osrcesc != src.Esc {
+ 				p := src
+ 				if p.Left.Op == OCLOSURE {
+ 					p = p.Left // merely to satisfy error messages in tests
+ 				}
+ 				if Debug['m'] > 2 {
+-					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
+-						Nconv(p, FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth)
++					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
++						Nconv(p, FmtShort), level, dst, dstE.Escloopdepth, modSrcLoopdepth)
+ 				} else {
+ 					Warnl(src.Lineno, "%v escapes to heap", Nconv(p, FmtShort))
+ 					step.describe(src)
+ 				}
+ 			}
++			addrescapes(src.Left)
+ 			escwalkBody(e, level.dec(), dst, src.Left, e.stepWalk(dst, src.Left, why, step), modSrcLoopdepth)
+ 			extraloopdepth = modSrcLoopdepth // passes to recursive case, seems likely a no-op
+ 		} else {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 2dd137ed77..1148b27f02 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -121,7 +121,7 @@ func reexportdep(n *Node) {
+ 	//print("reexportdep %+hN\n", n);
+ 	switch n.Op {
+ 	case ONAME:
+-		switch n.Class &^ PHEAP {
++		switch n.Class {
+ 		// methods will be printed along with their type
+ 		// nodes for T.Method expressions
+ 		case PFUNC:
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 82b84b3aa5..3c4053e51f 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -218,6 +218,7 @@ var classnames = []string{
+ 	"Pxxx",
+ 	"PEXTERN",
+ 	"PAUTO",
++	"PAUTOHEAP",
+ 	"PPARAM",
+ 	"PPARAMOUT",
+ 	"PPARAMREF",
+@@ -251,14 +252,10 @@ func jconv(n *Node, flag FmtFlag) string {
+ 	}
+ 
+ 	if n.Class != 0 {
+-		s := ""
+-		if n.Class&PHEAP != 0 {
+-			s = ",heap"
+-		}
+-		if int(n.Class&^PHEAP) < len(classnames) {
+-			fmt.Fprintf(&buf, " class(%s%s)", classnames[n.Class&^PHEAP], s)
++		if int(n.Class) < len(classnames) {
++			fmt.Fprintf(&buf, " class(%s)", classnames[n.Class])
+ 		} else {
+-			fmt.Fprintf(&buf, " class(%d?%s)", n.Class&^PHEAP, s)
++			fmt.Fprintf(&buf, " class(%d?)", n.Class)
+ 		}
+ 	}
+ 
+@@ -798,8 +795,8 @@ func stmtfmt(n *Node) string {
+ 	switch n.Op {
+ 	case ODCL:
+ 		if fmtmode == FExp {
+-			switch n.Left.Class &^ PHEAP {
+-			case PPARAM, PPARAMOUT, PAUTO:
++			switch n.Left.Class {
++			case PPARAM, PPARAMOUT, PAUTO, PAUTOHEAP:
+ 				f += fmt.Sprintf("var %v %v", n.Left, n.Left.Type)
+ 				goto ret
+ 			}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 275e6a7507..2db253184c 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -43,52 +43,39 @@ func addrescapes(n *Node) {
+ 			break
+ 		}
+ 
+-		switch n.Class {
+-		case PPARAMREF:
++		// A PPARAMREF is a closure reference.
++		// Mark the thing it refers to as escaping.
++		if n.Class == PPARAMREF {
+ 			addrescapes(n.Name.Defn)
++			break
++		}
+ 
+-		// if func param, need separate temporary
+-		// to hold heap pointer.
+-		// the function type has already been checked
+-		// (we're in the function body)
+-		// so the param already has a valid xoffset.
+-
+-		// expression to refer to stack copy
+-		case PPARAM, PPARAMOUT:
+-			n.Name.Param.Stackparam = Nod(OPARAM, n, nil)
+-
+-			n.Name.Param.Stackparam.Type = n.Type
+-			n.Name.Param.Stackparam.Addable = true
+-			if n.Xoffset == BADWIDTH {
+-				Fatalf("addrescapes before param assignment")
+-			}
+-			n.Name.Param.Stackparam.Xoffset = n.Xoffset
+-			fallthrough
+-
+-		case PAUTO:
+-			n.Class |= PHEAP
+-
+-			n.Addable = false
+-			n.Ullman = 2
+-			n.Xoffset = 0
+-
+-			// create stack variable to hold pointer to heap
+-			oldfn := Curfn
++		if n.Class != PPARAM && n.Class != PPARAMOUT && n.Class != PAUTO {
++			break
++		}
+ 
+-			Curfn = n.Name.Curfn
+-			if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
+-				Curfn = Curfn.Func.Closure
+-			}
+-			n.Name.Heapaddr = temp(Ptrto(n.Type))
+-			buf := fmt.Sprintf("&%v", n.Sym)
+-			n.Name.Heapaddr.Sym = Lookup(buf)
+-			n.Name.Heapaddr.Orig.Sym = n.Name.Heapaddr.Sym
+-			n.Esc = EscHeap
+-			if Debug['m'] != 0 {
+-				fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
+-			}
+-			Curfn = oldfn
++		// This is a plain parameter or local variable that needs to move to the heap,
++		// but possibly for the function outside the one we're compiling.
++		// That is, if we have:
++		//
++		//	func f(x int) {
++		//		func() {
++		//			global = &x
++		//		}
++		//	}
++		//
++		// then we're analyzing the inner closure but we need to move x to the
++		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
++		oldfn := Curfn
++		Curfn = n.Name.Curfn
++		if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
++			Curfn = Curfn.Func.Closure
+ 		}
++		ln := lineno
++		lineno = Curfn.Lineno
++		moveToHeap(n)
++		Curfn = oldfn
++		lineno = ln
+ 
+ 	case OIND, ODOTPTR:
+ 		break
+@@ -105,6 +92,110 @@ func addrescapes(n *Node) {
+ 	}
+ }
+ 
++// isParamStackCopy reports whether this is the on-stack copy of a
++// function parameter that moved to the heap.
++func (n *Node) isParamStackCopy() bool {
++	return n.Op == ONAME && (n.Class == PPARAM || n.Class == PPARAMOUT) && n.Name.Heapaddr != nil
++}
++
++// isParamHeapCopy reports whether this is the on-heap copy of
++// a function parameter that moved to the heap.
++func (n *Node) isParamHeapCopy() bool {
++	return n.Op == ONAME && n.Class == PAUTOHEAP && n.Name.Param.Stackcopy != nil
++}
++
++// paramClass reports the parameter class (PPARAM or PPARAMOUT)
++// of the node, which may be an unmoved on-stack parameter
++// or the on-heap or on-stack copy of a parameter that moved to the heap.
++// If the node is not a parameter, paramClass returns Pxxx.
++func (n *Node) paramClass() Class {
++	if n.Op != ONAME {
++		return Pxxx
++	}
++	if n.Class == PPARAM || n.Class == PPARAMOUT {
++		return n.Class
++	}
++	if n.isParamHeapCopy() {
++		return n.Name.Param.Stackcopy.Class
++	}
++	return Pxxx
++}
++
++// moveToHeap records the parameter or local variable n as moved to the heap.
++func moveToHeap(n *Node) {
++	if Debug['r'] != 0 {
++		Dump("MOVE", n)
++	}
++	if compiling_runtime {
++		Yyerror("%v escapes to heap, not allowed in runtime.", n)
++	}
++	if n.Class == PAUTOHEAP {
++		Dump("n", n)
++		Fatalf("double move to heap")
++	}
++
++	// Allocate a local stack variable to hold the pointer to the heap copy.
++	// temp will add it to the function declaration list automatically.
++	heapaddr := temp(Ptrto(n.Type))
++	heapaddr.Sym = Lookup("&" + n.Sym.Name)
++	heapaddr.Orig.Sym = heapaddr.Sym
++
++	// Parameters have a local stack copy used at function start/end
++	// in addition to the copy in the heap that may live longer than
++	// the function.
++	if n.Class == PPARAM || n.Class == PPARAMOUT {
++		if n.Xoffset == BADWIDTH {
++			Fatalf("addrescapes before param assignment")
++		}
++
++		// We rewrite n below to be a heap variable (indirection of heapaddr).
++		// Preserve a copy so we can still write code referring to the original,
++		// and substitute that copy into the function declaration list
++		// so that analyses of the local (on-stack) variables use it.
++		stackcopy := Nod(ONAME, nil, nil)
++		stackcopy.Sym = n.Sym
++		stackcopy.Type = n.Type
++		stackcopy.Xoffset = n.Xoffset
++		stackcopy.Class = n.Class
++		stackcopy.Name.Heapaddr = heapaddr
++		if n.Class == PPARAM {
++			stackcopy.SetNotLiveAtEnd(true)
++		}
++		n.Name.Param.Stackcopy = stackcopy
++
++		// Substitute the stackcopy into the function variable list so that
++		// liveness and other analyses use the underlying stack slot
++		// and not the now-pseudo-variable n.
++		found := false
++		for i, d := range Curfn.Func.Dcl {
++			if d == n {
++				Curfn.Func.Dcl[i] = stackcopy
++				found = true
++				break
++			}
++			// Parameters are before locals, so can stop early.
++			// This limits the search even in functions with many local variables.
++			if d.Class == PAUTO {
++				break
++			}
++		}
++		if !found {
++			Fatalf("cannot find %v in local variable list", n)
++		}
++		Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
++	}
++
++	// Modify n in place so that uses of n now mean indirection of the heapaddr.
++	n.Class = PAUTOHEAP
++	n.Ullman = 2
++	n.Xoffset = 0
++	n.Name.Heapaddr = heapaddr
++	n.Esc = EscHeap
++	if Debug['m'] != 0 {
++		fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
++	}
++}
++
+ func clearlabels() {
+ 	for _, l := range labellist {
+ 		l.Sym.Label = nil
+@@ -243,16 +334,9 @@ func cgen_dcl(n *Node) {
+ 		Fatalf("cgen_dcl")
+ 	}
+ 
+-	if n.Class&PHEAP == 0 {
+-		return
++	if n.Class == PAUTOHEAP {
++		Fatalf("cgen_dcl %v", n)
+ 	}
+-	if compiling_runtime {
+-		Yyerror("%v escapes to heap, not allowed in runtime.", n)
+-	}
+-	if prealloc[n] == nil {
+-		prealloc[n] = callnew(n.Type)
+-	}
+-	Cgen_as(n.Name.Heapaddr, prealloc[n])
+ }
+ 
+ // generate discard of value
+@@ -263,7 +347,7 @@ func cgen_discard(nr *Node) {
+ 
+ 	switch nr.Op {
+ 	case ONAME:
+-		if nr.Class&PHEAP == 0 && nr.Class != PEXTERN && nr.Class != PFUNC && nr.Class != PPARAMREF {
++		if nr.Class != PAUTOHEAP && nr.Class != PEXTERN && nr.Class != PFUNC && nr.Class != PPARAMREF {
+ 			gused(nr)
+ 		}
+ 
+@@ -908,11 +992,6 @@ func Cgen_as_wb(nl, nr *Node, wb bool) {
+ 	}
+ 
+ 	if nr == nil || iszero(nr) {
+-		// heaps should already be clear
+-		if nr == nil && (nl.Class&PHEAP != 0) {
+-			return
+-		}
+-
+ 		tl := nl.Type
+ 		if tl == nil {
+ 			return
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index cbb79c0261..600b00dae2 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -91,14 +91,13 @@ const (
+ 	Pxxx      Class = iota
+ 	PEXTERN         // global variable
+ 	PAUTO           // local variables
++	PAUTOHEAP       // local variable or parameter moved to heap
+ 	PPARAM          // input arguments
+ 	PPARAMOUT       // output results
+ 	PPARAMREF       // closure variable reference
+ 	PFUNC           // global function
+ 
+ 	PDISCARD // discard during parse of duplicate import
+-
+-	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
+ )
+ 
+ // note this is the runtime representation
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 603d0349d6..8f4da74150 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -53,7 +53,6 @@ func Ismem(n *Node) bool {
+ 		OCAP,
+ 		OINDREG,
+ 		ONAME,
+-		OPARAM,
+ 		OCLOSUREVAR:
+ 		return true
+ 
+@@ -349,18 +348,6 @@ func Naddr(a *obj.Addr, n *Node) {
+ 			a.Width = 0
+ 		}
+ 
+-		// n->left is PHEAP ONAME for stack parameter.
+-	// compute address of actual parameter on stack.
+-	case OPARAM:
+-		a.Etype = uint8(Simtype[n.Left.Type.Etype])
+-
+-		a.Width = n.Left.Type.Width
+-		a.Offset = n.Xoffset
+-		a.Sym = Linksym(n.Left.Sym)
+-		a.Type = obj.TYPE_MEM
+-		a.Name = obj.NAME_PARAM
+-		a.Node = n.Left.Orig
+-
+ 	case OCLOSUREVAR:
+ 		if !Curfn.Func.Needctxt {
+ 			Fatalf("closurevar without needctxt")
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 95ba56edd2..0c1b05079c 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -27,9 +27,7 @@
+ 
+ package gc
+ 
+-import (
+-	"fmt"
+-)
++import "fmt"
+ 
+ // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
+ // the ->sym can be re-used in the local package, so peel it off the receiver's type.
+@@ -180,6 +178,7 @@ func ishairy(n *Node, budget *int32) bool {
+ 			*budget -= fn.InlCost
+ 			break
+ 		}
++
+ 		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
+ 			if d := n.Left.Sym.Def; d != nil && d.Func.Inl.Len() != 0 {
+ 				*budget -= d.Func.InlCost
+@@ -568,14 +567,13 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 		if ln.Class == PPARAMOUT { // return values handled below.
+ 			continue
+ 		}
++		if ln.isParamStackCopy() { // ignore the on-stack copy of a parameter that moved to the heap
++			continue
++		}
+ 		if ln.Op == ONAME {
+-			ln.Name.Inlvar = inlvar(ln)
+-
+-			// Typecheck because inlvar is not necessarily a function parameter.
+-			ln.Name.Inlvar = typecheck(ln.Name.Inlvar, Erv)
+-
+-			if ln.Class&^PHEAP != PAUTO {
+-				ninit.Append(Nod(ODCL, ln.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
++			ln.Name.Inlvar = typecheck(inlvar(ln), Erv)
++			if ln.Class == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class == PPARAM {
++				ninit.Append(Nod(ODCL, ln.Name.Inlvar, nil))
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index 015baa2376..bcdae6c762 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -76,7 +76,6 @@ var opnames = []string{
+ 	OINDEX:           "INDEX",
+ 	OINDEXMAP:        "INDEXMAP",
+ 	OKEY:             "KEY",
+-	OPARAM:           "PARAM",
+ 	OLEN:             "LEN",
+ 	OMAKE:            "MAKE",
+ 	OMAKECHAN:        "MAKECHAN",
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index cf5359ecdf..333cc9786a 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -203,6 +203,14 @@ func getvariables(fn *Node) []*Node {
+ 	var result []*Node
+ 	for _, ln := range fn.Func.Dcl {
+ 		if ln.Op == ONAME {
++			switch ln.Class {
++			case PAUTO, PPARAM, PPARAMOUT, PFUNC, PAUTOHEAP:
++				// ok
++			default:
++				Dump("BAD NODE", ln)
++				Fatalf("getvariables")
++			}
++
+ 			// In order for GODEBUG=gcdead=1 to work, each bitmap needs
+ 			// to contain information about all variables covered by the bitmap.
+ 			// For local variables, the bitmap only covers the stkptrsize
+@@ -567,7 +575,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 		// read the out arguments - they won't be set until the new
+ 		// function runs.
+ 		for i, node := range vars {
+-			switch node.Class &^ PHEAP {
++			switch node.Class {
+ 			case PPARAM:
+ 				if !node.NotLiveAtEnd() {
+ 					bvset(uevar, int32(i))
+@@ -595,7 +603,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 		// A text instruction marks the entry point to a function and
+ 		// the definition point of all in arguments.
+ 		for i, node := range vars {
+-			switch node.Class &^ PHEAP {
++			switch node.Class {
+ 			case PPARAM:
+ 				if node.Addrtaken {
+ 					bvset(avarinit, int32(i))
+@@ -610,23 +618,24 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 	if prog.Info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
+ 		from := &prog.From
+ 		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Name.Curfn == Curfn {
+-			switch ((from.Node).(*Node)).Class &^ PHEAP {
++			switch ((from.Node).(*Node)).Class {
+ 			case PAUTO, PPARAM, PPARAMOUT:
+-				pos, ok := from.Node.(*Node).Opt().(int32) // index in vars
++				n := from.Node.(*Node).Orig // orig needed for certain nodarg results
++				pos, ok := n.Opt().(int32) // index in vars
+ 				if !ok {
+ 					break
+ 				}
+-				if pos >= int32(len(vars)) || vars[pos] != from.Node {
+-					Fatalf("bad bookkeeping in liveness %v %d", Nconv(from.Node.(*Node), 0), pos)
++				if pos >= int32(len(vars)) || vars[pos] != n {
++					Fatalf("bad bookkeeping in liveness %v %d", Nconv(n, 0), pos)
+ 				}
+-				if ((from.Node).(*Node)).Addrtaken {
++				if n.Addrtaken {
+ 					bvset(avarinit, pos)
+ 				} else {
+ 					if prog.Info.Flags&(LeftRead|LeftAddr) != 0 {
+ 						bvset(uevar, pos)
+ 					}
+ 					if prog.Info.Flags&LeftWrite != 0 {
+-						if from.Node != nil && !Isfat(((from.Node).(*Node)).Type) {
++						if !Isfat(n.Type) {
+ 							bvset(varkill, pos)
+ 						}
+ 					}
+@@ -638,16 +647,17 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 	if prog.Info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
+ 		to := &prog.To
+ 		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Name.Curfn == Curfn {
+-			switch ((to.Node).(*Node)).Class &^ PHEAP {
++			switch ((to.Node).(*Node)).Class {
+ 			case PAUTO, PPARAM, PPARAMOUT:
+-				pos, ok := to.Node.(*Node).Opt().(int32) // index in vars
++				n := to.Node.(*Node).Orig // orig needed for certain nodarg results
++				pos, ok := n.Opt().(int32) // index in vars
+ 				if !ok {
+ 					return
+ 				}
+-				if pos >= int32(len(vars)) || vars[pos] != to.Node {
+-					Fatalf("bad bookkeeping in liveness %v %d", Nconv(to.Node.(*Node), 0), pos)
++				if pos >= int32(len(vars)) || vars[pos] != n {
++					Fatalf("bad bookkeeping in liveness %v %d", Nconv(n, 0), pos)
+ 				}
+-				if ((to.Node).(*Node)).Addrtaken {
++				if n.Addrtaken {
+ 					if prog.As != obj.AVARKILL {
+ 						bvset(avarinit, pos)
+ 					}
+@@ -667,7 +677,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 						bvset(uevar, pos)
+ 					}
+ 					if prog.Info.Flags&RightWrite != 0 {
+-						if to.Node != nil && (!Isfat(((to.Node).(*Node)).Type) || prog.As == obj.AVARDEF) {
++						if !Isfat(n.Type) || prog.As == obj.AVARDEF {
+ 							bvset(varkill, pos)
+ 						}
+ 					}
+@@ -814,8 +824,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
+ 		return
+ 	}
+ 	for _, a := range fn.Func.Dcl {
+-		class := a.Class &^ PHEAP
+-		if a.Op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n {
++		if a.Op == ONAME && (a.Class == PPARAM || a.Class == PPARAMOUT) && a == n {
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 5bcaf89d50..3b705c3f0c 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -419,7 +419,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 	case OPRINT, // don't bother instrumenting it
+ 		OPRINTN,     // don't bother instrumenting it
+ 		OCHECKNIL,   // always followed by a read.
+-		OPARAM,      // it appears only in fn->exit to copy heap params back
+ 		OCLOSUREVAR, // immutable pointer to captured variable
+ 		ODOTMETH,    // either part of CALLMETH or CALLPART (lowered to PTRLIT)
+ 		OINDREG,     // at this stage, only n(SP) nodes from nodarg
+@@ -496,7 +495,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 	// e.g. if we've got a local variable/method receiver
+ 	// that has got a pointer inside. Whether it points to
+ 	// the heap or not is impossible to know at compile time
+-	if (class&PHEAP != 0) || class == PPARAMREF || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
++	if class == PAUTOHEAP || class == PPARAMREF || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
+ 		hascalls := 0
+ 		foreach(n, hascallspred, &hascalls)
+ 		if hascalls != 0 {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index c6f2acffbf..5d741a55db 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -516,7 +516,7 @@ func isliteral(n *Node) bool {
+ }
+ 
+ func (n *Node) isSimpleName() bool {
+-	return n.Op == ONAME && n.Addable && n.Class&PHEAP == 0 && n.Class != PPARAMREF
++	return n.Op == ONAME && n.Addable && n.Class != PAUTOHEAP && n.Class != PPARAMREF
+ }
+ 
+ func litas(l *Node, r *Node, init *Nodes) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7bae8b4672..8d06f1e3ed 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -165,23 +165,15 @@ func buildssa(fn *Node) *ssa.Func {
+ 				s.ptrargs = append(s.ptrargs, n)
+ 				n.SetNotLiveAtEnd(true) // SSA takes care of this explicitly
+ 			}
+-		case PAUTO | PHEAP:
+-			// TODO this looks wrong for PAUTO|PHEAP, no vardef, but also no definition
+-			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Typ: n.Type, Node: n})
+-			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+-		case PPARAM | PHEAP, PPARAMOUT | PHEAP:
+-		// This ends up wrong, have to do it at the PARAM node instead.
+ 		case PAUTO:
+ 			// processed at each use, to prevent Addr coming
+ 			// before the decl.
++		case PAUTOHEAP:
++			// moved to heap - already handled by frontend
+ 		case PFUNC:
+ 			// local function - already handled by frontend
+ 		default:
+-			str := ""
+-			if n.Class&PHEAP != 0 {
+-				str = ",heap"
+-			}
+-			s.Unimplementedf("local variable with class %s%s unimplemented", classnames[n.Class&^PHEAP], str)
++			s.Unimplementedf("local variable with class %s unimplemented", classnames[n.Class])
+ 		}
+ 	}
+ 
+@@ -294,7 +286,7 @@ type state struct {
+ 	// list of FwdRef values.
+ 	fwdRefs []*ssa.Value
+ 
+-	// list of PPARAMOUT (return) variables. Does not include PPARAM|PHEAP vars.
++	// list of PPARAMOUT (return) variables.
+ 	returns []*Node
+ 
+ 	// list of PPARAM SSA-able pointer-shaped args. We ensure these are live
+@@ -593,25 +585,10 @@ func (s *state) stmt(n *Node) {
+ 		return
+ 
+ 	case ODCL:
+-		if n.Left.Class&PHEAP == 0 {
+-			return
+-		}
+-		if compiling_runtime {
+-			Fatalf("%v escapes to heap, not allowed in runtime.", n)
++		if n.Left.Class == PAUTOHEAP {
++			Fatalf("DCL %v", n)
+ 		}
+ 
+-		// TODO: the old pass hides the details of PHEAP
+-		// variables behind ONAME nodes. Figure out if it's better
+-		// to rewrite the tree and make the heapaddr construct explicit
+-		// or to keep this detail hidden behind the scenes.
+-		palloc := prealloc[n.Left]
+-		if palloc == nil {
+-			palloc = callnew(n.Left.Type)
+-			prealloc[n.Left] = palloc
+-		}
+-		r := s.expr(palloc)
+-		s.assign(n.Left.Name.Heapaddr, r, false, false, n.Lineno, 0)
+-
+ 	case OLABEL:
+ 		sym := n.Left.Sym
+ 
+@@ -1451,9 +1428,6 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OCFUNC:
+ 		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: n.Left.Sym})
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
+-	case OPARAM:
+-		addr := s.addr(n, false)
+-		return s.newValue2(ssa.OpLoad, n.Left.Type, addr, s.mem())
+ 	case ONAME:
+ 		if n.Class == PFUNC {
+ 			// "value" of a function is the address of the function's closure
+@@ -2749,10 +2723,10 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			// that cse works on their addresses
+ 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
+ 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
+-		case PAUTO | PHEAP, PPARAM | PHEAP, PPARAMOUT | PHEAP, PPARAMREF:
++		case PPARAMREF:
+ 			return s.expr(n.Name.Heapaddr)
+ 		default:
+-			s.Unimplementedf("variable address class %v not implemented", n.Class)
++			s.Unimplementedf("variable address class %v not implemented", classnames[n.Class])
+ 			return nil
+ 		}
+ 	case OINDREG:
+@@ -2795,17 +2769,6 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 	case OCLOSUREVAR:
+ 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset,
+ 			s.entryNewValue0(ssa.OpGetClosurePtr, Ptrto(Types[TUINT8])))
+-	case OPARAM:
+-		p := n.Left
+-		if p.Op != ONAME || !(p.Class == PPARAM|PHEAP || p.Class == PPARAMOUT|PHEAP) {
+-			s.Fatalf("OPARAM not of ONAME,{PPARAM,PPARAMOUT}|PHEAP, instead %s", nodedump(p, 0))
+-		}
+-
+-		// Recover original offset to address passed-in param value.
+-		original_p := *p
+-		original_p.Xoffset = n.Xoffset
+-		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
+-		return s.entryNewValue1A(ssa.OpAddr, t, aux, s.sp)
+ 	case OCONVNOP:
+ 		addr := s.addr(n.Left, bounded)
+ 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
+@@ -2833,9 +2796,12 @@ func (s *state) canSSA(n *Node) bool {
+ 	if n.Addrtaken {
+ 		return false
+ 	}
+-	if n.Class&PHEAP != 0 {
++	if n.isParamHeapCopy() {
+ 		return false
+ 	}
++	if n.Class == PAUTOHEAP {
++		Fatalf("canSSA of PAUTOHEAP %v", n)
++	}
+ 	switch n.Class {
+ 	case PEXTERN, PPARAMREF:
+ 		// TODO: maybe treat PPARAMREF with an Arg-like op to read from closure?
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6cfc610650..c78575a8c2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1231,7 +1231,7 @@ func ullmancalc(n *Node) {
+ 	switch n.Op {
+ 	case OREGISTER, OLITERAL, ONAME:
+ 		ul = 1
+-		if n.Class == PPARAMREF || (n.Class&PHEAP != 0) {
++		if n.Class == PPARAMREF || n.Class == PAUTOHEAP {
+ 			ul++
+ 		}
+ 		goto out
+@@ -2257,6 +2257,7 @@ func isbadimport(path string) bool {
+ }
+ 
+ func checknil(x *Node, init *Nodes) {
++	x = walkexpr(x, nil) // caller has not done this yet
+ 	if x.Type.IsInterface() {
+ 		x = Nod(OITAB, x, nil)
+ 		x = typecheck(x, Erv)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 0135061e68..c5c7b17f57 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -143,7 +143,7 @@ func (n *Node) SetOpt(x interface{}) {
+ 	n.E = x
+ }
+ 
+-// Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).
++// Name holds Node fields used only by named nodes (ONAME, OPACK, OLABEL, ODCLFIELD, some OLITERAL).
+ type Name struct {
+ 	Pack      *Node // real package for import . names
+ 	Pkg       *Pkg  // pkg for OPACK nodes
+@@ -151,7 +151,7 @@ type Name struct {
+ 	Inlvar    *Node // ONAME substitute while inlining
+ 	Defn      *Node // initializing assignment
+ 	Curfn     *Node // function for local variables
+-	Param     *Param
++	Param     *Param // additional fields for ONAME, ODCLFIELD
+ 	Decldepth int32 // declaration loop depth, increased for every loop or label
+ 	Vargen    int32 // unique name for ONAME within a function.  Function outputs are numbered starting at one.
+ 	Iota      int32 // value if this name is iota
+@@ -167,16 +167,16 @@ type Name struct {
+ type Param struct {
+ 	Ntype *Node
+ 
+-	// ONAME func param with PHEAP
+-	Outerexpr  *Node // expression copied into closure for variable
+-	Stackparam *Node // OPARAM node referring to stack copy of param
++	// ONAME PAUTOHEAP
++	Outerexpr *Node // expression copied into closure for variable
++	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
+ 
+ 	// ONAME PPARAM
+ 	Field *Field // TFIELD in arg struct
+ 
+ 	// ONAME closure param with PPARAMREF
+ 	Outer   *Node // outer PPARAMREF in nested closure
+-	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
++	Closure *Node // ONAME/PAUTOHEAP <-> ONAME/PPARAMREF
+ }
+ 
+ // Func holds Node fields used only with function-like nodes.
+@@ -292,7 +292,7 @@ const (
+ 	OINDEX     // Left[Right] (index of array or slice)
+ 	OINDEXMAP  // Left[Right] (index of map)
+ 	OKEY       // Left:Right (key:value in struct/array/map literal, or slice index pair)
+-	OPARAM     // variant of ONAME for on-stack copy of a parameter or return value that escapes.
++	_          // was OPARAM, but cannot remove without breaking binary blob in builtin.go
+ 	OLEN       // len(Left)
+ 	OMAKE      // make(List) (before type checking converts to one of the following)
+ 	OMAKECHAN  // make(Type, Left) (type is chan)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ffd4afcc01..bf4960a6da 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3099,7 +3099,7 @@ func islvalue(n *Node) bool {
+ 			return false
+ 		}
+ 		fallthrough
+-	case OIND, ODOTPTR, OCLOSUREVAR, OPARAM:
++	case OIND, ODOTPTR, OCLOSUREVAR:
+ 		return true
+ 
+ 	case ODOT:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 14784e284e..566decee45 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -27,9 +27,8 @@ func walk(fn *Node) {
+ 	lno := lineno
+ 
+ 	// Final typecheck for any unused variables.
+-	// It's hard to be on the heap when not-used, but best to be consistent about &~PHEAP here and below.
+ 	for i, ln := range fn.Func.Dcl {
+-		if ln.Op == ONAME && ln.Class&^PHEAP == PAUTO {
++		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) {
+ 			ln = typecheck(ln, Erv|Easgn)
+ 			fn.Func.Dcl[i] = ln
+ 		}
+@@ -37,13 +36,13 @@ func walk(fn *Node) {
+ 
+ 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
+ 	for _, ln := range fn.Func.Dcl {
+-		if ln.Op == ONAME && ln.Class&^PHEAP == PAUTO && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used {
++		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used {
+ 			ln.Name.Defn.Left.Used = true
+ 		}
+ 	}
+ 
+ 	for _, ln := range fn.Func.Dcl {
+-		if ln.Op != ONAME || ln.Class&^PHEAP != PAUTO || ln.Sym.Name[0] == '&' || ln.Used {
++		if ln.Op != ONAME || (ln.Class != PAUTO && ln.Class != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Used {
+ 			continue
+ 		}
+ 		if defn := ln.Name.Defn; defn != nil && defn.Op == OTYPESW {
+@@ -97,13 +96,13 @@ func samelist(a, b []*Node) bool {
+ func paramoutheap(fn *Node) bool {
+ 	for _, ln := range fn.Func.Dcl {
+ 		switch ln.Class {
+-		case PPARAMOUT,
+-			PPARAMOUT | PHEAP:
+-			return ln.Addrtaken
++		case PPARAMOUT:
++			if ln.isParamStackCopy() || ln.Addrtaken {
++				return true
++			}
+ 
++		case PAUTO:
+ 			// stop early - parameters are over
+-		case PAUTO,
+-			PAUTO | PHEAP:
+ 			return false
+ 		}
+ 	}
+@@ -212,7 +211,6 @@ func walkstmt(n *Node) *Node {
+ 		n = addinit(n, init.Slice())
+ 
+ 	case OBREAK,
+-		ODCL,
+ 		OCONTINUE,
+ 		OFALL,
+ 		OGOTO,
+@@ -224,6 +222,21 @@ func walkstmt(n *Node) *Node {
+ 		OVARLIVE:
+ 		break
+ 
++	case ODCL:
++		v := n.Left
++		if v.Class == PAUTOHEAP {
++			if compiling_runtime {
++				Yyerror("%v escapes to heap, not allowed in runtime.", v)
++			}
++			if prealloc[v] == nil {
++				prealloc[v] = callnew(v.Type)
++			}
++			nn := Nod(OAS, v.Name.Heapaddr, prealloc[v])
++			nn.Colas = true
++			nn = typecheck(nn, Etop)
++			return walkstmt(nn)
++		}
++
+ 	case OBLOCK:
+ 		walkstmtlist(n.List.Slice())
+ 
+@@ -295,11 +308,14 @@ func walkstmt(n *Node) *Node {
+ 
+ 			var cl Class
+ 			for _, ln := range Curfn.Func.Dcl {
+-				cl = ln.Class &^ PHEAP
+-				if cl == PAUTO {
++				cl = ln.Class
++				if cl == PAUTO || cl == PAUTOHEAP {
+ 					break
+ 				}
+ 				if cl == PPARAMOUT {
++					if ln.isParamStackCopy() {
++						ln = walkexpr(typecheck(Nod(OIND, ln.Name.Heapaddr, nil), Erv), nil)
++					}
+ 					rl = append(rl, ln)
+ 				}
+ 			}
+@@ -487,6 +503,12 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 		Fatalf("missed typecheck: %v\n", Nconv(n, FmtSign))
+ 	}
+ 
++	if n.Op == ONAME && n.Class == PAUTOHEAP {
++		nn := Nod(OIND, n.Name.Heapaddr, nil)
++		nn = typecheck(nn, Erv)
++		return walkexpr(nn, init)
++	}
++
+ opswitch:
+ 	switch n.Op {
+ 	default:
+@@ -497,7 +519,6 @@ opswitch:
+ 		ONONAME,
+ 		OINDREG,
+ 		OEMPTY,
+-		OPARAM,
+ 		OGETG:
+ 
+ 	case ONOT,
+@@ -626,7 +647,7 @@ opswitch:
+ 		n.Addable = true
+ 
+ 	case ONAME:
+-		if n.Class&PHEAP == 0 && n.Class != PPARAMREF {
++		if n.Class != PPARAMREF {
+ 			n.Addable = true
+ 		}
+ 
+@@ -1640,7 +1661,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
+ 			break
+ 		}
+ 		// Do not generate 'x = x' during return. See issue 4014.
+-		if op == ORETURN && nl[i] == nr[i] {
++		if op == ORETURN && samesafeexpr(nl[i], nr[i]) {
+ 			continue
+ 		}
+ 		nn = append(nn, ascompatee1(op, nl[i], nr[i], init))
+@@ -2553,11 +2574,6 @@ func vmatch1(l *Node, r *Node) bool {
+ func paramstoheap(params *Type, out bool) []*Node {
+ 	var nn []*Node
+ 	for _, t := range params.Fields().Slice() {
+-		v := t.Nname
+-		if v != nil && v.Sym != nil && strings.HasPrefix(v.Sym.Name, "~r") { // unnamed result
+-			v = nil
+-		}
+-
+ 		// For precise stacks, the garbage collector assumes results
+ 		// are always live, so zero them always.
+ 		if out {
+@@ -2567,24 +2583,19 @@ func paramstoheap(params *Type, out bool) []*Node {
+ 			nn = append(nn, Nod(OAS, nodarg(t, -1), nil))
+ 		}
+ 
+-		if v == nil || v.Class&PHEAP == 0 {
++		v := t.Nname
++		if v != nil && v.Sym != nil && strings.HasPrefix(v.Sym.Name, "~r") { // unnamed result
++			v = nil
++		}
++		if v == nil {
+ 			continue
+ 		}
+ 
+-		// generate allocation & copying code
+-		if compiling_runtime {
+-			Yyerror("%v escapes to heap, not allowed in runtime.", v)
+-		}
+-		if prealloc[v] == nil {
+-			prealloc[v] = callnew(v.Type)
+-		}
+-		nn = append(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
+-		if v.Class&^PHEAP != PPARAMOUT {
+-			as := Nod(OAS, v, v.Name.Param.Stackparam)
+-			v.Name.Param.Stackparam.Typecheck = 1
+-			as = typecheck(as, Etop)
+-			as = applywritebarrier(as)
+-			nn = append(nn, as)
++		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil {
++			nn = append(nn, walkstmt(Nod(ODCL, v, nil)))
++			if stackcopy.Class == PPARAM {
++				nn = append(nn, walkstmt(typecheck(Nod(OAS, v, stackcopy), Etop)))
++			}
+ 		}
+ 	}
+ 
+@@ -2597,10 +2608,12 @@ func returnsfromheap(params *Type) []*Node {
+ 	var nn []*Node
+ 	for _, t := range params.Fields().Slice() {
+ 		v := t.Nname
+-		if v == nil || v.Class != PHEAP|PPARAMOUT {
++		if v == nil {
+ 			continue
+ 		}
+-		nn = append(nn, Nod(OAS, v.Name.Param.Stackparam, v))
++		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil && stackcopy.Class == PPARAMOUT {
++			nn = append(nn, walkstmt(typecheck(Nod(OAS, stackcopy, v), Etop)))
++		}
+ 	}
+ 
+ 	return nn
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index f432cd8933..d91bafc4ea 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -643,7 +643,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 		base = n1.Left
+ 	}
+ 
+-	if base.Op == gc.ONAME && base.Class&gc.PHEAP == 0 || n1.Op == gc.OINDREG {
++	if base.Op == gc.ONAME && base.Class != gc.PAUTOHEAP || n1.Op == gc.OINDREG {
+ 		r1 = *n1
+ 	} else {
+ 		gc.Regalloc(&r1, t, n1)
+diff --git a/test/fixedbugs/issue15747.go b/test/fixedbugs/issue15747.go
+new file mode 100644
+index 0000000000..34ec719f12
+--- /dev/null
++++ b/test/fixedbugs/issue15747.go
+@@ -0,0 +1,41 @@
++// errorcheck -0 -live
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 15747: liveness analysis was marking heap-escaped params live too much,
++// and worse was using the wrong bitmap bits to do so.
++
++package p
++
++var global *[]byte
++
++type Q struct{}
++
++type T struct{ M string }
++
++var b bool
++
++func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: q xx" "live at call to newobject: q xx" "live at call to writebarrierptr: q &xx"
++	// xx was copied from the stack to the heap on the previous line:
++	// xx was live for the first two prints but then it switched to &xx
++	// being live. We should not see plain xx again.
++	if b {
++		global = &xx // ERROR "live at call to writebarrierptr: q &xx$"
++	}
++	xx, _, err := f2(xx, 5) // ERROR "live at call to newobject: q( d)? &xx( odata.ptr)?" "live at call to writebarrierptr: q (e|err.data err.type)$"
++	if err != nil {
++		return err
++	}
++	return nil
++}
++
++func f2(d []byte, n int) (odata, res []byte, e interface{}) { // ERROR "live at entry to f2: d"
++	if n > len(d) {
++		return d, nil, &T{M: "hello"} // ERROR "live at call to newobject: d"
++	}
++	res = d[:n]
++	odata = d[n:]
++	return
++}
+diff --git a/test/fixedbugs/issue15747b.go b/test/fixedbugs/issue15747b.go
+new file mode 100644
+index 0000000000..9620d3d0cb
+--- /dev/null
++++ b/test/fixedbugs/issue15747b.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 15747: If a ODCL is dropped, for example when inlining,
++// then it's easy to end up not initializing the '&x' pseudo-variable
++// to point to an actual allocation. The liveness analysis will detect
++// this and abort the computation, so this test just checks that the
++// compilation succeeds.
++
++package p
++
++type R [100]byte
++
++func (x R) New() *R {
++	return &x
++}

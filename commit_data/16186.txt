@@ -8,6 +8,20 @@ Date:   Wed Apr 17 04:41:28 2013 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8682044
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index a1e13c0f69..1da9c4ef16 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2555,7 +2555,7 @@ if _, ok := val.(json.Marshaler); ok {
+ 
+ <p>
+ One place this situation arises is when it is necessary to guarantee within the package implementing the type that
+-it it actually satisfies the interface.
++it actually satisfies the interface.
+ If a type—for example,
+ <code><a href="/pkg/encoding/json/#RawMessage">json.RawMessage</a></code>—needs
+ a custom its JSON representation, it should implement

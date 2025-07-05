@@ -9,6 +9,32 @@ Date:   Tue Feb 26 09:23:34 2013 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7401050
-
+---
  doc/devel/weekly.html | 13 ++-----------
  1 file changed, 2 insertions(+), 11 deletions(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 46efe41edd..f8d3ec6dd4 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -3,18 +3,9 @@
+ }-->
+ 
+ <p>This page summarizes the changes between tagged weekly snapshots of Go.
+-For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
++Such snapshots are no longer created. This page remains as a historical reference only.</p>
+ 
+-<p>Weekly snapshots occur often and may not be stable.
+-If stability of API and code is more important than having the
+-latest features, use the <a href="release.html">official releases</a> instead.</p>
+-
+-<p>To update to a specific snapshot, use:</p>
+-
+-<pre>
+-hg pull
+-hg update weekly.<i>YYYY-MM-DD</i>
+-</pre>
++<p>For recent information, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a> and <a href="http://groups.google.com/group/golang-dev/">development mailing list</a>.</p>
+ 
+ <h2 id="2012-03-27">2012-03-27 (<a href="release.html#go1">Go 1</a>)</h2>
+ 

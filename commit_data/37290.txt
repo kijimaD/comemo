@@ -18,8 +18,80 @@ Date:   Mon Jul 16 19:09:24 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/cgo/testshared/shared_test.go |  6 ++++++
  src/cmd/go/internal/work/action.go | 13 +++++++++++--
  src/cmd/go/internal/work/exec.go   |  8 ++++++--
  3 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index a296005780..846a27173e 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -905,3 +905,9 @@ func TestGlobal(t *testing.T) {
+ 	AssertIsLinkedTo(t, "./bin/global", soname)
+ 	AssertHasRPath(t, "./bin/global", gorootInstallDir)
+ }
++
++// Run a test using -linkshared of an installed shared package.
++// Issue 26400.
++func TestTestInstalledShared(t *testing.T) {
++	goCmd(nil, "test", "-linkshared", "-test.short", "sync/atomic")
++}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 9cbc89f32b..e26f8655fa 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -407,7 +407,16 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 		stk.Pop()
+ 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
+ 
+-		deps := []*Action{a1, aFmt}
++		var deps []*Action
++		if a1.buggyInstall {
++			// (*Builder).vet expects deps[0] to be the package
++			// and deps[1] to be "fmt". If we see buggyInstall
++			// here then a1 is an install of a shared library,
++			// and the real package is a1.Deps[0].
++			deps = []*Action{a1.Deps[0], aFmt, a1}
++		} else {
++			deps = []*Action{a1, aFmt}
++		}
+ 		for _, p1 := range load.PackageList(p.Internal.Imports) {
+ 			deps = append(deps, b.vetAction(mode, depMode, p1))
+ 		}
+@@ -424,7 +433,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 			// Built-in packages like unsafe.
+ 			return a
+ 		}
+-		a1.needVet = true
++		deps[0].needVet = true
+ 		a.Func = (*Builder).vet
+ 		return a
+ 	})
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 514d9c3867..e00b528522 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1368,7 +1368,9 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
+ 	// so the built target is not in the a1.Objdir tree that b.cleanup(a1) removes.
+ 	if a1.built == a.Target {
+ 		a.built = a.Target
+-		b.cleanup(a1)
++		if !a.buggyInstall {
++			b.cleanup(a1)
++		}
+ 		// Whether we're smart enough to avoid a complete rebuild
+ 		// depends on exactly what the staleness and rebuild algorithms
+ 		// are, as well as potentially the state of the Go build cache.
+@@ -1422,7 +1424,9 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
+ 		}
+ 	}
+ 
+-	defer b.cleanup(a1)
++	if !a.buggyInstall {
++		defer b.cleanup(a1)
++	}
+ 
+ 	return b.moveOrCopyFile(a.Target, a1.built, perm, false)
+ }

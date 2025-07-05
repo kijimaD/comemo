@@ -119,7 +119,7 @@ Date:   Wed May 6 09:54:40 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/233097
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/fmtmap_test.go                   |   2 +
  src/cmd/compile/internal/amd64/ssa.go            |   8 +-
  src/cmd/compile/internal/arm64/ssa.go            |  21 +-
@@ -132,3 +132,1646 @@ Date:   Wed May 6 09:54:40 2020 +0000
  src/cmd/compile/internal/x86/ssa.go              |   8 +-
  test/codegen/comparisons.go                      | 136 ++++++
  11 files changed, 891 insertions(+), 141 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 5a24296c5e..6f69abf4fb 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -151,9 +151,11 @@ var knownFormats = map[string]string{
+ 	"int %x":                                          "",
+ 	"int16 %d":                                        "",
+ 	"int16 %x":                                        "",
++	"int32 %#x":                                       "",
+ 	"int32 %d":                                        "",
+ 	"int32 %v":                                        "",
+ 	"int32 %x":                                        "",
++	"int64 %#x":                                       "",
+ 	"int64 %+d":                                       "",
+ 	"int64 %-10d":                                     "",
+ 	"int64 %.5d":                                      "",
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index b58696d650..47cb422ab1 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1252,11 +1252,11 @@ var blockJump = [...]struct {
+ 	ssa.BlockAMD64NAN: {x86.AJPS, x86.AJPC},
+ }
+ 
+-var eqfJumps = [2][2]gc.FloatingEQNEJump{
++var eqfJumps = [2][2]gc.IndexJump{
+ 	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPS, Index: 1}}, // next == b.Succs[0]
+ 	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPC, Index: 0}}, // next == b.Succs[1]
+ }
+-var nefJumps = [2][2]gc.FloatingEQNEJump{
++var nefJumps = [2][2]gc.IndexJump{
+ 	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPC, Index: 1}}, // next == b.Succs[0]
+ 	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPS, Index: 0}}, // next == b.Succs[1]
+ }
+@@ -1296,10 +1296,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.To.Sym = b.Aux.(*obj.LSym)
+ 
+ 	case ssa.BlockAMD64EQF:
+-		s.FPJump(b, next, &eqfJumps)
++		s.CombJump(b, next, &eqfJumps)
+ 
+ 	case ssa.BlockAMD64NEF:
+-		s.FPJump(b, next, &nefJumps)
++		s.CombJump(b, next, &nefJumps)
+ 
+ 	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
+ 		ssa.BlockAMD64LT, ssa.BlockAMD64GE,
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 06c520d76a..709253b48d 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -998,6 +998,20 @@ var blockJump = map[ssa.BlockKind]struct {
+ 	ssa.BlockARM64FGE:  {arm64.ABGE, arm64.ABLT},
+ 	ssa.BlockARM64FLE:  {arm64.ABLS, arm64.ABHI},
+ 	ssa.BlockARM64FGT:  {arm64.ABGT, arm64.ABLE},
++	ssa.BlockARM64LTnoov:{arm64.ABMI, arm64.ABPL},
++	ssa.BlockARM64GEnoov:{arm64.ABPL, arm64.ABMI},
++}
++
++// To model a 'LEnoov' ('<=' without overflow checking) branching
++var leJumps = [2][2]gc.IndexJump{
++	{{Jump: arm64.ABEQ, Index: 0}, {Jump: arm64.ABPL, Index: 1}}, // next == b.Succs[0]
++	{{Jump: arm64.ABMI, Index: 0}, {Jump: arm64.ABEQ, Index: 0}}, // next == b.Succs[1]
++}
++
++// To model a 'GTnoov' ('>' without overflow checking) branching
++var gtJumps = [2][2]gc.IndexJump{
++	{{Jump: arm64.ABMI, Index: 1}, {Jump: arm64.ABEQ, Index: 1}}, // next == b.Succs[0]
++	{{Jump: arm64.ABEQ, Index: 1}, {Jump: arm64.ABPL, Index: 0}}, // next == b.Succs[1]
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+@@ -1045,7 +1059,8 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		ssa.BlockARM64Z, ssa.BlockARM64NZ,
+ 		ssa.BlockARM64ZW, ssa.BlockARM64NZW,
+ 		ssa.BlockARM64FLT, ssa.BlockARM64FGE,
+-		ssa.BlockARM64FLE, ssa.BlockARM64FGT:
++		ssa.BlockARM64FLE, ssa.BlockARM64FGT,
++		ssa.BlockARM64LTnoov, ssa.BlockARM64GEnoov:
+ 		jmp := blockJump[b.Kind]
+ 		var p *obj.Prog
+ 		switch next {
+@@ -1087,6 +1102,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.Reg = b.Controls[0].Reg()
+ 
++	case ssa.BlockARM64LEnoov:
++		s.CombJump(b, next, &leJumps)
++	case ssa.BlockARM64GTnoov:
++		s.CombJump(b, next, &gtJumps)
+ 	default:
+ 		b.Fatalf("branch not implemented: %s", b.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 70f6dd6e18..c0902cdea6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -6313,34 +6313,39 @@ func defframe(s *SSAGenState, e *ssafn) {
+ 	thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
+ }
+ 
+-type FloatingEQNEJump struct {
++// For generating consecutive jump instructions to model a specific branching
++type IndexJump struct {
+ 	Jump  obj.As
+ 	Index int
+ }
+ 
+-func (s *SSAGenState) oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump) {
+-	p := s.Prog(jumps.Jump)
+-	p.To.Type = obj.TYPE_BRANCH
++func (s *SSAGenState) oneJump(b *ssa.Block, jump *IndexJump) {
++	p := s.Br(jump.Jump, b.Succs[jump.Index].Block())
+ 	p.Pos = b.Pos
+-	to := jumps.Index
+-	s.Branches = append(s.Branches, Branch{p, b.Succs[to].Block()})
+ }
+ 
+-func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
++// CombJump generates combinational instructions (2 at present) for a block jump,
++// thereby the behaviour of non-standard condition codes could be simulated
++func (s *SSAGenState) CombJump(b, next *ssa.Block, jumps *[2][2]IndexJump) {
+ 	switch next {
+ 	case b.Succs[0].Block():
+-		s.oneFPJump(b, &jumps[0][0])
+-		s.oneFPJump(b, &jumps[0][1])
++		s.oneJump(b, &jumps[0][0])
++		s.oneJump(b, &jumps[0][1])
+ 	case b.Succs[1].Block():
+-		s.oneFPJump(b, &jumps[1][0])
+-		s.oneFPJump(b, &jumps[1][1])
++		s.oneJump(b, &jumps[1][0])
++		s.oneJump(b, &jumps[1][1])
+ 	default:
+-		s.oneFPJump(b, &jumps[1][0])
+-		s.oneFPJump(b, &jumps[1][1])
+-		q := s.Prog(obj.AJMP)
++		var q *obj.Prog
++		if b.Likely != ssa.BranchUnlikely {
++			s.oneJump(b, &jumps[1][0])
++			s.oneJump(b, &jumps[1][1])
++			q = s.Br(obj.AJMP, b.Succs[1].Block())
++		} else {
++			s.oneJump(b, &jumps[0][0])
++			s.oneJump(b, &jumps[0][1])
++			q = s.Br(obj.AJMP, b.Succs[0].Block())
++		}
+ 		q.Pos = b.Pos
+-		q.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, Branch{q, b.Succs[1].Block()})
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 03202414d6..47f221495a 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -598,31 +598,31 @@
+ 
+ (EQ (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (EQ (CMNconst [c] y) yes no)
+ (NE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (NE (CMNconst [c] y) yes no)
+-(LT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (LT (CMNconst [c] y) yes no)
+-(LE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (LE (CMNconst [c] y) yes no)
+-(GT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (GT (CMNconst [c] y) yes no)
+-(GE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (GE (CMNconst [c] y) yes no)
++(LT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (LTnoov (CMNconst [c] y) yes no)
++(LE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (LEnoov (CMNconst [c] y) yes no)
++(GT (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (GTnoov (CMNconst [c] y) yes no)
++(GE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (GEnoov (CMNconst [c] y) yes no)
+ 
+ (EQ (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (EQ (CMNWconst [int32(c)] y) yes no)
+ (NE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (NE (CMNWconst [int32(c)] y) yes no)
+-(LT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (LT (CMNWconst [int32(c)] y) yes no)
+-(LE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (LE (CMNWconst [int32(c)] y) yes no)
+-(GT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (GT (CMNWconst [int32(c)] y) yes no)
+-(GE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (GE (CMNWconst [int32(c)] y) yes no)
++(LT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (LTnoov (CMNWconst [int32(c)] y) yes no)
++(LE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (LEnoov (CMNWconst [int32(c)] y) yes no)
++(GT (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (GTnoov (CMNWconst [int32(c)] y) yes no)
++(GE (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (GEnoov (CMNWconst [int32(c)] y) yes no)
+ 
+ (EQ (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (EQ (CMN x y) yes no)
+ (NE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (NE (CMN x y) yes no)
+-(LT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (LT (CMN x y) yes no)
+-(LE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (LE (CMN x y) yes no)
+-(GT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GT (CMN x y) yes no)
+-(GE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GE (CMN x y) yes no)
++(LT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (LTnoov (CMN x y) yes no)
++(LE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (LEnoov (CMN x y) yes no)
++(GT (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GTnoov (CMN x y) yes no)
++(GE (CMPconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GEnoov (CMN x y) yes no)
+ 
+ (EQ (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (EQ (CMNW x y) yes no)
+ (NE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (NE (CMNW x y) yes no)
+-(LT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (LT (CMNW x y) yes no)
+-(LE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (LE (CMNW x y) yes no)
+-(GT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GT (CMNW x y) yes no)
+-(GE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GE (CMNW x y) yes no)
++(LT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (LTnoov (CMNW x y) yes no)
++(LE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (LEnoov (CMNW x y) yes no)
++(GT (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GTnoov (CMNW x y) yes no)
++(GE (CMPWconst [0] z:(ADD x y)) yes no) && z.Uses == 1 => (GEnoov (CMNW x y) yes no)
+ 
+ (EQ (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (EQ (CMN x y) yes no)
+ (NE (CMP x z:(NEG y)) yes no) && z.Uses == 1 => (NE (CMN x y) yes no)
+@@ -645,31 +645,31 @@
+ 
+ (EQ (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (EQ (CMN a (MUL <x.Type> x y)) yes no)
+ (NE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (NE (CMN a (MUL <x.Type> x y)) yes no)
+-(LT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (LT (CMN a (MUL <x.Type> x y)) yes no)
+-(LE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (LE (CMN a (MUL <x.Type> x y)) yes no)
+-(GT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (GT (CMN a (MUL <x.Type> x y)) yes no)
+-(GE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (GE (CMN a (MUL <x.Type> x y)) yes no)
++(LT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (LTnoov (CMN a (MUL <x.Type> x y)) yes no)
++(LE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (LEnoov (CMN a (MUL <x.Type> x y)) yes no)
++(GT (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (GTnoov (CMN a (MUL <x.Type> x y)) yes no)
++(GE (CMPconst [0]  z:(MADD a x y)) yes no) && z.Uses==1 => (GEnoov (CMN a (MUL <x.Type> x y)) yes no)
+ 
+ (EQ (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (EQ (CMP a (MUL <x.Type> x y)) yes no)
+ (NE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (NE (CMP a (MUL <x.Type> x y)) yes no)
+-(LE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (LE (CMP a (MUL <x.Type> x y)) yes no)
+-(LT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (LT (CMP a (MUL <x.Type> x y)) yes no)
+-(GE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (GE (CMP a (MUL <x.Type> x y)) yes no)
+-(GT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (GT (CMP a (MUL <x.Type> x y)) yes no)
++(LE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (LEnoov (CMP a (MUL <x.Type> x y)) yes no)
++(LT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (LTnoov (CMP a (MUL <x.Type> x y)) yes no)
++(GE (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (GEnoov (CMP a (MUL <x.Type> x y)) yes no)
++(GT (CMPconst [0]  z:(MSUB a x y)) yes no) && z.Uses==1 => (GTnoov (CMP a (MUL <x.Type> x y)) yes no)
+ 
+ (EQ (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (EQ (CMNW a (MULW <x.Type> x y)) yes no)
+ (NE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (NE (CMNW a (MULW <x.Type> x y)) yes no)
+-(LE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (LE (CMNW a (MULW <x.Type> x y)) yes no)
+-(LT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (LT (CMNW a (MULW <x.Type> x y)) yes no)
+-(GE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (GE (CMNW a (MULW <x.Type> x y)) yes no)
+-(GT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (GT (CMNW a (MULW <x.Type> x y)) yes no)
++(LE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (LEnoov (CMNW a (MULW <x.Type> x y)) yes no)
++(LT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (LTnoov (CMNW a (MULW <x.Type> x y)) yes no)
++(GE (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (GEnoov (CMNW a (MULW <x.Type> x y)) yes no)
++(GT (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => (GTnoov (CMNW a (MULW <x.Type> x y)) yes no)
+ 
+ (EQ (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (EQ (CMPW a (MULW <x.Type> x y)) yes no)
+ (NE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (NE (CMPW a (MULW <x.Type> x y)) yes no)
+-(LE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (LE (CMPW a (MULW <x.Type> x y)) yes no)
+-(LT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (LT (CMPW a (MULW <x.Type> x y)) yes no)
+-(GE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (GE (CMPW a (MULW <x.Type> x y)) yes no)
+-(GT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (GT (CMPW a (MULW <x.Type> x y)) yes no)
++(LE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (LEnoov (CMPW a (MULW <x.Type> x y)) yes no)
++(LT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (LTnoov (CMPW a (MULW <x.Type> x y)) yes no)
++(GE (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (GEnoov (CMPW a (MULW <x.Type> x y)) yes no)
++(GT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => (GTnoov (CMPW a (MULW <x.Type> x y)) yes no)
+ 
+ // Absorb bit-tests into block
+ (Z  (ANDconst [c] x) yes no) && oneBit(c) => (TBZ  [int64(ntz64(c))] x yes no)
+@@ -1503,6 +1503,10 @@
+ (FGT (InvertFlags cmp) yes no) -> (FLT cmp yes no)
+ (FLE (InvertFlags cmp) yes no) -> (FGE cmp yes no)
+ (FGE (InvertFlags cmp) yes no) -> (FLE cmp yes no)
++(LTnoov (InvertFlags cmp) yes no) => (GTnoov cmp yes no)
++(GEnoov (InvertFlags cmp) yes no) => (LEnoov cmp yes no)
++(LEnoov (InvertFlags cmp) yes no) => (GEnoov cmp yes no)
++(GTnoov (InvertFlags cmp) yes no) => (LTnoov cmp yes no)
+ 
+ // absorb InvertFlags into CSEL(0)
+ (CSEL {cc} x y (InvertFlags cmp)) -> (CSEL {arm64Invert(cc.(Op))} x y cmp)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 73e18bc56a..63faab2909 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -701,6 +701,10 @@ func init() {
+ 		{name: "FLE", controls: 1},
+ 		{name: "FGT", controls: 1},
+ 		{name: "FGE", controls: 1},
++		{name: "LTnoov", controls: 1}, // 'LT' but without honoring overflow
++		{name: "LEnoov", controls: 1}, // 'LE' but without honoring overflow
++		{name: "GTnoov", controls: 1}, // 'GT' but without honoring overflow
++		{name: "GEnoov", controls: 1}, // 'GE' but without honoring overflow
+ 	}
+ 
+ 	archs = append(archs, arch{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d619f36cf5..4a83a46be2 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -82,6 +82,10 @@ const (
+ 	BlockARM64FLE
+ 	BlockARM64FGT
+ 	BlockARM64FGE
++	BlockARM64LTnoov
++	BlockARM64LEnoov
++	BlockARM64GTnoov
++	BlockARM64GEnoov
+ 
+ 	BlockMIPSEQ
+ 	BlockMIPSNE
+@@ -192,26 +196,30 @@ var blockString = [...]string{
+ 	BlockARMUGT: "UGT",
+ 	BlockARMUGE: "UGE",
+ 
+-	BlockARM64EQ:   "EQ",
+-	BlockARM64NE:   "NE",
+-	BlockARM64LT:   "LT",
+-	BlockARM64LE:   "LE",
+-	BlockARM64GT:   "GT",
+-	BlockARM64GE:   "GE",
+-	BlockARM64ULT:  "ULT",
+-	BlockARM64ULE:  "ULE",
+-	BlockARM64UGT:  "UGT",
+-	BlockARM64UGE:  "UGE",
+-	BlockARM64Z:    "Z",
+-	BlockARM64NZ:   "NZ",
+-	BlockARM64ZW:   "ZW",
+-	BlockARM64NZW:  "NZW",
+-	BlockARM64TBZ:  "TBZ",
+-	BlockARM64TBNZ: "TBNZ",
+-	BlockARM64FLT:  "FLT",
+-	BlockARM64FLE:  "FLE",
+-	BlockARM64FGT:  "FGT",
+-	BlockARM64FGE:  "FGE",
++	BlockARM64EQ:     "EQ",
++	BlockARM64NE:     "NE",
++	BlockARM64LT:     "LT",
++	BlockARM64LE:     "LE",
++	BlockARM64GT:     "GT",
++	BlockARM64GE:     "GE",
++	BlockARM64ULT:    "ULT",
++	BlockARM64ULE:    "ULE",
++	BlockARM64UGT:    "UGT",
++	BlockARM64UGE:    "UGE",
++	BlockARM64Z:      "Z",
++	BlockARM64NZ:     "NZ",
++	BlockARM64ZW:     "ZW",
++	BlockARM64NZW:    "NZW",
++	BlockARM64TBZ:    "TBZ",
++	BlockARM64TBNZ:   "TBNZ",
++	BlockARM64FLT:    "FLT",
++	BlockARM64FLE:    "FLE",
++	BlockARM64FGT:    "FGT",
++	BlockARM64FGE:    "FGE",
++	BlockARM64LTnoov: "LTnoov",
++	BlockARM64LEnoov: "LEnoov",
++	BlockARM64GTnoov: "GTnoov",
++	BlockARM64GEnoov: "GEnoov",
+ 
+ 	BlockMIPSEQ:  "EQ",
+ 	BlockMIPSNE:  "NE",
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index d243ea9407..4b8ef43303 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -26436,7 +26436,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (GE (CMPconst [0] x:(ADDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+-		// result: (GE (CMNconst [c] y) yes no)
++		// result: (GEnoov (CMNconst [c] y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -26454,12 +26454,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
+ 			v0.AuxInt = int64ToAuxInt(c)
+ 			v0.AddArg(y)
+-			b.resetWithControl(BlockARM64GE, v0)
++			b.resetWithControl(BlockARM64GEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GE (CMPWconst [0] x:(ADDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+-		// result: (GE (CMNWconst [int32(c)] y) yes no)
++		// result: (GEnoov (CMNWconst [int32(c)] y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -26477,12 +26477,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
+ 			v0.AuxInt = int32ToAuxInt(int32(c))
+ 			v0.AddArg(y)
+-			b.resetWithControl(BlockARM64GE, v0)
++			b.resetWithControl(BlockARM64GEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GE (CMPconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (GE (CMN x y) yes no)
++		// result: (GEnoov (CMN x y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -26503,14 +26503,14 @@ func rewriteBlockARM64(b *Block) bool {
+ 				}
+ 				v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
+ 				v0.AddArg2(x, y)
+-				b.resetWithControl(BlockARM64GE, v0)
++				b.resetWithControl(BlockARM64GEnoov, v0)
+ 				return true
+ 			}
+ 			break
+ 		}
+ 		// match: (GE (CMPWconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (GE (CMNW x y) yes no)
++		// result: (GEnoov (CMNW x y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -26531,7 +26531,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				}
+ 				v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
+ 				v0.AddArg2(x, y)
+-				b.resetWithControl(BlockARM64GE, v0)
++				b.resetWithControl(BlockARM64GEnoov, v0)
+ 				return true
+ 			}
+ 			break
+@@ -26578,7 +26578,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (GE (CMPconst [0] z:(MADD a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (GE (CMN a (MUL <x.Type> x y)) yes no)
++		// result: (GEnoov (CMN a (MUL <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -26598,12 +26598,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64GE, v0)
++			b.resetWithControl(BlockARM64GEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GE (CMPconst [0] z:(MSUB a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (GE (CMP a (MUL <x.Type> x y)) yes no)
++		// result: (GEnoov (CMP a (MUL <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -26623,12 +26623,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64GE, v0)
++			b.resetWithControl(BlockARM64GEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GE (CMPWconst [0] z:(MADDW a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (GE (CMNW a (MULW <x.Type> x y)) yes no)
++		// result: (GEnoov (CMNW a (MULW <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -26648,12 +26648,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64GE, v0)
++			b.resetWithControl(BlockARM64GEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GE (CMPWconst [0] z:(MSUBW a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (GE (CMPW a (MULW <x.Type> x y)) yes no)
++		// result: (GEnoov (CMPW a (MULW <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -26673,7 +26673,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64GE, v0)
++			b.resetWithControl(BlockARM64GEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GE (CMPWconst [0] x) yes no)
+@@ -26740,6 +26740,15 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.resetWithControl(BlockARM64LE, cmp)
+ 			return true
+ 		}
++	case BlockARM64GEnoov:
++		// match: (GEnoov (InvertFlags cmp) yes no)
++		// result: (LEnoov cmp yes no)
++		for b.Controls[0].Op == OpARM64InvertFlags {
++			v_0 := b.Controls[0]
++			cmp := v_0.Args[0]
++			b.resetWithControl(BlockARM64LEnoov, cmp)
++			return true
++		}
+ 	case BlockARM64GT:
+ 		// match: (GT (CMPWconst [0] x:(ANDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+@@ -26845,7 +26854,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (GT (CMPconst [0] x:(ADDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+-		// result: (GT (CMNconst [c] y) yes no)
++		// result: (GTnoov (CMNconst [c] y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -26863,12 +26872,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
+ 			v0.AuxInt = int64ToAuxInt(c)
+ 			v0.AddArg(y)
+-			b.resetWithControl(BlockARM64GT, v0)
++			b.resetWithControl(BlockARM64GTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GT (CMPWconst [0] x:(ADDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+-		// result: (GT (CMNWconst [int32(c)] y) yes no)
++		// result: (GTnoov (CMNWconst [int32(c)] y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -26886,12 +26895,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
+ 			v0.AuxInt = int32ToAuxInt(int32(c))
+ 			v0.AddArg(y)
+-			b.resetWithControl(BlockARM64GT, v0)
++			b.resetWithControl(BlockARM64GTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GT (CMPconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (GT (CMN x y) yes no)
++		// result: (GTnoov (CMN x y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -26912,14 +26921,14 @@ func rewriteBlockARM64(b *Block) bool {
+ 				}
+ 				v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
+ 				v0.AddArg2(x, y)
+-				b.resetWithControl(BlockARM64GT, v0)
++				b.resetWithControl(BlockARM64GTnoov, v0)
+ 				return true
+ 			}
+ 			break
+ 		}
+ 		// match: (GT (CMPWconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (GT (CMNW x y) yes no)
++		// result: (GTnoov (CMNW x y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -26940,7 +26949,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				}
+ 				v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
+ 				v0.AddArg2(x, y)
+-				b.resetWithControl(BlockARM64GT, v0)
++				b.resetWithControl(BlockARM64GTnoov, v0)
+ 				return true
+ 			}
+ 			break
+@@ -26987,7 +26996,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (GT (CMPconst [0] z:(MADD a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (GT (CMN a (MUL <x.Type> x y)) yes no)
++		// result: (GTnoov (CMN a (MUL <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27007,12 +27016,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64GT, v0)
++			b.resetWithControl(BlockARM64GTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GT (CMPconst [0] z:(MSUB a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (GT (CMP a (MUL <x.Type> x y)) yes no)
++		// result: (GTnoov (CMP a (MUL <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27032,12 +27041,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64GT, v0)
++			b.resetWithControl(BlockARM64GTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GT (CMPWconst [0] z:(MADDW a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (GT (CMNW a (MULW <x.Type> x y)) yes no)
++		// result: (GTnoov (CMNW a (MULW <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27057,12 +27066,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64GT, v0)
++			b.resetWithControl(BlockARM64GTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GT (CMPWconst [0] z:(MSUBW a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (GT (CMPW a (MULW <x.Type> x y)) yes no)
++		// result: (GTnoov (CMPW a (MULW <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27082,7 +27091,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64GT, v0)
++			b.resetWithControl(BlockARM64GTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (GT (FlagEQ) yes no)
+@@ -27126,6 +27135,15 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.resetWithControl(BlockARM64LT, cmp)
+ 			return true
+ 		}
++	case BlockARM64GTnoov:
++		// match: (GTnoov (InvertFlags cmp) yes no)
++		// result: (LTnoov cmp yes no)
++		for b.Controls[0].Op == OpARM64InvertFlags {
++			v_0 := b.Controls[0]
++			cmp := v_0.Args[0]
++			b.resetWithControl(BlockARM64LTnoov, cmp)
++			return true
++		}
+ 	case BlockIf:
+ 		// match: (If (Equal cc) yes no)
+ 		// result: (EQ cc yes no)
+@@ -27351,7 +27369,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (LE (CMPconst [0] x:(ADDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+-		// result: (LE (CMNconst [c] y) yes no)
++		// result: (LEnoov (CMNconst [c] y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27369,12 +27387,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
+ 			v0.AuxInt = int64ToAuxInt(c)
+ 			v0.AddArg(y)
+-			b.resetWithControl(BlockARM64LE, v0)
++			b.resetWithControl(BlockARM64LEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LE (CMPWconst [0] x:(ADDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+-		// result: (LE (CMNWconst [int32(c)] y) yes no)
++		// result: (LEnoov (CMNWconst [int32(c)] y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27392,12 +27410,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
+ 			v0.AuxInt = int32ToAuxInt(int32(c))
+ 			v0.AddArg(y)
+-			b.resetWithControl(BlockARM64LE, v0)
++			b.resetWithControl(BlockARM64LEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LE (CMPconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (LE (CMN x y) yes no)
++		// result: (LEnoov (CMN x y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27418,14 +27436,14 @@ func rewriteBlockARM64(b *Block) bool {
+ 				}
+ 				v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
+ 				v0.AddArg2(x, y)
+-				b.resetWithControl(BlockARM64LE, v0)
++				b.resetWithControl(BlockARM64LEnoov, v0)
+ 				return true
+ 			}
+ 			break
+ 		}
+ 		// match: (LE (CMPWconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (LE (CMNW x y) yes no)
++		// result: (LEnoov (CMNW x y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27446,7 +27464,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				}
+ 				v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
+ 				v0.AddArg2(x, y)
+-				b.resetWithControl(BlockARM64LE, v0)
++				b.resetWithControl(BlockARM64LEnoov, v0)
+ 				return true
+ 			}
+ 			break
+@@ -27493,7 +27511,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (LE (CMPconst [0] z:(MADD a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (LE (CMN a (MUL <x.Type> x y)) yes no)
++		// result: (LEnoov (CMN a (MUL <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27513,12 +27531,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64LE, v0)
++			b.resetWithControl(BlockARM64LEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LE (CMPconst [0] z:(MSUB a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (LE (CMP a (MUL <x.Type> x y)) yes no)
++		// result: (LEnoov (CMP a (MUL <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27538,12 +27556,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64LE, v0)
++			b.resetWithControl(BlockARM64LEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LE (CMPWconst [0] z:(MADDW a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (LE (CMNW a (MULW <x.Type> x y)) yes no)
++		// result: (LEnoov (CMNW a (MULW <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27563,12 +27581,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64LE, v0)
++			b.resetWithControl(BlockARM64LEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LE (CMPWconst [0] z:(MSUBW a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (LE (CMPW a (MULW <x.Type> x y)) yes no)
++		// result: (LEnoov (CMPW a (MULW <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27588,7 +27606,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64LE, v0)
++			b.resetWithControl(BlockARM64LEnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LE (FlagEQ) yes no)
+@@ -27631,6 +27649,15 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.resetWithControl(BlockARM64GE, cmp)
+ 			return true
+ 		}
++	case BlockARM64LEnoov:
++		// match: (LEnoov (InvertFlags cmp) yes no)
++		// result: (GEnoov cmp yes no)
++		for b.Controls[0].Op == OpARM64InvertFlags {
++			v_0 := b.Controls[0]
++			cmp := v_0.Args[0]
++			b.resetWithControl(BlockARM64GEnoov, cmp)
++			return true
++		}
+ 	case BlockARM64LT:
+ 		// match: (LT (CMPWconst [0] x:(ANDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+@@ -27736,7 +27763,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (LT (CMPconst [0] x:(ADDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+-		// result: (LT (CMNconst [c] y) yes no)
++		// result: (LTnoov (CMNconst [c] y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27754,12 +27781,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNconst, types.TypeFlags)
+ 			v0.AuxInt = int64ToAuxInt(c)
+ 			v0.AddArg(y)
+-			b.resetWithControl(BlockARM64LT, v0)
++			b.resetWithControl(BlockARM64LTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LT (CMPWconst [0] x:(ADDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+-		// result: (LT (CMNWconst [int32(c)] y) yes no)
++		// result: (LTnoov (CMNWconst [int32(c)] y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27777,12 +27804,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNWconst, types.TypeFlags)
+ 			v0.AuxInt = int32ToAuxInt(int32(c))
+ 			v0.AddArg(y)
+-			b.resetWithControl(BlockARM64LT, v0)
++			b.resetWithControl(BlockARM64LTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LT (CMPconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (LT (CMN x y) yes no)
++		// result: (LTnoov (CMN x y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27803,14 +27830,14 @@ func rewriteBlockARM64(b *Block) bool {
+ 				}
+ 				v0 := b.NewValue0(v_0.Pos, OpARM64CMN, types.TypeFlags)
+ 				v0.AddArg2(x, y)
+-				b.resetWithControl(BlockARM64LT, v0)
++				b.resetWithControl(BlockARM64LTnoov, v0)
+ 				return true
+ 			}
+ 			break
+ 		}
+ 		// match: (LT (CMPWconst [0] z:(ADD x y)) yes no)
+ 		// cond: z.Uses == 1
+-		// result: (LT (CMNW x y) yes no)
++		// result: (LTnoov (CMNW x y) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27831,7 +27858,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				}
+ 				v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
+ 				v0.AddArg2(x, y)
+-				b.resetWithControl(BlockARM64LT, v0)
++				b.resetWithControl(BlockARM64LTnoov, v0)
+ 				return true
+ 			}
+ 			break
+@@ -27878,7 +27905,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (LT (CMPconst [0] z:(MADD a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (LT (CMN a (MUL <x.Type> x y)) yes no)
++		// result: (LTnoov (CMN a (MUL <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27898,12 +27925,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64LT, v0)
++			b.resetWithControl(BlockARM64LTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LT (CMPconst [0] z:(MSUB a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (LT (CMP a (MUL <x.Type> x y)) yes no)
++		// result: (LTnoov (CMP a (MUL <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt64(v_0.AuxInt) != 0 {
+@@ -27923,12 +27950,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64LT, v0)
++			b.resetWithControl(BlockARM64LTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LT (CMPWconst [0] z:(MADDW a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (LT (CMNW a (MULW <x.Type> x y)) yes no)
++		// result: (LTnoov (CMNW a (MULW <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27948,12 +27975,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64LT, v0)
++			b.resetWithControl(BlockARM64LTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LT (CMPWconst [0] z:(MSUBW a x y)) yes no)
+ 		// cond: z.Uses==1
+-		// result: (LT (CMPW a (MULW <x.Type> x y)) yes no)
++		// result: (LTnoov (CMPW a (MULW <x.Type> x y)) yes no)
+ 		for b.Controls[0].Op == OpARM64CMPWconst {
+ 			v_0 := b.Controls[0]
+ 			if auxIntToInt32(v_0.AuxInt) != 0 {
+@@ -27973,7 +28000,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+ 			v1.AddArg2(x, y)
+ 			v0.AddArg2(a, v1)
+-			b.resetWithControl(BlockARM64LT, v0)
++			b.resetWithControl(BlockARM64LTnoov, v0)
+ 			return true
+ 		}
+ 		// match: (LT (CMPWconst [0] x) yes no)
+@@ -28041,6 +28068,15 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.resetWithControl(BlockARM64GT, cmp)
+ 			return true
+ 		}
++	case BlockARM64LTnoov:
++		// match: (LTnoov (InvertFlags cmp) yes no)
++		// result: (GTnoov cmp yes no)
++		for b.Controls[0].Op == OpARM64InvertFlags {
++			v_0 := b.Controls[0]
++			cmp := v_0.Args[0]
++			b.resetWithControl(BlockARM64GTnoov, cmp)
++			return true
++		}
+ 	case BlockARM64NE:
+ 		// match: (NE (CMPWconst [0] x:(ANDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+diff --git a/src/cmd/compile/internal/ssa/rewriteCond_test.go b/src/cmd/compile/internal/ssa/rewriteCond_test.go
+new file mode 100644
+index 0000000000..b8feff77e5
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewriteCond_test.go
+@@ -0,0 +1,536 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import (
++	"math"
++	"math/rand"
++	"testing"
++	"runtime"
++)
++
++var (
++	x64   int64 = math.MaxInt64 - 2
++	x64b  int64 = math.MaxInt64 - 2
++	x64c  int64 = math.MaxInt64 - 2
++	y64   int64 = math.MinInt64 + 1
++	x32   int32 = math.MaxInt32 - 2
++	x32b  int32 = math.MaxInt32 - 2
++	y32   int32 = math.MinInt32 + 1
++	one64 int64 = 1
++	one32 int32 = 1
++	v64   int64 = 11 // ensure it's not 2**n +/- 1
++	v64_n int64 = -11
++	v32   int32 = 11
++	v32_n int32 = -11
++)
++
++var crTests = []struct {
++	name string
++	tf   func(t *testing.T)
++}{
++	{"AddConst64", testAddConst64},
++	{"AddConst32", testAddConst32},
++	{"AddVar64", testAddVar64},
++	{"AddVar32", testAddVar32},
++	{"MAddVar64", testMAddVar64},
++	{"MAddVar32", testMAddVar32},
++	{"MSubVar64", testMSubVar64},
++	{"MSubVar32", testMSubVar32},
++}
++
++var crBenches = []struct {
++	name string
++	bf   func(b *testing.B)
++}{
++	{"SoloJump", benchSoloJump},
++	{"CombJump", benchCombJump},
++}
++
++// Test int32/int64's add/sub/madd/msub operations with boundary values to
++// ensure the optimization to 'comparing to zero' expressions of if-statements
++// yield expected results.
++// 32 rewriting rules are covered. At least two scenarios for "Canonicalize
++// the order of arguments to comparisons", which helps with CSE, are covered.
++// The tedious if-else structures are necessary to ensure all concerned rules
++// and machine code sequences are covered.
++// It's for arm64 initially, please see https://github.com/golang/go/issues/38740
++func TestCondRewrite(t *testing.T) {
++	if runtime.GOARCH == "arm" {
++		t.Skip("fix on arm expected!")
++	}
++	for _, test := range crTests {
++		t.Run(test.name, test.tf)
++	}
++}
++
++// Profile the aforementioned optimization from two angles:
++//   SoloJump: generated branching code has one 'jump', for '<' and '>='
++//   CombJump: generated branching code has two consecutive 'jump', for '<=' and '>'
++// We expect that 'CombJump' is generally on par with the non-optimized code, and
++// 'SoloJump' demonstrates some improvement.
++// It's for arm64 initially, please see https://github.com/golang/go/issues/38740
++func BenchmarkCondRewrite(b *testing.B) {
++	for _, bench := range crBenches {
++		b.Run(bench.name, bench.bf)
++	}
++}
++
++// var +/- const
++func testAddConst64(t *testing.T) {
++	if x64+11 < 0 {
++	} else {
++		t.Errorf("'%#x + 11 < 0' failed", x64)
++	}
++
++	if x64+13 <= 0 {
++	} else {
++		t.Errorf("'%#x + 13 <= 0' failed", x64)
++	}
++
++	if y64-11 > 0 {
++	} else {
++		t.Errorf("'%#x - 11 > 0' failed", y64)
++	}
++
++	if y64-13 >= 0 {
++	} else {
++		t.Errorf("'%#x - 13 >= 0' failed", y64)
++	}
++
++	if x64+19 > 0 {
++		t.Errorf("'%#x + 19 > 0' failed", x64)
++	}
++
++	if x64+23 >= 0 {
++		t.Errorf("'%#x + 23 >= 0' failed", x64)
++	}
++
++	if y64-19 < 0 {
++		t.Errorf("'%#x - 19 < 0' failed", y64)
++	}
++
++	if y64-23 <= 0 {
++		t.Errorf("'%#x - 23 <= 0' failed", y64)
++	}
++}
++
++// 32-bit var +/- const
++func testAddConst32(t *testing.T) {
++	if x32+11 < 0 {
++	} else {
++		t.Errorf("'%#x + 11 < 0' failed", x32)
++	}
++
++	if x32+13 <= 0 {
++	} else {
++		t.Errorf("'%#x + 13 <= 0' failed", x32)
++	}
++
++	if y32-11 > 0 {
++	} else {
++		t.Errorf("'%#x - 11 > 0' failed", y32)
++	}
++
++	if y32-13 >= 0 {
++	} else {
++		t.Errorf("'%#x - 13 >= 0' failed", y32)
++	}
++
++	if x32+19 > 0 {
++		t.Errorf("'%#x + 19 > 0' failed", x32)
++	}
++
++	if x32+23 >= 0 {
++		t.Errorf("'%#x + 23 >= 0' failed", x32)
++	}
++
++	if y32-19 < 0 {
++		t.Errorf("'%#x - 19 < 0' failed", y32)
++	}
++
++	if y32-23 <= 0 {
++		t.Errorf("'%#x - 23 <= 0' failed", y32)
++	}
++}
++
++// var + var
++func testAddVar64(t *testing.T) {
++	if x64+v64 < 0 {
++	} else {
++		t.Errorf("'%#x + %#x < 0' failed", x64, v64)
++	}
++
++	if x64+v64 <= 0 {
++	} else {
++		t.Errorf("'%#x + %#x <= 0' failed", x64, v64)
++	}
++
++	if y64+v64_n > 0 {
++	} else {
++		t.Errorf("'%#x + %#x > 0' failed", y64, v64_n)
++	}
++
++	if y64+v64_n >= 0 {
++	} else {
++		t.Errorf("'%#x + %#x >= 0' failed", y64, v64_n)
++	}
++
++	if x64+v64 > 0 {
++		t.Errorf("'%#x + %#x > 0' failed", x64, v64)
++	}
++
++	if x64+v64 >= 0 {
++		t.Errorf("'%#x + %#x >= 0' failed", x64, v64)
++	}
++
++	if y64+v64_n < 0 {
++		t.Errorf("'%#x + %#x < 0' failed", y64, v64_n)
++	}
++
++	if y64+v64_n <= 0 {
++		t.Errorf("'%#x + %#x <= 0' failed", y64, v64_n)
++	}
++}
++
++// 32-bit var+var
++func testAddVar32(t *testing.T) {
++	if x32+v32 < 0 {
++	} else {
++		t.Errorf("'%#x + %#x < 0' failed", x32, v32)
++	}
++
++	if x32+v32 <= 0 {
++	} else {
++		t.Errorf("'%#x + %#x <= 0' failed", x32, v32)
++	}
++
++	if y32+v32_n > 0 {
++	} else {
++		t.Errorf("'%#x + %#x > 0' failed", y32, v32_n)
++	}
++
++	if y32+v32_n >= 0 {
++	} else {
++		t.Errorf("'%#x + %#x >= 0' failed", y32, v32_n)
++	}
++
++	if x32+v32 > 0 {
++		t.Errorf("'%#x + %#x > 0' failed", x32, v32)
++	}
++
++	if x32+v32 >= 0 {
++		t.Errorf("'%#x + %#x >= 0' failed", x32, v32)
++	}
++
++	if y32+v32_n < 0 {
++		t.Errorf("'%#x + %#x < 0' failed", y32, v32_n)
++	}
++
++	if y32+v32_n <= 0 {
++		t.Errorf("'%#x + %#x <= 0' failed", y32, v32_n)
++	}
++}
++
++// multiply-add
++func testMAddVar64(t *testing.T) {
++	if x64+v64*one64 < 0 {
++	} else {
++		t.Errorf("'%#x + %#x*1 < 0' failed", x64, v64)
++	}
++
++	if x64+v64*one64 <= 0 {
++	} else {
++		t.Errorf("'%#x + %#x*1 <= 0' failed", x64, v64)
++	}
++
++	if y64+v64_n*one64 > 0 {
++	} else {
++		t.Errorf("'%#x + %#x*1 > 0' failed", y64, v64_n)
++	}
++
++	if y64+v64_n*one64 >= 0 {
++	} else {
++		t.Errorf("'%#x + %#x*1 >= 0' failed", y64, v64_n)
++	}
++
++	if x64+v64*one64 > 0 {
++		t.Errorf("'%#x + %#x*1 > 0' failed", x64, v64)
++	}
++
++	if x64+v64*one64 >= 0 {
++		t.Errorf("'%#x + %#x*1 >= 0' failed", x64, v64)
++	}
++
++	if y64+v64_n*one64 < 0 {
++		t.Errorf("'%#x + %#x*1 < 0' failed", y64, v64_n)
++	}
++
++	if y64+v64_n*one64 <= 0 {
++		t.Errorf("'%#x + %#x*1 <= 0' failed", y64, v64_n)
++	}
++}
++
++// 32-bit multiply-add
++func testMAddVar32(t *testing.T) {
++	if x32+v32*one32 < 0 {
++	} else {
++		t.Errorf("'%#x + %#x*1 < 0' failed", x32, v32)
++	}
++
++	if x32+v32*one32 <= 0 {
++	} else {
++		t.Errorf("'%#x + %#x*1 <= 0' failed", x32, v32)
++	}
++
++	if y32+v32_n*one32 > 0 {
++	} else {
++		t.Errorf("'%#x + %#x*1 > 0' failed", y32, v32_n)
++	}
++
++	if y32+v32_n*one32 >= 0 {
++	} else {
++		t.Errorf("'%#x + %#x*1 >= 0' failed", y32, v32_n)
++	}
++
++	if x32+v32*one32 > 0 {
++		t.Errorf("'%#x + %#x*1 > 0' failed", x32, v32)
++	}
++
++	if x32+v32*one32 >= 0 {
++		t.Errorf("'%#x + %#x*1 >= 0' failed", x32, v32)
++	}
++
++	if y32+v32_n*one32 < 0 {
++		t.Errorf("'%#x + %#x*1 < 0' failed", y32, v32_n)
++	}
++
++	if y32+v32_n*one32 <= 0 {
++		t.Errorf("'%#x + %#x*1 <= 0' failed", y32, v32_n)
++	}
++}
++
++// multiply-sub
++func testMSubVar64(t *testing.T) {
++	if x64-v64_n*one64 < 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 < 0' failed", x64, v64_n)
++	}
++
++	if x64-v64_n*one64 <= 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 <= 0' failed", x64, v64_n)
++	}
++
++	if y64-v64*one64 > 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 > 0' failed", y64, v64)
++	}
++
++	if y64-v64*one64 >= 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 >= 0' failed", y64, v64)
++	}
++
++	if x64-v64_n*one64 > 0 {
++		t.Errorf("'%#x - %#x*1 > 0' failed", x64, v64_n)
++	}
++
++	if x64-v64_n*one64 >= 0 {
++		t.Errorf("'%#x - %#x*1 >= 0' failed", x64, v64_n)
++	}
++
++	if y64-v64*one64 < 0 {
++		t.Errorf("'%#x - %#x*1 < 0' failed", y64, v64)
++	}
++
++	if y64-v64*one64 <= 0 {
++		t.Errorf("'%#x - %#x*1 <= 0' failed", y64, v64)
++	}
++
++	if x64-x64b*one64 < 0 {
++		t.Errorf("'%#x - %#x*1 < 0' failed", x64, x64b)
++	}
++
++	if x64-x64b*one64 >= 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 >= 0' failed", x64, x64b)
++	}
++}
++
++// 32-bit multiply-sub
++func testMSubVar32(t *testing.T) {
++	if x32-v32_n*one32 < 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 < 0' failed", x32, v32_n)
++	}
++
++	if x32-v32_n*one32 <= 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 <= 0' failed", x32, v32_n)
++	}
++
++	if y32-v32*one32 > 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 > 0' failed", y32, v32)
++	}
++
++	if y32-v32*one32 >= 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 >= 0' failed", y32, v32)
++	}
++
++	if x32-v32_n*one32 > 0 {
++		t.Errorf("'%#x - %#x*1 > 0' failed", x32, v32_n)
++	}
++
++	if x32-v32_n*one32 >= 0 {
++		t.Errorf("'%#x - %#x*1 >= 0' failed", x32, v32_n)
++	}
++
++	if y32-v32*one32 < 0 {
++		t.Errorf("'%#x - %#x*1 < 0' failed", y32, v32)
++	}
++
++	if y32-v32*one32 <= 0 {
++		t.Errorf("'%#x - %#x*1 <= 0' failed", y32, v32)
++	}
++
++	if x32-x32b*one32 < 0 {
++		t.Errorf("'%#x - %#x*1 < 0' failed", x32, x32b)
++	}
++
++	if x32-x32b*one32 >= 0 {
++	} else {
++		t.Errorf("'%#x - %#x*1 >= 0' failed", x32, x32b)
++	}
++}
++
++var rnd = rand.New(rand.NewSource(0))
++var sink int64
++
++func benchSoloJump(b *testing.B) {
++	r1 := x64
++	r2 := x64b
++	r3 := x64c
++	r4 := y64
++	d := rnd.Int63n(10)
++
++	// 6 out 10 conditions evaluate to true
++	for i := 0; i < b.N; i++ {
++		if r1+r2 < 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1+r3 >= 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1+r2*one64 < 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r2+r3*one64 >= 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1-r2*v64 >= 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r3-r4*v64 < 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1+11 < 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1+13 >= 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r4-17 < 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r4-19 >= 0 {
++			d *= 2
++			d /= 2
++		}
++	}
++	sink = d
++}
++
++func benchCombJump(b *testing.B) {
++	r1 := x64
++	r2 := x64b
++	r3 := x64c
++	r4 := y64
++	d := rnd.Int63n(10)
++
++	// 6 out 10 conditions evaluate to true
++	for i := 0; i < b.N; i++ {
++		if r1+r2 <= 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1+r3 > 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1+r2*one64 <= 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r2+r3*one64 > 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1-r2*v64 > 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r3-r4*v64 <= 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1+11 <= 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r1+13 > 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r4-17 <= 0 {
++			d *= 2
++			d /= 2
++		}
++
++		if r4-19 > 0 {
++			d *= 2
++			d /= 2
++		}
++	}
++	sink = d
++}
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 0c7e5bdb97..2de978c28a 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -885,11 +885,11 @@ var blockJump = [...]struct {
+ 	ssa.Block386NAN: {x86.AJPS, x86.AJPC},
+ }
+ 
+-var eqfJumps = [2][2]gc.FloatingEQNEJump{
++var eqfJumps = [2][2]gc.IndexJump{
+ 	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPS, Index: 1}}, // next == b.Succs[0]
+ 	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPC, Index: 0}}, // next == b.Succs[1]
+ }
+-var nefJumps = [2][2]gc.FloatingEQNEJump{
++var nefJumps = [2][2]gc.IndexJump{
+ 	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPC, Index: 1}}, // next == b.Succs[0]
+ 	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPS, Index: 0}}, // next == b.Succs[1]
+ }
+@@ -929,10 +929,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.To.Sym = b.Aux.(*obj.LSym)
+ 
+ 	case ssa.Block386EQF:
+-		s.FPJump(b, next, &eqfJumps)
++		s.CombJump(b, next, &eqfJumps)
+ 
+ 	case ssa.Block386NEF:
+-		s.FPJump(b, next, &nefJumps)
++		s.CombJump(b, next, &nefJumps)
+ 
+ 	case ssa.Block386EQ, ssa.Block386NE,
+ 		ssa.Block386LT, ssa.Block386GE,
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index c020ea8eb7..eb2f3317c9 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -248,3 +248,139 @@ func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
+ 	}
+ 	return 0
+ }
++
++// The following CmpToZero_ex* check that cmp|cmn with bmi|bpl are generated for
++// 'comparing to zero' expressions
++
++// var + const
++func CmpToZero_ex1(a int64, e int32) int {
++	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
++	if a+3 < 0 {
++		return 1
++	}
++
++	// arm64:`CMN`,-`ADD`,`BEQ`,`(BMI|BPL)`
++	if a+5 <= 0 {
++		return 1
++	}
++
++	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
++	if a+13 >= 0 {
++		return 2
++	}
++
++	// arm64:`CMP`,-`SUB`,`(BMI|BPL)`
++	if a-7 < 0 {
++		return 3
++	}
++
++	// arm64:`CMP`,-`SUB`,`(BMI|BPL)`
++	if a-11 >= 0 {
++		return 4
++	}
++
++	// arm64:`CMP`,-`SUB`,`BEQ`,`(BMI|BPL)`
++	if a-19 > 0 {
++		return 4
++	}
++
++	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
++	if e+3 < 0 {
++		return 5
++	}
++
++	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
++	if e+13 >= 0 {
++		return 6
++	}
++
++	// arm64:`CMPW`,-`SUBW`,`(BMI|BPL)`
++	if e-7 < 0 {
++		return 7
++	}
++
++	// arm64:`CMPW`,-`SUBW`,`(BMI|BPL)`
++	if e-11 >= 0 {
++		return 8
++	}
++
++	return 0
++}
++
++// var + var
++// TODO: optimize 'var - var'
++func CmpToZero_ex2(a, b, c int64, e, f, g int32) int {
++	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
++	if a+b < 0 {
++		return 1
++	}
++
++	// arm64:`CMN`,-`ADD`,`BEQ`,`(BMI|BPL)`
++	if a+c <= 0 {
++		return 1
++	}
++
++	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
++	if b+c >= 0 {
++		return 2
++	}
++
++	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
++	if e+f < 0 {
++		return 5
++	}
++
++	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
++	if f+g >= 0 {
++		return 6
++	}
++	return 0
++}
++
++// var + var*var
++func CmpToZero_ex3(a, b, c, d int64, e, f, g, h int32) int {
++	// arm64:`CMN`,-`MADD`,`MUL`,`(BMI|BPL)`
++	if a+b*c < 0 {
++		return 1
++	}
++
++	// arm64:`CMN`,-`MADD`,`MUL`,`(BMI|BPL)`
++	if b+c*d >= 0 {
++		return 2
++	}
++
++	// arm64:`CMNW`,-`MADDW`,`MULW`,`BEQ`,`(BMI|BPL)`
++	if e+f*g > 0 {
++		return 5
++	}
++
++	// arm64:`CMNW`,-`MADDW`,`MULW`,`BEQ`,`(BMI|BPL)`
++	if f+g*h <= 0 {
++		return 6
++	}
++	return 0
++}
++
++// var - var*var
++func CmpToZero_ex4(a, b, c, d int64, e, f, g, h int32) int {
++	// arm64:`CMP`,-`MSUB`,`MUL`,`BEQ`,`(BMI|BPL)`
++	if a-b*c > 0 {
++		return 1
++	}
++
++	// arm64:`CMP`,-`MSUB`,`MUL`,`(BMI|BPL)`
++	if b-c*d >= 0 {
++		return 2
++	}
++
++	// arm64:`CMPW`,-`MSUBW`,`MULW`,`(BMI|BPL)`
++	if e-f*g < 0 {
++		return 5
++	}
++
++	// arm64:`CMPW`,-`MSUBW`,`MULW`,`(BMI|BPL)`
++	if f-g*h >= 0 {
++		return 6
++	}
++	return 0
++}

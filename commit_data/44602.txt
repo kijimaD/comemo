@@ -8,6 +8,20 @@ Date:   Thu Aug 13 12:56:57 2020 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/248339
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index 219499be0a..604675caec 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-Link, typically invoked as ``go tool link,'' reads the Go archive or object
++Link, typically invoked as ``go tool link'', reads the Go archive or object
+ for a package main, along with its dependencies, and combines them
+ into an executable binary.
+ 

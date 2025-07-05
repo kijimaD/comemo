@@ -71,7 +71,7 @@ Date:   Fri Dec 4 19:06:01 2015 +0900
     Change-Id: Icabdaf7bd1d41360a981d2dad0b830b02b584528
     Reviewed-on: https://go-review.googlesource.com/17412
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/syscall/windows/syscall_windows.go  |  14 +-
  src/internal/syscall/windows/zsyscall_windows.go |   4 +-
  src/net/interface_test.go                        |  30 +-
@@ -79,3 +79,705 @@ Date:   Fri Dec 4 19:06:01 2015 +0900
  src/net/interface_windows_test.go                | 132 +++++++++
  src/net/net_windows_test.go                      |   8 +-
  6 files changed, 366 insertions(+), 160 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index dc8a91626d..67bb6c96fe 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -10,7 +10,17 @@ import "syscall"
+ 
+ const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+ 
+-const IF_TYPE_SOFTWARE_LOOPBACK = 24
++const (
++	IF_TYPE_OTHER              = 1
++	IF_TYPE_ETHERNET_CSMACD    = 6
++	IF_TYPE_ISO88025_TOKENRING = 9
++	IF_TYPE_PPP                = 23
++	IF_TYPE_SOFTWARE_LOOPBACK  = 24
++	IF_TYPE_ATM                = 37
++	IF_TYPE_IEEE80211          = 71
++	IF_TYPE_TUNNEL             = 131
++	IF_TYPE_IEEE1394           = 144
++)
+ 
+ type SocketAddress struct {
+ 	Sockaddr       *syscall.RawSockaddrAny
+@@ -94,7 +104,7 @@ const (
+ 	IfOperStatusLowerLayerDown = 7
+ )
+ 
+-//sys GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
++//sys	GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
+ //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
+ //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
+ 
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index c6f607a46a..c8b494a535 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -16,8 +16,8 @@ var (
+ 	procMoveFileExW          = modkernel32.NewProc("MoveFileExW")
+ )
+ 
+-func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) {
+-	r0, _, _ := syscall.Syscall6(procGetAdaptersAddresses.Addr(), 5, uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizeOfPointer)), 0)
++func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
++	r0, _, _ := syscall.Syscall6(procGetAdaptersAddresses.Addr(), 5, uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)), 0)
+ 	if r0 != 0 {
+ 		errcode = syscall.Errno(r0)
+ 	}
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 567d18de44..c5e7c432cd 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -188,18 +188,39 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
+ 			prefixLen, maxPrefixLen := ifa.Mask.Size()
+ 			if ifa.IP.To4() != nil {
+ 				if 0 >= prefixLen || prefixLen > 8*IPv4len || maxPrefixLen != 8*IPv4len {
+-					t.Errorf("unexpected prefix length: %v/%v", prefixLen, maxPrefixLen)
++					t.Errorf("unexpected prefix length: %d/%d", prefixLen, maxPrefixLen)
++					continue
++				}
++				if ifa.IP.IsLoopback() && (prefixLen != 8 && prefixLen != 8*IPv4len) { // see RFC 1122
++					t.Errorf("unexpected prefix length for IPv4 loopback: %d/%d", prefixLen, maxPrefixLen)
+ 					continue
+ 				}
+ 				naf4++
+-			} else if ifa.IP.To16() != nil {
++			}
++			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
+ 				if 0 >= prefixLen || prefixLen > 8*IPv6len || maxPrefixLen != 8*IPv6len {
+-					t.Errorf("unexpected prefix length: %v/%v", prefixLen, maxPrefixLen)
++					t.Errorf("unexpected prefix length: %d/%d", prefixLen, maxPrefixLen)
++					continue
++				}
++				if ifa.IP.IsLoopback() && prefixLen != 8*IPv6len { // see RFC 4291
++					t.Errorf("unexpected prefix length for IPv6 loopback: %d/%d", prefixLen, maxPrefixLen)
+ 					continue
+ 				}
+ 				naf6++
+ 			}
+ 			t.Logf("interface address %q", ifa.String())
++		case *IPAddr:
++			if ifa == nil || ifa.IP == nil || ifa.IP.IsUnspecified() || ifa.IP.IsMulticast() {
++				t.Errorf("unexpected value: %+v", ifa)
++				continue
++			}
++			if ifa.IP.To4() != nil {
++				naf4++
++			}
++			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
++				naf6++
++			}
++			t.Logf("interface address %s", ifa.String())
+ 		default:
+ 			t.Errorf("unexpected type: %T", ifa)
+ 		}
+@@ -217,7 +238,8 @@ func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
+ 			}
+ 			if ifma.IP.To4() != nil {
+ 				nmaf4++
+-			} else if ifma.IP.To16() != nil {
++			}
++			if ifma.IP.To16() != nil && ifma.IP.To4() == nil {
+ 				nmaf6++
+ 			}
+ 			t.Logf("joined group address %q", ifma.String())
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index 8cb9d76237..55c4821090 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -11,131 +11,105 @@ import (
+ 	"unsafe"
+ )
+ 
+-func getAdapters() (*windows.IpAdapterAddresses, error) {
+-	block := uint32(unsafe.Sizeof(windows.IpAdapterAddresses{}))
++// supportsVistaIP reports whether the platform implements new IP
++// stack and ABIs supported on Windows Vista and above.
++var supportsVistaIP bool
+ 
+-	// pre-allocate a 15KB working buffer pointed to by the AdapterAddresses
+-	// parameter.
+-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa365915(v=vs.85).aspx
+-	size := uint32(15000)
+-
+-	var addrs []windows.IpAdapterAddresses
+-	for {
+-		addrs = make([]windows.IpAdapterAddresses, size/block+1)
+-		err := windows.GetAdaptersAddresses(syscall.AF_UNSPEC, windows.GAA_FLAG_INCLUDE_PREFIX, 0, &addrs[0], &size)
+-		if err == nil {
+-			break
+-		}
+-		if err.(syscall.Errno) != syscall.ERROR_BUFFER_OVERFLOW {
+-			return nil, os.NewSyscallError("getadaptersaddresses", err)
+-		}
+-	}
+-	return &addrs[0], nil
++func init() {
++	supportsVistaIP = probeWindowsIPStack()
+ }
+ 
+-func getInterfaceInfos() ([]syscall.InterfaceInfo, error) {
+-	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer closeFunc(s)
+-
+-	iia := [20]syscall.InterfaceInfo{}
+-	ret := uint32(0)
+-	size := uint32(unsafe.Sizeof(iia))
+-	err = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&iia[0])), size, &ret, nil, 0)
++func probeWindowsIPStack() (supportsVistaIP bool) {
++	v, err := syscall.GetVersion()
+ 	if err != nil {
+-		return nil, os.NewSyscallError("wsaioctl", err)
++		return true // Windows 10 and above will deprecate this API
+ 	}
+-	iilen := ret / uint32(unsafe.Sizeof(iia[0]))
+-	return iia[:iilen], nil
+-}
+-
+-func bytesEqualIP(a []byte, b []int8) bool {
+-	for i := 0; i < len(a); i++ {
+-		if a[i] != byte(b[i]) {
+-			return false
+-		}
++	if byte(v) < 6 { // major version of Windows Vista is 6
++		return false
+ 	}
+ 	return true
+ }
+ 
+-func findInterfaceInfo(iis []syscall.InterfaceInfo, paddr *windows.IpAdapterAddresses) *syscall.InterfaceInfo {
+-	for _, ii := range iis {
+-		iaddr := (*syscall.RawSockaddr)(unsafe.Pointer(&ii.Address))
+-		puni := paddr.FirstUnicastAddress
+-		for ; puni != nil; puni = puni.Next {
+-			if iaddr.Family == puni.Address.Sockaddr.Addr.Family {
+-				switch iaddr.Family {
+-				case syscall.AF_INET:
+-					a := (*syscall.RawSockaddrInet4)(unsafe.Pointer(&ii.Address)).Addr
+-					if bytesEqualIP(a[:], puni.Address.Sockaddr.Addr.Data[2:]) {
+-						return &ii
+-					}
+-				case syscall.AF_INET6:
+-					a := (*syscall.RawSockaddrInet6)(unsafe.Pointer(&ii.Address)).Addr
+-					if bytesEqualIP(a[:], puni.Address.Sockaddr.Addr.Data[2:]) {
+-						return &ii
+-					}
+-				default:
+-					continue
+-				}
++// adapterAddresses returns a list of IP adapter and address
++// structures. The structure contains an IP adapter and flattened
++// multiple IP addresses including unicast, anycast and multicast
++// addresses.
++func adapterAddresses() ([]*windows.IpAdapterAddresses, error) {
++	var b []byte
++	l := uint32(15000) // recommended initial size
++	for {
++		b = make([]byte, l)
++		err := windows.GetAdaptersAddresses(syscall.AF_UNSPEC, windows.GAA_FLAG_INCLUDE_PREFIX, 0, (*windows.IpAdapterAddresses)(unsafe.Pointer(&b[0])), &l)
++		if err == nil {
++			if l == 0 {
++				return nil, nil
+ 			}
++			break
+ 		}
++		if err.(syscall.Errno) != syscall.ERROR_BUFFER_OVERFLOW {
++			return nil, os.NewSyscallError("getadaptersaddresses", err)
++		}
++		if l <= uint32(len(b)) {
++			return nil, os.NewSyscallError("getadaptersaddresses", err)
++		}
++	}
++	var aas []*windows.IpAdapterAddresses
++	for aa := (*windows.IpAdapterAddresses)(unsafe.Pointer(&b[0])); aa != nil; aa = aa.Next {
++		aas = append(aas, aa)
+ 	}
+-	return nil
++	return aas, nil
+ }
+ 
+ // If the ifindex is zero, interfaceTable returns mappings of all
+ // network interfaces.  Otherwise it returns a mapping of a specific
+ // interface.
+ func interfaceTable(ifindex int) ([]Interface, error) {
+-	paddr, err := getAdapters()
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	iis, err := getInterfaceInfos()
++	aas, err := adapterAddresses()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-
+ 	var ift []Interface
+-	for ; paddr != nil; paddr = paddr.Next {
+-		index := paddr.IfIndex
+-		if paddr.Ipv6IfIndex != 0 {
+-			index = paddr.Ipv6IfIndex
++	for _, aa := range aas {
++		index := aa.IfIndex
++		if index == 0 { // ipv6IfIndex is a sustitute for ifIndex
++			index = aa.Ipv6IfIndex
+ 		}
+ 		if ifindex == 0 || ifindex == int(index) {
+-			ii := findInterfaceInfo(iis, paddr)
+-			if ii == nil {
+-				continue
+-			}
+-			var flags Flags
+-			if paddr.Flags&windows.IfOperStatusUp != 0 {
+-				flags |= FlagUp
+-			}
+-			if paddr.IfType&windows.IF_TYPE_SOFTWARE_LOOPBACK != 0 {
+-				flags |= FlagLoopback
++			ifi := Interface{
++				Index: int(index),
++				Name:  syscall.UTF16ToString((*(*[10000]uint16)(unsafe.Pointer(aa.FriendlyName)))[:]),
+ 			}
+-			if ii.Flags&syscall.IFF_BROADCAST != 0 {
+-				flags |= FlagBroadcast
++			if aa.OperStatus == windows.IfOperStatusUp {
++				ifi.Flags |= FlagUp
+ 			}
+-			if ii.Flags&syscall.IFF_POINTTOPOINT != 0 {
+-				flags |= FlagPointToPoint
++			// For now we need to infer link-layer service
++			// capabilities from media types.
++			// We will be able to use
++			// MIB_IF_ROW2.AccessType once we drop support
++			// for Windows XP.
++			switch aa.IfType {
++			case windows.IF_TYPE_ETHERNET_CSMACD, windows.IF_TYPE_ISO88025_TOKENRING, windows.IF_TYPE_IEEE80211, windows.IF_TYPE_IEEE1394:
++				ifi.Flags |= FlagBroadcast | FlagMulticast
++			case windows.IF_TYPE_PPP, windows.IF_TYPE_TUNNEL:
++				ifi.Flags |= FlagPointToPoint | FlagMulticast
++			case windows.IF_TYPE_SOFTWARE_LOOPBACK:
++				ifi.Flags |= FlagLoopback | FlagMulticast
++			case windows.IF_TYPE_ATM:
++				ifi.Flags |= FlagBroadcast |
++					FlagPointToPoint |
++					FlagMulticast // assume all services available; LANE, point-to-point and point-to-multipoint
+ 			}
+-			if ii.Flags&syscall.IFF_MULTICAST != 0 {
+-				flags |= FlagMulticast
++			if aa.Mtu == 0xffffffff {
++				ifi.MTU = -1
++			} else {
++				ifi.MTU = int(aa.Mtu)
+ 			}
+-			ifi := Interface{
+-				Index:        int(index),
+-				MTU:          int(paddr.Mtu),
+-				Name:         syscall.UTF16ToString((*(*[10000]uint16)(unsafe.Pointer(paddr.FriendlyName)))[:]),
+-				HardwareAddr: HardwareAddr(paddr.PhysicalAddress[:]),
+-				Flags:        flags,
++			if aa.PhysicalAddressLength > 0 {
++				ifi.HardwareAddr = make(HardwareAddr, aa.PhysicalAddressLength)
++				copy(ifi.HardwareAddr, aa.PhysicalAddress[:])
+ 			}
+ 			ift = append(ift, ifi)
+-			if ifindex == int(ifi.Index) {
++			if ifindex == ifi.Index {
+ 				break
+ 			}
+ 		}
+@@ -147,86 +121,156 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ // network interfaces.  Otherwise it returns addresses for a specific
+ // interface.
+ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+-	paddr, err := getAdapters()
++	aas, err := adapterAddresses()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-
+ 	var ifat []Addr
+-	for ; paddr != nil; paddr = paddr.Next {
+-		index := paddr.IfIndex
+-		if paddr.Ipv6IfIndex != 0 {
+-			index = paddr.Ipv6IfIndex
++	for _, aa := range aas {
++		index := aa.IfIndex
++		if index == 0 { // ipv6IfIndex is a sustitute for ifIndex
++			index = aa.Ipv6IfIndex
++		}
++		var pfx4, pfx6 []IPNet
++		if !supportsVistaIP {
++			pfx4, pfx6, err = addrPrefixTable(aa)
++			if err != nil {
++				return nil, err
++			}
+ 		}
+ 		if ifi == nil || ifi.Index == int(index) {
+-			puni := paddr.FirstUnicastAddress
+-			for ; puni != nil; puni = puni.Next {
+-				if sa, err := puni.Address.Sockaddr.Sockaddr(); err == nil {
+-					switch sav := sa.(type) {
+-					case *syscall.SockaddrInet4:
+-						ifa := &IPNet{IP: make(IP, IPv4len), Mask: CIDRMask(int(puni.Address.SockaddrLength), 8*IPv4len)}
+-						copy(ifa.IP, sav.Addr[:])
+-						ifat = append(ifat, ifa)
+-					case *syscall.SockaddrInet6:
+-						ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(puni.Address.SockaddrLength), 8*IPv6len)}
+-						copy(ifa.IP, sav.Addr[:])
+-						ifat = append(ifat, ifa)
++			for puni := aa.FirstUnicastAddress; puni != nil; puni = puni.Next {
++				sa, err := puni.Address.Sockaddr.Sockaddr()
++				if err != nil {
++					return nil, os.NewSyscallError("sockaddr", err)
++				}
++				var l int
++				switch sa := sa.(type) {
++				case *syscall.SockaddrInet4:
++					if supportsVistaIP {
++						l = int(puni.OnLinkPrefixLength)
++					} else {
++						l = addrPrefixLen(pfx4, IP(sa.Addr[:]))
+ 					}
++					ifa := &IPNet{IP: make(IP, IPv4len), Mask: CIDRMask(l, 8*IPv4len)}
++					copy(ifa.IP, sa.Addr[:])
++					ifat = append(ifat, ifa)
++				case *syscall.SockaddrInet6:
++					if supportsVistaIP {
++						l = int(puni.OnLinkPrefixLength)
++					} else {
++						l = addrPrefixLen(pfx6, IP(sa.Addr[:]))
++					}
++					ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(l, 8*IPv6len)}
++					copy(ifa.IP, sa.Addr[:])
++					ifat = append(ifat, ifa)
+ 				}
+ 			}
+-			pany := paddr.FirstAnycastAddress
+-			for ; pany != nil; pany = pany.Next {
+-				if sa, err := pany.Address.Sockaddr.Sockaddr(); err == nil {
+-					switch sav := sa.(type) {
+-					case *syscall.SockaddrInet4:
+-						ifa := &IPNet{IP: make(IP, IPv4len), Mask: CIDRMask(int(pany.Address.SockaddrLength), 8*IPv4len)}
+-						copy(ifa.IP, sav.Addr[:])
+-						ifat = append(ifat, ifa)
+-					case *syscall.SockaddrInet6:
+-						ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(pany.Address.SockaddrLength), 8*IPv6len)}
+-						copy(ifa.IP, sav.Addr[:])
+-						ifat = append(ifat, ifa)
+-					}
++			for pany := aa.FirstAnycastAddress; pany != nil; pany = pany.Next {
++				sa, err := pany.Address.Sockaddr.Sockaddr()
++				if err != nil {
++					return nil, os.NewSyscallError("sockaddr", err)
++				}
++				switch sa := sa.(type) {
++				case *syscall.SockaddrInet4:
++					ifa := &IPAddr{IP: make(IP, IPv4len)}
++					copy(ifa.IP, sa.Addr[:])
++					ifat = append(ifat, ifa)
++				case *syscall.SockaddrInet6:
++					ifa := &IPAddr{IP: make(IP, IPv6len)}
++					copy(ifa.IP, sa.Addr[:])
++					ifat = append(ifat, ifa)
+ 				}
+ 			}
+ 		}
+ 	}
+-
+ 	return ifat, nil
+ }
+ 
++func addrPrefixTable(aa *windows.IpAdapterAddresses) (pfx4, pfx6 []IPNet, err error) {
++	for p := aa.FirstPrefix; p != nil; p = p.Next {
++		sa, err := p.Address.Sockaddr.Sockaddr()
++		if err != nil {
++			return nil, nil, os.NewSyscallError("sockaddr", err)
++		}
++		switch sa := sa.(type) {
++		case *syscall.SockaddrInet4:
++			pfx := IPNet{IP: IP(sa.Addr[:]), Mask: CIDRMask(int(p.PrefixLength), 8*IPv4len)}
++			pfx4 = append(pfx4, pfx)
++		case *syscall.SockaddrInet6:
++			pfx := IPNet{IP: IP(sa.Addr[:]), Mask: CIDRMask(int(p.PrefixLength), 8*IPv6len)}
++			pfx6 = append(pfx6, pfx)
++		}
++	}
++	return
++}
++
++// addrPrefixLen returns an appropriate prefix length in bits for ip
++// from pfxs. It returns 32 or 128 when no appropriate on-link address
++// prefix found.
++//
++// NOTE: This is pretty naive implementation that contains many
++// allocations and non-effective linear search, and should not be used
++// freely.
++func addrPrefixLen(pfxs []IPNet, ip IP) int {
++	var l int
++	var cand *IPNet
++	for i := range pfxs {
++		if !pfxs[i].Contains(ip) {
++			continue
++		}
++		if cand == nil {
++			l, _ = pfxs[i].Mask.Size()
++			cand = &pfxs[i]
++			continue
++		}
++		m, _ := pfxs[i].Mask.Size()
++		if m > l {
++			l = m
++			cand = &pfxs[i]
++			continue
++		}
++	}
++	if l > 0 {
++		return l
++	}
++	if ip.To4() != nil {
++		return 8 * IPv4len
++	}
++	return 8 * IPv6len
++}
++
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+-	paddr, err := getAdapters()
++	aas, err := adapterAddresses()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-
+ 	var ifat []Addr
+-	for ; paddr != nil; paddr = paddr.Next {
+-		index := paddr.IfIndex
+-		if paddr.Ipv6IfIndex != 0 {
+-			index = paddr.Ipv6IfIndex
++	for _, aa := range aas {
++		index := aa.IfIndex
++		if index == 0 { // ipv6IfIndex is a sustitute for ifIndex
++			index = aa.Ipv6IfIndex
+ 		}
+ 		if ifi == nil || ifi.Index == int(index) {
+-			pmul := paddr.FirstMulticastAddress
+-			for ; pmul != nil; pmul = pmul.Next {
+-				if sa, err := pmul.Address.Sockaddr.Sockaddr(); err == nil {
+-					switch sav := sa.(type) {
+-					case *syscall.SockaddrInet4:
+-						ifa := &IPAddr{IP: make(IP, IPv4len)}
+-						copy(ifa.IP, sav.Addr[:])
+-						ifat = append(ifat, ifa)
+-					case *syscall.SockaddrInet6:
+-						ifa := &IPAddr{IP: make(IP, IPv6len)}
+-						copy(ifa.IP, sav.Addr[:])
+-						ifat = append(ifat, ifa)
+-					}
++			for pmul := aa.FirstMulticastAddress; pmul != nil; pmul = pmul.Next {
++				sa, err := pmul.Address.Sockaddr.Sockaddr()
++				if err != nil {
++					return nil, os.NewSyscallError("sockaddr", err)
++				}
++				switch sa := sa.(type) {
++				case *syscall.SockaddrInet4:
++					ifa := &IPAddr{IP: make(IP, IPv4len)}
++					copy(ifa.IP, sa.Addr[:])
++					ifat = append(ifat, ifa)
++				case *syscall.SockaddrInet6:
++					ifa := &IPAddr{IP: make(IP, IPv6len)}
++					copy(ifa.IP, sa.Addr[:])
++					ifat = append(ifat, ifa)
+ 				}
+ 			}
+ 		}
+ 	}
+-
+ 	return ifat, nil
+ }
+diff --git a/src/net/interface_windows_test.go b/src/net/interface_windows_test.go
+new file mode 100644
+index 0000000000..03f9168b48
+--- /dev/null
++++ b/src/net/interface_windows_test.go
+@@ -0,0 +1,132 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"bytes"
++	"internal/syscall/windows"
++	"sort"
++	"testing"
++)
++
++func TestWindowsInterfaces(t *testing.T) {
++	aas, err := adapterAddresses()
++	if err != nil {
++		t.Fatal(err)
++	}
++	ift, err := Interfaces()
++	if err != nil {
++		t.Fatal(err)
++	}
++	for i, ifi := range ift {
++		aa := aas[i]
++		if len(ifi.HardwareAddr) != int(aa.PhysicalAddressLength) {
++			t.Errorf("got %d; want %d", len(ifi.HardwareAddr), aa.PhysicalAddressLength)
++		}
++		if ifi.MTU > 0x7fffffff {
++			t.Errorf("%s: got %d; want less than or equal to 1<<31 - 1", ifi.Name, ifi.MTU)
++		}
++		if ifi.Flags&FlagUp != 0 && aa.OperStatus != windows.IfOperStatusUp {
++			t.Errorf("%s: got %v; should not include FlagUp", ifi.Name, ifi.Flags)
++		}
++		if ifi.Flags&FlagLoopback != 0 && aa.IfType != windows.IF_TYPE_SOFTWARE_LOOPBACK {
++			t.Errorf("%s: got %v; should not include FlagLoopback", ifi.Name, ifi.Flags)
++		}
++		if _, _, err := addrPrefixTable(aa); err != nil {
++			t.Errorf("%s: %v", ifi.Name, err)
++		}
++	}
++}
++
++type byAddrLen []IPNet
++
++func (ps byAddrLen) Len() int { return len(ps) }
++
++func (ps byAddrLen) Less(i, j int) bool {
++	if n := bytes.Compare(ps[i].IP, ps[j].IP); n != 0 {
++		return n < 0
++	}
++	if n := bytes.Compare(ps[i].Mask, ps[j].Mask); n != 0 {
++		return n < 0
++	}
++	return false
++}
++
++func (ps byAddrLen) Swap(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
++
++var windowsAddrPrefixLenTests = []struct {
++	pfxs []IPNet
++	ip   IP
++	out  int
++}{
++	{
++		[]IPNet{
++			{IP: IPv4(172, 16, 0, 0), Mask: IPv4Mask(255, 255, 0, 0)},
++			{IP: IPv4(192, 168, 0, 0), Mask: IPv4Mask(255, 255, 255, 0)},
++			{IP: IPv4(192, 168, 0, 0), Mask: IPv4Mask(255, 255, 255, 128)},
++			{IP: IPv4(192, 168, 0, 0), Mask: IPv4Mask(255, 255, 255, 192)},
++		},
++		IPv4(192, 168, 0, 1),
++		26,
++	},
++	{
++		[]IPNet{
++			{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff0"))},
++			{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff8"))},
++			{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc"))},
++		},
++		ParseIP("2001:db8::1"),
++		126,
++	},
++
++	// Fallback cases. It may happen on Windows XP or 2003 server.
++	{
++		[]IPNet{
++			{IP: IPv4(127, 0, 0, 0).To4(), Mask: IPv4Mask(255, 0, 0, 0)},
++			{IP: IPv4(10, 0, 0, 0).To4(), Mask: IPv4Mask(255, 0, 0, 0)},
++			{IP: IPv4(172, 16, 0, 0).To4(), Mask: IPv4Mask(255, 255, 0, 0)},
++			{IP: IPv4(192, 168, 255, 0), Mask: IPv4Mask(255, 255, 255, 0)},
++			{IP: IPv4zero, Mask: IPv4Mask(0, 0, 0, 0)},
++		},
++		IPv4(192, 168, 0, 1),
++		8 * IPv4len,
++	},
++	{
++		nil,
++		IPv4(192, 168, 0, 1),
++		8 * IPv4len,
++	},
++	{
++		[]IPNet{
++			{IP: IPv6loopback, Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"))},
++			{IP: ParseIP("2001:db8:1::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff0"))},
++			{IP: ParseIP("2001:db8:2::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fff8"))},
++			{IP: ParseIP("2001:db8:3::"), Mask: IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc"))},
++			{IP: IPv6unspecified, Mask: IPMask(ParseIP("::"))},
++		},
++		ParseIP("2001:db8::1"),
++		8 * IPv6len,
++	},
++	{
++		nil,
++		ParseIP("2001:db8::1"),
++		8 * IPv6len,
++	},
++}
++
++func TestWindowsAddrPrefixLen(t *testing.T) {
++	for i, tt := range windowsAddrPrefixLenTests {
++		sort.Sort(byAddrLen(tt.pfxs))
++		l := addrPrefixLen(tt.pfxs, tt.ip)
++		if l != tt.out {
++			t.Errorf("#%d: got %d; want %d", i, l, tt.out)
++		}
++		sort.Sort(sort.Reverse(byAddrLen(tt.pfxs)))
++		l = addrPrefixLen(tt.pfxs, tt.ip)
++		if l != tt.out {
++			t.Errorf("#%d: got %d; want %d", i, l, tt.out)
++		}
++	}
++}
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index b8091e6edb..ce002a62b0 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -315,13 +315,12 @@ func netshInterfaceIPv6ShowAddress(name string) ([]string, error) {
+ 		}
+ 		// remove scope ID if present
+ 		f = bytes.Split(f[1], []byte{'%'})
+-		addrs = append(addrs, string(bytes.TrimSpace(f[0])))
++		addrs = append(addrs, string(bytes.ToLower(bytes.TrimSpace(f[0]))))
+ 	}
+ 	return addrs, nil
+ }
+ 
+ func TestInterfaceAddrsWithNetsh(t *testing.T) {
+-	t.Skip("skipping test; see https://golang.org/issue/12811")
+ 	if isWindowsXP(t) {
+ 		t.Skip("Windows XP netsh command does not provide required functionality")
+ 	}
+@@ -375,7 +374,6 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
+ }
+ 
+ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+-	t.Skip("skipping test; see https://golang.org/issue/12691")
+ 	if isWindowsXP(t) {
+ 		t.Skip("Windows XP does not have powershell command")
+ 	}
+@@ -386,7 +384,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+ 	have := make([]string, 0)
+ 	for _, ifi := range ift {
+ 		if ifi.Flags&FlagLoopback != 0 {
+-			// no MAC for loopback interfaces
++			// no MAC address for loopback interfaces
+ 			continue
+ 		}
+ 		have = append(have, ifi.Name+"="+ifi.HardwareAddr.String())
+@@ -436,7 +434,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+ 			if len(f) != 2 {
+ 				t.Fatal("unexpected \"Physical Address\" line: %q", line)
+ 			}
+-			addr := string(bytes.TrimSpace(f[1]))
++			addr := string(bytes.ToLower(bytes.TrimSpace(f[1])))
+ 			if addr == "" {
+ 				t.Fatal("empty address on \"Physical Address\" line: %q", line)
+ 			}

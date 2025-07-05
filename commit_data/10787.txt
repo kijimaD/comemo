@@ -20,6 +20,20 @@ Date:   Wed Dec 14 10:44:34 2011 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/5488085
-
+---
  src/pkg/net/http/transport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 62d36d6986..dc70be43f2 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -544,7 +544,7 @@ func (pc *persistConn) readLoop() {
+ 				resp.Header.Del("Content-Length")
+ 				resp.ContentLength = -1
+ 				gzReader, zerr := gzip.NewReader(resp.Body)
+-				if zerr != nil {
++				if err != nil {
+ 					pc.close()
+ 					err = zerr
+ 				} else {

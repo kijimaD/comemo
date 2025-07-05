@@ -7,6 +7,26 @@ Date:   Wed Apr 14 21:33:34 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/840045
-
+---
  src/pkg/scanner/scanner.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/scanner/scanner.go
+index 25544f667e..f60a4eed27 100644
+--- a/src/pkg/scanner/scanner.go
++++ b/src/pkg/scanner/scanner.go
+@@ -282,6 +282,14 @@ func (s *Scanner) Next() int {
+ }
+ 
+ 
++// Peek returns the next Unicode character in the source without advancing
++// the scanner. It returns EOF if the scanner's position is at the last
++// character of the source.
++func (s *Scanner) Peek() int {
++	return s.ch
++}
++
++
+ func (s *Scanner) error(msg string) {
+ 	s.ErrorCount++
+ 	if s.Error != nil {

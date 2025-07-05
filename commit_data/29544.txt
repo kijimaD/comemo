@@ -9,6 +9,20 @@ Date:   Wed Sep 21 15:03:52 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9b7d7a99c7..42a379ad07 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1147,7 +1147,7 @@ func (l *Link) hostlink() {
+ 	}
+ 
+ 	if l.Debugvlog != 0 {
+-		l.Logf("host link:")
++		l.Logf("%5.2f host link:", obj.Cputime())
+ 		for _, v := range argv {
+ 			l.Logf(" %q", v)
+ 		}

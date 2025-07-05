@@ -18,7 +18,7 @@ Date:   Wed Dec 18 10:57:07 2013 -0500
     R=golang-dev, minux.ma, agl
     CC=golang-dev
     https://golang.org/cl/22020045
-
+---
  src/pkg/crypto/x509/root_cgo_darwin.go   | 79 ++++++++++++++++++++++++++++++++
  src/pkg/crypto/x509/root_darwin.go       | 78 ++++---------------------------
  src/pkg/crypto/x509/root_darwin_test.go  | 50 ++++++++++++++++++++
@@ -26,3 +26,386 @@ Date:   Wed Dec 18 10:57:07 2013 -0500
  src/pkg/crypto/x509/root_stub.go         | 14 ------
  src/pkg/os/exec/exec_test.go             | 28 ++++++-----
  6 files changed, 166 insertions(+), 94 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/root_cgo_darwin.go b/src/pkg/crypto/x509/root_cgo_darwin.go
+new file mode 100644
+index 0000000000..bdcc2c1708
+--- /dev/null
++++ b/src/pkg/crypto/x509/root_cgo_darwin.go
+@@ -0,0 +1,79 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++
++package x509
++
++/*
++#cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1060
++#cgo LDFLAGS: -framework CoreFoundation -framework Security
++
++#include <CoreFoundation/CoreFoundation.h>
++#include <Security/Security.h>
++
++// FetchPEMRoots fetches the system's list of trusted X.509 root certificates.
++//
++// On success it returns 0 and fills pemRoots with a CFDataRef that contains the extracted root
++// certificates of the system. On failure, the function returns -1.
++//
++// Note: The CFDataRef returned in pemRoots must be released (using CFRelease) after
++// we've consumed its content.
++int FetchPEMRoots(CFDataRef *pemRoots) {
++	if (pemRoots == NULL) {
++		return -1;
++	}
++
++	CFArrayRef certs = NULL;
++	OSStatus err = SecTrustCopyAnchorCertificates(&certs);
++	if (err != noErr) {
++		return -1;
++	}
++
++	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
++	int i, ncerts = CFArrayGetCount(certs);
++	for (i = 0; i < ncerts; i++) {
++		CFDataRef data = NULL;
++		SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, i);
++		if (cert == NULL) {
++			continue;
++		}
++
++		// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
++		// Once we support weak imports via cgo we should prefer that, and fall back to this
++		// for older systems.
++		err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
++		if (err != noErr) {
++			continue;
++		}
++
++		if (data != NULL) {
++			CFDataAppendBytes(combinedData, CFDataGetBytePtr(data), CFDataGetLength(data));
++			CFRelease(data);
++		}
++	}
++
++	CFRelease(certs);
++
++	*pemRoots = combinedData;
++	return 0;
++}
++*/
++import "C"
++import "unsafe"
++
++func initSystemRoots() {
++	roots := NewCertPool()
++
++	var data C.CFDataRef = nil
++	err := C.FetchPEMRoots(&data)
++	if err == -1 {
++		return
++	}
++
++	defer C.CFRelease(C.CFTypeRef(data))
++	buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
++	roots.AppendCertsFromPEM(buf)
++	systemRoots = roots
++}
+diff --git a/src/pkg/crypto/x509/root_darwin.go b/src/pkg/crypto/x509/root_darwin.go
+index ad3bfb4b43..2a61d36eae 100644
+--- a/src/pkg/crypto/x509/root_darwin.go
++++ b/src/pkg/crypto/x509/root_darwin.go
+@@ -1,81 +1,23 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
++// Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package x509
+ 
+-/*
+-#cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1060
+-#cgo LDFLAGS: -framework CoreFoundation -framework Security
+-
+-#include <CoreFoundation/CoreFoundation.h>
+-#include <Security/Security.h>
+-
+-// FetchPEMRoots fetches the system's list of trusted X.509 root certificates.
+-//
+-// On success it returns 0 and fills pemRoots with a CFDataRef that contains the extracted root
+-// certificates of the system. On failure, the function returns -1.
+-//
+-// Note: The CFDataRef returned in pemRoots must be released (using CFRelease) after
+-// we've consumed its content.
+-int FetchPEMRoots(CFDataRef *pemRoots) {
+-	if (pemRoots == NULL) {
+-		return -1;
+-	}
+-
+-	CFArrayRef certs = NULL;
+-	OSStatus err = SecTrustCopyAnchorCertificates(&certs);
+-	if (err != noErr) {
+-		return -1;
+-	}
+-
+-	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
+-	int i, ncerts = CFArrayGetCount(certs);
+-	for (i = 0; i < ncerts; i++) {
+-		CFDataRef data = NULL;
+-		SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, i);
+-		if (cert == NULL) {
+-			continue;
+-		}
+-
+-		// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
+-		// Once we support weak imports via cgo we should prefer that, and fall back to this
+-		// for older systems.
+-		err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
+-		if (err != noErr) {
+-			continue;
+-		}
+-
+-		if (data != NULL) {
+-			CFDataAppendBytes(combinedData, CFDataGetBytePtr(data), CFDataGetLength(data));
+-			CFRelease(data);
+-		}
+-	}
+-
+-	CFRelease(certs);
+-
+-	*pemRoots = combinedData;
+-	return 0;
+-}
+-*/
+-import "C"
+-import "unsafe"
++import "os/exec"
+ 
+ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+ 	return nil, nil
+ }
+ 
+-func initSystemRoots() {
+-	roots := NewCertPool()
+-
+-	var data C.CFDataRef = nil
+-	err := C.FetchPEMRoots(&data)
+-	if err == -1 {
+-		return
++func execSecurityRoots() (*CertPool, error) {
++	cmd := exec.Command("/usr/bin/security", "find-certificate", "-a", "-p", "/System/Library/Keychains/SystemRootCertificates.keychain")
++	data, err := cmd.Output()
++	if err != nil {
++		return nil, err
+ 	}
+ 
+-	defer C.CFRelease(C.CFTypeRef(data))
+-	buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
+-	roots.AppendCertsFromPEM(buf)
+-	systemRoots = roots
++	roots := NewCertPool()
++	roots.AppendCertsFromPEM(data)
++	return roots, nil
+ }
+diff --git a/src/pkg/crypto/x509/root_darwin_test.go b/src/pkg/crypto/x509/root_darwin_test.go
+new file mode 100644
+index 0000000000..87ea4e344f
+--- /dev/null
++++ b/src/pkg/crypto/x509/root_darwin_test.go
+@@ -0,0 +1,50 @@
++package x509
++
++import "testing"
++
++func TestSystemRoots(t *testing.T) {
++	sysRoots := systemRootsPool()         // actual system roots
++	execRoots, err := execSecurityRoots() // non-cgo roots
++
++	if err != nil {
++		t.Fatalf("failed to read system roots: %v", err)
++	}
++
++	for _, tt := range []*CertPool{sysRoots, execRoots} {
++		if tt == nil {
++			t.Fatal("no system roots")
++		}
++		// On Mavericks, there are 212 bundled certs; require only
++		// 150 here, since this is just a sanity check, and the
++		// exact number will vary over time.
++		if want, have := 150, len(tt.certs); have < want {
++			t.Fatalf("want at least %d system roots, have %d", want, have)
++		}
++	}
++
++	// Check that the two cert pools are roughly the same;
++	// |A∩B| > max(|A|, |B|) / 2 should be a reasonably robust check.
++
++	isect := make(map[string]bool, len(sysRoots.certs))
++	for _, c := range sysRoots.certs {
++		isect[string(c.Raw)] = true
++	}
++
++	have := 0
++	for _, c := range execRoots.certs {
++		if isect[string(c.Raw)] {
++			have++
++		}
++	}
++
++	var want int
++	if nsys, nexec := len(sysRoots.certs), len(execRoots.certs); nsys > nexec {
++		want = nsys / 2
++	} else {
++		want = nexec / 2
++	}
++
++	if have < want {
++		t.Errorf("insufficent overlap between cgo and non-cgo roots; want at least %d, have %d", want, have)
++	}
++}
+diff --git a/src/pkg/crypto/x509/root_nocgo_darwin.go b/src/pkg/crypto/x509/root_nocgo_darwin.go
+new file mode 100644
+index 0000000000..d00e257662
+--- /dev/null
++++ b/src/pkg/crypto/x509/root_nocgo_darwin.go
+@@ -0,0 +1,11 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !cgo
++
++package x509
++
++func initSystemRoots() {
++	systemRoots, _ = execSecurityRoots()
++}
+diff --git a/src/pkg/crypto/x509/root_stub.go b/src/pkg/crypto/x509/root_stub.go
+deleted file mode 100644
+index 4c742ccc37..0000000000
+--- a/src/pkg/crypto/x509/root_stub.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin,!cgo
+-
+-package x509
+-
+-func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+-	return nil, nil
+-}
+-
+-func initSystemRoots() {
+-}
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index c380d6506c..5cf8437fbb 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -2,7 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package exec
++// Use an external test to avoid os/exec -> net/http -> crypto/x509 -> os/exec
++// circular dependency on non-cgo darwin.
++
++package exec_test
+ 
+ import (
+ 	"bufio"
+@@ -14,6 +17,7 @@ import (
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strconv"
+@@ -22,10 +26,10 @@ import (
+ 	"time"
+ )
+ 
+-func helperCommand(s ...string) *Cmd {
++func helperCommand(s ...string) *exec.Cmd {
+ 	cs := []string{"-test.run=TestHelperProcess", "--"}
+ 	cs = append(cs, s...)
+-	cmd := Command(os.Args[0], cs...)
++	cmd := exec.Command(os.Args[0], cs...)
+ 	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+ 	return cmd
+ }
+@@ -58,8 +62,8 @@ func TestCatStdin(t *testing.T) {
+ func TestCatGoodAndBadFile(t *testing.T) {
+ 	// Testing combined output and error values.
+ 	bs, err := helperCommand("cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
+-	if _, ok := err.(*ExitError); !ok {
+-		t.Errorf("expected *ExitError from cat combined; got %T: %v", err, err)
++	if _, ok := err.(*exec.ExitError); !ok {
++		t.Errorf("expected *exec.ExitError from cat combined; got %T: %v", err, err)
+ 	}
+ 	s := string(bs)
+ 	sp := strings.SplitN(s, "\n", 2)
+@@ -77,7 +81,7 @@ func TestCatGoodAndBadFile(t *testing.T) {
+ 
+ func TestNoExistBinary(t *testing.T) {
+ 	// Can't run a non-existent binary
+-	err := Command("/no-exist-binary").Run()
++	err := exec.Command("/no-exist-binary").Run()
+ 	if err == nil {
+ 		t.Error("expected error from /no-exist-binary")
+ 	}
+@@ -92,12 +96,12 @@ func TestExitStatus(t *testing.T) {
+ 	case "plan9":
+ 		want = fmt.Sprintf("exit status: '%s %d: 42'", filepath.Base(cmd.Path), cmd.ProcessState.Pid())
+ 	}
+-	if werr, ok := err.(*ExitError); ok {
++	if werr, ok := err.(*exec.ExitError); ok {
+ 		if s := werr.Error(); s != want {
+ 			t.Errorf("from exit 42 got exit %q, want %q", s, want)
+ 		}
+ 	} else {
+-		t.Fatalf("expected *ExitError from exit 42; got %T: %v", err, err)
++		t.Fatalf("expected *exec.ExitError from exit 42; got %T: %v", err, err)
+ 	}
+ }
+ 
+@@ -184,7 +188,7 @@ func TestStdinClose(t *testing.T) {
+ func TestPipeLookPathLeak(t *testing.T) {
+ 	fd0 := numOpenFDS(t)
+ 	for i := 0; i < 4; i++ {
+-		cmd := Command("something-that-does-not-exist-binary")
++		cmd := exec.Command("something-that-does-not-exist-binary")
+ 		cmd.StdoutPipe()
+ 		cmd.StderrPipe()
+ 		cmd.StdinPipe()
+@@ -199,7 +203,7 @@ func TestPipeLookPathLeak(t *testing.T) {
+ }
+ 
+ func numOpenFDS(t *testing.T) int {
+-	lsof, err := Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
++	lsof, err := exec.Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+ 	if err != nil {
+ 		t.Skip("skipping test; error finding or running lsof")
+ 		return 0
+@@ -425,7 +429,7 @@ func TestExtraFilesRace(t *testing.T) {
+ 		}
+ 		return f
+ 	}
+-	runCommand := func(c *Cmd, out chan<- string) {
++	runCommand := func(c *exec.Cmd, out chan<- string) {
+ 		bout, err := c.CombinedOutput()
+ 		if err != nil {
+ 			out <- "ERROR:" + err.Error()
+@@ -577,7 +581,7 @@ func TestHelperProcess(*testing.T) {
+ 				}
+ 				if got := f.Fd(); got != wantfd {
+ 					fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
+-					out, _ := Command(ofcmd, "-p", fmt.Sprint(os.Getpid())).CombinedOutput()
++					out, _ := exec.Command(ofcmd, "-p", fmt.Sprint(os.Getpid())).CombinedOutput()
+ 					fmt.Print(string(out))
+ 					os.Exit(1)
+ 				}

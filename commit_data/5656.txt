@@ -8,7 +8,7 @@ Date:   Mon Jun 14 11:24:51 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1663041
-
+---
  src/cmd/gc/bits.c      |   6 +-
  src/cmd/gc/const.c     |   2 +-
  src/cmd/gc/dcl.c       | 135 +--------
@@ -27,3 +27,2193 @@ Date:   Mon Jun 14 11:24:51 2010 -0700
  src/cmd/gc/typecheck.c |   8 +-
  src/cmd/gc/walk.c      | 177 ++----------
  17 files changed, 497 insertions(+), 838 deletions(-)
+
+diff --git a/src/cmd/gc/bits.c b/src/cmd/gc/bits.c
+index 59a8e04efb..1f2a776fd3 100644
+--- a/src/cmd/gc/bits.c
++++ b/src/cmd/gc/bits.c
+@@ -30,6 +30,7 @@
+ 
+ #include "go.h"
+ 
++/*
+ Bits
+ bor(Bits a, Bits b)
+ {
+@@ -52,7 +53,6 @@ band(Bits a, Bits b)
+ 	return c;
+ }
+ 
+-/*
+ Bits
+ bnot(Bits a)
+ {
+@@ -76,6 +76,7 @@ bany(Bits *a)
+ 	return 0;
+ }
+ 
++/*
+ int
+ beq(Bits a, Bits b)
+ {
+@@ -86,6 +87,7 @@ beq(Bits a, Bits b)
+ 			return 0;
+ 	return 1;
+ }
++*/
+ 
+ int
+ bnum(Bits a)
+@@ -110,6 +112,7 @@ blsh(uint n)
+ 	return c;
+ }
+ 
++/*
+ int
+ bset(Bits a, uint n)
+ {
+@@ -117,6 +120,7 @@ bset(Bits a, uint n)
+ 		return 1;
+ 	return 0;
+ }
++*/
+ 
+ int
+ bitno(int32 b)
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index c33d4d3a70..cec95359a0 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1117,7 +1117,7 @@ nonnegconst(Node *n)
+  * convert x to type et and back to int64
+  * for sign extension and truncation.
+  */
+-int64
++static int64
+ iconv(int64 x, int et)
+ {
+ 	switch(et) {
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index fadd4a039f..adb1531c3d 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -7,7 +7,7 @@
+ 
+ static	void	funcargs(Node*);
+ 
+-int
++static int
+ dflag(void)
+ {
+ 	if(!debug['d'])
+@@ -24,7 +24,7 @@ dflag(void)
+  */
+ static	Sym*	dclstack;
+ 
+-void
++static void
+ dcopy(Sym *a, Sym *b)
+ {
+ 	a->pkg = b->pkg;
+@@ -34,7 +34,7 @@ dcopy(Sym *a, Sym *b)
+ 	a->lastlineno = b->lastlineno;
+ }
+ 
+-Sym*
++static Sym*
+ push(void)
+ {
+ 	Sym *d;
+@@ -45,7 +45,7 @@ push(void)
+ 	return d;
+ }
+ 
+-Sym*
++static Sym*
+ pushdcl(Sym *s)
+ {
+ 	Sym *d;
+@@ -217,90 +217,6 @@ addvar(Node *n, Type *t, int ctxt)
+ 	n->type = t;
+ }
+ 
+-// TODO: cut use of below in sigtype and then delete
+-void
+-addtyp(Type *n, int ctxt)
+-{
+-	Node *def;
+-
+-	if(n==T || n->sym == S)
+-		fatal("addtyp: n=%T t=%T nil", n);
+-
+-	def = typenod(n);
+-	declare(def, ctxt);
+-	n->vargen = def->vargen;
+-
+-	typelist = list(typelist, def);
+-}
+-
+-/*
+- * introduce a type named n
+- * but it is an unknown type for now
+- */
+-// TODO(rsc): cut use of this in sigtype and then delete
+-Type*
+-dodcltype(Type *n)
+-{
+-	addtyp(n, dclcontext);
+-	n->local = 1;
+-	autoexport(typenod(n), dclcontext);
+-	return n;
+-}
+-
+-/*
+- * now we know what n is: it's t
+- */
+-// TODO(rsc): cut use of this in sigtype and then delete
+-void
+-updatetype(Type *n, Type *t)
+-{
+-	Sym *s;
+-	int local, vargen;
+-	int maplineno, lno, etype;
+-
+-	if(t == T)
+-		return;
+-	s = n->sym;
+-	if(s == S || s->def == N || s->def->op != OTYPE || s->def->type != n)
+-		fatal("updatetype %T = %T", n, t);
+-
+-	etype = n->etype;
+-	switch(n->etype) {
+-	case TFORW:
+-		break;
+-
+-	default:
+-		fatal("updatetype %T / %T", n, t);
+-	}
+-
+-	// decl was
+-	//	type n t;
+-	// copy t, but then zero out state associated with t
+-	// that is no longer associated with n.
+-	maplineno = n->maplineno;
+-	local = n->local;
+-	vargen = n->vargen;
+-	*n = *t;
+-	n->orig = t->orig;
+-	n->sym = s;
+-	n->local = local;
+-	n->siggen = 0;
+-	n->printed = 0;
+-	n->method = nil;
+-	n->vargen = vargen;
+-	n->nod = N;
+-
+-	checkwidth(n);
+-
+-	// double-check use of type as map key
+-	if(maplineno) {
+-		lno = lineno;
+-		lineno = maplineno;
+-		maptype(n, types[TBOOL]);
+-		lineno = lno;
+-	}
+-}
+-
+ /*
+  * declare variables from grammar
+  * new_name_list (type | [type] = expr_list)
+@@ -544,8 +460,6 @@ dclchecks(void)
+ static int
+ colasname(Node *n)
+ {
+-	// TODO(rsc): can probably simplify
+-	// once late-binding of names goes in
+ 	switch(n->op) {
+ 	case ONAME:
+ 	case ONONAME:
+@@ -769,7 +683,7 @@ ok:
+ /*
+  * turn a parsed struct into a type
+  */
+-Type**
++static Type**
+ stotype(NodeList *l, int et, Type **t)
+ {
+ 	Type *f, *t1, *t2, **t0;
+@@ -1028,15 +942,9 @@ checkarglist(NodeList *all, int input)
+ 				yyerror("cannot use ... in output argument list");
+ 			else if(l->next != nil)
+ 				yyerror("can only use ... as final argument in list");
+-			if(n->right->left == N) {
+-				// TODO(rsc): Delete with DDD cleanup.
+-				n->right->op = OTYPE;
+-				n->right->type = typ(TINTER);
+-			} else {
+-				n->right->op = OTARRAY;
+-				n->right->right = n->right->left;
+-				n->right->left = N;
+-			}
++			n->right->op = OTARRAY;
++			n->right->right = n->right->left;
++			n->right->left = N;
+ 			n->isddd = 1;
+ 			if(n->left != N)
+ 				n->left->isddd = 1;
+@@ -1108,33 +1016,6 @@ functype(Node *this, NodeList *in, NodeList *out)
+ 	return t;
+ }
+ 
+-int
+-methcmp(Type *t1, Type *t2)
+-{
+-	if(t1->etype != TFUNC)
+-		return 0;
+-	if(t2->etype != TFUNC)
+-		return 0;
+-
+-	t1 = t1->type->down;	// skip this arg
+-	t2 = t2->type->down;	// skip this arg
+-	for(;;) {
+-		if(t1 == t2)
+-			break;
+-		if(t1 == T || t2 == T)
+-			return 0;
+-		if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
+-			return 0;
+-
+-		if(!eqtype(t1->type, t2->type))
+-			return 0;
+-
+-		t1 = t1->down;
+-		t2 = t2->down;
+-	}
+-	return 1;
+-}
+-
+ Sym*
+ methodsym(Sym *nsym, Type *t0)
+ {
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index aa9d2f149e..52853c4540 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -5,13 +5,10 @@
+ #include	"go.h"
+ #include	"y.tab.h"
+ 
+-void dumpsym(Sym*);
+-
+-void
+-addexportsym(Node *n)
+-{
+-	exportlist = list(exportlist, n);
+-}
++static	void dumpsym(Sym*);
++static	void	dumpexporttype(Sym*);
++static	void	dumpexportvar(Sym*);
++static	void	dumpexportconst(Sym*);
+ 
+ void
+ exportsym(Node *n)
+@@ -25,10 +22,10 @@ exportsym(Node *n)
+ 	}
+ 	n->sym->flags |= SymExport;
+ 
+-	addexportsym(n);
++	exportlist = list(exportlist, n);
+ }
+ 
+-void
++static void
+ packagesym(Node *n)
+ {
+ 	if(n == N || n->sym == S)
+@@ -40,7 +37,7 @@ packagesym(Node *n)
+ 	}
+ 	n->sym->flags |= SymPackage;
+ 
+-	addexportsym(n);
++	exportlist = list(exportlist, n);
+ }
+ 
+ int
+@@ -69,7 +66,7 @@ autoexport(Node *n, int ctxt)
+ 		packagesym(n);
+ }
+ 
+-void
++static void
+ dumppkg(Pkg *p)
+ {
+ 	if(p == nil || p == localpkg || p->exported)
+@@ -78,7 +75,7 @@ dumppkg(Pkg *p)
+ 	Bprint(bout, "\timport %s \"%Z\"\n", p->name, p->path);
+ }
+ 
+-void
++static void
+ dumpprereq(Type *t)
+ {
+ 	if(t == T)
+@@ -97,7 +94,7 @@ dumpprereq(Type *t)
+ 	dumpprereq(t->down);
+ }
+ 
+-void
++static void
+ dumpexportconst(Sym *s)
+ {
+ 	Node *n;
+@@ -142,7 +139,7 @@ dumpexportconst(Sym *s)
+ 	}
+ }
+ 
+-void
++static void
+ dumpexportvar(Sym *s)
+ {
+ 	Node *n;
+@@ -166,7 +163,7 @@ dumpexportvar(Sym *s)
+ 	Bprint(bout, "\n");
+ }
+ 
+-void
++static void
+ dumpexporttype(Sym *s)
+ {
+ 	Type *t;
+@@ -192,7 +189,7 @@ methcmp(const void *va, const void *vb)
+ 	return strcmp(a->sym->name, b->sym->name);
+ }
+ 
+-void
++static void
+ dumpsym(Sym *s)
+ {
+ 	Type *f, *t;
+@@ -243,7 +240,7 @@ dumpsym(Sym *s)
+ 	}
+ }
+ 
+-void
++static void
+ dumptype(Type *t)
+ {
+ 	// no need to re-dump type if already exported
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index ec41d9b8eb..fd8a7f39b4 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -9,6 +9,9 @@
+ 
+ #include "go.h"
+ 
++static void	cgen_dcl(Node *n);
++static void	cgen_proc(Node *n, int proc);
++
+ Node*
+ sysfunc(char *name)
+ {
+@@ -61,7 +64,7 @@ allocparams(void)
+ 	lineno = lno;
+ }
+ 
+-void
++static void
+ newlab(int op, Sym *s, Node *stmt)
+ {
+ 	Label *lab;
+@@ -400,7 +403,7 @@ cgen_proc(Node *n, int proc)
+  * but might have to allocate heap copy
+  * for escaped variables.
+  */
+-void
++static void
+ cgen_dcl(Node *n)
+ {
+ 	if(debug['g'])
+@@ -419,7 +422,7 @@ cgen_dcl(Node *n)
+ /*
+  * generate discard of value
+  */
+-void
++static void
+ cgen_discard(Node *nr)
+ {
+ 	Node tmp;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 3f65502474..1cf459cd8c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -14,13 +14,8 @@
+ #define	EXTERN	extern
+ #endif
+ 
+-#undef	getc
+-#undef	ungetc
+ #undef	BUFSIZ
+ 
+-#define	getc	ccgetc
+-#define	ungetc	ccungetc
+-
+ enum
+ {
+ 	NHUNK		= 50000,
+@@ -614,6 +609,23 @@ struct	Magic
+ 	int	ua;	// output - adder
+ };
+ 
++typedef struct	Prog Prog;
++
++typedef	struct	Label Label;
++struct	Label
++{
++	uchar	op;		// OGOTO/OLABEL
++	Sym*	sym;
++	Node*	stmt;
++	Prog*	label;		// pointer to code
++	Prog*	breakpc;	// pointer to code
++	Prog*	continpc;	// pointer to code
++	Label*	link;
++};
++#define	L	((Label*)0)
++
++EXTERN	Label*	labellist;
++
+ /*
+  * note this is the runtime representation
+  * of the compilers arrays.
+@@ -757,397 +769,404 @@ EXTERN	int	compiling_runtime;
+  */
+ int	yyparse(void);
+ 
++/*
++ *	align.c
++ */
++int	argsize(Type *t);
++void	checkwidth(Type *t);
++void	defercheckwidth(void);
++void	dowidth(Type *t);
++void	resumecheckwidth(void);
++uint32	rnd(uint32 o, uint32 r);
++void	typeinit(void);
++
++/*
++ *	bits.c
++ */
++int	Qconv(Fmt *fp);
++Bits	band(Bits a, Bits b);
++int	bany(Bits *a);
++int	beq(Bits a, Bits b);
++int	bitno(int32 b);
++Bits	blsh(uint n);
++Bits	bnot(Bits a);
++int	bnum(Bits a);
++Bits	bor(Bits a, Bits b);
++int	bset(Bits a, uint n);
++
++/*
++ *	closure.c
++ */
++Node*	closurebody(NodeList *body);
++void	closurehdr(Node *ntype);
++void	typecheckclosure(Node *func);
++Node*	walkclosure(Node *func, NodeList **init);
++
++/*
++ *	const.c
++ */
++int	cmpslit(Node *l, Node *r);
++int	consttype(Node *n);
++void	convconst(Node *con, Type *t, Val *val);
++void	convlit(Node **np, Type *t);
++void	convlit1(Node **np, Type *t, int explicit);
++void	defaultlit(Node **np, Type *t);
++void	defaultlit2(Node **lp, Node **rp, int force);
++void	evconst(Node *n);
++int	isconst(Node *n, int ct);
++Node*	nodcplxlit(Val r, Val i);
++Node*	nodlit(Val v);
++long	nonnegconst(Node *n);
++void	overflow(Val v, Type *t);
++int	smallintconst(Node *n);
++Val	toint(Val v);
++Mpflt*	truncfltlit(Mpflt *oldv, Type *t);
++
++/*
++ *	cplx.c
++ */
++void	complexadd(int op, Node *nl, Node *nr, Node *res);
++void	complexbool(int op, Node *nl, Node *nr, int true, Prog *to);
++void	complexgen(Node *n, Node *res);
++void	complexminus(Node *nl, Node *res);
++void	complexmove(Node *f, Node *t);
++void	complexmul(Node *nl, Node *nr, Node *res);
++int	complexop(Node *n, Node *res);
++void	nodfconst(Node *n, Type *t, Mpflt* fval);
++
++/*
++ *	dcl.c
++ */
++void	addmethod(Sym *sf, Type *t, int local);
++void	addvar(Node *n, Type *t, int ctxt);
++NodeList*	checkarglist(NodeList *all, int input);
++Node*	colas(NodeList *left, NodeList *right);
++void	colasdefn(NodeList *left, Node *defn);
++NodeList*	constiter(NodeList *vl, Node *t, NodeList *cl);
++void	dclchecks(void);
++Node*	dclname(Sym *s);
++void	declare(Node *n, int ctxt);
++Type*	dostruct(NodeList *l, int et);
++void	dumpdcl(char *st);
++Node*	embedded(Sym *s);
++Node*	fakethis(void);
++void	funcbody(Node *n);
++void	funccompile(Node *n, int isclosure);
++void	funchdr(Node *n);
++Type*	functype(Node *this, NodeList *in, NodeList *out);
++int	isifacemethod(Type *f);
++void	markdcl(void);
++Node*	methodname(Node *n, Type *t);
++Node*	methodname1(Node *n, Node *t);
++Sym*	methodsym(Sym *nsym, Type *t0);
++Node*	newname(Sym *s);
++Type*	newtype(Sym *s);
++Node*	oldname(Sym *s);
++void	popdcl(void);
++void	poptodcl(void);
++void	redeclare(Sym *s, char *where);
++void	testdclstack(void);
++Node*	typedcl0(Sym *s);
++Node*	typedcl1(Node *n, Node *t, int local);
++void	typedcl2(Type *pt, Type *t);
++Node*	typenod(Type *t);
++NodeList*	variter(NodeList *vl, Node *t, NodeList *el);
++
++/*
++ *	export.c
++ */
++void	autoexport(Node *n, int ctxt);
++void	dumpexport(void);
++int	exportname(char *s);
++void	exportsym(Node *n);
++void	importconst(Sym *s, Type *t, Node *n);
++void	importmethod(Sym *s, Type *t);
++Sym*	importsym(Sym *s, int op);
++void	importtype(Type *pt, Type *t);
++void	importvar(Sym *s, Type *t, int ctxt);
++Type*	pkgtype(Sym *s);
++
++/*
++ *	gen.c
++ */
++void	allocparams(void);
++void	cgen_as(Node *nl, Node *nr);
++void	cgen_callmeth(Node *n, int proc);
++void	checklabels(void);
++int	dotoffset(Node *n, int *oary, Node **nn);
++void	gen(Node *n);
++void	genlist(NodeList *l);
++Node*	sysfunc(char *name);
++void	tempname(Node *n, Type *t);
++
++/*
++ *	init.c
++ */
++void	fninit(NodeList *n);
++Node*	renameinit(Node *n);
++
+ /*
+  *	lex.c
+  */
+-void	addidir(char*);
+-void	importfile(Val*, int line);
+-void	cannedimports(char*, char*);
++void	cannedimports(char *file, char *cp);
++void	importfile(Val *f, int line);
++char*	lexname(int lex);
++void	mkpackage(char* pkgname);
+ void	unimportfile(void);
+ int32	yylex(void);
+-void	typeinit(void);
+-void	lexinit(void);
+-char*	lexname(int);
+-int32	getr(void);
+-int	escchar(int, int*, vlong*);
+-int	getc(void);
+-void	ungetc(int);
+-void	mkpackage(char*);
+ 
+ /*
+  *	mparith1.c
+  */
++int	Bconv(Fmt *fp);
++int	Fconv(Fmt *fp);
++void	mpaddcfix(Mpint *a, vlong c);
++void	mpaddcflt(Mpflt *a, double c);
++void	mpatofix(Mpint *a, char *as);
++void	mpatoflt(Mpflt *a, char *as);
++int	mpcmpfixc(Mpint *b, vlong c);
++int	mpcmpfixfix(Mpint *a, Mpint *b);
+ int	mpcmpfixflt(Mpint *a, Mpflt *b);
++int	mpcmpfltc(Mpflt *b, double c);
+ int	mpcmpfltfix(Mpflt *a, Mpint *b);
+-int	mpcmpfixfix(Mpint *a, Mpint *b);
+-int	mpcmpfixc(Mpint *b, vlong c);
+ int	mpcmpfltflt(Mpflt *a, Mpflt *b);
+-int	mpcmpfltc(Mpflt *b, double c);
+-void	mpsubfixfix(Mpint *a, Mpint *b);
+-void	mpsubfltflt(Mpflt *a, Mpflt *b);
+-void	mpaddcfix(Mpint *a, vlong c);
+-void	mpaddcflt(Mpflt *a, double c);
+-void	mpmulcfix(Mpint *a, vlong c);
+-void	mpmulcflt(Mpflt *a, double c);
++void	mpcomfix(Mpint *a);
+ void	mpdivfixfix(Mpint *a, Mpint *b);
+ void	mpmodfixfix(Mpint *a, Mpint *b);
+-void	mpatofix(Mpint *a, char *s);
+-void	mpatoflt(Mpflt *a, char *s);
+-int	mpmovefltfix(Mpint *a, Mpflt *b);
++void	mpmovefixfix(Mpint *a, Mpint *b);
+ void	mpmovefixflt(Mpflt *a, Mpint *b);
+-int	Bconv(Fmt*);
++int	mpmovefltfix(Mpint *a, Mpflt *b);
++void	mpmovefltflt(Mpflt *a, Mpflt *b);
++void	mpmulcfix(Mpint *a, vlong c);
++void	mpmulcflt(Mpflt *a, double c);
++void	mpsubfixfix(Mpint *a, Mpint *b);
++void	mpsubfltflt(Mpflt *a, Mpflt *b);
+ 
+ /*
+  *	mparith2.c
+  */
+-void	mpmovefixfix(Mpint *a, Mpint *b);
+-void	mpmovecfix(Mpint *a, vlong v);
+-int	mptestfix(Mpint *a);
+ void	mpaddfixfix(Mpint *a, Mpint *b);
+-void	mpmulfixfix(Mpint *a, Mpint *b);
+-void	mpmulfract(Mpint *a, Mpint *b);
+-void	mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d);
+-void	mpdivfract(Mpint *a, Mpint *b);
+-void	mpnegfix(Mpint *a);
+ void	mpandfixfix(Mpint *a, Mpint *b);
+ void	mpandnotfixfix(Mpint *a, Mpint *b);
++void	mpdivfract(Mpint *a, Mpint *b);
++void	mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d);
++vlong	mpgetfix(Mpint *a);
+ void	mplshfixfix(Mpint *a, Mpint *b);
++void	mpmovecfix(Mpint *a, vlong c);
++void	mpmulfixfix(Mpint *a, Mpint *b);
++void	mpmulfract(Mpint *a, Mpint *b);
++void	mpnegfix(Mpint *a);
+ void	mporfixfix(Mpint *a, Mpint *b);
+ void	mprshfixfix(Mpint *a, Mpint *b);
+-void	mpxorfixfix(Mpint *a, Mpint *b);
+-void	mpcomfix(Mpint *a);
+-vlong	mpgetfix(Mpint *a);
+ void	mpshiftfix(Mpint *a, int s);
++int	mptestfix(Mpint *a);
++void	mpxorfixfix(Mpint *a, Mpint *b);
+ 
+ /*
+  *	mparith3.c
+  */
+-int	sigfig(Mpflt *a);
+-void	mpnorm(Mpflt *a);
+-void	mpmovefltflt(Mpflt *a, Mpflt *b);
+-void	mpmovecflt(Mpflt *a, double f);
+-int	mptestflt(Mpflt *a);
+ void	mpaddfltflt(Mpflt *a, Mpflt *b);
+-void	mpmulfltflt(Mpflt *a, Mpflt *b);
+ void	mpdivfltflt(Mpflt *a, Mpflt *b);
+-void	mpnegflt(Mpflt *a);
+ double	mpgetflt(Mpflt *a);
+-int	Fconv(Fmt*);
++void	mpmovecflt(Mpflt *a, double c);
++void	mpmulfltflt(Mpflt *a, Mpflt *b);
++void	mpnegflt(Mpflt *a);
++void	mpnorm(Mpflt *a);
++int	mptestflt(Mpflt *a);
++int	sigfig(Mpflt *a);
+ 
+ /*
+- *	subr.c
++ *	obj.c
+  */
+-void*	mal(int32);
+-void*	remal(void*, int32, int32);
+-void	errorexit(void);
+-uint32	stringhash(char*);
+-Sym*	lookup(char*);
+-Sym*	pkglookup(char*, Pkg*);
+-Sym*	restrictlookup(char*, Pkg*);
+-Pkg*	mkpkg(Strlit*);
+-Strlit*	strlit(char*);
+-void	importdot(Pkg*, Node*);
+-void	yyerror(char*, ...);
+-void	yyerrorl(int, char*, ...);
+-void	flusherrors(void);
+-int	parserline(void);
+-void	warn(char*, ...);
+-void	fatal(char*, ...);
+-void	linehist(char*, int32, int);
+-int32	setlineno(Node*);
+-Node*	nod(int, Node*, Node*);
+-Node*	nodlit(Val);
+-Node*	nodcplxlit(Val, Val);
+-Type*	typ(int);
+-int	algtype(Type*);
+-void	dodump(Node*, int);
+-void	dump(char*, Node*);
+-void	dumplist(char*, NodeList*);
+-Type*	aindex(Node*, Type*);
+-int	isnil(Node*);
+-int	isptrto(Type*, int);
+-int	istype(Type*, int);
+-int	isfixedarray(Type*);
+-int	isslice(Type*);
+-int	isinter(Type*);
+-int	isnilinter(Type*);
+-int	isideal(Type*);
+-int	isblank(Node*);
+-Type*	maptype(Type*, Type*);
+-Type*	methtype(Type*);
+-Node*	typename(Type*);
+-int	eqtype(Type*, Type*);
+-int	cvttype(Type*, Type*);
+-int	eqtypenoname(Type*, Type*);
+-void	argtype(Node*, Type*);
+-int	eqargs(Type*, Type*);
+-uint32	typehash(Type*);
+-void	frame(int);
+-Node*	nodintconst(int64);
+-void	nodconst(Node*, Type*, int64);
+-Node*	nodnil(void);
+-Node*	nodbool(int);
+-void	ullmancalc(Node*);
+-void	badtype(int, Type*, Type*);
+-Type*	ptrto(Type*);
+-NodeList*	cleanidlist(NodeList*);
+-Node*	syslook(char*, int);
+-Node*	treecopy(Node*);
+-NodeList*	listtreecopy(NodeList*);
+-int	isselect(Node*);
+-Node*	staticname(Type*);
+-int	iscomposite(Type*);
+-int	cplxsubtype(int);
+-Node*	callnew(Type*);
+-Node*	safeexpr(Node*, NodeList**);
+-int	is64(Type*);
+-int	noconv(Type*, Type*);
+-NodeList*	list1(Node*);
+-NodeList*	list(NodeList*, Node*);
+-NodeList*	concat(NodeList*, NodeList*);
+-int		count(NodeList*);
+-Node*	liststmt(NodeList*);
+-Type**	getthis(Type*);
+-Type**	getoutarg(Type*);
+-Type**	getinarg(Type*);
+-Type*	getthisx(Type*);
+-Type*	getoutargx(Type*);
+-Type*	getinargx(Type*);
+-Type*	structfirst(Iter*, Type**);
+-Type*	structnext(Iter*);
+-Type*	funcfirst(Iter*, Type*);
+-Type*	funcnext(Iter*);
+-int	brcom(int);
+-int	brrev(int);
+-void	setmaxarg(Type*);
+-int	dotoffset(Node*, int*, Node**);
+-void	tempname(Node*, Type*);
+-int	Econv(Fmt*);
+-int	Jconv(Fmt*);
+-int	Lconv(Fmt*);
+-int	Oconv(Fmt*);
+-int	Sconv(Fmt*);
+-int	Tconv(Fmt*);
+-int	Nconv(Fmt*);
+-void	exprfmt(Fmt*, Node*, int);
+-int	Wconv(Fmt*);
+-int	Zconv(Fmt*);
+-int	lookdot0(Sym*, Type*, Type**);
+-int	adddot1(Sym*, Type*, int, Type**);
+-Node*	adddot(Node*);
+-void	expandmeth(Sym*, Type*);
+-void	genwrapper(Type*, Type*, Sym*);
+-int	simsimtype(Type*);
+-int	powtwo(Node*);
+-Type*	tounsigned(Type*);
+-void	smagic(Magic*);
+-void	umagic(Magic*);
+-void	redeclare(Sym*, char*);
+-Sym*	ngotype(Node*);
+-int	convertop(Type*, Type*, char**);
+-int	assignop(Type*, Type*, char**);
+-Node*	assignconv(Node*, Type*, char*);
+-int	implements(Type*, Type*, Type**, Type**);
++void	Bputname(Biobuf *b, Sym *s);
++int	duint16(Sym *s, int off, uint16 v);
++int	duint32(Sym *s, int off, uint32 v);
++int	duint64(Sym *s, int off, uint64 v);
++int	duint8(Sym *s, int off, uint8 v);
++int	duintptr(Sym *s, int off, uint64 v);
++void	dumpobj(void);
++void	ieeedtod(uint64 *ieee, double native);
+ 
+ /*
+- *	dcl.c
++ *	print.c
+  */
+-void	declare(Node*, int);
+-Type*	dodcltype(Type*);
+-void	updatetype(Type*, Type*);
+-void	defaultlit(Node**, Type*);
+-void	defaultlit2(Node**, Node**, int);
+-int	structcount(Type*);
+-void	addmethod(Sym*, Type*, int);
+-Node*	methodname(Node*, Type*);
+-Node*	methodname1(Node*, Node*);
+-Type*	methodfunc(Type*, int);
+-Sym*	methodsym(Sym*, Type*);
+-Type*	functype(Node*, NodeList*, NodeList*);
+-char*	thistypenam(Node*);
+-void	funcnam(Type*, char*);
+-Node*	renameinit(Node*);
+-void	funchdr(Node*);
+-void	funcbody(Node*);
+-Node*	typenod(Type*);
+-Type*	dostruct(NodeList*, int);
+-Type**	stotype(NodeList*, int, Type**);
+-Type*	sortinter(Type*);
+-void	markdcl(void);
+-void	popdcl(void);
+-void	poptodcl(void);
+-void	dumpdcl(char*);
+-void	markdclstack(void);
+-void	testdclstack(void);
+-Sym*	pushdcl(Sym*);
+-void	addvar(Node*, Type*, int);
+-void	addtyp(Type*, int);
+-void	addconst(Node*, Node*, int);
+-Node*	fakethis(void);
+-int	isifacemethod(Type*);
+-Node*	dclname(Sym*);
+-Node*	newname(Sym*);
+-Node*	oldname(Sym*);
+-Type*	newtype(Sym*);
+-Type*	oldtype(Sym*);
+-void	fninit(NodeList*);
+-Node*	nametodcl(Node*, Type*);
+-NodeList*	checkarglist(NodeList*, int);
+-void	checkwidth(Type*);
+-void	defercheckwidth(void);
+-void	resumecheckwidth(void);
+-Node*	embedded(Sym*);
+-NodeList*	variter(NodeList*, Node*, NodeList*);
+-NodeList*	constiter(NodeList*, Node*, NodeList*);
+-
+-Node*	unsafenmagic(Node*, NodeList*);
+-void	dclchecks(void);
+-void	funccompile(Node*, int);
+-
+-Node*	typedcl0(Sym*);
+-Node*	typedcl1(Node*, Node*, int);
+-void	typedcl2(Type*, Type*);
++void	exprfmt(Fmt *f, Node *n, int prec);
++void	exprlistfmt(Fmt *f, NodeList *l);
+ 
+ /*
+- * closure.c
++ *	range.c
+  */
+-void	closurehdr(Node*);
+-Node*	closurebody(NodeList*);
+-void	typecheckclosure(Node*);
+-Node*	walkclosure(Node*, NodeList**);
++void	typecheckrange(Node *n);
++void	walkrange(Node *n);
+ 
++/*
++ *	reflect.c
++ */
++void	dumptypestructs(void);
++Type*	methodfunc(Type *f, int use_receiver);
++Node*	typename(Type *t);
++Sym*	typesym(Type *t);
+ 
+ /*
+- * sinit.c
++ *	select.c
+  */
++void	typecheckselect(Node *sel);
++void	walkselect(Node *sel);
+ 
+-NodeList*	initfix(NodeList*);
++/*
++ *	sinit.c
++ */
++void	anylit(Node *n, Node *var, NodeList **init);
++int	gen_as_init(Node *n);
++NodeList*	initfix(NodeList *l);
++int	oaslit(Node *n, NodeList **init);
++int	stataddr(Node *nam, Node *n);
+ 
+ /*
+- *	export.c
++ *	subr.c
+  */
+-void	autoexport(Node*, int);
+-int	exportname(char*);
+-void	exportsym(Node*);
+-void	packagesym(Node*);
+-void	dumpe(Sym*);
+-void	dumpexport(void);
+-void	dumpexporttype(Sym*);
+-void	dumpexportvar(Sym*);
+-void	dumpexportconst(Sym*);
+-void	importconst(Sym *s, Type *t, Node *v);
+-void	importmethod(Sym *s, Type *t);
+-void	importtype(Type *s, Type *t);
+-void	importvar(Sym *s, Type *t, int ctxt);
+-Type*	pkgtype(Sym*);
+-Sym*	importsym(Sym*, int);
++int	Econv(Fmt *fp);
++int	Jconv(Fmt *fp);
++int	Lconv(Fmt *fp);
++int	Nconv(Fmt *fp);
++int	Oconv(Fmt *fp);
++int	Sconv(Fmt *fp);
++int	Tconv(Fmt *fp);
++int	Tpretty(Fmt *fp, Type *t);
++int	Zconv(Fmt *fp);
++Node*	adddot(Node *n);
++int	adddot1(Sym *s, Type *t, int d, Type **save);
++Type*	aindex(Node *b, Type *t);
++int	algtype(Type *t);
++void	argtype(Node *on, Type *t);
++Node*	assignconv(Node *n, Type *t, char *context);
++int	assignop(Type *src, Type *dst, char **why);
++void	badtype(int o, Type *tl, Type *tr);
++int	brcom(int a);
++int	brrev(int a);
++NodeList*	concat(NodeList *a, NodeList *b);
++int	convertop(Type *src, Type *dst, char **why);
++int	count(NodeList *l);
++int	cplxsubtype(int et);
++void	dump(char *s, Node *n);
++void	dumplist(char *s, NodeList *l);
++int	eqtype(Type *t1, Type *t2);
++int	eqtypenoname(Type *t1, Type *t2);
++void	errorexit(void);
++void	expandmeth(Sym *s, Type *t);
++void	fatal(char *fmt, ...);
++void	flusherrors(void);
++void	frame(int context);
++Type*	funcfirst(Iter *s, Type *t);
++Type*	funcnext(Iter *s);
++void	genwrapper(Type *rcvr, Type *method, Sym *newnam);
++Type**	getinarg(Type *t);
++Type*	getinargx(Type *t);
++Type**	getoutarg(Type *t);
++Type*	getoutargx(Type *t);
++Type**	getthis(Type *t);
++Type*	getthisx(Type *t);
++int	implements(Type *t, Type *iface, Type **m, Type **samename);
++void	importdot(Pkg *opkg, Node *pack);
++int	is64(Type *t);
++int	isblank(Node *n);
++int	isfixedarray(Type *t);
++int	isideal(Type *t);
++int	isinter(Type *t);
++int	isnil(Node *n);
++int	isnilinter(Type *t);
++int	isptrto(Type *t, int et);
++int	isselect(Node *n);
++int	isslice(Type *t);
++int	istype(Type *t, int et);
++void	linehist(char *file, int32 off, int relative);
++NodeList*	list(NodeList *l, Node *n);
++NodeList*	list1(Node *n);
++Node*	liststmt(NodeList *l);
++NodeList*	listtreecopy(NodeList *l);
++Sym*	lookup(char *name);
++void*	mal(int32 n);
++Type*	maptype(Type *key, Type *val);
++Type*	methtype(Type *t);
++Pkg*	mkpkg(Strlit *path);
++Sym*	ngotype(Node *n);
++int	noconv(Type *t1, Type *t2);
++Node*	nod(int op, Node *nleft, Node *nright);
++Node*	nodbool(int b);
++void	nodconst(Node *n, Type *t, int64 v);
++Node*	nodintconst(int64 v);
++Node*	nodnil(void);
++int	parserline(void);
++Sym*	pkglookup(char *name, Pkg *pkg);
++int	powtwo(Node *n);
++Type*	ptrto(Type *t);
++void*	remal(void *p, int32 on, int32 n);
++Sym*	restrictlookup(char *name, Pkg *pkg);
++Node*	safeexpr(Node *n, NodeList **init);
++int32	setlineno(Node *n);
++void	setmaxarg(Type *t);
++Type*	shallow(Type *t);
++int	simsimtype(Type *t);
++void	smagic(Magic *m);
++Type*	sortinter(Type *t);
++Node*	staticname(Type *t);
++uint32	stringhash(char *p);
++Strlit*	strlit(char *s);
++int	structcount(Type *t);
++Type*	structfirst(Iter *s, Type **nn);
++Type*	structnext(Iter *s);
++Node*	syslook(char *name, int copy);
++Type*	tounsigned(Type *t);
++Node*	treecopy(Node *n);
++Type*	typ(int et);
++uint32	typehash(Type *t);
++void	ullmancalc(Node *n);
++void	umagic(Magic *m);
++void	warn(char *fmt, ...);
++void	yyerror(char *fmt, ...);
++void	yyerrorl(int line, char *fmt, ...);
+ 
+ /*
+- *	walk.c
++ *	swt.c
+  */
+-void	walk(Node*);
+-void	walkstmt(Node**);
+-void	walkstmtlist(NodeList*);
+-void	walkexprlist(NodeList*, NodeList**);
+-void	walkconv(Node**, NodeList**);
+-void	walkas(Node*);
+-void	walkswitch(Node*);
+-void	walkrange(Node*);
+-void	walkselect(Node*);
+-void	walkdot(Node*, NodeList**);
+-void	walkexpr(Node**, NodeList**);
+-Node*	mkcall(char*, Type*, NodeList**, ...);
+-Node*	mkcall1(Node*, Type*, NodeList**, ...);
+-Node*	chanfn(char*, int, Type*);
+-Node*	ascompatee1(int, Node*, Node*, NodeList**);
+-NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
+-NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
+-NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
+-Type*	fixchan(Type*);
+-Node*	ifacecvt(Type*, Node*, int, NodeList**);
+-int	ifaceas(Type*, Type*, int);
+-int	ifaceas1(Type*, Type*, int);
+-Node*	convas(Node*, NodeList**);
+-Node*	colas(NodeList*, NodeList*);
+-void	colasdefn(NodeList*, Node*);
+-NodeList*	reorder1(NodeList*);
+-NodeList*	reorder3(NodeList*);
+-NodeList*	reorder4(NodeList*);
+-int	vmatch1(Node*, Node*);
+-void	anylit(Node*, Node*, NodeList**);
+-int	oaslit(Node*, NodeList**);
+-void	heapmoves(void);
+-void	walkdeflist(NodeList*);
+-Node*	walkdef(Node*);
+-void	typechecklist(NodeList*, int);
+-void	typecheckswitch(Node*);
+-void	typecheckselect(Node*);
+-void	typecheckrange(Node*);
+-Node*	typecheckconv(Node*, Node*, Type*, int, char*);
+-Node*	typecheck(Node**, int);
+-int	islvalue(Node*);
+-void	queuemethod(Node*);
+-int	exportassignok(Type*, char*);
+-Node*	resolve(Node*);
++void	typecheckswitch(Node *n);
++void	walkswitch(Node *sw);
+ 
+ /*
+- *	const.c
++ *	typecheck.c
+  */
+-void	convlit1(Node**, Type*, int);
+-void	convlit(Node**, Type*);
+-void	evconst(Node*);
+-int	cmpslit(Node *l, Node *r);
+-int	smallintconst(Node*);
+-long	nonnegconst(Node*);
+-int	consttype(Node*);
+-int	isconst(Node*, int);
+-Mpflt*	truncfltlit(Mpflt*, Type*);
+-void	convconst(Node*, Type*, Val*);
+-Val	toint(Val);
+-void	overflow(Val, Type*);
++int	exportassignok(Type *t, char *desc);
++int	islvalue(Node *n);
++Node*	typecheck(Node **np, int top);
++void	typechecklist(NodeList *l, int top);
+ 
+ /*
+- *	align.c
++ *	unsafe.c
+  */
+-uint32	rnd(uint32, uint32);
+-void	dowidth(Type*);
+-int	argsize(Type*);
++Node*	unsafenmagic(Node *fn, NodeList *args);
+ 
+ /*
+- *	bits.c
++ *	walk.c
+  */
+-Bits	bor(Bits, Bits);
+-Bits	band(Bits, Bits);
+-Bits	bnot(Bits);
+-int	bany(Bits*);
+-int	bnum(Bits);
+-Bits	blsh(uint);
+-int	beq(Bits, Bits);
+-int	bset(Bits, uint);
+-int	Qconv(Fmt *fp);
+-int	bitno(int32);
++Node*	callnew(Type *t);
++Node*	chanfn(char *name, int n, Type *t);
++Node*	mkcall(char *name, Type *t, NodeList **init, ...);
++Node*	mkcall1(Node *fn, Type *t, NodeList **init, ...);
++void	queuemethod(Node *n);
++int	vmatch1(Node *l, Node *r);
++void	walk(Node *fn);
++Node*	walkdef(Node *n);
++void	walkexpr(Node **np, NodeList **init);
++void	walkexprlist(NodeList *l, NodeList **init);
++void	walkexprlistsafe(NodeList *l, NodeList **init);
++void	walkstmt(Node **np);
++void	walkstmtlist(NodeList *l);
+ 
+ /*
+- *	gen.c
++ *	arch-specific ggen.c/gsubr.c/gobj.c
+  */
+-typedef	struct	Prog	Prog;
+ #define	P	((Prog*)0)
+ 
+-typedef	struct	Label Label;
+-struct	Label
+-{
+-	uchar	op;		// OGOTO/OLABEL
+-	Sym*	sym;
+-	Node*	stmt;
+-	Prog*	label;		// pointer to code
+-	Prog*	breakpc;	// pointer to code
+-	Prog*	continpc;	// pointer to code
+-	Label*	link;
+-};
+-#define	L	((Label*)0)
+-
+-EXTERN	Label*	labellist;
+-
+ typedef	struct	Plist	Plist;
+ struct	Plist
+ {
+@@ -1167,74 +1186,36 @@ EXTERN	Prog*	firstpc;
+ 
+ EXTERN	Node*	nodfp;
+ 
+-void	allocparams(void);
+-void	cgen_as(Node *nl, Node *nr);
+-void	cgen_callmeth(Node *n, int proc);
+-void	cgen_dcl(Node *n);
+-void	cgen_proc(Node *n, int proc);
+-void	checklabels(void);
+-void	gen(Node *n);
+-void	genlist(NodeList *l);
+-void	newlab(int op, Sym *s, Node*);
+-Node*	sysfunc(char *name);
+-Plist*	newplist(void);
+-
+-/*
+- *	obj.c
+- */
+-void	Bputname(Biobuf*, Sym*);
+-void	dumpglobls(void);
+-void	dumpobj(void);
+-void	ieeedtod(uint64 *ieee, double native);
+-void	outhist(Biobuf *b);
+-
+-/*
+- *	arch-specific gen.c/gsubr.c/obj.c
+- */
++int	anyregalloc(void);
+ void	betypeinit(void);
+-vlong	convvtox(vlong, int);
+-void	compile(Node*);
+-void	proglist(void);
+-int	optopop(int);
+-void	dumpobj(void);
+-void	dowidth(Type*);
+-void	argspace(int32);
+-Node*	nodarg(Type*, int);
+-Type*	deep(Type*);
+-Type*	shallow(Type*);
+-Prog*	gjmp(Prog*);
+-void	patch(Prog*, Prog*);
+ void	bgen(Node *n, int true, Prog *to);
++void	cgen(Node*, Node*);
+ void	cgen_asop(Node *n);
+ void	cgen_call(Node *n, int proc);
+ void	cgen_callinter(Node *n, Node *res, int proc);
+ void	cgen_ret(Node *n);
+-int	isfat(Type*);
+ void	clearfat(Node *n);
+-void	cgen(Node*, Node*);
+-void	gused(Node*);
++void	compile(Node*);
++int	dgostringptr(Sym*, int off, char *str);
++int	dgostrlitptr(Sym*, int off, Strlit*);
++int	dstringptr(Sym *s, int off, char *str);
++int	dsymptr(Sym *s, int off, Sym *x, int xoff);
++int	duintxx(Sym *s, int off, uint64 v, int wid);
++void	dumpdata(void);
++void	dumpfuncs(void);
+ void	gdata(Node*, Node*, int);
+-void	gdatastring(Node*, Strlit*);
+ void	gdatacomplex(Node*, Mpcplx*);
+-void	dumptypestructs(void);
+-void	dumpfuncs(void);
+-void	dumpdata(void);
++void	gdatastring(Node*, Strlit*);
++void	genembedtramp(Type*, Type*, Sym*);
+ void	ggloblnod(Node *nam, int32 width);
+ void	ggloblsym(Sym *s, int32 width, int dupok);
++Prog*	gjmp(Prog*);
++void	gused(Node*);
++int	isfat(Type*);
++Plist*	newplist(void);
++Node*	nodarg(Type*, int);
++void	nopout(Prog*);
++void	patch(Prog*, Prog*);
+ void	zfile(Biobuf *b, char *p, int n);
+ void	zhist(Biobuf *b, int line, vlong offset);
+ void	zname(Biobuf *b, Sym *s, int t);
+-void	nopout(Prog*);
+-int	dstringptr(Sym *s, int off, char *str);
+-int	dgostringptr(Sym*, int off, char *str);
+-int	dgostrlitptr(Sym*, int off, Strlit*);
+-int	dsymptr(Sym *s, int off, Sym *x, int xoff);
+-int	duint8(Sym *s, int off, uint8 v);
+-int	duint16(Sym *s, int off, uint16 v);
+-int	duint32(Sym *s, int off, uint32 v);
+-int	duint64(Sym *s, int off, uint64 v);
+-int	duintptr(Sym *s, int off, uint64 v);
+-int	duintxx(Sym *s, int off, uint64 v, int wid);
+-void	genembedtramp(Type*, Type*, Sym*);
+-int	gen_as_init(Node*);
+-int	anyregalloc(void);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 5e6d14b543..c46abaa564 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -923,7 +923,8 @@ labelname:
+ dotdotdot:
+ 	LDDD
+ 	{
+-		$$ = nod(ODDD, N, N);
++		yyerror("final argument in variadic function missing type");
++		$$ = nod(ODDD, typenod(typ(TINTER)), N);
+ 	}
+ |	LDDD ntype
+ 	{
+@@ -1709,9 +1710,17 @@ hidden_dcl:
+ 	}
+ |	hidden_opt_sym LDDD
+ 	{
+-		$$ = nod(ODCLFIELD, $1, typenod(typ(TINTER)));
++		Type *t;
++
++		yyerror("invalid variadic function type in import - recompile import");
++		
++		t = typ(TARRAY);
++		t->bound = -1;
++		t->type = typ(TINTER);
++		$$ = nod(ODCLFIELD, $1, typenod(t));
+ 		$$->isddd = 1;
+ 	}
++
+ |	hidden_opt_sym LDDD hidden_type
+ 	{
+ 		Type *t;
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index cdd462e55e..dc073443e0 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -46,7 +46,7 @@ renameinit(Node *n)
+  *		return					(11)
+  *	}
+  */
+-int
++static int
+ anyinit(NodeList *n)
+ {
+ 	uint32 h;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 791686caf8..452acfc760 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -7,11 +7,22 @@
+ #include	"y.tab.h"
+ #include <ar.h>
+ 
++#undef	getc
++#undef	ungetc
++#define	getc	ccgetc
++#define	ungetc	ccungetc
++
+ extern int yychar;
+ int windows;
+ 
+-void lexfini(void);
+-void yytinit(void);
++static void	lexinit(void);
++static void	lexfini(void);
++static void	yytinit(void);
++static int	getc(void);
++static void	ungetc(int);
++static int32	getr(void);
++static int	escchar(int, int*, vlong*);
++static void	addidir(char*);
+ 
+ static char *goos, *goarch, *goroot;
+ 
+@@ -215,7 +226,7 @@ main(int argc, char *argv[])
+ 	return 0;
+ }
+ 
+-int
++static int
+ arsize(Biobuf *b, char *name)
+ {
+ 	struct ar_hdr *a;
+@@ -229,7 +240,7 @@ arsize(Biobuf *b, char *name)
+ 	return atoi(a->size);
+ }
+ 
+-int
++static int
+ skiptopkgdef(Biobuf *b)
+ {
+ 	char *p;
+@@ -254,7 +265,7 @@ skiptopkgdef(Biobuf *b)
+ 	return 1;
+ }
+ 
+-void
++static void
+ addidir(char* dir)
+ {
+ 	Idir** pp;
+@@ -270,7 +281,7 @@ addidir(char* dir)
+ }
+ 
+ // is this path a local name?  begins with ./ or ../ or /
+-int
++static int
+ islocalname(Strlit *name)
+ {
+ 	if(!windows && name->len >= 1 && name->s[0] == '/')
+@@ -285,7 +296,7 @@ islocalname(Strlit *name)
+ 	return 0;
+ }
+ 
+-int
++static int
+ findpkg(Strlit *name)
+ {
+ 	Idir *p;
+@@ -448,7 +459,7 @@ cannedimports(char *file, char *cp)
+ 	incannedimport = 1;
+ }
+ 
+-int
++static int
+ isfrog(int c)
+ {
+ 	// complain about possibly invisible control characters
+@@ -1132,7 +1143,7 @@ yylex(void)
+ 	return lx;
+ }
+ 
+-int
++static int
+ getc(void)
+ {
+ 	int c;
+@@ -1170,7 +1181,7 @@ getc(void)
+ 	return c;
+ }
+ 
+-void
++static void
+ ungetc(int c)
+ {
+ 	curio.peekc1 = curio.peekc;
+@@ -1179,7 +1190,7 @@ ungetc(int c)
+ 		lexlineno--;
+ }
+ 
+-int32
++static int32
+ getr(void)
+ {
+ 	int c, i;
+@@ -1210,8 +1221,7 @@ loop:
+ 	return rune;
+ }
+ 
+-
+-int
++static int
+ escchar(int e, int *escflg, vlong *val)
+ {
+ 	int i, u, c;
+@@ -1407,7 +1417,7 @@ static	struct
+ 	"insofaras",			LIGNORE,	Txxx,		OXXX,
+ };
+ 
+-void
++static void
+ lexinit(void)
+ {
+ 	int i, lex;
+@@ -1471,7 +1481,7 @@ lexinit(void)
+ 	nblank = s->def;
+ }
+ 
+-void
++static void
+ lexfini(void)
+ {
+ 	Sym *s;
+@@ -1657,7 +1667,7 @@ struct
+ 	"','",	"comma",
+ };
+ 
+-void
++static void
+ yytinit(void)
+ {
+ 	int i, j;
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index acfb3bee99..b025917fa8 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -618,7 +618,7 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
+ 	q->neg = ns^ds;
+ }
+ 
+-int
++static int
+ iszero(Mpint *a)
+ {
+ 	long *a1;
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 97786cd6e4..ae16f2725c 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -8,6 +8,9 @@
+  * architecture-independent object file output
+  */
+ 
++static	void	outhist(Biobuf *b);
++static	void	dumpglobls(void);
++
+ void
+ dumpobj(void)
+ {
+@@ -38,7 +41,7 @@ dumpobj(void)
+ 	Bterm(bout);
+ }
+ 
+-void
++static void
+ dumpglobls(void)
+ {
+ 	Node *n;
+@@ -58,8 +61,7 @@ dumpglobls(void)
+ 			continue;
+ 		dowidth(n->type);
+ 
+-		// TODO(rsc): why is this not s/n->sym->def/n/ ?
+-		ggloblnod(n->sym->def, n->type->width);
++		ggloblnod(n, n->type->width);
+ 	}
+ }
+ 
+@@ -71,7 +73,7 @@ Bputname(Biobuf *b, Sym *s)
+ 	Bwrite(b, s->name, strlen(s->name)+1);
+ }
+ 
+-void
++static void
+ outhist(Biobuf *b)
+ {
+ 	Hist *h;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 2217b582c6..3ac48fbee4 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -235,7 +235,7 @@ methods(Type *t)
+ /*
+  * return methods of interface type t, sorted by name.
+  */
+-Sig*
++static Sig*
+ imethods(Type *t)
+ {
+ 	Sig *a, *all, *last;
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 20822542ab..7c5581efff 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -718,7 +718,7 @@ initctxt:
+ 	return 1;
+ }
+ 
+-int
++static int
+ getlit(Node *lit)
+ {
+ 	if(smallintconst(lit))
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c836b60f28..567ac5a499 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -8,6 +8,8 @@
+ #include	"opnames.h"
+ #include	"yerr.h"
+ 
++static	void	dodump(Node*, int);
++
+ typedef struct Error Error;
+ struct Error
+ {
+@@ -509,12 +511,6 @@ maptype(Type *key, Type *val)
+ 	return t;
+ }
+ 
+-int
+-iskeytype(Type *t)
+-{
+-	return algtype(t) != ANOEQ;
+-}
+-
+ Type*
+ typ(int et)
+ {
+@@ -657,7 +653,7 @@ aindex(Node *b, Type *t)
+ 	return r;
+ }
+ 
+-void
++static void
+ indent(int dep)
+ {
+ 	int i;
+@@ -666,14 +662,14 @@ indent(int dep)
+ 		print(".   ");
+ }
+ 
+-void
++static void
+ dodumplist(NodeList *l, int dep)
+ {
+ 	for(; l; l=l->next)
+ 		dodump(l->n, dep);
+ }
+ 
+-void
++static void
+ dodump(Node *n, int dep)
+ {
+ 	if(n == N)
+@@ -1035,34 +1031,6 @@ Jconv(Fmt *fp)
+ 	return 0;
+ }
+ 
+-int
+-Gconv(Fmt *fp)
+-{
+-	char buf[100];
+-	Type *t;
+-
+-	t = va_arg(fp->args, Type*);
+-
+-	if(t->etype == TFUNC) {
+-		if(t->vargen != 0) {
+-			snprint(buf, sizeof(buf), "-%d%d%d g(%ld)",
+-				t->thistuple, t->outtuple, t->intuple, t->vargen);
+-			goto out;
+-		}
+-		snprint(buf, sizeof(buf), "-%d%d%d",
+-			t->thistuple, t->outtuple, t->intuple);
+-		goto out;
+-	}
+-	if(t->vargen != 0) {
+-		snprint(buf, sizeof(buf), " g(%ld)", t->vargen);
+-		goto out;
+-	}
+-	strcpy(buf, "");
+-
+-out:
+-	return fmtstrcpy(fp, buf);
+-}
+-
+ int
+ Sconv(Fmt *fp)
+ {
+@@ -1203,13 +1171,9 @@ Tpretty(Fmt *fp, Type *t)
+ 		fmtprint(fp, "(");
+ 		for(t1=getinargx(t)->type; t1; t1=t1->down) {
+ 			if(noargnames && t1->etype == TFIELD) {
+-				if(t1->isddd) {
+-					// TODO(rsc): Delete with DDD cleanup.
+-					if(t1->type->etype == TINTER)
+-						fmtprint(fp, "...");
+-					else
+-						fmtprint(fp, "... %T", t1->type->type);
+-				} else
++				if(t1->isddd)
++					fmtprint(fp, "...%T", t1->type->type);
++				else
+ 					fmtprint(fp, "%T", t1->type);
+ 			} else
+ 				fmtprint(fp, "%T", t1);
+@@ -1287,13 +1251,9 @@ Tpretty(Fmt *fp, Type *t)
+ 				fmtprint(fp, "? ");
+ 		} else
+ 			fmtprint(fp, "%hS ", t->sym);
+-		if(t->isddd) {
+-			// TODO(rsc): delete with DDD cleanup.
+-			if(t->type->etype == TINTER)
+-				fmtprint(fp, "...");
+-			else
+-				fmtprint(fp, "... %T", t->type->type);
+-		} else
++		if(t->isddd)
++			fmtprint(fp, "...%T", t->type->type);
++		else
+ 			fmtprint(fp, "%T", t->type);
+ 		if(t->note) {	
+ 			fmtprint(fp, " ");
+@@ -1764,20 +1724,6 @@ cplxsubtype(int et)
+ 	return 0;
+ }
+ 
+-int
+-iscomposite(Type *t)
+-{
+-	if(t == T)
+-		return 0;
+-	switch(t->etype) {
+-	case TARRAY:
+-	case TSTRUCT:
+-	case TMAP:
+-		return 1;
+-	}
+-	return 0;
+-}
+-
+ // Return 1 if t1 and t2 are identical, following the spec rules.
+ //
+ // Any cyclic type must go through a named type, and if one is
+@@ -2209,7 +2155,7 @@ shallow(Type *t)
+ 	return nt;
+ }
+ 
+-Type*
++static Type*
+ deep(Type *t)
+ {
+ 	Type *nt, *xt;
+@@ -2283,39 +2229,6 @@ syslook(char *name, int copy)
+ 	return n;
+ }
+ 
+-/*
+- * are the arg names of two
+- * functions the same. we know
+- * that eqtype has been called
+- * and has returned true.
+- */
+-int
+-eqargs(Type *t1, Type *t2)
+-{
+-	if(t1 == t2)
+-		return 1;
+-	if(t1 == T || t2 == T)
+-		return 0;
+-
+-	if(t1->etype != t2->etype)
+-		return 0;
+-
+-	if(t1->etype != TFUNC)
+-		fatal("eqargs: oops %E", t1->etype);
+-
+-	t1 = t1->type;
+-	t2 = t2->type;
+-	for(;;) {
+-		if(t1 == t2)
+-			break;
+-		if(!eqtype(t1, t2))
+-			return 0;
+-		t1 = t1->down;
+-		t2 = t2->down;
+-	}
+-	return 1;
+-}
+-
+ /*
+  * compute a hash value for type t.
+  * if t is a method type, ignore the receiver
+@@ -2750,7 +2663,7 @@ setmaxarg(Type *t)
+ // search depth 0 --
+ // return count of fields+methods
+ // found with a given name
+-int
++static int
+ lookdot0(Sym *s, Type *t, Type **save)
+ {
+ 	Type *f, *u;
+@@ -3019,7 +2932,7 @@ expandmeth(Sym *s, Type *t)
+ /*
+  * Given funarg struct list, return list of ODCLFIELD Node fn args.
+  */
+-NodeList*
++static NodeList*
+ structargs(Type **tl, int mustname)
+ {
+ 	Iter savet;
+@@ -3121,7 +3034,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
+ 	funccompile(fn, 0);
+ }
+ 
+-Type*
++static Type*
+ ifacelookdot(Sym *s, Type *t, int *followptr)
+ {
+ 	int i, c, d;
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 23bb395bd5..2ed8216bc0 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -33,14 +33,6 @@ struct	Case
+ };
+ #define	C	((Case*)nil)
+ 
+-Type*
+-notideal(Type *t)
+-{
+-	if(t != T && t->etype == TIDEAL)
+-		return T;
+-	return t;
+-}
+-
+ void
+ dumpcase(Case *c0)
+ {
+@@ -240,7 +232,7 @@ csort(Case *l, int(*f)(Case*, Case*))
+ 	return l;
+ }
+ 
+-Node*
++static Node*
+ newlabel(void)
+ {
+ 	static int label;
+@@ -255,7 +247,7 @@ newlabel(void)
+  * make labels between cases and statements
+  * deal with fallthrough, break, unreachable statements
+  */
+-void
++static void
+ casebody(Node *sw, Node *typeswvar)
+ {
+ 	Node *os, *oc, *n, *c, *last;
+@@ -339,7 +331,7 @@ casebody(Node *sw, Node *typeswvar)
+ 	lineno = lno;
+ }
+ 
+-Case*
++static Case*
+ mkcaselist(Node *sw, int arg)
+ {
+ 	Node *n;
+@@ -434,7 +426,7 @@ mkcaselist(Node *sw, int arg)
+ 
+ static	Node*	exprname;
+ 
+-Node*
++static Node*
+ exprbsw(Case *c0, int ncase, int arg)
+ {
+ 	NodeList *cas;
+@@ -494,7 +486,7 @@ exprbsw(Case *c0, int ncase, int arg)
+  * normal (expression) switch.
+  * rebulid case statements into if .. goto
+  */
+-void
++static void
+ exprswitch(Node *sw)
+ {
+ 	Node *def;
+@@ -580,7 +572,7 @@ static	Node*	hashname;
+ static	Node*	facename;
+ static	Node*	boolname;
+ 
+-Node*
++static Node*
+ typeone(Node *t)
+ {
+ 	NodeList *init;
+@@ -609,7 +601,7 @@ typeone(Node *t)
+ 	return a;
+ }
+ 
+-Node*
++static Node*
+ typebsw(Case *c0, int ncase)
+ {
+ 	NodeList *cas;
+@@ -652,7 +644,7 @@ typebsw(Case *c0, int ncase)
+  *	switch v := i.(type) { case t1: ..; case t2: ..; }
+  * into if statements
+  */
+-void
++static void
+ typeswitch(Node *sw)
+ {
+ 	Node *def;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 8a2fcd735b..83537177cf 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -9,9 +9,6 @@
+  * marks variables that escape the local frame.
+  * rewrites n->op to be more specific in some cases.
+  * sets n->walk to walking function.
+- *
+- * TODO:
+- *	trailing ... section of function calls
+  */
+ 
+ #include "go.h"
+@@ -32,6 +29,7 @@ static void	checklvalue(Node*, char*);
+ static void	checkassign(Node*);
+ static void	checkassignlist(NodeList*);
+ static void stringtoarraylit(Node**);
++static Node* resolve(Node*);
+ 
+ /*
+  * resolve ONONAME to definition, if any.
+@@ -1432,8 +1430,6 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 		tn = n->type->type;
+ 		for(tl=tstruct->type; tl; tl=tl->down) {
+ 			if(tl->isddd) {
+-				// TODO(rsc): delete if (but not body) in DDD cleanup.
+-				if(tl->type->etype != TINTER)
+ 				for(; tn; tn=tn->down)
+ 					if(assignop(tn->type, tl->type->type, &why) == 0)
+ 						yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
+@@ -1465,8 +1461,6 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 			for(; nl; nl=nl->next) {
+ 				setlineno(nl->n);
+ 				defaultlit(&nl->n, t->type);
+-				// TODO(rsc): drop first if in DDD cleanup
+-				if(t->etype != TINTER)
+ 				if(assignop(nl->n->type, t->type, &why) == 0)
+ 					yyerror("cannot use %+N as type %T in %s%s", nl->n, t->type, desc, why);
+ 			}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3974e1e293..c91aaede98 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -8,13 +8,22 @@ static	Node*	walkprint(Node*, NodeList**, int);
+ static	Node*	conv(Node*, Type*);
+ static	Node*	mapfn(char*, Type*);
+ static	Node*	makenewvar(Type*, NodeList**, Node**);
++static	Node*	ascompatee1(int, Node*, Node*, NodeList**);
++static	NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
++static	NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
++static	NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
++static	Node*	convas(Node*, NodeList**);
++static	void	heapmoves(void);
++static	NodeList*	paramstoheap(Type **argin, int out);
++static	NodeList*	reorder1(NodeList*);
++static	NodeList*	reorder3(NodeList*);
+ 
+ static	NodeList*	walkdefstack;
+ 
+ // can this code branch reach the end
+ // without an undcontitional RETURN
+ // this is hard, so it is conservative
+-int
++static int
+ walkret(NodeList *l)
+ {
+ 	Node *n;
+@@ -87,16 +96,6 @@ walk(Node *fn)
+ 	}
+ }
+ 
+-void
+-gettype(Node **np, NodeList **init)
+-{
+-	if(debug['W'])
+-		dump("\nbefore gettype", *np);
+-	typecheck(np, Erv);
+-	if(debug['W'])
+-		dump("after gettype", *np);
+-}
+-
+ static int nwalkdeftype;
+ static NodeList *methodqueue;
+ 
+@@ -1307,13 +1306,13 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
+ 	return nvar;
+ }
+ 
+-Node*
++static Node*
+ ascompatee1(int op, Node *l, Node *r, NodeList **init)
+ {
+ 	return convas(nod(OAS, l, r), init);
+ }
+ 
+-NodeList*
++static NodeList*
+ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
+ {
+ 	NodeList *ll, *lr, *nn;
+@@ -1346,7 +1345,7 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
+  * evaluating the lv or a function call
+  * in the conversion of the types
+  */
+-int
++static int
+ fncall(Node *l, Type *rt)
+ {
+ 	if(l->ullman >= UINF)
+@@ -1356,7 +1355,7 @@ fncall(Node *l, Type *rt)
+ 	return 1;
+ }
+ 
+-NodeList*
++static NodeList*
+ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
+ {
+ 	Node *l, *tmp, *a;
+@@ -1414,113 +1413,10 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
+ 	return concat(nn, mm);
+ }
+ 
+-/*
+- * make a tsig for the structure
+- * carrying the ... arguments
+- */
+-Type*
+-sigtype(Type *st)
+-{
+-	Sym *s;
+-	Type *t;
+-	static int sigdddgen;
+-
+-	dowidth(st);
+-
+-	sigdddgen++;
+-	snprint(namebuf, sizeof(namebuf), "dsigddd_%d", sigdddgen);
+-	s = lookup(namebuf);
+-	t = newtype(s);
+-	t = dodcltype(t);
+-	updatetype(t, st);
+-	t->local = 1;
+-	return t;
+-}
+-
+-/*
+- * package all the arguments that
+- * match a ... parameter into an
+- * automatic structure.
+- * then call the ... arg (interface)
+- * with a pointer to the structure.
+- */
+-NodeList*
+-mkdotargs(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
+-{
+-	Node *r;
+-	Type *t, *st, *ft;
+-	Node *a, *var;
+-	NodeList *lr, *n;
+-
+-	n = nil;			// list of assignments
+-
+-	st = typ(TSTRUCT);	// generated structure
+-	ft = T;			// last field
+-	for(lr=lr0; lr; lr=lr->next) {
+-		r = lr->n;
+-		if(r->op == OLITERAL && r->val.ctype == CTNIL) {
+-			if(r->type == T || r->type->etype == TNIL) {
+-				yyerror("inappropriate use of nil in ... argument");
+-				return nil;
+-			}
+-		}
+-		defaultlit(&r, T);
+-		lr->n = r;
+-		if(r->type == T)	// type check failed
+-			return nil;
+-
+-		// generate the next structure field
+-		t = typ(TFIELD);
+-		t->type = r->type;
+-		if(ft == T)
+-			st->type = t;
+-		else
+-			ft->down = t;
+-		ft = t;
+-
+-		a = nod(OAS, N, r);
+-		n = list(n, a);
+-	}
+-
+-	// make a named type for the struct
+-	st = sigtype(st);
+-	dowidth(st);
+-
+-	// now we have the size, make the struct
+-	var = nod(OXXX, N, N);
+-	tempname(var, st);
+-	var->sym = lookup(".ddd");
+-	typecheck(&var, Erv);
+-
+-	// assign the fields to the struct.
+-	// use the init list so that reorder1 doesn't reorder
+-	// these assignments after the interface conversion
+-	// below.
+-	t = st->type;
+-	for(lr=n; lr; lr=lr->next) {
+-		r = lr->n;
+-		r->left = nod(OXXX, N, N);
+-		*r->left = *var;
+-		r->left->type = r->right->type;
+-		r->left->xoffset += t->width;
+-		typecheck(&r, Etop);
+-		walkexpr(&r, init);
+-		lr->n = r;
+-		t = t->down;
+-	}
+-	*init = concat(*init, n);
+-
+-	// last thing is to put assignment
+-	// of the structure to the DDD parameter
+-	a = nod(OAS, nodarg(l, fp), var);
+-	nn = list(nn, convas(a, init));
+-	return nn;
+-}
+-
+  /*
+  * package all the arguments that match a ... T parameter into a []T.
+  */
+-NodeList*
++static NodeList*
+ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
+ {
+ 	Node *a, *n;
+@@ -1594,7 +1490,7 @@ dumpnodetypes(NodeList *l, char *what)
+  *	return expr-list
+  *	func(expr-list)
+  */
+-NodeList*
++static NodeList*
+ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
+ {
+ 	Type *l, *ll;
+@@ -1656,14 +1552,10 @@ loop:
+ 			goto ret;
+ 		}
+ 
+-		// normal case -- make a structure of all
+-		// remaining arguments and pass a pointer to
+-		// it to the ddd parameter (empty interface)
+-		// TODO(rsc): delete in DDD cleanup.
+-		if(l->type->etype == TINTER)
+-			nn = mkdotargs(lr, nn, l, fp, init);
+-		else
+-			nn = mkdotargslice(lr, nn, l, fp, init);
++		// normal case -- make a slice of all
++		// remaining arguments and pass it to
++		// the ddd parameter.
++		nn = mkdotargslice(lr, nn, l, fp, init);
+ 		goto ret;
+ 	}
+ 
+@@ -1882,26 +1774,7 @@ callnew(Type *t)
+ 	return mkcall1(fn, ptrto(t), nil, nodintconst(t->width));
+ }
+ 
+-Type*
+-fixchan(Type *t)
+-{
+-	if(t == T)
+-		goto bad;
+-	if(t->etype != TCHAN)
+-		goto bad;
+-	if(t->type == T)
+-		goto bad;
+-
+-	dowidth(t->type);
+-
+-	return t;
+-
+-bad:
+-	yyerror("not a channel: %lT", t);
+-	return T;
+-}
+-
+-Node*
++static Node*
+ convas(Node *n, NodeList **init)
+ {
+ 	Node *l, *r;
+@@ -2014,7 +1887,7 @@ reorder1(NodeList *all)
+  * be later use of an earlier lvalue.
+  */
+ 
+-int
++static int
+ vmatch2(Node *l, Node *r)
+ {
+ 	NodeList *ll;
+@@ -2113,7 +1986,7 @@ reorder3(NodeList *all)
+  * generate and return code to allocate
+  * copies of escaped parameters to the heap.
+  */
+-NodeList*
++static NodeList*
+ paramstoheap(Type **argin, int out)
+ {
+ 	Type *t;
+@@ -2146,7 +2019,7 @@ paramstoheap(Type **argin, int out)
+ /*
+  * walk through argout parameters copying back to stack
+  */
+-NodeList*
++static NodeList*
+ returnsfromheap(Type **argin)
+ {
+ 	Type *t;
+@@ -2169,7 +2042,7 @@ returnsfromheap(Type **argin)
+  * between the stack and the heap.  adds code to
+  * curfn's before and after lists.
+  */
+-void
++static void
+ heapmoves(void)
+ {
+ 	NodeList *nn;

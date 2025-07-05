@@ -15,6 +15,34 @@ Date:   Sat May 4 10:17:30 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/executable_procfs.go | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+index 94e674e364..6a2cd10be7 100644
+--- a/src/os/executable_procfs.go
++++ b/src/os/executable_procfs.go
+@@ -8,6 +8,7 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/stringslite"
+ 	"runtime"
+ )
+ 
+@@ -25,13 +26,5 @@ func executable() (string, error) {
+ 
+ 	// When the executable has been deleted then Readlink returns a
+ 	// path appended with " (deleted)".
+-	return stringsTrimSuffix(path, " (deleted)"), err
+-}
+-
+-// stringsTrimSuffix is the same as strings.TrimSuffix.
+-func stringsTrimSuffix(s, suffix string) string {
+-	if len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix {
+-		return s[:len(s)-len(suffix)]
+-	}
+-	return s
++	return stringslite.TrimSuffix(path, " (deleted)"), err
+ }

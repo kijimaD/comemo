@@ -14,7 +14,7 @@ Date:   Mon Aug 22 17:00:17 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/425101
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        | 15 ---------------
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 +++--
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  3 ---
@@ -22,3 +22,181 @@ Date:   Mon Aug 22 17:00:17 2022 -0400
  src/cmd/compile/internal/ssa/rewriteARM64.go | 27 ++++++++++++++++++++++++---
  test/codegen/mathbits.go                     | 12 ++++++++++++
  6 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index c93e6e6cf8..64980daf48 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -565,21 +565,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpARM64LoweredMuluhilo:
+-		r0 := v.Args[0].Reg()
+-		r1 := v.Args[1].Reg()
+-		p := s.Prog(arm64.AUMULH)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = r1
+-		p.Reg = r0
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Reg0()
+-		p1 := s.Prog(arm64.AMUL)
+-		p1.From.Type = obj.TYPE_REG
+-		p1.From.Reg = r1
+-		p1.Reg = r0
+-		p1.To.Type = obj.TYPE_REG
+-		p1.To.Reg = v.Reg1()
+ 	case ssa.OpARM64LoweredAtomicExchange64,
+ 		ssa.OpARM64LoweredAtomicExchange32:
+ 		// LDAXR	(Rarg0), Rout
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index fbf853e40e..c42b9219f1 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -16,7 +16,8 @@
+ (Hmul64u ...) => (UMULH ...)
+ (Hmul32 x y) => (SRAconst (MULL <typ.Int64> x y) [32])
+ (Hmul32u x y) => (SRAconst (UMULL <typ.UInt64> x y) [32])
+-(Mul64uhilo ...) => (LoweredMuluhilo ...)
++(Select0 (Mul64uhilo x y)) => (UMULH x y)
++(Select1 (Mul64uhilo x y)) => (MUL x y)
+ 
+ (Div64 [false] x y) => (DIV x y)
+ (Div64u ...) => (UDIV ...)
+@@ -2981,4 +2982,4 @@
+ // runtime/internal/math.MulUintptr intrinsics
+ 
+ (Select0 (Mul64uover x y)) => (MUL x y)
+-(Select1 (Mul64uover x y)) => (NotEqual (CMPconst (UMULH <typ.UInt64> x y) [0]))
+\ No newline at end of file
++(Select1 (Mul64uover x y)) => (NotEqual (CMPconst (UMULH <typ.UInt64> x y) [0]))
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 8234bce26e..cc7de7583e 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -154,7 +154,6 @@ func init() {
+ 		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+ 		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
+ 		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+-		gp22           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
+ 		gp31           = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
+ 		gpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+ 		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg}}
+@@ -227,8 +226,6 @@ func init() {
+ 		{name: "EON", argLength: 2, reg: gp21, asm: "EON"},                    // arg0 ^ ^arg1
+ 		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                    // arg0 | ^arg1
+ 
+-		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, returns (hi, lo)
+-
+ 		// unary ops
+ 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},                                    // ^arg0
+ 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                    // -arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 84b4763ff5..6d69a86844 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1428,7 +1428,6 @@ const (
+ 	OpARM64BIC
+ 	OpARM64EON
+ 	OpARM64ORN
+-	OpARM64LoweredMuluhilo
+ 	OpARM64MVN
+ 	OpARM64NEG
+ 	OpARM64NEGSflags
+@@ -19075,21 +19074,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:            "LoweredMuluhilo",
+-		argLen:          2,
+-		resultNotInArgs: true,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+-				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+-			},
+-			outputs: []outputInfo{
+-				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+-				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+-			},
+-		},
+-	},
+ 	{
+ 		name:   "MVN",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index f6e3cfc999..0376e44e4b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -849,9 +849,6 @@ func rewriteValueARM64(v *Value) bool {
+ 	case OpMul64F:
+ 		v.Op = OpARM64FMULD
+ 		return true
+-	case OpMul64uhilo:
+-		v.Op = OpARM64LoweredMuluhilo
+-		return true
+ 	case OpMul8:
+ 		v.Op = OpARM64MULW
+ 		return true
+@@ -27321,6 +27318,18 @@ func rewriteValueARM64_OpSelect0(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
++	// match: (Select0 (Mul64uhilo x y))
++	// result: (UMULH x y)
++	for {
++		if v_0.Op != OpMul64uhilo {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpARM64UMULH)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (Select0 (Add64carry x y c))
+ 	// result: (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
+ 	for {
+@@ -27380,6 +27389,18 @@ func rewriteValueARM64_OpSelect1(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
++	// match: (Select1 (Mul64uhilo x y))
++	// result: (MUL x y)
++	for {
++		if v_0.Op != OpMul64uhilo {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpARM64MUL)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (Select1 (Add64carry x y c))
+ 	// result: (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
+ 	for {
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index fe9c4eceb5..20c945fbc3 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -798,6 +798,18 @@ func Mul64(x, y uint64) (hi, lo uint64) {
+ 	return bits.Mul64(x, y)
+ }
+ 
++func Mul64HiOnly(x, y uint64) uint64 {
++	// arm64:"UMULH",-"MUL"
++	hi, _ := bits.Mul64(x, y)
++	return hi
++}
++
++func Mul64LoOnly(x, y uint64) uint64 {
++	// arm64:"MUL",-"UMULH"
++	_, lo := bits.Mul64(x, y)
++	return lo
++}
++
+ // --------------- //
+ //    bits.Div*    //
+ // --------------- //

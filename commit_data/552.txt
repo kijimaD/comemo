@@ -9,7 +9,47 @@ Date:   Fri Aug 29 13:33:34 2008 -0700
     DELTA=9  (0 added, 8 deleted, 1 changed)
     OCL=14657
     CL=14657
-
+---
  test/golden.out | 6 ------
  test/hashmap.go | 4 +---
  2 files changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index f3cac9ad69..1cae7f9f57 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -193,8 +193,6 @@ fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
+ 
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
+-fixedbugs/bug016.go:7: illegal types for operand: AS
+-	(<int32>INT32)
+ 
+ =========== fixedbugs/bug025.go
+ fixedbugs/bug025.go:7: variable exported but not defined: Foo
+@@ -227,10 +225,6 @@ ok
+ fixedbugs/bug073.go:8: illegal types for operand: LSH
+ 	(<int32>INT32)
+ 	(<int32>INT32)
+-fixedbugs/bug073.go:8: illegal types for operand: AS
+-	(<int32>INT32)
+ fixedbugs/bug073.go:9: illegal types for operand: RSH
+ 	(<int32>INT32)
+ 	(<int32>INT32)
+-fixedbugs/bug073.go:9: illegal types for operand: AS
+-	(<int32>INT32)
+diff --git a/test/hashmap.go b/test/hashmap.go
+index bf3001c7d6..86a3422726 100755
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -47,9 +47,7 @@ type HashMap struct {
+ 
+ 
+ func (m *HashMap) capacity() uint32 {
+-	// TODO we need to figure out how to determine the type of
+-	// a shifted 'untyped' int so we can get rid of the conversion
+-	return uint32(1) << m.log2_capacity_;
++	return 1 << m.log2_capacity_;
+ }
+ 
+ 

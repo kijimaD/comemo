@@ -25,7 +25,189 @@ Date:   Mon Oct 27 08:46:18 2014 -0700
     R=bradfitz, mikioh.mikioh
     CC=golang-codereviews, r, rsc
     https://golang.org/cl/154610044
-
+---
  src/net/lookup.go       | 51 +++++++++++++++++++++-----------------
  src/net/singleflight.go | 66 +++++++++++++++++++++++++++++++++++++++++++++----
  2 files changed, 89 insertions(+), 28 deletions(-)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 20f20578cd..aeffe6c9b7 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -40,10 +40,16 @@ func lookupIPMerge(host string) (addrs []IP, err error) {
+ 	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
+ 		return lookupIP(host)
+ 	})
++	return lookupIPReturn(addrsi, err, shared)
++}
++
++// lookupIPReturn turns the return values from singleflight.Do into
++// the return values from LookupIP.
++func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IP, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	addrs = addrsi.([]IP)
++	addrs := addrsi.([]IP)
+ 	if shared {
+ 		clone := make([]IP, len(addrs))
+ 		copy(clone, addrs)
+@@ -52,41 +58,40 @@ func lookupIPMerge(host string) (addrs []IP, err error) {
+ 	return addrs, nil
+ }
+ 
++// lookupIPDeadline looks up a hostname with a deadline.
+ func lookupIPDeadline(host string, deadline time.Time) (addrs []IP, err error) {
+ 	if deadline.IsZero() {
+ 		return lookupIPMerge(host)
+ 	}
+ 
+-	// TODO(bradfitz): consider pushing the deadline down into the
+-	// name resolution functions. But that involves fixing it for
+-	// the native Go resolver, cgo, Windows, etc.
+-	//
+-	// In the meantime, just use a goroutine. Most users affected
+-	// by http://golang.org/issue/2631 are due to TCP connections
+-	// to unresponsive hosts, not DNS.
++	// We could push the deadline down into the name resolution
++	// functions.  However, the most commonly used implementation
++	// calls getaddrinfo, which has no timeout.
++
+ 	timeout := deadline.Sub(time.Now())
+ 	if timeout <= 0 {
+-		err = errTimeout
+-		return
++		return nil, errTimeout
+ 	}
+ 	t := time.NewTimer(timeout)
+ 	defer t.Stop()
+-	type res struct {
+-		addrs []IP
+-		err   error
+-	}
+-	resc := make(chan res, 1)
+-	go func() {
+-		a, err := lookupIPMerge(host)
+-		resc <- res{a, err}
+-	}()
++
++	ch := lookupGroup.DoChan(host, func() (interface{}, error) {
++		return lookupIP(host)
++	})
++
+ 	select {
+ 	case <-t.C:
+-		err = errTimeout
+-	case r := <-resc:
+-		addrs, err = r.addrs, r.err
++		// The DNS lookup timed out for some reason.  Force
++		// future requests to start the DNS lookup again
++		// rather than waiting for the current lookup to
++		// complete.  See issue 8602.
++		lookupGroup.Forget(host)
++
++		return nil, errTimeout
++
++	case r := <-ch:
++		return lookupIPReturn(r.v, r.err, r.shared)
+ 	}
+-	return
+ }
+ 
+ // LookupPort looks up the port for the given network and service.
+diff --git a/src/net/singleflight.go b/src/net/singleflight.go
+index dc58affdaa..bf599f0cc9 100644
+--- a/src/net/singleflight.go
++++ b/src/net/singleflight.go
+@@ -8,10 +8,18 @@ import "sync"
+ 
+ // call is an in-flight or completed singleflight.Do call
+ type call struct {
+-	wg   sync.WaitGroup
+-	val  interface{}
+-	err  error
+-	dups int
++	wg sync.WaitGroup
++
++	// These fields are written once before the WaitGroup is done
++	// and are only read after the WaitGroup is done.
++	val interface{}
++	err error
++
++	// These fields are read and written with the singleflight
++	// mutex held before the WaitGroup is done, and are read but
++	// not written after the WaitGroup is done.
++	dups  int
++	chans []chan<- singleflightResult
+ }
+ 
+ // singleflight represents a class of work and forms a namespace in
+@@ -21,6 +29,14 @@ type singleflight struct {
+ 	m  map[string]*call // lazily initialized
+ }
+ 
++// singleflightResult holds the results of Do, so they can be passed
++// on a channel.
++type singleflightResult struct {
++	v      interface{}
++	err    error
++	shared bool
++}
++
+ // Do executes and returns the results of the given function, making
+ // sure that only one execution is in-flight for a given key at a
+ // time. If a duplicate comes in, the duplicate caller waits for the
+@@ -42,12 +58,52 @@ func (g *singleflight) Do(key string, fn func() (interface{}, error)) (v interfa
+ 	g.m[key] = c
+ 	g.mu.Unlock()
+ 
++	g.doCall(c, key, fn)
++	return c.val, c.err, c.dups > 0
++}
++
++// DoChan is like Do but returns a channel that will receive the
++// results when they are ready.
++func (g *singleflight) DoChan(key string, fn func() (interface{}, error)) <-chan singleflightResult {
++	ch := make(chan singleflightResult, 1)
++	g.mu.Lock()
++	if g.m == nil {
++		g.m = make(map[string]*call)
++	}
++	if c, ok := g.m[key]; ok {
++		c.dups++
++		c.chans = append(c.chans, ch)
++		g.mu.Unlock()
++		return ch
++	}
++	c := &call{chans: []chan<- singleflightResult{ch}}
++	c.wg.Add(1)
++	g.m[key] = c
++	g.mu.Unlock()
++
++	go g.doCall(c, key, fn)
++
++	return ch
++}
++
++// doCall handles the single call for a key.
++func (g *singleflight) doCall(c *call, key string, fn func() (interface{}, error)) {
+ 	c.val, c.err = fn()
+ 	c.wg.Done()
+ 
+ 	g.mu.Lock()
+ 	delete(g.m, key)
++	for _, ch := range c.chans {
++		ch <- singleflightResult{c.val, c.err, c.dups > 0}
++	}
+ 	g.mu.Unlock()
++}
+ 
+-	return c.val, c.err, c.dups > 0
++// Forget tells the singleflight to forget about a key.  Future calls
++// to Do for this key will call the function rather than waiting for
++// an earlier call to complete.
++func (g *singleflight) Forget(key string) {
++	g.mu.Lock()
++	delete(g.m, key)
++	g.mu.Unlock()
+ }

@@ -17,7 +17,7 @@ Date:   Wed Nov 10 08:12:21 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go   | 24 ++++++++++++------------
  src/cmd/compile/internal/types2/call.go       |  2 +-
  src/cmd/compile/internal/types2/expr.go       |  2 +-
@@ -26,3 +26,164 @@ Date:   Wed Nov 10 08:12:21 2021 -0800
  src/cmd/compile/internal/types2/predicates.go |  4 ++--
  src/cmd/compile/internal/types2/stmt.go       |  2 +-
  7 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 916aed40b3..4c659d65cd 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -82,7 +82,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// of S and the respective parameter passing rules apply."
+ 		S := x.typ
+ 		var T Type
+-		if s, _ := structure(S).(*Slice); s != nil {
++		if s, _ := structuralType(S).(*Slice); s != nil {
+ 			T = s.elem
+ 		} else {
+ 			check.errorf(x, invalidArg+"%s is not a slice", x)
+@@ -327,14 +327,14 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Copy:
+ 		// copy(x, y []T) int
+-		dst, _ := structure(x.typ).(*Slice)
++		dst, _ := structuralType(x.typ).(*Slice)
+ 
+ 		var y operand
+ 		arg(&y, 1)
+ 		if y.mode == invalid {
+ 			return
+ 		}
+-		src, _ := structureString(y.typ).(*Slice)
++		src, _ := structuralString(y.typ).(*Slice)
+ 
+ 		if dst == nil || src == nil {
+ 			check.errorf(x, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
+@@ -464,7 +464,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		var min int // minimum number of arguments
+-		switch structure(T).(type) {
++		switch structuralType(T).(type) {
+ 		case *Slice:
+ 			min = 2
+ 		case *Map, *Chan:
+@@ -774,14 +774,14 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ // or nil otherwise. If typ is not a type parameter, Structure returns
+ // the underlying type.
+ func Structure(typ Type) Type {
+-	return structure(typ)
++	return structuralType(typ)
+ }
+ 
+-// If typ is a type parameter, structure returns the single underlying
+-// type of all types in the corresponding type constraint if it exists,
+-// or nil otherwise. If typ is not a type parameter, structure returns
++// If typ is a type parameter, structuralType returns the single underlying
++// type of all types in the corresponding type constraint if it exists, or
++// nil otherwise. If typ is not a type parameter, structuralType returns
+ // the underlying type.
+-func structure(typ Type) Type {
++func structuralType(typ Type) Type {
+ 	var su Type
+ 	if underIs(typ, func(u Type) bool {
+ 		if su != nil && !Identical(su, u) {
+@@ -796,10 +796,10 @@ func structure(typ Type) Type {
+ 	return nil
+ }
+ 
+-// structureString is like structure but also considers []byte and
+-// string as "identical". In this case, if successful, the result
++// structuralString is like structuralType but also considers []byte
++// and string as "identical". In this case, if successful, the result
+ // is always []byte.
+-func structureString(typ Type) Type {
++func structuralString(typ Type) Type {
+ 	var su Type
+ 	if underIs(typ, func(u Type) bool {
+ 		if isString(u) {
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 3a571285c1..0540feaa78 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -170,7 +170,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	cgocall := x.mode == cgofunc
+ 
+ 	// a type parameter may be "called" if all types have the same signature
+-	sig, _ := structure(x.typ).(*Signature)
++	sig, _ := structuralType(x.typ).(*Signature)
+ 	if sig == nil {
+ 		check.errorf(x, invalidOp+"cannot call non-function %s", x)
+ 		x.mode = invalid
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 8125fba717..169417016f 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1258,7 +1258,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			goto Error
+ 		}
+ 
+-		switch utyp := structure(base).(type) {
++		switch utyp := structuralType(base).(type) {
+ 		case *Struct:
+ 			// Prevent crash if the struct referred to is not yet set up.
+ 			// See analogous comment for *Array.
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index f096674536..10e85ef6e1 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -210,7 +210,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch u := structure(x.typ).(type) {
++	switch u := structuralType(x.typ).(type) {
+ 	case nil:
+ 		check.errorf(x, invalidOp+"cannot slice %s: type set has no single underlying type", x)
+ 		x.mode = invalid
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 24c461f1c3..4f85a5894c 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -378,7 +378,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 
+ 	// If a constraint has a structural type, unify the corresponding type parameter with it.
+ 	for _, tpar := range tparams {
+-		sbound := structure(tpar)
++		sbound := structuralType(tpar)
+ 		if sbound != nil {
+ 			// If the structural type is the underlying type of a single
+ 			// defined type in the constraint, use that defined type instead.
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 8d676ed8f6..f1fd33c5de 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -31,7 +31,7 @@ func isBasic(t Type, info BasicInfo) bool {
+ // The allX predicates below report whether t is an X.
+ // If t is a type parameter the result is true if isX is true
+ // for all specified types of the type parameter's type set.
+-// allX is an optimized version of isX(structure(t)) (which
++// allX is an optimized version of isX(structuralType(t)) (which
+ // is the same as underIs(t, isX)).
+ 
+ func allBoolean(t Type) bool         { return allBasic(t, IsBoolean) }
+@@ -45,7 +45,7 @@ func allNumericOrString(t Type) bool { return allBasic(t, IsNumeric|IsString) }
+ // allBasic reports whether under(t) is a basic type with the specified info.
+ // If t is a type parameter, the result is true if isBasic(t, info) is true
+ // for all specific types of the type parameter's type set.
+-// allBasic(t, info) is an optimized version of isBasic(structure(t), info).
++// allBasic(t, info) is an optimized version of isBasic(structuralType(t), info).
+ func allBasic(t Type, info BasicInfo) bool {
+ 	switch u := under(t).(type) {
+ 	case *Basic:
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index eaf420aca7..39b24398d7 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -836,7 +836,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	if x.mode != invalid {
+ 		// Ranging over a type parameter is permitted if it has a single underlying type.
+ 		var cause string
+-		u := structure(x.typ)
++		u := structuralType(x.typ)
+ 		switch t := u.(type) {
+ 		case nil:
+ 			cause = "type set has no single underlying type"

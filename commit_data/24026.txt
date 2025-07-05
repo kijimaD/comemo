@@ -9,6 +9,19 @@ Date:   Mon Jun 29 21:55:13 2015 +0800
     Change-Id: I9d01be3e01f74f4b12a516aba8a5d20d9b277ec6
     Reviewed-on: https://go-review.googlesource.com/11539
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/env.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 8d427b37c2..600accac03 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -44,6 +44,7 @@ func mkEnv() []envVar {
+ 		{"GORACE", os.Getenv("GORACE")},
+ 		{"GOROOT", goroot},
+ 		{"GOTOOLDIR", toolDir},
++		{"GO15VENDOREXPERIMENT", os.Getenv("GO15VENDOREXPERIMENT")},
+ 
+ 		// disable escape codes in clang errors
+ 		{"TERM", "dumb"},

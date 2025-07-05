@@ -15,6 +15,29 @@ Date:   Tue Aug 22 16:34:22 2023 +0000
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/doc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/asm/doc.go b/src/cmd/asm/doc.go
+index bb9166b8da..179ac1474e 100644
+--- a/src/cmd/asm/doc.go
++++ b/src/cmd/asm/doc.go
+@@ -33,6 +33,8 @@ Flags:
+ 		Dump instructions as they are parsed.
+ 	-dynlink
+ 		Support references to Go symbols defined in other shared libraries.
++	-e
++		No limit on number of errors reported.
+ 	-gensymabis
+ 		Write symbol ABI information to output file. Don't assemble.
+ 	-o file
+@@ -45,6 +47,8 @@ Flags:
+ 		Enable spectre mitigations in list (all, ret).
+ 	-trimpath prefix
+ 		Remove prefix from recorded source file paths.
++	-v
++		Print debug output.
+ 
+ Input language:
+ 

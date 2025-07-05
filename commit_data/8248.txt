@@ -10,7 +10,7 @@ Date:   Wed Apr 27 15:47:04 2011 -0700
     R=r, rsc1, r2, adg
     CC=golang-dev
     https://golang.org/cl/4426066
-
+---
  src/pkg/compress/lzw/reader_test.go |  8 +-------
  src/pkg/compress/lzw/writer_test.go |  2 +-
  src/pkg/html/parse_test.go          |  8 +-------
@@ -18,3 +18,155 @@ Date:   Wed Apr 27 15:47:04 2011 -0700
  src/pkg/io/ioutil/ioutil.go         | 10 ++++++++++
  src/pkg/mime/multipart/multipart.go | 11 ++---------
  6 files changed, 18 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/compress/lzw/reader_test.go b/src/pkg/compress/lzw/reader_test.go
+index 4b5dfaadea..72121a6b56 100644
+--- a/src/pkg/compress/lzw/reader_test.go
++++ b/src/pkg/compress/lzw/reader_test.go
+@@ -112,12 +112,6 @@ func TestReader(t *testing.T) {
+ 	}
+ }
+ 
+-type devNull struct{}
+-
+-func (devNull) Write(p []byte) (int, os.Error) {
+-	return len(p), nil
+-}
+-
+ func benchmarkDecoder(b *testing.B, n int) {
+ 	b.StopTimer()
+ 	b.SetBytes(int64(n))
+@@ -134,7 +128,7 @@ func benchmarkDecoder(b *testing.B, n int) {
+ 	runtime.GC()
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+-		io.Copy(devNull{}, NewReader(bytes.NewBuffer(buf1), LSB, 8))
++		io.Copy(ioutil.Discard, NewReader(bytes.NewBuffer(buf1), LSB, 8))
+ 	}
+ }
+ 
+diff --git a/src/pkg/compress/lzw/writer_test.go b/src/pkg/compress/lzw/writer_test.go
+index e5815a03d5..82464ecd1b 100644
+--- a/src/pkg/compress/lzw/writer_test.go
++++ b/src/pkg/compress/lzw/writer_test.go
+@@ -113,7 +113,7 @@ func benchmarkEncoder(b *testing.B, n int) {
+ 	runtime.GC()
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+-		w := NewWriter(devNull{}, LSB, 8)
++		w := NewWriter(ioutil.Discard, LSB, 8)
+ 		w.Write(buf1)
+ 		w.Close()
+ 	}
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index fe955436c8..3fa35d5dbe 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -15,12 +15,6 @@ import (
+ 	"testing"
+ )
+ 
+-type devNull struct{}
+-
+-func (devNull) Write(p []byte) (int, os.Error) {
+-	return len(p), nil
+-}
+-
+ func pipeErr(err os.Error) io.Reader {
+ 	pr, pw := io.Pipe()
+ 	pw.CloseWithError(err)
+@@ -141,7 +135,7 @@ func TestParser(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 			// Skip the #error section.
+-			if _, err := io.Copy(devNull{}, <-rc); err != nil {
++			if _, err := io.Copy(ioutil.Discard, <-rc); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 			// Compare the parsed tree to the #document section.
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 41614f144f..98c32bab64 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -7,6 +7,7 @@ package http
+ import (
+ 	"bufio"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -447,17 +448,10 @@ func (b *body) Close() os.Error {
+ 		return nil
+ 	}
+ 
+-	trashBuf := make([]byte, 1024) // local for thread safety
+-	for {
+-		_, err := b.Read(trashBuf)
+-		if err == nil {
+-			continue
+-		}
+-		if err == os.EOF {
+-			break
+-		}
++	if _, err := io.Copy(ioutil.Discard, b); err != nil {
+ 		return err
+ 	}
++
+ 	if b.hdr == nil { // not reading trailer
+ 		return nil
+ 	}
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index ac481928b4..5f1eecaabe 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -101,3 +101,13 @@ func (nopCloser) Close() os.Error { return nil }
+ func NopCloser(r io.Reader) io.ReadCloser {
+ 	return nopCloser{r}
+ }
++
++type devNull int
++
++func (devNull) Write(p []byte) (int, os.Error) {
++	return len(p), nil
++}
++
++// Discard is an io.Writer on which all Write calls succeed
++// without doing anything.
++var Discard io.Writer = devNull(0)
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index 22576cff46..f857db1a08 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -16,6 +16,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"io"
++	"io/ioutil"
+ 	"mime"
+ 	"net/textproto"
+ 	"os"
+@@ -76,14 +77,6 @@ func NewReader(reader io.Reader, boundary string) Reader {
+ 
+ // Implementation ....
+ 
+-type devNullWriter bool
+-
+-func (*devNullWriter) Write(p []byte) (n int, err os.Error) {
+-	return len(p), nil
+-}
+-
+-var devNull = devNullWriter(false)
+-
+ func newPart(mr *multiReader) (bp *Part, err os.Error) {
+ 	bp = new(Part)
+ 	bp.Header = make(map[string][]string)
+@@ -158,7 +151,7 @@ func (bp *Part) Read(p []byte) (n int, err os.Error) {
+ }
+ 
+ func (bp *Part) Close() os.Error {
+-	io.Copy(&devNull, bp)
++	io.Copy(ioutil.Discard, bp)
+ 	return nil
+ }
+ 

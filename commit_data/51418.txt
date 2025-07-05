@@ -10,6 +10,21 @@ Date:   Tue Jan 25 19:12:35 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/380854
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index b25cf5fa6e..6f4aefcf4f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -820,7 +820,8 @@ An alias denotes a named type if the type given in the alias declaration is a na
+ 
+ <p>
+ Each type <code>T</code> has an <i>underlying type</i>: If <code>T</code>
+-is one of the predeclared boolean, numeric, or string types, or a type literal,
++is one of the predeclared boolean, numeric, or string types, the predeclared
++type <code>comparable</code>, or a type literal,
+ the corresponding underlying type is <code>T</code> itself.
+ Otherwise, <code>T</code>'s underlying type is the underlying type of the
+ type to which <code>T</code> refers in its <a href="#Type_declarations">type

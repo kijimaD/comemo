@@ -16,7 +16,35 @@ Date:   Wed Apr 5 09:28:00 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/cmd/compile/internal/syntax/pos.go | 2 ++
  src/go/scanner/scanner.go              | 3 ++-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+index b5e53d268b..dd25d4f249 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -8,6 +8,8 @@ import "fmt"
+ 
+ // PosMax is the largest line or column value that can be represented without loss.
+ // Incoming values (arguments) larger than PosMax will be set to PosMax.
++//
++// Keep this consistent with maxLineCol in go/scanner.
+ const PosMax = 1 << 30
+ 
+ // A Pos represents an absolute (line, col) source position
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 0cd9f5901d..75f835d310 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -255,7 +255,8 @@ func (s *Scanner) updateLineInfo(next, offs int, text []byte) {
+ 
+ 	// Put a cap on the maximum size of line and column numbers.
+ 	// 30 bits allows for some additional space before wrapping an int32.
+-	const maxLineCol = 1<<30 - 1
++	// Keep this consistent with cmd/compile/internal/syntax.PosMax.
++	const maxLineCol = 1 << 30
+ 	var line, col int
+ 	i2, n2, ok2 := trailingDigits(text[:i-1])
+ 	if ok2 {

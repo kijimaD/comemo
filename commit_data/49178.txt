@@ -28,8 +28,170 @@ Date:   Sun Jul 25 16:26:13 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/proc.go     |  1 -
  src/runtime/runtime2.go |  6 ------
  src/runtime/time.go     | 53 ++++++++-----------------------------------------
  3 files changed, 8 insertions(+), 52 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4c92588a66..7bc2a92590 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4919,7 +4919,6 @@ func (pp *p) destroy() {
+ 		moveTimers(plocal, pp.timers)
+ 		pp.timers = nil
+ 		pp.numTimers = 0
+-		pp.adjustTimers = 0
+ 		pp.deletedTimers = 0
+ 		atomic.Store64(&pp.timer0When, 0)
+ 		unlock(&pp.timersLock)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 8a15787382..5051ec4d3e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -727,12 +727,6 @@ type p struct {
+ 	// Modified using atomic instructions.
+ 	numTimers uint32
+ 
+-	// Number of timerModifiedEarlier timers on P's heap.
+-	// This should only be modified while holding timersLock,
+-	// or while the timer status is in a transient state
+-	// such as timerModifying.
+-	adjustTimers uint32
+-
+ 	// Number of timerDeleted timers in P's heap.
+ 	// Modified using atomic instructions.
+ 	deletedTimers uint32
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 7b84d2af57..666b242316 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -333,7 +333,6 @@ func deltimer(t *timer) bool {
+ 				// Must fetch t.pp before setting status
+ 				// to timerDeleted.
+ 				tpp := t.pp.ptr()
+-				atomic.Xadd(&tpp.adjustTimers, -1)
+ 				if !atomic.Cas(&t.status, timerModifying, timerDeleted) {
+ 					badTimer()
+ 				}
+@@ -510,20 +509,9 @@ loop:
+ 
+ 		tpp := t.pp.ptr()
+ 
+-		// Update the adjustTimers field.  Subtract one if we
+-		// are removing a timerModifiedEarlier, add one if we
+-		// are adding a timerModifiedEarlier.
+-		adjust := int32(0)
+-		if status == timerModifiedEarlier {
+-			adjust--
+-		}
+ 		if newStatus == timerModifiedEarlier {
+-			adjust++
+ 			updateTimerModifiedEarliest(tpp, when)
+ 		}
+-		if adjust != 0 {
+-			atomic.Xadd(&tpp.adjustTimers, adjust)
+-		}
+ 
+ 		// Set the new status of the timer.
+ 		if !atomic.Cas(&t.status, timerModifying, newStatus) {
+@@ -591,9 +579,6 @@ func cleantimers(pp *p) {
+ 			// Move t to the right position.
+ 			dodeltimer0(pp)
+ 			doaddtimer(pp, t)
+-			if s == timerModifiedEarlier {
+-				atomic.Xadd(&pp.adjustTimers, -1)
+-			}
+ 			if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+ 				badTimer()
+ 			}
+@@ -664,32 +649,23 @@ func moveTimers(pp *p, timers []*timer) {
+ // it also moves timers that have been modified to run later,
+ // and removes deleted timers. The caller must have locked the timers for pp.
+ func adjusttimers(pp *p, now int64) {
+-	if atomic.Load(&pp.adjustTimers) == 0 {
+-		if verifyTimers {
+-			verifyTimerHeap(pp)
+-		}
+-		return
+-	}
+-
+ 	// If we haven't yet reached the time of the first timerModifiedEarlier
+ 	// timer, don't do anything. This speeds up programs that adjust
+ 	// a lot of timers back and forth if the timers rarely expire.
+ 	// We'll postpone looking through all the adjusted timers until
+ 	// one would actually expire.
+-	if first := atomic.Load64(&pp.timerModifiedEarliest); first != 0 {
+-		if int64(first) > now {
+-			if verifyTimers {
+-				verifyTimerHeap(pp)
+-			}
+-			return
++	first := atomic.Load64(&pp.timerModifiedEarliest)
++	if first == 0 || int64(first) > now {
++		if verifyTimers {
++			verifyTimerHeap(pp)
+ 		}
+-
+-		// We are going to clear all timerModifiedEarlier timers.
+-		atomic.Store64(&pp.timerModifiedEarliest, 0)
++		return
+ 	}
+ 
++	// We are going to clear all timerModifiedEarlier timers.
++	atomic.Store64(&pp.timerModifiedEarliest, 0)
++
+ 	var moved []*timer
+-loop:
+ 	for i := 0; i < len(pp.timers); i++ {
+ 		t := pp.timers[i]
+ 		if t.pp.ptr() != pp {
+@@ -716,11 +692,6 @@ loop:
+ 				// loop to skip some other timer.
+ 				dodeltimer(pp, i)
+ 				moved = append(moved, t)
+-				if s == timerModifiedEarlier {
+-					if n := atomic.Xadd(&pp.adjustTimers, -1); int32(n) <= 0 {
+-						break loop
+-					}
+-				}
+ 				// Look at this heap position again.
+ 				i--
+ 			}
+@@ -819,9 +790,6 @@ func runtimer(pp *p, now int64) int64 {
+ 			t.when = t.nextwhen
+ 			dodeltimer0(pp)
+ 			doaddtimer(pp, t)
+-			if s == timerModifiedEarlier {
+-				atomic.Xadd(&pp.adjustTimers, -1)
+-			}
+ 			if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+ 				badTimer()
+ 			}
+@@ -916,7 +884,6 @@ func clearDeletedTimers(pp *p) {
+ 	atomic.Store64(&pp.timerModifiedEarliest, 0)
+ 
+ 	cdel := int32(0)
+-	cearlier := int32(0)
+ 	to := 0
+ 	changedHeap := false
+ 	timers := pp.timers
+@@ -941,9 +908,6 @@ nextTimer:
+ 					if !atomic.Cas(&t.status, timerMoving, timerWaiting) {
+ 						badTimer()
+ 					}
+-					if s == timerModifiedEarlier {
+-						cearlier++
+-					}
+ 					continue nextTimer
+ 				}
+ 			case timerDeleted:
+@@ -980,7 +944,6 @@ nextTimer:
+ 
+ 	atomic.Xadd(&pp.deletedTimers, -cdel)
+ 	atomic.Xadd(&pp.numTimers, -cdel)
+-	atomic.Xadd(&pp.adjustTimers, -cearlier)
+ 
+ 	timers = timers[:to]
+ 	pp.timers = timers

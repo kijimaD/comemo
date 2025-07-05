@@ -7,9 +7,258 @@ Date:   Tue Apr 12 22:32:03 2011 +1000
     R=r, rsc, nigeltao_gnome
     CC=golang-dev, raph
     https://golang.org/cl/4374043
-
+---
  src/pkg/Makefile                  |   1 +
  src/pkg/image/ycbcr/Makefile      |  11 +++
  src/pkg/image/ycbcr/ycbcr.go      | 174 ++++++++++++++++++++++++++++++++++++++
  src/pkg/image/ycbcr/ycbcr_test.go |  33 ++++++++
  4 files changed, 219 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 0d426e7a54..8eaf39d79d 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -105,6 +105,7 @@ DIRS=\
+ 	image\
+ 	image/jpeg\
+ 	image/png\
++	image/ycbcr\
+ 	index/suffixarray\
+ 	io\
+ 	io/ioutil\
+diff --git a/src/pkg/image/ycbcr/Makefile b/src/pkg/image/ycbcr/Makefile
+new file mode 100644
+index 0000000000..a9c4c13679
+--- /dev/null
++++ b/src/pkg/image/ycbcr/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=image/ycbcr
++GOFILES=\
++	ycbcr.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/image/ycbcr/ycbcr.go b/src/pkg/image/ycbcr/ycbcr.go
+new file mode 100644
+index 0000000000..b2e033b821
+--- /dev/null
++++ b/src/pkg/image/ycbcr/ycbcr.go
+@@ -0,0 +1,174 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The ycbcr package provides images from the Y'CbCr color model.
++//
++// JPEG, VP8, the MPEG family and other codecs use this color model. Such
++// codecs often use the terms YUV and Y'CbCr interchangeably, but strictly
++// speaking, the term YUV applies only to analog video signals.
++//
++// Conversion between RGB and Y'CbCr is lossy and there are multiple, slightly
++// different formulae for converting between the two. This package follows
++// the JFIF specification at http://www.w3.org/Graphics/JPEG/jfif3.pdf.
++package ycbcr
++
++import (
++	"image"
++)
++
++// RGBToYCbCr converts an RGB triple to a YCbCr triple. All components lie
++// within the range [0, 255].
++func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
++	// The JFIF specification says:
++	//	Y' =  0.2990*R + 0.5870*G + 0.1140*B
++	//	Cb = -0.1687*R - 0.3313*G + 0.5000*B + 128
++	//	Cr =  0.5000*R - 0.4187*G - 0.0813*B + 128
++	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
++	r1 := int(r)
++	g1 := int(g)
++	b1 := int(b)
++	yy := (19595*r1 + 38470*g1 + 7471*b1 + 1<<15) >> 16
++	cb := (-11056*r1 - 21712*g1 + 32768*b1 + 257<<15) >> 16
++	cr := (32768*r1 - 27440*g1 - 5328*b1 + 257<<15) >> 16
++	if yy < 0 {
++		yy = 0
++	} else if yy > 255 {
++		yy = 255
++	}
++	if cb < 0 {
++		cb = 0
++	} else if cb > 255 {
++		cb = 255
++	}
++	if cr < 0 {
++		cr = 0
++	} else if cr > 255 {
++		cr = 255
++	}
++	return uint8(yy), uint8(cb), uint8(cr)
++}
++
++// YCbCrToRGB converts a YCbCr triple to an RGB triple. All components lie
++// within the range [0, 255].
++func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
++	// The JFIF specification says:
++	//	R = Y' + 1.40200*(Cr-128)
++	//	G = Y' - 0.34414*(Cb-128) - 0.71414*(Cr-128)
++	//	B = Y' + 1.77200*(Cb-128)
++	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
++	yy1 := int(y)<<16 + 1<<15
++	cb1 := int(cb) - 128
++	cr1 := int(cr) - 128
++	r := (yy1 + 91881*cr1) >> 16
++	g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
++	b := (yy1 + 116130*cb1) >> 16
++	if r < 0 {
++		r = 0
++	} else if r > 255 {
++		r = 255
++	}
++	if g < 0 {
++		g = 0
++	} else if g > 255 {
++		g = 255
++	}
++	if b < 0 {
++		b = 0
++	} else if b > 255 {
++		b = 255
++	}
++	return uint8(r), uint8(g), uint8(b)
++}
++
++// YCbCrColor represents a fully opaque 24-bit Y'CbCr color, having 8 bits for
++// each of one luma and two chroma components.
++type YCbCrColor struct {
++	Y, Cb, Cr uint8
++}
++
++func (c YCbCrColor) RGBA() (uint32, uint32, uint32, uint32) {
++	r, g, b := YCbCrToRGB(c.Y, c.Cb, c.Cr)
++	return uint32(r) * 0x101, uint32(g) * 0x101, uint32(b) * 0x101, 0xffff
++}
++
++func toYCbCrColor(c image.Color) image.Color {
++	if _, ok := c.(YCbCrColor); ok {
++		return c
++	}
++	r, g, b, _ := c.RGBA()
++	y, u, v := RGBToYCbCr(uint8(r>>8), uint8(g>>8), uint8(b>>8))
++	return YCbCrColor{y, u, v}
++}
++
++// YCbCrColorModel is the color model for YCbCrColor.
++var YCbCrColorModel image.ColorModel = image.ColorModelFunc(toYCbCrColor)
++
++// SubsampleRatio is the chroma subsample ratio used in a YCbCr image.
++type SubsampleRatio int
++
++const (
++	SubsampleRatio444 SubsampleRatio = iota
++	SubsampleRatio422
++	SubsampleRatio420
++)
++
++// YCbCr is an in-memory image of YCbCr colors. There is one Y sample per pixel,
++// but each Cb and Cr sample can span one or more pixels.
++// YStride is the Y slice index delta between vertically adjacent pixels.
++// CStride is the Cb and Cr slice index delta between vertically adjacent pixels
++// that map to separate chroma samples.
++// It is not an absolute requirement, but YStride and len(Y) are typically
++// multiples of 8, and:
++//	For 4:4:4, CStride == YStride/1 && len(Cb) == len(Cr) == len(Y)/1.
++//	For 4:2:2, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/2.
++//	For 4:2:0, CStride == YStride/2 && len(Cb) == len(Cr) == len(Y)/4.
++type YCbCr struct {
++	Y              []uint8
++	Cb             []uint8
++	Cr             []uint8
++	YStride        int
++	CStride        int
++	SubsampleRatio SubsampleRatio
++	Rect           image.Rectangle
++}
++
++func (p *YCbCr) ColorModel() image.ColorModel {
++	return YCbCrColorModel
++}
++
++func (p *YCbCr) Bounds() image.Rectangle {
++	return p.Rect
++}
++
++func (p *YCbCr) At(x, y int) image.Color {
++	if !p.Rect.Contains(image.Point{x, y}) {
++		return YCbCrColor{}
++	}
++	switch p.SubsampleRatio {
++	case SubsampleRatio422:
++		i := x / 2
++		return YCbCrColor{
++			p.Y[y*p.YStride+x],
++			p.Cb[y*p.CStride+i],
++			p.Cr[y*p.CStride+i],
++		}
++	case SubsampleRatio420:
++		i, j := x/2, y/2
++		return YCbCrColor{
++			p.Y[y*p.YStride+x],
++			p.Cb[j*p.CStride+i],
++			p.Cr[j*p.CStride+i],
++		}
++	}
++	// Default to 4:4:4 subsampling.
++	return YCbCrColor{
++		p.Y[y*p.YStride+x],
++		p.Cb[y*p.CStride+x],
++		p.Cr[y*p.CStride+x],
++	}
++}
++
++func (p *YCbCr) Opaque() bool {
++	return true
++}
+diff --git a/src/pkg/image/ycbcr/ycbcr_test.go b/src/pkg/image/ycbcr/ycbcr_test.go
+new file mode 100644
+index 0000000000..2e60a6f61f
+--- /dev/null
++++ b/src/pkg/image/ycbcr/ycbcr_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ycbcr
++
++import (
++	"testing"
++)
++
++func delta(x, y uint8) uint8 {
++	if x >= y {
++		return x - y
++	}
++	return y - x
++}
++
++// Test that a subset of RGB space can be converted to YCbCr and back to within
++// 1/256 tolerance.
++func TestRoundtrip(t *testing.T) {
++	for r := 0; r < 255; r += 7 {
++		for g := 0; g < 255; g += 5 {
++			for b := 0; b < 255; b += 3 {
++				r0, g0, b0 := uint8(r), uint8(g), uint8(b)
++				y, cb, cr := RGBToYCbCr(r0, g0, b0)
++				r1, g1, b1 := YCbCrToRGB(y, cb, cr)
++				if delta(r0, r1) > 1 || delta(g0, g1) > 1 || delta(b0, b1) > 1 {
++					t.Fatalf("r0, g0, b0 = %d, %d, %d   r1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
++				}
++			}
++		}
++	}
++}

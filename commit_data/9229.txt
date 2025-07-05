@@ -9,8 +9,67 @@ Date:   Wed Jul 27 18:55:30 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4803055
-
+---
  src/cmd/gc/pgen.c        |  2 +-
  src/cmd/gc/sinit.c       |  2 +-
  test/fixedbugs/bug354.go | 26 ++++++++++++++++++++++++++
  3 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 962324a8bb..abe8ea8925 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -189,7 +189,7 @@ compactframe(Prog* ptxt)
+ 			continue;
+ 
+ 		w = n->type->width;
+-		if((w >= MAXWIDTH) || (w < 0))
++		if(w >= MAXWIDTH || w < 0)
+ 			fatal("bad width");
+ 		stksize += w;
+ 		stksize = rnd(stksize, n->type->align);
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index eb7ef31ecc..917e2ae6d5 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -686,7 +686,7 @@ anylit(int ctxt, Node *n, Node *var, NodeList **init)
+ 			if(ctxt == 0) {
+ 				// lay out static data
+ 				vstat = staticname(t, ctxt);
+-				structlit(1, 1, n, vstat, init);
++				structlit(ctxt, 1, n, vstat, init);
+ 
+ 				// copy static to var
+ 				a = nod(OAS, var, vstat);
+diff --git a/test/fixedbugs/bug354.go b/test/fixedbugs/bug354.go
+new file mode 100644
+index 0000000000..1f6a6dc9f7
+--- /dev/null
++++ b/test/fixedbugs/bug354.go
+@@ -0,0 +1,26 @@
++// $G $D/$F.go || echo BUG: bug354
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 2086
++// was calling makeclosure twice on the closure
++
++package main
++
++import (
++	"os"
++)
++
++type Inner struct {
++	F func() os.Error
++}
++
++type Outer struct {
++	Inners []Inner
++}
++
++// calls makeclosure twice on same closure
++
++var Foo = Outer{[]Inner{Inner{func() os.Error{ return nil }}}}

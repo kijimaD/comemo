@@ -15,6 +15,19 @@ Date:   Thu Mar 29 18:48:33 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  api/except.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/api/except.txt b/api/except.txt
+index ea4fa0eb9d..b3429fe768 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -2,6 +2,7 @@ pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
+ pkg math/big, const MaxBase = 36
+ pkg math/big, type Word uintptr
+ pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
++pkg os, const ModeType = 2399141888
+ pkg os (linux-arm), const O_SYNC = 4096
+ pkg os (linux-arm-cgo), const O_SYNC = 4096
+ pkg syscall (darwin-386), const ImplementsGetwd = false

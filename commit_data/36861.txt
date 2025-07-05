@@ -11,6 +11,22 @@ Date:   Mon Jun 4 20:06:30 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/tcpsockopt_darwin.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/net/tcpsockopt_darwin.go b/src/net/tcpsockopt_darwin.go
+index 7415c763c5..5b738d23e6 100644
+--- a/src/net/tcpsockopt_darwin.go
++++ b/src/net/tcpsockopt_darwin.go
+@@ -16,9 +16,7 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+ 	// The kernel expects seconds so round to next highest second.
+ 	d += (time.Second - time.Nanosecond)
+ 	secs := int(d.Seconds())
+-	switch err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, sysTCP_KEEPINTVL, secs); err {
+-	case nil, syscall.ENOPROTOOPT: // OS X 10.7 and earlier don't support this option
+-	default:
++	if err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, sysTCP_KEEPINTVL, secs); err != nil {
+ 		return wrapSyscallError("setsockopt", err)
+ 	}
+ 	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs)

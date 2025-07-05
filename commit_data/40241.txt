@@ -10,6 +10,27 @@ Date:   Mon Apr 29 05:38:25 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174278
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/s390x/asm.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 040c573705..ebaf760edf 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -69,6 +69,7 @@ func gentext(ctxt *ld.Link) {
+ 	initfunc.AddUint8(0xc0)
+ 	initfunc.AddUint8(0x20)
+ 	lmd := initfunc.AddRel()
++	lmd.InitExt()
+ 	lmd.Off = int32(initfunc.Size)
+ 	lmd.Siz = 4
+ 	lmd.Sym = ctxt.Moduledata
+@@ -81,6 +82,7 @@ func gentext(ctxt *ld.Link) {
+ 	initfunc.AddUint8(0xc0)
+ 	initfunc.AddUint8(0xf4)
+ 	rel := initfunc.AddRel()
++	rel.InitExt()
+ 	rel.Off = int32(initfunc.Size)
+ 	rel.Siz = 4
+ 	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)

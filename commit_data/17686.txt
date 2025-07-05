@@ -9,7 +9,54 @@ Date:   Mon Sep 23 17:16:59 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13846043
-
+---
  src/pkg/net/http/fs.go      | 2 +-
  src/pkg/net/http/fs_test.go | 7 +++++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 2bcf86baa4..e7bcefed15 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -173,7 +173,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+ 			return
+ 		}
+-		if sumRangesSize(ranges) >= size {
++		if sumRangesSize(ranges) > size {
+ 			// The total number of bytes in all the ranges
+ 			// is larger than the size of the file by
+ 			// itself, so this is probably an attack, or a
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index e31c9f5f56..125d8b438d 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -36,6 +37,8 @@ type wantRange struct {
+ 	start, end int64 // range [start,end)
+ }
+ 
++var itoa = strconv.Itoa
++
+ var ServeFileRangeTests = []struct {
+ 	r      string
+ 	code   int
+@@ -50,7 +53,11 @@ var ServeFileRangeTests = []struct {
+ 	{r: "bytes=0-0,-2", code: StatusPartialContent, ranges: []wantRange{{0, 1}, {testFileLen - 2, testFileLen}}},
+ 	{r: "bytes=0-1,5-8", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, 9}}},
+ 	{r: "bytes=0-1,5-", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, testFileLen}}},
++	{r: "bytes=5-1000", code: StatusPartialContent, ranges: []wantRange{{5, testFileLen}}},
+ 	{r: "bytes=0-,1-,2-,3-,4-", code: StatusOK}, // ignore wasteful range request
++	{r: "bytes=0-" + itoa(testFileLen-2), code: StatusPartialContent, ranges: []wantRange{{0, testFileLen - 1}}},
++	{r: "bytes=0-" + itoa(testFileLen-1), code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
++	{r: "bytes=0-" + itoa(testFileLen), code: StatusPartialContent, ranges: []wantRange{{0, testFileLen}}},
+ }
+ 
+ func TestServeFile(t *testing.T) {

@@ -9,8 +9,71 @@ Date:   Sat Oct 10 22:06:26 2009 -0700
     DELTA=25  (25 added, 0 deleted, 0 changed)
     OCL=35566
     CL=35574
-
+---
  src/cmd/gc/sys.go          |  2 ++
  src/cmd/gc/walk.c          | 10 ++++++++++
  src/pkg/runtime/arm/vlrt.c | 13 +++++++++++++
  3 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index b4c05a185f..5e36329209 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -89,3 +89,5 @@ func int64div(int64, int64) int64
+ func uint64div(uint64, uint64) uint64
+ func int64mod(int64, int64) int64
+ func uint64mod(uint64, uint64) uint64
++func float64toint64(float64) int64
++func int64tofloat64(int64) float64
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index abbd37335b..e5aa1e7265 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -713,6 +713,16 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OCONV:
+ 	case OCONVNOP:
++		if(thechar == '5') {
++			if(isfloat[n->left->type->etype] && (n->type->etype == TINT64)) {
++				n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
++				goto ret;
++			}
++			if((n->left->type->etype == TINT64) && isfloat[n->type->etype]) {
++				n = mkcall("int64tofloat64", n->type, init, conv(n->left, types[TINT64]));
++				goto ret;
++			}
++		}
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+ 
+diff --git a/src/pkg/runtime/arm/vlrt.c b/src/pkg/runtime/arm/vlrt.c
+index 03840f1f62..a012b3e14e 100755
+--- a/src/pkg/runtime/arm/vlrt.c
++++ b/src/pkg/runtime/arm/vlrt.c
+@@ -142,6 +142,12 @@ _f2v(Vlong *y, float f)
+         _d2v(y, f);
+ }
+ 
++void
++sys·float64toint64(double d, Vlong y)
++{
++	_d2v(&y, d);
++}
++
+ double
+ _v2d(Vlong x)
+ {
+@@ -162,6 +168,13 @@ _v2f(Vlong x)
+         return _v2d(x);
+ }
+ 
++void
++sys·int64tofloat64(Vlong y, double d)
++{
++	d = _v2d(y);
++}
++
++
+ static void
+ dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
+ {

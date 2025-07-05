@@ -7,7 +7,32 @@ Date:   Fri Sep 10 13:59:08 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2140045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 714fbc71ad..db97c7e54b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -29,6 +29,7 @@ Christian Himpel <chressie@googlemail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Corey Thomasson <cthom.lists@gmail.com>
++Dan Sinclair <dan.sinclair@gmail.com>
+ Daniel Fleischman <danielfleischman@gmail.com>
+ Daniel Theophanes <kardianos@gmail.com>
+ David G. Andersen <dave.andersen@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e8d40d87b2..3a50a1c99e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -60,6 +60,7 @@ Christian Himpel <chressie@googlemail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Corey Thomasson <cthom.lists@gmail.com>
++Dan Sinclair <dan.sinclair@gmail.com>
+ Daniel Fleischman <danielfleischman@gmail.com>
+ Daniel Nadasi <dnadasi@google.com>
+ Daniel Theophanes <kardianos@gmail.com>

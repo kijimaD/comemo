@@ -11,6 +11,20 @@ Date:   Fri Oct 13 12:22:20 2017 -0700
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/os_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index dbe4ff8830..d04ba917b3 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2176,6 +2176,8 @@ func TestPipeThreads(t *testing.T) {
+ 		t.Skip("skipping on Plan 9; does not support runtime poller")
+ 	}
+ 
++	testenv.SkipFlaky(t, 21559)
++
+ 	threads := 100
+ 
+ 	// OpenBSD has a low default for max number of files.

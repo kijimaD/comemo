@@ -16,7 +16,7 @@ Date:   Fri Aug 28 16:45:17 2015 -0700
     Change-Id: Ia42d6b5f9cdb3215a51737b3eb117c00bd439b13
     Reviewed-on: https://go-review.googlesource.com/14033
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/check.go          |   7 +
  src/cmd/compile/internal/ssa/deadcode.go       | 186 +++++++++++++------------
  src/cmd/compile/internal/ssa/gen/generic.rules |   6 +-
@@ -27,3 +27,475 @@ Date:   Fri Aug 28 16:45:17 2015 -0700
  src/cmd/compile/internal/ssa/rewritegeneric.go |  49 +++----
  test/fixedbugs/issue12347.go                   |  16 +++
  9 files changed, 154 insertions(+), 127 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index ad9222f3e2..0c2bc4c7f1 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -99,6 +99,13 @@ func checkFunc(f *Func) {
+ 			if !b.Control.Type.IsMemory() {
+ 				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
++		case BlockFirst:
++			if len(b.Succs) != 2 {
++				f.Fatalf("plain/dead block %s len(Succs)==%d, want 2", b, len(b.Succs))
++			}
++			if b.Control != nil {
++				f.Fatalf("plain/dead block %s has a control value", b)
++			}
+ 		}
+ 		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
+ 			f.Fatalf("likeliness prediction %d for block %s with %d successors: %s", b.Likely, b, len(b.Succs))
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 5ff082baff..be25eddb47 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -29,7 +29,11 @@ func findlive(f *Func) (reachable []bool, live []bool) {
+ 		b := p[len(p)-1]
+ 		p = p[:len(p)-1]
+ 		// Mark successors as reachable
+-		for _, c := range b.Succs {
++		s := b.Succs
++		if b.Kind == BlockFirst {
++			s = s[:1]
++		}
++		for _, c := range s {
+ 			if !reachable[c.ID] {
+ 				reachable[c.ID] = true
+ 				p = append(p, c) // push
+@@ -103,6 +107,37 @@ func deadcode(f *Func) {
+ 		b.Values = b.Values[:i]
+ 	}
+ 
++	// Get rid of edges from dead to live code.
++	for _, b := range f.Blocks {
++		if reachable[b.ID] {
++			continue
++		}
++		for _, c := range b.Succs {
++			if reachable[c.ID] {
++				c.removePred(b)
++			}
++		}
++	}
++
++	// Get rid of dead edges from live code.
++	for _, b := range f.Blocks {
++		if !reachable[b.ID] {
++			continue
++		}
++		if b.Kind != BlockFirst {
++			continue
++		}
++		c := b.Succs[1]
++		b.Succs[1] = nil
++		b.Succs = b.Succs[:1]
++		b.Kind = BlockPlain
++
++		if reachable[c.ID] {
++			// Note: c must be reachable through some other edge.
++			c.removePred(b)
++		}
++	}
++
+ 	// Remove unreachable blocks.  Return dead block ids to allocator.
+ 	i := 0
+ 	for _, b := range f.Blocks {
+@@ -113,11 +148,10 @@ func deadcode(f *Func) {
+ 			if len(b.Values) > 0 {
+ 				b.Fatalf("live values in unreachable block %v: %v", b, b.Values)
+ 			}
+-			s := b.Succs
++			b.Preds = nil
+ 			b.Succs = nil
+-			for _, c := range s {
+-				f.removePredecessor(b, c)
+-			}
++			b.Control = nil
++			b.Kind = BlockDead
+ 			f.bid.put(b.ID)
+ 		}
+ 	}
+@@ -132,94 +166,68 @@ func deadcode(f *Func) {
+ 	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
+ }
+ 
+-// There was an edge b->c.  c has been removed from b's successors.
+-// Fix up c to handle that fact.
+-func (f *Func) removePredecessor(b, c *Block) {
+-	work := [][2]*Block{{b, c}}
+-
+-	for len(work) > 0 {
+-		b, c := work[0][0], work[0][1]
+-		work = work[1:]
+-
+-		// Find index of b in c's predecessor list
+-		// TODO: This could conceivably cause O(n^2) work.  Imagine a very
+-		// wide phi in (for example) the return block.  If we determine that
+-		// lots of panics won't happen, we remove each edge at a cost of O(n) each.
+-		var i int
+-		found := false
+-		for j, p := range c.Preds {
+-			if p == b {
+-				i = j
+-				found = true
+-				break
+-			}
+-		}
+-		if !found {
+-			f.Fatalf("can't find predecessor %v of %v\n", b, c)
++// removePred removes the predecessor p from b's predecessor list.
++func (b *Block) removePred(p *Block) {
++	var i int
++	found := false
++	for j, q := range b.Preds {
++		if q == p {
++			i = j
++			found = true
++			break
+ 		}
++	}
++	// TODO: the above loop could make the deadcode pass take quadratic time
++	if !found {
++		b.Fatalf("can't find predecessor %v of %v\n", p, b)
++	}
+ 
+-		n := len(c.Preds) - 1
+-		c.Preds[i] = c.Preds[n]
+-		c.Preds[n] = nil // aid GC
+-		c.Preds = c.Preds[:n]
++	n := len(b.Preds) - 1
++	b.Preds[i] = b.Preds[n]
++	b.Preds[n] = nil // aid GC
++	b.Preds = b.Preds[:n]
+ 
+-		// rewrite phi ops to match the new predecessor list
+-		for _, v := range c.Values {
+-			if v.Op != OpPhi {
+-				continue
+-			}
+-			v.Args[i] = v.Args[n]
+-			v.Args[n] = nil // aid GC
+-			v.Args = v.Args[:n]
+-			if n == 1 {
+-				v.Op = OpCopy
+-				// Note: this is trickier than it looks.  Replacing
+-				// a Phi with a Copy can in general cause problems because
+-				// Phi and Copy don't have exactly the same semantics.
+-				// Phi arguments always come from a predecessor block,
+-				// whereas copies don't.  This matters in loops like:
+-				// 1: x = (Phi y)
+-				//    y = (Add x 1)
+-				//    goto 1
+-				// If we replace Phi->Copy, we get
+-				// 1: x = (Copy y)
+-				//    y = (Add x 1)
+-				//    goto 1
+-				// (Phi y) refers to the *previous* value of y, whereas
+-				// (Copy y) refers to the *current* value of y.
+-				// The modified code has a cycle and the scheduler
+-				// will barf on it.
+-				//
+-				// Fortunately, this situation can only happen for dead
+-				// code loops.  So although the value graph is transiently
+-				// bad, we'll throw away the bad part by the end of
+-				// the next deadcode phase.
+-				// Proof: If we have a potential bad cycle, we have a
+-				// situation like this:
+-				//   x = (Phi z)
+-				//   y = (op1 x ...)
+-				//   z = (op2 y ...)
+-				// Where opX are not Phi ops.  But such a situation
+-				// implies a cycle in the dominator graph.  In the
+-				// example, x.Block dominates y.Block, y.Block dominates
+-				// z.Block, and z.Block dominates x.Block (treating
+-				// "dominates" as reflexive).  Cycles in the dominator
+-				// graph can only happen in an unreachable cycle.
+-			}
++	// rewrite phi ops to match the new predecessor list
++	for _, v := range b.Values {
++		if v.Op != OpPhi {
++			continue
+ 		}
+-		if n == 0 {
+-			// c is now dead--recycle its values
+-			for _, v := range c.Values {
+-				f.vid.put(v.ID)
+-			}
+-			c.Values = nil
+-			// Also kill any successors of c now, to spare later processing.
+-			for _, succ := range c.Succs {
+-				work = append(work, [2]*Block{c, succ})
+-			}
+-			c.Succs = nil
+-			c.Kind = BlockDead
+-			c.Control = nil
++		v.Args[i] = v.Args[n]
++		v.Args[n] = nil // aid GC
++		v.Args = v.Args[:n]
++		if n == 1 {
++			v.Op = OpCopy
++			// Note: this is trickier than it looks.  Replacing
++			// a Phi with a Copy can in general cause problems because
++			// Phi and Copy don't have exactly the same semantics.
++			// Phi arguments always come from a predecessor block,
++			// whereas copies don't.  This matters in loops like:
++			// 1: x = (Phi y)
++			//    y = (Add x 1)
++			//    goto 1
++			// If we replace Phi->Copy, we get
++			// 1: x = (Copy y)
++			//    y = (Add x 1)
++			//    goto 1
++			// (Phi y) refers to the *previous* value of y, whereas
++			// (Copy y) refers to the *current* value of y.
++			// The modified code has a cycle and the scheduler
++			// will barf on it.
++			//
++			// Fortunately, this situation can only happen for dead
++			// code loops.  We know the code we're working with is
++			// not dead, so we're ok.
++			// Proof: If we have a potential bad cycle, we have a
++			// situation like this:
++			//   x = (Phi z)
++			//   y = (op1 x ...)
++			//   z = (op2 y ...)
++			// Where opX are not Phi ops.  But such a situation
++			// implies a cycle in the dominator graph.  In the
++			// example, x.Block dominates y.Block, y.Block dominates
++			// z.Block, and z.Block dominates x.Block (treating
++			// "dominates" as reflexive).  Cycles in the dominator
++			// graph can only happen in an unreachable cycle.
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index f77b31501d..5d870ab1cc 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -174,8 +174,8 @@
+ // big-object moves (TODO: remove?)
+ (Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)
+ 
+-(If (IsNonNil (GetG)) yes no) -> (Plain nil yes)
++(If (IsNonNil (GetG)) yes no) -> (First nil yes no)
+ 
+ (If (Not cond) yes no) -> (If cond no yes)
+-(If (ConstBool {c}) yes no) && c.(bool) -> (Plain nil yes)
+-(If (ConstBool {c}) yes no) && !c.(bool) -> (Plain nil no)
++(If (ConstBool {c}) yes no) && c.(bool) -> (First nil yes no)
++(If (ConstBool {c}) yes no) && !c.(bool) -> (First nil no yes)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 62d34e74bb..2e3be0c0ce 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -373,7 +373,7 @@ var genericBlocks = []blockData{
+ 	{name: "Plain"}, // a single successor
+ 	{name: "If"},    // 2 successors, if control goto Succs[0] else goto Succs[1]
+ 	{name: "Call"},  // 2 successors, normal return and panic
+-	// TODO(khr): BlockPanic for the built-in panic call, has 1 edge to the exit block
++	{name: "First"}, // 2 successors, always takes the first one (second is dead)
+ }
+ 
+ func init() {
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 057e68601b..e5c61952f1 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -236,7 +236,7 @@ func genRules(arch arch) {
+ 			t := split(result[1 : len(result)-1]) // remove parens, then split
+ 			newsuccs := t[2:]
+ 
+-			// Check if newsuccs is a subset of succs.
++			// Check if newsuccs is the same set as succs.
+ 			m := map[string]bool{}
+ 			for _, succ := range succs {
+ 				if m[succ] {
+@@ -250,6 +250,9 @@ func genRules(arch arch) {
+ 				}
+ 				delete(m, succ)
+ 			}
++			if len(m) != 0 {
++				log.Fatalf("unmatched successors %v in %s", m, rule)
++			}
+ 
+ 			// Modify predecessor lists for no-longer-reachable blocks
+ 			for succ := range m {
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 4833ac472d..80b9e668d3 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -83,10 +83,8 @@ func nilcheckelim(f *Func) {
+ 					// Eliminate the nil check.
+ 					// The deadcode pass will remove vestigial values,
+ 					// and the fuse pass will join this block with its successor.
+-					node.block.Kind = BlockPlain
++					node.block.Kind = BlockFirst
+ 					node.block.Control = nil
+-					f.removePredecessor(node.block, node.block.Succs[1])
+-					node.block.Succs = node.block.Succs[:1]
+ 				} else {
+ 					// new nilcheck so add a ClearPtr node to clear the
+ 					// ptr from the map of nil checks once we traverse
+@@ -173,10 +171,8 @@ func nilcheckelim0(f *Func) {
+ 			// Eliminate the nil check.
+ 			// The deadcode pass will remove vestigial values,
+ 			// and the fuse pass will join this block with its successor.
+-			b.Kind = BlockPlain
++			b.Kind = BlockFirst
+ 			b.Control = nil
+-			f.removePredecessor(b, b.Succs[1])
+-			b.Succs = b.Succs[:1]
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 15689b2a85..51a998e352 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -27,6 +27,7 @@ const (
+ 	BlockPlain
+ 	BlockIf
+ 	BlockCall
++	BlockFirst
+ )
+ 
+ var blockString = [...]string{
+@@ -52,6 +53,7 @@ var blockString = [...]string{
+ 	BlockPlain: "Plain",
+ 	BlockIf:    "If",
+ 	BlockCall:  "Call",
++	BlockFirst: "First",
+ }
+ 
+ func (k BlockKind) String() string { return blockString[k] }
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index b14ed9c21e..3ec41181cc 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1574,27 +1574,25 @@ func rewriteBlockgeneric(b *Block) bool {
+ 	case BlockIf:
+ 		// match: (If (IsNonNil (GetG)) yes no)
+ 		// cond:
+-		// result: (Plain nil yes)
++		// result: (First nil yes no)
+ 		{
+ 			v := b.Control
+ 			if v.Op != OpIsNonNil {
+-				goto end0f2bb0111a86be0436b44210dbd83a90
++				goto endafdc4e2525f9933ab0ae7effc3559597
+ 			}
+ 			if v.Args[0].Op != OpGetG {
+-				goto end0f2bb0111a86be0436b44210dbd83a90
++				goto endafdc4e2525f9933ab0ae7effc3559597
+ 			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+-			b.Func.removePredecessor(b, no)
+-			b.Kind = BlockPlain
++			b.Kind = BlockFirst
+ 			b.Control = nil
+-			b.Succs = b.Succs[:1]
+ 			b.Succs[0] = yes
+-			b.Likely = BranchUnknown
++			b.Succs[1] = no
+ 			return true
+ 		}
+-		goto end0f2bb0111a86be0436b44210dbd83a90
+-	end0f2bb0111a86be0436b44210dbd83a90:
++		goto endafdc4e2525f9933ab0ae7effc3559597
++	endafdc4e2525f9933ab0ae7effc3559597:
+ 		;
+ 		// match: (If (Not cond) yes no)
+ 		// cond:
+@@ -1619,53 +1617,50 @@ func rewriteBlockgeneric(b *Block) bool {
+ 		;
+ 		// match: (If (ConstBool {c}) yes no)
+ 		// cond: c.(bool)
+-		// result: (Plain nil yes)
++		// result: (First nil yes no)
+ 		{
+ 			v := b.Control
+ 			if v.Op != OpConstBool {
+-				goto end9ff0273f9b1657f4afc287562ca889f0
++				goto end7a20763049489cdb40bb1eaa57d113d8
+ 			}
+ 			c := v.Aux
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			if !(c.(bool)) {
+-				goto end9ff0273f9b1657f4afc287562ca889f0
++				goto end7a20763049489cdb40bb1eaa57d113d8
+ 			}
+-			b.Func.removePredecessor(b, no)
+-			b.Kind = BlockPlain
++			b.Kind = BlockFirst
+ 			b.Control = nil
+-			b.Succs = b.Succs[:1]
+ 			b.Succs[0] = yes
+-			b.Likely = BranchUnknown
++			b.Succs[1] = no
+ 			return true
+ 		}
+-		goto end9ff0273f9b1657f4afc287562ca889f0
+-	end9ff0273f9b1657f4afc287562ca889f0:
++		goto end7a20763049489cdb40bb1eaa57d113d8
++	end7a20763049489cdb40bb1eaa57d113d8:
+ 		;
+ 		// match: (If (ConstBool {c}) yes no)
+ 		// cond: !c.(bool)
+-		// result: (Plain nil no)
++		// result: (First nil no yes)
+ 		{
+ 			v := b.Control
+ 			if v.Op != OpConstBool {
+-				goto endf401a4553c3c7c6bed64801da7bba076
++				goto end3ecbf5b2cc1f0a08444d8ab1871a829c
+ 			}
+ 			c := v.Aux
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+ 			if !(!c.(bool)) {
+-				goto endf401a4553c3c7c6bed64801da7bba076
++				goto end3ecbf5b2cc1f0a08444d8ab1871a829c
+ 			}
+-			b.Func.removePredecessor(b, yes)
+-			b.Kind = BlockPlain
++			b.Kind = BlockFirst
+ 			b.Control = nil
+-			b.Succs = b.Succs[:1]
+ 			b.Succs[0] = no
+-			b.Likely = BranchUnknown
++			b.Succs[1] = yes
++			b.Likely *= -1
+ 			return true
+ 		}
+-		goto endf401a4553c3c7c6bed64801da7bba076
+-	endf401a4553c3c7c6bed64801da7bba076:
++		goto end3ecbf5b2cc1f0a08444d8ab1871a829c
++	end3ecbf5b2cc1f0a08444d8ab1871a829c:
+ 	}
+ 	return false
+ }
+diff --git a/test/fixedbugs/issue12347.go b/test/fixedbugs/issue12347.go
+new file mode 100644
+index 0000000000..4bbe09c3e8
+--- /dev/null
++++ b/test/fixedbugs/issue12347.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f_ssa(x int, p *int) {
++	if false {
++		y := x + 5
++		for {
++			*p = y
++		}
++	}
++}

@@ -17,7 +17,56 @@ Date:   Fri Jan 13 16:46:49 2023 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/list/list.go          |  3 +++
  src/cmd/go/testdata/script/cover_list.txt | 28 ++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 72201850b2..811d659ba3 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -336,6 +336,9 @@ For more about modules, see https://golang.org/ref/mod.
+ func init() {
+ 	CmdList.Run = runList // break init cycle
+ 	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
++	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
++		work.AddCoverFlags(CmdList, nil)
++	}
+ 	CmdList.Flag.Var(&listJsonFields, "json", "")
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/cover_list.txt b/src/cmd/go/testdata/script/cover_list.txt
+new file mode 100644
+index 0000000000..c66c087793
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_list.txt
+@@ -0,0 +1,28 @@
++
++# This test is intended to verify that "go list" accepts coverage related
++# build arguments (such as -cover, -covermode). See issue #57785.
++
++[short] skip
++[!GOEXPERIMENT:coverageredesign] skip
++
++env GOBIN=$WORK/bin
++
++# Install a target and then do an ordinary staleness check on it.
++go install m/example
++! stale m/example
++
++# Run a second staleness check with "-cover" as a build flag. The
++# installed target should indeed be stale, since we didn't build it
++# with -cover.
++stale -cover m/example
++
++-- go.mod --
++module m
++
++go 1.20
++-- example/main.go --
++package main
++
++func main() {
++     println("hi mom")
++}

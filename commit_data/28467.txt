@@ -13,6 +13,23 @@ Date:   Thu May 26 17:53:21 2016 -0400
     Change-Id: Ica78c208ce104e2cdee1d4e92bf58596ea5587c8
     Reviewed-on: https://go-review.googlesource.com/23483
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/encoding/json/example_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/example_test.go b/src/encoding/json/example_test.go
+index 326bdc9540..555eff93c0 100644
+--- a/src/encoding/json/example_test.go
++++ b/src/encoding/json/example_test.go
+@@ -143,10 +143,9 @@ func ExampleDecoder_Decode_stream() {
+ 	}
+ 	fmt.Printf("%T: %v\n", t, t)
+ 
+-	var m Message
+ 	// while the array contains values
+ 	for dec.More() {
+-
++		var m Message
+ 		// decode an array value (Message)
+ 		err := dec.Decode(&m)
+ 		if err != nil {

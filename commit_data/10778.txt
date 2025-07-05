@@ -9,7 +9,49 @@ Date:   Wed Dec 14 08:22:36 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5482056
-
+---
  src/cmd/gc/fmt.c         | 10 +++++++---
  test/fixedbugs/bug383.go | 13 +++++++++++++
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 7c50b51e44..23b1808291 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -371,9 +371,13 @@ Vconv(Fmt *fp)
+ 			return fmtprint(fp, "'\\U%08llux'", x);
+ 		return fmtprint(fp, "('\\x00' + %B)", v->u.xval);
+ 	case CTFLT:
+-		return fmtprint(fp, "%F", v->u.fval);
+-	case CTCPLX:  // ? 1234i ->  (0p+0+617p+1)
+-		return fmtprint(fp, "(%F+%F)", &v->u.cval->real, &v->u.cval->imag);
++		if((fp->flags & FmtSharp) || fmtmode == FExp)
++			return fmtprint(fp, "%F", v->u.fval);
++		return fmtprint(fp, "%#F", v->u.fval);
++	case CTCPLX:
++		if((fp->flags & FmtSharp) || fmtmode == FExp)
++			return fmtprint(fp, "(%F+%F)", &v->u.cval->real, &v->u.cval->imag);
++		return fmtprint(fp, "(%#F + %#Fi)", &v->u.cval->real, &v->u.cval->imag);
+ 	case CTSTR:
+ 		return fmtprint(fp, "\"%Z\"", v->u.sval);
+ 	case CTBOOL:
+diff --git a/test/fixedbugs/bug383.go b/test/fixedbugs/bug383.go
+new file mode 100644
+index 0000000000..9dccff590e
+--- /dev/null
++++ b/test/fixedbugs/bug383.go
+@@ -0,0 +1,13 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2520
++
++package main
++func main() {
++	if 2e9 { }      // ERROR "2e.09"
++	if 3.14+1i { }  // ERROR "3.14 . 1i"
++}
+\ No newline at end of file

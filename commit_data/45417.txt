@@ -25,7 +25,78 @@ Date:   Fri Oct 23 11:10:10 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/init.go          | 23 +++++++++++++++++++++
  src/cmd/go/testdata/script/mod_init_tidy.txt | 30 ++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 7a8d826994..f5aac4b220 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -435,6 +435,29 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 
+ 	modFileToBuildList()
+ 	WriteGoMod()
++
++	// Suggest running 'go mod tidy' unless the project is empty. Even if we
++	// imported all the correct requirements above, we're probably missing
++	// some sums, so the next build command in -mod=readonly will likely fail.
++	//
++	// We look for non-hidden .go files or subdirectories to determine whether
++	// this is an existing project. Walking the tree for packages would be more
++	// accurate, but could take much longer.
++	empty := true
++	fis, _ := ioutil.ReadDir(modRoot)
++	for _, fi := range fis {
++		name := fi.Name()
++		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
++			continue
++		}
++		if strings.HasSuffix(name, ".go") || fi.IsDir() {
++			empty = false
++			break
++		}
++	}
++	if !empty {
++		fmt.Fprintf(os.Stderr, "go: run 'go mod tidy' to add module requirements and sums\n")
++	}
+ }
+ 
+ // checkModulePathLax checks that the path meets some minimum requirements
+diff --git a/src/cmd/go/testdata/script/mod_init_tidy.txt b/src/cmd/go/testdata/script/mod_init_tidy.txt
+new file mode 100644
+index 0000000000..6a37edd960
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_init_tidy.txt
+@@ -0,0 +1,30 @@
++# 'go mod init' should not recommend 'go mod tidy' in an empty directory
++# (one that contains no non-hidden .go files or subdirectories).
++cd empty
++go mod init m
++! stderr tidy
++cd ..
++
++# 'go mod init' should recommend 'go mod tidy' if the directory has a .go file.
++cd pkginroot
++go mod init m
++stderr '^go: run ''go mod tidy'' to add module requirements and sums$'
++cd ..
++
++# 'go mod init' should recommend 'go mod tidy' if the directory has a
++# subdirectory. We don't walk the tree to see if it has .go files.
++cd subdir
++go mod init m
++stderr '^go: run ''go mod tidy'' to add module requirements and sums$'
++cd ..
++
++-- empty/empty.txt --
++Not a .go file. Still counts as an empty project.
++-- empty/.hidden/empty.go --
++File in hidden directory. Still as an empty project.
++-- empty/_hidden/empty.go --
++File in hidden directory. Still as an empty project.
++-- pkginroot/hello.go --
++package vendorimport
++-- subdir/sub/empty.txt --
++Subdirectory doesn't need to contain a package.

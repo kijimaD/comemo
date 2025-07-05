@@ -7,6 +7,20 @@ Date:   Wed May 16 22:56:18 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6195096
-
+---
  src/pkg/log/log.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index 1d7f209d1d..d37e4375e4 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -26,7 +26,7 @@ const (
+ 	// Bits or'ed together to control what's printed. There is no control over the
+ 	// order they appear (the order listed here) or the format they present (as
+ 	// described in the comments).  A colon appears after these items:
+-	//	2009/0123 01:23:23.123123 /a/b/c/d.go:23: message
++	//	2009/01/23 01:23:23.123123 /a/b/c/d.go:23: message
+ 	Ldate         = 1 << iota     // the date: 2009/01/23
+ 	Ltime                         // the time: 01:23:23
+ 	Lmicroseconds                 // microsecond resolution: 01:23:23.123123.  assumes Ltime.

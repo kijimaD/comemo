@@ -22,9 +22,137 @@ Date:   Thu Dec 3 11:56:29 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go |  1 -
  src/cmd/compile/internal/ir/expr.go |  4 +---
  src/cmd/compile/internal/ir/fmt.go  | 47 ++++++++++++++++++++-----------------
  src/cmd/compile/internal/ir/name.go |  2 --
  4 files changed, 26 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 970f78b355..65eb61e680 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -523,7 +523,6 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
+ 	r.SetType(t)
+ 	r.SetTypecheck(1)
+ 	r.SetImplicit(true)
+-	r.(ir.OrigNode).SetOrig(ir.Orig(n))
+ 	return r
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 18d85a01df..49543f4286 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -321,7 +321,7 @@ func (n *ConstExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *ConstExpr) rawCopy() Node                 { c := *n; return &c }
+ func (n *ConstExpr) Sym() *types.Sym               { return n.orig.Sym() }
+ func (n *ConstExpr) Orig() Node                    { return n.orig }
+-func (n *ConstExpr) SetOrig(orig Node)             { n.orig = orig }
++func (n *ConstExpr) SetOrig(orig Node)             { panic(n.no("SetOrig")) }
+ func (n *ConstExpr) Val() constant.Value           { return n.val }
+ 
+ // A ConvExpr is a conversion Type(X).
+@@ -344,8 +344,6 @@ func NewConvExpr(pos src.XPos, op Op, typ *types.Type, x Node) *ConvExpr {
+ func (n *ConvExpr) String() string                { return fmt.Sprint(n) }
+ func (n *ConvExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *ConvExpr) rawCopy() Node                 { c := *n; return &c }
+-func (n *ConvExpr) Orig() Node                    { return n.orig }
+-func (n *ConvExpr) SetOrig(x Node)                { n.orig = x }
+ func (n *ConvExpr) Left() Node                    { return n.X }
+ func (n *ConvExpr) SetLeft(x Node)                { n.X = x }
+ 
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 45a66a2290..bc5536241e 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1071,6 +1071,7 @@ var OpPrec = []int{
+ 	OCALL:          8,
+ 	OCAP:           8,
+ 	OCLOSE:         8,
++	OCOMPLIT:       8,
+ 	OCONVIFACE:     8,
+ 	OCONVNOP:       8,
+ 	OCONV:          8,
+@@ -1179,13 +1180,28 @@ var OpPrec = []int{
+ }
+ 
+ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
+-	for n != nil && n.Implicit() && (n.Op() == ODEREF || n.Op() == OADDR) {
+-		n = n.Left()
+-	}
++	for {
++		if n == nil {
++			fmt.Fprint(s, "<N>")
++			return
++		}
+ 
+-	if n == nil {
+-		fmt.Fprint(s, "<N>")
+-		return
++		// We always want the original, if any.
++		if o := Orig(n); o != n {
++			n = o
++			continue
++		}
++
++		// Skip implicit operations introduced during typechecking.
++		switch n.Op() {
++		case OADDR, ODEREF, OCONV, OCONVNOP, OCONVIFACE:
++			if n.Implicit() {
++				n = n.Left()
++				continue
++			}
++		}
++
++		break
+ 	}
+ 
+ 	nprec := OpPrec[n.Op()]
+@@ -1206,15 +1222,9 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
+ 		fmt.Fprint(s, "nil")
+ 
+ 	case OLITERAL: // this is a bit of a mess
+-		if mode == FErr {
+-			if orig := Orig(n); orig != nil && orig != n {
+-				exprFmt(orig, s, prec, mode)
+-				return
+-			}
+-			if n.Sym() != nil {
+-				fmt.Fprint(s, smodeString(n.Sym(), mode))
+-				return
+-			}
++		if mode == FErr && n.Sym() != nil {
++			fmt.Fprint(s, smodeString(n.Sym(), mode))
++			return
+ 		}
+ 
+ 		needUnparen := false
+@@ -1558,13 +1568,6 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
+ 
+ func nodeFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+ 	t := n.Type()
+-
+-	// We almost always want the original.
+-	// TODO(gri) Why the special case for OLITERAL?
+-	if n.Op() != OLITERAL && Orig(n) != nil {
+-		n = Orig(n)
+-	}
+-
+ 	if flag&FmtLong != 0 && t != nil {
+ 		if t.Kind() == types.TNIL {
+ 			fmt.Fprint(s, "nil")
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index aeeb63d2d6..67d4d2b391 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -155,8 +155,6 @@ func (n *Name) rawCopy() Node                 { c := *n; return &c }
+ func (n *Name) Name() *Name                   { return n }
+ func (n *Name) Sym() *types.Sym               { return n.sym }
+ func (n *Name) SetSym(x *types.Sym)           { n.sym = x }
+-func (n *Name) Orig() Node                    { return n.orig }
+-func (n *Name) SetOrig(x Node)                { n.orig = x }
+ func (n *Name) SubOp() Op                     { return n.subOp }
+ func (n *Name) SetSubOp(x Op)                 { n.subOp = x }
+ func (n *Name) Class() Class                  { return n.class }

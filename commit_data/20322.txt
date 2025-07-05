@@ -9,6 +9,29 @@ Date:   Mon Sep 1 10:02:52 2014 +1000
     R=bradfitz, ruiu
     CC=golang-codereviews, jeff.allen
     https://golang.org/cl/138860043
-
+---
  src/pkg/image/png/writer.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index b1a70c79d3..df23270ee9 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -33,10 +33,13 @@ type encoder struct {
+ type CompressionLevel int
+ 
+ const (
+-	DefaultCompression CompressionLevel = iota
+-	NoCompression
+-	BestSpeed
+-	BestCompression
++	DefaultCompression CompressionLevel = 0
++	NoCompression      CompressionLevel = -1
++	BestSpeed          CompressionLevel = -2
++	BestCompression    CompressionLevel = -3
++
++	// Positive CompressionLevel values are reserved to mean a numeric zlib
++	// compression level, although that is not implemented yet.
+ )
+ 
+ // Big-endian.

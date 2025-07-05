@@ -13,8 +13,222 @@ Date:   Mon Sep 12 13:33:00 2016 -0400
     Change-Id: I3efa723e9ef322a91a408bd8c31768d7858526c8
     Reviewed-on: https://go-review.googlesource.com/28976
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/big/arith_s390x.s |  2 ++
  src/runtime/asm_s390x.s    | 14 +++++-----
  src/runtime/memclr_s390x.s | 70 +++++++++++++++++++++++-----------------------
  3 files changed, 44 insertions(+), 42 deletions(-)
+
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index a691970810..21929c169f 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -271,6 +271,7 @@ E4:	MOVD R4, c+56(FP)	// return c
+ // func shlVU(z, x []Word, s uint) (c Word)
+ TEXT ·shlVU(SB),NOSPLIT,$0
+ 	MOVD z_len+8(FP), R5
++	MOVD $0, R0
+ 	SUB  $1, R5             // n--
+ 	BLT  X8b                // n < 0        (n <= 0)
+ 
+@@ -358,6 +359,7 @@ E864:	CMPBGT R5, R0, L864     // i < n-1
+ // func shrVU(z, x []Word, s uint) (c Word)
+ TEXT ·shrVU(SB),NOSPLIT,$0
+ 	MOVD z_len+8(FP), R5
++	MOVD $0, R0
+ 	SUB  $1, R5             // n--
+ 	BLT  X9b                // n < 0        (n <= 0)
+ 
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 928fe37121..3fe224df37 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -110,22 +110,22 @@ nocgo:
+ 	MOVD	$runtime·mainPC(SB), R2		// entry
+ 	SUB     $24, R15
+ 	MOVD 	R2, 16(R15)
+-	MOVD 	R0, 8(R15)
+-	MOVD 	R0, 0(R15)
++	MOVD 	$0, 8(R15)
++	MOVD 	$0, 0(R15)
+ 	BL	runtime·newproc(SB)
+ 	ADD	$24, R15
+ 
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+ 
+-	MOVD	R0, 1(R0)
++	MOVD	$0, 1(R0)
+ 	RET
+ 
+ DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+ GLOBL	runtime·mainPC(SB),RODATA,$8
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVD	R0, 2(R0)
++	MOVD	$0, 2(R0)
+ 	RET
+ 
+ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
+@@ -175,7 +175,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
+ 	// Save caller state in g->sched
+ 	MOVD	R15, (g_sched+gobuf_sp)(g)
+ 	MOVD	LR, (g_sched+gobuf_pc)(g)
+-	MOVD	R0, (g_sched+gobuf_lr)(g)
++	MOVD	$0, (g_sched+gobuf_lr)(g)
+ 	MOVD	g, (g_sched+gobuf_g)(g)
+ 
+ 	// Switch to m->g0 & its stack, call fn.
+@@ -232,7 +232,7 @@ switch:
+ 	ADD	$16, R6	// get past prologue
+ 	MOVD	R6, (g_sched+gobuf_pc)(g)
+ 	MOVD	R15, (g_sched+gobuf_sp)(g)
+-	MOVD	R0, (g_sched+gobuf_lr)(g)
++	MOVD	$0, (g_sched+gobuf_lr)(g)
+ 	MOVD	g, (g_sched+gobuf_g)(g)
+ 
+ 	// switch to g0
+@@ -526,7 +526,7 @@ g0:
+ 	MOVD	(g_stack+stack_hi)(R5), R5
+ 	SUB	R2, R5
+ 	MOVD	R5, 160(R15)             // save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+-	MOVD	R0, 0(R15)              // clear back chain pointer (TODO can we give it real back trace information?)
++	MOVD	$0, 0(R15)              // clear back chain pointer (TODO can we give it real back trace information?)
+ 	MOVD	R4, R2                  // arg in R2
+ 	BL	R3                      // can clobber: R0-R5, R14, F0-F3, F5, F7-F15
+ 
+diff --git a/src/runtime/memclr_s390x.s b/src/runtime/memclr_s390x.s
+index 86eafec0a9..846131e9f5 100644
+--- a/src/runtime/memclr_s390x.s
++++ b/src/runtime/memclr_s390x.s
+@@ -16,8 +16,8 @@ start:
+ 	CMPBLE	R5, $15, clear12to15
+ 	CMP	R5, $32
+ 	BGE	clearmt32
+-	MOVD	R0, 0(R4)
+-	MOVD	R0, 8(R4)
++	MOVD	$0, 0(R4)
++	MOVD	$0, 8(R4)
+ 	ADD	$16, R4
+ 	SUB	$16, R5
+ 	BR	start
+@@ -25,79 +25,79 @@ start:
+ clear0to3:
+ 	CMPBEQ	R5, $0, done
+ 	CMPBNE	R5, $1, clear2
+-	MOVB	R0, 0(R4)
++	MOVB	$0, 0(R4)
+ 	RET
+ clear2:
+ 	CMPBNE	R5, $2, clear3
+-	MOVH	R0, 0(R4)
++	MOVH	$0, 0(R4)
+ 	RET
+ clear3:
+-	MOVH	R0, 0(R4)
+-	MOVB	R0, 2(R4)
++	MOVH	$0, 0(R4)
++	MOVB	$0, 2(R4)
+ 	RET
+ 
+ clear4to7:
+ 	CMPBNE	R5, $4, clear5
+-	MOVW	R0, 0(R4)
++	MOVW	$0, 0(R4)
+ 	RET
+ clear5:
+ 	CMPBNE	R5, $5, clear6
+-	MOVW	R0, 0(R4)
+-	MOVB	R0, 4(R4)
++	MOVW	$0, 0(R4)
++	MOVB	$0, 4(R4)
+ 	RET
+ clear6:
+ 	CMPBNE	R5, $6, clear7
+-	MOVW	R0, 0(R4)
+-	MOVH	R0, 4(R4)
++	MOVW	$0, 0(R4)
++	MOVH	$0, 4(R4)
+ 	RET
+ clear7:
+-	MOVW	R0, 0(R4)
+-	MOVH	R0, 4(R4)
+-	MOVB	R0, 6(R4)
++	MOVW	$0, 0(R4)
++	MOVH	$0, 4(R4)
++	MOVB	$0, 6(R4)
+ 	RET
+ 
+ clear8to11:
+ 	CMPBNE	R5, $8, clear9
+-	MOVD	R0, 0(R4)
++	MOVD	$0, 0(R4)
+ 	RET
+ clear9:
+ 	CMPBNE	R5, $9, clear10
+-	MOVD	R0, 0(R4)
+-	MOVB	R0, 8(R4)
++	MOVD	$0, 0(R4)
++	MOVB	$0, 8(R4)
+ 	RET
+ clear10:
+ 	CMPBNE	R5, $10, clear11
+-	MOVD	R0, 0(R4)
+-	MOVH	R0, 8(R4)
++	MOVD	$0, 0(R4)
++	MOVH	$0, 8(R4)
+ 	RET
+ clear11:
+-	MOVD	R0, 0(R4)
+-	MOVH	R0, 8(R4)
+-	MOVB	R0, 10(R4)
++	MOVD	$0, 0(R4)
++	MOVH	$0, 8(R4)
++	MOVB	$0, 10(R4)
+ 	RET
+ 
+ clear12to15:
+ 	CMPBNE	R5, $12, clear13
+-	MOVD	R0, 0(R4)
+-	MOVW	R0, 8(R4)
++	MOVD	$0, 0(R4)
++	MOVW	$0, 8(R4)
+ 	RET
+ clear13:
+ 	CMPBNE	R5, $13, clear14
+-	MOVD	R0, 0(R4)
+-	MOVW	R0, 8(R4)
+-	MOVB	R0, 12(R4)
++	MOVD	$0, 0(R4)
++	MOVW	$0, 8(R4)
++	MOVB	$0, 12(R4)
+ 	RET
+ clear14:
+ 	CMPBNE	R5, $14, clear15
+-	MOVD	R0, 0(R4)
+-	MOVW	R0, 8(R4)
+-	MOVH	R0, 12(R4)
++	MOVD	$0, 0(R4)
++	MOVW	$0, 8(R4)
++	MOVH	$0, 12(R4)
+ 	RET
+ clear15:
+-	MOVD	R0, 0(R4)
+-	MOVW	R0, 8(R4)
+-	MOVH	R0, 12(R4)
+-	MOVB	R0, 14(R4)
++	MOVD	$0, 0(R4)
++	MOVW	$0, 8(R4)
++	MOVH	$0, 12(R4)
++	MOVB	$0, 14(R4)
+ 	RET
+ 
+ clearmt32:
+@@ -117,6 +117,6 @@ done:
+ // DO NOT CALL - target for exrl (execute relative long) instruction.
+ TEXT runtime·memclr_s390x_exrl_xc(SB),NOSPLIT|NOFRAME,$0-0
+ 	XC	$1, 0(R4), 0(R4)
+-	MOVD	R0, 0(R0)
++	MOVD	$0, 0(R0)
+ 	RET
+ 

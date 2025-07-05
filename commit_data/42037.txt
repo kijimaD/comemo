@@ -23,6 +23,29 @@ Date:   Thu Nov 7 13:57:19 2019 +1100
     Reviewed-by: Caleb Spare <cespare@gmail.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/doc/main.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 43144d9f22..86259e5f1f 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -358,17 +358,11 @@ func parseSymbol(str string) (symbol, method string) {
+ 	case 1:
+ 	case 2:
+ 		method = elem[1]
+-		if !token.IsIdentifier(method) {
+-			log.Fatalf("invalid identifier %q", method)
+-		}
+ 	default:
+ 		log.Printf("too many periods in symbol specification")
+ 		usage()
+ 	}
+ 	symbol = elem[0]
+-	if !token.IsIdentifier(symbol) {
+-		log.Fatalf("invalid identifier %q", symbol)
+-	}
+ 	return
+ }
+ 

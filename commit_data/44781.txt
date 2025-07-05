@@ -14,7 +14,7 @@ Date:   Wed Aug 26 17:26:05 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.16.html                           |  12 +++-
  src/cmd/go/internal/test/flagdefs_test.go |  11 ++-
  src/cmd/go/internal/test/genflags.go      |   7 +-
@@ -25,3 +25,340 @@ Date:   Wed Aug 26 17:26:05 2020 -0700
  src/testing/internal/testdeps/deps.go     |   5 ++
  src/testing/testing.go                    |  10 +++
  9 files changed, 195 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index c82b3b9276..805234bdab 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -52,6 +52,16 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: write and link to tutorial or blog post
+ </p>
+ 
++<p><!-= golang.org/issue/29062 -->
++  When using <code>go test</code>, a test that
++  calls <code>os.Exit(0)</code> during execution of a test function
++  will now be considered to fail.
++  This will help catch cases in which a test calls code that calls
++  os.Exit(0) and thereby stops running all future tests.
++  If a <code>TestMain</code> function calls <code>os.Exit(0)</code>
++  that is still considered to be a passing test.
++</p>
++
+ <p>
+   TODO
+ </p>
+@@ -101,7 +111,7 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h3 id="net"><a href="/pkg/net/">net</a></h3>
+ 
+-<p><!-- CL -->
++<p><!-- CL 250357 -->
+   The case of I/O on a closed network connection, or I/O on a network
+   connection that is closed before any of the I/O completes, can now
+   be detected using the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.
+diff --git a/src/cmd/go/internal/test/flagdefs_test.go b/src/cmd/go/internal/test/flagdefs_test.go
+index 7562415298..ab5440b380 100644
+--- a/src/cmd/go/internal/test/flagdefs_test.go
++++ b/src/cmd/go/internal/test/flagdefs_test.go
+@@ -16,9 +16,14 @@ func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
+ 			return
+ 		}
+ 		name := strings.TrimPrefix(f.Name, "test.")
+-		if name != "testlogfile" && !passFlagToTest[name] {
+-			t.Errorf("passFlagToTest missing entry for %q (flag test.%s)", name, name)
+-			t.Logf("(Run 'go generate cmd/go/internal/test' if it should be added.)")
++		switch name {
++		case "testlogfile", "paniconexit0":
++			// These are internal flags.
++		default:
++			if !passFlagToTest[name] {
++				t.Errorf("passFlagToTest missing entry for %q (flag test.%s)", name, name)
++				t.Logf("(Run 'go generate cmd/go/internal/test' if it should be added.)")
++			}
+ 		}
+ 	})
+ 
+diff --git a/src/cmd/go/internal/test/genflags.go b/src/cmd/go/internal/test/genflags.go
+index 512fa1671e..5e83d53980 100644
+--- a/src/cmd/go/internal/test/genflags.go
++++ b/src/cmd/go/internal/test/genflags.go
+@@ -62,9 +62,10 @@ func testFlags() []string {
+ 		}
+ 		name := strings.TrimPrefix(f.Name, "test.")
+ 
+-		if name == "testlogfile" {
+-			// test.testlogfile is “for use only by cmd/go”
+-		} else {
++		switch name {
++		case "testlogfile", "paniconexit0":
++			// These flags are only for use by cmd/go.
++		default:
+ 			names = append(names, name)
+ 		}
+ 	})
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 3aee6939d2..1ea6d2881e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1164,7 +1164,8 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
+ 	if !c.disableCache && len(execCmd) == 0 {
+ 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
+ 	}
+-	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, testArgs)
++	panicArg := "-test.paniconexit0"
++	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, testArgs)
+ 
+ 	if testCoverProfile != "" {
+ 		// Write coverage to temporary profile, for merging later.
+diff --git a/src/cmd/go/testdata/script/test_exit.txt b/src/cmd/go/testdata/script/test_exit.txt
+new file mode 100644
+index 0000000000..23a2429d1e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_exit.txt
+@@ -0,0 +1,114 @@
++# Builds and runs test binaries, so skip in short mode.
++[short] skip
++
++env GO111MODULE=on
++
++# If a test invoked by 'go test' exits with a zero status code,
++# it will panic.
++! go test ./zero
++! stdout ^ok
++! stdout 'exit status'
++stdout 'panic'
++stdout ^FAIL
++
++# If a test exits with a non-zero status code, 'go test' fails normally.
++! go test ./one
++! stdout ^ok
++stdout 'exit status'
++! stdout 'panic'
++stdout ^FAIL
++
++# Ensure that other flags still do the right thing.
++go test -list=. ./zero
++stdout ExitZero
++
++! go test -bench=. ./zero
++stdout 'panic'
++
++# 'go test' with no args streams output without buffering. Ensure that it still
++# catches a zero exit with missing output.
++cd zero
++! go test
++stdout 'panic'
++cd ../normal
++go test
++stdout ^ok
++cd ..
++
++# If a TestMain exits with a zero status code, 'go test' shouldn't
++# complain about that. It's a common way to skip testing a package
++# entirely.
++go test ./main_zero
++! stdout 'skipping all tests'
++stdout ^ok
++
++# With -v, we'll see the warning from TestMain.
++go test -v ./main_zero
++stdout 'skipping all tests'
++stdout ^ok
++
++# Listing all tests won't actually give a result if TestMain exits. That's okay,
++# because this is how TestMain works. If we decide to support -list even when
++# TestMain is used to skip entire packages, we can change this test case.
++go test -list=. ./main_zero
++stdout 'skipping all tests'
++! stdout TestNotListed
++
++-- go.mod --
++module m
++
++-- ./normal/normal.go --
++package normal
++-- ./normal/normal_test.go --
++package normal
++
++import "testing"
++
++func TestExitZero(t *testing.T) {
++}
++
++-- ./zero/zero.go --
++package zero
++-- ./zero/zero_test.go --
++package zero
++
++import (
++	"os"
++	"testing"
++)
++
++func TestExitZero(t *testing.T) {
++	os.Exit(0)
++}
++
++-- ./one/one.go --
++package one
++-- ./one/one_test.go --
++package one
++
++import (
++	"os"
++	"testing"
++)
++
++func TestExitOne(t *testing.T) {
++	os.Exit(1)
++}
++
++-- ./main_zero/zero.go --
++package zero
++-- ./main_zero/zero_test.go --
++package zero
++
++import (
++	"fmt"
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	fmt.Println("skipping all tests")
++	os.Exit(0)
++}
++
++func TestNotListed(t *testing.T) {}
+diff --git a/src/internal/testlog/exit.go b/src/internal/testlog/exit.go
+new file mode 100644
+index 0000000000..e15defdb5b
+--- /dev/null
++++ b/src/internal/testlog/exit.go
+@@ -0,0 +1,33 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testlog
++
++import "sync"
++
++// PanicOnExit0 reports whether to panic on a call to os.Exit(0).
++// This is in the testlog package because, like other definitions in
++// package testlog, it is a hook between the testing package and the
++// os package. This is used to ensure that an early call to os.Exit(0)
++// does not cause a test to pass.
++func PanicOnExit0() bool {
++	panicOnExit0.mu.Lock()
++	defer panicOnExit0.mu.Unlock()
++	return panicOnExit0.val
++}
++
++// panicOnExit0 is the flag used for PanicOnExit0. This uses a lock
++// because the value can be cleared via a timer call that may race
++// with calls to os.Exit
++var panicOnExit0 struct {
++	mu  sync.Mutex
++	val bool
++}
++
++// SetPanicOnExit0 sets panicOnExit0 to v.
++func SetPanicOnExit0(v bool) {
++	panicOnExit0.mu.Lock()
++	defer panicOnExit0.mu.Unlock()
++	panicOnExit0.val = v
++}
+diff --git a/src/os/proc.go b/src/os/proc.go
+index 7364d631f2..cbd5a6aad9 100644
+--- a/src/os/proc.go
++++ b/src/os/proc.go
+@@ -7,6 +7,7 @@
+ package os
+ 
+ import (
++	"internal/testlog"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -60,6 +61,13 @@ func Getgroups() ([]int, error) {
+ // For portability, the status code should be in the range [0, 125].
+ func Exit(code int) {
+ 	if code == 0 {
++		if testlog.PanicOnExit0() {
++			// We were told to panic on calls to os.Exit(0).
++			// This is used to fail tests that make an early
++			// unexpected call to os.Exit(0).
++			panic("unexpected call to os.Exit(0) during test")
++		}
++
+ 		// Give race detector a chance to fail the program.
+ 		// Racy programs do not have the right to finish successfully.
+ 		runtime_beforeExit()
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index af08dd768a..3608d33294 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -121,3 +121,8 @@ func (TestDeps) StopTestLog() error {
+ 	log.w = nil
+ 	return err
+ }
++
++// SetPanicOnExit0 tells the os package whether to panic on os.Exit(0).
++func (TestDeps) SetPanicOnExit0(v bool) {
++	testlog.SetPanicOnExit0(v)
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index bf83df8863..d0334243f4 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -294,6 +294,7 @@ func Init() {
+ 	blockProfileRate = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
+ 	mutexProfile = flag.String("test.mutexprofile", "", "write a mutex contention profile to the named file after execution")
+ 	mutexProfileFraction = flag.Int("test.mutexprofilefraction", 1, "if >= 0, calls runtime.SetMutexProfileFraction()")
++	panicOnExit0 = flag.Bool("test.paniconexit0", false, "panic on call to os.Exit(0)")
+ 	traceFile = flag.String("test.trace", "", "write an execution trace to `file`")
+ 	timeout = flag.Duration("test.timeout", 0, "panic test binary after duration `d` (default 0, timeout disabled)")
+ 	cpuListStr = flag.String("test.cpu", "", "comma-separated `list` of cpu counts to run each test with")
+@@ -320,6 +321,7 @@ var (
+ 	blockProfileRate     *int
+ 	mutexProfile         *string
+ 	mutexProfileFraction *int
++	panicOnExit0         *bool
+ 	traceFile            *string
+ 	timeout              *time.Duration
+ 	cpuListStr           *string
+@@ -1261,6 +1263,7 @@ func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return e
+ func (f matchStringOnly) ImportPath() string                          { return "" }
+ func (f matchStringOnly) StartTestLog(io.Writer)                      {}
+ func (f matchStringOnly) StopTestLog() error                          { return errMain }
++func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -1296,6 +1299,7 @@ type M struct {
+ type testDeps interface {
+ 	ImportPath() string
+ 	MatchString(pat, str string) (bool, error)
++	SetPanicOnExit0(bool)
+ 	StartCPUProfile(io.Writer) error
+ 	StopCPUProfile()
+ 	StartTestLog(io.Writer)
+@@ -1521,11 +1525,17 @@ func (m *M) before() {
+ 		m.deps.StartTestLog(f)
+ 		testlogFile = f
+ 	}
++	if *panicOnExit0 {
++		m.deps.SetPanicOnExit0(true)
++	}
+ }
+ 
+ // after runs after all testing.
+ func (m *M) after() {
+ 	m.afterOnce.Do(func() {
++		if *panicOnExit0 {
++			m.deps.SetPanicOnExit0(false)
++		}
+ 		m.writeProfiles()
+ 	})
+ }

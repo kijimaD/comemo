@@ -11,6 +11,20 @@ Date:   Fri Nov 18 12:42:30 2011 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/5158042
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index da6bbd5f3e..fa8dabd397 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -895,7 +895,7 @@ def CheckFormat(ui, repo, files, just_warn=False):
+ 
+ # Check that gofmt run on the list of files does not change them
+ def CheckGofmt(ui, repo, files, just_warn):
+-	files = [f for f in files if (f.startswith('src/') or f.startswith('test/bench/')) and f.endswith('.go')]
++	files = [f for f in files if (not f.startswith('test/') or f.startswith('test/bench/')) and f.endswith('.go')]
+ 	if not files:
+ 		return
+ 	cwd = os.getcwd()

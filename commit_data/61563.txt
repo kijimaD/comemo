@@ -12,6 +12,28 @@ Date:   Thu Aug 15 19:22:43 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/sync/hashtriemap.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/internal/sync/hashtriemap.go b/src/internal/sync/hashtriemap.go
+index 73c8bba1e3..defcd0b793 100644
+--- a/src/internal/sync/hashtriemap.go
++++ b/src/internal/sync/hashtriemap.go
+@@ -485,6 +485,16 @@ func (ht *HashTrieMap[K, V]) All() func(yield func(K, V) bool) {
+ 	}
+ }
+ 
++// Range calls f sequentially for each key and value present in the map.
++// If f returns false, range stops the iteration.
++//
++// This exists for compatibility with sync.Map; All should be preferred.
++// It provides the same guarantees as sync.Map, and All.
++func (ht *HashTrieMap[K, V]) Range(yield func(K, V) bool) {
++	ht.init()
++	ht.iter(ht.root.Load(), yield)
++}
++
+ func (ht *HashTrieMap[K, V]) iter(i *indirect[K, V], yield func(key K, value V) bool) bool {
+ 	for j := range i.children {
+ 		n := i.children[j].Load()

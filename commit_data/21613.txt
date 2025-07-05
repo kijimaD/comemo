@@ -7,6 +7,26 @@ Date:   Mon Jan 19 12:34:56 2015 -0500
     Change-Id: I04c1b8f2a9ac4efba227d6c0a20459420cd3dc05
     Reviewed-on: https://go-review.googlesource.com/3014
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/syscall/getrandom_linux.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/syscall/getrandom_linux.go b/src/internal/syscall/getrandom_linux.go
+index 944bab3f5d..36d5a1ccb0 100644
+--- a/src/internal/syscall/getrandom_linux.go
++++ b/src/internal/syscall/getrandom_linux.go
+@@ -12,9 +12,11 @@ import (
+ )
+ 
+ var randomTrap = map[string]uintptr{
+-	"386":   355,
+-	"amd64": 318,
+-	"arm":   384,
++	"386":     355,
++	"amd64":   318,
++	"arm":     384,
++	"ppc64":   359,
++	"ppc64le": 359,
+ }[runtime.GOARCH]
+ 
+ var randomUnsupported int32 // atomic

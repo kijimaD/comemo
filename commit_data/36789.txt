@@ -9,6 +9,20 @@ Date:   Tue May 29 09:08:42 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e312c575d0..8a5812639e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -479,7 +479,7 @@ func internal_cpu_initialize(env string)
+ //go:linkname internal_cpu_debugOptions internal/cpu.debugOptions
+ var internal_cpu_debugOptions bool
+ 
+-// cpuinit extracts the environment variable GODEBUGCPU from the enviroment on
++// cpuinit extracts the environment variable GODEBUGCPU from the environment on
+ // Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.initialize.
+ func cpuinit() {
+ 	const prefix = "GODEBUGCPU="

@@ -22,7 +22,7 @@ Date:   Mon Sep 25 15:54:48 2017 +0200
     Change-Id: I5f74da633caafca03993e13f32ac9546c572cc84
     Reviewed-on: https://go-review.googlesource.com/65970
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  api/except.txt               |  1 +
  api/next.txt                 |  1 +
  src/math/big/int.go          |  5 +++++
@@ -31,3 +31,206 @@ Date:   Mon Sep 25 15:54:48 2017 +0200
  src/math/big/natconv.go      | 28 +++++++++++++++++++---------
  src/math/big/natconv_test.go | 14 +++++++++++++-
  7 files changed, 57 insertions(+), 15 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index fbabd18a81..5c0837e3f7 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -1,4 +1,5 @@
+ pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
++pkg math/big, const MaxBase = 36
+ pkg math/big, type Word uintptr
+ pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
+ pkg os (linux-arm), const O_SYNC = 4096
+diff --git a/api/next.txt b/api/next.txt
+index e69de29bb2..52288941a7 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -0,0 +1 @@
++pkg math/big, const MaxBase = 62
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 000eab50b7..92e2ae954a 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -389,6 +389,11 @@ func (x *Int) IsUint64() bool {
+ // ``0x'' or ``0X'' selects base 16; the ``0'' prefix selects base 8, and a
+ // ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
+ //
++// For bases <= 36, lower and upper case letters are considered the same:
++// The letters 'a' to 'z' and 'A' to 'Z' represent digit values 10 to 35.
++// For bases > 36, the upper case letters 'A' to 'Z' represent the digit
++// values 36 to 61.
++//
+ func (z *Int) SetString(s string, base int) (*Int, bool) {
+ 	return z.setFromScanner(strings.NewReader(s), base)
+ }
+diff --git a/src/math/big/intconv.go b/src/math/big/intconv.go
+index 5ac61020d1..6cca827c8e 100644
+--- a/src/math/big/intconv.go
++++ b/src/math/big/intconv.go
+@@ -13,9 +13,10 @@ import (
+ )
+ 
+ // Text returns the string representation of x in the given base.
+-// Base must be between 2 and 36, inclusive. The result uses the
+-// lower-case letters 'a' to 'z' for digit values >= 10. No base
+-// prefix (such as "0x") is added to the string.
++// Base must be between 2 and 62, inclusive. The result uses the
++// lower-case letters 'a' to 'z' for digit values 10 to 35, and
++// the upper-case letters 'A' to 'Z' for digit values 36 to 61.
++// No prefix (such as "0x") is added to the string.
+ func (x *Int) Text(base int) string {
+ 	if x == nil {
+ 		return "<nil>"
+diff --git a/src/math/big/intconv_test.go b/src/math/big/intconv_test.go
+index 514208145f..2e01ee327d 100644
+--- a/src/math/big/intconv_test.go
++++ b/src/math/big/intconv_test.go
+@@ -56,6 +56,10 @@ var stringTests = []struct {
+ 	{"-0b111", "-7", 0, -7, true},
+ 	{"0b1001010111", "599", 0, 0x257, true},
+ 	{"1001010111", "1001010111", 2, 0x257, true},
++	{"A", "a", 36, 10, true},
++	{"A", "A", 37, 36, true},
++	{"ABCXYZ", "abcxyz", 36, 623741435, true},
++	{"ABCXYZ", "ABCXYZ", 62, 33536793425, true},
+ }
+ 
+ func TestIntText(t *testing.T) {
+@@ -135,8 +139,16 @@ func TestGetString(t *testing.T) {
+ 			}
+ 		}
+ 
+-		if got := fmt.Sprintf(format(test.base), z); got != test.out {
+-			t.Errorf("#%db got %s; want %s", i, got, test.out)
++		f := format(test.base)
++		got := fmt.Sprintf(f, z)
++		if f == "%d" {
++			if got != fmt.Sprintf("%d", test.val) {
++				t.Errorf("#%db got %s; want %d", i, got, test.val)
++			}
++		} else {
++			if got != test.out {
++				t.Errorf("#%dc got %s; want %s", i, got, test.out)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index b50f1be3bd..21ccbd6cfa 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -15,13 +15,14 @@ import (
+ 	"sync"
+ )
+ 
+-const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
++const digits = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+ 
+-// Note: MaxBase = len(digits), but it must remain a rune constant
++// Note: MaxBase = len(digits), but it must remain an untyped rune constant
+ //       for API compatibility.
+ 
+ // MaxBase is the largest number base accepted for string conversions.
+-const MaxBase = 'z' - 'a' + 10 + 1
++const MaxBase = 10 + ('z' - 'a' + 1) + ('Z' - 'A' + 1)
++const maxBaseSmall = 10 + ('z' - 'a' + 1)
+ 
+ // maxPow returns (b**n, n) such that b**n is the largest power b**n <= _M.
+ // For instance maxPow(10) == (1e19, 19) for 19 decimal digits in a 64bit Word.
+@@ -59,11 +60,11 @@ func pow(x Word, n int) (p Word) {
+ // It returns the corresponding natural number res, the actual base b,
+ // a digit count, and a read or syntax error err, if any.
+ //
+-//	number   = [ prefix ] mantissa .
+-//	prefix   = "0" [ "x" | "X" | "b" | "B" ] .
+-//      mantissa = digits | digits "." [ digits ] | "." digits .
+-//	digits   = digit { digit } .
+-//	digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
++//     number   = [ prefix ] mantissa .
++//     prefix   = "0" [ "x" | "X" | "b" | "B" ] .
++//     mantissa = digits | digits "." [ digits ] | "." digits .
++//     digits   = digit { digit } .
++//     digit    = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
+ //
+ // Unless fracOk is set, the base argument must be 0 or a value between
+ // 2 and MaxBase. If fracOk is set, the base argument must be one of
+@@ -80,6 +81,11 @@ func pow(x Word, n int) (p Word) {
+ // is permitted. The result value is computed as if there were no period
+ // present; and the count value is used to determine the fractional part.
+ //
++// For bases <= 36, lower and upper case letters are considered the same:
++// The letters 'a' to 'z' and 'A' to 'Z' represent digit values 10 to 35.
++// For bases > 36, the upper case letters 'A' to 'Z' represent the digit
++// values 36 to 61.
++//
+ // A result digit count > 0 corresponds to the number of (non-prefix) digits
+ // parsed. A digit count <= 0 indicates the presence of a period (if fracOk
+ // is set, only), and -count is the number of fractional digits found.
+@@ -173,7 +179,11 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
+ 		case 'a' <= ch && ch <= 'z':
+ 			d1 = Word(ch - 'a' + 10)
+ 		case 'A' <= ch && ch <= 'Z':
+-			d1 = Word(ch - 'A' + 10)
++			if b <= maxBaseSmall {
++				d1 = Word(ch - 'A' + 10)
++			} else {
++				d1 = Word(ch - 'A' + maxBaseSmall)
++			}
+ 		default:
+ 			d1 = MaxBase + 1
+ 		}
+diff --git a/src/math/big/natconv_test.go b/src/math/big/natconv_test.go
+index 898a39fc2c..9f38bd94bb 100644
+--- a/src/math/big/natconv_test.go
++++ b/src/math/big/natconv_test.go
+@@ -13,6 +13,12 @@ import (
+ 	"testing"
+ )
+ 
++func TestMaxBase(t *testing.T) {
++	if MaxBase != len(digits) {
++		t.Fatalf("%d != %d", MaxBase, len(digits))
++	}
++}
++
+ // log2 computes the integer binary logarithm of x.
+ // The result is the integer n for which 2^n <= x < 2^(n+1).
+ // If x == 0, the result is -1.
+@@ -61,6 +67,7 @@ var strTests = []struct {
+ 	{nat{0xdeadbeef}, 16, "deadbeef"},
+ 	{nat{0x229be7}, 17, "1a2b3c"},
+ 	{nat{0x309663e6}, 32, "o9cov6"},
++	{nat{0x309663e6}, 62, "TakXI"},
+ }
+ 
+ func TestString(t *testing.T) {
+@@ -110,6 +117,7 @@ var natScanTests = []struct {
+ 	{s: "?"},
+ 	{base: 10},
+ 	{base: 36},
++	{base: 62},
+ 	{s: "?", base: 10},
+ 	{s: "0x"},
+ 	{s: "345", base: 2},
+@@ -124,6 +132,7 @@ var natScanTests = []struct {
+ 	{"0", 0, false, nil, 10, 1, true, 0},
+ 	{"0", 10, false, nil, 10, 1, true, 0},
+ 	{"0", 36, false, nil, 36, 1, true, 0},
++	{"0", 62, false, nil, 62, 1, true, 0},
+ 	{"1", 0, false, nat{1}, 10, 1, true, 0},
+ 	{"1", 10, false, nat{1}, 10, 1, true, 0},
+ 	{"0 ", 0, false, nil, 10, 1, true, ' '},
+@@ -135,8 +144,11 @@ var natScanTests = []struct {
+ 	{"03271", 0, false, nat{03271}, 8, 4, true, 0},
+ 	{"10ab", 0, false, nat{10}, 10, 2, true, 'a'},
+ 	{"1234567890", 0, false, nat{1234567890}, 10, 10, true, 0},
++	{"A", 36, false, nat{10}, 36, 1, true, 0},
++	{"A", 37, false, nat{36}, 37, 1, true, 0},
+ 	{"xyz", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, 0},
+-	{"xyz?", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, '?'},
++	{"XYZ?", 36, false, nat{(33*36+34)*36 + 35}, 36, 3, true, '?'},
++	{"XYZ?", 62, false, nat{(59*62+60)*62 + 61}, 62, 3, true, '?'},
+ 	{"0x", 16, false, nil, 16, 1, true, 'x'},
+ 	{"0xdeadbeef", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},
+ 	{"0XDEADBEEF", 0, false, nat{0xdeadbeef}, 16, 8, true, 0},

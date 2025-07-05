@@ -112,7 +112,7 @@ Date:   Sun Feb 25 09:10:54 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |   9 +-
  src/cmd/compile/internal/gc/asm_test.go      |  29 +-
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  35 +-
@@ -120,3 +120,1122 @@ Date:   Sun Feb 25 09:10:54 2018 +0000
  src/cmd/compile/internal/ssa/opGen.go        | 121 +++++-
  src/cmd/compile/internal/ssa/rewriteARM64.go | 606 ++++++++++++++++++++++++---
  6 files changed, 731 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 014e7fc57c..d376d644f4 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -148,6 +148,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64OR,
+ 		ssa.OpARM64XOR,
+ 		ssa.OpARM64BIC,
++		ssa.OpARM64EON,
++		ssa.OpARM64ORN,
+ 		ssa.OpARM64MUL,
+ 		ssa.OpARM64MULW,
+ 		ssa.OpARM64MNEG,
+@@ -210,7 +212,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64ANDconst,
+ 		ssa.OpARM64ORconst,
+ 		ssa.OpARM64XORconst,
+-		ssa.OpARM64BICconst,
+ 		ssa.OpARM64SLLconst,
+ 		ssa.OpARM64SRLconst,
+ 		ssa.OpARM64SRAconst,
+@@ -227,6 +228,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64ANDshiftLL,
+ 		ssa.OpARM64ORshiftLL,
+ 		ssa.OpARM64XORshiftLL,
++		ssa.OpARM64EONshiftLL,
++		ssa.OpARM64ORNshiftLL,
+ 		ssa.OpARM64BICshiftLL:
+ 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm64.SHIFT_LL, v.AuxInt)
+ 	case ssa.OpARM64ADDshiftRL,
+@@ -234,6 +237,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64ANDshiftRL,
+ 		ssa.OpARM64ORshiftRL,
+ 		ssa.OpARM64XORshiftRL,
++		ssa.OpARM64EONshiftRL,
++		ssa.OpARM64ORNshiftRL,
+ 		ssa.OpARM64BICshiftRL:
+ 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm64.SHIFT_LR, v.AuxInt)
+ 	case ssa.OpARM64ADDshiftRA,
+@@ -241,6 +246,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64ANDshiftRA,
+ 		ssa.OpARM64ORshiftRA,
+ 		ssa.OpARM64XORshiftRA,
++		ssa.OpARM64EONshiftRA,
++		ssa.OpARM64ORNshiftRA,
+ 		ssa.OpARM64BICshiftRA:
+ 		genshift(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm64.SHIFT_AR, v.AuxInt)
+ 	case ssa.OpARM64MOVDconst:
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index c2fc9862f3..7977875f78 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -2684,6 +2684,33 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tRORW\t[$]25,"},
+ 	},
++	{
++		fn: `
++		func $(x, y uint32) uint32 {
++			return x &^ y
++		}
++		`,
++		pos: []string{"\tBIC\t"},
++		neg: []string{"\tAND\t"},
++	},
++	{
++		fn: `
++		func $(x, y uint32) uint32 {
++			return x ^ ^y
++		}
++		`,
++		pos: []string{"\tEON\t"},
++		neg: []string{"\tXOR\t"},
++	},
++	{
++		fn: `
++		func $(x, y uint32) uint32 {
++			return x | ^y
++		}
++		`,
++		pos: []string{"\tORN\t"},
++		neg: []string{"\tORR\t"},
++	},
+ 	{
+ 		fn: `
+ 		func f22(a uint64) uint64 {
+@@ -3658,4 +3685,4 @@ package main
+ func Mod32(x uint32) uint32 {
+ 	return x % 3 // frontend rewrites it as HMUL with 2863311531, the LITERAL node has unknown Pos
+ }
+-`
++`
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index c6057f2461..b0ea844f10 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -803,7 +803,9 @@
+ (AND x (MOVDconst [c])) -> (ANDconst [c] x)
+ (OR  x (MOVDconst [c])) -> (ORconst  [c] x)
+ (XOR x (MOVDconst [c])) -> (XORconst [c] x)
+-(BIC x (MOVDconst [c])) -> (BICconst [c] x)
++(BIC x (MOVDconst [c])) -> (ANDconst [^c] x)
++(EON x (MOVDconst [c])) -> (XORconst [^c] x)
++(ORN x (MOVDconst [c])) -> (ORconst  [^c] x)
+ 
+ (SLL x (MOVDconst [c])) -> (SLLconst x [c&63]) // Note: I don't think we ever generate bad constant shifts (i.e. c>=64)
+ (SRL x (MOVDconst [c])) -> (SRLconst x [c&63])
+@@ -883,7 +885,11 @@
+ (OR  x x) -> x
+ (XOR x x) -> (MOVDconst [0])
+ (BIC x x) -> (MOVDconst [0])
++(EON x x) -> (MOVDconst [-1])
++(ORN x x) -> (MOVDconst [-1])
+ (AND x (MVN y)) -> (BIC x y)
++(XOR x (MVN y)) -> (EON x y)
++(OR  x (MVN y)) -> (ORN x y)
+ (CSEL {cc} x (MOVDconst [0]) flag) -> (CSEL0 {cc} x flag)
+ (CSEL {cc} (MOVDconst [0]) y flag) -> (CSEL0 {arm64Negate(cc.(Op))} y flag)
+ (SUB x (SUB y z)) -> (SUB (ADD <v.Type> x z) y)
+@@ -898,8 +904,6 @@
+ (ORconst  [-1] _) -> (MOVDconst [-1])
+ (XORconst [0]  x) -> x
+ (XORconst [-1] x) -> (MVN x)
+-(BICconst [0]  x) -> x
+-(BICconst [-1] _) -> (MOVDconst [0])
+ 
+ // generic constant folding
+ (ADDconst [c] (MOVDconst [d]))  -> (MOVDconst [c+d])
+@@ -929,7 +933,6 @@
+ (ORconst  [c] (ORconst [d] x))  -> (ORconst [c|d] x)
+ (XORconst [c] (MOVDconst [d]))  -> (MOVDconst [c^d])
+ (XORconst [c] (XORconst [d] x)) -> (XORconst [c^d] x)
+-(BICconst [c] (MOVDconst [d]))  -> (MOVDconst [d&^c])
+ (MVN (MOVDconst [c])) -> (MOVDconst [^c])
+ (NEG (MOVDconst [c])) -> (MOVDconst [-c])
+ (MOVBreg  (MOVDconst [c])) -> (MOVDconst [int64(int8(c))])
+@@ -1159,6 +1162,12 @@
+ (BIC x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) -> (BICshiftLL x0 y [c])
+ (BIC x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) -> (BICshiftRL x0 y [c])
+ (BIC x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) -> (BICshiftRA x0 y [c])
++(ORN x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) -> (ORNshiftLL x0 y [c])
++(ORN x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) -> (ORNshiftRL x0 y [c])
++(ORN x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) -> (ORNshiftRA x0 y [c])
++(EON x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) -> (EONshiftLL x0 y [c])
++(EON x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) -> (EONshiftRL x0 y [c])
++(EON x0 x1:(SRAconst [c] y)) && clobberIfDead(x1) -> (EONshiftRA x0 y [c])
+ (CMP x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) -> (CMPshiftLL x0 y [c])
+ (CMP x0:(SLLconst [c] y) x1) && clobberIfDead(x0) -> (InvertFlags (CMPshiftLL x1 y [c]))
+ (CMP x0 x1:(SRLconst [c] y)) && clobberIfDead(x1) -> (CMPshiftRL x0 y [c])
+@@ -1199,9 +1208,15 @@
+ (XORshiftLL x (MOVDconst [c]) [d]) -> (XORconst x [int64(uint64(c)<<uint64(d))])
+ (XORshiftRL x (MOVDconst [c]) [d]) -> (XORconst x [int64(uint64(c)>>uint64(d))])
+ (XORshiftRA x (MOVDconst [c]) [d]) -> (XORconst x [c>>uint64(d)])
+-(BICshiftLL x (MOVDconst [c]) [d]) -> (BICconst x [int64(uint64(c)<<uint64(d))])
+-(BICshiftRL x (MOVDconst [c]) [d]) -> (BICconst x [int64(uint64(c)>>uint64(d))])
+-(BICshiftRA x (MOVDconst [c]) [d]) -> (BICconst x [c>>uint64(d)])
++(BICshiftLL x (MOVDconst [c]) [d]) -> (ANDconst x [^int64(uint64(c)<<uint64(d))])
++(BICshiftRL x (MOVDconst [c]) [d]) -> (ANDconst x [^int64(uint64(c)>>uint64(d))])
++(BICshiftRA x (MOVDconst [c]) [d]) -> (ANDconst x [^(c>>uint64(d))])
++(ORNshiftLL x (MOVDconst [c]) [d]) -> (ORconst  x [^int64(uint64(c)<<uint64(d))])
++(ORNshiftRL x (MOVDconst [c]) [d]) -> (ORconst  x [^int64(uint64(c)>>uint64(d))])
++(ORNshiftRA x (MOVDconst [c]) [d]) -> (ORconst  x [^(c>>uint64(d))])
++(EONshiftLL x (MOVDconst [c]) [d]) -> (XORconst x [^int64(uint64(c)<<uint64(d))])
++(EONshiftRL x (MOVDconst [c]) [d]) -> (XORconst x [^int64(uint64(c)>>uint64(d))])
++(EONshiftRA x (MOVDconst [c]) [d]) -> (XORconst x [^(c>>uint64(d))])
+ (CMPshiftLL x (MOVDconst [c]) [d]) -> (CMPconst x [int64(uint64(c)<<uint64(d))])
+ (CMPshiftRL x (MOVDconst [c]) [d]) -> (CMPconst x [int64(uint64(c)>>uint64(d))])
+ (CMPshiftRA x (MOVDconst [c]) [d]) -> (CMPconst x [c>>uint64(d)])
+@@ -1222,6 +1237,12 @@
+ (BICshiftLL x (SLLconst x [c]) [d]) && c==d -> (MOVDconst [0])
+ (BICshiftRL x (SRLconst x [c]) [d]) && c==d -> (MOVDconst [0])
+ (BICshiftRA x (SRAconst x [c]) [d]) && c==d -> (MOVDconst [0])
++(EONshiftLL x (SLLconst x [c]) [d]) && c==d -> (MOVDconst [-1])
++(EONshiftRL x (SRLconst x [c]) [d]) && c==d -> (MOVDconst [-1])
++(EONshiftRA x (SRAconst x [c]) [d]) && c==d -> (MOVDconst [-1])
++(ORNshiftLL x (SLLconst x [c]) [d]) && c==d -> (MOVDconst [-1])
++(ORNshiftRL x (SRLconst x [c]) [d]) && c==d -> (MOVDconst [-1])
++(ORNshiftRA x (SRAconst x [c]) [d]) && c==d -> (MOVDconst [-1])
+ 
+ // Generate rotates
+ (ADDshiftLL [c] (SRLconst x [64-c]) x) -> (RORconst [64-c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index d712988bec..0e458053cf 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -199,7 +199,8 @@ func init() {
+ 		{name: "XOR", argLength: 2, reg: gp21, asm: "EOR", commutative: true}, // arg0 ^ arg1
+ 		{name: "XORconst", argLength: 1, reg: gp11, asm: "EOR", aux: "Int64"}, // arg0 ^ auxInt
+ 		{name: "BIC", argLength: 2, reg: gp21, asm: "BIC"},                    // arg0 &^ arg1
+-		{name: "BICconst", argLength: 1, reg: gp11, asm: "BIC", aux: "Int64"}, // arg0 &^ auxInt
++		{name: "EON", argLength: 2, reg: gp21, asm: "EON"},                    // arg0 ^ ^arg1
++		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                    // arg0 | ^arg1
+ 
+ 		// unary ops
+ 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
+@@ -270,6 +271,12 @@ func init() {
+ 		{name: "BICshiftLL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1<<auxInt)
+ 		{name: "BICshiftRL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1>>auxInt), unsigned shift
+ 		{name: "BICshiftRA", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1>>auxInt), signed shift
++		{name: "EONshiftLL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1<<auxInt)
++		{name: "EONshiftRL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1>>auxInt), unsigned shift
++		{name: "EONshiftRA", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1>>auxInt), signed shift
++		{name: "ORNshiftLL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1<<auxInt)
++		{name: "ORNshiftRL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1>>auxInt), unsigned shift
++		{name: "ORNshiftRA", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1>>auxInt), signed shift
+ 		{name: "CMPshiftLL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1<<auxInt
+ 		{name: "CMPshiftRL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, unsigned shift
+ 		{name: "CMPshiftRA", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, signed shift
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index dda8cba047..586fe2218f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -996,7 +996,8 @@ const (
+ 	OpARM64XOR
+ 	OpARM64XORconst
+ 	OpARM64BIC
+-	OpARM64BICconst
++	OpARM64EON
++	OpARM64ORN
+ 	OpARM64MVN
+ 	OpARM64NEG
+ 	OpARM64FNEGS
+@@ -1057,6 +1058,12 @@ const (
+ 	OpARM64BICshiftLL
+ 	OpARM64BICshiftRL
+ 	OpARM64BICshiftRA
++	OpARM64EONshiftLL
++	OpARM64EONshiftRL
++	OpARM64EONshiftRA
++	OpARM64ORNshiftLL
++	OpARM64ORNshiftRL
++	OpARM64ORNshiftRA
+ 	OpARM64CMPshiftLL
+ 	OpARM64CMPshiftRL
+ 	OpARM64CMPshiftRA
+@@ -12688,13 +12695,27 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "BICconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     arm64.ABIC,
++		name:   "EON",
++		argLen: 2,
++		asm:    arm64.AEON,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:   "ORN",
++		argLen: 2,
++		asm:    arm64.AORN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+@@ -13521,6 +13542,96 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "EONshiftLL",
++		auxType: auxInt64,
++		argLen:  2,
++		asm:     arm64.AEON,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:    "EONshiftRL",
++		auxType: auxInt64,
++		argLen:  2,
++		asm:     arm64.AEON,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:    "EONshiftRA",
++		auxType: auxInt64,
++		argLen:  2,
++		asm:     arm64.AEON,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:    "ORNshiftLL",
++		auxType: auxInt64,
++		argLen:  2,
++		asm:     arm64.AORN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:    "ORNshiftRL",
++		auxType: auxInt64,
++		argLen:  2,
++		asm:     arm64.AORN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:    "ORNshiftRA",
++		auxType: auxInt64,
++		argLen:  2,
++		asm:     arm64.AORN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:    "CMPshiftLL",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 53331eda31..810f597b75 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -37,8 +37,6 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64ANDshiftRL_0(v)
+ 	case OpARM64BIC:
+ 		return rewriteValueARM64_OpARM64BIC_0(v)
+-	case OpARM64BICconst:
+-		return rewriteValueARM64_OpARM64BICconst_0(v)
+ 	case OpARM64BICshiftLL:
+ 		return rewriteValueARM64_OpARM64BICshiftLL_0(v)
+ 	case OpARM64BICshiftRA:
+@@ -67,6 +65,14 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64DIV_0(v)
+ 	case OpARM64DIVW:
+ 		return rewriteValueARM64_OpARM64DIVW_0(v)
++	case OpARM64EON:
++		return rewriteValueARM64_OpARM64EON_0(v)
++	case OpARM64EONshiftLL:
++		return rewriteValueARM64_OpARM64EONshiftLL_0(v)
++	case OpARM64EONshiftRA:
++		return rewriteValueARM64_OpARM64EONshiftRA_0(v)
++	case OpARM64EONshiftRL:
++		return rewriteValueARM64_OpARM64EONshiftRL_0(v)
+ 	case OpARM64Equal:
+ 		return rewriteValueARM64_OpARM64Equal_0(v)
+ 	case OpARM64FADDD:
+@@ -181,6 +187,14 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64NotEqual_0(v)
+ 	case OpARM64OR:
+ 		return rewriteValueARM64_OpARM64OR_0(v) || rewriteValueARM64_OpARM64OR_10(v)
++	case OpARM64ORN:
++		return rewriteValueARM64_OpARM64ORN_0(v)
++	case OpARM64ORNshiftLL:
++		return rewriteValueARM64_OpARM64ORNshiftLL_0(v)
++	case OpARM64ORNshiftRA:
++		return rewriteValueARM64_OpARM64ORNshiftRA_0(v)
++	case OpARM64ORNshiftRL:
++		return rewriteValueARM64_OpARM64ORNshiftRL_0(v)
+ 	case OpARM64ORconst:
+ 		return rewriteValueARM64_OpARM64ORconst_0(v)
+ 	case OpARM64ORshiftLL:
+@@ -222,7 +236,7 @@ func rewriteValueARM64(v *Value) bool {
+ 	case OpARM64UMODW:
+ 		return rewriteValueARM64_OpARM64UMODW_0(v)
+ 	case OpARM64XOR:
+-		return rewriteValueARM64_OpARM64XOR_0(v)
++		return rewriteValueARM64_OpARM64XOR_0(v) || rewriteValueARM64_OpARM64XOR_10(v)
+ 	case OpARM64XORconst:
+ 		return rewriteValueARM64_OpARM64XORconst_0(v)
+ 	case OpARM64XORshiftLL:
+@@ -1738,7 +1752,7 @@ func rewriteValueARM64_OpARM64ANDshiftRL_0(v *Value) bool {
+ func rewriteValueARM64_OpARM64BIC_0(v *Value) bool {
+ 	// match: (BIC x (MOVDconst [c]))
+ 	// cond:
+-	// result: (BICconst [c] x)
++	// result: (ANDconst [^c] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -1747,8 +1761,8 @@ func rewriteValueARM64_OpARM64BIC_0(v *Value) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		v.reset(OpARM64BICconst)
+-		v.AuxInt = c
++		v.reset(OpARM64ANDconst)
++		v.AuxInt = ^c
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1830,51 +1844,10 @@ func rewriteValueARM64_OpARM64BIC_0(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueARM64_OpARM64BICconst_0(v *Value) bool {
+-	// match: (BICconst [0] x)
+-	// cond:
+-	// result: x
+-	for {
+-		if v.AuxInt != 0 {
+-			break
+-		}
+-		x := v.Args[0]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (BICconst [-1] _)
+-	// cond:
+-	// result: (MOVDconst [0])
+-	for {
+-		if v.AuxInt != -1 {
+-			break
+-		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (BICconst [c] (MOVDconst [d]))
+-	// cond:
+-	// result: (MOVDconst [d&^c])
+-	for {
+-		c := v.AuxInt
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARM64MOVDconst {
+-			break
+-		}
+-		d := v_0.AuxInt
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = d &^ c
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueARM64_OpARM64BICshiftLL_0(v *Value) bool {
+ 	// match: (BICshiftLL x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (BICconst x [int64(uint64(c)<<uint64(d))])
++	// result: (ANDconst x [^int64(uint64(c)<<uint64(d))])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -1884,8 +1857,8 @@ func rewriteValueARM64_OpARM64BICshiftLL_0(v *Value) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		v.reset(OpARM64BICconst)
+-		v.AuxInt = int64(uint64(c) << uint64(d))
++		v.reset(OpARM64ANDconst)
++		v.AuxInt = ^int64(uint64(c) << uint64(d))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1916,7 +1889,7 @@ func rewriteValueARM64_OpARM64BICshiftLL_0(v *Value) bool {
+ func rewriteValueARM64_OpARM64BICshiftRA_0(v *Value) bool {
+ 	// match: (BICshiftRA x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (BICconst x [c>>uint64(d)])
++	// result: (ANDconst x [^(c>>uint64(d))])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -1926,8 +1899,8 @@ func rewriteValueARM64_OpARM64BICshiftRA_0(v *Value) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		v.reset(OpARM64BICconst)
+-		v.AuxInt = c >> uint64(d)
++		v.reset(OpARM64ANDconst)
++		v.AuxInt = ^(c >> uint64(d))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1958,7 +1931,7 @@ func rewriteValueARM64_OpARM64BICshiftRA_0(v *Value) bool {
+ func rewriteValueARM64_OpARM64BICshiftRL_0(v *Value) bool {
+ 	// match: (BICshiftRL x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (BICconst x [int64(uint64(c)>>uint64(d))])
++	// result: (ANDconst x [^int64(uint64(c)>>uint64(d))])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -1968,8 +1941,8 @@ func rewriteValueARM64_OpARM64BICshiftRL_0(v *Value) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		v.reset(OpARM64BICconst)
+-		v.AuxInt = int64(uint64(c) >> uint64(d))
++		v.reset(OpARM64ANDconst)
++		v.AuxInt = ^int64(uint64(c) >> uint64(d))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -2904,6 +2877,227 @@ func rewriteValueARM64_OpARM64DIVW_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64EON_0(v *Value) bool {
++	// match: (EON x (MOVDconst [c]))
++	// cond:
++	// result: (XORconst [^c] x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64XORconst)
++		v.AuxInt = ^c
++		v.AddArg(x)
++		return true
++	}
++	// match: (EON x x)
++	// cond:
++	// result: (MOVDconst [-1])
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		if x != v.Args[1] {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = -1
++		return true
++	}
++	// match: (EON x0 x1:(SLLconst [c] y))
++	// cond: clobberIfDead(x1)
++	// result: (EONshiftLL x0 y [c])
++	for {
++		_ = v.Args[1]
++		x0 := v.Args[0]
++		x1 := v.Args[1]
++		if x1.Op != OpARM64SLLconst {
++			break
++		}
++		c := x1.AuxInt
++		y := x1.Args[0]
++		if !(clobberIfDead(x1)) {
++			break
++		}
++		v.reset(OpARM64EONshiftLL)
++		v.AuxInt = c
++		v.AddArg(x0)
++		v.AddArg(y)
++		return true
++	}
++	// match: (EON x0 x1:(SRLconst [c] y))
++	// cond: clobberIfDead(x1)
++	// result: (EONshiftRL x0 y [c])
++	for {
++		_ = v.Args[1]
++		x0 := v.Args[0]
++		x1 := v.Args[1]
++		if x1.Op != OpARM64SRLconst {
++			break
++		}
++		c := x1.AuxInt
++		y := x1.Args[0]
++		if !(clobberIfDead(x1)) {
++			break
++		}
++		v.reset(OpARM64EONshiftRL)
++		v.AuxInt = c
++		v.AddArg(x0)
++		v.AddArg(y)
++		return true
++	}
++	// match: (EON x0 x1:(SRAconst [c] y))
++	// cond: clobberIfDead(x1)
++	// result: (EONshiftRA x0 y [c])
++	for {
++		_ = v.Args[1]
++		x0 := v.Args[0]
++		x1 := v.Args[1]
++		if x1.Op != OpARM64SRAconst {
++			break
++		}
++		c := x1.AuxInt
++		y := x1.Args[0]
++		if !(clobberIfDead(x1)) {
++			break
++		}
++		v.reset(OpARM64EONshiftRA)
++		v.AuxInt = c
++		v.AddArg(x0)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64EONshiftLL_0(v *Value) bool {
++	// match: (EONshiftLL x (MOVDconst [c]) [d])
++	// cond:
++	// result: (XORconst x [^int64(uint64(c)<<uint64(d))])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64XORconst)
++		v.AuxInt = ^int64(uint64(c) << uint64(d))
++		v.AddArg(x)
++		return true
++	}
++	// match: (EONshiftLL x (SLLconst x [c]) [d])
++	// cond: c==d
++	// result: (MOVDconst [-1])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64SLLconst {
++			break
++		}
++		c := v_1.AuxInt
++		if x != v_1.Args[0] {
++			break
++		}
++		if !(c == d) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = -1
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64EONshiftRA_0(v *Value) bool {
++	// match: (EONshiftRA x (MOVDconst [c]) [d])
++	// cond:
++	// result: (XORconst x [^(c>>uint64(d))])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64XORconst)
++		v.AuxInt = ^(c >> uint64(d))
++		v.AddArg(x)
++		return true
++	}
++	// match: (EONshiftRA x (SRAconst x [c]) [d])
++	// cond: c==d
++	// result: (MOVDconst [-1])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64SRAconst {
++			break
++		}
++		c := v_1.AuxInt
++		if x != v_1.Args[0] {
++			break
++		}
++		if !(c == d) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = -1
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64EONshiftRL_0(v *Value) bool {
++	// match: (EONshiftRL x (MOVDconst [c]) [d])
++	// cond:
++	// result: (XORconst x [^int64(uint64(c)>>uint64(d))])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64XORconst)
++		v.AuxInt = ^int64(uint64(c) >> uint64(d))
++		v.AddArg(x)
++		return true
++	}
++	// match: (EONshiftRL x (SRLconst x [c]) [d])
++	// cond: c==d
++	// result: (MOVDconst [-1])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64SRLconst {
++			break
++		}
++		c := v_1.AuxInt
++		if x != v_1.Args[0] {
++			break
++		}
++		if !(c == d) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = -1
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64Equal_0(v *Value) bool {
+ 	// match: (Equal (FlagEQ))
+ 	// cond:
+@@ -8634,8 +8828,6 @@ func rewriteValueARM64_OpARM64NotEqual_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64OR_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+ 	// match: (OR x (MOVDconst [c]))
+ 	// cond:
+ 	// result: (ORconst [c] x)
+@@ -8682,6 +8874,38 @@ func rewriteValueARM64_OpARM64OR_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (OR x (MVN y))
++	// cond:
++	// result: (ORN x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MVN {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpARM64ORN)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (OR (MVN y) x)
++	// cond:
++	// result: (ORN x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MVN {
++			break
++		}
++		y := v_0.Args[0]
++		x := v.Args[1]
++		v.reset(OpARM64ORN)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (OR x0 x1:(SLLconst [c] y))
+ 	// cond: clobberIfDead(x1)
+ 	// result: (ORshiftLL x0 y [c])
+@@ -8787,6 +9011,11 @@ func rewriteValueARM64_OpARM64OR_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueARM64_OpARM64OR_10(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (OR x1:(SRAconst [c] y) x0)
+ 	// cond: clobberIfDead(x1)
+ 	// result: (ORshiftRA x0 y [c])
+@@ -8922,11 +9151,6 @@ func rewriteValueARM64_OpARM64OR_0(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueARM64_OpARM64OR_10(v *Value) bool {
+-	b := v.Block
+-	_ = b
+ 	// match: (OR <t> y3:(MOVDnop x3:(MOVBUload [i0] {s} p mem)) o0:(ORshiftLL [8] o1:(ORshiftLL [16] s0:(SLLconst [24] y0:(MOVDnop x0:(MOVBUload [i3] {s} p mem))) y1:(MOVDnop x1:(MOVBUload [i2] {s} p mem))) y2:(MOVDnop x2:(MOVBUload [i1] {s} p mem))))
+ 	// cond: i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1 && o0.Uses == 1 && o1.Uses == 1 && s0.Uses == 1 && mergePoint(b,x0,x1,x2,x3) != nil && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3) && clobber(o0) && clobber(o1) && clobber(s0)
+ 	// result: @mergePoint(b,x0,x1,x2,x3) (MOVWUload <t> {s} (OffPtr <p.Type> [i0] p) mem)
+@@ -10171,6 +10395,227 @@ func rewriteValueARM64_OpARM64OR_10(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64ORN_0(v *Value) bool {
++	// match: (ORN x (MOVDconst [c]))
++	// cond:
++	// result: (ORconst [^c] x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64ORconst)
++		v.AuxInt = ^c
++		v.AddArg(x)
++		return true
++	}
++	// match: (ORN x x)
++	// cond:
++	// result: (MOVDconst [-1])
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		if x != v.Args[1] {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = -1
++		return true
++	}
++	// match: (ORN x0 x1:(SLLconst [c] y))
++	// cond: clobberIfDead(x1)
++	// result: (ORNshiftLL x0 y [c])
++	for {
++		_ = v.Args[1]
++		x0 := v.Args[0]
++		x1 := v.Args[1]
++		if x1.Op != OpARM64SLLconst {
++			break
++		}
++		c := x1.AuxInt
++		y := x1.Args[0]
++		if !(clobberIfDead(x1)) {
++			break
++		}
++		v.reset(OpARM64ORNshiftLL)
++		v.AuxInt = c
++		v.AddArg(x0)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ORN x0 x1:(SRLconst [c] y))
++	// cond: clobberIfDead(x1)
++	// result: (ORNshiftRL x0 y [c])
++	for {
++		_ = v.Args[1]
++		x0 := v.Args[0]
++		x1 := v.Args[1]
++		if x1.Op != OpARM64SRLconst {
++			break
++		}
++		c := x1.AuxInt
++		y := x1.Args[0]
++		if !(clobberIfDead(x1)) {
++			break
++		}
++		v.reset(OpARM64ORNshiftRL)
++		v.AuxInt = c
++		v.AddArg(x0)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ORN x0 x1:(SRAconst [c] y))
++	// cond: clobberIfDead(x1)
++	// result: (ORNshiftRA x0 y [c])
++	for {
++		_ = v.Args[1]
++		x0 := v.Args[0]
++		x1 := v.Args[1]
++		if x1.Op != OpARM64SRAconst {
++			break
++		}
++		c := x1.AuxInt
++		y := x1.Args[0]
++		if !(clobberIfDead(x1)) {
++			break
++		}
++		v.reset(OpARM64ORNshiftRA)
++		v.AuxInt = c
++		v.AddArg(x0)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64ORNshiftLL_0(v *Value) bool {
++	// match: (ORNshiftLL x (MOVDconst [c]) [d])
++	// cond:
++	// result: (ORconst x [^int64(uint64(c)<<uint64(d))])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64ORconst)
++		v.AuxInt = ^int64(uint64(c) << uint64(d))
++		v.AddArg(x)
++		return true
++	}
++	// match: (ORNshiftLL x (SLLconst x [c]) [d])
++	// cond: c==d
++	// result: (MOVDconst [-1])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64SLLconst {
++			break
++		}
++		c := v_1.AuxInt
++		if x != v_1.Args[0] {
++			break
++		}
++		if !(c == d) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = -1
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64ORNshiftRA_0(v *Value) bool {
++	// match: (ORNshiftRA x (MOVDconst [c]) [d])
++	// cond:
++	// result: (ORconst x [^(c>>uint64(d))])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64ORconst)
++		v.AuxInt = ^(c >> uint64(d))
++		v.AddArg(x)
++		return true
++	}
++	// match: (ORNshiftRA x (SRAconst x [c]) [d])
++	// cond: c==d
++	// result: (MOVDconst [-1])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64SRAconst {
++			break
++		}
++		c := v_1.AuxInt
++		if x != v_1.Args[0] {
++			break
++		}
++		if !(c == d) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = -1
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64ORNshiftRL_0(v *Value) bool {
++	// match: (ORNshiftRL x (MOVDconst [c]) [d])
++	// cond:
++	// result: (ORconst x [^int64(uint64(c)>>uint64(d))])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpARM64ORconst)
++		v.AuxInt = ^int64(uint64(c) >> uint64(d))
++		v.AddArg(x)
++		return true
++	}
++	// match: (ORNshiftRL x (SRLconst x [c]) [d])
++	// cond: c==d
++	// result: (MOVDconst [-1])
++	for {
++		d := v.AuxInt
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64SRLconst {
++			break
++		}
++		c := v_1.AuxInt
++		if x != v_1.Args[0] {
++			break
++		}
++		if !(c == d) {
++			break
++		}
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = -1
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64ORconst_0(v *Value) bool {
+ 	// match: (ORconst [0] x)
+ 	// cond:
+@@ -11931,6 +12376,38 @@ func rewriteValueARM64_OpARM64XOR_0(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (XOR x (MVN y))
++	// cond:
++	// result: (EON x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64MVN {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpARM64EON)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (XOR (MVN y) x)
++	// cond:
++	// result: (EON x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MVN {
++			break
++		}
++		y := v_0.Args[0]
++		x := v.Args[1]
++		v.reset(OpARM64EON)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (XOR x0 x1:(SLLconst [c] y))
+ 	// cond: clobberIfDead(x1)
+ 	// result: (XORshiftLL x0 y [c])
+@@ -12036,6 +12513,9 @@ func rewriteValueARM64_OpARM64XOR_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueARM64_OpARM64XOR_10(v *Value) bool {
+ 	// match: (XOR x1:(SRAconst [c] y) x0)
+ 	// cond: clobberIfDead(x1)
+ 	// result: (XORshiftRA x0 y [c])

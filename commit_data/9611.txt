@@ -7,7 +7,7 @@ Date:   Wed Sep 7 13:23:16 2011 -0400
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4987041
-
+---
  src/pkg/image/png/reader.go                  |  10 +++++++++
  src/pkg/image/png/reader_test.go             |  31 +++++++++++++++++++++++++--
  src/pkg/image/png/testdata/invalid-crc32.png | Bin 0 -> 1289 bytes
@@ -16,3 +16,121 @@ Date:   Wed Sep 7 13:23:16 2011 -0400
  src/pkg/image/png/testdata/invalid-zlib.png  | Bin 0 -> 1289 bytes
  src/pkg/image/png/writer_test.go             |   4 ++--
  7 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index 8c76afa72c..aa023741d0 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -489,6 +489,16 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
+ 		// The current row for y is the previous row for y+1.
+ 		pr, cr = cr, pr
+ 	}
++
++	// Check for EOF, to verify the zlib checksum.
++	n, err := r.Read(pr[:1])
++	if err != os.EOF {
++		return nil, FormatError(err.String())
++	}
++	if n != 0 {
++		return nil, FormatError("too much pixel data")
++	}
++
+ 	return img, nil
+ }
+ 
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index bcc1a3db47..2088431905 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"image"
+ 	"io"
+ 	"os"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -41,7 +42,7 @@ var filenamesShort = []string{
+ 	"basn6a16",
+ }
+ 
+-func readPng(filename string) (image.Image, os.Error) {
++func readPNG(filename string) (image.Image, os.Error) {
+ 	f, err := os.Open(filename)
+ 	if err != nil {
+ 		return nil, err
+@@ -183,7 +184,7 @@ func TestReader(t *testing.T) {
+ 	}
+ 	for _, fn := range names {
+ 		// Read the .png file.
+-		img, err := readPng("testdata/pngsuite/" + fn + ".png")
++		img, err := readPNG("testdata/pngsuite/" + fn + ".png")
+ 		if err != nil {
+ 			t.Error(fn, err)
+ 			continue
+@@ -239,3 +240,29 @@ func TestReader(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var readerErrors = []struct {
++	file string
++	err  string
++}{
++	{"invalid-zlib.png", "zlib checksum error"},
++	{"invalid-crc32.png", "invalid checksum"},
++	{"invalid-noend.png", "unexpected EOF"},
++	{"invalid-trunc.png", "unexpected EOF"},
++}
++
++func TestReaderError(t *testing.T) {
++	for _, tt := range readerErrors {
++		img, err := readPNG("testdata/" + tt.file)
++		if err == nil {
++			t.Errorf("decoding %s: missing error", tt.file)
++			continue
++		}
++		if !strings.Contains(err.String(), tt.err) {
++			t.Errorf("decoding %s: %s, want %s", tt.file, err, tt.err)
++		}
++		if img != nil {
++			t.Errorf("decoding %s: have image + error")
++		}
++	}
++}
+diff --git a/src/pkg/image/png/testdata/invalid-crc32.png b/src/pkg/image/png/testdata/invalid-crc32.png
+new file mode 100644
+index 0000000000..e5be4086cb
+Binary files /dev/null and b/src/pkg/image/png/testdata/invalid-crc32.png differ
+diff --git a/src/pkg/image/png/testdata/invalid-noend.png b/src/pkg/image/png/testdata/invalid-noend.png
+new file mode 100644
+index 0000000000..9137270d9c
+Binary files /dev/null and b/src/pkg/image/png/testdata/invalid-noend.png differ
+diff --git a/src/pkg/image/png/testdata/invalid-trunc.png b/src/pkg/image/png/testdata/invalid-trunc.png
+new file mode 100644
+index 0000000000..d0748cf654
+Binary files /dev/null and b/src/pkg/image/png/testdata/invalid-trunc.png differ
+diff --git a/src/pkg/image/png/testdata/invalid-zlib.png b/src/pkg/image/png/testdata/invalid-zlib.png
+new file mode 100644
+index 0000000000..c6d051caee
+Binary files /dev/null and b/src/pkg/image/png/testdata/invalid-zlib.png differ
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index 1599791b3a..046aad9d27 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -56,13 +56,13 @@ func TestWriter(t *testing.T) {
+ 	for _, fn := range names {
+ 		qfn := "testdata/pngsuite/" + fn + ".png"
+ 		// Read the image.
+-		m0, err := readPng(qfn)
++		m0, err := readPNG(qfn)
+ 		if err != nil {
+ 			t.Error(fn, err)
+ 			continue
+ 		}
+ 		// Read the image again, encode it, and decode it.
+-		m1, err := readPng(qfn)
++		m1, err := readPNG(qfn)
+ 		if err != nil {
+ 			t.Error(fn, err)
+ 			return

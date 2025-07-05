@@ -7,7 +7,7 @@ Date:   Tue Feb 28 21:48:03 2012 +0100
     R=golang-dev, minux.ma, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5702050
-
+---
  src/pkg/archive/zip/reader.go   | 28 ----------------------------
  src/pkg/bufio/bufio.go          |  1 -
  src/pkg/encoding/json/encode.go |  5 -----
@@ -15,3 +15,124 @@ Date:   Tue Feb 28 21:48:03 2012 +0100
  src/pkg/time/format.go          |  8 --------
  src/pkg/time/time.go            |  4 ----
  6 files changed, 54 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 6a58c49f9a..f3826dcc48 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -169,34 +169,6 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
+ 
+ func (r *checksumReader) Close() error { return r.rc.Close() }
+ 
+-func readFileHeader(f *File, r io.Reader) error {
+-	var buf [fileHeaderLen]byte
+-	if _, err := io.ReadFull(r, buf[:]); err != nil {
+-		return err
+-	}
+-	b := readBuf(buf[:])
+-	if sig := b.uint32(); sig != fileHeaderSignature {
+-		return ErrFormat
+-	}
+-	f.ReaderVersion = b.uint16()
+-	f.Flags = b.uint16()
+-	f.Method = b.uint16()
+-	f.ModifiedTime = b.uint16()
+-	f.ModifiedDate = b.uint16()
+-	f.CRC32 = b.uint32()
+-	f.CompressedSize = b.uint32()
+-	f.UncompressedSize = b.uint32()
+-	filenameLen := int(b.uint16())
+-	extraLen := int(b.uint16())
+-	d := make([]byte, filenameLen+extraLen)
+-	if _, err := io.ReadFull(r, d); err != nil {
+-		return err
+-	}
+-	f.Name = string(d[:filenameLen])
+-	f.Extra = d[filenameLen:]
+-	return nil
+-}
+-
+ // findBodyOffset does the minimum work to verify the file has a header
+ // and returns the file body offset.
+ func (f *File) findBodyOffset() (int64, error) {
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 6f3b1eec97..b44d0e7d16 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -23,7 +23,6 @@ var (
+ 	ErrInvalidUnreadRune = errors.New("bufio: invalid use of UnreadRune")
+ 	ErrBufferFull        = errors.New("bufio: buffer full")
+ 	ErrNegativeCount     = errors.New("bufio: negative count")
+-	errInternal          = errors.New("bufio: internal error")
+ )
+ 
+ // Buffered input.
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 7f5deed94d..f98071777f 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -189,11 +189,6 @@ func (e *MarshalerError) Error() string {
+ 	return "json: error calling MarshalJSON for type " + e.Type.String() + ": " + e.Err.Error()
+ }
+ 
+-type interfaceOrPtrValue interface {
+-	IsNil() bool
+-	Elem() reflect.Value
+-}
+-
+ var hex = "0123456789abcdef"
+ 
+ // An encodeState encodes JSON into a bytes.Buffer.
+diff --git a/src/pkg/net/http/lex.go b/src/pkg/net/http/lex.go
+index 93b67e7017..ffb393ccf6 100644
+--- a/src/pkg/net/http/lex.go
++++ b/src/pkg/net/http/lex.go
+@@ -14,14 +14,6 @@ func isSeparator(c byte) bool {
+ 	return false
+ }
+ 
+-func isSpace(c byte) bool {
+-	switch c {
+-	case ' ', '\t', '\r', '\n':
+-		return true
+-	}
+-	return false
+-}
+-
+ func isCtl(c byte) bool { return (0 <= c && c <= 31) || c == 127 }
+ 
+ func isChar(c byte) bool { return 0 <= c && c <= 127 }
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index ef6f1f3351..ad52bab216 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -6,14 +6,6 @@ package time
+ 
+ import "errors"
+ 
+-const (
+-	numeric = iota
+-	alphabetic
+-	separator
+-	plus
+-	minus
+-)
+-
+ // These are predefined layouts for use in Time.Format.
+ // The standard time used in the layouts is:
+ //	Mon Jan 2 15:04:05 MST 2006
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 1b8c76fcc4..51d332ba0a 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -767,10 +767,6 @@ func (t Time) UnixNano() int64 {
+ 	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
+ }
+ 
+-type gobError string
+-
+-func (g gobError) Error() string { return string(g) }
+-
+ const timeGobVersion byte = 1
+ 
+ // GobEncode implements the gob.GobEncoder interface.

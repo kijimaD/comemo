@@ -10,7 +10,34 @@ Date:   Tue Mar 22 14:29:39 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/394595
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 3835243896..08caca5f68 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -202,7 +202,7 @@ Ben Burkert <ben@benburkert.com>
+ Ben Haines <bhainesva@gmail.com>
+ Ben Lubar <ben.lubar@gmail.com>
+ Ben Olive <sionide21@gmail.com>
+-Ben Shi <powerman1st@163.com>
++Ben Shi <powerman1st@163.com> <ben.shi@streamcomputing.com>
+ Benjamin Black <b@b3k.us>
+ Benjamin Cable <cable.benjamin@gmail.com>
+ Benjamin Hsieh <tanookiben@users.noreply.github.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7c0531cd6f..f79c4132b8 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -365,7 +365,7 @@ Ben Lubar <ben.lubar@gmail.com>
+ Ben Lynn <benlynn@gmail.com>
+ Ben Olive <sionide21@gmail.com>
+ Ben Schwartz <bemasc@google.com>
+-Ben Shi <powerman1st@163.com>
++Ben Shi <powerman1st@163.com> <ben.shi@streamcomputing.com>
+ Ben Toews <mastahyeti@gmail.com>
+ Benjamin Barenblat <bbaren@google.com>
+ Benjamin Black <b@b3k.us>

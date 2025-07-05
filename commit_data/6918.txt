@@ -9,7 +9,85 @@ Date:   Fri Dec 10 11:32:58 2010 -0800
     R=iant, iant2
     CC=golang-dev
     https://golang.org/cl/3555041
-
+---
  src/cmd/cgo/main.go | 20 ++++++++++++++++++++
  src/cmd/cgo/out.go  |  6 +++---
  2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index ef7275023a..cbc9d16da5 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -11,10 +11,12 @@
+ package main
+ 
+ import (
++	"crypto/md5"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
++	"io"
+ 	"os"
+ 	"reflect"
+ 	"strings"
+@@ -105,6 +107,8 @@ var ptrSizeMap = map[string]int64{
+ 	"arm":   4,
+ }
+ 
++var cPrefix string
++
+ var fset = token.NewFileSet()
+ 
+ var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
+@@ -170,6 +174,22 @@ func main() {
+ 		Written:    make(map[string]bool),
+ 	}
+ 
++	// Need a unique prefix for the global C symbols that
++	// we use to coordinate between gcc and ourselves.
++	// We already put _cgo_ at the beginning, so the main
++	// concern is other cgo wrappers for the same functions.
++	// Use the beginning of the md5 of the input to disambiguate.
++	h := md5.New()
++	for _, input := range goFiles {
++		f, err := os.Open(input, os.O_RDONLY, 0)
++		if err != nil {
++			fatal("%s", err)
++		}
++		io.Copy(h, f)
++		f.Close()
++	}
++	cPrefix = fmt.Sprintf("_%x", h.Sum()[0:6])
++
+ 	for _, input := range goFiles {
+ 		f := new(File)
+ 		// Reset f.Preamble so that we don't end up with conflicting headers / defines
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index c7db2c7cc0..d6b25d5c19 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -212,12 +212,12 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath str
+ 	_, argSize = p.structType(n)
+ 
+ 	// C wrapper calls into gcc, passing a pointer to the argument frame.
+-	fmt.Fprintf(fc, "void _cgo%s(void*);\n", n.Mangle)
++	fmt.Fprintf(fc, "void _cgo%s%s(void*);\n", cPrefix, n.Mangle)
+ 	fmt.Fprintf(fc, "\n")
+ 	fmt.Fprintf(fc, "void\n")
+ 	fmt.Fprintf(fc, "·%s(struct{uint8 x[%d];}p)\n", n.Mangle, argSize)
+ 	fmt.Fprintf(fc, "{\n")
+-	fmt.Fprintf(fc, "\truntime·cgocall(_cgo%s, &p);\n", n.Mangle)
++	fmt.Fprintf(fc, "\truntime·cgocall(_cgo%s%s, &p);\n", cPrefix, n.Mangle)
+ 	if n.AddError {
+ 		// gcc leaves errno in first word of interface at end of p.
+ 		// check whether it is zero; if so, turn interface into nil.
+@@ -292,7 +292,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	// Gcc wrapper unpacks the C argument struct
+ 	// and calls the actual C function.
+ 	fmt.Fprintf(fgcc, "void\n")
+-	fmt.Fprintf(fgcc, "_cgo%s(void *v)\n", n.Mangle)
++	fmt.Fprintf(fgcc, "_cgo%s%s(void *v)\n", cPrefix, n.Mangle)
+ 	fmt.Fprintf(fgcc, "{\n")
+ 	if n.AddError {
+ 		fmt.Fprintf(fgcc, "\tint e;\n") // assuming 32 bit (see comment above structType)

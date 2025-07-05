@@ -18,7 +18,64 @@ Date:   Fri Nov 16 02:04:44 2018 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/cache.go            |  8 +++++---
  src/cmd/go/testdata/script/mod_download_hash.txt | 23 +++++++++++++++++++++++
  2 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 1f9cc96c3e..171718d20b 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -129,16 +129,18 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+ 		}
+ 		info, err = r.r.Stat(rev)
+ 		if err == nil {
+-			if err := writeDiskStat(file, info); err != nil {
+-				fmt.Fprintf(os.Stderr, "go: writing stat cache: %v\n", err)
+-			}
+ 			// If we resolved, say, 1234abcde to v0.0.0-20180604122334-1234abcdef78,
+ 			// then save the information under the proper version, for future use.
+ 			if info.Version != rev {
++				file, _ = CachePath(module.Version{Path: r.path, Version: info.Version}, "info")
+ 				r.cache.Do("stat:"+info.Version, func() interface{} {
+ 					return cachedInfo{info, err}
+ 				})
+ 			}
++
++			if err := writeDiskStat(file, info); err != nil {
++				fmt.Fprintf(os.Stderr, "go: writing stat cache: %v\n", err)
++			}
+ 		}
+ 		return cachedInfo{info, err}
+ 	}).(cachedInfo)
+diff --git a/src/cmd/go/testdata/script/mod_download_hash.txt b/src/cmd/go/testdata/script/mod_download_hash.txt
+new file mode 100644
+index 0000000000..1662043207
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download_hash.txt
+@@ -0,0 +1,23 @@
++env GO111MODULE=on
++
++# Testing mod download with non semantic versions; turn off proxy.
++[!net] skip
++[!exec:git] skip
++env GOPROXY=
++
++go mod download rsc.io/quote@a91498bed0a73d4bb9c1fb2597925f7883bc40a7
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180709162918-a91498bed0a7.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180709162918-a91498bed0a7.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180709162918-a91498bed0a7.zip
++
++go mod download rsc.io/quote@master
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180710144737-5d9f230bcfba.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180710144737-5d9f230bcfba.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180710144737-5d9f230bcfba.zip
++
++
++-- go.mod --
++module m
++
++-- m.go --
++package m
+\ No newline at end of file

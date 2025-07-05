@@ -26,7 +26,7 @@ Date:   Fri Nov 3 02:05:28 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go             |  3 +-
  src/cmd/asm/internal/asm/testdata/arm64.s      |  2 ++
  src/cmd/compile/internal/arm64/ssa.go          | 22 ++++++++++++
@@ -44,3 +44,470 @@ Date:   Fri Nov 3 02:05:28 2017 +0000
  src/runtime/proc.go                            |  2 ++
  src/runtime/runtime2.go                        |  3 ++
  16 files changed, 211 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index e7ef928fa2..475d7da5f9 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -77,7 +77,8 @@ func IsARM64STLXR(op obj.As) bool {
+ 		arm64.ALDADDB, arm64.ALDADDH, arm64.ALDADDW, arm64.ALDADDD,
+ 		arm64.ALDANDB, arm64.ALDANDH, arm64.ALDANDW, arm64.ALDANDD,
+ 		arm64.ALDEORB, arm64.ALDEORH, arm64.ALDEORW, arm64.ALDEORD,
+-		arm64.ALDORB, arm64.ALDORH, arm64.ALDORW, arm64.ALDORD:
++		arm64.ALDORB, arm64.ALDORH, arm64.ALDORW, arm64.ALDORD,
++		arm64.ALDADDALD, arm64.ALDADDALW:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 54be761c54..859f71a26b 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -604,6 +604,8 @@ again:
+ 	LDORH	R5, (RSP), R7                        // e7332578
+ 	LDORB	R5, (R6), R7                         // c7302538
+ 	LDORB	R5, (RSP), R7                        // e7332538
++	LDADDALD	R2, (R1), R3                 // 2300e2f8
++	LDADDALW	R5, (R4), R6                 // 8600e5b8
+ 
+ // RET
+ //
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 501eafe03f..c396ba06d1 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -553,6 +553,28 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p3.From.Reg = arm64.REGTMP
+ 		p3.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p3, p)
++	case ssa.OpARM64LoweredAtomicAdd64Variant,
++		ssa.OpARM64LoweredAtomicAdd32Variant:
++		// LDADDAL	Rarg1, (Rarg0), Rout
++		// ADD		Rarg1, Rout
++		op := arm64.ALDADDALD
++		if v.Op == ssa.OpARM64LoweredAtomicAdd32Variant {
++			op = arm64.ALDADDALW
++		}
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		out := v.Reg0()
++		p := s.Prog(op)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r1
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = r0
++		p.RegTo2 = out
++		p1 := s.Prog(arm64.AADD)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = out
+ 	case ssa.OpARM64LoweredAtomicCas64,
+ 		ssa.OpARM64LoweredAtomicCas32:
+ 		// LDAXR	(Rarg0), Rtmp
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index a471a909d6..95bf562e2c 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -303,6 +303,7 @@ var (
+ 	racewriterange,
+ 	supportPopcnt,
+ 	supportSSE41,
++	arm64SupportAtomics,
+ 	typedmemclr,
+ 	typedmemmove,
+ 	Udiv,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3c15c8e555..92bfa7de4f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -78,6 +78,7 @@ func initssaconfig() {
+ 	racewriterange = sysfunc("racewriterange")
+ 	supportPopcnt = sysfunc("support_popcnt")
+ 	supportSSE41 = sysfunc("support_sse41")
++	arm64SupportAtomics = sysfunc("arm64_support_atomics")
+ 	typedmemclr = sysfunc("typedmemclr")
+ 	typedmemmove = sysfunc("typedmemmove")
+ 	Udiv = sysfunc("udiv")
+@@ -2935,14 +2936,56 @@ func init() {
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
+ 	addF("runtime/internal/atomic", "Xadd64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT64], v)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.S390X, sys.MIPS64, sys.PPC64)
++
++	makeXaddARM64 := func(op0 ssa.Op, op1 ssa.Op, ty types.EType) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			// Target Atomic feature is identified by dynamic detection
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), arm64SupportAtomics, s.sb)
++			v := s.load(types.Types[TBOOL], addr)
++			b := s.endBlock()
++			b.Kind = ssa.BlockIf
++			b.SetControl(v)
++			bTrue := s.f.NewBlock(ssa.BlockPlain)
++			bFalse := s.f.NewBlock(ssa.BlockPlain)
++			bEnd := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(bTrue)
++			b.AddEdgeTo(bFalse)
++			b.Likely = ssa.BranchUnlikely // most machines don't have Atomics nowadays
++
++			// We have atomic instructions - use it directly.
++			s.startBlock(bTrue)
++			v0 := s.newValue3(op1, types.NewTuple(types.Types[ty], types.TypeMem), args[0], args[1], s.mem())
++			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v0)
++			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[ty], v0)
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Use original instruction sequence.
++			s.startBlock(bFalse)
++			v1 := s.newValue3(op0, types.NewTuple(types.Types[ty], types.TypeMem), args[0], args[1], s.mem())
++			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v1)
++			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[ty], v1)
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Merge results.
++			s.startBlock(bEnd)
++			return s.variable(n, types.Types[ty])
++		}
++	}
++
++	addF("runtime/internal/atomic", "Xadd",
++		makeXaddARM64(ssa.OpAtomicAdd32, ssa.OpAtomicAdd32Variant, TUINT32),
++		sys.ARM64)
++	addF("runtime/internal/atomic", "Xadd64",
++		makeXaddARM64(ssa.OpAtomicAdd64, ssa.OpAtomicAdd64Variant, TUINT64),
++		sys.ARM64)
+ 
+ 	addF("runtime/internal/atomic", "Cas",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index a1a3cccf3c..a7e747e6e7 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -544,6 +544,9 @@
+ (AtomicAnd8 ptr val mem) -> (Select1 (LoweredAtomicAnd8 ptr val mem))
+ (AtomicOr8  ptr val mem) -> (Select1 (LoweredAtomicOr8  ptr val mem))
+ 
++(AtomicAdd32Variant ptr val mem) -> (LoweredAtomicAdd32Variant ptr val mem)
++(AtomicAdd64Variant ptr val mem) -> (LoweredAtomicAdd64Variant ptr val mem)
++
+ // Write barrier.
+ (WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 9e8b07ec4b..c87c18f3fb 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -578,6 +578,13 @@ func init() {
+ 		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+ 
++		// atomic add variant.
++		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
++		// LDADDAL	(Rarg0), Rarg1, Rout
++		// ADD		Rarg1, Rout
++		{name: "LoweredAtomicAdd64Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicAdd32Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++
+ 		// atomic compare and swap.
+ 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
+ 		// if *arg0 == arg1 {
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 13581452e7..07d93ac073 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -515,6 +515,13 @@ var genericOps = []opData{
+ 	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
+ 	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
+ 
++	// Atomic operation variants
++	// These variants have the same semantics as above atomic operations.
++	// But they are used for generating more efficient code on certain modern machines, with run-time CPU feature detection.
++	// Currently, they are used on ARM64 only.
++	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
++	{name: "AtomicAdd64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true}, // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
++
+ 	// Clobber experiment op
+ 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
+ }
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index eec5b02713..01ce5e9e7d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1275,6 +1275,8 @@ const (
+ 	OpARM64LoweredAtomicExchange32
+ 	OpARM64LoweredAtomicAdd64
+ 	OpARM64LoweredAtomicAdd32
++	OpARM64LoweredAtomicAdd64Variant
++	OpARM64LoweredAtomicAdd32Variant
+ 	OpARM64LoweredAtomicCas64
+ 	OpARM64LoweredAtomicCas32
+ 	OpARM64LoweredAtomicAnd8
+@@ -2287,6 +2289,8 @@ const (
+ 	OpAtomicCompareAndSwap64
+ 	OpAtomicAnd8
+ 	OpAtomicOr8
++	OpAtomicAdd32Variant
++	OpAtomicAdd64Variant
+ 	OpClobber
+ )
+ 
+@@ -16722,6 +16726,38 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredAtomicAdd64Variant",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicAdd32Variant",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 805044223},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:            "LoweredAtomicCas64",
+ 		argLen:          4,
+@@ -27825,6 +27861,18 @@ var opcodeTable = [...]opInfo{
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
++	{
++		name:           "AtomicAdd32Variant",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
++	{
++		name:           "AtomicAdd64Variant",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
+ 	{
+ 		name:      "Clobber",
+ 		auxType:   auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 60121038e4..d039c731d3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -341,8 +341,12 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpAndB_0(v)
+ 	case OpAtomicAdd32:
+ 		return rewriteValueARM64_OpAtomicAdd32_0(v)
++	case OpAtomicAdd32Variant:
++		return rewriteValueARM64_OpAtomicAdd32Variant_0(v)
+ 	case OpAtomicAdd64:
+ 		return rewriteValueARM64_OpAtomicAdd64_0(v)
++	case OpAtomicAdd64Variant:
++		return rewriteValueARM64_OpAtomicAdd64Variant_0(v)
+ 	case OpAtomicAnd8:
+ 		return rewriteValueARM64_OpAtomicAnd8_0(v)
+ 	case OpAtomicCompareAndSwap32:
+@@ -25908,6 +25912,22 @@ func rewriteValueARM64_OpAtomicAdd32_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpAtomicAdd32Variant_0(v *Value) bool {
++	// match: (AtomicAdd32Variant ptr val mem)
++	// cond:
++	// result: (LoweredAtomicAdd32Variant ptr val mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64LoweredAtomicAdd32Variant)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueARM64_OpAtomicAdd64_0(v *Value) bool {
+ 	// match: (AtomicAdd64 ptr val mem)
+ 	// cond:
+@@ -25924,6 +25944,22 @@ func rewriteValueARM64_OpAtomicAdd64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpAtomicAdd64Variant_0(v *Value) bool {
++	// match: (AtomicAdd64Variant ptr val mem)
++	// cond:
++	// result: (LoweredAtomicAdd64Variant ptr val mem)
++	for {
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARM64LoweredAtomicAdd64Variant)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueARM64_OpAtomicAnd8_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 8e725c6f2c..9be0183edf 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -594,6 +594,8 @@ const (
+ 	AHVC
+ 	AIC
+ 	AISB
++	ALDADDALD
++	ALDADDALW
+ 	ALDADDB
+ 	ALDADDH
+ 	ALDADDW
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 30be3b2732..0579e5362e 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -96,6 +96,8 @@ var Anames = []string{
+ 	"HVC",
+ 	"IC",
+ 	"ISB",
++	"LDADDALD",
++	"LDADDALW",
+ 	"LDADDB",
+ 	"LDADDH",
+ 	"LDADDW",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index e727143757..192d65df96 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2011,6 +2011,8 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(ASWPB, t)
+ 			oprangeset(ASWPH, t)
+ 			oprangeset(ASWPW, t)
++			oprangeset(ALDADDALD, t)
++			oprangeset(ALDADDALW, t)
+ 			oprangeset(ALDADDB, t)
+ 			oprangeset(ALDADDH, t)
+ 			oprangeset(ALDADDW, t)
+@@ -3363,9 +3365,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rt := p.RegTo2
+ 		rb := p.To.Reg
+ 		switch p.As {
+-		case ASWPD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
++		case ASWPD, ALDADDALD, ALDADDD, ALDANDD, ALDEORD, ALDORD: // 64-bit
+ 			o1 = 3 << 30
+-		case ASWPW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
++		case ASWPW, ALDADDALW, ALDADDW, ALDANDW, ALDEORW, ALDORW: // 32-bit
+ 			o1 = 2 << 30
+ 		case ASWPH, ALDADDH, ALDANDH, ALDEORH, ALDORH: // 16-bit
+ 			o1 = 1 << 30
+@@ -3377,7 +3379,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		switch p.As {
+ 		case ASWPD, ASWPW, ASWPH, ASWPB:
+ 			o1 |= 0x20 << 10
+-		case ALDADDD, ALDADDW, ALDADDH, ALDADDB:
++		case ALDADDALD, ALDADDALW, ALDADDD, ALDADDW, ALDADDH, ALDADDB:
+ 			o1 |= 0x00 << 10
+ 		case ALDANDD, ALDANDW, ALDANDH, ALDANDB:
+ 			o1 |= 0x04 << 10
+@@ -3386,6 +3388,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		case ALDORD, ALDORW, ALDORH, ALDORB:
+ 			o1 |= 0x0c << 10
+ 		}
++		switch p.As {
++		case ALDADDALD, ALDADDALW:
++			o1 |= 3 << 22
++		}
+ 		o1 |= 0x1c1<<21 | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+ 
+ 	case 50: /* sys/sysl */
+diff --git a/src/runtime/internal/atomic/bench_test.go b/src/runtime/internal/atomic/bench_test.go
+index 2a22e88fb8..083a75cb07 100644
+--- a/src/runtime/internal/atomic/bench_test.go
++++ b/src/runtime/internal/atomic/bench_test.go
+@@ -42,3 +42,23 @@ func BenchmarkAtomicStore(b *testing.B) {
+ 		atomic.Store(&x, 0)
+ 	}
+ }
++
++func BenchmarkXadd(b *testing.B) {
++	var x uint32
++	ptr := &x
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			atomic.Xadd(ptr, 1)
++		}
++	})
++}
++
++func BenchmarkXadd64(b *testing.B) {
++	var x uint64
++	ptr := &x
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			atomic.Xadd64(ptr, 1)
++		}
++	})
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 36c74a1e8c..b5486321ed 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -517,6 +517,8 @@ func cpuinit() {
+ 	support_popcnt = cpu.X86.HasPOPCNT
+ 	support_sse2 = cpu.X86.HasSSE2
+ 	support_sse41 = cpu.X86.HasSSE41
++
++	arm64_support_atomics = cpu.ARM64.HasATOMICS
+ }
+ 
+ // The bootstrap sequence is:
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 1ac0083828..a3193b63c5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -840,10 +840,13 @@ var (
+ 	processorVersionInfo uint32
+ 	isIntel              bool
+ 	lfenceBeforeRdtsc    bool
++
++	// Set in runtime.cpuinit.
+ 	support_erms         bool
+ 	support_popcnt       bool
+ 	support_sse2         bool
+ 	support_sse41        bool
++	arm64_support_atomics      bool
+ 
+ 	goarm                uint8 // set by cmd/link on arm systems
+ 	framepointer_enabled bool  // set by cmd/link

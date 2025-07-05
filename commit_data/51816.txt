@@ -12,6 +12,19 @@ Date:   Wed Mar 16 12:27:07 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/api/run.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index 130166e7b9..3ceaae6b89 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -61,7 +61,6 @@ func main() {
+ 		"-next", strings.Join(next, ","),
+ 		"-except", "except.txt",
+ 	)
+-	fmt.Println(cmd.Args)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		log.Fatalf("Error running API checker: %v\n%s", err, out)

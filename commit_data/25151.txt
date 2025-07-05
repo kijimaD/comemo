@@ -16,8 +16,66 @@ Date:   Thu Oct 1 15:01:50 2015 -0400
     Run-TryBot: Burcu Dogan <jbd@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/hosts.go       | 14 ++++++++++----
  src/net/hosts_test.go  |  1 +
  src/net/testdata/hosts |  2 ++
  3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index 27958c7cc5..aba2cea787 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -60,9 +60,11 @@ func readHosts() {
+ 				continue
+ 			}
+ 			for i := 1; i < len(f); i++ {
+-				h := f[i]
+-				hs[h] = append(hs[h], addr)
+-				is[addr] = append(is[addr], h)
++				h := []byte(f[i])
++				lowerASCIIBytes(h)
++				lh := string(h)
++				hs[lh] = append(hs[lh], addr)
++				is[addr] = append(is[addr], lh)
+ 			}
+ 		}
+ 		// Update the data cache.
+@@ -80,7 +82,11 @@ func lookupStaticHost(host string) []string {
+ 	defer hosts.Unlock()
+ 	readHosts()
+ 	if len(hosts.byName) != 0 {
+-		if ips, ok := hosts.byName[host]; ok {
++		// TODO(jbd,bradfitz): avoid this alloc if host is already all lowercase?
++		// or linear scan the byName map if it's small enough?
++		lowerHost := []byte(host)
++		lowerASCIIBytes(lowerHost)
++		if ips, ok := hosts.byName[string(lowerHost)]; ok {
+ 			return ips
+ 		}
+ 	}
+diff --git a/src/net/hosts_test.go b/src/net/hosts_test.go
+index aca64c38b0..99569cd016 100644
+--- a/src/net/hosts_test.go
++++ b/src/net/hosts_test.go
+@@ -74,6 +74,7 @@ var lookupStaticAddrTests = []struct {
+ 			{"255.255.255.255", []string{"broadcasthost"}},
+ 			{"127.0.0.2", []string{"odin"}},
+ 			{"127.0.0.3", []string{"odin"}},
++			{"127.0.0.4", []string{"bor"}},
+ 			{"::2", []string{"odin"}},
+ 			{"127.1.1.1", []string{"thor"}},
+ 			{"127.1.1.2", []string{"ullr", "ullrhost"}},
+diff --git a/src/net/testdata/hosts b/src/net/testdata/hosts
+index b601763898..4b8abb431c 100644
+--- a/src/net/testdata/hosts
++++ b/src/net/testdata/hosts
+@@ -1,6 +1,8 @@
+ 255.255.255.255	broadcasthost
+ 127.0.0.2	odin
+ 127.0.0.3	odin  # inline comment 
++# case insensitivity
++127.0.0.4	Bor
+ ::2             odin
+ 127.1.1.1	thor
+ # aliases

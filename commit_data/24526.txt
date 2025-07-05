@@ -12,8 +12,146 @@ Date:   Thu Jul 30 16:02:24 2015 -0400
     Change-Id: I1b3f93872d06222f9ff5f6fd5580178ebaf4c003
     Reviewed-on: https://go-review.googlesource.com/13110
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/arith_ssa.go | 16 +++++
  src/cmd/compile/internal/ssa/gen/generic.rules    |  5 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go    | 76 +++++++++++++++++++++++
  3 files changed, 97 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index e69212e9ad..6341e9b90d 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -156,6 +156,21 @@ func testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k int64) int64 {
+ 	return a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
+ }
+ 
++func testOcom() {
++	want1, want2 := int32(0x55555555), int32(-0x55555556)
++	if got1, got2 := testOcom_ssa(0x55555555, 0x55555555); want1 != got1 || want2 != got2 {
++		println("testSubqToNegq failed, wanted", want1, "and", want2,
++			"got", got1, "and", got2)
++		failed = true
++	}
++}
++
++func testOcom_ssa(a, b int32) (int32, int32) {
++	switch { // prevent inlining
++	}
++	return ^^^^a, ^^^^^b
++}
++
+ var failed = false
+ 
+ func main() {
+@@ -165,6 +180,7 @@ func main() {
+ 	testRegallocCVSpill()
+ 	testSubqToNegq()
+ 	testBitwiseLogic()
++	testOcom()
+ 
+ 	if failed {
+ 		panic("failed")
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 9cc2f1b9ad..cb6a20014d 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -34,6 +34,11 @@
+ (Neq16 x x) -> (ConstBool {false})
+ (Neq8 x x) -> (ConstBool {false})
+ 
++(Com8 (Com8 x)) -> (Copy x)
++(Com16 (Com16 x)) -> (Copy x)
++(Com32 (Com32 x)) -> (Copy x)
++(Com64 (Com64 x)) -> (Copy x)
++
+ // tear apart slices
+ // TODO: anything that generates a slice needs to go in here.
+ (SlicePtr (Load ptr mem)) -> (Load ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 17608d71c4..bccf81b831 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -76,6 +76,82 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto end4894dd7b58383fee5f8a92be08437c33
+ 	end4894dd7b58383fee5f8a92be08437c33:
+ 		;
++	case OpCom16:
++		// match: (Com16 (Com16 x))
++		// cond:
++		// result: (Copy x)
++		{
++			if v.Args[0].Op != OpCom16 {
++				goto end388d572e5a72fd87a07da5cab243ebdc
++			}
++			x := v.Args[0].Args[0]
++			v.Op = OpCopy
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end388d572e5a72fd87a07da5cab243ebdc
++	end388d572e5a72fd87a07da5cab243ebdc:
++		;
++	case OpCom32:
++		// match: (Com32 (Com32 x))
++		// cond:
++		// result: (Copy x)
++		{
++			if v.Args[0].Op != OpCom32 {
++				goto end5b2b3834acc7313649923604f685e7c5
++			}
++			x := v.Args[0].Args[0]
++			v.Op = OpCopy
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end5b2b3834acc7313649923604f685e7c5
++	end5b2b3834acc7313649923604f685e7c5:
++		;
++	case OpCom64:
++		// match: (Com64 (Com64 x))
++		// cond:
++		// result: (Copy x)
++		{
++			if v.Args[0].Op != OpCom64 {
++				goto end6d6312f25d06a327d92f028b1ce50566
++			}
++			x := v.Args[0].Args[0]
++			v.Op = OpCopy
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end6d6312f25d06a327d92f028b1ce50566
++	end6d6312f25d06a327d92f028b1ce50566:
++		;
++	case OpCom8:
++		// match: (Com8 (Com8 x))
++		// cond:
++		// result: (Copy x)
++		{
++			if v.Args[0].Op != OpCom8 {
++				goto end70cbd85c4b8e82c170dba7c23f8bc0f3
++			}
++			x := v.Args[0].Args[0]
++			v.Op = OpCopy
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end70cbd85c4b8e82c170dba7c23f8bc0f3
++	end70cbd85c4b8e82c170dba7c23f8bc0f3:
++		;
+ 	case OpConstString:
+ 		// match: (ConstString {s})
+ 		// cond:

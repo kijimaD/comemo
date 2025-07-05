@@ -8,8 +8,62 @@ Date:   Wed Sep 26 22:34:25 2012 +0800
     R=alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/6543066
-
+---
  src/cmd/go/build.go | 7 +++++--
  src/cmd/ld/pe.c     | 3 +++
  src/run.bat         | 9 ++++-----
  3 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 889ed08b3b..af5d87843f 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1597,9 +1597,12 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}
+-	staticLibs := []string{libgcc}
++	var staticLibs []string
+ 	if goos == "windows" {
+-		staticLibs = append(staticLibs, "-lmingwex", "-lmingw32")
++		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last
++		staticLibs = []string{"-lmingwex", "-lmingw32", libgcc}
++	} else {
++		staticLibs = []string{libgcc}
+ 	}
+ 
+ 	for _, cfile := range cfiles {
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 1d70b4808b..e69f34783d 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -148,6 +148,9 @@ peinit(void)
+ 	PESECTHEADR = rnd(PEFILEHEADR, PESECTALIGN);
+ 	nextsectoff = PESECTHEADR;
+ 	nextfileoff = PEFILEHEADR;
++
++	// some mingw libs depend on this symbol, for example, FindPESectionByName
++	xdefine("__image_base__", SDATA, PEBASE);
+ }
+ 
+ static void
+diff --git a/src/run.bat b/src/run.bat
+index 4998d815fb..ea87d3d806 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -64,11 +64,10 @@ echo.
+ 
+ :: cgo tests
+ if x%CGO_ENABLED% == x0 goto nocgo
+-:: TODO(brainman) disabled, because it is broken on go builder - http://golang.org/issue/4063
+-::echo # ..\misc\cgo\life
+-::go run %GOROOT%\test\run.go - ..\misc\cgo\life
+-::if errorlevel 1 goto fail
+-::echo.
++echo # ..\misc\cgo\life
++go run %GOROOT%\test\run.go - ..\misc\cgo\life
++if errorlevel 1 goto fail
++echo.
+ 
+ echo # ..\misc\cgo\stdio
+ go run %GOROOT%\test\run.go - ..\misc\cgo\stdio

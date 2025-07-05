@@ -7,8 +7,43 @@ Date:   Tue Apr 28 12:28:31 2009 -0700
     R=r
     OCL=27979
     CL=27979
-
+---
  src/cmd/gc/go.y                    | 4 ++++
  test/{bugs => fixedbugs}/bug145.go | 0
  test/golden.out                    | 4 ----
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 47482a00ec..74475b4b37 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1654,6 +1654,10 @@ exprsym3:
+ 	{
+ 		$$ = newname($1);
+ 	}
++|	LATYPE
++	{
++		$$ = newname($1);
++	}
+ 
+ exprsym3_list_r:
+ 	exprsym3
+diff --git a/test/bugs/bug145.go b/test/fixedbugs/bug145.go
+similarity index 100%
+rename from test/bugs/bug145.go
+rename to test/fixedbugs/bug145.go
+diff --git a/test/golden.out b/test/golden.out
+index 752691295c..b3cc4fb543 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -121,10 +121,6 @@ bugs/bug140.go:6: syntax error near L1
+ bugs/bug140.go:7: syntax error near L2
+ BUG should compile
+ 
+-=========== bugs/bug145.go
+-bugs/bug145.go:8: t is type, not var
+-BUG should compile
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

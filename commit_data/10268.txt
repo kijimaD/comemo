@@ -7,7 +7,55 @@ Date:   Mon Nov 7 10:47:44 2011 -0500
     R=rsc, nigeltao
     CC=golang-dev
     https://golang.org/cl/5298061
-
+---
  src/pkg/encoding/xml/read.go      | 4 ++--
  src/pkg/encoding/xml/read_test.go | 9 +++++++++
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index e97abec55a..9617150c8f 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -201,8 +201,8 @@ func (p *Parser) Unmarshal(val interface{}, start *StartElement) error {
+ func fieldName(original string) string {
+ 
+ 	var i int
+-	//remove leading underscores
+-	for i = 0; i < len(original) && original[i] == '_'; i++ {
++	//remove leading underscores, without exhausting all characters
++	for i = 0; i < len(original)-1 && original[i] == '_'; i++ {
+ 	}
+ 
+ 	return strings.Map(
+diff --git a/src/pkg/encoding/xml/read_test.go b/src/pkg/encoding/xml/read_test.go
+index d39c2d52a8..fbb7fd5d2f 100644
+--- a/src/pkg/encoding/xml/read_test.go
++++ b/src/pkg/encoding/xml/read_test.go
+@@ -245,6 +245,9 @@ const pathTestString = `
+             <Value>C</Value>
+             <Value>D</Value>
+         </Item1>
++        <_>
++            <value>E</value>
++        </_>
+     </items>
+     <after>2</after>
+ </result>
+@@ -279,11 +282,17 @@ type PathTestD struct {
+ 	Before, After string
+ }
+ 
++type PathTestE struct {
++	Underline     string `xml:"items>_>value"`
++	Before, After string
++}
++
+ var pathTests = []interface{}{
+ 	&PathTestA{Items: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
+ 	&PathTestB{Other: []PathTestItem{{"A"}, {"D"}}, Before: "1", After: "2"},
+ 	&PathTestC{Values1: []string{"A", "C", "D"}, Values2: []string{"B"}, Before: "1", After: "2"},
+ 	&PathTestD{Other: PathTestSet{Item1: []PathTestItem{{"A"}, {"D"}}}, Before: "1", After: "2"},
++	&PathTestE{Underline: "E", Before: "1", After: "2"},
+ }
+ 
+ func TestUnmarshalPaths(t *testing.T) {

@@ -53,6 +53,20 @@ Date:   Sun Oct 8 10:51:45 2023 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/os_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index da70c398e8..ae12b9ce1b 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -147,7 +147,7 @@ func size(name string, t *testing.T) int64 {
+ func equal(name1, name2 string) (r bool) {
+ 	switch runtime.GOOS {
+ 	case "windows":
+-		r = strings.ToLower(name1) == strings.ToLower(name2)
++		r = strings.EqualFold(name1, name2)
+ 	default:
+ 		r = name1 == name2
+ 	}

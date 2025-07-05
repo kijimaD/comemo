@@ -7,7 +7,69 @@ Date:   Tue Jul 5 16:01:29 2011 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/4657074
-
+---
  src/pkg/os/file_plan9.go | 26 ++++++++++++++++++++++++++
  src/pkg/os/file_unix.go  |  6 ++----
  2 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index b0c42d14d7..03792191ec 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -9,6 +9,32 @@ import (
+ 	"syscall"
+ )
+ 
++// File represents an open file descriptor.
++type File struct {
++	fd      int
++	name    string
++	dirinfo *dirInfo // nil unless directory being read
++	nepipe  int      // number of consecutive EPIPE in Write
++}
++
++// Fd returns the integer Unix file descriptor referencing the open file.
++func (file *File) Fd() int {
++	if file == nil {
++		return -1
++	}
++	return file.fd
++}
++
++// NewFile returns a new File with the given file descriptor and name.
++func NewFile(fd int, name string) *File {
++	if fd < 0 {
++		return nil
++	}
++	f := &File{fd: fd, name: name}
++	runtime.SetFinalizer(f, (*File).Close)
++	return f
++}
++
+ // Auxiliary information if the File describes a directory
+ type dirInfo struct {
+ 	buf  [syscall.STATMAX]byte // buffer for directory I/O
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index bda6a1ed33..301c2f473f 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -6,7 +6,6 @@ package os
+ 
+ import (
+ 	"runtime"
+-	"sync"
+ 	"syscall"
+ )
+ 
+@@ -14,9 +13,8 @@ import (
+ type File struct {
+ 	fd      int
+ 	name    string
+-	dirinfo *dirInfo   // nil unless directory being read
+-	nepipe  int        // number of consecutive EPIPE in Write
+-	l       sync.Mutex // used to implement windows pread/pwrite
++	dirinfo *dirInfo // nil unless directory being read
++	nepipe  int      // number of consecutive EPIPE in Write
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.

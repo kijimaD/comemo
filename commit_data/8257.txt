@@ -7,8 +7,351 @@ Date:   Thu Apr 28 15:21:54 2011 +1000
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/4431068
-
+---
  src/pkg/http/request.go      | 107 ++++++++++++++++++++++++++++++++++---
  src/pkg/http/request_test.go | 122 ++++++++++++++++++++++++++++++++++++++++---
  src/pkg/http/server.go       |   3 ++
  3 files changed, 217 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 14a505d9f8..b8e9a21423 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -24,12 +24,17 @@ import (
+ )
+ 
+ const (
+-	maxLineLength  = 4096 // assumed <= bufio.defaultBufSize
+-	maxValueLength = 4096
+-	maxHeaderLines = 1024
+-	chunkSize      = 4 << 10 // 4 KB chunks
++	maxLineLength    = 4096 // assumed <= bufio.defaultBufSize
++	maxValueLength   = 4096
++	maxHeaderLines   = 1024
++	chunkSize        = 4 << 10  // 4 KB chunks
++	defaultMaxMemory = 32 << 20 // 32 MB
+ )
+ 
++// ErrMissingFile is returned by FormFile when the provided file field name
++// is either not present in the request or not a file field.
++var ErrMissingFile = os.ErrorString("http: no such file")
++
+ // HTTP request parsing errors.
+ type ProtocolError struct {
+ 	os.ErrorString
+@@ -136,6 +141,10 @@ type Request struct {
+ 	// The parsed form. Only available after ParseForm is called.
+ 	Form map[string][]string
+ 
++	// The parsed multipart form, including file uploads.
++	// Only available after ParseMultipartForm is called.
++	MultipartForm *multipart.Form
++
+ 	// Trailer maps trailer keys to values.  Like for Header, if the
+ 	// response has multiple trailer lines with the same key, they will be
+ 	// concatenated, delimited by commas.
+@@ -165,9 +174,30 @@ func (r *Request) ProtoAtLeast(major, minor int) bool {
+ 		r.ProtoMajor == major && r.ProtoMinor >= minor
+ }
+ 
++// multipartByReader is a sentinel value.
++// Its presence in Request.MultipartForm indicates that parsing of the request
++// body has been handed off to a MultipartReader instead of ParseMultipartFrom.
++var multipartByReader = &multipart.Form{
++	Value: make(map[string][]string),
++	File:  make(map[string][]*multipart.FileHeader),
++}
++
+ // MultipartReader returns a MIME multipart reader if this is a
+ // multipart/form-data POST request, else returns nil and an error.
++// Use this function instead of ParseMultipartForm to
++// process the request body as a stream.
+ func (r *Request) MultipartReader() (multipart.Reader, os.Error) {
++	if r.MultipartForm == multipartByReader {
++		return nil, os.NewError("http: MultipartReader called twice")
++	}
++	if r.MultipartForm != nil {
++		return nil, os.NewError("http: multipart handled by ParseMultipartForm")
++	}
++	r.MultipartForm = multipartByReader
++	return r.multipartReader()
++}
++
++func (r *Request) multipartReader() (multipart.Reader, os.Error) {
+ 	v := r.Header.Get("Content-Type")
+ 	if v == "" {
+ 		return nil, ErrNotMultipart
+@@ -578,7 +608,9 @@ func parseQuery(m map[string][]string, query string) (err os.Error) {
+ 	return err
+ }
+ 
+-// ParseForm parses the request body as a form for POST requests, or the raw query for GET requests.
++// ParseForm parses the raw query.
++// For POST requests, it also parses the request body as a form.
++// ParseMultipartForm calls ParseForm automatically.
+ // It is idempotent.
+ func (r *Request) ParseForm() (err os.Error) {
+ 	if r.Form != nil {
+@@ -611,7 +643,8 @@ func (r *Request) ParseForm() (err os.Error) {
+ 			if err == nil {
+ 				err = e
+ 			}
+-		// TODO(dsymonds): Handle multipart/form-data
++		case "multipart/form-data":
++			// handled by ParseMultipartForm
+ 		default:
+ 			return &badStringError{"unknown Content-Type", ct}
+ 		}
+@@ -619,11 +652,50 @@ func (r *Request) ParseForm() (err os.Error) {
+ 	return err
+ }
+ 
++// ParseMultipartForm parses a request body as multipart/form-data.
++// The whole request body is parsed and up to a total of maxMemory bytes of
++// its file parts are stored in memory, with the remainder stored on
++// disk in temporary files.
++// ParseMultipartForm calls ParseForm if necessary.
++// After one call to ParseMultipartForm, subsequent calls have no effect.
++func (r *Request) ParseMultipartForm(maxMemory int64) os.Error {
++	if r.Form == nil {
++		err := r.ParseForm()
++		if err != nil {
++			return err
++		}
++	}
++	if r.MultipartForm != nil {
++		return nil
++	}
++	if r.MultipartForm == multipartByReader {
++		return os.NewError("http: multipart handled by MultipartReader")
++	}
++
++	mr, err := r.multipartReader()
++	if err == ErrNotMultipart {
++		return nil
++	} else if err != nil {
++		return err
++	}
++
++	f, err := mr.ReadForm(maxMemory)
++	if err != nil {
++		return err
++	}
++	for k, v := range f.Value {
++		r.Form[k] = append(r.Form[k], v...)
++	}
++	r.MultipartForm = f
++
++	return nil
++}
++
+ // FormValue returns the first value for the named component of the query.
+-// FormValue calls ParseForm if necessary.
++// FormValue calls ParseMultipartForm and ParseForm if necessary.
+ func (r *Request) FormValue(key string) string {
+ 	if r.Form == nil {
+-		r.ParseForm()
++		r.ParseMultipartForm(defaultMaxMemory)
+ 	}
+ 	if vs := r.Form[key]; len(vs) > 0 {
+ 		return vs[0]
+@@ -631,6 +703,25 @@ func (r *Request) FormValue(key string) string {
+ 	return ""
+ }
+ 
++// FormFile returns the first file for the provided form key.
++// FormFile calls ParseMultipartForm and ParseForm if necessary.
++func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, os.Error) {
++	if r.MultipartForm == multipartByReader {
++		return nil, nil, os.NewError("http: multipart handled by MultipartReader")
++	}
++	if r.MultipartForm == nil {
++		err := r.ParseMultipartForm(defaultMaxMemory)
++		if err != nil {
++			return nil, nil, err
++		}
++	}
++	if fhs := r.MultipartForm.File[key]; len(fhs) > 0 {
++		f, err := fhs[0].Open()
++		return f, fhs[0], err
++	}
++	return nil, nil, ErrMissingFile
++}
++
+ func (r *Request) expectsContinue() bool {
+ 	return strings.ToLower(r.Header.Get("Expect")) == "100-continue"
+ }
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 19083adf62..f982471d8d 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -10,6 +10,8 @@ import (
+ 	. "http"
+ 	"http/httptest"
+ 	"io"
++	"io/ioutil"
++	"mime/multipart"
+ 	"os"
+ 	"reflect"
+ 	"regexp"
+@@ -82,7 +84,7 @@ func TestPostQuery(t *testing.T) {
+ 	req.Header = Header{
+ 		"Content-Type": {"application/x-www-form-urlencoded; boo!"},
+ 	}
+-	req.Body = nopCloser{strings.NewReader("z=post&both=y")}
++	req.Body = ioutil.NopCloser(strings.NewReader("z=post&both=y"))
+ 	if q := req.FormValue("q"); q != "foo" {
+ 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
+ 	}
+@@ -115,7 +117,7 @@ func TestPostContentTypeParsing(t *testing.T) {
+ 		req := &Request{
+ 			Method: "POST",
+ 			Header: Header(test.contentType),
+-			Body:   nopCloser{bytes.NewBufferString("body")},
++			Body:   ioutil.NopCloser(bytes.NewBufferString("body")),
+ 		}
+ 		err := req.ParseForm()
+ 		if !test.error && err != nil {
+@@ -131,7 +133,7 @@ func TestMultipartReader(t *testing.T) {
+ 	req := &Request{
+ 		Method: "POST",
+ 		Header: Header{"Content-Type": {`multipart/form-data; boundary="foo123"`}},
+-		Body:   nopCloser{new(bytes.Buffer)},
++		Body:   ioutil.NopCloser(new(bytes.Buffer)),
+ 	}
+ 	multipart, err := req.MultipartReader()
+ 	if multipart == nil {
+@@ -170,9 +172,115 @@ func TestRedirect(t *testing.T) {
+ 	}
+ }
+ 
+-// TODO: stop copy/pasting this around.  move to io/ioutil?
+-type nopCloser struct {
+-	io.Reader
++func TestMultipartRequest(t *testing.T) {
++	// Test that we can read the values and files of a 
++	// multipart request with FormValue and FormFile,
++	// and that ParseMultipartForm can be called multiple times.
++	req := newTestMultipartRequest(t)
++	if err := req.ParseMultipartForm(25); err != nil {
++		t.Fatal("ParseMultipartForm first call:", err)
++	}
++	defer req.MultipartForm.RemoveAll()
++	validateTestMultipartContents(t, req, false)
++	if err := req.ParseMultipartForm(25); err != nil {
++		t.Fatal("ParseMultipartForm second call:", err)
++	}
++	validateTestMultipartContents(t, req, false)
++}
++
++func TestMultipartRequestAuto(t *testing.T) {
++	// Test that FormValue and FormFile automatically invoke
++	// ParseMultipartForm and return the right values.
++	req := newTestMultipartRequest(t)
++	defer func() {
++		if req.MultipartForm != nil {
++			req.MultipartForm.RemoveAll()
++		}
++	}()
++	validateTestMultipartContents(t, req, true)
++}
++
++func newTestMultipartRequest(t *testing.T) *Request {
++	b := bytes.NewBufferString(strings.Replace(message, "\n", "\r\n", -1))
++	req, err := NewRequest("POST", "/", b)
++	if err != nil {
++		t.Fatalf("NewRequest:", err)
++	}
++	ctype := fmt.Sprintf(`multipart/form-data; boundary="%s"`, boundary)
++	req.Header.Set("Content-type", ctype)
++	return req
++}
++
++func validateTestMultipartContents(t *testing.T, req *Request, allMem bool) {
++	if g, e := req.FormValue("texta"), textaValue; g != e {
++		t.Errorf("texta value = %q, want %q", g, e)
++	}
++	if g, e := req.FormValue("texta"), textaValue; g != e {
++		t.Errorf("texta value = %q, want %q", g, e)
++	}
++
++	assertMem := func(n string, fd multipart.File) {
++		if _, ok := fd.(*os.File); ok {
++			t.Error(n, " is *os.File, should not be")
++		}
++	}
++	fd := testMultipartFile(t, req, "filea", "filea.txt", fileaContents)
++	assertMem("filea", fd)
++	fd = testMultipartFile(t, req, "fileb", "fileb.txt", filebContents)
++	if allMem {
++		assertMem("fileb", fd)
++	} else {
++		if _, ok := fd.(*os.File); !ok {
++			t.Errorf("fileb has unexpected underlying type %T", fd)
++		}
++	}
++}
++
++func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectContent string) multipart.File {
++	f, fh, err := req.FormFile(key)
++	if err != nil {
++		t.Fatalf("FormFile(%q):", key, err)
++	}
++	if fh.Filename != expectFilename {
++		t.Errorf("filename = %q, want %q", fh.Filename, expectFilename)
++	}
++	var b bytes.Buffer
++	_, err = io.Copy(&b, f)
++	if err != nil {
++		t.Fatal("copying contents:", err)
++	}
++	if g := b.String(); g != expectContent {
++		t.Errorf("contents = %q, want %q", g, expectContent)
++	}
++	return f
+ }
+ 
+-func (nopCloser) Close() os.Error { return nil }
++const (
++	fileaContents = "This is a test file."
++	filebContents = "Another test file."
++	textaValue    = "foo"
++	textbValue    = "bar"
++	boundary      = `MyBoundary`
++)
++
++const message = `
++--MyBoundary
++Content-Disposition: form-data; name="filea"; filename="filea.txt"
++Content-Type: text/plain
++
++` + fileaContents + `
++--MyBoundary
++Content-Disposition: form-data; name="fileb"; filename="fileb.txt"
++Content-Type: text/plain
++
++` + filebContents + `
++--MyBoundary
++Content-Disposition: form-data; name="texta"
++
++` + textaValue + `
++--MyBoundary
++Content-Disposition: form-data; name="textb"
++
++` + textbValue + `
++--MyBoundary--
++`
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index db8b23ca23..96d2cb6387 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -423,6 +423,9 @@ func (w *response) finishRequest() {
+ 	}
+ 	w.conn.buf.Flush()
+ 	w.req.Body.Close()
++	if w.req.MultipartForm != nil {
++		w.req.MultipartForm.RemoveAll()
++	}
+ 
+ 	if w.contentLength != -1 && w.contentLength != w.written {
+ 		// Did not write enough. Avoid getting out of sync.

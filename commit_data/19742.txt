@@ -10,7 +10,96 @@ Date:   Tue Jul 15 18:44:33 2014 -0700
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/114810043
-
+---
  src/pkg/compress/bzip2/bzip2.go      | 21 +++++++++++++++++++--
  src/pkg/compress/bzip2/bzip2_test.go | 18 ++++++++++++++++++
  2 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/compress/bzip2/bzip2.go b/src/pkg/compress/bzip2/bzip2.go
+index 82e30c7c9d..d318116a18 100644
+--- a/src/pkg/compress/bzip2/bzip2.go
++++ b/src/pkg/compress/bzip2/bzip2.go
+@@ -261,6 +261,11 @@ func (bz2 *reader) readBlock() (err error) {
+ 		}
+ 	}
+ 
++	if numSymbols == 0 {
++		// There must be an EOF symbol.
++		return StructuralError("no symbols in input")
++	}
++
+ 	// A block uses between two and six different Huffman trees.
+ 	numHuffmanTrees := br.ReadBits(3)
+ 	if numHuffmanTrees < 2 || numHuffmanTrees > 6 {
+@@ -307,10 +312,10 @@ func (bz2 *reader) readBlock() (err error) {
+ 
+ 	// Now we decode the arrays of code-lengths for each tree.
+ 	lengths := make([]uint8, numSymbols)
+-	for i := 0; i < numHuffmanTrees; i++ {
++	for i := range huffmanTrees {
+ 		// The code lengths are delta encoded from a 5-bit base value.
+ 		length := br.ReadBits(5)
+-		for j := 0; j < numSymbols; j++ {
++		for j := range lengths {
+ 			for {
+ 				if !br.ReadBit() {
+ 					break
+@@ -333,6 +338,12 @@ func (bz2 *reader) readBlock() (err error) {
+ 	}
+ 
+ 	selectorIndex := 1 // the next tree index to use
++	if len(treeIndexes) == 0 {
++		return StructuralError("no tree selectors given")
++	}
++	if int(treeIndexes[0]) >= len(huffmanTrees) {
++		return StructuralError("tree selector out of range")
++	}
+ 	currentHuffmanTree := huffmanTrees[treeIndexes[0]]
+ 	bufIndex := 0 // indexes bz2.buf, the output buffer.
+ 	// The output of the move-to-front transform is run-length encoded and
+@@ -350,6 +361,12 @@ func (bz2 *reader) readBlock() (err error) {
+ 	decoded := 0 // counts the number of symbols decoded by the current tree.
+ 	for {
+ 		if decoded == 50 {
++			if selectorIndex >= numSelectors {
++				return StructuralError("insufficient selector indices for number of symbols")
++			}
++			if int(treeIndexes[selectorIndex]) >= len(huffmanTrees) {
++				return StructuralError("tree selector out of range")
++			}
+ 			currentHuffmanTree = huffmanTrees[treeIndexes[selectorIndex]]
+ 			selectorIndex++
+ 			decoded = 0
+diff --git a/src/pkg/compress/bzip2/bzip2_test.go b/src/pkg/compress/bzip2/bzip2_test.go
+index 727249dc46..6b8711b811 100644
+--- a/src/pkg/compress/bzip2/bzip2_test.go
++++ b/src/pkg/compress/bzip2/bzip2_test.go
+@@ -208,6 +208,14 @@ func TestBufferOverrun(t *testing.T) {
+ 	ioutil.ReadAll(decompressor)
+ }
+ 
++func TestOutOfRangeSelector(t *testing.T) {
++	// Tests https://code.google.com/p/go/issues/detail?id=8363.
++	buffer := bytes.NewReader(outOfRangeSelector)
++	decompressor := NewReader(buffer)
++	// This shouldn't panic.
++	ioutil.ReadAll(decompressor)
++}
++
+ var bufferOverrunBase64 string = `
+ QlpoNTFBWSZTWTzyiGcACMP/////////////////////////////////3/7f3///
+ ////4N/fCZODak2Xo44GIHZgkGzDRbFAuwAAKoFV7T6AO6qwA6APb6s2rOoAkAAD
+@@ -361,3 +369,13 @@ O0A8s/iua5oFdNZTWvbVI4FUH9sKcLiB3/fIAF+sB4n8q6L+UCfmbPcAo/crQ6b3
+ HqhDBMY9J0q/jdz9GNYZ/1fbXdkUqAQKFePhtzJDRBZba27+LPQNMCcrHMq06F1T
+ 4QmLmkHt7LxB2pAczUO+T2O9bHEw/HWw+dYf2MoRDUw=
+ `
++
++var outOfRangeSelector = []byte{
++	0x42, 0x5a, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26,
++	0x53, 0x59, 0x4e, 0xec, 0xe8, 0x36, 0x00, 0x00,
++	0x02, 0x51, 0x80, 0x00, 0x10, 0x40, 0x00, 0x06,
++	0x44, 0x90, 0x80, 0x20, 0x00, 0x31, 0x06, 0x4c,
++	0x41, 0x01, 0xa7, 0xa9, 0xa5, 0x80, 0xbb, 0x94,
++	0x31, 0x17, 0x72, 0x45, 0x38, 0x50, 0x90, 0x00,
++	0x00, 0x00, 0x00,
++}

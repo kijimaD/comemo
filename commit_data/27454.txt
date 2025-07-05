@@ -10,7 +10,7 @@ Date:   Mon Mar 28 14:31:57 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21243
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ggen.go  | 2 +-
  src/cmd/compile/internal/arm/ggen.go    | 2 +-
  src/cmd/compile/internal/arm64/ggen.go  | 2 +-
@@ -23,3 +23,152 @@ Date:   Mon Mar 28 14:31:57 2016 -0700
  src/cmd/compile/internal/ppc64/ggen.go  | 2 +-
  src/cmd/compile/internal/x86/ggen.go    | 2 +-
  11 files changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 1105a68dbf..0ca802b058 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -17,7 +17,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index beab0bb6fb..c2551499d8 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -14,7 +14,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index be5b53e5ca..f998bd6757 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -15,7 +15,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 
+ 	// arm64 requires that the frame size (not counting saved LR)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 0833c60016..9ff23115df 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -144,7 +144,7 @@ func emitptrargsmap() {
+ 	}
+ 	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
+ 
+-	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
++	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
+ 	bv := bvalloc(int32(nptr) * 2)
+ 	nbitmap := 1
+ 	if Curfn.Type.Results().NumFields() > 0 {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index a0f0819ca0..652b023bdb 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -959,7 +959,7 @@ func localswords() int32 {
+ 
+ // Returns the number of words of in and out arguments.
+ func argswords() int32 {
+-	return int32(Curfn.Type.Argwid / int64(Widthptr))
++	return int32(Curfn.Type.ArgWidth() / int64(Widthptr))
+ }
+ 
+ // Generates live pointer value maps for arguments and local variables. The
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d022f2c79d..3eb462ecb4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2493,7 +2493,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		rcvr = s.newValue1(ssa.OpIData, Types[TUINTPTR], i)
+ 	}
+ 	dowidth(fn.Type)
+-	stksize := fn.Type.Argwid // includes receiver
++	stksize := fn.Type.ArgWidth() // includes receiver
+ 
+ 	// Run all argument assignments. The arg slots have already
+ 	// been offset by the appropriate amount (+2*widthptr for go/defer,
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index e827464bde..0c45750acf 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1517,7 +1517,7 @@ func cheapexpr(n *Node, init *Nodes) *Node {
+ 
+ func Setmaxarg(t *Type, extra int32) {
+ 	dowidth(t)
+-	w := t.Argwid
++	w := t.ArgWidth()
+ 	if w >= Thearch.MAXWIDTH {
+ 		Fatalf("bad argwid %v", t)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index ac870483ac..de0b718b45 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -382,6 +382,13 @@ func (t *Type) isDDDArray() bool {
+ 	return t.Bound == dddBound
+ }
+ 
++// ArgWidth returns the total aligned argument size for a function.
++// It includes the receiver, parameters, and results.
++func (t *Type) ArgWidth() int64 {
++	t.wantEtype(TFUNC)
++	return t.Argwid
++}
++
+ func (t *Type) Size() int64 {
+ 	dowidth(t)
+ 	return t.Width
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 042b303e3c..849d11c899 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -15,7 +15,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 2f2bffc899..21b19eece4 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -15,7 +15,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 4dcd912e18..4c1ed077dd 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -14,7 +14,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 

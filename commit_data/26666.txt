@@ -13,7 +13,65 @@ Date:   Sun Feb 21 10:46:59 2016 +0100
     Change-Id: Ia20f8e878cc81ac72a744ec10d65e84b94e09c6a
     Reviewed-on: https://go-review.googlesource.com/19723
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 11 ++++++++++-
  src/fmt/format.go   |  8 ++++++--
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 8d7c36ceb1..1d9d015f4a 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -386,6 +386,9 @@ var fmtTests = []struct {
+ 	{"%20e", math.Inf(1), "                +Inf"},
+ 	{"%-20f", math.Inf(-1), "-Inf                "},
+ 	{"%20g", math.NaN(), "                 NaN"},
++	{"%+20f", math.NaN(), "                +NaN"},
++	{"% -20f", math.NaN(), " NaN                "},
++	{"%+-20f", math.NaN(), "+NaN                "},
+ 
+ 	// arrays
+ 	{"%v", array, "[1 2 3 4 5]"},
+@@ -654,13 +657,19 @@ var fmtTests = []struct {
+ 	// Complex numbers: exhaustively tested in TestComplexFormatting.
+ 	{"%7.2f", 1 + 2i, "(   1.00  +2.00i)"},
+ 	{"%+07.2f", -1 - 2i, "(-001.00-002.00i)"},
+-	// Zero padding does not apply to infinities.
++	// Zero padding does not apply to infinities and NaN.
+ 	{"%020f", math.Inf(-1), "                -Inf"},
+ 	{"%020f", math.Inf(+1), "                +Inf"},
++	{"%020f", math.NaN(), "                 NaN"},
+ 	{"% 020f", math.Inf(-1), "                -Inf"},
+ 	{"% 020f", math.Inf(+1), "                 Inf"},
++	{"% 020f", math.NaN(), "                 NaN"},
+ 	{"%+020f", math.Inf(-1), "                -Inf"},
+ 	{"%+020f", math.Inf(+1), "                +Inf"},
++	{"%+020f", math.NaN(), "                +NaN"},
++	{"%-020f", math.Inf(-1), "-Inf                "},
++	{"%-020f", math.Inf(+1), "+Inf                "},
++	{"%-020f", math.NaN(), "NaN                 "},
+ 	{"%20f", -1.0, "           -1.000000"},
+ 	// Make sure we can handle very large widths.
+ 	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index bf9d00bbc0..c811cc6a3d 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -414,11 +414,15 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
+ 	if f.space && num[0] == '+' {
+ 		num[0] = ' '
+ 	}
+-	// Special handling for "+Inf" and "-Inf",
++	// Special handling for infinities and NaN,
+ 	// which don't look like a number so shouldn't be padded with zeros.
+-	if num[1] == 'I' {
++	if num[1] == 'I' || num[1] == 'N' {
+ 		oldZero := f.zero
+ 		f.zero = false
++		// Remove sign before NaN if not asked for.
++		if num[1] == 'N' && !f.space && !f.plus {
++			num = num[1:]
++		}
+ 		f.pad(num)
+ 		f.zero = oldZero
+ 		return

@@ -7,7 +7,7 @@ Date:   Fri Nov 18 12:56:57 2011 -0500
     R=dave, agl, taruti, rsc, r
     CC=golang-dev
     https://golang.org/cl/5342057
-
+---
  src/pkg/exp/ssh/Makefile       |  1 +
  src/pkg/exp/ssh/cipher.go      | 88 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/exp/ssh/cipher_test.go | 62 +++++++++++++++++++++++++++++
@@ -17,3 +17,429 @@ Date:   Fri Nov 18 12:56:57 2011 -0500
  src/pkg/exp/ssh/server.go      | 11 ++++--
  src/pkg/exp/ssh/transport.go   | 51 +++++++++++++-----------
  8 files changed, 206 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/exp/ssh/Makefile b/src/pkg/exp/ssh/Makefile
+index 5c288320fb..1b75d5aacd 100644
+--- a/src/pkg/exp/ssh/Makefile
++++ b/src/pkg/exp/ssh/Makefile
+@@ -7,6 +7,7 @@ include ../../../Make.inc
+ TARG=exp/ssh
+ GOFILES=\
+ 	channel.go\
++	cipher.go\
+ 	client.go\
+ 	client_auth.go\
+ 	common.go\
+diff --git a/src/pkg/exp/ssh/cipher.go b/src/pkg/exp/ssh/cipher.go
+new file mode 100644
+index 0000000000..de4926d7b8
+--- /dev/null
++++ b/src/pkg/exp/ssh/cipher.go
+@@ -0,0 +1,88 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssh
++
++import (
++	"crypto/aes"
++	"crypto/cipher"
++	"crypto/rc4"
++)
++
++// streamDump is used to dump the initial keystream for stream ciphers. It is a
++// a write-only buffer, and not intended for reading so do not require a mutex.
++var streamDump [512]byte
++
++// noneCipher implements cipher.Stream and provides no encryption. It is used
++// by the transport before the first key-exchange.
++type noneCipher struct{}
++
++func (c noneCipher) XORKeyStream(dst, src []byte) {
++	copy(dst, src)
++}
++
++func newAESCTR(key, iv []byte) (cipher.Stream, error) {
++	c, err := aes.NewCipher(key)
++	if err != nil {
++		return nil, err
++	}
++	return cipher.NewCTR(c, iv), nil
++}
++
++func newRC4(key, iv []byte) (cipher.Stream, error) {
++	return rc4.NewCipher(key)
++}
++
++type cipherMode struct {
++	keySize  int
++	ivSize   int
++	skip     int
++	createFn func(key, iv []byte) (cipher.Stream, error)
++}
++
++func (c *cipherMode) createCipher(key, iv []byte) (cipher.Stream, error) {
++	if len(key) < c.keySize {
++		panic("ssh: key length too small for cipher")
++	}
++	if len(iv) < c.ivSize {
++		panic("ssh: iv too small for cipher")
++	}
++
++	stream, err := c.createFn(key[:c.keySize], iv[:c.ivSize])
++	if err != nil {
++		return nil, err
++	}
++
++	for remainingToDump := c.skip; remainingToDump > 0; {
++		dumpThisTime := remainingToDump
++		if dumpThisTime > len(streamDump) {
++			dumpThisTime = len(streamDump)
++		}
++		stream.XORKeyStream(streamDump[:dumpThisTime], streamDump[:dumpThisTime])
++		remainingToDump -= dumpThisTime
++	}
++
++	return stream, nil
++}
++
++// Specifies a default set of ciphers and a preference order. This is based on
++// OpenSSH's default client preference order, minus algorithms that are not
++// implemented.
++var DefaultCipherOrder = []string{
++	"aes128-ctr", "aes192-ctr", "aes256-ctr",
++	"arcfour256", "arcfour128",
++}
++
++var cipherModes = map[string]*cipherMode{
++	// Ciphers from RFC4344, which introduced many CTR-based ciphers. Algorithms
++	// are defined in the order specified in the RFC.
++	"aes128-ctr": &cipherMode{16, aes.BlockSize, 0, newAESCTR},
++	"aes192-ctr": &cipherMode{24, aes.BlockSize, 0, newAESCTR},
++	"aes256-ctr": &cipherMode{32, aes.BlockSize, 0, newAESCTR},
++
++	// Ciphers from RFC4345, which introduces security-improved arcfour ciphers.
++	// They are defined in the order specified in the RFC.
++	"arcfour128": &cipherMode{16, 0, 1536, newRC4},
++	"arcfour256": &cipherMode{32, 0, 1536, newRC4},
++}
+diff --git a/src/pkg/exp/ssh/cipher_test.go b/src/pkg/exp/ssh/cipher_test.go
+new file mode 100644
+index 0000000000..ea27bd8a80
+--- /dev/null
++++ b/src/pkg/exp/ssh/cipher_test.go
+@@ -0,0 +1,62 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssh
++
++import (
++	"bytes"
++	"testing"
++)
++
++// TestCipherReversal tests that each cipher factory produces ciphers that can
++// encrypt and decrypt some data successfully.
++func TestCipherReversal(t *testing.T) {
++	testData := []byte("abcdefghijklmnopqrstuvwxyz012345")
++	testKey := []byte("AbCdEfGhIjKlMnOpQrStUvWxYz012345")
++	testIv := []byte("sdflkjhsadflkjhasdflkjhsadfklhsa")
++
++	cryptBuffer := make([]byte, 32)
++
++	for name, cipherMode := range cipherModes {
++		encrypter, err := cipherMode.createCipher(testKey, testIv)
++		if err != nil {
++			t.Errorf("failed to create encrypter for %q: %s", name, err)
++			continue
++		}
++		decrypter, err := cipherMode.createCipher(testKey, testIv)
++		if err != nil {
++			t.Errorf("failed to create decrypter for %q: %s", name, err)
++			continue
++		}
++
++		copy(cryptBuffer, testData)
++
++		encrypter.XORKeyStream(cryptBuffer, cryptBuffer)
++		if name == "none" {
++			if !bytes.Equal(cryptBuffer, testData) {
++				t.Errorf("encryption made change with 'none' cipher")
++				continue
++			}
++		} else {
++			if bytes.Equal(cryptBuffer, testData) {
++				t.Errorf("encryption made no change with %q", name)
++				continue
++			}
++		}
++
++		decrypter.XORKeyStream(cryptBuffer, cryptBuffer)
++		if !bytes.Equal(cryptBuffer, testData) {
++			t.Errorf("decrypted bytes not equal to input with %q", name)
++			continue
++		}
++	}
++}
++
++func TestDefaultCiphersExist(t *testing.T) {
++	for _, cipherAlgo := range DefaultCipherOrder {
++		if _, ok := cipherModes[cipherAlgo]; !ok {
++			t.Errorf("default cipher %q is unknown", cipherAlgo)
++		}
++	}
++}
+diff --git a/src/pkg/exp/ssh/client.go b/src/pkg/exp/ssh/client.go
+index 0ea48437b6..24569ad938 100644
+--- a/src/pkg/exp/ssh/client.go
++++ b/src/pkg/exp/ssh/client.go
+@@ -60,8 +60,8 @@ func (c *ClientConn) handshake() error {
+ 	clientKexInit := kexInitMsg{
+ 		KexAlgos:                supportedKexAlgos,
+ 		ServerHostKeyAlgos:      supportedHostKeyAlgos,
+-		CiphersClientServer:     supportedCiphers,
+-		CiphersServerClient:     supportedCiphers,
++		CiphersClientServer:     c.config.Crypto.ciphers(),
++		CiphersServerClient:     c.config.Crypto.ciphers(),
+ 		MACsClientServer:        supportedMACs,
+ 		MACsServerClient:        supportedMACs,
+ 		CompressionClientServer: supportedCompressions,
+@@ -301,6 +301,9 @@ type ClientConfig struct {
+ 	// A slice of ClientAuth methods. Only the first instance 
+ 	// of a particular RFC 4252 method will be used during authentication.
+ 	Auth []ClientAuth
++
++	// Cryptographic-related configuration.
++	Crypto CryptoConfig
+ }
+ 
+ func (c *ClientConfig) rand() io.Reader {
+diff --git a/src/pkg/exp/ssh/common.go b/src/pkg/exp/ssh/common.go
+index cc720558fc..01c55219d4 100644
+--- a/src/pkg/exp/ssh/common.go
++++ b/src/pkg/exp/ssh/common.go
+@@ -16,7 +16,6 @@ import (
+ const (
+ 	kexAlgoDH14SHA1 = "diffie-hellman-group14-sha1"
+ 	hostAlgoRSA     = "ssh-rsa"
+-	cipherAES128CTR = "aes128-ctr"
+ 	macSHA196       = "hmac-sha1-96"
+ 	compressionNone = "none"
+ 	serviceUserAuth = "ssh-userauth"
+@@ -25,7 +24,6 @@ const (
+ 
+ var supportedKexAlgos = []string{kexAlgoDH14SHA1}
+ var supportedHostKeyAlgos = []string{hostAlgoRSA}
+-var supportedCiphers = []string{cipherAES128CTR}
+ var supportedMACs = []string{macSHA196}
+ var supportedCompressions = []string{compressionNone}
+ 
+@@ -130,6 +128,20 @@ func findAgreedAlgorithms(transport *transport, clientKexInit, serverKexInit *ke
+ 	return
+ }
+ 
++// Cryptographic configuration common to both ServerConfig and ClientConfig.
++type CryptoConfig struct {
++	// The allowed cipher algorithms. If unspecified then DefaultCipherOrder is
++	// used.
++	Ciphers []string
++}
++
++func (c *CryptoConfig) ciphers() []string {
++	if c.Ciphers == nil {
++		return DefaultCipherOrder
++	}
++	return c.Ciphers
++}
++
+ // serialize a signed slice according to RFC 4254 6.6.
+ func serializeSignature(algoname string, sig []byte) []byte {
+ 	length := stringLength([]byte(algoname))
+diff --git a/src/pkg/exp/ssh/messages.go b/src/pkg/exp/ssh/messages.go
+index 169a8bf6b8..cebb5609db 100644
+--- a/src/pkg/exp/ssh/messages.go
++++ b/src/pkg/exp/ssh/messages.go
+@@ -448,8 +448,6 @@ func parseUint32(in []byte) (out uint32, rest []byte, ok bool) {
+ 	return
+ }
+ 
+-const maxPacketSize = 36000
+-
+ func nameListLength(namelist []string) int {
+ 	length := 4 /* uint32 length prefix */
+ 	for i, name := range namelist {
+diff --git a/src/pkg/exp/ssh/server.go b/src/pkg/exp/ssh/server.go
+index 55dd5b0e02..428a747e1e 100644
+--- a/src/pkg/exp/ssh/server.go
++++ b/src/pkg/exp/ssh/server.go
+@@ -40,6 +40,9 @@ type ServerConfig struct {
+ 	// key authentication. It must return true iff the given public key is
+ 	// valid for the given user.
+ 	PubKeyCallback func(user, algo string, pubkey []byte) bool
++
++	// Cryptographic-related configuration.
++	Crypto CryptoConfig
+ }
+ 
+ func (c *ServerConfig) rand() io.Reader {
+@@ -257,8 +260,8 @@ func (s *ServerConn) Handshake() error {
+ 	serverKexInit := kexInitMsg{
+ 		KexAlgos:                supportedKexAlgos,
+ 		ServerHostKeyAlgos:      supportedHostKeyAlgos,
+-		CiphersClientServer:     supportedCiphers,
+-		CiphersServerClient:     supportedCiphers,
++		CiphersClientServer:     s.config.Crypto.ciphers(),
++		CiphersServerClient:     s.config.Crypto.ciphers(),
+ 		MACsClientServer:        supportedMACs,
+ 		MACsServerClient:        supportedMACs,
+ 		CompressionClientServer: supportedCompressions,
+@@ -323,7 +326,9 @@ func (s *ServerConn) Handshake() error {
+ 	if packet[0] != msgNewKeys {
+ 		return UnexpectedMessageError{msgNewKeys, packet[0]}
+ 	}
+-	s.transport.reader.setupKeys(clientKeys, K, H, H, hashFunc)
++	if err = s.transport.reader.setupKeys(clientKeys, K, H, H, hashFunc); err != nil {
++		return err
++	}
+ 	if packet, err = s.readPacket(); err != nil {
+ 		return err
+ 	}
+diff --git a/src/pkg/exp/ssh/transport.go b/src/pkg/exp/ssh/transport.go
+index 579a9d82de..b8cb2c319d 100644
+--- a/src/pkg/exp/ssh/transport.go
++++ b/src/pkg/exp/ssh/transport.go
+@@ -7,7 +7,6 @@ package ssh
+ import (
+ 	"bufio"
+ 	"crypto"
+-	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/hmac"
+ 	"crypto/subtle"
+@@ -19,7 +18,10 @@ import (
+ )
+ 
+ const (
+-	paddingMultiple = 16 // TODO(dfc) does this need to be configurable?
++	packetSizeMultiple = 16 // TODO(huin) this should be determined by the cipher.
++	minPacketSize      = 16
++	maxPacketSize      = 36000
++	minPaddingSize     = 4 // TODO(huin) should this be configurable?
+ )
+ 
+ // filteredConn reduces the set of methods exposed when embeddeding
+@@ -61,8 +63,7 @@ type reader struct {
+ type writer struct {
+ 	*sync.Mutex // protects writer.Writer from concurrent writes
+ 	*bufio.Writer
+-	paddingMultiple int
+-	rand            io.Reader
++	rand io.Reader
+ 	common
+ }
+ 
+@@ -82,14 +83,11 @@ type common struct {
+ func (r *reader) readOnePacket() ([]byte, error) {
+ 	var lengthBytes = make([]byte, 5)
+ 	var macSize uint32
+-
+ 	if _, err := io.ReadFull(r, lengthBytes); err != nil {
+ 		return nil, err
+ 	}
+ 
+-	if r.cipher != nil {
+-		r.cipher.XORKeyStream(lengthBytes, lengthBytes)
+-	}
++	r.cipher.XORKeyStream(lengthBytes, lengthBytes)
+ 
+ 	if r.mac != nil {
+ 		r.mac.Reset()
+@@ -153,9 +151,9 @@ func (w *writer) writePacket(packet []byte) error {
+ 	w.Mutex.Lock()
+ 	defer w.Mutex.Unlock()
+ 
+-	paddingLength := paddingMultiple - (5+len(packet))%paddingMultiple
++	paddingLength := packetSizeMultiple - (5+len(packet))%packetSizeMultiple
+ 	if paddingLength < 4 {
+-		paddingLength += paddingMultiple
++		paddingLength += packetSizeMultiple
+ 	}
+ 
+ 	length := len(packet) + 1 + paddingLength
+@@ -188,11 +186,9 @@ func (w *writer) writePacket(packet []byte) error {
+ 
+ 	// TODO(dfc) lengthBytes, packet and padding should be
+ 	// subslices of a single buffer
+-	if w.cipher != nil {
+-		w.cipher.XORKeyStream(lengthBytes, lengthBytes)
+-		w.cipher.XORKeyStream(packet, packet)
+-		w.cipher.XORKeyStream(padding, padding)
+-	}
++	w.cipher.XORKeyStream(lengthBytes, lengthBytes)
++	w.cipher.XORKeyStream(packet, packet)
++	w.cipher.XORKeyStream(padding, padding)
+ 
+ 	if _, err := w.Write(lengthBytes); err != nil {
+ 		return err
+@@ -227,11 +223,17 @@ func newTransport(conn net.Conn, rand io.Reader) *transport {
+ 	return &transport{
+ 		reader: reader{
+ 			Reader: bufio.NewReader(conn),
++			common: common{
++				cipher: noneCipher{},
++			},
+ 		},
+ 		writer: writer{
+ 			Writer: bufio.NewWriter(conn),
+ 			rand:   rand,
+ 			Mutex:  new(sync.Mutex),
++			common: common{
++				cipher: noneCipher{},
++			},
+ 		},
+ 		filteredConn: conn,
+ 	}
+@@ -249,29 +251,32 @@ var (
+ 	clientKeys = direction{[]byte{'A'}, []byte{'C'}, []byte{'E'}}
+ )
+ 
+-// setupKeys sets the cipher and MAC keys from K, H and sessionId, as
++// setupKeys sets the cipher and MAC keys from kex.K, kex.H and sessionId, as
+ // described in RFC 4253, section 6.4. direction should either be serverKeys
+ // (to setup server->client keys) or clientKeys (for client->server keys).
+ func (c *common) setupKeys(d direction, K, H, sessionId []byte, hashFunc crypto.Hash) error {
+-	h := hashFunc.New()
++	cipherMode := cipherModes[c.cipherAlgo]
+ 
+-	blockSize := 16
+-	keySize := 16
+ 	macKeySize := 20
+ 
+-	iv := make([]byte, blockSize)
+-	key := make([]byte, keySize)
++	iv := make([]byte, cipherMode.ivSize)
++	key := make([]byte, cipherMode.keySize)
+ 	macKey := make([]byte, macKeySize)
++
++	h := hashFunc.New()
+ 	generateKeyMaterial(iv, d.ivTag, K, H, sessionId, h)
+ 	generateKeyMaterial(key, d.keyTag, K, H, sessionId, h)
+ 	generateKeyMaterial(macKey, d.macKeyTag, K, H, sessionId, h)
+ 
+ 	c.mac = truncatingMAC{12, hmac.NewSHA1(macKey)}
+-	aes, err := aes.NewCipher(key)
++
++	cipher, err := cipherMode.createCipher(key, iv)
+ 	if err != nil {
+ 		return err
+ 	}
+-	c.cipher = cipher.NewCTR(aes, iv)
++
++	c.cipher = cipher
++
+ 	return nil
+ }
+ 

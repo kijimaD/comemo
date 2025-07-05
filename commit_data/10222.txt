@@ -7,6 +7,22 @@ Date:   Thu Nov 3 11:32:37 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5298091
-
+---
  src/cmd/8a/lex.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index ca2e2c138d..403669404e 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -313,8 +313,8 @@ struct
+ 	"IDIVL",	LTYPE2,	AIDIVL,
+ 	"IDIVW",	LTYPE2,	AIDIVW,
+ 	"IMULB",	LTYPE2,	AIMULB,
+-	"IMULL",	LTYPE2,	AIMULL,
+-	"IMULW",	LTYPE2,	AIMULW,
++	"IMULL",	LTYPEI,	AIMULL,
++	"IMULW",	LTYPEI,	AIMULW,
+ 	"INB",		LTYPE0,	AINB,
+ 	"INL",		LTYPE0,	AINL,
+ 	"INW",		LTYPE0,	AINW,

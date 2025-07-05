@@ -9,7 +9,41 @@ Date:   Wed Sep 25 00:26:06 2019 -0700
     Change-Id: I5c0bf25f21ba5c0abe3b1b2ed0b17c604717f39b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/197121
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/iexport.go | 3 +--
  src/cmd/compile/internal/gc/iimport.go | 6 ++----
  2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index da0a8be30e..873de46fa4 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1181,10 +1181,9 @@ func (w *exportWriter) expr(n *Node) {
+ 	// 	should have been resolved by typechecking - handled by default case
+ 
+ 	case OPTRLIT:
+-		w.op(OPTRLIT) // TODO(mdempsky): Replace with OADDR.
++		w.op(OADDR)
+ 		w.pos(n.Pos)
+ 		w.expr(n.Left)
+-		w.bool(false)
+ 
+ 	case OSTRUCTLIT:
+ 		w.op(OSTRUCTLIT)
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index dd35b9ba46..28808c51c5 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -801,10 +801,8 @@ func (r *importReader) node() *Node {
+ 	// case OCLOSURE:
+ 	//	unimplemented
+ 
+-	case OPTRLIT:
+-		n := nodl(r.pos(), OADDR, r.expr(), nil)
+-		_ = r.bool()
+-		return n
++	// case OPTRLIT:
++	//	unreachable - mapped to case OADDR below by exporter
+ 
+ 	case OSTRUCTLIT:
+ 		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.

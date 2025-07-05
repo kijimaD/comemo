@@ -15,8 +15,82 @@ Date:   Wed Mar 13 08:56:06 2024 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/typeset.go         |  4 +--
  src/go/types/typeset.go                            |  4 +--
  .../types/testdata/fixedbugs/issue66285.go         | 37 ++++++++++++++++++++++
  3 files changed, 39 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index a7dddc308d..63dafadeb4 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -238,9 +238,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			// error message.
+ 			if check != nil {
+ 				check.later(func() {
+-					// ignore version check if method is from a different package
+-					// TODO(gri) this seems incorrect - see go.dev/issue/66285
+-					if check.pkg == m.pkg && pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
++					if pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+ 						err := check.newError(DuplicateDecl)
+ 						err.addf(atPos(pos), "duplicate method %s", m.name)
+ 						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", m.name)
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 29bd718335..2e2ebb30f7 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -240,9 +240,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			// error message.
+ 			if check != nil {
+ 				check.later(func() {
+-					// ignore version check if method is from a different package
+-					// TODO(gri) this seems incorrect - see go.dev/issue/66285
+-					if check.pkg == m.pkg && pos.IsValid() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
++					if pos.IsValid() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+ 						err := check.newError(DuplicateDecl)
+ 						err.addf(atPos(pos), "duplicate method %s", m.name)
+ 						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", m.name)
+diff --git a/src/internal/types/testdata/fixedbugs/issue66285.go b/src/internal/types/testdata/fixedbugs/issue66285.go
+new file mode 100644
+index 0000000000..9811fec3f3
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue66285.go
+@@ -0,0 +1,37 @@
++// -lang=go1.21
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Note: Downgrading to go1.13 requires at least go1.21,
++//       hence the need for -lang=go1.21 at the top.
++
++//go:build go1.13
++
++package p
++
++import "io"
++
++// A "duplicate method" error should be reported for
++// all these interfaces, irrespective of which package
++// the embedded Reader is coming from.
++
++type _ interface {
++	Reader
++	Reader // ERROR "duplicate method Read"
++}
++
++type Reader interface {
++	Read(p []byte) (n int, err error)
++}
++
++type _ interface {
++	io.Reader
++	Reader // ERROR "duplicate method Read"
++}
++
++type _ interface {
++	io.Reader
++	io /* ERROR "duplicate method Read" */ .Reader
++}

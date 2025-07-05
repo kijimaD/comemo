@@ -9,7 +9,7 @@ Date:   Fri Oct 27 13:30:09 2017 -0400
     Change-Id: Ibc4d7c01660b9e9ebd088dd55ba993f0d7ec6aa3
     Reviewed-on: https://go-review.googlesource.com/73991
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go                         |  4 ++--
  src/runtime/crash_test.go                    | 11 +++++++++++
  src/runtime/map_test.go                      |  2 +-
@@ -19,3 +19,180 @@ Date:   Fri Oct 27 13:30:09 2017 -0400
  src/runtime/testdata/testprogcgo/callback.go |  6 +++++-
  src/runtime/testdata/testprogcgo/cgo.go      |  6 +++++-
  8 files changed, 40 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 49791b6c1d..5cb0ee587c 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -402,9 +402,9 @@ func (t *tester) registerTests() {
+ 		testName := "runtime:cpu124"
+ 		t.tests = append(t.tests, distTest{
+ 			name:    testName,
+-			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
++			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
+ 			fn: func(dt *distTest) error {
+-				cmd := t.addCmd(dt, "src", "go", "test", "-short", t.timeout(300), t.tags(), "runtime", "-cpu=1,2,4")
++				cmd := t.addCmd(dt, "src", "go", "test", "-short", t.timeout(300), t.tags(), "runtime", "-cpu=1,2,4", "-quick")
+ 				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+ 				// creation of first goroutines and first garbage collections in the parallel setting.
+ 				cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 80ae4fa63e..54144c01de 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -44,6 +44,10 @@ type buildexe struct {
+ }
+ 
+ func runTestProg(t *testing.T, binary, name string, env ...string) string {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	exe, err := buildTestProg(t, binary)
+@@ -53,6 +57,9 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
+ 
+ 	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
+ 	cmd.Env = append(cmd.Env, env...)
++	if testing.Short() {
++		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
++	}
+ 	var b bytes.Buffer
+ 	cmd.Stdout = &b
+ 	cmd.Stderr = &b
+@@ -93,6 +100,10 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
+ }
+ 
+ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++
+ 	checkStaleRuntime(t)
+ 
+ 	testprog.Lock()
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index d6054c0527..0529cb8e86 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -244,7 +244,7 @@ func testConcurrentReadsAfterGrowth(t *testing.T, useReflect bool) {
+ 	numGrowStep := 250
+ 	numReader := 16
+ 	if testing.Short() {
+-		numLoop, numGrowStep = 2, 500
++		numLoop, numGrowStep = 2, 100
+ 	}
+ 	for i := 0; i < numLoop; i++ {
+ 		m := make(map[int]int, 0)
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index 74b8753b5f..62de604e69 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"internal/race"
++	"internal/testenv"
+ 	. "runtime"
+ 	"testing"
+ )
+@@ -88,6 +89,10 @@ func TestMemmoveAlias(t *testing.T) {
+ }
+ 
+ func TestMemmoveLarge0x180000(t *testing.T) {
++	if testing.Short() && testenv.Builder() == "" {
++		t.Skip("-short")
++	}
++
+ 	t.Parallel()
+ 	if race.Enabled {
+ 		t.Skip("skipping large memmove test under race detector")
+@@ -96,6 +101,10 @@ func TestMemmoveLarge0x180000(t *testing.T) {
+ }
+ 
+ func TestMemmoveOverlapLarge0x120000(t *testing.T) {
++	if testing.Short() && testenv.Builder() == "" {
++		t.Skip("-short")
++	}
++
+ 	t.Parallel()
+ 	if race.Enabled {
+ 		t.Skip("skipping large memmove test under race detector")
+diff --git a/src/runtime/mfinal_test.go b/src/runtime/mfinal_test.go
+index 85a5f7acae..3ca8d31c60 100644
+--- a/src/runtime/mfinal_test.go
++++ b/src/runtime/mfinal_test.go
+@@ -243,6 +243,10 @@ var (
+ )
+ 
+ func TestDeferKeepAlive(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++
+ 	// See issue 21402.
+ 	t.Parallel()
+ 	type T *int // needs to be a pointer base type to avoid tinyalloc and its never-finalized behavior.
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 922cd830bc..d5b6b3ac3c 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"flag"
+ 	"io"
+ 	. "runtime"
+ 	"runtime/debug"
+@@ -13,6 +14,8 @@ import (
+ 	"unsafe"
+ )
+ 
++var flagQuick = flag.Bool("quick", false, "skip slow tests, for second run in all.bash")
++
+ func init() {
+ 	// We're testing the runtime, so make tracebacks show things
+ 	// in the runtime. This only raises the level, so it won't
+diff --git a/src/runtime/testdata/testprogcgo/callback.go b/src/runtime/testdata/testprogcgo/callback.go
+index 7d9d68ddd1..be0409f39d 100644
+--- a/src/runtime/testdata/testprogcgo/callback.go
++++ b/src/runtime/testdata/testprogcgo/callback.go
+@@ -29,6 +29,7 @@ import "C"
+ 
+ import (
+ 	"fmt"
++	"os"
+ 	"runtime"
+ )
+ 
+@@ -63,7 +64,10 @@ func grow1(x, sum *int) int {
+ }
+ 
+ func CgoCallbackGC() {
+-	const P = 100
++	P := 100
++	if os.Getenv("RUNTIME_TESTING_SHORT") != "" {
++		P = 10
++	}
+ 	done := make(chan bool)
+ 	// allocate a bunch of stack frames and spray them with pointers
+ 	for i := 0; i < P; i++ {
+diff --git a/src/runtime/testdata/testprogcgo/cgo.go b/src/runtime/testdata/testprogcgo/cgo.go
+index 209524a24d..a587db385b 100644
+--- a/src/runtime/testdata/testprogcgo/cgo.go
++++ b/src/runtime/testdata/testprogcgo/cgo.go
+@@ -52,7 +52,11 @@ func CgoSignalDeadlock() {
+ 	time.Sleep(time.Millisecond)
+ 	start := time.Now()
+ 	var times []time.Duration
+-	for i := 0; i < 64; i++ {
++	n := 64
++	if os.Getenv("RUNTIME_TEST_SHORT") != "" {
++		n = 16
++	}
++	for i := 0; i < n; i++ {
+ 		go func() {
+ 			runtime.LockOSThread()
+ 			select {}

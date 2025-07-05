@@ -13,6 +13,37 @@ Date:   Wed Jun 15 17:25:12 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/encoding/json/fold_test.go | 12 +++---------
  1 file changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/encoding/json/fold_test.go b/src/encoding/json/fold_test.go
+index 9fb94646a8..4daa3590f5 100644
+--- a/src/encoding/json/fold_test.go
++++ b/src/encoding/json/fold_test.go
+@@ -52,9 +52,7 @@ func TestFold(t *testing.T) {
+ }
+ 
+ func TestFoldAgainstUnicode(t *testing.T) {
+-	const bufSize = 5
+-	buf1 := make([]byte, 0, bufSize)
+-	buf2 := make([]byte, 0, bufSize)
++	var buf1, buf2 []byte
+ 	var runes []rune
+ 	for i := 0x20; i <= 0x7f; i++ {
+ 		runes = append(runes, rune(i))
+@@ -96,12 +94,8 @@ func TestFoldAgainstUnicode(t *testing.T) {
+ 				continue
+ 			}
+ 			for _, r2 := range runes {
+-				buf1 := append(buf1[:0], 'x')
+-				buf2 := append(buf2[:0], 'x')
+-				buf1 = buf1[:1+utf8.EncodeRune(buf1[1:bufSize], r)]
+-				buf2 = buf2[:1+utf8.EncodeRune(buf2[1:bufSize], r2)]
+-				buf1 = append(buf1, 'x')
+-				buf2 = append(buf2, 'x')
++				buf1 = append(utf8.AppendRune(append(buf1[:0], 'x'), r), 'x')
++				buf2 = append(utf8.AppendRune(append(buf2[:0], 'x'), r2), 'x')
+ 				want := bytes.EqualFold(buf1, buf2)
+ 				if got := ff.fold(buf1, buf2); got != want {
+ 					t.Errorf("%s(%q, %q) = %v; want %v", ff.name, buf1, buf2, got, want)

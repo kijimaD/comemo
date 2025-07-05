@@ -14,7 +14,7 @@ Date:   Thu Oct 8 21:52:03 2015 +1300
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/arch_386.go      |  1 +
  src/runtime/arch_amd64.go    |  1 +
  src/runtime/arch_amd64p32.go |  1 +
@@ -30,3 +30,274 @@ Date:   Thu Oct 8 21:52:03 2015 +1300
  src/runtime/stack.go         |  4 +---
  src/runtime/traceback.go     | 17 ++++++-----------
  14 files changed, 38 insertions(+), 37 deletions(-)
+
+diff --git a/src/runtime/arch_386.go b/src/runtime/arch_386.go
+index 4ab00c3396..75e94eccfd 100644
+--- a/src/runtime/arch_386.go
++++ b/src/runtime/arch_386.go
+@@ -12,6 +12,7 @@ const (
+ 	_PCQuantum     = 1
+ 	_Int64Align    = 4
+ 	hugePageSize   = 1 << 21
++	minFrameSize   = 0
+ )
+ 
+ type uintreg uint32
+diff --git a/src/runtime/arch_amd64.go b/src/runtime/arch_amd64.go
+index b2ca077e4f..d7721f74a1 100644
+--- a/src/runtime/arch_amd64.go
++++ b/src/runtime/arch_amd64.go
+@@ -12,6 +12,7 @@ const (
+ 	_PCQuantum     = 1
+ 	_Int64Align    = 8
+ 	hugePageSize   = 1 << 21
++	minFrameSize   = 0
+ )
+ 
+ type uintreg uint64
+diff --git a/src/runtime/arch_amd64p32.go b/src/runtime/arch_amd64p32.go
+index 3f66822445..aa8343ac22 100644
+--- a/src/runtime/arch_amd64p32.go
++++ b/src/runtime/arch_amd64p32.go
+@@ -12,6 +12,7 @@ const (
+ 	_PCQuantum     = 1
+ 	_Int64Align    = 8
+ 	hugePageSize   = 1 << 21
++	minFrameSize   = 0
+ )
+ 
+ type uintreg uint64
+diff --git a/src/runtime/arch_arm.go b/src/runtime/arch_arm.go
+index d5d57703f6..aa3e180c57 100644
+--- a/src/runtime/arch_arm.go
++++ b/src/runtime/arch_arm.go
+@@ -12,6 +12,7 @@ const (
+ 	_PCQuantum     = 4
+ 	_Int64Align    = 4
+ 	hugePageSize   = 0
++	minFrameSize   = 4
+ )
+ 
+ type uintreg uint32
+diff --git a/src/runtime/arch_arm64.go b/src/runtime/arch_arm64.go
+index f26227a557..f01c26d5ae 100644
+--- a/src/runtime/arch_arm64.go
++++ b/src/runtime/arch_arm64.go
+@@ -12,6 +12,7 @@ const (
+ 	_PCQuantum     = 4
+ 	_Int64Align    = 8
+ 	hugePageSize   = 0
++	minFrameSize   = 8
+ )
+ 
+ type uintreg uint64
+diff --git a/src/runtime/arch_ppc64.go b/src/runtime/arch_ppc64.go
+index a2cd85c129..273cc564ed 100644
+--- a/src/runtime/arch_ppc64.go
++++ b/src/runtime/arch_ppc64.go
+@@ -12,6 +12,7 @@ const (
+ 	_PCQuantum     = 4
+ 	_Int64Align    = 8
+ 	hugePageSize   = 0
++	minFrameSize   = 8
+ )
+ 
+ type uintreg uint64
+diff --git a/src/runtime/arch_ppc64le.go b/src/runtime/arch_ppc64le.go
+index 4f89da337f..e4eb9e5d8a 100644
+--- a/src/runtime/arch_ppc64le.go
++++ b/src/runtime/arch_ppc64le.go
+@@ -12,6 +12,7 @@ const (
+ 	_PCQuantum     = 4
+ 	_Int64Align    = 8
+ 	hugePageSize   = 0
++	minFrameSize   = 8
+ )
+ 
+ type uintreg uint64
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index f09a66a07d..d39e660246 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -237,10 +237,22 @@ func cgocallbackg1() {
+ 		// On 386, stack frame is three words, plus caller PC.
+ 		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+ 	case "ppc64", "ppc64le":
+-		// On ppc64, stack frame is two words and there's a
+-		// saved LR between SP and the stack frame and between
+-		// the stack frame and the arguments.
+-		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
++		// On ppc64, the callback arguments are in the arguments area of
++		// cgocallback's stack frame. The stack looks like this:
++		// +--------------------+------------------------------+
++		// |                    | ...                          |
++		// | cgoexp_$fn         +------------------------------+
++		// |                    | fixed frame area             |
++		// +--------------------+------------------------------+
++		// |                    | arguments area               |
++		// | cgocallback        +------------------------------+ <- sp + 2*minFrameSize + 2*ptrSize
++		// |                    | fixed frame area             |
++		// +--------------------+------------------------------+ <- sp + minFrameSize + 2*ptrSize
++		// |                    | local variables (2 pointers) |
++		// | cgocallback_gofunc +------------------------------+ <- sp + minFrameSize
++		// |                    | fixed frame area             |
++		// +--------------------+------------------------------+ <- sp
++		cb = (*args)(unsafe.Pointer(sp + 2*minFrameSize + 2*ptrSize))
+ 	}
+ 
+ 	// Invoke callback.
+@@ -271,14 +283,10 @@ func unwindm(restore *bool) {
+ 	switch GOARCH {
+ 	default:
+ 		throw("unwindm not implemented")
+-	case "386", "amd64":
+-		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp))
+-	case "arm":
+-		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 4))
++	case "386", "amd64", "arm", "ppc64", "ppc64le":
++		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + minFrameSize))
+ 	case "arm64":
+ 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
+-	case "ppc64", "ppc64le":
+-		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 8))
+ 	}
+ 	releasem(mp)
+ }
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 498c355fe8..95586dc74e 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -496,12 +496,10 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
+ 	size := frame.varp - frame.sp
+ 	var minsize uintptr
+ 	switch thechar {
+-	case '6', '8':
+-		minsize = 0
+ 	case '7':
+ 		minsize = spAlign
+ 	default:
+-		minsize = ptrSize
++		minsize = minFrameSize
+ 	}
+ 	if size > minsize {
+ 		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 320c174829..24431c86dc 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -531,8 +531,6 @@ func throw(s string) {
+ //uint32 runtime·panicking;
+ var paniclk mutex
+ 
+-const hasLinkRegister = GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le"
+-
+ // Unwind the stack after a deferred function calls recover
+ // after a panic.  Then arrange to continue running as though
+ // the caller of the deferred function returned normally.
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 614de5110c..ef28467dfb 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2256,17 +2256,14 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 		throw("newproc1: new g is not Gdead")
+ 	}
+ 
+-	totalSize := 4*regSize + uintptr(siz) // extra space in case of reads slightly beyond frame
+-	if hasLinkRegister {
+-		totalSize += ptrSize
+-	}
+-	totalSize += -totalSize & (spAlign - 1) // align to spAlign
++	totalSize := 4*regSize + uintptr(siz) + minFrameSize // extra space in case of reads slightly beyond frame
++	totalSize += -totalSize & (spAlign - 1)              // align to spAlign
+ 	sp := newg.stack.hi - totalSize
+ 	spArg := sp
+-	if hasLinkRegister {
++	if usesLR {
+ 		// caller's LR
+ 		*(*unsafe.Pointer)(unsafe.Pointer(sp)) = nil
+-		spArg += ptrSize
++		spArg += minFrameSize
+ 	}
+ 	memmove(unsafe.Pointer(spArg), unsafe.Pointer(argp), uintptr(narg))
+ 
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index bad9fe6de4..71055b6bdb 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -82,7 +82,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		// functions are correctly handled. This smashes
+ 		// the stack frame but we're not going back there
+ 		// anyway.
+-		sp := c.sp() - ptrSize
++		sp := c.sp() - minFrameSize
+ 		c.set_sp(sp)
+ 		*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+ 
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 24d37271b4..1809a4d9ac 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -578,12 +578,10 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 	size := frame.varp - frame.sp
+ 	var minsize uintptr
+ 	switch thechar {
+-	case '6', '8':
+-		minsize = 0
+ 	case '7':
+ 		minsize = spAlign
+ 	default:
+-		minsize = ptrSize
++		minsize = minFrameSize
+ 	}
+ 	if size > minsize {
+ 		var bv bitvector
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 544ce273ee..2d223ced62 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -26,9 +26,10 @@ import "unsafe"
+ // stores an 8-byte return PC onto the stack. To accommodate this, we use regSize
+ // as the size of the architecture-pushed return PC.
+ //
+-// usesLR is defined below. ptrSize and regSize are defined in stubs.go.
++// usesLR is defined below in terms of minFrameSize, which is defined in
++// arch_$GOARCH.go. ptrSize and regSize are defined in stubs.go.
+ 
+-const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
++const usesLR = minFrameSize > 0
+ 
+ var (
+ 	// initialized in tracebackinit
+@@ -295,10 +296,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		// in package runtime and reflect, and for those we use call-specific
+ 		// metadata recorded by f's caller.
+ 		if callback != nil || printing {
+-			frame.argp = frame.fp
+-			if usesLR {
+-				frame.argp += ptrSize
+-			}
++			frame.argp = frame.fp + minFrameSize
+ 			setArgInfo(&frame, f, callback != nil)
+ 		}
+ 
+@@ -396,7 +394,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		// before faking a call to sigpanic.
+ 		if usesLR && waspanic {
+ 			x := *(*uintptr)(unsafe.Pointer(frame.sp))
+-			frame.sp += ptrSize
++			frame.sp += minFrameSize
+ 			if GOARCH == "arm64" {
+ 				// arm64 needs 16-byte aligned SP, always
+ 				frame.sp += ptrSize
+@@ -496,10 +494,7 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
+ 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
+ 		switch funcname(f) {
+ 		case "reflect.makeFuncStub", "reflect.methodValueCall":
+-			arg0 := frame.sp
+-			if usesLR {
+-				arg0 += ptrSize
+-			}
++			arg0 := frame.sp + minFrameSize
+ 			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
+ 			if fn[0] != f.entry {
+ 				print("runtime: confused by ", funcname(f), "\n")

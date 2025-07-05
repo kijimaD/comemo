@@ -7,7 +7,34 @@ Date:   Tue Aug 3 13:01:28 2010 -0700
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/1907046
-
+---
  test/run     | 2 +-
  test/run-arm | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/run b/test/run
+index 241e550263..b01bdca2de 100755
+--- a/test/run
++++ b/test/run
+@@ -99,7 +99,7 @@ done | # clean up some stack noise
+ 
+ rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+ diffmsg=""
+-if ! diff run.out golden.out
++if ! diff golden.out run.out
+ then
+ 	diffmsg="; test output differs"
+ 	failed=1
+diff --git a/test/run-arm b/test/run-arm
+index c7545ae0e9..2cf2d5685b 100755
+--- a/test/run-arm
++++ b/test/run-arm
+@@ -84,7 +84,7 @@ done | # clean up some stack noise
+ failed=0
+ rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+ diffmsg=""
+-if ! diff -b run.out golden-arm.out
++if ! diff -b golden-arm.out run.out
+ then
+ 	diffmsg="; test output differs"
+ 	failed=1

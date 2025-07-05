@@ -19,7 +19,7 @@ Date:   Sun Oct 8 15:25:28 2017 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/header.go          | 19 ++++++++++++++++++-
  src/net/http/httptrace/trace.go |  6 +++++-
  src/net/http/request.go         | 14 ++++++++++----
@@ -28,3 +28,276 @@ Date:   Sun Oct 8 15:25:28 2017 -0400
  src/net/http/transfer.go        | 17 +++++++++++++++--
  src/net/http/transport_test.go  | 20 ++++++++++++++++++--
  7 files changed, 69 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index 622ad28963..461ae9368a 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -6,6 +6,7 @@ package http
+ 
+ import (
+ 	"io"
++	"net/http/httptrace"
+ 	"net/textproto"
+ 	"sort"
+ 	"strings"
+@@ -56,7 +57,11 @@ func (h Header) Del(key string) {
+ 
+ // Write writes a header in wire format.
+ func (h Header) Write(w io.Writer) error {
+-	return h.WriteSubset(w, nil)
++	return h.write(w, nil)
++}
++
++func (h Header) write(w io.Writer, trace *httptrace.ClientTrace) error {
++	return h.writeSubset(w, nil, trace)
+ }
+ 
+ func (h Header) clone() Header {
+@@ -145,11 +150,16 @@ func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *h
+ // WriteSubset writes a header in wire format.
+ // If exclude is not nil, keys where exclude[key] == true are not written.
+ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
++	return h.writeSubset(w, exclude, nil)
++}
++
++func (h Header) writeSubset(w io.Writer, exclude map[string]bool, trace *httptrace.ClientTrace) error {
+ 	ws, ok := w.(writeStringer)
+ 	if !ok {
+ 		ws = stringWriter{w}
+ 	}
+ 	kvs, sorter := h.sortedKeyValues(exclude)
++	var formattedVals []string
+ 	for _, kv := range kvs {
+ 		for _, v := range kv.values {
+ 			v = headerNewlineToSpace.Replace(v)
+@@ -160,6 +170,13 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
+ 					return err
+ 				}
+ 			}
++			if trace != nil && trace.WroteHeaderField != nil {
++				formattedVals = append(formattedVals, v)
++			}
++		}
++		if trace != nil && trace.WroteHeaderField != nil {
++			trace.WroteHeaderField(kv.key, formattedVals)
++			formattedVals = nil
+ 		}
+ 	}
+ 	headerSorterPool.Put(sorter)
+diff --git a/src/net/http/httptrace/trace.go b/src/net/http/httptrace/trace.go
+index 8033535670..1787889881 100644
+--- a/src/net/http/httptrace/trace.go
++++ b/src/net/http/httptrace/trace.go
+@@ -142,8 +142,12 @@ type ClientTrace struct {
+ 	// failure.
+ 	TLSHandshakeDone func(tls.ConnectionState, error)
+ 
++	// WroteHeaderField is called after the Transport has written
++	// each request header.
++	WroteHeaderField func(key string, value []string)
++
+ 	// WroteHeaders is called after the Transport has written
+-	// the request headers.
++	// all request headers.
+ 	WroteHeaders func()
+ 
+ 	// Wait100Continue is called if the Request specified
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 390f3cc063..13c5417053 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -555,6 +555,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
+ 	if err != nil {
+ 		return err
+ 	}
++	if trace != nil && trace.WroteHeaderField != nil {
++		trace.WroteHeaderField("Host", []string{host})
++	}
+ 
+ 	// Use the defaultUserAgent unless the Header contains one, which
+ 	// may be blank to not send the header.
+@@ -567,6 +570,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
+ 		if err != nil {
+ 			return err
+ 		}
++		if trace != nil && trace.WroteHeaderField != nil {
++			trace.WroteHeaderField("User-Agent", []string{userAgent})
++		}
+ 	}
+ 
+ 	// Process Body,ContentLength,Close,Trailer
+@@ -574,18 +580,18 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
+ 	if err != nil {
+ 		return err
+ 	}
+-	err = tw.WriteHeader(w)
++	err = tw.writeHeader(w, trace)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	err = r.Header.WriteSubset(w, reqWriteExcludeHeader)
++	err = r.Header.writeSubset(w, reqWriteExcludeHeader, trace)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+ 	if extraHeaders != nil {
+-		err = extraHeaders.Write(w)
++		err = extraHeaders.write(w, trace)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -624,7 +630,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
+ 	}
+ 
+ 	// Write body and trailer
+-	err = tw.WriteBody(w)
++	err = tw.writeBody(w)
+ 	if err != nil {
+ 		if tw.bodyReadError == err {
+ 			err = requestBodyReadError{err}
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 09674670b1..bf1e13c8ae 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -293,7 +293,7 @@ func (r *Response) Write(w io.Writer) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	err = tw.WriteHeader(w)
++	err = tw.writeHeader(w, nil)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -319,7 +319,7 @@ func (r *Response) Write(w io.Writer) error {
+ 	}
+ 
+ 	// Write body and trailer
+-	err = tw.WriteBody(w)
++	err = tw.writeBody(w)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index edc19c3a4c..fc3106d38d 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -338,7 +338,7 @@ type chunkWriter struct {
+ 	res *response
+ 
+ 	// header is either nil or a deep clone of res.handlerHeader
+-	// at the time of res.WriteHeader, if res.WriteHeader is
++	// at the time of res.writeHeader, if res.writeHeader is
+ 	// called and extra buffering is being done to calculate
+ 	// Content-Type and/or Content-Length.
+ 	header Header
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index c7171a0109..2c6ba3231b 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"net/http/httptrace"
+ 	"net/http/internal"
+ 	"net/textproto"
+ 	"reflect"
+@@ -280,11 +281,14 @@ func (t *transferWriter) shouldSendContentLength() bool {
+ 	return false
+ }
+ 
+-func (t *transferWriter) WriteHeader(w io.Writer) error {
++func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) error {
+ 	if t.Close && !hasToken(t.Header.get("Connection"), "close") {
+ 		if _, err := io.WriteString(w, "Connection: close\r\n"); err != nil {
+ 			return err
+ 		}
++		if trace != nil && trace.WroteHeaderField != nil {
++			trace.WroteHeaderField("Connection", []string{"close"})
++		}
+ 	}
+ 
+ 	// Write Content-Length and/or Transfer-Encoding whose values are a
+@@ -297,10 +301,16 @@ func (t *transferWriter) WriteHeader(w io.Writer) error {
+ 		if _, err := io.WriteString(w, strconv.FormatInt(t.ContentLength, 10)+"\r\n"); err != nil {
+ 			return err
+ 		}
++		if trace != nil && trace.WroteHeaderField != nil {
++			trace.WroteHeaderField("Content-Length", []string{strconv.FormatInt(t.ContentLength, 10)})
++		}
+ 	} else if chunked(t.TransferEncoding) {
+ 		if _, err := io.WriteString(w, "Transfer-Encoding: chunked\r\n"); err != nil {
+ 			return err
+ 		}
++		if trace != nil && trace.WroteHeaderField != nil {
++			trace.WroteHeaderField("Transfer-Encoding", []string{"chunked"})
++		}
+ 	}
+ 
+ 	// Write Trailer header
+@@ -321,13 +331,16 @@ func (t *transferWriter) WriteHeader(w io.Writer) error {
+ 			if _, err := io.WriteString(w, "Trailer: "+strings.Join(keys, ",")+"\r\n"); err != nil {
+ 				return err
+ 			}
++			if trace != nil && trace.WroteHeaderField != nil {
++				trace.WroteHeaderField("Trailer", keys)
++			}
+ 		}
+ 	}
+ 
+ 	return nil
+ }
+ 
+-func (t *transferWriter) WriteBody(w io.Writer) error {
++func (t *transferWriter) writeBody(w io.Writer) error {
+ 	var err error
+ 	var ncopy int64
+ 
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index a02867a2d0..979b8a9009 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3733,7 +3733,9 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
+ 	})
+ 
+-	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader("some body"))
++	body := "some body"
++	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader(body))
++	req.Header["X-Foo-Multiple-Vals"] = []string{"bar", "baz"}
+ 	trace := &httptrace.ClientTrace{
+ 		GetConn:              func(hostPort string) { logf("Getting conn for %v ...", hostPort) },
+ 		GotConn:              func(ci httptrace.GotConnInfo) { logf("got conn: %+v", ci) },
+@@ -3748,6 +3750,12 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ 			}
+ 			logf("ConnectDone: connected to %s %s = %v", network, addr, err)
+ 		},
++		WroteHeaderField: func(key string, value []string) {
++			logf("WroteHeaderField: %s: %v", key, value)
++		},
++		WroteHeaders: func() {
++			logf("WroteHeaders")
++		},
+ 		Wait100Continue: func() { logf("Wait100Continue") },
+ 		Got100Continue:  func() { logf("Got100Continue") },
+ 		WroteRequest: func(e httptrace.WroteRequestInfo) {
+@@ -3817,7 +3825,15 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ 		wantOnce("tls handshake done")
+ 	} else {
+ 		wantOnce("PutIdleConn = <nil>")
+-	}
++		wantOnce("WroteHeaderField: User-Agent: [Go-http-client/1.1]")
++		// TODO(meirf): issue 19761. Make these agnostic to h1/h2. (These are not h1 specific, but the
++		// WroteHeaderField hook is not yet implemented in h2.)
++		wantOnce(fmt.Sprintf("WroteHeaderField: Host: [dns-is-faked.golang:%s]", port))
++		wantOnce(fmt.Sprintf("WroteHeaderField: Content-Length: [%d]", len(body)))
++		wantOnce("WroteHeaderField: X-Foo-Multiple-Vals: [bar baz]")
++		wantOnce("WroteHeaderField: Accept-Encoding: [gzip]")
++	}
++	wantOnce("WroteHeaders")
+ 	wantOnce("Wait100Continue")
+ 	wantOnce("Got100Continue")
+ 	wantOnce("WroteRequest: {Err:<nil>}")

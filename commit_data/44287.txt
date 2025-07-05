@@ -12,8 +12,72 @@ Date:   Thu Jun 4 16:20:39 2020 -0400
     Change-Id: I6e8f76670593c089de895e1665b41d874f879df9
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236599
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  doc/go1.15.html        | 8 ++++++--
  src/cmd/asm/doc.go     | 7 +++++--
  src/cmd/compile/doc.go | 2 ++
  3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 7a1924227c..d17888732b 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -246,7 +246,11 @@ TODO
+ </p>
+ 
+ <p><!-- CL 222661 -->
+-  TODO: -spectre flags
++  Go 1.15 adds a <code>-spectre</code> flag to both the
++  compiler and the assembler, to allow enabling Spectre mitigations.
++  These should almost never be needed and are provided mainly as a
++  “defense in depth” mechanism.
++  See the <a href="https://github.com/golang/go/wiki/Spectre">Spectre wiki page</a> for details.
+ </p>
+ 
+ <h2 id="linker">Linker</h2>
+@@ -276,7 +280,7 @@ TODO
+   These changes are part of a multi-release project
+   to <a href="https://golang.org/s/better-linker">modernize the Go
+   linker</a>, meaning that there will be additional linker
+-  improvements expected in future releases. 
++  improvements expected in future releases.
+ </p>
+ 
+ <h2 id="library">Core library</h2>
+diff --git a/src/cmd/asm/doc.go b/src/cmd/asm/doc.go
+index 8bf0acac25..4a0c785aad 100644
+--- a/src/cmd/asm/doc.go
++++ b/src/cmd/asm/doc.go
+@@ -33,14 +33,17 @@ Flags:
+ 		Dump instructions as they are parsed.
+ 	-dynlink
+ 		Support references to Go symbols defined in other shared libraries.
++	-gensymabis
++		Write symbol ABI information to output file. Don't assemble.
+ 	-o file
+ 		Write output to file. The default is foo.o for /a/b/c/foo.s.
+ 	-shared
+ 		Generate code that can be linked into a shared library.
++	-spectre list
++		Enable spectre mitigations in list (all, ret).
+ 	-trimpath prefix
+ 		Remove prefix from recorded source file paths.
+-	-gensymabis
+-		Write symbol ABI information to output file. Don't assemble.
++
+ Input language:
+ 
+ The assembler uses mostly the same syntax for all architectures,
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 36dd4bb5cd..46d4722086 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -107,6 +107,8 @@ Flags:
+ 		Warn about composite literals that can be simplified.
+ 	-shared
+ 		Generate code that can be linked into a shared library.
++	-spectre list
++		Enable spectre mitigations in list (all, index, ret).
+ 	-traceprofile file
+ 		Write an execution trace to file.
+ 	-trimpath prefix

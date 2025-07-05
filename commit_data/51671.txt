@@ -20,7 +20,95 @@ Date:   Tue Feb 15 13:46:56 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/dnsclient_unix.go      | 13 ++++++++++
  src/net/dnsclient_unix_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 68 insertions(+)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 9a4a6ee68c..b989d12c58 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -60,6 +60,19 @@ func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err er
+ 	if err := b.Question(q); err != nil {
+ 		return 0, nil, nil, err
+ 	}
++
++	// Accept packets up to maxDNSPacketSize.  RFC 6891.
++	if err := b.StartAdditionals(); err != nil {
++		return 0, nil, nil, err
++	}
++	var rh dnsmessage.ResourceHeader
++	if err := rh.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false); err != nil {
++		return 0, nil, nil, err
++	}
++	if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
++		return 0, nil, nil, err
++	}
++
+ 	tcpReq, err = b.Finish()
+ 	udpReq = tcpReq[2:]
+ 	l := len(tcpReq) - 2
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index e46decab16..e5f01dba2a 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -2161,3 +2161,58 @@ func TestRootNS(t *testing.T) {
+ 		t.Errorf("records = [%v]; want [%v]", strings.Join(records, " "), want[0])
+ 	}
+ }
++
++// Test that we advertise support for a larger DNS packet size.
++// This isn't a great test as it just tests the dnsmessage package
++// against itself.
++func TestDNSPacketSize(t *testing.T) {
++	fake := fakeDNSServer{
++		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
++			if len(q.Additionals) == 0 {
++				t.Error("missing EDNS record")
++			} else if opt, ok := q.Additionals[0].Body.(*dnsmessage.OPTResource); !ok {
++				t.Errorf("additional record type %T, expected OPTResource", q.Additionals[0])
++			} else if len(opt.Options) != 0 {
++				t.Errorf("found %d Options, expected none", len(opt.Options))
++			} else {
++				got := int(q.Additionals[0].Header.Class)
++				t.Logf("EDNS packet size == %d", got)
++				if got != maxDNSPacketSize {
++					t.Errorf("EDNS packet size == %d, want %d", got, maxDNSPacketSize)
++				}
++			}
++
++			// Hand back a dummy answer to verify that
++			// LookupIPAddr completes.
++			r := dnsmessage.Message{
++				Header: dnsmessage.Header{
++					ID:       q.Header.ID,
++					Response: true,
++					RCode:    dnsmessage.RCodeSuccess,
++				},
++				Questions: q.Questions,
++			}
++			if q.Questions[0].Type == dnsmessage.TypeA {
++				r.Answers = []dnsmessage.Resource{
++					{
++						Header: dnsmessage.ResourceHeader{
++							Name:   q.Questions[0].Name,
++							Type:   dnsmessage.TypeA,
++							Class:  dnsmessage.ClassINET,
++							Length: 4,
++						},
++						Body: &dnsmessage.AResource{
++							A: TestAddr,
++						},
++					},
++				}
++			}
++			return r, nil
++		},
++	}
++
++	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
++	if _, err := r.LookupIPAddr(context.Background(), "go.dev"); err != nil {
++		t.Errorf("lookup failed: %v", err)
++	}
++}

@@ -13,6 +13,30 @@ Date:   Thu May 25 12:37:52 2023 +0200
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/file.go | 12 ------------
  1 file changed, 12 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 7fd2f5d202..806c1f2045 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -622,18 +622,6 @@ func DirFS(dir string) fs.FS {
+ 	return dirFS(dir)
+ }
+ 
+-// containsAny reports whether any bytes in chars are within s.
+-func containsAny(s, chars string) bool {
+-	for i := 0; i < len(s); i++ {
+-		for j := 0; j < len(chars); j++ {
+-			if s[i] == chars[j] {
+-				return true
+-			}
+-		}
+-	}
+-	return false
+-}
+-
+ type dirFS string
+ 
+ func (dir dirFS) Open(name string) (fs.File, error) {

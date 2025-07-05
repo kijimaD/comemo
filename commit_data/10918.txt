@@ -7,6 +7,20 @@ Date:   Tue Dec 20 15:30:36 2011 -0800
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/5502051
-
+---
  src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 90e8797c09..7d8b9bce06 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -59,7 +59,7 @@ if $USE_GO_TOOL; then
+ 	go test runtime -short -cpu=1,2,4
+ else
+ 	(xcd pkg/runtime;
+-	go test -short -cpu=1,2,4
++	gotest -short -cpu=1,2,4
+ 	) || exit $?
+ fi
+ 

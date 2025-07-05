@@ -16,6 +16,19 @@ Date:   Thu Mar 9 22:02:13 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index d301d15eb1..7d964b309e 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -929,7 +929,6 @@ func (c *blockingRemoteAddrConn) RemoteAddr() net.Addr {
+ 
+ // Issue 12943
+ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
+-	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "RA:%s", r.RemoteAddr)

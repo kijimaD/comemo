@@ -9,6 +9,29 @@ Date:   Sat Jan 10 01:13:58 2015 +0100
     Change-Id: I7de2a7d585d56b84ab975565042ed997e6124e08
     Reviewed-on: https://go-review.googlesource.com/2613
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 539c5e81cf..54d2126aec 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"net/url"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -214,6 +215,9 @@ func TestReverseProxyFlushInterval(t *testing.T) {
+ }
+ 
+ func TestReverseProxyCancellation(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/9554")
++	}
+ 	const backendResponse = "I am the backend"
+ 
+ 	reqInFlight := make(chan struct{})

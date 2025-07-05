@@ -11,8 +11,112 @@ Date:   Tue Mar 17 12:17:47 2015 -0400
     Change-Id: Ib94f90903d426a02cf488bf0e2ef67a068eb3eec
     Reviewed-on: https://go-review.googlesource.com/8837
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go      | 23 ++++++++++++++++++++++-
  src/runtime/mgcmark.go  | 13 +++++++++++++
  src/runtime/runtime2.go |  3 +++
  3 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index fba57db9ac..7efd8d6d06 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -203,6 +203,12 @@ type gcControllerState struct {
+ 	// it is both written and read throughout the cycle.
+ 	bgScanCredit int64
+ 
++	// assistTime is the nanoseconds spent in mutator assists
++	// during this cycle. This is updated atomically. Updates
++	// occur in bounded batches, since it is both written and read
++	// throughout the cycle.
++	assistTime int64
++
+ 	// workRatioAvg is a moving average of the scan work ratio
+ 	// (scan work per byte marked).
+ 	workRatioAvg float64
+@@ -214,10 +220,11 @@ type gcControllerState struct {
+ }
+ 
+ // startCycle resets the GC controller's state and computes estimates
+-// for a new GC cycle.
++// for a new GC cycle. The caller must hold worldsema.
+ func (c *gcControllerState) startCycle() {
+ 	c.scanWork = 0
+ 	c.bgScanCredit = 0
++	c.assistTime = 0
+ 
+ 	// If this is the first GC cycle or we're operating on a very
+ 	// small heap, fake heap_marked so it looks like next_gc is
+@@ -247,6 +254,16 @@ func (c *gcControllerState) startCycle() {
+ 		heapDistance = 1024 * 1024
+ 	}
+ 	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
++
++	// Clear per-P state
++	for _, p := range &allp {
++		if p == nil {
++			break
++		}
++		p.gcAssistTime = 0
++	}
++
++	return
+ }
+ 
+ // endCycle updates the GC controller state at the end of the
+@@ -269,6 +286,10 @@ func (c *gcControllerState) endCycle() {
+ // memory contention.
+ const gcBgCreditSlack = 2000
+ 
++// gcAssistTimeSlack is the nanoseconds of mutator assist time that
++// can accumulate on a P before updating gcController.assistTime.
++const gcAssistTimeSlack = 5000
++
+ // Determine whether to initiate a GC.
+ // If the GC is already working no need to trigger another one.
+ // This should establish a feedback loop where if the GC does not
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index c28388f3ed..966cc28c8c 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -221,6 +221,11 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 
+ 	// Perform assist work
+ 	systemstack(func() {
++		// Track time spent in this assist. Since we're on the
++		// system stack, this is non-preemptible, so we can
++		// just measure start and end time.
++		startTime := nanotime()
++
+ 		// drain own current wbuf first in the hopes that it
+ 		// will be more cache friendly.
+ 		var gcw gcWork
+@@ -234,6 +239,14 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 		// per-P gcWork cache (probably combined with the
+ 		// write barrier wbuf cache).
+ 		gcw.dispose()
++
++		duration := nanotime() - startTime
++		_p_ := gp.m.p.ptr()
++		_p_.gcAssistTime += duration
++		if _p_.gcAssistTime > gcAssistTimeSlack {
++			xaddint64(&gcController.assistTime, _p_.gcAssistTime)
++			_p_.gcAssistTime = 0
++		}
+ 	})
+ }
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 18722bc6d3..fe3d0326c2 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -366,6 +366,9 @@ type p struct {
+ 
+ 	palloc persistentAlloc // per-P to avoid mutex
+ 
++	// Per-P GC state
++	gcAssistTime int64 // Nanoseconds in assistAlloc
++
+ 	pad [64]byte
+ }
+ 

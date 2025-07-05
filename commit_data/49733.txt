@@ -13,7 +13,7 @@ Date:   Wed Sep 8 11:46:58 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/ast/ast.go         | 20 ++++++++++----------
  src/go/ast/walk.go        |  8 ++++----
  src/go/parser/parser.go   | 18 +++++++++---------
@@ -24,3 +24,282 @@ Date:   Wed Sep 8 11:46:58 2021 -0400
  src/go/types/resolver.go  | 12 ++++++------
  src/go/types/signature.go |  6 +++---
  9 files changed, 47 insertions(+), 47 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index b0f1330564..f9223e4f91 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -451,10 +451,10 @@ type (
+ 
+ 	// A FuncType node represents a function type.
+ 	FuncType struct {
+-		Func    token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
+-		TParams *FieldList // type parameters; or nil
+-		Params  *FieldList // (incoming) parameters; non-nil
+-		Results *FieldList // (outgoing) results; or nil
++		Func       token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
++		TypeParams *FieldList // type parameters; or nil
++		Params     *FieldList // (incoming) parameters; non-nil
++		Results    *FieldList // (outgoing) results; or nil
+ 	}
+ 
+ 	// An InterfaceType node represents an interface type.
+@@ -915,12 +915,12 @@ type (
+ 
+ 	// A TypeSpec node represents a type declaration (TypeSpec production).
+ 	TypeSpec struct {
+-		Doc     *CommentGroup // associated documentation; or nil
+-		Name    *Ident        // type name
+-		TParams *FieldList    // type parameters; or nil
+-		Assign  token.Pos     // position of '=', if any
+-		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+-		Comment *CommentGroup // line comments; or nil
++		Doc        *CommentGroup // associated documentation; or nil
++		Name       *Ident        // type name
++		TypeParams *FieldList    // type parameters; or nil
++		Assign     token.Pos     // position of '=', if any
++		Type       Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
++		Comment    *CommentGroup // line comments; or nil
+ 	}
+ )
+ 
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index c8abc40972..530735e76f 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -169,8 +169,8 @@ func Walk(v Visitor, node Node) {
+ 		Walk(v, n.Fields)
+ 
+ 	case *FuncType:
+-		if n.TParams != nil {
+-			Walk(v, n.TParams)
++		if n.TypeParams != nil {
++			Walk(v, n.TypeParams)
+ 		}
+ 		if n.Params != nil {
+ 			Walk(v, n.Params)
+@@ -326,8 +326,8 @@ func Walk(v Visitor, node Node) {
+ 			Walk(v, n.Doc)
+ 		}
+ 		Walk(v, n.Name)
+-		if n.TParams != nil {
+-			Walk(v, n.TParams)
++		if n.TypeParams != nil {
++			Walk(v, n.TypeParams)
+ 		}
+ 		Walk(v, n.Type)
+ 		if n.Comment != nil {
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 5a7becf6da..5c0af8d3b8 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -973,10 +973,10 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 				results := p.parseResult()
+ 				idents = []*ast.Ident{ident}
+ 				typ = &ast.FuncType{
+-					Func:    token.NoPos,
+-					TParams: tparams,
+-					Params:  params,
+-					Results: results,
++					Func:       token.NoPos,
++					TypeParams: tparams,
++					Params:     params,
++					Results:    results,
+ 				}
+ 			} else {
+ 				// embedded instantiated type
+@@ -2509,7 +2509,7 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword toke
+ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *ast.Ident, closeTok token.Token) {
+ 	list := p.parseParameterList(name0, closeTok, p.parseParamDecl, true)
+ 	closePos := p.expect(closeTok)
+-	spec.TParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
++	spec.TypeParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
+ 	// Type alias cannot have type parameters. Accept them for robustness but complain.
+ 	if p.tok == token.ASSIGN {
+ 		p.error(p.pos, "generic type cannot be alias")
+@@ -2639,10 +2639,10 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 		Recv: recv,
+ 		Name: ident,
+ 		Type: &ast.FuncType{
+-			Func:    pos,
+-			TParams: tparams,
+-			Params:  params,
+-			Results: results,
++			Func:       pos,
++			TypeParams: tparams,
++			Params:     params,
++			Results:    results,
+ 		},
+ 		Body: body,
+ 	}
+diff --git a/src/go/parser/resolver.go b/src/go/parser/resolver.go
+index cfdb5e1193..527f1691bd 100644
+--- a/src/go/parser/resolver.go
++++ b/src/go/parser/resolver.go
+@@ -454,10 +454,10 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ 				// at the identifier in the TypeSpec and ends at the end of the innermost
+ 				// containing block.
+ 				r.declare(spec, nil, r.topScope, ast.Typ, spec.Name)
+-				if spec.TParams != nil {
++				if spec.TypeParams != nil {
+ 					r.openScope(spec.Pos())
+ 					defer r.closeScope()
+-					r.walkTParams(spec.TParams)
++					r.walkTParams(spec.TypeParams)
+ 				}
+ 				ast.Walk(r, spec.Type)
+ 			}
+@@ -473,8 +473,8 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ 
+ 		// Type parameters are walked normally: they can reference each other, and
+ 		// can be referenced by normal parameters.
+-		if n.Type.TParams != nil {
+-			r.walkTParams(n.Type.TParams)
++		if n.Type.TypeParams != nil {
++			r.walkTParams(n.Type.TypeParams)
+ 			// TODO(rFindley): need to address receiver type parameters.
+ 		}
+ 
+@@ -499,7 +499,7 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ }
+ 
+ func (r *resolver) walkFuncType(typ *ast.FuncType) {
+-	// typ.TParams must be walked separately for FuncDecls.
++	// typ.TypeParams must be walked separately for FuncDecls.
+ 	r.resolveList(typ.Params)
+ 	r.resolveList(typ.Results)
+ 	r.declareList(typ.Params, ast.Var)
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 58887153f2..9ce0115426 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -382,8 +382,8 @@ func (p *printer) parameters(fields *ast.FieldList, isTypeParam bool) {
+ }
+ 
+ func (p *printer) signature(sig *ast.FuncType) {
+-	if sig.TParams != nil {
+-		p.parameters(sig.TParams, true)
++	if sig.TypeParams != nil {
++		p.parameters(sig.TypeParams, true)
+ 	}
+ 	if sig.Params != nil {
+ 		p.parameters(sig.Params, false)
+@@ -1632,8 +1632,8 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
+ 	case *ast.TypeSpec:
+ 		p.setComment(s.Doc)
+ 		p.expr(s.Name)
+-		if s.TParams != nil {
+-			p.parameters(s.TParams, true)
++		if s.TypeParams != nil {
++			p.parameters(s.TypeParams, true)
+ 		}
+ 		if n == 1 {
+ 			p.print(blank)
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index b48081f0b1..6dac807c75 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -589,7 +589,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	})
+ 
+ 	alias := tdecl.Assign.IsValid()
+-	if alias && tdecl.TParams.NumFields() != 0 {
++	if alias && tdecl.TypeParams.NumFields() != 0 {
+ 		// The parser will ensure this but we may still get an invalid AST.
+ 		// Complain and continue as regular type definition.
+ 		check.error(atPos(tdecl.Assign), 0, "generic type cannot be alias")
+@@ -612,10 +612,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	named := check.newNamed(obj, nil, nil, nil, nil)
+ 	def.setUnderlying(named)
+ 
+-	if tdecl.TParams != nil {
++	if tdecl.TypeParams != nil {
+ 		check.openScope(tdecl, "type parameters")
+ 		defer check.closeScope()
+-		named.tparams = check.collectTypeParams(tdecl.TParams)
++		named.tparams = check.collectTypeParams(tdecl.TypeParams)
+ 	}
+ 
+ 	// determine underlying type of named
+@@ -791,7 +791,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	check.funcType(sig, fdecl.Recv, fdecl.Type)
+ 	obj.color_ = saved
+ 
+-	if fdecl.Type.TParams.NumFields() > 0 && fdecl.Body == nil {
++	if fdecl.Type.TypeParams.NumFields() > 0 && fdecl.Body == nil {
+ 		check.softErrorf(fdecl.Name, _Todo, "parameterized function is missing function body")
+ 	}
+ 
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index ebd246da98..2211e37c59 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -194,8 +194,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		// a receiver specification.)
+ 		if sig.tparams != nil {
+ 			var at positioner = f.Type
+-			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TParams != nil {
+-				at = ftyp.TParams
++			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
++				at = ftyp.TypeParams
+ 			}
+ 			check.errorf(at, _Todo, "methods cannot have type parameters")
+ 		}
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index fb7e0cc474..b04a673ab7 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -381,8 +381,8 @@ func (check *Checker) collectObjects() {
+ 					check.declarePkgObj(name, obj, di)
+ 				}
+ 			case typeDecl:
+-				if d.spec.TParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) {
+-					check.softErrorf(d.spec.TParams.List[0], _Todo, "type parameters require go1.18 or later")
++				if d.spec.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) {
++					check.softErrorf(d.spec.TypeParams.List[0], _Todo, "type parameters require go1.18 or later")
+ 				}
+ 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
+ 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
+@@ -401,8 +401,8 @@ func (check *Checker) collectObjects() {
+ 						if name == "main" {
+ 							code = _InvalidMainDecl
+ 						}
+-						if d.decl.Type.TParams.NumFields() != 0 {
+-							check.softErrorf(d.decl.Type.TParams.List[0], code, "func %s must have no type parameters", name)
++						if d.decl.Type.TypeParams.NumFields() != 0 {
++							check.softErrorf(d.decl.Type.TypeParams.List[0], code, "func %s must have no type parameters", name)
+ 							hasTParamError = true
+ 						}
+ 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
+@@ -439,8 +439,8 @@ func (check *Checker) collectObjects() {
+ 					}
+ 					check.recordDef(d.decl.Name, obj)
+ 				}
+-				if d.decl.Type.TParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+-					check.softErrorf(d.decl.Type.TParams.List[0], _Todo, "type parameters require go1.18 or later")
++				if d.decl.Type.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
++					check.softErrorf(d.decl.Type.TypeParams.List[0], _Todo, "type parameters require go1.18 or later")
+ 				}
+ 				info := &declInfo{file: fileScope, fdecl: d.decl}
+ 				// Methods are not package-level objects but we still track them in the
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 54e2e3e1ea..6b3cf72704 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -151,13 +151,13 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		}
+ 	}
+ 
+-	if ftyp.TParams != nil {
+-		sig.tparams = check.collectTypeParams(ftyp.TParams)
++	if ftyp.TypeParams != nil {
++		sig.tparams = check.collectTypeParams(ftyp.TypeParams)
+ 		// Always type-check method type parameters but complain that they are not allowed.
+ 		// (A separate check is needed when type-checking interface method signatures because
+ 		// they don't have a receiver specification.)
+ 		if recvPar != nil {
+-			check.errorf(ftyp.TParams, _Todo, "methods cannot have type parameters")
++			check.errorf(ftyp.TypeParams, _Todo, "methods cannot have type parameters")
+ 		}
+ 	}
+ 

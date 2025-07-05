@@ -14,10 +14,248 @@ Date:   Sat Nov 13 02:18:30 2021 +0200
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  api/next/47209.txt                    |  2 ++
  src/cmd/go/internal/fsys/fsys_test.go | 36 ++++++++++++++++++++++
  src/io/fs/walk.go                     | 20 ++++++++----
  src/path/filepath/path.go             | 16 +++++++---
  src/path/filepath/path_test.go        | 58 +++++++++++++++++++++++++++++++++++
  5 files changed, 121 insertions(+), 11 deletions(-)
+
+diff --git a/api/next/47209.txt b/api/next/47209.txt
+new file mode 100644
+index 0000000000..fd4969c215
+--- /dev/null
++++ b/api/next/47209.txt
+@@ -0,0 +1,2 @@
++pkg io/fs, var SkipAll error #47209
++pkg path/filepath, var SkipAll error #47209
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 8cfe1d89e6..41da4f4b02 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -760,6 +760,42 @@ func TestWalkSkipDir(t *testing.T) {
+ 	}
+ }
+ 
++func TestWalkSkipAll(t *testing.T) {
++	initOverlay(t, `
++{
++	"Replace": {
++		"dir/subdir1/foo1": "dummy.txt",
++		"dir/subdir1/foo2": "dummy.txt",
++		"dir/subdir1/foo3": "dummy.txt",
++		"dir/subdir2/foo4": "dummy.txt",
++		"dir/zzlast": "dummy.txt"
++	}
++}
++-- dummy.txt --
++`)
++
++	var seen []string
++	Walk("dir", func(path string, info fs.FileInfo, err error) error {
++		seen = append(seen, filepath.ToSlash(path))
++		if info.Name() == "foo2" {
++			return filepath.SkipAll
++		}
++		return nil
++	})
++
++	wantSeen := []string{"dir", "dir/subdir1", "dir/subdir1/foo1", "dir/subdir1/foo2"}
++
++	if len(seen) != len(wantSeen) {
++		t.Errorf("paths seen in walk: got %v entries; want %v entries", len(seen), len(wantSeen))
++	}
++
++	for i := 0; i < len(seen) && i < len(wantSeen); i++ {
++		if seen[i] != wantSeen[i] {
++			t.Errorf("path %#v seen walking tree: got %q, want %q", i, seen[i], wantSeen[i])
++		}
++	}
++}
++
+ func TestWalkError(t *testing.T) {
+ 	initOverlay(t, "{}")
+ 
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index 37800794a2..cff26104f0 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -14,6 +14,11 @@ import (
+ // as an error by any function.
+ var SkipDir = errors.New("skip this directory")
+ 
++// SkipAll is used as a return value from WalkDirFuncs to indicate that
++// all remaining files and directories are to be skipped. It is not returned
++// as an error by any function.
++var SkipAll = errors.New("skip everything and stop the walk")
++
+ // WalkDirFunc is the type of the function called by WalkDir to visit
+ // each file or directory.
+ //
+@@ -27,8 +32,10 @@ var SkipDir = errors.New("skip this directory")
+ // The error result returned by the function controls how WalkDir
+ // continues. If the function returns the special value SkipDir, WalkDir
+ // skips the current directory (path if d.IsDir() is true, otherwise
+-// path's parent directory). Otherwise, if the function returns a non-nil
+-// error, WalkDir stops entirely and returns that error.
++// path's parent directory). If the function returns the special value
++// SkipAll, WalkDir skips all remaining files and directories. Otherwise,
++// if the function returns a non-nil error, WalkDir stops entirely and
++// returns that error.
+ //
+ // The err argument reports an error related to path, signaling that
+ // WalkDir will not walk into that directory. The function can decide how
+@@ -47,15 +54,16 @@ var SkipDir = errors.New("skip this directory")
+ // ReadDir. In this second case, the function is called twice with the
+ // path of the directory: the first call is before the directory read is
+ // attempted and has err set to nil, giving the function a chance to
+-// return SkipDir and avoid the ReadDir entirely. The second call is
+-// after a failed ReadDir and reports the error from ReadDir.
++// return SkipDir or SkipAll and avoid the ReadDir entirely. The second call
++// is after a failed ReadDir and reports the error from ReadDir.
+ // (If ReadDir succeeds, there is no second call.)
+ //
+ // The differences between WalkDirFunc compared to filepath.WalkFunc are:
+ //
+ //   - The second argument has type fs.DirEntry instead of fs.FileInfo.
+ //   - The function is called before reading a directory, to allow SkipDir
+-//     to bypass the directory read entirely.
++//     or SkipAll to bypass the directory read entirely or skip all remaining
++//     files and directories respectively.
+ //   - If a directory read fails, the function is called a second time
+ //     for that directory to report the error.
+ type WalkDirFunc func(path string, d DirEntry, err error) error
+@@ -113,7 +121,7 @@ func WalkDir(fsys FS, root string, fn WalkDirFunc) error {
+ 	} else {
+ 		err = walkDir(fsys, root, &statDirEntry{info}, fn)
+ 	}
+-	if err == SkipDir {
++	if err == SkipDir || err == SkipAll {
+ 		return nil
+ 	}
+ 	return err
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index de7a2c758b..c86b0c0ff8 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -352,6 +352,11 @@ func Rel(basepath, targpath string) (string, error) {
+ // as an error by any function.
+ var SkipDir error = fs.SkipDir
+ 
++// SkipAll is used as a return value from WalkFuncs to indicate that
++// all remaining files and directories are to be skipped. It is not returned
++// as an error by any function.
++var SkipAll error = fs.SkipAll
++
+ // WalkFunc is the type of the function called by Walk to visit each
+ // file or directory.
+ //
+@@ -370,8 +375,9 @@ var SkipDir error = fs.SkipDir
+ // The error result returned by the function controls how Walk continues.
+ // If the function returns the special value SkipDir, Walk skips the
+ // current directory (path if info.IsDir() is true, otherwise path's
+-// parent directory). Otherwise, if the function returns a non-nil error,
+-// Walk stops entirely and returns that error.
++// parent directory). If the function returns the special value SkipAll,
++// Walk skips all remaining files and directories. Otherwise, if the function
++// returns a non-nil error, Walk stops entirely and returns that error.
+ //
+ // The err argument reports an error related to path, signaling that Walk
+ // will not walk into that directory. The function can decide how to
+@@ -441,7 +447,7 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
+ 	if err != nil || err1 != nil {
+ 		// The caller's behavior is controlled by the return value, which is decided
+ 		// by walkFn. walkFn may ignore err and return nil.
+-		// If walkFn returns SkipDir, it will be handled by the caller.
++		// If walkFn returns SkipDir or SkipAll, it will be handled by the caller.
+ 		// So walk should return whatever walkFn returns.
+ 		return err1
+ 	}
+@@ -483,7 +489,7 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
+ 	} else {
+ 		err = walkDir(root, &statDirEntry{info}, fn)
+ 	}
+-	if err == SkipDir {
++	if err == SkipDir || err == SkipAll {
+ 		return nil
+ 	}
+ 	return err
+@@ -519,7 +525,7 @@ func Walk(root string, fn WalkFunc) error {
+ 	} else {
+ 		err = walk(root, info, fn)
+ 	}
+-	if err == SkipDir {
++	if err == SkipDir || err == SkipAll {
+ 		return nil
+ 	}
+ 	return err
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index a783d6be28..9bdc58ea35 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -638,6 +638,64 @@ func TestWalkSkipDirOnFile(t *testing.T) {
+ 	})
+ }
+ 
++func TestWalkSkipAllOnFile(t *testing.T) {
++	td := t.TempDir()
++
++	if err := os.MkdirAll(filepath.Join(td, "dir", "subdir"), 0755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.MkdirAll(filepath.Join(td, "dir2"), 0755); err != nil {
++		t.Fatal(err)
++	}
++
++	touch(t, filepath.Join(td, "dir", "foo1"))
++	touch(t, filepath.Join(td, "dir", "foo2"))
++	touch(t, filepath.Join(td, "dir", "subdir", "foo3"))
++	touch(t, filepath.Join(td, "dir", "foo4"))
++	touch(t, filepath.Join(td, "dir2", "bar"))
++	touch(t, filepath.Join(td, "last"))
++
++	remainingWereSkipped := true
++	walker := func(path string) error {
++		if strings.HasSuffix(path, "foo2") {
++			return filepath.SkipAll
++		}
++
++		if strings.HasSuffix(path, "foo3") ||
++			strings.HasSuffix(path, "foo4") ||
++			strings.HasSuffix(path, "bar") ||
++			strings.HasSuffix(path, "last") {
++			remainingWereSkipped = false
++		}
++		return nil
++	}
++
++	walkFn := func(path string, _ fs.FileInfo, _ error) error { return walker(path) }
++	walkDirFn := func(path string, _ fs.DirEntry, _ error) error { return walker(path) }
++
++	check := func(t *testing.T, walk func(root string) error, root string) {
++		t.Helper()
++		remainingWereSkipped = true
++		if err := walk(root); err != nil {
++			t.Fatal(err)
++		}
++		if !remainingWereSkipped {
++			t.Errorf("SkipAll on file foo2 did not block processing of remaining files and directories")
++		}
++	}
++
++	t.Run("Walk", func(t *testing.T) {
++		Walk := func(_ string) error { return filepath.Walk(td, walkFn) }
++		check(t, Walk, td)
++		check(t, Walk, filepath.Join(td, "dir"))
++	})
++	t.Run("WalkDir", func(t *testing.T) {
++		WalkDir := func(_ string) error { return filepath.WalkDir(td, walkDirFn) }
++		check(t, WalkDir, td)
++		check(t, WalkDir, filepath.Join(td, "dir"))
++	})
++}
++
+ func TestWalkFileError(t *testing.T) {
+ 	td := t.TempDir()
+ 

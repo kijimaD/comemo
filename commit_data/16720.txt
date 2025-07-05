@@ -9,6 +9,20 @@ Date:   Wed Jul 10 10:14:31 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/11073043
-
+---
  src/pkg/encoding/xml/read.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index a7a2a9655b..f960f5649c 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -57,7 +57,7 @@ import (
+ //      If there is no such field, the character data is discarded.
+ //
+ //   * If the XML element contains comments, they are accumulated in
+-//      the first struct field that has tag ",comments".  The struct
++//      the first struct field that has tag ",comment".  The struct
+ //      field may have type []byte or string.  If there is no such
+ //      field, the comments are discarded.
+ //

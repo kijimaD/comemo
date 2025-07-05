@@ -7,8 +7,188 @@ Date:   Thu Jun 30 09:44:23 2011 -0700
     R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
     https://golang.org/cl/4635042
-
+---
  src/pkg/http/cgi/host.go           | 24 +++++++++---
  src/pkg/http/cgi/host_test.go      | 76 ++++++++++++++++++++++++++++++++++++++
  src/pkg/http/cgi/testdata/test.cgi | 14 +++++++
  3 files changed, 108 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 01a941650b..059fc758e3 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -46,6 +46,12 @@ type Handler struct {
+ 	Path string // path to the CGI executable
+ 	Root string // root URI prefix of handler or empty for "/"
+ 
++	// Dir specifies the CGI executable's working directory.
++	// If Dir is empty, the base directory of Path is used.
++	// If Path has no base directory, the current working
++	// directory is used.
++	Dir string
++
+ 	Env        []string    // extra environment variables to set, if any, as "key=value"
+ 	InheritEnv []string    // environment variables to inherit from host, as "key"
+ 	Logger     *log.Logger // optional log for errors or nil to use log.Print
+@@ -125,11 +131,11 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		env = append(env, h.Env...)
+ 	}
+ 
+-	path := os.Getenv("PATH")
+-	if path == "" {
+-		path = "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin"
++	envPath := os.Getenv("PATH")
++	if envPath == "" {
++		envPath = "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin"
+ 	}
+-	env = append(env, "PATH="+path)
++	env = append(env, "PATH="+envPath)
+ 
+ 	for _, e := range h.InheritEnv {
+ 		if v := os.Getenv(e); v != "" {
+@@ -143,7 +149,13 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		}
+ 	}
+ 
+-	cwd, pathBase := filepath.Split(h.Path)
++	var cwd, path string
++	if h.Dir != "" {
++		path = h.Path
++		cwd = h.Dir
++	} else {
++		cwd, path = filepath.Split(h.Path)
++	}
+ 	if cwd == "" {
+ 		cwd = "."
+ 	}
+@@ -154,7 +166,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	cmd := &exec.Cmd{
+-		Path:   pathBase,
++		Path:   path,
+ 		Args:   append([]string{h.Path}, h.Args...),
+ 		Dir:    cwd,
+ 		Env:    env,
+diff --git a/src/pkg/http/cgi/host_test.go b/src/pkg/http/cgi/host_test.go
+index 3b9dad5c0c..b08d8bbf68 100644
+--- a/src/pkg/http/cgi/host_test.go
++++ b/src/pkg/http/cgi/host_test.go
+@@ -13,8 +13,10 @@ import (
+ 	"http"
+ 	"http/httptest"
+ 	"os"
++	"path/filepath"
+ 	"strings"
+ 	"testing"
++	"runtime"
+ )
+ 
+ func newRequest(httpreq string) *http.Request {
+@@ -301,3 +303,77 @@ func TestInternalRedirect(t *testing.T) {
+ 	}
+ 	runCgiTest(t, h, "GET /test.cgi?loc=/foo HTTP/1.0\nHost: example.com\n\n", expectedMap)
+ }
++
++func TestDirUnix(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		return
++	}
++
++	cwd, _ := os.Getwd()
++	h := &Handler{
++		Path: "testdata/test.cgi",
++		Root: "/test.cgi",
++		Dir:  cwd,
++	}
++	expectedMap := map[string]string{
++		"cwd": cwd,
++	}
++	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
++
++	cwd, _ = os.Getwd()
++	cwd = filepath.Join(cwd, "testdata")
++	h = &Handler{
++		Path: "testdata/test.cgi",
++		Root: "/test.cgi",
++	}
++	expectedMap = map[string]string{
++		"cwd": cwd,
++	}
++	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
++}
++
++func TestDirWindows(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		return
++	}
++
++	cgifile, _ := filepath.Abs("testdata/test.cgi")
++
++	var perl string
++	var err os.Error
++	perl, err = exec.LookPath("perl")
++	if err != nil {
++		return
++	}
++	perl, _ = filepath.Abs(perl)
++
++	cwd, _ := os.Getwd()
++	h := &Handler{
++		Path: perl,
++		Root: "/test.cgi",
++		Dir:  cwd,
++		Args: []string{cgifile},
++		Env:  []string{"SCRIPT_FILENAME=" + cgifile},
++	}
++	expectedMap := map[string]string{
++		"cwd": cwd,
++	}
++	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
++
++	// If not specify Dir on windows, working directory should be
++	// base directory of perl.
++	cwd, _ = filepath.Split(perl)
++	if cwd != "" && cwd[len(cwd)-1] == filepath.Separator {
++		cwd = cwd[:len(cwd)-1]
++	}
++	h = &Handler{
++		Path: perl,
++		Root: "/test.cgi",
++		Args: []string{cgifile},
++		Env:  []string{"SCRIPT_FILENAME=" + cgifile},
++	}
++	expectedMap = map[string]string{
++		"cwd": cwd,
++	}
++	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
++}
+diff --git a/src/pkg/http/cgi/testdata/test.cgi b/src/pkg/http/cgi/testdata/test.cgi
+index a1b2ff893d..4779890703 100755
+--- a/src/pkg/http/cgi/testdata/test.cgi
++++ b/src/pkg/http/cgi/testdata/test.cgi
+@@ -7,6 +7,7 @@
+ 
+ use strict;
+ use CGI;
++use Cwd;
+ 
+ my $q = CGI->new;
+ my $params = $q->Vars;
+@@ -39,3 +40,16 @@ foreach my $k (sort keys %ENV) {
+   $clean_env =~ s/[\n\r]//g;
+   print "env-$k=$clean_env\n";
+ }
++
++# NOTE: don't call getcwd() for windows.
++# msys return /c/go/src/... not C:\go\...
++my $dir;
++if ($^O eq 'MSWin32' || $^O eq 'msys') {
++  my $cmd = $ENV{'COMSPEC'} || 'c:\\windows\\system32\\cmd.exe';
++  $cmd =~ s!\\!/!g;
++  $dir = `$cmd /c cd`;
++  chomp $dir;
++} else {
++  $dir = getcwd();
++}
++print "cwd=$dir\n";

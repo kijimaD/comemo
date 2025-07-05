@@ -14,7 +14,52 @@ Date:   Sun Oct 8 16:42:26 2023 +0800
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/example_test.go   | 11 +++++++++++
  src/strings/example_test.go | 11 +++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 20faf3e1f5..5a66b1e436 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -212,6 +212,17 @@ func ExampleContainsRune() {
+ 	// false
+ }
+ 
++func ExampleContainsFunc() {
++	f := func(r rune) bool {
++		return r >= 'a' && r <= 'z'
++	}
++	fmt.Println(bytes.ContainsFunc([]byte("HELLO"), f))
++	fmt.Println(bytes.ContainsFunc([]byte("World"), f))
++	// Output:
++	// false
++	// true
++}
++
+ func ExampleCount() {
+ 	fmt.Println(bytes.Count([]byte("cheese"), []byte("e")))
+ 	fmt.Println(bytes.Count([]byte("five"), []byte(""))) // before & after each rune
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index ab83e10de4..bdab7ae8de 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -80,6 +80,17 @@ func ExampleContainsRune() {
+ 	// false
+ }
+ 
++func ExampleContainsFunc() {
++	f := func(r rune) bool {
++		return r == 'a' || r == 'e' || r == 'i' || r == 'o' || r == 'u'
++	}
++	fmt.Println(strings.ContainsFunc("hello", f))
++	fmt.Println(strings.ContainsFunc("rhythms", f))
++	// Output:
++	// true
++	// false
++}
++
+ func ExampleCount() {
+ 	fmt.Println(strings.Count("cheese", "e"))
+ 	fmt.Println(strings.Count("five", "")) // before & after each rune

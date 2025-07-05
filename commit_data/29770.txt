@@ -25,7 +25,43 @@ Date:   Thu Sep 29 11:53:42 2016 -0400
     Change-Id: Ie1a1c6cf8c446e4b043f10f3968f91ff1b546d15
     Reviewed-on: https://go-review.googlesource.com/30017
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/trace/trace.go       | 3 +++
  src/internal/trace/parser.go | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 2b6a37bfd8..7d38ab0799 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -429,6 +429,9 @@ func generateTrace(params *traceParams) ViewerData {
+ 	ctx.emit(&ViewerEvent{Name: "process_name", Phase: "M", Pid: 1, Arg: &NameArg{"STATS"}})
+ 	ctx.emit(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: 1, Arg: &SortIndexArg{0}})
+ 
++	ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.GCP, Arg: &NameArg{"GC"}})
++	ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.GCP, Arg: &SortIndexArg{-6}})
++
+ 	ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.NetpollP, Arg: &NameArg{"Network"}})
+ 	ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.NetpollP, Arg: &SortIndexArg{-5}})
+ 
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index b1fc17ac58..527aba7ab4 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -56,6 +56,7 @@ const (
+ 	TimerP   // depicts timer unblocks
+ 	NetpollP // depicts network unblocks
+ 	SyscallP // depicts returns from syscalls
++	GCP      // depicts GC state
+ )
+ 
+ // Parse parses, post-processes and verifies the trace.
+@@ -548,6 +549,8 @@ func postProcessTrace(ver int, events []*Event) error {
+ 				return fmt.Errorf("previous GC is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
+ 			}
+ 			evGC = ev
++			// Attribute this to the global GC state.
++			ev.P = GCP
+ 		case EvGCDone:
+ 			if evGC == nil {
+ 				return fmt.Errorf("bogus GC end (offset %v, time %v)", ev.Off, ev.Ts)

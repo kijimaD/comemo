@@ -16,7 +16,7 @@ Date:   Fri Oct 28 10:54:37 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/446178
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/syscall/unix/asm_darwin.s         |  12 +++
  src/internal/syscall/unix/getentropy_darwin.go |   4 -
  src/internal/syscall/unix/net_darwin.go        | 116 +++++++++++++++++++++++++
@@ -29,3 +29,798 @@ Date:   Fri Oct 28 10:54:37 2022 -0400
  src/runtime/sys_darwin_amd64.s                 |  59 +++++++++++++
  src/runtime/sys_darwin_arm64.s                 |  57 ++++++++++++
  11 files changed, 467 insertions(+), 70 deletions(-)
+
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index 8fbdc1d866..02c9a3e7f3 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -6,3 +6,15 @@
+ 
+ TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getentropy(SB)
++
++TEXT ·libc_getaddrinfo_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_getaddrinfo(SB)
++
++TEXT ·libc_freeaddrinfo_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_freeaddrinfo(SB)
++
++TEXT ·libc_getnameinfo_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_getnameinfo(SB)
++
++TEXT ·libc_gai_strerror_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_gai_strerror(SB)
+diff --git a/src/internal/syscall/unix/getentropy_darwin.go b/src/internal/syscall/unix/getentropy_darwin.go
+index 7bab1f27b0..834099ffed 100644
+--- a/src/internal/syscall/unix/getentropy_darwin.go
++++ b/src/internal/syscall/unix/getentropy_darwin.go
+@@ -8,7 +8,6 @@ package unix
+ 
+ import (
+ 	"internal/abi"
+-	"syscall"
+ 	"unsafe"
+ )
+ 
+@@ -27,6 +26,3 @@ func GetEntropy(p []byte) error {
+ 	}
+ 	return nil
+ }
+-
+-//go:linkname syscall_syscall syscall.syscall
+-func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)
+diff --git a/src/internal/syscall/unix/net_darwin.go b/src/internal/syscall/unix/net_darwin.go
+new file mode 100644
+index 0000000000..e5a879c7e1
+--- /dev/null
++++ b/src/internal/syscall/unix/net_darwin.go
+@@ -0,0 +1,116 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"internal/abi"
++	"syscall"
++	"unsafe"
++)
++
++const (
++	AI_CANONNAME = 0x2
++	AI_ALL       = 0x100
++	AI_V4MAPPED  = 0x800
++	AI_MASK      = 0x1407
++
++	EAI_AGAIN    = 2
++	EAI_NONAME   = 8
++	EAI_SYSTEM   = 11
++	EAI_OVERFLOW = 14
++
++	NI_NAMEREQD = 4
++)
++
++type Addrinfo struct {
++	Flags     int32
++	Family    int32
++	Socktype  int32
++	Protocol  int32
++	Addrlen   uint32
++	Canonname *byte
++	Addr      *syscall.RawSockaddr
++	Next      *Addrinfo
++}
++
++//go:cgo_import_dynamic libc_getaddrinfo getaddrinfo "/usr/lib/libSystem.B.dylib"
++func libc_getaddrinfo_trampoline()
++
++func Getaddrinfo(hostname, servname *byte, hints *Addrinfo, res **Addrinfo) (int, error) {
++	gerrno, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_getaddrinfo_trampoline),
++		uintptr(unsafe.Pointer(hostname)),
++		uintptr(unsafe.Pointer(servname)),
++		uintptr(unsafe.Pointer(hints)),
++		uintptr(unsafe.Pointer(res)),
++		0,
++		0)
++	var err error
++	if errno != 0 {
++		err = errno
++	}
++	return int(gerrno), err
++}
++
++//go:cgo_import_dynamic libc_freeaddrinfo freeaddrinfo "/usr/lib/libSystem.B.dylib"
++func libc_freeaddrinfo_trampoline()
++
++func Freeaddrinfo(ai *Addrinfo) {
++	syscall_syscall6(abi.FuncPCABI0(libc_freeaddrinfo_trampoline),
++		uintptr(unsafe.Pointer(ai)),
++		0, 0, 0, 0, 0)
++}
++
++//go:cgo_import_dynamic libc_getnameinfo getnameinfo "/usr/lib/libSystem.B.dylib"
++func libc_getnameinfo_trampoline()
++
++func Getnameinfo(sa *syscall.RawSockaddr, salen int, host *byte, hostlen int, serv *byte, servlen int, flags int) (int, error) {
++	gerrno, _, errno := syscall_syscall9(abi.FuncPCABI0(libc_getnameinfo_trampoline),
++		uintptr(unsafe.Pointer(sa)),
++		uintptr(salen),
++		uintptr(unsafe.Pointer(host)),
++		uintptr(hostlen),
++		uintptr(unsafe.Pointer(serv)),
++		uintptr(servlen),
++		uintptr(flags),
++		0,
++		0)
++	var err error
++	if errno != 0 {
++		err = errno
++	}
++	return int(gerrno), err
++}
++
++//go:cgo_import_dynamic libc_gai_strerror gai_strerror "/usr/lib/libSystem.B.dylib"
++func libc_gai_strerror_trampoline()
++
++func GaiStrerror(ecode int) string {
++	r1, _, _ := syscall_syscall(abi.FuncPCABI0(libc_gai_strerror_trampoline),
++		uintptr(ecode),
++		0, 0)
++	return GoString((*byte)(unsafe.Pointer(r1)))
++}
++
++func GoString(p *byte) string {
++	if p == nil {
++		return ""
++	}
++	x := unsafe.Slice(p, 1e9)
++	for i, c := range x {
++		if c == 0 {
++			return string(x[:i])
++		}
++	}
++	return ""
++}
++
++//go:linkname syscall_syscall syscall.syscall
++func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)
++
++//go:linkname syscall_syscall6 syscall.syscall6
++func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
++
++//go:linkname syscall_syscall9 syscall.syscall9
++func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
+diff --git a/src/net/cgo_resnew.go b/src/net/cgo_resnew.go
+index fa6e68770c..3f21c5c4c4 100644
+--- a/src/net/cgo_resnew.go
++++ b/src/net/cgo_resnew.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && !netgo && (darwin || (linux && !android) || netbsd || solaris)
++//go:build cgo && !netgo && ((linux && !android) || netbsd || solaris)
+ 
+ package net
+ 
+diff --git a/src/net/cgo_sockold.go b/src/net/cgo_sockold.go
+index 4d9869de04..d0a99e073d 100644
+--- a/src/net/cgo_sockold.go
++++ b/src/net/cgo_sockold.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && !netgo && (aix || darwin || dragonfly || freebsd || netbsd || openbsd)
++//go:build cgo && !netgo && (aix || dragonfly || freebsd || netbsd || openbsd)
+ 
+ package net
+ 
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 71d90560ac..81f492f4ef 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -2,25 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This file is called cgo_unix.go, but to allow syscalls-to-libc-based
++// implementations to share the code, it does not use cgo directly.
++// Instead of C.foo it uses _C_foo, which is defined in either
++// cgo_unix_cgo.go or cgo_unix_syscall.go
++
+ //go:build cgo && !netgo && unix
+ 
+ package net
+ 
+-/*
+-#include <sys/types.h>
+-#include <sys/socket.h>
+-#include <netinet/in.h>
+-#include <netdb.h>
+-#include <unistd.h>
+-#include <string.h>
+-
+-// If nothing else defined EAI_OVERFLOW, make sure it has a value.
+-#ifndef EAI_OVERFLOW
+-#define EAI_OVERFLOW -12
+-#endif
+-*/
+-import "C"
+-
+ import (
+ 	"context"
+ 	"syscall"
+@@ -32,8 +22,8 @@ import (
+ // by convention.
+ type addrinfoErrno int
+ 
+-func (eai addrinfoErrno) Error() string   { return C.GoString(C.gai_strerror(C.int(eai))) }
+-func (eai addrinfoErrno) Temporary() bool { return eai == C.EAI_AGAIN }
++func (eai addrinfoErrno) Error() string   { return _C_gai_strerror(_C_int(eai)) }
++func (eai addrinfoErrno) Temporary() bool { return eai == _C_EAI_AGAIN }
+ func (eai addrinfoErrno) Timeout() bool   { return false }
+ 
+ type portLookupResult struct {
+@@ -61,23 +51,23 @@ func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error,
+ }
+ 
+ func cgoLookupPort(ctx context.Context, network, service string) (port int, err error, completed bool) {
+-	var hints C.struct_addrinfo
++	var hints _C_struct_addrinfo
+ 	switch network {
+ 	case "": // no hints
+ 	case "tcp", "tcp4", "tcp6":
+-		hints.ai_socktype = C.SOCK_STREAM
+-		hints.ai_protocol = C.IPPROTO_TCP
++		*_C_ai_socktype(&hints) = _C_SOCK_STREAM
++		*_C_ai_protocol(&hints) = _C_IPPROTO_TCP
+ 	case "udp", "udp4", "udp6":
+-		hints.ai_socktype = C.SOCK_DGRAM
+-		hints.ai_protocol = C.IPPROTO_UDP
++		*_C_ai_socktype(&hints) = _C_SOCK_DGRAM
++		*_C_ai_protocol(&hints) = _C_IPPROTO_UDP
+ 	default:
+ 		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}, true
+ 	}
+ 	switch ipVersion(network) {
+ 	case '4':
+-		hints.ai_family = C.AF_INET
++		*_C_ai_family(&hints) = _C_AF_INET
+ 	case '6':
+-		hints.ai_family = C.AF_INET6
++		*_C_ai_family(&hints) = _C_AF_INET6
+ 	}
+ 	if ctx.Done() == nil {
+ 		port, err := cgoLookupServicePort(&hints, network, service)
+@@ -95,19 +85,19 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err
+ 	}
+ }
+ 
+-func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (port int, err error) {
++func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (port int, err error) {
+ 	cservice := make([]byte, len(service)+1)
+ 	copy(cservice, service)
+ 	// Lowercase the C service name.
+ 	for i, b := range cservice[:len(service)] {
+ 		cservice[i] = lowerASCII(b)
+ 	}
+-	var res *C.struct_addrinfo
+-	gerrno, err := C.getaddrinfo(nil, (*C.char)(unsafe.Pointer(&cservice[0])), hints, &res)
++	var res *_C_struct_addrinfo
++	gerrno, err := _C_getaddrinfo(nil, (*_C_char)(unsafe.Pointer(&cservice[0])), hints, &res)
+ 	if gerrno != 0 {
+ 		isTemporary := false
+ 		switch gerrno {
+-		case C.EAI_SYSTEM:
++		case _C_EAI_SYSTEM:
+ 			if err == nil { // see golang.org/issue/6232
+ 				err = syscall.EMFILE
+ 			}
+@@ -117,16 +107,16 @@ func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (po
+ 		}
+ 		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service, IsTemporary: isTemporary}
+ 	}
+-	defer C.freeaddrinfo(res)
++	defer _C_freeaddrinfo(res)
+ 
+-	for r := res; r != nil; r = r.ai_next {
+-		switch r.ai_family {
+-		case C.AF_INET:
+-			sa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(r.ai_addr))
++	for r := res; r != nil; r = *_C_ai_next(r) {
++		switch *_C_ai_family(r) {
++		case _C_AF_INET:
++			sa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(*_C_ai_addr(r)))
+ 			p := (*[2]byte)(unsafe.Pointer(&sa.Port))
+ 			return int(p[0])<<8 | int(p[1]), nil
+-		case C.AF_INET6:
+-			sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(r.ai_addr))
++		case _C_AF_INET6:
++			sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(*_C_ai_addr(r)))
+ 			p := (*[2]byte)(unsafe.Pointer(&sa.Port))
+ 			return int(p[0])<<8 | int(p[1]), nil
+ 		}
+@@ -134,7 +124,7 @@ func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (po
+ 	return 0, &DNSError{Err: "unknown port", Name: network + "/" + service}
+ }
+ 
+-func cgoPortLookup(result chan<- portLookupResult, hints *C.struct_addrinfo, network, service string) {
++func cgoPortLookup(result chan<- portLookupResult, hints *_C_struct_addrinfo, network, service string) {
+ 	port, err := cgoLookupServicePort(hints, network, service)
+ 	result <- portLookupResult{port, err}
+ }
+@@ -143,29 +133,29 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
+ 	acquireThread()
+ 	defer releaseThread()
+ 
+-	var hints C.struct_addrinfo
+-	hints.ai_flags = cgoAddrInfoFlags
+-	hints.ai_socktype = C.SOCK_STREAM
+-	hints.ai_family = C.AF_UNSPEC
++	var hints _C_struct_addrinfo
++	*_C_ai_flags(&hints) = cgoAddrInfoFlags
++	*_C_ai_socktype(&hints) = _C_SOCK_STREAM
++	*_C_ai_family(&hints) = _C_AF_UNSPEC
+ 	switch ipVersion(network) {
+ 	case '4':
+-		hints.ai_family = C.AF_INET
++		*_C_ai_family(&hints) = _C_AF_INET
+ 	case '6':
+-		hints.ai_family = C.AF_INET6
++		*_C_ai_family(&hints) = _C_AF_INET6
+ 	}
+ 
+ 	h := make([]byte, len(name)+1)
+ 	copy(h, name)
+-	var res *C.struct_addrinfo
+-	gerrno, err := C.getaddrinfo((*C.char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
++	var res *_C_struct_addrinfo
++	gerrno, err := _C_getaddrinfo((*_C_char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
+ 	if gerrno != 0 {
+ 		isErrorNoSuchHost := false
+ 		isTemporary := false
+ 		switch gerrno {
+-		case C.EAI_SYSTEM:
++		case _C_EAI_SYSTEM:
+ 			if err == nil {
+ 				// err should not be nil, but sometimes getaddrinfo returns
+-				// gerrno == C.EAI_SYSTEM with err == nil on Linux.
++				// gerrno == _C_EAI_SYSTEM with err == nil on Linux.
+ 				// The report claims that it happens when we have too many
+ 				// open files, so use syscall.EMFILE (too many open files in system).
+ 				// Most system calls would return ENFILE (too many open files),
+@@ -173,7 +163,7 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
+ 				// comes up again. golang.org/issue/6232.
+ 				err = syscall.EMFILE
+ 			}
+-		case C.EAI_NONAME:
++		case _C_EAI_NONAME:
+ 			err = errNoSuchHost
+ 			isErrorNoSuchHost = true
+ 		default:
+@@ -183,10 +173,10 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
+ 
+ 		return nil, "", &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
+ 	}
+-	defer C.freeaddrinfo(res)
++	defer _C_freeaddrinfo(res)
+ 
+ 	if res != nil {
+-		cname = C.GoString(res.ai_canonname)
++		cname = _C_GoString(*_C_ai_canonname(res))
+ 		if cname == "" {
+ 			cname = name
+ 		}
+@@ -194,18 +184,18 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
+ 			cname += "."
+ 		}
+ 	}
+-	for r := res; r != nil; r = r.ai_next {
++	for r := res; r != nil; r = *_C_ai_next(r) {
+ 		// We only asked for SOCK_STREAM, but check anyhow.
+-		if r.ai_socktype != C.SOCK_STREAM {
++		if *_C_ai_socktype(r) != _C_SOCK_STREAM {
+ 			continue
+ 		}
+-		switch r.ai_family {
+-		case C.AF_INET:
+-			sa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(r.ai_addr))
++		switch *_C_ai_family(r) {
++		case _C_AF_INET:
++			sa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(*_C_ai_addr(r)))
+ 			addr := IPAddr{IP: copyIP(sa.Addr[:])}
+ 			addrs = append(addrs, addr)
+-		case C.AF_INET6:
+-			sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(r.ai_addr))
++		case _C_AF_INET6:
++			sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(*_C_ai_addr(r)))
+ 			addr := IPAddr{IP: copyIP(sa.Addr[:]), Zone: zoneCache.name(int(sa.Scope_id))}
+ 			addrs = append(addrs, addr)
+ 		}
+@@ -288,7 +278,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error,
+ 	}
+ }
+ 
+-func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (names []string, err error) {
++func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (names []string, err error) {
+ 	acquireThread()
+ 	defer releaseThread()
+ 
+@@ -297,14 +287,14 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
+ 	for l := nameinfoLen; l <= maxNameinfoLen; l *= 2 {
+ 		b = make([]byte, l)
+ 		gerrno, err = cgoNameinfoPTR(b, sa, salen)
+-		if gerrno == 0 || gerrno != C.EAI_OVERFLOW {
++		if gerrno == 0 || gerrno != _C_EAI_OVERFLOW {
+ 			break
+ 		}
+ 	}
+ 	if gerrno != 0 {
+ 		isTemporary := false
+ 		switch gerrno {
+-		case C.EAI_SYSTEM:
++		case _C_EAI_SYSTEM:
+ 			if err == nil { // see golang.org/issue/6232
+ 				err = syscall.EMFILE
+ 			}
+@@ -323,17 +313,17 @@ func cgoLookupAddrPTR(addr string, sa *C.struct_sockaddr, salen C.socklen_t) (na
+ 	return []string{absDomainName(string(b))}, nil
+ }
+ 
+-func cgoReverseLookup(result chan<- reverseLookupResult, addr string, sa *C.struct_sockaddr, salen C.socklen_t) {
++func cgoReverseLookup(result chan<- reverseLookupResult, addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) {
+ 	names, err := cgoLookupAddrPTR(addr, sa, salen)
+ 	result <- reverseLookupResult{names, err}
+ }
+ 
+-func cgoSockaddr(ip IP, zone string) (*C.struct_sockaddr, C.socklen_t) {
++func cgoSockaddr(ip IP, zone string) (*_C_struct_sockaddr, _C_socklen_t) {
+ 	if ip4 := ip.To4(); ip4 != nil {
+-		return cgoSockaddrInet4(ip4), C.socklen_t(syscall.SizeofSockaddrInet4)
++		return cgoSockaddrInet4(ip4), _C_socklen_t(syscall.SizeofSockaddrInet4)
+ 	}
+ 	if ip6 := ip.To16(); ip6 != nil {
+-		return cgoSockaddrInet6(ip6, zoneCache.index(zone)), C.socklen_t(syscall.SizeofSockaddrInet6)
++		return cgoSockaddrInet6(ip6, zoneCache.index(zone)), _C_socklen_t(syscall.SizeofSockaddrInet6)
+ 	}
+ 	return nil, 0
+ }
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+new file mode 100644
+index 0000000000..74e04060bf
+--- /dev/null
++++ b/src/net/cgo_unix_cgo.go
+@@ -0,0 +1,71 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo && !netgo && unix && !darwin
++
++package net
++
++/*
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <netdb.h>
++#include <unistd.h>
++#include <string.h>
++
++// If nothing else defined EAI_OVERFLOW, make sure it has a value.
++#ifndef EAI_OVERFLOW
++#define EAI_OVERFLOW -12
++#endif
++*/
++import "C"
++
++const (
++	_C_AF_INET      = C.AF_INET
++	_C_AF_INET6     = C.AF_INET6
++	_C_AF_UNSPEC    = C.AF_UNSPEC
++	_C_EAI_AGAIN    = C.EAI_AGAIN
++	_C_EAI_NONAME   = C.EAI_NONAME
++	_C_EAI_OVERFLOW = C.EAI_OVERFLOW
++	_C_EAI_SYSTEM   = C.EAI_SYSTEM
++	_C_IPPROTO_TCP  = C.IPPROTO_TCP
++	_C_IPPROTO_UDP  = C.IPPROTO_UDP
++	_C_SOCK_DGRAM   = C.SOCK_DGRAM
++	_C_SOCK_STREAM  = C.SOCK_STREAM
++)
++
++type (
++	_C_char               = C.char
++	_C_uchar              = C.uchar
++	_C_int                = C.int
++	_C_uint               = C.uint
++	_C_socklen_t          = C.socklen_t
++	_C_struct_addrinfo    = C.struct_addrinfo
++	_C_struct_sockaddr    = C.struct_sockaddr
++)
++
++func _C_GoString(p *_C_char) string { return C.GoString(p) }
++func _C_CString(s string) *_C_char  { return C.CString(s) }
++
++func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.ai_addr }
++func _C_ai_addrlen(ai *_C_struct_addrinfo) *_C_uint          { return &ai.ai_addrlen }
++func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.ai_canonname }
++func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.ai_family }
++func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.ai_flags }
++func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.ai_next }
++func _C_ai_protocol(ai *_C_struct_addrinfo) *_C_int          { return &ai.ai_protocol }
++func _C_ai_socktype(ai *_C_struct_addrinfo) *_C_int          { return &ai.ai_socktype }
++
++func _C_freeaddrinfo(ai *_C_struct_addrinfo) {
++	C.freeaddrinfo(ai)
++}
++
++func _C_gai_strerror(eai _C_int) string {
++	return C.GoString(C.gai_strerror(eai))
++}
++
++func _C_getaddrinfo(hostname, servname *_C_char, hints *_C_struct_addrinfo, res **_C_struct_addrinfo) (int, error) {
++	x, err := C.getaddrinfo(hostname, servname, hints, res)
++	return int(x), err
++}
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+new file mode 100644
+index 0000000000..899654a99a
+--- /dev/null
++++ b/src/net/cgo_unix_syscall.go
+@@ -0,0 +1,85 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo && !netgo && darwin
++
++package net
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++	"unsafe"
++)
++
++const (
++	_C_AF_INET      = syscall.AF_INET
++	_C_AF_INET6     = syscall.AF_INET6
++	_C_AF_UNSPEC    = syscall.AF_UNSPEC
++	_C_EAI_AGAIN    = unix.EAI_AGAIN
++	_C_EAI_NONAME   = unix.EAI_NONAME
++	_C_EAI_OVERFLOW = unix.EAI_OVERFLOW
++	_C_EAI_SYSTEM   = unix.EAI_SYSTEM
++	_C_IPPROTO_TCP  = syscall.IPPROTO_TCP
++	_C_IPPROTO_UDP  = syscall.IPPROTO_UDP
++	_C_SOCK_DGRAM   = syscall.SOCK_DGRAM
++	_C_SOCK_STREAM  = syscall.SOCK_STREAM
++)
++
++type (
++	_C_char            = byte
++	_C_int             = int32
++	_C_uchar           = byte
++	_C_uint            = uint32
++	_C_socklen_t       = int
++	_C_struct_addrinfo = unix.Addrinfo
++	_C_struct_sockaddr = syscall.RawSockaddr
++)
++
++func _C_GoString(p *_C_char) string {
++	return unix.GoString(p)
++}
++
++func _C_CString(s string) *_C_char {
++	b := make([]byte, len(s)+1)
++	copy(b, s)
++	return &b[0]
++}
++
++func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.Addr }
++func _C_ai_addrlen(ai *_C_struct_addrinfo) *_C_uint          { return &ai.Addrlen }
++func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.Canonname }
++func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.Family }
++func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.Flags }
++func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.Next }
++func _C_ai_protocol(ai *_C_struct_addrinfo) *_C_int          { return &ai.Protocol }
++func _C_ai_socktype(ai *_C_struct_addrinfo) *_C_int          { return &ai.Socktype }
++
++func _C_freeaddrinfo(ai *_C_struct_addrinfo) {
++	unix.Freeaddrinfo(ai)
++}
++
++func _C_gai_strerror(eai _C_int) string {
++	return unix.GaiStrerror(int(eai))
++}
++
++func _C_getaddrinfo(hostname, servname *byte, hints *_C_struct_addrinfo, res **_C_struct_addrinfo) (int, error) {
++	return unix.Getaddrinfo(hostname, servname, hints, res)
++}
++
++func cgoNameinfoPTR(b []byte, sa *syscall.RawSockaddr, salen int) (int, error) {
++	gerrno, err := unix.Getnameinfo(sa, salen, &b[0], len(b), nil, 0, unix.NI_NAMEREQD)
++	return int(gerrno), err
++}
++
++func cgoSockaddrInet4(ip IP) *syscall.RawSockaddr {
++	sa := syscall.RawSockaddrInet4{Len: syscall.SizeofSockaddrInet4, Family: syscall.AF_INET}
++	copy(sa.Addr[:], ip)
++	return (*syscall.RawSockaddr)(unsafe.Pointer(&sa))
++}
++
++func cgoSockaddrInet6(ip IP, zone int) *syscall.RawSockaddr {
++	sa := syscall.RawSockaddrInet6{Len: syscall.SizeofSockaddrInet6, Family: syscall.AF_INET6, Scope_id: uint32(zone)}
++	copy(sa.Addr[:], ip)
++	return (*syscall.RawSockaddr)(unsafe.Pointer(&sa))
++}
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 18b0490ebb..61b7f8c728 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -49,6 +49,17 @@ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ }
+ func syscall6()
+ 
++//go:linkname syscall_syscall9 syscall.syscall9
++//go:nosplit
++//go:cgo_unsafe_args
++func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
++	entersyscall()
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall9)), unsafe.Pointer(&fn))
++	exitsyscall()
++	return
++}
++func syscall9()
++
+ //go:linkname syscall_syscall6X syscall.syscall6X
+ //go:nosplit
+ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+@@ -87,7 +98,7 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
+ 	return args.r1, args.r2, args.err
+ }
+ 
+-// syscallNoErr is used in crypto/x509 to call into Security.framework and CF.
++// crypto_x509_syscall is used in crypto/x509/internal/macos to call into Security.framework and CF.
+ 
+ //go:linkname crypto_x509_syscall crypto/x509/internal/macos.syscall
+ //go:nosplit
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index ba81fcc35c..369b12e8f9 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -839,6 +839,65 @@ ok:
+ 	POPQ	BP
+ 	RET
+ 
++// syscall9 calls a function in libc on behalf of the syscall package.
++// syscall9 takes a pointer to a struct like:
++// struct {
++//	fn    uintptr
++//	a1    uintptr
++//	a2    uintptr
++//	a3    uintptr
++//	a4    uintptr
++//	a5    uintptr
++//	a6    uintptr
++//	a7    uintptr
++//	a8    uintptr
++//	a9    uintptr
++//	r1    uintptr
++//	r2    uintptr
++//	err   uintptr
++// }
++// syscall9 must be called on the g0 stack with the
++// C calling convention (use libcCall).
++//
++// syscall9 expects a 32-bit result and tests for 32-bit -1
++// to decide there was an error.
++TEXT runtime·syscall9(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	SUBQ	$16, SP
++	MOVQ	(0*8)(DI), R13// fn
++	MOVQ	(2*8)(DI), SI // a2
++	MOVQ	(3*8)(DI), DX // a3
++	MOVQ	(4*8)(DI), CX // a4
++	MOVQ	(5*8)(DI), R8 // a5
++	MOVQ	(6*8)(DI), R9 // a6
++	MOVQ	(7*8)(DI), R10 // a7
++	MOVQ	(8*8)(DI), R11 // a8
++	MOVQ	(9*8)(DI), R12 // a9
++	MOVQ	DI, (SP)
++	MOVQ	(1*8)(DI), DI // a1
++	XORL	AX, AX	      // vararg: say "no float args"
++
++	CALL	R13
++
++	MOVQ	(SP), DI
++	MOVQ	AX, (10*8)(DI) // r1
++	MOVQ	DX, (11*8)(DI) // r2
++
++	CMPL	AX, $-1
++	JNE	ok
++
++	CALL	libc_error(SB)
++	MOVLQSX	(AX), AX
++	MOVQ	(SP), DI
++	MOVQ	AX, (12*8)(DI) // err
++
++ok:
++	XORL	AX, AX        // no error (it's ignored anyway)
++	MOVQ	BP, SP
++	POPQ	BP
++	RET
++
+ // syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,
+ // takes 5 uintptrs and 1 float64, and only returns one value,
+ // for use with standard C ABI functions.
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index bf0dc9d8cc..4fa99cc0f9 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -669,6 +669,63 @@ TEXT runtime·syscall6X(SB),NOSPLIT,$0
+ ok:
+ 	RET
+ 
++// syscall9 calls a function in libc on behalf of the syscall package.
++// syscall9 takes a pointer to a struct like:
++// struct {
++//	fn    uintptr
++//	a1    uintptr
++//	a2    uintptr
++//	a3    uintptr
++//	a4    uintptr
++//	a5    uintptr
++//	a6    uintptr
++//	a7    uintptr
++//	a8    uintptr
++//	a9    uintptr
++//	r1    uintptr
++//	r2    uintptr
++//	err   uintptr
++// }
++// syscall9 must be called on the g0 stack with the
++// C calling convention (use libcCall).
++TEXT runtime·syscall9(SB),NOSPLIT,$0
++	SUB	$16, RSP	// push structure pointer
++	MOVD	R0, 8(RSP)
++
++	MOVD	0(R0), R12	// fn
++	MOVD	16(R0), R1	// a2
++	MOVD	24(R0), R2	// a3
++	MOVD	32(R0), R3	// a4
++	MOVD	40(R0), R4	// a5
++	MOVD	48(R0), R5	// a6
++	MOVD	56(R0), R6	// a7
++	MOVD	64(R0), R7	// a8
++	MOVD	72(R0), R8	// a9
++	MOVD	8(R0), R0	// a1
++
++	// If fn is declared as vararg, we have to pass the vararg arguments on the stack.
++	// See syscall above. The only function this applies to is openat, for which the 4th
++	// arg must be on the stack.
++	MOVD	R3, (RSP)
++
++	BL	(R12)
++
++	MOVD	8(RSP), R2	// pop structure pointer
++	ADD	$16, RSP
++	MOVD	R0, 80(R2)	// save r1
++	MOVD	R1, 88(R2)	// save r2
++	CMPW	$-1, R0
++	BNE	ok
++	SUB	$16, RSP	// push structure pointer
++	MOVD	R2, 8(RSP)
++	BL	libc_error(SB)
++	MOVW	(R0), R0
++	MOVD	8(RSP), R2	// pop structure pointer
++	ADD	$16, RSP
++	MOVD	R0, 96(R2)	// save err
++ok:
++	RET
++
+ // syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,
+ // takes 5 uintptrs and 1 float64, and only returns one value,
+ // for use with standard C ABI functions.

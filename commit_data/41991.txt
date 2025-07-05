@@ -10,6 +10,27 @@ Date:   Mon Nov 4 20:45:48 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205378
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/export_futex_test.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_futex_test.go b/src/runtime/export_futex_test.go
+index 5e272364d1..a727a93114 100644
+--- a/src/runtime/export_futex_test.go
++++ b/src/runtime/export_futex_test.go
+@@ -6,5 +6,14 @@
+ 
+ package runtime
+ 
+-var Futexsleep = futexsleep
+ var Futexwakeup = futexwakeup
++
++//go:nosplit
++func Futexsleep(addr *uint32, val uint32, ns int64) {
++	// Temporarily disable preemption so that a preemption signal
++	// doesn't interrupt the system call.
++	poff := debug.asyncpreemptoff
++	debug.asyncpreemptoff = 1
++	futexsleep(addr, val, ns)
++	debug.asyncpreemptoff = poff
++}

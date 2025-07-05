@@ -27,7 +27,7 @@ Date:   Mon May 8 14:39:57 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  misc/swig/callback/callback.go                     |  11 --
  misc/swig/callback/callback_test.go                |  33 -----
  misc/swig/nocgo_test.go                            |   7 +
@@ -42,3 +42,559 @@ Date:   Mon May 8 14:39:57 2023 -0400
  .../{stdio/file.swig => testdata/stdio/main.swig}  |   0
  src/cmd/dist/test.go                               |  96 +------------
  13 files changed, 266 insertions(+), 184 deletions(-)
+
+diff --git a/misc/swig/callback/callback.go b/misc/swig/callback/callback.go
+deleted file mode 100644
+index 0d6e97f05b..0000000000
+--- a/misc/swig/callback/callback.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package callback
+-
+-type GoCallback struct{}
+-
+-func (p *GoCallback) Run() string {
+-	return "GoCallback.Run"
+-}
+diff --git a/misc/swig/callback/callback_test.go b/misc/swig/callback/callback_test.go
+deleted file mode 100644
+index 0c8a3004da..0000000000
+--- a/misc/swig/callback/callback_test.go
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package callback
+-
+-import (
+-	"testing"
+-)
+-
+-func TestCall(t *testing.T) {
+-	c := NewCaller()
+-	cb := NewCallback()
+-
+-	c.SetCallback(cb)
+-	s := c.Call()
+-	if s != "Callback::run" {
+-		t.Errorf("unexpected string from Call: %q", s)
+-	}
+-	c.DelCallback()
+-}
+-
+-func TestCallback(t *testing.T) {
+-	c := NewCaller()
+-	cb := NewDirectorCallback(&GoCallback{})
+-	c.SetCallback(cb)
+-	s := c.Call()
+-	if s != "GoCallback.Run" {
+-		t.Errorf("unexpected string from Call with callback: %q", s)
+-	}
+-	c.DelCallback()
+-	DeleteDirectorCallback(cb)
+-}
+diff --git a/misc/swig/nocgo_test.go b/misc/swig/nocgo_test.go
+new file mode 100644
+index 0000000000..c68b97d6b6
+--- /dev/null
++++ b/misc/swig/nocgo_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is just to avoid build errors if there's no cgo.
++
++package swig
+diff --git a/misc/swig/stdio/file.go b/misc/swig/stdio/file.go
+deleted file mode 100644
+index a582f776f6..0000000000
+--- a/misc/swig/stdio/file.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file is here just to cause problems.
+-// file.swig turns into a file also named file.go.
+-// Make sure cmd/go keeps them separate
+-// when both are passed to cgo.
+-
+-package file
+-
+-//int F(void) { return 1; }
+-import "C"
+-
+-func F() int { return int(C.F()) }
+diff --git a/misc/swig/stdio/file_test.go b/misc/swig/stdio/file_test.go
+deleted file mode 100644
+index aea92aafd5..0000000000
+--- a/misc/swig/stdio/file_test.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package file
+-
+-import "testing"
+-
+-// Open this file itself and verify that the first few characters are
+-// as expected.
+-func TestRead(t *testing.T) {
+-	f := Fopen("file_test.go", "r")
+-	if f.Swigcptr() == 0 {
+-		t.Fatal("fopen failed")
+-	}
+-	if Fgetc(f) != '/' || Fgetc(f) != '/' || Fgetc(f) != ' ' || Fgetc(f) != 'C' {
+-		t.Error("read unexpected characters")
+-	}
+-	if Fclose(f) != 0 {
+-		t.Error("fclose failed")
+-	}
+-}
+-
+-func TestF(t *testing.T) {
+-	if x := F(); x != 1 {
+-		t.Fatalf("x = %d, want 1", x)
+-	}
+-}
+diff --git a/misc/swig/swig_test.go b/misc/swig/swig_test.go
+new file mode 100644
+index 0000000000..cbe062ae41
+--- /dev/null
++++ b/misc/swig/swig_test.go
+@@ -0,0 +1,149 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo
++
++package swig
++
++import (
++	"bytes"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"regexp"
++	"strconv"
++	"strings"
++	"sync"
++	"testing"
++)
++
++func TestStdio(t *testing.T) {
++	mustHaveSwig(t)
++	run(t, "testdata/stdio", false)
++}
++
++func TestCall(t *testing.T) {
++	mustHaveSwig(t)
++	mustHaveCxx(t)
++	run(t, "testdata/callback", false, "Call")
++	t.Run("lto", func(t *testing.T) { run(t, "testdata/callback", true, "Call") })
++}
++
++func TestCallback(t *testing.T) {
++	mustHaveSwig(t)
++	mustHaveCxx(t)
++	run(t, "testdata/callback", false, "Callback")
++	t.Run("lto", func(t *testing.T) { run(t, "testdata/callback", true, "Callback") })
++}
++
++func run(t *testing.T, dir string, lto bool, args ...string) {
++	runArgs := append([]string{"run", "."}, args...)
++	cmd := exec.Command("go", runArgs...)
++	cmd.Dir = dir
++	if lto {
++		const cflags = "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option"
++		cmd.Env = append(cmd.Environ(),
++			"CGO_CFLAGS="+cflags,
++			"CGO_CXXFLAGS="+cflags,
++			"CGO_LDFLAGS="+cflags)
++	}
++	out, err := cmd.CombinedOutput()
++	if string(out) != "OK\n" {
++		t.Errorf("%s", string(out))
++	}
++	if err != nil {
++		t.Errorf("%s", err)
++	}
++}
++
++func mustHaveCxx(t *testing.T) {
++	// Ask the go tool for the CXX it's configured to use.
++	cxx, err := exec.Command("go", "env", "CXX").CombinedOutput()
++	if err != nil {
++		t.Fatalf("go env CXX failed: %s", err)
++	}
++	cxx = bytes.TrimSuffix(cxx, []byte("\n"))
++	// TODO(austin): "go env CXX" can return a quoted list. Use quoted.Split.
++	p, err := exec.LookPath(string(cxx))
++	if p == "" {
++		t.Skipf("test requires C++ compiler, but failed to find %s: %s", string(cxx), err)
++	}
++}
++
++var (
++	swigOnce sync.Once
++	haveSwig bool
++)
++
++func mustHaveSwig(t *testing.T) {
++	swigOnce.Do(func() {
++		mustHaveSwigOnce(t)
++		haveSwig = true
++	})
++	// The first call will skip t with a nice message. On later calls, we just skip.
++	if !haveSwig {
++		t.Skip("swig not found")
++	}
++}
++
++func mustHaveSwigOnce(t *testing.T) {
++	swig, err := exec.LookPath("swig")
++	if err != nil {
++		t.Skipf("swig not in PATH: %s", err)
++	}
++
++	// Check that swig was installed with Go support by checking
++	// that a go directory exists inside the swiglib directory.
++	// See https://golang.org/issue/23469.
++	output, err := exec.Command(swig, "-go", "-swiglib").Output()
++	if err != nil {
++		t.Skip("swig is missing Go support")
++	}
++	swigDir := strings.TrimSpace(string(output))
++
++	_, err = os.Stat(filepath.Join(swigDir, "go"))
++	if err != nil {
++		t.Skip("swig is missing Go support")
++	}
++
++	// Check that swig has a new enough version.
++	// See https://golang.org/issue/22858.
++	out, err := exec.Command(swig, "-version").CombinedOutput()
++	if err != nil {
++		t.Skipf("failed to get swig version:%s\n%s", err, string(out))
++	}
++
++	re := regexp.MustCompile(`[vV]ersion +(\d+)([.]\d+)?([.]\d+)?`)
++	matches := re.FindSubmatch(out)
++	if matches == nil {
++		// Can't find version number; hope for the best.
++		t.Logf("failed to find swig version, continuing")
++		return
++	}
++
++	var parseError error
++	atoi := func(s string) int {
++		x, err := strconv.Atoi(s)
++		if err != nil && parseError == nil {
++			parseError = err
++		}
++		return x
++	}
++	var major, minor, patch int
++	major = atoi(string(matches[1]))
++	if len(matches[2]) > 0 {
++		minor = atoi(string(matches[2][1:]))
++	}
++	if len(matches[3]) > 0 {
++		patch = atoi(string(matches[3][1:]))
++	}
++	if parseError != nil {
++		t.Logf("error parsing swig version %q, continuing anyway: %s", string(matches[0]), parseError)
++		return
++	}
++	t.Logf("found swig version %d.%d.%d", major, minor, patch)
++	if major < 3 || (major == 3 && minor == 0 && patch < 6) {
++		t.Skip("test requires swig 3.0.6 or later")
++	}
++}
+diff --git a/misc/swig/callback/callback.cc b/misc/swig/testdata/callback/main.cc
+similarity index 94%
+rename from misc/swig/callback/callback.cc
+rename to misc/swig/testdata/callback/main.cc
+index 88bd49c57f..7de917cde4 100644
+--- a/misc/swig/callback/callback.cc
++++ b/misc/swig/testdata/callback/main.cc
+@@ -6,7 +6,7 @@
+ // included in the package.
+ 
+ #include <string>
+-#include "callback.h"
++#include "main.h"
+ 
+ std::string Caller::call() {
+ 	if (callback_ != 0)
+diff --git a/misc/swig/testdata/callback/main.go b/misc/swig/testdata/callback/main.go
+new file mode 100644
+index 0000000000..73034a0c7c
+--- /dev/null
++++ b/misc/swig/testdata/callback/main.go
+@@ -0,0 +1,60 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++func main() {
++	if len(os.Args) != 2 {
++		fatal("usage: callback testname")
++	}
++	switch os.Args[1] {
++	default:
++		fatal("unknown test %q", os.Args[1])
++	case "Call":
++		testCall()
++	case "Callback":
++		testCallback()
++	}
++	println("OK")
++}
++
++func fatal(f string, args ...any) {
++	fmt.Fprintln(os.Stderr, fmt.Sprintf(f, args...))
++	os.Exit(1)
++}
++
++type GoCallback struct{}
++
++func (p *GoCallback) Run() string {
++	return "GoCallback.Run"
++}
++
++func testCall() {
++	c := NewCaller()
++	cb := NewCallback()
++
++	c.SetCallback(cb)
++	s := c.Call()
++	if s != "Callback::run" {
++		fatal("unexpected string from Call: %q", s)
++	}
++	c.DelCallback()
++}
++
++func testCallback() {
++	c := NewCaller()
++	cb := NewDirectorCallback(&GoCallback{})
++	c.SetCallback(cb)
++	s := c.Call()
++	if s != "GoCallback.Run" {
++		fatal("unexpected string from Call with callback: %q", s)
++	}
++	c.DelCallback()
++	DeleteDirectorCallback(cb)
++}
+diff --git a/misc/swig/callback/callback.h b/misc/swig/testdata/callback/main.h
+similarity index 100%
+rename from misc/swig/callback/callback.h
+rename to misc/swig/testdata/callback/main.h
+diff --git a/misc/swig/callback/callback.swigcxx b/misc/swig/testdata/callback/main.swigcxx
+similarity index 88%
+rename from misc/swig/callback/callback.swigcxx
+rename to misc/swig/testdata/callback/main.swigcxx
+index 6181fe9c7e..0fd73d6362 100644
+--- a/misc/swig/callback/callback.swigcxx
++++ b/misc/swig/testdata/callback/main.swigcxx
+@@ -8,11 +8,11 @@
+ 
+ %{
+ #include <string>
+-#include "callback.h"
++#include "main.h"
+ %}
+ 
+ %include "std_string.i"
+ 
+ %feature("director");
+ 
+-%include "callback.h"
++%include "main.h"
+diff --git a/misc/swig/testdata/stdio/main.go b/misc/swig/testdata/stdio/main.go
+new file mode 100644
+index 0000000000..0296dd3224
+--- /dev/null
++++ b/misc/swig/testdata/stdio/main.go
+@@ -0,0 +1,45 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is here just to cause problems.
++// main.swig turns into a file also named main.go.
++// Make sure cmd/go keeps them separate
++// when both are passed to cgo.
++
++package main
++
++//int F(void) { return 1; }
++import "C"
++import (
++	"fmt"
++	"os"
++)
++
++func F() int { return int(C.F()) }
++
++func main() {
++	if x := int(C.F()); x != 1 {
++		fatal("x = %d, want 1", x)
++	}
++
++	// Open this file itself and verify that the first few characters are
++	// as expected.
++	f := Fopen("main.go", "r")
++	if f.Swigcptr() == 0 {
++		fatal("fopen failed")
++	}
++	if Fgetc(f) != '/' || Fgetc(f) != '/' || Fgetc(f) != ' ' || Fgetc(f) != 'C' {
++		fatal("read unexpected characters")
++	}
++	if Fclose(f) != 0 {
++		fatal("fclose failed")
++	}
++
++	println("OK")
++}
++
++func fatal(f string, args ...any) {
++	fmt.Fprintln(os.Stderr, fmt.Sprintf(f, args...))
++	os.Exit(1)
++}
+diff --git a/misc/swig/stdio/file.swig b/misc/swig/testdata/stdio/main.swig
+similarity index 100%
+rename from misc/swig/stdio/file.swig
+rename to misc/swig/testdata/stdio/main.swig
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 2e0072f44f..95c27ce327 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -870,21 +870,8 @@ func (t *tester) registerTests() {
+ 		if goos != "android" {
+ 			t.registerTest("cgo_testfortran", "", &goTest{dir: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute}, rtHostTest{})
+ 		}
+-		if t.hasSwig() && goos != "android" {
+-			t.registerTest("swig_stdio", "", &goTest{dir: "../misc/swig/stdio"})
+-			if t.hasCxx() {
+-				t.registerTest("swig_callback", "", &goTest{dir: "../misc/swig/callback"})
+-				const cflags = "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option"
+-				t.registerTest("swig_callback_lto", "",
+-					&goTest{
+-						dir: "../misc/swig/callback",
+-						env: []string{
+-							"CGO_CFLAGS=" + cflags,
+-							"CGO_CXXFLAGS=" + cflags,
+-							"CGO_LDFLAGS=" + cflags,
+-						},
+-					})
+-			}
++		if goos != "android" {
++			t.registerTest("swig", "", &goTest{dir: "../misc/swig"})
+ 		}
+ 	}
+ 	if t.cgoEnabled {
+@@ -1412,85 +1399,6 @@ func (t *tester) hasBash() bool {
+ 	return true
+ }
+ 
+-func (t *tester) hasCxx() bool {
+-	cxx, _ := exec.LookPath(compilerEnvLookup("CXX", defaultcxx, goos, goarch))
+-	return cxx != ""
+-}
+-
+-func (t *tester) hasSwig() bool {
+-	swig, err := exec.LookPath("swig")
+-	if err != nil {
+-		return false
+-	}
+-
+-	// Check that swig was installed with Go support by checking
+-	// that a go directory exists inside the swiglib directory.
+-	// See https://golang.org/issue/23469.
+-	output, err := exec.Command(swig, "-go", "-swiglib").Output()
+-	if err != nil {
+-		return false
+-	}
+-	swigDir := strings.TrimSpace(string(output))
+-
+-	_, err = os.Stat(filepath.Join(swigDir, "go"))
+-	if err != nil {
+-		return false
+-	}
+-
+-	// Check that swig has a new enough version.
+-	// See https://golang.org/issue/22858.
+-	out, err := exec.Command(swig, "-version").CombinedOutput()
+-	if err != nil {
+-		return false
+-	}
+-
+-	re := regexp.MustCompile(`[vV]ersion +(\d+)([.]\d+)?([.]\d+)?`)
+-	matches := re.FindSubmatch(out)
+-	if matches == nil {
+-		// Can't find version number; hope for the best.
+-		return true
+-	}
+-
+-	major, err := strconv.Atoi(string(matches[1]))
+-	if err != nil {
+-		// Can't find version number; hope for the best.
+-		return true
+-	}
+-	if major < 3 {
+-		return false
+-	}
+-	if major > 3 {
+-		// 4.0 or later
+-		return true
+-	}
+-
+-	// We have SWIG version 3.x.
+-	if len(matches[2]) > 0 {
+-		minor, err := strconv.Atoi(string(matches[2][1:]))
+-		if err != nil {
+-			return true
+-		}
+-		if minor > 0 {
+-			// 3.1 or later
+-			return true
+-		}
+-	}
+-
+-	// We have SWIG version 3.0.x.
+-	if len(matches[3]) > 0 {
+-		patch, err := strconv.Atoi(string(matches[3][1:]))
+-		if err != nil {
+-			return true
+-		}
+-		if patch < 6 {
+-			// Before 3.0.6.
+-			return false
+-		}
+-	}
+-
+-	return true
+-}
+-
+ // hasParallelism is a copy of the function
+ // internal/testenv.HasParallelism, which can't be used here
+ // because cmd/dist can not import internal packages during bootstrap.

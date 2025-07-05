@@ -7,9 +7,128 @@ Date:   Tue Jan 10 17:39:17 2012 +1100
     R=adg, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5528062
-
+---
  src/pkg/runtime/os_freebsd.h        | 11 ++++++-----
  src/pkg/runtime/sys_freebsd_386.s   | 19 +++++++++++++++++++
  src/pkg/runtime/sys_freebsd_amd64.s | 16 ++++++++++++++++
  src/pkg/runtime/thread_freebsd.c    | 25 +++++++++++++++++++++++++
  4 files changed, 66 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index 007856c6bc..8ef4c39877 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -1,12 +1,13 @@
+ #define SIG_DFL ((void*)0)
+ #define SIG_IGN ((void*)1)
+ 
+-int32 runtime·thr_new(ThrParam*, int32);
+-void runtime·sigpanic(void);
+-void runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+-struct sigaction;
+-void runtime·sigaction(int32, struct sigaction*, struct sigaction*);
++int32	runtime·thr_new(ThrParam*, int32);
++void	runtime·sigpanic(void);
++void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
++struct	sigaction;
++void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtiem·setitimerval(int32, Itimerval*, Itimerval*);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
++int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+ void	runtime·raisesigpipe(void);
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index cec7a3e8e7..25c28d3f80 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -265,4 +265,23 @@ TEXT runtime·i386_set_ldt(SB),7,$16
+ 	INT	$3
+ 	RET
+ 
++TEXT runtime·sysctl(SB),7,$28
++	LEAL	arg0+0(FP), SI
++	LEAL	4(SP), DI
++	CLD
++	MOVSL				// arg 1 - name
++	MOVSL				// arg 2 - namelen
++	MOVSL				// arg 3 - oldp
++	MOVSL				// arg 4 - oldlenp
++	MOVSL				// arg 5 - newp
++	MOVSL				// arg 6 - newlen
++	MOVL	$202, AX		// sys___sysctl
++	INT	$0x80
++	JCC	3(PC)
++	NEGL	AX
++	RET
++	MOVL	$0, AX
++	RET
++
++
+ GLOBL runtime·tlsoffset(SB),$4
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index c96b2f4d6b..d5bb5f0c16 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -199,3 +199,19 @@ TEXT runtime·settls(SB),7,$8
+ 	JCC	2(PC)
+ 	CALL	runtime·notok(SB)
+ 	RET
++
++TEXT runtime·sysctl(SB),7,$0
++	MOVQ	8(SP), DI		// arg 1 - name
++	MOVL	16(SP), SI		// arg 2 - namelen
++	MOVQ	24(SP), DX		// arg 3 - oldp
++	MOVQ	32(SP), R10		// arg 4 - oldlenp
++	MOVQ	40(SP), R8		// arg 5 - newp
++	MOVQ	48(SP), R9		// arg 6 - newlen
++	MOVQ	$202, AX		// sys___sysctl
++	SYSCALL
++	JCC 3(PC)
++	NEGL	AX
++	RET
++	MOVL	$0, AX
++	RET
++
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 779782ac96..53c1b1bbfa 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -9,6 +9,30 @@
+ extern SigTab runtime·sigtab[];
+ extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
+ 
++// From FreeBSD's <sys/sysctl.h>
++#define	CTL_HW	6
++#define	HW_NCPU	3
++
++static int32
++getncpu(void)
++{
++	uint32 mib[2];
++	uint32 out;
++	int32 ret;
++	uintptr nout;
++
++	// Fetch hw.ncpu via sysctl.
++	mib[0] = CTL_HW;
++	mib[1] = HW_NCPU;
++	nout = sizeof out;
++	out = 0;
++	ret = runtime·sysctl(mib, 2, (byte*)&out, &nout, nil, 0);
++	if(ret >= 0)
++		return out;
++	else
++		return 1;
++}
++
+ // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
+ // thus the code is largely similar. See linux/thread.c and lock_futex.c for comments.
+ 
+@@ -81,6 +105,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ void
+ runtime·osinit(void)
+ {
++	runtime·ncpu = getncpu();
+ }
+ 
+ void

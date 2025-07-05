@@ -9,10 +9,161 @@ Date:   Wed Feb 3 16:30:45 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/195075
-
+---
  src/cmd/5l/obj.c |  2 +-
  src/cmd/6l/obj.c |  2 +-
  src/cmd/8l/obj.c |  2 +-
  src/cmd/ld/lib.c | 46 ++++++++++++++++++++++++++++++++--------------
  src/cmd/ld/lib.h |  1 +
  5 files changed, 36 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 292a0df7a6..caa13ae713 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -258,7 +258,7 @@ main(int argc, char *argv[])
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	objfile(argv[0], "main");
++	addlibpath("command line", "command line", argv[0], "main");
+ 
+ 	if(!debug['l'])
+ 		loadlib();
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index cbb20616a7..edae1c618c 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -346,7 +346,7 @@ main(int argc, char *argv[])
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	objfile(argv[0], "main");
++	addlibpath("command line", "command line", argv[0], "main");
+ 
+ 	if(!debug['l'])
+ 		loadlib();
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index bcdc548dfc..7b8e7f2eca 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -384,7 +384,7 @@ main(int argc, char *argv[])
+ 	firstp = prg();
+ 	lastp = firstp;
+ 
+-	objfile(argv[0], "main");
++	addlibpath("command line", "command line", argv[0], "main");
+ 
+ 	if(!debug['l'])
+ 		loadlib();
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 550cce3209..df0b1a7487 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -94,7 +94,6 @@ addlib(char *src, char *obj)
+ {
+ 	char name[1024], pname[1024], comp[256], *p;
+ 	int i, search;
+-	Library *l;
+ 
+ 	if(histfrogp <= 0)
+ 		return;
+@@ -160,9 +159,26 @@ addlib(char *src, char *obj)
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, pname);
++	
++	addlibpath(src, obj, pname, name);
++}
++
++/*
++ * add library to library list.
++ *	srcref: src file referring to package
++ *	objref: object file referring to package
++ *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
++ *	pkg: package import path, e.g. container/vector
++ */
++void
++addlibpath(char *srcref, char *objref, char *file, char *pkg)
++{
++	int i;
++	Library *l;
++	char *p;
+ 
+ 	for(i=0; i<libraryp; i++)
+-		if(strcmp(pname, library[i].file) == 0)
++		if(strcmp(file, library[i].file) == 0)
+ 			return;
+ 	if(libraryp == nlibrary){
+ 		nlibrary = 50 + 2*libraryp;
+@@ -171,20 +187,20 @@ addlib(char *src, char *obj)
+ 
+ 	l = &library[libraryp++];
+ 
+-	p = mal(strlen(obj) + 1);
+-	strcpy(p, obj);
++	p = mal(strlen(objref) + 1);
++	strcpy(p, objref);
+ 	l->objref = p;
+ 
+-	p = mal(strlen(src) + 1);
+-	strcpy(p, src);
++	p = mal(strlen(srcref) + 1);
++	strcpy(p, srcref);
+ 	l->srcref = p;
+ 
+-	p = mal(strlen(pname) + 1);
+-	strcpy(p, pname);
++	p = mal(strlen(file) + 1);
++	strcpy(p, file);
+ 	l->file = p;
+ 
+-	p = mal(strlen(name) + 1);
+-	strcpy(p, name);
++	p = mal(strlen(pkg) + 1);
++	strcpy(p, pkg);
+ 	l->pkg = p;
+ }
+ 
+@@ -196,6 +212,11 @@ loadlib(void)
+ 	Sym *s;
+ 	char *a;
+ 
++	i = strlen(goroot)+strlen(goarch)+strlen(goos)+20;
++	a = mal(i);
++	snprint(a, i, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
++	addlibpath("internal", "internal", a, "runtime");
++
+ loop:
+ 	xrefresolv = 0;
+ 	for(i=0; i<libraryp; i++) {
+@@ -203,16 +224,13 @@ loop:
+ 			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), library[i].file, library[i].objref);
+ 		objfile(library[i].file, library[i].pkg);
+ 	}
++
+ 	if(xrefresolv)
+ 	for(h=0; h<nelem(hash); h++)
+ 	for(s = hash[h]; s != S; s = s->link)
+ 		if(s->type == SXREF)
+ 			goto loop;
+ 
+-	i = strlen(goroot)+strlen(goarch)+strlen(goos)+20;
+-	a = mal(i);
+-	snprint(a, i, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
+-	objfile(a, "runtime");
+ }
+ 
+ void
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 8943b05aa6..7b08705af7 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -63,6 +63,7 @@ EXTERN	int32	nsymbol;
+ EXTERN	char*	thestring;
+ 
+ void	addlib(char *src, char *obj);
++void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
+ void	copyhistfrog(char *buf, int nbuf);
+ void	addhist(int32 line, int type);
+ void	histtoauto(void);

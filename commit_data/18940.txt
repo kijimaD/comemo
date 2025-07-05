@@ -14,7 +14,7 @@ Date:   Tue Mar 25 13:22:19 2014 -0700
     R=rsc, dvyukov
     CC=golang-codereviews, michael.hudson
     https://golang.org/cl/79610043
-
+---
  src/pkg/runtime/malloc.goc      | 21 +++++++++++++++------
  src/pkg/runtime/malloc.h        | 13 ++++++++++---
  src/pkg/runtime/mem_darwin.c    |  7 +++++--
@@ -30,3 +30,561 @@ Date:   Tue Mar 25 13:22:19 2014 -0700
  src/pkg/runtime/mgc0.c          |  2 +-
  src/pkg/runtime/mheap.c         |  2 +-
  14 files changed, 91 insertions(+), 48 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 8f3603689c..03062adbbd 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -440,12 +440,14 @@ runtime·mallocinit(void)
+ 	extern byte end[];
+ 	uintptr limit;
+ 	uint64 i;
++	bool reserved;
+ 
+ 	p = nil;
+ 	p_size = 0;
+ 	arena_size = 0;
+ 	bitmap_size = 0;
+ 	spans_size = 0;
++	reserved = false;
+ 
+ 	// for 64-bit build
+ 	USED(p);
+@@ -499,7 +501,7 @@ runtime·mallocinit(void)
+ 		for(i = 0; i <= 0x7f; i++) {
+ 			p = (void*)(i<<40 | 0x00c0ULL<<32);
+ 			p_size = bitmap_size + spans_size + arena_size + PageSize;
+-			p = runtime·SysReserve(p, p_size);
++			p = runtime·SysReserve(p, p_size, &reserved);
+ 			if(p != nil)
+ 				break;
+ 		}
+@@ -543,7 +545,7 @@ runtime·mallocinit(void)
+ 		// to a MB boundary.
+ 		p = (byte*)ROUND((uintptr)end + (1<<18), 1<<20);
+ 		p_size = bitmap_size + spans_size + arena_size + PageSize;
+-		p = runtime·SysReserve(p, p_size);
++		p = runtime·SysReserve(p, p_size, &reserved);
+ 		if(p == nil)
+ 			runtime·throw("runtime: cannot reserve arena virtual address space");
+ 	}
+@@ -558,6 +560,7 @@ runtime·mallocinit(void)
+ 	runtime·mheap.arena_start = p1 + spans_size + bitmap_size;
+ 	runtime·mheap.arena_used = runtime·mheap.arena_start;
+ 	runtime·mheap.arena_end = p + p_size;
++	runtime·mheap.arena_reserved = reserved;
+ 
+ 	if(((uintptr)runtime·mheap.arena_start & (PageSize-1)) != 0)
+ 		runtime·throw("misrounded allocation in mallocinit");
+@@ -575,6 +578,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ {
+ 	byte *p, *p_end;
+ 	uintptr p_size;
++	bool reserved;
+ 
+ 	if(n > h->arena_end - h->arena_used) {
+ 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
+@@ -584,14 +588,19 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 		p_size = ROUND(n + PageSize, 256<<20);
+ 		new_end = h->arena_end + p_size;
+ 		if(new_end <= h->arena_start + MaxArena32) {
+-			p = runtime·SysReserve(h->arena_end, p_size);
+-			if(p == h->arena_end)
++			// TODO: It would be bad if part of the arena
++			// is reserved and part is not.
++			p = runtime·SysReserve(h->arena_end, p_size, &reserved);
++			if(p == h->arena_end) {
+ 				h->arena_end = new_end;
++				h->arena_reserved = reserved;
++			}
+ 			else if(p+p_size <= h->arena_start + MaxArena32) {
+ 				// Keep everything page-aligned.
+ 				// Our pages are bigger than hardware pages.
+ 				h->arena_end = p+p_size;
+ 				h->arena_used = p + (-(uintptr)p&(PageSize-1));
++				h->arena_reserved = reserved;
+ 			} else {
+ 				uint64 stat;
+ 				stat = 0;
+@@ -602,7 +611,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 	if(n <= h->arena_end - h->arena_used) {
+ 		// Keep taking from our reservation.
+ 		p = h->arena_used;
+-		runtime·SysMap(p, n, &mstats.heap_sys);
++		runtime·SysMap(p, n, h->arena_reserved, &mstats.heap_sys);
+ 		h->arena_used += n;
+ 		runtime·MHeap_MapBits(h);
+ 		runtime·MHeap_MapSpans(h);
+@@ -615,7 +624,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 	}
+ 	
+ 	// If using 64-bit, our reservation is all we have.
+-	if(sizeof(void*) == 8 && (uintptr)h->bitmap >= 0xffffffffU)
++	if(h->arena_end - h->arena_start >= MaxArena32)
+ 		return nil;
+ 
+ 	// On 32-bit, once the reservation is gone we can
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index eb11cced68..ca6289174e 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -175,12 +175,18 @@ struct MLink
+ // SysReserve reserves address space without allocating memory.
+ // If the pointer passed to it is non-nil, the caller wants the
+ // reservation there, but SysReserve can still choose another
+-// location if that one is unavailable.
++// location if that one is unavailable.  On some systems and in some
++// cases SysReserve will simply check that the address space is
++// available and not actually reserve it.  If SysReserve returns
++// non-nil, it sets *reserved to true if the address space is
++// reserved, false if it has merely been checked.
+ // NOTE: SysReserve returns OS-aligned memory, but the heap allocator
+ // may use larger alignment, so the caller must be careful to realign the
+ // memory obtained by SysAlloc.
+ //
+ // SysMap maps previously reserved address space for use.
++// The reserved argument is true if the address space was really
++// reserved, not merely checked.
+ //
+ // SysFault marks a (already SysAlloc'd) region to fault
+ // if accessed.  Used only for debugging the runtime.
+@@ -189,8 +195,8 @@ void*	runtime·SysAlloc(uintptr nbytes, uint64 *stat);
+ void	runtime·SysFree(void *v, uintptr nbytes, uint64 *stat);
+ void	runtime·SysUnused(void *v, uintptr nbytes);
+ void	runtime·SysUsed(void *v, uintptr nbytes);
+-void	runtime·SysMap(void *v, uintptr nbytes, uint64 *stat);
+-void*	runtime·SysReserve(void *v, uintptr nbytes);
++void	runtime·SysMap(void *v, uintptr nbytes, bool reserved, uint64 *stat);
++void*	runtime·SysReserve(void *v, uintptr nbytes, bool *reserved);
+ void	runtime·SysFault(void *v, uintptr nbytes);
+ 
+ // FixAlloc is a simple free-list allocator for fixed size objects.
+@@ -492,6 +498,7 @@ struct MHeap
+ 	byte *arena_start;
+ 	byte *arena_used;
+ 	byte *arena_end;
++	bool arena_reserved;
+ 
+ 	// central free lists for small size classes.
+ 	// the padding makes sure that the MCentrals are
+diff --git a/src/pkg/runtime/mem_darwin.c b/src/pkg/runtime/mem_darwin.c
+index 47fe2a525f..878c4e1c55 100644
+--- a/src/pkg/runtime/mem_darwin.c
++++ b/src/pkg/runtime/mem_darwin.c
+@@ -48,10 +48,11 @@ runtime·SysFault(void *v, uintptr n)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr n)
++runtime·SysReserve(void *v, uintptr n, bool *reserved)
+ {
+ 	void *p;
+ 
++	*reserved = true;
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(p < (void*)4096)
+ 		return nil;
+@@ -64,10 +65,12 @@ enum
+ };
+ 
+ void
+-runtime·SysMap(void *v, uintptr n, uint64 *stat)
++runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+ {
+ 	void *p;
+ 	
++	USED(reserved);
++
+ 	runtime·xadd64(stat, n);
+ 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+ 	if(p == (void*)ENOMEM)
+diff --git a/src/pkg/runtime/mem_dragonfly.c b/src/pkg/runtime/mem_dragonfly.c
+index ada820c2de..c270332cb9 100644
+--- a/src/pkg/runtime/mem_dragonfly.c
++++ b/src/pkg/runtime/mem_dragonfly.c
+@@ -52,16 +52,19 @@ runtime·SysFault(void *v, uintptr n)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr n)
++runtime·SysReserve(void *v, uintptr n, bool *reserved)
+ {
+ 	void *p;
+ 
+ 	// On 64-bit, people with ulimit -v set complain if we reserve too
+ 	// much address space.  Instead, assume that the reservation is okay
+ 	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8)
++	if(sizeof(void*) == 8 && n > 1LL<<32) {
++		*reserved = false;
+ 		return v;
+-	
++	}
++
++	*reserved = true;
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(p < (void*)4096)
+ 		return nil;
+@@ -69,14 +72,14 @@ runtime·SysReserve(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n, uint64 *stat)
++runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+ {
+ 	void *p;
+ 	
+ 	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(sizeof(void*) == 8) {
++	if(!reserved) {
+ 		// TODO(jsing): For some reason DragonFly seems to return
+ 		// memory at a different address than we requested, even when
+ 		// there should be no reason for it to do so. This can be
+diff --git a/src/pkg/runtime/mem_freebsd.c b/src/pkg/runtime/mem_freebsd.c
+index 1d6024013b..586947a2dc 100644
+--- a/src/pkg/runtime/mem_freebsd.c
++++ b/src/pkg/runtime/mem_freebsd.c
+@@ -52,16 +52,19 @@ runtime·SysFault(void *v, uintptr n)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr n)
++runtime·SysReserve(void *v, uintptr n, bool *reserved)
+ {
+ 	void *p;
+ 
+ 	// On 64-bit, people with ulimit -v set complain if we reserve too
+ 	// much address space.  Instead, assume that the reservation is okay
+ 	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8)
++	if(sizeof(void*) == 8 && n > 1LL<<32) {
++		*reserved = false;
+ 		return v;
+-	
++	}
++
++	*reserved = true;
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(p < (void*)4096)
+ 		return nil;
+@@ -69,14 +72,14 @@ runtime·SysReserve(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n, uint64 *stat)
++runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+ {
+ 	void *p;
+ 	
+ 	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(sizeof(void*) == 8) {
++	if(!reserved) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if(p == (void*)ENOMEM)
+ 			runtime·throw("runtime: out of memory");
+diff --git a/src/pkg/runtime/mem_linux.c b/src/pkg/runtime/mem_linux.c
+index 2ead204101..3f997be96b 100644
+--- a/src/pkg/runtime/mem_linux.c
++++ b/src/pkg/runtime/mem_linux.c
+@@ -99,7 +99,7 @@ runtime·SysFault(void *v, uintptr n)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr n)
++runtime·SysReserve(void *v, uintptr n, bool *reserved)
+ {
+ 	void *p;
+ 
+@@ -107,7 +107,7 @@ runtime·SysReserve(void *v, uintptr n)
+ 	// much address space.  Instead, assume that the reservation is okay
+ 	// if we can reserve at least 64K and check the assumption in SysMap.
+ 	// Only user-mode Linux (UML) rejects these requests.
+-	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
++	if(sizeof(void*) == 8 && n > 1LL<<32) {
+ 		p = mmap_fixed(v, 64<<10, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if (p != v) {
+ 			if(p >= (void*)4096)
+@@ -115,24 +115,26 @@ runtime·SysReserve(void *v, uintptr n)
+ 			return nil;
+ 		}
+ 		runtime·munmap(p, 64<<10);
++		*reserved = false;
+ 		return v;
+ 	}
+ 
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if((uintptr)p < 4096)
+ 		return nil;
++	*reserved = true;
+ 	return p;
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n, uint64 *stat)
++runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+ {
+ 	void *p;
+ 	
+ 	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
++	if(!reserved) {
+ 		p = mmap_fixed(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if(p == (void*)ENOMEM)
+ 			runtime·throw("runtime: out of memory");
+diff --git a/src/pkg/runtime/mem_nacl.c b/src/pkg/runtime/mem_nacl.c
+index c743259cc0..e2bca40a49 100644
+--- a/src/pkg/runtime/mem_nacl.c
++++ b/src/pkg/runtime/mem_nacl.c
+@@ -60,31 +60,34 @@ runtime·SysFault(void *v, uintptr n)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr n)
++runtime·SysReserve(void *v, uintptr n, bool *reserved)
+ {
+ 	void *p;
+ 
+ 	// On 64-bit, people with ulimit -v set complain if we reserve too
+ 	// much address space.  Instead, assume that the reservation is okay
+ 	// and check the assumption in SysMap.
+-	if(NaCl || sizeof(void*) == 8)
++	if(NaCl || sizeof(void*) == 8) {
++		*reserved = false;
+ 		return v;
++	}
+ 	
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(p < (void*)4096)
+ 		return nil;
++	*reserved = true;
+ 	return p;
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n, uint64 *stat)
++runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+ {
+ 	void *p;
+ 	
+ 	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(sizeof(void*) == 8) {
++	if(!reserved) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if(p == (void*)ENOMEM) {
+ 			runtime·printf("SysMap(%p, %p): %p\n", v, n, p);
+diff --git a/src/pkg/runtime/mem_netbsd.c b/src/pkg/runtime/mem_netbsd.c
+index ed0a058369..861ae90c7e 100644
+--- a/src/pkg/runtime/mem_netbsd.c
++++ b/src/pkg/runtime/mem_netbsd.c
+@@ -52,31 +52,34 @@ runtime·SysFault(void *v, uintptr n)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr n)
++runtime·SysReserve(void *v, uintptr n, bool *reserved)
+ {
+ 	void *p;
+ 
+ 	// On 64-bit, people with ulimit -v set complain if we reserve too
+ 	// much address space.  Instead, assume that the reservation is okay
+ 	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8)
++	if(sizeof(void*) == 8 && n > 1LL<<32) {
++		*reserved = false;
+ 		return v;
++	}
+ 
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(p < (void*)4096)
+ 		return nil;
++	*reserved = true;
+ 	return p;
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n, uint64 *stat)
++runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+ {
+ 	void *p;
+ 	
+ 	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(sizeof(void*) == 8) {
++	if(!reserved) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if(p == (void*)ENOMEM)
+ 			runtime·throw("runtime: out of memory");
+diff --git a/src/pkg/runtime/mem_openbsd.c b/src/pkg/runtime/mem_openbsd.c
+index ed0a058369..861ae90c7e 100644
+--- a/src/pkg/runtime/mem_openbsd.c
++++ b/src/pkg/runtime/mem_openbsd.c
+@@ -52,31 +52,34 @@ runtime·SysFault(void *v, uintptr n)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr n)
++runtime·SysReserve(void *v, uintptr n, bool *reserved)
+ {
+ 	void *p;
+ 
+ 	// On 64-bit, people with ulimit -v set complain if we reserve too
+ 	// much address space.  Instead, assume that the reservation is okay
+ 	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8)
++	if(sizeof(void*) == 8 && n > 1LL<<32) {
++		*reserved = false;
+ 		return v;
++	}
+ 
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(p < (void*)4096)
+ 		return nil;
++	*reserved = true;
+ 	return p;
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n, uint64 *stat)
++runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+ {
+ 	void *p;
+ 	
+ 	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(sizeof(void*) == 8) {
++	if(!reserved) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if(p == (void*)ENOMEM)
+ 			runtime·throw("runtime: out of memory");
+diff --git a/src/pkg/runtime/mem_plan9.c b/src/pkg/runtime/mem_plan9.c
+index 709ff69a1c..bbf04c7eda 100644
+--- a/src/pkg/runtime/mem_plan9.c
++++ b/src/pkg/runtime/mem_plan9.c
+@@ -62,9 +62,9 @@ runtime·SysUsed(void *v, uintptr nbytes)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr nbytes, uint64 *stat)
++runtime·SysMap(void *v, uintptr nbytes, bool reserved, uint64 *stat)
+ {
+-	USED(v, nbytes, stat);
++	USED(v, nbytes, reserved, stat);
+ }
+ 
+ void
+@@ -74,8 +74,9 @@ runtime·SysFault(void *v, uintptr nbytes)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr nbytes)
++runtime·SysReserve(void *v, uintptr nbytes, bool *reserved)
+ {
+ 	USED(v);
++	*reserved = true;
+ 	return runtime·SysAlloc(nbytes, &mstats.heap_sys);
+ }
+diff --git a/src/pkg/runtime/mem_solaris.c b/src/pkg/runtime/mem_solaris.c
+index f82a25b031..034222887b 100644
+--- a/src/pkg/runtime/mem_solaris.c
++++ b/src/pkg/runtime/mem_solaris.c
+@@ -53,31 +53,34 @@ runtime·SysFault(void *v, uintptr n)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr n)
++runtime·SysReserve(void *v, uintptr n, bool *reserved)
+ {
+ 	void *p;
+ 
+ 	// On 64-bit, people with ulimit -v set complain if we reserve too
+ 	// much address space.  Instead, assume that the reservation is okay
+ 	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8)
++	if(sizeof(void*) == 8 && n > 1LL<<32) {
++		*reserved = false;
+ 		return v;
++	}
+ 	
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(p < (void*)4096)
+ 		return nil;
++	*reserved = true;
+ 	return p;
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n, uint64 *stat)
++runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+ {
+ 	void *p;
+ 	
+ 	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(sizeof(void*) == 8) {
++	if(!reserved) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if(p == (void*)ENOMEM)
+ 			runtime·throw("runtime: out of memory");
+diff --git a/src/pkg/runtime/mem_windows.c b/src/pkg/runtime/mem_windows.c
+index c082008259..551c96ce99 100644
+--- a/src/pkg/runtime/mem_windows.c
++++ b/src/pkg/runtime/mem_windows.c
+@@ -73,6 +73,7 @@ runtime·SysFault(void *v, uintptr n)
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
++	*reserved = true;
+ 	// v is just a hint.
+ 	// First try at v.
+ 	v = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_RESERVE, (uintptr)PAGE_READWRITE);
+@@ -84,10 +85,12 @@ runtime·SysReserve(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n, uint64 *stat)
++runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+ {
+ 	void *p;
+-	
++
++	USED(reserved);
++
+ 	runtime·xadd64(stat, n);
+ 	p = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_READWRITE);
+ 	if(p != v)
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 87e0169933..166c52b2ad 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2773,6 +2773,6 @@ runtime·MHeap_MapBits(MHeap *h)
+ 	if(h->bitmap_mapped >= n)
+ 		return;
+ 
+-	runtime·SysMap(h->arena_start - n, n - h->bitmap_mapped, &mstats.gc_sys);
++	runtime·SysMap(h->arena_start - n, n - h->bitmap_mapped, h->arena_reserved, &mstats.gc_sys);
+ 	h->bitmap_mapped = n;
+ }
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 93cf83f163..0cb7043f44 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -85,7 +85,7 @@ runtime·MHeap_MapSpans(MHeap *h)
+ 	n = ROUND(n, PhysPageSize);
+ 	if(h->spans_mapped >= n)
+ 		return;
+-	runtime·SysMap((byte*)h->spans + h->spans_mapped, n - h->spans_mapped, &mstats.other_sys);
++	runtime·SysMap((byte*)h->spans + h->spans_mapped, n - h->spans_mapped, h->arena_reserved, &mstats.other_sys);
+ 	h->spans_mapped = n;
+ }
+ 

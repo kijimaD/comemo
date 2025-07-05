@@ -9,6 +9,24 @@ Date:   Thu Dec 11 21:54:20 2014 +1100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/play/peano.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/play/peano.go b/doc/play/peano.go
+index c1ee5ad45d..31619b1b1c 100644
+--- a/doc/play/peano.go
++++ b/doc/play/peano.go
+@@ -3,9 +3,9 @@
+ // (the nodes are the data).
+ // http://en.wikipedia.org/wiki/Peano_axioms
+ 
+-// This program demonstrates the power of Go's
+-// segmented stacks when doing massively
+-// recursive computations.
++// This program demonstrates the effectiveness
++// of the Go runtime's dynamically growing
++// stacks for heavily recursive computations.
+ 
+ package main
+ 

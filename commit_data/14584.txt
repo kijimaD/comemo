@@ -7,6 +7,20 @@ Date:   Sat Dec 8 19:20:38 2012 +1100
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6901056
-
+---
  src/pkg/math/rand/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/rand/example_test.go b/src/pkg/math/rand/example_test.go
+index 997385c016..4fe207d85e 100644
+--- a/src/pkg/math/rand/example_test.go
++++ b/src/pkg/math/rand/example_test.go
+@@ -40,7 +40,7 @@ func Example() {
+ 	show("NormFloat64", r.NormFloat64(), r.NormFloat64(), r.NormFloat64())
+ 
+ 	// Int31, Int63, and Uint32 generate values of the given width.
+-	// The Int method (not shown) is like either Int31 or Int64
++	// The Int method (not shown) is like either Int31 or Int63
+ 	// depending on the size of 'int'.
+ 	show("Int31", r.Int31(), r.Int31(), r.Int31())
+ 	show("Int63", r.Int63(), r.Int63(), r.Int63())

@@ -10,6 +10,28 @@ Date:   Thu Sep 8 09:49:31 2016 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/panic.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 60b277d52c..016e29013a 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -504,15 +504,9 @@ func gopanic(e interface{}) {
+ // getargp returns the location where the caller
+ // writes outgoing function call arguments.
+ //go:nosplit
++//go:noinline
+ func getargp(x int) uintptr {
+ 	// x is an argument mainly so that we can return its address.
+-	// However, we need to make the function complex enough
+-	// that it won't be inlined. We always pass x = 0, so this code
+-	// does nothing other than keep the compiler from thinking
+-	// the function is simple enough to inline.
+-	if x > 0 {
+-		return getcallersp(unsafe.Pointer(&x)) * 0
+-	}
+ 	return uintptr(noescape(unsafe.Pointer(&x)))
+ }
+ 

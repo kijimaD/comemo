@@ -19,8 +19,97 @@ Date:   Thu Dec 16 14:33:13 2021 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/testplugin/plugin_test.go            | 28 +++++++++++++++++++++++++
  misc/cgo/testplugin/testdata/forkexec/main.go | 30 +++++++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go               |  5 ++++-
  3 files changed, 62 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index a6accc1dfb..10c5db2646 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -289,3 +289,31 @@ func TestIssue44956(t *testing.T) {
+ 	goCmd(t, "build", "-o", "issue44956.exe", "./issue44956/main.go")
+ 	run(t, "./issue44956.exe")
+ }
++
++func TestForkExec(t *testing.T) {
++	// Issue 38824: importing the plugin package causes it hang in forkExec on darwin.
++
++	t.Parallel()
++	goCmd(t, "build", "-o", "forkexec.exe", "./forkexec/main.go")
++
++	var cmd *exec.Cmd
++	done := make(chan int, 1)
++
++	go func() {
++		for i := 0; i < 100; i++ {
++			cmd = exec.Command("./forkexec.exe", "1")
++			err := cmd.Run()
++			if err != nil {
++				t.Errorf("running command failed: %v", err)
++				break
++			}
++		}
++		done <- 1
++	}()
++	select {
++	case <-done:
++	case <-time.After(5 * time.Minute):
++		cmd.Process.Kill()
++		t.Fatalf("subprocess hang")
++	}
++}
+diff --git a/misc/cgo/testplugin/testdata/forkexec/main.go b/misc/cgo/testplugin/testdata/forkexec/main.go
+new file mode 100644
+index 0000000000..3169ff5f04
+--- /dev/null
++++ b/misc/cgo/testplugin/testdata/forkexec/main.go
+@@ -0,0 +1,30 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"os"
++	"os/exec"
++	_ "plugin"
++	"sync"
++)
++
++func main() {
++	if os.Args[1] != "1" {
++		return
++	}
++
++	var wg sync.WaitGroup
++	for i := 0; i < 8; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			// does not matter what we exec, just exec itself
++			cmd := exec.Command("./forkexec.exe", "0")
++			cmd.Run()
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9e13db7b71..f1a37e955e 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1269,7 +1269,10 @@ func (ctxt *Link) hostlink() {
+ 		if ctxt.DynlinkingGo() && buildcfg.GOOS != "ios" {
+ 			// -flat_namespace is deprecated on iOS.
+ 			// It is useful for supporting plugins. We don't support plugins on iOS.
+-			argv = append(argv, "-Wl,-flat_namespace")
++			// -flat_namespace may cause the dynamic linker to hang at forkExec when
++			// resolving a lazy binding. See issue 38824.
++			// Force eager resolution to work around.
++			argv = append(argv, "-Wl,-flat_namespace", "-Wl,-bind_at_load")
+ 		}
+ 		if !combineDwarf {
+ 			argv = append(argv, "-Wl,-S") // suppress STAB (symbolic debugging) symbols

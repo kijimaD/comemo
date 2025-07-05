@@ -7,6 +7,97 @@ Date:   Wed Nov 14 16:30:53 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6821096
-
+---
  src/cmd/gc/racewalk.c | 35 +++++++++++++++--------------------
  1 file changed, 15 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index d0579f9a5a..5e2a456ff2 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -153,12 +153,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		racewalknode(&n->left, init, 0, 0);
+ 		goto ret;
+ 
+-	case OFOR:
+-		goto ret;
+-
+-	case OIF:
+-		goto ret;
+-
+ 	case OPROC:
+ 		racewalknode(&n->left, init, 0, 0);
+ 		goto ret;
+@@ -171,24 +165,12 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		racewalknode(&n->left, init, 0, 0);
+ 		goto ret;
+ 
+-	case OCALLMETH:
+-		goto ret;
+-
+-	case ORETURN:
+-		goto ret;
+-
+-	case OSELECT:
+-		goto ret;
+-
+ 	case OSWITCH:
+ 		if(n->ntest->op == OTYPESW)
+ 			// TODO(dvyukov): the expression can contain calls or reads.
+ 			return;
+ 		goto ret;
+ 
+-	case OEMPTY:
+-		goto ret;
+-
+ 	case ONOT:
+ 	case OMINUS:
+ 	case OPLUS:
+@@ -299,6 +281,11 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		racewalknode(&n->left, init, 0, 1);
+ 		goto ret;
+ 
++	case OEFACE:
++		racewalknode(&n->left, init, 0, 0);
++		racewalknode(&n->right, init, 0, 0);
++		goto ret;
++
+ 	// should not appear in AST by now
+ 	case OSEND:
+ 	case ORECV:
+@@ -309,9 +296,19 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OCASE:
+ 	case OPANIC:
+ 	case ORECOVER:
++	case OCONVIFACE:
+ 		yyerror("racewalk: %O must be lowered by now", n->op);
+ 		goto ret;
+ 
++	// just do generic traversal
++	case OFOR:
++	case OIF:
++	case OCALLMETH:
++	case ORETURN:
++	case OSELECT:
++	case OEMPTY:
++		goto ret;
++
+ 	// does not require instrumentation
+ 	case OINDEXMAP:  // implemented in runtime
+ 	case OPRINT:     // don't bother instrumenting it
+@@ -340,7 +337,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OCLOSURE:
+ 	case ODOTTYPE:
+ 	case ODOTTYPE2:
+-	case OCONVIFACE:
+ 	case OCALL:
+ 	case OBREAK:
+ 	case ODCL:
+@@ -357,7 +353,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OINDREG:
+ 	case OCOM:
+ 	case ODOTMETH:
+-	case OEFACE:
+ 	case OITAB:
+ 	case OEXTEND:
+ 	case OHMUL:

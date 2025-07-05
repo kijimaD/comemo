@@ -11,7 +11,92 @@ Date:   Wed Nov 6 15:11:20 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/debug_test.go        | 12 ++++++------
  src/runtime/export_debug_test.go |  8 +++++++-
  2 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index f77a373d13..722e81121f 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -126,7 +126,7 @@ func TestDebugCall(t *testing.T) {
+ 		return x + 1
+ 	}
+ 	args.x = 42
+-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill); err != nil {
++	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill, false); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if args.yRet != 43 {
+@@ -155,7 +155,7 @@ func TestDebugCallLarge(t *testing.T) {
+ 		args.in[i] = i
+ 		want[i] = i + 1
+ 	}
+-	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill); err != nil {
++	if _, err := runtime.InjectDebugCall(g, fn, &args, debugCallTKill, false); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if want != args.out {
+@@ -168,7 +168,7 @@ func TestDebugCallGC(t *testing.T) {
+ 	defer after()
+ 
+ 	// Inject a call that performs a GC.
+-	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, debugCallTKill); err != nil {
++	if _, err := runtime.InjectDebugCall(g, runtime.GC, nil, debugCallTKill, false); err != nil {
+ 		t.Fatal(err)
+ 	}
+ }
+@@ -179,7 +179,7 @@ func TestDebugCallGrowStack(t *testing.T) {
+ 
+ 	// Inject a call that grows the stack. debugCallWorker checks
+ 	// for stack pointer breakage.
+-	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, debugCallTKill); err != nil {
++	if _, err := runtime.InjectDebugCall(g, func() { growStack(nil) }, nil, debugCallTKill, false); err != nil {
+ 		t.Fatal(err)
+ 	}
+ }
+@@ -215,7 +215,7 @@ func TestDebugCallUnsafePoint(t *testing.T) {
+ 		runtime.Gosched()
+ 	}
+ 
+-	_, err := runtime.InjectDebugCall(g, func() {}, nil, debugCallTKill)
++	_, err := runtime.InjectDebugCall(g, func() {}, nil, debugCallTKill, true)
+ 	if msg := "call not at safe point"; err == nil || err.Error() != msg {
+ 		t.Fatalf("want %q, got %s", msg, err)
+ 	}
+@@ -239,7 +239,7 @@ func TestDebugCallPanic(t *testing.T) {
+ 	}()
+ 	g := <-ready
+ 
+-	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, debugCallTKill)
++	p, err := runtime.InjectDebugCall(g, func() { panic("test") }, nil, debugCallTKill, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 7deddd52ea..7ae12f6da3 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -20,7 +20,7 @@ import (
+ //
+ // On success, InjectDebugCall returns the panic value of fn or nil.
+ // If fn did not panic, its results will be available in args.
+-func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (interface{}, error) {
++func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, returnOnUnsafePoint bool) (interface{}, error) {
+ 	if gp.lockedm == 0 {
+ 		return nil, plainError("goroutine not locked to thread")
+ 	}
+@@ -64,6 +64,12 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error) (in
+ 		notetsleepg(&h.done, -1)
+ 		if h.err != "" {
+ 			switch h.err {
++			case "call not at safe point":
++				if returnOnUnsafePoint {
++					// This is for TestDebugCallUnsafePoint.
++					return nil, h.err
++				}
++				fallthrough
+ 			case "retry _Grunnable", "executing on Go runtime stack":
+ 				// These are transient states. Try to get out of them.
+ 				if i < 100 {

@@ -9,6 +9,19 @@ Date:   Fri Aug 23 16:53:32 2013 -0700
     R=golang-dev, cshapiro, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/12869049
-
+---
  src/pkg/os/exec/exec_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index 8448a67d0a..d7e8573a08 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -205,6 +205,7 @@ func closeUnexpectedFds(t *testing.T, m string) {
+ }
+ 
+ func TestExtraFilesFDShuffle(t *testing.T) {
++	t.Skip("flaky test; see http://golang.org/issue/5780")
+ 	switch runtime.GOOS {
+ 	case "darwin":
+ 		// TODO(cnicolaou): http://golang.org/issue/2603

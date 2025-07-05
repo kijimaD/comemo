@@ -8,7 +8,54 @@ Date:   Mon Aug 22 13:22:42 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4938043
-
+---
  src/pkg/reflect/all_test.go | 6 +++---
  src/pkg/reflect/type.go     | 4 ++--
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 257278e8f4..d63e986fde 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -6,7 +6,7 @@ package reflect_test
+ 
+ import (
+ 	"bytes"
+-	"container/vector"
++	"encoding/base64"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -1322,8 +1322,8 @@ func TestFieldByName(t *testing.T) {
+ }
+ 
+ func TestImportPath(t *testing.T) {
+-	if path := TypeOf(vector.Vector{}).PkgPath(); path != "container/vector" {
+-		t.Errorf("TypeOf(vector.Vector{}).PkgPath() = %q, want \"container/vector\"", path)
++	if path := TypeOf(&base64.Encoding{}).Elem().PkgPath(); path != "encoding/base64" {
++		t.Errorf(`TypeOf(&base64.Encoding{}).Elem().PkgPath() = %q, want "encoding/base64"`, path)
+ 	}
+ }
+ 
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 4c377e1fe1..c9a9edc73d 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -65,7 +65,7 @@ type Type interface {
+ 	Name() string
+ 
+ 	// PkgPath returns the type's package path.
+-	// The package path is a full package import path like "container/vector".
++	// The package path is a full package import path like "encoding/base64".
+ 	// PkgPath returns an empty string for unnamed types.
+ 	PkgPath() string
+ 
+@@ -75,7 +75,7 @@ type Type interface {
+ 
+ 	// String returns a string representation of the type.
+ 	// The string representation may use shortened package names
+-	// (e.g., vector instead of "container/vector") and is not
++	// (e.g., base64 instead of "encoding/base64") and is not
+ 	// guaranteed to be unique among types.  To test for equality,
+ 	// compare the Types directly.
+ 	String() string

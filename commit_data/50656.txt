@@ -16,7 +16,56 @@ Date:   Fri Oct 29 03:23:15 2021 +0000
     Trust: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go           | 6 +++---
  src/cmd/go/testdata/script/mod_invalid_version.txt | 8 ++++----
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index dfef9f73c2..df835c3d7e 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -567,11 +567,11 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 	if rev != info.Short {
+ 		switch {
+ 		case strings.HasPrefix(rev, info.Short):
+-			return fmt.Errorf("revision is longer than canonical (%s)", info.Short)
++			return fmt.Errorf("revision is longer than canonical (expected %s)", info.Short)
+ 		case strings.HasPrefix(info.Short, rev):
+-			return fmt.Errorf("revision is shorter than canonical (%s)", info.Short)
++			return fmt.Errorf("revision is shorter than canonical (expected %s)", info.Short)
+ 		default:
+-			return fmt.Errorf("does not match short name of revision (%s)", info.Short)
++			return fmt.Errorf("does not match short name of revision (expected %s)", info.Short)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index f9317b676d..428b8aa60e 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -57,20 +57,20 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(expected 14c0d48ead0c\)'
+ cd ..
+ ! go list -m golang.org/x/text
+-stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
++stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(expected 14c0d48ead0c\)'
+ 
+ # A pseudo-version with more than 12 digits of SHA-1 prefix is invalid.
+ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(expected 14c0d48ead0c\)'
+ cd ..
+ ! go list -m golang.org/x/text
+-stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
++stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(expected 14c0d48ead0c\)'
+ 
+ # A pseudo-version that does not match the commit timestamp is invalid.
+ cp go.mod.orig go.mod

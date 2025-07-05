@@ -12,6 +12,20 @@ Date:   Tue Oct 12 16:52:17 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2421042
-
+---
  src/cmd/ld/macho.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index a3d302401e..799daf87ae 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -410,7 +410,7 @@ domacholink(void)
+ 	uint64 val;
+ 
+ 	linkoff = 0;
+-	if(nlinkdata > 0) {
++	if(nlinkdata > 0 || nstrtab > 0) {
+ 		linkoff = rnd(HEADR+textsize, INITRND) + rnd(datsize, INITRND);
+ 		seek(cout, linkoff, 0);
+ 

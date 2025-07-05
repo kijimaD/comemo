@@ -15,8 +15,124 @@ Date:   Mon Oct 28 23:10:31 2024 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/runtime/atomic/atomic_arm.go | 21 +++++++++++++++++++++
  src/internal/runtime/atomic/atomic_arm.s  | 31 +++++++++++++++++++++++++++++++
  src/internal/runtime/atomic/xchg8_test.go | 22 +++++++++++++++++++++-
  3 files changed, 73 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/runtime/atomic/atomic_arm.go b/src/internal/runtime/atomic/atomic_arm.go
+index 0909d224fc..dcc6ad99d6 100644
+--- a/src/internal/runtime/atomic/atomic_arm.go
++++ b/src/internal/runtime/atomic/atomic_arm.go
+@@ -74,6 +74,27 @@ func Xchg(addr *uint32, v uint32) uint32 {
+ 	}
+ }
+ 
++//go:noescape
++func Xchg8(addr *uint8, v uint8) uint8
++
++//go:nosplit
++func goXchg8(addr *uint8, v uint8) uint8 {
++	// Align down to 4 bytes and use 32-bit CAS.
++	addr32 := (*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(addr)) &^ 3))
++	shift := (uintptr(unsafe.Pointer(addr)) & 3) * 8 // little endian
++	word := uint32(v) << shift
++	mask := uint32(0xFF) << shift
++
++	for {
++		old := *addr32 // Read the old 32-bit value
++		// Clear the old 8 bits then insert the new value
++		if Cas(addr32, old, (old&^mask)|word) {
++			// Return the old 8-bit value
++			return uint8((old & mask) >> shift)
++		}
++	}
++}
++
+ //go:nosplit
+ func Xchguintptr(addr *uintptr, v uintptr) uintptr {
+ 	return uintptr(Xchg((*uint32)(unsafe.Pointer(addr)), uint32(v)))
+diff --git a/src/internal/runtime/atomic/atomic_arm.s b/src/internal/runtime/atomic/atomic_arm.s
+index 93214da826..85cee049af 100644
+--- a/src/internal/runtime/atomic/atomic_arm.s
++++ b/src/internal/runtime/atomic/atomic_arm.s
+@@ -264,6 +264,23 @@ or8loop:
+ 
+ 	RET
+ 
++TEXT armXchg8<>(SB),NOSPLIT,$0-9
++	// addr is already in R1
++	MOVB	v+4(FP), R2
++xchg8loop:
++	LDREXB	(R1), R6
++
++	DMB	MB_ISHST
++
++	STREXB	R2, (R1), R0
++	CMP	$0, R0
++	BNE	xchg8loop
++
++	DMB	MB_ISH
++
++	MOVB R6, ret+8(FP)
++	RET
++
+ // The following functions all panic if their address argument isn't
+ // 8-byte aligned. Since we're calling back into Go code to do this,
+ // we have to cooperate with stack unwinding. In the normal case, the
+@@ -374,3 +391,17 @@ TEXT ·Or8(SB),NOSPLIT,$-4-5
+ 	JMP	·goOr8(SB)
+ #endif
+ 	JMP	armOr8<>(SB)
++
++TEXT ·Xchg8(SB),NOSPLIT,$-4-9
++	NO_LOCAL_POINTERS
++	MOVW	addr+0(FP), R1
++
++	// Uses STREXB/LDREXB that is armv6k or later.
++	// For simplicity we only enable this on armv7.
++#ifndef GOARM_7
++	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
++	CMP	$1, R11
++	BEQ	2(PC)
++	JMP	·goXchg8(SB)
++#endif
++	JMP	armXchg8<>(SB)
+diff --git a/src/internal/runtime/atomic/xchg8_test.go b/src/internal/runtime/atomic/xchg8_test.go
+index d9f1d8854e..d9c0a8dd24 100644
+--- a/src/internal/runtime/atomic/xchg8_test.go
++++ b/src/internal/runtime/atomic/xchg8_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build 386 || amd64 || arm64 || ppc64 || ppc64le
++//go:build 386 || amd64 || arm || arm64 || ppc64 || ppc64le
+ 
+ package atomic_test
+ 
+@@ -37,3 +37,23 @@ func TestXchg8(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkXchg8(b *testing.B) {
++	var x [512]uint8 // give byte its own cache line
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		atomic.Xchg8(&x[255], uint8(i))
++	}
++}
++
++func BenchmarkXchg8Parallel(b *testing.B) {
++	var x [512]uint8 // give byte its own cache line
++	sink = &x
++	b.RunParallel(func(pb *testing.PB) {
++		i := uint8(0)
++		for pb.Next() {
++			atomic.Xchg8(&x[255], i)
++			i++
++		}
++	})
++}

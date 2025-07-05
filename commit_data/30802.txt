@@ -12,6 +12,63 @@ Date:   Tue Dec 6 10:40:31 2016 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/reflect/example_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  1 file changed, 41 insertions(+)
+
+diff --git a/src/reflect/example_test.go b/src/reflect/example_test.go
+index 9e2b9b3e97..f959b95846 100644
+--- a/src/reflect/example_test.go
++++ b/src/reflect/example_test.go
+@@ -5,6 +5,8 @@
+ package reflect_test
+ 
+ import (
++	"bytes"
++	"encoding/json"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -107,3 +109,42 @@ func ExampleTypeOf() {
+ 	// Output:
+ 	// true
+ }
++
++func ExampleStructOf() {
++	typ := reflect.StructOf([]reflect.StructField{
++		{
++			Name: "Height",
++			Type: reflect.TypeOf(float64(0)),
++			Tag:  `json:"height"`,
++		},
++		{
++			Name: "Age",
++			Type: reflect.TypeOf(int(0)),
++			Tag:  `json:"age"`,
++		},
++	})
++
++	v := reflect.New(typ).Elem()
++	v.Field(0).SetFloat(0.4)
++	v.Field(1).SetInt(2)
++	s := v.Addr().Interface()
++
++	w := new(bytes.Buffer)
++	if err := json.NewEncoder(w).Encode(s); err != nil {
++		panic(err)
++	}
++
++	fmt.Printf("value: %+v\n", s)
++	fmt.Printf("json:  %s", w.Bytes())
++
++	r := bytes.NewReader([]byte(`{"height":1.5,"age":10}`))
++	if err := json.NewDecoder(r).Decode(s); err != nil {
++		panic(err)
++	}
++	fmt.Printf("value: %+v\n", s)
++
++	// Output:
++	// value: &{Height:0.4 Age:2}
++	// json:  {"height":0.4,"age":2}
++	// value: &{Height:1.5 Age:10}
++}

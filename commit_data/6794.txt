@@ -7,8 +7,50 @@ Date:   Mon Nov 29 07:30:36 2010 -0800
     R=rsc, cw, PeterGo
     CC=golang-dev
     https://golang.org/cl/3319042
-
+---
  src/pkg/fmt/doc.go      | 2 +-
  src/pkg/fmt/fmt_test.go | 3 ++-
  src/pkg/fmt/format.go   | 3 +++
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 06dc730089..a026a5e197 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -58,7 +58,7 @@
+ 			0X for hex (%#X); suppress 0x for %p (%#p);
+ 			print a raw (backquoted) string if possible for %q (%#q)
+ 		' '	(space) leave a space for elided sign in numbers (% d);
+-			put spaces between bytes printing strings or slices in hex (% x)
++			put spaces between bytes printing strings or slices in hex (% x, % X)
+ 		0	pad with leading zeros rather than spaces
+ 
+ 	For each Printf-like function, there is also a Print function
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 2c09e0713b..fbc2536ee1 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -121,7 +121,8 @@ var fmttests = []fmtTest{
+ 	// basic bytes
+ 	{"%s", []byte("abc"), "abc"},
+ 	{"%x", []byte("abc"), "616263"},
+-	{"% x", []byte("abc"), "61 62 63"},
++	{"% x", []byte("abc\xff"), "61 62 63 ff"},
++	{"% X", []byte("abc\xff"), "61 62 63 FF"},
+ 	{"%x", []byte("xyz"), "78797a"},
+ 	{"%X", []byte("xyz"), "78797A"},
+ 	{"%q", []byte("abc"), `"abc"`},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 3ec1cf1394..010280bf85 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -255,6 +255,9 @@ func (f *fmt) fmt_sx(s string) {
+ func (f *fmt) fmt_sX(s string) {
+ 	t := ""
+ 	for i := 0; i < len(s); i++ {
++		if i > 0 && f.space {
++			t += " "
++		}
+ 		v := s[i]
+ 		t += string(udigits[v>>4])
+ 		t += string(udigits[v&0xF])

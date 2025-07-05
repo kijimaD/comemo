@@ -8,6 +8,20 @@ Date:   Thu Sep 4 11:34:01 2014 +0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/141030043
-
+---
  src/pkg/runtime/netpoll.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/netpoll.go b/src/pkg/runtime/netpoll.go
+index 55f90f8c1e..08da87aa26 100644
+--- a/src/pkg/runtime/netpoll.go
++++ b/src/pkg/runtime/netpoll.go
+@@ -273,7 +273,7 @@ func netpolllock(pd *pollDesc) {
+ }
+ 
+ func netpollunlock(pd *pollDesc) {
+-	lock(&pd.lock)
++	unlock(&pd.lock)
+ }
+ 
+ // make pd ready, newly runnable goroutines (if any) are returned in rg/wg

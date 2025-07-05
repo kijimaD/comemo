@@ -14,7 +14,7 @@ Date:   Wed Apr 21 02:11:15 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/escape/escape.go          |   7 +-
  src/cmd/compile/internal/ir/expr.go                |   2 +-
  src/cmd/compile/internal/ir/fmt.go                 | 132 ++++++++--------
@@ -36,3 +36,927 @@ Date:   Wed Apr 21 02:11:15 2021 -0700
  src/runtime/slice.go                               |  19 +++
  test/unsafebuiltins.go                             |  61 +++++++
  20 files changed, 439 insertions(+), 204 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 05bd44c35d..3ac7ff1ebe 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -677,7 +677,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		n := n.(*ir.UnaryExpr)
+ 		e.discard(n.X)
+ 
+-	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY:
++	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+ 		e.call([]hole{k}, n, nil)
+ 
+ 	case ir.ONEW:
+@@ -1101,6 +1101,11 @@ func (e *escape) call(ks []hole, call, where ir.Node) {
+ 	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
+ 		call := call.(*ir.UnaryExpr)
+ 		argument(e.discardHole(), call.X)
++
++	case ir.OUNSAFEADD, ir.OUNSAFESLICE:
++		call := call.(*ir.BinaryExpr)
++		argument(ks[0], call.X)
++		argument(e.discardHole(), call.Y)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 94255116a0..f70645f079 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -136,7 +136,7 @@ func (n *BinaryExpr) SetOp(op Op) {
+ 		panic(n.no("SetOp " + op.String()))
+ 	case OADD, OADDSTR, OAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE,
+ 		OLSH, OLT, OMOD, OMUL, ONE, OOR, ORSH, OSUB, OXOR,
+-		OCOPY, OCOMPLEX,
++		OCOPY, OCOMPLEX, OUNSAFEADD, OUNSAFESLICE,
+ 		OEFACE:
+ 		n.op = op
+ 	}
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 8eb1cffc59..f2ae0f7606 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -25,69 +25,71 @@ import (
+ // Op
+ 
+ var OpNames = []string{
+-	OADDR:     "&",
+-	OADD:      "+",
+-	OADDSTR:   "+",
+-	OALIGNOF:  "unsafe.Alignof",
+-	OANDAND:   "&&",
+-	OANDNOT:   "&^",
+-	OAND:      "&",
+-	OAPPEND:   "append",
+-	OAS:       "=",
+-	OAS2:      "=",
+-	OBREAK:    "break",
+-	OCALL:     "function call", // not actual syntax
+-	OCAP:      "cap",
+-	OCASE:     "case",
+-	OCLOSE:    "close",
+-	OCOMPLEX:  "complex",
+-	OBITNOT:   "^",
+-	OCONTINUE: "continue",
+-	OCOPY:     "copy",
+-	ODELETE:   "delete",
+-	ODEFER:    "defer",
+-	ODIV:      "/",
+-	OEQ:       "==",
+-	OFALL:     "fallthrough",
+-	OFOR:      "for",
+-	OFORUNTIL: "foruntil", // not actual syntax; used to avoid off-end pointer live on backedge.892
+-	OGE:       ">=",
+-	OGOTO:     "goto",
+-	OGT:       ">",
+-	OIF:       "if",
+-	OIMAG:     "imag",
+-	OINLMARK:  "inlmark",
+-	ODEREF:    "*",
+-	OLEN:      "len",
+-	OLE:       "<=",
+-	OLSH:      "<<",
+-	OLT:       "<",
+-	OMAKE:     "make",
+-	ONEG:      "-",
+-	OMOD:      "%",
+-	OMUL:      "*",
+-	ONEW:      "new",
+-	ONE:       "!=",
+-	ONOT:      "!",
+-	OOFFSETOF: "unsafe.Offsetof",
+-	OOROR:     "||",
+-	OOR:       "|",
+-	OPANIC:    "panic",
+-	OPLUS:     "+",
+-	OPRINTN:   "println",
+-	OPRINT:    "print",
+-	ORANGE:    "range",
+-	OREAL:     "real",
+-	ORECV:     "<-",
+-	ORECOVER:  "recover",
+-	ORETURN:   "return",
+-	ORSH:      ">>",
+-	OSELECT:   "select",
+-	OSEND:     "<-",
+-	OSIZEOF:   "unsafe.Sizeof",
+-	OSUB:      "-",
+-	OSWITCH:   "switch",
+-	OXOR:      "^",
++	OADDR:        "&",
++	OADD:         "+",
++	OADDSTR:      "+",
++	OALIGNOF:     "unsafe.Alignof",
++	OANDAND:      "&&",
++	OANDNOT:      "&^",
++	OAND:         "&",
++	OAPPEND:      "append",
++	OAS:          "=",
++	OAS2:         "=",
++	OBREAK:       "break",
++	OCALL:        "function call", // not actual syntax
++	OCAP:         "cap",
++	OCASE:        "case",
++	OCLOSE:       "close",
++	OCOMPLEX:     "complex",
++	OBITNOT:      "^",
++	OCONTINUE:    "continue",
++	OCOPY:        "copy",
++	ODELETE:      "delete",
++	ODEFER:       "defer",
++	ODIV:         "/",
++	OEQ:          "==",
++	OFALL:        "fallthrough",
++	OFOR:         "for",
++	OFORUNTIL:    "foruntil", // not actual syntax; used to avoid off-end pointer live on backedge.892
++	OGE:          ">=",
++	OGOTO:        "goto",
++	OGT:          ">",
++	OIF:          "if",
++	OIMAG:        "imag",
++	OINLMARK:     "inlmark",
++	ODEREF:       "*",
++	OLEN:         "len",
++	OLE:          "<=",
++	OLSH:         "<<",
++	OLT:          "<",
++	OMAKE:        "make",
++	ONEG:         "-",
++	OMOD:         "%",
++	OMUL:         "*",
++	ONEW:         "new",
++	ONE:          "!=",
++	ONOT:         "!",
++	OOFFSETOF:    "unsafe.Offsetof",
++	OOROR:        "||",
++	OOR:          "|",
++	OPANIC:       "panic",
++	OPLUS:        "+",
++	OPRINTN:      "println",
++	OPRINT:       "print",
++	ORANGE:       "range",
++	OREAL:        "real",
++	ORECV:        "<-",
++	ORECOVER:     "recover",
++	ORETURN:      "return",
++	ORSH:         ">>",
++	OSELECT:      "select",
++	OSEND:        "<-",
++	OSIZEOF:      "unsafe.Sizeof",
++	OSUB:         "-",
++	OSWITCH:      "switch",
++	OUNSAFEADD:   "unsafe.Add",
++	OUNSAFESLICE: "unsafe.Slice",
++	OXOR:         "^",
+ }
+ 
+ // GoString returns the Go syntax for the Op, or else its name.
+@@ -218,6 +220,8 @@ var OpPrec = []int{
+ 	OTMAP:          8,
+ 	OTSTRUCT:       8,
+ 	OTYPE:          8,
++	OUNSAFEADD:     8,
++	OUNSAFESLICE:   8,
+ 	OINDEXMAP:      8,
+ 	OINDEX:         8,
+ 	OSLICE:         8,
+@@ -794,7 +798,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		n := n.(*SliceHeaderExpr)
+ 		fmt.Fprintf(s, "sliceheader{%v,%v,%v}", n.Ptr, n.Len, n.Cap)
+ 
+-	case OCOMPLEX, OCOPY:
++	case OCOMPLEX, OCOPY, OUNSAFEADD, OUNSAFESLICE:
+ 		n := n.(*BinaryExpr)
+ 		fmt.Fprintf(s, "%v(%v, %v)", n.Op(), n.X, n.Y)
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a73b81d196..af559cc082 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -247,6 +247,8 @@ const (
+ 	OALIGNOF     // unsafe.Alignof(X)
+ 	OOFFSETOF    // unsafe.Offsetof(X)
+ 	OSIZEOF      // unsafe.Sizeof(X)
++	OUNSAFEADD   // unsafe.Add(X, Y)
++	OUNSAFESLICE // unsafe.Slice(X, Y)
+ 	OMETHEXPR    // method expression
+ 
+ 	// statements
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 776a5c1e8d..405a0c6b3c 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -119,53 +119,55 @@ func _() {
+ 	_ = x[OALIGNOF-108]
+ 	_ = x[OOFFSETOF-109]
+ 	_ = x[OSIZEOF-110]
+-	_ = x[OMETHEXPR-111]
+-	_ = x[OBLOCK-112]
+-	_ = x[OBREAK-113]
+-	_ = x[OCASE-114]
+-	_ = x[OCONTINUE-115]
+-	_ = x[ODEFER-116]
+-	_ = x[OFALL-117]
+-	_ = x[OFOR-118]
+-	_ = x[OFORUNTIL-119]
+-	_ = x[OGOTO-120]
+-	_ = x[OIF-121]
+-	_ = x[OLABEL-122]
+-	_ = x[OGO-123]
+-	_ = x[ORANGE-124]
+-	_ = x[ORETURN-125]
+-	_ = x[OSELECT-126]
+-	_ = x[OSWITCH-127]
+-	_ = x[OTYPESW-128]
+-	_ = x[OFUNCINST-129]
+-	_ = x[OTCHAN-130]
+-	_ = x[OTMAP-131]
+-	_ = x[OTSTRUCT-132]
+-	_ = x[OTINTER-133]
+-	_ = x[OTFUNC-134]
+-	_ = x[OTARRAY-135]
+-	_ = x[OTSLICE-136]
+-	_ = x[OINLCALL-137]
+-	_ = x[OEFACE-138]
+-	_ = x[OITAB-139]
+-	_ = x[OIDATA-140]
+-	_ = x[OSPTR-141]
+-	_ = x[OCFUNC-142]
+-	_ = x[OCHECKNIL-143]
+-	_ = x[OVARDEF-144]
+-	_ = x[OVARKILL-145]
+-	_ = x[OVARLIVE-146]
+-	_ = x[ORESULT-147]
+-	_ = x[OINLMARK-148]
+-	_ = x[OLINKSYMOFFSET-149]
+-	_ = x[OTAILCALL-150]
+-	_ = x[OGETG-151]
+-	_ = x[OEND-152]
++	_ = x[OUNSAFEADD-111]
++	_ = x[OUNSAFESLICE-112]
++	_ = x[OMETHEXPR-113]
++	_ = x[OBLOCK-114]
++	_ = x[OBREAK-115]
++	_ = x[OCASE-116]
++	_ = x[OCONTINUE-117]
++	_ = x[ODEFER-118]
++	_ = x[OFALL-119]
++	_ = x[OFOR-120]
++	_ = x[OFORUNTIL-121]
++	_ = x[OGOTO-122]
++	_ = x[OIF-123]
++	_ = x[OLABEL-124]
++	_ = x[OGO-125]
++	_ = x[ORANGE-126]
++	_ = x[ORETURN-127]
++	_ = x[OSELECT-128]
++	_ = x[OSWITCH-129]
++	_ = x[OTYPESW-130]
++	_ = x[OFUNCINST-131]
++	_ = x[OTCHAN-132]
++	_ = x[OTMAP-133]
++	_ = x[OTSTRUCT-134]
++	_ = x[OTINTER-135]
++	_ = x[OTFUNC-136]
++	_ = x[OTARRAY-137]
++	_ = x[OTSLICE-138]
++	_ = x[OINLCALL-139]
++	_ = x[OEFACE-140]
++	_ = x[OITAB-141]
++	_ = x[OIDATA-142]
++	_ = x[OSPTR-143]
++	_ = x[OCFUNC-144]
++	_ = x[OCHECKNIL-145]
++	_ = x[OVARDEF-146]
++	_ = x[OVARKILL-147]
++	_ = x[OVARLIVE-148]
++	_ = x[ORESULT-149]
++	_ = x[OINLMARK-150]
++	_ = x[OLINKSYMOFFSET-151]
++	_ = x[OTAILCALL-152]
++	_ = x[OGETG-153]
++	_ = x[OEND-154]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETTAILCALLGETGEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETTAILCALLGETGEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 136, 138, 141, 151, 158, 165, 172, 176, 180, 188, 196, 205, 213, 216, 221, 228, 235, 241, 250, 258, 266, 272, 276, 285, 292, 296, 299, 306, 314, 321, 327, 330, 336, 343, 351, 355, 362, 370, 372, 374, 376, 378, 380, 382, 387, 392, 400, 403, 412, 415, 419, 427, 434, 443, 456, 459, 462, 465, 468, 471, 474, 480, 483, 486, 492, 496, 499, 503, 508, 513, 519, 524, 528, 533, 541, 549, 555, 564, 575, 582, 586, 593, 601, 605, 609, 613, 620, 627, 635, 641, 649, 654, 659, 663, 671, 676, 680, 683, 691, 695, 697, 702, 704, 709, 715, 721, 727, 733, 741, 746, 750, 757, 763, 768, 774, 780, 787, 792, 796, 801, 805, 810, 818, 824, 831, 838, 844, 851, 864, 872, 876, 879}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 136, 138, 141, 151, 158, 165, 172, 176, 180, 188, 196, 205, 213, 216, 221, 228, 235, 241, 250, 258, 266, 272, 276, 285, 292, 296, 299, 306, 314, 321, 327, 330, 336, 343, 351, 355, 362, 370, 372, 374, 376, 378, 380, 382, 387, 392, 400, 403, 412, 415, 419, 427, 434, 443, 456, 459, 462, 465, 468, 471, 474, 480, 483, 486, 492, 496, 499, 503, 508, 513, 519, 524, 528, 533, 541, 549, 555, 564, 575, 582, 586, 593, 601, 605, 609, 613, 620, 627, 635, 641, 650, 661, 669, 674, 679, 683, 691, 696, 700, 703, 711, 715, 717, 722, 724, 729, 735, 741, 747, 753, 761, 766, 770, 777, 783, 788, 794, 800, 807, 812, 816, 821, 825, 830, 838, 844, 851, 858, 864, 871, 884, 892, 896, 899}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index b2c2616b35..c7695ed920 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -29,6 +29,14 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
+ 	}
+ 	switch {
+ 	case tv.IsBuiltin():
++		// Qualified builtins, such as unsafe.Add and unsafe.Slice.
++		if expr, ok := expr.(*syntax.SelectorExpr); ok {
++			if name, ok := expr.X.(*syntax.Name); ok {
++				if _, ok := g.info.Uses[name].(*types2.PkgName); ok {
++					return g.use(expr.Sel)
++				}
++			}
++		}
+ 		return g.use(expr.(*syntax.Name))
+ 	case tv.IsType():
+ 		return ir.TypeNode(g.typ(tv.Type))
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 31f8d1d61b..2859089e69 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -795,11 +795,11 @@ func transformBuiltin(n *ir.CallExpr) ir.Node {
+ 			return u1
+ 		}
+ 
+-	case ir.OCOMPLEX, ir.OCOPY:
++	case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+ 		transformArgs(n)
+ 		b := ir.NewBinaryExpr(n.Pos(), op, n.Args[0], n.Args[1])
+ 		n1 := typed(n.Type(), ir.InitExpr(n.Init(), b))
+-		if op == ir.OCOPY {
++		if op != ir.OCOMPLEX {
+ 			// nothing more to do
+ 			return n1
+ 		}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 5eda8c4b1c..0d4e3264ba 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3196,6 +3196,12 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		n := n.(*ir.UnaryExpr)
+ 		return s.newObject(n.Type().Elem())
+ 
++	case ir.OUNSAFEADD:
++		n := n.(*ir.BinaryExpr)
++		ptr := s.expr(n.X)
++		len := s.expr(n.Y)
++		return s.newValue2(ssa.OpAddPtr, n.Type(), ptr, len)
++
+ 	default:
+ 		s.Fatalf("unhandled expr %v", n.Op())
+ 		return nil
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 0631a67780..67a894c7ed 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -136,69 +136,71 @@ var runtimeDecls = [...]struct {
+ 	{"makeslice64", funcTag, 113},
+ 	{"makeslicecopy", funcTag, 114},
+ 	{"growslice", funcTag, 116},
+-	{"memmove", funcTag, 117},
+-	{"memclrNoHeapPointers", funcTag, 118},
+-	{"memclrHasPointers", funcTag, 118},
+-	{"memequal", funcTag, 119},
+-	{"memequal0", funcTag, 120},
+-	{"memequal8", funcTag, 120},
+-	{"memequal16", funcTag, 120},
+-	{"memequal32", funcTag, 120},
+-	{"memequal64", funcTag, 120},
+-	{"memequal128", funcTag, 120},
+-	{"f32equal", funcTag, 121},
+-	{"f64equal", funcTag, 121},
+-	{"c64equal", funcTag, 121},
+-	{"c128equal", funcTag, 121},
+-	{"strequal", funcTag, 121},
+-	{"interequal", funcTag, 121},
+-	{"nilinterequal", funcTag, 121},
+-	{"memhash", funcTag, 122},
+-	{"memhash0", funcTag, 123},
+-	{"memhash8", funcTag, 123},
+-	{"memhash16", funcTag, 123},
+-	{"memhash32", funcTag, 123},
+-	{"memhash64", funcTag, 123},
+-	{"memhash128", funcTag, 123},
+-	{"f32hash", funcTag, 123},
+-	{"f64hash", funcTag, 123},
+-	{"c64hash", funcTag, 123},
+-	{"c128hash", funcTag, 123},
+-	{"strhash", funcTag, 123},
+-	{"interhash", funcTag, 123},
+-	{"nilinterhash", funcTag, 123},
+-	{"int64div", funcTag, 124},
+-	{"uint64div", funcTag, 125},
+-	{"int64mod", funcTag, 124},
+-	{"uint64mod", funcTag, 125},
+-	{"float64toint64", funcTag, 126},
+-	{"float64touint64", funcTag, 127},
+-	{"float64touint32", funcTag, 128},
+-	{"int64tofloat64", funcTag, 129},
+-	{"uint64tofloat64", funcTag, 130},
+-	{"uint32tofloat64", funcTag, 131},
+-	{"complex128div", funcTag, 132},
+-	{"getcallerpc", funcTag, 133},
+-	{"getcallersp", funcTag, 133},
++	{"unsafeslice", funcTag, 117},
++	{"unsafeslice64", funcTag, 118},
++	{"memmove", funcTag, 119},
++	{"memclrNoHeapPointers", funcTag, 120},
++	{"memclrHasPointers", funcTag, 120},
++	{"memequal", funcTag, 121},
++	{"memequal0", funcTag, 122},
++	{"memequal8", funcTag, 122},
++	{"memequal16", funcTag, 122},
++	{"memequal32", funcTag, 122},
++	{"memequal64", funcTag, 122},
++	{"memequal128", funcTag, 122},
++	{"f32equal", funcTag, 123},
++	{"f64equal", funcTag, 123},
++	{"c64equal", funcTag, 123},
++	{"c128equal", funcTag, 123},
++	{"strequal", funcTag, 123},
++	{"interequal", funcTag, 123},
++	{"nilinterequal", funcTag, 123},
++	{"memhash", funcTag, 124},
++	{"memhash0", funcTag, 125},
++	{"memhash8", funcTag, 125},
++	{"memhash16", funcTag, 125},
++	{"memhash32", funcTag, 125},
++	{"memhash64", funcTag, 125},
++	{"memhash128", funcTag, 125},
++	{"f32hash", funcTag, 125},
++	{"f64hash", funcTag, 125},
++	{"c64hash", funcTag, 125},
++	{"c128hash", funcTag, 125},
++	{"strhash", funcTag, 125},
++	{"interhash", funcTag, 125},
++	{"nilinterhash", funcTag, 125},
++	{"int64div", funcTag, 126},
++	{"uint64div", funcTag, 127},
++	{"int64mod", funcTag, 126},
++	{"uint64mod", funcTag, 127},
++	{"float64toint64", funcTag, 128},
++	{"float64touint64", funcTag, 129},
++	{"float64touint32", funcTag, 130},
++	{"int64tofloat64", funcTag, 131},
++	{"uint64tofloat64", funcTag, 132},
++	{"uint32tofloat64", funcTag, 133},
++	{"complex128div", funcTag, 134},
++	{"getcallerpc", funcTag, 135},
++	{"getcallersp", funcTag, 135},
+ 	{"racefuncenter", funcTag, 31},
+ 	{"racefuncexit", funcTag, 9},
+ 	{"raceread", funcTag, 31},
+ 	{"racewrite", funcTag, 31},
+-	{"racereadrange", funcTag, 134},
+-	{"racewriterange", funcTag, 134},
+-	{"msanread", funcTag, 134},
+-	{"msanwrite", funcTag, 134},
+-	{"msanmove", funcTag, 135},
+-	{"checkptrAlignment", funcTag, 136},
+-	{"checkptrArithmetic", funcTag, 138},
+-	{"libfuzzerTraceCmp1", funcTag, 139},
+-	{"libfuzzerTraceCmp2", funcTag, 140},
+-	{"libfuzzerTraceCmp4", funcTag, 141},
+-	{"libfuzzerTraceCmp8", funcTag, 142},
+-	{"libfuzzerTraceConstCmp1", funcTag, 139},
+-	{"libfuzzerTraceConstCmp2", funcTag, 140},
+-	{"libfuzzerTraceConstCmp4", funcTag, 141},
+-	{"libfuzzerTraceConstCmp8", funcTag, 142},
++	{"racereadrange", funcTag, 136},
++	{"racewriterange", funcTag, 136},
++	{"msanread", funcTag, 136},
++	{"msanwrite", funcTag, 136},
++	{"msanmove", funcTag, 137},
++	{"checkptrAlignment", funcTag, 138},
++	{"checkptrArithmetic", funcTag, 140},
++	{"libfuzzerTraceCmp1", funcTag, 141},
++	{"libfuzzerTraceCmp2", funcTag, 142},
++	{"libfuzzerTraceCmp4", funcTag, 143},
++	{"libfuzzerTraceCmp8", funcTag, 144},
++	{"libfuzzerTraceConstCmp1", funcTag, 141},
++	{"libfuzzerTraceConstCmp2", funcTag, 142},
++	{"libfuzzerTraceConstCmp4", funcTag, 143},
++	{"libfuzzerTraceConstCmp8", funcTag, 144},
+ 	{"x86HasPOPCNT", varTag, 6},
+ 	{"x86HasSSE41", varTag, 6},
+ 	{"x86HasFMA", varTag, 6},
+@@ -221,7 +223,7 @@ func params(tlist ...*types.Type) []*types.Field {
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [143]*types.Type
++	var typs [145]*types.Type
+ 	typs[0] = types.ByteType
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[types.TANY]
+@@ -339,31 +341,33 @@ func runtimeTypes() []*types.Type {
+ 	typs[114] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
+ 	typs[115] = types.NewSlice(typs[2])
+ 	typs[116] = newSig(params(typs[1], typs[115], typs[15]), params(typs[115]))
+-	typs[117] = newSig(params(typs[3], typs[3], typs[5]), nil)
+-	typs[118] = newSig(params(typs[7], typs[5]), nil)
+-	typs[119] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
+-	typs[120] = newSig(params(typs[3], typs[3]), params(typs[6]))
+-	typs[121] = newSig(params(typs[7], typs[7]), params(typs[6]))
+-	typs[122] = newSig(params(typs[7], typs[5], typs[5]), params(typs[5]))
+-	typs[123] = newSig(params(typs[7], typs[5]), params(typs[5]))
+-	typs[124] = newSig(params(typs[22], typs[22]), params(typs[22]))
+-	typs[125] = newSig(params(typs[24], typs[24]), params(typs[24]))
+-	typs[126] = newSig(params(typs[20]), params(typs[22]))
+-	typs[127] = newSig(params(typs[20]), params(typs[24]))
+-	typs[128] = newSig(params(typs[20]), params(typs[60]))
+-	typs[129] = newSig(params(typs[22]), params(typs[20]))
+-	typs[130] = newSig(params(typs[24]), params(typs[20]))
+-	typs[131] = newSig(params(typs[60]), params(typs[20]))
+-	typs[132] = newSig(params(typs[26], typs[26]), params(typs[26]))
+-	typs[133] = newSig(nil, params(typs[5]))
+-	typs[134] = newSig(params(typs[5], typs[5]), nil)
+-	typs[135] = newSig(params(typs[5], typs[5], typs[5]), nil)
+-	typs[136] = newSig(params(typs[7], typs[1], typs[5]), nil)
+-	typs[137] = types.NewSlice(typs[7])
+-	typs[138] = newSig(params(typs[7], typs[137]), nil)
+-	typs[139] = newSig(params(typs[64], typs[64]), nil)
+-	typs[140] = newSig(params(typs[58], typs[58]), nil)
+-	typs[141] = newSig(params(typs[60], typs[60]), nil)
+-	typs[142] = newSig(params(typs[24], typs[24]), nil)
++	typs[117] = newSig(params(typs[1], typs[15]), nil)
++	typs[118] = newSig(params(typs[1], typs[22]), nil)
++	typs[119] = newSig(params(typs[3], typs[3], typs[5]), nil)
++	typs[120] = newSig(params(typs[7], typs[5]), nil)
++	typs[121] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
++	typs[122] = newSig(params(typs[3], typs[3]), params(typs[6]))
++	typs[123] = newSig(params(typs[7], typs[7]), params(typs[6]))
++	typs[124] = newSig(params(typs[7], typs[5], typs[5]), params(typs[5]))
++	typs[125] = newSig(params(typs[7], typs[5]), params(typs[5]))
++	typs[126] = newSig(params(typs[22], typs[22]), params(typs[22]))
++	typs[127] = newSig(params(typs[24], typs[24]), params(typs[24]))
++	typs[128] = newSig(params(typs[20]), params(typs[22]))
++	typs[129] = newSig(params(typs[20]), params(typs[24]))
++	typs[130] = newSig(params(typs[20]), params(typs[60]))
++	typs[131] = newSig(params(typs[22]), params(typs[20]))
++	typs[132] = newSig(params(typs[24]), params(typs[20]))
++	typs[133] = newSig(params(typs[60]), params(typs[20]))
++	typs[134] = newSig(params(typs[26], typs[26]), params(typs[26]))
++	typs[135] = newSig(nil, params(typs[5]))
++	typs[136] = newSig(params(typs[5], typs[5]), nil)
++	typs[137] = newSig(params(typs[5], typs[5], typs[5]), nil)
++	typs[138] = newSig(params(typs[7], typs[1], typs[5]), nil)
++	typs[139] = types.NewSlice(typs[7])
++	typs[140] = newSig(params(typs[7], typs[139]), nil)
++	typs[141] = newSig(params(typs[64], typs[64]), nil)
++	typs[142] = newSig(params(typs[58], typs[58]), nil)
++	typs[143] = newSig(params(typs[60], typs[60]), nil)
++	typs[144] = newSig(params(typs[24], typs[24]), nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index e736f913b6..ebeaeae79e 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -183,6 +183,9 @@ func makeslice(typ *byte, len int, cap int) unsafe.Pointer
+ func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
+ func makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
+ func growslice(typ *byte, old []any, cap int) (ary []any)
++func unsafeslice(typ *byte, len int)
++func unsafeslice64(typ *byte, len int64)
++
+ func memmove(to *any, frm *any, length uintptr)
+ func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ func memclrHasPointers(ptr unsafe.Pointer, n uintptr)
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 9b3a27b2d8..5a35eeade9 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -760,7 +760,9 @@ func anyCallOrChan(n ir.Node) bool {
+ 			ir.OPRINTN,
+ 			ir.OREAL,
+ 			ir.ORECOVER,
+-			ir.ORECV:
++			ir.ORECV,
++			ir.OUNSAFEADD,
++			ir.OUNSAFESLICE:
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index eaae2a81fa..e154c39269 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -430,7 +430,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 			u := ir.NewUnaryExpr(n.Pos(), l.BuiltinOp, arg)
+ 			return typecheck(ir.InitExpr(n.Init(), u), top) // typecheckargs can add to old.Init
+ 
+-		case ir.OCOMPLEX, ir.OCOPY:
++		case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+ 			typecheckargs(n)
+ 			arg1, arg2, ok := needTwoArgs(n)
+ 			if !ok {
+@@ -977,3 +977,39 @@ func tcRecover(n *ir.CallExpr) ir.Node {
+ 	n.SetType(types.Types[types.TINTER])
+ 	return n
+ }
++
++// tcUnsafeAdd typechecks an OUNSAFEADD node.
++func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
++	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
++	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
++	if n.X.Type() == nil || n.Y.Type() == nil {
++		n.SetType(nil)
++		return n
++	}
++	if !n.Y.Type().IsInteger() {
++		n.SetType(nil)
++		return n
++	}
++	n.SetType(n.X.Type())
++	return n
++}
++
++// tcUnsafeSlice typechecks an OUNSAFESLICE node.
++func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
++	n.X = Expr(n.X)
++	n.Y = Expr(n.Y)
++	if n.X.Type() == nil || n.Y.Type() == nil {
++		n.SetType(nil)
++		return n
++	}
++	t := n.X.Type()
++	if !t.IsPtr() {
++		base.Errorf("first argument to unsafe.Slice must be pointer; have %L", t)
++	}
++	if !checkunsafeslice(&n.Y) {
++		n.SetType(nil)
++		return n
++	}
++	n.SetType(types.NewSlice(t.Elem()))
++	return n
++}
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index ad9eaab07a..64d68ef625 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1664,7 +1664,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 			w.typ(n.Type())
+ 		}
+ 
+-	case ir.OCOPY, ir.OCOMPLEX:
++	case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+ 		// treated like other builtin calls (see e.g., OREAL)
+ 		n := n.(*ir.BinaryExpr)
+ 		w.op(n.Op())
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 642abe61ba..00f6a6e483 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1269,10 +1269,10 @@ func (r *importReader) node() ir.Node {
+ 		}
+ 		return ir.NewConvExpr(r.pos(), op, r.typ(), r.expr())
+ 
+-	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
++	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+ 		if go117ExportTypes {
+ 			switch op {
+-			case ir.OCOPY, ir.OCOMPLEX:
++			case ir.OCOPY, ir.OCOMPLEX, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+ 				n := ir.NewBinaryExpr(r.pos(), op, r.expr(), r.expr())
+ 				n.SetType(r.typ())
+ 				return n
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 00dd44b96b..1650144375 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -775,6 +775,14 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		n := n.(*ir.CallExpr)
+ 		return tcRecover(n)
+ 
++	case ir.OUNSAFEADD:
++		n := n.(*ir.BinaryExpr)
++		return tcUnsafeAdd(n)
++
++	case ir.OUNSAFESLICE:
++		n := n.(*ir.BinaryExpr)
++		return tcUnsafeSlice(n)
++
+ 	case ir.OCLOSURE:
+ 		n := n.(*ir.ClosureExpr)
+ 		tcClosure(n, top)
+@@ -1934,6 +1942,35 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
+ 	return true
+ }
+ 
++// checkunsafeslice is like checkmake but for unsafe.Slice.
++func checkunsafeslice(np *ir.Node) bool {
++	n := *np
++	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
++		base.Errorf("non-integer len argument in unsafe.Slice - %v", n.Type())
++		return false
++	}
++
++	// Do range checks for constants before DefaultLit
++	// to avoid redundant "constant NNN overflows int" errors.
++	if n.Op() == ir.OLITERAL {
++		v := toint(n.Val())
++		if constant.Sign(v) < 0 {
++			base.Errorf("negative len argument in unsafe.Slice")
++			return false
++		}
++		if ir.ConstOverflow(v, types.Types[types.TINT]) {
++			base.Errorf("len argument too large in unsafe.Slice")
++			return false
++		}
++	}
++
++	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
++	n = DefaultLit(n, types.Types[types.TINT])
++	*np = n
++
++	return true
++}
++
+ // markBreak marks control statements containing break statements with SetHasBreak(true).
+ func markBreak(fn *ir.Func) {
+ 	var labels map[*types.Sym]ir.Node
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index f04dcb671c..de185ab944 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -85,9 +85,11 @@ var unsafeFuncs = [...]struct {
+ 	name string
+ 	op   ir.Op
+ }{
++	{"Add", ir.OUNSAFEADD},
+ 	{"Alignof", ir.OALIGNOF},
+ 	{"Offsetof", ir.OOFFSETOF},
+ 	{"Sizeof", ir.OSIZEOF},
++	{"Slice", ir.OUNSAFESLICE},
+ }
+ 
+ // InitUniverse initializes the universe block.
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index aacdedcb4d..62eb4298f4 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -653,6 +653,45 @@ func walkRecover(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	return mkcall("gorecover", nn.Type(), init, fp)
+ }
+ 
++func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
++	len := safeExpr(n.Y, init)
++
++	fnname := "unsafeslice64"
++	argtype := types.Types[types.TINT64]
++
++	// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
++	// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
++	// will be handled by the negative range checks in unsafeslice during runtime.
++	if len.Type().IsKind(types.TIDEAL) || len.Type().Size() <= types.Types[types.TUINT].Size() {
++		fnname = "unsafeslice"
++		argtype = types.Types[types.TINT]
++	}
++
++	t := n.Type()
++
++	// Call runtime.unsafeslice[64] to check that the length argument is
++	// non-negative and smaller than the max length allowed for the
++	// element type.
++	fn := typecheck.LookupRuntime(fnname)
++	init.Append(mkcall1(fn, nil, init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype)))
++
++	ptr := walkExpr(n.X, init)
++
++	c := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, ptr)
++	c.SetTypecheck(1)
++	init.Append(c)
++
++	// TODO(mdempsky): checkptr instrumentation. Maybe merge into length
++	// check above, along with nil check? Need to be careful about
++	// notinheap pointers though: can't pass them as unsafe.Pointer.
++
++	h := ir.NewSliceHeaderExpr(n.Pos(), t,
++		typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR]),
++		typecheck.Conv(len, types.Types[types.TINT]),
++		typecheck.Conv(len, types.Types[types.TINT]))
++	return walkExpr(typecheck.Expr(h), init)
++}
++
+ func badtype(op ir.Op, tl, tr *types.Type) {
+ 	var s string
+ 	if tl != nil {
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 5a1a2441bf..2fb907710b 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -117,12 +117,17 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		n.X = walkExpr(n.X, init)
+ 		return n
+ 
+-	case ir.OEFACE, ir.OAND, ir.OANDNOT, ir.OSUB, ir.OMUL, ir.OADD, ir.OOR, ir.OXOR, ir.OLSH, ir.ORSH:
++	case ir.OEFACE, ir.OAND, ir.OANDNOT, ir.OSUB, ir.OMUL, ir.OADD, ir.OOR, ir.OXOR, ir.OLSH, ir.ORSH,
++		ir.OUNSAFEADD:
+ 		n := n.(*ir.BinaryExpr)
+ 		n.X = walkExpr(n.X, init)
+ 		n.Y = walkExpr(n.Y, init)
+ 		return n
+ 
++	case ir.OUNSAFESLICE:
++		n := n.(*ir.BinaryExpr)
++		return walkUnsafeSlice(n, init)
++
+ 	case ir.ODOT, ir.ODOTPTR:
+ 		n := n.(*ir.SelectorExpr)
+ 		return walkDot(n, init)
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index c0647d95a0..f9d4154acf 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -112,6 +112,25 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
+ 	return makeslice(et, len, cap)
+ }
+ 
++func unsafeslice(et *_type, len int) {
++	mem, overflow := math.MulUintptr(et.size, uintptr(len))
++	if overflow || mem > maxAlloc || len < 0 {
++		panicunsafeslicelen()
++	}
++}
++
++func unsafeslice64(et *_type, len64 int64) {
++	len := int(len64)
++	if int64(len) != len64 {
++		panicunsafeslicelen()
++	}
++	unsafeslice(et, len)
++}
++
++func panicunsafeslicelen() {
++	panic(errorString("unsafe.Slice: len out of range"))
++}
++
+ // growslice handles slice growth during append.
+ // It is passed the slice element type, the old slice, and the desired new minimum capacity,
+ // and it returns a new slice with at least that capacity, with the old data
+diff --git a/test/unsafebuiltins.go b/test/unsafebuiltins.go
+new file mode 100644
+index 0000000000..c10f8084a7
+--- /dev/null
++++ b/test/unsafebuiltins.go
+@@ -0,0 +1,61 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"math"
++	"unsafe"
++)
++
++const maxUintptr = 1 << (8 * unsafe.Sizeof(uintptr(0)))
++
++func main() {
++	var p [10]byte
++
++	// unsafe.Add
++	{
++		p1 := unsafe.Pointer(&p[1])
++		assert(unsafe.Add(p1, 1) == unsafe.Pointer(&p[2]))
++		assert(unsafe.Add(p1, -1) == unsafe.Pointer(&p[0]))
++	}
++
++	// unsafe.Slice
++	{
++		s := unsafe.Slice(&p[0], len(p))
++		assert(&s[0] == &p[0])
++		assert(len(s) == len(p))
++		assert(cap(s) == len(p))
++
++		// nil pointer
++		mustPanic(func() { _ = unsafe.Slice((*int)(nil), 0) })
++
++		// negative length
++		var neg int = -1
++		mustPanic(func() { _ = unsafe.Slice(new(byte), neg) })
++
++		// length too large
++		var tooBig uint64 = math.MaxUint64
++		mustPanic(func() { _ = unsafe.Slice(new(byte), tooBig) })
++
++		// size overflows address space
++		mustPanic(func() { _ = unsafe.Slice(new(uint64), maxUintptr/8) })
++		mustPanic(func() { _ = unsafe.Slice(new(uint64), maxUintptr/8+1) })
++	}
++}
++
++func assert(ok bool) {
++	if !ok {
++		panic("FAIL")
++	}
++}
++
++func mustPanic(f func()) {
++	defer func() {
++		assert(recover() != nil)
++	}()
++	f()
++}

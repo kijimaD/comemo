@@ -7,8 +7,60 @@ Date:   Mon Jun 18 12:48:30 2018 -0300
     Change-Id: Iaa5ded13e8ab4753e2e3d04c9fff203d854208ba
     Reviewed-on: https://go-review.googlesource.com/119435
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/header.go      |  2 --
  src/net/http/header_test.go |  3 ++-
  src/net/http/race.go        | 11 -----------
  3 files changed, 2 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index 461ae9368a..b28144d8c1 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -14,8 +14,6 @@ import (
+ 	"time"
+ )
+ 
+-var raceEnabled = false // set by race.go
+-
+ // A Header represents the key-value pairs in an HTTP header.
+ type Header map[string][]string
+ 
+diff --git a/src/net/http/header_test.go b/src/net/http/header_test.go
+index bbd35c485a..48158d313a 100644
+--- a/src/net/http/header_test.go
++++ b/src/net/http/header_test.go
+@@ -6,6 +6,7 @@ package http
+ 
+ import (
+ 	"bytes"
++	"internal/race"
+ 	"runtime"
+ 	"testing"
+ 	"time"
+@@ -196,7 +197,7 @@ func TestHeaderWriteSubsetAllocs(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping alloc test in short mode")
+ 	}
+-	if raceEnabled {
++	if race.Enabled {
+ 		t.Skip("skipping test under race detector")
+ 	}
+ 	if runtime.GOMAXPROCS(0) > 1 {
+diff --git a/src/net/http/race.go b/src/net/http/race.go
+deleted file mode 100644
+index 766503967c..0000000000
+--- a/src/net/http/race.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build race
+-
+-package http
+-
+-func init() {
+-	raceEnabled = true
+-}

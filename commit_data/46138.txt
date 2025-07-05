@@ -30,7 +30,7 @@ Date:   Mon Dec 7 21:56:58 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go       |  2 +-
  src/cmd/compile/internal/gc/iimport.go   | 10 +++++-----
  src/cmd/compile/internal/gc/noder.go     | 10 +++++-----
@@ -42,3 +42,286 @@ Date:   Mon Dec 7 21:56:58 2020 -0800
  src/cmd/compile/internal/ir/node_gen.go  | 24 ++++++++++++++++++++----
  src/cmd/compile/internal/ir/stmt.go      | 20 +++++++++-----------
  10 files changed, 74 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 1c23c5a92f..1ebadd9213 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -215,7 +215,7 @@ func oldname(s *types.Sym) ir.Node {
+ 		// Maybe a top-level declaration will come along later to
+ 		// define s. resolve will check s.Def again once all input
+ 		// source has been processed.
+-		return ir.NewDeclNameAt(base.Pos, s)
++		return ir.NewIdent(base.Pos, s)
+ 	}
+ 
+ 	if Curfn != nil && n.Op() == ir.ONAME && n.Name().Curfn != nil && n.Name().Curfn != Curfn {
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 1f75393b3e..3c9693e5fc 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -833,13 +833,13 @@ func (r *importReader) node() ir.Node {
+ 		return ir.TypeNode(r.typ())
+ 
+ 	case ir.OTYPESW:
+-		n := ir.NodAt(r.pos(), ir.OTYPESW, nil, nil)
++		pos := r.pos()
++		var tag *ir.Ident
+ 		if s := r.ident(); s != nil {
+-			n.SetLeft(ir.NewDeclNameAt(n.Pos(), s))
++			tag = ir.NewIdent(pos, s)
+ 		}
+-		right, _ := r.exprsOrNil()
+-		n.SetRight(right)
+-		return n
++		expr, _ := r.exprsOrNil()
++		return ir.NewTypeSwitchGuard(pos, tag, expr)
+ 
+ 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+ 	//      unreachable - should have been resolved by typechecking
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index f39bf2ff3c..8c765f9dfc 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -751,14 +751,14 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
+ 			p.typeExpr(expr.Elem), p.chanDir(expr.Dir))
+ 
+ 	case *syntax.TypeSwitchGuard:
+-		n := p.nod(expr, ir.OTYPESW, nil, p.expr(expr.X))
++		var tag *ir.Ident
+ 		if expr.Lhs != nil {
+-			n.SetLeft(p.declName(expr.Lhs))
+-			if ir.IsBlank(n.Left()) {
+-				base.Errorf("invalid variable name %v in type switch", n.Left())
++			tag = ir.NewIdent(p.pos(expr.Lhs), p.name(expr.Lhs))
++			if ir.IsBlank(tag) {
++				base.Errorf("invalid variable name %v in type switch", tag)
+ 			}
+ 		}
+-		return n
++		return ir.NewTypeSwitchGuard(p.pos(expr), tag, p.expr(expr.X))
+ 	}
+ 	panic("unhandled Expr")
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 36526d4c2d..d88989f83c 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -90,12 +90,16 @@ func resolve(n ir.Node) (res ir.Node) {
+ 		defer tracePrint("resolve", n)(&res)
+ 	}
+ 
+-	if n.Sym().Pkg != types.LocalPkg {
++	// Stub ir.Name left for us by iimport.
++	if n, ok := n.(*ir.Name); ok {
++		if n.Sym().Pkg == types.LocalPkg {
++			base.Fatalf("unexpected Name: %+v", n)
++		}
+ 		if inimport {
+ 			base.Fatalf("recursive inimport")
+ 		}
+ 		inimport = true
+-		expandDecl(n.(*ir.Name))
++		expandDecl(n)
+ 		inimport = false
+ 		return n
+ 	}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f35e9d768b..390719e441 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -44,7 +44,7 @@ func walk(fn *ir.Func) {
+ 	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
+ 	for _, ln := range fn.Dcl {
+ 		if ln.Op() == ir.ONAME && (ln.Class() == ir.PAUTO || ln.Class() == ir.PAUTOHEAP) && ln.Defn != nil && ln.Defn.Op() == ir.OTYPESW && ln.Used() {
+-			ln.Defn.Left().Name().SetUsed(true)
++			ln.Defn.(*ir.TypeSwitchGuard).Used = true
+ 		}
+ 	}
+ 
+@@ -52,12 +52,12 @@ func walk(fn *ir.Func) {
+ 		if ln.Op() != ir.ONAME || (ln.Class() != ir.PAUTO && ln.Class() != ir.PAUTOHEAP) || ln.Sym().Name[0] == '&' || ln.Used() {
+ 			continue
+ 		}
+-		if defn := ln.Defn; defn != nil && defn.Op() == ir.OTYPESW {
+-			if defn.Left().Name().Used() {
++		if defn, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
++			if defn.Used {
+ 				continue
+ 			}
+-			base.ErrorfAt(defn.Left().Pos(), "%v declared but not used", ln.Sym())
+-			defn.Left().Name().SetUsed(true) // suppress repeats
++			base.ErrorfAt(defn.Tag.Pos(), "%v declared but not used", ln.Sym())
++			defn.Used = true // suppress repeats
+ 		} else {
+ 			base.ErrorfAt(ln.Pos(), "%v declared but not used", ln.Sym())
+ 		}
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index 72034022cb..18d768ceb1 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -39,7 +39,7 @@ func main() {
+ 	nodesType := lookup("Nodes")
+ 	ptrFieldType := types.NewPointer(lookup("Field"))
+ 	slicePtrFieldType := types.NewSlice(ptrFieldType)
+-	ptrNameType := types.NewPointer(lookup("Name"))
++	ptrIdentType := types.NewPointer(lookup("Ident"))
+ 
+ 	var buf bytes.Buffer
+ 	fmt.Fprintln(&buf, "// Code generated by mknode.go. DO NOT EDIT.")
+@@ -84,7 +84,7 @@ func main() {
+ 		fmt.Fprintf(&buf, "func (n *%s) doChildren(do func(Node) error) error { var err error\n", name)
+ 		forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {
+ 			switch {
+-			case is(ptrNameType):
++			case is(ptrIdentType):
+ 				fmt.Fprintf(&buf, "if n.%s != nil { err = maybeDo(n.%s, err, do) }\n", name, name)
+ 			case is(nodeType), is(ntypeType):
+ 				fmt.Fprintf(&buf, "err = maybeDo(n.%s, err, do)\n", name)
+@@ -101,8 +101,8 @@ func main() {
+ 		fmt.Fprintf(&buf, "func (n *%s) editChildren(edit func(Node) Node) {\n", name)
+ 		forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {
+ 			switch {
+-			case is(ptrNameType):
+-				fmt.Fprintf(&buf, "if n.%s != nil { n.%s = edit(n.%s).(*Name) }\n", name, name, name)
++			case is(ptrIdentType):
++				fmt.Fprintf(&buf, "if n.%s != nil { n.%s = edit(n.%s).(*Ident) }\n", name, name, name)
+ 			case is(nodeType):
+ 				fmt.Fprintf(&buf, "n.%s = maybeEdit(n.%s, edit)\n", name, name)
+ 			case is(ntypeType):
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 4cf12f2c5d..2330838f1c 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -13,6 +13,25 @@ import (
+ 	"go/constant"
+ )
+ 
++// An Ident is an identifier, possibly qualified.
++type Ident struct {
++	miniExpr
++	sym  *types.Sym
++	Used bool
++}
++
++func NewIdent(pos src.XPos, sym *types.Sym) *Ident {
++	n := new(Ident)
++	n.op = ONONAME
++	n.pos = pos
++	n.sym = sym
++	return n
++}
++
++func (n *Ident) Sym() *types.Sym { return n.sym }
++
++func (*Ident) CanBeNtype() {}
++
+ // Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
+ type Name struct {
+ 	miniExpr
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 0191014133..598659a3db 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -794,8 +794,6 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 		return NewSliceHeaderExpr(pos, nil, nleft, nil, nil)
+ 	case OSWITCH:
+ 		return NewSwitchStmt(pos, nleft, nil)
+-	case OTYPESW:
+-		return NewTypeSwitchGuard(pos, nleft, nright)
+ 	case OINLCALL:
+ 		return NewInlinedCallExpr(pos, nil, nil)
+ 	}
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 4eedcfdd29..264171e797 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -450,6 +450,22 @@ func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
+ 	n.Call = maybeEdit(n.Call, edit)
+ }
+ 
++func (n *Ident) String() string                { return fmt.Sprint(n) }
++func (n *Ident) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *Ident) copy() Node {
++	c := *n
++	c.init = c.init.Copy()
++	return &c
++}
++func (n *Ident) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	return err
++}
++func (n *Ident) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++}
++
+ func (n *IfStmt) String() string                { return fmt.Sprint(n) }
+ func (n *IfStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *IfStmt) copy() Node {
+@@ -1004,15 +1020,15 @@ func (n *TypeSwitchGuard) copy() Node {
+ }
+ func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
+ 	var err error
+-	if n.Name_ != nil {
+-		err = maybeDo(n.Name_, err, do)
++	if n.Tag != nil {
++		err = maybeDo(n.Tag, err, do)
+ 	}
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
+ func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
+-	if n.Name_ != nil {
+-		n.Name_ = edit(n.Name_).(*Name)
++	if n.Tag != nil {
++		n.Tag = edit(n.Tag).(*Ident)
+ 	}
+ 	n.X = maybeEdit(n.X, edit)
+ }
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 28c40c0781..f41c50c92b 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -512,32 +512,30 @@ func (n *SwitchStmt) SetHasBreak(x bool)  { n.HasBreak_ = x }
+ // A TypeSwitchGuard is the [Name :=] X.(type) in a type switch.
+ type TypeSwitchGuard struct {
+ 	miniNode
+-	Name_ *Name
+-	X     Node
++	Tag  *Ident
++	X    Node
++	Used bool
+ }
+ 
+-func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
+-	n := &TypeSwitchGuard{X: x}
+-	if name != nil {
+-		n.Name_ = name.(*Name)
+-	}
++func NewTypeSwitchGuard(pos src.XPos, tag *Ident, x Node) *TypeSwitchGuard {
++	n := &TypeSwitchGuard{Tag: tag, X: x}
+ 	n.pos = pos
+ 	n.op = OTYPESW
+ 	return n
+ }
+ 
+ func (n *TypeSwitchGuard) Left() Node {
+-	if n.Name_ == nil {
++	if n.Tag == nil {
+ 		return nil
+ 	}
+-	return n.Name_
++	return n.Tag
+ }
+ func (n *TypeSwitchGuard) SetLeft(x Node) {
+ 	if x == nil {
+-		n.Name_ = nil
++		n.Tag = nil
+ 		return
+ 	}
+-	n.Name_ = x.(*Name)
++	n.Tag = x.(*Ident)
+ }
+ func (n *TypeSwitchGuard) Right() Node     { return n.X }
+ func (n *TypeSwitchGuard) SetRight(x Node) { n.X = x }

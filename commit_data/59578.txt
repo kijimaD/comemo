@@ -10,7 +10,7 @@ Date:   Wed Mar 27 20:44:18 2024 +0800
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/archive/zip/reader_test.go      | 4 +---
  src/archive/zip/zip_test.go         | 4 +---
  src/crypto/aes/aes_gcm.go           | 4 +---
@@ -32,3 +32,327 @@ Date:   Wed Mar 27 20:44:18 2024 +0800
  src/runtime/netpoll_wasip1.go       | 4 +---
  src/runtime/write_err_android.go    | 4 +---
  20 files changed, 22 insertions(+), 68 deletions(-)
+
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 631515cf5d..9f651da530 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -904,9 +904,7 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
+ //	type zeros struct{}
+ //
+ //	func (zeros) Read(b []byte) (int, error) {
+-//		for i := range b {
+-//			b[i] = 0
+-//		}
++//		clear(b)
+ //		return len(b), nil
+ //	}
+ //
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index e7661284e7..5425f22033 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -814,8 +814,6 @@ func TestSuffixSaver(t *testing.T) {
+ type zeros struct{}
+ 
+ func (zeros) Read(p []byte) (int, error) {
+-	for i := range p {
+-		p[i] = 0
+-	}
++	clear(p)
+ 	return len(p), nil
+ }
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index d1e3fade71..d9a9545f12 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -176,9 +176,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	gcmAesFinish(&g.productTable, &tagMask, &expectedTag, uint64(len(ciphertext)), uint64(len(data)))
+ 
+ 	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+-		for i := range out {
+-			out[i] = 0
+-		}
++		clear(out)
+ 		return nil, errOpen
+ 	}
+ 
+diff --git a/src/crypto/aes/gcm_ppc64x.go b/src/crypto/aes/gcm_ppc64x.go
+index 20b0eade0a..3e6e9ab4c3 100644
+--- a/src/crypto/aes/gcm_ppc64x.go
++++ b/src/crypto/aes/gcm_ppc64x.go
+@@ -212,9 +212,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+ 
+ 	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
+-		for i := range out {
+-			out[i] = 0
+-		}
++		clear(out)
+ 		return nil, errOpen
+ 	}
+ 
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index 01504e1815..9da3e1a478 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -271,9 +271,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 		// so overwrites dst in the event of a tag mismatch. That
+ 		// behavior is mimicked here in order to be consistent across
+ 		// platforms.
+-		for i := range out {
+-			out[i] = 0
+-		}
++		clear(out)
+ 		return nil, errOpen
+ 	}
+ 
+@@ -363,9 +361,7 @@ func (g *gcmKMA) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 		// so overwrites dst in the event of a tag mismatch. That
+ 		// behavior is mimicked here in order to be consistent across
+ 		// platforms.
+-		for i := range out {
+-			out[i] = 0
+-		}
++		clear(out)
+ 		return nil, errOpen
+ 	}
+ 
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 928771f05f..5b28b61f70 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -234,9 +234,7 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 		// so overwrites dst in the event of a tag mismatch. That
+ 		// behavior is mimicked here in order to be consistent across
+ 		// platforms.
+-		for i := range out {
+-			out[i] = 0
+-		}
++		clear(out)
+ 		return nil, errOpen
+ 	}
+ 
+diff --git a/src/crypto/ecdh/ecdh_test.go b/src/crypto/ecdh/ecdh_test.go
+index 10da95afbb..49da4e8120 100644
+--- a/src/crypto/ecdh/ecdh_test.go
++++ b/src/crypto/ecdh/ecdh_test.go
+@@ -412,9 +412,7 @@ type zr struct{}
+ 
+ // Read replaces the contents of dst with zeros. It is safe for concurrent use.
+ func (zr) Read(dst []byte) (n int, err error) {
+-	for i := range dst {
+-		dst[i] = 0
+-	}
++	clear(dst)
+ 	return len(dst), nil
+ }
+ 
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 3ed15a888a..f0b6822510 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -457,9 +457,7 @@ var zeroReader = zr{}
+ 
+ // Read replaces the contents of dst with zeros. It is safe for concurrent use.
+ func (zr) Read(dst []byte) (n int, err error) {
+-	for i := range dst {
+-		dst[i] = 0
+-	}
++	clear(dst)
+ 	return len(dst), nil
+ }
+ 
+diff --git a/src/crypto/ed25519/ed25519_test.go b/src/crypto/ed25519/ed25519_test.go
+index 47c8698e2a..64901328a5 100644
+--- a/src/crypto/ed25519/ed25519_test.go
++++ b/src/crypto/ed25519/ed25519_test.go
+@@ -45,9 +45,7 @@ func Example_ed25519ctx() {
+ type zeroReader struct{}
+ 
+ func (zeroReader) Read(buf []byte) (int, error) {
+-	for i := range buf {
+-		buf[i] = 0
+-	}
++	clear(buf)
+ 	return len(buf), nil
+ }
+ 
+diff --git a/src/crypto/internal/bigmod/nat.go b/src/crypto/internal/bigmod/nat.go
+index 8918fe4c8a..a16a24305d 100644
+--- a/src/crypto/internal/bigmod/nat.go
++++ b/src/crypto/internal/bigmod/nat.go
+@@ -76,9 +76,7 @@ func (x *Nat) expand(n int) *Nat {
+ 		return x
+ 	}
+ 	extraLimbs := x.limbs[len(x.limbs):n]
+-	for i := range extraLimbs {
+-		extraLimbs[i] = 0
+-	}
++	clear(extraLimbs)
+ 	x.limbs = x.limbs[:n]
+ 	return x
+ }
+@@ -89,9 +87,7 @@ func (x *Nat) reset(n int) *Nat {
+ 		x.limbs = make([]uint, n)
+ 		return x
+ 	}
+-	for i := range x.limbs {
+-		x.limbs[i] = 0
+-	}
++	clear(x.limbs)
+ 	x.limbs = x.limbs[:n]
+ 	return x
+ }
+diff --git a/src/crypto/tls/example_test.go b/src/crypto/tls/example_test.go
+index 6389fd7fed..95e4953fb2 100644
+--- a/src/crypto/tls/example_test.go
++++ b/src/crypto/tls/example_test.go
+@@ -18,10 +18,7 @@ import (
+ type zeroSource struct{}
+ 
+ func (zeroSource) Read(b []byte) (n int, err error) {
+-	for i := range b {
+-		b[i] = 0
+-	}
+-
++	clear(b)
+ 	return len(b), nil
+ }
+ 
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index bacc8b7d4f..ddcf9779fd 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -310,10 +310,7 @@ Dialing:
+ type zeroSource struct{}
+ 
+ func (zeroSource) Read(b []byte) (n int, err error) {
+-	for i := range b {
+-		b[i] = 0
+-	}
+-
++	clear(b)
+ 	return len(b), nil
+ }
+ 
+diff --git a/src/hash/maphash/smhasher_test.go b/src/hash/maphash/smhasher_test.go
+index 28cdae0444..7fa30aa12f 100644
+--- a/src/hash/maphash/smhasher_test.go
++++ b/src/hash/maphash/smhasher_test.go
+@@ -318,9 +318,7 @@ type bytesKey struct {
+ }
+ 
+ func (k *bytesKey) clear() {
+-	for i := range k.b {
+-		k.b[i] = 0
+-	}
++	clear(k.b)
+ }
+ func (k *bytesKey) random(r *rand.Rand) {
+ 	randBytes(r, k.b)
+diff --git a/src/internal/fuzz/coverage.go b/src/internal/fuzz/coverage.go
+index 0c5e17e3bb..e214a7bf3e 100644
+--- a/src/internal/fuzz/coverage.go
++++ b/src/internal/fuzz/coverage.go
+@@ -13,9 +13,7 @@ import (
+ // source code to 0.
+ func ResetCoverage() {
+ 	cov := coverage()
+-	for i := range cov {
+-		cov[i] = 0
+-	}
++	clear(cov)
+ }
+ 
+ // SnapshotCoverage copies the current counter values into coverageSnapshot,
+diff --git a/src/internal/poll/writev.go b/src/internal/poll/writev.go
+index 75c8b642b5..fb15c27309 100644
+--- a/src/internal/poll/writev.go
++++ b/src/internal/poll/writev.go
+@@ -69,9 +69,7 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
+ 		TestHookDidWritev(int(wrote))
+ 		n += int64(wrote)
+ 		consume(v, int64(wrote))
+-		for i := range iovecs {
+-			iovecs[i] = syscall.Iovec{}
+-		}
++		clear(iovecs)
+ 		if err != nil {
+ 			if err == syscall.EINTR {
+ 				continue
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index cb3248d64d..4f11c58733 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -63,9 +63,7 @@ func ReadGCStats(stats *GCStats) {
+ 
+ 	if len(stats.PauseQuantiles) > 0 {
+ 		if n == 0 {
+-			for i := range stats.PauseQuantiles {
+-				stats.PauseQuantiles[i] = 0
+-			}
++			clear(stats.PauseQuantiles)
+ 		} else {
+ 			// There's room for a second copy of the data in stats.Pause.
+ 			// See the allocation at the top of the function.
+diff --git a/src/runtime/mbitmap_allocheaders.go b/src/runtime/mbitmap_allocheaders.go
+index 1ec055352e..5f1f978189 100644
+--- a/src/runtime/mbitmap_allocheaders.go
++++ b/src/runtime/mbitmap_allocheaders.go
+@@ -544,9 +544,7 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr, typ *abi.Type) {
+ func (s *mspan) initHeapBits(forceClear bool) {
+ 	if (!s.spanclass.noscan() && heapBitsInSpan(s.elemsize)) || s.isUserArenaChunk {
+ 		b := s.heapBits()
+-		for i := range b {
+-			b[i] = 0
+-		}
++		clear(b)
+ 	}
+ }
+ 
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index 587e03d385..0a97e39d3e 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -240,9 +240,7 @@ func TestMemmoveAtomicity(t *testing.T) {
+ 				for i := range src {
+ 					src[i] = &x
+ 				}
+-				for i := range dst {
+-					dst[i] = nil
+-				}
++				clear(dst)
+ 
+ 				var ready atomic.Uint32
+ 				go func() {
+diff --git a/src/runtime/netpoll_wasip1.go b/src/runtime/netpoll_wasip1.go
+index 9903726809..e6b299a20f 100644
+--- a/src/runtime/netpoll_wasip1.go
++++ b/src/runtime/netpoll_wasip1.go
+@@ -205,9 +205,7 @@ func netpoll(delay int64) (gList, int32) {
+ 	}
+ 
+ 	evts = evts[:len(pollsubs)]
+-	for i := range evts {
+-		evts[i] = event{}
+-	}
++	clear(evts)
+ 
+ retry:
+ 	var nevents size
+diff --git a/src/runtime/write_err_android.go b/src/runtime/write_err_android.go
+index dd950774cb..34de106b50 100644
+--- a/src/runtime/write_err_android.go
++++ b/src/runtime/write_err_android.go
+@@ -80,9 +80,7 @@ func writeErr(b []byte) {
+ 		if v == '\n' || writePos == len(dst)-1 {
+ 			dst[writePos] = 0
+ 			write(writeFD, unsafe.Pointer(&writeBuf[0]), int32(hlen+writePos))
+-			for i := range dst {
+-				dst[i] = 0
+-			}
++			clear(dst)
+ 			writePos = 0
+ 		}
+ 	}

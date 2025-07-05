@@ -8,7 +8,7 @@ Date:   Tue Jun 14 11:20:34 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4571049
-
+---
  src/pkg/os/Makefile                  |  1 +
  src/pkg/os/exec_plan9.go             | 11 ++++++
  src/pkg/os/file_plan9.go             | 69 ++++++++++++++++++++++++++++++------
@@ -20,3 +20,410 @@ Date:   Tue Jun 14 11:20:34 2011 -0400
  src/pkg/syscall/zerrors_plan9_386.go |  3 +-
  src/pkg/syscall/ztypes_plan9_386.go  |  1 +
  10 files changed, 144 insertions(+), 40 deletions(-)
+
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index 497e5a9587..060cc970d1 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -73,6 +73,7 @@ GOFILES_plan9=\
+ 	path_plan9.go\
+ 	sys_plan9.go\
+ 	exec_plan9.go\
++	str.go\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 299d3fa4db..29997b48a6 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -38,6 +38,17 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err E
+ 	return newProcess(pid, h), nil
+ }
+ 
++// Kill causes the Process to exit immediately.
++func (p *Process) Kill() Error {
++	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/ctl", O_WRONLY, 0)
++	if iserror(e) {
++		return NewSyscallError("kill", e)
++	}
++	defer f.Close()
++	_, e = f.Write([]byte("kill"))
++	return e
++}
++
+ // Exec replaces the current process with an execution of the
+ // named binary, with arguments argv and environment envv.
+ // If successful, Exec never returns.  If it fails, it returns an Error.
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index 7b473f8022..b0c42d14d7 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -30,14 +30,43 @@ const DevNull = "/dev/null"
+ // methods on the returned File can be used for I/O.
+ // It returns the File and an Error, if any.
+ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+-	var fd int
+-	var e syscall.Error
++	var (
++		fd     int
++		e      syscall.Error
++		create bool
++		excl   bool
++		trunc  bool
++		append bool
++	)
+ 
+-	syscall.ForkLock.RLock()
+ 	if flag&O_CREATE == O_CREATE {
+-		fd, e = syscall.Create(name, flag & ^O_CREATE, perm)
++		flag = flag & ^O_CREATE
++		create = true
++	}
++	if flag&O_EXCL == O_EXCL {
++		excl = true
++	}
++	if flag&O_TRUNC == O_TRUNC {
++		trunc = true
++	}
++	// O_APPEND is emulated on Plan 9
++	if flag&O_APPEND == O_APPEND {
++		flag = flag &^ O_APPEND
++		append = true
++	}
++
++	syscall.ForkLock.RLock()
++	if (create && trunc) || excl {
++		fd, e = syscall.Create(name, flag, perm)
+ 	} else {
+ 		fd, e = syscall.Open(name, flag)
++		if e != nil && create {
++			var e1 syscall.Error
++			fd, e1 = syscall.Create(name, flag, perm)
++			if e1 == nil {
++				e = nil
++			}
++		}
+ 	}
+ 	syscall.ForkLock.RUnlock()
+ 
+@@ -45,6 +74,12 @@ func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+ 		return nil, &PathError{"open", name, e}
+ 	}
+ 
++	if append {
++		if _, e = syscall.Seek(fd, 0, SEEK_END); e != nil {
++			return nil, &PathError{"seek", name, e}
++		}
++	}
++
+ 	return NewFile(fd, name), nil
+ }
+ 
+@@ -69,8 +104,12 @@ func (file *File) Close() Error {
+ 
+ // Stat returns the FileInfo structure describing file.
+ // It returns the FileInfo and an error, if any.
+-func (file *File) Stat() (fi *FileInfo, err Error) {
+-	return dirstat(file)
++func (f *File) Stat() (fi *FileInfo, err Error) {
++	d, err := dirstat(f)
++	if iserror(err) {
++		return nil, err
++	}
++	return fileInfoFromStat(new(FileInfo), d), err
+ }
+ 
+ // Truncate changes the size of the file.
+@@ -90,10 +129,15 @@ func (f *File) Truncate(size int64) Error {
+ // Chmod changes the mode of the file to mode.
+ func (f *File) Chmod(mode uint32) Error {
+ 	var d Dir
+-	d.Null()
++	var mask = ^uint32(0777)
+ 
+-	d.Mode = mode & 0777
++	d.Null()
++	odir, e := dirstat(f)
++	if iserror(e) {
++		return &PathError{"chmod", f.name, e}
++	}
+ 
++	d.Mode = (odir.Mode & mask) | (mode &^ mask)
+ 	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); iserror(e) {
+ 		return &PathError{"chmod", f.name, e}
+ 	}
+@@ -188,10 +232,15 @@ func Rename(oldname, newname string) Error {
+ // Chmod changes the mode of the named file to mode.
+ func Chmod(name string, mode uint32) Error {
+ 	var d Dir
+-	d.Null()
++	var mask = ^uint32(0777)
+ 
+-	d.Mode = mode & 0777
++	d.Null()
++	odir, e := dirstat(name)
++	if iserror(e) {
++		return &PathError{"chmod", name, e}
++	}
+ 
++	d.Mode = (odir.Mode & mask) | (mode &^ mask)
+ 	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
+ 		return &PathError{"chmod", name, e}
+ 	}
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 8eabdee6b6..e442e7c28a 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -359,8 +359,8 @@ func TestReaddirNValues(t *testing.T) {
+ }
+ 
+ func TestHardLink(t *testing.T) {
+-	// Hardlinks are not supported under windows.
+-	if syscall.OS == "windows" {
++	// Hardlinks are not supported under windows or Plan 9.
++	if syscall.OS == "windows" || syscall.OS == "plan9" {
+ 		return
+ 	}
+ 	from, to := "hardlinktestfrom", "hardlinktestto"
+@@ -392,8 +392,8 @@ func TestHardLink(t *testing.T) {
+ }
+ 
+ func TestSymLink(t *testing.T) {
+-	// Symlinks are not supported under windows.
+-	if syscall.OS == "windows" {
++	// Symlinks are not supported under windows or Plan 9.
++	if syscall.OS == "windows" || syscall.OS == "plan9" {
+ 		return
+ 	}
+ 	from, to := "symlinktestfrom", "symlinktestto"
+@@ -454,8 +454,8 @@ func TestSymLink(t *testing.T) {
+ }
+ 
+ func TestLongSymlink(t *testing.T) {
+-	// Symlinks are not supported under windows.
+-	if syscall.OS == "windows" {
++	// Symlinks are not supported under windows or Plan 9.
++	if syscall.OS == "windows" || syscall.OS == "plan9" {
+ 		return
+ 	}
+ 	s := "0123456789abcdef"
+@@ -588,8 +588,9 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
+ }
+ 
+ func TestChown(t *testing.T) {
+-	// Chown is not supported under windows.
+-	if syscall.OS == "windows" {
++	// Chown is not supported under windows or Plan 9.
++	// Plan9 provides a native ChownPlan9 version instead.
++	if syscall.OS == "windows" || syscall.OS == "plan9" {
+ 		return
+ 	}
+ 	// Use TempDir() to make sure we're on a local file system,
+@@ -708,7 +709,11 @@ func TestChtimes(t *testing.T) {
+ 		t.Fatalf("second Stat %s: %s", f.Name(), err)
+ 	}
+ 
+-	if postStat.Atime_ns >= preStat.Atime_ns {
++	/* Plan 9:
++		Mtime is the time of the last change of content.  Similarly, atime is set whenever the
++	    contents are accessed; also, it is set whenever mtime is set.
++	*/
++	if postStat.Atime_ns >= preStat.Atime_ns && syscall.OS != "plan9" {
+ 		t.Errorf("Atime_ns didn't go backwards; was=%d, after=%d",
+ 			preStat.Atime_ns,
+ 			postStat.Atime_ns)
+@@ -733,6 +738,10 @@ func TestChdirAndGetwd(t *testing.T) {
+ 	// These are chosen carefully not to be symlinks on a Mac
+ 	// (unlike, say, /var, /etc, and /tmp).
+ 	dirs := []string{"/", "/usr/bin"}
++	// /usr/bin does not usually exist on Plan 9.
++	if syscall.OS == "plan9" {
++		dirs = []string{"/", "/usr"}
++	}
+ 	for mode := 0; mode < 2; mode++ {
+ 		for _, d := range dirs {
+ 			if mode == 0 {
+@@ -858,7 +867,15 @@ func TestOpenError(t *testing.T) {
+ 			t.Errorf("Open(%q, %d) returns error of %T type; want *os.PathError", tt.path, tt.mode, err)
+ 		}
+ 		if perr.Error != tt.error {
+-			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Error.String(), tt.error.String())
++			if syscall.OS == "plan9" {
++				syscallErrStr := perr.Error.String()
++				expectedErrStr := strings.Replace(tt.error.String(), "file ", "", 1)
++				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
++					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
++				}
++			} else {
++				t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Error.String(), tt.error.String())
++			}
+ 		}
+ 	}
+ }
+@@ -893,7 +910,8 @@ func run(t *testing.T, cmd []string) string {
+ 
+ func TestHostname(t *testing.T) {
+ 	// There is no other way to fetch hostname on windows, but via winapi.
+-	if syscall.OS == "windows" {
++	// On Plan 9 it is can be taken from #c/sysname as Hostname() does.
++	if syscall.OS == "windows" || syscall.OS == "plan9" {
+ 		return
+ 	}
+ 	// Check internal Hostname() against the output of /bin/hostname.
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index d58945aab5..31acbaa435 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -166,8 +166,8 @@ func TestRemoveAll(t *testing.T) {
+ }
+ 
+ func TestMkdirAllWithSymlink(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Log("Skipping test: symlinks don't exist under Windows")
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++		t.Log("Skipping test: symlinks don't exist under Windows/Plan 9")
+ 		return
+ 	}
+ 
+@@ -191,7 +191,7 @@ func TestMkdirAllWithSymlink(t *testing.T) {
+ }
+ 
+ func TestMkdirAllAtSlash(t *testing.T) {
+-	if runtime.GOOS == "windows" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		return
+ 	}
+ 	RemoveAll("/_go_os_test")
+diff --git a/src/pkg/os/stat_plan9.go b/src/pkg/os/stat_plan9.go
+index e96749d33f..d2300d5984 100644
+--- a/src/pkg/os/stat_plan9.go
++++ b/src/pkg/os/stat_plan9.go
+@@ -26,7 +26,7 @@ func fileInfoFromStat(fi *FileInfo, d *Dir) *FileInfo {
+ }
+ 
+ // arg is an open *File or a path string. 
+-func dirstat(arg interface{}) (fi *FileInfo, err Error) {
++func dirstat(arg interface{}) (d *Dir, err Error) {
+ 	var name string
+ 	nd := syscall.STATFIXLEN + 16*4
+ 
+@@ -62,8 +62,7 @@ func dirstat(arg interface{}) (fi *FileInfo, err Error) {
+ 			if e != nil {
+ 				return nil, &PathError{"stat", name, e}
+ 			}
+-
+-			return fileInfoFromStat(new(FileInfo), d), nil
++			return d, e
+ 		}
+ 	}
+ 
+@@ -73,12 +72,20 @@ func dirstat(arg interface{}) (fi *FileInfo, err Error) {
+ 
+ // Stat returns a FileInfo structure describing the named file and an error, if any.
+ func Stat(name string) (fi *FileInfo, err Error) {
+-	return dirstat(name)
++	d, err := dirstat(name)
++	if iserror(err) {
++		return nil, err
++	}
++	return fileInfoFromStat(new(FileInfo), d), err
+ }
+ 
+ // Lstat returns the FileInfo structure describing the named file and an
+ // error, if any.  If the file is a symbolic link (though Plan 9 does not have symbolic links), 
+ // the returned FileInfo describes the symbolic link.  Lstat makes no attempt to follow the link.
+ func Lstat(name string) (fi *FileInfo, err Error) {
+-	return dirstat(name)
++	d, err := dirstat(name)
++	if iserror(err) {
++		return nil, err
++	}
++	return fileInfoFromStat(new(FileInfo), d), err
+ }
+diff --git a/src/pkg/os/str.go b/src/pkg/os/str.go
+new file mode 100644
+index 0000000000..8dc9e4747d
+--- /dev/null
++++ b/src/pkg/os/str.go
+@@ -0,0 +1,20 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++func itoa(val int) string { // do it here rather than with fmt to avoid dependency
++	if val < 0 {
++		return "-" + itoa(-val)
++	}
++	var buf [32]byte // big enough for int64
++	i := len(buf) - 1
++	for val >= 10 {
++		buf[i] = byte(val%10 + '0')
++		i--
++		val /= 10
++	}
++	buf[i] = byte(val + '0')
++	return string(buf[i:])
++}
+diff --git a/src/pkg/syscall/types_plan9.c b/src/pkg/syscall/types_plan9.c
+index 6308ce08be..1da9d377c9 100644
+--- a/src/pkg/syscall/types_plan9.c
++++ b/src/pkg/syscall/types_plan9.c
+@@ -19,20 +19,18 @@ enum {
+ 	OREAD	= 0,	// open for read
+ 	OWRITE	= 1,	// write
+ 	ORDWR	= 2,	// read and write
+-
+-	$O_RDONLY	= OREAD,
+-	$O_WRONLY	= OWRITE,
+-	$O_RDWR		= ORDWR,
+-
+ 	OEXEC	= 3,	// execute, == read but check execute permission
+ 	OTRUNC	= 16,	// or'ed in (except for exec), truncate file first
+ 	OCEXEC	= 32,	// or'ed in, close on exec
+-
+-	$O_CLOEXEC  = OCEXEC,
+-
+ 	ORCLOSE	= 64,		// or'ed in, remove on close
+ 	OEXCL	= 0x1000,	// or'ed in, exclusive use (create only)
+-	$O_EXCL	= OEXCL,
++
++	$O_RDONLY	= OREAD,
++	$O_WRONLY	= OWRITE,
++	$O_RDWR		= ORDWR,
++	$O_TRUNC	= OTRUNC,
++	$O_CLOEXEC	= OCEXEC,
++	$O_EXCL		= OEXCL,
+ 
+ 	$STATMAX	= 65535U,
+ 	$ERRMAX		= 128,
+diff --git a/src/pkg/syscall/zerrors_plan9_386.go b/src/pkg/syscall/zerrors_plan9_386.go
+index 78b5c72bbf..e452079f5d 100644
+--- a/src/pkg/syscall/zerrors_plan9_386.go
++++ b/src/pkg/syscall/zerrors_plan9_386.go
+@@ -4,10 +4,9 @@ package syscall
+ const (
+ 	// Invented values to support what package os expects.
+ 	O_CREAT    = 0x02000
++	O_APPEND   = 0x00400
+ 	O_NOCTTY   = 0x00000
+-	O_TRUNC    = 0x00000
+ 	O_NONBLOCK = 0x00000
+-	O_APPEND   = 0x00000
+ 	O_SYNC     = 0x00000
+ 	O_ASYNC    = 0x00000
+ 
+diff --git a/src/pkg/syscall/ztypes_plan9_386.go b/src/pkg/syscall/ztypes_plan9_386.go
+index 8f823ba659..3e3a8d1f3d 100644
+--- a/src/pkg/syscall/ztypes_plan9_386.go
++++ b/src/pkg/syscall/ztypes_plan9_386.go
+@@ -9,6 +9,7 @@ const (
+ 	O_RDONLY   = 0
+ 	O_WRONLY   = 0x1
+ 	O_RDWR     = 0x2
++	O_TRUNC    = 0x10
+ 	O_CLOEXEC  = 0x20
+ 	O_EXCL     = 0x1000
+ 	STATMAX    = 0xffff

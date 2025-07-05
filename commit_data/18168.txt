@@ -10,6 +10,22 @@ Date:   Mon Jan 6 11:11:03 2014 -0500
     R=adonovan
     CC=golang-codereviews
     https://golang.org/cl/37720050
-
+---
  misc/emacs/go-mode.el | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index aabaa13493..6adac91ab9 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -264,8 +264,8 @@ For mode=set, all covered lines will have this weight."
+      `((,go-func-meth-regexp 1 font-lock-function-name-face))) ;; method name
+ 
+    `(
+-     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]*\\([^[:space:]]+\\)") 1 font-lock-type-face) ;; types
+-     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]*" go-identifier-regexp "[[:space:]]*" go-type-name-regexp) 1 font-lock-type-face) ;; types
++     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]+\\([^[:space:]]+\\)") 1 font-lock-type-face) ;; types
++     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]+" go-identifier-regexp "[[:space:]]*" go-type-name-regexp) 1 font-lock-type-face) ;; types
+      (,(concat "[^[:word:][:multibyte:]]\\[\\([[:digit:]]+\\|\\.\\.\\.\\)?\\]" go-type-name-regexp) 2 font-lock-type-face) ;; Arrays/slices
+      (,(concat "\\(" go-identifier-regexp "\\)" "{") 1 font-lock-type-face)
+      (,(concat (go--regexp-enclose-in-symbol "map") "\\[[^]]+\\]" go-type-name-regexp) 1 font-lock-type-face) ;; map value type

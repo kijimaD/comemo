@@ -8,6 +8,27 @@ Date:   Tue Mar 26 11:05:06 2013 -0700
     R=golang-dev, gri, bradfitz
     CC=golang-dev
     https://golang.org/cl/7992044
-
+---
  src/pkg/builtin/builtin.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/builtin/builtin.go b/src/pkg/builtin/builtin.go
+index 7b5e9ab1d6..d3c1a5c55a 100644
+--- a/src/pkg/builtin/builtin.go
++++ b/src/pkg/builtin/builtin.go
+@@ -85,6 +85,15 @@ type byte byte
+ // used, by convention, to distinguish character values from integer values.
+ type rune rune
+ 
++// iota is a predeclared identifier representing the untyped integer ordinal
++// number of the current const specification in a (usually parenthesized)
++// const declaration. It is zero-indexed.
++const iota = 0 // Untyped int.
++
++// nil is a predeclared identifier representing the zero value for a
++// pointer, channel, func, interface, map, or slice type.
++var nil Type // Type must be a pointer, channel, func, interface, map, or slice type
++
+ // Type is here for the purposes of documentation only. It is a stand-in
+ // for any Go type, but represents the same type for any given function
+ // invocation.

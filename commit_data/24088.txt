@@ -30,9 +30,235 @@ Date:   Mon Jun 29 16:30:19 2015 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Sameer Ajmani <sameer@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go   |   7 +++
  src/cmd/compile/internal/gc/sinit.go |  10 ++++
  src/cmd/compile/internal/gc/subr.go  |   2 +-
  src/runtime/symtab_test.go           | 105 +++++++++++++++++++++++++++++++++++
  4 files changed, 123 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index d29ee59c54..b2eeeed315 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -787,8 +787,15 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	call.Type = n.Type
+ 	call.Typecheck = 1
+ 
++	// Hide the args from setlno -- the parameters to the inlined
++	// call already have good line numbers that should be preserved.
++	args := as.Rlist
++	as.Rlist = nil
++
+ 	setlno(call, int(n.Lineno))
+ 
++	as.Rlist = args
++
+ 	//dumplist("call body", body);
+ 
+ 	*np = call
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 7875d16380..e1a99d4ca0 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -380,6 +380,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
+ 					rr.Orig = rr // completely separate copy
+ 					rr.Type = ll.Type
+ 					rr.Xoffset += e.Xoffset
++					setlineno(rr)
+ 					*out = list(*out, Nod(OAS, ll, rr))
+ 				}
+ 			}
+@@ -484,6 +485,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 			if e.Expr.Op == OLITERAL {
+ 				gdata(&n1, e.Expr, int(n1.Type.Width))
+ 			} else {
++				setlineno(e.Expr)
+ 				a = Nod(OXXX, nil, nil)
+ 				*a = n1
+ 				a.Orig = a // completely separate copy
+@@ -636,6 +638,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+ 		}
+ 
+ 		// build list of var.field = expr
++		setlineno(value)
+ 		a = Nod(ODOT, var_, newname(index.Sym))
+ 
+ 		a = Nod(OAS, a, value)
+@@ -703,6 +706,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+ 		}
+ 
+ 		// build list of var[index] = value
++		setlineno(value)
+ 		a = Nod(OINDEX, var_, index)
+ 
+ 		a = Nod(OAS, a, value)
+@@ -866,6 +870,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 		}
+ 
+ 		// build list of var[c] = expr
++		setlineno(value)
+ 		a = Nod(OAS, a, value)
+ 
+ 		typecheck(&a, Etop)
+@@ -954,6 +959,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 
+ 			if isliteral(index) && isliteral(value) {
+ 				// build vstat[b].a = key;
++				setlineno(index)
+ 				a = Nodintconst(b)
+ 
+ 				a = Nod(OINDEX, vstat, a)
+@@ -965,6 +971,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 				*init = list(*init, a)
+ 
+ 				// build vstat[b].b = value;
++				setlineno(value)
+ 				a = Nodintconst(b)
+ 
+ 				a = Nod(OINDEX, vstat, a)
+@@ -1032,15 +1039,18 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 			val = temp(var_.Type.Type)
+ 		}
+ 
++		setlineno(r.Left)
+ 		a = Nod(OAS, key, r.Left)
+ 		typecheck(&a, Etop)
+ 		walkstmt(&a)
+ 		*init = list(*init, a)
++		setlineno(r.Right)
+ 		a = Nod(OAS, val, r.Right)
+ 		typecheck(&a, Etop)
+ 		walkstmt(&a)
+ 		*init = list(*init, a)
+ 
++		setlineno(val)
+ 		a = Nod(OAS, Nod(OINDEX, var_, key), val)
+ 		typecheck(&a, Etop)
+ 		walkstmt(&a)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 058ae5ecdd..7402e17e2a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -770,7 +770,7 @@ func treecopy(n *Node, lineno int32) *Node {
+ 		m.Left = treecopy(n.Left, lineno)
+ 		m.Right = treecopy(n.Right, lineno)
+ 		m.List = listtreecopy(n.List, lineno)
+-		if lineno != -1 {
++		if lineno != 0 {
+ 			m.Lineno = lineno
+ 		}
+ 		if m.Name != nil && n.Op != ODCLFIELD {
+diff --git a/src/runtime/symtab_test.go b/src/runtime/symtab_test.go
+index bd9fe18c47..b15a2e9a85 100644
+--- a/src/runtime/symtab_test.go
++++ b/src/runtime/symtab_test.go
+@@ -45,3 +45,108 @@ func testCallerBar(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func lineNumber() int {
++	_, _, line, _ := runtime.Caller(1)
++	return line // return 0 for error
++}
++
++// Do not add/remove lines in this block without updating the line numbers.
++var firstLine = lineNumber() // 0
++var (                        // 1
++	lineVar1             = lineNumber()               // 2
++	lineVar2a, lineVar2b = lineNumber(), lineNumber() // 3
++)                        // 4
++var compLit = []struct { // 5
++	lineA, lineB int // 6
++}{ // 7
++	{ // 8
++		lineNumber(), lineNumber(), // 9
++	}, // 10
++	{ // 11
++		lineNumber(), // 12
++		lineNumber(), // 13
++	}, // 14
++	{ // 15
++		lineB: lineNumber(), // 16
++		lineA: lineNumber(), // 17
++	}, // 18
++}                                     // 19
++var arrayLit = [...]int{lineNumber(), // 20
++	lineNumber(), lineNumber(), // 21
++	lineNumber(), // 22
++}                                  // 23
++var sliceLit = []int{lineNumber(), // 24
++	lineNumber(), lineNumber(), // 25
++	lineNumber(), // 26
++}                         // 27
++var mapLit = map[int]int{ // 28
++	29:           lineNumber(), // 29
++	30:           lineNumber(), // 30
++	lineNumber(): 31,           // 31
++	lineNumber(): 32,           // 32
++}                           // 33
++var intLit = lineNumber() + // 34
++	lineNumber() + // 35
++			lineNumber() // 36
++func trythis() { // 37
++	recordLines(lineNumber(), // 38
++		lineNumber(), // 39
++		lineNumber()) // 40
++}
++
++// Modifications below this line are okay.
++
++var l38, l39, l40 int
++
++func recordLines(a, b, c int) {
++	l38 = a
++	l39 = b
++	l40 = c
++}
++
++func TestLineNumber(t *testing.T) {
++	trythis()
++	for _, test := range []struct {
++		name string
++		val  int
++		want int
++	}{
++		{"firstLine", firstLine, 0},
++		{"lineVar1", lineVar1, 2},
++		{"lineVar2a", lineVar2a, 3},
++		{"lineVar2b", lineVar2b, 3},
++		{"compLit[0].lineA", compLit[0].lineA, 9},
++		{"compLit[0].lineB", compLit[0].lineB, 9},
++		{"compLit[1].lineA", compLit[1].lineA, 12},
++		{"compLit[1].lineB", compLit[1].lineB, 13},
++		{"compLit[2].lineA", compLit[2].lineA, 17},
++		{"compLit[2].lineB", compLit[2].lineB, 16},
++
++		{"arrayLit[0]", arrayLit[0], 20},
++		{"arrayLit[1]", arrayLit[1], 21},
++		{"arrayLit[2]", arrayLit[2], 21},
++		{"arrayLit[3]", arrayLit[3], 22},
++
++		{"sliceLit[0]", sliceLit[0], 24},
++		{"sliceLit[1]", sliceLit[1], 25},
++		{"sliceLit[2]", sliceLit[2], 25},
++		{"sliceLit[3]", sliceLit[3], 26},
++
++		{"mapLit[29]", mapLit[29], 29},
++		{"mapLit[30]", mapLit[30], 30},
++		{"mapLit[31]", mapLit[31+firstLine] + firstLine, 31}, // nb it's the key not the value
++		{"mapLit[32]", mapLit[32+firstLine] + firstLine, 32}, // nb it's the key not the value
++
++		{"intLit", intLit - 2*firstLine, 34 + 35 + 36},
++
++		{"l38", l38, 38},
++		{"l39", l39, 39},
++		{"l40", l40, 40},
++	} {
++		if got := test.val - firstLine; got != test.want {
++			t.Errorf("%s on firstLine+%d want firstLine+%d (firstLine=%d, val=%d)",
++				test.name, got, test.want, firstLine, test.val)
++		}
++	}
++}

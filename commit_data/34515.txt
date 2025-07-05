@@ -18,10 +18,163 @@ Date:   Wed Apr 19 14:14:28 2017 -0400
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  5 +++++
  src/cmd/internal/obj/s390x/a.out.go       |  6 ++++++
  src/cmd/internal/obj/s390x/anames.go      |  4 ++++
  src/cmd/internal/obj/s390x/asmz.go        | 21 +++++++++++++++++++++
  src/math/sin_s390x.s                      | 12 ++++++------
  5 files changed, 42 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 269f8bd077..884f6b23cf 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -213,6 +213,11 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	CMPWU	R1, R2                 // 1512
+ 	CMPWU	R3, $4294967295        // c23fffffffff
+ 
++	TMHH	R1, $65535             // a712ffff
++	TMHL	R2, $1                 // a7230001
++	TMLH	R3, $0                 // a7300000
++	TMLL	R4, $32768             // a7418000
++
+ 	BNE	0(PC)                  // a7740000
+ 	BEQ	0(PC)                  // a7840000
+ 	BLT	0(PC)                  // a7440000
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 13ebc79feb..54c1edb4b0 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -327,6 +327,12 @@ const (
+ 	ACMPW
+ 	ACMPWU
+ 
++	// test under mask
++	ATMHH
++	ATMHL
++	ATMLH
++	ATMLL
++
+ 	// compare and swap
+ 	ACS
+ 	ACSG
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index ef360551ed..8488ccc46e 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -112,6 +112,10 @@ var Anames = []string{
+ 	"CMPU",
+ 	"CMPW",
+ 	"CMPWU",
++	"TMHH",
++	"TMHL",
++	"TMLH",
++	"TMLL",
+ 	"CS",
+ 	"CSG",
+ 	"SYNC",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index a8f05807a1..7304ab3cc4 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -252,6 +252,9 @@ var optab = []Optab{
+ 	Optab{AFCMPO, C_FREG, C_NONE, C_NONE, C_FREG, 70, 0},
+ 	Optab{AFCMPO, C_FREG, C_REG, C_NONE, C_FREG, 70, 0},
+ 
++	// test under mask
++	Optab{ATMHH, C_REG, C_NONE, C_NONE, C_ANDCON, 91, 0},
++
+ 	// 32-bit access registers
+ 	Optab{AMOVW, C_AREG, C_NONE, C_NONE, C_REG, 68, 0},
+ 	Optab{AMOVWZ, C_AREG, C_NONE, C_NONE, C_REG, 68, 0},
+@@ -951,6 +954,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ACMPW, r)
+ 		case ACMPU:
+ 			opset(ACMPWU, r)
++		case ATMHH:
++			opset(ATMHL, r)
++			opset(ATMLH, r)
++			opset(ATMLL, r)
+ 		case ACEFBRA:
+ 			opset(ACDFBRA, r)
+ 			opset(ACEGBRA, r)
+@@ -3704,6 +3711,20 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			zRIE(_c, opcode, uint32(p.From.Reg), mask, uint32(v), 0, 0, 0, uint32(c.regoff(p.GetFrom3())), asm)
+ 		}
+ 
++	case 91: // test under mask (immediate)
++		var opcode uint32
++		switch p.As {
++		case ATMHH:
++			opcode = op_TMHH
++		case ATMHL:
++			opcode = op_TMHL
++		case ATMLH:
++			opcode = op_TMLH
++		case ATMLL:
++			opcode = op_TMLL
++		}
++		zRI(opcode, uint32(p.From.Reg), uint32(c.vregoff(&p.To)), asm)
++
+ 	case 93: // GOT lookup
+ 		v := c.vregoff(&p.To)
+ 		if v != 0 {
+diff --git a/src/math/sin_s390x.s b/src/math/sin_s390x.s
+index 39cc05452a..e2201e0b2c 100644
+--- a/src/math/sin_s390x.s
++++ b/src/math/sin_s390x.s
+@@ -110,7 +110,7 @@ L2:
+ 	WFMDB   V1, V1, V2
+ 	LGDR    F3, R1
+ 	MOVD    $sincosxlim<>+0(SB), R2
+-	WORD    $0xA7110001     //tmll  %r1,1
++	TMLL	R1, $1
+ 	BEQ     L6
+ 	FMOVD   0(R2), F0
+ 	WFCHDBS V0, V5, V0
+@@ -134,7 +134,7 @@ L2:
+ 	WFMADB  V2, V0, V3, V0
+ 	FMOVD   0(R2), F6
+ 	WFMADB  V1, V4, V6, V4
+-	WORD    $0xA7110002     //tmll  %r1,2
++	TMLL	R1, $2
+ 	WFMADB  V2, V0, V4, V0
+ 	MOVD    $sincosc0<>+0(SB), R1
+ 	FMOVD   0(R1), F2
+@@ -170,7 +170,7 @@ L6:
+ 	FNEG    F6, F4
+ 	WFMADB  V2, V0, V3, V2
+ 	WFMDB   V4, V1, V0
+-	WORD    $0xA7110002     //tmll  %r1,2
++	TMLL	R1, $2
+ 	WFMSDB  V0, V2, V6, V0
+ 	BNE     L15
+ 	FMOVD   F0, ret+8(FP)
+@@ -261,7 +261,7 @@ L21:
+ 	FMOVD   0(R2), F5
+ 	WFMDB   V2, V2, V6
+ 	MOVD    $sincosxlim<>+0(SB), R2
+-	WORD    $0xA7110001     //tmll %r1,1
++	TMLL	R1, $1
+ 	BNE     L25
+ 	FMOVD   0(R2), F0
+ 	WFCHDBS V0, V1, V0
+@@ -285,7 +285,7 @@ L21:
+ 	WFMADB  V6, V0, V3, V0
+ 	FMOVD   0(R2), F1
+ 	WFMADB  V2, V4, V1, V4
+-	WORD    $0xA7110002     //tmll %r1,2
++	TMLL	R1, $2
+ 	WFMADB  V6, V0, V4, V0
+ 	MOVD    $sincosc0<>+0(SB), R1
+ 	FMOVD   0(R1), F4
+@@ -320,7 +320,7 @@ L25:
+ 	FMADD   F3, F2, F1
+ 	FMUL    F0, F2
+ 	WFMADB  V6, V4, V1, V6
+-	WORD    $0xA7110002     //tmll  %r1,2
++	TMLL	R1, $2
+ 	FMADD   F6, F2, F0
+ 	BNE     L34
+ 	FMOVD   F0, ret+8(FP)

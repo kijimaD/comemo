@@ -17,10 +17,267 @@ Date:   Tue Sep 24 16:34:16 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/cache.go              |  8 ++-
  src/cmd/go/internal/modfetch/fetch.go              | 61 ++++++++++++++--------
  src/cmd/go/testdata/script/mod_download_json.txt   | 10 ++++
  src/cmd/go/testdata/script/mod_sumdb.txt           |  2 +-
  src/cmd/go/testdata/script/mod_sumdb_file_path.txt |  2 +-
  5 files changed, 57 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index c0062809d1..e702c3ab62 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -230,7 +230,9 @@ func (r *cachingRepo) GoMod(version string) ([]byte, error) {
+ 
+ 		text, err = r.r.GoMod(version)
+ 		if err == nil {
+-			checkGoMod(r.path, version, text)
++			if err := checkGoMod(r.path, version, text); err != nil {
++				return cached{text, err}
++			}
+ 			if err := writeDiskGoMod(file, text); err != nil {
+ 				fmt.Fprintf(os.Stderr, "go: writing go.mod cache: %v\n", err)
+ 			}
+@@ -490,7 +492,9 @@ func readDiskGoMod(path, rev string) (file string, data []byte, err error) {
+ 	}
+ 
+ 	if err == nil {
+-		checkGoMod(path, rev, data)
++		if err := checkGoMod(path, rev, data); err != nil {
++			return "", nil, err
++		}
+ 	}
+ 
+ 	return file, data, err
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 2eead5f746..8f792a7768 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -250,7 +250,9 @@ func downloadZip(mod module.Version, zipfile string) (err error) {
+ 	if err != nil {
+ 		return err
+ 	}
+-	checkModSum(mod, hash)
++	if err := checkModSum(mod, hash); err != nil {
++		return err
++	}
+ 
+ 	if err := renameio.WriteFile(zipfile+"hash", []byte(hash), 0666); err != nil {
+ 		return err
+@@ -282,21 +284,22 @@ var goSum struct {
+ }
+ 
+ // initGoSum initializes the go.sum data.
+-// It reports whether use of go.sum is now enabled.
++// The boolean it returns reports whether the
++// use of go.sum is now enabled.
+ // The goSum lock must be held.
+-func initGoSum() bool {
++func initGoSum() (bool, error) {
+ 	if GoSumFile == "" {
+-		return false
++		return false, nil
+ 	}
+ 	if goSum.m != nil {
+-		return true
++		return true, nil
+ 	}
+ 
+ 	goSum.m = make(map[module.Version][]string)
+ 	goSum.checked = make(map[modSum]bool)
+ 	data, err := renameio.ReadFile(GoSumFile)
+ 	if err != nil && !os.IsNotExist(err) {
+-		base.Fatalf("go: %v", err)
++		return false, err
+ 	}
+ 	goSum.enabled = true
+ 	readGoSum(goSum.m, GoSumFile, data)
+@@ -314,7 +317,7 @@ func initGoSum() bool {
+ 		}
+ 		goSum.modverify = alt
+ 	}
+-	return true
++	return true, nil
+ }
+ 
+ // emptyGoModHash is the hash of a 1-file tree containing a 0-length go.mod.
+@@ -324,7 +327,7 @@ const emptyGoModHash = "h1:G7mAYYxgmS0lVkHyy2hEOLQCFB0DlQFTMLWggykrydY="
+ 
+ // readGoSum parses data, which is the content of file,
+ // and adds it to goSum.m. The goSum lock must be held.
+-func readGoSum(dst map[module.Version][]string, file string, data []byte) {
++func readGoSum(dst map[module.Version][]string, file string, data []byte) error {
+ 	lineno := 0
+ 	for len(data) > 0 {
+ 		var line []byte
+@@ -341,7 +344,7 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) {
+ 			continue
+ 		}
+ 		if len(f) != 3 {
+-			base.Fatalf("go: malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
++			return fmt.Errorf("malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
+ 		}
+ 		if f[2] == emptyGoModHash {
+ 			// Old bug; drop it.
+@@ -350,6 +353,7 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) {
+ 		mod := module.Version{Path: f[0], Version: f[1]}
+ 		dst[mod] = append(dst[mod], f[2])
+ 	}
++	return nil
+ }
+ 
+ // checkMod checks the given module's checksum.
+@@ -377,7 +381,9 @@ func checkMod(mod module.Version) {
+ 		base.Fatalf("verifying %v", module.VersionError(mod, fmt.Errorf("unexpected ziphash: %q", h)))
+ 	}
+ 
+-	checkModSum(mod, h)
++	if err := checkModSum(mod, h); err != nil {
++		base.Fatalf("%s", err)
++	}
+ }
+ 
+ // goModSum returns the checksum for the go.mod contents.
+@@ -389,17 +395,17 @@ func goModSum(data []byte) (string, error) {
+ 
+ // checkGoMod checks the given module's go.mod checksum;
+ // data is the go.mod content.
+-func checkGoMod(path, version string, data []byte) {
++func checkGoMod(path, version string, data []byte) error {
+ 	h, err := goModSum(data)
+ 	if err != nil {
+-		base.Fatalf("verifying %s %s go.mod: %v", path, version, err)
++		return &module.ModuleError{Path: path, Version: version, Err: fmt.Errorf("verifying go.mod: %v", err)}
+ 	}
+ 
+-	checkModSum(module.Version{Path: path, Version: version + "/go.mod"}, h)
++	return checkModSum(module.Version{Path: path, Version: version + "/go.mod"}, h)
+ }
+ 
+ // checkModSum checks that the recorded checksum for mod is h.
+-func checkModSum(mod module.Version, h string) {
++func checkModSum(mod module.Version, h string) error {
+ 	// We lock goSum when manipulating it,
+ 	// but we arrange to release the lock when calling checkSumDB,
+ 	// so that parallel calls to checkModHash can execute parallel calls
+@@ -407,19 +413,24 @@ func checkModSum(mod module.Version, h string) {
+ 
+ 	// Check whether mod+h is listed in go.sum already. If so, we're done.
+ 	goSum.mu.Lock()
+-	inited := initGoSum()
++	inited, err := initGoSum()
++	if err != nil {
++		return err
++	}
+ 	done := inited && haveModSumLocked(mod, h)
+ 	goSum.mu.Unlock()
+ 
+ 	if done {
+-		return
++		return nil
+ 	}
+ 
+ 	// Not listed, so we want to add them.
+ 	// Consult checksum database if appropriate.
+ 	if useSumDB(mod) {
+ 		// Calls base.Fatalf if mismatch detected.
+-		checkSumDB(mod, h)
++		if err := checkSumDB(mod, h); err != nil {
++			return err
++		}
+ 	}
+ 
+ 	// Add mod+h to go.sum, if it hasn't appeared already.
+@@ -428,6 +439,7 @@ func checkModSum(mod module.Version, h string) {
+ 		addModSumLocked(mod, h)
+ 		goSum.mu.Unlock()
+ 	}
++	return nil
+ }
+ 
+ // haveModSumLocked reports whether the pair mod,h is already listed in go.sum.
+@@ -461,22 +473,23 @@ func addModSumLocked(mod module.Version, h string) {
+ 
+ // checkSumDB checks the mod, h pair against the Go checksum database.
+ // It calls base.Fatalf if the hash is to be rejected.
+-func checkSumDB(mod module.Version, h string) {
++func checkSumDB(mod module.Version, h string) error {
+ 	db, lines, err := lookupSumDB(mod)
+ 	if err != nil {
+-		base.Fatalf("verifying %s@%s: %v", mod.Path, mod.Version, err)
++		return module.VersionError(mod, fmt.Errorf("verifying module: %v", err))
+ 	}
+ 
+ 	have := mod.Path + " " + mod.Version + " " + h
+ 	prefix := mod.Path + " " + mod.Version + " h1:"
+ 	for _, line := range lines {
+ 		if line == have {
+-			return
++			return nil
+ 		}
+ 		if strings.HasPrefix(line, prefix) {
+-			base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, mod.Path, mod.Version, h, db, line[len(prefix)-len("h1:"):])
++			return module.VersionError(mod, fmt.Errorf("verifying module: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, h, db, line[len(prefix)-len("h1:"):]))
+ 		}
+ 	}
++	return nil
+ }
+ 
+ // Sum returns the checksum for the downloaded copy of the given module,
+@@ -586,7 +599,11 @@ func WriteGoSum() {
+ func TrimGoSum(keep map[module.Version]bool) {
+ 	goSum.mu.Lock()
+ 	defer goSum.mu.Unlock()
+-	if !initGoSum() {
++	inited, err := initGoSum()
++	if err != nil {
++		base.Fatalf("%s", err)
++	}
++	if !inited {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_download_json.txt b/src/cmd/go/testdata/script/mod_download_json.txt
+new file mode 100644
+index 0000000000..01c35dd993
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download_json.txt
+@@ -0,0 +1,10 @@
++env GO111MODULE=on
++env GOPROXY=$GOPROXY/quiet
++env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
++
++# download -json with version should print JSON on sumdb failure
++! go mod download -json 'rsc.io/quote@<=v1.5.0'
++stdout '"Error": ".*verifying module'
++
++-- go.mod --
++module m
+diff --git a/src/cmd/go/testdata/script/mod_sumdb.txt b/src/cmd/go/testdata/script/mod_sumdb.txt
+index 641b9e73bc..caf97e9699 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb.txt
+@@ -9,7 +9,7 @@ env dbname=localhost.localdev/sumdb
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+ ! go get -d rsc.io/quote
+-stderr 'verifying rsc.io/quote@v1.5.2: checksum mismatch'
++stderr 'go get rsc.io/quote: rsc.io/quote@v1.5.2: verifying module: checksum mismatch'
+ stderr 'downloaded: h1:3fEy'
+ stderr 'localhost.localdev/sumdb: h1:wrong'
+ stderr 'SECURITY ERROR\nThis download does NOT match the one reported by the checksum server.'
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+index 4f4b99575a..7ccce23356 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+@@ -13,7 +13,7 @@ env GOPATH=$WORK/gopath1
+ [windows] env GOPROXY=file:///$WORK/sumproxy,https://proxy.golang.org
+ [!windows] env GOPROXY=file://$WORK/sumproxy,https://proxy.golang.org
+ ! go get -d golang.org/x/text@v0.3.2
+-stderr '^verifying golang.org/x/text@v0.3.2: golang.org/x/text@v0.3.2: reading file://.*/sumdb/sum.golang.org/lookup/golang.org/x/text@v0.3.2: (no such file or directory|.*cannot find the file specified.*)'
++stderr '^go get golang.org/x/text@v0.3.2: golang.org/x/text@v0.3.2: verifying module: golang.org/x/text@v0.3.2: reading file://.*/sumdb/sum.golang.org/lookup/golang.org/x/text@v0.3.2: (no such file or directory|.*cannot find the file specified.*)'
+ 
+ # If the proxy does not claim to support the database,
+ # checksum verification should fall through to the next proxy,

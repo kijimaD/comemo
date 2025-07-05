@@ -12,6 +12,24 @@ Date:   Wed Jan 11 13:46:27 2017 -0800
     Run-TryBot: Filippo Valsorda <hi@filippo.io>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/handshake_messages_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/handshake_messages_test.go b/src/crypto/tls/handshake_messages_test.go
+index 7add97c32c..49c13eecf2 100644
+--- a/src/crypto/tls/handshake_messages_test.go
++++ b/src/crypto/tls/handshake_messages_test.go
+@@ -116,7 +116,11 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 	m.sessionId = randomBytes(rand.Intn(32), rand)
+ 	m.cipherSuites = make([]uint16, rand.Intn(63)+1)
+ 	for i := 0; i < len(m.cipherSuites); i++ {
+-		m.cipherSuites[i] = uint16(rand.Int31())
++		cs := uint16(rand.Int31())
++		if cs == scsvRenegotiation {
++			cs += 1
++		}
++		m.cipherSuites[i] = cs
+ 	}
+ 	m.compressionMethods = randomBytes(rand.Intn(63)+1, rand)
+ 	if rand.Intn(10) > 5 {

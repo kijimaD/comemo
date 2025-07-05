@@ -9,8 +9,48 @@ Date:   Wed Jun 6 08:18:55 2012 +1000
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6297043
-
+---
  src/cmd/5c/list.c | 2 +-
  src/cmd/5g/list.c | 2 +-
  src/cmd/5l/list.c | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5c/list.c b/src/cmd/5c/list.c
+index ab0fae83c2..86a31ae7a9 100644
+--- a/src/cmd/5c/list.c
++++ b/src/cmd/5c/list.c
+@@ -169,7 +169,7 @@ Dconv(Fmt *fp)
+ 
+ 	case D_SHIFT:
+ 		v = a->offset;
+-		op = "<<>>->@>" + (((v>>5) & 3) << 1);
++		op = &"<<>>->@>"[(((v>>5) & 3) << 1)];
+ 		if(v & (1<<4))
+ 			sprint(str, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15);
+ 		else
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index 9bc3a9a9a6..3105d5669e 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -119,7 +119,7 @@ Dconv(Fmt *fp)
+ 
+ 	case D_SHIFT:
+ 		v = a->offset;
+-		op = "<<>>->@>" + (((v>>5) & 3) << 1);
++		op = &"<<>>->@>"[(((v>>5) & 3) << 1)];
+ 		if(v & (1<<4))
+ 			sprint(str, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15);
+ 		else
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index 7b623d78a5..89c1c63026 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -191,7 +191,7 @@ Dconv(Fmt *fp)
+ 
+ 	case D_SHIFT:
+ 		v = a->offset;
+-		op = "<<>>->@>" + (((v>>5) & 3) << 1);
++		op = &"<<>>->@>"[(((v>>5) & 3) << 1)];
+ 		if(v & (1<<4))
+ 			snprint(str, sizeof str, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15);
+ 		else

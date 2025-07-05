@@ -19,10 +19,887 @@ Date:   Sat May 8 13:52:36 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1133043
-
+---
  src/pkg/big/arith.go      |  54 ++++++++++++------------
  src/pkg/big/arith_386.s   |  58 ++++++++++++-------------
  src/pkg/big/arith_amd64.s |  58 ++++++++++++-------------
  src/pkg/big/arith_test.go |  28 ++++++-------
  src/pkg/big/nat.go        | 105 ++++++++++++++++++++--------------------------
  5 files changed, 142 insertions(+), 161 deletions(-)
+
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index eef93734a4..52bb3e165d 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -284,47 +284,47 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
+ }
+ 
+ 
+-func addVV(z, x, y []Word, n int) (c Word)
+-func addVV_g(z, x, y []Word, n int) (c Word) {
+-	for i := 0; i < n; i++ {
++func addVV(z, x, y []Word) (c Word)
++func addVV_g(z, x, y []Word) (c Word) {
++	for i := range z {
+ 		c, z[i] = addWW_g(x[i], y[i], c)
+ 	}
+ 	return
+ }
+ 
+ 
+-func subVV(z, x, y []Word, n int) (c Word)
+-func subVV_g(z, x, y []Word, n int) (c Word) {
+-	for i := 0; i < n; i++ {
++func subVV(z, x, y []Word) (c Word)
++func subVV_g(z, x, y []Word) (c Word) {
++	for i := range z {
+ 		c, z[i] = subWW_g(x[i], y[i], c)
+ 	}
+ 	return
+ }
+ 
+ 
+-func addVW(z, x []Word, y Word, n int) (c Word)
+-func addVW_g(z, x []Word, y Word, n int) (c Word) {
++func addVW(z, x []Word, y Word) (c Word)
++func addVW_g(z, x []Word, y Word) (c Word) {
+ 	c = y
+-	for i := 0; i < n; i++ {
++	for i := range z {
+ 		c, z[i] = addWW_g(x[i], c, 0)
+ 	}
+ 	return
+ }
+ 
+ 
+-func subVW(z, x []Word, y Word, n int) (c Word)
+-func subVW_g(z, x []Word, y Word, n int) (c Word) {
++func subVW(z, x []Word, y Word) (c Word)
++func subVW_g(z, x []Word, y Word) (c Word) {
+ 	c = y
+-	for i := 0; i < n; i++ {
++	for i := range z {
+ 		c, z[i] = subWW_g(x[i], c, 0)
+ 	}
+ 	return
+ }
+ 
+ 
+-func shlVW(z, x []Word, s Word, n int) (c Word)
+-func shlVW_g(z, x []Word, s Word, n int) (c Word) {
+-	if n > 0 {
++func shlVW(z, x []Word, s Word) (c Word)
++func shlVW_g(z, x []Word, s Word) (c Word) {
++	if n := len(z); n > 0 {
+ 		ŝ := _W - s
+ 		w1 := x[n-1]
+ 		c = w1 >> ŝ
+@@ -339,9 +339,9 @@ func shlVW_g(z, x []Word, s Word, n int) (c Word) {
+ }
+ 
+ 
+-func shrVW(z, x []Word, s Word, n int) (c Word)
+-func shrVW_g(z, x []Word, s Word, n int) (c Word) {
+-	if n > 0 {
++func shrVW(z, x []Word, s Word) (c Word)
++func shrVW_g(z, x []Word, s Word) (c Word) {
++	if n := len(z); n > 0 {
+ 		ŝ := _W - s
+ 		w1 := x[0]
+ 		c = w1 << ŝ
+@@ -356,19 +356,19 @@ func shrVW_g(z, x []Word, s Word, n int) (c Word) {
+ }
+ 
+ 
+-func mulAddVWW(z, x []Word, y, r Word, n int) (c Word)
+-func mulAddVWW_g(z, x []Word, y, r Word, n int) (c Word) {
++func mulAddVWW(z, x []Word, y, r Word) (c Word)
++func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
+ 	c = r
+-	for i := 0; i < n; i++ {
++	for i := range z {
+ 		c, z[i] = mulAddWWW_g(x[i], y, c)
+ 	}
+ 	return
+ }
+ 
+ 
+-func addMulVVW(z, x []Word, y Word, n int) (c Word)
+-func addMulVVW_g(z, x []Word, y Word, n int) (c Word) {
+-	for i := 0; i < n; i++ {
++func addMulVVW(z, x []Word, y Word) (c Word)
++func addMulVVW_g(z, x []Word, y Word) (c Word) {
++	for i := range z {
+ 		z1, z0 := mulAddWWW_g(x[i], y, z[i])
+ 		c, z[i] = addWW_g(z0, c, 0)
+ 		c += z1
+@@ -377,10 +377,10 @@ func addMulVVW_g(z, x []Word, y Word, n int) (c Word) {
+ }
+ 
+ 
+-func divWVW(z []Word, xn Word, x []Word, y Word, n int) (r Word)
+-func divWVW_g(z []Word, xn Word, x []Word, y Word, n int) (r Word) {
++func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
++func divWVW_g(z []Word, xn Word, x []Word, y Word) (r Word) {
+ 	r = xn
+-	for i := n - 1; i >= 0; i-- {
++	for i := len(z) - 1; i >= 0; i-- {
+ 		z[i], r = divWW_g(r, x[i], y)
+ 	}
+ 	return
+diff --git a/src/pkg/big/arith_386.s b/src/pkg/big/arith_386.s
+index b50172ba3e..08eb5d4d50 100644
+--- a/src/pkg/big/arith_386.s
++++ b/src/pkg/big/arith_386.s
+@@ -5,12 +5,12 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-// func addVV(z, x, y []Word, n int) (c Word)
++// func addVV(z, x, y []Word) (c Word)
+ TEXT ·addVV(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), CX
+-	MOVL n+36(FP), BP
++	MOVL n+4(FP), BP
+ 	MOVL $0, BX		// i = 0
+ 	MOVL $0, DX		// c = 0
+ 	JMP E1
+@@ -25,17 +25,17 @@ L1:	MOVL (SI)(BX*4), AX
+ E1:	CMPL BX, BP		// i < n
+ 	JL L1
+ 
+-	MOVL DX, c+40(FP)
++	MOVL DX, c+36(FP)
+ 	RET
+ 
+ 
+-// func subVV(z, x, y []Word, n int) (c Word)
++// func subVV(z, x, y []Word) (c Word)
+ // (same as addVV except for SBBL instead of ADCL and label names)
+ TEXT ·subVV(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), CX
+-	MOVL n+36(FP), BP
++	MOVL n+4(FP), BP
+ 	MOVL $0, BX		// i = 0
+ 	MOVL $0, DX		// c = 0
+ 	JMP E2
+@@ -50,16 +50,16 @@ L2:	MOVL (SI)(BX*4), AX
+ E2:	CMPL BX, BP		// i < n
+ 	JL L2
+ 
+-	MOVL DX, c+40(FP)
++	MOVL DX, c+36(FP)
+ 	RET
+ 
+ 
+-// func addVW(z, x []Word, y Word, n int) (c Word)
++// func addVW(z, x []Word, y Word) (c Word)
+ TEXT ·addVW(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), AX	// c = y
+-	MOVL n+28(FP), BP
++	MOVL n+4(FP), BP
+ 	MOVL $0, BX		// i = 0
+ 	JMP E3
+ 
+@@ -72,16 +72,16 @@ L3:	ADDL (SI)(BX*4), AX
+ E3:	CMPL BX, BP		// i < n
+ 	JL L3
+ 
+-	MOVL AX, c+32(FP)
++	MOVL AX, c+28(FP)
+ 	RET
+ 
+ 
+-// func subVW(z, x []Word, y Word, n int) (c Word)
++// func subVW(z, x []Word, y Word) (c Word)
+ TEXT ·subVW(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), AX	// c = y
+-	MOVL n+28(FP), BP
++	MOVL n+4(FP), BP
+ 	MOVL $0, BX		// i = 0
+ 	JMP E4
+ 
+@@ -95,13 +95,13 @@ L4:	MOVL (SI)(BX*4), DX	// TODO(gri) is there a reverse SUBL?
+ E4:	CMPL BX, BP		// i < n
+ 	JL L4
+ 
+-	MOVL AX, c+32(FP)
++	MOVL AX, c+28(FP)
+ 	RET
+ 
+ 
+-// func shlVW(z, x []Word, s Word, n int) (c Word)
++// func shlVW(z, x []Word, s Word) (c Word)
+ TEXT ·shlVW(SB),7,$0
+-	MOVL n+28(FP), BX	// i = n
++	MOVL n+4(FP), BX	// i = n
+ 	SUBL $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+ 
+@@ -112,7 +112,7 @@ TEXT ·shlVW(SB),7,$0
+ 	MOVL (SI)(BX*4), AX	// w1 = x[n-1]
+ 	MOVL $0, DX
+ 	SHLL CX, DX:AX		// w1>>ŝ
+-	MOVL DX, c+32(FP)
++	MOVL DX, c+28(FP)
+ 
+ 	CMPL BX, $0
+ 	JLE X8a			// i <= 0
+@@ -130,13 +130,13 @@ X8a:	SHLL CX, AX		// w1<<s
+ 	MOVL AX, (DI)		// z[0] = w1<<s
+ 	RET
+ 
+-X8b:	MOVL $0, c+32(FP)
++X8b:	MOVL $0, c+28(FP)
+ 	RET
+ 
+ 
+-// func shrVW(z, x []Word, s Word, n int) (c Word)
++// func shrVW(z, x []Word, s Word) (c Word)
+ TEXT ·shrVW(SB),7,$0
+-	MOVL n+28(FP), BP
++	MOVL n+4(FP), BP
+ 	SUBL $1, BP		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+ 
+@@ -147,7 +147,7 @@ TEXT ·shrVW(SB),7,$0
+ 	MOVL (SI), AX		// w1 = x[0]
+ 	MOVL $0, DX
+ 	SHRL CX, DX:AX		// w1<<ŝ
+-	MOVL DX, c+32(FP)
++	MOVL DX, c+28(FP)
+ 
+ 	MOVL $0, BX		// i = 0
+ 	JMP E9
+@@ -167,17 +167,17 @@ X9a:	SHRL CX, AX		// w1>>s
+ 	MOVL AX, (DI)(BP*4)	// z[n-1] = w1>>s
+ 	RET
+ 
+-X9b:	MOVL $0, c+32(FP)
++X9b:	MOVL $0, c+28(FP)
+ 	RET
+ 
+ 
+-// func mulAddVWW(z, x []Word, y, r Word, n int) (c Word)
++// func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), BP
+ 	MOVL r+28(FP), CX	// c = r
+-	MOVL n+32(FP), BX
++	MOVL n+4(FP), BX
+ 	LEAL (DI)(BX*4), DI
+ 	LEAL (SI)(BX*4), SI
+ 	NEGL BX			// i = -n
+@@ -194,16 +194,16 @@ L5:	MOVL (SI)(BX*4), AX
+ E5:	CMPL BX, $0		// i < 0
+ 	JL L5
+ 
+-	MOVL CX, c+36(FP)
++	MOVL CX, c+32(FP)
+ 	RET
+ 
+ 
+-// func addMulVVW(z, x []Word, y Word, n int) (c Word)
++// func addMulVVW(z, x []Word, y Word) (c Word)
+ TEXT ·addMulVVW(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), BP
+-	MOVL n+28(FP), BX
++	MOVL n+4(FP), BX
+ 	LEAL (DI)(BX*4), DI
+ 	LEAL (SI)(BX*4), SI
+ 	NEGL BX			// i = -n
+@@ -223,17 +223,17 @@ L6:	MOVL (SI)(BX*4), AX
+ E6:	CMPL BX, $0		// i < 0
+ 	JL L6
+ 
+-	MOVL CX, c+32(FP)
++	MOVL CX, c+28(FP)
+ 	RET
+ 
+ 
+-// divWVW(z* Word, xn Word, x []Word, y Word, n int) (r Word)
++// divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
+ TEXT ·divWVW(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL xn+12(FP), DX	// r = xn
+ 	MOVL x+16(FP), SI
+ 	MOVL y+28(FP), CX
+-	MOVL n+32(FP), BX	// i = n
++	MOVL n+4(FP), BX	// i = n
+ 	JMP E7
+ 
+ L7:	MOVL (SI)(BX*4), AX
+@@ -243,5 +243,5 @@ L7:	MOVL (SI)(BX*4), AX
+ E7:	SUBL $1, BX		// i--
+ 	JGE L7			// i >= 0
+ 
+-	MOVL DX, r+36(FP)
++	MOVL DX, r+32(FP)
+ 	RET
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+index 9f30cee506..1dd95ec534 100644
+--- a/src/pkg/big/arith_amd64.s
++++ b/src/pkg/big/arith_amd64.s
+@@ -7,12 +7,12 @@
+ 
+ // TODO(gri) - experiment with unrolled loops for faster execution
+ 
+-// func addVV(z, x, y []Word, n int) (c Word)
++// func addVV(z, x, y []Word) (c Word)
+ TEXT ·addVV(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+16(FP), R8
+ 	MOVQ y+32(FP), R9
+-	MOVL n+48(FP), R11
++	MOVL n+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	MOVQ $0, DX		// c = 0
+ 	JMP E1
+@@ -27,17 +27,17 @@ L1:	MOVQ (R8)(BX*8), AX
+ E1:	CMPQ BX, R11		// i < n
+ 	JL L1
+ 
+-	MOVQ DX, c+56(FP)
++	MOVQ DX, c+48(FP)
+ 	RET
+ 
+ 
+-// func subVV(z, x, y []Word, n int) (c Word)
++// func subVV(z, x, y []Word) (c Word)
+ // (same as addVV_s except for SBBQ instead of ADCQ and label names)
+ TEXT ·subVV(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+16(FP), R8
+ 	MOVQ y+32(FP), R9
+-	MOVL n+48(FP), R11
++	MOVL n+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	MOVQ $0, DX		// c = 0
+ 	JMP E2
+@@ -52,16 +52,16 @@ L2:	MOVQ (R8)(BX*8), AX
+ E2:	CMPQ BX, R11		// i < n
+ 	JL L2
+ 
+-	MOVQ DX, c+56(FP)
++	MOVQ DX, c+48(FP)
+ 	RET
+ 
+ 
+-// func addVW(z, x []Word, y Word, n int) (c Word)
++// func addVW(z, x []Word, y Word) (c Word)
+ TEXT ·addVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+16(FP), R8
+ 	MOVQ y+32(FP), AX	// c = y
+-	MOVL n+40(FP), R11
++	MOVL n+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	JMP E3
+ 
+@@ -74,16 +74,16 @@ L3:	ADDQ (R8)(BX*8), AX
+ E3:	CMPQ BX, R11		// i < n
+ 	JL L3
+ 
+-	MOVQ AX, c+48(FP)
++	MOVQ AX, c+40(FP)
+ 	RET
+ 
+ 
+-// func subVW(z, x []Word, y Word, n int) (c Word)
++// func subVW(z, x []Word, y Word) (c Word)
+ TEXT ·subVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+16(FP), R8
+ 	MOVQ y+32(FP), AX	// c = y
+-	MOVL n+40(FP), R11
++	MOVL n+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	JMP E4
+ 
+@@ -97,13 +97,13 @@ L4:	MOVQ (R8)(BX*8), DX	// TODO(gri) is there a reverse SUBQ?
+ E4:	CMPQ BX, R11		// i < n
+ 	JL L4
+ 
+-	MOVQ AX, c+48(FP)
++	MOVQ AX, c+40(FP)
+ 	RET
+ 
+ 
+-// func shlVW(z, x []Word, s Word, n int) (c Word)
++// func shlVW(z, x []Word, s Word) (c Word)
+ TEXT ·shlVW(SB),7,$0
+-	MOVL n+40(FP), BX	// i = n
++	MOVL n+8(FP), BX	// i = n
+ 	SUBL $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+ 
+@@ -114,7 +114,7 @@ TEXT ·shlVW(SB),7,$0
+ 	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
+ 	MOVQ $0, DX
+ 	SHLQ CX, DX:AX		// w1>>ŝ
+-	MOVQ DX, c+48(FP)
++	MOVQ DX, c+40(FP)
+ 
+ 	CMPL BX, $0
+ 	JLE X8a			// i <= 0
+@@ -132,13 +132,13 @@ X8a:	SHLQ CX, AX		// w1<<s
+ 	MOVQ AX, (R10)		// z[0] = w1<<s
+ 	RET
+ 
+-X8b:	MOVQ $0, c+48(FP)
++X8b:	MOVQ $0, c+40(FP)
+ 	RET
+ 
+ 
+-// func shrVW(z, x []Word, s Word, n int) (c Word)
++// func shrVW(z, x []Word, s Word) (c Word)
+ TEXT ·shrVW(SB),7,$0
+-	MOVL n+40(FP), R11
++	MOVL n+8(FP), R11
+ 	SUBL $1, R11		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+ 
+@@ -149,7 +149,7 @@ TEXT ·shrVW(SB),7,$0
+ 	MOVQ (R8), AX		// w1 = x[0]
+ 	MOVQ $0, DX
+ 	SHRQ CX, DX:AX		// w1<<ŝ
+-	MOVQ DX, c+48(FP)
++	MOVQ DX, c+40(FP)
+ 
+ 	MOVQ $0, BX		// i = 0
+ 	JMP E9
+@@ -169,17 +169,17 @@ X9a:	SHRQ CX, AX		// w1>>s
+ 	MOVQ AX, (R10)(R11*8)	// z[n-1] = w1>>s
+ 	RET
+ 
+-X9b:	MOVQ $0, c+48(FP)
++X9b:	MOVQ $0, c+40(FP)
+ 	RET
+ 
+ 
+-// func mulAddVWW(z, x []Word, y, r Word, n int) (c Word)
++// func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+16(FP), R8
+ 	MOVQ y+32(FP), R9
+ 	MOVQ r+40(FP), CX	// c = r
+-	MOVL n+48(FP), R11
++	MOVL n+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	JMP E5
+ 
+@@ -194,16 +194,16 @@ L5:	MOVQ (R8)(BX*8), AX
+ E5:	CMPQ BX, R11		// i < n
+ 	JL L5
+ 
+-	MOVQ CX, c+56(FP)
++	MOVQ CX, c+48(FP)
+ 	RET
+ 
+ 
+-// func addMulVVW(z, x []Word, y Word, n int) (c Word)
++// func addMulVVW(z, x []Word, y Word) (c Word)
+ TEXT ·addMulVVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+16(FP), R8
+ 	MOVQ y+32(FP), R9
+-	MOVL n+40(FP), R11
++	MOVL n+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	MOVQ $0, CX		// c = 0
+ 	JMP E6
+@@ -221,17 +221,17 @@ L6:	MOVQ (R8)(BX*8), AX
+ E6:	CMPQ BX, R11		// i < n
+ 	JL L6
+ 
+-	MOVQ CX, c+48(FP)
++	MOVQ CX, c+40(FP)
+ 	RET
+ 
+ 
+-// divWVW(z []Word, xn Word, x []Word, y Word, n int) (r Word)
++// divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+ TEXT ·divWVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ xn+16(FP), DX	// r = xn
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+40(FP), R9
+-	MOVL n+48(FP), BX	// i = n
++	MOVL n+8(FP), BX	// i = n
+ 	JMP E7
+ 
+ L7:	MOVQ (R8)(BX*8), AX
+@@ -241,5 +241,5 @@ L7:	MOVQ (R8)(BX*8), AX
+ E7:	SUBL $1, BX		// i--
+ 	JGE L7			// i >= 0
+ 
+-	MOVQ DX, r+56(FP)
++	MOVQ DX, r+48(FP)
+ 	RET
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/big/arith_test.go
+index b581bc2783..efdb65123f 100644
+--- a/src/pkg/big/arith_test.go
++++ b/src/pkg/big/arith_test.go
+@@ -52,7 +52,7 @@ func TestFunWW(t *testing.T) {
+ }
+ 
+ 
+-type funVV func(z, x, y []Word, n int) (c Word)
++type funVV func(z, x, y []Word) (c Word)
+ type argVV struct {
+ 	z, x, y nat
+ 	c       Word
+@@ -72,9 +72,8 @@ var sumVV = []argVV{
+ 
+ 
+ func testFunVV(t *testing.T, msg string, f funVV, a argVV) {
+-	n := len(a.z)
+-	z := make(nat, n)
+-	c := f(z, a.x, a.y, n)
++	z := make(nat, len(a.z))
++	c := f(z, a.x, a.y)
+ 	for i, zi := range z {
+ 		if zi != a.z[i] {
+ 			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
+@@ -108,7 +107,7 @@ func TestFunVV(t *testing.T) {
+ }
+ 
+ 
+-type funVW func(z, x []Word, y Word, n int) (c Word)
++type funVW func(z, x []Word, y Word) (c Word)
+ type argVW struct {
+ 	z, x nat
+ 	y    Word
+@@ -171,9 +170,8 @@ var rshVW = []argVW{
+ 
+ 
+ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
+-	n := len(a.z)
+-	z := make(nat, n)
+-	c := f(z, a.x, a.y, n)
++	z := make(nat, len(a.z))
++	c := f(z, a.x, a.y)
+ 	for i, zi := range z {
+ 		if zi != a.z[i] {
+ 			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
+@@ -211,7 +209,7 @@ func TestFunVW(t *testing.T) {
+ }
+ 
+ 
+-type funVWW func(z, x []Word, y, r Word, n int) (c Word)
++type funVWW func(z, x []Word, y, r Word) (c Word)
+ type argVWW struct {
+ 	z, x nat
+ 	y, r Word
+@@ -246,9 +244,8 @@ var prodVWW = []argVWW{
+ 
+ 
+ func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
+-	n := len(a.z)
+-	z := make(nat, n)
+-	c := f(z, a.x, a.y, a.r, n)
++	z := make(nat, len(a.z))
++	c := f(z, a.x, a.y, a.r)
+ 	for i, zi := range z {
+ 		if zi != a.z[i] {
+ 			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
+@@ -264,7 +261,7 @@ func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
+ // TODO(gri) mulAddVWW and divWVW are symmetric operations but
+ //           their signature is not symmetric. Try to unify.
+ 
+-type funWVW func(z []Word, xn Word, x []Word, y Word, n int) (r Word)
++type funWVW func(z []Word, xn Word, x []Word, y Word) (r Word)
+ type argWVW struct {
+ 	z  nat
+ 	xn Word
+@@ -274,9 +271,8 @@ type argWVW struct {
+ }
+ 
+ func testFunWVW(t *testing.T, msg string, f funWVW, a argWVW) {
+-	n := len(a.z)
+-	z := make(nat, n)
+-	r := f(z, a.xn, a.x, a.y, n)
++	z := make(nat, len(a.z))
++	r := f(z, a.xn, a.x, a.y)
+ 	for i, zi := range z {
+ 		if zi != a.z[i] {
+ 			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 46fe3492ac..f752ce6477 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -42,11 +42,10 @@ var (
+ )
+ 
+ 
+-func (z nat) clear() nat {
++func (z nat) clear() {
+ 	for i := range z {
+ 		z[i] = 0
+ 	}
+-	return z
+ }
+ 
+ 
+@@ -55,26 +54,18 @@ func (z nat) norm() nat {
+ 	for i > 0 && z[i-1] == 0 {
+ 		i--
+ 	}
+-	z = z[0:i]
+-	return z
++	return z[0:i]
+ }
+ 
+ 
+-// TODO(gri) Consider changing "make" such that is does not reserve space
+-//           for a potential carry; instead callers must provide the correct
+-//           m (+1). Should lead to clearer code and shorter allocations on
+-//           average.
+-
+-func (z nat) make(m int) nat {
+-	if cap(z) > m {
+-		return z[0:m] // reuse z - has at least one extra word for a carry, if any
+-	}
+-
+-	c := 4 // minimum capacity
+-	if m > c {
+-		c = m
++func (z nat) make(n int) nat {
++	if n <= cap(z) {
++		return z[0:n] // reuse z
+ 	}
+-	return make(nat, m, c+1) // +1: extra word for a carry, if any
++	// Choosing a good value for e has significant performance impact
++	// because it increases the chance that a value can be reused.
++	const e = 4 // extra capacity
++	return make(nat, n, n+e)
+ }
+ 
+ 
+@@ -98,7 +89,7 @@ func (z nat) new(x uint64) nat {
+ 
+ 	// split x into n words
+ 	z = z.make(n)
+-	for i := 0; i < n; i++ {
++	for i := range z {
+ 		z[i] = Word(x & _M)
+ 		x >>= _W
+ 	}
+@@ -132,17 +123,14 @@ func (z nat) add(x, y nat) nat {
+ 	}
+ 	// m > 0
+ 
+-	z = z.make(m)
+-	c := addVV(z, x, y, n)
++	z = z.make(m + 1)
++	c := addVV(z[0:n], x, y)
+ 	if m > n {
+-		c = addVW(z[n:], x[n:], c, m-n)
+-	}
+-	if c > 0 {
+-		z = z[0 : m+1]
+-		z[m] = c
++		c = addVW(z[n:m], x[n:], c)
+ 	}
++	z[m] = c
+ 
+-	return z
++	return z.norm()
+ }
+ 
+ 
+@@ -163,9 +151,9 @@ func (z nat) sub(x, y nat) nat {
+ 	// m > 0
+ 
+ 	z = z.make(m)
+-	c := subVV(z, x, y, n)
++	c := subVV(z[0:n], x, y)
+ 	if m > n {
+-		c = subVW(z[n:], x[n:], c, m-n)
++		c = subVW(z[n:], x[n:], c)
+ 	}
+ 	if c != 0 {
+ 		panic("underflow")
+@@ -210,14 +198,10 @@ func (z nat) mulAddWW(x nat, y, r Word) nat {
+ 	}
+ 	// m > 0
+ 
+-	z = z.make(m)
+-	c := mulAddVWW(z, x, y, r, m)
+-	if c > 0 {
+-		z = z[0 : m+1]
+-		z[m] = c
+-	}
++	z = z.make(m + 1)
++	z[m] = mulAddVWW(z[0:m], x, y, r)
+ 
+-	return z
++	return z.norm()
+ }
+ 
+ 
+@@ -227,7 +211,7 @@ func basicMul(z, x, y nat) {
+ 	z[0 : len(x)+len(y)].clear() // initialize z
+ 	for i, d := range y {
+ 		if d != 0 {
+-			z[len(x)+i] = addMulVVW(z[i:], x, d, len(x))
++			z[len(x)+i] = addMulVVW(z[i:i+len(x)], x, d)
+ 		}
+ 	}
+ }
+@@ -236,16 +220,16 @@ func basicMul(z, x, y nat) {
+ // Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
+ // Factored out for readability - do not use outside karatsuba.
+ func karatsubaAdd(z, x nat, n int) {
+-	if c := addVV(z, z, x, n); c != 0 {
+-		addVW(z[n:], z[n:], c, n>>1)
++	if c := addVV(z[0:n], z, x); c != 0 {
++		addVW(z[n:n+n>>1], z[n:], c)
+ 	}
+ }
+ 
+ 
+ // Like karatsubaAdd, but does subtract.
+ func karatsubaSub(z, x nat, n int) {
+-	if c := subVV(z, z, x, n); c != 0 {
+-		subVW(z[n:], z[n:], c, n>>1)
++	if c := subVV(z[0:n], z, x); c != 0 {
++		subVW(z[n:n+n>>1], z[n:], c)
+ 	}
+ }
+ 
+@@ -315,16 +299,16 @@ func karatsuba(z, x, y nat) {
+ 	// compute xd (or the negative value if underflow occurs)
+ 	s := 1 // sign of product xd*yd
+ 	xd := z[2*n : 2*n+n2]
+-	if subVV(xd, x1, x0, n2) != 0 { // x1-x0
++	if subVV(xd, x1, x0) != 0 { // x1-x0
+ 		s = -s
+-		subVV(xd, x0, x1, n2) // x0-x1
++		subVV(xd, x0, x1) // x0-x1
+ 	}
+ 
+ 	// compute yd (or the negative value if underflow occurs)
+ 	yd := z[2*n+n2 : 3*n]
+-	if subVV(yd, y0, y1, n2) != 0 { // y0-y1
++	if subVV(yd, y0, y1) != 0 { // y0-y1
+ 		s = -s
+-		subVV(yd, y1, y0, n2) // y1-y0
++		subVV(yd, y1, y0) // y1-y0
+ 	}
+ 
+ 	// p = (x1-x0)*(y0-y1) == x1*y0 - x1*y1 - x0*y0 + x0*y1 for s > 0
+@@ -366,10 +350,10 @@ func alias(x, y nat) bool {
+ // slice, and we don't need to normalize z after each addition)
+ func addAt(z, x nat, i int) {
+ 	if n := len(x); n > 0 {
+-		if c := addVV(z[i:], z[i:], x, n); c != 0 {
++		if c := addVV(z[i:i+n], z[i:], x); c != 0 {
+ 			j := i + n
+ 			if j < len(z) {
+-				addVW(z[j:], z[j:], c, len(z)-j)
++				addVW(z[j:], z[j:], c)
+ 			}
+ 		}
+ 	}
+@@ -500,7 +484,7 @@ func (z nat) divW(x nat, y Word) (q nat, r Word) {
+ 	}
+ 	// m > 0
+ 	z = z.make(m)
+-	r = divWVW(z, 0, x, y, m)
++	r = divWVW(z, 0, x, y)
+ 	q = z.norm()
+ 	return
+ }
+@@ -549,12 +533,13 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	if alias(u, uIn) {
+ 		u = nil // u is an alias for uIn - cannot reuse
+ 	}
+-	u = u.make(len(uIn) + 1).clear()
++	u = u.make(len(uIn) + 1)
++	u.clear()
+ 
+ 	// D1.
+ 	shift := Word(leadingZeros(v[n-1]))
+-	shlVW(v, v, shift, n)
+-	u[len(uIn)] = shlVW(u, uIn, shift, len(uIn))
++	shlVW(v, v, shift)
++	u[len(uIn)] = shlVW(u[0:len(uIn)], uIn, shift)
+ 
+ 	// D2.
+ 	for j := m; j >= 0; j-- {
+@@ -582,11 +567,11 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 		}
+ 
+ 		// D4.
+-		qhatv[n] = mulAddVWW(qhatv, v, qhat, 0, n)
++		qhatv[n] = mulAddVWW(qhatv[0:n], v, qhat, 0)
+ 
+-		c := subVV(u[j:], u[j:], qhatv, len(qhatv))
++		c := subVV(u[j:j+len(qhatv)], u[j:], qhatv)
+ 		if c != 0 {
+-			c := addVV(u[j:], u[j:], v, n)
++			c := addVV(u[j:j+n], u[j:], v)
+ 			u[j+n] += c
+ 			qhat--
+ 		}
+@@ -595,8 +580,8 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	}
+ 
+ 	q = q.norm()
+-	shrVW(u, u, shift, len(u))
+-	shrVW(v, v, shift, n)
++	shrVW(u, u, shift)
++	shrVW(v, v, shift)
+ 	r = u.norm()
+ 
+ 	return q, r
+@@ -756,7 +741,7 @@ func (z nat) shl(x nat, s uint) nat {
+ 
+ 	n := m + int(s/_W)
+ 	z = z.make(n + 1)
+-	z[n] = shlVW(z[n-m:], x, Word(s%_W), m)
++	z[n] = shlVW(z[n-m:n], x, Word(s%_W))
+ 	z[0 : n-m].clear()
+ 
+ 	return z.norm()
+@@ -773,7 +758,7 @@ func (z nat) shr(x nat, s uint) nat {
+ 	// n > 0
+ 
+ 	z = z.make(n)
+-	shrVW(z, x[m-n:], Word(s%_W), n)
++	shrVW(z, x[m-n:], Word(s%_W))
+ 
+ 	return z.norm()
+ }
+@@ -863,7 +848,7 @@ func (x nat) modW(d Word) (r Word) {
+ 	// TODO(agl): we don't actually need to store the q value.
+ 	var q nat
+ 	q = q.make(len(x))
+-	return divWVW(q, 0, x, d, len(x))
++	return divWVW(q, 0, x, d)
+ }
+ 
+ 
+@@ -882,7 +867,7 @@ func (n nat) powersOfTwoDecompose() (q nat, k Word) {
+ 	x := trailingZeroBits(n[zeroWords])
+ 
+ 	q = q.make(len(n) - zeroWords)
+-	shrVW(q, n[zeroWords:], Word(x), len(q))
++	shrVW(q, n[zeroWords:], Word(x))
+ 	q = q.norm()
+ 
+ 	k = Word(_W*zeroWords + x)

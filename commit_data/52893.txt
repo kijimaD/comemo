@@ -28,10 +28,144 @@ Date:   Fri Jun 3 16:03:55 2022 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/cgo/gcc_libinit_windows.c | 28 +++++++++++++++++++++-------
  src/runtime/cgo/gcc_windows_386.c     | 10 ++--------
  src/runtime/cgo/gcc_windows_amd64.c   |  8 +-------
  src/runtime/cgo/gcc_windows_arm64.c   |  8 +-------
  src/runtime/cgo/libcgo_windows.h      | 10 ++--------
  5 files changed, 27 insertions(+), 37 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index ad5038667a..a9b94c3713 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -13,6 +13,16 @@
+ #include <errno.h>
+ 
+ #include "libcgo.h"
++#include "libcgo_windows.h"
++
++// Ensure there's one symbol marked __declspec(dllexport).
++// If there are no exported symbols, the unfortunate behavior of
++// the binutils linker is to also strip the relocations table,
++// resulting in non-PIE binary. The other option is the
++// --export-all-symbols flag, but we don't need to export all symbols
++// and this may overflow the export table (#40795).
++// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
++__declspec(dllexport) int _cgo_dummy_export;
+ 
+ static volatile LONG runtime_init_once_gate = 0;
+ static volatile LONG runtime_init_once_done = 0;
+@@ -53,13 +63,7 @@ _cgo_maybe_run_preinit() {
+ 
+ void
+ x_cgo_sys_thread_create(void (*func)(void*), void* arg) {
+-	uintptr_t thandle;
+-
+-	thandle = _beginthread(func, 0, arg);
+-	if(thandle == -1) {
+-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
+-		abort();
+-	}
++	_cgo_beginthread(func, arg);
+ }
+ 
+ int
+@@ -123,3 +127,13 @@ void (*(_cgo_get_context_function(void)))(struct context_arg*) {
+ 	LeaveCriticalSection(&runtime_init_cs);
+ 	return ret;
+ }
++
++void _cgo_beginthread(void (*func)(void*), void* arg) {
++	uintptr_t thandle;
++
++	thandle = _beginthread(func, 0, arg);
++	if (thandle == -1) {
++		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
++		abort();
++	}
++}
+diff --git a/src/runtime/cgo/gcc_windows_386.c b/src/runtime/cgo/gcc_windows_386.c
+index 60cb011bf2..56fbaac9b8 100644
+--- a/src/runtime/cgo/gcc_windows_386.c
++++ b/src/runtime/cgo/gcc_windows_386.c
+@@ -22,13 +22,7 @@ x_cgo_init(G *g)
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+-	uintptr_t thandle;
+-
+-	thandle = _beginthread(threadentry, 0, ts);
+-	if(thandle == -1) {
+-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
+-		abort();
+-	}
++	_cgo_beginthread(threadentry, ts);
+ }
+ 
+ static void
+@@ -50,6 +44,6 @@ threadentry(void *v)
+ 		"movl %1, 0(%%eax)\n"	// MOVL g, 0(FS)
+ 		:: "r"(ts.tls), "r"(ts.g) : "%eax"
+ 	);
+-	
++
+ 	crosscall_386(ts.fn);
+ }
+diff --git a/src/runtime/cgo/gcc_windows_amd64.c b/src/runtime/cgo/gcc_windows_amd64.c
+index 9df9b9b1e4..996947eccf 100644
+--- a/src/runtime/cgo/gcc_windows_amd64.c
++++ b/src/runtime/cgo/gcc_windows_amd64.c
+@@ -24,13 +24,7 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+-	uintptr_t thandle;
+-
+-	thandle = _beginthread(threadentry, 0, ts);
+-	if(thandle == -1) {
+-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
+-		abort();
+-	}
++	_cgo_beginthread(threadentry, ts);
+ }
+ 
+ static void
+diff --git a/src/runtime/cgo/gcc_windows_arm64.c b/src/runtime/cgo/gcc_windows_arm64.c
+index 61ef094866..8f113cc3b1 100644
+--- a/src/runtime/cgo/gcc_windows_arm64.c
++++ b/src/runtime/cgo/gcc_windows_arm64.c
+@@ -23,13 +23,7 @@ x_cgo_init(G *g, void (*setg)(void*))
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+-	uintptr_t thandle;
+-
+-	thandle = _beginthread(threadentry, 0, ts);
+-	if(thandle == -1) {
+-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
+-		abort();
+-	}
++	_cgo_beginthread(threadentry, ts);
+ }
+ 
+ extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
+diff --git a/src/runtime/cgo/libcgo_windows.h b/src/runtime/cgo/libcgo_windows.h
+index 0013f06bae..33d7637fec 100644
+--- a/src/runtime/cgo/libcgo_windows.h
++++ b/src/runtime/cgo/libcgo_windows.h
+@@ -2,11 +2,5 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Ensure there's one symbol marked __declspec(dllexport).
+-// If there are no exported symbols, the unfortunate behavior of
+-// the binutils linker is to also strip the relocations table,
+-// resulting in non-PIE binary. The other option is the
+-// --export-all-symbols flag, but we don't need to export all symbols
+-// and this may overflow the export table (#40795).
+-// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
+-__declspec(dllexport) int _cgo_dummy_export;
++// Call _beginthread, aborting on failure.
++void _cgo_beginthread(void (*func)(void*), void* arg);

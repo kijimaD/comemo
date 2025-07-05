@@ -30,7 +30,83 @@ Date:   Sat Aug 28 17:54:10 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Joe Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/strings/clone.go      | 23 +++++++++++++++++++++++
  src/strings/clone_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+)
+
+diff --git a/src/strings/clone.go b/src/strings/clone.go
+new file mode 100644
+index 0000000000..6097c6cc88
+--- /dev/null
++++ b/src/strings/clone.go
+@@ -0,0 +1,23 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings
++
++import (
++	"unsafe"
++)
++
++// Clone returns a fresh copy of s.
++// It guarantees to make a copy of s into a new allocation,
++// which can be important when retaining only a small substring
++// of a much larger string. Using Clone can help such programs
++// use less memory. Of course, since using Clone makes a copy,
++// overuse of Clone can make programs use more memory.
++// Clone should typically be used only rarely, and only when
++// profiling indicates that it is needed.
++func Clone(s string) string {
++	b := make([]byte, len(s))
++	copy(b, s)
++	return *(*string)(unsafe.Pointer(&b))
++}
+diff --git a/src/strings/clone_test.go b/src/strings/clone_test.go
+new file mode 100644
+index 0000000000..5396771047
+--- /dev/null
++++ b/src/strings/clone_test.go
+@@ -0,0 +1,40 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.ß
++
++package strings_test
++
++import (
++	"reflect"
++	"strings"
++	"testing"
++	"unsafe"
++)
++
++func TestClone(t *testing.T) {
++	var cloneTests = []string{
++		"",
++		"short",
++		strings.Repeat("a", 42),
++	}
++	for _, input := range cloneTests {
++		clone := strings.Clone(input)
++		if clone != input {
++			t.Errorf("Clone(%q) = %q; want %q", input, clone, input)
++		}
++
++		inputHeader := (*reflect.StringHeader)(unsafe.Pointer(&input))
++		cloneHeader := (*reflect.StringHeader)(unsafe.Pointer(&clone))
++		if inputHeader.Data == cloneHeader.Data {
++			t.Errorf("Clone(%q) return value should not reference inputs backing memory.", input)
++		}
++	}
++}
++
++func BenchmarkClone(b *testing.B) {
++	var str = strings.Repeat("a", 42)
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		stringSink = strings.Clone(str)
++	}
++}

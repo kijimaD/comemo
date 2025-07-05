@@ -9,7 +9,7 @@ Date:   Tue Oct 29 14:24:43 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go  | 2 +-
  src/cmd/compile/internal/arm/ssa.go    | 4 ++++
  src/cmd/compile/internal/arm64/ssa.go  | 4 ++++
@@ -20,3 +20,197 @@ Date:   Tue Oct 29 14:24:43 2019 -0400
  src/cmd/compile/internal/wasm/ssa.go   | 4 ++++
  src/cmd/compile/internal/x86/ssa.go    | 4 ++++
  9 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 43a4aed1d9..9ee322b389 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -5,11 +5,11 @@
+ package amd64
+ 
+ import (
+-	"cmd/compile/internal/logopt"
+ 	"fmt"
+ 	"math"
+ 
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index e20a72cfc8..9935616f41 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -10,6 +10,7 @@ import (
+ 	"math/bits"
+ 
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -737,6 +738,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = arm.REGTMP
++		if logopt.Enabled() {
++			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
++		}
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 24b6383bbc..e7d0f83d82 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -8,6 +8,7 @@ import (
+ 	"math"
+ 
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -901,6 +902,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = arm64.REGTMP
++		if logopt.Enabled() {
++			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
++		}
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Line==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 7efd8e105b..9d11c6bf53 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -8,6 +8,7 @@ import (
+ 	"math"
+ 
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -762,6 +763,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = mips.REGTMP
++		if logopt.Enabled() {
++			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
++		}
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 28652f0cc4..2727c4d8a8 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -8,6 +8,7 @@ import (
+ 	"math"
+ 
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -720,6 +721,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = mips.REGTMP
++		if logopt.Enabled() {
++			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
++		}
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 73d1d9d3a0..591f3666e7 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -6,6 +6,7 @@ package ppc64
+ 
+ import (
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -1313,6 +1314,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = ppc64.REGTMP
+ 		}
++		if logopt.Enabled() {
++			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
++		}
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index af45a561c6..885c14b33a 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -8,6 +8,7 @@ import (
+ 	"math"
+ 
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -601,6 +602,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = s390x.REGTMP
++		if logopt.Enabled() {
++			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
++		}
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index e075892348..7861667b88 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -6,6 +6,7 @@ package wasm
+ 
+ import (
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -160,6 +161,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(wasm.ACALLNORESUME)
+ 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.SigPanic}
+ 		s.Prog(wasm.AEnd)
++		if logopt.Enabled() {
++			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
++		}
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 603903ba48..aa68e9163a 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -9,6 +9,7 @@ import (
+ 	"math"
+ 
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -845,6 +846,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.To, v)
++		if logopt.Enabled() {
++			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
++		}
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}

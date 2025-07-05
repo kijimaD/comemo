@@ -19,9 +19,144 @@ Date:   Fri Mar 8 11:19:14 2024 +0100
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/syscall/windows/syscall_windows.go    |  4 ++-
  src/internal/syscall/windows/version_windows.go    | 22 ++++++++++++---
  .../syscall/windows/version_windows_test.go        | 31 ++++++++++++++++++++++
  src/net/unixsock_windows_test.go                   | 20 ++++----------
  4 files changed, 58 insertions(+), 19 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 03ceb5803f..be7ade9e32 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -201,7 +201,9 @@ const (
+ 	WSA_FLAG_OVERLAPPED        = 0x01
+ 	WSA_FLAG_NO_HANDLE_INHERIT = 0x80
+ 
+-	WSAEMSGSIZE syscall.Errno = 10040
++	WSAEINVAL       syscall.Errno = 10022
++	WSAEMSGSIZE     syscall.Errno = 10040
++	WSAEAFNOSUPPORT syscall.Errno = 10047
+ 
+ 	MSG_PEEK   = 0x2
+ 	MSG_TRUNC  = 0x0100
+diff --git a/src/internal/syscall/windows/version_windows.go b/src/internal/syscall/windows/version_windows.go
+index 6ceed2f304..6ff9d523df 100644
+--- a/src/internal/syscall/windows/version_windows.go
++++ b/src/internal/syscall/windows/version_windows.go
+@@ -6,7 +6,8 @@ package windows
+ 
+ import (
+ 	"sync"
+-	_ "unsafe" // for linkname
++	"syscall"
++	"unsafe"
+ )
+ 
+ // version retrieves the major, minor, and build version numbers
+@@ -42,6 +43,21 @@ var SupportTCPInitialRTONoSYNRetransmissions = sync.OnceValue(func() bool {
+ // Unix Domain Sockets.
+ // The minimal requirement is Windows 10.0.17063.
+ var SupportUnixSocket = sync.OnceValue(func() bool {
+-	major, _, build := version()
+-	return major >= 10 && build >= 17063
++	var size uint32
++	// First call to get the required buffer size in bytes.
++	// Ignore the error, it will always fail.
++	_, _ = syscall.WSAEnumProtocols(nil, nil, &size)
++	n := int32(size) / int32(unsafe.Sizeof(syscall.WSAProtocolInfo{}))
++	// Second call to get the actual protocols.
++	buf := make([]syscall.WSAProtocolInfo, n)
++	n, err := syscall.WSAEnumProtocols(nil, &buf[0], &size)
++	if err != nil {
++		return false
++	}
++	for i := int32(0); i < n; i++ {
++		if buf[i].AddressFamily == syscall.AF_UNIX {
++			return true
++		}
++	}
++	return false
+ })
+diff --git a/src/internal/syscall/windows/version_windows_test.go b/src/internal/syscall/windows/version_windows_test.go
+new file mode 100644
+index 0000000000..09be2eb080
+--- /dev/null
++++ b/src/internal/syscall/windows/version_windows_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package windows_test
++
++import (
++	"errors"
++	"internal/syscall/windows"
++	"syscall"
++	"testing"
++)
++
++func TestSupportUnixSocket(t *testing.T) {
++	var d syscall.WSAData
++	if err := syscall.WSAStartup(uint32(0x202), &d); err != nil {
++		t.Fatal(err)
++	}
++	defer syscall.WSACleanup()
++
++	// Test that SupportUnixSocket returns true if WSASocket succeeds with AF_UNIX.
++	got := windows.SupportUnixSocket()
++	s, err := windows.WSASocket(syscall.AF_UNIX, syscall.SOCK_STREAM, 0, nil, 0, windows.WSA_FLAG_NO_HANDLE_INHERIT)
++	if err == nil {
++		syscall.Closesocket(s)
++	}
++	want := !errors.Is(err, windows.WSAEAFNOSUPPORT) && !errors.Is(err, windows.WSAEINVAL)
++	if want != got {
++		t.Errorf("SupportUnixSocket = %v; want %v", got, want)
++	}
++}
+diff --git a/src/net/unixsock_windows_test.go b/src/net/unixsock_windows_test.go
+index 585136b42f..511ba6f2df 100644
+--- a/src/net/unixsock_windows_test.go
++++ b/src/net/unixsock_windows_test.go
+@@ -10,26 +10,13 @@ import (
+ 	"internal/syscall/windows"
+ 	"os"
+ 	"reflect"
+-	"runtime"
+ 	"testing"
+ )
+ 
+-func skipIfUnixSocketNotSupported(t *testing.T) {
+-	// TODO: the windows.SupportUnixSocket check should be enough, investigate why 386 and arm
+-	// can't run these tests on newer Windows.
+-	switch runtime.GOARCH {
+-	case "386":
+-		t.Skip("not supported on windows/386, see golang.org/issue/27943")
+-	case "arm":
+-		t.Skip("not supported on windows/arm, see golang.org/issue/28061")
+-	}
++func TestUnixConnLocalWindows(t *testing.T) {
+ 	if !windows.SupportUnixSocket() {
+ 		t.Skip("unix test")
+ 	}
+-}
+-
+-func TestUnixConnLocalWindows(t *testing.T) {
+-	skipIfUnixSocketNotSupported(t)
+ 	handler := func(ls *localServer, ln Listener) {}
+ 	for _, laddr := range []string{"", testUnixAddr(t)} {
+ 		laddr := laddr
+@@ -83,7 +70,10 @@ func TestUnixConnLocalWindows(t *testing.T) {
+ }
+ 
+ func TestModeSocket(t *testing.T) {
+-	skipIfUnixSocketNotSupported(t)
++	if !windows.SupportUnixSocket() {
++		t.Skip("unix test")
++	}
++
+ 	addr := testUnixAddr(t)
+ 
+ 	l, err := Listen("unix", addr)

@@ -7,6 +7,20 @@ Date:   Fri Apr 13 15:22:40 2012 +1000
     R=golang-dev, r
     CC=golang-dev, gri
     https://golang.org/cl/6010051
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 4382729c3c..6cacac6303 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2479,7 +2479,7 @@ func handle(queue chan *Request) {
+     }
+ }
+ 
+-func Serve(clientRequests chan *clientRequests, quit chan bool) {
++func Serve(clientRequests chan *Request, quit chan bool) {
+     // Start handlers
+     for i := 0; i &lt; MaxOutstanding; i++ {
+         go handle(clientRequests)

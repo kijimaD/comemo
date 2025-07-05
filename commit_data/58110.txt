@@ -11,7 +11,7 @@ Date:   Mon Oct 2 15:09:26 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: shuang cui <imcusg@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/covdata/doc.go                   | 2 +-
  src/cmd/cover/doc.go                     | 2 +-
  src/cmd/go/internal/load/pkg.go          | 2 +-
@@ -21,3 +21,108 @@ Date:   Mon Oct 2 15:09:26 2023 +0800
  src/cmd/internal/obj/s390x/asmz.go       | 2 +-
  src/cmd/link/internal/ld/pe.go           | 2 +-
  8 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/covdata/doc.go b/src/cmd/covdata/doc.go
+index 1836bb833c..ae2e4e4ffa 100644
+--- a/src/cmd/covdata/doc.go
++++ b/src/cmd/covdata/doc.go
+@@ -18,7 +18,7 @@ from running applications or integration tests. E.g.
+ Run covdata via "go tool covdata <mode>", where 'mode' is a subcommand
+ selecting a specific reporting, merging, or data manipulation operation.
+ Descriptions on the various modes (run "go tool cover <mode> -help" for
+-specifics on usage of a given mode:
++specifics on usage of a given mode):
+ 
+ 1. Report percent of statements covered in each profiled package
+ 
+diff --git a/src/cmd/cover/doc.go b/src/cmd/cover/doc.go
+index 82580cd78b..f5b9b1c117 100644
+--- a/src/cmd/cover/doc.go
++++ b/src/cmd/cover/doc.go
+@@ -11,7 +11,7 @@ annotations to track which parts of each function are executed (this
+ is referred to "instrumentation"). Cover can operate in "legacy mode"
+ on a single Go source file at a time, or when invoked by the Go tool
+ it will process all the source files in a single package at a time
+-(package-scope instrumentation is enabled via "-pkgcfg" option,
++(package-scope instrumentation is enabled via "-pkgcfg" option).
+ 
+ When generated instrumented code, the cover tool computes approximate
+ basic block information by studying the source. It is thus more
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 1801cfd824..1549800afb 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -972,7 +972,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
+ 					// accepting them.
+ 					//
+ 					// TODO(#41410: Figure out how this actually ought to work and fix
+-					// this mess.
++					// this mess).
+ 				} else {
+ 					data.err = r.err
+ 				}
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 3908e85622..d72a24f111 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -1088,7 +1088,7 @@ func updatePrunedRoots(ctx context.Context, direct map[string]bool, rs *Requirem
+ 			// relevant dependencies, and we explicitly don't want to pull in
+ 			// requirements on *irrelevant* requirements that happen to occur in the
+ 			// go.mod files for these transitive-test-only dependencies. (See the test
+-			// in mod_lazy_test_horizon.txt for a concrete example.
++			// in mod_lazy_test_horizon.txt for a concrete example).
+ 			//
+ 			// The “goldilocks zone” seems to be to spot-check exactly the same
+ 			// modules that we promote to explicit roots: namely, those that provide
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 0ab0caafae..19250c94ee 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -753,7 +753,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 			if c.instoffset <= 0xfff {
+ 				return C_ANDCON
+ 			}
+-			if c.instoffset&0xfff == 0 && isuint32(uint64(c.instoffset)) { // && (instoffset & (1<<31)) == 0)
++			if c.instoffset&0xfff == 0 && isuint32(uint64(c.instoffset)) { // && ((instoffset & (1<<31)) == 0)
+ 				return C_UCON
+ 			}
+ 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index f158b6688d..2804073db1 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -718,7 +718,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 			if c.instoffset <= 0xffff {
+ 				return C_ANDCON
+ 			}
+-			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && (instoffset & (1<<31)) == 0) */
++			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && （(instoffset & (1<<31)) == 0) */
+ 				return C_UCON
+ 			}
+ 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 0ab492a2a5..bf6d48e305 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -691,7 +691,7 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 			if c.instoffset <= 0xffff {
+ 				return C_ANDCON
+ 			}
+-			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && (instoffset & (1<<31)) == 0) */
++			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && （(instoffset & (1<<31)) == 0) */
+ 				return C_UCON
+ 			}
+ 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index a2c5a99e8e..7c585b327e 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -777,7 +777,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
+ 				// so the external linker see them as Forwarder RVA exports. See:
+ 				//
+ 				//  - https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#export-address-table
+-				//  - https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/pe-dll.c;h=e7b82ba6ffadf74dc1b9ee71dc13d48336941e51;hb=HEAD#l972)
++				//  - https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/pe-dll.c;h=e7b82ba6ffadf74dc1b9ee71dc13d48336941e51;hb=HEAD#l972
+ 				//
+ 				// CL 317917 changes "." to ":" in symbols name, so these symbols can not be
+ 				// found by external linker anymore. So a hacky way is adding the

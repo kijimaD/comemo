@@ -9,7 +9,59 @@ Date:   Fri Jun 19 12:50:38 2015 -0700
     Change-Id: I4ecc4e4cd3c1b3467b43e4ba9666ea6db5fb61a5
     Reviewed-on: https://go-review.googlesource.com/11268
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/int.go      |  8 +++++---
  src/math/big/int_test.go | 15 +++++++++++++++
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 5e3125375b..65334e0ef5 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -500,15 +500,17 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
+ 	// use one Euclidean iteration to ensure that u and v are approx. the same size
+ 	switch {
+ 	case len(a.abs) > len(b.abs):
+-		u.Set(b)
++		// must set v before u since u may be alias for a or b (was issue #11284)
+ 		v.Rem(a, b)
++		u.Set(b)
+ 	case len(a.abs) < len(b.abs):
+-		u.Set(a)
+ 		v.Rem(b, a)
+-	default:
+ 		u.Set(a)
++	default:
+ 		v.Set(b)
++		u.Set(a)
+ 	}
++	// a, b must not be used anymore (may be aliases with u)
+ 
+ 	// v might be 0 now
+ 	if len(v.abs) == 0 {
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index c19e88addb..28369bd0e6 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -662,6 +662,21 @@ func testGcd(t *testing.T, d, x, y, a, b *Int) {
+ 	if D.Cmp(d) != 0 {
+ 		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, D, d)
+ 	}
++
++	// check results in presence of aliasing (issue #11284)
++	a2 := new(Int).Set(a)
++	b2 := new(Int).Set(b)
++	a2.binaryGCD(a2, b2) // result is same as 1st argument
++	if a2.Cmp(d) != 0 {
++		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, a2, d)
++	}
++
++	a2 = new(Int).Set(a)
++	b2 = new(Int).Set(b)
++	b2.binaryGCD(a2, b2) // result is same as 2nd argument
++	if b2.Cmp(d) != 0 {
++		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, b2, d)
++	}
+ }
+ 
+ func TestGcd(t *testing.T) {

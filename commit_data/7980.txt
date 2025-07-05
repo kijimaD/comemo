@@ -7,6 +7,17 @@ Date:   Tue Apr 5 12:56:39 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4355052
-
+---
  .hgtags | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/.hgtags b/.hgtags
+index a19e5eebd8..9520732a15 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -58,3 +58,5 @@ c5c62aeb6267e124cf05f9622e28dbd0dc6b971d release.r56
+ c5c62aeb6267e124cf05f9622e28dbd0dc6b971d release
+ 3b4e9c85b643a35860805718323b05186dd7f235 weekly.2011-03-15
+ b84e614e25161f626a6102813c41a80a15e3a625 weekly.2011-03-28
++cd89452cfea3d125aaf75a1ec8004e2f6a868d38 weekly.2011-04-04
++cd89452cfea3d125aaf75a1ec8004e2f6a868d38 weekly

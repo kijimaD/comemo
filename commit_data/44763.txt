@@ -15,8 +15,139 @@ Date:   Mon Aug 24 21:42:20 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.16.html       | 12 ++++++++++++
  src/net/error_test.go | 17 +++++++++++------
  src/net/net.go        | 12 ++++++++++++
  3 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index b11af7fd99..c82b3b9276 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -99,6 +99,18 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO
+ </p>
+ 
++<h3 id="net"><a href="/pkg/net/">net</a></h3>
++
++<p><!-- CL -->
++  The case of I/O on a closed network connection, or I/O on a network
++  connection that is closed before any of the I/O completes, can now
++  be detected using the new <a href="/pkg/net/#ErrClosed">ErrClosed</a> error.
++  A typical use would be <code>errors.Is(err, net.ErrClosed)</code>.
++  In earlier releases the only way to reliably detect this case was to
++  match the string returned by the <code>Error</code> method
++  with <code>"use of closed network connection"</code>.
++</p>
++
+ <h3 id="unicode"><a href="/pkg/unicode/">unicode</a></h3>
+ 
+ <p><!-- CL 248765 -->
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 8d4a7ffb3d..62dfb9c15d 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"context"
++	"errors"
+ 	"fmt"
+ 	"internal/poll"
+ 	"io"
+@@ -101,7 +102,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case errCanceled, poll.ErrNetClosing, errMissingAddress, errNoSuitableAddress,
++	case errCanceled, ErrClosed, errMissingAddress, errNoSuitableAddress,
+ 		context.DeadlineExceeded, context.Canceled:
+ 		return nil
+ 	}
+@@ -436,7 +437,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrNetClosing, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
++	case ErrClosed, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -478,7 +479,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case errCanceled, poll.ErrNetClosing, errMissingAddress, errTimeout, os.ErrDeadlineExceeded, ErrWriteToConnected, io.ErrUnexpectedEOF:
++	case errCanceled, ErrClosed, errMissingAddress, errTimeout, os.ErrDeadlineExceeded, ErrWriteToConnected, io.ErrUnexpectedEOF:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -508,6 +509,10 @@ func parseCloseError(nestedErr error, isShutdown bool) error {
+ 		return fmt.Errorf("error string %q does not contain expected string %q", nestedErr, want)
+ 	}
+ 
++	if !isShutdown && !errors.Is(nestedErr, ErrClosed) {
++		return fmt.Errorf("errors.Is(%v, errClosed) returns false, want true", nestedErr)
++	}
++
+ 	switch err := nestedErr.(type) {
+ 	case *OpError:
+ 		if err := err.isValid(); err != nil {
+@@ -531,7 +536,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrNetClosing:
++	case ErrClosed:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -627,7 +632,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrNetClosing, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
++	case ErrClosed, errTimeout, poll.ErrNotPollable, os.ErrDeadlineExceeded:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -706,7 +711,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrNetClosing:
++	case ErrClosed:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+diff --git a/src/net/net.go b/src/net/net.go
+index 2e61a7c02e..4b4ed129cc 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -81,6 +81,7 @@ package net
+ import (
+ 	"context"
+ 	"errors"
++	"internal/poll"
+ 	"io"
+ 	"os"
+ 	"sync"
+@@ -632,6 +633,17 @@ func (e *DNSError) Timeout() bool { return e.IsTimeout }
+ // error and return a DNSError for which Temporary returns false.
+ func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
+ 
++// errClosed exists just so that the docs for ErrClosed don't mention
++// the internal package poll.
++var errClosed = poll.ErrNetClosing
++
++// ErrClosed is the error returned by an I/O call on a network
++// connection that has already been closed, or that is closed by
++// another goroutine before the I/O is completed. This may be wrapped
++// in another error, and should normally be tested using
++// errors.Is(err, net.ErrClosed).
++var ErrClosed = errClosed
++
+ type writerOnly struct {
+ 	io.Writer
+ }

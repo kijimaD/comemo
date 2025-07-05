@@ -15,8 +15,237 @@ Date:   Fri Jun 11 09:54:40 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  test/run.go                                  |  68 ++++++++++++++-
  test/typeparam/dictionaryCapture-noinline.go | 126 +++++++++++++++++++++++++++
  test/typeparam/dictionaryCapture.go          |   2 -
  3 files changed, 193 insertions(+), 3 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index ef1e9de150..ca6a0f5c29 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -573,7 +573,11 @@ func (t *test) run() {
+ 	singlefilepkgs := false
+ 	setpkgpaths := false
+ 	localImports := true
+-	f := strings.Fields(action)
++	f, err := splitQuoted(action)
++	if err != nil {
++		t.err = fmt.Errorf("invalid test recipe: %v", err)
++		return
++	}
+ 	if len(f) > 0 {
+ 		action = f[0]
+ 		args = f[1:]
+@@ -2116,3 +2120,65 @@ var excludedFiles = map[string]bool{
+ 	"fixedbugs/issue7921.go":  true,
+ 	"inline.go":               true,
+ }
++
++// splitQuoted splits the string s around each instance of one or more consecutive
++// white space characters while taking into account quotes and escaping, and
++// returns an array of substrings of s or an empty list if s contains only white space.
++// Single quotes and double quotes are recognized to prevent splitting within the
++// quoted region, and are removed from the resulting substrings. If a quote in s
++// isn't closed err will be set and r will have the unclosed argument as the
++// last element. The backslash is used for escaping.
++//
++// For example, the following string:
++//
++//     a b:"c d" 'e''f'  "g\""
++//
++// Would be parsed as:
++//
++//     []string{"a", "b:c d", "ef", `g"`}
++//
++// [copied from src/go/build/build.go]
++func splitQuoted(s string) (r []string, err error) {
++	var args []string
++	arg := make([]rune, len(s))
++	escaped := false
++	quoted := false
++	quote := '\x00'
++	i := 0
++	for _, rune := range s {
++		switch {
++		case escaped:
++			escaped = false
++		case rune == '\\':
++			escaped = true
++			continue
++		case quote != '\x00':
++			if rune == quote {
++				quote = '\x00'
++				continue
++			}
++		case rune == '"' || rune == '\'':
++			quoted = true
++			quote = rune
++			continue
++		case unicode.IsSpace(rune):
++			if quoted || i > 0 {
++				quoted = false
++				args = append(args, string(arg[:i]))
++				i = 0
++			}
++			continue
++		}
++		arg[i] = rune
++		i++
++	}
++	if quoted || i > 0 {
++		args = append(args, string(arg[:i]))
++	}
++	if quote != 0 {
++		err = errors.New("unclosed quote")
++	} else if escaped {
++		err = errors.New("unfinished escaping")
++	}
++	return args, err
++}
+diff --git a/test/typeparam/dictionaryCapture-noinline.go b/test/typeparam/dictionaryCapture-noinline.go
+new file mode 100644
+index 0000000000..4b46d5f57f
+--- /dev/null
++++ b/test/typeparam/dictionaryCapture-noinline.go
+@@ -0,0 +1,126 @@
++// run -gcflags="-G=3 -l"
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test situations where functions/methods are not
++// immediately called and we need to capture the dictionary
++// required for later invocation.
++
++package main
++
++func main() {
++	functions()
++	methodExpressions()
++	methodValues()
++	interfaceMethods()
++	globals()
++}
++
++func g0[T any](x T) {
++}
++func g1[T any](x T) T {
++	return x
++}
++func g2[T any](x T) (T, T) {
++	return x, x
++}
++
++func functions() {
++	f0 := g0[int]
++	f0(7)
++	f1 := g1[int]
++	is7(f1(7))
++	f2 := g2[int]
++	is77(f2(7))
++}
++
++func is7(x int) {
++	if x != 7 {
++		println(x)
++		panic("assertion failed")
++	}
++}
++func is77(x, y int) {
++	if x != 7 || y != 7 {
++		println(x,y)
++		panic("assertion failed")
++	}
++}
++
++type s[T any] struct {
++	a T
++}
++
++func (x s[T]) g0() {
++}
++func (x s[T]) g1() T {
++	return x.a
++}
++func (x s[T]) g2() (T, T) {
++	return x.a, x.a
++}
++
++func methodExpressions() {
++	x := s[int]{a:7}
++	f0 := s[int].g0
++	f0(x)
++	f1 := s[int].g1
++	is7(f1(x))
++	f2 := s[int].g2
++	is77(f2(x))
++}
++
++func methodValues() {
++	x := s[int]{a:7}
++	f0 := x.g0
++	f0()
++	f1 := x.g1
++	is7(f1())
++	f2 := x.g2
++	is77(f2())
++}
++
++var x interface{
++	g0()
++	g1()int
++	g2()(int,int)
++} = s[int]{a:7}
++var y interface{} = s[int]{a:7}
++
++func interfaceMethods() {
++	x.g0()
++	is7(x.g1())
++	is77(x.g2())
++	y.(interface{g0()}).g0()
++	is7(y.(interface{g1()int}).g1())
++	is77(y.(interface{g2()(int,int)}).g2())
++}
++
++// Also check for instantiations outside functions.
++var gg0 = g0[int]
++var gg1 = g1[int]
++var gg2 = g2[int]
++
++var hh0 = s[int].g0
++var hh1 = s[int].g1
++var hh2 = s[int].g2
++
++var xtop = s[int]{a:7}
++var ii0 = x.g0
++var ii1 = x.g1
++var ii2 = x.g2
++
++func globals() {
++	gg0(7)
++	is7(gg1(7))
++	is77(gg2(7))
++	x := s[int]{a:7}
++	hh0(x)
++	is7(hh1(x))
++	is77(hh2(x))
++	ii0()
++	is7(ii1())
++	is77(ii2())
++}
+diff --git a/test/typeparam/dictionaryCapture.go b/test/typeparam/dictionaryCapture.go
+index bb35df5309..1b2ee1de91 100644
+--- a/test/typeparam/dictionaryCapture.go
++++ b/test/typeparam/dictionaryCapture.go
+@@ -8,8 +8,6 @@
+ // immediately called and we need to capture the dictionary
+ // required for later invocation.
+ 
+-// TODO: copy this test file, add -l to gcflags.
+-
+ package main
+ 
+ func main() {

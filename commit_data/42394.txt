@@ -18,8 +18,79 @@ Date:   Tue Dec 10 15:58:24 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210517
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/lsf_linux.go          |  4 +++-
  src/syscall/netlink_linux.go      |  2 +-
  src/syscall/sock_cloexec_linux.go | 29 +++++++++++++++++++++++++++++
  3 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/lsf_linux.go b/src/syscall/lsf_linux.go
+index b89239eba8..28e96d54e6 100644
+--- a/src/syscall/lsf_linux.go
++++ b/src/syscall/lsf_linux.go
+@@ -23,6 +23,8 @@ func LsfJump(code, k, jt, jf int) *SockFilter {
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func LsfSocket(ifindex, proto int) (int, error) {
+ 	var lsall SockaddrLinklayer
++	// This is missing SOCK_CLOEXEC, but adding the flag
++	// could break callers.
+ 	s, e := Socket(AF_PACKET, SOCK_RAW, proto)
+ 	if e != nil {
+ 		return 0, e
+@@ -46,7 +48,7 @@ type iflags struct {
+ 
+ // Deprecated: Use golang.org/x/net/bpf instead.
+ func SetLsfPromisc(name string, m bool) error {
+-	s, e := Socket(AF_INET, SOCK_DGRAM, 0)
++	s, e := cloexecSocket(AF_INET, SOCK_DGRAM, 0)
+ 	if e != nil {
+ 		return e
+ 	}
+diff --git a/src/syscall/netlink_linux.go b/src/syscall/netlink_linux.go
+index 1cda8c7704..0937ff797a 100644
+--- a/src/syscall/netlink_linux.go
++++ b/src/syscall/netlink_linux.go
+@@ -50,7 +50,7 @@ func newNetlinkRouteRequest(proto, seq, family int) []byte {
+ // NetlinkRIB returns routing information base, as known as RIB, which
+ // consists of network facility information, states and parameters.
+ func NetlinkRIB(proto, family int) ([]byte, error) {
+-	s, err := Socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)
++	s, err := cloexecSocket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/syscall/sock_cloexec_linux.go b/src/syscall/sock_cloexec_linux.go
+new file mode 100644
+index 0000000000..600cf25c15
+--- /dev/null
++++ b/src/syscall/sock_cloexec_linux.go
+@@ -0,0 +1,29 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++// This is a stripped down version of sysSocket from net/sock_cloexec.go.
++func cloexecSocket(family, sotype, proto int) (int, error) {
++	s, err := Socket(family, sotype|SOCK_CLOEXEC, proto)
++	switch err {
++	case nil:
++		return s, nil
++	default:
++		return -1, err
++	case EINVAL:
++	}
++
++	ForkLock.RLock()
++	s, err = Socket(family, sotype, proto)
++	if err == nil {
++		CloseOnExec(s)
++	}
++	ForkLock.RUnlock()
++	if err != nil {
++		Close(s)
++		return -1, err
++	}
++	return s, nil
++}

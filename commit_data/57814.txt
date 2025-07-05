@@ -18,6 +18,20 @@ Date:   Sun Jun 11 11:29:55 2023 +0000
     Run-TryBot: guangyuan zhou <zhouguangyuan@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/liveness/plive.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 85e988aeda..e4dbfa9fa3 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1520,7 +1520,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
+ 		return
+ 	}
+ 	nptr := int(abiInfo.ArgWidth() / int64(types.PtrSize))
+-	bv := bitvec.New(int32(nptr) * 2)
++	bv := bitvec.New(int32(nptr))
+ 
+ 	for _, p := range abiInfo.InParams() {
+ 		typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)

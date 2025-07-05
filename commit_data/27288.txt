@@ -17,7 +17,7 @@ Date:   Wed Mar 16 18:44:17 2016 -0500
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 2 +-
  src/cmd/compile/internal/gc/bimport.go | 2 +-
  src/cmd/compile/internal/gc/export.go  | 4 ++--
@@ -25,3 +25,97 @@ Date:   Wed Mar 16 18:44:17 2016 -0500
  src/cmd/compile/internal/gc/inl.go     | 3 +--
  test/inline.go                         | 5 +++++
  6 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index cbe2a812a4..bf5b57757e 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -984,7 +984,7 @@ func (p *exporter) node(n *Node) {
+ 	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
+ 		p.nodesOrNil(n.Left, nil)
+ 
+-	case OEMPTY:
++	case OEMPTY, ODCLCONST:
+ 		// nothing to do
+ 
+ 	case OLABEL:
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index f063557363..16d0e39c6d 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -751,7 +751,7 @@ func (p *importer) node() *Node {
+ 	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
+ 		n.Left, _ = p.nodesOrNil()
+ 
+-	case OEMPTY:
++	case OEMPTY, ODCLCONST:
+ 		// nothing to do
+ 
+ 	case OLABEL:
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 3e6b517436..751ad57174 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -176,7 +176,7 @@ func reexportdep(n *Node) {
+ 		fallthrough
+ 
+ 	case OTYPE:
+-		if n.Sym != nil && !exportedsym(n.Sym) {
++		if n.Sym != nil && n.Sym.Def != nil && !exportedsym(n.Sym) {
+ 			if Debug['E'] != 0 {
+ 				fmt.Printf("reexport literal/type %v\n", n.Sym)
+ 			}
+@@ -331,7 +331,7 @@ func dumpexporttype(t *Type) {
+ 			if Debug['l'] < 2 {
+ 				typecheckinl(f.Type.Nname)
+ 			}
+-			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname.Func.Inl, FmtSharp))
++			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname.Func.Inl, FmtSharp|FmtBody))
+ 			reexportdeplist(f.Type.Nname.Func.Inl)
+ 		} else {
+ 			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp))
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 73b030dd8a..39320d1f61 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1413,6 +1413,13 @@ func exprfmt(n *Node, prec int) string {
+ 		f += fmt.Sprintf(" %v ", Oconv(Op(n.Etype), FmtSharp))
+ 		f += exprfmt(n.Right, nprec+1)
+ 		return f
++
++	case ODCLCONST:
++		// if exporting, DCLCONST should just be removed as its usage
++		// has already been replaced with literals
++		if fmtbody {
++			return ""
++		}
+ 	}
+ 
+ 	return fmt.Sprintf("<node %v>", Oconv(n.Op, 0))
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 15922abb59..ebfeb9b157 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -217,8 +217,7 @@ func ishairy(n *Node, budget *int) bool {
+ 		OSWITCH,
+ 		OPROC,
+ 		ODEFER,
+-		ODCLTYPE,  // can't print yet
+-		ODCLCONST, // can't print yet
++		ODCLTYPE, // can't print yet
+ 		ORETJMP:
+ 		return true
+ 	}
+diff --git a/test/inline.go b/test/inline.go
+index fb20fab329..8984d059d8 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -31,3 +31,8 @@ func g(x int) int {
+ func h(x int) int { // ERROR "can inline h"
+ 	return x + 2
+ }
++
++func i(x int) int { // ERROR "can inline i"
++	const y = 2
++	return x + y
++}

@@ -11,6 +11,25 @@ Date:   Wed Sep 26 20:08:03 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 0b62b9ee76..73c4bd2cca 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -505,11 +505,11 @@ var codeRepoVersionsTests = []struct {
+ 	},
+ 	{
+ 		path:     "gopkg.in/russross/blackfriday.v2",
+-		versions: []string{"v2.0.0"},
++		versions: []string{"v2.0.0", "v2.0.1"},
+ 	},
+ 	{
+ 		path:     "gopkg.in/natefinch/lumberjack.v2",
+-		versions: nil,
++		versions: []string{"v2.0.0"},
+ 	},
+ }
+ 

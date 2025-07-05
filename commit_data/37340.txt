@@ -9,7 +9,7 @@ Date:   Tue Jul 17 22:35:10 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/mod_test.go                           | 172 -----------------------
  src/cmd/go/script_test.go                        |   6 +-
  src/cmd/go/testdata/script/README                |  10 +-
@@ -20,3 +20,498 @@ Date:   Tue Jul 17 22:35:10 2018 -0400
  src/cmd/go/testdata/script/mod_local_replace.txt |  23 +++
  src/cmd/go/testdata/script/mod_versions.txt      |  14 ++
  9 files changed, 205 insertions(+), 178 deletions(-)
+
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+index 0199559fd2..7c582633e4 100644
+--- a/src/cmd/go/mod_test.go
++++ b/src/cmd/go/mod_test.go
+@@ -69,83 +69,6 @@ func (tg *testgoData) extract(file string) {
+ 	}
+ }
+ 
+-func TestModGO111MODULE(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.tempFile("gp/src/x/y/z/go.mod", "module x/y/z")
+-	tg.tempFile("gp/src/x/y/z/w/w.txt", "")
+-	tg.tempFile("gp/foo/go.mod", "module example.com/mod")
+-	tg.tempFile("gp/foo/bar/baz/quux.txt", "")
+-	tg.tempFile("gp/bar/x.txt", "")
+-	tg.setenv("GOPATH", tg.path("gp"))
+-
+-	// In GOPATH/src with go.mod.
+-	tg.cd(tg.path("gp/src/x/y/z"))
+-	tg.setenv("GO111MODULE", "auto")
+-	tg.run("env", "GOMOD")
+-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
+-
+-	tg.cd(tg.path("gp/src/x/y/z/w"))
+-	tg.run("env", "GOMOD")
+-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
+-
+-	tg.setenv("GO111MODULE", "off")
+-	tg.run("env", "GOMOD")
+-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
+-
+-	tg.setenv("GO111MODULE", "on")
+-	tg.run("env", "GOMOD")
+-	tg.grepStdout(`.*z[/\\]go.mod$`, "expected module mode enabled")
+-
+-	// In GOPATH/src without go.mod.
+-	tg.cd(tg.path("gp/src/x/y"))
+-	tg.setenv("GO111MODULE", "auto")
+-	tg.run("env", "GOMOD")
+-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
+-
+-	tg.setenv("GO111MODULE", "off")
+-	tg.run("env", "GOMOD")
+-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
+-
+-	tg.setenv("GO111MODULE", "on")
+-	tg.runFail("env", "GOMOD")
+-	tg.grepStderr(`cannot find main module root`, "expected module mode failure")
+-
+-	// Outside GOPATH/src with go.mod.
+-	tg.cd(tg.path("gp/foo"))
+-	tg.setenv("GO111MODULE", "auto")
+-	tg.run("env", "GOMOD")
+-	tg.grepStdout(`.*foo[/\\]go.mod$`, "expected module mode enabled")
+-
+-	tg.cd(tg.path("gp/foo/bar/baz"))
+-	tg.run("env", "GOMOD")
+-	tg.grepStdout(`.*foo[/\\]go.mod$`, "expected module mode enabled")
+-
+-	tg.setenv("GO111MODULE", "off")
+-	tg.run("env", "GOMOD")
+-	tg.grepStdoutNot(`go.mod`, "expected module mode disabled")
+-}
+-
+-func TestModVersionsInGOPATHMode(t *testing.T) {
+-	tg := testgo(t)
+-	tg.setenv("GO111MODULE", "off") // GOPATH mode
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-
+-	tg.runFail("get", "rsc.io/quote@v1.5.1")
+-	tg.grepStderr(`go: cannot use path@version syntax in GOPATH mode`, "expected path@version error")
+-
+-	tg.runFail("build", "rsc.io/quote@v1.5.1")
+-	tg.grepStderr(`can't load package:.* cannot use path@version syntax in GOPATH mode`, "expected path@version error")
+-
+-	tg.setenv("GO111MODULE", "on") // GOPATH mode
+-	tg.tempFile("x/go.mod", "module x")
+-	tg.cd(tg.path("x"))
+-	tg.runFail("build", "rsc.io/quote@v1.5.1")
+-	tg.grepStderr(`can't load package:.* can only use path@version syntax with 'go get'`, "expected path@version error")
+-}
+-
+ func TestModFindModuleRoot(t *testing.T) {
+ 	tg := testGoModules(t)
+ 	defer tg.cleanup()
+@@ -328,16 +251,6 @@ func TestModFindModulePath(t *testing.T) {
+ 	// }
+ }
+ 
+-func TestModImportModFails(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.setenv("GO111MODULE", "off")
+-	tg.tempFile("gopath/src/mod/foo/foo.go", "package foo")
+-	tg.runFail("list", "mod/foo")
+-	tg.grepStderr(`disallowed import path`, "expected disallowed because of module cache")
+-}
+-
+ func TestModEdit(t *testing.T) {
+ 	// Test that local replacements work
+ 	// and that they can use a dummy name
+@@ -502,91 +415,6 @@ require x.3 v1.99.0
+ `)
+ }
+ 
+-func TestModLocalModule(t *testing.T) {
+-	// Test that local replacements work
+-	// and that they can use a dummy name
+-	// that isn't resolvable and need not even
+-	// include a dot. See golang.org/issue/24100.
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.must(os.MkdirAll(tg.path("x/y"), 0777))
+-	tg.must(os.MkdirAll(tg.path("x/z"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/y/go.mod"), []byte(`
+-		module x/y
+-		require zz v1.0.0
+-		replace zz v1.0.0 => ../z
+-	`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/y/y.go"), []byte(`package y; import _ "zz"`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/z/go.mod"), []byte(`
+-		module x/z
+-	`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/z/z.go"), []byte(`package z`), 0666))
+-	tg.cd(tg.path("x/y"))
+-	tg.run("build")
+-}
+-
+-func TestModTags(t *testing.T) {
+-	// Test that build tags are used. See golang.org/issue/24053.
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-	`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte(`// +build tag1
+-
+-		package y
+-	`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/y.go"), []byte(`// +build tag2
+-
+-		package y
+-	`), 0666))
+-	tg.cd(tg.path("x"))
+-
+-	tg.runFail("list", "-f={{.GoFiles}}")
+-	tg.grepStderr("build constraints exclude all Go files", "no Go source files without tags")
+-
+-	tg.run("list", "-f={{.GoFiles}}", "-tags=tag1")
+-	tg.grepStdout(`\[x.go\]`, "Go source files for tag1")
+-
+-	tg.run("list", "-f={{.GoFiles}}", "-tags", "tag2")
+-	tg.grepStdout(`\[y.go\]`, "Go source files for tag2")
+-
+-	tg.run("list", "-f={{.GoFiles}}", "-tags", "tag1 tag2")
+-	tg.grepStdout(`\[x.go y.go\]`, "Go source files for tag1 and tag2")
+-}
+-
+-func TestModFSPatterns(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.must(os.MkdirAll(tg.path("x/vendor/v"), 0777))
+-	tg.must(os.MkdirAll(tg.path("x/y/z/w"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module m
+-	`), 0666))
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte(`package x`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/vendor/v/v.go"), []byte(`package v; import "golang.org/x/crypto"`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/vendor/v.go"), []byte(`package main`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/y/y.go"), []byte(`package y`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/y/z/go.mod"), []byte(`syntax error`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/y/z/z.go"), []byte(`package z`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/y/z/w/w.go"), []byte(`package w`), 0666))
+-
+-	tg.cd(tg.path("x"))
+-	for _, pattern := range []string{"all", "m/...", "./..."} {
+-		tg.run("list", pattern)
+-		tg.grepStdout(`^m$`, "expected m")
+-		tg.grepStdout(`^m/vendor$`, "must see package named vendor")
+-		tg.grepStdoutNot(`vendor/`, "must not see vendored packages")
+-		tg.grepStdout(`^m/y$`, "expected m/y")
+-		tg.grepStdoutNot(`^m/y/z`, "should ignore submodule m/y/z...")
+-	}
+-}
+-
+ func TestModGetVersions(t *testing.T) {
+ 	tg := testGoModules(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 0d8c5921bf..78bb1cb50e 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -73,6 +73,7 @@ type testScript struct {
+ 
+ // setup sets up the test execution temporary directory and environment.
+ func (ts *testScript) setup() {
++	StartProxy()
+ 	ts.workdir = filepath.Join(testTmpDir, "script-"+ts.name)
+ 	ts.check(os.MkdirAll(filepath.Join(ts.workdir, "tmp"), 0777))
+ 	ts.check(os.MkdirAll(filepath.Join(ts.workdir, "gopath/src"), 0777))
+@@ -85,6 +86,7 @@ func (ts *testScript) setup() {
+ 		"GOCACHE=" + testGOCACHE,
+ 		"GOOS=" + runtime.GOOS,
+ 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
++		"GOPROXY=" + proxyURL,
+ 		"GOROOT=" + testGOROOT,
+ 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
+ 		"devnull=" + os.DevNull,
+@@ -604,7 +606,7 @@ func (ts *testScript) parse(line string) []string {
+ 		quoted = false // currently processing quoted text
+ 	)
+ 	for i := 0; ; i++ {
+-		if !quoted && (i >= len(line) || line[i] == ' ' || line[i] == '\t' || line[i] == '\r') {
++		if !quoted && (i >= len(line) || line[i] == ' ' || line[i] == '\t' || line[i] == '\r' || line[i] == '#') {
+ 			// Found arg-separating space.
+ 			if start >= 0 {
+ 				arg += ts.expand(line[start:i])
+@@ -612,7 +614,7 @@ func (ts *testScript) parse(line string) []string {
+ 				start = -1
+ 				arg = ""
+ 			}
+-			if i >= len(line) {
++			if i >= len(line) || line[i] == '#' {
+ 				break
+ 			}
+ 			continue
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 4334ed32a6..55bc48b215 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -30,6 +30,7 @@ Scripts also have access to these other environment variables:
+ 	GOCACHE=<actual GOCACHE being used outside the test>
+ 	GOOS=<target GOOS>
+ 	GOPATH=$WORK/gopath
++	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
+ 	GOROOT=<actual GOROOT>
+ 	HOME=/no-home
+ 	PATH=<actual PATH>
+@@ -48,10 +49,11 @@ by a tiny script engine in ../../script_test.go (not the system shell).
+ The script stops and the overall test fails if any particular command fails.
+ 
+ Each line is parsed into a sequence of space-separated command words,
+-with environment variable expansion. Adding single quotes around text
+-keeps spaces in that text from being treated as word separators and also
+-disables environment variable expansion. Inside a single-quoted block of
+-text, a repeated single quote indicates a literal single quote, as in:
++with environment variable expansion and # marking an end-of-line comment.
++Adding single quotes around text keeps spaces in that text from being treated
++as word separators and also disables environment variable expansion.
++Inside a single-quoted block of text, a repeated single quote indicates
++a literal single quote, as in:
+ 
+ 	'Don''t communicate by sharing memory.'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_build_tags.txt b/src/cmd/go/testdata/script/mod_build_tags.txt
+new file mode 100644
+index 0000000000..1347eaacbf
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_build_tags.txt
+@@ -0,0 +1,30 @@
++# Test that build tags are used.
++# golang.org/issue/24053.
++
++env GO111MODULE=on
++
++cd x
++! go list -f {{.GoFiles}}
++stderr 'build constraints exclude all Go files'
++
++go list -f {{.GoFiles}} -tags tag1
++stdout '\[x.go\]'
++
++go list -f {{.GoFiles}} -tags tag2
++stdout '\[y\.go\]'
++
++go list -f {{.GoFiles}} -tags 'tag1 tag2'
++stdout '\[x\.go y\.go\]'
++
++-- x/go.mod --
++module x
++
++-- x/x.go --
++// +build tag1
++
++package y
++
++-- x/y.go --
++// +build tag2
++
++package y
+diff --git a/src/cmd/go/testdata/script/mod_enabled.txt b/src/cmd/go/testdata/script/mod_enabled.txt
+new file mode 100644
+index 0000000000..189d4edc91
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_enabled.txt
+@@ -0,0 +1,67 @@
++# GO111MODULE=auto should only trigger outside GOPATH/src
++env GO111MODULE=auto
++
++cd $GOPATH/src/x/y/z
++go env GOMOD
++! stdout . # no non-empty lines
++
++cd $GOPATH/src/x/y/z/w
++go env GOMOD
++! stdout .
++
++cd $GOPATH/src/x/y
++go env GOMOD
++! stdout .
++
++cd $GOPATH/foo
++go env GOMOD
++stdout foo[/\\]go.mod
++
++cd $GOPATH/foo/bar/baz
++go env GOMOD
++stdout foo[/\\]go.mod
++
++# GO111MODULE=on should trigger everywhere
++env GO111MODULE=on
++
++cd $GOPATH/src/x/y/z
++go env GOMOD
++stdout z[/\\]go.mod
++
++cd $GOPATH/src/x/y/z/w
++go env GOMOD
++stdout z[/\\]go.mod
++
++cd $GOPATH/src/x/y
++! go env GOMOD
++stderr 'cannot find main module root'
++
++cd $GOPATH/foo
++go env GOMOD
++stdout foo[/\\]go.mod
++
++cd $GOPATH/foo/bar/baz
++go env GOMOD
++stdout foo[/\\]go.mod
++
++# GO111MODULE=off should trigger nowhere
++env GO111MODULE=off
++
++cd $GOPATH/src/x/y/z
++go env GOMOD
++! stdout .+
++
++cd $GOPATH/foo
++go env GOMOD
++! stdout .+
++
++cd $GOPATH/foo/bar/baz
++go env GOMOD
++! stdout .+
++
++-- $GOPATH/src/x/y/z/go.mod --
++module x/y/z
++-- $GOPATH/src/x/y/z/w/w.txt --
++-- $GOPATH/foo/go.mod --
++module example.com/mod
++-- $GOPATH/foo/bar/baz/quux.txt --
+diff --git a/src/cmd/go/testdata/script/mod_fs_patterns.txt b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+new file mode 100644
+index 0000000000..b5350c3eed
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+@@ -0,0 +1,54 @@
++# File system pattern searches should skip sub-modules and vendor directories.
++
++env GO111MODULE=on
++
++cd x
++
++# all packages
++go list all
++stdout ^m$
++stdout ^m/vendor$
++! stdout vendor/
++stdout ^m/y$
++! stdout ^m/y/z
++
++# path pattern
++go list m/...
++stdout ^m$
++stdout ^m/vendor$
++! stdout vendor/
++stdout ^m/y$
++! stdout ^m/y/z
++
++# directory pattern
++go list ./...
++stdout ^m$
++stdout ^m/vendor$
++! stdout vendor/
++stdout ^m/y$
++! stdout ^m/y/z
++
++-- x/go.mod --
++module m
++
++-- x/x.go --
++package x
++
++-- x/vendor/v/v.go --
++package v
++import _ "golang.org/x/crypto"
++
++-- x/vendor/v.go --
++package main
++
++-- x/y/y.go --
++package y
++
++-- x/y/z/go.mod --
++syntax error!
++
++-- x/y/z/z.go --
++package z
++
++-- x/y/z/w/w.go --
++package w
+diff --git a/src/cmd/go/testdata/script/mod_import_mod.txt b/src/cmd/go/testdata/script/mod_import_mod.txt
+new file mode 100644
+index 0000000000..46f45c7109
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_import_mod.txt
+@@ -0,0 +1,7 @@
++# Test that GOPATH/src/mod is excluded
++env GO111MODULE=off
++! go list mod/foo
++stderr 'disallowed import path'
++
++-- mod/foo/foo.go --
++package foo
+diff --git a/src/cmd/go/testdata/script/mod_local_replace.txt b/src/cmd/go/testdata/script/mod_local_replace.txt
+new file mode 100644
+index 0000000000..19bc8f3904
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_local_replace.txt
+@@ -0,0 +1,23 @@
++# Test that local replacements work even with dummy module names.
++# golang.org/issue/24100.
++
++env GO111MODULE=on
++
++cd x/y
++go list -f '{{.Dir}}' zz
++stdout x[/\\]z$
++
++-- x/y/go.mod --
++module x/y
++require zz v1.0.0
++replace zz v1.0.0 => ../z
++
++-- x/y/y.go --
++package y
++import _ "zz"
++
++-- x/z/go.mod --
++module x/z
++
++-- x/z/z.go --
++package z
+diff --git a/src/cmd/go/testdata/script/mod_versions.txt b/src/cmd/go/testdata/script/mod_versions.txt
+new file mode 100644
+index 0000000000..fd5e5c589d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_versions.txt
+@@ -0,0 +1,14 @@
++# Test rejection of pkg@version in GOPATH mode.
++env GO111MODULE=off
++! go get rsc.io/quote@v1.5.1
++stderr 'cannot use path@version syntax in GOPATH mode'
++! go build rsc.io/quote@v1.5.1
++stderr 'cannot use path@version syntax in GOPATH mode'
++
++env GO111MODULE=on
++cd x
++! go build rsc.io/quote@v1.5.1
++stderr 'can only use path@version syntax with ''go get'''
++
++-- x/go.mod --
++module x

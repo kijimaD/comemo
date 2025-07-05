@@ -17,6 +17,37 @@ Date:   Thu Oct 29 12:47:15 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 14 +++++++++-----
  1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index c35691bfd2..6c69867789 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1442,16 +1442,20 @@ func devirtualizeCall(call *Node) {
+ 		return
+ 	}
+ 
+-	if Debug.m != 0 {
+-		Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
+-	}
+-
+ 	x := nodl(call.Left.Pos, ODOTTYPE, call.Left.Left, nil)
+ 	x.Type = typ
+ 	x = nodlSym(call.Left.Pos, OXDOT, x, call.Left.Sym)
+ 	x = typecheck(x, ctxExpr|ctxCallee)
+ 	if x.Op != ODOTMETH {
+-		Fatalf("devirtualization failed: %v", x)
++		// TODO(mdempsky): Figure out how to avoid this and
++		// turn back into a Fatalf.
++		if Debug.m != 0 {
++			Warnl(call.Pos, "failed to devirtualize %v", x)
++		}
++		return
++	}
++	if Debug.m != 0 {
++		Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
+ 	}
+ 	call.Op = OCALLMETH
+ 	call.Left = x

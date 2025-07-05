@@ -38,7 +38,7 @@ Date:   Mon Sep 14 16:55:34 2020 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  doc/diagnostics.html    |  2 ++
  src/runtime/extern.go   | 13 ++++++++++
  src/runtime/malloc.go   | 56 ++++++++++++++++++++++++---------------
@@ -46,3 +46,315 @@ Date:   Mon Sep 14 16:55:34 2020 +0200
  src/runtime/runtime1.go | 13 ++++++++--
  src/runtime/symtab.go   | 16 ++++++++++++
  6 files changed, 140 insertions(+), 29 deletions(-)
+
+diff --git a/doc/diagnostics.html b/doc/diagnostics.html
+index 478611c15c..f9368886c4 100644
+--- a/doc/diagnostics.html
++++ b/doc/diagnostics.html
+@@ -454,6 +454,8 @@ environmental variable is set accordingly.</p>
+ <li>GODEBUG=gctrace=1 prints garbage collector events at
+ each collection, summarizing the amount of memory collected
+ and the length of the pause.</li>
++<li>GODEBUG=inittrace=1 prints a summary of execution time and memory allocation
++information for completed package initilization work.</li>
+ <li>GODEBUG=schedtrace=X prints scheduling events every X milliseconds.</li>
+ </ul>
+ 
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 7316503ed2..b75507b8f8 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -78,6 +78,19 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	If the line ends with "(forced)", this GC was forced by a
+ 	runtime.GC() call.
+ 
++	inittrace: setting inittrace=1 causes the runtime to emit a single line to standard
++	error for each package with init work, summarizing the execution time and memory
++	allocation. No information is printed for inits executed as part of plugin loading
++	and for packages without both user defined and compiler generated init work.
++	The format of this line is subject to change. Currently, it is:
++		init # @#ms, # ms clock, # bytes, # allocs
++	where the fields are as follows:
++		init #      the package name
++		@# ms       time in milliseconds when the init started since program start
++		# clock     wall-clock time for package initialization work
++		# bytes     memory allocated on the heap
++		# allocs    number of heap allocations
++
+ 	madvdontneed: setting madvdontneed=1 will use MADV_DONTNEED
+ 	instead of MADV_FREE on Linux when returning memory to the
+ 	kernel. This is less efficient, but causes RSS numbers to drop
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f7e9b7c4b4..b19d1f2671 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -909,27 +909,34 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		return unsafe.Pointer(&zerobase)
+ 	}
+ 
+-	if debug.sbrk != 0 {
+-		align := uintptr(16)
+-		if typ != nil {
+-			// TODO(austin): This should be just
+-			//   align = uintptr(typ.align)
+-			// but that's only 4 on 32-bit platforms,
+-			// even if there's a uint64 field in typ (see #599).
+-			// This causes 64-bit atomic accesses to panic.
+-			// Hence, we use stricter alignment that matches
+-			// the normal allocator better.
+-			if size&7 == 0 {
+-				align = 8
+-			} else if size&3 == 0 {
+-				align = 4
+-			} else if size&1 == 0 {
+-				align = 2
+-			} else {
+-				align = 1
++	if debug.malloc {
++		if debug.sbrk != 0 {
++			align := uintptr(16)
++			if typ != nil {
++				// TODO(austin): This should be just
++				//   align = uintptr(typ.align)
++				// but that's only 4 on 32-bit platforms,
++				// even if there's a uint64 field in typ (see #599).
++				// This causes 64-bit atomic accesses to panic.
++				// Hence, we use stricter alignment that matches
++				// the normal allocator better.
++				if size&7 == 0 {
++					align = 8
++				} else if size&3 == 0 {
++					align = 4
++				} else if size&1 == 0 {
++					align = 2
++				} else {
++					align = 1
++				}
+ 			}
++			return persistentalloc(size, align, &memstats.other_sys)
++		}
++
++		if inittrace.active && inittrace.id == getg().goid {
++			// Init functions are executed sequentially in a single Go routine.
++			inittrace.allocs += 1
+ 		}
+-		return persistentalloc(size, align, &memstats.other_sys)
+ 	}
+ 
+ 	// assistG is the G to charge for this allocation, or nil if
+@@ -1136,8 +1143,15 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	mp.mallocing = 0
+ 	releasem(mp)
+ 
+-	if debug.allocfreetrace != 0 {
+-		tracealloc(x, size, typ)
++	if debug.malloc {
++		if debug.allocfreetrace != 0 {
++			tracealloc(x, size, typ)
++		}
++
++		if inittrace.active && inittrace.id == getg().goid {
++			// Init functions are executed sequentially in a single Go routine.
++			inittrace.bytes += uint64(size)
++		}
+ 	}
+ 
+ 	if rate := MemProfileRate; rate > 0 {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a1e2ed0680..4872480314 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -154,11 +154,20 @@ func main() {
+ 		throw("runtime.main not on m0")
+ 	}
+ 
+-	doInit(&runtime_inittask) // must be before defer
+-	if nanotime() == 0 {
++	// Record when the world started.
++	// Must be before doInit for tracing init.
++	runtimeInitTime = nanotime()
++	if runtimeInitTime == 0 {
+ 		throw("nanotime returning zero")
+ 	}
+ 
++	if debug.inittrace != 0 {
++		inittrace.id = getg().goid
++		inittrace.active = true
++	}
++
++	doInit(&runtime_inittask) // Must be before defer.
++
+ 	// Defer unlock so that runtime.Goexit during init does the unlock too.
+ 	needUnlock := true
+ 	defer func() {
+@@ -167,9 +176,6 @@ func main() {
+ 		}
+ 	}()
+ 
+-	// Record when the world started.
+-	runtimeInitTime = nanotime()
+-
+ 	gcenable()
+ 
+ 	main_init_done = make(chan bool)
+@@ -196,6 +202,10 @@ func main() {
+ 
+ 	doInit(&main_inittask)
+ 
++	// Disable init tracing after main init done to avoid overhead
++	// of collecting statistics in malloc and newproc
++	inittrace.active = false
++
+ 	close(main_init_done)
+ 
+ 	needUnlock = false
+@@ -5665,6 +5675,17 @@ type initTask struct {
+ 	// followed by nfns pcs, one per init function to run
+ }
+ 
++// inittrace stores statistics for init functions which are
++// updated by malloc and newproc when active is true.
++var inittrace tracestat
++
++type tracestat struct {
++	active bool   // init tracing activation status
++	id     int64  // init go routine id
++	allocs uint64 // heap allocations
++	bytes  uint64 // heap allocated bytes
++}
++
+ func doInit(t *initTask) {
+ 	switch t.state {
+ 	case 2: // fully initialized
+@@ -5673,16 +5694,52 @@ func doInit(t *initTask) {
+ 		throw("recursive call during initialization - linker skew")
+ 	default: // not initialized yet
+ 		t.state = 1 // initialization in progress
++
+ 		for i := uintptr(0); i < t.ndeps; i++ {
+ 			p := add(unsafe.Pointer(t), (3+i)*sys.PtrSize)
+ 			t2 := *(**initTask)(p)
+ 			doInit(t2)
+ 		}
++
++		if t.nfns == 0 {
++			t.state = 2 // initialization done
++			return
++		}
++
++		var (
++			start  int64
++			before tracestat
++		)
++
++		if inittrace.active {
++			start = nanotime()
++			// Load stats non-atomically since tracinit is updated only by this init go routine.
++			before = inittrace
++		}
++
++		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*sys.PtrSize)
+ 		for i := uintptr(0); i < t.nfns; i++ {
+-			p := add(unsafe.Pointer(t), (3+t.ndeps+i)*sys.PtrSize)
++			p := add(firstFunc, i*sys.PtrSize)
+ 			f := *(*func())(unsafe.Pointer(&p))
+ 			f()
+ 		}
++
++		if inittrace.active {
++			end := nanotime()
++			// Load stats non-atomically since tracinit is updated only by this init go routine.
++			after := inittrace
++
++			pkg := funcpkgpath(findfunc(funcPC(firstFunc)))
++
++			var sbuf [24]byte
++			print("init ", pkg, " @")
++			print(string(fmtNSAsMS(sbuf[:], uint64(start-runtimeInitTime))), " ms, ")
++			print(string(fmtNSAsMS(sbuf[:], uint64(end-start))), " ms clock, ")
++			print(string(itoa(sbuf[:], after.bytes-before.bytes)), " bytes, ")
++			print(string(itoa(sbuf[:], after.allocs-before.allocs)), " allocs")
++			print("\n")
++		}
++
+ 		t.state = 2 // initialization done
+ 	}
+ }
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 7c893aa25c..0f182ac58e 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -300,7 +300,6 @@ type dbgVar struct {
+ // existing int var for that value, which may
+ // already have an initial value.
+ var debug struct {
+-	allocfreetrace     int32
+ 	cgocheck           int32
+ 	clobberfree        int32
+ 	efence             int32
+@@ -311,13 +310,20 @@ var debug struct {
+ 	gctrace            int32
+ 	invalidptr         int32
+ 	madvdontneed       int32 // for Linux; issue 28466
+-	sbrk               int32
+ 	scavenge           int32
+ 	scavtrace          int32
+ 	scheddetail        int32
+ 	schedtrace         int32
+ 	tracebackancestors int32
+ 	asyncpreemptoff    int32
++
++	// debug.malloc is used as a combined debug check
++	// in the malloc function and should be set
++	// if any of the below debug options is != 0.
++	malloc         bool
++	allocfreetrace int32
++	inittrace      int32
++	sbrk           int32
+ }
+ 
+ var dbgvars = []dbgVar{
+@@ -339,6 +345,7 @@ var dbgvars = []dbgVar{
+ 	{"schedtrace", &debug.schedtrace},
+ 	{"tracebackancestors", &debug.tracebackancestors},
+ 	{"asyncpreemptoff", &debug.asyncpreemptoff},
++	{"inittrace", &debug.inittrace},
+ }
+ 
+ func parsedebugvars() {
+@@ -378,6 +385,8 @@ func parsedebugvars() {
+ 		}
+ 	}
+ 
++	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
++
+ 	setTraceback(gogetenv("GOTRACEBACK"))
+ 	traceback_env = traceback_cache
+ }
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index a14f5c13d9..84637376bf 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -844,6 +844,22 @@ func funcname(f funcInfo) string {
+ 	return gostringnocopy(cfuncname(f))
+ }
+ 
++func funcpkgpath(f funcInfo) string {
++	name := funcname(f)
++	i := len(name) - 1
++	for ; i > 0; i-- {
++		if name[i] == '/' {
++			break
++		}
++	}
++	for ; i < len(name); i++ {
++		if name[i] == '.' {
++			break
++		}
++	}
++	return name[:i]
++}
++
+ func cfuncnameFromNameoff(f funcInfo, nameoff int32) *byte {
+ 	if !f.valid() {
+ 		return nil

@@ -34,10 +34,203 @@ Date:   Wed Oct 23 11:42:23 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202759
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/os/signal/signal_test.go  | 49 +++++++++++++++++++++++++++++++++++++++++++
  src/runtime/proc.go           |  3 +++
  src/runtime/signal_unix.go    | 10 +++++++++
  src/runtime/sys_linux_arm.s   | 32 ++++++++++++++++++++++++++++
  src/runtime/sys_linux_arm64.s | 28 +++++++++++++++++++++++++
  5 files changed, 122 insertions(+)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index d50e595d84..7aa3d7805b 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -469,3 +469,52 @@ func atomicStopTestProgram() {
+ 
+ 	os.Exit(0)
+ }
++
++func TestTime(t *testing.T) {
++	// Test that signal works fine when we are in a call to get time,
++	// which on some platforms is using VDSO. See issue #34391.
++	dur := 3 * time.Second
++	if testing.Short() {
++		dur = 100 * time.Millisecond
++	}
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++	done := make(chan bool)
++	finished := make(chan bool)
++	go func() {
++		sig := make(chan os.Signal, 1)
++		Notify(sig, syscall.SIGUSR1)
++		defer Stop(sig)
++	Loop:
++		for {
++			select {
++			case <-sig:
++			case <-done:
++				break Loop
++			}
++		}
++		finished <- true
++	}()
++	go func() {
++	Loop:
++		for {
++			select {
++			case <-done:
++				break Loop
++			default:
++				syscall.Kill(syscall.Getpid(), syscall.SIGUSR1)
++				runtime.Gosched()
++			}
++		}
++		finished <- true
++	}()
++	t0 := time.Now()
++	for t1 := t0; t1.Sub(t0) < dur; t1 = time.Now() {
++	} // hammering on getting time
++	close(done)
++	<-finished
++	<-finished
++	// When run with 'go test -cpu=1,2,4' SIGUSR1 from this test can slip
++	// into subsequent TestSignal() causing failure.
++	// Sleep for a while to reduce the possibility of the failure.
++	time.Sleep(10 * time.Millisecond)
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7d2ff2748b..4814a5fc87 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3420,6 +3420,9 @@ func malg(stacksize int32) *g {
+ 		})
+ 		newg.stackguard0 = newg.stack.lo + _StackGuard
+ 		newg.stackguard1 = ^uintptr(0)
++		// Clear the bottom word of the stack. We record g
++		// there on gsignal stack during VDSO on ARM and ARM64.
++		*(*uintptr)(unsafe.Pointer(newg.stack.lo)) = 0
+ 	}
+ 	return newg
+ }
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index d5a04b6d48..cea65282e0 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -299,6 +299,16 @@ func sigFetchG(c *sigctxt) *g {
+ 	switch GOARCH {
+ 	case "arm", "arm64":
+ 		if inVDSOPage(c.sigpc()) {
++			// Before making a VDSO call we save the g to the bottom of the
++			// signal stack. Fetch from there.
++			// TODO: in efence mode, stack is sysAlloc'd, so this wouldn't
++			// work.
++			sp := getcallersp()
++			s := spanOf(sp)
++			if s != nil && s.state == mSpanManual && s.base() < sp && sp < s.limit {
++				gp := *(**g)(unsafe.Pointer(s.base()))
++				return gp
++			}
+ 			return nil
+ 		}
+ 	}
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 23a66554ab..9a9e1c92c7 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -259,7 +259,23 @@ noswitch:
+ 	CMP	$0, R11
+ 	B.EQ	fallback
+ 
++	// Store g on gsignal's stack, so if we receive a signal
++	// during VDSO code we can find the g.
++	// If we don't have a signal stack, we won't receive signal,
++	// so don't bother saving g.
++	MOVW	m_gsignal(R5), R6          // g.m.gsignal
++	CMP	$0, R6
++	BEQ	3(PC)
++	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
++	MOVW	g, (R6)
++
+ 	BL	(R11)
++
++	CMP	$0, R6   // R6 is unchanged by C code
++	BEQ	3(PC)
++	MOVW	$0, R1
++	MOVW	R1, (R6) // clear g slot
++
+ 	JMP	finish
+ 
+ fallback:
+@@ -310,7 +326,23 @@ noswitch:
+ 	CMP	$0, R11
+ 	B.EQ	fallback
+ 
++	// Store g on gsignal's stack, so if we receive a signal
++	// during VDSO code we can find the g.
++	// If we don't have a signal stack, we won't receive signal,
++	// so don't bother saving g.
++	MOVW	m_gsignal(R5), R6          // g.m.gsignal
++	CMP	$0, R6
++	BEQ	3(PC)
++	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
++	MOVW	g, (R6)
++
+ 	BL	(R11)
++
++	CMP	$0, R6   // R6 is unchanged by C code
++	BEQ	3(PC)
++	MOVW	$0, R1
++	MOVW	R1, (R6) // clear g slot
++
+ 	JMP	finish
+ 
+ fallback:
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 5514a6be62..a77be98739 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -218,7 +218,21 @@ noswitch:
+ 	MOVW	$CLOCK_REALTIME, R0
+ 	MOVD	runtime·vdsoClockgettimeSym(SB), R2
+ 	CBZ	R2, fallback
++
++	// Store g on gsignal's stack, so if we receive a signal
++	// during VDSO code we can find the g.
++	// If we don't have a signal stack, we won't receive signal,
++	// so don't bother saving g.
++	MOVD	m_gsignal(R21), R22          // g.m.gsignal
++	CBZ	R22, 3(PC)
++	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
++	MOVD	g, (R22)
++
+ 	BL	(R2)
++
++	CBZ	R22, 2(PC) // R22 is unchanged by C code
++	MOVD	ZR, (R22)  // clear g slot
++
+ 	B	finish
+ 
+ fallback:
+@@ -261,7 +275,21 @@ noswitch:
+ 	MOVW	$CLOCK_MONOTONIC, R0
+ 	MOVD	runtime·vdsoClockgettimeSym(SB), R2
+ 	CBZ	R2, fallback
++
++	// Store g on gsignal's stack, so if we receive a signal
++	// during VDSO code we can find the g.
++	// If we don't have a signal stack, we won't receive signal,
++	// so don't bother saving g.
++	MOVD	m_gsignal(R21), R22          // g.m.gsignal
++	CBZ	R22, 3(PC)
++	MOVD	(g_stack+stack_lo)(R22), R22 // g.m.gsignal.stack.lo
++	MOVD	g, (R22)
++
+ 	BL	(R2)
++
++	CBZ	R22, 2(PC) // R22 is unchanged by C code
++	MOVD	ZR, (R22)  // clear g slot
++
+ 	B	finish
+ 
+ fallback:

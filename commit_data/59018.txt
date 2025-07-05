@@ -22,7 +22,47 @@ Date:   Thu Feb 1 13:38:56 2024 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/list/list.go          | 6 +++---
  src/cmd/go/testdata/script/cover_list.txt | 4 ++++
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index db58714882..66fb5aa31c 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -725,6 +725,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		b.IsCmdList = true
+ 		b.NeedExport = *listExport
+ 		b.NeedCompiledGoFiles = *listCompiled
++		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
++			load.PrepareForCoverageBuild(pkgs)
++		}
+ 		a := &work.Action{}
+ 		// TODO: Use pkgsFilter?
+ 		for _, p := range pkgs {
+@@ -732,9 +735,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 				a.Deps = append(a.Deps, b.AutoAction(work.ModeInstall, work.ModeInstall, p))
+ 			}
+ 		}
+-		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+-			load.PrepareForCoverageBuild(pkgs)
+-		}
+ 		b.Do(ctx, a)
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/cover_list.txt b/src/cmd/go/testdata/script/cover_list.txt
+index 6b8aaf45d1..1b1f326662 100644
+--- a/src/cmd/go/testdata/script/cover_list.txt
++++ b/src/cmd/go/testdata/script/cover_list.txt
+@@ -38,6 +38,10 @@ cp stdout $WORK/toolbuildid.txt
+ # Build IDs should match here.
+ cmp $WORK/toolbuildid.txt $WORK/listbuildid.txt
+ 
++# Make sure that the build succeeds regardless of covermode.
++go list -export -covermode=atomic m/example
++go list -export -covermode=count m/example
++
+ -- go.mod --
+ module m
+ 

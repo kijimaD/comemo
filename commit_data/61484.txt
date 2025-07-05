@@ -11,7 +11,133 @@ Date:   Fri Nov 8 14:49:56 2024 -0800
     Commit-Queue: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/importer/exportdata.go | 39 +++-------------------
  src/go/internal/gcimporter/exportdata.go        | 44 ++++++++++---------------
  2 files changed, 23 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/exportdata.go b/src/cmd/compile/internal/importer/exportdata.go
+index 2ae8c1b4d9..8536440ade 100644
+--- a/src/cmd/compile/internal/importer/exportdata.go
++++ b/src/cmd/compile/internal/importer/exportdata.go
+@@ -8,35 +8,11 @@ package importer
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/archive"
+ 	"fmt"
+-	"io"
+-	"strconv"
+ 	"strings"
+ )
+ 
+-func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
+-	// TODO(taking): replace with src/cmd/internal/archive.ReadHeader.
+-
+-	// See $GOROOT/include/ar.h.
+-	hdr := make([]byte, 16+12+6+6+8+10+2)
+-	_, err = io.ReadFull(r, hdr)
+-	if err != nil {
+-		return
+-	}
+-	// leave for debugging
+-	if false {
+-		fmt.Printf("header: %s", hdr)
+-	}
+-	s := strings.TrimSpace(string(hdr[16+12+6+6+8:][:10]))
+-	size, err = strconv.Atoi(s)
+-	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
+-		err = fmt.Errorf("invalid archive header")
+-		return
+-	}
+-	name = strings.TrimSpace(string(hdr[:16]))
+-	return
+-}
+-
+ // FindExportData positions the reader r at the beginning of the
+ // export data section of an underlying GC-created object/archive
+ // file by reading from it. The reader must be positioned at the
+@@ -64,15 +40,10 @@ func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
+ 		return
+ 	}
+ 
+-	// Archive file. Scan to __.PKGDEF.
+-	var name string
+-	if name, size, err = readGopackHeader(r); err != nil {
+-		return
+-	}
+-
+-	// First entry should be __.PKGDEF.
+-	if name != "__.PKGDEF" {
+-		err = fmt.Errorf("go archive is missing __.PKGDEF")
++	// package export block should be first
++	size = archive.ReadHeader(r, "__.PKGDEF")
++	if size <= 0 {
++		err = fmt.Errorf("not a package file")
+ 		return
+ 	}
+ 
+diff --git a/src/go/internal/gcimporter/exportdata.go b/src/go/internal/gcimporter/exportdata.go
+index ec17c1dd1a..a022c153ec 100644
+--- a/src/go/internal/gcimporter/exportdata.go
++++ b/src/go/internal/gcimporter/exportdata.go
+@@ -14,25 +14,22 @@ import (
+ 	"strings"
+ )
+ 
+-func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
+-	// See $GOROOT/include/ar.h.
+-	hdr := make([]byte, 16+12+6+6+8+10+2)
+-	_, err = io.ReadFull(r, hdr)
+-	if err != nil {
+-		return
+-	}
+-	// leave for debugging
+-	if false {
+-		fmt.Printf("header: %s", hdr)
++// Copy of cmd/internal/archive.ReadHeader.
++func readArchiveHeader(b *bufio.Reader, name string) int {
++	// architecture-independent object file output
++	const HeaderSize = 60
++
++	var buf [HeaderSize]byte
++	if _, err := io.ReadFull(b, buf[:]); err != nil {
++		return -1
+ 	}
+-	s := strings.TrimSpace(string(hdr[16+12+6+6+8:][:10]))
+-	size, err = strconv.Atoi(s)
+-	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
+-		err = fmt.Errorf("invalid archive header")
+-		return
++	aname := strings.Trim(string(buf[0:16]), " ")
++	if !strings.HasPrefix(aname, name) {
++		return -1
+ 	}
+-	name = strings.TrimSpace(string(hdr[:16]))
+-	return
++	asize := strings.Trim(string(buf[48:58]), " ")
++	i, _ := strconv.Atoi(asize)
++	return i
+ }
+ 
+ // FindExportData positions the reader r at the beginning of the
+@@ -54,15 +51,10 @@ func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
+ 		return
+ 	}
+ 
+-	// Archive file. Scan to __.PKGDEF.
+-	var name string
+-	if name, size, err = readGopackHeader(r); err != nil {
+-		return
+-	}
+-
+-	// First entry should be __.PKGDEF.
+-	if name != "__.PKGDEF" {
+-		err = fmt.Errorf("go archive is missing __.PKGDEF")
++	// package export block should be first
++	size = readArchiveHeader(r, "__.PKGDEF")
++	if size <= 0 {
++		err = fmt.Errorf("not a package file")
+ 		return
+ 	}
+ 

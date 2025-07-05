@@ -20,7 +20,7 @@ Date:   Tue Mar 21 22:23:45 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/link.go       |  1 -
  src/cmd/internal/obj/mips/a.out.go |  9 ++++++---
  src/cmd/internal/obj/mips/asm0.go  | 25 +++++++++++++------------
@@ -29,3 +29,235 @@ Date:   Tue Mar 21 22:23:45 2017 -0700
  src/cmd/internal/obj/x86/obj6.go   |  7 ++-----
  src/cmd/internal/sys/arch.go       |  3 ++-
  7 files changed, 30 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index d397dec679..8d9e4e3476 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -748,7 +748,6 @@ type Link struct {
+ 	Pc            int64
+ 	DiagFunc      func(string, ...interface{})
+ 	DebugInfo     func(fn *LSym) []*dwarf.Var
+-	Mode          int
+ 	Cursym        *LSym
+ 	Version       int
+ 	Errors        int
+diff --git a/src/cmd/internal/obj/mips/a.out.go b/src/cmd/internal/obj/mips/a.out.go
+index f732ed5235..0d838a75f8 100644
+--- a/src/cmd/internal/obj/mips/a.out.go
++++ b/src/cmd/internal/obj/mips/a.out.go
+@@ -29,7 +29,10 @@
+ 
+ package mips
+ 
+-import "cmd/internal/obj"
++import (
++	"cmd/internal/obj"
++	"cmd/internal/sys"
++)
+ 
+ //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p mips
+ 
+@@ -218,8 +221,8 @@ const (
+ )
+ 
+ const (
+-	Mips32 = 32
+-	Mips64 = 64
++	Mips32 = sys.MIPS
++	Mips64 = sys.MIPS64
+ )
+ 
+ const (
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 897073e95e..139b82726f 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -31,6 +31,7 @@ package mips
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/sys"
+ 	"fmt"
+ 	"log"
+ 	"sort"
+@@ -47,14 +48,14 @@ const (
+ )
+ 
+ type Optab struct {
+-	as    obj.As
+-	a1    uint8
+-	a2    uint8
+-	a3    uint8
+-	type_ int8
+-	size  int8
+-	param int16
+-	mode  int
++	as     obj.As
++	a1     uint8
++	a2     uint8
++	a3     uint8
++	type_  int8
++	size   int8
++	param  int16
++	family sys.ArchFamily // 0 means both Mips32 and Mips64
+ }
+ 
+ var optab = []Optab{
+@@ -465,7 +466,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 		cursym.Size = c
+ 	}
+-	if ctxt.Mode&Mips64 != 0 {
++	if ctxt.Arch.Family == sys.MIPS64 {
+ 		c += -c & (mips64FuncAlign - 1)
+ 	}
+ 	cursym.Size = c
+@@ -702,7 +703,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 	c3 := &xcmp[a3]
+ 	for i := range ops {
+ 		op := &ops[i]
+-		if int(op.a2) == a2 && c1[op.a1] && c3[op.a3] && (ctxt.Mode&op.mode == op.mode) {
++		if int(op.a2) == a2 && c1[op.a1] && c3[op.a3] && (op.family == 0 || ctxt.Arch.Family == op.family) {
+ 			p.Optab = uint16(cap(optab) - cap(ops) + i + 1)
+ 			return op
+ 		}
+@@ -1068,7 +1069,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	add := AADDU
+ 
+-	if ctxt.Mode&Mips64 != 0 {
++	if ctxt.Arch.Family == sys.MIPS64 {
+ 		add = AADDVU
+ 	}
+ 	switch o.type_ {
+@@ -1081,7 +1082,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 1: /* mov r1,r2 ==> OR r1,r0,r2 */
+ 		a := AOR
+-		if p.As == AMOVW && ctxt.Mode&Mips64 != 0 {
++		if p.As == AMOVW && ctxt.Arch.Family == sys.MIPS64 {
+ 			a = AADDU // sign-extended to high 32 bits
+ 		}
+ 		o1 = OP_RRR(oprrr(ctxt, a), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index fe1ce9c027..11434751e2 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -38,18 +38,6 @@ import (
+ )
+ 
+ func progedit(ctxt *obj.Link, p *obj.Prog) {
+-	// Maintain information about code generation mode.
+-	if ctxt.Mode == 0 {
+-		switch ctxt.Arch.Family {
+-		default:
+-			ctxt.Diag("unsupported arch family")
+-		case sys.MIPS:
+-			ctxt.Mode = Mips32
+-		case sys.MIPS64:
+-			ctxt.Mode = Mips64
+-		}
+-	}
+-
+ 	p.From.Class = 0
+ 	p.To.Class = 0
+ 
+@@ -89,7 +77,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	case AMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			i64 := math.Float64bits(p.From.Val.(float64))
+-			if i64 == 0 && ctxt.Mode&Mips64 != 0 {
++			if i64 == 0 && ctxt.Arch.Family == sys.MIPS64 {
+ 				p.As = AMOVV
+ 				p.From.Type = obj.TYPE_REG
+ 				p.From.Reg = REGZERO
+@@ -285,7 +273,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ 
+ 	var mov, add obj.As
+-	if ctxt.Mode&Mips64 != 0 {
++	if ctxt.Arch.Family == sys.MIPS64 {
+ 		add = AADDV
+ 		mov = AMOVV
+ 	} else {
+@@ -303,7 +291,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			autosize = int32(textstksiz + ctxt.FixedFrameSize())
+ 			if (p.Mark&LEAF != 0) && autosize <= int32(ctxt.FixedFrameSize()) {
+ 				autosize = 0
+-			} else if autosize&4 != 0 && ctxt.Mode&Mips64 != 0 {
++			} else if autosize&4 != 0 && ctxt.Arch.Family == sys.MIPS64 {
+ 				autosize += 4
+ 			}
+ 
+@@ -534,7 +522,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		}
+ 	}
+ 
+-	if ctxt.Mode&Mips32 != 0 {
++	if ctxt.Arch.Family == sys.MIPS {
+ 		// rewrite MOVD into two MOVF in 32-bit mode to avoid unaligned memory access
+ 		for p = cursym.Text; p != nil; p = p1 {
+ 			p1 = p.Link
+@@ -633,7 +621,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 
+ 	var mov, add, sub obj.As
+ 
+-	if ctxt.Mode&Mips64 != 0 {
++	if ctxt.Arch.Family == sys.MIPS64 {
+ 		add = AADDV
+ 		mov = AMOVV
+ 		sub = ASUBVU
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 013ccce556..5d649accc1 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -32,6 +32,7 @@ package x86
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/sys"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"log"
+@@ -3299,7 +3300,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 		if ycover[ft+int(yt.from)] != 0 && ycover[f3t+int(yt.from3)] != 0 && ycover[tt+int(yt.to)] != 0 {
+ 			switch o.prefix {
+ 			case Px1: /* first option valid only in 32-bit mode */
+-				if ctxt.Mode == 64 && z == 0 {
++				if ctxt.Arch.Family == sys.AMD64 && z == 0 {
+ 					z += int(yt.zoffset) + xo
+ 					continue
+ 				}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 8161419602..84fe9d7df1 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -73,11 +73,8 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ }
+ 
+ func progedit(ctxt *obj.Link, p *obj.Prog) {
+-	// Maintain information about code generation mode.
+-	if ctxt.Mode == 0 {
+-		ctxt.Mode = ctxt.Arch.RegSize * 8
+-	}
+-	p.Mode = int8(ctxt.Mode)
++	// TODO(josharian): eliminate Prog.Mode
++	p.Mode = int8(ctxt.Arch.RegSize * 8)
+ 
+ 	// Thread-local storage references use the TLS pseudo-register.
+ 	// As a register, TLS refers to the thread-local storage base, and it
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index 22c8c321b0..b2f8d0b8cb 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -12,7 +12,8 @@ import "encoding/binary"
+ type ArchFamily byte
+ 
+ const (
+-	AMD64 ArchFamily = iota
++	NoArch ArchFamily = iota
++	AMD64
+ 	ARM
+ 	ARM64
+ 	I386

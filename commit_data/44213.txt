@@ -12,6 +12,20 @@ Date:   Thu May 21 00:09:34 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/run.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bat b/src/run.bat
+index 896c4ac3ec..69c181854b 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -30,7 +30,7 @@ rem TODO avoid rebuild if possible
+ 
+ if x%1==x--no-rebuild goto norebuild
+ echo ##### Building packages and commands.
+-go install -a -v std cmd
++..\bin\go install -a -v std cmd
+ if errorlevel 1 goto fail
+ echo.
+ :norebuild

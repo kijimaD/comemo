@@ -12,6 +12,22 @@ Date:   Tue Jul 21 11:17:08 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index aebb966b02..a6353f580f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -746,6 +746,10 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
+ }
+ 
+ func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
++	if testing.Short() {
++		t.Skip("don't install into GOROOT in short mode")
++	}
++
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.tempFile("src/mycmd/x.go", `package main

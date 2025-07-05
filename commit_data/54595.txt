@@ -13,7 +13,43 @@ Date:   Thu Nov 3 03:46:23 2022 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/printer/printer.go | 2 +-
  src/image/format.go       | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 7f96c226dc..741e3f782c 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -1040,7 +1040,7 @@ func (p *printer) flush(next token.Position, tok token.Token) (wroteNewline, dro
+ 	return
+ }
+ 
+-// getNode returns the ast.CommentGroup associated with n, if any.
++// getDoc returns the ast.CommentGroup associated with n, if any.
+ func getDoc(n ast.Node) *ast.CommentGroup {
+ 	switch n := n.(type) {
+ 	case *ast.Field:
+diff --git a/src/image/format.go b/src/image/format.go
+index a53b8f9b55..51d7ad9021 100644
+--- a/src/image/format.go
++++ b/src/image/format.go
+@@ -55,7 +55,7 @@ func asReader(r io.Reader) reader {
+ 	return bufio.NewReader(r)
+ }
+ 
+-// Match reports whether magic matches b. Magic may contain "?" wildcards.
++// match reports whether magic matches b. Magic may contain "?" wildcards.
+ func match(magic string, b []byte) bool {
+ 	if len(magic) != len(b) {
+ 		return false
+@@ -68,7 +68,7 @@ func match(magic string, b []byte) bool {
+ 	return true
+ }
+ 
+-// Sniff determines the format of r's data.
++// sniff determines the format of r's data.
+ func sniff(r reader) format {
+ 	formats, _ := atomicFormats.Load().([]format)
+ 	for _, f := range formats {

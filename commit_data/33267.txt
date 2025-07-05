@@ -16,7 +16,59 @@ Date:   Tue Aug 8 15:58:27 2017 -0400
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/ctxutil.go  |  8 ++++----
  src/database/sql/sql_test.go | 14 ++++++++++++++
  2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/database/sql/ctxutil.go b/src/database/sql/ctxutil.go
+index bd652b5462..b73ee86594 100644
+--- a/src/database/sql/ctxutil.go
++++ b/src/database/sql/ctxutil.go
+@@ -107,10 +107,6 @@ func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (drive
+ 		return ciCtx.BeginTx(ctx, dopts)
+ 	}
+ 
+-	if ctx.Done() == context.Background().Done() {
+-		return ci.Begin()
+-	}
+-
+ 	if opts != nil {
+ 		// Check the transaction level. If the transaction level is non-default
+ 		// then return an error here as the BeginTx driver value is not supported.
+@@ -125,6 +121,10 @@ func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (drive
+ 		}
+ 	}
+ 
++	if ctx.Done() == context.Background().Done() {
++		return ci.Begin()
++	}
++
+ 	txi, err := ci.Begin()
+ 	if err == nil {
+ 		select {
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index c935eb4348..644769442e 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -439,6 +439,20 @@ func TestTxContextWait(t *testing.T) {
+ 	waitForFree(t, db, 5*time.Second, 0)
+ }
+ 
++// TestUnsupportedOptions checks that the database fails when a driver that
++// doesn't implement ConnBeginTx is used with non-default options and an
++// un-cancellable context.
++func TestUnsupportedOptions(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++	_, err := db.BeginTx(context.Background(), &TxOptions{
++		Isolation: LevelSerializable, ReadOnly: true,
++	})
++	if err == nil {
++		t.Fatal("expected error when using unsupported options, got nil")
++	}
++}
++
+ func TestMultiResultSetQuery(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)

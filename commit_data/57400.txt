@@ -30,6 +30,26 @@ Date:   Thu Aug 3 13:52:00 2023 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/panic.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index d3aaa20cbc..1ed40c71a4 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -638,6 +638,14 @@ func (p *_panic) start(pc uintptr, sp unsafe.Pointer) {
+ 	if !p.deferreturn {
+ 		p.link = gp._panic
+ 		gp._panic = (*_panic)(noescape(unsafe.Pointer(p)))
++	} else {
++		// Fast path for deferreturn: if there's a pending linked defer
++		// for this frame, then we know there aren't any open-coded
++		// defers, and we don't need to find the parent frame either.
++		if d := gp._defer; d != nil && d.sp == uintptr(sp) {
++			p.sp = sp
++			return
++		}
+ 	}
+ 
+ 	// Initialize state machine, and find the first frame with a defer.

@@ -12,6 +12,20 @@ Date:   Sat May 20 01:14:32 2023 +0800
     Run-TryBot: xie cui <523516579@qq.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/maps/maps_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/maps/maps_test.go b/src/maps/maps_test.go
+index bab884ef35..e7670839c9 100644
+--- a/src/maps/maps_test.go
++++ b/src/maps/maps_test.go
+@@ -38,7 +38,7 @@ func TestKeys(t *testing.T) {
+ 	var m = make(map[int]int)
+ 	for i := 0; i < 840; i++ {
+ 		want3 = append(want3, i)
+-		m[i] = i
++		m[i] = i * i
+ 	}
+ 
+ 	got3 := Keys(m)

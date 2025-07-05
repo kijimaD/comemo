@@ -8,9 +8,126 @@ Date:   Thu Dec 3 00:10:32 2009 -0800
     
     R=ken2
     https://golang.org/cl/164092
-
+---
  src/cmd/gc/go.y                       | 35 +++++++++++++++++++++++++++--------
  test/fixedbugs/bug222.dir/chanbug.go  |  5 +++++
  test/fixedbugs/bug222.dir/chanbug2.go |  2 ++
  test/fixedbugs/bug222.go              |  7 +++++++
  4 files changed, 41 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 8413df64fc..493dbeecc0 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -85,7 +85,9 @@
+ %type	<list>	hidden_interfacedcl_list ohidden_interfacedcl_list
+ %type	<list>	hidden_structdcl_list ohidden_structdcl_list
+ 
+-%type	<type>	hidden_type hidden_type1 hidden_type2 hidden_pkgtype
++%type	<type>	hidden_type hidden_type_misc hidden_pkgtype
++%type	<type>	hidden_type_func hidden_type_non_func
++%type	<type>	hidden_type_chan hidden_type_non_chan
+ 
+ %left		LOROR
+ %left		LANDAND
+@@ -1613,10 +1615,19 @@ hidden_pkgtype:
+ 	}
+ 
+ hidden_type:
+-	hidden_type1
+-|	hidden_type2
++	hidden_type_misc
++|	hidden_type_chan
++|	hidden_type_func
+ 
+-hidden_type1:
++hidden_type_non_chan:
++	hidden_type_misc
++|	hidden_type_func
++
++hidden_type_non_func:
++	hidden_type_misc
++|	hidden_type_chan
++
++hidden_type_misc:
+ 	hidden_importsym
+ 	{
+ 		$$ = pkgtype($1);
+@@ -1662,25 +1673,33 @@ hidden_type1:
+ 		$$->type = $3;
+ 		$$->chan = Crecv;
+ 	}
+-|	LCHAN LCOMM hidden_type1
++|	LCHAN LCOMM hidden_type_non_chan
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = Csend;
+ 	}
++|	LCHAN LCOMM '(' hidden_type_chan ')'
++	{
++		$$ = typ(TCHAN);
++		$$->type = $4;
++		$$->chan = Csend;
++	}
+ |	LDDD
+ 	{
+ 		$$ = typ(TDDD);
+ 	}
+ 
+-hidden_type2:
++hidden_type_chan:
+ 	LCHAN hidden_type
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $2;
+ 		$$->chan = Cboth;
+ 	}
+-|	LFUNC '(' ohidden_funarg_list ')' ohidden_funres
++
++hidden_type_func:
++	LFUNC '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+ 		$$ = functype(nil, $3, $5);
+ 	}
+@@ -1732,7 +1751,7 @@ hidden_funres:
+ 	{
+ 		$$ = $2;
+ 	}
+-|	hidden_type1
++|	hidden_type_non_func
+ 	{
+ 		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
+ 	}
+diff --git a/test/fixedbugs/bug222.dir/chanbug.go b/test/fixedbugs/bug222.dir/chanbug.go
+new file mode 100644
+index 0000000000..9194927b57
+--- /dev/null
++++ b/test/fixedbugs/bug222.dir/chanbug.go
+@@ -0,0 +1,5 @@
++package chanbug
++var C chan<- (chan int)
++var D chan<- func()
++var E func() chan int
++var F func() (func())
+diff --git a/test/fixedbugs/bug222.dir/chanbug2.go b/test/fixedbugs/bug222.dir/chanbug2.go
+new file mode 100644
+index 0000000000..73e16678e9
+--- /dev/null
++++ b/test/fixedbugs/bug222.dir/chanbug2.go
+@@ -0,0 +1,2 @@
++package Bar
++import _ "chanbug"
+diff --git a/test/fixedbugs/bug222.go b/test/fixedbugs/bug222.go
+new file mode 100644
+index 0000000000..5c23a533d1
+--- /dev/null
++++ b/test/fixedbugs/bug222.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/chanbug.go && $G -I. $D/$F.dir/chanbug2.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++ignored

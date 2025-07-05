@@ -9,7 +9,32 @@ Date:   Tue Oct 8 16:53:56 2013 +1100
     R=gobot
     CC=golang-dev
     https://golang.org/cl/14502047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8c3458d8bd..4d414468ca 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -323,6 +323,7 @@ Thomas Kappler <tkappler@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tobias Columbus <tobias.columbus@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
++Tw <tw19881113@gmail.com>
+ Tyler Bunnell <tylerbunnell@gmail.com>
+ Ugorji Nwoke <ugorji@gmail.com>
+ Ulf Holm Nielsen <doktor@dyregod.dk>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 83e08e7182..7439613f52 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -457,6 +457,7 @@ Todd Wang <toddwang@gmail.com>
+ Tom Szymanski <tgs@google.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
++Tw <tw19881113@gmail.com>
+ Tyler Bunnell <tylerbunnell@gmail.com>
+ Ugorji Nwoke <ugorji@gmail.com>
+ Ulf Holm Nielsen <doktor@dyregod.dk>

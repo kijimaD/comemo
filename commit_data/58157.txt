@@ -15,10 +15,100 @@ Date:   Fri Oct 6 16:45:12 2023 +1100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go         |  2 +-
  src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  2 --
  src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  6 ------
  src/cmd/compile/internal/ssa/opGen.go           | 14 --------------
  src/cmd/compile/internal/ssa/rewriteRISCV64.go  |  3 ---
  5 files changed, 1 insertion(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 63dfc04d40..332f5841b7 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -193,7 +193,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// input args need no code
+ 	case ssa.OpPhi:
+ 		ssagen.CheckLoweredPhi(v)
+-	case ssa.OpCopy, ssa.OpRISCV64MOVconvert, ssa.OpRISCV64MOVDreg:
++	case ssa.OpCopy, ssa.OpRISCV64MOVDreg:
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index 837c0e18f6..4cacabb236 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -397,8 +397,6 @@
+ 		(ADD <ptr.Type> ptr (MOVDconst [s-moveSize(t.Alignment(), config)]))
+ 		mem)
+ 
+-(Convert ...) => (MOVconvert ...)
+-
+ // Checks
+ (IsNonNil ...) => (SNEZ ...)
+ (IsInBounds ...) => (Less64U ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index 47ba20a66b..360eff6bcf 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -233,12 +233,6 @@ func init() {
+ 		{name: "SLTU", argLength: 2, reg: gp21, asm: "SLTU"},                 // arg0 < arg1, unsigned, result is 0 or 1
+ 		{name: "SLTIU", argLength: 1, reg: gp11, asm: "SLTIU", aux: "Int64"}, // arg0 < auxint, unsigned, result is 0 or 1
+ 
+-		// MOVconvert converts between pointers and integers.
+-		// We have a special op for this so as to not confuse GC
+-		// (particularly stack maps). It takes a memory arg so it
+-		// gets correctly ordered with respect to GC safepoints.
+-		{name: "MOVconvert", argLength: 2, reg: gp11, asm: "MOV"}, // arg0, but converted to int/ptr as appropriate; arg1=mem
+-
+ 		// Round ops to block fused-multiply-add extraction.
+ 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
+ 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 2e4b376cb0..ded1bc648c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2401,7 +2401,6 @@ const (
+ 	OpRISCV64SLTI
+ 	OpRISCV64SLTU
+ 	OpRISCV64SLTIU
+-	OpRISCV64MOVconvert
+ 	OpRISCV64LoweredRound32F
+ 	OpRISCV64LoweredRound64F
+ 	OpRISCV64CALLstatic
+@@ -32222,19 +32221,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:   "MOVconvert",
+-		argLen: 2,
+-		asm:    riscv.AMOV,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+-			},
+-			outputs: []outputInfo{
+-				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+-			},
+-		},
+-	},
+ 	{
+ 		name:         "LoweredRound32F",
+ 		argLen:       1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 02629de3ae..7d16fe887f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -132,9 +132,6 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpConstBool(v)
+ 	case OpConstNil:
+ 		return rewriteValueRISCV64_OpConstNil(v)
+-	case OpConvert:
+-		v.Op = OpRISCV64MOVconvert
+-		return true
+ 	case OpCopysign:
+ 		v.Op = OpRISCV64FSGNJD
+ 		return true

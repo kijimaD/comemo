@@ -9,7 +9,32 @@ Date:   Mon Aug 19 10:45:06 2013 +1000
     R=gobot
     CC=golang-dev
     https://golang.org/cl/13096043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 69db1d7ed4..ca89e0066b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -200,6 +200,7 @@ Lorenzo Stoakes <lstoakes@gmail.com>
+ Luca Greco <luca.greco@alcacoop.it>
+ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
++Marco Hennings <marco.hennings@freiheit.com>
+ Markus Duft <markus.duft@salomon.at>
+ Markus Sonderegger <marraison@gmail.com>
+ Martin Neubauer <m.ne@gmx.net>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e059c686ee..f8f923b055 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -296,6 +296,7 @@ Luit van Drongelen <luitvd@gmail.com>
+ Luuk van Dijk <lvd@golang.org> <lvd@google.com>
+ Manu Garg <manugarg@google.com>
+ Marcel van Lohuizen <mpvl@golang.org>
++Marco Hennings <marco.hennings@freiheit.com>
+ Mark Zavislak <zavislak@google.com>
+ Markus Duft <markus.duft@salomon.at>
+ Markus Sonderegger <marraison@gmail.com>

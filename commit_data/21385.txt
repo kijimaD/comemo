@@ -14,7 +14,7 @@ Date:   Sun Dec 28 23:16:32 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/2154
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/heapdump.go  |  4 ++--
  src/runtime/malloc.go    | 14 --------------
  src/runtime/mgc.go       | 10 +++++-----
@@ -28,3 +28,358 @@ Date:   Sun Dec 28 23:16:32 2014 -0800
  src/runtime/symtab.go    | 18 +++++++++---------
  src/runtime/traceback.go | 12 ++++++------
  12 files changed, 35 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 5b219bb484..13adb56fcb 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -274,7 +274,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 	dumpint(uint64(f.entry))
+ 	dumpint(uint64(s.pc))
+ 	dumpint(uint64(s.continpc))
+-	name := gofuncname(f)
++	name := funcname(f)
+ 	if name == "" {
+ 		name = "unknown function"
+ 	}
+@@ -598,7 +598,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs,
+ 			dumpstr("?")
+ 			dumpint(0)
+ 		} else {
+-			dumpstr(gofuncname(f))
++			dumpstr(funcname(f))
+ 			if i > 0 && pc > f.entry {
+ 				pc--
+ 			}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d6353d95fd..bb23b80c93 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -415,20 +415,6 @@ func rawmem(size uintptr) unsafe.Pointer {
+ 	return mallocgc(size, nil, flagNoScan|flagNoZero)
+ }
+ 
+-// round size up to next size class
+-func goroundupsize(size uintptr) uintptr {
+-	if size < maxSmallSize {
+-		if size <= 1024-8 {
+-			return uintptr(class_to_size[size_to_class8[(size+7)>>3]])
+-		}
+-		return uintptr(class_to_size[size_to_class128[(size-1024+127)>>7]])
+-	}
+-	if size+pageSize < size {
+-		return size
+-	}
+-	return (size + pageSize - 1) &^ pageMask
+-}
+-
+ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ 	c := mp.mcache
+ 	rate := MemProfileRate
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 252604296e..32643e9d7f 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -885,7 +885,7 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
+ 		return true
+ 	}
+ 	if _DebugGC > 1 {
+-		print("scanframe ", gofuncname(f), "\n")
++		print("scanframe ", funcname(f), "\n")
+ 	}
+ 	if targetpc != f.entry {
+ 		targetpc--
+@@ -909,14 +909,14 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
+ 	if size > minsize {
+ 		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+ 		if stkmap == nil || stkmap.n <= 0 {
+-			print("runtime: frame ", gofuncname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
++			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
+ 			throw("missing stackmap")
+ 		}
+ 
+ 		// Locals bitmap information, scan just the pointers in locals.
+ 		if pcdata < 0 || pcdata >= stkmap.n {
+ 			// don't know where we are
+-			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", gofuncname(f), " (targetpc=", targetpc, ")\n")
++			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
+ 			throw("scanframe: bad symbol table")
+ 		}
+ 		bv := stackmapdata(stkmap, pcdata)
+@@ -932,12 +932,12 @@ func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
+ 		} else {
+ 			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+ 			if stkmap == nil || stkmap.n <= 0 {
+-				print("runtime: frame ", gofuncname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
++				print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
+ 				throw("missing stackmap")
+ 			}
+ 			if pcdata < 0 || pcdata >= stkmap.n {
+ 				// don't know where we are
+-				print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " args stack map entries for ", gofuncname(f), " (targetpc=", targetpc, ")\n")
++				print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " args stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
+ 				throw("scanframe: bad symbol table")
+ 			}
+ 			bv = stackmapdata(stkmap, pcdata)
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index ff1ef2a85e..2e3ed3f5e8 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -130,7 +130,7 @@ func testdefersizes() {
+ 		if defersc >= uintptr(len(m)) {
+ 			break
+ 		}
+-		siz := goroundupsize(totaldefersize(i))
++		siz := roundupsize(totaldefersize(i))
+ 		if m[defersc] < 0 {
+ 			m[defersc] = int32(siz)
+ 			continue
+@@ -173,7 +173,7 @@ func newdefer(siz int32) *_defer {
+ 	}
+ 	if d == nil {
+ 		// Allocate new defer+args.
+-		total := goroundupsize(totaldefersize(uintptr(siz)))
++		total := roundupsize(totaldefersize(uintptr(siz)))
+ 		d = (*_defer)(mallocgc(total, deferType, 0))
+ 	}
+ 	d.siz = siz
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 32c9754fa9..118351c450 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -126,7 +126,7 @@ func schedinit() {
+ 
+ 	sched.lastpoll = uint64(nanotime())
+ 	procs := 1
+-	if n := goatoi(gogetenv("GOMAXPROCS")); n > 0 {
++	if n := atoi(gogetenv("GOMAXPROCS")); n > 0 {
+ 		if n > _MaxGomaxprocs {
+ 			n = _MaxGomaxprocs
+ 		}
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 649cd7295c..e7703ba770 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -79,7 +79,7 @@ func racesymbolize(ctx *symbolizeContext) {
+ 		return
+ 	}
+ 
+-	ctx.fn = funcname(f)
++	ctx.fn = cfuncname(f)
+ 	file, line := funcline(f, ctx.pc)
+ 	ctx.line = uintptr(line)
+ 	ctx.file = &bytes(file)[0] // assume NUL-terminated
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 6b806da2b6..4c61751db0 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -331,7 +331,7 @@ func parsedebugvars() {
+ 		key, value := field[:i], field[i+1:]
+ 		for _, v := range dbgvars {
+ 			if v.name == key {
+-				*v.value = int32(goatoi(value))
++				*v.value = int32(atoi(value))
+ 			}
+ 		}
+ 	}
+@@ -342,7 +342,7 @@ func parsedebugvars() {
+ 	case "crash":
+ 		traceback_cache = 2<<1 | 1
+ 	default:
+-		traceback_cache = uint32(goatoi(p)) << 1
++		traceback_cache = uint32(atoi(p)) << 1
+ 	}
+ }
+ 
+@@ -417,5 +417,5 @@ func readgogc() int32 {
+ 	if p == "off" {
+ 		return -1
+ 	}
+-	return int32(goatoi(p))
++	return int32(atoi(p))
+ }
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 93cea5cc38..4fb2adc1f9 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -76,7 +76,7 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
+ 		panic(errorString("growslice: cap out of range"))
+ 	}
+ 	lenmem := uintptr(old.len) * uintptr(et.size)
+-	capmem := goroundupsize(uintptr(newcap) * uintptr(et.size))
++	capmem := roundupsize(uintptr(newcap) * uintptr(et.size))
+ 	newcap = int(capmem / uintptr(et.size))
+ 	var p unsafe.Pointer
+ 	if et.kind&kindNoPointers != 0 {
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 6e6569f55e..8b32eb6d16 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -393,12 +393,12 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
+ 				// Looks like a junk value in a pointer slot.
+ 				// Live analysis wrong?
+ 				getg().m.traceback = 2
+-				print("runtime: bad pointer in frame ", gofuncname(f), " at ", add(scanp, i*ptrSize), ": ", p, "\n")
++				print("runtime: bad pointer in frame ", funcname(f), " at ", add(scanp, i*ptrSize), ": ", p, "\n")
+ 				throw("invalid stack pointer")
+ 			}
+ 			if minp <= up && up < maxp {
+ 				if stackDebug >= 3 {
+-					print("adjust ptr ", p, " ", gofuncname(f), "\n")
++					print("adjust ptr ", p, " ", funcname(f), "\n")
+ 				}
+ 				*(*unsafe.Pointer)(add(scanp, i*ptrSize)) = unsafe.Pointer(up + delta)
+ 			}
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 78c4cb3e5e..96f9579624 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -207,7 +207,7 @@ func rawstring(size int) (s string, b []byte) {
+ 
+ // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
+ func rawbyteslice(size int) (b []byte) {
+-	cap := goroundupsize(uintptr(size))
++	cap := roundupsize(uintptr(size))
+ 	p := mallocgc(cap, nil, flagNoScan|flagNoZero)
+ 	if cap != uintptr(size) {
+ 		memclr(add(p, uintptr(size)), cap-uintptr(size))
+@@ -224,7 +224,7 @@ func rawruneslice(size int) (b []rune) {
+ 	if uintptr(size) > _MaxMem/4 {
+ 		throw("out of memory")
+ 	}
+-	mem := goroundupsize(uintptr(size) * 4)
++	mem := roundupsize(uintptr(size) * 4)
+ 	p := mallocgc(mem, nil, flagNoScan|flagNoZero)
+ 	if mem != uintptr(size)*4 {
+ 		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
+@@ -290,7 +290,7 @@ func hasprefix(s, t string) bool {
+ 	return len(s) >= len(t) && s[:len(t)] == t
+ }
+ 
+-func goatoi(s string) int {
++func atoi(s string) int {
+ 	n := 0
+ 	for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+ 		n = n*10 + int(s[0]) - '0'
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 03d394d268..305d54588d 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -73,11 +73,11 @@ func symtabinit() {
+ 			f2 := (*_func)(unsafe.Pointer(&pclntable[ftab[i+1].funcoff]))
+ 			f2name := "end"
+ 			if i+1 < nftab {
+-				f2name = gofuncname(f2)
++				f2name = funcname(f2)
+ 			}
+-			println("function symbol table not sorted by program counter:", hex(ftab[i].entry), gofuncname(f1), ">", hex(ftab[i+1].entry), f2name)
++			println("function symbol table not sorted by program counter:", hex(ftab[i].entry), funcname(f1), ">", hex(ftab[i+1].entry), f2name)
+ 			for j := 0; j <= i; j++ {
+-				print("\t", hex(ftab[j].entry), " ", gofuncname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))), "\n")
++				print("\t", hex(ftab[j].entry), " ", funcname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))), "\n")
+ 			}
+ 			throw("invalid runtime symbol table")
+ 		}
+@@ -106,7 +106,7 @@ func FuncForPC(pc uintptr) *Func {
+ 
+ // Name returns the name of the function.
+ func (f *Func) Name() string {
+-	return gofuncname(f.raw())
++	return funcname(f.raw())
+ }
+ 
+ // Entry returns the entry address of the function.
+@@ -178,7 +178,7 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
+ 		return -1
+ 	}
+ 
+-	print("runtime: invalid pc-encoded table f=", gofuncname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
++	print("runtime: invalid pc-encoded table f=", funcname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
+ 
+ 	p = pclntable[off:]
+ 	pc = f.entry
+@@ -196,22 +196,22 @@ func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
+ 	return -1
+ }
+ 
+-func funcname(f *_func) *byte {
++func cfuncname(f *_func) *byte {
+ 	if f == nil || f.nameoff == 0 {
+ 		return nil
+ 	}
+ 	return (*byte)(unsafe.Pointer(&pclntable[f.nameoff]))
+ }
+ 
+-func gofuncname(f *_func) string {
+-	return gostringnocopy(funcname(f))
++func funcname(f *_func) string {
++	return gostringnocopy(cfuncname(f))
+ }
+ 
+ func funcline1(f *_func, targetpc uintptr, strict bool) (file string, line int32) {
+ 	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
+ 	line = pcvalue(f, f.pcln, targetpc, strict)
+ 	if fileno == -1 || line == -1 || fileno >= len(filetab) {
+-		// print("looking for ", hex(targetpc), " in ", gofuncname(f), " got file=", fileno, " line=", lineno, "\n")
++		// print("looking for ", hex(targetpc), " in ", funcname(f), " got file=", fileno, " line=", lineno, "\n")
+ 		return "?", 0
+ 	}
+ 	file = gostringnocopy(&pclntable[filetab[fileno]])
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 76d63b95cf..499256f42d 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -220,7 +220,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 				// But if callback is set, we're doing a garbage collection and must
+ 				// get everything, so crash loudly.
+ 				if callback != nil {
+-					print("runtime: unexpected return pc for ", gofuncname(f), " called from ", hex(frame.lr), "\n")
++					print("runtime: unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
+ 					throw("unknown caller pc")
+ 				}
+ 			}
+@@ -293,7 +293,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+ 					tracepc--
+ 				}
+-				print(gofuncname(f), "(")
++				print(funcname(f), "(")
+ 				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
+ 				for i := uintptr(0); i < frame.arglen/ptrSize; i++ {
+ 					if i >= 10 {
+@@ -421,7 +421,7 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
+ 	frame.arglen = uintptr(f.args)
+ 	if needArgMap && f.args == _ArgsSizeUnknown {
+ 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
+-		switch gofuncname(f) {
++		switch funcname(f) {
+ 		case "reflect.makeFuncStub", "reflect.methodValueCall":
+ 			arg0 := frame.sp
+ 			if usesLR {
+@@ -429,7 +429,7 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
+ 			}
+ 			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
+ 			if fn[0] != f.entry {
+-				print("runtime: confused by ", gofuncname(f), "\n")
++				print("runtime: confused by ", funcname(f), "\n")
+ 				throw("reflect mismatch")
+ 			}
+ 			bv := (*bitvector)(unsafe.Pointer(fn[1]))
+@@ -444,7 +444,7 @@ func printcreatedby(gp *g) {
+ 	pc := gp.gopc
+ 	f := findfunc(pc)
+ 	if f != nil && showframe(f, gp) && gp.goid != 1 {
+-		print("created by ", gofuncname(f), "\n")
++		print("created by ", funcname(f), "\n")
+ 		tracepc := pc // back up to CALL instruction for funcline.
+ 		if pc > f.entry {
+ 			tracepc -= _PCQuantum
+@@ -512,7 +512,7 @@ func showframe(f *_func, gp *g) bool {
+ 		return true
+ 	}
+ 	traceback := gotraceback(nil)
+-	name := gostringnocopy(funcname(f))
++	name := funcname(f)
+ 
+ 	// Special case: always show runtime.panic frame, so that we can
+ 	// see where a panic started in the middle of a stack trace.

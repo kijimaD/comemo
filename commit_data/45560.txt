@@ -22,7 +22,7 @@ Date:   Fri May 8 10:51:29 2020 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/233277
     Trust: fannie zhang <Fannie.Zhang@arm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go             |  13 ++-
  src/cmd/asm/internal/asm/asm.go                |  18 +++-
  src/cmd/asm/internal/asm/testdata/arm64.s      |  18 ++++
@@ -37,3 +37,640 @@ Date:   Fri May 8 10:51:29 2020 +0800
  src/cmd/internal/obj/util.go                   |  15 ++-
  src/cmd/internal/obj/x86/asm6.go               |   6 +-
  13 files changed, 266 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index e643889aef..e557630ca6 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -75,7 +75,7 @@ func IsARM64STLXR(op obj.As) bool {
+ 		arm64.ASTXP, arm64.ASTXPW, arm64.ASTLXP, arm64.ASTLXPW:
+ 		return true
+ 	}
+-	// atomic instructions
++	// LDADDx/SWPx/CASx atomic instructions
+ 	if arm64.IsAtomicInstruction(op) {
+ 		return true
+ 	}
+@@ -93,6 +93,17 @@ func IsARM64TBL(op obj.As) bool {
+ 	return false
+ }
+ 
++// IsARM64CASP reports whether the op (as defined by an arm64.A*
++// constant) is one of the CASP-like instructions, and its 2nd
++// destination is a register pair that require special handling.
++func IsARM64CASP(op obj.As) bool {
++	switch op {
++	case arm64.ACASPD, arm64.ACASPW:
++		return true
++	}
++	return false
++}
++
+ // ARM64Suffix handles the special suffix for the ARM64.
+ // It returns a boolean to indicate success; failure means
+ // cond was unrecognized.
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index b9efa454ed..c4032759bb 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -637,6 +637,18 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				prog.From = a[0]
+ 				prog.SetFrom3(a[1])
+ 				prog.To = a[2]
++			case arch.IsARM64CASP(op):
++				prog.From = a[0]
++				prog.To = a[1]
++				// both 1st operand and 3rd operand are (Rs, Rs+1) register pair.
++				// And the register pair must be contiguous.
++				if (a[0].Type != obj.TYPE_REGREG) || (a[2].Type != obj.TYPE_REGREG) {
++					p.errorf("invalid addressing modes for 1st or 3rd operand to %s instruction, must be register pair", op)
++					return
++				}
++				// For ARM64 CASP-like instructions, its 2nd destination operand is register pair(Rt, Rt+1) that can
++				// not fit into prog.RegTo2, so save it to the prog.RestArgs.
++				prog.SetTo2(a[2])
+ 			default:
+ 				prog.From = a[0]
+ 				prog.Reg = p.getRegister(prog, op, &a[1])
+@@ -725,7 +737,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 		}
+ 		if p.arch.Family == sys.AMD64 {
+ 			prog.From = a[0]
+-			prog.RestArgs = []obj.Addr{a[1], a[2]}
++			prog.SetRestArgs([]obj.Addr{a[1], a[2]})
+ 			prog.To = a[3]
+ 			break
+ 		}
+@@ -808,13 +820,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 		}
+ 		if p.arch.Family == sys.AMD64 {
+ 			prog.From = a[0]
+-			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
++			prog.SetRestArgs([]obj.Addr{a[1], a[2], a[3]})
+ 			prog.To = a[4]
+ 			break
+ 		}
+ 		if p.arch.Family == sys.S390X {
+ 			prog.From = a[0]
+-			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
++			prog.SetRestArgs([]obj.Addr{a[1], a[2], a[3]})
+ 			prog.To = a[4]
+ 			break
+ 		}
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 7943990e16..5547cf634c 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -777,6 +777,24 @@ again:
+ 	LDORLH	R5, (RSP), R7                        // e7336578
+ 	LDORLB	R5, (R6), R7                         // c7306538
+ 	LDORLB	R5, (RSP), R7                        // e7336538
++	CASD	R1, (R2), ZR                         // 5f7ca1c8
++	CASW	R1, (RSP), ZR                        // ff7fa188
++	CASB	ZR, (R5), R3                         // a37cbf08
++	CASH	R3, (RSP), ZR                        // ff7fa348
++	CASW	R5, (R7), R6                         // e67ca588
++	CASLD	ZR, (RSP), R8                        // e8ffbfc8
++	CASLW	R9, (R10), ZR                        // 5ffda988
++	CASAD	R7, (R11), R15                       // 6f7de7c8
++	CASAW	R10, (RSP), R19                      // f37fea88
++	CASALD	R5, (R6), R7                         // c7fce5c8
++	CASALD	R5, (RSP), R7                        // e7ffe5c8
++	CASALW	R5, (R6), R7                         // c7fce588
++	CASALW	R5, (RSP), R7                        // e7ffe588
++	CASALH	ZR, (R5), R8                         // a8fcff48
++	CASALB	R8, (R9), ZR                         // 3ffde808
++	CASPD	(R30, ZR), (RSP), (R8, R9)           // e87f3e48
++	CASPW	(R6, R7), (R8), (R4, R5)             // 047d2608
++	CASPD	(R2, R3), (R2), (R8, R9)             // 487c2248
+ 
+ // RET
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index c3a617066a..99e4d62d25 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -357,4 +357,8 @@ TEXT errors(SB),$0
+ 	VUADDW2	V9.B8, V12.S4, V14.S4                            // ERROR "operand mismatch"
+ 	VSLI	$64, V7.D2, V8.D2                                // ERROR "shift out of range"
+ 	VUSRA   $0, V7.D2, V8.D2                                 // ERROR "shift out of range"
++	CASPD	(R3, R4), (R2), (R8, R9)                         // ERROR "source register pair must start from even register"
++	CASPD	(R2, R3), (R2), (R9, R10)                        // ERROR "destination register pair must start from even register"
++	CASPD	(R2, R4), (R2), (R8, R9)                         // ERROR "source register pair must be contiguous"
++	CASPD	(R2, R3), (R2), (R8, R10)                        // ERROR "destination register pair must be contiguous"
+ 	RET
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index e23b31f385..84b9f491e4 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -182,11 +182,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		i := v.Aux.(s390x.RotateParams)
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i.Start)}
+-		p.RestArgs = []obj.Addr{
++		p.SetRestArgs([]obj.Addr{
+ 			{Type: obj.TYPE_CONST, Offset: int64(i.End)},
+ 			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
+ 			{Type: obj.TYPE_REG, Reg: r2},
+-		}
++		})
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
+ 	case ssa.OpS390XADD, ssa.OpS390XADDW,
+ 		ssa.OpS390XSUB, ssa.OpS390XSUBW,
+@@ -913,7 +913,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(s390x.NotEqual & s390x.NotUnordered) // unordered is not possible
+ 		p.Reg = s390x.REG_R3
+-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: 0}}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 0})
+ 		if b.Succs[0].Block() != next {
+ 			s.Br(s390x.ABR, b.Succs[0].Block())
+ 		}
+@@ -956,17 +956,17 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
+ 		p.Reg = b.Controls[0].Reg()
+-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_REG, Reg: b.Controls[1].Reg()}}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: b.Controls[1].Reg()})
+ 	case ssa.BlockS390XCGIJ, ssa.BlockS390XCIJ:
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
+ 		p.Reg = b.Controls[0].Reg()
+-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: int64(int8(b.AuxInt))}}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(int8(b.AuxInt))})
+ 	case ssa.BlockS390XCLGIJ, ssa.BlockS390XCLIJ:
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
+ 		p.Reg = b.Controls[0].Reg()
+-		p.RestArgs = []obj.Addr{{Type: obj.TYPE_CONST, Offset: int64(uint8(b.AuxInt))}}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(uint8(b.AuxInt))})
+ 	default:
+ 		b.Fatalf("branch not implemented: %s", b.LongString())
+ 	}
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 98504353e2..5844b71ca7 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -843,6 +843,20 @@ const (
+ 	ASWPLW
+ 	ASWPLH
+ 	ASWPLB
++	ACASD
++	ACASW
++	ACASH
++	ACASB
++	ACASAD
++	ACASAW
++	ACASLD
++	ACASLW
++	ACASALD
++	ACASALW
++	ACASALH
++	ACASALB
++	ACASPD
++	ACASPW
+ 	ABEQ
+ 	ABNE
+ 	ABCS
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 126eefd032..fb216f9a94 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -337,6 +337,20 @@ var Anames = []string{
+ 	"SWPLW",
+ 	"SWPLH",
+ 	"SWPLB",
++	"CASD",
++	"CASW",
++	"CASH",
++	"CASB",
++	"CASAD",
++	"CASAW",
++	"CASLD",
++	"CASLW",
++	"CASALD",
++	"CASALW",
++	"CASALH",
++	"CASALB",
++	"CASPD",
++	"CASPW",
+ 	"BEQ",
+ 	"BNE",
+ 	"BCS",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 8cbf5e719f..4fc62d5c7f 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -80,12 +80,17 @@ type Optab struct {
+ }
+ 
+ func IsAtomicInstruction(as obj.As) bool {
+-	_, ok := atomicInstructions[as]
+-	return ok
++	if _, ok := atomicLDADD[as]; ok {
++		return true
++	}
++	if _, ok := atomicSWP[as]; ok {
++		return true
++	}
++	return false
+ }
+ 
+ // known field values of an instruction.
+-var atomicInstructions = map[obj.As]uint32{
++var atomicLDADD = map[obj.As]uint32{
+ 	ALDADDAD:  3<<30 | 0x1c5<<21 | 0x00<<10,
+ 	ALDADDAW:  2<<30 | 0x1c5<<21 | 0x00<<10,
+ 	ALDADDAH:  1<<30 | 0x1c5<<21 | 0x00<<10,
+@@ -150,22 +155,41 @@ var atomicInstructions = map[obj.As]uint32{
+ 	ALDORLW:   2<<30 | 0x1c3<<21 | 0x0c<<10,
+ 	ALDORLH:   1<<30 | 0x1c3<<21 | 0x0c<<10,
+ 	ALDORLB:   0<<30 | 0x1c3<<21 | 0x0c<<10,
+-	ASWPAD:    3<<30 | 0x1c5<<21 | 0x20<<10,
+-	ASWPAW:    2<<30 | 0x1c5<<21 | 0x20<<10,
+-	ASWPAH:    1<<30 | 0x1c5<<21 | 0x20<<10,
+-	ASWPAB:    0<<30 | 0x1c5<<21 | 0x20<<10,
+-	ASWPALD:   3<<30 | 0x1c7<<21 | 0x20<<10,
+-	ASWPALW:   2<<30 | 0x1c7<<21 | 0x20<<10,
+-	ASWPALH:   1<<30 | 0x1c7<<21 | 0x20<<10,
+-	ASWPALB:   0<<30 | 0x1c7<<21 | 0x20<<10,
+-	ASWPD:     3<<30 | 0x1c1<<21 | 0x20<<10,
+-	ASWPW:     2<<30 | 0x1c1<<21 | 0x20<<10,
+-	ASWPH:     1<<30 | 0x1c1<<21 | 0x20<<10,
+-	ASWPB:     0<<30 | 0x1c1<<21 | 0x20<<10,
+-	ASWPLD:    3<<30 | 0x1c3<<21 | 0x20<<10,
+-	ASWPLW:    2<<30 | 0x1c3<<21 | 0x20<<10,
+-	ASWPLH:    1<<30 | 0x1c3<<21 | 0x20<<10,
+-	ASWPLB:    0<<30 | 0x1c3<<21 | 0x20<<10,
++}
++
++var atomicSWP = map[obj.As]uint32{
++	ASWPAD:  3<<30 | 0x1c5<<21 | 0x20<<10,
++	ASWPAW:  2<<30 | 0x1c5<<21 | 0x20<<10,
++	ASWPAH:  1<<30 | 0x1c5<<21 | 0x20<<10,
++	ASWPAB:  0<<30 | 0x1c5<<21 | 0x20<<10,
++	ASWPALD: 3<<30 | 0x1c7<<21 | 0x20<<10,
++	ASWPALW: 2<<30 | 0x1c7<<21 | 0x20<<10,
++	ASWPALH: 1<<30 | 0x1c7<<21 | 0x20<<10,
++	ASWPALB: 0<<30 | 0x1c7<<21 | 0x20<<10,
++	ASWPD:   3<<30 | 0x1c1<<21 | 0x20<<10,
++	ASWPW:   2<<30 | 0x1c1<<21 | 0x20<<10,
++	ASWPH:   1<<30 | 0x1c1<<21 | 0x20<<10,
++	ASWPB:   0<<30 | 0x1c1<<21 | 0x20<<10,
++	ASWPLD:  3<<30 | 0x1c3<<21 | 0x20<<10,
++	ASWPLW:  2<<30 | 0x1c3<<21 | 0x20<<10,
++	ASWPLH:  1<<30 | 0x1c3<<21 | 0x20<<10,
++	ASWPLB:  0<<30 | 0x1c3<<21 | 0x20<<10,
++	ACASD:   3<<30 | 0x45<<21 | 0x1f<<10,
++	ACASW:   2<<30 | 0x45<<21 | 0x1f<<10,
++	ACASH:   1<<30 | 0x45<<21 | 0x1f<<10,
++	ACASB:   0<<30 | 0x45<<21 | 0x1f<<10,
++	ACASAD:  3<<30 | 0x47<<21 | 0x1f<<10,
++	ACASAW:  2<<30 | 0x47<<21 | 0x1f<<10,
++	ACASLD:  3<<30 | 0x45<<21 | 0x3f<<10,
++	ACASLW:  2<<30 | 0x45<<21 | 0x3f<<10,
++	ACASALD: 3<<30 | 0x47<<21 | 0x3f<<10,
++	ACASALW: 2<<30 | 0x47<<21 | 0x3f<<10,
++	ACASALH: 1<<30 | 0x47<<21 | 0x3f<<10,
++	ACASALB: 0<<30 | 0x47<<21 | 0x3f<<10,
++}
++var atomicCASP = map[obj.As]uint32{
++	ACASPD: 1<<30 | 0x41<<21 | 0x1f<<10,
++	ACASPW: 0<<30 | 0x41<<21 | 0x1f<<10,
+ }
+ 
+ var oprange [ALAST & obj.AMask][]Optab
+@@ -794,8 +818,10 @@ var optab = []Optab{
+ 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_LOREG, 77, 12, 0, LTO, C_XPOST},
+ 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
+ 
+-	{ASWPD, C_REG, C_NONE, C_NONE, C_ZOREG, 47, 4, 0, 0, 0},     // RegTo2=C_REG
+-	{ASWPD, C_REG, C_NONE, C_NONE, C_ZAUTO, 47, 4, REGSP, 0, 0}, // RegTo2=C_REG
++	{ASWPD, C_REG, C_NONE, C_NONE, C_ZOREG, 47, 4, 0, 0, 0},        // RegTo2=C_REG
++	{ASWPD, C_REG, C_NONE, C_NONE, C_ZAUTO, 47, 4, REGSP, 0, 0},    // RegTo2=C_REG
++	{ACASPD, C_PAIR, C_NONE, C_NONE, C_ZOREG, 106, 4, 0, 0, 0},     // RegTo2=C_REGREG
++	{ACASPD, C_PAIR, C_NONE, C_NONE, C_ZAUTO, 106, 4, REGSP, 0, 0}, // RegTo2=C_REGREG
+ 	{ALDAR, C_ZOREG, C_NONE, C_NONE, C_REG, 58, 4, 0, 0, 0},
+ 	{ALDXR, C_ZOREG, C_NONE, C_NONE, C_REG, 58, 4, 0, 0, 0},
+ 	{ALDAXR, C_ZOREG, C_NONE, C_NONE, C_REG, 58, 4, 0, 0, 0},
+@@ -2011,7 +2037,7 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
+ 
+ 	a1--
+ 	a3 := C_NONE + 1
+-	if p.GetFrom3() != nil {
++	if p.GetFrom3() != nil && p.RestArgs[0].Pos == 0 {
+ 		a3 = int(p.GetFrom3().Class)
+ 		if a3 == 0 {
+ 			a3 = c.aclass(p.GetFrom3()) + 1
+@@ -2496,10 +2522,18 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(AMOVZW, t)
+ 
+ 		case ASWPD:
+-			for i := range atomicInstructions {
++			for i := range atomicLDADD {
++				oprangeset(i, t)
++			}
++			for i := range atomicSWP {
++				if i == ASWPD {
++					continue
++				}
+ 				oprangeset(i, t)
+ 			}
+ 
++		case ACASPD:
++			oprangeset(ACASPW, t)
+ 		case ABEQ:
+ 			oprangeset(ABNE, t)
+ 			oprangeset(ABCS, t)
+@@ -3994,17 +4028,27 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= uint32(p.From.Reg&31) << 5
+ 		o1 |= uint32(p.To.Reg & 31)
+ 
+-	case 47: /* SWPx/LDADDx/LDANDx/LDEORx/LDORx Rs, (Rb), Rt */
++	case 47: // SWPx/LDADDx/LDANDx/LDEORx/LDORx/CASx Rs, (Rb), Rt
+ 		rs := p.From.Reg
+ 		rt := p.RegTo2
+ 		rb := p.To.Reg
+ 
+-		fields := atomicInstructions[p.As]
+-		// rt can't be sp. rt can't be r31 when field A is 0, A bit is the 23rd bit.
+-		if rt == REG_RSP || (rt == REGZERO && (fields&(1<<23) == 0)) {
++		// rt can't be sp.
++		if rt == REG_RSP {
+ 			c.ctxt.Diag("illegal destination register: %v\n", p)
+ 		}
+-		o1 |= fields | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
++		if enc, ok := atomicLDADD[p.As]; ok {
++			// for LDADDx-like instructions, rt can't be r31 when field.enc A is 0, A bit is the 23rd bit.
++			if (rt == REGZERO) && (enc&(1<<23) == 0) {
++				c.ctxt.Diag("illegal destination register: %v\n", p)
++			}
++			o1 |= enc
++		} else if enc, ok := atomicSWP[p.As]; ok {
++			o1 |= enc
++		} else {
++			c.ctxt.Diag("invalid atomic instructions: %v\n", p)
++		}
++		o1 |= uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+ 
+ 	case 48: /* ADD $C_ADDCON2, Rm, Rd */
+ 		// NOTE: this case does not use REGTMP. If it ever does,
+@@ -5351,6 +5395,38 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rt := int((p.To.Reg) & 31)
+ 		r := int((p.Reg) & 31)
+ 		o1 |= ((Q & 1) << 30) | ((size & 3) << 22) | (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
++
++	case 106: // CASPx (Rs, Rs+1), (Rb), (Rt, Rt+1)
++		rs := p.From.Reg
++		rt := p.GetTo2().Reg
++		rb := p.To.Reg
++		rs1 := int16(p.From.Offset)
++		rt1 := int16(p.GetTo2().Offset)
++
++		enc, ok := atomicCASP[p.As]
++		if !ok {
++			c.ctxt.Diag("invalid CASP-like atomic instructions: %v\n", p)
++		}
++		// for CASPx-like instructions, Rs<0> != 1 && Rt<0> != 1
++		switch {
++		case rs&1 != 0:
++			c.ctxt.Diag("source register pair must start from even register: %v\n", p)
++			break
++		case rt&1 != 0:
++			c.ctxt.Diag("destination register pair must start from even register: %v\n", p)
++			break
++		case rs != rs1-1:
++			c.ctxt.Diag("source register pair must be contiguous: %v\n", p)
++			break
++		case rt != rt1-1:
++			c.ctxt.Diag("destination register pair must be contiguous: %v\n", p)
++			break
++		}
++		// rt can't be sp.
++		if rt == REG_RSP {
++			c.ctxt.Diag("illegal destination register: %v\n", p)
++		}
++		o1 |= enc | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
+ 	}
+ 	out[0] = o1
+ 	out[1] = o2
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 2037beca72..b578b6a09a 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -283,28 +283,41 @@ func (a *Addr) SetTarget(t *Prog) {
+ // The other fields not yet mentioned are for use by the back ends and should
+ // be left zeroed by creators of Prog lists.
+ type Prog struct {
+-	Ctxt     *Link    // linker context
+-	Link     *Prog    // next Prog in linked list
+-	From     Addr     // first source operand
+-	RestArgs []Addr   // can pack any operands that not fit into {Prog.From, Prog.To}
+-	To       Addr     // destination operand (second is RegTo2 below)
+-	Pool     *Prog    // constant pool entry, for arm,arm64 back ends
+-	Forwd    *Prog    // for x86 back end
+-	Rel      *Prog    // for x86, arm back ends
+-	Pc       int64    // for back ends or assembler: virtual or actual program counter, depending on phase
+-	Pos      src.XPos // source position of this instruction
+-	Spadj    int32    // effect of instruction on stack pointer (increment or decrement amount)
+-	As       As       // assembler opcode
+-	Reg      int16    // 2nd source operand
+-	RegTo2   int16    // 2nd destination operand
+-	Mark     uint16   // bitmask of arch-specific items
+-	Optab    uint16   // arch-specific opcode index
+-	Scond    uint8    // bits that describe instruction suffixes (e.g. ARM conditions)
+-	Back     uint8    // for x86 back end: backwards branch state
+-	Ft       uint8    // for x86 back end: type index of Prog.From
+-	Tt       uint8    // for x86 back end: type index of Prog.To
+-	Isize    uint8    // for x86 back end: size of the instruction in bytes
+-}
++	Ctxt     *Link     // linker context
++	Link     *Prog     // next Prog in linked list
++	From     Addr      // first source operand
++	RestArgs []AddrPos // can pack any operands that not fit into {Prog.From, Prog.To}
++	To       Addr      // destination operand (second is RegTo2 below)
++	Pool     *Prog     // constant pool entry, for arm,arm64 back ends
++	Forwd    *Prog     // for x86 back end
++	Rel      *Prog     // for x86, arm back ends
++	Pc       int64     // for back ends or assembler: virtual or actual program counter, depending on phase
++	Pos      src.XPos  // source position of this instruction
++	Spadj    int32     // effect of instruction on stack pointer (increment or decrement amount)
++	As       As        // assembler opcode
++	Reg      int16     // 2nd source operand
++	RegTo2   int16     // 2nd destination operand
++	Mark     uint16    // bitmask of arch-specific items
++	Optab    uint16    // arch-specific opcode index
++	Scond    uint8     // bits that describe instruction suffixes (e.g. ARM conditions)
++	Back     uint8     // for x86 back end: backwards branch state
++	Ft       uint8     // for x86 back end: type index of Prog.From
++	Tt       uint8     // for x86 back end: type index of Prog.To
++	Isize    uint8     // for x86 back end: size of the instruction in bytes
++}
++
++// Pos indicates whether the oprand is the source or the destination.
++type AddrPos struct {
++	Addr
++	Pos OperandPos
++}
++
++type OperandPos int8
++
++const (
++	Source OperandPos = iota
++	Destination
++)
+ 
+ // From3Type returns p.GetFrom3().Type, or TYPE_NONE when
+ // p.GetFrom3() returns nil.
+@@ -330,15 +343,36 @@ func (p *Prog) GetFrom3() *Addr {
+ 	if p.RestArgs == nil {
+ 		return nil
+ 	}
+-	return &p.RestArgs[0]
++	return &p.RestArgs[0].Addr
+ }
+ 
+-// SetFrom3 assigns []Addr{a} to p.RestArgs.
++// SetFrom3 assigns []Args{{a, 0}} to p.RestArgs.
+ // In pair with Prog.GetFrom3 it can help in emulation of Prog.From3.
+ //
+ // Deprecated: for the same reasons as Prog.GetFrom3.
+ func (p *Prog) SetFrom3(a Addr) {
+-	p.RestArgs = []Addr{a}
++	p.RestArgs = []AddrPos{{a, Source}}
++}
++
++// SetTo2 assings []Args{{a, 1}} to p.RestArgs when the second destination
++// operand does not fit into prog.RegTo2.
++func (p *Prog) SetTo2(a Addr) {
++	p.RestArgs = []AddrPos{{a, Destination}}
++}
++
++// GetTo2 returns the second destination operand.
++func (p *Prog) GetTo2() *Addr {
++	if p.RestArgs == nil {
++		return nil
++	}
++	return &p.RestArgs[0].Addr
++}
++
++// SetRestArgs assigns more than one source operands to p.RestArgs.
++func (p *Prog) SetRestArgs(args []Addr) {
++	for i := range args {
++		p.RestArgs = append(p.RestArgs, AddrPos{args[i], Source})
++	}
+ }
+ 
+ // An As denotes an assembler opcode.
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 5301e44002..0cffa54fa6 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -48,7 +48,7 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
+ 
+ 	p.As = AAUIPC
+ 	p.Mark |= NEED_PCREL_ITYPE_RELOC
+-	p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym}}
++	p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym})
+ 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+ 	p.Reg = 0
+ 	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+@@ -234,7 +234,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
+ 
+ 			p.As = AAUIPC
+ 			p.Mark |= NEED_PCREL_ITYPE_RELOC
+-			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
++			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym})
+ 			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+ 			p.Reg = 0
+ 			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: to.Reg}
+@@ -275,7 +275,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
+ 
+ 				p.As = AAUIPC
+ 				p.Mark |= NEED_PCREL_STYPE_RELOC
+-				p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym}}
++				p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym})
+ 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+ 				p.Reg = 0
+ 				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+@@ -340,7 +340,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
+ 
+ 			p.As = AAUIPC
+ 			p.Mark |= NEED_PCREL_ITYPE_RELOC
+-			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
++			p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym})
+ 			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
+ 			p.Reg = 0
+ 			p.To = to
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index da14dd3c41..f0f9d5cefc 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -718,7 +718,7 @@ func (c *ctxtz) oplook(p *obj.Prog) *Optab {
+ 	p.From.Class = int8(c.aclass(&p.From) + 1)
+ 	p.To.Class = int8(c.aclass(&p.To) + 1)
+ 	for i := range p.RestArgs {
+-		p.RestArgs[i].Class = int8(c.aclass(&p.RestArgs[i]) + 1)
++		p.RestArgs[i].Addr.Class = int8(c.aclass(&p.RestArgs[i].Addr) + 1)
+ 	}
+ 
+ 	// Mirrors the argument list in Optab.
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 21e28807a6..b9bacb7a22 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -175,9 +175,11 @@ func (p *Prog) WriteInstructionString(w io.Writer) {
+ 		sep = ", "
+ 	}
+ 	for i := range p.RestArgs {
+-		io.WriteString(w, sep)
+-		WriteDconv(w, p, &p.RestArgs[i])
+-		sep = ", "
++		if p.RestArgs[i].Pos == Source {
++			io.WriteString(w, sep)
++			WriteDconv(w, p, &p.RestArgs[i].Addr)
++			sep = ", "
++		}
+ 	}
+ 
+ 	if p.As == ATEXT {
+@@ -198,6 +200,13 @@ func (p *Prog) WriteInstructionString(w io.Writer) {
+ 	if p.RegTo2 != REG_NONE {
+ 		fmt.Fprintf(w, "%s%v", sep, Rconv(int(p.RegTo2)))
+ 	}
++	for i := range p.RestArgs {
++		if p.RestArgs[i].Pos == Destination {
++			io.WriteString(w, sep)
++			WriteDconv(w, p, &p.RestArgs[i].Addr)
++			sep = ", "
++		}
++	}
+ }
+ 
+ func (ctxt *Link) NewProg() *Prog {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index c412f4945d..94aed44871 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4270,7 +4270,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 		args = append(args, ft)
+ 	}
+ 	for i := range p.RestArgs {
+-		args = append(args, oclass(ctxt, p, &p.RestArgs[i])*Ymax)
++		args = append(args, oclass(ctxt, p, &p.RestArgs[i].Addr)*Ymax)
+ 	}
+ 	if tt != Ynone*Ymax {
+ 		args = append(args, tt)
+@@ -5438,10 +5438,10 @@ func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 
+ // unpackOps4 extracts 4 operands from p.
+ func unpackOps4(p *obj.Prog) (arg0, arg1, arg2, dst *obj.Addr) {
+-	return &p.From, &p.RestArgs[0], &p.RestArgs[1], &p.To
++	return &p.From, &p.RestArgs[0].Addr, &p.RestArgs[1].Addr, &p.To
+ }
+ 
+ // unpackOps5 extracts 5 operands from p.
+ func unpackOps5(p *obj.Prog) (arg0, arg1, arg2, arg3, dst *obj.Addr) {
+-	return &p.From, &p.RestArgs[0], &p.RestArgs[1], &p.RestArgs[2], &p.To
++	return &p.From, &p.RestArgs[0].Addr, &p.RestArgs[1].Addr, &p.RestArgs[2].Addr, &p.To
+ }

@@ -15,6 +15,25 @@ Date:   Fri Oct 4 13:52:56 2019 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/fixedbugs/issue34520.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/test/fixedbugs/issue34520.go b/test/fixedbugs/issue34520.go
+new file mode 100644
+index 0000000000..d92d4ccbc5
+--- /dev/null
++++ b/test/fixedbugs/issue34520.go
+@@ -0,0 +1,12 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	for true {
++	}
++}

@@ -6,7 +6,69 @@ Date:   Fri Dec 4 11:46:56 2009 -0800
     
     R=rsc
     https://golang.org/cl/166058
-
+---
  src/pkg/os/file.go    | 11 ++++++++++-
  src/pkg/os/os_test.go | 21 +++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index dc722055a5..03c6d57018 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -370,7 +370,7 @@ func Remove(name string) Error {
+ 	return &PathError{"remove", name, Errno(e)};
+ }
+ 
+-// LinkError records an error during a link or symlink
++// LinkError records an error during a link or symlink or rename
+ // system call and the paths that caused it.
+ type LinkError struct {
+ 	Op	string;
+@@ -418,6 +418,15 @@ func Readlink(name string) (string, Error) {
+ 	return "", nil;
+ }
+ 
++// Rename renames a file.
++func Rename(oldname, newname string) Error {
++	e := syscall.Rename(oldname, newname);
++	if e != 0 {
++		return &LinkError{"rename", oldname, newname, Errno(e)}
++	}
++	return nil;
++}
++
+ // Chmod changes the mode of the named file to mode.
+ // If the file is a symbolic link, it changes the uid and gid of the link's target.
+ func Chmod(name string, mode int) Error {
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index ed3d955cb3..7ff2bddb3c 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -315,6 +315,27 @@ func TestLongSymlink(t *testing.T) {
+ 	}
+ }
+ 
++func TestRename(t *testing.T) {
++	from, to := "renamefrom", "renameto";
++	Remove(to);	// Just in case.
++	file, err := Open(from, O_CREAT|O_WRONLY, 0666);
++	if err != nil {
++		t.Fatalf("open %q failed: %v", to, err)
++	}
++	if err = file.Close(); err != nil {
++		t.Errorf("close %q failed: %v", to, err)
++	}
++	err = Rename(from, to);
++	if err != nil {
++		t.Fatalf("rename %q, %q failed: %v", to, from, err)
++	}
++	defer Remove(to);
++	_, err = Stat(to);
++	if err != nil {
++		t.Errorf("stat %q failed: %v", to, err)
++	}
++}
++
+ func TestForkExec(t *testing.T) {
+ 	r, w, err := Pipe();
+ 	if err != nil {

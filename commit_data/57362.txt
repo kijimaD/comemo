@@ -19,7 +19,50 @@ Date:   Wed May 31 12:06:02 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Bypass: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/asm_s390x.s       |  1 +
  src/runtime/os_linux_s390x.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index a7f414ef91..a8e1424bf1 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -142,6 +142,7 @@ nocgo:
+ 
+ 	// argc/argv are already prepared on stack
+ 	BL	runtime·args(SB)
++	BL	runtime·checkS390xCPU(SB)
+ 	BL	runtime·osinit(SB)
+ 	BL	runtime·schedinit(SB)
+ 
+diff --git a/src/runtime/os_linux_s390x.go b/src/runtime/os_linux_s390x.go
+index b9651f186c..0a1d95975e 100644
+--- a/src/runtime/os_linux_s390x.go
++++ b/src/runtime/os_linux_s390x.go
+@@ -6,6 +6,10 @@ package runtime
+ 
+ import "internal/cpu"
+ 
++const (
++	_HWCAP_VX = 1 << 11 // vector facility
++)
++
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+ 	case _AT_HWCAP:
+@@ -14,3 +18,14 @@ func archauxv(tag, val uintptr) {
+ }
+ 
+ func osArchInit() {}
++
++func checkS390xCPU() {
++	// Check if the present z-system has the hardware capability to carryout
++	// floating point operations. Check if hwcap reflects CPU capability for the
++	// necessary floating point hardware (HasVX) availability.
++	// Starting with Go1.19, z13 is the minimum machine level for running Go on LoZ
++	if cpu.HWCap&_HWCAP_VX == 0 {
++		print("runtime: This CPU has no floating point hardware, so this program cannot be run. \n")
++		exit(1)
++	}
++}

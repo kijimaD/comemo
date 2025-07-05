@@ -22,7 +22,55 @@ Date:   Fri Dec 2 11:46:24 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5447064
-
+---
  src/pkg/html/parse.go      | 17 +++++++++++++++--
  src/pkg/html/parse_test.go |  1 +
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 97fbc514d8..dd2d8165bd 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -515,7 +515,19 @@ func afterHeadIM(p *parser) bool {
+ 		implied    bool
+ 	)
+ 	switch p.tok.Type {
+-	case ErrorToken, TextToken:
++	case ErrorToken:
++		implied = true
++		framesetOK = true
++	case TextToken:
++		s := strings.TrimLeft(p.tok.Data, whitespace)
++		if len(s) < len(p.tok.Data) {
++			// Add the initial whitespace to the current node.
++			p.addText(p.tok.Data[:len(p.tok.Data)-len(s)])
++			if s == "" {
++				return true
++			}
++			p.tok.Data = s
++		}
+ 		implied = true
+ 		framesetOK = true
+ 	case StartTagToken:
+@@ -535,7 +547,8 @@ func afterHeadIM(p *parser) bool {
+ 			defer p.oe.pop()
+ 			return inHeadIM(p)
+ 		case "head":
+-			// TODO.
++			// Ignore the token.
++			return true
+ 		default:
+ 			implied = true
+ 			framesetOK = true
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index e0c19cff6d..5062a6edcb 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -167,6 +167,7 @@ func TestParser(t *testing.T) {
+ 		{"tests3.dat", -1},
+ 		{"tests4.dat", -1},
+ 		{"tests5.dat", -1},
++		{"tests6.dat", 7},
+ 	}
+ 	for _, tf := range testFiles {
+ 		f, err := os.Open("testdata/webkit/" + tf.filename)

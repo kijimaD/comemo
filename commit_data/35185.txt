@@ -51,7 +51,7 @@ Date:   Mon Jan 8 11:59:29 2018 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/buildruntime.go      |  4 ----
  src/cmd/dist/test.go              | 10 +++++++---
  src/cmd/go/go_test.go             | 21 +++++----------------
@@ -64,3 +64,271 @@ Date:   Mon Jan 8 11:59:29 2018 -0500
  src/cmd/link/internal/ld/pcln.go  | 14 +++++++++-----
  src/runtime/internal/sys/stubs.go |  2 ++
  11 files changed, 48 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 2f10fd0237..5cbcd8191b 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -18,7 +18,6 @@ import (
+ // mkzversion writes zversion.go:
+ //
+ //	package sys
+-//	var DefaultGoroot = <goroot>
+ //
+ //	const TheVersion = <version>
+ //	const Goexperiment = <goexperiment>
+@@ -30,8 +29,6 @@ func mkzversion(dir, file string) {
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "package sys\n")
+ 	fmt.Fprintln(&buf)
+-	fmt.Fprintf(&buf, "var DefaultGoroot = `%s`\n", goroot_final)
+-	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "const TheVersion = `%s`\n", findgoversion())
+ 	fmt.Fprintf(&buf, "const Goexperiment = `%s`\n", os.Getenv("GOEXPERIMENT"))
+ 	fmt.Fprintf(&buf, "const StackGuardMultiplier = %d\n", stackGuardMultiplier())
+@@ -71,7 +68,6 @@ func mkzbootstrap(file string) {
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "import \"runtime\"\n")
+ 	fmt.Fprintln(&buf)
+-	fmt.Fprintf(&buf, "const defaultGOROOT = `%s`\n", goroot_final)
+ 	fmt.Fprintf(&buf, "const defaultGO386 = `%s`\n", go386)
+ 	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 44971ecf17..6d76209e5d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -172,9 +172,13 @@ func (t *tester) run() {
+ 		return
+ 	}
+ 
+-	// we must unset GOROOT_FINAL before tests, because runtime/debug requires
++	// We must unset GOROOT_FINAL before tests, because runtime/debug requires
+ 	// correct access to source code, so if we have GOROOT_FINAL in effect,
+ 	// at least runtime/debug test will fail.
++	// If GOROOT_FINAL was set before, then now all the commands will appear stale.
++	// Nothing we can do about that other than not checking them below.
++	// (We call checkNotStale but only with "std" not "cmd".)
++	os.Setenv("GOROOT_FINAL_OLD", os.Getenv("GOROOT_FINAL")) // for cmd/link test
+ 	os.Unsetenv("GOROOT_FINAL")
+ 
+ 	for _, name := range t.runNames {
+@@ -1044,7 +1048,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ // running in parallel with earlier tests, or if it has some other reason
+ // for needing the earlier tests to be done.
+ func (t *tester) runPending(nextTest *distTest) {
+-	checkNotStale("go", "std", "cmd")
++	checkNotStale("go", "std")
+ 	worklist := t.worklist
+ 	t.worklist = nil
+ 	for _, w := range worklist {
+@@ -1097,7 +1101,7 @@ func (t *tester) runPending(nextTest *distTest) {
+ 			log.Printf("Failed: %v", w.err)
+ 			t.failed = true
+ 		}
+-		checkNotStale("go", "std", "cmd")
++		checkNotStale("go", "std")
+ 	}
+ 	if t.failed && !t.keepGoing {
+ 		log.Fatal("FAILED")
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 371296c72e..83c126e11e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -102,6 +102,7 @@ func TestMain(m *testing.M) {
+ 		fmt.Printf("SKIP\n")
+ 		return
+ 	}
++	os.Unsetenv("GOROOT_FINAL")
+ 
+ 	if canRun {
+ 		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
+@@ -4511,19 +4512,9 @@ func TestExecutableGOROOT(t *testing.T) {
+ 	newRoot := tg.path("new")
+ 
+ 	t.Run("RelocatedExe", func(t *testing.T) {
+-		t.Skip("TODO: skipping known broken test; see golang.org/issue/20284")
+-
+-		// Should fall back to default location in binary.
+-		// No way to dig out other than look at source code.
+-		data, err := ioutil.ReadFile("../../runtime/internal/sys/zversion.go")
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		m := regexp.MustCompile("var DefaultGoroot = `([^`]+)`").FindStringSubmatch(string(data))
+-		if m == nil {
+-			t.Fatal("cannot find DefaultGoroot in ../../runtime/internal/sys/zversion.go")
+-		}
+-		check(t, newGoTool, m[1])
++		// Should fall back to default location in binary,
++		// which is the GOROOT we used when building testgo.exe.
++		check(t, newGoTool, testGOROOT)
+ 	})
+ 
+ 	// If the binary is sitting in a bin dir next to ../pkg/tool, that counts as a GOROOT,
+@@ -4548,9 +4539,7 @@ func TestExecutableGOROOT(t *testing.T) {
+ 	tg.must(os.RemoveAll(tg.path("new/pkg")))
+ 
+ 	// Binaries built in the new tree should report the
+-	// new tree when they call runtime.GOROOT().
+-	// This is implemented by having the go tool pass a -X option
+-	// to the linker setting runtime/internal/sys.DefaultGoroot.
++	// new tree when they call runtime.GOROOT.
+ 	t.Run("RuntimeGoroot", func(t *testing.T) {
+ 		// Build a working GOROOT the easy way, with symlinks.
+ 		testenv.MustHaveSymlink(t)
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index dfab20a8de..1de4f0dc79 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -76,11 +76,12 @@ func init() {
+ }
+ 
+ var (
+-	GOROOT    = findGOROOT()
+-	GOBIN     = os.Getenv("GOBIN")
+-	GOROOTbin = filepath.Join(GOROOT, "bin")
+-	GOROOTpkg = filepath.Join(GOROOT, "pkg")
+-	GOROOTsrc = filepath.Join(GOROOT, "src")
++	GOROOT       = findGOROOT()
++	GOBIN        = os.Getenv("GOBIN")
++	GOROOTbin    = filepath.Join(GOROOT, "bin")
++	GOROOTpkg    = filepath.Join(GOROOT, "pkg")
++	GOROOTsrc    = filepath.Join(GOROOT, "src")
++	GOROOT_FINAL = findGOROOT_FINAL()
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+ 	GOARM  = fmt.Sprint(objabi.GOARM)
+@@ -129,6 +130,14 @@ func findGOROOT() string {
+ 	return def
+ }
+ 
++func findGOROOT_FINAL() string {
++	def := GOROOT
++	if env := os.Getenv("GOROOT_FINAL"); env != "" {
++		def = filepath.Clean(env)
++	}
++	return def
++}
++
+ // isSameDir reports whether dir1 and dir2 are the same directory.
+ func isSameDir(dir1, dir2 string) bool {
+ 	if dir1 == dir2 {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index c5f0eb70bf..195437d220 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -790,15 +790,8 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 		}
+ 		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
+ 
+-		/*
+-			// TODO(rsc): Enable this code.
+-			// golang.org/issue/22475.
+-			goroot := cfg.BuildContext.GOROOT
+-			if final := os.Getenv("GOROOT_FINAL"); final != "" {
+-				goroot = final
+-			}
+-			fmt.Fprintf(h, "GOROOT=%s\n", goroot)
+-		*/
++		// The linker writes source file paths that say GOROOT_FINAL.
++		fmt.Fprintf(h, "GOROOT=%s\n", cfg.GOROOT_FINAL)
+ 
+ 		// TODO(rsc): Convince linker team not to add more magic environment variables,
+ 		// or perhaps restrict the environment variables passed to subprocesses.
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index d3bded6989..71b5337939 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -418,11 +418,6 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 		ldflags = append(ldflags, "-pluginpath", pluginPath(root))
+ 	}
+ 
+-	// TODO(rsc): This is probably wrong - see golang.org/issue/22155.
+-	if cfg.GOROOT != runtime.GOROOT() {
+-		ldflags = append(ldflags, "-X=runtime/internal/sys.DefaultGoroot="+cfg.GOROOT)
+-	}
+-
+ 	// Store BuildID inside toolchain binaries as a unique identifier of the
+ 	// tool being run, for use by content-based staleness determination.
+ 	if root.Package.Goroot && strings.HasPrefix(root.Package.ImportPath, "cmd/") {
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index f8949e05a2..eafef6bfa7 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -19,6 +19,8 @@ func envOr(key, value string) string {
+ }
+ 
+ var (
++	defaultGOROOT string // set by linker
++
+ 	GOROOT  = envOr("GOROOT", defaultGOROOT)
+ 	GOARCH  = envOr("GOARCH", defaultGOARCH)
+ 	GOOS    = envOr("GOOS", defaultGOOS)
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index f88aecc7c7..2b3771eabc 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -32,6 +32,9 @@ func TestDWARF(t *testing.T) {
+ 		t.Fatalf("go list: %v\n%s", err, out)
+ 	}
+ 	if string(out) != "false\n" {
++		if os.Getenv("GOROOT_FINAL_OLD") != "" {
++			t.Skip("cmd/link is stale, but $GOROOT_FINAL_OLD is set")
++		}
+ 		t.Fatalf("cmd/link is stale - run go install cmd/link")
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 4212562677..f86abbc6a6 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -110,6 +110,10 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		}
+ 	}
+ 
++	final := gorootFinal()
++	addstrdata1(ctxt, "runtime/internal/sys.DefaultGoroot="+final)
++	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
++
+ 	// TODO(matloob): define these above and then check flag values here
+ 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+ 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index b954c05c81..9d82677059 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -421,14 +421,18 @@ func (ctxt *Link) pclntab() {
+ 	}
+ }
+ 
++func gorootFinal() string {
++	root := objabi.GOROOT
++	if final := os.Getenv("GOROOT_FINAL"); final != "" {
++		root = final
++	}
++	return root
++}
++
+ func expandGoroot(s string) string {
+ 	const n = len("$GOROOT")
+ 	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
+-		root := objabi.GOROOT
+-		if final := os.Getenv("GOROOT_FINAL"); final != "" {
+-			root = final
+-		}
+-		return filepath.ToSlash(filepath.Join(root, s[n:]))
++		return filepath.ToSlash(filepath.Join(gorootFinal(), s[n:]))
+ 	}
+ 	return s
+ }
+diff --git a/src/runtime/internal/sys/stubs.go b/src/runtime/internal/sys/stubs.go
+index 0a94502f32..5328023268 100644
+--- a/src/runtime/internal/sys/stubs.go
++++ b/src/runtime/internal/sys/stubs.go
+@@ -9,3 +9,5 @@ package sys
+ const PtrSize = 4 << (^uintptr(0) >> 63)           // unsafe.Sizeof(uintptr(0)) but an ideal const
+ const RegSize = 4 << (^Uintreg(0) >> 63)           // unsafe.Sizeof(uintreg(0)) but an ideal const
+ const SpAlign = 1*(1-GoarchArm64) + 16*GoarchArm64 // SP alignment: 1 normally, 16 for ARM64
++
++var DefaultGoroot string // set at link time

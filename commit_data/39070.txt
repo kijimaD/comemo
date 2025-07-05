@@ -20,7 +20,46 @@ Date:   Fri Dec 21 13:47:20 2018 -0500
     Change-Id: Ia0ae5a403ab5d621feaa16f521e6a65ac0ae6d9a
     Reviewed-on: https://go-review.googlesource.com/c/155481
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go         | 7 +++++++
  src/cmd/go/testdata/script/list_find.txt | 9 +++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index ca588911fe..baa5872687 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -386,6 +386,13 @@ func (b *Builder) build(a *Action) (err error) {
+ 			cached = true
+ 			a.output = []byte{} // start saving output in case we miss any cache results
+ 		}
++
++		// Source files might be cached, even if the full action is not
++		// (e.g., go list -compiled -find).
++		if !cached && need&needCompiledGoFiles != 0 && b.loadCachedSrcFiles(a) {
++			need &^= needCompiledGoFiles
++		}
++
+ 		if need == 0 {
+ 			return nil
+ 		}
+diff --git a/src/cmd/go/testdata/script/list_find.txt b/src/cmd/go/testdata/script/list_find.txt
+index dbe8fb0ac9..63c6896e50 100644
+--- a/src/cmd/go/testdata/script/list_find.txt
++++ b/src/cmd/go/testdata/script/list_find.txt
+@@ -5,6 +5,15 @@ stdout true
+ go list -find -f '{{.Incomplete}} {{.Imports}}' x/y/z...
+ stdout '^false \[\]'
+ 
++# go list -find -compiled should use cached sources the second time it's run.
++# It might not find the same cached sources as "go build", but the sources
++# should be identical. "go build" derives action IDs (which are used as cache
++# keys) from dependencies' action IDs. "go list -find" won't know what the
++# dependencies are, so it's can't construct the same action IDs.
++go list -find -compiled net
++go list -find -compiled -x net
++! stderr 'cgo'
++
+ -- x/y/z/z.go --
+ package z
+ import "does/not/exist"

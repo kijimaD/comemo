@@ -9,7 +9,7 @@ Date:   Thu Dec 8 17:07:13 2011 -0500
     R=rsc, golang-dev
     CC=golang-dev
     https://golang.org/cl/5469046
-
+---
  src/pkg/math/acosh.go     | 1 +
  src/pkg/math/asinh.go     | 1 +
  src/pkg/math/atanh.go     | 3 ++-
@@ -18,3 +18,121 @@ Date:   Thu Dec 8 17:07:13 2011 -0500
  src/pkg/math/nextafter.go | 1 +
  src/pkg/math/remainder.go | 6 +++---
  7 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/math/acosh.go b/src/pkg/math/acosh.go
+index 7e8740b89b..8d556377f5 100644
+--- a/src/pkg/math/acosh.go
++++ b/src/pkg/math/acosh.go
+@@ -36,6 +36,7 @@ package math
+ // Acosh(x) calculates the inverse hyperbolic cosine of x.
+ //
+ // Special cases are:
++//	Acosh(+Inf) = +Inf
+ //	Acosh(x) = NaN if x < 1
+ //	Acosh(NaN) = NaN
+ func Acosh(x float64) float64 {
+diff --git a/src/pkg/math/asinh.go b/src/pkg/math/asinh.go
+index d6979463d6..f786dd9f8f 100644
+--- a/src/pkg/math/asinh.go
++++ b/src/pkg/math/asinh.go
+@@ -33,6 +33,7 @@ package math
+ // Asinh(x) calculates the inverse hyperbolic sine of x.
+ //
+ // Special cases are:
++//	Asinh(±0) = ±0
+ //	Asinh(±Inf) = ±Inf
+ //	Asinh(NaN) = NaN
+ func Asinh(x float64) float64 {
+diff --git a/src/pkg/math/atanh.go b/src/pkg/math/atanh.go
+index ed38fcac66..e150673c70 100644
+--- a/src/pkg/math/atanh.go
++++ b/src/pkg/math/atanh.go
+@@ -39,9 +39,10 @@ package math
+ // Atanh(x) calculates the inverse hyperbolic tangent of x.
+ //
+ // Special cases are:
+-//	Atanh(x) = NaN if x < -1 or x > 1
+ //	Atanh(1) = +Inf
++//	Atanh(±0) = ±0
+ //	Atanh(-1) = -Inf
++//	Atanh(x) = NaN if x < -1 or x > 1
+ //	Atanh(NaN) = NaN
+ func Atanh(x float64) float64 {
+ 	const NearZero = 1.0 / (1 << 28) // 2**-28
+diff --git a/src/pkg/math/floor.go b/src/pkg/math/floor.go
+index 8de4d7e2ce..e5b52c48c1 100644
+--- a/src/pkg/math/floor.go
++++ b/src/pkg/math/floor.go
+@@ -7,6 +7,7 @@ package math
+ // Floor returns the greatest integer value less than or equal to x.
+ //
+ // Special cases are:
++//	Floor(±0) = ±0
+ //	Floor(±Inf) = ±Inf
+ //	Floor(NaN) = NaN
+ func Floor(x float64) float64 {
+@@ -29,6 +30,7 @@ func Floor(x float64) float64 {
+ // Ceil returns the least integer value greater than or equal to x.
+ //
+ // Special cases are:
++//	Ceil(±0) = ±0
+ //	Ceil(±Inf) = ±Inf
+ //	Ceil(NaN) = NaN
+ func Ceil(x float64) float64 { return -Floor(-x) }
+@@ -36,6 +38,7 @@ func Ceil(x float64) float64 { return -Floor(-x) }
+ // Trunc returns the integer value of x.
+ //
+ // Special cases are:
++//	Trunc(±0) = ±0
+ //	Trunc(±Inf) = ±Inf
+ //	Trunc(NaN) = NaN
+ func Trunc(x float64) float64 {
+diff --git a/src/pkg/math/mod.go b/src/pkg/math/mod.go
+index 6b16abe5d1..0dd5d0607a 100644
+--- a/src/pkg/math/mod.go
++++ b/src/pkg/math/mod.go
+@@ -13,8 +13,11 @@ package math
+ // sign agrees with that of x.
+ //
+ // Special cases are:
+-//	if x is not finite, Mod returns NaN
+-//	if y is 0 or NaN, Mod returns NaN
++//	Mod(±Inf, y) = NaN
++//	Mod(NaN, y) = NaN
++//	Mod(x, 0) = NaN
++//	Mod(x, ±Inf) = x
++//	Mod(x, NaN) = NaN
+ func Mod(x, y float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us.
+diff --git a/src/pkg/math/nextafter.go b/src/pkg/math/nextafter.go
+index 86114340c1..ae1267f752 100644
+--- a/src/pkg/math/nextafter.go
++++ b/src/pkg/math/nextafter.go
+@@ -10,6 +10,7 @@ package math
+ // Special cases are:
+ //	Nextafter(NaN, y) = NaN
+ //	Nextafter(x, NaN) = NaN
++//	Nextafter(0, y) = -0, if y < 0
+ func Nextafter(x, y float64) (r float64) {
+ 	// TODO(rsc): Remove manual inlining of IsNaN
+ 	// when compiler does it for us
+diff --git a/src/pkg/math/remainder.go b/src/pkg/math/remainder.go
+index 7fb8a12f9e..8d8a746304 100644
+--- a/src/pkg/math/remainder.go
++++ b/src/pkg/math/remainder.go
+@@ -29,11 +29,11 @@ package math
+ // Remainder returns the IEEE 754 floating-point remainder of x/y.
+ //
+ // Special cases are:
+-//	Remainder(x, NaN) = NaN
++//	Remainder(±Inf, y) = NaN
+ //	Remainder(NaN, y) = NaN
+-//	Remainder(Inf, y) = NaN
+ //	Remainder(x, 0) = NaN
+-//	Remainder(x, Inf) = x
++//	Remainder(x, ±Inf) = x
++//	Remainder(x, NaN) = NaN
+ func Remainder(x, y float64) float64 {
+ 	const (
+ 		Tiny    = 4.45014771701440276618e-308 // 0x0020000000000000

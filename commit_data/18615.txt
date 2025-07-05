@@ -8,6 +8,21 @@ Date:   Mon Feb 24 20:32:28 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/68030043
-
+---
  src/pkg/testing/benchmark.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index e6f3c6d790..06b5b603e3 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -417,6 +417,9 @@ func (b *B) RunParallel(body func(*PB)) {
+ 		}()
+ 	}
+ 	wg.Wait()
++	if n == 0 {
++		b.Fatal("RunParallel body did not not call PB.Next")
++	}
+ }
+ 
+ // SetParallelism sets the number of goroutines used by RunParallel to p*GOMAXPROCS.

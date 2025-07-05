@@ -33,7 +33,44 @@ Date:   Wed Feb 26 15:59:25 2025 -0500
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/bogo_config.json    |  1 -
  src/crypto/tls/handshake_client.go | 13 +++++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 6a9a6dfcc5..5261a35ca9 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -55,7 +55,6 @@
+         "KyberKeyShareIncludedThird": "we always send the Kyber key share first",
+         "GREASE-Server-TLS13": "We don't send GREASE extensions",
+         "SendBogusAlertType": "sending wrong alert type",
+-        "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",
+         "*Client-P-224*": "no P-224 support",
+         "*Server-P-224*": "no P-224 support",
+         "CurveID-Resume*": "unexposed curveID is not stored in the ticket yet",
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index f6930c5d1b..1b6d672875 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -557,6 +557,19 @@ func (c *Conn) pickTLSVersion(serverHello *serverHelloMsg) error {
+ func (hs *clientHandshakeState) handshake() error {
+ 	c := hs.c
+ 
++	// If we did not load a session (hs.session == nil), but we did set a
++	// session ID in the transmitted client hello (hs.hello.sessionId != nil),
++	// it means we tried to negotiate TLS 1.3 and sent a random session ID as a
++	// compatibility measure (see RFC 8446, Section 4.1.2).
++	//
++	// Since we're now handshaking for TLS 1.2, if the server echoed the
++	// transmitted ID back to us, we know mischief is afoot: the session ID
++	// was random and can't possibly be recognized by the server.
++	if hs.session == nil && hs.hello.sessionId != nil && bytes.Equal(hs.hello.sessionId, hs.serverHello.sessionId) {
++		c.sendAlert(alertIllegalParameter)
++		return errors.New("tls: server echoed TLS 1.3 compatibility session ID in TLS 1.2")
++	}
++
+ 	isResume, err := hs.processServerHello()
+ 	if err != nil {
+ 		return err

@@ -9,6 +9,20 @@ Date:   Wed Apr 24 12:09:15 2019 -0700
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 8cbb4318fc..a4681ab95a 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1287,7 +1287,7 @@ func (m *M) writeProfiles() {
+ 			os.Exit(2)
+ 		}
+ 		if err = m.deps.WriteProfileTo("mutex", f, 0); err != nil {
+-			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *blockProfile, err)
++			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *mutexProfile, err)
+ 			os.Exit(2)
+ 		}
+ 		f.Close()

@@ -20,9 +20,172 @@ Date:   Mon Apr 18 18:43:22 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/400798
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go            | 51 ++++++++++++----------
  .../types2/testdata/fixedbugs/issue52401.go        | 11 +++++
  src/go/types/expr.go                               | 12 ++---
  src/go/types/testdata/fixedbugs/issue52401.go      | 11 +++++
  4 files changed, 56 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index e0c22f5b03..27f290420b 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -89,21 +89,11 @@ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
+ func (check *Checker) overflow(x *operand) {
+ 	assert(x.mode == constant_)
+ 
+-	// If the corresponding expression is an operation, use the
+-	// operator position rather than the start of the expression
+-	// as error position.
+-	pos := syntax.StartPos(x.expr)
+-	what := "" // operator description, if any
+-	if op, _ := x.expr.(*syntax.Operation); op != nil {
+-		pos = op.Pos()
+-		what = opName(op)
+-	}
+-
+ 	if x.val.Kind() == constant.Unknown {
+ 		// TODO(gri) We should report exactly what went wrong. At the
+ 		//           moment we don't have the (go/constant) API for that.
+ 		//           See also TODO in go/constant/value.go.
+-		check.error(pos, "constant result is not representable")
++		check.error(opPos(x.expr), "constant result is not representable")
+ 		return
+ 	}
+ 
+@@ -119,22 +109,37 @@ func (check *Checker) overflow(x *operand) {
+ 	// Untyped integer values must not grow arbitrarily.
+ 	const prec = 512 // 512 is the constant precision
+ 	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
+-		check.errorf(pos, "constant %s overflow", what)
++		check.errorf(opPos(x.expr), "constant %s overflow", opName(x.expr))
+ 		x.val = constant.MakeUnknown()
+ 	}
+ }
+ 
+-// opName returns the name of an operation, or the empty string.
+-// Only operations that might overflow are handled.
+-func opName(e *syntax.Operation) string {
+-	op := int(e.Op)
+-	if e.Y == nil {
+-		if op < len(op2str1) {
+-			return op2str1[op]
+-		}
+-	} else {
+-		if op < len(op2str2) {
+-			return op2str2[op]
++// opPos returns the position of the operator if x is an operation;
++// otherwise it returns the start position of x.
++func opPos(x syntax.Expr) syntax.Pos {
++	switch op := x.(type) {
++	case nil:
++		return nopos // don't crash
++	case *syntax.Operation:
++		return op.Pos()
++	default:
++		return syntax.StartPos(x)
++	}
++}
++
++// opName returns the name of the operation if x is an operation
++// that might overflow; otherwise it returns the empty string.
++func opName(x syntax.Expr) string {
++	if e, _ := x.(*syntax.Operation); e != nil {
++		op := int(e.Op)
++		if e.Y == nil {
++			if op < len(op2str1) {
++				return op2str1[op]
++			}
++		} else {
++			if op < len(op2str2) {
++				return op2str2[op]
++			}
+ 		}
+ 	}
+ 	return ""
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52401.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52401.go
+new file mode 100644
+index 0000000000..c7efd8c718
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52401.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	const x = 0
++	x /* ERROR cannot assign to x */ += 1
++	x /* ERROR cannot assign to x */ ++
++}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 977153512f..70914d5485 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -87,7 +87,7 @@ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
+ // overflow checks that the constant x is representable by its type.
+ // For untyped constants, it checks that the value doesn't become
+ // arbitrarily large.
+-func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
++func (check *Checker) overflow(x *operand, opPos token.Pos) {
+ 	assert(x.mode == constant_)
+ 
+ 	if x.val.Kind() == constant.Unknown {
+@@ -115,8 +115,8 @@ func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
+ 	}
+ }
+ 
+-// opName returns the name of an operation, or the empty string.
+-// Only operations that might overflow are handled.
++// opName returns the name of the operation if x is an operation
++// that might overflow; otherwise it returns the empty string.
+ func opName(e ast.Expr) string {
+ 	switch e := e.(type) {
+ 	case *ast.BinaryExpr:
+@@ -213,7 +213,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 		}
+ 		x.val = constant.UnaryOp(e.Op, x.val, prec)
+ 		x.expr = e
+-		check.overflow(x, e.Op, x.Pos())
++		check.overflow(x, x.Pos())
+ 		return
+ 	}
+ 
+@@ -991,7 +991,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 			if b, _ := e.(*ast.BinaryExpr); b != nil {
+ 				opPos = b.OpPos
+ 			}
+-			check.overflow(x, op, opPos)
++			check.overflow(x, opPos)
+ 			return
+ 		}
+ 
+@@ -1171,7 +1171,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 		}
+ 		x.val = constant.BinaryOp(x.val, op, y.val)
+ 		x.expr = e
+-		check.overflow(x, op, opPos)
++		check.overflow(x, opPos)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/testdata/fixedbugs/issue52401.go b/src/go/types/testdata/fixedbugs/issue52401.go
+new file mode 100644
+index 0000000000..c7efd8c718
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue52401.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	const x = 0
++	x /* ERROR cannot assign to x */ += 1
++	x /* ERROR cannot assign to x */ ++
++}

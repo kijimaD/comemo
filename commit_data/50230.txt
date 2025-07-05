@@ -34,10 +34,111 @@ Date:   Thu Oct 7 09:56:29 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/regexp/all_test.go    | 3 +++
  src/regexp/find_test.go   | 7 +++++++
  src/regexp/onepass.go     | 3 ++-
  src/regexp/regexp.go      | 8 +++++++-
  src/regexp/syntax/prog.go | 3 ++-
  5 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/regexp/all_test.go b/src/regexp/all_test.go
+index be7a2e7111..c233cfa9ea 100644
+--- a/src/regexp/all_test.go
++++ b/src/regexp/all_test.go
+@@ -372,6 +372,9 @@ var literalPrefixTests = []MetaTest{
+ 	{`^^0$$`, ``, ``, false},
+ 	{`^$^$`, ``, ``, false},
+ 	{`$$0^^`, ``, ``, false},
++	{`a\x{fffd}b`, ``, `a`, false},
++	{`\x{fffd}b`, ``, ``, false},
++	{"\ufffd", ``, ``, false},
+ }
+ 
+ func TestQuoteMeta(t *testing.T) {
+diff --git a/src/regexp/find_test.go b/src/regexp/find_test.go
+index 64c2239d90..2edbe9b86e 100644
+--- a/src/regexp/find_test.go
++++ b/src/regexp/find_test.go
+@@ -116,6 +116,13 @@ var findTests = []FindTest{
+ 	{"\\`", "`", build(1, 0, 1)},
+ 	{"[\\`]+", "`", build(1, 0, 1)},
+ 
++	{"\ufffd", "\xff", build(1, 0, 1)},
++	{"\ufffd", "hello\xffworld", build(1, 5, 6)},
++	{`.*`, "hello\xffworld", build(1, 0, 11)},
++	{`\x{fffd}`, "\xc2\x00", build(1, 0, 1)},
++	{"[\ufffd]", "\xff", build(1, 0, 1)},
++	{`[\x{fffd}]`, "\xc2\x00", build(1, 0, 1)},
++
+ 	// long set of matches (longer than startSize)
+ 	{
+ 		".",
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index 2f3ce6f9f6..bc47f4c4a8 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -9,6 +9,7 @@ import (
+ 	"sort"
+ 	"strings"
+ 	"unicode"
++	"unicode/utf8"
+ )
+ 
+ // "One-pass" regexp execution.
+@@ -55,7 +56,7 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
+ 
+ 	// Have prefix; gather characters.
+ 	var buf strings.Builder
+-	for iop(i) == syntax.InstRune && len(i.Rune) == 1 && syntax.Flags(i.Arg)&syntax.FoldCase == 0 {
++	for iop(i) == syntax.InstRune && len(i.Rune) == 1 && syntax.Flags(i.Arg)&syntax.FoldCase == 0 && i.Rune[0] != utf8.RuneError {
+ 		buf.WriteRune(i.Rune[0])
+ 		pc, i = i.Out, &p.Inst[i.Out]
+ 	}
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index bfcf7910cf..af7259c9bf 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -20,6 +20,8 @@
+ // or any book about automata theory.
+ //
+ // All characters are UTF-8-encoded code points.
++// Following utf8.DecodeRune, each byte of an invalid UTF-8 sequence
++// is treated as if it encoded utf8.RuneError (U+FFFD).
+ //
+ // There are 16 methods of Regexp that match a regular expression and identify
+ // the matched text. Their names are matched by this regular expression:
+@@ -276,7 +278,11 @@ func minInputLen(re *syntax.Regexp) int {
+ 	case syntax.OpLiteral:
+ 		l := 0
+ 		for _, r := range re.Rune {
+-			l += utf8.RuneLen(r)
++			if r == utf8.RuneError {
++				l++
++			} else {
++				l += utf8.RuneLen(r)
++			}
+ 		}
+ 		return l
+ 	case syntax.OpCapture, syntax.OpPlus:
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index ae7a9a2fe0..8583f55e54 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -8,6 +8,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
++	"unicode/utf8"
+ )
+ 
+ // Compiled program.
+@@ -154,7 +155,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
+ 
+ 	// Have prefix; gather characters.
+ 	var buf strings.Builder
+-	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
++	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 && i.Rune[0] != utf8.RuneError {
+ 		buf.WriteRune(i.Rune[0])
+ 		i = p.skipNop(i.Out)
+ 	}

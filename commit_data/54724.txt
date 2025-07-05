@@ -22,6 +22,33 @@ Date:   Thu Nov 10 12:30:05 2022 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index da5b305dbb..b43b9d493b 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1814,6 +1814,9 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 		// Local import turned into absolute path.
+ 		// No permanent install target.
+ 		p.Target = ""
++	} else if p.Standard && cfg.BuildContext.Compiler == "gccgo" {
++		// gccgo has a preinstalled standard library that cmd/go cannot rebuild.
++		p.Target = ""
+ 	} else {
+ 		p.Target = p.Internal.Build.PkgObj
+ 		if cfg.BuildBuildmode == "shared" && p.Internal.Build.PkgTargetRoot != "" {
+@@ -1989,11 +1992,6 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 		p.setBuildInfo(opts.AutoVCS)
+ 	}
+ 
+-	// unsafe is a fake package.
+-	if p.Standard && (p.ImportPath == "unsafe" || cfg.BuildContext.Compiler == "gccgo") {
+-		p.Target = ""
+-	}
+-
+ 	// If cgo is not enabled, ignore cgo supporting sources
+ 	// just as we ignore go files containing import "C".
+ 	if !cfg.BuildContext.CgoEnabled {

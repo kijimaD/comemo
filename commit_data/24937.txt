@@ -12,7 +12,7 @@ Date:   Wed Sep 9 23:31:10 2015 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/arch1_386.go      | 15 ---------------
  src/runtime/arch1_amd64.go    | 15 ---------------
  src/runtime/arch1_amd64p32.go | 15 ---------------
@@ -28,3 +28,291 @@ Date:   Wed Sep 9 23:31:10 2015 -0400
  src/runtime/arch_ppc64.go     | 10 ++++++++++
  src/runtime/arch_ppc64le.go   | 10 ++++++++++
  14 files changed, 70 insertions(+), 105 deletions(-)
+
+diff --git a/src/runtime/arch1_386.go b/src/runtime/arch1_386.go
+deleted file mode 100644
+index d41696a6d6..0000000000
+--- a/src/runtime/arch1_386.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-const (
+-	thechar        = '8'
+-	_BigEndian     = 0
+-	_CacheLineSize = 64
+-	_PhysPageSize  = goos_nacl*65536 + (1-goos_nacl)*4096 // 4k normally; 64k on NaCl
+-	_PCQuantum     = 1
+-	_Int64Align    = 4
+-	hugePageSize   = 1 << 21
+-)
+diff --git a/src/runtime/arch1_amd64.go b/src/runtime/arch1_amd64.go
+deleted file mode 100644
+index 15f4cc65fe..0000000000
+--- a/src/runtime/arch1_amd64.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-const (
+-	thechar        = '6'
+-	_BigEndian     = 0
+-	_CacheLineSize = 64
+-	_PhysPageSize  = 4096
+-	_PCQuantum     = 1
+-	_Int64Align    = 8
+-	hugePageSize   = 1 << 21
+-)
+diff --git a/src/runtime/arch1_amd64p32.go b/src/runtime/arch1_amd64p32.go
+deleted file mode 100644
+index 3c5456f933..0000000000
+--- a/src/runtime/arch1_amd64p32.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-const (
+-	thechar        = '6'
+-	_BigEndian     = 0
+-	_CacheLineSize = 64
+-	_PhysPageSize  = 65536*goos_nacl + 4096*(1-goos_nacl)
+-	_PCQuantum     = 1
+-	_Int64Align    = 8
+-	hugePageSize   = 1 << 21
+-)
+diff --git a/src/runtime/arch1_arm.go b/src/runtime/arch1_arm.go
+deleted file mode 100644
+index 0ec2093881..0000000000
+--- a/src/runtime/arch1_arm.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-const (
+-	thechar        = '5'
+-	_BigEndian     = 0
+-	_CacheLineSize = 32
+-	_PhysPageSize  = 65536*goos_nacl + 4096*(1-goos_nacl)
+-	_PCQuantum     = 4
+-	_Int64Align    = 4
+-	hugePageSize   = 0
+-)
+diff --git a/src/runtime/arch1_arm64.go b/src/runtime/arch1_arm64.go
+deleted file mode 100644
+index 29a87dbdb8..0000000000
+--- a/src/runtime/arch1_arm64.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-const (
+-	thechar        = '7'
+-	_BigEndian     = 0
+-	_CacheLineSize = 32
+-	_PhysPageSize  = 65536
+-	_PCQuantum     = 4
+-	_Int64Align    = 8
+-	hugePageSize   = 0
+-)
+diff --git a/src/runtime/arch1_ppc64.go b/src/runtime/arch1_ppc64.go
+deleted file mode 100644
+index de6dd91401..0000000000
+--- a/src/runtime/arch1_ppc64.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-const (
+-	thechar        = '9'
+-	_BigEndian     = 1
+-	_CacheLineSize = 64
+-	_PhysPageSize  = 65536
+-	_PCQuantum     = 4
+-	_Int64Align    = 8
+-	hugePageSize   = 0
+-)
+diff --git a/src/runtime/arch1_ppc64le.go b/src/runtime/arch1_ppc64le.go
+deleted file mode 100644
+index 9a55c71101..0000000000
+--- a/src/runtime/arch1_ppc64le.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-const (
+-	thechar        = '9'
+-	_BigEndian     = 0
+-	_CacheLineSize = 64
+-	_PhysPageSize  = 65536
+-	_PCQuantum     = 4
+-	_Int64Align    = 8
+-	hugePageSize   = 0
+-)
+diff --git a/src/runtime/arch_386.go b/src/runtime/arch_386.go
+index 79d38c7ab1..4ab00c3396 100644
+--- a/src/runtime/arch_386.go
++++ b/src/runtime/arch_386.go
+@@ -4,5 +4,15 @@
+ 
+ package runtime
+ 
++const (
++	thechar        = '8'
++	_BigEndian     = 0
++	_CacheLineSize = 64
++	_PhysPageSize  = goos_nacl*65536 + (1-goos_nacl)*4096 // 4k normally; 64k on NaCl
++	_PCQuantum     = 1
++	_Int64Align    = 4
++	hugePageSize   = 1 << 21
++)
++
+ type uintreg uint32
+ type intptr int32 // TODO(rsc): remove
+diff --git a/src/runtime/arch_amd64.go b/src/runtime/arch_amd64.go
+index 270cd7b957..b2ca077e4f 100644
+--- a/src/runtime/arch_amd64.go
++++ b/src/runtime/arch_amd64.go
+@@ -4,5 +4,15 @@
+ 
+ package runtime
+ 
++const (
++	thechar        = '6'
++	_BigEndian     = 0
++	_CacheLineSize = 64
++	_PhysPageSize  = 4096
++	_PCQuantum     = 1
++	_Int64Align    = 8
++	hugePageSize   = 1 << 21
++)
++
+ type uintreg uint64
+ type intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/arch_amd64p32.go b/src/runtime/arch_amd64p32.go
+index 5c636aeab2..3f66822445 100644
+--- a/src/runtime/arch_amd64p32.go
++++ b/src/runtime/arch_amd64p32.go
+@@ -4,5 +4,15 @@
+ 
+ package runtime
+ 
++const (
++	thechar        = '6'
++	_BigEndian     = 0
++	_CacheLineSize = 64
++	_PhysPageSize  = 65536*goos_nacl + 4096*(1-goos_nacl)
++	_PCQuantum     = 1
++	_Int64Align    = 8
++	hugePageSize   = 1 << 21
++)
++
+ type uintreg uint64
+ type intptr int32 // TODO(rsc): remove
+diff --git a/src/runtime/arch_arm.go b/src/runtime/arch_arm.go
+index 79d38c7ab1..d5d57703f6 100644
+--- a/src/runtime/arch_arm.go
++++ b/src/runtime/arch_arm.go
+@@ -4,5 +4,15 @@
+ 
+ package runtime
+ 
++const (
++	thechar        = '5'
++	_BigEndian     = 0
++	_CacheLineSize = 32
++	_PhysPageSize  = 65536*goos_nacl + 4096*(1-goos_nacl)
++	_PCQuantum     = 4
++	_Int64Align    = 4
++	hugePageSize   = 0
++)
++
+ type uintreg uint32
+ type intptr int32 // TODO(rsc): remove
+diff --git a/src/runtime/arch_arm64.go b/src/runtime/arch_arm64.go
+index 270cd7b957..f26227a557 100644
+--- a/src/runtime/arch_arm64.go
++++ b/src/runtime/arch_arm64.go
+@@ -4,5 +4,15 @@
+ 
+ package runtime
+ 
++const (
++	thechar        = '7'
++	_BigEndian     = 0
++	_CacheLineSize = 32
++	_PhysPageSize  = 65536
++	_PCQuantum     = 4
++	_Int64Align    = 8
++	hugePageSize   = 0
++)
++
+ type uintreg uint64
+ type intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/arch_ppc64.go b/src/runtime/arch_ppc64.go
+index 270cd7b957..a2cd85c129 100644
+--- a/src/runtime/arch_ppc64.go
++++ b/src/runtime/arch_ppc64.go
+@@ -4,5 +4,15 @@
+ 
+ package runtime
+ 
++const (
++	thechar        = '9'
++	_BigEndian     = 1
++	_CacheLineSize = 64
++	_PhysPageSize  = 65536
++	_PCQuantum     = 4
++	_Int64Align    = 8
++	hugePageSize   = 0
++)
++
+ type uintreg uint64
+ type intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/arch_ppc64le.go b/src/runtime/arch_ppc64le.go
+index 270cd7b957..4f89da337f 100644
+--- a/src/runtime/arch_ppc64le.go
++++ b/src/runtime/arch_ppc64le.go
+@@ -4,5 +4,15 @@
+ 
+ package runtime
+ 
++const (
++	thechar        = '9'
++	_BigEndian     = 0
++	_CacheLineSize = 64
++	_PhysPageSize  = 65536
++	_PCQuantum     = 4
++	_Int64Align    = 8
++	hugePageSize   = 0
++)
++
+ type uintreg uint64
+ type intptr int64 // TODO(rsc): remove

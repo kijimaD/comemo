@@ -14,9 +14,87 @@ Date:   Thu May 6 16:04:05 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go   |  1 -
  src/cmd/compile/internal/types2/check.go      |  1 +
  src/cmd/compile/internal/types2/type.go       | 14 ++++++++++----
  src/cmd/compile/internal/types2/types_test.go |  8 --------
  4 files changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 873390c1e9..e1020a1219 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -349,7 +349,6 @@ func TestTypesInfo(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		ResetId() // avoid renumbering of type parameter ids when adding tests
+ 		info := Info{Types: make(map[syntax.Expr]TypeAndValue)}
+ 		var name string
+ 		if strings.HasPrefix(test.src, brokenPkg) {
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 8d6cd1edab..f80a918467 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -83,6 +83,7 @@ type Checker struct {
+ 	pkg  *Package
+ 	*Info
+ 	version version                     // accepted language version
++	nextID  uint64                      // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo        // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package      // maps (import path, source directory) to (complete or fake) package
+ 	posMap  map[*Interface][]syntax.Pos // maps interface types to lists of embedded interface positions
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 88dedbad45..cf119a1b23 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -732,11 +732,11 @@ func (t *Named) AddMethod(m *Func) {
+ // Note: This is a uint32 rather than a uint64 because the
+ // respective 64 bit atomic instructions are not available
+ // on all platforms.
+-var lastId uint32
++var lastID uint32
+ 
+-// nextId returns a value increasing monotonically by 1 with
++// nextID returns a value increasing monotonically by 1 with
+ // each call, starting with 1. It may be called concurrently.
+-func nextId() uint64 { return uint64(atomic.AddUint32(&lastId, 1)) }
++func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
+ 
+ // A TypeParam represents a type parameter type.
+ type TypeParam struct {
+@@ -753,7 +753,13 @@ func (t *TypeParam) Obj() *TypeName { return t.obj }
+ // NewTypeParam returns a new TypeParam.
+ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+ 	assert(bound != nil)
+-	typ := &TypeParam{check: check, id: nextId(), obj: obj, index: index, bound: bound}
++	// Always increment lastID, even if it is not used.
++	id := nextID()
++	if check != nil {
++		check.nextID++
++		id = check.nextID
++	}
++	typ := &TypeParam{check: check, id: id, obj: obj, index: index, bound: bound}
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+ 	}
+diff --git a/src/cmd/compile/internal/types2/types_test.go b/src/cmd/compile/internal/types2/types_test.go
+index 096402148d..11dca0b53d 100644
+--- a/src/cmd/compile/internal/types2/types_test.go
++++ b/src/cmd/compile/internal/types2/types_test.go
+@@ -4,14 +4,6 @@
+ 
+ package types2
+ 
+-import "sync/atomic"
+-
+ func init() {
+ 	acceptMethodTypeParams = true
+ }
+-
+-// Upon calling ResetId, nextId starts with 1 again.
+-// It may be called concurrently. This is only needed
+-// for tests where we may want to have a consistent
+-// numbering for each individual test case.
+-func ResetId() { atomic.StoreUint32(&lastId, 0) }

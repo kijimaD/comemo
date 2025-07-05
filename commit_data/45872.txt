@@ -10,7 +10,86 @@ Date:   Tue Nov 24 20:28:20 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/273126
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/constant/value.go      |  7 ++-----
  src/go/constant/value_test.go | 37 +++++++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 4baae2eb32..46414423f2 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -370,16 +370,13 @@ func MakeUint64(x uint64) Value {
+ }
+ 
+ // MakeFloat64 returns the Float value for x.
++// If x is -0.0, the result is 0.0.
+ // If x is not finite, the result is an Unknown.
+ func MakeFloat64(x float64) Value {
+ 	if math.IsInf(x, 0) || math.IsNaN(x) {
+ 		return unknownVal{}
+ 	}
+-	// convert -0 to 0
+-	if x == 0 {
+-		return int64Val(0)
+-	}
+-	return ratVal{newRat().SetFloat64(x)}
++	return ratVal{newRat().SetFloat64(x + 0)} // convert -0 to 0
+ }
+ 
+ // MakeFromLiteral returns the corresponding integer, floating-point,
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index 5edc766fde..286677407d 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -7,6 +7,7 @@ package constant
+ import (
+ 	"fmt"
+ 	"go/token"
++	"math"
+ 	"math/big"
+ 	"strings"
+ 	"testing"
+@@ -620,6 +621,42 @@ func TestUnknown(t *testing.T) {
+ 	}
+ }
+ 
++func TestMakeFloat64(t *testing.T) {
++	var zero float64
++	for _, arg := range []float64{
++		-math.MaxFloat32,
++		-10,
++		-0.5,
++		-zero,
++		zero,
++		1,
++		10,
++		123456789.87654321e-23,
++		1e10,
++		math.MaxFloat64,
++	} {
++		val := MakeFloat64(arg)
++		if val.Kind() != Float {
++			t.Errorf("%v: got kind = %d; want %d", arg, val.Kind(), Float)
++		}
++
++		// -0.0 is mapped to 0.0
++		got, exact := Float64Val(val)
++		if !exact || math.Float64bits(got) != math.Float64bits(arg+0) {
++			t.Errorf("%v: got %v (exact = %v)", arg, got, exact)
++		}
++	}
++
++	// infinity
++	for sign := range []int{-1, 1} {
++		arg := math.Inf(sign)
++		val := MakeFloat64(arg)
++		if val.Kind() != Unknown {
++			t.Errorf("%v: got kind = %d; want %d", arg, val.Kind(), Unknown)
++		}
++	}
++}
++
+ type makeTestCase struct {
+ 	kind      Kind
+ 	arg, want interface{}

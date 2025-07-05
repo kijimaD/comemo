@@ -15,7 +15,31 @@ Date:   Thu May 11 07:36:09 2017 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/cpu/cpu_arm64.go          | 2 +-
  src/runtime/internal/sys/arch_arm64.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index 078a6c3b80..d3c6cc8305 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -4,4 +4,4 @@
+ 
+ package cpu
+ 
+-const CacheLineSize = 32
++const CacheLineSize = 64
+diff --git a/src/runtime/internal/sys/arch_arm64.go b/src/runtime/internal/sys/arch_arm64.go
+index 2d57ddae19..df8fb1e5fb 100644
+--- a/src/runtime/internal/sys/arch_arm64.go
++++ b/src/runtime/internal/sys/arch_arm64.go
+@@ -7,7 +7,7 @@ package sys
+ const (
+ 	ArchFamily          = ARM64
+ 	BigEndian           = 0
+-	CacheLineSize       = 32
++	CacheLineSize       = 64
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 8

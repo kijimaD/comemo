@@ -12,6 +12,30 @@ Date:   Sun Jul 10 18:44:09 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/traceback.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 80a54407b3..884c9476fc 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1077,6 +1077,9 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
+ 		// or when on the system stack.
+ 		call = asmcgocall
+ 	}
++	if msanenabled {
++		msanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
++	}
+ 	call(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
+ }
+ 
+@@ -1096,5 +1099,8 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
+ 		buf:     (*uintptr)(noescape(unsafe.Pointer(&buf[0]))),
+ 		max:     uintptr(len(buf)),
+ 	}
++	if msanenabled {
++		msanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
++	}
+ 	call(cgoTraceback, noescape(unsafe.Pointer(&arg)))
+ }

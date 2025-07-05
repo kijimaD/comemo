@@ -10,6 +10,24 @@ Date:   Thu Dec 13 18:52:17 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/c/153842
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bytes/example_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 4d5cdfa280..6d328378fa 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -298,6 +298,12 @@ func ExampleReplace() {
+ 	// moo moo moo
+ }
+ 
++func ExampleReplaceAll() {
++	fmt.Printf("%s\n", bytes.ReplaceAll([]byte("oink oink oink"), []byte("oink"), []byte("moo")))
++	// Output:
++	// moo moo moo
++}
++
+ func ExampleRunes() {
+ 	rs := bytes.Runes([]byte("go gopher"))
+ 	for _, r := range rs {

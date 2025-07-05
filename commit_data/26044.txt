@@ -50,7 +50,7 @@ Date:   Wed Dec 2 17:41:39 2015 -0800
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  api/go1.1.txt                                  |  30 +-
  src/cmd/api/goapi.go                           |   9 +-
  src/cmd/api/testdata/src/pkg/p1/golden.txt     |   2 +-
@@ -69,3 +69,1939 @@ Date:   Wed Dec 2 17:41:39 2015 -0800
  src/go/types/testdata/errors.src               |   4 +-
  src/go/types/typexpr.go                        |  21 +-
  17 files changed, 753 insertions(+), 328 deletions(-)
+
+diff --git a/api/go1.1.txt b/api/go1.1.txt
+index 0b27523ab5..81d095704a 100644
+--- a/api/go1.1.txt
++++ b/api/go1.1.txt
+@@ -1983,13 +1983,13 @@ pkg log/syslog (openbsd-amd64-cgo), const LOG_SYSLOG = 40
+ pkg log/syslog (openbsd-amd64-cgo), const LOG_USER = 8
+ pkg log/syslog (openbsd-amd64-cgo), const LOG_UUCP = 64
+ pkg log/syslog (openbsd-amd64-cgo), const LOG_WARNING = 4
+-pkg math, const E = 271828182845904523536028747135266249775724709369995957496696763/100000000000000000000000000000000000000000000000000000000000000
+-pkg math, const Ln10 = 23025850929940456840179914546843642076011014886287729760333279/10000000000000000000000000000000000000000000000000000000000000
+-pkg math, const Ln2 = 693147180559945309417232121458176568075500134360255254120680009/1000000000000000000000000000000000000000000000000000000000000000
+-pkg math, const Log10E = 10000000000000000000000000000000000000000000000000000000000000/23025850929940456840179914546843642076011014886287729760333279
+-pkg math, const Log2E = 1000000000000000000000000000000000000000000000000000000000000000/693147180559945309417232121458176568075500134360255254120680009
+-pkg math, const MaxFloat32 = 340282346638528859811704183484516925440
+-pkg math, const MaxFloat64 = 179769313486231570814527423731704356798100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
++pkg math, const E = 2.71828  // 271828182845904523536028747135266249775724709369995957496696763/100000000000000000000000000000000000000000000000000000000000000
++pkg math, const Ln10 = 2.30259  // 23025850929940456840179914546843642076011014886287729760333279/10000000000000000000000000000000000000000000000000000000000000
++pkg math, const Ln2 = 0.693147  // 693147180559945309417232121458176568075500134360255254120680009/1000000000000000000000000000000000000000000000000000000000000000
++pkg math, const Log10E = 0.434294  // 10000000000000000000000000000000000000000000000000000000000000/23025850929940456840179914546843642076011014886287729760333279
++pkg math, const Log2E = 1.4427  // 1000000000000000000000000000000000000000000000000000000000000000/693147180559945309417232121458176568075500134360255254120680009
++pkg math, const MaxFloat32 = 3.40282e+38  // 340282346638528859811704183484516925440
++pkg math, const MaxFloat64 = 1.79769e+308  // 179769313486231570814527423731704356798100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+ pkg math, const MaxInt16 = 32767
+ pkg math, const MaxInt32 = 2147483647
+ pkg math, const MaxInt64 = 9223372036854775807
+@@ -2002,14 +2002,14 @@ pkg math, const MinInt16 = -32768
+ pkg math, const MinInt32 = -2147483648
+ pkg math, const MinInt64 = -9223372036854775808
+ pkg math, const MinInt8 = -128
+-pkg math, const Phi = 80901699437494742410229341718281905886015458990288143106772431/50000000000000000000000000000000000000000000000000000000000000
+-pkg math, const Pi = 314159265358979323846264338327950288419716939937510582097494459/100000000000000000000000000000000000000000000000000000000000000
+-pkg math, const SmallestNonzeroFloat32 = 17516230804060213386546619791123951641/12500000000000000000000000000000000000000000000000000000000000000000000000000000000
+-pkg math, const SmallestNonzeroFloat64 = 4940656458412465441765687928682213723651/1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+-pkg math, const Sqrt2 = 70710678118654752440084436210484903928483593768847403658833987/50000000000000000000000000000000000000000000000000000000000000
+-pkg math, const SqrtE = 164872127070012814684865078781416357165377610071014801157507931/100000000000000000000000000000000000000000000000000000000000000
+-pkg math, const SqrtPhi = 63600982475703448212621123086874574585780402092004812430832019/50000000000000000000000000000000000000000000000000000000000000
+-pkg math, const SqrtPi = 177245385090551602729816748334114518279754945612238712821380779/100000000000000000000000000000000000000000000000000000000000000
++pkg math, const Phi = 1.61803  // 80901699437494742410229341718281905886015458990288143106772431/50000000000000000000000000000000000000000000000000000000000000
++pkg math, const Pi = 3.14159  // 314159265358979323846264338327950288419716939937510582097494459/100000000000000000000000000000000000000000000000000000000000000
++pkg math, const SmallestNonzeroFloat32 = 1.4013e-45  // 17516230804060213386546619791123951641/12500000000000000000000000000000000000000000000000000000000000000000000000000000000
++pkg math, const SmallestNonzeroFloat64 = 4.94066e-324  // 4940656458412465441765687928682213723651/1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
++pkg math, const Sqrt2 = 1.41421  // 70710678118654752440084436210484903928483593768847403658833987/50000000000000000000000000000000000000000000000000000000000000
++pkg math, const SqrtE = 1.64872  // 164872127070012814684865078781416357165377610071014801157507931/100000000000000000000000000000000000000000000000000000000000000
++pkg math, const SqrtPhi = 1.27202  // 63600982475703448212621123086874574585780402092004812430832019/50000000000000000000000000000000000000000000000000000000000000
++pkg math, const SqrtPi = 1.77245  // 177245385090551602729816748334114518279754945612238712821380779/100000000000000000000000000000000000000000000000000000000000000
+ pkg math/big, const MaxBase = 36
+ pkg math/big, method (*Int) MarshalJSON() ([]uint8, error)
+ pkg math/big, method (*Int) SetUint64(uint64) *Int
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 5d1cf05e31..8b20d123b1 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -680,7 +680,14 @@ func (w *Walker) emitObj(obj types.Object) {
+ 	switch obj := obj.(type) {
+ 	case *types.Const:
+ 		w.emitf("const %s %s", obj.Name(), w.typeString(obj.Type()))
+-		w.emitf("const %s = %s", obj.Name(), obj.Val())
++		x := obj.Val()
++		short := x.String()
++		exact := x.ExactString()
++		if short == exact {
++			w.emitf("const %s = %s", obj.Name(), short)
++		} else {
++			w.emitf("const %s = %s  // %s", obj.Name(), short, exact)
++		}
+ 	case *types.Var:
+ 		w.emitf("var %s %s", obj.Name(), w.typeString(obj.Type()))
+ 	case *types.TypeName:
+diff --git a/src/cmd/api/testdata/src/pkg/p1/golden.txt b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+index 3c43a226ff..0378a56870 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/golden.txt
++++ b/src/cmd/api/testdata/src/pkg/p1/golden.txt
+@@ -10,7 +10,7 @@ pkg p1, const ConstChase2 = 11
+ pkg p1, const ConstChase2 ideal-int
+ pkg p1, const ConversionConst = 5
+ pkg p1, const ConversionConst MyInt
+-pkg p1, const FloatConst = 3/2
++pkg p1, const FloatConst = 1.5  // 3/2
+ pkg p1, const FloatConst ideal-float
+ pkg p1, const StrConst = "foo"
+ pkg p1, const StrConst ideal-string
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 8a2dda060c..04a2ac981e 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -3,8 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package constant implements Values representing untyped
+-// Go constants and the corresponding operations. Values
+-// and operations may have arbitrary or unlimited precision.
++// Go constants and their corresponding operations.
+ //
+ // A special Unknown value may be used when a value
+ // is unknown due to an error. Operations on unknown
+@@ -16,16 +15,15 @@ package constant // import "go/constant"
+ import (
+ 	"fmt"
+ 	"go/token"
++	"math"
+ 	"math/big"
+ 	"strconv"
++	"unicode/utf8"
+ )
+ 
+ // Kind specifies the kind of value represented by a Value.
+ type Kind int
+ 
+-// Implementation note: Kinds must be enumerated in
+-// order of increasing "complexity" (used by match).
+-
+ const (
+ 	// unknown values
+ 	Unknown Kind = iota
+@@ -40,15 +38,20 @@ const (
+ 	Complex
+ )
+ 
+-// A Value represents a mathematically exact value of a given Kind.
++// A Value represents the value of a Go constant.
+ type Value interface {
+-	// Kind returns the value kind; it is always the smallest
+-	// kind in which the value can be represented exactly.
++	// Kind returns the value kind.
+ 	Kind() Kind
+ 
+-	// String returns a human-readable form of the value.
++	// String returns a short, human-readable form of the value.
++	// For numeric values, the result may be an approximation;
++	// for String values the result may be a shortened string.
++	// Use ExactString for a string representing a value exactly.
+ 	String() string
+ 
++	// ExactString returns an exact, printable form of the value.
++	ExactString() string
++
+ 	// Prevent external implementations.
+ 	implementsValue()
+ }
+@@ -56,14 +59,19 @@ type Value interface {
+ // ----------------------------------------------------------------------------
+ // Implementations
+ 
++// Maximum supported mantissa precision.
++// The spec requires at least 256 bits; typical implementations use 512 bits.
++const prec = 512
++
+ type (
+ 	unknownVal struct{}
+ 	boolVal    bool
+ 	stringVal  string
+-	int64Val   int64
+-	intVal     struct{ val *big.Int }
+-	floatVal   struct{ val *big.Rat }
+-	complexVal struct{ re, im *big.Rat }
++	int64Val   int64                    // Int values representable as an int64
++	intVal     struct{ val *big.Int }   // Int values not representable as an int64
++	ratVal     struct{ val *big.Rat }   // Float values representable as a fraction
++	floatVal   struct{ val *big.Float } // Float values not representable as a fraction
++	complexVal struct{ re, im Value }
+ )
+ 
+ func (unknownVal) Kind() Kind { return Unknown }
+@@ -71,52 +79,187 @@ func (boolVal) Kind() Kind    { return Bool }
+ func (stringVal) Kind() Kind  { return String }
+ func (int64Val) Kind() Kind   { return Int }
+ func (intVal) Kind() Kind     { return Int }
++func (ratVal) Kind() Kind     { return Float }
+ func (floatVal) Kind() Kind   { return Float }
+ func (complexVal) Kind() Kind { return Complex }
+ 
+-func (unknownVal) String() string   { return "unknown" }
+-func (x boolVal) String() string    { return fmt.Sprintf("%v", bool(x)) }
+-func (x stringVal) String() string  { return strconv.Quote(string(x)) }
+-func (x int64Val) String() string   { return strconv.FormatInt(int64(x), 10) }
+-func (x intVal) String() string     { return x.val.String() }
+-func (x floatVal) String() string   { return x.val.String() }
++func (unknownVal) String() string { return "unknown" }
++func (x boolVal) String() string  { return strconv.FormatBool(bool(x)) }
++
++// String returns a possibly shortened quoted form of the String value.
++func (x stringVal) String() string {
++	const maxLen = 72 // a reasonable length
++	s := strconv.Quote(string(x))
++	if utf8.RuneCountInString(s) > maxLen {
++		// The string without the enclosing quotes is greater than maxLen-2 runes
++		// long. Remove the last 3 runes (including the closing '"') by keeping
++		// only the first maxLen-3 runes; then add "...".
++		i := 0
++		for n := 0; n < maxLen-3; n++ {
++			_, size := utf8.DecodeRuneInString(s)
++			i += size
++		}
++		s = s[:i] + "..."
++	}
++	return s
++}
++
++func (x int64Val) String() string { return strconv.FormatInt(int64(x), 10) }
++func (x intVal) String() string   { return x.val.String() }
++func (x ratVal) String() string   { return rtof(x).String() }
++
++// String returns returns a decimal approximation of the Float value.
++func (x floatVal) String() string {
++	f := x.val
++
++	// Don't try to convert infinities (will not terminate).
++	if f.IsInf() {
++		return f.String()
++	}
++
++	// Use exact fmt formatting if in float64 range (common case):
++	// proceed if f doesn't underflow to 0 or overflow to inf.
++	if x, _ := f.Float64(); f.Sign() == 0 == (x == 0) && !math.IsInf(x, 0) {
++		return fmt.Sprintf("%.6g", x)
++	}
++
++	// Out of float64 range. Do approximate manual to decimal
++	// conversion to avoid precise but possibly slow Float
++	// formatting.
++	// f = mant * 2**exp
++	var mant big.Float
++	exp := f.MantExp(&mant) // 0.5 <= |mant| < 1.0
++
++	// approximate float64 mantissa m and decimal exponent d
++	// f ~ m * 10**d
++	m, _ := mant.Float64()                     // 0.5 <= |m| < 1.0
++	d := float64(exp) * (math.Ln2 / math.Ln10) // log_10(2)
++
++	// adjust m for truncated (integer) decimal exponent e
++	e := int64(d)
++	m *= math.Pow(10, d-float64(e))
++
++	// ensure 1 <= |m| < 10
++	switch am := math.Abs(m); {
++	case am < 1-0.5e-6:
++		// The %.6g format below rounds m to 5 digits after the
++		// decimal point. Make sure that m*10 < 10 even after
++		// rounding up: m*10 + 0.5e-5 < 10 => m < 1 - 0.5e6.
++		m *= 10
++		e--
++	case am >= 10:
++		m /= 10
++		e++
++	}
++
++	return fmt.Sprintf("%.6ge%+d", m, e)
++}
++
+ func (x complexVal) String() string { return fmt.Sprintf("(%s + %si)", x.re, x.im) }
+ 
++func (x unknownVal) ExactString() string { return x.String() }
++func (x boolVal) ExactString() string    { return x.String() }
++func (x stringVal) ExactString() string  { return strconv.Quote(string(x)) }
++func (x int64Val) ExactString() string   { return x.String() }
++func (x intVal) ExactString() string     { return x.String() }
++
++func (x ratVal) ExactString() string {
++	r := x.val
++	if r.IsInt() {
++		return r.Num().String()
++	}
++	return r.String()
++}
++
++func (x floatVal) ExactString() string { return x.val.Text('p', 0) }
++
++func (x complexVal) ExactString() string {
++	return fmt.Sprintf("(%s + %si)", x.re.ExactString(), x.im.ExactString())
++}
++
+ func (unknownVal) implementsValue() {}
+ func (boolVal) implementsValue()    {}
+ func (stringVal) implementsValue()  {}
+ func (int64Val) implementsValue()   {}
++func (ratVal) implementsValue()     {}
+ func (intVal) implementsValue()     {}
+ func (floatVal) implementsValue()   {}
+ func (complexVal) implementsValue() {}
+ 
+-// int64 bounds
++func newInt() *big.Int     { return new(big.Int) }
++func newRat() *big.Rat     { return new(big.Rat) }
++func newFloat() *big.Float { return new(big.Float).SetPrec(prec) }
++
++func i64toi(x int64Val) intVal   { return intVal{newInt().SetInt64(int64(x))} }
++func i64tor(x int64Val) ratVal   { return ratVal{newRat().SetInt64(int64(x))} }
++func i64tof(x int64Val) floatVal { return floatVal{newFloat().SetInt64(int64(x))} }
++func itor(x intVal) ratVal       { return ratVal{newRat().SetInt(x.val)} }
++func itof(x intVal) floatVal     { return floatVal{newFloat().SetInt(x.val)} }
++
++func rtof(x ratVal) floatVal {
++	a := newFloat().SetInt(x.val.Num())
++	b := newFloat().SetInt(x.val.Denom())
++	return floatVal{a.Quo(a, b)}
++}
++
++func vtoc(x Value) complexVal { return complexVal{x, int64Val(0)} }
++
+ var (
+ 	minInt64 = big.NewInt(-1 << 63)
+ 	maxInt64 = big.NewInt(1<<63 - 1)
+ )
+ 
+-func normInt(x *big.Int) Value {
++func makeInt(x *big.Int) Value {
+ 	if minInt64.Cmp(x) <= 0 && x.Cmp(maxInt64) <= 0 {
+ 		return int64Val(x.Int64())
+ 	}
+ 	return intVal{x}
+ }
+ 
+-func normFloat(x *big.Rat) Value {
+-	if x.IsInt() {
+-		return normInt(x.Num())
++// Permit fractions with component sizes up to maxExp
++// before switching to using floating-point numbers.
++const maxExp = 4 << 10
++
++func makeRat(x *big.Rat) Value {
++	a := x.Num()
++	b := x.Denom()
++	if a.BitLen() < maxExp && b.BitLen() < maxExp {
++		// ok to remain fraction
++		return ratVal{x}
+ 	}
+-	return floatVal{x}
++	// components too large => switch to float
++	fa := newFloat().SetInt(a)
++	fb := newFloat().SetInt(b)
++	return floatVal{fa.Quo(fa, fb)}
+ }
+ 
+-func normComplex(re, im *big.Rat) Value {
+-	if im.Sign() == 0 {
+-		return normFloat(re)
++var floatVal0 = floatVal{newFloat()}
++
++func makeFloat(x *big.Float) Value {
++	// convert -0
++	if x.Sign() == 0 {
++		return floatVal0
+ 	}
++	return floatVal{x}
++}
++
++func makeComplex(re, im Value) Value {
+ 	return complexVal{re, im}
+ }
+ 
++func makeFloatFromLiteral(lit string) Value {
++	if f, ok := newFloat().SetString(lit); ok {
++		if f.MantExp(nil) < maxExp {
++			// ok to use rationals
++			r, _ := newRat().SetString(lit)
++			return makeRat(r)
++		}
++		// otherwise use floats
++		return makeFloat(f)
++	}
++	return nil
++}
++
+ // ----------------------------------------------------------------------------
+ // Factories
+ 
+@@ -133,62 +276,74 @@ func MakeString(s string) Value { return stringVal(s) }
+ func MakeInt64(x int64) Value { return int64Val(x) }
+ 
+ // MakeUint64 returns the Int value for x.
+-func MakeUint64(x uint64) Value { return normInt(new(big.Int).SetUint64(x)) }
++func MakeUint64(x uint64) Value {
++	if x < 1<<63 {
++		return int64Val(int64(x))
++	}
++	return intVal{newInt().SetUint64(x)}
++}
+ 
+-// MakeFloat64 returns the numeric value for x.
+-// If x is not finite, the result is unknown.
++// MakeFloat64 returns the Float value for x.
++// If x is not finite, the result is an Unknown.
+ func MakeFloat64(x float64) Value {
+-	if f := new(big.Rat).SetFloat64(x); f != nil {
+-		return normFloat(f)
++	if math.IsInf(x, 0) || math.IsNaN(x) {
++		return unknownVal{}
+ 	}
+-	return unknownVal{}
++	// convert -0 to 0
++	if x == 0 {
++		return int64Val(0)
++	}
++	return ratVal{newRat().SetFloat64(x)}
+ }
+ 
+ // MakeFromLiteral returns the corresponding integer, floating-point,
+-// imaginary, character, or string value for a Go literal string.
+-// If prec > 0, prec specifies an upper limit for the precision of
+-// a numeric value. If the literal string is invalid, the result is
+-// nil.
+-// BUG(gri) Only prec == 0 is supported at the moment.
+-func MakeFromLiteral(lit string, tok token.Token, prec uint) Value {
+-	if prec != 0 {
+-		panic("limited precision not supported")
++// imaginary, character, or string value for a Go literal string. The
++// tok value must be one of token.INT, token.FLOAT, toke.IMAG, token.
++// CHAR, or token.STRING. The final argument must be zero.
++// If the literal string syntax is invalid, the result is an Unknown.
++func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
++	if zero != 0 {
++		panic("MakeFromLiteral called with non-zero last argument")
+ 	}
++
+ 	switch tok {
+ 	case token.INT:
+ 		if x, err := strconv.ParseInt(lit, 0, 64); err == nil {
+ 			return int64Val(x)
+ 		}
+-		if x, ok := new(big.Int).SetString(lit, 0); ok {
++		if x, ok := newInt().SetString(lit, 0); ok {
+ 			return intVal{x}
+ 		}
+ 
+ 	case token.FLOAT:
+-		if x, ok := new(big.Rat).SetString(lit); ok {
+-			return normFloat(x)
++		if x := makeFloatFromLiteral(lit); x != nil {
++			return x
+ 		}
+ 
+ 	case token.IMAG:
+ 		if n := len(lit); n > 0 && lit[n-1] == 'i' {
+-			if im, ok := new(big.Rat).SetString(lit[0 : n-1]); ok {
+-				return normComplex(big.NewRat(0, 1), im)
++			if im := makeFloatFromLiteral(lit[:n-1]); im != nil {
++				return makeComplex(int64Val(0), im)
+ 			}
+ 		}
+ 
+ 	case token.CHAR:
+ 		if n := len(lit); n >= 2 {
+ 			if code, _, _, err := strconv.UnquoteChar(lit[1:n-1], '\''); err == nil {
+-				return int64Val(code)
++				return MakeInt64(int64(code))
+ 			}
+ 		}
+ 
+ 	case token.STRING:
+ 		if s, err := strconv.Unquote(lit); err == nil {
+-			return stringVal(s)
++			return MakeString(s)
+ 		}
++
++	default:
++		panic(fmt.Sprintf("%v is not a valid token", tok))
+ 	}
+ 
+-	return nil
++	return unknownVal{}
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -205,8 +360,9 @@ func BoolVal(x Value) bool {
+ 		return bool(x)
+ 	case unknownVal:
+ 		return false
++	default:
++		panic(fmt.Sprintf("%v not a Bool", x))
+ 	}
+-	panic(fmt.Sprintf("%v not a Bool", x))
+ }
+ 
+ // StringVal returns the Go string value of x, which must be a String or an Unknown.
+@@ -217,8 +373,9 @@ func StringVal(x Value) string {
+ 		return string(x)
+ 	case unknownVal:
+ 		return ""
++	default:
++		panic(fmt.Sprintf("%v not a String", x))
+ 	}
+-	panic(fmt.Sprintf("%v not a String", x))
+ }
+ 
+ // Int64Val returns the Go int64 value of x and whether the result is exact;
+@@ -229,11 +386,12 @@ func Int64Val(x Value) (int64, bool) {
+ 	case int64Val:
+ 		return int64(x), true
+ 	case intVal:
+-		return x.val.Int64(), x.val.BitLen() <= 63
++		return x.val.Int64(), false // not an int64Val and thus not exact
+ 	case unknownVal:
+ 		return 0, false
++	default:
++		panic(fmt.Sprintf("%v not an Int", x))
+ 	}
+-	panic(fmt.Sprintf("%v not an Int", x))
+ }
+ 
+ // Uint64Val returns the Go uint64 value of x and whether the result is exact;
+@@ -247,8 +405,9 @@ func Uint64Val(x Value) (uint64, bool) {
+ 		return x.val.Uint64(), x.val.Sign() >= 0 && x.val.BitLen() <= 64
+ 	case unknownVal:
+ 		return 0, false
++	default:
++		panic(fmt.Sprintf("%v not an Int", x))
+ 	}
+-	panic(fmt.Sprintf("%v not an Int", x))
+ }
+ 
+ // Float32Val is like Float64Val but for float32 instead of float64.
+@@ -258,17 +417,22 @@ func Float32Val(x Value) (float32, bool) {
+ 		f := float32(x)
+ 		return f, int64Val(f) == x
+ 	case intVal:
+-		return new(big.Rat).SetFrac(x.val, int1).Float32()
+-	case floatVal:
++		f, acc := newFloat().SetInt(x.val).Float32()
++		return f, acc == big.Exact
++	case ratVal:
+ 		return x.val.Float32()
++	case floatVal:
++		f, acc := x.val.Float32()
++		return f, acc == big.Exact
+ 	case unknownVal:
+ 		return 0, false
++	default:
++		panic(fmt.Sprintf("%v not a Float", x))
+ 	}
+-	panic(fmt.Sprintf("%v not a Float", x))
+ }
+ 
+ // Float64Val returns the nearest Go float64 value of x and whether the result is exact;
+-// x must be numeric but not Complex, or Unknown. For values too small (too close to 0)
++// x must be numeric or an Unknown, but not Complex. For values too small (too close to 0)
+ // to represent as float64, Float64Val silently underflows to 0. The result sign always
+ // matches the sign of x, even for 0.
+ // If x is Unknown, the result is (0, false).
+@@ -278,13 +442,18 @@ func Float64Val(x Value) (float64, bool) {
+ 		f := float64(int64(x))
+ 		return f, int64Val(f) == x
+ 	case intVal:
+-		return new(big.Rat).SetFrac(x.val, int1).Float64()
+-	case floatVal:
++		f, acc := newFloat().SetInt(x.val).Float64()
++		return f, acc == big.Exact
++	case ratVal:
+ 		return x.val.Float64()
++	case floatVal:
++		f, acc := x.val.Float64()
++		return f, acc == big.Exact
+ 	case unknownVal:
+ 		return 0, false
++	default:
++		panic(fmt.Sprintf("%v not a Float", x))
+ 	}
+-	panic(fmt.Sprintf("%v not a Float", x))
+ }
+ 
+ // BitLen returns the number of bits required to represent
+@@ -293,13 +462,14 @@ func Float64Val(x Value) (float64, bool) {
+ func BitLen(x Value) int {
+ 	switch x := x.(type) {
+ 	case int64Val:
+-		return new(big.Int).SetInt64(int64(x)).BitLen()
++		return i64toi(x).val.BitLen()
+ 	case intVal:
+ 		return x.val.BitLen()
+ 	case unknownVal:
+ 		return 0
++	default:
++		panic(fmt.Sprintf("%v not an Int", x))
+ 	}
+-	panic(fmt.Sprintf("%v not an Int", x))
+ }
+ 
+ // Sign returns -1, 0, or 1 depending on whether x < 0, x == 0, or x > 0;
+@@ -317,18 +487,21 @@ func Sign(x Value) int {
+ 		return 0
+ 	case intVal:
+ 		return x.val.Sign()
++	case ratVal:
++		return x.val.Sign()
+ 	case floatVal:
+ 		return x.val.Sign()
+ 	case complexVal:
+-		return x.re.Sign() | x.im.Sign()
++		return Sign(x.re) | Sign(x.im)
+ 	case unknownVal:
+ 		return 1 // avoid spurious division by zero errors
++	default:
++		panic(fmt.Sprintf("%v not numeric", x))
+ 	}
+-	panic(fmt.Sprintf("%v not numeric", x))
+ }
+ 
+ // ----------------------------------------------------------------------------
+-// Support for serializing/deserializing integers
++// Support for assembling/disassembling numeric values
+ 
+ const (
+ 	// Compute the size of a Word in bytes.
+@@ -340,17 +513,17 @@ const (
+ // Bytes returns the bytes for the absolute value of x in little-
+ // endian binary representation; x must be an Int.
+ func Bytes(x Value) []byte {
+-	var val *big.Int
++	var t intVal
+ 	switch x := x.(type) {
+ 	case int64Val:
+-		val = new(big.Int).SetInt64(int64(x))
++		t = i64toi(x)
+ 	case intVal:
+-		val = x.val
++		t = x
+ 	default:
+ 		panic(fmt.Sprintf("%v not an Int", x))
+ 	}
+ 
+-	words := val.Bits()
++	words := t.val.Bits()
+ 	bytes := make([]byte, len(words)*wordSize)
+ 
+ 	i := 0
+@@ -396,72 +569,106 @@ func MakeFromBytes(bytes []byte) Value {
+ 		i--
+ 	}
+ 
+-	return normInt(new(big.Int).SetBits(words[:i]))
++	return makeInt(newInt().SetBits(words[:i]))
+ }
+ 
+-// ----------------------------------------------------------------------------
+-// Support for disassembling fractions
++// toRat returns the fraction corresponding to x, or nil
++// if x cannot be represented as a fraction a/b because
++// its components a or b are too large.
++func toRat(x *big.Float) *big.Rat {
++	m := newFloat()
++	e := x.MantExp(m)
++
++	// fail to convert if fraction components are too large
++	if e <= maxExp || e >= maxExp {
++		return nil
++	}
++
++	// convert mantissa to big.Int value by shifting by ecorr
++	ecorr := int(m.MinPrec())
++	a, _ := m.SetMantExp(m, ecorr).Int(nil)
++	e -= ecorr // correct exponent
++
++	// compute actual fraction
++	b := big.NewInt(1)
++	switch {
++	case e < 0:
++		b.Lsh(b, uint(-e))
++	case e > 0:
++		a.Lsh(a, uint(e))
++	}
++
++	return new(big.Rat).SetFrac(a, b)
++}
+ 
+ // Num returns the numerator of x; x must be Int, Float, or Unknown.
+-// If x is Unknown, the result is Unknown, otherwise it is an Int
++// If x is Unknown, or if it is too large or small to represent as a
++// fraction, the result is Unknown. Otherwise the result is an Int
+ // with the same sign as x.
+ func Num(x Value) Value {
+ 	switch x := x.(type) {
+-	case unknownVal, int64Val, intVal:
++	case int64Val, intVal:
+ 		return x
++	case ratVal:
++		return makeInt(x.val.Num())
+ 	case floatVal:
+-		return normInt(x.val.Num())
++		if r := toRat(x.val); r != nil {
++			return makeInt(r.Num())
++		}
++	case unknownVal:
++		break
++	default:
++		panic(fmt.Sprintf("%v not Int or Float", x))
+ 	}
+-	panic(fmt.Sprintf("%v not Int or Float", x))
++	return unknownVal{}
+ }
+ 
+ // Denom returns the denominator of x; x must be Int, Float, or Unknown.
+-// If x is Unknown, the result is Unknown, otherwise it is an Int >= 1.
++// If x is Unknown, or if it is too large or small to represent as a
++// fraction, the result is Unknown. Otherwise the result is an Int >= 1.
+ func Denom(x Value) Value {
+ 	switch x := x.(type) {
+-	case unknownVal:
+-		return x
+ 	case int64Val, intVal:
+ 		return int64Val(1)
++	case ratVal:
++		return makeInt(x.val.Denom())
+ 	case floatVal:
+-		return normInt(x.val.Denom())
++		if r := toRat(x.val); r != nil {
++			return makeInt(r.Denom())
++		}
++	case unknownVal:
++		break
++	default:
++		panic(fmt.Sprintf("%v not Int or Float", x))
+ 	}
+-	panic(fmt.Sprintf("%v not Int or Float", x))
++	return unknownVal{}
+ }
+ 
+-// ----------------------------------------------------------------------------
+-// Support for assembling/disassembling complex numbers
+-
+-// MakeImag returns the numeric value x*i (possibly 0);
++// MakeImag returns the Complex value x*i;
+ // x must be Int, Float, or Unknown.
+ // If x is Unknown, the result is Unknown.
+ func MakeImag(x Value) Value {
+-	var im *big.Rat
+-	switch x := x.(type) {
++	switch x.(type) {
+ 	case unknownVal:
+ 		return x
+-	case int64Val:
+-		im = big.NewRat(int64(x), 1)
+-	case intVal:
+-		im = new(big.Rat).SetFrac(x.val, int1)
+-	case floatVal:
+-		im = x.val
++	case int64Val, intVal, ratVal, floatVal:
++		return makeComplex(int64Val(0), x)
+ 	default:
+ 		panic(fmt.Sprintf("%v not Int or Float", x))
+ 	}
+-	return normComplex(rat0, im)
+ }
+ 
+ // Real returns the real part of x, which must be a numeric or unknown value.
+ // If x is Unknown, the result is Unknown.
+ func Real(x Value) Value {
+ 	switch x := x.(type) {
+-	case unknownVal, int64Val, intVal, floatVal:
++	case unknownVal, int64Val, intVal, ratVal, floatVal:
+ 		return x
+ 	case complexVal:
+-		return normFloat(x.re)
++		return x.re
++	default:
++		panic(fmt.Sprintf("%v not numeric", x))
+ 	}
+-	panic(fmt.Sprintf("%v not numeric", x))
+ }
+ 
+ // Imag returns the imaginary part of x, which must be a numeric or unknown value.
+@@ -470,12 +677,106 @@ func Imag(x Value) Value {
+ 	switch x := x.(type) {
+ 	case unknownVal:
+ 		return x
+-	case int64Val, intVal, floatVal:
++	case int64Val, intVal, ratVal, floatVal:
+ 		return int64Val(0)
+ 	case complexVal:
+-		return normFloat(x.im)
++		return x.im
++	default:
++		panic(fmt.Sprintf("%v not numeric", x))
++	}
++}
++
++// ----------------------------------------------------------------------------
++// Numeric conversions
++
++// ToInt converts x to an Int value if x is representable as an Int.
++// Otherwise it returns an Unknown.
++func ToInt(x Value) Value {
++	switch x := x.(type) {
++	case int64Val, intVal:
++		return x
++
++	case ratVal:
++		if x.val.IsInt() {
++			return makeInt(x.val.Num())
++		}
++
++	case floatVal:
++		// avoid creation of huge integers
++		// (existing tests require permitting exponents of at least 1024)
++		if x.val.MantExp(nil) <= 1024 {
++			i := newInt()
++			if _, acc := x.val.Int(i); acc == big.Exact {
++				return makeInt(i)
++			}
++
++			// If we can get an integer by rounding up or down,
++			// assume x is not an integer because of rounding
++			// errors in prior computations.
++
++			const delta = 4 // a small number of bits > 0
++			var t big.Float
++			t.SetPrec(prec - delta)
++
++			// try rounding down a little
++			t.SetMode(big.ToZero)
++			t.Set(x.val)
++			if _, acc := t.Int(i); acc == big.Exact {
++				return makeInt(i)
++			}
++
++			// try rounding up a little
++			t.SetMode(big.AwayFromZero)
++			t.Set(x.val)
++			if _, acc := t.Int(i); acc == big.Exact {
++				return makeInt(i)
++			}
++		}
++
++	case complexVal:
++		if re := ToFloat(x); re.Kind() == Float {
++			return ToInt(re)
++		}
++	}
++
++	return unknownVal{}
++}
++
++// ToFloat converts x to a Float value if x is representable as a Float.
++// Otherwise it returns an Unknown.
++func ToFloat(x Value) Value {
++	switch x := x.(type) {
++	case int64Val:
++		return i64tof(x)
++	case intVal:
++		return itof(x)
++	case ratVal, floatVal:
++		return x
++	case complexVal:
++		if im := ToInt(x.im); im.Kind() == Int && Sign(im) == 0 {
++			// imaginary component is 0
++			return ToFloat(x.re)
++		}
++	}
++	return unknownVal{}
++}
++
++// ToComplex converts x to a Complex value if x is representable as a Complex.
++// Otherwise it returns an Unknown.
++func ToComplex(x Value) Value {
++	switch x := x.(type) {
++	case int64Val:
++		return vtoc(i64tof(x))
++	case intVal:
++		return vtoc(itof(x))
++	case ratVal:
++		return vtoc(x)
++	case floatVal:
++		return vtoc(x)
++	case complexVal:
++		return x
+ 	}
+-	panic(fmt.Sprintf("%v not numeric", x))
++	return unknownVal{}
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -502,7 +803,7 @@ func UnaryOp(op token.Token, y Value, prec uint) Value {
+ 	switch op {
+ 	case token.ADD:
+ 		switch y.(type) {
+-		case unknownVal, int64Val, intVal, floatVal, complexVal:
++		case unknownVal, int64Val, intVal, ratVal, floatVal, complexVal:
+ 			return y
+ 		}
+ 
+@@ -514,17 +815,21 @@ func UnaryOp(op token.Token, y Value, prec uint) Value {
+ 			if z := -y; z != y {
+ 				return z // no overflow
+ 			}
+-			return normInt(new(big.Int).Neg(big.NewInt(int64(y))))
++			return makeInt(newInt().Neg(big.NewInt(int64(y))))
+ 		case intVal:
+-			return normInt(new(big.Int).Neg(y.val))
++			return makeInt(newInt().Neg(y.val))
++		case ratVal:
++			return makeRat(newRat().Neg(y.val))
+ 		case floatVal:
+-			return normFloat(new(big.Rat).Neg(y.val))
++			return makeFloat(newFloat().Neg(y.val))
+ 		case complexVal:
+-			return normComplex(new(big.Rat).Neg(y.re), new(big.Rat).Neg(y.im))
++			re := UnaryOp(token.SUB, y.re, 0)
++			im := UnaryOp(token.SUB, y.im, 0)
++			return makeComplex(re, im)
+ 		}
+ 
+ 	case token.XOR:
+-		var z big.Int
++		z := newInt()
+ 		switch y := y.(type) {
+ 		case unknownVal:
+ 			return y
+@@ -539,9 +844,9 @@ func UnaryOp(op token.Token, y Value, prec uint) Value {
+ 		// thus "too large": We must limit the result precision
+ 		// to the type's precision.
+ 		if prec > 0 {
+-			z.AndNot(&z, new(big.Int).Lsh(big.NewInt(-1), prec)) // z &^= (-1)<<prec
++			z.AndNot(z, newInt().Lsh(big.NewInt(-1), prec)) // z &^= (-1)<<prec
+ 		}
+-		return normInt(&z)
++		return makeInt(z)
+ 
+ 	case token.NOT:
+ 		switch y := y.(type) {
+@@ -556,14 +861,9 @@ Error:
+ 	panic(fmt.Sprintf("invalid unary operation %s%v", op, y))
+ }
+ 
+-var (
+-	int1 = big.NewInt(1)
+-	rat0 = big.NewRat(0, 1)
+-)
+-
+ func ord(x Value) int {
+ 	switch x.(type) {
+-	default:
++	case unknownVal:
+ 		return 0
+ 	case boolVal, stringVal:
+ 		return 1
+@@ -571,10 +871,14 @@ func ord(x Value) int {
+ 		return 2
+ 	case intVal:
+ 		return 3
+-	case floatVal:
++	case ratVal:
+ 		return 4
+-	case complexVal:
++	case floatVal:
+ 		return 5
++	case complexVal:
++		return 6
++	default:
++		panic("unreachable")
+ 	}
+ }
+ 
+@@ -602,29 +906,42 @@ func match(x, y Value) (_, _ Value) {
+ 		case int64Val:
+ 			return x, y
+ 		case intVal:
+-			return intVal{big.NewInt(int64(x))}, y
++			return i64toi(x), y
++		case ratVal:
++			return i64tor(x), y
+ 		case floatVal:
+-			return floatVal{big.NewRat(int64(x), 1)}, y
++			return i64tof(x), y
+ 		case complexVal:
+-			return complexVal{big.NewRat(int64(x), 1), rat0}, y
++			return vtoc(x), y
+ 		}
+ 
+ 	case intVal:
+ 		switch y := y.(type) {
+ 		case intVal:
+ 			return x, y
++		case ratVal:
++			return itor(x), y
+ 		case floatVal:
+-			return floatVal{new(big.Rat).SetFrac(x.val, int1)}, y
++			return itof(x), y
+ 		case complexVal:
+-			return complexVal{new(big.Rat).SetFrac(x.val, int1), rat0}, y
++			return vtoc(x), y
+ 		}
+ 
++	case ratVal:
++		switch y := y.(type) {
++		case ratVal:
++			return x, y
++		case floatVal:
++			return rtof(x), y
++		case complexVal:
++			return vtoc(x), y
++		}
+ 	case floatVal:
+ 		switch y := y.(type) {
+ 		case floatVal:
+ 			return x, y
+ 		case complexVal:
+-			return complexVal{x.val, rat0}, y
++			return vtoc(x), y
+ 		}
+ 	}
+ 
+@@ -661,21 +978,21 @@ func BinaryOp(x Value, op token.Token, y Value) Value {
+ 		switch op {
+ 		case token.ADD:
+ 			if !is63bit(a) || !is63bit(b) {
+-				return normInt(new(big.Int).Add(big.NewInt(a), big.NewInt(b)))
++				return makeInt(newInt().Add(big.NewInt(a), big.NewInt(b)))
+ 			}
+ 			c = a + b
+ 		case token.SUB:
+ 			if !is63bit(a) || !is63bit(b) {
+-				return normInt(new(big.Int).Sub(big.NewInt(a), big.NewInt(b)))
++				return makeInt(newInt().Sub(big.NewInt(a), big.NewInt(b)))
+ 			}
+ 			c = a - b
+ 		case token.MUL:
+ 			if !is32bit(a) || !is32bit(b) {
+-				return normInt(new(big.Int).Mul(big.NewInt(a), big.NewInt(b)))
++				return makeInt(newInt().Mul(big.NewInt(a), big.NewInt(b)))
+ 			}
+ 			c = a * b
+ 		case token.QUO:
+-			return normFloat(new(big.Rat).SetFrac(big.NewInt(a), big.NewInt(b)))
++			return makeRat(big.NewRat(a, b))
+ 		case token.QUO_ASSIGN: // force integer division
+ 			c = a / b
+ 		case token.REM:
+@@ -696,7 +1013,7 @@ func BinaryOp(x Value, op token.Token, y Value) Value {
+ 	case intVal:
+ 		a := x.val
+ 		b := y.(intVal).val
+-		var c big.Int
++		c := newInt()
+ 		switch op {
+ 		case token.ADD:
+ 			c.Add(a, b)
+@@ -705,7 +1022,7 @@ func BinaryOp(x Value, op token.Token, y Value) Value {
+ 		case token.MUL:
+ 			c.Mul(a, b)
+ 		case token.QUO:
+-			return normFloat(new(big.Rat).SetFrac(a, b))
++			return makeRat(newRat().SetFrac(a, b))
+ 		case token.QUO_ASSIGN: // force integer division
+ 			c.Quo(a, b)
+ 		case token.REM:
+@@ -721,12 +1038,30 @@ func BinaryOp(x Value, op token.Token, y Value) Value {
+ 		default:
+ 			goto Error
+ 		}
+-		return normInt(&c)
++		return makeInt(c)
++
++	case ratVal:
++		a := x.val
++		b := y.(ratVal).val
++		c := newRat()
++		switch op {
++		case token.ADD:
++			c.Add(a, b)
++		case token.SUB:
++			c.Sub(a, b)
++		case token.MUL:
++			c.Mul(a, b)
++		case token.QUO:
++			c.Quo(a, b)
++		default:
++			goto Error
++		}
++		return makeRat(c)
+ 
+ 	case floatVal:
+ 		a := x.val
+ 		b := y.(floatVal).val
+-		var c big.Rat
++		c := newFloat()
+ 		switch op {
+ 		case token.ADD:
+ 			c.Add(a, b)
+@@ -739,49 +1074,47 @@ func BinaryOp(x Value, op token.Token, y Value) Value {
+ 		default:
+ 			goto Error
+ 		}
+-		return normFloat(&c)
++		return makeFloat(c)
+ 
+ 	case complexVal:
+ 		y := y.(complexVal)
+ 		a, b := x.re, x.im
+ 		c, d := y.re, y.im
+-		var re, im big.Rat
++		var re, im Value
+ 		switch op {
+ 		case token.ADD:
+ 			// (a+c) + i(b+d)
+-			re.Add(a, c)
+-			im.Add(b, d)
++			re = add(a, c)
++			im = add(b, d)
+ 		case token.SUB:
+ 			// (a-c) + i(b-d)
+-			re.Sub(a, c)
+-			im.Sub(b, d)
++			re = sub(a, c)
++			im = sub(b, d)
+ 		case token.MUL:
+ 			// (ac-bd) + i(bc+ad)
+-			var ac, bd, bc, ad big.Rat
+-			ac.Mul(a, c)
+-			bd.Mul(b, d)
+-			bc.Mul(b, c)
+-			ad.Mul(a, d)
+-			re.Sub(&ac, &bd)
+-			im.Add(&bc, &ad)
++			ac := mul(a, c)
++			bd := mul(b, d)
++			bc := mul(b, c)
++			ad := mul(a, d)
++			re = sub(ac, bd)
++			im = add(bc, ad)
+ 		case token.QUO:
+ 			// (ac+bd)/s + i(bc-ad)/s, with s = cc + dd
+-			var ac, bd, bc, ad, s, cc, dd big.Rat
+-			ac.Mul(a, c)
+-			bd.Mul(b, d)
+-			bc.Mul(b, c)
+-			ad.Mul(a, d)
+-			cc.Mul(c, c)
+-			dd.Mul(d, d)
+-			s.Add(&cc, &dd)
+-			re.Add(&ac, &bd)
+-			re.Quo(&re, &s)
+-			im.Sub(&bc, &ad)
+-			im.Quo(&im, &s)
++			ac := mul(a, c)
++			bd := mul(b, d)
++			bc := mul(b, c)
++			ad := mul(a, d)
++			cc := mul(c, c)
++			dd := mul(d, d)
++			s := add(cc, dd)
++			re = add(ac, bd)
++			re = quo(re, s)
++			im = sub(bc, ad)
++			im = quo(im, s)
+ 		default:
+ 			goto Error
+ 		}
+-		return normComplex(&re, &im)
++		return makeComplex(re, im)
+ 
+ 	case stringVal:
+ 		if op == token.ADD {
+@@ -793,6 +1126,11 @@ Error:
+ 	panic(fmt.Sprintf("invalid binary operation %v %s %v", x, op, y))
+ }
+ 
++func add(x, y Value) Value { return BinaryOp(x, token.ADD, y) }
++func sub(x, y Value) Value { return BinaryOp(x, token.SUB, y) }
++func mul(x, y Value) Value { return BinaryOp(x, token.MUL, y) }
++func quo(x, y Value) Value { return BinaryOp(x, token.QUO, y) }
++
+ // Shift returns the result of the shift expression x op s
+ // with op == token.SHL or token.SHR (<< or >>). x must be
+ // an Int or an Unknown. If x is Unknown, the result is x.
+@@ -808,8 +1146,8 @@ func Shift(x Value, op token.Token, s uint) Value {
+ 		}
+ 		switch op {
+ 		case token.SHL:
+-			z := big.NewInt(int64(x))
+-			return normInt(z.Lsh(z, s))
++			z := i64toi(x).val
++			return makeInt(z.Lsh(z, s))
+ 		case token.SHR:
+ 			return x >> s
+ 		}
+@@ -818,12 +1156,12 @@ func Shift(x Value, op token.Token, s uint) Value {
+ 		if s == 0 {
+ 			return x
+ 		}
+-		var z big.Int
++		z := newInt()
+ 		switch op {
+ 		case token.SHL:
+-			return normInt(z.Lsh(x.val, s))
++			return makeInt(z.Lsh(x.val, s))
+ 		case token.SHR:
+-			return normInt(z.Rsh(x.val, s))
++			return makeInt(z.Rsh(x.val, s))
+ 		}
+ 	}
+ 
+@@ -889,18 +1227,21 @@ func Compare(x Value, op token.Token, y Value) bool {
+ 	case intVal:
+ 		return cmpZero(x.val.Cmp(y.(intVal).val), op)
+ 
++	case ratVal:
++		return cmpZero(x.val.Cmp(y.(ratVal).val), op)
++
+ 	case floatVal:
+ 		return cmpZero(x.val.Cmp(y.(floatVal).val), op)
+ 
+ 	case complexVal:
+ 		y := y.(complexVal)
+-		re := x.re.Cmp(y.re)
+-		im := x.im.Cmp(y.im)
++		re := Compare(x.re, token.EQL, y.re)
++		im := Compare(x.im, token.EQL, y.im)
+ 		switch op {
+ 		case token.EQL:
+-			return re == 0 && im == 0
++			return re && im
+ 		case token.NEQ:
+-			return re != 0 || im != 0
++			return !re || !im
+ 		}
+ 
+ 	case stringVal:
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index 08cdd5e625..932287ffef 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -176,12 +176,17 @@ func TestOps(t *testing.T) {
+ 		want := val(a[i+3])
+ 		if !eql(got, want) {
+ 			t.Errorf("%s: got %s; want %s", test, got, want)
++			continue
+ 		}
++
+ 		if x0 != nil && !eql(x, x0) {
+ 			t.Errorf("%s: x changed to %s", test, x)
++			continue
+ 		}
++
+ 		if !eql(y, y0) {
+ 			t.Errorf("%s: y changed to %s", test, y)
++			continue
+ 		}
+ 	}
+ }
+@@ -195,6 +200,68 @@ func eql(x, y Value) bool {
+ 	return Compare(x, token.EQL, y)
+ }
+ 
++// ----------------------------------------------------------------------------
++// String tests
++
++var xxx = strings.Repeat("x", 68)
++
++var stringTests = []struct {
++	input, short, exact string
++}{
++	// Unknown
++	{"", "unknown", "unknown"},
++	{"0x", "unknown", "unknown"},
++	{"'", "unknown", "unknown"},
++	{"1f0", "unknown", "unknown"},
++	{"unknown", "unknown", "unknown"},
++
++	// Bool
++	{"true", "true", "true"},
++	{"false", "false", "false"},
++
++	// String
++	{`""`, `""`, `""`},
++	{`"foo"`, `"foo"`, `"foo"`},
++	{`"` + xxx + `xx"`, `"` + xxx + `xx"`, `"` + xxx + `xx"`},
++	{`"` + xxx + `xxx"`, `"` + xxx + `...`, `"` + xxx + `xxx"`},
++	{`"` + xxx + xxx + `xxx"`, `"` + xxx + `...`, `"` + xxx + xxx + `xxx"`},
++
++	// Int
++	{"0", "0", "0"},
++	{"-1", "-1", "-1"},
++	{"12345", "12345", "12345"},
++	{"-12345678901234567890", "-12345678901234567890", "-12345678901234567890"},
++	{"12345678901234567890", "12345678901234567890", "12345678901234567890"},
++
++	// Float
++	{"0.", "0", "0"},
++	{"-0.0", "0", "0"},
++	{"10.0", "10", "10"},
++	{"2.1", "2.1", "21/10"},
++	{"-2.1", "-2.1", "-21/10"},
++	{"1e9999", "1e+9999", "0x.f8d4a9da224650a8cb2959e10d985ad92adbd44c62917e608b1f24c0e1b76b6f61edffeb15c135a4b601637315f7662f325f82325422b244286a07663c9415d2p+33216"},
++	{"2.71828182845904523536028747135266249775724709369995957496696763", "2.71828", "271828182845904523536028747135266249775724709369995957496696763/100000000000000000000000000000000000000000000000000000000000000"},
++
++	// Complex
++	{"0i", "(0 + 0i)", "(0 + 0i)"},
++	{"-0i", "(0 + 0i)", "(0 + 0i)"},
++	{"10i", "(0 + 10i)", "(0 + 10i)"},
++	{"-10i", "(0 + -10i)", "(0 + -10i)"},
++	{"1e9999i", "(0 + 1e+9999i)", "(0 + 0x.f8d4a9da224650a8cb2959e10d985ad92adbd44c62917e608b1f24c0e1b76b6f61edffeb15c135a4b601637315f7662f325f82325422b244286a07663c9415d2p+33216i)"},
++}
++
++func TestString(t *testing.T) {
++	for _, test := range stringTests {
++		x := val(test.input)
++		if got := x.String(); got != test.short {
++			t.Errorf("%s: got %q; want %q as short string", test.input, got, test.short)
++		}
++		if got := x.ExactString(); got != test.exact {
++			t.Errorf("%s: got %q; want %q as exact string", test.input, got, test.exact)
++		}
++	}
++}
++
+ // ----------------------------------------------------------------------------
+ // Support functions
+ 
+@@ -212,6 +279,13 @@ func val(lit string) Value {
+ 		return MakeBool(false)
+ 	}
+ 
++	if i := strings.IndexByte(lit, '/'); i >= 0 {
++		// assume fraction
++		a := MakeFromLiteral(lit[:i], token.INT, 0)
++		b := MakeFromLiteral(lit[i+1:], token.INT, 0)
++		return BinaryOp(a, token.QUO, b)
++	}
++
+ 	tok := token.INT
+ 	switch first, last := lit[0], lit[len(lit)-1]; {
+ 	case first == '"' || first == '`':
+@@ -290,32 +364,29 @@ func doOp(x Value, op token.Token, y Value) (z Value) {
+ // Other tests
+ 
+ var fracTests = []string{
+-	"0 0 1",
+-	"1 1 1",
+-	"-1 -1 1",
+-	"1.2 6 5",
+-	"-0.991 -991 1000",
+-	"1e100 1e100 1",
++	"0",
++	"1",
++	"-1",
++	"1.2",
++	"-0.991",
++	"2.718281828",
++	"3.14159265358979323e-10",
++	"1e100",
++	"1e1000",
+ }
+ 
+ func TestFractions(t *testing.T) {
+ 	for _, test := range fracTests {
+-		a := strings.Split(test, " ")
+-		if len(a) != 3 {
+-			t.Errorf("invalid test case: %s", test)
+-			continue
+-		}
+-
+-		x := val(a[0])
+-		n := val(a[1])
+-		d := val(a[2])
+-
+-		if got := Num(x); !eql(got, n) {
+-			t.Errorf("%s: got num = %s; want %s", test, got, n)
+-		}
+-
+-		if got := Denom(x); !eql(got, d) {
+-			t.Errorf("%s: got denom = %s; want %s", test, got, d)
++		x := val(test)
++		// We don't check the actual numerator and denominator because they
++		// are unlikely to be 100% correct due to floatVal rounding errors.
++		// Instead, we compute the fraction again and compare the rounded
++		// result.
++		q := BinaryOp(Num(x), token.QUO, Denom(x))
++		got := q.String()
++		want := x.String()
++		if got != want {
++			t.Errorf("%s: got quotient %s, want %s", x, got, want)
+ 		}
+ 	}
+ }
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index f3bcadbaf7..c10fa484e3 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -91,10 +91,10 @@ func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]Init
+ 
+ var importerTests = [...]importerTest{
+ 	{pkgpath: "pointer", name: "Int8Ptr", want: "type Int8Ptr *int8"},
+-	{pkgpath: "complexnums", name: "NN", want: "const NN untyped complex", wantval: "(-1/1 + -1/1i)"},
+-	{pkgpath: "complexnums", name: "NP", want: "const NP untyped complex", wantval: "(-1/1 + 1/1i)"},
+-	{pkgpath: "complexnums", name: "PN", want: "const PN untyped complex", wantval: "(1/1 + -1/1i)"},
+-	{pkgpath: "complexnums", name: "PP", want: "const PP untyped complex", wantval: "(1/1 + 1/1i)"},
++	{pkgpath: "complexnums", name: "NN", want: "const NN untyped complex", wantval: "(-1 + -1i)"},
++	{pkgpath: "complexnums", name: "NP", want: "const NP untyped complex", wantval: "(-1 + 1i)"},
++	{pkgpath: "complexnums", name: "PN", want: "const PN untyped complex", wantval: "(1 + -1i)"},
++	{pkgpath: "complexnums", name: "PP", want: "const PP untyped complex", wantval: "(1 + 1i)"},
+ 	// TODO: enable this entry once bug has been tracked down
+ 	//{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+ }
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 76c34b4c4f..c2feed3813 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -54,14 +54,14 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package a1; const _ = 0`, `0`, `untyped int`, `0`},
+ 		{`package a2; const _ = 'A'`, `'A'`, `untyped rune`, `65`},
+ 		{`package a3; const _ = 0.`, `0.`, `untyped float`, `0`},
+-		{`package a4; const _ = 0i`, `0i`, `untyped complex`, `0`},
++		{`package a4; const _ = 0i`, `0i`, `untyped complex`, `(0 + 0i)`},
+ 		{`package a5; const _ = "foo"`, `"foo"`, `untyped string`, `"foo"`},
+ 
+ 		{`package b0; var _ = false`, `false`, `bool`, `false`},
+ 		{`package b1; var _ = 0`, `0`, `int`, `0`},
+ 		{`package b2; var _ = 'A'`, `'A'`, `rune`, `65`},
+ 		{`package b3; var _ = 0.`, `0.`, `float64`, `0`},
+-		{`package b4; var _ = 0i`, `0i`, `complex128`, `0`},
++		{`package b4; var _ = 0i`, `0i`, `complex128`, `(0 + 0i)`},
+ 		{`package b5; var _ = "foo"`, `"foo"`, `string`, `"foo"`},
+ 
+ 		{`package c0a; var _ = bool(false)`, `false`, `bool`, `false`},
+@@ -80,9 +80,9 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package c3b; var _ = float32(0.)`, `float32(0.)`, `float32`, `0`},
+ 		{`package c3c; type T float32; var _ = T(0.)`, `T(0.)`, `c3c.T`, `0`},
+ 
+-		{`package c4a; var _ = complex64(0i)`, `0i`, `complex64`, `0`},
+-		{`package c4b; var _ = complex64(0i)`, `complex64(0i)`, `complex64`, `0`},
+-		{`package c4c; type T complex64; var _ = T(0i)`, `T(0i)`, `c4c.T`, `0`},
++		{`package c4a; var _ = complex64(0i)`, `0i`, `complex64`, `(0 + 0i)`},
++		{`package c4b; var _ = complex64(0i)`, `complex64(0i)`, `complex64`, `(0 + 0i)`},
++		{`package c4c; type T complex64; var _ = T(0i)`, `T(0i)`, `c4c.T`, `(0 + 0i)`},
+ 
+ 		{`package c5a; var _ = string("foo")`, `"foo"`, `string`, `"foo"`},
+ 		{`package c5b; var _ = string("foo")`, `string("foo")`, `string`, `"foo"`},
+@@ -97,10 +97,10 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package e1; const _ = float32(-1e-200)`, `float32(-1e-200)`, `float32`, `0`},
+ 		{`package e2; const _ = float64( 1e-2000)`, `float64(1e-2000)`, `float64`, `0`},
+ 		{`package e3; const _ = float64(-1e-2000)`, `float64(-1e-2000)`, `float64`, `0`},
+-		{`package e4; const _ = complex64( 1e-200)`, `complex64(1e-200)`, `complex64`, `0`},
+-		{`package e5; const _ = complex64(-1e-200)`, `complex64(-1e-200)`, `complex64`, `0`},
+-		{`package e6; const _ = complex128( 1e-2000)`, `complex128(1e-2000)`, `complex128`, `0`},
+-		{`package e7; const _ = complex128(-1e-2000)`, `complex128(-1e-2000)`, `complex128`, `0`},
++		{`package e4; const _ = complex64( 1e-200)`, `complex64(1e-200)`, `complex64`, `(0 + 0i)`},
++		{`package e5; const _ = complex64(-1e-200)`, `complex64(-1e-200)`, `complex64`, `(0 + 0i)`},
++		{`package e6; const _ = complex128( 1e-2000)`, `complex128(1e-2000)`, `complex128`, `(0 + 0i)`},
++		{`package e7; const _ = complex128(-1e-2000)`, `complex128(-1e-2000)`, `complex128`, `(0 + 0i)`},
+ 
+ 		{`package f0 ; var _ float32 =  1e-200`, `1e-200`, `float32`, `0`},
+ 		{`package f1 ; var _ float32 = -1e-200`, `-1e-200`, `float32`, `0`},
+@@ -108,12 +108,12 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package f3a; var _ float64 = -1e-2000`, `-1e-2000`, `float64`, `0`},
+ 		{`package f2b; var _         =  1e-2000`, `1e-2000`, `float64`, `0`},
+ 		{`package f3b; var _         = -1e-2000`, `-1e-2000`, `float64`, `0`},
+-		{`package f4 ; var _ complex64  =  1e-200 `, `1e-200`, `complex64`, `0`},
+-		{`package f5 ; var _ complex64  = -1e-200 `, `-1e-200`, `complex64`, `0`},
+-		{`package f6a; var _ complex128 =  1e-2000i`, `1e-2000i`, `complex128`, `0`},
+-		{`package f7a; var _ complex128 = -1e-2000i`, `-1e-2000i`, `complex128`, `0`},
+-		{`package f6b; var _            =  1e-2000i`, `1e-2000i`, `complex128`, `0`},
+-		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `0`},
++		{`package f4 ; var _ complex64  =  1e-200 `, `1e-200`, `complex64`, `(0 + 0i)`},
++		{`package f5 ; var _ complex64  = -1e-200 `, `-1e-200`, `complex64`, `(0 + 0i)`},
++		{`package f6a; var _ complex128 =  1e-2000i`, `1e-2000i`, `complex128`, `(0 + 0i)`},
++		{`package f7a; var _ complex128 = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
++		{`package f6b; var _            =  1e-2000i`, `1e-2000i`, `complex128`, `(0 + 0i)`},
++		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -143,7 +143,7 @@ func TestValuesInfo(t *testing.T) {
+ 		}
+ 
+ 		// check that value is correct
+-		if got := tv.Value.String(); got != test.val {
++		if got := tv.Value.ExactString(); got != test.val {
+ 			t.Errorf("package %s: got value %s; want %s", name, got, test.val)
+ 		}
+ 	}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index c288024c54..803264fb58 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -266,7 +266,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 		// if both arguments are constants, the result is a constant
+ 		if x.mode == constant_ && y.mode == constant_ {
+-			x.val = constant.BinaryOp(x.val, token.ADD, constant.MakeImag(y.val))
++			x.val = constant.BinaryOp(constant.ToFloat(x.val), token.ADD, constant.MakeImag(constant.ToFloat(y.val)))
+ 		} else {
+ 			x.mode = value
+ 		}
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 33e8930fbb..f98cc8d81a 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -18,7 +18,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	case constArg && isConstType(T):
+ 		// constant conversion
+ 		switch t := T.Underlying().(*Basic); {
+-		case representableConst(x.val, check.conf, t.kind, &x.val):
++		case representableConst(x.val, check.conf, t, &x.val):
+ 			ok = true
+ 		case isInteger(x.typ) && isString(t):
+ 			codepoint := int64(-1)
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 7e0be43e72..603211257d 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -48,7 +48,7 @@ func testEval(t *testing.T, fset *token.FileSet, pkg *Package, pos token.Pos, ex
+ 	// compare values
+ 	gotStr := ""
+ 	if gotTv.Value != nil {
+-		gotStr = gotTv.Value.String()
++		gotStr = gotTv.Value.ExactString()
+ 	}
+ 	if gotStr != valStr {
+ 		t.Errorf("Eval(%q) got value %s, want %s", expr, gotStr, valStr)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 387a32fc15..942d3fd5f7 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -180,25 +180,27 @@ func roundFloat64(x constant.Value) constant.Value {
+ }
+ 
+ // representableConst reports whether x can be represented as
+-// value of the given basic type kind and for the configuration
++// value of the given basic type and for the configuration
+ // provided (only needed for int/uint sizes).
+ //
+ // If rounded != nil, *rounded is set to the rounded value of x for
+ // representable floating-point values; it is left alone otherwise.
+ // It is ok to provide the addressof the first argument for rounded.
+-func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *constant.Value) bool {
+-	switch x.Kind() {
+-	case constant.Unknown:
+-		return true
+-
+-	case constant.Bool:
+-		return as == Bool || as == UntypedBool
++func representableConst(x constant.Value, conf *Config, typ *Basic, rounded *constant.Value) bool {
++	if x.Kind() == constant.Unknown {
++		return true // avoid follow-up errors
++	}
+ 
+-	case constant.Int:
++	switch {
++	case isInteger(typ):
++		x := constant.ToInt(x)
++		if x.Kind() != constant.Int {
++			return false
++		}
+ 		if x, ok := constant.Int64Val(x); ok {
+-			switch as {
++			switch typ.kind {
+ 			case Int:
+-				var s = uint(conf.sizeof(Typ[as])) * 8
++				var s = uint(conf.sizeof(typ)) * 8
+ 				return int64(-1)<<(s-1) <= x && x <= int64(1)<<(s-1)-1
+ 			case Int8:
+ 				const s = 8
+@@ -209,10 +211,10 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
+ 			case Int32:
+ 				const s = 32
+ 				return -1<<(s-1) <= x && x <= 1<<(s-1)-1
+-			case Int64:
++			case Int64, UntypedInt:
+ 				return true
+ 			case Uint, Uintptr:
+-				if s := uint(conf.sizeof(Typ[as])) * 8; s < 64 {
++				if s := uint(conf.sizeof(typ)) * 8; s < 64 {
+ 					return 0 <= x && x <= int64(1)<<s-1
+ 				}
+ 				return 0 <= x
+@@ -227,44 +229,28 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
+ 				return 0 <= x && x <= 1<<s-1
+ 			case Uint64:
+ 				return 0 <= x
+-			case Float32, Float64, Complex64, Complex128,
+-				UntypedInt, UntypedFloat, UntypedComplex:
+-				return true
++			default:
++				unreachable()
+ 			}
+ 		}
+-
+-		n := constant.BitLen(x)
+-		switch as {
++		// x does not fit into int64
++		switch n := constant.BitLen(x); typ.kind {
+ 		case Uint, Uintptr:
+-			var s = uint(conf.sizeof(Typ[as])) * 8
++			var s = uint(conf.sizeof(typ)) * 8
+ 			return constant.Sign(x) >= 0 && n <= int(s)
+ 		case Uint64:
+ 			return constant.Sign(x) >= 0 && n <= 64
+-		case Float32, Complex64:
+-			if rounded == nil {
+-				return fitsFloat32(x)
+-			}
+-			r := roundFloat32(x)
+-			if r != nil {
+-				*rounded = r
+-				return true
+-			}
+-		case Float64, Complex128:
+-			if rounded == nil {
+-				return fitsFloat64(x)
+-			}
+-			r := roundFloat64(x)
+-			if r != nil {
+-				*rounded = r
+-				return true
+-			}
+-		case UntypedInt, UntypedFloat, UntypedComplex:
++		case UntypedInt:
+ 			return true
+ 		}
+ 
+-	case constant.Float:
+-		switch as {
+-		case Float32, Complex64:
++	case isFloat(typ):
++		x := constant.ToFloat(x)
++		if x.Kind() != constant.Float {
++			return false
++		}
++		switch typ.kind {
++		case Float32:
+ 			if rounded == nil {
+ 				return fitsFloat32(x)
+ 			}
+@@ -273,7 +259,7 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
+ 				*rounded = r
+ 				return true
+ 			}
+-		case Float64, Complex128:
++		case Float64:
+ 			if rounded == nil {
+ 				return fitsFloat64(x)
+ 			}
+@@ -282,12 +268,18 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
+ 				*rounded = r
+ 				return true
+ 			}
+-		case UntypedFloat, UntypedComplex:
++		case UntypedFloat:
+ 			return true
++		default:
++			unreachable()
+ 		}
+ 
+-	case constant.Complex:
+-		switch as {
++	case isComplex(typ):
++		x := constant.ToComplex(x)
++		if x.Kind() != constant.Complex {
++			return false
++		}
++		switch typ.kind {
+ 		case Complex64:
+ 			if rounded == nil {
+ 				return fitsFloat32(constant.Real(x)) && fitsFloat32(constant.Imag(x))
+@@ -310,13 +302,15 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
+ 			}
+ 		case UntypedComplex:
+ 			return true
++		default:
++			unreachable()
+ 		}
+ 
+-	case constant.String:
+-		return as == String || as == UntypedString
++	case isString(typ):
++		return x.Kind() == constant.String
+ 
+-	default:
+-		unreachable()
++	case isBoolean(typ):
++		return x.Kind() == constant.Bool
+ 	}
+ 
+ 	return false
+@@ -325,7 +319,7 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
+ // representable checks that a constant operand is representable in the given basic type.
+ func (check *Checker) representable(x *operand, typ *Basic) {
+ 	assert(x.mode == constant_)
+-	if !representableConst(x.val, check.conf, typ.kind, &x.val) {
++	if !representableConst(x.val, check.conf, typ, &x.val) {
+ 		var msg string
+ 		if isNumeric(x.typ) && isNumeric(typ) {
+ 			// numeric conversion : error msg
+@@ -498,8 +492,6 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 				return
+ 			}
+ 			// expression value may have been rounded - update if needed
+-			// TODO(gri) A floating-point value may silently underflow to
+-			// zero. If it was negative, the sign is lost. See issue 6898.
+ 			check.updateExprVal(x.expr, x.val)
+ 		} else {
+ 			// Non-constant untyped values may appear as the
+@@ -621,9 +613,16 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
+ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
+ 	untypedx := isUntyped(x.typ)
+ 
+-	// The lhs must be of integer type or be representable
+-	// as an integer; otherwise the shift has no chance.
+-	if !x.isInteger() {
++	var xval constant.Value
++	if x.mode == constant_ {
++		xval = constant.ToInt(x.val)
++	}
++
++	if isInteger(x.typ) || untypedx && xval != nil && xval.Kind() == constant.Int {
++		// The lhs is of integer type or an untyped constant representable
++		// as an integer. Nothing to do.
++	} else {
++		// shift has no chance
+ 		check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
+ 		x.mode = invalid
+ 		return
+@@ -633,7 +632,7 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
+ 	// integer type or be an untyped constant that can be converted to
+ 	// unsigned integer type."
+ 	switch {
+-	case isInteger(y.typ) && isUnsigned(y.typ):
++	case isUnsigned(y.typ):
+ 		// nothing to do
+ 	case isUntyped(y.typ):
+ 		check.convertUntyped(y, Typ[UntypedInt])
+@@ -650,14 +649,15 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
+ 	if x.mode == constant_ {
+ 		if y.mode == constant_ {
+ 			// rhs must be an integer value
+-			if !y.isInteger() {
++			yval := constant.ToInt(y.val)
++			if yval.Kind() != constant.Int {
+ 				check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
+ 				x.mode = invalid
+ 				return
+ 			}
+ 			// rhs must be within reasonable bounds
+ 			const stupidShift = 1023 - 1 + 52 // so we can express smallestFloat64
+-			s, ok := constant.Uint64Val(y.val)
++			s, ok := constant.Uint64Val(yval)
+ 			if !ok || s > stupidShift {
+ 				check.invalidOp(y.pos(), "stupid shift count %s", y)
+ 				x.mode = invalid
+@@ -670,7 +670,8 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
+ 			if !isInteger(x.typ) {
+ 				x.typ = Typ[UntypedInt]
+ 			}
+-			x.val = constant.Shift(x.val, op, uint(s))
++			// x is a constant so xval != nil and it must be of Int kind.
++			x.val = constant.Shift(xval, op, uint(s))
+ 			// Typed constants must be representable in
+ 			// their type after each constant operation.
+ 			if isTyped(x.typ) {
+@@ -802,12 +803,16 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
+ 	}
+ 
+ 	if x.mode == constant_ && y.mode == constant_ {
++		xval := x.val
++		yval := y.val
+ 		typ := x.typ.Underlying().(*Basic)
+ 		// force integer division of integer operands
+ 		if op == token.QUO && isInteger(typ) {
++			xval = constant.ToInt(xval)
++			yval = constant.ToInt(yval)
+ 			op = token.QUO_ASSIGN
+ 		}
+-		x.val = constant.BinaryOp(x.val, op, y.val)
++		x.val = constant.BinaryOp(xval, op, yval)
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+ 		if isTyped(typ) {
+@@ -851,7 +856,7 @@ func (check *Checker) index(index ast.Expr, max int64) (i int64, valid bool) {
+ 			check.invalidArg(x.pos(), "index %s must not be negative", &x)
+ 			return
+ 		}
+-		i, valid = constant.Int64Val(x.val)
++		i, valid = constant.Int64Val(constant.ToInt(x.val))
+ 		if !valid || max >= 0 && i >= max {
+ 			check.errorf(x.pos(), "index %s is out of bounds", &x)
+ 			return i, false
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 09eac8354d..b2f16b64d8 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -166,13 +166,6 @@ func (x *operand) String() string {
+ 
+ // setConst sets x to the untyped constant for literal lit.
+ func (x *operand) setConst(tok token.Token, lit string) {
+-	val := constant.MakeFromLiteral(lit, tok, 0)
+-	if val == nil {
+-		// TODO(gri) Should we make it an unknown constant instead?
+-		x.mode = invalid
+-		return
+-	}
+-
+ 	var kind BasicKind
+ 	switch tok {
+ 	case token.INT:
+@@ -185,11 +178,13 @@ func (x *operand) setConst(tok token.Token, lit string) {
+ 		kind = UntypedRune
+ 	case token.STRING:
+ 		kind = UntypedString
++	default:
++		unreachable()
+ 	}
+ 
+ 	x.mode = constant_
+ 	x.typ = Typ[kind]
+-	x.val = val
++	x.val = constant.MakeFromLiteral(lit, tok, 0)
+ }
+ 
+ // isNil reports whether x is the nil value.
+@@ -229,7 +224,7 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
+ 				return true
+ 			}
+ 			if x.mode == constant_ {
+-				return representableConst(x.val, conf, t.kind, nil)
++				return representableConst(x.val, conf, t, nil)
+ 			}
+ 			// The result of a comparison is an untyped boolean,
+ 			// but may not be a constant.
+@@ -276,11 +271,3 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
+ 
+ 	return false
+ }
+-
+-// isInteger reports whether x is value of integer type
+-// or an untyped constant representable as an integer.
+-func (x *operand) isInteger() bool {
+-	return x.mode == invalid ||
+-		isInteger(x.typ) ||
+-		isUntyped(x.typ) && x.mode == constant_ && representableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
+-}
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 6ff9004243..055bd96911 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -144,14 +144,9 @@ func TestStdFixed(t *testing.T) {
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
+ 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+-		"bug459.go",      // possibly incorrect test - see issue 6703 (pending spec clarification)
+-		"issue3924.go",   // possibly incorrect test - see issue 6671 (pending spec clarification)
+-		"issue6889.go",   // gc-specific test
+-		"issue7746.go",   // large constants - consumes too much memory
+-		"issue11326.go",  // large constants
+-		"issue11326b.go", // large constants
+-		"issue11362.go",  // canonical import path check
+-		"issue13471.go",  // large constants - remove once issue 11327 is fixed
++		"issue6889.go",  // gc-specific test
++		"issue7746.go",  // large constants - consumes too much memory
++		"issue11362.go", // canonical import path check
+ 	)
+ }
+ 
+diff --git a/src/go/types/testdata/const0.src b/src/go/types/testdata/const0.src
+index c4419ab6fe..716a5907ce 100644
+--- a/src/go/types/testdata/const0.src
++++ b/src/go/types/testdata/const0.src
+@@ -280,3 +280,16 @@ func _() {
+ 	var y = iota
+ 	_ = y
+ }
++
++// constant arithmetic precision and rounding must lead to expected (integer) results
++var _ = []int64{
++	0.0005 * 1e9,
++	0.001 * 1e9,
++	0.005 * 1e9,
++	0.01 * 1e9,
++	0.05 * 1e9,
++	0.1 * 1e9,
++	0.5 * 1e9,
++	1 * 1e9,
++	5 * 1e9,
++}
+diff --git a/src/go/types/testdata/decls0.src b/src/go/types/testdata/decls0.src
+index 21baafe279..d4df386b13 100644
+--- a/src/go/types/testdata/decls0.src
++++ b/src/go/types/testdata/decls0.src
+@@ -50,7 +50,10 @@ func _() { var init int; _ = init }
+ // invalid array types
+ type (
+ 	iA0 [... /* ERROR "invalid use of '...'" */ ]byte
+-	iA1 [1 /* ERROR "invalid array length" */ <<100]int
++	// The error message below could be better. At the moment
++	// we believe an integer that is too large is not an integer.
++	// But at least we get an error.
++	iA1 [1 /* ERROR "must be integer" */ <<100]int
+ 	iA2 [- /* ERROR "invalid array length" */ 1]complex128
+ 	iA3 ["foo" /* ERROR "must be integer" */ ]string
+ 	iA4 [float64 /* ERROR "must be integer" */ (0)]int
+diff --git a/src/go/types/testdata/errors.src b/src/go/types/testdata/errors.src
+index 45bd45a13a..29fcd8fe1d 100644
+--- a/src/go/types/testdata/errors.src
++++ b/src/go/types/testdata/errors.src
+@@ -21,8 +21,8 @@ func f(x int, m map[string]int) {
+ 	const c2 float32 = 0.5
+ 	0 /* ERROR "0 \(untyped int constant\) is not used" */
+ 	c1 /* ERROR "c1 \(untyped int constant 991\) is not used" */
+-	c2 /* ERROR "c2 \(constant 1/2 of type float32\) is not used" */
+-	c1 /* ERROR "c1 \+ c2 \(constant 1983/2 of type float32\) is not used" */ + c2
++	c2 /* ERROR "c2 \(constant 0.5 of type float32\) is not used" */
++	c1 /* ERROR "c1 \+ c2 \(constant 991.5 of type float32\) is not used" */ + c2
+ 
+ 	// variables
+ 	x /* ERROR "x \(variable of type int\) is not used" */
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index c744eeaa0c..931b924712 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -373,16 +373,19 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
+ 		}
+ 		return 0
+ 	}
+-	if !x.isInteger() {
+-		check.errorf(x.pos(), "array length %s must be integer", &x)
+-		return 0
+-	}
+-	n, ok := constant.Int64Val(x.val)
+-	if !ok || n < 0 {
+-		check.errorf(x.pos(), "invalid array length %s", &x)
+-		return 0
++	if isUntyped(x.typ) || isInteger(x.typ) {
++		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
++			if representableConst(val, check.conf, Typ[Int], nil) {
++				if n, ok := constant.Int64Val(val); ok && n >= 0 {
++					return n
++				}
++				check.errorf(x.pos(), "invalid array length %s", &x)
++				return 0
++			}
++		}
+ 	}
+-	return n
++	check.errorf(x.pos(), "array length %s must be integer", &x)
++	return 0
+ }
+ 
+ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {

@@ -11,7 +11,51 @@ Date:   Thu Jul 14 14:07:18 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 4 ++--
  src/cmd/go/build.go                | 9 ++++++---
  2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index e91af9d8c5..bb84ef8cab 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -43,7 +43,7 @@ func run(t *testing.T, msg string, args ...string) {
+ }
+ 
+ // goCmd invokes the go tool with the installsuffix set up by TestMain. It calls
+-// t.Errorf if the command fails.
++// t.Fatalf if the command fails.
+ func goCmd(t *testing.T, args ...string) {
+ 	newargs := []string{args[0], "-installsuffix=" + suffix}
+ 	if testing.Verbose() {
+@@ -63,7 +63,7 @@ func goCmd(t *testing.T, args ...string) {
+ 	}
+ 	if err != nil {
+ 		if t != nil {
+-			t.Errorf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
++			t.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
+ 		} else {
+ 			log.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
+ 		}
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 75eaec21da..088164ba68 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -431,10 +431,13 @@ func buildModeInit() {
+ 			buildAsmflags = append(buildAsmflags, codegenArg)
+ 			buildGcflags = append(buildGcflags, codegenArg)
+ 		}
+-		if buildContext.InstallSuffix != "" {
+-			buildContext.InstallSuffix += "_"
++		// Don't alter InstallSuffix when modifying default codegen args.
++		if buildBuildmode != "default" || buildLinkshared {
++			if buildContext.InstallSuffix != "" {
++				buildContext.InstallSuffix += "_"
++			}
++			buildContext.InstallSuffix += codegenArg[1:]
+ 		}
+-		buildContext.InstallSuffix += codegenArg[1:]
+ 	}
+ }
+ 

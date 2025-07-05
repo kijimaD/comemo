@@ -7,8 +7,50 @@ Date:   Tue Jan 8 12:15:19 2013 -0800
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7079043
-
+---
  src/pkg/compress/lzw/writer.go | 2 +-
  src/pkg/exp/html/render.go     | 2 +-
  src/pkg/image/jpeg/writer.go   | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/compress/lzw/writer.go b/src/pkg/compress/lzw/writer.go
+index c6f891b4bc..b20691864b 100644
+--- a/src/pkg/compress/lzw/writer.go
++++ b/src/pkg/compress/lzw/writer.go
+@@ -13,7 +13,7 @@ import (
+ 
+ // A writer is a buffered, flushable writer.
+ type writer interface {
+-	WriteByte(byte) error
++	io.ByteWriter
+ 	Flush() error
+ }
+ 
+diff --git a/src/pkg/exp/html/render.go b/src/pkg/exp/html/render.go
+index 285dbc926e..d34564f49d 100644
+--- a/src/pkg/exp/html/render.go
++++ b/src/pkg/exp/html/render.go
+@@ -14,7 +14,7 @@ import (
+ 
+ type writer interface {
+ 	io.Writer
+-	WriteByte(byte) error
++	io.ByteWriter
+ 	WriteString(string) (int, error)
+ }
+ 
+diff --git a/src/pkg/image/jpeg/writer.go b/src/pkg/image/jpeg/writer.go
+index 375d8a66d5..c58fbf3055 100644
+--- a/src/pkg/image/jpeg/writer.go
++++ b/src/pkg/image/jpeg/writer.go
+@@ -210,8 +210,8 @@ func init() {
+ // writer is a buffered writer.
+ type writer interface {
+ 	Flush() error
+-	Write([]byte) (int, error)
+-	WriteByte(byte) error
++	io.Writer
++	io.ByteWriter
+ }
+ 
+ // encoder encodes an image to the JPEG format.

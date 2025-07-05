@@ -11,7 +11,7 @@ Date:   Tue Sep 9 14:32:53 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/137360043
-
+---
  src/runtime/asm_386.s      | 3 ---
  src/runtime/asm_amd64.s    | 3 ---
  src/runtime/asm_amd64p32.s | 3 ---
@@ -22,3 +22,140 @@ Date:   Tue Sep 9 14:32:53 2014 -0700
  src/runtime/stubs.go       | 7 +++++++
  src/runtime/thunk.s        | 3 +++
  9 files changed, 10 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 2376ab92ba..3e93025faf 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -2241,9 +2241,6 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ 	
+ 	RET
+ 
+-TEXT runtime·timenow(SB), NOSPLIT, $0-0
+-	JMP	time·now(SB)
+-
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index a32e03e4ee..1a106dc1f1 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2186,9 +2186,6 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ 
+ 	RET
+ 
+-TEXT runtime·timenow(SB), NOSPLIT, $0-0
+-	JMP	time·now(SB)
+-
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 5d82d84aa4..32276c8952 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -1069,9 +1069,6 @@ eqret:
+ 	MOVB	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·timenow(SB), NOSPLIT, $0-0
+-	JMP	time·now(SB)
+-
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index ac78bd9dc5..73d23fce34 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -848,9 +848,6 @@ _sib_notfound:
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·timenow(SB),NOSPLIT,$0-0
+-	B	time·now(SB)
+-
+ // A Duff's device for zeroing memory.
+ // The compiler jumps to computed addresses within
+ // this routine to zero chunks of memory.  Do not
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 3d06a23fce..b8db5d0c4b 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -126,8 +126,6 @@ func Callers(skip int, pc []uintptr) int {
+ 	return callers(skip, &pc[0], len(pc))
+ }
+ 
+-func getgoroot() string
+-
+ // GOROOT returns the root of the Go tree.
+ // It uses the GOROOT environment variable, if set,
+ // or else the root used during the Go build.
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 0984fc58d6..ec5edb0244 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -28,8 +28,6 @@ func gc_notype_ptr(ret *interface{}) {
+ 	*ret = x
+ }
+ 
+-func timenow() (sec int64, nsec int32)
+-
+ func gc_unixnanotime(now *int64) {
+ 	sec, nsec := timenow()
+ 	*now = sec*1e9 + int64(nsec)
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 7177c84592..89e9915236 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -295,9 +295,6 @@ func SetBlockProfileRate(rate int) {
+ 	atomicstore64(&blockprofilerate, uint64(r))
+ }
+ 
+-func fastrand1() uint32     // assembly
+-func readgstatus(*g) uint32 // proc.c
+-
+ func blockevent(cycles int64, skip int) {
+ 	if cycles <= 0 {
+ 		return
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index f3af34a584..8bae98c73d 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -28,6 +28,7 @@ func getg() *g
+ func acquirem() *m
+ func releasem(mp *m)
+ func gomcache() *mcache
++func readgstatus(*g) uint32 // proc.c
+ 
+ // mcall switches from the g to the g0 stack and invokes fn(g),
+ // where g is the goroutine that made the call.
+@@ -121,6 +122,9 @@ func unlockOSThread()
+ // exported value for testing
+ var hashLoad = loadFactor
+ 
++// in asm_*.s
++func fastrand1() uint32
++
+ // in asm_*.s
+ //go:noescape
+ func memeq(a, b unsafe.Pointer, size uintptr) bool
+@@ -229,3 +233,6 @@ func rt0_go()
+ // to deferreturn.
+ // in asm_*.s
+ func return0()
++
++// thunk to call time.now.
++func timenow() (sec int64, nsec int32)
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+index 35b250f8c5..7ba22d705e 100644
+--- a/src/runtime/thunk.s
++++ b/src/runtime/thunk.s
+@@ -157,3 +157,6 @@ TEXT runtime·main_init(SB),NOSPLIT,$0-0
+ 
+ TEXT runtime·main_main(SB),NOSPLIT,$0-0
+ 	JMP	main·main(SB)
++
++TEXT runtime·timenow(SB), NOSPLIT, $0-0
++	JMP	time·now(SB)

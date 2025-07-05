@@ -17,7 +17,7 @@ Date:   Thu Aug 20 16:09:38 2009 -0700
     DELTA=52  (37 added, 3 deleted, 12 changed)
     OCL=33610
     CL=33618
-
+---
  src/cmd/6l/asm.c       | 28 +++++++++++++++++++++++-----
  src/cmd/6l/l.h         |  1 +
  src/cmd/6l/obj.c       |  1 +
@@ -26,3 +26,226 @@ Date:   Thu Aug 20 16:09:38 2009 -0700
  src/cmd/ld/elf64.h     |  1 +
  src/pkg/runtime/mgc0.c |  3 ++-
  7 files changed, 48 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 7e0bd9191d..5acaaae5f1 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -128,7 +128,7 @@ asmb(void)
+ 	int32 v, magic;
+ 	int a, nl;
+ 	uchar *op1;
+-	vlong vl, va, startva, fo, w, symo, hashoff;
++	vlong vl, va, startva, fo, w, symo, hashoff, dstrtab, off;
+ 	vlong symdatva = 0x99LL<<32;
+ 	Elf64Hdr *eh;
+ 	Elf64PHdr *ph, *pph;
+@@ -431,6 +431,7 @@ asmb(void)
+ 		sh = newElf64SHdr("");
+ 
+ 		pph = nil;	/* silence compiler */
++		dstrtab = 0;
+ 
+ 		/* Dynamic linking sections */
+ 		if (!debug['d']) {	/* -d suppresses dynamic loader format */
+@@ -443,7 +444,7 @@ asmb(void)
+ 			pph->off = ELF64HDRSIZE;
+ 			pph->vaddr = startva + pph->off;
+ 			pph->paddr = startva + pph->off;
+-			pph->align = 8;
++			pph->align = INITRND;
+ 
+ 			/* interpreter */
+ 			ph = newElf64PHdr();
+@@ -503,13 +504,19 @@ asmb(void)
+ 			sh->addr = startva + sh->off;
+ 			sh->off = startelf();
+ 			elf64writedynent(DT_HASH, startva+hashoff);
+-			elf64writedynent(DT_STRTAB, startva+ELF64FULLHDRSIZE-STRTABSIZE);
+ 			elf64writedynent(DT_SYMTAB, startva);
+ 			elf64writedynent(DT_RELA, startva);
+ 			elf64writedynent(DT_RELASZ, 0);	// size of the whole rela in bytes
+ 			elf64writedynent(DT_RELAENT, ELF64RELASIZE);
+-			elf64writedynent(DT_STRSZ, STRTABSIZE);
+ 			elf64writedynent(DT_SYMENT, 0);
++//			elf64writedynent(DT_NEEDED, elf64addstr("libc.so.6"));
++
++			/* make space for these now but fill them in later */
++			cflush();
++			dstrtab = seek(cout, 0, 1);
++			elf64writedynent(DT_STRTAB, -1);
++			elf64writedynent(DT_STRSZ, -1);
++
+ 			elf64writedynent(DT_NULL, 0);
+ 			sh->size = endelf() - sh->off;
+ 			sh->addralign = 8;
+@@ -534,7 +541,7 @@ asmb(void)
+ 			ph->paddr = startva + ph->off;
+ 			ph->filesz = sh->off + sh->size - ph->off;
+ 			ph->memsz = ph->filesz;
+-			ph->align = 8;
++			ph->align = INITRND;
+ 		}
+ 
+ 		ph = newElf64PHdr();
+@@ -644,6 +651,17 @@ asmb(void)
+ 		elf64writestrtable();
+ 		sh->size = endelf() - sh->off;
+ 
++		if(dstrtab != 0) {
++			// update DT_STRTAB entry
++			cflush();
++			off = seek(cout, 0, 1);
++			seek(cout, dstrtab, 0);
++			elf64writedynent(DT_STRTAB, sh->addr);
++			elf64writedynent(DT_STRSZ, sh->size);
++			cflush();
++			seek(cout, off, 0);
++		}
++
+ 		/* Main header */
+ 		eh = getElf64Hdr();
+ 		eh->ident[EI_MAG0] = '\177';
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 8f72812bcc..0490bc1db1 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -390,6 +390,7 @@ double	cputime(void);
+ void	datblk(int32, int32);
+ void	deadcode(void);
+ void	diag(char*, ...);
++void	dobss(void);
+ void	dodata(void);
+ void	doinit(void);
+ void	doprof1(void);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index d9630fe333..98318d94b1 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -390,6 +390,7 @@ main(int argc, char *argv[])
+ 	patch();
+ 	follow();
+ 	dodata();
++	dobss();
+ 	dostkoff();
+ 	paramspace = "SP";	/* (FP) now (SP) on output */
+ 	if(debug['p'])
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 3917ac5423..540063568f 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -124,6 +124,14 @@ dodata(void)
+ 		}
+ 		datsize += u;
+ 	}
++}
++
++void
++dobss(void)
++{
++	int i;
++	Sym *s;
++	int32 t;
+ 
+ 	/* now the bss */
+ 	bsssize = 0;
+@@ -137,6 +145,7 @@ dodata(void)
+ 		s->value = bsssize + datsize;
+ 		bsssize += t;
+ 	}
++	xdefine("data", SBSS, 0);
+ 	xdefine("edata", SBSS, datsize);
+ 	xdefine("end", SBSS, bsssize + datsize);
+ }
+diff --git a/src/cmd/ld/elf64.c b/src/cmd/ld/elf64.c
+index dc9f4196b1..d6a2f7f3c2 100644
+--- a/src/cmd/ld/elf64.c
++++ b/src/cmd/ld/elf64.c
+@@ -13,7 +13,7 @@ static	Elf64Hdr	hdr;
+ static	Elf64PHdr	*phdr[NSECT];
+ static	Elf64SHdr	*shdr[NSECT];
+ static	char	*sname[NSECT];
+-static	char	*str[NSECT];
++static	char	*str[20];
+ 
+ /*
+  Initialize the global variable that describes the ELF header. It will be updated as
+@@ -80,15 +80,19 @@ elf64writestrtable(void)
+ 		diag("elf64 string table overflow");
+ }
+ 
+-void
+-e64addstr(char *name)
++uint32
++elf64addstr(char *name)
+ {
+-	if (numstr >= NSECT) {
++	int r;
++
++	if (numstr >= nelem(str)) {
+ 		diag("too many elf strings");
+-		return;
++		return 0;
+ 	}
+ 	str[numstr++] = strdup(name);
++	r = stroffset;
+ 	stroffset += strlen(name)+1;
++	return r;
+ }
+ 
+ uint32
+@@ -135,11 +139,10 @@ newElf64SHdr(char *name)
+ 		hdr.shstrndx = hdr.shnum;
+ 	e = malloc(sizeof *e);
+ 	memset(e, 0, sizeof *e);
+-	e->name = stroffset;
++	e->name = elf64addstr(name);
+ 	if (hdr.shnum >= NSECT) {
+ 		diag("too many shdrs");
+ 	} else {
+-		e64addstr(name);
+ 		shdr[hdr.shnum++] = e;
+ 	}
+ 	return e;
+@@ -152,7 +155,7 @@ getElf64Hdr(void)
+ }
+ 
+ uint32
+-elf64writehdr()
++elf64writehdr(void)
+ {
+ 	int i;
+ 
+diff --git a/src/cmd/ld/elf64.h b/src/cmd/ld/elf64.h
+index 55d0ca3098..bde6376783 100644
+--- a/src/cmd/ld/elf64.h
++++ b/src/cmd/ld/elf64.h
+@@ -274,6 +274,7 @@ Elf64PHdr	*newElf64PHdr();
+ uint32	elf64writehdr(void);
+ uint32	elf64writephdrs(void);
+ uint32	elf64writeshdrs(void);
++uint32	elf64addstr(char*);
+ void	elf64writestrtable(void);
+ void	elf64writedynent(int, uint64);
+ uint32	elf64_hash(uchar*);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d27c186f41..b5b2b48a3e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -19,6 +19,7 @@ enum {
+ 	Debug = 0
+ };
+ 
++extern byte data[];
+ extern byte etext[];
+ extern byte end[];
+ 
+@@ -84,7 +85,7 @@ mark(void)
+ 	G *gp;
+ 
+ 	// mark data+bss
+-	scanblock(0, etext, end - etext);
++	scanblock(0, data, end - data);
+ 
+ 	// mark stacks
+ 	for(gp=allg; gp!=nil; gp=gp->alllink) {

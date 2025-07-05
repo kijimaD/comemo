@@ -8,7 +8,48 @@ Date:   Mon Dec 7 10:06:51 2009 -0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/167043
-
+---
  test/bench/chameneosredux.go  | 6 +++---
  test/bench/chameneosredux.txt | 1 +
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/test/bench/chameneosredux.go b/test/bench/chameneosredux.go
+index 6fa89e49cf..ce464dc2bc 100644
+--- a/test/bench/chameneosredux.go
++++ b/test/bench/chameneosredux.go
+@@ -101,13 +101,13 @@ func main() {
+ 			fmt.Printf("%s + %s -> %s\n", colname[c0], colname[c1], colname[complement[c0|c1<<2]])
+ 		}
+ 	}
++	fmt.Print("\n");
+ 
+ 	pallmall([]int{blue, red, yellow});
+ 	pallmall([]int{blue, red, yellow, red, yellow, blue, red, yellow, red, blue});
+ }
+ 
+ func pallmall(cols []int) {
+-	fmt.Print("\n");
+ 
+ 	// invariant: meetingplace always contains a value unless a creature
+ 	// is currently dealing with it (whereupon it must put it back).
+@@ -126,9 +126,9 @@ func pallmall(cols []int) {
+ 	for _ = range (cols) {
+ 		result := <-ended;
+ 		tot += result.met;
+-		fmt.Println(result.met, spell(result.same, true));
++		fmt.Printf("%v%v\n", result.met, spell(result.same, true));
+ 	}
+-	fmt.Println(spell(tot, true));
++	fmt.Printf("%v\n\n", spell(tot, true));
+ }
+ 
+ // in this function, variables ending in 0 refer to the local creature,
+diff --git a/test/bench/chameneosredux.txt b/test/bench/chameneosredux.txt
+index cf7147723b..6016d59a8c 100644
+--- a/test/bench/chameneosredux.txt
++++ b/test/bench/chameneosredux.txt
+@@ -26,3 +26,4 @@ yellow + yellow -> yellow
+ 120 zero
+ 120 zero
+  one two zero zero
++

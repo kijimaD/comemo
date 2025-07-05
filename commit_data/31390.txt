@@ -11,7 +11,175 @@ Date:   Thu Feb 2 18:37:59 2017 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/pe/file_cgo_test.go | 33 +++++++++++++++++
  src/debug/pe/file_test.go     | 85 +++++++++++++++++++++++++++++++++++++------
  2 files changed, 106 insertions(+), 12 deletions(-)
+
+diff --git a/src/debug/pe/file_cgo_test.go b/src/debug/pe/file_cgo_test.go
+new file mode 100644
+index 0000000000..d09890fb7e
+--- /dev/null
++++ b/src/debug/pe/file_cgo_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++
++package pe
++
++import (
++	"os/exec"
++	"testing"
++)
++
++func testCgoDWARF(t *testing.T, linktype int) {
++	if _, err := exec.LookPath("gcc"); err != nil {
++		t.Skip("skipping test: gcc is missing")
++	}
++	testDWARF(t, linktype)
++}
++
++func TestDefaultLinkerDWARF(t *testing.T) {
++	t.Skip("skipping broken test: see issue 10776")
++	testCgoDWARF(t, linkCgoDefault)
++}
++
++func TestInternalLinkerDWARF(t *testing.T) {
++	testCgoDWARF(t, linkCgoInternal)
++}
++
++func TestExternalLinkerDWARF(t *testing.T) {
++	t.Skip("skipping broken test: see issue 10776")
++	testCgoDWARF(t, linkCgoExternal)
++}
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 5a740c8705..182b8e3811 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -12,8 +12,11 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
++	"regexp"
+ 	"runtime"
++	"strconv"
+ 	"testing"
++	"text/template"
+ )
+ 
+ type fileTest struct {
+@@ -288,28 +291,70 @@ func TestOpenFailure(t *testing.T) {
+ 	}
+ }
+ 
+-func TestDWARF(t *testing.T) {
++const (
++	linkNoCgo = iota
++	linkCgoDefault
++	linkCgoInternal
++	linkCgoExternal
++)
++
++func testDWARF(t *testing.T, linktype int) {
+ 	if runtime.GOOS != "windows" {
+ 		t.Skip("skipping windows only test")
+ 	}
++	testenv.MustHaveGoRun(t)
+ 
+ 	tmpdir, err := ioutil.TempDir("", "TestDWARF")
+ 	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
++		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+-	prog := `
+-package main
+-func main() {
+-}
+-`
+ 	src := filepath.Join(tmpdir, "a.go")
++	file, err := os.Create(src)
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = template.Must(template.New("main").Parse(testprog)).Execute(file, linktype != linkNoCgo)
++	if err != nil {
++		if err := file.Close(); err != nil {
++			t.Error(err)
++		}
++		t.Fatal(err)
++	}
++	if err := file.Close(); err != nil {
++		t.Fatal(err)
++	}
++
+ 	exe := filepath.Join(tmpdir, "a.exe")
+-	err = ioutil.WriteFile(src, []byte(prog), 0644)
+-	output, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
++	args := []string{"build", "-o", exe}
++	switch linktype {
++	case linkNoCgo:
++	case linkCgoDefault:
++	case linkCgoInternal:
++		args = append(args, "-ldflags", "-linkmode=internal")
++	case linkCgoExternal:
++		args = append(args, "-ldflags", "-linkmode=external")
++	default:
++		t.Fatalf("invalid linktype parameter of %v", linktype)
++	}
++	args = append(args, src)
++	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("building test executable failed: %s %s", err, output)
++		t.Fatalf("building test executable failed: %s %s", err, out)
++	}
++	out, err = exec.Command(exe).CombinedOutput()
++	if err != nil {
++		t.Fatalf("running test executable failed: %s %s", err, out)
++	}
++
++	matches := regexp.MustCompile("main=(.*)\n").FindStringSubmatch(string(out))
++	if len(matches) < 2 {
++		t.Fatalf("unexpected program output: %s", out)
++	}
++	wantaddr, err := strconv.ParseUint(matches[1], 0, 64)
++	if err != nil {
++		t.Fatalf("unexpected main address %q: %s", matches[1], err)
+ 	}
+ 
+ 	f, err := Open(exe)
+@@ -334,8 +379,8 @@ func main() {
+ 			break
+ 		}
+ 		if e.Tag == dwarf.TagSubprogram {
+-			for _, f := range e.Field {
+-				if f.Attr == dwarf.AttrName && e.Val(dwarf.AttrName) == "main.main" {
++			if name, ok := e.Val(dwarf.AttrName).(string); ok && name == "main.main" {
++				if addr, ok := e.Val(dwarf.AttrLowpc).(uint64); ok && addr == wantaddr {
+ 					return
+ 				}
+ 			}
+@@ -415,3 +460,19 @@ main(void)
+ 		}
+ 	}
+ }
++
++func TestDWARF(t *testing.T) {
++	testDWARF(t, linkNoCgo)
++}
++
++const testprog = `
++package main
++
++import "fmt"
++{{if .}}import "C"
++{{end}}
++
++func main() {
++	fmt.Printf("main=%p\n", main)
++}
++`

@@ -9,6 +9,29 @@ Date:   Sat Apr 21 16:46:27 2018 +0000
     GitHub-Pull-Request: golang/go#24987
     Reviewed-on: https://go-review.googlesource.com/108675
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index a71d70818a..a6f67f0ef4 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -718,7 +718,7 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
+ //
+ // See the Client.Do method documentation for details on how redirects
+ // are handled.
+-func Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
++func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
+ 	return DefaultClient.Post(url, contentType, body)
+ }
+ 
+@@ -733,7 +733,7 @@ func Post(url string, contentType string, body io.Reader) (resp *Response, err e
+ //
+ // See the Client.Do method documentation for details on how redirects
+ // are handled.
+-func (c *Client) Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
++func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, err error) {
+ 	req, err := NewRequest("POST", url, body)
+ 	if err != nil {
+ 		return nil, err

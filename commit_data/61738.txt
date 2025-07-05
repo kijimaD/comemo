@@ -18,7 +18,59 @@ Date:   Thu Nov 21 13:16:43 2024 -0500
     Reviewed-by: Conrad Irwin <conrad.irwin@gmail.com>
     Reviewed-by: Hongxiang Jiang <hxjiang@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/tool/tool.go            |  1 +
  src/cmd/go/testdata/script/tool_exename.txt | 32 +++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index f07bdf5087..36bf983872 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -287,6 +287,7 @@ func buildAndRunModtool(ctx context.Context, tool string, args []string) {
+ 	pkgOpts := load.PackageOpts{MainOnly: true}
+ 	p := load.PackagesAndErrors(ctx, pkgOpts, []string{tool})[0]
+ 	p.Internal.OmitDebug = true
++	p.Internal.ExeName = path.Base(p.ImportPath)
+ 
+ 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
+ 	a1.CacheExecutable = true
+diff --git a/src/cmd/go/testdata/script/tool_exename.txt b/src/cmd/go/testdata/script/tool_exename.txt
+new file mode 100644
+index 0000000000..dc289b4764
+--- /dev/null
++++ b/src/cmd/go/testdata/script/tool_exename.txt
+@@ -0,0 +1,32 @@
++[short] skip 'runs go build'
++
++# First run: executable for bar is not cached.
++# Make sure it's not called a.out
++go tool bar
++stdout 'my name is: bar'$GOEXE
++! stdout 'a.out'
++
++# Second run: executable is cached. Make sure it
++# has the right name.
++go tool bar
++stdout 'my name is: bar'$GOEXE
++! stdout 'a.out'
++
++-- go.mod --
++module example.com/foo
++
++go 1.24
++
++tool example.com/foo/bar
++-- bar/bar.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"path/filepath"
++)
++
++func main() {
++	fmt.Println("my name is:", filepath.Base(os.Args[0]))
++}
+\ No newline at end of file

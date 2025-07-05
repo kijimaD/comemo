@@ -14,7 +14,43 @@ Date:   Mon Nov 23 12:55:37 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/link/internal/ld/ldelf.go  |  3 ++-
  src/cmd/link/internal/ppc64/asm.go | 10 ++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 66bf61321d..bea3f2dcc3 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -1159,7 +1159,8 @@ func reltype(pn string, elftype int, siz *uint8) int {
+ 		'8' | R_386_GOTOFF<<24,
+ 		'8' | R_386_GOTPC<<24,
+ 		'8' | R_386_GOT32X<<24,
+-		'9' | R_PPC64_REL24<<24:
++		'9' | R_PPC64_REL24<<24,
++		'9' | R_PPC_REL32<<24:
+ 		*siz = 4
+ 
+ 	case '6' | R_X86_64_64<<24,
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 06e412431e..169accc594 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -296,6 +296,16 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 
+ 		return
+ 
++	case 256 + ld.R_PPC_REL32:
++		r.Type = obj.R_PCREL
++		r.Add += 4
++
++		if targ.Type == obj.SDYNIMPORT {
++			ld.Diag("unexpected R_PPC_REL32 for dyn import")
++		}
++
++		return
++
+ 	case 256 + ld.R_PPC64_ADDR64:
+ 		r.Type = obj.R_ADDR
+ 		if targ.Type == obj.SDYNIMPORT {

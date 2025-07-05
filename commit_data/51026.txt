@@ -12,6 +12,20 @@ Date:   Sat Nov 27 11:16:57 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/367274
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index b8e6aceee9..4700548cb2 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2883,7 +2883,7 @@ to use. This makes the receiver type parameters available to the method.
+ 
+ <p>
+ Syntactically, this type parameter declaration looks like an
+-<a href="#Instantiantions">instantiation</a> of the receiver base type, except that
++<a href="#Instantiations">instantiation</a> of the receiver base type, except that
+ the type arguments are the type parameters being declared, one for each type parameter
+ of the receiver base type.
+ The type parameter names do not need to match their corresponding parameter names in the

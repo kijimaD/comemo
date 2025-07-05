@@ -27,9 +27,171 @@ Date:   Wed Feb 24 10:29:27 2016 -0800
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/TODO              |  2 --
  src/cmd/compile/internal/ssa/gen/rulegen.go    | 19 ++++++++++---------
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 18 ++++++++++++------
  src/cmd/compile/internal/ssa/rewritegeneric.go |  7 +++++--
  4 files changed, 27 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 91983476a2..69356d6226 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -7,8 +7,6 @@ Coverage
+ Correctness
+ -----------
+ - Debugging info (check & fix as much as we can)
+-- @ directive in rewrites might read overwritten data.  Save @loc
+-  in variable before modifying v.
+ 
+ Optimizations (better compiled code)
+ ------------------------------------
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index b9aa51d165..56bb82c85d 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -259,7 +259,7 @@ func genRules(arch arch) {
+ 			if t[1] == "nil" {
+ 				fmt.Fprintf(w, "b.Control = nil\n")
+ 			} else {
+-				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false, "b"))
++				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false, false))
+ 			}
+ 			if len(newsuccs) < len(succs) {
+ 				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
+@@ -415,16 +415,17 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
+ }
+ 
+ func genResult(w io.Writer, arch arch, result string) {
+-	loc := "b"
++	move := false
+ 	if result[0] == '@' {
+ 		// parse @block directive
+ 		s := strings.SplitN(result[1:], " ", 2)
+-		loc = s[0]
++		fmt.Fprintf(w, "b = %s\n", s[0])
+ 		result = s[1]
++		move = true
+ 	}
+-	genResult0(w, arch, result, new(int), true, loc)
++	genResult0(w, arch, result, new(int), true, move)
+ }
+-func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc string) string {
++func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move bool) string {
+ 	if result[0] != '(' {
+ 		// variable
+ 		if top {
+@@ -469,7 +470,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
+ 		}
+ 	}
+ 	var v string
+-	if top && loc == "b" {
++	if top && !move {
+ 		v = "v"
+ 		fmt.Fprintf(w, "v.reset(%s)\n", opName(s[0], arch))
+ 		if typeOverride {
+@@ -481,8 +482,8 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
+ 		}
+ 		v = fmt.Sprintf("v%d", *alloc)
+ 		*alloc++
+-		fmt.Fprintf(w, "%s := %s.NewValue0(v.Line, %s, %s)\n", v, loc, opName(s[0], arch), opType)
+-		if top {
++		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, %s, %s)\n", v, opName(s[0], arch), opType)
++		if move {
+ 			// Rewrite original into a copy
+ 			fmt.Fprintf(w, "v.reset(OpCopy)\n")
+ 			fmt.Fprintf(w, "v.AddArg(%s)\n", v)
+@@ -501,7 +502,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
+ 			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
+ 		} else {
+ 			// regular argument (sexpr or variable)
+-			x := genResult0(w, arch, a, alloc, false, loc)
++			x := genResult0(w, arch, a, alloc, false, move)
+ 			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 601e9b8ce3..bf74331dd3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -5339,7 +5339,8 @@ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
+-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVBQSXload, v.Type)
++		b = v.Args[0].Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVBQSXload, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v0.AuxInt = off
+@@ -5381,7 +5382,8 @@ func rewriteValueAMD64_OpAMD64MOVBQZX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
+-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVBQZXload, v.Type)
++		b = v.Args[0].Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVBQZXload, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v0.AuxInt = off
+@@ -5920,7 +5922,8 @@ func rewriteValueAMD64_OpAMD64MOVLQSX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
+-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVLQSXload, v.Type)
++		b = v.Args[0].Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVLQSXload, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v0.AuxInt = off
+@@ -5962,7 +5965,8 @@ func rewriteValueAMD64_OpAMD64MOVLQZX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
+-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVLQZXload, v.Type)
++		b = v.Args[0].Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVLQZXload, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v0.AuxInt = off
+@@ -7419,7 +7423,8 @@ func rewriteValueAMD64_OpAMD64MOVWQSX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
+-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVWQSXload, v.Type)
++		b = v.Args[0].Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVWQSXload, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v0.AuxInt = off
+@@ -7461,7 +7466,8 @@ func rewriteValueAMD64_OpAMD64MOVWQZX(v *Value, config *Config) bool {
+ 		sym := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[0].Args[1]
+-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVWQZXload, v.Type)
++		b = v.Args[0].Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVWQZXload, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v0.AuxInt = off
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 08ab2e14a6..4f29cf5348 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -7102,10 +7102,13 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
+ 		if !(!config.fe.CanSSA(t)) {
+ 			break
+ 		}
+-		v0 := v.Args[0].Block.NewValue0(v.Line, OpLoad, v.Type)
++		b = v.Args[0].Block
++		v0 := b.NewValue0(v.Line, OpLoad, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+-		v1 := v.Args[0].Block.NewValue0(v.Line, OpOffPtr, v.Type.PtrTo())
++		v1 := b.NewValue0(v.Line, OpOffPtr, v.Type.PtrTo())
++		v.reset(OpCopy)
++		v.AddArg(v1)
+ 		v1.AuxInt = t.FieldOff(i)
+ 		v1.AddArg(ptr)
+ 		v0.AddArg(v1)

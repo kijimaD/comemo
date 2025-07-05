@@ -13,6 +13,22 @@ Date:   Sat Nov 28 18:14:38 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/shift1.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/shift1.go b/test/shift1.go
+index df0c032cd5..d6a6c38839 100644
+--- a/test/shift1.go
++++ b/test/shift1.go
+@@ -73,8 +73,8 @@ func _() {
+ 	// non constants arguments trigger a different path
+ 	f2 := 1.2
+ 	s2 := "hi"
+-	_ = f2 << 2 // ERROR "shift of type float64"
+-	_ = s2 << 2 // ERROR "shift of type string"
++	_ = f2 << 2 // ERROR "shift of type float64|non-integer"
++	_ = s2 << 2 // ERROR "shift of type string|non-integer"
+ }
+ 
+ // shifts in comparisons w/ untyped operands

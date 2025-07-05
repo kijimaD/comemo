@@ -8,6 +8,20 @@ Date:   Tue Feb 21 16:47:42 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5684050
-
+---
  test/fixedbugs/bug423.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug423.go b/test/fixedbugs/bug423.go
+index 4a04c77f62..882108df8b 100644
+--- a/test/fixedbugs/bug423.go
++++ b/test/fixedbugs/bug423.go
+@@ -271,7 +271,7 @@ func F(arg int) {
+ 	X = 0
+ 	X = 0
+ 	X = 0 // used 256 times
+-	if arg != 0 {
++	if arg != 1 {
+ 		panic("argument was changed")
+ 	}
+ }

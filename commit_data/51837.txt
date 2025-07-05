@@ -18,6 +18,21 @@ Date:   Fri Mar 18 00:01:24 2022 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/dirent_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/syscall/dirent_test.go b/src/syscall/dirent_test.go
+index aeb40e57c1..a2d1b61342 100644
+--- a/src/syscall/dirent_test.go
++++ b/src/syscall/dirent_test.go
+@@ -97,9 +97,6 @@ func TestDirentRepeat(t *testing.T) {
+ 		if size < 1024 {
+ 			size = 1024 // DIRBLKSIZ, see issue 31403.
+ 		}
+-		if runtime.GOOS == "freebsd" {
+-			t.Skip("need to fix issue 31416 first")
+-		}
+ 	}
+ 
+ 	// Make a directory containing N files

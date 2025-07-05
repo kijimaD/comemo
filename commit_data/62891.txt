@@ -269,6 +269,43 @@ Date:   Sat Apr 19 13:27:31 2025 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/tighten.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index 93bb8d048a..eb5007b26e 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -27,6 +27,8 @@ func tighten(f *Func) {
+ 	defer f.Cache.freeValueSlice(startMem)
+ 	endMem := f.Cache.allocValueSlice(f.NumBlocks())
+ 	defer f.Cache.freeValueSlice(endMem)
++	distinctArgs := f.newSparseSet(f.NumValues())
++	defer f.retSparseSet(distinctArgs)
+ 	memState(f, startMem, endMem)
+ 
+ 	for _, b := range f.Blocks {
+@@ -47,16 +49,18 @@ func tighten(f *Func) {
+ 				// Nil checks need to stay in their block. See issue 72860.
+ 				continue
+ 			}
+-			// Count arguments which will need a register.
+-			narg := 0
++			// Count distinct arguments which will need a register.
++			distinctArgs.clear()
++
+ 			for _, a := range v.Args {
+ 				// SP and SB are special registers and have no effect on
+ 				// the allocation of general-purpose registers.
+ 				if a.needRegister() && a.Op != OpSB && a.Op != OpSP {
+-					narg++
++					distinctArgs.add(a.ID)
+ 				}
+ 			}
+-			if narg >= 2 && !v.Type.IsFlags() {
++
++			if distinctArgs.size() >= 2 && !v.Type.IsFlags() {
+ 				// Don't move values with more than one input, as that may
+ 				// increase register pressure.
+ 				// We make an exception for flags, as we want flag generators

@@ -22,6 +22,21 @@ Date:   Mon Apr 20 00:42:08 2009 -0700
     DELTA=3  (3 added, 0 deleted, 0 changed)
     OCL=27625
     CL=27625
-
+---
  src/lib/exvar.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/lib/exvar.go b/src/lib/exvar.go
+index ccfd34acd9..319a0977a2 100644
+--- a/src/lib/exvar.go
++++ b/src/lib/exvar.go
+@@ -36,6 +36,9 @@ func Increment(name string, inc int) {
+ 
+ // Set sets the var called name to value.
+ func Set(name string, value int) {
++	mutex.Lock();
++	defer mutex.Unlock();
++
+ 	intVars[name] = value
+ }
+ 

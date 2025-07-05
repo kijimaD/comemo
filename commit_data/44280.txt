@@ -25,8 +25,211 @@ Date:   Wed Jun 3 19:34:29 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go  | 19 +-------
  src/cmd/link/internal/ld/heap.go      | 54 +++++++++++++++++++++
  src/cmd/link/internal/ld/heap_test.go | 90 +++++++++++++++++++++++++++++++++++
  3 files changed, 145 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 2591b6f0db..5aad7489f4 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -10,32 +10,16 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+-	"container/heap"
+ 	"fmt"
+ 	"unicode"
+ )
+ 
+ var _ = fmt.Print
+ 
+-type workQueue []loader.Sym
+-
+-// Implement container/heap.Interface.
+-func (q *workQueue) Len() int           { return len(*q) }
+-func (q *workQueue) Less(i, j int) bool { return (*q)[i] < (*q)[j] }
+-func (q *workQueue) Swap(i, j int)      { (*q)[i], (*q)[j] = (*q)[j], (*q)[i] }
+-func (q *workQueue) Push(i interface{}) { *q = append(*q, i.(loader.Sym)) }
+-func (q *workQueue) Pop() interface{}   { i := (*q)[len(*q)-1]; *q = (*q)[:len(*q)-1]; return i }
+-
+-// Functions for deadcode pass to use.
+-// Deadcode pass should call push/pop, not Push/Pop.
+-func (q *workQueue) push(i loader.Sym) { heap.Push(q, i) }
+-func (q *workQueue) pop() loader.Sym   { return heap.Pop(q).(loader.Sym) }
+-func (q *workQueue) empty() bool       { return len(*q) == 0 }
+-
+ type deadcodePass struct {
+ 	ctxt *Link
+ 	ldr  *loader.Loader
+-	wq   workQueue
++	wq   heap // work queue, using min-heap for beter locality
+ 
+ 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
+ 	markableMethods []methodref        // methods of reached types
+@@ -48,7 +32,6 @@ func (d *deadcodePass) init() {
+ 	if objabi.Fieldtrack_enabled != 0 {
+ 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
+ 	}
+-	heap.Init(&d.wq)
+ 
+ 	if d.ctxt.BuildMode == BuildModeShared {
+ 		// Mark all symbols defined in this library as reachable when
+diff --git a/src/cmd/link/internal/ld/heap.go b/src/cmd/link/internal/ld/heap.go
+new file mode 100644
+index 0000000000..ea2d772bee
+--- /dev/null
++++ b/src/cmd/link/internal/ld/heap.go
+@@ -0,0 +1,54 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import "cmd/link/internal/loader"
++
++// Min-heap implementation, for the deadcode pass.
++// Specialized for loader.Sym elements.
++
++type heap []loader.Sym
++
++func (h *heap) push(s loader.Sym) {
++	*h = append(*h, s)
++	// sift up
++	n := len(*h) - 1
++	for n > 0 {
++		p := (n - 1) / 2 // parent
++		if (*h)[p] <= (*h)[n] {
++			break
++		}
++		(*h)[n], (*h)[p] = (*h)[p], (*h)[n]
++		n = p
++	}
++}
++
++func (h *heap) pop() loader.Sym {
++	r := (*h)[0]
++	n := len(*h) - 1
++	(*h)[0] = (*h)[n]
++	*h = (*h)[:n]
++
++	// sift down
++	i := 0
++	for {
++		c := 2*i + 1 // left child
++		if c >= n {
++			break
++		}
++		if c1 := c + 1; c1 < n && (*h)[c1] < (*h)[c] {
++			c = c1 // right child
++		}
++		if (*h)[i] <= (*h)[c] {
++			break
++		}
++		(*h)[i], (*h)[c] = (*h)[c], (*h)[i]
++		i = c
++	}
++
++	return r
++}
++
++func (h *heap) empty() bool { return len(*h) == 0 }
+diff --git a/src/cmd/link/internal/ld/heap_test.go b/src/cmd/link/internal/ld/heap_test.go
+new file mode 100644
+index 0000000000..08c90301e2
+--- /dev/null
++++ b/src/cmd/link/internal/ld/heap_test.go
+@@ -0,0 +1,90 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/link/internal/loader"
++	"testing"
++)
++
++func TestHeap(t *testing.T) {
++	tests := [][]loader.Sym{
++		{10, 20, 30, 40, 50, 60, 70, 80, 90, 100},
++		{100, 90, 80, 70, 60, 50, 40, 30, 20, 10},
++		{30, 50, 80, 20, 60, 70, 10, 100, 90, 40},
++	}
++	for _, s := range tests {
++		h := heap{}
++		for _, i := range s {
++			h.push(i)
++			if !verify(&h, 0) {
++				t.Errorf("heap invariant violated: %v", h)
++			}
++		}
++		for j := 0; j < len(s); j++ {
++			x := h.pop()
++			if !verify(&h, 0) {
++				t.Errorf("heap invariant violated: %v", h)
++			}
++			// pop should return elements in ascending order.
++			if want := loader.Sym((j + 1) * 10); x != want {
++				t.Errorf("pop returns wrong element: want %d, got %d", want, x)
++			}
++		}
++		if !h.empty() {
++			t.Errorf("heap is not empty after all pops")
++		}
++	}
++
++	// Also check that mixed pushes and pops work correctly.
++	for _, s := range tests {
++		h := heap{}
++		for i := 0; i < len(s)/2; i++ {
++			// two pushes, one pop
++			h.push(s[2*i])
++			if !verify(&h, 0) {
++				t.Errorf("heap invariant violated: %v", h)
++			}
++			h.push(s[2*i+1])
++			if !verify(&h, 0) {
++				t.Errorf("heap invariant violated: %v", h)
++			}
++			h.pop()
++			if !verify(&h, 0) {
++				t.Errorf("heap invariant violated: %v", h)
++			}
++		}
++		for !h.empty() { // pop remaining elements
++			h.pop()
++			if !verify(&h, 0) {
++				t.Errorf("heap invariant violated: %v", h)
++			}
++		}
++	}
++}
++
++// recursively verify heap-ness, starting at element i.
++func verify(h *heap, i int) bool {
++	n := len(*h)
++	c1 := 2*i + 1 // left child
++	c2 := 2*i + 2 // right child
++	if c1 < n {
++		if (*h)[c1] < (*h)[i] {
++			return false
++		}
++		if !verify(h, c1) {
++			return false
++		}
++	}
++	if c2 < n {
++		if (*h)[c2] < (*h)[i] {
++			return false
++		}
++		if !verify(h, c2) {
++			return false
++		}
++	}
++	return true
++}

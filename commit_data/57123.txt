@@ -12,8 +12,231 @@ Date:   Thu Jun 22 11:56:55 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/base/tool.go                 | 23 +++++--
  src/cmd/go/internal/tool/tool.go                 | 85 ++++++++++++++++++++++--
  src/cmd/go/testdata/script/dist_list_missing.txt | 57 ++++++++++++++++
  3 files changed, 155 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/tool.go b/src/cmd/go/internal/base/tool.go
+index 202e314b94..ab623da426 100644
+--- a/src/cmd/go/internal/base/tool.go
++++ b/src/cmd/go/internal/base/tool.go
+@@ -11,20 +11,31 @@ import (
+ 	"path/filepath"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/par"
+ )
+ 
+ // Tool returns the path to the named tool (for example, "vet").
+ // If the tool cannot be found, Tool exits the process.
+ func Tool(toolName string) string {
+-	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
+-	if len(cfg.BuildToolexec) > 0 {
+-		return toolPath
+-	}
+-	// Give a nice message if there is no tool with that name.
+-	if _, err := os.Stat(toolPath); err != nil {
++	toolPath, err := ToolPath(toolName)
++	if err != nil && len(cfg.BuildToolexec) == 0 {
++		// Give a nice message if there is no tool with that name.
+ 		fmt.Fprintf(os.Stderr, "go: no such tool %q\n", toolName)
+ 		SetExitStatus(2)
+ 		Exit()
+ 	}
+ 	return toolPath
+ }
++
++// Tool returns the path at which we expect to find the named tool
++// (for example, "vet"), and the error (if any) from statting that path.
++func ToolPath(toolName string) (string, error) {
++	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
++	err := toolStatCache.Do(toolPath, func() error {
++		_, err := os.Stat(toolPath)
++		return err
++	})
++	return toolPath, err
++}
++
++var toolStatCache par.Cache[string, error]
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 069968b1b6..ebe189bb81 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -7,8 +7,11 @@ package tool
+ 
+ import (
+ 	"context"
++	"encoding/json"
++	"flag"
+ 	"fmt"
+ 	"go/build"
++	"internal/platform"
+ 	"os"
+ 	"os/exec"
+ 	"os/signal"
+@@ -68,10 +71,25 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 			return
+ 		}
+ 	}
+-	toolPath := base.Tool(toolName)
+-	if toolPath == "" {
+-		return
++
++	toolPath, err := base.ToolPath(toolName)
++	if err != nil {
++		if toolName == "dist" && len(args) > 1 && args[1] == "list" {
++			// cmd/distpack removes the 'dist' tool from the toolchain to save space,
++			// since it is normally only used for building the toolchain in the first
++			// place. However, 'go tool dist list' is useful for listing all supported
++			// platforms.
++			//
++			// If the dist tool does not exist, impersonate this command.
++			if impersonateDistList(args[2:]) {
++				return
++			}
++		}
++
++		// Emit the usual error for the missing tool.
++		_ = base.Tool(toolName)
+ 	}
++
+ 	if toolN {
+ 		cmd := toolPath
+ 		if len(args) > 1 {
+@@ -88,7 +106,7 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 		Stdout: os.Stdout,
+ 		Stderr: os.Stderr,
+ 	}
+-	err := toolCmd.Start()
++	err = toolCmd.Start()
+ 	if err == nil {
+ 		c := make(chan os.Signal, 100)
+ 		signal.Notify(c)
+@@ -145,3 +163,62 @@ func listTools() {
+ 		fmt.Println(name)
+ 	}
+ }
++
++func impersonateDistList(args []string) (handled bool) {
++	fs := flag.NewFlagSet("go tool dist list", flag.ContinueOnError)
++	jsonFlag := fs.Bool("json", false, "produce JSON output")
++	brokenFlag := fs.Bool("broken", false, "include broken ports")
++
++	// The usage for 'go tool dist' claims that
++	// “All commands take -v flags to emit extra information”,
++	// but list -v appears not to have any effect.
++	_ = fs.Bool("v", false, "emit extra information")
++
++	if err := fs.Parse(args); err != nil || len(fs.Args()) > 0 {
++		// Unrecognized flag or argument.
++		// Force fallback to the real 'go tool dist'.
++		return false
++	}
++
++	if !*jsonFlag {
++		for _, p := range platform.List {
++			if !*brokenFlag && platform.Broken(p.GOOS, p.GOARCH) {
++				continue
++			}
++			fmt.Println(p)
++		}
++		return true
++	}
++
++	type jsonResult struct {
++		GOOS         string
++		GOARCH       string
++		CgoSupported bool
++		FirstClass   bool
++		Broken       bool `json:",omitempty"`
++	}
++
++	var results []jsonResult
++	for _, p := range platform.List {
++		broken := platform.Broken(p.GOOS, p.GOARCH)
++		if broken && !*brokenFlag {
++			continue
++		}
++		if *jsonFlag {
++			results = append(results, jsonResult{
++				GOOS:         p.GOOS,
++				GOARCH:       p.GOARCH,
++				CgoSupported: platform.CgoSupported(p.GOOS, p.GOARCH),
++				FirstClass:   platform.FirstClass(p.GOOS, p.GOARCH),
++				Broken:       broken,
++			})
++		}
++	}
++	out, err := json.MarshalIndent(results, "", "\t")
++	if err != nil {
++		return false
++	}
++
++	os.Stdout.Write(out)
++	return true
++}
+diff --git a/src/cmd/go/testdata/script/dist_list_missing.txt b/src/cmd/go/testdata/script/dist_list_missing.txt
+new file mode 100644
+index 0000000000..affaa009d9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/dist_list_missing.txt
+@@ -0,0 +1,57 @@
++# Regression test for #60939: when 'go tool dist' is missing,
++# 'go tool dist list' should inject its output.
++
++
++# Set GOROOT to a directory that definitely does not include
++# a compiled 'dist' tool. 'go tool dist list' should still
++# work, because 'cmd/go' itself can impersonate this command.
++
++mkdir $WORK/goroot/bin
++mkdir $WORK/goroot/pkg/tool/${GOOS}_${GOARCH}
++env GOROOT=$WORK/goroot
++
++! go tool -n dist
++stderr 'go: no such tool "dist"'
++
++go tool dist list
++stdout linux/amd64
++cp stdout tool.txt
++
++go tool dist list -v
++stdout linux/amd64
++cp stdout tool-v.txt
++
++go tool dist list -broken
++stdout $GOOS/$GOARCH
++cp stdout tool-broken.txt
++
++go tool dist list -json
++stdout '"GOOS": "linux",\n\s*"GOARCH": "amd64",\n'
++cp stdout tool-json.txt
++
++go tool dist list -json -broken
++stdout '"GOOS": "'$GOOS'",\n\s*"GOARCH": "'$GOARCH'",\n'
++cp stdout tool-json-broken.txt
++
++[short] stop
++
++
++# Check against the real cmd/dist as the source of truth.
++
++env GOROOT=$TESTGO_GOROOT
++go build -o dist.exe cmd/dist
++
++exec ./dist.exe list
++cmp stdout tool.txt
++
++exec ./dist.exe list -v
++cmp stdout tool-v.txt
++
++exec ./dist.exe list -broken
++cmp stdout tool-broken.txt
++
++exec ./dist.exe list -json
++cmp stdout tool-json.txt
++
++exec ./dist.exe list -json -broken
++cmp stdout tool-json-broken.txt

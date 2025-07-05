@@ -7,6 +7,20 @@ Date:   Thu Apr 7 19:41:55 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4373048
-
+---
  src/pkg/scanner/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/scanner/scanner.go
+index 560e595b45..ec22664773 100644
+--- a/src/pkg/scanner/scanner.go
++++ b/src/pkg/scanner/scanner.go
+@@ -115,7 +115,7 @@ func TokenString(tok int) string {
+ 	if s, found := tokenString[tok]; found {
+ 		return s
+ 	}
+-	return fmt.Sprintf("U+%04X", tok)
++	return fmt.Sprintf("%q", string(tok))
+ }
+ 
+ 

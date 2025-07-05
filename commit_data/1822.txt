@@ -6,6 +6,20 @@ Date:   Thu Mar 12 18:47:49 2009 -0700
     
     OCL=26222
     CL=26222
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 5d8cc777d0..52636b7ba3 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2426,7 +2426,7 @@ unary_op   = "+" | "-" | "!" | "^" | "*" | "&amp;" | "&lt;-" .
+ The operand types in binary operations must be equal, with the following exceptions:
+ </p>
+ <ul>
+-	<li>Except in shift expressios, if one operand has numeric type and the other operand is
++	<li>Except in shift expressions, if one operand has numeric type and the other operand is
+ 	  an ideal number, the ideal number is converted to match the type of
+ 	  the other operand (§Expressions).</li>
+ 

@@ -11,7 +11,55 @@ Date:   Mon Jan 23 13:29:32 2023 -0500
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/abi/funcpc.go | 10 ++--------
  src/internal/abi/stub.s    |  7 +++++++
  2 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/abi/funcpc.go b/src/internal/abi/funcpc.go
+index f617e2d757..4db848ee15 100644
+--- a/src/internal/abi/funcpc.go
++++ b/src/internal/abi/funcpc.go
+@@ -2,14 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !compiler_bootstrap
+-// +build !compiler_bootstrap
+-
+ package abi
+ 
+-// The bootstrapping compiler doesn't understand "any" in the function signatures,
+-// and also does not implement these intrinsics.
+-
+ // FuncPC* intrinsics.
+ //
+ // CAREFUL: In programs with plugins, FuncPC* can return different values
+@@ -23,7 +17,7 @@ package abi
+ // compile-time error.
+ //
+ // Implemented as a compile intrinsic.
+-func FuncPCABI0(f any) uintptr
++func FuncPCABI0(f interface{}) uintptr
+ 
+ // FuncPCABIInternal returns the entry PC of the function f. If f is a
+ // direct reference of a function, it must be defined as ABIInternal.
+@@ -32,4 +26,4 @@ func FuncPCABI0(f any) uintptr
+ // the behavior is undefined.
+ //
+ // Implemented as a compile intrinsic.
+-func FuncPCABIInternal(f any) uintptr
++func FuncPCABIInternal(f interface{}) uintptr
+diff --git a/src/internal/abi/stub.s b/src/internal/abi/stub.s
+new file mode 100644
+index 0000000000..5bad98d744
+--- /dev/null
++++ b/src/internal/abi/stub.s
+@@ -0,0 +1,7 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file silences errors about body-less functions
++// that are provided by intrinsics in the latest version of the compiler,
++// but may not be known to the bootstrap compiler.

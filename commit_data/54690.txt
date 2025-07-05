@@ -18,6 +18,26 @@ Date:   Tue Nov 8 17:07:40 2022 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_init_empty.txt | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_init_empty.txt b/src/cmd/go/testdata/script/mod_init_empty.txt
+index 1c3888caed..d197a79a67 100644
+--- a/src/cmd/go/testdata/script/mod_init_empty.txt
++++ b/src/cmd/go/testdata/script/mod_init_empty.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-env GOPATH=$devnull
++env GOPATH=$WORK${/}invalid-gopath
+ 
+ go list -m
+ stdout '^example.com$'
+@@ -16,3 +16,6 @@ go 1.13
+ package main
+ 
+ func main() {}
++
++-- $WORK/invalid-gopath
++This is a text file, not a directory.

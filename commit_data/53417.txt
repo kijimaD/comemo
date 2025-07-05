@@ -18,8 +18,82 @@ Date:   Sun Oct 31 10:04:03 2021 +0100
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/45038.txt      |  1 +
  src/bytes/bytes.go      | 10 ++++++++++
  src/bytes/bytes_test.go | 33 +++++++++++++++++++++++++++++++++
  3 files changed, 44 insertions(+)
+
+diff --git a/api/next/45038.txt b/api/next/45038.txt
+new file mode 100644
+index 0000000000..64c3f5f295
+--- /dev/null
++++ b/api/next/45038.txt
+@@ -0,0 +1 @@
++pkg bytes, func Clone([]uint8) []uint8 #45038
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 659a82bcc8..27834fc6db 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -1299,3 +1299,13 @@ func Cut(s, sep []byte) (before, after []byte, found bool) {
+ 	}
+ 	return s, nil, false
+ }
++
++// Clone returns a copy of b[:len(b)].
++// The result may have additional unused capacity.
++// Clone(nil) returns nil.
++func Clone(b []byte) []byte {
++	if b == nil {
++		return nil
++	}
++	return append([]byte{}, b...)
++}
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index b407fe8a2d..392657d1fa 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"testing"
+ 	"unicode"
+ 	"unicode/utf8"
++	"unsafe"
+ )
+ 
+ func eq(a, b []string) bool {
+@@ -2118,3 +2119,35 @@ func BenchmarkIndexPeriodic(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func TestClone(t *testing.T) {
++	var cloneTests = [][]byte{
++		[]byte(nil),
++		[]byte{},
++		Clone([]byte{}),
++		[]byte(strings.Repeat("a", 42))[:0],
++		[]byte(strings.Repeat("a", 42))[:0:0],
++		[]byte("short"),
++		[]byte(strings.Repeat("a", 42)),
++	}
++	for _, input := range cloneTests {
++		clone := Clone(input)
++		if !Equal(clone, input) {
++			t.Errorf("Clone(%q) = %q; want %q", input, clone, input)
++		}
++
++		if input == nil && clone != nil {
++			t.Errorf("Clone(%#v) return value should be equal to nil slice.", input)
++		}
++
++		if input != nil && clone == nil {
++			t.Errorf("Clone(%#v) return value should not be equal to nil slice.", input)
++		}
++
++		inputHeader := (*reflect.SliceHeader)(unsafe.Pointer(&input))
++		cloneHeader := (*reflect.SliceHeader)(unsafe.Pointer(&clone))
++		if cap(input) != 0 && cloneHeader.Data == inputHeader.Data {
++			t.Errorf("Clone(%q) return value should not reference inputs backing memory.", input)
++		}
++	}
++}

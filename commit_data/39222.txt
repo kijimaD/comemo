@@ -19,7 +19,69 @@ Date:   Tue Jan 29 16:34:27 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/os/file_unix.go    |  1 +
  src/os/removeall_at.go | 31 ++++++++++++++++++++++++++-----
  2 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 7d68a7659f..2615df9d5b 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -186,6 +186,7 @@ func epipecheck(file *File, e error) {
+ const DevNull = "/dev/null"
+ 
+ // openFileNolog is the Unix implementation of OpenFile.
++// Changes here should be reflected in openFdAt, if relevant.
+ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 	setSticky := false
+ 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index f0fed6dc33..faee1287f1 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -9,6 +9,7 @@ package os
+ import (
+ 	"internal/syscall/unix"
+ 	"io"
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -128,11 +129,31 @@ func removeAllFrom(parent *File, path string) error {
+ 	return unlinkError
+ }
+ 
+-func openFdAt(fd int, path string) (*File, error) {
+-	fd, err := unix.Openat(fd, path, O_RDONLY, 0)
+-	if err != nil {
+-		return nil, err
++// openFdAt opens path relative to the directory in fd.
++// Other than that this should act like openFileNolog.
++// This acts like openFileNolog rather than OpenFile because
++// we are going to (try to) remove the file.
++// The contents of this file are not relevant for test caching.
++func openFdAt(dirfd int, name string) (*File, error) {
++	var r int
++	for {
++		var e error
++		r, e = unix.Openat(dirfd, name, O_RDONLY, 0)
++		if e == nil {
++			break
++		}
++
++		// See comment in openFileNolog.
++		if runtime.GOOS == "darwin" && e == syscall.EINTR {
++			continue
++		}
++
++		return nil, &PathError{"openat", name, e}
++	}
++
++	if !supportsCloseOnExec {
++		syscall.CloseOnExec(r)
+ 	}
+ 
+-	return NewFile(uintptr(fd), path), nil
++	return newFile(uintptr(r), name, kindOpenFile), nil
+ }

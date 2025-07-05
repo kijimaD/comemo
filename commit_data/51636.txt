@@ -13,7 +13,7 @@ Date:   Mon Feb 14 09:41:19 2022 -0800
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/codes.go            |  65 +--
  src/cmd/compile/internal/noder/decoder.go          | 302 --------------
  src/cmd/compile/internal/noder/linker.go           | 174 ++++----
@@ -34,3 +34,5002 @@ Date:   Mon Feb 14 09:41:19 2022 -0800
  .../internal/noder => internal/pkgbits}/sync.go    | 150 +++----
  src/internal/pkgbits/syncmarker_string.go          |  87 ++++
  19 files changed, 1314 insertions(+), 1276 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index f8cb7729ac..bc0831dd78 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -6,63 +6,12 @@
+ 
+ package noder
+ 
+-type code interface {
+-	marker() syncMarker
+-	value() int
+-}
+-
+-type codeVal int
+-
+-func (c codeVal) marker() syncMarker { return syncVal }
+-func (c codeVal) value() int         { return int(c) }
+-
+-const (
+-	valBool codeVal = iota
+-	valString
+-	valInt64
+-	valBigInt
+-	valBigRat
+-	valBigFloat
+-)
+-
+-type codeType int
+-
+-func (c codeType) marker() syncMarker { return syncType }
+-func (c codeType) value() int         { return int(c) }
+-
+-const (
+-	typeBasic codeType = iota
+-	typeNamed
+-	typePointer
+-	typeSlice
+-	typeArray
+-	typeChan
+-	typeMap
+-	typeSignature
+-	typeStruct
+-	typeInterface
+-	typeUnion
+-	typeTypeParam
+-)
+-
+-type codeObj int
+-
+-func (c codeObj) marker() syncMarker { return syncCodeObj }
+-func (c codeObj) value() int         { return int(c) }
+-
+-const (
+-	objAlias codeObj = iota
+-	objConst
+-	objType
+-	objFunc
+-	objVar
+-	objStub
+-)
++import "internal/pkgbits"
+ 
+ type codeStmt int
+ 
+-func (c codeStmt) marker() syncMarker { return syncStmt1 }
+-func (c codeStmt) value() int         { return int(c) }
++func (c codeStmt) Marker() pkgbits.SyncMarker { return pkgbits.SyncStmt1 }
++func (c codeStmt) Value() int                 { return int(c) }
+ 
+ const (
+ 	stmtEnd codeStmt = iota
+@@ -87,8 +36,8 @@ const (
+ 
+ type codeExpr int
+ 
+-func (c codeExpr) marker() syncMarker { return syncExpr }
+-func (c codeExpr) value() int         { return int(c) }
++func (c codeExpr) Marker() pkgbits.SyncMarker { return pkgbits.SyncExpr }
++func (c codeExpr) Value() int                 { return int(c) }
+ 
+ // TODO(mdempsky): Split expr into addr, for lvalues.
+ const (
+@@ -112,8 +61,8 @@ const (
+ 
+ type codeDecl int
+ 
+-func (c codeDecl) marker() syncMarker { return syncDecl }
+-func (c codeDecl) value() int         { return int(c) }
++func (c codeDecl) Marker() pkgbits.SyncMarker { return pkgbits.SyncDecl }
++func (c codeDecl) Value() int                 { return int(c) }
+ 
+ const (
+ 	declEnd codeDecl = iota
+diff --git a/src/cmd/compile/internal/noder/decoder.go b/src/cmd/compile/internal/noder/decoder.go
+deleted file mode 100644
+index 2c18727420..0000000000
+--- a/src/cmd/compile/internal/noder/decoder.go
++++ /dev/null
+@@ -1,302 +0,0 @@
+-// UNREVIEWED
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package noder
+-
+-import (
+-	"encoding/binary"
+-	"fmt"
+-	"go/constant"
+-	"go/token"
+-	"math/big"
+-	"os"
+-	"runtime"
+-	"strings"
+-
+-	"cmd/compile/internal/base"
+-)
+-
+-type pkgDecoder struct {
+-	pkgPath string
+-
+-	elemEndsEnds [numRelocs]uint32
+-	elemEnds     []uint32
+-	elemData     string
+-}
+-
+-func newPkgDecoder(pkgPath, input string) pkgDecoder {
+-	pr := pkgDecoder{
+-		pkgPath: pkgPath,
+-	}
+-
+-	// TODO(mdempsky): Implement direct indexing of input string to
+-	// avoid copying the position information.
+-
+-	r := strings.NewReader(input)
+-
+-	assert(binary.Read(r, binary.LittleEndian, pr.elemEndsEnds[:]) == nil)
+-
+-	pr.elemEnds = make([]uint32, pr.elemEndsEnds[len(pr.elemEndsEnds)-1])
+-	assert(binary.Read(r, binary.LittleEndian, pr.elemEnds[:]) == nil)
+-
+-	pos, err := r.Seek(0, os.SEEK_CUR)
+-	assert(err == nil)
+-
+-	pr.elemData = input[pos:]
+-	assert(len(pr.elemData) == int(pr.elemEnds[len(pr.elemEnds)-1]))
+-
+-	return pr
+-}
+-
+-func (pr *pkgDecoder) numElems(k reloc) int {
+-	count := int(pr.elemEndsEnds[k])
+-	if k > 0 {
+-		count -= int(pr.elemEndsEnds[k-1])
+-	}
+-	return count
+-}
+-
+-func (pr *pkgDecoder) totalElems() int {
+-	return len(pr.elemEnds)
+-}
+-
+-func (pr *pkgDecoder) absIdx(k reloc, idx int) int {
+-	absIdx := idx
+-	if k > 0 {
+-		absIdx += int(pr.elemEndsEnds[k-1])
+-	}
+-	if absIdx >= int(pr.elemEndsEnds[k]) {
+-		base.Fatalf("%v:%v is out of bounds; %v", k, idx, pr.elemEndsEnds)
+-	}
+-	return absIdx
+-}
+-
+-func (pr *pkgDecoder) dataIdx(k reloc, idx int) string {
+-	absIdx := pr.absIdx(k, idx)
+-
+-	var start uint32
+-	if absIdx > 0 {
+-		start = pr.elemEnds[absIdx-1]
+-	}
+-	end := pr.elemEnds[absIdx]
+-
+-	return pr.elemData[start:end]
+-}
+-
+-func (pr *pkgDecoder) stringIdx(idx int) string {
+-	return pr.dataIdx(relocString, idx)
+-}
+-
+-func (pr *pkgDecoder) newDecoder(k reloc, idx int, marker syncMarker) decoder {
+-	r := pr.newDecoderRaw(k, idx)
+-	r.sync(marker)
+-	return r
+-}
+-
+-func (pr *pkgDecoder) newDecoderRaw(k reloc, idx int) decoder {
+-	r := decoder{
+-		common: pr,
+-		k:      k,
+-		idx:    idx,
+-	}
+-
+-	// TODO(mdempsky) r.data.Reset(...) after #44505 is resolved.
+-	r.data = *strings.NewReader(pr.dataIdx(k, idx))
+-
+-	r.sync(syncRelocs)
+-	r.relocs = make([]relocEnt, r.len())
+-	for i := range r.relocs {
+-		r.sync(syncReloc)
+-		r.relocs[i] = relocEnt{reloc(r.len()), r.len()}
+-	}
+-
+-	return r
+-}
+-
+-type decoder struct {
+-	common *pkgDecoder
+-
+-	relocs []relocEnt
+-	data   strings.Reader
+-
+-	k   reloc
+-	idx int
+-}
+-
+-func (r *decoder) checkErr(err error) {
+-	if err != nil {
+-		base.Fatalf("unexpected error: %v", err)
+-	}
+-}
+-
+-func (r *decoder) rawUvarint() uint64 {
+-	x, err := binary.ReadUvarint(&r.data)
+-	r.checkErr(err)
+-	return x
+-}
+-
+-func (r *decoder) rawVarint() int64 {
+-	ux := r.rawUvarint()
+-
+-	// Zig-zag decode.
+-	x := int64(ux >> 1)
+-	if ux&1 != 0 {
+-		x = ^x
+-	}
+-	return x
+-}
+-
+-func (r *decoder) rawReloc(k reloc, idx int) int {
+-	e := r.relocs[idx]
+-	assert(e.kind == k)
+-	return e.idx
+-}
+-
+-func (r *decoder) sync(mWant syncMarker) {
+-	if !enableSync {
+-		return
+-	}
+-
+-	pos, _ := r.data.Seek(0, os.SEEK_CUR) // TODO(mdempsky): io.SeekCurrent after #44505 is resolved
+-	mHave := syncMarker(r.rawUvarint())
+-	writerPCs := make([]int, r.rawUvarint())
+-	for i := range writerPCs {
+-		writerPCs[i] = int(r.rawUvarint())
+-	}
+-
+-	if mHave == mWant {
+-		return
+-	}
+-
+-	// There's some tension here between printing:
+-	//
+-	// (1) full file paths that tools can recognize (e.g., so emacs
+-	//     hyperlinks the "file:line" text for easy navigation), or
+-	//
+-	// (2) short file paths that are easier for humans to read (e.g., by
+-	//     omitting redundant or irrelevant details, so it's easier to
+-	//     focus on the useful bits that remain).
+-	//
+-	// The current formatting favors the former, as it seems more
+-	// helpful in practice. But perhaps the formatting could be improved
+-	// to better address both concerns. For example, use relative file
+-	// paths if they would be shorter, or rewrite file paths to contain
+-	// "$GOROOT" (like objabi.AbsFile does) if tools can be taught how
+-	// to reliably expand that again.
+-
+-	fmt.Printf("export data desync: package %q, section %v, index %v, offset %v\n", r.common.pkgPath, r.k, r.idx, pos)
+-
+-	fmt.Printf("\nfound %v, written at:\n", mHave)
+-	if len(writerPCs) == 0 {
+-		fmt.Printf("\t[stack trace unavailable; recompile package %q with -d=syncframes]\n", r.common.pkgPath)
+-	}
+-	for _, pc := range writerPCs {
+-		fmt.Printf("\t%s\n", r.common.stringIdx(r.rawReloc(relocString, pc)))
+-	}
+-
+-	fmt.Printf("\nexpected %v, reading at:\n", mWant)
+-	var readerPCs [32]uintptr // TODO(mdempsky): Dynamically size?
+-	n := runtime.Callers(2, readerPCs[:])
+-	for _, pc := range fmtFrames(readerPCs[:n]...) {
+-		fmt.Printf("\t%s\n", pc)
+-	}
+-
+-	// We already printed a stack trace for the reader, so now we can
+-	// simply exit. Printing a second one with panic or base.Fatalf
+-	// would just be noise.
+-	os.Exit(1)
+-}
+-
+-func (r *decoder) bool() bool {
+-	r.sync(syncBool)
+-	x, err := r.data.ReadByte()
+-	r.checkErr(err)
+-	assert(x < 2)
+-	return x != 0
+-}
+-
+-func (r *decoder) int64() int64 {
+-	r.sync(syncInt64)
+-	return r.rawVarint()
+-}
+-
+-func (r *decoder) uint64() uint64 {
+-	r.sync(syncUint64)
+-	return r.rawUvarint()
+-}
+-
+-func (r *decoder) len() int   { x := r.uint64(); v := int(x); assert(uint64(v) == x); return v }
+-func (r *decoder) int() int   { x := r.int64(); v := int(x); assert(int64(v) == x); return v }
+-func (r *decoder) uint() uint { x := r.uint64(); v := uint(x); assert(uint64(v) == x); return v }
+-
+-func (r *decoder) code(mark syncMarker) int {
+-	r.sync(mark)
+-	return r.len()
+-}
+-
+-func (r *decoder) reloc(k reloc) int {
+-	r.sync(syncUseReloc)
+-	return r.rawReloc(k, r.len())
+-}
+-
+-func (r *decoder) string() string {
+-	r.sync(syncString)
+-	return r.common.stringIdx(r.reloc(relocString))
+-}
+-
+-func (r *decoder) strings() []string {
+-	res := make([]string, r.len())
+-	for i := range res {
+-		res[i] = r.string()
+-	}
+-	return res
+-}
+-
+-func (r *decoder) value() constant.Value {
+-	r.sync(syncValue)
+-	isComplex := r.bool()
+-	val := r.scalar()
+-	if isComplex {
+-		val = constant.BinaryOp(val, token.ADD, constant.MakeImag(r.scalar()))
+-	}
+-	return val
+-}
+-
+-func (r *decoder) scalar() constant.Value {
+-	switch tag := codeVal(r.code(syncVal)); tag {
+-	default:
+-		panic(fmt.Sprintf("unexpected scalar tag: %v", tag))
+-
+-	case valBool:
+-		return constant.MakeBool(r.bool())
+-	case valString:
+-		return constant.MakeString(r.string())
+-	case valInt64:
+-		return constant.MakeInt64(r.int64())
+-	case valBigInt:
+-		return constant.Make(r.bigInt())
+-	case valBigRat:
+-		num := r.bigInt()
+-		denom := r.bigInt()
+-		return constant.Make(new(big.Rat).SetFrac(num, denom))
+-	case valBigFloat:
+-		return constant.Make(r.bigFloat())
+-	}
+-}
+-
+-func (r *decoder) bigInt() *big.Int {
+-	v := new(big.Int).SetBytes([]byte(r.string()))
+-	if r.bool() {
+-		v.Neg(v)
+-	}
+-	return v
+-}
+-
+-func (r *decoder) bigFloat() *big.Float {
+-	v := new(big.Float).SetPrec(512)
+-	assert(v.UnmarshalText([]byte(r.string())) == nil)
+-	return v
+-}
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 2bc7f7c608..0c86088e62 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -7,6 +7,7 @@
+ package noder
+ 
+ import (
++	"internal/pkgbits"
+ 	"io"
+ 
+ 	"cmd/compile/internal/base"
+@@ -29,26 +30,30 @@ import (
+ // multiple parts into a cohesive whole"... e.g., "assembler" and
+ // "compiler" are also already taken.
+ 
++// TODO(mdempsky): Should linker go into pkgbits? Probably the
++// low-level linking details can be moved there, but the logic for
++// handling extension data needs to stay in the compiler.
++
+ type linker struct {
+-	pw pkgEncoder
++	pw pkgbits.PkgEncoder
+ 
+ 	pkgs  map[string]int
+ 	decls map[*types.Sym]int
+ }
+ 
+-func (l *linker) relocAll(pr *pkgReader, relocs []relocEnt) []relocEnt {
+-	res := make([]relocEnt, len(relocs))
++func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.RelocEnt {
++	res := make([]pkgbits.RelocEnt, len(relocs))
+ 	for i, rent := range relocs {
+-		rent.idx = l.relocIdx(pr, rent.kind, rent.idx)
++		rent.Idx = l.relocIdx(pr, rent.Kind, rent.Idx)
+ 		res[i] = rent
+ 	}
+ 	return res
+ }
+ 
+-func (l *linker) relocIdx(pr *pkgReader, k reloc, idx int) int {
++func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx int) int {
+ 	assert(pr != nil)
+ 
+-	absIdx := pr.absIdx(k, idx)
++	absIdx := pr.AbsIdx(k, idx)
+ 
+ 	if newidx := pr.newindex[absIdx]; newidx != 0 {
+ 		return ^newidx
+@@ -56,11 +61,11 @@ func (l *linker) relocIdx(pr *pkgReader, k reloc, idx int) int {
+ 
+ 	var newidx int
+ 	switch k {
+-	case relocString:
++	case pkgbits.RelocString:
+ 		newidx = l.relocString(pr, idx)
+-	case relocPkg:
++	case pkgbits.RelocPkg:
+ 		newidx = l.relocPkg(pr, idx)
+-	case relocObj:
++	case pkgbits.RelocObj:
+ 		newidx = l.relocObj(pr, idx)
+ 
+ 	default:
+@@ -70,9 +75,9 @@ func (l *linker) relocIdx(pr *pkgReader, k reloc, idx int) int {
+ 		// every section could be deduplicated. This would also be easier
+ 		// if we do external relocations.
+ 
+-		w := l.pw.newEncoderRaw(k)
++		w := l.pw.NewEncoderRaw(k)
+ 		l.relocCommon(pr, &w, k, idx)
+-		newidx = w.idx
++		newidx = w.Idx
+ 	}
+ 
+ 	pr.newindex[absIdx] = ^newidx
+@@ -81,43 +86,43 @@ func (l *linker) relocIdx(pr *pkgReader, k reloc, idx int) int {
+ }
+ 
+ func (l *linker) relocString(pr *pkgReader, idx int) int {
+-	return l.pw.stringIdx(pr.stringIdx(idx))
++	return l.pw.StringIdx(pr.StringIdx(idx))
+ }
+ 
+ func (l *linker) relocPkg(pr *pkgReader, idx int) int {
+-	path := pr.peekPkgPath(idx)
++	path := pr.PeekPkgPath(idx)
+ 
+ 	if newidx, ok := l.pkgs[path]; ok {
+ 		return newidx
+ 	}
+ 
+-	r := pr.newDecoder(relocPkg, idx, syncPkgDef)
+-	w := l.pw.newEncoder(relocPkg, syncPkgDef)
+-	l.pkgs[path] = w.idx
++	r := pr.NewDecoder(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef)
++	w := l.pw.NewEncoder(pkgbits.RelocPkg, pkgbits.SyncPkgDef)
++	l.pkgs[path] = w.Idx
+ 
+ 	// TODO(mdempsky): We end up leaving an empty string reference here
+ 	// from when the package was originally written as "". Probably not
+ 	// a big deal, but a little annoying. Maybe relocating
+ 	// cross-references in place is the way to go after all.
+-	w.relocs = l.relocAll(pr, r.relocs)
++	w.Relocs = l.relocAll(pr, r.Relocs)
+ 
+-	_ = r.string() // original path
+-	w.string(path)
++	_ = r.String() // original path
++	w.String(path)
+ 
+-	io.Copy(&w.data, &r.data)
++	io.Copy(&w.Data, &r.Data)
+ 
+-	return w.flush()
++	return w.Flush()
+ }
+ 
+ func (l *linker) relocObj(pr *pkgReader, idx int) int {
+-	path, name, tag := pr.peekObj(idx)
++	path, name, tag := pr.PeekObj(idx)
+ 	sym := types.NewPkg(path, "").Lookup(name)
+ 
+ 	if newidx, ok := l.decls[sym]; ok {
+ 		return newidx
+ 	}
+ 
+-	if tag == objStub && path != "builtin" && path != "unsafe" {
++	if tag == pkgbits.ObjStub && path != "builtin" && path != "unsafe" {
+ 		pri, ok := objReader[sym]
+ 		if !ok {
+ 			base.Fatalf("missing reader for %q.%v", path, name)
+@@ -127,25 +132,25 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
+ 		pr = pri.pr
+ 		idx = pri.idx
+ 
+-		path2, name2, tag2 := pr.peekObj(idx)
++		path2, name2, tag2 := pr.PeekObj(idx)
+ 		sym2 := types.NewPkg(path2, "").Lookup(name2)
+ 		assert(sym == sym2)
+-		assert(tag2 != objStub)
++		assert(tag2 != pkgbits.ObjStub)
+ 	}
+ 
+-	w := l.pw.newEncoderRaw(relocObj)
+-	wext := l.pw.newEncoderRaw(relocObjExt)
+-	wname := l.pw.newEncoderRaw(relocName)
+-	wdict := l.pw.newEncoderRaw(relocObjDict)
++	w := l.pw.NewEncoderRaw(pkgbits.RelocObj)
++	wext := l.pw.NewEncoderRaw(pkgbits.RelocObjExt)
++	wname := l.pw.NewEncoderRaw(pkgbits.RelocName)
++	wdict := l.pw.NewEncoderRaw(pkgbits.RelocObjDict)
+ 
+-	l.decls[sym] = w.idx
+-	assert(wext.idx == w.idx)
+-	assert(wname.idx == w.idx)
+-	assert(wdict.idx == w.idx)
++	l.decls[sym] = w.Idx
++	assert(wext.Idx == w.Idx)
++	assert(wname.Idx == w.Idx)
++	assert(wdict.Idx == w.Idx)
+ 
+-	l.relocCommon(pr, &w, relocObj, idx)
+-	l.relocCommon(pr, &wname, relocName, idx)
+-	l.relocCommon(pr, &wdict, relocObjDict, idx)
++	l.relocCommon(pr, &w, pkgbits.RelocObj, idx)
++	l.relocCommon(pr, &wname, pkgbits.RelocName, idx)
++	l.relocCommon(pr, &wdict, pkgbits.RelocObjDict, idx)
+ 
+ 	var obj *ir.Name
+ 	if path == "" {
+@@ -162,70 +167,70 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
+ 	}
+ 
+ 	if obj != nil {
+-		wext.sync(syncObject1)
++		wext.Sync(pkgbits.SyncObject1)
+ 		switch tag {
+-		case objFunc:
++		case pkgbits.ObjFunc:
+ 			l.relocFuncExt(&wext, obj)
+-		case objType:
++		case pkgbits.ObjType:
+ 			l.relocTypeExt(&wext, obj)
+-		case objVar:
++		case pkgbits.ObjVar:
+ 			l.relocVarExt(&wext, obj)
+ 		}
+-		wext.flush()
++		wext.Flush()
+ 	} else {
+-		l.relocCommon(pr, &wext, relocObjExt, idx)
++		l.relocCommon(pr, &wext, pkgbits.RelocObjExt, idx)
+ 	}
+ 
+-	return w.idx
++	return w.Idx
+ }
+ 
+-func (l *linker) relocCommon(pr *pkgReader, w *encoder, k reloc, idx int) {
+-	r := pr.newDecoderRaw(k, idx)
+-	w.relocs = l.relocAll(pr, r.relocs)
+-	io.Copy(&w.data, &r.data)
+-	w.flush()
++func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx int) {
++	r := pr.NewDecoderRaw(k, idx)
++	w.Relocs = l.relocAll(pr, r.Relocs)
++	io.Copy(&w.Data, &r.Data)
++	w.Flush()
+ }
+ 
+-func (l *linker) pragmaFlag(w *encoder, pragma ir.PragmaFlag) {
+-	w.sync(syncPragma)
+-	w.int(int(pragma))
++func (l *linker) pragmaFlag(w *pkgbits.Encoder, pragma ir.PragmaFlag) {
++	w.Sync(pkgbits.SyncPragma)
++	w.Int(int(pragma))
+ }
+ 
+-func (l *linker) relocFuncExt(w *encoder, name *ir.Name) {
+-	w.sync(syncFuncExt)
++func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
++	w.Sync(pkgbits.SyncFuncExt)
+ 
+ 	l.pragmaFlag(w, name.Func.Pragma)
+ 	l.linkname(w, name)
+ 
+ 	// Relocated extension data.
+-	w.bool(true)
++	w.Bool(true)
+ 
+ 	// Record definition ABI so cross-ABI calls can be direct.
+ 	// This is important for the performance of calling some
+ 	// common functions implemented in assembly (e.g., bytealg).
+-	w.uint64(uint64(name.Func.ABI))
++	w.Uint64(uint64(name.Func.ABI))
+ 
+ 	// Escape analysis.
+ 	for _, fs := range &types.RecvsParams {
+ 		for _, f := range fs(name.Type()).FieldSlice() {
+-			w.string(f.Note)
++			w.String(f.Note)
+ 		}
+ 	}
+ 
+-	if inl := name.Func.Inl; w.bool(inl != nil) {
+-		w.len(int(inl.Cost))
+-		w.bool(inl.CanDelayResults)
++	if inl := name.Func.Inl; w.Bool(inl != nil) {
++		w.Len(int(inl.Cost))
++		w.Bool(inl.CanDelayResults)
+ 
+ 		pri, ok := bodyReader[name.Func]
+ 		assert(ok)
+-		w.reloc(relocBody, l.relocIdx(pri.pr, relocBody, pri.idx))
++		w.Reloc(pkgbits.RelocBody, l.relocIdx(pri.pr, pkgbits.RelocBody, pri.idx))
+ 	}
+ 
+-	w.sync(syncEOF)
++	w.Sync(pkgbits.SyncEOF)
+ }
+ 
+-func (l *linker) relocTypeExt(w *encoder, name *ir.Name) {
+-	w.sync(syncTypeExt)
++func (l *linker) relocTypeExt(w *pkgbits.Encoder, name *ir.Name) {
++	w.Sync(pkgbits.SyncTypeExt)
+ 
+ 	typ := name.Type()
+ 
+@@ -242,55 +247,28 @@ func (l *linker) relocTypeExt(w *encoder, name *ir.Name) {
+ 	}
+ }
+ 
+-func (l *linker) relocVarExt(w *encoder, name *ir.Name) {
+-	w.sync(syncVarExt)
++func (l *linker) relocVarExt(w *pkgbits.Encoder, name *ir.Name) {
++	w.Sync(pkgbits.SyncVarExt)
+ 	l.linkname(w, name)
+ }
+ 
+-func (l *linker) linkname(w *encoder, name *ir.Name) {
+-	w.sync(syncLinkname)
++func (l *linker) linkname(w *pkgbits.Encoder, name *ir.Name) {
++	w.Sync(pkgbits.SyncLinkname)
+ 
+ 	linkname := name.Sym().Linkname
+ 	if !l.lsymIdx(w, linkname, name.Linksym()) {
+-		w.string(linkname)
++		w.String(linkname)
+ 	}
+ }
+ 
+-func (l *linker) lsymIdx(w *encoder, linkname string, lsym *obj.LSym) bool {
++func (l *linker) lsymIdx(w *pkgbits.Encoder, linkname string, lsym *obj.LSym) bool {
+ 	if lsym.PkgIdx > goobj.PkgIdxSelf || (lsym.PkgIdx == goobj.PkgIdxInvalid && !lsym.Indexed()) || linkname != "" {
+-		w.int64(-1)
++		w.Int64(-1)
+ 		return false
+ 	}
+ 
+ 	// For a defined symbol, export its index.
+ 	// For re-exporting an imported symbol, pass its index through.
+-	w.int64(int64(lsym.SymIdx))
++	w.Int64(int64(lsym.SymIdx))
+ 	return true
+ }
+-
+-// @@@ Helpers
+-
+-// TODO(mdempsky): These should probably be removed. I think they're a
+-// smell that the export data format is not yet quite right.
+-
+-func (pr *pkgDecoder) peekPkgPath(idx int) string {
+-	r := pr.newDecoder(relocPkg, idx, syncPkgDef)
+-	path := r.string()
+-	if path == "" {
+-		path = pr.pkgPath
+-	}
+-	return path
+-}
+-
+-func (pr *pkgDecoder) peekObj(idx int) (string, string, codeObj) {
+-	r := pr.newDecoder(relocName, idx, syncObject1)
+-	r.sync(syncSym)
+-	r.sync(syncPkg)
+-	path := pr.peekPkgPath(r.reloc(relocPkg))
+-	name := r.string()
+-	assert(name != "")
+-
+-	tag := codeObj(r.code(syncCodeObj))
+-
+-	return path, name, tag
+-}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 60b0b7b40a..82add23abd 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"internal/buildcfg"
++	"internal/pkgbits"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -32,7 +33,7 @@ import (
+ // this until after that's done.
+ 
+ type pkgReader struct {
+-	pkgDecoder
++	pkgbits.PkgDecoder
+ 
+ 	posBases []*src.PosBase
+ 	pkgs     []*types.Pkg
+@@ -43,15 +44,15 @@ type pkgReader struct {
+ 	newindex []int
+ }
+ 
+-func newPkgReader(pr pkgDecoder) *pkgReader {
++func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
+ 	return &pkgReader{
+-		pkgDecoder: pr,
++		PkgDecoder: pr,
+ 
+-		posBases: make([]*src.PosBase, pr.numElems(relocPosBase)),
+-		pkgs:     make([]*types.Pkg, pr.numElems(relocPkg)),
+-		typs:     make([]*types.Type, pr.numElems(relocType)),
++		posBases: make([]*src.PosBase, pr.NumElems(pkgbits.RelocPosBase)),
++		pkgs:     make([]*types.Pkg, pr.NumElems(pkgbits.RelocPkg)),
++		typs:     make([]*types.Type, pr.NumElems(pkgbits.RelocType)),
+ 
+-		newindex: make([]int, pr.totalElems()),
++		newindex: make([]int, pr.TotalElems()),
+ 	}
+ }
+ 
+@@ -61,21 +62,21 @@ type pkgReaderIndex struct {
+ 	dict *readerDict
+ }
+ 
+-func (pri pkgReaderIndex) asReader(k reloc, marker syncMarker) *reader {
++func (pri pkgReaderIndex) asReader(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *reader {
+ 	r := pri.pr.newReader(k, pri.idx, marker)
+ 	r.dict = pri.dict
+ 	return r
+ }
+ 
+-func (pr *pkgReader) newReader(k reloc, idx int, marker syncMarker) *reader {
++func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx int, marker pkgbits.SyncMarker) *reader {
+ 	return &reader{
+-		decoder: pr.newDecoder(k, idx, marker),
++		Decoder: pr.NewDecoder(k, idx, marker),
+ 		p:       pr,
+ 	}
+ }
+ 
+ type reader struct {
+-	decoder
++	pkgbits.Decoder
+ 
+ 	p *pkgReader
+ 
+@@ -170,19 +171,19 @@ func (r *reader) pos() src.XPos {
+ }
+ 
+ func (r *reader) pos0() src.Pos {
+-	r.sync(syncPos)
+-	if !r.bool() {
++	r.Sync(pkgbits.SyncPos)
++	if !r.Bool() {
+ 		return src.NoPos
+ 	}
+ 
+ 	posBase := r.posBase()
+-	line := r.uint()
+-	col := r.uint()
++	line := r.Uint()
++	col := r.Uint()
+ 	return src.MakePos(posBase, line, col)
+ }
+ 
+ func (r *reader) posBase() *src.PosBase {
+-	return r.inlPosBase(r.p.posBaseIdx(r.reloc(relocPosBase)))
++	return r.inlPosBase(r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase)))
+ }
+ 
+ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
+@@ -190,10 +191,10 @@ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
+ 		return b
+ 	}
+ 
+-	r := pr.newReader(relocPosBase, idx, syncPosBase)
++	r := pr.newReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
+ 	var b *src.PosBase
+ 
+-	absFilename := r.string()
++	absFilename := r.String()
+ 	filename := absFilename
+ 
+ 	// For build artifact stability, the export data format only
+@@ -212,12 +213,12 @@ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
+ 		filename = buildcfg.GOROOT + filename[len(dollarGOROOT):]
+ 	}
+ 
+-	if r.bool() {
++	if r.Bool() {
+ 		b = src.NewFileBase(filename, absFilename)
+ 	} else {
+ 		pos := r.pos0()
+-		line := r.uint()
+-		col := r.uint()
++		line := r.Uint()
++		col := r.Uint()
+ 		b = src.NewLinePragmaBase(pos, filename, absFilename, line, col)
+ 	}
+ 
+@@ -265,8 +266,8 @@ func (r *reader) origPos(xpos src.XPos) src.XPos {
+ // @@@ Packages
+ 
+ func (r *reader) pkg() *types.Pkg {
+-	r.sync(syncPkg)
+-	return r.p.pkgIdx(r.reloc(relocPkg))
++	r.Sync(pkgbits.SyncPkg)
++	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
+ }
+ 
+ func (pr *pkgReader) pkgIdx(idx int) *types.Pkg {
+@@ -274,22 +275,22 @@ func (pr *pkgReader) pkgIdx(idx int) *types.Pkg {
+ 		return pkg
+ 	}
+ 
+-	pkg := pr.newReader(relocPkg, idx, syncPkgDef).doPkg()
++	pkg := pr.newReader(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef).doPkg()
+ 	pr.pkgs[idx] = pkg
+ 	return pkg
+ }
+ 
+ func (r *reader) doPkg() *types.Pkg {
+-	path := r.string()
++	path := r.String()
+ 	if path == "builtin" {
+ 		return types.BuiltinPkg
+ 	}
+ 	if path == "" {
+-		path = r.p.pkgPath
++		path = r.p.PkgPath()
+ 	}
+ 
+-	name := r.string()
+-	height := r.len()
++	name := r.String()
++	height := r.Len()
+ 
+ 	pkg := types.NewPkg(path, "")
+ 
+@@ -321,11 +322,11 @@ func (r *reader) typWrapped(wrapped bool) *types.Type {
+ }
+ 
+ func (r *reader) typInfo() typeInfo {
+-	r.sync(syncType)
+-	if r.bool() {
+-		return typeInfo{idx: r.len(), derived: true}
++	r.Sync(pkgbits.SyncType)
++	if r.Bool() {
++		return typeInfo{idx: r.Len(), derived: true}
+ 	}
+-	return typeInfo{idx: r.reloc(relocType), derived: false}
++	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
+ }
+ 
+ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict, wrapped bool) *types.Type {
+@@ -342,7 +343,7 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict, wrapped bool) *type
+ 		return typ
+ 	}
+ 
+-	r := pr.newReader(relocType, idx, syncTypeIdx)
++	r := pr.newReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
+ 	r.dict = dict
+ 
+ 	typ := r.doTyp()
+@@ -408,38 +409,38 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict, wrapped bool) *type
+ }
+ 
+ func (r *reader) doTyp() *types.Type {
+-	switch tag := codeType(r.code(syncType)); tag {
++	switch tag := pkgbits.CodeType(r.Code(pkgbits.SyncType)); tag {
+ 	default:
+ 		panic(fmt.Sprintf("unexpected type: %v", tag))
+ 
+-	case typeBasic:
+-		return *basics[r.len()]
++	case pkgbits.TypeBasic:
++		return *basics[r.Len()]
+ 
+-	case typeNamed:
++	case pkgbits.TypeNamed:
+ 		obj := r.obj()
+ 		assert(obj.Op() == ir.OTYPE)
+ 		return obj.Type()
+ 
+-	case typeTypeParam:
+-		return r.dict.targs[r.len()]
++	case pkgbits.TypeTypeParam:
++		return r.dict.targs[r.Len()]
+ 
+-	case typeArray:
+-		len := int64(r.uint64())
++	case pkgbits.TypeArray:
++		len := int64(r.Uint64())
+ 		return types.NewArray(r.typ(), len)
+-	case typeChan:
+-		dir := dirs[r.len()]
++	case pkgbits.TypeChan:
++		dir := dirs[r.Len()]
+ 		return types.NewChan(r.typ(), dir)
+-	case typeMap:
++	case pkgbits.TypeMap:
+ 		return types.NewMap(r.typ(), r.typ())
+-	case typePointer:
++	case pkgbits.TypePointer:
+ 		return types.NewPtr(r.typ())
+-	case typeSignature:
++	case pkgbits.TypeSignature:
+ 		return r.signature(types.LocalPkg, nil)
+-	case typeSlice:
++	case pkgbits.TypeSlice:
+ 		return types.NewSlice(r.typ())
+-	case typeStruct:
++	case pkgbits.TypeStruct:
+ 		return r.structType()
+-	case typeInterface:
++	case pkgbits.TypeInterface:
+ 		return r.interfaceType()
+ 	}
+ }
+@@ -447,7 +448,7 @@ func (r *reader) doTyp() *types.Type {
+ func (r *reader) interfaceType() *types.Type {
+ 	tpkg := types.LocalPkg // TODO(mdempsky): Remove after iexport is gone.
+ 
+-	nmethods, nembeddeds := r.len(), r.len()
++	nmethods, nembeddeds := r.Len(), r.Len()
+ 
+ 	fields := make([]*types.Field, nmethods+nembeddeds)
+ 	methods, embeddeds := fields[:nmethods], fields[nmethods:]
+@@ -471,14 +472,14 @@ func (r *reader) interfaceType() *types.Type {
+ 
+ func (r *reader) structType() *types.Type {
+ 	tpkg := types.LocalPkg // TODO(mdempsky): Remove after iexport is gone.
+-	fields := make([]*types.Field, r.len())
++	fields := make([]*types.Field, r.Len())
+ 	for i := range fields {
+ 		pos := r.pos()
+ 		pkg, sym := r.selector()
+ 		tpkg = pkg
+ 		ftyp := r.typ()
+-		tag := r.string()
+-		embedded := r.bool()
++		tag := r.String()
++		embedded := r.Bool()
+ 
+ 		f := types.NewField(pos, sym, ftyp)
+ 		f.Note = tag
+@@ -491,11 +492,11 @@ func (r *reader) structType() *types.Type {
+ }
+ 
+ func (r *reader) signature(tpkg *types.Pkg, recv *types.Field) *types.Type {
+-	r.sync(syncSignature)
++	r.Sync(pkgbits.SyncSignature)
+ 
+ 	params := r.params(&tpkg)
+ 	results := r.params(&tpkg)
+-	if r.bool() { // variadic
++	if r.Bool() { // variadic
+ 		params[len(params)-1].SetIsDDD(true)
+ 	}
+ 
+@@ -503,8 +504,8 @@ func (r *reader) signature(tpkg *types.Pkg, recv *types.Field) *types.Type {
+ }
+ 
+ func (r *reader) params(tpkg **types.Pkg) []*types.Field {
+-	r.sync(syncParams)
+-	fields := make([]*types.Field, r.len())
++	r.Sync(pkgbits.SyncParams)
++	fields := make([]*types.Field, r.Len())
+ 	for i := range fields {
+ 		*tpkg, fields[i] = r.param()
+ 	}
+@@ -512,7 +513,7 @@ func (r *reader) params(tpkg **types.Pkg) []*types.Field {
+ }
+ 
+ func (r *reader) param() (*types.Pkg, *types.Field) {
+-	r.sync(syncParam)
++	r.Sync(pkgbits.SyncParam)
+ 
+ 	pos := r.pos()
+ 	pkg, sym := r.localIdent()
+@@ -526,10 +527,10 @@ func (r *reader) param() (*types.Pkg, *types.Field) {
+ var objReader = map[*types.Sym]pkgReaderIndex{}
+ 
+ func (r *reader) obj() ir.Node {
+-	r.sync(syncObject)
++	r.Sync(pkgbits.SyncObject)
+ 
+-	if r.bool() {
+-		idx := r.len()
++	if r.Bool() {
++		idx := r.Len()
+ 		obj := r.dict.funcsObj[idx]
+ 		if obj == nil {
+ 			fn := r.dict.funcs[idx]
+@@ -545,9 +546,9 @@ func (r *reader) obj() ir.Node {
+ 		return obj
+ 	}
+ 
+-	idx := r.reloc(relocObj)
++	idx := r.Reloc(pkgbits.RelocObj)
+ 
+-	explicits := make([]*types.Type, r.len())
++	explicits := make([]*types.Type, r.Len())
+ 	for i := range explicits {
+ 		explicits[i] = r.typ()
+ 	}
+@@ -561,11 +562,11 @@ func (r *reader) obj() ir.Node {
+ }
+ 
+ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node {
+-	rname := pr.newReader(relocName, idx, syncObject1)
++	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
+ 	_, sym := rname.qualifiedIdent()
+-	tag := codeObj(rname.code(syncCodeObj))
++	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
+ 
+-	if tag == objStub {
++	if tag == pkgbits.ObjStub {
+ 		assert(!sym.IsBlank())
+ 		switch sym.Pkg {
+ 		case types.BuiltinPkg, types.UnsafePkg:
+@@ -583,8 +584,8 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 
+ 	dict := pr.objDictIdx(sym, idx, implicits, explicits)
+ 
+-	r := pr.newReader(relocObj, idx, syncObject1)
+-	rext := pr.newReader(relocObjExt, idx, syncObject1)
++	r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
++	rext := pr.newReader(pkgbits.RelocObjExt, idx, pkgbits.SyncObject1)
+ 
+ 	r.dict = dict
+ 	rext.dict = dict
+@@ -616,21 +617,21 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 	default:
+ 		panic("unexpected object")
+ 
+-	case objAlias:
++	case pkgbits.ObjAlias:
+ 		name := do(ir.OTYPE, false)
+ 		setType(name, r.typ())
+ 		name.SetAlias(true)
+ 		return name
+ 
+-	case objConst:
++	case pkgbits.ObjConst:
+ 		name := do(ir.OLITERAL, false)
+ 		typ := r.typ()
+-		val := FixValue(typ, r.value())
++		val := FixValue(typ, r.Value())
+ 		setType(name, typ)
+ 		setValue(name, val)
+ 		return name
+ 
+-	case objFunc:
++	case pkgbits.ObjFunc:
+ 		if sym.Name == "init" {
+ 			sym = renameinit()
+ 		}
+@@ -643,7 +644,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 		rext.funcExt(name)
+ 		return name
+ 
+-	case objType:
++	case pkgbits.ObjType:
+ 		name := do(ir.OTYPE, true)
+ 		typ := types.NewNamed(name)
+ 		setType(name, typ)
+@@ -657,7 +658,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 		typ.SetUnderlying(r.typWrapped(false))
+ 		types.ResumeCheckSize()
+ 
+-		methods := make([]*types.Field, r.len())
++		methods := make([]*types.Field, r.Len())
+ 		for i := range methods {
+ 			methods[i] = r.method(rext)
+ 		}
+@@ -669,7 +670,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 
+ 		return name
+ 
+-	case objVar:
++	case pkgbits.ObjVar:
+ 		name := do(ir.ONAME, false)
+ 		setType(name, r.typ())
+ 		rext.varExt(name)
+@@ -700,12 +701,12 @@ func (r *reader) mangle(sym *types.Sym) *types.Sym {
+ }
+ 
+ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx int, implicits, explicits []*types.Type) *readerDict {
+-	r := pr.newReader(relocObjDict, idx, syncObject1)
++	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
+ 
+ 	var dict readerDict
+ 
+-	nimplicits := r.len()
+-	nexplicits := r.len()
++	nimplicits := r.Len()
++	nexplicits := r.Len()
+ 
+ 	if nimplicits > len(implicits) || nexplicits != len(explicits) {
+ 		base.Fatalf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(implicits), len(explicits))
+@@ -717,25 +718,25 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx int, implicits, explicits []
+ 	// For stenciling, we can just skip over the type parameters.
+ 	for range dict.targs[dict.implicits:] {
+ 		// Skip past bounds without actually evaluating them.
+-		r.sync(syncType)
+-		if r.bool() {
+-			r.len()
++		r.Sync(pkgbits.SyncType)
++		if r.Bool() {
++			r.Len()
+ 		} else {
+-			r.reloc(relocType)
++			r.Reloc(pkgbits.RelocType)
+ 		}
+ 	}
+ 
+-	dict.derived = make([]derivedInfo, r.len())
++	dict.derived = make([]derivedInfo, r.Len())
+ 	dict.derivedTypes = make([]*types.Type, len(dict.derived))
+ 	for i := range dict.derived {
+-		dict.derived[i] = derivedInfo{r.reloc(relocType), r.bool()}
++		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
+ 	}
+ 
+-	dict.funcs = make([]objInfo, r.len())
++	dict.funcs = make([]objInfo, r.Len())
+ 	dict.funcsObj = make([]ir.Node, len(dict.funcs))
+ 	for i := range dict.funcs {
+-		objIdx := r.reloc(relocObj)
+-		targs := make([]typeInfo, r.len())
++		objIdx := r.Reloc(pkgbits.RelocObj)
++		targs := make([]typeInfo, r.Len())
+ 		for j := range targs {
+ 			targs[j] = r.typInfo()
+ 		}
+@@ -746,7 +747,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx int, implicits, explicits []
+ }
+ 
+ func (r *reader) typeParamNames() {
+-	r.sync(syncTypeParamNames)
++	r.Sync(pkgbits.SyncTypeParamNames)
+ 
+ 	for range r.dict.targs[r.dict.implicits:] {
+ 		r.pos()
+@@ -755,7 +756,7 @@ func (r *reader) typeParamNames() {
+ }
+ 
+ func (r *reader) method(rext *reader) *types.Field {
+-	r.sync(syncMethod)
++	r.Sync(pkgbits.SyncMethod)
+ 	pos := r.pos()
+ 	pkg, sym := r.selector()
+ 	r.typeParamNames()
+@@ -780,27 +781,27 @@ func (r *reader) method(rext *reader) *types.Field {
+ }
+ 
+ func (r *reader) qualifiedIdent() (pkg *types.Pkg, sym *types.Sym) {
+-	r.sync(syncSym)
++	r.Sync(pkgbits.SyncSym)
+ 	pkg = r.pkg()
+-	if name := r.string(); name != "" {
++	if name := r.String(); name != "" {
+ 		sym = pkg.Lookup(name)
+ 	}
+ 	return
+ }
+ 
+ func (r *reader) localIdent() (pkg *types.Pkg, sym *types.Sym) {
+-	r.sync(syncLocalIdent)
++	r.Sync(pkgbits.SyncLocalIdent)
+ 	pkg = r.pkg()
+-	if name := r.string(); name != "" {
++	if name := r.String(); name != "" {
+ 		sym = pkg.Lookup(name)
+ 	}
+ 	return
+ }
+ 
+ func (r *reader) selector() (origPkg *types.Pkg, sym *types.Sym) {
+-	r.sync(syncSelector)
++	r.Sync(pkgbits.SyncSelector)
+ 	origPkg = r.pkg()
+-	name := r.string()
++	name := r.String()
+ 	pkg := origPkg
+ 	if types.IsExported(name) {
+ 		pkg = types.LocalPkg
+@@ -820,7 +821,7 @@ func (dict *readerDict) hasTypeParams() bool {
+ // @@@ Compiler extensions
+ 
+ func (r *reader) funcExt(name *ir.Name) {
+-	r.sync(syncFuncExt)
++	r.Sync(pkgbits.SyncFuncExt)
+ 
+ 	name.Class = 0 // so MarkFunc doesn't complain
+ 	ir.MarkFunc(name)
+@@ -848,31 +849,31 @@ func (r *reader) funcExt(name *ir.Name) {
+ 
+ 	typecheck.Func(fn)
+ 
+-	if r.bool() {
+-		fn.ABI = obj.ABI(r.uint64())
++	if r.Bool() {
++		fn.ABI = obj.ABI(r.Uint64())
+ 
+ 		// Escape analysis.
+ 		for _, fs := range &types.RecvsParams {
+ 			for _, f := range fs(name.Type()).FieldSlice() {
+-				f.Note = r.string()
++				f.Note = r.String()
+ 			}
+ 		}
+ 
+-		if r.bool() {
++		if r.Bool() {
+ 			fn.Inl = &ir.Inline{
+-				Cost:            int32(r.len()),
+-				CanDelayResults: r.bool(),
++				Cost:            int32(r.Len()),
++				CanDelayResults: r.Bool(),
+ 			}
+ 			r.addBody(name.Func)
+ 		}
+ 	} else {
+ 		r.addBody(name.Func)
+ 	}
+-	r.sync(syncEOF)
++	r.Sync(pkgbits.SyncEOF)
+ }
+ 
+ func (r *reader) typeExt(name *ir.Name) {
+-	r.sync(syncTypeExt)
++	r.Sync(pkgbits.SyncTypeExt)
+ 
+ 	typ := name.Type()
+ 
+@@ -891,30 +892,30 @@ func (r *reader) typeExt(name *ir.Name) {
+ 		typ.SetNotInHeap(true)
+ 	}
+ 
+-	typecheck.SetBaseTypeIndex(typ, r.int64(), r.int64())
++	typecheck.SetBaseTypeIndex(typ, r.Int64(), r.Int64())
+ }
+ 
+ func (r *reader) varExt(name *ir.Name) {
+-	r.sync(syncVarExt)
++	r.Sync(pkgbits.SyncVarExt)
+ 	r.linkname(name)
+ }
+ 
+ func (r *reader) linkname(name *ir.Name) {
+ 	assert(name.Op() == ir.ONAME)
+-	r.sync(syncLinkname)
++	r.Sync(pkgbits.SyncLinkname)
+ 
+-	if idx := r.int64(); idx >= 0 {
++	if idx := r.Int64(); idx >= 0 {
+ 		lsym := name.Linksym()
+ 		lsym.SymIdx = int32(idx)
+ 		lsym.Set(obj.AttrIndexed, true)
+ 	} else {
+-		name.Sym().Linkname = r.string()
++		name.Sym().Linkname = r.String()
+ 	}
+ }
+ 
+ func (r *reader) pragmaFlag() ir.PragmaFlag {
+-	r.sync(syncPragma)
+-	return ir.PragmaFlag(r.int())
++	r.Sync(pkgbits.SyncPragma)
++	return ir.PragmaFlag(r.Int())
+ }
+ 
+ // @@@ Function bodies
+@@ -933,7 +934,7 @@ var todoBodies []*ir.Func
+ var todoBodiesDone = false
+ 
+ func (r *reader) addBody(fn *ir.Func) {
+-	pri := pkgReaderIndex{r.p, r.reloc(relocBody), r.dict}
++	pri := pkgReaderIndex{r.p, r.Reloc(pkgbits.RelocBody), r.dict}
+ 	bodyReader[fn] = pri
+ 
+ 	if fn.Nname.Defn == nil {
+@@ -951,7 +952,7 @@ func (r *reader) addBody(fn *ir.Func) {
+ }
+ 
+ func (pri pkgReaderIndex) funcBody(fn *ir.Func) {
+-	r := pri.asReader(relocBody, syncFuncBody)
++	r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+ 	r.funcBody(fn)
+ }
+ 
+@@ -962,7 +963,7 @@ func (r *reader) funcBody(fn *ir.Func) {
+ 	ir.WithFunc(fn, func() {
+ 		r.funcargs(fn)
+ 
+-		if !r.bool() {
++		if !r.Bool() {
+ 			return
+ 		}
+ 
+@@ -1034,9 +1035,9 @@ func (r *reader) funcarg(param *types.Field, sym *types.Sym, ctxt ir.Class) {
+ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
+ 	assert(ctxt == ir.PAUTO || ctxt == ir.PPARAM || ctxt == ir.PPARAMOUT)
+ 
+-	r.sync(syncAddLocal)
+-	if enableSync {
+-		want := r.int()
++	r.Sync(pkgbits.SyncAddLocal)
++	if pkgbits.EnableSync {
++		want := r.Int()
+ 		if have := len(r.locals); have != want {
+ 			base.FatalfAt(name.Pos(), "locals table has desynced")
+ 		}
+@@ -1077,15 +1078,15 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
+ }
+ 
+ func (r *reader) useLocal() *ir.Name {
+-	r.sync(syncUseObjLocal)
+-	if r.bool() {
+-		return r.locals[r.len()]
++	r.Sync(pkgbits.SyncUseObjLocal)
++	if r.Bool() {
++		return r.locals[r.Len()]
+ 	}
+-	return r.closureVars[r.len()]
++	return r.closureVars[r.Len()]
+ }
+ 
+ func (r *reader) openScope() {
+-	r.sync(syncOpenScope)
++	r.Sync(pkgbits.SyncOpenScope)
+ 	pos := r.pos()
+ 
+ 	if base.Flag.Dwarf {
+@@ -1095,7 +1096,7 @@ func (r *reader) openScope() {
+ }
+ 
+ func (r *reader) closeScope() {
+-	r.sync(syncCloseScope)
++	r.Sync(pkgbits.SyncCloseScope)
+ 	r.lastCloseScopePos = r.pos()
+ 
+ 	r.closeAnotherScope()
+@@ -1106,7 +1107,7 @@ func (r *reader) closeScope() {
+ // "if" statements, as their implicit blocks always end at the same
+ // position as an explicit block.
+ func (r *reader) closeAnotherScope() {
+-	r.sync(syncCloseAnotherScope)
++	r.Sync(pkgbits.SyncCloseAnotherScope)
+ 
+ 	if base.Flag.Dwarf {
+ 		scopeVars := r.scopeVars[len(r.scopeVars)-1]
+@@ -1173,11 +1174,11 @@ func (r *reader) stmts() []ir.Node {
+ 	assert(ir.CurFunc == r.curfn)
+ 	var res ir.Nodes
+ 
+-	r.sync(syncStmts)
++	r.Sync(pkgbits.SyncStmts)
+ 	for {
+-		tag := codeStmt(r.code(syncStmt1))
++		tag := codeStmt(r.Code(pkgbits.SyncStmt1))
+ 		if tag == stmtEnd {
+-			r.sync(syncStmtsEnd)
++			r.Sync(pkgbits.SyncStmtsEnd)
+ 			return res
+ 		}
+ 
+@@ -1291,11 +1292,11 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
+ }
+ 
+ func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
+-	lhs := make([]ir.Node, r.len())
++	lhs := make([]ir.Node, r.Len())
+ 	var names []*ir.Name
+ 
+ 	for i := range lhs {
+-		if r.bool() {
++		if r.Bool() {
+ 			pos := r.pos()
+ 			_, sym := r.localIdent()
+ 			typ := r.typ()
+@@ -1315,7 +1316,7 @@ func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
+ }
+ 
+ func (r *reader) blockStmt() []ir.Node {
+-	r.sync(syncBlockStmt)
++	r.Sync(pkgbits.SyncBlockStmt)
+ 	r.openScope()
+ 	stmts := r.stmts()
+ 	r.closeScope()
+@@ -1323,11 +1324,11 @@ func (r *reader) blockStmt() []ir.Node {
+ }
+ 
+ func (r *reader) forStmt(label *types.Sym) ir.Node {
+-	r.sync(syncForStmt)
++	r.Sync(pkgbits.SyncForStmt)
+ 
+ 	r.openScope()
+ 
+-	if r.bool() {
++	if r.Bool() {
+ 		pos := r.pos()
+ 
+ 		// TODO(mdempsky): After quirks mode is gone, swap these
+@@ -1363,7 +1364,7 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
+ }
+ 
+ func (r *reader) ifStmt() ir.Node {
+-	r.sync(syncIfStmt)
++	r.Sync(pkgbits.SyncIfStmt)
+ 	r.openScope()
+ 	pos := r.pos()
+ 	init := r.stmts()
+@@ -1377,10 +1378,10 @@ func (r *reader) ifStmt() ir.Node {
+ }
+ 
+ func (r *reader) selectStmt(label *types.Sym) ir.Node {
+-	r.sync(syncSelectStmt)
++	r.Sync(pkgbits.SyncSelectStmt)
+ 
+ 	pos := r.pos()
+-	clauses := make([]*ir.CommClause, r.len())
++	clauses := make([]*ir.CommClause, r.Len())
+ 	for i := range clauses {
+ 		if i > 0 {
+ 			r.closeScope()
+@@ -1402,19 +1403,19 @@ func (r *reader) selectStmt(label *types.Sym) ir.Node {
+ }
+ 
+ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+-	r.sync(syncSwitchStmt)
++	r.Sync(pkgbits.SyncSwitchStmt)
+ 
+ 	r.openScope()
+ 	pos := r.pos()
+ 	init := r.stmt()
+ 
+ 	var tag ir.Node
+-	if r.bool() {
++	if r.Bool() {
+ 		pos := r.pos()
+ 		var ident *ir.Ident
+-		if r.bool() {
++		if r.Bool() {
+ 			pos := r.pos()
+-			sym := typecheck.Lookup(r.string())
++			sym := typecheck.Lookup(r.String())
+ 			ident = ir.NewIdent(pos, sym)
+ 		}
+ 		x := r.expr()
+@@ -1428,7 +1429,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 		tswitch = nil
+ 	}
+ 
+-	clauses := make([]*ir.CaseClause, r.len())
++	clauses := make([]*ir.CaseClause, r.Len())
+ 	for i := range clauses {
+ 		if i > 0 {
+ 			r.closeScope()
+@@ -1467,8 +1468,8 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ }
+ 
+ func (r *reader) label() *types.Sym {
+-	r.sync(syncLabel)
+-	name := r.string()
++	r.Sync(pkgbits.SyncLabel)
++	name := r.String()
+ 	if r.inlCall != nil {
+ 		name = fmt.Sprintf("~%s·%d", name, inlgen)
+ 	}
+@@ -1476,8 +1477,8 @@ func (r *reader) label() *types.Sym {
+ }
+ 
+ func (r *reader) optLabel() *types.Sym {
+-	r.sync(syncOptLabel)
+-	if r.bool() {
++	r.Sync(pkgbits.SyncOptLabel)
++	if r.Bool() {
+ 		return r.label()
+ 	}
+ 	return nil
+@@ -1510,7 +1511,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		}
+ 	}()
+ 
+-	switch tag := codeExpr(r.code(syncExpr)); tag {
++	switch tag := codeExpr(r.Code(pkgbits.SyncExpr)); tag {
+ 	default:
+ 		panic("unhandled expression")
+ 
+@@ -1539,9 +1540,9 @@ func (r *reader) expr() (res ir.Node) {
+ 	case exprConst:
+ 		pos := r.pos()
+ 		typ := r.typ()
+-		val := FixValue(typ, r.value())
++		val := FixValue(typ, r.Value())
+ 		op := r.op()
+-		orig := r.string()
++		orig := r.String()
+ 		return typecheck.Expr(OrigConst(pos, typ, val, op, orig))
+ 
+ 	case exprCompLit:
+@@ -1620,14 +1621,14 @@ func (r *reader) expr() (res ir.Node) {
+ 
+ 	case exprCall:
+ 		fun := r.expr()
+-		if r.bool() { // method call
++		if r.Bool() { // method call
+ 			pos := r.pos()
+ 			_, sym := r.selector()
+ 			fun = typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, fun, sym))
+ 		}
+ 		pos := r.pos()
+ 		args := r.exprs()
+-		dots := r.bool()
++		dots := r.Bool()
+ 		return typecheck.Call(pos, fun, args, dots)
+ 
+ 	case exprConvert:
+@@ -1639,7 +1640,7 @@ func (r *reader) expr() (res ir.Node) {
+ }
+ 
+ func (r *reader) compLit() ir.Node {
+-	r.sync(syncCompLit)
++	r.Sync(pkgbits.SyncCompLit)
+ 	pos := r.pos()
+ 	typ0 := r.typ()
+ 
+@@ -1652,14 +1653,14 @@ func (r *reader) compLit() ir.Node {
+ 	}
+ 	isStruct := typ.Kind() == types.TSTRUCT
+ 
+-	elems := make([]ir.Node, r.len())
++	elems := make([]ir.Node, r.Len())
+ 	for i := range elems {
+ 		elemp := &elems[i]
+ 
+ 		if isStruct {
+-			sk := ir.NewStructKeyExpr(r.pos(), typ.Field(r.len()), nil)
++			sk := ir.NewStructKeyExpr(r.pos(), typ.Field(r.Len()), nil)
+ 			*elemp, elemp = sk, &sk.Value
+-		} else if r.bool() {
++		} else if r.Bool() {
+ 			kv := ir.NewKeyExpr(r.pos(), r.expr(), nil)
+ 			*elemp, elemp = kv, &kv.Value
+ 		}
+@@ -1693,7 +1694,7 @@ func wrapName(pos src.XPos, x ir.Node) ir.Node {
+ }
+ 
+ func (r *reader) funcLit() ir.Node {
+-	r.sync(syncFuncLit)
++	r.Sync(pkgbits.SyncFuncLit)
+ 
+ 	pos := r.pos()
+ 	xtype2 := r.signature(types.LocalPkg, nil)
+@@ -1708,7 +1709,7 @@ func (r *reader) funcLit() ir.Node {
+ 	typecheck.Func(fn)
+ 	setType(clo, fn.Type())
+ 
+-	fn.ClosureVars = make([]*ir.Name, 0, r.len())
++	fn.ClosureVars = make([]*ir.Name, 0, r.Len())
+ 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
+ 		ir.NewClosureVar(r.pos(), fn, r.useLocal())
+ 	}
+@@ -1720,13 +1721,13 @@ func (r *reader) funcLit() ir.Node {
+ }
+ 
+ func (r *reader) exprList() []ir.Node {
+-	r.sync(syncExprList)
++	r.Sync(pkgbits.SyncExprList)
+ 	return r.exprs()
+ }
+ 
+ func (r *reader) exprs() []ir.Node {
+-	r.sync(syncExprs)
+-	nodes := make([]ir.Node, r.len())
++	r.Sync(pkgbits.SyncExprs)
++	nodes := make([]ir.Node, r.Len())
+ 	if len(nodes) == 0 {
+ 		return nil // TODO(mdempsky): Unclear if this matters.
+ 	}
+@@ -1737,28 +1738,28 @@ func (r *reader) exprs() []ir.Node {
+ }
+ 
+ func (r *reader) op() ir.Op {
+-	r.sync(syncOp)
+-	return ir.Op(r.len())
++	r.Sync(pkgbits.SyncOp)
++	return ir.Op(r.Len())
+ }
+ 
+ // @@@ Package initialization
+ 
+ func (r *reader) pkgInit(self *types.Pkg, target *ir.Package) {
+-	cgoPragmas := make([][]string, r.len())
++	cgoPragmas := make([][]string, r.Len())
+ 	for i := range cgoPragmas {
+-		cgoPragmas[i] = r.strings()
++		cgoPragmas[i] = r.Strings()
+ 	}
+ 	target.CgoPragmas = cgoPragmas
+ 
+ 	r.pkgDecls(target)
+ 
+-	r.sync(syncEOF)
++	r.Sync(pkgbits.SyncEOF)
+ }
+ 
+ func (r *reader) pkgDecls(target *ir.Package) {
+-	r.sync(syncDecls)
++	r.Sync(pkgbits.SyncDecls)
+ 	for {
+-		switch code := codeDecl(r.code(syncDecl)); code {
++		switch code := codeDecl(r.Code(pkgbits.SyncDecl)); code {
+ 		default:
+ 			panic(fmt.Sprintf("unhandled decl: %v", code))
+ 
+@@ -1800,11 +1801,11 @@ func (r *reader) pkgDecls(target *ir.Package) {
+ 				}
+ 			}
+ 
+-			if n := r.len(); n > 0 {
++			if n := r.Len(); n > 0 {
+ 				assert(len(names) == 1)
+ 				embeds := make([]ir.Embed, n)
+ 				for i := range embeds {
+-					embeds[i] = ir.Embed{Pos: r.pos(), Patterns: r.strings()}
++					embeds[i] = ir.Embed{Pos: r.pos(), Patterns: r.Strings()}
+ 				}
+ 				names[0].Embed = &embeds
+ 				target.Embeds = append(target.Embeds, names[0])
+@@ -1817,10 +1818,10 @@ func (r *reader) pkgDecls(target *ir.Package) {
+ }
+ 
+ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
+-	r.sync(syncDeclNames)
+-	nodes := make([]*ir.Name, r.len())
++	r.Sync(pkgbits.SyncDeclNames)
++	nodes := make([]*ir.Name, r.Len())
+ 	for i := range nodes {
+-		r.sync(syncDeclName)
++		r.Sync(pkgbits.SyncDeclName)
+ 
+ 		name := r.obj().(*ir.Name)
+ 		nodes[i] = name
+@@ -1885,7 +1886,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 		expandInline(fn, pri)
+ 	}
+ 
+-	r := pri.asReader(relocBody, syncFuncBody)
++	r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+ 
+ 	// TODO(mdempsky): This still feels clumsy. Can we do better?
+ 	tmpfn := ir.NewFunc(fn.Pos())
+@@ -1909,7 +1910,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 
+ 	r.funcargs(fn)
+ 
+-	assert(r.bool()) // have body
++	assert(r.Bool()) // have body
+ 	r.delayResults = fn.Inl.CanDelayResults
+ 
+ 	r.retlabel = typecheck.AutoLabel(".i")
+@@ -2069,7 +2070,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 	tmpfn.ClosureVars = fn.ClosureVars
+ 
+ 	{
+-		r := pri.asReader(relocBody, syncFuncBody)
++		r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+ 		setType(tmpfn.Nname, fn.Type())
+ 
+ 		// Don't change parameter's Sym/Nname fields.
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index c028d21c67..a8960fdbec 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -11,10 +11,11 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types2"
+ 	"cmd/internal/src"
++	"internal/pkgbits"
+ )
+ 
+ type pkgReader2 struct {
+-	pkgDecoder
++	pkgbits.PkgDecoder
+ 
+ 	ctxt    *types2.Context
+ 	imports map[string]*types2.Package
+@@ -24,39 +25,39 @@ type pkgReader2 struct {
+ 	typs     []types2.Type
+ }
+ 
+-func readPackage2(ctxt *types2.Context, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
++func readPackage2(ctxt *types2.Context, imports map[string]*types2.Package, input pkgbits.PkgDecoder) *types2.Package {
+ 	pr := pkgReader2{
+-		pkgDecoder: input,
++		PkgDecoder: input,
+ 
+ 		ctxt:    ctxt,
+ 		imports: imports,
+ 
+-		posBases: make([]*syntax.PosBase, input.numElems(relocPosBase)),
+-		pkgs:     make([]*types2.Package, input.numElems(relocPkg)),
+-		typs:     make([]types2.Type, input.numElems(relocType)),
++		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.RelocPosBase)),
++		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.RelocPkg)),
++		typs:     make([]types2.Type, input.NumElems(pkgbits.RelocType)),
+ 	}
+ 
+-	r := pr.newReader(relocMeta, publicRootIdx, syncPublic)
++	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 	pkg := r.pkg()
+-	r.bool() // has init
++	r.Bool() // has init
+ 
+-	for i, n := 0, r.len(); i < n; i++ {
++	for i, n := 0, r.Len(); i < n; i++ {
+ 		// As if r.obj(), but avoiding the Scope.Lookup call,
+ 		// to avoid eager loading of imports.
+-		r.sync(syncObject)
+-		assert(!r.bool())
+-		r.p.objIdx(r.reloc(relocObj))
+-		assert(r.len() == 0)
++		r.Sync(pkgbits.SyncObject)
++		assert(!r.Bool())
++		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
++		assert(r.Len() == 0)
+ 	}
+ 
+-	r.sync(syncEOF)
++	r.Sync(pkgbits.SyncEOF)
+ 
+ 	pkg.MarkComplete()
+ 	return pkg
+ }
+ 
+ type reader2 struct {
+-	decoder
++	pkgbits.Decoder
+ 
+ 	p *pkgReader2
+ 
+@@ -77,9 +78,9 @@ type reader2TypeBound struct {
+ 	boundIdx int
+ }
+ 
+-func (pr *pkgReader2) newReader(k reloc, idx int, marker syncMarker) *reader2 {
++func (pr *pkgReader2) newReader(k pkgbits.RelocKind, idx int, marker pkgbits.SyncMarker) *reader2 {
+ 	return &reader2{
+-		decoder: pr.newDecoder(k, idx, marker),
++		Decoder: pr.NewDecoder(k, idx, marker),
+ 		p:       pr,
+ 	}
+ }
+@@ -87,20 +88,20 @@ func (pr *pkgReader2) newReader(k reloc, idx int, marker syncMarker) *reader2 {
+ // @@@ Positions
+ 
+ func (r *reader2) pos() syntax.Pos {
+-	r.sync(syncPos)
+-	if !r.bool() {
++	r.Sync(pkgbits.SyncPos)
++	if !r.Bool() {
+ 		return syntax.Pos{}
+ 	}
+ 
+ 	// TODO(mdempsky): Delta encoding.
+ 	posBase := r.posBase()
+-	line := r.uint()
+-	col := r.uint()
++	line := r.Uint()
++	col := r.Uint()
+ 	return syntax.MakePos(posBase, line, col)
+ }
+ 
+ func (r *reader2) posBase() *syntax.PosBase {
+-	return r.p.posBaseIdx(r.reloc(relocPosBase))
++	return r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase))
+ }
+ 
+ func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
+@@ -108,17 +109,17 @@ func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
+ 		return b
+ 	}
+ 
+-	r := pr.newReader(relocPosBase, idx, syncPosBase)
++	r := pr.newReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
+ 	var b *syntax.PosBase
+ 
+-	filename := r.string()
++	filename := r.String()
+ 
+-	if r.bool() {
++	if r.Bool() {
+ 		b = syntax.NewTrimmedFileBase(filename, true)
+ 	} else {
+ 		pos := r.pos()
+-		line := r.uint()
+-		col := r.uint()
++		line := r.Uint()
++		col := r.Uint()
+ 		b = syntax.NewLineBase(pos, filename, true, line, col)
+ 	}
+ 
+@@ -129,8 +130,8 @@ func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
+ // @@@ Packages
+ 
+ func (r *reader2) pkg() *types2.Package {
+-	r.sync(syncPkg)
+-	return r.p.pkgIdx(r.reloc(relocPkg))
++	r.Sync(pkgbits.SyncPkg)
++	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
+ }
+ 
+ func (pr *pkgReader2) pkgIdx(idx int) *types2.Package {
+@@ -140,33 +141,33 @@ func (pr *pkgReader2) pkgIdx(idx int) *types2.Package {
+ 		return pkg
+ 	}
+ 
+-	pkg := pr.newReader(relocPkg, idx, syncPkgDef).doPkg()
++	pkg := pr.newReader(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef).doPkg()
+ 	pr.pkgs[idx] = pkg
+ 	return pkg
+ }
+ 
+ func (r *reader2) doPkg() *types2.Package {
+-	path := r.string()
++	path := r.String()
+ 	if path == "builtin" {
+ 		return nil // universe
+ 	}
+ 	if path == "" {
+-		path = r.p.pkgPath
++		path = r.p.PkgPath()
+ 	}
+ 
+ 	if pkg := r.p.imports[path]; pkg != nil {
+ 		return pkg
+ 	}
+ 
+-	name := r.string()
+-	height := r.len()
++	name := r.String()
++	height := r.Len()
+ 
+ 	pkg := types2.NewPackageHeight(path, name, height)
+ 	r.p.imports[path] = pkg
+ 
+ 	// TODO(mdempsky): The list of imported packages is important for
+ 	// go/types, but we could probably skip populating it for types2.
+-	imports := make([]*types2.Package, r.len())
++	imports := make([]*types2.Package, r.Len())
+ 	for i := range imports {
+ 		imports[i] = r.pkg()
+ 	}
+@@ -182,11 +183,11 @@ func (r *reader2) typ() types2.Type {
+ }
+ 
+ func (r *reader2) typInfo() typeInfo {
+-	r.sync(syncType)
+-	if r.bool() {
+-		return typeInfo{idx: r.len(), derived: true}
++	r.Sync(pkgbits.SyncType)
++	if r.Bool() {
++		return typeInfo{idx: r.Len(), derived: true}
+ 	}
+-	return typeInfo{idx: r.reloc(relocType), derived: false}
++	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
+ }
+ 
+ func (pr *pkgReader2) typIdx(info typeInfo, dict *reader2Dict) types2.Type {
+@@ -203,7 +204,7 @@ func (pr *pkgReader2) typIdx(info typeInfo, dict *reader2Dict) types2.Type {
+ 		return typ
+ 	}
+ 
+-	r := pr.newReader(relocType, idx, syncTypeIdx)
++	r := pr.newReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
+ 	r.dict = dict
+ 
+ 	typ := r.doTyp()
+@@ -219,15 +220,15 @@ func (pr *pkgReader2) typIdx(info typeInfo, dict *reader2Dict) types2.Type {
+ }
+ 
+ func (r *reader2) doTyp() (res types2.Type) {
+-	switch tag := codeType(r.code(syncType)); tag {
++	switch tag := pkgbits.CodeType(r.Code(pkgbits.SyncType)); tag {
+ 	default:
+ 		base.FatalfAt(src.NoXPos, "unhandled type tag: %v", tag)
+ 		panic("unreachable")
+ 
+-	case typeBasic:
+-		return types2.Typ[r.len()]
++	case pkgbits.TypeBasic:
++		return types2.Typ[r.Len()]
+ 
+-	case typeNamed:
++	case pkgbits.TypeNamed:
+ 		obj, targs := r.obj()
+ 		name := obj.(*types2.TypeName)
+ 		if len(targs) != 0 {
+@@ -236,41 +237,41 @@ func (r *reader2) doTyp() (res types2.Type) {
+ 		}
+ 		return name.Type()
+ 
+-	case typeTypeParam:
+-		return r.dict.tparams[r.len()]
++	case pkgbits.TypeTypeParam:
++		return r.dict.tparams[r.Len()]
+ 
+-	case typeArray:
+-		len := int64(r.uint64())
++	case pkgbits.TypeArray:
++		len := int64(r.Uint64())
+ 		return types2.NewArray(r.typ(), len)
+-	case typeChan:
+-		dir := types2.ChanDir(r.len())
++	case pkgbits.TypeChan:
++		dir := types2.ChanDir(r.Len())
+ 		return types2.NewChan(dir, r.typ())
+-	case typeMap:
++	case pkgbits.TypeMap:
+ 		return types2.NewMap(r.typ(), r.typ())
+-	case typePointer:
++	case pkgbits.TypePointer:
+ 		return types2.NewPointer(r.typ())
+-	case typeSignature:
++	case pkgbits.TypeSignature:
+ 		return r.signature(nil, nil, nil)
+-	case typeSlice:
++	case pkgbits.TypeSlice:
+ 		return types2.NewSlice(r.typ())
+-	case typeStruct:
++	case pkgbits.TypeStruct:
+ 		return r.structType()
+-	case typeInterface:
++	case pkgbits.TypeInterface:
+ 		return r.interfaceType()
+-	case typeUnion:
++	case pkgbits.TypeUnion:
+ 		return r.unionType()
+ 	}
+ }
+ 
+ func (r *reader2) structType() *types2.Struct {
+-	fields := make([]*types2.Var, r.len())
++	fields := make([]*types2.Var, r.Len())
+ 	var tags []string
+ 	for i := range fields {
+ 		pos := r.pos()
+ 		pkg, name := r.selector()
+ 		ftyp := r.typ()
+-		tag := r.string()
+-		embedded := r.bool()
++		tag := r.String()
++		embedded := r.Bool()
+ 
+ 		fields[i] = types2.NewField(pos, pkg, name, ftyp, embedded)
+ 		if tag != "" {
+@@ -284,16 +285,16 @@ func (r *reader2) structType() *types2.Struct {
+ }
+ 
+ func (r *reader2) unionType() *types2.Union {
+-	terms := make([]*types2.Term, r.len())
++	terms := make([]*types2.Term, r.Len())
+ 	for i := range terms {
+-		terms[i] = types2.NewTerm(r.bool(), r.typ())
++		terms[i] = types2.NewTerm(r.Bool(), r.typ())
+ 	}
+ 	return types2.NewUnion(terms)
+ }
+ 
+ func (r *reader2) interfaceType() *types2.Interface {
+-	methods := make([]*types2.Func, r.len())
+-	embeddeds := make([]types2.Type, r.len())
++	methods := make([]*types2.Func, r.Len())
++	embeddeds := make([]types2.Type, r.Len())
+ 
+ 	for i := range methods {
+ 		pos := r.pos()
+@@ -310,18 +311,18 @@ func (r *reader2) interfaceType() *types2.Interface {
+ }
+ 
+ func (r *reader2) signature(recv *types2.Var, rtparams, tparams []*types2.TypeParam) *types2.Signature {
+-	r.sync(syncSignature)
++	r.Sync(pkgbits.SyncSignature)
+ 
+ 	params := r.params()
+ 	results := r.params()
+-	variadic := r.bool()
++	variadic := r.Bool()
+ 
+ 	return types2.NewSignatureType(recv, rtparams, tparams, params, results, variadic)
+ }
+ 
+ func (r *reader2) params() *types2.Tuple {
+-	r.sync(syncParams)
+-	params := make([]*types2.Var, r.len())
++	r.Sync(pkgbits.SyncParams)
++	params := make([]*types2.Var, r.Len())
+ 	for i := range params {
+ 		params[i] = r.param()
+ 	}
+@@ -329,7 +330,7 @@ func (r *reader2) params() *types2.Tuple {
+ }
+ 
+ func (r *reader2) param() *types2.Var {
+-	r.sync(syncParam)
++	r.Sync(pkgbits.SyncParam)
+ 
+ 	pos := r.pos()
+ 	pkg, name := r.localIdent()
+@@ -341,14 +342,14 @@ func (r *reader2) param() *types2.Var {
+ // @@@ Objects
+ 
+ func (r *reader2) obj() (types2.Object, []types2.Type) {
+-	r.sync(syncObject)
++	r.Sync(pkgbits.SyncObject)
+ 
+-	assert(!r.bool())
++	assert(!r.Bool())
+ 
+-	pkg, name := r.p.objIdx(r.reloc(relocObj))
++	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+ 	obj := pkg.Scope().Lookup(name)
+ 
+-	targs := make([]types2.Type, r.len())
++	targs := make([]types2.Type, r.Len())
+ 	for i := range targs {
+ 		targs[i] = r.typ()
+ 	}
+@@ -357,21 +358,21 @@ func (r *reader2) obj() (types2.Object, []types2.Type) {
+ }
+ 
+ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+-	rname := pr.newReader(relocName, idx, syncObject1)
++	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
+ 
+ 	objPkg, objName := rname.qualifiedIdent()
+ 	assert(objName != "")
+ 
+-	tag := codeObj(rname.code(syncCodeObj))
++	tag := pkgbits.CodeObj(rname.Code(pkgbits.SyncCodeObj))
+ 
+-	if tag == objStub {
++	if tag == pkgbits.ObjStub {
+ 		assert(objPkg == nil || objPkg == types2.Unsafe)
+ 		return objPkg, objName
+ 	}
+ 
+ 	dict := pr.objDictIdx(idx)
+ 
+-	r := pr.newReader(relocObj, idx, syncObject1)
++	r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
+ 	r.dict = dict
+ 
+ 	objPkg.Scope().InsertLazy(objName, func() types2.Object {
+@@ -379,24 +380,24 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ 		default:
+ 			panic("weird")
+ 
+-		case objAlias:
++		case pkgbits.ObjAlias:
+ 			pos := r.pos()
+ 			typ := r.typ()
+ 			return types2.NewTypeName(pos, objPkg, objName, typ)
+ 
+-		case objConst:
++		case pkgbits.ObjConst:
+ 			pos := r.pos()
+ 			typ := r.typ()
+-			val := r.value()
++			val := r.Value()
+ 			return types2.NewConst(pos, objPkg, objName, typ, val)
+ 
+-		case objFunc:
++		case pkgbits.ObjFunc:
+ 			pos := r.pos()
+ 			tparams := r.typeParamNames()
+ 			sig := r.signature(nil, nil, tparams)
+ 			return types2.NewFunc(pos, objPkg, objName, sig)
+ 
+-		case objType:
++		case pkgbits.ObjType:
+ 			pos := r.pos()
+ 
+ 			return types2.NewTypeNameLazy(pos, objPkg, objName, func(named *types2.Named) (tparams []*types2.TypeParam, underlying types2.Type, methods []*types2.Func) {
+@@ -408,7 +409,7 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ 				// about it, so maybe we can avoid worrying about that here.
+ 				underlying = r.typ().Underlying()
+ 
+-				methods = make([]*types2.Func, r.len())
++				methods = make([]*types2.Func, r.Len())
+ 				for i := range methods {
+ 					methods[i] = r.method()
+ 				}
+@@ -416,7 +417,7 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ 				return
+ 			})
+ 
+-		case objVar:
++		case pkgbits.ObjVar:
+ 			pos := r.pos()
+ 			typ := r.typ()
+ 			return types2.NewVar(pos, objPkg, objName, typ)
+@@ -427,23 +428,23 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ }
+ 
+ func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
+-	r := pr.newReader(relocObjDict, idx, syncObject1)
++	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
+ 
+ 	var dict reader2Dict
+ 
+-	if implicits := r.len(); implicits != 0 {
++	if implicits := r.Len(); implicits != 0 {
+ 		base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
+ 	}
+ 
+-	dict.bounds = make([]typeInfo, r.len())
++	dict.bounds = make([]typeInfo, r.Len())
+ 	for i := range dict.bounds {
+ 		dict.bounds[i] = r.typInfo()
+ 	}
+ 
+-	dict.derived = make([]derivedInfo, r.len())
++	dict.derived = make([]derivedInfo, r.Len())
+ 	dict.derivedTypes = make([]types2.Type, len(dict.derived))
+ 	for i := range dict.derived {
+-		dict.derived[i] = derivedInfo{r.reloc(relocType), r.bool()}
++		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
+ 	}
+ 
+ 	// function references follow, but reader2 doesn't need those
+@@ -452,7 +453,7 @@ func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
+ }
+ 
+ func (r *reader2) typeParamNames() []*types2.TypeParam {
+-	r.sync(syncTypeParamNames)
++	r.Sync(pkgbits.SyncTypeParamNames)
+ 
+ 	// Note: This code assumes it only processes objects without
+ 	// implement type parameters. This is currently fine, because
+@@ -485,7 +486,7 @@ func (r *reader2) typeParamNames() []*types2.TypeParam {
+ }
+ 
+ func (r *reader2) method() *types2.Func {
+-	r.sync(syncMethod)
++	r.Sync(pkgbits.SyncMethod)
+ 	pos := r.pos()
+ 	pkg, name := r.selector()
+ 
+@@ -496,11 +497,11 @@ func (r *reader2) method() *types2.Func {
+ 	return types2.NewFunc(pos, pkg, name, sig)
+ }
+ 
+-func (r *reader2) qualifiedIdent() (*types2.Package, string) { return r.ident(syncSym) }
+-func (r *reader2) localIdent() (*types2.Package, string)     { return r.ident(syncLocalIdent) }
+-func (r *reader2) selector() (*types2.Package, string)       { return r.ident(syncSelector) }
++func (r *reader2) qualifiedIdent() (*types2.Package, string) { return r.ident(pkgbits.SyncSym) }
++func (r *reader2) localIdent() (*types2.Package, string)     { return r.ident(pkgbits.SyncLocalIdent) }
++func (r *reader2) selector() (*types2.Package, string)       { return r.ident(pkgbits.SyncSelector) }
+ 
+-func (r *reader2) ident(marker syncMarker) (*types2.Package, string) {
+-	r.sync(marker)
+-	return r.pkg(), r.string()
++func (r *reader2) ident(marker pkgbits.SyncMarker) (*types2.Package, string) {
++	r.Sync(marker)
++	return r.pkg(), r.String()
+ }
+diff --git a/src/cmd/compile/internal/noder/syncmarker_string.go b/src/cmd/compile/internal/noder/syncmarker_string.go
+deleted file mode 100644
+index 1ee848cda8..0000000000
+--- a/src/cmd/compile/internal/noder/syncmarker_string.go
++++ /dev/null
+@@ -1,87 +0,0 @@
+-// Code generated by "stringer -type=syncMarker -trimprefix=sync"; DO NOT EDIT.
+-
+-package noder
+-
+-import "strconv"
+-
+-func _() {
+-	// An "invalid array index" compiler error signifies that the constant values have changed.
+-	// Re-run the stringer command to generate them again.
+-	var x [1]struct{}
+-	_ = x[syncEOF-1]
+-	_ = x[syncBool-2]
+-	_ = x[syncInt64-3]
+-	_ = x[syncUint64-4]
+-	_ = x[syncString-5]
+-	_ = x[syncValue-6]
+-	_ = x[syncVal-7]
+-	_ = x[syncRelocs-8]
+-	_ = x[syncReloc-9]
+-	_ = x[syncUseReloc-10]
+-	_ = x[syncPublic-11]
+-	_ = x[syncPos-12]
+-	_ = x[syncPosBase-13]
+-	_ = x[syncObject-14]
+-	_ = x[syncObject1-15]
+-	_ = x[syncPkg-16]
+-	_ = x[syncPkgDef-17]
+-	_ = x[syncMethod-18]
+-	_ = x[syncType-19]
+-	_ = x[syncTypeIdx-20]
+-	_ = x[syncTypeParamNames-21]
+-	_ = x[syncSignature-22]
+-	_ = x[syncParams-23]
+-	_ = x[syncParam-24]
+-	_ = x[syncCodeObj-25]
+-	_ = x[syncSym-26]
+-	_ = x[syncLocalIdent-27]
+-	_ = x[syncSelector-28]
+-	_ = x[syncPrivate-29]
+-	_ = x[syncFuncExt-30]
+-	_ = x[syncVarExt-31]
+-	_ = x[syncTypeExt-32]
+-	_ = x[syncPragma-33]
+-	_ = x[syncExprList-34]
+-	_ = x[syncExprs-35]
+-	_ = x[syncExpr-36]
+-	_ = x[syncOp-37]
+-	_ = x[syncFuncLit-38]
+-	_ = x[syncCompLit-39]
+-	_ = x[syncDecl-40]
+-	_ = x[syncFuncBody-41]
+-	_ = x[syncOpenScope-42]
+-	_ = x[syncCloseScope-43]
+-	_ = x[syncCloseAnotherScope-44]
+-	_ = x[syncDeclNames-45]
+-	_ = x[syncDeclName-46]
+-	_ = x[syncStmts-47]
+-	_ = x[syncBlockStmt-48]
+-	_ = x[syncIfStmt-49]
+-	_ = x[syncForStmt-50]
+-	_ = x[syncSwitchStmt-51]
+-	_ = x[syncRangeStmt-52]
+-	_ = x[syncCaseClause-53]
+-	_ = x[syncCommClause-54]
+-	_ = x[syncSelectStmt-55]
+-	_ = x[syncDecls-56]
+-	_ = x[syncLabeledStmt-57]
+-	_ = x[syncUseObjLocal-58]
+-	_ = x[syncAddLocal-59]
+-	_ = x[syncLinkname-60]
+-	_ = x[syncStmt1-61]
+-	_ = x[syncStmtsEnd-62]
+-	_ = x[syncLabel-63]
+-	_ = x[syncOptLabel-64]
+-}
+-
+-const _syncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabel"
+-
+-var _syncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 220, 227, 234, 238, 246, 255, 265, 282, 291, 299, 304, 313, 319, 326, 336, 345, 355, 365, 375, 380, 391, 402, 410, 418, 423, 431, 436, 444}
+-
+-func (i syncMarker) String() string {
+-	i -= 1
+-	if i < 0 || i >= syncMarker(len(_syncMarker_index)-1) {
+-		return "syncMarker(" + strconv.FormatInt(int64(i+1), 10) + ")"
+-	}
+-	return _syncMarker_name[_syncMarker_index[i]:_syncMarker_index[i+1]]
+-}
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 57bec43890..75055e9874 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/goversion"
++	"internal/pkgbits"
+ 	"io"
+ 	"runtime"
+ 	"sort"
+@@ -75,7 +76,7 @@ func unified(noders []*noder) {
+ 	writeNewExportFunc = writeNewExport
+ 
+ 	newReadImportFunc = func(data string, pkg1 *types.Pkg, ctxt *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+-		pr := newPkgDecoder(pkg1.Path, data)
++		pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
+ 
+ 		// Read package descriptors for both types2 and compiler backend.
+ 		readPackage(newPkgReader(pr), pkg1)
+@@ -98,10 +99,10 @@ func unified(noders []*noder) {
+ 
+ 	typecheck.TypecheckAllowed = true
+ 
+-	localPkgReader = newPkgReader(newPkgDecoder(types.LocalPkg.Path, data))
++	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))
+ 	readPackage(localPkgReader, types.LocalPkg)
+ 
+-	r := localPkgReader.newReader(relocMeta, privateRootIdx, syncPrivate)
++	r := localPkgReader.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+ 	r.pkgInit(types.LocalPkg, target)
+ 
+ 	// Type-check any top-level assignments. We ignore non-assignments
+@@ -162,36 +163,36 @@ func writePkgStub(noders []*noder) string {
+ 
+ 	pw.collectDecls(noders)
+ 
+-	publicRootWriter := pw.newWriter(relocMeta, syncPublic)
+-	privateRootWriter := pw.newWriter(relocMeta, syncPrivate)
++	publicRootWriter := pw.newWriter(pkgbits.RelocMeta, pkgbits.SyncPublic)
++	privateRootWriter := pw.newWriter(pkgbits.RelocMeta, pkgbits.SyncPrivate)
+ 
+-	assert(publicRootWriter.idx == publicRootIdx)
+-	assert(privateRootWriter.idx == privateRootIdx)
++	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
++	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
+ 
+ 	{
+ 		w := publicRootWriter
+ 		w.pkg(pkg)
+-		w.bool(false) // has init; XXX
++		w.Bool(false) // has init; XXX
+ 
+ 		scope := pkg.Scope()
+ 		names := scope.Names()
+-		w.len(len(names))
++		w.Len(len(names))
+ 		for _, name := range scope.Names() {
+ 			w.obj(scope.Lookup(name), nil)
+ 		}
+ 
+-		w.sync(syncEOF)
+-		w.flush()
++		w.Sync(pkgbits.SyncEOF)
++		w.Flush()
+ 	}
+ 
+ 	{
+ 		w := privateRootWriter
+ 		w.pkgInit(noders)
+-		w.flush()
++		w.Flush()
+ 	}
+ 
+ 	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
+-	pw.dump(&sb)
++	pw.DumpTo(&sb)
+ 
+ 	// At this point, we're done with types2. Make sure the package is
+ 	// garbage collected.
+@@ -235,26 +236,26 @@ func freePackage(pkg *types2.Package) {
+ }
+ 
+ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
+-	r := pr.newReader(relocMeta, publicRootIdx, syncPublic)
++	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 
+ 	pkg := r.pkg()
+ 	assert(pkg == importpkg)
+ 
+-	if r.bool() {
++	if r.Bool() {
+ 		sym := pkg.Lookup(".inittask")
+ 		task := ir.NewNameAt(src.NoXPos, sym)
+ 		task.Class = ir.PEXTERN
+ 		sym.Def = task
+ 	}
+ 
+-	for i, n := 0, r.len(); i < n; i++ {
+-		r.sync(syncObject)
+-		assert(!r.bool())
+-		idx := r.reloc(relocObj)
+-		assert(r.len() == 0)
++	for i, n := 0, r.Len(); i < n; i++ {
++		r.Sync(pkgbits.SyncObject)
++		assert(!r.Bool())
++		idx := r.Reloc(pkgbits.RelocObj)
++		assert(r.Len() == 0)
+ 
+-		path, name, code := r.p.peekObj(idx)
+-		if code != objStub {
++		path, name, code := r.p.PeekObj(idx)
++		if code != pkgbits.ObjStub {
+ 			objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil}
+ 		}
+ 	}
+@@ -262,42 +263,42 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
+ 
+ func writeNewExport(out io.Writer) {
+ 	l := linker{
+-		pw: newPkgEncoder(),
++		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
+ 
+ 		pkgs:  make(map[string]int),
+ 		decls: make(map[*types.Sym]int),
+ 	}
+ 
+-	publicRootWriter := l.pw.newEncoder(relocMeta, syncPublic)
+-	assert(publicRootWriter.idx == publicRootIdx)
++	publicRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
++	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
+ 
+ 	var selfPkgIdx int
+ 
+ 	{
+ 		pr := localPkgReader
+-		r := pr.newDecoder(relocMeta, publicRootIdx, syncPublic)
++		r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 
+-		r.sync(syncPkg)
+-		selfPkgIdx = l.relocIdx(pr, relocPkg, r.reloc(relocPkg))
++		r.Sync(pkgbits.SyncPkg)
++		selfPkgIdx = l.relocIdx(pr, pkgbits.RelocPkg, r.Reloc(pkgbits.RelocPkg))
+ 
+-		r.bool() // has init
++		r.Bool() // has init
+ 
+-		for i, n := 0, r.len(); i < n; i++ {
+-			r.sync(syncObject)
+-			assert(!r.bool())
+-			idx := r.reloc(relocObj)
+-			assert(r.len() == 0)
++		for i, n := 0, r.Len(); i < n; i++ {
++			r.Sync(pkgbits.SyncObject)
++			assert(!r.Bool())
++			idx := r.Reloc(pkgbits.RelocObj)
++			assert(r.Len() == 0)
+ 
+-			xpath, xname, xtag := pr.peekObj(idx)
+-			assert(xpath == pr.pkgPath)
+-			assert(xtag != objStub)
++			xpath, xname, xtag := pr.PeekObj(idx)
++			assert(xpath == pr.PkgPath())
++			assert(xtag != pkgbits.ObjStub)
+ 
+ 			if types.IsExported(xname) {
+-				l.relocIdx(pr, relocObj, idx)
++				l.relocIdx(pr, pkgbits.RelocObj, idx)
+ 			}
+ 		}
+ 
+-		r.sync(syncEOF)
++		r.Sync(pkgbits.SyncEOF)
+ 	}
+ 
+ 	{
+@@ -309,22 +310,22 @@ func writeNewExport(out io.Writer) {
+ 
+ 		w := publicRootWriter
+ 
+-		w.sync(syncPkg)
+-		w.reloc(relocPkg, selfPkgIdx)
++		w.Sync(pkgbits.SyncPkg)
++		w.Reloc(pkgbits.RelocPkg, selfPkgIdx)
+ 
+-		w.bool(typecheck.Lookup(".inittask").Def != nil)
++		w.Bool(typecheck.Lookup(".inittask").Def != nil)
+ 
+-		w.len(len(idxs))
++		w.Len(len(idxs))
+ 		for _, idx := range idxs {
+-			w.sync(syncObject)
+-			w.bool(false)
+-			w.reloc(relocObj, idx)
+-			w.len(0)
++			w.Sync(pkgbits.SyncObject)
++			w.Bool(false)
++			w.Reloc(pkgbits.RelocObj, idx)
++			w.Len(0)
+ 		}
+ 
+-		w.sync(syncEOF)
+-		w.flush()
++		w.Sync(pkgbits.SyncEOF)
++		w.Flush()
+ 	}
+ 
+-	l.pw.dump(out)
++	l.pw.DumpTo(out)
+ }
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 97b3d878d0..432a2a7195 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -8,6 +8,7 @@ package noder
+ 
+ import (
+ 	"fmt"
++	"internal/pkgbits"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -16,7 +17,7 @@ import (
+ )
+ 
+ type pkgWriter struct {
+-	pkgEncoder
++	pkgbits.PkgEncoder
+ 
+ 	m      posMap
+ 	curpkg *types2.Package
+@@ -36,7 +37,7 @@ type pkgWriter struct {
+ 
+ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
+ 	return &pkgWriter{
+-		pkgEncoder: newPkgEncoder(),
++		PkgEncoder: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
+ 
+ 		m:      m,
+ 		curpkg: pkg,
+@@ -70,7 +71,7 @@ func (pw *pkgWriter) unexpected(what string, p poser) {
+ type writer struct {
+ 	p *pkgWriter
+ 
+-	encoder
++	pkgbits.Encoder
+ 
+ 	// TODO(mdempsky): We should be able to prune localsIdx whenever a
+ 	// scope closes, and then maybe we can just use the same map for
+@@ -141,9 +142,9 @@ func (info objInfo) equals(other objInfo) bool {
+ 	return true
+ }
+ 
+-func (pw *pkgWriter) newWriter(k reloc, marker syncMarker) *writer {
++func (pw *pkgWriter) newWriter(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *writer {
+ 	return &writer{
+-		encoder: pw.newEncoder(k, marker),
++		Encoder: pw.NewEncoder(k, marker),
+ 		p:       pw,
+ 	}
+ }
+@@ -151,23 +152,23 @@ func (pw *pkgWriter) newWriter(k reloc, marker syncMarker) *writer {
+ // @@@ Positions
+ 
+ func (w *writer) pos(p poser) {
+-	w.sync(syncPos)
++	w.Sync(pkgbits.SyncPos)
+ 	pos := p.Pos()
+ 
+ 	// TODO(mdempsky): Track down the remaining cases here and fix them.
+-	if !w.bool(pos.IsKnown()) {
++	if !w.Bool(pos.IsKnown()) {
+ 		return
+ 	}
+ 
+ 	// TODO(mdempsky): Delta encoding. Also, if there's a b-side, update
+ 	// its position base too (but not vice versa!).
+ 	w.posBase(pos.Base())
+-	w.uint(pos.Line())
+-	w.uint(pos.Col())
++	w.Uint(pos.Line())
++	w.Uint(pos.Col())
+ }
+ 
+ func (w *writer) posBase(b *syntax.PosBase) {
+-	w.reloc(relocPosBase, w.p.posBaseIdx(b))
++	w.Reloc(pkgbits.RelocPosBase, w.p.posBaseIdx(b))
+ }
+ 
+ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) int {
+@@ -175,25 +176,25 @@ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) int {
+ 		return idx
+ 	}
+ 
+-	w := pw.newWriter(relocPosBase, syncPosBase)
+-	w.p.posBasesIdx[b] = w.idx
++	w := pw.newWriter(pkgbits.RelocPosBase, pkgbits.SyncPosBase)
++	w.p.posBasesIdx[b] = w.Idx
+ 
+-	w.string(trimFilename(b))
++	w.String(trimFilename(b))
+ 
+-	if !w.bool(b.IsFileBase()) {
++	if !w.Bool(b.IsFileBase()) {
+ 		w.pos(b)
+-		w.uint(b.Line())
+-		w.uint(b.Col())
++		w.Uint(b.Line())
++		w.Uint(b.Col())
+ 	}
+ 
+-	return w.flush()
++	return w.Flush()
+ }
+ 
+ // @@@ Packages
+ 
+ func (w *writer) pkg(pkg *types2.Package) {
+-	w.sync(syncPkg)
+-	w.reloc(relocPkg, w.p.pkgIdx(pkg))
++	w.Sync(pkgbits.SyncPkg)
++	w.Reloc(pkgbits.RelocPkg, w.p.pkgIdx(pkg))
+ }
+ 
+ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
+@@ -201,27 +202,27 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
+ 		return idx
+ 	}
+ 
+-	w := pw.newWriter(relocPkg, syncPkgDef)
+-	pw.pkgsIdx[pkg] = w.idx
++	w := pw.newWriter(pkgbits.RelocPkg, pkgbits.SyncPkgDef)
++	pw.pkgsIdx[pkg] = w.Idx
+ 
+ 	if pkg == nil {
+-		w.string("builtin")
++		w.String("builtin")
+ 	} else {
+ 		var path string
+ 		if pkg != w.p.curpkg {
+ 			path = pkg.Path()
+ 		}
+-		w.string(path)
+-		w.string(pkg.Name())
+-		w.len(pkg.Height())
++		w.String(path)
++		w.String(pkg.Name())
++		w.Len(pkg.Height())
+ 
+-		w.len(len(pkg.Imports()))
++		w.Len(len(pkg.Imports()))
+ 		for _, imp := range pkg.Imports() {
+ 			w.pkg(imp)
+ 		}
+ 	}
+ 
+-	return w.flush()
++	return w.Flush()
+ }
+ 
+ // @@@ Types
+@@ -233,12 +234,12 @@ func (w *writer) typ(typ types2.Type) {
+ }
+ 
+ func (w *writer) typInfo(info typeInfo) {
+-	w.sync(syncType)
+-	if w.bool(info.derived) {
+-		w.len(info.idx)
++	w.Sync(pkgbits.SyncType)
++	if w.Bool(info.derived) {
++		w.Len(info.idx)
+ 		w.derived = true
+ 	} else {
+-		w.reloc(relocType, info.idx)
++		w.Reloc(pkgbits.RelocType, info.idx)
+ 	}
+ }
+ 
+@@ -257,7 +258,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 		}
+ 	}
+ 
+-	w := pw.newWriter(relocType, syncTypeIdx)
++	w := pw.newWriter(pkgbits.RelocType, pkgbits.SyncTypeIdx)
+ 	w.dict = dict
+ 
+ 	switch typ := typ.(type) {
+@@ -270,15 +271,15 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 			base.Fatalf("unexpected types2.Invalid")
+ 
+ 		case types2.Typ[kind] == typ:
+-			w.code(typeBasic)
+-			w.len(int(kind))
++			w.Code(pkgbits.TypeBasic)
++			w.Len(int(kind))
+ 
+ 		default:
+ 			// Handle "byte" and "rune" as references to their TypeName.
+ 			obj := types2.Universe.Lookup(typ.Name())
+ 			assert(obj.Type() == typ)
+ 
+-			w.code(typeNamed)
++			w.Code(pkgbits.TypeNamed)
+ 			w.obj(obj, nil)
+ 		}
+ 
+@@ -294,7 +295,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 			orig = orig.Origin()
+ 		}
+ 
+-		w.code(typeNamed)
++		w.Code(pkgbits.TypeNamed)
+ 		w.obj(orig.Obj(), typ.TypeArgs())
+ 
+ 	case *types2.TypeParam:
+@@ -309,91 +310,91 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 		}()
+ 
+ 		w.derived = true
+-		w.code(typeTypeParam)
+-		w.len(index)
++		w.Code(pkgbits.TypeTypeParam)
++		w.Len(index)
+ 
+ 	case *types2.Array:
+-		w.code(typeArray)
+-		w.uint64(uint64(typ.Len()))
++		w.Code(pkgbits.TypeArray)
++		w.Uint64(uint64(typ.Len()))
+ 		w.typ(typ.Elem())
+ 
+ 	case *types2.Chan:
+-		w.code(typeChan)
+-		w.len(int(typ.Dir()))
++		w.Code(pkgbits.TypeChan)
++		w.Len(int(typ.Dir()))
+ 		w.typ(typ.Elem())
+ 
+ 	case *types2.Map:
+-		w.code(typeMap)
++		w.Code(pkgbits.TypeMap)
+ 		w.typ(typ.Key())
+ 		w.typ(typ.Elem())
+ 
+ 	case *types2.Pointer:
+-		w.code(typePointer)
++		w.Code(pkgbits.TypePointer)
+ 		w.typ(typ.Elem())
+ 
+ 	case *types2.Signature:
+ 		base.Assertf(typ.TypeParams() == nil, "unexpected type params: %v", typ)
+-		w.code(typeSignature)
++		w.Code(pkgbits.TypeSignature)
+ 		w.signature(typ)
+ 
+ 	case *types2.Slice:
+-		w.code(typeSlice)
++		w.Code(pkgbits.TypeSlice)
+ 		w.typ(typ.Elem())
+ 
+ 	case *types2.Struct:
+-		w.code(typeStruct)
++		w.Code(pkgbits.TypeStruct)
+ 		w.structType(typ)
+ 
+ 	case *types2.Interface:
+ 		if typ == anyTypeName.Type() {
+-			w.code(typeNamed)
++			w.Code(pkgbits.TypeNamed)
+ 			w.obj(anyTypeName, nil)
+ 			break
+ 		}
+ 
+-		w.code(typeInterface)
++		w.Code(pkgbits.TypeInterface)
+ 		w.interfaceType(typ)
+ 
+ 	case *types2.Union:
+-		w.code(typeUnion)
++		w.Code(pkgbits.TypeUnion)
+ 		w.unionType(typ)
+ 	}
+ 
+ 	if w.derived {
+ 		idx := len(dict.derived)
+-		dict.derived = append(dict.derived, derivedInfo{idx: w.flush()})
++		dict.derived = append(dict.derived, derivedInfo{idx: w.Flush()})
+ 		dict.derivedIdx[typ] = idx
+ 		return typeInfo{idx: idx, derived: true}
+ 	}
+ 
+-	pw.typsIdx[typ] = w.idx
+-	return typeInfo{idx: w.flush(), derived: false}
++	pw.typsIdx[typ] = w.Idx
++	return typeInfo{idx: w.Flush(), derived: false}
+ }
+ 
+ func (w *writer) structType(typ *types2.Struct) {
+-	w.len(typ.NumFields())
++	w.Len(typ.NumFields())
+ 	for i := 0; i < typ.NumFields(); i++ {
+ 		f := typ.Field(i)
+ 		w.pos(f)
+ 		w.selector(f)
+ 		w.typ(f.Type())
+-		w.string(typ.Tag(i))
+-		w.bool(f.Embedded())
++		w.String(typ.Tag(i))
++		w.Bool(f.Embedded())
+ 	}
+ }
+ 
+ func (w *writer) unionType(typ *types2.Union) {
+-	w.len(typ.Len())
++	w.Len(typ.Len())
+ 	for i := 0; i < typ.Len(); i++ {
+ 		t := typ.Term(i)
+-		w.bool(t.Tilde())
++		w.Bool(t.Tilde())
+ 		w.typ(t.Type())
+ 	}
+ }
+ 
+ func (w *writer) interfaceType(typ *types2.Interface) {
+-	w.len(typ.NumExplicitMethods())
+-	w.len(typ.NumEmbeddeds())
++	w.Len(typ.NumExplicitMethods())
++	w.Len(typ.NumEmbeddeds())
+ 
+ 	for i := 0; i < typ.NumExplicitMethods(); i++ {
+ 		m := typ.ExplicitMethod(i)
+@@ -411,22 +412,22 @@ func (w *writer) interfaceType(typ *types2.Interface) {
+ }
+ 
+ func (w *writer) signature(sig *types2.Signature) {
+-	w.sync(syncSignature)
++	w.Sync(pkgbits.SyncSignature)
+ 	w.params(sig.Params())
+ 	w.params(sig.Results())
+-	w.bool(sig.Variadic())
++	w.Bool(sig.Variadic())
+ }
+ 
+ func (w *writer) params(typ *types2.Tuple) {
+-	w.sync(syncParams)
+-	w.len(typ.Len())
++	w.Sync(pkgbits.SyncParams)
++	w.Len(typ.Len())
+ 	for i := 0; i < typ.Len(); i++ {
+ 		w.param(typ.At(i))
+ 	}
+ }
+ 
+ func (w *writer) param(param *types2.Var) {
+-	w.sync(syncParam)
++	w.Sync(pkgbits.SyncParam)
+ 	w.pos(param)
+ 	w.localIdent(param)
+ 	w.typ(param.Type())
+@@ -455,9 +456,9 @@ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+ 
+ 		// TODO(mdempsky): Push up into expr; this shouldn't appear
+ 		// outside of expression context.
+-		w.sync(syncObject)
+-		w.bool(true)
+-		w.len(idx)
++		w.Sync(pkgbits.SyncObject)
++		w.Bool(true)
++		w.Len(idx)
+ 		return
+ 	}
+ 
+@@ -471,11 +472,11 @@ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+ 		}
+ 	}
+ 
+-	w.sync(syncObject)
+-	w.bool(false)
+-	w.reloc(relocObj, info.idx)
++	w.Sync(pkgbits.SyncObject)
++	w.Bool(false)
++	w.Reloc(pkgbits.RelocObj, info.idx)
+ 
+-	w.len(len(info.explicits))
++	w.Len(len(info.explicits))
+ 	for _, info := range info.explicits {
+ 		w.typInfo(info)
+ 	}
+@@ -496,36 +497,36 @@ func (pw *pkgWriter) objIdx(obj types2.Object) int {
+ 		dict.implicits = decl.implicits
+ 	}
+ 
+-	w := pw.newWriter(relocObj, syncObject1)
+-	wext := pw.newWriter(relocObjExt, syncObject1)
+-	wname := pw.newWriter(relocName, syncObject1)
+-	wdict := pw.newWriter(relocObjDict, syncObject1)
++	w := pw.newWriter(pkgbits.RelocObj, pkgbits.SyncObject1)
++	wext := pw.newWriter(pkgbits.RelocObjExt, pkgbits.SyncObject1)
++	wname := pw.newWriter(pkgbits.RelocName, pkgbits.SyncObject1)
++	wdict := pw.newWriter(pkgbits.RelocObjDict, pkgbits.SyncObject1)
+ 
+-	pw.globalsIdx[obj] = w.idx // break cycles
+-	assert(wext.idx == w.idx)
+-	assert(wname.idx == w.idx)
+-	assert(wdict.idx == w.idx)
++	pw.globalsIdx[obj] = w.Idx // break cycles
++	assert(wext.Idx == w.Idx)
++	assert(wname.Idx == w.Idx)
++	assert(wdict.Idx == w.Idx)
+ 
+ 	w.dict = dict
+ 	wext.dict = dict
+ 
+ 	code := w.doObj(wext, obj)
+-	w.flush()
+-	wext.flush()
++	w.Flush()
++	wext.Flush()
+ 
+ 	wname.qualifiedIdent(obj)
+-	wname.code(code)
+-	wname.flush()
++	wname.Code(code)
++	wname.Flush()
+ 
+ 	wdict.objDict(obj, w.dict)
+-	wdict.flush()
++	wdict.Flush()
+ 
+-	return w.idx
++	return w.Idx
+ }
+ 
+-func (w *writer) doObj(wext *writer, obj types2.Object) codeObj {
++func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
+ 	if obj.Pkg() != w.p.curpkg {
+-		return objStub
++		return pkgbits.ObjStub
+ 	}
+ 
+ 	switch obj := obj.(type) {
+@@ -536,8 +537,8 @@ func (w *writer) doObj(wext *writer, obj types2.Object) codeObj {
+ 	case *types2.Const:
+ 		w.pos(obj)
+ 		w.typ(obj.Type())
+-		w.value(obj.Val())
+-		return objConst
++		w.Value(obj.Val())
++		return pkgbits.ObjConst
+ 
+ 	case *types2.Func:
+ 		decl, ok := w.p.funDecls[obj]
+@@ -549,7 +550,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) codeObj {
+ 		w.signature(sig)
+ 		w.pos(decl)
+ 		wext.funcExt(obj)
+-		return objFunc
++		return pkgbits.ObjFunc
+ 
+ 	case *types2.TypeName:
+ 		decl, ok := w.p.typDecls[obj]
+@@ -558,7 +559,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) codeObj {
+ 		if obj.IsAlias() {
+ 			w.pos(obj)
+ 			w.typ(obj.Type())
+-			return objAlias
++			return pkgbits.ObjAlias
+ 		}
+ 
+ 		named := obj.Type().(*types2.Named)
+@@ -569,18 +570,18 @@ func (w *writer) doObj(wext *writer, obj types2.Object) codeObj {
+ 		wext.typeExt(obj)
+ 		w.typExpr(decl.Type)
+ 
+-		w.len(named.NumMethods())
++		w.Len(named.NumMethods())
+ 		for i := 0; i < named.NumMethods(); i++ {
+ 			w.method(wext, named.Method(i))
+ 		}
+ 
+-		return objType
++		return pkgbits.ObjType
+ 
+ 	case *types2.Var:
+ 		w.pos(obj)
+ 		w.typ(obj.Type())
+ 		wext.varExt(obj)
+-		return objVar
++		return pkgbits.ObjVar
+ 	}
+ }
+ 
+@@ -600,27 +601,27 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 
+ 	w.dict = dict // TODO(mdempsky): This is a bit sketchy.
+ 
+-	w.len(len(dict.implicits))
++	w.Len(len(dict.implicits))
+ 
+ 	tparams := objTypeParams(obj)
+ 	ntparams := tparams.Len()
+-	w.len(ntparams)
++	w.Len(ntparams)
+ 	for i := 0; i < ntparams; i++ {
+ 		w.typ(tparams.At(i).Constraint())
+ 	}
+ 
+ 	nderived := len(dict.derived)
+-	w.len(nderived)
++	w.Len(nderived)
+ 	for _, typ := range dict.derived {
+-		w.reloc(relocType, typ.idx)
+-		w.bool(typ.needed)
++		w.Reloc(pkgbits.RelocType, typ.idx)
++		w.Bool(typ.needed)
+ 	}
+ 
+ 	nfuncs := len(dict.funcs)
+-	w.len(nfuncs)
++	w.Len(nfuncs)
+ 	for _, fn := range dict.funcs {
+-		w.reloc(relocObj, fn.idx)
+-		w.len(len(fn.explicits))
++		w.Reloc(pkgbits.RelocObj, fn.idx)
++		w.Len(len(fn.explicits))
+ 		for _, targ := range fn.explicits {
+ 			w.typInfo(targ)
+ 		}
+@@ -631,7 +632,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ }
+ 
+ func (w *writer) typeParamNames(tparams *types2.TypeParamList) {
+-	w.sync(syncTypeParamNames)
++	w.Sync(pkgbits.SyncTypeParamNames)
+ 
+ 	ntparams := tparams.Len()
+ 	for i := 0; i < ntparams; i++ {
+@@ -646,7 +647,7 @@ func (w *writer) method(wext *writer, meth *types2.Func) {
+ 	assert(ok)
+ 	sig := meth.Type().(*types2.Signature)
+ 
+-	w.sync(syncMethod)
++	w.Sync(pkgbits.SyncMethod)
+ 	w.pos(meth)
+ 	w.selector(meth)
+ 	w.typeParamNames(sig.RecvTypeParams())
+@@ -660,7 +661,7 @@ func (w *writer) method(wext *writer, meth *types2.Func) {
+ // qualifiedIdent writes out the name of an object declared at package
+ // scope. (For now, it's also used to refer to local defined types.)
+ func (w *writer) qualifiedIdent(obj types2.Object) {
+-	w.sync(syncSym)
++	w.Sync(pkgbits.SyncSym)
+ 
+ 	name := obj.Name()
+ 	if isDefinedType(obj) && obj.Pkg() == w.p.curpkg {
+@@ -674,7 +675,7 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
+ 	}
+ 
+ 	w.pkg(obj.Pkg())
+-	w.string(name)
++	w.String(name)
+ }
+ 
+ // TODO(mdempsky): We should be able to omit pkg from both localIdent
+@@ -687,17 +688,17 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
+ // particular function).
+ func (w *writer) localIdent(obj types2.Object) {
+ 	assert(!isGlobal(obj))
+-	w.sync(syncLocalIdent)
++	w.Sync(pkgbits.SyncLocalIdent)
+ 	w.pkg(obj.Pkg())
+-	w.string(obj.Name())
++	w.String(obj.Name())
+ }
+ 
+ // selector writes the name of a field or method (i.e., objects that
+ // can only be accessed using selector expressions).
+ func (w *writer) selector(obj types2.Object) {
+-	w.sync(syncSelector)
++	w.Sync(pkgbits.SyncSelector)
+ 	w.pkg(obj.Pkg())
+-	w.string(obj.Name())
++	w.String(obj.Name())
+ }
+ 
+ // @@@ Compiler extensions
+@@ -733,56 +734,56 @@ func (w *writer) funcExt(obj *types2.Func) {
+ 	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, block, w.dict)
+ 	assert(len(closureVars) == 0)
+ 
+-	w.sync(syncFuncExt)
++	w.Sync(pkgbits.SyncFuncExt)
+ 	w.pragmaFlag(pragma)
+ 	w.linkname(obj)
+-	w.bool(false) // stub extension
+-	w.reloc(relocBody, body)
+-	w.sync(syncEOF)
++	w.Bool(false) // stub extension
++	w.Reloc(pkgbits.RelocBody, body)
++	w.Sync(pkgbits.SyncEOF)
+ }
+ 
+ func (w *writer) typeExt(obj *types2.TypeName) {
+ 	decl, ok := w.p.typDecls[obj]
+ 	assert(ok)
+ 
+-	w.sync(syncTypeExt)
++	w.Sync(pkgbits.SyncTypeExt)
+ 
+ 	w.pragmaFlag(asPragmaFlag(decl.Pragma))
+ 
+ 	// No LSym.SymIdx info yet.
+-	w.int64(-1)
+-	w.int64(-1)
++	w.Int64(-1)
++	w.Int64(-1)
+ }
+ 
+ func (w *writer) varExt(obj *types2.Var) {
+-	w.sync(syncVarExt)
++	w.Sync(pkgbits.SyncVarExt)
+ 	w.linkname(obj)
+ }
+ 
+ func (w *writer) linkname(obj types2.Object) {
+-	w.sync(syncLinkname)
+-	w.int64(-1)
+-	w.string(w.p.linknames[obj])
++	w.Sync(pkgbits.SyncLinkname)
++	w.Int64(-1)
++	w.String(w.p.linknames[obj])
+ }
+ 
+ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
+-	w.sync(syncPragma)
+-	w.int(int(p))
++	w.Sync(pkgbits.SyncPragma)
++	w.Int(int(p))
+ }
+ 
+ // @@@ Function bodies
+ 
+ func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx int, closureVars []posObj) {
+-	w := pw.newWriter(relocBody, syncFuncBody)
++	w := pw.newWriter(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+ 	w.dict = dict
+ 
+ 	w.funcargs(sig)
+-	if w.bool(block != nil) {
++	if w.Bool(block != nil) {
+ 		w.stmts(block.List)
+ 		w.pos(block.Rbrace)
+ 	}
+ 
+-	return w.flush(), w.closureVars
++	return w.Flush(), w.closureVars
+ }
+ 
+ func (w *writer) funcargs(sig *types2.Signature) {
+@@ -806,10 +807,10 @@ func (w *writer) funcarg(param *types2.Var, result bool) {
+ }
+ 
+ func (w *writer) addLocal(obj *types2.Var) {
+-	w.sync(syncAddLocal)
++	w.Sync(pkgbits.SyncAddLocal)
+ 	idx := len(w.localsIdx)
+-	if enableSync {
+-		w.int(idx)
++	if pkgbits.EnableSync {
++		w.Int(idx)
+ 	}
+ 	if w.localsIdx == nil {
+ 		w.localsIdx = make(map[*types2.Var]int)
+@@ -818,10 +819,10 @@ func (w *writer) addLocal(obj *types2.Var) {
+ }
+ 
+ func (w *writer) useLocal(pos syntax.Pos, obj *types2.Var) {
+-	w.sync(syncUseObjLocal)
++	w.Sync(pkgbits.SyncUseObjLocal)
+ 
+-	if idx, ok := w.localsIdx[obj]; w.bool(ok) {
+-		w.len(idx)
++	if idx, ok := w.localsIdx[obj]; w.Bool(ok) {
++		w.Len(idx)
+ 		return
+ 	}
+ 
+@@ -834,22 +835,22 @@ func (w *writer) useLocal(pos syntax.Pos, obj *types2.Var) {
+ 		w.closureVars = append(w.closureVars, posObj{pos, obj})
+ 		w.closureVarsIdx[obj] = idx
+ 	}
+-	w.len(idx)
++	w.Len(idx)
+ }
+ 
+ func (w *writer) openScope(pos syntax.Pos) {
+-	w.sync(syncOpenScope)
++	w.Sync(pkgbits.SyncOpenScope)
+ 	w.pos(pos)
+ }
+ 
+ func (w *writer) closeScope(pos syntax.Pos) {
+-	w.sync(syncCloseScope)
++	w.Sync(pkgbits.SyncCloseScope)
+ 	w.pos(pos)
+ 	w.closeAnotherScope()
+ }
+ 
+ func (w *writer) closeAnotherScope() {
+-	w.sync(syncCloseAnotherScope)
++	w.Sync(pkgbits.SyncCloseAnotherScope)
+ }
+ 
+ // @@@ Statements
+@@ -863,12 +864,12 @@ func (w *writer) stmt(stmt syntax.Stmt) {
+ }
+ 
+ func (w *writer) stmts(stmts []syntax.Stmt) {
+-	w.sync(syncStmts)
++	w.Sync(pkgbits.SyncStmts)
+ 	for _, stmt := range stmts {
+ 		w.stmt1(stmt)
+ 	}
+-	w.code(stmtEnd)
+-	w.sync(syncStmtsEnd)
++	w.Code(stmtEnd)
++	w.Sync(pkgbits.SyncStmtsEnd)
+ }
+ 
+ func (w *writer) stmt1(stmt syntax.Stmt) {
+@@ -882,37 +883,37 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
+ 	case *syntax.AssignStmt:
+ 		switch {
+ 		case stmt.Rhs == nil:
+-			w.code(stmtIncDec)
++			w.Code(stmtIncDec)
+ 			w.op(binOps[stmt.Op])
+ 			w.expr(stmt.Lhs)
+ 			w.pos(stmt)
+ 
+ 		case stmt.Op != 0 && stmt.Op != syntax.Def:
+-			w.code(stmtAssignOp)
++			w.Code(stmtAssignOp)
+ 			w.op(binOps[stmt.Op])
+ 			w.expr(stmt.Lhs)
+ 			w.pos(stmt)
+ 			w.expr(stmt.Rhs)
+ 
+ 		default:
+-			w.code(stmtAssign)
++			w.Code(stmtAssign)
+ 			w.pos(stmt)
+ 			w.exprList(stmt.Rhs)
+ 			w.assignList(stmt.Lhs)
+ 		}
+ 
+ 	case *syntax.BlockStmt:
+-		w.code(stmtBlock)
++		w.Code(stmtBlock)
+ 		w.blockStmt(stmt)
+ 
+ 	case *syntax.BranchStmt:
+-		w.code(stmtBranch)
++		w.Code(stmtBranch)
+ 		w.pos(stmt)
+ 		w.op(branchOps[stmt.Tok])
+ 		w.optLabel(stmt.Label)
+ 
+ 	case *syntax.CallStmt:
+-		w.code(stmtCall)
++		w.Code(stmtCall)
+ 		w.pos(stmt)
+ 		w.op(callOps[stmt.Tok])
+ 		w.expr(stmt.Call)
+@@ -923,54 +924,54 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
+ 		}
+ 
+ 	case *syntax.ExprStmt:
+-		w.code(stmtExpr)
++		w.Code(stmtExpr)
+ 		w.expr(stmt.X)
+ 
+ 	case *syntax.ForStmt:
+-		w.code(stmtFor)
++		w.Code(stmtFor)
+ 		w.forStmt(stmt)
+ 
+ 	case *syntax.IfStmt:
+-		w.code(stmtIf)
++		w.Code(stmtIf)
+ 		w.ifStmt(stmt)
+ 
+ 	case *syntax.LabeledStmt:
+-		w.code(stmtLabel)
++		w.Code(stmtLabel)
+ 		w.pos(stmt)
+ 		w.label(stmt.Label)
+ 		w.stmt1(stmt.Stmt)
+ 
+ 	case *syntax.ReturnStmt:
+-		w.code(stmtReturn)
++		w.Code(stmtReturn)
+ 		w.pos(stmt)
+ 		w.exprList(stmt.Results)
+ 
+ 	case *syntax.SelectStmt:
+-		w.code(stmtSelect)
++		w.Code(stmtSelect)
+ 		w.selectStmt(stmt)
+ 
+ 	case *syntax.SendStmt:
+-		w.code(stmtSend)
++		w.Code(stmtSend)
+ 		w.pos(stmt)
+ 		w.expr(stmt.Chan)
+ 		w.expr(stmt.Value)
+ 
+ 	case *syntax.SwitchStmt:
+-		w.code(stmtSwitch)
++		w.Code(stmtSwitch)
+ 		w.switchStmt(stmt)
+ 	}
+ }
+ 
+ func (w *writer) assignList(expr syntax.Expr) {
+ 	exprs := unpackListExpr(expr)
+-	w.len(len(exprs))
++	w.Len(len(exprs))
+ 
+ 	for _, expr := range exprs {
+ 		if name, ok := expr.(*syntax.Name); ok && name.Value != "_" {
+ 			if obj, ok := w.p.info.Defs[name]; ok {
+ 				obj := obj.(*types2.Var)
+ 
+-				w.bool(true)
++				w.Bool(true)
+ 				w.pos(obj)
+ 				w.localIdent(obj)
+ 				w.typ(obj.Type())
+@@ -982,7 +983,7 @@ func (w *writer) assignList(expr syntax.Expr) {
+ 			}
+ 		}
+ 
+-		w.bool(false)
++		w.Bool(false)
+ 		w.expr(expr)
+ 	}
+ }
+@@ -995,7 +996,7 @@ func (w *writer) declStmt(decl syntax.Decl) {
+ 	case *syntax.ConstDecl, *syntax.TypeDecl:
+ 
+ 	case *syntax.VarDecl:
+-		w.code(stmtAssign)
++		w.Code(stmtAssign)
+ 		w.pos(decl)
+ 		w.exprList(decl.Values)
+ 		w.assignList(namesAsExpr(decl.NameList))
+@@ -1003,17 +1004,17 @@ func (w *writer) declStmt(decl syntax.Decl) {
+ }
+ 
+ func (w *writer) blockStmt(stmt *syntax.BlockStmt) {
+-	w.sync(syncBlockStmt)
++	w.Sync(pkgbits.SyncBlockStmt)
+ 	w.openScope(stmt.Pos())
+ 	w.stmts(stmt.List)
+ 	w.closeScope(stmt.Rbrace)
+ }
+ 
+ func (w *writer) forStmt(stmt *syntax.ForStmt) {
+-	w.sync(syncForStmt)
++	w.Sync(pkgbits.SyncForStmt)
+ 	w.openScope(stmt.Pos())
+ 
+-	if rang, ok := stmt.Init.(*syntax.RangeClause); w.bool(ok) {
++	if rang, ok := stmt.Init.(*syntax.RangeClause); w.Bool(ok) {
+ 		w.pos(rang)
+ 		w.expr(rang.X)
+ 		w.assignList(rang.Lhs)
+@@ -1029,7 +1030,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
+ }
+ 
+ func (w *writer) ifStmt(stmt *syntax.IfStmt) {
+-	w.sync(syncIfStmt)
++	w.Sync(pkgbits.SyncIfStmt)
+ 	w.openScope(stmt.Pos())
+ 	w.pos(stmt)
+ 	w.stmt(stmt.Init)
+@@ -1040,10 +1041,10 @@ func (w *writer) ifStmt(stmt *syntax.IfStmt) {
+ }
+ 
+ func (w *writer) selectStmt(stmt *syntax.SelectStmt) {
+-	w.sync(syncSelectStmt)
++	w.Sync(pkgbits.SyncSelectStmt)
+ 
+ 	w.pos(stmt)
+-	w.len(len(stmt.Body))
++	w.Len(len(stmt.Body))
+ 	for i, clause := range stmt.Body {
+ 		if i > 0 {
+ 			w.closeScope(clause.Pos())
+@@ -1060,24 +1061,24 @@ func (w *writer) selectStmt(stmt *syntax.SelectStmt) {
+ }
+ 
+ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+-	w.sync(syncSwitchStmt)
++	w.Sync(pkgbits.SyncSwitchStmt)
+ 
+ 	w.openScope(stmt.Pos())
+ 	w.pos(stmt)
+ 	w.stmt(stmt.Init)
+ 
+-	if guard, ok := stmt.Tag.(*syntax.TypeSwitchGuard); w.bool(ok) {
++	if guard, ok := stmt.Tag.(*syntax.TypeSwitchGuard); w.Bool(ok) {
+ 		w.pos(guard)
+-		if tag := guard.Lhs; w.bool(tag != nil) {
++		if tag := guard.Lhs; w.Bool(tag != nil) {
+ 			w.pos(tag)
+-			w.string(tag.Value)
++			w.String(tag.Value)
+ 		}
+ 		w.expr(guard.X)
+ 	} else {
+ 		w.expr(stmt.Tag)
+ 	}
+ 
+-	w.len(len(stmt.Body))
++	w.Len(len(stmt.Body))
+ 	for i, clause := range stmt.Body {
+ 		if i > 0 {
+ 			w.closeScope(clause.Pos())
+@@ -1114,15 +1115,15 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ }
+ 
+ func (w *writer) label(label *syntax.Name) {
+-	w.sync(syncLabel)
++	w.Sync(pkgbits.SyncLabel)
+ 
+ 	// TODO(mdempsky): Replace label strings with dense indices.
+-	w.string(label.Value)
++	w.String(label.Value)
+ }
+ 
+ func (w *writer) optLabel(label *syntax.Name) {
+-	w.sync(syncOptLabel)
+-	if w.bool(label != nil) {
++	w.Sync(pkgbits.SyncOptLabel)
++	if w.Bool(label != nil) {
+ 		w.label(label)
+ 	}
+ }
+@@ -1144,28 +1145,28 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		}
+ 
+ 		if tv.IsType() {
+-			w.code(exprType)
++			w.Code(exprType)
+ 			w.typ(tv.Type)
+ 			return
+ 		}
+ 
+ 		if tv.Value != nil {
+-			w.code(exprConst)
++			w.Code(exprConst)
+ 			w.pos(expr.Pos())
+ 			w.typ(tv.Type)
+-			w.value(tv.Value)
++			w.Value(tv.Value)
+ 
+ 			// TODO(mdempsky): These details are only important for backend
+ 			// diagnostics. Explore writing them out separately.
+ 			w.op(constExprOp(expr))
+-			w.string(syntax.String(expr))
++			w.String(syntax.String(expr))
+ 			return
+ 		}
+ 	}
+ 
+ 	if obj != nil {
+ 		if isGlobal(obj) {
+-			w.code(exprName)
++			w.Code(exprName)
+ 			w.obj(obj, targs)
+ 			return
+ 		}
+@@ -1174,7 +1175,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		assert(!obj.IsField())
+ 		assert(targs.Len() == 0)
+ 
+-		w.code(exprLocal)
++		w.Code(exprLocal)
+ 		w.useLocal(expr.Pos(), obj)
+ 		return
+ 	}
+@@ -1184,25 +1185,25 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		w.p.unexpected("expression", expr)
+ 
+ 	case nil: // absent slice index, for condition, or switch tag
+-		w.code(exprNone)
++		w.Code(exprNone)
+ 
+ 	case *syntax.Name:
+ 		assert(expr.Value == "_")
+-		w.code(exprBlank)
++		w.Code(exprBlank)
+ 
+ 	case *syntax.CompositeLit:
+-		w.code(exprCompLit)
++		w.Code(exprCompLit)
+ 		w.compLit(expr)
+ 
+ 	case *syntax.FuncLit:
+-		w.code(exprFuncLit)
++		w.Code(exprFuncLit)
+ 		w.funcLit(expr)
+ 
+ 	case *syntax.SelectorExpr:
+ 		sel, ok := w.p.info.Selections[expr]
+ 		assert(ok)
+ 
+-		w.code(exprSelector)
++		w.Code(exprSelector)
+ 		w.expr(expr.X)
+ 		w.pos(expr)
+ 		w.selector(sel.Obj())
+@@ -1211,13 +1212,13 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		tv, ok := w.p.info.Types[expr.Index]
+ 		assert(ok && tv.IsValue())
+ 
+-		w.code(exprIndex)
++		w.Code(exprIndex)
+ 		w.expr(expr.X)
+ 		w.pos(expr)
+ 		w.expr(expr.Index)
+ 
+ 	case *syntax.SliceExpr:
+-		w.code(exprSlice)
++		w.Code(exprSlice)
+ 		w.expr(expr.X)
+ 		w.pos(expr)
+ 		for _, n := range &expr.Index {
+@@ -1225,21 +1226,21 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		}
+ 
+ 	case *syntax.AssertExpr:
+-		w.code(exprAssert)
++		w.Code(exprAssert)
+ 		w.expr(expr.X)
+ 		w.pos(expr)
+ 		w.expr(expr.Type)
+ 
+ 	case *syntax.Operation:
+ 		if expr.Y == nil {
+-			w.code(exprUnaryOp)
++			w.Code(exprUnaryOp)
+ 			w.op(unOps[expr.Op])
+ 			w.pos(expr)
+ 			w.expr(expr.X)
+ 			break
+ 		}
+ 
+-		w.code(exprBinaryOp)
++		w.Code(exprBinaryOp)
+ 		w.op(binOps[expr.Op])
+ 		w.expr(expr.X)
+ 		w.pos(expr)
+@@ -1252,7 +1253,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			assert(len(expr.ArgList) == 1)
+ 			assert(!expr.HasDots)
+ 
+-			w.code(exprConvert)
++			w.Code(exprConvert)
+ 			w.typ(tv.Type)
+ 			w.pos(expr)
+ 			w.expr(expr.ArgList[0])
+@@ -1263,7 +1264,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			if selector, ok := unparen(expr.Fun).(*syntax.SelectorExpr); ok {
+ 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
+ 					w.expr(selector.X)
+-					w.bool(true) // method call
++					w.Bool(true) // method call
+ 					w.pos(selector)
+ 					w.selector(sel.Obj())
+ 					return
+@@ -1271,14 +1272,14 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			}
+ 
+ 			w.expr(expr.Fun)
+-			w.bool(false) // not a method call (i.e., normal function call)
++			w.Bool(false) // not a method call (i.e., normal function call)
+ 		}
+ 
+-		w.code(exprCall)
++		w.Code(exprCall)
+ 		writeFunExpr()
+ 		w.pos(expr)
+ 		w.exprs(expr.ArgList)
+-		w.bool(expr.HasDots)
++		w.Bool(expr.HasDots)
+ 	}
+ }
+ 
+@@ -1286,7 +1287,7 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
+ 	tv, ok := w.p.info.Types[lit]
+ 	assert(ok)
+ 
+-	w.sync(syncCompLit)
++	w.Sync(pkgbits.SyncCompLit)
+ 	w.pos(lit)
+ 	w.typ(tv.Type)
+ 
+@@ -1296,20 +1297,20 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
+ 	}
+ 	str, isStruct := types2.CoreType(typ).(*types2.Struct)
+ 
+-	w.len(len(lit.ElemList))
++	w.Len(len(lit.ElemList))
+ 	for i, elem := range lit.ElemList {
+ 		if isStruct {
+ 			if kv, ok := elem.(*syntax.KeyValueExpr); ok {
+ 				// use position of expr.Key rather than of elem (which has position of ':')
+ 				w.pos(kv.Key)
+-				w.len(fieldIndex(w.p.info, str, kv.Key.(*syntax.Name)))
++				w.Len(fieldIndex(w.p.info, str, kv.Key.(*syntax.Name)))
+ 				elem = kv.Value
+ 			} else {
+ 				w.pos(elem)
+-				w.len(i)
++				w.Len(i)
+ 			}
+ 		} else {
+-			if kv, ok := elem.(*syntax.KeyValueExpr); w.bool(ok) {
++			if kv, ok := elem.(*syntax.KeyValueExpr); w.Bool(ok) {
+ 				// use position of expr.Key rather than of elem (which has position of ':')
+ 				w.pos(kv.Key)
+ 				w.expr(kv.Key)
+@@ -1328,17 +1329,17 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
+ 
+ 	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, expr.Body, w.dict)
+ 
+-	w.sync(syncFuncLit)
++	w.Sync(pkgbits.SyncFuncLit)
+ 	w.pos(expr)
+ 	w.signature(sig)
+ 
+-	w.len(len(closureVars))
++	w.Len(len(closureVars))
+ 	for _, cv := range closureVars {
+ 		w.pos(cv.pos)
+ 		w.useLocal(cv.pos, cv.obj)
+ 	}
+ 
+-	w.reloc(relocBody, body)
++	w.Reloc(pkgbits.RelocBody, body)
+ }
+ 
+ type posObj struct {
+@@ -1347,7 +1348,7 @@ type posObj struct {
+ }
+ 
+ func (w *writer) exprList(expr syntax.Expr) {
+-	w.sync(syncExprList)
++	w.Sync(pkgbits.SyncExprList)
+ 	w.exprs(unpackListExpr(expr))
+ }
+ 
+@@ -1356,8 +1357,8 @@ func (w *writer) exprs(exprs []syntax.Expr) {
+ 		assert(exprs == nil)
+ 	}
+ 
+-	w.sync(syncExprs)
+-	w.len(len(exprs))
++	w.Sync(pkgbits.SyncExprs)
++	w.Len(len(exprs))
+ 	for _, expr := range exprs {
+ 		w.expr(expr)
+ 	}
+@@ -1368,8 +1369,8 @@ func (w *writer) op(op ir.Op) {
+ 	// export data more stable against internal refactorings, but low
+ 	// priority at the moment.
+ 	assert(op != 0)
+-	w.sync(syncOp)
+-	w.len(int(op))
++	w.Sync(pkgbits.SyncOp)
++	w.Len(int(op))
+ }
+ 
+ func (w *writer) needType(typ types2.Type) {
+@@ -1555,20 +1556,20 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
+ }
+ 
+ func (w *writer) pkgInit(noders []*noder) {
+-	w.len(len(w.p.cgoPragmas))
++	w.Len(len(w.p.cgoPragmas))
+ 	for _, cgoPragma := range w.p.cgoPragmas {
+-		w.strings(cgoPragma)
++		w.Strings(cgoPragma)
+ 	}
+ 
+-	w.sync(syncDecls)
++	w.Sync(pkgbits.SyncDecls)
+ 	for _, p := range noders {
+ 		for _, decl := range p.file.DeclList {
+ 			w.pkgDecl(decl)
+ 		}
+ 	}
+-	w.code(declEnd)
++	w.Code(declEnd)
+ 
+-	w.sync(syncEOF)
++	w.Sync(pkgbits.SyncEOF)
+ }
+ 
+ func (w *writer) pkgDecl(decl syntax.Decl) {
+@@ -1579,7 +1580,7 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
+ 	case *syntax.ImportDecl:
+ 
+ 	case *syntax.ConstDecl:
+-		w.code(declOther)
++		w.Code(declOther)
+ 		w.pkgObjs(decl.NameList...)
+ 
+ 	case *syntax.FuncDecl:
+@@ -1595,13 +1596,13 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
+ 		}
+ 
+ 		if recv := sig.Recv(); recv != nil {
+-			w.code(declMethod)
++			w.Code(declMethod)
+ 			w.typ(recvBase(recv))
+ 			w.selector(obj)
+ 			break
+ 		}
+ 
+-		w.code(declFunc)
++		w.Code(declFunc)
+ 		w.pkgObjs(decl.Name)
+ 
+ 	case *syntax.TypeDecl:
+@@ -1629,11 +1630,11 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
+ 			}
+ 		}
+ 
+-		w.code(declOther)
++		w.Code(declOther)
+ 		w.pkgObjs(decl.Name)
+ 
+ 	case *syntax.VarDecl:
+-		w.code(declVar)
++		w.Code(declVar)
+ 		w.pos(decl)
+ 		w.pkgObjs(decl.NameList...)
+ 		w.exprList(decl.Values)
+@@ -1642,23 +1643,23 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
+ 		if p, ok := decl.Pragma.(*pragmas); ok {
+ 			embeds = p.Embeds
+ 		}
+-		w.len(len(embeds))
++		w.Len(len(embeds))
+ 		for _, embed := range embeds {
+ 			w.pos(embed.Pos)
+-			w.strings(embed.Patterns)
++			w.Strings(embed.Patterns)
+ 		}
+ 	}
+ }
+ 
+ func (w *writer) pkgObjs(names ...*syntax.Name) {
+-	w.sync(syncDeclNames)
+-	w.len(len(names))
++	w.Sync(pkgbits.SyncDeclNames)
++	w.Len(len(names))
+ 
+ 	for _, name := range names {
+ 		obj, ok := w.p.info.Defs[name]
+ 		assert(ok)
+ 
+-		w.sync(syncDeclName)
++		w.Sync(pkgbits.SyncDeclName)
+ 		w.obj(obj, nil)
+ 	}
+ }
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 036f8c52fa..79ccf2b167 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -63,6 +63,7 @@ var bootstrapDirs = []string{
+ 	"internal/buildcfg",
+ 	"internal/goexperiment",
+ 	"internal/goversion",
++	"internal/pkgbits",
+ 	"internal/race",
+ 	"internal/unsafeheader",
+ 	"internal/xcoff",
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 72465659dc..6ce872e297 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -310,6 +310,7 @@ var depsRules = `
+ 	< go/build;
+ 
+ 	DEBUG, go/build, go/types, text/scanner
++  < internal/pkgbits
+ 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
+ 	< go/importer;
+ 
+diff --git a/src/internal/pkgbits/codes.go b/src/internal/pkgbits/codes.go
+new file mode 100644
+index 0000000000..8438ab3216
+--- /dev/null
++++ b/src/internal/pkgbits/codes.go
+@@ -0,0 +1,60 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkgbits
++
++type Code interface {
++	Marker() SyncMarker
++	Value() int
++}
++
++type CodeVal int
++
++func (c CodeVal) Marker() SyncMarker { return SyncVal }
++func (c CodeVal) Value() int         { return int(c) }
++
++const (
++	ValBool CodeVal = iota
++	ValString
++	ValInt64
++	ValBigInt
++	ValBigRat
++	ValBigFloat
++)
++
++type CodeType int
++
++func (c CodeType) Marker() SyncMarker { return SyncType }
++func (c CodeType) Value() int         { return int(c) }
++
++const (
++	TypeBasic CodeType = iota
++	TypeNamed
++	TypePointer
++	TypeSlice
++	TypeArray
++	TypeChan
++	TypeMap
++	TypeSignature
++	TypeStruct
++	TypeInterface
++	TypeUnion
++	TypeTypeParam
++)
++
++type CodeObj int
++
++func (c CodeObj) Marker() SyncMarker { return SyncCodeObj }
++func (c CodeObj) Value() int         { return int(c) }
++
++const (
++	ObjAlias CodeObj = iota
++	ObjConst
++	ObjType
++	ObjFunc
++	ObjVar
++	ObjStub
++)
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+new file mode 100644
+index 0000000000..537d48d899
+--- /dev/null
++++ b/src/internal/pkgbits/decoder.go
+@@ -0,0 +1,332 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkgbits
++
++import (
++	"encoding/binary"
++	"fmt"
++	"go/constant"
++	"go/token"
++	"math/big"
++	"os"
++	"runtime"
++	"strings"
++)
++
++type PkgDecoder struct {
++	pkgPath string
++
++	elemEndsEnds [numRelocs]uint32
++	elemEnds     []uint32
++	elemData     string
++}
++
++func (pr *PkgDecoder) PkgPath() string { return pr.pkgPath }
++
++func NewPkgDecoder(pkgPath, input string) PkgDecoder {
++	pr := PkgDecoder{
++		pkgPath: pkgPath,
++	}
++
++	// TODO(mdempsky): Implement direct indexing of input string to
++	// avoid copying the position information.
++
++	r := strings.NewReader(input)
++
++	assert(binary.Read(r, binary.LittleEndian, pr.elemEndsEnds[:]) == nil)
++
++	pr.elemEnds = make([]uint32, pr.elemEndsEnds[len(pr.elemEndsEnds)-1])
++	assert(binary.Read(r, binary.LittleEndian, pr.elemEnds[:]) == nil)
++
++	pos, err := r.Seek(0, os.SEEK_CUR)
++	assert(err == nil)
++
++	pr.elemData = input[pos:]
++	assert(len(pr.elemData) == int(pr.elemEnds[len(pr.elemEnds)-1]))
++
++	return pr
++}
++
++func (pr *PkgDecoder) NumElems(k RelocKind) int {
++	count := int(pr.elemEndsEnds[k])
++	if k > 0 {
++		count -= int(pr.elemEndsEnds[k-1])
++	}
++	return count
++}
++
++func (pr *PkgDecoder) TotalElems() int {
++	return len(pr.elemEnds)
++}
++
++func (pr *PkgDecoder) AbsIdx(k RelocKind, idx int) int {
++	absIdx := idx
++	if k > 0 {
++		absIdx += int(pr.elemEndsEnds[k-1])
++	}
++	if absIdx >= int(pr.elemEndsEnds[k]) {
++		errorf("%v:%v is out of bounds; %v", k, idx, pr.elemEndsEnds)
++	}
++	return absIdx
++}
++
++func (pr *PkgDecoder) DataIdx(k RelocKind, idx int) string {
++	absIdx := pr.AbsIdx(k, idx)
++
++	var start uint32
++	if absIdx > 0 {
++		start = pr.elemEnds[absIdx-1]
++	}
++	end := pr.elemEnds[absIdx]
++
++	return pr.elemData[start:end]
++}
++
++func (pr *PkgDecoder) StringIdx(idx int) string {
++	return pr.DataIdx(RelocString, idx)
++}
++
++func (pr *PkgDecoder) NewDecoder(k RelocKind, idx int, marker SyncMarker) Decoder {
++	r := pr.NewDecoderRaw(k, idx)
++	r.Sync(marker)
++	return r
++}
++
++func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx int) Decoder {
++	r := Decoder{
++		common: pr,
++		k:      k,
++		Idx:    idx,
++	}
++
++	// TODO(mdempsky) r.data.Reset(...) after #44505 is resolved.
++	r.Data = *strings.NewReader(pr.DataIdx(k, idx))
++
++	r.Sync(SyncRelocs)
++	r.Relocs = make([]RelocEnt, r.Len())
++	for i := range r.Relocs {
++		r.Sync(SyncReloc)
++		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), r.Len()}
++	}
++
++	return r
++}
++
++type Decoder struct {
++	common *PkgDecoder
++
++	Relocs []RelocEnt
++	Data   strings.Reader
++
++	k   RelocKind
++	Idx int
++}
++
++func (r *Decoder) checkErr(err error) {
++	if err != nil {
++		errorf("unexpected decoding error: %w", err)
++	}
++}
++
++func (r *Decoder) rawUvarint() uint64 {
++	x, err := binary.ReadUvarint(&r.Data)
++	r.checkErr(err)
++	return x
++}
++
++func (r *Decoder) rawVarint() int64 {
++	ux := r.rawUvarint()
++
++	// Zig-zag decode.
++	x := int64(ux >> 1)
++	if ux&1 != 0 {
++		x = ^x
++	}
++	return x
++}
++
++func (r *Decoder) rawReloc(k RelocKind, idx int) int {
++	e := r.Relocs[idx]
++	assert(e.Kind == k)
++	return e.Idx
++}
++
++func (r *Decoder) Sync(mWant SyncMarker) {
++	if !EnableSync {
++		return
++	}
++
++	pos, _ := r.Data.Seek(0, os.SEEK_CUR) // TODO(mdempsky): io.SeekCurrent after #44505 is resolved
++	mHave := SyncMarker(r.rawUvarint())
++	writerPCs := make([]int, r.rawUvarint())
++	for i := range writerPCs {
++		writerPCs[i] = int(r.rawUvarint())
++	}
++
++	if mHave == mWant {
++		return
++	}
++
++	// There's some tension here between printing:
++	//
++	// (1) full file paths that tools can recognize (e.g., so emacs
++	//     hyperlinks the "file:line" text for easy navigation), or
++	//
++	// (2) short file paths that are easier for humans to read (e.g., by
++	//     omitting redundant or irrelevant details, so it's easier to
++	//     focus on the useful bits that remain).
++	//
++	// The current formatting favors the former, as it seems more
++	// helpful in practice. But perhaps the formatting could be improved
++	// to better address both concerns. For example, use relative file
++	// paths if they would be shorter, or rewrite file paths to contain
++	// "$GOROOT" (like objabi.AbsFile does) if tools can be taught how
++	// to reliably expand that again.
++
++	fmt.Printf("export data desync: package %q, section %v, index %v, offset %v\n", r.common.pkgPath, r.k, r.Idx, pos)
++
++	fmt.Printf("\nfound %v, written at:\n", mHave)
++	if len(writerPCs) == 0 {
++		fmt.Printf("\t[stack trace unavailable; recompile package %q with -d=syncframes]\n", r.common.pkgPath)
++	}
++	for _, pc := range writerPCs {
++		fmt.Printf("\t%s\n", r.common.StringIdx(r.rawReloc(RelocString, pc)))
++	}
++
++	fmt.Printf("\nexpected %v, reading at:\n", mWant)
++	var readerPCs [32]uintptr // TODO(mdempsky): Dynamically size?
++	n := runtime.Callers(2, readerPCs[:])
++	for _, pc := range fmtFrames(readerPCs[:n]...) {
++		fmt.Printf("\t%s\n", pc)
++	}
++
++	// We already printed a stack trace for the reader, so now we can
++	// simply exit. Printing a second one with panic or base.Fatalf
++	// would just be noise.
++	os.Exit(1)
++}
++
++func (r *Decoder) Bool() bool {
++	r.Sync(SyncBool)
++	x, err := r.Data.ReadByte()
++	r.checkErr(err)
++	assert(x < 2)
++	return x != 0
++}
++
++func (r *Decoder) Int64() int64 {
++	r.Sync(SyncInt64)
++	return r.rawVarint()
++}
++
++func (r *Decoder) Uint64() uint64 {
++	r.Sync(SyncUint64)
++	return r.rawUvarint()
++}
++
++func (r *Decoder) Len() int   { x := r.Uint64(); v := int(x); assert(uint64(v) == x); return v }
++func (r *Decoder) Int() int   { x := r.Int64(); v := int(x); assert(int64(v) == x); return v }
++func (r *Decoder) Uint() uint { x := r.Uint64(); v := uint(x); assert(uint64(v) == x); return v }
++
++// TODO(mdempsky): Ideally this method would have signature "Code[T
++// Code] T" instead, but we don't allow generic methods and the
++// compiler can't depend on generics yet anyway.
++func (r *Decoder) Code(mark SyncMarker) int {
++	r.Sync(mark)
++	return r.Len()
++}
++
++func (r *Decoder) Reloc(k RelocKind) int {
++	r.Sync(SyncUseReloc)
++	return r.rawReloc(k, r.Len())
++}
++
++func (r *Decoder) String() string {
++	r.Sync(SyncString)
++	return r.common.StringIdx(r.Reloc(RelocString))
++}
++
++func (r *Decoder) Strings() []string {
++	res := make([]string, r.Len())
++	for i := range res {
++		res[i] = r.String()
++	}
++	return res
++}
++
++func (r *Decoder) Value() constant.Value {
++	r.Sync(SyncValue)
++	isComplex := r.Bool()
++	val := r.scalar()
++	if isComplex {
++		val = constant.BinaryOp(val, token.ADD, constant.MakeImag(r.scalar()))
++	}
++	return val
++}
++
++func (r *Decoder) scalar() constant.Value {
++	switch tag := CodeVal(r.Code(SyncVal)); tag {
++	default:
++		panic(fmt.Errorf("unexpected scalar tag: %v", tag))
++
++	case ValBool:
++		return constant.MakeBool(r.Bool())
++	case ValString:
++		return constant.MakeString(r.String())
++	case ValInt64:
++		return constant.MakeInt64(r.Int64())
++	case ValBigInt:
++		return constant.Make(r.bigInt())
++	case ValBigRat:
++		num := r.bigInt()
++		denom := r.bigInt()
++		return constant.Make(new(big.Rat).SetFrac(num, denom))
++	case ValBigFloat:
++		return constant.Make(r.bigFloat())
++	}
++}
++
++func (r *Decoder) bigInt() *big.Int {
++	v := new(big.Int).SetBytes([]byte(r.String()))
++	if r.Bool() {
++		v.Neg(v)
++	}
++	return v
++}
++
++func (r *Decoder) bigFloat() *big.Float {
++	v := new(big.Float).SetPrec(512)
++	assert(v.UnmarshalText([]byte(r.String())) == nil)
++	return v
++}
++
++// @@@ Helpers
++
++// TODO(mdempsky): These should probably be removed. I think they're a
++// smell that the export data format is not yet quite right.
++
++func (pr *PkgDecoder) PeekPkgPath(idx int) string {
++	r := pr.NewDecoder(RelocPkg, idx, SyncPkgDef)
++	path := r.String()
++	if path == "" {
++		path = pr.pkgPath
++	}
++	return path
++}
++
++func (pr *PkgDecoder) PeekObj(idx int) (string, string, CodeObj) {
++	r := pr.NewDecoder(RelocName, idx, SyncObject1)
++	r.Sync(SyncSym)
++	r.Sync(SyncPkg)
++	path := pr.PeekPkgPath(r.Reloc(RelocPkg))
++	name := r.String()
++	assert(name != "")
++
++	tag := CodeObj(r.Code(SyncCodeObj))
++
++	return path, name, tag
++}
+diff --git a/src/cmd/compile/internal/noder/encoder.go b/src/internal/pkgbits/encoder.go
+similarity index 50%
+rename from src/cmd/compile/internal/noder/encoder.go
+rename to src/internal/pkgbits/encoder.go
+index b07b3a4a48..87ef50ed8b 100644
+--- a/src/cmd/compile/internal/noder/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -4,33 +4,33 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package noder
++package pkgbits
+ 
+ import (
+ 	"bytes"
+ 	"encoding/binary"
+-	"fmt"
+ 	"go/constant"
+ 	"io"
+ 	"math/big"
+ 	"runtime"
+-
+-	"cmd/compile/internal/base"
+ )
+ 
+-type pkgEncoder struct {
++type PkgEncoder struct {
+ 	elems [numRelocs][]string
+ 
+ 	stringsIdx map[string]int
++
++	syncFrames int
+ }
+ 
+-func newPkgEncoder() pkgEncoder {
+-	return pkgEncoder{
++func NewPkgEncoder(syncFrames int) PkgEncoder {
++	return PkgEncoder{
+ 		stringsIdx: make(map[string]int),
++		syncFrames: syncFrames,
+ 	}
+ }
+ 
+-func (pw *pkgEncoder) dump(out io.Writer) {
++func (pw *PkgEncoder) DumpTo(out io.Writer) {
+ 	writeUint32 := func(x uint32) {
+ 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
+ 	}
+@@ -57,92 +57,92 @@ func (pw *pkgEncoder) dump(out io.Writer) {
+ 	}
+ }
+ 
+-func (pw *pkgEncoder) stringIdx(s string) int {
++func (pw *PkgEncoder) StringIdx(s string) int {
+ 	if idx, ok := pw.stringsIdx[s]; ok {
+-		assert(pw.elems[relocString][idx] == s)
++		assert(pw.elems[RelocString][idx] == s)
+ 		return idx
+ 	}
+ 
+-	idx := len(pw.elems[relocString])
+-	pw.elems[relocString] = append(pw.elems[relocString], s)
++	idx := len(pw.elems[RelocString])
++	pw.elems[RelocString] = append(pw.elems[RelocString], s)
+ 	pw.stringsIdx[s] = idx
+ 	return idx
+ }
+ 
+-func (pw *pkgEncoder) newEncoder(k reloc, marker syncMarker) encoder {
+-	e := pw.newEncoderRaw(k)
+-	e.sync(marker)
++func (pw *PkgEncoder) NewEncoder(k RelocKind, marker SyncMarker) Encoder {
++	e := pw.NewEncoderRaw(k)
++	e.Sync(marker)
+ 	return e
+ }
+ 
+-func (pw *pkgEncoder) newEncoderRaw(k reloc) encoder {
++func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
+ 	idx := len(pw.elems[k])
+ 	pw.elems[k] = append(pw.elems[k], "") // placeholder
+ 
+-	return encoder{
++	return Encoder{
+ 		p:   pw,
+ 		k:   k,
+-		idx: idx,
++		Idx: idx,
+ 	}
+ }
+ 
+ // Encoders
+ 
+-type encoder struct {
+-	p *pkgEncoder
++type Encoder struct {
++	p *PkgEncoder
+ 
+-	relocs []relocEnt
+-	data   bytes.Buffer
++	Relocs []RelocEnt
++	Data   bytes.Buffer
+ 
+ 	encodingRelocHeader bool
+ 
+-	k   reloc
+-	idx int
++	k   RelocKind
++	Idx int
+ }
+ 
+-func (w *encoder) flush() int {
++func (w *Encoder) Flush() int {
+ 	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
+ 
+ 	// Backup the data so we write the relocations at the front.
+ 	var tmp bytes.Buffer
+-	io.Copy(&tmp, &w.data)
++	io.Copy(&tmp, &w.Data)
+ 
+ 	// TODO(mdempsky): Consider writing these out separately so they're
+ 	// easier to strip, along with function bodies, so that we can prune
+ 	// down to just the data that's relevant to go/types.
+ 	if w.encodingRelocHeader {
+-		base.Fatalf("encodingRelocHeader already true; recursive flush?")
++		panic("encodingRelocHeader already true; recursive flush?")
+ 	}
+ 	w.encodingRelocHeader = true
+-	w.sync(syncRelocs)
+-	w.len(len(w.relocs))
+-	for _, rent := range w.relocs {
+-		w.sync(syncReloc)
+-		w.len(int(rent.kind))
+-		w.len(rent.idx)
++	w.Sync(SyncRelocs)
++	w.Len(len(w.Relocs))
++	for _, rent := range w.Relocs {
++		w.Sync(SyncReloc)
++		w.Len(int(rent.Kind))
++		w.Len(rent.Idx)
+ 	}
+ 
+-	io.Copy(&sb, &w.data)
++	io.Copy(&sb, &w.Data)
+ 	io.Copy(&sb, &tmp)
+-	w.p.elems[w.k][w.idx] = sb.String()
++	w.p.elems[w.k][w.Idx] = sb.String()
+ 
+-	return w.idx
++	return w.Idx
+ }
+ 
+-func (w *encoder) checkErr(err error) {
++func (w *Encoder) checkErr(err error) {
+ 	if err != nil {
+-		base.Fatalf("unexpected error: %v", err)
++		errorf("unexpected encoding error: %v", err)
+ 	}
+ }
+ 
+-func (w *encoder) rawUvarint(x uint64) {
++func (w *Encoder) rawUvarint(x uint64) {
+ 	var buf [binary.MaxVarintLen64]byte
+ 	n := binary.PutUvarint(buf[:], x)
+-	_, err := w.data.Write(buf[:n])
++	_, err := w.Data.Write(buf[:n])
+ 	w.checkErr(err)
+ }
+ 
+-func (w *encoder) rawVarint(x int64) {
++func (w *Encoder) rawVarint(x int64) {
+ 	// Zig-zag encode.
+ 	ux := uint64(x) << 1
+ 	if x < 0 {
+@@ -152,21 +152,21 @@ func (w *encoder) rawVarint(x int64) {
+ 	w.rawUvarint(ux)
+ }
+ 
+-func (w *encoder) rawReloc(r reloc, idx int) int {
++func (w *Encoder) rawReloc(r RelocKind, idx int) int {
+ 	// TODO(mdempsky): Use map for lookup.
+-	for i, rent := range w.relocs {
+-		if rent.kind == r && rent.idx == idx {
++	for i, rent := range w.Relocs {
++		if rent.Kind == r && rent.Idx == idx {
+ 			return i
+ 		}
+ 	}
+ 
+-	i := len(w.relocs)
+-	w.relocs = append(w.relocs, relocEnt{r, idx})
++	i := len(w.Relocs)
++	w.Relocs = append(w.Relocs, RelocEnt{r, idx})
+ 	return i
+ }
+ 
+-func (w *encoder) sync(m syncMarker) {
+-	if !enableSync {
++func (w *Encoder) Sync(m SyncMarker) {
++	if !EnableSync {
+ 		return
+ 	}
+ 
+@@ -175,8 +175,8 @@ func (w *encoder) sync(m syncMarker) {
+ 	// sync markers. To prevent infinite recursion, we simply trim the
+ 	// stack frame for sync markers within the relocation header.
+ 	var frames []string
+-	if !w.encodingRelocHeader && base.Debug.SyncFrames > 0 {
+-		pcs := make([]uintptr, base.Debug.SyncFrames)
++	if !w.encodingRelocHeader && w.p.syncFrames > 0 {
++		pcs := make([]uintptr, w.p.syncFrames)
+ 		n := runtime.Callers(2, pcs)
+ 		frames = fmtFrames(pcs[:n]...)
+ 	}
+@@ -186,60 +186,60 @@ func (w *encoder) sync(m syncMarker) {
+ 	w.rawUvarint(uint64(m))
+ 	w.rawUvarint(uint64(len(frames)))
+ 	for _, frame := range frames {
+-		w.rawUvarint(uint64(w.rawReloc(relocString, w.p.stringIdx(frame))))
++		w.rawUvarint(uint64(w.rawReloc(RelocString, w.p.StringIdx(frame))))
+ 	}
+ }
+ 
+-func (w *encoder) bool(b bool) bool {
+-	w.sync(syncBool)
++func (w *Encoder) Bool(b bool) bool {
++	w.Sync(SyncBool)
+ 	var x byte
+ 	if b {
+ 		x = 1
+ 	}
+-	err := w.data.WriteByte(x)
++	err := w.Data.WriteByte(x)
+ 	w.checkErr(err)
+ 	return b
+ }
+ 
+-func (w *encoder) int64(x int64) {
+-	w.sync(syncInt64)
++func (w *Encoder) Int64(x int64) {
++	w.Sync(SyncInt64)
+ 	w.rawVarint(x)
+ }
+ 
+-func (w *encoder) uint64(x uint64) {
+-	w.sync(syncUint64)
++func (w *Encoder) Uint64(x uint64) {
++	w.Sync(SyncUint64)
+ 	w.rawUvarint(x)
+ }
+ 
+-func (w *encoder) len(x int)   { assert(x >= 0); w.uint64(uint64(x)) }
+-func (w *encoder) int(x int)   { w.int64(int64(x)) }
+-func (w *encoder) uint(x uint) { w.uint64(uint64(x)) }
++func (w *Encoder) Len(x int)   { assert(x >= 0); w.Uint64(uint64(x)) }
++func (w *Encoder) Int(x int)   { w.Int64(int64(x)) }
++func (w *Encoder) Uint(x uint) { w.Uint64(uint64(x)) }
+ 
+-func (w *encoder) reloc(r reloc, idx int) {
+-	w.sync(syncUseReloc)
+-	w.len(w.rawReloc(r, idx))
++func (w *Encoder) Reloc(r RelocKind, idx int) {
++	w.Sync(SyncUseReloc)
++	w.Len(w.rawReloc(r, idx))
+ }
+ 
+-func (w *encoder) code(c code) {
+-	w.sync(c.marker())
+-	w.len(c.value())
++func (w *Encoder) Code(c Code) {
++	w.Sync(c.Marker())
++	w.Len(c.Value())
+ }
+ 
+-func (w *encoder) string(s string) {
+-	w.sync(syncString)
+-	w.reloc(relocString, w.p.stringIdx(s))
++func (w *Encoder) String(s string) {
++	w.Sync(SyncString)
++	w.Reloc(RelocString, w.p.StringIdx(s))
+ }
+ 
+-func (w *encoder) strings(ss []string) {
+-	w.len(len(ss))
++func (w *Encoder) Strings(ss []string) {
++	w.Len(len(ss))
+ 	for _, s := range ss {
+-		w.string(s)
++		w.String(s)
+ 	}
+ }
+ 
+-func (w *encoder) value(val constant.Value) {
+-	w.sync(syncValue)
+-	if w.bool(val.Kind() == constant.Complex) {
++func (w *Encoder) Value(val constant.Value) {
++	w.Sync(SyncValue)
++	if w.Bool(val.Kind() == constant.Complex) {
+ 		w.scalar(constant.Real(val))
+ 		w.scalar(constant.Imag(val))
+ 	} else {
+@@ -247,39 +247,39 @@ func (w *encoder) value(val constant.Value) {
+ 	}
+ }
+ 
+-func (w *encoder) scalar(val constant.Value) {
++func (w *Encoder) scalar(val constant.Value) {
+ 	switch v := constant.Val(val).(type) {
+ 	default:
+-		panic(fmt.Sprintf("unhandled %v (%v)", val, val.Kind()))
++		errorf("unhandled %v (%v)", val, val.Kind())
+ 	case bool:
+-		w.code(valBool)
+-		w.bool(v)
++		w.Code(ValBool)
++		w.Bool(v)
+ 	case string:
+-		w.code(valString)
+-		w.string(v)
++		w.Code(ValString)
++		w.String(v)
+ 	case int64:
+-		w.code(valInt64)
+-		w.int64(v)
++		w.Code(ValInt64)
++		w.Int64(v)
+ 	case *big.Int:
+-		w.code(valBigInt)
++		w.Code(ValBigInt)
+ 		w.bigInt(v)
+ 	case *big.Rat:
+-		w.code(valBigRat)
++		w.Code(ValBigRat)
+ 		w.bigInt(v.Num())
+ 		w.bigInt(v.Denom())
+ 	case *big.Float:
+-		w.code(valBigFloat)
++		w.Code(ValBigFloat)
+ 		w.bigFloat(v)
+ 	}
+ }
+ 
+-func (w *encoder) bigInt(v *big.Int) {
++func (w *Encoder) bigInt(v *big.Int) {
+ 	b := v.Bytes()
+-	w.string(string(b)) // TODO: More efficient encoding.
+-	w.bool(v.Sign() < 0)
++	w.String(string(b)) // TODO: More efficient encoding.
++	w.Bool(v.Sign() < 0)
+ }
+ 
+-func (w *encoder) bigFloat(v *big.Float) {
++func (w *Encoder) bigFloat(v *big.Float) {
+ 	b := v.Append(nil, 'p', -1)
+-	w.string(string(b)) // TODO: More efficient encoding.
++	w.String(string(b)) // TODO: More efficient encoding.
+ }
+diff --git a/src/cmd/compile/internal/noder/frames_go1.go b/src/internal/pkgbits/frames_go1.go
+similarity index 96%
+rename from src/cmd/compile/internal/noder/frames_go1.go
+rename to src/internal/pkgbits/frames_go1.go
+index d00e0f51f9..5294f6a63e 100644
+--- a/src/cmd/compile/internal/noder/frames_go1.go
++++ b/src/internal/pkgbits/frames_go1.go
+@@ -7,7 +7,7 @@
+ 
+ // TODO(mdempsky): Remove after #44505 is resolved
+ 
+-package noder
++package pkgbits
+ 
+ import "runtime"
+ 
+diff --git a/src/cmd/compile/internal/noder/frames_go17.go b/src/internal/pkgbits/frames_go17.go
+similarity index 96%
+rename from src/cmd/compile/internal/noder/frames_go17.go
+rename to src/internal/pkgbits/frames_go17.go
+index 48d77625b4..5235d46afc 100644
+--- a/src/cmd/compile/internal/noder/frames_go17.go
++++ b/src/internal/pkgbits/frames_go17.go
+@@ -5,7 +5,7 @@
+ //go:build go1.7
+ // +build go1.7
+ 
+-package noder
++package pkgbits
+ 
+ import "runtime"
+ 
+diff --git a/src/cmd/compile/internal/noder/reloc.go b/src/internal/pkgbits/reloc.go
+similarity index 51%
+rename from src/cmd/compile/internal/noder/reloc.go
+rename to src/internal/pkgbits/reloc.go
+index 669a6182e6..43040ca2ff 100644
+--- a/src/cmd/compile/internal/noder/reloc.go
++++ b/src/internal/pkgbits/reloc.go
+@@ -4,39 +4,37 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package noder
++package pkgbits
+ 
+-// A reloc indicates a particular section within a unified IR export.
+-//
+-// TODO(mdempsky): Rename to "section" or something similar?
+-type reloc int
++// A RelocKind indicates a particular section within a unified IR export.
++type RelocKind int
+ 
+ // A relocEnt (relocation entry) is an entry in an atom's local
+ // reference table.
+ //
+ // TODO(mdempsky): Rename this too.
+-type relocEnt struct {
+-	kind reloc
+-	idx  int
++type RelocEnt struct {
++	Kind RelocKind
++	Idx  int
+ }
+ 
+ // Reserved indices within the meta relocation section.
+ const (
+-	publicRootIdx  = 0
+-	privateRootIdx = 1
++	PublicRootIdx  = 0
++	PrivateRootIdx = 1
+ )
+ 
+ const (
+-	relocString reloc = iota
+-	relocMeta
+-	relocPosBase
+-	relocPkg
+-	relocName
+-	relocType
+-	relocObj
+-	relocObjExt
+-	relocObjDict
+-	relocBody
++	RelocString RelocKind = iota
++	RelocMeta
++	RelocPosBase
++	RelocPkg
++	RelocName
++	RelocType
++	RelocObj
++	RelocObjExt
++	RelocObjDict
++	RelocBody
+ 
+ 	numRelocs = iota
+ )
+diff --git a/src/internal/pkgbits/support.go b/src/internal/pkgbits/support.go
+new file mode 100644
+index 0000000000..f7579dfdc4
+--- /dev/null
++++ b/src/internal/pkgbits/support.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkgbits
++
++import "fmt"
++
++func assert(b bool) {
++	if !b {
++		panic("assertion failed")
++	}
++}
++
++func errorf(format string, args ...any) {
++	panic(fmt.Errorf(format, args...))
++}
+diff --git a/src/cmd/compile/internal/noder/sync.go b/src/internal/pkgbits/sync.go
+similarity index 56%
+rename from src/cmd/compile/internal/noder/sync.go
+rename to src/internal/pkgbits/sync.go
+index 6343496bee..b2c9139ce6 100644
+--- a/src/cmd/compile/internal/noder/sync.go
++++ b/src/internal/pkgbits/sync.go
+@@ -4,14 +4,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package noder
++package pkgbits
+ 
+ import (
+ 	"fmt"
+ 	"strings"
+ )
+ 
+-// enableSync controls whether sync markers are written into unified
++// EnableSync controls whether sync markers are written into unified
+ // IR's export data format and also whether they're expected when
+ // reading them back in. They're inessential to the correct
+ // functioning of unified IR, but are helpful during development to
+@@ -20,7 +20,7 @@ import (
+ // When sync is enabled, writer stack frames will also be included in
+ // the export data. Currently, a fixed number of frames are included,
+ // controlled by -d=syncframes (default 0).
+-const enableSync = true
++const EnableSync = true
+ 
+ // fmtFrames formats a backtrace for reporting reader/writer desyncs.
+ func fmtFrames(pcs ...uintptr) []string {
+@@ -36,90 +36,90 @@ func fmtFrames(pcs ...uintptr) []string {
+ 
+ type frameVisitor func(file string, line int, name string, offset uintptr)
+ 
+-// syncMarker is an enum type that represents markers that may be
++// SyncMarker is an enum type that represents markers that may be
+ // written to export data to ensure the reader and writer stay
+ // synchronized.
+-type syncMarker int
++type SyncMarker int
+ 
+-//go:generate stringer -type=syncMarker -trimprefix=sync
++//go:generate stringer -type=SyncMarker -trimprefix=Sync
+ 
+ const (
+-	_ syncMarker = iota
++	_ SyncMarker = iota
+ 
+ 	// Public markers (known to go/types importers).
+ 
+ 	// Low-level coding markers.
+ 
+-	syncEOF
+-	syncBool
+-	syncInt64
+-	syncUint64
+-	syncString
+-	syncValue
+-	syncVal
+-	syncRelocs
+-	syncReloc
+-	syncUseReloc
++	SyncEOF
++	SyncBool
++	SyncInt64
++	SyncUint64
++	SyncString
++	SyncValue
++	SyncVal
++	SyncRelocs
++	SyncReloc
++	SyncUseReloc
+ 
+ 	// Higher-level object and type markers.
+-	syncPublic
+-	syncPos
+-	syncPosBase
+-	syncObject
+-	syncObject1
+-	syncPkg
+-	syncPkgDef
+-	syncMethod
+-	syncType
+-	syncTypeIdx
+-	syncTypeParamNames
+-	syncSignature
+-	syncParams
+-	syncParam
+-	syncCodeObj
+-	syncSym
+-	syncLocalIdent
+-	syncSelector
++	SyncPublic
++	SyncPos
++	SyncPosBase
++	SyncObject
++	SyncObject1
++	SyncPkg
++	SyncPkgDef
++	SyncMethod
++	SyncType
++	SyncTypeIdx
++	SyncTypeParamNames
++	SyncSignature
++	SyncParams
++	SyncParam
++	SyncCodeObj
++	SyncSym
++	SyncLocalIdent
++	SyncSelector
+ 
+ 	// Private markers (only known to cmd/compile).
+-	syncPrivate
+-
+-	syncFuncExt
+-	syncVarExt
+-	syncTypeExt
+-	syncPragma
+-
+-	syncExprList
+-	syncExprs
+-	syncExpr
+-	syncOp
+-	syncFuncLit
+-	syncCompLit
+-
+-	syncDecl
+-	syncFuncBody
+-	syncOpenScope
+-	syncCloseScope
+-	syncCloseAnotherScope
+-	syncDeclNames
+-	syncDeclName
+-
+-	syncStmts
+-	syncBlockStmt
+-	syncIfStmt
+-	syncForStmt
+-	syncSwitchStmt
+-	syncRangeStmt
+-	syncCaseClause
+-	syncCommClause
+-	syncSelectStmt
+-	syncDecls
+-	syncLabeledStmt
+-	syncUseObjLocal
+-	syncAddLocal
+-	syncLinkname
+-	syncStmt1
+-	syncStmtsEnd
+-	syncLabel
+-	syncOptLabel
++	SyncPrivate
++
++	SyncFuncExt
++	SyncVarExt
++	SyncTypeExt
++	SyncPragma
++
++	SyncExprList
++	SyncExprs
++	SyncExpr
++	SyncOp
++	SyncFuncLit
++	SyncCompLit
++
++	SyncDecl
++	SyncFuncBody
++	SyncOpenScope
++	SyncCloseScope
++	SyncCloseAnotherScope
++	SyncDeclNames
++	SyncDeclName
++
++	SyncStmts
++	SyncBlockStmt
++	SyncIfStmt
++	SyncForStmt
++	SyncSwitchStmt
++	SyncRangeStmt
++	SyncCaseClause
++	SyncCommClause
++	SyncSelectStmt
++	SyncDecls
++	SyncLabeledStmt
++	SyncUseObjLocal
++	SyncAddLocal
++	SyncLinkname
++	SyncStmt1
++	SyncStmtsEnd
++	SyncLabel
++	SyncOptLabel
+ )
+diff --git a/src/internal/pkgbits/syncmarker_string.go b/src/internal/pkgbits/syncmarker_string.go
+new file mode 100644
+index 0000000000..91154a001d
+--- /dev/null
++++ b/src/internal/pkgbits/syncmarker_string.go
+@@ -0,0 +1,87 @@
++// Code generated by "stringer -type=SyncMarker -trimprefix=Sync"; DO NOT EDIT.
++
++package pkgbits
++
++import "strconv"
++
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[SyncEOF-1]
++	_ = x[SyncBool-2]
++	_ = x[SyncInt64-3]
++	_ = x[SyncUint64-4]
++	_ = x[SyncString-5]
++	_ = x[SyncValue-6]
++	_ = x[SyncVal-7]
++	_ = x[SyncRelocs-8]
++	_ = x[SyncReloc-9]
++	_ = x[SyncUseReloc-10]
++	_ = x[SyncPublic-11]
++	_ = x[SyncPos-12]
++	_ = x[SyncPosBase-13]
++	_ = x[SyncObject-14]
++	_ = x[SyncObject1-15]
++	_ = x[SyncPkg-16]
++	_ = x[SyncPkgDef-17]
++	_ = x[SyncMethod-18]
++	_ = x[SyncType-19]
++	_ = x[SyncTypeIdx-20]
++	_ = x[SyncTypeParamNames-21]
++	_ = x[SyncSignature-22]
++	_ = x[SyncParams-23]
++	_ = x[SyncParam-24]
++	_ = x[SyncCodeObj-25]
++	_ = x[SyncSym-26]
++	_ = x[SyncLocalIdent-27]
++	_ = x[SyncSelector-28]
++	_ = x[SyncPrivate-29]
++	_ = x[SyncFuncExt-30]
++	_ = x[SyncVarExt-31]
++	_ = x[SyncTypeExt-32]
++	_ = x[SyncPragma-33]
++	_ = x[SyncExprList-34]
++	_ = x[SyncExprs-35]
++	_ = x[SyncExpr-36]
++	_ = x[SyncOp-37]
++	_ = x[SyncFuncLit-38]
++	_ = x[SyncCompLit-39]
++	_ = x[SyncDecl-40]
++	_ = x[SyncFuncBody-41]
++	_ = x[SyncOpenScope-42]
++	_ = x[SyncCloseScope-43]
++	_ = x[SyncCloseAnotherScope-44]
++	_ = x[SyncDeclNames-45]
++	_ = x[SyncDeclName-46]
++	_ = x[SyncStmts-47]
++	_ = x[SyncBlockStmt-48]
++	_ = x[SyncIfStmt-49]
++	_ = x[SyncForStmt-50]
++	_ = x[SyncSwitchStmt-51]
++	_ = x[SyncRangeStmt-52]
++	_ = x[SyncCaseClause-53]
++	_ = x[SyncCommClause-54]
++	_ = x[SyncSelectStmt-55]
++	_ = x[SyncDecls-56]
++	_ = x[SyncLabeledStmt-57]
++	_ = x[SyncUseObjLocal-58]
++	_ = x[SyncAddLocal-59]
++	_ = x[SyncLinkname-60]
++	_ = x[SyncStmt1-61]
++	_ = x[SyncStmtsEnd-62]
++	_ = x[SyncLabel-63]
++	_ = x[SyncOptLabel-64]
++}
++
++const _SyncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabel"
++
++var _SyncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 220, 227, 234, 238, 246, 255, 265, 282, 291, 299, 304, 313, 319, 326, 336, 345, 355, 365, 375, 380, 391, 402, 410, 418, 423, 431, 436, 444}
++
++func (i SyncMarker) String() string {
++	i -= 1
++	if i < 0 || i >= SyncMarker(len(_SyncMarker_index)-1) {
++		return "SyncMarker(" + strconv.FormatInt(int64(i+1), 10) + ")"
++	}
++	return _SyncMarker_name[_SyncMarker_index[i]:_SyncMarker_index[i+1]]
++}

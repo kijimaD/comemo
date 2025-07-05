@@ -23,9 +23,92 @@ Date:   Tue Aug 21 22:58:08 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_fsync_darwin.go | 23 +++++++++++++++++++++++
  src/internal/poll/fd_fsync_posix.go  | 18 ++++++++++++++++++
  src/internal/poll/fd_posix.go        |  9 ---------
  src/syscall/syscall_darwin.go        |  1 +
  4 files changed, 42 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/poll/fd_fsync_darwin.go b/src/internal/poll/fd_fsync_darwin.go
+new file mode 100644
+index 0000000000..23835f6e60
+--- /dev/null
++++ b/src/internal/poll/fd_fsync_darwin.go
+@@ -0,0 +1,23 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package poll
++
++import "syscall"
++
++// Fsync invokes SYS_FCNTL with SYS_FULLFSYNC because
++// on OS X, SYS_FSYNC doesn't fully flush contents to disk.
++// See Issue #26650 as well as the man page for fsync on OS X.
++func (fd *FD) Fsync() error {
++	if err := fd.incref(); err != nil {
++		return err
++	}
++	defer fd.decref()
++
++	_, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd.Sysfd), syscall.F_FULLFSYNC, 0)
++	if e1 != 0 {
++		return e1
++	}
++	return nil
++}
+diff --git a/src/internal/poll/fd_fsync_posix.go b/src/internal/poll/fd_fsync_posix.go
+new file mode 100644
+index 0000000000..943f59a9ab
+--- /dev/null
++++ b/src/internal/poll/fd_fsync_posix.go
+@@ -0,0 +1,18 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris windows
++
++package poll
++
++import "syscall"
++
++// Fsync wraps syscall.Fsync.
++func (fd *FD) Fsync() error {
++	if err := fd.incref(); err != nil {
++		return err
++	}
++	defer fd.decref()
++	return syscall.Fsync(fd.Sysfd)
++}
+diff --git a/src/internal/poll/fd_posix.go b/src/internal/poll/fd_posix.go
+index f178a6fa0a..f899a74876 100644
+--- a/src/internal/poll/fd_posix.go
++++ b/src/internal/poll/fd_posix.go
+@@ -46,12 +46,3 @@ func (fd *FD) Ftruncate(size int64) error {
+ 	defer fd.decref()
+ 	return syscall.Ftruncate(fd.Sysfd, size)
+ }
+-
+-// Fsync wraps syscall.Fsync.
+-func (fd *FD) Fsync() error {
+-	if err := fd.incref(); err != nil {
+-		return err
+-	}
+-	defer fd.decref()
+-	return syscall.Fsync(fd.Sysfd)
+-}
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 4d6aa4fcf2..98084a521c 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -252,6 +252,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+ //sys	Fstatfs(fd int, stat *Statfs_t) (err error) = SYS_FSTATFS64
+ //sys	Fsync(fd int) (err error)
++//  Fsync is not called for os.File.Sync(). Please see internal/poll/fd_fsync_darwin.go
+ //sys	Ftruncate(fd int, length int64) (err error)
+ //sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) = SYS_GETDIRENTRIES64
+ //sys	Getdtablesize() (size int)

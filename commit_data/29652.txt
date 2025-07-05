@@ -14,7 +14,133 @@ Date:   Fri Sep 30 11:27:52 2016 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/mpfloat.go |  4 ++--
  src/cmd/compile/internal/gc/mpint.go   | 22 +++++++++++-----------
  2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index 31d35d64b3..55168e91e0 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -128,7 +128,7 @@ func (a *Mpflt) Float64() float64 {
+ 
+ 	// check for overflow
+ 	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
+-		yyerror("mpgetflt ovf")
++		yyerror("ovf in Mpflt Float64")
+ 	}
+ 
+ 	return x + 0 // avoid -0 (should not be needed, but be conservative)
+@@ -140,7 +140,7 @@ func (a *Mpflt) Float32() float64 {
+ 
+ 	// check for overflow
+ 	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
+-		yyerror("mpgetflt32 ovf")
++		yyerror("ovf in Mpflt Float32")
+ 	}
+ 
+ 	return x + 0 // avoid -0 (should not be needed, but be conservative)
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index 3ae4deeec8..31fbe857aa 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -71,7 +71,7 @@ func (a *Mpint) SetFloat(b *Mpflt) int {
+ func (a *Mpint) Add(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mpaddfixfix")
++			yyerror("ovf in Mpint Add")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -87,7 +87,7 @@ func (a *Mpint) Add(b *Mpint) {
+ func (a *Mpint) Sub(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mpsubfixfix")
++			yyerror("ovf in Mpint Sub")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -103,7 +103,7 @@ func (a *Mpint) Sub(b *Mpint) {
+ func (a *Mpint) Mul(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mpmulfixfix")
++			yyerror("ovf in Mpint Mul")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -119,7 +119,7 @@ func (a *Mpint) Mul(b *Mpint) {
+ func (a *Mpint) Quo(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mpdivfixfix")
++			yyerror("ovf in Mpint Quo")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -136,7 +136,7 @@ func (a *Mpint) Quo(b *Mpint) {
+ func (a *Mpint) Rem(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mpmodfixfix")
++			yyerror("ovf in Mpint Rem")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -153,7 +153,7 @@ func (a *Mpint) Rem(b *Mpint) {
+ func (a *Mpint) Or(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mporfixfix")
++			yyerror("ovf in Mpint Or")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -165,7 +165,7 @@ func (a *Mpint) Or(b *Mpint) {
+ func (a *Mpint) And(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mpandfixfix")
++			yyerror("ovf in Mpint And")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -177,7 +177,7 @@ func (a *Mpint) And(b *Mpint) {
+ func (a *Mpint) AndNot(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mpandnotfixfix")
++			yyerror("ovf in Mpint AndNot")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -189,7 +189,7 @@ func (a *Mpint) AndNot(b *Mpint) {
+ func (a *Mpint) Xor(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mpxorfixfix")
++			yyerror("ovf in Mpint Xor")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -201,7 +201,7 @@ func (a *Mpint) Xor(b *Mpint) {
+ func (a *Mpint) Lsh(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mplshfixfix")
++			yyerror("ovf in Mpint Lsh")
+ 		}
+ 		a.SetOverflow()
+ 		return
+@@ -228,7 +228,7 @@ func (a *Mpint) Lsh(b *Mpint) {
+ func (a *Mpint) Rsh(b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+-			yyerror("ovf in mprshfixfix")
++			yyerror("ovf in Mpint Rsh")
+ 		}
+ 		a.SetOverflow()
+ 		return

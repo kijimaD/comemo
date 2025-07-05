@@ -6,6 +6,18 @@ Date:   Tue Nov 17 22:00:17 2009 -0800
     
     R=r
     https://golang.org/cl/156058
-
+---
  .hgtags | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index d8d2b8ba8e..d8567ac283 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -2,4 +2,5 @@
+ 64e703cb307da550861fe740ff70a482a2c14819 release.2009-11-10
+ b51fd2d6c16034480f26c96ba32a11c598e4638e release.2009-11-10.1
+ cb140bac9ab0fd9f734ee443cea9ebadc9c99737 release.2009-11-12
+-cb140bac9ab0fd9f734ee443cea9ebadc9c99737 release
++d1b75410b793309532352a6fb6b44453f052f3f4 release.2009-11-17
++d1b75410b793309532352a6fb6b44453f052f3f4 release

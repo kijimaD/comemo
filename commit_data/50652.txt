@@ -14,8 +14,80 @@ Date:   Thu Nov 4 16:08:08 2021 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/crypto/elliptic/elliptic_test.go | 10 ++++++++++
  src/crypto/elliptic/p224.go          |  4 ++++
  src/crypto/elliptic/p521.go          | 16 +++++++++++-----
  3 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index c9744b5a51..d30a6939a4 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -241,6 +241,16 @@ func testMarshalCompressed(t *testing.T, curve Curve, x, y *big.Int, want []byte
+ 	}
+ }
+ 
++func TestLargeIsOnCurve(t *testing.T) {
++	testAllCurves(t, func(t *testing.T, curve Curve) {
++		large := big.NewInt(1)
++		large.Lsh(large, 1000)
++		if curve.IsOnCurve(large, large) {
++			t.Errorf("(2^1000, 2^1000) is reported on the curve")
++		}
++	})
++}
++
+ func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
+ 	tests := []struct {
+ 		name  string
+diff --git a/src/crypto/elliptic/p224.go b/src/crypto/elliptic/p224.go
+index 8f3622c89c..34079d14b1 100644
+--- a/src/crypto/elliptic/p224.go
++++ b/src/crypto/elliptic/p224.go
+@@ -50,6 +50,10 @@ func (curve p224Curve) Params() *CurveParams {
+ }
+ 
+ func (curve p224Curve) IsOnCurve(bigX, bigY *big.Int) bool {
++	if bigX.BitLen() > 224 || bigY.BitLen() > 224 {
++		return false
++	}
++
+ 	var x, y p224FieldElement
+ 	p224FromBig(&x, bigX)
+ 	p224FromBig(&y, bigY)
+diff --git a/src/crypto/elliptic/p521.go b/src/crypto/elliptic/p521.go
+index 4cc5f86d6d..e64007dfe3 100644
+--- a/src/crypto/elliptic/p521.go
++++ b/src/crypto/elliptic/p521.go
+@@ -55,19 +55,25 @@ func (curve p521Curve) Params() *CurveParams {
+ }
+ 
+ func (curve p521Curve) IsOnCurve(x, y *big.Int) bool {
+-	// IsOnCurve is documented to reject (0, 0), so we don't use
+-	// p521PointFromAffine, but let SetBytes reject the invalid Marshal output.
+-	_, err := nistec.NewP521Point().SetBytes(Marshal(curve, x, y))
+-	return err == nil
++	// IsOnCurve is documented to reject (0, 0), the conventional point at
++	// infinity, which however is accepted by p521PointFromAffine.
++	if x.Sign() == 0 && y.Sign() == 0 {
++		return false
++	}
++	_, ok := p521PointFromAffine(x, y)
++	return ok
+ }
+ 
+ func p521PointFromAffine(x, y *big.Int) (p *nistec.P521Point, ok bool) {
+ 	// (0, 0) is by convention the point at infinity, which can't be represented
+ 	// in affine coordinates. Marshal incorrectly encodes it as an uncompressed
+-	// point, which SetBytes correctly rejects. See Issue 37294.
++	// point, which SetBytes would correctly reject. See Issue 37294.
+ 	if x.Sign() == 0 && y.Sign() == 0 {
+ 		return nistec.NewP521Point(), true
+ 	}
++	if x.BitLen() > 521 || y.BitLen() > 521 {
++		return nil, false
++	}
+ 	p, err := nistec.NewP521Point().SetBytes(Marshal(P521(), x, y))
+ 	if err != nil {
+ 		return nil, false

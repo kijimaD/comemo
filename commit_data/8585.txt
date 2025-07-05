@@ -7,7 +7,33 @@ Date:   Thu Jun 2 11:00:24 2011 +1000
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4539100
-
+---
  doc/all.css   | 5 +++++
  doc/root.html | 1 +
  2 files changed, 6 insertions(+)
+
+diff --git a/doc/all.css b/doc/all.css
+index 84df1f8fa9..a985d8ffbc 100644
+--- a/doc/all.css
++++ b/doc/all.css
+@@ -198,3 +198,8 @@ span.alert {
+   padding: 0.25em 1em;
+   background: #F4F4F4;
+ }
++sup.new {
++  color: red;
++  font-size: 8px;
++  line-height: 0;
++}
+diff --git a/doc/root.html b/doc/root.html
+index 6722d0018b..8d76928c81 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -78,6 +78,7 @@ google.setOnLoadCallback(loadFeed);
+             <li><a href="/doc/effective_go.html">Effective Go</a></li>
+             <li><a href="/doc/go_faq.html">Go FAQ</a></li>
+             <li><a href="/doc/docs.html">Other Documentation</a></li>
++            <li><a href="http://code.google.com/appengine/docs/go/">Go for Google App Engine</a> <sup class="new">New!</sup></li>
+           </ul>
+         </div>
+         <div id="resources-contributors" >

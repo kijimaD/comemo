@@ -7,7 +7,58 @@ Date:   Fri Apr 22 08:53:52 2011 -0700
     R=bradfitz, bradfitzwork, iant2, bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4444058
-
+---
  src/pkg/http/cgi/host.go            | 13 ++++++++++---
  src/pkg/http/cgi/matryoshka_test.go |  8 ++++++++
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index a713d7c3c3..1ab5716766 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -36,9 +36,10 @@ type Handler struct {
+ 	Path string // path to the CGI executable
+ 	Root string // root URI prefix of handler or empty for "/"
+ 
+-	Env    []string    // extra environment variables to set, if any
+-	Logger *log.Logger // optional log for errors or nil to use log.Print
+-	Args   []string    // optional arguments to pass to child process
++	Env        []string    // extra environment variables to set, if any, as "key=value"
++	InheritEnv []string    // environment variables to inherit from host, as "key"
++	Logger     *log.Logger // optional log for errors or nil to use log.Print
++	Args       []string    // optional arguments to pass to child process
+ }
+ 
+ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+@@ -110,6 +111,12 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		env = append(env, h.Env...)
+ 	}
+ 
++	for _, e := range h.InheritEnv {
++		if v := os.Getenv(e); v != "" {
++			env = append(env, e+"="+v)
++		}
++	}
++
+ 	cwd, pathBase := filepath.Split(h.Path)
+ 	if cwd == "" {
+ 		cwd = "."
+diff --git a/src/pkg/http/cgi/matryoshka_test.go b/src/pkg/http/cgi/matryoshka_test.go
+index 3e4a6addfa..548c050d41 100644
+--- a/src/pkg/http/cgi/matryoshka_test.go
++++ b/src/pkg/http/cgi/matryoshka_test.go
+@@ -22,6 +22,14 @@ func TestHostingOurselves(t *testing.T) {
+ 		Path: os.Args[0],
+ 		Root: "/test.go",
+ 		Args: []string{"-test.run=TestBeChildCGIProcess"},
++		// When using a shared library with gccgo, make sure
++		// we can still find the library when we exec
++		// ourselves.
++		InheritEnv: []string{
++			"LD_LIBRARY_PATH",
++			"SHLIB_PATH",
++			"DYLD_LIBRARY_PATH",
++		},
+ 	}
+ 	expectedMap := map[string]string{
+ 		"test":                  "Hello CGI-in-CGI",

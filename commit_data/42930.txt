@@ -47,7 +47,7 @@ Date:   Sun Feb 23 22:08:24 2020 +0000
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules   |  3 ++
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ++
  src/cmd/compile/internal/ssa/gen/ARM.rules   |  3 ++
@@ -63,3 +63,597 @@ Date:   Sun Feb 23 22:08:24 2020 +0000
  test/codegen/compare_and_branch.go           |  8 ++--
  test/codegen/condmove.go                     |  6 +--
  14 files changed, 313 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 200eedf0fb..e09e41c536 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -492,6 +492,9 @@
+ (CMPB x (MOVLconst [c])) -> (CMPBconst x [int64(int8(c))])
+ (CMPB (MOVLconst [c]) x) -> (InvertFlags (CMPBconst x [int64(int8(c))]))
+ 
++// Canonicalize the order of arguments to comparisons - helps with CSE.
++(CMP(L|W|B) x y) && x.ID > y.ID -> (InvertFlags (CMP(L|W|B) y x))
++
+ // strength reduction
+ // Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
+ //    1 - addl, shll, leal, negl, subl
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 491d6795b4..4b48526db6 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -896,6 +896,9 @@
+ (CMPB x (MOVLconst [c])) -> (CMPBconst x [int64(int8(c))])
+ (CMPB (MOVLconst [c]) x) -> (InvertFlags (CMPBconst x [int64(int8(c))]))
+ 
++// Canonicalize the order of arguments to comparisons - helps with CSE.
++(CMP(Q|L|W|B) x y) && x.ID > y.ID -> (InvertFlags (CMP(Q|L|W|B) y x))
++
+ // Using MOVZX instead of AND is cheaper.
+ (AND(Q|L)const [  0xFF] x) -> (MOVBQZX x)
+ (AND(Q|L)const [0xFFFF] x) -> (MOVWQZX x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index d1244f8cee..361eb4f4f9 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -522,6 +522,9 @@
+ (TST x (MOVWconst [c])) -> (TSTconst [c] x)
+ (TEQ x (MOVWconst [c])) -> (TEQconst [c] x)
+ 
++// Canonicalize the order of arguments to comparisons - helps with CSE.
++(CMP x y) && x.ID > y.ID -> (InvertFlags (CMP y x))
++
+ // don't extend after proper load
+ // MOVWreg instruction is not emitted if src and dst registers are same, but it ensures the type.
+ (MOVBreg x:(MOVBload _ _)) -> (MOVWreg x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index b4c0565ca2..498e26a0bc 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1152,6 +1152,9 @@
+ (CMPW x (MOVDconst [c])) -> (CMPWconst [int64(int32(c))] x)
+ (CMPW (MOVDconst [c]) x) -> (InvertFlags (CMPWconst [int64(int32(c))] x))
+ 
++// Canonicalize the order of arguments to comparisons - helps with CSE.
++((CMP|CMPW) x y) && x.ID > y.ID -> (InvertFlags ((CMP|CMPW) y x))
++
+ // mul-neg -> mneg
+ (NEG (MUL x y)) -> (MNEG x y)
+ (NEG (MULW x y)) -> (MNEGW x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index e03712b118..1d511a8278 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -1026,6 +1026,9 @@
+ (CMPWU x (MOVDconst [c])) && isU16Bit(c) -> (CMPWUconst x [c])
+ (CMPWU (MOVDconst [c]) y) && isU16Bit(c) -> (InvertFlags (CMPWUconst y [c]))
+ 
++// Canonicalize the order of arguments to comparisons - helps with CSE.
++((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID -> (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
++
+ // ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
+ // ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
+ // ISELB special case where arg0, arg1 values are 0, 1
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 7761ee3b1e..2813c33fd0 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -700,6 +700,9 @@
+ (CMPWU x (MOVDconst [c])) -> (CMPWUconst x [int64(int32(c))])
+ (CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(int32(c))]))
+ 
++// Canonicalize the order of arguments to comparisons - helps with CSE.
++((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID -> (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
++
+ // Using MOV{W,H,B}Zreg instead of AND is cheaper.
+ (AND x (MOVDconst [0xFF])) -> (MOVBZreg x)
+ (AND x (MOVDconst [0xFFFF])) -> (MOVHZreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index fe92db2bf7..8c2d1f8a81 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -2615,6 +2615,22 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPB x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPB y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(Op386InvertFlags)
++		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMPB l:(MOVBload {sym} [off] ptr mem) x)
+ 	// cond: canMergeLoad(v, l) && clobber(l)
+ 	// result: (CMPBload {sym} [off] ptr x mem)
+@@ -2902,6 +2918,22 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPL x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPL y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(Op386InvertFlags)
++		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMPL l:(MOVLload {sym} [off] ptr mem) x)
+ 	// cond: canMergeLoad(v, l) && clobber(l)
+ 	// result: (CMPLload {sym} [off] ptr x mem)
+@@ -3204,6 +3236,22 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPW x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPW y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(Op386InvertFlags)
++		v0 := b.NewValue0(v.Pos, Op386CMPW, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMPW l:(MOVWload {sym} [off] ptr mem) x)
+ 	// cond: canMergeLoad(v, l) && clobber(l)
+ 	// result: (CMPWload {sym} [off] ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 40e7091fe1..cc629f199e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -7334,6 +7334,22 @@ func rewriteValueAMD64_OpAMD64CMPB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPB x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPB y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpAMD64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPB, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMPB l:(MOVBload {sym} [off] ptr mem) x)
+ 	// cond: canMergeLoad(v, l) && clobber(l)
+ 	// result: (CMPBload {sym} [off] ptr x mem)
+@@ -7704,6 +7720,22 @@ func rewriteValueAMD64_OpAMD64CMPL(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPL x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPL y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpAMD64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMPL l:(MOVLload {sym} [off] ptr mem) x)
+ 	// cond: canMergeLoad(v, l) && clobber(l)
+ 	// result: (CMPLload {sym} [off] ptr x mem)
+@@ -8097,6 +8129,22 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPQ x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPQ y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpAMD64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMPQ l:(MOVQload {sym} [off] ptr mem) x)
+ 	// cond: canMergeLoad(v, l) && clobber(l)
+ 	// result: (CMPQload {sym} [off] ptr x mem)
+@@ -8564,6 +8612,22 @@ func rewriteValueAMD64_OpAMD64CMPW(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPW x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPW y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpAMD64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPW, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMPW l:(MOVWload {sym} [off] ptr mem) x)
+ 	// cond: canMergeLoad(v, l) && clobber(l)
+ 	// result: (CMPWload {sym} [off] ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index c74a5602f0..4b68b4cc4b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -4034,6 +4034,22 @@ func rewriteValueARM_OpARMCMP(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMP x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMP y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpARMInvertFlags)
++		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMP x (SLLconst [c] y))
+ 	// result: (CMPshiftLL x y [c])
+ 	for {
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 6af2819225..10b0e68f58 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -2957,6 +2957,22 @@ func rewriteValueARM64_OpARM64CMP(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMP x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMP y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpARM64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMP x0 x1:(SLLconst [c] y))
+ 	// cond: clobberIfDead(x1)
+ 	// result: (CMPshiftLL x0 y [c])
+@@ -3117,6 +3133,22 @@ func rewriteValueARM64_OpARM64CMPW(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPW x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPW y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpARM64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpARM64CMPW, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64CMPWconst(v *Value) bool {
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 9f62e0d3ba..d5af441e67 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -4941,6 +4941,22 @@ func rewriteValuePPC64_OpPPC64CMP(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMP x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMP y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpPPC64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpPPC64CMP, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64CMPU(v *Value) bool {
+@@ -4983,6 +4999,22 @@ func rewriteValuePPC64_OpPPC64CMPU(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPU x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPU y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpPPC64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpPPC64CMPU, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64CMPUconst(v *Value) bool {
+@@ -5100,6 +5132,22 @@ func rewriteValuePPC64_OpPPC64CMPW(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPW x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPW y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpPPC64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpPPC64CMPW, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64CMPWU(v *Value) bool {
+@@ -5168,6 +5216,22 @@ func rewriteValuePPC64_OpPPC64CMPWU(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPWU x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPWU y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpPPC64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpPPC64CMPWU, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64CMPWUconst(v *Value) bool {
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index d9262305e8..fe705fee8e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -7234,6 +7234,22 @@ func rewriteValueS390X_OpS390XCMP(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMP x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMP y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpS390XInvertFlags)
++		v0 := b.NewValue0(v.Pos, OpS390XCMP, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XCMPU(v *Value) bool {
+@@ -7276,6 +7292,22 @@ func rewriteValueS390X_OpS390XCMPU(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPU x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPU y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpS390XInvertFlags)
++		v0 := b.NewValue0(v.Pos, OpS390XCMPU, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XCMPUconst(v *Value) bool {
+@@ -7481,6 +7513,22 @@ func rewriteValueS390X_OpS390XCMPW(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPW x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPW y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpS390XInvertFlags)
++		v0 := b.NewValue0(v.Pos, OpS390XCMPW, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMPW x (MOVWreg y))
+ 	// result: (CMPW x y)
+ 	for {
+@@ -7567,6 +7615,22 @@ func rewriteValueS390X_OpS390XCMPWU(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPWU x y)
++	// cond: x.ID > y.ID
++	// result: (InvertFlags (CMPWU y x))
++	for {
++		x := v_0
++		y := v_1
++		if !(x.ID > y.ID) {
++			break
++		}
++		v.reset(OpS390XInvertFlags)
++		v0 := b.NewValue0(v.Pos, OpS390XCMPWU, types.TypeFlags)
++		v0.AddArg(y)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (CMPWU x (MOVWreg y))
+ 	// result: (CMPWU x y)
+ 	for {
+diff --git a/test/codegen/compare_and_branch.go b/test/codegen/compare_and_branch.go
+index 33d8d7bd52..23e7810b31 100644
+--- a/test/codegen/compare_and_branch.go
++++ b/test/codegen/compare_and_branch.go
+@@ -11,7 +11,7 @@ func dummy() {}
+ 
+ // Signed 64-bit compare-and-branch.
+ func si64(x, y chan int64) {
+-	// s390x:"CGRJ\t[$]4, R[0-9]+, R[0-9]+, "
++	// s390x:"CGRJ\t[$](2|4), R[0-9]+, R[0-9]+, "
+ 	for <-x < <-y {
+ 		dummy()
+ 	}
+@@ -47,7 +47,7 @@ func si64x8() {
+ 
+ // Unsigned 64-bit compare-and-branch.
+ func ui64(x, y chan uint64) {
+-	// s390x:"CLGRJ\t[$]2, R[0-9]+, R[0-9]+, "
++	// s390x:"CLGRJ\t[$](2|4), R[0-9]+, R[0-9]+, "
+ 	for <-x > <-y {
+ 		dummy()
+ 	}
+@@ -83,7 +83,7 @@ func ui64x8() {
+ 
+ // Signed 32-bit compare-and-branch.
+ func si32(x, y chan int32) {
+-	// s390x:"CRJ\t[$]4, R[0-9]+, R[0-9]+, "
++	// s390x:"CRJ\t[$](2|4), R[0-9]+, R[0-9]+, "
+ 	for <-x < <-y {
+ 		dummy()
+ 	}
+@@ -119,7 +119,7 @@ func si32x8() {
+ 
+ // Unsigned 32-bit compare-and-branch.
+ func ui32(x, y chan uint32) {
+-	// s390x:"CLRJ\t[$]2, R[0-9]+, R[0-9]+, "
++	// s390x:"CLRJ\t[$](2|4), R[0-9]+, R[0-9]+, "
+ 	for <-x > <-y {
+ 		dummy()
+ 	}
+diff --git a/test/codegen/condmove.go b/test/codegen/condmove.go
+index bd3fe59427..00118d1b63 100644
+--- a/test/codegen/condmove.go
++++ b/test/codegen/condmove.go
+@@ -32,7 +32,7 @@ func cmovuintptr(x, y uintptr) uintptr {
+ 		x = -y
+ 	}
+ 	// amd64:"CMOVQCS"
+-	// arm64:"CSEL\tLO"
++	// arm64:"CSEL\t(LO|HI)"
+ 	// wasm:"Select"
+ 	return x
+ }
+@@ -42,7 +42,7 @@ func cmov32bit(x, y uint32) uint32 {
+ 		x = -y
+ 	}
+ 	// amd64:"CMOVLCS"
+-	// arm64:"CSEL\tLO"
++	// arm64:"CSEL\t(LO|HI)"
+ 	// wasm:"Select"
+ 	return x
+ }
+@@ -52,7 +52,7 @@ func cmov16bit(x, y uint16) uint16 {
+ 		x = -y
+ 	}
+ 	// amd64:"CMOVWCS"
+-	// arm64:"CSEL\tLO"
++	// arm64:"CSEL\t(LO|HI)"
+ 	// wasm:"Select"
+ 	return x
+ }

@@ -22,6 +22,56 @@ Date:   Wed Jun 14 17:09:30 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 22 +++++++++++++++++++---
  1 file changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 95fc8b5a42..a9f10af5af 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1075,7 +1075,7 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym,
+ 			break
+ 		}
+ 		if val < addr {
+-			ldr.Errorf(s, "phase error: addr=%#x but sym=%#x type=%v sect=%v", addr, val, ldr.SymType(s), ldr.SymSect(s).Name)
++			ldr.Errorf(s, "phase error: addr=%#x but val=%#x sym=%s type=%v sect=%v sect.addr=%#x", addr, val, ldr.SymName(s), ldr.SymType(s), ldr.SymSect(s).Name, ldr.SymSect(s).Vaddr)
+ 			errorexit()
+ 		}
+ 		if addr < val {
+@@ -1426,6 +1426,20 @@ func fixZeroSizedSymbols(ctxt *Link) {
+ 		edata.SetType(sym.SXCOFFTOC)
+ 	}
+ 
++	noptrbss := ldr.CreateSymForUpdate("runtime.noptrbss", 0)
++	noptrbss.SetSize(8)
++	ldr.SetAttrSpecial(noptrbss.Sym(), false)
++
++	enoptrbss := ldr.CreateSymForUpdate("runtime.enoptrbss", 0)
++	ldr.SetAttrSpecial(enoptrbss.Sym(), false)
++
++	noptrdata := ldr.CreateSymForUpdate("runtime.noptrdata", 0)
++	noptrdata.SetSize(8)
++	ldr.SetAttrSpecial(noptrdata.Sym(), false)
++
++	enoptrdata := ldr.CreateSymForUpdate("runtime.enoptrdata", 0)
++	ldr.SetAttrSpecial(enoptrdata.Sym(), false)
++
+ 	types := ldr.CreateSymForUpdate("runtime.types", 0)
+ 	types.SetType(sym.STYPE)
+ 	types.SetSize(8)
+@@ -2234,10 +2248,12 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
+ 		// end of their section.
+ 		if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
+ 			switch ldr.SymName(s) {
+-			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types", "runtime.rodata":
++			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types", "runtime.rodata",
++				"runtime.noptrdata", "runtime.noptrbss":
+ 				head = s
+ 				continue
+-			case "runtime.etext", "runtime.ebss", "runtime.edata", "runtime.etypes", "runtime.erodata":
++			case "runtime.etext", "runtime.ebss", "runtime.edata", "runtime.etypes", "runtime.erodata",
++				"runtime.enoptrdata", "runtime.enoptrbss":
+ 				tail = s
+ 				continue
+ 			}

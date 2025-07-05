@@ -9,6 +9,20 @@ Date:   Mon Sep 16 15:55:16 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/13470046
-
+---
  src/cmd/gc/subr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b529e2cc9a..bea90b87b8 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2183,7 +2183,7 @@ lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
+ 	c = 0;
+ 	if(u->etype == TSTRUCT || u->etype == TINTER) {
+ 		for(f=u->type; f!=T; f=f->down)
+-			if(f->sym == s || (ignorecase && ucistrcmp(f->sym->name, s->name) == 0)) {
++			if(f->sym == s || (ignorecase && f->type->etype == TFUNC && f->type->thistuple > 0 && ucistrcmp(f->sym->name, s->name) == 0)) {
+ 				if(save)
+ 					*save = f;
+ 				c++;

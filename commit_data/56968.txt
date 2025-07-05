@@ -18,7 +18,42 @@ Date:   Sat Jun 3 08:33:51 2023 +0700
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/walk.go |  2 +-
  test/fixedbugs/issue60582.go          | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index f5a2f9b9ac..265066200c 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -340,7 +340,7 @@ func mayCall(n ir.Node) bool {
+ 		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OLINKSYMOFFSET, ir.OMETHEXPR,
+ 			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,
+ 			ir.OADDR, ir.OBITNOT, ir.ONOT, ir.OPLUS,
+-			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
++			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL, ir.OMIN, ir.OMAX,
+ 			ir.OCONVNOP, ir.ODOT,
+ 			ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR,
+ 			ir.OBYTES2STRTMP, ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP, ir.OSLICEHEADER, ir.OSTRINGHEADER:
+diff --git a/test/fixedbugs/issue60582.go b/test/fixedbugs/issue60582.go
+new file mode 100644
+index 0000000000..f698918098
+--- /dev/null
++++ b/test/fixedbugs/issue60582.go
+@@ -0,0 +1,15 @@
++// build
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func main() {
++	a, b := 5, 7
++	fmt.Println(min(a, b))
++	fmt.Println(max(a, b))
++}

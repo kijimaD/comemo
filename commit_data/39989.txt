@@ -11,6 +11,49 @@ Date:   Mon Apr 8 19:02:40 2019 +0000
     GitHub-Pull-Request: golang/go#30944
     Reviewed-on: https://go-review.googlesource.com/c/go/+/168351
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/rt0_windows_amd64.s | 24 +++++++++++++-----------
  1 file changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/rt0_windows_amd64.s b/src/runtime/rt0_windows_amd64.s
+index 1604711cdb..345e141802 100644
+--- a/src/runtime/rt0_windows_amd64.s
++++ b/src/runtime/rt0_windows_amd64.s
+@@ -14,12 +14,14 @@ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+ // library is loaded. For static libraries it is called when the
+ // final executable starts, during the C runtime initialization
+ // phase.
+-TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0x28
+-	MOVQ	BP, 0x00(SP)
+-	MOVQ	BX, 0x08(SP)
+-	MOVQ	AX, 0x10(SP)
+-	MOVQ  CX, 0x18(SP)
+-	MOVQ  DX, 0x20(SP)
++// Leave space for four pointers on the stack as required
++// by the Windows amd64 calling convention.
++TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0x48
++	MOVQ	BP, 0x20(SP)
++	MOVQ	BX, 0x28(SP)
++	MOVQ	AX, 0x30(SP)
++	MOVQ  CX, 0x38(SP)
++	MOVQ  DX, 0x40(SP)
+ 
+ 	// Create a new thread to do the runtime initialization and return.
+ 	MOVQ	_cgo_sys_thread_create(SB), AX
+@@ -27,11 +29,11 @@ TEXT _rt0_amd64_windows_lib(SB),NOSPLIT,$0x28
+ 	MOVQ	$0, DX
+ 	CALL	AX
+ 
+-	MOVQ	0x00(SP), BP
+-	MOVQ	0x08(SP), BX
+-	MOVQ	0x10(SP), AX
+-	MOVQ	0x18(SP), CX
+-	MOVQ	0x20(SP), DX
++	MOVQ	0x20(SP), BP
++	MOVQ	0x28(SP), BX
++	MOVQ	0x30(SP), AX
++	MOVQ	0x38(SP), CX
++	MOVQ	0x40(SP), DX
+ 	RET
+ 
+ TEXT _rt0_amd64_windows_lib_go(SB),NOSPLIT,$0

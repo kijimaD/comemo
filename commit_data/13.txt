@@ -5,6 +5,33 @@ Date:   Thu Mar 6 21:24:57 2008 -0800
     - fixed a couple of grammar errors
     
     SVN=111685
-
+---
  doc/go_lang.txt | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 3002d0cda2..ed44eb4a00 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -532,9 +532,9 @@ Any array may be assigned to an open array variable with the
+ same element type. Typically, open arrays are used as
+ formal parameters for functions.
+ 
+-  ArrayType = { '[' ArrayLength ']' } ElementType.
+-  ArrayLength = Expression.
+-  ElementType = Type.
++  ArrayType = '[' [ ArrayLength ] ']' ElementType .
++  ArrayLength = Expression .
++  ElementType = Type .
+ 
+   [] uint8
+   [2*n] int
+@@ -687,7 +687,7 @@ Functions can return multiple values simultaneously.
+   Parameters = '(' [ ParameterList ] ')' .
+   ParameterList = ParameterSection { ',' ParameterSection } .
+   ParameterSection = [ IdentifierList ] Type .
+-  Result = [ Type ] | '(' ParameterList ')' .
++  Result = Type | '(' ParameterList ')' .
+ 
+     // Function types
+     func ()

@@ -9,6 +9,31 @@ Date:   Tue Jun 5 00:55:45 2012 +1000
     R=golang-dev, bsiegert, rsc
     CC=golang-dev
     https://golang.org/cl/6270047
-
+---
  doc/contribute.html | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index e1f39ae7e0..016ba8635e 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -163,6 +163,19 @@ can use that nickname as a shorthand for naming reviewers and the CC list.
+ For example, <code>rsc</code> is an alias for <code>rsc@golang.org</code>.
+ </p>
+ 
++<h3>Switch to the default branch</h3>
++
++<p>
++Most Go installations use a release branch, but new changes should
++only be made to the default branch. (They may be applied later to a release
++branch as part of the release process.)
++Before making a change, make sure you use the default branch:
++</p>
++
++<pre>
++$ hg update default
++</pre>
++
+ <h3>Make a change</h3>
+ 
+ <p>

@@ -11,6 +11,23 @@ Date:   Tue Aug 5 13:43:12 2014 -0700
     R=bradfitz
     CC=dvyukov, golang-codereviews
     https://golang.org/cl/122120043
-
+---
  src/pkg/mime/multipart/writer_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/mime/multipart/writer_test.go b/src/pkg/mime/multipart/writer_test.go
+index 2412985b9b..ba00c97ece 100644
+--- a/src/pkg/mime/multipart/writer_test.go
++++ b/src/pkg/mime/multipart/writer_test.go
+@@ -118,8 +118,11 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
+ 	// https://codereview.appspot.com/95760043/ and reverted in
+ 	// https://codereview.appspot.com/117600043/
+ 	w := NewWriter(ioutil.Discard)
++	done := make(chan int)
+ 	go func() {
+ 		w.CreateFormField("foo")
++		done <- 1
+ 	}()
+ 	w.Boundary()
++	<-done
+ }

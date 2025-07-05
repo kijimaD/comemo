@@ -25,6 +25,29 @@ Date:   Thu Sep 15 03:57:43 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/debug/elf/file.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index f37d4b8e9a..aff2b00aae 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -474,7 +474,16 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	}
+ 
+ 	// Load section header string table.
+-	shstrtab, err := f.Sections[shstrndx].Data()
++	if shstrndx == 0 {
++		// If the file has no section name string table,
++		// shstrndx holds the value SHN_UNDEF (0).
++		return f, nil
++	}
++	shstr := f.Sections[shstrndx]
++	if shstr.Type != SHT_STRTAB {
++		return nil, &FormatError{shoff + int64(shstrndx*shentsize), "invalid ELF section name string table type", shstr.Type}
++	}
++	shstrtab, err := shstr.Data()
+ 	if err != nil {
+ 		return nil, err
+ 	}

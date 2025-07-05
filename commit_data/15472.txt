@@ -34,7 +34,7 @@ Date:   Wed Feb 27 16:43:16 2013 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/7392053
-
+---
  src/pkg/exp/ssa/builder.go                  |   4 +-
  src/pkg/exp/ssa/interp/external.go          |  62 +++++++++++--
  src/pkg/exp/ssa/interp/external_plan9.go    |  30 ++++++-
@@ -46,3 +46,637 @@ Date:   Wed Feb 27 16:43:16 2013 -0500
  src/pkg/exp/ssa/interp/value.go             |   6 +-
  src/pkg/exp/ssa/ssadump.go                  |  63 ++++++++------
  10 files changed, 312 insertions(+), 56 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index 8b727b30ed..0e62104e2e 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -1077,7 +1077,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
+ 	case *types.Signature:
+ 		np := len(typ.Params)
+ 		if !c.HasEllipsis {
+-			if typ.IsVariadic && len(args) > np-1 {
++			if typ.IsVariadic {
+ 				// case 2: ordinary call of variadic function.
+ 				vt = typ.Params[np-1].Type
+ 				args, varargs = args[:np-1], args[np-1:]
+@@ -1216,7 +1216,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
+ 	}
+ 
+ 	// Common code for varargs.
+-	if len(varargs) > 0 { // case 2
++	if vt != nil { // case 2
+ 		at := &types.Array{
+ 			Elt: vt,
+ 			Len: int64(len(varargs)),
+diff --git a/src/pkg/exp/ssa/interp/external.go b/src/pkg/exp/ssa/interp/external.go
+index a099ca8b75..25b012eed3 100644
+--- a/src/pkg/exp/ssa/interp/external.go
++++ b/src/pkg/exp/ssa/interp/external.go
+@@ -21,6 +21,7 @@ type externalFn func(fn *ssa.Function, args []value) value
+ // Key strings are from Function.FullName().
+ // That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
+ var externals = map[string]externalFn{
++	"(reflect.Value).Bool":            ext۰reflect۰Value۰Bool,
+ 	"(reflect.Value).CanAddr":         ext۰reflect۰Value۰CanAddr,
+ 	"(reflect.Value).CanInterface":    ext۰reflect۰Value۰CanInterface,
+ 	"(reflect.Value).Elem":            ext۰reflect۰Value۰Elem,
+@@ -36,10 +37,15 @@ var externals = map[string]externalFn{
+ 	"(reflect.Value).Pointer":         ext۰reflect۰Value۰Pointer,
+ 	"(reflect.Value).String":          ext۰reflect۰Value۰String,
+ 	"(reflect.Value).Type":            ext۰reflect۰Value۰Type,
++	"(reflect.error).Error":           ext۰reflect۰error۰Error,
+ 	"(reflect.rtype).Bits":            ext۰reflect۰rtype۰Bits,
+ 	"(reflect.rtype).Elem":            ext۰reflect۰rtype۰Elem,
+ 	"(reflect.rtype).Kind":            ext۰reflect۰rtype۰Kind,
++	"(reflect.rtype).NumOut":          ext۰reflect۰rtype۰NumOut,
++	"(reflect.rtype).Out":             ext۰reflect۰rtype۰Out,
+ 	"(reflect.rtype).String":          ext۰reflect۰rtype۰String,
++	"bytes.Equal":                     ext۰bytes۰Equal,
++	"bytes.IndexByte":                 ext۰bytes۰IndexByte,
+ 	"math.Float32bits":                ext۰math۰Float32bits,
+ 	"math.Float32frombits":            ext۰math۰Float32frombits,
+ 	"math.Float64bits":                ext۰math۰Float64bits,
+@@ -61,14 +67,58 @@ var externals = map[string]externalFn{
+ 	"sync/atomic.LoadUint32":          ext۰atomic۰LoadUint32,
+ 	"sync/atomic.StoreInt32":          ext۰atomic۰StoreInt32,
+ 	"sync/atomic.StoreUint32":         ext۰atomic۰StoreUint32,
++	"syscall.Close":                   ext۰syscall۰Close,
+ 	"syscall.Exit":                    ext۰syscall۰Exit,
++	"syscall.Fstat":                   ext۰syscall۰Fstat,
++	"syscall.Getdents":                ext۰syscall۰Getdents,
+ 	"syscall.Getpid":                  ext۰syscall۰Getpid,
++	"syscall.Getwd":                   ext۰syscall۰Getwd,
+ 	"syscall.Kill":                    ext۰syscall۰Kill,
++	"syscall.Lstat":                   ext۰syscall۰Lstat,
++	"syscall.Open":                    ext۰syscall۰Open,
++	"syscall.ParseDirent":             ext۰syscall۰ParseDirent,
++	"syscall.Read":                    ext۰syscall۰Read,
++	"syscall.Stat":                    ext۰syscall۰Stat,
+ 	"syscall.Write":                   ext۰syscall۰Write,
+ 	"time.Sleep":                      ext۰time۰Sleep,
+ 	"time.now":                        ext۰time۰now,
+ }
+ 
++// wrapError returns an interpreted 'error' interface value for err.
++func wrapError(err error) value {
++	if err == nil {
++		return iface{}
++	}
++	return iface{t: errorType, v: err.Error()}
++}
++
++func ext۰bytes۰Equal(fn *ssa.Function, args []value) value {
++	// func Equal(a, b []byte) bool
++	a := args[0].([]value)
++	b := args[1].([]value)
++	if len(a) != len(b) {
++		return false
++	}
++	for i := range a {
++		if a[i] != b[i] {
++			return false
++		}
++	}
++	return true
++}
++
++func ext۰bytes۰IndexByte(fn *ssa.Function, args []value) value {
++	// func IndexByte(s []byte, c byte) int
++	s := args[0].([]value)
++	c := args[1].(byte)
++	for i, b := range s {
++		if b.(byte) == c {
++			return i
++		}
++	}
++	return -1
++}
++
+ func ext۰math۰Float64frombits(fn *ssa.Function, args []value) value {
+ 	return math.Float64frombits(args[0].(uint64))
+ }
+@@ -171,15 +221,17 @@ func ext۰syscall۰Exit(fn *ssa.Function, args []value) value {
+ 	panic(exitPanic(args[0].(int)))
+ }
+ 
++func ext۰syscall۰Getwd(fn *ssa.Function, args []value) value {
++	s, err := syscall.Getwd()
++	return tuple{s, wrapError(err)}
++}
++
+ func ext۰syscall۰Getpid(fn *ssa.Function, args []value) value {
+-	// We could emulate syscall.Syscall but it's more effort.
+ 	return syscall.Getpid()
+ }
+ 
+ // The set of remaining native functions we need to implement (as needed):
+ 
+-// bytes/bytes.go:42:func Equal(a, b []byte) bool
+-// bytes/bytes_decl.go:8:func IndexByte(s []byte, c byte) int // asm_$GOARCH.s
+ // crypto/aes/cipher_asm.go:10:func hasAsm() bool
+ // crypto/aes/cipher_asm.go:11:func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+ // crypto/aes/cipher_asm.go:12:func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+@@ -283,10 +335,6 @@ func ext۰syscall۰Getpid(fn *ssa.Function, args []value) value {
+ // syscall/syscall_linux_amd64.go:60:func Gettimeofday(tv *Timeval) (err error)
+ // syscall/syscall_linux_amd64.go:61:func Time(t *Time_t) (tt Time_t, err error)
+ // syscall/syscall_linux_arm.go:28:func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
+-// syscall/syscall_unix.go:23:func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+-// syscall/syscall_unix.go:24:func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+-// syscall/syscall_unix.go:25:func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+-// syscall/syscall_unix.go:26:func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ // time/sleep.go:25:func startTimer(*runtimeTimer)
+ // time/sleep.go:26:func stopTimer(*runtimeTimer) bool
+ // time/time.go:758:func now() (sec int64, nsec int32)
+diff --git a/src/pkg/exp/ssa/interp/external_plan9.go b/src/pkg/exp/ssa/interp/external_plan9.go
+index 5f17cacda6..ce7fd529b1 100644
+--- a/src/pkg/exp/ssa/interp/external_plan9.go
++++ b/src/pkg/exp/ssa/interp/external_plan9.go
+@@ -9,18 +9,40 @@ import (
+ 	"syscall"
+ )
+ 
++func ext۰syscall۰Close(fn *ssa.Function, args []value) value {
++	panic("syscall.Close not yet implemented")
++}
++func ext۰syscall۰Fstat(fn *ssa.Function, args []value) value {
++	panic("syscall.Fstat not yet implemented")
++}
++func ext۰syscall۰Getdents(fn *ssa.Function, args []value) value {
++	panic("syscall.Getdents not yet implemented")
++}
+ func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
+ 	panic("syscall.Kill not yet implemented")
+ }
++func ext۰syscall۰Lstat(fn *ssa.Function, args []value) value {
++	panic("syscall.Lstat not yet implemented")
++}
++func ext۰syscall۰Open(fn *ssa.Function, args []value) value {
++	panic("syscall.Open not yet implemented")
++}
++func ext۰syscall۰ParseDirent(fn *ssa.Function, args []value) value {
++	panic("syscall.ParseDirent not yet implemented")
++}
++func ext۰syscall۰Read(fn *ssa.Function, args []value) value {
++	panic("syscall.Read not yet implemented")
++}
++func ext۰syscall۰Stat(fn *ssa.Function, args []value) value {
++	panic("syscall.Stat not yet implemented")
++}
+ 
+ func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
+-	// We could emulate syscall.Syscall but it's more effort.
+ 	p := args[1].([]value)
+ 	b := make([]byte, 0, len(p))
+ 	for i := range p {
+ 		b = append(b, p[i].(byte))
+ 	}
+-	n, _ := syscall.Write(args[0].(int), b)
+-	err := iface{} // TODO(adonovan): fix: adapt concrete err to interpreted iface.
+-	return tuple{n, err}
++	n, err := syscall.Write(args[0].(int), b)
++	return tuple{n, wrapError(err)}
+ }
+diff --git a/src/pkg/exp/ssa/interp/external_unix.go b/src/pkg/exp/ssa/interp/external_unix.go
+index afc874535f..c81454ae26 100644
+--- a/src/pkg/exp/ssa/interp/external_unix.go
++++ b/src/pkg/exp/ssa/interp/external_unix.go
+@@ -11,21 +11,126 @@ import (
+ 	"syscall"
+ )
+ 
++func valueToBytes(v value) []byte {
++	in := v.([]value)
++	b := make([]byte, len(in))
++	for i := range in {
++		b[i] = in[i].(byte)
++	}
++	return b
++}
++
++func fillStat(st *syscall.Stat_t, stat structure) {
++	stat[0] = st.Dev
++	stat[1] = st.Ino
++	stat[2] = st.Nlink
++	stat[3] = st.Mode
++	stat[4] = st.Uid
++	stat[5] = st.Gid
++
++	stat[7] = st.Rdev
++	stat[8] = st.Size
++	stat[9] = st.Blksize
++	stat[10] = st.Blocks
++	// TODO(adonovan): fix: copy Timespecs.
++	// stat[11] = st.Atim
++	// stat[12] = st.Mtim
++	// stat[13] = st.Ctim
++}
++
++func ext۰syscall۰Close(fn *ssa.Function, args []value) value {
++	// func Close(fd int) (err error)
++	return wrapError(syscall.Close(args[0].(int)))
++}
++
++func ext۰syscall۰Fstat(fn *ssa.Function, args []value) value {
++	// func Fstat(fd int, stat *Stat_t) (err error)
++	fd := args[0].(int)
++	stat := (*args[1].(*value)).(structure)
++
++	var st syscall.Stat_t
++	err := syscall.Fstat(fd, &st)
++	fillStat(&st, stat)
++	return wrapError(err)
++}
++
++func ext۰syscall۰Getdents(fn *ssa.Function, args []value) value {
++	// func GetDents(fd int, buf []byte) (n int, err error)
++	fd := args[0].(int)
++	p := args[1].([]value)
++	b := make([]byte, len(p))
++	n, err := syscall.Getdents(fd, b)
++	for i := 0; i < n; i++ {
++		p[i] = b[i]
++	}
++	return tuple{n, wrapError(err)}
++}
++
+ func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
+-	// We could emulate syscall.Syscall but it's more effort.
+-	err := syscall.Kill(args[0].(int), syscall.Signal(args[1].(int)))
+-	err = err // TODO(adonovan): fix: adapt concrete err to interpreted iface (e.g. call interpreted errors.New)
+-	return iface{}
++	// func Kill(pid int, sig Signal) (err error)
++	return wrapError(syscall.Kill(args[0].(int), syscall.Signal(args[1].(int))))
+ }
+ 
+-func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
+-	// We could emulate syscall.Syscall but it's more effort.
++func ext۰syscall۰Lstat(fn *ssa.Function, args []value) value {
++	// func Lstat(name string, stat *Stat_t) (err error)
++	name := args[0].(string)
++	stat := (*args[1].(*value)).(structure)
++
++	var st syscall.Stat_t
++	err := syscall.Lstat(name, &st)
++	fillStat(&st, stat)
++	return wrapError(err)
++}
++
++func ext۰syscall۰Open(fn *ssa.Function, args []value) value {
++	// func Open(path string, mode int, perm uint32) (fd int, err error) {
++	path := args[0].(string)
++	mode := args[1].(int)
++	perm := args[2].(uint32)
++	fd, err := syscall.Open(path, mode, perm)
++	return tuple{fd, wrapError(err)}
++}
++
++func ext۰syscall۰ParseDirent(fn *ssa.Function, args []value) value {
++	// func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string)
++	max := args[1].(int)
++	var names []string
++	for _, iname := range args[2].([]value) {
++		names = append(names, iname.(string))
++	}
++	consumed, count, newnames := syscall.ParseDirent(valueToBytes(args[0]), max, names)
++	var inewnames []value
++	for _, newname := range newnames {
++		inewnames = append(inewnames, newname)
++	}
++	return tuple{consumed, count, inewnames}
++}
++
++func ext۰syscall۰Read(fn *ssa.Function, args []value) value {
++	// func Read(fd int, p []byte) (n int, err error)
++	fd := args[0].(int)
+ 	p := args[1].([]value)
+-	b := make([]byte, 0, len(p))
+-	for i := range p {
+-		b = append(b, p[i].(byte))
++	b := make([]byte, len(p))
++	n, err := syscall.Read(fd, b)
++	for i := 0; i < n; i++ {
++		p[i] = b[i]
+ 	}
+-	n, _ := syscall.Write(args[0].(int), b)
+-	err := iface{} // TODO(adonovan): fix: adapt concrete err to interpreted iface.
+-	return tuple{n, err}
++	return tuple{n, wrapError(err)}
++}
++
++func ext۰syscall۰Stat(fn *ssa.Function, args []value) value {
++	// func Stat(name string, stat *Stat_t) (err error)
++	name := args[0].(string)
++	stat := (*args[1].(*value)).(structure)
++
++	var st syscall.Stat_t
++	err := syscall.Stat(name, &st)
++	fillStat(&st, stat)
++	return wrapError(err)
++}
++
++func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
++	// func Write(fd int, p []byte) (n int, err error)
++	n, err := syscall.Write(args[0].(int), valueToBytes(args[1]))
++	return tuple{n, wrapError(err)}
+ }
+diff --git a/src/pkg/exp/ssa/interp/external_windows.go b/src/pkg/exp/ssa/interp/external_windows.go
+index 5bdc1b9edf..9b782ea1a6 100644
+--- a/src/pkg/exp/ssa/interp/external_windows.go
++++ b/src/pkg/exp/ssa/interp/external_windows.go
+@@ -10,10 +10,33 @@ import (
+ 	"exp/ssa"
+ )
+ 
++func ext۰syscall۰Close(fn *ssa.Function, args []value) value {
++	panic("syscall.Close not yet implemented")
++}
++func ext۰syscall۰Fstat(fn *ssa.Function, args []value) value {
++	panic("syscall.Fstat not yet implemented")
++}
++func ext۰syscall۰Getdents(fn *ssa.Function, args []value) value {
++	panic("syscall.Getdents not yet implemented")
++}
+ func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
+ 	panic("syscall.Kill not yet implemented")
+ }
+-
++func ext۰syscall۰Lstat(fn *ssa.Function, args []value) value {
++	panic("syscall.Lstat not yet implemented")
++}
++func ext۰syscall۰Open(fn *ssa.Function, args []value) value {
++	panic("syscall.Open not yet implemented")
++}
++func ext۰syscall۰ParseDirent(fn *ssa.Function, args []value) value {
++	panic("syscall.ParseDirent not yet implemented")
++}
++func ext۰syscall۰Read(fn *ssa.Function, args []value) value {
++	panic("syscall.Read not yet implemented")
++}
++func ext۰syscall۰Stat(fn *ssa.Function, args []value) value {
++	panic("syscall.Stat not yet implemented")
++}
+ func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
+ 	panic("syscall.Write not yet implemented")
+ }
+diff --git a/src/pkg/exp/ssa/interp/interp.go b/src/pkg/exp/ssa/interp/interp.go
+index 1df63bd663..9787252413 100644
+--- a/src/pkg/exp/ssa/interp/interp.go
++++ b/src/pkg/exp/ssa/interp/interp.go
+@@ -84,6 +84,7 @@ type interpreter struct {
+ 	globals        map[ssa.Value]*value // addresses of global variables (immutable)
+ 	mode           Mode                 // interpreter options
+ 	reflectPackage *ssa.Package         // the fake reflect package
++	errorMethods   ssa.MethodSet        // the method set of reflect.error, which implements the error interface.
+ 	rtypeMethods   ssa.MethodSet        // the method set of rtype, which implements the reflect.Type interface.
+ }
+ 
+@@ -132,8 +133,11 @@ func (fr *frame) rundefers() {
+ // findMethodSet returns the method set for type typ, which may be one
+ // of the interpreter's fake types.
+ func findMethodSet(i *interpreter, typ types.Type) ssa.MethodSet {
+-	if typ == rtypeType {
++	switch typ {
++	case rtypeType:
+ 		return i.rtypeMethods
++	case errorType:
++		return i.errorMethods
+ 	}
+ 	return i.prog.MethodSet(typ)
+ }
+@@ -211,8 +215,9 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
+ 		return kJump
+ 
+ 	case *ssa.Defer:
++		pos := instr.Pos // TODO(gri): workaround for bug in typeswitch+funclit.
+ 		fn, args := prepareCall(fr, &instr.CallCommon)
+-		fr.defers = append(fr.defers, func() { call(fr.i, fr, instr.Pos, fn, args) })
++		fr.defers = append(fr.defers, func() { call(fr.i, fr, pos, fn, args) })
+ 
+ 	case *ssa.Go:
+ 		fn, args := prepareCall(fr, &instr.CallCommon)
+diff --git a/src/pkg/exp/ssa/interp/reflect.go b/src/pkg/exp/ssa/interp/reflect.go
+index 26a8338126..770792c05d 100644
+--- a/src/pkg/exp/ssa/interp/reflect.go
++++ b/src/pkg/exp/ssa/interp/reflect.go
+@@ -28,6 +28,14 @@ var reflectTypesPackage = &types.Package{
+ // type rtype <opaque>
+ var rtypeType = makeNamedType("rtype", &types.Basic{Name: "rtype"})
+ 
++// error is an (interpreted) named type whose underlying type is string.
++// The interpreter uses it for all implementations of the built-in error
++// interface that it creates.
++// We put it in the "reflect" package for expedience.
++//
++// type error string
++var errorType = makeNamedType("error", &types.Basic{Name: "error"})
++
+ func makeNamedType(name string, underlying types.Type) *types.NamedType {
+ 	nt := &types.NamedType{Underlying: underlying}
+ 	nt.Obj = &types.TypeName{
+@@ -123,6 +131,17 @@ func ext۰reflect۰rtype۰Kind(fn *ssa.Function, args []value) value {
+ 	return uint(reflectKind(args[0].(rtype).t))
+ }
+ 
++func ext۰reflect۰rtype۰NumOut(fn *ssa.Function, args []value) value {
++	// Signature: func (t reflect.rtype) int
++	return len(args[0].(rtype).t.(*types.Signature).Results)
++}
++
++func ext۰reflect۰rtype۰Out(fn *ssa.Function, args []value) value {
++	// Signature: func (t reflect.rtype, i int) int
++	i := args[1].(int)
++	return makeReflectType(rtype{args[0].(rtype).t.(*types.Signature).Results[i].Type})
++}
++
+ func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value) value {
+ 	// Signature: func (t reflect.rtype) string
+ 	return args[0].(rtype).t.String()
+@@ -279,6 +298,11 @@ func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value) value {
+ 	return nil // unreachable
+ }
+ 
++func ext۰reflect۰Value۰Bool(fn *ssa.Function, args []value) value {
++	// Signature: func (reflect.Value) bool
++	return rV2V(args[0]).(bool)
++}
++
+ func ext۰reflect۰Value۰CanAddr(fn *ssa.Function, args []value) value {
+ 	// Signature: func (v reflect.Value) bool
+ 	// Always false for our representation.
+@@ -373,6 +397,10 @@ func ext۰reflect۰valueInterface(fn *ssa.Function, args []value) value {
+ 	return iface{rV2T(v).t, rV2V(v)}
+ }
+ 
++func ext۰reflect۰error۰Error(fn *ssa.Function, args []value) value {
++	return args[0]
++}
++
+ // newMethod creates a new method of the specified name, package and receiver type.
+ func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function {
+ 	fn := &ssa.Function{
+@@ -402,6 +430,11 @@ func initReflect(i *interpreter) {
+ 		ssa.Id{nil, "Bits"}:   newMethod(i.reflectPackage, rtypeType, "Bits"),
+ 		ssa.Id{nil, "Elem"}:   newMethod(i.reflectPackage, rtypeType, "Elem"),
+ 		ssa.Id{nil, "Kind"}:   newMethod(i.reflectPackage, rtypeType, "Kind"),
++		ssa.Id{nil, "NumOut"}: newMethod(i.reflectPackage, rtypeType, "NumOut"),
++		ssa.Id{nil, "Out"}:    newMethod(i.reflectPackage, rtypeType, "Out"),
+ 		ssa.Id{nil, "String"}: newMethod(i.reflectPackage, rtypeType, "String"),
+ 	}
++	i.errorMethods = ssa.MethodSet{
++		ssa.Id{nil, "Error"}: newMethod(i.reflectPackage, errorType, "Error"),
++	}
+ }
+diff --git a/src/pkg/exp/ssa/interp/testdata/coverage.go b/src/pkg/exp/ssa/interp/testdata/coverage.go
+index 5cfbdbdd84..03e14275aa 100644
+--- a/src/pkg/exp/ssa/interp/testdata/coverage.go
++++ b/src/pkg/exp/ssa/interp/testdata/coverage.go
+@@ -23,6 +23,13 @@ func init() {
+ 	}
+ }
+ 
++func init() {
++	// Call of variadic function with (implicit) empty slice.
++	if x := fmt.Sprint(); x != "" {
++		panic(x)
++	}
++}
++
+ type empty interface{}
+ 
+ type I interface {
+diff --git a/src/pkg/exp/ssa/interp/value.go b/src/pkg/exp/ssa/interp/value.go
+index f24d751145..3218fb441f 100644
+--- a/src/pkg/exp/ssa/interp/value.go
++++ b/src/pkg/exp/ssa/interp/value.go
+@@ -226,10 +226,8 @@ func equals(x, y value) bool {
+ 		return x == y.(*hashmap)
+ 	case map[value]value:
+ 		return (x != nil) == (y.(map[value]value) != nil)
+-	case *ssa.Function:
+-		return x == y.(*ssa.Function)
+-	case *closure:
+-		return x == y.(*closure)
++	case *ssa.Function, *closure:
++		return x == y
+ 	case []value:
+ 		return (x != nil) == (y.([]value) != nil)
+ 	}
+diff --git a/src/pkg/exp/ssa/ssadump.go b/src/pkg/exp/ssa/ssadump.go
+index 8a7f6b6f82..f74ff08263 100644
+--- a/src/pkg/exp/ssa/ssadump.go
++++ b/src/pkg/exp/ssa/ssadump.go
+@@ -9,6 +9,7 @@ import (
+ 	"exp/ssa/interp"
+ 	"flag"
+ 	"fmt"
++	"go/ast"
+ 	"log"
+ 	"os"
+ 	"runtime/pprof"
+@@ -36,7 +37,8 @@ T	[T]race execution of the program.  Best for single-threaded programs!
+ `)
+ 
+ const usage = `SSA builder and interpreter.
+-Usage: ssadump [<flag> ...] <file.go> ...
++Usage: ssadump [<flag> ...] [<file.go> ...] [<arg> ...]
++       ssadump [<flag> ...] <import/path>   [<arg> ...]
+ Use -help flag to display options.
+ 
+ Examples:
+@@ -56,11 +58,11 @@ func main() {
+ 	for _, c := range *buildFlag {
+ 		switch c {
+ 		case 'P':
+-			mode |= ssa.LogPackages
++			mode |= ssa.LogPackages | ssa.BuildSerially
+ 		case 'F':
+-			mode |= ssa.LogFunctions
++			mode |= ssa.LogFunctions | ssa.BuildSerially
+ 		case 'S':
+-			mode |= ssa.LogSource
++			mode |= ssa.LogSource | ssa.BuildSerially
+ 		case 'C':
+ 			mode |= ssa.SanityCheckFunctions
+ 		case 'N':
+@@ -91,19 +93,6 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 
+-	// Treat all leading consecutive "*.go" arguments as a single package.
+-	//
+-	// TODO(gri): make it a typechecker error for there to be
+-	// duplicate (e.g.) main functions in the same package.
+-	var gofiles []string
+-	for len(args) > 0 && strings.HasSuffix(args[0], ".go") {
+-		gofiles = append(gofiles, args[0])
+-		args = args[1:]
+-	}
+-	if gofiles == nil {
+-		log.Fatal("No *.go source files specified.")
+-	}
+-
+ 	// Profiling support.
+ 	if *cpuprofile != "" {
+ 		f, err := os.Create(*cpuprofile)
+@@ -114,20 +103,46 @@ func main() {
+ 		defer pprof.StopCPUProfile()
+ 	}
+ 
+-	// TODO(adonovan): permit naming a package directly instead of
+-	// a list of .go files.
+-
+ 	// TODO(adonovan/gri): the cascade of errors is confusing due
+ 	// to reentrant control flow.  Disable for now and re-think.
+ 	var errh func(error)
+ 	// errh = func(err error) { fmt.Println(err.Error()) }
+ 
+-	b := ssa.NewBuilder(mode, ssa.GorootLoader, errh)
+-	files, err := ssa.ParseFiles(b.Prog.Files, ".", gofiles...)
++	loader := ssa.GorootLoader
++	b := ssa.NewBuilder(mode, loader, errh)
++
++	var pkgname string
++	var files []*ast.File
++	var err error
++
++	switch {
++	case len(args) == 0:
++		log.Fatal("No *.go source files nor package name was specified.")
++
++	case strings.HasSuffix(args[0], ".go"):
++		// % ssadump a.go b.go ...
++		// Leading consecutive *.go arguments constitute main package.
++		i := 1
++		for ; i < len(args) && strings.HasSuffix(args[i], ".go"); i++ {
++		}
++		files, err = ssa.ParseFiles(b.Prog.Files, ".", args[:i]...)
++		pkgname = "main"
++		args = args[i:]
++
++	default:
++		// % ssadump my/package ...
++		// First argument is import path of main package.
++		pkgname = args[0]
++		args = args[1:]
++		files, err = loader(b.Prog.Files, pkgname)
++	}
+ 	if err != nil {
+ 		log.Fatalf(err.Error())
+ 	}
+-	mainpkg, err := b.CreatePackage("main", files)
++
++	// TODO(gri): make it a typechecker error for there to be
++	// duplicate (e.g.) main functions in the same package.
++	mainpkg, err := b.CreatePackage(pkgname, files)
+ 	if err != nil {
+ 		log.Fatalf(err.Error())
+ 	}
+@@ -135,6 +150,6 @@ func main() {
+ 	b = nil // discard Builder
+ 
+ 	if *runFlag {
+-		interp.Interpret(mainpkg, interpMode, gofiles[0], args)
++		interp.Interpret(mainpkg, interpMode, pkgname, args)
+ 	}
+ }

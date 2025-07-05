@@ -9,9 +9,382 @@ Date:   Thu Jan 23 12:08:21 2020 -0500
     Change-Id: Id557f3bfae0c02b4d1c7174432806512aca42c86
     Reviewed-on: https://go-review.googlesource.com/c/go/+/216017
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/dist/buildtool.go                     |   1 +
  src/cmd/link/internal/benchmark/bench.go      | 147 ++++++++++++++++++++++++++
  src/cmd/link/internal/benchmark/bench_test.go |  30 ++++++
  src/cmd/link/internal/ld/main.go              |  59 +++++++++++
  4 files changed, 237 insertions(+)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 118800e8da..5ec2381589 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -73,6 +73,7 @@ var bootstrapDirs = []string{
+ 	"cmd/link/internal/amd64",
+ 	"cmd/link/internal/arm",
+ 	"cmd/link/internal/arm64",
++	"cmd/link/internal/benchmark",
+ 	"cmd/link/internal/ld",
+ 	"cmd/link/internal/loadelf",
+ 	"cmd/link/internal/loader",
+diff --git a/src/cmd/link/internal/benchmark/bench.go b/src/cmd/link/internal/benchmark/bench.go
+new file mode 100644
+index 0000000000..8f23bf82fd
+--- /dev/null
++++ b/src/cmd/link/internal/benchmark/bench.go
+@@ -0,0 +1,147 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package benchmark provides a Metrics object that enables memory and CPU
++// profiling for the linker. The Metrics objects can be used to mark stages
++// of the code, and name the measurements during that stage. There is also
++// optional GCs that can be performed at the end of each stage, so you
++// can get an accurate measurement of how each stage changes live memory.
++package benchmark
++
++import (
++	"fmt"
++	"io"
++	"runtime"
++	"time"
++	"unicode"
++)
++
++type Flags int
++
++const (
++	GC         = 1 << iota
++	NoGC Flags = 0
++)
++
++type Metrics struct {
++	gc      Flags
++	marks   []*mark
++	curMark *mark
++}
++
++type mark struct {
++	name              string
++	startM, endM, gcM runtime.MemStats
++	startT, endT      time.Time
++}
++
++// New creates a new Metrics object.
++//
++// Typical usage should look like:
++//
++// func main() {
++//   bench := benchmark.New(benchmark.GC)
++//   defer bench.Report(os.Stdout)
++//   // etc
++//   bench.Start("foo")
++//   foo()
++//   bench.Start("bar")
++//   bar()
++// }
++//
++// Note that a nil Metrics object won't cause any errors, so one could write
++// code like:
++//
++//  func main() {
++//    enableBenchmarking := flag.Bool("enable", true, "enables benchmarking")
++//    flag.Parse()
++//    var bench *benchmark.Metrics
++//    if *enableBenchmarking {
++//      bench = benchmark.New(benchmark.GC)
++//    }
++//    bench.Start("foo")
++//    // etc.
++//  }
++func New(gc Flags) *Metrics {
++	if gc == GC {
++		runtime.GC()
++	}
++	return &Metrics{gc: gc}
++}
++
++// Report reports the metrics.
++// Closes the currently Start(ed) range, and writes the report to the given io.Writer.
++func (m *Metrics) Report(w io.Writer) {
++	if m == nil {
++		return
++	}
++
++	m.closeMark()
++
++	gcString := ""
++	if m.gc == GC {
++		gcString = "_GC"
++	}
++
++	var totTime time.Duration
++	for _, curMark := range m.marks {
++		dur := curMark.endT.Sub(curMark.startT)
++		totTime += dur
++		fmt.Fprintf(w, "%s 1 %d ns/op", makeBenchString(curMark.name+gcString), dur.Nanoseconds())
++		fmt.Fprintf(w, "\t%d B/op", curMark.endM.TotalAlloc-curMark.startM.TotalAlloc)
++		fmt.Fprintf(w, "\t%d allocs/op", curMark.endM.Mallocs-curMark.startM.Mallocs)
++		if m.gc == GC {
++			fmt.Fprintf(w, "\t%d live-B", curMark.gcM.HeapAlloc)
++		} else {
++			fmt.Fprintf(w, "\t%d heap-B", curMark.endM.HeapAlloc)
++		}
++		fmt.Fprintf(w, "\n")
++	}
++	fmt.Fprintf(w, "%s 1 %d ns/op\n", makeBenchString("total time"+gcString), totTime.Nanoseconds())
++}
++
++// Starts marks the beginning of a new measurement phase.
++// Once a metric is started, it continues until either a Report is issued, or another Start is called.
++func (m *Metrics) Start(name string) {
++	if m == nil {
++		return
++	}
++	m.closeMark()
++	m.curMark = &mark{name: name}
++	// Unlikely we need to a GC here, as one was likely just done in closeMark.
++	runtime.ReadMemStats(&m.curMark.startM)
++	m.curMark.startT = time.Now()
++}
++
++func (m *Metrics) closeMark() {
++	if m == nil || m.curMark == nil {
++		return
++	}
++	m.curMark.endT = time.Now()
++	runtime.ReadMemStats(&m.curMark.endM)
++	if m.gc == GC {
++		runtime.GC()
++		runtime.ReadMemStats(&m.curMark.gcM)
++	}
++	m.marks = append(m.marks, m.curMark)
++	m.curMark = nil
++}
++
++// makeBenchString makes a benchmark string consumable by Go's benchmarking tools.
++func makeBenchString(name string) string {
++	needCap := true
++	ret := []rune("Benchmark")
++	for _, r := range name {
++		if unicode.IsSpace(r) {
++			needCap = true
++			continue
++		}
++		if needCap {
++			r = unicode.ToUpper(r)
++			needCap = false
++		}
++		ret = append(ret, r)
++	}
++	return string(ret)
++}
+diff --git a/src/cmd/link/internal/benchmark/bench_test.go b/src/cmd/link/internal/benchmark/bench_test.go
+new file mode 100644
+index 0000000000..0448afb4d7
+--- /dev/null
++++ b/src/cmd/link/internal/benchmark/bench_test.go
+@@ -0,0 +1,30 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package benchmark
++
++import (
++	"testing"
++)
++
++func TestMakeBenchString(t *testing.T) {
++	tests := []struct {
++		have, want string
++	}{
++		{"foo", "BenchmarkFoo"},
++		{"  foo  ", "BenchmarkFoo"},
++		{"foo bar", "BenchmarkFooBar"},
++	}
++	for i, test := range tests {
++		if v := makeBenchString(test.have); test.want != v {
++			t.Errorf("test[%d] makeBenchString(%q) == %q, want %q", i, test.have, v, test.want)
++		}
++	}
++}
++
++// Ensure that public APIs work with a nil Metrics object.
++func TestNilBenchmarkObject(t *testing.T) {
++	var b *Metrics
++	b.Start("TEST")
++	b.Report(nil)
++}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index e0168fbc56..81e7997c0b 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -34,6 +34,7 @@ import (
+ 	"bufio"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"cmd/link/internal/benchmark"
+ 	"cmd/link/internal/sym"
+ 	"flag"
+ 	"log"
+@@ -95,6 +96,8 @@ var (
+ 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
+ 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
+ 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
++
++	benchmarkFlag = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+ )
+ 
+ func (ctxt *Link) loaderSupport() bool {
+@@ -173,13 +176,29 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	interpreter = *flagInterpreter
+ 
++	// enable benchmarking
++	var bench *benchmark.Metrics
++	if len(*benchmarkFlag) != 0 {
++		if *benchmarkFlag == "mem" {
++			bench = benchmark.New(benchmark.GC)
++		} else if *benchmarkFlag == "cpu" {
++			bench = benchmark.New(benchmark.NoGC)
++		} else {
++			Errorf(nil, "unknown benchmark flag: %q", *benchmarkFlag)
++			usage()
++		}
++	}
++
++	bench.Start("libinit")
+ 	libinit(ctxt) // creates outfile
+ 
+ 	if ctxt.HeadType == objabi.Hunknown {
+ 		ctxt.HeadType.Set(objabi.GOOS)
+ 	}
+ 
++	bench.Start("computeTLSOffset")
+ 	ctxt.computeTLSOffset()
++	bench.Start("Archinit")
+ 	thearch.Archinit(ctxt)
+ 
+ 	if ctxt.linkShared && !ctxt.IsELF {
+@@ -210,53 +229,82 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	default:
+ 		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
+ 	}
++	bench.Start("loadlib")
+ 	ctxt.loadlib()
+ 
++	bench.Start("deadcode")
+ 	deadcode(ctxt)
+ 
+ 	if ctxt.loaderSupport() {
++		bench.Start("linksetup")
+ 		ctxt.linksetup()
+ 	}
+ 
++	bench.Start("loadlibfull")
+ 	ctxt.loadlibfull() // XXX do it here for now
+ 
+ 	if !ctxt.loaderSupport() {
++		bench.Start("linksetupold")
+ 		ctxt.linksetupold()
+ 	}
++	bench.Start("dostrdata")
+ 	ctxt.dostrdata()
++	bench.Start("dwarfGenerateDebugInfo")
+ 	dwarfGenerateDebugInfo(ctxt)
+ 
+ 	if objabi.Fieldtrack_enabled != 0 {
++		bench.Start("fieldtrack")
+ 		fieldtrack(ctxt)
+ 	}
++	bench.Start("mangleTypeSym")
+ 	ctxt.mangleTypeSym()
++	bench.Start("callgraph")
+ 	ctxt.callgraph()
+ 
++	bench.Start("doelf")
+ 	ctxt.doelf()
+ 	if ctxt.HeadType == objabi.Hdarwin {
++		bench.Start("domacho")
+ 		ctxt.domacho()
+ 	}
++	bench.Start("dostkcheck")
+ 	ctxt.dostkcheck()
+ 	if ctxt.HeadType == objabi.Hwindows {
++		bench.Start("dope")
+ 		ctxt.dope()
++		bench.Start("windynrelocsyms")
+ 		ctxt.windynrelocsyms()
+ 	}
+ 	if ctxt.HeadType == objabi.Haix {
++		bench.Start("doxcoff")
+ 		ctxt.doxcoff()
+ 	}
+ 
++	bench.Start("addexport")
+ 	ctxt.addexport()
++	bench.Start("Gentext")
+ 	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
++	bench.Start("textbuildid")
+ 	ctxt.textbuildid()
++	bench.Start("textaddress")
+ 	ctxt.textaddress()
++	bench.Start("pclntab")
+ 	ctxt.pclntab()
++	bench.Start("findfunctab")
+ 	ctxt.findfunctab()
++	bench.Start("typelink")
+ 	ctxt.typelink()
++	bench.Start("symtab")
+ 	ctxt.symtab()
++	bench.Start("buildinfo")
+ 	ctxt.buildinfo()
++	bench.Start("dodata")
+ 	ctxt.dodata()
++	bench.Start("address")
+ 	order := ctxt.address()
++	bench.Start("dwarfcompress")
+ 	dwarfcompress(ctxt)
++	bench.Start("layout")
+ 	filesize := ctxt.layout(order)
+ 
+ 	// Write out the output file.
+@@ -275,25 +323,36 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	if outputMmapped {
+ 		// Asmb will redirect symbols to the output file mmap, and relocations
+ 		// will be applied directly there.
++		bench.Start("Asmb")
+ 		thearch.Asmb(ctxt)
++		bench.Start("reloc")
+ 		ctxt.reloc()
++		bench.Start("Munmap")
+ 		ctxt.Out.Munmap()
+ 	} else {
+ 		// If we don't mmap, we need to apply relocations before
+ 		// writing out.
++		bench.Start("reloc")
+ 		ctxt.reloc()
++		bench.Start("Asmb")
+ 		thearch.Asmb(ctxt)
+ 	}
++	bench.Start("Asmb2")
+ 	thearch.Asmb2(ctxt)
+ 
++	bench.Start("undef")
+ 	ctxt.undef()
++	bench.Start("hostlink")
+ 	ctxt.hostlink()
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
+ 		ctxt.Logf("%d liveness data\n", liveness)
+ 	}
++	bench.Start("Flush")
+ 	ctxt.Bso.Flush()
++	bench.Start("archive")
+ 	ctxt.archive()
++	bench.Report(os.Stdout)
+ 
+ 	errorexit()
+ }

@@ -19,8 +19,124 @@ Date:   Tue Oct 18 17:51:04 2016 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/reader.go                    |  28 ++++++++++++++--
  src/archive/tar/reader_test.go               |  47 +++++++++++++++++++++++++++
  src/archive/tar/testdata/gnu-incremental.tar | Bin 0 -> 2560 bytes
  3 files changed, 72 insertions(+), 3 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 33e64687d8..5fb0b3df96 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -457,6 +457,26 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
+ 	hdr.Typeflag = v7.TypeFlag()[0]
+ 	hdr.Linkname = p.parseString(v7.LinkName())
+ 
++	// The atime and ctime fields are often left unused. Some versions of Go
++	// had a bug in the tar.Writer where it would output an invalid tar file
++	// in certain rare situations because the logic incorrectly believed that
++	// the old GNU format had a prefix field. This is wrong and leads to
++	// an outputted file that actually mangles the atime and ctime fields.
++	//
++	// In order to continue reading tar files created by a buggy writer, we
++	// try to parse the atime and ctime fields, but just return the zero value
++	// of time.Time when we cannot parse them.
++	//
++	// See https://golang.org/issues/12594
++	tryParseTime := func(b []byte) time.Time {
++		var p parser
++		n := p.parseNumeric(b)
++		if b[0] != 0x00 && p.err == nil {
++			return time.Unix(n, 0)
++		}
++		return time.Time{}
++	}
++
+ 	// Unpack format specific fields.
+ 	if format > formatV7 {
+ 		ustar := tr.blk.USTAR()
+@@ -469,9 +489,7 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
+ 
+ 		var prefix string
+ 		switch format {
+-		case formatUSTAR, formatGNU:
+-			// TODO(dsnet): Do not use the prefix field for the GNU format!
+-			// See golang.org/issues/12594
++		case formatUSTAR:
+ 			ustar := tr.blk.USTAR()
+ 			prefix = p.parseString(ustar.Prefix())
+ 		case formatSTAR:
+@@ -479,6 +497,10 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
+ 			prefix = p.parseString(star.Prefix())
+ 			hdr.AccessTime = time.Unix(p.parseNumeric(star.AccessTime()), 0)
+ 			hdr.ChangeTime = time.Unix(p.parseNumeric(star.ChangeTime()), 0)
++		case formatGNU:
++			gnu := tr.blk.GNU()
++			hdr.AccessTime = tryParseTime(gnu.AccessTime())
++			hdr.ChangeTime = tryParseTime(gnu.ChangeTime())
+ 		}
+ 		if len(prefix) > 0 {
+ 			hdr.Name = prefix + "/" + hdr.Name
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index fa374d223a..18232d7270 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -325,6 +325,53 @@ var untarTests = []*untarTest{
+ 			},
+ 		},
+ 	},
++	{
++		// GNU tar file with atime and ctime fields set.
++		// Created with the GNU tar v1.27.1.
++		//	tar --incremental -S -cvf gnu-incremental.tar test2
++		file: "testdata/gnu-incremental.tar",
++		headers: []*Header{
++			{
++				Name:       "test2/",
++				Mode:       16877,
++				Uid:        1000,
++				Gid:        1000,
++				Size:       14,
++				ModTime:    time.Unix(1441973427, 0),
++				Typeflag:   'D',
++				Uname:      "rawr",
++				Gname:      "dsnet",
++				AccessTime: time.Unix(1441974501, 0),
++				ChangeTime: time.Unix(1441973436, 0),
++			},
++			{
++				Name:       "test2/foo",
++				Mode:       33188,
++				Uid:        1000,
++				Gid:        1000,
++				Size:       64,
++				ModTime:    time.Unix(1441973363, 0),
++				Typeflag:   '0',
++				Uname:      "rawr",
++				Gname:      "dsnet",
++				AccessTime: time.Unix(1441974501, 0),
++				ChangeTime: time.Unix(1441973436, 0),
++			},
++			{
++				Name:       "test2/sparse",
++				Mode:       33188,
++				Uid:        1000,
++				Gid:        1000,
++				Size:       536870912,
++				ModTime:    time.Unix(1441973427, 0),
++				Typeflag:   'S',
++				Uname:      "rawr",
++				Gname:      "dsnet",
++				AccessTime: time.Unix(1441991948, 0),
++				ChangeTime: time.Unix(1441973436, 0),
++			},
++		},
++	},
+ 	{
+ 		// Matches the behavior of GNU and BSD tar utilities.
+ 		file: "testdata/pax-multi-hdrs.tar",
+diff --git a/src/archive/tar/testdata/gnu-incremental.tar b/src/archive/tar/testdata/gnu-incremental.tar
+new file mode 100644
+index 0000000000..4c442e5b82
+Binary files /dev/null and b/src/archive/tar/testdata/gnu-incremental.tar differ

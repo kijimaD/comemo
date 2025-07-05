@@ -9,7 +9,37 @@ Date:   Wed Sep 4 13:26:49 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13539043
-
+---
  src/cmd/ld/data.c | 6 ++++++
  src/cmd/ld/lib.c  | 1 -
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index db2ac0f460..30d7c81856 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -376,6 +376,12 @@ symgrow(Sym *s, int32 siz)
+ 	if(s->np >= siz)
+ 		return;
+ 
++	if(s->np > s->maxp) {
++		cursym = s;
++		diag("corrupt symbol data: np=%lld > maxp=%lld", (vlong)s->np, (vlong)s->maxp);
++		errorexit();
++	}
++
+ 	if(s->maxp < siz) {
+ 		if(s->maxp == 0)
+ 			s->maxp = 8;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index c400c622fa..7639615b48 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -2348,7 +2348,6 @@ ftabaddstring(Sym *ftab, char *s)
+ 	start = ftab->np;
+ 	symgrow(ftab, start+n+1);
+ 	strcpy((char*)ftab->p + start, s);
+-	ftab->np += n+1;
+ 	return start;
+ }
+ 

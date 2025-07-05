@@ -9,7 +9,40 @@ Date:   Wed Oct 19 08:48:26 2011 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5287041
-
+---
  src/pkg/http/client.go    | 5 ++++-
  src/pkg/http/transport.go | 5 +++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 3fa4a056ad..e939b96a31 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -2,7 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Primitive HTTP client. See RFC 2616.
++// HTTP client. See RFC 2616.
++// 
++// This is the high-level Client interface.
++// The low-level implementation is in transport.go.
+ 
+ package http
+ 
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 0914af7e5c..edc8448f00 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -2,6 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// HTTP client implementation. See RFC 2616.
++// 
++// This is the low-level Transport implementation of RoundTripper.
++// The high-level interface is in client.go.
++
+ package http
+ 
+ import (

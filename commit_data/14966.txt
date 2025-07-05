@@ -19,7 +19,94 @@ Date:   Wed Jan 23 12:17:11 2013 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/7182050
-
+---
  src/pkg/net/url/url.go      | 25 ++++++++++++++-----------
  src/pkg/net/url/url_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 22425b3368..68f2c2f6e7 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -434,32 +434,35 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+ 
+ // String reassembles the URL into a valid URL string.
+ func (u *URL) String() string {
+-	// TODO: Rewrite to use bytes.Buffer
+-	result := ""
++	var buf bytes.Buffer
+ 	if u.Scheme != "" {
+-		result += u.Scheme + ":"
++		buf.WriteString(u.Scheme)
++		buf.WriteByte(':')
+ 	}
+ 	if u.Opaque != "" {
+-		result += u.Opaque
++		buf.WriteString(u.Opaque)
+ 	} else {
+ 		if u.Scheme != "" || u.Host != "" || u.User != nil {
+-			result += "//"
++			buf.WriteString("//")
+ 			if u := u.User; u != nil {
+-				result += u.String() + "@"
++				buf.WriteString(u.String())
++				buf.WriteByte('@')
+ 			}
+ 			if h := u.Host; h != "" {
+-				result += u.Host
++				buf.WriteString(h)
+ 			}
+ 		}
+-		result += escape(u.Path, encodePath)
++		buf.WriteString(escape(u.Path, encodePath))
+ 	}
+ 	if u.RawQuery != "" {
+-		result += "?" + u.RawQuery
++		buf.WriteByte('?')
++		buf.WriteString(u.RawQuery)
+ 	}
+ 	if u.Fragment != "" {
+-		result += "#" + escape(u.Fragment, encodeFragment)
++		buf.WriteByte('#')
++		buf.WriteString(escape(u.Fragment, encodeFragment))
+ 	}
+-	return result
++	return buf.String()
+ }
+ 
+ // Values maps a string key to a list of values.
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index 9eddf730e0..cd3b0b9e8c 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -280,6 +280,30 @@ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests [
+ 	}
+ }
+ 
++func BenchmarkString(b *testing.B) {
++	b.StopTimer()
++	b.ReportAllocs()
++	for _, tt := range urltests {
++		u, err := Parse(tt.in)
++		if err != nil {
++			b.Errorf("Parse(%q) returned error %s", tt.in, err)
++			continue
++		}
++		if tt.roundtrip == "" {
++			continue
++		}
++		b.StartTimer()
++		var g string
++		for i := 0; i < b.N; i++ {
++			g = u.String()
++		}
++		b.StopTimer()
++		if w := tt.roundtrip; g != w {
++			b.Errorf("Parse(%q).String() == %q, want %q", tt.in, g, w)
++		}
++	}
++}
++
+ func TestParse(t *testing.T) {
+ 	DoTest(t, Parse, "Parse", urltests)
+ }

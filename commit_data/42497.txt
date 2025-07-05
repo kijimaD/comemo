@@ -11,6 +11,20 @@ Date:   Mon Jan 6 12:35:19 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213419
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt b/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt
+index 02159d09fd..74ca315a72 100644
+--- a/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt
++++ b/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt
+@@ -2,7 +2,7 @@
+ 
+ # First make sure that badpkg fails the list of '...'.
+ ! go list ...
+-stderr badpkg 
++stderr badpkg
+ 
+ # Check that the list of 'm...' succeeds. That implies badpkg was skipped.
+ go list m...

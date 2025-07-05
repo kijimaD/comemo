@@ -26,6 +26,26 @@ Date:   Fri Jul 13 17:29:39 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index e75edf05fd..07e0a67240 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -427,6 +427,14 @@ func mallocinit() {
+ 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
+ 			case GOARCH == "arm64":
+ 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
++			case raceenabled:
++				// The TSAN runtime requires the heap
++				// to be in the range [0x00c000000000,
++				// 0x00e000000000).
++				p = uintptr(i)<<32 | uintptrMask&(0x00c0<<32)
++				if p >= uintptrMask&0x00e000000000 {
++					continue
++				}
+ 			default:
+ 				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
+ 			}

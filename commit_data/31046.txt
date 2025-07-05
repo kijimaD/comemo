@@ -16,6 +16,20 @@ Date:   Fri Jan 13 15:42:50 2017 -0500
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 1eb4d7bb1a..054ba1f85c 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -35,7 +35,7 @@ func writebarrier(f *Func) {
+ 	valueLoop:
+ 		for i, v := range b.Values {
+ 			switch v.Op {
+-			case OpStoreWB, OpMoveWB, OpMoveWBVolatile:
++			case OpStoreWB, OpMoveWB, OpMoveWBVolatile, OpZeroWB:
+ 				if IsStackAddr(v.Args[0]) {
+ 					switch v.Op {
+ 					case OpStoreWB:

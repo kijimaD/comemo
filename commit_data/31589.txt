@@ -13,7 +13,102 @@ Date:   Thu Mar 2 07:56:53 2017 -0800
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/httpresponse.go | 20 ++++----------------
  src/cmd/vet/types.go        | 26 ++++++++++++++++++--------
  2 files changed, 22 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/vet/httpresponse.go b/src/cmd/vet/httpresponse.go
+index f667edb515..ce5ae468ab 100644
+--- a/src/cmd/vet/httpresponse.go
++++ b/src/cmd/vet/httpresponse.go
+@@ -12,29 +12,17 @@ import (
+ 	"go/types"
+ )
+ 
+-var (
+-	httpResponseType types.Type
+-	httpClientType   types.Type
+-)
+-
+ func init() {
+-	if typ := importType("net/http", "Response"); typ != nil {
+-		httpResponseType = typ
+-	}
+-	if typ := importType("net/http", "Client"); typ != nil {
+-		httpClientType = typ
+-	}
+-	// if http.Response or http.Client are not defined don't register this check.
+-	if httpResponseType == nil || httpClientType == nil {
+-		return
+-	}
+-
+ 	register("httpresponse",
+ 		"check errors are checked before using an http Response",
+ 		checkHTTPResponse, callExpr)
+ }
+ 
+ func checkHTTPResponse(f *File, node ast.Node) {
++	// If http.Response or http.Client are not defined, skip this check.
++	if httpResponseType == nil || httpClientType == nil {
++		return
++	}
+ 	call := node.(*ast.CallExpr)
+ 	if !isHTTPFuncOrMethodOnClient(f, call) {
+ 		return // the function call is not related to this check.
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 8357d3c2bf..f1927738c4 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -14,26 +14,32 @@ import (
+ )
+ 
+ // stdImporter is the importer we use to import packages.
+-// It is created during initialization so that all packages
+-// are imported by the same importer.
+-var stdImporter = importer.Default()
++// It is shared so that all packages are imported by the same importer.
++var stdImporter types.Importer
+ 
+ var (
+-	errorType     *types.Interface
+-	stringerType  *types.Interface // possibly nil
+-	formatterType *types.Interface // possibly nil
++	errorType        *types.Interface
++	stringerType     *types.Interface // possibly nil
++	formatterType    *types.Interface // possibly nil
++	httpResponseType types.Type       // possibly nil
++	httpClientType   types.Type       // possibly nil
+ )
+ 
+-func init() {
++func inittypes() {
+ 	errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+ 
+ 	if typ := importType("fmt", "Stringer"); typ != nil {
+ 		stringerType = typ.Underlying().(*types.Interface)
+ 	}
+-
+ 	if typ := importType("fmt", "Formatter"); typ != nil {
+ 		formatterType = typ.Underlying().(*types.Interface)
+ 	}
++	if typ := importType("net/http", "Response"); typ != nil {
++		httpResponseType = typ
++	}
++	if typ := importType("net/http", "Client"); typ != nil {
++		httpClientType = typ
++	}
+ }
+ 
+ // importType returns the type denoted by the qualified identifier
+@@ -54,6 +60,10 @@ func importType(path, name string) types.Type {
+ }
+ 
+ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
++	if stdImporter == nil {
++		stdImporter = importer.Default()
++		inittypes()
++	}
+ 	pkg.defs = make(map[*ast.Ident]types.Object)
+ 	pkg.uses = make(map[*ast.Ident]types.Object)
+ 	pkg.selectors = make(map[*ast.SelectorExpr]*types.Selection)

@@ -17,10 +17,201 @@ Date:   Mon Sep 16 21:23:24 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/195701
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go | 22 ++++++++++++++
  src/runtime/malloc_test.go |  8 ++++++
  src/runtime/mheap.go       | 72 ++++++++++++++++++++++++++++++++++------------
  src/runtime/proc.go        |  1 +
  src/runtime/runtime2.go    |  3 +-
  5 files changed, 86 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index b1ebfba0d1..ea3f1c1776 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -7,6 +7,7 @@
+ package runtime
+ 
+ import (
++	"math/bits"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -358,6 +359,10 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			pg := mheap_.pages.chunks[i].scavenged.popcntRange(0, pallocChunkPages)
+ 			slow.HeapReleased += uint64(pg) * pageSize
+ 		}
++		for _, p := range allp {
++			pg := bits.OnesCount64(p.pcache.scav)
++			slow.HeapReleased += uint64(pg) * pageSize
++		}
+ 
+ 		// Unused space in the current arena also counts as released space.
+ 		slow.HeapReleased += uint64(mheap_.curArena.end - mheap_.curArena.base)
+@@ -879,3 +884,20 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
+ 	})
+ 	return
+ }
++
++func PageCachePagesLeaked() (leaked uintptr) {
++	stopTheWorld("PageCachePagesLeaked")
++
++	// Walk over destroyed Ps and look for unflushed caches.
++	deadp := allp[len(allp):cap(allp)]
++	for _, p := range deadp {
++		// Since we're going past len(allp) we may see nil Ps.
++		// Just ignore them.
++		if p != nil {
++			leaked += uintptr(bits.OnesCount64(p.pcache.cache))
++		}
++	}
++
++	startTheWorld()
++	return
++}
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 1040fb6a8f..5ed4feb77d 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -168,6 +168,14 @@ func TestTinyAlloc(t *testing.T) {
+ 	}
+ }
+ 
++func TestPageCacheLeak(t *testing.T) {
++	defer GOMAXPROCS(GOMAXPROCS(1))
++	leaked := PageCachePagesLeaked()
++	if leaked != 0 {
++		t.Fatalf("found %d leaked pages in page caches", leaked)
++	}
++}
++
+ func TestPhysicalMemoryUtilization(t *testing.T) {
+ 	got := runTestProg(t, "testprog", "GCPhys")
+ 	want := "OK\n"
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index c9f9d24bba..e87da93326 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1073,28 +1073,60 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
+ 	gp := getg()
+ 	base, scav := uintptr(0), uintptr(0)
+ 
+-	// Try to allocate a cached span.
+-	s = h.tryAllocMSpan()
++	// If the allocation is small enough, try the page cache!
++	pp := gp.m.p.ptr()
++	if pp != nil && npages < pageCachePages/4 {
++		c := &pp.pcache
+ 
+-	// We failed to do what we need to do without the lock.
+-	lock(&h.lock)
++		// If the cache is empty, refill it.
++		if c.empty() {
++			lock(&h.lock)
++			*c = h.pages.allocToCache()
++			unlock(&h.lock)
++		}
+ 
+-	// Try to acquire a base address.
+-	base, scav = h.pages.alloc(npages)
+-	if base != 0 {
+-		goto HaveBase
+-	}
+-	if !h.grow(npages) {
+-		unlock(&h.lock)
+-		return nil
+-	}
+-	base, scav = h.pages.alloc(npages)
+-	if base != 0 {
+-		goto HaveBase
++		// Try to allocate from the cache.
++		base, scav = c.alloc(npages)
++		if base != 0 {
++			s = h.tryAllocMSpan()
++
++			if s != nil && gcBlackenEnabled == 0 && (manual || spanclass.sizeclass() != 0) {
++				goto HaveSpan
++			}
++			// We're either running duing GC, failed to acquire a mspan,
++			// or the allocation is for a large object. This means we
++			// have to lock the heap and do a bunch of extra work,
++			// so go down the HaveBaseLocked path.
++			//
++			// We must do this during GC to avoid skew with heap_scan
++			// since we flush mcache stats whenever we lock.
++			//
++			// TODO(mknyszek): It would be nice to not have to
++			// lock the heap if it's a large allocation, but
++			// it's fine for now. The critical section here is
++			// short and large object allocations are relatively
++			// infrequent.
++		}
+ 	}
+-	throw("grew heap, but no adequate free space found")
+ 
+-HaveBase:
++	// For one reason or another, we couldn't get the
++	// whole job done without the heap lock.
++	lock(&h.lock)
++
++	if base == 0 {
++		// Try to acquire a base address.
++		base, scav = h.pages.alloc(npages)
++		if base == 0 {
++			if !h.grow(npages) {
++				unlock(&h.lock)
++				return nil
++			}
++			base, scav = h.pages.alloc(npages)
++			if base == 0 {
++				throw("grew heap, but no adequate free space found")
++			}
++		}
++	}
+ 	if s == nil {
+ 		// We failed to get an mspan earlier, so grab
+ 		// one now that we have the heap lock.
+@@ -1124,7 +1156,9 @@ HaveBase:
+ 	}
+ 	unlock(&h.lock)
+ 
+-	// Initialize the span.
++HaveSpan:
++	// At this point, both s != nil and base != 0, and the heap
++	// lock is no longer held. Initialize the span.
+ 	s.init(base, npages)
+ 	if h.allocNeedsZero(base, npages) {
+ 		s.needzero = 1
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 3c3acf0dd7..67ff556ac4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4088,6 +4088,7 @@ func (pp *p) destroy() {
+ 			mheap_.spanalloc.free(unsafe.Pointer(pp.mspancache.buf[i]))
+ 		}
+ 		pp.mspancache.len = 0
++		pp.pcache.flush(&mheap_.pages)
+ 	})
+ 	freemcache(pp.mcache)
+ 	pp.mcache = nil
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index eba2aed092..fe1147e247 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -555,6 +555,7 @@ type p struct {
+ 	sysmontick  sysmontick // last tick observed by sysmon
+ 	m           muintptr   // back-link to associated m (nil if idle)
+ 	mcache      *mcache
++	pcache      pageCache
+ 	raceprocctx uintptr
+ 
+ 	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
+@@ -611,7 +612,7 @@ type p struct {
+ 
+ 	palloc persistentAlloc // per-P to avoid mutex
+ 
+-	// _ uint32 // Alignment for atomic fields below
++	_ uint32 // Alignment for atomic fields below
+ 
+ 	// Per-P GC state
+ 	gcAssistTime         int64    // Nanoseconds in assistAlloc

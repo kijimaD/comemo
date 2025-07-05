@@ -26,6 +26,22 @@ Date:   Thu Jun 15 15:23:12 2023 +0000
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/server.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 680c5f68f4..8f63a90299 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1856,7 +1856,9 @@ func isCommonNetReadError(err error) bool {
+ 
+ // Serve a new connection.
+ func (c *conn) serve(ctx context.Context) {
+-	c.remoteAddr = c.rwc.RemoteAddr().String()
++	if ra := c.rwc.RemoteAddr(); ra != nil {
++		c.remoteAddr = ra.String()
++	}
+ 	ctx = context.WithValue(ctx, LocalAddrContextKey, c.rwc.LocalAddr())
+ 	var inFlightResponse *response
+ 	defer func() {

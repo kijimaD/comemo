@@ -13,7 +13,73 @@ Date:   Wed Dec 11 09:55:27 2024 +0000
     Reviewed-by: Sean Liao <sean@liao.dev>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/errors/join.go      | 12 ++++++++++++
  src/errors/join_test.go | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+)
+
+diff --git a/src/errors/join.go b/src/errors/join.go
+index 349fc06ed9..dd50089c29 100644
+--- a/src/errors/join.go
++++ b/src/errors/join.go
+@@ -26,6 +26,18 @@ func Join(errs ...error) error {
+ 	if n == 0 {
+ 		return nil
+ 	}
++	if n == 1 {
++		for _, err := range errs {
++			if err != nil {
++				if _, ok := err.(interface {
++					Unwrap() []error
++				}); ok {
++					return err
++				}
++			}
++		}
++	}
++
+ 	e := &joinError{
+ 		errs: make([]error, 0, n),
+ 	}
+diff --git a/src/errors/join_test.go b/src/errors/join_test.go
+index 4828dc4d75..439b372ca0 100644
+--- a/src/errors/join_test.go
++++ b/src/errors/join_test.go
+@@ -70,3 +70,37 @@ func TestJoinErrorMethod(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkJoin(b *testing.B) {
++	for _, bb := range []struct {
++		name string
++		errs []error
++	}{
++		{
++			name: "no error",
++		},
++		{
++			name: "single non-nil error",
++			errs: []error{errors.New("err")},
++		},
++		{
++			name: "multiple errors",
++			errs: []error{errors.New("err"), errors.New("newerr"), errors.New("newerr2")},
++		},
++		{
++			name: "unwrappable single error",
++			errs: []error{errors.Join(errors.New("err"))},
++		},
++		{
++			name: "nil first error",
++			errs: []error{nil, errors.New("newerr")},
++		},
++	} {
++		b.Run(bb.name, func(b *testing.B) {
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				_ = errors.Join(bb.errs...)
++			}
++		})
++	}
++}

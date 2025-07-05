@@ -13,6 +13,20 @@ Date:   Fri Jan 29 22:38:39 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/196077
-
+---
  test/fixedbugs/bug228.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug228.go b/test/fixedbugs/bug228.go
+index 682152ed91..243d20ee7c 100644
+--- a/test/fixedbugs/bug228.go
++++ b/test/fixedbugs/bug228.go
+@@ -14,6 +14,6 @@ func h(x, y ...)		// ERROR "[.][.][.]"
+ 
+ func i(x int, y ..., z float)	// ERROR "[.][.][.]"
+ 
+-var x ...;		// ERROR "[.][.][.]|syntax"
++var x ...;		// ERROR "[.][.][.]|syntax|type"
+ 
+-type T ...;		// ERROR "[.][.][.]|syntax"
++type T ...;		// ERROR "[.][.][.]|syntax|type"

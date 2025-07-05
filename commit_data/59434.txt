@@ -43,7 +43,7 @@ Date:   Wed Feb 14 20:36:47 2024 -0500
     Reviewed-by: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  doc/godebug.md                 |   2 +
  src/internal/godebugs/table.go |   1 +
  src/runtime/chan.go            |  25 ++-
@@ -61,3 +61,1275 @@ Date:   Wed Feb 14 20:36:47 2024 -0500
  src/time/tick.go               |  27 +++-
  src/time/tick_test.go          | 350 +++++++++++++++++++++++++++++++++++++++++
  16 files changed, 699 insertions(+), 73 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 2b8852a7ec..515c40cd39 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -128,6 +128,8 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
+ 
+ ### Go 1.23
+ 
++TODO: `asynctimerchan` setting.
++
+ Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)
+ for reparse points, which can be controlled with the `winsymlink` setting.
+ As of Go 1.23 (`winsymlink=1`), mount points no longer have [`os.ModeSymlink`](/pkg/os#ModeSymlink)
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 572fb72983..7ecb88683d 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -25,6 +25,7 @@ type Info struct {
+ // Note: After adding entries to this table, update the list in doc/godebug.md as well.
+ // (Otherwise the test in this package will fail.)
+ var All = []Info{
++	{Name: "asynctimerchan", Package: "time", Opaque: true},
+ 	{Name: "execerrdot", Package: "os/exec"},
+ 	{Name: "gocachehash", Package: "cmd/go"},
+ 	{Name: "gocachetest", Package: "cmd/go"},
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index b14ebc31d2..ae26be3c42 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -36,6 +36,7 @@ type hchan struct {
+ 	buf      unsafe.Pointer // points to an array of dataqsiz elements
+ 	elemsize uint16
+ 	closed   uint32
++	timer    *timer // timer feeding this chan
+ 	elemtype *_type // element type
+ 	sendx    uint   // send index
+ 	recvx    uint   // receive index
+@@ -426,12 +427,19 @@ func closechan(c *hchan) {
+ }
+ 
+ // empty reports whether a read from c would block (that is, the channel is
+-// empty).  It uses a single atomic read of mutable state.
++// empty).  It is atomically correct and sequentially consistent at the moment
++// it returns, but since the channel is unlocked, the channel may become
++// non-empty immediately afterward.
+ func empty(c *hchan) bool {
+ 	// c.dataqsiz is immutable.
+ 	if c.dataqsiz == 0 {
+ 		return atomic.Loadp(unsafe.Pointer(&c.sendq.first)) == nil
+ 	}
++	// c.timer is also immutable (it is set after make(chan) but before any channel operations).
++	// All timer channels have dataqsiz > 0.
++	if c.timer != nil {
++		c.timer.maybeRunChan()
++	}
+ 	return atomic.Loaduint(&c.qcount) == 0
+ }
+ 
+@@ -470,6 +478,10 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 		throw("unreachable")
+ 	}
+ 
++	if c.timer != nil {
++		c.timer.maybeRunChan()
++	}
++
+ 	// Fast path: check for failed non-blocking operation without acquiring the lock.
+ 	if !block && empty(c) {
+ 		// After observing that the channel is not ready for receiving, we observe whether the
+@@ -570,11 +582,16 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 	mysg.elem = ep
+ 	mysg.waitlink = nil
+ 	gp.waiting = mysg
++
+ 	mysg.g = gp
+ 	mysg.isSelect = false
+ 	mysg.c = c
+ 	gp.param = nil
+ 	c.recvq.enqueue(mysg)
++	if c.timer != nil {
++		blockTimerChan(c)
++	}
++
+ 	// Signal to anyone trying to shrink our stack that we're about
+ 	// to park on a channel. The window between when this G's status
+ 	// changes and when we set gp.activeStackChans is not safe for
+@@ -586,6 +603,9 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 	if mysg != gp.waiting {
+ 		throw("G waiting list is corrupted")
+ 	}
++	if c.timer != nil {
++		unblockTimerChan(c)
++	}
+ 	gp.waiting = nil
+ 	gp.activeStackChans = false
+ 	if mysg.releasetime > 0 {
+@@ -728,6 +748,9 @@ func chanlen(c *hchan) int {
+ 	if c == nil {
+ 		return 0
+ 	}
++	if c.timer != nil {
++		c.timer.maybeRunChan()
++	}
+ 	return int(c.qcount)
+ }
+ 
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index 199a466a59..a6f61240db 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -33,11 +33,11 @@ const (
+ 	lockRankSched
+ 	lockRankAllg
+ 	lockRankAllp
++	lockRankNotifyList
++	lockRankSudog
+ 	lockRankTimers
+ 	lockRankTimer
+ 	lockRankNetpollInit
+-	lockRankNotifyList
+-	lockRankSudog
+ 	lockRankRoot
+ 	lockRankItab
+ 	lockRankReflectOffs
+@@ -103,11 +103,11 @@ var lockNames = []string{
+ 	lockRankSched:           "sched",
+ 	lockRankAllg:            "allg",
+ 	lockRankAllp:            "allp",
++	lockRankNotifyList:      "notifyList",
++	lockRankSudog:           "sudog",
+ 	lockRankTimers:          "timers",
+ 	lockRankTimer:           "timer",
+ 	lockRankNetpollInit:     "netpollInit",
+-	lockRankNotifyList:      "notifyList",
+-	lockRankSudog:           "sudog",
+ 	lockRankRoot:            "root",
+ 	lockRankItab:            "itab",
+ 	lockRankReflectOffs:     "reflectOffs",
+@@ -180,35 +180,35 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankSched:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR},
+ 	lockRankAllg:            {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
+ 	lockRankAllp:            {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
++	lockRankNotifyList:      {},
++	lockRankSudog:           {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankWakeableSleep, lockRankHchan, lockRankNotifyList},
+ 	lockRankTimers:          {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankTimers},
+ 	lockRankTimer:           {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankTimers},
+ 	lockRankNetpollInit:     {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankTimers, lockRankTimer},
+-	lockRankNotifyList:      {},
+-	lockRankSudog:           {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankWakeableSleep, lockRankHchan, lockRankNotifyList},
+ 	lockRankRoot:            {},
+ 	lockRankItab:            {},
+ 	lockRankReflectOffs:     {lockRankItab},
+ 	lockRankUserArenaState:  {},
+ 	lockRankTraceBuf:        {lockRankSysmon, lockRankScavenge},
+ 	lockRankTraceStrings:    {lockRankSysmon, lockRankScavenge, lockRankTraceBuf},
+-	lockRankFin:             {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNotifyList, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankSpanSetSpine:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNotifyList, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankMspanSpecial:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNotifyList, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankGcBitsArenas:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNotifyList, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankMspanSpecial},
+-	lockRankProfInsert:      {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNotifyList, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankProfBlock:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNotifyList, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankProfMemActive:   {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNotifyList, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankProfMemFuture:   {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNotifyList, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankProfMemActive},
+-	lockRankGscan:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture},
+-	lockRankStackpool:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
+-	lockRankStackLarge:      {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
+-	lockRankHchanLeaf:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankHchanLeaf},
+-	lockRankWbufSpans:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankSudog, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
+-	lockRankMheap:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankSudog, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans},
+-	lockRankMheapSpecial:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankSudog, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
+-	lockRankGlobalAlloc:     {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankSudog, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankMheapSpecial},
+-	lockRankTrace:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankSudog, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
+-	lockRankTraceStackTab:   {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankNotifyList, lockRankSudog, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankTrace},
++	lockRankFin:             {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankSpanSetSpine:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankMspanSpecial:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankGcBitsArenas:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankMspanSpecial},
++	lockRankProfInsert:      {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankProfBlock:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankProfMemActive:   {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankProfMemFuture:   {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankProfMemActive},
++	lockRankGscan:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture},
++	lockRankStackpool:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
++	lockRankStackLarge:      {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
++	lockRankHchanLeaf:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankHchanLeaf},
++	lockRankWbufSpans:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
++	lockRankMheap:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans},
++	lockRankMheapSpecial:    {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
++	lockRankGlobalAlloc:     {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankMheapSpecial},
++	lockRankTrace:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
++	lockRankTraceStackTab:   {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankTestR, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankTrace},
+ 	lockRankPanic:           {},
+ 	lockRankDeadlock:        {lockRankPanic, lockRankDeadlock},
+ 	lockRankRaceFini:        {lockRankPanic},
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 4672d55fd5..9c76f8dd23 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -361,7 +361,7 @@ func (s *scavengerState) init() {
+ 	s.g = getg()
+ 
+ 	s.timer = new(timer)
+-	f := func(s any, _ uintptr) {
++	f := func(s any, _ uintptr, _ int64) {
+ 		s.(*scavengerState).wake()
+ 	}
+ 	s.timer.init(f, s)
+diff --git a/src/runtime/mklockrank.go b/src/runtime/mklockrank.go
+index 150393acce..75dc6f62cf 100644
+--- a/src/runtime/mklockrank.go
++++ b/src/runtime/mklockrank.go
+@@ -72,16 +72,17 @@ assistQueue,
+ < SCHED
+ # Below SCHED is the scheduler implementation.
+ < allocmR,
+-  execR
+-< sched;
++  execR;
++allocmR, execR, hchan < sched;
+ sched < allg, allp;
+-hchan, pollDesc, wakeableSleep < timers;
+-timers < timer < netpollInit;
+ 
+ # Channels
+ NONE < notifyList;
+ hchan, notifyList < sudog;
+ 
++hchan, pollDesc, wakeableSleep < timers;
++timers < timer < netpollInit;
++
+ # Semaphores
+ NONE < root;
+ 
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 23e5d408fc..2c5c262c58 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -658,15 +658,15 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
+ 	netpollAdjustWaiters(delta)
+ }
+ 
+-func netpollDeadline(arg any, seq uintptr) {
++func netpollDeadline(arg any, seq uintptr, delta int64) {
+ 	netpolldeadlineimpl(arg.(*pollDesc), seq, true, true)
+ }
+ 
+-func netpollReadDeadline(arg any, seq uintptr) {
++func netpollReadDeadline(arg any, seq uintptr, delta int64) {
+ 	netpolldeadlineimpl(arg.(*pollDesc), seq, true, false)
+ }
+ 
+-func netpollWriteDeadline(arg any, seq uintptr) {
++func netpollWriteDeadline(arg any, seq uintptr, delta int64) {
+ 	netpolldeadlineimpl(arg.(*pollDesc), seq, false, true)
+ }
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index afe1bdd298..8c8b20aa57 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -339,12 +339,25 @@ var debug struct {
+ 	sbrk           int32
+ 
+ 	panicnil atomic.Int32
++
++	// asynctimerchan controls whether timer channels
++	// behave asynchronously (as in Go 1.22 and earlier)
++	// instead of their Go 1.23+ synchronous behavior.
++	// The value can change at any time (in response to os.Setenv("GODEBUG"))
++	// and affects all extant timer channels immediately.
++	// Programs wouldn't normally change over an execution,
++	// but allowing it is convenient for testing and for programs
++	// that do an os.Setenv in main.init or main.main.
++	asynctimerchan atomic.Int32
+ }
+ 
+ var dbgvars = []*dbgVar{
++	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
+ 	{name: "allocfreetrace", value: &debug.allocfreetrace},
+-	{name: "clobberfree", value: &debug.clobberfree},
++	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
++	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
+ 	{name: "cgocheck", value: &debug.cgocheck},
++	{name: "clobberfree", value: &debug.clobberfree},
+ 	{name: "disablethp", value: &debug.disablethp},
+ 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
+ 	{name: "efence", value: &debug.efence},
+@@ -353,21 +366,19 @@ var dbgvars = []*dbgVar{
+ 	{name: "gcshrinkstackoff", value: &debug.gcshrinkstackoff},
+ 	{name: "gcstoptheworld", value: &debug.gcstoptheworld},
+ 	{name: "gctrace", value: &debug.gctrace},
++	{name: "harddecommit", value: &debug.harddecommit},
++	{name: "inittrace", value: &debug.inittrace},
+ 	{name: "invalidptr", value: &debug.invalidptr},
+ 	{name: "madvdontneed", value: &debug.madvdontneed},
++	{name: "panicnil", atomic: &debug.panicnil},
+ 	{name: "runtimecontentionstacks", atomic: &debug.runtimeContentionStacks},
+ 	{name: "sbrk", value: &debug.sbrk},
+ 	{name: "scavtrace", value: &debug.scavtrace},
+ 	{name: "scheddetail", value: &debug.scheddetail},
+ 	{name: "schedtrace", value: &debug.schedtrace},
++	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
+ 	{name: "tracebackancestors", value: &debug.tracebackancestors},
+-	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
+-	{name: "inittrace", value: &debug.inittrace},
+-	{name: "harddecommit", value: &debug.harddecommit},
+-	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
+ 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
+-	{name: "panicnil", atomic: &debug.panicnil},
+-	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
+ }
+ 
+ func parsedebugvars() {
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index b3a3085cb0..17c49d7484 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -173,6 +173,10 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 			continue
+ 		}
+ 
++		if cas.c.timer != nil {
++			cas.c.timer.maybeRunChan()
++		}
++
+ 		j := cheaprandn(uint32(norder + 1))
+ 		pollorder[norder] = pollorder[j]
+ 		pollorder[j] = uint16(i)
+@@ -315,6 +319,10 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 		} else {
+ 			c.recvq.enqueue(sg)
+ 		}
++
++		if c.timer != nil {
++			blockTimerChan(c)
++		}
+ 	}
+ 
+ 	// wait for someone to wake us up
+@@ -351,6 +359,9 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 
+ 	for _, casei := range lockorder {
+ 		k = &scases[casei]
++		if k.c.timer != nil {
++			unblockTimerChan(k.c)
++		}
+ 		if sg == sglist {
+ 			// sg has already been dequeued by the G that woke us up.
+ 			casi = int(casei)
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index adbe8ac126..4b179d84fc 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -26,15 +26,32 @@ type timer struct {
+ 	// mu protects reads and writes to all fields, with exceptions noted below.
+ 	mu mutex
+ 
+-	astate atomic.Uint8 // atomic copy of state bits at last unlock; can be read without lock
+-	state  uint8        // state bits
++	astate  atomic.Uint8 // atomic copy of state bits at last unlock
++	state   uint8        // state bits
++	isChan  bool         // timer has a channel; immutable; can be read without lock
++	blocked uint32       // number of goroutines blocked on timer's channel
+ 
+ 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
+-	// each time calling f(arg, now) in the timer goroutine, so f must be
++	// each time calling f(arg, seq, delay) in the timer goroutine, so f must be
+ 	// a well-behaved function and not block.
++	//
++	// The arg and seq are client-specified opaque arguments passed back to f.
++	// When used from package time, arg is a channel (for After, NewTicker)
++	// or the function to call (for AfterFunc) and seq is unused (0).
++	// When used from netpoll, arg and seq have meanings defined by netpoll
++	// and are completely opaque to this code; in that context, seq is a sequence
++	// number to recognize and squech stale function invocations.
++	//
++	// The delay argument is nanotime() - t.when, meaning the delay in ns between
++	// when the timer should have gone off and now. Normally that amount is
++	// small enough not to matter, but for channel timers that are fed lazily,
++	// the delay can be arbitrarily long; package time subtracts it out to make
++	// it look like the send happened earlier than it actually did.
++	// (No one looked at the channel since then, or the send would have
++	// not happened so late, so no one can tell the difference.)
+ 	when   int64
+ 	period int64
+-	f      func(any, uintptr)
++	f      func(arg any, seq uintptr, delay int64)
+ 	arg    any
+ 	seq    uintptr
+ 
+@@ -58,7 +75,7 @@ type timer struct {
+ // Any code that allocates a timer must call t.init before using it.
+ // The arg and f can be set during init, or they can be nil in init
+ // and set by a future call to t.modify.
+-func (t *timer) init(f func(any, uintptr), arg any) {
++func (t *timer) init(f func(arg any, seq uintptr, delay int64), arg any) {
+ 	lockInit(&t.mu, lockRankTimer)
+ 	t.f = f
+ 	t.arg = arg
+@@ -130,6 +147,9 @@ const (
+ 	// Only set when timerHeaped is also set.
+ 	// It is possible for timerModified and timerZombie to both
+ 	// be set, meaning that the timer was modified and then stopped.
++	// A timer sending to a channel may be placed in timerZombie
++	// to take it out of the heap even though the timer is not stopped,
++	// as long as nothing is reading from the channel.
+ 	timerZombie
+ )
+ 
+@@ -146,13 +166,16 @@ func (t *timer) trace1(op string) {
+ 	if !timerDebug {
+ 		return
+ 	}
+-	bits := [3]string{"h", "m", "z"}
++	bits := [4]string{"h", "m", "z", "c"}
+ 	for i := range bits {
+ 		if t.state&(1<<i) == 0 {
+ 			bits[i] = "-"
+ 		}
+ 	}
+-	print("T ", t, " ", bits[0], bits[1], bits[2], " ", op, "\n")
++	if !t.isChan {
++		bits[3] = "-"
++	}
++	print("T ", t, " ", bits[0], bits[1], bits[2], bits[3], " b=", t.blocked, " ", op, "\n")
+ }
+ 
+ func (ts *timers) trace(op string) {
+@@ -171,6 +194,7 @@ func (t *timer) lock() {
+ func (t *timer) unlock() {
+ 	t.trace("unlock")
+ 	// Let heap fast paths know whether t.whenHeap is accurate.
++	// Also let maybeRunChan know whether channel is in heap.
+ 	t.astate.Store(t.state)
+ 	unlock(&t.mu)
+ }
+@@ -277,13 +301,20 @@ type timeTimer struct {
+ // with the given parameters.
+ //
+ //go:linkname newTimer time.newTimer
+-func newTimer(when, period int64, f func(any, uintptr), arg any) *timeTimer {
++func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg any, c *hchan) *timeTimer {
+ 	t := new(timeTimer)
+ 	t.timer.init(nil, nil)
+ 	t.trace("new")
+ 	if raceenabled {
+ 		racerelease(unsafe.Pointer(&t.timer))
+ 	}
++	if c != nil {
++		t.isChan = true
++		c.timer = &t.timer
++		if c.dataqsiz == 0 {
++			throw("invalid timer channel: no capacity")
++		}
++	}
+ 	t.modify(when, period, f, arg, 0)
+ 	t.init = true
+ 	return t
+@@ -312,7 +343,7 @@ func resetTimer(t *timeTimer, when, period int64) bool {
+ // Go runtime.
+ 
+ // Ready the goroutine arg.
+-func goroutineReady(arg any, seq uintptr) {
++func goroutineReady(arg any, _ uintptr, _ int64) {
+ 	goready(arg.(*g), 0)
+ }
+ 
+@@ -348,6 +379,17 @@ func (ts *timers) addHeap(t *timer) {
+ func (t *timer) stop() bool {
+ 	t.lock()
+ 	t.trace("stop")
++	if t.state&timerHeaped == 0 && t.isChan && t.when > 0 {
++		// If timer should have triggered already (but nothing looked at it yet),
++		// trigger now, so that a receive after the stop sees the "old" value
++		// that should be there.
++		if now := nanotime(); t.when <= now {
++			systemstack(func() {
++				t.unlockAndRun(now) // resets t.when
++			})
++			t.lock()
++		}
++	}
+ 	if t.state&timerHeaped != 0 {
+ 		t.state |= timerModified
+ 		if t.state&timerZombie == 0 {
+@@ -390,7 +432,7 @@ func (ts *timers) deleteMin() {
+ // This is called by the netpoll code or time.Ticker.Reset or time.Timer.Reset.
+ // Reports whether the timer was modified before it was run.
+ // If f == nil, then t.f, t.arg, and t.seq are not modified.
+-func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq uintptr) bool {
++func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay int64), arg any, seq uintptr) bool {
+ 	if when <= 0 {
+ 		throw("timer when must be positive")
+ 	}
+@@ -407,6 +449,20 @@ func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq ui
+ 		t.seq = seq
+ 	}
+ 
++	if t.state&timerHeaped == 0 && t.isChan && t.when > 0 {
++		// This is a timer for an unblocked channel.
++		// Perhaps it should have expired already.
++		if now := nanotime(); t.when <= now {
++			// The timer should have run already,
++			// but nothing has checked it yet.
++			// Run it now.
++			systemstack(func() {
++				t.unlockAndRun(now) // resets t.when
++			})
++			t.lock()
++		}
++	}
++
+ 	wake := false
+ 	pending := t.when > 0
+ 	t.when = when
+@@ -442,7 +498,7 @@ func (t *timer) modify(when, period int64, f func(any, uintptr), arg any, seq ui
+ // t must be locked.
+ func (t *timer) needsAdd() bool {
+ 	assertLockHeld(&t.mu)
+-	need := t.state&timerHeaped == 0 && t.when > 0
++	need := t.state&timerHeaped == 0 && t.when > 0 && (!t.isChan || t.blocked > 0)
+ 	if need {
+ 		t.trace("needsAdd+")
+ 	} else {
+@@ -466,7 +522,7 @@ func (t *timer) needsAdd() bool {
+ // too clever and respect the static ordering.
+ // (If we don't, we have to change the static lock checking of t and ts.)
+ //
+-// Concurrent calls to time.Timer.Reset
++// Concurrent calls to time.Timer.Reset or blockTimerChan
+ // may result in concurrent calls to t.maybeAdd,
+ // so we cannot assume that t is not in a heap on entry to t.maybeAdd.
+ func (t *timer) maybeAdd() {
+@@ -869,7 +925,7 @@ func (t *timer) unlockAndRun(now int64) {
+ 	if ts != nil {
+ 		ts.unlock()
+ 	}
+-	f(arg, seq)
++	f(arg, seq, delay)
+ 	if ts != nil {
+ 		ts.lock()
+ 	}
+@@ -1052,3 +1108,88 @@ func (ts *timers) initHeap() {
+ func badTimer() {
+ 	throw("timer data corruption")
+ }
++
++// Timer channels.
++
++// maybeRunChan checks whether the timer needs to run
++// to send a value to its associated channel. If so, it does.
++// The timer must not be locked.
++func (t *timer) maybeRunChan() {
++	if t.astate.Load()&timerHeaped != 0 {
++		// If the timer is in the heap, the ordinary timer code
++		// is in charge of sending when appropriate.
++		return
++	}
++
++	t.lock()
++	now := nanotime()
++	if t.state&timerHeaped != 0 || t.when == 0 || t.when > now {
++		t.trace("maybeRunChan-")
++		// Timer in the heap, or not running at all, or not triggered.
++		t.unlock()
++		return
++	}
++	t.trace("maybeRunChan+")
++	systemstack(func() {
++		t.unlockAndRun(now)
++	})
++}
++
++// blockTimerChan is called when a channel op has decided to block on c.
++// The caller holds the channel lock for c and possibly other channels.
++// blockTimerChan makes sure that c is in a timer heap,
++// adding it if needed.
++func blockTimerChan(c *hchan) {
++	t := c.timer
++	t.lock()
++	t.trace("blockTimerChan")
++	if !t.isChan {
++		badTimer()
++	}
++
++	t.blocked++
++
++	// If this is the first enqueue after a recent dequeue,
++	// the timer may still be in the heap but marked as a zombie.
++	// Unmark it in this case, if the timer is still pending.
++	if t.state&timerHeaped != 0 && t.state&timerZombie != 0 && t.when > 0 {
++		t.state &^= timerZombie
++		t.ts.zombies.Add(-1)
++	}
++
++	// t.maybeAdd must be called with t unlocked,
++	// because it needs to lock t.ts before t.
++	// Then it will do nothing if t.needsAdd(state) is false.
++	// Check that now before the unlock,
++	// avoiding the extra lock-lock-unlock-unlock
++	// inside maybeAdd when t does not need to be added.
++	add := t.needsAdd()
++	t.unlock()
++	if add {
++		t.maybeAdd()
++	}
++}
++
++// unblockTimerChan is called when a channel op that was blocked on c
++// is no longer blocked. Every call to blockTimerChan must be paired with
++// a call to unblockTimerChan.
++// The caller holds the channel lock for c and possibly other channels.
++// unblockTimerChan removes c from the timer heap when nothing is
++// blocked on it anymore.
++func unblockTimerChan(c *hchan) {
++	t := c.timer
++	t.lock()
++	t.trace("unblockTimerChan")
++	if !t.isChan || t.blocked == 0 {
++		badTimer()
++	}
++	t.blocked--
++	if t.blocked == 0 && t.state&timerHeaped != 0 && t.state&timerZombie == 0 {
++		// Last goroutine that was blocked on this timer.
++		// Mark for removal from heap but do not clear t.when,
++		// so that we know what time it is still meant to trigger.
++		t.state |= timerZombie
++		t.ts.zombies.Add(1)
++	}
++	t.unlock()
++}
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index 4639063811..94f15dffd5 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -955,7 +955,7 @@ func newWakeableSleep() *wakeableSleep {
+ 	lockInit(&s.lock, lockRankWakeableSleep)
+ 	s.wakeup = make(chan struct{}, 1)
+ 	s.timer = new(timer)
+-	f := func(s any, _ uintptr) {
++	f := func(s any, _ uintptr, _ int64) {
+ 		s.(*wakeableSleep).wake()
+ 	}
+ 	s.timer.init(f, s)
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index 42ebd4d42c..619f605ae7 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -36,7 +36,7 @@ func disablePlatformSources() (undo func()) {
+ var Interrupt = interrupt
+ var DaysIn = daysIn
+ 
+-func empty(arg any, seq uintptr) {}
++func empty(arg any, seq uintptr, delta int64) {}
+ 
+ // Test that a runtimeTimer with a period that would overflow when on
+ // expiration does not throw or cause other timers to hang.
+@@ -47,7 +47,7 @@ func CheckRuntimeTimerPeriodOverflow() {
+ 	// We manually create a runtimeTimer with huge period, but that expires
+ 	// immediately. The public Timer interface would require waiting for
+ 	// the entire period before the first update.
+-	t := (*Timer)(newTimer(runtimeNano(), 1<<63-1, empty, nil))
++	t := (*Timer)(newTimer(runtimeNano(), 1<<63-1, empty, nil, nil))
+ 	defer t.Stop()
+ 
+ 	// If this test fails, we will either throw (when siftdownTimer detects
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 0176c3003e..e6225dfb35 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -4,12 +4,32 @@
+ 
+ package time
+ 
+-import _ "unsafe" // for go:linkname
++import (
++	"internal/godebug"
++	"unsafe"
++)
+ 
+ // Sleep pauses the current goroutine for at least the duration d.
+ // A negative or zero duration causes Sleep to return immediately.
+ func Sleep(d Duration)
+ 
++var asynctimerchan = godebug.New("asynctimerchan")
++
++// syncTimer returns c as an unsafe.Pointer, for passing to newTimer.
++// If the GODEBUG asynctimerchan has disabled the async timer chan
++// code, then syncTimer always returns nil, to disable the special
++// channel code paths in the runtime.
++func syncTimer(c chan Time) unsafe.Pointer {
++	// If asynctimerchan=1, we don't even tell the runtime
++	// about channel timers, so that we get the pre-Go 1.23 code paths.
++	if asynctimerchan.Value() == "1" {
++		return nil
++	}
++
++	// Otherwise pass to runtime.
++	return *(*unsafe.Pointer)(unsafe.Pointer(&c))
++}
++
+ // when is a helper function for setting the 'when' field of a runtimeTimer.
+ // It returns what the time will be, in nanoseconds, Duration d in the future.
+ // If d is negative, it is ignored. If the returned value would be less than
+@@ -29,8 +49,12 @@ func when(d Duration) int64 {
+ 
+ // These functions are pushed to package time from package runtime.
+ 
++// The arg cp is a chan Time, but the declaration in runtime uses a pointer,
++// so we use a pointer here too. This keeps some tools that aggressively
++// compare linknamed symbol definitions happier.
++//
+ //go:linkname newTimer
+-func newTimer(when, period int64, f func(any, uintptr), arg any) *Timer
++func newTimer(when, period int64, f func(any, uintptr, int64), arg any, cp unsafe.Pointer) *Timer
+ 
+ //go:linkname stopTimer
+ func stopTimer(*Timer) bool
+@@ -83,9 +107,18 @@ func (t *Timer) Stop() bool {
+ 
+ // NewTimer creates a new Timer that will send
+ // the current time on its channel after at least duration d.
++//
++// Before Go 1.23, the garbage collector did not recover
++// timers that had not yet expired or been stopped, so code often
++// immediately deferred t.Stop after calling NewTimer, to make
++// the timer recoverable when it was no longer needed.
++// As of Go 1.23, the garbage collector can recover unreferenced
++// timers, even if they haven't expired or been stopped.
++// The Stop method is no longer necessary to help the garbage collector.
++// (Code may of course still want to call Stop to stop the timer for other reasons.)
+ func NewTimer(d Duration) *Timer {
+ 	c := make(chan Time, 1)
+-	t := (*Timer)(newTimer(when(d), 0, sendTime, c))
++	t := (*Timer)(newTimer(when(d), 0, sendTime, c, syncTimer(c)))
+ 	t.C = c
+ 	return t
+ }
+@@ -133,9 +166,14 @@ func (t *Timer) Reset(d Duration) bool {
+ }
+ 
+ // sendTime does a non-blocking send of the current time on c.
+-func sendTime(c any, seq uintptr) {
++func sendTime(c any, seq uintptr, delta int64) {
++	// delta is how long ago the channel send was supposed to happen.
++	// The current time can be arbitrarily far into the future, because the runtime
++	// can delay a sendTime call until a goroutines tries to receive from
++	// the channel. Subtract delta to go back to the old time that we
++	// used to send.
+ 	select {
+-	case c.(chan Time) <- Now():
++	case c.(chan Time) <- Now().Add(Duration(-delta)):
+ 	default:
+ 	}
+ }
+@@ -143,9 +181,13 @@ func sendTime(c any, seq uintptr) {
+ // After waits for the duration to elapse and then sends the current time
+ // on the returned channel.
+ // It is equivalent to NewTimer(d).C.
+-// The underlying Timer is not recovered by the garbage collector
+-// until the timer fires. If efficiency is a concern, use NewTimer
+-// instead and call Timer.Stop if the timer is no longer needed.
++//
++// Before Go 1.23, this documentation warned that the underlying
++// Timer would not be recovered by the garbage collector until the
++// timer fired, and that if efficiency was a concern, code should use
++// NewTimer instead and call Timer.Stop if the timer is no longer needed.
++// As of Go 1.23, the garbage collector can recover unreferenced,
++// unstopped timers. There is no reason to prefer NewTimer when After will do.
+ func After(d Duration) <-chan Time {
+ 	return NewTimer(d).C
+ }
+@@ -155,9 +197,9 @@ func After(d Duration) <-chan Time {
+ // be used to cancel the call using its Stop method.
+ // The returned Timer's C field is not used and will be nil.
+ func AfterFunc(d Duration, f func()) *Timer {
+-	return (*Timer)(newTimer(when(d), 0, goFunc, f))
++	return (*Timer)(newTimer(when(d), 0, goFunc, f, nil))
+ }
+ 
+-func goFunc(arg any, seq uintptr) {
++func goFunc(arg any, seq uintptr, delta int64) {
+ 	go arg.(func())()
+ }
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index b50f9cd5a5..565af16d4d 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -90,7 +90,7 @@ func TestAfterFunc(t *testing.T) {
+ 	<-c
+ }
+ 
+-func TestAfterStress(t *testing.T) {
++func TestTickerStress(t *testing.T) {
+ 	var stop atomic.Bool
+ 	go func() {
+ 		for !stop.Load() {
+@@ -109,6 +109,33 @@ func TestAfterStress(t *testing.T) {
+ 	stop.Store(true)
+ }
+ 
++func TestTickerConcurrentStress(t *testing.T) {
++	var stop atomic.Bool
++	go func() {
++		for !stop.Load() {
++			runtime.GC()
++			// Yield so that the OS can wake up the timer thread,
++			// so that it can generate channel sends for the main goroutine,
++			// which will eventually set stop = 1 for us.
++			Sleep(Nanosecond)
++		}
++	}()
++	ticker := NewTicker(1)
++	var wg sync.WaitGroup
++	for i := 0; i < 10; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			for i := 0; i < 100; i++ {
++				<-ticker.C
++			}
++		}()
++	}
++	wg.Wait()
++	ticker.Stop()
++	stop.Store(true)
++}
++
+ func TestAfterFuncStarvation(t *testing.T) {
+ 	// Start two goroutines ping-ponging on a channel send.
+ 	// At any given time, at least one of these goroutines is runnable:
+@@ -304,6 +331,7 @@ func TestAfter(t *testing.T) {
+ }
+ 
+ func TestAfterTick(t *testing.T) {
++	t.Parallel()
+ 	const Count = 10
+ 	Delta := 100 * Millisecond
+ 	if testing.Short() {
+@@ -461,6 +489,7 @@ func TestTimerStopStress(t *testing.T) {
+ 	if testing.Short() {
+ 		return
+ 	}
++	t.Parallel()
+ 	for i := 0; i < 100; i++ {
+ 		go func(i int) {
+ 			timer := AfterFunc(2*Second, func() {
+diff --git a/src/time/tick.go b/src/time/tick.go
+index e0bcd16a0d..935b61a8ee 100644
+--- a/src/time/tick.go
++++ b/src/time/tick.go
+@@ -23,7 +23,16 @@ type Ticker struct {
+ // ticks is specified by the duration argument. The ticker will adjust
+ // the time interval or drop ticks to make up for slow receivers.
+ // The duration d must be greater than zero; if not, NewTicker will
+-// panic. Stop the ticker to release associated resources.
++// panic.
++//
++// Before Go 1.23, the garbage collector did not recover
++// tickers that had not yet expired or been stopped, so code often
++// immediately deferred t.Stop after calling NewTicker, to make
++// the ticker recoverable when it was no longer needed.
++// As of Go 1.23, the garbage collector can recover unreferenced
++// tickers, even if they haven't been stopped.
++// The Stop method is no longer necessary to help the garbage collector.
++// (Code may of course still want to call Stop to stop the ticker for other reasons.)
+ func NewTicker(d Duration) *Ticker {
+ 	if d <= 0 {
+ 		panic("non-positive interval for NewTicker")
+@@ -32,7 +41,7 @@ func NewTicker(d Duration) *Ticker {
+ 	// If the client falls behind while reading, we drop ticks
+ 	// on the floor until the client catches up.
+ 	c := make(chan Time, 1)
+-	t := (*Ticker)(unsafe.Pointer(newTimer(when(d), int64(d), sendTime, c)))
++	t := (*Ticker)(unsafe.Pointer(newTimer(when(d), int64(d), sendTime, c, syncTimer(c))))
+ 	t.C = c
+ 	return t
+ }
+@@ -64,10 +73,16 @@ func (t *Ticker) Reset(d Duration) {
+ }
+ 
+ // Tick is a convenience wrapper for NewTicker providing access to the ticking
+-// channel only. While Tick is useful for clients that have no need to shut down
+-// the Ticker, be aware that without a way to shut it down the underlying
+-// Ticker cannot be recovered by the garbage collector; it "leaks".
+-// Unlike NewTicker, Tick will return nil if d <= 0.
++// channel only. Unlike NewTicker, Tick will return nil if d <= 0.
++//
++// Before Go 1.23, this documentation warned that the underlying
++// Ticker would never be recovered by the garbage collector, and that
++// if efficiency was a concern, code should use NewTicker instead and
++// call Ticker.Stop when the ticker is no longer needed.
++// As of Go 1.23, the garbage collector can recover unreferenced
++// tickers, even if they haven't been stopped.
++// The Stop method is no longer necessary to help the garbage collector.
++// There is no longer any reason to prefer NewTicker when Tick will do.
+ func Tick(d Duration) <-chan Time {
+ 	if d <= 0 {
+ 		return nil
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index 0ba0c36172..46268acfe3 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -13,6 +13,8 @@ import (
+ )
+ 
+ func TestTicker(t *testing.T) {
++	t.Parallel()
++
+ 	// We want to test that a ticker takes as much time as expected.
+ 	// Since we don't want the test to run for too long, we don't
+ 	// want to use lengthy times. This makes the test inherently flaky.
+@@ -106,6 +108,8 @@ func TestTickerStopWithDirectInitialization(t *testing.T) {
+ 
+ // Test that a bug tearing down a ticker has been fixed. This routine should not deadlock.
+ func TestTeardown(t *testing.T) {
++	t.Parallel()
++
+ 	Delta := 100 * Millisecond
+ 	if testing.Short() {
+ 		Delta = 20 * Millisecond
+@@ -256,3 +260,349 @@ func BenchmarkTickerResetNaive(b *testing.B) {
+ 		ticker.Stop()
+ 	})
+ }
++
++func TestTimerGC(t *testing.T) {
++	run := func(t *testing.T, what string, f func()) {
++		t.Helper()
++		t.Run(what, func(t *testing.T) {
++			t.Helper()
++			const N = 1e4
++			var stats runtime.MemStats
++			runtime.GC()
++			runtime.GC()
++			runtime.GC()
++			runtime.ReadMemStats(&stats)
++			before := int64(stats.Mallocs - stats.Frees)
++
++			for j := 0; j < N; j++ {
++				f()
++			}
++
++			runtime.GC()
++			runtime.GC()
++			runtime.GC()
++			runtime.ReadMemStats(&stats)
++			after := int64(stats.Mallocs - stats.Frees)
++
++			// Allow some slack, but inuse >= N means at least 1 allocation per iteration.
++			inuse := after - before
++			if inuse >= N {
++				t.Errorf("%s did not get GC'ed: %d allocations", what, inuse)
++
++				Sleep(1 * Second)
++				runtime.ReadMemStats(&stats)
++				after := int64(stats.Mallocs - stats.Frees)
++				inuse = after - before
++				t.Errorf("after a sleep: %d allocations", inuse)
++			}
++		})
++	}
++
++	run(t, "After", func() { After(Hour) })
++	run(t, "Tick", func() { Tick(Hour) })
++	run(t, "NewTimer", func() { NewTimer(Hour) })
++	run(t, "NewTicker", func() { NewTicker(Hour) })
++	run(t, "NewTimerStop", func() { NewTimer(Hour).Stop() })
++	run(t, "NewTickerStop", func() { NewTicker(Hour).Stop() })
++}
++
++func TestTimerChan(t *testing.T) {
++	t.Parallel()
++	tick := &timer2{NewTimer(10000 * Second)}
++	testTimerChan(t, tick, tick.C)
++}
++
++func TestTickerChan(t *testing.T) {
++	t.Parallel()
++	tick := NewTicker(10000 * Second)
++	testTimerChan(t, tick, tick.C)
++}
++
++// timer2 is a Timer with Reset and Stop methods with no result,
++// to have the same signatures as Ticker.
++type timer2 struct {
++	*Timer
++}
++
++func (t *timer2) Stop() {
++	t.Timer.Stop()
++}
++
++func (t *timer2) Reset(d Duration) {
++	t.Timer.Reset(d)
++}
++
++type ticker interface {
++	Stop()
++	Reset(Duration)
++}
++
++func testTimerChan(t *testing.T, tick ticker, C <-chan Time) {
++	// Retry parameters. Enough to deflake even on slow machines.
++	// Windows in particular has very coarse timers so we have to
++	// wait 10ms just to make a timer go off.
++	const (
++		sched = 10 * Millisecond
++		tries = 10
++	)
++
++	drain := func() {
++		select {
++		case <-C:
++		default:
++		}
++	}
++	noTick := func() {
++		t.Helper()
++		select {
++		default:
++		case <-C:
++			t.Fatalf("extra tick")
++		}
++	}
++	assertTick := func() {
++		t.Helper()
++		select {
++		default:
++		case <-C:
++			return
++		}
++		for i := 0; i < tries; i++ {
++			Sleep(sched)
++			select {
++			default:
++			case <-C:
++				return
++			}
++		}
++		t.Fatalf("missing tick")
++	}
++	assertLen := func() {
++		t.Helper()
++		var n int
++		if n = len(C); n == 1 {
++			return
++		}
++		for i := 0; i < tries; i++ {
++			Sleep(sched)
++			if n = len(C); n == 1 {
++				return
++			}
++		}
++		t.Fatalf("len(C)  = %d, want 1", n)
++	}
++
++	// Test simple stop; timer never in heap.
++	tick.Stop()
++	noTick()
++
++	// Test modify of timer not in heap.
++	tick.Reset(10000 * Second)
++	noTick()
++
++	// Test modify of timer in heap.
++	tick.Reset(1)
++	assertTick()
++
++	// Sleep long enough that a second tick must happen if this is a ticker.
++	// Test that Reset does not lose the tick that should have happened.
++	Sleep(sched)
++	tick.Reset(10000 * Second)
++	_, isTicker := tick.(*Ticker)
++	if isTicker {
++		assertTick()
++	}
++	noTick()
++
++	// Test that len sees an immediate tick arrive
++	// for Reset of timer in heap.
++	tick.Reset(1)
++	assertLen()
++	assertTick()
++
++	// Test that len sees an immediate tick arrive
++	// for Reset of timer NOT in heap.
++	tick.Stop()
++	drain()
++	tick.Reset(1)
++	assertLen()
++	assertTick()
++
++	// Sleep long enough that a second tick must happen if this is a ticker.
++	// Test that Reset does not lose the tick that should have happened.
++	Sleep(sched)
++	tick.Reset(10000 * Second)
++	if isTicker {
++		assertLen()
++		assertTick()
++	}
++	noTick()
++
++	notDone := func(done chan bool) {
++		t.Helper()
++		select {
++		default:
++		case <-done:
++			t.Fatalf("early done")
++		}
++	}
++
++	waitDone := func(done chan bool) {
++		t.Helper()
++		for i := 0; i < tries; i++ {
++			Sleep(sched)
++			select {
++			case <-done:
++				return
++			default:
++			}
++		}
++		t.Fatalf("never got done")
++	}
++
++	// Reset timer in heap (already reset above, but just in case).
++	tick.Reset(10000 * Second)
++	drain()
++
++	// Test stop while timer in heap (because goroutine is blocked on <-C).
++	done := make(chan bool)
++	notDone(done)
++	go func() {
++		<-C
++		close(done)
++	}()
++	Sleep(sched)
++	notDone(done)
++
++	// Test reset far away while timer in heap.
++	tick.Reset(20000 * Second)
++	Sleep(sched)
++	notDone(done)
++
++	// Test imminent reset while in heap.
++	tick.Reset(1)
++	waitDone(done)
++
++	// If this is a ticker, another tick should have come in already
++	// (they are 1ns apart). If a timer, it should have stopped.
++	if isTicker {
++		assertTick()
++	} else {
++		noTick()
++	}
++
++	tick.Stop()
++	if isTicker {
++		drain()
++	}
++	noTick()
++
++	// Again using select and with two goroutines waiting.
++	tick.Reset(10000 * Second)
++	done = make(chan bool, 2)
++	done1 := make(chan bool)
++	done2 := make(chan bool)
++	stop := make(chan bool)
++	go func() {
++		select {
++		case <-C:
++			done <- true
++		case <-stop:
++		}
++		close(done1)
++	}()
++	go func() {
++		select {
++		case <-C:
++			done <- true
++		case <-stop:
++		}
++		close(done2)
++	}()
++	Sleep(sched)
++	notDone(done)
++	tick.Reset(sched / 2)
++	Sleep(sched)
++	waitDone(done)
++	tick.Stop()
++	close(stop)
++	waitDone(done1)
++	waitDone(done2)
++	if isTicker {
++		// extra send might have sent done again
++		// (handled by buffering done above).
++		select {
++		default:
++		case <-done:
++		}
++		// extra send after that might have filled C.
++		select {
++		default:
++		case <-C:
++		}
++	}
++	notDone(done)
++
++	// Test enqueueTimerChan when timer is stopped.
++	stop = make(chan bool)
++	done = make(chan bool, 2)
++	for i := 0; i < 2; i++ {
++		go func() {
++			select {
++			case <-C:
++				panic("unexpected data")
++			case <-stop:
++			}
++			done <- true
++		}()
++	}
++	Sleep(sched)
++	close(stop)
++	waitDone(done)
++	waitDone(done)
++}
++
++func TestManualTicker(t *testing.T) {
++	// Code should not do this, but some old code dating to Go 1.9 does.
++	// Make sure this doesn't crash.
++	// See go.dev/issue/21874.
++	c := make(chan Time)
++	tick := &Ticker{C: c}
++	tick.Stop()
++}
++
++func TestAfterTimes(t *testing.T) {
++	t.Parallel()
++	// Using After(10ms) but waiting for 500ms to read the channel
++	// should produce a time from start+10ms, not start+500ms.
++	// Make sure it does.
++	// To avoid flakes due to very long scheduling delays,
++	// require 10 failures in a row before deciding something is wrong.
++	for i := 0; i < 10; i++ {
++		start := Now()
++		c := After(10 * Millisecond)
++		Sleep(500 * Millisecond)
++		dt := (<-c).Sub(start)
++		if dt < 400*Millisecond {
++			return
++		}
++		t.Logf("After(10ms) time is +%v, want <400ms", dt)
++	}
++	t.Errorf("not working")
++}
++
++func TestTickTimes(t *testing.T) {
++	t.Parallel()
++	// See comment in TestAfterTimes
++	for i := 0; i < 10; i++ {
++		start := Now()
++		c := Tick(10 * Millisecond)
++		Sleep(500 * Millisecond)
++		dt := (<-c).Sub(start)
++		if dt < 400*Millisecond {
++			return
++		}
++		t.Logf("Tick(10ms) time is +%v, want <400ms", dt)
++	}
++	t.Errorf("not working")
++}

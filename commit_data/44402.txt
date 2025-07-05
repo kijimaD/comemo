@@ -18,10 +18,162 @@ Date:   Fri Jun 19 15:35:28 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/link.go       | 31 +++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/main.go       |  4 ++++
  src/cmd/link/internal/ld/outbuf.go     | 20 ++++++++++++++------
  src/cmd/link/internal/ld/sym.go        |  1 +
  src/cmd/link/internal/loader/loader.go | 24 ++++++++++++++++++++++++
  5 files changed, 74 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 9ad477e047..51ea17243f 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -93,6 +93,12 @@ type Link struct {
+ 
+ 	// Elf symtab variables.
+ 	numelfsym int // starts at 0, 1 is reserved
++
++	// These are symbols that created and written by the linker.
++	// Rather than creating a symbol, and writing all its data into the heap,
++	// you can create a symbol, and just a generation function will be called
++	// after the symbol's been created in the output mmap.
++	generatorSyms map[loader.Sym]generatorFunc
+ }
+ 
+ type cgodata struct {
+@@ -144,3 +150,28 @@ func (ctxt *Link) IncVersion() int {
+ func (ctxt *Link) MaxVersion() int {
+ 	return ctxt.version
+ }
++
++// generatorFunc is a convenience type.
++// Linker created symbols that are large, and shouldn't really live in the
++// heap can define a generator function, and their bytes can be generated
++// directly in the output mmap.
++//
++// Generator symbols shouldn't grow the symbol size, and might be called in
++// parallel in the future.
++//
++// Generator Symbols have their Data and OutData set to the mmapped area when
++// the generator is called.
++type generatorFunc func(*Link, loader.Sym)
++
++// createGeneratorSymbol is a convenience method for creating a generator
++// symbol.
++func (ctxt *Link) createGeneratorSymbol(name string, version int, t sym.SymKind, size int64, gen generatorFunc) loader.Sym {
++	ldr := ctxt.loader
++	s := ldr.LookupOrCreateSym(name, version)
++	ldr.SetIsGeneratedSym(s, true)
++	sb := ldr.MakeSymbolUpdater(s)
++	sb.SetType(t)
++	sb.SetSize(size)
++	ctxt.generatorSyms[s] = gen
++	return s
++}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 252c3c5530..d9ff359b35 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -316,6 +316,10 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	// will be applied directly there.
+ 	bench.Start("Asmb")
+ 	asmb(ctxt)
++	// Generate large symbols.
++	for s, f := range ctxt.generatorSyms {
++		f(ctxt, s)
++	}
+ 	bench.Start("Asmb2")
+ 	asmb2(ctxt)
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index 09162ae90f..b474067dd9 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -285,10 +285,18 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
+ // edit to the symbol content.
+ // If the output file is not Mmap'd, just writes the content.
+ func (out *OutBuf) WriteSym(ldr *loader.Loader, s loader.Sym) {
+-	P := ldr.Data(s)
+-	n := int64(len(P))
+-	pos, buf := out.writeLoc(n)
+-	copy(buf[pos:], P)
+-	out.off += n
+-	ldr.SetOutData(s, buf[pos:pos+n])
++	if !ldr.IsGeneratedSym(s) {
++		P := ldr.Data(s)
++		n := int64(len(P))
++		pos, buf := out.writeLoc(n)
++		copy(buf[pos:], P)
++		out.off += n
++		ldr.SetOutData(s, buf[pos:pos+n])
++	} else {
++		n := ldr.SymSize(s)
++		pos, buf := out.writeLoc(n)
++		out.off += n
++		ldr.SetOutData(s, buf[pos:pos+n])
++		ldr.MakeSymbolUpdater(s).SetData(buf[pos : pos+n])
++	}
+ }
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 3f269453c0..75489720cc 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -50,6 +50,7 @@ func linknew(arch *sys.Arch) *Link {
+ 		LibraryByPkg:  make(map[string]*sym.Library),
+ 		numelfsym:     1,
+ 		ErrorReporter: ErrorReporter{ErrorReporter: ler},
++		generatorSyms: make(map[loader.Sym]generatorFunc),
+ 	}
+ 
+ 	if objabi.GOARCH != arch.Name {
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 8bc5fe21e4..4580bdc9de 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -256,6 +256,7 @@ type Loader struct {
+ 	attrSpecial          map[Sym]struct{} // "special" frame symbols
+ 	attrCgoExportDynamic map[Sym]struct{} // "cgo_export_dynamic" symbols
+ 	attrCgoExportStatic  map[Sym]struct{} // "cgo_export_static" symbols
++	generatedSyms        map[Sym]struct{} // symbols that generate their content
+ 
+ 	// Outer and Sub relations for symbols.
+ 	// TODO: figure out whether it's more efficient to just have these
+@@ -355,6 +356,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
+ 		attrSpecial:          make(map[Sym]struct{}),
+ 		attrCgoExportDynamic: make(map[Sym]struct{}),
+ 		attrCgoExportStatic:  make(map[Sym]struct{}),
++		generatedSyms:        make(map[Sym]struct{}),
+ 		itablink:             make(map[Sym]struct{}),
+ 		deferReturnTramp:     make(map[Sym]bool),
+ 		extStaticSyms:        make(map[nameVer]Sym),
+@@ -976,6 +978,28 @@ func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
+ 	}
+ }
+ 
++// IsGeneratedSym returns true if a symbol's been previously marked as a
++// generator symbol through the SetIsGeneratedSym. The functions for generator
++// symbols are kept in the Link context.
++func (l *Loader) IsGeneratedSym(i Sym) bool {
++	_, ok := l.generatedSyms[i]
++	return ok
++}
++
++// SetIsGeneratedSym marks symbols as generated symbols. Data shouldn't be
++// stored in generated symbols, and a function is registered and called for
++// each of these symbols.
++func (l *Loader) SetIsGeneratedSym(i Sym, v bool) {
++	if !l.IsExternal(i) {
++		panic("only external symbols can be generated")
++	}
++	if v {
++		l.generatedSyms[i] = struct{}{}
++	} else {
++		delete(l.generatedSyms, i)
++	}
++}
++
+ func (l *Loader) AttrCgoExport(i Sym) bool {
+ 	return l.AttrCgoExportDynamic(i) || l.AttrCgoExportStatic(i)
+ }

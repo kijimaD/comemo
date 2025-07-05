@@ -12,8 +12,71 @@ Date:   Sun Nov 15 23:32:30 2015 +0100
     Change-Id: I13d554723bf96d906d0b3ff390d7b7c87c1a5020
     Reviewed-on: https://go-review.googlesource.com/16866
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go       | 16 +++++++++-------
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/blank1.go                           |  4 ++++
  3 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 9b865bbee9..fc47a39ee6 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1374,6 +1374,15 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	}
+ 
+ 	pa = f
++	if local && !pa.Local {
++		Yyerror("cannot define new methods on non-local type %v", pa)
++		return
++	}
++
++	if isblanksym(sf) {
++		return
++	}
++
+ 	if pa.Etype == TSTRUCT {
+ 		for f := pa.Type; f != nil; f = f.Down {
+ 			if f.Sym == sf {
+@@ -1383,13 +1392,6 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 		}
+ 	}
+ 
+-	if local && !pa.Local {
+-		// defining method on non-local type.
+-		Yyerror("cannot define new methods on non-local type %v", pa)
+-
+-		return
+-	}
+-
+ 	n := Nod(ODCLFIELD, newname(sf), nil)
+ 	n.Type = t
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f04578ef8f..70560d405d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3441,7 +3441,7 @@ func typecheckfunc(n *Node) {
+ 	n.Type = t
+ 	t.Nname = n.Func.Nname
+ 	rcvr := getthisx(t).Type
+-	if rcvr != nil && n.Func.Shortname != nil && !isblank(n.Func.Shortname) {
++	if rcvr != nil && n.Func.Shortname != nil {
+ 		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
+ 	}
+ 
+diff --git a/test/blank1.go b/test/blank1.go
+index 54a72976b7..bf94d1a0fb 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -13,6 +13,10 @@ var t struct {
+ 	_ int
+ }
+ 
++func (x int) _() { // ERROR "cannot define new methods on non-local type"
++	println(x)
++}
++
+ type T struct {
+       _ []int
+ }

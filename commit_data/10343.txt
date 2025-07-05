@@ -11,7 +11,25 @@ Date:   Fri Nov 11 11:18:45 2011 -0500
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5373061
-
+---
  src/pkg/exp/terminal/Makefile                 | 2 +-
  src/pkg/exp/terminal/{terminal.go => util.go} | 0
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/terminal/Makefile b/src/pkg/exp/terminal/Makefile
+index 40331d6e40..6368d61364 100644
+--- a/src/pkg/exp/terminal/Makefile
++++ b/src/pkg/exp/terminal/Makefile
+@@ -9,7 +9,7 @@ GOFILES=\
+ 	shell.go\
+ 
+ ifneq ($(GOOS),windows)
+-GOFILES+=terminal.go
++GOFILES+=util.go
+ endif
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/exp/terminal/terminal.go b/src/pkg/exp/terminal/util.go
+similarity index 100%
+rename from src/pkg/exp/terminal/terminal.go
+rename to src/pkg/exp/terminal/util.go

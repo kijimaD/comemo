@@ -19,10 +19,197 @@ Date:   Thu Oct 5 16:05:03 2017 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go      | 38 +++++++++++++++++++++++++---
  src/cmd/compile/internal/ssa/gen/386.rules   |  1 -
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 -
  src/cmd/compile/internal/ssa/rewrite386.go   | 24 ++++--------------
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 24 ++++--------------
  5 files changed, 45 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index cccc9331e5..f676b5f5eb 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -276,17 +276,29 @@ var allAsmTests = []*asmTests{
+ }
+ 
+ var linuxAMD64Tests = []*asmTest{
++	// multiplication by powers of two
+ 	{
+ 		fn: `
+-		func f0(x int) int {
+-			return x * 64
++		func $(n int) int {
++			return n * 64
+ 		}
+ 		`,
+ 		pos: []string{"\tSHLQ\t\\$6,"},
++		neg: []string{"IMULQ"},
+ 	},
+ 	{
+ 		fn: `
+-		func f1(x int) int {
++		func $(n int) int {
++			return -128*n
++		}
++		`,
++		pos: []string{"SHLQ"},
++		neg: []string{"IMULQ"},
++	},
++
++	{
++		fn: `
++		func $(x int) int {
+ 			return x * 96
+ 		}
+ 		`,
+@@ -1148,6 +1160,26 @@ var linux386Tests = []*asmTest{
+ 		pos: []string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
+ 	},
+ 
++	// multiplication by powers of two
++	{
++		fn: `
++		func $(n int) int {
++			return 32*n
++		}
++		`,
++		pos: []string{"SHLL"},
++		neg: []string{"IMULL"},
++	},
++	{
++		fn: `
++		func $(n int) int {
++			return -64*n
++		}
++		`,
++		pos: []string{"SHLL"},
++		neg: []string{"IMULL"},
++	},
++
+ 	// multiplication merging tests
+ 	{
+ 		fn: `
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index c961c0f720..bc1c25646a 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -539,7 +539,6 @@
+ (MULLconst [41] x) -> (LEAL8 x (LEAL4 <v.Type> x x))
+ (MULLconst [73] x) -> (LEAL8 x (LEAL8 <v.Type> x x))
+ 
+-(MULLconst [c] x) && isPowerOfTwo(c) -> (SHLLconst [log2(c)] x)
+ (MULLconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBL (SHLLconst <v.Type> [log2(c+1)] x) x)
+ (MULLconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (LEAL1 (SHLLconst <v.Type> [log2(c-1)] x) x)
+ (MULLconst [c] x) && isPowerOfTwo(c-2) && c >= 34 -> (LEAL2 (SHLLconst <v.Type> [log2(c-2)] x) x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 7e5aab7bc2..02e187b70b 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -931,7 +931,6 @@
+ (MULQconst [41] x) -> (LEAQ8 x (LEAQ4 <v.Type> x x))
+ (MULQconst [73] x) -> (LEAQ8 x (LEAQ8 <v.Type> x x))
+ 
+-(MULQconst [c] x) && isPowerOfTwo(c) -> (SHLQconst [log2(c)] x)
+ (MULQconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBQ (SHLQconst <v.Type> [log2(c+1)] x) x)
+ (MULQconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (LEAQ1 (SHLQconst <v.Type> [log2(c-1)] x) x)
+ (MULQconst [c] x) && isPowerOfTwo(c-2) && c >= 34 -> (LEAQ2 (SHLQconst <v.Type> [log2(c-2)] x) x)
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index b363dd3f18..60f66c70a1 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -8543,20 +8543,6 @@ func rewriteValue386_Op386MULLconst_10(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MULLconst [c] x)
+-	// cond: isPowerOfTwo(c)
+-	// result: (SHLLconst [log2(c)] x)
+-	for {
+-		c := v.AuxInt
+-		x := v.Args[0]
+-		if !(isPowerOfTwo(c)) {
+-			break
+-		}
+-		v.reset(Op386SHLLconst)
+-		v.AuxInt = log2(c)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MULLconst [c] x)
+ 	// cond: isPowerOfTwo(c+1) && c >= 15
+ 	// result: (SUBL (SHLLconst <v.Type> [log2(c+1)] x) x)
+ 	for {
+@@ -8624,11 +8610,6 @@ func rewriteValue386_Op386MULLconst_10(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValue386_Op386MULLconst_20(v *Value) bool {
+-	b := v.Block
+-	_ = b
+ 	// match: (MULLconst [c] x)
+ 	// cond: isPowerOfTwo(c-8) && c >= 136
+ 	// result: (LEAL8 (SHLLconst <v.Type> [log2(c-8)] x) x)
+@@ -8646,6 +8627,11 @@ func rewriteValue386_Op386MULLconst_20(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValue386_Op386MULLconst_20(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (MULLconst [c] x)
+ 	// cond: c%3 == 0 && isPowerOfTwo(c/3)
+ 	// result: (SHLLconst [log2(c/3)] (LEAL2 <v.Type> x x))
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index d130081c87..0d05fd30aa 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -14516,20 +14516,6 @@ func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MULQconst [c] x)
+-	// cond: isPowerOfTwo(c)
+-	// result: (SHLQconst [log2(c)] x)
+-	for {
+-		c := v.AuxInt
+-		x := v.Args[0]
+-		if !(isPowerOfTwo(c)) {
+-			break
+-		}
+-		v.reset(OpAMD64SHLQconst)
+-		v.AuxInt = log2(c)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MULQconst [c] x)
+ 	// cond: isPowerOfTwo(c+1) && c >= 15
+ 	// result: (SUBQ (SHLQconst <v.Type> [log2(c+1)] x) x)
+ 	for {
+@@ -14597,11 +14583,6 @@ func rewriteValueAMD64_OpAMD64MULQconst_10(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValueAMD64_OpAMD64MULQconst_20(v *Value) bool {
+-	b := v.Block
+-	_ = b
+ 	// match: (MULQconst [c] x)
+ 	// cond: isPowerOfTwo(c-8) && c >= 136
+ 	// result: (LEAQ8 (SHLQconst <v.Type> [log2(c-8)] x) x)
+@@ -14619,6 +14600,11 @@ func rewriteValueAMD64_OpAMD64MULQconst_20(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MULQconst_20(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (MULQconst [c] x)
+ 	// cond: c%3 == 0 && isPowerOfTwo(c/3)
+ 	// result: (SHLQconst [log2(c/3)] (LEAQ2 <v.Type> x x))

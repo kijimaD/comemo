@@ -11,8 +11,78 @@ Date:   Mon Mar 14 22:28:04 2016 -0700
     Change-Id: I9623a40ff0d568f11afd1279b6aaa1c33eda644c
     Reviewed-on: https://go-review.googlesource.com/20730
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/link.go        |  1 -
  src/cmd/internal/obj/objfile.go     | 10 +++++-----
  src/cmd/internal/obj/sizeof_test.go |  2 +-
  3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 835890d601..cbf4bf4183 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -337,7 +337,6 @@ type LSym struct {
+ 	Gotype *LSym
+ 	Autom  *Auto
+ 	Text   *Prog
+-	Etext  *Prog
+ 	Pcln   *Pcln
+ 	P      []byte
+ 	R      []Reloc
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 70c2d9d5f9..f782644d88 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -131,6 +131,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 	// Ignore ctxt->plist boundaries. There are no guarantees there,
+ 	// and the assemblers just use one big list.
+ 	var curtext *LSym
++	var etext *Prog
+ 	var text []*LSym
+ 
+ 	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
+@@ -228,7 +229,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				}
+ 				s.Type = STEXT
+ 				s.Text = p
+-				s.Etext = p
++				etext = p
+ 				curtext = s
+ 				continue
+ 
+@@ -247,11 +248,11 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 			}
+ 
+ 			if curtext == nil {
++				etext = nil
+ 				continue
+ 			}
+-			s := curtext
+-			s.Etext.Link = p
+-			s.Etext = p
++			etext.Link = p
++			etext = p
+ 		}
+ 	}
+ 
+@@ -293,7 +294,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 		linkpcln(ctxt, s)
+ 		if freeProgs {
+ 			s.Text = nil
+-			s.Etext = nil
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/sizeof_test.go b/src/cmd/internal/obj/sizeof_test.go
+index 28dbba888d..14bdbe20dc 100644
+--- a/src/cmd/internal/obj/sizeof_test.go
++++ b/src/cmd/internal/obj/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Addr{}, 52, 80},
+-		{LSym{}, 88, 152},
++		{LSym{}, 84, 144},
+ 		{Prog{}, 196, 288},
+ 	}
+ 

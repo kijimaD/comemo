@@ -14,7 +14,43 @@ Date:   Fri Oct 22 17:00:46 2021 +0800
     Reviewed-by: Dan Kortschak <dan@kortschak.io>
     Reviewed-by: Sebastien Binet <s@sbinet.org>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/reflect/type.go          |  2 +-
  test/fixedbugs/issue49110.go | 16 ++++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 2bb2438381..0896949d7e 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2606,7 +2606,7 @@ func StructOf(fields []StructField) Type {
+ 				}
+ 			}
+ 		}
+-		if _, dup := fset[name]; dup {
++		if _, dup := fset[name]; dup && name != "_" {
+ 			panic("reflect.StructOf: duplicate field " + name)
+ 		}
+ 		fset[name] = struct{}{}
+diff --git a/test/fixedbugs/issue49110.go b/test/fixedbugs/issue49110.go
+new file mode 100644
+index 0000000000..5e1bde9f00
+--- /dev/null
++++ b/test/fixedbugs/issue49110.go
+@@ -0,0 +1,16 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "reflect"
++
++func main() {
++	_ = reflect.StructOf([]reflect.StructField{
++		{Name: "_", PkgPath: "main", Type: reflect.TypeOf(int(0))},
++		{Name: "_", PkgPath: "main", Type: reflect.TypeOf(int(0))},
++	})
++}

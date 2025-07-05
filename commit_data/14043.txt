@@ -7,6 +7,21 @@ Date:   Sun Oct 7 11:24:14 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6610061
-
+---
  doc/debugging_with_gdb.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index 6b1e2536e0..8be989132d 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -36,8 +36,7 @@ debugged.
+ 
+ <ul>
+ <li>
+-Show file and line number for code 
+-, set breakpoints and disassemble:
++Show file and line number for code, set breakpoints and disassemble:
+ <pre>(gdb) <b>list</b>
+ (gdb) <b>list <i>line</i></b>
+ (gdb) <b>list <i>file.go</i>:<i>line</i></b>

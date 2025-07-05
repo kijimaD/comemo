@@ -14,7 +14,44 @@ Date:   Sat Apr 29 14:27:55 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  1 +
  test/fixedbugs/issue20174.go             | 18 ++++++++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 69d07d583f..e66ce5dc98 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -498,6 +498,7 @@ OpSwitch:
+ 			ok |= Etype
+ 			n.Op = OTYPE
+ 			n.Type = types.NewPtr(l.Type)
++			checkwidth(l.Type) // ensure this gets dowidth'd for the backend
+ 			n.Left = nil
+ 			break OpSwitch
+ 		}
+diff --git a/test/fixedbugs/issue20174.go b/test/fixedbugs/issue20174.go
+new file mode 100644
+index 0000000000..a9c1fd8daf
+--- /dev/null
++++ b/test/fixedbugs/issue20174.go
+@@ -0,0 +1,18 @@
++// compile -c=2
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20174: failure to typecheck contents of *T in the frontend.
++
++package p
++
++func f() {
++	_ = (*interface{})(nil) // interface{} here used to not have its width calculated going into backend
++	select {
++	case _ = <-make(chan interface {
++		M()
++	}, 1):
++	}
++}

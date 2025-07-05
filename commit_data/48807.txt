@@ -17,8 +17,187 @@ Date:   Mon Jun 7 13:28:09 2021 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/pprof/pprof.go        |   4 +-
  src/cmd/pprof/pprof_test.go   | 110 ++++++++++++++++++++++++++++++++++++++++++
  src/cmd/pprof/testdata/cpu.go |  41 ++++++++++++++++
  3 files changed, 153 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 1d10a7b41f..e72c765adc 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -233,8 +233,8 @@ func (f *file) Name() string {
+ }
+ 
+ func (f *file) ObjAddr(addr uint64) (uint64, error) {
+-	// No support for shared libraries.
+-	return 0, nil
++	// No support for shared libraries, so translation is a no-op.
++	return addr, nil
+ }
+ 
+ func (f *file) BuildID() string {
+diff --git a/src/cmd/pprof/pprof_test.go b/src/cmd/pprof/pprof_test.go
+new file mode 100644
+index 0000000000..170cdf3bb8
+--- /dev/null
++++ b/src/cmd/pprof/pprof_test.go
+@@ -0,0 +1,110 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++var tmp, pprofExe string // populated by buildPprof
++
++func TestMain(m *testing.M) {
++	if !testenv.HasGoBuild() {
++		return
++	}
++
++	var exitcode int
++	if err := buildPprof(); err == nil {
++		exitcode = m.Run()
++	} else {
++		fmt.Println(err)
++		exitcode = 1
++	}
++	os.RemoveAll(tmp)
++	os.Exit(exitcode)
++}
++
++func buildPprof() error {
++	var err error
++	tmp, err = os.MkdirTemp("", "TestPprof")
++	if err != nil {
++		return fmt.Errorf("TempDir failed: %v", err)
++	}
++
++	pprofExe = filepath.Join(tmp, "testpprof.exe")
++	gotool, err := testenv.GoTool()
++	if err != nil {
++		return err
++	}
++	out, err := exec.Command(gotool, "build", "-o", pprofExe, "cmd/pprof").CombinedOutput()
++	if err != nil {
++		os.RemoveAll(tmp)
++		return fmt.Errorf("go build -o %v cmd/pprof: %v\n%s", pprofExe, err, string(out))
++	}
++
++	return nil
++}
++
++func mustHaveDisasm(t *testing.T) {
++	switch runtime.GOARCH {
++	case "mips", "mipsle", "mips64", "mips64le":
++		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
++	case "riscv64":
++		t.Skipf("skipping on %s, issue 36738", runtime.GOARCH)
++	case "s390x":
++		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
++	}
++
++	// Skip PIE platforms, pprof can't disassemble PIE.
++	if runtime.GOOS == "windows" {
++		t.Skipf("skipping on %s, issue 46639", runtime.GOOS)
++	}
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++		t.Skipf("skipping on %s/%s, issue 46639", runtime.GOOS, runtime.GOARCH)
++	}
++}
++
++// TestDisasm verifies that cmd/pprof can successfully disassemble functions.
++//
++// This is a regression test for issue 46636.
++func TestDisasm(t *testing.T) {
++	mustHaveDisasm(t)
++	testenv.MustHaveGoBuild(t)
++
++	tmpdir := t.TempDir()
++	cpuExe := filepath.Join(tmpdir, "cpu.exe")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", cpuExe, "cpu.go")
++	cmd.Dir = "testdata/"
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failed: %v\n%s", err, out)
++	}
++
++	profile := filepath.Join(tmpdir, "cpu.pprof")
++	cmd = exec.Command(cpuExe, "-output", profile)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("cpu failed: %v\n%s", err, out)
++	}
++
++	cmd = exec.Command(pprofExe, "-disasm", "main.main", cpuExe, profile)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("pprof failed: %v\n%s", err, out)
++	}
++
++	sout := string(out)
++	want := "ROUTINE ======================== main.main"
++	if !strings.Contains(sout, want) {
++		t.Errorf("pprof disasm got %s want contains %q", sout, want)
++	}
++}
+diff --git a/src/cmd/pprof/testdata/cpu.go b/src/cmd/pprof/testdata/cpu.go
+new file mode 100644
+index 0000000000..5b682870db
+--- /dev/null
++++ b/src/cmd/pprof/testdata/cpu.go
+@@ -0,0 +1,41 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"runtime/pprof"
++	"time"
++)
++
++var output = flag.String("output", "", "pprof profile output file")
++
++func main() {
++	flag.Parse()
++	if *output == "" {
++		fmt.Fprintf(os.Stderr, "usage: %s -output file.pprof\n", os.Args[0])
++		os.Exit(2)
++	}
++
++	f, err := os.Create(*output)
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++	defer f.Close()
++
++	if err := pprof.StartCPUProfile(f); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++	defer pprof.StopCPUProfile()
++
++	// Spin for long enough to collect some samples.
++	start := time.Now()
++	for time.Since(start) < time.Second {
++	}
++}

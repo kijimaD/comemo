@@ -7,6 +7,21 @@ Date:   Fri Feb 6 01:09:08 2015 -0500
     Change-Id: I40feb9e65615a0f683cfc3f54e0c0cfabcf6a787
     Reviewed-on: https://go-review.googlesource.com/4010
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/go1.5.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index f45ca068de..620ad7f85b 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -2,6 +2,9 @@ Overall:
+ 
+ build: Go 1.4 required to build (https://golang.org/cl/2470, https://golang.org/cl/2993)
+ 
++New Ports:
++Darwin/ARM, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ..., 2127)
++
+ API additions and behavior changes:
+ 
+ bufio: add Reader.Discard (https://golang.org/cl/2260)

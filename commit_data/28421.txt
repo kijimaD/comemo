@@ -12,9 +12,60 @@ Date:   Tue May 24 02:52:31 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/23373
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  src/go/types/assignments.go              | 2 +-
  src/go/types/testdata/stmt0.src          | 2 +-
  test/fixedbugs/issue13779.go             | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 5c23d08cf3..ffd4afcc01 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3153,7 +3153,7 @@ func checkassign(stmt *Node, n *Node) {
+ 	}
+ 
+ 	if n.Op == ODOT && n.Left.Op == OINDEXMAP {
+-		Yyerror("cannot directly assign to struct field %v in map", n)
++		Yyerror("cannot assign to struct field %v in map", n)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index c7564bcf85..6ebf3b5eab 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -183,7 +183,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+ 			var op operand
+ 			check.expr(&op, sel.X)
+ 			if op.mode == mapindex {
+-				check.errorf(z.pos(), "cannot directly assign to struct field %s in map", ExprString(z.expr))
++				check.errorf(z.pos(), "cannot assign to struct field %s in map", ExprString(z.expr))
+ 				return nil
+ 			}
+ 		}
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index ac32ed7ba9..0c727c3dd0 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -137,7 +137,7 @@ func issue6487() {
+ 
+ 	type M map[string]S
+ 	var m M
+-	m /* ERROR "cannot directly assign to struct field" */ ["foo"].x = 0
++	m /* ERROR "cannot assign to struct field" */ ["foo"].x = 0
+ 	_ = &( /* ERROR "cannot take address" */ m["foo"].x)
+ 	_ = &m /* ERROR "cannot take address" */ ["foo"].x
+ }
+diff --git a/test/fixedbugs/issue13779.go b/test/fixedbugs/issue13779.go
+index 94cf9c68de..b18577c152 100644
+--- a/test/fixedbugs/issue13779.go
++++ b/test/fixedbugs/issue13779.go
+@@ -11,5 +11,5 @@ package main
+ func main() {
+ 	type person struct{ age, weight, height int }
+ 	students := map[string]person{"sally": person{12, 50, 32}}
+-	students["sally"].age = 3 // ERROR "cannot directly assign to struct field .* in map"
++	students["sally"].age = 3 // ERROR "cannot assign to struct field .* in map"
+ }

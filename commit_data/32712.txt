@@ -7,6 +7,20 @@ Date:   Tue May 9 22:09:08 2017 -0700
     Change-Id: I4b8f1b61c10f60ddb3687759af0be1641c1f78ce
     Reviewed-on: https://go-review.googlesource.com/43111
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/cse.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index d931d6bf5f..7e9c4f4a87 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -322,7 +322,7 @@ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
+ 		// that generate memory.
+ 		return lt2Cmp(v.ID < w.ID)
+ 	}
+-	// OpSelect is a pseudo-op. We need to be more agressive
++	// OpSelect is a pseudo-op. We need to be more aggressive
+ 	// regarding CSE to keep multiple OpSelect's of the same
+ 	// argument from existing.
+ 	if v.Op != OpSelect0 && v.Op != OpSelect1 {

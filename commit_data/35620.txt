@@ -13,8 +13,61 @@ Date:   Mon Feb 26 14:06:01 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/sys_darwin.go  | 11 -----------
  src/os/sys_freebsd.go | 10 ----------
  src/os/sys_unix.go    |  5 ++++-
  3 files changed, 4 insertions(+), 22 deletions(-)
+
+diff --git a/src/os/sys_darwin.go b/src/os/sys_darwin.go
+deleted file mode 100644
+index 11d678ef18..0000000000
+--- a/src/os/sys_darwin.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-// supportsCloseOnExec reports whether the platform supports the
+-// O_CLOEXEC flag.
+-// The O_CLOEXEC flag was introduced in OS X 10.7 (Darwin 11.0.0).
+-// See http://support.apple.com/kb/HT1633.
+-const supportsCloseOnExec = true
+diff --git a/src/os/sys_freebsd.go b/src/os/sys_freebsd.go
+deleted file mode 100644
+index 3ec49faedf..0000000000
+--- a/src/os/sys_freebsd.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-// supportsCloseOnExec reports whether the platform supports the
+-// O_CLOEXEC flag.
+-// The O_CLOEXEC flag was introduced in FreeBSD 8.3.
+-const supportsCloseOnExec bool = true
+diff --git a/src/os/sys_unix.go b/src/os/sys_unix.go
+index 39c20dc739..87f36cfa4a 100644
+--- a/src/os/sys_unix.go
++++ b/src/os/sys_unix.go
+@@ -2,10 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly linux netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os
+ 
+ // supportsCloseOnExec reports whether the platform supports the
+ // O_CLOEXEC flag.
++// On Darwin, the O_CLOEXEC flag was introduced in OS X 10.7 (Darwin 11.0.0).
++// See http://support.apple.com/kb/HT1633.
++// On FreeBSD, the O_CLOEXEC flag was introduced in version 8.3.
+ const supportsCloseOnExec = true

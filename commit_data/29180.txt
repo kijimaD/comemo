@@ -7,6 +7,43 @@ Date:   Tue Aug 30 12:46:36 2016 -0700
     Change-Id: I6c48683b620b0f119d7f0ae4a88502773202756b
     Reviewed-on: https://go-review.googlesource.com/28170
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 18 ++++++++----------
  1 file changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 23ba262f93..96cc393465 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -18,15 +18,14 @@ import (
+ type FmtFlag int
+ 
+ const (
+-	FmtWidth    FmtFlag = 1 << iota
+-	FmtLeft             // "-"
+-	FmtSharp            // "#"
+-	FmtSign             // "+"
+-	FmtUnsigned         // "u"
+-	FmtShort            // "h"
+-	FmtLong             // "l"
+-	FmtComma            // ","
+-	FmtByte             // "hh"
++	FmtLeft     FmtFlag = 1 << iota // "-"
++	FmtSharp                        // "#"
++	FmtSign                         // "+"
++	FmtUnsigned                     // "u"
++	FmtShort                        // "h"
++	FmtLong                         // "l"
++	FmtComma                        // ","
++	FmtByte                         // "hh"
+ )
+ 
+ //
+@@ -71,7 +70,6 @@ const (
+ const (
+ 	FErr = iota
+ 	FDbg
+-	_ // formerly FExp - leave gap for now just in case there's some hard-wired dependency on the const value
+ 	FTypeId
+ )
+ 

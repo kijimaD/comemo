@@ -73,7 +73,7 @@ Date:   Mon Apr 23 14:46:41 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 14 ++++++-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  4 +-
  src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +-
@@ -81,3 +81,223 @@ Date:   Mon Apr 23 14:46:41 2018 -0700
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 52 +++++++++++++++++++++++---
  test/codegen/mathbits.go                       |  4 +-
  6 files changed, 79 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 192494e9a3..1e8ac4e6de 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3081,6 +3081,11 @@ func init() {
+ 			return s.newValue1(ssa.OpCtz32, types.Types[TINT], y)
+ 		},
+ 		sys.ARM, sys.MIPS)
++	addF("math/bits", "TrailingZeros16",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpCtz16, types.Types[TINT], args[0])
++		},
++		sys.AMD64)
+ 	addF("math/bits", "TrailingZeros16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
+@@ -3088,7 +3093,7 @@ func init() {
+ 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
+ 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X)
++		sys.ARM64, sys.S390X)
+ 	addF("math/bits", "TrailingZeros8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt8to32, types.Types[TUINT32], args[0])
+@@ -3097,6 +3102,11 @@ func init() {
+ 			return s.newValue1(ssa.OpCtz32, types.Types[TINT], y)
+ 		},
+ 		sys.ARM, sys.MIPS)
++	addF("math/bits", "TrailingZeros8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpCtz8, types.Types[TINT], args[0])
++		},
++		sys.AMD64)
+ 	addF("math/bits", "TrailingZeros8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[TUINT64], args[0])
+@@ -3104,7 +3114,7 @@ func init() {
+ 			y := s.newValue2(ssa.OpOr64, types.Types[TUINT64], x, c)
+ 			return s.newValue1(ssa.OpCtz64, types.Types[TINT], y)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X)
++		sys.ARM64, sys.S390X)
+ 	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
+ 	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
+ 	// ReverseBytes inlines correctly, no need to intrinsify it.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index f589d00631..3d55bd8a94 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -56,7 +56,9 @@
+ 
+ // Lowering other arithmetic
+ (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
+-(Ctz32 x) -> (Select0 (BSFQ (ORQ <typ.UInt64> (MOVQconst [1<<32]) x)))
++(Ctz32 x) -> (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
++(Ctz16 x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
++(Ctz8  x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
+ 
+ (BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
+ (BitLen32 x) -> (BitLen64 (MOVLQZX <typ.UInt64> x))
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index e84903b73d..232a9ac095 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -240,8 +240,10 @@ var genericOps = []opData{
+ 	{name: "Com32", argLength: 1},
+ 	{name: "Com64", argLength: 1},
+ 
++	{name: "Ctz8", argLength: 1},     // Count trailing (low order) zeroes (returns 0-8)
++	{name: "Ctz16", argLength: 1},    // Count trailing (low order) zeroes (returns 0-16)
+ 	{name: "Ctz32", argLength: 1},    // Count trailing (low order) zeroes (returns 0-32)
+-	{name: "Ctz64", argLength: 1},    // Count trailing zeroes (returns 0-64)
++	{name: "Ctz64", argLength: 1},    // Count trailing (low order) zeroes (returns 0-64)
+ 	{name: "BitLen32", argLength: 1}, // Number of bits in arg[0] (returns 0-32)
+ 	{name: "BitLen64", argLength: 1}, // Number of bits in arg[0] (returns 0-64)
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 78d19e1526..b6750d7f4b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2019,6 +2019,8 @@ const (
+ 	OpCom16
+ 	OpCom32
+ 	OpCom64
++	OpCtz8
++	OpCtz16
+ 	OpCtz32
+ 	OpCtz64
+ 	OpBitLen32
+@@ -25445,6 +25447,16 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "Ctz8",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Ctz16",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Ctz32",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 052646a2b7..0c000e506d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -587,10 +587,14 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValueAMD64_OpConstNil_0(v)
++	case OpCtz16:
++		return rewriteValueAMD64_OpCtz16_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueAMD64_OpCtz32_0(v)
+ 	case OpCtz64:
+ 		return rewriteValueAMD64_OpCtz64_0(v)
++	case OpCtz8:
++		return rewriteValueAMD64_OpCtz8_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueAMD64_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64:
+@@ -53220,6 +53224,26 @@ func rewriteValueAMD64_OpConstNil_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpCtz16_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz16 x)
++	// cond:
++	// result: (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v1 := b.NewValue0(v.Pos, OpAMD64BTSLconst, typ.UInt32)
++		v1.AuxInt = 16
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -53227,15 +53251,13 @@ func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Ctz32 x)
+ 	// cond:
+-	// result: (Select0 (BSFQ (ORQ <typ.UInt64> (MOVQconst [1<<32]) x)))
++	// result: (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+ 	for {
+ 		x := v.Args[0]
+ 		v.reset(OpSelect0)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64BSFQ, types.NewTuple(typ.UInt64, types.TypeFlags))
+-		v1 := b.NewValue0(v.Pos, OpAMD64ORQ, typ.UInt64)
+-		v2 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
+-		v2.AuxInt = 1 << 32
+-		v1.AddArg(v2)
++		v1 := b.NewValue0(v.Pos, OpAMD64BTSQconst, typ.UInt64)
++		v1.AuxInt = 32
+ 		v1.AddArg(x)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+@@ -53270,6 +53292,26 @@ func rewriteValueAMD64_OpCtz64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpCtz8_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Ctz8 x)
++	// cond:
++	// result: (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v1 := b.NewValue0(v.Pos, OpAMD64BTSLconst, typ.UInt32)
++		v1.AuxInt = 8
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index bc1f4e1b5a..eb4c5ca019 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -205,13 +205,13 @@ func TrailingZeros32(n uint32) int {
+ }
+ 
+ func TrailingZeros16(n uint16) int {
+-	// amd64:"BSFQ","BTSQ\\t\\$16"
++	// amd64:"BSFL","BTSL\\t\\$16"
+ 	// s390x:"FLOGR","OR\t\\$65536"
+ 	return bits.TrailingZeros16(n)
+ }
+ 
+ func TrailingZeros8(n uint8) int {
+-	// amd64:"BSFQ","BTSQ\\t\\$8"
++	// amd64:"BSFL","BTSL\\t\\$8"
+ 	// s390x:"FLOGR","OR\t\\$256"
+ 	return bits.TrailingZeros8(n)
+ }

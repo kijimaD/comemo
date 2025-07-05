@@ -9,7 +9,82 @@ Date:   Sun Feb 12 09:17:57 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5654063
-
+---
  doc/go1.html | 12 ++++--------
  doc/go1.tmpl | 12 ++++--------
  2 files changed, 8 insertions(+), 16 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 0dc73234f6..6e63882f09 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1420,6 +1420,7 @@ changing it from a struct to an interface:
+         Mode() FileMode     // file mode bits
+         ModTime() time.Time // modification time
+         IsDir() bool        // abbreviation for Mode().IsDir()
++        Sys() interface{}   // underlying data source (can return nil)
+     }
+ </pre>
+ 
+@@ -1435,7 +1436,7 @@ The system-specific details of file modes and properties such as (on Unix)
+ i-number have been removed from <code>FileInfo</code> altogether.
+ Instead, each operating system's <code>os</code> package provides an
+ implementation of the <code>FileInfo</code> interface, <code>*os.FileStat</code>,
+-which in turn contains a <code>Sys</code> field that stores the
++which has a <code>Sys</code> method that returns the
+ system-specific representation of file metadata.
+ For instance, to discover the i-number of a file on a Unix system, unpack
+ the <code>FileInfo</code> like this:
+@@ -1446,13 +1447,8 @@ the <code>FileInfo</code> like this:
+     if err != nil {
+         log.Fatal(err)
+     }
+-    // Make sure it's an implementation known to package os.
+-    fileStat, ok := fi.(*os.FileStat)
+-    if !ok {
+-        log.Fatal("hello.go: not an os File")
+-    }
+-    // Now check that it's a Unix file.
+-    unixStat, ok := fileStat.Sys.(*syscall.Stat_t)
++    // Check that it's a Unix file.
++    unixStat, ok := fi.Sys().(*syscall.Stat_t)
+     if !ok {
+         log.Fatal("hello.go: not a Unix file")
+     }
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index c75f2fe746..862fe0ed43 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1323,6 +1323,7 @@ changing it from a struct to an interface:
+         Mode() FileMode     // file mode bits
+         ModTime() time.Time // modification time
+         IsDir() bool        // abbreviation for Mode().IsDir()
++        Sys() interface{}   // underlying data source (can return nil)
+     }
+ </pre>
+ 
+@@ -1338,7 +1339,7 @@ The system-specific details of file modes and properties such as (on Unix)
+ i-number have been removed from <code>FileInfo</code> altogether.
+ Instead, each operating system's <code>os</code> package provides an
+ implementation of the <code>FileInfo</code> interface, <code>*os.FileStat</code>,
+-which in turn contains a <code>Sys</code> field that stores the
++which has a <code>Sys</code> method that returns the
+ system-specific representation of file metadata.
+ For instance, to discover the i-number of a file on a Unix system, unpack
+ the <code>FileInfo</code> like this:
+@@ -1349,13 +1350,8 @@ the <code>FileInfo</code> like this:
+     if err != nil {
+         log.Fatal(err)
+     }
+-    // Make sure it's an implementation known to package os.
+-    fileStat, ok := fi.(*os.FileStat)
+-    if !ok {
+-        log.Fatal("hello.go: not an os File")
+-    }
+-    // Now check that it's a Unix file.
+-    unixStat, ok := fileStat.Sys.(*syscall.Stat_t)
++    // Check that it's a Unix file.
++    unixStat, ok := fi.Sys().(*syscall.Stat_t)
+     if !ok {
+         log.Fatal("hello.go: not a Unix file")
+     }

@@ -11,7 +11,7 @@ Date:   Wed Jul 30 17:36:03 2008 -0700
     R=r
     OCL=13676
     CL=13676
-
+---
  usr/gri/gosrc/compilation.go | 19 +++++---------
  usr/gri/gosrc/decls.go       |  2 +-
  usr/gri/gosrc/export.go      | 43 ++++++++++++-------------------
@@ -23,3 +23,684 @@ Date:   Wed Jul 30 17:36:03 2008 -0700
  usr/gri/gosrc/universe.go    |  3 +--
  usr/gri/gosrc/utils.go       | 13 ++++++++++
  10 files changed, 151 insertions(+), 130 deletions(-)
+
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index 4ed09baebf..33d5029e96 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -17,22 +17,18 @@ import Printer "printer"
+ 
+ 
+ export Compile
+-func Compile(file_name string, verbose int) {
++func Compile(comp *Globals.Compilation, file_name string) {
+ 	src, ok := sys.readfile(file_name);
+ 	if !ok {
+ 		print "cannot open ", file_name, "\n"
+ 		return;
+ 	}
+ 	
+-	Universe.Init();  // TODO eventually this should be only needed once
+-	
+-	comp := Globals.NewCompilation();
+-
+ 	scanner := new(Scanner.Scanner);
+ 	scanner.Open(file_name, src);
+ 
+ 	parser := new(Parser.Parser);
+-	parser.Open(comp, scanner, verbose);
++	parser.Open(comp, scanner);
+ 
+ 	print "parsing ", file_name, "\n";
+ 	parser.ParseProgram();
+@@ -40,12 +36,9 @@ func Compile(file_name string, verbose int) {
+ 		return;
+ 	}
+ 	
+-	/*
+ 	// export
+-	exp := new(Export.Exporter);
+-	exp.Export(comp, Utils.FixExt(Utils.BaseName(file_name)));
+-	
+-	// print export
+-	Printer.PrintObject(comp, comp.pkgs[0].obj, false);
+-	*/
++	if comp.flags.semantic_checks {
++		Printer.PrintObject(comp, comp.pkgs[0].obj, false);
++		Export.Export(comp, file_name);
++	}
+ }
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+index 833e227790..f8e70d5ff6 100755
+--- a/usr/gri/gosrc/decls.go
++++ b/usr/gri/gosrc/decls.go
+@@ -121,4 +121,4 @@ func (p *T4) m5(a, b int, c float) (z T5, ok bool) {
+ 
+ export c0, c1, v2, v3
+ export T0, T1, T4, T4, T4, M0, M5, I2, f0, f1
+-// export Node0, Node1 // this fails
++export Node0, Node1
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index de7f39537d..17e4145867 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -4,13 +4,13 @@
+ 
+ package Exporter
+ 
++import Utils "utils"
+ import Globals "globals"
+ import Object "object"
+ import Type "type"
+ import Universe "universe"
+ 
+ 
+-export Exporter  // really only want to export Export()
+ type Exporter struct {
+ 	comp *Globals.Compilation;
+ 	debug bool;
+@@ -65,7 +65,7 @@ func (E *Exporter) WriteString(s string) {
+ }
+ 
+ 
+-func (E *Exporter) WriteObjTag(tag int) {
++func (E *Exporter) WriteObjectTag(tag int) {
+ 	if tag < 0 {
+ 		panic "tag < 0";
+ 	}
+@@ -113,24 +113,13 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 		print " {";
+ 	}
+ 
+-	// determine number of objects to export
+-	n := 0;
+ 	for p := scope.entries.first; p != nil; p = p.next {
+ 		if p.obj.exported {
+-			n++;
+-		}			
+-	}
+-	E.WriteInt(n);
+-	
+-	// export the objects, if any
+-	if n > 0 {
+-		for p := scope.entries.first; p != nil; p = p.next {
+-			if p.obj.exported {
+-				E.WriteObject(p.obj);
+-			}			
++			E.WriteObject(p.obj);
+ 		}
+ 	}
+-
++	E.WriteObjectTag(0);  // terminator
++	
+ 	if E.debug {
+ 		print " }";
+ 	}
+@@ -144,11 +133,11 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ 
+ 	if obj.kind == Object.TYPE && obj.typ.obj == obj {
+ 		// primary type object - handled entirely by WriteType()
+-		E.WriteObjTag(Object.PTYPE);
++		E.WriteObjectTag(Object.PTYPE);
+ 		E.WriteType(obj.typ);
+ 
+ 	} else {
+-		E.WriteObjTag(obj.kind);
++		E.WriteObjectTag(obj.kind);
+ 		E.WriteString(obj.ident);
+ 		E.WriteType(obj.typ);
+ 		E.WritePackage(E.comp.pkgs[obj.pnolev]);
+@@ -252,7 +241,7 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
+ 
+ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 	E.comp = comp;
+-	E.debug = false;
++	E.debug = comp.flags.debug;
+ 	E.pos = 0;
+ 	E.pkg_ref = 0;
+ 	E.type_ref = 0;
+@@ -275,13 +264,8 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 	
+ 	pkg := comp.pkgs[0];
+ 	E.WritePackage(pkg);
+-	for p := pkg.scope.entries.first; p != nil; p = p.next {
+-		if p.obj.exported {
+-			E.WriteObject(p.obj);
+-		}
+-	}
+-	E.WriteObjTag(0);
+-
++	E.WriteScope(pkg.scope);
++	
+ 	if E.debug {
+ 		print "\n(", E.pos, " bytes)\n";
+ 	}
+@@ -293,3 +277,10 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 		panic "export failed";
+ 	}
+ }
++
++
++export Export
++func Export(comp* Globals.Compilation, pkg_name string) {
++	var E Exporter;
++	(&E).Export(comp, Utils.FixExt(Utils.BaseName(pkg_name)));
++}
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 7b25e94d9d..6e872dfdbc 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -75,8 +75,17 @@ type Scope struct {
+ }
+ 
+ 
++export Flags;
++type Flags struct {
++	debug bool;
++	semantic_checks bool;
++	verbose int;
++}
++
++
+ export Compilation
+ type Compilation struct {
++	flags *Flags;
+ 	// TODO use open arrays eventually
+ 	pkgs [256] *Package;  // pkgs[0] is the current package
+ 	npkgs int;
+@@ -134,8 +143,9 @@ func NewScope(parent *Scope) *Scope {
+ 
+ 
+ export NewCompilation;
+-func NewCompilation() *Compilation {
++func NewCompilation(flags *Flags) *Compilation {
+ 	comp := new(Compilation);
++	comp.flags = flags;
+ 	return comp;
+ }
+ 
+diff --git a/usr/gri/gosrc/go.go b/usr/gri/gosrc/go.go
+index b9704e0ab2..85b4a9fec8 100644
+--- a/usr/gri/gosrc/go.go
++++ b/usr/gri/gosrc/go.go
+@@ -5,19 +5,22 @@
+ package main
+ 
+ import Build "build"
++import Globals "globals"
+ import Compilation "compilation"
+ 
+ 
++// For now we are not using the flags package to minimize
++// external dependencies, and because the requirements are
++// very minimal at this point.
++
+ func PrintHelp() {
+   print "go in go (", Build.time, ")\n";
+   print "usage:\n";
+-  print "  go { -v | -vv | file }\n";
+-  /*
+-  printf("flags:\n");
+-  for (int i = 0; Flags[i].name != NULL; i++) {
+-    printf("  %s  %s\n", Flags[i].name, Flags[i].help);
+-  }
+-  */
++  print "  go { flag | file }\n";
++  print "  -d  print debug information\n";
++  print "  -s  enable semantic checks\n";
++  print "  -v  verbose mode\n";
++  print "  -vv  very verbose mode\n";
+ }
+ 
+ 
+@@ -27,17 +30,22 @@ func main() {
+ 		sys.exit(1);
+ 	}
+ 	
+-	verbose := 0;
++	// collect flags and files
++	flags := new(Globals.Flags);
++	files := Globals.NewList();
+ 	for i := 1; i < sys.argc(); i++ {
+-		switch sys.argv(i) {
+-		case "-v":
+-			verbose = 1;
+-			continue;
+-		case "-vv":
+-			verbose = 2;
+-			continue;
++		switch arg := sys.argv(i); arg {
++		case "-d": flags.debug = true;
++		case "-s": flags.semantic_checks = true;
++		case "-v": flags.verbose = 1;
++		case "-vv": flags.verbose = 2;
++		default: files.AddStr(arg);
+ 		}
+-		
+-		Compilation.Compile(sys.argv(i), verbose);
++	}
++	
++	// compile files
++	for p := files.first; p != nil; p = p.next {
++		comp := Globals.NewCompilation(flags);
++		Compilation.Compile(comp, p.str);
+ 	}
+ }
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 114d0bc9cf..77b0f3050a 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -4,13 +4,13 @@
+ 
+ package Importer
+ 
++import Utils "utils"
+ import Globals "globals"
+ import Object "object"
+ import Type "type"
+ import Universe "universe"
+ 
+ 
+-export Importer  // really only want to export Import()
+ type Importer struct {
+ 	comp *Globals.Compilation;
+ 	debug bool;
+@@ -74,7 +74,7 @@ func (I *Importer) ReadString() string {
+ }
+ 
+ 
+-func (I *Importer) ReadObjTag() int {
++func (I *Importer) ReadObjectTag() int {
+ 	tag := I.ReadInt();
+ 	if tag < 0 {
+ 		panic "tag < 0";
+@@ -125,14 +125,21 @@ func (I *Importer) ReadScope() *Globals.Scope {
+ 	}
+ 
+ 	scope := Globals.NewScope(nil);
+-	for n := I.ReadInt(); n > 0; n-- {
+-		tag := I.ReadObjTag();
+-		scope.Insert(I.ReadObject(tag));
++	for {
++		tag := I.ReadObjectTag();
++		if tag == 0 {
++			break;
++		}
++		// InsertImport only needed for package scopes
++		// but ok to use always
++		scope.InsertImport(I.ReadObject(tag));
+ 	}
+-
++	
+ 	if I.debug {
+ 		print " }";
+ 	}
++	
++	return scope;
+ }
+ 
+ 
+@@ -229,13 +236,12 @@ func (I *Importer) ReadType() *Globals.Type {
+ 
+ 	case Type.FUNCTION:
+ 		typ.flags = I.ReadInt();
+-		fallthrough;
+-	case Type.STRUCT: fallthrough;
+-	case Type.INTERFACE:
+ 		typ.scope = I.ReadScope();
+ 
+-	case Type.POINTER: fallthrough;
+-	case Type.REFERENCE:
++	case Type.STRUCT, Type.INTERFACE:
++		typ.scope = I.ReadScope();
++
++	case Type.POINTER, Type.REFERENCE:
+ 		typ.elt = I.ReadType();
+ 	}
+ 
+@@ -275,7 +281,7 @@ func (I *Importer) ReadPackage() *Globals.Package {
+ 
+ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.Package {
+ 	I.comp = comp;
+-	I.debug = false;
++	I.debug = comp.flags.debug;
+ 	I.buf = "";
+ 	I.pos = 0;
+ 	I.npkgs = 0;
+@@ -302,7 +308,7 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 
+ 	pkg := I.ReadPackage();
+ 	for {
+-		tag := I.ReadObjTag();
++		tag := I.ReadObjectTag();
+ 		if tag == 0 {
+ 			break;
+ 		}
+@@ -317,3 +323,10 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 	
+ 	return pkg;
+ }
++
++
++export Import
++func Import(comp* Globals.Compilation, pkg_name string) *Globals.Package {
++	var I Importer;
++	return (&I).Import(comp, Utils.FixExt(pkg_name));
++}
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 6372a1d05d..d12ce764eb 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -14,13 +14,10 @@ import Import "import"
+ import AST "ast"
+ 
+ 
+-// So I can submit and have a running parser for now...
+-const EnableSemanticTests = false;
+-
+-
+ export Parser
+ type Parser struct {
+ 	comp *Globals.Compilation;
++	semantic_checks bool;
+ 	verbose, indent int;
+ 	S *Scanner.Scanner;
+ 	
+@@ -74,9 +71,10 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, verbose int) {
++func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner) {
+ 	P.comp = comp;
+-	P.verbose = verbose;
++	P.semantic_checks = comp.flags.semantic_checks;
++	P.verbose = comp.flags.verbose;
+ 	P.indent = 0;
+ 	P.S = S;
+ 	P.Next();
+@@ -132,7 +130,7 @@ func (P *Parser) Lookup(ident string) *Globals.Object {
+ 
+ 
+ func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
+-	if !EnableSemanticTests {
++	if !P.semantic_checks {
+ 		return;
+ 	}
+ 	obj.pnolev = P.level;
+@@ -296,7 +294,7 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
+ 		ident = P.ParseIdent();
+ 	}
+ 	
+-	if EnableSemanticTests {
++	if P.semantic_checks {
+ 		obj := P.Lookup(ident);
+ 		if obj == nil {
+ 			P.Error(pos, `"` + ident + `" is not declared`);
+@@ -355,7 +353,7 @@ func (P *Parser) ParseType() *Globals.Type {
+ func (P *Parser) ParseTypeName() *Globals.Type {
+ 	P.Trace("TypeName");
+ 	
+-	if EnableSemanticTests {
++	if P.semantic_checks {
+ 		pos := P.pos;
+ 		obj := P.ParseQualifiedIdent(-1, "");
+ 		typ := obj.typ;
+@@ -496,7 +494,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 	
+ 	if P.tok == Scanner.PERIOD {
+ 		p0 = sig.entries.len_;
+-		if (EnableSemanticTests && p0 != 1) {
++		if (P.semantic_checks && p0 != 1) {
+ 			P.Error(recv_pos, "must have exactly one receiver")
+ 			panic "UNIMPLEMENTED (ParseAnonymousSignature)";
+ 			// TODO do something useful here
+@@ -534,7 +532,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
+ 		recv_pos := P.pos;
+ 		P.ParseParameters();
+ 		p0 = sig.entries.len_;
+-		if (EnableSemanticTests && p0 != 1) {
++		if (P.semantic_checks && p0 != 1) {
+ 			print "p0 = ", p0, "\n";
+ 			P.Error(recv_pos, "must have exactly one receiver")
+ 			panic "UNIMPLEMENTED (ParseNamedSignature)";
+@@ -653,7 +651,7 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ 	P.Expect(Scanner.MUL);
+ 	typ := Globals.NewType(Type.POINTER);
+ 	
+-	if EnableSemanticTests {
++	if P.semantic_checks {
+ 		if P.tok == Scanner.IDENT {
+ 			if P.Lookup(P.val) == nil {
+ 				// implicit forward declaration
+@@ -1122,7 +1120,7 @@ func (P *Parser) ParseExpression() {
+ func (P *Parser) ConvertToExprList(pos_list, ident_list, expr_list *Globals.List) {
+ 	for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
+ 		pos, ident := p.val, q.str;
+-		if EnableSemanticTests {
++		if P.semantic_checks {
+ 			obj := P.Lookup(ident);
+ 			if obj == nil {
+ 				P.Error(pos, `"` + ident + `" is not declared`);
+@@ -1208,24 +1206,24 @@ func (P *Parser) ParseSimpleStat() {
+ 	switch P.tok {
+ 	case Scanner.COLON:
+ 		// label declaration
+-		if EnableSemanticTests && ident_list.len_ != 1 {
++		if P.semantic_checks && ident_list.len_ != 1 {
+ 			P.Error(P.pos, "illegal label declaration");
+ 		}
+ 		P.Next();
+ 		
+ 	case Scanner.DEFINE:
+ 		// variable declaration
+-		if EnableSemanticTests && ident_list.len_ == 0 {
++		if P.semantic_checks && ident_list.len_ == 0 {
+ 			P.Error(P.pos, "illegal left-hand side for declaration");
+ 		}
+ 		P.Next();
+ 		pos := P.pos;
+ 		val_list := P.ParseExpressionList();
+-		if EnableSemanticTests && val_list.len_ != ident_list.len_ {
++		if P.semantic_checks && val_list.len_ != ident_list.len_ {
+ 			P.Error(pos, "number of expressions does not match number of variables");
+ 		}
+ 		// declare variables
+-		if EnableSemanticTests {
++		if P.semantic_checks {
+ 			for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
+ 				obj := Globals.NewObject(p.val, Object.VAR, q.str);
+ 				P.Declare(obj);
+@@ -1248,13 +1246,13 @@ func (P *Parser) ParseSimpleStat() {
+ 		P.Next();
+ 		pos := P.pos;
+ 		val_list := P.ParseExpressionList();
+-		if EnableSemanticTests && val_list.len_ != expr_list.len_ {
++		if P.semantic_checks && val_list.len_ != expr_list.len_ {
+ 			P.Error(pos, "number of expressions does not match number of variables");
+ 		}
+ 		
+ 	default:
+ 		P.ConvertToExprList(pos_list, ident_list, expr_list);
+-		if EnableSemanticTests && expr_list.len_ != 1 {
++		if P.semantic_checks && expr_list.len_ != 1 {
+ 			P.Error(P.pos, "no expression list allowed");
+ 		}
+ 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
+@@ -1557,11 +1555,10 @@ func (P *Parser) ParseImportSpec() {
+ 		obj = P.ParseIdentDecl(Object.PACKAGE);
+ 	}
+ 	
+-	if (EnableSemanticTests && P.tok == Scanner.STRING) {
++	if (P.semantic_checks && P.tok == Scanner.STRING) {
+ 		// TODO eventually the scanner should strip the quotes
+ 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
+-		imp := new(Import.Importer);
+-		pkg := imp.Import(P.comp, Utils.FixExt(Utils.BaseName(pkg_name)));
++		pkg := Import.Import(P.comp, pkg_name);
+ 		if pkg != nil {
+ 			if obj == nil {
+ 				// use original package name
+@@ -1776,7 +1773,7 @@ func (P *Parser) ParseDeclaration() {
+ // Program
+ 
+ func (P *Parser) ResolveUndefTypes() {
+-	if !EnableSemanticTests {
++	if !P.semantic_checks {
+ 		return;
+ 	}
+ 	
+@@ -1798,7 +1795,7 @@ func (P *Parser) ResolveUndefTypes() {
+ 
+ 
+ func (P *Parser) MarkExports() {
+-	if !EnableSemanticTests {
++	if !P.semantic_checks {
+ 		return;
+ 	}
+ 	
+@@ -1820,7 +1817,7 @@ func (P *Parser) MarkExports() {
+ 			}
+ 		} else {
+ 			// TODO need to report proper src position
+-			P.Error(0, `"` + p.str + `" is not declared - cannot be exported`);
++			P.Error(-1, `"` + p.str + `" is not declared - cannot be exported`);
+ 		}
+ 	}
+ }
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index 0f968f6c2e..9d4e9953a9 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -4,6 +4,9 @@
+ 
+ package Scanner
+ 
++import Utils "utils"
++
++
+ export
+ 	ILLEGAL, EOF, IDENT, STRING, NUMBER,
+ 	COMMA, COLON, SEMICOLON, PERIOD,
+@@ -231,6 +234,18 @@ func TokenName(tok int) string {
+ }
+ 
+ 
++func init() {
++	Keywords = new(map [string] int);
++	
++	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
++	  Keywords[TokenName(i)] = i;
++	}
++	
++	// Provide column information in error messages for gri only...
++	VerboseMsgs = Utils.GetEnv("USER") == "gri";
++}
++
++
+ func is_whitespace(ch int) bool {
+ 	return ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t';
+ }
+@@ -370,28 +385,6 @@ bad:
+ }
+ 
+ 
+-func IsUser(username string) bool {
+-	for i := 0; i < sys.envc(); i++ {
+-		if sys.envv(i) == "USER=" + username {
+-			return true;
+-		}
+-	}
+-	return false;
+-}
+-
+-
+-func Init() {
+-	Keywords = new(map [string] int);
+-	
+-	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
+-	  Keywords[TokenName(i)] = i;
+-	}
+-	
+-	// Provide column information in error messages for gri only...
+-	VerboseMsgs = IsUser("gri");
+-}
+-
+-
+ // Compute (line, column) information for a given source position.
+ func (S *Scanner) LineCol(pos int) (line, col int) {
+ 	line = 1;
+@@ -416,13 +409,21 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
+ func (S *Scanner) Error(pos int, msg string) {
+ 	const errdist = 10;
+ 	delta := pos - S.errpos;  // may be negative!
+-	if delta < errdist || delta > errdist || S.nerrors == 0 {
+-		line, col := S.LineCol(pos);
+-		if VerboseMsgs {
+-			print S.filename, ":", line, ":", col, ": ", msg, "\n";
+-		} else {
+-			print S.filename, ":", line,           ": ", msg, "\n";
++	if delta < 0 {
++		delta = -delta;
++	}
++	if delta > errdist || S.nerrors == 0 /* always report first error */ {
++		print S.filename;
++		if pos >= 0 {
++			// print position
++			line, col := S.LineCol(pos);
++			if VerboseMsgs {
++				print ":", line, ":", col;
++			} else {
++				print ":", line;
++			}
+ 		}
++		print ": ", msg, "\n";
+ 		S.nerrors++;
+ 		S.errpos = pos;
+ 	}
+@@ -434,10 +435,6 @@ func (S *Scanner) Error(pos int, msg string) {
+ 
+ 
+ func (S *Scanner) Open(filename, src string) {
+-	if Keywords == nil {
+-		Init();
+-	}
+-
+ 	S.filename = filename;
+ 	S.nerrors = 0;
+ 	S.errpos = 0;
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+index 10948f5f55..f0c7c396af 100755
+--- a/usr/gri/gosrc/universe.go
++++ b/usr/gri/gosrc/universe.go
+@@ -101,8 +101,7 @@ func Register(typ *Globals.Type) *Globals.Type {
+ }
+ 
+ 
+-export Init
+-func Init() {
++func init() {
+ 	scope = Globals.NewScope(nil);  // universe has no parent
+ 	types = Globals.NewList();
+ 	
+diff --git a/usr/gri/gosrc/utils.go b/usr/gri/gosrc/utils.go
+index d9359eb67d..e780e9618f 100644
+--- a/usr/gri/gosrc/utils.go
++++ b/usr/gri/gosrc/utils.go
+@@ -27,3 +27,16 @@ func FixExt(s string) string {
+ 	}
+ 	return s + ".7";
+ }
++
++
++export GetEnv
++func GetEnv(key string) string {
++	n := len(key);
++	for i := 0; i < sys.envc(); i++ {
++		v := sys.envv(i);
++		if v[0 : n] == key {
++			return v[n + 1 : len(v)];  // +1: skip "="
++		}
++	}
++	return "";
++}

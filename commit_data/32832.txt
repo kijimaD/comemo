@@ -11,8 +11,75 @@ Date:   Tue Jun 6 15:25:29 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/check.go     | 16 ++++++++++++++++
  src/cmd/compile/internal/ssa/deadstore.go |  6 +++++-
  src/cmd/compile/internal/ssa/rewrite.go   |  4 ++++
  3 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 82aa9f1ce8..17f683fb10 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -444,6 +444,22 @@ func memCheck(f *Func) {
+ 			}
+ 		}
+ 	}
++
++	// Check that after scheduling, phis are always first in the block.
++	if f.scheduled {
++		for _, b := range f.Blocks {
++			seenNonPhi := false
++			for _, v := range b.Values {
++				if v.Op == OpPhi {
++					if seenNonPhi {
++						f.Fatalf("phi after non-phi @ %s: %s", b, v)
++					}
++				} else {
++					seenNonPhi = true
++				}
++			}
++		}
++	}
+ }
+ 
+ // domCheck reports whether x dominates y (including x==y).
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index bac4930e78..08a2c6df14 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -117,7 +117,11 @@ func dse(f *Func) {
+ 		}
+ 		// walk to previous store
+ 		if v.Op == OpPhi {
+-			continue // At start of block.  Move on to next block.
++			// At start of block.  Move on to next block.
++			// The memory phi, if it exists, is always
++			// the first logical store in the block.
++			// (Even if it isn't the first in the current b.Values order.)
++			continue
+ 		}
+ 		for _, a := range v.Args {
+ 			if a.Block == b && a.Type.IsMemory() {
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 06595586c1..b42d53032c 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -211,6 +211,8 @@ search:
+ 		}
+ 		if v.Op == OpPhi {
+ 			// A Phi implies we have reached the top of the block.
++			// The memory phi, if it exists, is always
++			// the first logical store in the block.
+ 			continue search
+ 		}
+ 		if v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
+@@ -228,6 +230,8 @@ search:
+ 				const limit = 50
+ 				for i := 0; i < limit; i++ {
+ 					if m.Op == OpPhi {
++						// The memory phi, if it exists, is always
++						// the first logical store in the block.
+ 						break
+ 					}
+ 					if m.Block.ID != target.Block.ID {

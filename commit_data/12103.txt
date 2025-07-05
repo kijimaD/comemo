@@ -7,6 +7,24 @@ Date:   Tue Feb 21 17:13:14 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5686053
-
+---
  misc/dashboard/app/build/ui.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/dashboard/app/build/ui.html b/misc/dashboard/app/build/ui.html
+index 148fd229d5..742268f755 100644
+--- a/misc/dashboard/app/build/ui.html
++++ b/misc/dashboard/app/build/ui.html
+@@ -126,9 +126,9 @@
+ 
+     {{with $.Pagination}}
+     <div class="paginate">
+-      <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>prev</a>
+-      <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>next</a>
+-      <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>top</a>
++      <a {{if .HasPrev}}href="?page={{.Prev}}"{{else}}class="inactive"{{end}}>newer</a>
++      <a {{if .Next}}href="?page={{.Next}}"{{else}}class="inactive"{{end}}>older</a>
++      <a {{if .HasPrev}}href="."{{else}}class="inactive"{{end}}>latest</a>
+     </div>
+     {{end}}
+ 

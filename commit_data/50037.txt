@@ -18,7 +18,7 @@ Date:   Fri Sep 24 13:26:35 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                  | 20 +++++++++---
  src/cmd/go/testdata/script/get_404_meta.txt        |  6 ++++
  src/cmd/go/testdata/script/mod_cache_dir.txt       |  4 +--
@@ -32,3 +32,291 @@ Date:   Fri Sep 24 13:26:35 2021 -0700
  src/cmd/go/testdata/script/mod_missing_repo.txt    |  4 +--
  src/cmd/go/testdata/script/mod_outside.txt         | 38 +++++++++++-----------
  12 files changed, 74 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 674ee1c267..4d87d2670d 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -273,6 +273,8 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
+ 	}
+ 
++	modload.ForceUseModules = true
++
+ 	// Do not allow any updating of go.mod until we've applied
+ 	// all the requested changes and checked that the result matches
+ 	// what was requested.
+@@ -282,6 +284,20 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	// 'go get' is expected to do this, unlike other commands.
+ 	modload.AllowMissingModuleImports()
+ 
++	// 'go get' no longer builds or installs packages, so there's nothing to do
++	// if there's no go.mod file.
++	// TODO(#40775): make modload.Init return ErrNoModRoot instead of exiting.
++	// We could handle that here by printing a different message.
++	modload.Init()
++	if !modload.HasModRoot() {
++		base.Fatalf("go: go.mod file not found in current directory or any parent directory.\n" +
++			"\t'go get' is no longer supported outside a module.\n" +
++			"\tTo build and install a command, use 'go install' with a version,\n" +
++			"\tlike 'go install example.com/cmd@latest'\n" +
++			"\tFor more information, see https://golang.org/doc/go-get-install-deprecation\n" +
++			"\tor run 'go help get' or 'go help install'.")
++	}
++
+ 	queries := parseArgs(ctx, args)
+ 
+ 	r := newResolver(ctx, queries)
+@@ -351,10 +367,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	r.checkPackageProblems(ctx, pkgPatterns)
+ 
+-	if !modload.HasModRoot() {
+-		return
+-	}
+-
+ 	// Everything succeeded. Update go.mod.
+ 	oldReqs := reqsFromGoMod(modload.ModFile())
+ 
+diff --git a/src/cmd/go/testdata/script/get_404_meta.txt b/src/cmd/go/testdata/script/get_404_meta.txt
+index ec4f8d3243..3caf0bfecc 100644
+--- a/src/cmd/go/testdata/script/get_404_meta.txt
++++ b/src/cmd/go/testdata/script/get_404_meta.txt
+@@ -10,3 +10,9 @@ go get -d bazil.org/fuse/fs/fstestutil
+ env GO111MODULE=on
+ env GOPROXY=direct
+ go get -d bazil.org/fuse/fs/fstestutil
++
++
++-- go.mod --
++module m
++
++go 1.18
+diff --git a/src/cmd/go/testdata/script/mod_cache_dir.txt b/src/cmd/go/testdata/script/mod_cache_dir.txt
+index 7284ccf8ba..4045928a97 100644
+--- a/src/cmd/go/testdata/script/mod_cache_dir.txt
++++ b/src/cmd/go/testdata/script/mod_cache_dir.txt
+@@ -3,9 +3,9 @@ env GO111MODULE=on
+ # Go should reject relative paths in GOMODCACHE environment.
+ 
+ env GOMODCACHE="~/test"
+-! go get example.com/tools/cmd/hello
++! go install example.com/tools/cmd/hello@latest
+ stderr 'must be absolute path'
+ 
+ env GOMODCACHE="./test"
+-! go get example.com/tools/cmd/hello
++! go install example.com/tools/cmd/hello@latest
+ stderr 'must be absolute path'
+diff --git a/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt b/src/cmd/go/testdata/script/mod_download_insecure_redirect.txt
+similarity index 65%
+rename from src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
+rename to src/cmd/go/testdata/script/mod_download_insecure_redirect.txt
+index 2e12834495..46eb666686 100644
+--- a/src/cmd/go/testdata/script/mod_get_insecure_redirect.txt
++++ b/src/cmd/go/testdata/script/mod_download_insecure_redirect.txt
+@@ -7,26 +7,26 @@ env GO111MODULE=on
+ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+-! go get -d vcs-test.golang.org/insecure/go/insecure
++! go mod download vcs-test.golang.org/insecure/go/insecure@latest
+ stderr 'redirected .* to insecure URL'
+ 
+ # insecure host
+ env GOINSECURE=vcs-test.golang.org
+ go clean -modcache
+-go get -d vcs-test.golang.org/insecure/go/insecure
++go mod download vcs-test.golang.org/insecure/go/insecure@latest
+ 
+ # insecure glob host
+ env GOINSECURE=*.golang.org
+ go clean -modcache
+-go get -d vcs-test.golang.org/insecure/go/insecure
++go mod download vcs-test.golang.org/insecure/go/insecure@latest
+ 
+ # insecure multiple host
+ env GOINSECURE=somewhere-else.com,*.golang.org
+ go clean -modcache
+-go get -d vcs-test.golang.org/insecure/go/insecure
++go mod download vcs-test.golang.org/insecure/go/insecure@latest
+ 
+ # different insecure host does not fetch
+ env GOINSECURE=somewhere-else.com
+ go clean -modcache
+-! go get -d vcs-test.golang.org/insecure/go/insecure
++! go mod download vcs-test.golang.org/insecure/go/insecure@latest
+ stderr 'redirected .* to insecure URL'
+diff --git a/src/cmd/go/testdata/script/mod_get_private_vcs.txt b/src/cmd/go/testdata/script/mod_download_private_vcs.txt
+similarity index 88%
+rename from src/cmd/go/testdata/script/mod_get_private_vcs.txt
+rename to src/cmd/go/testdata/script/mod_download_private_vcs.txt
+index c8862f42f9..e126793907 100644
+--- a/src/cmd/go/testdata/script/mod_get_private_vcs.txt
++++ b/src/cmd/go/testdata/script/mod_download_private_vcs.txt
+@@ -5,18 +5,18 @@ env GO111MODULE=on
+ [!exec:git] skip
+ env GOPROXY=direct
+ 
+-! go get github.com/golang/nonexist
++! go mod download github.com/golang/nonexist@latest
+ stderr 'Confirm the import path was entered correctly.'
+ stderr 'If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.'
+ ! stdout .
+ 
+ # Fetching a nonexistent commit should return an "unknown revision"
+ # error message.
+-! go get github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b
++! go mod download github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b
+ stderr '^go: github.com/golang/term@86186f3aba07ed0212cfb944f3398997d2d07c6b: invalid version: unknown revision 86186f3aba07ed0212cfb944f3398997d2d07c6b$'
+ ! stdout .
+ 
+-! go get github.com/golang/nonexist@master
++! go mod download github.com/golang/nonexist@master
+ stderr '^Confirm the import path was entered correctly.$'
+ stderr '^If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.$'
+ ! stderr 'unknown revision'
+diff --git a/src/cmd/go/testdata/script/mod_get_too_many_redirects.txt b/src/cmd/go/testdata/script/mod_download_too_many_redirects.txt
+similarity index 69%
+rename from src/cmd/go/testdata/script/mod_get_too_many_redirects.txt
+rename to src/cmd/go/testdata/script/mod_download_too_many_redirects.txt
+index 9cbe0d279d..a6b5a59054 100644
+--- a/src/cmd/go/testdata/script/mod_get_too_many_redirects.txt
++++ b/src/cmd/go/testdata/script/mod_download_too_many_redirects.txt
+@@ -3,8 +3,8 @@ env GOPROXYBASE=$GOPROXY
+ env GOPROXY=$GOPROXYBASE/redirect/11
+ env GOSUMDB=off
+ 
+-! go get -d rsc.io/quote@v1.2.0
++! go mod download rsc.io/quote@v1.2.0
+ stderr 'stopped after 10 redirects'
+ 
+ env GOPROXY=$GOPROXYBASE/redirect/9
+-go get -d rsc.io/quote@v1.2.0
++go mod download rsc.io/quote@v1.2.0
+diff --git a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+index ab1d6a43f7..03258f5296 100644
+--- a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
++++ b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+@@ -2,7 +2,10 @@
+ 
+ env GO111MODULE=on
+ 
+-# TODO(#43684): test message outside module.
++# 'go get' outside a module prints an error.
++! go get example.com/cmd/a
++stderr '^go: go.mod file not found in current directory or any parent directory.$'
++stderr '^\t''go get'' is no longer supported outside a module.$'
+ 
+ cp go.mod.orig go.mod
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_fallback.txt b/src/cmd/go/testdata/script/mod_get_fallback.txt
+index 9733fa366b..a61d5cb00e 100644
+--- a/src/cmd/go/testdata/script/mod_get_fallback.txt
++++ b/src/cmd/go/testdata/script/mod_get_fallback.txt
+@@ -8,3 +8,8 @@ env GOSUMDB=off
+ go get -x -v -d golang.org/x/tools/cmd/goimports
+ stderr '# get https://proxy.golang.org/golang.org/x/tools/@v/list'
+ ! stderr '# get https://golang.org'
++
++-- go.mod --
++module m
++
++go 1.18
+diff --git a/src/cmd/go/testdata/script/mod_get_go_file.txt b/src/cmd/go/testdata/script/mod_get_go_file.txt
+index 35a77a9d83..c81e491b94 100644
+--- a/src/cmd/go/testdata/script/mod_get_go_file.txt
++++ b/src/cmd/go/testdata/script/mod_get_go_file.txt
+@@ -58,6 +58,11 @@ mkdir test/test_dir.go
+ rm test/test_dir.go
+ 
+ 
++-- go.mod --
++module m
++
++go 1.18
++
+ -- test.go --
+ package main
+ func main() {println("test")}
+diff --git a/src/cmd/go/testdata/script/mod_getx.txt b/src/cmd/go/testdata/script/mod_getx.txt
+index ccb8d1375a..ce9ef0d6ce 100644
+--- a/src/cmd/go/testdata/script/mod_getx.txt
++++ b/src/cmd/go/testdata/script/mod_getx.txt
+@@ -12,3 +12,8 @@ go get -x -d golang.org/x/text@v0.1.0
+ stderr '^# get https://golang.org/x/text\?go-get=1$'
+ stderr '^# get https://golang.org/x/text\?go-get=1: 200 OK \([0-9.]+s\)$'
+ ! stderr '^# get //.*'
++
++-- go.mod --
++module m
++
++go 1.18
+diff --git a/src/cmd/go/testdata/script/mod_missing_repo.txt b/src/cmd/go/testdata/script/mod_missing_repo.txt
+index 8dae85fa88..b91a8dbeda 100644
+--- a/src/cmd/go/testdata/script/mod_missing_repo.txt
++++ b/src/cmd/go/testdata/script/mod_missing_repo.txt
+@@ -9,7 +9,7 @@ env GO111MODULE=on
+ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+-! go get -d vcs-test.golang.org/go/missingrepo/missingrepo-git
++! go mod download vcs-test.golang.org/go/missingrepo/missingrepo-git@latest
+ stderr 'vcs-test.golang.org/go/missingrepo/missingrepo-git: git ls-remote .*: exit status .*'
+ 
+-go get -d vcs-test.golang.org/go/missingrepo/missingrepo-git/notmissing
++go mod download vcs-test.golang.org/go/missingrepo/missingrepo-git/notmissing@latest
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index e5318ee13d..d9d364cc10 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -123,30 +123,30 @@ stderr '^go: go.mod file not found in current directory or any parent directory;
+ stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ 
+-# 'go get' without arguments implicitly operates on the main module, and thus
+-# should fail.
++# 'go get' has no go.mod file to update outside a module and should fail.
+ ! go get
+-stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
++stderr '^go: go.mod file not found in current directory or any parent directory.$'
++stderr '^\t''go get'' is no longer supported outside a module.$'
+ ! go get -u
+-stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
++stderr '^go: go.mod file not found in current directory or any parent directory.$'
++stderr '^\t''go get'' is no longer supported outside a module.$'
+ ! go get -u ./needmod
+-stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+-
+-# 'go get -u all' upgrades the transitive import graph of the main module,
+-# which is empty.
++stderr '^go: go.mod file not found in current directory or any parent directory.$'
++stderr '^\t''go get'' is no longer supported outside a module.$'
+ ! go get -u all
+-stderr '^go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+-
+-# 'go get' should check the proposed module graph for consistency,
+-# even though we won't write it anywhere.
++stderr '^go: go.mod file not found in current directory or any parent directory.$'
++stderr '^\t''go get'' is no longer supported outside a module.$'
+ ! go get -d example.com/printversion@v1.0.0 example.com/version@none
+-stderr '^go: example.com/printversion@v1.0.0 requires example.com/version@v1.0.0, not example.com/version@none$'
+-
+-# 'go get -d' should download and extract the source code needed to build the requested version.
+-rm -r $GOPATH/pkg/mod/example.com
+-go get -d example.com/printversion@v1.0.0
+-exists $GOPATH/pkg/mod/example.com/printversion@v1.0.0
+-exists $GOPATH/pkg/mod/example.com/version@v1.0.0
++stderr '^go: go.mod file not found in current directory or any parent directory.$'
++stderr '^\t''go get'' is no longer supported outside a module.$'
++
++# 'go get -d' should not download anything.
++go clean -modcache
++! go get -d example.com/printversion@v1.0.0
++stderr '^go: go.mod file not found in current directory or any parent directory.$'
++stderr '^\t''go get'' is no longer supported outside a module.$'
++! exists $GOPATH/pkg/mod/example.com/printversion@v1.0.0
++! exists $GOPATH/pkg/mod/example.com/version@v1.0.0
+ 
+ 
+ # 'go build' without arguments implicitly operates on the current directory, and should fail.

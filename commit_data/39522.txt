@@ -10,6 +10,20 @@ Date:   Mon Mar 4 15:02:45 2019 -0800
     Change-Id: I4b3e6103fbf62d676056d32fcce4618536b7c05c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/165117
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/benchmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 8dd8cbc17e..24bac313d2 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -104,7 +104,7 @@ type B struct {
+ }
+ 
+ // StartTimer starts timing a test. This function is called automatically
+-// before a benchmark starts, but it can also used to resume timing after
++// before a benchmark starts, but it can also be used to resume timing after
+ // a call to StopTimer.
+ func (b *B) StartTimer() {
+ 	if !b.timerOn {

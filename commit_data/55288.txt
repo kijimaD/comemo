@@ -21,8 +21,76 @@ Date:   Thu Dec 1 16:33:59 2022 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go          |  5 ++++-
  src/cmd/compile/internal/typecheck/iimport.go   | 12 ++----------
  src/cmd/compile/internal/typecheck/typecheck.go | 17 ++---------------
  3 files changed, 8 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 59d97e9b0f..23fb254cfa 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -904,7 +904,10 @@ var SSADumpInline = func(*ir.Func) {}
+ 
+ // InlineCall allows the inliner implementation to be overridden.
+ // If it returns nil, the function will not be inlined.
+-var InlineCall = oldInlineCall
++var InlineCall = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
++	base.Fatalf("inline.InlineCall not overridden")
++	panic("unreachable")
++}
+ 
+ // If n is a OCALLFUNC node, and fn is an ONAME node for a
+ // function with an inlinable body, return an OINLCALL node that can replace n.
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index c55b409390..0a817cc215 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -87,16 +87,8 @@ func ImportBody(fn *ir.Func) {
+ // It's a function literal so that it can be overridden for
+ // GOEXPERIMENT=unified.
+ var HaveInlineBody = func(fn *ir.Func) bool {
+-	if fn.Inl == nil {
+-		return false
+-	}
+-
+-	if fn.Inl.Body != nil {
+-		return true
+-	}
+-
+-	_, ok := inlineImporter[fn.Nname.Sym()]
+-	return ok
++	base.Fatalf("HaveInlineBody not overridden")
++	panic("unreachable")
+ }
+ 
+ func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset) *importReader {
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 57dc5a39ec..17c4e70f06 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -126,21 +126,8 @@ func Resolve(n ir.Node) (res ir.Node) {
+ 		return n
+ 	}
+ 
+-	// only trace if there's work to do
+-	if base.EnableTrace && base.Flag.LowerT {
+-		defer tracePrint("resolve", n)(&res)
+-	}
+-
+-	if sym := n.Sym(); sym.Pkg != types.LocalPkg {
+-		return expandDecl(n)
+-	}
+-
+-	r := ir.AsNode(n.Sym().Def)
+-	if r == nil {
+-		return n
+-	}
+-
+-	return r
++	base.Fatalf("unexpected NONAME node: %+v", n)
++	panic("unreachable")
+ }
+ 
+ func typecheckslice(l []ir.Node, top int) {

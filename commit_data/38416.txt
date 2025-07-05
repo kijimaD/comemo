@@ -9,7 +9,34 @@ Date:   Fri Oct 26 20:20:03 2018 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/iexport.go | 1 -
  src/cmd/compile/internal/gc/iimport.go | 3 ---
  2 files changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index efe2f99d72..d21378df4a 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1102,7 +1102,6 @@ func (w *exportWriter) stmt(n *Node) {
+ 	case OGOTO, OLABEL:
+ 		w.op(op)
+ 		w.pos(n.Pos)
+-		w.op(ONAME) // TODO(mdempsky): Remove toolstash hack.
+ 		w.string(n.Sym.Name)
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index a355b6d2c7..8614c7a14f 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -1044,9 +1044,6 @@ func (r *importReader) node() *Node {
+ 
+ 	case OGOTO, OLABEL:
+ 		n := nodl(r.pos(), op, nil, nil)
+-		if op := r.op(); op != ONAME { // TODO(mdempsky): Remove toolstash check.
+-			Fatalf("got %v, want ONAME", op)
+-		}
+ 		n.Sym = lookup(r.string())
+ 		return n
+ 

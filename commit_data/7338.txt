@@ -11,7 +11,83 @@ Date:   Wed Feb 2 18:34:09 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4119052
-
+---
  src/cmd/gc/select.c      |  4 ++--
  test/fixedbugs/bug320.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 5686e95995..58a147745d 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -157,7 +157,7 @@ walkselect(Node *sel)
+ 			if(n->left == N || isblank(n->left))
+ 				n->left = nodnil();
+ 			else if(n->left->op == ONAME &&
+-					(!n->colas || (n->class&PHEAP) == 0) &&
++					(!n->colas || (n->left->class&PHEAP) == 0) &&
+ 					convertop(ch->type->type, n->left->type, nil) == OCONVNOP) {
+ 				n->left = nod(OADDR, n->left, N);
+ 				n->left->etype = 1;  // pointer does not escape
+@@ -170,9 +170,9 @@ walkselect(Node *sel)
+ 				typecheck(&a, Erv);
+ 				r = nod(OAS, n->left, tmp);
+ 				typecheck(&r, Etop);
++				cas->nbody = concat(list1(r), cas->nbody);
+ 				cas->nbody = concat(n->ninit, cas->nbody);
+ 				n->ninit = nil;
+-				cas->nbody = concat(list1(r), cas->nbody);
+ 				n->left = a;
+ 			}
+ 		}
+diff --git a/test/fixedbugs/bug320.go b/test/fixedbugs/bug320.go
+new file mode 100644
+index 0000000000..06d41f2ed8
+--- /dev/null
++++ b/test/fixedbugs/bug320.go
+@@ -0,0 +1,45 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	c := make(chan int, 1)
++	dummy := make(chan int)
++	v := 0x12345678
++	for i := 0; i < 10; i++ {
++		// 6g had a bug that caused select to pass &t to
++		// selectrecv before allocating the memory for t,
++		// which caused non-deterministic crashes.
++		// This test looks for the bug by checking that the
++		// value received actually ends up in t.
++		// If the allocation happens after storing through
++		// whatever garbage &t holds, the later reference
++		// to t in the case body will use the new pointer and
++		// not see the received value.
++		v += 0x1020304
++		c <- v
++		select {
++		case t := <-c:
++			go func() {
++				f(t)
++			}()
++			escape(&t)
++			if t != v {
++				println(i, v, t)
++				panic("wrong values")
++			}
++		case dummy <- 1:
++		}
++	}
++}
++
++func escape(*int) {
++}
++
++func f(int) {
++}
++

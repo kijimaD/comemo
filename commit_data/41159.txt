@@ -15,6 +15,35 @@ Date:   Mon Sep 9 19:54:41 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/buildid.go | 13 +++++++++----
  1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index bf485d75ad..27bde8c615 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -292,14 +292,19 @@ func (b *Builder) gccgoToolID(name, language string) (string, error) {
+ 				exe = lp
+ 			}
+ 		}
+-		if _, err := os.Stat(exe); err != nil {
+-			return "", fmt.Errorf("%s: can not find compiler %q: %v; output %q", name, exe, err, out)
++		id, err = buildid.ReadFile(exe)
++		if err != nil {
++			return "", err
++		}
++
++		// If we can't find a build ID, use a hash.
++		if id == "" {
++			id = b.fileHash(exe)
+ 		}
+-		id = b.fileHash(exe)
+ 	}
+ 
+ 	b.id.Lock()
+-	b.toolIDCache[name] = id
++	b.toolIDCache[key] = id
+ 	b.id.Unlock()
+ 
+ 	return id, nil

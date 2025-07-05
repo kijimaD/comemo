@@ -11,9 +11,208 @@ Date:   Wed Jun 14 09:10:51 2017 -0700
     Change-Id: Ib6da6b2a9e398061d3f93958ee1258295b6cc33b
     Reviewed-on: https://go-review.googlesource.com/45699
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go  |   4 +-
  src/cmd/vet/all/whitelist/arm.txt |   1 -
  src/runtime/softfloat_arm.go      |   5 ++
  src/runtime/vlop_arm.s            | 130 +-------------------------------------
  4 files changed, 8 insertions(+), 132 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 858d06ab79..32c4643166 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -637,7 +637,7 @@ func (c *ctxt5) softfloat() {
+ 		return
+ 	}
+ 
+-	symsfloat := c.ctxt.Lookup("_sfloat")
++	symsfloat := c.ctxt.Lookup("runtime._sfloat")
+ 
+ 	wasfloat := 0
+ 	for p := c.cursym.Func.Text; p != nil; p = p.Link {
+@@ -689,7 +689,7 @@ func (c *ctxt5) softfloat() {
+ 			next = c.newprog()
+ 			*next = *p
+ 
+-			// BL _sfloat(SB)
++			// BL runtime·_sfloat(SB)
+ 			*p = obj.Prog{}
+ 			p.Ctxt = c.ctxt
+ 			p.Link = next
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 7eb0132a39..c0ab9de67d 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -19,7 +19,6 @@ runtime/duff_arm.s: [arm] duffcopy: function duffcopy missing Go declaration
+ runtime/tls_arm.s: [arm] save_g: function save_g missing Go declaration
+ runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
+ runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
+-runtime/vlop_arm.s: [arm] udiv: function udiv missing Go declaration
+ 
+ // Clearer using FP than SP, but that requires named offsets.
+ runtime/asm_arm.s: [arm] rt0_go: use of 4(R13) points beyond argument frame
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+index 3cbb4b3fc0..8519f4cbd5 100644
+--- a/src/runtime/softfloat_arm.go
++++ b/src/runtime/softfloat_arm.go
+@@ -653,3 +653,8 @@ func sfloat2(pc uint32, regs *[15]uint32) uint32 {
+ 	}
+ 	return pc
+ }
++
++// Stubs to pacify vet. Not safe to call from Go.
++// Calls to these functions are inserted by the compiler.
++func _sfloat()
++func udiv()
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index 3f2aa27f83..7489a65071 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -28,26 +28,10 @@
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+-/* replaced use of R10 by R11 because the former can be the data segment base register */
+-
+-TEXT _mulv(SB), NOSPLIT, $0
+-	MOVW	l0+0(FP), R2	/* l0 */
+-	MOVW	h0+4(FP), R11	/* h0 */
+-	MOVW	l1+8(FP), R4	/* l1 */
+-	MOVW	h1+12(FP), R5	/* h1 */
+-	MULLU	R4, R2, (R7,R6)
+-	MUL	R11, R4, R8
+-	ADD	R8, R7
+-	MUL	R2, R5, R8
+-	ADD	R8, R7
+-	MOVW	R6, ret_lo+16(FP)
+-	MOVW	R7, ret_hi+20(FP)
+-	RET
+-
+ // trampoline for _sfloat2. passes LR as arg0 and
+ // saves registers R0-R13 and CPSR on the stack. R0-R12 and CPSR flags can
+ // be changed by _sfloat2.
+-TEXT _sfloat(SB), NOSPLIT, $68-0 // 4 arg + 14*4 saved regs + cpsr + return value
++TEXT runtime·_sfloat(SB), NOSPLIT, $68-0 // 4 arg + 14*4 saved regs + cpsr + return value
+ 	MOVW	R14, 4(R13)
+ 	MOVW	R0, 8(R13)
+ 	MOVW	$12(R13), R0
+@@ -215,118 +199,6 @@ DATA fast_udiv_tab<>+0x38(SB)/4, $0x85868788
+ DATA fast_udiv_tab<>+0x3c(SB)/4, $0x81828384
+ GLOBL fast_udiv_tab<>(SB), RODATA, $64
+ 
+-// The linker will pass numerator in R8
+-#define Rn R8
+-// The linker expects the result in RTMP
+-#define RTMP R11
+-
+-TEXT _divu(SB), NOSPLIT, $16-0
+-	// It's not strictly true that there are no local pointers.
+-	// It could be that the saved registers Rq, Rr, Rs, and Rm
+-	// contain pointers. However, the only way this can matter
+-	// is if the stack grows (which it can't, udiv is nosplit)
+-	// or if a fault happens and more frames are added to
+-	// the stack due to deferred functions.
+-	// In the latter case, the stack can grow arbitrarily,
+-	// and garbage collection can happen, and those
+-	// operations care about pointers, but in that case
+-	// the calling frame is dead, and so are the saved
+-	// registers. So we can claim there are no pointers here.
+-	NO_LOCAL_POINTERS
+-	MOVW	Rq, 4(R13)
+-	MOVW	Rr, 8(R13)
+-	MOVW	Rs, 12(R13)
+-	MOVW	RM, 16(R13)
+-
+-	MOVW	Rn, Rr			/* numerator */
+-	MOVW	g_m(g), Rq
+-	MOVW	m_divmod(Rq), Rq	/* denominator */
+-	BL  	runtime·udiv(SB)
+-	MOVW	Rq, RTMP
+-	MOVW	4(R13), Rq
+-	MOVW	8(R13), Rr
+-	MOVW	12(R13), Rs
+-	MOVW	16(R13), RM
+-	RET
+-
+-TEXT _modu(SB), NOSPLIT, $16-0
+-	NO_LOCAL_POINTERS
+-	MOVW	Rq, 4(R13)
+-	MOVW	Rr, 8(R13)
+-	MOVW	Rs, 12(R13)
+-	MOVW	RM, 16(R13)
+-
+-	MOVW	Rn, Rr			/* numerator */
+-	MOVW	g_m(g), Rq
+-	MOVW	m_divmod(Rq), Rq	/* denominator */
+-	BL  	runtime·udiv(SB)
+-	MOVW	Rr, RTMP
+-	MOVW	4(R13), Rq
+-	MOVW	8(R13), Rr
+-	MOVW	12(R13), Rs
+-	MOVW	16(R13), RM
+-	RET
+-
+-TEXT _div(SB),NOSPLIT,$16-0
+-	NO_LOCAL_POINTERS
+-	MOVW	Rq, 4(R13)
+-	MOVW	Rr, 8(R13)
+-	MOVW	Rs, 12(R13)
+-	MOVW	RM, 16(R13)
+-	MOVW	Rn, Rr			/* numerator */
+-	MOVW	g_m(g), Rq
+-	MOVW	m_divmod(Rq), Rq	/* denominator */
+-	CMP 	$0, Rr
+-	BGE 	d1
+-	RSB 	$0, Rr, Rr
+-	CMP 	$0, Rq
+-	BGE 	d2
+-	RSB 	$0, Rq, Rq
+-d0:
+-	BL  	runtime·udiv(SB)  	/* none/both neg */
+-	MOVW	Rq, RTMP
+-	B	out1
+-d1:
+-	CMP 	$0, Rq
+-	BGE 	d0
+-	RSB 	$0, Rq, Rq
+-d2:
+-	BL  	runtime·udiv(SB)  	/* one neg */
+-	RSB	$0, Rq, RTMP
+-out1:
+-	MOVW	4(R13), Rq
+-	MOVW	8(R13), Rr
+-	MOVW	12(R13), Rs
+-	MOVW	16(R13), RM
+-	RET
+-
+-TEXT _mod(SB),NOSPLIT,$16-0
+-	NO_LOCAL_POINTERS
+-	MOVW	Rq, 4(R13)
+-	MOVW	Rr, 8(R13)
+-	MOVW	Rs, 12(R13)
+-	MOVW	RM, 16(R13)
+-	MOVW	Rn, Rr			/* numerator */
+-	MOVW	g_m(g), Rq
+-	MOVW	m_divmod(Rq), Rq	/* denominator */
+-	CMP 	$0, Rq
+-	RSB.LT	$0, Rq, Rq
+-	CMP 	$0, Rr
+-	BGE 	m1
+-	RSB 	$0, Rr, Rr
+-	BL  	runtime·udiv(SB)  	/* neg numerator */
+-	RSB 	$0, Rr, RTMP
+-	B   	out
+-m1:
+-	BL  	runtime·udiv(SB)  	/* pos numerator */
+-	MOVW	Rr, RTMP
+-out:
+-	MOVW	4(R13), Rq
+-	MOVW	8(R13), Rr
+-	MOVW	12(R13), Rs
+-	MOVW	16(R13), RM
+-	RET
+-
+ // _mul64by32 and _div64by32 not implemented on arm
+ TEXT runtime·_mul64by32(SB), NOSPLIT, $0
+ 	MOVW	$0, R0

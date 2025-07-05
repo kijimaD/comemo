@@ -16,9 +16,72 @@ Date:   Wed Jun 8 10:55:42 2022 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/411275
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/alldocs.go              | 4 ++--
  src/cmd/go/internal/work/build.go  | 4 ++--
  src/cmd/go/internal/work/init.go   | 6 +++---
  src/internal/platform/supported.go | 2 ++
  4 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 6a348dbb75..a8206c475c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -114,9 +114,9 @@
+ //		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+ //	-msan
+ //		enable interoperation with memory sanitizer.
+-//		Supported only on linux/amd64, linux/arm64
++//		Supported only on linux/amd64, linux/arm64, freebsd/amd64
+ //		and only with Clang/LLVM as the host C compiler.
+-//		On linux/arm64, pie build mode will be used.
++//		PIE build mode will be used on all platforms except linux/amd64.
+ //	-asan
+ //		enable interoperation with address sanitizer.
+ //		Supported only on linux/arm64, linux/amd64.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 6a83ec6232..d27d114d91 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -71,9 +71,9 @@ and test commands:
+ 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+ 	-msan
+ 		enable interoperation with memory sanitizer.
+-		Supported only on linux/amd64, linux/arm64
++		Supported only on linux/amd64, linux/arm64, freebsd/amd64
+ 		and only with Clang/LLVM as the host C compiler.
+-		On linux/arm64, pie build mode will be used.
++		PIE build mode will be used on all platforms except linux/amd64.
+ 	-asan
+ 		enable interoperation with address sanitizer.
+ 		Supported only on linux/arm64, linux/amd64.
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 458a81bead..cfd5a505d3 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -149,9 +149,9 @@ func instrumentInit() {
+ 	mode := "race"
+ 	if cfg.BuildMSan {
+ 		mode = "msan"
+-		// MSAN does not support non-PIE binaries on ARM64.
+-		// See issue #33712 for details.
+-		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
++		// MSAN needs PIE on all platforms except linux/amd64.
++		// https://github.com/llvm/llvm-project/blob/llvmorg-13.0.1/clang/lib/Driver/SanitizerArgs.cpp#L621
++		if cfg.BuildBuildmode == "default" && (cfg.Goos != "linux" || cfg.Goarch != "amd64") {
+ 			cfg.BuildBuildmode = "pie"
+ 		}
+ 	}
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index c9264c03ee..fddc544123 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -29,6 +29,8 @@ func MSanSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+ 		return goarch == "amd64" || goarch == "arm64"
++	case "freebsd":
++		return goarch == "amd64"
+ 	default:
+ 		return false
+ 	}

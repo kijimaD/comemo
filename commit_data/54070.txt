@@ -51,7 +51,171 @@ Date:   Thu Sep 8 14:57:44 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/time/format.go    | 36 ++++++++++++++++++++++++++----------
  src/time/time_test.go | 34 ++++++++++++++++++++++++++++++++--
  2 files changed, 58 insertions(+), 12 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 8051687068..485563ede4 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -808,6 +808,20 @@ type ParseError struct {
+ 	Message    string
+ }
+ 
++// newParseError creates a new ParseError.
++// The provided value and valueElem are cloned to avoid escaping their values.
++func newParseError(layout, value, layoutElem, valueElem, message string) *ParseError {
++	valueCopy := cloneString(value)
++	valueElemCopy := cloneString(valueElem)
++	return &ParseError{layout, valueCopy, layoutElem, valueElemCopy, message}
++}
++
++// cloneString returns a string copy of s.
++// Do not use strings.Clone to avoid dependency on strings package.
++func cloneString(s string) string {
++	return string([]byte(s))
++}
++
+ // These are borrowed from unicode/utf8 and strconv and replicate behavior in
+ // that package, since we can't take a dependency on either.
+ const (
+@@ -1027,11 +1041,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		stdstr := layout[len(prefix) : len(layout)-len(suffix)]
+ 		value, err = skip(value, prefix)
+ 		if err != nil {
+-			return Time{}, &ParseError{alayout, avalue, prefix, value, ""}
++			return Time{}, newParseError(alayout, avalue, prefix, value, "")
+ 		}
+ 		if std == 0 {
+ 			if len(value) != 0 {
+-				return Time{}, &ParseError{alayout, avalue, "", value, ": extra text: " + quote(value)}
++				return Time{}, newParseError(alayout, avalue, "", value, ": extra text: "+quote(value))
+ 			}
+ 			break
+ 		}
+@@ -1262,10 +1276,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			value = value[1+i:]
+ 		}
+ 		if rangeErrString != "" {
+-			return Time{}, &ParseError{alayout, avalue, stdstr, value, ": " + rangeErrString + " out of range"}
++			return Time{}, newParseError(alayout, avalue, stdstr, value, ": "+rangeErrString+" out of range")
+ 		}
+ 		if err != nil {
+-			return Time{}, &ParseError{alayout, avalue, stdstr, value, ""}
++			return Time{}, newParseError(alayout, avalue, stdstr, value, "")
+ 		}
+ 	}
+ 	if pmSet && hour < 12 {
+@@ -1287,7 +1301,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			}
+ 		}
+ 		if yday < 1 || yday > 365 {
+-			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year out of range"}
++			return Time{}, newParseError(alayout, avalue, "", value, ": day-of-year out of range")
+ 		}
+ 		if m == 0 {
+ 			m = (yday-1)/31 + 1
+@@ -1299,11 +1313,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		// If month, day already seen, yday's m, d must match.
+ 		// Otherwise, set them from m, d.
+ 		if month >= 0 && month != m {
+-			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year does not match month"}
++			return Time{}, newParseError(alayout, avalue, "", value, ": day-of-year does not match month")
+ 		}
+ 		month = m
+ 		if day >= 0 && day != d {
+-			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year does not match day"}
++			return Time{}, newParseError(alayout, avalue, "", value, ": day-of-year does not match day")
+ 		}
+ 		day = d
+ 	} else {
+@@ -1317,7 +1331,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 
+ 	// Validate the day of the month.
+ 	if day < 1 || day > daysIn(Month(month), year) {
+-		return Time{}, &ParseError{alayout, avalue, "", value, ": day out of range"}
++		return Time{}, newParseError(alayout, avalue, "", value, ": day out of range")
+ 	}
+ 
+ 	if z != nil {
+@@ -1337,7 +1351,8 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		}
+ 
+ 		// Otherwise create fake zone to record offset.
+-		t.setLoc(FixedZone(zoneName, zoneOffset))
++		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
++		t.setLoc(FixedZone(zoneNameCopy, zoneOffset))
+ 		return t, nil
+ 	}
+ 
+@@ -1357,7 +1372,8 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
+ 			offset *= 3600
+ 		}
+-		t.setLoc(FixedZone(zoneName, offset))
++		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
++		t.setLoc(FixedZone(zoneNameCopy, offset))
+ 		return t, nil
+ 	}
+ 
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 17ce6b3b0b..6d9a8fae2f 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1446,15 +1446,35 @@ func BenchmarkParse(b *testing.B) {
+ 	}
+ }
+ 
++const testdataRFC3339UTC = "2020-08-22T11:27:43.123456789Z"
++
+ func BenchmarkParseRFC3339UTC(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Parse(RFC3339, "2020-08-22T11:27:43.123456789Z")
++		Parse(RFC3339, testdataRFC3339UTC)
++	}
++}
++
++var testdataRFC3339UTCBytes = []byte(testdataRFC3339UTC)
++
++func BenchmarkParseRFC3339UTCBytes(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Parse(RFC3339, string(testdataRFC3339UTCBytes))
+ 	}
+ }
+ 
++const testdataRFC3339TZ = "2020-08-22T11:27:43.123456789-02:00"
++
+ func BenchmarkParseRFC3339TZ(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Parse(RFC3339, "2020-08-22T11:27:43.123456789-02:00")
++		Parse(RFC3339, testdataRFC3339TZ)
++	}
++}
++
++var testdataRFC3339TZBytes = []byte(testdataRFC3339TZ)
++
++func BenchmarkParseRFC3339TZBytes(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Parse(RFC3339, string(testdataRFC3339TZBytes))
+ 	}
+ }
+ 
+@@ -1561,6 +1581,16 @@ func TestMarshalBinaryVersion2(t *testing.T) {
+ 	}
+ }
+ 
++func TestUnmarshalTextAllocations(t *testing.T) {
++	in := []byte(testdataRFC3339UTC) // short enough to be stack allocated
++	if allocs := testing.AllocsPerRun(100, func() {
++		var t Time
++		t.UnmarshalText(in)
++	}); allocs != 0 {
++		t.Errorf("got %v allocs, want 0 allocs", allocs)
++	}
++}
++
+ // Issue 17720: Zero value of time.Month fails to print
+ func TestZeroMonthString(t *testing.T) {
+ 	if got, want := Month(0).String(), "%!Month(0)"; got != want {

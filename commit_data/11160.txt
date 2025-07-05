@@ -12,8 +12,121 @@ Date:   Fri Jan 13 15:25:07 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5544057
-
+---
  src/pkg/exp/sql/fakedb_test.go | 17 ++++++++++++++++-
  src/pkg/exp/sql/sql.go         | 19 ++++++++++++++-----
  src/pkg/exp/sql/sql_test.go    | 18 ++++++++++++++++++
  3 files changed, 48 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/exp/sql/fakedb_test.go b/src/pkg/exp/sql/fakedb_test.go
+index 0a1dd091e3..d81c09e642 100644
+--- a/src/pkg/exp/sql/fakedb_test.go
++++ b/src/pkg/exp/sql/fakedb_test.go
+@@ -77,6 +77,17 @@ type fakeConn struct {
+ 	db *fakeDB // where to return ourselves to
+ 
+ 	currTx *fakeTx
++
++	// Stats for tests:
++	mu          sync.Mutex
++	stmtsMade   int
++	stmtsClosed int
++}
++
++func (c *fakeConn) incrStat(v *int) {
++	c.mu.Lock()
++	*v++
++	c.mu.Unlock()
+ }
+ 
+ type fakeTx struct {
+@@ -338,6 +349,7 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
+ 	cmd := parts[0]
+ 	parts = parts[1:]
+ 	stmt := &fakeStmt{q: query, c: c, cmd: cmd}
++	c.incrStat(&c.stmtsMade)
+ 	switch cmd {
+ 	case "WIPE":
+ 		// Nothing
+@@ -358,7 +370,10 @@ func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
+ }
+ 
+ func (s *fakeStmt) Close() error {
+-	s.closed = true
++	if !s.closed {
++		s.c.incrStat(&s.c.stmtsClosed)
++		s.closed = true
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/exp/sql/sql.go b/src/pkg/exp/sql/sql.go
+index a076fcdcbc..4e68c3ee09 100644
+--- a/src/pkg/exp/sql/sql.go
++++ b/src/pkg/exp/sql/sql.go
+@@ -243,8 +243,13 @@ func (db *DB) Query(query string, args ...interface{}) (*Rows, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	defer stmt.Close()
+-	return stmt.Query(args...)
++	rows, err := stmt.Query(args...)
++	if err != nil {
++		stmt.Close()
++		return nil, err
++	}
++	rows.closeStmt = stmt
++	return rows, nil
+ }
+ 
+ // QueryRow executes a query that is expected to return at most one row.
+@@ -706,9 +711,10 @@ type Rows struct {
+ 	releaseConn func()
+ 	rowsi       driver.Rows
+ 
+-	closed   bool
+-	lastcols []interface{}
+-	lasterr  error
++	closed    bool
++	lastcols  []interface{}
++	lasterr   error
++	closeStmt *Stmt // if non-nil, statement to Close on close
+ }
+ 
+ // Next prepares the next result row for reading with the Scan method.
+@@ -789,6 +795,9 @@ func (rs *Rows) Close() error {
+ 	rs.closed = true
+ 	err := rs.rowsi.Close()
+ 	rs.releaseConn()
++	if rs.closeStmt != nil {
++		rs.closeStmt.Close()
++	}
+ 	return err
+ }
+ 
+diff --git a/src/pkg/exp/sql/sql_test.go b/src/pkg/exp/sql/sql_test.go
+index 77245db96f..716d4ca9df 100644
+--- a/src/pkg/exp/sql/sql_test.go
++++ b/src/pkg/exp/sql/sql_test.go
+@@ -276,3 +276,21 @@ func TestIssue2542Deadlock(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestQueryRowClosingStmt(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++	var name string
++	var age int
++	err := db.QueryRow("SELECT|people|age,name|age=?", 3).Scan(&age, &name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(db.freeConn) != 1 {
++		t.Fatalf("expected 1 free conn")
++	}
++	fakeConn := db.freeConn[0].(*fakeConn)
++	if made, closed := fakeConn.stmtsMade, fakeConn.stmtsClosed; made != closed {
++		t.Logf("statement close mismatch: made %d, closed %d", made, closed)
++	}
++}

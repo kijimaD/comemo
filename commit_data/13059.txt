@@ -10,6 +10,19 @@ Date:   Mon May 14 19:27:29 2012 +0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6208057
-
+---
  src/pkg/sync/once.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/once.go b/src/pkg/sync/once.go
+index 04b714a3e7..1699e86a9e 100644
+--- a/src/pkg/sync/once.go
++++ b/src/pkg/sync/once.go
+@@ -38,6 +38,6 @@ func (o *Once) Do(f func()) {
+ 	defer o.m.Unlock()
+ 	if o.done == 0 {
+ 		f()
+-		atomic.CompareAndSwapUint32(&o.done, 0, 1)
++		atomic.StoreUint32(&o.done, 1)
+ 	}
+ }

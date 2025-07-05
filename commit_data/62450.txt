@@ -19,7 +19,109 @@ Date:   Tue Mar 4 15:20:28 2025 -0800
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/serve_test.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go     |  6 ++++
  2 files changed, 75 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 915055fddd..b1d9f0b3e3 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"compress/zlib"
+ 	"context"
+ 	"crypto/tls"
++	"crypto/x509"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -7335,3 +7336,71 @@ func TestInvalidChunkedBodies(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// Issue #72100: Verify that we don't modify the caller's TLS.Config.NextProtos slice.
++func TestServerTLSNextProtos(t *testing.T) {
++	run(t, testServerTLSNextProtos, []testMode{https1Mode, http2Mode})
++}
++func testServerTLSNextProtos(t *testing.T, mode testMode) {
++	CondSkipHTTP2(t)
++
++	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++	leafCert, err := x509.ParseCertificate(cert.Certificate[0])
++	if err != nil {
++		t.Fatal(err)
++	}
++	certpool := x509.NewCertPool()
++	certpool.AddCert(leafCert)
++
++	protos := new(Protocols)
++	switch mode {
++	case https1Mode:
++		protos.SetHTTP1(true)
++	case http2Mode:
++		protos.SetHTTP2(true)
++	}
++
++	wantNextProtos := []string{"http/1.1", "h2", "other"}
++	nextProtos := slices.Clone(wantNextProtos)
++
++	// We don't use httptest here because it overrides the tls.Config.
++	srv := &Server{
++		TLSConfig: &tls.Config{
++			Certificates: []tls.Certificate{cert},
++			NextProtos:   nextProtos,
++		},
++		Handler:   HandlerFunc(func(w ResponseWriter, req *Request) {}),
++		Protocols: protos,
++	}
++	tr := &Transport{
++		TLSClientConfig: &tls.Config{
++			RootCAs:    certpool,
++			NextProtos: nextProtos,
++		},
++		Protocols: protos,
++	}
++
++	listener := newLocalListener(t)
++	srvc := make(chan error, 1)
++	go func() {
++		srvc <- srv.ServeTLS(listener, "", "")
++	}()
++	t.Cleanup(func() {
++		srv.Close()
++		<-srvc
++	})
++
++	client := &Client{Transport: tr}
++	resp, err := client.Get("https://" + listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	resp.Body.Close()
++
++	if !slices.Equal(nextProtos, wantNextProtos) {
++		t.Fatalf("after running test: original NextProtos slice = %v, want %v", nextProtos, wantNextProtos)
++	}
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index a29b8b39aa..2daf9d38e3 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3521,6 +3521,12 @@ func (s *Server) protocols() Protocols {
+ // adjustNextProtos adds or removes "http/1.1" and "h2" entries from
+ // a tls.Config.NextProtos list, according to the set of protocols in protos.
+ func adjustNextProtos(nextProtos []string, protos Protocols) []string {
++	// Make a copy of NextProtos since it might be shared with some other tls.Config.
++	// (tls.Config.Clone doesn't do a deep copy.)
++	//
++	// We could avoid an allocation in the common case by checking to see if the slice
++	// is already in order, but this is just one small allocation per connection.
++	nextProtos = slices.Clone(nextProtos)
+ 	var have Protocols
+ 	nextProtos = slices.DeleteFunc(nextProtos, func(s string) bool {
+ 		switch s {

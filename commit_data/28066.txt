@@ -14,7 +14,7 @@ Date:   Tue Feb 16 17:16:43 2016 -0500
     Change-Id: I10daf44e3e9cc24a10912638c7de3c1984ef8efe
     Reviewed-on: https://go-review.googlesource.com/19518
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/malloc.go   | 10 +++++-----
  src/runtime/mcache.go   |  4 ++--
  src/runtime/mcentral.go | 16 ++++++++--------
@@ -22,3 +22,224 @@ Date:   Tue Feb 16 17:16:43 2016 -0500
  src/runtime/mstats.go   |  6 +++---
  src/runtime/stack.go    | 12 ++++++------
  6 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index e635682cae..6db323a8d3 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -509,8 +509,8 @@ func (c *mcache) nextFree(sizeclass int8) (v gclinkptr, shouldhelpgc bool) {
+ 
+ 	if freeIndex == s.nelems {
+ 		// The span is full.
+-		if uintptr(s.ref) != s.nelems {
+-			throw("s.ref != s.nelems && freeIndex == s.nelems")
++		if uintptr(s.allocCount) != s.nelems {
++			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
+ 		}
+ 		systemstack(func() {
+ 			c.refill(int32(sizeclass))
+@@ -526,9 +526,9 @@ func (c *mcache) nextFree(sizeclass int8) (v gclinkptr, shouldhelpgc bool) {
+ 	v = gclinkptr(freeIndex*s.elemsize + s.base())
+ 	// Advance the freeIndex.
+ 	s.freeindex = freeIndex + 1
+-	s.ref++
+-	if uintptr(s.ref) > s.nelems {
+-		throw("s.ref > s.nelems")
++	s.allocCount++
++	if uintptr(s.allocCount) > s.nelems {
++		throw("s.allocCount > s.nelems")
+ 	}
+ 	return
+ }
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 424fa0efac..5938e53ca8 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -109,7 +109,7 @@ func (c *mcache) refill(sizeclass int32) *mspan {
+ 	// Return the current cached span to the central lists.
+ 	s := c.alloc[sizeclass]
+ 
+-	if uintptr(s.ref) != s.nelems {
++	if uintptr(s.allocCount) != s.nelems {
+ 		throw("refill of span with free space remaining")
+ 	}
+ 
+@@ -123,7 +123,7 @@ func (c *mcache) refill(sizeclass int32) *mspan {
+ 		throw("out of memory")
+ 	}
+ 
+-	if uintptr(s.ref) == s.nelems {
++	if uintptr(s.allocCount) == s.nelems {
+ 		throw("span has no free space")
+ 	}
+ 
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 47d3ae2f81..5dafa28450 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -100,11 +100,11 @@ retry:
+ 	// c is unlocked.
+ havespan:
+ 	cap := int32((s.npages << _PageShift) / s.elemsize)
+-	n := cap - int32(s.ref)
++	n := cap - int32(s.allocCount)
+ 	if n == 0 {
+-		throw("empty span")
++		throw("span has no free objects")
+ 	}
+-	usedBytes := uintptr(s.ref) * s.elemsize
++	usedBytes := uintptr(s.allocCount) * s.elemsize
+ 	if usedBytes > 0 {
+ 		reimburseSweepCredit(usedBytes)
+ 	}
+@@ -127,12 +127,12 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ 
+ 	s.incache = false
+ 
+-	if s.ref == 0 {
+-		throw("uncaching full span")
++	if s.allocCount == 0 {
++		throw("uncaching span but s.allocCount == 0")
+ 	}
+ 
+ 	cap := int32((s.npages << _PageShift) / s.elemsize)
+-	n := cap - int32(s.ref)
++	n := cap - int32(s.allocCount)
+ 	if n > 0 {
+ 		c.empty.remove(s)
+ 		c.nonempty.insert(s)
+@@ -154,7 +154,7 @@ func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, p
+ 		throw("freeSpan given cached span")
+ 	}
+ 
+-	s.ref -= uint16(n)
++	s.allocCount -= uint16(n)
+ 
+ 	if preserve {
+ 		// preserve is set only when called from MCentral_CacheSpan above,
+@@ -180,7 +180,7 @@ func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, p
+ 	// lock of c above.)
+ 	atomic.Store(&s.sweepgen, mheap_.sweepgen)
+ 
+-	if s.ref != 0 {
++	if s.allocCount != 0 {
+ 		unlock(&c.lock)
+ 		return false
+ 	}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d5dde5e72e..cd35acb6dd 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -159,7 +159,7 @@ type mspan struct {
+ 
+ 	sweepgen    uint32
+ 	divMul      uint32   // for divide by elemsize - divMagic.mul
+-	ref         uint16   // capacity - number of objects in freelist
++	allocCount  uint16   // capacity - number of objects in freelist
+ 	sizeclass   uint8    // size class
+ 	incache     bool     // being used by an mcache
+ 	state       uint8    // mspaninuse etc
+@@ -471,7 +471,7 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
+ 		// able to map interior pointer to containing span.
+ 		atomic.Store(&s.sweepgen, h.sweepgen)
+ 		s.state = _MSpanInUse
+-		s.ref = 0
++		s.allocCount = 0
+ 		s.sizeclass = uint8(sizeclass)
+ 		if sizeclass == 0 {
+ 			s.elemsize = s.npages << _PageShift
+@@ -551,7 +551,7 @@ func (h *mheap) allocStack(npage uintptr) *mspan {
+ 	if s != nil {
+ 		s.state = _MSpanStack
+ 		s.stackfreelist = 0
+-		s.ref = 0
++		s.allocCount = 0
+ 		memstats.stacks_inuse += uint64(s.npages << _PageShift)
+ 	}
+ 
+@@ -773,12 +773,12 @@ func (h *mheap) freeStack(s *mspan) {
+ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince int64) {
+ 	switch s.state {
+ 	case _MSpanStack:
+-		if s.ref != 0 {
++		if s.allocCount != 0 {
+ 			throw("MHeap_FreeSpanLocked - invalid stack free")
+ 		}
+ 	case _MSpanInUse:
+-		if s.ref != 0 || s.sweepgen != h.sweepgen {
+-			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.start<<_PageShift), " ref ", s.ref, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
++		if s.allocCount != 0 || s.sweepgen != h.sweepgen {
++			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.start<<_PageShift), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
+ 			throw("MHeap_FreeSpanLocked - invalid free")
+ 		}
+ 		h.pagesInUse -= uint64(s.npages)
+@@ -912,7 +912,7 @@ func (span *mspan) init(start pageID, npages uintptr) {
+ 	span.list = nil
+ 	span.start = start
+ 	span.npages = npages
+-	span.ref = 0
++	span.allocCount = 0
+ 	span.sizeclass = 0
+ 	span.incache = false
+ 	span.elemsize = 0
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 84a79e312c..2d75d2fef1 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -295,9 +295,9 @@ func updatememstats(stats *gcstats) {
+ 			memstats.nmalloc++
+ 			memstats.alloc += uint64(s.elemsize)
+ 		} else {
+-			memstats.nmalloc += uint64(s.ref)
+-			memstats.by_size[s.sizeclass].nmalloc += uint64(s.ref)
+-			memstats.alloc += uint64(s.ref) * uint64(s.elemsize)
++			memstats.nmalloc += uint64(s.allocCount)
++			memstats.by_size[s.sizeclass].nmalloc += uint64(s.allocCount)
++			memstats.alloc += uint64(s.allocCount) * uint64(s.elemsize)
+ 		}
+ 	}
+ 	unlock(&mheap_.lock)
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 8fd7ef2bcf..1ca737e920 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -191,8 +191,8 @@ func stackpoolalloc(order uint8) gclinkptr {
+ 		if s == nil {
+ 			throw("out of memory")
+ 		}
+-		if s.ref != 0 {
+-			throw("bad ref")
++		if s.allocCount != 0 {
++			throw("bad allocCount")
+ 		}
+ 		if s.stackfreelist.ptr() != nil {
+ 			throw("bad stackfreelist")
+@@ -209,7 +209,7 @@ func stackpoolalloc(order uint8) gclinkptr {
+ 		throw("span has no free stacks")
+ 	}
+ 	s.stackfreelist = x.ptr().next
+-	s.ref++
++	s.allocCount++
+ 	if s.stackfreelist.ptr() == nil {
+ 		// all stacks in s are allocated.
+ 		list.remove(s)
+@@ -229,8 +229,8 @@ func stackpoolfree(x gclinkptr, order uint8) {
+ 	}
+ 	x.ptr().next = s.stackfreelist
+ 	s.stackfreelist = x
+-	s.ref--
+-	if gcphase == _GCoff && s.ref == 0 {
++	s.allocCount--
++	if gcphase == _GCoff && s.allocCount == 0 {
+ 		// Span is completely free. Return it to the heap
+ 		// immediately if we're sweeping.
+ 		//
+@@ -1135,7 +1135,7 @@ func freeStackSpans() {
+ 		list := &stackpool[order]
+ 		for s := list.first; s != nil; {
+ 			next := s.next
+-			if s.ref == 0 {
++			if s.allocCount == 0 {
+ 				list.remove(s)
+ 				s.stackfreelist = 0
+ 				mheap_.freeStack(s)

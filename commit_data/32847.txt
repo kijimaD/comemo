@@ -11,6 +11,23 @@ Date:   Wed Jun 7 21:29:01 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/request.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index c493aeb2d7..f1e71d8b43 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1043,11 +1043,6 @@ type maxBytesReader struct {
+ 	err error         // sticky error
+ }
+ 
+-func (l *maxBytesReader) tooLarge() (n int, err error) {
+-	l.err = errors.New("http: request body too large")
+-	return 0, l.err
+-}
+-
+ func (l *maxBytesReader) Read(p []byte) (n int, err error) {
+ 	if l.err != nil {
+ 		return 0, l.err

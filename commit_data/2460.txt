@@ -9,7 +9,84 @@ Date:   Tue Jun 16 13:44:15 2009 -0700
     DELTA=15  (2 added, 13 deleted, 0 changed)
     OCL=30358
     CL=30358
-
+---
  lib/godoc/package.txt         | 12 ------------
  src/pkg/go/printer/printer.go |  3 ++-
  2 files changed, 2 insertions(+), 13 deletions(-)
+
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index cd8501337e..e0cab52bde 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -19,9 +19,7 @@ import "{ImportPath}"
+ CONSTANTS
+ {.repeated section @}
+ {# the .repeated section, .section idiom skips over nils in the array}
+-
+ {Decl}
+-
+ {Doc}
+ {.end}
+ {.end}
+@@ -29,9 +27,7 @@ CONSTANTS
+ 
+ VARIABLES
+ {.repeated section @}
+-
+ {Decl}
+-
+ {Doc}
+ {.end}
+ {.end}
+@@ -39,9 +35,7 @@ VARIABLES
+ 
+ FUNCTIONS
+ {.repeated section @}
+-
+ {Decl}
+-
+ {Doc}
+ {.end}
+ {.end}
+@@ -49,20 +43,14 @@ FUNCTIONS
+ 
+ TYPES
+ {.repeated section @}
+-
+ {Decl}
+-
+ {Doc}
+ {.repeated section Factories}
+-
+ {Decl}
+-
+ {Doc}
+ {.end}
+ {.repeated section Methods}
+-
+ {Decl}
+-
+ {Doc}
+ {.end}
+ {.end}
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 74318b0cd0..d34c084acd 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -981,6 +981,8 @@ func (p *printer) program(prog *ast.Program) {
+ 			}
+ 		}
+ 	}
++
++	p.print(newline);
+ }
+ 
+ 
+@@ -1010,7 +1012,6 @@ func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
+ 		default:
+ 			p.errors <- os.NewError("unsupported node type");
+ 		}
+-		p.print(newline);
+ 		p.errors <- nil;  // no errors
+ 	}();
+ 	err := <-p.errors;  // wait for completion of goroutine

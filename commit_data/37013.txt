@@ -10,9 +10,545 @@ Date:   Thu Jun 14 10:23:10 2018 +0200
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/defs_darwin_arm.go   |  93 +++++++++-----------------------
  src/runtime/defs_darwin_arm64.go |  93 +++++++++-----------------------
  src/runtime/sys_darwin_arm.s     | 113 +++++++++++++++-----------------------
  src/runtime/sys_darwin_arm64.s   | 114 +++++++++++++++------------------------
  4 files changed, 135 insertions(+), 278 deletions(-)
+
+diff --git a/src/runtime/defs_darwin_arm.go b/src/runtime/defs_darwin_arm.go
+index 2225556d52..52dfbd04b7 100644
+--- a/src/runtime/defs_darwin_arm.go
++++ b/src/runtime/defs_darwin_arm.go
+@@ -8,8 +8,9 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_ETIMEDOUT = 0x3c
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+@@ -23,40 +24,6 @@ const (
+ 	_MADV_DONTNEED = 0x4
+ 	_MADV_FREE     = 0x5
+ 
+-	_MACH_MSG_TYPE_MOVE_RECEIVE   = 0x10
+-	_MACH_MSG_TYPE_MOVE_SEND      = 0x11
+-	_MACH_MSG_TYPE_MOVE_SEND_ONCE = 0x12
+-	_MACH_MSG_TYPE_COPY_SEND      = 0x13
+-	_MACH_MSG_TYPE_MAKE_SEND      = 0x14
+-	_MACH_MSG_TYPE_MAKE_SEND_ONCE = 0x15
+-	_MACH_MSG_TYPE_COPY_RECEIVE   = 0x16
+-
+-	_MACH_MSG_PORT_DESCRIPTOR         = 0x0
+-	_MACH_MSG_OOL_DESCRIPTOR          = 0x1
+-	_MACH_MSG_OOL_PORTS_DESCRIPTOR    = 0x2
+-	_MACH_MSG_OOL_VOLATILE_DESCRIPTOR = 0x3
+-
+-	_MACH_MSGH_BITS_COMPLEX = 0x80000000
+-
+-	_MACH_SEND_MSG  = 0x1
+-	_MACH_RCV_MSG   = 0x2
+-	_MACH_RCV_LARGE = 0x4
+-
+-	_MACH_SEND_TIMEOUT   = 0x10
+-	_MACH_SEND_INTERRUPT = 0x40
+-	_MACH_SEND_ALWAYS    = 0x10000
+-	_MACH_SEND_TRAILER   = 0x20000
+-	_MACH_RCV_TIMEOUT    = 0x100
+-	_MACH_RCV_NOTIFY     = 0x200
+-	_MACH_RCV_INTERRUPT  = 0x400
+-	_MACH_RCV_OVERWRITE  = 0x1000
+-
+-	_NDR_PROTOCOL_2_0      = 0x0
+-	_NDR_INT_BIG_ENDIAN    = 0x0
+-	_NDR_INT_LITTLE_ENDIAN = 0x1
+-	_NDR_FLOAT_IEEE        = 0x0
+-	_NDR_CHAR_ASCII        = 0x0
+-
+ 	_SA_SIGINFO   = 0x40
+ 	_SA_RESTART   = 0x2
+ 	_SA_ONSTACK   = 0x1
+@@ -130,38 +97,6 @@ const (
+ 	_FD_CLOEXEC = 0x1
+ )
+ 
+-type machbody struct {
+-	msgh_descriptor_count uint32
+-}
+-
+-type machheader struct {
+-	msgh_bits        uint32
+-	msgh_size        uint32
+-	msgh_remote_port uint32
+-	msgh_local_port  uint32
+-	msgh_reserved    uint32
+-	msgh_id          int32
+-}
+-
+-type machndr struct {
+-	mig_vers     uint8
+-	if_vers      uint8
+-	reserved1    uint8
+-	mig_encoding uint8
+-	int_rep      uint8
+-	char_rep     uint8
+-	float_rep    uint8
+-	reserved2    uint8
+-}
+-
+-type machport struct {
+-	name        uint32
+-	pad1        uint32
+-	pad2        uint16
+-	disposition uint8
+-	_type       uint8
+-}
+-
+ type stackt struct {
+ 	ss_sp    *byte
+ 	ss_size  uintptr
+@@ -213,6 +148,12 @@ type timespec struct {
+ 	tv_nsec int32
+ }
+ 
++//go:nosplit
++func (t *timespec) set_nsec(ns int64) {
++	t.tv_sec = int32(ns / 1000000000)
++	t.tv_nsec = int32(ns % 1000000000)
++}
++
+ type floatstate32 struct {
+ 	r     [32]uint32
+ 	fpscr uint32
+@@ -261,6 +202,22 @@ type pthreadattr struct {
+ 	X__sig    int32
+ 	X__opaque [36]int8
+ }
++type pthreadmutex struct {
++	X__sig    int32
++	X__opaque [40]int8
++}
++type pthreadmutexattr struct {
++	X__sig    int32
++	X__opaque [8]int8
++}
++type pthreadcond struct {
++	X__sig    int32
++	X__opaque [24]int8
++}
++type pthreadcondattr struct {
++	X__sig    int32
++	X__opaque [4]int8
++}
+ 
+ type machTimebaseInfo struct {
+ 	numer uint32
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+index 7ba051c2b3..fb5acaca3d 100644
+--- a/src/runtime/defs_darwin_arm64.go
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -6,8 +6,9 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_ETIMEDOUT = 0x3c
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+@@ -21,40 +22,6 @@ const (
+ 	_MADV_DONTNEED = 0x4
+ 	_MADV_FREE     = 0x5
+ 
+-	_MACH_MSG_TYPE_MOVE_RECEIVE   = 0x10
+-	_MACH_MSG_TYPE_MOVE_SEND      = 0x11
+-	_MACH_MSG_TYPE_MOVE_SEND_ONCE = 0x12
+-	_MACH_MSG_TYPE_COPY_SEND      = 0x13
+-	_MACH_MSG_TYPE_MAKE_SEND      = 0x14
+-	_MACH_MSG_TYPE_MAKE_SEND_ONCE = 0x15
+-	_MACH_MSG_TYPE_COPY_RECEIVE   = 0x16
+-
+-	_MACH_MSG_PORT_DESCRIPTOR         = 0x0
+-	_MACH_MSG_OOL_DESCRIPTOR          = 0x1
+-	_MACH_MSG_OOL_PORTS_DESCRIPTOR    = 0x2
+-	_MACH_MSG_OOL_VOLATILE_DESCRIPTOR = 0x3
+-
+-	_MACH_MSGH_BITS_COMPLEX = 0x80000000
+-
+-	_MACH_SEND_MSG  = 0x1
+-	_MACH_RCV_MSG   = 0x2
+-	_MACH_RCV_LARGE = 0x4
+-
+-	_MACH_SEND_TIMEOUT   = 0x10
+-	_MACH_SEND_INTERRUPT = 0x40
+-	_MACH_SEND_ALWAYS    = 0x10000
+-	_MACH_SEND_TRAILER   = 0x20000
+-	_MACH_RCV_TIMEOUT    = 0x100
+-	_MACH_RCV_NOTIFY     = 0x200
+-	_MACH_RCV_INTERRUPT  = 0x400
+-	_MACH_RCV_OVERWRITE  = 0x1000
+-
+-	_NDR_PROTOCOL_2_0      = 0x0
+-	_NDR_INT_BIG_ENDIAN    = 0x0
+-	_NDR_INT_LITTLE_ENDIAN = 0x1
+-	_NDR_FLOAT_IEEE        = 0x0
+-	_NDR_CHAR_ASCII        = 0x0
+-
+ 	_SA_SIGINFO   = 0x40
+ 	_SA_RESTART   = 0x2
+ 	_SA_ONSTACK   = 0x1
+@@ -128,38 +95,6 @@ const (
+ 	_FD_CLOEXEC = 0x1
+ )
+ 
+-type machbody struct {
+-	msgh_descriptor_count uint32
+-}
+-
+-type machheader struct {
+-	msgh_bits        uint32
+-	msgh_size        uint32
+-	msgh_remote_port uint32
+-	msgh_local_port  uint32
+-	msgh_reserved    uint32
+-	msgh_id          int32
+-}
+-
+-type machndr struct {
+-	mig_vers     uint8
+-	if_vers      uint8
+-	reserved1    uint8
+-	mig_encoding uint8
+-	int_rep      uint8
+-	char_rep     uint8
+-	float_rep    uint8
+-	reserved2    uint8
+-}
+-
+-type machport struct {
+-	name        uint32
+-	pad1        uint32
+-	pad2        uint16
+-	disposition uint8
+-	_type       uint8
+-}
+-
+ type stackt struct {
+ 	ss_sp     *byte
+ 	ss_size   uintptr
+@@ -213,6 +148,12 @@ type timespec struct {
+ 	tv_nsec int64
+ }
+ 
++//go:nosplit
++func (t *timespec) set_nsec(ns int64) {
++	t.tv_sec = ns / 1000000000
++	t.tv_nsec = ns % 1000000000
++}
++
+ type exceptionstate64 struct {
+ 	far uint64 // virtual fault addr
+ 	esr uint32 // exception syndrome
+@@ -264,6 +205,22 @@ type pthreadattr struct {
+ 	X__sig    int64
+ 	X__opaque [56]int8
+ }
++type pthreadmutex struct {
++	X__sig    int64
++	X__opaque [56]int8
++}
++type pthreadmutexattr struct {
++	X__sig    int64
++	X__opaque [8]int8
++}
++type pthreadcond struct {
++	X__sig    int64
++	X__opaque [40]int8
++}
++type pthreadcondattr struct {
++	X__sig    int64
++	X__opaque [8]int8
++}
+ 
+ type machTimebaseInfo struct {
+ 	numer uint32
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 9b693e3121..5b3f553ff9 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // System calls and other sys.stuff for ARM, Darwin
+-// See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
+-// or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
++// System calls are implemented in libSystem, this file contains
++// trampolines that convert from Go to C calling convention.
+ 
+ #include "go_asm.h"
+ #include "go_tls.h"
+@@ -265,75 +265,6 @@ TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
+ 	ADD $(2*4), R13
+ 	RET
+ 
+-// uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
+-TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
+-	MOVW    h+0(FP), R0
+-	MOVW    op+4(FP), R1
+-	MOVW    send_size+8(FP), R2
+-	MOVW    rcv_size+12(FP), R3
+-	MOVW    rcv_name+16(FP), R4
+-	MOVW    timeout+20(FP), R5
+-	MOVW    notify+24(FP), R6
+-	MVN     $30, R12
+-	SWI	$0x80
+-	MOVW	R0, ret+28(FP)
+-	RET
+-
+-TEXT runtime·mach_task_self(SB),NOSPLIT,$0
+-	MVN     $27, R12 // task_self_trap
+-	SWI	$0x80
+-	MOVW	R0, ret+0(FP)
+-	RET
+-
+-TEXT runtime·mach_thread_self(SB),NOSPLIT,$0
+-	MVN 	$26, R12 // thread_self_trap
+-	SWI	$0x80
+-	MOVW	R0, ret+0(FP)
+-	RET
+-
+-TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
+-	MVN 	$25, R12	// mach_reply_port
+-	SWI	$0x80
+-	MOVW	R0, ret+0(FP)
+-	RET
+-
+-// Mach provides trap versions of the semaphore ops,
+-// instead of requiring the use of RPC.
+-
+-// uint32 mach_semaphore_wait(uint32)
+-TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
+-	MOVW	sema+0(FP), R0
+-	MVN 	$35, R12	// semaphore_wait_trap
+-	SWI	$0x80
+-	MOVW	R0, ret+4(FP)
+-	RET
+-
+-// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+-TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
+-	MOVW	sema+0(FP), R0
+-	MOVW	sec+4(FP), R1
+-	MOVW	nsec+8(FP), R2
+-	MVN 	$37, R12	// semaphore_timedwait_trap
+-	SWI	$0x80
+-	MOVW	R0, ret+12(FP)
+-	RET
+-
+-// uint32 mach_semaphore_signal(uint32)
+-TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
+-	MOVW    sema+0(FP), R0
+-	MVN 	$32, R12	// semaphore_signal_trap
+-	SWI	$0x80
+-	MOVW	R0, ret+4(FP)
+-	RET
+-
+-// uint32 mach_semaphore_signal_all(uint32)
+-TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
+-	MOVW	sema+0(FP), R0
+-	MVN 	$33, R12	// semaphore_signal_all_trap
+-	SWI	$0x80
+-	MOVW	R0, ret+4(FP)
+-	RET
+-
+ TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_kqueue(SB)
+ 	RET
+@@ -408,3 +339,43 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+ 	MOVW	0(R0), R0	// arg 1 sig
+ 	BL	libc_raise(SB)
+ 	RET
++
++TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
++	MOVW	4(R0), R1	// arg 2 attr
++	MOVW	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_init(SB)
++	RET
++
++TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
++	MOVW	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_lock(SB)
++	RET
++
++TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
++	MOVW	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_unlock(SB)
++	RET
++
++TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
++	MOVW	4(R0), R1	// arg 2 attr
++	MOVW	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_init(SB)
++	RET
++
++TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
++	MOVW	4(R0), R1	// arg 2 mutex
++	MOVW	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_wait(SB)
++	RET
++
++TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
++	MOVW	4(R0), R1	// arg 2 mutex
++	MOVW	8(R0), R2	// arg 3 timeout
++	MOVW	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_timedwait(SB)
++	RET
++
++TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
++	MOVW	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_signal(SB)
++	RET
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 73ffd12bff..eb01774d8d 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // System calls and other sys.stuff for ARM64, Darwin
+-// See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
+-// or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
++// System calls are implemented in libSystem, this file contains
++// trampolines that convert from Go to C calling convention.
+ 
+ #include "go_asm.h"
+ #include "go_tls.h"
+@@ -258,75 +258,6 @@ TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_sysctl(SB)
+ 	RET
+ 
+-// uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
+-TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
+-	MOVD	h+0(FP), R0
+-	MOVW	op+8(FP), R1
+-	MOVW	send_size+12(FP), R2
+-	MOVW	rcv_size+16(FP), R3
+-	MOVW	rcv_name+20(FP), R4
+-	MOVW	timeout+24(FP), R5
+-	MOVW	notify+28(FP), R6
+-	MOVN	$30, R16
+-	SVC	$0x80
+-	MOVW	R0, ret+32(FP)
+-	RET
+-
+-TEXT runtime·mach_task_self(SB),NOSPLIT,$0
+-	MOVN	$27, R16 // task_self_trap
+-	SVC	$0x80
+-	MOVW	R0, ret+0(FP)
+-	RET
+-
+-TEXT runtime·mach_thread_self(SB),NOSPLIT,$0
+-	MOVN	$26, R16 // thread_self_trap
+-	SVC	$0x80
+-	MOVW	R0, ret+0(FP)
+-	RET
+-
+-TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
+-	MOVN	$25, R16	// mach_reply_port
+-	SVC	$0x80
+-	MOVW	R0, ret+0(FP)
+-	RET
+-
+-// Mach provides trap versions of the semaphore ops,
+-// instead of requiring the use of RPC.
+-
+-// uint32 mach_semaphore_wait(uint32)
+-TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
+-	MOVW	sema+0(FP), R0
+-	MOVN	$35, R16	// semaphore_wait_trap
+-	SVC	$0x80
+-	MOVW	R0, ret+8(FP)
+-	RET
+-
+-// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+-TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
+-	MOVW	sema+0(FP), R0
+-	MOVW	sec+4(FP), R1
+-	MOVW	nsec+8(FP), R2
+-	MOVN	$37, R16	// semaphore_timedwait_trap
+-	SVC	$0x80
+-	MOVW	R0, ret+16(FP)
+-	RET
+-
+-// uint32 mach_semaphore_signal(uint32)
+-TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
+-	MOVW	sema+0(FP), R0
+-	MOVN	$32, R16	// semaphore_signal_trap
+-	SVC	$0x80
+-	MOVW	R0, ret+8(FP)
+-	RET
+-
+-// uint32 mach_semaphore_signal_all(uint32)
+-TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
+-	MOVW	sema+0(FP), R0
+-	MOVN	$33, R16	// semaphore_signal_all_trap
+-	SVC	$0x80
+-	MOVW	R0, ret+8(FP)
+-	RET
+-
+ TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_kqueue(SB)
+ 	RET
+@@ -397,3 +328,44 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+ 	MOVW	0(R0), R0	// arg 1 sig
+ 	BL	libc_raise(SB)
+ 	RET
++
++TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 attr
++	MOVD	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_init(SB)
++	RET
++
++TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
++	MOVD	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_lock(SB)
++	RET
++
++TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
++	MOVD	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_unlock(SB)
++	RET
++
++TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 attr
++	MOVD	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_init(SB)
++	RET
++
++TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 mutex
++	MOVD	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_wait(SB)
++	RET
++
++TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 mutex
++	MOVD	16(R0), R2	// arg 3 timeout
++	MOVD	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_timedwait(SB)
++	RET
++
++TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
++	MOVD	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_signal(SB)
++	RET
++

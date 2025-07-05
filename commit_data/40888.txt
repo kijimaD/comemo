@@ -19,9 +19,95 @@ Date:   Tue Aug 6 12:44:30 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.sum                                  |  2 ++
  src/cmd/go/internal/load/pkg.go                 |  2 +-
  src/cmd/go/internal/modload/import.go           |  7 +++++++
  src/cmd/go/testdata/script/cmd_import_error.txt | 16 ++++++++++++++++
  4 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 6ca1dee5ed..da3123b9f0 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -7,11 +7,13 @@ golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045/go.mod h1:cYlCBUl1MsqxdiKgm
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c h1:Vj5n4GlwjmQteupaxJ9+0FNOmBrHfq7vN4btdGoDZgI=
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/net v0.0.0-20190311183353-d8887717615a h1:oWX7TPOiFAMXLq8o0ikBYfCJVlRHBcsciT5bXOrH628=
+ golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dzugGxJ/SQHoNufZJq1w=
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20190611154301-25a4f137592f h1:6awn5JC4pwVI5HiBqs7MDtRxnwV9PpO5iSA9v6P09pA=
+ golang.org/x/tools v0.0.0-20190611154301-25a4f137592f/go.mod h1:/rFqwRUd4F7ZHNgwSSTFct+R/Kf4OFW1sUzUTQQTgfc=
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index d52df046ff..27efc7c04a 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -653,7 +653,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
+ 			}
+ 		} else if r.err != nil {
+ 			data.p = new(build.Package)
+-			data.err = fmt.Errorf("unknown import path %q: %v", r.path, r.err)
++			data.err = r.err
+ 		} else if cfg.ModulesEnabled && path != "unsafe" {
+ 			data.p = new(build.Package)
+ 			data.err = fmt.Errorf("unknown import path %q: internal error: module loader did not resolve import", r.path)
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index dacc876701..70add3507a 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -22,6 +22,7 @@ import (
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/semver"
++	"cmd/go/internal/str"
+ )
+ 
+ type ImportMissingError struct {
+@@ -35,6 +36,9 @@ type ImportMissingError struct {
+ 
+ func (e *ImportMissingError) Error() string {
+ 	if e.Module.Path == "" {
++		if str.HasPathPrefix(e.ImportPath, "cmd") {
++			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.ImportPath, filepath.Join(cfg.GOROOT, "src", e.ImportPath))
++		}
+ 		return "cannot find module providing package " + e.ImportPath
+ 	}
+ 	return "missing module for import: " + e.Module.Path + "@" + e.Module.Version + " provides " + e.ImportPath
+@@ -74,6 +78,9 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		dir := filepath.Join(cfg.GOROOT, "src", path)
+ 		return module.Version{}, dir, nil
+ 	}
++	if str.HasPathPrefix(path, "cmd") {
++		return module.Version{}, "", &ImportMissingError{ImportPath: path}
++	}
+ 
+ 	// -mod=vendor is special.
+ 	// Everything must be in the main module or the main module's vendor directory.
+diff --git a/src/cmd/go/testdata/script/cmd_import_error.txt b/src/cmd/go/testdata/script/cmd_import_error.txt
+new file mode 100644
+index 0000000000..ba94f9bd3e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cmd_import_error.txt
+@@ -0,0 +1,16 @@
++env GO111MODULE=on
++
++# Regression test for golang.org/issue/31031:
++# Importing or loading a non-existent package in cmd/ should print
++# a clear error in module mode.
++
++! go list cmd/unknown
++stderr '^can''t load package: package cmd/unknown: package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
++
++go list -f '{{range .DepsErrors}}{{.Err}}{{end}}' x.go
++stdout '^package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
++
++-- x.go --
++package x
++
++import _ "cmd/unknown"

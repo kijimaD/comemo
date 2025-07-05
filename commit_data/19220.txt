@@ -8,6 +8,47 @@ Date:   Mon Apr 21 17:21:09 2014 +0200
     R=rsc, iant, khr, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/76520045
-
+---
  src/pkg/runtime/race/testdata/map_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/pkg/runtime/race/testdata/map_test.go b/src/pkg/runtime/race/testdata/map_test.go
+index 9ba74b1419..98e2a5f105 100644
+--- a/src/pkg/runtime/race/testdata/map_test.go
++++ b/src/pkg/runtime/race/testdata/map_test.go
+@@ -198,6 +198,7 @@ func TestRaceMapDeletePartKey(t *testing.T) {
+ 	delete(m, *k)
+ 	<-ch
+ }
++
+ func TestRaceMapInsertPartKey(t *testing.T) {
+ 	k := &Big{}
+ 	m := make(map[Big]bool)
+@@ -209,6 +210,7 @@ func TestRaceMapInsertPartKey(t *testing.T) {
+ 	m[*k] = true
+ 	<-ch
+ }
++
+ func TestRaceMapInsertPartVal(t *testing.T) {
+ 	v := &Big{}
+ 	m := make(map[int]Big)
+@@ -220,3 +222,19 @@ func TestRaceMapInsertPartVal(t *testing.T) {
+ 	m[1] = *v
+ 	<-ch
+ }
++
++// Test for issue 7561.
++func TestRaceMapAssignMultipleReturn(t *testing.T) {
++	connect := func() (int, error) { return 42, nil }
++	conns := make(map[int][]int)
++	conns[1] = []int{0}
++	ch := make(chan bool, 1)
++	var err error
++	go func() {
++		conns[1][0], err = connect()
++		ch <- true
++	}()
++	x := conns[1][0]
++	_ = x
++	<-ch
++}

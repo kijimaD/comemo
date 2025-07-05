@@ -13,7 +13,80 @@ Date:   Wed Nov 17 19:45:49 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/index.go                 | 10 +++++++---
  src/go/types/testdata/check/expr3.src | 20 ++++++++++----------
  2 files changed, 17 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 6ea25bc764..db4732c8e0 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -310,9 +310,13 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ L:
+ 	for i, x := range ind[:len(ind)-1] {
+ 		if x > 0 {
+-			for _, y := range ind[i+1:] {
+-				if y >= 0 && x > y {
+-					check.errorf(inNode(e, e.Rbrack), _SwappedSliceIndices, "swapped slice indices: %d > %d", x, y)
++			for j, y := range ind[i+1:] {
++				if y >= 0 && y < x {
++					// The value y corresponds to the expression e.Index[i+1+j].
++					// Because y >= 0, it must have been set from the expression
++					// when checking indices and thus e.Index[i+1+j] is not nil.
++					at := []ast.Expr{e.Low, e.High, e.Max}[i+1+j]
++					check.errorf(at, _SwappedSliceIndices, "invalid slice indices: %d < %d", y, x)
+ 					break L // only report one error, ok to continue
+ 				}
+ 			}
+diff --git a/src/go/types/testdata/check/expr3.src b/src/go/types/testdata/check/expr3.src
+index a63542b843..5117a0373b 100644
+--- a/src/go/types/testdata/check/expr3.src
++++ b/src/go/types/testdata/check/expr3.src
+@@ -44,9 +44,9 @@ func indexes() {
+ 	_ = a[:10:10]
+ 	_ = a[:11 /* ERROR "index .* out of bounds" */ :10]
+ 	_ = a[:10:11 /* ERROR "index .* out of bounds" */ ]
+-	_ = a[10:0:10] /* ERROR swapped slice indices" */
+-	_ = a[0:10:0] /* ERROR "swapped slice indices" */
+-	_ = a[10:0:0] /* ERROR "swapped slice indices" */
++	_ = a[10:0 /* ERROR "invalid slice indices" */ :10]
++	_ = a[0:10:0 /* ERROR "invalid slice indices" */ ]
++	_ = a[10:0 /* ERROR "invalid slice indices" */:0]
+ 	_ = &a /* ERROR "cannot take address" */ [:10]
+ 
+ 	pa := &a
+@@ -62,9 +62,9 @@ func indexes() {
+ 	_ = pa[:10:10]
+ 	_ = pa[:11 /* ERROR "index .* out of bounds" */ :10]
+ 	_ = pa[:10:11 /* ERROR "index .* out of bounds" */ ]
+-	_ = pa[10:0:10] /* ERROR "swapped slice indices" */
+-	_ = pa[0:10:0] /* ERROR "swapped slice indices" */
+-	_ = pa[10:0:0] /* ERROR "swapped slice indices" */
++	_ = pa[10:0 /* ERROR "invalid slice indices" */ :10]
++	_ = pa[0:10:0 /* ERROR "invalid slice indices" */ ]
++	_ = pa[10:0 /* ERROR "invalid slice indices" */ :0]
+ 	_ = &pa /* ERROR "cannot take address" */ [:10]
+ 
+ 	var b [0]int
+@@ -82,16 +82,16 @@ func indexes() {
+ 	_ = s[: - /* ERROR "negative" */ 1]
+ 	_ = s[0]
+ 	_ = s[1:2]
+-	_ = s[2:1] /* ERROR "swapped slice indices" */
++	_ = s[2:1 /* ERROR "invalid slice indices" */ ]
+ 	_ = s[2:]
+ 	_ = s[: 1 /* ERROR "overflows" */ <<100]
+ 	_ = s[1 /* ERROR "overflows" */ <<100 :]
+ 	_ = s[1 /* ERROR "overflows" */ <<100 : 1 /* ERROR "overflows" */ <<100]
+ 	_ = s[: /* ERROR "2nd index required" */ :  /* ERROR "3rd index required" */ ]
+ 	_ = s[:10:10]
+-	_ = s[10:0:10] /* ERROR "swapped slice indices" */
+-	_ = s[0:10:0] /* ERROR "swapped slice indices" */
+-	_ = s[10:0:0] /* ERROR "swapped slice indices" */
++	_ = s[10:0 /* ERROR "invalid slice indices" */ :10]
++	_ = s[0:10:0 /* ERROR "invalid slice indices" */ ]
++	_ = s[10:0 /* ERROR "invalid slice indices" */ :0]
+ 	_ = &s /* ERROR "cannot take address" */ [:10]
+ 
+ 	var m map[string]int

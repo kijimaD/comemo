@@ -32,7 +32,7 @@ Date:   Mon May 23 15:04:25 2022 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/typecheck/builtin.go      |  8 +--
  .../compile/internal/typecheck/builtin/runtime.go  | 16 ++---
  src/cmd/compile/internal/walk/compare.go           |  2 +-
@@ -41,3 +41,353 @@ Date:   Mon May 23 15:04:25 2022 +0000
  src/runtime/libfuzzer_amd64.s                      | 75 ++++++++++++++++++++--
  src/runtime/libfuzzer_arm64.s                      | 60 +++++++++++++----
  7 files changed, 166 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index e452f23ff0..b2c8b5736a 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -376,10 +376,10 @@ func runtimeTypes() []*types.Type {
+ 	typs[142] = newSig(params(typs[7], typs[1], typs[5]), nil)
+ 	typs[143] = types.NewSlice(typs[7])
+ 	typs[144] = newSig(params(typs[7], typs[143]), nil)
+-	typs[145] = newSig(params(typs[66], typs[66]), nil)
+-	typs[146] = newSig(params(typs[60], typs[60]), nil)
+-	typs[147] = newSig(params(typs[62], typs[62]), nil)
+-	typs[148] = newSig(params(typs[24], typs[24]), nil)
++	typs[145] = newSig(params(typs[66], typs[66], typs[15]), nil)
++	typs[146] = newSig(params(typs[60], typs[60], typs[15]), nil)
++	typs[147] = newSig(params(typs[62], typs[62], typs[15]), nil)
++	typs[148] = newSig(params(typs[24], typs[24], typs[15]), nil)
+ 	typs[149] = newSig(params(typs[28], typs[28], typs[15]), nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index 97b8318f7f..2a07ea1731 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -259,14 +259,14 @@ func asanwrite(addr, size uintptr)
+ func checkptrAlignment(unsafe.Pointer, *byte, uintptr)
+ func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
+ 
+-func libfuzzerTraceCmp1(uint8, uint8)
+-func libfuzzerTraceCmp2(uint16, uint16)
+-func libfuzzerTraceCmp4(uint32, uint32)
+-func libfuzzerTraceCmp8(uint64, uint64)
+-func libfuzzerTraceConstCmp1(uint8, uint8)
+-func libfuzzerTraceConstCmp2(uint16, uint16)
+-func libfuzzerTraceConstCmp4(uint32, uint32)
+-func libfuzzerTraceConstCmp8(uint64, uint64)
++func libfuzzerTraceCmp1(uint8, uint8, int)
++func libfuzzerTraceCmp2(uint16, uint16, int)
++func libfuzzerTraceCmp4(uint32, uint32, int)
++func libfuzzerTraceCmp8(uint64, uint64, int)
++func libfuzzerTraceConstCmp1(uint8, uint8, int)
++func libfuzzerTraceConstCmp2(uint16, uint16, int)
++func libfuzzerTraceConstCmp4(uint32, uint32, int)
++func libfuzzerTraceConstCmp8(uint64, uint64, int)
+ func libfuzzerHookStrCmp(string, string, int)
+ func libfuzzerHookEqualFold(string, string, int)
+ 
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index b02cf22acf..6a8ad56d75 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -153,7 +153,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 			default:
+ 				base.Fatalf("unexpected integer size %d for %v", t.Size(), t)
+ 			}
+-			init.Append(mkcall(fn, nil, init, tracecmpArg(l, paramType, init), tracecmpArg(r, paramType, init)))
++			init.Append(mkcall(fn, nil, init, tracecmpArg(l, paramType, init), tracecmpArg(r, paramType, init), fakePC(n)))
+ 		}
+ 		return n
+ 	case types.TARRAY:
+diff --git a/src/internal/fuzz/trace.go b/src/internal/fuzz/trace.go
+index 3aa684b49c..5e3ccccfad 100644
+--- a/src/internal/fuzz/trace.go
++++ b/src/internal/fuzz/trace.go
+@@ -21,15 +21,15 @@ import _ "unsafe" // for go:linkname
+ //go:linkname libfuzzerHookStrCmp runtime.libfuzzerHookStrCmp
+ //go:linkname libfuzzerHookEqualFold runtime.libfuzzerHookEqualFold
+ 
+-func libfuzzerTraceCmp1(arg0, arg1 uint8)  {}
+-func libfuzzerTraceCmp2(arg0, arg1 uint16) {}
+-func libfuzzerTraceCmp4(arg0, arg1 uint32) {}
+-func libfuzzerTraceCmp8(arg0, arg1 uint64) {}
+-
+-func libfuzzerTraceConstCmp1(arg0, arg1 uint8)  {}
+-func libfuzzerTraceConstCmp2(arg0, arg1 uint16) {}
+-func libfuzzerTraceConstCmp4(arg0, arg1 uint32) {}
+-func libfuzzerTraceConstCmp8(arg0, arg1 uint64) {}
++func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC int)  {}
++func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC int) {}
++func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC int) {}
++func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC int) {}
++
++func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC int)  {}
++func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC int) {}
++func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC int) {}
++func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC int) {}
+ 
+ func libfuzzerHookStrCmp(arg0, arg1 string, fakePC int)    {}
+ func libfuzzerHookEqualFold(arg0, arg1 string, fakePC int) {}
+diff --git a/src/runtime/libfuzzer.go b/src/runtime/libfuzzer.go
+index c136eaf5fe..09e84d7394 100644
+--- a/src/runtime/libfuzzer.go
++++ b/src/runtime/libfuzzer.go
+@@ -9,39 +9,50 @@ package runtime
+ import "unsafe"
+ 
+ func libfuzzerCallWithTwoByteBuffers(fn, start, end *byte)
++func libfuzzerCallTraceIntCmp(fn *byte, arg0, arg1, fakePC uintptr)
+ func libfuzzerCall4(fn *byte, fakePC uintptr, s1, s2 unsafe.Pointer, result uintptr)
+-func libfuzzerCall(fn *byte, arg0, arg1 uintptr)
++// Keep in sync with the definition of ret_sled in src/runtime/libfuzzer_amd64.s
++const retSledSize = 512
+ 
+-func libfuzzerTraceCmp1(arg0, arg1 uint8) {
+-	libfuzzerCall(&__sanitizer_cov_trace_cmp1, uintptr(arg0), uintptr(arg1))
++
++func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC int) {
++	fakePC = fakePC % retSledSize
++	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+-func libfuzzerTraceCmp2(arg0, arg1 uint16) {
+-	libfuzzerCall(&__sanitizer_cov_trace_cmp2, uintptr(arg0), uintptr(arg1))
++func libfuzzerTraceCmp2(arg0, arg1 uint16, fakePC int) {
++	fakePC = fakePC % retSledSize
++	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+-func libfuzzerTraceCmp4(arg0, arg1 uint32) {
+-	libfuzzerCall(&__sanitizer_cov_trace_cmp4, uintptr(arg0), uintptr(arg1))
++func libfuzzerTraceCmp4(arg0, arg1 uint32, fakePC int) {
++	fakePC = fakePC % retSledSize
++	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+-func libfuzzerTraceCmp8(arg0, arg1 uint64) {
+-	libfuzzerCall(&__sanitizer_cov_trace_cmp8, uintptr(arg0), uintptr(arg1))
++func libfuzzerTraceCmp8(arg0, arg1 uint64, fakePC int) {
++	fakePC = fakePC % retSledSize
++	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+-func libfuzzerTraceConstCmp1(arg0, arg1 uint8) {
+-	libfuzzerCall(&__sanitizer_cov_trace_const_cmp1, uintptr(arg0), uintptr(arg1))
++func libfuzzerTraceConstCmp1(arg0, arg1 uint8, fakePC int) {
++	fakePC = fakePC % retSledSize
++	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+-func libfuzzerTraceConstCmp2(arg0, arg1 uint16) {
+-	libfuzzerCall(&__sanitizer_cov_trace_const_cmp2, uintptr(arg0), uintptr(arg1))
++func libfuzzerTraceConstCmp2(arg0, arg1 uint16, fakePC int) {
++	fakePC = fakePC % retSledSize
++	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp2, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+-func libfuzzerTraceConstCmp4(arg0, arg1 uint32) {
+-	libfuzzerCall(&__sanitizer_cov_trace_const_cmp4, uintptr(arg0), uintptr(arg1))
++func libfuzzerTraceConstCmp4(arg0, arg1 uint32, fakePC int) {
++	fakePC = fakePC % retSledSize
++	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp4, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+-func libfuzzerTraceConstCmp8(arg0, arg1 uint64) {
+-	libfuzzerCall(&__sanitizer_cov_trace_const_cmp8, uintptr(arg0), uintptr(arg1))
++func libfuzzerTraceConstCmp8(arg0, arg1 uint64, fakePC int) {
++	fakePC = fakePC % retSledSize
++	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_const_cmp8, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+ }
+ 
+ var pcTables []byte
+diff --git a/src/runtime/libfuzzer_amd64.s b/src/runtime/libfuzzer_amd64.s
+index 032821fbbc..65ac7a325d 100644
+--- a/src/runtime/libfuzzer_amd64.s
++++ b/src/runtime/libfuzzer_amd64.s
+@@ -13,8 +13,8 @@
+ #ifdef GOOS_windows
+ #define RARG0 CX
+ #define RARG1 DX
+-#define RARG0 R8
+-#define RARG1 R9
++#define RARG2 R8
++#define RARG3 R9
+ #else
+ #define RARG0 DI
+ #define RARG1 SI
+@@ -47,12 +47,39 @@ call:
+ 	MOVQ	R12, SP
+ 	RET
+ 
+-// void runtime·libfuzzerCallTraceInit(fn, start, end *byte)
+-// Calls C function fn from libFuzzer and passes 2 arguments to it.
+-TEXT	runtime·libfuzzerCall(SB), NOSPLIT, $0-24
++// void runtime·libfuzzerCallTraceIntCmp(fn, arg0, arg1, fakePC uintptr)
++// Calls C function fn from libFuzzer and passes 2 arguments to it after
++// manipulating the return address so that libfuzzer's integer compare hooks
++// work
++// libFuzzer's compare hooks obtain the caller's address from the compiler
++// builtin __builtin_return_adress. Since we invoke the hooks always
++// from the same native function, this builtin would always return the same
++// value. Internally, the libFuzzer hooks call through to the always inlined
++// HandleCmp and thus can't be mimicked without patching libFuzzer.
++//
++// We solve this problem via an inline assembly trampoline construction that
++// translates a runtime argument `fake_pc` in the range [0, 512) into a call to
++// a hook with a fake return address whose lower 9 bits are `fake_pc` up to a
++// constant shift. This is achieved by pushing a return address pointing into
++// 512 ret instructions at offset `fake_pc` onto the stack and then jumping
++// directly to the address of the hook.
++//
++// Note: We only set the lowest 9 bits of the return address since only these
++// bits are used by the libFuzzer value profiling mode for integer compares, see
++// https://github.com/llvm/llvm-project/blob/704d92607d26e696daba596b72cb70effe79a872/compiler-rt/lib/fuzzer/FuzzerTracePC.cpp#L390
++// as well as
++// https://github.com/llvm/llvm-project/blob/704d92607d26e696daba596b72cb70effe79a872/compiler-rt/lib/fuzzer/FuzzerValueBitMap.h#L34
++// ValueProfileMap.AddValue() truncates its argument to 16 bits and shifts the
++// PC to the left by log_2(128)=7, which means that only the lowest 16 - 7 bits
++// of the return address matter. String compare hooks use the lowest 12 bits,
++// but take the return address as an argument and thus don't require the
++// indirection through a trampoline.
++// TODO: Remove the inline assembly trampoline once a PC argument has been added to libfuzzer's int compare hooks.
++TEXT	runtime·libfuzzerCallTraceIntCmp(SB), NOSPLIT, $0-32
+ 	MOVQ	fn+0(FP), AX
+ 	MOVQ	arg0+8(FP), RARG0
+ 	MOVQ	arg1+16(FP), RARG1
++	MOVQ	fakePC+24(FP), R8
+ 
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+@@ -66,10 +93,46 @@ TEXT	runtime·libfuzzerCall(SB), NOSPLIT, $0-24
+ 	MOVQ	(g_sched+gobuf_sp)(R10), SP
+ call:
+ 	ANDQ	$~15, SP	// alignment for gcc ABI
+-	CALL	AX
++	// Load the address of the end of the function and push it into the stack.
++	// This address will be jumped to after executing the return instruction
++	// from the return sled. There we reset the stack pointer and return.
++	MOVQ    $end_of_function<>(SB), BX
++	PUSHQ   BX
++	// Load the starting address of the return sled into BX.
++	MOVQ    $ret_sled<>(SB), BX
++	// Load the address of the i'th return instruction fron the return sled.
++	// The index is given in the fakePC argument.
++	ADDQ    R8, BX
++	PUSHQ   BX
++	// Call the original function with the fakePC return address on the stack.
++	// Function arguments arg0 and arg1 are passed in the registers specified
++	// by the x64 calling convention.
++	JMP     AX
++// This code will not be executed and is only there to statisfy assembler
++// check of a balanced stack.
++not_reachable:
++	POPQ    BX
++	POPQ    BX
++	RET
++
++TEXT end_of_function<>(SB), NOSPLIT, $0-0
+ 	MOVQ	R12, SP
+ 	RET
+ 
++#define REPEAT_8(a) a \
++  a \
++  a \
++  a \
++  a \
++  a \
++  a \
++  a
++
++#define REPEAT_512(a) REPEAT_8(REPEAT_8(REPEAT_8(a)))
++
++TEXT ret_sled<>(SB), NOSPLIT, $0-0
++	REPEAT_512(RET)
++
+ // void runtime·libfuzzerCallWithTwoByteBuffers(fn, start, end *byte)
+ // Calls C function fn from libFuzzer and passes 2 arguments of type *byte to it.
+ TEXT	runtime·libfuzzerCallWithTwoByteBuffers(SB), NOSPLIT, $0-24
+diff --git a/src/runtime/libfuzzer_arm64.s b/src/runtime/libfuzzer_arm64.s
+index f9b67913e2..0729077759 100644
+--- a/src/runtime/libfuzzer_arm64.s
++++ b/src/runtime/libfuzzer_arm64.s
+@@ -14,14 +14,23 @@
+ #define RARG2 R2
+ #define RARG3 R3
+ 
+-// void runtime·libfuzzerCall4(fn, hookId int, s1, s2 unsafe.Pointer, result uintptr)
+-// Calls C function fn from libFuzzer and passes 4 arguments to it.
+-TEXT	runtime·libfuzzerCall4(SB), NOSPLIT, $0-40
++#define REPEAT_2(a) a a
++#define REPEAT_8(a) REPEAT_2(REPEAT_2(REPEAT_2(a)))
++#define REPEAT_128(a) REPEAT_2(REPEAT_8(REPEAT_8(a)))
++
++// void runtime·libfuzzerCallTraceIntCmp(fn, arg0, arg1, fakePC uintptr)
++// Calls C function fn from libFuzzer and passes 2 arguments to it after
++// manipulating the return address so that libfuzzer's integer compare hooks
++// work.
++// The problem statment and solution are documented in detail in libfuzzer_amd64.s.
++// See commentary there.
++TEXT	runtime·libfuzzerCallTraceIntCmp(SB), NOSPLIT, $8-32
+ 	MOVD	fn+0(FP), R9
+-	MOVD	hookId+8(FP), RARG0
+-	MOVD	s1+16(FP), RARG1
+-	MOVD	s2+24(FP), RARG2
+-	MOVD	result+32(FP), RARG3
++	MOVD	arg0+8(FP), RARG0
++	MOVD	arg1+16(FP), RARG1
++	MOVD	fakePC+24(FP), R8
++	// Save the original return address in a local variable
++	MOVD	R30, savedRetAddr-8(SP)
+ 
+ 	MOVD	g_m(g), R10
+ 
+@@ -33,16 +42,41 @@ TEXT	runtime·libfuzzerCall4(SB), NOSPLIT, $0-40
+ 	MOVD	(g_sched+gobuf_sp)(R11), R12
+ 	MOVD	R12, RSP
+ call:
+-	BL	R9
++	// Load address of the ret sled into the default register for the return
++	// address (offset of four instructions, which means 16 bytes).
++	ADR	$16, R30
++	// Clear the lowest 2 bits of fakePC. All ARM64 instructions are four
++	// bytes long, so we cannot get better return address granularity than
++	// multiples of 4.
++	AND	$-4, R8, R8
++	// Add the offset of the fake_pc-th ret.
++	ADD	R8, R30, R30
++	// Call the function by jumping to it and reusing all registers except
++	// for the modified return address register R30.
++	JMP	(R9)
++
++// The ret sled for ARM64 consists of 128 br instructions jumping to the
++// end of the function. Each instruction is 4 bytes long. The sled thus
++// has the same byte length of 4 * 128 = 512 as the x86_64 sled, but
++// coarser granularity.
++#define RET_SLED \
++	JMP end_of_function;
++
++	REPEAT_128(RET_SLED);
++
++end_of_function:
+ 	MOVD	R19, RSP
++	MOVD	savedRetAddr-8(SP), R30
+ 	RET
+ 
+-// func runtime·libfuzzerCall(fn, arg0, arg1 uintptr)
+-// Calls C function fn from libFuzzer and passes 2 arguments to it.
+-TEXT	runtime·libfuzzerCall(SB), NOSPLIT, $0-24
++// void runtime·libfuzzerCall4(fn, hookId int, s1, s2 unsafe.Pointer, result uintptr)
++// Calls C function fn from libFuzzer and passes 4 arguments to it.
++TEXT	runtime·libfuzzerCall4(SB), NOSPLIT, $0-40
+ 	MOVD	fn+0(FP), R9
+-	MOVD	arg0+8(FP), RARG0
+-	MOVD	arg1+16(FP), RARG1
++	MOVD	hookId+8(FP), RARG0
++	MOVD	s1+16(FP), RARG1
++	MOVD	s2+24(FP), RARG2
++	MOVD	result+32(FP), RARG3
+ 
+ 	MOVD	g_m(g), R10
+ 

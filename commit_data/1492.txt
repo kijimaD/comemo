@@ -8,7 +8,7 @@ Date:   Thu Jan 15 17:22:17 2009 -0800
     DELTA=568  (0 added, 9 deleted, 559 changed)
     OCL=22898
     CL=22901
-
+---
  src/lib/fmt/format.go           |  16 ++--
  src/lib/http/server.go          |   2 +-
  src/lib/json/generic.go         |   2 +-
@@ -32,3 +32,2173 @@ Date:   Thu Jan 15 17:22:17 2009 -0800
  test/mallocrep1.go              |   2 +-
  test/map.go                     |  14 ++--
  22 files changed, 552 insertions(+), 561 deletions(-)
+
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index 2be64f5f8d..9c8b127b73 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -428,38 +428,38 @@ func fmtString(f *Fmt, s string) *Fmt {
+ 
+ // float64
+ func (f *Fmt) Fmt_e64(a float64) *Fmt {
+-	return fmtString(f, strconv.ftoa64(a, 'e', Prec(f, 6)));
++	return fmtString(f, strconv.Ftoa64(a, 'e', Prec(f, 6)));
+ }
+ 
+ func (f *Fmt) Fmt_f64(a float64) *Fmt {
+-	return fmtString(f, strconv.ftoa64(a, 'f', Prec(f, 6)));
++	return fmtString(f, strconv.Ftoa64(a, 'f', Prec(f, 6)));
+ }
+ 
+ func (f *Fmt) Fmt_g64(a float64) *Fmt {
+-	return fmtString(f, strconv.ftoa64(a, 'g', Prec(f, -1)));
++	return fmtString(f, strconv.Ftoa64(a, 'g', Prec(f, -1)));
+ }
+ 
+ func (f *Fmt) Fmt_fb64(a float64) *Fmt {
+-	return fmtString(f, strconv.ftoa64(a, 'b', 0));
++	return fmtString(f, strconv.Ftoa64(a, 'b', 0));
+ }
+ 
+ // float32
+ // cannot defer to float64 versions
+ // because it will get rounding wrong in corner cases.
+ func (f *Fmt) Fmt_e32(a float32) *Fmt {
+-	return fmtString(f, strconv.ftoa32(a, 'e', Prec(f, 6)));
++	return fmtString(f, strconv.Ftoa32(a, 'e', Prec(f, 6)));
+ }
+ 
+ func (f *Fmt) Fmt_f32(a float32) *Fmt {
+-	return fmtString(f, strconv.ftoa32(a, 'f', Prec(f, 6)));
++	return fmtString(f, strconv.Ftoa32(a, 'f', Prec(f, 6)));
+ }
+ 
+ func (f *Fmt) Fmt_g32(a float32) *Fmt {
+-	return fmtString(f, strconv.ftoa32(a, 'g', Prec(f, -1)));
++	return fmtString(f, strconv.Ftoa32(a, 'g', Prec(f, -1)));
+ }
+ 
+ func (f *Fmt) Fmt_fb32(a float32) *Fmt {
+-	return fmtString(f, strconv.ftoa32(a, 'b', 0));
++	return fmtString(f, strconv.Ftoa32(a, 'b', 0));
+ }
+ 
+ // float
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index 7aef824566..b86536399e 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -39,7 +39,7 @@ func ServeConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
+ export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
+ 	// TODO: Make this unnecessary
+ 	s, e := os.Getenv("GOMAXPROCS");
+-	if n, ok := strconv.atoi(s); n < 3 {
++	if n, ok := strconv.Atoi(s); n < 3 {
+ 		print("Warning: $GOMAXPROCS needs to be at least 3.\n");
+ 	}
+ 
+diff --git a/src/lib/json/generic.go b/src/lib/json/generic.go
+index bedfe6f6bb..f562a0e7f2 100644
+--- a/src/lib/json/generic.go
++++ b/src/lib/json/generic.go
+@@ -140,7 +140,7 @@ export func Walk(j Json, path string) Json {
+ 		}
+ 		switch j.Kind() {
+ 		case ArrayKind:
+-			indx, err := strconv.atoi(elem);
++			indx, err := strconv.Atoi(elem);
+ 			if err != nil {
+ 				return null
+ 			}
+diff --git a/src/lib/json/parse.go b/src/lib/json/parse.go
+index cec2a2961b..16567ee4cb 100644
+--- a/src/lib/json/parse.go
++++ b/src/lib/json/parse.go
+@@ -296,16 +296,16 @@ Switch:
+ 		break;
+ 	case '1':
+ 		// If the number is exactly an integer, use that.
+-		if i, err := strconv.atoi64(lex.token); err == nil {
++		if i, err := strconv.Atoi64(lex.token); err == nil {
+ 			build.Int64(i);
+ 			ok = true;
+ 		}
+-		else if i, err := strconv.atoui64(lex.token); err == nil {
++		else if i, err := strconv.Atoui64(lex.token); err == nil {
+ 			build.Uint64(i);
+ 			ok = true;
+ 		}
+ 		// Fall back to floating point.
+-		else if f, err := strconv.atof64(lex.token); err == nil {
++		else if f, err := strconv.Atof64(lex.token); err == nil {
+ 			build.Float64(f);
+ 			ok = true;
+ 		}
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index 915a354f55..cf3ad2a874 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -124,7 +124,7 @@ func SockaddrToHostPort(sa *syscall.Sockaddr) (hostport string, err *os.Error) {
+ 			return "", e
+ 		}
+ 		host := IPToString(addr);
+-		return JoinHostPort(host, strconv.itoa(port)), nil;
++		return JoinHostPort(host, strconv.Itoa(port)), nil;
+ 	default:
+ 		return "", UnknownSocketFamily
+ 	}
+diff --git a/src/lib/reflect/tostring.go b/src/lib/reflect/tostring.go
+index 2c9853af6a..51d8863103 100644
+--- a/src/lib/reflect/tostring.go
++++ b/src/lib/reflect/tostring.go
+@@ -84,7 +84,7 @@ func TypeToString(typ Type, expand bool) string {
+ 		if a.Open() {
+ 			str = "[]"
+ 		} else {
+-			str = "[" + strconv.itoa64(int64(a.Len())) +  "]"
++			str = "[" + strconv.Itoa64(int64(a.Len())) +  "]"
+ 		}
+ 		return str + TypeToString(a.Elem(), false);
+ 	case MapKind:
+@@ -123,7 +123,7 @@ func TypeToString(typ Type, expand bool) string {
+ 
+ // TODO: want an unsigned one too
+ func integer(v int64) string {
+-	return strconv.itoa64(v);
++	return strconv.Itoa64(v);
+ }
+ 
+ func ValueToString(val Value) string {
+@@ -154,14 +154,14 @@ func ValueToString(val Value) string {
+ 		return integer(int64(val.(Uint64Value).Get()));
+ 	case FloatKind:
+ 		if strconv.FloatSize == 32 {
+-			return strconv.ftoa32(float32(val.(FloatValue).Get()), 'g', -1);
++			return strconv.Ftoa32(float32(val.(FloatValue).Get()), 'g', -1);
+ 		} else {
+-			return strconv.ftoa64(float64(val.(FloatValue).Get()), 'g', -1);
++			return strconv.Ftoa64(float64(val.(FloatValue).Get()), 'g', -1);
+ 		}
+ 	case Float32Kind:
+-		return strconv.ftoa32(val.(Float32Value).Get(), 'g', -1);
++		return strconv.Ftoa32(val.(Float32Value).Get(), 'g', -1);
+ 	case Float64Kind:
+-		return strconv.ftoa64(val.(Float64Value).Get(), 'g', -1);
++		return strconv.Ftoa64(val.(Float64Value).Get(), 'g', -1);
+ 	case Float80Kind:
+ 		return "float80";
+ 	case StringKind:
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index de2464a8a3..cb034f088e 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Decimal to binary floating point conversion.
++// decimal to binary floating point conversion.
+ // Algorithm:
+ //   1) Store input in multiprecision decimal.
+ //   2) Multiply/divide decimal by powers of two until in range [0.5, 1)
+@@ -15,10 +15,10 @@ import (
+ 	"strconv";
+ )
+ 
+-package var optimize = true	// can change for testing
++var optimize = true	// can change for testing
+ 
+ // TODO(rsc): Better truncation handling.
+-func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
++func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {
+ 	i := 0;
+ 
+ 	// optional sign
+@@ -34,7 +34,7 @@ func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
+ 	}
+ 
+ 	// digits
+-	b := new(Decimal);
++	b := new(decimal);
+ 	sawdot := false;
+ 	sawdigits := false;
+ 	for ; i < len(s); i++ {
+@@ -104,12 +104,12 @@ func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
+ 	return;
+ }
+ 
+-// Decimal power of ten to binary power of two.
++// decimal power of ten to binary power of two.
+ var powtab = []int{
+ 	1, 3, 6, 9, 13, 16, 19, 23, 26
+ }
+ 
+-func DecimalToFloatBits(neg bool, d *Decimal, trunc bool, flt *FloatInfo) (b uint64, overflow bool) {
++func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uint64, overflow bool) {
+ 	var exp int;
+ 	var mant uint64;
+ 
+@@ -208,7 +208,7 @@ out:
+ 
+ // Compute exact floating-point integer from d's digits.
+ // Caller is responsible for avoiding overflow.
+-func DecimalToFloat64Int(neg bool, d *Decimal) float64 {
++func decimalAtof64Int(neg bool, d *decimal) float64 {
+ 	f := float64(0);
+ 	for i := 0; i < d.nd; i++ {
+ 		f = f*10 + float64(d.d[i] - '0');
+@@ -219,7 +219,7 @@ func DecimalToFloat64Int(neg bool, d *Decimal) float64 {
+ 	return f;
+ }
+ 
+-func DecimalToFloat32Int(neg bool, d *Decimal) float32 {
++func decimalAtof32Int(neg bool, d *decimal) float32 {
+ 	f := float32(0);
+ 	for i := 0; i < d.nd; i++ {
+ 		f = f*10 + float32(d.d[i] - '0');
+@@ -241,13 +241,13 @@ var float32pow10 = []float32 {
+ }
+ 
+ // If possible to convert decimal d to 64-bit float f exactly,
+-// entirely in floating-point math, do so, avoiding the expense of DecimalToFloatBits.
++// entirely in floating-point math, do so, avoiding the expense of decimalToFloatBits.
+ // Three common cases:
+ //	value is exact integer
+ //	value is exact integer * exact power of ten
+ //	value is exact integer / exact power of ten
+ // These all produce potentially inexact but correctly rounded answers.
+-func DecimalToFloat64(neg bool, d *Decimal, trunc bool) (f float64, ok bool) {
++func decimalAtof64(neg bool, d *decimal, trunc bool) (f float64, ok bool) {
+ 	// Exact integers are <= 10^15.
+ 	// Exact powers of ten are <= 10^22.
+ 	if d.nd > 15 {
+@@ -255,11 +255,11 @@ func DecimalToFloat64(neg bool, d *Decimal, trunc bool) (f float64, ok bool) {
+ 	}
+ 	switch {
+ 	case d.dp == d.nd:	// int
+-		f := DecimalToFloat64Int(neg, d);
++		f := decimalAtof64Int(neg, d);
+ 		return f, true;
+ 
+ 	case d.dp > d.nd && d.dp <= 15+22:	// int * 10^k
+-		f := DecimalToFloat64Int(neg, d);
++		f := decimalAtof64Int(neg, d);
+ 		k := d.dp - d.nd;
+ 		// If exponent is big but number of digits is not,
+ 		// can move a few zeros into the integer part.
+@@ -270,7 +270,7 @@ func DecimalToFloat64(neg bool, d *Decimal, trunc bool) (f float64, ok bool) {
+ 		return f*float64pow10[k], true;
+ 
+ 	case d.dp < d.nd && d.nd - d.dp <= 22:	// int / 10^k
+-		f := DecimalToFloat64Int(neg, d);
++		f := decimalAtof64Int(neg, d);
+ 		return f/float64pow10[d.nd - d.dp], true;
+ 	}
+ 	return;
+@@ -278,7 +278,7 @@ func DecimalToFloat64(neg bool, d *Decimal, trunc bool) (f float64, ok bool) {
+ 
+ // If possible to convert decimal d to 32-bit float f exactly,
+ // entirely in floating-point math, do so, avoiding the machinery above.
+-func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
++func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
+ 	// Exact integers are <= 10^7.
+ 	// Exact powers of ten are <= 10^10.
+ 	if d.nd > 7 {
+@@ -286,11 +286,11 @@ func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
+ 	}
+ 	switch {
+ 	case d.dp == d.nd:	// int
+-		f := DecimalToFloat32Int(neg, d);
++		f := decimalAtof32Int(neg, d);
+ 		return f, true;
+ 
+ 	case d.dp > d.nd && d.dp <= 7+10:	// int * 10^k
+-		f := DecimalToFloat32Int(neg, d);
++		f := decimalAtof32Int(neg, d);
+ 		k := d.dp - d.nd;
+ 		// If exponent is big but number of digits is not,
+ 		// can move a few zeros into the integer part.
+@@ -301,7 +301,7 @@ func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
+ 		return f*float32pow10[k], true;
+ 
+ 	case d.dp < d.nd && d.nd - d.dp <= 10:	// int / 10^k
+-		f := DecimalToFloat32Int(neg, d);
++		f := decimalAtof32Int(neg, d);
+ 		return f/float32pow10[d.nd - d.dp], true;
+ 	}
+ 	return;
+@@ -318,17 +318,17 @@ func DecimalToFloat32(neg bool, d *Decimal, trunc bool) (f float32, ok bool) {
+ // If s is syntactically well-formed but is more than 1/2 ULP
+ // away from the largest floating point number of the given size,
+ // returns f = ±Inf, err = os.ERANGE.
+-export func atof64(s string) (f float64, err *os.Error) {
+-	neg, d, trunc, ok := StringToDecimal(s);
++export func Atof64(s string) (f float64, err *os.Error) {
++	neg, d, trunc, ok := stringToDecimal(s);
+ 	if !ok {
+ 		return 0, os.EINVAL;
+ 	}
+ 	if optimize {
+-		if f, ok := DecimalToFloat64(neg, d, trunc); ok {
++		if f, ok := decimalAtof64(neg, d, trunc); ok {
+ 			return f, nil;
+ 		}
+ 	}
+-	b, ovf := DecimalToFloatBits(neg, d, trunc, &float64info);
++	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
+ 	f = sys.float64frombits(b);
+ 	if ovf {
+ 		err = os.ERANGE;
+@@ -336,17 +336,17 @@ export func atof64(s string) (f float64, err *os.Error) {
+ 	return f, err
+ }
+ 
+-export func atof32(s string) (f float32, err *os.Error) {
+-	neg, d, trunc, ok := StringToDecimal(s);
++export func Atof32(s string) (f float32, err *os.Error) {
++	neg, d, trunc, ok := stringToDecimal(s);
+ 	if !ok {
+ 		return 0, os.EINVAL;
+ 	}
+ 	if optimize {
+-		if f, ok := DecimalToFloat32(neg, d, trunc); ok {
++		if f, ok := decimalAtof32(neg, d, trunc); ok {
+ 			return f, nil;
+ 		}
+ 	}
+-	b, ovf := DecimalToFloatBits(neg, d, trunc, &float32info);
++	b, ovf := decimalToFloatBits(neg, d, trunc, &float32info);
+ 	f = sys.float32frombits(uint32(b));
+ 	if ovf {
+ 		err = os.ERANGE;
+@@ -354,12 +354,12 @@ export func atof32(s string) (f float32, err *os.Error) {
+ 	return f, err
+ }
+ 
+-export func atof(s string) (f float, err *os.Error) {
++export func Atof(s string) (f float, err *os.Error) {
+ 	if FloatSize == 32 {
+-		f1, err1 := atof32(s);
++		f1, err1 := Atof32(s);
+ 		return float(f1), err1;
+ 	}
+-	f1, err1 := atof64(s);
++	f1, err1 := Atof64(s);
+ 	return float(f1), err1;
+ }
+ 
+diff --git a/src/lib/strconv/atof_test.go b/src/lib/strconv/atof_test.go
+index 5292b3d0df..493829b570 100644
+--- a/src/lib/strconv/atof_test.go
++++ b/src/lib/strconv/atof_test.go
+@@ -10,113 +10,113 @@ import (
+ 	"testing"
+ )
+ 
+-type AtofTest struct {
++type atofTest struct {
+ 	in string;
+ 	out string;
+ 	err *os.Error;
+ }
+ 
+-var atoftests = []AtofTest {
+-	AtofTest{ "", "0", os.EINVAL },
+-	AtofTest{ "1", "1", nil },
+-	AtofTest{ "+1", "1", nil },
+-	AtofTest{ "1x", "0", os.EINVAL },
+-	AtofTest{ "1.1.", "0", os.EINVAL },
+-	AtofTest{ "1e23", "1e+23", nil },
+-	AtofTest{ "100000000000000000000000", "1e+23", nil },
+-	AtofTest{ "1e-100", "1e-100", nil },
+-	AtofTest{ "123456700", "1.234567e+08", nil },
+-	AtofTest{ "99999999999999974834176", "9.999999999999997e+22", nil },
+-	AtofTest{ "100000000000000000000001", "1.0000000000000001e+23", nil },
+-	AtofTest{ "100000000000000008388608", "1.0000000000000001e+23", nil },
+-	AtofTest{ "100000000000000016777215", "1.0000000000000001e+23", nil },
+-	AtofTest{ "100000000000000016777216", "1.0000000000000003e+23", nil },
+-	AtofTest{ "-1", "-1", nil },
+-	AtofTest{ "-0", "-0", nil },
+-	AtofTest{ "1e-20", "1e-20", nil },
+-	AtofTest{ "625e-3", "0.625", nil },
++var atoftests = []atofTest {
++	atofTest{ "", "0", os.EINVAL },
++	atofTest{ "1", "1", nil },
++	atofTest{ "+1", "1", nil },
++	atofTest{ "1x", "0", os.EINVAL },
++	atofTest{ "1.1.", "0", os.EINVAL },
++	atofTest{ "1e23", "1e+23", nil },
++	atofTest{ "100000000000000000000000", "1e+23", nil },
++	atofTest{ "1e-100", "1e-100", nil },
++	atofTest{ "123456700", "1.234567e+08", nil },
++	atofTest{ "99999999999999974834176", "9.999999999999997e+22", nil },
++	atofTest{ "100000000000000000000001", "1.0000000000000001e+23", nil },
++	atofTest{ "100000000000000008388608", "1.0000000000000001e+23", nil },
++	atofTest{ "100000000000000016777215", "1.0000000000000001e+23", nil },
++	atofTest{ "100000000000000016777216", "1.0000000000000003e+23", nil },
++	atofTest{ "-1", "-1", nil },
++	atofTest{ "-0", "-0", nil },
++	atofTest{ "1e-20", "1e-20", nil },
++	atofTest{ "625e-3", "0.625", nil },
+ 
+ 	// largest float64
+-	AtofTest{ "1.7976931348623157e308", "1.7976931348623157e+308", nil },
+-	AtofTest{ "-1.7976931348623157e308", "-1.7976931348623157e+308", nil },
++	atofTest{ "1.7976931348623157e308", "1.7976931348623157e+308", nil },
++	atofTest{ "-1.7976931348623157e308", "-1.7976931348623157e+308", nil },
+ 	// next float64 - too large
+-	AtofTest{ "1.7976931348623159e308", "+Inf", os.ERANGE },
+-	AtofTest{ "-1.7976931348623159e308", "-Inf", os.ERANGE },
++	atofTest{ "1.7976931348623159e308", "+Inf", os.ERANGE },
++	atofTest{ "-1.7976931348623159e308", "-Inf", os.ERANGE },
+ 	// the border is ...158079
+ 	// borderline - okay
+-	AtofTest{ "1.7976931348623158e308", "1.7976931348623157e+308", nil },
+-	AtofTest{ "-1.7976931348623158e308", "-1.7976931348623157e+308", nil },
++	atofTest{ "1.7976931348623158e308", "1.7976931348623157e+308", nil },
++	atofTest{ "-1.7976931348623158e308", "-1.7976931348623157e+308", nil },
+ 	// borderline - too large
+-	AtofTest{ "1.797693134862315808e308", "+Inf", os.ERANGE },
+-	AtofTest{ "-1.797693134862315808e308", "-Inf", os.ERANGE },
++	atofTest{ "1.797693134862315808e308", "+Inf", os.ERANGE },
++	atofTest{ "-1.797693134862315808e308", "-Inf", os.ERANGE },
+ 
+ 	// a little too large
+-	AtofTest{ "1e308", "1e+308", nil },
+-	AtofTest{ "2e308", "+Inf", os.ERANGE },
+-	AtofTest{ "1e309", "+Inf", os.ERANGE },
++	atofTest{ "1e308", "1e+308", nil },
++	atofTest{ "2e308", "+Inf", os.ERANGE },
++	atofTest{ "1e309", "+Inf", os.ERANGE },
+ 
+ 	// way too large
+-	AtofTest{ "1e310", "+Inf", os.ERANGE },
+-	AtofTest{ "-1e310", "-Inf", os.ERANGE },
+-	AtofTest{ "1e400", "+Inf", os.ERANGE },
+-	AtofTest{ "-1e400", "-Inf", os.ERANGE },
+-	AtofTest{ "1e400000", "+Inf", os.ERANGE },
+-	AtofTest{ "-1e400000", "-Inf", os.ERANGE },
++	atofTest{ "1e310", "+Inf", os.ERANGE },
++	atofTest{ "-1e310", "-Inf", os.ERANGE },
++	atofTest{ "1e400", "+Inf", os.ERANGE },
++	atofTest{ "-1e400", "-Inf", os.ERANGE },
++	atofTest{ "1e400000", "+Inf", os.ERANGE },
++	atofTest{ "-1e400000", "-Inf", os.ERANGE },
+ 
+ 	// denormalized
+-	AtofTest{ "1e-305", "1e-305", nil },
+-	AtofTest{ "1e-306", "1e-306", nil },
+-	AtofTest{ "1e-307", "1e-307", nil },
+-	AtofTest{ "1e-308", "1e-308", nil },
+-	AtofTest{ "1e-309", "1e-309", nil },
+-	AtofTest{ "1e-310", "1e-310", nil },
+-	AtofTest{ "1e-322", "1e-322", nil },
++	atofTest{ "1e-305", "1e-305", nil },
++	atofTest{ "1e-306", "1e-306", nil },
++	atofTest{ "1e-307", "1e-307", nil },
++	atofTest{ "1e-308", "1e-308", nil },
++	atofTest{ "1e-309", "1e-309", nil },
++	atofTest{ "1e-310", "1e-310", nil },
++	atofTest{ "1e-322", "1e-322", nil },
+ 	// smallest denormal
+-	AtofTest{ "5e-324", "5e-324", nil },
++	atofTest{ "5e-324", "5e-324", nil },
+ 	// too small
+-	AtofTest{ "4e-324", "0", nil },
++	atofTest{ "4e-324", "0", nil },
+ 	// way too small
+-	AtofTest{ "1e-350", "0", nil },
+-	AtofTest{ "1e-400000", "0", nil },
++	atofTest{ "1e-350", "0", nil },
++	atofTest{ "1e-400000", "0", nil },
+ 
+ 	// try to overflow exponent
+-	AtofTest{ "1e-4294967296", "0", nil },
+-	AtofTest{ "1e+4294967296", "+Inf", os.ERANGE },
+-	AtofTest{ "1e-18446744073709551616", "0", nil },
+-	AtofTest{ "1e+18446744073709551616", "+Inf", os.ERANGE },
++	atofTest{ "1e-4294967296", "0", nil },
++	atofTest{ "1e+4294967296", "+Inf", os.ERANGE },
++	atofTest{ "1e-18446744073709551616", "0", nil },
++	atofTest{ "1e+18446744073709551616", "+Inf", os.ERANGE },
+ 
+ 	// Parse errors
+-	AtofTest{ "1e", "0", os.EINVAL },
+-	AtofTest{ "1e-", "0", os.EINVAL },
+-	AtofTest{ ".e-1", "0", os.EINVAL },
++	atofTest{ "1e", "0", os.EINVAL },
++	atofTest{ "1e-", "0", os.EINVAL },
++	atofTest{ ".e-1", "0", os.EINVAL },
+ }
+ 
+-func XTestAtof(t *testing.T, opt bool) {
++func testAtof(t *testing.T, opt bool) {
+ 	oldopt := strconv.optimize;
+ 	strconv.optimize = opt;
+ 	for i := 0; i < len(atoftests); i++ {
+ 		test := &atoftests[i];
+-		out, err := strconv.atof64(test.in);
+-		outs := strconv.ftoa64(out, 'g', -1);
++		out, err := strconv.Atof64(test.in);
++		outs := strconv.Ftoa64(out, 'g', -1);
+ 		if outs != test.out || err != test.err {
+-			t.Errorf("strconv.atof64(%v) = %v, %v want %v, %v\n",
++			t.Errorf("strconv.Atof64(%v) = %v, %v want %v, %v\n",
+ 				test.in, out, err, test.out, test.err);
+ 		}
+ 
+ 		if float64(float32(out)) == out {
+-			out32, err := strconv.atof32(test.in);
+-			outs := strconv.ftoa32(out32, 'g', -1);
++			out32, err := strconv.Atof32(test.in);
++			outs := strconv.Ftoa32(out32, 'g', -1);
+ 			if outs != test.out || err != test.err {
+-				t.Errorf("strconv.atof32(%v) = %v, %v want %v, %v  # %v\n",
++				t.Errorf("strconv.Atof32(%v) = %v, %v want %v, %v  # %v\n",
+ 					test.in, out32, err, test.out, test.err, out);
+ 			}
+ 		}
+ 
+ 		if FloatSize == 64 || float64(float32(out)) == out {
+-			outf, err := strconv.atof(test.in);
+-			outs := strconv.ftoa(outf, 'g', -1);
++			outf, err := strconv.Atof(test.in);
++			outs := strconv.Ftoa(outf, 'g', -1);
+ 			if outs != test.out || err != test.err {
+-				t.Errorf("strconv.ftoa(%v) = %v, %v want %v, %v  # %v\n",
++				t.Errorf("strconv.Ftoa(%v) = %v, %v want %v, %v  # %v\n",
+ 					test.in, outf, err, test.out, test.err, out);
+ 			}
+ 		}
+@@ -125,9 +125,9 @@ func XTestAtof(t *testing.T, opt bool) {
+ }
+ 
+ export func TestAtof(t *testing.T) {
+-	XTestAtof(t, true);
++	testAtof(t, true);
+ }
+ 
+ export func TestAtofSlow(t *testing.T) {
+-	XTestAtof(t, false);
++	testAtof(t, false);
+ }
+diff --git a/src/lib/strconv/atoi.go b/src/lib/strconv/atoi.go
+index cd02df1aaf..1c5d112cf3 100644
+--- a/src/lib/strconv/atoi.go
++++ b/src/lib/strconv/atoi.go
+@@ -5,17 +5,17 @@
+ package strconv
+ import "os"
+ 
+-func IntSize() uint {
++func computeIntsize() uint {
+ 	siz := uint(8);
+ 	for 1<<siz != 0 {
+ 		siz *= 2
+ 	}
+ 	return siz
+ }
+-var intsize = IntSize();
++var intsize = computeIntsize();
+ 
+ // Convert decimal string to unsigned integer.
+-export func atoui64(s string) (i uint64, err *os.Error) {
++export func Atoui64(s string) (i uint64, err *os.Error) {
+ 	// empty string bad
+ 	if len(s) == 0 {
+ 		return 0, os.EINVAL
+@@ -52,7 +52,7 @@ export func atoui64(s string) (i uint64, err *os.Error) {
+ }
+ 
+ // Convert decimal string to integer.
+-export func atoi64(s string) (i int64, err *os.Error) {
++export func Atoi64(s string) (i int64, err *os.Error) {
+ 	// empty string bad
+ 	if len(s) == 0 {
+ 		return 0, os.EINVAL
+@@ -68,7 +68,7 @@ export func atoi64(s string) (i int64, err *os.Error) {
+ 	}
+ 
+ 	var un uint64;
+-	un, err = atoui64(s);
++	un, err = Atoui64(s);
+ 	if err != nil && err != os.ERANGE {
+ 		return 0, err
+ 	}
+@@ -85,8 +85,8 @@ export func atoi64(s string) (i int64, err *os.Error) {
+ 	return n, nil
+ }
+ 
+-export func atoui(s string) (i uint, err *os.Error) {
+-	i1, e1 := atoui64(s);
++export func Atoui(s string) (i uint, err *os.Error) {
++	i1, e1 := Atoui64(s);
+ 	if e1 != nil && e1 != os.ERANGE {
+ 		return 0, e1
+ 	}
+@@ -99,8 +99,8 @@ export func atoui(s string) (i uint, err *os.Error) {
+ 	return i, nil
+ }
+ 
+-export func atoi(s string) (i int, err *os.Error) {
+-	i1, e1 := atoi64(s);
++export func Atoi(s string) (i int, err *os.Error) {
++	i1, e1 := Atoi64(s);
+ 	if e1 != nil && e1 != os.ERANGE {
+ 		return 0, e1
+ 	}
+diff --git a/src/lib/strconv/atoi_test.go b/src/lib/strconv/atoi_test.go
+index a071b7435c..41a6f4b76f 100644
+--- a/src/lib/strconv/atoi_test.go
++++ b/src/lib/strconv/atoi_test.go
+@@ -10,105 +10,105 @@ import (
+ 	"testing"
+ )
+ 
+-type Atoui64Test struct {
++type atoui64Test struct {
+ 	in string;
+ 	out uint64;
+ 	err *os.Error;
+ }
+ 
+-var atoui64tests = []Atoui64Test {
+-	Atoui64Test{ "", 0, os.EINVAL },
+-	Atoui64Test{ "0", 0, nil },
+-	Atoui64Test{ "1", 1, nil },
+-	Atoui64Test{ "12345", 12345, nil },
+-	Atoui64Test{ "012345", 0, os.EINVAL },
+-	Atoui64Test{ "12345x", 0, os.EINVAL },
+-	Atoui64Test{ "98765432100", 98765432100, nil },
+-	Atoui64Test{ "18446744073709551615", 1<<64-1, nil },
+-	Atoui64Test{ "18446744073709551616", 1<<64-1, os.ERANGE },
+-	Atoui64Test{ "18446744073709551620", 1<<64-1, os.ERANGE },
++var atoui64tests = []atoui64Test {
++	atoui64Test{ "", 0, os.EINVAL },
++	atoui64Test{ "0", 0, nil },
++	atoui64Test{ "1", 1, nil },
++	atoui64Test{ "12345", 12345, nil },
++	atoui64Test{ "012345", 0, os.EINVAL },
++	atoui64Test{ "12345x", 0, os.EINVAL },
++	atoui64Test{ "98765432100", 98765432100, nil },
++	atoui64Test{ "18446744073709551615", 1<<64-1, nil },
++	atoui64Test{ "18446744073709551616", 1<<64-1, os.ERANGE },
++	atoui64Test{ "18446744073709551620", 1<<64-1, os.ERANGE },
+ }
+ 
+-type Atoi64Test struct {
++type atoi64Test struct {
+ 	in string;
+ 	out int64;
+ 	err *os.Error;
+ }
+ 
+-var atoi64test = []Atoi64Test {
+-	Atoi64Test{ "", 0, os.EINVAL },
+-	Atoi64Test{ "0", 0, nil },
+-	Atoi64Test{ "-0", 0, nil },
+-	Atoi64Test{ "1", 1, nil },
+-	Atoi64Test{ "-1", -1, nil },
+-	Atoi64Test{ "12345", 12345, nil },
+-	Atoi64Test{ "-12345", -12345, nil },
+-	Atoi64Test{ "012345", 0, os.EINVAL },
+-	Atoi64Test{ "-012345", 0, os.EINVAL },
+-	Atoi64Test{ "12345x", 0, os.EINVAL },
+-	Atoi64Test{ "-12345x", 0, os.EINVAL },
+-	Atoi64Test{ "98765432100", 98765432100, nil },
+-	Atoi64Test{ "-98765432100", -98765432100, nil },
+-	Atoi64Test{ "9223372036854775807", 1<<63-1, nil },
+-	Atoi64Test{ "-9223372036854775807", -(1<<63-1), nil },
+-	Atoi64Test{ "9223372036854775808", 1<<63-1, os.ERANGE },
+-	Atoi64Test{ "-9223372036854775808", -1<<63, nil },
+-	Atoi64Test{ "9223372036854775809", 1<<63-1, os.ERANGE },
+-	Atoi64Test{ "-9223372036854775809", -1<<63, os.ERANGE },
++var atoi64test = []atoi64Test {
++	atoi64Test{ "", 0, os.EINVAL },
++	atoi64Test{ "0", 0, nil },
++	atoi64Test{ "-0", 0, nil },
++	atoi64Test{ "1", 1, nil },
++	atoi64Test{ "-1", -1, nil },
++	atoi64Test{ "12345", 12345, nil },
++	atoi64Test{ "-12345", -12345, nil },
++	atoi64Test{ "012345", 0, os.EINVAL },
++	atoi64Test{ "-012345", 0, os.EINVAL },
++	atoi64Test{ "12345x", 0, os.EINVAL },
++	atoi64Test{ "-12345x", 0, os.EINVAL },
++	atoi64Test{ "98765432100", 98765432100, nil },
++	atoi64Test{ "-98765432100", -98765432100, nil },
++	atoi64Test{ "9223372036854775807", 1<<63-1, nil },
++	atoi64Test{ "-9223372036854775807", -(1<<63-1), nil },
++	atoi64Test{ "9223372036854775808", 1<<63-1, os.ERANGE },
++	atoi64Test{ "-9223372036854775808", -1<<63, nil },
++	atoi64Test{ "9223372036854775809", 1<<63-1, os.ERANGE },
++	atoi64Test{ "-9223372036854775809", -1<<63, os.ERANGE },
+ }
+ 
+-type Atoui32Test struct {
++type atoui32Test struct {
+ 	in string;
+ 	out uint32;
+ 	err *os.Error;
+ }
+ 
+-var atoui32tests = []Atoui32Test {
+-	Atoui32Test{ "", 0, os.EINVAL },
+-	Atoui32Test{ "0", 0, nil },
+-	Atoui32Test{ "1", 1, nil },
+-	Atoui32Test{ "12345", 12345, nil },
+-	Atoui32Test{ "012345", 0, os.EINVAL },
+-	Atoui32Test{ "12345x", 0, os.EINVAL },
+-	Atoui32Test{ "987654321", 987654321, nil },
+-	Atoui32Test{ "4294967295", 1<<32-1, nil },
+-	Atoui32Test{ "4294967296", 1<<32-1, os.ERANGE },
++var atoui32tests = []atoui32Test {
++	atoui32Test{ "", 0, os.EINVAL },
++	atoui32Test{ "0", 0, nil },
++	atoui32Test{ "1", 1, nil },
++	atoui32Test{ "12345", 12345, nil },
++	atoui32Test{ "012345", 0, os.EINVAL },
++	atoui32Test{ "12345x", 0, os.EINVAL },
++	atoui32Test{ "987654321", 987654321, nil },
++	atoui32Test{ "4294967295", 1<<32-1, nil },
++	atoui32Test{ "4294967296", 1<<32-1, os.ERANGE },
+ }
+ 
+-type Atoi32Test struct {
++type atoi32Test struct {
+ 	in string;
+ 	out int32;
+ 	err *os.Error;
+ }
+ 
+-var atoi32tests = []Atoi32Test {
+-	Atoi32Test{ "", 0, os.EINVAL },
+-	Atoi32Test{ "0", 0, nil },
+-	Atoi32Test{ "-0", 0, nil },
+-	Atoi32Test{ "1", 1, nil },
+-	Atoi32Test{ "-1", -1, nil },
+-	Atoi32Test{ "12345", 12345, nil },
+-	Atoi32Test{ "-12345", -12345, nil },
+-	Atoi32Test{ "012345", 0, os.EINVAL },
+-	Atoi32Test{ "-012345", 0, os.EINVAL },
+-	Atoi32Test{ "12345x", 0, os.EINVAL },
+-	Atoi32Test{ "-12345x", 0, os.EINVAL },
+-	Atoi32Test{ "987654321", 987654321, nil },
+-	Atoi32Test{ "-987654321", -987654321, nil },
+-	Atoi32Test{ "2147483647", 1<<31-1, nil },
+-	Atoi32Test{ "-2147483647", -(1<<31-1), nil },
+-	Atoi32Test{ "2147483648", 1<<31-1, os.ERANGE },
+-	Atoi32Test{ "-2147483648", -1<<31, nil },
+-	Atoi32Test{ "2147483649", 1<<31-1, os.ERANGE },
+-	Atoi32Test{ "-2147483649", -1<<31, os.ERANGE },
++var atoi32tests = []atoi32Test {
++	atoi32Test{ "", 0, os.EINVAL },
++	atoi32Test{ "0", 0, nil },
++	atoi32Test{ "-0", 0, nil },
++	atoi32Test{ "1", 1, nil },
++	atoi32Test{ "-1", -1, nil },
++	atoi32Test{ "12345", 12345, nil },
++	atoi32Test{ "-12345", -12345, nil },
++	atoi32Test{ "012345", 0, os.EINVAL },
++	atoi32Test{ "-012345", 0, os.EINVAL },
++	atoi32Test{ "12345x", 0, os.EINVAL },
++	atoi32Test{ "-12345x", 0, os.EINVAL },
++	atoi32Test{ "987654321", 987654321, nil },
++	atoi32Test{ "-987654321", -987654321, nil },
++	atoi32Test{ "2147483647", 1<<31-1, nil },
++	atoi32Test{ "-2147483647", -(1<<31-1), nil },
++	atoi32Test{ "2147483648", 1<<31-1, os.ERANGE },
++	atoi32Test{ "-2147483648", -1<<31, nil },
++	atoi32Test{ "2147483649", 1<<31-1, os.ERANGE },
++	atoi32Test{ "-2147483649", -1<<31, os.ERANGE },
+ }
+ 
+ export func TestAtoui64(t *testing.T) {
+ 	for i := 0; i < len(atoui64tests); i++ {
+ 		test := &atoui64tests[i];
+-		out, err := strconv.atoui64(test.in);
++		out, err := strconv.Atoui64(test.in);
+ 		if test.out != out || test.err != err {
+-			t.Errorf("strconv.atoui64(%v) = %v, %v want %v, %v\n",
++			t.Errorf("strconv.Atoui64(%v) = %v, %v want %v, %v\n",
+ 				test.in, out, err, test.out, test.err);
+ 		}
+ 	}
+@@ -117,39 +117,31 @@ export func TestAtoui64(t *testing.T) {
+ export func TestAtoi64(t *testing.T) {
+ 	for i := 0; i < len(atoi64test); i++ {
+ 		test := &atoi64test[i];
+-		out, err := strconv.atoi64(test.in);
++		out, err := strconv.Atoi64(test.in);
+ 		if test.out != out || test.err != err {
+-			t.Errorf("strconv.atoi64(%v) = %v, %v want %v, %v\n",
++			t.Errorf("strconv.Atoi64(%v) = %v, %v want %v, %v\n",
+ 				test.in, out, err, test.out, test.err);
+ 		}
+ 	}
+ }
+ 
+-func IntSize1() uint {
+-	tmp := 1;
+-	if tmp<<16<<16 == 0 {
+-		return 32;
+-	}
+-	return 64;
+-}
+-
+ export func TestAtoui(t *testing.T) {
+-	switch IntSize1() {
++	switch intsize {
+ 	case 32:
+ 		for i := 0; i < len(atoui32tests); i++ {
+ 			test := &atoui32tests[i];
+-			out, err := strconv.atoui(test.in);
++			out, err := strconv.Atoui(test.in);
+ 			if test.out != uint32(out) || test.err != err {
+-				t.Errorf("strconv.atoui(%v) = %v, %v want %v, %v\n",
++				t.Errorf("strconv.Atoui(%v) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+ 	case 64:
+ 		for i := 0; i < len(atoui64tests); i++ {
+ 			test := &atoui64tests[i];
+-			out, err := strconv.atoui(test.in);
++			out, err := strconv.Atoui(test.in);
+ 			if test.out != uint64(out) || test.err != err {
+-				t.Errorf("strconv.atoui(%v) = %v, %v want %v, %v\n",
++				t.Errorf("strconv.Atoui(%v) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+@@ -157,22 +149,22 @@ export func TestAtoui(t *testing.T) {
+ }
+ 
+ export func TestAtoi(t *testing.T) {
+-	switch IntSize1() {
++	switch intsize {
+ 	case 32:
+ 		for i := 0; i < len(atoi32tests); i++ {
+ 			test := &atoi32tests[i];
+-			out, err := strconv.atoi(test.in);
++			out, err := strconv.Atoi(test.in);
+ 			if test.out != int32(out) || test.err != err {
+-				t.Errorf("strconv.atoi(%v) = %v, %v want %v, %v\n",
++				t.Errorf("strconv.Atoi(%v) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+ 	case 64:
+ 		for i := 0; i < len(atoi64test); i++ {
+ 			test := &atoi64test[i];
+-			out, err := strconv.atoi(test.in);
++			out, err := strconv.Atoi(test.in);
+ 			if test.out != int64(out) || test.err != err {
+-				t.Errorf("strconv.atoi(%v) = %v, %v want %v, %v\n",
++				t.Errorf("strconv.Atoi(%v) = %v, %v want %v, %v\n",
+ 					test.in, out, err, test.out, test.err);
+ 			}
+ 		}
+diff --git a/src/lib/strconv/decimal.go b/src/lib/strconv/decimal.go
+index 440b028f4e..4808e93463 100644
+--- a/src/lib/strconv/decimal.go
++++ b/src/lib/strconv/decimal.go
+@@ -11,26 +11,26 @@
+ 
+ package strconv
+ 
+-package type Decimal struct {
++type decimal struct {
+ 	// TODO(rsc): Can make d[] a bit smaller and add
+ 	// truncated bool;
+ 	d [2000] byte;	// digits
+ 	nd int;	// number of digits used
+ 	dp int;	// decimal point
+ };
+-func (a *Decimal) String() string;
+-func (a *Decimal) Assign(v uint64);
+-func (a *Decimal) Shift(k int) *Decimal;
+-func (a *Decimal) Round(nd int) *Decimal;
+-func (a *Decimal) RoundUp(nd int) *Decimal;
+-func (a *Decimal) RoundDown(nd int) *Decimal;
+-func (a *Decimal) RoundedInteger() uint64;
++func (a *decimal) String() string;
++func (a *decimal) Assign(v uint64);
++func (a *decimal) Shift(k int) *decimal;
++func (a *decimal) Round(nd int) *decimal;
++func (a *decimal) RoundUp(nd int) *decimal;
++func (a *decimal) RoundDown(nd int) *decimal;
++func (a *decimal) RoundedInteger() uint64;
+ 
+ 
+-func Copy(dst []byte, src []byte) int;
+-func DigitZero(dst []byte) int;
++func copy(dst []byte, src []byte) int;
++func digitZero(dst []byte) int;
+ 
+-func (a *Decimal) String() string {
++func (a *decimal) String() string {
+ 	n := 10 + a.nd;
+ 	if a.dp > 0 {
+ 		n += a.dp;
+@@ -51,42 +51,42 @@ func (a *Decimal) String() string {
+ 		w++;
+ 		buf[w] = '.';
+ 		w++;
+-		w += DigitZero(buf[w:w+-a.dp]);
+-		w += Copy(buf[w:w+a.nd], a.d[0:a.nd]);
++		w += digitZero(buf[w:w+-a.dp]);
++		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
+ 
+ 	case a.dp < a.nd:
+ 		// decimal point in middle of digits
+-		w += Copy(buf[w:w+a.dp], a.d[0:a.dp]);
++		w += copy(buf[w:w+a.dp], a.d[0:a.dp]);
+ 		buf[w] = '.';
+ 		w++;
+-		w += Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
++		w += copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
+ 
+ 	default:
+ 		// zeros fill space between digits and decimal point
+-		w += Copy(buf[w:w+a.nd], a.d[0:a.nd]);
+-		w += DigitZero(buf[w:w+a.dp-a.nd]);
++		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
++		w += digitZero(buf[w:w+a.dp-a.nd]);
+ 	}
+ 	return string(buf[0:w]);
+ }
+ 
+-func Copy(dst []byte, src []byte) int {
++func copy(dst []byte, src []byte) int {
+ 	for i := 0; i < len(dst); i++ {
+ 		dst[i] = src[i];
+ 	}
+ 	return len(dst);
+ }
+ 
+-func DigitZero(dst []byte) int {
++func digitZero(dst []byte) int {
+ 	for i := 0; i < len(dst); i++ {
+ 		dst[i] = '0';
+ 	}
+ 	return len(dst);
+ }
+ 
+-// Trim trailing zeros from number.
++// trim trailing zeros from number.
+ // (They are meaningless; the decimal point is tracked
+ // independent of the number of digits.)
+-func Trim(a *Decimal) {
++func trim(a *decimal) {
+ 	for a.nd > 0 && a.d[a.nd-1] == '0' {
+ 		a.nd--;
+ 	}
+@@ -96,7 +96,7 @@ func Trim(a *Decimal) {
+ }
+ 
+ // Assign v to a.
+-func (a *Decimal) Assign(v uint64) {
++func (a *decimal) Assign(v uint64) {
+ 	var buf [50]byte;
+ 
+ 	// Write reversed decimal in buf.
+@@ -116,21 +116,21 @@ func (a *Decimal) Assign(v uint64) {
+ 		a.nd++;
+ 	}
+ 	a.dp = a.nd;
+-	Trim(a);
++	trim(a);
+ }
+ 
+-package func NewDecimal(i uint64) *Decimal {
+-	a := new(Decimal);
++func newDecimal(i uint64) *decimal {
++	a := new(decimal);
+ 	a.Assign(i);
+ 	return a;
+ }
+ 
+ // Maximum shift that we can do in one pass without overflow.
+ // Signed int has 31 bits, and we have to be able to accomodate 9<<k.
+-const MaxShift = 27
++const maxShift = 27
+ 
+-// Binary shift right (* 2) by k bits.  k <= MaxShift to avoid overflow.
+-func RightShift(a *Decimal, k uint) {
++// Binary shift right (* 2) by k bits.  k <= maxShift to avoid overflow.
++func rightShift(a *decimal, k uint) {
+ 	r := 0;	// read pointer
+ 	w := 0;	// write pointer
+ 
+@@ -174,69 +174,69 @@ func RightShift(a *Decimal, k uint) {
+ 	}
+ 
+ 	a.nd = w;
+-	Trim(a);
++	trim(a);
+ }
+ 
+ // Cheat sheet for left shift: table indexed by shift count giving
+ // number of new digits that will be introduced by that shift.
+ //
+-// For example, leftcheat[4] = {2, "625"}.  That means that
++// For example, leftcheats[4] = {2, "625"}.  That means that
+ // if we are shifting by 4 (multiplying by 16), it will add 2 digits
+ // when the string prefix is "625" through "999", and one fewer digit
+ // if the string prefix is "000" through "624".
+ //
+ // Credit for this trick goes to Ken.
+ 
+-type LeftCheat struct {
++type leftCheat struct {
+ 	delta int;	// number of new digits
+ 	cutoff string;	//   minus one digit if original < a.
+ }
+ 
+-var leftcheat = []LeftCheat {
++var leftcheats = []leftCheat {
+ 	// Leading digits of 1/2^i = 5^i.
+ 	// 5^23 is not an exact 64-bit floating point number,
+ 	// so have to use bc for the math.
+ 	/*
+ 	seq 27 | sed 's/^/5^/' | bc |
+-	awk 'BEGIN{ print "\tLeftCheat{ 0, \"\" }," }
++	awk 'BEGIN{ print "\tleftCheat{ 0, \"\" }," }
+ 	{
+ 		log2 = log(2)/log(10)
+-		printf("\tLeftCheat{ %d, \"%s\" },\t// * %d\n",
++		printf("\tleftCheat{ %d, \"%s\" },\t// * %d\n",
+ 			int(log2*NR+1), $0, 2**NR)
+ 	}'
+ 	 */
+-	LeftCheat{ 0, "" },
+-	LeftCheat{ 1, "5" },	// * 2
+-	LeftCheat{ 1, "25" },	// * 4
+-	LeftCheat{ 1, "125" },	// * 8
+-	LeftCheat{ 2, "625" },	// * 16
+-	LeftCheat{ 2, "3125" },	// * 32
+-	LeftCheat{ 2, "15625" },	// * 64
+-	LeftCheat{ 3, "78125" },	// * 128
+-	LeftCheat{ 3, "390625" },	// * 256
+-	LeftCheat{ 3, "1953125" },	// * 512
+-	LeftCheat{ 4, "9765625" },	// * 1024
+-	LeftCheat{ 4, "48828125" },	// * 2048
+-	LeftCheat{ 4, "244140625" },	// * 4096
+-	LeftCheat{ 4, "1220703125" },	// * 8192
+-	LeftCheat{ 5, "6103515625" },	// * 16384
+-	LeftCheat{ 5, "30517578125" },	// * 32768
+-	LeftCheat{ 5, "152587890625" },	// * 65536
+-	LeftCheat{ 6, "762939453125" },	// * 131072
+-	LeftCheat{ 6, "3814697265625" },	// * 262144
+-	LeftCheat{ 6, "19073486328125" },	// * 524288
+-	LeftCheat{ 7, "95367431640625" },	// * 1048576
+-	LeftCheat{ 7, "476837158203125" },	// * 2097152
+-	LeftCheat{ 7, "2384185791015625" },	// * 4194304
+-	LeftCheat{ 7, "11920928955078125" },	// * 8388608
+-	LeftCheat{ 8, "59604644775390625" },	// * 16777216
+-	LeftCheat{ 8, "298023223876953125" },	// * 33554432
+-	LeftCheat{ 8, "1490116119384765625" },	// * 67108864
+-	LeftCheat{ 9, "7450580596923828125" },	// * 134217728
++	leftCheat{ 0, "" },
++	leftCheat{ 1, "5" },	// * 2
++	leftCheat{ 1, "25" },	// * 4
++	leftCheat{ 1, "125" },	// * 8
++	leftCheat{ 2, "625" },	// * 16
++	leftCheat{ 2, "3125" },	// * 32
++	leftCheat{ 2, "15625" },	// * 64
++	leftCheat{ 3, "78125" },	// * 128
++	leftCheat{ 3, "390625" },	// * 256
++	leftCheat{ 3, "1953125" },	// * 512
++	leftCheat{ 4, "9765625" },	// * 1024
++	leftCheat{ 4, "48828125" },	// * 2048
++	leftCheat{ 4, "244140625" },	// * 4096
++	leftCheat{ 4, "1220703125" },	// * 8192
++	leftCheat{ 5, "6103515625" },	// * 16384
++	leftCheat{ 5, "30517578125" },	// * 32768
++	leftCheat{ 5, "152587890625" },	// * 65536
++	leftCheat{ 6, "762939453125" },	// * 131072
++	leftCheat{ 6, "3814697265625" },	// * 262144
++	leftCheat{ 6, "19073486328125" },	// * 524288
++	leftCheat{ 7, "95367431640625" },	// * 1048576
++	leftCheat{ 7, "476837158203125" },	// * 2097152
++	leftCheat{ 7, "2384185791015625" },	// * 4194304
++	leftCheat{ 7, "11920928955078125" },	// * 8388608
++	leftCheat{ 8, "59604644775390625" },	// * 16777216
++	leftCheat{ 8, "298023223876953125" },	// * 33554432
++	leftCheat{ 8, "1490116119384765625" },	// * 67108864
++	leftCheat{ 9, "7450580596923828125" },	// * 134217728
+ }
+ 
+ // Is the leading prefix of b lexicographically less than s?
+-func PrefixIsLessThan(b []byte, s string) bool {
++func prefixIsLessThan(b []byte, s string) bool {
+ 	for i := 0; i < len(s); i++ {
+ 		if i >= len(b) {
+ 			return true;
+@@ -248,10 +248,10 @@ func PrefixIsLessThan(b []byte, s string) bool {
+ 	return false;
+ }
+ 
+-// Binary shift left (/ 2) by k bits.  k <= MaxShift to avoid overflow.
+-func LeftShift(a *Decimal, k uint) {
+-	delta := leftcheat[k].delta;
+-	if PrefixIsLessThan(a.d[0:a.nd], leftcheat[k].cutoff) {
++// Binary shift left (/ 2) by k bits.  k <= maxShift to avoid overflow.
++func leftShift(a *decimal, k uint) {
++	delta := leftcheats[k].delta;
++	if prefixIsLessThan(a.d[0:a.nd], leftcheats[k].cutoff) {
+ 		delta--;
+ 	}
+ 
+@@ -280,37 +280,37 @@ func LeftShift(a *Decimal, k uint) {
+ 
+ 	if w != 0 {
+ 		// TODO: Remove - has no business panicking.
+-		panicln("strconv: bad LeftShift", w);
++		panicln("strconv: bad leftShift", w);
+ 	}
+ 	a.nd += delta;
+ 	a.dp += delta;
+-	Trim(a);
++	trim(a);
+ }
+ 
+ // Binary shift left (k > 0) or right (k < 0).
+ // Returns receiver for convenience.
+-func (a *Decimal) Shift(k int) *Decimal {
++func (a *decimal) Shift(k int) *decimal {
+ 	switch {
+ 	case a.nd == 0:
+ 		// nothing to do: a == 0
+ 	case k > 0:
+-		for k > MaxShift {
+-			LeftShift(a, MaxShift);
+-			k -= MaxShift;
++		for k > maxShift {
++			leftShift(a, maxShift);
++			k -= maxShift;
+ 		}
+-		LeftShift(a, uint(k));
++		leftShift(a, uint(k));
+ 	case k < 0:
+-		for k < -MaxShift {
+-			RightShift(a, MaxShift);
+-			k += MaxShift;
++		for k < -maxShift {
++			rightShift(a, maxShift);
++			k += maxShift;
+ 		}
+-		RightShift(a, uint(-k));
++		rightShift(a, uint(-k));
+ 	}
+ 	return a;
+ }
+ 
+ // If we chop a at nd digits, should we round up?
+-func ShouldRoundUp(a *Decimal, nd int) bool {
++func shouldRoundUp(a *decimal, nd int) bool {
+ 	if nd <= 0 || nd >= a.nd {
+ 		return false;
+ 	}
+@@ -323,11 +323,11 @@ func ShouldRoundUp(a *Decimal, nd int) bool {
+ 
+ // Round a to nd digits (or fewer).
+ // Returns receiver for convenience.
+-func (a *Decimal) Round(nd int) *Decimal {
++func (a *decimal) Round(nd int) *decimal {
+ 	if nd <= 0 || nd >= a.nd {
+ 		return a;
+ 	}
+-	if(ShouldRoundUp(a, nd)) {
++	if(shouldRoundUp(a, nd)) {
+ 		return a.RoundUp(nd);
+ 	}
+ 	return a.RoundDown(nd);
+@@ -335,18 +335,18 @@ func (a *Decimal) Round(nd int) *Decimal {
+ 
+ // Round a down to nd digits (or fewer).
+ // Returns receiver for convenience.
+-func (a *Decimal) RoundDown(nd int) *Decimal {
++func (a *decimal) RoundDown(nd int) *decimal {
+ 	if nd <= 0 || nd >= a.nd {
+ 		return a;
+ 	}
+ 	a.nd = nd;
+-	Trim(a);
++	trim(a);
+ 	return a;
+ }
+ 
+ // Round a up to nd digits (or fewer).
+ // Returns receiver for convenience.
+-func (a *Decimal) RoundUp(nd int) *Decimal {
++func (a *decimal) RoundUp(nd int) *decimal {
+ 	if nd <= 0 || nd >= a.nd {
+ 		return a;
+ 	}
+@@ -371,7 +371,7 @@ func (a *Decimal) RoundUp(nd int) *Decimal {
+ 
+ // Extract integer part, rounded appropriately.
+ // No guarantees about overflow.
+-func (a *Decimal) RoundedInteger() uint64 {
++func (a *decimal) RoundedInteger() uint64 {
+ 	if a.dp > 20 {
+ 		return 0xFFFFFFFFFFFFFFFF;
+ 	}
+@@ -383,7 +383,7 @@ func (a *Decimal) RoundedInteger() uint64 {
+ 	for ; i < a.dp; i++ {
+ 		n *= 10;
+ 	}
+-	if ShouldRoundUp(a, a.dp) {
++	if shouldRoundUp(a, a.dp) {
+ 		n++;
+ 	}
+ 	return n;
+diff --git a/src/lib/strconv/decimal_test.go b/src/lib/strconv/decimal_test.go
+index 5b6d1a6760..55fcbdd6b5 100644
+--- a/src/lib/strconv/decimal_test.go
++++ b/src/lib/strconv/decimal_test.go
+@@ -10,30 +10,30 @@ import (
+ 	"testing";
+ )
+ 
+-type ShiftTest struct {
++type shiftTest struct {
+ 	i uint64;
+ 	shift int;
+ 	out string;
+ }
+ 
+-var shifttests = []ShiftTest {
+-	ShiftTest{ 0, -100, "0" },
+-	ShiftTest{ 0, 100, "0" },
+-	ShiftTest{ 1, 100, "1267650600228229401496703205376" },
+-	ShiftTest{ 1, -100,
++var shifttests = []shiftTest {
++	shiftTest{ 0, -100, "0" },
++	shiftTest{ 0, 100, "0" },
++	shiftTest{ 1, 100, "1267650600228229401496703205376" },
++	shiftTest{ 1, -100,
+ 		"0.00000000000000000000000000000078886090522101180541"
+ 		"17285652827862296732064351090230047702789306640625" },
+-	ShiftTest{ 12345678, 8, "3160493568" },
+-	ShiftTest{ 12345678, -8, "48225.3046875" },
+-	ShiftTest{ 195312, 9, "99999744" },
+-	ShiftTest{ 1953125, 9, "1000000000" },
++	shiftTest{ 12345678, 8, "3160493568" },
++	shiftTest{ 12345678, -8, "48225.3046875" },
++	shiftTest{ 195312, 9, "99999744" },
++	shiftTest{ 1953125, 9, "1000000000" },
+ }
+ 
+ export func TestDecimalShift(t *testing.T) {
+ 	ok := true;
+ 	for i := 0; i < len(shifttests); i++ {
+ 		test := &shifttests[i];
+-		s := strconv.NewDecimal(test.i).Shift(test.shift).String();
++		s := strconv.newDecimal(test.i).Shift(test.shift).String();
+ 		if s != test.out {
+ 			t.Errorf("Decimal %v << %v = %v, want %v\n",
+ 				test.i, test.shift, s, test.out);
+@@ -41,45 +41,45 @@ export func TestDecimalShift(t *testing.T) {
+ 	}
+ }
+ 
+-type RoundTest struct {
++type roundTest struct {
+ 	i uint64;
+ 	nd int;
+ 	down, round, up string;
+ 	int uint64;
+ }
+ 
+-var roundtests = []RoundTest {
+-	RoundTest{ 0, 4, "0", "0", "0", 0 },
+-	RoundTest{ 12344999, 4, "12340000", "12340000", "12350000", 12340000 },
+-	RoundTest{ 12345000, 4, "12340000", "12340000", "12350000", 12340000 },
+-	RoundTest{ 12345001, 4, "12340000", "12350000", "12350000", 12350000 },
+-	RoundTest{ 23454999, 4, "23450000", "23450000", "23460000", 23450000 },
+-	RoundTest{ 23455000, 4, "23450000", "23460000", "23460000", 23460000 },
+-	RoundTest{ 23455001, 4, "23450000", "23460000", "23460000", 23460000 },
++var roundtests = []roundTest {
++	roundTest{ 0, 4, "0", "0", "0", 0 },
++	roundTest{ 12344999, 4, "12340000", "12340000", "12350000", 12340000 },
++	roundTest{ 12345000, 4, "12340000", "12340000", "12350000", 12340000 },
++	roundTest{ 12345001, 4, "12340000", "12350000", "12350000", 12350000 },
++	roundTest{ 23454999, 4, "23450000", "23450000", "23460000", 23450000 },
++	roundTest{ 23455000, 4, "23450000", "23460000", "23460000", 23460000 },
++	roundTest{ 23455001, 4, "23450000", "23460000", "23460000", 23460000 },
+ 
+-	RoundTest{ 99994999, 4, "99990000", "99990000", "100000000", 99990000 },
+-	RoundTest{ 99995000, 4, "99990000", "100000000", "100000000", 100000000 },
+-	RoundTest{ 99999999, 4, "99990000", "100000000", "100000000", 100000000 },
++	roundTest{ 99994999, 4, "99990000", "99990000", "100000000", 99990000 },
++	roundTest{ 99995000, 4, "99990000", "100000000", "100000000", 100000000 },
++	roundTest{ 99999999, 4, "99990000", "100000000", "100000000", 100000000 },
+ 
+-	RoundTest{ 12994999, 4, "12990000", "12990000", "13000000", 12990000 },
+-	RoundTest{ 12995000, 4, "12990000", "13000000", "13000000", 13000000 },
+-	RoundTest{ 12999999, 4, "12990000", "13000000", "13000000", 13000000 },
++	roundTest{ 12994999, 4, "12990000", "12990000", "13000000", 12990000 },
++	roundTest{ 12995000, 4, "12990000", "13000000", "13000000", 13000000 },
++	roundTest{ 12999999, 4, "12990000", "13000000", "13000000", 13000000 },
+ }
+ 
+ export func TestDecimalRound(t *testing.T) {
+ 	for i := 0; i < len(roundtests); i++ {
+ 		test := &roundtests[i];
+-		s := strconv.NewDecimal(test.i).RoundDown(test.nd).String();
++		s := strconv.newDecimal(test.i).RoundDown(test.nd).String();
+ 		if s != test.down {
+ 			t.Errorf("Decimal %v RoundDown %d = %v, want %v\n",
+ 				test.i, test.nd, s, test.down);
+ 		}
+-		s = strconv.NewDecimal(test.i).Round(test.nd).String();
++		s = strconv.newDecimal(test.i).Round(test.nd).String();
+ 		if s != test.round {
+ 			t.Errorf("Decimal %v Round %d = %v, want %v\n",
+ 				test.i, test.nd, s, test.down);
+ 		}
+-		s = strconv.NewDecimal(test.i).RoundUp(test.nd).String();
++		s = strconv.newDecimal(test.i).RoundUp(test.nd).String();
+ 		if s != test.up {
+ 			t.Errorf("Decimal %v RoundUp %d = %v, want %v\n",
+ 				test.i, test.nd, s, test.up);
+@@ -87,30 +87,30 @@ export func TestDecimalRound(t *testing.T) {
+ 	}
+ }
+ 
+-type RoundIntTest struct {
++type roundIntTest struct {
+ 	i uint64;
+ 	shift int;
+ 	int uint64;
+ }
+ 
+-var roundinttests = []RoundIntTest {
+-	RoundIntTest{ 0, 100, 0 },
+-	RoundIntTest{ 512, -8, 2 },
+-	RoundIntTest{ 513, -8, 2 },
+-	RoundIntTest{ 640, -8, 2 },
+-	RoundIntTest{ 641, -8, 3 },
+-	RoundIntTest{ 384, -8, 2 },
+-	RoundIntTest{ 385, -8, 2 },
+-	RoundIntTest{ 383, -8, 1 },
+-	RoundIntTest{ 1, 100, 1<<64-1 },
+-	RoundIntTest{ 1000, 0, 1000 },
++var roundinttests = []roundIntTest {
++	roundIntTest{ 0, 100, 0 },
++	roundIntTest{ 512, -8, 2 },
++	roundIntTest{ 513, -8, 2 },
++	roundIntTest{ 640, -8, 2 },
++	roundIntTest{ 641, -8, 3 },
++	roundIntTest{ 384, -8, 2 },
++	roundIntTest{ 385, -8, 2 },
++	roundIntTest{ 383, -8, 1 },
++	roundIntTest{ 1, 100, 1<<64-1 },
++	roundIntTest{ 1000, 0, 1000 },
+ }
+ 
+ export func TestDecimalRoundedInteger(t *testing.T) {
+ 	for i := 0; i < len(roundinttests); i++ {
+ 		test := roundinttests[i];
+ 		// TODO: should be able to use int := here.
+-		int1 := strconv.NewDecimal(test.i).Shift(test.shift).RoundedInteger();
++		int1 := strconv.newDecimal(test.i).Shift(test.shift).RoundedInteger();
+ 		if int1 != test.int {
+ 			t.Errorf("Decimal %v >> %v RoundedInteger = %v, want %v\n",
+ 				test.i, test.shift, int1, test.int);
+diff --git a/src/lib/strconv/fp_test.go b/src/lib/strconv/fp_test.go
+index ef82d369f6..d5d5f7fcd4 100644
+--- a/src/lib/strconv/fp_test.go
++++ b/src/lib/strconv/fp_test.go
+@@ -24,16 +24,16 @@ func pow2(i int) float64 {
+ 	return pow2(i/2) * pow2(i-i/2);
+ }
+ 
+-// Wrapper around strconv.atof64.  Handles dddddp+ddd (binary exponent)
+-// itself, passes the rest on to strconv.atof64.
++// Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)
++// itself, passes the rest on to strconv.Atof64.
+ func myatof64(s string) (f float64, ok bool) {
+ 	a := strings.split(s, "p");
+ 	if len(a) == 2 {
+-		n, err := strconv.atoi64(a[0]);
++		n, err := strconv.Atoi64(a[0]);
+ 		if err != nil {
+ 			return 0, false;
+ 		}
+-		e, err1 := strconv.atoi(a[1]);
++		e, err1 := strconv.Atoi(a[1]);
+ 		if err1 != nil {
+ 			println("bad e", a[1]);
+ 			return 0, false;
+@@ -61,31 +61,31 @@ func myatof64(s string) (f float64, ok bool) {
+ 		}
+ 		return v*pow2(e), true;
+ 	}
+-	f1, err := strconv.atof64(s);
++	f1, err := strconv.Atof64(s);
+ 	if err != nil {
+ 		return 0, false;
+ 	}
+ 	return f1, true;
+ }
+ 
+-// Wrapper around strconv.atof32.  Handles dddddp+ddd (binary exponent)
+-// itself, passes the rest on to strconv.atof32.
++// Wrapper around strconv.Atof32.  Handles dddddp+ddd (binary exponent)
++// itself, passes the rest on to strconv.Atof32.
+ func myatof32(s string) (f float32, ok bool) {
+ 	a := strings.split(s, "p");
+ 	if len(a) == 2 {
+-		n, err := strconv.atoi(a[0]);
++		n, err := strconv.Atoi(a[0]);
+ 		if err != nil {
+ 			println("bad n", a[0]);
+ 			return 0, false;
+ 		}
+-		e, err1 := strconv.atoi(a[1]);
++		e, err1 := strconv.Atoi(a[1]);
+ 		if err1 != nil {
+ 			println("bad p", a[1]);
+ 			return 0, false;
+ 		}
+ 		return float32(float64(n)*pow2(e)), true;
+ 	}
+-	f1, err1 := strconv.atof32(s);
++	f1, err1 := strconv.Atof32(s);
+ 	if err1 != nil {
+ 		return 0, false;
+ 	}
+diff --git a/src/lib/strconv/ftoa.go b/src/lib/strconv/ftoa.go
+index a0f5efcd08..f826d944c0 100644
+--- a/src/lib/strconv/ftoa.go
++++ b/src/lib/strconv/ftoa.go
+@@ -13,20 +13,20 @@ package strconv
+ import "strconv"
+ 
+ // TODO: move elsewhere?
+-package type FloatInfo struct {
++type floatInfo struct {
+ 	mantbits uint;
+ 	expbits uint;
+ 	bias int;
+ }
+-package var float32info = FloatInfo{ 23, 8, -127 }
+-package var float64info = FloatInfo{ 52, 11, -1023 }
++var float32info = floatInfo{ 23, 8, -127 }
++var float64info = floatInfo{ 52, 11, -1023 }
+ 
+-func FmtB(neg bool, mant uint64, exp int, flt *FloatInfo) string
+-func FmtE(neg bool, d *Decimal, prec int) string
+-func FmtF(neg bool, d *Decimal, prec int) string
+-func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string
+-func Max(a, b int) int
+-func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo)
++func fmtB(neg bool, mant uint64, exp int, flt *floatInfo) string
++func fmtE(neg bool, d *decimal, prec int) string
++func fmtF(neg bool, d *decimal, prec int) string
++func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string
++func max(a, b int) int
++func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo)
+ 
+ func floatsize() int {
+ 	// Figure out whether float is float32 or float64.
+@@ -40,22 +40,22 @@ func floatsize() int {
+ }
+ export var FloatSize = floatsize()
+ 
+-export func ftoa32(f float32, fmt byte, prec int) string {
+-	return GenericFtoa(uint64(sys.float32bits(f)), fmt, prec, &float32info);
++export func Ftoa32(f float32, fmt byte, prec int) string {
++	return genericFtoa(uint64(sys.float32bits(f)), fmt, prec, &float32info);
+ }
+ 
+-export func ftoa64(f float64, fmt byte, prec int) string {
+-	return GenericFtoa(sys.float64bits(f), fmt, prec, &float64info);
++export func Ftoa64(f float64, fmt byte, prec int) string {
++	return genericFtoa(sys.float64bits(f), fmt, prec, &float64info);
+ }
+ 
+-export func ftoa(f float, fmt byte, prec int) string {
++export func Ftoa(f float, fmt byte, prec int) string {
+ 	if FloatSize == 32 {
+-		return ftoa32(float32(f), fmt, prec);
++		return Ftoa32(float32(f), fmt, prec);
+ 	}
+-	return ftoa64(float64(f), fmt, prec);
++	return Ftoa64(float64(f), fmt, prec);
+ }
+ 
+-func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
++func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
+ 	neg := bits>>flt.expbits>>flt.mantbits != 0;
+ 	exp := int(bits>>flt.mantbits) & (1<<flt.expbits - 1);
+ 	mant := bits & (uint64(1)<<flt.mantbits - 1);
+@@ -83,26 +83,26 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
+ 
+ 	// Pick off easy binary format.
+ 	if fmt == 'b' {
+-		return FmtB(neg, mant, exp, flt);
++		return fmtB(neg, mant, exp, flt);
+ 	}
+ 
+ 	// Create exact decimal representation.
+ 	// The shift is exp - flt.mantbits because mant is a 1-bit integer
+ 	// followed by a flt.mantbits fraction, and we are treating it as
+ 	// a 1+flt.mantbits-bit integer.
+-	d := NewDecimal(mant).Shift(exp - int(flt.mantbits));
++	d := newDecimal(mant).Shift(exp - int(flt.mantbits));
+ 
+ 	// Round appropriately.
+ 	// Negative precision means "only as much as needed to be exact."
+ 	shortest := false;
+ 	if prec < 0 {
+ 		shortest = true;
+-		RoundShortest(d, mant, exp, flt);
++		roundShortest(d, mant, exp, flt);
+ 		switch fmt {
+ 		case 'e':
+ 			prec = d.nd - 1;
+ 		case 'f':
+-			prec = Max(d.nd - d.dp, 0);
++			prec = max(d.nd - d.dp, 0);
+ 		case 'g':
+ 			prec = d.nd;
+ 		}
+@@ -122,9 +122,9 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
+ 
+ 	switch fmt {
+ 	case 'e':
+-		return FmtE(neg, d, prec);
++		return fmtE(neg, d, prec);
+ 	case 'f':
+-		return FmtF(neg, d, prec);
++		return fmtF(neg, d, prec);
+ 	case 'g':
+ 		// trailing zeros are removed.
+ 		if prec > d.nd {
+@@ -139,9 +139,9 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
+ 		}
+ 		exp := d.dp - 1;
+ 		if exp < -4 || exp >= eprec {
+-			return FmtE(neg, d, prec - 1);
++			return fmtE(neg, d, prec - 1);
+ 		}
+-		return FmtF(neg, d, Max(prec - d.dp, 0));
++		return fmtF(neg, d, max(prec - d.dp, 0));
+ 	}
+ 
+ 	return "%" + string(fmt);
+@@ -150,7 +150,7 @@ func GenericFtoa(bits uint64, fmt byte, prec int, flt *FloatInfo) string {
+ // Round d (= mant * 2^exp) to the shortest number of digits
+ // that will let the original floating point value be precisely
+ // reconstructed.  Size is original floating point size (64 or 32).
+-func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
++func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 	// If mantissa is zero, the number is zero; stop now.
+ 	if mant == 0 {
+ 		d.nd = 0;
+@@ -169,7 +169,7 @@ func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
+ 	// d = mant << (exp - mantbits)
+ 	// Next highest floating point number is mant+1 << exp-mantbits.
+ 	// Our upper bound is halfway inbetween, mant*2+1 << exp-mantbits-1.
+-	upper := NewDecimal(mant*2+1).Shift(exp-int(flt.mantbits)-1);
++	upper := newDecimal(mant*2+1).Shift(exp-int(flt.mantbits)-1);
+ 
+ 	// d = mant << (exp - mantbits)
+ 	// Next lowest floating point number is mant-1 << exp-mantbits,
+@@ -187,7 +187,7 @@ func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
+ 		mantlo = mant*2-1;
+ 		explo = exp-1;
+ 	}
+-	lower := NewDecimal(mantlo*2+1).Shift(explo-int(flt.mantbits)-1);
++	lower := newDecimal(mantlo*2+1).Shift(explo-int(flt.mantbits)-1);
+ 
+ 	// The upper and lower bounds are possible outputs only if
+ 	// the original mantissa is even, so that IEEE round-to-even
+@@ -235,8 +235,8 @@ func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
+ }
+ 
+ // %e: -d.ddddde±dd
+-func FmtE(neg bool, d *Decimal, prec int) string {
+-	buf := make([]byte, 3+Max(prec, 0)+30);	// "-0." + prec digits + exp
++func fmtE(neg bool, d *decimal, prec int) string {
++	buf := make([]byte, 3+max(prec, 0)+30);	// "-0." + prec digits + exp
+ 	w := 0;	// write index
+ 
+ 	// sign
+@@ -305,8 +305,8 @@ func FmtE(neg bool, d *Decimal, prec int) string {
+ }
+ 
+ // %f: -ddddddd.ddddd
+-func FmtF(neg bool, d *Decimal, prec int) string {
+-	buf := make([]byte, 1+Max(d.dp, 1)+1+Max(prec, 0));
++func fmtF(neg bool, d *decimal, prec int) string {
++	buf := make([]byte, 1+max(d.dp, 1)+1+max(prec, 0));
+ 	w := 0;
+ 
+ 	// sign
+@@ -349,7 +349,7 @@ func FmtF(neg bool, d *Decimal, prec int) string {
+ }
+ 
+ // %b: -ddddddddp+ddd
+-func FmtB(neg bool, mant uint64, exp int, flt *FloatInfo) string {
++func fmtB(neg bool, mant uint64, exp int, flt *floatInfo) string {
+ 	var buf [50]byte;
+ 	w := len(buf);
+ 	exp -= int(flt.mantbits);
+@@ -383,7 +383,7 @@ func FmtB(neg bool, mant uint64, exp int, flt *FloatInfo) string {
+ 	return string(buf[w:len(buf)]);
+ }
+ 
+-func Max(a, b int) int {
++func max(a, b int) int {
+ 	if a > b {
+ 		return a;
+ 	}
+diff --git a/src/lib/strconv/ftoa_test.go b/src/lib/strconv/ftoa_test.go
+index 8dbe7f3c29..61ce38cff1 100644
+--- a/src/lib/strconv/ftoa_test.go
++++ b/src/lib/strconv/ftoa_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"testing"
+ )
+ 
+-type FtoaTest struct {
++type ftoaTest struct {
+ 	f float64;
+ 	fmt byte;
+ 	prec int;
+@@ -19,83 +19,83 @@ type FtoaTest struct {
+ func fdiv(a, b float64) float64 { return a / b }	// keep compiler in the dark
+ 
+ const (
+-	Below1e23 = 99999999999999974834176;
+-	Above1e23 = 100000000000000008388608;
++	below1e23 = 99999999999999974834176;
++	above1e23 = 100000000000000008388608;
+ )
+ 
+-var ftoatests = []FtoaTest {
+-	FtoaTest{ 1, 'e', 5, "1.00000e+00" },
+-	FtoaTest{ 1, 'f', 5, "1.00000" },
+-	FtoaTest{ 1, 'g', 5, "1" },
+-	FtoaTest{ 1, 'g', -1, "1" },
+-	FtoaTest{ 20, 'g', -1, "20" },
+-	FtoaTest{ 1234567.8, 'g', -1, "1.2345678e+06" },
+-	FtoaTest{ 200000, 'g', -1, "200000" },
+-	FtoaTest{ 2000000, 'g', -1, "2e+06" },
+-
+-	FtoaTest{ 0, 'e', 5, "0.00000e+00" },
+-	FtoaTest{ 0, 'f', 5, "0.00000" },
+-	FtoaTest{ 0, 'g', 5, "0" },
+-	FtoaTest{ 0, 'g', -1, "0" },
+-
+-	FtoaTest{ -1, 'e', 5, "-1.00000e+00" },
+-	FtoaTest{ -1, 'f', 5, "-1.00000" },
+-	FtoaTest{ -1, 'g', 5, "-1" },
+-	FtoaTest{ -1, 'g', -1, "-1" },
+-
+-	FtoaTest{ 12, 'e', 5, "1.20000e+01" },
+-	FtoaTest{ 12, 'f', 5, "12.00000" },
+-	FtoaTest{ 12, 'g', 5, "12" },
+-	FtoaTest{ 12, 'g', -1, "12" },
+-
+-	FtoaTest{ 123456700, 'e', 5, "1.23457e+08" },
+-	FtoaTest{ 123456700, 'f', 5, "123456700.00000" },
+-	FtoaTest{ 123456700, 'g', 5, "1.2346e+08" },
+-	FtoaTest{ 123456700, 'g', -1, "1.234567e+08" },
+-
+-	FtoaTest{ 1.2345e6, 'e', 5, "1.23450e+06" },
+-	FtoaTest{ 1.2345e6, 'f', 5, "1234500.00000" },
+-	FtoaTest{ 1.2345e6, 'g', 5, "1.2345e+06" },
+-
+-	FtoaTest{ 1e23, 'e', 17, "9.99999999999999916e+22" },
+-	FtoaTest{ 1e23, 'f', 17, "99999999999999991611392.00000000000000000" },
+-	FtoaTest{ 1e23, 'g', 17, "9.9999999999999992e+22" },
+-
+-	FtoaTest{ 1e23, 'e', -1, "1e+23" },
+-	FtoaTest{ 1e23, 'f', -1, "100000000000000000000000" },
+-	FtoaTest{ 1e23, 'g', -1, "1e+23" },
+-
+-	FtoaTest{ Below1e23, 'e', 17, "9.99999999999999748e+22" },
+-	FtoaTest{ Below1e23, 'f', 17, "99999999999999974834176.00000000000000000" },
+-	FtoaTest{ Below1e23, 'g', 17, "9.9999999999999975e+22" },
+-
+-	FtoaTest{ Below1e23, 'e', -1, "9.999999999999997e+22" },
+-	FtoaTest{ Below1e23, 'f', -1, "99999999999999970000000" },
+-	FtoaTest{ Below1e23, 'g', -1, "9.999999999999997e+22" },
+-
+-	FtoaTest{ Above1e23, 'e', 17, "1.00000000000000008e+23" },
+-	FtoaTest{ Above1e23, 'f', 17, "100000000000000008388608.00000000000000000" },
+-	FtoaTest{ Above1e23, 'g', 17, "1.0000000000000001e+23" },
+-
+-	FtoaTest{ Above1e23, 'e', -1, "1.0000000000000001e+23" },
+-	FtoaTest{ Above1e23, 'f', -1, "100000000000000010000000" },
+-	FtoaTest{ Above1e23, 'g', -1, "1.0000000000000001e+23" },
+-
+-	FtoaTest{ fdiv(5e-304, 1e20), 'g', -1, "5e-324" },
+-	FtoaTest{ fdiv(-5e-304, 1e20), 'g', -1, "-5e-324" },
+-
+-	FtoaTest{ 32, 'g', -1, "32" },
+-	FtoaTest{ 32, 'g', 0, "3e+01" },
+-
+-	FtoaTest{ 100, 'x', -1, "%x" },
+-
+-	FtoaTest{ sys.NaN(), 'g', -1, "NaN" },
+-	FtoaTest{ -sys.NaN(), 'g', -1, "NaN" },
+-	FtoaTest{ sys.Inf(0), 'g', -1, "+Inf" },
+-	FtoaTest{ sys.Inf(-1), 'g', -1,  "-Inf" },
+-	FtoaTest{ -sys.Inf(0), 'g', -1, "-Inf" },
+-
+-	FtoaTest{ -1, 'b', -1, "-4503599627370496p-52" },
++var ftoatests = []ftoaTest {
++	ftoaTest{ 1, 'e', 5, "1.00000e+00" },
++	ftoaTest{ 1, 'f', 5, "1.00000" },
++	ftoaTest{ 1, 'g', 5, "1" },
++	ftoaTest{ 1, 'g', -1, "1" },
++	ftoaTest{ 20, 'g', -1, "20" },
++	ftoaTest{ 1234567.8, 'g', -1, "1.2345678e+06" },
++	ftoaTest{ 200000, 'g', -1, "200000" },
++	ftoaTest{ 2000000, 'g', -1, "2e+06" },
++
++	ftoaTest{ 0, 'e', 5, "0.00000e+00" },
++	ftoaTest{ 0, 'f', 5, "0.00000" },
++	ftoaTest{ 0, 'g', 5, "0" },
++	ftoaTest{ 0, 'g', -1, "0" },
++
++	ftoaTest{ -1, 'e', 5, "-1.00000e+00" },
++	ftoaTest{ -1, 'f', 5, "-1.00000" },
++	ftoaTest{ -1, 'g', 5, "-1" },
++	ftoaTest{ -1, 'g', -1, "-1" },
++
++	ftoaTest{ 12, 'e', 5, "1.20000e+01" },
++	ftoaTest{ 12, 'f', 5, "12.00000" },
++	ftoaTest{ 12, 'g', 5, "12" },
++	ftoaTest{ 12, 'g', -1, "12" },
++
++	ftoaTest{ 123456700, 'e', 5, "1.23457e+08" },
++	ftoaTest{ 123456700, 'f', 5, "123456700.00000" },
++	ftoaTest{ 123456700, 'g', 5, "1.2346e+08" },
++	ftoaTest{ 123456700, 'g', -1, "1.234567e+08" },
++
++	ftoaTest{ 1.2345e6, 'e', 5, "1.23450e+06" },
++	ftoaTest{ 1.2345e6, 'f', 5, "1234500.00000" },
++	ftoaTest{ 1.2345e6, 'g', 5, "1.2345e+06" },
++
++	ftoaTest{ 1e23, 'e', 17, "9.99999999999999916e+22" },
++	ftoaTest{ 1e23, 'f', 17, "99999999999999991611392.00000000000000000" },
++	ftoaTest{ 1e23, 'g', 17, "9.9999999999999992e+22" },
++
++	ftoaTest{ 1e23, 'e', -1, "1e+23" },
++	ftoaTest{ 1e23, 'f', -1, "100000000000000000000000" },
++	ftoaTest{ 1e23, 'g', -1, "1e+23" },
++
++	ftoaTest{ below1e23, 'e', 17, "9.99999999999999748e+22" },
++	ftoaTest{ below1e23, 'f', 17, "99999999999999974834176.00000000000000000" },
++	ftoaTest{ below1e23, 'g', 17, "9.9999999999999975e+22" },
++
++	ftoaTest{ below1e23, 'e', -1, "9.999999999999997e+22" },
++	ftoaTest{ below1e23, 'f', -1, "99999999999999970000000" },
++	ftoaTest{ below1e23, 'g', -1, "9.999999999999997e+22" },
++
++	ftoaTest{ above1e23, 'e', 17, "1.00000000000000008e+23" },
++	ftoaTest{ above1e23, 'f', 17, "100000000000000008388608.00000000000000000" },
++	ftoaTest{ above1e23, 'g', 17, "1.0000000000000001e+23" },
++
++	ftoaTest{ above1e23, 'e', -1, "1.0000000000000001e+23" },
++	ftoaTest{ above1e23, 'f', -1, "100000000000000010000000" },
++	ftoaTest{ above1e23, 'g', -1, "1.0000000000000001e+23" },
++
++	ftoaTest{ fdiv(5e-304, 1e20), 'g', -1, "5e-324" },
++	ftoaTest{ fdiv(-5e-304, 1e20), 'g', -1, "-5e-324" },
++
++	ftoaTest{ 32, 'g', -1, "32" },
++	ftoaTest{ 32, 'g', 0, "3e+01" },
++
++	ftoaTest{ 100, 'x', -1, "%x" },
++
++	ftoaTest{ sys.NaN(), 'g', -1, "NaN" },
++	ftoaTest{ -sys.NaN(), 'g', -1, "NaN" },
++	ftoaTest{ sys.Inf(0), 'g', -1, "+Inf" },
++	ftoaTest{ sys.Inf(-1), 'g', -1,  "-Inf" },
++	ftoaTest{ -sys.Inf(0), 'g', -1, "-Inf" },
++
++	ftoaTest{ -1, 'b', -1, "-4503599627370496p-52" },
+ }
+ 
+ export func TestFtoa(t *testing.T) {
+@@ -104,12 +104,12 @@ export func TestFtoa(t *testing.T) {
+ 	}
+ 	for i := 0; i < len(ftoatests); i++ {
+ 		test := &ftoatests[i];
+-		s := strconv.ftoa64(test.f, test.fmt, test.prec);
++		s := strconv.Ftoa64(test.f, test.fmt, test.prec);
+ 		if s != test.s {
+ 			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+ 		}
+ 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
+-			s := strconv.ftoa32(float32(test.f), test.fmt, test.prec);
++			s := strconv.Ftoa32(float32(test.f), test.fmt, test.prec);
+ 			if s != test.s {
+ 				t.Error("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+ 			}
+diff --git a/src/lib/strconv/itoa.go b/src/lib/strconv/itoa.go
+index 698c553d27..256289ada9 100644
+--- a/src/lib/strconv/itoa.go
++++ b/src/lib/strconv/itoa.go
+@@ -4,7 +4,7 @@
+ 
+ package strconv
+ 
+-export func itoa64(i int64) string {
++export func Itoa64(i int64) string {
+ 	if i == 0 {
+ 		return "0"
+ 	}
+@@ -29,10 +29,9 @@ export func itoa64(i int64) string {
+ 	}
+ 
+ 	return string(b[bp:len(b)])
+-	//return string((&b)[bp:len(b)])
+ }
+ 
+-export func itoa(i int) string {
+-	return itoa64(int64(i));
++export func Itoa(i int) string {
++	return Itoa64(int64(i));
+ }
+ 
+diff --git a/src/lib/strconv/itoa_test.go b/src/lib/strconv/itoa_test.go
+index 880aff4a96..b0e4ed7fa9 100644
+--- a/src/lib/strconv/itoa_test.go
++++ b/src/lib/strconv/itoa_test.go
+@@ -11,47 +11,47 @@ import (
+ 	"testing";
+ )
+ 
+-type Itoa64Test struct {
++type itoa64Test struct {
+ 	in int64;
+ 	out string;
+ }
+ 
+-var itoa64tests = []Itoa64Test {
+-	Itoa64Test{ 0, "0" },
+-	Itoa64Test{ 1, "1" },
+-	Itoa64Test{ -1, "-1" },
+-	Itoa64Test{ 12345678, "12345678" },
+-	Itoa64Test{ -987654321, "-987654321" },
+-	Itoa64Test{ 1<<31-1, "2147483647" },
+-	Itoa64Test{ -1<<31+1, "-2147483647" },
+-	Itoa64Test{ 1<<31, "2147483648" },
+-	Itoa64Test{ -1<<31, "-2147483648" },
+-	Itoa64Test{ 1<<31+1, "2147483649" },
+-	Itoa64Test{ -1<<31-1, "-2147483649" },
+-	Itoa64Test{ 1<<32-1, "4294967295" },
+-	Itoa64Test{ -1<<32+1, "-4294967295" },
+-	Itoa64Test{ 1<<32, "4294967296" },
+-	Itoa64Test{ -1<<32, "-4294967296" },
+-	Itoa64Test{ 1<<32+1, "4294967297" },
+-	Itoa64Test{ -1<<32-1, "-4294967297" },
+-	Itoa64Test{ 1<<50, "1125899906842624" },
+-	Itoa64Test{ 1<<63-1, "9223372036854775807" },
+-	Itoa64Test{ -1<<63+1, "-9223372036854775807" },
+-	Itoa64Test{ -1<<63, "-9223372036854775808" },
++var itoa64tests = []itoa64Test {
++	itoa64Test{ 0, "0" },
++	itoa64Test{ 1, "1" },
++	itoa64Test{ -1, "-1" },
++	itoa64Test{ 12345678, "12345678" },
++	itoa64Test{ -987654321, "-987654321" },
++	itoa64Test{ 1<<31-1, "2147483647" },
++	itoa64Test{ -1<<31+1, "-2147483647" },
++	itoa64Test{ 1<<31, "2147483648" },
++	itoa64Test{ -1<<31, "-2147483648" },
++	itoa64Test{ 1<<31+1, "2147483649" },
++	itoa64Test{ -1<<31-1, "-2147483649" },
++	itoa64Test{ 1<<32-1, "4294967295" },
++	itoa64Test{ -1<<32+1, "-4294967295" },
++	itoa64Test{ 1<<32, "4294967296" },
++	itoa64Test{ -1<<32, "-4294967296" },
++	itoa64Test{ 1<<32+1, "4294967297" },
++	itoa64Test{ -1<<32-1, "-4294967297" },
++	itoa64Test{ 1<<50, "1125899906842624" },
++	itoa64Test{ 1<<63-1, "9223372036854775807" },
++	itoa64Test{ -1<<63+1, "-9223372036854775807" },
++	itoa64Test{ -1<<63, "-9223372036854775808" },
+ }
+ 
+ export func TestItoa(t *testing.T) {
+ 	for i := 0; i < len(itoa64tests); i++ {
+ 		test := itoa64tests[i];
+-		s := strconv.itoa64(test.in);
++		s := strconv.Itoa64(test.in);
+ 		if s != test.out {
+-			t.Error("strconv.itoa64(%v) = %v want %v\n",
++			t.Error("strconv.Itoa64(%v) = %v want %v\n",
+ 				test.in, s, test.out);
+ 		}
+ 		if int64(int(test.in)) == test.in {
+-			s := strconv.itoa(int(test.in));
++			s := strconv.Itoa(int(test.in));
+ 			if s != test.out {
+-				t.Error("strconv.itoa(%v) = %v want %v\n",
++				t.Error("strconv.Itoa(%v) = %v want %v\n",
+ 					test.in, s, test.out);
+ 			}
+ 		}
+@@ -59,17 +59,17 @@ export func TestItoa(t *testing.T) {
+ }
+ 
+ // TODO: Use once there is a strconv.uitoa
+-type Uitoa64Test struct {
++type uitoa64Test struct {
+ 	in uint64;
+ 	out string;
+ }
+ 
+ // TODO: should be able to call this atoui64tests.
+-var uitoa64tests = []Uitoa64Test {
+-	Uitoa64Test{ 1<<63-1, "9223372036854775807" },
+-	Uitoa64Test{ 1<<63, "9223372036854775808" },
+-	Uitoa64Test{ 1<<63+1, "9223372036854775809" },
+-	Uitoa64Test{ 1<<64-2, "18446744073709551614" },
+-	Uitoa64Test{ 1<<64-1, "18446744073709551615" },
++var uitoa64tests = []uitoa64Test {
++	uitoa64Test{ 1<<63-1, "9223372036854775807" },
++	uitoa64Test{ 1<<63, "9223372036854775808" },
++	uitoa64Test{ 1<<63+1, "9223372036854775809" },
++	uitoa64Test{ 1<<64-2, "18446744073709551614" },
++	uitoa64Test{ 1<<64-1, "18446744073709551615" },
+ }
+ 
+diff --git a/src/lib/strconv/quote_test.go b/src/lib/strconv/quote_test.go
+index a5df94be04..ac2c8e7069 100644
+--- a/src/lib/strconv/quote_test.go
++++ b/src/lib/strconv/quote_test.go
+@@ -9,18 +9,18 @@ import (
+ 	"testing";
+ )
+ 
+-type QuoteTest struct {
++type quoteTest struct {
+ 	in string;
+ 	out string;
+ }
+ 
+-var quotetests = []QuoteTest {
+-	QuoteTest{ "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"` },
+-	QuoteTest{ "\\", `"\\"` },
+-	QuoteTest{ "abc\xffdef", `"abc\xffdef"` },
+-	QuoteTest{ "\u263a", `"\u263a"` },
+-	QuoteTest{ "\U0010ffff", `"\U0010ffff"` },
+-	QuoteTest{ "\x04", `"\x04"` },
++var quotetests = []quoteTest {
++	quoteTest{ "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"` },
++	quoteTest{ "\\", `"\\"` },
++	quoteTest{ "abc\xffdef", `"abc\xffdef"` },
++	quoteTest{ "\u263a", `"\u263a"` },
++	quoteTest{ "\U0010ffff", `"\U0010ffff"` },
++	quoteTest{ "\x04", `"\x04"` },
+ }
+ 
+ export func TestQuote(t *testing.T) {
+@@ -32,50 +32,50 @@ export func TestQuote(t *testing.T) {
+ 	}
+ }
+ 
+-type CanBackquoteTest struct {
++type canBackquoteTest struct {
+ 	in string;
+ 	out bool;
+ }
+ 
+-var canbackquotetests = []CanBackquoteTest {
+-	CanBackquoteTest{ "`", false },
+-	CanBackquoteTest{ string(0), false },
+-	CanBackquoteTest{ string(1), false },
+-	CanBackquoteTest{ string(2), false },
+-	CanBackquoteTest{ string(3), false },
+-	CanBackquoteTest{ string(4), false },
+-	CanBackquoteTest{ string(5), false },
+-	CanBackquoteTest{ string(6), false },
+-	CanBackquoteTest{ string(7), false },
+-	CanBackquoteTest{ string(8), false },
+-	CanBackquoteTest{ string(9), false },
+-	CanBackquoteTest{ string(10), false },
+-	CanBackquoteTest{ string(11), false },
+-	CanBackquoteTest{ string(12), false },
+-	CanBackquoteTest{ string(13), false },
+-	CanBackquoteTest{ string(14), false },
+-	CanBackquoteTest{ string(15), false },
+-	CanBackquoteTest{ string(16), false },
+-	CanBackquoteTest{ string(17), false },
+-	CanBackquoteTest{ string(18), false },
+-	CanBackquoteTest{ string(19), false },
+-	CanBackquoteTest{ string(20), false },
+-	CanBackquoteTest{ string(21), false },
+-	CanBackquoteTest{ string(22), false },
+-	CanBackquoteTest{ string(23), false },
+-	CanBackquoteTest{ string(24), false },
+-	CanBackquoteTest{ string(25), false },
+-	CanBackquoteTest{ string(26), false },
+-	CanBackquoteTest{ string(27), false },
+-	CanBackquoteTest{ string(28), false },
+-	CanBackquoteTest{ string(29), false },
+-	CanBackquoteTest{ string(30), false },
+-	CanBackquoteTest{ string(31), false },
+-	CanBackquoteTest{ `' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true },
+-	CanBackquoteTest{ `0123456789`, true },
+-	CanBackquoteTest{ `ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true },
+-	CanBackquoteTest{ `abcdefghijklmnopqrstuvwxyz`, true },
+-	CanBackquoteTest{ `☺`, true },
++var canbackquotetests = []canBackquoteTest {
++	canBackquoteTest{ "`", false },
++	canBackquoteTest{ string(0), false },
++	canBackquoteTest{ string(1), false },
++	canBackquoteTest{ string(2), false },
++	canBackquoteTest{ string(3), false },
++	canBackquoteTest{ string(4), false },
++	canBackquoteTest{ string(5), false },
++	canBackquoteTest{ string(6), false },
++	canBackquoteTest{ string(7), false },
++	canBackquoteTest{ string(8), false },
++	canBackquoteTest{ string(9), false },
++	canBackquoteTest{ string(10), false },
++	canBackquoteTest{ string(11), false },
++	canBackquoteTest{ string(12), false },
++	canBackquoteTest{ string(13), false },
++	canBackquoteTest{ string(14), false },
++	canBackquoteTest{ string(15), false },
++	canBackquoteTest{ string(16), false },
++	canBackquoteTest{ string(17), false },
++	canBackquoteTest{ string(18), false },
++	canBackquoteTest{ string(19), false },
++	canBackquoteTest{ string(20), false },
++	canBackquoteTest{ string(21), false },
++	canBackquoteTest{ string(22), false },
++	canBackquoteTest{ string(23), false },
++	canBackquoteTest{ string(24), false },
++	canBackquoteTest{ string(25), false },
++	canBackquoteTest{ string(26), false },
++	canBackquoteTest{ string(27), false },
++	canBackquoteTest{ string(28), false },
++	canBackquoteTest{ string(29), false },
++	canBackquoteTest{ string(30), false },
++	canBackquoteTest{ string(31), false },
++	canBackquoteTest{ `' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true },
++	canBackquoteTest{ `0123456789`, true },
++	canBackquoteTest{ `ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true },
++	canBackquoteTest{ `abcdefghijklmnopqrstuvwxyz`, true },
++	canBackquoteTest{ `☺`, true },
+ }
+ 
+ export func TestCanBackquote(t *testing.T) {
+diff --git a/test/chan/goroutines.go b/test/chan/goroutines.go
+index db76a399c2..104b247f36 100644
+--- a/test/chan/goroutines.go
++++ b/test/chan/goroutines.go
+@@ -22,7 +22,7 @@ func main() {
+ 	var n = 10000;
+ 	if sys.argc() > 1 {
+ 		var err *os.Error;
+-		n, err = strconv.atoi(sys.argv(1));
++		n, err = strconv.Atoi(sys.argv(1));
+ 		if err != nil {
+ 			print("bad arg\n");
+ 			sys.exit(1);
+diff --git a/test/fixedbugs/bug120.go b/test/fixedbugs/bug120.go
+index 421f1db9ae..28c4359258 100644
+--- a/test/fixedbugs/bug120.go
++++ b/test/fixedbugs/bug120.go
+@@ -40,15 +40,15 @@ func main() {
+ 	ok := true;
+ 	for i := 0; i < len(tests); i++ {
+ 		t := tests[i];
+-		v := strconv.ftoa64(t.f, 'g', -1);
++		v := strconv.Ftoa64(t.f, 'g', -1);
+ 		if v != t.out {
+ 			println("Bad float64 const:", t.in, "want", t.out, "got", v);
+-			x, err := strconv.atof64(t.out);
++			x, err := strconv.Atof64(t.out);
+ 			if err != nil {
+-				panicln("bug120: strconv.atof64", t.out);
++				panicln("bug120: strconv.Atof64", t.out);
+ 			}
+-			println("\twant exact:", strconv.ftoa64(x, 'g', 1000));
+-			println("\tgot exact: ", strconv.ftoa64(t.f, 'g', 1000));
++			println("\twant exact:", strconv.Ftoa64(x, 'g', 1000));
++			println("\tgot exact: ", strconv.Ftoa64(t.f, 'g', 1000));
+ 			ok = false;
+ 		}
+ 	}
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index 8c90ee94e4..5ae742b4c7 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -87,7 +87,7 @@ func AllocAndFree(size, count int) {
+ }
+ 
+ func atoi(s string) int {
+-	i, xx1 := strconv.atoi(s);
++	i, xx1 := strconv.Atoi(s);
+ 	return i
+ }
+ 
+diff --git a/test/map.go b/test/map.go
+index 21d4fd773d..51c6fe5f5b 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -61,8 +61,8 @@ func main() {
+ 	var apT [2*count]*T;
+ 
+ 	for i := 0; i < count; i++ {
+-		s := strconv.itoa(i);
+-		s10 := strconv.itoa(i*10);
++		s := strconv.Itoa(i);
++		s10 := strconv.Itoa(i*10);
+ 		f := float(i);
+ 		t := T{int64(i),f};
+ 		apT[i] = new(T);
+@@ -137,8 +137,8 @@ func main() {
+ 
+ 	// test construction directly
+ 	for i := 0; i < count; i++ {
+-		s := strconv.itoa(i);
+-		s10 := strconv.itoa(i*10);
++		s := strconv.Itoa(i);
++		s10 := strconv.Itoa(i*10);
+ 		f := float(i);
+ 		t := T{int64(i), f};
+ 		// BUG m := M(i, i+1);
+@@ -191,7 +191,7 @@ func main() {
+ 	// test existence with tuple check
+ 	// failed lookups yield a false value for the boolean.
+ 	for i := 0; i < count; i++ {
+-		s := strconv.itoa(i);
++		s := strconv.Itoa(i);
+ 		f := float(i);
+ 		t := T{int64(i), f};
+ 		{
+@@ -329,7 +329,7 @@ func main() {
+ 	// test nonexistence with tuple check
+ 	// failed lookups yield a false value for the boolean.
+ 	for i := count; i < 2*count; i++ {
+-		s := strconv.itoa(i);
++		s := strconv.Itoa(i);
+ 		f := float(i);
+ 		t := T{int64(i),f};
+ 		{
+@@ -467,7 +467,7 @@ func main() {
+ 
+ 	// tests for structured map element updates
+ 	for i := 0; i < count; i++ {
+-		s := strconv.itoa(i);
++		s := strconv.Itoa(i);
+ 		mspa[s][i % 2] = "deleted";
+ 		if mspa[s][i % 2] != "deleted" {
+ 			fmt.Printf("update mspa[%s][%d] = %s\n", s, i %2, mspa[s][i % 2]);

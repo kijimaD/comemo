@@ -8,6 +8,19 @@ Date:   Thu Aug 7 10:25:50 2014 +1000
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/126760043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 87904ee7ea..3ea1ca3c52 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -10,6 +10,7 @@ spec: permit for range x (CL 104680043)
+ encoding/gob: remove unsafe (CL 102680045)
+ misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)
+ os: implement symlink support for windows (CL 86160044)
++runtime: implement monotonic clocks on windows (CL 108700045)
+ runtime/race: freebsd is supported (CL 107270043)
+ syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)
+ testing: add Coverage (CL 98150043)

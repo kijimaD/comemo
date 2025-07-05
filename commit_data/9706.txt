@@ -7,8 +7,281 @@ Date:   Thu Sep 15 16:21:21 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5040041
-
+---
  src/pkg/index/suffixarray/qsufsort.go         | 38 +++++++++---------
  src/pkg/index/suffixarray/suffixarray.go      | 56 +++++++++++++++++++++++++--
  src/pkg/index/suffixarray/suffixarray_test.go | 29 +++++++++++++-
  3 files changed, 99 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/index/suffixarray/qsufsort.go b/src/pkg/index/suffixarray/qsufsort.go
+index 30c1104428..b6aa99bca3 100644
+--- a/src/pkg/index/suffixarray/qsufsort.go
++++ b/src/pkg/index/suffixarray/qsufsort.go
+@@ -26,7 +26,7 @@ package suffixarray
+ 
+ import "sort"
+ 
+-func qsufsort(data []byte) []int {
++func qsufsort(data []byte) []int32 {
+ 	// initial sorting by first byte of suffix
+ 	sa := sortedByFirstByte(data)
+ 	if len(sa) < 2 {
+@@ -39,20 +39,20 @@ func qsufsort(data []byte) []int {
+ 	// the index starts 1-ordered
+ 	sufSortable := &suffixSortable{sa, inv, 1}
+ 
+-	for sa[0] > -len(sa) { // until all suffixes are one big sorted group
++	for int(sa[0]) > -len(sa) { // until all suffixes are one big sorted group
+ 		// The suffixes are h-ordered, make them 2*h-ordered
+ 		pi := 0 // pi is first position of first group
+ 		sl := 0 // sl is negated length of sorted groups
+ 		for pi < len(sa) {
+-			if s := sa[pi]; s < 0 { // if pi starts sorted group
++			if s := int(sa[pi]); s < 0 { // if pi starts sorted group
+ 				pi -= s // skip over sorted group
+ 				sl += s // add negated length to sl
+ 			} else { // if pi starts unsorted group
+ 				if sl != 0 {
+-					sa[pi+sl] = sl // combine sorted groups before pi
++					sa[pi+sl] = int32(sl) // combine sorted groups before pi
+ 					sl = 0
+ 				}
+-				pk := inv[s] + 1 // pk-1 is last position of unsorted group
++				pk := int(inv[s]) + 1 // pk-1 is last position of unsorted group
+ 				sufSortable.sa = sa[pi:pk]
+ 				sort.Sort(sufSortable)
+ 				sufSortable.updateGroups(pi)
+@@ -60,19 +60,19 @@ func qsufsort(data []byte) []int {
+ 			}
+ 		}
+ 		if sl != 0 { // if the array ends with a sorted group
+-			sa[pi+sl] = sl // combine sorted groups at end of sa
++			sa[pi+sl] = int32(sl) // combine sorted groups at end of sa
+ 		}
+ 
+ 		sufSortable.h *= 2 // double sorted depth
+ 	}
+ 
+ 	for i := range sa { // reconstruct suffix array from inverse
+-		sa[inv[i]] = i
++		sa[inv[i]] = int32(i)
+ 	}
+ 	return sa
+ }
+ 
+-func sortedByFirstByte(data []byte) []int {
++func sortedByFirstByte(data []byte) []int32 {
+ 	// total byte counts
+ 	var count [256]int
+ 	for _, b := range data {
+@@ -84,17 +84,17 @@ func sortedByFirstByte(data []byte) []int {
+ 		count[b], sum = sum, count[b]+sum
+ 	}
+ 	// iterate through bytes, placing index into the correct spot in sa
+-	sa := make([]int, len(data))
++	sa := make([]int32, len(data))
+ 	for i, b := range data {
+-		sa[count[b]] = i
++		sa[count[b]] = int32(i)
+ 		count[b]++
+ 	}
+ 	return sa
+ }
+ 
+-func initGroups(sa []int, data []byte) []int {
++func initGroups(sa []int32, data []byte) []int32 {
+ 	// label contiguous same-letter groups with the same group number
+-	inv := make([]int, len(data))
++	inv := make([]int32, len(data))
+ 	prevGroup := len(sa) - 1
+ 	groupByte := data[sa[prevGroup]]
+ 	for i := len(sa) - 1; i >= 0; i-- {
+@@ -105,7 +105,7 @@ func initGroups(sa []int, data []byte) []int {
+ 			groupByte = b
+ 			prevGroup = i
+ 		}
+-		inv[sa[i]] = prevGroup
++		inv[sa[i]] = int32(prevGroup)
+ 		if prevGroup == 0 {
+ 			sa[0] = -1
+ 		}
+@@ -120,9 +120,9 @@ func initGroups(sa []int, data []byte) []int {
+ 			if data[sa[i]] == lastByte && s == -1 {
+ 				s = i
+ 			}
+-			if sa[i] == len(sa)-1 {
++			if int(sa[i]) == len(sa)-1 {
+ 				sa[i], sa[s] = sa[s], sa[i]
+-				inv[sa[s]] = s
++				inv[sa[s]] = int32(s)
+ 				sa[s] = -1 // mark it as an isolated sorted group
+ 				break
+ 			}
+@@ -132,9 +132,9 @@ func initGroups(sa []int, data []byte) []int {
+ }
+ 
+ type suffixSortable struct {
+-	sa  []int
+-	inv []int
+-	h   int
++	sa  []int32
++	inv []int32
++	h   int32
+ }
+ 
+ func (x *suffixSortable) Len() int           { return len(x.sa) }
+@@ -156,7 +156,7 @@ func (x *suffixSortable) updateGroups(offset int) {
+ 	prev := 0
+ 	for _, b := range bounds {
+ 		for i := prev; i < b; i++ {
+-			x.inv[x.sa[i]] = offset + b - 1
++			x.inv[x.sa[i]] = int32(offset + b - 1)
+ 		}
+ 		if b-prev == 1 {
+ 			x.sa[prev] = -1
+diff --git a/src/pkg/index/suffixarray/suffixarray.go b/src/pkg/index/suffixarray/suffixarray.go
+index c78de854de..c2a999483b 100644
+--- a/src/pkg/index/suffixarray/suffixarray.go
++++ b/src/pkg/index/suffixarray/suffixarray.go
+@@ -18,14 +18,17 @@ package suffixarray
+ 
+ import (
+ 	"bytes"
++	"encoding/binary"
+ 	"exp/regexp"
++	"io"
++	"os"
+ 	"sort"
+ )
+ 
+ // Index implements a suffix array for fast substring search.
+ type Index struct {
+ 	data []byte
+-	sa   []int // suffix array for data
++	sa   []int32 // suffix array for data; len(sa) == len(data)
+ }
+ 
+ // New creates a new Index for data.
+@@ -34,6 +37,48 @@ func New(data []byte) *Index {
+ 	return &Index{data, qsufsort(data)}
+ }
+ 
++// Read reads the index from r into x; x must not be nil.
++func (x *Index) Read(r io.Reader) os.Error {
++	var n int32
++	if err := binary.Read(r, binary.LittleEndian, &n); err != nil {
++		return err
++	}
++	if 2*n < int32(cap(x.data)) || int32(cap(x.data)) < n {
++		// new data is significantly smaller or larger then
++		// existing buffers - allocate new ones
++		x.data = make([]byte, n)
++		x.sa = make([]int32, n)
++	} else {
++		// re-use existing buffers
++		x.data = x.data[0:n]
++		x.sa = x.sa[0:n]
++	}
++
++	if err := binary.Read(r, binary.LittleEndian, x.data); err != nil {
++		return err
++	}
++	if err := binary.Read(r, binary.LittleEndian, x.sa); err != nil {
++		return err
++	}
++
++	return nil
++}
++
++// Write writes the index x to w.
++func (x *Index) Write(w io.Writer) os.Error {
++	n := int32(len(x.data))
++	if err := binary.Write(w, binary.LittleEndian, n); err != nil {
++		return err
++	}
++	if err := binary.Write(w, binary.LittleEndian, x.data); err != nil {
++		return err
++	}
++	if err := binary.Write(w, binary.LittleEndian, x.sa); err != nil {
++		return err
++	}
++	return nil
++}
++
+ // Bytes returns the data over which the index was created.
+ // It must not be modified.
+ //
+@@ -47,7 +92,7 @@ func (x *Index) at(i int) []byte {
+ 
+ // lookupAll returns a slice into the matching region of the index.
+ // The runtime is O(log(N)*len(s)).
+-func (x *Index) lookupAll(s []byte) []int {
++func (x *Index) lookupAll(s []byte) []int32 {
+ 	// find matching suffix index range [i:j]
+ 	// find the first index where s would be the prefix
+ 	i := sort.Search(len(x.sa), func(i int) bool { return bytes.Compare(x.at(i), s) >= 0 })
+@@ -65,12 +110,15 @@ func (x *Index) lookupAll(s []byte) []int {
+ func (x *Index) Lookup(s []byte, n int) (result []int) {
+ 	if len(s) > 0 && n != 0 {
+ 		matches := x.lookupAll(s)
+-		if len(matches) < n || n < 0 {
++		if n < 0 || len(matches) < n {
+ 			n = len(matches)
+ 		}
++		// 0 <= n <= len(matches)
+ 		if n > 0 {
+ 			result = make([]int, n)
+-			copy(result, matches)
++			for i, x := range matches[0:n] {
++				result[i] = int(x)
++			}
+ 		}
+ 	}
+ 	return
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index d292356db1..cffedfba0f 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -213,7 +213,33 @@ func (a *index) at(i int) []byte    { return a.data[a.sa[i]:] }
+ 
+ func testConstruction(t *testing.T, tc *testCase, x *Index) {
+ 	if !sort.IsSorted((*index)(x)) {
+-		t.Errorf("testConstruction failed %s", tc.name)
++		t.Errorf("failed testConstruction %s", tc.name)
++	}
++}
++
++func equal(x, y *Index) bool {
++	if !bytes.Equal(x.data, y.data) {
++		return false
++	}
++	for i, j := range x.sa {
++		if j != y.sa[i] {
++			return false
++		}
++	}
++	return true
++}
++
++func testSaveRestore(t *testing.T, tc *testCase, x *Index) {
++	var buf bytes.Buffer
++	if err := x.Write(&buf); err != nil {
++		t.Errorf("failed writing index %s (%s)", tc.name, err)
++	}
++	var y Index
++	if err := y.Read(&buf); err != nil {
++		t.Errorf("failed reading index %s (%s)", tc.name, err)
++	}
++	if !equal(x, &y) {
++		t.Errorf("restored index doesn't match saved index %s", tc.name)
+ 	}
+ }
+ 
+@@ -221,6 +247,7 @@ func TestIndex(t *testing.T) {
+ 	for _, tc := range testCases {
+ 		x := New([]byte(tc.source))
+ 		testConstruction(t, &tc, x)
++		testSaveRestore(t, &tc, x)
+ 		testLookups(t, &tc, x, 0)
+ 		testLookups(t, &tc, x, 1)
+ 		testLookups(t, &tc, x, 10)

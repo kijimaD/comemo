@@ -7,9 +7,262 @@ Date:   Wed Sep 3 14:09:29 2008 -0700
     R=r
     OCL=14756
     CL=14756
-
+---
  src/cmd/gc/go.h   |  2 ++
  src/cmd/gc/go.y   | 57 +++++++++++++++++++++++++++++--------------------------
  src/cmd/gc/subr.c | 33 ++++++--------------------------
  src/cmd/gc/walk.c | 51 +++++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 89 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 121a019e57..748ea4cbd0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -690,6 +690,8 @@ Node*	reorder2(Node*);
+ Node*	reorder3(Node*);
+ Node*	reorder4(Node*);
+ Node*	structlit(Node*);
++Node*	arraylit(Node*);
++Node*	chantlit(Node*);
+ 
+ /*
+  *	const.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index aa8c16df3c..20d4ffac6d 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -28,7 +28,7 @@
+ %token			LLSH LRSH LINC LDEC LSEND LRECV
+ %token			LIGNORE
+ 
+-%type	<sym>		sym sym1 sym2 key laconst lname latype
++%type	<sym>		sym sym1 sym2 keyword laconst lname latype
+ %type	<lint>		chandir
+ %type	<node>		xdcl xdcl_list_r oxdcl_list
+ %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
+@@ -49,7 +49,7 @@
+ %type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
+ %type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
+ %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+-%type	<node>		keyval_list_r keyval
++%type	<node>		keyexpr_list keyval_list_r keyval
+ %type	<node>		typedcl Atypedcl Btypedcl
+ 
+ %type	<type>		fntype fnlitdcl intype new_type typeconv
+@@ -753,23 +753,13 @@ pexpr:
+ 		$$->type = ptrto($3);
+ 	}
+ |	fnliteral
+-|	'[' expr_list ']'
+-	{
+-		// array literal
+-		$$ = N;
+-	}
+-|	'[' keyval_list_r ']'
+-	{
+-		// map literal
+-		$$ = N;
+-	}
+-|	typeconv '(' oexpr_list ')'
++|	typeconv '(' keyexpr_list ')'
+ 	{
+ 		// struct literal and conversions
+-		$$ = nod(OCONV, $3, N);
++		$$ = nod(OCONV, rev($3), N);
+ 		$$->type = $1;
+ 	}
+-|	LCONVERT '(' type ',' expr ')'
++|	LCONVERT '(' type ',' keyexpr_list ')'
+ 	{
+ 		$$ = nod(OCONV, $5, N);
+ 		$$->type = $3;
+@@ -846,17 +836,17 @@ sym:
+ 
+ sym1:
+ 	sym
+-|	key
++|	keyword
+ 
+ sym2:
+ 	sym
+-|	key
++|	keyword
+ 
+ /*
+  * keywords that we can
+  * use as variable/type names
+  */
+-key:
++keyword:
+ 	LNIL
+ |	LTRUE
+ |	LFALSE
+@@ -881,22 +871,28 @@ typeconv:
+ 	{
+ 		$$ = oldtype($1);
+ 	}
+-|	'[' ']' typeconv
++|	'[' oexpr ']' type
+ 	{
+-		$$ = aindex(N, $3);
+-	}
+-|	LCHAN chandir typeconv
+-	{
+-		$$ = typ(TCHAN);
+-		$$->type = $3;
+-		$$->chan = $2;
++		// array literal
++		$$ = aindex($2, $4);
+ 	}
+-|	LMAP '[' typeconv ']' typeconv
++|	LMAP '[' type ']' type
+ 	{
++		// map literal
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+ 		$$->type = $5;
+ 	}
++|	LSTRUCT '{' structdcl_list_r osemi '}'
++	{
++		// struct literal
++		$$ = dostruct(rev($3), TSTRUCT);
++	}
++|	LSTRUCT '{' '}'
++	{
++		// struct literal
++		$$ = dostruct(N, TSTRUCT);
++	}
+ 
+ type:
+ 	Atype
+@@ -1414,6 +1410,13 @@ keyval_list_r:
+ 		$$ = nod(OLIST, $1, $3);
+ 	}
+ 
++keyexpr_list:
++	keyval_list_r
++	{
++		$$ = rev($1);
++	}
++|	expr_list
++
+ /*
+  * the one compromise of a
+  * non-reversed list
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index aa3ecf45e1..0bc871a4b3 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -425,33 +425,6 @@ loop:
+ 			dodump(n->left, dep);
+ 		n = n->right;
+ 		goto loop;
+-
+-//	case ODCLFUNC:
+-//		dodump(n->nname, dep);
+-//		if(n->this) {
+-//			indent(dep);
+-//			print("%O-this\n", n->op);
+-//			dodump(n->this, dep+1);
+-//		}
+-//		if(n->argout) {
+-//			indent(dep);
+-//			print("%O-outarg\n", n->op);
+-//			dodump(n->argout, dep+1);
+-//		}
+-//		if(n->argin) {
+-//			indent(dep);
+-//			print("%O-inarg\n", n->op);
+-//			dodump(n->argin, dep+1);
+-//		}
+-//		n = n->nbody;
+-//		goto loop;
+-
+-	case OIF:
+-	case OSWITCH:
+-	case OFOR:
+-	case OSELECT:
+-		dodump(n->ninit, dep);
+-		break;
+ 	}
+ 
+ 	indent(dep);
+@@ -460,6 +433,12 @@ loop:
+ 		return;
+ 	}
+ 
++	if(n->ninit != N) {
++		print("%O-init\n", n->op);
++		dodump(n->ninit, dep+1);
++		indent(dep);
++	}
++
+ 	switch(n->op) {
+ 	default:
+ 		print("%N\n", n);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3ab4671b8c..7c7b2b4eec 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -427,6 +427,13 @@ loop:
+ 			goto ret;
+ 		}
+ 
++		// structure literal
++		if(t->etype == TARRAY) {
++			r = arraylit(n);
++			*n = *r;
++			goto ret;
++		}
++
+ 		badtype(n->op, l->type, t);
+ 		goto ret;
+ 
+@@ -2835,3 +2842,47 @@ loop:
+ 	r = listnext(&saver);
+ 	goto loop;
+ }
++
++Node*
++arraylit(Node *n)
++{
++	Iter saver;
++	Type *t;
++	Node *var, *r, *a;
++	int idx;
++
++	t = n->type;
++	if(t->etype != TARRAY)
++		fatal("arraylit: not array");
++
++	if(t->bound < 0) {
++		// make it a closed array
++		// should there be a type copy here?
++		r = listfirst(&saver, &n->left);
++		for(idx=0; r!=N; idx++)
++			r = listnext(&saver);
++		t->bound = idx;
++	}
++
++	var = nod(OXXX, N, N);
++	tempname(var, t);
++
++	idx = 0;
++	r = listfirst(&saver, &n->left);
++
++loop:
++	if(r == N) {
++		return var;
++	}
++
++	// build list of var[c] = expr
++
++	a = nodintconst(idx);
++	a = nod(OINDEX, var, a);
++	a = nod(OAS, a, r);
++	addtop = list(addtop, a);
++	idx++;
++
++	r = listnext(&saver);
++	goto loop;
++}

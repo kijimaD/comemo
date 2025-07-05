@@ -14,8 +14,113 @@ Date:   Tue Oct 5 13:44:51 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/plugin.go |  2 +-
  src/runtime/symtab.go | 28 +++++++++++++---------------
  src/runtime/type.go   |  2 +-
  3 files changed, 15 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index ab3d802389..f37854f915 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -96,7 +96,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, errstr s
+ func pluginftabverify(md *moduledata) {
+ 	badtable := false
+ 	for i := 0; i < len(md.ftab); i++ {
+-		entry := md.textAddr(uintptr(md.ftab[i].entryoff))
++		entry := md.textAddr(md.ftab[i].entryoff)
+ 		if md.minpc <= entry && entry <= md.maxpc {
+ 			continue
+ 		}
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 37abdb6dfa..7641c491f1 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -622,10 +622,10 @@ func moduledataverify1(datap *moduledata) {
+ 		}
+ 	}
+ 
+-	min := datap.textAddr(uintptr(datap.ftab[0].entryoff))
++	min := datap.textAddr(datap.ftab[0].entryoff)
+ 	// The max PC is outside of the text section.
+ 	// Subtract 1 to get a PC inside the text section, look it up, then add 1 back in.
+-	max := datap.textAddr(uintptr(datap.ftab[nftab].entryoff-1)) + 1
++	max := datap.textAddr(datap.ftab[nftab].entryoff-1) + 1
+ 	if datap.minpc != min || datap.maxpc != max {
+ 		println("minpc=", hex(datap.minpc), "min=", hex(min), "maxpc=", hex(datap.maxpc), "max=", hex(max))
+ 		throw("minpc or maxpc invalid")
+@@ -656,8 +656,9 @@ func moduledataverify1(datap *moduledata) {
+ //
+ // It is nosplit because it is part of the findfunc implementation.
+ //go:nosplit
+-func (md *moduledata) textAddr(off uintptr) uintptr {
+-	var res uintptr
++func (md *moduledata) textAddr(off32 uint32) uintptr {
++	off := uintptr(off32)
++	res := md.text + off
+ 	if len(md.textsectmap) > 1 {
+ 		for i := range md.textsectmap {
+ 			if off >= md.textsectmap[i].vaddr && off < md.textsectmap[i].end {
+@@ -665,13 +666,10 @@ func (md *moduledata) textAddr(off uintptr) uintptr {
+ 				break
+ 			}
+ 		}
+-	} else {
+-		// single text section
+-		res = md.text + off
+-	}
+-	if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
+-		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
+-		throw("runtime: text offset out of range")
++		if res > md.etext && GOARCH != "wasm" { // on wasm, functions do not live in the same address space as the linear memory
++			println("runtime: textAddr", hex(res), "out of range", hex(md.text), "-", hex(md.etext))
++			throw("runtime: text offset out of range")
++		}
+ 	}
+ 	return res
+ }
+@@ -783,7 +781,7 @@ func (f *_func) isInlined() bool {
+ 
+ // entry returns the entry PC for f.
+ func (f funcInfo) entry() uintptr {
+-	return f.datap.textAddr(uintptr(f.entryoff))
++	return f.datap.textAddr(f.entryoff)
+ }
+ 
+ // findfunc looks up function metadata for a PC.
+@@ -819,10 +817,10 @@ func findfunc(pc uintptr) funcInfo {
+ 		if idx >= uint32(len(datap.ftab)) {
+ 			idx = uint32(len(datap.ftab) - 1)
+ 		}
+-		if pc < datap.textAddr(uintptr(datap.ftab[idx].entryoff)) {
++		if pc < datap.textAddr(datap.ftab[idx].entryoff) {
+ 			// The idx might reference a function address that
+ 			// is higher than the pcOff being searched, so search backward until the matching address is found.
+-			for datap.textAddr(uintptr(datap.ftab[idx].entryoff)) > pc && idx > 0 {
++			for datap.textAddr(datap.ftab[idx].entryoff) > pc && idx > 0 {
+ 				idx--
+ 			}
+ 			if idx == 0 {
+@@ -830,7 +828,7 @@ func findfunc(pc uintptr) funcInfo {
+ 			}
+ 		} else {
+ 			// linear search to find func with pc >= entry.
+-			for datap.textAddr(uintptr(datap.ftab[idx+1].entryoff)) <= pc {
++			for datap.textAddr(datap.ftab[idx+1].entryoff) <= pc {
+ 				idx++
+ 			}
+ 		}
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index e609acbc1e..da47147897 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -288,7 +288,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
+ 		}
+ 		return res
+ 	}
+-	res := md.textAddr(uintptr(off))
++	res := md.textAddr(uint32(off))
+ 	return unsafe.Pointer(res)
+ }
+ 

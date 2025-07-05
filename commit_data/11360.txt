@@ -7,7 +7,7 @@ Date:   Tue Jan 24 11:48:48 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5574056
-
+---
  src/pkg/archive/tar/reader.go        |  8 ++++----
  src/pkg/archive/zip/reader.go        | 24 ++++++++++++------------
  src/pkg/archive/zip/reader_test.go   | 16 ++++++++--------
@@ -19,3 +19,430 @@ Date:   Tue Jan 24 11:48:48 2012 -0800
  src/pkg/crypto/bcrypt/bcrypt.go      |  8 ++++----
  src/pkg/crypto/bcrypt/bcrypt_test.go |  6 +++---
  10 files changed, 51 insertions(+), 51 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 13fe2700f9..755a730c8b 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ var (
+-	HeaderError = errors.New("invalid tar header")
++	ErrHeader = errors.New("invalid tar header")
+ )
+ 
+ // A Reader provides sequential access to the contents of a tar archive.
+@@ -123,13 +123,13 @@ func (tr *Reader) readHeader() *Header {
+ 		if bytes.Equal(header, zeroBlock[0:blockSize]) {
+ 			tr.err = io.EOF
+ 		} else {
+-			tr.err = HeaderError // zero block and then non-zero block
++			tr.err = ErrHeader // zero block and then non-zero block
+ 		}
+ 		return nil
+ 	}
+ 
+ 	if !tr.verifyChecksum(header) {
+-		tr.err = HeaderError
++		tr.err = ErrHeader
+ 		return nil
+ 	}
+ 
+@@ -188,7 +188,7 @@ func (tr *Reader) readHeader() *Header {
+ 	}
+ 
+ 	if tr.err != nil {
+-		tr.err = HeaderError
++		tr.err = ErrHeader
+ 		return nil
+ 	}
+ 
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 4365009a30..4dd0f4f434 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -17,9 +17,9 @@ import (
+ )
+ 
+ var (
+-	FormatError       = errors.New("zip: not a valid zip file")
+-	UnsupportedMethod = errors.New("zip: unsupported compression algorithm")
+-	ChecksumError     = errors.New("zip: checksum error")
++	ErrFormat    = errors.New("zip: not a valid zip file")
++	ErrAlgorithm = errors.New("zip: unsupported compression algorithm")
++	ErrChecksum  = errors.New("zip: checksum error")
+ )
+ 
+ type Reader struct {
+@@ -90,12 +90,12 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 
+ 	// The count of files inside a zip is truncated to fit in a uint16.
+ 	// Gloss over this by reading headers until we encounter
+-	// a bad one, and then only report a FormatError or UnexpectedEOF if
++	// a bad one, and then only report a ErrFormat or UnexpectedEOF if
+ 	// the file count modulo 65536 is incorrect.
+ 	for {
+ 		f := &File{zipr: r, zipsize: size}
+ 		err = readDirectoryHeader(f, buf)
+-		if err == FormatError || err == io.ErrUnexpectedEOF {
++		if err == ErrFormat || err == io.ErrUnexpectedEOF {
+ 			break
+ 		}
+ 		if err != nil {
+@@ -135,7 +135,7 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
+ 	case Deflate:
+ 		rc = flate.NewReader(r)
+ 	default:
+-		err = UnsupportedMethod
++		err = ErrAlgorithm
+ 	}
+ 	if rc != nil {
+ 		rc = &checksumReader{rc, crc32.NewIEEE(), f, r}
+@@ -162,7 +162,7 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
+ 		}
+ 	}
+ 	if r.hash.Sum32() != r.f.CRC32 {
+-		err = ChecksumError
++		err = ErrChecksum
+ 	}
+ 	return
+ }
+@@ -176,7 +176,7 @@ func readFileHeader(f *File, r io.Reader) error {
+ 	}
+ 	c := binary.LittleEndian
+ 	if sig := c.Uint32(b[:4]); sig != fileHeaderSignature {
+-		return FormatError
++		return ErrFormat
+ 	}
+ 	f.ReaderVersion = c.Uint16(b[4:6])
+ 	f.Flags = c.Uint16(b[6:8])
+@@ -207,7 +207,7 @@ func (f *File) findBodyOffset() (int64, error) {
+ 	}
+ 	c := binary.LittleEndian
+ 	if sig := c.Uint32(b[:4]); sig != fileHeaderSignature {
+-		return 0, FormatError
++		return 0, ErrFormat
+ 	}
+ 	filenameLen := int(c.Uint16(b[26:28]))
+ 	extraLen := int(c.Uint16(b[28:30]))
+@@ -216,7 +216,7 @@ func (f *File) findBodyOffset() (int64, error) {
+ 
+ // readDirectoryHeader attempts to read a directory header from r.
+ // It returns io.ErrUnexpectedEOF if it cannot read a complete header,
+-// and FormatError if it doesn't find a valid header signature.
++// and ErrFormat if it doesn't find a valid header signature.
+ func readDirectoryHeader(f *File, r io.Reader) error {
+ 	var b [directoryHeaderLen]byte
+ 	if _, err := io.ReadFull(r, b[:]); err != nil {
+@@ -224,7 +224,7 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 	}
+ 	c := binary.LittleEndian
+ 	if sig := c.Uint32(b[:4]); sig != directoryHeaderSignature {
+-		return FormatError
++		return ErrFormat
+ 	}
+ 	f.CreatorVersion = c.Uint16(b[4:6])
+ 	f.ReaderVersion = c.Uint16(b[6:8])
+@@ -280,7 +280,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 			break
+ 		}
+ 		if i == 1 || bLen == size {
+-			return nil, FormatError
++			return nil, ErrFormat
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 0e40268c2f..b34f5bf1ef 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -70,7 +70,7 @@ var tests = []ZipTest{
+ 		},
+ 	},
+ 	{Name: "readme.zip"},
+-	{Name: "readme.notzip", Error: FormatError},
++	{Name: "readme.notzip", Error: ErrFormat},
+ 	{
+ 		Name: "dd.zip",
+ 		File: []ZipTestFile{
+@@ -131,7 +131,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 	}
+ 
+ 	// bail if file is not zip
+-	if err == FormatError {
++	if err == ErrFormat {
+ 		return
+ 	}
+ 	defer func() {
+@@ -184,8 +184,8 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 		}
+ 		var b bytes.Buffer
+ 		_, err = io.Copy(&b, r)
+-		if err != ChecksumError {
+-			t.Errorf("%s: copy error=%v, want %v", z.File[0].Name, err, ChecksumError)
++		if err != ErrChecksum {
++			t.Errorf("%s: copy error=%v, want %v", z.File[0].Name, err, ErrChecksum)
+ 		}
+ 	}
+ }
+@@ -268,8 +268,8 @@ func TestInvalidFiles(t *testing.T) {
+ 
+ 	// zeroes
+ 	_, err := NewReader(sliceReaderAt(b), size)
+-	if err != FormatError {
+-		t.Errorf("zeroes: error=%v, want %v", err, FormatError)
++	if err != ErrFormat {
++		t.Errorf("zeroes: error=%v, want %v", err, ErrFormat)
+ 	}
+ 
+ 	// repeated directoryEndSignatures
+@@ -279,8 +279,8 @@ func TestInvalidFiles(t *testing.T) {
+ 		copy(b[i:i+4], sig)
+ 	}
+ 	_, err = NewReader(sliceReaderAt(b), size)
+-	if err != FormatError {
+-		t.Errorf("sigs: error=%v, want %v", err, FormatError)
++	if err != ErrFormat {
++		t.Errorf("sigs: error=%v, want %v", err, ErrFormat)
+ 	}
+ }
+ 
+diff --git a/src/pkg/archive/zip/writer.go b/src/pkg/archive/zip/writer.go
+index a1530644ee..b1b128e2a7 100644
+--- a/src/pkg/archive/zip/writer.go
++++ b/src/pkg/archive/zip/writer.go
+@@ -129,7 +129,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 	case Deflate:
+ 		fw.comp = flate.NewWriter(fw.compCount, 5)
+ 	default:
+-		return nil, UnsupportedMethod
++		return nil, ErrAlgorithm
+ 	}
+ 	fw.rawCount = &countWriter{w: fw.comp}
+ 
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 6d60fdd0ff..d3743105d1 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -37,8 +37,8 @@ func makeReader(r io.Reader) flate.Reader {
+ 	return bufio.NewReader(r)
+ }
+ 
+-var HeaderError = errors.New("invalid gzip header")
+-var ChecksumError = errors.New("gzip checksum error")
++var ErrHeader = errors.New("invalid gzip header")
++var ErrChecksum = errors.New("gzip checksum error")
+ 
+ // The gzip file stores a header giving metadata about the compressed file.
+ // That header is exposed as the fields of the Compressor and Decompressor structs.
+@@ -59,7 +59,7 @@ type Header struct {
+ // Only the first header is recorded in the Decompressor fields.
+ //
+ // Gzip files store a length and checksum of the uncompressed data.
+-// The Decompressor will return a ChecksumError when Read
++// The Decompressor will return a ErrChecksum when Read
+ // reaches the end of the uncompressed data if it does not
+ // have the expected length or checksum.  Clients should treat data
+ // returned by Read as tentative until they receive the successful
+@@ -99,7 +99,7 @@ func (z *Decompressor) readString() (string, error) {
+ 	needconv := false
+ 	for i := 0; ; i++ {
+ 		if i >= len(z.buf) {
+-			return "", HeaderError
++			return "", ErrHeader
+ 		}
+ 		z.buf[i], err = z.r.ReadByte()
+ 		if err != nil {
+@@ -137,7 +137,7 @@ func (z *Decompressor) readHeader(save bool) error {
+ 		return err
+ 	}
+ 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
+-		return HeaderError
++		return ErrHeader
+ 	}
+ 	z.flg = z.buf[3]
+ 	if save {
+@@ -188,7 +188,7 @@ func (z *Decompressor) readHeader(save bool) error {
+ 		}
+ 		sum := z.digest.Sum32() & 0xFFFF
+ 		if n != sum {
+-			return HeaderError
++			return ErrHeader
+ 		}
+ 	}
+ 
+@@ -221,7 +221,7 @@ func (z *Decompressor) Read(p []byte) (n int, err error) {
+ 	crc32, isize := get4(z.buf[0:4]), get4(z.buf[4:8])
+ 	sum := z.digest.Sum32()
+ 	if sum != crc32 || isize != z.size {
+-		z.err = ChecksumError
++		z.err = ErrChecksum
+ 		return 0, z.err
+ 	}
+ 
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 771b0b6a1b..a1333580dc 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -232,7 +232,7 @@ var gunzipTests = []gunzipTest{
+ 			0x02, 0x00, 0x2d, 0x3b, 0x08, 0xaf, 0x0c, 0x00,
+ 			0x00, 0x00, 'g', 'a', 'r', 'b', 'a', 'g', 'e', '!', '!', '!',
+ 		},
+-		HeaderError,
++		ErrHeader,
+ 	},
+ 	{ // has 1 non-empty fixed huffman block not enough header
+ 		"hello.txt",
+@@ -260,7 +260,7 @@ var gunzipTests = []gunzipTest{
+ 			0x02, 0x00, 0xff, 0xff, 0xff, 0xff, 0x0c, 0x00,
+ 			0x00, 0x00,
+ 		},
+-		ChecksumError,
++		ErrChecksum,
+ 	},
+ 	{ // has 1 non-empty fixed huffman block but corrupt size
+ 		"hello.txt",
+@@ -274,7 +274,7 @@ var gunzipTests = []gunzipTest{
+ 			0x02, 0x00, 0x2d, 0x3b, 0x08, 0xaf, 0xff, 0x00,
+ 			0x00, 0x00,
+ 		},
+-		ChecksumError,
++		ErrChecksum,
+ 	},
+ }
+ 
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index 50a1e6c357..4638a65484 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -34,9 +34,9 @@ import (
+ 
+ const zlibDeflate = 8
+ 
+-var ChecksumError = errors.New("zlib checksum error")
+-var HeaderError = errors.New("invalid zlib header")
+-var DictionaryError = errors.New("invalid zlib dictionary")
++var ErrChecksum = errors.New("zlib checksum error")
++var ErrHeader = errors.New("invalid zlib header")
++var ErrDictionary = errors.New("invalid zlib dictionary")
+ 
+ type reader struct {
+ 	r            flate.Reader
+@@ -68,7 +68,7 @@ func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
+ 	}
+ 	h := uint(z.scratch[0])<<8 | uint(z.scratch[1])
+ 	if (z.scratch[0]&0x0f != zlibDeflate) || (h%31 != 0) {
+-		return nil, HeaderError
++		return nil, ErrHeader
+ 	}
+ 	if z.scratch[1]&0x20 != 0 {
+ 		_, err = io.ReadFull(z.r, z.scratch[0:4])
+@@ -77,7 +77,7 @@ func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
+ 		}
+ 		checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
+ 		if checksum != adler32.Checksum(dict) {
+-			return nil, DictionaryError
++			return nil, ErrDictionary
+ 		}
+ 		z.decompressor = flate.NewReaderDict(z.r, dict)
+ 	} else {
+@@ -110,7 +110,7 @@ func (z *reader) Read(p []byte) (n int, err error) {
+ 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
+ 	checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
+ 	if checksum != z.digest.Sum32() {
+-		z.err = ChecksumError
++		z.err = ErrChecksum
+ 		return 0, z.err
+ 	}
+ 	return
+diff --git a/src/pkg/compress/zlib/reader_test.go b/src/pkg/compress/zlib/reader_test.go
+index d8f9f21478..3b02a08684 100644
+--- a/src/pkg/compress/zlib/reader_test.go
++++ b/src/pkg/compress/zlib/reader_test.go
+@@ -45,14 +45,14 @@ var zlibTests = []zlibTest{
+ 		"",
+ 		[]byte{0x78, 0x9f, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01},
+ 		nil,
+-		HeaderError,
++		ErrHeader,
+ 	},
+ 	{
+ 		"bad checksum",
+ 		"",
+ 		[]byte{0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0xff},
+ 		nil,
+-		ChecksumError,
++		ErrChecksum,
+ 	},
+ 	{
+ 		"not enough data",
+@@ -95,7 +95,7 @@ var zlibTests = []zlibTest{
+ 		[]byte{
+ 			0x48, 0x65, 0x6c, 0x6c,
+ 		},
+-		DictionaryError,
++		ErrDictionary,
+ 	},
+ }
+ 
+diff --git a/src/pkg/crypto/bcrypt/bcrypt.go b/src/pkg/crypto/bcrypt/bcrypt.go
+index 362b2eb53c..3e80d9e014 100644
+--- a/src/pkg/crypto/bcrypt/bcrypt.go
++++ b/src/pkg/crypto/bcrypt/bcrypt.go
+@@ -25,11 +25,11 @@ const (
+ 
+ // The error returned from CompareHashAndPassword when a password and hash do
+ // not match.
+-var MismatchedHashAndPasswordError = errors.New("crypto/bcrypt: hashedPassword is not the hash of the given password")
++var ErrMismatchedHashAndPassword = errors.New("crypto/bcrypt: hashedPassword is not the hash of the given password")
+ 
+ // The error returned from CompareHashAndPassword when a hash is too short to
+ // be a bcrypt hash.
+-var HashTooShortError = errors.New("crypto/bcrypt: hashedSecret too short to be a bcrypted password")
++var ErrHashTooShort = errors.New("crypto/bcrypt: hashedSecret too short to be a bcrypted password")
+ 
+ // The error returned from CompareHashAndPassword when a hash was created with
+ // a bcrypt algorithm newer than this implementation.
+@@ -112,7 +112,7 @@ func CompareHashAndPassword(hashedPassword, password []byte) error {
+ 		return nil
+ 	}
+ 
+-	return MismatchedHashAndPasswordError
++	return ErrMismatchedHashAndPassword
+ }
+ 
+ func newFromPassword(password []byte, cost int) (*hashed, error) {
+@@ -146,7 +146,7 @@ func newFromPassword(password []byte, cost int) (*hashed, error) {
+ 
+ func newFromHash(hashedSecret []byte) (*hashed, error) {
+ 	if len(hashedSecret) < minHashSize {
+-		return nil, HashTooShortError
++		return nil, ErrHashTooShort
+ 	}
+ 	p := new(hashed)
+ 	n, err := p.decodeVersion(hashedSecret)
+diff --git a/src/pkg/crypto/bcrypt/bcrypt_test.go b/src/pkg/crypto/bcrypt/bcrypt_test.go
+index a3155c5cc7..9ad5c1ca9c 100644
+--- a/src/pkg/crypto/bcrypt/bcrypt_test.go
++++ b/src/pkg/crypto/bcrypt/bcrypt_test.go
+@@ -22,7 +22,7 @@ func TestBcryptingIsEasy(t *testing.T) {
+ 
+ 	notPass := "notthepass"
+ 	err = CompareHashAndPassword(hp, []byte(notPass))
+-	if err != MismatchedHashAndPasswordError {
++	if err != ErrMismatchedHashAndPassword {
+ 		t.Errorf("%v and %s should be mismatched", hp, notPass)
+ 	}
+ }
+@@ -72,8 +72,8 @@ type InvalidHashTest struct {
+ }
+ 
+ var invalidTests = []InvalidHashTest{
+-	{HashTooShortError, []byte("$2a$10$fooo")},
+-	{HashTooShortError, []byte("$2a")},
++	{ErrHashTooShort, []byte("$2a$10$fooo")},
++	{ErrHashTooShort, []byte("$2a")},
+ 	{HashVersionTooNewError('3'), []byte("$3a$10$sssssssssssssssssssssshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh")},
+ 	{InvalidHashPrefixError('%'), []byte("%2a$10$sssssssssssssssssssssshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh")},
+ 	{InvalidCostError(32), []byte("$2a$32$sssssssssssssssssssssshhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh")},

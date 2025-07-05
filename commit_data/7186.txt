@@ -7,9 +7,90 @@ Date:   Wed Jan 19 23:07:49 2011 -0500
     R=adg, dsymonds
     CC=golang-dev
     https://golang.org/cl/4072041
-
+---
  misc/bbedit/Go.plist   | 2 --
  misc/fraise/go.plist   | 1 -
  misc/kate/go.xml       | 4 +---
  misc/vim/syntax/go.vim | 6 +++---
  4 files changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/misc/bbedit/Go.plist b/misc/bbedit/Go.plist
+index 39c8f0dc30..9dc3bf6f17 100755
+--- a/misc/bbedit/Go.plist
++++ b/misc/bbedit/Go.plist
+@@ -15,7 +15,6 @@
+ 		chan,
+ 		close,
+ 		closed,
+-		cmplx,
+ 		complex,
+ 		complex128,
+ 		complex64,
+@@ -27,7 +26,6 @@
+ 		else,
+ 		fallthrough,
+ 		false,
+-		float,
+ 		float32,
+ 		float64,
+ 		for,
+diff --git a/misc/fraise/go.plist b/misc/fraise/go.plist
+index 298361501b..17f416221e 100644
+--- a/misc/fraise/go.plist
++++ b/misc/fraise/go.plist
+@@ -70,7 +70,6 @@
+ 		<string>chan</string>
+ 		<string>complex64</string>
+ 		<string>complex128</string>
+-		<string>float</string>
+ 		<string>float32</string>
+ 		<string>float64</string>
+ 		<string>int</string>
+diff --git a/misc/kate/go.xml b/misc/kate/go.xml
+index 3a5c39c949..b8ff59267a 100644
+--- a/misc/kate/go.xml
++++ b/misc/kate/go.xml
+@@ -42,10 +42,8 @@
+       <item> bool </item>
+       <item> byte </item>
+       <item> chan </item>
+-      <item> complex </item>
+       <item> complex64 </item>
+       <item> complex128 </item>
+-      <item> float </item>
+       <item> float32 </item>
+       <item> float64 </item>
+       <item> int </item>
+@@ -67,7 +65,7 @@
+       <item> cap </item>
+       <item> close </item>
+       <item> closed </item>
+-      <item> cmplx </item>
++      <item> complex </item>
+       <item> copy </item>
+       <item> imag </item>
+       <item> len </item>
+diff --git a/misc/vim/syntax/go.vim b/misc/vim/syntax/go.vim
+index 7adbe8e356..a6b6359187 100644
+--- a/misc/vim/syntax/go.vim
++++ b/misc/vim/syntax/go.vim
+@@ -70,8 +70,8 @@ hi def link     goRepeat            Repeat
+ syn keyword     goType              chan map bool string
+ syn keyword     goSignedInts        int int8 int16 int32 int64
+ syn keyword     goUnsignedInts      byte uint uint8 uint16 uint32 uint64 uintptr
+-syn keyword     goFloats            float float32 float64
+-syn keyword     goComplexes         complex complex64 complex128
++syn keyword     goFloats            float32 float64
++syn keyword     goComplexes         complex64 complex128
+ 
+ hi def link     goType              Type
+ hi def link     goSignedInts        Type
+@@ -85,7 +85,7 @@ syn match       goType              /\<func\>/
+ syn match       goDeclaration       /^func\>/
+ 
+ " Predefined functions and values
+-syn keyword     goBuiltins          append cap close closed cmplx copy imag len
++syn keyword     goBuiltins          append cap close closed complex copy imag len
+ syn keyword     goBuiltins          make new panic print println real recover
+ syn keyword     goConstants         iota true false nil
+ 

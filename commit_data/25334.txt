@@ -7,6 +7,20 @@ Date:   Wed Oct 21 15:51:02 2015 +1100
     Change-Id: I7a85c0ad8aba2d50032c8faa58c83fb327f360cf
     Reviewed-on: https://go-review.googlesource.com/16140
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/compile/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index e362657a00..59c660b2d5 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -107,7 +107,7 @@ The //line directive is an historical special case; all other directives are of
+ The //go:noescape directive specifies that the next declaration in the file, which
+ must be a func without a body (meaning that it has an implementation not written
+ in Go) does not allow any of the pointers passed as arguments to escape into the
+-heap or into the values returned from the function. This information can be used as
++heap or into the values returned from the function. This information can be used
+ during the compiler's escape analysis of Go code calling the function.
+ 
+ 	//go:nosplit

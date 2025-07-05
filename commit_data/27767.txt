@@ -9,8 +9,117 @@ Date:   Tue Apr 12 11:31:16 2016 -0700
     Change-Id: Ia6669563793e218946af45b9fba1cf986a21c031
     Reviewed-on: https://go-review.googlesource.com/21896
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 18 +++++++-----------
  src/cmd/compile/internal/gc/bimport.go | 12 ++++++------
  src/go/internal/gcimporter/bimport.go  |  5 +----
  3 files changed, 14 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 15e5e3ada6..cb438d7573 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -182,22 +182,12 @@ func export(out *bufio.Writer, trace bool) int {
+ 		Fatalf("exporter: local package path not empty: %q", localpkg.Path)
+ 	}
+ 	p.pkg(localpkg)
+-
+-	// write compiler-specific flags
+-	// TODO(gri) move this into the compiler-specific export data section
+-	{
+-		var flags string
+-		if safemode != 0 {
+-			flags = "safe"
+-		}
+-		p.string(flags)
+-	}
+ 	if p.trace {
+ 		p.tracef("\n")
+ 	}
+ 
+ 	// export objects
+-
++	//
+ 	// First, export all exported (package-level) objects; i.e., all objects
+ 	// in the current exportlist. These objects represent all information
+ 	// required to import this package and type-check against it; i.e., this
+@@ -270,6 +260,12 @@ func export(out *bufio.Writer, trace bool) int {
+ 		}
+ 	}
+ 
++	// write compiler-specific flags
++	p.bool(safemode != 0)
++	if p.trace {
++		p.tracef("\n")
++	}
++
+ 	// Phase 2: Export objects added to exportlist during phase 1.
+ 	// Don't use range since exportlist may grow during this phase
+ 	// and we want to export all remaining objects.
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 7ad4d9dbb0..9cebafcaef 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -62,9 +62,6 @@ func Import(in *bufio.Reader) {
+ 		Fatalf("importer: imported package not found in pkgList[0]")
+ 	}
+ 
+-	// read compiler-specific flags
+-	importpkg.Safe = p.string() == "safe"
+-
+ 	// defer some type-checking until all types are read in completely
+ 	// (parser.go:import_package)
+ 	tcok := typecheckok
+@@ -73,7 +70,7 @@ func Import(in *bufio.Reader) {
+ 
+ 	// read objects
+ 
+-	// Phase 1
++	// phase 1
+ 	objcount := 0
+ 	for {
+ 		tag := p.tagOrIndex()
+@@ -91,7 +88,10 @@ func Import(in *bufio.Reader) {
+ 
+ 	// --- compiler-specific export data ---
+ 
+-	// Phase 2
++	// read compiler-specific flags
++	importpkg.Safe = p.bool()
++
++	// phase 2
+ 	objcount = 0
+ 	for {
+ 		tag := p.tagOrIndex()
+@@ -264,7 +264,7 @@ func (p *importer) obj(tag int) {
+ 		}
+ 
+ 	default:
+-		Fatalf("importer: unexpected object tag")
++		Fatalf("importer: unexpected object (tag = %d)", tag)
+ 	}
+ }
+ 
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index aa9569de52..a9d678b021 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -78,9 +78,6 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
+ 		panic("imported packaged not found in pkgList[0]")
+ 	}
+ 
+-	// read compiler-specific flags
+-	p.string() // discard
+-
+ 	// read objects of phase 1 only (see cmd/compiler/internal/gc/bexport.go)
+ 	objcount := 0
+ 	for {
+@@ -193,7 +190,7 @@ func (p *importer) obj(tag int) {
+ 		p.declare(types.NewFunc(token.NoPos, pkg, name, sig))
+ 
+ 	default:
+-		panic("unexpected object tag")
++		panic(fmt.Sprintf("unexpected object tag %d", tag))
+ 	}
+ }
+ 

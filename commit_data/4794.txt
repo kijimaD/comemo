@@ -37,7 +37,7 @@ Date:   Thu Feb 4 21:31:30 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/201061
-
+---
  test/fixedbugs/bug121.go | 2 +-
  test/syntax/semi1.go     | 4 ++--
  test/syntax/semi2.go     | 2 +-
@@ -47,3 +47,114 @@ Date:   Thu Feb 4 21:31:30 2010 -0800
  test/syntax/semi7.go     | 4 ++--
  test/syntax/slice.go     | 2 +-
  8 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/test/fixedbugs/bug121.go b/test/fixedbugs/bug121.go
+index 71d3ee4252..15c8451da9 100644
+--- a/test/fixedbugs/bug121.go
++++ b/test/fixedbugs/bug121.go
+@@ -9,7 +9,7 @@ package main
+ type T func()
+ 
+ type I interface {
+-	f, g ();	// ERROR "syntax|signature"
++	f, g ();	// ERROR "name list not allowed"
+ }
+ 
+ type J interface {
+diff --git a/test/syntax/semi1.go b/test/syntax/semi1.go
+index 5ec776bba6..547d9bf799 100644
+--- a/test/syntax/semi1.go
++++ b/test/syntax/semi1.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	if x; y	// ERROR "unexpected semicolon or newline before {"
++	if x; y		// ERROR "unexpected semicolon or newline before .?{.?|undefined"
+ 	{
+-		z
++		z	// GCCGO_ERROR "undefined"
+ 
+ 
+diff --git a/test/syntax/semi2.go b/test/syntax/semi2.go
+index 14800a33e7..28d1d3906d 100644
+--- a/test/syntax/semi2.go
++++ b/test/syntax/semi2.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	switch x; y	// ERROR "unexpected semicolon or newline before {"
++	switch x; y	// ERROR "unexpected semicolon or newline before .?{.?|undefined"
+ 	{
+ 		z
+ 
+diff --git a/test/syntax/semi3.go b/test/syntax/semi3.go
+index d8e037fdc0..ab5941bda5 100644
+--- a/test/syntax/semi3.go
++++ b/test/syntax/semi3.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	for x; y; z	// ERROR "unexpected semicolon or newline before {"
++	for x; y; z	// ERROR "unexpected semicolon or newline before .?{.?|undefined"
+ 	{
+-		z
++		z	// GCCGO_ERROR "undefined"
+ 
+ 
+diff --git a/test/syntax/semi4.go b/test/syntax/semi4.go
+index 81134c19b4..7a9c2956e7 100644
+--- a/test/syntax/semi4.go
++++ b/test/syntax/semi4.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	for x
+-	{	// ERROR "unexpected semicolon or newline before {"
+-		z
++	for x		// GCCGO_ERROR "undefined"
++	{		// ERROR "unexpected semicolon or newline before .?{.?"
++		z	// GCCGO_ERROR "undefined"
+ 
+ 
+diff --git a/test/syntax/semi5.go b/test/syntax/semi5.go
+index 0ba4df8d6d..5f8ccc688f 100644
+--- a/test/syntax/semi5.go
++++ b/test/syntax/semi5.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main()
+-{	// ERROR "unexpected semicolon or newline before {"
++{	// ERROR "unexpected semicolon or newline before .?{.?"
+ 
+ 
+ 
+diff --git a/test/syntax/semi7.go b/test/syntax/semi7.go
+index a4271ddc5c..5a7b3ff4cc 100644
+--- a/test/syntax/semi7.go
++++ b/test/syntax/semi7.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	if x { }
+-	else { }	// ERROR "unexpected semicolon or newline before else"
++	if x { }	// GCCGO_ERROR "undefined"
++	else { }	// ERROR "unexpected semicolon or newline before .?else.?"
+ }
+ 
+ 
+diff --git a/test/syntax/slice.go b/test/syntax/slice.go
+index 4bc5d4d8d2..7675ca1879 100644
+--- a/test/syntax/slice.go
++++ b/test/syntax/slice.go
+@@ -6,4 +6,4 @@
+ 
+ package main
+ 
+-var x = y[:z]	// ERROR "missing lower bound in slice expression"
++var x = y[:z]	// ERROR "missing lower bound in slice expression|undefined"

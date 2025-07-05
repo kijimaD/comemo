@@ -13,10 +13,84 @@ Date:   Fri Aug 16 17:51:09 2013 +0400
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/12968044
-
+---
  src/pkg/runtime/race/README                  |   1 +
  src/pkg/runtime/race/output_test.go          |  23 ++++++++++-------------
  src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 176596 -> 186024 bytes
  src/pkg/runtime/race/race_linux_amd64.syso   | Bin 178904 -> 187616 bytes
  src/pkg/runtime/race/race_windows_amd64.syso | Bin 153779 -> 160595 bytes
  5 files changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/race/README b/src/pkg/runtime/race/README
+index 8bedb09cdd..c298218a07 100644
+--- a/src/pkg/runtime/race/README
++++ b/src/pkg/runtime/race/README
+@@ -9,3 +9,4 @@ $ ./buildgo.sh
+ 
+ Tested with gcc 4.6.1 and 4.7.0.  On Windows it's built with 64-bit MinGW.
+ 
++Current runtime is built on rev 188542.
+diff --git a/src/pkg/runtime/race/output_test.go b/src/pkg/runtime/race/output_test.go
+index 3604aec3c6..83240ca34a 100644
+--- a/src/pkg/runtime/race/output_test.go
++++ b/src/pkg/runtime/race/output_test.go
+@@ -61,6 +61,7 @@ var tests = []struct {
+ }{
+ 	{"simple", `
+ package main
++import "time"
+ func main() {
+ 	done := make(chan bool)
+ 	x := 0
+@@ -75,6 +76,7 @@ func startRacer(x *int, done chan bool) {
+ 	go racer(x, done)
+ }
+ func racer(x *int, done chan bool) {
++	time.Sleep(10*time.Millisecond)
+ 	store(x, 42)
+ 	done <- true
+ }
+@@ -82,26 +84,21 @@ func racer(x *int, done chan bool) {
+ WARNING: DATA RACE
+ Write by goroutine [0-9]:
+   main\.store\(\)
+-      .*/main\.go:11 \+0x[0-9,a-f]+
++      .*/main\.go:12 \+0x[0-9,a-f]+
+   main\.racer\(\)
+-      .*/main\.go:17 \+0x[0-9,a-f]+
++      .*/main\.go:19 \+0x[0-9,a-f]+
+ 
+-Previous write by goroutine 1:
++Previous write by main goroutine:
+   main\.store\(\)
+-      .*/main\.go:11 \+0x[0-9,a-f]+
++      .*/main\.go:12 \+0x[0-9,a-f]+
+   main\.main\(\)
+-      .*/main\.go:7 \+0x[0-9,a-f]+
++      .*/main\.go:8 \+0x[0-9,a-f]+
+ 
+-Goroutine 3 \(running\) created at:
++Goroutine [0-9] \(running\) created at:
+   main\.startRacer\(\)
+-      .*/main\.go:14 \+0x[0-9,a-f]+
++      .*/main\.go:15 \+0x[0-9,a-f]+
+   main\.main\(\)
+-      .*/main\.go:6 \+0x[0-9,a-f]+
+-
+-Goroutine 1 \(running\) created at:
+-  _rt0_go\(\)
+-      .*/src/pkg/runtime/asm_amd64\.s:[0-9]+ \+0x[0-9,a-f]+
+-
++      .*/main\.go:7 \+0x[0-9,a-f]+
+ ==================
+ Found 1 data race\(s\)
+ exit status 66
+diff --git a/src/pkg/runtime/race/race_darwin_amd64.syso b/src/pkg/runtime/race/race_darwin_amd64.syso
+index ff47534d71..18fabc217e 100644
+Binary files a/src/pkg/runtime/race/race_darwin_amd64.syso and b/src/pkg/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+index 41e12093fb..d770031d5b 100644
+Binary files a/src/pkg/runtime/race/race_linux_amd64.syso and b/src/pkg/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_windows_amd64.syso b/src/pkg/runtime/race/race_windows_amd64.syso
+index 9e669f94fd..4fd661f5b6 100644
+Binary files a/src/pkg/runtime/race/race_windows_amd64.syso and b/src/pkg/runtime/race/race_windows_amd64.syso differ

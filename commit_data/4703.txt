@@ -7,6 +7,17 @@ Date:   Wed Jan 27 13:45:16 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194114
-
+---
  doc/go_spec.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index cd46744b9c..e904175ab3 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4778,4 +4778,5 @@ The following minimal alignment properties are guaranteed:
+ 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
+ 	<li><span class="alert">Method expressions are not implemented.</span></li>
+ 	<li><span class="alert">Gccgo allows only one init() function per source file.</span></li>
++	<li>Formal parameters with specified type <code>... T</code> are not implemented.</li>
+ </ul>

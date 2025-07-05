@@ -58,7 +58,7 @@ Date:   Thu Oct 19 17:31:31 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  misc/cgo/test/buildid_linux.go              |   1 -
  src/cmd/compile/internal/ssa/gen/rulegen.go |   1 -
  src/cmd/internal/obj/ppc64/asm9.go          |   1 -
@@ -90,3 +90,692 @@ Date:   Thu Oct 19 17:31:31 2017 -0700
  src/time/sleep_test.go                      |   1 -
  src/unicode/example_test.go                 |   1 -
  30 files changed, 293 insertions(+), 26 deletions(-)
+
+diff --git a/misc/cgo/test/buildid_linux.go b/misc/cgo/test/buildid_linux.go
+index 47dd87128f..d25a7ac434 100644
+--- a/misc/cgo/test/buildid_linux.go
++++ b/misc/cgo/test/buildid_linux.go
+@@ -39,7 +39,6 @@ func testBuildID(t *testing.T) {
+ 		}
+ 
+ 		for len(d) > 0 {
+-
+ 			// ELF standards differ as to the sizes in
+ 			// note sections.  Both the GNU linker and
+ 			// gold always generate 32-bit sizes, so that
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index c23a54d9b5..5946b01f8e 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -659,7 +659,6 @@ func extract(val string) (op string, typ string, auxint string, aux string, args
+ // It returns the op and unparsed strings for typ, auxint, and aux restrictions and for all args.
+ // oparch is the architecture that op is located in, or "" for generic.
+ func parseValue(val string, arch arch, loc string) (op opData, oparch string, typ string, auxint string, aux string, args []string) {
+-
+ 	// Resolve the op.
+ 	var s string
+ 	s, typ, auxint, aux, args = extract(val)
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 644cc65880..2b8efe846d 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -2468,7 +2468,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		d := c.vregoff(p.GetFrom3())
+ 		var a int
+ 		switch p.As {
+-
+ 		// These opcodes expect a mask operand that has to be converted into the
+ 		// appropriate operand.  The way these were defined, not all valid masks are possible.
+ 		// Left here for compatibility in case they were used or generated.
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index dbdaebba8d..4e4cae6b44 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1996,7 +1996,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		c = 0
+ 		for p := s.Func.Text; p != nil; p = p.Link {
+ 			if ctxt.Headtype == objabi.Hnacl && p.Isize > 0 {
+-
+ 				// pad everything to avoid crossing 32-byte boundary
+ 				if c>>5 != (c+int32(p.Isize)-1)>>5 {
+ 					c = naclpad(ctxt, s, c, -c&31)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 79b9ae1013..a6e03baafa 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1857,7 +1857,6 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
+ 	// Only break at outermost syms.
+ 
+ 	if ctxt.Arch.InFamily(sys.PPC64) && s.Outer == nil && ctxt.IsELF && ctxt.LinkMode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(s, isTramp) > 0x1c00000 {
+-
+ 		// Set the length for the previous text section
+ 		sect.Length = va - sect.Vaddr
+ 
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 4e277f9aa9..9b30e5f27c 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -523,7 +523,6 @@ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val *int64) bool
+ 
+ // resolve direct jump relocation r in s, and add trampoline if necessary
+ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
+-
+ 	// Trampolines are created if the branch offset is too large and the linker cannot insert a call stub to handle it.
+ 	// For internal linking, trampolines are always created for long calls.
+ 	// For external linking, the linker can insert a call stub to handle a long call, but depends on having the TOC address in
+@@ -542,7 +541,6 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
+ 		if (ctxt.LinkMode == ld.LinkExternal && s.Sect != r.Sym.Sect) || (ctxt.LinkMode == ld.LinkInternal && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
+ 			var tramp *sym.Symbol
+ 			for i := 0; ; i++ {
+-
+ 				// Using r.Add as part of the name is significant in functions like duffzero where the call
+ 				// target is at some offset within the function.  Calls to duff+8 and duff+256 must appear as
+ 				// distinct trampolines.
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index e72ba74983..e0a6e04b1d 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -290,7 +290,6 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 		dlen := 8
+ 
+ 		for j := 0; j < 8; {
+-
+ 			// We have reached the end and are missing padding
+ 			if len(src) == 0 && enc.padChar != NoPadding {
+ 				return n, false, CorruptInputError(olen - len(src) - j)
+diff --git a/src/go/doc/testdata/blank.0.golden b/src/go/doc/testdata/blank.0.golden
+index 70f2929f8a..29c30f6942 100644
+--- a/src/go/doc/testdata/blank.0.golden
++++ b/src/go/doc/testdata/blank.0.golden
+@@ -48,6 +48,7 @@ TYPES
+ 		H	uint32
+ 	
+ 		A	uint8
++	
+ 		// contains filtered or unexported fields
+ 	}
+ 
+diff --git a/src/go/doc/testdata/blank.2.golden b/src/go/doc/testdata/blank.2.golden
+index 70f2929f8a..29c30f6942 100644
+--- a/src/go/doc/testdata/blank.2.golden
++++ b/src/go/doc/testdata/blank.2.golden
+@@ -48,6 +48,7 @@ TYPES
+ 		H	uint32
+ 	
+ 		A	uint8
++	
+ 		// contains filtered or unexported fields
+ 	}
+ 
+diff --git a/src/go/doc/testdata/testing.0.golden b/src/go/doc/testdata/testing.0.golden
+index 83cf37cd3a..6bdf726efc 100644
+--- a/src/go/doc/testdata/testing.0.golden
++++ b/src/go/doc/testdata/testing.0.golden
+@@ -42,6 +42,7 @@ TYPES
+ 	// B is a type passed to Benchmark functions to manage benchmark ...
+ 	type B struct {
+ 		N int
++	
+ 		// contains filtered or unexported fields
+ 	}
+ 
+diff --git a/src/go/doc/testdata/testing.2.golden b/src/go/doc/testdata/testing.2.golden
+index 83cf37cd3a..6bdf726efc 100644
+--- a/src/go/doc/testdata/testing.2.golden
++++ b/src/go/doc/testdata/testing.2.golden
+@@ -42,6 +42,7 @@ TYPES
+ 	// B is a type passed to Benchmark functions to manage benchmark ...
+ 	type B struct {
+ 		N int
++	
+ 		// contains filtered or unexported fields
+ 	}
+ 
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 37b5873b68..83c17fef5e 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -479,6 +479,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 		if isIncomplete {
+ 			if len(list) > 0 {
+ 				p.print(formfeed)
++				p.print(newline)
+ 			}
+ 			p.flush(p.posFor(rbrace), token.RBRACE) // make sure we don't lose the last line comment
+ 			p.setLineComment("// contains filtered or unexported fields")
+@@ -506,6 +507,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 		if isIncomplete {
+ 			if len(list) > 0 {
+ 				p.print(formfeed)
++				p.print(newline)
+ 			}
+ 			p.flush(p.posFor(rbrace), token.RBRACE) // make sure we don't lose the last line comment
+ 			p.setLineComment("// contains filtered or unexported methods")
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index dbb4bbd90c..61723899d4 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -62,7 +62,7 @@ type printer struct {
+ 	mode        pmode        // current printer mode
+ 	impliedSemi bool         // if set, a linebreak implies a semicolon
+ 	lastTok     token.Token  // last token printed (token.ILLEGAL if it's whitespace)
+-	prevOpen    token.Token  // previous non-brace "open" token (, [, or token.ILLEGAL
++	prevOpen    token.Token  // previous "open" token: (, [, {, or token.ILLEGAL
+ 	wsbuf       []whiteSpace // delayed white space
+ 
+ 	// Positions
+@@ -426,6 +426,11 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
+ 		n := 0
+ 		if pos.IsValid() && p.last.IsValid() {
+ 			n = pos.Line - p.last.Line
++			if n > 1 && p.prevOpen != token.ILLEGAL && prev == nil {
++				// Forbid multiple empty lines from appearing immediately
++				// following some type of open paren, bracket, or brace.
++				n = 1
++			}
+ 			if n < 0 { // should never happen
+ 				n = 0
+ 			}
+@@ -879,7 +884,7 @@ func (p *printer) print(args ...interface{}) {
+ 		switch p.lastTok {
+ 		case token.ILLEGAL:
+ 			// ignore (white space)
+-		case token.LPAREN, token.LBRACK:
++		case token.LPAREN, token.LBRACK, token.LBRACE:
+ 			p.prevOpen = p.lastTok
+ 		default:
+ 			// other tokens followed any opening token
+diff --git a/src/go/printer/testdata/comments.golden b/src/go/printer/testdata/comments.golden
+index 4d92e65327..d14d8d6cbb 100644
+--- a/src/go/printer/testdata/comments.golden
++++ b/src/go/printer/testdata/comments.golden
+@@ -97,6 +97,109 @@ type S3 struct {
+ 	f3	int	// f3 is not exported
+ }
+ 
++type T struct {	// foo
++
++	// bar
++	x	int
++	X	int
++}
++
++type T struct {	/* foo */
++
++	// bar
++	x int
++}
++
++type T struct {	// foo
++
++	x	int
++
++	X	int
++}
++
++type T struct {	/* foo */
++
++	x int
++}
++
++type T struct {
++	x int
++}
++
++type T struct {
++	x int
++}
++
++type T struct{ x int }
++
++type T struct {
++	x int
++}
++
++type T struct {
++	x	int
++	X	int
++	x	int
++}
++
++type T struct {
++	// Comment
++	x	int
++	// X.
++	X	int
++	// Comment
++	x	int
++}
++
++const (	// foo
++
++	// bar
++	x	int	= 0
++	X	int	= 0
++)
++
++const (	/* foo */
++
++	// bar
++	x int = 0
++)
++
++const (	// foo
++
++	x	int	= 0
++
++	X	int	= 0
++)
++
++const (	/* foo */
++
++	x int = 0
++)
++
++const (
++	x int = 0
++)
++
++const (
++	x	int	= 0
++	X	int	= 0
++)
++
++const (
++	x	int	= 0
++	X	int	= 0
++	x	int	= 0
++)
++
++const (
++	// Comment
++	x	int	= 0
++	// X.
++	X	int	= 0
++	// Comment
++	x	int	= 0
++)
++
+ // This comment group should be separated
+ // with a newline from the next comment
+ // group.
+diff --git a/src/go/printer/testdata/comments.input b/src/go/printer/testdata/comments.input
+index 40351eeef6..df98056a65 100644
+--- a/src/go/printer/testdata/comments.input
++++ b/src/go/printer/testdata/comments.input
+@@ -97,6 +97,113 @@ type S3 struct {
+ 	f3 int // f3 is not exported
+ }
+ 
++type T struct { // foo
++
++   // bar
++   x int
++   X int
++}
++
++type T struct { /* foo */
++
++  			 // bar
++   x int
++}
++
++type T struct { // foo
++
++  				 x int
++
++   X int
++}
++
++type T struct { /* foo */
++
++
++
++x int
++}
++
++type T struct {x int
++}
++
++type T struct {
++					x int}
++
++type T struct {x int}
++
++type T struct {
++
++   x int
++}
++
++type T struct {
++   x int
++   X int
++   x int
++}
++
++type T struct {
++   // Comment
++   x int
++   // X.
++   X int
++   // Comment
++   x int
++}
++
++const ( // foo
++
++   // bar
++   x int = 0
++   X int = 0
++)
++
++const ( /* foo */
++
++   // bar
++   x int = 0
++)
++
++const ( // foo
++
++   x int = 0
++
++   X int = 0
++)
++
++const ( /* foo */
++
++   x int = 0
++)
++
++const (
++
++   x int = 0
++)
++
++const (
++
++   x int = 0
++   X int = 0
++
++)
++
++const (
++   x int = 0
++   X int = 0
++   x int = 0
++)
++
++const (
++   // Comment
++   x int = 0
++   // X.
++   X int = 0
++   // Comment
++   x int = 0
++)
++
+ // This comment group should be separated
+ // with a newline from the next comment
+ // group.
+diff --git a/src/go/printer/testdata/comments.x b/src/go/printer/testdata/comments.x
+index ae7729286e..7178519b95 100644
+--- a/src/go/printer/testdata/comments.x
++++ b/src/go/printer/testdata/comments.x
+@@ -54,3 +54,73 @@ type S3 struct {
+ 	F2	int	// line comment for F2
+ 	// contains filtered or unexported fields
+ }
++
++type T struct {
++	X int
++
++	// contains filtered or unexported fields
++}
++
++type T struct {
++	// contains filtered or unexported fields
++}
++
++type T struct {
++	X int
++
++	// contains filtered or unexported fields
++}
++
++type T struct {
++	// contains filtered or unexported fields
++}
++
++type T struct {
++	// contains filtered or unexported fields
++}
++
++type T struct {
++	// contains filtered or unexported fields
++}
++
++type T struct {
++	// contains filtered or unexported fields
++}
++
++type T struct {
++	// contains filtered or unexported fields
++}
++
++type T struct {
++	X int
++
++	// contains filtered or unexported fields
++}
++
++type T struct {
++	// X.
++	X int
++
++	// contains filtered or unexported fields
++}
++
++const (
++	X int = 0
++)
++
++const (
++	X int = 0
++)
++
++const (
++	X int = 0
++)
++
++const (
++	X int = 0
++)
++
++const (
++	// X.
++	X int = 0
++)
+diff --git a/src/hash/crc32/crc32_ppc64le.go b/src/hash/crc32/crc32_ppc64le.go
+index 686722761d..8e54d52b94 100644
+--- a/src/hash/crc32/crc32_ppc64le.go
++++ b/src/hash/crc32/crc32_ppc64le.go
+@@ -65,7 +65,6 @@ func archInitIEEE() {
+ 
+ // archUpdateIEEE calculates the checksum of p using vectorizedIEEE.
+ func archUpdateIEEE(crc uint32, p []byte) uint32 {
+-
+ 	// Check if vector code should be used.  If not aligned, then handle those
+ 	// first up to the aligned bytes.
+ 
+diff --git a/src/image/internal/imageutil/impl.go b/src/image/internal/imageutil/impl.go
+index cfd5047879..4c6de742da 100644
+--- a/src/image/internal/imageutil/impl.go
++++ b/src/image/internal/imageutil/impl.go
+@@ -42,7 +42,6 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 
+ 			ci := (sy-src.Rect.Min.Y)*src.CStride + (sp.X - src.Rect.Min.X)
+ 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+-
+ 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+ 				yy1 := int32(src.Y[yi]) * 0x10101
+ 				cb1 := int32(src.Cb[ci]) - 128
+@@ -212,7 +211,6 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
+ 
+ 			ci := (sy/2-src.Rect.Min.Y/2)*src.CStride + (sp.X - src.Rect.Min.X)
+ 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
+-
+ 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
+ 				yy1 := int32(src.Y[yi]) * 0x10101
+ 				cb1 := int32(src.Cb[ci]) - 128
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index f881020fef..a403c88eaa 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -27,7 +27,6 @@ type dumpTest struct {
+ }
+ 
+ var dumpTests = []dumpTest{
+-
+ 	// HTTP/1.1 => chunked coding; body; empty trailer
+ 	{
+ 		Req: http.Request{
+diff --git a/src/net/http/httputil/persist.go b/src/net/http/httputil/persist.go
+index cbedf25ad1..24c9c73474 100644
+--- a/src/net/http/httputil/persist.go
++++ b/src/net/http/httputil/persist.go
+@@ -173,7 +173,6 @@ func (sc *ServerConn) Pending() int {
+ // Response.Close field to true. Write should be considered operational until
+ // it returns an error, regardless of any errors returned on the Read side.
+ func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
+-
+ 	// Retrieve the pipeline ID of this request/response pair
+ 	sc.mu.Lock()
+ 	id, ok := sc.pipereq[req]
+diff --git a/src/net/http/internal/chunked.go b/src/net/http/internal/chunked.go
+index 63f321d03b..7f83a56f1c 100644
+--- a/src/net/http/internal/chunked.go
++++ b/src/net/http/internal/chunked.go
+@@ -192,7 +192,6 @@ type chunkedWriter struct {
+ // NOTE: Note that the corresponding chunk-writing procedure in Conn.Write has
+ // a bug since it does not check for success of io.WriteString
+ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
+-
+ 	// Don't send 0-length data. It looks like EOF for chunked encoding.
+ 	if len(data) == 0 {
+ 		return 0, nil
+diff --git a/src/net/http/requestwrite_test.go b/src/net/http/requestwrite_test.go
+index eb65b9f736..74b01db6da 100644
+--- a/src/net/http/requestwrite_test.go
++++ b/src/net/http/requestwrite_test.go
+@@ -813,7 +813,6 @@ func TestRequestWriteError(t *testing.T) {
+ // try to restore it. It always dumps the whole body.
+ // And it doesn't support https.
+ func dumpRequestOut(req *Request, onReadHeaders func()) ([]byte, error) {
+-
+ 	// Use the actual Transport code to record what we would send
+ 	// on the wire, but not using TCP.  Use a Transport with a
+ 	// custom dialer that returns a fake net.Conn that waits
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 91f481ed50..4329e61e60 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2231,7 +2231,6 @@ func (mux *ServeMux) shouldRedirect(path string) bool {
+ // If there is no registered handler that applies to the request,
+ // Handler returns a ``page not found'' handler and an empty pattern.
+ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
+-
+ 	// CONNECT requests are not canonicalized.
+ 	if r.Method == "CONNECT" {
+ 		// If r.URL.Path is /tree and its handler is not registered,
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 5d5d6e4e9c..b1bb31e982 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -727,7 +727,6 @@ func TestAddressString(t *testing.T) {
+ 
+ // Check if all valid addresses can be parsed, formatted and parsed again
+ func TestAddressParsingAndFormatting(t *testing.T) {
+-
+ 	// Should pass
+ 	tests := []string{
+ 		`<Bob@example.com>`,
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 8c6d43a706..8b5b32a786 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -1626,7 +1626,6 @@ func (p *parser) parseClass(s string) (rest string, err error) {
+ // cleanClass sorts the ranges (pairs of elements of r),
+ // merges them, and eliminates duplicates.
+ func cleanClass(rp *[]rune) []rune {
+-
+ 	// Sort by lo increasing, hi decreasing to break ties.
+ 	sort.Sort(ranges{rp})
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 2f426c7bf1..135fc1a7ad 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -642,7 +642,6 @@ func findfunc(pc uintptr) funcInfo {
+ 		idx = uint32(len(datap.ftab) - 1)
+ 	}
+ 	if pc < datap.ftab[idx].entry {
+-
+ 		// With multiple text sections, the idx might reference a function address that
+ 		// is higher than the pc being searched, so search backward until the matching address is found.
+ 
+@@ -653,7 +652,6 @@ func findfunc(pc uintptr) funcInfo {
+ 			throw("findfunc: bad findfunctab entry idx")
+ 		}
+ 	} else {
+-
+ 		// linear search to find func with pc >= entry.
+ 		for datap.ftab[idx+1].entry <= pc {
+ 			idx++
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index c645b139b1..5545532bc9 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -52,7 +52,6 @@ func sysctlNodes(mib []_C_int) (nodes []Sysctlnode, err error) {
+ }
+ 
+ func nametomib(name string) (mib []_C_int, err error) {
+-
+ 	// Split name into components.
+ 	var parts []string
+ 	last := 0
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index a43d88bf7a..8f58f7d341 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -29,7 +29,6 @@ type SockaddrDatalink struct {
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ func nametomib(name string) (mib []_C_int, err error) {
+-
+ 	// Perform lookup via a binary search
+ 	left := 0
+ 	right := len(sysctlMib) - 1
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 9af39c0d03..ea29ac4489 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -82,7 +82,6 @@ func TestAfterStress(t *testing.T) {
+ }
+ 
+ func benchmark(b *testing.B, bench func(n int)) {
+-
+ 	// Create equal number of garbage timers on each P before starting
+ 	// the benchmark.
+ 	var wg sync.WaitGroup
+diff --git a/src/unicode/example_test.go b/src/unicode/example_test.go
+index 50c5b18a48..a60dae4458 100644
+--- a/src/unicode/example_test.go
++++ b/src/unicode/example_test.go
+@@ -12,7 +12,6 @@ import (
+ // Functions starting with "Is" can be used to inspect which table of range a
+ // rune belongs to. Note that runes may fit into more than one range.
+ func Example_is() {
+-
+ 	// constant with mixed type runes
+ 	const mixed = "\b5Ὂg̀9! ℃ᾭG"
+ 	for _, c := range mixed {

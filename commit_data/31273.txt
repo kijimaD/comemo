@@ -11,7 +11,42 @@ Date:   Fri Jan 27 14:14:05 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/template/exec.go      | 2 +-
  src/text/template/exec_test.go | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 7d92bd9d36..0e517a6ec3 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -551,7 +551,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 	// Unless it's an interface, need to get to a value of type *T to guarantee
+ 	// we see all methods of T and *T.
+ 	ptr := receiver
+-	if ptr.Kind() != reflect.Interface && ptr.CanAddr() {
++	if ptr.Kind() != reflect.Interface && ptr.Kind() != reflect.Ptr && ptr.CanAddr() {
+ 		ptr = ptr.Addr()
+ 	}
+ 	if method := ptr.MethodByName(fieldName); method.IsValid() {
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 5892b27391..9f7e637c19 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -147,6 +147,8 @@ var tVal = &T{
+ 	Tmpl:                 Must(New("x").Parse("test template")), // "x" is the value of .X
+ }
+ 
++var tSliceOfNil = []*T{nil}
++
+ // A non-empty interface.
+ type I interface {
+ 	Method0() string
+@@ -337,6 +339,7 @@ var execTests = []execTest{
+ 		"true", tVal, true},
+ 	{".NilOKFunc not nil", "{{call .NilOKFunc .PI}}", "false", tVal, true},
+ 	{".NilOKFunc nil", "{{call .NilOKFunc nil}}", "true", tVal, true},
++	{"method on nil value from slice", "-{{range .}}{{.Method1 1234}}{{end}}-", "-1234-", tSliceOfNil, true},
+ 
+ 	// Function call builtin.
+ 	{".BinaryFunc", "{{call .BinaryFunc `1` `2`}}", "[1=2]", tVal, true},

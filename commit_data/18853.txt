@@ -11,6 +11,27 @@ Date:   Thu Mar 13 08:12:38 2014 +0100
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/75240043
-
+---
  src/cmd/6g/ggen.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 8b0c287400..230c0a2ca0 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -30,11 +30,11 @@ defframe(Prog *ptxt)
+ 	// when it looks for pointers.
+ 	p = ptxt;
+ 	if(stkzerosize > 0) {
+-		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);	
+-		p = appendpp(p, AMOVQ, D_CONST, stkzerosize/widthptr, D_CX, 0);	
+-		p = appendpp(p, ALEAQ, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);	
++		p = appendpp(p, movptr, D_CONST, 0, D_AX, 0);	
++		p = appendpp(p, movptr, D_CONST, stkzerosize/widthptr, D_CX, 0);	
++		p = appendpp(p, leaptr, D_SP+D_INDIR, frame-stkzerosize, D_DI, 0);	
+ 		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);	
+-		appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);	
++		appendpp(p, stosptr, D_NONE, 0, D_NONE, 0);	
+ 	}
+ }
+ 

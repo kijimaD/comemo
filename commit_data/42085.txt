@@ -22,6 +22,20 @@ Date:   Sat Nov 2 09:36:28 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index c0fa5fa7ce..4fa0d5ddce 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1058,7 +1058,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 				rs = 0
+ 				sz = 0
+ 			}
+-			if rs != 0 && l.SymType(rs) == sym.SABIALIAS {
++			if rs != 0 && l.Syms[rs] != nil && l.Syms[rs].Type == sym.SABIALIAS {
+ 				rsrelocs := l.Relocs(rs)
+ 				rs = rsrelocs.At(0).Sym
+ 			}

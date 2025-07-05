@@ -24,7 +24,7 @@ Date:   Thu Feb 25 12:13:23 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go      |  1 +
  src/cmd/compile/internal/inline/inl.go     |  4 +---
  src/cmd/compile/internal/typecheck/subr.go |  9 +++++++--
@@ -32,3 +32,114 @@ Date:   Thu Feb 25 12:13:23 2021 -0800
  test/fixedbugs/issue44370.dir/b.go         | 11 +++++++++++
  test/fixedbugs/issue44370.go               |  7 +++++++
  6 files changed, 47 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index d8ca9885cb..ade17fc0cd 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -159,6 +159,7 @@ func ParseFlags() {
+ 	Flag.LinkShared = &Ctxt.Flag_linkshared
+ 	Flag.Shared = &Ctxt.Flag_shared
+ 	Flag.WB = true
++	Debug.InlFuncsWithClosures = 1
+ 
+ 	Flag.Cfg.ImportMap = make(map[string]string)
+ 
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 1703be74e9..e961b10844 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -354,9 +354,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		return true
+ 
+ 	case ir.OCLOSURE:
+-		if base.Debug.InlFuncsWithClosures == 0 {
+-			// TODO(danscales): change default of InlFuncsWithClosures
+-			// to 1 when #44370 is fixed
++		if base.Debug.InlFuncsWithClosures == 0 || base.Flag.G > 0 {
+ 			v.reason = "not inlining functions with closures"
+ 			return true
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index b88a9f2283..c40cfa2288 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -106,7 +106,8 @@ var DirtyAddrtaken = false
+ 
+ func ComputeAddrtaken(top []ir.Node) {
+ 	for _, n := range top {
+-		ir.Visit(n, func(n ir.Node) {
++		var doVisit func(n ir.Node)
++		doVisit = func(n ir.Node) {
+ 			if n.Op() == ir.OADDR {
+ 				if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
+ 					x.Name().SetAddrtaken(true)
+@@ -117,7 +118,11 @@ func ComputeAddrtaken(top []ir.Node) {
+ 					}
+ 				}
+ 			}
+-		})
++			if n.Op() == ir.OCLOSURE {
++				ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doVisit)
++			}
++		}
++		ir.Visit(n, doVisit)
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/issue44370.dir/a.go b/test/fixedbugs/issue44370.dir/a.go
+new file mode 100644
+index 0000000000..c5bf1bcbc7
+--- /dev/null
++++ b/test/fixedbugs/issue44370.dir/a.go
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package a
++
++// A StoppableWaitGroup waits for a collection of goroutines to finish.
++type StoppableWaitGroup struct {
++	// i is the internal counter which can store tolerate negative values
++	// as opposed the golang's library WaitGroup.
++	i *int64
++}
++
++// NewStoppableWaitGroup returns a new StoppableWaitGroup. When the 'Stop' is
++// executed, following 'Add()' calls won't have any effect.
++func NewStoppableWaitGroup() *StoppableWaitGroup {
++	return &StoppableWaitGroup{
++		i: func() *int64 { i := int64(0); return &i }(),
++	}
++}
+diff --git a/test/fixedbugs/issue44370.dir/b.go b/test/fixedbugs/issue44370.dir/b.go
+new file mode 100644
+index 0000000000..f0e0b4e55f
+--- /dev/null
++++ b/test/fixedbugs/issue44370.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package b
++
++import "./a"
++
++func JoinClusterServices() {
++	_ = a.NewStoppableWaitGroup()
++}
+diff --git a/test/fixedbugs/issue44370.go b/test/fixedbugs/issue44370.go
+new file mode 100644
+index 0000000000..d406838588
+--- /dev/null
++++ b/test/fixedbugs/issue44370.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package ignored

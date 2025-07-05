@@ -7,7 +7,7 @@ Date:   Mon Sep 20 18:44:19 2010 +0200
     R=rsc, ken2, r
     CC=golang-dev
     https://golang.org/cl/2151044
-
+---
  src/cmd/6l/l.h          |  11 +-
  src/cmd/6l/pass.c       |  12 +-
  src/cmd/8l/l.h          |   9 +-
@@ -15,3 +15,791 @@ Date:   Mon Sep 20 18:44:19 2010 +0200
  src/cmd/ld/dwarf.c      | 353 +++++++++++++++++++++++++++++++++++-------------
  src/cmd/ld/dwarf_defs.h |  36 +++++
  6 files changed, 330 insertions(+), 102 deletions(-)
+
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 22f266fe4c..b8f47fc00f 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -95,6 +95,7 @@ struct	Prog
+ 	Prog*	dlink;
+ 	Prog*	pcond;	/* work on this */
+ 	vlong	pc;
++	int32	spadj;
+ 	int32	line;
+ 	short	as;
+ 	char	ft;	/* oclass cache */
+@@ -102,7 +103,7 @@ struct	Prog
+ 	uchar	mark;	/* work on these */
+ 	uchar	back;
+ 
+-	char	width;		/* fake for DATA */
++	char	width;	/* fake for DATA */
+ 	char	mode;	/* 16, 32, or 64 */
+ };
+ struct	Auto
+@@ -397,7 +398,7 @@ void	buildop(void);
+ void	cflush(void);
+ void	ckoff(Sym*, int32);
+ Prog*	copyp(Prog*);
+-vlong   cpos(void);
++vlong	cpos(void);
+ double	cputime(void);
+ void	datblk(int32, int32);
+ void	deadcode(void);
+@@ -463,3 +464,9 @@ uint32	machheadr(void);
+ #pragma	varargck	type	"R"	int
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	argpos	diag 1
++
++/* Used by ../ld/dwarf.c */
++enum
++{
++	DWARFREGSP = 7
++};
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index ea3351239f..d207e74832 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -692,7 +692,7 @@ dostkoff(void)
+ 					p->from.type = D_INDIR+D_GS;
+ 				p->from.offset = tlsoffset+0;
+ 				p->to.type = D_CX;
+-				
++
+ 				if(debug['K']) {
+ 					// 6l -K means check not only for stack
+ 					// overflow but stack underflow.
+@@ -843,6 +843,7 @@ dostkoff(void)
+ 				p->as = AADJSP;
+ 				p->from.type = D_CONST;
+ 				p->from.offset = autoffset;
++				p->spadj = autoffset;
+ 				if(q != P)
+ 					q->pcond = p;
+ 			}
+@@ -903,26 +904,32 @@ dostkoff(void)
+ 		case APUSHL:
+ 		case APUSHFL:
+ 			deltasp += 4;
++			p->spadj = 4;
+ 			continue;
+ 		case APUSHQ:
+ 		case APUSHFQ:
+ 			deltasp += 8;
++			p->spadj = 8;
+ 			continue;
+ 		case APUSHW:
+ 		case APUSHFW:
+ 			deltasp += 2;
++			p->spadj = 2;
+ 			continue;
+ 		case APOPL:
+ 		case APOPFL:
+ 			deltasp -= 4;
++			p->spadj = -4;
+ 			continue;
+ 		case APOPQ:
+ 		case APOPFQ:
+ 			deltasp -= 8;
++			p->spadj = -8;
+ 			continue;
+ 		case APOPW:
+ 		case APOPFW:
+ 			deltasp -= 2;
++			p->spadj = -2;
+ 			continue;
+ 		case ARET:
+ 			break;
+@@ -937,7 +944,7 @@ dostkoff(void)
+ 			p->as = AADJSP;
+ 			p->from.type = D_CONST;
+ 			p->from.offset = -autoffset;
+-
++			p->spadj = -autoffset;
+ 			p = appendp(p);
+ 			p->as = ARET;
+ 		}
+@@ -954,6 +961,7 @@ dostkoff(void)
+ 		q->from = zprg.from;
+ 		q->from.type = D_CONST;
+ 		q->from.offset = -autoffset;
++		q->spadj = -autoffset;
+ 		q->to = zprg.to;
+ 		continue;
+ 	}
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index e3b53f202f..489f1ae8cb 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -95,6 +95,7 @@ struct	Prog
+ 	Prog*	dlink;
+ 	Prog*	pcond;	/* work on this */
+ 	int32	pc;
++	int32	spadj;
+ 	int32	line;
+ 	short	as;
+ 	char	width;		/* fake for DATA */
+@@ -346,7 +347,7 @@ Prog*	brloop(Prog*);
+ void	cflush(void);
+ void	ckoff(Sym*, int32);
+ Prog*	copyp(Prog*);
+-vlong   cpos(void);
++vlong	cpos(void);
+ double	cputime(void);
+ void	datblk(int32, int32, int32);
+ void	diag(char*, ...);
+@@ -412,3 +413,9 @@ void	deadcode(void);
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"R"	int
+ #pragma	varargck	type	"A"	int
++
++/* Used by ../ld/dwarf.c */
++enum
++{
++	DWARFREGSP = 4
++};
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index bf09fd9111..f59ccdb61e 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -392,10 +392,10 @@ patch(void)
+ 	for(p = firstp; p != P; p = p->link) {
+ 		if(HEADTYPE == 10) {	// Windows
+ 			// Convert
+-			//   op   n(GS), reg
++			//   op	  n(GS), reg
+ 			// to
+ 			//   MOVL 0x2C(FS), reg
+-			//   op   n(reg), reg
++			//   op	  n(reg), reg
+ 			// The purpose of this patch is to fix some accesses
+ 			// to extern register variables (TLS) on Windows, as
+ 			// a different method is used to access them.
+@@ -770,6 +770,7 @@ dostkoff(void)
+ 				p->as = AADJSP;
+ 				p->from.type = D_CONST;
+ 				p->from.offset = autoffset;
++				p->spadj = autoffset;
+ 				if(q != P)
+ 					q->pcond = p;
+ 			}
+@@ -792,18 +793,22 @@ dostkoff(void)
+ 		case APUSHL:
+ 		case APUSHFL:
+ 			deltasp += 4;
++			p->spadj = 4;
+ 			continue;
+ 		case APUSHW:
+ 		case APUSHFW:
+ 			deltasp += 2;
++			p->spadj = 2;
+ 			continue;
+ 		case APOPL:
+ 		case APOPFL:
+ 			deltasp -= 4;
++			p->spadj = -4;
+ 			continue;
+ 		case APOPW:
+ 		case APOPFW:
+ 			deltasp -= 2;
++			p->spadj = -2;
+ 			continue;
+ 		case ARET:
+ 			break;
+@@ -822,6 +827,7 @@ dostkoff(void)
+ 			q->as = AADJSP;
+ 			q->from.type = D_CONST;
+ 			q->from.offset = -autoffset;
++			p->spadj = -autoffset;
+ 		}
+ 		continue;
+ 
+@@ -836,6 +842,7 @@ dostkoff(void)
+ 		q->from = zprg.from;
+ 		q->from.type = D_CONST;
+ 		q->from.offset = -autoffset;
++		p->spadj = -autoffset;
+ 		q->to = zprg.to;
+ 		continue;
+ 	}
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index add9277b36..6e440d0465 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -10,7 +10,7 @@
+ #include	"../ld/macho.h"
+ 
+ /*
+- * Offsets and sizes of the .debug_* sections in the cout file.
++ * Offsets and sizes of the debug_* sections in the cout file.
+  */
+ 
+ static vlong abbrevo;
+@@ -19,7 +19,78 @@ static vlong lineo;
+ static vlong linesize;
+ static vlong infoo;
+ static vlong infosize;
++static vlong frameo;
++static vlong framesize;
+ 
++/*
++ *  Basic I/O
++ */
++
++static void
++addrput(vlong addr)
++{
++	switch(PtrSize) {
++	case 4:
++		LPUT(addr);
++		break;
++	case 8:
++		VPUT(addr);
++		break;
++	}
++}
++
++
++static int
++uleb128enc(uvlong v, char* dst)
++{
++	uint8 c, len;
++
++	len = 0;
++	do {
++		c = v & 0x7f;
++		v >>= 7;
++		if (v)
++			c |= 0x80;
++		if (dst)
++			*dst++ = c;
++		len++;
++	} while (c & 0x80);
++	return len;
++};
++
++
++static int
++sleb128enc(vlong v, char *dst)
++{
++	uint8 c, s, len;
++
++	len = 0;
++	do {
++		c = v & 0x7f;
++		s = v & 0x40;
++		v >>= 7;
++		if ((v != -1 || !s) && (v != 0 || s))
++			c |= 0x80;
++		if (dst)
++			*dst++ = c;
++		len++;
++	} while(c & 0x80);
++	return len;
++}
++
++static void
++uleb128put(vlong v)
++{
++	char buf[10];
++	strnput(buf, uleb128enc(v, buf));
++}
++
++static void
++sleb128put(vlong v)
++{
++	char buf[10];
++	strnput(buf, sleb128enc(v, buf));
++}
+ 
+ /*
+  * Defining Abbrevs.  This is hardcoded, and there will be
+@@ -72,13 +143,34 @@ struct DWAbbrev {
+ 	},
+ };
+ 
++static void
++writeabbrev(void)
++{
++	int i, n;
++
++	abbrevo = cpos();
++	for (i = 1; i < DW_NABRV; i++) {
++		// See section 7.5.3
++		uleb128put(i);
++		uleb128put(abbrevs[i].tag);
++		cput(abbrevs[i].children);
++		// 0 is not a valid attr or form, so we can treat this as
++		// a string
++		n = strlen((char*)abbrevs[i].attr) / 2;
++		strnput((char*)abbrevs[i].attr,
++			(n+1) * sizeof(DWAttrForm));
++	}
++	cput(0);
++	abbrevsize = cpos() - abbrevo;
++}
++
+ /*
+  * Debugging Information Entries and their attributes
+  */
+ 
+-
+-// for string and block, value contains the length, and data the data,
+-// for all others, value is the whole thing and data is null.
++// For DW_CLS_string and _block, value should contain the length, and
++// data the data, for all others, value is the whole thing and data is
++// null.
+ 
+ typedef struct DWAttr DWAttr;
+ struct DWAttr {
+@@ -126,46 +218,6 @@ newattr(DWDie *die, uint8 attr, int cls, vlong value, char *data)
+ 	return a;
+ }
+ 
+-static void addrput(vlong addr)
+-{
+-	switch(PtrSize) {
+-	case 4:
+-		LPUT(addr);
+-		break;
+-	case 8:
+-		VPUT(addr);
+-		break;
+-	}
+-}
+-
+-static void
+-uleb128put(uvlong v)
+-{
+-	uint8 c;
+-
+-	do {
+-		c = v & 0x7f;
+-		v >>= 7;
+-		if (v) c |= 0x80;
+-		cput(c);
+-	} while (c & 0x80);
+-};
+-
+-static void
+-sleb128put(vlong v)
+-{
+-	uint8 c, s;
+-
+-	do {
+-		c = v & 0x7f;
+-		s = c & 0x40;
+-		v >>= 7;
+-		if ((v != -1 || !s) && (v != 0 || s))
+-			c |= 0x80;
+-		cput(c);
+-	} while(c & 0x80);
+-};
+-
+ static void
+ putattr(int form, int cls, vlong value, char *data)
+ {
+@@ -209,11 +261,11 @@ putattr(int form, int cls, vlong value, char *data)
+ 		WPUT(value);
+ 		break;
+ 
+-	case DW_FORM_data4:	// constant, lineptr, loclistptr, macptr, rangelistptr
++	case DW_FORM_data4:	// constant, {line,loclist,mac,rangelist}ptr
+ 		LPUT(value);
+ 		break;
+ 
+-	case DW_FORM_data8:	// constant, lineptr, loclistptr, macptr, rangelistptr
++	case DW_FORM_data8:	// constant, {line,loclist,mac,rangelist}ptr
+ 		VPUT(value);
+ 		break;
+ 
+@@ -542,28 +594,6 @@ searchhist(vlong absline)
+ 	return lh;
+ }
+ 
+-static void
+-writeabbrev(void)
+-{
+-	int i, n;
+-
+-	abbrevo = cpos();
+-	for (i = 1; i < DW_NABRV; i++) {
+-		// See section 7.5.3
+-		uleb128put(i);
+-		uleb128put(abbrevs[i].tag);
+-		cput(abbrevs[i].children);
+-		// 0 is not a valid attr or form, so we can treat this as
+-		// a string
+-		n = strlen((char *) abbrevs[i].attr) / 2;
+-		strnput((char *) abbrevs[i].attr,
+-			(n + 1) * sizeof(DWAttrForm));
+-	}
+-	cput(0);
+-	abbrevsize = cpos() - abbrevo;
+-}
+-
+-
+ static int
+ guesslang(char *s)
+ {
+@@ -596,8 +626,8 @@ putpclcdelta(vlong delta_pc, vlong delta_lc)
+ 	}
+ 
+ 	if (delta_pc) {
+-	  cput(DW_LNS_advance_pc);
+-	  sleb128put(delta_pc);
++		cput(DW_LNS_advance_pc);
++		sleb128put(delta_pc);
+ 	}
+ 
+ 	cput(DW_LNS_advance_line);
+@@ -616,8 +646,8 @@ flushunit(vlong pc, vlong unitstart)
+ {
+ 	vlong here;
+ 
+-	if (dwinfo != 0 && pc != 0) {
+-		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc, 0);
++	if (dwinfo != nil && pc != 0) {
++		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc+1, 0);
+ 	}
+ 
+ 	if (unitstart >= 0) {
+@@ -641,19 +671,22 @@ writelines(void)
+ 	Sym *s;
+ 	char *unitname;
+ 	vlong unitstart;
+-	vlong pc, lc, llc, lline;
++	vlong pc, epc, lc, llc, lline;
+ 	int currfile;
+ 	int i;
+ 	Linehist *lh;
+ 
++	q = nil;
+ 	unitstart = -1;
+-	pc = 0;
++	epc = pc = 0;
+ 	lc = 1;
+ 	llc = 1;
+ 	currfile = -1;
+ 	lineo = cpos();
+ 
+ 	for (p = textp; p != P; p = p->pcond) {
++		curtext = p; // for diag
++
+ 		s = p->from.sym;
+ 		if (s == nil || s->type != STEXT) {
+ 			diag("->pcond was supposed to loop over STEXT: %P", p);
+@@ -663,7 +696,7 @@ writelines(void)
+ 		// Look for history stack.  If we find one,
+ 		// we're entering a new compilation unit
+ 		if ((unitname = inithist(p->to.autom)) != 0) {
+-			flushunit(pc, unitstart);
++			flushunit(epc, unitstart);
+ 			unitstart = cpos();
+ 			if(debug['v'] > 1) {
+ 				print("dwarf writelines found %s\n", unitname);
+@@ -675,8 +708,8 @@ writelines(void)
+ 			dwinfo = newdie(dwinfo, DW_ABRV_COMPUNIT);
+ 			newattr(dwinfo, DW_AT_name, DW_CLS_STRING, strlen(unitname), unitname);
+ 			newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT, guesslang(unitname), 0);
+-			newattr(dwinfo, DW_AT_stmt_list,  DW_CLS_PTR, unitstart - lineo, 0);
+-			newattr(dwinfo, DW_AT_low_pc,  DW_CLS_ADDRESS, p->pc, 0);
++			newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart - lineo, 0);
++			newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, p->pc, 0);
+ 			// Write .debug_line Line Number Program Header (sec 6.2.4)
+ 			// Fields marked with (*) must be changed for 64-bit dwarf
+ 			LPUT(0);   // unit_length (*), will be filled in later.
+@@ -701,7 +734,7 @@ writelines(void)
+ 				// 4 zeros: the string termination + 3 fields.
+ 			}
+ 
+-			pc = p->pc;
++			epc = pc = p->pc;
+ 			currfile = 1;
+ 			lc = 1;
+ 			llc = 1;
+@@ -711,7 +744,7 @@ writelines(void)
+ 			cput(DW_LNE_set_address);
+ 			addrput(pc);
+ 		}
+-		if (!p->from.sym->reachable)
++		if (!s->reachable)
+ 			continue;
+ 		if (unitstart < 0) {
+ 			diag("reachable code before seeing any history: %P", p);
+@@ -721,11 +754,9 @@ writelines(void)
+ 		dwinfo->child = newdie(dwinfo->child, DW_ABRV_FUNCTION);
+ 		newattr(dwinfo->child, DW_AT_name, DW_CLS_STRING, strlen(s->name), s->name);
+ 		newattr(dwinfo->child, DW_AT_low_pc, DW_CLS_ADDRESS, p->pc, 0);
+-		if (debug['v'] > 1)
+-		  print("frame offset: %d\n", p->to.offset);
+-//		newattr(dwinfo->child, DW_AT_return_addr,  DW_CLS_BLOCK, p->to.offset, 0);
+ 
+ 		for(q = p; q != P && (q == p || q->as != ATEXT); q = q->link) {
++                        epc = q->pc;
+ 			lh = searchhist(q->line);
+ 			if (lh == nil) {
+ 				diag("corrupt history or bad absolute line: %P", q);
+@@ -734,7 +765,7 @@ writelines(void)
+ 			lline = lh->line + q->line - lh->absline;
+ 			if (debug['v'] > 1)
+ 				print("%6llux %s[%lld] %P\n", q->pc, histfile[lh->file], lline, q);
+-			// Only emit a line program statement if line has changed.
++
+ 			if (q->line == lc)
+ 				continue;
+ 			if (currfile != lh->file) {
+@@ -747,12 +778,130 @@ writelines(void)
+ 			lc  = q->line;
+ 			llc = lline;
+ 		}
+-		newattr(dwinfo->child, DW_AT_high_pc, DW_CLS_ADDRESS, pc, 0);
++
++		newattr(dwinfo->child, DW_AT_high_pc, DW_CLS_ADDRESS, epc+1, 0);
++
+ 	}
+-	flushunit(pc, unitstart);
++
++	flushunit(epc, unitstart);
+ 	linesize = cpos() - lineo;
+ }
+ 
++/*
++ *  Emit .debug_frame
++ */
++enum
++{
++	CIERESERVE = 16,
++	DATAALIGNMENTFACTOR = -4,
++	FAKERETURNCOLUMN = 16
++};
++
++static void
++putpccfadelta(vlong deltapc, vlong cfa)
++{
++	if (deltapc < 0x40) {
++		cput(DW_CFA_advance_loc + deltapc);
++	} else if (deltapc < 0x100) {
++		cput(DW_CFA_advance_loc1);
++		cput(deltapc);
++	} else if (deltapc < 0x10000) {
++		cput(DW_CFA_advance_loc2);
++		WPUT(deltapc);
++	} else {
++		cput(DW_CFA_advance_loc4);
++		LPUT(deltapc);
++	}
++
++	cput(DW_CFA_def_cfa_offset_sf);
++	sleb128put(cfa / DATAALIGNMENTFACTOR);
++}
++
++static void
++writeframes(void)
++{
++	Prog *p, *q;
++	Sym *s;
++	vlong fdeo, fdesize, pad, cfa, pc, epc;
++
++	frameo = cpos();
++
++	// Emit the CIE, Section 6.4.1
++	LPUT(CIERESERVE);  // initial length, must be multiple of PtrSize
++	LPUT(0xffffffff);  // cid.
++	cput(3);	// dwarf version
++	cput(0);	// augmentation ""
++	uleb128put(1);	// code_alignment_factor
++	sleb128put(DATAALIGNMENTFACTOR); // guess
++	uleb128put(FAKERETURNCOLUMN); // return_address_register
++
++	cput(DW_CFA_def_cfa);
++	uleb128put(DWARFREGSP);	// register SP (**ABI-dependent, defined in l.h)
++	uleb128put(PtrSize);	// offset
++
++	cput(DW_CFA_offset + FAKERETURNCOLUMN);	 // return address
++	uleb128put(-PtrSize / DATAALIGNMENTFACTOR);	// at cfa - x*4
++
++	// 4 is to exclude the length field.
++	pad = CIERESERVE + frameo + 4 - cpos();
++	if (pad < 0) {
++		diag("CIERESERVE too small by %lld bytes.", -pad);
++		errorexit();
++	}
++	strnput("", pad);
++
++	for (p = textp; p != P; p = p->pcond) {
++		curtext = p; // for diag
++		s = p->from.sym;
++		if (s == nil || s->type != STEXT) {
++			diag("->pcond was supposed to loop over STEXT: %P", p);
++			continue;
++		}
++		if (!s->reachable)
++			continue;
++
++		fdeo = cpos();
++		// Emit a FDE, Section 6.4.1, starting wit a placeholder.
++		LPUT(0);	// length, must be multiple of PtrSize
++		LPUT(0);	// Pointer to the CIE above, at offset 0
++		addrput(0);	// initial location
++		addrput(0);	// address range
++
++		cfa = PtrSize;	// CFA starts at sp+PtrSize
++		pc = p->pc;
++		epc = p->pc;
++
++		for(q = p; q != P && (q == p || q->as != ATEXT); q = q->link) {
++			epc = q->pc;
++			if (q->spadj == 0)
++				continue;
++
++			cfa += q->spadj;
++			putpccfadelta(q->pc - pc, cfa);
++			pc = q->pc;
++		}
++
++		fdesize = cpos() - fdeo - 4;	// exclude the length field.
++		pad = rnd(fdesize, PtrSize) - fdesize;
++		strnput("", pad);
++		fdesize += pad;
++		cflush();
++
++		// Emit the FDE header for real, Section 6.4.1.
++		seek(cout, fdeo, 0);
++		LPUT(fdesize);
++		LPUT(0);
++		addrput(p->pc);
++		addrput(epc - p->pc);
++
++		cflush();
++		seek(cout, fdeo + 4 + fdesize, 0);
++	}
++
++	cflush();
++	framesize = cpos() - frameo;
++}
++
+ /*
+  *  Walk DWarfDebugInfoEntries, and emit .debug_info
+  */
+@@ -790,8 +939,17 @@ writeinfo(void)
+ 	infosize = cpos() - infoo;
+ }
+ 
++void
++dwarfemitdebugsections(void)
++{
++	writeabbrev();
++	writelines();
++	writeframes();
++	writeinfo();
++}
++
+ /*
+- *  Elf sections.
++ *  Elf.
+  */
+ enum
+ {
+@@ -827,14 +985,6 @@ dwarfaddshstrings(Sym *shstrtab)
+ 	elfstrdbg[ElfStrDebugStr]      = addstring(shstrtab, ".debug_str");
+ }
+ 
+-void
+-dwarfemitdebugsections(void)
+-{
+-	writeabbrev();
+-	writelines();
+-	writeinfo();
+-}
+-
+ void
+ dwarfaddelfheaders(void)
+ {
+@@ -852,6 +1002,12 @@ dwarfaddelfheaders(void)
+ 	sh->size = linesize;
+ 	sh->addralign = 1;
+ 
++	sh = newElfShdr(elfstrdbg[ElfStrDebugFrame]);
++	sh->type = SHT_PROGBITS;
++	sh->off = frameo;
++	sh->size = framesize;
++	sh->addralign = 1;
++
+ 	sh = newElfShdr(elfstrdbg[ElfStrDebugInfo]);
+ 	sh->type = SHT_PROGBITS;
+ 	sh->off = infoo;
+@@ -859,6 +1015,9 @@ dwarfaddelfheaders(void)
+ 	sh->addralign = 1;
+ }
+ 
++/*
++ * Macho
++ */
+ void
+ dwarfaddmachoheaders(void)
+ {
+@@ -873,7 +1032,7 @@ dwarfaddmachoheaders(void)
+ 
+ 	ms = newMachoSeg("__DWARF", 3);
+ 	ms->fileoffset = fakestart;
+-	ms->filesize = abbrevo-fakestart + abbrevsize+linesize+infosize;
++	ms->filesize = abbrevo-fakestart + abbrevsize+linesize+framesize+infosize;
+ 
+ 	msect = newMachoSect(ms, "__debug_abbrev");
+ 	msect->off = abbrevo;
+@@ -883,6 +1042,10 @@ dwarfaddmachoheaders(void)
+ 	msect->off = lineo;
+ 	msect->size = linesize;
+ 
++	msect = newMachoSect(ms, "__debug_frame");
++	msect->off = frameo;
++	msect->size = framesize;
++
+ 	msect = newMachoSect(ms, "__debug_info");
+ 	msect->off = infoo;
+ 	msect->size = infosize;
+diff --git a/src/cmd/ld/dwarf_defs.h b/src/cmd/ld/dwarf_defs.h
+index 7bff4fbee8..3b54f77b0b 100644
+--- a/src/cmd/ld/dwarf_defs.h
++++ b/src/cmd/ld/dwarf_defs.h
+@@ -452,3 +452,39 @@ enum
+ 	DW_MACINFO_end_file = 0x04,
+ 	DW_MACINFO_vendor_ext = 0xff,
+ };
++
++// Table 40.
++enum
++{					// operand,...
++	DW_CFA_nop = 0x00,
++	DW_CFA_set_loc = 0x01,		// address
++	DW_CFA_advance_loc1 = 0x02,	// 1-byte delta
++	DW_CFA_advance_loc2 = 0x03,	// 2-byte delta
++	DW_CFA_advance_loc4 = 0x04,	// 4-byte delta
++	DW_CFA_offset_extended = 0x05,	// ULEB128 register, ULEB128 offset
++	DW_CFA_restore_extended = 0x06, // ULEB128 register
++	DW_CFA_undefined = 0x07,	// ULEB128 register
++	DW_CFA_same_value = 0x08,	// ULEB128 register
++	DW_CFA_register = 0x09,		// ULEB128 register, ULEB128 register
++	DW_CFA_remember_state = 0x0a,
++	DW_CFA_restore_state = 0x0b,
++	DW_CFA_def_cfa = 0x0c,		// ULEB128 register, ULEB128 offset
++	DW_CFA_def_cfa_register = 0x0d,	// ULEB128 register
++	DW_CFA_def_cfa_offset = 0x0e,	// ULEB128 offset
++	DW_CFA_def_cfa_expression = 0x0f, // BLOCK
++	DW_CFA_expression = 0x10,	// ULEB128 register, BLOCK
++	DW_CFA_offset_extended_sf = 0x11, // ULEB128 register, SLEB128 offset
++	DW_CFA_def_cfa_sf = 0x12,	// ULEB128 register, SLEB128 offset
++	DW_CFA_def_cfa_offset_sf = 0x13, // SLEB128 offset
++	DW_CFA_val_offset = 0x14,	// ULEB128, ULEB128
++	DW_CFA_val_offset_sf = 0x15,	// ULEB128, SLEB128
++	DW_CFA_val_expression = 0x16,	// ULEB128, BLOCK
++
++	DW_CFA_lo_user = 0x1c,
++	DW_CFA_hi_user = 0x3f,
++
++	// Opcodes that take an addend operand.
++	DW_CFA_advance_loc = 0x1<<6, // +delta
++	DW_CFA_offset	   = 0x2<<6, // +register (ULEB128 offset)
++	DW_CFA_restore	   = 0x3<<6, // +register
++};

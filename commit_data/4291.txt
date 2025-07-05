@@ -6,6 +6,20 @@ Date:   Wed Dec 2 19:32:15 2009 -0800
     
     R=rsc
     https://golang.org/cl/164085
-
+---
  src/cmd/gofmt/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index fcaf9e7039..4b4adba030 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -24,6 +24,8 @@ The flags are:
+ 		if set, overwrite each input file with its output.
+ 	-spaces
+ 		align with spaces instead of tabs.
++	-tabindent
++		indent with tabs independent of -spaces.
+ 	-tabwidth=8
+ 		tab width in spaces.
+ 

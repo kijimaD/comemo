@@ -24,6 +24,25 @@ Date:   Wed May 17 06:28:03 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 3443c6464f..cf22724a86 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -261,8 +261,11 @@ func writebarrier(f *Func) {
+ 		}
+ 
+ 		// if we have more stores in this block, do this block again
+-		for _, w := range b.Values {
+-			if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpZeroWB {
++		// check from end to beginning, to avoid quadratic behavior; issue 13554
++		// TODO: track the final value to avoid any looping here at all
++		for i := len(b.Values) - 1; i >= 0; i-- {
++			switch b.Values[i].Op {
++			case OpStoreWB, OpMoveWB, OpZeroWB:
+ 				goto again
+ 			}
+ 		}

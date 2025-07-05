@@ -17,7 +17,7 @@ Date:   Sat Feb 28 20:31:32 2015 +0000
     Change-Id: I7b3bebf31be5cd1ae2233da06cb4502a3d73f092
     Reviewed-on: https://go-review.googlesource.com/6269
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/gc/bits.go     |  2 +-
  src/cmd/internal/gc/fmt.go      | 30 +++++++++++++++---------------
  src/cmd/internal/gc/init.go     |  4 ++--
@@ -27,3 +27,271 @@ Date:   Sat Feb 28 20:31:32 2015 +0000
  src/cmd/internal/gc/walk.go     |  8 ++++----
  src/cmd/internal/obj/util.go    |  2 +-
  8 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/internal/gc/bits.go b/src/cmd/internal/gc/bits.go
+index 95421e59f0..6e6ffe9b8b 100644
+--- a/src/cmd/internal/gc/bits.go
++++ b/src/cmd/internal/gc/bits.go
+@@ -141,7 +141,7 @@ func Qconv(bits Bits, flag int) string {
+ 		if first != 0 {
+ 			first = 0
+ 		} else {
+-			fp += fmt.Sprintf(" ")
++			fp += " "
+ 		}
+ 		if var_[i].node == nil || var_[i].node.Sym == nil {
+ 			fp += fmt.Sprintf("$%d", i)
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 084cf8a188..869aaa017a 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -242,17 +242,17 @@ func Jconv(n *Node, flag int) string {
+ 		break
+ 
+ 	case EscHeap:
+-		fp += fmt.Sprintf(" esc(h)")
++		fp += " esc(h)"
+ 
+ 	case EscScope:
+-		fp += fmt.Sprintf(" esc(s)")
++		fp += " esc(s)"
+ 
+ 	case EscNone:
+-		fp += fmt.Sprintf(" esc(no)")
++		fp += " esc(no)"
+ 
+ 	case EscNever:
+ 		if c == 0 {
+-			fp += fmt.Sprintf(" esc(N)")
++			fp += " esc(N)"
+ 		}
+ 
+ 	default:
+@@ -284,11 +284,11 @@ func Jconv(n *Node, flag int) string {
+ 	}
+ 
+ 	if n.Addrtaken != 0 {
+-		fp += fmt.Sprintf(" addrtaken")
++		fp += " addrtaken"
+ 	}
+ 
+ 	if n.Assigned != 0 {
+-		fp += fmt.Sprintf(" assigned")
++		fp += " assigned"
+ 	}
+ 
+ 	if c == 0 && n.Used != 0 {
+@@ -820,10 +820,10 @@ func typefmt(t *Type, flag int) string {
+ 
+ 	case TUNSAFEPTR:
+ 		if fmtmode == FExp {
+-			fp += fmt.Sprintf("@\"unsafe\".Pointer")
++			fp += "@\"unsafe\".Pointer"
+ 			return fp
+ 		}
+-		fp += fmt.Sprintf("unsafe.Pointer")
++		fp += "unsafe.Pointer"
+ 		return fp
+ 	}
+ 
+@@ -1184,7 +1184,7 @@ func exprfmt(n *Node, prec int) string {
+ 
+ 	case ODDDARG:
+ 		var f string
+-		f += fmt.Sprintf("... argument")
++		f += "... argument"
+ 		return f
+ 
+ 	case OREGISTER:
+@@ -1217,7 +1217,7 @@ func exprfmt(n *Node, prec int) string {
+ 	// _ becomes ~b%d internally; print as _ for export
+ 	case ONAME:
+ 		if fmtmode == FExp && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
+-			return fmt.Sprintf("_")
++			return "_"
+ 		}
+ 		if fmtmode == FExp && n.Sym != nil && !isblank(n) && n.Vargen > 0 {
+ 			return fmt.Sprintf("%v·%d", Sconv(n.Sym, 0), n.Vargen)
+@@ -1286,17 +1286,17 @@ func exprfmt(n *Node, prec int) string {
+ 
+ 	case OTSTRUCT:
+ 		var f string
+-		f += fmt.Sprintf("<struct>")
++		f += "<struct>"
+ 		return f
+ 
+ 	case OTINTER:
+ 		var f string
+-		f += fmt.Sprintf("<inter>")
++		f += "<inter>"
+ 		return f
+ 
+ 	case OTFUNC:
+ 		var f string
+-		f += fmt.Sprintf("<func>")
++		f += "<func>"
+ 		return f
+ 
+ 	case OCLOSURE:
+@@ -1565,7 +1565,7 @@ func exprfmt(n *Node, prec int) string {
+ 		var f string
+ 		for l := n.List; l != nil; l = l.Next {
+ 			if l != n.List {
+-				f += fmt.Sprintf(" + ")
++				f += " + "
+ 			}
+ 			f += exprfmt(l.N, nprec)
+ 		}
+@@ -1596,7 +1596,7 @@ func nodefmt(n *Node, flag int) string {
+ 
+ 	if flag&obj.FmtLong != 0 /*untyped*/ && t != nil {
+ 		if t.Etype == TNIL {
+-			return fmt.Sprintf("nil")
++			return "nil"
+ 		} else {
+ 			return fmt.Sprintf("%v (type %v)", Nconv(n, 0), Tconv(t, 0))
+ 		}
+diff --git a/src/cmd/internal/gc/init.go b/src/cmd/internal/gc/init.go
+index a7d4fbd5f4..3c27bd6902 100644
+--- a/src/cmd/internal/gc/init.go
++++ b/src/cmd/internal/gc/init.go
+@@ -118,7 +118,7 @@ func fninit(n *NodeList) {
+ 	r := (*NodeList)(nil)
+ 
+ 	// (1)
+-	namebuf = fmt.Sprintf("initdone·")
++	namebuf = "initdone·"
+ 
+ 	gatevar := newname(Lookup(namebuf))
+ 	addvar(gatevar, Types[TUINT8], PEXTERN)
+@@ -126,7 +126,7 @@ func fninit(n *NodeList) {
+ 	// (2)
+ 	Maxarg = 0
+ 
+-	namebuf = fmt.Sprintf("init")
++	namebuf = "init"
+ 
+ 	fn := Nod(ODCLFUNC, nil, nil)
+ 	initsym := Lookup(namebuf)
+diff --git a/src/cmd/internal/gc/mparith1.go b/src/cmd/internal/gc/mparith1.go
+index ee309e446f..104992f649 100644
+--- a/src/cmd/internal/gc/mparith1.go
++++ b/src/cmd/internal/gc/mparith1.go
+@@ -608,7 +608,7 @@ func Fconv(fvp *Mpflt, flag int) string {
+ 		if -900 < exp && exp < 900 {
+ 			d := mpgetflt(fvp)
+ 			if d >= 0 && (flag&obj.FmtSign != 0 /*untyped*/) {
+-				fp += fmt.Sprintf("+")
++				fp += "+"
+ 			}
+ 			fp += fmt.Sprintf("%.6g", d)
+ 			return fp
+@@ -632,9 +632,9 @@ func Fconv(fvp *Mpflt, flag int) string {
+ 		}
+ 
+ 		if fvp.Val.Neg != 0 {
+-			fp += fmt.Sprintf("-")
++			fp += "-"
+ 		} else if flag&obj.FmtSign != 0 /*untyped*/ {
+-			fp += fmt.Sprintf("+")
++			fp += "+"
+ 		}
+ 		fp += fmt.Sprintf("%.5fe+%d", d, exp)
+ 		return fp
+@@ -643,7 +643,7 @@ func Fconv(fvp *Mpflt, flag int) string {
+ 	var fv Mpflt
+ 	var buf string
+ 	if sigfig(fvp) == 0 {
+-		buf = fmt.Sprintf("0p+0")
++		buf = "0p+0"
+ 		goto out
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index 99654c5079..86e7ea0235 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -1475,7 +1475,7 @@ func livenessepilogue(lv *Liveness) {
+ 					if p.As == obj.ACALL && p.To.Node != nil {
+ 						fmt_ += fmt.Sprintf("call to %s:", ((p.To.Node).(*Node)).Sym.Name)
+ 					} else if p.As == obj.ACALL {
+-						fmt_ += fmt.Sprintf("indirect call:")
++						fmt_ += "indirect call:"
+ 					} else {
+ 						fmt_ += fmt.Sprintf("entry to %s:", ((p.From.Node).(*Node)).Sym.Name)
+ 					}
+@@ -1488,7 +1488,7 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 					}
+ 
+-					fmt_ += fmt.Sprintf("\n")
++					fmt_ += "\n"
+ 					if numlive == 0 { // squelch message
+ 
+ 					} else {
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 998b3e7ebf..1c59e59521 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -1729,9 +1729,9 @@ func badtype(o int, tl *Type, tr *Type) {
+ 	// common mistake: *struct and *interface.
+ 	if tl != nil && tr != nil && Isptr[tl.Etype] != 0 && Isptr[tr.Etype] != 0 {
+ 		if tl.Type.Etype == TSTRUCT && tr.Type.Etype == TINTER {
+-			fmt_ += fmt.Sprintf("\n\t(*struct vs *interface)")
++			fmt_ += "\n\t(*struct vs *interface)"
+ 		} else if tl.Type.Etype == TINTER && tr.Type.Etype == TSTRUCT {
+-			fmt_ += fmt.Sprintf("\n\t(*interface vs *struct)")
++			fmt_ += "\n\t(*interface vs *struct)"
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index b242fd42aa..c57bdd6b86 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -1796,13 +1796,13 @@ func dumptypes(nl **Type, what string) string {
+ 	var savel Iter
+ 
+ 	fmt_ := ""
+-	fmt_ += fmt.Sprintf("\t")
++	fmt_ += "\t"
+ 	first := 1
+ 	for l := Structfirst(&savel, nl); l != nil; l = structnext(&savel) {
+ 		if first != 0 {
+ 			first = 0
+ 		} else {
+-			fmt_ += fmt.Sprintf(", ")
++			fmt_ += ", "
+ 		}
+ 		fmt_ += fmt.Sprintf("%v", Tconv(l, 0))
+ 	}
+@@ -1817,14 +1817,14 @@ func dumpnodetypes(l *NodeList, what string) string {
+ 	var r *Node
+ 
+ 	fmt_ := ""
+-	fmt_ += fmt.Sprintf("\t")
++	fmt_ += "\t"
+ 	first := 1
+ 	for ; l != nil; l = l.Next {
+ 		r = l.N
+ 		if first != 0 {
+ 			first = 0
+ 		} else {
+-			fmt_ += fmt.Sprintf(", ")
++			fmt_ += ", "
+ 		}
+ 		fmt_ += fmt.Sprintf("%v", Tconv(r.Type, 0))
+ 	}
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 1fda2c32a6..14f9b3655e 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -246,7 +246,7 @@ func (p *Prog) Line() string {
+ 
+ func (p *Prog) String() string {
+ 	if p.Ctxt == nil {
+-		return fmt.Sprintf("<Prog without ctxt>")
++		return "<Prog without ctxt>"
+ 	}
+ 	return p.Ctxt.Arch.Pconv(p)
+ }

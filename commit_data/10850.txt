@@ -7,6 +7,20 @@ Date:   Fri Dec 16 14:24:37 2011 -0800
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/5491063
-
+---
  src/pkg/websocket/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 8320b032ea..63f48e2569 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -74,7 +74,7 @@ A trivial example server:
+ 		http.Handle("/echo", websocket.Handler(EchoServer));
+ 		err := http.ListenAndServe(":12345", nil);
+ 		if err != nil {
+-			panic("ListenAndServe: " + err.String())
++			panic("ListenAndServe: " + err.Error())
+ 		}
+ 	}
+ */

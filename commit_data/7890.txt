@@ -7,6 +7,23 @@ Date:   Sun Mar 27 23:35:31 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/4289076
-
+---
  src/pkg/http/fs.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 4ad680ccc3..8b5c4770c4 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -154,7 +154,10 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 	// handle Content-Range header.
+ 	// TODO(adg): handle multiple ranges
+ 	ranges, err := parseRange(r.Header.Get("Range"), size)
+-	if err != nil || len(ranges) > 1 {
++	if err == nil && len(ranges) > 1 {
++		err = os.ErrorString("multiple ranges not supported")
++	}
++	if err != nil {
+ 		Error(w, err.String(), StatusRequestedRangeNotSatisfiable)
+ 		return
+ 	}

@@ -12,8 +12,72 @@ Date:   Thu Jul 18 08:18:58 2019 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue33158.dir/a.go | 25 +++++++++++++++++++++++++
  test/fixedbugs/issue33158.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue33158.go       |  9 +++++++++
  3 files changed, 45 insertions(+)
+
+diff --git a/test/fixedbugs/issue33158.dir/a.go b/test/fixedbugs/issue33158.dir/a.go
+new file mode 100644
+index 0000000000..28714e0c99
+--- /dev/null
++++ b/test/fixedbugs/issue33158.dir/a.go
+@@ -0,0 +1,25 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var GS string
++
++func M() string {
++	if s := getname("Fred"); s != "" {
++		return s
++	}
++	if s := getname("Joe"); s != "" {
++		return s
++	}
++
++	return string("Alex")
++}
++
++// getname can be any function returning a string, just has to be non-inlinable.
++
++//go:noinline
++func getname(s string) string {
++	return s + "foo"
++}
+diff --git a/test/fixedbugs/issue33158.dir/b.go b/test/fixedbugs/issue33158.dir/b.go
+new file mode 100644
+index 0000000000..a16f0da600
+--- /dev/null
++++ b/test/fixedbugs/issue33158.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++func B() string {
++	return a.M()
++}
+diff --git a/test/fixedbugs/issue33158.go b/test/fixedbugs/issue33158.go
+new file mode 100644
+index 0000000000..1bba8f2f76
+--- /dev/null
++++ b/test/fixedbugs/issue33158.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 33158: gccgo duplicate def error from importing inlinable function
++
++package ignored

@@ -18,7 +18,7 @@ Date:   Mon Feb 3 14:42:32 2020 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/next.txt          |  1 +
  doc/go1.15.html       | 10 ++++++++++
  src/runtime/time.go   |  8 +++++++-
@@ -26,3 +26,150 @@ Date:   Mon Feb 3 14:42:32 2020 +0100
  src/time/tick.go      |  9 +++++++++
  src/time/tick_test.go | 36 +++++++++++++++++++++++++++++++++---
  6 files changed, 61 insertions(+), 4 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index ecc3c4f0b6..cab86a9904 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -1 +1,2 @@
+ pkg testing, method (*T) Deadline() (time.Time, bool)
++pkg time, method (*Ticker) Reset(Duration)
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index a3a089e07e..ed240d85cc 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -80,3 +80,13 @@ TODO
+ <p>
+ TODO
+ </p>
++
++<dl id="time"><dt><a href="/pkg/time/">time</a></dt>
++  <dd>
++    <p><!-- golang.org/issue/33184 -->
++       The new method
++       <a href="/pkg/time#Ticker.Reset"><code>Ticker.Reset</code></a>
++       supports changing the duration of a ticker.
++    </p>
++  </dd>
++</dl><!-- time -->
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index af5db4cc58..9e1129537a 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -233,6 +233,12 @@ func resetTimer(t *timer, when int64) {
+ 	resettimer(t, when)
+ }
+ 
++// modTimer modifies an existing timer.
++//go:linkname modTimer time.modTimer
++func modTimer(t *timer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr) {
++	modtimer(t, when, period, f, arg, seq)
++}
++
+ // Go runtime.
+ 
+ // Ready the goroutine arg.
+@@ -402,7 +408,7 @@ func dodeltimer0(pp *p) bool {
+ }
+ 
+ // modtimer modifies an existing timer.
+-// This is called by the netpoll code.
++// This is called by the netpoll code or time.Ticker.Reset.
+ func modtimer(t *timer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr) {
+ 	if when < 0 {
+ 		when = maxWhen
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 37de846b11..bd0ed9aaba 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -39,6 +39,7 @@ func when(d Duration) int64 {
+ func startTimer(*runtimeTimer)
+ func stopTimer(*runtimeTimer) bool
+ func resetTimer(*runtimeTimer, int64)
++func modTimer(t *runtimeTimer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr)
+ 
+ // The Timer type represents a single event.
+ // When the Timer expires, the current time will be sent on C,
+diff --git a/src/time/tick.go b/src/time/tick.go
+index e4cd43aa82..152d5a706b 100644
+--- a/src/time/tick.go
++++ b/src/time/tick.go
+@@ -46,6 +46,15 @@ func (t *Ticker) Stop() {
+ 	stopTimer(&t.r)
+ }
+ 
++// Reset stops a ticker and resets its period to the specified duration.
++// The next tick will arrive after the new period elapses.
++func (t *Ticker) Reset(d Duration) {
++	if t.r.f == nil {
++		panic("time: Reset called on uninitialized Ticker")
++	}
++	modTimer(&t.r, when(d), int64(d), t.r.f, t.r.arg, t.r.seq)
++}
++
+ // Tick is a convenience wrapper for NewTicker providing access to the ticking
+ // channel only. While Tick is useful for clients that have no need to shut down
+ // the Ticker, be aware that without a way to shut it down the underlying
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index 71ea3672b8..c0c6e76b53 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -22,7 +22,12 @@ func TestTicker(t *testing.T) {
+ 
+ 	// On Darwin ARM64 the tick frequency seems limited. Issue 35692.
+ 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+-		count = 5
++		// The following test will run ticker count/2 times then reset
++		// the ticker to double the duration for the rest of count/2.
++		// Since tick frequency is limited on Darwin ARM64, use even
++		// number to give the ticks more time to let the test pass.
++		// See CL 220638.
++		count = 6
+ 		delta = 100 * Millisecond
+ 	}
+ 
+@@ -36,13 +41,17 @@ func TestTicker(t *testing.T) {
+ 	for i := 0; i < 5; i++ {
+ 		ticker := NewTicker(delta)
+ 		t0 := Now()
+-		for i := 0; i < count; i++ {
++		for i := 0; i < count/2; i++ {
++			<-ticker.C
++		}
++		ticker.Reset(delta * 2)
++		for i := count / 2; i < count; i++ {
+ 			<-ticker.C
+ 		}
+ 		ticker.Stop()
+ 		t1 := Now()
+ 		dt := t1.Sub(t0)
+-		target := delta * Duration(count)
++		target := 3 * delta * Duration(count/2)
+ 		slop := target * 2 / 10
+ 		if dt < target-slop || dt > target+slop {
+ 			errs = append(errs, fmt.Sprintf("%d %s ticks took %s, expected [%s,%s]", count, delta, dt, target-slop, target+slop))
+@@ -118,3 +127,24 @@ func BenchmarkTicker(b *testing.B) {
+ 		ticker.Stop()
+ 	})
+ }
++
++func BenchmarkTickerReset(b *testing.B) {
++	benchmark(b, func(n int) {
++		ticker := NewTicker(Nanosecond)
++		for i := 0; i < n; i++ {
++			ticker.Reset(Nanosecond * 2)
++		}
++		ticker.Stop()
++	})
++}
++
++func BenchmarkTickerResetNaive(b *testing.B) {
++	benchmark(b, func(n int) {
++		ticker := NewTicker(Nanosecond)
++		for i := 0; i < n; i++ {
++			ticker.Stop()
++			ticker = NewTicker(Nanosecond * 2)
++		}
++		ticker.Stop()
++	})
++}

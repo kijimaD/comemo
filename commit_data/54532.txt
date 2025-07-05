@@ -28,6 +28,20 @@ Date:   Thu Oct 27 17:51:04 2022 -0700
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 79d5615f89..11f6c7a498 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2061,7 +2061,7 @@ func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
+ 			cmd = "cd " + dir + "\n" + cmd
+ 		}
+ 	}
+-	if b.WorkDir != "" {
++	if b.WorkDir != "" && !strings.HasPrefix(cmd, "cat ") {
+ 		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
+ 		escaped := strconv.Quote(b.WorkDir)
+ 		escaped = escaped[1 : len(escaped)-1] // strip quote characters

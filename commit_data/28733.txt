@@ -13,7 +13,32 @@ Date:   Wed Jul 6 00:16:05 2016 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  lib/time/update.bash  |   6 +++---
  lib/time/zoneinfo.zip | Bin 364413 -> 364741 bytes
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index 6d67b4caaa..e4987bb9f1 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ # Copyright 2012 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -8,8 +8,8 @@
+ # Consult http://www.iana.org/time-zones for the latest versions.
+ 
+ # Versions to use.
+-CODE=2016d
+-DATA=2016d
++CODE=2016f
++DATA=2016f
+ 
+ set -e
+ rm -rf work
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index 530a04a074..bbb8e86104 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ

@@ -16,9 +16,292 @@ Date:   Wed Feb 8 14:09:20 2012 +1100
     R=golang-dev, gri, bradfitz
     CC=golang-dev
     https://golang.org/cl/5639054
-
+---
  doc/go1.html                           | 99 +++++++++++++++++++---------------
  doc/go1.tmpl                           | 99 +++++++++++++++++++---------------
  src/pkg/encoding/binary/binary.go      | 10 ++--
  src/pkg/encoding/binary/binary_test.go |  2 +-
  4 files changed, 118 insertions(+), 92 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 95953dc79b..4191c4ba25 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -929,6 +929,61 @@ to be implemented in the future.
+ No changes will be needed.
+ </p>
+ 
++<h3 id="encoding_binary">The encoding/binary package</h3>
++
++<p>
++In Go 1, the <code>binary.TotalSize</code></a> function is no longer exported.
++</p>
++
++<p>
++<em>Updating</em>:
++Code that depends on the function will need to be updated.
++</p>
++
++<h3 id="encoding_xml">The encoding/xml package</h3>
++
++<p>
++In Go 1, the <a href="/pkg/encoding/xml/"><code>xml</code></a> package
++has been brought closer in design to the other marshaling packages such
++as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
++</p>
++
++<p>
++The old <code>Parser</code> type is renamed
++<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
++<a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
++<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also
++introduced.
++</p>
++
++<p>
++The functions <a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
++and <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
++work with <code>[]byte</code> values now. To work with streams,
++use the new <a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
++and <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> types.
++</p>
++
++<p>
++When marshaling or unmarshaling values, the format of supported flags in
++field tags has changed to be closer to the
++<a href="/pkg/encoding/json"><code>json</code></a> package
++(<code>`xml:"name,flag"`</code>). The matching done between field tags, field
++names, and the XML attribute and element names is now case-sensitive.
++The <code>XMLName</code> field tag, if present, must also match the name
++of the XML element being marshaled.
++</p>
++
++<p>
++<em>Updating</em>:
++Running <code>go fix</code> will update most uses of the package except for some calls to
++<code>Unmarshal</code>. Special care must be taken with field tags,
++since the fix tool will not update them and if not fixed by hand they will
++misbehave silently in some cases. For example, the old
++<code>"attr"</code> is now written <code>",attr"</code> while plain
++<code>"attr"</code> remains valid but with a different meaning.
++</p>
++
+ <h3 id="expvar">The expvar package</h3>
+ 
+ <p>
+@@ -1575,50 +1630,6 @@ Code that uses the old fields will fail to compile and must be updated by hand.
+ The semantic changes make it difficult for the fix tool to update automatically.
+ </p>
+ 
+-<h3 id="xml">The xml package</h3>
+-
+-<p>
+-In Go 1, the <a href="/pkg/encoding/xml/"><code>xml</code></a> package
+-has been brought closer in design to the other marshaling packages such
+-as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
+-</p>
+-
+-<p>
+-The old <code>Parser</code> type is renamed
+-<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
+-<a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
+-<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also
+-introduced.
+-</p>
+-
+-<p>
+-The functions <a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
+-and <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
+-work with <code>[]byte</code> values now. To work with streams,
+-use the new <a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
+-and <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> types.
+-</p>
+-
+-<p>
+-When marshaling or unmarshaling values, the format of supported flags in
+-field tags has changed to be closer to the
+-<a href="/pkg/encoding/json"><code>json</code></a> package
+-(<code>`xml:"name,flag"`</code>). The matching done between field tags, field
+-names, and the XML attribute and element names is now case-sensitive.
+-The <code>XMLName</code> field tag, if present, must also match the name
+-of the XML element being marshaled.
+-</p>
+-
+-<p>
+-<em>Updating</em>:
+-Running <code>go fix</code> will update most uses of the package except for some calls to
+-<code>Unmarshal</code>. Special care must be taken with field tags,
+-since the fix tool will not update them and if not fixed by hand they will
+-misbehave silently in some cases. For example, the old
+-<code>"attr"</code> is now written <code>",attr"</code> while plain
+-<code>"attr"</code> remains valid but with a different meaning.
+-</p>
+-
+ <h2 id="go_command">The go command</h2>
+ 
+ <h2 id="releases">Packaged releases</h2>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 5400198291..819c71ed38 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -833,6 +833,61 @@ to be implemented in the future.
+ No changes will be needed.
+ </p>
+ 
++<h3 id="encoding_binary">The encoding/binary package</h3>
++
++<p>
++In Go 1, the <code>binary.TotalSize</code></a> function is no longer exported.
++</p>
++
++<p>
++<em>Updating</em>:
++Code that depends on the function will need to be updated.
++</p>
++
++<h3 id="encoding_xml">The encoding/xml package</h3>
++
++<p>
++In Go 1, the <a href="/pkg/encoding/xml/"><code>xml</code></a> package
++has been brought closer in design to the other marshaling packages such
++as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
++</p>
++
++<p>
++The old <code>Parser</code> type is renamed
++<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
++<a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
++<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also
++introduced.
++</p>
++
++<p>
++The functions <a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
++and <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
++work with <code>[]byte</code> values now. To work with streams,
++use the new <a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
++and <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> types.
++</p>
++
++<p>
++When marshaling or unmarshaling values, the format of supported flags in
++field tags has changed to be closer to the
++<a href="/pkg/encoding/json"><code>json</code></a> package
++(<code>`xml:"name,flag"`</code>). The matching done between field tags, field
++names, and the XML attribute and element names is now case-sensitive.
++The <code>XMLName</code> field tag, if present, must also match the name
++of the XML element being marshaled.
++</p>
++
++<p>
++<em>Updating</em>:
++Running <code>go fix</code> will update most uses of the package except for some calls to
++<code>Unmarshal</code>. Special care must be taken with field tags,
++since the fix tool will not update them and if not fixed by hand they will
++misbehave silently in some cases. For example, the old
++<code>"attr"</code> is now written <code>",attr"</code> while plain
++<code>"attr"</code> remains valid but with a different meaning.
++</p>
++
+ <h3 id="expvar">The expvar package</h3>
+ 
+ <p>
+@@ -1465,50 +1520,6 @@ Code that uses the old fields will fail to compile and must be updated by hand.
+ The semantic changes make it difficult for the fix tool to update automatically.
+ </p>
+ 
+-<h3 id="xml">The xml package</h3>
+-
+-<p>
+-In Go 1, the <a href="/pkg/encoding/xml/"><code>xml</code></a> package
+-has been brought closer in design to the other marshaling packages such
+-as <a href="/pkg/encoding/gob/"><code>encoding/gob</code></a>.
+-</p>
+-
+-<p>
+-The old <code>Parser</code> type is renamed
+-<a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> and has a new
+-<a href="/pkg/encoding/xml/#Decoder.Decode"><code>Decode</code></a> method. An
+-<a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a> type was also
+-introduced.
+-</p>
+-
+-<p>
+-The functions <a href="/pkg/encoding/xml/#Marshal"><code>Marshal</code></a>
+-and <a href="/pkg/encoding/xml/#Unmarshal"><code>Unmarshal</code></a>
+-work with <code>[]byte</code> values now. To work with streams,
+-use the new <a href="/pkg/encoding/xml/#Encoder"><code>Encoder</code></a>
+-and <a href="/pkg/encoding/xml/#Decoder"><code>Decoder</code></a> types.
+-</p>
+-
+-<p>
+-When marshaling or unmarshaling values, the format of supported flags in
+-field tags has changed to be closer to the
+-<a href="/pkg/encoding/json"><code>json</code></a> package
+-(<code>`xml:"name,flag"`</code>). The matching done between field tags, field
+-names, and the XML attribute and element names is now case-sensitive.
+-The <code>XMLName</code> field tag, if present, must also match the name
+-of the XML element being marshaled.
+-</p>
+-
+-<p>
+-<em>Updating</em>:
+-Running <code>go fix</code> will update most uses of the package except for some calls to
+-<code>Unmarshal</code>. Special care must be taken with field tags,
+-since the fix tool will not update them and if not fixed by hand they will
+-misbehave silently in some cases. For example, the old
+-<code>"attr"</code> is now written <code>",attr"</code> while plain
+-<code>"attr"</code> remains valid but with a different meaning.
+-</p>
+-
+ <h2 id="go_command">The go command</h2>
+ 
+ <h2 id="releases">Packaged releases</h2>
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index d2f8b1e624..4be83f53bd 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -163,7 +163,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 	default:
+ 		return errors.New("binary.Read: invalid type " + d.Type().String())
+ 	}
+-	size := TotalSize(v)
++	size := dataSize(v)
+ 	if size < 0 {
+ 		return errors.New("binary.Read: invalid type " + v.Type().String())
+ 	}
+@@ -242,7 +242,7 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 		return err
+ 	}
+ 	v := reflect.Indirect(reflect.ValueOf(data))
+-	size := TotalSize(v)
++	size := dataSize(v)
+ 	if size < 0 {
+ 		return errors.New("binary.Write: invalid type " + v.Type().String())
+ 	}
+@@ -253,7 +253,11 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 	return err
+ }
+ 
+-func TotalSize(v reflect.Value) int {
++// dataSize returns the number of bytes the actual data represented by v occupies in memory.
++// For compound structures, it sums the sizes of the elements. Thus, for instance, for a slice
++// it returns the length of the slice times the element size and does not count the memory
++// occupied by the header.
++func dataSize(v reflect.Value) int {
+ 	if v.Kind() == reflect.Slice {
+ 		elem := sizeof(v.Type().Elem())
+ 		if elem < 0 {
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index 3e7057ea22..ff361b7e37 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -187,7 +187,7 @@ func BenchmarkReadStruct(b *testing.B) {
+ 	bsr := &byteSliceReader{}
+ 	var buf bytes.Buffer
+ 	Write(&buf, BigEndian, &s)
+-	n := TotalSize(reflect.ValueOf(s))
++	n := dataSize(reflect.ValueOf(s))
+ 	b.SetBytes(int64(n))
+ 	t := s
+ 	b.ResetTimer()

@@ -12,10 +12,136 @@ Date:   Tue Sep 6 17:57:07 2022 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/preempt.go   |  2 +-
  src/runtime/race.go      |  2 +-
  src/runtime/runtime2.go  |  2 +-
  src/runtime/symtab.go    | 16 ++++++++--------
  src/runtime/traceback.go |  6 +++---
  5 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 815df86269..4f62fc628b 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -418,7 +418,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 		inltree := (*[1 << 20]inlinedCall)(inldata)
+ 		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
+ 		if ix >= 0 {
+-			name = funcnameFromNameoff(f, inltree[ix].nameOff)
++			name = funcnameFromNameOff(f, inltree[ix].nameOff)
+ 		}
+ 	}
+ 	if hasPrefix(name, "runtime.") ||
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 15048f4021..f68e1aeaac 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -187,7 +187,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
+ 							continue
+ 						}
+ 						ctx.pc = f.Entry() + uintptr(inltree[ix].parentPc) // "caller" pc
+-						ctx.fn = cfuncnameFromNameoff(fi, inltree[ix].nameOff)
++						ctx.fn = cfuncnameFromNameOff(fi, inltree[ix].nameOff)
+ 						ctx.line = uintptr(line)
+ 						ctx.file = &bytes(file)[0] // assume NUL-terminated
+ 						ctx.off = pc - f.Entry()
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 40d3805808..7fdf163440 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -859,7 +859,7 @@ const (
+ // and with package debug/gosym and with symtab.go in package runtime.
+ type _func struct {
+ 	entryoff uint32 // start pc, as offset from moduledata.text/pcHeader.textStart
+-	nameoff  int32  // function name
++	nameOff  int32  // function name, as index into moduledata.funcnametab.
+ 
+ 	args        int32  // in/out args size
+ 	deferreturn uint32 // offset of start of a deferreturn call instruction from entry, if any.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 78c49b0dbc..b7bf7d77a9 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -116,7 +116,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 			if ix >= 0 {
+ 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
+ 				f = nil
+-				name = funcnameFromNameoff(funcInfo, inltree[ix].nameOff)
++				name = funcnameFromNameOff(funcInfo, inltree[ix].nameOff)
+ 				// File/line from funcline1 below are already correct.
+ 			}
+ 		}
+@@ -726,7 +726,7 @@ func FuncForPC(pc uintptr) *Func {
+ 		// The runtime currently doesn't have function end info, alas.
+ 		if ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, pc, nil, false); ix >= 0 {
+ 			inltree := (*[1 << 20]inlinedCall)(inldata)
+-			name := funcnameFromNameoff(f, inltree[ix].nameOff)
++			name := funcnameFromNameOff(f, inltree[ix].nameOff)
+ 			file, line := funcline(f, pc)
+ 			fi := &funcinl{
+ 				ones:  ^uint32(0),
+@@ -967,10 +967,10 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
+ }
+ 
+ func cfuncname(f funcInfo) *byte {
+-	if !f.valid() || f.nameoff == 0 {
++	if !f.valid() || f.nameOff == 0 {
+ 		return nil
+ 	}
+-	return &f.datap.funcnametab[f.nameoff]
++	return &f.datap.funcnametab[f.nameOff]
+ }
+ 
+ func funcname(f funcInfo) string {
+@@ -993,15 +993,15 @@ func funcpkgpath(f funcInfo) string {
+ 	return name[:i]
+ }
+ 
+-func cfuncnameFromNameoff(f funcInfo, nameoff int32) *byte {
++func cfuncnameFromNameOff(f funcInfo, nameOff int32) *byte {
+ 	if !f.valid() {
+ 		return nil
+ 	}
+-	return &f.datap.funcnametab[nameoff]
++	return &f.datap.funcnametab[nameOff]
+ }
+ 
+-func funcnameFromNameoff(f funcInfo, nameoff int32) string {
+-	return gostringnocopy(cfuncnameFromNameoff(f, nameoff))
++func funcnameFromNameOff(f funcInfo, nameOff int32) string {
++	return gostringnocopy(cfuncnameFromNameOff(f, nameOff))
+ }
+ 
+ func funcfile(f funcInfo, fileno int32) string {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 96acec0ddd..396b3fafbc 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -405,7 +405,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 
+ 					// Create a fake _func for the
+ 					// inlined function.
+-					inlFunc.nameoff = inltree[ix].nameOff
++					inlFunc.nameOff = inltree[ix].nameOff
+ 					inlFunc.funcID = inltree[ix].funcID
+ 
+ 					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, lastFuncID) {
+@@ -808,7 +808,7 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
+ 		inltree := (*[1 << 20]inlinedCall)(inldata)
+ 		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
+ 		if ix >= 0 {
+-			name = funcnameFromNameoff(f, inltree[ix].nameOff)
++			name = funcnameFromNameOff(f, inltree[ix].nameOff)
+ 		}
+ 	}
+ 	file, line := funcline(f, pc)
+@@ -852,7 +852,7 @@ func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool
+ // be printed during a traceback.
+ func showfuncinfo(f funcInfo, firstFrame bool, funcID, childID funcID) bool {
+ 	// Note that f may be a synthesized funcInfo for an inlined
+-	// function, in which case only nameoff and funcID are set.
++	// function, in which case only nameOff and funcID are set.
+ 
+ 	level, _, _ := gotraceback()
+ 	if level > 1 {

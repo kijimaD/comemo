@@ -15,6 +15,19 @@ Date:   Wed Feb 1 14:33:31 2023 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/zsyscall_windows.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 9190ec8b20..7f26d40e67 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -128,7 +128,6 @@ var (
+ 	procGetShortPathNameW                  = modkernel32.NewProc("GetShortPathNameW")
+ 	procGetStartupInfoW                    = modkernel32.NewProc("GetStartupInfoW")
+ 	procGetStdHandle                       = modkernel32.NewProc("GetStdHandle")
+-	procGetSystemDirectoryW                = modkernel32.NewProc("GetSystemDirectoryW")
+ 	procGetSystemTimeAsFileTime            = modkernel32.NewProc("GetSystemTimeAsFileTime")
+ 	procGetTempPathW                       = modkernel32.NewProc("GetTempPathW")
+ 	procGetTimeZoneInformation             = modkernel32.NewProc("GetTimeZoneInformation")

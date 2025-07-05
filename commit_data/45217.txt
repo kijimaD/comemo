@@ -14,7 +14,74 @@ Date:   Tue Oct 13 05:56:48 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/io/io.go      | 11 +++++++++--
  src/io/io_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index adc0c0d550..87ebe8c147 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -30,6 +30,9 @@ var ErrShortWrite = errors.New("short write")
+ // ErrShortBuffer means that a read required a longer buffer than was provided.
+ var ErrShortBuffer = errors.New("short buffer")
+ 
++// ErrBadWriteCount means that a write returned an impossible count.
++var ErrBadWriteCount = errors.New("Write returned impossible count")
++
+ // EOF is the error returned by Read when no more input is available.
+ // (Read must return EOF itself, not an error wrapping EOF,
+ // because callers will test for EOF using ==.)
+@@ -411,9 +414,13 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+ 		nr, er := src.Read(buf)
+ 		if nr > 0 {
+ 			nw, ew := dst.Write(buf[0:nr])
+-			if nw > 0 {
+-				written += int64(nw)
++			if nw < 0 || nr < nw {
++				nw = 0
++				if ew == nil {
++					ew = ErrBadWriteCount
++				}
+ 			}
++			written += int64(nw)
+ 			if ew != nil {
+ 				err = ew
+ 				break
+diff --git a/src/io/io_test.go b/src/io/io_test.go
+index 170513dcc0..a8399bcac6 100644
+--- a/src/io/io_test.go
++++ b/src/io/io_test.go
+@@ -429,3 +429,31 @@ func TestSectionReader_Size(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// largeWriter returns an invalid count that is larger than the number
++// of bytes provided (issue 39978).
++type largeWriter struct {
++	err error
++}
++
++func (w largeWriter) Write(p []byte) (int, error) {
++	return len(p) + 1, w.err
++}
++
++func TestCopyLargeWriter(t *testing.T) {
++	want := ErrBadWriteCount
++	rb := new(Buffer)
++	wb := largeWriter{}
++	rb.WriteString("hello, world.")
++	if _, err := Copy(wb, rb); err != want {
++		t.Errorf("Copy error: got %v, want %v", err, want)
++	}
++
++	want = errors.New("largeWriterError")
++	rb = new(Buffer)
++	wb = largeWriter{err: want}
++	rb.WriteString("hello, world.")
++	if _, err := Copy(wb, rb); err != want {
++		t.Errorf("Copy error: got %v, want %v", err, want)
++	}
++}

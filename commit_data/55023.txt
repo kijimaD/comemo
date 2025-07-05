@@ -16,8 +16,51 @@ Date:   Mon Dec 5 14:09:09 2022 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go            | 2 +-
  src/go/types/infer.go                               | 2 +-
  src/internal/types/testdata/fixedbugs/issue45985.go | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 717f7dde28..1075457aca 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -537,7 +537,7 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 						if core.tilde {
+ 							tilde = "~"
+ 						}
+-						check.errorf(pos, InvalidTypeArg, "%s does not match %s%s", tpar, tilde, core.typ)
++						check.errorf(pos, InvalidTypeArg, "%s does not match %s%s", tx, tilde, core.typ)
+ 						return nil, 0
+ 					}
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 5a762a78ab..1c1d4e03fc 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -534,7 +534,7 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 						if core.tilde {
+ 							tilde = "~"
+ 						}
+-						check.errorf(posn, InvalidTypeArg, "%s does not match %s%s", tpar, tilde, core.typ)
++						check.errorf(posn, InvalidTypeArg, "%s does not match %s%s", tx, tilde, core.typ)
+ 						return nil, 0
+ 					}
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue45985.go b/src/internal/types/testdata/fixedbugs/issue45985.go
+index 9a0f5e3697..ae04ce2715 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45985.go
++++ b/src/internal/types/testdata/fixedbugs/issue45985.go
+@@ -5,9 +5,9 @@
+ package issue45985
+ 
+ func app[S interface{ ~[]T }, T any](s S, e T) S {
+-    return append(s, e)
++	return append(s, e)
+ }
+ 
+ func _() {
+-	_ = app/* ERROR "S does not match" */[int]
++	_ = app /* ERROR "int does not match" */ [int]
+ }

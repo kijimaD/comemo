@@ -6,6 +6,19 @@ Date:   Wed Sep 17 08:39:18 2014 -0700
     
     CC=golang-codereviews
     https://golang.org/cl/144050043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index f441a80238..a3a4598138 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -25,6 +25,7 @@ net/http/httputil: add ReverseProxy.ErrorLog (CL 132750043)
+ os: implement symlink support for windows (CL 86160044)
+ reflect: add type.Comparable (CL 144020043)
+ runtime: implement monotonic clocks on windows (CL 108700045)
++runtime: stack size 2K (4K on plan 9 and windows) (CL 145790043)
+ runtime/race: freebsd is supported (CL 107270043)
+ sync/atomic: add Value (CL 136710045)
+ syscall: Setuid, Setgid are disabled on linux platforms. On linux those syscalls operate on the calling thread, not the whole process. This does not match the semantics of other platforms, nor the expectations of the caller, so the operations have been disabled until issue 1435 is resolved (CL 106170043)

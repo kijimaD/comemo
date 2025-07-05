@@ -18,7 +18,137 @@ Date:   Thu Jul 25 09:53:57 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11406047
-
+---
  misc/cgo/test/callback.go |  4 +++
  src/cmd/cgo/out.go        | 68 ++++++++++++++++++++++++++++++++++++++++++-----
  2 files changed, 66 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index b1e0b8632e..77780e84d7 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -143,6 +143,10 @@ func testBlocking(t *testing.T) {
+ // Test that the stack can be unwound through a call out and call back
+ // into Go.
+ func testCallbackCallers(t *testing.T) {
++	if runtime.Compiler != "gc" {
++		// The exact function names are not going to be the same.
++		t.Skip("skipping for non-gc toolchain")
++	}
+ 	pc := make([]uintptr, 100)
+ 	n := 0
+ 	name := []string{
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index f5618e3e8a..fa4e5806b5 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -321,6 +321,9 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
+ 		Type: gtype,
+ 	}
+ 
++	// Builtins defined in the C prolog.
++	inProlog := name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes"
++
+ 	if *gccgo {
+ 		// Gccgo style hooks.
+ 		fmt.Fprint(fgo2, "\n")
+@@ -334,8 +337,10 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
+ 
+ 		conf.Fprint(fgo2, fset, d)
+ 		fmt.Fprint(fgo2, " {\n")
+-		fmt.Fprint(fgo2, "\tdefer syscall.CgocallDone()\n")
+-		fmt.Fprint(fgo2, "\tsyscall.Cgocall()\n")
++		if !inProlog {
++			fmt.Fprint(fgo2, "\tdefer syscall.CgocallDone()\n")
++			fmt.Fprint(fgo2, "\tsyscall.Cgocall()\n")
++		}
+ 		if n.AddError {
+ 			fmt.Fprint(fgo2, "\tsyscall.SetErrno(0)\n")
+ 		}
+@@ -366,7 +371,11 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
+ 		fmt.Fprint(fgo2, "}\n")
+ 
+ 		// declare the C function.
+-		fmt.Fprintf(fgo2, "//extern %s\n", n.C)
++		if inProlog {
++			fmt.Fprintf(fgo2, "//extern %s\n", n.C)
++		} else {
++			fmt.Fprintf(fgo2, "//extern _cgo%s%s\n", cPrefix, n.Mangle)
++		}
+ 		d.Name = ast.NewIdent(cname)
+ 		if n.AddError {
+ 			l := d.Type.Results.List
+@@ -380,8 +389,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
+ 	conf.Fprint(fgo2, fset, d)
+ 	fmt.Fprint(fgo2, "\n")
+ 
+-	if name == "CString" || name == "GoString" || name == "GoStringN" || name == "GoBytes" {
+-		// The builtins are already defined in the C prolog.
++	if inProlog {
+ 		return
+ 	}
+ 
+@@ -469,7 +477,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	p.Written[name] = true
+ 
+ 	if *gccgo {
+-		// we don't use wrappers with gccgo.
++		p.writeGccgoOutputFunc(fgcc, n)
+ 		return
+ 	}
+ 
+@@ -526,6 +534,54 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	fmt.Fprintf(fgcc, "\n")
+ }
+ 
++// Write out a wrapper for a function when using gccgo.  This is a
++// simple wrapper that just calls the real function.  We only need a
++// wrapper to support static functions in the prologue--without a
++// wrapper, we can't refer to the function, since the reference is in
++// a different file.
++func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
++	if t := n.FuncType.Result; t != nil {
++		fmt.Fprintf(fgcc, "%s\n", t.C.String())
++	} else {
++		fmt.Fprintf(fgcc, "void\n")
++	}
++	fmt.Fprintf(fgcc, "_cgo%s%s(", cPrefix, n.Mangle)
++	for i, t := range n.FuncType.Params {
++		if i > 0 {
++			fmt.Fprintf(fgcc, ", ")
++		}
++		c := t.Typedef
++		if c == "" {
++			c = t.C.String()
++		}
++		fmt.Fprintf(fgcc, "%s p%d", c, i)
++	}
++	fmt.Fprintf(fgcc, ")\n")
++	fmt.Fprintf(fgcc, "{\n")
++	fmt.Fprintf(fgcc, "\t")
++	if t := n.FuncType.Result; t != nil {
++		fmt.Fprintf(fgcc, "return ")
++		// Cast to void* to avoid warnings due to omitted qualifiers.
++		if c := t.C.String(); c[len(c)-1] == '*' {
++			fmt.Fprintf(fgcc, "(void*)")
++		}
++	}
++	fmt.Fprintf(fgcc, "%s(", n.C)
++	for i, t := range n.FuncType.Params {
++		if i > 0 {
++			fmt.Fprintf(fgcc, ", ")
++		}
++		// Cast to void* to avoid warnings due to omitted qualifiers.
++		if c := t.C.String(); c[len(c)-1] == '*' {
++			fmt.Fprintf(fgcc, "(void*)")
++		}
++		fmt.Fprintf(fgcc, "p%d", i)
++	}
++	fmt.Fprintf(fgcc, ");\n")
++	fmt.Fprintf(fgcc, "}\n")
++	fmt.Fprintf(fgcc, "\n")
++}
++
+ // Write out the various stubs we need to support functions exported
+ // from Go so that they are callable from C.
+ func (p *Package) writeExports(fgo2, fc, fm *os.File) {

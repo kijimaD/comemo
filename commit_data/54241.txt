@@ -11,6 +11,20 @@ Date:   Thu Sep 29 20:45:26 2022 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/mvs/mvs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index a1b51557a3..eb33ebd24b 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -166,7 +166,7 @@ func buildList(targets []module.Version, reqs Reqs, upgrade func(module.Version)
+ 			}
+ 			return false
+ 		}
+-		return nil, NewBuildListError(err.(error), errPath, isUpgrade)
++		return nil, NewBuildListError(err, errPath, isUpgrade)
+ 	}
+ 
+ 	// The final list is the minimum version of each module found in the graph.

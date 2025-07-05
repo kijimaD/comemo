@@ -12,6 +12,19 @@ Date:   Fri Apr 19 09:48:36 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bootstrap.bash | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/bootstrap.bash b/src/bootstrap.bash
+index bc9d445345..92a4718286 100755
+--- a/src/bootstrap.bash
++++ b/src/bootstrap.bash
+@@ -49,6 +49,7 @@ cp -R "$src" "$targ"
+ cd "$targ"
+ echo
+ echo "#### Cleaning $targ"
++chmod -R +w .
+ rm -f .gitignore
+ if [ -e .git ]; then
+ 	git clean -f -d

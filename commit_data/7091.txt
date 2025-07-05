@@ -7,7 +7,53 @@ Date:   Wed Jan 12 11:59:33 2011 +1100
     R=r, cw, niemeyer, rsc
     CC=golang-dev
     https://golang.org/cl/3952041
-
+---
  src/pkg/json/decode_test.go |  2 ++
  src/pkg/json/encode.go      | 11 +++++++++--
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 2a18a62268..68cdea051e 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -270,6 +270,8 @@ type All struct {
+ 
+ 	Interface  interface{}
+ 	PInterface *interface{}
++
++	unexported int
+ }
+ 
+ type Small struct {
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index e043a317e3..759b49dbeb 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -37,6 +37,7 @@ import (
+ // a member of the object.  By default the object's key name is the
+ // struct field name converted to lower case.  If the struct field
+ // has a tag, that tag will be used as the name instead.
++// Only exported fields will be encoded.
+ //
+ // Map values encode as JSON objects.
+ // The map's key type must be string; the object keys are used directly
+@@ -219,11 +220,17 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 		e.WriteByte('{')
+ 		t := v.Type().(*reflect.StructType)
+ 		n := v.NumField()
++		first := true
+ 		for i := 0; i < n; i++ {
+-			if i > 0 {
++			f := t.Field(i)
++			if f.PkgPath != "" {
++				continue
++			}
++			if first {
++				first = false
++			} else {
+ 				e.WriteByte(',')
+ 			}
+-			f := t.Field(i)
+ 			if f.Tag != "" {
+ 				e.string(f.Tag)
+ 			} else {

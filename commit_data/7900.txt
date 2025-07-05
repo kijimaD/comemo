@@ -10,7 +10,7 @@ Date:   Mon Mar 28 16:44:28 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4291070
-
+---
  src/cmd/cgo/gcc.go                         |   2 +-
  src/cmd/godoc/spec.go                      |   6 +-
  src/cmd/govet/govet.go                     |  17 ++---
@@ -28,3 +28,933 @@ Date:   Mon Mar 28 16:44:28 2011 -0700
  src/pkg/go/scanner/scanner_test.go         |  15 ++--
  src/pkg/go/typechecker/typechecker_test.go |   2 +-
  16 files changed, 130 insertions(+), 133 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index f7ecc9e14e..11810db53f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1156,7 +1156,7 @@ func (c *typeConv) Opaque(n int64) ast.Expr {
+ func (c *typeConv) intExpr(n int64) ast.Expr {
+ 	return &ast.BasicLit{
+ 		Kind:  token.INT,
+-		Value: []byte(strconv.Itoa64(n)),
++		Value: strconv.Itoa64(n),
+ 	}
+ }
+ 
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index a533c1e0a0..f8b95e387f 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -27,7 +27,7 @@ type ebnfParser struct {
+ 	prev    int         // offset of previous token
+ 	pos     token.Pos   // token position
+ 	tok     token.Token // one token look-ahead
+-	lit     []byte      // token literal
++	lit     string      // token literal
+ }
+ 
+ 
+@@ -63,7 +63,7 @@ func (p *ebnfParser) errorExpected(pos token.Pos, msg string) {
+ 		// make the error message more specific
+ 		msg += ", found '" + p.tok.String() + "'"
+ 		if p.tok.IsLiteral() {
+-			msg += " " + string(p.lit)
++			msg += " " + p.lit
+ 		}
+ 	}
+ 	p.Error(p.file.Position(pos), msg)
+@@ -81,7 +81,7 @@ func (p *ebnfParser) expect(tok token.Token) token.Pos {
+ 
+ 
+ func (p *ebnfParser) parseIdentifier(def bool) {
+-	name := string(p.lit)
++	name := p.lit
+ 	p.expect(token.IDENT)
+ 	if def {
+ 		fmt.Fprintf(p.out, `<a id="%s">%s</a>`, name, name)
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index 72e80a2fbd..b9e769af1c 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -7,7 +7,6 @@
+ package main
+ 
+ import (
+-	"bytes"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+@@ -257,7 +256,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
+ 		return
+ 	}
+ 	if lit.Kind == token.STRING {
+-		if bytes.IndexByte(lit.Value, '%') < 0 {
++		if strings.Index(lit.Value, "%") < 0 {
+ 			if len(call.Args) > skip+1 {
+ 				f.Badf(call.Pos(), "no formatting directive in %s call", name)
+ 			}
+@@ -284,11 +283,11 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, skip int) {
+ // parsePrintfVerb returns the number of bytes and number of arguments
+ // consumed by the Printf directive that begins s, including its percent sign
+ // and verb.
+-func parsePrintfVerb(s []byte) (nbytes, nargs int) {
++func parsePrintfVerb(s string) (nbytes, nargs int) {
+ 	// There's guaranteed a percent sign.
+ 	nbytes = 1
+ 	end := len(s)
+-	// There may be flags
++	// There may be flags.
+ FlagLoop:
+ 	for nbytes < end {
+ 		switch s[nbytes] {
+@@ -308,7 +307,7 @@ FlagLoop:
+ 			}
+ 		}
+ 	}
+-	// There may be a width
++	// There may be a width.
+ 	getNum()
+ 	// If there's a period, there may be a precision.
+ 	if nbytes < end && s[nbytes] == '.' {
+@@ -316,7 +315,7 @@ FlagLoop:
+ 		getNum()
+ 	}
+ 	// Now a verb.
+-	c, w := utf8.DecodeRune(s[nbytes:])
++	c, w := utf8.DecodeRuneInString(s[nbytes:])
+ 	nbytes += w
+ 	if c != '%' {
+ 		nargs++
+@@ -325,8 +324,6 @@ FlagLoop:
+ }
+ 
+ 
+-var terminalNewline = []byte(`\n"`) // \n at end of interpreted string
+-
+ // checkPrint checks a call to an unformatted print routine such as Println.
+ // The skip argument records how many arguments to ignore; that is,
+ // call.Args[skip] is the first argument to be printed.
+@@ -341,7 +338,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
+ 	}
+ 	arg := args[skip]
+ 	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+-		if bytes.IndexByte(lit.Value, '%') >= 0 {
++		if strings.Index(lit.Value, "%") >= 0 {
+ 			f.Badf(call.Pos(), "possible formatting directive in %s call", name)
+ 		}
+ 	}
+@@ -349,7 +346,7 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, skip int) {
+ 		// The last item, if a string, should not have a newline.
+ 		arg = args[len(call.Args)-1]
+ 		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+-			if bytes.HasSuffix(lit.Value, terminalNewline) {
++			if strings.HasSuffix(lit.Value, `\n"`) {
+ 				f.Badf(call.Pos(), "%s call ends with newline", name)
+ 			}
+ 		}
+diff --git a/src/pkg/ebnf/parser.go b/src/pkg/ebnf/parser.go
+index c38530177a..818168e111 100644
+--- a/src/pkg/ebnf/parser.go
++++ b/src/pkg/ebnf/parser.go
+@@ -18,7 +18,7 @@ type parser struct {
+ 	scanner scanner.Scanner
+ 	pos     token.Pos   // token position
+ 	tok     token.Token // one token look-ahead
+-	lit     []byte      // token literal
++	lit     string      // token literal
+ }
+ 
+ 
+@@ -44,7 +44,7 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
+ 		// make the error message more specific
+ 		msg += ", found '" + p.tok.String() + "'"
+ 		if p.tok.IsLiteral() {
+-			msg += " " + string(p.lit)
++			msg += " " + p.lit
+ 		}
+ 	}
+ 	p.error(pos, msg)
+@@ -63,7 +63,7 @@ func (p *parser) expect(tok token.Token) token.Pos {
+ 
+ func (p *parser) parseIdentifier() *Name {
+ 	pos := p.pos
+-	name := string(p.lit)
++	name := p.lit
+ 	p.expect(token.IDENT)
+ 	return &Name{pos, name}
+ }
+@@ -73,7 +73,7 @@ func (p *parser) parseToken() *Token {
+ 	pos := p.pos
+ 	value := ""
+ 	if p.tok == token.STRING {
+-		value, _ = strconv.Unquote(string(p.lit))
++		value, _ = strconv.Unquote(p.lit)
+ 		// Unquote may fail with an error, but only if the scanner found
+ 		// an illegal string in the first place. In this case the error
+ 		// has already been reported.
+diff --git a/src/pkg/exp/datafmt/parser.go b/src/pkg/exp/datafmt/parser.go
+index c6d1402644..7dedb531a5 100644
+--- a/src/pkg/exp/datafmt/parser.go
++++ b/src/pkg/exp/datafmt/parser.go
+@@ -22,7 +22,7 @@ type parser struct {
+ 	file    *token.File
+ 	pos     token.Pos   // token position
+ 	tok     token.Token // one token look-ahead
+-	lit     []byte      // token literal
++	lit     string      // token literal
+ 
+ 	packs map[string]string // PackageName -> ImportPath
+ 	rules map[string]expr   // RuleName -> Expression
+@@ -62,7 +62,7 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
+ 		// make the error message more specific
+ 		msg += ", found '" + p.tok.String() + "'"
+ 		if p.tok.IsLiteral() {
+-			msg += " " + string(p.lit)
++			msg += " " + p.lit
+ 		}
+ 	}
+ 	p.error(pos, msg)
+@@ -80,7 +80,7 @@ func (p *parser) expect(tok token.Token) token.Pos {
+ 
+ 
+ func (p *parser) parseIdentifier() string {
+-	name := string(p.lit)
++	name := p.lit
+ 	p.expect(token.IDENT)
+ 	return name
+ }
+@@ -130,7 +130,7 @@ func (p *parser) parseRuleName() (string, bool) {
+ func (p *parser) parseString() string {
+ 	s := ""
+ 	if p.tok == token.STRING {
+-		s, _ = strconv.Unquote(string(p.lit))
++		s, _ = strconv.Unquote(p.lit)
+ 		// Unquote may fail with an error, but only if the scanner found
+ 		// an illegal string in the first place. In this case the error
+ 		// has already been reported.
+@@ -181,7 +181,7 @@ func (p *parser) parseField() expr {
+ 	var fname string
+ 	switch p.tok {
+ 	case token.ILLEGAL:
+-		if string(p.lit) != "@" {
++		if p.lit != "@" {
+ 			return nil
+ 		}
+ 		fname = "@"
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index 9920ff6b88..ba056e88ba 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -205,7 +205,7 @@ func parseLoad(args []byte) (ident string, path string, err os.Error) {
+ 	sc, ev := newScanner(args)
+ 
+ 	var toks [4]token.Token
+-	var lits [4][]byte
++	var lits [4]string
+ 	for i := range toks {
+ 		_, toks[i], lits[i] = sc.Scan()
+ 	}
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 2023002e2d..ed3e2cdd9b 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -66,7 +66,7 @@ type Decl interface {
+ // A Comment node represents a single //-style or /*-style comment.
+ type Comment struct {
+ 	Slash token.Pos // position of "/" starting the comment
+-	Text  []byte    // comment text (excluding '\n' for //-style comments)
++	Text  string    // comment text (excluding '\n' for //-style comments)
+ }
+ 
+ 
+@@ -199,7 +199,7 @@ type (
+ 	BasicLit struct {
+ 		ValuePos token.Pos   // literal position
+ 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING
+-		Value    []byte      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f', "foo" or `\m\n\o`
++		Value    string      // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 2.4i, 'a', '\x7f', "foo" or `\m\n\o`
+ 	}
+ 
+ 	// A FuncLit node represents a function literal.
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index f010bb9359..090d08d34c 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -304,7 +304,7 @@ const (
+ // separator is an empty //-style comment that is interspersed between
+ // different comment groups when they are concatenated into a single group
+ //
+-var separator = &Comment{noPos, []byte("//")}
++var separator = &Comment{noPos, "//"}
+ 
+ 
+ // MergePackageFiles creates a file AST by merging the ASTs of the
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 9ff0bd536a..f1ebfa97b9 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -286,7 +286,7 @@ func unindent(block [][]byte) {
+ // nor to have trailing spaces at the end of lines.
+ // The comment markers have already been removed.
+ //
+-// Turn each run of multiple \n into </p><p>
++// Turn each run of multiple \n into </p><p>.
+ // Turn each run of indented lines into a <pre> block without indent.
+ //
+ // URLs in the comment text are converted into links; if the URL also appears
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index e46857cb8a..e7a8d3f63b 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -66,7 +66,7 @@ func (doc *docReader) addDoc(comments *ast.CommentGroup) {
+ 	n2 := len(comments.List)
+ 	list := make([]*ast.Comment, n1+1+n2) // + 1 for separator line
+ 	copy(list, doc.doc.List)
+-	list[n1] = &ast.Comment{token.NoPos, []byte("//")} // separator line
++	list[n1] = &ast.Comment{token.NoPos, "//"} // separator line
+ 	copy(list[n1+1:], comments.List)
+ 	doc.doc = &ast.CommentGroup{list}
+ }
+@@ -105,7 +105,7 @@ func baseTypeName(typ ast.Expr) string {
+ 		// if the type is not exported, the effect to
+ 		// a client is as if there were no type name
+ 		if t.IsExported() {
+-			return string(t.Name)
++			return t.Name
+ 		}
+ 	case *ast.StarExpr:
+ 		return baseTypeName(t.X)
+@@ -300,9 +300,9 @@ func (doc *docReader) addFile(src *ast.File) {
+ 	// collect BUG(...) comments
+ 	for _, c := range src.Comments {
+ 		text := c.List[0].Text
+-		if m := bug_markers.FindIndex(text); m != nil {
++		if m := bug_markers.FindStringIndex(text); m != nil {
+ 			// found a BUG comment; maybe empty
+-			if btxt := text[m[1]:]; bug_content.Match(btxt) {
++			if btxt := text[m[1]:]; bug_content.MatchString(btxt) {
+ 				// non-empty BUG comment; collect comment without BUG prefix
+ 				list := copyCommentList(c.List)
+ 				list[0].Text = text[m[1]:]
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index e5eec6f98c..ad7e4cdcf2 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -47,9 +47,9 @@ type parser struct {
+ 	lineComment *ast.CommentGroup // last line comment
+ 
+ 	// Next token
+-	pos  token.Pos   // token position
+-	tok  token.Token // one token look-ahead
+-	lit_ []byte      // token literal (slice into original source, don't hold on to it)
++	pos token.Pos   // token position
++	tok token.Token // one token look-ahead
++	lit string      // token literal
+ 
+ 	// Non-syntactic parser control
+ 	exprLev int // < 0: in control clause, >= 0: in expression
+@@ -96,15 +96,6 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uin
+ }
+ 
+ 
+-func (p *parser) lit() []byte {
+-	// make a copy of p.lit_ so that we don't hold on to
+-	// a copy of the entire source indirectly in the AST
+-	t := make([]byte, len(p.lit_))
+-	copy(t, p.lit_)
+-	return t
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Scoping support
+ 
+@@ -261,7 +252,7 @@ func (p *parser) next0() {
+ 		s := p.tok.String()
+ 		switch {
+ 		case p.tok.IsLiteral():
+-			p.printTrace(s, string(p.lit_))
++			p.printTrace(s, p.lit)
+ 		case p.tok.IsOperator(), p.tok.IsKeyword():
+ 			p.printTrace("\"" + s + "\"")
+ 		default:
+@@ -269,7 +260,7 @@ func (p *parser) next0() {
+ 		}
+ 	}
+ 
+-	p.pos, p.tok, p.lit_ = p.scanner.Scan()
++	p.pos, p.tok, p.lit = p.scanner.Scan()
+ }
+ 
+ // Consume a comment and return it and the line on which it ends.
+@@ -277,15 +268,16 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
+ 	// /*-style comments may end on a different line than where they start.
+ 	// Scan the comment for '\n' chars and adjust endline accordingly.
+ 	endline = p.file.Line(p.pos)
+-	if p.lit_[1] == '*' {
+-		for _, b := range p.lit_ {
+-			if b == '\n' {
++	if p.lit[1] == '*' {
++		// don't use range here - no need to decode Unicode code points
++		for i := 0; i < len(p.lit); i++ {
++			if p.lit[i] == '\n' {
+ 				endline++
+ 			}
+ 		}
+ 	}
+ 
+-	comment = &ast.Comment{p.pos, p.lit()}
++	comment = &ast.Comment{p.pos, p.lit}
+ 	p.next0()
+ 
+ 	return
+@@ -375,12 +367,12 @@ func (p *parser) errorExpected(pos token.Pos, msg string) {
+ 	if pos == p.pos {
+ 		// the error happened at the current position;
+ 		// make the error message more specific
+-		if p.tok == token.SEMICOLON && p.lit_[0] == '\n' {
++		if p.tok == token.SEMICOLON && p.lit[0] == '\n' {
+ 			msg += ", found newline"
+ 		} else {
+ 			msg += ", found '" + p.tok.String() + "'"
+ 			if p.tok.IsLiteral() {
+-				msg += " " + string(p.lit_)
++				msg += " " + p.lit
+ 			}
+ 		}
+ 	}
+@@ -419,7 +411,7 @@ func (p *parser) parseIdent() *ast.Ident {
+ 	pos := p.pos
+ 	name := "_"
+ 	if p.tok == token.IDENT {
+-		name = string(p.lit_)
++		name = p.lit
+ 		p.next()
+ 	} else {
+ 		p.expect(token.IDENT) // use expect() error handling
+@@ -581,7 +573,7 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
+ 	// optional tag
+ 	var tag *ast.BasicLit
+ 	if p.tok == token.STRING {
+-		tag = &ast.BasicLit{p.pos, p.tok, p.lit()}
++		tag = &ast.BasicLit{p.pos, p.tok, p.lit}
+ 		p.next()
+ 	}
+ 
+@@ -1024,7 +1016,7 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
+ 		return x
+ 
+ 	case token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
+-		x := &ast.BasicLit{p.pos, p.tok, p.lit()}
++		x := &ast.BasicLit{p.pos, p.tok, p.lit}
+ 		p.next()
+ 		return x
+ 
+@@ -1978,7 +1970,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+ 
+ 	var path *ast.BasicLit
+ 	if p.tok == token.STRING {
+-		path = &ast.BasicLit{p.pos, p.tok, p.lit()}
++		path = &ast.BasicLit{p.pos, p.tok, p.lit}
+ 		p.next()
+ 	} else {
+ 		p.expect(token.STRING) // use expect() error handling
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 2238b6bedc..8f0d74ca63 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -363,7 +363,7 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
+ 
+ 
+ func (p *printer) setLineComment(text string) {
+-	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{token.NoPos, []byte(text)}}})
++	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{token.NoPos, text}}})
+ }
+ 
+ 
+@@ -527,7 +527,7 @@ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
+ 		}
+ 
+ 	case *ast.StarExpr:
+-		if e.Op.String() == "/" {
++		if e.Op == token.QUO {
+ 			maxProblem = 5
+ 		}
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index a43e4a12c7..b0a31a6404 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -14,6 +14,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"tabwriter"
+ )
+ 
+@@ -35,8 +36,9 @@ const (
+ 
+ 
+ const (
+-	esc2 = '\xfe'                        // an escape byte that cannot occur in regular UTF-8
+-	_    = 1 / (esc2 - tabwriter.Escape) // cause compiler error if esc2 == tabwriter.Escape
++	esc2    = '\xfe'                        // an escape byte that cannot occur in regular UTF-8
++	_       = 1 / (esc2 - tabwriter.Escape) // cause compiler error if esc2 == tabwriter.Escape
++	esc2str = "\xfe"
+ )
+ 
+ 
+@@ -81,8 +83,9 @@ type printer struct {
+ 	mode    pmode       // current printer mode
+ 	lastTok token.Token // the last token printed (token.ILLEGAL if it's whitespace)
+ 
+-	// Buffered whitespace
+-	buffer []whiteSpace
++	// Reused buffers
++	wsbuf  []whiteSpace // delayed white space
++	litbuf bytes.Buffer // for creation of escaped literals and comments
+ 
+ 	// The (possibly estimated) position in the generated output;
+ 	// in AST space (i.e., pos is set whenever a token position is
+@@ -109,7 +112,7 @@ func (p *printer) init(output io.Writer, cfg *Config, fset *token.FileSet, nodeS
+ 	p.Config = *cfg
+ 	p.fset = fset
+ 	p.errors = make(chan os.Error)
+-	p.buffer = make([]whiteSpace, 0, 16) // whitespace sequences are short
++	p.wsbuf = make([]whiteSpace, 0, 16) // whitespace sequences are short
+ 	p.nodeSizes = nodeSizes
+ }
+ 
+@@ -123,6 +126,20 @@ func (p *printer) internalError(msg ...interface{}) {
+ }
+ 
+ 
++// escape escapes string s by bracketing it with tabwriter.Escape.
++// Escapes strings pass through tabwriter unchanged. (Note that
++// valid Go programs cannot contain tabwriter.Escape bytes since
++// they do not appear in legal UTF-8 sequences).
++//
++func (p *printer) escape(s string) string {
++	p.litbuf.Reset()
++	p.litbuf.WriteByte(tabwriter.Escape)
++	p.litbuf.WriteString(s)
++	p.litbuf.WriteByte(tabwriter.Escape)
++	return p.litbuf.String()
++}
++
++
+ // nlines returns the adjusted number of linebreaks given the desired number
+ // of breaks n such that min <= result <= max where max depends on the current
+ // nesting level.
+@@ -230,7 +247,7 @@ func (p *printer) writeNewlines(n int, useFF bool) {
+ // source text. writeItem updates p.last to the position immediately following
+ // the data.
+ //
+-func (p *printer) writeItem(pos token.Position, data []byte) {
++func (p *printer) writeItem(pos token.Position, data string) {
+ 	if pos.IsValid() {
+ 		// continue with previous position if we don't have a valid pos
+ 		if p.last.IsValid() && p.last.Filename != pos.Filename {
+@@ -239,7 +256,7 @@ func (p *printer) writeItem(pos token.Position, data []byte) {
+ 			// e.g., the result of ast.MergePackageFiles)
+ 			p.indent = 0
+ 			p.mode = 0
+-			p.buffer = p.buffer[0:0]
++			p.wsbuf = p.wsbuf[0:0]
+ 		}
+ 		p.pos = pos
+ 	}
+@@ -248,7 +265,7 @@ func (p *printer) writeItem(pos token.Position, data []byte) {
+ 		_, filename := filepath.Split(pos.Filename)
+ 		p.write0([]byte(fmt.Sprintf("[%s:%d:%d]", filename, pos.Line, pos.Column)))
+ 	}
+-	p.write(data)
++	p.write([]byte(data))
+ 	p.last = p.pos
+ }
+ 
+@@ -280,11 +297,11 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
+ 		if prev == nil {
+ 			// first comment of a comment group
+ 			j := 0
+-			for i, ch := range p.buffer {
++			for i, ch := range p.wsbuf {
+ 				switch ch {
+ 				case blank:
+ 					// ignore any blanks before a comment
+-					p.buffer[i] = ignore
++					p.wsbuf[i] = ignore
+ 					continue
+ 				case vtab:
+ 					// respect existing tabs - important
+@@ -318,11 +335,11 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
+ 		if prev == nil {
+ 			// first comment of a comment group
+ 			j := 0
+-			for i, ch := range p.buffer {
++			for i, ch := range p.wsbuf {
+ 				switch ch {
+ 				case blank, vtab:
+ 					// ignore any horizontal whitespace before line breaks
+-					p.buffer[i] = ignore
++					p.wsbuf[i] = ignore
+ 					continue
+ 				case indent:
+ 					// apply pending indentation
+@@ -339,7 +356,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
+ 					}
+ 				case newline, formfeed:
+ 					// TODO(gri): may want to keep formfeed info in some cases
+-					p.buffer[i] = ignore
++					p.wsbuf[i] = ignore
+ 				}
+ 				j = i
+ 				break
+@@ -360,12 +377,8 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev *ast.Comment
+ }
+ 
+ 
+-func (p *printer) writeCommentLine(comment *ast.Comment, pos token.Position, line []byte) {
+-	// line must pass through unchanged, bracket it with tabwriter.Escape
+-	line = bytes.Join([][]byte{esc, line, esc}, nil)
+-	p.writeItem(pos, line)
+-}
+-
++// TODO(gri): It should be possible to convert the code below from using
++//            []byte to string and in the process eliminate some conversions.
+ 
+ // Split comment text into lines
+ func split(text []byte) [][]byte {
+@@ -546,13 +559,13 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 
+ 	// shortcut common case of //-style comments
+ 	if text[1] == '/' {
+-		p.writeCommentLine(comment, p.fset.Position(comment.Pos()), text)
++		p.writeItem(p.fset.Position(comment.Pos()), p.escape(text))
+ 		return
+ 	}
+ 
+ 	// for /*-style comments, print line by line and let the
+ 	// write function take care of the proper indentation
+-	lines := split(text)
++	lines := split([]byte(text))
+ 	stripCommonPrefix(lines)
+ 
+ 	// write comment lines, separated by formfeed,
+@@ -565,7 +578,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 			pos = p.pos
+ 		}
+ 		if len(line) > 0 {
+-			p.writeCommentLine(comment, pos, line)
++			p.writeItem(pos, p.escape(string(line)))
+ 		}
+ 	}
+ }
+@@ -578,11 +591,11 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ // formfeed was dropped from the whitespace buffer.
+ //
+ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
+-	for i, ch := range p.buffer {
++	for i, ch := range p.wsbuf {
+ 		switch ch {
+ 		case blank, vtab:
+ 			// ignore trailing whitespace
+-			p.buffer[i] = ignore
++			p.wsbuf[i] = ignore
+ 		case indent, unindent:
+ 			// don't loose indentation information
+ 		case newline, formfeed:
+@@ -594,11 +607,11 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
+ 				if ch == formfeed {
+ 					droppedFF = true
+ 				}
+-				p.buffer[i] = ignore
++				p.wsbuf[i] = ignore
+ 			}
+ 		}
+ 	}
+-	p.writeWhitespace(len(p.buffer))
++	p.writeWhitespace(len(p.wsbuf))
+ 
+ 	// make sure we have a line break
+ 	if needsLinebreak {
+@@ -652,7 +665,7 @@ func (p *printer) writeWhitespace(n int) {
+ 	// write entries
+ 	var data [1]byte
+ 	for i := 0; i < n; i++ {
+-		switch ch := p.buffer[i]; ch {
++		switch ch := p.wsbuf[i]; ch {
+ 		case ignore:
+ 			// ignore!
+ 		case indent:
+@@ -670,13 +683,13 @@ func (p *printer) writeWhitespace(n int) {
+ 			// the line break and the label, the unindent is not
+ 			// part of the comment whitespace prefix and the comment
+ 			// will be positioned correctly indented.
+-			if i+1 < n && p.buffer[i+1] == unindent {
++			if i+1 < n && p.wsbuf[i+1] == unindent {
+ 				// Use a formfeed to terminate the current section.
+ 				// Otherwise, a long label name on the next line leading
+ 				// to a wide column may increase the indentation column
+ 				// of lines before the label; effectively leading to wrong
+ 				// indentation.
+-				p.buffer[i], p.buffer[i+1] = unindent, formfeed
++				p.wsbuf[i], p.wsbuf[i+1] = unindent, formfeed
+ 				i-- // do it again
+ 				continue
+ 			}
+@@ -689,11 +702,11 @@ func (p *printer) writeWhitespace(n int) {
+ 
+ 	// shift remaining entries down
+ 	i := 0
+-	for ; n < len(p.buffer); n++ {
+-		p.buffer[i] = p.buffer[n]
++	for ; n < len(p.wsbuf); n++ {
++		p.wsbuf[i] = p.wsbuf[n]
+ 		i++
+ 	}
+-	p.buffer = p.buffer[0:i]
++	p.wsbuf = p.wsbuf[0:i]
+ }
+ 
+ 
+@@ -734,7 +747,7 @@ func mayCombine(prev token.Token, next byte) (b bool) {
+ func (p *printer) print(args ...interface{}) {
+ 	for _, f := range args {
+ 		next := p.pos // estimated position of next item
+-		var data []byte
++		var data string
+ 		var tok token.Token
+ 
+ 		switch x := f.(type) {
+@@ -748,29 +761,20 @@ func (p *printer) print(args ...interface{}) {
+ 				// LabeledStmt)
+ 				break
+ 			}
+-			i := len(p.buffer)
+-			if i == cap(p.buffer) {
++			i := len(p.wsbuf)
++			if i == cap(p.wsbuf) {
+ 				// Whitespace sequences are very short so this should
+ 				// never happen. Handle gracefully (but possibly with
+ 				// bad comment placement) if it does happen.
+ 				p.writeWhitespace(i)
+ 				i = 0
+ 			}
+-			p.buffer = p.buffer[0 : i+1]
+-			p.buffer[i] = x
++			p.wsbuf = p.wsbuf[0 : i+1]
++			p.wsbuf[i] = x
+ 		case *ast.Ident:
+-			data = []byte(x.Name)
++			data = x.Name
+ 			tok = token.IDENT
+ 		case *ast.BasicLit:
+-			// escape all literals so they pass through unchanged
+-			// (note that valid Go programs cannot contain
+-			// tabwriter.Escape bytes since they do not appear in
+-			// legal UTF-8 sequences)
+-			data = make([]byte, 0, len(x.Value)+2)
+-			data = append(data, tabwriter.Escape)
+-			data = append(data, x.Value...)
+-			data = append(data, tabwriter.Escape)
+-			tok = x.Kind
+ 			// If we have a raw string that spans multiple lines and
+ 			// the opening quote (`) is on a line preceded only by
+ 			// indentation, we don't want to write that indentation
+@@ -780,10 +784,13 @@ func (p *printer) print(args ...interface{}) {
+ 			// white space).
+ 			// Mark multi-line raw strings by replacing the opening
+ 			// quote with esc2 and have the trimmer take care of fixing
+-			// it up. (Do this _after_ making a copy of data!)
+-			if data[1] == '`' && bytes.IndexByte(data, '\n') > 0 {
+-				data[1] = esc2
++			// it up.
++			if x.Value[0] == '`' && strings.Index(x.Value, "\n") > 0 {
++				data = p.escape(esc2str + x.Value[1:])
++			} else {
++				data = p.escape(x.Value)
+ 			}
++			tok = x.Kind
+ 		case token.Token:
+ 			s := x.String()
+ 			if mayCombine(p.lastTok, s[0]) {
+@@ -793,13 +800,13 @@ func (p *printer) print(args ...interface{}) {
+ 				// (except for token.INT followed by a '.' this
+ 				// should never happen because it is taken care
+ 				// of via binary expression formatting)
+-				if len(p.buffer) != 0 {
++				if len(p.wsbuf) != 0 {
+ 					p.internalError("whitespace buffer not empty")
+ 				}
+-				p.buffer = p.buffer[0:1]
+-				p.buffer[0] = ' '
++				p.wsbuf = p.wsbuf[0:1]
++				p.wsbuf[0] = ' '
+ 			}
+-			data = []byte(s)
++			data = s
+ 			tok = x
+ 		case token.Pos:
+ 			if x.IsValid() {
+@@ -813,7 +820,7 @@ func (p *printer) print(args ...interface{}) {
+ 		p.lastTok = tok
+ 		p.pos = next
+ 
+-		if data != nil {
++		if data != "" {
+ 			droppedFF := p.flush(next, tok)
+ 
+ 			// intersperse extra newlines if present in the source
+@@ -848,7 +855,7 @@ func (p *printer) flush(next token.Position, tok token.Token) (droppedFF bool) {
+ 		droppedFF = p.intersperseComments(next, tok)
+ 	} else {
+ 		// otherwise, write any leftover whitespace
+-		p.writeWhitespace(len(p.buffer))
++		p.writeWhitespace(len(p.wsbuf))
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 59fed9dffc..2f949ad256 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -538,14 +538,12 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Toke
+ }
+ 
+ 
+-var newline = []byte{'\n'}
+-
+-// Scan scans the next token and returns the token position pos,
+-// the token tok, and the literal text lit corresponding to the
++// Scan scans the next token and returns the token position,
++// the token, and the literal string corresponding to the
+ // token. The source end is indicated by token.EOF.
+ //
+ // If the returned token is token.SEMICOLON, the corresponding
+-// literal value is ";" if the semicolon was present in the source,
++// literal string is ";" if the semicolon was present in the source,
+ // and "\n" if the semicolon was inserted because of a newline or
+ // at EOF.
+ //
+@@ -560,7 +558,7 @@ var newline = []byte{'\n'}
+ // set with Init. Token positions are relative to that file
+ // and thus relative to the file set.
+ //
+-func (S *Scanner) Scan() (token.Pos, token.Token, []byte) {
++func (S *Scanner) Scan() (token.Pos, token.Token, string) {
+ scanAgain:
+ 	S.skipWhitespace()
+ 
+@@ -586,7 +584,7 @@ scanAgain:
+ 		case -1:
+ 			if S.insertSemi {
+ 				S.insertSemi = false // EOF consumed
+-				return S.file.Pos(offs), token.SEMICOLON, newline
++				return S.file.Pos(offs), token.SEMICOLON, "\n"
+ 			}
+ 			tok = token.EOF
+ 		case '\n':
+@@ -594,7 +592,7 @@ scanAgain:
+ 			// set in the first place and exited early
+ 			// from S.skipWhitespace()
+ 			S.insertSemi = false // newline consumed
+-			return S.file.Pos(offs), token.SEMICOLON, newline
++			return S.file.Pos(offs), token.SEMICOLON, "\n"
+ 		case '"':
+ 			insertSemi = true
+ 			tok = token.STRING
+@@ -662,7 +660,7 @@ scanAgain:
+ 					S.offset = offs
+ 					S.rdOffset = offs + 1
+ 					S.insertSemi = false // newline consumed
+-					return S.file.Pos(offs), token.SEMICOLON, newline
++					return S.file.Pos(offs), token.SEMICOLON, "\n"
+ 				}
+ 				S.scanComment()
+ 				if S.mode&ScanComments == 0 {
+@@ -711,5 +709,9 @@ scanAgain:
+ 	if S.mode&InsertSemis != 0 {
+ 		S.insertSemi = insertSemi
+ 	}
+-	return S.file.Pos(offs), tok, S.src[offs:S.offset]
++
++	// TODO(gri): The scanner API should change such that the literal string
++	//            is only valid if an actual literal was scanned. This will
++	//            permit a more efficient implementation.
++	return S.file.Pos(offs), tok, string(S.src[offs:S.offset])
+ }
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 93f34581b7..8afb00ee5b 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -234,12 +234,11 @@ func TestScan(t *testing.T) {
+ 	index := 0
+ 	epos := token.Position{"", 0, 1, 1} // expected position
+ 	for {
+-		pos, tok, litb := s.Scan()
++		pos, tok, lit := s.Scan()
+ 		e := elt{token.EOF, "", special}
+ 		if index < len(tokens) {
+ 			e = tokens[index]
+ 		}
+-		lit := string(litb)
+ 		if tok == token.EOF {
+ 			lit = "<EOF>"
+ 			epos.Line = src_linecount
+@@ -257,7 +256,7 @@ func TestScan(t *testing.T) {
+ 		}
+ 		epos.Offset += len(lit) + len(whitespace)
+ 		epos.Line += newlineCount(lit) + whitespace_linecount
+-		if tok == token.COMMENT && litb[1] == '/' {
++		if tok == token.COMMENT && lit[1] == '/' {
+ 			// correct for unaccounted '/n' in //-style comment
+ 			epos.Offset++
+ 			epos.Line++
+@@ -292,7 +291,7 @@ func checkSemi(t *testing.T, line string, mode uint) {
+ 			semiPos.Column++
+ 			pos, tok, lit = S.Scan()
+ 			if tok == token.SEMICOLON {
+-				if string(lit) != semiLit {
++				if lit != semiLit {
+ 					t.Errorf(`bad literal for %q: got %q, expected %q`, line, lit, semiLit)
+ 				}
+ 				checkPos(t, line, pos, semiPos)
+@@ -493,7 +492,7 @@ func TestLineComments(t *testing.T) {
+ 	for _, s := range segments {
+ 		p, _, lit := S.Scan()
+ 		pos := file.Position(p)
+-		checkPos(t, string(lit), p, token.Position{s.filename, pos.Offset, s.line, pos.Column})
++		checkPos(t, lit, p, token.Position{s.filename, pos.Offset, s.line, pos.Column})
+ 	}
+ 
+ 	if S.ErrorCount != 0 {
+@@ -547,10 +546,10 @@ func TestIllegalChars(t *testing.T) {
+ 	for offs, ch := range src {
+ 		pos, tok, lit := s.Scan()
+ 		if poffs := file.Offset(pos); poffs != offs {
+-			t.Errorf("bad position for %s: got %d, expected %d", string(lit), poffs, offs)
++			t.Errorf("bad position for %s: got %d, expected %d", lit, poffs, offs)
+ 		}
+-		if tok == token.ILLEGAL && string(lit) != string(ch) {
+-			t.Errorf("bad token: got %s, expected %s", string(lit), string(ch))
++		if tok == token.ILLEGAL && lit != string(ch) {
++			t.Errorf("bad token: got %s, expected %s", lit, string(ch))
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/typechecker/typechecker_test.go b/src/pkg/go/typechecker/typechecker_test.go
+index 3988ff1680..d16e069218 100644
+--- a/src/pkg/go/typechecker/typechecker_test.go
++++ b/src/pkg/go/typechecker/typechecker_test.go
+@@ -78,7 +78,7 @@ func expectedErrors(t *testing.T, pkg *ast.Package) (list scanner.ErrorList) {
+ 			case token.EOF:
+ 				break loop
+ 			case token.COMMENT:
+-				s := errRx.FindSubmatch(lit)
++				s := errRx.FindStringSubmatch(lit)
+ 				if len(s) == 2 {
+ 					list = append(list, &scanner.Error{fset.Position(prev), string(s[1])})
+ 				}

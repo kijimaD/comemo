@@ -7,7 +7,7 @@ Date:   Fri Nov 6 18:43:57 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1026014
-
+---
  src/pkg/asn1/asn1.go              | 2 +-
  src/pkg/compress/flate/inflate.go | 2 +-
  src/pkg/exp/ogle/abort.go         | 2 +-
@@ -15,3 +15,82 @@ Date:   Fri Nov 6 18:43:57 2009 -0800
  src/pkg/log/log.go                | 2 +-
  src/pkg/rpc/server.go             | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index 642a6ad2bf..fac5bba556 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -442,7 +442,7 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
+ //
+ // (This is used in order to remove ambiguity with optional elements.)
+ //
+-// You can layer EXPLICIT and IMPLICIT tags to an arbitary depth, however we
++// You can layer EXPLICIT and IMPLICIT tags to an arbitrary depth, however we
+ // don't support that here. We support a single layer of EXPLICIT or IMPLICIT
+ // tagging with tag strings on the fields of a structure.
+ 
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 96bbcb6534..2fe494f7bc 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -358,7 +358,7 @@ func (f *inflater) readHuffman() os.Error {
+ // Decode a single Huffman block from f.
+ // hl and hd are the Huffman states for the lit/length values
+ // and the distance values, respectively.  If hd == nil, using the
+-// fixed distance encoding assocated with fixed Huffman blocks.
++// fixed distance encoding associated with fixed Huffman blocks.
+ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
+ 	for {
+ 		v, err := f.huffSym(hl);
+diff --git a/src/pkg/exp/ogle/abort.go b/src/pkg/exp/ogle/abort.go
+index f7bf11527f..7773cac2b5 100644
+--- a/src/pkg/exp/ogle/abort.go
++++ b/src/pkg/exp/ogle/abort.go
+@@ -9,7 +9,7 @@ import (
+ 	"runtime";
+ )
+ 
+-// An aborter aborts the thread's current compututation, usually
++// An aborter aborts the thread's current computation, usually
+ // passing the error to a waiting thread.
+ type aborter interface {
+ 	Abort(err os.Error);
+diff --git a/src/pkg/exp/ogle/process.go b/src/pkg/exp/ogle/process.go
+index b2efbcd468..0b45477eaa 100644
+--- a/src/pkg/exp/ogle/process.go
++++ b/src/pkg/exp/ogle/process.go
+@@ -482,7 +482,7 @@ func (p *Process) Event() Event	{ return p.event }
+ // but it's still weird if an event happens after the Cont and before
+ // the WaitStop that the handlers say to continue from.  Or we could
+ // handle them on a separate thread.  Then obviously you get weird
+-// asynchrony things, like prints while the user it typing a command,
++// asynchronous things, like prints while the user it typing a command,
+ // but that's not necessarily a bad thing.
+ 
+ // ContWait resumes process execution and waits for an event to occur
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index e5a28031bf..04b1e4fa9e 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -147,7 +147,7 @@ func (l *Logger) Output(calldepth int, s string) {
+ // Logf is analogous to Printf() for a Logger.
+ func (l *Logger) Logf(format string, v ...)	{ l.Output(2, fmt.Sprintf(format, v)) }
+ 
+-// Log is analogouts to Print() for a Logger.
++// Log is analogous to Print() for a Logger.
+ func (l *Logger) Log(v ...)	{ l.Output(2, fmt.Sprintln(v)) }
+ 
+ // Stdout is a helper function for easy logging to stdout. It is analogous to Print().
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 3403c74bcd..b66d45406a 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -168,7 +168,7 @@ type serverType struct {
+ // For example, rpc.Register() calls server.add().
+ var server = &serverType{serviceMap: make(map[string]*service)}
+ 
+-// Is this a publicly vislble - upper case - name?
++// Is this a publicly visible - upper case - name?
+ func isPublic(name string) bool {
+ 	rune, _ := utf8.DecodeRuneInString(name);
+ 	return unicode.IsUpper(rune);

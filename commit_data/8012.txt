@@ -7,8 +7,145 @@ Date:   Thu Apr 7 12:03:45 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4368050
-
+---
  src/pkg/syscall/syscall_bsd.go     | 29 -----------------------------
  src/pkg/syscall/syscall_darwin.go  | 30 ++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_freebsd.go | 30 ++++++++++++++++++++++++++++++
  3 files changed, 60 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 95ec1a66fd..9f1244f134 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -74,35 +74,6 @@ func ReadDirent(fd int, buf []byte) (n int, errno int) {
+ 	return Getdirentries(fd, buf, new(uintptr))
+ }
+ 
+-// ParseDirent parses up to max directory entries in buf,
+-// appending the names to names.  It returns the number
+-// bytes consumed from buf, the number of entries added
+-// to names, and the new names slice.
+-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
+-	origlen := len(buf)
+-	for max != 0 && len(buf) > 0 {
+-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
+-		if dirent.Reclen == 0 {
+-			buf = nil
+-			break
+-		}
+-		buf = buf[dirent.Reclen:]
+-		if dirent.Ino == 0 { // File absent in directory.
+-			continue
+-		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+-		var name = string(bytes[0:dirent.Namlen])
+-		if name == "." || name == ".." { // Useless names
+-			continue
+-		}
+-		max--
+-		count++
+-		names = append(names, name)
+-	}
+-	return origlen - len(buf), count, names
+-}
+-
+-
+ // Wait status is 7 bits at bottom, either 0 (exited),
+ // 0x7F (stopped), or a signal number that caused an exit.
+ // The 0x80 bit is whether there was a core dump.
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 1ed2c47c46..30b57cf556 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -12,6 +12,8 @@
+ 
+ package syscall
+ 
++import "unsafe"
++
+ const OS = "darwin"
+ 
+ type SockaddrDatalink struct {
+@@ -26,6 +28,34 @@ type SockaddrDatalink struct {
+ 	raw    RawSockaddrDatalink
+ }
+ 
++// ParseDirent parses up to max directory entries in buf,
++// appending the names to names.  It returns the number
++// bytes consumed from buf, the number of entries added
++// to names, and the new names slice.
++func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
++	origlen := len(buf)
++	for max != 0 && len(buf) > 0 {
++		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
++		if dirent.Reclen == 0 {
++			buf = nil
++			break
++		}
++		buf = buf[dirent.Reclen:]
++		if dirent.Ino == 0 { // File absent in directory.
++			continue
++		}
++		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
++		var name = string(bytes[0:dirent.Namlen])
++		if name == "." || name == ".." { // Useless names
++			continue
++		}
++		max--
++		count++
++		names = append(names, name)
++	}
++	return origlen - len(buf), count, names
++}
++
+ /*
+  * Wrapped
+  */
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index a980b96aa4..242503dd71 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -12,6 +12,8 @@
+ 
+ package syscall
+ 
++import "unsafe"
++
+ const OS = "freebsd"
+ 
+ type SockaddrDatalink struct {
+@@ -26,6 +28,34 @@ type SockaddrDatalink struct {
+ 	raw    RawSockaddrDatalink
+ }
+ 
++// ParseDirent parses up to max directory entries in buf,
++// appending the names to names.  It returns the number
++// bytes consumed from buf, the number of entries added
++// to names, and the new names slice.
++func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
++	origlen := len(buf)
++	for max != 0 && len(buf) > 0 {
++		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
++		if dirent.Reclen == 0 {
++			buf = nil
++			break
++		}
++		buf = buf[dirent.Reclen:]
++		if dirent.Fileno == 0 { // File absent in directory.
++			continue
++		}
++		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
++		var name = string(bytes[0:dirent.Namlen])
++		if name == "." || name == ".." { // Useless names
++			continue
++		}
++		max--
++		count++
++		names = append(names, name)
++	}
++	return origlen - len(buf), count, names
++}
++
+ /*
+  * Exposed directly
+  */

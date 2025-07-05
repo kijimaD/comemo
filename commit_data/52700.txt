@@ -16,7 +16,228 @@ Date:   Sat May 14 20:16:03 2022 +1000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/opGen.go          | 26 +++----
  src/cmd/compile/internal/ssa/rewriteLOONG64.go | 93 ++++++++++++++++----------
  2 files changed, 66 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 30eca08692..12fed422ad 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -22856,15 +22856,14 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MULV",
+-		argLen:       2,
+-		clobberFlags: true,
++		name:        "MULV",
++		argLen:      2,
++		commutative: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+ 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+ 			},
+-			clobbers: 196608, // R17 R18
+ 			outputs: []outputInfo{
+ 				{0, 65536},  // R17
+ 				{1, 131072}, // R18
+@@ -22872,15 +22871,14 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MULVU",
+-		argLen:       2,
+-		clobberFlags: true,
++		name:        "MULVU",
++		argLen:      2,
++		commutative: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+ 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+ 			},
+-			clobbers: 196608, // R17 R18
+ 			outputs: []outputInfo{
+ 				{0, 65536},  // R17
+ 				{1, 131072}, // R18
+@@ -22888,15 +22886,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "DIVV",
+-		argLen:       2,
+-		clobberFlags: true,
++		name:   "DIVV",
++		argLen: 2,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+ 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+ 			},
+-			clobbers: 196608, // R17 R18
+ 			outputs: []outputInfo{
+ 				{0, 65536},  // R17
+ 				{1, 131072}, // R18
+@@ -22904,15 +22900,13 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "DIVVU",
+-		argLen:       2,
+-		clobberFlags: true,
++		name:   "DIVVU",
++		argLen: 2,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+ 				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+ 			},
+-			clobbers: 196608, // R17 R18
+ 			outputs: []outputInfo{
+ 				{0, 65536},  // R17
+ 				{1, 131072}, // R18
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index de49397fff..6163f5577b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -6901,14 +6901,18 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
+ 			break
+ 		}
+ 		_ = v_0.Args[1]
+-		x := v_0.Args[0]
++		v_0_0 := v_0.Args[0]
+ 		v_0_1 := v_0.Args[1]
+-		if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != -1 {
+-			break
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != -1 {
++				continue
++			}
++			v.reset(OpLOONG64NEGV)
++			v.AddArg(x)
++			return true
+ 		}
+-		v.reset(OpLOONG64NEGV)
+-		v.AddArg(x)
+-		return true
++		break
+ 	}
+ 	// match: (Select1 (MULVU _ (MOVVconst [0])))
+ 	// result: (MOVVconst [0])
+@@ -6917,13 +6921,17 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
+ 			break
+ 		}
+ 		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
+ 		v_0_1 := v_0.Args[1]
+-		if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != 0 {
+-			break
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != 0 {
++				continue
++			}
++			v.reset(OpLOONG64MOVVconst)
++			v.AuxInt = int64ToAuxInt(0)
++			return true
+ 		}
+-		v.reset(OpLOONG64MOVVconst)
+-		v.AuxInt = int64ToAuxInt(0)
+-		return true
++		break
+ 	}
+ 	// match: (Select1 (MULVU x (MOVVconst [1])))
+ 	// result: x
+@@ -6932,13 +6940,17 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
+ 			break
+ 		}
+ 		_ = v_0.Args[1]
+-		x := v_0.Args[0]
++		v_0_0 := v_0.Args[0]
+ 		v_0_1 := v_0.Args[1]
+-		if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != 1 {
+-			break
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_0_1.AuxInt) != 1 {
++				continue
++			}
++			v.copyOf(x)
++			return true
+ 		}
+-		v.copyOf(x)
+-		return true
++		break
+ 	}
+ 	// match: (Select1 (MULVU x (MOVVconst [c])))
+ 	// cond: isPowerOfTwo64(c)
+@@ -6948,19 +6960,23 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
+ 			break
+ 		}
+ 		_ = v_0.Args[1]
+-		x := v_0.Args[0]
++		v_0_0 := v_0.Args[0]
+ 		v_0_1 := v_0.Args[1]
+-		if v_0_1.Op != OpLOONG64MOVVconst {
+-			break
+-		}
+-		c := auxIntToInt64(v_0_1.AuxInt)
+-		if !(isPowerOfTwo64(c)) {
+-			break
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpLOONG64MOVVconst {
++				continue
++			}
++			c := auxIntToInt64(v_0_1.AuxInt)
++			if !(isPowerOfTwo64(c)) {
++				continue
++			}
++			v.reset(OpLOONG64SLLVconst)
++			v.AuxInt = int64ToAuxInt(log64(c))
++			v.AddArg(x)
++			return true
+ 		}
+-		v.reset(OpLOONG64SLLVconst)
+-		v.AuxInt = int64ToAuxInt(log64(c))
+-		v.AddArg(x)
+-		return true
++		break
+ 	}
+ 	// match: (Select1 (DIVVU x (MOVVconst [1])))
+ 	// result: x
+@@ -7007,18 +7023,21 @@ func rewriteValueLOONG64_OpSelect1(v *Value) bool {
+ 		}
+ 		_ = v_0.Args[1]
+ 		v_0_0 := v_0.Args[0]
+-		if v_0_0.Op != OpLOONG64MOVVconst {
+-			break
+-		}
+-		c := auxIntToInt64(v_0_0.AuxInt)
+ 		v_0_1 := v_0.Args[1]
+-		if v_0_1.Op != OpLOONG64MOVVconst {
+-			break
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpLOONG64MOVVconst {
++				continue
++			}
++			c := auxIntToInt64(v_0_0.AuxInt)
++			if v_0_1.Op != OpLOONG64MOVVconst {
++				continue
++			}
++			d := auxIntToInt64(v_0_1.AuxInt)
++			v.reset(OpLOONG64MOVVconst)
++			v.AuxInt = int64ToAuxInt(c * d)
++			return true
+ 		}
+-		d := auxIntToInt64(v_0_1.AuxInt)
+-		v.reset(OpLOONG64MOVVconst)
+-		v.AuxInt = int64ToAuxInt(c * d)
+-		return true
++		break
+ 	}
+ 	// match: (Select1 (DIVV (MOVVconst [c]) (MOVVconst [d])))
+ 	// result: (MOVVconst [c/d])

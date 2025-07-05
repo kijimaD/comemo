@@ -8,6 +8,24 @@ Date:   Wed Jul 9 12:31:20 2014 +0200
     R=0intro, r
     CC=ality, dave, golang-codereviews, jas, mischief, rsc
     https://golang.org/cl/105580044
-
+---
  src/pkg/os/os_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index d6f369c8bf..02010000a6 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -926,6 +926,12 @@ func TestOpenError(t *testing.T) {
+ 				syscallErrStr := perr.Err.Error()
+ 				expectedErrStr := strings.Replace(tt.error.Error(), "file ", "", 1)
+ 				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
++					// Some Plan 9 file servers incorrectly return
++					// EACCES rather than EISDIR when a directory is
++					// opened for write.
++					if tt.error == syscall.EISDIR && strings.HasSuffix(syscallErrStr, syscall.EACCES.Error()) {
++						continue
++					}
+ 					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
+ 				}
+ 				continue

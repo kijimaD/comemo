@@ -25,8 +25,68 @@ Date:   Mon May 24 16:47:45 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modcmd/download.go      | 16 ++++++++--------
  src/cmd/go/internal/modload/init.go         | 11 +++++------
  src/cmd/go/testdata/script/mod_download.txt |  1 -
  3 files changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 42b06dbc95..0e5af85237 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -138,14 +138,14 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	sem := make(chan token, runtime.GOMAXPROCS(0))
+ 	infos, infosErr := modload.ListModules(ctx, args, 0)
+ 	if !haveExplicitArgs {
+-		// 'go mod download' is sometimes run without arguments to pre-populate
+-		// the module cache. It may fetch modules that aren't needed to build
+-		// packages in the main mdoule. This is usually not intended, so don't save
+-		// sums for downloaded modules (golang.org/issue/45332).
+-		// TODO(golang.org/issue/45551): For now, save sums needed to load the
+-		// build list (same as 1.15 behavior). In the future, report an error if
+-		// go.mod or go.sum need to be updated after loading the build list.
+-		modload.WriteGoMod(ctx)
++		// 'go mod download' is sometimes run without arguments to pre-populate the
++		// module cache. It may fetch modules that aren't needed to build packages
++		// in the main mdoule. This is usually not intended, so don't save sums for
++		// downloaded modules (golang.org/issue/45332).
++		// TODO(golang.org/issue/45551): For now, in ListModules, save sums needed
++		// to load the build list (same as 1.15 behavior). In the future, report an
++		// error if go.mod or go.sum need to be updated after loading the build
++		// list.
+ 		modload.DisallowWriteGoMod()
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 86c0db3fe4..ea404b9f78 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1122,12 +1122,11 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 		}
+ 	}
+ 
+-	if rs.depth == lazy && rs.graph.Load() == nil {
+-		// The main module is lazy and we haven't needed to load the module graph so
+-		// far. Don't incur the cost of loading it now — since we haven't loaded the
+-		// graph, we probably don't have any checksums to contribute to the distant
+-		// parts of the graph anyway. Instead, just request sums for the roots that
+-		// we know about.
++	if rs.graph.Load() == nil {
++		// The module graph was not loaded, possibly because the main module is lazy
++		// or possibly because we haven't needed to load the graph yet.
++		// Save sums for the root modules (or their replacements), but don't
++		// incur the cost of loading the graph just to find and retain the sums.
+ 		for _, m := range rs.rootModules {
+ 			r := resolveReplacement(m)
+ 			keep[modkey(r)] = true
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index ad640b45de..c2b72b2a02 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -167,5 +167,4 @@ require (
+ -- update/go.sum.update --
+ golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+-rsc.io/sampler v1.2.1/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+ rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=

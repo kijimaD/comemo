@@ -11,9 +11,82 @@ Date:   Sat Apr 13 08:22:16 2013 +0200
     R=golang-dev, r, iant, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/8636043
-
+---
  src/cmd/gc/inl.c                     |  1 +
  test/fixedbugs/issue5259.dir/bug.go  | 17 +++++++++++++++++
  test/fixedbugs/issue5259.dir/main.go | 16 ++++++++++++++++
  test/fixedbugs/issue5259.go          |  9 +++++++++
  4 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 850bb36ec7..f77b51d707 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -188,6 +188,7 @@ ishairy(Node *n, int *budget)
+ 		break;
+ 
+ 	case OCLOSURE:
++	case OCALLPART:
+ 	case ORANGE:
+ 	case OFOR:
+ 	case OSELECT:
+diff --git a/test/fixedbugs/issue5259.dir/bug.go b/test/fixedbugs/issue5259.dir/bug.go
+new file mode 100644
+index 0000000000..8512461686
+--- /dev/null
++++ b/test/fixedbugs/issue5259.dir/bug.go
+@@ -0,0 +1,17 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bug
++
++type S struct {
++	F func()
++}
++
++type X interface {
++	Bar()
++}
++
++func Foo(x X) *S {
++	return &S{F: x.Bar}
++}
+diff --git a/test/fixedbugs/issue5259.dir/main.go b/test/fixedbugs/issue5259.dir/main.go
+new file mode 100644
+index 0000000000..ad1da78f5f
+--- /dev/null
++++ b/test/fixedbugs/issue5259.dir/main.go
+@@ -0,0 +1,16 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./bug"
++
++type foo int
++
++func (f *foo) Bar() {
++}
++
++func main() {
++	bug.Foo(new(foo))
++}
+diff --git a/test/fixedbugs/issue5259.go b/test/fixedbugs/issue5259.go
+new file mode 100644
+index 0000000000..00fe19ff94
+--- /dev/null
++++ b/test/fixedbugs/issue5259.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5259: Inlining of method value causes internal compiler error
++
++package ignored

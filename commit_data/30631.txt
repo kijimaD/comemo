@@ -9,6 +9,23 @@ Date:   Thu Nov 17 16:28:45 2016 +0000
     Change-Id: I143cdf7c5ef8e7b2394afeca6b30c46bb2c19a55
     Reviewed-on: https://go-review.googlesource.com/33340
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index b0b15f3d1c..47c29d0688 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -368,9 +368,9 @@ func getLinuxKernelConfig() string {
+ 		defer f.Close()
+ 		return slurpString(f)
+ 	}
+-	uname, _ := exec.Command("uname, -r").Output()
++	uname, _ := exec.Command("uname", "-r").Output()
+ 	if len(uname) > 0 {
+-		if f, err := os.Open("/boot/config-" + string(uname)); err == nil {
++		if f, err := os.Open("/boot/config-" + strings.TrimSpace(string(uname))); err == nil {
+ 			defer f.Close()
+ 			return slurpString(f)
+ 		}

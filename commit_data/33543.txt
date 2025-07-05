@@ -17,8 +17,139 @@ Date:   Fri May 26 15:34:56 2017 -0400
     Change-Id: I8105818c8940cd71bc5473ec98797cce2f3f9872
     Reviewed-on: https://go-review.googlesource.com/44350
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go    |  2 ++
  src/cmd/internal/dwarf/dwarf.go        |  4 +++
  src/cmd/link/internal/ld/dwarf_test.go | 59 +++++++++++++++++++++++++++++++++-
  3 files changed, 64 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 542fd43b63..3a6848598b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -397,6 +397,7 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var) {
+ 			Abbrev:      abbrev,
+ 			StackOffset: int32(offs),
+ 			Type:        Ctxt.Lookup(typename),
++			DeclLine:    n.Pos.Line(),
+ 		})
+ 	}
+ 	return decls, vars
+@@ -513,6 +514,7 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
+ 		Abbrev:      abbrev,
+ 		Type:        Ctxt.Lookup(typename),
+ 		StackOffset: int32(stackOffset),
++		DeclLine:    n.Pos.Line(),
+ 	}
+ 
+ 	if Debug_locationlist != 0 {
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index b0c7fb20f5..3ab036db0c 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -51,6 +51,7 @@ type Var struct {
+ 	LocationList []Location
+ 	Scope        int32
+ 	Type         Sym
++	DeclLine     uint
+ }
+ 
+ // A Scope represents a lexical scope. All variables declared within a
+@@ -315,6 +316,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		DW_CHILDREN_no,
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
++			{DW_AT_decl_line, DW_FORM_udata},
+ 			{DW_AT_location, DW_FORM_block1},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+@@ -337,6 +339,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		DW_CHILDREN_no,
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
++			{DW_AT_decl_line, DW_FORM_udata},
+ 			{DW_AT_location, DW_FORM_block1},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+@@ -794,6 +797,7 @@ func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
+ 
+ 	Uleb128put(ctxt, info, int64(v.Abbrev))
+ 	putattr(ctxt, info, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
++	putattr(ctxt, info, v.Abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
+ 	if v.Abbrev == DW_ABRV_AUTO_LOCLIST || v.Abbrev == DW_ABRV_PARAM_LOCLIST {
+ 		putattr(ctxt, info, v.Abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(loc.Len()), loc)
+ 		addLocList(ctxt, loc, startPC, v, encbuf)
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index d59220bb66..00ee8a0565 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -83,7 +83,7 @@ func gobuild(t *testing.T, dir string, testfile string) *objfilepkg.File {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dst, src)
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-N -l", "-o", dst, src)
+ 	if b, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("build: %s\n", b)
+ 		t.Fatalf("build error: %v", err)
+@@ -298,3 +298,60 @@ func main() {
+ 		}
+ 	}
+ }
++
++func TestVarDeclCoords(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	const prog = `
++package main
++
++func main() {
++	var i int
++	i = i
++}
++`
++	dir, err := ioutil.TempDir("", "TestVarDeclCoords")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	f := gobuild(t, dir, prog)
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	rdr := d.Reader()
++	var iEntry *dwarf.Entry
++	foundMain := false
++	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
++		if err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++		if entry.Tag == dwarf.TagSubprogram && entry.Val(dwarf.AttrName).(string) == "main.main" {
++			foundMain = true
++			continue
++		}
++		if !foundMain {
++			continue
++		}
++		if entry.Tag == dwarf.TagSubprogram {
++			t.Fatalf("didn't find DW_TAG_variable for i in main.main")
++		}
++		if foundMain && entry.Tag == dwarf.TagVariable && entry.Val(dwarf.AttrName).(string) == "i" {
++			iEntry = entry
++			break
++		}
++	}
++
++	line := iEntry.Val(dwarf.AttrDeclLine)
++	if line == nil || line.(int64) != 5 {
++		t.Errorf("DW_AT_decl_line for i is %v, want 5", line)
++	}
++}

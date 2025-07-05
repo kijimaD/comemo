@@ -22,6 +22,25 @@ Date:   Wed Mar 21 11:53:51 2018 +0100
     Change-Id: I0f1b9db6ae1f0130616ee649bdbfdc91e38d2184
     Reviewed-on: https://go-review.googlesource.com/101815
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/trace/annotations_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/trace/annotations_test.go b/src/cmd/trace/annotations_test.go
+index 1a68b0e2a4..161d1ec0b1 100644
+--- a/src/cmd/trace/annotations_test.go
++++ b/src/cmd/trace/annotations_test.go
+@@ -238,12 +238,10 @@ func prog2() (gcTime time.Duration) {
+ }
+ 
+ func TestAnalyzeAnnotationGC(t *testing.T) {
+-	var gcTime time.Duration
+ 	err := traceProgram(t, func() {
+ 		oldGC := debug.SetGCPercent(10000) // gc, and effectively disable GC
+ 		defer debug.SetGCPercent(oldGC)
+-
+-		gcTime = prog2()
++		prog2()
+ 	}, "TestAnalyzeAnnotationGC")
+ 	if err != nil {
+ 		t.Fatalf("failed to trace the program: %v", err)

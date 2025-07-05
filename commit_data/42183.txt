@@ -16,9 +16,115 @@ Date:   Tue Nov 12 14:55:42 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                    | 32 --------------------------------
  src/cmd/go/script_test.go                | 11 +++++++++++
  src/cmd/go/testdata/script/README        |  1 +
  src/cmd/go/testdata/script/cache_vet.txt | 22 ++++++++++++++++++++++
  4 files changed, 34 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 4b5e0143f2..6056d9b212 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5214,38 +5214,6 @@ func TestCacheCoverage(t *testing.T) {
+ 	tg.run("test", "-cover", "-short", "math", "strings")
+ }
+ 
+-func TestCacheVet(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no standard packages")
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-
+-	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+-		t.Skip("GODEBUG gocacheverify")
+-	}
+-	if testing.Short() {
+-		// In short mode, reuse cache.
+-		// Test failures may be masked if the cache has just the right entries already
+-		// (not a concern during all.bash, which runs in a clean cache).
+-		if cfg.Getenv("GOCACHE") == "off" {
+-			tooSlow(t)
+-		}
+-	} else {
+-		tg.makeTempdir()
+-		tg.setenv("GOCACHE", tg.path("cache"))
+-	}
+-
+-	// Check that second vet reuses cgo-derived inputs.
+-	// The first command could be build instead of vet,
+-	// except that if the cache is empty and there's a net.a
+-	// in GOROOT/pkg, the build will not bother to regenerate
+-	// and cache the cgo outputs, whereas vet always will.
+-	tg.run("vet", "os/user")
+-	tg.run("vet", "-x", "os/user")
+-	tg.grepStderrNot(`^(clang|gcc)`, "should not have run compiler")
+-	tg.grepStderrNot(`[\\/]cgo `, "should not have run cgo")
+-}
+-
+ func TestIssue22588(t *testing.T) {
+ 	// Don't get confused by stderr coming from tools.
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 942fca85a8..fbe4698ee5 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -292,6 +292,17 @@ Script:
+ 					}).(bool)
+ 					break
+ 				}
++				if strings.HasPrefix(cond.tag, "GODEBUG:") {
++					value := strings.TrimPrefix(cond.tag, "GODEBUG:")
++					parts := strings.Split(os.Getenv("GODEBUG"), ",")
++					for _, p := range parts {
++						if strings.TrimSpace(p) == value {
++							ok = true
++							break
++						}
++					}
++					break
++				}
+ 				if !imports.KnownArch[cond.tag] && !imports.KnownOS[cond.tag] && cond.tag != "gc" && cond.tag != "gccgo" {
+ 					ts.fatalf("unknown condition %q", cond.tag)
+ 				}
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index ec886b18a1..1fd9639b6c 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -77,6 +77,7 @@ should only run when the condition is satisfied. The available conditions are:
+    - [root] for os.Geteuid() == 0
+    - [symlink] for testenv.HasSymlink()
+    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
++   - [GODEBUG:value] for whether value is one of the comma-separated entries in the GODEBUG variable
+ 
+ A condition can be negated: [!short] means to run the rest of the line
+ when testing.Short() is false. Multiple conditions may be given for a single
+diff --git a/src/cmd/go/testdata/script/cache_vet.txt b/src/cmd/go/testdata/script/cache_vet.txt
+new file mode 100644
+index 0000000000..d61e9bc68d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cache_vet.txt
+@@ -0,0 +1,22 @@
++env GO111MODULE=off
++
++[short] skip
++[GODEBUG:gocacheverify] skip
++[gccgo] skip  # gccgo has no standard packages
++
++# Start with a clean build cache:
++# test failures may be masked if the cache has just the right entries already.
++env GOCACHE=$WORK/cache
++
++# Run 'go vet os/user' once to warm up the cache.
++go vet os/user
++
++# Check that second vet reuses cgo-derived inputs.
++# The first command could be build instead of vet,
++# except that if the cache is empty and there's a net.a
++# in GOROOT/pkg, the build will not bother to regenerate
++# and cache the cgo outputs, whereas vet always will.
++
++go vet -x os/user
++! stderr '^(clang|gcc)'  # should not have run compiler
++! stderr '[\\/]cgo '     # should not have run cgo

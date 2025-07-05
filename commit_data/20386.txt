@@ -29,7 +29,7 @@ Date:   Thu Sep 4 13:51:12 2014 -0400
     R=golang-codereviews, dvyukov, iant
     CC=golang-codereviews, khr, r
     https://golang.org/cl/136160043
-
+---
  src/cmd/api/goapi.go           |   1 +
  src/pkg/runtime/os_darwin.h    |  15 ++--
  src/pkg/runtime/os_dragonfly.h |  11 +--
@@ -45,3 +45,735 @@ Date:   Thu Sep 4 13:51:12 2014 -0400
  src/pkg/runtime/sigqueue.c     | 184 -----------------------------------------
  src/pkg/runtime/sigqueue.go    | 181 +++++++++++++++++++++++++++++++++++-----
  14 files changed, 258 insertions(+), 266 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 2d6dde2665..6b21a24e36 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -419,6 +419,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" _Gdead = 6;" +
+ 			" _Genqueue = 7;" +
+ 			" _Gcopystack = 8;" +
++			" _NSIG = 32;" +
+ 			")"
+ 		f, err = parser.ParseFile(fset, filename, src, 0)
+ 		if err != nil {
+diff --git a/src/pkg/runtime/os_darwin.h b/src/pkg/runtime/os_darwin.h
+index af9052e9c2..e8bb45dafc 100644
+--- a/src/pkg/runtime/os_darwin.h
++++ b/src/pkg/runtime/os_darwin.h
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SS_DISABLE 4
+-
+ typedef byte* kevent_udata;
+ 
+ int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
+@@ -35,8 +33,11 @@ void	runtime·sigpanic(void);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ 
+ 
+-#define	NSIG 32
+-#define	SI_USER	0  /* empirically true, but not what headers say */
+-#define	SIG_BLOCK 1
+-#define	SIG_UNBLOCK 2
+-#define	SIG_SETMASK 3
++enum {
++	NSIG = 32,
++	SI_USER = 0, /* empirically true, but not what headers say */
++	SIG_BLOCK = 1,
++	SIG_UNBLOCK = 2,
++	SIG_SETMASK = 3,
++	SS_DISABLE = 4,
++};
+diff --git a/src/pkg/runtime/os_dragonfly.h b/src/pkg/runtime/os_dragonfly.h
+index 4fb71478bf..389736a323 100644
+--- a/src/pkg/runtime/os_dragonfly.h
++++ b/src/pkg/runtime/os_dragonfly.h
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SS_DISABLE 4
+ 
+ typedef byte* kevent_udata;
+ 
+@@ -16,11 +15,13 @@ void	runtime·unblocksignals(void);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
++enum {
++	NSIG = 33,
++	SI_USER = 0x10001,
++	SS_DISABLE = 4,
++	RLIMIT_AS = 10,
++};
+ 
+-#define	NSIG 33
+-#define	SI_USER	0x10001
+-
+-#define RLIMIT_AS 10
+ typedef struct Rlimit Rlimit;
+ struct Rlimit {
+ 	int64	rlim_cur;
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index ec0be3161f..b86bb393c2 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SS_DISABLE 4
+-
+ typedef byte* kevent_udata;
+ 
+ int32	runtime·thr_new(ThrParam*, int32);
+@@ -16,11 +14,13 @@ void	runtime·unblocksignals(void);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
++enum {
++	SS_DISABLE = 4,
++	NSIG = 33,
++	SI_USER = 0x10001,
++	RLIMIT_AS = 10,
++};
+ 
+-#define	NSIG 33
+-#define	SI_USER	0x10001
+-
+-#define RLIMIT_AS 10
+ typedef struct Rlimit Rlimit;
+ struct Rlimit {
+ 	int64	rlim_cur;
+diff --git a/src/pkg/runtime/os_linux.h b/src/pkg/runtime/os_linux.h
+index c475d32405..75606d6152 100644
+--- a/src/pkg/runtime/os_linux.h
++++ b/src/pkg/runtime/os_linux.h
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SS_DISABLE 2
+ 
+ // Linux-specific system calls
+ int32	runtime·futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);
+@@ -15,9 +14,13 @@ void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
+ void	runtime·sigpanic(void);
+ void runtime·setitimer(int32, Itimerval*, Itimerval*);
+ 
+-
+-#define	NSIG	65
+-#define	SI_USER 0
++enum {
++	SS_DISABLE = 2,
++	NSIG = 65,
++	SI_USER = 0,
++	SIG_SETMASK = 2,
++	RLIMIT_AS = 9,
++};
+ 
+ // It's hard to tease out exactly how big a Sigset is, but
+ // rt_sigprocmask crashes if we get it wrong, so if binaries
+@@ -29,9 +32,7 @@ struct Sigset
+ };
+ void	runtime·rtsigprocmask(int32, Sigset*, Sigset*, int32);
+ void	runtime·unblocksignals(void);
+-#define SIG_SETMASK 2
+ 
+-#define RLIMIT_AS 9
+ typedef struct Rlimit Rlimit;
+ struct Rlimit {
+ 	uintptr	rlim_cur;
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index a7995df92a..f95db325f0 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -2,11 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SS_DISABLE 4
+-
+-#define SIG_BLOCK 1
+-#define SIG_UNBLOCK 2
+-#define SIG_SETMASK 3
+ 
+ typedef uintptr kevent_udata;
+ 
+@@ -22,9 +17,15 @@ void	runtime·unblocksignals(void);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ extern void runtime·lwp_tramp(void);
+ 
+-#define	NSIG 33
+-#define	SI_USER	0
+-
+-// From NetBSD's <sys/ucontext.h>
+-#define _UC_SIGMASK	0x01
+-#define _UC_CPU		0x04
++enum {
++	SS_DISABLE = 4,
++	SIG_BLOCK = 1,
++	SIG_UNBLOCK = 2,
++	SIG_SETMASK = 3,
++	NSIG = 33,
++	SI_USER = 0,
++
++	// From NetBSD's <sys/ucontext.h>
++	_UC_SIGMASK = 0x01,
++	_UC_CPU = 0x04,
++};
+diff --git a/src/pkg/runtime/os_openbsd.h b/src/pkg/runtime/os_openbsd.h
+index 955432ebd6..6ad98109e9 100644
+--- a/src/pkg/runtime/os_openbsd.h
++++ b/src/pkg/runtime/os_openbsd.h
+@@ -2,11 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SS_DISABLE 4
+-
+-#define SIG_BLOCK 1
+-#define SIG_UNBLOCK 2
+-#define SIG_SETMASK 3
+ 
+ typedef byte* kevent_udata;
+ 
+@@ -21,5 +16,11 @@ Sigset	runtime·sigprocmask(int32, Sigset);
+ void	runtime·unblocksignals(void);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+-#define	NSIG 33
+-#define	SI_USER	0
++enum {
++	SS_DISABLE = 4,
++	SIG_BLOCK = 1,
++	SIG_UNBLOCK = 2,
++	SIG_SETMASK = 3,
++	NSIG = 33,
++	SI_USER = 0,
++};
+diff --git a/src/pkg/runtime/os_plan9.h b/src/pkg/runtime/os_plan9.h
+index ea853dde85..57a2cafa72 100644
+--- a/src/pkg/runtime/os_plan9.h
++++ b/src/pkg/runtime/os_plan9.h
+@@ -79,12 +79,14 @@ struct Tos {
+ 	/* top of stack is here */
+ };
+ 
+-#define	NSIG	14	/* number of signals in runtime·SigTab array */
+-#define	ERRMAX	128	/* max length of note string */
++enum {
++	NSIG = 14, /* number of signals in runtime·SigTab array */
++	ERRMAX = 128, /* max length of note string */
+ 
+-/* Notes in runtime·sigtab that are handled by runtime·sigpanic. */
+-#define	SIGRFAULT	2
+-#define	SIGWFAULT	3
+-#define	SIGINTDIV	4
+-#define	SIGFLOAT	5
+-#define	SIGTRAP		6
++	/* Notes in runtime·sigtab that are handled by runtime·sigpanic. */
++	SIGRFAULT = 2,
++	SIGWFAULT = 3,
++	SIGINTDIV = 4,
++	SIGFLOAT = 5,
++	SIGTRAP = 6,
++};
+diff --git a/src/pkg/runtime/os_solaris.h b/src/pkg/runtime/os_solaris.h
+index ba08771cb7..3d9e1a2406 100644
+--- a/src/pkg/runtime/os_solaris.h
++++ b/src/pkg/runtime/os_solaris.h
+@@ -2,11 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SS_DISABLE 2
+-
+-#define SIG_BLOCK 1
+-#define SIG_UNBLOCK 2
+-#define SIG_SETMASK 3
+ 
+ typedef uintptr kevent_udata;
+ 
+@@ -21,18 +16,24 @@ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+ void	runtime·unblocksignals(void);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+-#define	NSIG 73 /* number of signals in runtime·SigTab array */
+-#define	SI_USER	0
+ 
+ void	runtime·raisesigpipe(void);
+ void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+ void	runtime·sigpanic(void);
+ 
+-#define _UC_SIGMASK	0x01
+-#define _UC_CPU		0x04
++enum {
++	SS_DISABLE = 2,
++	SIG_BLOCK = 1,
++	SIG_UNBLOCK = 2,
++	SIG_SETMASK = 3,
++	NSIG = 73, /* number of signals in runtime·SigTab array */
++	SI_USER = 0,
++	_UC_SIGMASK = 0x01,
++	_UC_CPU = 0x04,
++	RLIMIT_AS = 10,
++};
+ 
+-#define RLIMIT_AS 10
+ typedef struct Rlimit Rlimit;
+ struct Rlimit {
+ 	int64   rlim_cur;
+diff --git a/src/pkg/runtime/os_windows.h b/src/pkg/runtime/os_windows.h
+index e1e3cb0e23..d5d168d77b 100644
+--- a/src/pkg/runtime/os_windows.h
++++ b/src/pkg/runtime/os_windows.h
+@@ -37,4 +37,6 @@ void runtime·install_exception_handler(void);
+ void runtime·remove_exception_handler(void);
+ 
+ // TODO(brainman): should not need those
+-#define	NSIG	65
++enum {
++	NSIG = 65,
++};
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index f060640a26..3e1d0694a0 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -113,6 +113,7 @@ func releaseSudog(s *sudog) {
+ 
+ // funcPC returns the entry PC of the function f.
+ // It assumes that f is a func value. Otherwise the behavior is undefined.
++//go:nosplit
+ func funcPC(f interface{}) uintptr {
+ 	return **(**uintptr)(add(unsafe.Pointer(&f), ptrSize))
+ }
+diff --git a/src/pkg/runtime/signal.c b/src/pkg/runtime/signal.c
+new file mode 100644
+index 0000000000..0674bfb22d
+--- /dev/null
++++ b/src/pkg/runtime/signal.c
+@@ -0,0 +1,25 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++void
++runtime·sigenable_m(void)
++{
++	uint32 s;
++	
++	s = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++	runtime·sigenable(s);
++}
++
++void
++runtime·sigdisable_m(void)
++{
++	uint32 s;
++	
++	s = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++	runtime·sigdisable(s);
++}
+diff --git a/src/pkg/runtime/sigqueue.c b/src/pkg/runtime/sigqueue.c
+deleted file mode 100644
+index e5617bde7d..0000000000
+--- a/src/pkg/runtime/sigqueue.c
++++ /dev/null
+@@ -1,184 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file implements runtime support for signal handling.
+-//
+-// Most synchronization primitives are not available from
+-// the signal handler (it cannot block, allocate memory, or use locks)
+-// so the handler communicates with a processing goroutine
+-// via struct sig, below.
+-//
+-// sigsend() is called by the signal handler to queue a new signal.
+-// signal_recv() is called by the Go program to receive a newly queued signal.
+-// Synchronization between sigsend() and signal_recv() is based on the sig.state
+-// variable.  It can be in 3 states: 0, HASWAITER and HASSIGNAL.
+-// HASWAITER means that signal_recv() is blocked on sig.Note and there are no
+-// new pending signals.
+-// HASSIGNAL means that sig.mask *may* contain new pending signals,
+-// signal_recv() can't be blocked in this state.
+-// 0 means that there are no new pending signals and signal_recv() is not blocked.
+-// Transitions between states are done atomically with CAS.
+-// When signal_recv() is unblocked, it resets sig.Note and rechecks sig.mask.
+-// If several sigsend()'s and signal_recv() execute concurrently, it can lead to
+-// unnecessary rechecks of sig.mask, but must not lead to missed signals
+-// nor deadlocks.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "cgocall.h"
+-#include "../../cmd/ld/textflag.h"
+-
+-typedef struct Sig Sig;
+-struct Sig {
+-	uint32 mask[(NSIG+31)/32];
+-	uint32 wanted[(NSIG+31)/32];
+-	uint32 recv[(NSIG+31)/32];
+-	uint32 state;
+-	bool inuse;
+-	bool afterwait;
+-};
+-
+-#pragma dataflag NOPTR
+-static Sig sig;
+-
+-Note runtime·signote;
+-
+-enum {
+-	HASWAITER = 1,
+-	HASSIGNAL = 2,
+-};
+-
+-// Called from sighandler to send a signal back out of the signal handling thread.
+-bool
+-runtime·sigsend(int32 s)
+-{
+-	uint32 bit, mask, old, new;
+-
+-	if(!sig.inuse || s < 0 || s >= 32*nelem(sig.wanted) || !(sig.wanted[s/32]&(1U<<(s&31))))
+-		return false;
+-	bit = 1 << (s&31);
+-	for(;;) {
+-		mask = sig.mask[s/32];
+-		if(mask & bit)
+-			break;		// signal already in queue
+-		if(runtime·cas(&sig.mask[s/32], mask, mask|bit)) {
+-			// Added to queue.
+-			// Only send a wakeup if the receiver needs a kick.
+-			for(;;) {
+-				old = runtime·atomicload(&sig.state);
+-				if(old == HASSIGNAL)
+-					break;
+-				if(old == HASWAITER)
+-					new = 0;
+-				else  // if(old == 0)
+-					new = HASSIGNAL;
+-				if(runtime·cas(&sig.state, old, new)) {
+-					if (old == HASWAITER)
+-						runtime·notewakeup(&runtime·signote);
+-					break;
+-				}
+-			}
+-			break;
+-		}
+-	}
+-	return true;
+-}
+-
+-// Called to receive the next queued signal.
+-// Must only be called from a single goroutine at a time.
+-void
+-runtime·signal_recv_m(void)
+-{
+-	uint32 i, old, new;
+-
+-	if(sig.afterwait) {
+-		sig.afterwait = false;
+-		goto update;
+-	}
+-	for(;;) {
+-		// Serve from local copy if there are bits left.
+-		for(i=0; i<NSIG; i++) {
+-			if(sig.recv[i/32]&(1U<<(i&31))) {
+-				sig.recv[i/32] ^= 1U<<(i&31);
+-				g->m->scalararg[0] = true;
+-				g->m->scalararg[1] = i;
+-				return;
+-			}
+-		}
+-
+-		// Check and update sig.state.
+-		for(;;) {
+-			old = runtime·atomicload(&sig.state);
+-			if(old == HASWAITER)
+-				runtime·throw("inconsistent state in signal_recv");
+-			if(old == HASSIGNAL)
+-				new = 0;
+-			else  // if(old == 0)
+-				new = HASWAITER;
+-			if(runtime·cas(&sig.state, old, new)) {
+-				if (new == HASWAITER) {
+-					sig.afterwait = true;
+-					g->m->scalararg[0] = false;
+-					g->m->scalararg[1] = 0;
+-					return;
+-				}
+-				break;
+-			}
+-		}
+-
+-		// Get a new local copy.
+-	update:
+-		for(i=0; i<nelem(sig.mask); i++) {
+-			for(;;) {
+-				old = sig.mask[i];
+-				if(runtime·cas(&sig.mask[i], old, 0))
+-					break;
+-			}
+-			sig.recv[i] = old;
+-		}
+-	}
+-}
+-
+-// Must only be called from a single goroutine at a time.
+-void
+-runtime·signal_enable_m(void)
+-{
+-	uint32 s;
+-
+-	if(!sig.inuse) {
+-		// The first call to signal_enable is for us
+-		// to use for initialization.  It does not pass
+-		// signal information in m.
+-		sig.inuse = true;	// enable reception of signals; cannot disable
+-		runtime·noteclear(&runtime·signote);
+-		return;
+-	}
+-	s = g->m->scalararg[0];
+-	if(s >= nelem(sig.wanted)*32)
+-		return;
+-	sig.wanted[s/32] |= 1U<<(s&31);
+-	runtime·sigenable(s);
+-}
+-
+-// Must only be called from a single goroutine at a time.
+-void
+-runtime·signal_disable_m(void)
+-{
+-	uint32 s;
+-
+-	s = g->m->scalararg[0];
+-	if(s >= nelem(sig.wanted)*32)
+-		return;
+-	sig.wanted[s/32] &= ~(1U<<(s&31));
+-	runtime·sigdisable(s);
+-}
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag NOSPLIT
+-void
+-runtime·badsignal(uintptr sig)
+-{
+-	runtime·cgocallback((void (*)(void))runtime·sigsend, &sig, sizeof(sig));
+-}
+diff --git a/src/pkg/runtime/sigqueue.go b/src/pkg/runtime/sigqueue.go
+index 4643559705..63edb664cf 100644
+--- a/src/pkg/runtime/sigqueue.go
++++ b/src/pkg/runtime/sigqueue.go
+@@ -3,38 +3,177 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file implements runtime support for signal handling.
++//
++// Most synchronization primitives are not available from
++// the signal handler (it cannot block, allocate memory, or use locks)
++// so the handler communicates with a processing goroutine
++// via struct sig, below.
++//
++// sigsend() is called by the signal handler to queue a new signal.
++// signal_recv() is called by the Go program to receive a newly queued signal.
++// Synchronization between sigsend() and signal_recv() is based on the sig.state
++// variable.  It can be in 3 states: 0, HASWAITER and HASSIGNAL.
++// HASWAITER means that signal_recv() is blocked on sig.Note and there are no
++// new pending signals.
++// HASSIGNAL means that sig.mask *may* contain new pending signals,
++// signal_recv() can't be blocked in this state.
++// 0 means that there are no new pending signals and signal_recv() is not blocked.
++// Transitions between states are done atomically with CAS.
++// When signal_recv() is unblocked, it resets sig.Note and rechecks sig.mask.
++// If several sigsend()'s and signal_recv() execute concurrently, it can lead to
++// unnecessary rechecks of sig.mask, but must not lead to missed signals
++// nor deadlocks.
+ 
+ package runtime
+ 
+-func signal_recv() (m uint32) {
++import "unsafe"
++
++var sig struct {
++	note   note
++	mask   [(_NSIG + 31) / 32]uint32
++	wanted [(_NSIG + 31) / 32]uint32
++	recv   [(_NSIG + 31) / 32]uint32
++	state  uint32
++	inuse  bool
++}
++
++const (
++	_HASWAITER = 1
++	_HASSIGNAL = 2
++)
++
++// Called from sighandler to send a signal back out of the signal handling thread.
++func sigsend(s int32) bool {
++	bit := uint32(1) << uint(s&31)
++	if !sig.inuse || s < 0 || int(s) >= 32*len(sig.wanted) || sig.wanted[s/32]&bit == 0 {
++		return false
++	}
++
++	for {
++		mask := sig.mask[s/32]
++		if mask&bit != 0 {
++			break // signal already in queue
++		}
++		if cas(&sig.mask[s/32], mask, mask|bit) {
++			// Added to queue.
++			// Only send a wakeup if the receiver needs a kick.
++			for {
++				old := atomicload(&sig.state)
++				if old == _HASSIGNAL {
++					break
++				}
++
++				var new uint32
++				if old == _HASWAITER {
++					new = 0
++				} else { // old == 0
++					new = _HASSIGNAL
++				}
++				if cas(&sig.state, old, new) {
++					if old == _HASWAITER {
++						notewakeup(&sig.note)
++					}
++					break
++				}
++			}
++			break
++		}
++	}
++	return true
++}
++
++// Called to receive the next queued signal.
++// Must only be called from a single goroutine at a time.
++func signal_recv() uint32 {
+ 	for {
+-		mp := acquirem()
+-		onM(signal_recv_m)
+-		ok := mp.scalararg[0] != 0
+-		m = uint32(mp.scalararg[1])
+-		releasem(mp)
+-		if ok {
+-			return
++		// Serve from local copy if there are bits left.
++		for i := uint32(0); i < _NSIG; i++ {
++			if sig.recv[i/32]&(1<<(i&31)) != 0 {
++				sig.recv[i/32] &^= 1 << (i & 31)
++				return i
++			}
++		}
++
++		// Check and update sig.state.
++		for {
++			old := atomicload(&sig.state)
++			if old == _HASWAITER {
++				gothrow("inconsistent state in signal_recv")
++			}
++
++			var new uint32
++			if old == _HASSIGNAL {
++				new = 0
++			} else { // old == 0
++				new = _HASWAITER
++			}
++			if cas(&sig.state, old, new) {
++				if new == _HASWAITER {
++					notetsleepg(&sig.note, -1)
++					noteclear(&sig.note)
++				}
++				break
++			}
++		}
++
++		// Get a new local copy.
++		for i := range sig.mask {
++			var m uint32
++			for {
++				m = sig.mask[i]
++				if cas(&sig.mask[i], m, 0) {
++					break
++				}
++			}
++			sig.recv[i] = m
+ 		}
+-		notetsleepg(&signote, -1)
+-		noteclear(&signote)
+ 	}
+ }
+ 
++// Must only be called from a single goroutine at a time.
+ func signal_enable(s uint32) {
+-	mp := acquirem()
+-	mp.scalararg[0] = uintptr(s)
+-	onM(signal_enable_m)
+-	releasem(mp)
++	if !sig.inuse {
++		// The first call to signal_enable is for us
++		// to use for initialization.  It does not pass
++		// signal information in m.
++		sig.inuse = true // enable reception of signals; cannot disable
++		noteclear(&sig.note)
++		return
++	}
++
++	if int(s) >= len(sig.wanted)*32 {
++		return
++	}
++	sig.wanted[s/32] |= 1 << (s & 31)
++	sigenable_go(s)
+ }
+ 
++// Must only be called from a single goroutine at a time.
+ func signal_disable(s uint32) {
+-	mp := acquirem()
+-	mp.scalararg[0] = uintptr(s)
+-	onM(signal_disable_m)
+-	releasem(mp)
++	if int(s) >= len(sig.wanted)*32 {
++		return
++	}
++	sig.wanted[s/32] &^= 1 << (s & 31)
++	sigdisable_go(s)
++}
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++//go:nosplit
++func badsignal(sig uintptr) {
++	cgocallback(unsafe.Pointer(funcPC(sigsend)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
+ }
+ 
+-func signal_recv_m()
+-func signal_enable_m()
+-func signal_disable_m()
++func sigenable_m()
++func sigdisable_m()
++
++func sigenable_go(s uint32) {
++	g := getg()
++	g.m.scalararg[0] = uintptr(s)
++	onM(sigenable_m)
++}
++
++func sigdisable_go(s uint32) {
++	g := getg()
++	g.m.scalararg[0] = uintptr(s)
++	onM(sigdisable_m)
++}

@@ -13,6 +13,22 @@ Date:   Fri Feb 11 19:31:30 2022 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/boring/build.release | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/misc/boring/build.release b/misc/boring/build.release
+index 46922c913f..f421b12206 100755
+--- a/misc/boring/build.release
++++ b/misc/boring/build.release
+@@ -59,9 +59,7 @@ echo >&2
+ # Build the release tool in a temporary directory.
+ dir=$(mktemp -d)
+ trap "rm -rf $dir" EXIT
+-export GO111MODULE=on
+-export GOBIN="$dir"
+-(cd "$dir"; go get golang.org/x/build/cmd/release)
++GOBIN="$dir" go install golang.org/x/build/cmd/release@latest
+ 
+ # Build the release.
+ sha() {

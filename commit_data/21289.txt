@@ -10,6 +10,20 @@ Date:   Thu Dec 18 09:33:44 2014 -0800
     Change-Id: I318ab11be8e3e7489fc1395457c029c8bdb2aa41
     Reviewed-on: https://go-review.googlesource.com/1773
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/linkx_run.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/linkx_run.go b/test/linkx_run.go
+index 5b67ce7d3d..11b66ed5a9 100644
+--- a/test/linkx_run.go
++++ b/test/linkx_run.go
+@@ -16,7 +16,7 @@ import (
+ )
+ 
+ func main() {
+-	cmd := exec.Command("go", "run", "-ldflags=-X main.tbd hello -X main.overwrite trumped", "linkx.go")
++	cmd := exec.Command("go", "run", "-ldflags=-X main.tbd hello -X main.overwrite trumped -X main.nosuchsymbol neverseen", "linkx.go")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		fmt.Println(string(out))

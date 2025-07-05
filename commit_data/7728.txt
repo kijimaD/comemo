@@ -10,7 +10,7 @@ Date:   Thu Mar 10 08:17:22 2011 -0800
     R=rsc, bradfitzwork
     CC=gburd, golang-dev
     https://golang.org/cl/4248075
-
+---
  src/cmd/godoc/main.go             |  2 +-
  src/pkg/http/cgi/host.go          |  8 ++++++--
  src/pkg/http/cgi/host_test.go     |  1 +
@@ -21,3 +21,275 @@ Date:   Thu Mar 10 08:17:22 2011 -0800
  src/pkg/rpc/server.go             |  2 +-
  src/pkg/websocket/server.go       |  4 ++--
  9 files changed, 68 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index f32a5b9145..c6dd6ded0e 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -152,7 +152,7 @@ func usage() {
+ 
+ func loggingHandler(h http.Handler) http.Handler {
+ 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+-		log.Printf("%s\t%s", w.RemoteAddr(), req.URL)
++		log.Printf("%s\t%s", req.RemoteAddr, req.URL)
+ 		h.ServeHTTP(w, req)
+ 	})
+ }
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index d6c8ab22a1..2272387374 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -74,11 +74,15 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		"PATH_INFO=" + pathInfo,
+ 		"SCRIPT_NAME=" + root,
+ 		"SCRIPT_FILENAME=" + h.Path,
+-		"REMOTE_ADDR=" + rw.RemoteAddr(),
+-		"REMOTE_HOST=" + rw.RemoteAddr(),
++		"REMOTE_ADDR=" + req.RemoteAddr,
++		"REMOTE_HOST=" + req.RemoteAddr,
+ 		"SERVER_PORT=" + port,
+ 	}
+ 
++	if req.TLS != nil {
++		env = append(env, "HTTPS=on")
++	}
++
+ 	if len(req.Cookie) > 0 {
+ 		b := new(bytes.Buffer)
+ 		for idx, c := range req.Cookie {
+diff --git a/src/pkg/http/cgi/host_test.go b/src/pkg/http/cgi/host_test.go
+index 2db08d5429..9980356736 100644
+--- a/src/pkg/http/cgi/host_test.go
++++ b/src/pkg/http/cgi/host_test.go
+@@ -37,6 +37,7 @@ func newRequest(httpreq string) *http.Request {
+ 	if err != nil {
+ 		panic("cgi: bogus http request in test: " + httpreq)
+ 	}
++	req.RemoteAddr = "1.2.3.4"
+ 	return req
+ }
+ 
+diff --git a/src/pkg/http/httptest/recorder.go b/src/pkg/http/httptest/recorder.go
+index 22827a31db..8d70c2834a 100644
+--- a/src/pkg/http/httptest/recorder.go
++++ b/src/pkg/http/httptest/recorder.go
+@@ -14,12 +14,10 @@ import (
+ // ResponseRecorder is an implementation of http.ResponseWriter that
+ // records its mutations for later inspection in tests.
+ type ResponseRecorder struct {
+-	Code           int           // the HTTP response code from WriteHeader
+-	HeaderMap      http.Header   // the HTTP response headers
+-	Body           *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
+-	Flushed        bool
+-	FakeRemoteAddr string // the fake RemoteAddr to return, or "" for DefaultRemoteAddr
+-	FakeUsingTLS   bool   // whether to return true from the UsingTLS method
++	Code      int           // the HTTP response code from WriteHeader
++	HeaderMap http.Header   // the HTTP response headers
++	Body      *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
++	Flushed   bool
+ }
+ 
+ // NewRecorder returns an initialized ResponseRecorder.
+@@ -34,20 +32,6 @@ func NewRecorder() *ResponseRecorder {
+ // an explicit DefaultRemoteAddr isn't set on ResponseRecorder.
+ const DefaultRemoteAddr = "1.2.3.4"
+ 
+-// RemoteAddr returns the value of rw.FakeRemoteAddr, if set, else
+-// returns DefaultRemoteAddr.
+-func (rw *ResponseRecorder) RemoteAddr() string {
+-	if rw.FakeRemoteAddr != "" {
+-		return rw.FakeRemoteAddr
+-	}
+-	return DefaultRemoteAddr
+-}
+-
+-// UsingTLS returns the fake value in rw.FakeUsingTLS
+-func (rw *ResponseRecorder) UsingTLS() bool {
+-	return rw.FakeUsingTLS
+-}
+-
+ // Header returns the response headers.
+ func (rw *ResponseRecorder) Header() http.Header {
+ 	return rw.HeaderMap
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index d8456bab32..d82894fab0 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -11,6 +11,7 @@ package http
+ 
+ import (
+ 	"bufio"
++	"crypto/tls"
+ 	"container/vector"
+ 	"fmt"
+ 	"io"
+@@ -137,6 +138,22 @@ type Request struct {
+ 	// response has multiple trailer lines with the same key, they will be
+ 	// concatenated, delimited by commas.
+ 	Trailer Header
++
++	// RemoteAddr allows HTTP servers and other software to record
++	// the network address that sent the request, usually for
++	// logging. This field is not filled in by ReadRequest and
++	// has no defined format. The HTTP server in this package
++	// sets RemoteAddr to an "IP:port" address before invoking a
++	// handler.
++	RemoteAddr string
++
++	// TLS allows HTTP servers and other software to record
++	// information about the TLS connection on which the request
++	// was received. This field is not filled in by ReadRequest.
++	// The HTTP server in this package sets the field for
++	// TLS-enabled connections before invoking a handler;
++	// otherwise it leaves the field nil.
++	TLS *tls.ConnectionState
+ }
+ 
+ // ProtoAtLeast returns whether the HTTP protocol used
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index a6d3cab09d..482acfd314 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -229,6 +229,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ }
+ 
+ func TestServerTimeouts(t *testing.T) {
++	// TODO(bradfitz): convert this to use httptest.Server
+ 	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: 0})
+ 	if err != nil {
+ 		t.Fatalf("listen error: %v", err)
+@@ -406,3 +407,23 @@ func TestServeHTTP10Close(t *testing.T) {
+ 
+ 	success <- true
+ }
++
++func TestSetsRemoteAddr(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		fmt.Fprintf(w, "%s", r.RemoteAddr)
++	}))
++	defer ts.Close()
++
++	res, _, err := Get(ts.URL)
++	if err != nil {
++		t.Fatalf("Get error: %v", err)
++	}
++	body, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Fatalf("ReadAll error: %v", err)
++	}
++	ip := string(body)
++	if !strings.HasPrefix(ip, "127.0.0.1:") && !strings.HasPrefix(ip, "[::1]:") {
++		t.Fatalf("Expected local addr; got %q", ip)
++	}
++}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 5f36af5484..6a7c74efb0 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -48,12 +48,6 @@ type Handler interface {
+ // A ResponseWriter interface is used by an HTTP handler to
+ // construct an HTTP response.
+ type ResponseWriter interface {
+-	// RemoteAddr returns the address of the client that sent the current request
+-	RemoteAddr() string
+-
+-	// UsingTLS returns true if the client is connected using TLS
+-	UsingTLS() bool
+-
+ 	// Header returns the header map that will be sent by WriteHeader.
+ 	// Changing the header after a call to WriteHeader (or Write) has
+ 	// no effect.
+@@ -97,12 +91,12 @@ type Hijacker interface {
+ 
+ // A conn represents the server side of an HTTP connection.
+ type conn struct {
+-	remoteAddr string            // network address of remote side
+-	handler    Handler           // request handler
+-	rwc        net.Conn          // i/o connection
+-	buf        *bufio.ReadWriter // buffered rwc
+-	hijacked   bool              // connection has been hijacked by handler
+-	usingTLS   bool              // a flag indicating connection over TLS
++	remoteAddr string               // network address of remote side
++	handler    Handler              // request handler
++	rwc        net.Conn             // i/o connection
++	buf        *bufio.ReadWriter    // buffered rwc
++	hijacked   bool                 // connection has been hijacked by handler
++	tlsState   *tls.ConnectionState // or nil when not using TLS        
+ }
+ 
+ // A response represents the server side of an HTTP response.
+@@ -130,10 +124,15 @@ func newConn(rwc net.Conn, handler Handler) (c *conn, err os.Error) {
+ 	c.remoteAddr = rwc.RemoteAddr().String()
+ 	c.handler = handler
+ 	c.rwc = rwc
+-	_, c.usingTLS = rwc.(*tls.Conn)
+ 	br := bufio.NewReader(rwc)
+ 	bw := bufio.NewWriter(rwc)
+ 	c.buf = bufio.NewReadWriter(br, bw)
++
++	if tlsConn, ok := rwc.(*tls.Conn); ok {
++		c.tlsState = new(tls.ConnectionState)
++		*c.tlsState = tlsConn.ConnectionState()
++	}
++
+ 	return c, nil
+ }
+ 
+@@ -173,6 +172,9 @@ func (c *conn) readRequest() (w *response, err os.Error) {
+ 		return nil, err
+ 	}
+ 
++	req.RemoteAddr = c.remoteAddr
++	req.TLS = c.tlsState
++
+ 	w = new(response)
+ 	w.conn = c
+ 	w.req = req
+@@ -187,12 +189,6 @@ func (c *conn) readRequest() (w *response, err os.Error) {
+ 	return w, nil
+ }
+ 
+-func (w *response) UsingTLS() bool {
+-	return w.conn.usingTLS
+-}
+-
+-func (w *response) RemoteAddr() string { return w.conn.remoteAddr }
+-
+ func (w *response) Header() Header {
+ 	return w.header
+ }
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 6dd962d81f..59ebaf4a80 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -514,7 +514,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 	conn, _, err := w.(http.Hijacker).Hijack()
+ 	if err != nil {
+-		log.Print("rpc hijacking ", w.RemoteAddr(), ": ", err.String())
++		log.Print("rpc hijacking ", req.RemoteAddr, ": ", err.String())
+ 		return
+ 	}
+ 	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n")
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 37149f044d..1119b2d34e 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -98,7 +98,7 @@ func (f Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	var location string
+-	if w.UsingTLS() {
++	if req.TLS != nil {
+ 		location = "wss://" + req.Host + req.URL.RawPath
+ 	} else {
+ 		location = "ws://" + req.Host + req.URL.RawPath
+@@ -192,7 +192,7 @@ func (f Draft75Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 	defer rwc.Close()
+ 
+ 	var location string
+-	if w.UsingTLS() {
++	if req.TLS != nil {
+ 		location = "wss://" + req.Host + req.URL.RawPath
+ 	} else {
+ 		location = "ws://" + req.Host + req.URL.RawPath

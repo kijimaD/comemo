@@ -9,7 +9,46 @@ Date:   Wed May 15 11:10:26 2013 +0400
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/9377043
-
+---
  src/pkg/runtime/chan.c  | 4 ++--
  src/pkg/runtime/slice.c | 5 ++++-
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index fba36a4c34..0a01a403d2 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -11,8 +11,6 @@
+ #define	MAXALIGN	7
+ #define	NOSELGEN	1
+ 
+-static	int32	debug	= 0;
+-
+ typedef	struct	WaitQ	WaitQ;
+ typedef	struct	SudoG	SudoG;
+ typedef	struct	Select	Select;
+@@ -58,6 +56,8 @@ uint32 runtime·Hchansize = sizeof(Hchan);
+ 
+ enum
+ {
++	debug = 0,
++
+ 	// Scase.kind
+ 	CaseRecv,
+ 	CaseSend,
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 354c54c865..d46d60f24a 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -9,7 +9,10 @@
+ #include "malloc.h"
+ #include "race.h"
+ 
+-static	bool	debug	= 0;
++enum
++{
++	debug = 0
++};
+ 
+ static	void	makeslice1(SliceType*, intgo, intgo, Slice*);
+ static	void	growslice1(SliceType*, Slice, intgo, Slice *);

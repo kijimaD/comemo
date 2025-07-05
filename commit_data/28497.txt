@@ -15,6 +15,28 @@ Date:   Sat May 28 02:14:25 2016 -0700
     Change-Id: I44b5e78d41601c68a0a1c96428c853df53981d52
     Reviewed-on: https://go-review.googlesource.com/23551
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/io/io.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 80398b3997..19d0ae5add 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -102,10 +102,12 @@ type Closer interface {
+ // Seeker is the interface that wraps the basic Seek method.
+ //
+ // Seek sets the offset for the next Read or Write to offset,
+-// interpreted according to whence: 0 means relative to the start of
+-// the file, 1 means relative to the current offset, and 2 means
+-// relative to the end. Seek returns the new offset relative to the
+-// start of the file and an error, if any.
++// interpreted according to whence:
++// SeekStart means relative to the start of the file,
++// SeekCurrent means relative to the current offset, and
++// SeekEnd means relative to the end.
++// Seek returns the new offset relative to the start of the
++// file and an error, if any.
+ //
+ // Seeking to an offset before the start of the file is an error.
+ // Seeking to any positive offset is legal, but the behavior of subsequent

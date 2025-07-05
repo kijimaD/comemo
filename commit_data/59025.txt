@@ -15,7 +15,26 @@ Date:   Thu Feb 1 16:55:50 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  lib/time/update.bash  |   4 ++--
  lib/time/zoneinfo.zip | Bin 401728 -> 401710 bytes
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index e72850079f..bed82b4f40 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -24,8 +24,8 @@
+ # in the CL match the update.bash in the CL.
+ 
+ # Versions to use.
+-CODE=2023d
+-DATA=2023d
++CODE=2024a
++DATA=2024a
+ 
+ set -e
+ 
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index 7cf689f830..bb38801b7a 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ

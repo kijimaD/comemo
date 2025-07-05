@@ -12,8 +12,70 @@ Date:   Fri Oct 21 09:21:06 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/build.go      |  5 +++++
  src/cmd/go/build_test.go | 25 +++++++++++++++++++++++++
  src/cmd/go/go_test.go    |  3 ---
  3 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 4ff4a980fc..cd4636e7a8 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -470,6 +470,11 @@ func runBuild(cmd *Command, args []string) {
+ 		*buildO += exeSuffix
+ 	}
+ 
++	// Special case -o /dev/null by not writing at all.
++	if *buildO == os.DevNull {
++		*buildO = ""
++	}
++
+ 	// sanity check some often mis-used options
+ 	switch buildContext.Compiler {
+ 	case "gccgo":
+diff --git a/src/cmd/go/build_test.go b/src/cmd/go/build_test.go
+new file mode 100644
+index 0000000000..d95bd0bc7e
+--- /dev/null
++++ b/src/cmd/go/build_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"os"
++	"testing"
++)
++
++func TestRemoveDevNull(t *testing.T) {
++	fi, err := os.Lstat(os.DevNull)
++	if err != nil {
++		t.Skip(err)
++	}
++	if fi.Mode().IsRegular() {
++		t.Errorf("Lstat(%s).Mode().IsRegular() = true; expected false", os.DevNull)
++	}
++	mayberemovefile(os.DevNull)
++	_, err = os.Lstat(os.DevNull)
++	if err != nil {
++		t.Errorf("mayberemovefile(%s) did remove it; oops", os.DevNull)
++	}
++}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 7e92841082..40eb38f714 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1334,9 +1334,6 @@ func TestInstallIntoGOPATH(t *testing.T) {
+ 
+ // Issue 12407
+ func TestBuildOutputToDevNull(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping because /dev/null is a regular file on plan9")
+-	}
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))

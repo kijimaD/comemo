@@ -8,8 +8,200 @@ Date:   Thu Feb 28 16:07:26 2013 +0800
     R=golang-dev, dave, adg, rsc
     CC=golang-dev
     https://golang.org/cl/7393063
-
+---
  src/cmd/go/run.go                 | 10 +++++-
  src/pkg/runtime/crash_cgo_test.go | 73 +++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/crash_test.go     | 73 ---------------------------------------
  3 files changed, 82 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 27f989fb9f..b505693635 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -68,8 +68,16 @@ func runRun(cmd *Command, args []string) {
+ 	var src string
+ 	if len(p.GoFiles) > 0 {
+ 		src = p.GoFiles[0]
+-	} else {
++	} else if len(p.CgoFiles) > 0 {
+ 		src = p.CgoFiles[0]
++	} else {
++		// this case could only happen if the provided source uses cgo
++		// while cgo is disabled.
++		hint := ""
++		if !buildContext.CgoEnabled {
++			hint = " (cgo is disabled)"
++		}
++		fatalf("go run: no suitable source files%s", hint)
+ 	}
+ 	p.exeName = src[:len(src)-len(".go")] // name temporary executable for first go file
+ 	a1 := b.action(modeBuild, modeBuild, p)
+diff --git a/src/pkg/runtime/crash_cgo_test.go b/src/pkg/runtime/crash_cgo_test.go
+index 12b75dc1b2..8ccea8f37c 100644
+--- a/src/pkg/runtime/crash_cgo_test.go
++++ b/src/pkg/runtime/crash_cgo_test.go
+@@ -13,3 +13,76 @@ import (
+ func TestCgoCrashHandler(t *testing.T) {
+ 	testCrashHandler(t, true)
+ }
++
++func TestCgoSignalDeadlock(t *testing.T) {
++	got := executeTest(t, cgoSignalDeadlockSource, nil)
++	want := "OK\n"
++	if got != want {
++		t.Fatalf("expected %q, but got %q", want, got)
++	}
++}
++
++const cgoSignalDeadlockSource = `
++package main
++
++import "C"
++
++import (
++	"fmt"
++	"runtime"
++	"time"
++)
++
++func main() {
++	runtime.GOMAXPROCS(100)
++	ping := make(chan bool)
++	go func() {
++		for i := 0; ; i++ {
++			runtime.Gosched()
++			select {
++			case done := <-ping:
++				if done {
++					ping <- true
++					return
++				}
++				ping <- true
++			default:
++			}
++			func() {
++				defer func() {
++					recover()
++				}()
++				var s *string
++				*s = ""
++			}()
++		}
++	}()
++	time.Sleep(time.Millisecond)
++	for i := 0; i < 64; i++ {
++		go func() {
++			runtime.LockOSThread()
++			select {}
++		}()
++		go func() {
++			runtime.LockOSThread()
++			select {}
++		}()
++		time.Sleep(time.Millisecond)
++		ping <- false
++		select {
++		case <-ping:
++		case <-time.After(time.Second):
++			fmt.Printf("HANG\n")
++			return
++		}
++	}
++	ping <- true
++	select {
++	case <-ping:
++	case <-time.After(time.Second):
++		fmt.Printf("HANG\n")
++		return
++	}
++	fmt.Printf("OK\n")
++}
++`
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 90a5e099a3..b2db1d7b95 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -99,14 +99,6 @@ func TestLockedDeadlock2(t *testing.T) {
+ 	testDeadlock(t, lockedDeadlockSource2)
+ }
+ 
+-func TestCgoSignalDeadlock(t *testing.T) {
+-	got := executeTest(t, cgoSignalDeadlockSource, nil)
+-	want := "OK\n"
+-	if got != want {
+-		t.Fatalf("expected %q, but got %q", want, got)
+-	}
+-}
+-
+ const crashSource = `
+ package main
+ 
+@@ -191,68 +183,3 @@ func main() {
+ 	select {}
+ }
+ `
+-
+-const cgoSignalDeadlockSource = `
+-package main
+-
+-import "C"
+-
+-import (
+-	"fmt"
+-	"runtime"
+-	"time"
+-)
+-
+-func main() {
+-	runtime.GOMAXPROCS(100)
+-	ping := make(chan bool)
+-	go func() {
+-		for i := 0; ; i++ {
+-			runtime.Gosched()
+-			select {
+-			case done := <-ping:
+-				if done {
+-					ping <- true
+-					return
+-				}
+-				ping <- true
+-			default:
+-			}
+-			func() {
+-				defer func() {
+-					recover()
+-				}()
+-				var s *string
+-				*s = ""
+-			}()
+-		}
+-	}()
+-	time.Sleep(time.Millisecond)
+-	for i := 0; i < 64; i++ {
+-		go func() {
+-			runtime.LockOSThread()
+-			select {}
+-		}()
+-		go func() {
+-			runtime.LockOSThread()
+-			select {}
+-		}()
+-		time.Sleep(time.Millisecond)
+-		ping <- false
+-		select {
+-		case <-ping:
+-		case <-time.After(time.Second):
+-			fmt.Printf("HANG\n")
+-			return
+-		}
+-	}
+-	ping <- true
+-	select {
+-	case <-ping:
+-	case <-time.After(time.Second):
+-		fmt.Printf("HANG\n")
+-		return
+-	}
+-	fmt.Printf("OK\n")
+-}
+-`

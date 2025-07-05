@@ -22,7 +22,7 @@ Date:   Fri Sep 17 19:38:33 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/vendor.go               |   2 +-
  src/cmd/go/internal/modget/get.go                  |   4 +-
  src/cmd/go/internal/modload/build.go               |  14 +-
@@ -37,3 +37,1122 @@ Date:   Fri Sep 17 19:38:33 2021 -0400
  .../go/testdata/script/work_replace_conflict.txt   |  53 +++++++
  .../script/work_replace_conflict_override.txt      |  57 ++++++++
  13 files changed, 408 insertions(+), 199 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 92348b8897..57189b4607 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -128,7 +128,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	for _, m := range vendorMods {
+-		replacement, _ := modload.Replacement(m)
++		replacement := modload.Replacement(m)
+ 		line := moduleLine(m, replacement)
+ 		io.WriteString(w, line)
+ 
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index c634512072..2c48c3c444 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -1575,7 +1575,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 		i := i
+ 		m := r.buildList[i]
+ 		mActual := m
+-		if mRepl, _ := modload.Replacement(m); mRepl.Path != "" {
++		if mRepl := modload.Replacement(m); mRepl.Path != "" {
+ 			mActual = mRepl
+ 		}
+ 		old := module.Version{Path: m.Path, Version: r.initialVersion[m.Path]}
+@@ -1583,7 +1583,7 @@ func (r *resolver) checkPackageProblems(ctx context.Context, pkgPatterns []strin
+ 			continue
+ 		}
+ 		oldActual := old
+-		if oldRepl, _ := modload.Replacement(old); oldRepl.Path != "" {
++		if oldRepl := modload.Replacement(old); oldRepl.Path != "" {
+ 			oldActual = oldRepl
+ 		}
+ 		if mActual == oldActual || mActual.Version == "" || !modfetch.HaveSum(oldActual) {
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index da50743138..0e0292ec15 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -239,7 +239,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 	}
+ 
+ 	// completeFromModCache fills in the extra fields in m using the module cache.
+-	completeFromModCache := func(m *modinfo.ModulePublic, replacedFrom string) {
++	completeFromModCache := func(m *modinfo.ModulePublic) {
+ 		checksumOk := func(suffix string) bool {
+ 			return rs == nil || m.Version == "" || cfg.BuildMod == "mod" ||
+ 				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
+@@ -258,7 +258,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 		if m.GoVersion == "" && checksumOk("/go.mod") {
+ 			// Load the go.mod file to determine the Go version, since it hasn't
+ 			// already been populated from rawGoVersion.
+-			if summary, err := rawGoModSummary(mod, replacedFrom); err == nil && summary.goVersion != "" {
++			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersion != "" {
+ 				m.GoVersion = summary.goVersion
+ 			}
+ 		}
+@@ -288,11 +288,11 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 	if rs == nil {
+ 		// If this was an explicitly-versioned argument to 'go mod download' or
+ 		// 'go list -m', report the actual requested version, not its replacement.
+-		completeFromModCache(info, "") // Will set m.Error in vendor mode.
++		completeFromModCache(info) // Will set m.Error in vendor mode.
+ 		return info
+ 	}
+ 
+-	r, replacedFrom := Replacement(m)
++	r := Replacement(m)
+ 	if r.Path == "" {
+ 		if cfg.BuildMod == "vendor" {
+ 			// It's tempting to fill in the "Dir" field to point within the vendor
+@@ -301,7 +301,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 			// interleave packages from different modules if one module path is a
+ 			// prefix of the other.
+ 		} else {
+-			completeFromModCache(info, "")
++			completeFromModCache(info)
+ 		}
+ 		return info
+ 	}
+@@ -321,12 +321,12 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 		if filepath.IsAbs(r.Path) {
+ 			info.Replace.Dir = r.Path
+ 		} else {
+-			info.Replace.Dir = filepath.Join(replacedFrom, r.Path)
++			info.Replace.Dir = filepath.Join(replaceRelativeTo(), r.Path)
+ 		}
+ 		info.Replace.GoMod = filepath.Join(info.Replace.Dir, "go.mod")
+ 	}
+ 	if cfg.BuildMod != "vendor" {
+-		completeFromModCache(info.Replace, replacedFrom)
++		completeFromModCache(info.Replace)
+ 		info.Dir = info.Replace.Dir
+ 		info.GoMod = info.Replace.GoMod
+ 		info.Retracted = info.Replace.Retracted
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index e64677acd0..bc2b0a0230 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -426,35 +426,33 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
+ 	// To avoid spurious remote fetches, try the latest replacement for each
+ 	// module (golang.org/issue/26241).
+ 	var mods []module.Version
+-	for _, v := range MainModules.Versions() {
+-		if index := MainModules.Index(v); index != nil {
+-			for mp, mv := range index.highestReplaced {
+-				if !maybeInModule(path, mp) {
+-					continue
+-				}
+-				if mv == "" {
+-					// The only replacement is a wildcard that doesn't specify a version, so
+-					// synthesize a pseudo-version with an appropriate major version and a
+-					// timestamp below any real timestamp. That way, if the main module is
+-					// used from within some other module, the user will be able to upgrade
+-					// the requirement to any real version they choose.
+-					if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
+-						mv = module.ZeroPseudoVersion(pathMajor[1:])
+-					} else {
+-						mv = module.ZeroPseudoVersion("v0")
+-					}
+-				}
+-				mg, err := rs.Graph(ctx)
+-				if err != nil {
+-					return module.Version{}, err
+-				}
+-				if cmpVersion(mg.Selected(mp), mv) >= 0 {
+-					// We can't resolve the import by adding mp@mv to the module graph,
+-					// because the selected version of mp is already at least mv.
+-					continue
++	if MainModules != nil { // TODO(#48912): Ensure MainModules exists at this point, and remove the check.
++		for mp, mv := range MainModules.HighestReplaced() {
++			if !maybeInModule(path, mp) {
++				continue
++			}
++			if mv == "" {
++				// The only replacement is a wildcard that doesn't specify a version, so
++				// synthesize a pseudo-version with an appropriate major version and a
++				// timestamp below any real timestamp. That way, if the main module is
++				// used from within some other module, the user will be able to upgrade
++				// the requirement to any real version they choose.
++				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
++					mv = module.ZeroPseudoVersion(pathMajor[1:])
++				} else {
++					mv = module.ZeroPseudoVersion("v0")
+ 				}
+-				mods = append(mods, module.Version{Path: mp, Version: mv})
+ 			}
++			mg, err := rs.Graph(ctx)
++			if err != nil {
++				return module.Version{}, err
++			}
++			if cmpVersion(mg.Selected(mp), mv) >= 0 {
++				// We can't resolve the import by adding mp@mv to the module graph,
++				// because the selected version of mp is already at least mv.
++				continue
++			}
++			mods = append(mods, module.Version{Path: mp, Version: mv})
+ 		}
+ 	}
+ 
+@@ -485,7 +483,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
+ 		// The package path is not valid to fetch remotely,
+ 		// so it can only exist in a replaced module,
+ 		// and we know from the above loop that it is not.
+-		replacement, _ := Replacement(mods[0])
++		replacement := Replacement(mods[0])
+ 		return module.Version{}, &PackageNotInModuleError{
+ 			Mod:         mods[0],
+ 			Query:       "latest",
+@@ -659,11 +657,11 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
+ 	if modRoot := MainModules.ModRoot(mod); modRoot != "" {
+ 		return modRoot, true, nil
+ 	}
+-	if r, replacedFrom := Replacement(mod); r.Path != "" {
++	if r := Replacement(mod); r.Path != "" {
+ 		if r.Version == "" {
+ 			dir = r.Path
+ 			if !filepath.IsAbs(dir) {
+-				dir = filepath.Join(replacedFrom, dir)
++				dir = filepath.Join(replaceRelativeTo(), dir)
+ 			}
+ 			// Ensure that the replacement directory actually exists:
+ 			// dirInModule does not report errors for missing modules,
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 621099beb3..0602aee0cc 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -69,9 +69,8 @@ var (
+ 	// roots are required but MainModules hasn't been initialized yet. Set to
+ 	// the modRoots of the main modules.
+ 	// modRoots != nil implies len(modRoots) > 0
+-	modRoots          []string
+-	gopath            string
+-	workFileGoVersion string
++	modRoots []string
++	gopath   string
+ )
+ 
+ // Variable set in InitWorkfile
+@@ -104,6 +103,10 @@ type MainModuleSet struct {
+ 
+ 	workFileGoVersion string
+ 
++	workFileReplaceMap map[module.Version]module.Version
++	// highest replaced version of each module path; empty string for wildcard-only replacements
++	highestReplaced map[string]string
++
+ 	indexMu sync.Mutex
+ 	indices map[module.Version]*modFileIndex
+ }
+@@ -203,6 +206,10 @@ func (mms *MainModuleSet) ModContainingCWD() module.Version {
+ 	return mms.modContainingCWD
+ }
+ 
++func (mms *MainModuleSet) HighestReplaced() map[string]string {
++	return mms.highestReplaced
++}
++
+ // GoVersion returns the go version set on the single module, in module mode,
+ // or the go.work file in workspace mode.
+ func (mms *MainModuleSet) GoVersion() string {
+@@ -217,6 +224,10 @@ func (mms *MainModuleSet) GoVersion() string {
+ 	return v
+ }
+ 
++func (mms *MainModuleSet) WorkFileReplaceMap() map[module.Version]module.Version {
++	return mms.workFileReplaceMap
++}
++
+ var MainModules *MainModuleSet
+ 
+ type Root int
+@@ -275,6 +286,9 @@ func InitWorkfile() {
+ 	case "", "auto":
+ 		workFilePath = findWorkspaceFile(base.Cwd())
+ 	default:
++		if !filepath.IsAbs(cfg.WorkFile) {
++			base.Errorf("the path provided to -workfile must be an absolute path")
++		}
+ 		workFilePath = cfg.WorkFile
+ 	}
+ }
+@@ -403,37 +417,6 @@ func Init() {
+ 			base.Fatalf("$GOPATH/go.mod exists but should not")
+ 		}
+ 	}
+-
+-	if inWorkspaceMode() {
+-		var err error
+-		workFileGoVersion, modRoots, err = loadWorkFile(workFilePath)
+-		if err != nil {
+-			base.Fatalf("reading go.work: %v", err)
+-		}
+-		_ = TODOWorkspaces("Support falling back to individual module go.sum " +
+-			"files for sums not in the workspace sum file.")
+-		modfetch.GoSumFile = workFilePath + ".sum"
+-	} else if modRoots == nil {
+-		// We're in module mode, but not inside a module.
+-		//
+-		// Commands like 'go build', 'go run', 'go list' have no go.mod file to
+-		// read or write. They would need to find and download the latest versions
+-		// of a potentially large number of modules with no way to save version
+-		// information. We can succeed slowly (but not reproducibly), but that's
+-		// not usually a good experience.
+-		//
+-		// Instead, we forbid resolving import paths to modules other than std and
+-		// cmd. Users may still build packages specified with .go files on the
+-		// command line, but they'll see an error if those files import anything
+-		// outside std.
+-		//
+-		// This can be overridden by calling AllowMissingModuleImports.
+-		// For example, 'go get' does this, since it is expected to resolve paths.
+-		//
+-		// See golang.org/issue/32027.
+-	} else {
+-		modfetch.GoSumFile = strings.TrimSuffix(modFilePath(modRoots[0]), ".mod") + ".sum"
+-	}
+ }
+ 
+ // WillBeEnabled checks whether modules should be enabled but does not
+@@ -568,16 +551,16 @@ func (goModDirtyError) Error() string {
+ 
+ var errGoModDirty error = goModDirtyError{}
+ 
+-func loadWorkFile(path string) (goVersion string, modRoots []string, err error) {
++func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []*modfile.Replace, err error) {
+ 	_ = TODOWorkspaces("Clean up and write back the go.work file: add module paths for workspace modules.")
+ 	workDir := filepath.Dir(path)
+ 	workData, err := lockedfile.Read(path)
+ 	if err != nil {
+-		return "", nil, err
++		return "", nil, nil, err
+ 	}
+ 	wf, err := modfile.ParseWork(path, workData, nil)
+ 	if err != nil {
+-		return "", nil, err
++		return "", nil, nil, err
+ 	}
+ 	if wf.Go != nil {
+ 		goVersion = wf.Go.Version
+@@ -589,12 +572,12 @@ func loadWorkFile(path string) (goVersion string, modRoots []string, err error)
+ 			modRoot = filepath.Join(workDir, modRoot)
+ 		}
+ 		if seen[modRoot] {
+-			return "", nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
++			return "", nil, nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
+ 		}
+ 		seen[modRoot] = true
+ 		modRoots = append(modRoots, modRoot)
+ 	}
+-	return goVersion, modRoots, nil
++	return goVersion, modRoots, wf.Replace, nil
+ }
+ 
+ // LoadModFile sets Target and, if there is a main module, parses the initial
+@@ -621,10 +604,44 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 	}
+ 
+ 	Init()
++	var (
++		workFileGoVersion string
++		workFileReplaces  []*modfile.Replace
++	)
++	if inWorkspaceMode() {
++		var err error
++		workFileGoVersion, modRoots, workFileReplaces, err = loadWorkFile(workFilePath)
++		if err != nil {
++			base.Fatalf("reading go.work: %v", err)
++		}
++		_ = TODOWorkspaces("Support falling back to individual module go.sum " +
++			"files for sums not in the workspace sum file.")
++		modfetch.GoSumFile = workFilePath + ".sum"
++	} else if modRoots == nil {
++		// We're in module mode, but not inside a module.
++		//
++		// Commands like 'go build', 'go run', 'go list' have no go.mod file to
++		// read or write. They would need to find and download the latest versions
++		// of a potentially large number of modules with no way to save version
++		// information. We can succeed slowly (but not reproducibly), but that's
++		// not usually a good experience.
++		//
++		// Instead, we forbid resolving import paths to modules other than std and
++		// cmd. Users may still build packages specified with .go files on the
++		// command line, but they'll see an error if those files import anything
++		// outside std.
++		//
++		// This can be overridden by calling AllowMissingModuleImports.
++		// For example, 'go get' does this, since it is expected to resolve paths.
++		//
++		// See golang.org/issue/32027.
++	} else {
++		modfetch.GoSumFile = strings.TrimSuffix(modFilePath(modRoots[0]), ".mod") + ".sum"
++	}
+ 	if len(modRoots) == 0 {
+ 		_ = TODOWorkspaces("Instead of creating a fake module with an empty modroot, make MainModules.Len() == 0 mean that we're in module mode but not inside any module.")
+ 		mainModule := module.Version{Path: "command-line-arguments"}
+-		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil}, "")
++		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil}, "", nil)
+ 		goVersion := LatestGoVersion()
+ 		rawGoVersion.Store(mainModule, goVersion)
+ 		requirements = newRequirements(pruningForGoVersion(goVersion), nil, nil)
+@@ -655,7 +672,7 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		}
+ 	}
+ 
+-	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices, workFileGoVersion)
++	MainModules = makeMainModules(mainModules, modRoots, modFiles, indices, workFileGoVersion, workFileReplaces)
+ 	setDefaultBuildMod() // possibly enable automatic vendoring
+ 	rs := requirementsFromModFiles(ctx, modFiles)
+ 
+@@ -758,7 +775,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
+ 	modFile := new(modfile.File)
+ 	modFile.AddModuleStmt(modPath)
+-	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, "")
++	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, "", nil)
+ 	addGoStmt(modFile, modFile.Module.Mod, LatestGoVersion()) // Add the go directive before converted module requirements.
+ 
+ 	convertedFrom, err := convertLegacyConfig(modFile, modRoot)
+@@ -893,7 +910,7 @@ func AllowMissingModuleImports() {
+ 
+ // makeMainModules creates a MainModuleSet and associated variables according to
+ // the given main modules.
+-func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile.File, indices []*modFileIndex, workFileGoVersion string) *MainModuleSet {
++func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile.File, indices []*modFileIndex, workFileGoVersion string, workFileReplaces []*modfile.Replace) *MainModuleSet {
+ 	for _, m := range ms {
+ 		if m.Version != "" {
+ 			panic("mainModulesCalled with module.Version with non empty Version field: " + fmt.Sprintf("%#v", m))
+@@ -901,13 +918,25 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 	}
+ 	modRootContainingCWD := findModuleRoot(base.Cwd())
+ 	mainModules := &MainModuleSet{
+-		versions:          ms[:len(ms):len(ms)],
+-		inGorootSrc:       map[module.Version]bool{},
+-		pathPrefix:        map[module.Version]string{},
+-		modRoot:           map[module.Version]string{},
+-		modFiles:          map[module.Version]*modfile.File{},
+-		indices:           map[module.Version]*modFileIndex{},
+-		workFileGoVersion: workFileGoVersion,
++		versions:           ms[:len(ms):len(ms)],
++		inGorootSrc:        map[module.Version]bool{},
++		pathPrefix:         map[module.Version]string{},
++		modRoot:            map[module.Version]string{},
++		modFiles:           map[module.Version]*modfile.File{},
++		indices:            map[module.Version]*modFileIndex{},
++		workFileGoVersion:  workFileGoVersion,
++		workFileReplaceMap: toReplaceMap(workFileReplaces),
++		highestReplaced:    map[string]string{},
++	}
++	replacedByWorkFile := make(map[string]bool)
++	replacements := make(map[module.Version]module.Version)
++	for _, r := range workFileReplaces {
++		replacedByWorkFile[r.Old.Path] = true
++		v, ok := mainModules.highestReplaced[r.Old.Path]
++		if !ok || semver.Compare(r.Old.Version, v) > 0 {
++			mainModules.highestReplaced[r.Old.Path] = r.Old.Version
++		}
++		replacements[r.Old] = r.New
+ 	}
+ 	for i, m := range ms {
+ 		mainModules.pathPrefix[m] = m.Path
+@@ -933,6 +962,24 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 				mainModules.pathPrefix[m] = ""
+ 			}
+ 		}
++
++		if modFiles[i] != nil {
++			curModuleReplaces := make(map[module.Version]bool)
++			for _, r := range modFiles[i].Replace {
++				if replacedByWorkFile[r.Old.Path] {
++					continue
++				} else if prev, ok := replacements[r.Old]; ok && !curModuleReplaces[r.Old] {
++					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go mod editwork -replace %v=[override]\" to resolve", r.Old, prev, r.New, r.Old)
++				}
++				curModuleReplaces[r.Old] = true
++				replacements[r.Old] = r.New
++
++				v, ok := mainModules.highestReplaced[r.Old.Path]
++				if !ok || semver.Compare(r.Old.Version, v) > 0 {
++					mainModules.highestReplaced[r.Old.Path] = r.Old.Version
++				}
++			}
++		}
+ 	}
+ 	return mainModules
+ }
+@@ -1471,7 +1518,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 					for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
+ 						if v, ok := rs.rootSelected(prefix); ok && v != "none" {
+ 							m := module.Version{Path: prefix, Version: v}
+-							r, _ := resolveReplacement(m)
++							r := resolveReplacement(m)
+ 							keep[r] = true
+ 						}
+ 					}
+@@ -1483,7 +1530,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 			for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
+ 				if v := mg.Selected(prefix); v != "none" {
+ 					m := module.Version{Path: prefix, Version: v}
+-					r, _ := resolveReplacement(m)
++					r := resolveReplacement(m)
+ 					keep[r] = true
+ 				}
+ 			}
+@@ -1495,7 +1542,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 		// Save sums for the root modules (or their replacements), but don't
+ 		// incur the cost of loading the graph just to find and retain the sums.
+ 		for _, m := range rs.rootModules {
+-			r, _ := resolveReplacement(m)
++			r := resolveReplacement(m)
+ 			keep[modkey(r)] = true
+ 			if which == addBuildListZipSums {
+ 				keep[r] = true
+@@ -1508,14 +1555,14 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 				// The requirements from m's go.mod file are present in the module graph,
+ 				// so they are relevant to the MVS result regardless of whether m was
+ 				// actually selected.
+-				r, _ := resolveReplacement(m)
++				r := resolveReplacement(m)
+ 				keep[modkey(r)] = true
+ 			}
+ 		})
+ 
+ 		if which == addBuildListZipSums {
+ 			for _, m := range mg.BuildList() {
+-				r, _ := resolveReplacement(m)
++				r := resolveReplacement(m)
+ 				keep[r] = true
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 3498c662f3..0f5b015000 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -607,10 +607,10 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
+ 	tryMod := func(m module.Version) (string, bool) {
+ 		var root string
+ 		var err error
+-		if repl, replModRoot := Replacement(m); repl.Path != "" && repl.Version == "" {
++		if repl := Replacement(m); repl.Path != "" && repl.Version == "" {
+ 			root = repl.Path
+ 			if !filepath.IsAbs(root) {
+-				root = filepath.Join(replModRoot, root)
++				root = filepath.Join(replaceRelativeTo(), root)
+ 			}
+ 		} else if repl.Path != "" {
+ 			root, err = modfetch.DownloadDir(repl)
+@@ -1834,7 +1834,7 @@ func (ld *loader) checkMultiplePaths() {
+ 
+ 	firstPath := map[module.Version]string{}
+ 	for _, mod := range mods {
+-		src, _ := resolveReplacement(mod)
++		src := resolveReplacement(mod)
+ 		if prev, ok := firstPath[src]; !ok {
+ 			firstPath[src] = mod.Path
+ 		} else if prev != mod.Path {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index bf05e92ba2..87e8a5e83d 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -99,14 +99,13 @@ func modFileGoVersion(modFile *modfile.File) string {
+ // A modFileIndex is an index of data corresponding to a modFile
+ // at a specific point in time.
+ type modFileIndex struct {
+-	data            []byte
+-	dataNeedsFix    bool // true if fixVersion applied a change while parsing data
+-	module          module.Version
+-	goVersionV      string // GoVersion with "v" prefix
+-	require         map[module.Version]requireMeta
+-	replace         map[module.Version]module.Version
+-	highestReplaced map[string]string // highest replaced version of each module path; empty string for wildcard-only replacements
+-	exclude         map[module.Version]bool
++	data         []byte
++	dataNeedsFix bool // true if fixVersion applied a change while parsing data
++	module       module.Version
++	goVersionV   string // GoVersion with "v" prefix
++	require      map[module.Version]requireMeta
++	replace      map[module.Version]module.Version
++	exclude      map[module.Version]bool
+ }
+ 
+ type requireMeta struct {
+@@ -187,7 +186,7 @@ func CheckRetractions(ctx context.Context, m module.Version) (err error) {
+ 		// Cannot be retracted.
+ 		return nil
+ 	}
+-	if repl, _ := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
++	if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
+ 		// All versions of the module were replaced.
+ 		// Don't load retractions, since we'd just load the replacement.
+ 		return nil
+@@ -204,11 +203,11 @@ func CheckRetractions(ctx context.Context, m module.Version) (err error) {
+ 	// We load the raw file here: the go.mod file may have a different module
+ 	// path that we expect if the module or its repository was renamed.
+ 	// We still want to apply retractions to other aliases of the module.
+-	rm, replacedFrom, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
++	rm, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
+ 	if err != nil {
+ 		return err
+ 	}
+-	summary, err := rawGoModSummary(rm, replacedFrom)
++	summary, err := rawGoModSummary(rm)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -306,66 +305,107 @@ func CheckDeprecation(ctx context.Context, m module.Version) (deprecation string
+ 		// Don't look up deprecation.
+ 		return "", nil
+ 	}
+-	if repl, _ := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
++	if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
+ 		// All versions of the module were replaced.
+ 		// We'll look up deprecation separately for the replacement.
+ 		return "", nil
+ 	}
+ 
+-	latest, replacedFrom, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
++	latest, err := queryLatestVersionIgnoringRetractions(ctx, m.Path)
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	summary, err := rawGoModSummary(latest, replacedFrom)
++	summary, err := rawGoModSummary(latest)
+ 	if err != nil {
+ 		return "", err
+ 	}
+ 	return summary.deprecated, nil
+ }
+ 
+-func replacement(mod module.Version, index *modFileIndex) (fromVersion string, to module.Version, ok bool) {
+-	if r, ok := index.replace[mod]; ok {
++func replacement(mod module.Version, replace map[module.Version]module.Version) (fromVersion string, to module.Version, ok bool) {
++	if r, ok := replace[mod]; ok {
+ 		return mod.Version, r, true
+ 	}
+-	if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
++	if r, ok := replace[module.Version{Path: mod.Path}]; ok {
+ 		return "", r, true
+ 	}
+ 	return "", module.Version{}, false
+ }
+ 
+-// Replacement returns the replacement for mod, if any, and and the module root
+-// directory of the main module containing the replace directive.
+-// If there is no replacement for mod, Replacement returns
+-// a module.Version with Path == "".
+-func Replacement(mod module.Version) (module.Version, string) {
+-	_ = TODOWorkspaces("Support replaces in the go.work file.")
++// Replacement returns the replacement for mod, if any. If the path in the
++// module.Version is relative it's relative to the single main module outside
++// workspace mode, or the workspace's directory in workspace mode.
++func Replacement(mod module.Version) module.Version {
+ 	foundFrom, found, foundModRoot := "", module.Version{}, ""
++	if MainModules == nil {
++		return module.Version{}
++	}
++	if _, r, ok := replacement(mod, MainModules.WorkFileReplaceMap()); ok {
++		return r
++	}
+ 	for _, v := range MainModules.Versions() {
+ 		if index := MainModules.Index(v); index != nil {
+-			if from, r, ok := replacement(mod, index); ok {
++			if from, r, ok := replacement(mod, index.replace); ok {
+ 				modRoot := MainModules.ModRoot(v)
+ 				if foundModRoot != "" && foundFrom != from && found != r {
+-					_ = TODOWorkspaces("once the go.work file supports replaces, recommend them as a way to override conflicts")
+ 					base.Errorf("conflicting replacements found for %v in workspace modules defined by %v and %v",
+ 						mod, modFilePath(foundModRoot), modFilePath(modRoot))
+-					return found, foundModRoot
++					return canonicalizeReplacePath(found, foundModRoot)
+ 				}
+ 				found, foundModRoot = r, modRoot
+ 			}
+ 		}
+ 	}
+-	return found, foundModRoot
++	return canonicalizeReplacePath(found, foundModRoot)
++}
++
++func replaceRelativeTo() string {
++	if workFilePath := WorkFilePath(); workFilePath != "" {
++		return filepath.Dir(workFilePath)
++	}
++	return MainModules.ModRoot(MainModules.mustGetSingleMainModule())
++}
++
++// canonicalizeReplacePath ensures that relative, on-disk, replaced module paths
++// are relative to the workspace directory (in workspace mode) or to the module's
++// directory (in module mode, as they already are).
++func canonicalizeReplacePath(r module.Version, modRoot string) module.Version {
++	if filepath.IsAbs(r.Path) || r.Version != "" {
++		return r
++	}
++	workFilePath := WorkFilePath()
++	if workFilePath == "" {
++		return r
++	}
++	abs := filepath.Join(modRoot, r.Path)
++	if rel, err := filepath.Rel(workFilePath, abs); err == nil {
++		return module.Version{Path: rel, Version: r.Version}
++	}
++	// We couldn't make the version's path relative to the workspace's path,
++	// so just return the absolute path. It's the best we can do.
++	return module.Version{Path: abs, Version: r.Version}
+ }
+ 
+ // resolveReplacement returns the module actually used to load the source code
+ // for m: either m itself, or the replacement for m (iff m is replaced).
+ // It also returns the modroot of the module providing the replacement if
+ // one was found.
+-func resolveReplacement(m module.Version) (module.Version, string) {
+-	if r, replacedFrom := Replacement(m); r.Path != "" {
+-		return r, replacedFrom
++func resolveReplacement(m module.Version) module.Version {
++	if r := Replacement(m); r.Path != "" {
++		return r
++	}
++	return m
++}
++
++func toReplaceMap(replacements []*modfile.Replace) map[module.Version]module.Version {
++	replaceMap := make(map[module.Version]module.Version, len(replacements))
++	for _, r := range replacements {
++		if prev, dup := replaceMap[r.Old]; dup && prev != r.New {
++			base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v", r.Old, prev, r.New)
++		}
++		replaceMap[r.Old] = r.New
+ 	}
+-	return m, ""
++	return replaceMap
+ }
+ 
+ // indexModFile rebuilds the index of modFile.
+@@ -396,21 +436,7 @@ func indexModFile(data []byte, modFile *modfile.File, mod module.Version, needsF
+ 		i.require[r.Mod] = requireMeta{indirect: r.Indirect}
+ 	}
+ 
+-	i.replace = make(map[module.Version]module.Version, len(modFile.Replace))
+-	for _, r := range modFile.Replace {
+-		if prev, dup := i.replace[r.Old]; dup && prev != r.New {
+-			base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v", r.Old, prev, r.New)
+-		}
+-		i.replace[r.Old] = r.New
+-	}
+-
+-	i.highestReplaced = make(map[string]string)
+-	for _, r := range modFile.Replace {
+-		v, ok := i.highestReplaced[r.Old.Path]
+-		if !ok || semver.Compare(r.Old.Version, v) > 0 {
+-			i.highestReplaced[r.Old.Path] = r.Old.Version
+-		}
+-	}
++	i.replace = toReplaceMap(modFile.Replace)
+ 
+ 	i.exclude = make(map[module.Version]bool, len(modFile.Exclude))
+ 	for _, x := range modFile.Exclude {
+@@ -552,7 +578,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 		return summary, nil
+ 	}
+ 
+-	actual, replacedFrom := resolveReplacement(m)
++	actual := resolveReplacement(m)
+ 	if HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode() && actual.Version != "" {
+ 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
+ 		if !modfetch.HaveSum(key) {
+@@ -560,7 +586,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
+ 		}
+ 	}
+-	summary, err := rawGoModSummary(actual, replacedFrom)
++	summary, err := rawGoModSummary(actual)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -625,22 +651,21 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ //
+ // rawGoModSummary cannot be used on the Target module.
+ 
+-func rawGoModSummary(m module.Version, replacedFrom string) (*modFileSummary, error) {
++func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 	if m.Path == "" && MainModules.Contains(m.Path) {
+ 		panic("internal error: rawGoModSummary called on the Target module")
+ 	}
+ 
+ 	type key struct {
+-		m            module.Version
+-		replacedFrom string
++		m module.Version
+ 	}
+ 	type cached struct {
+ 		summary *modFileSummary
+ 		err     error
+ 	}
+-	c := rawGoModSummaryCache.Do(key{m, replacedFrom}, func() interface{} {
++	c := rawGoModSummaryCache.Do(key{m}, func() interface{} {
+ 		summary := new(modFileSummary)
+-		name, data, err := rawGoModData(m, replacedFrom)
++		name, data, err := rawGoModData(m)
+ 		if err != nil {
+ 			return cached{nil, err}
+ 		}
+@@ -690,15 +715,12 @@ var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
+ //
+ // Unlike rawGoModSummary, rawGoModData does not cache its results in memory.
+ // Use rawGoModSummary instead unless you specifically need these bytes.
+-func rawGoModData(m module.Version, replacedFrom string) (name string, data []byte, err error) {
++func rawGoModData(m module.Version) (name string, data []byte, err error) {
+ 	if m.Version == "" {
+ 		// m is a replacement module with only a file path.
+ 		dir := m.Path
+ 		if !filepath.IsAbs(dir) {
+-			if replacedFrom == "" {
+-				panic(fmt.Errorf("missing module root of main module providing replacement with relative path: %v", dir))
+-			}
+-			dir = filepath.Join(replacedFrom, dir)
++			dir = filepath.Join(replaceRelativeTo(), dir)
+ 		}
+ 		name = filepath.Join(dir, "go.mod")
+ 		if gomodActual, ok := fsys.OverlayPath(name); ok {
+@@ -733,20 +755,19 @@ func rawGoModData(m module.Version, replacedFrom string) (name string, data []by
+ //
+ // If the queried latest version is replaced,
+ // queryLatestVersionIgnoringRetractions returns the replacement.
+-func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (latest module.Version, replacedFrom string, err error) {
++func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (latest module.Version, err error) {
+ 	type entry struct {
+-		latest       module.Version
+-		replacedFrom string // if latest is a replacement
+-		err          error
++		latest module.Version
++		err    error
+ 	}
+ 	e := latestVersionIgnoringRetractionsCache.Do(path, func() interface{} {
+ 		ctx, span := trace.StartSpan(ctx, "queryLatestVersionIgnoringRetractions "+path)
+ 		defer span.Done()
+ 
+-		if repl, replFrom := Replacement(module.Version{Path: path}); repl.Path != "" {
++		if repl := Replacement(module.Version{Path: path}); repl.Path != "" {
+ 			// All versions of the module were replaced.
+ 			// No need to query.
+-			return &entry{latest: repl, replacedFrom: replFrom}
++			return &entry{latest: repl}
+ 		}
+ 
+ 		// Find the latest version of the module.
+@@ -758,12 +779,12 @@ func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (la
+ 			return &entry{err: err}
+ 		}
+ 		latest := module.Version{Path: path, Version: rev.Version}
+-		if repl, replFrom := resolveReplacement(latest); repl.Path != "" {
+-			latest, replacedFrom = repl, replFrom
++		if repl := resolveReplacement(latest); repl.Path != "" {
++			latest = repl
+ 		}
+-		return &entry{latest: latest, replacedFrom: replacedFrom}
++		return &entry{latest: latest}
+ 	}).(*entry)
+-	return e.latest, e.replacedFrom, e.err
++	return e.latest, e.err
+ }
+ 
+ var latestVersionIgnoringRetractionsCache par.Cache // path → queryLatestVersionIgnoringRetractions result
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 82979fbda1..c9ed129dbf 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -513,7 +513,7 @@ func QueryPackages(ctx context.Context, pattern, query string, current func(stri
+ 	pkgMods, modOnly, err := QueryPattern(ctx, pattern, query, current, allowed)
+ 
+ 	if len(pkgMods) == 0 && err == nil {
+-		replacement, _ := Replacement(modOnly.Mod)
++		replacement := Replacement(modOnly.Mod)
+ 		return nil, &PackageNotInModuleError{
+ 			Mod:         modOnly.Mod,
+ 			Replacement: replacement,
+@@ -669,7 +669,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
+ 				if err := firstError(m); err != nil {
+ 					return r, err
+ 				}
+-				replacement, _ := Replacement(r.Mod)
++				replacement := Replacement(r.Mod)
+ 				return r, &PackageNotInModuleError{
+ 					Mod:         r.Mod,
+ 					Replacement: replacement,
+@@ -969,7 +969,7 @@ func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
+ // we don't need to verify it in go.sum. This makes 'go list -m -u' faster
+ // and simpler.
+ func versionHasGoMod(_ context.Context, m module.Version) (bool, error) {
+-	_, data, err := rawGoModData(m, "")
++	_, data, err := rawGoModData(m)
+ 	if err != nil {
+ 		return false, err
+ 	}
+@@ -996,15 +996,10 @@ func lookupRepo(proxy, path string) (repo versionRepo, err error) {
+ 		repo = emptyRepo{path: path, err: err}
+ 	}
+ 
+-	// TODO(#45713): Join all the highestReplaced fields into a single value.
+-	for _, mm := range MainModules.Versions() {
+-		index := MainModules.Index(mm)
+-		if index == nil {
+-			continue
+-		}
+-		if _, ok := index.highestReplaced[path]; ok {
+-			return &replacementRepo{repo: repo}, nil
+-		}
++	if MainModules == nil {
++		return repo, err
++	} else if _, ok := MainModules.HighestReplaced()[path]; ok {
++		return &replacementRepo{repo: repo}, nil
+ 	}
+ 
+ 	return repo, err
+@@ -1098,7 +1093,7 @@ func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
+ 		}
+ 	}
+ 
+-	if r, _ := Replacement(module.Version{Path: path, Version: v}); r.Path == "" {
++	if r := Replacement(module.Version{Path: path, Version: v}); r.Path == "" {
+ 		return info, err
+ 	}
+ 	return rr.replacementStat(v)
+@@ -1108,24 +1103,7 @@ func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
+ 	info, err := rr.repo.Latest()
+ 	path := rr.ModulePath()
+ 
+-	highestReplaced, found := "", false
+-	for _, mm := range MainModules.Versions() {
+-		if index := MainModules.Index(mm); index != nil {
+-			if v, ok := index.highestReplaced[path]; ok {
+-				if !found {
+-					highestReplaced, found = v, true
+-					continue
+-				}
+-				if semver.Compare(v, highestReplaced) > 0 {
+-					highestReplaced = v
+-				}
+-			}
+-		}
+-	}
+-
+-	if found {
+-		v := highestReplaced
+-
++	if v, ok := MainModules.HighestReplaced()[path]; ok {
+ 		if v == "" {
+ 			// The only replacement is a wildcard that doesn't specify a version, so
+ 			// synthesize a pseudo-version with an appropriate major version and a
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index daa5888075..a735cad905 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -209,7 +209,7 @@ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
+ 	}
+ 
+ 	for _, mod := range vendorReplaced {
+-		r, _ := Replacement(mod)
++		r := Replacement(mod)
+ 		if r == (module.Version{}) {
+ 			vendErrorf(mod, "is marked as replaced in vendor/modules.txt, but not replaced in go.mod")
+ 			continue
+diff --git a/src/cmd/go/testdata/script/work_edit.txt b/src/cmd/go/testdata/script/work_edit.txt
+index 001ac7f65c..979c1f98e0 100644
+--- a/src/cmd/go/testdata/script/work_edit.txt
++++ b/src/cmd/go/testdata/script/work_edit.txt
+@@ -30,7 +30,7 @@ cmp stdout go.work.want_print
+ go mod editwork -json -go 1.19 -directory b -dropdirectory c -replace 'x.1@v1.4.0 = ../z' -dropreplace x.1 -dropreplace x.1@v1.3.0
+ cmp stdout go.work.want_json
+ 
+-go mod editwork -print -fmt -workfile unformatted
++go mod editwork -print -fmt -workfile $GOPATH/src/unformatted
+ cmp stdout formatted
+ 
+ -- m/go.mod --
+diff --git a/src/cmd/go/testdata/script/work_replace.txt b/src/cmd/go/testdata/script/work_replace.txt
+new file mode 100644
+index 0000000000..5a4cb0eebb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_replace.txt
+@@ -0,0 +1,55 @@
++# Support replace statement in go.work file
++
++# Replacement in go.work file, and none in go.mod file.
++go list -m example.com/dep
++stdout 'example.com/dep v1.0.0 => ./dep'
++
++# Wildcard replacement in go.work file overrides version replacement in go.mod
++# file.
++go list -m example.com/other
++stdout 'example.com/other v1.0.0 => ./other2'
++
++-- go.work --
++directory m
++
++replace example.com/dep => ./dep
++replace example.com/other => ./other2
++
++-- m/go.mod --
++module example.com/m
++
++require example.com/dep v1.0.0
++require example.com/other v1.0.0
++
++replace example.com/other v1.0.0 => ./other
++-- m/m.go --
++package m
++
++import "example.com/dep"
++import "example.com/other"
++
++func F() {
++	dep.G()
++	other.H()
++}
++-- dep/go.mod --
++module example.com/dep
++-- dep/dep.go --
++package dep
++
++func G() {
++}
++-- other/go.mod --
++module example.com/other
++-- other/dep.go --
++package other
++
++func G() {
++}
++-- other2/go.mod --
++module example.com/other
++-- other2/dep.go --
++package other
++
++func G() {
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/work_replace_conflict.txt b/src/cmd/go/testdata/script/work_replace_conflict.txt
+new file mode 100644
+index 0000000000..a2f76d13a0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_replace_conflict.txt
+@@ -0,0 +1,53 @@
++# Conflicting replaces in workspace modules returns error that suggests
++# overriding it in the go.work file.
++
++! go list -m example.com/dep
++stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t./dep1\n\t./dep2\nuse "go mod editwork -replace example.com/dep@v1.0.0=\[override\]" to resolve'
++go mod editwork -replace example.com/dep@v1.0.0=./dep1
++go list -m example.com/dep
++stdout 'example.com/dep v1.0.0 => ./dep1'
++
++-- foo --
++-- go.work --
++directory m
++directory n
++-- m/go.mod --
++module example.com/m
++
++require example.com/dep v1.0.0
++replace example.com/dep v1.0.0 => ./dep1
++-- m/m.go --
++package m
++
++import "example.com/dep"
++
++func F() {
++	dep.G()
++}
++-- n/go.mod --
++module example.com/n
++
++require example.com/dep v1.0.0
++replace example.com/dep v1.0.0 => ./dep2
++-- n/n.go --
++package n
++
++import "example.com/dep"
++
++func F() {
++	dep.G()
++}
++-- dep1/go.mod --
++module example.com/dep
++-- dep1/dep.go --
++package dep
++
++func G() {
++}
++-- dep2/go.mod --
++module example.com/dep
++-- dep2/dep.go --
++package dep
++
++func G() {
++}
+diff --git a/src/cmd/go/testdata/script/work_replace_conflict_override.txt b/src/cmd/go/testdata/script/work_replace_conflict_override.txt
+new file mode 100644
+index 0000000000..ebb517dd7c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_replace_conflict_override.txt
+@@ -0,0 +1,57 @@
++# Conflicting workspace module replaces can be overridden by a replace in the
++# go.work file.
++
++go list -m example.com/dep
++stdout 'example.com/dep v1.0.0 => ./dep3'
++
++-- go.work --
++directory m
++directory n
++replace example.com/dep => ./dep3
++-- m/go.mod --
++module example.com/m
++
++require example.com/dep v1.0.0
++replace example.com/dep => ./dep1
++-- m/m.go --
++package m
++
++import "example.com/dep"
++
++func F() {
++	dep.G()
++}
++-- n/go.mod --
++module example.com/n
++
++require example.com/dep v1.0.0
++replace example.com/dep => ./dep2
++-- n/n.go --
++package n
++
++import "example.com/dep"
++
++func F() {
++	dep.G()
++}
++-- dep1/go.mod --
++module example.com/dep
++-- dep1/dep.go --
++package dep
++
++func G() {
++}
++-- dep2/go.mod --
++module example.com/dep
++-- dep2/dep.go --
++package dep
++
++func G() {
++}
++-- dep3/go.mod --
++module example.com/dep
++-- dep3/dep.go --
++package dep
++
++func G() {
++}

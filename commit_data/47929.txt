@@ -14,6 +14,24 @@ Date:   Wed Apr 14 23:36:14 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/liveness/plive.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 53feb6cc32..9eca05b040 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -995,9 +995,11 @@ func (lv *liveness) clobber(b *ssa.Block) {
+ // of b.Values.
+ func clobber(lv *liveness, b *ssa.Block, live bitvec.BitVec) {
+ 	for i, n := range lv.vars {
+-		if !live.Get(int32(i)) && !n.Addrtaken() {
++		if !live.Get(int32(i)) && !n.Addrtaken() && !n.OpenDeferSlot() && !n.IsOutputParamHeapAddr() {
+ 			// Don't clobber stack objects (address-taken). They are
+ 			// tracked dynamically.
++			// Also don't clobber slots that are live for defers (see
++			// the code setting livedefer in epilogue).
+ 			clobberVar(b, n)
+ 		}
+ 	}

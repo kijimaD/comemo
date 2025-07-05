@@ -9,7 +9,64 @@ Date:   Wed Dec 3 13:29:13 2008 -0800
     DELTA=11  (3 added, 1 deleted, 7 changed)
     OCL=20350
     CL=20362
-
+---
  src/lib/strconv/atof.go      | 14 ++++++++------
  src/lib/strconv/atof_test.go |  2 +-
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index 9345b99396..8869e2032c 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -110,14 +110,16 @@ var powtab = []int{
+ }
+ 
+ func DecimalToFloatBits(neg bool, d *Decimal, trunc bool, flt *FloatInfo) (b uint64, overflow bool) {
++	var exp int;
++	var mant uint64;
++
+ 	// Zero is always a special case.
+ 	if d.nd == 0 {
+-		return 0, false
++		mant = 0;
++		exp = flt.bias;
++		goto out;
+ 	}
+ 
+-	var exp int;
+-	var mant uint64;
+-
+ 	// Obvious overflow/underflow.
+ 	// These bounds are for 64-bit floats.
+ 	// Will have to change if we want to support 80-bit floats in the future.
+@@ -212,7 +214,7 @@ func DecimalToFloat64Int(neg bool, d *Decimal) float64 {
+ 		f = f*10 + float64(d.d[i] - '0');
+ 	}
+ 	if neg {
+-		f = -f;
++		f *= -1;	// BUG work around 6g f = -f.
+ 	}
+ 	return f;
+ }
+@@ -223,7 +225,7 @@ func DecimalToFloat32Int(neg bool, d *Decimal) float32 {
+ 		f = f*10 + float32(d.d[i] - '0');
+ 	}
+ 	if neg {
+-		f = -f;
++		f *= -1;	// BUG work around 6g f = -f.
+ 	}
+ 	return f;
+ }
+diff --git a/src/lib/strconv/atof_test.go b/src/lib/strconv/atof_test.go
+index cf4603f810..ab4fcd1462 100644
+--- a/src/lib/strconv/atof_test.go
++++ b/src/lib/strconv/atof_test.go
+@@ -32,7 +32,7 @@ var tests = []Test {
+ 	Test{ "100000000000000016777215", "1.0000000000000001e+23", nil },
+ 	Test{ "100000000000000016777216", "1.0000000000000003e+23", nil },
+ 	Test{ "-1", "-1", nil },
+-	Test{ "-0", "0", nil },
++	Test{ "-0", "-0", nil },
+ 	Test{ "1e-20", "1e-20", nil },
+ 	Test{ "625e-3", "0.625", nil },
+ 

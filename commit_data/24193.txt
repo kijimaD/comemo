@@ -10,6 +10,35 @@ Date:   Tue Jul 14 15:24:26 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12195
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f3ab829729..8af8ab6cc3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2191,3 +2191,23 @@ func TestGoGetDomainRoot(t *testing.T) {
+ 	tg.must(os.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
+ 	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
+ }
++
++func TestGoInstallShadowedGOPATH(t *testing.T) {
++	// golang.org/issue/3652.
++	// go get foo.io (not foo.io/subdir) was not working consistently.
++
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("gopath1")+string(filepath.ListSeparator)+tg.path("gopath2"))
++
++	tg.tempDir("gopath1/src/test")
++	tg.tempDir("gopath2/src/test")
++	tg.tempFile("gopath2/src/test/main.go", "package main\nfunc main(){}\n")
++
++	tg.cd(tg.path("gopath2/src/test"))
++	tg.runFail("install")
++	tg.grepStderr("no install location for.*gopath2.src.test: hidden by .*gopath1.src.test", "missing error")
++}

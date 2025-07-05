@@ -7,6 +7,40 @@ Date:   Fri May 13 12:14:31 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/4526052
-
+---
  misc/dashboard/builder/main.go | 15 +++++++++------
  1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index c8583f79d9..86cc0c1ca9 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -127,12 +127,6 @@ func main() {
+ 	// go continuous build mode (default)
+ 	// check for new commits and build them
+ 	for {
+-		err := run(nil, goroot, "hg", "pull", "-u")
+-		if err != nil {
+-			log.Println("hg pull failed:", err)
+-			time.Sleep(waitInterval)
+-			continue
+-		}
+ 		built := false
+ 		t := time.Nanoseconds()
+ 		if *parallel {
+@@ -247,6 +241,15 @@ func (b *Builder) build() bool {
+ 	if hash == "" {
+ 		return false
+ 	}
++	// Look for hash locally before running hg pull.
++	
++	if _, err := fullHash(hash[:12]); err != nil {
++		// Don't have hash, so run hg pull.
++		if err := run(nil, goroot, "hg", "pull"); err != nil {
++			log.Println("hg pull failed:", err)
++			return false
++		}
++	}
+ 	err = b.buildHash(hash)
+ 	if err != nil {
+ 		log.Println(err)

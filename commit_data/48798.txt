@@ -14,7 +14,7 @@ Date:   Wed Jun 9 18:51:24 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/testdata/fixedbugs/issue39634.go2 | 4 ++--
  src/go/types/testdata/fixedbugs/issue39680.go2 | 4 ++--
  src/go/types/testdata/fixedbugs/issue39699.go2 | 2 +-
@@ -26,3 +26,161 @@ Date:   Wed Jun 9 18:51:24 2021 -0400
  src/go/types/testdata/fixedbugs/issue45635.go2 | 2 +-
  src/go/types/testdata/fixedbugs/issue45985.go2 | 2 +-
  10 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/go/types/testdata/fixedbugs/issue39634.go2 b/src/go/types/testdata/fixedbugs/issue39634.go2
+index c759be0d93..8decff5291 100644
+--- a/src/go/types/testdata/fixedbugs/issue39634.go2
++++ b/src/go/types/testdata/fixedbugs/issue39634.go2
+@@ -31,12 +31,12 @@ type x7[A any] struct{ foo7 }
+ func main7() { var _ foo7 = x7[int]{} }
+ 
+ // crash 8
+-type foo8[A any] interface { type A }
++type foo8[A any] interface { ~A }
+ func bar8[A foo8[A]](a A) {}
+ func main8() {}
+ 
+ // crash 9
+-type foo9[A any] interface { type foo9 /* ERROR cannot use interface */ [A] }
++type foo9[A any] interface { ~ /* ERROR cannot use interface */ foo9 [A] }
+ func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
+ 
+ // crash 12
+diff --git a/src/go/types/testdata/fixedbugs/issue39680.go2 b/src/go/types/testdata/fixedbugs/issue39680.go2
+index 9bc26f3546..01eadd2dbf 100644
+--- a/src/go/types/testdata/fixedbugs/issue39680.go2
++++ b/src/go/types/testdata/fixedbugs/issue39680.go2
+@@ -7,13 +7,13 @@ package p
+ import "fmt"
+ 
+ // Minimal test case.
+-func _[T interface{type T}](x T) T{
++func _[T interface{~T}](x T) T{
+ 	return x
+ }
+ 
+ // Test case from issue.
+ type constr[T any] interface {
+-	type T
++	~T
+ }
+ 
+ func Print[T constr[T]](s []T) {
+diff --git a/src/go/types/testdata/fixedbugs/issue39699.go2 b/src/go/types/testdata/fixedbugs/issue39699.go2
+index 75491e7e26..72f83997c2 100644
+--- a/src/go/types/testdata/fixedbugs/issue39699.go2
++++ b/src/go/types/testdata/fixedbugs/issue39699.go2
+@@ -8,7 +8,7 @@ type T0 interface{
+ }
+ 
+ type T1 interface{
+-	type int
++	~int
+ }
+ 
+ type T2 interface{
+diff --git a/src/go/types/testdata/fixedbugs/issue39723.go2 b/src/go/types/testdata/fixedbugs/issue39723.go2
+index 61bc606789..367b3f1360 100644
+--- a/src/go/types/testdata/fixedbugs/issue39723.go2
++++ b/src/go/types/testdata/fixedbugs/issue39723.go2
+@@ -6,4 +6,4 @@ package p
+ 
+ // A constraint must be an interface; it cannot
+ // be a type parameter, for instance.
+-func _[A interface{ type int }, B A /* ERROR not an interface */ ]()
++func _[A interface{ ~int }, B A /* ERROR not an interface */ ]()
+diff --git a/src/go/types/testdata/fixedbugs/issue39755.go2 b/src/go/types/testdata/fixedbugs/issue39755.go2
+index b7ab68818e..257b73a2fb 100644
+--- a/src/go/types/testdata/fixedbugs/issue39755.go2
++++ b/src/go/types/testdata/fixedbugs/issue39755.go2
+@@ -4,14 +4,14 @@
+ 
+ package p
+ 
+-func _[T interface{type map[string]int}](x T) {
++func _[T interface{~map[string]int}](x T) {
+ 	_ = x == nil
+ }
+ 
+ // simplified test case from issue
+ 
+ type PathParamsConstraint interface {
+-        type map[string]string, []struct{key, value string}
++        ~map[string]string | ~[]struct{key, value string}
+ }
+ 
+ type PathParams[T PathParamsConstraint] struct {
+diff --git a/src/go/types/testdata/fixedbugs/issue41124.go2 b/src/go/types/testdata/fixedbugs/issue41124.go2
+index 61f766bcbd..ab535049dd 100644
+--- a/src/go/types/testdata/fixedbugs/issue41124.go2
++++ b/src/go/types/testdata/fixedbugs/issue41124.go2
+@@ -7,7 +7,7 @@ package p
+ // Test case from issue.
+ 
+ type Nat interface {
+-	type Zero, Succ
++	Zero|Succ
+ }
+ 
+ type Zero struct{}
+@@ -22,7 +22,7 @@ type I1 interface {
+ }
+ 
+ type I2 interface {
+-	type int
++	~int
+ }
+ 
+ type I3 interface {
+diff --git a/src/go/types/testdata/fixedbugs/issue42758.go2 b/src/go/types/testdata/fixedbugs/issue42758.go2
+index 698cb8a16b..bf0031f5d2 100644
+--- a/src/go/types/testdata/fixedbugs/issue42758.go2
++++ b/src/go/types/testdata/fixedbugs/issue42758.go2
+@@ -17,7 +17,7 @@ func _[T any](x interface{}){
+ }
+ 
+ type constraint interface {
+-	type int
++	~int
+ }
+ 
+ func _[T constraint](x interface{}){
+diff --git a/src/go/types/testdata/fixedbugs/issue45548.go2 b/src/go/types/testdata/fixedbugs/issue45548.go2
+index b1e42497e8..b8ba0ad4a7 100644
+--- a/src/go/types/testdata/fixedbugs/issue45548.go2
++++ b/src/go/types/testdata/fixedbugs/issue45548.go2
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-func f[F interface{type *Q}, G interface{type *R}, Q, R any](q Q, r R) {}
++func f[F interface{~*Q}, G interface{~*R}, Q, R any](q Q, r R) {}
+ 
+ func _() {
+ 	f[*float64, *int](1, 2)
+diff --git a/src/go/types/testdata/fixedbugs/issue45635.go2 b/src/go/types/testdata/fixedbugs/issue45635.go2
+index 3e2cceca2d..0f62980343 100644
+--- a/src/go/types/testdata/fixedbugs/issue45635.go2
++++ b/src/go/types/testdata/fixedbugs/issue45635.go2
+@@ -13,7 +13,7 @@ type N[T any] struct{}
+ var _ N /* ERROR "0 arguments but 1 type parameters" */ []
+ 
+ type I interface {
+-	type map[int]int, []int
++	~map[int]int | ~[]int
+ }
+ 
+ func _[T I](i, j int) {
+diff --git a/src/go/types/testdata/fixedbugs/issue45985.go2 b/src/go/types/testdata/fixedbugs/issue45985.go2
+index 550b9c6712..6e42dbb633 100644
+--- a/src/go/types/testdata/fixedbugs/issue45985.go2
++++ b/src/go/types/testdata/fixedbugs/issue45985.go2
+@@ -5,7 +5,7 @@
+ package issue45985
+ 
+ // TODO(rFindley): this error should be on app[int] below.
+-func app[S /* ERROR "type S = S does not match" */ interface{ type []T }, T any](s S, e T) S {
++func app[S /* ERROR "type S = S does not match" */ interface{ ~[]T }, T any](s S, e T) S {
+     return append(s, e)
+ }
+ 

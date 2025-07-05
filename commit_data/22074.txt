@@ -9,6 +9,18 @@ Date:   Sat Feb 21 02:53:07 2015 +0100
     Change-Id: Id21851963f7778364ba9337da3bacd312443f51f
     Reviewed-on: https://go-review.googlesource.com/5520
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/ld/lib.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index f6a89535da..4990a80535 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -346,4 +346,4 @@ void	ldmain(int, char**);
+ 
+ #pragma	varargck	argpos	diag	1
+ 
+-#define	SYMDEF	"__.GOSYMDEF"
+\ No newline at end of file
++#define	SYMDEF	"__.GOSYMDEF"

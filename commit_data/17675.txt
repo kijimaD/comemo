@@ -7,6 +7,20 @@ Date:   Mon Sep 23 01:23:42 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13830043
-
+---
  doc/go1.2.html | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index 2dc90f8368..29e42bb12b 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -175,6 +175,8 @@ include these binaries, so users of these distributions are unaffected.
+ 
+ <p>
+ When building from source, users must use "go get" to install godoc and vet.
++(The binaries will continue to be installed in their usual locations, not
++<code>$GOPATH/bin</code>.)
+ </p>
+ 
+ <pre>

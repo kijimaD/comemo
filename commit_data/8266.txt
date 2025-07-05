@@ -7,9 +7,274 @@ Date:   Thu Apr 28 13:30:53 2011 -0700
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/4452056
-
+---
  src/pkg/http/cgi/child.go      | 52 ++++++++++++++++----------------
  src/pkg/http/cgi/child_test.go | 18 ++++++-----
  src/pkg/http/cgi/host.go       |  1 +
  src/pkg/http/fcgi/child.go     | 68 ++----------------------------------------
  4 files changed, 40 insertions(+), 99 deletions(-)
+
+diff --git a/src/pkg/http/cgi/child.go b/src/pkg/http/cgi/child.go
+index e8d847d8c2..85b5ae6b27 100644
+--- a/src/pkg/http/cgi/child.go
++++ b/src/pkg/http/cgi/child.go
+@@ -22,7 +22,14 @@ import (
+ // environment. This assumes the current program is being run
+ // by a web server in a CGI environment.
+ func Request() (*http.Request, os.Error) {
+-	return requestFromEnvironment(envMap(os.Environ()))
++	r, err := RequestFromMap(envMap(os.Environ()))
++	if err != nil {
++		return nil, err
++	}
++	if r.ContentLength > 0 {
++		r.Body = ioutil.NopCloser(io.LimitReader(os.Stdin, r.ContentLength))
++	}
++	return r, nil
+ }
+ 
+ func envMap(env []string) map[string]string {
+@@ -42,37 +49,39 @@ var skipHeader = map[string]bool{
+ 	"HTTP_USER_AGENT": true,
+ }
+ 
+-func requestFromEnvironment(env map[string]string) (*http.Request, os.Error) {
++// RequestFromMap creates an http.Request from CGI variables.
++func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
+ 	r := new(http.Request)
+-	r.Method = env["REQUEST_METHOD"]
++	r.Method = params["REQUEST_METHOD"]
+ 	if r.Method == "" {
+ 		return nil, os.NewError("cgi: no REQUEST_METHOD in environment")
+ 	}
++
++	r.Proto = params["SERVER_PROTOCOL"]
++	var ok bool
++	r.ProtoMajor, r.ProtoMinor, ok = http.ParseHTTPVersion(r.Proto)
++	if !ok {
++		return nil, os.NewError("cgi: invalid SERVER_PROTOCOL version")
++	}
++
+ 	r.Close = true
+ 	r.Trailer = http.Header{}
+ 	r.Header = http.Header{}
+ 
+-	r.Host = env["HTTP_HOST"]
+-	r.Referer = env["HTTP_REFERER"]
+-	r.UserAgent = env["HTTP_USER_AGENT"]
+-
+-	// CGI doesn't allow chunked requests, so these should all be accurate:
+-	r.Proto = "HTTP/1.0"
+-	r.ProtoMajor = 1
+-	r.ProtoMinor = 0
+-	r.TransferEncoding = nil
++	r.Host = params["HTTP_HOST"]
++	r.Referer = params["HTTP_REFERER"]
++	r.UserAgent = params["HTTP_USER_AGENT"]
+ 
+-	if lenstr := env["CONTENT_LENGTH"]; lenstr != "" {
++	if lenstr := params["CONTENT_LENGTH"]; lenstr != "" {
+ 		clen, err := strconv.Atoi64(lenstr)
+ 		if err != nil {
+ 			return nil, os.NewError("cgi: bad CONTENT_LENGTH in environment: " + lenstr)
+ 		}
+ 		r.ContentLength = clen
+-		r.Body = ioutil.NopCloser(io.LimitReader(os.Stdin, clen))
+ 	}
+ 
+ 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
+-	for k, v := range env {
++	for k, v := range params {
+ 		if !strings.HasPrefix(k, "HTTP_") || skipHeader[k] {
+ 			continue
+ 		}
+@@ -84,7 +93,7 @@ func requestFromEnvironment(env map[string]string) (*http.Request, os.Error) {
+ 	if r.Host != "" {
+ 		// Hostname is provided, so we can reasonably construct a URL,
+ 		// even if we have to assume 'http' for the scheme.
+-		r.RawURL = "http://" + r.Host + env["REQUEST_URI"]
++		r.RawURL = "http://" + r.Host + params["REQUEST_URI"]
+ 		url, err := http.ParseURL(r.RawURL)
+ 		if err != nil {
+ 			return nil, os.NewError("cgi: failed to parse host and REQUEST_URI into a URL: " + r.RawURL)
+@@ -94,7 +103,7 @@ func requestFromEnvironment(env map[string]string) (*http.Request, os.Error) {
+ 	// Fallback logic if we don't have a Host header or the URL
+ 	// failed to parse
+ 	if r.URL == nil {
+-		r.RawURL = env["REQUEST_URI"]
++		r.RawURL = params["REQUEST_URI"]
+ 		url, err := http.ParseURL(r.RawURL)
+ 		if err != nil {
+ 			return nil, os.NewError("cgi: failed to parse REQUEST_URI into a URL: " + r.RawURL)
+@@ -172,12 +181,3 @@ func (r *response) WriteHeader(code int) {
+ 	r.bufw.WriteString("\r\n")
+ 	r.bufw.Flush()
+ }
+-
+-func (r *response) UsingTLS() bool {
+-	// There's apparently a de-facto standard for this.
+-	// http://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
+-	if s := os.Getenv("HTTPS"); s == "on" || s == "ON" || s == "1" {
+-		return true
+-	}
+-	return false
+-}
+diff --git a/src/pkg/http/cgi/child_test.go b/src/pkg/http/cgi/child_test.go
+index db0e09cf66..6a885e10f0 100644
+--- a/src/pkg/http/cgi/child_test.go
++++ b/src/pkg/http/cgi/child_test.go
+@@ -12,6 +12,7 @@ import (
+ 
+ func TestRequest(t *testing.T) {
+ 	env := map[string]string{
++		"SERVER_PROTOCOL": "HTTP/1.1",
+ 		"REQUEST_METHOD":  "GET",
+ 		"HTTP_HOST":       "example.com",
+ 		"HTTP_REFERER":    "elsewhere",
+@@ -20,9 +21,9 @@ func TestRequest(t *testing.T) {
+ 		"REQUEST_URI":     "/path?a=b",
+ 		"CONTENT_LENGTH":  "123",
+ 	}
+-	req, err := requestFromEnvironment(env)
++	req, err := RequestFromMap(env)
+ 	if err != nil {
+-		t.Fatalf("requestFromEnvironment: %v", err)
++		t.Fatalf("RequestFromMap: %v", err)
+ 	}
+ 	if g, e := req.UserAgent, "goclient"; e != g {
+ 		t.Errorf("expected UserAgent %q; got %q", e, g)
+@@ -62,14 +63,15 @@ func TestRequest(t *testing.T) {
+ 
+ func TestRequestWithoutHost(t *testing.T) {
+ 	env := map[string]string{
+-		"HTTP_HOST":      "",
+-		"REQUEST_METHOD": "GET",
+-		"REQUEST_URI":    "/path?a=b",
+-		"CONTENT_LENGTH": "123",
++		"SERVER_PROTOCOL": "HTTP/1.1",
++		"HTTP_HOST":       "",
++		"REQUEST_METHOD":  "GET",
++		"REQUEST_URI":     "/path?a=b",
++		"CONTENT_LENGTH":  "123",
+ 	}
+-	req, err := requestFromEnvironment(env)
++	req, err := RequestFromMap(env)
+ 	if err != nil {
+-		t.Fatalf("requestFromEnvironment: %v", err)
++		t.Fatalf("RequestFromMap: %v", err)
+ 	}
+ 	if g, e := req.RawURL, "/path?a=b"; e != g {
+ 		t.Errorf("expected RawURL %q; got %q", e, g)
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 136d4e4ee2..7726246799 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -86,6 +86,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	env := []string{
+ 		"SERVER_SOFTWARE=go",
+ 		"SERVER_NAME=" + req.Host,
++		"SERVER_PROTOCOL=HTTP/1.1",
+ 		"HTTP_HOST=" + req.Host,
+ 		"GATEWAY_INTERFACE=CGI/1.1",
+ 		"REQUEST_METHOD=" + req.Method,
+diff --git a/src/pkg/http/fcgi/child.go b/src/pkg/http/fcgi/child.go
+index 5e5f2e2c78..19718824c9 100644
+--- a/src/pkg/http/fcgi/child.go
++++ b/src/pkg/http/fcgi/child.go
+@@ -9,11 +9,10 @@ package fcgi
+ import (
+ 	"fmt"
+ 	"http"
++	"http/cgi"
+ 	"io"
+ 	"net"
+ 	"os"
+-	"strconv"
+-	"strings"
+ 	"time"
+ )
+ 
+@@ -38,68 +37,6 @@ func newRequest(reqId uint16, flags uint8) *request {
+ 	return r
+ }
+ 
+-// TODO(eds): copied from http/cgi
+-var skipHeader = map[string]bool{
+-	"HTTP_HOST":       true,
+-	"HTTP_REFERER":    true,
+-	"HTTP_USER_AGENT": true,
+-}
+-
+-// httpRequest converts r to an http.Request.
+-// TODO(eds): this is very similar to http/cgi's requestFromEnvironment
+-func (r *request) httpRequest(body io.ReadCloser) (*http.Request, os.Error) {
+-	req := &http.Request{
+-		Method:  r.params["REQUEST_METHOD"],
+-		RawURL:  r.params["REQUEST_URI"],
+-		Body:    body,
+-		Header:  http.Header{},
+-		Trailer: http.Header{},
+-		Proto:   r.params["SERVER_PROTOCOL"],
+-	}
+-
+-	var ok bool
+-	req.ProtoMajor, req.ProtoMinor, ok = http.ParseHTTPVersion(req.Proto)
+-	if !ok {
+-		return nil, os.NewError("fcgi: invalid HTTP version")
+-	}
+-
+-	req.Host = r.params["HTTP_HOST"]
+-	req.Referer = r.params["HTTP_REFERER"]
+-	req.UserAgent = r.params["HTTP_USER_AGENT"]
+-
+-	if lenstr := r.params["CONTENT_LENGTH"]; lenstr != "" {
+-		clen, err := strconv.Atoi64(r.params["CONTENT_LENGTH"])
+-		if err != nil {
+-			return nil, os.NewError("fcgi: bad CONTENT_LENGTH parameter: " + lenstr)
+-		}
+-		req.ContentLength = clen
+-	}
+-
+-	if req.Host != "" {
+-		req.RawURL = "http://" + req.Host + r.params["REQUEST_URI"]
+-		url, err := http.ParseURL(req.RawURL)
+-		if err != nil {
+-			return nil, os.NewError("fcgi: failed to parse host and REQUEST_URI into a URL: " + req.RawURL)
+-		}
+-		req.URL = url
+-	}
+-	if req.URL == nil {
+-		req.RawURL = r.params["REQUEST_URI"]
+-		url, err := http.ParseURL(req.RawURL)
+-		if err != nil {
+-			return nil, os.NewError("fcgi: failed to parse REQUEST_URI into a URL: " + req.RawURL)
+-		}
+-		req.URL = url
+-	}
+-
+-	for key, val := range r.params {
+-		if strings.HasPrefix(key, "HTTP_") && !skipHeader[key] {
+-			req.Header.Add(strings.Replace(key[5:], "_", "-", -1), val)
+-		}
+-	}
+-	return req, nil
+-}
+-
+ // parseParams reads an encoded []byte into Params.
+ func (r *request) parseParams() {
+ 	text := r.rawParams
+@@ -273,12 +210,13 @@ func (c *child) serve() {
+ 
+ func (c *child) serveRequest(req *request, body io.ReadCloser) {
+ 	r := newResponse(c, req)
+-	httpReq, err := req.httpRequest(body)
++	httpReq, err := cgi.RequestFromMap(req.params)
+ 	if err != nil {
+ 		// there was an error reading the request
+ 		r.WriteHeader(http.StatusInternalServerError)
+ 		c.conn.writeRecord(typeStderr, req.reqId, []byte(err.String()))
+ 	} else {
++		httpReq.Body = body
+ 		c.handler.ServeHTTP(r, httpReq)
+ 	}
+ 	if body != nil {

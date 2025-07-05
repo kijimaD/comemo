@@ -14,7 +14,71 @@ Date:   Tue Jun 21 04:41:38 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 11 +++++++++--
  src/cmd/compile/internal/noder/writer.go | 23 +++++++++++++++++++++--
  2 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index aa2cccf86b..bed56d1be7 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1735,8 +1735,15 @@ func (r *reader) expr() (res ir.Node) {
+ 			fun = typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, fun, sym))
+ 		}
+ 		pos := r.pos()
+-		args := r.exprs()
+-		dots := r.Bool()
++		var args ir.Nodes
++		var dots bool
++		if r.Bool() { // f(g())
++			call := r.expr()
++			args = []ir.Node{call}
++		} else {
++			args = r.exprs()
++			dots = r.Bool()
++		}
+ 		n := typecheck.Call(pos, fun, args, dots)
+ 		switch n.Op() {
+ 		case ir.OAPPEND:
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 8ef63a0085..7bbd3abc5d 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1505,8 +1505,14 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		w.Code(exprCall)
+ 		writeFunExpr()
+ 		w.pos(expr)
+-		w.exprs(expr.ArgList)
+-		w.Bool(expr.HasDots)
++		if w.Bool(len(expr.ArgList) == 1 && isMultiValueExpr(w.p.info, expr.ArgList[0])) {
++			// f(g()) call
++			assert(!expr.HasDots)
++			w.expr(expr.ArgList[0])
++		} else {
++			w.exprs(expr.ArgList)
++			w.Bool(expr.HasDots)
++		}
+ 	}
+ }
+ 
+@@ -1999,6 +2005,19 @@ func isPkgQual(info *types2.Info, sel *syntax.SelectorExpr) bool {
+ 	return false
+ }
+ 
++// isMultiValueExpr reports whether expr is a function call expression
++// that yields multiple values.
++func isMultiValueExpr(info *types2.Info, expr syntax.Expr) bool {
++	tv, ok := info.Types[expr]
++	assert(ok)
++	assert(tv.IsValue())
++	if tuple, ok := tv.Type.(*types2.Tuple); ok {
++		assert(tuple.Len() > 1)
++		return true
++	}
++	return false
++}
++
+ // recvBase returns the base type for the given receiver parameter.
+ func recvBase(recv *types2.Var) *types2.Named {
+ 	typ := recv.Type()

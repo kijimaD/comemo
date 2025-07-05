@@ -9,6 +9,24 @@ Date:   Tue May 20 14:41:24 2014 -0400
     R=iant, rsc
     CC=golang-codereviews
     https://golang.org/cl/94560043
-
+---
  src/pkg/runtime/extern.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 2466911dd6..053dc10147 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -190,10 +190,8 @@ func GOROOT() string {
+ }
+ 
+ // Version returns the Go tree's version string.
+-// It is either a sequence number or, when possible,
+-// a release tag like "release.2010-03-04".
+-// A trailing + indicates that the tree had local modifications
+-// at the time of the build.
++// It is either the commit hash and date at the time of the build or,
++// when possible, a release tag like "go1.3".
+ func Version() string {
+ 	return theVersion
+ }

@@ -14,7 +14,34 @@ Date:   Wed Jun 9 14:26:36 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/make.bash | 2 ++
  src/make.rc   | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/make.bash b/src/make.bash
+index 7986125a06..9ff471d863 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -158,6 +158,8 @@ IFS=$'\n'; for go_exe in $(type -ap go); do
+ 	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
+ 		goroot=$(GOROOT='' GOOS='' GOARCH='' "$go_exe" env GOROOT)
+ 		if [ "$goroot" != "$GOROOT" ]; then
++			printf 'WARNING: %s does not exist, found %s from env\n' "$GOROOT_BOOTSTRAP/bin/go" "$go_exe" >&2
++			printf 'WARNING: set %s as GOROOT_BOOTSTRAP\n' "$goroot" >&2
+ 			GOROOT_BOOTSTRAP=$goroot
+ 		fi
+ 	fi
+diff --git a/src/make.rc b/src/make.rc
+index 7bdc7dea1c..29d8c675db 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -58,6 +58,8 @@ for(p in $path){
+ 		if(go_exe = `{path=$p whatis go}){
+ 			goroot = `{GOROOT='' $go_exe env GOROOT}
+ 			if(! ~ $goroot $GOROOT){
++				echo 'WARNING: '$GOROOT_BOOTSTRAP'/bin/go does not exist, found '$go_exe' from env' >[1=2]
++				echo 'WARNING: set '$goroot' as GOROOT_BOOTSTRAP' >[1=2]
+ 				GOROOT_BOOTSTRAP = $goroot
+ 			}
+ 		}

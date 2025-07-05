@@ -10,6 +10,19 @@ Date:   Mon Oct 17 23:19:10 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/31324
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/testing/testing.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 7ca9d49605..3dcc5afef9 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -520,6 +520,7 @@ func (c *common) Skipf(format string, args ...interface{}) {
+ }
+ 
+ // SkipNow marks the test as having been skipped and stops its execution.
++// If a test fails (see Error, Errorf, Fail) and is then skipped, it is still considered to have failed.
+ // Execution will continue at the next test or benchmark. See also FailNow.
+ // SkipNow must be called from the goroutine running the test, not from
+ // other goroutines created during the test. Calling SkipNow does not stop

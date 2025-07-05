@@ -9,7 +9,65 @@ Date:   Mon Jun 20 10:33:07 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4654042
-
+---
  src/pkg/http/cookie.go      |  4 ++--
  src/pkg/http/cookie_test.go | 17 ++++++++++++++++-
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/cookie.go b/src/pkg/http/cookie.go
+index 29c4ea7e9a..79c239b46e 100644
+--- a/src/pkg/http/cookie.go
++++ b/src/pkg/http/cookie.go
+@@ -173,7 +173,7 @@ func readCookies(h Header, filter string) []*Cookie {
+ 	if !ok {
+ 		return cookies
+ 	}
+-Lines:
++
+ 	for _, line := range lines {
+ 		parts := strings.Split(strings.TrimSpace(line), ";", -1)
+ 		if len(parts) == 1 && parts[0] == "" {
+@@ -194,7 +194,7 @@ Lines:
+ 				continue
+ 			}
+ 			if filter != "" && filter != name {
+-				continue Lines
++				continue
+ 			}
+ 			val, success := parseCookieValue(val)
+ 			if !success {
+diff --git a/src/pkg/http/cookie_test.go b/src/pkg/http/cookie_test.go
+index 9aad167e61..d7aeda0be1 100644
+--- a/src/pkg/http/cookie_test.go
++++ b/src/pkg/http/cookie_test.go
+@@ -171,6 +171,21 @@ var readCookiesTests = []struct {
+ 			&Cookie{Name: "c2", Value: "v2"},
+ 		},
+ 	},
++	{
++		Header{"Cookie": {"Cookie-1=v$1; c2=v2"}},
++		"",
++		[]*Cookie{
++			&Cookie{Name: "Cookie-1", Value: "v$1"},
++			&Cookie{Name: "c2", Value: "v2"},
++		},
++	},
++	{
++		Header{"Cookie": {"Cookie-1=v$1; c2=v2"}},
++		"c2",
++		[]*Cookie{
++			&Cookie{Name: "c2", Value: "v2"},
++		},
++	},
+ }
+ 
+ func TestReadCookies(t *testing.T) {
+@@ -178,7 +193,7 @@ func TestReadCookies(t *testing.T) {
+ 		for n := 0; n < 2; n++ { // to verify readCookies doesn't mutate its input                                                  
+ 			c := readCookies(tt.Header, tt.Filter)
+ 			if !reflect.DeepEqual(c, tt.Cookies) {
+-				t.Errorf("#%d readCookies: have\n%s\nwant\n%s\n", i, toJSON(c), toJSON(tt.Cookies))
++				t.Errorf("#%d readCookies:\nhave: %s\nwant: %s\n", i, toJSON(c), toJSON(tt.Cookies))
+ 				continue
+ 			}
+ 		}

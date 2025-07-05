@@ -8,7 +8,7 @@ Date:   Thu Jul 31 12:43:40 2014 -0700
     R=golang-codereviews, bradfitz, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/120190044
-
+---
  src/cmd/api/goapi.go      |   2 +-
  src/cmd/gc/builtin.c      |   2 +-
  src/cmd/gc/runtime.go     |   2 +-
@@ -20,3 +20,525 @@ Date:   Thu Jul 31 12:43:40 2014 -0700
  src/pkg/runtime/slice.goc | 208 ----------------------------------------------
  src/pkg/runtime/stubs.go  |   3 +
  10 files changed, 197 insertions(+), 215 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 7216f4e0ed..932b5520f4 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -378,7 +378,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 	}
+ 	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
+ 		// Just enough to keep the api checker happy.
+-		src := "package runtime; type maptype struct{}; type _type struct{}; type alg struct{}; type mspan struct{}; type m struct{}; type lock struct{}"
++		src := "package runtime; type maptype struct{}; type _type struct{}; type alg struct{}; type mspan struct{}; type m struct{}; type lock struct{}; type slicetype struct{};"
+ 		f, err = parser.ParseFile(fset, filename, src, 0)
+ 		if err != nil {
+ 			log.Fatalf("incorrect generated file: %s", err)
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 9de934b067..4808269b7f 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -39,7 +39,7 @@ char *runtimeimport =
+ 	"func @\"\".stringtoslicerune (? string) (? []rune)\n"
+ 	"func @\"\".stringiter (? string, ? int) (? int)\n"
+ 	"func @\"\".stringiter2 (? string, ? int) (@\"\".retk·1 int, @\"\".retv·2 rune)\n"
+-	"func @\"\".copy (@\"\".to·2 any, @\"\".fr·3 any, @\"\".wid·4 uintptr) (? int)\n"
++	"func @\"\".slicecopy (@\"\".to·2 any, @\"\".fr·3 any, @\"\".wid·4 uintptr) (? int)\n"
+ 	"func @\"\".slicestringcopy (@\"\".to·2 any, @\"\".fr·3 any) (? int)\n"
+ 	"func @\"\".typ2Itab (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte) (@\"\".ret·1 *byte)\n"
+ 	"func @\"\".convI2E (@\"\".elem·2 any) (@\"\".ret·1 any)\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 2f282d6a03..0257c3c7d6 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -53,7 +53,7 @@ func stringtoslicebyte(string) []byte
+ func stringtoslicerune(string) []rune
+ func stringiter(string, int) int
+ func stringiter2(string, int) (retk int, retv rune)
+-func copy(to any, fr any, wid uintptr) int
++func slicecopy(to any, fr any, wid uintptr) int
+ func slicestringcopy(to any, fr any) int
+ 
+ // interface conversions
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e8d9e1ebcc..be929e99ed 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2623,7 +2623,7 @@ appendslice(Node *n, NodeList **init)
+ 		if(l2->type->etype == TSTRING)
+ 			fn = syslook("slicestringcopy", 1);
+ 		else
+-			fn = syslook("copy", 1);
++			fn = syslook("slicecopy", 1);
+ 		argtype(fn, l1->type);
+ 		argtype(fn, l2->type);
+ 		nt = mkcall1(fn, types[TINT], &l,
+@@ -2761,7 +2761,7 @@ copyany(Node *n, NodeList **init, int runtimecall)
+ 		if(n->right->type->etype == TSTRING)
+ 			fn = syslook("slicestringcopy", 1);
+ 		else
+-			fn = syslook("copy", 1);
++			fn = syslook("slicecopy", 1);
+ 		argtype(fn, n->left->type);
+ 		argtype(fn, n->right->type);
+ 		return mkcall1(fn, n->type, init,
+diff --git a/src/pkg/runtime/alg.goc b/src/pkg/runtime/alg.goc
+index 3db1456280..41be9c0e66 100644
+--- a/src/pkg/runtime/alg.goc
++++ b/src/pkg/runtime/alg.goc
+@@ -286,7 +286,7 @@ runtime·c128hash(uintptr *h, uintptr s, void *a)
+ }
+ 
+ void
+-runtime·slicecopy(uintptr s, void *a, void *b)
++runtime·algslicecopy(uintptr s, void *a, void *b)
+ {
+ 	USED(s);
+ 	if(b == nil) {
+@@ -445,7 +445,7 @@ runtime·algarray[] =
+ [ASTRING]	{ runtime·strhash, runtime·strequal, runtime·strprint, runtime·strcopy },
+ [AINTER]	{ runtime·interhash, runtime·interequal, runtime·interprint, runtime·intercopy },
+ [ANILINTER]	{ runtime·nilinterhash, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
+-[ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·slicecopy },
++[ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·algslicecopy },
+ [AFLOAT32]	{ runtime·f32hash, runtime·f32equal, runtime·memprint, runtime·memcopy },
+ [AFLOAT64]	{ runtime·f64hash, runtime·f64equal, runtime·memprint, runtime·memcopy },
+ [ACPLX64]	{ runtime·c64hash, runtime·c64equal, runtime·memprint, runtime·memcopy },
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index cac8f966e7..255778bd2f 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -232,6 +232,12 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
+ 	return gomallocgc(uintptr(typ.size)*n, typ, flags)
+ }
+ 
++// rawmem returns a chunk of pointerless memory.  It is
++// not zeroed.
++func rawmem(size uintptr) unsafe.Pointer {
++	return gomallocgc(size, nil, flagNoScan|flagNoZero)
++}
++
+ // round size up to next size class
+ func goroundupsize(size uintptr) uintptr {
+ 	if size < maxSmallSize {
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+new file mode 100644
+index 0000000000..5483a2084d
+--- /dev/null
++++ b/src/pkg/runtime/slice.c
+@@ -0,0 +1,27 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "arch_GOARCH.h"
++
++void
++runtime·printslice_m(G *gp)
++{
++	void *array;
++	uintptr len, cap;
++
++	array = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	len = g->m->scalararg[0];
++	cap = g->m->scalararg[1];
++
++	runtime·prints("[");
++	runtime·printint(len);
++	runtime·prints("/");
++	runtime·printint(cap);
++	runtime·prints("]");
++	runtime·printpointer(array);
++
++	runtime·gogo(&gp->sched);
++}
+diff --git a/src/pkg/runtime/slice.go b/src/pkg/runtime/slice.go
+new file mode 100644
+index 0000000000..6ed70680f3
+--- /dev/null
++++ b/src/pkg/runtime/slice.go
+@@ -0,0 +1,154 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++type sliceStruct struct {
++	array unsafe.Pointer
++	len   int
++	cap   int
++}
++
++// TODO: take uintptrs instead of int64s?
++func makeslice(t *slicetype, len64 int64, cap64 int64) sliceStruct {
++	// NOTE: The len > MaxMem/elemsize check here is not strictly necessary,
++	// but it produces a 'len out of range' error instead of a 'cap out of range' error
++	// when someone does make([]T, bignumber). 'cap out of range' is true too,
++	// but since the cap is only being supplied implicitly, saying len is clearer.
++	// See issue 4085.
++	len := int(len64)
++	if len64 < 0 || int64(len) != len64 || t.elem.size > 0 && len > int(maxMem/uintptr(t.elem.size)) {
++		panic(errorString("makeslice: len out of range"))
++	}
++	cap := int(cap64)
++	if cap < len || int64(cap) != cap64 || t.elem.size > 0 && cap > int(maxMem/uintptr(t.elem.size)) {
++		panic(errorString("makeslice: cap out of range"))
++	}
++	p := newarray(t.elem, uintptr(cap))
++	return sliceStruct{p, len, cap}
++}
++
++// TODO: take uintptr instead of int64?
++func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
++	if n < 1 {
++		panic(errorString("growslice: invalid n"))
++	}
++
++	cap64 := int64(old.cap) + n
++	cap := int(cap64)
++
++	if int64(cap) != cap64 || cap < old.cap || t.elem.size > 0 && cap > int(maxMem/uintptr(t.elem.size)) {
++		panic(errorString("growslice: cap out of range"))
++	}
++
++	if raceenabled {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := growslice
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadrangepc(old.array, old.len*int(t.elem.size), callerpc, pc)
++	}
++
++	et := t.elem
++	if et.size == 0 {
++		return sliceStruct{old.array, old.len, cap}
++	}
++
++	newcap := old.cap
++	if newcap+newcap < cap {
++		newcap = cap
++	} else {
++		for {
++			if old.len < 1024 {
++				newcap += newcap
++			} else {
++				newcap += newcap / 4
++			}
++			if newcap >= cap {
++				break
++			}
++		}
++	}
++
++	if newcap >= int(maxMem/uintptr(et.size)) {
++		panic(errorString("growslice: cap out of range"))
++	}
++	lenmem := uintptr(old.len) * uintptr(et.size)
++	capmem := goroundupsize(uintptr(newcap) * uintptr(et.size))
++	newcap = int(capmem / uintptr(et.size))
++	var p unsafe.Pointer
++	if et.kind&kindNoPointers != 0 {
++		p = rawmem(capmem)
++		memclr(add(p, lenmem), capmem-lenmem)
++	} else {
++		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan unitialized memory
++		p = newarray(et, uintptr(newcap))
++	}
++	memmove(p, old.array, lenmem)
++
++	return sliceStruct{p, old.len, newcap}
++}
++
++func slicecopy(to sliceStruct, fm sliceStruct, width uintptr) int {
++	if fm.len == 0 || to.len == 0 || width == 0 {
++		return 0
++	}
++
++	n := fm.len
++	if to.len < n {
++		n = to.len
++	}
++
++	if raceenabled {
++		callerpc := gogetcallerpc(unsafe.Pointer(&to))
++		fn := slicecopy
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racewriterangepc(to.array, n*int(width), callerpc, pc)
++		racereadrangepc(fm.array, n*int(width), callerpc, pc)
++	}
++
++	size := uintptr(n) * width
++	if size == 1 { // common case worth about 2x to do here
++		// TODO: is this still worth it with new memmove impl?
++		*(*byte)(to.array) = *(*byte)(fm.array) // known to be a byte pointer
++	} else {
++		memmove(to.array, fm.array, size)
++	}
++	return int(n)
++}
++
++func slicestringcopy(to []byte, fm string) int {
++	if len(fm) == 0 || len(to) == 0 {
++		return 0
++	}
++
++	n := len(fm)
++	if len(to) < n {
++		n = len(to)
++	}
++
++	if raceenabled {
++		callerpc := gogetcallerpc(unsafe.Pointer(&to))
++		fn := slicestringcopy
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racewriterangepc(unsafe.Pointer(&to[0]), n, callerpc, pc)
++	}
++
++	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer((*stringStruct)(unsafe.Pointer(&fm)).str), uintptr(n))
++	return n
++}
++
++var printslice_m byte
++
++func printslice(a sliceStruct) {
++	mp := acquirem()
++	mp.ptrarg[0] = a.array
++	mp.scalararg[0] = uint(a.len)
++	mp.scalararg[1] = uint(a.cap)
++	mcall(&printslice_m)
++	releasem(mp)
++}
+diff --git a/src/pkg/runtime/slice.goc b/src/pkg/runtime/slice.goc
+deleted file mode 100644
+index 1b33ea535c..0000000000
+--- a/src/pkg/runtime/slice.goc
++++ /dev/null
+@@ -1,208 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "type.h"
+-#include "typekind.h"
+-#include "malloc.h"
+-#include "race.h"
+-#include "stack.h"
+-#include "../../cmd/ld/textflag.h"
+-
+-enum
+-{
+-	debug = 0
+-};
+-
+-static	void	makeslice1(SliceType*, intgo, intgo, Slice*);
+-static	void	growslice1(SliceType*, Slice, intgo, Slice *);
+-
+-// see also unsafe·NewArray
+-func makeslice(t *SliceType, len int64, cap int64) (ret Slice) {
+-	// NOTE: The len > MaxMem/elemsize check here is not strictly necessary,
+-	// but it produces a 'len out of range' error instead of a 'cap out of range' error
+-	// when someone does make([]T, bignumber). 'cap out of range' is true too,
+-	// but since the cap is only being supplied implicitly, saying len is clearer.
+-	// See issue 4085.
+-	if(len < 0 || (intgo)len != len || t->elem->size > 0 && len > MaxMem / t->elem->size)
+-		runtime·panicstring("makeslice: len out of range");
+-
+-	if(cap < len || (intgo)cap != cap || t->elem->size > 0 && cap > MaxMem / t->elem->size)
+-		runtime·panicstring("makeslice: cap out of range");
+-
+-	makeslice1(t, len, cap, &ret);
+-
+-	if(debug) {
+-		runtime·printf("makeslice(%S, %D, %D); ret=",
+-			*t->string, len, cap);
+-		runtime·printslice(ret);
+-	}
+-}
+-
+-// Dummy word to use as base pointer for make([]T, 0).
+-// Since you cannot take the address of such a slice,
+-// you can't tell that they all have the same base pointer.
+-uintptr runtime·zerobase;
+-
+-static void
+-makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
+-{
+-	ret->len = len;
+-	ret->cap = cap;
+-	ret->array = runtime·cnewarray(t->elem, cap);
+-}
+-
+-// growslice(type *Type, x, []T, n int64) []T
+-func growslice(t *SliceType, old Slice, n int64) (ret Slice) {
+-	int64 cap;
+-	void *pc;
+-
+-	if(n < 1)
+-		runtime·panicstring("growslice: invalid n");
+-
+-	cap = old.cap + n;
+-
+-	if((intgo)cap != cap || cap < (int64)old.cap || (t->elem->size > 0 && cap > MaxMem/t->elem->size))
+-		runtime·panicstring("growslice: cap out of range");
+-
+-	if(raceenabled) {
+-		pc = runtime·getcallerpc(&t);
+-		runtime·racereadrangepc(old.array, old.len*t->elem->size, pc, runtime·growslice);
+-	}
+-
+-	growslice1(t, old, cap, &ret);
+-
+-	if(debug) {
+-		runtime·printf("growslice(%S,", *t->string);
+-		runtime·printslice(old);
+-		runtime·printf(", new cap=%D) =", cap);
+-		runtime·printslice(ret);
+-	}
+-}
+-
+-static void
+-growslice1(SliceType *t, Slice x, intgo newcap, Slice *ret)
+-{
+-	intgo newcap1;
+-	uintptr capmem, lenmem;
+-	int32 flag;
+-	Type *typ;
+-
+-	typ = t->elem;
+-	if(typ->size == 0) {
+-		*ret = x;
+-		ret->cap = newcap;
+-		return;
+-	}
+-
+-	newcap1 = x.cap;
+-	
+-	// Using newcap directly for m+m < newcap handles
+-	// both the case where m == 0 and also the case where
+-	// m+m/4 wraps around, in which case the loop
+-	// below might never terminate.
+-	if(newcap1+newcap1 < newcap)
+-		newcap1 = newcap;
+-	else {
+-		do {
+-			if(x.len < 1024)
+-				newcap1 += newcap1;
+-			else
+-				newcap1 += newcap1/4;
+-		} while(newcap1 < newcap);
+-	}
+-
+-	if(newcap1 > MaxMem/typ->size)
+-		runtime·panicstring("growslice: cap out of range");
+-	// Try to use all memory that malloc will give us...
+-	capmem = runtime·roundupsize(newcap1*typ->size);
+-	// ...but don't ask for fractional number of elements (that can confuse GC).
+-	newcap1 = capmem/typ->size;
+-	capmem = newcap1*typ->size;
+-	flag = 0;
+-	// Can't use FlagNoZero w/o FlagNoScan, because otherwise GC can scan unitialized memory.
+-	if(typ->kind&KindNoPointers)
+-		flag = FlagNoScan|FlagNoZero;
+-	ret->array = runtime·mallocgc(capmem, typ, flag);
+-	ret->len = x.len;
+-	ret->cap = newcap1;
+-	lenmem = x.len*typ->size;
+-	runtime·memmove(ret->array, x.array, lenmem);
+-	if(typ->kind&KindNoPointers)
+-		runtime·memclr(ret->array+lenmem, capmem-lenmem);
+-}
+-
+-#pragma textflag NOSPLIT
+-func copy(to Slice, fm Slice, width uintptr) (ret int) {
+-	void *pc;
+-
+-	if(fm.len == 0 || to.len == 0 || width == 0) {
+-		ret = 0;
+-		goto out;
+-	}
+-
+-	ret = fm.len;
+-	if(to.len < ret)
+-		ret = to.len;
+-
+-	if(raceenabled) {
+-		pc = runtime·getcallerpc(&to);
+-		runtime·racewriterangepc(to.array, ret*width, pc, runtime·copy);
+-		runtime·racereadrangepc(fm.array, ret*width, pc, runtime·copy);
+-	}
+-
+-	if(ret == 1 && width == 1) {	// common case worth about 2x to do here
+-		*to.array = *fm.array;	// known to be a byte pointer
+-	} else {
+-		runtime·memmove(to.array, fm.array, ret*width);
+-	}
+-
+-out:
+-
+-	if(debug) {
+-		runtime·prints("main·copy: to=");
+-		runtime·printslice(to);
+-		runtime·prints("; fm=");
+-		runtime·printslice(fm);
+-		runtime·prints("; width=");
+-		runtime·printint(width);
+-		runtime·prints("; ret=");
+-		runtime·printint(ret);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-func slicestringcopy(to Slice, fm String) (ret int) {
+-	void *pc;
+-
+-	if(fm.len == 0 || to.len == 0) {
+-		ret = 0;
+-		goto out;
+-	}
+-
+-	ret = fm.len;
+-	if(to.len < ret)
+-		ret = to.len;
+-
+-	if(raceenabled) {
+-		pc = runtime·getcallerpc(&to);
+-		runtime·racewriterangepc(to.array, ret, pc, runtime·slicestringcopy);
+-	}
+-
+-	runtime·memmove(to.array, fm.str, ret);
+-
+-out:;
+-}
+-
+-func printslice(a Slice) {
+-	runtime·prints("[");
+-	runtime·printint(a.len);
+-	runtime·prints("/");
+-	runtime·printint(a.cap);
+-	runtime·prints("]");
+-	runtime·printpointer(a.array);
+-}
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index ceb8031936..fa1fa859c8 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -27,6 +27,9 @@ func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
+ //go:noescape
+ func racereadrangepc(addr unsafe.Pointer, len int, callpc, pc uintptr)
+ 
++//go:noescape
++func racewriterangepc(addr unsafe.Pointer, len int, callpc, pc uintptr)
++
+ // Should be a built-in for unsafe.Pointer?
+ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(uintptr(p) + x)

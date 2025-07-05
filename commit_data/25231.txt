@@ -12,6 +12,19 @@ Date:   Fri Oct 9 13:02:25 2015 -0700
     Change-Id: I4769f1ffd308a48324a866592eb7fd79a4cdee54
     Reviewed-on: https://go-review.googlesource.com/15701
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/pobj.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index 5ce197725b..f6c47ddc32 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -83,7 +83,6 @@ func Ldmain() {
+ 	obj.Flagint32("R", "set address rounding `quantum`", &INITRND)
+ 	obj.Flagint64("T", "set text segment `address`", &INITTEXT)
+ 	obj.Flagfn0("V", "print version and exit", doversion)
+-	obj.Flagcount("W", "disassemble input", &Debug['W'])
+ 	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", addstrdata1)
+ 	obj.Flagcount("a", "disassemble output", &Debug['a'])
+ 	obj.Flagstr("buildid", "record `id` as Go toolchain build id", &buildid)

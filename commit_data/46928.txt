@@ -12,6 +12,18 @@ Date:   Tue Feb 16 17:55:27 2021 -0500
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/compile/internal/test/abiutils_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/test/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+index decc29667e..a0a11671e1 100644
+--- a/src/cmd/compile/internal/test/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -292,4 +292,4 @@ func TestABINumParamRegs(t *testing.T) {
+ 	nrtest(t, s, 4)
+ 	nrtest(t, a, 12)
+ 
+-}
+\ No newline at end of file
++}

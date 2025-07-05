@@ -18,8 +18,104 @@ Date:   Fri Mar 1 23:43:04 2024 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Martin Möhrmann <martin@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/fmt/fmt_test.go | 5 +++++
  src/fmt/format.go   | 8 +++++---
  src/fmt/print.go    | 3 +--
  3 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 6a79862f28..0f4a35dd6f 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1501,6 +1501,7 @@ var flagtests = []struct {
+ 	{"%-+1.2a", "[%+-1.2a]"},
+ 	{"%-+1.2abc", "[%+-1.2a]bc"},
+ 	{"%-1.2abc", "[%-1.2a]bc"},
++	{"%-0abc", "[%-0a]bc"},
+ }
+ 
+ func TestFlagParser(t *testing.T) {
+@@ -1827,6 +1828,7 @@ var formatterFlagTests = []struct {
+ 	{"%-+1.2a", flagPrinter{}, "[%+-1.2a]"},
+ 	{"%-+1.2abc", flagPrinter{}, "[%+-1.2a]bc"},
+ 	{"%-1.2abc", flagPrinter{}, "[%-1.2a]bc"},
++	{"%-0abc", flagPrinter{}, "[%-0a]bc"},
+ 
+ 	// composite values with the 'a' verb
+ 	{"%a", [1]flagPrinter{}, "[[%a]]"},
+@@ -1841,6 +1843,7 @@ var formatterFlagTests = []struct {
+ 	{"%-+1.2a", [1]flagPrinter{}, "[[%+-1.2a]]"},
+ 	{"%-+1.2abc", [1]flagPrinter{}, "[[%+-1.2a]]bc"},
+ 	{"%-1.2abc", [1]flagPrinter{}, "[[%-1.2a]]bc"},
++	{"%-0abc", [1]flagPrinter{}, "[[%-0a]]bc"},
+ 
+ 	// simple values with the 'v' verb
+ 	{"%v", flagPrinter{}, "[%v]"},
+@@ -1855,6 +1858,7 @@ var formatterFlagTests = []struct {
+ 	{"%-+1.2v", flagPrinter{}, "[%+-1.2v]"},
+ 	{"%-+1.2vbc", flagPrinter{}, "[%+-1.2v]bc"},
+ 	{"%-1.2vbc", flagPrinter{}, "[%-1.2v]bc"},
++	{"%-0vbc", flagPrinter{}, "[%-0v]bc"},
+ 
+ 	// composite values with the 'v' verb.
+ 	{"%v", [1]flagPrinter{}, "[[%v]]"},
+@@ -1869,6 +1873,7 @@ var formatterFlagTests = []struct {
+ 	{"%-+1.2v", [1]flagPrinter{}, "[[%+-1.2v]]"},
+ 	{"%-+1.2vbc", [1]flagPrinter{}, "[[%+-1.2v]]bc"},
+ 	{"%-1.2vbc", [1]flagPrinter{}, "[[%-1.2v]]bc"},
++	{"%-0vbc", [1]flagPrinter{}, "[[%-0v]]bc"},
+ }
+ 
+ func TestFormatterFlags(t *testing.T) {
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index b497ad0f1b..90e18cd696 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -77,7 +77,8 @@ func (f *fmt) writePadding(n int) {
+ 	}
+ 	// Decide which byte the padding should be filled with.
+ 	padByte := byte(' ')
+-	if f.zero {
++	// Zero padding is allowed only to the left.
++	if f.zero && !f.minus {
+ 		padByte = byte('0')
+ 	}
+ 	// Fill padding with padByte.
+@@ -225,7 +226,7 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, verb rune, digits st
+ 			f.zero = oldZero
+ 			return
+ 		}
+-	} else if f.zero && f.widPresent {
++	} else if f.zero && !f.minus && f.widPresent { // Zero padding is allowed only to the left.
+ 		prec = f.wid
+ 		if negative || f.plus || f.space {
+ 			prec-- // leave room for sign
+@@ -582,7 +583,8 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
+ 	if f.plus || num[0] != '+' {
+ 		// If we're zero padding to the left we want the sign before the leading zeros.
+ 		// Achieve this by writing the sign out and then padding the unsigned number.
+-		if f.zero && f.widPresent && f.wid > len(num) {
++		// Zero padding is allowed only to the left.
++		if f.zero && !f.minus && f.widPresent && f.wid > len(num) {
+ 			f.buf.writeByte(num[0])
+ 			f.writePadding(f.wid - len(num))
+ 			f.buf.write(num[1:])
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index cb393bd763..274e635923 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -1048,12 +1048,11 @@ formatLoop:
+ 			case '#':
+ 				p.fmt.sharp = true
+ 			case '0':
+-				p.fmt.zero = !p.fmt.minus // Only allow zero padding to the left.
++				p.fmt.zero = true
+ 			case '+':
+ 				p.fmt.plus = true
+ 			case '-':
+ 				p.fmt.minus = true
+-				p.fmt.zero = false // Do not pad with zeros to the right.
+ 			case ' ':
+ 				p.fmt.space = true
+ 			default:

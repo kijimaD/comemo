@@ -9,10 +9,112 @@ Date:   Fri Nov 5 14:02:03 2010 -0400
     R=rsc, rog, brainman
     CC=golang-dev
     https://golang.org/cl/2904041
-
+---
  src/pkg/net/fd.go         | 14 ++++++++++++++
  src/pkg/net/fd_windows.go |  5 +++++
  src/pkg/net/tcpsock.go    | 10 ++++++++++
  src/pkg/net/udpsock.go    |  5 +++++
  src/pkg/net/unixsock.go   | 10 ++++++++++
  5 files changed, 44 insertions(+)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 7d3f227c1c..d300e4bda5 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -517,3 +517,17 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
+ 	}
+ 	return nfd, nil
+ }
++
++func (fd *netFD) dup() (f *os.File, err os.Error) {
++	ns, e := syscall.Dup(fd.sysfd)
++	if e != 0 {
++		return nil, &OpError{"dup", fd.net, fd.laddr, os.Errno(e)}
++	}
++
++	// We want blocking mode for the new fd, hence the double negative.
++	if e = syscall.SetNonblock(ns, false); e != 0 {
++		return nil, &OpError{"setnonblock", fd.net, fd.laddr, os.Errno(e)}
++	}
++
++	return os.NewFile(ns, fd.sysfile.Name()), nil
++}
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index c3ed9639d2..1da2ca47ff 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -373,3 +373,8 @@ func init() {
+ 		initErr = os.NewSyscallError("WSAStartup", e)
+ 	}
+ }
++
++func (fd *netFD) dup() (f *os.File, err os.Error) {
++	// TODO: Implement this
++	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
++}
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index eb846694ba..b0cb8f9992 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -208,6 +208,11 @@ func (c *TCPConn) SetNoDelay(noDelay bool) os.Error {
+ 	return setNoDelay(c.fd, noDelay)
+ }
+ 
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *TCPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
++
+ // DialTCP is like Dial but can only connect to TCP networks
+ // and returns a TCPConn structure.
+ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
+@@ -281,3 +286,8 @@ func (l *TCPListener) Close() os.Error {
+ 
+ // Addr returns the listener's network address, a *TCPAddr.
+ func (l *TCPListener) Addr() Addr { return l.fd.laddr }
++
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (l *TCPListener) File() (f *os.File, err os.Error) { return l.fd.dup() }
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 89a074755b..0270954c17 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -274,3 +274,8 @@ func (c *UDPConn) BindToDevice(device string) os.Error {
+ 	defer c.fd.decref()
+ 	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
+ }
++
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *UDPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index 93535130a2..82c0b6d05b 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -277,6 +277,11 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+ 	return c.WriteToUnix(b, a)
+ }
+ 
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *UnixConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
++
+ // DialUnix connects to the remote address raddr on the network net,
+ // which must be "unix" or "unixgram".  If laddr is not nil, it is used
+ // as the local address for the connection.
+@@ -369,6 +374,11 @@ func (l *UnixListener) Close() os.Error {
+ // Addr returns the listener's network address.
+ func (l *UnixListener) Addr() Addr { return l.fd.laddr }
+ 
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (l *UnixListener) File() (f *os.File, err os.Error) { return l.fd.dup() }
++
+ // ListenUnixgram listens for incoming Unix datagram packets addressed to the
+ // local address laddr.  The returned connection c's ReadFrom
+ // and WriteTo methods can be used to receive and send UDP

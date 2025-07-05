@@ -21,10 +21,413 @@ Date:   Sat May 26 12:57:50 2018 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/bug248.dir/bug1.go |   2 +-
  test/fixedbugs/bug248.dir/bug2.go | 106 +++++++++++++-------------------------
  test/fixedbugs/bug248.dir/bug3.go | 102 +++++++++++++++++++++++-------------
  test/fixedbugs/bug248.go          |  54 +++----------------
  test/run.go                       |  14 ++++-
  5 files changed, 123 insertions(+), 155 deletions(-)
+
+diff --git a/test/fixedbugs/bug248.dir/bug1.go b/test/fixedbugs/bug248.dir/bug1.go
+index 78433f504d..f1db77d2f5 100644
+--- a/test/fixedbugs/bug248.dir/bug1.go
++++ b/test/fixedbugs/bug248.dir/bug1.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file
+ 
+-package p
++package q
+ 
+ type T struct {
+ 	X, Y int
+diff --git a/test/fixedbugs/bug248.dir/bug2.go b/test/fixedbugs/bug248.dir/bug2.go
+index ba547d64a1..c0fdecfdb7 100644
+--- a/test/fixedbugs/bug248.dir/bug2.go
++++ b/test/fixedbugs/bug248.dir/bug2.go
+@@ -2,19 +2,20 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file
+ 
+-package main
++package s
+ 
+ import (
+ 	p0 "./bug0"
+ 	p1 "./bug1"
+-
+-	"reflect"
+-	"strings"
+ )
+ 
++// both p0.T and p1.T are struct { X, Y int }.
++
+ var v0 p0.T
+ var v1 p1.T
+ 
++// interfaces involving the two
++
+ type I0 interface {
+ 	M(p0.T)
+ }
+@@ -23,83 +24,50 @@ type I1 interface {
+ 	M(p1.T)
+ }
+ 
++// t0 satisfies I0 and p0.I
+ type t0 int
+ 
+ func (t0) M(p0.T) {}
+ 
++// t1 satisfies I1 and p1.I
+ type t1 float64
+ 
+ func (t1) M(p1.T) {}
+ 
++// check static interface assignments
+ var i0 I0 = t0(0) // ok
+ var i1 I1 = t1(0) // ok
+ 
++var i2 I0 = t1(0) // ERROR "does not implement|incompatible"
++var i3 I1 = t0(0) // ERROR "does not implement|incompatible"
++
+ var p0i p0.I = t0(0) // ok
+ var p1i p1.I = t1(0) // ok
+ 
+-func main() {
+-	// check that reflect paths are correct,
+-	// meaning that reflect data for v0, v1 didn't get confused.
+-
+-	// path is full (rooted) path name.  check suffix for gc, prefix for gccgo
+-	if s := reflect.TypeOf(v0).PkgPath(); !strings.HasSuffix(s, "/bug0") && !strings.HasPrefix(s, "bug0") {
+-		println("bad v0 path", len(s), s)
+-		panic("fail")
+-	}
+-	if s := reflect.TypeOf(v1).PkgPath(); !strings.HasSuffix(s, "/bug1") && !strings.HasPrefix(s, "bug1") {
+-		println("bad v1 path", s)
+-		panic("fail")
+-	}
+-
+-	// check that dynamic interface check doesn't get confused
+-	var i interface{} = t0(0)
+-	if _, ok := i.(I1); ok {
+-		println("used t0 as i1")
+-		panic("fail")
+-	}
+-	if _, ok := i.(p1.I); ok {
+-		println("used t0 as p1.I")
+-		panic("fail")
+-	}
+-
+-	i = t1(1)
+-	if _, ok := i.(I0); ok {
+-		println("used t1 as i0")
+-		panic("fail")
+-	}
+-	if _, ok := i.(p0.I); ok {
+-		println("used t1 as p0.I")
+-		panic("fail")
+-	}
+-
+-	// check that type switch works.
+-	// the worry is that if p0.T and p1.T have the same hash,
+-	// the binary search will handle one of them incorrectly.
+-	for j := 0; j < 3; j++ {
+-		switch j {
+-		case 0:
+-			i = p0.T{}
+-		case 1:
+-			i = p1.T{}
+-		case 2:
+-			i = 3.14
+-		}
+-		switch i.(type) {
+-		case p0.T:
+-			if j != 0 {
+-				println("type switch p0.T")
+-				panic("fail")
+-			}
+-		case p1.T:
+-			if j != 1 {
+-				println("type switch p1.T")
+-				panic("fail")
+-			}
+-		default:
+-			if j != 2 {
+-				println("type switch default", j)
+-				panic("fail")
+-			}
+-		}
+-	}
++var p0i1 p0.I = t1(0) // ERROR "does not implement|incompatible"
++var p0i2 p1.I = t0(0) // ERROR "does not implement|incompatible"
++
++func foobar() {
++	// check that cannot assign one to the other,
++	// but can convert.
++	v0 = v1 // ERROR "assign"
++	v1 = v0 // ERROR "assign"
++
++	v0 = p0.T(v1)
++	v1 = p1.T(v0)
++
++	i0 = i1   // ERROR "cannot use|incompatible"
++	i1 = i0   // ERROR "cannot use|incompatible"
++	p0i = i1  // ERROR "cannot use|incompatible"
++	p1i = i0  // ERROR "cannot use|incompatible"
++	i0 = p1i  // ERROR "cannot use|incompatible"
++	i1 = p0i  // ERROR "cannot use|incompatible"
++	p0i = p1i // ERROR "cannot use|incompatible"
++	p1i = p0i // ERROR "cannot use|incompatible"
++
++	i0 = p0i
++	p0i = i0
++
++	i1 = p1i
++	p1i = i1
+ }
+diff --git a/test/fixedbugs/bug248.dir/bug3.go b/test/fixedbugs/bug248.dir/bug3.go
+index 4a56c5cc81..ba547d64a1 100644
+--- a/test/fixedbugs/bug248.dir/bug3.go
++++ b/test/fixedbugs/bug248.dir/bug3.go
+@@ -7,15 +7,14 @@ package main
+ import (
+ 	p0 "./bug0"
+ 	p1 "./bug1"
+-)
+ 
+-// both p0.T and p1.T are struct { X, Y int }.
++	"reflect"
++	"strings"
++)
+ 
+ var v0 p0.T
+ var v1 p1.T
+ 
+-// interfaces involving the two
+-
+ type I0 interface {
+ 	M(p0.T)
+ }
+@@ -24,50 +23,83 @@ type I1 interface {
+ 	M(p1.T)
+ }
+ 
+-// t0 satisfies I0 and p0.I
+ type t0 int
+ 
+ func (t0) M(p0.T) {}
+ 
+-// t1 satisfies I1 and p1.I
+ type t1 float64
+ 
+ func (t1) M(p1.T) {}
+ 
+-// check static interface assignments
+ var i0 I0 = t0(0) // ok
+ var i1 I1 = t1(0) // ok
+ 
+-var i2 I0 = t1(0) // ERROR "does not implement|incompatible"
+-var i3 I1 = t0(0) // ERROR "does not implement|incompatible"
+-
+ var p0i p0.I = t0(0) // ok
+ var p1i p1.I = t1(0) // ok
+ 
+-var p0i1 p0.I = t1(0) // ERROR "does not implement|incompatible"
+-var p0i2 p1.I = t0(0) // ERROR "does not implement|incompatible"
+-
+ func main() {
+-	// check that cannot assign one to the other,
+-	// but can convert.
+-	v0 = v1 // ERROR "assign"
+-	v1 = v0 // ERROR "assign"
+-
+-	v0 = p0.T(v1)
+-	v1 = p1.T(v0)
+-
+-	i0 = i1   // ERROR "cannot use|incompatible"
+-	i1 = i0   // ERROR "cannot use|incompatible"
+-	p0i = i1  // ERROR "cannot use|incompatible"
+-	p1i = i0  // ERROR "cannot use|incompatible"
+-	i0 = p1i  // ERROR "cannot use|incompatible"
+-	i1 = p0i  // ERROR "cannot use|incompatible"
+-	p0i = p1i // ERROR "cannot use|incompatible"
+-	p1i = p0i // ERROR "cannot use|incompatible"
+-
+-	i0 = p0i
+-	p0i = i0
+-
+-	i1 = p1i
+-	p1i = i1
++	// check that reflect paths are correct,
++	// meaning that reflect data for v0, v1 didn't get confused.
++
++	// path is full (rooted) path name.  check suffix for gc, prefix for gccgo
++	if s := reflect.TypeOf(v0).PkgPath(); !strings.HasSuffix(s, "/bug0") && !strings.HasPrefix(s, "bug0") {
++		println("bad v0 path", len(s), s)
++		panic("fail")
++	}
++	if s := reflect.TypeOf(v1).PkgPath(); !strings.HasSuffix(s, "/bug1") && !strings.HasPrefix(s, "bug1") {
++		println("bad v1 path", s)
++		panic("fail")
++	}
++
++	// check that dynamic interface check doesn't get confused
++	var i interface{} = t0(0)
++	if _, ok := i.(I1); ok {
++		println("used t0 as i1")
++		panic("fail")
++	}
++	if _, ok := i.(p1.I); ok {
++		println("used t0 as p1.I")
++		panic("fail")
++	}
++
++	i = t1(1)
++	if _, ok := i.(I0); ok {
++		println("used t1 as i0")
++		panic("fail")
++	}
++	if _, ok := i.(p0.I); ok {
++		println("used t1 as p0.I")
++		panic("fail")
++	}
++
++	// check that type switch works.
++	// the worry is that if p0.T and p1.T have the same hash,
++	// the binary search will handle one of them incorrectly.
++	for j := 0; j < 3; j++ {
++		switch j {
++		case 0:
++			i = p0.T{}
++		case 1:
++			i = p1.T{}
++		case 2:
++			i = 3.14
++		}
++		switch i.(type) {
++		case p0.T:
++			if j != 0 {
++				println("type switch p0.T")
++				panic("fail")
++			}
++		case p1.T:
++			if j != 1 {
++				println("type switch p1.T")
++				panic("fail")
++			}
++		default:
++			if j != 2 {
++				println("type switch default", j)
++				panic("fail")
++			}
++		}
++	}
+ }
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index a61620f23f..93d2fdb671 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -1,54 +1,12 @@
+-// +build !nacl,!js,!plan9,!windows
+-// run
++// +build !nacl,!js,!plan9
++// errorcheckandrundir -1
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package ignored
+ 
+-import (
+-	"fmt"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"regexp"
+-)
+-
+-func main() {
+-	// TODO: If we get rid of errchk, re-enable this test on Windows.
+-	errchk, err := filepath.Abs("errchk")
+-	check(err)
+-
+-	bugDir := filepath.Join(".", "fixedbugs", "bug248.dir")
+-	run("go", "tool", "compile", filepath.Join(bugDir, "bug0.go"))
+-	run("go", "tool", "compile", filepath.Join(bugDir, "bug1.go"))
+-	run("go", "tool", "compile", filepath.Join(bugDir, "bug2.go"))
+-	run(errchk, "go", "tool", "compile", "-e", filepath.Join(bugDir, "bug3.go"))
+-	run("go", "tool", "link", "bug2.o")
+-	run(fmt.Sprintf(".%ca.out", filepath.Separator))
+-
+-	os.Remove("bug0.o")
+-	os.Remove("bug1.o")
+-	os.Remove("bug2.o")
+-	os.Remove("a.out")
+-}
+-
+-var bugRE = regexp.MustCompile(`(?m)^BUG`)
+-
+-func run(name string, args ...string) {
+-	cmd := exec.Command(name, args...)
+-	out, err := cmd.CombinedOutput()
+-	if bugRE.Match(out) || err != nil {
+-		fmt.Println(string(out))
+-		fmt.Println(err)
+-		os.Exit(1)
+-	}
+-}
+-
+-func check(err error) {
+-	if err != nil {
+-		fmt.Println(err)
+-		os.Exit(1)
+-	}
+-}
++// Compile: bug0.go, bug1.go
++// Compile and errorCheck: bug2.go
++// Link and run: bug3.go
+diff --git a/test/run.go b/test/run.go
+index 93139e183e..81c0c0b929 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -524,6 +524,8 @@ func (t *test) run() {
+ 	// collect flags
+ 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
+ 		switch args[0] {
++		case "-1":
++			wantError = true
+ 		case "-0":
+ 			wantError = false
+ 		case "-s":
+@@ -681,9 +683,15 @@ func (t *test) run() {
+ 			t.err = err
+ 			return
+ 		}
++		errPkg := len(pkgs) - 1
++		if wantError && action == "errorcheckandrundir" {
++			// The last pkg should compiled successfully and will be run in next case.
++			// Preceding pkg must return an error from compileInDir.
++			errPkg--
++		}
+ 		for i, gofiles := range pkgs {
+ 			out, err := compileInDir(runcmd, longdir, flags, gofiles...)
+-			if i == len(pkgs)-1 {
++			if i == errPkg {
+ 				if wantError && err == nil {
+ 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+ 					return
+@@ -720,7 +728,9 @@ func (t *test) run() {
+ 		}
+ 		for i, gofiles := range pkgs {
+ 			_, err := compileInDir(runcmd, longdir, flags, gofiles...)
+-			if err != nil {
++			// Allow this package compilation fail based on conditions below;
++			// its errors were checked in previous case.
++			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
+ 				t.err = err
+ 				return
+ 			}

@@ -15,7 +15,48 @@ Date:   Wed Oct 30 19:49:53 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode2.go | 9 +++++++++
  src/runtime/runtime-gdb_test.go       | 2 --
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 04a2e925c3..2517f7d159 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -6,6 +6,7 @@ package ld
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/dwarf"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+@@ -95,6 +96,14 @@ func (d *deadcodePass2) init() {
+ 		names = append(names, exp)
+ 	}
+ 
++	// DWARF constant DIE symbols are not referenced, but needed by
++	// the dwarf pass.
++	if !*FlagW {
++		for _, lib := range d.ctxt.Library {
++			names = append(names, dwarf.ConstInfoPrefix+lib.Pkg)
++		}
++	}
++
+ 	for _, name := range names {
+ 		// Mark symbol as an data/ABI0 symbol.
+ 		d.mark(d.ldr.Lookup(name, 0))
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index c389b36efe..8cbc7638ca 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -489,8 +489,6 @@ func main() {
+ `
+ 
+ func TestGdbConst(t *testing.T) {
+-	t.Skip("TODO: newobj") // XXX the constant DIEs are not referenced, so they are not pulled in. Maybe it'll be fine if we rewrite linker's dwarf pass to index?
+-
+ 	checkGdbEnvironment(t)
+ 	t.Parallel()
+ 	checkGdbVersion(t)

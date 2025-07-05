@@ -16,9 +16,106 @@ Date:   Tue Feb 1 18:34:41 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3981052
-
+---
  src/cmd/5l/noop.c      |  5 +++--
  src/cmd/8l/pass.c      |  2 +-
  src/pkg/runtime/proc.c |  6 ++++--
  test/stack.go          | 27 +++++++++++++++++++++++++++
  4 files changed, 35 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 925984d756..a9439c27a6 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -330,13 +330,14 @@ noops(void)
+ 						p->from.reg = 1;
+ 						p->reg = 2;
+ 					}
+-	
++
+ 					// MOVW.LO		$autosize, R1
+ 					p = appendp(p);
+ 					p->as = AMOVW;
+ 					p->scond = C_SCOND_LO;
+ 					p->from.type = D_CONST;
+-					p->from.offset = 0;
++					/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
++					p->from.offset = autosize+160;
+ 					p->to.type = D_REG;
+ 					p->to.reg = 1;
+ 	
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index c3f1f4736f..878a73dac9 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -517,7 +517,7 @@ dostkoff(void)
+ 			p->to.type = D_DX;
+ 			/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
+ 			p->from.type = D_CONST;
+-			if(autoffset+160 > 4096)
++			if(autoffset+160+cursym->text->to.offset2 > 4096)
+ 				p->from.offset = (autoffset+160) & ~7LL;
+ 
+ 			p = appendp(p);	// save arg size in AX
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 62872d989c..998cbc7bc2 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -723,8 +723,10 @@ runtime·newstack(void)
+ 	argsize = m->moreargsize;
+ 	g1 = m->curg;
+ 
+-	if(m->morebuf.sp < g1->stackguard - StackGuard)
+-		runtime·throw("split stack overflow");
++	if(m->morebuf.sp < g1->stackguard - StackGuard) {
++		runtime·printf("runtime: split stack overflow: %p < %p\n", m->morebuf.sp, g1->stackguard - StackGuard);
++		runtime·throw("runtime: split stack overflow");
++	}
+ 
+ 	reflectcall = framesize==1;
+ 	if(reflectcall)
+diff --git a/test/stack.go b/test/stack.go
+index 816b555a4c..1fd57161ff 100644
+--- a/test/stack.go
++++ b/test/stack.go
+@@ -30,6 +30,32 @@ func d(t T) {
+ 	}
+ }
+ 
++func f0() {
++	// likely to make a new stack for f0,
++	// because the call to f1 puts 3000 bytes
++	// in our frame.
++	f1()
++}
++
++func f1() [3000]byte {
++	// likely to make a new stack for f1,
++	// because 3000 bytes were used by f0
++	// and we need 3000 more for the call
++	// to f2.  if the call to morestack in f1
++	// does not pass the frame size, the new
++	// stack (default size 5k) will not be big
++	// enough for the frame, and the morestack
++	// check in f2 will die, if we get that far 
++	// without faulting.
++	f2()
++	return [3000]byte{}
++}
++
++func f2() [3000]byte {
++	// just take up space
++	return [3000]byte{}
++}
++
+ var c = make(chan int)
+ var t T
+ var b = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+@@ -40,6 +66,7 @@ func recur(n int) {
+ 		panic("bad []byte -> string")
+ 	}
+ 	go g(c, t)
++	f0()
+ 	s := <-c
+ 	if s != len(t) {
+ 		println("bad go", s)

@@ -16,6 +16,37 @@ Date:   Mon Oct 10 13:49:54 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mheap.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 995cb2ae9c..8d8a75a8f4 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -576,6 +576,12 @@ func arenaBase(i arenaIdx) uintptr {
+ 
+ type arenaIdx uint
+ 
++// l1 returns the "l1" portion of an arenaIdx.
++//
++// Marked nosplit because it's called by spanOf and other nosplit
++// functions.
++//
++//go:nosplit
+ func (i arenaIdx) l1() uint {
+ 	if arenaL1Bits == 0 {
+ 		// Let the compiler optimize this away if there's no
+@@ -586,6 +592,12 @@ func (i arenaIdx) l1() uint {
+ 	}
+ }
+ 
++// l2 returns the "l2" portion of an arenaIdx.
++//
++// Marked nosplit because it's called by spanOf and other nosplit funcs.
++// functions.
++//
++//go:nosplit
+ func (i arenaIdx) l2() uint {
+ 	if arenaL1Bits == 0 {
+ 		return uint(i)

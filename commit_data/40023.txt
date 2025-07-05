@@ -15,6 +15,24 @@ Date:   Thu Apr 11 16:35:56 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/action.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 415df94f4a..052811d34a 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -242,7 +242,11 @@ func (b *Builder) Init() {
+ 		}
+ 		if !cfg.BuildWork {
+ 			workdir := b.WorkDir
+-			base.AtExit(func() { os.RemoveAll(workdir) })
++			base.AtExit(func() {
++				if err := os.RemoveAll(workdir); err != nil {
++					fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
++				}
++			})
+ 		}
+ 	}
+ 

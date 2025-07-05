@@ -15,7 +15,48 @@ Date:   Mon Dec 22 21:05:07 2014 -0800
     Change-Id: Ia2e0b2ba72712d73a0a48ba5a263432e0fff31a5
     Reviewed-on: https://go-review.googlesource.com/2057
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/file.go      | 11 ++++++-----
  src/os/file_unix.go |  4 ++--
  2 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 79e8fc3388..f332bc8346 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -204,14 +204,15 @@ func (f *File) WriteString(s string) (ret int, err error) {
+ func Mkdir(name string, perm FileMode) error {
+ 	e := syscall.Mkdir(name, syscallMode(perm))
+ 
+-	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
+-	if !supportsCreateWithStickyBit && e == nil && perm&ModeSticky != 0 {
+-		e = Chmod(name, perm)
+-	}
+-
+ 	if e != nil {
+ 		return &PathError{"mkdir", name, e}
+ 	}
++
++	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
++	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
++		Chmod(name, perm)
++	}
++
+ 	return nil
+ }
+ 
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index fbe05c61a0..3fb70d6bc1 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -88,8 +88,8 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 	}
+ 
+ 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
+-	if chmod && e == nil {
+-		e = Chmod(name, perm)
++	if chmod {
++		Chmod(name, perm)
+ 	}
+ 
+ 	// There's a race here with fork/exec, which we are

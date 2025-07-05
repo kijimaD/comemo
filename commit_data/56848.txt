@@ -17,7 +17,61 @@ Date:   Thu May 25 12:47:06 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/heap_test.go | 21 +++++++++++++++++++++
  src/runtime/mgc.go       |  8 ++++++--
  2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/heap_test.go b/src/runtime/heap_test.go
+new file mode 100644
+index 0000000000..4b73ab54fc
+--- /dev/null
++++ b/src/runtime/heap_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"testing"
++	_ "unsafe"
++)
++
++//go:linkname heapObjectsCanMove runtime.heapObjectsCanMove
++func heapObjectsCanMove() bool
++
++func TestHeapObjectsCanMove(t *testing.T) {
++	if heapObjectsCanMove() {
++		// If this happens (or this test stops building),
++		// it will break go4.org/unsafe/assume-no-moving-gc.
++		t.Fatalf("heap objects can move!")
++	}
++}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index d3658df489..de5ae0ae00 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -149,7 +149,7 @@ const (
+ 	sweepMinHeapDistance = 1024 * 1024
+ )
+ 
+-// heapObjectsCanMove is always false in the current garbage collector.
++// heapObjectsCanMove always returns false in the current garbage collector.
+ // It exists for go4.org/unsafe/assume-no-moving-gc, which is an
+ // unfortunate idea that had an even more unfortunate implementation.
+ // Every time a new Go release happened, the package stopped building,
+@@ -165,7 +165,11 @@ const (
+ //
+ // If the Go garbage collector ever does move heap objects, we can set
+ // this to true to break all the programs using assume-no-moving-gc.
+-var heapObjectsCanMove = false
++//
++//go:linkname heapObjectsCanMove
++func heapObjectsCanMove() bool {
++	return false
++}
+ 
+ func gcinit() {
+ 	if unsafe.Sizeof(workbuf{}) != _WorkbufSize {

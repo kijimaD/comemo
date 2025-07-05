@@ -9,6 +9,20 @@ Date:   Tue Jul 18 13:29:47 2017 -0700
     Change-Id: Ic61d7313907f58ff4027fd2eee1ddb8c1656304d
     Reviewed-on: https://go-review.googlesource.com/49712
     Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 736c9b83a4..e18a245943 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1958,7 +1958,7 @@ func StripPrefix(prefix string, h Handler) Handler {
+ 	})
+ }
+ 
+-// Redirect replies to the request with a redirect to url,
++// Redirect replies to the request with a redirect to urlStr,
+ // which may be a path relative to the request path.
+ //
+ // The provided code should be in the 3xx range and is usually

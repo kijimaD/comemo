@@ -8,7 +8,39 @@ Date:   Fri Sep 30 13:11:20 2011 +1000
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/5154046
-
+---
  doc/docs.html              | 1 +
  src/pkg/image/draw/draw.go | 8 ++++----
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index ed03a24ede..e25a538149 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -98,6 +98,7 @@ Notable articles from the <a href="http://blog.golang.org/">Go Blog</a>.
+ <li><a href="http://blog.golang.org/2011/03/gobs-of-data.html">Gobs of data</a> - the design and use of the <a href="/pkg/gob/">gob</a> package.</li>
+ <li><a href="http://blog.golang.org/2011/09/laws-of-reflection.html">The Laws of Reflection</a> - the fundamentals of the <a href="/pkg/reflect/">reflect</a> package.</li>
+ <li><a href="http://blog.golang.org/2011/09/go-image-package.html">The Go image package</a> - the fundamentals of the <a href="/pkg/image/">image</a> package.</li>
++<li><a href="http://blog.golang.org/2011/09/go-imagedraw-package.html">The Go image/draw package</a> - the fundamentals of the <a href="/pkg/image/draw/">image/draw</a> package.</li>
+ </ul>
+ 
+ <h3>Tools</h3>
+diff --git a/src/pkg/image/draw/draw.go b/src/pkg/image/draw/draw.go
+index a748ff8c77..5171e03b18 100644
+--- a/src/pkg/image/draw/draw.go
++++ b/src/pkg/image/draw/draw.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package draw provides image composition functions
+-// in the style of the Plan 9 graphics library
+-// (see http://plan9.bell-labs.com/magic/man2html/2/draw)
+-// and the X Render extension.
++// Package draw provides image composition functions.
++//
++// See "The Go image/draw package" for an introduction to this package:
++// http://blog.golang.org/2011/09/go-imagedraw-package.html
+ package draw
+ 
+ import (

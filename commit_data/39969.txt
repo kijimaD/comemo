@@ -22,6 +22,20 @@ Date:   Mon Mar 25 22:24:03 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/lock_sema.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 08dfd2b664..fcc531ce78 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -262,7 +262,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 
+ func notetsleep(n *note, ns int64) bool {
+ 	gp := getg()
+-	if gp != gp.m.g0 && gp.m.preemptoff != "" {
++	if gp != gp.m.g0 {
+ 		throw("notetsleep not on g0")
+ 	}
+ 	semacreate(gp.m)

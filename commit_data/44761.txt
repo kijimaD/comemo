@@ -10,6 +10,27 @@ Date:   Wed Apr 15 15:11:51 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228384
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.16.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 09e974d07c..b11af7fd99 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -43,6 +43,15 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h3 id="go-command">Go command</h3>
+ 
++<p><!-- golang.org/issue/24031 -->
++  <code>retract</code> directives may now be used in a <code>go.mod</code> file
++  to indicate that certain published versions of the module should not be used
++  by other modules. A module author may retract a version after a severe problem
++  is discovered or if the version was published unintentionally.<br>
++  TODO: write and link to section in golang.org/ref/mod<br>
++  TODO: write and link to tutorial or blog post
++</p>
++
+ <p>
+   TODO
+ </p>

@@ -7,8 +7,48 @@ Date:   Wed Feb 3 23:24:28 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/199082
-
+---
  src/pkg/runtime/darwin/signals.h  | 2 +-
  src/pkg/runtime/freebsd/signals.h | 2 +-
  src/pkg/runtime/linux/signals.h   | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/signals.h b/src/pkg/runtime/darwin/signals.h
+index 449a6a7db8..c93e7fbe9b 100644
+--- a/src/pkg/runtime/darwin/signals.h
++++ b/src/pkg/runtime/darwin/signals.h
+@@ -28,7 +28,7 @@ static SigTab sigtab[] = {
+ 	/* 17 */	0, "SIGSTOP: stop",
+ 	/* 18 */	Q+I+R, "SIGTSTP: keyboard stop",
+ 	/* 19 */	0, "SIGCONT: continue after stop",
+-	/* 20 */	I+R, "SIGCHLD: child status has changed",
++	/* 20 */	Q+I+R, "SIGCHLD: child status has changed",
+ 	/* 21 */	Q+I+R, "SIGTTIN: background read from tty",
+ 	/* 22 */	Q+I+R, "SIGTTOU: background write to tty",
+ 	/* 23 */	Q+I+R, "SIGIO: i/o now possible",
+diff --git a/src/pkg/runtime/freebsd/signals.h b/src/pkg/runtime/freebsd/signals.h
+index b986bcb3a3..93ff7eb981 100644
+--- a/src/pkg/runtime/freebsd/signals.h
++++ b/src/pkg/runtime/freebsd/signals.h
+@@ -28,7 +28,7 @@ static SigTab sigtab[] = {
+ 	/* 17 */	0, "SIGSTOP: stop, unblockable",
+ 	/* 18 */	Q+I+R, "SIGTSTP: stop from tty",
+ 	/* 19 */	0, "SIGCONT: continue",
+-	/* 20 */	I+R, "SIGCHLD: child status has changed",
++	/* 20 */	Q+I+R, "SIGCHLD: child status has changed",
+ 	/* 21 */	Q+I+R, "SIGTTIN: background read from tty",
+ 	/* 22 */	Q+I+R, "SIGTTOU: background write to tty",
+ 	/* 23 */	Q+I+R, "SIGIO: i/o now possible",
+diff --git a/src/pkg/runtime/linux/signals.h b/src/pkg/runtime/linux/signals.h
+index 3431cd2184..dbc87db25c 100644
+--- a/src/pkg/runtime/linux/signals.h
++++ b/src/pkg/runtime/linux/signals.h
+@@ -25,7 +25,7 @@ static SigTab sigtab[] = {
+ 	/* 14 */	Q+I+R, "SIGALRM: alarm clock",
+ 	/* 15 */	Q+R, "SIGTERM: termination",
+ 	/* 16 */	C, "SIGSTKFLT: stack fault",
+-	/* 17 */	I+R, "SIGCHLD: child status has changed",
++	/* 17 */	Q+I+R, "SIGCHLD: child status has changed",
+ 	/* 18 */	0, "SIGCONT: continue",
+ 	/* 19 */	0, "SIGSTOP: stop, unblockable",
+ 	/* 20 */	Q+I+R, "SIGTSTP: keyboard stop",

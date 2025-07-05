@@ -7,6 +7,20 @@ Date:   Thu Apr 4 16:36:10 2013 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/8248044
-
+---
  doc/code.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 04d10fc59a..10f12d987c 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -125,7 +125,7 @@ to your <code>PATH</code>:
+ </p>
+ 
+ <pre>
+-$ <b>export PATH=$PATH:$HOME/go/bin</b>
++$ <b>export PATH=$PATH:$GOPATH/bin</b>
+ </pre>
+ 
+ 

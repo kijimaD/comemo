@@ -23,9 +23,126 @@ Date:   Wed Aug 26 14:17:35 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go           | 15 +++++++++++++++
  src/cmd/cgo/main.go          |  3 ++-
  src/cmd/cgo/out.go           |  3 +++
  test/fixedbugs/issue40954.go | 35 +++++++++++++++++++++++++++++++++++
  4 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index eb6c1a5c89..730db44990 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2448,6 +2448,18 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 			tt := *t
+ 			tt.C = &TypeRepr{"%s %s", []interface{}{dt.Kind, tag}}
+ 			tt.Go = c.Ident("struct{}")
++			if dt.Kind == "struct" {
++				// We don't know what the representation of this struct is, so don't let
++				// anyone allocate one on the Go side. As a side effect of this annotation,
++				// pointers to this type will not be considered pointers in Go. They won't
++				// get writebarrier-ed or adjusted during a stack copy. This should handle
++				// all the cases badPointerTypedef used to handle, but hopefully will
++				// continue to work going forward without any more need for cgo changes.
++				tt.NotInHeap = true
++				// TODO: we should probably do the same for unions. Unions can't live
++				// on the Go heap, right? It currently doesn't work for unions because
++				// they are defined as a type alias for struct{}, not a defined type.
++			}
+ 			typedef[name.Name] = &tt
+ 			break
+ 		}
+@@ -2518,6 +2530,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 		}
+ 		t.Go = name
+ 		t.BadPointer = sub.BadPointer
++		t.NotInHeap = sub.NotInHeap
+ 		if unionWithPointer[sub.Go] {
+ 			unionWithPointer[t.Go] = true
+ 		}
+@@ -2528,6 +2541,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 			tt := *t
+ 			tt.Go = sub.Go
+ 			tt.BadPointer = sub.BadPointer
++			tt.NotInHeap = sub.NotInHeap
+ 			typedef[name.Name] = &tt
+ 		}
+ 
+@@ -3026,6 +3040,7 @@ func (c *typeConv) anonymousStructTypedef(dt *dwarf.TypedefType) bool {
+ // non-pointers in this type.
+ // TODO: Currently our best solution is to find these manually and list them as
+ // they come up. A better solution is desired.
++// Note: DEPRECATED. There is now a better solution. Search for NotInHeap in this file.
+ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
+ 	if c.badCFType(dt) {
+ 		return true
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 5a7bb3f87b..ef3ed968e4 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -151,7 +151,8 @@ type Type struct {
+ 	Go         ast.Expr
+ 	EnumValues map[string]int64
+ 	Typedef    string
+-	BadPointer bool
++	BadPointer bool // this pointer type should be represented as a uintptr (deprecated)
++	NotInHeap  bool // this type should have a go:notinheap annotation
+ }
+ 
+ // A FuncType collects information about a function type in both the C and Go worlds.
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 50d2811f1b..03b8333b10 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -108,6 +108,9 @@ func (p *Package) writeDefs() {
+ 	sort.Strings(typedefNames)
+ 	for _, name := range typedefNames {
+ 		def := typedef[name]
++		if def.NotInHeap {
++			fmt.Fprintf(fgo2, "//go:notinheap\n")
++		}
+ 		fmt.Fprintf(fgo2, "type %s ", name)
+ 		// We don't have source info for these types, so write them out without source info.
+ 		// Otherwise types would look like:
+diff --git a/test/fixedbugs/issue40954.go b/test/fixedbugs/issue40954.go
+new file mode 100644
+index 0000000000..53e9ccf387
+--- /dev/null
++++ b/test/fixedbugs/issue40954.go
+@@ -0,0 +1,35 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"unsafe"
++)
++
++//go:notinheap
++type S struct{ x int }
++
++func main() {
++	var i int
++	p := (*S)(unsafe.Pointer(uintptr(unsafe.Pointer(&i))))
++	v := uintptr(unsafe.Pointer(p))
++	// p is a pointer to a go:notinheap type. Like some C libraries,
++	// we stored an integer in that pointer. That integer just happens
++	// to be the address of i.
++	// v is also the address of i.
++	// p has a base type which is marked go:notinheap, so it
++	// should not be adjusted when the stack is copied.
++	recurse(100, p, v)
++}
++func recurse(n int, p *S, v uintptr) {
++	if n > 0 {
++		recurse(n-1, p, v)
++	}
++	if uintptr(unsafe.Pointer(p)) != v {
++		panic("adjusted notinheap pointer")
++	}
++}

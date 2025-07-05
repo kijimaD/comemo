@@ -17,10 +17,122 @@ Date:   Wed Nov 10 11:21:57 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/doc/reader.go                  | 21 +++++++++++++++++++++
  src/go/doc/testdata/generics.0.golden |  6 ++++++
  src/go/doc/testdata/generics.1.golden |  6 ++++++
  src/go/doc/testdata/generics.2.golden |  6 ++++++
  src/go/doc/testdata/generics.go       | 13 +++++++++++++
  5 files changed, 52 insertions(+)
+
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index 348b9b59a0..7ff868f062 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -425,6 +425,11 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ 				factoryType = t.Elt
+ 			}
+ 			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) && !r.isPredeclared(n) {
++				if lookupTypeParam(n, fun.Type.TypeParams) != nil {
++					// Issue #49477: don't associate fun with its type parameter result.
++					// A type parameter is not a defined type.
++					continue
++				}
+ 				if t := r.lookupType(n); t != nil {
+ 					typ = t
+ 					numResultTypes++
+@@ -446,6 +451,22 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ 	r.funcs.set(fun, r.mode&PreserveAST != 0)
+ }
+ 
++// lookupTypeParam searches for type parameters named name within the tparams
++// field list, returning the relevant identifier if found, or nil if not.
++func lookupTypeParam(name string, tparams *ast.FieldList) *ast.Ident {
++	if tparams == nil {
++		return nil
++	}
++	for _, field := range tparams.List {
++		for _, id := range field.Names {
++			if id.Name == name {
++				return id
++			}
++		}
++	}
++	return nil
++}
++
+ var (
+ 	noteMarker    = `([A-Z][A-Z]+)\(([^)]+)\):?`                // MARKER(uid), MARKER at least 2 chars, uid at least 1 char
+ 	noteMarkerRx  = lazyregexp.New(`^[ \t]*` + noteMarker)      // MARKER(uid) at text start
+diff --git a/src/go/doc/testdata/generics.0.golden b/src/go/doc/testdata/generics.0.golden
+index a6dbcf673c..91c874c84d 100644
+--- a/src/go/doc/testdata/generics.0.golden
++++ b/src/go/doc/testdata/generics.0.golden
+@@ -14,6 +14,12 @@ FUNCTIONS
+ 	// Func has an instantiated constraint. 
+ 	func Func[T Constraint[string, Type[int]]]()
+ 
++	// Single is not a factory function. 
++	func Single[T any]() *T
++
++	// Slice is not a factory function. 
++	func Slice[T any]() []T
++
+ 
+ TYPES
+ 	// AFuncType demonstrates filtering of parameters and type ...
+diff --git a/src/go/doc/testdata/generics.1.golden b/src/go/doc/testdata/generics.1.golden
+index c0548b5e96..923a4ce5d9 100644
+--- a/src/go/doc/testdata/generics.1.golden
++++ b/src/go/doc/testdata/generics.1.golden
+@@ -14,6 +14,12 @@ FUNCTIONS
+ 	// Func has an instantiated constraint. 
+ 	func Func[T Constraint[string, Type[int]]]()
+ 
++	// Single is not a factory function. 
++	func Single[T any]() *T
++
++	// Slice is not a factory function. 
++	func Slice[T any]() []T
++
+ 
+ TYPES
+ 	// AFuncType demonstrates filtering of parameters and type ...
+diff --git a/src/go/doc/testdata/generics.2.golden b/src/go/doc/testdata/generics.2.golden
+index a6dbcf673c..91c874c84d 100644
+--- a/src/go/doc/testdata/generics.2.golden
++++ b/src/go/doc/testdata/generics.2.golden
+@@ -14,6 +14,12 @@ FUNCTIONS
+ 	// Func has an instantiated constraint. 
+ 	func Func[T Constraint[string, Type[int]]]()
+ 
++	// Single is not a factory function. 
++	func Single[T any]() *T
++
++	// Slice is not a factory function. 
++	func Slice[T any]() []T
++
+ 
+ TYPES
+ 	// AFuncType demonstrates filtering of parameters and type ...
+diff --git a/src/go/doc/testdata/generics.go b/src/go/doc/testdata/generics.go
+index b5debba437..ba7187e4dd 100644
+--- a/src/go/doc/testdata/generics.go
++++ b/src/go/doc/testdata/generics.go
+@@ -59,3 +59,16 @@ func AnotherFunc[T ~struct{ f int }](_ struct{ f int }) {}
+ // don't filter type parameters (to be consistent with function declarations),
+ // but DO filter the RHS.
+ type AFuncType[T ~struct{ f int }] func(_ struct{ f int })
++
++// See issue #49477: type parameters should not be interpreted as named types
++// for the purpose of determining whether a function is a factory function.
++
++// Slice is not a factory function.
++func Slice[T any]() []T {
++	return nil
++}
++
++// Single is not a factory function.
++func Single[T any]() *T {
++	return nil
++}

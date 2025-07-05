@@ -24,7 +24,108 @@ Date:   Tue Feb 7 19:28:15 2023 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/escape/call.go | 18 +++++++++++++++++-
  test/fixedbugs/issue58341.go            | 30 ++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index f9eced7dc0..154daa2d65 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -19,7 +19,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
+ 	var init ir.Nodes
+ 	e.callCommon(ks, call, &init, nil)
+ 	if len(init) != 0 {
+-		call.(*ir.CallExpr).PtrInit().Append(init...)
++		call.(ir.InitNode).PtrInit().Append(init...)
+ 	}
+ }
+ 
+@@ -38,6 +38,18 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		argumentFunc(nil, k, argp)
+ 	}
+ 
++	argumentRType := func(rtypep *ir.Node) {
++		rtype := *rtypep
++		if rtype == nil {
++			return
++		}
++		// common case: static rtype/itab argument, which can be evaluated within the wrapper instead.
++		if addr, ok := rtype.(*ir.AddrExpr); ok && addr.Op() == ir.OADDR && addr.X.Op() == ir.OLINKSYMOFFSET {
++			return
++		}
++		e.wrapExpr(rtype.Pos(), rtypep, init, call, wrapper)
++	}
++
+ 	switch call.Op() {
+ 	default:
+ 		ir.Dump("esc", call)
+@@ -152,6 +164,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 				argument(e.heapHole(), &args[i])
+ 			}
+ 		}
++		argumentRType(&call.RType)
+ 
+ 	case ir.OCOPY:
+ 		call := call.(*ir.BinaryExpr)
+@@ -162,6 +175,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 			copiedK = e.heapHole().deref(call, "copied slice")
+ 		}
+ 		argument(copiedK, &call.Y)
++		argumentRType(&call.RType)
+ 
+ 	case ir.OPANIC:
+ 		call := call.(*ir.UnaryExpr)
+@@ -178,6 +192,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		for i := range call.Args {
+ 			argument(e.discardHole(), &call.Args[i])
+ 		}
++		argumentRType(&call.RType)
+ 
+ 	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE, ir.OCLEAR:
+ 		call := call.(*ir.UnaryExpr)
+@@ -191,6 +206,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 		call := call.(*ir.BinaryExpr)
+ 		argument(ks[0], &call.X)
+ 		argument(e.discardHole(), &call.Y)
++		argumentRType(&call.RType)
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/issue58341.go b/test/fixedbugs/issue58341.go
+new file mode 100644
+index 0000000000..c7b09bee9f
+--- /dev/null
++++ b/test/fixedbugs/issue58341.go
+@@ -0,0 +1,30 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S[T comparable] struct {
++	m map[T]T
++}
++
++func (s S[T]) M1(node T) {
++	defer delete(s.m, node)
++}
++
++func (s S[T]) M2(node T) {
++	defer func() {
++		delete(s.m, node)
++	}()
++}
++
++func (s S[T]) M3(node T) {
++	defer f(s.m, node)
++}
++
++//go:noinline
++func f[T comparable](map[T]T, T) {}
++
++var _ = S[int]{}

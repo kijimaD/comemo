@@ -19,7 +19,7 @@ Date:   Wed Sep 22 17:08:00 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 40 ++++++++++++-
  src/cmd/compile/internal/types2/expr.go        |  6 +-
  test/fixedbugs/issue19323.go                   |  2 +-
@@ -27,3 +27,226 @@ Date:   Wed Sep 22 17:08:00 2021 -0700
  test/fixedbugs/issue27595.go                   |  2 +-
  test/fixedbugs/issue48558.go                   | 77 ++++++++++++++++++++++++++
  6 files changed, 124 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 29d63cf819..a1847b21ca 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -6,7 +6,10 @@
+ 
+ package types2
+ 
+-import "cmd/compile/internal/syntax"
++import (
++	"cmd/compile/internal/syntax"
++	"fmt"
++)
+ 
+ // assignment reports whether x can be assigned to a variable of type T,
+ // if necessary by attempting to convert untyped values to the appropriate
+@@ -236,6 +239,28 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+ 	return x.typ
+ }
+ 
++func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
++	measure := func(x int, unit string) string {
++		s := fmt.Sprintf("%d %s", x, unit)
++		if x != 1 {
++			s += "s"
++		}
++		return s
++	}
++
++	vars := measure(nvars, "variable")
++	vals := measure(nvals, "value")
++	rhs0 := rhs[0]
++
++	if len(rhs) == 1 {
++		if call, _ := unparen(rhs0).(*syntax.CallExpr); call != nil {
++			check.errorf(rhs0, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
++			return
++		}
++	}
++	check.errorf(rhs0, "assignment mismatch: %s but %s", vars, vals)
++}
++
+ // If returnPos is valid, initVars is called to type-check the assignment of
+ // return expressions, and returnPos is the position of the return statement.
+ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syntax.Pos) {
+@@ -244,6 +269,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
+ 	if len(lhs) != len(rhs) {
+ 		// invalidate lhs
+ 		for _, obj := range lhs {
++			obj.used = true // avoid declared but not used errors
+ 			if obj.typ == nil {
+ 				obj.typ = Typ[Invalid]
+ 			}
+@@ -258,7 +284,11 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnPos syn
+ 			check.errorf(returnPos, "wrong number of return values (want %d, got %d)", len(lhs), len(rhs))
+ 			return
+ 		}
+-		check.errorf(rhs[0], "cannot initialize %d variables with %d values", len(lhs), len(rhs))
++		if check.conf.CompilerErrorMessages {
++			check.assignError(orig_rhs, len(lhs), len(rhs))
++		} else {
++			check.errorf(rhs[0], "cannot initialize %d variables with %d values", len(lhs), len(rhs))
++		}
+ 		return
+ 	}
+ 
+@@ -292,7 +322,11 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 				return
+ 			}
+ 		}
+-		check.errorf(rhs[0], "cannot assign %d values to %d variables", len(rhs), len(lhs))
++		if check.conf.CompilerErrorMessages {
++			check.assignError(orig_rhs, len(lhs), len(rhs))
++		} else {
++			check.errorf(rhs[0], "cannot assign %d values to %d variables", len(rhs), len(lhs))
++		}
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 99204762bc..12b7b6cd9f 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1689,7 +1689,11 @@ func (check *Checker) singleValue(x *operand) {
+ 		// tuple types are never named - no need for underlying type below
+ 		if t, ok := x.typ.(*Tuple); ok {
+ 			assert(t.Len() != 1)
+-			check.errorf(x, "%d-valued %s where single value is expected", t.Len(), x)
++			if check.conf.CompilerErrorMessages {
++				check.errorf(x, "multiple-value %s in single-value context", x)
++			} else {
++				check.errorf(x, "%d-valued %s where single value is expected", t.Len(), x)
++			}
+ 			x.mode = invalid
+ 		}
+ 	}
+diff --git a/test/fixedbugs/issue19323.go b/test/fixedbugs/issue19323.go
+index 77cac3ee16..5db0a48a34 100644
+--- a/test/fixedbugs/issue19323.go
++++ b/test/fixedbugs/issue19323.go
+@@ -15,5 +15,5 @@ func f() {
+ func g2() ([]byte, []byte) { return nil, nil }
+ 
+ func f2() {
+-	g2()[:] // ERROR "multiple-value g2.. in single-value context|attempt to slice object that is not|2\-valued g"
++	g2()[:] // ERROR "multiple-value g2.* in single-value context|attempt to slice object that is not|2\-valued g"
+ }
+diff --git a/test/fixedbugs/issue26616.go b/test/fixedbugs/issue26616.go
+index d5210e87b0..edf88d489e 100644
+--- a/test/fixedbugs/issue26616.go
++++ b/test/fixedbugs/issue26616.go
+@@ -6,11 +6,11 @@
+ 
+ package p
+ 
+-var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|3\-valued"
++var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|multiple-value "
+ 
+ func f() {
+-	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|3\-valued"
+-	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|3\-valued"
++	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|multiple-value "
++	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|multiple-value "
+ 	a = three()         // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|cannot assign"
+ 	b := three()        // ERROR "assignment mismatch: 1 variable but three returns 3 values|single variable set to multiple-value|multiple-value function call in single-value context|cannot initialize"
+ 	_, _ = a, b
+diff --git a/test/fixedbugs/issue27595.go b/test/fixedbugs/issue27595.go
+index 2fc0eb2a58..86fb6384cd 100644
+--- a/test/fixedbugs/issue27595.go
++++ b/test/fixedbugs/issue27595.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-var a = twoResults()       // ERROR "assignment mismatch: 1 variable but twoResults returns 2 values|2\-valued"
++var a = twoResults()       // ERROR "assignment mismatch: 1 variable but twoResults returns 2 values|multiple-value twoResults\(\) .*in single-value context"
+ var b, c, d = twoResults() // ERROR "assignment mismatch: 3 variables but twoResults returns 2 values|cannot initialize"
+ var e, f = oneResult()     // ERROR "assignment mismatch: 2 variables but oneResult returns 1 value|cannot initialize"
+ 
+diff --git a/test/fixedbugs/issue48558.go b/test/fixedbugs/issue48558.go
+new file mode 100644
+index 0000000000..9ab56d9e46
+--- /dev/null
++++ b/test/fixedbugs/issue48558.go
+@@ -0,0 +1,77 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(a, b, c int) {
++	_ = a
++	_ = a, b    // ERROR "assignment mismatch: 1 variable but 2 values"
++	_ = a, b, c // ERROR "assignment mismatch: 1 variable but 3 values"
++
++	_, _ = a // ERROR "assignment mismatch: 2 variables but 1 value"
++	_, _ = a, b
++	_, _ = a, b, c // ERROR "assignment mismatch: 2 variables but 3 values"
++
++	_, _, _ = a    // ERROR "assignment mismatch: 3 variables but 1 value"
++	_, _, _ = a, b // ERROR "assignment mismatch: 3 variables but 2 values"
++	_, _, _ = a, b, c
++}
++
++func f1() int
++func f2() (int, int)
++func f3() (int, int, int)
++
++func _() {
++	_ = f1()
++	_ = f2() // ERROR "assignment mismatch: 1 variable but f2 returns 2 values"
++	_ = f3() // ERROR "assignment mismatch: 1 variable but f3 returns 3 values"
++
++	_, _ = f1() // ERROR "assignment mismatch: 2 variables but f1 returns 1 value"
++	_, _ = f2()
++	_, _ = f3() // ERROR "assignment mismatch: 2 variables but f3 returns 3 values"
++
++	_, _, _ = f1() // ERROR "assignment mismatch: 3 variables but f1 returns 1 value"
++	_, _, _ = f2() // ERROR "assignment mismatch: 3 variables but f2 returns 2 values"
++	_, _, _ = f3()
++
++	// test just a few := cases as they use the same code as the = case
++	a1 := f3()         // ERROR "assignment mismatch: 1 variable but f3 returns 3 values"
++	a2, b2 := f1()     // ERROR "assignment mismatch: 2 variables but f1 returns 1 value"
++	a3, b3, c3 := f2() // ERROR "assignment mismatch: 3 variables but f2 returns 2 values"
++}
++
++type T struct{}
++
++func (T) f1() int
++func (T) f2() (int, int)
++func (T) f3() (int, int, int)
++
++func _(x T) {
++	_ = x.f1()
++	_ = x.f2() // ERROR "assignment mismatch: 1 variable but .\.f2 returns 2 values"
++	_ = x.f3() // ERROR "assignment mismatch: 1 variable but .\.f3 returns 3 values"
++
++	_, _ = x.f1() // ERROR "assignment mismatch: 2 variables but .\.f1 returns 1 value"
++	_, _ = x.f2()
++	_, _ = x.f3() // ERROR "assignment mismatch: 2 variables but .\.f3 returns 3 values"
++
++	_, _, _ = x.f1() // ERROR "assignment mismatch: 3 variables but .\.f1 returns 1 value"
++	_, _, _ = x.f2() // ERROR "assignment mismatch: 3 variables but .\.f2 returns 2 values"
++	_, _, _ = x.f3()
++
++	// test just a few := cases as they use the same code as the = case
++	a1 := x.f3()         // ERROR "assignment mismatch: 1 variable but .\.f3 returns 3 values"
++	a2, b2 := x.f1()     // ERROR "assignment mismatch: 2 variables but .\.f1 returns 1 value"
++	a3, b3, c3 := x.f2() // ERROR "assignment mismatch: 3 variables but .\.f2 returns 2 values"
++}
++
++// some one-off cases
++func _() {
++	_ = (f2)
++	_ = f1(), 2         // ERROR "assignment mismatch: 1 variable but 2 values"
++	_, _ = (f1()), f2() // ERROR "multiple-value f2\(\) .*in single-value context"
++	_, _, _ = f3(), 3   // ERROR "assignment mismatch: 3 variables but 2 values|multiple-value f3\(\) .*in single-value context"
++}

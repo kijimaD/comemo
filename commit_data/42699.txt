@@ -14,6 +14,32 @@ Date:   Wed Feb 5 14:12:04 2020 -0800
     Change-Id: I2faa6bce4c7d735107eceaef7d95223844846454
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217978
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.14.html | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 35f9955d2a..b3423f8753 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -823,6 +823,20 @@ appropriately.)
+     </p>
+ </dl><!-- testing -->
+ 
++<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
++  <dd>
++    <p><!-- CL 206124 -->
++      The text/template package now correctly reports errors when a
++      parenthesized argument is used as a function.
++      This most commonly shows up in erroneous cases like
++      <code>{{if (eq .F "a") or (eq .F "b")}}</code>.
++      This should be written as <code>{{if or (eq .F "a") (eq .F "b")}}</code>.
++      The erroneous case never worked as expected, and will now be
++      reported with an error <code>can't give argument to non-function</code>.
++    </p>
++  </dd>
++</dl><!-- text/template -->
++
+ <dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
+   <dd>
+     <p>

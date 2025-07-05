@@ -20,7 +20,60 @@ Date:   Thu Jun 15 15:53:09 2017 -0700
     Run-TryBot: Nigel Tao <nigeltao@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/gif/writer.go      |  2 +-
  src/image/gif/writer_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/image/gif/writer.go b/src/image/gif/writer.go
+index e68f7a4ed5..493c7549eb 100644
+--- a/src/image/gif/writer.go
++++ b/src/image/gif/writer.go
+@@ -274,7 +274,7 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte)
+ 
+ 	lzww := lzw.NewWriter(blockWriter{e: e}, lzw.LSB, litWidth)
+ 	if dx := b.Dx(); dx == pm.Stride {
+-		_, e.err = lzww.Write(pm.Pix)
++		_, e.err = lzww.Write(pm.Pix[:dx*b.Dy()])
+ 		if e.err != nil {
+ 			lzww.Close()
+ 			return
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index bbedbfc36e..1bba9b8ece 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -471,6 +471,34 @@ func TestEncodeBadPalettes(t *testing.T) {
+ 	}
+ }
+ 
++func TestEncodeCroppedSubImages(t *testing.T) {
++	// This test means to ensure that Encode honors the Bounds and Strides of
++	// images correctly when encoding.
++	whole := image.NewPaletted(image.Rect(0, 0, 100, 100), palette.Plan9)
++	subImages := []image.Rectangle{
++		image.Rect(0, 0, 50, 50),
++		image.Rect(50, 0, 100, 50),
++		image.Rect(0, 50, 50, 50),
++		image.Rect(50, 50, 100, 100),
++		image.Rect(25, 25, 75, 75),
++		image.Rect(0, 0, 100, 50),
++		image.Rect(0, 50, 100, 100),
++		image.Rect(0, 0, 50, 100),
++		image.Rect(50, 0, 100, 100),
++	}
++	for _, sr := range subImages {
++		si := whole.SubImage(sr)
++		buf := bytes.NewBuffer(nil)
++		if err := Encode(buf, si, nil); err != nil {
++			t.Errorf("Encode: sr=%v: %v", sr, err)
++			continue
++		}
++		if _, err := Decode(buf); err != nil {
++			t.Errorf("Decode: sr=%v: %v", sr, err)
++		}
++	}
++}
++
+ func BenchmarkEncode(b *testing.B) {
+ 	b.StopTimer()
+ 

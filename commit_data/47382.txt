@@ -30,8 +30,187 @@ Date:   Mon Nov 16 21:57:32 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go |  3 ---
  src/runtime/malloc.go      | 30 +++++++++++++++++-------------
  src/runtime/mheap.go       | 43 ++++++++++++++++++++++++++++++++-----------
  3 files changed, 49 insertions(+), 27 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 195b7b0519..c03cf136f2 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -404,9 +404,6 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			slow.HeapReleased += uint64(pg) * pageSize
+ 		}
+ 
+-		// Unused space in the current arena also counts as released space.
+-		slow.HeapReleased += uint64(mheap_.curArena.end - mheap_.curArena.base)
+-
+ 		getg().m.mallocing--
+ 	})
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f20ded5bf7..8435f96532 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -568,7 +568,7 @@ func mallocinit() {
+ 		const arenaMetaSize = (1 << arenaBits) * unsafe.Sizeof(heapArena{})
+ 		meta := uintptr(sysReserve(nil, arenaMetaSize))
+ 		if meta != 0 {
+-			mheap_.heapArenaAlloc.init(meta, arenaMetaSize)
++			mheap_.heapArenaAlloc.init(meta, arenaMetaSize, true)
+ 		}
+ 
+ 		// We want to start the arena low, but if we're linked
+@@ -605,7 +605,7 @@ func mallocinit() {
+ 		for _, arenaSize := range arenaSizes {
+ 			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes)
+ 			if a != nil {
+-				mheap_.arena.init(uintptr(a), size)
++				mheap_.arena.init(uintptr(a), size, false)
+ 				p = mheap_.arena.end // For hint below
+ 				break
+ 			}
+@@ -622,8 +622,8 @@ func mallocinit() {
+ // heapArenaBytes. sysAlloc returns nil on failure.
+ // There is no corresponding free function.
+ //
+-// sysAlloc returns a memory region in the Prepared state. This region must
+-// be transitioned to Ready before use.
++// sysAlloc returns a memory region in the Reserved state. This region must
++// be transitioned to Prepared and then Ready before use.
+ //
+ // h must be locked.
+ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+@@ -725,9 +725,6 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+ 		throw("misrounded allocation in sysAlloc")
+ 	}
+ 
+-	// Transition from Reserved to Prepared.
+-	sysMap(v, size, &memstats.heap_sys)
+-
+ mapped:
+ 	// Create arena metadata.
+ 	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
+@@ -1400,15 +1397,19 @@ func inPersistentAlloc(p uintptr) bool {
+ }
+ 
+ // linearAlloc is a simple linear allocator that pre-reserves a region
+-// of memory and then maps that region into the Ready state as needed. The
+-// caller is responsible for locking.
++// of memory and then optionally maps that region into the Ready state
++// as needed.
++//
++// The caller is responsible for locking.
+ type linearAlloc struct {
+ 	next   uintptr // next free byte
+ 	mapped uintptr // one byte past end of mapped space
+ 	end    uintptr // end of reserved space
++
++	mapMemory bool // transition memory from Reserved to Ready if true
+ }
+ 
+-func (l *linearAlloc) init(base, size uintptr) {
++func (l *linearAlloc) init(base, size uintptr, mapMemory bool) {
+ 	if base+size < base {
+ 		// Chop off the last byte. The runtime isn't prepared
+ 		// to deal with situations where the bounds could overflow.
+@@ -1418,6 +1419,7 @@ func (l *linearAlloc) init(base, size uintptr) {
+ 	}
+ 	l.next, l.mapped = base, base
+ 	l.end = base + size
++	l.mapMemory = mapMemory
+ }
+ 
+ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+@@ -1427,9 +1429,11 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
+ 	}
+ 	l.next = p + size
+ 	if pEnd := alignUp(l.next-1, physPageSize); pEnd > l.mapped {
+-		// Transition from Reserved to Prepared to Ready.
+-		sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
+-		sysUsed(unsafe.Pointer(l.mapped), pEnd-l.mapped)
++		if l.mapMemory {
++			// Transition from Reserved to Prepared to Ready.
++			sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
++			sysUsed(unsafe.Pointer(l.mapped), pEnd-l.mapped)
++		}
+ 		l.mapped = pEnd
+ 	}
+ 	return unsafe.Pointer(p)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 08019a4101..13ea337735 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1320,6 +1320,10 @@ func (h *mheap) grow(npage uintptr) bool {
+ 	assertLockHeld(&h.lock)
+ 
+ 	// We must grow the heap in whole palloc chunks.
++	// We call sysMap below but note that because we
++	// round up to pallocChunkPages which is on the order
++	// of MiB (generally >= to the huge page size) we
++	// won't be calling it too much.
+ 	ask := alignUp(npage, pallocChunkPages) * pageSize
+ 
+ 	totalGrowth := uintptr(0)
+@@ -1346,6 +1350,17 @@ func (h *mheap) grow(npage uintptr) bool {
+ 			// remains of the current space and switch to
+ 			// the new space. This should be rare.
+ 			if size := h.curArena.end - h.curArena.base; size != 0 {
++				// Transition this space from Reserved to Prepared and mark it
++				// as released since we'll be able to start using it after updating
++				// the page allocator and releasing the lock at any time.
++				sysMap(unsafe.Pointer(h.curArena.base), size, &memstats.heap_sys)
++				// Update stats.
++				atomic.Xadd64(&memstats.heap_released, int64(size))
++				stats := memstats.heapStats.acquire()
++				atomic.Xaddint64(&stats.released, int64(size))
++				memstats.heapStats.release()
++				// Update the page allocator's structures to make this
++				// space ready for allocation.
+ 				h.pages.grow(h.curArena.base, size)
+ 				totalGrowth += size
+ 			}
+@@ -1354,17 +1369,6 @@ func (h *mheap) grow(npage uintptr) bool {
+ 			h.curArena.end = uintptr(av) + asize
+ 		}
+ 
+-		// The memory just allocated counts as both released
+-		// and idle, even though it's not yet backed by spans.
+-		//
+-		// The allocation is always aligned to the heap arena
+-		// size which is always > physPageSize, so its safe to
+-		// just add directly to heap_released.
+-		atomic.Xadd64(&memstats.heap_released, int64(asize))
+-		stats := memstats.heapStats.acquire()
+-		atomic.Xaddint64(&stats.released, int64(asize))
+-		memstats.heapStats.release()
+-
+ 		// Recalculate nBase.
+ 		// We know this won't overflow, because sysAlloc returned
+ 		// a valid region starting at h.curArena.base which is at
+@@ -1375,6 +1379,23 @@ func (h *mheap) grow(npage uintptr) bool {
+ 	// Grow into the current arena.
+ 	v := h.curArena.base
+ 	h.curArena.base = nBase
++
++	// Transition the space we're going to use from Reserved to Prepared.
++	sysMap(unsafe.Pointer(v), nBase-v, &memstats.heap_sys)
++
++	// The memory just allocated counts as both released
++	// and idle, even though it's not yet backed by spans.
++	//
++	// The allocation is always aligned to the heap arena
++	// size which is always > physPageSize, so its safe to
++	// just add directly to heap_released.
++	atomic.Xadd64(&memstats.heap_released, int64(nBase-v))
++	stats := memstats.heapStats.acquire()
++	atomic.Xaddint64(&stats.released, int64(nBase-v))
++	memstats.heapStats.release()
++
++	// Update the page allocator's structures to make this
++	// space ready for allocation.
+ 	h.pages.grow(v, nBase-v)
+ 	totalGrowth += nBase - v
+ 

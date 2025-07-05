@@ -13,6 +13,22 @@ Date:   Tue Aug 2 11:20:30 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/udpsock_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 4fa74752b9..4ceacde10e 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -633,7 +633,9 @@ func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
+ 	}
+ 
+ 	switch runtime.GOOS {
+-	case "openbsd":
++	case "dragonfly", "openbsd":
++		// DragonflyBSD's IPv6 sockets are always IPv6-only, according to the man page:
++		// https://www.dragonflybsd.org/cgi/web-man?command=ip6 (search for IPV6_V6ONLY).
+ 		// OpenBSD's IPv6 sockets are always IPv6-only, according to the man page:
+ 		// https://man.openbsd.org/ip6#IPV6_V6ONLY
+ 		t.Skipf("skipping on %v", runtime.GOOS)

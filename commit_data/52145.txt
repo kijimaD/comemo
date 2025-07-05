@@ -19,9 +19,412 @@ Date:   Sun Apr 3 08:15:40 2022 -0400
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/51082.txt                    |   5 +
  src/go/doc/comment/parse.go           | 167 +++++++++++++++++++++++++++++++++
  src/go/doc/comment/testdata/hello.txt |  16 ++++
  src/go/doc/comment/testdata_test.go   | 168 ++++++++++++++++++++++++++++++++++
  4 files changed, 356 insertions(+)
+
+diff --git a/api/next/51082.txt b/api/next/51082.txt
+index 2127d2ee24..2cafd4b533 100644
+--- a/api/next/51082.txt
++++ b/api/next/51082.txt
+@@ -1,5 +1,6 @@
+ pkg go/doc/comment, method (*List) BlankBefore() bool #51082
+ pkg go/doc/comment, method (*List) BlankBetween() bool #51082
++pkg go/doc/comment, method (*Parser) Parse(string) *Doc #51082
+ pkg go/doc/comment, type Block interface, unexported methods #51082
+ pkg go/doc/comment, type Code struct #51082
+ pkg go/doc/comment, type Code struct, Text string #51082
+@@ -31,5 +32,9 @@ pkg go/doc/comment, type ListItem struct, Content []Block #51082
+ pkg go/doc/comment, type ListItem struct, Number string #51082
+ pkg go/doc/comment, type Paragraph struct #51082
+ pkg go/doc/comment, type Paragraph struct, Text []Text #51082
++pkg go/doc/comment, type Parser struct #51082
++pkg go/doc/comment, type Parser struct, LookupPackage func(string) (string, bool) #51082
++pkg go/doc/comment, type Parser struct, LookupSym func(string, string) bool #51082
++pkg go/doc/comment, type Parser struct, Words map[string]string #51082
+ pkg go/doc/comment, type Plain string #51082
+ pkg go/doc/comment, type Text interface, unexported methods #51082
+diff --git a/src/go/doc/comment/parse.go b/src/go/doc/comment/parse.go
+index 12b6679413..b12a0d84b9 100644
+--- a/src/go/doc/comment/parse.go
++++ b/src/go/doc/comment/parse.go
+@@ -174,6 +174,152 @@ type DocLink struct {
+ 
+ func (*DocLink) text() {}
+ 
++// A Parser is a doc comment parser.
++// The fields in the struct can be filled in before calling Parse
++// in order to customize the details of the parsing process.
++type Parser struct {
++	// Words is a map of Go identifier words that
++	// should be italicized and potentially linked.
++	// If Words[w] is the empty string, then the word w
++	// is only italicized. Otherwise it is linked, using
++	// Words[w] as the link target.
++	// Words corresponds to the [go/doc.ToHTML] words parameter.
++	Words map[string]string
++
++	// LookupPackage resolves a package name to an import path.
++	//
++	// If LookupPackage(name) returns ok == true, then [name]
++	// (or [name.Sym] or [name.Sym.Method])
++	// is considered a documentation link to importPath's package docs.
++	// It is valid to return "", true, in which case name is considered
++	// to refer to the current package.
++	//
++	// If LookupPackage(name) returns ok == false,
++	// then [name] (or [name.Sym] or [name.Sym.Method])
++	// will not be considered a documentation link,
++	// except in the case where name is the full (but single-element) import path
++	// of a package in the standard library, such as in [math] or [io.Reader].
++	// LookupPackage is still called for such names,
++	// in order to permit references to imports of other packages
++	// with the same package names.
++	//
++	// Setting LookupPackage to nil is equivalent to setting it to
++	// a function that always returns "", false.
++	LookupPackage func(name string) (importPath string, ok bool)
++
++	// LookupSym reports whether a symbol name or method name
++	// exists in the current package.
++	//
++	// If LookupSym("", "Name") returns true, then [Name]
++	// is considered a documentation link for a const, func, type, or var.
++	//
++	// Similarly, if LookupSym("Recv", "Name") returns true,
++	// then [Recv.Name] is considered a documentation link for
++	// type Recv's method Name.
++	//
++	// Setting LookupSym to nil is equivalent to setting it to a function
++	// that always returns false.
++	LookupSym func(recv, name string) (ok bool)
++}
++
++// parseDoc is parsing state for a single doc comment.
++type parseDoc struct {
++	*Parser
++	*Doc
++	links     map[string]*LinkDef
++	lines     []string
++	lookupSym func(recv, name string) bool
++}
++
++// Parse parses the doc comment text and returns the *Doc form.
++// Comment markers (/* // and */) in the text must have already been removed.
++func (p *Parser) Parse(text string) *Doc {
++	lines := unindent(strings.Split(text, "\n"))
++	d := &parseDoc{
++		Parser:    p,
++		Doc:       new(Doc),
++		links:     make(map[string]*LinkDef),
++		lines:     lines,
++		lookupSym: func(recv, name string) bool { return false },
++	}
++	if p.LookupSym != nil {
++		d.lookupSym = p.LookupSym
++	}
++
++	// First pass: break into block structure and collect known links.
++	// The text is all recorded as Plain for now.
++	// TODO: Break into actual block structure.
++	for len(lines) > 0 {
++		line := lines[0]
++		if line != "" {
++			var b Block
++			b, lines = d.paragraph(lines)
++			d.Content = append(d.Content, b)
++		} else {
++			lines = lines[1:]
++		}
++	}
++
++	// Second pass: interpret all the Plain text now that we know the links.
++	// TODO: Actually interpret the plain text.
++
++	return d.Doc
++}
++
++// unindent removes any common space/tab prefix
++// from each line in lines, returning a copy of lines in which
++// those prefixes have been trimmed from each line.
++func unindent(lines []string) []string {
++	// Trim leading and trailing blank lines.
++	for len(lines) > 0 && isBlank(lines[0]) {
++		lines = lines[1:]
++	}
++	for len(lines) > 0 && isBlank(lines[len(lines)-1]) {
++		lines = lines[:len(lines)-1]
++	}
++	if len(lines) == 0 {
++		return nil
++	}
++
++	// Compute and remove common indentation.
++	prefix := leadingSpace(lines[0])
++	for _, line := range lines[1:] {
++		if !isBlank(line) {
++			prefix = commonPrefix(prefix, leadingSpace(line))
++		}
++	}
++
++	out := make([]string, len(lines))
++	for i, line := range lines {
++		line = strings.TrimPrefix(line, prefix)
++		if strings.TrimSpace(line) == "" {
++			line = ""
++		}
++		out[i] = line
++	}
++	for len(out) > 0 && out[0] == "" {
++		out = out[1:]
++	}
++	for len(out) > 0 && out[len(out)-1] == "" {
++		out = out[:len(out)-1]
++	}
++	return out
++}
++
++// isBlank reports whether s is a blank line.
++func isBlank(s string) bool {
++	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
++}
++
++// commonPrefix returns the longest common prefix of a and b.
++func commonPrefix(a, b string) string {
++	i := 0
++	for i < len(a) && i < len(b) && a[i] == b[i] {
++		i++
++	}
++	return a[0:i]
++}
++
+ // leadingSpace returns the longest prefix of s consisting of spaces and tabs.
+ func leadingSpace(s string) string {
+ 	i := 0
+@@ -234,6 +380,27 @@ func isOldHeading(line string, all []string, off int) bool {
+ 	return true
+ }
+ 
++// parargraph returns a paragraph block built from the
++// unindented text at the start of lines, along with the remainder of the lines.
++// If there is no unindented text at the start of lines,
++// then paragraph returns a nil Block.
++func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
++	// TODO: Paragraph should be interrupted by any indented line,
++	// which is either a list or a code block,
++	// and of course by a blank line.
++	// It should not be interrupted by a # line - headings must stand alone.
++	i := 0
++	for i < len(lines) && lines[i] != "" {
++		i++
++	}
++	lines, rest = lines[:i], lines[i:]
++	if len(lines) == 0 {
++		return nil, rest
++	}
++
++	return &Paragraph{Text: []Text{Plain(strings.Join(lines, "\n"))}}, rest
++}
++
+ // autoURL checks whether s begins with a URL that should be hyperlinked.
+ // If so, it returns the URL, which is a prefix of s, and ok == true.
+ // Otherwise it returns "", false.
+diff --git a/src/go/doc/comment/testdata/hello.txt b/src/go/doc/comment/testdata/hello.txt
+new file mode 100644
+index 0000000000..4f669fc363
+--- /dev/null
++++ b/src/go/doc/comment/testdata/hello.txt
+@@ -0,0 +1,16 @@
++-- input --
++Hello,
++world
++
++This is
++a test.
++-- dump --
++Doc
++	Paragraph
++		Plain
++			"Hello,\n"
++			"world"
++	Paragraph
++		Plain
++			"This is\n"
++			"a test."
+diff --git a/src/go/doc/comment/testdata_test.go b/src/go/doc/comment/testdata_test.go
+new file mode 100644
+index 0000000000..a94e76ca02
+--- /dev/null
++++ b/src/go/doc/comment/testdata_test.go
+@@ -0,0 +1,168 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package comment
++
++import (
++	"bytes"
++	"fmt"
++	"internal/diff"
++	"internal/txtar"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func TestTestdata(t *testing.T) {
++	files, _ := filepath.Glob("testdata/*.txt")
++	if len(files) == 0 {
++		t.Fatalf("no testdata")
++	}
++	var p Parser
++
++	stripDollars := func(b []byte) []byte {
++		// Remove trailing $ on lines.
++		// They make it easier to see lines with trailing spaces,
++		// as well as turning them into lines without trailing spaces,
++		// in case editors remove trailing spaces.
++		return bytes.ReplaceAll(b, []byte("$\n"), []byte("\n"))
++	}
++	for _, file := range files {
++		t.Run(filepath.Base(file), func(t *testing.T) {
++			a, err := txtar.ParseFile(file)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if len(a.Files) < 1 || a.Files[0].Name != "input" {
++				t.Fatalf("first file is not %q", "input")
++			}
++			d := p.Parse(string(stripDollars(a.Files[0].Data)))
++			for _, f := range a.Files[1:] {
++				want := stripDollars(f.Data)
++				for len(want) >= 2 && want[len(want)-1] == '\n' && want[len(want)-2] == '\n' {
++					want = want[:len(want)-1]
++				}
++				var out []byte
++				switch f.Name {
++				default:
++					t.Fatalf("unknown output file %q", f.Name)
++				case "dump":
++					out = dump(d)
++				}
++				if string(out) != string(want) {
++					t.Errorf("%s: %s", file, diff.Diff(f.Name, want, "have", out))
++				}
++			}
++		})
++	}
++}
++
++func dump(d *Doc) []byte {
++	var out bytes.Buffer
++	dumpTo(&out, 0, d)
++	return out.Bytes()
++}
++
++func dumpTo(out *bytes.Buffer, indent int, x any) {
++	switch x := x.(type) {
++	default:
++		fmt.Fprintf(out, "?%T", x)
++
++	case *Doc:
++		fmt.Fprintf(out, "Doc")
++		dumpTo(out, indent+1, x.Content)
++		if len(x.Links) > 0 {
++			dumpNL(out, indent+1)
++			fmt.Fprintf(out, "Links")
++			dumpTo(out, indent+2, x.Links)
++		}
++		fmt.Fprintf(out, "\n")
++
++	case []*LinkDef:
++		for _, def := range x {
++			dumpNL(out, indent)
++			dumpTo(out, indent, def)
++		}
++
++	case *LinkDef:
++		fmt.Fprintf(out, "LinkDef Used:%v Text:%q URL:%s", x.Used, x.Text, x.URL)
++
++	case []Block:
++		for _, blk := range x {
++			dumpNL(out, indent)
++			dumpTo(out, indent, blk)
++		}
++
++	case *Heading:
++		fmt.Fprintf(out, "Heading")
++		dumpTo(out, indent+1, x.Text)
++
++	case *List:
++		fmt.Fprintf(out, "List ForceBlankBefore=%v ForceBlankBetween=%v", x.ForceBlankBefore, x.ForceBlankBetween)
++		dumpTo(out, indent+1, x.Items)
++
++	case []*ListItem:
++		for _, item := range x {
++			dumpNL(out, indent)
++			dumpTo(out, indent, item)
++		}
++
++	case *ListItem:
++		fmt.Fprintf(out, "Item Number=%q", x.Number)
++		dumpTo(out, indent+1, x.Content)
++
++	case *Paragraph:
++		fmt.Fprintf(out, "Paragraph")
++		dumpTo(out, indent+1, x.Text)
++
++	case *Code:
++		fmt.Fprintf(out, "Code")
++		dumpTo(out, indent+1, x.Text)
++
++	case []Text:
++		for _, t := range x {
++			dumpNL(out, indent)
++			dumpTo(out, indent, t)
++		}
++
++	case Plain:
++		if !strings.Contains(string(x), "\n") {
++			fmt.Fprintf(out, "Plain %q", string(x))
++		} else {
++			fmt.Fprintf(out, "Plain")
++			dumpTo(out, indent+1, string(x))
++		}
++
++	case Italic:
++		if !strings.Contains(string(x), "\n") {
++			fmt.Fprintf(out, "Italic %q", string(x))
++		} else {
++			fmt.Fprintf(out, "Italic")
++			dumpTo(out, indent+1, string(x))
++		}
++
++	case string:
++		for _, line := range strings.SplitAfter(x, "\n") {
++			if line != "" {
++				dumpNL(out, indent)
++				fmt.Fprintf(out, "%q", line)
++			}
++		}
++
++	case *Link:
++		fmt.Fprintf(out, "Link %q", x.URL)
++		dumpTo(out, indent+1, x.Text)
++
++	case *DocLink:
++		fmt.Fprintf(out, "DocLink pkg:%q, recv:%q, name:%q", x.ImportPath, x.Recv, x.Name)
++		dumpTo(out, indent+1, x.Text)
++	}
++}
++
++func dumpNL(out *bytes.Buffer, n int) {
++	out.WriteByte('\n')
++	for i := 0; i < n; i++ {
++		out.WriteByte('\t')
++	}
++}

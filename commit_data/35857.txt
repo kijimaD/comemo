@@ -11,7 +11,49 @@ Date:   Tue Mar 13 13:11:09 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go |  3 ++-
  test/fixedbugs/issue24339.go         | 20 ++++++++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index fc6c5587df..1d491d2acc 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -569,7 +569,8 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		lineno = p.makeXPos(expr.Rbrace)
+ 		return n
+ 	case *syntax.KeyValueExpr:
+-		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
++		// use position of expr.Key rather than of expr (which has position of ':')
++		return p.nod(expr.Key, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+ 	case *syntax.FuncLit:
+ 		return p.funcLit(expr)
+ 	case *syntax.ParenExpr:
+diff --git a/test/fixedbugs/issue24339.go b/test/fixedbugs/issue24339.go
+new file mode 100644
+index 0000000000..0670becdfe
+--- /dev/null
++++ b/test/fixedbugs/issue24339.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Use a diffent line number for each token so we can
++// check that the error message appears at the correct
++// position.
++var _ = struct{}{ /*line :20:1*/foo /*line :21:1*/: /*line :22:1*/0 }
++
++
++
++
++
++
++
++// ERROR "unknown field 'foo'"
+\ No newline at end of file

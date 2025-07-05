@@ -26,10 +26,323 @@ Date:   Tue Aug 24 00:32:30 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go  | 122 ++++++++++++++++++--------------
  src/cmd/compile/internal/noder/expr.go  |   2 +
  src/cmd/compile/internal/noder/irgen.go |  27 ++++++-
  src/cmd/compile/internal/noder/stmt.go  |   6 +-
  test/fixedbugs/issue47928.go            |  21 ++++++
  5 files changed, 120 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index ffcfc103a6..b23dd47600 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -18,26 +18,24 @@ import (
+ // TODO(mdempsky): Skip blank declarations? Probably only safe
+ // for declarations without pragmas.
+ 
+-func (g *irgen) decls(decls []syntax.Decl) []ir.Node {
+-	var res ir.Nodes
++func (g *irgen) decls(res *ir.Nodes, decls []syntax.Decl) {
+ 	for _, decl := range decls {
+ 		switch decl := decl.(type) {
+ 		case *syntax.ConstDecl:
+-			g.constDecl(&res, decl)
++			g.constDecl(res, decl)
+ 		case *syntax.FuncDecl:
+-			g.funcDecl(&res, decl)
++			g.funcDecl(res, decl)
+ 		case *syntax.TypeDecl:
+ 			if ir.CurFunc == nil {
+ 				continue // already handled in irgen.generate
+ 			}
+-			g.typeDecl(&res, decl)
++			g.typeDecl(res, decl)
+ 		case *syntax.VarDecl:
+-			g.varDecl(&res, decl)
++			g.varDecl(res, decl)
+ 		default:
+ 			g.unhandled("declaration", decl)
+ 		}
+ 	}
+-	return res
+ }
+ 
+ func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
+@@ -119,23 +117,25 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ 		g.target.Inits = append(g.target.Inits, fn)
+ 	}
+ 
+-	if fn.Type().HasTParam() {
+-		g.topFuncIsGeneric = true
+-	}
+-	g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
+-	g.topFuncIsGeneric = false
+-	if fn.Type().HasTParam() && fn.Body != nil {
+-		// Set pointers to the dcls/body of a generic function/method in
+-		// the Inl struct, so it is marked for export, is available for
+-		// stenciling, and works with Inline_Flood().
+-		fn.Inl = &ir.Inline{
+-			Cost: 1,
+-			Dcl:  fn.Dcl,
+-			Body: fn.Body,
++	g.later(func() {
++		if fn.Type().HasTParam() {
++			g.topFuncIsGeneric = true
++		}
++		g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
++		g.topFuncIsGeneric = false
++		if fn.Type().HasTParam() && fn.Body != nil {
++			// Set pointers to the dcls/body of a generic function/method in
++			// the Inl struct, so it is marked for export, is available for
++			// stenciling, and works with Inline_Flood().
++			fn.Inl = &ir.Inline{
++				Cost: 1,
++				Dcl:  fn.Dcl,
++				Body: fn.Body,
++			}
+ 		}
+-	}
+ 
+-	out.Append(fn)
++		out.Append(fn)
++	})
+ }
+ 
+ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+@@ -218,7 +218,6 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
+ 	for i, name := range decl.NameList {
+ 		names[i], _ = g.def(name)
+ 	}
+-	values := g.exprList(decl.Values)
+ 
+ 	if decl.Pragma != nil {
+ 		pragma := decl.Pragma.(*pragmas)
+@@ -227,44 +226,57 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
+ 		g.reportUnused(pragma)
+ 	}
+ 
+-	var as2 *ir.AssignListStmt
+-	if len(values) != 0 && len(names) != len(values) {
+-		as2 = ir.NewAssignListStmt(pos, ir.OAS2, make([]ir.Node, len(names)), values)
+-	}
++	do := func() {
++		values := g.exprList(decl.Values)
+ 
+-	for i, name := range names {
+-		if ir.CurFunc != nil {
+-			out.Append(ir.NewDecl(pos, ir.ODCL, name))
++		var as2 *ir.AssignListStmt
++		if len(values) != 0 && len(names) != len(values) {
++			as2 = ir.NewAssignListStmt(pos, ir.OAS2, make([]ir.Node, len(names)), values)
+ 		}
+-		if as2 != nil {
+-			as2.Lhs[i] = name
+-			name.Defn = as2
+-		} else {
+-			as := ir.NewAssignStmt(pos, name, nil)
+-			if len(values) != 0 {
+-				as.Y = values[i]
+-				name.Defn = as
+-			} else if ir.CurFunc == nil {
+-				name.Defn = as
+-			}
+-			lhs := []ir.Node{as.X}
+-			rhs := []ir.Node{}
+-			if as.Y != nil {
+-				rhs = []ir.Node{as.Y}
++
++		for i, name := range names {
++			if ir.CurFunc != nil {
++				out.Append(ir.NewDecl(pos, ir.ODCL, name))
+ 			}
+-			transformAssign(as, lhs, rhs)
+-			as.X = lhs[0]
+-			if as.Y != nil {
+-				as.Y = rhs[0]
++			if as2 != nil {
++				as2.Lhs[i] = name
++				name.Defn = as2
++			} else {
++				as := ir.NewAssignStmt(pos, name, nil)
++				if len(values) != 0 {
++					as.Y = values[i]
++					name.Defn = as
++				} else if ir.CurFunc == nil {
++					name.Defn = as
++				}
++				lhs := []ir.Node{as.X}
++				rhs := []ir.Node{}
++				if as.Y != nil {
++					rhs = []ir.Node{as.Y}
++				}
++				transformAssign(as, lhs, rhs)
++				as.X = lhs[0]
++				if as.Y != nil {
++					as.Y = rhs[0]
++				}
++				as.SetTypecheck(1)
++				out.Append(as)
+ 			}
+-			as.SetTypecheck(1)
+-			out.Append(as)
++		}
++		if as2 != nil {
++			transformAssign(as2, as2.Lhs, as2.Rhs)
++			as2.SetTypecheck(1)
++			out.Append(as2)
+ 		}
+ 	}
+-	if as2 != nil {
+-		transformAssign(as2, as2.Lhs, as2.Rhs)
+-		as2.SetTypecheck(1)
+-		out.Append(as2)
++
++	// If we're within a function, we need to process the assignment
++	// part of the variable declaration right away. Otherwise, we leave
++	// it to be handled after all top-level declarations are processed.
++	if ir.CurFunc != nil {
++		do()
++	} else {
++		g.later(do)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 2f004ba1a2..58637dca39 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -50,6 +50,8 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
+ 		base.FatalfAt(g.pos(expr), "unrecognized type-checker result")
+ 	}
+ 
++	base.Assert(g.exprStmtOK)
++
+ 	// The gc backend expects all expressions to have a concrete type, and
+ 	// types2 mostly satisfies this expectation already. But there are a few
+ 	// cases where the Go spec doesn't require converting to concrete type,
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 7bc8a6bcc3..29882eb773 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -141,6 +141,14 @@ type irgen struct {
+ 	typs   map[types2.Type]*types.Type
+ 	marker dwarfgen.ScopeMarker
+ 
++	// laterFuncs records tasks that need to run after all declarations
++	// are processed.
++	laterFuncs []func()
++
++	// exprStmtOK indicates whether it's safe to generate expressions or
++	// statements yet.
++	exprStmtOK bool
++
+ 	// Fully-instantiated generic types whose methods should be instantiated
+ 	instTypeList []*types.Type
+ 
+@@ -165,6 +173,10 @@ type irgen struct {
+ 	topFuncIsGeneric bool
+ }
+ 
++func (g *irgen) later(fn func()) {
++	g.laterFuncs = append(g.laterFuncs, fn)
++}
++
+ type delayInfo struct {
+ 	gf    *ir.Name
+ 	targs []*types.Type
+@@ -184,7 +196,7 @@ func (g *irgen) generate(noders []*noder) {
+ 	// At this point, types2 has already handled name resolution and
+ 	// type checking. We just need to map from its object and type
+ 	// representations to those currently used by the rest of the
+-	// compiler. This happens mostly in 3 passes.
++	// compiler. This happens in a few passes.
+ 
+ 	// 1. Process all import declarations. We use the compiler's own
+ 	// importer for this, rather than types2's gcimporter-derived one,
+@@ -233,7 +245,16 @@ Outer:
+ 
+ 	// 3. Process all remaining declarations.
+ 	for _, declList := range declLists {
+-		g.target.Decls = append(g.target.Decls, g.decls(declList)...)
++		g.decls((*ir.Nodes)(&g.target.Decls), declList)
++	}
++	g.exprStmtOK = true
++
++	// 4. Run any "later" tasks. Avoid using 'range' so that tasks can
++	// recursively queue further tasks. (Not currently utilized though.)
++	for len(g.laterFuncs) > 0 {
++		fn := g.laterFuncs[0]
++		g.laterFuncs = g.laterFuncs[1:]
++		fn()
+ 	}
+ 
+ 	if base.Flag.W > 1 {
+@@ -275,6 +296,8 @@ Outer:
+ 		}
+ 	}
+ 	g.target.Decls = g.target.Decls[:j]
++
++	base.Assertf(len(g.laterFuncs) == 0, "still have %d later funcs", len(g.laterFuncs))
+ }
+ 
+ func (g *irgen) unhandled(what string, p poser) {
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index 1949f56095..fc1f5836ff 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -5,6 +5,7 @@
+ package noder
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/typecheck"
+@@ -27,6 +28,7 @@ func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
+ }
+ 
+ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
++	base.Assert(g.exprStmtOK)
+ 	switch stmt := stmt.(type) {
+ 	case nil, *syntax.EmptyStmt:
+ 		return nil
+@@ -48,7 +50,9 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 		n.SetTypecheck(1)
+ 		return n
+ 	case *syntax.DeclStmt:
+-		return ir.NewBlockStmt(g.pos(stmt), g.decls(stmt.DeclList))
++		n := ir.NewBlockStmt(g.pos(stmt), nil)
++		g.decls(&n.List, stmt.DeclList)
++		return n
+ 
+ 	case *syntax.AssignStmt:
+ 		if stmt.Op != 0 && stmt.Op != syntax.Def {
+diff --git a/test/fixedbugs/issue47928.go b/test/fixedbugs/issue47928.go
+new file mode 100644
+index 0000000000..3bc291dd3f
+--- /dev/null
++++ b/test/fixedbugs/issue47928.go
+@@ -0,0 +1,21 @@
++// run -goexperiment fieldtrack
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var i interface{} = new(T)
++	if _, ok := i.(interface{ Bad() }); ok {
++		panic("FAIL")
++	}
++}
++
++type T struct{ U }
++
++type U struct{}
++
++//go:nointerface
++func (*U) Bad() {}

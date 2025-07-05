@@ -12,7 +12,34 @@ Date:   Mon Dec 9 10:33:27 2013 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/35810043
-
+---
  src/cmd/dist/build.c | 2 ++
  src/cmd/go/build.go  | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 69e2aafad9..c70d5798db 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -677,6 +677,8 @@ install(char *dir)
+ 			vadd(&gccargs, "-fno-caret-diagnostics");
+ 			// clang is too smart about unused command-line arguments
+ 			vadd(&gccargs, "-Qunused-arguments");
++			// disable line wrapping in error messages
++			vadd(&gccargs, "-fmessage-length=0");
+ 		}
+ 		if(streq(gohostos, "darwin")) {
+ 			// golang.org/issue/5261
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index f70f778d94..7d6913662c 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1890,6 +1890,8 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ 		a = append(a, "-fno-caret-diagnostics")
+ 		// clang is too smart about command-line arguments
+ 		a = append(a, "-Qunused-arguments")
++		// disable word wrapping in error messages
++		a = append(a, "-fmessage-length=0")
+ 	}
+ 
+ 	// On OS X, some of the compilers behave as if -fno-common

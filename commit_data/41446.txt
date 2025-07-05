@@ -10,6 +10,33 @@ Date:   Thu Oct 3 14:06:08 2019 -0700
     Change-Id: Ic16f486925090ea303c04e70969e5a4b27a60896
     Reviewed-on: https://go-review.googlesource.com/c/go/+/198758
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec/exec.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 17ef003eca..19c7e2406a 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -606,8 +606,8 @@ func (c *closeOnce) close() {
+ // standard output when the command starts.
+ //
+ // Wait will close the pipe after seeing the command exit, so most callers
+-// need not close the pipe themselves; however, an implication is that
+-// it is incorrect to call Wait before all reads from the pipe have completed.
++// need not close the pipe themselves. It is thus incorrect to call Wait
++// before all reads from the pipe have completed.
+ // For the same reason, it is incorrect to call Run when using StdoutPipe.
+ // See the example for idiomatic usage.
+ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
+@@ -631,8 +631,8 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
+ // standard error when the command starts.
+ //
+ // Wait will close the pipe after seeing the command exit, so most callers
+-// need not close the pipe themselves; however, an implication is that
+-// it is incorrect to call Wait before all reads from the pipe have completed.
++// need not close the pipe themselves. It is thus incorrect to call Wait
++// before all reads from the pipe have completed.
+ // For the same reason, it is incorrect to use Run when using StderrPipe.
+ // See the StdoutPipe example for idiomatic usage.
+ func (c *Cmd) StderrPipe() (io.ReadCloser, error) {

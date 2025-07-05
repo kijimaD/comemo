@@ -7,6 +7,19 @@ Date:   Sat Jan 19 22:20:46 2013 -0800
     R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/7141062
-
+---
  src/cmd/api/goapi.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index a61497c52d..6d39a463f6 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -181,6 +181,7 @@ func main() {
+ 	defer bw.Flush()
+ 
+ 	if *checkFile == "" {
++		sort.Strings(features)
+ 		for _, f := range features {
+ 			fmt.Fprintf(bw, "%s\n", f)
+ 		}

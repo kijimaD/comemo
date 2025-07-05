@@ -21,6 +21,29 @@ Date:   Sat Feb 21 17:35:01 2015 +0100
     Change-Id: I0c490d3c9bbe93c65a2183b41bfbdc0c0f405bd1
     Reviewed-on: https://go-review.googlesource.com/5521
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/runtime-gdb.py | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 6076bcb11b..47a28f5ee6 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -227,8 +227,6 @@ def lookup_type(name):
+ 	except gdb.error:
+ 		pass
+ 
+-_rctp_type = gdb.lookup_type("struct reflect.rtype").pointer()
+-
+ 
+ def iface_commontype(obj):
+ 	if is_iface(obj):
+@@ -238,7 +236,7 @@ def iface_commontype(obj):
+ 	else:
+ 		return
+ 
+-	return go_type_ptr.cast(_rctp_type).dereference()
++	return go_type_ptr.cast(gdb.lookup_type("struct reflect.rtype").pointer()).dereference()
+ 
+ 
+ def iface_dtype(obj):

@@ -11,7 +11,64 @@ Date:   Tue Sep 26 18:20:36 2017 +0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/vet/copylock.go          | 13 ++++++++++---
  src/cmd/vet/testdata/copylock.go | 14 ++++++++++++++
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/vet/copylock.go b/src/cmd/vet/copylock.go
+index 27eb5d4651..ce14e1af34 100644
+--- a/src/cmd/vet/copylock.go
++++ b/src/cmd/vet/copylock.go
+@@ -93,9 +93,16 @@ func checkCopyLocksReturnStmt(f *File, rs *ast.ReturnStmt) {
+ 
+ // checkCopyLocksCallExpr detects lock copy in the arguments to a function call
+ func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
+-	if id, ok := ce.Fun.(*ast.Ident); ok && f.pkg.types[id].IsBuiltin() {
+-		switch id.Name {
+-		case "new", "len", "cap":
++	var id *ast.Ident
++	switch fun := ce.Fun.(type) {
++	case *ast.Ident:
++		id = fun
++	case *ast.SelectorExpr:
++		id = fun.Sel
++	}
++	if fun, ok := f.pkg.uses[id].(*types.Builtin); ok {
++		switch fun.Name() {
++		case "new", "len", "cap", "Sizeof":
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/vet/testdata/copylock.go b/src/cmd/vet/testdata/copylock.go
+index 6fabbc337a..d733488e62 100644
+--- a/src/cmd/vet/testdata/copylock.go
++++ b/src/cmd/vet/testdata/copylock.go
+@@ -3,6 +3,9 @@ package testdata
+ import (
+ 	"sync"
+ 	"sync/atomic"
++	"unsafe"
++	. "unsafe"
++	unsafe1 "unsafe"
+ )
+ 
+ func OkFunc() {
+@@ -102,6 +105,17 @@ func LenAndCapOnLockArrays() {
+ 	cap(a) // ERROR "call of cap copies lock value: sync.Mutex"
+ }
+ 
++func SizeofMutex() {
++	var mu sync.Mutex
++	unsafe.Sizeof(mu)  // OK
++	unsafe1.Sizeof(mu) // OK
++	Sizeof(mu)         // OK
++	unsafe := struct{ Sizeof func(interface{}) }{}
++	unsafe.Sizeof(mu) // ERROR "call of unsafe.Sizeof copies lock value: sync.Mutex"
++	Sizeof := func(interface{}) {}
++	Sizeof(mu) // ERROR "call of Sizeof copies lock value: sync.Mutex"
++}
++
+ // SyncTypesCheck checks copying of sync.* types except sync.Mutex
+ func SyncTypesCheck() {
+ 	// sync.RWMutex copying

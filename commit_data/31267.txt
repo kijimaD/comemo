@@ -14,10 +14,131 @@ Date:   Wed Feb 8 17:30:45 2017 -0800
     Change-Id: I8cd9accee8681b62569d0ecef922d38682b401eb
     Reviewed-on: https://go-review.googlesource.com/36636
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go       | 4 ++--
  src/cmd/compile/internal/syntax/scanner.go      | 6 +++++-
  src/cmd/compile/internal/syntax/scanner_test.go | 8 ++++++++
  test/fixedbugs/issue14520.go                    | 2 +-
  test/syntax/semi6.go                            | 6 +++---
  5 files changed, 19 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 3ebc670950..f016a6adbe 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -144,7 +144,7 @@ func (p *parser) syntax_error_at(pos src.Pos, msg string) {
+ 	// determine token string
+ 	var tok string
+ 	switch p.tok {
+-	case _Name:
++	case _Name, _Semi:
+ 		tok = p.lit
+ 	case _Literal:
+ 		tok = "literal " + p.lit
+@@ -215,7 +215,7 @@ func tokstring(tok token) string {
+ 	case _Comma:
+ 		return "comma"
+ 	case _Semi:
+-		return "semicolon or newline"
++		return "semicolon"
+ 	}
+ 	return tok.String()
+ }
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index 149827b21c..ede3b00a34 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -27,7 +27,7 @@ type scanner struct {
+ 	// current token, valid after calling next()
+ 	line, col uint
+ 	tok       token
+-	lit       string   // valid if tok is _Name or _Literal
++	lit       string   // valid if tok is _Name, _Literal, or _Semi ("semicolon", "newline", or "EOF")
+ 	kind      LitKind  // valid if tok is _Literal
+ 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
+ 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
+@@ -73,12 +73,14 @@ redo:
+ 	switch c {
+ 	case -1:
+ 		if nlsemi {
++			s.lit = "EOF"
+ 			s.tok = _Semi
+ 			break
+ 		}
+ 		s.tok = _EOF
+ 
+ 	case '\n':
++		s.lit = "newline"
+ 		s.tok = _Semi
+ 
+ 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+@@ -106,6 +108,7 @@ redo:
+ 		s.tok = _Comma
+ 
+ 	case ';':
++		s.lit = "semicolon"
+ 		s.tok = _Semi
+ 
+ 	case ')':
+@@ -185,6 +188,7 @@ redo:
+ 			if s.source.line > s.line && nlsemi {
+ 				// A multi-line comment acts like a newline;
+ 				// it translates to a ';' if nlsemi is set.
++				s.lit = "newline"
+ 				s.tok = _Semi
+ 				break
+ 			}
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index fcdc3348e4..ed240df069 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -66,6 +66,11 @@ func TestTokens(t *testing.T) {
+ 		}
+ 
+ 		switch want.tok {
++		case _Semi:
++			if got.lit != "semicolon" {
++				t.Errorf("got %s; want semicolon", got.lit)
++			}
++
+ 		case _Name, _Literal:
+ 			if got.lit != want.src {
+ 				t.Errorf("got lit = %q; want %q", got.lit, want.src)
+@@ -94,6 +99,9 @@ func TestTokens(t *testing.T) {
+ 				t.Errorf("got tok = %s; want ;", got.tok)
+ 				continue
+ 			}
++			if got.lit != "newline" {
++				t.Errorf("got %s; want newline", got.lit)
++			}
+ 		}
+ 
+ 		got.next()
+diff --git a/test/fixedbugs/issue14520.go b/test/fixedbugs/issue14520.go
+index 1b1f4dedd3..84d240faf0 100644
+--- a/test/fixedbugs/issue14520.go
++++ b/test/fixedbugs/issue14520.go
+@@ -9,6 +9,6 @@ package f
+ import /* // ERROR "import path" */ `
+ bogus`
+ 
+-func f(x int /* // ERROR "unexpected semicolon"
++func f(x int /* // ERROR "unexpected newline"
+ 
+ */)
+diff --git a/test/syntax/semi6.go b/test/syntax/semi6.go
+index 325cc27425..4a04f89ddb 100644
+--- a/test/syntax/semi6.go
++++ b/test/syntax/semi6.go
+@@ -6,6 +6,6 @@
+ 
+ package main
+ 
+-type T	// ERROR "unexpected semicolon or newline in type declaration"
+-// line below uncommented to avoid follow-up error
+-// {
+\ No newline at end of file
++type T1	// ERROR "unexpected newline in type declaration"
++
++type T2 /* // ERROR "unexpected EOF in type declaration" */
+\ No newline at end of file

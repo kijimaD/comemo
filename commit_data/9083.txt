@@ -11,6 +11,20 @@ Date:   Thu Jul 14 17:00:14 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4741041
-
+---
  src/pkg/http/cgi/host_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/cgi/host_test.go b/src/pkg/http/cgi/host_test.go
+index 98a7ce5f26..1dc3abdbb3 100644
+--- a/src/pkg/http/cgi/host_test.go
++++ b/src/pkg/http/cgi/host_test.go
+@@ -364,7 +364,7 @@ func TestCopyError(t *testing.T) {
+ 	conn.Close()
+ 
+ 	if tries := 0; childRunning() {
+-		for tries < 5 && childRunning() {
++		for tries < 15 && childRunning() {
+ 			time.Sleep(50e6 * int64(tries))
+ 			tries++
+ 		}

@@ -11,7 +11,44 @@ Date:   Wed Jul 29 19:04:35 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12857
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/runtime/mbitmap.go  | 2 +-
  src/runtime/runtime1.go | 5 +++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index b9b52a7bc4..c439158f07 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -201,7 +201,7 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
+ 		// The following ensures that we are rigorous about what data
+ 		// structures hold valid pointers.
+ 		// TODO(rsc): Check if this still happens.
+-		if true {
++		if debug.invalidptr != 0 {
+ 			// Still happens sometimes. We don't know why.
+ 			printlock()
+ 			print("runtime:objectstart Span weird: p=", hex(p), " k=", hex(k))
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index db26995703..a50e5b618c 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -299,8 +299,6 @@ type dbgVar struct {
+ 	value *int32
+ }
+ 
+-// TODO(rsc): Make GC respect debug.invalidptr.
+-
+ // Holds variables parsed from GODEBUG env var,
+ // except for "memprofilerate" since there is an
+ // existing int var for that value, which may
+@@ -340,6 +338,9 @@ var dbgvars = []dbgVar{
+ }
+ 
+ func parsedebugvars() {
++	// defaults
++	debug.invalidptr = 1
++
+ 	for p := gogetenv("GODEBUG"); p != ""; {
+ 		field := ""
+ 		i := index(p, ",")

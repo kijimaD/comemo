@@ -12,6 +12,25 @@ Date:   Wed Sep 17 20:38:50 2014 -0700
     R=golang-codereviews, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/136310044
-
+---
  src/runtime/mgc0.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 4e901726f6..88c8d0f3c9 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1401,11 +1401,13 @@ gc(struct gc_args *args)
+ 		stats.nsleep += work.markfor->nsleep;
+ 
+ 		runtime·printf("gc%d(%d): %D+%D+%D+%D us, %D -> %D MB, %D (%D-%D) objects,"
++				" %d goroutines,"
+ 				" %d/%d/%d sweeps,"
+ 				" %D(%D) handoff, %D(%D) steal, %D/%D/%D yields\n",
+ 			mstats.numgc, work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
+ 			heap0>>20, heap1>>20, obj,
+ 			mstats.nmalloc, mstats.nfree,
++			runtime·gcount(),
+ 			work.nspan, runtime·sweep.nbgsweep, runtime·sweep.npausesweep,
+ 			stats.nhandoff, stats.nhandoffcnt,
+ 			work.markfor->nsteal, work.markfor->nstealcnt,

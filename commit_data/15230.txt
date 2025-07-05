@@ -9,6 +9,21 @@ Date:   Wed Feb 13 21:13:07 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7323061
-
+---
  src/cmd/8c/txt.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index d7873e3855..1b7617bc52 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -1396,6 +1396,9 @@ gprefetch(Node *n)
+ {
+ 	Node n1;
+ 	
++	if(strcmp(getgo386(), "sse2") != 0) // assume no prefetch on old machines
++		return;
++
+ 	regalloc(&n1, n, Z);
+ 	gmove(n, &n1);
+ 	n1.op = OINDREG;

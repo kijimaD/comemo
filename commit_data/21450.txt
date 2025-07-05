@@ -13,6 +13,30 @@ Date:   Tue Jan 6 09:15:13 2015 -0800
     Change-Id: I95860ef6a844d89b149528195182b191aad8731b
     Reviewed-on: https://go-review.googlesource.com/2371
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/main.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 9691f39c76..9bf227925b 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
+@@ -236,7 +237,9 @@ func capitalize(s string) string {
+ }
+ 
+ func printUsage(w io.Writer) {
+-	tmpl(w, usageTemplate, commands)
++	bw := bufio.NewWriter(w)
++	tmpl(bw, usageTemplate, commands)
++	bw.Flush()
+ }
+ 
+ func usage() {

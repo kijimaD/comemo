@@ -7,7 +7,7 @@ Date:   Tue Apr 13 16:30:11 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/851045
-
+---
  src/pkg/os/Makefile                   |  17 +++++
  src/pkg/os/dir_mingw.go               |  10 ++-
  src/pkg/os/file.go                    |  70 ------------------
@@ -20,3 +20,623 @@ Date:   Tue Apr 13 16:30:11 2010 -0700
  src/pkg/syscall/zsyscall_mingw_386.go |  36 ++++++++++
  src/pkg/syscall/ztypes_mingw_386.go   |  50 ++++++-------
  11 files changed, 345 insertions(+), 110 deletions(-)
+
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index fa92c76e35..b69ac24f2a 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -19,4 +19,21 @@ GOFILES=\
+ 	time.go\
+ 	types.go\
+ 
++GOFILES_freebsd=\
++	file_unix.go\
++
++GOFILES_darwin=\
++	file_unix.go\
++
++GOFILES_linux=\
++	file_unix.go\
++
++GOFILES_nacl=\
++	file_unix.go\
++
++GOFILES_mingw=\
++	file_mingw.go\
++
++GOFILES+=$(GOFILES_$(GOOS))
++
+ include ../../Make.pkg
+diff --git a/src/pkg/os/dir_mingw.go b/src/pkg/os/dir_mingw.go
+index e7711f0484..0d8267b59a 100644
+--- a/src/pkg/os/dir_mingw.go
++++ b/src/pkg/os/dir_mingw.go
+@@ -5,5 +5,13 @@
+ package os
+ 
+ func (file *File) Readdirnames(count int) (names []string, err Error) {
+-	panic("windows Readdirnames not implemented")
++	fis, e := file.Readdir(count)
++	if e != nil {
++		return nil, e
++	}
++	names = make([]string, len(fis))
++	for i, fi := range fis {
++		names[i] = fi.Name
++	}
++	return names, nil
+ }
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 561f36c919..f4af42ff0b 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -11,13 +11,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// Auxiliary information if the File describes a directory
+-type dirInfo struct {
+-	buf  []byte // buffer for directory I/O
+-	nbuf int    // length of buf; return value from Getdirentries
+-	bufp int    // location of next record in buf.
+-}
+-
+ // File represents an open file descriptor.
+ type File struct {
+ 	fd      int
+@@ -68,41 +61,6 @@ const (
+ 	O_CREATE   = O_CREAT            // create a new file if none exists.
+ )
+ 
+-// Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
+-// if applicable.  If successful, methods on the returned File can be used for I/O.
+-// It returns the File and an Error, if any.
+-func Open(name string, flag int, perm int) (file *File, err Error) {
+-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
+-	if e != 0 {
+-		return nil, &PathError{"open", name, Errno(e)}
+-	}
+-
+-	// There's a race here with fork/exec, which we are
+-	// content to live with.  See ../syscall/exec.go
+-	if syscall.O_CLOEXEC == 0 { // O_CLOEXEC not supported
+-		syscall.CloseOnExec(r)
+-	}
+-
+-	return NewFile(r, name), nil
+-}
+-
+-// Close closes the File, rendering it unusable for I/O.
+-// It returns an Error, if any.
+-func (file *File) Close() Error {
+-	if file == nil || file.fd < 0 {
+-		return EINVAL
+-	}
+-	var err Error
+-	if e := syscall.Close(file.fd); e != 0 {
+-		err = &PathError{"close", file.name, Errno(e)}
+-	}
+-	file.fd = -1 // so it can't be closed again
+-
+-	// no need for a finalizer anymore
+-	runtime.SetFinalizer(file, nil)
+-	return err
+-}
+-
+ type eofError int
+ 
+ func (eofError) String() string { return "EOF" }
+@@ -302,34 +260,6 @@ func Lstat(name string) (fi *FileInfo, err Error) {
+ 	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
+ }
+ 
+-// Readdir reads the contents of the directory associated with file and
+-// returns an array of up to count FileInfo structures, as would be returned
+-// by Stat, in directory order.  Subsequent calls on the same file will yield
+-// further FileInfos.
+-// A negative count means to read until EOF.
+-// Readdir returns the array and an Error, if any.
+-func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+-	dirname := file.name
+-	if dirname == "" {
+-		dirname = "."
+-	}
+-	dirname += "/"
+-	names, err1 := file.Readdirnames(count)
+-	if err1 != nil {
+-		return nil, err1
+-	}
+-	fi = make([]FileInfo, len(names))
+-	for i, filename := range names {
+-		fip, err := Lstat(dirname + filename)
+-		if fip == nil || err != nil {
+-			fi[i].Name = filename // rest is already zeroed out
+-		} else {
+-			fi[i] = *fip
+-		}
+-	}
+-	return
+-}
+-
+ // Chdir changes the current working directory to the named directory.
+ func Chdir(dir string) Error {
+ 	if e := syscall.Chdir(dir); e != 0 {
+diff --git a/src/pkg/os/file_mingw.go b/src/pkg/os/file_mingw.go
+new file mode 100644
+index 0000000000..b9ba6a984d
+--- /dev/null
++++ b/src/pkg/os/file_mingw.go
+@@ -0,0 +1,131 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The os package provides a platform-independent interface to operating
++// system functionality.  The design is Unix-like.
++package os
++
++import (
++	"runtime"
++	"syscall"
++)
++
++// Auxiliary information if the File describes a directory
++type dirInfo struct {
++	stat         syscall.Stat_t
++	usefirststat bool
++}
++
++func (file *File) isdir() bool { return file != nil && file.dirinfo != nil }
++
++func openFile(name string, flag int, perm int) (file *File, err Error) {
++	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
++	if e != 0 {
++		return nil, &PathError{"open", name, Errno(e)}
++	}
++
++	// There's a race here with fork/exec, which we are
++	// content to live with.  See ../syscall/exec.go
++	if syscall.O_CLOEXEC == 0 { // O_CLOEXEC not supported
++		syscall.CloseOnExec(r)
++	}
++
++	return NewFile(r, name), nil
++}
++
++func openDir(name string) (file *File, err Error) {
++	d := new(dirInfo)
++	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+"\\*"), &d.stat.Windata)
++	if e != 0 {
++		return nil, &PathError{"open", name, Errno(e)}
++	}
++	f := NewFile(int(r), name)
++	d.usefirststat = true
++	f.dirinfo = d
++	return f, nil
++}
++
++// Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
++// if applicable.  If successful, methods on the returned File can be used for I/O.
++// It returns the File and an Error, if any.
++func Open(name string, flag int, perm int) (file *File, err Error) {
++	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
++	r, e := openDir(name)
++	if e == nil {
++		return r, nil
++	}
++	r, e = openFile(name, flag|syscall.O_CLOEXEC, perm)
++	if e == nil {
++		return r, nil
++	}
++	return nil, e
++}
++
++// Close closes the File, rendering it unusable for I/O.
++// It returns an Error, if any.
++func (file *File) Close() Error {
++	if file == nil || file.fd < 0 {
++		return EINVAL
++	}
++	var e int
++	if file.isdir() {
++		_, e = syscall.FindClose(int32(file.fd))
++	} else {
++		_, e = syscall.CloseHandle(int32(file.fd))
++	}
++	var err Error
++	if e != 0 {
++		err = &PathError{"close", file.name, Errno(e)}
++	}
++	file.fd = -1 // so it can't be closed again
++
++	// no need for a finalizer anymore
++	runtime.SetFinalizer(file, nil)
++	return err
++}
++
++// Readdir reads the contents of the directory associated with file and
++// returns an array of up to count FileInfo structures, as would be returned
++// by Stat, in directory order.  Subsequent calls on the same file will yield
++// further FileInfos.
++// A negative count means to read until EOF.
++// Readdir returns the array and an Error, if any.
++func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
++	di := file.dirinfo
++	size := count
++	if size < 0 {
++		size = 100
++	}
++	fi = make([]FileInfo, 0, size) // Empty with room to grow.
++	for count != 0 {
++		if di.usefirststat {
++			di.usefirststat = false
++		} else {
++			_, e := syscall.FindNextFile(int32(file.fd), &di.stat.Windata)
++			if e != 0 {
++				if e == syscall.ERROR_NO_MORE_FILES {
++					break
++				} else {
++					return nil, &PathError{"FindNextFile", file.name, Errno(e)}
++				}
++			}
++		}
++		var f FileInfo
++		fileInfoFromStat("", &f, &di.stat, &di.stat)
++		if f.Name == "." || f.Name == ".." { // Useless names
++			continue
++		}
++		count--
++		if len(fi) == cap(fi) {
++			nfi := make([]FileInfo, len(fi), 2*len(fi))
++			for i := 0; i < len(fi); i++ {
++				nfi[i] = fi[i]
++			}
++			fi = nfi
++		}
++		fi = fi[0 : len(fi)+1]
++		fi[len(fi)-1] = f
++	}
++	return fi, nil
++}
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+new file mode 100644
+index 0000000000..84ca48064e
+--- /dev/null
++++ b/src/pkg/os/file_unix.go
+@@ -0,0 +1,82 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The os package provides a platform-independent interface to operating
++// system functionality.  The design is Unix-like.
++package os
++
++import (
++	"runtime"
++	"syscall"
++)
++
++// Auxiliary information if the File describes a directory
++type dirInfo struct {
++	buf  []byte // buffer for directory I/O
++	nbuf int    // length of buf; return value from Getdirentries
++	bufp int    // location of next record in buf.
++}
++
++// Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
++// if applicable.  If successful, methods on the returned File can be used for I/O.
++// It returns the File and an Error, if any.
++func Open(name string, flag int, perm int) (file *File, err Error) {
++	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
++	if e != 0 {
++		return nil, &PathError{"open", name, Errno(e)}
++	}
++
++	// There's a race here with fork/exec, which we are
++	// content to live with.  See ../syscall/exec.go
++	if syscall.O_CLOEXEC == 0 { // O_CLOEXEC not supported
++		syscall.CloseOnExec(r)
++	}
++
++	return NewFile(r, name), nil
++}
++
++// Close closes the File, rendering it unusable for I/O.
++// It returns an Error, if any.
++func (file *File) Close() Error {
++	if file == nil || file.fd < 0 {
++		return EINVAL
++	}
++	var err Error
++	if e := syscall.Close(file.fd); e != 0 {
++		err = &PathError{"close", file.name, Errno(e)}
++	}
++	file.fd = -1 // so it can't be closed again
++
++	// no need for a finalizer anymore
++	runtime.SetFinalizer(file, nil)
++	return err
++}
++
++// Readdir reads the contents of the directory associated with file and
++// returns an array of up to count FileInfo structures, as would be returned
++// by Stat, in directory order.  Subsequent calls on the same file will yield
++// further FileInfos.
++// A negative count means to read until EOF.
++// Readdir returns the array and an Error, if any.
++func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
++	dirname := file.name
++	if dirname == "" {
++		dirname = "."
++	}
++	dirname += "/"
++	names, err1 := file.Readdirnames(count)
++	if err1 != nil {
++		return nil, err1
++	}
++	fi = make([]FileInfo, len(names))
++	for i, filename := range names {
++		fip, err := Lstat(dirname + filename)
++		if fip == nil || err != nil {
++			fi[i].Name = filename // rest is already zeroed out
++		} else {
++			fi[i] = *fip
++		}
++	}
++	return
++}
+diff --git a/src/pkg/os/stat_mingw.go b/src/pkg/os/stat_mingw.go
+index 8e2c73cebf..b22843aeaa 100644
+--- a/src/pkg/os/stat_mingw.go
++++ b/src/pkg/os/stat_mingw.go
+@@ -6,10 +6,25 @@ package os
+ 
+ import "syscall"
+ 
+-func isSymlink(stat *syscall.Stat_t) bool {
+-	panic("windows isSymlink not implemented")
+-}
+-
+ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
+-	panic("windows fileInfoFromStat not implemented")
++	fi.Mode = 0
++	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_DIRECTORY {
++		fi.Mode = fi.Mode | syscall.S_IFDIR
++	}
++	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_NORMAL {
++		fi.Mode = fi.Mode | syscall.S_IFREG
++	}
++	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_READONLY {
++		fi.Mode = fi.Mode | 0444
++	} else {
++		fi.Mode = fi.Mode | 0666
++	}
++	fi.Size = uint64(stat.Windata.FileSizeHigh)<<32 + uint64(stat.Windata.FileSizeLow)
++	fi.Name = string(syscall.UTF16ToString(stat.Windata.FileName[0:]))
++	fi.FollowedSymlink = false
++	// TODO(brainman): use CreationTime LastAccessTime LastWriteTime to prime following Dir fields
++	fi.Atime_ns = 0
++	fi.Mtime_ns = 0
++	fi.Ctime_ns = 0
++	return fi
+ }
+diff --git a/src/pkg/syscall/syscall_mingw.go b/src/pkg/syscall/syscall_mingw.go
+index 97ddc6d654..c3f8b9fb7e 100644
+--- a/src/pkg/syscall/syscall_mingw.go
++++ b/src/pkg/syscall/syscall_mingw.go
+@@ -57,8 +57,11 @@ func StringToUTF16(s string) []uint16 { return utf16.Encode([]int(s + "\x00")) }
+ // UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
+ // with a terminating NUL removed.
+ func UTF16ToString(s []uint16) string {
+-	if n := len(s); n > 0 && s[n-1] == 0 {
+-		s = s[0 : n-1]
++	for i, v := range s {
++		if v == 0 {
++			s = s[0:i]
++			break
++		}
+ 	}
+ 	return string(utf16.Decode(s))
+ }
+@@ -105,6 +108,9 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval=0xffffffff]
+ //sys	CloseHandle(handle int32) (ok bool, errno int)
+ //sys	GetStdHandle(stdhandle int32) (handle int32, errno int) [failretval=-1]
++//sys	FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) [failretval=-1] = FindFirstFileW
++//sys	FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) = FindNextFileW
++//sys	FindClose(handle int32) (ok bool, errno int)
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -117,7 +123,7 @@ func Errstr(errno int) string {
+ 	if err != 0 {
+ 		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
+ 	}
+-	return UTF16ToString(b[0 : n-1])
++	return string(utf16.Decode(b[0 : n-1]))
+ }
+ 
+ func Exit(code int) { ExitProcess(uint32(code)) }
+@@ -253,20 +259,31 @@ func getStdHandle(h int32) (fd int) {
+ 	return int(r)
+ }
+ 
++func Stat(path string, stat *Stat_t) (errno int) {
++	h, e := FindFirstFile(StringToUTF16Ptr(path), &stat.Windata)
++	if e != 0 {
++		return e
++	}
++	defer FindClose(h)
++	stat.Mode = 0
++	return 0
++}
++
++func Lstat(path string, stat *Stat_t) (errno int) {
++	// no links on windows, just call Stat
++	return Stat(path, stat)
++}
++
+ // TODO(brainman): fix all needed for os
+ 
+ const (
+ 	SIGTRAP = 5
+ )
+ 
+-func Getdents(fd int, buf []byte) (n int, errno int) { return 0, EMINGW }
+-
+ func Getpid() (pid int)   { return -1 }
+ func Getppid() (ppid int) { return -1 }
+ 
+ func Mkdir(path string, mode int) (errno int)             { return EMINGW }
+-func Lstat(path string, stat *Stat_t) (errno int)         { return EMINGW }
+-func Stat(path string, stat *Stat_t) (errno int)          { return EMINGW }
+ func Fstat(fd int, stat *Stat_t) (errno int)              { return EMINGW }
+ func Chdir(path string) (errno int)                       { return EMINGW }
+ func Fchdir(fd int) (errno int)                           { return EMINGW }
+diff --git a/src/pkg/syscall/syscall_mingw_386.go b/src/pkg/syscall/syscall_mingw_386.go
+index 0368620cc7..1ce025b31a 100644
+--- a/src/pkg/syscall/syscall_mingw_386.go
++++ b/src/pkg/syscall/syscall_mingw_386.go
+@@ -4,6 +4,4 @@
+ 
+ package syscall
+ 
+-// TODO(brainman): check Getpagesize
+-
+ func Getpagesize() int { return 4096 }
+diff --git a/src/pkg/syscall/zerrors_mingw_386.go b/src/pkg/syscall/zerrors_mingw_386.go
+index d99aa2221b..707e9b8a75 100644
+--- a/src/pkg/syscall/zerrors_mingw_386.go
++++ b/src/pkg/syscall/zerrors_mingw_386.go
+@@ -7,6 +7,7 @@ package syscall
+ 
+ const (
+ 	ERROR_FILE_NOT_FOUND      = 2
++	ERROR_NO_MORE_FILES       = 18
+ 	ERROR_INSUFFICIENT_BUFFER = 122
+ 	ERROR_MOD_NOT_FOUND       = 126
+ 	ERROR_PROC_NOT_FOUND      = 127
+diff --git a/src/pkg/syscall/zsyscall_mingw_386.go b/src/pkg/syscall/zsyscall_mingw_386.go
+index c01f40e7de..185180a86d 100644
+--- a/src/pkg/syscall/zsyscall_mingw_386.go
++++ b/src/pkg/syscall/zsyscall_mingw_386.go
+@@ -20,6 +20,9 @@ var (
+ 	procSetFilePointer = getSysProcAddr(modKERNEL32, "SetFilePointer")
+ 	procCloseHandle    = getSysProcAddr(modKERNEL32, "CloseHandle")
+ 	procGetStdHandle   = getSysProcAddr(modKERNEL32, "GetStdHandle")
++	procFindFirstFileW = getSysProcAddr(modKERNEL32, "FindFirstFileW")
++	procFindNextFileW  = getSysProcAddr(modKERNEL32, "FindNextFileW")
++	procFindClose      = getSysProcAddr(modKERNEL32, "FindClose")
+ )
+ 
+ func GetLastError() (lasterrno int) {
+@@ -165,3 +168,36 @@ func GetStdHandle(stdhandle int32) (handle int32, errno int) {
+ 	}
+ 	return
+ }
++
++func FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) {
++	r0, _, e1 := Syscall(procFindFirstFileW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(data)), 0)
++	handle = int32(r0)
++	if handle == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procFindNextFileW, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func FindClose(handle int32) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procFindClose, uintptr(handle), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
+diff --git a/src/pkg/syscall/ztypes_mingw_386.go b/src/pkg/syscall/ztypes_mingw_386.go
+index 93364e44d1..c683c6ed59 100644
+--- a/src/pkg/syscall/ztypes_mingw_386.go
++++ b/src/pkg/syscall/ztypes_mingw_386.go
+@@ -78,6 +78,8 @@ const (
+ 	FORMAT_MESSAGE_FROM_SYSTEM     = 4096
+ 	FORMAT_MESSAGE_ARGUMENT_ARRAY  = 8192
+ 	FORMAT_MESSAGE_MAX_WIDTH_MASK  = 255
++
++	MAX_PATH = 260
+ )
+ 
+ // Types
+@@ -103,6 +105,29 @@ type Overlapped struct {
+ 	HEvent       *byte
+ }
+ 
++type Filetime struct {
++	LowDateTime  uint32
++	HighDateTime uint32
++}
++
++type Win32finddata struct {
++	FileAttributes    uint32
++	CreationTime      Filetime
++	LastAccessTime    Filetime
++	LastWriteTime     Filetime
++	FileSizeHigh      uint32
++	FileSizeLow       uint32
++	Reserved0         uint32
++	Reserved1         uint32
++	FileName          [MAX_PATH - 1]uint16
++	AlternateFileName [13]uint16
++}
++
++type Stat_t struct {
++	Windata Win32finddata
++	Mode    uint32
++}
++
+ // TODO(brainman): fix all needed for os
+ 
+ const (
+@@ -135,28 +160,3 @@ const (
+ 	S_IWUSR    = 0x80
+ 	S_IXUSR    = 0x40
+ )
+-
+-type Stat_t struct {
+-	Dev       int64
+-	Ino       uint32
+-	Mode      uint32
+-	Nlink     uint32
+-	Uid       uint32
+-	Gid       uint32
+-	__padding int32
+-	Rdev      int64
+-	Size      int32
+-	Blksize   int32
+-	Blocks    int32
+-	Atime     int32
+-	Mtime     int32
+-	Ctime     int32
+-}
+-
+-type Dirent struct {
+-	Ino    uint32
+-	Off    int32
+-	Reclen uint16
+-	Name   [256]int8
+-	Pad0   [2]byte
+-}

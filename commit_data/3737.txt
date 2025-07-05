@@ -8,9 +8,221 @@ Date:   Tue Nov 3 13:40:11 2009 -0800
     
     R=rsc
     http://go/go-review/1017015
-
+---
  src/pkg/go/ast/ast.go                           |  8 ++++
  src/pkg/go/printer/nodes.go                     | 28 ++++++++------
  src/pkg/go/printer/testdata/declarations.go     | 47 ++++++++++++++++++++++++
  src/pkg/go/printer/testdata/declarations.golden | 49 +++++++++++++++++++++++++
  4 files changed, 121 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index c346c48b38..4b90f3b74e 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -95,6 +95,14 @@ type Field struct {
+ }
+ 
+ 
++func (f *Field) Pos() token.Position {
++	if len(f.Names) > 0 {
++		return f.Names[0].Pos();
++	}
++	return f.Type.Pos();
++}
++
++
+ // An expression is represented by a tree consisting of one
+ // or more of the following concrete expression nodes.
+ //
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 10f554e40a..20bd18b7e3 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -256,15 +256,16 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 			sep = blank;
+ 		}
+ 		for i, f := range list {
++			var ml bool;
+ 			extraTabs := 0;
+ 			p.leadComment(f.Doc);
+ 			if len(f.Names) > 0 {
+-				p.identList(f.Names, ignoreMultiLine);
++				p.identList(f.Names, &ml);
+ 				p.print(sep);
+-				p.expr(f.Type, ignoreMultiLine);
++				p.expr(f.Type, &ml);
+ 				extraTabs = 1;
+ 			} else {
+-				p.expr(f.Type, ignoreMultiLine);
++				p.expr(f.Type, &ml);
+ 				extraTabs = 2;
+ 			}
+ 			if f.Tag != nil {
+@@ -272,7 +273,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 					p.print(sep);
+ 				}
+ 				p.print(sep);
+-				p.expr(&ast.StringList{f.Tag}, ignoreMultiLine);
++				p.expr(&ast.StringList{f.Tag}, &ml);
+ 				extraTabs = 0;
+ 			}
+ 			p.print(token.SEMICOLON);
+@@ -282,8 +283,10 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 				}
+ 				p.lineComment(f.Comment);
+ 			}
+-			if i+1 < len(list) || isIncomplete {
+-				p.print(newline);
++			if i+1 < len(list) {
++				p.linebreak(list[i+1].Pos().Line, 1, 2, ignore, ml);
++			} else if isIncomplete {
++				p.print(formfeed);
+ 			}
+ 		}
+ 		if isIncomplete {
+@@ -294,19 +297,22 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 	} else { // interface
+ 
+ 		for i, f := range list {
++			var ml bool;
+ 			p.leadComment(f.Doc);
+ 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
+ 				// method
+-				p.expr(f.Names[0], ignoreMultiLine);  // exactly one name
+-				p.signature(ftyp.Params, ftyp.Results, ignoreMultiLine);
++				p.expr(f.Names[0], &ml);
++				p.signature(ftyp.Params, ftyp.Results, &ml);
+ 			} else {
+ 				// embedded interface
+-				p.expr(f.Type, ignoreMultiLine);
++				p.expr(f.Type, &ml);
+ 			}
+ 			p.print(token.SEMICOLON);
+ 			p.lineComment(f.Comment);
+-			if i+1 < len(list) || isIncomplete {
+-				p.print(newline);
++			if i+1 < len(list) {
++				p.linebreak(list[i+1].Pos().Line, 1, 2, ignore, ml);
++			} else if isIncomplete {
++				p.print(formfeed);
+ 			}
+ 		}
+ 		if isIncomplete {
+diff --git a/src/pkg/go/printer/testdata/declarations.go b/src/pkg/go/printer/testdata/declarations.go
+index 3e926664f3..a697ef736e 100644
+--- a/src/pkg/go/printer/testdata/declarations.go
++++ b/src/pkg/go/printer/testdata/declarations.go
+@@ -93,6 +93,53 @@ func _() {
+ }
+ 
+ 
++// don't lose blank lines in this struct
++type _ struct {
++	String struct {
++		Str, Len int;
++	};
++	Slice struct {
++		Array, Len, Cap int;
++	};
++	Eface struct {
++		Typ, Ptr int;
++	};
++
++	UncommonType struct {
++		Name, PkgPath int;
++	};
++	CommonType struct {
++		Size, Hash, Alg, Align, FieldAlign, String, UncommonType int;
++	};
++	Type struct {
++		Typ, Ptr int;
++	};
++	StructField struct {
++		Name, PkgPath, Typ, Tag, Offset int;
++	};
++	StructType struct {
++		Fields int;
++	};
++	PtrType struct {
++		Elem int;
++	};
++	SliceType struct {
++		Elem int;
++	};
++	ArrayType struct {
++		Elem, Len int;
++	};
++
++	Stktop struct {
++		Stackguard, Stackbase, Gobuf int;
++	};
++	Gobuf struct {
++		Sp, Pc, G int;
++	};
++	G struct {
++		Stackbase, Sched, Status, Alllink int;
++	};
++}
+ 
+ 
+ // no tabs for single or ungrouped decls
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 3a8fa8546c..e238b4581c 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -94,6 +94,55 @@ func _() {
+ }
+ 
+ 
++// don't lose blank lines in this struct
++type _ struct {
++	String	struct {
++		Str, Len int;
++	};
++	Slice	struct {
++		Array, Len, Cap int;
++	};
++	Eface	struct {
++		Typ, Ptr int;
++	};
++
++	UncommonType	struct {
++		Name, PkgPath int;
++	};
++	CommonType	struct {
++		Size, Hash, Alg, Align, FieldAlign, String, UncommonType int;
++	};
++	Type	struct {
++		Typ, Ptr int;
++	};
++	StructField	struct {
++		Name, PkgPath, Typ, Tag, Offset int;
++	};
++	StructType	struct {
++		Fields int;
++	};
++	PtrType	struct {
++		Elem int;
++	};
++	SliceType	struct {
++		Elem int;
++	};
++	ArrayType	struct {
++		Elem, Len int;
++	};
++
++	Stktop	struct {
++		Stackguard, Stackbase, Gobuf int;
++	};
++	Gobuf	struct {
++		Sp, Pc, G int;
++	};
++	G	struct {
++		Stackbase, Sched, Status, Alllink int;
++	};
++}
++
++
+ // no tabs for single or ungrouped decls
+ func _() {
+ 	const xxxxxx = 0;

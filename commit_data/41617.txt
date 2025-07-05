@@ -26,8 +26,91 @@ Date:   Tue Oct 15 17:51:32 2019 -0400
     Change-Id: I28489a571cee36d2aef041f917b8cfdc31d557d4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201297
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go   |  3 ++-
  src/cmd/internal/obj/wasm/wasmobj.go |  4 +++-
  test/defernil.go                     | 33 +++++++++++++++++++++++++++++++++
  3 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c7805a7419..dd8dacd149 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3779,7 +3779,8 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 			break
+ 		}
+ 		closure = s.expr(fn)
+-		if thearch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo {
++		if k != callDefer && k != callDeferStack && (thearch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo) {
++			// Deferred nil function needs to panic when the function is invoked, not the point of defer statement.
+ 			// On AIX, the closure needs to be verified as fn can be nil, except if it's a call go. This needs to be handled by the runtime to have the "go of nil func value" error.
+ 			// TODO(neelance): On other architectures this should be eliminated by the optimization steps
+ 			s.nilCheck(closure)
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index ed8edb064b..255e7b68a2 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -129,6 +129,7 @@ var (
+ 	morestackNoCtxt *obj.LSym
+ 	gcWriteBarrier  *obj.LSym
+ 	sigpanic        *obj.LSym
++	sigpanic0       *obj.LSym
+ 	deferreturn     *obj.LSym
+ 	jmpdefer        *obj.LSym
+ )
+@@ -143,6 +144,7 @@ func instinit(ctxt *obj.Link) {
+ 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
+ 	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
+ 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
++	sigpanic0 = ctxt.LookupABI("runtime.sigpanic", 0) // sigpanic called from assembly, which has ABI0
+ 	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
+ 	// jmpdefer is defined in assembly as ABI0, but what we're
+ 	// looking for is the *call* to jmpdefer from the Go function
+@@ -491,7 +493,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 
+ 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
+-			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
++			if call.As == ACALLNORESUME && call.To.Sym != sigpanic && call.To.Sym != sigpanic0 { // sigpanic unwinds the stack, but it never resumes
+ 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
+ 				p = appendp(p, AIf)
+ 				p = appendp(p, obj.AUNDEF)
+diff --git a/test/defernil.go b/test/defernil.go
+new file mode 100644
+index 0000000000..5be3abd2f5
+--- /dev/null
++++ b/test/defernil.go
+@@ -0,0 +1,33 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that deferring a nil function causes a proper
++// panic when the deferred function is invoked (not
++// when the function is deferred).
++// See Issue #8047 and #34926.
++
++package main
++
++var x = 0
++
++func main() {
++	defer func() {
++		err := recover()
++		if err == nil {
++			panic("did not panic")
++		}
++		if x != 1 {
++			panic("FAIL")
++		}
++	}()
++	f()
++}
++
++func f() {
++	var nilf func()
++	defer nilf()
++	x = 1
++}

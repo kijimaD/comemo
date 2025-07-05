@@ -8,9 +8,232 @@ Date:   Mon Jun 29 15:15:07 2009 -0700
     DELTA=185  (175 added, 10 deleted, 0 changed)
     OCL=30863
     CL=30871
-
+---
  src/pkg/gob/codec_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/gob/decode.go     | 40 +++++++++++++++++++
  src/pkg/gob/encode.go     | 40 +++++++++++++++++++
  src/pkg/gob/type_test.go  | 10 -----
  4 files changed, 178 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+new file mode 100644
+index 0000000000..8142aac696
+--- /dev/null
++++ b/src/pkg/gob/codec_test.go
+@@ -0,0 +1,98 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gob
++
++import (
++	"bytes";
++	"gob";
++	"io";
++	"os";
++	"testing";
++)
++
++// Guarantee encoding format by comparing some encodings to hand-written values
++type EncodeT struct {
++	x	uint64;
++	b	[]byte;
++}
++var encodeT = []EncodeT {
++	EncodeT{ 0x00,	[]byte{0x80} },
++	EncodeT{ 0x0f,	[]byte{0x8f} },
++	EncodeT{ 0xff,	[]byte{0x7f, 0x81} },
++	EncodeT{ 0xffff,	[]byte{0x7f, 0x7f, 0x83} },
++	EncodeT{ 0xffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x87} },
++	EncodeT{ 0xffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x8f} },
++	EncodeT{ 0xffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x9f} },
++	EncodeT{ 0xffffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0xbf} },
++	EncodeT{ 0xffffffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0xff} },
++	EncodeT{ 0xffffffffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x81} },
++	EncodeT{ 0x1111,	[]byte{0x11, 0xa2} },
++	EncodeT{ 0x1111111111111111,	[]byte{0x11, 0x22, 0x44, 0x08, 0x11, 0x22, 0x44, 0x08, 0x91} },
++	EncodeT{ 0x8888888888888888,	[]byte{0x08, 0x11, 0x22, 0x44, 0x08, 0x11, 0x22, 0x44, 0x08, 0x81} },
++	EncodeT{ 1<<63,	[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81} },
++}
++
++// Test basic encode/decode routines for unsigned integers
++func TestUintCodec(t *testing.T) {
++	var b = new(io.ByteBuffer);
++	for i, tt := range encodeT {
++		b.Reset();
++		err := EncodeUint(b, tt.x);
++		if err != nil {
++			t.Error("EncodeUint:", tt.x, err)
++		}
++		if !bytes.Equal(tt.b, b.Data()) {
++			t.Errorf("EncodeUint: expected % x got % x", tt.b, b.Data())
++		}
++	}
++	for u := uint64(0); ; u = (u+1) * 7 {
++		b.Reset();
++		err := EncodeUint(b, u);
++		if err != nil {
++			t.Error("EncodeUint:", u, err)
++		}
++		v, err := DecodeUint(b);
++		if err != nil {
++			t.Error("DecodeUint:", u, err)
++		}
++		if u != v {
++			t.Errorf("Encode/Decode: sent %#x received %#x\n", u, v)
++		}
++		if u & (1<<63) != 0 {
++			break
++		}
++	}
++}
++
++func verifyInt(i int64, t *testing.T) {
++	var b = new(io.ByteBuffer);
++	err := EncodeInt(b, i);
++	if err != nil {
++		t.Error("EncodeInt:", i, err)
++	}
++	j, err := DecodeInt(b);
++	if err != nil {
++		t.Error("DecodeInt:", i, err)
++	}
++	if i != j {
++		t.Errorf("Encode/Decode: sent %#x received %#x\n", uint64(i), uint64(j))
++	}
++}
++
++// Test basic encode/decode routines for signed integers
++func TestIntCodec(t *testing.T) {
++	var b = new(io.ByteBuffer);
++	for u := uint64(0); ; u = (u+1) * 7 {
++		// Do positive and negative values
++		i := int64(u);
++		verifyInt(i, t);
++		verifyInt(-i, t);
++		verifyInt(^i, t);
++		if u & (1<<63) != 0 {
++			break
++		}
++	}
++	verifyInt(-1<<63, t);	// a tricky case
++}
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+new file mode 100644
+index 0000000000..5104627cd0
+--- /dev/null
++++ b/src/pkg/gob/decode.go
+@@ -0,0 +1,40 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gob
++
++import (
++	"io";
++	"os";
++)
++
++// DecodeUint reads an encoded unsigned integer from r.
++func DecodeUint(r io.Reader) (x uint64, err os.Error) {
++	var buf [1]byte;
++	for shift := uint(0);; shift += 7 {
++		n, err := r.Read(&buf);
++		if n != 1 {
++			return 0, err
++		}
++		b := uint64(buf[0]);
++		x |= b << shift;
++		if b&0x80 != 0 {
++			x &^= 0x80 << shift;
++			break
++		}
++	}
++	return x, nil;
++}
++
++// DecodeInt reads an encoded signed integer from r.
++func DecodeInt(r io.Reader) (i int64, err os.Error) {
++	x, err := DecodeUint(r);
++	if err != nil {
++		return
++	}
++	if x & 1 != 0 {
++		return ^int64(x>>1), nil
++	}
++	return int64(x >> 1), nil
++}
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+new file mode 100644
+index 0000000000..ecddee23e8
+--- /dev/null
++++ b/src/pkg/gob/encode.go
+@@ -0,0 +1,40 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gob
++
++import (
++	"io";
++	"os";
++)
++
++// Integers encode as a variant of Google's protocol buffer varint (varvarint?).
++// The variant is that the continuation bytes have a zero top bit instead of a one.
++// That way there's only one bit to clear and the value is a little easier to see if
++// you're the unfortunate sort of person who must read the hex to debug.
++
++// EncodeUint writes an encoded unsigned integer to w.
++func EncodeUint(w io.Writer, x uint64) os.Error {
++	var buf [16]byte;
++	var n int;
++	for n = 0; x > 127; n++ {
++		buf[n] = uint8(x & 0x7F);
++		x >>= 7;
++	}
++	buf[n] = 0x80 | uint8(x);
++	nn, err := w.Write(buf[0:n+1]);
++	return err;
++}
++
++// EncodeInt writes an encoded signed integer to w.
++// The low bit of the encoding says whether to bit complement the (other bits of the) uint to recover the int.
++func EncodeInt(w io.Writer, i int64) os.Error {
++	var x uint64;
++	if i < 0 {
++		x = uint64(^i << 1) | 1
++	} else {
++		x = uint64(i << 1)
++	}
++	return EncodeUint(w, uint64(x))
++}
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/gob/type_test.go
+index a2efee9bac..f07bdf36a6 100644
+--- a/src/pkg/gob/type_test.go
++++ b/src/pkg/gob/type_test.go
+@@ -5,21 +5,11 @@
+ package gob
+ 
+ import (
+-"fmt";
+ 	"gob";
+ 	"os";
+ 	"testing";
+ )
+ 
+-func checkType(ti Type, expected string, t *testing.T) {
+-	if ti.String() != expected {
+-		t.Errorf("checkType: expected %q got %s", expected, ti.String())
+-	}
+-	if ti.id() == 0 {
+-		t.Errorf("id for %q is zero", expected)
+-	}
+-}
+-
+ type typeT struct {
+ 	typ	Type;
+ 	str	string;

@@ -7,6 +7,20 @@ Date:   Wed Dec 21 15:45:36 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5504067
-
+---
  src/pkg/runtime/signals_linux.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/signals_linux.h b/src/pkg/runtime/signals_linux.h
+index 919b80ea29..1fc5f8c87c 100644
+--- a/src/pkg/runtime/signals_linux.h
++++ b/src/pkg/runtime/signals_linux.h
+@@ -13,7 +13,7 @@ SigTab runtime·sigtab[] = {
+ 	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
+ 	/* 2 */	Q+R, "SIGINT: interrupt",
+ 	/* 3 */	C, "SIGQUIT: quit",
+-	/* 4 */	C+P, "SIGILL: illegal instruction",
++	/* 4 */	C, "SIGILL: illegal instruction",
+ 	/* 5 */	C, "SIGTRAP: trace trap",
+ 	/* 6 */	C, "SIGABRT: abort",
+ 	/* 7 */	C+P, "SIGBUS: bus error",

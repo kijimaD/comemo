@@ -64,7 +64,7 @@ Date:   Fri Nov 2 00:17:21 2012 -0400
     R=iant, ken
     CC=golang-dev
     https://golang.org/cl/6749064
-
+---
  src/cmd/5a/lex.c       |   2 +
  src/cmd/5g/gg.h        |   1 +
  src/cmd/5g/gsubr.c     |  11 ++
@@ -102,3 +102,1940 @@ Date:   Fri Nov 2 00:17:21 2012 -0400
  src/cmd/ld/go.c        | 112 ++++++++++++++-------
  src/cmd/ld/lib.h       |   1 +
  36 files changed, 413 insertions(+), 188 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index cc02879b76..fbce6b771d 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -413,6 +413,8 @@ struct
+ 	"MULAWT",	LTYPEN, AMULAWT,
+ 	"MULAWB",	LTYPEN, AMULAWB,
+ 
++	"USEFIELD",	LTYPEN, AUSEFIELD,
++
+ 	0
+ };
+ 
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 80a5605f0c..ba9356edc3 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -142,6 +142,7 @@ void	datagostring(Strlit*, Addr*);
+ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
+ Node*	ncon(uint32 i);
++void	gtrack(Sym*);
+ 
+ /*
+  * obj.c
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index c4961b80c6..0ab335e0bc 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -225,6 +225,17 @@ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ 		p->reg |= RODATA;
+ }
+ 
++void
++gtrack(Sym *s)
++{
++	Prog *p;
++	
++	p = gins(AUSEFIELD, N, N);
++	p->from.type = D_OREG;
++	p->from.name = D_EXTERN;
++	p->from.sym = s;
++}
++
+ int
+ isfat(Type *t)
+ {
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index b9b0525701..c987001777 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -195,6 +195,8 @@ enum	as
+ 	AMULWB,
+ 	AMULAWT,
+ 	AMULAWB,
++	
++	AUSEFIELD,
+ 
+ 	ALAST,
+ };
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 36bf254e46..50531bb209 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -153,6 +153,8 @@ struct	Sym
+ 	Sym*	sub;	// in SSUB list
+ 	Sym*	outer;	// container of sub
+ 	Sym*	gotype;
++	Sym*	reachparent;
++	Sym*	queue;
+ 	char*	file;
+ 	char*	dynimpname;
+ 	char*	dynimplib;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 4c2603d28a..74ac6ecb47 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -147,6 +147,9 @@ main(int argc, char *argv[])
+ 		val = EARGF(usage());
+ 		addbuildinfo(val);
+ 		break;
++	case 'k':
++		tracksym = EARGF(usage());
++		break;
+ 	} ARGEND
+ 
+ 	USED(argc);
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index cb29cfd685..9e95c096de 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -242,5 +242,7 @@ Optab	optab[] =
+ 	{ AMULWT,	C_REG,	C_REG,	C_REG,		98, 4, 0 },
+ 	{ AMULAWT,	C_REG,	C_REG,	C_REGREG2,		99, 4, 0 },
+ 
++	{ AUSEFIELD,	C_ADDR,	C_NONE,	C_NONE, 	 0, 0, 0 },
++
+ 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
+ };
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 7614c40185..59c0590b47 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -812,6 +812,7 @@ buildop(void)
+ 		case AMOVM:
+ 		case ARFE:
+ 		case ATEXT:
++		case AUSEFIELD:
+ 		case ACASE:
+ 		case ABCASE:
+ 			break;
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 376a4b67e5..d65802a201 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -1014,7 +1014,8 @@ struct
+ 	"AESDECLAST",	LTYPE3, AAESDECLAST,
+ 	"AESIMC",	LTYPE3, AAESIMC,
+ 	"AESKEYGENASSIST", LTYPEX, AAESKEYGENASSIST,
+-	"PSHUFD", LTYPEX, APSHUFD,
++	"PSHUFD",	LTYPEX, APSHUFD,
++	"USEFIELD",	LTYPEN, AUSEFIELD,
+ 
+ 	0
+ };
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 65ea7a4aa7..4045e9a2e2 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -125,6 +125,7 @@ void	sudoclean(void);
+ int	sudoaddable(int, Node*, Addr*);
+ void	afunclit(Addr*);
+ void	nodfconst(Node*, Type*, Mpflt*);
++void	gtrack(Sym*);
+ 
+ /*
+  * cplx.c
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 638ba4add6..b7ba420da1 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -205,6 +205,17 @@ ggloblnod(Node *nam, int32 width)
+ 		p->from.scale |= NOPTR;
+ }
+ 
++void
++gtrack(Sym *s)
++{
++	Prog *p;
++	
++	p = gins(AUSEFIELD, N, N);
++	p->from.type = D_EXTERN;
++	p->from.index = D_NONE;
++	p->from.sym = s;
++}
++
+ void
+ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ {
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 6acc1f459e..3946861de4 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -756,6 +756,8 @@ enum	as
+ 	AAESKEYGENASSIST,
+ 
+ 	APSHUFD,
++	
++	AUSEFIELD,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index c2ae007790..91926a13a0 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -158,6 +158,8 @@ struct	Sym
+ 	Sym*	next;	// in text or data list
+ 	Sym*	sub;	// in SSUB list
+ 	Sym*	outer;	// container of sub
++	Sym*	reachparent;
++	Sym*	queue;
+ 	vlong	value;
+ 	vlong	size;
+ 	Sym*	gotype;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index dad217cc86..08db03c4a3 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -144,6 +144,9 @@ main(int argc, char *argv[])
+ 		val = EARGF(usage());
+ 		addbuildinfo(val);
+ 		break;
++	case 'k':
++		tracksym = EARGF(usage());
++		break;
+ 	} ARGEND
+ 
+ 	if(argc != 1)
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index e81c1eda01..4f8406637c 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -1315,6 +1315,8 @@ Optab optab[] =
+ 
+ 	{ APSHUFD,	yaes2,	Pq,	0x70,(0) },
+ 
++	{ AUSEFIELD,	ynop,	Px, 0,0 },
++
+ 	{ AEND },
+ 	0
+ };
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index cebaa9e5f8..25c61d75c2 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -781,6 +781,7 @@ struct
+ 	"UNPCKLPS",	LTYPE3,	AUNPCKLPS,
+ 	"XORPD",	LTYPE3,	AXORPD,
+ 	"XORPS",	LTYPE3,	AXORPS,
++	"USEFIELD",	LTYPEN, AUSEFIELD,
+ 
+ 	0
+ };
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 09718855bd..e1d44c2300 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -147,6 +147,7 @@ void	afunclit(Addr*);
+ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
+ void	nswap(Node*, Node*);
++void	gtrack(Sym*);
+ 
+ /*
+  * cplx.c
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index a94086e7c1..c5f6c22428 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -224,6 +224,17 @@ ggloblsym(Sym *s, int32 width, int dupok, int rodata)
+ 		p->from.scale |= RODATA;
+ }
+ 
++void
++gtrack(Sym *s)
++{
++	Prog *p;
++	
++	p = gins(AUSEFIELD, N, N);
++	p->from.type = D_EXTERN;
++	p->from.index = D_NONE;
++	p->from.sym = s;
++}
++
+ int
+ isfat(Type *t)
+ {
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 27040be8bf..6a2d46c62e 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -566,6 +566,8 @@ enum	as
+ 	AUNPCKLPS,
+ 	AXORPD,
+ 	AXORPS,
++	
++	AUSEFIELD,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 8cf0fde3ac..96b425874d 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -143,6 +143,8 @@ struct	Sym
+ 	Sym*	sub;	// in sub list
+ 	Sym*	outer;	// container of sub
+ 	Sym*	gotype;
++	Sym*	reachparent;
++	Sym*	queue;
+ 	char*	file;
+ 	char*	dynimpname;
+ 	char*	dynimplib;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 19e351d998..eebf9fcfe5 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -149,6 +149,9 @@ main(int argc, char *argv[])
+ 		val = EARGF(usage());
+ 		addbuildinfo(val);
+ 		break;
++	case 'k':
++		tracksym = EARGF(usage());
++		break;
+ 	} ARGEND
+ 
+ 	if(argc != 1)
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index de87e22ecc..865871ce5c 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -960,5 +960,7 @@ Optab optab[] =
+ 	{ AXORPD,	yxm,	Pe, 0x57 },
+ 	{ AXORPS,	yxm,	Pm, 0x57 },
+ 
++	{ AUSEFIELD,	ynop,	Px, 0,0 },
++
+ 	0
+ };
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index f7e52777fc..d20f64357b 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1269,7 +1269,7 @@ methodname1(Node *n, Node *t)
+  * n is fieldname, pa is base type, t is function type
+  */
+ void
+-addmethod(Sym *sf, Type *t, int local)
++addmethod(Sym *sf, Type *t, int local, int nointerface)
+ {
+ 	Type *f, *d, *pa;
+ 	Node *n;
+@@ -1352,6 +1352,7 @@ addmethod(Sym *sf, Type *t, int local)
+ 	}
+ 
+ 	f = structfield(n);
++	f->nointerface = nointerface;
+ 
+ 	// during import unexported method names should be in the type's package
+ 	if(importpkg && f->sym && !exportname(f->sym->name) && f->sym->pkg != structpkg)
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 7f977874a1..7db713e481 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -278,6 +278,8 @@ dumpexporttype(Type *t)
+ 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+ 			if(debug['l'] < 2)
+ 				typecheckinl(f->type->nname);
++			if(f->nointerface)
++				Bprint(bout, "\t//go:nointerface\n");
+ 			Bprint(bout, "\tfunc (%#T) %#hhS%#hT { %#H }\n", getthisx(f->type)->type, f->sym, f->type, f->type->nname->inl);
+ 			reexportdeplist(f->type->nname->inl);
+ 		} else
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 06f6e34f3a..22718889a7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -137,6 +137,7 @@ typedef	struct	Label	Label;
+ struct	Type
+ {
+ 	uchar	etype;
++	uchar	nointerface;
+ 	uchar	chan;
+ 	uchar	trecur;		// to detect loops
+ 	uchar	printed;
+@@ -175,6 +176,7 @@ struct	Type
+ 
+ 	// TFIELD
+ 	Type*	down;		// next struct field, also key type in TMAP
++	Type*	outer;		// outer struct
+ 	Strlit*	note;		// literal string annotation
+ 
+ 	// TARRAY
+@@ -185,6 +187,9 @@ struct	Type
+ 	
+ 	// for TFORW, where to copy the eventual value to
+ 	NodeList	*copyto;
++	
++	// for usefield
++	Node	*lastfn;
+ };
+ #define	T	((Type*)0)
+ 
+@@ -236,6 +241,7 @@ struct	Node
+ 	NodeList*	rlist;
+ 
+ 	uchar	op;
++	uchar	nointerface;
+ 	uchar	ullman;		// sethi/ullman number
+ 	uchar	addable;	// type of addressability - 0 is not addressable
+ 	uchar	trecur;		// to detect loops
+@@ -284,7 +290,7 @@ struct	Node
+ 	Node*	defn;	// ONAME: initializing assignment; OLABEL: labeled statement
+ 	Node*	pack;	// real package for import . names
+ 	Node*	curfn;	// function for local variables
+-	Type*	paramfld; // TFIELD for this PPARAM
++	Type*	paramfld; // TFIELD for this PPARAM; also for ODOT, curfn
+ 
+ 	// ONAME func param with PHEAP
+ 	Node*	heapaddr;	// temp holding heap address of param
+@@ -849,6 +855,7 @@ EXTERN	Pkg*	stringpkg;	// fake package for C strings
+ EXTERN	Pkg*	typepkg;	// fake package for runtime type info
+ EXTERN	Pkg*	weaktypepkg;	// weak references to runtime type info
+ EXTERN	Pkg*	unsafepkg;	// package unsafe
++EXTERN	Pkg*	trackpkg;	// fake package for field tracking
+ EXTERN	Pkg*	phash[128];
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	runtimeimport;
+@@ -929,6 +936,9 @@ EXTERN	int	typecheckok;
+ EXTERN	int	compiling_runtime;
+ EXTERN	int	compiling_wrappers;
+ 
++EXTERN	int	nointerface;
++EXTERN	int	fieldtrack_enabled;
++
+ /*
+  *	y.tab.c
+  */
+@@ -1004,7 +1014,7 @@ void	nodfconst(Node *n, Type *t, Mpflt* fval);
+ /*
+  *	dcl.c
+  */
+-void	addmethod(Sym *sf, Type *t, int local);
++void	addmethod(Sym *sf, Type *t, int local, int nointerface);
+ void	addvar(Node *n, Type *t, int ctxt);
+ NodeList*	checkarglist(NodeList *all, int input);
+ Node*	colas(NodeList *left, NodeList *right, int32 lno);
+@@ -1200,8 +1210,10 @@ void	dumptypestructs(void);
+ Type*	methodfunc(Type *f, Type*);
+ Node*	typename(Type *t);
+ Sym*	typesym(Type *t);
++Sym*	tracksym(Type *t);
+ Sym*	typesymprefix(char *prefix, Type *t);
+ int	haspointers(Type *t);
++void	usefield(Node*);
+ 
+ /*
+  *	select.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index e9dcd506e7..0f2622c3b8 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1275,6 +1275,7 @@ fndcl:
+ 		$$->nname = methodname1($$->shortname, rcvr->right);
+ 		$$->nname->defn = $$;
+ 		$$->nname->ntype = t;
++		$$->nname->nointerface = nointerface;
+ 		declare($$->nname, PFUNC);
+ 
+ 		funchdr($$);
+@@ -1312,7 +1313,8 @@ hidden_fndcl:
+ 		$$->type = functype($2->n, $6, $8);
+ 
+ 		checkwidth($$->type);
+-		addmethod($4, $$->type, 0);
++		addmethod($4, $$->type, 0, nointerface);
++		nointerface = 0;
+ 		funchdr($$);
+ 		
+ 		// inl.c's inlnode in on a dotmeth node expects to find the inlineable body as
+@@ -1389,6 +1391,7 @@ xdcl_list:
+ 		$$ = concat($1, $2);
+ 		if(nsyntaxerrors == 0)
+ 			testdclstack();
++		nointerface = 0;
+ 	}
+ 
+ vardcl_list:
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 920de6f635..d31395c1d0 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -40,6 +40,7 @@ static struct {
+ 	int *val;
+ } exper[] = {
+ //	{"rune32", &rune32},
++	{"fieldtrack", &fieldtrack_enabled},
+ 	{nil, nil},
+ };
+ 
+@@ -199,9 +200,19 @@ main(int argc, char *argv[])
+ 
+ 	localpkg = mkpkg(strlit(""));
+ 	localpkg->prefix = "\"\"";
+-
++	
++	// pseudo-package, for scoping
+ 	builtinpkg = mkpkg(strlit("go.builtin"));
+ 
++	// pseudo-package, accessed by import "unsafe"
++	unsafepkg = mkpkg(strlit("unsafe"));
++	unsafepkg->name = "unsafe";
++
++	// real package, referred to by generated runtime calls
++	runtimepkg = mkpkg(strlit("runtime"));
++	runtimepkg->name = "runtime";
++
++	// pseudo-packages used in symbol tables
+ 	gostringpkg = mkpkg(strlit("go.string"));
+ 	gostringpkg->name = "go.string";
+ 	gostringpkg->prefix = "go.string";	// not go%2estring
+@@ -210,18 +221,16 @@ main(int argc, char *argv[])
+ 	itabpkg->name = "go.itab";
+ 	itabpkg->prefix = "go.itab";	// not go%2eitab
+ 
+-	runtimepkg = mkpkg(strlit("runtime"));
+-	runtimepkg->name = "runtime";
+-
+-	typepkg = mkpkg(strlit("type"));
+-	typepkg->name = "type";
+-
+ 	weaktypepkg = mkpkg(strlit("go.weak.type"));
+ 	weaktypepkg->name = "go.weak.type";
+ 	weaktypepkg->prefix = "go.weak.type";  // not go%2eweak%2etype
+ 
+-	unsafepkg = mkpkg(strlit("unsafe"));
+-	unsafepkg->name = "unsafe";
++	trackpkg = mkpkg(strlit("go.track"));
++	trackpkg->name = "go.track";
++	trackpkg->prefix = "go.track";  // not go%2etrack
++
++	typepkg = mkpkg(strlit("type"));
++	typepkg->name = "type";
+ 
+ 	goroot = getgoroot();
+ 	goos = getgoos();
+@@ -1443,7 +1452,12 @@ getlinepragma(void)
+ 	char *cp, *ep, *linep;
+ 	Hist *h;
+ 
+-	for(i=0; i<5; i++) {
++	c = getr();
++	if(c == 'g' && fieldtrack_enabled)
++		goto go;
++	if(c != 'l')	
++		goto out;
++	for(i=1; i<5; i++) {
+ 		c = getr();
+ 		if(c != "line "[i])
+ 			goto out;
+@@ -1491,6 +1505,20 @@ getlinepragma(void)
+ 		}
+ 	}
+ 	linehist(strdup(lexbuf), n, 0);
++	goto out;
++
++go:
++	for(i=1; i<11; i++) {
++		c = getr();
++		if(c != "go:nointerface"[i])
++			goto out;
++	}
++	nointerface = 1;
++	for(;;) {
++		c = getr();
++		if(c == EOF || c == '\n')
++			break;
++	}
+ 
+ out:
+ 	return c;
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 46b763bf09..7be254fff1 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -83,6 +83,10 @@ compile(Node *fn)
+ 	afunclit(&ptxt->from);
+ 
+ 	ginit();
++
++	for(t=curfn->paramfld; t; t=t->down)
++		gtrack(tracksym(t->type));
++
+ 	genlist(curfn->enter);
+ 
+ 	retpc = nil;
+@@ -115,6 +119,7 @@ compile(Node *fn)
+ 	gclean();
+ 	if(nerrors != 0)
+ 		goto ret;
++
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 8e4f0a4d27..00d6f5fe76 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -172,6 +172,8 @@ methods(Type *t)
+ 			fatal("non-method on %T method %S %T\n", mt, f->sym, f);
+ 		if (!getthisx(f->type)->type)
+ 			fatal("receiver with no type on %T method %S %T\n", mt, f->sym, f);
++		if(f->nointerface)
++			continue;
+ 
+ 		method = f->sym;
+ 		if(method == nil)
+@@ -622,6 +624,18 @@ typesym(Type *t)
+ 	return s;
+ }
+ 
++Sym*
++tracksym(Type *t)
++{
++	char *p;
++	Sym *s;
++
++	p = smprint("%-T.%s", t->outer, t->sym->name);
++	s = pkglookup(p, trackpkg);
++	free(p);
++	return s;
++}
++
+ Sym*
+ typesymprefix(char *prefix, Type *t)
+ {
+@@ -1155,4 +1169,3 @@ dgcsym(Type *t)
+ 
+ 	return s;
+ }
+-
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 8409a442a0..142921153d 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3040,7 +3040,7 @@ implements(Type *t, Type *iface, Type **m, Type **samename, int *ptr)
+ 	for(im=iface->type; im; im=im->down) {
+ 		imtype = methodfunc(im->type, 0);
+ 		tm = ifacelookdot(im->sym, t, &followptr, 0);
+-		if(tm == T || !eqtype(methodfunc(tm->type, 0), imtype)) {
++		if(tm == T || tm->nointerface || !eqtype(methodfunc(tm->type, 0), imtype)) {
+ 			if(tm == T)
+ 				tm = ifacelookdot(im->sym, t, &followptr, 1);
+ 			*m = im;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 6f3449eec3..b109d3a119 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1833,6 +1833,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 			fatal("lookdot badwidth %T %p", f1, f1);
+ 		n->xoffset = f1->width;
+ 		n->type = f1->type;
++		n->paramfld = f1;
+ 		if(t->etype == TINTER) {
+ 			if(isptr[n->left->type->etype]) {
+ 				n->left = nod(OIND, n->left, N);	// implicitstar
+@@ -2637,7 +2638,7 @@ typecheckfunc(Node *n)
+ 	t->nname = n->nname;
+ 	rcvr = getthisx(t)->type;
+ 	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
+-		addmethod(n->shortname->sym, t, 1);
++		addmethod(n->shortname->sym, t, 1, n->nname->nointerface);
+ }
+ 
+ static void
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 9e6d57c860..11c9c2f435 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -429,14 +429,19 @@ walkexpr(Node **np, NodeList **init)
+ 	case OCOM:
+ 	case OREAL:
+ 	case OIMAG:
+-	case ODOT:
+-	case ODOTPTR:
+ 	case ODOTMETH:
+ 	case ODOTINTER:
+ 	case OIND:
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+ 
++	case ODOT:
++	case ODOTPTR:
++		usefield(n);
++		walkexpr(&n->left, init);
++		goto ret;
++		
++
+ 	case OEFACE:
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
+@@ -2897,3 +2902,44 @@ bounded(Node *n, int64 max)
+ 	
+ 	return 0;
+ }
++
++void
++usefield(Node *n)
++{
++	Type *field, *l;
++
++	if(!fieldtrack_enabled)
++		return;
++
++	switch(n->op) {
++	default:
++		fatal("usefield %O", n->op);
++	case ODOT:
++	case ODOTPTR:
++		break;
++	}
++	
++	field = n->paramfld;
++	if(field == T)
++		fatal("usefield %T %S without paramfld", n->left->type, n->right->sym);
++	if(field->note == nil || strstr(field->note->s, "go:\"track\"") == nil)
++		return;
++
++	// dedup on list
++	if(field->lastfn == curfn)
++		return;
++	field->lastfn = curfn;
++	field->outer = n->left->type;
++	if(isptr[field->outer->etype])
++		field->outer = field->outer->type;
++	if(field->outer->sym == S)
++		yyerror("tracked field must be in named struct type");
++	if(!exportname(field->sym->name))
++		yyerror("tracked field must be exported (upper case)");
++
++	l = typ(0);
++	l->type = field;
++	l->down = curfn->paramfld;
++	curfn->paramfld = l;
++}
++
+diff --git a/src/cmd/gc/y.tab.c b/src/cmd/gc/y.tab.c
+index 478b463486..b2ed8302ee 100644
+--- a/src/cmd/gc/y.tab.c
++++ b/src/cmd/gc/y.tab.c
+@@ -674,21 +674,21 @@ static const yytype_uint16 yyrline[] =
+     1098,  1099,  1100,  1101,  1107,  1108,  1111,  1114,  1115,  1116,
+     1117,  1118,  1121,  1122,  1135,  1139,  1144,  1149,  1154,  1158,
+     1159,  1162,  1168,  1175,  1181,  1188,  1194,  1205,  1216,  1245,
+-    1284,  1309,  1326,  1335,  1338,  1346,  1350,  1354,  1361,  1367,
+-    1372,  1384,  1387,  1395,  1396,  1402,  1403,  1409,  1413,  1419,
+-    1420,  1426,  1430,  1436,  1459,  1464,  1470,  1476,  1483,  1492,
+-    1501,  1516,  1522,  1527,  1531,  1538,  1551,  1552,  1558,  1564,
+-    1567,  1571,  1577,  1580,  1589,  1592,  1593,  1597,  1598,  1604,
+-    1605,  1606,  1607,  1608,  1610,  1609,  1624,  1629,  1633,  1637,
+-    1641,  1645,  1650,  1669,  1675,  1683,  1687,  1693,  1697,  1703,
+-    1707,  1713,  1717,  1726,  1730,  1734,  1738,  1744,  1747,  1755,
+-    1756,  1758,  1759,  1762,  1765,  1768,  1771,  1774,  1777,  1780,
+-    1783,  1786,  1789,  1792,  1795,  1798,  1801,  1807,  1811,  1815,
+-    1819,  1823,  1827,  1847,  1854,  1865,  1866,  1867,  1870,  1871,
+-    1874,  1878,  1888,  1892,  1896,  1900,  1904,  1908,  1912,  1918,
+-    1924,  1932,  1940,  1946,  1953,  1969,  1987,  1991,  1997,  2000,
+-    2003,  2007,  2017,  2021,  2036,  2044,  2045,  2057,  2058,  2061,
+-    2065,  2071,  2075,  2081,  2085
++    1285,  1310,  1328,  1337,  1340,  1348,  1352,  1356,  1363,  1369,
++    1374,  1386,  1389,  1398,  1399,  1405,  1406,  1412,  1416,  1422,
++    1423,  1429,  1433,  1439,  1462,  1467,  1473,  1479,  1486,  1495,
++    1504,  1519,  1525,  1530,  1534,  1541,  1554,  1555,  1561,  1567,
++    1570,  1574,  1580,  1583,  1592,  1595,  1596,  1600,  1601,  1607,
++    1608,  1609,  1610,  1611,  1613,  1612,  1627,  1632,  1636,  1640,
++    1644,  1648,  1653,  1672,  1678,  1686,  1690,  1696,  1700,  1706,
++    1710,  1716,  1720,  1729,  1733,  1737,  1741,  1747,  1750,  1758,
++    1759,  1761,  1762,  1765,  1768,  1771,  1774,  1777,  1780,  1783,
++    1786,  1789,  1792,  1795,  1798,  1801,  1804,  1810,  1814,  1818,
++    1822,  1826,  1830,  1850,  1857,  1868,  1869,  1870,  1873,  1874,
++    1877,  1881,  1891,  1895,  1899,  1903,  1907,  1911,  1915,  1921,
++    1927,  1935,  1943,  1949,  1956,  1972,  1990,  1994,  2000,  2003,
++    2006,  2010,  2020,  2024,  2039,  2047,  2048,  2060,  2061,  2064,
++    2068,  2074,  2078,  2084,  2088
+ };
+ #endif
+ 
+@@ -3731,6 +3731,7 @@ yyreduce:
+ 		(yyval.node)->nname = methodname1((yyval.node)->shortname, rcvr->right);
+ 		(yyval.node)->nname->defn = (yyval.node);
+ 		(yyval.node)->nname->ntype = t;
++		(yyval.node)->nname->nointerface = nointerface;
+ 		declare((yyval.node)->nname, PFUNC);
+ 
+ 		funchdr((yyval.node));
+@@ -3738,7 +3739,7 @@ yyreduce:
+     break;
+ 
+   case 200:
+-#line 1285 "go.y"
++#line 1286 "go.y"
+     {
+ 		Sym *s;
+ 		Type *t;
+@@ -3766,13 +3767,14 @@ yyreduce:
+     break;
+ 
+   case 201:
+-#line 1310 "go.y"
++#line 1311 "go.y"
+     {
+ 		(yyval.node) = methodname1(newname((yyvsp[(4) - (8)].sym)), (yyvsp[(2) - (8)].list)->n->right); 
+ 		(yyval.node)->type = functype((yyvsp[(2) - (8)].list)->n, (yyvsp[(6) - (8)].list), (yyvsp[(8) - (8)].list));
+ 
+ 		checkwidth((yyval.node)->type);
+-		addmethod((yyvsp[(4) - (8)].sym), (yyval.node)->type, 0);
++		addmethod((yyvsp[(4) - (8)].sym), (yyval.node)->type, 0, nointerface);
++		nointerface = 0;
+ 		funchdr((yyval.node));
+ 		
+ 		// inl.c's inlnode in on a dotmeth node expects to find the inlineable body as
+@@ -3784,7 +3786,7 @@ yyreduce:
+     break;
+ 
+   case 202:
+-#line 1327 "go.y"
++#line 1329 "go.y"
+     {
+ 		(yyvsp[(3) - (5)].list) = checkarglist((yyvsp[(3) - (5)].list), 1);
+ 		(yyval.node) = nod(OTFUNC, N, N);
+@@ -3794,14 +3796,14 @@ yyreduce:
+     break;
+ 
+   case 203:
+-#line 1335 "go.y"
++#line 1337 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 204:
+-#line 1339 "go.y"
++#line 1341 "go.y"
+     {
+ 		(yyval.list) = (yyvsp[(2) - (3)].list);
+ 		if((yyval.list) == nil)
+@@ -3810,21 +3812,21 @@ yyreduce:
+     break;
+ 
+   case 205:
+-#line 1347 "go.y"
++#line 1349 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 206:
+-#line 1351 "go.y"
++#line 1353 "go.y"
+     {
+ 		(yyval.list) = list1(nod(ODCLFIELD, N, (yyvsp[(1) - (1)].node)));
+ 	}
+     break;
+ 
+   case 207:
+-#line 1355 "go.y"
++#line 1357 "go.y"
+     {
+ 		(yyvsp[(2) - (3)].list) = checkarglist((yyvsp[(2) - (3)].list), 0);
+ 		(yyval.list) = (yyvsp[(2) - (3)].list);
+@@ -3832,14 +3834,14 @@ yyreduce:
+     break;
+ 
+   case 208:
+-#line 1362 "go.y"
++#line 1364 "go.y"
+     {
+ 		closurehdr((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 209:
+-#line 1368 "go.y"
++#line 1370 "go.y"
+     {
+ 		(yyval.node) = closurebody((yyvsp[(3) - (4)].list));
+ 		fixlbrace((yyvsp[(2) - (4)].i));
+@@ -3847,79 +3849,80 @@ yyreduce:
+     break;
+ 
+   case 210:
+-#line 1373 "go.y"
++#line 1375 "go.y"
+     {
+ 		(yyval.node) = closurebody(nil);
+ 	}
+     break;
+ 
+   case 211:
+-#line 1384 "go.y"
++#line 1386 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 212:
+-#line 1388 "go.y"
++#line 1390 "go.y"
+     {
+ 		(yyval.list) = concat((yyvsp[(1) - (3)].list), (yyvsp[(2) - (3)].list));
+ 		if(nsyntaxerrors == 0)
+ 			testdclstack();
++		nointerface = 0;
+ 	}
+     break;
+ 
+   case 214:
+-#line 1397 "go.y"
++#line 1400 "go.y"
+     {
+ 		(yyval.list) = concat((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].list));
+ 	}
+     break;
+ 
+   case 216:
+-#line 1404 "go.y"
++#line 1407 "go.y"
+     {
+ 		(yyval.list) = concat((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].list));
+ 	}
+     break;
+ 
+   case 217:
+-#line 1410 "go.y"
++#line 1413 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 218:
+-#line 1414 "go.y"
++#line 1417 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 220:
+-#line 1421 "go.y"
++#line 1424 "go.y"
+     {
+ 		(yyval.list) = concat((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].list));
+ 	}
+     break;
+ 
+   case 221:
+-#line 1427 "go.y"
++#line 1430 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 222:
+-#line 1431 "go.y"
++#line 1434 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 223:
+-#line 1437 "go.y"
++#line 1440 "go.y"
+     {
+ 		NodeList *l;
+ 
+@@ -3945,7 +3948,7 @@ yyreduce:
+     break;
+ 
+   case 224:
+-#line 1460 "go.y"
++#line 1463 "go.y"
+     {
+ 		(yyvsp[(1) - (2)].node)->val = (yyvsp[(2) - (2)].val);
+ 		(yyval.list) = list1((yyvsp[(1) - (2)].node));
+@@ -3953,7 +3956,7 @@ yyreduce:
+     break;
+ 
+   case 225:
+-#line 1465 "go.y"
++#line 1468 "go.y"
+     {
+ 		(yyvsp[(2) - (4)].node)->val = (yyvsp[(4) - (4)].val);
+ 		(yyval.list) = list1((yyvsp[(2) - (4)].node));
+@@ -3962,7 +3965,7 @@ yyreduce:
+     break;
+ 
+   case 226:
+-#line 1471 "go.y"
++#line 1474 "go.y"
+     {
+ 		(yyvsp[(2) - (3)].node)->right = nod(OIND, (yyvsp[(2) - (3)].node)->right, N);
+ 		(yyvsp[(2) - (3)].node)->val = (yyvsp[(3) - (3)].val);
+@@ -3971,7 +3974,7 @@ yyreduce:
+     break;
+ 
+   case 227:
+-#line 1477 "go.y"
++#line 1480 "go.y"
+     {
+ 		(yyvsp[(3) - (5)].node)->right = nod(OIND, (yyvsp[(3) - (5)].node)->right, N);
+ 		(yyvsp[(3) - (5)].node)->val = (yyvsp[(5) - (5)].val);
+@@ -3981,7 +3984,7 @@ yyreduce:
+     break;
+ 
+   case 228:
+-#line 1484 "go.y"
++#line 1487 "go.y"
+     {
+ 		(yyvsp[(3) - (5)].node)->right = nod(OIND, (yyvsp[(3) - (5)].node)->right, N);
+ 		(yyvsp[(3) - (5)].node)->val = (yyvsp[(5) - (5)].val);
+@@ -3991,7 +3994,7 @@ yyreduce:
+     break;
+ 
+   case 229:
+-#line 1493 "go.y"
++#line 1496 "go.y"
+     {
+ 		Node *n;
+ 
+@@ -4003,7 +4006,7 @@ yyreduce:
+     break;
+ 
+   case 230:
+-#line 1502 "go.y"
++#line 1505 "go.y"
+     {
+ 		Pkg *pkg;
+ 
+@@ -4019,14 +4022,14 @@ yyreduce:
+     break;
+ 
+   case 231:
+-#line 1517 "go.y"
++#line 1520 "go.y"
+     {
+ 		(yyval.node) = embedded((yyvsp[(1) - (1)].sym));
+ 	}
+     break;
+ 
+   case 232:
+-#line 1523 "go.y"
++#line 1526 "go.y"
+     {
+ 		(yyval.node) = nod(ODCLFIELD, (yyvsp[(1) - (2)].node), (yyvsp[(2) - (2)].node));
+ 		ifacedcl((yyval.node));
+@@ -4034,14 +4037,14 @@ yyreduce:
+     break;
+ 
+   case 233:
+-#line 1528 "go.y"
++#line 1531 "go.y"
+     {
+ 		(yyval.node) = nod(ODCLFIELD, N, oldname((yyvsp[(1) - (1)].sym)));
+ 	}
+     break;
+ 
+   case 234:
+-#line 1532 "go.y"
++#line 1535 "go.y"
+     {
+ 		(yyval.node) = nod(ODCLFIELD, N, oldname((yyvsp[(2) - (3)].sym)));
+ 		yyerror("cannot parenthesize embedded type");
+@@ -4049,7 +4052,7 @@ yyreduce:
+     break;
+ 
+   case 235:
+-#line 1539 "go.y"
++#line 1542 "go.y"
+     {
+ 		// without func keyword
+ 		(yyvsp[(2) - (4)].list) = checkarglist((yyvsp[(2) - (4)].list), 1);
+@@ -4060,7 +4063,7 @@ yyreduce:
+     break;
+ 
+   case 237:
+-#line 1553 "go.y"
++#line 1556 "go.y"
+     {
+ 		(yyval.node) = nod(ONONAME, N, N);
+ 		(yyval.node)->sym = (yyvsp[(1) - (2)].sym);
+@@ -4069,7 +4072,7 @@ yyreduce:
+     break;
+ 
+   case 238:
+-#line 1559 "go.y"
++#line 1562 "go.y"
+     {
+ 		(yyval.node) = nod(ONONAME, N, N);
+ 		(yyval.node)->sym = (yyvsp[(1) - (2)].sym);
+@@ -4078,56 +4081,56 @@ yyreduce:
+     break;
+ 
+   case 240:
+-#line 1568 "go.y"
++#line 1571 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 241:
+-#line 1572 "go.y"
++#line 1575 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 242:
+-#line 1577 "go.y"
++#line 1580 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 243:
+-#line 1581 "go.y"
++#line 1584 "go.y"
+     {
+ 		(yyval.list) = (yyvsp[(1) - (2)].list);
+ 	}
+     break;
+ 
+   case 244:
+-#line 1589 "go.y"
++#line 1592 "go.y"
+     {
+ 		(yyval.node) = N;
+ 	}
+     break;
+ 
+   case 246:
+-#line 1594 "go.y"
++#line 1597 "go.y"
+     {
+ 		(yyval.node) = liststmt((yyvsp[(1) - (1)].list));
+ 	}
+     break;
+ 
+   case 248:
+-#line 1599 "go.y"
++#line 1602 "go.y"
+     {
+ 		(yyval.node) = N;
+ 	}
+     break;
+ 
+   case 254:
+-#line 1610 "go.y"
++#line 1613 "go.y"
+     {
+ 		(yyvsp[(1) - (2)].node) = nod(OLABEL, (yyvsp[(1) - (2)].node), N);
+ 		(yyvsp[(1) - (2)].node)->sym = dclstack;  // context, for goto restrictions
+@@ -4135,7 +4138,7 @@ yyreduce:
+     break;
+ 
+   case 255:
+-#line 1615 "go.y"
++#line 1618 "go.y"
+     {
+ 		NodeList *l;
+ 
+@@ -4148,7 +4151,7 @@ yyreduce:
+     break;
+ 
+   case 256:
+-#line 1625 "go.y"
++#line 1628 "go.y"
+     {
+ 		// will be converted to OFALL
+ 		(yyval.node) = nod(OXFALL, N, N);
+@@ -4156,35 +4159,35 @@ yyreduce:
+     break;
+ 
+   case 257:
+-#line 1630 "go.y"
++#line 1633 "go.y"
+     {
+ 		(yyval.node) = nod(OBREAK, (yyvsp[(2) - (2)].node), N);
+ 	}
+     break;
+ 
+   case 258:
+-#line 1634 "go.y"
++#line 1637 "go.y"
+     {
+ 		(yyval.node) = nod(OCONTINUE, (yyvsp[(2) - (2)].node), N);
+ 	}
+     break;
+ 
+   case 259:
+-#line 1638 "go.y"
++#line 1641 "go.y"
+     {
+ 		(yyval.node) = nod(OPROC, (yyvsp[(2) - (2)].node), N);
+ 	}
+     break;
+ 
+   case 260:
+-#line 1642 "go.y"
++#line 1645 "go.y"
+     {
+ 		(yyval.node) = nod(ODEFER, (yyvsp[(2) - (2)].node), N);
+ 	}
+     break;
+ 
+   case 261:
+-#line 1646 "go.y"
++#line 1649 "go.y"
+     {
+ 		(yyval.node) = nod(OGOTO, (yyvsp[(2) - (2)].node), N);
+ 		(yyval.node)->sym = dclstack;  // context, for goto restrictions
+@@ -4192,7 +4195,7 @@ yyreduce:
+     break;
+ 
+   case 262:
+-#line 1651 "go.y"
++#line 1654 "go.y"
+     {
+ 		(yyval.node) = nod(ORETURN, N, N);
+ 		(yyval.node)->list = (yyvsp[(2) - (2)].list);
+@@ -4212,7 +4215,7 @@ yyreduce:
+     break;
+ 
+   case 263:
+-#line 1670 "go.y"
++#line 1673 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 		if((yyvsp[(1) - (1)].node) != N)
+@@ -4221,7 +4224,7 @@ yyreduce:
+     break;
+ 
+   case 264:
+-#line 1676 "go.y"
++#line 1679 "go.y"
+     {
+ 		(yyval.list) = (yyvsp[(1) - (3)].list);
+ 		if((yyvsp[(3) - (3)].node) != N)
+@@ -4230,189 +4233,189 @@ yyreduce:
+     break;
+ 
+   case 265:
+-#line 1684 "go.y"
++#line 1687 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 266:
+-#line 1688 "go.y"
++#line 1691 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 267:
+-#line 1694 "go.y"
++#line 1697 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 268:
+-#line 1698 "go.y"
++#line 1701 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 269:
+-#line 1704 "go.y"
++#line 1707 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 270:
+-#line 1708 "go.y"
++#line 1711 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 271:
+-#line 1714 "go.y"
++#line 1717 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 272:
+-#line 1718 "go.y"
++#line 1721 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 273:
+-#line 1727 "go.y"
++#line 1730 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 274:
+-#line 1731 "go.y"
++#line 1734 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 275:
+-#line 1735 "go.y"
++#line 1738 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 276:
+-#line 1739 "go.y"
++#line 1742 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 277:
+-#line 1744 "go.y"
++#line 1747 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 278:
+-#line 1748 "go.y"
++#line 1751 "go.y"
+     {
+ 		(yyval.list) = (yyvsp[(1) - (2)].list);
+ 	}
+     break;
+ 
+   case 283:
+-#line 1762 "go.y"
++#line 1765 "go.y"
+     {
+ 		(yyval.node) = N;
+ 	}
+     break;
+ 
+   case 285:
+-#line 1768 "go.y"
++#line 1771 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 287:
+-#line 1774 "go.y"
++#line 1777 "go.y"
+     {
+ 		(yyval.node) = N;
+ 	}
+     break;
+ 
+   case 289:
+-#line 1780 "go.y"
++#line 1783 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 291:
+-#line 1786 "go.y"
++#line 1789 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 293:
+-#line 1792 "go.y"
++#line 1795 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 295:
+-#line 1798 "go.y"
++#line 1801 "go.y"
+     {
+ 		(yyval.val).ctype = CTxxx;
+ 	}
+     break;
+ 
+   case 297:
+-#line 1808 "go.y"
++#line 1811 "go.y"
+     {
+ 		importimport((yyvsp[(2) - (4)].sym), (yyvsp[(3) - (4)].val).u.sval);
+ 	}
+     break;
+ 
+   case 298:
+-#line 1812 "go.y"
++#line 1815 "go.y"
+     {
+ 		importvar((yyvsp[(2) - (4)].sym), (yyvsp[(3) - (4)].type));
+ 	}
+     break;
+ 
+   case 299:
+-#line 1816 "go.y"
++#line 1819 "go.y"
+     {
+ 		importconst((yyvsp[(2) - (5)].sym), types[TIDEAL], (yyvsp[(4) - (5)].node));
+ 	}
+     break;
+ 
+   case 300:
+-#line 1820 "go.y"
++#line 1823 "go.y"
+     {
+ 		importconst((yyvsp[(2) - (6)].sym), (yyvsp[(3) - (6)].type), (yyvsp[(5) - (6)].node));
+ 	}
+     break;
+ 
+   case 301:
+-#line 1824 "go.y"
++#line 1827 "go.y"
+     {
+ 		importtype((yyvsp[(2) - (4)].type), (yyvsp[(3) - (4)].type));
+ 	}
+     break;
+ 
+   case 302:
+-#line 1828 "go.y"
++#line 1831 "go.y"
+     {
+ 		if((yyvsp[(2) - (4)].node) == N) {
+ 			dclcontext = PEXTERN;  // since we skip the funcbody below
+@@ -4433,7 +4436,7 @@ yyreduce:
+     break;
+ 
+   case 303:
+-#line 1848 "go.y"
++#line 1851 "go.y"
+     {
+ 		(yyval.sym) = (yyvsp[(1) - (1)].sym);
+ 		structpkg = (yyval.sym)->pkg;
+@@ -4441,7 +4444,7 @@ yyreduce:
+     break;
+ 
+   case 304:
+-#line 1855 "go.y"
++#line 1858 "go.y"
+     {
+ 		(yyval.type) = pkgtype((yyvsp[(1) - (1)].sym));
+ 		importsym((yyvsp[(1) - (1)].sym), OTYPE);
+@@ -4449,14 +4452,14 @@ yyreduce:
+     break;
+ 
+   case 310:
+-#line 1875 "go.y"
++#line 1878 "go.y"
+     {
+ 		(yyval.type) = pkgtype((yyvsp[(1) - (1)].sym));
+ 	}
+     break;
+ 
+   case 311:
+-#line 1879 "go.y"
++#line 1882 "go.y"
+     {
+ 		// predefined name like uint8
+ 		(yyvsp[(1) - (1)].sym) = pkglookup((yyvsp[(1) - (1)].sym)->name, builtinpkg);
+@@ -4469,49 +4472,49 @@ yyreduce:
+     break;
+ 
+   case 312:
+-#line 1889 "go.y"
++#line 1892 "go.y"
+     {
+ 		(yyval.type) = aindex(N, (yyvsp[(3) - (3)].type));
+ 	}
+     break;
+ 
+   case 313:
+-#line 1893 "go.y"
++#line 1896 "go.y"
+     {
+ 		(yyval.type) = aindex(nodlit((yyvsp[(2) - (4)].val)), (yyvsp[(4) - (4)].type));
+ 	}
+     break;
+ 
+   case 314:
+-#line 1897 "go.y"
++#line 1900 "go.y"
+     {
+ 		(yyval.type) = maptype((yyvsp[(3) - (5)].type), (yyvsp[(5) - (5)].type));
+ 	}
+     break;
+ 
+   case 315:
+-#line 1901 "go.y"
++#line 1904 "go.y"
+     {
+ 		(yyval.type) = tostruct((yyvsp[(3) - (4)].list));
+ 	}
+     break;
+ 
+   case 316:
+-#line 1905 "go.y"
++#line 1908 "go.y"
+     {
+ 		(yyval.type) = tointerface((yyvsp[(3) - (4)].list));
+ 	}
+     break;
+ 
+   case 317:
+-#line 1909 "go.y"
++#line 1912 "go.y"
+     {
+ 		(yyval.type) = ptrto((yyvsp[(2) - (2)].type));
+ 	}
+     break;
+ 
+   case 318:
+-#line 1913 "go.y"
++#line 1916 "go.y"
+     {
+ 		(yyval.type) = typ(TCHAN);
+ 		(yyval.type)->type = (yyvsp[(2) - (2)].type);
+@@ -4520,7 +4523,7 @@ yyreduce:
+     break;
+ 
+   case 319:
+-#line 1919 "go.y"
++#line 1922 "go.y"
+     {
+ 		(yyval.type) = typ(TCHAN);
+ 		(yyval.type)->type = (yyvsp[(3) - (4)].type);
+@@ -4529,7 +4532,7 @@ yyreduce:
+     break;
+ 
+   case 320:
+-#line 1925 "go.y"
++#line 1928 "go.y"
+     {
+ 		(yyval.type) = typ(TCHAN);
+ 		(yyval.type)->type = (yyvsp[(3) - (3)].type);
+@@ -4538,7 +4541,7 @@ yyreduce:
+     break;
+ 
+   case 321:
+-#line 1933 "go.y"
++#line 1936 "go.y"
+     {
+ 		(yyval.type) = typ(TCHAN);
+ 		(yyval.type)->type = (yyvsp[(3) - (3)].type);
+@@ -4547,14 +4550,14 @@ yyreduce:
+     break;
+ 
+   case 322:
+-#line 1941 "go.y"
++#line 1944 "go.y"
+     {
+ 		(yyval.type) = functype(nil, (yyvsp[(3) - (5)].list), (yyvsp[(5) - (5)].list));
+ 	}
+     break;
+ 
+   case 323:
+-#line 1947 "go.y"
++#line 1950 "go.y"
+     {
+ 		(yyval.node) = nod(ODCLFIELD, N, typenod((yyvsp[(2) - (3)].type)));
+ 		if((yyvsp[(1) - (3)].sym))
+@@ -4564,7 +4567,7 @@ yyreduce:
+     break;
+ 
+   case 324:
+-#line 1954 "go.y"
++#line 1957 "go.y"
+     {
+ 		Type *t;
+ 	
+@@ -4581,7 +4584,7 @@ yyreduce:
+     break;
+ 
+   case 325:
+-#line 1970 "go.y"
++#line 1973 "go.y"
+     {
+ 		Sym *s;
+ 
+@@ -4600,49 +4603,49 @@ yyreduce:
+     break;
+ 
+   case 326:
+-#line 1988 "go.y"
++#line 1991 "go.y"
+     {
+ 		(yyval.node) = nod(ODCLFIELD, newname((yyvsp[(1) - (5)].sym)), typenod(functype(fakethis(), (yyvsp[(3) - (5)].list), (yyvsp[(5) - (5)].list))));
+ 	}
+     break;
+ 
+   case 327:
+-#line 1992 "go.y"
++#line 1995 "go.y"
+     {
+ 		(yyval.node) = nod(ODCLFIELD, N, typenod((yyvsp[(1) - (1)].type)));
+ 	}
+     break;
+ 
+   case 328:
+-#line 1997 "go.y"
++#line 2000 "go.y"
+     {
+ 		(yyval.list) = nil;
+ 	}
+     break;
+ 
+   case 330:
+-#line 2004 "go.y"
++#line 2007 "go.y"
+     {
+ 		(yyval.list) = (yyvsp[(2) - (3)].list);
+ 	}
+     break;
+ 
+   case 331:
+-#line 2008 "go.y"
++#line 2011 "go.y"
+     {
+ 		(yyval.list) = list1(nod(ODCLFIELD, N, typenod((yyvsp[(1) - (1)].type))));
+ 	}
+     break;
+ 
+   case 332:
+-#line 2018 "go.y"
++#line 2021 "go.y"
+     {
+ 		(yyval.node) = nodlit((yyvsp[(1) - (1)].val));
+ 	}
+     break;
+ 
+   case 333:
+-#line 2022 "go.y"
++#line 2025 "go.y"
+     {
+ 		(yyval.node) = nodlit((yyvsp[(2) - (2)].val));
+ 		switch((yyval.node)->val.ctype){
+@@ -4660,7 +4663,7 @@ yyreduce:
+     break;
+ 
+   case 334:
+-#line 2037 "go.y"
++#line 2040 "go.y"
+     {
+ 		(yyval.node) = oldname(pkglookup((yyvsp[(1) - (1)].sym)->name, builtinpkg));
+ 		if((yyval.node)->op != OLITERAL)
+@@ -4669,7 +4672,7 @@ yyreduce:
+     break;
+ 
+   case 336:
+-#line 2046 "go.y"
++#line 2049 "go.y"
+     {
+ 		if((yyvsp[(2) - (5)].node)->val.ctype == CTRUNE && (yyvsp[(4) - (5)].node)->val.ctype == CTINT) {
+ 			(yyval.node) = (yyvsp[(2) - (5)].node);
+@@ -4683,42 +4686,42 @@ yyreduce:
+     break;
+ 
+   case 339:
+-#line 2062 "go.y"
++#line 2065 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 340:
+-#line 2066 "go.y"
++#line 2069 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 341:
+-#line 2072 "go.y"
++#line 2075 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 342:
+-#line 2076 "go.y"
++#line 2079 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+     break;
+ 
+   case 343:
+-#line 2082 "go.y"
++#line 2085 "go.y"
+     {
+ 		(yyval.list) = list1((yyvsp[(1) - (1)].node));
+ 	}
+     break;
+ 
+   case 344:
+-#line 2086 "go.y"
++#line 2089 "go.y"
+     {
+ 		(yyval.list) = list((yyvsp[(1) - (3)].list), (yyvsp[(3) - (3)].node));
+ 	}
+@@ -4726,7 +4729,7 @@ yyreduce:
+ 
+ 
+ /* Line 1267 of yacc.c.  */
+-#line 4731 "y.tab.c"
++#line 4734 "y.tab.c"
+       default: break;
+     }
+   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
+@@ -4940,7 +4943,7 @@ yyreturn:
+ }
+ 
+ 
+-#line 2090 "go.y"
++#line 2093 "go.y"
+ 
+ 
+ static void
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index e551f72903..8fe1773047 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -602,11 +602,15 @@ addstrdata(char *name, char *value)
+ 	addstring(sp, value);
+ 
+ 	s = lookup(name, 0);
++	s->size = 0;
+ 	s->dupok = 1;
+ 	addaddr(s, sp);
+ 	adduint32(s, strlen(value));
+ 	if(PtrSize == 8)
+ 		adduint32(s, 0);  // round struct to pointer width
++
++	// in case reachability has already been computed
++	sp->reachable = s->reachable;
+ }
+ 
+ vlong
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index aebb225b01..81ae71d736 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -431,10 +431,16 @@ parsemethod(char **pp, char *ep, char **methp)
+ 	if(p == ep)
+ 		return 0;
+ 
++	// might be a comment about the method
++	if(p + 2 < ep && strncmp(p, "//", 2) == 0)
++		goto useline;
++	
+ 	// if it says "func (", it's a method
+-	if(p + 6 >= ep || strncmp(p, "func (", 6) != 0)
+-		return 0;
++	if(p + 6 < ep && strncmp(p, "func (", 6) == 0)
++		goto useline;
++	return 0;
+ 
++useline:
+ 	// definition to end of line
+ 	*methp = p;
+ 	while(p < ep && *p != '\n')
+@@ -612,50 +618,56 @@ err:
+ 	nerrors++;
+ }
+ 
+-static int markdepth;
++static Sym *markq;
++static Sym *emarkq;
+ 
+ static void
+-marktext(Sym *s)
++mark1(Sym *s, Sym *parent)
+ {
+-	Auto *a;
+-	Prog *p;
+-
+-	if(s == S)
++	if(s == S || s->reachable)
+ 		return;
+-	markdepth++;
+-	if(debug['v'] > 1)
+-		Bprint(&bso, "%d marktext %s\n", markdepth, s->name);
+-	for(a=s->autom; a; a=a->link)
+-		mark(a->gotype);
+-	for(p=s->text; p != P; p=p->link) {
+-		if(p->from.sym)
+-			mark(p->from.sym);
+-		if(p->to.sym)
+-			mark(p->to.sym);
+-	}
+-	markdepth--;
++	if(strncmp(s->name, "go.weak.", 8) == 0)
++		return;
++	s->reachable = 1;
++	s->reachparent = parent;
++	if(markq == nil)
++		markq = s;
++	else
++		emarkq->queue = s;
++	emarkq = s;
+ }
+ 
+ void
+ mark(Sym *s)
+ {
+-	int i;
++	mark1(s, nil);
++}
+ 
+-	if(s == S || s->reachable)
+-		return;
+-	if(strncmp(s->name, "go.weak.", 8) == 0)
+-		return;
+-	s->reachable = 1;
+-	if(s->text)
+-		marktext(s);
+-	for(i=0; i<s->nr; i++)
+-		mark(s->r[i].sym);
+-	if(s->gotype)
+-		mark(s->gotype);
+-	if(s->sub)
+-		mark(s->sub);
+-	if(s->outer)
+-		mark(s->outer);
++static void
++markflood(void)
++{
++	Auto *a;
++	Prog *p;
++	Sym *s;
++	int i;
++	
++	for(s=markq; s!=S; s=s->queue) {
++		if(s->text) {
++			if(debug['v'] > 1)
++				Bprint(&bso, "marktext %s\n", s->name);
++			for(a=s->autom; a; a=a->link)
++				mark1(a->gotype, s);
++			for(p=s->text; p != P; p=p->link) {
++				mark1(p->from.sym, s);
++				mark1(p->to.sym, s);
++			}
++		}
++		for(i=0; i<s->nr; i++)
++			mark1(s->r[i].sym, s);
++		mark1(s->gotype, s);
++		mark1(s->sub, s);
++		mark1(s->outer, s);
++	}
+ }
+ 
+ static char*
+@@ -712,8 +724,9 @@ void
+ deadcode(void)
+ {
+ 	int i;
+-	Sym *s, *last;
++	Sym *s, *last, *p;
+ 	Auto *z;
++	Fmt fmt;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f deadcode\n", cputime());
+@@ -724,6 +737,8 @@ deadcode(void)
+ 
+ 	for(i=0; i<ndynexp; i++)
+ 		mark(dynexp[i]);
++
++	markflood();
+ 	
+ 	// remove dead text but keep file information (z symbols).
+ 	last = nil;
+@@ -756,6 +771,29 @@ deadcode(void)
+ 			s->reachable = 1;
+ 			s->hide = 1;
+ 		}
++
++	// record field tracking references
++	fmtstrinit(&fmt);
++	for(s = allsym; s != S; s = s->allsym) {
++		if(strncmp(s->name, "go.track.", 9) == 0) {
++			s->special = 1;  // do not lay out in data segment
++			s->hide = 1;
++			if(s->reachable) {
++				fmtprint(&fmt, "%s", s->name+9);
++				for(p=s->reachparent; p; p=p->reachparent)
++					fmtprint(&fmt, "\t%s", p->name);
++				fmtprint(&fmt, "\n");
++			}
++			s->type = SCONST;
++			s->value = 0;
++		}
++	}
++	if(tracksym == nil)
++		return;
++	s = lookup(tracksym, 0);
++	if(!s->reachable)
++		return;
++	addstrdata(tracksym, fmtstrflush(&fmt));
+ }
+ 
+ void
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 162e16180f..c2bac60102 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -132,6 +132,7 @@ EXTERN	char*	thestring;
+ EXTERN	int	ndynexp;
+ EXTERN	int	havedynamic;
+ EXTERN	int	iscgo;
++EXTERN	char*	tracksym;
+ 
+ EXTERN	Segment	segtext;
+ EXTERN	Segment	segdata;

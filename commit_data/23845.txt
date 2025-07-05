@@ -10,10 +10,137 @@ Date:   Thu May 28 16:13:23 2015 +0900
     Change-Id: Ib84532cd4688cf65174dd9869e5d42af98a20a48
     Reviewed-on: https://go-review.googlesource.com/11162
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go |  6 +++---
  src/cmd/go/build.go   |  6 +++---
  src/make.bash         |  4 ++--
  src/make.bat          |  4 ++--
  src/make.rc           | 10 +++++-----
  5 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 9001562e5a..d5a77a9df6 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -106,7 +106,7 @@ and test commands:
+ 	-gccgoflags 'arg list'
+ 		arguments to pass on each gccgo compiler/linker invocation.
+ 	-gcflags 'arg list'
+-		arguments to pass on each 5g, 6g, 8g, or 9g compiler invocation.
++		arguments to pass on each go tool compile invocation.
+ 	-installsuffix suffix
+ 		a suffix to use in the name of the package installation directory,
+ 		in order to keep output separate from default builds.
+@@ -114,9 +114,9 @@ and test commands:
+ 		or, if set explicitly, has _race appended to it.  Using a -buildmode
+ 		option that requires non-default compile flags has a similar effect.
+ 	-ldflags 'flag list'
+-		arguments to pass on each 5l, 6l, 8l, or 9l linker invocation.
++		arguments to pass on each go tool link invocation.
+ 	-asmflags 'flag list'
+-		arguments to pass on each asm assembler invocation.
++		arguments to pass on each go tool asm invocation.
+ 	-tags 'tag list'
+ 		a list of build tags to consider satisfied during the build.
+ 		For more information about build tags, see the description of
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 07b4c30794..c0ae2dd9d4 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -86,7 +86,7 @@ and test commands:
+ 	-gccgoflags 'arg list'
+ 		arguments to pass on each gccgo compiler/linker invocation.
+ 	-gcflags 'arg list'
+-		arguments to pass on each 5g, 6g, 8g, or 9g compiler invocation.
++		arguments to pass on each go tool compile invocation.
+ 	-installsuffix suffix
+ 		a suffix to use in the name of the package installation directory,
+ 		in order to keep output separate from default builds.
+@@ -94,9 +94,9 @@ and test commands:
+ 		or, if set explicitly, has _race appended to it.  Using a -buildmode
+ 		option that requires non-default compile flags has a similar effect.
+ 	-ldflags 'flag list'
+-		arguments to pass on each 5l, 6l, 8l, or 9l linker invocation.
++		arguments to pass on each go tool link invocation.
+ 	-asmflags 'flag list'
+-		arguments to pass on each asm assembler invocation.
++		arguments to pass on each go tool asm invocation.
+ 	-tags 'tag list'
+ 		a list of build tags to consider satisfied during the build.
+ 		For more information about build tags, see the description of
+diff --git a/src/make.bash b/src/make.bash
+index 365664303e..f17648aff5 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -19,10 +19,10 @@
+ #
+ # GOOS: The target operating system for installed packages and tools.
+ #
+-# GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
++# GO_GCFLAGS: Additional go tool compile arguments to use when
+ # building the packages and commands.
+ #
+-# GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
++# GO_LDFLAGS: Additional go tool link arguments to use when
+ # building the commands.
+ #
+ # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+diff --git a/src/make.bat b/src/make.bat
+index dca7f66654..0efdcc576c 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -16,10 +16,10 @@
+ ::
+ :: GOOS: The target operating system for installed packages and tools.
+ ::
+-:: GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
++:: GO_GCFLAGS: Additional go tool compile arguments to use when
+ :: building the packages and commands.
+ ::
+-:: GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
++:: GO_LDFLAGS: Additional go tool link arguments to use when
+ :: building the commands.
+ ::
+ :: CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+diff --git a/src/make.rc b/src/make.rc
+index 1d51f2842e..60162045ed 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -19,10 +19,10 @@
+ #
+ # GOOS: The target operating system for installed packages and tools.
+ #
+-# GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
++# GO_GCFLAGS: Additional go tool compile arguments to use when
+ # building the packages and commands.
+ #
+-# GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
++# GO_LDFLAGS: Additional go tool link arguments to use when
+ # building the commands.
+ #
+ # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+@@ -41,7 +41,7 @@ rm -f ./runtime/runtime_defs.go
+ # Determine the host compiler toolchain.
+ eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
+ 
+-echo '# Building Go bootstrap tool.'
++echo '##### Building Go bootstrap tool.'
+ echo cmd/dist
+ GOROOT = `{cd .. && pwd}
+ if(! ~ $#GOROOT_BOOTSTRAP 1)
+@@ -79,13 +79,13 @@ if(~ $sysname vx32)
+ 	pflag = (-p 1)
+ 
+ if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
+-	echo '# Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
++	echo '##### Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
+ 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+ 		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
+ 	echo
+ }
+ 
+-echo '# Building packages and commands for' $GOOS/$GOARCH^.
++echo '##### Building packages and commands for' $GOOS/$GOARCH^.
+ $GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
+ echo
+ 

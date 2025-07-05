@@ -14,6 +14,29 @@ Date:   Wed Sep 2 09:03:42 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=34243
     CL=34248
-
+---
  src/pkg/gob/type.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index ff3cd6bc5b..8eb384ac7a 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -96,7 +96,7 @@ func (t *commonType) String() string {
+ 	return t.name
+ }
+ 
+-func (t *commonType) safeString(seen map[uint32] bool) string {
++func (t *commonType) safeString(seen map[typeId] bool) string {
+ 	return t.name
+ }
+ 
+@@ -146,7 +146,7 @@ func (a *arrayType) safeString(seen map[typeId] bool) string {
+ }
+ 
+ func (a *arrayType) String() string {
+-	return a.safeString(make(map[uint32] bool))
++	return a.safeString(make(map[typeId] bool))
+ }
+ 
+ // Slice type

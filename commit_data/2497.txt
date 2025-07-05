@@ -8,6 +8,33 @@ Date:   Mon Jun 22 14:44:07 2009 -0700
     DELTA=7  (6 added, 0 deleted, 1 changed)
     OCL=30596
     CL=30605
-
+---
  src/pkg/io/io.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 3fbc153fef..7a74061383 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -30,7 +30,8 @@ var ErrUnexpectedEOF os.Error = &Error{"unexpected EOF"}
+ // Reader is the interface that wraps the basic Read method.
+ //
+ // Read reads up to len(p) bytes into p.  It returns the number of bytes
+-// read and any error encountered.  Even if Read returns n < len(p),
++// read (0 <= n <= len(p)) and any error encountered.
++// Even if Read returns n < len(p),
+ // it may use all of p as scratch space during the call.
+ // If some data is available but not len(p) bytes, Read conventionally
+ // returns what is available rather than block waiting for more.
+@@ -43,6 +44,11 @@ type Reader interface {
+ }
+ 
+ // Writer is the interface that wraps the basic Write method.
++//
++// Write writes len(p) bytes from p to the underlying data stream.
++// It returns the number of bytes written from p (0 <= n <= len(p))
++// and any error encountered that caused the write to stop early.
++// Write must return a non-nil error if it returns n < len(p).
+ type Writer interface {
+ 	Write(p []byte) (n int, err os.Error);
+ }

@@ -23,7 +23,7 @@ Date:   Fri May 17 15:16:38 2019 -0600
     Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go          |  2 +-
  src/cmd/compile/internal/ssa/gen/Wasm.rules |  5 ++---
  src/cmd/compile/internal/ssa/gen/WasmOps.go |  1 +
@@ -32,3 +32,185 @@ Date:   Fri May 17 15:16:38 2019 -0600
  src/cmd/compile/internal/wasm/ssa.go        |  6 ++++++
  test/codegen/mathbits.go                    |  4 ++++
  7 files changed, 35 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b093e504f1..ac7f3eb22b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3504,7 +3504,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpRotateLeft32, types.Types[TUINT32], args[0], args[1])
+ 		},
+-		sys.AMD64, sys.ARM, sys.ARM64, sys.S390X, sys.PPC64)
++		sys.AMD64, sys.ARM, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "RotateLeft64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index 998a886c0a..72080703f5 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -147,7 +147,8 @@
+ // Lowering rotates
+ (RotateLeft8 <t> x (I64Const [c])) -> (Or8 (Lsh8x64 <t> x (I64Const [c&7])) (Rsh8Ux64 <t> x (I64Const [-c&7])))
+ (RotateLeft16 <t> x (I64Const [c])) -> (Or16 (Lsh16x64 <t> x (I64Const [c&15])) (Rsh16Ux64 <t> x (I64Const [-c&15])))
+-(RotateLeft32 <t> x (I64Const [c])) -> (Or32 (Lsh32x64 <t> x (I64Const [c&31])) (Rsh32Ux64 <t> x (I64Const [-c&31])))
++(RotateLeft32 x y) -> (I32Rotl x y)
++(RotateLeft64 x y) -> (I64Rotl x y)
+ 
+ // Lowering comparisons
+ (Less64  x y) -> (I64LtS x y)
+@@ -362,8 +363,6 @@
+ 
+ (BitLen64 x) -> (I64Sub (I64Const [64]) (I64Clz x))
+ 
+-(RotateLeft64 x y) -> (I64Rotl x y)
+-
+ (PopCount64 x) -> (I64Popcnt x)
+ (PopCount32 x) -> (I64Popcnt (ZeroExt32to64 x))
+ (PopCount16 x) -> (I64Popcnt (ZeroExt16to64 x))
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index de035c985a..500d7201c2 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -206,6 +206,7 @@ func init() {
+ 
+ 		{name: "I64Ctz", asm: "I64Ctz", argLength: 1, reg: gp11, typ: "Int64"},       // ctz(arg0)
+ 		{name: "I64Clz", asm: "I64Clz", argLength: 1, reg: gp11, typ: "Int64"},       // clz(arg0)
++		{name: "I32Rotl", asm: "I32Rotl", argLength: 2, reg: gp21, typ: "Int32"},     // rotl(arg0, arg1)
+ 		{name: "I64Rotl", asm: "I64Rotl", argLength: 2, reg: gp21, typ: "Int64"},     // rotl(arg0, arg1)
+ 		{name: "I64Popcnt", asm: "I64Popcnt", argLength: 1, reg: gp11, typ: "Int64"}, // popcnt(arg0)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ef99da2330..5785e361dc 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2168,6 +2168,7 @@ const (
+ 	OpWasmF64Copysign
+ 	OpWasmI64Ctz
+ 	OpWasmI64Clz
++	OpWasmI32Rotl
+ 	OpWasmI64Rotl
+ 	OpWasmI64Popcnt
+ 
+@@ -29140,6 +29141,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "I32Rotl",
++		argLen: 2,
++		asm:    wasm.AI32Rotl,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:   "I64Rotl",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index f374565327..45b855027d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -3826,36 +3826,17 @@ func rewriteValueWasm_OpRotateLeft16_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueWasm_OpRotateLeft32_0(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+-	// match: (RotateLeft32 <t> x (I64Const [c]))
++	// match: (RotateLeft32 x y)
+ 	// cond:
+-	// result: (Or32 (Lsh32x64 <t> x (I64Const [c&31])) (Rsh32Ux64 <t> x (I64Const [-c&31])))
++	// result: (I32Rotl x y)
+ 	for {
+-		t := v.Type
+-		_ = v.Args[1]
++		y := v.Args[1]
+ 		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpWasmI64Const {
+-			break
+-		}
+-		c := v_1.AuxInt
+-		v.reset(OpOr32)
+-		v0 := b.NewValue0(v.Pos, OpLsh32x64, t)
+-		v0.AddArg(x)
+-		v1 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+-		v1.AuxInt = c & 31
+-		v0.AddArg(v1)
+-		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpRsh32Ux64, t)
+-		v2.AddArg(x)
+-		v3 := b.NewValue0(v.Pos, OpWasmI64Const, typ.Int64)
+-		v3.AuxInt = -c & 31
+-		v2.AddArg(v3)
+-		v.AddArg(v2)
++		v.reset(OpWasmI32Rotl)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+ }
+ func rewriteValueWasm_OpRotateLeft64_0(v *Value) bool {
+ 	// match: (RotateLeft64 x y)
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index b50f662a8b..761a40227d 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -299,6 +299,12 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 		getValue64(s, v.Args[1])
+ 		s.Prog(v.Op.Asm())
+ 
++	case ssa.OpWasmI32Rotl:
++		getValue32(s, v.Args[0])
++		getValue32(s, v.Args[1])
++		s.Prog(wasm.AI32Rotl)
++		s.Prog(wasm.AI64ExtendI32U)
++
+ 	case ssa.OpWasmI64DivS:
+ 		getValue64(s, v.Args[0])
+ 		getValue64(s, v.Args[1])
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 61e5db56e1..9cdfe0b06a 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -213,6 +213,7 @@ func RotateLeft32(n uint32) uint32 {
+ 	// ppc64:"ROTLW"
+ 	// ppc64le:"ROTLW"
+ 	// s390x:"RLL"
++	// wasm:"I32Rotl"
+ 	return bits.RotateLeft32(n, 9)
+ }
+ 
+@@ -232,6 +233,7 @@ func RotateLeftVariable(n uint, m int) uint {
+ 	// ppc64:"ROTL"
+ 	// ppc64le:"ROTL"
+ 	// s390x:"RLLG"
++	// wasm:"I64Rotl"
+ 	return bits.RotateLeft(n, m)
+ }
+ 
+@@ -241,6 +243,7 @@ func RotateLeftVariable64(n uint64, m int) uint64 {
+ 	// ppc64:"ROTL"
+ 	// ppc64le:"ROTL"
+ 	// s390x:"RLLG"
++	// wasm:"I64Rotl"
+ 	return bits.RotateLeft64(n, m)
+ }
+ 
+@@ -251,6 +254,7 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
+ 	// ppc64:"ROTLW"
+ 	// ppc64le:"ROTLW"
+ 	// s390x:"RLL"
++	// wasm:"I32Rotl"
+ 	return bits.RotateLeft32(n, m)
+ }
+ 

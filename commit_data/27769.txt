@@ -11,7 +11,7 @@ Date:   Tue Apr 12 12:16:20 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm7.go    | 2 +-
  src/cmd/internal/obj/mips/asm0.go     | 2 +-
  src/cmd/internal/obj/s390x/asmz.go    | 2 +-
@@ -19,3 +19,87 @@ Date:   Tue Apr 12 12:16:20 2016 -0700
  src/cmd/link/internal/ld/decodesym.go | 4 ++--
  src/cmd/link/internal/ld/ldelf.go     | 2 +-
  6 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index ff8d4fdf60..d0ae6115cb 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1087,7 +1087,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 	a1 := int(p.Optab)
+ 	if a1 != 0 {
+-		return &optab[a1-1:][0]
++		return &optab[a1-1]
+ 	}
+ 	a1 = int(p.From.Class)
+ 	if a1 == 0 {
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 5cb5d1cfd9..13e7600c21 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -611,7 +611,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 
+ 	a1 := int(p.Optab)
+ 	if a1 != 0 {
+-		return &optab[a1-1:][0]
++		return &optab[a1-1]
+ 	}
+ 	a1 = int(p.From.Class)
+ 	if a1 == 0 {
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index cf3b11424b..bae4dc3ce7 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -606,7 +606,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 	a1 := int(p.Optab)
+ 	if a1 != 0 {
+-		return &optab[a1-1:][0]
++		return &optab[a1-1]
+ 	}
+ 	a1 = int(p.From.Class)
+ 	if a1 == 0 {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index c15b59b5e8..c563a7a48d 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4452,9 +4452,8 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
+ 	}
+ 
+ 	n := ctxt.AsmBuf.Len()
+-	var r *obj.Reloc
+ 	for i := len(ctxt.Cursym.R) - 1; i >= 0; i-- {
+-		r = &ctxt.Cursym.R[i:][0]
++		r := &ctxt.Cursym.R[i]
+ 		if int64(r.Off) < p.Pc {
+ 			break
+ 		}
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 1066d220f7..7daa8bc812 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -17,9 +17,9 @@ import (
+ // ../gc/reflect.c stuffs in these.
+ 
+ func decode_reloc(s *LSym, off int32) *Reloc {
+-	for i := 0; i < len(s.R); i++ {
++	for i := range s.R {
+ 		if s.R[i].Off == off {
+-			return &s.R[i:][0]
++			return &s.R[i]
+ 		}
+ 	}
+ 	return nil
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index d9581a5189..d07a2a2c34 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -774,7 +774,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
+ 		if sym.sym == nil {
+ 			continue
+ 		}
+-		sect = &elfobj.sect[sym.shndx:][0]
++		sect = &elfobj.sect[sym.shndx]
+ 		if sect.sym == nil {
+ 			if strings.HasPrefix(sym.name, ".Linfo_string") { // clang does this
+ 				continue

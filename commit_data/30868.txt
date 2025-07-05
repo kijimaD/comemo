@@ -15,8 +15,149 @@ Date:   Mon Dec 12 22:10:45 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/34201
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/get.go         | 54 +++++++++++++++++++++++++++++------------------
  src/cmd/go/pkg.go         |  4 +++-
  src/cmd/go/vendor_test.go | 36 +++++++++++++++++++++++++++++++
  3 files changed, 73 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 82408d6a39..1d7677c615 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -205,6 +205,10 @@ var downloadRootCache = map[string]bool{}
+ // download runs the download half of the get command
+ // for the package named by the argument.
+ func download(arg string, parent *Package, stk *importStack, mode int) {
++	if mode&useVendor != 0 {
++		// Caller is responsible for expanding vendor paths.
++		panic("internal error: download mode has useVendor set")
++	}
+ 	load := func(path string, mode int) *Package {
+ 		if parent == nil {
+ 			return loadPackage(path, stk)
+@@ -315,32 +319,42 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 		}
+ 
+ 		// Process dependencies, now that we know what they are.
+-		for _, path := range p.Imports {
++		imports := p.Imports
++		if mode&getTestDeps != 0 {
++			// Process test dependencies when -t is specified.
++			// (But don't get test dependencies for test dependencies:
++			// we always pass mode 0 to the recursive calls below.)
++			imports = stringList(imports, p.TestImports, p.XTestImports)
++		}
++		for i, path := range imports {
+ 			if path == "C" {
+ 				continue
+ 			}
+-			// Don't get test dependencies recursively.
+-			// Imports is already vendor-expanded.
+-			download(path, p, stk, 0)
+-		}
+-		if mode&getTestDeps != 0 {
+-			// Process test dependencies when -t is specified.
+-			// (Don't get test dependencies for test dependencies.)
+-			// We pass useVendor here because p.load does not
+-			// vendor-expand TestImports and XTestImports.
+-			// The call to loadImport inside download needs to do that.
+-			for _, path := range p.TestImports {
+-				if path == "C" {
+-					continue
+-				}
+-				download(path, p, stk, useVendor)
++			// Fail fast on import naming full vendor path.
++			// Otherwise expand path as needed for test imports.
++			// Note that p.Imports can have additional entries beyond p.build.Imports.
++			orig := path
++			if i < len(p.build.Imports) {
++				orig = p.build.Imports[i]
+ 			}
+-			for _, path := range p.XTestImports {
+-				if path == "C" {
+-					continue
++			if j, ok := findVendor(orig); ok {
++				stk.push(path)
++				err := &PackageError{
++					ImportStack: stk.copy(),
++					Err:         "must be imported as " + path[j+len("vendor/"):],
+ 				}
+-				download(path, p, stk, useVendor)
++				stk.pop()
++				errorf("%s", err)
++				continue
++			}
++			// If this is a test import, apply vendor lookup now.
++			// We cannot pass useVendor to download, because
++			// download does caching based on the value of path,
++			// so it must be the fully qualified path already.
++			if i >= len(p.Imports) {
++				path = vendoredImportPath(p, path)
+ 			}
++			download(path, p, stk, 0)
+ 		}
+ 
+ 		if isWildcard {
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 852a1a0db9..98e722b9f5 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -178,7 +178,9 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.CgoCXXFLAGS = pp.CgoCXXFLAGS
+ 	p.CgoLDFLAGS = pp.CgoLDFLAGS
+ 	p.CgoPkgConfig = pp.CgoPkgConfig
+-	p.Imports = pp.Imports
++	// We modify p.Imports in place, so make copy now.
++	p.Imports = make([]string, len(pp.Imports))
++	copy(p.Imports, pp.Imports)
+ 	p.TestGoFiles = pp.TestGoFiles
+ 	p.TestImports = pp.TestImports
+ 	p.XTestGoFiles = pp.XTestGoFiles
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index 226b5377b9..deec02e341 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -188,6 +188,42 @@ func TestVendorGetUpdate(t *testing.T) {
+ 	tg.run("get", "-u", "github.com/rsc/go-get-issue-11864")
+ }
+ 
++func TestVendorGetU(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("get", "-u", "github.com/rsc/go-get-issue-11864")
++}
++
++func TestVendorGetTU(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("get", "-t", "-u", "github.com/rsc/go-get-issue-11864/...")
++}
++
++func TestVendorGetBadVendor(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	for _, suffix := range []string{"bad/imp", "bad/imp2", "bad/imp3", "..."} {
++		t.Run(suffix, func(t *testing.T) {
++			tg := testgo(t)
++			defer tg.cleanup()
++			tg.makeTempdir()
++			tg.setenv("GOPATH", tg.path("."))
++			tg.runFail("get", "-t", "-u", "github.com/rsc/go-get-issue-18219/"+suffix)
++			tg.grepStderr("must be imported as", "did not find error about vendor import")
++			tg.mustNotExist(tg.path("src/github.com/rsc/vendor"))
++		})
++	}
++}
++
+ func TestGetSubmodules(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 

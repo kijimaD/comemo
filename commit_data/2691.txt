@@ -7,7 +7,38 @@ Date:   Mon Jul 13 23:29:44 2009 -0700
     R=ken
     OCL=31582
     CL=31582
-
+---
  src/cmd/gc/subr.c | 2 +-
  test/golden.out   | 6 ++++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 06790c8568..1e7b7f408c 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1067,7 +1067,7 @@ Tpretty(Fmt *fp, Type *t)
+ 				return 0;
+ 			if(s->imported)
+ 				return 0;
+-			if(s->def == N || s->def->op != OTYPE || s->def->type != t || !s->export) {
++			if(t->vargen || !s->export) {
+ 				fmtprint(fp, "·%s", filename);
+ 				if(t->vargen)
+ 					fmtprint(fp, "·%d", t->vargen);
+diff --git a/test/golden.out b/test/golden.out
+index 790e4311bf..a6845f40b8 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -93,8 +93,10 @@ BUG: should not compile
+ 
+ =========== bugs/bug148.go
+ 2 3
+-5 7
+-BUG: should crash
++interface is main.T, not main.T·bug148·1
++throw: interface conversion
++
++panic PC=xxx
+ 
+ =========== bugs/bug159.go
+ xyz: expected 1 2 3 got 3 2 1

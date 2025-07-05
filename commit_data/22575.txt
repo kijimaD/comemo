@@ -7,6 +7,19 @@ Date:   Tue Mar 24 13:16:03 2015 -0700
     Change-Id: Id1edbed38c94e7c1c13a0200c44edf2b9ae5f087
     Reviewed-on: https://go-review.googlesource.com/8040
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/build.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 6979aa4653..ba624aa5ef 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1020,6 +1020,7 @@ func usage() {
+ 		"clean          deletes all built files\n" +
+ 		"env [-p]       print environment (-p: include $PATH)\n" +
+ 		"install [dir]  install individual directory\n" +
++		"test [-h]      run Go test(s)\n" +
+ 		"version        print Go version\n" +
+ 		"\n" +
+ 		"All commands take -v flags to emit extra information.\n",

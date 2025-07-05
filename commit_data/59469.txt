@@ -16,6 +16,20 @@ Date:   Thu Mar 14 21:22:31 2024 -0700
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/net/cgo_unix_cgo.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+index 7c609eddbf..d38ae0a84f 100644
+--- a/src/net/cgo_unix_cgo.go
++++ b/src/net/cgo_unix_cgo.go
+@@ -7,7 +7,7 @@
+ package net
+ 
+ /*
+-#define _GNU_SOURCE
++#define _GNU_SOURCE 1
+ 
+ #cgo CFLAGS: -fno-stack-protector
+ #include <sys/types.h>

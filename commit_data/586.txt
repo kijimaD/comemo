@@ -7,9 +7,120 @@ Date:   Mon Sep 8 13:26:52 2008 -0700
     R=r
     OCL=14939
     CL=14941
-
+---
  usr/gri/gosrc/decls.go   | 32 ++++++++++++++++----------------
  usr/gri/gosrc/globals.go |  8 ++++----
  usr/gri/gosrc/parser.go  |  4 ++--
  usr/gri/gosrc/test/c.go  |  2 +-
  4 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+index 2c02513256..d183e9854c 100755
+--- a/usr/gri/gosrc/decls.go
++++ b/usr/gri/gosrc/decls.go
+@@ -37,23 +37,23 @@ type (
+ 	T5 *T4;
+ )
+ 
+-type F0 func ()
+-type F1 func (a int)
+-type F2 func (a, b int, c float)
+-type F3 func () bool
+-type F4 func (a int) (z T5, ok bool)
+-type F5 func (a, b int, c float) (z T5, ok bool)
+-type F6 func (a int, b float) bool
+-type F7 func (a int, b float, c, d *bool) bool
+-
+-export type M0 func (p T5) . ();
++type F0 ()
++type F1 (a int)
++type F2 (a, b int, c float)
++type F3 () bool
++type F4 (a int) (z T5, ok bool)
++type F5 (a, b int, c float) (z T5, ok bool)
++type F6 (a int, b float) bool
++type F7 (a int, b float, c, d *bool) bool
++
++export type M0 (p T5) . ();
+ type (
+-	M1 func (p T5) . (a int);
+-	M2 func (p T5) . (a, b int, c float);
+-	M3 func (p T5) . () bool;
+-	M4 func (p T5) . (a int) (z T5, ok bool);
++	M1 (p T5) . (a int);
++	M2 (p T5) . (a, b int, c float);
++	M3 (p T5) . () bool;
++	M4 (p T5) . (a int) (z T5, ok bool);
+ )
+-export type M5 func (p T5) . (a, b int, c float) (z T5, ok bool);
++export type M5 (p T5) . (a, b int, c float) (z T5, ok bool);
+ 
+ type T6 chan int
+ type T7 chan<- *T6
+@@ -62,7 +62,7 @@ type T8 chan-< *T6
+ type T9 struct {
+ 	p *T9;
+ 	q [] *map [int] *T9;
+-	f *func(x, y *T9) *T9;
++	f *(x, y *T9) *T9;
+ }
+ 
+ export type T11 struct {
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 4285aa324b..da5125a5f9 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -75,10 +75,10 @@ export type Flags struct {
+ 
+ 
+ export type Environment struct {
+-	Error *func(comp *Compilation);  // TODO complete this
+-	Import *func(comp *Compilation, pkg_file string) *Package;
+-	Export *func(comp *Compilation, pkg_file string);
+-	Compile *func(comp *Compilation, src_file string);
++	Error *(comp *Compilation);  // TODO complete this
++	Import *(comp *Compilation, pkg_file string) *Package;
++	Export *(comp *Compilation, pkg_file string);
++	Compile *(comp *Compilation, src_file string);
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 023a0d85d0..6cccb5508d 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -597,7 +597,6 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
+ func (P *Parser) ParseFunctionType() *Globals.Type {
+ 	P.Trace("FunctionType");
+ 	
+-	P.Expect(Scanner.FUNC);
+ 	typ := P.ParseAnonymousSignature();
+ 	
+ 	P.Ecart();
+@@ -796,7 +795,7 @@ func (P *Parser) TryType() *Globals.Type {
+ 	case Scanner.LBRACK: typ = P.ParseArrayType();
+ 	case Scanner.CHAN: typ = P.ParseChannelType();
+ 	case Scanner.INTERFACE: typ = P.ParseInterfaceType();
+-	case Scanner.FUNC: typ = P.ParseFunctionType();
++	case Scanner.LPAREN: typ = P.ParseFunctionType();
+ 	case Scanner.MAP: typ = P.ParseMapType();
+ 	case Scanner.STRUCT: typ = P.ParseStructType();
+ 	case Scanner.MUL: typ = P.ParsePointerType();
+@@ -908,6 +907,7 @@ func (P *Parser) ParseNew() Globals.Expr {
+ func (P *Parser) ParseFunctionLit() Globals.Expr {
+ 	P.Trace("FunctionLit");
+ 	
++	P.Expect(Scanner.FUNC);
+ 	typ := P.ParseFunctionType();
+ 	P.ParseBlock(typ.scope);
+ 	
+diff --git a/usr/gri/gosrc/test/c.go b/usr/gri/gosrc/test/c.go
+index 728efb236b..5f5981aa30 100644
+--- a/usr/gri/gosrc/test/c.go
++++ b/usr/gri/gosrc/test/c.go
+@@ -4,4 +4,4 @@ import "d"
+ 
+ export type T1 D.T1;
+ export type T2 D.T2;
+-export type F1 func (a D.T1, b *D.T2);
++export type F1 (a D.T1, b *D.T2);

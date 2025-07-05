@@ -24,6 +24,26 @@ Date:   Mon Aug 8 12:40:49 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/name.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 711d1dedc5..310481f6f0 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -336,6 +336,14 @@ func (n *Name) Byval() bool {
+ // NewClosureVar returns a new closure variable for fn to refer to
+ // outer variable n.
+ func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
++	switch n.Class {
++	case PAUTO, PPARAM, PPARAMOUT, PAUTOHEAP:
++		// ok
++	default:
++		// Prevent mistaken capture of global variables.
++		base.Fatalf("NewClosureVar: %+v", n)
++	}
++
+ 	c := NewNameAt(pos, n.Sym())
+ 	c.Curfn = fn
+ 	c.Class = PAUTOHEAP

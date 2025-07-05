@@ -7,6 +7,25 @@ Date:   Fri Sep 27 12:35:03 2013 +1000
     R=golang-dev, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/14017043
-
+---
  misc/vim/plugin/godoc.vim | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/misc/vim/plugin/godoc.vim b/misc/vim/plugin/godoc.vim
+index 47ba9e08f0..33c9ec05bf 100644
+--- a/misc/vim/plugin/godoc.vim
++++ b/misc/vim/plugin/godoc.vim
+@@ -66,6 +66,13 @@ function! s:GodocView()
+ endfunction
+ 
+ function! s:GodocWord(word)
++  if !executable('godoc')
++    echohl WarningMsg
++    echo "godoc command not found."
++    echo "  install with: go get code.google.com/p/go.tools/cmd/godoc"
++    echohl None
++    return
++  endif
+   let word = a:word
+   silent! let content = system('godoc ' . word)
+   if v:shell_error || !len(content)

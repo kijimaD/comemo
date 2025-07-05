@@ -16,6 +16,19 @@ Date:   Wed Jul 21 11:43:57 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/gc_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 5e7c6c574f..0ec5331534 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -21,6 +21,7 @@ import (
+ )
+ 
+ func TestGcSys(t *testing.T) {
++	t.Skip("skipping known-flaky test; golang.org/issue/37331")
+ 	if os.Getenv("GOGC") == "off" {
+ 		t.Skip("skipping test; GOGC=off in environment")
+ 	}

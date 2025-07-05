@@ -8,7 +8,76 @@ Date:   Mon Dec 22 11:04:17 2008 -0800
     DELTA=34  (33 added, 0 deleted, 1 changed)
     OCL=21718
     CL=21718
-
+---
  src/lib/fmt/fmt_test.go | 14 ++++++++++++++
  src/lib/fmt/print.go    | 21 ++++++++++++++++++++-
  2 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/fmt/fmt_test.go b/src/lib/fmt/fmt_test.go
+index 20539df626..5b016ca4c2 100644
+--- a/src/lib/fmt/fmt_test.go
++++ b/src/lib/fmt/fmt_test.go
+@@ -232,3 +232,17 @@ export func TestStructPrinter(t *testing.T) {
+ 		}
+ 	}
+ }
++
++export func TestArrayPrinter(t *testing.T) {
++	a := []int{1, 2, 3, 4, 5};
++	want := "[1 2 3 4 5]";
++	out := fmt.sprintf("%v", a);
++	if out != want {
++		t.Errorf("sprintf(%%v, array) = %q, want %q", out, want);
++	}
++	want = "&" + want;
++	out = fmt.sprintf("%v", &a);
++	if out != want {
++		t.Errorf("sprintf(%%v, &array) = %q, want %q", out, want);
++	}
++}
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index bb69ba4200..6546e13afc 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -305,6 +305,14 @@ func getArrayPtr(v reflect.Value) (val reflect.ArrayValue, ok bool) {
+ 	return nil, false;
+ }
+ 
++func getArray(v reflect.Value) (val reflect.ArrayValue, ok bool) {
++	switch v.Kind() {
++	case reflect.ArrayKind:
++		return v.(reflect.ArrayValue), true;
++	}
++	return nil, false;
++}
++
+ // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
+ 
+ func parsenum(s string, start, end int) (n int, got bool, newi int) {
+@@ -365,7 +373,7 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
+ 		if v, ok := getPtr(field); v == 0 {
+ 			s = "<nil>"
+ 		} else {
+-			// pointer to array?
++			// pointer to array?  (TODO(r): holdover; delete?)
+ 			if a, ok := getArrayPtr(field); ok {
+ 				p.addstr("&[");
+ 				for i := 0; i < a.Len(); i++ {
+@@ -380,6 +388,17 @@ func (p *P) printField(field reflect.Value) (was_string bool) {
+ 				s = p.fmt.uX64(uint64(v)).str();
+ 			}
+ 		}
++	case reflect.ArrayKind:
++		if a, ok := getArray(field); ok {
++			p.addstr("[");
++			for i := 0; i < a.Len(); i++ {
++				if i > 0 {
++					p.addstr(" ");
++				}
++				p.printField(a.Elem(i));
++			}
++			p.addstr("]");
++		}
+ 	case reflect.StructKind:
+ 		p.add('{');
+ 		v := field.(reflect.StructValue);

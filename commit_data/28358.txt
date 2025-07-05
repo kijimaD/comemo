@@ -19,8 +19,74 @@ Date:   Thu Apr 14 13:52:56 2016 -0700
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go         |  2 +-
  src/crypto/ecdsa/ecdsa_test.go    | 23 +++++++++++++++++++++++
  src/crypto/elliptic/p256_amd64.go |  8 ++++++--
  3 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index e63bd8669e..288e366a88 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -228,7 +228,7 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 	c := pub.Curve
+ 	N := c.Params().N
+ 
+-	if r.Sign() == 0 || s.Sign() == 0 {
++	if r.Sign() <= 0 || s.Sign() <= 0 {
+ 		return false
+ 	}
+ 	if r.Cmp(N) >= 0 || s.Cmp(N) >= 0 {
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 5e588b9258..fc25fd74a7 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -296,3 +296,26 @@ func TestVectors(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func testNegativeInputs(t *testing.T, curve elliptic.Curve, tag string) {
++	key, err := GenerateKey(curve, rand.Reader)
++	if err != nil {
++		t.Errorf("failed to generate key for %q", tag)
++	}
++
++	var hash [32]byte
++	r := new(big.Int).SetInt64(1)
++	r.Lsh(r, 550 /* larger than any supported curve */)
++	r.Neg(r)
++
++	if Verify(&key.PublicKey, hash[:], r, r) {
++		t.Errorf("bogus signature accepted for %q", tag)
++	}
++}
++
++func TestNegativeInputs(t *testing.T) {
++	testNegativeInputs(t, elliptic.P224(), "p224")
++	testNegativeInputs(t, elliptic.P256(), "p256")
++	testNegativeInputs(t, elliptic.P384(), "p384")
++	testNegativeInputs(t, elliptic.P521(), "p521")
++}
+diff --git a/src/crypto/elliptic/p256_amd64.go b/src/crypto/elliptic/p256_amd64.go
+index e96933e0c5..66b7cf8dc5 100644
+--- a/src/crypto/elliptic/p256_amd64.go
++++ b/src/crypto/elliptic/p256_amd64.go
+@@ -93,10 +93,14 @@ func p256PointAddAsm(res, in1, in2 []uint64)
+ func p256PointDoubleAsm(res, in []uint64)
+ 
+ func (curve p256Curve) Inverse(k *big.Int) *big.Int {
++	if k.Sign() < 0 {
++		// This should never happen.
++		k = new(big.Int).Neg(k)
++	}
++
+ 	if k.Cmp(p256.N) >= 0 {
+ 		// This should never happen.
+-		reducedK := new(big.Int).Mod(k, p256.N)
+-		k = reducedK
++		k = new(big.Int).Mod(k, p256.N)
+ 	}
+ 
+ 	// table will store precomputed powers of x. The four words at index

@@ -18,7 +18,7 @@ Date:   Wed Mar 16 18:42:57 2022 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   4 +-
  src/cmd/go.sum                                     |   8 +-
  .../go/analysis/passes/composite/whitelist.go      |   9 +-
@@ -31,3 +31,701 @@ Date:   Wed Mar 16 18:42:57 2022 -0400
  .../tools/internal/typeparams/typeparams_go118.go  |   5 +
  src/cmd/vendor/modules.txt                         |   4 +-
  11 files changed, 396 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index fd54a88630..c5582e7dc7 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,11 +5,11 @@ go 1.18
+ require (
+ 	github.com/google/pprof v0.0.0-20211104044539-f987b9c94b31
+ 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670
+-	golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020
++	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d
+ 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+-	golang.org/x/tools v0.1.9-0.20220124164225-97de9ec46646
++	golang.org/x/tools v0.1.11-0.20220316221636-85d68bc98d0d
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 4a5479f881..9060d68517 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -9,8 +9,8 @@ golang.org/x/arch v0.0.0-20210923205945-b76863e36670 h1:18EFjUmQOcUvxNYSkA6jO9VA
+ golang.org/x/arch v0.0.0-20210923205945-b76863e36670/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+ golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3 h1:0es+/5331RGQPcXlMfP+WrnIIS6dNnNRe0WB02W0F4M=
+ golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+-golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020 h1:HjtpZuJcnSa+yHlL4Y5aypjDvbHkJne5FS8JRmKI2+I=
+-golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020/go.mod h1:3p9vT2HGsQu2K1YbXdKPJLVgG5VJdoTa1poYQBtP1AY=
++golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 h1:kQgndtyPBW/JIYERgdxfwMYh3AVStj88WQTlNDi2a+o=
++golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3/go.mod h1:3p9vT2HGsQu2K1YbXdKPJLVgG5VJdoTa1poYQBtP1AY=
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c h1:5KslGYwFpkhGh+Q16bwMP3cOontH8FOep7tGV86Y7SQ=
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+@@ -18,7 +18,7 @@ golang.org/x/sys v0.0.0-20211205182925-97ca703d548d h1:FjkYO/PPp4Wi0EAUOVLxePm7q
+ golang.org/x/sys v0.0.0-20211205182925-97ca703d548d/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.9-0.20220124164225-97de9ec46646 h1:f8aekWvlQQ8ZhD8SL7lOu18dtWslZYl029PN2F0VnS4=
+-golang.org/x/tools v0.1.9-0.20220124164225-97de9ec46646/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
++golang.org/x/tools v0.1.11-0.20220316221636-85d68bc98d0d h1:ODHIU0shdFMaUzD/IIhSde/2e2hoMJlgKMKF3e2rCHU=
++golang.org/x/tools v0.1.11-0.20220316221636-85d68bc98d0d/go.mod h1:Uh6Zz+xoGYZom868N8YTex3t7RhtHDBrE8Gzo9bV56E=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/whitelist.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/whitelist.go
+index 1e5f5fd20b..f84c1871d7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/whitelist.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/whitelist.go
+@@ -26,9 +26,10 @@ var unkeyedLiteral = map[string]bool{
+ 	"unicode.Range16": true,
+ 	"unicode.Range32": true,
+ 
+-	// These three structs are used in generated test main files,
++	// These four structs are used in generated test main files,
+ 	// but the generator can be trusted.
+-	"testing.InternalBenchmark": true,
+-	"testing.InternalExample":   true,
+-	"testing.InternalTest":      true,
++	"testing.InternalBenchmark":  true,
++	"testing.InternalExample":    true,
++	"testing.InternalTest":       true,
++	"testing.InternalFuzzTarget": true,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index 2c87882496..ffa5205dd7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -7,6 +7,7 @@
+ package tests
+ 
+ import (
++	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
+@@ -16,6 +17,7 @@ import (
+ 	"unicode/utf8"
+ 
+ 	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/internal/analysisinternal"
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+@@ -34,6 +36,24 @@ var Analyzer = &analysis.Analyzer{
+ 	Run:  run,
+ }
+ 
++var acceptedFuzzTypes = []types.Type{
++	types.Typ[types.String],
++	types.Typ[types.Bool],
++	types.Typ[types.Float32],
++	types.Typ[types.Float64],
++	types.Typ[types.Int],
++	types.Typ[types.Int8],
++	types.Typ[types.Int16],
++	types.Typ[types.Int32],
++	types.Typ[types.Int64],
++	types.Typ[types.Uint],
++	types.Typ[types.Uint8],
++	types.Typ[types.Uint16],
++	types.Typ[types.Uint32],
++	types.Typ[types.Uint64],
++	types.NewSlice(types.Universe.Lookup("byte").Type()),
++}
++
+ func run(pass *analysis.Pass) (interface{}, error) {
+ 	for _, f := range pass.Files {
+ 		if !strings.HasSuffix(pass.Fset.File(f.Pos()).Name(), "_test.go") {
+@@ -54,11 +74,221 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			case strings.HasPrefix(fn.Name.Name, "Benchmark"):
+ 				checkTest(pass, fn, "Benchmark")
+ 			}
++			// run fuzz tests diagnostics only for 1.18 i.e. when analysisinternal.DiagnoseFuzzTests is turned on.
++			if strings.HasPrefix(fn.Name.Name, "Fuzz") && analysisinternal.DiagnoseFuzzTests {
++				checkTest(pass, fn, "Fuzz")
++				checkFuzz(pass, fn)
++			}
+ 		}
+ 	}
+ 	return nil, nil
+ }
+ 
++// Checks the contents of a fuzz function.
++func checkFuzz(pass *analysis.Pass, fn *ast.FuncDecl) {
++	params := checkFuzzCall(pass, fn)
++	if params != nil {
++		checkAddCalls(pass, fn, params)
++	}
++}
++
++// Check the arguments of f.Fuzz() calls :
++// 1. f.Fuzz() should call a function and it should be of type (*testing.F).Fuzz().
++// 2. The called function in f.Fuzz(func(){}) should not return result.
++// 3. First argument of func() should be of type *testing.T
++// 4. Second argument onwards should be of type []byte, string, bool, byte,
++//	  rune, float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16,
++//	  uint32, uint64
++// 5. func() must not call any *F methods, e.g. (*F).Log, (*F).Error, (*F).Skip
++//    The only *F methods that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
++// Returns the list of parameters to the fuzz function, if they are valid fuzz parameters.
++func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) {
++	ast.Inspect(fn, func(n ast.Node) bool {
++		call, ok := n.(*ast.CallExpr)
++		if ok {
++			if !isFuzzTargetDotFuzz(pass, call) {
++				return true
++			}
++
++			// Only one argument (func) must be passed to (*testing.F).Fuzz.
++			if len(call.Args) != 1 {
++				return true
++			}
++			expr := call.Args[0]
++			if pass.TypesInfo.Types[expr].Type == nil {
++				return true
++			}
++			t := pass.TypesInfo.Types[expr].Type.Underlying()
++			tSign, argOk := t.(*types.Signature)
++			// Argument should be a function
++			if !argOk {
++				pass.ReportRangef(expr, "argument to Fuzz must be a function")
++				return false
++			}
++			// ff Argument function should not return
++			if tSign.Results().Len() != 0 {
++				pass.ReportRangef(expr, "fuzz target must not return any value")
++			}
++			// ff Argument function should have 1 or more argument
++			if tSign.Params().Len() == 0 {
++				pass.ReportRangef(expr, "fuzz target must have 1 or more argument")
++				return false
++			}
++			ok := validateFuzzArgs(pass, tSign.Params(), expr)
++			if ok && params == nil {
++				params = tSign.Params()
++			}
++			// Inspect the function that was passed as an argument to make sure that
++			// there are no calls to *F methods, except for Name and Failed.
++			ast.Inspect(expr, func(n ast.Node) bool {
++				if call, ok := n.(*ast.CallExpr); ok {
++					if !isFuzzTargetDot(pass, call, "") {
++						return true
++					}
++					if !isFuzzTargetDot(pass, call, "Name") && !isFuzzTargetDot(pass, call, "Failed") {
++						pass.ReportRangef(call, "fuzz target must not call any *F methods")
++					}
++				}
++				return true
++			})
++			// We do not need to look at any calls to f.Fuzz inside of a Fuzz call,
++			// since they are not allowed.
++			return false
++		}
++		return true
++	})
++	return params
++}
++
++// Check that the arguments of f.Add() calls have the same number and type of arguments as
++// the signature of the function passed to (*testing.F).Fuzz
++func checkAddCalls(pass *analysis.Pass, fn *ast.FuncDecl, params *types.Tuple) {
++	ast.Inspect(fn, func(n ast.Node) bool {
++		call, ok := n.(*ast.CallExpr)
++		if ok {
++			if !isFuzzTargetDotAdd(pass, call) {
++				return true
++			}
++
++			// The first argument to function passed to (*testing.F).Fuzz is (*testing.T).
++			if len(call.Args) != params.Len()-1 {
++				pass.ReportRangef(call, "wrong number of values in call to (*testing.F).Add: %d, fuzz target expects %d", len(call.Args), params.Len()-1)
++				return true
++			}
++			var mismatched []int
++			for i, expr := range call.Args {
++				if pass.TypesInfo.Types[expr].Type == nil {
++					return true
++				}
++				t := pass.TypesInfo.Types[expr].Type
++				if !types.Identical(t, params.At(i+1).Type()) {
++					mismatched = append(mismatched, i)
++				}
++			}
++			// If just one of the types is mismatched report for that
++			// type only. Otherwise report for the whole call to (*testing.F).Add
++			if len(mismatched) == 1 {
++				i := mismatched[0]
++				expr := call.Args[i]
++				t := pass.TypesInfo.Types[expr].Type
++				pass.ReportRangef(expr, fmt.Sprintf("mismatched type in call to (*testing.F).Add: %v, fuzz target expects %v", t, params.At(i+1).Type()))
++			} else if len(mismatched) > 1 {
++				var gotArgs, wantArgs []types.Type
++				for i := 0; i < len(call.Args); i++ {
++					gotArgs, wantArgs = append(gotArgs, pass.TypesInfo.Types[call.Args[i]].Type), append(wantArgs, params.At(i+1).Type())
++				}
++				pass.ReportRangef(call, fmt.Sprintf("mismatched types in call to (*testing.F).Add: %v, fuzz target expects %v", gotArgs, wantArgs))
++			}
++		}
++		return true
++	})
++}
++
++// isFuzzTargetDotFuzz reports whether call is (*testing.F).Fuzz().
++func isFuzzTargetDotFuzz(pass *analysis.Pass, call *ast.CallExpr) bool {
++	return isFuzzTargetDot(pass, call, "Fuzz")
++}
++
++// isFuzzTargetDotAdd reports whether call is (*testing.F).Add().
++func isFuzzTargetDotAdd(pass *analysis.Pass, call *ast.CallExpr) bool {
++	return isFuzzTargetDot(pass, call, "Add")
++}
++
++// isFuzzTargetDot reports whether call is (*testing.F).<name>().
++func isFuzzTargetDot(pass *analysis.Pass, call *ast.CallExpr, name string) bool {
++	if selExpr, ok := call.Fun.(*ast.SelectorExpr); ok {
++		if !isTestingType(pass.TypesInfo.Types[selExpr.X].Type, "F") {
++			return false
++		}
++		if name == "" || selExpr.Sel.Name == name {
++			return true
++		}
++	}
++	return false
++}
++
++// Validate the arguments of fuzz target.
++func validateFuzzArgs(pass *analysis.Pass, params *types.Tuple, expr ast.Expr) bool {
++	fLit, isFuncLit := expr.(*ast.FuncLit)
++	exprRange := expr
++	ok := true
++	if !isTestingType(params.At(0).Type(), "T") {
++		if isFuncLit {
++			exprRange = fLit.Type.Params.List[0].Type
++		}
++		pass.ReportRangef(exprRange, "the first parameter of a fuzz target must be *testing.T")
++		ok = false
++	}
++	for i := 1; i < params.Len(); i++ {
++		if !isAcceptedFuzzType(params.At(i).Type()) {
++			if isFuncLit {
++				curr := 0
++				for _, field := range fLit.Type.Params.List {
++					curr += len(field.Names)
++					if i < curr {
++						exprRange = field.Type
++						break
++					}
++				}
++			}
++			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: "+formatAcceptedFuzzType())
++			ok = false
++		}
++	}
++	return ok
++}
++
++func isTestingType(typ types.Type, testingType string) bool {
++	ptr, ok := typ.(*types.Pointer)
++	if !ok {
++		return false
++	}
++	named, ok := ptr.Elem().(*types.Named)
++	if !ok {
++		return false
++	}
++	return named.Obj().Pkg().Path() == "testing" && named.Obj().Name() == testingType
++}
++
++// Validate that fuzz target function's arguments are of accepted types.
++func isAcceptedFuzzType(paramType types.Type) bool {
++	for _, typ := range acceptedFuzzTypes {
++		if types.Identical(typ, paramType) {
++			return true
++		}
++	}
++	return false
++}
++
++func formatAcceptedFuzzType() string {
++	var acceptedFuzzTypesStrings []string
++	for _, typ := range acceptedFuzzTypes {
++		acceptedFuzzTypesStrings = append(acceptedFuzzTypesStrings, typ.String())
++	}
++	acceptedFuzzTypesMsg := strings.Join(acceptedFuzzTypesStrings, ", ")
++	return acceptedFuzzTypesMsg
++}
++
+ func isExampleSuffix(s string) bool {
+ 	r, size := utf8.DecodeRuneInString(s)
+ 	return size > 0 && unicode.IsLower(r)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index 7e96fc234e..557202b4d1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -254,18 +254,18 @@ func For(obj types.Object) (Path, error) {
+ 
+ 		if tname.IsAlias() {
+ 			// type alias
+-			if r := find(obj, T, path); r != nil {
++			if r := find(obj, T, path, nil); r != nil {
+ 				return Path(r), nil
+ 			}
+ 		} else {
+ 			if named, _ := T.(*types.Named); named != nil {
+-				if r := findTypeParam(obj, typeparams.ForNamed(named), path); r != nil {
++				if r := findTypeParam(obj, typeparams.ForNamed(named), path, nil); r != nil {
+ 					// generic named type
+ 					return Path(r), nil
+ 				}
+ 			}
+ 			// defined (named) type
+-			if r := find(obj, T.Underlying(), append(path, opUnderlying)); r != nil {
++			if r := find(obj, T.Underlying(), append(path, opUnderlying), nil); r != nil {
+ 				return Path(r), nil
+ 			}
+ 		}
+@@ -279,7 +279,7 @@ func For(obj types.Object) (Path, error) {
+ 		if _, ok := o.(*types.TypeName); !ok {
+ 			if o.Exported() {
+ 				// exported non-type (const, var, func)
+-				if r := find(obj, o.Type(), append(path, opType)); r != nil {
++				if r := find(obj, o.Type(), append(path, opType), nil); r != nil {
+ 					return Path(r), nil
+ 				}
+ 			}
+@@ -299,7 +299,7 @@ func For(obj types.Object) (Path, error) {
+ 				if m == obj {
+ 					return Path(path2), nil // found declared method
+ 				}
+-				if r := find(obj, m.Type(), append(path2, opType)); r != nil {
++				if r := find(obj, m.Type(), append(path2, opType), nil); r != nil {
+ 					return Path(r), nil
+ 				}
+ 			}
+@@ -316,41 +316,44 @@ func appendOpArg(path []byte, op byte, arg int) []byte {
+ }
+ 
+ // find finds obj within type T, returning the path to it, or nil if not found.
+-func find(obj types.Object, T types.Type, path []byte) []byte {
++//
++// The seen map is used to short circuit cycles through type parameters. If
++// nil, it will be allocated as necessary.
++func find(obj types.Object, T types.Type, path []byte, seen map[*types.TypeName]bool) []byte {
+ 	switch T := T.(type) {
+ 	case *types.Basic, *types.Named:
+ 		// Named types belonging to pkg were handled already,
+ 		// so T must belong to another package. No path.
+ 		return nil
+ 	case *types.Pointer:
+-		return find(obj, T.Elem(), append(path, opElem))
++		return find(obj, T.Elem(), append(path, opElem), seen)
+ 	case *types.Slice:
+-		return find(obj, T.Elem(), append(path, opElem))
++		return find(obj, T.Elem(), append(path, opElem), seen)
+ 	case *types.Array:
+-		return find(obj, T.Elem(), append(path, opElem))
++		return find(obj, T.Elem(), append(path, opElem), seen)
+ 	case *types.Chan:
+-		return find(obj, T.Elem(), append(path, opElem))
++		return find(obj, T.Elem(), append(path, opElem), seen)
+ 	case *types.Map:
+-		if r := find(obj, T.Key(), append(path, opKey)); r != nil {
++		if r := find(obj, T.Key(), append(path, opKey), seen); r != nil {
+ 			return r
+ 		}
+-		return find(obj, T.Elem(), append(path, opElem))
++		return find(obj, T.Elem(), append(path, opElem), seen)
+ 	case *types.Signature:
+-		if r := findTypeParam(obj, typeparams.ForSignature(T), path); r != nil {
++		if r := findTypeParam(obj, typeparams.ForSignature(T), path, seen); r != nil {
+ 			return r
+ 		}
+-		if r := find(obj, T.Params(), append(path, opParams)); r != nil {
++		if r := find(obj, T.Params(), append(path, opParams), seen); r != nil {
+ 			return r
+ 		}
+-		return find(obj, T.Results(), append(path, opResults))
++		return find(obj, T.Results(), append(path, opResults), seen)
+ 	case *types.Struct:
+ 		for i := 0; i < T.NumFields(); i++ {
+-			f := T.Field(i)
++			fld := T.Field(i)
+ 			path2 := appendOpArg(path, opField, i)
+-			if f == obj {
++			if fld == obj {
+ 				return path2 // found field var
+ 			}
+-			if r := find(obj, f.Type(), append(path2, opType)); r != nil {
++			if r := find(obj, fld.Type(), append(path2, opType), seen); r != nil {
+ 				return r
+ 			}
+ 		}
+@@ -362,7 +365,7 @@ func find(obj types.Object, T types.Type, path []byte) []byte {
+ 			if v == obj {
+ 				return path2 // found param/result var
+ 			}
+-			if r := find(obj, v.Type(), append(path2, opType)); r != nil {
++			if r := find(obj, v.Type(), append(path2, opType), seen); r != nil {
+ 				return r
+ 			}
+ 		}
+@@ -374,7 +377,7 @@ func find(obj types.Object, T types.Type, path []byte) []byte {
+ 			if m == obj {
+ 				return path2 // found interface method
+ 			}
+-			if r := find(obj, m.Type(), append(path2, opType)); r != nil {
++			if r := find(obj, m.Type(), append(path2, opType), seen); r != nil {
+ 				return r
+ 			}
+ 		}
+@@ -384,7 +387,14 @@ func find(obj types.Object, T types.Type, path []byte) []byte {
+ 		if name == obj {
+ 			return append(path, opObj)
+ 		}
+-		if r := find(obj, T.Constraint(), append(path, opConstraint)); r != nil {
++		if seen[name] {
++			return nil
++		}
++		if seen == nil {
++			seen = make(map[*types.TypeName]bool)
++		}
++		seen[name] = true
++		if r := find(obj, T.Constraint(), append(path, opConstraint), seen); r != nil {
+ 			return r
+ 		}
+ 		return nil
+@@ -392,11 +402,11 @@ func find(obj types.Object, T types.Type, path []byte) []byte {
+ 	panic(T)
+ }
+ 
+-func findTypeParam(obj types.Object, list *typeparams.TypeParamList, path []byte) []byte {
++func findTypeParam(obj types.Object, list *typeparams.TypeParamList, path []byte, seen map[*types.TypeName]bool) []byte {
+ 	for i := 0; i < list.Len(); i++ {
+ 		tparam := list.At(i)
+ 		path2 := appendOpArg(path, opTypeParam, i)
+-		if r := find(obj, tparam, path2); r != nil {
++		if r := find(obj, tparam, path2, seen); r != nil {
+ 			return r
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+index 490ee904a6..c9f8f25a0d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+@@ -379,7 +379,7 @@ func (h Hasher) hashFor(t types.Type) uint32 {
+ func (h Hasher) hashTuple(tuple *types.Tuple) uint32 {
+ 	// See go/types.identicalTypes for rationale.
+ 	n := tuple.Len()
+-	var hash uint32 = 9137 + 2*uint32(n)
++	hash := 9137 + 2*uint32(n)
+ 	for i := 0; i < n; i++ {
+ 		hash += 3 * h.Hash(tuple.At(i).Type())
+ 	}
+@@ -398,7 +398,7 @@ func (h Hasher) hashUnion(t *typeparams.Union) uint32 {
+ }
+ 
+ func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
+-	var hash uint32 = 9157 + 2*uint32(len(terms))
++	hash := 9157 + 2*uint32(len(terms))
+ 	for _, term := range terms {
+ 		// term order is not significant.
+ 		termHash := h.Hash(term.Type())
+@@ -416,14 +416,16 @@ func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
+ // If h.sigTParams is set and contains t, then we are in the process of hashing
+ // a signature, and the hash value of t must depend only on t's index and
+ // constraint: signatures are considered identical modulo type parameter
+-// renaming.
++// renaming. To avoid infinite recursion, we only hash the type parameter
++// index, and rely on types.Identical to handle signatures where constraints
++// are not identical.
+ //
+ // Otherwise the hash of t depends only on t's pointer identity.
+ func (h Hasher) hashTypeParam(t *typeparams.TypeParam) uint32 {
+ 	if h.sigTParams != nil {
+ 		i := t.Index()
+ 		if i >= 0 && i < h.sigTParams.Len() && t == h.sigTParams.At(i) {
+-			return 9173 + 2*h.Hash(t.Constraint()) + 3*uint32(i)
++			return 9173 + 3*uint32(i)
+ 		}
+ 	}
+ 	return h.hashPtr(t.Obj())
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index 01f6e829f7..78ee2c06be 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -17,6 +17,9 @@ import (
+ 	"golang.org/x/tools/internal/lsp/fuzzy"
+ )
+ 
++// Flag to gate diagnostics for fuzz tests in 1.18.
++var DiagnoseFuzzTests bool = false
++
+ var (
+ 	GetTypeErrors func(p interface{}) []types.Error
+ 	SetTypeErrors func(p interface{}, errors []types.Error)
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+index 1222764b6a..ab6b30b83e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+@@ -77,3 +77,104 @@ func IsTypeParam(t types.Type) bool {
+ 	_, ok := t.(*TypeParam)
+ 	return ok
+ }
++
++// OriginMethod returns the origin method associated with the method fn.
++// For methods on a non-generic receiver base type, this is just
++// fn. However, for methods with a generic receiver, OriginMethod returns the
++// corresponding method in the method set of the origin type.
++//
++// As a special case, if fn is not a method (has no receiver), OriginMethod
++// returns fn.
++func OriginMethod(fn *types.Func) *types.Func {
++	recv := fn.Type().(*types.Signature).Recv()
++	if recv == nil {
++
++		return fn
++	}
++	base := recv.Type()
++	p, isPtr := base.(*types.Pointer)
++	if isPtr {
++		base = p.Elem()
++	}
++	named, isNamed := base.(*types.Named)
++	if !isNamed {
++		// Receiver is a *types.Interface.
++		return fn
++	}
++	if ForNamed(named).Len() == 0 {
++		// Receiver base has no type parameters, so we can avoid the lookup below.
++		return fn
++	}
++	orig := NamedTypeOrigin(named)
++	gfn, _, _ := types.LookupFieldOrMethod(orig, true, fn.Pkg(), fn.Name())
++	return gfn.(*types.Func)
++}
++
++// GenericAssignableTo is a generalization of types.AssignableTo that
++// implements the following rule for uninstantiated generic types:
++//
++// If V and T are generic named types, then V is considered assignable to T if,
++// for every possible instantation of V[A_1, ..., A_N], the instantiation
++// T[A_1, ..., A_N] is valid and V[A_1, ..., A_N] implements T[A_1, ..., A_N].
++//
++// If T has structural constraints, they must be satisfied by V.
++//
++// For example, consider the following type declarations:
++//
++//  type Interface[T any] interface {
++//  	Accept(T)
++//  }
++//
++//  type Container[T any] struct {
++//  	Element T
++//  }
++//
++//  func (c Container[T]) Accept(t T) { c.Element = t }
++//
++// In this case, GenericAssignableTo reports that instantiations of Container
++// are assignable to the corresponding instantiation of Interface.
++func GenericAssignableTo(ctxt *Context, V, T types.Type) bool {
++	// If V and T are not both named, or do not have matching non-empty type
++	// parameter lists, fall back on types.AssignableTo.
++
++	VN, Vnamed := V.(*types.Named)
++	TN, Tnamed := T.(*types.Named)
++	if !Vnamed || !Tnamed {
++		return types.AssignableTo(V, T)
++	}
++
++	vtparams := ForNamed(VN)
++	ttparams := ForNamed(TN)
++	if vtparams.Len() == 0 || vtparams.Len() != ttparams.Len() || NamedTypeArgs(VN).Len() != 0 || NamedTypeArgs(TN).Len() != 0 {
++		return types.AssignableTo(V, T)
++	}
++
++	// V and T have the same (non-zero) number of type params. Instantiate both
++	// with the type parameters of V. This must always succeed for V, and will
++	// succeed for T if and only if the type set of each type parameter of V is a
++	// subset of the type set of the corresponding type parameter of T, meaning
++	// that every instantiation of V corresponds to a valid instantiation of T.
++
++	// Minor optimization: ensure we share a context across the two
++	// instantiations below.
++	if ctxt == nil {
++		ctxt = NewContext()
++	}
++
++	var targs []types.Type
++	for i := 0; i < vtparams.Len(); i++ {
++		targs = append(targs, vtparams.At(i))
++	}
++
++	vinst, err := Instantiate(ctxt, V, targs, true)
++	if err != nil {
++		panic("type parameters should satisfy their own constraints")
++	}
++
++	tinst, err := Instantiate(ctxt, T, targs, true)
++	if err != nil {
++		return false
++	}
++
++	return types.AssignableTo(vinst, tinst)
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+index 5fd3fc3515..b4788978ff 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+@@ -185,6 +185,11 @@ func GetInstances(info *types.Info) map[*ast.Ident]Instance { return nil }
+ // this Go version.
+ type Context struct{}
+ 
++// NewContext returns a placeholder Context instance.
++func NewContext() *Context {
++	return &Context{}
++}
++
+ // Instantiate is unsupported on this Go version, and panics.
+ func Instantiate(ctxt *Context, typ types.Type, targs []types.Type, validate bool) (types.Type, error) {
+ 	unsupported()
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
+index 7470aed8c9..114a36b866 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
+@@ -140,6 +140,11 @@ func GetInstances(info *types.Info) map[*ast.Ident]Instance {
+ // Context is an alias for types.Context.
+ type Context = types.Context
+ 
++// NewContext calls types.NewContext.
++func NewContext() *Context {
++	return types.NewContext()
++}
++
+ // Instantiate calls types.Instantiate.
+ func Instantiate(ctxt *Context, typ types.Type, targs []types.Type, validate bool) (types.Type, error) {
+ 	return types.Instantiate(ctxt, typ, targs, validate)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index c373ca05b1..9e797f555b 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-# golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020
++# golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -51,7 +51,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.9-0.20220124164225-97de9ec46646
++# golang.org/x/tools v0.1.11-0.20220316221636-85d68bc98d0d
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

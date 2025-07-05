@@ -13,7 +13,7 @@ Date:   Tue Oct 16 14:02:13 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/doc.go                   |  2 --
  src/cmd/compile/internal/gc/alg.go       | 20 --------------------
  src/cmd/compile/internal/gc/go.go        |  2 --
@@ -26,3 +26,307 @@ Date:   Tue Oct 16 14:02:13 2018 -0700
  test/unsafereject1.go                    | 16 ----------------
  test/unsafereject2.go                    | 15 ---------------
  11 files changed, 5 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 3dc73a8fde..bce03fc40f 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -92,8 +92,6 @@ Flags:
+ 		Compile with race detector enabled.
+ 	-trimpath prefix
+ 		Remove prefix from recorded source file paths.
+-	-u
+-		Disallow importing packages not marked as safe; implies -nolocalimports.
+ 
+ There are also a number of debugging flags; run the command with no arguments
+ for a usage message.
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 9a13ed368b..b112ff6797 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -300,18 +300,8 @@ func genhash(sym *types.Sym, t *types.Type) {
+ 		testdclstack()
+ 	}
+ 
+-	// Disable safemode while compiling this code: the code we
+-	// generate internally can refer to unsafe.Pointer.
+-	// In this case it can happen if we need to generate an ==
+-	// for a struct containing a reflect.Value, which itself has
+-	// an unexported field of type unsafe.Pointer.
+-	old_safemode := safemode
+-	safemode = false
+-
+ 	fn.Func.SetNilCheckDisabled(true)
+ 	funccompile(fn)
+-
+-	safemode = old_safemode
+ }
+ 
+ func hashfor(t *types.Type) *Node {
+@@ -484,22 +474,12 @@ func geneq(sym *types.Sym, t *types.Type) {
+ 		testdclstack()
+ 	}
+ 
+-	// Disable safemode while compiling this code: the code we
+-	// generate internally can refer to unsafe.Pointer.
+-	// In this case it can happen if we need to generate an ==
+-	// for a struct containing a reflect.Value, which itself has
+-	// an unexported field of type unsafe.Pointer.
+-	old_safemode := safemode
+-	safemode = false
+-
+ 	// Disable checknils while compiling this code.
+ 	// We are comparing a struct or an array,
+ 	// neither of which can be nil, and our comparisons
+ 	// are shallow.
+ 	fn.Func.SetNilCheckDisabled(true)
+ 	funccompile(fn)
+-
+-	safemode = old_safemode
+ }
+ 
+ // eqfield returns the node
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 57533237bc..ae1c257e0e 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -105,8 +105,6 @@ var nsyntaxerrors int
+ 
+ var decldepth int32
+ 
+-var safemode bool
+-
+ var nolocalimports bool
+ 
+ var Debug [256]int
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index e364104a46..ae37c956a2 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -87,9 +87,6 @@ func typecheckinl(fn *Node) {
+ 		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, asNodes(fn.Func.Inl.Body))
+ 	}
+ 
+-	save_safemode := safemode
+-	safemode = false
+-
+ 	savefn := Curfn
+ 	Curfn = fn
+ 	typecheckslice(fn.Func.Inl.Body, Etop)
+@@ -102,8 +99,6 @@ func typecheckinl(fn *Node) {
+ 	fn.Func.Inl.Dcl = append(fn.Func.Inl.Dcl, fn.Func.Dcl...)
+ 	fn.Func.Dcl = nil
+ 
+-	safemode = save_safemode
+-
+ 	lineno = lno
+ }
+ 
+@@ -803,23 +798,6 @@ func (v *reassignVisitor) visitList(l Nodes) *Node {
+ 	return nil
+ }
+ 
+-// The result of mkinlcall MUST be assigned back to n, e.g.
+-// 	n.Left = mkinlcall(n.Left, fn, isddd)
+-func mkinlcall(n *Node, fn *Node, maxCost int32) *Node {
+-	save_safemode := safemode
+-
+-	// imported functions may refer to unsafe as long as the
+-	// package was marked safe during import (already checked).
+-	pkg := fnpkg(fn)
+-
+-	if pkg != localpkg && pkg != nil {
+-		safemode = false
+-	}
+-	n = mkinlcall1(n, fn, maxCost)
+-	safemode = save_safemode
+-	return n
+-}
+-
+ func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
+ 	if n := asNode(t.Nname); n != nil && !n.isBlank() {
+ 		inlvar := inlvars[n]
+@@ -839,9 +817,9 @@ var inlgen int
+ // On return ninit has the parameter assignments, the nbody is the
+ // inlined function body and list, rlist contain the input, output
+ // parameters.
+-// The result of mkinlcall1 MUST be assigned back to n, e.g.
+-// 	n.Left = mkinlcall1(n.Left, fn, isddd)
+-func mkinlcall1(n, fn *Node, maxCost int32) *Node {
++// The result of mkinlcall MUST be assigned back to n, e.g.
++// 	n.Left = mkinlcall(n.Left, fn, isddd)
++func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 	if fn.Func.Inl == nil {
+ 		// No inlinable body.
+ 		return n
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 5b159e3661..68aac8b99e 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -228,7 +228,6 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+ 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
+-	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
+ 	flag.BoolVar(&Debug_vlog, "v", false, "increase debug verbosity")
+ 	objabi.Flagcount("w", "debug type checking", &Debug['w'])
+ 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
+@@ -840,7 +839,7 @@ func islocalname(name string) bool {
+ 
+ func findpkg(name string) (file string, ok bool) {
+ 	if islocalname(name) {
+-		if safemode || nolocalimports {
++		if nolocalimports {
+ 			return "", false
+ 		}
+ 
+@@ -982,11 +981,6 @@ func importfile(f *Val) *types.Pkg {
+ 	}
+ 
+ 	if path_ == "unsafe" {
+-		if safemode {
+-			yyerror("cannot import package unsafe")
+-			errorexit()
+-		}
+-
+ 		imported_unsafe = true
+ 		return unsafepkg
+ 	}
+@@ -1060,7 +1054,6 @@ func importfile(f *Val) *types.Pkg {
+ 	}
+ 
+ 	// process header lines
+-	safe := false
+ 	for {
+ 		p, err = imp.ReadString('\n')
+ 		if err != nil {
+@@ -1070,13 +1063,6 @@ func importfile(f *Val) *types.Pkg {
+ 		if p == "\n" {
+ 			break // header ends with blank line
+ 		}
+-		if strings.HasPrefix(p, "safe") {
+-			safe = true
+-			break // ok to ignore rest
+-		}
+-	}
+-	if safemode && !safe {
+-		yyerror("cannot import unsafe package %q", importpkg.Path)
+ 	}
+ 
+ 	// assume files move (get installed) so don't record the full path
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index aed0f060cf..5976cffd06 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -81,12 +81,7 @@ func printObjHeader(bout *bio.Writer) {
+ 	if localpkg.Name == "main" {
+ 		fmt.Fprintf(bout, "main\n")
+ 	}
+-	if safemode {
+-		fmt.Fprintf(bout, "safe\n")
+-	} else {
+-		fmt.Fprintf(bout, "----\n") // room for some other tool to write "safe"
+-	}
+-	fmt.Fprintf(bout, "\n") // header ends with blank line
++	fmt.Fprintf(bout, "\n")     // header ends with blank line
+ }
+ 
+ func startArchiveEntry(bout *bio.Writer) int64 {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7c9c8a157d..fcfc7ac2de 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -670,13 +670,6 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
+ 		*why = ""
+ 	}
+ 
+-	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
+-	// https://golang.org/issue/2795
+-	if safemode && !inimport && src != nil && src.Etype == TUNSAFEPTR {
+-		yyerror("cannot use unsafe.Pointer")
+-		errorexit()
+-	}
+-
+ 	if src == dst {
+ 		return OCONVNOP
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d2354e47be..617215c702 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2112,10 +2112,6 @@ func typecheck1(n *Node, top int) *Node {
+ 		}
+ 	}
+ 
+-	if safemode && !inimport && !compiling_wrappers && t != nil && t.Etype == TUNSAFEPTR {
+-		yyerror("cannot use unsafe.Pointer")
+-	}
+-
+ 	evconst(n)
+ 	if n.Op == OTYPE && top&Etype == 0 {
+ 		if !n.Type.Broke() {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9868a33ba9..2d84302116 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3243,17 +3243,6 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	n.Left = walkexpr(n.Left, init)
+ 	n.Right = walkexpr(n.Right, init)
+ 
+-	// Disable safemode while compiling this code: the code we
+-	// generate internally can refer to unsafe.Pointer.
+-	// In this case it can happen if we need to generate an ==
+-	// for a struct containing a reflect.Value, which itself has
+-	// an unexported field of type unsafe.Pointer.
+-	old_safemode := safemode
+-	safemode = false
+-	defer func() {
+-		safemode = old_safemode
+-	}()
+-
+ 	// Given interface value l and concrete value r, rewrite
+ 	//   l == r
+ 	// into types-equal && data-equal.
+diff --git a/test/unsafereject1.go b/test/unsafereject1.go
+deleted file mode 100644
+index 12f77f963f..0000000000
+--- a/test/unsafereject1.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// errorcheck -u -+
+-
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Check that we cannot import a package that uses "unsafe" internally
+-// when -u is supplied.
+-
+-package main
+-
+-import "syscall" // ERROR "import unsafe package"
+-
+-func main() {
+-	print(syscall.Environ())
+-}
+diff --git a/test/unsafereject2.go b/test/unsafereject2.go
+deleted file mode 100644
+index 04ad0578c9..0000000000
+--- a/test/unsafereject2.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// errorcheck -u -+
+-
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Check that we cannot import the "unsafe" package when -u is supplied.
+-
+-package a
+-
+-import "unsafe" // ERROR "import package unsafe"
+-
+-func Float32bits(f float32) uint32 {
+-	return *(*uint32)(unsafe.Pointer(&f))
+-}

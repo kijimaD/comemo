@@ -7,6 +7,20 @@ Date:   Tue Oct 26 16:29:21 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2735042
-
+---
  doc/devel/roadmap.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/roadmap.html b/doc/devel/roadmap.html
+index baa50d4557..235eedeb72 100644
+--- a/doc/devel/roadmap.html
++++ b/doc/devel/roadmap.html
+@@ -93,7 +93,7 @@ SWIG support.
+ <li>		
+ Simpler semicolon rules.
+ <li>		
+-A better definition of <code>...</code> in parameter lists.
++A more general definition of <code>...</code> in parameter lists.
+ <li>		
+ Explicit conversions from <code>string</code>		
+ to <code>[]byte</code> and <code>[]int</code>.		

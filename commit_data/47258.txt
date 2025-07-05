@@ -10,6 +10,39 @@ Date:   Mon Jan 4 13:34:29 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/arith_test.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index 2aca0effde..7b3427f834 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -671,3 +671,27 @@ func BenchmarkDivWVW(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func BenchmarkNonZeroShifts(b *testing.B) {
++	for _, n := range benchSizes {
++		if isRaceBuilder && n > 1e3 {
++			continue
++		}
++		x := rndV(n)
++		s := uint(rand.Int63n(_W-2)) + 1 // avoid 0 and over-large shifts
++		z := make([]Word, n)
++		b.Run(fmt.Sprint(n), func(b *testing.B) {
++			b.SetBytes(int64(n * _W))
++			b.Run("shrVU", func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					_ = shrVU(z, x, s)
++				}
++			})
++			b.Run("shlVU", func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					_ = shlVU(z, x, s)
++				}
++			})
++		})
++	}
++}

@@ -15,6 +15,24 @@ Date:   Tue Apr 26 12:34:35 2022 -0400
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/dial_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index b9aead0371..3cce444e5c 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -758,6 +758,12 @@ func TestDialerKeepAlive(t *testing.T) {
+ func TestDialCancel(t *testing.T) {
+ 	mustHaveExternalNetwork(t)
+ 
++	if strings.HasPrefix(testenv.Builder(), "darwin-arm64") {
++		// The darwin-arm64 machines run in an environment that's not
++		// compatible with this test.
++		t.Skipf("builder %q gives no route to host for 198.18.0.0", testenv.Builder())
++	}
++
+ 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
+ 	if !supportsIPv4() {
+ 		blackholeIPPort = JoinHostPort(slowDst6, "1234")

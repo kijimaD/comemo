@@ -29,8 +29,59 @@ Date:   Wed Jul 26 11:58:44 2023 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/fds_unix.go    | 9 ---------
  src/runtime/os3_solaris.go | 4 ++++
  src/runtime/os_aix.go      | 4 ++++
  3 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/fds_unix.go b/src/runtime/fds_unix.go
+index f39e6a49e9..7182ef0789 100644
+--- a/src/runtime/fds_unix.go
++++ b/src/runtime/fds_unix.go
+@@ -29,15 +29,6 @@ func checkfds() {
+ 			continue
+ 		}
+ 
+-		// On AIX and Solaris we can't get the right errno
+-		// value this early in program startup,
+-		// because we haven't yet called minit
+-		// which sets m.mOS.perrno.
+-		// Just assume that the error is EBADF.
+-		if GOOS == "aix" || GOOS == "solaris" {
+-			errno = EBADF
+-		}
+-
+ 		if errno != EBADF {
+ 			print("runtime: unexpected error while checking standard file descriptor ", i, ", errno=", errno, "\n")
+ 			throw("cannot open standard fds")
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 046d173c24..83acc648bb 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -133,6 +133,10 @@ func getPageSize() uintptr {
+ }
+ 
+ func osinit() {
++	// Call miniterrno so that we can safely make system calls
++	// before calling minit on m0.
++	asmcgocall(unsafe.Pointer(abi.FuncPCABI0(miniterrno)), unsafe.Pointer(&libc____errno))
++
+ 	ncpu = getncpu()
+ 	if physPageSize == 0 {
+ 		physPageSize = getPageSize()
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 0583e9afdb..ce2d719d0b 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -93,6 +93,10 @@ func semawakeup(mp *m) {
+ }
+ 
+ func osinit() {
++	// Call miniterrno so that we can safely make system calls
++	// before calling minit on m0.
++	miniterrno()
++
+ 	ncpu = int32(sysconf(__SC_NPROCESSORS_ONLN))
+ 	physPageSize = sysconf(__SC_PAGE_SIZE)
+ }

@@ -15,6 +15,30 @@ Date:   Tue Aug 29 15:48:07 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/59890
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 74fccd7125..80de0f45a6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of August 25, 2017",
++	"Subtitle": "Version of August 30, 2017",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3147,8 +3147,8 @@ and the result of the slice operation is a slice with the same element type as t
+ 
+ <p>
+ If the sliced operand of a valid slice expression is a <code>nil</code> slice, the result
+-is a <code>nil</code> slice. Otherwise, the result shares its underlying array with the
+-operand.
++is a <code>nil</code> slice. Otherwise, if the result is a slice, it shares its underlying
++array with the operand.
+ </p>
+ 
+ <h4>Full slice expressions</h4>

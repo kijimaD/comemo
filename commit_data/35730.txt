@@ -12,7 +12,7 @@ Date:   Mon Mar 5 10:56:11 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_linux_arm.s     |  1 -
  src/runtime/sys_linux_arm64.s   |  1 -
  src/runtime/sys_linux_mips64x.s |  1 -
@@ -20,3 +20,138 @@ Date:   Mon Mar 5 10:56:11 2018 +0100
  src/runtime/sys_linux_ppc64x.s  |  2 --
  src/runtime/sys_linux_s390x.s   |  1 -
  6 files changed, 30 insertions(+), 37 deletions(-)
+
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 39046bb5c5..c2accefaf1 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -23,7 +23,6 @@
+ #define SYS_close (SYS_BASE + 6)
+ #define SYS_getpid (SYS_BASE + 20)
+ #define SYS_kill (SYS_BASE + 37)
+-#define SYS_gettimeofday (SYS_BASE + 78)
+ #define SYS_clone (SYS_BASE + 120)
+ #define SYS_rt_sigreturn (SYS_BASE + 173)
+ #define SYS_rt_sigaction (SYS_BASE + 174)
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 06a9efab99..6954f32aac 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -18,7 +18,6 @@
+ #define SYS_openat		56
+ #define SYS_close		57
+ #define SYS_fcntl		25
+-#define SYS_gettimeofday	169
+ #define SYS_pselect6		72
+ #define SYS_mmap		222
+ #define SYS_munmap		215
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index c254b23ba7..25d13367ad 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -22,7 +22,6 @@
+ #define SYS_getpid		5038
+ #define SYS_kill		5060
+ #define SYS_fcntl		5080
+-#define SYS_gettimeofday	5094
+ #define SYS_mmap		5009
+ #define SYS_munmap		5011
+ #define SYS_setitimer		5036
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index d96b5dac94..fb6130ac3a 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -13,38 +13,37 @@
+ #include "go_tls.h"
+ #include "textflag.h"
+ 
+-#define SYS_exit		        4001
+-#define SYS_read		        4003
+-#define SYS_write		        4004
+-#define SYS_open		        4005
+-#define SYS_close		        4006
+-#define SYS_getpid		        4020
+-#define SYS_kill		        4037
+-#define SYS_fcntl		        4055
+-#define SYS_gettimeofday	    4078
+-#define SYS_mmap		        4090
+-#define SYS_munmap		        4091
+-#define SYS_setitimer		    4104
+-#define SYS_clone		        4120
+-#define SYS_newselect		    4142
+-#define SYS_sched_yield		    4162
+-#define SYS_rt_sigreturn	    4193
+-#define SYS_rt_sigaction	    4194
+-#define SYS_rt_sigprocmask		4195
+-#define SYS_sigaltstack		    4206
+-#define SYS_madvise		        4218
+-#define SYS_mincore		        4217
+-#define SYS_gettid		        4222
+-#define SYS_tkill		        4236
+-#define SYS_futex		        4238
++#define SYS_exit		4001
++#define SYS_read		4003
++#define SYS_write		4004
++#define SYS_open		4005
++#define SYS_close		4006
++#define SYS_getpid		4020
++#define SYS_kill		4037
++#define SYS_brk			4045
++#define SYS_fcntl		4055
++#define SYS_mmap		4090
++#define SYS_munmap		4091
++#define SYS_setitimer		4104
++#define SYS_clone		4120
++#define SYS_newselect		4142
++#define SYS_sched_yield		4162
++#define SYS_rt_sigreturn	4193
++#define SYS_rt_sigaction	4194
++#define SYS_rt_sigprocmask	4195
++#define SYS_sigaltstack		4206
++#define SYS_madvise		4218
++#define SYS_mincore		4217
++#define SYS_gettid		4222
++#define SYS_tkill		4236
++#define SYS_futex		4238
+ #define SYS_sched_getaffinity	4240
+-#define SYS_exit_group		    4246
+-#define SYS_epoll_create	    4248
+-#define SYS_epoll_ctl		    4249
+-#define SYS_epoll_wait		    4250
+-#define SYS_clock_gettime	    4263
+-#define SYS_epoll_create1	    4326
+-#define SYS_brk			    4045
++#define SYS_exit_group		4246
++#define SYS_epoll_create	4248
++#define SYS_epoll_ctl		4249
++#define SYS_epoll_wait		4250
++#define SYS_clock_gettime	4263
++#define SYS_epoll_create1	4326
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0-4
+ 	MOVW	code+0(FP), R4
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index def0ab47a2..77ddf53286 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -23,8 +23,6 @@
+ #define SYS_kill		 37
+ #define SYS_brk			 45
+ #define SYS_fcntl		 55
+-#define SYS_gettimeofday	 78
+-#define SYS_select		 82	// always return -ENOSYS
+ #define SYS_mmap		 90
+ #define SYS_munmap		 91
+ #define SYS_setitimer		104
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 4231297251..8dbca6cb48 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -18,7 +18,6 @@
+ #define SYS_kill                 37
+ #define SYS_brk			 45
+ #define SYS_fcntl                55
+-#define SYS_gettimeofday         78
+ #define SYS_mmap                 90
+ #define SYS_munmap               91
+ #define SYS_setitimer           104

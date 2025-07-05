@@ -10,7 +10,7 @@ Date:   Sun Dec 18 02:29:18 2011 +1100
     R=golang-dev, jsing
     CC=golang-dev
     https://golang.org/cl/5492064
-
+---
  src/pkg/os/dir_unix.go             |  2 +-
  src/pkg/os/error_posix.go          |  2 +-
  src/pkg/os/exec/lp_unix.go         |  2 +-
@@ -26,3 +26,270 @@ Date:   Sun Dec 18 02:29:18 2011 +1100
  src/pkg/os/zsignal_netbsd_386.go   | 49 ++++++++++++++++++++++++++++++++++++++
  src/pkg/os/zsignal_netbsd_amd64.go | 49 ++++++++++++++++++++++++++++++++++++++
  14 files changed, 111 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/os/dir_unix.go b/src/pkg/os/dir_unix.go
+index e4dff835d8..e7a29554c1 100644
+--- a/src/pkg/os/dir_unix.go
++++ b/src/pkg/os/dir_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index dbe1b9a8d5..ebbe436970 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd windows
++// +build darwin freebsd linux netbsd openbsd windows
+ 
+ package os
+ 
+diff --git a/src/pkg/os/exec/lp_unix.go b/src/pkg/os/exec/lp_unix.go
+index 9665ea8f41..a221137230 100644
+--- a/src/pkg/os/exec/lp_unix.go
++++ b/src/pkg/os/exec/lp_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package exec
+ 
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 8b08eebd0d..fb93eb3c2d 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd windows
++// +build darwin freebsd linux netbsd openbsd windows
+ 
+ package os
+ 
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index 3dcac414c5..375813895d 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index a4ab5d6ae2..cbbce204dc 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd windows
++// +build darwin freebsd linux netbsd openbsd windows
+ 
+ package os
+ 
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 5e16780741..38664d175c 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/mksignals.sh b/src/pkg/os/mksignals.sh
+index 9c35e8209d..401e39f143 100755
+--- a/src/pkg/os/mksignals.sh
++++ b/src/pkg/os/mksignals.sh
+@@ -8,6 +8,8 @@ for targ in \
+ 	linux_386 \
+ 	linux_amd64 \
+ 	linux_arm \
++	netbsd_386 \
++	netbsd_amd64 \
+ 	openbsd_386 \
+ 	openbsd_amd64 \
+ ; do
+diff --git a/src/pkg/os/os_unix_test.go b/src/pkg/os/os_unix_test.go
+index 3109a8171a..1f800d78cc 100644
+--- a/src/pkg/os/os_unix_test.go
++++ b/src/pkg/os/os_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package os_test
+ 
+diff --git a/src/pkg/os/path_unix.go b/src/pkg/os/path_unix.go
+index 33045b60c4..30a167b1ad 100644
+--- a/src/pkg/os/path_unix.go
++++ b/src/pkg/os/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux openbsd
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package os
+ 
+diff --git a/src/pkg/os/sys_bsd.go b/src/pkg/os/sys_bsd.go
+index c6a6de5c81..d196469e7d 100644
+--- a/src/pkg/os/sys_bsd.go
++++ b/src/pkg/os/sys_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd openbsd
++// +build darwin freebsd netbsd openbsd
+ 
+ // os code shared between *BSD systems including OS X (Darwin)
+ // and FreeBSD.
+diff --git a/src/pkg/os/user/lookup_stubs.go b/src/pkg/os/user/lookup_stubs.go
+index 0999dedbb9..7fc087c4dc 100644
+--- a/src/pkg/os/user/lookup_stubs.go
++++ b/src/pkg/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build openbsd plan9 windows
++// +build netbsd openbsd plan9 windows
+ 
+ package user
+ 
+diff --git a/src/pkg/os/zsignal_netbsd_386.go b/src/pkg/os/zsignal_netbsd_386.go
+new file mode 100644
+index 0000000000..07d4692e40
+--- /dev/null
++++ b/src/pkg/os/zsignal_netbsd_386.go
+@@ -0,0 +1,49 @@
++// MACHINE GENERATED; DO NOT EDIT
++// To regenerate, run
++//	./mksignals.sh
++// which, for this file, will run
++//	./mkunixsignals.sh ../syscall/zerrors_netbsd_386.go
++
++package os
++
++import (
++	"syscall"
++)
++
++var _ = syscall.Open // in case there are zero signals
++
++const (
++	SIGABRT   = UnixSignal(syscall.SIGABRT)
++	SIGALRM   = UnixSignal(syscall.SIGALRM)
++	SIGBUS    = UnixSignal(syscall.SIGBUS)
++	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
++	SIGCONT   = UnixSignal(syscall.SIGCONT)
++	SIGEMT    = UnixSignal(syscall.SIGEMT)
++	SIGFPE    = UnixSignal(syscall.SIGFPE)
++	SIGHUP    = UnixSignal(syscall.SIGHUP)
++	SIGILL    = UnixSignal(syscall.SIGILL)
++	SIGINFO   = UnixSignal(syscall.SIGINFO)
++	SIGINT    = UnixSignal(syscall.SIGINT)
++	SIGIO     = UnixSignal(syscall.SIGIO)
++	SIGIOT    = UnixSignal(syscall.SIGIOT)
++	SIGKILL   = UnixSignal(syscall.SIGKILL)
++	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
++	SIGPROF   = UnixSignal(syscall.SIGPROF)
++	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
++	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
++	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
++	SIGSYS    = UnixSignal(syscall.SIGSYS)
++	SIGTERM   = UnixSignal(syscall.SIGTERM)
++	SIGTHR    = UnixSignal(syscall.SIGTHR)
++	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
++	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
++	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
++	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
++	SIGURG    = UnixSignal(syscall.SIGURG)
++	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
++	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
++	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
++	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
++	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
++	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
++)
+diff --git a/src/pkg/os/zsignal_netbsd_amd64.go b/src/pkg/os/zsignal_netbsd_amd64.go
+new file mode 100644
+index 0000000000..6c0d996afa
+--- /dev/null
++++ b/src/pkg/os/zsignal_netbsd_amd64.go
+@@ -0,0 +1,49 @@
++// MACHINE GENERATED; DO NOT EDIT
++// To regenerate, run
++//	./mksignals.sh
++// which, for this file, will run
++//	./mkunixsignals.sh ../syscall/zerrors_netbsd_amd64.go
++
++package os
++
++import (
++	"syscall"
++)
++
++var _ = syscall.Open // in case there are zero signals
++
++const (
++	SIGABRT   = UnixSignal(syscall.SIGABRT)
++	SIGALRM   = UnixSignal(syscall.SIGALRM)
++	SIGBUS    = UnixSignal(syscall.SIGBUS)
++	SIGCHLD   = UnixSignal(syscall.SIGCHLD)
++	SIGCONT   = UnixSignal(syscall.SIGCONT)
++	SIGEMT    = UnixSignal(syscall.SIGEMT)
++	SIGFPE    = UnixSignal(syscall.SIGFPE)
++	SIGHUP    = UnixSignal(syscall.SIGHUP)
++	SIGILL    = UnixSignal(syscall.SIGILL)
++	SIGINFO   = UnixSignal(syscall.SIGINFO)
++	SIGINT    = UnixSignal(syscall.SIGINT)
++	SIGIO     = UnixSignal(syscall.SIGIO)
++	SIGIOT    = UnixSignal(syscall.SIGIOT)
++	SIGKILL   = UnixSignal(syscall.SIGKILL)
++	SIGPIPE   = UnixSignal(syscall.SIGPIPE)
++	SIGPROF   = UnixSignal(syscall.SIGPROF)
++	SIGQUIT   = UnixSignal(syscall.SIGQUIT)
++	SIGSEGV   = UnixSignal(syscall.SIGSEGV)
++	SIGSTOP   = UnixSignal(syscall.SIGSTOP)
++	SIGSYS    = UnixSignal(syscall.SIGSYS)
++	SIGTERM   = UnixSignal(syscall.SIGTERM)
++	SIGTHR    = UnixSignal(syscall.SIGTHR)
++	SIGTRAP   = UnixSignal(syscall.SIGTRAP)
++	SIGTSTP   = UnixSignal(syscall.SIGTSTP)
++	SIGTTIN   = UnixSignal(syscall.SIGTTIN)
++	SIGTTOU   = UnixSignal(syscall.SIGTTOU)
++	SIGURG    = UnixSignal(syscall.SIGURG)
++	SIGUSR1   = UnixSignal(syscall.SIGUSR1)
++	SIGUSR2   = UnixSignal(syscall.SIGUSR2)
++	SIGVTALRM = UnixSignal(syscall.SIGVTALRM)
++	SIGWINCH  = UnixSignal(syscall.SIGWINCH)
++	SIGXCPU   = UnixSignal(syscall.SIGXCPU)
++	SIGXFSZ   = UnixSignal(syscall.SIGXFSZ)
++)

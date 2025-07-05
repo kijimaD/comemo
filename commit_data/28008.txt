@@ -18,6 +18,30 @@ Date:   Fri Apr 22 16:35:29 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/22391
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e9f6476a89..13dae09420 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of April 21, 2016",
++	"Subtitle": "Version of April 25, 2016",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1043,8 +1043,8 @@ promoted methods are included in the method set of the struct as follows:
+ <p>
+ A field declaration may be followed by an optional string literal <i>tag</i>,
+ which becomes an attribute for all the fields in the corresponding
+-field declaration. The tags are made
+-visible through a <a href="/pkg/reflect/#StructTag">reflection interface</a>
++field declaration. An empty tag string is equivalent to an absent tag.
++The tags are made visible through a <a href="/pkg/reflect/#StructTag">reflection interface</a>
+ and take part in <a href="#Type_identity">type identity</a> for structs
+ but are otherwise ignored.
+ </p>

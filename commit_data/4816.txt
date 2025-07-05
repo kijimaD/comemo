@@ -7,6 +7,19 @@ Date:   Mon Feb 8 21:40:35 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/206043
-
+---
  src/cmd/gc/typecheck.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 0643f77a95..11d142eebb 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -481,6 +481,7 @@ reswitch:
+ 			n->op = ONAME;
+ 			n->sym = methodsym(sym, l->type);
+ 			n->type = methodfunc(n->type, 1);
++			n->xoffset = 0;
+ 			getinargx(n->type)->type->type = l->type;	// fix up receiver
+ 			n->class = PFUNC;
+ 			ok = Erv;

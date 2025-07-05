@@ -12,7 +12,7 @@ Date:   Fri Aug 15 15:22:33 2014 -0400
     R=minux
     CC=dvyukov, golang-codereviews
     https://golang.org/cl/124400043
-
+---
  src/cmd/gc/plive.c         |  6 +++++-
  src/pkg/runtime/heapdump.c | 14 ++++++-------
  src/pkg/runtime/malloc.go  |  9 ++++----
@@ -21,3 +21,354 @@ Date:   Fri Aug 15 15:22:33 2014 -0400
  src/pkg/runtime/mgc0.h     |  7 +++++++
  src/pkg/runtime/stack.c    |  6 +++---
  7 files changed, 58 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index e67b0af757..716cdd108d 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -1939,7 +1939,11 @@ twobitwritesymbol(Array *arr, Sym *sym)
+ 			break;
+ 		for(j = 0; j < bv->n; j += 32) {
+ 			word = bv->b[j/32];
+-			off = duint32(sym, off, word);
++			// Runtime reads the bitmaps as byte arrays. Oblige.
++			off = duint8(sym, off, word);
++			off = duint8(sym, off, word>>8);
++			off = duint8(sym, off, word>>16);
++			off = duint8(sym, off, word>>24);
+ 		}
+ 	}
+ 	duint32(sym, 0, i); // number of bitmaps
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index eec34f2cb7..f29cf0108f 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -252,7 +252,7 @@ dumpbv(BitVector *bv, uintptr offset)
+ 	uintptr i;
+ 
+ 	for(i = 0; i < bv->n; i += BitsPerPointer) {
+-		switch(bv->data[i/32] >> i%32 & 3) {
++		switch(bv->bytedata[i/8] >> i%8 & 3) {
+ 		case BitsDead:
+ 		case BitsScalar:
+ 			break;
+@@ -261,7 +261,7 @@ dumpbv(BitVector *bv, uintptr offset)
+ 			dumpint(offset + i / BitsPerPointer * PtrSize);
+ 			break;
+ 		case BitsMultiWord:
+-			switch(bv->data[(i+BitsPerPointer)/32] >> (i+BitsPerPointer)%32 & 3) {
++			switch(bv->bytedata[(i+BitsPerPointer)/8] >> (i+BitsPerPointer)%8 & 3) {
+ 			case BitsString:
+ 				dumpint(FieldKindString);
+ 				dumpint(offset + i / BitsPerPointer * PtrSize);
+@@ -497,13 +497,13 @@ dumproots(void)
+ 	dumpint(TagData);
+ 	dumpint((uintptr)data);
+ 	dumpmemrange(data, edata - data);
+-	dumpfields((BitVector){(edata - data)*8, (uint32*)gcdata});
++	dumpfields((BitVector){(edata - data)*8, (byte*)gcdata}); /* WRONG! gcbss is not a bitmap */
+ 
+ 	// bss segment
+ 	dumpint(TagBss);
+ 	dumpint((uintptr)bss);
+ 	dumpmemrange(bss, ebss - bss);
+-	dumpfields((BitVector){(ebss - bss)*8, (uint32*)gcbss});
++	dumpfields((BitVector){(ebss - bss)*8, (byte*)gcbss}); /* WRONG! gcbss is not a bitmap */
+ 
+ 	// MSpan.types
+ 	allspans = runtime·mheap.allspans;
+@@ -795,9 +795,9 @@ dumpbvtypes(BitVector *bv, byte *base)
+ 	uintptr i;
+ 
+ 	for(i = 0; i < bv->n; i += BitsPerPointer) {
+-		if((bv->data[i/32] >> i%32 & 3) != BitsMultiWord)
++		if((bv->bytedata[i/8] >> i%8 & 3) != BitsMultiWord)
+ 			continue;
+-		switch(bv->data[(i+BitsPerPointer)/32] >> (i+BitsPerPointer)%32 & 3) {
++		switch(bv->bytedata[(i+BitsPerPointer)/8] >> (i+BitsPerPointer)%8 & 3) {
+ 		case BitsString:
+ 		case BitsIface:
+ 			i += BitsPerPointer;
+@@ -843,5 +843,5 @@ makeheapobjbv(byte *p, uintptr size)
+ 		tmpbuf[i*BitsPerPointer/8] &= ~(3<<((i*BitsPerPointer)%8));
+ 		tmpbuf[i*BitsPerPointer/8] |= bits<<((i*BitsPerPointer)%8);
+ 	}
+-	return (BitVector){i*BitsPerPointer, (uint32*)tmpbuf};
++	return (BitVector){i*BitsPerPointer, (byte*)tmpbuf};
+ }
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index 68baa80d52..df030794b5 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -4,9 +4,7 @@
+ 
+ package runtime
+ 
+-import (
+-	"unsafe"
+-)
++import "unsafe"
+ 
+ const (
+ 	flagNoScan      = 1 << 0 // GC doesn't have to scan object
+@@ -278,7 +276,10 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ // force = 1 - do GC regardless of current heap usage
+ // force = 2 - go GC and eager sweep
+ func gogc(force int32) {
+-	if GOARCH == "power64" || GOARCH == "power64le" || memstats.enablegc == 0 {
++	if false && (GOARCH == "power64" || GOARCH == "power64le") {
++		return
++	}
++	if memstats.enablegc == 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 1e26509bd9..41988415e0 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -568,14 +568,14 @@ typedef struct BitVector BitVector;
+ struct BitVector
+ {
+ 	int32 n; // # of bits
+-	uint32 *data;
++	uint8 *bytedata;
+ };
+ typedef struct StackMap StackMap;
+ struct StackMap
+ {
+ 	int32 n; // number of bitmaps
+ 	int32 nbit; // number of bits in each bitmap
+-	uint32 data[];
++	uint8 bytedata[];
+ };
+ // Returns pointer map data for the given stackmap index
+ // (the index is encoded in PCDATA_StackMapIndex).
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 03622db283..b1a8943115 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -64,7 +64,7 @@
+ 
+ enum {
+ 	Debug		= 0,
+-	ConcurrentSweep	= 1,
++	ConcurrentSweep	= 0,
+ 	PreciseScan	= 1,
+ 
+ 	WorkbufSize	= 4*1024,
+@@ -75,6 +75,12 @@ enum {
+ 	RootSpans	= 3,
+ 	RootFlushCaches = 4,
+ 	RootCount	= 5,
++
++#ifdef _64BIT
++	byteEndian = BigEndian*7,
++#else
++	byteEndian = BigEndian*3,
++#endif
+ };
+ 
+ #define ScanConservatively ((byte*)1)
+@@ -669,7 +675,7 @@ runtime·stackmapdata(StackMap *stackmap, int32 n)
+ {
+ 	if(n < 0 || n >= stackmap->n)
+ 		runtime·throw("stackmapdata: index out of range");
+-	return (BitVector){stackmap->nbit, stackmap->data + n*((stackmap->nbit+31)/32)};
++	return (BitVector){stackmap->nbit, stackmap->bytedata + 4*n*((stackmap->nbit+31)/32)};
+ }
+ 
+ // Scan a stack frame: local variables and function arguments/results.
+@@ -727,7 +733,7 @@ scanframe(Stkframe *frame, void *unused)
+ 		}
+ 		bv = runtime·stackmapdata(stackmap, pcdata);
+ 		size = (bv.n * PtrSize) / BitsPerPointer;
+-		scanblock(frame->varp - size, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
++		scanblock(frame->varp - size, bv.n/BitsPerPointer*PtrSize, (byte*)bv.bytedata);
+ 	}
+ 
+ 	// Scan arguments.
+@@ -735,7 +741,7 @@ scanframe(Stkframe *frame, void *unused)
+ 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+ 	if(stackmap != nil) {
+ 		bv = runtime·stackmapdata(stackmap, pcdata);
+-		scanblock(frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.data);
++		scanblock(frame->argp, bv.n/BitsPerPointer*PtrSize, (byte*)bv.bytedata);
+ 	} else {
+ 		if(Debug > 2)
+ 			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
+@@ -1292,6 +1298,8 @@ runtime·gc(int32 force)
+ 	struct gc_args a;
+ 	int32 i;
+ 
++//if(thechar == '9') return;
++
+ 	if(sizeof(Workbuf) != WorkbufSize)
+ 		runtime·throw("runtime: size of Workbuf is suboptimal");
+ 	// The gc is turned off (via enablegc) until
+@@ -1305,10 +1313,6 @@ runtime·gc(int32 force)
+ 	if(!mstats.enablegc || g == g->m->g0 || g->m->locks > 0 || runtime·panicking)
+ 		return;
+ 
+-	if(thechar == '9') {
+-		runtime·gcpercent = -1;
+-		return;
+-	}
+ 	if(runtime·gcpercent == GcpercentUnknown) {	// first time through
+ 		runtime·lock(&runtime·mheap);
+ 		if(runtime·gcpercent == GcpercentUnknown)
+@@ -1777,8 +1781,8 @@ unrollgcprog1(byte *mask, byte *prog, uintptr *ppos, bool inplace, bool sparse)
+ 					b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+ 					shift = (off % wordsPerBitmapWord) * gcBits;
+ 					if((shift%8)==0)
+-						((byte*)b)[shift/8] = 0;
+-					((byte*)b)[shift/8] |= v<<((shift%8)+2);
++						((byte*)b)[(shift/8)^byteEndian] = 0;
++					((byte*)b)[(shift/8)^byteEndian] |= v<<((shift%8)+2);
+ 					pos += PtrSize;
+ 				} else if(sparse) {
+ 					// 4-bits per word
+@@ -1873,7 +1877,7 @@ unrollgcprog(Type *typ)
+ 	static Lock lock;
+ 	byte *mask, *prog;
+ 	uintptr pos;
+-	uint32 x;
++	uintptr x;
+ 
+ 	runtime·lock(&lock);
+ 	mask = (byte*)typ->gc[0];
+@@ -1888,9 +1892,11 @@ unrollgcprog(Type *typ)
+ 			prog = (byte*)typ->gc[1];
+ 			unrollgcprog1(mask, prog, &pos, false, true);
+ 		}
++		
+ 		// atomic way to say mask[0] = 1
+-		x = ((uint32*)mask)[0];
+-		runtime·atomicstore((uint32*)mask, x|1);
++		x = typ->gc[0];
++		((byte*)&x)[0] = 1;
++		runtime·atomicstorep((void**)mask, (void*)x);
+ 	}
+ 	runtime·unlock(&lock);
+ }
+@@ -1898,7 +1904,7 @@ unrollgcprog(Type *typ)
+ void
+ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool scan)
+ {
+-	uintptr *b, off, shift, i, ti, te, nptr, masksize;
++	uintptr *b, off, shift, i, ti, te, nptr, masksize, maskword;
+ 	byte *arena_start, x;
+ 	bool *ptrmask;
+ 
+@@ -1907,7 +1913,7 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
+ 	b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+ 	shift = (off % wordsPerBitmapWord) * gcBits;
+ 	if(Debug && (((*b)>>shift)&bitMask) != bitBoundary) {
+-		runtime·printf("runtime: bad bits in markallocated (%p) b=%p[%p]\n", v, b, *b);
++		runtime·printf("runtime: bad bits in markallocated (%p) b=%p[%p] off=%p shift=%d\n", v, b, *b, off, (int32)shift);
+ 		runtime·throw("bad bits in markallocated");
+ 	}
+ 
+@@ -1916,7 +1922,7 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
+ 		if(size == PtrSize)
+ 			*b = (*b & ~((bitBoundary|bitPtrMask)<<shift)) | ((bitAllocated+(BitsDead<<2))<<shift);
+ 		else
+-			((byte*)b)[shift/8] = bitAllocated+(BitsDead<<2);
++			((byte*)b)[(shift/8)^byteEndian] = bitAllocated+(BitsDead<<2);
+ 		return;
+ 	}
+ 	if(size == PtrSize) {
+@@ -1944,13 +1950,14 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
+ 			}
+ 			ptrmask = (byte*)typ->gc[0];
+ 			// check whether the program is already unrolled
+-			if((runtime·atomicload((uint32*)ptrmask)&0xff) == 0)
++			maskword = (uintptr)runtime·atomicloadp((void*)&typ->gc[0]);
++			if(((byte*)&maskword)[0] == 0)
+ 				unrollgcprog(typ);
+ 			ptrmask++;  // skip the unroll flag byte
+ 		} else
+ 			ptrmask = (byte*)&typ->gc[0];  // embed mask
+ 		if(size == 2*PtrSize) {
+-			((byte*)b)[shift/8] = ptrmask[0] | bitAllocated;
++			((byte*)b)[(shift/8)^byteEndian] = ptrmask[0] | bitAllocated;
+ 			return;
+ 		}
+ 		te = typ->size/PtrSize;
+@@ -1959,7 +1966,7 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
+ 			te /= 2;
+ 	}
+ 	if(size == 2*PtrSize) {
+-		((byte*)b)[shift/8] = (BitsPointer<<2) | (BitsPointer<<6) | bitAllocated;
++		((byte*)b)[(shift/8)^byteEndian] = (BitsPointer<<2) | (BitsPointer<<6) | bitAllocated;
+ 		return;
+ 	}
+ 	// Copy pointer bitmask into the bitmap.
+@@ -1977,14 +1984,14 @@ runtime·markallocated(void *v, uintptr size, uintptr size0, Type *typ, bool sca
+ 			x |= bitAllocated;
+ 		if(i+PtrSize == size0)
+ 			x &= ~(bitPtrMask<<4);
+-		((byte*)b)[shift/8] = x;
++		((byte*)b)[(shift/8)^byteEndian] = x;
+ 	}
+ 	if(size0 == i && size0 < size) {
+ 		// mark the word after last object's word as BitsDead
+ 		off = (uintptr*)((byte*)v + size0) - (uintptr*)arena_start;
+ 		b = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+ 		shift = (off % wordsPerBitmapWord) * gcBits;
+-		((byte*)b)[shift/8] = 0;
++		((byte*)b)[(shift/8)^byteEndian] = 0;
+ 	}
+ }
+ 
+@@ -2174,7 +2181,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 		*mask = runtime·mallocgc(*len, nil, 0);
+ 		for(i = 0; i < n; i += PtrSize) {
+ 			off = (p+i-frame.varp+size)/PtrSize;
+-			bits = (bv.data[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
++			bits = (bv.bytedata[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+ 			(*mask)[i/PtrSize] = bits;
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/mgc0.h b/src/pkg/runtime/mgc0.h
+index 3b1c5ba8cf..99271a532b 100644
+--- a/src/pkg/runtime/mgc0.h
++++ b/src/pkg/runtime/mgc0.h
+@@ -7,6 +7,13 @@
+ enum {
+ 	ScanStackByFrames = 1,
+ 
++	// TODO(rsc): Half the code in the garbage collector
++	// now accesses the bitmap as an array of bytes
++	// instead of as an array of uintptrs. 
++	// This is tricky to do correctly in a portable fashion.
++	// (It breaks on big-endian systems.)
++	// Should we just make the bitmap a byte array?
++
+ 	// Four bits per word (see #defines below).
+ 	wordsPerBitmapWord = sizeof(void*)*8/4,
+ 	gcBits = 4,
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 49ecd6cc36..88f24408ba 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -543,8 +543,8 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
+ 	num = bv->n / BitsPerPointer;
+ 	for(i = 0; i < num; i++) {
+ 		if(StackDebug >= 4)
+-			runtime·printf("        %p:%s:%p\n", &scanp[i], mapnames[bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3], scanp[i]);
+-		switch(bv->data[i / (32 / BitsPerPointer)] >> (i * BitsPerPointer & 31) & 3) {
++			runtime·printf("        %p:%s:%p\n", &scanp[i], mapnames[bv->bytedata[i / (8 / BitsPerPointer)] >> (i * BitsPerPointer & 7) & 3], scanp[i]);
++		switch(bv->bytedata[i / (8 / BitsPerPointer)] >> (i * BitsPerPointer & 7) & 3) {
+ 		case BitsDead:
+ 			if(runtime·debug.gcdead)
+ 				scanp[i] = (byte*)PoisonStack;
+@@ -567,7 +567,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
+ 			}
+ 			break;
+ 		case BitsMultiWord:
+-			switch(bv->data[(i+1) / (32 / BitsPerPointer)] >> ((i+1) * BitsPerPointer & 31) & 3) {
++			switch(bv->bytedata[(i+1) / (8 / BitsPerPointer)] >> ((i+1) * BitsPerPointer & 7) & 3) {
+ 			case BitsString:
+ 				// string referents are never on the stack, never need to be adjusted
+ 				i++; // skip len

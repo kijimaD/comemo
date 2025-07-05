@@ -5,6 +5,23 @@ Date:   Fri Jun 6 15:01:02 2008 -0700
     code gen bug calling i2s
     
     SVN=121497
-
+---
  src/cmd/6g/gen.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 09b90ac3a3..4f4c4d122c 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -388,8 +388,9 @@ agen_inter(Node *n, Node *res)
+ 			agen(n->left, &nodr);
+ 			gmove(&nodr, &nodo);
+ 			fatal("agen_inter i2s");
+-		} else
+-			gmove(n->left, &nodo);
++		} else {
++			cgen(n->left, &nodo);
++		}
+ 
+ 		nodtypesig(&nodt, n->type);
+ 		agen(&nodt, &nodr);

@@ -13,9 +13,585 @@ Date:   Fri Apr 8 15:14:37 2016 +0200
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/trace/main.go                 |   5 -
  src/internal/trace/parser.go          | 174 +++++++++++++---------------------
  src/runtime/trace.go                  |  98 ++++++++++++++++---
  src/runtime/trace/trace_stack_test.go |   7 +-
  4 files changed, 156 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index e493be91b7..12bf8c3c16 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -104,11 +104,6 @@ func parseEvents() ([]*trace.Event, error) {
+ 			loader.err = fmt.Errorf("failed to parse trace: %v", err)
+ 			return
+ 		}
+-		err = trace.Symbolize(events, programBinary)
+-		if err != nil {
+-			loader.err = fmt.Errorf("failed to symbolize trace: %v", err)
+-			return
+-		}
+ 		loader.events = events
+ 	})
+ 	return loader.events, loader.err
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index e325678733..5db3fc317e 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -5,15 +5,10 @@
+ package trace
+ 
+ import (
+-	"bufio"
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"os"
+-	"os/exec"
+ 	"sort"
+-	"strconv"
+-	"strings"
+ )
+ 
+ // Event describes one event in the trace.
+@@ -59,11 +54,11 @@ const (
+ 
+ // Parse parses, post-processes and verifies the trace.
+ func Parse(r io.Reader) ([]*Event, error) {
+-	rawEvents, err := readTrace(r)
++	rawEvents, strings, err := readTrace(r)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	events, err := parseEvents(rawEvents)
++	events, stacks, err := parseEvents(rawEvents, strings)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -75,6 +70,12 @@ func Parse(r io.Reader) ([]*Event, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	// Attach stack traces.
++	for _, ev := range events {
++		if ev.StkID != 0 {
++			ev.Stk = stacks[ev.StkID]
++		}
++	}
+ 	return events, nil
+ }
+ 
+@@ -87,19 +88,20 @@ type rawEvent struct {
+ 
+ // readTrace does wire-format parsing and verification.
+ // It does not care about specific event types and argument meaning.
+-func readTrace(r io.Reader) ([]rawEvent, error) {
++func readTrace(r io.Reader) ([]rawEvent, map[uint64]string, error) {
+ 	// Read and validate trace header.
+ 	var buf [16]byte
+ 	off, err := r.Read(buf[:])
+ 	if off != 16 || err != nil {
+-		return nil, fmt.Errorf("failed to read header: read %v, err %v", off, err)
++		return nil, nil, fmt.Errorf("failed to read header: read %v, err %v", off, err)
+ 	}
+ 	if !bytes.Equal(buf[:], []byte("go 1.5 trace\x00\x00\x00\x00")) {
+-		return nil, fmt.Errorf("not a trace file")
++		return nil, nil, fmt.Errorf("not a trace file")
+ 	}
+ 
+ 	// Read events.
+ 	var events []rawEvent
++	strings := make(map[uint64]string)
+ 	for {
+ 		// Read event type and number of arguments (1 byte).
+ 		off0 := off
+@@ -108,18 +110,51 @@ func readTrace(r io.Reader) ([]rawEvent, error) {
+ 			break
+ 		}
+ 		if err != nil || n != 1 {
+-			return nil, fmt.Errorf("failed to read trace at offset 0x%x: n=%v err=%v", off0, n, err)
++			return nil, nil, fmt.Errorf("failed to read trace at offset 0x%x: n=%v err=%v", off0, n, err)
+ 		}
+ 		off += n
+ 		typ := buf[0] << 2 >> 2
+ 		narg := buf[0] >> 6
++		if typ == EvString {
++			// String dictionary entry [ID, length, string].
++			var id uint64
++			id, off, err = readVal(r, off)
++			if err != nil {
++				return nil, nil, err
++			}
++			if id == 0 {
++				return nil, nil, fmt.Errorf("string at offset %d has invalid id 0", off)
++			}
++			if strings[id] != "" {
++				return nil, nil, fmt.Errorf("string at offset %d has duplicate id %v", off, id)
++			}
++			var ln uint64
++			ln, off, err = readVal(r, off)
++			if err != nil {
++				return nil, nil, err
++			}
++			if ln == 0 {
++				return nil, nil, fmt.Errorf("string at offset %d has invalie length 0", off)
++			}
++			if ln > 1e6 {
++				return nil, nil, fmt.Errorf("string at offset %d has too large length %v", off, ln)
++			}
++			buf := make([]byte, ln)
++			n, err := io.ReadFull(r, buf)
++			if err != nil {
++				return nil, nil, fmt.Errorf("failed to read trace at offset %d: read %v, want %v, error %v", off, n, ln, err)
++			}
++			off += n
++			strings[id] = string(buf)
++			continue
++		}
+ 		ev := rawEvent{typ: typ, off: off0}
+ 		if narg < 3 {
+ 			for i := 0; i < int(narg)+2; i++ { // sequence number and time stamp are present but not counted in narg
+ 				var v uint64
+ 				v, off, err = readVal(r, off)
+ 				if err != nil {
+-					return nil, err
++					return nil, nil, err
+ 				}
+ 				ev.args = append(ev.args, v)
+ 			}
+@@ -128,34 +163,34 @@ func readTrace(r io.Reader) ([]rawEvent, error) {
+ 			var v uint64
+ 			v, off, err = readVal(r, off)
+ 			if err != nil {
+-				return nil, err
++				return nil, nil, err
+ 			}
+ 			evLen := v
+ 			off1 := off
+ 			for evLen > uint64(off-off1) {
+ 				v, off, err = readVal(r, off)
+ 				if err != nil {
+-					return nil, err
++					return nil, nil, err
+ 				}
+ 				ev.args = append(ev.args, v)
+ 			}
+ 			if evLen != uint64(off-off1) {
+-				return nil, fmt.Errorf("event has wrong length at offset 0x%x: want %v, got %v", off0, evLen, off-off1)
++				return nil, nil, fmt.Errorf("event has wrong length at offset 0x%x: want %v, got %v", off0, evLen, off-off1)
+ 			}
+ 		}
+ 		events = append(events, ev)
+ 	}
+-	return events, nil
++	return events, strings, nil
+ }
+ 
+ // Parse events transforms raw events into events.
+ // It does analyze and verify per-event-type arguments.
+-func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
++func parseEvents(rawEvents []rawEvent, strings map[uint64]string) (events []*Event, stacks map[uint64][]*Frame, err error) {
+ 	var ticksPerSec, lastSeq, lastTs int64
+ 	var lastG, timerGoid uint64
+ 	var lastP int
+ 	lastGs := make(map[int]uint64) // last goroutine running on P
+-	stacks := make(map[uint64][]*Frame)
++	stacks = make(map[uint64][]*Frame)
+ 	for _, raw := range rawEvents {
+ 		if raw.typ == EvNone || raw.typ >= EvCount {
+ 			err = fmt.Errorf("unknown event type %v at offset 0x%x", raw.typ, raw.off)
+@@ -211,16 +246,20 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
+ 					raw.off, size)
+ 				return
+ 			}
+-			if uint64(len(raw.args)) != size+2 {
++			if want := 2 + 4*size; uint64(len(raw.args)) != want {
+ 				err = fmt.Errorf("EvStack has wrong number of arguments at offset 0x%x: want %v, got %v",
+-					raw.off, size+2, len(raw.args))
++					raw.off, want, len(raw.args))
+ 				return
+ 			}
+ 			id := raw.args[0]
+ 			if id != 0 && size > 0 {
+ 				stk := make([]*Frame, size)
+ 				for i := 0; i < int(size); i++ {
+-					stk[i] = &Frame{PC: raw.args[i+2]}
++					pc := raw.args[2+i*4+0]
++					fn := raw.args[2+i*4+1]
++					file := raw.args[2+i*4+2]
++					line := raw.args[2+i*4+3]
++					stk[i] = &Frame{PC: pc, Fn: strings[fn], File: strings[file], Line: int(line)}
+ 				}
+ 				stacks[id] = stk
+ 			}
+@@ -263,13 +302,6 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
+ 		return
+ 	}
+ 
+-	// Attach stack traces.
+-	for _, ev := range events {
+-		if ev.StkID != 0 {
+-			ev.Stk = stacks[ev.StkID]
+-		}
+-	}
+-
+ 	// Sort by sequence number and translate cpu ticks to real time.
+ 	sort.Sort(eventList(events))
+ 	if ticksPerSec == 0 {
+@@ -478,8 +510,7 @@ func postProcessTrace(events []*Event) error {
+ 			g.evStart = ev
+ 			p.g = ev.G
+ 			if g.evCreate != nil {
+-				// +1 because symbolizer expects return pc.
+-				ev.Stk = []*Frame{{PC: g.evCreate.Args[1] + 1}}
++				ev.StkID = g.evCreate.Args[1]
+ 				g.evCreate = nil
+ 			}
+ 
+@@ -580,79 +611,6 @@ func postProcessTrace(events []*Event) error {
+ 	return nil
+ }
+ 
+-// symbolizeTrace attaches func/file/line info to stack traces.
+-func Symbolize(events []*Event, bin string) error {
+-	// First, collect and dedup all pcs.
+-	pcs := make(map[uint64]*Frame)
+-	for _, ev := range events {
+-		for _, f := range ev.Stk {
+-			pcs[f.PC] = nil
+-		}
+-	}
+-
+-	// Start addr2line.
+-	cmd := exec.Command("go", "tool", "addr2line", bin)
+-	in, err := cmd.StdinPipe()
+-	if err != nil {
+-		return fmt.Errorf("failed to pipe addr2line stdin: %v", err)
+-	}
+-	cmd.Stderr = os.Stderr
+-	out, err := cmd.StdoutPipe()
+-	if err != nil {
+-		return fmt.Errorf("failed to pipe addr2line stdout: %v", err)
+-	}
+-	err = cmd.Start()
+-	if err != nil {
+-		return fmt.Errorf("failed to start addr2line: %v", err)
+-	}
+-	outb := bufio.NewReader(out)
+-
+-	// Write all pcs to addr2line.
+-	// Need to copy pcs to an array, because map iteration order is non-deterministic.
+-	var pcArray []uint64
+-	for pc := range pcs {
+-		pcArray = append(pcArray, pc)
+-		_, err := fmt.Fprintf(in, "0x%x\n", pc-1)
+-		if err != nil {
+-			return fmt.Errorf("failed to write to addr2line: %v", err)
+-		}
+-	}
+-	in.Close()
+-
+-	// Read in answers.
+-	for _, pc := range pcArray {
+-		fn, err := outb.ReadString('\n')
+-		if err != nil {
+-			return fmt.Errorf("failed to read from addr2line: %v", err)
+-		}
+-		file, err := outb.ReadString('\n')
+-		if err != nil {
+-			return fmt.Errorf("failed to read from addr2line: %v", err)
+-		}
+-		f := &Frame{PC: pc}
+-		f.Fn = fn[:len(fn)-1]
+-		f.File = file[:len(file)-1]
+-		if colon := strings.LastIndex(f.File, ":"); colon != -1 {
+-			ln, err := strconv.Atoi(f.File[colon+1:])
+-			if err == nil {
+-				f.File = f.File[:colon]
+-				f.Line = ln
+-			}
+-		}
+-		pcs[pc] = f
+-	}
+-	cmd.Wait()
+-
+-	// Replace frames in events array.
+-	for _, ev := range events {
+-		for i, f := range ev.Stk {
+-			ev.Stk[i] = pcs[f.PC]
+-		}
+-	}
+-
+-	return nil
+-}
+-
+ // readVal reads unsigned base-128 value from r.
+ func readVal(r io.Reader, off0 int) (v uint64, off int, err error) {
+ 	off = off0
+@@ -704,7 +662,7 @@ const (
+ 	EvNone           = 0  // unused
+ 	EvBatch          = 1  // start of per-P batch of events [pid, timestamp]
+ 	EvFrequency      = 2  // contains tracer timer frequency [frequency (ticks per second)]
+-	EvStack          = 3  // stack [stack id, number of PCs, array of PCs]
++	EvStack          = 3  // stack [stack id, number of PCs, array of {PC, func string ID, file string ID, line}]
+ 	EvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
+ 	EvProcStart      = 5  // start of P [timestamp, thread id]
+ 	EvProcStop       = 6  // stop of P [timestamp]
+@@ -714,7 +672,7 @@ const (
+ 	EvGCScanDone     = 10 // GC scan done [timestamp]
+ 	EvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
+ 	EvGCSweepDone    = 12 // GC sweep done [timestamp]
+-	EvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, start PC, stack id]
++	EvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new start id, stack id]
+ 	EvGoStart        = 14 // goroutine starts running [timestamp, goroutine id]
+ 	EvGoEnd          = 15 // goroutine ends [timestamp]
+ 	EvGoStop         = 16 // goroutine stops (like in select{}) [timestamp, stack]
+@@ -738,7 +696,8 @@ const (
+ 	EvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
+ 	EvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
+ 	EvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+-	EvCount          = 37
++	EvString         = 37 // string dictionary entry [ID, length, string]
++	EvCount          = 38
+ )
+ 
+ var EventDescriptions = [EvCount]struct {
+@@ -759,7 +718,7 @@ var EventDescriptions = [EvCount]struct {
+ 	EvGCScanDone:     {"GCScanDone", false, []string{}},
+ 	EvGCSweepStart:   {"GCSweepStart", true, []string{}},
+ 	EvGCSweepDone:    {"GCSweepDone", false, []string{}},
+-	EvGoCreate:       {"GoCreate", true, []string{"g", "pc"}},
++	EvGoCreate:       {"GoCreate", true, []string{"g", "stack"}},
+ 	EvGoStart:        {"GoStart", false, []string{"g"}},
+ 	EvGoEnd:          {"GoEnd", false, []string{}},
+ 	EvGoStop:         {"GoStop", true, []string{}},
+@@ -783,4 +742,5 @@ var EventDescriptions = [EvCount]struct {
+ 	EvNextGC:         {"NextGC", false, []string{"mem"}},
+ 	EvTimerGoroutine: {"TimerGoroutine", false, []string{"g", "unused"}},
+ 	EvFutileWakeup:   {"FutileWakeup", false, []string{}},
++	EvString:         {"String", false, []string{}},
+ }
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 805c34f483..f54e5e0a7e 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -23,7 +23,7 @@ const (
+ 	traceEvNone           = 0  // unused
+ 	traceEvBatch          = 1  // start of per-P batch of events [pid, timestamp]
+ 	traceEvFrequency      = 2  // contains tracer timer frequency [frequency (ticks per second)]
+-	traceEvStack          = 3  // stack [stack id, number of PCs, array of PCs]
++	traceEvStack          = 3  // stack [stack id, number of PCs, array of {PC, func string ID, file string ID, line}]
+ 	traceEvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
+ 	traceEvProcStart      = 5  // start of P [timestamp, thread id]
+ 	traceEvProcStop       = 6  // stop of P [timestamp]
+@@ -33,7 +33,7 @@ const (
+ 	traceEvGCScanDone     = 10 // GC scan done [timestamp]
+ 	traceEvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
+ 	traceEvGCSweepDone    = 12 // GC sweep done [timestamp]
+-	traceEvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, start PC, stack id]
++	traceEvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new start id, stack id]
+ 	traceEvGoStart        = 14 // goroutine starts running [timestamp, goroutine id]
+ 	traceEvGoEnd          = 15 // goroutine ends [timestamp]
+ 	traceEvGoStop         = 16 // goroutine stops (like in select{}) [timestamp, stack]
+@@ -57,7 +57,8 @@ const (
+ 	traceEvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
+ 	traceEvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
+ 	traceEvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+-	traceEvCount          = 37
++	traceEvString         = 37 // string dictionary entry [ID, length, string]
++	traceEvCount          = 38
+ )
+ 
+ const (
+@@ -111,6 +112,12 @@ var trace struct {
+ 	reader        *g              // goroutine that called ReadTrace, or nil
+ 	stackTab      traceStackTable // maps stack traces to unique ids
+ 
++	// Dictionary for traceEvString.
++	// Currently this is used only for func/file:line info after tracing session,
++	// so we assume single-threaded access.
++	strings   map[string]uint64
++	stringSeq uint64
++
+ 	bufLock mutex       // protects buf
+ 	buf     traceBufPtr // global trace buffer, used when running without a p
+ }
+@@ -191,6 +198,8 @@ func StartTrace() error {
+ 	trace.timeStart = nanotime()
+ 	trace.headerWritten = false
+ 	trace.footerWritten = false
++	trace.strings = make(map[string]uint64)
++	trace.stringSeq = 0
+ 
+ 	// Can't set trace.enabled yet. While the world is stopped, exitsyscall could
+ 	// already emit a delayed event (see exitTicks in exitsyscall) if we set trace.enabled here.
+@@ -272,8 +281,6 @@ func StopTrace() {
+ 
+ 	trace.enabled = false
+ 	trace.shutdown = true
+-	trace.stackTab.dump()
+-
+ 	unlock(&trace.bufLock)
+ 
+ 	startTheWorld()
+@@ -309,6 +316,7 @@ func StopTrace() {
+ 		trace.empty = buf.ptr().link
+ 		sysFree(unsafe.Pointer(buf), unsafe.Sizeof(*buf.ptr()), &memstats.other_sys)
+ 	}
++	trace.strings = nil
+ 	trace.shutdown = false
+ 	unlock(&trace.lock)
+ }
+@@ -380,6 +388,9 @@ func ReadTrace() []byte {
+ 			data = traceAppend(data, uint64(timers.gp.goid))
+ 			data = traceAppend(data, 0)
+ 		}
++		// This will emit a bunch of full buffers, we will pick them up
++		// on the next iteration.
++		trace.stackTab.dump()
+ 		return data
+ 	}
+ 	// Done.
+@@ -603,6 +614,29 @@ func traceFlush(buf traceBufPtr) traceBufPtr {
+ 	return buf
+ }
+ 
++func traceString(buf *traceBuf, s string) (uint64, *traceBuf) {
++	if s == "" {
++		return 0, buf
++	}
++	if id, ok := trace.strings[s]; ok {
++		return id, buf
++	}
++
++	trace.stringSeq++
++	id := trace.stringSeq
++	trace.strings[s] = id
++
++	size := 1 + 2*traceBytesPerNumber + len(s)
++	if len(buf.arr)-buf.pos < size {
++		buf = traceFlush(traceBufPtrOf(buf)).ptr()
++	}
++	buf.byte(traceEvString)
++	buf.varint(id)
++	buf.varint(uint64(len(s)))
++	buf.pos += copy(buf.arr[buf.pos:], s)
++	return id, buf
++}
++
+ // traceAppend appends v to buf in little-endian-base-128 encoding.
+ func traceAppend(buf []byte, v uint64) []byte {
+ 	for ; v >= 0x80; v >>= 7 {
+@@ -716,23 +750,28 @@ func (tab *traceStackTable) newStack(n int) *traceStack {
+ // dump writes all previously cached stacks to trace buffers,
+ // releases all memory and resets state.
+ func (tab *traceStackTable) dump() {
+-	var tmp [(2 + traceStackSize) * traceBytesPerNumber]byte
++	frames := make(map[uintptr]traceFrame)
++	var tmp [(2 + 4*traceStackSize) * traceBytesPerNumber]byte
+ 	buf := traceFlush(0).ptr()
+ 	for _, stk := range tab.tab {
+ 		stk := stk.ptr()
+ 		for ; stk != nil; stk = stk.link.ptr() {
+-			maxSize := 1 + (3+stk.n)*traceBytesPerNumber
+-			if len(buf.arr)-buf.pos < maxSize {
+-				buf = traceFlush(traceBufPtrOf(buf)).ptr()
+-			}
+-			// Form the event in the temp buffer, we need to know the actual length.
+ 			tmpbuf := tmp[:0]
+ 			tmpbuf = traceAppend(tmpbuf, uint64(stk.id))
+ 			tmpbuf = traceAppend(tmpbuf, uint64(stk.n))
+ 			for _, pc := range stk.stack() {
++				var frame traceFrame
++				frame, buf = traceFrameForPC(buf, frames, pc)
+ 				tmpbuf = traceAppend(tmpbuf, uint64(pc))
++				tmpbuf = traceAppend(tmpbuf, uint64(frame.funcID))
++				tmpbuf = traceAppend(tmpbuf, uint64(frame.fileID))
++				tmpbuf = traceAppend(tmpbuf, uint64(frame.line))
+ 			}
+ 			// Now copy to the buffer.
++			size := 1 + traceBytesPerNumber + len(tmpbuf)
++			if len(buf.arr)-buf.pos < size {
++				buf = traceFlush(traceBufPtrOf(buf)).ptr()
++			}
+ 			buf.byte(traceEvStack | 3<<traceArgCountShift)
+ 			buf.varint(uint64(len(tmpbuf)))
+ 			buf.pos += copy(buf.arr[buf.pos:], tmpbuf)
+@@ -747,6 +786,39 @@ func (tab *traceStackTable) dump() {
+ 	*tab = traceStackTable{}
+ }
+ 
++type traceFrame struct {
++	funcID uint64
++	fileID uint64
++	line   uint64
++}
++
++func traceFrameForPC(buf *traceBuf, frames map[uintptr]traceFrame, pc uintptr) (traceFrame, *traceBuf) {
++	if frame, ok := frames[pc]; ok {
++		return frame, buf
++	}
++
++	var frame traceFrame
++	f := findfunc(pc)
++	if f == nil {
++		frames[pc] = frame
++		return frame, buf
++	}
++
++	fn := funcname(f)
++	const maxLen = 1 << 10
++	if len(fn) > maxLen {
++		fn = fn[len(fn)-maxLen:]
++	}
++	frame.funcID, buf = traceString(buf, fn)
++	file, line := funcline(f, pc-sys.PCQuantum)
++	frame.line = uint64(line)
++	if len(file) > maxLen {
++		file = file[len(file)-maxLen:]
++	}
++	frame.fileID, buf = traceString(buf, file)
++	return frame, buf
++}
++
+ // traceAlloc is a non-thread-safe region allocator.
+ // It holds a linked list of traceAllocBlock.
+ type traceAlloc struct {
+@@ -844,7 +916,9 @@ func traceGCSweepDone() {
+ }
+ 
+ func traceGoCreate(newg *g, pc uintptr) {
+-	traceEvent(traceEvGoCreate, 2, uint64(newg.goid), uint64(pc))
++	// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
++	id := trace.stackTab.put([]uintptr{pc + sys.PCQuantum})
++	traceEvent(traceEvGoCreate, 2, uint64(newg.goid), uint64(id))
+ }
+ 
+ func traceGoStart() {
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index b99ec687d5..c3fb0f6fee 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -129,10 +129,6 @@ func TestTraceSymbolize(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("failed to parse trace: %v", err)
+ 	}
+-	err = trace.Symbolize(events, os.Args[0])
+-	if err != nil {
+-		t.Fatalf("failed to symbolize trace: %v", err)
+-	}
+ 
+ 	// Now check that the stacks are correct.
+ 	type frame struct {
+@@ -149,6 +145,9 @@ func TestTraceSymbolize(t *testing.T) {
+ 			{"runtime/trace_test.TestTraceSymbolize", 106},
+ 			{"testing.tRunner", 0},
+ 		}},
++		{trace.EvGoStart, []frame{
++			{"runtime/trace_test.TestTraceSymbolize.func1", 37},
++		}},
+ 		{trace.EvGoSched, []frame{
+ 			{"runtime/trace_test.TestTraceSymbolize", 107},
+ 			{"testing.tRunner", 0},

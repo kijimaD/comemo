@@ -21,7 +21,66 @@ Date:   Sun Nov 13 19:12:39 2016 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go     | 9 ---------
  src/net/http/transport_test.go | 6 ------
  2 files changed, 15 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 7d1285f545..0c5af6bca4 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -461,9 +461,6 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ }
+ 
+ func TestServerTimeouts(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see https://golang.org/issue/7237")
+-	}
+ 	setParallel(t)
+ 	defer afterTest(t)
+ 	reqNum := 0
+@@ -542,9 +539,6 @@ func TestServerTimeouts(t *testing.T) {
+ // request) that will never happen.
+ func TestOnlyWriteTimeout(t *testing.T) {
+ 	setParallel(t)
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see https://golang.org/issue/7237")
+-	}
+ 	defer afterTest(t)
+ 	var conn net.Conn
+ 	var afterTimeoutErrc = make(chan error, 1)
+@@ -1035,9 +1029,6 @@ func testHeadResponses(t *testing.T, h2 bool) {
+ }
+ 
+ func TestTLSHandshakeTimeout(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see https://golang.org/issue/7237")
+-	}
+ 	setParallel(t)
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 5ed23e713b..8054e8d789 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1352,9 +1352,6 @@ func TestTransportConcurrency(t *testing.T) {
+ 
+ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+ 	setParallel(t)
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see https://golang.org/issue/7237")
+-	}
+ 	defer afterTest(t)
+ 	const debug = false
+ 	mux := NewServeMux()
+@@ -1417,9 +1414,6 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+ 
+ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
+ 	setParallel(t)
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see https://golang.org/issue/7237")
+-	}
+ 	defer afterTest(t)
+ 	const debug = false
+ 	mux := NewServeMux()

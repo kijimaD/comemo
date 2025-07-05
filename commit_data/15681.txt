@@ -7,6 +7,19 @@ Date:   Mon Mar 11 12:34:55 2013 -0400
     R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/7704043
-
+---
  lib/time/README | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/time/README b/lib/time/README
+index d83e0addf4..ffce9b0e08 100644
+--- a/lib/time/README
++++ b/lib/time/README
+@@ -5,6 +5,6 @@ The IANA asserts that the database is in the public domain.
+ For more information, see
+ http://www.iana.org/time-zones
+ ftp://ftp.iana.org/tz/code/tz-link.htm
+-http://tools.ietf.org/html/draft-lear-iana-timezone-database-05
++http://tools.ietf.org/html/rfc6557
+ 
+ To rebuild the archive, read and run update.bash.

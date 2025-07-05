@@ -22,6 +22,19 @@ Date:   Sat Nov 8 17:12:23 2014 -0800
     R=rsc, minux
     CC=golang-codereviews
     https://golang.org/cl/167410043
-
+---
  lib/codereview/codereview.py | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index fdf11d1f48..b8814e1022 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -3451,6 +3451,7 @@ class FakeMercurialUI(object):
+ 	def __init__(self):
+ 		self.quiet = True
+ 		self.output = ''
++		self.debugflag = False
+ 	
+ 	def write(self, *args, **opts):
+ 		self.output += ' '.join(args)

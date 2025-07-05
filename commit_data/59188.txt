@@ -21,7 +21,7 @@ Date:   Fri Feb 23 09:20:03 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  .../99-minor/syscall (windows-amd64)/62254.md      |   1 -
  .../{syscall (windows-386) => syscall}/62254.md    |   0
  src/cmd/go.mod                                     |   8 +-
@@ -37,3 +37,755 @@ Date:   Fri Feb 23 09:20:03 2024 -0500
  .../x/tools/internal/aliases/aliases_go122.go      |  72 ++++++
  src/cmd/vendor/modules.txt                         |   9 +-
  14 files changed, 478 insertions(+), 33 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/syscall (windows-amd64)/62254.md b/doc/next/6-stdlib/99-minor/syscall (windows-amd64)/62254.md
+deleted file mode 100644
+index e08277867d..0000000000
+--- a/doc/next/6-stdlib/99-minor/syscall (windows-amd64)/62254.md	
++++ /dev/null
+@@ -1 +0,0 @@
+-See `syscall (windows-386)/62254.md`.
+diff --git a/doc/next/6-stdlib/99-minor/syscall (windows-386)/62254.md b/doc/next/6-stdlib/99-minor/syscall/62254.md
+similarity index 100%
+rename from doc/next/6-stdlib/99-minor/syscall (windows-386)/62254.md
+rename to doc/next/6-stdlib/99-minor/syscall/62254.md
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index e00ff68f4a..941666ae4f 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,13 +5,13 @@ go 1.23
+ require (
+ 	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
+ 	golang.org/x/arch v0.7.0
+-	golang.org/x/build v0.0.0-20240201175143-3ee44a092755
++	golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+ 	golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
+ 	golang.org/x/sync v0.6.0
+ 	golang.org/x/sys v0.17.0
+-	golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804
+-	golang.org/x/term v0.16.0
+-	golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
++	golang.org/x/telemetry v0.0.0-20240208230135-b75ee8823808
++	golang.org/x/term v0.17.0
++	golang.org/x/tools v0.18.0
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index abbeed70c5..5b6dc6f293 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -10,8 +10,8 @@ github.com/gobwas/pool v0.2.1 h1:xfeeEhW7pwmX8nuLVlqbzVc7udMDrwetjEv+TZIz1og=
+ github.com/gobwas/pool v0.2.1/go.mod h1:q8bcK0KcYlCgd9e7WYLm9LpyS+YeLd8JVDW6WezmKEw=
+ github.com/gobwas/ws v1.2.1 h1:F2aeBZrm2NDsc7vbovKrWSogd4wvfAxg0FQ89/iqOTk=
+ github.com/gobwas/ws v1.2.1/go.mod h1:hRKAFb8wOxFROYNsT1bqfWnhX+b5MFeJM9r2ZSwg/KY=
+-github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
+-github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
++github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
++github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+ github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5 h1:E/LAvt58di64hlYjx7AsNS6C/ysHWYo+2qPCZKTQhRo=
+ github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5/go.mod h1:czg5+yv1E0ZGTi6S6vVK1mke0fV+FaUhNGcd6VRS9Ik=
+ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab h1:BA4a7pe6ZTd9F8kXETBoijjFJ/ntaa//1wiH9BZu4zU=
+@@ -24,21 +24,21 @@ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+ github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+ golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
+ golang.org/x/arch v0.7.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+-golang.org/x/build v0.0.0-20240201175143-3ee44a092755 h1:irSM9p93GT4I3+Pu/grZlkwIjrXA3GfyKwlSosVbmtU=
+-golang.org/x/build v0.0.0-20240201175143-3ee44a092755/go.mod h1:RHSzqFUzT4+buJlGik6WptO5NxLQiR/ewD2uz3fgWuA=
++golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f h1:XQ2eu0I26WsNCKQkRehp+5mwjjChw94trD9LT8LLSq0=
++golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f/go.mod h1:HTqTCkubWT8epEK9hDWWGkoOOB7LGSrU1qvWZCSwO50=
+ golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3 h1:/p/VemLWiTsjHqHwME1Iu+xIu8s9fBtwBk8bU/ejA1A=
+ golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+ golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.17.0 h1:25cE3gD+tdBA7lp7QfhuV+rJiE9YXTcS3VG1SqssI/Y=
+ golang.org/x/sys v0.17.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804 h1:mLYQpgq+cJOnmn3pR2U9o5rzEuOVgnmw59GHPgypGeo=
+-golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804/go.mod h1:KG1lNk5ZFNssSZLrpVb4sMXKMpGwGXOxSG3rnu2gZQQ=
+-golang.org/x/term v0.16.0 h1:m+B6fahuftsE9qjo0VWp2FW0mB3MTJvR0BaMQrq0pmE=
+-golang.org/x/term v0.16.0/go.mod h1:yn7UURbUtPyrVJPGPq404EukNFxcm/foM+bV/bfcDsY=
++golang.org/x/telemetry v0.0.0-20240208230135-b75ee8823808 h1:+Kc94D8UVEVxJnLXp/+FMfqQARZtWHfVrcRtcG8aT3g=
++golang.org/x/telemetry v0.0.0-20240208230135-b75ee8823808/go.mod h1:KG1lNk5ZFNssSZLrpVb4sMXKMpGwGXOxSG3rnu2gZQQ=
++golang.org/x/term v0.17.0 h1:mkTF7LCd6WGJNL3K1Ad7kwxNfYAW6a8a8QqtMblp/4U=
++golang.org/x/term v0.17.0/go.mod h1:lLRBjIVuehSbZlaOtGMbcMncT+aqLLLmKrsjNrUguwk=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+ golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+-golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006 h1:nQlBrWcYwVcWPZJ3VI2s/bH4yjgiWJXNTELOKrnS0qk=
+-golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006/go.mod h1:xsh6VxdV005rRVaS6SSAf9oiAqljS7UZUacMZ8Bnsps=
++golang.org/x/tools v0.18.0 h1:k8NLag8AGHnn+PHbl7g43CtqZAwG60vZkLqgyZgIHgQ=
++golang.org/x/tools v0.18.0/go.mod h1:GL7B4CwcLLeo59yx/9UWWuNOW1n3VZ4f5axWfML7Lcg=
+ rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650 h1:fuOABZYWclLVNotDsHVaFixLdtoC7+UQZJ0KSC1ocm0=
+ rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=
+diff --git a/src/cmd/vendor/golang.org/x/build/relnote/dump.go b/src/cmd/vendor/golang.org/x/build/relnote/dump.go
+new file mode 100644
+index 0000000000..4d43cabeab
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/build/relnote/dump.go
+@@ -0,0 +1,46 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package relnote
++
++import (
++	"fmt"
++
++	md "rsc.io/markdown"
++)
++
++// DumpMarkdown writes the internal structure of a markdown
++// document to standard output.
++// It is intended for debugging.
++func DumpMarkdown(d *md.Document) {
++	dumpBlocks(d.Blocks, 0)
++}
++
++func dumpBlocks(bs []md.Block, depth int) {
++	for _, b := range bs {
++		dumpBlock(b, depth)
++	}
++}
++
++func dumpBlock(b md.Block, depth int) {
++	fmt.Printf("%*s%T\n", depth*4, "", b)
++	switch b := b.(type) {
++	case *md.Paragraph:
++		dumpInlines(b.Text.Inline, depth+1)
++	case *md.Heading:
++		dumpInlines(b.Text.Inline, depth+1)
++	case *md.List:
++		dumpBlocks(b.Items, depth+1)
++	case *md.Item:
++		dumpBlocks(b.Blocks, depth+1)
++	default:
++		// TODO(jba): additional cases as needed.
++	}
++}
++
++func dumpInlines(ins []md.Inline, depth int) {
++	for _, in := range ins {
++		fmt.Printf("%*s%#v\n", depth*4, "", in)
++	}
++}
+diff --git a/src/cmd/vendor/golang.org/x/build/relnote/links.go b/src/cmd/vendor/golang.org/x/build/relnote/links.go
+new file mode 100644
+index 0000000000..15d8f632ad
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/build/relnote/links.go
+@@ -0,0 +1,242 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package relnote
++
++import (
++	"fmt"
++	"strings"
++	"unicode"
++	"unicode/utf8"
++
++	"golang.org/x/mod/module"
++	md "rsc.io/markdown"
++)
++
++// addSymbolLinks looks for text like [Buffer] and
++// [math.Max] and replaces them with links to standard library
++// symbols and packages.
++// It uses the given default package for links without a package.
++func addSymbolLinks(doc *md.Document, defaultPackage string) {
++	addSymbolLinksBlocks(doc.Blocks, defaultPackage)
++}
++
++func addSymbolLinksBlocks(bs []md.Block, defaultPackage string) {
++	for _, b := range bs {
++		addSymbolLinksBlock(b, defaultPackage)
++	}
++}
++
++func addSymbolLinksBlock(b md.Block, defaultPackage string) {
++	switch b := b.(type) {
++	case *md.Heading:
++		addSymbolLinksBlock(b.Text, defaultPackage)
++	case *md.Text:
++		b.Inline = addSymbolLinksInlines(b.Inline, defaultPackage)
++	case *md.List:
++		addSymbolLinksBlocks(b.Items, defaultPackage)
++	case *md.Item:
++		addSymbolLinksBlocks(b.Blocks, defaultPackage)
++	case *md.Paragraph:
++		addSymbolLinksBlock(b.Text, defaultPackage)
++	case *md.Quote:
++		addSymbolLinksBlocks(b.Blocks, defaultPackage)
++	// no links in these blocks
++	case *md.CodeBlock:
++	case *md.HTMLBlock:
++	case *md.Empty:
++	case *md.ThematicBreak:
++	default:
++		panic(fmt.Sprintf("unknown block type %T", b))
++	}
++}
++
++// addSymbolLinksInlines looks for symbol links in the slice of inline markdown
++// elements. It returns a new slice of inline elements with links added.
++func addSymbolLinksInlines(ins []md.Inline, defaultPackage string) []md.Inline {
++	var res []md.Inline
++	for _, in := range ins {
++		switch in := in.(type) {
++		case *md.Plain:
++			res = append(res, addSymbolLinksText(in.Text, defaultPackage)...)
++		case *md.Strong:
++			res = append(res, addSymbolLinksInlines(in.Inner, defaultPackage)...)
++		case *md.Emph:
++			res = append(res, addSymbolLinksInlines(in.Inner, defaultPackage)...)
++		case *md.Del:
++			res = append(res, addSymbolLinksInlines(in.Inner, defaultPackage)...)
++		// Don't look for links in anything else.
++		default:
++			res = append(res, in)
++		}
++	}
++	return res
++}
++
++// addSymbolLinksText converts symbol links in the text to markdown links.
++// The text comes from a single Plain inline element, which may be split
++// into multiple alternating Plain and Link elements.
++func addSymbolLinksText(text, defaultPackage string) []md.Inline {
++	var res []md.Inline
++	last := 0
++
++	appendPlain := func(j int) {
++		if j-last > 0 {
++			res = append(res, &md.Plain{Text: text[last:j]})
++		}
++	}
++
++	start := -1
++	for i := 0; i < len(text); i++ {
++		switch text[i] {
++		case '[':
++			start = i
++		case ']':
++			link, ok := symbolLink(text[start+1:i], text[:start], text[i+1:], defaultPackage)
++			if ok {
++				appendPlain(start)
++				res = append(res, link)
++				last = i + 1
++			}
++			start = -1
++		}
++
++	}
++	appendPlain(len(text))
++	return res
++}
++
++// symbolLink convert s into a Link and returns it and true, or nil and false if
++// s is not a valid link or is surrounded by runes that disqualify it from being
++// converted to a link.
++func symbolLink(s, before, after, defaultPackage string) (md.Inline, bool) {
++	if before != "" {
++		r, _ := utf8.DecodeLastRuneInString(before)
++		if !isLinkAdjacentRune(r) {
++			return nil, false
++		}
++	}
++	if after != "" {
++		r, _ := utf8.DecodeRuneInString(after)
++		if !isLinkAdjacentRune(r) {
++			return nil, false
++		}
++	}
++	pkg, sym, ok := splitRef(s)
++	if !ok {
++		return nil, false
++	}
++	if pkg == "" {
++		if defaultPackage == "" {
++			return nil, false
++		}
++		pkg = defaultPackage
++	}
++	if sym != "" {
++		sym = "#" + sym
++	}
++	return &md.Link{
++		Inner: []md.Inline{&md.Plain{Text: s}},
++		URL:   fmt.Sprintf("/pkg/%s%s", pkg, sym),
++	}, true
++}
++
++// isLinkAdjacentRune reports whether r can be adjacent to a symbol link.
++// The logic is the same as the go/doc/comment package.
++func isLinkAdjacentRune(r rune) bool {
++	return unicode.IsPunct(r) || r == ' ' || r == '\t' || r == '\n'
++}
++
++// splitRef splits s into a package and possibly a symbol.
++// Examples:
++//
++//	splitRef("math.Max") => ("math", "Max", true)
++//	splitRef("bytes.Buffer.String") => ("bytes", "Buffer.String", true)
++//	splitRef("math") => ("math", "", true)
++func splitRef(s string) (pkg, name string, ok bool) {
++	s = strings.TrimPrefix(s, "*")
++	pkg, name, ok = splitDocName(s)
++	var recv string
++	if ok {
++		pkg, recv, _ = splitDocName(pkg)
++	}
++	if pkg != "" {
++		if err := module.CheckImportPath(pkg); err != nil {
++			return "", "", false
++		}
++	}
++	if recv != "" {
++		name = recv + "." + name
++	}
++	return pkg, name, true
++}
++
++// The following functions were copied from go/doc/comment/parse.go.
++
++// If text is of the form before.Name, where Name is a capitalized Go identifier,
++// then splitDocName returns before, name, true.
++// Otherwise it returns text, "", false.
++func splitDocName(text string) (before, name string, foundDot bool) {
++	i := strings.LastIndex(text, ".")
++	name = text[i+1:]
++	if !isName(name) {
++		return text, "", false
++	}
++	if i >= 0 {
++		before = text[:i]
++	}
++	return before, name, true
++}
++
++// isName reports whether s is a capitalized Go identifier (like Name).
++func isName(s string) bool {
++	t, ok := ident(s)
++	if !ok || t != s {
++		return false
++	}
++	r, _ := utf8.DecodeRuneInString(s)
++	return unicode.IsUpper(r)
++}
++
++// ident checks whether s begins with a Go identifier.
++// If so, it returns the identifier, which is a prefix of s, and ok == true.
++// Otherwise it returns "", false.
++// The caller should skip over the first len(id) bytes of s
++// before further processing.
++func ident(s string) (id string, ok bool) {
++	// Scan [\pL_][\pL_0-9]*
++	n := 0
++	for n < len(s) {
++		if c := s[n]; c < utf8.RuneSelf {
++			if isIdentASCII(c) && (n > 0 || c < '0' || c > '9') {
++				n++
++				continue
++			}
++			break
++		}
++		r, nr := utf8.DecodeRuneInString(s[n:])
++		if unicode.IsLetter(r) {
++			n += nr
++			continue
++		}
++		break
++	}
++	return s[:n], n > 0
++}
++
++// isIdentASCII reports whether c is an ASCII identifier byte.
++func isIdentASCII(c byte) bool {
++	// mask is a 128-bit bitmap with 1s for allowed bytes,
++	// so that the byte c can be tested with a shift and an and.
++	// If c > 128, then 1<<c and 1<<(c-64) will both be zero,
++	// and this function will return false.
++	const mask = 0 |
++		(1<<26-1)<<'A' |
++		(1<<26-1)<<'a' |
++		(1<<10-1)<<'0' |
++		1<<'_'
++
++	return ((uint64(1)<<c)&(mask&(1<<64-1)) |
++		(uint64(1)<<(c-64))&(mask>>64)) != 0
++}
+diff --git a/src/cmd/vendor/golang.org/x/build/relnote/relnote.go b/src/cmd/vendor/golang.org/x/build/relnote/relnote.go
+index 5ac4d7a843..0012df2211 100644
+--- a/src/cmd/vendor/golang.org/x/build/relnote/relnote.go
++++ b/src/cmd/vendor/golang.org/x/build/relnote/relnote.go
+@@ -105,7 +105,15 @@ func inlineText(ins []md.Inline) string {
+ //
+ // Files in the "minor changes" directory (the unique directory matching the glob
+ // "*stdlib/*minor") are named after the package to which they refer, and will have
+-// the package heading inserted automatically.
++// the package heading inserted automatically and links to other standard library
++// symbols expanded automatically. For example, if a file *stdlib/minor/bytes/f.md
++// contains the text
++//
++//	[Reader] implements [io.Reader].
++//
++// then that will become
++//
++//	[Reader](/pkg/bytes#Reader) implements [io.Reader](/pkg/io#Reader).
+ func Merge(fsys fs.FS) (*md.Document, error) {
+ 	filenames, err := sortedMarkdownFilenames(fsys)
+ 	if err != nil {
+@@ -121,10 +129,12 @@ func Merge(fsys fs.FS) (*md.Document, error) {
+ 		if len(newdoc.Blocks) == 0 {
+ 			continue
+ 		}
++		pkg := stdlibPackage(filename)
++		// Autolink Go symbols.
++		addSymbolLinks(newdoc, pkg)
+ 		if len(doc.Blocks) > 0 {
+ 			// If this is the first file of a new stdlib package under the "Minor changes
+ 			// to the library" section, insert a heading for the package.
+-			pkg := stdlibPackage(filename)
+ 			if pkg != "" && pkg != prevPkg {
+ 				h := stdlibPackageHeading(pkg, lastBlock(doc).Pos().EndLine)
+ 				doc.Blocks = append(doc.Blocks, h)
+@@ -317,16 +327,20 @@ func parseMarkdownFile(fsys fs.FS, path string) (*md.Document, error) {
+ // like the ones in the main go repo in the api directory.
+ type APIFeature struct {
+ 	Package string // package that the feature is in
++	Build   string // build that the symbol is relevant for (e.g. GOOS, GOARCH)
+ 	Feature string // everything about the feature other than the package
+ 	Issue   int    // the issue that introduced the feature, or 0 if none
+ }
+ 
+-var apiFileLineRegexp = regexp.MustCompile(`^pkg ([^,]+), ([^#]*)(#\d+)?$`)
++// This regexp has four capturing groups: package, build, feature and issue.
++var apiFileLineRegexp = regexp.MustCompile(`^pkg ([^ \t]+)[ \t]*(\([^)]+\))?, ([^#]*)(#\d+)?$`)
+ 
+ // parseAPIFile parses a file in the api format and returns a list of the file's features.
+ // A feature is represented by a single line that looks like
+ //
+-//	PKG WORDS #ISSUE
++//	pkg PKG (BUILD) FEATURE #ISSUE
++//
++// where the BUILD and ISSUE may be absent.
+ func parseAPIFile(fsys fs.FS, filename string) ([]APIFeature, error) {
+ 	f, err := fsys.Open(filename)
+ 	if err != nil {
+@@ -337,20 +351,24 @@ func parseAPIFile(fsys fs.FS, filename string) ([]APIFeature, error) {
+ 	scan := bufio.NewScanner(f)
+ 	for scan.Scan() {
+ 		line := strings.TrimSpace(scan.Text())
+-		if line == "" {
++		if line == "" || line[0] == '#' {
+ 			continue
+ 		}
+ 		matches := apiFileLineRegexp.FindStringSubmatch(line)
+ 		if len(matches) == 0 {
+ 			return nil, fmt.Errorf("%s: malformed line %q", filename, line)
+ 		}
++		if len(matches) != 5 {
++			return nil, fmt.Errorf("wrong number of matches for line %q", line)
++		}
+ 		f := APIFeature{
+ 			Package: matches[1],
+-			Feature: strings.TrimSpace(matches[2]),
++			Build:   matches[2],
++			Feature: strings.TrimSpace(matches[3]),
+ 		}
+-		if len(matches) > 3 && len(matches[3]) > 0 {
++		if issue := matches[4]; issue != "" {
+ 			var err error
+-			f.Issue, err = strconv.Atoi(matches[3][1:]) // skip leading '#'
++			f.Issue, err = strconv.Atoi(issue[1:]) // skip leading '#'
+ 			if err != nil {
+ 				return nil, err
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+index b2591ccff5..005e2e54b7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+@@ -15,6 +15,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/aliases"
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+@@ -194,16 +195,15 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 
+ func structuralTypes(t types.Type) ([]types.Type, error) {
+ 	var structuralTypes []types.Type
+-	switch t := t.(type) {
+-	case *types.TypeParam:
+-		terms, err := typeparams.StructuralTerms(t)
++	if tp, ok := aliases.Unalias(t).(*types.TypeParam); ok {
++		terms, err := typeparams.StructuralTerms(tp)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 		for _, term := range terms {
+ 			structuralTypes = append(structuralTypes, term.Type())
+ 		}
+-	default:
++	} else {
+ 		structuralTypes = append(structuralTypes, t)
+ 	}
+ 	return structuralTypes, nil
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+index 544246dac1..e154be0bd6 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/types"
+ 	"reflect"
+ 
++	"golang.org/x/tools/internal/aliases"
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+@@ -259,6 +260,9 @@ func (h Hasher) hashFor(t types.Type) uint32 {
+ 	case *types.Basic:
+ 		return uint32(t.Kind())
+ 
++	case *aliases.Alias:
++		return h.Hash(t.Underlying())
++
+ 	case *types.Array:
+ 		return 9043 + 2*uint32(t.Len()) + 3*h.Hash(t.Elem())
+ 
+@@ -457,6 +461,9 @@ func (h Hasher) shallowHash(t types.Type) uint32 {
+ 	// elements (mostly Slice, Pointer, Basic, Named),
+ 	// so there's no need to optimize anything else.
+ 	switch t := t.(type) {
++	case *aliases.Alias:
++		return h.shallowHash(t.Underlying())
++
+ 	case *types.Signature:
+ 		var hash uint32 = 604171
+ 		if t.Variadic() {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/methodsetcache.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/methodsetcache.go
+index a5d9310830..bd71aafaaa 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/methodsetcache.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/methodsetcache.go
+@@ -9,6 +9,8 @@ package typeutil
+ import (
+ 	"go/types"
+ 	"sync"
++
++	"golang.org/x/tools/internal/aliases"
+ )
+ 
+ // A MethodSetCache records the method set of each type T for which
+@@ -32,12 +34,12 @@ func (cache *MethodSetCache) MethodSet(T types.Type) *types.MethodSet {
+ 	cache.mu.Lock()
+ 	defer cache.mu.Unlock()
+ 
+-	switch T := T.(type) {
++	switch T := aliases.Unalias(T).(type) {
+ 	case *types.Named:
+ 		return cache.lookupNamed(T).value
+ 
+ 	case *types.Pointer:
+-		if N, ok := T.Elem().(*types.Named); ok {
++		if N, ok := aliases.Unalias(T.Elem()).(*types.Named); ok {
+ 			return cache.lookupNamed(N).pointer
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go
+new file mode 100644
+index 0000000000..f89112c8ee
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go
+@@ -0,0 +1,28 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aliases
++
++import (
++	"go/token"
++	"go/types"
++)
++
++// Package aliases defines backward compatible shims
++// for the types.Alias type representation added in 1.22.
++// This defines placeholders for x/tools until 1.26.
++
++// NewAlias creates a new TypeName in Package pkg that
++// is an alias for the type rhs.
++//
++// When GoVersion>=1.22 and GODEBUG=gotypesalias=1,
++// the Type() of the return value is a *types.Alias.
++func NewAlias(pos token.Pos, pkg *types.Package, name string, rhs types.Type) *types.TypeName {
++	if enabled() {
++		tname := types.NewTypeName(pos, pkg, name, nil)
++		newAlias(tname, rhs)
++		return tname
++	}
++	return types.NewTypeName(pos, pkg, name, rhs)
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go
+new file mode 100644
+index 0000000000..1872b56ff8
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go
+@@ -0,0 +1,30 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !go1.22
++// +build !go1.22
++
++package aliases
++
++import (
++	"go/types"
++)
++
++// Alias is a placeholder for a go/types.Alias for <=1.21.
++// It will never be created by go/types.
++type Alias struct{}
++
++func (*Alias) String() string { panic("unreachable") }
++
++func (*Alias) Underlying() types.Type { panic("unreachable") }
++
++func (*Alias) Obj() *types.TypeName { panic("unreachable") }
++
++// Unalias returns the type t for go <=1.21.
++func Unalias(t types.Type) types.Type { return t }
++
++// Always false for go <=1.21. Ignores GODEBUG.
++func enabled() bool { return false }
++
++func newAlias(name *types.TypeName, rhs types.Type) *Alias { panic("unreachable") }
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go
+new file mode 100644
+index 0000000000..8b92116284
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go
+@@ -0,0 +1,72 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.22
++// +build go1.22
++
++package aliases
++
++import (
++	"go/ast"
++	"go/parser"
++	"go/token"
++	"go/types"
++	"os"
++	"strings"
++	"sync"
++)
++
++// Alias is an alias of types.Alias.
++type Alias = types.Alias
++
++// Unalias is a wrapper of types.Unalias.
++func Unalias(t types.Type) types.Type { return types.Unalias(t) }
++
++// newAlias is an internal alias around types.NewAlias.
++// Direct usage is discouraged as the moment.
++// Try to use NewAlias instead.
++func newAlias(tname *types.TypeName, rhs types.Type) *Alias {
++	a := types.NewAlias(tname, rhs)
++	// TODO(go.dev/issue/65455): Remove kludgy workaround to set a.actual as a side-effect.
++	Unalias(a)
++	return a
++}
++
++// enabled returns true when types.Aliases are enabled.
++func enabled() bool {
++	// Use the gotypesalias value in GODEBUG if set.
++	godebug := os.Getenv("GODEBUG")
++	value := -1 // last set value.
++	for _, f := range strings.Split(godebug, ",") {
++		switch f {
++		case "gotypesalias=1":
++			value = 1
++		case "gotypesalias=0":
++			value = 0
++		}
++	}
++	switch value {
++	case 0:
++		return false
++	case 1:
++		return true
++	default:
++		return aliasesDefault()
++	}
++}
++
++// aliasesDefault reports if aliases are enabled by default.
++func aliasesDefault() bool {
++	// Dynamically check if Aliases will be produced from go/types.
++	aliasesDefaultOnce.Do(func() {
++		fset := token.NewFileSet()
++		f, _ := parser.ParseFile(fset, "a.go", "package p; type A = int", 0)
++		pkg, _ := new(types.Config).Check("p", fset, []*ast.File{f}, nil)
++		_, gotypesaliasDefault = pkg.Scope().Lookup("A").Type().(*types.Alias)
++	})
++	return gotypesaliasDefault
++}
++
++var gotypesaliasDefault bool
++var aliasesDefaultOnce sync.Once
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 576f81da2c..72a59bdc28 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -22,7 +22,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/build v0.0.0-20240201175143-3ee44a092755
++# golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+ # golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
+@@ -44,13 +44,13 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804
++# golang.org/x/telemetry v0.0.0-20240208230135-b75ee8823808
+ ## explicit; go 1.20
+ golang.org/x/telemetry/counter
+ golang.org/x/telemetry/internal/counter
+ golang.org/x/telemetry/internal/mmap
+ golang.org/x/telemetry/internal/telemetry
+-# golang.org/x/term v0.16.0
++# golang.org/x/term v0.17.0
+ ## explicit; go 1.18
+ golang.org/x/term
+ # golang.org/x/text v0.14.0
+@@ -63,7 +63,7 @@ golang.org/x/text/internal/tag
+ golang.org/x/text/language
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/norm
+-# golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
++# golang.org/x/tools v0.18.0
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+@@ -110,6 +110,7 @@ golang.org/x/tools/go/ast/inspector
+ golang.org/x/tools/go/cfg
+ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
++golang.org/x/tools/internal/aliases
+ golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/bisect
+ golang.org/x/tools/internal/facts

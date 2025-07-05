@@ -11,7 +11,58 @@ Date:   Wed Mar 6 17:31:04 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/gcc.go  | 6 +++++-
  src/cmd/cgo/main.go | 1 +
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 11a5472786..915ad66111 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -901,7 +901,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 		// constants to the parameter type, to avoid a type mismatch.
+ 		ptype := p.rewriteUnsafe(param.Go)
+ 
+-		if !p.needsPointerCheck(f, param.Go, args[i]) {
++		if !p.needsPointerCheck(f, param.Go, args[i]) || param.BadPointer {
+ 			if ptype != param.Go {
+ 				needsUnsafe = true
+ 			}
+@@ -2465,13 +2465,16 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 			// Treat this typedef as a uintptr.
+ 			s := *sub
+ 			s.Go = c.uintptr
++			s.BadPointer = true
+ 			sub = &s
+ 			// Make sure we update any previously computed type.
+ 			if oldType := typedef[name.Name]; oldType != nil {
+ 				oldType.Go = sub.Go
++				oldType.BadPointer = true
+ 			}
+ 		}
+ 		t.Go = name
++		t.BadPointer = sub.BadPointer
+ 		if unionWithPointer[sub.Go] {
+ 			unionWithPointer[t.Go] = true
+ 		}
+@@ -2481,6 +2484,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		if oldType == nil {
+ 			tt := *t
+ 			tt.Go = sub.Go
++			tt.BadPointer = sub.BadPointer
+ 			typedef[name.Name] = &tt
+ 		}
+ 
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 11aeee4aab..5a7bb3f87b 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -151,6 +151,7 @@ type Type struct {
+ 	Go         ast.Expr
+ 	EnumValues map[string]int64
+ 	Typedef    string
++	BadPointer bool
+ }
+ 
+ // A FuncType collects information about a function type in both the C and Go worlds.

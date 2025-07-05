@@ -7,6 +7,20 @@ Date:   Tue Mar 4 14:03:39 2014 -0500
     TBR=dvyukov
     CC=golang-codereviews
     https://golang.org/cl/71060046
-
+---
  src/pkg/runtime/asm_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index aa171d7be9..3aed51f490 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -215,7 +215,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R7
+-	JMP runtime·morestack(SB)
++	B runtime·morestack(SB)
+ 
+ // Called from panic.  Mimics morestack,
+ // reuses stack growth code to create a frame

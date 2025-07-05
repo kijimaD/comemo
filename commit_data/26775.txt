@@ -13,8 +13,93 @@ Date:   Thu Feb 18 09:38:49 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go      | 20 +-------------------
  src/runtime/runtime2.go  |  4 ++--
  src/runtime/traceback.go |  1 -
  3 files changed, 3 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2dc53b5b72..d9c38f9cb0 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -660,10 +660,6 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ 		if newval == oldval&^_Gscan {
+ 			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
+ 		}
+-	case _Gscanenqueue:
+-		if newval == _Gwaiting {
+-			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
+-		}
+ 	}
+ 	if !success {
+ 		print("runtime: casfrom_Gscanstatus failed gp=", gp, ", oldval=", hex(oldval), ", newval=", hex(newval), "\n")
+@@ -680,15 +676,12 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ 	switch oldval {
+ 	case _Grunnable,
++		_Grunning,
+ 		_Gwaiting,
+ 		_Gsyscall:
+ 		if newval == oldval|_Gscan {
+ 			return atomic.Cas(&gp.atomicstatus, oldval, newval)
+ 		}
+-	case _Grunning:
+-		if newval == _Gscanrunning || newval == _Gscanenqueue {
+-			return atomic.Cas(&gp.atomicstatus, oldval, newval)
+-		}
+ 	}
+ 	print("runtime: castogscanstatus oldval=", hex(oldval), " newval=", hex(newval), "\n")
+ 	throw("castogscanstatus")
+@@ -843,17 +836,6 @@ func restartg(gp *g) {
+ 		_Gscanwaiting,
+ 		_Gscansyscall:
+ 		casfrom_Gscanstatus(gp, s, s&^_Gscan)
+-
+-	// Scan is now completed.
+-	// Goroutine now needs to be made runnable.
+-	// We put it on the global run queue; ready blocks on the global scheduler lock.
+-	case _Gscanenqueue:
+-		casfrom_Gscanstatus(gp, _Gscanenqueue, _Gwaiting)
+-		if gp != getg().m.curg {
+-			throw("processing Gscanenqueue on wrong m")
+-		}
+-		dropg()
+-		ready(gp, 0)
+ 	}
+ }
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 6a4dfa17b8..5f22afd863 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -26,7 +26,7 @@ const (
+ 	_Gwaiting                // 4
+ 	_Gmoribund_unused        // 5 currently unused, but hardcoded in gdb scripts
+ 	_Gdead                   // 6
+-	_Genqueue                // 7 Only the Gscanenqueue is used.
++	_Genqueue_unused         // 7 currently unused
+ 	_Gcopystack              // 8 in this state when newstack is moving the stack
+ 	// the following encode that the GC is scanning the stack and what to do when it is done
+ 	_Gscan = 0x1000 // atomicstatus&~Gscan = the non-scan state,
+@@ -37,7 +37,7 @@ const (
+ 	_Gscanwaiting  = _Gscan + _Gwaiting  //  0x1004 When scanning completes make it Gwaiting
+ 	// _Gscanmoribund_unused,               //  not possible
+ 	// _Gscandead,                          //  not possible
+-	_Gscanenqueue = _Gscan + _Genqueue //  When scanning completes make it Grunnable and put on runqueue
++	// _Gscanenqueue_unused                 //  not possible
+ )
+ 
+ const (
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index b4bfe71627..1d76947380 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -645,7 +645,6 @@ var gStatusStrings = [...]string{
+ 	_Gsyscall:   "syscall",
+ 	_Gwaiting:   "waiting",
+ 	_Gdead:      "dead",
+-	_Genqueue:   "enqueue",
+ 	_Gcopystack: "copystack",
+ }
+ 

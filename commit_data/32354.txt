@@ -9,6 +9,20 @@ Date:   Fri Apr 21 01:43:57 2017 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/verify_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 2783feb155..56c365e1e8 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -1415,7 +1415,7 @@ func TestUnknownAuthorityError(t *testing.T) {
+ 			hintCert: c,
+ 		}
+ 		actual := uae.Error()
+-		if strings.Compare(actual, tt.expected) != 0 {
++		if actual != tt.expected {
+ 			t.Errorf("#%d: UnknownAuthorityError.Error() response invalid actual: %s expected: %s", i, actual, tt.expected)
+ 		}
+ 	}

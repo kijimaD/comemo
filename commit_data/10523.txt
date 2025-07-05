@@ -7,6 +7,29 @@ Date:   Mon Nov 28 09:50:40 2011 -0800
     R=r, gri
     CC=golang-dev
     https://golang.org/cl/5441047
-
+---
  doc/tmpltohtml.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/tmpltohtml.go b/doc/tmpltohtml.go
+index fc5034ca9f..1e3424cf5e 100644
+--- a/doc/tmpltohtml.go
++++ b/doc/tmpltohtml.go
+@@ -141,7 +141,7 @@ func multipleLines(file, text string, arg1, arg2 interface{}) string {
+ 	if !isInt2 {
+ 		line2 = match(file, line1, lines, pattern2)
+ 	} else if line2 < line1 {
+-		log.Fatal("lines out of order for %q: %d %d", line1, line2)
++		log.Fatalf("lines out of order for %q: %d %d", text, line1, line2)
+ 	}
+ 	return strings.Join(lines[line1-1:line2], "")
+ }
+@@ -153,7 +153,7 @@ func match(file string, start int, lines []string, pattern string) int {
+ 	// $ matches the end of the file.
+ 	if pattern == "$" {
+ 		if len(lines) == 0 {
+-			log.Fatal("%q: empty file", file)
++			log.Fatalf("%q: empty file", file)
+ 		}
+ 		return len(lines)
+ 	}

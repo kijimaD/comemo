@@ -19,8 +19,114 @@ Date:   Wed Oct 5 07:31:11 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_cgo_test.go                   | 31 ++++++++++++++++++++-----
  src/runtime/testdata/testprogcgo/threadpprof.go | 14 +++++++++++
  src/runtime/testdata/testprogcgo/threadprof.go  |  5 ++++
  3 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 2e2f95e5f0..2642c28f0d 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -100,9 +100,18 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 		// ppc64 (issue #8912)
+ 		t.Skipf("no external linking on ppc64")
+ 	}
+-	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSIGPROF")
+-	want := "OK\n"
+-	if got != want {
++
++	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	got, err := testEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
++	if err != nil {
++		t.Fatalf("exit status: %v\n%s", err, got)
++	}
++
++	if want := "OK\n"; string(got) != want {
+ 		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+@@ -113,9 +122,19 @@ func TestCgoExternalThreadSignal(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	}
+-	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSignal")
+-	want := "OK\n"
+-	if got != want {
++
++	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	got, err := testEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
++	if err != nil {
++		t.Fatalf("exit status: %v\n%s", err, got)
++	}
++
++	want := []byte("OK\n")
++	if !bytes.Equal(got, want) {
+ 		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+diff --git a/src/runtime/testdata/testprogcgo/threadpprof.go b/src/runtime/testdata/testprogcgo/threadpprof.go
+index f057d591c3..81965831a7 100644
+--- a/src/runtime/testdata/testprogcgo/threadpprof.go
++++ b/src/runtime/testdata/testprogcgo/threadpprof.go
+@@ -53,6 +53,18 @@ void pprofCgoThreadTraceback(void* parg) {
+ int getCPUHogThreadCount() {
+ 	return __sync_add_and_fetch(&cpuHogThreadCount, 0);
+ }
++
++static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
++	while (1) {
++		cpuHogThread();
++	}
++	return 0;
++}
++
++void runCPUHogThread() {
++	pthread_t tid;
++	pthread_create(&tid, 0, cpuHogDriver, 0);
++}
+ */
+ import "C"
+ 
+@@ -84,6 +96,8 @@ func CgoPprofThread() {
+ 		os.Exit(2)
+ 	}
+ 
++	C.runCPUHogThread()
++
+ 	t0 := time.Now()
+ 	for C.getCPUHogThreadCount() < 2 && time.Since(t0) < time.Second {
+ 		time.Sleep(100 * time.Millisecond)
+diff --git a/src/runtime/testdata/testprogcgo/threadprof.go b/src/runtime/testdata/testprogcgo/threadprof.go
+index 516f8dce9e..2d4c1039fb 100644
+--- a/src/runtime/testdata/testprogcgo/threadprof.go
++++ b/src/runtime/testdata/testprogcgo/threadprof.go
+@@ -2,7 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// We only build this file with the tag "threadprof", since it starts
++// a thread running a busy loop at constructor time.
++
+ // +build !plan9,!windows
++// +build threadprof
+ 
+ package main
+ 
+@@ -21,6 +25,7 @@ static void *thread1(void *p) {
+ 	spinlock = 0;
+ 	return NULL;
+ }
++
+ __attribute__((constructor)) void issue9456() {
+ 	pthread_t tid;
+ 	pthread_create(&tid, 0, thread1, NULL);

@@ -14,7 +14,79 @@ Date:   Tue Aug 16 12:14:54 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/float_test.go | 33 +++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/walk.go       |  4 ++--
  2 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/float_test.go b/src/cmd/compile/internal/gc/float_test.go
+index c761e96b95..4fdcc7ef91 100644
+--- a/src/cmd/compile/internal/gc/float_test.go
++++ b/src/cmd/compile/internal/gc/float_test.go
+@@ -74,6 +74,27 @@ func cvt8(a float32) int32 {
+ 	return int32(a)
+ }
+ 
++// make sure to cover int, uint cases (issue #16738)
++//go:noinline
++func cvt9(a float64) int {
++	return int(a)
++}
++
++//go:noinline
++func cvt10(a float64) uint {
++	return uint(a)
++}
++
++//go:noinline
++func cvt11(a float32) int {
++	return int(a)
++}
++
++//go:noinline
++func cvt12(a float32) uint {
++	return uint(a)
++}
++
+ func TestFloatConvert(t *testing.T) {
+ 	if got := cvt1(3.5); got != 3 {
+ 		t.Errorf("cvt1 got %d, wanted 3", got)
+@@ -99,4 +120,16 @@ func TestFloatConvert(t *testing.T) {
+ 	if got := cvt8(3.5); got != 3 {
+ 		t.Errorf("cvt8 got %d, wanted 3", got)
+ 	}
++	if got := cvt9(3.5); got != 3 {
++		t.Errorf("cvt9 got %d, wanted 3", got)
++	}
++	if got := cvt10(3.5); got != 3 {
++		t.Errorf("cvt10 got %d, wanted 3", got)
++	}
++	if got := cvt11(3.5); got != 3 {
++		t.Errorf("cvt11 got %d, wanted 3", got)
++	}
++	if got := cvt12(3.5); got != 3 {
++		t.Errorf("cvt12 got %d, wanted 3", got)
++	}
+ }
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4e6647cef7..601e3c3885 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1126,7 +1126,7 @@ opswitch:
+ 					n = mkcall("float64touint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
+ 					break
+ 				}
+-				if n.Type.Etype == TUINT32 || n.Type.Etype == TUINTPTR {
++				if n.Type.Etype == TUINT32 || n.Type.Etype == TUINT || n.Type.Etype == TUINTPTR {
+ 					n = mkcall("float64touint32", n.Type, init, conv(n.Left, Types[TFLOAT64]))
+ 					break
+ 				}
+@@ -1141,7 +1141,7 @@ opswitch:
+ 					n = conv(mkcall("uint64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT64])), n.Type)
+ 					break
+ 				}
+-				if n.Left.Type.Etype == TUINT32 || n.Left.Type.Etype == TUINTPTR {
++				if n.Left.Type.Etype == TUINT32 || n.Left.Type.Etype == TUINT || n.Left.Type.Etype == TUINTPTR {
+ 					n = conv(mkcall("uint32tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT32])), n.Type)
+ 					break
+ 				}

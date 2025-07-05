@@ -10,7 +10,68 @@ Date:   Tue Oct 21 13:26:40 2014 +0200
     R=r, rsc
     CC=golang-codereviews
     https://golang.org/cl/155620045
-
+---
  src/time/sleep.go      |  6 ++++++
  src/time/sleep_test.go | 21 +++++++++++++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 61660d14ff..e7a2ee2059 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -55,6 +55,9 @@ type Timer struct {
+ // Stop does not close the channel, to prevent a read from the channel succeeding
+ // incorrectly.
+ func (t *Timer) Stop() bool {
++	if t.r.f == nil {
++		panic("time: Stop called on uninitialized Timer")
++	}
+ 	return stopTimer(&t.r)
+ }
+ 
+@@ -78,6 +81,9 @@ func NewTimer(d Duration) *Timer {
+ // It returns true if the timer had been active, false if the timer had
+ // expired or been stopped.
+ func (t *Timer) Reset(d Duration) bool {
++	if t.r.f == nil {
++		panic("time: Reset called on uninitialized Timer")
++	}
+ 	w := when(d)
+ 	active := stopTimer(&t.r)
+ 	t.r.when = w
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 2cfb6a59c2..c9b2956b78 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"runtime"
+ 	"sort"
++	"strings"
+ 	"sync"
+ 	"sync/atomic"
+ 	"testing"
+@@ -407,3 +408,23 @@ func TestOverflowRuntimeTimer(t *testing.T) {
+ 	// the end of CheckRuntimeTimerOverflow in internal_test.go.
+ 	CheckRuntimeTimerOverflow()
+ }
++
++func checkZeroPanicString(t *testing.T) {
++	e := recover()
++	s, _ := e.(string)
++	if want := "called on uninitialized Timer"; !strings.Contains(s, want) {
++		t.Errorf("panic = %v; want substring %q", e, want)
++	}
++}
++
++func TestZeroTimerResetPanics(t *testing.T) {
++	defer checkZeroPanicString(t)
++	var tr Timer
++	tr.Reset(1)
++}
++
++func TestZeroTimerStopPanics(t *testing.T) {
++	defer checkZeroPanicString(t)
++	var tr Timer
++	tr.Stop()
++}

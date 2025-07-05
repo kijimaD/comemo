@@ -32,7 +32,7 @@ Date:   Mon Sep 18 14:49:21 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/64451
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/dsa/dsa.go                    |  4 ++++
  src/crypto/ecdsa/ecdsa.go                |  4 ++++
  src/crypto/internal/randutil/randutil.go | 38 ++++++++++++++++++++++++++++++++
@@ -40,3 +40,179 @@ Date:   Mon Sep 18 14:49:21 2017 -0700
  src/crypto/rsa/rsa.go                    |  6 +++++
  src/go/build/deps_test.go                | 18 ++++++++-------
  6 files changed, 66 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index e94585579e..575314b1b4 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -11,6 +11,8 @@ import (
+ 	"errors"
+ 	"io"
+ 	"math/big"
++
++	"crypto/internal/randutil"
+ )
+ 
+ // Parameters represents the domain parameters for a key. These parameters can
+@@ -195,6 +197,8 @@ func fermatInverse(k, P *big.Int) *big.Int {
+ // Be aware that calling Sign with an attacker-controlled PrivateKey may
+ // require an arbitrary amount of CPU.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
++	randutil.MaybeReadByte(rand)
++
+ 	// FIPS 186-3, section 4.6
+ 
+ 	n := priv.Q.BitLen()
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 755ed284a9..2bab14cbb9 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -26,6 +26,8 @@ import (
+ 	"errors"
+ 	"io"
+ 	"math/big"
++
++	"crypto/internal/randutil"
+ )
+ 
+ // A invertible implements fast inverse mod Curve.Params().N
+@@ -152,6 +154,8 @@ var errZeroParam = errors.New("zero parameter")
+ // returns the signature as a pair of integers. The security of the private key
+ // depends on the entropy of rand.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
++	randutil.MaybeReadByte(rand)
++
+ 	// Get min(log2(q) / 2, 256) bits of entropy from rand.
+ 	entropylen := (priv.Curve.Params().BitSize + 7) / 16
+ 	if entropylen > 32 {
+diff --git a/src/crypto/internal/randutil/randutil.go b/src/crypto/internal/randutil/randutil.go
+new file mode 100644
+index 0000000000..84b1295a87
+--- /dev/null
++++ b/src/crypto/internal/randutil/randutil.go
+@@ -0,0 +1,38 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package randutil contains internal randomness utilities for various
++// crypto packages.
++package randutil
++
++import (
++	"io"
++	"sync"
++)
++
++var (
++	closedChanOnce sync.Once
++	closedChan     chan struct{}
++)
++
++// MaybeReadByte reads a single byte from r with ~50% probability. This is used
++// to ensure that callers do not depend on non-guaranteed behaviour, e.g.
++// assuming that rsa.GenerateKey is deterministic w.r.t. a given random stream.
++//
++// This does not affect tests that pass a stream of fixed bytes as the random
++// source (e.g. a zeroReader).
++func MaybeReadByte(r io.Reader) {
++	closedChanOnce.Do(func() {
++		closedChan = make(chan struct{})
++		close(closedChan)
++	})
++
++	select {
++	case <-closedChan:
++		return
++	case <-closedChan:
++		var buf [1]byte
++		r.Read(buf[:])
++	}
++}
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index cdd2071ab9..37790acb98 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -10,6 +10,8 @@ import (
+ 	"errors"
+ 	"io"
+ 	"math/big"
++
++	"crypto/internal/randutil"
+ )
+ 
+ // This file implements encryption and decryption using PKCS#1 v1.5 padding.
+@@ -35,6 +37,8 @@ type PKCS1v15DecryptOptions struct {
+ // WARNING: use of this function to encrypt plaintexts other than
+ // session keys is dangerous. Use RSA OAEP in new protocols.
+ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
++	randutil.MaybeReadByte(rand)
++
+ 	if err := checkPub(pub); err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 862657fa60..ad32d3e3ad 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -31,6 +31,8 @@ import (
+ 	"io"
+ 	"math"
+ 	"math/big"
++
++	"crypto/internal/randutil"
+ )
+ 
+ var bigZero = big.NewInt(0)
+@@ -218,6 +220,8 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ // [1] US patent 4405829 (1972, expired)
+ // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
++	randutil.MaybeReadByte(random)
++
+ 	priv := new(PrivateKey)
+ 	priv.E = 65537
+ 
+@@ -467,6 +471,8 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
+ 
+ 	var ir *big.Int
+ 	if random != nil {
++		randutil.MaybeReadByte(random)
++
+ 		// Blinding enabled. Blinding involves multiplying c by r^e.
+ 		// Then the decryption operation performs (m^e * r^e)^d mod n
+ 		// which equals mr mod n. The factor of r can then be removed
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index ce674351de..67d1115017 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -330,19 +330,21 @@ var pkgDeps = map[string][]string{
+ 	"net/textproto": {"L4", "OS", "net"},
+ 
+ 	// Core crypto.
+-	"crypto/aes":    {"L3"},
+-	"crypto/des":    {"L3"},
+-	"crypto/hmac":   {"L3"},
+-	"crypto/md5":    {"L3"},
+-	"crypto/rc4":    {"L3"},
+-	"crypto/sha1":   {"L3"},
+-	"crypto/sha256": {"L3"},
+-	"crypto/sha512": {"L3"},
++	"crypto/aes":               {"L3"},
++	"crypto/des":               {"L3"},
++	"crypto/hmac":              {"L3"},
++	"crypto/internal/randutil": {"io", "sync"},
++	"crypto/md5":               {"L3"},
++	"crypto/rc4":               {"L3"},
++	"crypto/sha1":              {"L3"},
++	"crypto/sha256":            {"L3"},
++	"crypto/sha512":            {"L3"},
+ 
+ 	"CRYPTO": {
+ 		"crypto/aes",
+ 		"crypto/des",
+ 		"crypto/hmac",
++		"crypto/internal/randutil",
+ 		"crypto/md5",
+ 		"crypto/rc4",
+ 		"crypto/sha1",

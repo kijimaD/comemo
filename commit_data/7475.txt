@@ -10,10 +10,230 @@ Date:   Wed Feb 16 13:21:13 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4188053
-
+---
  src/pkg/runtime/amd64/asm.s | 20 ++++++++++++++++++++
  src/pkg/runtime/mfinal.c    |  4 +++-
  src/pkg/runtime/proc.c      | 17 +++++++++--------
  src/pkg/runtime/runtime.c   | 39 ++++++++++++++++++++++++++++++++-------
  src/pkg/runtime/runtime.h   |  4 +++-
  5 files changed, 67 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index b6642c13c8..cc05435f76 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -317,6 +317,26 @@ TEXT runtime·cas(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
++// bool casp(void **val, void *old, void *new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT runtime·casp(SB), 7, $0
++	MOVQ	8(SP), BX
++	MOVQ	16(SP), AX
++	MOVQ	24(SP), CX
++	LOCK
++	CMPXCHGQ	CX, 0(BX)
++	JZ 3(PC)
++	MOVL	$0, AX
++	RET
++	MOVL	$1, AX
++	RET
++
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index 03ee777c0b..6501813fb6 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -5,7 +5,9 @@
+ #include "runtime.h"
+ #include "malloc.h"
+ 
+-// TODO(rsc): Why not just use mheap.Lock?
++// Lock to protect finalizer data structures.
++// Cannot reuse mheap.Lock because the finalizer
++// maintenance requires allocation.
+ static Lock finlock;
+ 
+ // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 26c1f13a48..84cd51700b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -63,7 +63,6 @@ struct Sched {
+ 	int32 mcount;	// number of ms that have been created
+ 	int32 mcpu;	// number of ms executing on cpu
+ 	int32 mcpumax;	// max number of ms allowed on cpu
+-	int32 gomaxprocs;
+ 	int32 msyscall;	// number of ms in system calls
+ 
+ 	int32 predawn;	// running initialization, don't run new gs.
+@@ -73,6 +72,7 @@ struct Sched {
+ };
+ 
+ Sched runtime·sched;
++int32 gomaxprocs;
+ 
+ // Scheduling helpers.  Sched must be locked.
+ static void gput(G*);	// put/get on ghead/gtail
+@@ -116,13 +116,13 @@ runtime·schedinit(void)
+ 	// For debugging:
+ 	// Allocate internal symbol table representation now,
+ 	// so that we don't need to call malloc when we crash.
+-	// findfunc(0);
++	// runtime·findfunc(0);
+ 
+-	runtime·sched.gomaxprocs = 1;
++	runtime·gomaxprocs = 1;
+ 	p = runtime·getenv("GOMAXPROCS");
+ 	if(p != nil && (n = runtime·atoi(p)) != 0)
+-		runtime·sched.gomaxprocs = n;
+-	runtime·sched.mcpumax = runtime·sched.gomaxprocs;
++		runtime·gomaxprocs = n;
++	runtime·sched.mcpumax = runtime·gomaxprocs;
+ 	runtime·sched.mcount = 1;
+ 	runtime·sched.predawn = 1;
+ 
+@@ -376,7 +376,7 @@ runtime·starttheworld(void)
+ {
+ 	runtime·lock(&runtime·sched);
+ 	runtime·gcwaiting = 0;
+-	runtime·sched.mcpumax = runtime·sched.gomaxprocs;
++	runtime·sched.mcpumax = runtime·gomaxprocs;
+ 	matchmg();
+ 	runtime·unlock(&runtime·sched);
+ }
+@@ -1019,6 +1019,7 @@ runtime·panic(Eface e)
+ 	}
+ 
+ 	// ran out of deferred calls - old-school panic now
++	runtime·startpanic();
+ 	printpanics(g->panic);
+ 	runtime·dopanic(0);
+ }
+@@ -1151,10 +1152,10 @@ runtime·gomaxprocsfunc(int32 n)
+ 	int32 ret;
+ 
+ 	runtime·lock(&runtime·sched);
+-	ret = runtime·sched.gomaxprocs;
++	ret = runtime·gomaxprocs;
+ 	if (n <= 0)
+ 		n = ret;
+-	runtime·sched.gomaxprocs = n;
++	runtime·gomaxprocs = n;
+ 	runtime·sched.mcpumax = n;
+ 	// handle fewer procs?
+ 	if(runtime·sched.mcpu > runtime·sched.mcpumax) {
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index e3a20d48af..ef2def0f6c 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -8,7 +8,7 @@ enum {
+ 	maxround = sizeof(uintptr),
+ };
+ 
+-int32	runtime·panicking	= 0;
++uint32	runtime·panicking;
+ 
+ int32
+ runtime·gotraceback(void)
+@@ -21,14 +21,24 @@ runtime·gotraceback(void)
+ 	return runtime·atoi(p);
+ }
+ 
++static Lock paniclk;
++
+ void
+-runtime·dopanic(int32 unused)
++runtime·startpanic(void)
+ {
+-	if(runtime·panicking) {
+-		runtime·printf("double panic\n");
++	if(m->dying) {
++		runtime·printf("panic during panic\n");
+ 		runtime·exit(3);
+ 	}
+-	runtime·panicking++;
++	m->dying = 1;
++	runtime·xadd(&runtime·panicking, 1);
++	runtime·lock(&paniclk);
++}
++
++void
++runtime·dopanic(int32 unused)
++{
++	static bool didothers;
+ 
+ 	if(g->sig != 0)
+ 		runtime·printf("\n[signal %x code=%p addr=%p pc=%p]\n",
+@@ -37,9 +47,23 @@ runtime·dopanic(int32 unused)
+ 	runtime·printf("\n");
+ 	if(runtime·gotraceback()){
+ 		runtime·traceback(runtime·getcallerpc(&unused), runtime·getcallersp(&unused), 0, g);
+-		runtime·tracebackothers(g);
++		if(!didothers) {
++			didothers = true;
++			runtime·tracebackothers(g);
++		}
+ 	}
+-	
++	runtime·unlock(&paniclk);
++	if(runtime·xadd(&runtime·panicking, -1) != 0) {
++		// Some other m is panicking too.
++		// Let it print what it needs to print.
++		// Wait forever without chewing up cpu.
++		// It will exit when it's done.
++		static Lock deadlock;
++		runtime·lock(&deadlock);
++		runtime·lock(&deadlock);
++	}
++
++	runtime·panicking = 1;  // so we don't dump another stack trace for breakpoint trap
+ 	runtime·breakpoint();  // so we can grab it in a debugger
+ 	runtime·exit(2);
+ }
+@@ -73,6 +97,7 @@ runtime·throwinit(void)
+ void
+ runtime·throw(int8 *s)
+ {
++	runtime·startpanic();
+ 	runtime·printf("throw: %s\n", s);
+ 	runtime·dopanic(0);
+ 	*(int32*)0 = 0;	// not reached
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index cea07e4a70..a02010013f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -224,6 +224,7 @@ struct	M
+ 	int32	locks;
+ 	int32	nomemprof;
+ 	int32	waitnextg;
++	int32	dying;
+ 	Note	havenextg;
+ 	G*	nextg;
+ 	M*	alllink;	// on allm
+@@ -358,7 +359,7 @@ G*	runtime·allg;
+ M*	runtime·allm;
+ int32	runtime·goidgen;
+ extern	int32	runtime·gomaxprocs;
+-extern	int32	runtime·panicking;
++extern	uint32	runtime·panicking;
+ extern	int32	runtime·gcwaiting;		// gc is waiting to run
+ int8*	runtime·goos;
+ extern	bool	runtime·iscgo;
+@@ -455,6 +456,7 @@ void	runtime·gettime(int64*, int32*);
+ int32	runtime·callers(int32, uintptr*, int32);
+ int64	runtime·nanotime(void);
+ void	runtime·dopanic(int32);
++void	runtime·startpanic(void);
+ 
+ #pragma	varargck	argpos	runtime·printf	1
+ #pragma	varargck	type	"d"	int32

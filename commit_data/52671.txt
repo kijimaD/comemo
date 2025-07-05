@@ -24,8 +24,126 @@ Date:   Sun May 15 10:11:56 2022 +1000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/47579.txt  |  3 +++
  src/fmt/fmt_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  src/fmt/print.go    | 31 +++++++++++++++++++++++++++++++
  3 files changed, 78 insertions(+)
+
+diff --git a/api/next/47579.txt b/api/next/47579.txt
+new file mode 100644
+index 0000000000..a5d4d9f59c
+--- /dev/null
++++ b/api/next/47579.txt
+@@ -0,0 +1,3 @@
++pkg fmt, func Append([]uint8, ...interface{}) []uint8 #47579
++pkg fmt, func Appendf([]uint8, string, ...interface{}) []uint8 #47579
++pkg fmt, func Appendln([]uint8, ...interface{}) []uint8 #47579
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index a4c65b8f5e..aaeac3875a 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1896,3 +1896,47 @@ func TestParsenum(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test the various Append printers. The details are well tested above;
++// here we just make sure the byte slice is updated.
++
++const (
++	appendResult = "hello world, 23"
++	hello        = "hello "
++)
++
++func TestAppendf(t *testing.T) {
++	b := make([]byte, 100)
++	b = b[:copy(b, hello)]
++	got := Appendf(b, "world, %d", 23)
++	if string(got) != appendResult {
++		t.Fatalf("Appendf returns %q not %q", got, appendResult)
++	}
++	if &b[0] != &got[0] {
++		t.Fatalf("Appendf allocated a new slice")
++	}
++}
++
++func TestAppend(t *testing.T) {
++	b := make([]byte, 100)
++	b = b[:copy(b, hello)]
++	got := Append(b, "world", ", ", 23)
++	if string(got) != appendResult {
++		t.Fatalf("Append returns %q not %q", got, appendResult)
++	}
++	if &b[0] != &got[0] {
++		t.Fatalf("Append allocated a new slice")
++	}
++}
++
++func TestAppendln(t *testing.T) {
++	b := make([]byte, 100)
++	b = b[:copy(b, hello)]
++	got := Appendln(b, "world,", 23)
++	if string(got) != appendResult+"\n" {
++		t.Fatalf("Appendln returns %q not %q", got, appendResult+"\n")
++	}
++	if &b[0] != &got[0] {
++		t.Fatalf("Appendln allocated a new slice")
++	}
++}
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 33f5541629..2af7bd0c42 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -222,6 +222,16 @@ func Sprintf(format string, a ...any) string {
+ 	return s
+ }
+ 
++// Appendf formats according to a format specifier, appends the result to the byte
++// slice, and returns the updated slice.
++func Appendf(b []byte, format string, a ...any) []byte {
++	p := newPrinter()
++	p.doPrintf(format, a)
++	b = append(b, p.buf...)
++	p.free()
++	return b
++}
++
+ // These routines do not take a format string
+ 
+ // Fprint formats using the default formats for its operands and writes to w.
+@@ -252,6 +262,16 @@ func Sprint(a ...any) string {
+ 	return s
+ }
+ 
++// Append formats using the default formats for its operands, appends the result to
++// the byte slice, and returns the updated slice.
++func Append(b []byte, a ...any) []byte {
++	p := newPrinter()
++	p.doPrint(a)
++	b = append(b, p.buf...)
++	p.free()
++	return b
++}
++
+ // These routines end in 'ln', do not take a format string,
+ // always add spaces between operands, and add a newline
+ // after the last operand.
+@@ -284,6 +304,17 @@ func Sprintln(a ...any) string {
+ 	return s
+ }
+ 
++// Appendln formats using the default formats for its operands, appends the result
++// to the byte slice, and returns the updated slice. Spaces are always added
++// between operands and a newline is appended.
++func Appendln(b []byte, a ...any) []byte {
++	p := newPrinter()
++	p.doPrintln(a)
++	b = append(b, p.buf...)
++	p.free()
++	return b
++}
++
+ // getField gets the i'th field of the struct value.
+ // If the field is itself is an interface, return a value for
+ // the thing inside the interface, not the interface itself.

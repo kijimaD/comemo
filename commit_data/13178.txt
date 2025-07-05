@@ -14,9 +14,188 @@ Date:   Mon May 28 11:07:24 2012 -0700
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/6255053
-
+---
  src/pkg/net/http/header.go   |  8 ++++++++
  src/pkg/net/http/request.go  |  8 ++++----
  src/pkg/net/http/server.go   | 18 +++++++++---------
  src/pkg/net/http/transfer.go | 10 +++++-----
  4 files changed, 26 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/net/http/header.go b/src/pkg/net/http/header.go
+index 7987036222..95bfa14150 100644
+--- a/src/pkg/net/http/header.go
++++ b/src/pkg/net/http/header.go
+@@ -36,6 +36,14 @@ func (h Header) Get(key string) string {
+ 	return textproto.MIMEHeader(h).Get(key)
+ }
+ 
++// get is like Get, but key must already be in CanonicalHeaderKey form.
++func (h Header) get(key string) string {
++	if v := h[key]; len(v) > 0 {
++		return v[0]
++	}
++	return ""
++}
++
+ // Del deletes the values associated with key.
+ func (h Header) Del(key string) {
+ 	textproto.MIMEHeader(h).Del(key)
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 784dd6b322..f42d43e404 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -513,7 +513,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 	// the same.  In the second case, any Host line is ignored.
+ 	req.Host = req.URL.Host
+ 	if req.Host == "" {
+-		req.Host = req.Header.Get("Host")
++		req.Host = req.Header.get("Host")
+ 	}
+ 	req.Header.Del("Host")
+ 
+@@ -732,16 +732,16 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
+ }
+ 
+ func (r *Request) expectsContinue() bool {
+-	return hasToken(r.Header.Get("Expect"), "100-continue")
++	return hasToken(r.Header.get("Expect"), "100-continue")
+ }
+ 
+ func (r *Request) wantsHttp10KeepAlive() bool {
+ 	if r.ProtoMajor != 1 || r.ProtoMinor != 0 {
+ 		return false
+ 	}
+-	return hasToken(r.Header.Get("Connection"), "keep-alive")
++	return hasToken(r.Header.get("Connection"), "keep-alive")
+ }
+ 
+ func (r *Request) wantsClose() bool {
+-	return hasToken(r.Header.Get("Connection"), "close")
++	return hasToken(r.Header.get("Connection"), "close")
+ }
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 0b97de3c21..a0cdb7c569 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -287,7 +287,7 @@ func (w *response) WriteHeader(code int) {
+ 	// Check for a explicit (and valid) Content-Length header.
+ 	var hasCL bool
+ 	var contentLength int64
+-	if clenStr := w.header.Get("Content-Length"); clenStr != "" {
++	if clenStr := w.header.get("Content-Length"); clenStr != "" {
+ 		var err error
+ 		contentLength, err = strconv.ParseInt(clenStr, 10, 64)
+ 		if err == nil {
+@@ -307,7 +307,7 @@ func (w *response) WriteHeader(code int) {
+ 		w.closeAfterReply = true
+ 	}
+ 
+-	if w.header.Get("Connection") == "close" {
++	if w.header.get("Connection") == "close" {
+ 		w.closeAfterReply = true
+ 	}
+ 
+@@ -331,7 +331,7 @@ func (w *response) WriteHeader(code int) {
+ 	if code == StatusNotModified {
+ 		// Must not have body.
+ 		for _, header := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
+-			if w.header.Get(header) != "" {
++			if w.header.get(header) != "" {
+ 				// TODO: return an error if WriteHeader gets a return parameter
+ 				// or set a flag on w to make future Writes() write an error page?
+ 				// for now just log and drop the header.
+@@ -341,7 +341,7 @@ func (w *response) WriteHeader(code int) {
+ 		}
+ 	} else {
+ 		// If no content type, apply sniffing algorithm to body.
+-		if w.header.Get("Content-Type") == "" && w.req.Method != "HEAD" {
++		if w.header.get("Content-Type") == "" && w.req.Method != "HEAD" {
+ 			w.needSniff = true
+ 		}
+ 	}
+@@ -350,7 +350,7 @@ func (w *response) WriteHeader(code int) {
+ 		w.Header().Set("Date", time.Now().UTC().Format(TimeFormat))
+ 	}
+ 
+-	te := w.header.Get("Transfer-Encoding")
++	te := w.header.get("Transfer-Encoding")
+ 	hasTE := te != ""
+ 	if hasCL && hasTE && te != "identity" {
+ 		// TODO: return an error if WriteHeader gets a return parameter
+@@ -390,7 +390,7 @@ func (w *response) WriteHeader(code int) {
+ 		return
+ 	}
+ 
+-	if w.closeAfterReply && !hasToken(w.header.Get("Connection"), "close") {
++	if w.closeAfterReply && !hasToken(w.header.get("Connection"), "close") {
+ 		w.header.Set("Connection", "close")
+ 	}
+ 
+@@ -515,8 +515,8 @@ func (w *response) finishRequest() {
+ 	// If this was an HTTP/1.0 request with keep-alive and we sent a Content-Length
+ 	// back, we can make this a keep-alive response ...
+ 	if w.req.wantsHttp10KeepAlive() {
+-		sentLength := w.header.Get("Content-Length") != ""
+-		if sentLength && w.header.Get("Connection") == "keep-alive" {
++		sentLength := w.header.get("Content-Length") != ""
++		if sentLength && w.header.get("Connection") == "keep-alive" {
+ 			w.closeAfterReply = false
+ 		}
+ 	}
+@@ -628,7 +628,7 @@ func (c *conn) serve() {
+ 				break
+ 			}
+ 			req.Header.Del("Expect")
+-		} else if req.Header.Get("Expect") != "" {
++		} else if req.Header.get("Expect") != "" {
+ 			// TODO(bradfitz): let ServeHTTP handlers handle
+ 			// requests with non-standard expectation[s]? Seems
+ 			// theoretical at best, and doesn't fit into the
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 9e9d84172d..1fc1e63a96 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -432,7 +432,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 	}
+ 
+ 	// Logic based on Content-Length
+-	cl := strings.TrimSpace(header.Get("Content-Length"))
++	cl := strings.TrimSpace(header.get("Content-Length"))
+ 	if cl != "" {
+ 		n, err := strconv.ParseInt(cl, 10, 64)
+ 		if err != nil || n < 0 {
+@@ -454,7 +454,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 	// Logic based on media type. The purpose of the following code is just
+ 	// to detect whether the unsupported "multipart/byteranges" is being
+ 	// used. A proper Content-Type parser is needed in the future.
+-	if strings.Contains(strings.ToLower(header.Get("Content-Type")), "multipart/byteranges") {
++	if strings.Contains(strings.ToLower(header.get("Content-Type")), "multipart/byteranges") {
+ 		return -1, ErrNotSupported
+ 	}
+ 
+@@ -469,14 +469,14 @@ func shouldClose(major, minor int, header Header) bool {
+ 	if major < 1 {
+ 		return true
+ 	} else if major == 1 && minor == 0 {
+-		if !strings.Contains(strings.ToLower(header.Get("Connection")), "keep-alive") {
++		if !strings.Contains(strings.ToLower(header.get("Connection")), "keep-alive") {
+ 			return true
+ 		}
+ 		return false
+ 	} else {
+ 		// TODO: Should split on commas, toss surrounding white space,
+ 		// and check each field.
+-		if strings.ToLower(header.Get("Connection")) == "close" {
++		if strings.ToLower(header.get("Connection")) == "close" {
+ 			header.Del("Connection")
+ 			return true
+ 		}
+@@ -486,7 +486,7 @@ func shouldClose(major, minor int, header Header) bool {
+ 
+ // Parse the trailer header
+ func fixTrailer(header Header, te []string) (Header, error) {
+-	raw := header.Get("Trailer")
++	raw := header.get("Trailer")
+ 	if raw == "" {
+ 		return nil, nil
+ 	}

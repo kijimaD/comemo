@@ -29,7 +29,42 @@ Date:   Wed Mar 8 14:48:41 2023 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/stmtlines_test.go | 9 ++++++++-
  src/cmd/dist/build.go                          | 2 +-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index 4dadfe8630..dd3ce7c1d8 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -75,8 +75,15 @@ func TestStmtLines(t *testing.T) {
+ 		}
+ 	}
+ 
++	// Build cmd/go forcing DWARF enabled, as a large test case.
++	dir := t.TempDir()
++	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-w=0", "-o", dir+"/test.exe", "cmd/go").CombinedOutput()
++	if err != nil {
++		t.Fatalf("go build: %v\n%s", err, out)
++	}
++
+ 	lines := map[Line]bool{}
+-	dw, err := open(testenv.GoToolPath(t))
++	dw, err := open(dir + "/test.exe")
+ 	must(err)
+ 	rdr := dw.Reader()
+ 	rdr.Seek(0)
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 343f0ce332..25f75804e0 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1328,7 +1328,7 @@ func toolenv() []string {
+ 		// Do not include local development, so that people working in the
+ 		// main branch for day-to-day work on the Go toolchain itself can
+ 		// still have full paths for stack traces for compiler crashes and the like.
+-		env = append(env, "GOFLAGS=-trimpath")
++		env = append(env, "GOFLAGS=-trimpath -ldflags=-w -gcflags=cmd/...=-dwarf=false")
+ 	}
+ 	return env
+ }

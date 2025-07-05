@@ -20,9 +20,223 @@ Date:   Thu Sep 28 14:07:29 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/532116
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/base/debug.go             |  2 +
  src/cmd/compile/internal/inline/inl.go             |  4 +-
  .../internal/inline/inlheur/debugflags_test.go     | 65 +++++++++++++++++++
  src/cmd/compile/internal/inline/inlheur/scoring.go | 75 ++++++++++++++++++++++
  4 files changed, 145 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index b9b7d5d565..9d0dc3f4a6 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -23,6 +23,8 @@ type DebugFlags struct {
+ 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
+ 	DumpInlFuncProps      string `help:"dump function properties from inl heuristics to specified file"`
+ 	DumpInlCallSiteScores int    `help:"dump scored callsites during inlining"`
++	InlScoreAdj           string `help:"set inliner score adjustments (ex: -d=inlscoreadj=panicPathAdj:10/passConstToNestedIfAdj:-90)"`
++	InlBudgetSlack        int    `help:"amount to expand the initial inline budget when new inliner enabled. Defaults to 80 if option not set." concurrent:"ok"`
+ 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
+ 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
+ 	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 4009b776ea..e031b87dfa 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -141,6 +141,8 @@ func InlinePackage(p *pgo.Profile) {
+ 		p = nil
+ 	}
+ 
++	inlheur.SetupScoreAdjustments()
++
+ 	InlineDecls(p, typecheck.Target.Funcs, true)
+ 
+ 	// Perform a garbage collection of hidden closures functions that
+@@ -268,7 +270,7 @@ func inlineBudget(fn *ir.Func, profile *pgo.Profile, relaxed bool, verbose bool)
+ 		}
+ 	}
+ 	if relaxed {
+-		budget += inlineMaxBudget
++		budget += inlheur.BudgetExpansion(inlineMaxBudget)
+ 	}
+ 	return budget
+ }
+diff --git a/src/cmd/compile/internal/inline/inlheur/debugflags_test.go b/src/cmd/compile/internal/inline/inlheur/debugflags_test.go
+new file mode 100644
+index 0000000000..abf491070f
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/debugflags_test.go
+@@ -0,0 +1,65 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"testing"
++)
++
++func TestInlScoreAdjFlagParse(t *testing.T) {
++	scenarios := []struct {
++		value string
++		expok bool
++	}{
++		{
++			value: "returnFeedsConcreteToInterfaceCallAdj:9",
++			expok: true,
++		},
++		{
++			value: "panicPathAdj:-1/initFuncAdj:9",
++			expok: true,
++		},
++		{
++			value: "",
++			expok: false,
++		},
++		{
++			value: "nonsenseAdj:10",
++			expok: false,
++		},
++		{
++			value: "inLoopAdj:",
++			expok: false,
++		},
++		{
++			value: "inLoopAdj:10:10",
++			expok: false,
++		},
++		{
++			value: "inLoopAdj:blah",
++			expok: false,
++		},
++		{
++			value: "/",
++			expok: false,
++		},
++	}
++
++	for _, scenario := range scenarios {
++		err := parseScoreAdj(scenario.value)
++		t.Logf("for value=%q err is %v\n", scenario.value, err)
++		if scenario.expok {
++			if err != nil {
++				t.Errorf("expected parseScoreAdj(%s) ok, got err %v",
++					scenario.value, err)
++			}
++		} else {
++			if err == nil {
++				t.Errorf("expected parseScoreAdj(%s) failure, got success",
++					scenario.value)
++			}
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index 47f14a876a..9c29952edc 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -13,6 +13,8 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"sort"
++	"strconv"
++	"strings"
+ )
+ 
+ // These constants enumerate the set of possible ways/scenarios
+@@ -62,6 +64,8 @@ const (
+ 	returnFeedsFuncToIndCallAdj
+ 	returnFeedsInlinableFuncToIndCallAdj
+ 	returnFeedsConcreteToInterfaceCallAdj
++
++	sentinelScoreAdj // sentinel; not a real adjustment
+ )
+ 
+ // This table records the specific values we use to adjust call
+@@ -88,6 +92,56 @@ var adjValues = map[scoreAdjustTyp]int{
+ 	returnFeedsConcreteToInterfaceCallAdj: -25,
+ }
+ 
++// SetupScoreAdjustments interprets the value of the -d=inlscoreadj
++// debugging option, if set. The value of this flag is expected to be
++// a series of "/"-separated clauses of the form adj1:value1. Example:
++// -d=inlscoreadj=inLoopAdj=0/passConstToIfAdj=-99
++func SetupScoreAdjustments() {
++	if base.Debug.InlScoreAdj == "" {
++		return
++	}
++	if err := parseScoreAdj(base.Debug.InlScoreAdj); err != nil {
++		base.Fatalf("malformed -d=inlscoreadj argument %q: %v",
++			base.Debug.InlScoreAdj, err)
++	}
++}
++
++func adjStringToVal(s string) (scoreAdjustTyp, bool) {
++	for adj := scoreAdjustTyp(1); adj < sentinelScoreAdj; adj <<= 1 {
++		if adj.String() == s {
++			return adj, true
++		}
++	}
++	return 0, false
++}
++
++func parseScoreAdj(val string) error {
++	clauses := strings.Split(val, "/")
++	if len(clauses) == 0 {
++		return fmt.Errorf("no clauses")
++	}
++	for _, clause := range clauses {
++		elems := strings.Split(clause, ":")
++		if len(elems) < 2 {
++			return fmt.Errorf("clause %q: expected colon", clause)
++		}
++		if len(elems) != 2 {
++			return fmt.Errorf("clause %q has %d elements, wanted 2", clause,
++				len(elems))
++		}
++		adj, ok := adjStringToVal(elems[0])
++		if !ok {
++			return fmt.Errorf("clause %q: unknown adjustment", clause)
++		}
++		val, err := strconv.Atoi(elems[1])
++		if err != nil {
++			return fmt.Errorf("clause %q: malformed value: %v", clause, err)
++		}
++		adjValues[adj] = val
++	}
++	return nil
++}
++
+ func adjValue(x scoreAdjustTyp) int {
+ 	if val, ok := adjValues[x]; ok {
+ 		return val
+@@ -507,6 +561,27 @@ func GetCallSiteScore(fn *ir.Func, call *ir.CallExpr) (int, bool) {
+ 	return 0, false
+ }
+ 
++// BudgetExpansion returns the amount to relax/expand the base
++// inlining budget when the new inliner is turned on; the inliner
++// will add the returned value to the hairyness budget.
++//
++// Background: with the new inliner, the score for a given callsite
++// can be adjusted down by some amount due to heuristics, however we
++// won't know whether this is going to happen until much later after
++// the CanInline call. This function returns the amount to relax the
++// budget initially (to allow for a large score adjustment); later on
++// in RevisitInlinability we'll look at each individual function to
++// demote it if needed.
++func BudgetExpansion(maxBudget int32) int32 {
++	if base.Debug.InlBudgetSlack != 0 {
++		return int32(base.Debug.InlBudgetSlack)
++	}
++	// In the default case, return maxBudget, which will effectively
++	// double the budget from 80 to 160; this should be good enough
++	// for most cases.
++	return maxBudget
++}
++
+ var allCallSites CallSiteTab
+ 
+ // DumpInlCallSiteScores is invoked by the inliner if the debug flag

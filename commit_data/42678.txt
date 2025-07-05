@@ -10,6 +10,20 @@ Date:   Mon Feb 3 19:55:12 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217640
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  doc/go1.14.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 549c3e008a..d3199cb0e9 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -407,7 +407,7 @@ appropriately.)
+ <h2 id="library">Core library</h2>
+ 
+ <p>
+-TODO
++  All of the changes to the standard library are minor.
+ </p>
+ 
+ <h3 id="minor_library_changes">Minor changes to the library</h3>

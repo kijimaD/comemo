@@ -14,7 +14,74 @@ Date:   Tue Nov 9 22:28:18 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/context.go     | 26 ++++++++++----------------
  src/go/types/instantiate.go |  4 ++--
  2 files changed, 12 insertions(+), 18 deletions(-)
+
+diff --git a/src/go/types/context.go b/src/go/types/context.go
+index 0c2b0958c1..1f102f0b8b 100644
+--- a/src/go/types/context.go
++++ b/src/go/types/context.go
+@@ -37,28 +37,22 @@ func NewContext() *Context {
+ 	}
+ }
+ 
+-// typeHash returns a string representation of typ, which can be used as an exact
+-// type hash: types that are identical produce identical string representations.
+-// If typ is a *Named type and targs is not empty, typ is printed as if it were
+-// instantiated with targs. The result is guaranteed to not contain blanks (" ").
++// typeHash returns a string representation of typ instantiated with targs,
++// which can be used as an exact type hash: types that are identical produce
++// identical string representations. If targs is not empty, typ is printed as
++// if it were instantiated with targs. The result is guaranteed to not contain
++// blanks (" ").
+ func (ctxt *Context) typeHash(typ Type, targs []Type) string {
+ 	assert(ctxt != nil)
+ 	assert(typ != nil)
+ 	var buf bytes.Buffer
+ 
+ 	h := newTypeHasher(&buf, ctxt)
+-	// Caution: don't use asNamed here. TypeHash may be called for unexpanded
+-	// types. We don't need anything other than name and type arguments below,
+-	// which do not require expansion.
+-	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
+-		// Don't use WriteType because we need to use the provided targs
+-		// and not any targs that might already be with the *Named type.
+-		h.typePrefix(named)
+-		h.typeName(named.obj)
++	h.typ(typ)
++	if len(targs) > 0 {
++		// TODO(rfindley): consider asserting on isGeneric(typ) here, if and when
++		// isGeneric handles *Signature types.
+ 		h.typeList(targs)
+-	} else {
+-		assert(targs == nil)
+-		h.typ(typ)
+ 	}
+ 
+ 	return strings.Replace(buf.String(), " ", "#", -1) // ReplaceAll is not available in Go1.4
+@@ -66,7 +60,7 @@ func (ctxt *Context) typeHash(typ Type, targs []Type) string {
+ 
+ // lookup returns an existing instantiation of orig with targs, if it exists.
+ // Otherwise, it returns nil.
+-func (ctxt *Context) lookup(h string, orig *Named, targs []Type) Type {
++func (ctxt *Context) lookup(h string, orig Type, targs []Type) Type {
+ 	ctxt.mu.Lock()
+ 	defer ctxt.mu.Unlock()
+ 
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 814d457de3..62d9e18401 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -60,8 +60,8 @@ func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, ctxt *Con
+ 			h = ctxt.typeHash(orig, targs)
+ 			// typ may already have been instantiated with identical type arguments. In
+ 			// that case, re-use the existing instance.
+-			if named := ctxt.lookup(h, orig, targs); named != nil {
+-				return named
++			if inst := ctxt.lookup(h, orig, targs); inst != nil {
++				return inst
+ 			}
+ 		}
+ 		tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)

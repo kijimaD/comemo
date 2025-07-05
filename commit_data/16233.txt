@@ -7,6 +7,22 @@ Date:   Fri Apr 26 11:42:58 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8981043
-
+---
  src/pkg/database/sql/driver/driver.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/database/sql/driver/driver.go b/src/pkg/database/sql/driver/driver.go
+index 2434e419ba..d7ca94f780 100644
+--- a/src/pkg/database/sql/driver/driver.go
++++ b/src/pkg/database/sql/driver/driver.go
+@@ -10,8 +10,8 @@ package driver
+ 
+ import "errors"
+ 
+-// A driver Value is a value that drivers must be able to handle.
+-// A Value is either nil or an instance of one of these types:
++// Value is a value that drivers must be able to handle.
++// It is either nil or an instance of one of these types:
+ //
+ //   int64
+ //   float64

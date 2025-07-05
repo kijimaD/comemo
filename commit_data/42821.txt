@@ -11,9 +11,185 @@ Date:   Wed Oct 23 10:54:09 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/next.txt                                 |  1 +
  doc/go1.15.html                              |  9 +++++
  src/cmd/go/testdata/script/test_deadline.txt | 50 ++++++++++++++++++++++++++++
  src/testing/testing.go                       | 43 +++++++++++++++++-------
  4 files changed, 91 insertions(+), 12 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index e69de29bb2..ecc3c4f0b6 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -0,0 +1 @@
++pkg testing, method (*T) Deadline() (time.Time, bool)
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 6c9952bafc..a3a089e07e 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -60,6 +60,15 @@ TODO
+ TODO
+ </p>
+ 
++<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
++  <dd>
++    <p><!-- golang.org/issue/28135 -->
++      The <code>testing.T</code> type now has a <code>Deadline</code> method
++      that reports the time at which the test binary will have exceeded its
++      timeout.
++    </p>
++</dl><!-- testing -->
++
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+ <p>
+diff --git a/src/cmd/go/testdata/script/test_deadline.txt b/src/cmd/go/testdata/script/test_deadline.txt
+new file mode 100644
+index 0000000000..5a19f6590f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_deadline.txt
+@@ -0,0 +1,50 @@
++[short] skip
++
++go test -timeout=0 -run=TestNoDeadline
++go test -timeout=1m -run=TestDeadlineWithinMinute
++go test -timeout=1m -run=TestSubtestDeadlineWithinMinute
++
++-- deadline_test.go --
++package testing_test
++
++import (
++	"testing"
++	"time"
++)
++
++func TestNoDeadline(t *testing.T) {
++	d, ok := t.Deadline()
++	if ok || !d.IsZero() {
++		t.Fatalf("t.Deadline() = %v, %v; want 0, false", d, ok)
++	}
++}
++
++func TestDeadlineWithinMinute(t *testing.T) {
++	now := time.Now()
++	d, ok := t.Deadline()
++	if !ok || d.IsZero() {
++		t.Fatalf("t.Deadline() = %v, %v; want nonzero deadline", d, ok)
++	}
++	if !d.After(now) {
++		t.Fatalf("t.Deadline() = %v; want after start of test (%v)", d, now)
++	}
++	if d.Sub(now) > time.Minute {
++		t.Fatalf("t.Deadline() = %v; want within one minute of start of test (%v)", d, now)
++	}
++}
++
++func TestSubtestDeadlineWithinMinute(t *testing.T) {
++	t.Run("sub", func(t *testing.T) {
++		now := time.Now()
++		d, ok := t.Deadline()
++		if !ok || d.IsZero() {
++			t.Fatalf("t.Deadline() = %v, %v; want nonzero deadline", d, ok)
++		}
++		if !d.After(now) {
++			t.Fatalf("t.Deadline() = %v; want after start of test (%v)", d, now)
++		}
++		if d.Sub(now) > time.Minute {
++			t.Fatalf("t.Deadline() = %v; want within one minute of start of test (%v)", d, now)
++		}
++	})
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 8a0c7b3021..4b424e6abb 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1049,10 +1049,20 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 	return !t.failed
+ }
+ 
++// Deadline reports the time at which the test binary will have
++// exceeded the timeout specified by the -timeout flag.
++//
++// The ok result is false if the -timeout flag indicates “no timeout” (0).
++func (t *T) Deadline() (deadline time.Time, ok bool) {
++	deadline = t.context.deadline
++	return deadline, !deadline.IsZero()
++}
++
+ // testContext holds all fields that are common to all tests. This includes
+ // synchronization primitives to run at most *parallel tests.
+ type testContext struct {
+-	match *matcher
++	match    *matcher
++	deadline time.Time
+ 
+ 	mu sync.Mutex
+ 
+@@ -1195,9 +1205,9 @@ func (m *M) Run() int {
+ 
+ 	m.before()
+ 	defer m.after()
+-	m.startAlarm()
++	deadline := m.startAlarm()
+ 	haveExamples = len(m.examples) > 0
+-	testRan, testOk := runTests(m.deps.MatchString, m.tests)
++	testRan, testOk := runTests(m.deps.MatchString, m.tests, deadline)
+ 	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
+ 	m.stopAlarm()
+ 	if !testRan && !exampleRan && *matchBenchmarks == "" {
+@@ -1255,14 +1265,18 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
+ // RunTests is an internal function but exported because it is cross-package;
+ // it is part of the implementation of the "go test" command.
+ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
+-	ran, ok := runTests(matchString, tests)
++	var deadline time.Time
++	if *timeout > 0 {
++		deadline = time.Now().Add(*timeout)
++	}
++	ran, ok := runTests(matchString, tests, deadline)
+ 	if !ran && !haveExamples {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 	}
+ 	return ok
+ }
+ 
+-func runTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ran, ok bool) {
++func runTests(matchString func(pat, str string) (bool, error), tests []InternalTest, deadline time.Time) (ran, ok bool) {
+ 	ok = true
+ 	for _, procs := range cpuList {
+ 		runtime.GOMAXPROCS(procs)
+@@ -1271,6 +1285,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 				break
+ 			}
+ 			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
++			ctx.deadline = deadline
+ 			t := &T{
+ 				common: common{
+ 					signal:  make(chan bool),
+@@ -1452,14 +1467,18 @@ func toOutputDir(path string) string {
+ }
+ 
+ // startAlarm starts an alarm if requested.
+-func (m *M) startAlarm() {
+-	if *timeout > 0 {
+-		m.timer = time.AfterFunc(*timeout, func() {
+-			m.after()
+-			debug.SetTraceback("all")
+-			panic(fmt.Sprintf("test timed out after %v", *timeout))
+-		})
++func (m *M) startAlarm() time.Time {
++	if *timeout <= 0 {
++		return time.Time{}
+ 	}
++
++	deadline := time.Now().Add(*timeout)
++	m.timer = time.AfterFunc(*timeout, func() {
++		m.after()
++		debug.SetTraceback("all")
++		panic(fmt.Sprintf("test timed out after %v", *timeout))
++	})
++	return deadline
+ }
+ 
+ // stopAlarm turns off the alarm.

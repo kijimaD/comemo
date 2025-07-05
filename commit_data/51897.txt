@@ -18,6 +18,21 @@ Date:   Wed Feb 9 20:20:06 2022 +0800
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index f8f1eeab29..dbe947aec4 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -480,6 +480,9 @@ func (r *Request) multipartReader(allowMixed bool) (*multipart.Reader, error) {
+ 	if v == "" {
+ 		return nil, ErrNotMultipart
+ 	}
++	if r.Body == nil {
++		return nil, errors.New("missing form body")
++	}
+ 	d, params, err := mime.ParseMediaType(v)
+ 	if err != nil || !(d == "multipart/form-data" || allowMixed && d == "multipart/mixed") {
+ 		return nil, ErrNotMultipart

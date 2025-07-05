@@ -20,6 +20,30 @@ Date:   Fri Aug 23 16:28:23 2019 +1000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/lzw/reader.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/compress/lzw/reader.go b/src/compress/lzw/reader.go
+index 1be52d55e4..912b7d3f40 100644
+--- a/src/compress/lzw/reader.go
++++ b/src/compress/lzw/reader.go
+@@ -63,8 +63,7 @@ type decoder struct {
+ 	//
+ 	// last is the most recently seen code, or decoderInvalidCode.
+ 	//
+-	// An invariant is that
+-	// (hi < overflow) || (hi == overflow && last == decoderInvalidCode)
++	// An invariant is that hi < overflow.
+ 	clear, eof, hi, overflow, last uint16
+ 
+ 	// Each code c in [lo, hi] expands to two or more bytes. For c != hi:
+@@ -203,7 +202,7 @@ loop:
+ 			if d.width == maxWidth {
+ 				d.last = decoderInvalidCode
+ 				// Undo the d.hi++ a few lines above, so that (1) we maintain
+-				// the invariant that d.hi <= d.overflow, and (2) d.hi does not
++				// the invariant that d.hi < d.overflow, and (2) d.hi does not
+ 				// eventually overflow a uint16.
+ 				d.hi--
+ 			} else {

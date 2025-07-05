@@ -17,7 +17,45 @@ Date:   Thu Oct 15 11:29:06 2015 -0700
     Change-Id: I14ba03d71c002bf969d69783bec8d1a8e10e7d75
     Reviewed-on: https://go-review.googlesource.com/15902
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  4 ++--
  test/fixedbugs/issue12944.go             | 13 +++++++++++++
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8be29f0923..f30d071798 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1026,11 +1026,11 @@ OpSwitch:
+ 				break
+ 			}
+ 
+-			if Isconst(n.Right, CTINT) {
++			if !n.Bounded && Isconst(n.Right, CTINT) {
+ 				x := Mpgetfix(n.Right.Val().U.(*Mpint))
+ 				if x < 0 {
+ 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
+-				} else if Isfixedarray(t) && t.Bound > 0 && x >= t.Bound {
++				} else if Isfixedarray(t) && x >= t.Bound {
+ 					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.Bound)
+ 				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
+ 					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
+diff --git a/test/fixedbugs/issue12944.go b/test/fixedbugs/issue12944.go
+new file mode 100644
+index 0000000000..59379f1aa6
+--- /dev/null
++++ b/test/fixedbugs/issue12944.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++const (
++	_ = unsafe.Sizeof([0]byte{}[0]) // ERROR "out of bounds"
++)

@@ -11,6 +11,29 @@ Date:   Tue Jan 19 20:47:59 2016 +0100
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/install-source.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 60931ada5d..7c1194a22c 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -184,7 +184,7 @@ Then clone the repository and check out the latest release tag:</p>
+ <pre>
+ $ git clone https://go.googlesource.com/go
+ $ cd go
+-$ git checkout go1.5.2
++$ git checkout go1.5.3
+ </pre>
+ 
+ <h2 id="head">(Optional) Switch to the master branch</h2>
+@@ -363,7 +363,7 @@ New releases are announced on the
+ <a href="//groups.google.com/group/golang-announce">golang-announce</a>
+ mailing list.
+ Each announcement mentions the latest release tag, for instance,
+-<code>go1.5.2</code>.
++<code>go1.5.3</code>.
+ </p>
+ 
+ <p>

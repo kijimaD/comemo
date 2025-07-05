@@ -8,6 +8,22 @@ Date:   Fri Feb 27 22:50:58 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6334
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/go/pkg.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 7a1f0fd021..39be2c0c15 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -406,6 +406,10 @@ var goTools = map[string]targetDir{
+ 	"cmd/dist":                             toTool,
+ 	"cmd/fix":                              toTool,
+ 	"cmd/link":                             toTool,
++	"cmd/new5l":                            toTool,
++	"cmd/new6l":                            toTool,
++	"cmd/new8l":                            toTool,
++	"cmd/new9l":                            toTool,
+ 	"cmd/nm":                               toTool,
+ 	"cmd/objdump":                          toTool,
+ 	"cmd/pack":                             toTool,

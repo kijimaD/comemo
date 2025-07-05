@@ -8,6 +8,66 @@ Date:   Thu May 20 23:10:51 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1229047
-
+---
  src/pkg/big/int.go | 27 ++++++++++++++++++---------
  1 file changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index cdf5a7d554..e1e45858a5 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -39,7 +39,7 @@ func NewInt(x int64) *Int {
+ }
+ 
+ 
+-// Set sets z to x.
++// Set sets z to x and returns z.
+ func (z *Int) Set(x *Int) *Int {
+ 	z.abs = z.abs.set(x.abs)
+ 	z.neg = x.neg
+@@ -47,6 +47,14 @@ func (z *Int) Set(x *Int) *Int {
+ }
+ 
+ 
++// Neg sets z to -x and returns z.
++func (z *Int) Neg(x *Int) *Int {
++	z.abs = z.abs.set(x.abs)
++	z.neg = len(z.abs) > 0 && !x.neg // 0 has no sign
++	return z
++}
++
++
+ // Add sets z to the sum x+y and returns z.
+ func (z *Int) Add(x, y *Int) *Int {
+ 	neg := x.neg
+@@ -127,6 +135,15 @@ func (z *Int) MulRange(a, b int64) *Int {
+ }
+ 
+ 
++// Binomial sets z to the binomial coefficient of (n, k) and returns z.
++func (z *Int) Binomial(n, k int64) *Int {
++	var a, b Int
++	a.MulRange(n-k+1, n)
++	b.MulRange(1, k)
++	return z.Quo(&a, &b)
++}
++
++
+ // Quo sets z to the quotient x/y for y != 0 and returns z.
+ // If y == 0, a division-by-zero run-time panic occurs.
+ // See QuoRem for more details.
+@@ -237,14 +254,6 @@ func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
+ }
+ 
+ 
+-// Neg computes the negation z = -x.
+-func (z *Int) Neg(x *Int) *Int {
+-	z.abs = z.abs.set(x.abs)
+-	z.neg = len(z.abs) > 0 && !x.neg // 0 has no sign
+-	return z
+-}
+-
+-
+ // Cmp compares x and y and returns:
+ //
+ //   -1 if x <  y

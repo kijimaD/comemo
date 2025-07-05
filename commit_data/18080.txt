@@ -9,10 +9,303 @@ Date:   Thu Dec 19 14:38:50 2013 +1100
     R=golang-dev, kin.wilson.za, rsc
     CC=golang-dev
     https://golang.org/cl/36180044
-
+---
  src/pkg/runtime/callback_windows.c      |   3 +-
  src/pkg/runtime/runtime.h               |   1 +
  src/pkg/runtime/syscall_windows.goc     |   5 -
  src/pkg/runtime/syscall_windows_test.go | 207 ++++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_windows.go      |   3 +-
  5 files changed, 212 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/callback_windows.c b/src/pkg/runtime/callback_windows.c
+index 88ee53bb5e..285678fbac 100644
+--- a/src/pkg/runtime/callback_windows.c
++++ b/src/pkg/runtime/callback_windows.c
+@@ -49,7 +49,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
+ 		runtime·cbctxts = &(cbs.ctxt[0]);
+ 	n = cbs.n;
+ 	for(i=0; i<n; i++) {
+-		if(cbs.ctxt[i]->gobody == fn.data) {
++		if(cbs.ctxt[i]->gobody == fn.data && cbs.ctxt[i]->cleanstack == cleanstack) {
+ 			runtime·unlock(&cbs);
+ 			// runtime·callbackasm is just a series of CALL instructions
+ 			// (each is 5 bytes long), and we want callback to arrive at
+@@ -63,6 +63,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
+ 	c = runtime·mal(sizeof *c);
+ 	c->gobody = fn.data;
+ 	c->argsize = argsize;
++	c->cleanstack = cleanstack;
+ 	if(cleanstack && argsize!=0)
+ 		c->restorestack = argsize;
+ 	else
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index eba26081d6..9e4cc80284 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -243,6 +243,7 @@ struct	WinCallbackContext
+ 	void*	gobody;		// Go function to call
+ 	uintptr	argsize;	// callback arguments size (in bytes)
+ 	uintptr	restorestack;	// adjust stack on return by (in bytes) (386 only)
++	bool	cleanstack;
+ };
+ 
+ struct	G
+diff --git a/src/pkg/runtime/syscall_windows.goc b/src/pkg/runtime/syscall_windows.goc
+index 173d3ed6a9..781ec908d0 100644
+--- a/src/pkg/runtime/syscall_windows.goc
++++ b/src/pkg/runtime/syscall_windows.goc
+@@ -40,14 +40,9 @@ func NewCallback(fn Eface) (code uintptr) {
+ 	code = (uintptr)runtime·compilecallback(fn, true);
+ }
+ 
+-/*
+- * If this is needed, uncomment here and add a declaration in package syscall
+- * next to the NewCallback declaration.
+- *
+ func NewCallbackCDecl(fn Eface) (code uintptr) {
+ 	code = (uintptr)runtime·compilecallback(fn, false);
+ }
+- */
+ 
+ func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+ 	WinCall c;
+diff --git a/src/pkg/runtime/syscall_windows_test.go b/src/pkg/runtime/syscall_windows_test.go
+index f04d2cd543..ff6bc3dc88 100644
+--- a/src/pkg/runtime/syscall_windows_test.go
++++ b/src/pkg/runtime/syscall_windows_test.go
+@@ -5,7 +5,13 @@
+ package runtime_test
+ 
+ import (
++	"fmt"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"syscall"
+ 	"testing"
+ 	"unsafe"
+@@ -242,3 +248,204 @@ func TestBlockingCallback(t *testing.T) {
+ func TestCallbackInAnotherThread(t *testing.T) {
+ 	// TODO: test a function which calls back in another thread: QueueUserAPC() or CreateThread()
+ }
++
++type cbDLLFunc int // int determines number of callback parameters
++
++func (f cbDLLFunc) stdcallName() string {
++	return fmt.Sprintf("stdcall%d", f)
++}
++
++func (f cbDLLFunc) cdeclName() string {
++	return fmt.Sprintf("cdecl%d", f)
++}
++
++func (f cbDLLFunc) buildOne(stdcall bool) string {
++	var funcname, attr string
++	if stdcall {
++		funcname = f.stdcallName()
++		attr = "__stdcall"
++	} else {
++		funcname = f.cdeclName()
++		attr = "__cdecl"
++	}
++	typename := "t" + funcname
++	p := make([]string, f)
++	for i := range p {
++		p[i] = "void*"
++	}
++	params := strings.Join(p, ",")
++	for i := range p {
++		p[i] = fmt.Sprintf("%d", i+1)
++	}
++	args := strings.Join(p, ",")
++	return fmt.Sprintf(`
++typedef void %s (*%s)(%s);
++void %s(%s f, void *n) {
++	int i;
++	for(i=0;i<(int)n;i++){
++		f(%s);
++	}
++}
++	`, attr, typename, params, funcname, typename, args)
++}
++
++func (f cbDLLFunc) build() string {
++	return f.buildOne(false) + f.buildOne(true)
++}
++
++var cbFuncs = [...]interface{}{
++	2: func(i1, i2 uintptr) uintptr {
++		if i1+i2 != 3 {
++			panic("bad input")
++		}
++		return 0
++	},
++	3: func(i1, i2, i3 uintptr) uintptr {
++		if i1+i2+i3 != 6 {
++			panic("bad input")
++		}
++		return 0
++	},
++	4: func(i1, i2, i3, i4 uintptr) uintptr {
++		if i1+i2+i3+i4 != 10 {
++			panic("bad input")
++		}
++		return 0
++	},
++	5: func(i1, i2, i3, i4, i5 uintptr) uintptr {
++		if i1+i2+i3+i4+i5 != 15 {
++			panic("bad input")
++		}
++		return 0
++	},
++	6: func(i1, i2, i3, i4, i5, i6 uintptr) uintptr {
++		if i1+i2+i3+i4+i5+i6 != 21 {
++			panic("bad input")
++		}
++		return 0
++	},
++	7: func(i1, i2, i3, i4, i5, i6, i7 uintptr) uintptr {
++		if i1+i2+i3+i4+i5+i6+i7 != 28 {
++			panic("bad input")
++		}
++		return 0
++	},
++	8: func(i1, i2, i3, i4, i5, i6, i7, i8 uintptr) uintptr {
++		if i1+i2+i3+i4+i5+i6+i7+i8 != 36 {
++			panic("bad input")
++		}
++		return 0
++	},
++	9: func(i1, i2, i3, i4, i5, i6, i7, i8, i9 uintptr) uintptr {
++		if i1+i2+i3+i4+i5+i6+i7+i8+i9 != 45 {
++			panic("bad input")
++		}
++		return 0
++	},
++}
++
++type cbDLL struct {
++	name      string
++	buildArgs func(out, src string) []string
++}
++
++func (d *cbDLL) buildSrc(t *testing.T, path string) {
++	f, err := os.Create(path)
++	if err != nil {
++		t.Fatalf("failed to create source file: %v", err)
++	}
++	defer f.Close()
++
++	for i := 2; i < 10; i++ {
++		fmt.Fprint(f, cbDLLFunc(i).build())
++	}
++}
++
++func (d *cbDLL) build(t *testing.T, dir string) string {
++	srcname := d.name + ".c"
++	d.buildSrc(t, filepath.Join(dir, srcname))
++	outname := d.name + ".dll"
++	args := d.buildArgs(outname, srcname)
++	cmd := exec.Command(args[0], args[1:]...)
++	cmd.Dir = dir
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build dll: %v - %v", err, string(out))
++	}
++	return filepath.Join(dir, outname)
++}
++
++var cbDLLs = []cbDLL{
++	{
++		"test",
++		func(out, src string) []string {
++			return []string{"gcc", "-shared", "-s", "-o", out, src}
++		},
++	},
++	{
++		"testO2",
++		func(out, src string) []string {
++			return []string{"gcc", "-shared", "-s", "-o", out, "-O2", src}
++		},
++	},
++}
++
++type cbTest struct {
++	n     int     // number of callback parameters
++	param uintptr // dll function parameter
++}
++
++func (test *cbTest) run(t *testing.T, dllpath string) {
++	dll := syscall.MustLoadDLL(dllpath)
++	defer dll.Release()
++	cb := cbFuncs[test.n]
++	stdcall := syscall.NewCallback(cb)
++	f := cbDLLFunc(test.n)
++	test.runOne(t, dll, f.stdcallName(), stdcall)
++	cdecl := syscall.NewCallbackCDecl(cb)
++	test.runOne(t, dll, f.cdeclName(), cdecl)
++}
++
++func (test *cbTest) runOne(t *testing.T, dll *syscall.DLL, proc string, cb uintptr) {
++	defer func() {
++		if r := recover(); r != nil {
++			t.Errorf("dll call %v(..., %d) failed: %v", proc, test.param, r)
++		}
++	}()
++	dll.MustFindProc(proc).Call(cb, test.param)
++}
++
++var cbTests = []cbTest{
++	{2, 1},
++	{2, 10000},
++	{3, 3},
++	{4, 5},
++	{4, 6},
++	{5, 2},
++	{6, 7},
++	{6, 8},
++	{7, 6},
++	{8, 1},
++	{9, 8},
++	{9, 10000},
++	{3, 4},
++	{5, 3},
++	{7, 7},
++	{8, 2},
++	{9, 9},
++}
++
++func TestStdcallAndCDeclCallbacks(t *testing.T) {
++	tmp, err := ioutil.TempDir("", "TestCDeclCallback")
++	if err != nil {
++		t.Fatal("TempDir failed: ", err)
++	}
++	defer os.RemoveAll(tmp)
++
++	for _, dll := range cbDLLs {
++		dllPath := dll.build(t, tmp)
++		for _, test := range cbTests {
++			test.run(t, dllPath)
++		}
++	}
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 3d78b68235..4436e432a4 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -106,10 +106,11 @@ func (e Errno) Timeout() bool {
+ }
+ 
+ // Converts a Go function to a function pointer conforming
+-// to the stdcall calling convention.  This is useful when
++// to the stdcall or cdecl calling convention.  This is useful when
+ // interoperating with Windows code requiring callbacks.
+ // Implemented in ../runtime/syscall_windows.goc
+ func NewCallback(fn interface{}) uintptr
++func NewCallbackCDecl(fn interface{}) uintptr
+ 
+ // windows api calls
+ 

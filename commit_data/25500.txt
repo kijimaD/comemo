@@ -12,6 +12,37 @@ Date:   Wed Nov 4 18:12:30 2015 -0800
     Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/dist/build.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index bbf7968b55..bcf6e71d52 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -44,8 +44,7 @@ var (
+ 	rebuildall       bool
+ 	defaultclang     bool
+ 
+-	sflag bool // build static binaries
+-	vflag int  // verbosity
++	vflag int // verbosity
+ )
+ 
+ // The known architectures.
+@@ -980,7 +979,6 @@ func cmdenv() {
+ // stopping at having installed the go_bootstrap command.
+ func cmdbootstrap() {
+ 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
+-	flag.BoolVar(&sflag, "s", sflag, "build static binaries")
+ 	xflagparse(0)
+ 
+ 	if isdir(pathf("%s/src/pkg", goroot)) {
+@@ -1128,7 +1126,6 @@ func defaulttarg() string {
+ 
+ // Install installs the list of packages named on the command line.
+ func cmdinstall() {
+-	flag.BoolVar(&sflag, "s", sflag, "build static binaries")
+ 	xflagparse(-1)
+ 
+ 	if flag.NArg() == 0 {

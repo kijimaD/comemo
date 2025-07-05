@@ -7,8 +7,257 @@ Date:   Fri Aug 19 14:19:56 2011 +1000
     R=golang-dev, dsymonds, r
     CC=golang-dev, mikesamuel
     https://golang.org/cl/4918041
-
+---
  src/pkg/template/parse/Makefile      |   1 +
  src/pkg/template/parse/parse_test.go | 127 +++++++++++++++++++++++++++++++++++
  src/pkg/template/parse/walk.go       |  89 ++++++++++++++++++++++++
  3 files changed, 217 insertions(+)
+
+diff --git a/src/pkg/template/parse/Makefile b/src/pkg/template/parse/Makefile
+index fe65858097..b61a708ad5 100644
+--- a/src/pkg/template/parse/Makefile
++++ b/src/pkg/template/parse/Makefile
+@@ -10,5 +10,6 @@ GOFILES=\
+ 	node.go\
+ 	parse.go\
+ 	set.go\
++	walk.go\
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/template/parse/parse_test.go b/src/pkg/template/parse/parse_test.go
+index 1928c319de..373a40a472 100644
+--- a/src/pkg/template/parse/parse_test.go
++++ b/src/pkg/template/parse/parse_test.go
+@@ -7,6 +7,7 @@ package parse
+ import (
+ 	"flag"
+ 	"fmt"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -257,3 +258,129 @@ func TestParse(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func before(n Node) string {
++	t := ""
++	switch n := n.(type) {
++	case nil:
++		t = "<nil>"
++	case *ActionNode:
++		t = "("
++	case *BoolNode:
++		t = fmt.Sprintf("(%t)", n.True)
++	case *CommandNode:
++		t = "<"
++	case *DotNode:
++		t = "."
++	case *FieldNode:
++		t = "F"
++	case *IdentifierNode:
++		t = fmt.Sprintf("(%s)", n.Ident)
++	case *IfNode:
++		t = "if{"
++	case *ListNode:
++		t = "["
++	case *NumberNode:
++		t = fmt.Sprintf("(%s)", n.Text)
++	case *PipeNode:
++		t = "{"
++	case *RangeNode:
++		t = "range{"
++	case *StringNode:
++		t = fmt.Sprintf("(%q)", n.Text)
++	case *TemplateNode:
++		t = fmt.Sprintf("{template %q", n.Name)
++	case *TextNode:
++		t = fmt.Sprintf("%q", n.Text)
++	case *VariableNode:
++		t = fmt.Sprintf("%q", n.Ident)
++	case *WithNode:
++		t = "with{"
++	default:
++		t = "???"
++	}
++	return t
++}
++
++func after(n Node) string {
++	t := ""
++	switch n := n.(type) {
++	case nil:
++		t = "<nil>"
++	case *ActionNode:
++		t = ")"
++	case *BoolNode:
++	case *CommandNode:
++		t = ">"
++	case *DotNode:
++	case *FieldNode:
++	case *IdentifierNode:
++	case *IfNode:
++		t = "}"
++	case *ListNode:
++		t = "]"
++	case *NumberNode:
++	case *PipeNode:
++		t = "}"
++	case *RangeNode:
++		t = "}"
++	case *StringNode:
++	case *TemplateNode:
++		t = "}"
++	case *TextNode:
++	case *VariableNode:
++	case *WithNode:
++		t = "}"
++	default:
++		t = "???"
++	}
++	return t
++}
++
++// A silly template with lots of pieces to test walking using the before and after functions.
++const walkText = `
++{{range $u, $v  := 3}}
++	{{if .}}
++	{{printf "hi" 3 true 1.2i $u }}
++	{{end}}
++{{else}}
++	{{with .}}
++	{{printf $ | printf}}
++	{{else}}
++	{{template "x"}}
++	{{end}}
++{{end}}`
++
++const walkResult = `
++["\n"range{
++	{["$u"]["$v"]<(3)>}
++	["\n\t"if{
++		{<.>}
++		["\n\t"({<(printf)("hi")(3)(true)(1.2i)["$u"]>})"\n\t"]
++	}"\n"]
++	["\n\t"with{
++		{<.>}
++		["\n\t"({<(printf)["$"]><(printf)>})"\n\t"]
++		["\n\t"{template "x"}"\n\t"]
++	}"\n"]}
++]`
++
++// Use before and after to walk the template and generate a messy but complete print of the template.
++func TestWalk(t *testing.T) {
++	tree, err := New("walk").Parse(walkText, builtins)
++	if err != nil {
++		t.Fatal(err)
++	}
++	s := ""
++	tree.Walk(func(n Node) { s += before(n) }, func(n Node) { s += after(n) })
++	stripSpace := func(r int) int {
++		if r == '\t' || r == '\n' {
++			return -1
++		}
++		return r
++	}
++	expect := strings.Map(stripSpace, walkResult)
++	if s != expect {
++		t.Fatalf("expected\n\t%s\ngot\n\t%s", expect, s)
++	}
++}
+diff --git a/src/pkg/template/parse/walk.go b/src/pkg/template/parse/walk.go
+new file mode 100644
+index 0000000000..0fe9e64a14
+--- /dev/null
++++ b/src/pkg/template/parse/walk.go
+@@ -0,0 +1,89 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package parse
++
++import "fmt"
++
++// Walk walks the parse tree, calling before for each node, then
++// recurring for any non-nil child nodes that node may have, and
++// then calling after.  The before and after functions can be nil.
++func (t *Tree) Walk(before, after func(n Node)) {
++	walk(t.Root, before, after)
++}
++
++func walk(n Node, before, after func(n Node)) {
++	if before != nil {
++		before(n)
++	}
++	switch n := n.(type) {
++	case nil:
++	case *ActionNode:
++		if n.Pipe != nil {
++			walk(n.Pipe, before, after)
++		}
++	case *BoolNode:
++	case *CommandNode:
++		for _, arg := range n.Args {
++			walk(arg, before, after)
++		}
++	case *DotNode:
++	case *FieldNode:
++	case *IdentifierNode:
++	case *IfNode:
++		if n.Pipe != nil {
++			walk(n.Pipe, before, after)
++		}
++		if n.List != nil {
++			walk(n.List, before, after)
++		}
++		if n.ElseList != nil {
++			walk(n.ElseList, before, after)
++		}
++	case *ListNode:
++		for _, node := range n.Nodes {
++			walk(node, before, after)
++		}
++	case *NumberNode:
++	case *PipeNode:
++		for _, decl := range n.Decl {
++			walk(decl, before, after)
++		}
++		for _, cmd := range n.Cmds {
++			walk(cmd, before, after)
++		}
++	case *RangeNode:
++		if n.Pipe != nil {
++			walk(n.Pipe, before, after)
++		}
++		if n.List != nil {
++			walk(n.List, before, after)
++		}
++		if n.ElseList != nil {
++			walk(n.ElseList, before, after)
++		}
++	case *StringNode:
++	case *TemplateNode:
++		if n.Pipe != nil {
++			walk(n.Pipe, before, after)
++		}
++	case *TextNode:
++	case *VariableNode:
++	case *WithNode:
++		if n.Pipe != nil {
++			walk(n.Pipe, before, after)
++		}
++		if n.List != nil {
++			walk(n.List, before, after)
++		}
++		if n.ElseList != nil {
++			walk(n.ElseList, before, after)
++		}
++	default:
++		panic("unknown node of type " + fmt.Sprintf("%T", n))
++	}
++	if after != nil {
++		after(n)
++	}
++}

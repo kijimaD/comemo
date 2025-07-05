@@ -11,7 +11,255 @@ Date:   Thu Jul 2 08:21:42 2009 -0700
     DELTA=114  (83 added, 3 deleted, 28 changed)
     OCL=31020
     CL=31037
-
+---
  src/pkg/gob/codec_test.go | 86 +++++++++++++++++++++++++++++++++++++++++++++--
  src/pkg/gob/decode.go     | 28 +++++++--------
  2 files changed, 97 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 3647589031..425d0ba29b 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -931,11 +931,11 @@ func TestScalarDecInstructions(t *testing.T) {
+ 	}
+ }
+ 
+-type T1 struct {
+-	a, b,c int
+-}
+ 
+ func TestEncode(t *testing.T) {
++	type T1 struct {
++		a, b,c int
++	}
+ 	t1 := &T1{17,18,-5};
+ 	b := new(bytes.Buffer);
+ 	Encode(b, t1);
+@@ -945,3 +945,83 @@ func TestEncode(t *testing.T) {
+ 		t.Errorf("encode expected %v got %v", *t1, _t1);
+ 	}
+ }
++
++// These three structures have the same data with different indirections
++type T0 struct {
++	a int;
++	b int;
++	c int;
++	d int;
++}
++type T1 struct {
++	a int;
++	b *int;
++	c **int;
++	d ***int;
++}
++type T2 struct {
++	a ***int;
++	b **int;
++	c *int;
++	d int;
++}
++
++func TestAutoIndirection(t *testing.T) {
++	// First transfer t1, t2 into t0
++	var t1 T1;
++	t1.a = 17;
++	t1.b = new(int); *t1.b = 177;
++	t1.c = new(*int); *t1.c = new(int); **t1.c = 1777;
++	t1.d = new(**int); *t1.d = new(*int); **t1.d = new(int); ***t1.d = 17777;
++	b := new(bytes.Buffer);
++	Encode(b, t1);
++	var t0 T0;
++	Decode(b, &t0);
++	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
++		t.Errorf("t1->t0: expected {17 177 1777 17777}; got %v", t0);
++	}
++
++	var t2 T2;
++	t2.d = 17777;
++	t2.c = new(int); *t2.c = 1777;
++	t2.b = new(*int); *t2.b = new(int); **t2.b = 177;
++	t2.a = new(**int); *t2.a = new(*int); **t2.a = new(int); ***t2.a = 17;
++	b.Reset();
++	Encode(b, t2);
++	t0 = T0{};
++	Decode(b, &t0);
++	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
++		t.Errorf("t2->t0 expected {17 177 1777 17777}; got %v", t0);
++	}
++
++	// Now transfer t0 into t1
++	t0 = T0{17, 177, 1777, 17777};
++	b.Reset();
++	Encode(b, t0);
++	t1 = T1{};
++	Decode(b, &t1);
++	if t1.a != 17 || *t1.b != 177 || **t1.c != 1777 || ***t1.d != 17777 {
++		t.Errorf("t0->t1 expected {17 177 1777 17777}; got {%d %d %d %d}", t1.a, *t1.b, **t1.c, ***t1.d);
++	}
++
++	// Now transfer t0 into t2
++	b.Reset();
++	Encode(b, t0);
++	t2 = T2{};
++	Decode(b, &t2);
++	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
++		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d);
++	}
++
++	// Now do t2 again but without pre-allocated pointers.
++	b.Reset();
++	Encode(b, t0);
++	***t2.a = 0;
++	**t2.b = 0;
++	*t2.c = 0;
++	t2.d = 0;
++	Decode(b, &t2);
++	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
++		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d);
++	}
++}
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 4de04966a5..aa9f518eb4 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -94,8 +94,8 @@ func decBool(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(bool));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := int(DecodeInt(state));
+ 	if state.err == nil {
+@@ -107,8 +107,8 @@ func decInt(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := int(DecodeInt(state));
+ 	if state.err == nil {
+@@ -120,8 +120,8 @@ func decUint(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := uint(DecodeUint(state));
+ 	if state.err == nil {
+@@ -133,8 +133,8 @@ func decInt8(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int8));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := int8(DecodeInt(state));
+ 	if state.err == nil {
+@@ -146,8 +146,8 @@ func decUint8(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint8));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := uint8(DecodeUint(state));
+ 	if state.err == nil {
+@@ -159,8 +159,8 @@ func decInt16(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int16));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := int16(DecodeInt(state));
+ 	if state.err == nil {
+@@ -172,8 +172,8 @@ func decUint16(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint16));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := uint16(DecodeUint(state));
+ 	if state.err == nil {
+@@ -185,8 +185,8 @@ func decInt32(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int32));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := int32(DecodeInt(state));
+ 	if state.err == nil {
+@@ -198,8 +198,8 @@ func decUint32(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint32));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := uint32(DecodeUint(state));
+ 	if state.err == nil {
+@@ -211,8 +211,8 @@ func decInt64(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int64));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := int64(DecodeInt(state));
+ 	if state.err == nil {
+@@ -224,8 +224,8 @@ func decUint64(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint64));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := uint64(DecodeUint(state));
+ 	if state.err == nil {
+@@ -252,8 +252,8 @@ func decFloat(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := float(floatFromBits(uint64(DecodeUint(state))));
+ 	if state.err == nil {
+@@ -265,8 +265,8 @@ func decFloat32(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float32));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := float32(floatFromBits(uint64(DecodeUint(state))));
+ 	if state.err == nil {
+@@ -278,8 +278,8 @@ func decFloat64(i *decInstr, state *DecState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float64));
+-			p = *(*unsafe.Pointer)(p);
+ 		}
++		p = *(*unsafe.Pointer)(p);
+ 	}
+ 	v := floatFromBits(uint64(DecodeUint(state)));
+ 	if state.err == nil {

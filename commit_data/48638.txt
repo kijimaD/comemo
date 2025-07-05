@@ -15,7 +15,72 @@ Date:   Thu Jun 3 10:12:37 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/call.go                   | 25 +++++++++++++++++++++++--
  src/go/types/testdata/check/decls0.src |  8 ++++----
  2 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 631ea426c6..3a04121e98 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -575,17 +575,38 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 
+ 		check.recordSelection(e, MethodExpr, x.typ, m, index, indirect)
+ 
++		sig := m.typ.(*Signature)
++		if sig.recv == nil {
++			check.error(e, _InvalidDeclCycle, "illegal cycle in method declaration")
++			goto Error
++		}
++
+ 		// the receiver type becomes the type of the first function
+ 		// argument of the method expression's function type
+ 		var params []*Var
+-		sig := m.typ.(*Signature)
+ 		if sig.params != nil {
+ 			params = sig.params.vars
+ 		}
++		// Be consistent about named/unnamed parameters.
++		needName := true
++		for _, param := range params {
++			if param.Name() == "" {
++				needName = false
++				break
++			}
++		}
++		name := ""
++		if needName {
++			name = sig.recv.name
++			if name == "" {
++				name = "_"
++			}
++		}
++		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
+ 		x.mode = value
+ 		x.typ = &Signature{
+ 			tparams:  sig.tparams,
+-			params:   NewTuple(append([]*Var{NewVar(token.NoPos, check.pkg, "_", x.typ)}, params...)...),
++			params:   NewTuple(params...),
+ 			results:  sig.results,
+ 			variadic: sig.variadic,
+ 		}
+diff --git a/src/go/types/testdata/check/decls0.src b/src/go/types/testdata/check/decls0.src
+index 5ad8f53f65..09904bb303 100644
+--- a/src/go/types/testdata/check/decls0.src
++++ b/src/go/types/testdata/check/decls0.src
+@@ -187,10 +187,10 @@ func f4() (x *f4 /* ERROR "not a type" */ ) { return }
+ // TODO(#43215) this should be detected as a cycle error
+ func f5([unsafe.Sizeof(f5)]int) {}
+ 
+-func (S0) m1 (x S0 /* ERROR value .* is not a type */ .m1) {}
+-func (S0) m2 (x *S0 /* ERROR value .* is not a type */ .m2) {}
+-func (S0) m3 () (x S0 /* ERROR value .* is not a type */ .m3) { return }
+-func (S0) m4 () (x *S0 /* ERROR value .* is not a type */ .m4) { return }
++func (S0) m1 (x S0 /* ERROR illegal cycle in method declaration */ .m1) {}
++func (S0) m2 (x *S0 /* ERROR illegal cycle in method declaration */ .m2) {}
++func (S0) m3 () (x S0 /* ERROR illegal cycle in method declaration */ .m3) { return }
++func (S0) m4 () (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { return }
+ 
+ // interfaces may not have any blank methods
+ type BlankI interface {

@@ -39,6 +39,26 @@ Date:   Mon Oct 30 12:55:42 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/539320
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze_func_params.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+index 5e61485532..d85d73b2ef 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+@@ -249,7 +249,13 @@ func (pa *paramsAnalyzer) deriveFlagsFromCallee(ce *ir.CallExpr, callee *ir.Func
+ 			return
+ 		}
+ 		callerParamIdx := pa.findParamIdx(name)
+-		if callerParamIdx == -1 || pa.params[callerParamIdx] == nil {
++		// note that callerParamIdx may return -1 in the case where
++		// the param belongs not to the current closure func we're
++		// analyzing but to an outer enclosing func.
++		if callerParamIdx == -1 {
++			return
++		}
++		if pa.params[callerParamIdx] == nil {
+ 			panic("something went wrong")
+ 		}
+ 		if !pa.top[callerParamIdx] &&

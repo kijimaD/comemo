@@ -6,6 +6,19 @@ Date:   Fri Sep 26 17:09:40 2014 -0400
     
     CC=golang-codereviews
     https://golang.org/cl/144660043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index a68bca78f6..7895ddd03c 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -16,6 +16,7 @@ cmd/go: implement "generate" (CL 125580044)
+ cmd/go: disallow C sources except when using cgo (CL 149720043)
+ cmd/go: add test -o flag (CL 149070043)
+ cmd/go: redefine build -a to skip standard library in releases (CL 151730045)
++cmd/go: compile and link all _test.go files during 'go test', even in packages where there are no Test functions (CL 150980043)
+ 
+ asm: make textflag.h available outside of cmd/ld (CL 128050043)
+ crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)

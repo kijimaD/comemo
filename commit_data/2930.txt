@@ -9,7 +9,242 @@ Date:   Sun Aug 9 19:30:47 2009 -0700
     DELTA=218  (218 added, 0 deleted, 0 changed)
     OCL=32408
     CL=32949
-
+---
  src/pkg/regexp/all_test.go |  99 +++++++++++++++++++++++++++++++++++++
  src/pkg/regexp/regexp.go   | 119 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 218 insertions(+)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index aef3bbe0b5..72355e91b2 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -409,3 +409,102 @@ func TestQuoteMeta(t *testing.T) {
+ 	}
+ }
+ 
++type matchCase struct {
++	matchfunc string;
++	input string;
++	n int;
++	regexp string;
++	expected []string;
++}
++
++var matchCases = []matchCase {
++	matchCase{"match", " aa b", 0,   "[^ ]+", []string { "aa", "b" }},
++	matchCase{"match", " aa b", 0,   "[^ ]*", []string { "", "aa", "b" }},
++	matchCase{"match", "a b c", 0,   "[^ ]*", []string { "a", "b", "c" }},
++	matchCase{"match", "a:a: a:", 0, "^.:",   []string { "a:" }},
++	matchCase{"match", "", 0,        "[^ ]*", []string { "" }},
++	matchCase{"match", "", 0,        "",      []string { "" }},
++	matchCase{"match", "a", 0,       "",      []string { "", "" }},
++	matchCase{"match", "ab", 0,      "^",     []string { "", }},
++	matchCase{"match", "ab", 0,      "$",     []string { "", }},
++	matchCase{"match", "ab", 0,      "X*",    []string { "", "", "" }},
++	matchCase{"match", "aX", 0,      "X*",    []string { "", "X" }},
++	matchCase{"match", "XabX", 0,    "X*",    []string { "X", "", "X" }},
++
++	matchCase{"matchit", "", 0,      ".",     []string {}},
++	matchCase{"matchit", "abc", 2,   ".",     []string { "a", "b" }},
++	matchCase{"matchit", "abc", 0,   ".",     []string { "a", "b", "c" }},
++}
++
++func printStringSlice(t *testing.T, s []string) {
++	l := len(s);
++	if l == 0 {
++		t.Log("\t<empty>");
++	} else {
++		for i := 0; i < l; i++ {
++			t.Logf("\t%q", s[i])
++		}
++	}
++}
++
++func TestAllMatches(t *testing.T) {
++	ch := make(chan matchCase);
++	go func() {
++		for i, c := range matchCases {
++			ch <- c;
++			stringCase := matchCase{
++				"string" + c.matchfunc,
++				c.input,
++				c.n,
++				c.regexp,
++				c.expected };
++			ch <- stringCase;
++		}
++		close(ch);
++	}();
++
++	for c := range ch {
++		var result []string;
++		re, err := Compile(c.regexp);
++
++		switch c.matchfunc {
++		case "matchit":
++			result = make([]string, len(c.input) + 1);
++			i := 0;
++			b := strings.Bytes(c.input);
++			for match := range re.AllMatchesIter(b, c.n) {
++				result[i] = string(match);
++				i++;
++			}
++			result = result[0:i];
++		case "stringmatchit":
++			result = make([]string, len(c.input) + 1);
++			i := 0;
++			for match := range re.AllMatchesStringIter(c.input, c.n) {
++				result[i] = match;
++				i++;
++			}
++			result = result[0:i];
++		case "match":
++			result = make([]string, len(c.input) + 1);
++			b := strings.Bytes(c.input);
++			i := 0;
++			for j, match := range re.AllMatches(b, c.n) {
++				result[i] = string(match);
++				i++;
++			}
++			result = result[0:i];
++		case "stringmatch":
++			result = re.AllMatchesString(c.input, c.n);
++		}
++
++		if !equalStrings(result, c.expected) {
++			t.Errorf("testing '%s'.%s('%s', %d), expected: ",
++				c.regexp, c.matchfunc, c.input, c.n);
++			printStringSlice(t, c.expected);
++			t.Log("got: ");
++			printStringSlice(t, result);
++			t.Log("\n");
++		}
++	}
++}
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 6b8b1bf86b..f78bf864e6 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -951,3 +951,122 @@ func QuoteMeta(s string) string {
+ 	return string(b[0:j]);
+ }
+ 
++// Find matches in slice b if b is non-nil, otherwise find matches in string s.
++func (re *Regexp) allMatches(s string, b []byte, n int, deliver func(int, int)) {
++	var end int;
++	if b == nil {
++		end = len(s);
++	} else {
++		end = len(b);
++	}
++
++	for pos, i, prevMatchEnd := 0, 0, -1; i < n && pos <= end; {
++		matches := re.doExecute(s, b, pos);
++		if len(matches) == 0 {
++			break;
++		}
++
++		accept := true;
++		if matches[1] == pos {
++			// We've found an empty match.
++			if matches[0] == prevMatchEnd {
++				// We don't allow an empty match right
++				// after a previous match, so ignore it.
++				accept = false;
++			}
++			var rune, width int;
++			if b == nil {
++				rune, width = utf8.DecodeRuneInString(s[pos:end]);
++			} else {
++				rune, width = utf8.DecodeRune(b[pos:end]);
++			}
++			if width > 0 {
++				pos += width;
++			} else {
++				pos = end + 1;
++			}
++		} else {
++			pos = matches[1];
++		}
++		prevMatchEnd = matches[1];
++
++		if accept {
++			deliver(matches[0], matches[1]);
++			i++;
++		}
++	}
++}
++
++// AllMatches slices the byte slice b into substrings that are successive
++// matches of the Regexp within b. If n > 0, the function returns at most n
++// matches. Text that does not match the expression will be skipped. Empty
++// matches abutting a preceding match are ignored. The function returns a slice
++// containing the matching substrings.
++func (re *Regexp) AllMatches(b []byte, n int) [][]byte {
++	if n <= 0 {
++		n = len(b) + 1;
++	}
++	result := make([][]byte, n);
++	i := 0;
++	re.allMatches("", b, n, func(start, end int) {
++		result[i] = b[start:end];
++		i++;
++	});
++	return result[0:i];
++}
++
++// AllMatchesString slices the string s into substrings that are successive
++// matches of the Regexp within s. If n > 0, the function returns at most n
++// matches. Text that does not match the expression will be skipped. Empty
++// matches abutting a preceding match are ignored. The function returns a slice
++// containing the matching substrings.
++func (re *Regexp) AllMatchesString(s string, n int) []string {
++	if n <= 0 {
++		n = len(s) + 1;
++	}
++	result := make([]string, n);
++	i := 0;
++	re.allMatches(s, nil, n, func(start, end int) {
++		result[i] = s[start:end];
++		i++;
++	});
++	return result[0:i];
++}
++
++// AllMatchesIter slices the byte slice b into substrings that are successive
++// matches of the Regexp within b. If n > 0, the function returns at most n
++// matches. Text that does not match the expression will be skipped. Empty
++// matches abutting a preceding match are ignored. The function returns a
++// channel that iterates over the matching substrings.
++func (re *Regexp) AllMatchesIter(b []byte, n int) (<-chan []byte) {
++	if n <= 0 {
++		n = len(b) + 1;
++	}
++	c := make(chan []byte, 10);
++	go func() {
++		re.allMatches("", b, n, func(start, end int) {
++			c <- b[start:end];
++		});
++		close(c);
++	}();
++	return c;
++}
++
++// AllMatchesStringIter slices the string s into substrings that are successive
++// matches of the Regexp within s. If n > 0, the function returns at most n
++// matches. Text that does not match the expression will be skipped. Empty
++// matches abutting a preceding match are ignored. The function returns a
++// channel that iterates over the matching substrings.
++func (re *Regexp) AllMatchesStringIter(s string, n int) (<-chan string) {
++	if n <= 0 {
++		n = len(s) + 1;
++	}
++	c := make(chan string, 10);
++	go func() {
++		re.allMatches(s, nil, n, func(start, end int) {
++			c <- s[start:end];
++		});
++		close(c);
++	}();
++	return c;
++}

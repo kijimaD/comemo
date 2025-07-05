@@ -15,8 +15,127 @@ Date:   Sat Feb 17 04:35:24 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/test/test.go              | 18 ++++++++++++---
  src/cmd/go/internal/test/testflag.go          |  2 +-
  src/cmd/go/testdata/script/test_fail_fast.txt | 33 +++++++++++++++++++++++++++
  3 files changed, 49 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index b2b5d34027..c3c50b3e0d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -21,6 +21,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ 	"time"
+ 
+ 	"cmd/go/internal/base"
+@@ -540,6 +541,7 @@ var (
+ 	testC            bool                              // -c flag
+ 	testCoverPkgs    []*load.Package                   // -coverpkg flag
+ 	testCoverProfile string                            // -coverprofile flag
++	testFailFast     bool                              // -failfast flag
+ 	testFuzz         string                            // -fuzz flag
+ 	testJSON         bool                              // -json flag
+ 	testList         string                            // -list flag
+@@ -589,9 +591,10 @@ var (
+ 
+ 	testHelp bool // -help option passed to test via -args
+ 
+-	testKillTimeout = 100 * 365 * 24 * time.Hour // backup alarm; defaults to about a century if no timeout is set
+-	testWaitDelay   time.Duration                // how long to wait for output to close after a test binary exits; zero means unlimited
+-	testCacheExpire time.Time                    // ignore cached test results before this time
++	testKillTimeout    = 100 * 365 * 24 * time.Hour // backup alarm; defaults to about a century if no timeout is set
++	testWaitDelay      time.Duration                // how long to wait for output to close after a test binary exits; zero means unlimited
++	testCacheExpire    time.Time                    // ignore cached test results before this time
++	testShouldFailFast atomic.Bool                  // signals pending tests to fail fast
+ 
+ 	testBlockProfile, testCPUProfile, testMemProfile, testMutexProfile, testTrace string // profiling flag that limits test to one package
+ 
+@@ -1355,6 +1358,11 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 	// Wait for previous test to get started and print its first json line.
+ 	select {
+ 	case <-r.prev:
++		// If should fail fast then release next test and exit.
++		if testShouldFailFast.Load() {
++			close(r.next)
++			return nil
++		}
+ 	case <-base.Interrupted:
+ 		// We can't wait for the previous test action to complete: we don't start
+ 		// new actions after an interrupt, so if that action wasn't already running
+@@ -1631,6 +1639,10 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 		fmt.Fprintf(cmd.Stdout, "ok  \t%s\t%s%s%s\n", a.Package.ImportPath, t, coveragePercentage(out), norun)
+ 		r.c.saveOutput(a)
+ 	} else {
++		if testFailFast {
++			testShouldFailFast.Store(true)
++		}
++
+ 		base.SetExitStatus(1)
+ 		if cancelSignaled {
+ 			fmt.Fprintf(cmd.Stdout, "*** Test killed with %v: ran too long (%v).\n", base.SignalTrace, testKillTimeout)
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 425378889d..4686e550fd 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -48,7 +48,7 @@ func init() {
+ 	cf.Int("count", 0, "")
+ 	cf.String("cpu", "", "")
+ 	cf.StringVar(&testCPUProfile, "cpuprofile", "", "")
+-	cf.Bool("failfast", false, "")
++	cf.BoolVar(&testFailFast, "failfast", false, "")
+ 	cf.StringVar(&testFuzz, "fuzz", "", "")
+ 	cf.Bool("fullpath", false, "")
+ 	cf.StringVar(&testList, "list", "", "")
+diff --git a/src/cmd/go/testdata/script/test_fail_fast.txt b/src/cmd/go/testdata/script/test_fail_fast.txt
+index 132ea709eb..1f169d6da8 100644
+--- a/src/cmd/go/testdata/script/test_fail_fast.txt
++++ b/src/cmd/go/testdata/script/test_fail_fast.txt
+@@ -48,6 +48,15 @@ stdout -count=1 'FAIL - '
+ ! go test ./failfast_test.go -run='TestFatal[CD]' -failfast=false
+ stdout -count=2 'FAIL - '
+ 
++# cross package failfast
++! go test -p 1 -failfast ./a ./b ./c
++stdout -count=1 'FAIL - '
++stdout -count=1 'FAIL - TestFailingPkgA'
++
++-- go.mod --
++module m
++
++go 1.21.0
+ -- failfast_test.go --
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -111,3 +120,27 @@ func TestFatalC(t *testing.T) {
+ func TestFatalD(t *testing.T) {
+ 	t.Fatalf("FAIL - %s", t.Name())
+ }
++-- a/a_test.go --
++package a
++
++import "testing"
++
++func TestFailingPkgA(t *testing.T) {
++	t.Errorf("FAIL - %s", t.Name())
++}
++-- b/b_test.go --
++package b
++
++import "testing"
++
++func TestFailingPkgB(t *testing.T) {
++	t.Errorf("FAIL - %s", t.Name())
++}
++-- c/c_test.go --
++package c
++
++import "testing"
++
++func TestFailingPkgC(t *testing.T) {
++	t.Errorf("FAIL - %s", t.Name())
++}

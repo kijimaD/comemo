@@ -16,9 +16,282 @@ Date:   Mon Oct 28 00:53:14 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203824
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   2 +
  src/runtime/mkpreempt.go                     |  57 ++++++++++-
  src/runtime/preempt_ppc64x.s                 | 141 ++++++++++++++++++++++++++-
  src/runtime/signal_ppc64x.go                 |  24 ++++-
  4 files changed, 219 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index f6d072346d..ab671a2fa6 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -83,6 +83,8 @@ var regNamesPPC64 = []string{
+ 	"F30",
+ 	"F31",
+ 
++	// If you add registers, update asyncPreempt in runtime.
++
+ 	// "CR0",
+ 	// "CR1",
+ 	// "CR2",
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index e9e82b8c43..987740c2f7 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -82,7 +82,7 @@ var arches = map[string]func(){
+ 	"arm64":   genARM64,
+ 	"mips64x": func() { genMIPS(true) },
+ 	"mipsx":   func() { genMIPS(false) },
+-	"ppc64x":  notImplemented,
++	"ppc64x":  genPPC64,
+ 	"s390x":   genS390X,
+ 	"wasm":    genWasm,
+ }
+@@ -417,6 +417,61 @@ func genMIPS(_64bit bool) {
+ 	p("JMP (R23)")
+ }
+ 
++func genPPC64() {
++	// Add integer registers R3-R29
++	// R0 (zero), R1 (SP), R30 (g) are special and not saved here.
++	// R2 (TOC pointer in PIC mode), R12 (function entry address in PIC mode) have been saved in sigctxt.pushCall.
++	// R31 (REGTMP) will be saved manually.
++	var l = layout{sp: "R1", stack: 32 + 8} // MinFrameSize on PPC64, plus one word for saving R31
++	for i := 3; i <= 29; i++ {
++		if i == 12 || i == 13 {
++			// R12 has been saved in sigctxt.pushCall.
++			// R13 is TLS pointer, not used by Go code. we must NOT
++			// restore it, otherwise if we parked and resumed on a
++			// different thread we'll mess up TLS addresses.
++			continue
++		}
++		reg := fmt.Sprintf("R%d", i)
++		l.add("MOVD", reg, 8)
++	}
++	l.addSpecial(
++		"MOVW CR, R31\nMOVW R31, %d(R1)",
++		"MOVW %d(R1), R31\nMOVFL R31, $0xff", // this is MOVW R31, CR
++		8)                                    // CR is 4-byte wide, but just keep the alignment
++	l.addSpecial(
++		"MOVD XER, R31\nMOVD R31, %d(R1)",
++		"MOVD %d(R1), R31\nMOVD R31, XER",
++		8)
++	// Add floating point registers F0-F31.
++	for i := 0; i <= 31; i++ {
++		reg := fmt.Sprintf("F%d", i)
++		l.add("FMOVD", reg, 8)
++	}
++	// Add floating point control/status register FPSCR.
++	l.addSpecial(
++		"MOVFL FPSCR, F0\nFMOVD F0, %d(R1)",
++		"FMOVD %d(R1), F0\nMOVFL F0, FPSCR",
++		8)
++
++	p("MOVD R31, -%d(R1)", l.stack-32) // save R31 first, we'll use R31 for saving LR
++	p("MOVD LR, R31")
++	p("MOVDU R31, -%d(R1)", l.stack) // allocate frame, save PC of interrupted instruction (in LR)
++
++	l.save()
++	p("CALL ·asyncPreempt2(SB)")
++	l.restore()
++
++	p("MOVD %d(R1), R31", l.stack) // sigctxt.pushCall has pushed LR, R2, R12 (at interrupt) on stack, restore them
++	p("MOVD R31, LR")
++	p("MOVD %d(R1), R2", l.stack+8)
++	p("MOVD %d(R1), R12", l.stack+16)
++	p("MOVD (R1), R31") // load PC to CTR
++	p("MOVD R31, CTR")
++	p("MOVD 32(R1), R31")        // restore R31
++	p("ADD $%d, R1", l.stack+32) // pop frame (including the space pushed by sigctxt.pushCall)
++	p("JMP (CTR)")
++}
++
+ func genS390X() {
+ 	// Add integer registers R0-R12
+ 	// R13 (g), R14 (LR), R15 (SP) are special, and not saved here.
+diff --git a/src/runtime/preempt_ppc64x.s b/src/runtime/preempt_ppc64x.s
+index 7e4315a37f..b2d7e30ec7 100644
+--- a/src/runtime/preempt_ppc64x.s
++++ b/src/runtime/preempt_ppc64x.s
+@@ -6,5 +6,142 @@
+ #include "textflag.h"
+ 
+ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+-	// Not implemented yet
+-	JMP ·abort(SB)
++	MOVD R31, -488(R1)
++	MOVD LR, R31
++	MOVDU R31, -520(R1)
++	MOVD R3, 40(R1)
++	MOVD R4, 48(R1)
++	MOVD R5, 56(R1)
++	MOVD R6, 64(R1)
++	MOVD R7, 72(R1)
++	MOVD R8, 80(R1)
++	MOVD R9, 88(R1)
++	MOVD R10, 96(R1)
++	MOVD R11, 104(R1)
++	MOVD R14, 112(R1)
++	MOVD R15, 120(R1)
++	MOVD R16, 128(R1)
++	MOVD R17, 136(R1)
++	MOVD R18, 144(R1)
++	MOVD R19, 152(R1)
++	MOVD R20, 160(R1)
++	MOVD R21, 168(R1)
++	MOVD R22, 176(R1)
++	MOVD R23, 184(R1)
++	MOVD R24, 192(R1)
++	MOVD R25, 200(R1)
++	MOVD R26, 208(R1)
++	MOVD R27, 216(R1)
++	MOVD R28, 224(R1)
++	MOVD R29, 232(R1)
++	MOVW CR, R31
++	MOVW R31, 240(R1)
++	MOVD XER, R31
++	MOVD R31, 248(R1)
++	FMOVD F0, 256(R1)
++	FMOVD F1, 264(R1)
++	FMOVD F2, 272(R1)
++	FMOVD F3, 280(R1)
++	FMOVD F4, 288(R1)
++	FMOVD F5, 296(R1)
++	FMOVD F6, 304(R1)
++	FMOVD F7, 312(R1)
++	FMOVD F8, 320(R1)
++	FMOVD F9, 328(R1)
++	FMOVD F10, 336(R1)
++	FMOVD F11, 344(R1)
++	FMOVD F12, 352(R1)
++	FMOVD F13, 360(R1)
++	FMOVD F14, 368(R1)
++	FMOVD F15, 376(R1)
++	FMOVD F16, 384(R1)
++	FMOVD F17, 392(R1)
++	FMOVD F18, 400(R1)
++	FMOVD F19, 408(R1)
++	FMOVD F20, 416(R1)
++	FMOVD F21, 424(R1)
++	FMOVD F22, 432(R1)
++	FMOVD F23, 440(R1)
++	FMOVD F24, 448(R1)
++	FMOVD F25, 456(R1)
++	FMOVD F26, 464(R1)
++	FMOVD F27, 472(R1)
++	FMOVD F28, 480(R1)
++	FMOVD F29, 488(R1)
++	FMOVD F30, 496(R1)
++	FMOVD F31, 504(R1)
++	MOVFL FPSCR, F0
++	FMOVD F0, 512(R1)
++	CALL ·asyncPreempt2(SB)
++	FMOVD 512(R1), F0
++	MOVFL F0, FPSCR
++	FMOVD 504(R1), F31
++	FMOVD 496(R1), F30
++	FMOVD 488(R1), F29
++	FMOVD 480(R1), F28
++	FMOVD 472(R1), F27
++	FMOVD 464(R1), F26
++	FMOVD 456(R1), F25
++	FMOVD 448(R1), F24
++	FMOVD 440(R1), F23
++	FMOVD 432(R1), F22
++	FMOVD 424(R1), F21
++	FMOVD 416(R1), F20
++	FMOVD 408(R1), F19
++	FMOVD 400(R1), F18
++	FMOVD 392(R1), F17
++	FMOVD 384(R1), F16
++	FMOVD 376(R1), F15
++	FMOVD 368(R1), F14
++	FMOVD 360(R1), F13
++	FMOVD 352(R1), F12
++	FMOVD 344(R1), F11
++	FMOVD 336(R1), F10
++	FMOVD 328(R1), F9
++	FMOVD 320(R1), F8
++	FMOVD 312(R1), F7
++	FMOVD 304(R1), F6
++	FMOVD 296(R1), F5
++	FMOVD 288(R1), F4
++	FMOVD 280(R1), F3
++	FMOVD 272(R1), F2
++	FMOVD 264(R1), F1
++	FMOVD 256(R1), F0
++	MOVD 248(R1), R31
++	MOVD R31, XER
++	MOVW 240(R1), R31
++	MOVFL R31, $0xff
++	MOVD 232(R1), R29
++	MOVD 224(R1), R28
++	MOVD 216(R1), R27
++	MOVD 208(R1), R26
++	MOVD 200(R1), R25
++	MOVD 192(R1), R24
++	MOVD 184(R1), R23
++	MOVD 176(R1), R22
++	MOVD 168(R1), R21
++	MOVD 160(R1), R20
++	MOVD 152(R1), R19
++	MOVD 144(R1), R18
++	MOVD 136(R1), R17
++	MOVD 128(R1), R16
++	MOVD 120(R1), R15
++	MOVD 112(R1), R14
++	MOVD 104(R1), R11
++	MOVD 96(R1), R10
++	MOVD 88(R1), R9
++	MOVD 80(R1), R8
++	MOVD 72(R1), R7
++	MOVD 64(R1), R6
++	MOVD 56(R1), R5
++	MOVD 48(R1), R4
++	MOVD 40(R1), R3
++	MOVD 520(R1), R31
++	MOVD R31, LR
++	MOVD 528(R1), R2
++	MOVD 536(R1), R12
++	MOVD (R1), R31
++	MOVD R31, CTR
++	MOVD 32(R1), R31
++	ADD $552, R1
++	JMP (CTR)
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index 7befad40d2..b879ea5269 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -86,8 +86,28 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = false
++const pushCallSupported = true
+ 
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+-	throw("not implemented")
++	// Push the LR to stack, as we'll clobber it in order to
++	// push the call. The function being pushed is responsible
++	// for restoring the LR and setting the SP back.
++	// This extra space is known to gentraceback.
++	sp := c.sp() - sys.MinFrameSize
++	c.set_sp(sp)
++	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
++	// In PIC mode, we'll set up (i.e. clobber) R2 on function
++	// entry. Save it ahead of time.
++	// In PIC mode it requires R12 points to the function entry,
++	// so we'll set it up when pushing the call. Save it ahead
++	// of time as well.
++	// 8(SP) and 16(SP) are unused space in the reserved
++	// MinFrameSize (32) bytes.
++	*(*uint64)(unsafe.Pointer(uintptr(sp) + 8)) = c.r2()
++	*(*uint64)(unsafe.Pointer(uintptr(sp) + 16)) = c.r12()
++	// Set up PC and LR to pretend the function being signaled
++	// calls targetPC at the faulting PC.
++	c.set_link(c.pc())
++	c.set_r12(uint64(targetPC))
++	c.set_pc(uint64(targetPC))
+ }

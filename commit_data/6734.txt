@@ -8,6 +8,20 @@ Date:   Mon Nov 8 15:08:41 2010 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/2990041
-
+---
  src/pkg/strconv/atoi.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index e82b6cdba7..f7b8456725 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -11,7 +11,7 @@ type NumError struct {
+ 	Error os.Error
+ }
+ 
+-func (e *NumError) String() string { return "parsing " + e.Num + ": " + e.Error.String() }
++func (e *NumError) String() string { return `parsing "` + e.Num + `": ` + e.Error.String() }
+ 
+ 
+ func computeIntsize() uint {

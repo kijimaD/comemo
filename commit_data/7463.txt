@@ -9,7 +9,60 @@ Date:   Tue Feb 15 09:52:20 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4167045
-
+---
  src/pkg/encoding/line/line.go      |  3 +++
  src/pkg/encoding/line/line_test.go | 23 +++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/pkg/encoding/line/line.go b/src/pkg/encoding/line/line.go
+index 779b5758ad..f46ce1c83a 100644
+--- a/src/pkg/encoding/line/line.go
++++ b/src/pkg/encoding/line/line.go
+@@ -105,6 +105,9 @@ func (l *Reader) ReadLine() (line []byte, isPrefix bool, err os.Error) {
+ 		l.buf = l.buf[:oldLen+n]
+ 		if readErr != nil {
+ 			l.err = readErr
++			if len(l.buf) == 0 {
++				return nil, false, readErr
++			}
+ 		}
+ 	}
+ 	panic("unreachable")
+diff --git a/src/pkg/encoding/line/line_test.go b/src/pkg/encoding/line/line_test.go
+index ff16d10c70..ff3d51669b 100644
+--- a/src/pkg/encoding/line/line_test.go
++++ b/src/pkg/encoding/line/line_test.go
+@@ -7,6 +7,7 @@ package line
+ import (
+ 	"bytes"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"testing"
+ )
+@@ -108,3 +109,25 @@ func TestReadAfterLines(t *testing.T) {
+ 		t.Errorf("bad result for Read: got %q; expected %q", outbuf.String(), restData)
+ 	}
+ }
++
++func TestReadEmptyBuffer(t *testing.T) {
++	l := NewReader(bytes.NewBuffer(nil), 10)
++	line, isPrefix, err := l.ReadLine()
++	if err != os.EOF {
++		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
++	}
++}
++
++func TestLinesAfterRead(t *testing.T) {
++	l := NewReader(bytes.NewBuffer([]byte("foo")), 10)
++	_, err := ioutil.ReadAll(l)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	line, isPrefix, err := l.ReadLine()
++	if err != os.EOF {
++		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
++	}
++}

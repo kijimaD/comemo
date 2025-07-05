@@ -14,6 +14,21 @@ Date:   Tue Nov 17 17:31:04 2015 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f89669f2a1..f641d38a94 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3321,6 +3321,9 @@ func checkdead() {
+ // This is a variable for testing purposes. It normally doesn't change.
+ var forcegcperiod int64 = 2 * 60 * 1e9
+ 
++// Always runs without a P, so write barriers are not allowed.
++//
++//go:nowritebarrierrec
+ func sysmon() {
+ 	// If a heap span goes unused for 5 minutes after a garbage collection,
+ 	// we hand it back to the operating system.

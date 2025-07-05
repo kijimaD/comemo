@@ -18,7 +18,7 @@ Date:   Wed Mar 9 14:27:25 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go                 |  1 +
  .../internal/types2/testdata/fixedbugs/issue51578.go2   | 17 +++++++++++++++++
  src/cmd/compile/internal/types2/typexpr.go              | 10 +++++++---
@@ -26,3 +26,138 @@ Date:   Wed Mar 9 14:27:25 2022 -0800
  src/go/types/testdata/fixedbugs/issue51578.go2          | 17 +++++++++++++++++
  src/go/types/typexpr.go                                 | 10 +++++++---
  6 files changed, 50 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 861a83472d..05cf1d0b33 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1642,6 +1642,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 				case invalid:
+ 					goto Error
+ 				case typexpr:
++					check.validVarType(e.X, x.typ)
+ 					x.typ = &Pointer{base: x.typ}
+ 				default:
+ 					var base Type
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51578.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51578.go2
+new file mode 100644
+index 0000000000..5c204bae20
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51578.go2
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ = (*interface /* ERROR interface contains type constraints */ {int})(nil)
++
++// abbreviated test case from issue
++
++type TypeSet interface{ int | string }
++
++func _() {
++	f((*TypeSet /* ERROR interface contains type constraints */)(nil))
++}
++
++func f(any) {}
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index a9ce55bd1e..7e30562e97 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -147,10 +147,16 @@ func (check *Checker) typ(e syntax.Expr) Type {
+ // constraint interface.
+ func (check *Checker) varType(e syntax.Expr) Type {
+ 	typ := check.definedType(e, nil)
++	check.validVarType(e, typ)
++	return typ
++}
+ 
++// validVarType reports an error if typ is a constraint interface.
++// The expression e is used for error reporting, if any.
++func (check *Checker) validVarType(e syntax.Expr, typ Type) {
+ 	// If we have a type parameter there's nothing to do.
+ 	if isTypeParam(typ) {
+-		return typ
++		return
+ 	}
+ 
+ 	// We don't want to call under() or complete interfaces while we are in
+@@ -169,8 +175,6 @@ func (check *Checker) varType(e syntax.Expr) Type {
+ 			}
+ 		}
+ 	})
+-
+-	return typ
+ }
+ 
+ // definedType is like typ but also accepts a type name def.
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 68b0789d65..e24bd60dc3 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1588,6 +1588,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		case invalid:
+ 			goto Error
+ 		case typexpr:
++			check.validVarType(e.X, x.typ)
+ 			x.typ = &Pointer{base: x.typ}
+ 		default:
+ 			var base Type
+diff --git a/src/go/types/testdata/fixedbugs/issue51578.go2 b/src/go/types/testdata/fixedbugs/issue51578.go2
+new file mode 100644
+index 0000000000..5c204bae20
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51578.go2
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ = (*interface /* ERROR interface contains type constraints */ {int})(nil)
++
++// abbreviated test case from issue
++
++type TypeSet interface{ int | string }
++
++func _() {
++	f((*TypeSet /* ERROR interface contains type constraints */)(nil))
++}
++
++func f(any) {}
+\ No newline at end of file
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 14735c3709..5bb2d8f811 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -144,10 +144,16 @@ func (check *Checker) typ(e ast.Expr) Type {
+ // constraint interface.
+ func (check *Checker) varType(e ast.Expr) Type {
+ 	typ := check.definedType(e, nil)
++	check.validVarType(e, typ)
++	return typ
++}
+ 
++// validVarType reports an error if typ is a constraint interface.
++// The expression e is used for error reporting, if any.
++func (check *Checker) validVarType(e ast.Expr, typ Type) {
+ 	// If we have a type parameter there's nothing to do.
+ 	if isTypeParam(typ) {
+-		return typ
++		return
+ 	}
+ 
+ 	// We don't want to call under() or complete interfaces while we are in
+@@ -165,8 +171,6 @@ func (check *Checker) varType(e ast.Expr) Type {
+ 			}
+ 		}
+ 	})
+-
+-	return typ
+ }
+ 
+ // definedType is like typ but also accepts a type name def.

@@ -7,6 +7,27 @@ Date:   Wed Mar 10 12:42:53 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/417042
-
+---
  test/golden.out | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/test/golden.out b/test/golden.out
+index cc67944426..96ab549438 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -75,6 +75,15 @@ c = (5.000000+6.000000i)
+ c = (5+6i)
+ c = (13+7i)
+ 
++=========== ken/cplx5.go
++(+5.000000e+000-5.000000e+000i)
++(+5.000000e+000-5.000000e+000i)
++(+5.000000e+000-5.000000e+000i)
++(+5.000000e+000-5.000000e+000i)
++(+5.000000e+000-5.000000e+000i)
++(+5.000000e+000-5.000000e+000i)
++(+5.000000e+000-5.000000e+000i)
++
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+ 

@@ -11,9 +11,137 @@ Date:   Tue Sep 21 22:41:19 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2214044
-
+---
  misc/cgo/stdio/test.go    | 24 +++++++++++++++++++++++-
  src/cmd/cgo/ast.go        |  2 +-
  src/cmd/cgo/doc.go        | 12 ++++++++++++
  src/pkg/runtime/cgocall.c |  7 ++++---
  4 files changed, 40 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/stdio/test.go b/misc/cgo/stdio/test.go
+index 490eb93c64..639d77b854 100644
+--- a/misc/cgo/stdio/test.go
++++ b/misc/cgo/stdio/test.go
+@@ -19,6 +19,13 @@ enum {
+ 	Enum1 = 1,
+ 	Enum2 = 2,
+ };
++
++typedef unsigned char uuid_t[20];
++
++void uuid_generate(uuid_t x) {
++	x[0] = 0;
++}
++
+ */
+ import "C"
+ import (
+@@ -30,6 +37,11 @@ const EINVAL = C.EINVAL /* test #define */
+ 
+ var KILO = C.KILO
+ 
++func uuidgen() {
++	var uuid C.uuid_t
++	C.uuid_generate(&uuid[0])
++}
++
+ func Size(name string) (int64, os.Error) {
+ 	var st C.struct_stat
+ 	p := C.CString(name)
+@@ -73,10 +85,20 @@ func TestErrno() {
+ 	n, err := Strtol("asdf", 123)
+ 	if n != 0 || err != os.EINVAL {
+ 		println("Strtol: ", n, err)
+-		panic("bad atoi2")
++		panic("bad strtol")
+ 	}
+ }
+ 
++func TestMultipleAssign() {
++	p := C.CString("123")
++	n, m := C.strtol(p, nil, 345), C.strtol(p, nil, 10)
++	if n != 0 || m != 234 {
++		println("Strtol x2: ", n, m)
++		panic("bad strtol x2")
++	}
++	C.free(unsafe.Pointer(p))
++}
++
+ var (
+ 	uint  = (C.uint)(0)
+ 	ulong C.ulong
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 827d158ab3..79c1557b32 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -314,7 +314,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 		f.walk(&n.X, "expr", visit)
+ 	case *ast.AssignStmt:
+ 		f.walk(n.Lhs, "expr", visit)
+-		if len(n.Lhs) == 2 {
++		if len(n.Lhs) == 2 && len(n.Rhs) == 1 {
+ 			f.walk(n.Rhs, "as2", visit)
+ 		} else {
+ 			f.walk(n.Rhs, "expr", visit)
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index dce8e86828..0f9204d7ff 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -27,6 +27,12 @@ C identifiers or field names that are keywords in Go can be
+ accessed by prefixing them with an underscore: if x points at
+ a C struct with a field named "type", x._type accesses the field.
+ 
++The standard C numeric types are available under the names
++C.char, C.schar (signed char), C.uchar (unsigned char),
++C.short, C.ushort (unsigned short), C.int, C.uint (unsigned int),
++C.long, C.ulong (unsigned long), C.longlong (long long),
++C.ulonglong (unsigned long long), C.float, C.double.
++
+ To access a struct, union, or enum type directly, prefix it with
+ struct_, union_, or enum_, as in C.struct_stat.
+ 
+@@ -36,6 +42,12 @@ C errno variable as an os.Error.  For example:
+ 
+ 	n, err := C.atoi("abc")
+ 
++In C, a function argument written as a fixed size array
++actually requires a pointer to the first element of the array.
++C compilers are aware of this calling convention and adjust
++the call accordingly, but Go cannot.  In Go, you must pass
++the pointer to the first element explicitly: C.f(&x[0]).
++
+ Cgo transforms the input file into four output files: two Go source
+ files, a C file for 6c (or 8c or 5c), and a C file for gcc.
+ 
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index f673d1b6ec..7571694d9a 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -53,16 +53,16 @@ cgocall(void (*fn)(void*), void *arg)
+ void
+ cgocallback(void (*fn)(void), void *arg, int32 argsize)
+ {
+-	Gobuf oldsched;
++	Gobuf oldsched, oldg1sched;
+ 	G *g1;
+ 	void *sp;
+ 
+ 	if(g != m->g0)
+ 		throw("bad g in cgocallback");
+ 
+-	oldsched = m->sched;
+-
+ 	g1 = m->curg;
++	oldsched = m->sched;
++	oldg1sched = g1->sched;
+ 
+ 	startcgocallback(g1);
+ 
+@@ -78,6 +78,7 @@ cgocallback(void (*fn)(void), void *arg, int32 argsize)
+ 	endcgocallback(g1);
+ 
+ 	m->sched = oldsched;
++	g1->sched = oldg1sched;
+ }
+ 
+ void

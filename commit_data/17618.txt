@@ -7,6 +7,36 @@ Date:   Mon Sep 16 14:21:54 2013 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/13700045
-
+---
  misc/cgo/test/issue6390.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/misc/cgo/test/issue6390.go b/misc/cgo/test/issue6390.go
+new file mode 100644
+index 0000000000..6f5715b05d
+--- /dev/null
++++ b/misc/cgo/test/issue6390.go
+@@ -0,0 +1,23 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// #include <stdlib.h>
++import "C"
++
++import "testing"
++
++func test6390(t *testing.T) {
++	p1 := C.malloc(1024)
++	if p1 == nil {
++		t.Fatalf("C.malloc(1024) returned nil")
++	}
++	p2 := C.malloc(0)
++	if p2 == nil {
++		t.Fatalf("C.malloc(0) returned nil")
++	}
++	C.free(p1)
++	C.free(p2)
++}

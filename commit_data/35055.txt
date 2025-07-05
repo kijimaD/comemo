@@ -12,6 +12,20 @@ Date:   Thu Dec 7 22:18:50 2017 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/html/template/escape_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 2312c9c1c3..bd075661c6 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1918,7 +1918,7 @@ func TestOrphanedTemplate(t *testing.T) {
+ 	}
+ 	b.Reset()
+ 	if err := t2.Execute(&b, nil); err != nil {
+-		t.Fatalf("error executing t1: %s", err)
++		t.Fatalf("error executing t2: %s", err)
+ 	}
+ 	const want = "bar"
+ 	if got := b.String(); got != want {

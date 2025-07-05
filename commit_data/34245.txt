@@ -61,9 +61,227 @@ Date:   Tue Oct 10 14:44:15 2017 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/fmt_test.go          |  3 ++-
  src/cmd/compile/internal/gc/ssa.go   | 17 ++++++++++++----
  src/cmd/compile/internal/ssa/html.go | 35 +++++++++++++++++++++++++++++----
  src/cmd/internal/obj/util.go         | 38 +++++++++++++++++++++++++++++++++++-
  4 files changed, 83 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 6d18d495c3..17716f82f2 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -229,7 +229,7 @@ func TestFormats(t *testing.T) {
+ 			}
+ 		}
+ 		if mismatch {
+-			t.Errorf("knownFormats is out of date; please run with -v to regenerate")
++			t.Errorf("knownFormats is out of date; please 'go test -v fmt_test.go > foo', then extract new definition of knownFormats from foo")
+ 		}
+ 	}
+ 
+@@ -683,6 +683,7 @@ var knownFormats = map[string]string{
+ 	"int32 %d":                                        "",
+ 	"int32 %v":                                        "",
+ 	"int32 %x":                                        "",
++	"int64 %.5d":                                      "",
+ 	"int64 %+d":                                       "",
+ 	"int64 %-10d":                                     "",
+ 	"int64 %X":                                        "",
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c633ee4c93..69ed613412 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4606,22 +4606,31 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 			var buf bytes.Buffer
+ 			buf.WriteString("<code>")
+ 			buf.WriteString("<dl class=\"ssa-gen\">")
++			filename := ""
+ 			for p := pp.Text; p != nil; p = p.Link {
++				// Don't spam every line with the file name, which is often huge.
++				// Only print changes.
++				if f := p.FileName(); f != filename {
++					filename = f
++					buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
++					buf.WriteString(html.EscapeString("# " + filename))
++					buf.WriteString("</dd>")
++				}
++
+ 				buf.WriteString("<dt class=\"ssa-prog-src\">")
+ 				if v, ok := progToValue[p]; ok {
+ 					buf.WriteString(v.HTML())
+ 				} else if b, ok := progToBlock[p]; ok {
+-					buf.WriteString(b.HTML())
++					buf.WriteString("<b>" + b.HTML() + "</b>")
+ 				}
+ 				buf.WriteString("</dt>")
+ 				buf.WriteString("<dd class=\"ssa-prog\">")
+-				buf.WriteString(html.EscapeString(p.String()))
++				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.LineNumber(), html.EscapeString(p.InstructionString())))
+ 				buf.WriteString("</dd>")
+-				buf.WriteString("</li>")
+ 			}
+ 			buf.WriteString("</dl>")
+ 			buf.WriteString("</code>")
+-			f.HTMLWriter.WriteColumn("genssa", buf.String())
++			f.HTMLWriter.WriteColumn("genssa", "ssa-prog", buf.String())
+ 			// pp.Text.Ctxt.LineHist.PrintFilenameOnly = saved
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index bb87378bdd..47f37f2337 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -66,6 +66,11 @@ th, td {
+     padding: 5px;
+ }
+ 
++td.ssa-prog {
++    width: 600px;
++    word-wrap: break-word;
++}
++
+ li {
+     list-style-type: none;
+ }
+@@ -121,6 +126,11 @@ dd.ssa-prog {
+     font-style: italic;
+ }
+ 
++.line-number {
++    font-style: italic;
++    font-size: 11px;
++}
++
+ .highlight-yellow         { background-color: yellow; }
+ .highlight-aquamarine     { background-color: aquamarine; }
+ .highlight-coral          { background-color: coral; }
+@@ -310,17 +320,21 @@ func (w *HTMLWriter) WriteFunc(title string, f *Func) {
+ 	if w == nil {
+ 		return // avoid generating HTML just to discard it
+ 	}
+-	w.WriteColumn(title, f.HTML())
++	w.WriteColumn(title, "", f.HTML())
+ 	// TODO: Add visual representation of f's CFG.
+ }
+ 
+ // WriteColumn writes raw HTML in a column headed by title.
+ // It is intended for pre- and post-compilation log output.
+-func (w *HTMLWriter) WriteColumn(title string, html string) {
++func (w *HTMLWriter) WriteColumn(title, class, html string) {
+ 	if w == nil {
+ 		return
+ 	}
+-	w.WriteString("<td>")
++	if class == "" {
++		w.WriteString("<td>")
++	} else {
++		w.WriteString("<td class=\"" + class + "\">")
++	}
+ 	w.WriteString("<h2>" + title + "</h2>")
+ 	w.WriteString(html)
+ 	w.WriteString("</td>")
+@@ -353,7 +367,14 @@ func (v *Value) LongHTML() string {
+ 	// We already have visual noise in the form of punctuation
+ 	// maybe we could replace some of that with formatting.
+ 	s := fmt.Sprintf("<span class=\"%s ssa-long-value\">", v.String())
+-	s += fmt.Sprintf("%s = %s", v.HTML(), v.Op.String())
++
++	linenumber := "<span class=\"line-number\">(?)</span>"
++	if v.Pos.IsKnown() {
++		linenumber = fmt.Sprintf("<span class=\"line-number\">(%d)</span>", v.Pos.Line())
++	}
++
++	s += fmt.Sprintf("%s %s = %s", v.HTML(), linenumber, v.Op.String())
++
+ 	s += " &lt;" + html.EscapeString(v.Type.String()) + "&gt;"
+ 	s += html.EscapeString(v.auxString())
+ 	for _, a := range v.Args {
+@@ -375,6 +396,7 @@ func (v *Value) LongHTML() string {
+ 	if len(names) != 0 {
+ 		s += " (" + strings.Join(names, ", ") + ")"
+ 	}
++
+ 	s += "</span>"
+ 	return s
+ }
+@@ -409,6 +431,11 @@ func (b *Block) LongHTML() string {
+ 	case BranchLikely:
+ 		s += " (likely)"
+ 	}
++	if b.Pos.IsKnown() {
++		// TODO does not begin to deal with the full complexity of line numbers.
++		// Maybe we want a string/slice instead, of outer-inner when inlining.
++		s += fmt.Sprintf(" (line %d)", b.Pos.Line())
++	}
+ 	return s
+ }
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index bf2d209d7f..67c74c2f89 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -13,10 +13,34 @@ import (
+ 
+ const REG_NONE = 0
+ 
++// Line returns a string containing the filename and line number for p
+ func (p *Prog) Line() string {
+ 	return p.Ctxt.OutermostPos(p.Pos).Format(false)
+ }
+ 
++// LineNumber returns a string containing the line number for p's position
++func (p *Prog) LineNumber() string {
++	pos := p.Ctxt.OutermostPos(p.Pos)
++	if !pos.IsKnown() {
++		return "?"
++	}
++	return fmt.Sprintf("%d", pos.Line())
++}
++
++// FileName returns a string containing the filename for p's position
++func (p *Prog) FileName() string {
++	// TODO LineNumber and FileName cases don't handle full generality of positions,
++	// but because these are currently used only for GOSSAFUNC debugging output, that
++	// is okay.  The intent is that "LineNumber()" yields the rapidly varying part,
++	// while "FileName()" yields the longer and slightly more constant material.
++	pos := p.Ctxt.OutermostPos(p.Pos)
++	if !pos.IsKnown() {
++		return "<unknown file name>"
++	}
++
++	return pos.Filename()
++}
++
+ var armCondCode = []string{
+ 	".EQ",
+ 	".NE",
+@@ -72,6 +96,18 @@ func (p *Prog) String() string {
+ 	if p == nil {
+ 		return "<nil Prog>"
+ 	}
++	if p.Ctxt == nil {
++		return "<Prog without ctxt>"
++	}
++	return fmt.Sprintf("%.5d (%v)\t%s", p.Pc, p.Line(), p.InstructionString())
++}
++
++// InstructionString returns a string representation of the instruction without preceding
++// program counter or file and line number.
++func (p *Prog) InstructionString() string {
++	if p == nil {
++		return "<nil Prog>"
++	}
+ 
+ 	if p.Ctxt == nil {
+ 		return "<Prog without ctxt>"
+@@ -81,7 +117,7 @@ func (p *Prog) String() string {
+ 
+ 	var buf bytes.Buffer
+ 
+-	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), p.As, sc)
++	fmt.Fprintf(&buf, "%v%s", p.As, sc)
+ 	sep := "\t"
+ 
+ 	if p.From.Type != TYPE_NONE {

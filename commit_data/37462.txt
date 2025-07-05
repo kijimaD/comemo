@@ -11,6 +11,28 @@ Date:   Wed Aug 1 14:50:11 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcshared/cshared_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index 77cefc5a66..89b19d653a 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -201,6 +201,16 @@ func run(t *testing.T, env []string, args ...string) string {
+ 	t.Helper()
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	cmd.Env = env
++
++	if GOOS != "windows" {
++		// TestUnexportedSymbols relies on file descriptor 30
++		// being closed when the program starts, so enforce
++		// that in all cases. (The first three descriptors are
++		// stdin/stdout/stderr, so we just need to make sure
++		// that cmd.ExtraFiles[27] exists and is nil.)
++		cmd.ExtraFiles = make([]*os.File, 28)
++	}
++
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("command failed: %v\n%v\n%s\n", args, err, out)

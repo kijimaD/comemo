@@ -7,7 +7,53 @@ Date:   Wed Sep 7 11:59:58 2016 -0700
     Change-Id: I4dc1ff7bfc67351a046f199dee8b7a9eadb1e524
     Reviewed-on: https://go-review.googlesource.com/28693
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html  | 12 ++++++++++++
  doc/install-source.html |  4 ++--
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 2d4f41f029..5d0a129a0e 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -37,6 +37,18 @@ Go 1.7 is a major release of Go.
+ Read the <a href="/doc/go1.7">Go 1.7 Release Notes</a> for more information.
+ </p>
+ 
++<h3 id="go1.7.minor">Minor revisions</h3>
++
++<p>
++go1.7.1 (released 2016/09/07) includes fixes to the compiler, runtime,
++documentation, and the <code>compress/flate</code>, <code>hash/crc32</code>,
++<code>io</code> <code>net</code>, <code>net/http</code>,
++<code>path/filepath</code>, <code>reflect</code>, and <code>syscall</code>
++packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.7.1">Go
++1.7.1 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.6">go1.6 (released 2016/02/17)</h2>
+ 
+ <p>
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 11c66adb39..1cc22305bd 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -203,7 +203,7 @@ To build without <code>cgo</code>, set the environment variable
+ Change to the directory that will be its parent
+ and make sure the <code>go</code> directory does not exist.
+ Then clone the repository and check out the latest release tag
+-(<code class="versionTag">go1.7</code>, for example):</p>
++(<code class="versionTag">go1.7.1</code>, for example):</p>
+ 
+ <pre>
+ $ git clone https://go.googlesource.com/go
+@@ -391,7 +391,7 @@ New releases are announced on the
+ <a href="//groups.google.com/group/golang-announce">golang-announce</a>
+ mailing list.
+ Each announcement mentions the latest release tag, for instance,
+-<code class="versionTag">go1.7</code>.
++<code class="versionTag">go1.7.1</code>.
+ </p>
+ 
+ <p>

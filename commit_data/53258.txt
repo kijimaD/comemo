@@ -15,8 +15,85 @@ Date:   Wed Aug 3 15:14:25 2022 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/sizes.go  | 11 +++++++++++
  src/cmd/compile/internal/types2/sizes.go |  4 ++--
  test/fixedbugs/issue54220.go             | 26 ++++++++++++++++++++++++++
  3 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/sizes.go b/src/cmd/compile/internal/noder/sizes.go
+index 9ba0e509d7..7820746db1 100644
+--- a/src/cmd/compile/internal/noder/sizes.go
++++ b/src/cmd/compile/internal/noder/sizes.go
+@@ -25,6 +25,17 @@ func (s *gcSizes) Alignof(T types2.Type) int64 {
+ 		// is the same as unsafe.Alignof(x[0]), but at least 1."
+ 		return s.Alignof(t.Elem())
+ 	case *types2.Struct:
++		if t.NumFields() == 0 && types2.IsSyncAtomicAlign64(T) {
++			// Special case: sync/atomic.align64 is an
++			// empty struct we recognize as a signal that
++			// the struct it contains must be
++			// 64-bit-aligned.
++			//
++			// This logic is equivalent to the logic in
++			// cmd/compile/internal/types/size.go:calcStructOffset
++			return 8
++		}
++
+ 		// spec: "For a variable x of struct type: unsafe.Alignof(x)
+ 		// is the largest of the values unsafe.Alignof(x.f) for each
+ 		// field f of x, but at least 1."
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index 4da309461f..c99a12b2e9 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -53,7 +53,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 		// is the same as unsafe.Alignof(x[0]), but at least 1."
+ 		return s.Alignof(t.elem)
+ 	case *Struct:
+-		if len(t.fields) == 0 && isSyncAtomicAlign64(T) {
++		if len(t.fields) == 0 && IsSyncAtomicAlign64(T) {
+ 			// Special case: sync/atomic.align64 is an
+ 			// empty struct we recognize as a signal that
+ 			// the struct it contains must be
+@@ -104,7 +104,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 	return a
+ }
+ 
+-func isSyncAtomicAlign64(T Type) bool {
++func IsSyncAtomicAlign64(T Type) bool {
+ 	named, ok := T.(*Named)
+ 	if !ok {
+ 		return false
+diff --git a/test/fixedbugs/issue54220.go b/test/fixedbugs/issue54220.go
+new file mode 100644
+index 0000000000..105f6e9098
+--- /dev/null
++++ b/test/fixedbugs/issue54220.go
+@@ -0,0 +1,26 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"strconv"
++	"sync/atomic"
++	"unsafe"
++)
++
++type t struct {
++	i1 atomic.Int32
++	i2 atomic.Int64
++}
++
++var v t
++
++func main() {
++	if o := unsafe.Offsetof(v.i2); o != 8 {
++		panic("unexpected offset, want: 8, got: " + strconv.Itoa(int(o)))
++	}
++}

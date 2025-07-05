@@ -49,7 +49,7 @@ Date:   Mon Mar 22 11:35:02 2021 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules     |   2 +-
  src/cmd/compile/internal/ssa/gen/ARM64.rules   |   2 +-
  src/cmd/compile/internal/ssa/gen/MIPS.rules    |   2 +-
@@ -66,3 +66,873 @@ Date:   Mon Mar 22 11:35:02 2021 +0100
  src/cmd/compile/internal/ssa/rewriteS390X.go   |   8 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 170 ++++++++++++-------------
  15 files changed, 177 insertions(+), 153 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index f46f4238f7..5c6438a986 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -173,7 +173,7 @@
+ (Const(8|16|32) [val]) => (MOVWconst [int32(val)])
+ (Const(32|64)F [val]) => (MOV(F|D)const [float64(val)])
+ (ConstNil) => (MOVWconst [0])
+-(ConstBool [b]) => (MOVWconst [b2i32(b)])
++(ConstBool [t]) => (MOVWconst [b2i32(t)])
+ 
+ // truncations
+ // Because we ignore high parts of registers, truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 6f30c11bd1..7f9f8298de 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -198,7 +198,7 @@
+ (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
+ (Const(32F|64F) [val]) => (FMOV(S|D)const [float64(val)])
+ (ConstNil) => (MOVDconst [0])
+-(ConstBool [b]) => (MOVDconst [b2i(b)])
++(ConstBool [t]) => (MOVDconst [b2i(t)])
+ 
+ (Slicemask <t> x) => (SRAconst (NEG <t> x) [63])
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 6b59555cbe..4ac9668ea9 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -144,7 +144,7 @@
+ (Const(32|16|8) [val]) => (MOVWconst [int32(val)])
+ (Const(32|64)F ...) => (MOV(F|D)const ...)
+ (ConstNil) => (MOVWconst [0])
+-(ConstBool [b]) => (MOVWconst [b2i32(b)])
++(ConstBool [t]) => (MOVWconst [b2i32(t)])
+ 
+ // truncations
+ // Because we ignore high parts of registers, truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index bb91dcd5ee..fd04a6c3a8 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -134,7 +134,7 @@
+ (Const(64|32|16|8) [val]) => (MOVVconst [int64(val)])
+ (Const(32|64)F [val]) => (MOV(F|D)const [float64(val)])
+ (ConstNil) => (MOVVconst [0])
+-(ConstBool [b]) => (MOVVconst [int64(b2i(b))])
++(ConstBool [t]) => (MOVVconst [int64(b2i(t))])
+ 
+ (Slicemask <t> x) => (SRAVconst (NEGV <t> x) [63])
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index b618cde529..f83ff75761 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -101,7 +101,7 @@
+ (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
+ (Const(32|64)F ...) => (FMOV(S|D)const ...)
+ (ConstNil) => (MOVDconst [0])
+-(ConstBool [b]) => (MOVDconst [b2i(b)])
++(ConstBool [t]) => (MOVDconst [b2i(t)])
+ 
+ // Constant folding
+ (FABS (FMOVDconst [x])) => (FMOVDconst [math.Abs(x)])
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 0fdd231d71..88762f7045 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -428,7 +428,7 @@
+ (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
+ (Const(32|64)F ...) => (FMOV(S|D)const ...)
+ (ConstNil) => (MOVDconst [0])
+-(ConstBool [b]) => (MOVDconst [b2i(b)])
++(ConstBool [t]) => (MOVDconst [b2i(t)])
+ 
+ // Lowering calls
+ (StaticCall ...) => (CALLstatic ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 9dd20a7cfa..6b5fd99c7e 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -768,7 +768,7 @@
+ 	=> mem
+ 
+ // Collapse OffPtr
+-(OffPtr (OffPtr p [b]) [a]) => (OffPtr p [a+b])
++(OffPtr (OffPtr p [y]) [x]) => (OffPtr p [x+y])
+ (OffPtr p [0]) && v.Type.Compare(p.Type) == types.CMPeq => p
+ 
+ // indexing operations
+@@ -847,7 +847,7 @@
+             f0 mem))))
+ 
+ // Putting struct{*byte} and similar into direct interfaces.
+-(IMake typ (StructMake1 val)) => (IMake typ val)
++(IMake _typ (StructMake1 val)) => (IMake _typ val)
+ (StructSelect [0] (IData x)) => (IData x)
+ 
+ // un-SSAable values use mem->mem copies
+@@ -869,7 +869,7 @@
+ (Store dst (ArrayMake1 e) mem) => (Store {e.Type} dst e mem)
+ 
+ // Putting [1]*byte and similar into direct interfaces.
+-(IMake typ (ArrayMake1 val)) => (IMake typ val)
++(IMake _typ (ArrayMake1 val)) => (IMake _typ val)
+ (ArraySelect [0] (IData x)) => (IData x)
+ 
+ // string ops
+@@ -1974,9 +1974,9 @@
+ (Sqrt (Const64F [c])) && !math.IsNaN(math.Sqrt(c)) => (Const64F [math.Sqrt(c)])
+ 
+ // for rewriting results of some late-expanded rewrites (below)
+-(SelectN [0] (MakeResult a ___)) => a
+-(SelectN [1] (MakeResult a b ___)) => b
+-(SelectN [2] (MakeResult a b c ___)) => c
++(SelectN [0] (MakeResult x ___)) => x
++(SelectN [1] (MakeResult x y ___)) => y
++(SelectN [2] (MakeResult x y z ___)) => z
+ 
+ // for late-expanded calls, recognize newobject and remove zeroing and nilchecks
+ (Zero (SelectN [0] call:(StaticLECall _ _)) mem:(SelectN [1] call))
+@@ -2013,18 +2013,18 @@
+ // Evaluate constant address comparisons.
+ (EqPtr  x x) => (ConstBool [true])
+ (NeqPtr x x) => (ConstBool [false])
+-(EqPtr  (Addr {a} _) (Addr {b} _)) => (ConstBool [a == b])
+-(EqPtr  (Addr {a} _) (OffPtr [o] (Addr {b} _))) => (ConstBool [a == b && o == 0])
+-(EqPtr  (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _))) => (ConstBool [a == b && o1 == o2])
+-(NeqPtr (Addr {a} _) (Addr {b} _)) => (ConstBool [a != b])
+-(NeqPtr (Addr {a} _) (OffPtr [o] (Addr {b} _))) => (ConstBool [a != b || o != 0])
+-(NeqPtr (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _))) => (ConstBool [a != b || o1 != o2])
+-(EqPtr  (LocalAddr {a} _ _) (LocalAddr {b} _ _)) => (ConstBool [a == b])
+-(EqPtr  (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _))) => (ConstBool [a == b && o == 0])
+-(EqPtr  (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _))) => (ConstBool [a == b && o1 == o2])
+-(NeqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _)) => (ConstBool [a != b])
+-(NeqPtr (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _))) => (ConstBool [a != b || o != 0])
+-(NeqPtr (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _))) => (ConstBool [a != b || o1 != o2])
++(EqPtr  (Addr {x} _) (Addr {y} _)) => (ConstBool [x == y])
++(EqPtr  (Addr {x} _) (OffPtr [o] (Addr {y} _))) => (ConstBool [x == y && o == 0])
++(EqPtr  (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _))) => (ConstBool [x == y && o1 == o2])
++(NeqPtr (Addr {x} _) (Addr {y} _)) => (ConstBool [x != y])
++(NeqPtr (Addr {x} _) (OffPtr [o] (Addr {y} _))) => (ConstBool [x != y || o != 0])
++(NeqPtr (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _))) => (ConstBool [x != y || o1 != o2])
++(EqPtr  (LocalAddr {x} _ _) (LocalAddr {y} _ _)) => (ConstBool [x == y])
++(EqPtr  (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _))) => (ConstBool [x == y && o == 0])
++(EqPtr  (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _))) => (ConstBool [x == y && o1 == o2])
++(NeqPtr (LocalAddr {x} _ _) (LocalAddr {y} _ _)) => (ConstBool [x != y])
++(NeqPtr (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _))) => (ConstBool [x != y || o != 0])
++(NeqPtr (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _))) => (ConstBool [x != y || o1 != o2])
+ (EqPtr  (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) => (ConstBool [o1 == 0])
+ (NeqPtr (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) => (ConstBool [o1 != 0])
+ (EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) => (ConstBool [o1 == o2])
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index a3ce726dc3..fd672b2f74 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -218,10 +218,10 @@ func genRulesSuffix(arch arch, suff string) {
+ 			Suffix: fmt.Sprintf("_%s", op),
+ 			ArgLen: opByName(arch, op).argLength,
+ 		}
+-		fn.add(declf("b", "v.Block"))
+-		fn.add(declf("config", "b.Func.Config"))
+-		fn.add(declf("fe", "b.Func.fe"))
+-		fn.add(declf("typ", "&b.Func.Config.Types"))
++		fn.add(declReserved("b", "v.Block"))
++		fn.add(declReserved("config", "b.Func.Config"))
++		fn.add(declReserved("fe", "b.Func.fe"))
++		fn.add(declReserved("typ", "&b.Func.Config.Types"))
+ 		for _, rule := range rules {
+ 			if rr != nil && !rr.CanFail {
+ 				log.Fatalf("unconditional rule %s is followed by other rules", rr.Match)
+@@ -250,8 +250,8 @@ func genRulesSuffix(arch arch, suff string) {
+ 	// Generate block rewrite function. There are only a few block types
+ 	// so we can make this one function with a switch.
+ 	fn = &Func{Kind: "Block"}
+-	fn.add(declf("config", "b.Func.Config"))
+-	fn.add(declf("typ", "&b.Func.Config.Types"))
++	fn.add(declReserved("config", "b.Func.Config"))
++	fn.add(declReserved("typ", "&b.Func.Config.Types"))
+ 
+ 	sw = &Switch{Expr: exprf("b.Kind")}
+ 	ops = ops[:0]
+@@ -828,12 +828,36 @@ func stmtf(format string, a ...interface{}) Statement {
+ 	return file.Decls[0].(*ast.FuncDecl).Body.List[0]
+ }
+ 
+-// declf constructs a simple "name := value" declaration, using exprf for its
+-// value.
+-func declf(name, format string, a ...interface{}) *Declare {
++var reservedNames = map[string]bool{
++	"v":      true, // Values[i], etc
++	"b":      true, // v.Block
++	"config": true, // b.Func.Config
++	"fe":     true, // b.Func.fe
++	"typ":    true, // &b.Func.Config.Types
++}
++
++// declf constructs a simple "name := value" declaration,
++// using exprf for its value.
++//
++// name must not be one of reservedNames.
++// This helps prevent unintended shadowing and name clashes.
++// To declare a reserved name, use declReserved.
++func declf(loc, name, format string, a ...interface{}) *Declare {
++	if reservedNames[name] {
++		log.Fatalf("rule %s uses the reserved name %s", loc, name)
++	}
+ 	return &Declare{name, exprf(format, a...)}
+ }
+ 
++// declReserved is like declf, but the name must be one of reservedNames.
++// Calls to declReserved should generally be static and top-level.
++func declReserved(name, value string) *Declare {
++	if !reservedNames[name] {
++		panic(fmt.Sprintf("declReserved call does not use a reserved name: %q", name))
++	}
++	return &Declare{name, exprf(value)}
++}
++
+ // breakf constructs a simple "if cond { break }" statement, using exprf for its
+ // condition.
+ func breakf(format string, a ...interface{}) *CondBreak {
+@@ -858,7 +882,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 			if vname == "" {
+ 				vname = fmt.Sprintf("v_%v", i)
+ 			}
+-			rr.add(declf(vname, cname))
++			rr.add(declf(rr.Loc, vname, cname))
+ 			p, op := genMatch0(rr, arch, expr, vname, nil, false) // TODO: pass non-nil cnt?
+ 			if op != "" {
+ 				check := fmt.Sprintf("%s.Op == %s", cname, op)
+@@ -873,7 +897,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 			}
+ 			pos[i] = p
+ 		} else {
+-			rr.add(declf(arg, cname))
++			rr.add(declf(rr.Loc, arg, cname))
+ 			pos[i] = arg + ".Pos"
+ 		}
+ 	}
+@@ -893,7 +917,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
+ 			rr.add(breakf("%sTo%s(b.%s) != %s", unTitle(e.field), title(e.dclType), e.field, e.name))
+ 		} else {
+-			rr.add(declf(e.name, "%sTo%s(b.%s)", unTitle(e.field), title(e.dclType), e.field))
++			rr.add(declf(rr.Loc, e.name, "%sTo%s(b.%s)", unTitle(e.field), title(e.dclType), e.field))
+ 		}
+ 	}
+ 	if rr.Cond != "" {
+@@ -1043,11 +1067,11 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int,
+ 		} else {
+ 			switch e.field {
+ 			case "Aux":
+-				rr.add(declf(e.name, "auxTo%s(%s.%s)", title(e.dclType), v, e.field))
++				rr.add(declf(rr.Loc, e.name, "auxTo%s(%s.%s)", title(e.dclType), v, e.field))
+ 			case "AuxInt":
+-				rr.add(declf(e.name, "auxIntTo%s(%s.%s)", title(e.dclType), v, e.field))
++				rr.add(declf(rr.Loc, e.name, "auxIntTo%s(%s.%s)", title(e.dclType), v, e.field))
+ 			case "Type":
+-				rr.add(declf(e.name, "%s.%s", v, e.field))
++				rr.add(declf(rr.Loc, e.name, "%s.%s", v, e.field))
+ 			}
+ 		}
+ 	}
+@@ -1077,7 +1101,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int,
+ 				continue
+ 			}
+ 			if !rr.declared(a) && token.IsIdentifier(a) && !(commutative && len(args) == 2) {
+-				rr.add(declf(a, "%s.Args[%d]", v, n))
++				rr.add(declf(rr.Loc, a, "%s.Args[%d]", v, n))
+ 				// delete the last argument so it is not reprocessed
+ 				args = args[:n]
+ 			} else {
+@@ -1089,7 +1113,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int,
+ 	if commutative && !pregenTop {
+ 		for i := 0; i <= 1; i++ {
+ 			vname := fmt.Sprintf("%s_%d", v, i)
+-			rr.add(declf(vname, "%s.Args[%d]", v, i))
++			rr.add(declf(rr.Loc, vname, "%s.Args[%d]", v, i))
+ 		}
+ 	}
+ 	if commutative {
+@@ -1116,7 +1140,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int,
+ 				rr.add(breakf("%s != %s", arg, rhs))
+ 			} else {
+ 				if arg != rhs {
+-					rr.add(declf(arg, "%s", rhs))
++					rr.add(declf(rr.Loc, arg, "%s", rhs))
+ 				}
+ 			}
+ 			continue
+@@ -1131,7 +1155,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int,
+ 		}
+ 
+ 		if argname != rhs {
+-			rr.add(declf(argname, "%s", rhs))
++			rr.add(declf(rr.Loc, argname, "%s", rhs))
+ 		}
+ 		bexpr := exprf("%s.Op != addLater", argname)
+ 		rr.add(&CondBreak{Cond: bexpr})
+@@ -1208,7 +1232,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
+ 			v = resname
+ 		}
+ 		rr.Alloc++
+-		rr.add(declf(v, "b.NewValue0(%s, Op%s%s, %s)", pos, oparch, op.name, typ))
++		rr.add(declf(rr.Loc, v, "b.NewValue0(%s, Op%s%s, %s)", pos, oparch, op.name, typ))
+ 		if move && top {
+ 			// Rewrite original into a copy
+ 			rr.add(stmtf("v.copyOf(%s)", v))
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index ed1f85e340..175bbc3e7e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -13031,12 +13031,12 @@ func rewriteValueARM_OpConst8(v *Value) bool {
+ 	}
+ }
+ func rewriteValueARM_OpConstBool(v *Value) bool {
+-	// match: (ConstBool [b])
+-	// result: (MOVWconst [b2i32(b)])
++	// match: (ConstBool [t])
++	// result: (MOVWconst [b2i32(t)])
+ 	for {
+-		b := auxIntToBool(v.AuxInt)
++		t := auxIntToBool(v.AuxInt)
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int32ToAuxInt(b2i32(b))
++		v.AuxInt = int32ToAuxInt(b2i32(t))
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index da80ad6fca..eb650b6a50 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -22253,12 +22253,12 @@ func rewriteValueARM64_OpConst8(v *Value) bool {
+ 	}
+ }
+ func rewriteValueARM64_OpConstBool(v *Value) bool {
+-	// match: (ConstBool [b])
+-	// result: (MOVDconst [b2i(b)])
++	// match: (ConstBool [t])
++	// result: (MOVDconst [b2i(t)])
+ 	for {
+-		b := auxIntToBool(v.AuxInt)
++		t := auxIntToBool(v.AuxInt)
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(b2i(b))
++		v.AuxInt = int64ToAuxInt(b2i(t))
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index fdf329cbd0..429369d631 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -872,12 +872,12 @@ func rewriteValueMIPS_OpConst8(v *Value) bool {
+ 	}
+ }
+ func rewriteValueMIPS_OpConstBool(v *Value) bool {
+-	// match: (ConstBool [b])
+-	// result: (MOVWconst [b2i32(b)])
++	// match: (ConstBool [t])
++	// result: (MOVWconst [b2i32(t)])
+ 	for {
+-		b := auxIntToBool(v.AuxInt)
++		t := auxIntToBool(v.AuxInt)
+ 		v.reset(OpMIPSMOVWconst)
+-		v.AuxInt = int32ToAuxInt(b2i32(b))
++		v.AuxInt = int32ToAuxInt(b2i32(t))
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 79da4dfb72..772d7b66ef 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -835,12 +835,12 @@ func rewriteValueMIPS64_OpConst8(v *Value) bool {
+ 	}
+ }
+ func rewriteValueMIPS64_OpConstBool(v *Value) bool {
+-	// match: (ConstBool [b])
+-	// result: (MOVVconst [int64(b2i(b))])
++	// match: (ConstBool [t])
++	// result: (MOVVconst [int64(b2i(t))])
+ 	for {
+-		b := auxIntToBool(v.AuxInt)
++		t := auxIntToBool(v.AuxInt)
+ 		v.reset(OpMIPS64MOVVconst)
+-		v.AuxInt = int64ToAuxInt(int64(b2i(b)))
++		v.AuxInt = int64ToAuxInt(int64(b2i(t)))
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index a5bbc836cc..f181d433cc 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -1234,12 +1234,12 @@ func rewriteValuePPC64_OpConst8(v *Value) bool {
+ 	}
+ }
+ func rewriteValuePPC64_OpConstBool(v *Value) bool {
+-	// match: (ConstBool [b])
+-	// result: (MOVDconst [b2i(b)])
++	// match: (ConstBool [t])
++	// result: (MOVDconst [b2i(t)])
+ 	for {
+-		b := auxIntToBool(v.AuxInt)
++		t := auxIntToBool(v.AuxInt)
+ 		v.reset(OpPPC64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(b2i(b))
++		v.AuxInt = int64ToAuxInt(b2i(t))
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index f02362a0d4..8b41d62c31 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -1321,12 +1321,12 @@ func rewriteValueS390X_OpConst8(v *Value) bool {
+ 	}
+ }
+ func rewriteValueS390X_OpConstBool(v *Value) bool {
+-	// match: (ConstBool [b])
+-	// result: (MOVDconst [b2i(b)])
++	// match: (ConstBool [t])
++	// result: (MOVDconst [b2i(t)])
+ 	for {
+-		b := auxIntToBool(v.AuxInt)
++		t := auxIntToBool(v.AuxInt)
+ 		v.reset(OpS390XMOVDconst)
+-		v.AuxInt = int64ToAuxInt(b2i(b))
++		v.AuxInt = int64ToAuxInt(b2i(t))
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 7e7cf458ff..535fc8916d 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -8152,32 +8152,32 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(true)
+ 		return true
+ 	}
+-	// match: (EqPtr (Addr {a} _) (Addr {b} _))
+-	// result: (ConstBool [a == b])
++	// match: (EqPtr (Addr {x} _) (Addr {y} _))
++	// result: (ConstBool [x == y])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0.Aux)
++			x := auxToSym(v_0.Aux)
+ 			if v_1.Op != OpAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1.Aux)
++			y := auxToSym(v_1.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a == b)
++			v.AuxInt = boolToAuxInt(x == y)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (EqPtr (Addr {a} _) (OffPtr [o] (Addr {b} _)))
+-	// result: (ConstBool [a == b && o == 0])
++	// match: (EqPtr (Addr {x} _) (OffPtr [o] (Addr {y} _)))
++	// result: (ConstBool [x == y && o == 0])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0.Aux)
++			x := auxToSym(v_0.Aux)
+ 			if v_1.Op != OpOffPtr {
+ 				continue
+ 			}
+@@ -8186,15 +8186,15 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+ 			if v_1_0.Op != OpAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1_0.Aux)
++			y := auxToSym(v_1_0.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a == b && o == 0)
++			v.AuxInt = boolToAuxInt(x == y && o == 0)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (EqPtr (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _)))
+-	// result: (ConstBool [a == b && o1 == o2])
++	// match: (EqPtr (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _)))
++	// result: (ConstBool [x == y && o1 == o2])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpOffPtr {
+@@ -8205,7 +8205,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+ 			if v_0_0.Op != OpAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0_0.Aux)
++			x := auxToSym(v_0_0.Aux)
+ 			if v_1.Op != OpOffPtr {
+ 				continue
+ 			}
+@@ -8214,39 +8214,39 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+ 			if v_1_0.Op != OpAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1_0.Aux)
++			y := auxToSym(v_1_0.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a == b && o1 == o2)
++			v.AuxInt = boolToAuxInt(x == y && o1 == o2)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (EqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _))
+-	// result: (ConstBool [a == b])
++	// match: (EqPtr (LocalAddr {x} _ _) (LocalAddr {y} _ _))
++	// result: (ConstBool [x == y])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0.Aux)
++			x := auxToSym(v_0.Aux)
+ 			if v_1.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1.Aux)
++			y := auxToSym(v_1.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a == b)
++			v.AuxInt = boolToAuxInt(x == y)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (EqPtr (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _)))
+-	// result: (ConstBool [a == b && o == 0])
++	// match: (EqPtr (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _)))
++	// result: (ConstBool [x == y && o == 0])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0.Aux)
++			x := auxToSym(v_0.Aux)
+ 			if v_1.Op != OpOffPtr {
+ 				continue
+ 			}
+@@ -8255,15 +8255,15 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+ 			if v_1_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1_0.Aux)
++			y := auxToSym(v_1_0.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a == b && o == 0)
++			v.AuxInt = boolToAuxInt(x == y && o == 0)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (EqPtr (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _)))
+-	// result: (ConstBool [a == b && o1 == o2])
++	// match: (EqPtr (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _)))
++	// result: (ConstBool [x == y && o1 == o2])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpOffPtr {
+@@ -8274,7 +8274,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+ 			if v_0_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0_0.Aux)
++			x := auxToSym(v_0_0.Aux)
+ 			if v_1.Op != OpOffPtr {
+ 				continue
+ 			}
+@@ -8283,9 +8283,9 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+ 			if v_1_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1_0.Aux)
++			y := auxToSym(v_1_0.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a == b && o1 == o2)
++			v.AuxInt = boolToAuxInt(x == y && o1 == o2)
+ 			return true
+ 		}
+ 		break
+@@ -8532,28 +8532,28 @@ func rewriteValuegeneric_OpEqSlice(v *Value) bool {
+ func rewriteValuegeneric_OpIMake(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	// match: (IMake typ (StructMake1 val))
+-	// result: (IMake typ val)
++	// match: (IMake _typ (StructMake1 val))
++	// result: (IMake _typ val)
+ 	for {
+-		typ := v_0
++		_typ := v_0
+ 		if v_1.Op != OpStructMake1 {
+ 			break
+ 		}
+ 		val := v_1.Args[0]
+ 		v.reset(OpIMake)
+-		v.AddArg2(typ, val)
++		v.AddArg2(_typ, val)
+ 		return true
+ 	}
+-	// match: (IMake typ (ArrayMake1 val))
+-	// result: (IMake typ val)
++	// match: (IMake _typ (ArrayMake1 val))
++	// result: (IMake _typ val)
+ 	for {
+-		typ := v_0
++		_typ := v_0
+ 		if v_1.Op != OpArrayMake1 {
+ 			break
+ 		}
+ 		val := v_1.Args[0]
+ 		v.reset(OpIMake)
+-		v.AddArg2(typ, val)
++		v.AddArg2(_typ, val)
+ 		return true
+ 	}
+ 	return false
+@@ -15710,32 +15710,32 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(false)
+ 		return true
+ 	}
+-	// match: (NeqPtr (Addr {a} _) (Addr {b} _))
+-	// result: (ConstBool [a != b])
++	// match: (NeqPtr (Addr {x} _) (Addr {y} _))
++	// result: (ConstBool [x != y])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0.Aux)
++			x := auxToSym(v_0.Aux)
+ 			if v_1.Op != OpAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1.Aux)
++			y := auxToSym(v_1.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a != b)
++			v.AuxInt = boolToAuxInt(x != y)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (NeqPtr (Addr {a} _) (OffPtr [o] (Addr {b} _)))
+-	// result: (ConstBool [a != b || o != 0])
++	// match: (NeqPtr (Addr {x} _) (OffPtr [o] (Addr {y} _)))
++	// result: (ConstBool [x != y || o != 0])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0.Aux)
++			x := auxToSym(v_0.Aux)
+ 			if v_1.Op != OpOffPtr {
+ 				continue
+ 			}
+@@ -15744,15 +15744,15 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
+ 			if v_1_0.Op != OpAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1_0.Aux)
++			y := auxToSym(v_1_0.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a != b || o != 0)
++			v.AuxInt = boolToAuxInt(x != y || o != 0)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (NeqPtr (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _)))
+-	// result: (ConstBool [a != b || o1 != o2])
++	// match: (NeqPtr (OffPtr [o1] (Addr {x} _)) (OffPtr [o2] (Addr {y} _)))
++	// result: (ConstBool [x != y || o1 != o2])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpOffPtr {
+@@ -15763,7 +15763,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
+ 			if v_0_0.Op != OpAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0_0.Aux)
++			x := auxToSym(v_0_0.Aux)
+ 			if v_1.Op != OpOffPtr {
+ 				continue
+ 			}
+@@ -15772,39 +15772,39 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
+ 			if v_1_0.Op != OpAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1_0.Aux)
++			y := auxToSym(v_1_0.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a != b || o1 != o2)
++			v.AuxInt = boolToAuxInt(x != y || o1 != o2)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (NeqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _))
+-	// result: (ConstBool [a != b])
++	// match: (NeqPtr (LocalAddr {x} _ _) (LocalAddr {y} _ _))
++	// result: (ConstBool [x != y])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0.Aux)
++			x := auxToSym(v_0.Aux)
+ 			if v_1.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1.Aux)
++			y := auxToSym(v_1.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a != b)
++			v.AuxInt = boolToAuxInt(x != y)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (NeqPtr (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _)))
+-	// result: (ConstBool [a != b || o != 0])
++	// match: (NeqPtr (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _)))
++	// result: (ConstBool [x != y || o != 0])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0.Aux)
++			x := auxToSym(v_0.Aux)
+ 			if v_1.Op != OpOffPtr {
+ 				continue
+ 			}
+@@ -15813,15 +15813,15 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
+ 			if v_1_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1_0.Aux)
++			y := auxToSym(v_1_0.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a != b || o != 0)
++			v.AuxInt = boolToAuxInt(x != y || o != 0)
+ 			return true
+ 		}
+ 		break
+ 	}
+-	// match: (NeqPtr (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _)))
+-	// result: (ConstBool [a != b || o1 != o2])
++	// match: (NeqPtr (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _)))
++	// result: (ConstBool [x != y || o1 != o2])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpOffPtr {
+@@ -15832,7 +15832,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
+ 			if v_0_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			a := auxToSym(v_0_0.Aux)
++			x := auxToSym(v_0_0.Aux)
+ 			if v_1.Op != OpOffPtr {
+ 				continue
+ 			}
+@@ -15841,9 +15841,9 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
+ 			if v_1_0.Op != OpLocalAddr {
+ 				continue
+ 			}
+-			b := auxToSym(v_1_0.Aux)
++			y := auxToSym(v_1_0.Aux)
+ 			v.reset(OpConstBool)
+-			v.AuxInt = boolToAuxInt(a != b || o1 != o2)
++			v.AuxInt = boolToAuxInt(x != y || o1 != o2)
+ 			return true
+ 		}
+ 		break
+@@ -16532,17 +16532,17 @@ func rewriteValuegeneric_OpNot(v *Value) bool {
+ }
+ func rewriteValuegeneric_OpOffPtr(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	// match: (OffPtr (OffPtr p [b]) [a])
+-	// result: (OffPtr p [a+b])
++	// match: (OffPtr (OffPtr p [y]) [x])
++	// result: (OffPtr p [x+y])
+ 	for {
+-		a := auxIntToInt64(v.AuxInt)
++		x := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpOffPtr {
+ 			break
+ 		}
+-		b := auxIntToInt64(v_0.AuxInt)
++		y := auxIntToInt64(v_0.AuxInt)
+ 		p := v_0.Args[0]
+ 		v.reset(OpOffPtr)
+-		v.AuxInt = int64ToAuxInt(a + b)
++		v.AuxInt = int64ToAuxInt(x + y)
+ 		v.AddArg(p)
+ 		return true
+ 	}
+@@ -20678,34 +20678,34 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
+-	// match: (SelectN [0] (MakeResult a ___))
+-	// result: a
++	// match: (SelectN [0] (MakeResult x ___))
++	// result: x
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpMakeResult || len(v_0.Args) < 1 {
+ 			break
+ 		}
+-		a := v_0.Args[0]
+-		v.copyOf(a)
++		x := v_0.Args[0]
++		v.copyOf(x)
+ 		return true
+ 	}
+-	// match: (SelectN [1] (MakeResult a b ___))
+-	// result: b
++	// match: (SelectN [1] (MakeResult x y ___))
++	// result: y
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpMakeResult || len(v_0.Args) < 2 {
+ 			break
+ 		}
+-		b := v_0.Args[1]
+-		v.copyOf(b)
++		y := v_0.Args[1]
++		v.copyOf(y)
+ 		return true
+ 	}
+-	// match: (SelectN [2] (MakeResult a b c ___))
+-	// result: c
++	// match: (SelectN [2] (MakeResult x y z ___))
++	// result: z
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 2 || v_0.Op != OpMakeResult || len(v_0.Args) < 3 {
+ 			break
+ 		}
+-		c := v_0.Args[2]
+-		v.copyOf(c)
++		z := v_0.Args[2]
++		v.copyOf(z)
+ 		return true
+ 	}
+ 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))

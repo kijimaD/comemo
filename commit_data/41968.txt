@@ -29,7 +29,126 @@ Date:   Fri Nov 1 12:38:10 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/proc.go | 49 ++++++++++++++++++++++++++-----------------------
  src/runtime/time.go | 21 +++++++++++++++++++++
  2 files changed, 47 insertions(+), 23 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c3315cd2db..acef0f7b84 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1964,6 +1964,9 @@ func handoffp(_p_ *p) {
+ 		startm(_p_, false)
+ 		return
+ 	}
++	if when := nobarrierWakeTime(_p_); when != 0 {
++		wakeNetPoller(when)
++	}
+ 	pidleput(_p_)
+ 	unlock(&sched.lock)
+ }
+@@ -4448,32 +4451,33 @@ func sysmon() {
+ 			delay = 10 * 1000
+ 		}
+ 		usleep(delay)
++		now := nanotime()
+ 		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
+ 			lock(&sched.lock)
+ 			if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
+-				atomic.Store(&sched.sysmonwait, 1)
+-				unlock(&sched.lock)
+-				// Make wake-up period small enough
+-				// for the sampling to be correct.
+-				maxsleep := forcegcperiod / 2
+-				shouldRelax := true
+-				if osRelaxMinNS > 0 {
+-					next := timeSleepUntil()
+-					now := nanotime()
+-					if next-now < osRelaxMinNS {
+-						shouldRelax = false
++				next := timeSleepUntil()
++				if next > now {
++					atomic.Store(&sched.sysmonwait, 1)
++					unlock(&sched.lock)
++					// Make wake-up period small enough
++					// for the sampling to be correct.
++					sleep := forcegcperiod / 2
++					if next-now < sleep {
++						sleep = next - now
+ 					}
++					shouldRelax := sleep >= osRelaxMinNS
++					if shouldRelax {
++						osRelax(true)
++					}
++					notetsleep(&sched.sysmonnote, sleep)
++					if shouldRelax {
++						osRelax(false)
++					}
++					now = nanotime()
++					lock(&sched.lock)
++					atomic.Store(&sched.sysmonwait, 0)
++					noteclear(&sched.sysmonnote)
+ 				}
+-				if shouldRelax {
+-					osRelax(true)
+-				}
+-				notetsleep(&sched.sysmonnote, maxsleep)
+-				if shouldRelax {
+-					osRelax(false)
+-				}
+-				lock(&sched.lock)
+-				atomic.Store(&sched.sysmonwait, 0)
+-				noteclear(&sched.sysmonnote)
+ 				idle = 0
+ 				delay = 20
+ 			}
+@@ -4485,7 +4489,6 @@ func sysmon() {
+ 		}
+ 		// poll network if not polled for more than 10ms
+ 		lastpoll := int64(atomic.Load64(&sched.lastpoll))
+-		now := nanotime()
+ 		if netpollinited() && lastpoll != 0 && lastpoll+10*1000*1000 < now {
+ 			atomic.Cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
+ 			list := netpoll(0) // non-blocking - returns list of goroutines
+@@ -4691,7 +4694,7 @@ func schedtrace(detailed bool) {
+ 			if mp != nil {
+ 				id = mp.id
+ 			}
+-			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gFree.n, "\n")
++			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gFree.n, " timerslen=", len(_p_.timers), "\n")
+ 		} else {
+ 			// In non-detailed mode format lengths of per-P run queues as:
+ 			// [len1 len2 len3 len4]
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index e6a24c5561..6ae5225c68 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -1024,6 +1024,27 @@ func addAdjustedTimers(pp *p, moved []*timer) {
+ 	}
+ }
+ 
++// nobarrierWakeTime looks at P's timers and returns the time when we
++// should wake up the netpoller. It returns 0 if there are no timers.
++// This function is invoked when dropping a P, and must run without
++// any write barriers. Therefore, if there are any timers that needs
++// to be moved earlier, it conservatively returns the current time.
++// The netpoller M will wake up and adjust timers before sleeping again.
++//go:nowritebarrierrec
++func nobarrierWakeTime(pp *p) int64 {
++	lock(&pp.timersLock)
++	ret := int64(0)
++	if len(pp.timers) > 0 {
++		if atomic.Load(&pp.adjustTimers) > 0 {
++			ret = nanotime()
++		} else {
++			ret = pp.timers[0].when
++		}
++	}
++	unlock(&pp.timersLock)
++	return ret
++}
++
+ // runtimer examines the first timer in timers. If it is ready based on now,
+ // it runs the timer and removes or updates it.
+ // Returns 0 if it ran a timer, -1 if there are no more timers, or the time

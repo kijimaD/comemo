@@ -7,6 +7,20 @@ Date:   Mon Jan 22 15:36:24 2018 -0500
     Change-Id: I689ccfb8452a170629425dc97da503b28766c6f9
     Reviewed-on: https://go-review.googlesource.com/89035
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 6d5eb0f8e6..c9c20503ca 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -50,7 +50,7 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.2">Go
+ </p>
+ 
+ <p>
+-go1.9.3 (released 2018/01/19) includes fixes to the compiler, runtime,
++go1.9.3 (released 2018/01/22) includes fixes to the compiler, runtime,
+ and the <code>database/sql</code>, <code>math/big</code>, <code>net/http</code>,
+ and <code>net/url</code> packages.
+ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.3">Go

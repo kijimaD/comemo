@@ -16,6 +16,20 @@ Date:   Sun May 7 19:42:11 2017 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 43c7d73f9f..a7821ba32f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1050,7 +1050,7 @@ func (l *Link) hostlink() {
+ 		argv = append(argv, "-Wl,-headerpad,1144")
+ 		if l.DynlinkingGo() {
+ 			argv = append(argv, "-Wl,-flat_namespace")
+-		} else {
++		} else if !SysArch.InFamily(sys.ARM64) {
+ 			argv = append(argv, "-Wl,-no_pie")
+ 		}
+ 	case objabi.Hopenbsd:

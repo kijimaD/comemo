@@ -15,6 +15,20 @@ Date:   Wed Nov 9 08:50:51 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/api/run.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index 1ae629a032..e17beb001f 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -63,7 +63,7 @@ func main() {
+ 	)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		log.Fatalf("Error running API checker: %v\n%s", err, out)
++		log.Fatalf("Error running API checker (see $GOROOT/api/README): %v\n%s", err, out)
+ 	}
+ 	fmt.Print(string(out))
+ }

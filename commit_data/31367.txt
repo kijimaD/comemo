@@ -12,6 +12,20 @@ Date:   Tue Feb 14 12:46:37 2017 -0500
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/big/arith_s390x_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/arith_s390x_test.go b/src/math/big/arith_s390x_test.go
+index 31a777e5f8..eaf8f232e6 100644
+--- a/src/math/big/arith_s390x_test.go
++++ b/src/math/big/arith_s390x_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build s390x !math_big_pure_go
++// +build s390x,!math_big_pure_go
+ 
+ package big
+ 

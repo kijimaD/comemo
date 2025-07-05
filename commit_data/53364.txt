@@ -17,6 +17,63 @@ Date:   Sat May 28 19:23:11 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/debug/elf/file.go | 15 +++++----------
  1 file changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 6bfcd2a3f8..95c28c1433 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -12,6 +12,7 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
++	"internal/saferio"
+ 	"io"
+ 	"os"
+ 	"strings"
+@@ -102,9 +103,7 @@ type Section struct {
+ // Even if the section is stored compressed in the ELF file,
+ // Data returns uncompressed data.
+ func (s *Section) Data() ([]byte, error) {
+-	dat := make([]byte, s.Size)
+-	n, err := io.ReadFull(s.Open(), dat)
+-	return dat[0:n], err
++	return saferio.ReadData(s.Open(), s.Size)
+ }
+ 
+ // stringTable reads and returns the string table given by the
+@@ -1213,10 +1212,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		if err != nil && uint64(len(b)) < s.Size {
+ 			return nil, err
+ 		}
+-		var (
+-			dlen uint64
+-			dbuf []byte
+-		)
++		var dlen uint64
+ 		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
+ 			dlen = binary.BigEndian.Uint64(b[4:12])
+ 			s.compressionOffset = 12
+@@ -1242,18 +1238,17 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 			}
+ 		}
+ 		if dlen > 0 {
+-			dbuf = make([]byte, dlen)
+ 			r, err := zlib.NewReader(bytes.NewBuffer(b[s.compressionOffset:]))
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			if _, err := io.ReadFull(r, dbuf); err != nil {
++			b, err = saferio.ReadData(r, dlen)
++			if err != nil {
+ 				return nil, err
+ 			}
+ 			if err := r.Close(); err != nil {
+ 				return nil, err
+ 			}
+-			b = dbuf
+ 		}
+ 
+ 		if f.Type == ET_EXEC {

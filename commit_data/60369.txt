@@ -15,6 +15,20 @@ Date:   Sat Jun 29 20:35:40 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/sync/rwmutex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 66cb93c44e..1d5b8fde4a 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -234,7 +234,7 @@ func syscall_hasWaitingReaders(rw *RWMutex) bool {
+ }
+ 
+ // RLocker returns a [Locker] interface that implements
+-// the [RWMutex.Lock] and [RWMutex.Unlock] methods by calling rw.RLock and rw.RUnlock.
++// the [Locker.Lock] and [Locker.Unlock] methods by calling rw.RLock and rw.RUnlock.
+ func (rw *RWMutex) RLocker() Locker {
+ 	return (*rlocker)(rw)
+ }

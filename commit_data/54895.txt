@@ -15,6 +15,20 @@ Date:   Thu Nov 17 12:51:56 2022 +1100
     Reviewed-by: Joedian Reid <joedian@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/runtime/sys_openbsd_mips64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_openbsd_mips64.s b/src/runtime/sys_openbsd_mips64.s
+index cc37e52e16..affd586742 100644
+--- a/src/runtime/sys_openbsd_mips64.s
++++ b/src/runtime/sys_openbsd_mips64.s
+@@ -277,7 +277,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$0
+ 
+ 	// In parent, return.
+ 	BEQ	R2, 3(PC)
+-	MOVW	R2, ret+40(FP)
++	MOVW	$0, ret+40(FP)
+ 	RET
+ 
+ 	// Initialise m, g.

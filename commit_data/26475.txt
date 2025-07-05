@@ -13,8 +13,129 @@ Date:   Tue Jan 26 14:44:58 2016 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go      | 17 ++++++-----------
  src/runtime/proc.go     | 14 +++++++-------
  src/runtime/runtime2.go |  2 +-
  3 files changed, 14 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 24b8f95d15..94301c6dc7 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -629,7 +629,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+ 	if gcBlackenEnabled == 0 {
+ 		throw("gcControllerState.findRunnable: blackening not enabled")
+ 	}
+-	if _p_.gcBgMarkWorker == nil {
++	if _p_.gcBgMarkWorker == 0 {
+ 		// The mark worker associated with this P is blocked
+ 		// performing a mark transition. We can't run it
+ 		// because it may be on some other run or wait queue.
+@@ -711,7 +711,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+ 	}
+ 
+ 	// Run the background mark worker
+-	gp := _p_.gcBgMarkWorker
++	gp := _p_.gcBgMarkWorker.ptr()
+ 	casgstatus(gp, _Gwaiting, _Grunnable)
+ 	if trace.enabled {
+ 		traceGoUnpark(gp, 0)
+@@ -1325,7 +1325,7 @@ func gcBgMarkStartWorkers() {
+ 		if p == nil || p.status == _Pdead {
+ 			break
+ 		}
+-		if p.gcBgMarkWorker == nil {
++		if p.gcBgMarkWorker == 0 {
+ 			go gcBgMarkWorker(p)
+ 			notetsleepg(&work.bgMarkReady, -1)
+ 			noteclear(&work.bgMarkReady)
+@@ -1356,11 +1356,6 @@ func gcBgMarkWorker(_p_ *p) {
+ 	}
+ 	var park parkInfo
+ 
+-	// casgp is casp for *g's.
+-	casgp := func(gpp **g, old, new *g) bool {
+-		return casp((*unsafe.Pointer)(unsafe.Pointer(gpp)), unsafe.Pointer(old), unsafe.Pointer(new))
+-	}
+-
+ 	gp := getg()
+ 	park.m = acquirem()
+ 	park.attach = _p_
+@@ -1397,7 +1392,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 				// cas the worker because we may be
+ 				// racing with a new worker starting
+ 				// on this P.
+-				if !casgp(&p.gcBgMarkWorker, nil, g) {
++				if !p.gcBgMarkWorker.cas(0, guintptr(unsafe.Pointer(g))) {
+ 					// The P got a new worker.
+ 					// Exit this worker.
+ 					return false
+@@ -1409,7 +1404,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 		// Loop until the P dies and disassociates this
+ 		// worker (the P may later be reused, in which case
+ 		// it will get a new worker) or we failed to associate.
+-		if _p_.gcBgMarkWorker != gp {
++		if _p_.gcBgMarkWorker.ptr() != gp {
+ 			break
+ 		}
+ 
+@@ -1478,7 +1473,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 			// as the worker for this P so
+ 			// findRunnableGCWorker doesn't try to
+ 			// schedule it.
+-			_p_.gcBgMarkWorker = nil
++			_p_.gcBgMarkWorker.set(nil)
+ 			releasem(park.m)
+ 
+ 			gcMarkDone()
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 680c5faedd..2bc3c920dc 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1867,9 +1867,9 @@ stop:
+ 	// We have nothing to do. If we're in the GC mark phase, can
+ 	// safely scan and blacken objects, and have work to do, run
+ 	// idle-time marking rather than give up the P.
+-	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != nil && gcMarkWorkAvailable(_p_) {
++	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != 0 && gcMarkWorkAvailable(_p_) {
+ 		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
+-		gp := _p_.gcBgMarkWorker
++		gp := _p_.gcBgMarkWorker.ptr()
+ 		casgstatus(gp, _Gwaiting, _Grunnable)
+ 		if trace.enabled {
+ 			traceGoUnpark(gp, 0)
+@@ -3206,15 +3206,15 @@ func procresize(nprocs int32) *p {
+ 		}
+ 		// if there's a background worker, make it runnable and put
+ 		// it on the global queue so it can clean itself up
+-		if p.gcBgMarkWorker != nil {
+-			casgstatus(p.gcBgMarkWorker, _Gwaiting, _Grunnable)
++		if gp := p.gcBgMarkWorker.ptr(); gp != nil {
++			casgstatus(gp, _Gwaiting, _Grunnable)
+ 			if trace.enabled {
+-				traceGoUnpark(p.gcBgMarkWorker, 0)
++				traceGoUnpark(gp, 0)
+ 			}
+-			globrunqput(p.gcBgMarkWorker)
++			globrunqput(gp)
+ 			// This assignment doesn't race because the
+ 			// world is stopped.
+-			p.gcBgMarkWorker = nil
++			p.gcBgMarkWorker.set(nil)
+ 		}
+ 		for i := range p.sudogbuf {
+ 			p.sudogbuf[i] = nil
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 54c4686f79..917fe89d38 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -388,7 +388,7 @@ type p struct {
+ 
+ 	// Per-P GC state
+ 	gcAssistTime     int64 // Nanoseconds in assistAlloc
+-	gcBgMarkWorker   *g
++	gcBgMarkWorker   guintptr
+ 	gcMarkWorkerMode gcMarkWorkerMode
+ 
+ 	// gcw is this P's GC work buffer cache. The work buffer is

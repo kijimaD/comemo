@@ -13,6 +13,84 @@ Date:   Wed Nov 15 14:31:30 2023 -0500
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/util.go | 31 ++++++++++++++++++++++++++-----
  1 file changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index 5615d60b57..b82a983d9f 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -11,13 +11,28 @@ import (
+ 	"runtime"
+ 	"runtime/pprof"
+ 	tracepkg "runtime/trace"
++	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ )
+ 
++func profileName(fn, suffix string) string {
++	if strings.HasSuffix(fn, string(os.PathSeparator)) {
++		err := os.MkdirAll(fn, 0755)
++		if err != nil {
++			base.Fatalf("%v", err)
++		}
++	}
++	if fi, statErr := os.Stat(fn); statErr == nil && fi.IsDir() {
++		fn = filepath.Join(fn, url.PathEscape(base.Ctxt.Pkgpath)+suffix)
++	}
++	return fn
++}
++
+ func startProfile() {
+ 	if base.Flag.CPUProfile != "" {
+-		f, err := os.Create(base.Flag.CPUProfile)
++		fn := profileName(base.Flag.CPUProfile, ".cpuprof")
++		f, err := os.Create(fn)
+ 		if err != nil {
+ 			base.Fatalf("%v", err)
+ 		}
+@@ -40,8 +55,14 @@ func startProfile() {
+ 		// gzipFormat is what most people want, otherwise
+ 		var format = textFormat
+ 		fn := base.Flag.MemProfile
++		if strings.HasSuffix(fn, string(os.PathSeparator)) {
++			err := os.MkdirAll(fn, 0755)
++			if err != nil {
++				base.Fatalf("%v", err)
++			}
++		}
+ 		if fi, statErr := os.Stat(fn); statErr == nil && fi.IsDir() {
+-			fn = filepath.Join(fn, url.PathEscape(base.Ctxt.Pkgpath)+".mprof")
++			fn = filepath.Join(fn, url.PathEscape(base.Ctxt.Pkgpath)+".memprof")
+ 			format = gzipFormat
+ 		}
+ 
+@@ -62,7 +83,7 @@ func startProfile() {
+ 		runtime.MemProfileRate = 0
+ 	}
+ 	if base.Flag.BlockProfile != "" {
+-		f, err := os.Create(base.Flag.BlockProfile)
++		f, err := os.Create(profileName(base.Flag.BlockProfile, ".blockprof"))
+ 		if err != nil {
+ 			base.Fatalf("%v", err)
+ 		}
+@@ -73,7 +94,7 @@ func startProfile() {
+ 		})
+ 	}
+ 	if base.Flag.MutexProfile != "" {
+-		f, err := os.Create(base.Flag.MutexProfile)
++		f, err := os.Create(profileName(base.Flag.MutexProfile, ".mutexprof"))
+ 		if err != nil {
+ 			base.Fatalf("%v", err)
+ 		}
+@@ -84,7 +105,7 @@ func startProfile() {
+ 		})
+ 	}
+ 	if base.Flag.TraceProfile != "" {
+-		f, err := os.Create(base.Flag.TraceProfile)
++		f, err := os.Create(profileName(base.Flag.TraceProfile, ".trace"))
+ 		if err != nil {
+ 			base.Fatalf("%v", err)
+ 		}

@@ -7,6 +7,20 @@ Date:   Wed Oct 9 06:44:11 2013 -0700
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/14582043
-
+---
  src/pkg/net/packetconn_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/packetconn_test.go b/src/pkg/net/packetconn_test.go
+index 53e8be9c89..945003f67a 100644
+--- a/src/pkg/net/packetconn_test.go
++++ b/src/pkg/net/packetconn_test.go
+@@ -172,7 +172,7 @@ func TestConnAndPacketConn(t *testing.T) {
+ 		}
+ 		rb1 := make([]byte, 128)
+ 		if _, _, err := c1.ReadFrom(rb1); err != nil {
+-			t.Fatalf("PacetConn.ReadFrom failed: %v", err)
++			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
+ 		}
+ 		var dst Addr
+ 		switch netstr[0] {

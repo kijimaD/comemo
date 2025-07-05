@@ -7,10 +7,586 @@ Date:   Mon Sep 24 20:08:05 2012 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6554060
-
+---
  src/pkg/runtime/malloc.goc | 230 ++++++++++++++++++++++++++++++++++++++++++++-
  src/pkg/runtime/malloc.h   |  56 +++++++++++
  src/pkg/runtime/mgc0.c     |  65 ++++++++++---
  src/pkg/runtime/mheap.c    |   8 ++
  src/pkg/runtime/runtime.h  |   8 ++
  5 files changed, 354 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 294dad8f34..7253db8f42 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -43,6 +43,9 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 	if(size == 0)
+ 		size = 1;
+ 
++	if(DebugTypeAtBlockEnd)
++		size += sizeof(uintptr);
++
+ 	c = m->mcache;
+ 	c->local_nmalloc++;
+ 	if(size <= MaxSmallSize) {
+@@ -84,6 +87,9 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 	if(!(flag & FlagNoGC))
+ 		runtime·markallocated(v, size, (flag&FlagNoPointers) != 0);
+ 
++	if(DebugTypeAtBlockEnd)
++		*(uintptr*)((uintptr)v+size-sizeof(uintptr)) = 0;
++
+ 	m->mallocing = 0;
+ 
+ 	if(!(flag & FlagNoProfiling) && (rate = runtime·MemProfileRate) > 0) {
+@@ -213,7 +219,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ 		return 0;
+ 	}
+ 
+-	n = runtime·class_to_size[s->sizeclass];
++	n = s->elemsize;
+ 	if(base) {
+ 		i = ((byte*)v - p)/n;
+ 		*base = p + i*n;
+@@ -450,6 +456,220 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 	return p;
+ }
+ 
++static Lock settype_lock;
++
++void
++runtime·settype_flush(M *m, bool sysalloc)
++{
++	uintptr *buf, *endbuf;
++	uintptr size, ofs, j, t;
++	uintptr ntypes, nbytes2, nbytes3;
++	uintptr *data2;
++	byte *data3;
++	bool sysalloc3;
++	void *v;
++	uintptr typ, p;
++	MSpan *s;
++
++	buf = m->settype_buf;
++	endbuf = buf + m->settype_bufsize;
++
++	runtime·lock(&settype_lock);
++	while(buf < endbuf) {
++		v = (void*)*buf;
++		*buf = 0;
++		buf++;
++		typ = *buf;
++		buf++;
++
++		// (Manually inlined copy of runtime·MHeap_Lookup)
++		p = (uintptr)v>>PageShift;
++		if(sizeof(void*) == 8)
++			p -= (uintptr)runtime·mheap.arena_start >> PageShift;
++		s = runtime·mheap.map[p];
++
++		if(s->sizeclass == 0) {
++			s->types.compression = MTypes_Single;
++			s->types.data = typ;
++			continue;
++		}
++
++		size = s->elemsize;
++		ofs = ((uintptr)v - (s->start<<PageShift)) / size;
++
++		switch(s->types.compression) {
++		case MTypes_Empty:
++			ntypes = (s->npages << PageShift) / size;
++			nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
++
++			if(!sysalloc) {
++				data3 = runtime·mallocgc(nbytes3, FlagNoPointers, 0, 1);
++			} else {
++				data3 = runtime·SysAlloc(nbytes3);
++				if(0) runtime·printf("settype(0->3): SysAlloc(%x) --> %p\n", (uint32)nbytes3, data3);
++			}
++
++			s->types.compression = MTypes_Bytes;
++			s->types.sysalloc = sysalloc;
++			s->types.data = (uintptr)data3;
++
++			((uintptr*)data3)[1] = typ;
++			data3[8*sizeof(uintptr) + ofs] = 1;
++			break;
++
++		case MTypes_Words:
++			((uintptr*)s->types.data)[ofs] = typ;
++			break;
++
++		case MTypes_Bytes:
++			data3 = (byte*)s->types.data;
++			for(j=1; j<8; j++) {
++				if(((uintptr*)data3)[j] == typ) {
++					break;
++				}
++				if(((uintptr*)data3)[j] == 0) {
++					((uintptr*)data3)[j] = typ;
++					break;
++				}
++			}
++			if(j < 8) {
++				data3[8*sizeof(uintptr) + ofs] = j;
++			} else {
++				ntypes = (s->npages << PageShift) / size;
++				nbytes2 = ntypes * sizeof(uintptr);
++
++				if(!sysalloc) {
++					data2 = runtime·mallocgc(nbytes2, FlagNoPointers, 0, 1);
++				} else {
++					data2 = runtime·SysAlloc(nbytes2);
++					if(0) runtime·printf("settype.(3->2): SysAlloc(%x) --> %p\n", (uint32)nbytes2, data2);
++				}
++
++				sysalloc3 = s->types.sysalloc;
++
++				s->types.compression = MTypes_Words;
++				s->types.sysalloc = sysalloc;
++				s->types.data = (uintptr)data2;
++
++				// Move the contents of data3 to data2. Then deallocate data3.
++				for(j=0; j<ntypes; j++) {
++					t = data3[8*sizeof(uintptr) + j];
++					t = ((uintptr*)data3)[t];
++					data2[j] = t;
++				}
++				if(sysalloc3) {
++					nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
++					if(0) runtime·printf("settype.(3->2): SysFree(%p,%x)\n", data3, (uint32)nbytes3);
++					runtime·SysFree(data3, nbytes3);
++				}
++
++				data2[ofs] = typ;
++			}
++			break;
++		}
++	}
++	runtime·unlock(&settype_lock);
++
++	m->settype_bufsize = 0;
++}
++
++// It is forbidden to use this function if it is possible that
++// explicit deallocation via calling runtime·free(v) may happen.
++void
++runtime·settype(void *v, uintptr t)
++{
++	M *m1;
++	uintptr *buf;
++	uintptr i;
++	MSpan *s;
++
++	if(t == 0)
++		runtime·throw("settype: zero type");
++
++	m1 = m;
++	buf = m1->settype_buf;
++	i = m1->settype_bufsize;
++	buf[i+0] = (uintptr)v;
++	buf[i+1] = t;
++	i += 2;
++	m1->settype_bufsize = i;
++
++	if(i == nelem(m1->settype_buf)) {
++		runtime·settype_flush(m1, false);
++	}
++
++	if(DebugTypeAtBlockEnd) {
++		s = runtime·MHeap_Lookup(&runtime·mheap, v);
++		*(uintptr*)((uintptr)v+s->elemsize-sizeof(uintptr)) = t;
++	}
++}
++
++void
++runtime·settype_sysfree(MSpan *s)
++{
++	uintptr ntypes, nbytes;
++
++	if(!s->types.sysalloc)
++		return;
++
++	nbytes = (uintptr)-1;
++
++	switch (s->types.compression) {
++	case MTypes_Words:
++		ntypes = (s->npages << PageShift) / s->elemsize;
++		nbytes = ntypes * sizeof(uintptr);
++		break;
++	case MTypes_Bytes:
++		ntypes = (s->npages << PageShift) / s->elemsize;
++		nbytes = 8*sizeof(uintptr) + 1*ntypes;
++		break;
++	}
++
++	if(nbytes != (uintptr)-1) {
++		if(0) runtime·printf("settype: SysFree(%p,%x)\n", (void*)s->types.data, (uint32)nbytes);
++		runtime·SysFree((void*)s->types.data, nbytes);
++	}
++}
++
++uintptr
++runtime·gettype(void *v)
++{
++	MSpan *s;
++	uintptr t, ofs;
++	byte *data;
++
++	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
++	if(s != nil) {
++		t = 0;
++		switch(s->types.compression) {
++		case MTypes_Empty:
++			break;
++		case MTypes_Single:
++			t = s->types.data;
++			break;
++		case MTypes_Words:
++			ofs = (uintptr)v - (s->start<<PageShift);
++			t = ((uintptr*)s->types.data)[ofs/s->elemsize];
++			break;
++		case MTypes_Bytes:
++			ofs = (uintptr)v - (s->start<<PageShift);
++			data = (byte*)s->types.data;
++			t = data[8*sizeof(uintptr) + ofs/s->elemsize];
++			t = ((uintptr*)data)[t];
++			break;
++		default:
++			runtime·throw("runtime·gettype: invalid compression kind");
++		}
++		if(0) {
++			runtime·lock(&settype_lock);
++			runtime·printf("%p -> %d,%X\n", v, (int32)s->types.compression, (int64)t);
++			runtime·unlock(&settype_lock);
++		}
++		return t;
++	}
++	return 0;
++}
++
+ // Runtime stubs.
+ 
+ void*
+@@ -461,6 +681,14 @@ runtime·mal(uintptr n)
+ func new(typ *Type) (ret *uint8) {
+ 	uint32 flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+ 	ret = runtime·mallocgc(typ->size, flag, 1, 1);
++
++	if(UseSpanType && !flag) {
++		if(false) {
++			runtime·printf("new %S: %p\n", *typ->string, ret);
++		}
++		runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
++	}
++
+ 	FLUSH(&ret);
+ }
+ 
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index c00bd4599f..f2e0c8b9ab 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -85,6 +85,7 @@ typedef struct MHeap	MHeap;
+ typedef struct MSpan	MSpan;
+ typedef struct MStats	MStats;
+ typedef struct MLink	MLink;
++typedef struct MTypes	MTypes;
+ 
+ enum
+ {
+@@ -303,6 +304,44 @@ void*	runtime·MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zero
+ void	runtime·MCache_Free(MCache *c, void *p, int32 sizeclass, uintptr size);
+ void	runtime·MCache_ReleaseAll(MCache *c);
+ 
++// MTypes describes the types of blocks allocated within a span.
++// The compression field describes the layout of the data.
++//
++// MTypes_Empty:
++//     All blocks are free, or no type information is available for
++//     allocated blocks.
++//     The data field has no meaning.
++// MTypes_Single:
++//     The span contains just one block.
++//     The data field holds the type information.
++//     The sysalloc field has no meaning.
++// MTypes_Words:
++//     The span contains multiple blocks.
++//     The data field points to an array of type [NumBlocks]uintptr,
++//     and each element of the array holds the type of the corresponding
++//     block.
++// MTypes_Bytes:
++//     The span contains at most seven different types of blocks.
++//     The data field points to the following structure:
++//         struct {
++//             type  [8]uintptr       // type[0] is always 0
++//             index [NumBlocks]byte
++//         }
++//     The type of the i-th block is: data.type[data.index[i]]
++enum
++{
++	MTypes_Empty = 0,
++	MTypes_Single = 1,
++	MTypes_Words = 2,
++	MTypes_Bytes = 3,
++};
++struct MTypes
++{
++	byte	compression;	// one of MTypes_*
++	bool	sysalloc;	// whether (void*)data is from runtime·SysAlloc
++	uintptr	data;
++};
++
+ // An MSpan is a run of pages.
+ enum
+ {
+@@ -320,10 +359,12 @@ struct MSpan
+ 	MLink	*freelist;	// list of free objects
+ 	uint32	ref;		// number of allocated objects in this span
+ 	uint32	sizeclass;	// size class
++	uintptr	elemsize;	// computed from sizeclass or from npages
+ 	uint32	state;		// MSpanInUse etc
+ 	int64   unusedsince;	// First time spotted by GC in MSpanFree state
+ 	uintptr npreleased;	// number of pages released to the OS
+ 	byte	*limit;		// end of data in span
++	MTypes	types;		// types of allocated objects in this span
+ };
+ 
+ void	runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages);
+@@ -412,6 +453,11 @@ bool	runtime·blockspecial(void*);
+ void	runtime·setblockspecial(void*, bool);
+ void	runtime·purgecachedstats(MCache*);
+ 
++void	runtime·settype(void*, uintptr);
++void	runtime·settype_flush(M*, bool);
++void	runtime·settype_sysfree(MSpan*);
++uintptr	runtime·gettype(void*);
++
+ enum
+ {
+ 	// flags to malloc
+@@ -429,3 +475,13 @@ void	runtime·gchelper(void);
+ 
+ bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), uintptr *nret);
+ void	runtime·walkfintab(void (*fn)(void*));
++
++enum
++{
++	TypeInfo_SingleObject = 0,
++	TypeInfo_Array = 1,
++	TypeInfo_Map = 2,
++
++	// Enables type information at the end of blocks allocated from heap	
++	DebugTypeAtBlockEnd = 0,
++};
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d94a722c7a..4ee0bfda49 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -596,6 +596,8 @@ addroots(void)
+ 	G *gp;
+ 	FinBlock *fb;
+ 	byte *p;
++	MSpan *s, **allspans;
++	uint32 spanidx;
+ 
+ 	work.nroot = 0;
+ 
+@@ -603,6 +605,23 @@ addroots(void)
+ 	for(p=data; p<ebss; p+=DataBlock)
+ 		addroot(p, p+DataBlock < ebss ? DataBlock : ebss-p);
+ 
++	// MSpan.types
++	allspans = runtime·mheap.allspans;
++	for(spanidx=0; spanidx<runtime·mheap.nspan; spanidx++) {
++		s = allspans[spanidx];
++		if(s->state == MSpanInUse) {
++			switch(s->types.compression) {
++			case MTypes_Empty:
++			case MTypes_Single:
++				break;
++			case MTypes_Words:
++			case MTypes_Bytes:
++				addroot((byte*)&s->types.data, sizeof(void*));
++				break;
++			}
++		}
++	}
++
+ 	for(gp=runtime·allg; gp!=nil; gp=gp->alllink) {
+ 		switch(gp->status){
+ 		default:
+@@ -675,8 +694,11 @@ sweepspan(ParFor *desc, uint32 idx)
+ 	byte *p;
+ 	MCache *c;
+ 	byte *arena_start;
+-	MLink *start, *end;
++	MLink head, *end;
+ 	int32 nfree;
++	byte *type_data;
++	byte compression;
++	uintptr type_data_inc;
+ 	MSpan *s;
+ 
+ 	USED(&desc);
+@@ -690,23 +712,32 @@ sweepspan(ParFor *desc, uint32 idx)
+ 	arena_start = runtime·mheap.arena_start;
+ 	p = (byte*)(s->start << PageShift);
+ 	cl = s->sizeclass;
++	size = s->elemsize;
+ 	if(cl == 0) {
+-		size = s->npages<<PageShift;
+ 		n = 1;
+ 	} else {
+ 		// Chunk full of small blocks.
+-		size = runtime·class_to_size[cl];
+ 		npages = runtime·class_to_allocnpages[cl];
+ 		n = (npages << PageShift) / size;
+ 	}
+ 	nfree = 0;
+-	start = end = nil;
++	end = &head;
+ 	c = m->mcache;
++	
++	type_data = (byte*)s->types.data;
++	type_data_inc = sizeof(uintptr);
++	compression = s->types.compression;
++	switch(compression) {
++	case MTypes_Bytes:
++		type_data += 8*sizeof(uintptr);
++		type_data_inc = 1;
++		break;
++	}
+ 
+ 	// Sweep through n objects of given size starting at p.
+ 	// This thread owns the span now, so it can manipulate
+ 	// the block bitmap without atomic operations.
+-	for(; n > 0; n--, p += size) {
++	for(; n > 0; n--, p += size, type_data+=type_data_inc) {
+ 		uintptr off, *bitp, shift, bits;
+ 
+ 		off = (uintptr*)p - (uintptr*)arena_start;
+@@ -738,7 +769,7 @@ sweepspan(ParFor *desc, uint32 idx)
+ 		// Mark freed; restore block boundary bit.
+ 		*bitp = (*bitp & ~(bitMask<<shift)) | (bitBlockBoundary<<shift);
+ 
+-		if(s->sizeclass == 0) {
++		if(cl == 0) {
+ 			// Free large span.
+ 			runtime·unmarkspan(p, 1<<PageShift);
+ 			*(uintptr*)p = 1;	// needs zeroing
+@@ -747,24 +778,30 @@ sweepspan(ParFor *desc, uint32 idx)
+ 			c->local_nfree++;
+ 		} else {
+ 			// Free small object.
++			switch(compression) {
++			case MTypes_Words:
++				*(uintptr*)type_data = 0;
++				break;
++			case MTypes_Bytes:
++				*(byte*)type_data = 0;
++				break;
++			}
+ 			if(size > sizeof(uintptr))
+ 				((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
+-			if(nfree)
+-				end->next = (MLink*)p;
+-			else
+-				start = (MLink*)p;
++			
++			end->next = (MLink*)p;
+ 			end = (MLink*)p;
+ 			nfree++;
+ 		}
+ 	}
+ 
+ 	if(nfree) {
+-		c->local_by_size[s->sizeclass].nfree += nfree;
++		c->local_by_size[cl].nfree += nfree;
+ 		c->local_alloc -= size * nfree;
+ 		c->local_nfree += nfree;
+ 		c->local_cachealloc -= nfree * size;
+ 		c->local_objects -= nfree;
+-		runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, start, end);
++		runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
+ 	}
+ }
+ 
+@@ -851,6 +888,7 @@ runtime·gc(int32 force)
+ 	uint64 heap0, heap1, obj0, obj1;
+ 	byte *p;
+ 	GCStats stats;
++	M *m1;
+ 	uint32 i;
+ 
+ 	// The gc is turned off (via enablegc) until
+@@ -891,6 +929,9 @@ runtime·gc(int32 force)
+ 	m->gcing = 1;
+ 	runtime·stoptheworld();
+ 
++	for(m1=runtime·allm; m1; m1=m1->alllink)
++		runtime·settype_flush(m1, false);
++
+ 	heap0 = 0;
+ 	obj0 = 0;
+ 	if(gctrace) {
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 1ea7489049..7463b6bff7 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -143,6 +143,8 @@ HaveSpan:
+ 	// Record span info, because gc needs to be
+ 	// able to map interior pointer to containing span.
+ 	s->sizeclass = sizeclass;
++	s->elemsize = (sizeclass==0 ? s->npages<<PageShift : runtime·class_to_size[sizeclass]);
++	s->types.compression = MTypes_Empty;
+ 	p = s->start;
+ 	if(sizeof(void*) == 8)
+ 		p -= ((uintptr)h->arena_start>>PageShift);
+@@ -288,6 +290,10 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 	MSpan *t;
+ 	PageID p;
+ 
++	if(s->types.sysalloc)
++		runtime·settype_sysfree(s);
++	s->types.compression = MTypes_Empty;
++
+ 	if(s->state != MSpanInUse || s->ref != 0) {
+ 		runtime·printf("MHeap_FreeLocked - span %p ptr %p state %d ref %d\n", s, s->start<<PageShift, s->state, s->ref);
+ 		runtime·throw("MHeap_FreeLocked - invalid free");
+@@ -426,9 +432,11 @@ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)
+ 	span->freelist = nil;
+ 	span->ref = 0;
+ 	span->sizeclass = 0;
++	span->elemsize = 0;
+ 	span->state = 0;
+ 	span->unusedsince = 0;
+ 	span->npreleased = 0;
++	span->types.compression = MTypes_Empty;
+ }
+ 
+ // Initialize an empty doubly-linked list.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a8639f499e..8ae1e175a7 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -268,6 +268,9 @@ struct	M
+ 	uint32	waitsemalock;
+ 	GCStats	gcstats;
+ 
++	uintptr	settype_buf[1024];
++	uintptr	settype_bufsize;
++
+ #ifdef GOOS_windows
+ 	void*	thread;		// thread handle
+ #endif
+@@ -836,3 +839,8 @@ extern uint64 ·nan;
+ extern uint64 ·posinf;
+ extern uint64 ·neginf;
+ #define ISNAN(f) ((f) != (f))
++
++enum
++{
++	UseSpanType = 1,
++};

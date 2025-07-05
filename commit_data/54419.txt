@@ -15,6 +15,20 @@ Date:   Sun Oct 16 20:00:42 2022 +1030
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/malloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 53184615a1..cece04eeca 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1043,7 +1043,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 			}
+ 			x = unsafe.Pointer(v)
+ 			if needzero && span.needzero != 0 {
+-				memclrNoHeapPointers(unsafe.Pointer(v), size)
++				memclrNoHeapPointers(x, size)
+ 			}
+ 		}
+ 	} else {

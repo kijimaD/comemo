@@ -10,6 +10,37 @@ Date:   Sat Nov 6 02:59:00 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/361899
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.18.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index b86e907874..44c56444fc 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -214,6 +214,12 @@ Do not send CLs removing the interior tags from such phrases.
+     <p><!-- CL 332771 -->
+       TODO: <a href="https://golang.org/cl/332771">https://golang.org/cl/332771</a>: avoid allocations in Trim/TrimLeft/TrimRight
+     </p>
++
++    <p><!-- CL 359485 -->
++      The <a href="/pkg/bytes/#Title"><code>Title</code></a> function is now deprecated. It doesn't
++      handle Unicode punctuation and language-specific capitalization rules, and is superseded by the
++      <a href="https://golang.org/x/text/cases">golang.org/x/text/cases</a> package.
++    </p>
+   </dd>
+ </dl><!-- bytes -->
+ 
+@@ -342,6 +348,12 @@ Do not send CLs removing the interior tags from such phrases.
+     <p><!-- CL 332771 -->
+       TODO: <a href="https://golang.org/cl/332771">https://golang.org/cl/332771</a>: avoid allocations in Trim/TrimLeft/TrimRight
+     </p>
++
++    <p><!-- CL 359485 -->
++      The <a href="/pkg/strings/#Title"><code>Title</code></a> function is now deprecated. It doesn't
++      handle Unicode punctuation and language-specific capitalization rules, and is superseded by the
++      <a href="https://golang.org/x/text/cases">golang.org/x/text/cases</a> package.
++    </p>
+   </dd>
+ </dl><!-- strings -->
+ 

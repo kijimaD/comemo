@@ -10,6 +10,34 @@ Date:   Fri Oct 21 18:46:44 2016 +0900
     Reviewed-on: https://go-review.googlesource.com/31544
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/path/filepath/path_windows_test.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 7bfa6e42a0..8d552d06f7 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -337,10 +337,10 @@ func TestToNorm(t *testing.T) {
+ 		{`{{tmp}}\test`, `{{tmpvol}}FOO\BAR`, `{{tmpvol}}foo\bar`},
+ 
+ 		// test relative paths begin with '\'
+-		{".", `{{tmpnovol}}\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+-		{".", `{{tmpnovol}}\.\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+-		{".", `{{tmpnovol}}\test\..\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+-		{".", `{{tmpnovol}}\TEST\FOO\BAR`, `{{tmpnovol}}\test\foo\bar`},
++		{"{{tmp}}", `{{tmpnovol}}\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
++		{"{{tmp}}", `{{tmpnovol}}\.\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
++		{"{{tmp}}", `{{tmpnovol}}\test\..\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
++		{"{{tmp}}", `{{tmpnovol}}\TEST\FOO\BAR`, `{{tmpnovol}}\test\foo\bar`},
+ 
+ 		// test relative paths begin without '\'
+ 		{`{{tmp}}\test`, ".", `.`},
+@@ -355,7 +355,6 @@ func TestToNorm(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-
+ 	defer func() {
+ 		err := os.Chdir(cwd)
+ 		if err != nil {

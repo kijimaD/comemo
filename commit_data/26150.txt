@@ -10,10 +10,109 @@ Date:   Fri Dec 18 11:24:55 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/18044
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/go/build/deps_test.go          | 2 +-
  src/runtime/debug/garbage_test.go  | 3 ++-
  src/runtime/debug/heapdump_test.go | 3 ++-
  src/runtime/debug/stack_test.go    | 9 +++++----
  src/testing/testing.go             | 2 ++
  5 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index b16893861e..4603102526 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -165,7 +165,7 @@ var pkgDeps = map[string][]string{
+ 	"runtime/trace":  {"L0"},
+ 	"text/tabwriter": {"L2"},
+ 
+-	"testing":          {"L2", "flag", "fmt", "os", "runtime/pprof", "runtime/trace", "time"},
++	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":   {"L2", "log"},
+ 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
+ 	"internal/testenv": {"L2", "os", "testing"},
+diff --git a/src/runtime/debug/garbage_test.go b/src/runtime/debug/garbage_test.go
+index 549d360bbf..d834da84fc 100644
+--- a/src/runtime/debug/garbage_test.go
++++ b/src/runtime/debug/garbage_test.go
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package debug
++package debug_test
+ 
+ import (
+ 	"runtime"
++	. "runtime/debug"
+ 	"testing"
+ 	"time"
+ )
+diff --git a/src/runtime/debug/heapdump_test.go b/src/runtime/debug/heapdump_test.go
+index cb2f2f0679..5761c015b8 100644
+--- a/src/runtime/debug/heapdump_test.go
++++ b/src/runtime/debug/heapdump_test.go
+@@ -2,12 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package debug
++package debug_test
+ 
+ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"runtime"
++	. "runtime/debug"
+ 	"testing"
+ )
+ 
+diff --git a/src/runtime/debug/stack_test.go b/src/runtime/debug/stack_test.go
+index d2a4ea5b37..f54437231b 100644
+--- a/src/runtime/debug/stack_test.go
++++ b/src/runtime/debug/stack_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package debug
++package debug_test
+ 
+ import (
++	. "runtime/debug"
+ 	"strings"
+ 	"testing"
+ )
+@@ -51,9 +52,9 @@ func TestStack(t *testing.T) {
+ 	}
+ 	n++
+ 	frame("src/runtime/debug/stack.go", "runtime/debug.Stack")
+-	frame("src/runtime/debug/stack_test.go", "runtime/debug.(*T).ptrmethod")
+-	frame("src/runtime/debug/stack_test.go", "runtime/debug.T.method")
+-	frame("src/runtime/debug/stack_test.go", "runtime/debug.TestStack")
++	frame("src/runtime/debug/stack_test.go", "runtime/debug_test.(*T).ptrmethod")
++	frame("src/runtime/debug/stack_test.go", "runtime/debug_test.T.method")
++	frame("src/runtime/debug/stack_test.go", "runtime/debug_test.TestStack")
+ 	frame("src/testing/testing.go", "")
+ }
+ 
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 99d7798431..2081365abf 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -149,6 +149,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"runtime"
++	"runtime/debug"
+ 	"runtime/pprof"
+ 	"runtime/trace"
+ 	"strconv"
+@@ -714,6 +715,7 @@ var timer *time.Timer
+ func startAlarm() {
+ 	if *timeout > 0 {
+ 		timer = time.AfterFunc(*timeout, func() {
++			debug.SetTraceback("all")
+ 			panic(fmt.Sprintf("test timed out after %v", *timeout))
+ 		})
+ 	}

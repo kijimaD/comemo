@@ -18,9 +18,183 @@ Date:   Thu Jun 1 23:42:48 2023 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go             | 22 ++++++++++----
  src/cmd/go/internal/modload/load.go             |  4 ++-
  src/cmd/go/testdata/script/mod_tidy_version.txt | 40 ++++++++++++++++++++++++-
  src/cmd/go/testdata/script/mod_toolchain.txt    |  6 ++--
  4 files changed, 62 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index c4b30fc14d..446f4d9fa5 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1534,6 +1534,10 @@ func findImportComment(file string) string {
+ type WriteOpts struct {
+ 	DropToolchain     bool // go get toolchain@none
+ 	ExplicitToolchain bool // go get has set explicit toolchain version
++
++	// TODO(bcmills): Make 'go mod tidy' update the go version in the Requirements
++	// instead of writing directly to the modfile.File
++	TidyWroteGo bool // Go.Version field already updated by 'go mod tidy'
+ }
+ 
+ // WriteGoMod writes the current build list back to go.mod.
+@@ -1597,8 +1601,8 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 		// We cannot assume that we know how to update a go.mod to a newer version.
+ 		return &gover.TooNewError{What: "updating go.mod", GoVersion: goVersion}
+ 	}
+-	wroteGo := false
+-	if modFile.Go == nil || modFile.Go.Version != goVersion {
++	wroteGo := opts.TidyWroteGo
++	if !wroteGo && modFile.Go == nil || modFile.Go.Version != goVersion {
+ 		alwaysUpdate := cfg.BuildMod == "mod" || cfg.CmdName == "mod tidy" || cfg.CmdName == "get"
+ 		if modFile.Go == nil && goVersion == gover.DefaultGoModVersion && !alwaysUpdate {
+ 			// The go.mod has no go line, the implied default Go version matches
+@@ -1615,15 +1619,23 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 
+ 	// For reproducibility, if we are writing a new go line,
+ 	// and we're not explicitly modifying the toolchain line with 'go get toolchain@something',
++	// and the go version is one that supports switching toolchains,
+ 	// and the toolchain running right now is newer than the current toolchain line,
+ 	// then update the toolchain line to record the newer toolchain.
++	//
++	// TODO(#57001): This condition feels too complicated. Can we simplify it?
++	// TODO(#57001): Add more tests for toolchain lines.
+ 	toolVers := gover.FromToolchain(toolchain)
+-	if wroteGo && !opts.DropToolchain && !opts.ExplicitToolchain && gover.Compare(gover.Local(), toolVers) > 0 {
++	if wroteGo && !opts.DropToolchain && !opts.ExplicitToolchain &&
++		gover.Compare(goVersion, gover.GoStrictVersion) >= 0 &&
++		(gover.Compare(gover.Local(), toolVers) > 0 && !gover.IsLang(gover.Local())) {
+ 		toolchain = "go" + gover.Local()
++		toolVers = gover.FromToolchain(toolchain)
+ 	}
+ 
+-	if opts.DropToolchain || toolchain == "go"+goVersion {
+-		// go get toolchain@none or toolchain matches go line; drop it.
++	if opts.DropToolchain || toolchain == "go"+goVersion || (gover.Compare(toolVers, gover.GoStrictVersion) < 0 && !opts.ExplicitToolchain) {
++		// go get toolchain@none or toolchain matches go line or isn't valid; drop it.
++		// TODO(#57001): 'go get' should reject explicit toolchains below GoStrictVersion.
+ 		modFile.DropToolchainStmt()
+ 	} else {
+ 		modFile.AddToolchainStmt(toolchain)
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index c597d53dde..a96ce0283d 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -379,6 +379,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 		search.WarnUnmatched(matches)
+ 	}
+ 
++	tidyWroteGo := false
+ 	if opts.Tidy {
+ 		if cfg.BuildV {
+ 			mg, _ := ld.requirements.Graph(ctx)
+@@ -422,6 +423,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 				}
+ 			}
+ 			modFile.AddGoStmt(ld.GoVersion)
++			tidyWroteGo = true
+ 		}
+ 
+ 		if !ExplicitWriteGoMod {
+@@ -453,7 +455,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 	sort.Strings(loadedPackages)
+ 
+ 	if !ExplicitWriteGoMod && opts.ResolveMissingImports {
+-		if err := commitRequirements(ctx, WriteOpts{}); err != nil {
++		if err := commitRequirements(ctx, WriteOpts{TidyWroteGo: tidyWroteGo}); err != nil {
+ 			base.Fatal(err)
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_tidy_version.txt b/src/cmd/go/testdata/script/mod_tidy_version.txt
+index 3bc97bcb1e..11f1d69dc5 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_version.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_version.txt
+@@ -29,9 +29,12 @@
+ # In go 1.17, the main module must explicitly require b
+ # (because it is transitively imported by the main module).
+ 
+-
+ cp go.mod go.mod.orig
+ 
++	# Pretend we're a release version so that we can theoretically
++	# write our version in toolchain lines.
++env goversion=1.99.0
++env TESTGO_VERSION=go${goversion}
+ 
+ # An invalid argument should be rejected.
+ 
+@@ -88,6 +91,17 @@ go mod tidy -go=''
+ cmpenv go.mod go.mod.latest
+ 
+ 
++# Updating the go line to 1.21 or higher also updates the toolchain line,
++# only if the toolchain is higher than what would be implied by the go line.
++
++cp go.mod.117 go.mod
++go mod tidy -go=$goversion
++cmpenv go.mod go.mod.latest
++
++cp go.mod.117 go.mod
++go mod tidy -go=1.21.0  # lower than $goversion
++cmpenv go.mod go.mod.121toolchain
++
+ 
+ -- go.mod --
+ module example.com/m
+@@ -211,6 +225,30 @@ require (
+ 	example.net/c v0.1.0 // indirect
+ )
+ 
++replace (
++	example.net/a v0.1.0 => ./a
++	example.net/a v0.2.0 => ./a
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.2.0 => ./b
++	example.net/c v0.1.0 => ./c
++	example.net/c v0.2.0 => ./c
++	example.net/d v0.1.0 => ./d
++	example.net/d v0.2.0 => ./d
++)
++-- go.mod.121toolchain --
++module example.com/m
++
++go 1.21.0
++
++toolchain $TESTGO_VERSION
++
++require example.net/a v0.1.0
++
++require (
++	example.net/b v0.1.0 // indirect
++	example.net/c v0.1.0 // indirect
++)
++
+ replace (
+ 	example.net/a v0.1.0 => ./a
+ 	example.net/a v0.2.0 => ./a
+diff --git a/src/cmd/go/testdata/script/mod_toolchain.txt b/src/cmd/go/testdata/script/mod_toolchain.txt
+index f92d982232..c771cae0a1 100644
+--- a/src/cmd/go/testdata/script/mod_toolchain.txt
++++ b/src/cmd/go/testdata/script/mod_toolchain.txt
+@@ -1,4 +1,4 @@
+-env TESTGO_VERSION=go1.100
++env TESTGO_VERSION=go1.100.0
+ env TESTGO_VERSION_SWITCH=switch
+ 
+ go get toolchain@go1.22.1
+@@ -18,11 +18,11 @@ grep 'toolchain go1.22.1' go.mod
+ 
+ go get go@1.22.3
+ stderr '^go: upgraded go 1.10 => 1.22.3$'
+-stderr '^go: upgraded toolchain go1.22.1 => go1.100$'
++stderr '^go: upgraded toolchain go1.22.1 => go1.100.0$'
+ grep 'go 1.22.3' go.mod
+ 
+ go get go@1.22.3 toolchain@1.22.3
+-stderr '^go: removed toolchain go1.100$'
++stderr '^go: removed toolchain go1.100.0$'
+ ! grep toolchain go.mod
+ 
+ go get go@1.22.1 toolchain@go1.22.3

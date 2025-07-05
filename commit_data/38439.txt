@@ -70,7 +70,49 @@ Date:   Mon Oct 29 08:34:42 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 14 +++++++++++---
  test/codegen/arithmetic.go            |  2 ++
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 144a1f51f8..a2c7d5d8d8 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -762,12 +762,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		sc := v.AuxValAndOff()
+ 		off := sc.Off()
+ 		val := sc.Val()
+-		if val == 1 {
++		if val == 1 || val == -1 {
+ 			var asm obj.As
+ 			if v.Op == ssa.OpAMD64ADDQconstmodify {
+-				asm = x86.AINCQ
++				if val == 1 {
++					asm = x86.AINCQ
++				} else {
++					asm = x86.ADECQ
++				}
+ 			} else {
+-				asm = x86.AINCL
++				if val == 1 {
++					asm = x86.AINCL
++				} else {
++					asm = x86.ADECL
++				}
+ 			}
+ 			p := s.Prog(asm)
+ 			p.To.Type = obj.TYPE_MEM
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index c65fb0144a..ae80e31df4 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -34,6 +34,8 @@ func SubMem(arr []int, b, c, d int) int {
+ 	arr[d] -= 15
+ 	// 386:`DECL\s\([A-Z]+\)\([A-Z]+\*4\)`
+ 	arr[b]--
++	// amd64:`DECQ\s64\([A-Z]+\)`
++	arr[8]--
+ 	// 386:"SUBL\t4"
+ 	// amd64:"SUBQ\t8"
+ 	return arr[0] - arr[1]

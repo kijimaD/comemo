@@ -12,7 +12,40 @@ Date:   Tue Sep 6 18:03:30 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/runtime2.go | 2 +-
  src/runtime/symtab.go   | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 7fdf163440..1c620bbfbe 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -858,7 +858,7 @@ const (
+ // Keep in sync with linker (../cmd/link/internal/ld/pcln.go:/pclntab)
+ // and with package debug/gosym and with symtab.go in package runtime.
+ type _func struct {
+-	entryoff uint32 // start pc, as offset from moduledata.text/pcHeader.textStart
++	entryOff uint32 // start pc, as offset from moduledata.text/pcHeader.textStart
+ 	nameOff  int32  // function name, as index into moduledata.funcnametab.
+ 
+ 	args        int32  // in/out args size
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index b7bf7d77a9..79ca5cfc44 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -810,12 +810,12 @@ func (f funcInfo) _Func() *Func {
+ 
+ // isInlined reports whether f should be re-interpreted as a *funcinl.
+ func (f *_func) isInlined() bool {
+-	return f.entryoff == ^uint32(0) // see comment for funcinl.ones
++	return f.entryOff == ^uint32(0) // see comment for funcinl.ones
+ }
+ 
+ // entry returns the entry PC for f.
+ func (f funcInfo) entry() uintptr {
+-	return f.datap.textAddr(f.entryoff)
++	return f.datap.textAddr(f.entryOff)
+ }
+ 
+ // findfunc looks up function metadata for a PC.

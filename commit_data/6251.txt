@@ -8,6 +8,23 @@ Date:   Sat Sep 11 23:42:29 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1883049
-
+---
  lib/codereview/codereview.py | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index ba1a6fb108..d87a7b3f21 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1102,9 +1102,10 @@ def CheckContributor(ui, repo, user=None):
+ 	return userline
+ 
+ def FindContributor(ui, repo, user, warn=True):
++	user = user.lower()
+ 	m = re.match(r".*<(.*)>", user)
+ 	if m:
+-		user = m.group(1).lower()
++		user = m.group(1)
+ 
+ 	if user not in contributors:
+ 		if warn:

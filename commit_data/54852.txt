@@ -13,6 +13,22 @@ Date:   Wed Nov 16 23:11:07 2022 +0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/run.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index d0178b57c7..999aa4aeca 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -93,10 +93,6 @@ func defaultAllCodeGen() bool {
+ 	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64"
+ }
+ 
+-func optimizationOff() bool {
+-	return strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt")
+-}
+-
+ var (
+ 	goos          = env.GOOS
+ 	goarch        = env.GOARCH

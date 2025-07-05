@@ -20,6 +20,25 @@ Date:   Wed Oct 3 15:47:16 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 02d51678be..a80455a30c 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1479,11 +1479,10 @@ func smallintconst(n *Node) bool {
+ 			TUINT16,
+ 			TINT32,
+ 			TUINT32,
+-			TBOOL,
+-			TPTR32:
++			TBOOL:
+ 			return true
+ 
+-		case TIDEAL, TINT64, TUINT64, TPTR64:
++		case TIDEAL, TINT64, TUINT64, TPTR32, TPTR64:
+ 			v, ok := n.Val().U.(*Mpint)
+ 			if ok && v.Cmp(minintval[TINT32]) > 0 && v.Cmp(maxintval[TINT32]) < 0 {
+ 				return true

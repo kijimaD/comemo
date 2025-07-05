@@ -12,6 +12,77 @@ Date:   Mon Apr 8 09:54:33 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strings/strings.go | 54 +++++++++++++++++++++++++-------------------------
  1 file changed, 27 insertions(+), 27 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index e14fffb2b8..5a126a7a19 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -341,38 +341,38 @@ func Fields(s string) []string {
+ 		wasSpace = isSpace
+ 	}
+ 
+-	if setBits < utf8.RuneSelf { // ASCII fast path
+-		a := make([]string, n)
+-		na := 0
+-		fieldStart := 0
+-		i := 0
+-		// Skip spaces in the front of the input.
+-		for i < len(s) && asciiSpace[s[i]] != 0 {
++	if setBits >= utf8.RuneSelf {
++		// Some runes in the input string are not ASCII.
++		return FieldsFunc(s, unicode.IsSpace)
++	}
++	// ASCII fast path
++	a := make([]string, n)
++	na := 0
++	fieldStart := 0
++	i := 0
++	// Skip spaces in the front of the input.
++	for i < len(s) && asciiSpace[s[i]] != 0 {
++		i++
++	}
++	fieldStart = i
++	for i < len(s) {
++		if asciiSpace[s[i]] == 0 {
+ 			i++
++			continue
+ 		}
+-		fieldStart = i
+-		for i < len(s) {
+-			if asciiSpace[s[i]] == 0 {
+-				i++
+-				continue
+-			}
+-			a[na] = s[fieldStart:i]
+-			na++
++		a[na] = s[fieldStart:i]
++		na++
++		i++
++		// Skip spaces in between fields.
++		for i < len(s) && asciiSpace[s[i]] != 0 {
+ 			i++
+-			// Skip spaces in between fields.
+-			for i < len(s) && asciiSpace[s[i]] != 0 {
+-				i++
+-			}
+-			fieldStart = i
+-		}
+-		if fieldStart < len(s) { // Last field might end at EOF.
+-			a[na] = s[fieldStart:]
+ 		}
+-		return a
++		fieldStart = i
+ 	}
+-
+-	// Some runes in the input string are not ASCII.
+-	return FieldsFunc(s, unicode.IsSpace)
++	if fieldStart < len(s) { // Last field might end at EOF.
++		a[na] = s[fieldStart:]
++	}
++	return a
+ }
+ 
+ // FieldsFunc splits the string s at each run of Unicode code points c satisfying f(c)

@@ -13,6 +13,30 @@ Date:   Wed Jan 31 11:11:39 2018 +1300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .../github.com/google/pprof/internal/driver/fetch_test.go    | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+index 32af2e9b20..abce5b5c70 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+@@ -362,6 +362,18 @@ func TestHttpsInsecure(t *testing.T) {
+ 	if runtime.GOOS == "nacl" {
+ 		t.Skip("test assumes tcp available")
+ 	}
++	saveHome := os.Getenv(homeEnv())
++	tempdir, err := ioutil.TempDir("", "home")
++	if err != nil {
++		t.Fatal("creating temp dir: ", err)
++	}
++	defer os.RemoveAll(tempdir)
++
++	// pprof writes to $HOME/pprof by default which is not necessarily
++	// writeable (e.g. on a Debian buildd) so set $HOME to something we
++	// know we can write to for the duration of the test.
++	os.Setenv(homeEnv(), tempdir)
++	defer os.Setenv(homeEnv(), saveHome)
+ 
+ 	baseVars := pprofVariables
+ 	pprofVariables = baseVars.makeCopy()

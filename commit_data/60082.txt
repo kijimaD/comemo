@@ -13,8 +13,65 @@ Date:   Mon May 20 15:53:48 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go              | 5 +++++
  src/go/types/decl.go                                 | 5 +++++
  src/internal/types/testdata/spec/typeAliases1.23b.go | 2 +-
  3 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 246568e25e..08c186ed0a 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"go/constant"
++	"internal/buildcfg"
+ 	. "internal/types/errors"
+ )
+ 
+@@ -522,6 +523,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
+ 
+ 			// handle type parameters even if not allowed (Alias type is supported)
+ 			if tparam0 != nil {
++				if !versionErr && !buildcfg.Experiment.AliasTypeParams {
++					check.error(tdecl, UnsupportedFeature, "generic type alias requires GOEXPERIMENT=aliastypeparams")
++					versionErr = true
++				}
+ 				check.openScope(tdecl, "type parameters")
+ 				defer check.closeScope()
+ 				check.collectTypeParams(&alias.tparams, tdecl.TParamList)
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 1275e4f8d2..17dd1d4154 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -9,6 +9,7 @@ import (
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
++	"internal/buildcfg"
+ 	. "internal/types/errors"
+ )
+ 
+@@ -597,6 +598,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
+ 
+ 			// handle type parameters even if not allowed (Alias type is supported)
+ 			if tparam0 != nil {
++				if !versionErr && !buildcfg.Experiment.AliasTypeParams {
++					check.error(tdecl, UnsupportedFeature, "generic type alias requires GOEXPERIMENT=aliastypeparams")
++					versionErr = true
++				}
+ 				check.openScope(tdecl, "type parameters")
+ 				defer check.closeScope()
+ 				check.collectTypeParams(&alias.tparams, tdecl.TypeParams)
+diff --git a/src/internal/types/testdata/spec/typeAliases1.23b.go b/src/internal/types/testdata/spec/typeAliases1.23b.go
+index 9dae0ea778..d93e0214f8 100644
+--- a/src/internal/types/testdata/spec/typeAliases1.23b.go
++++ b/src/internal/types/testdata/spec/typeAliases1.23b.go
+@@ -1,4 +1,4 @@
+-// -lang=go1.23 -gotypesalias=1
++// -lang=go1.23 -gotypesalias=1 -goexperiment=aliastypeparams
+ 
+ // Copyright 2024 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

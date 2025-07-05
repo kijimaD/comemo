@@ -11,7 +11,7 @@ Date:   Mon Mar 29 21:48:22 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/825043
-
+---
  src/pkg/runtime/386/asm.s   |  12 ++---
  src/pkg/runtime/amd64/asm.s |  12 ++---
  src/pkg/runtime/arm/asm.s   |  12 ++---
@@ -19,3 +19,313 @@ Date:   Mon Mar 29 21:48:22 2010 -0700
  src/pkg/runtime/proc.c      | 124 ++++++++++++++++++++++++++++++++------------
  src/pkg/runtime/runtime.h   |   1 +
  6 files changed, 110 insertions(+), 52 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 0e49b151a2..c6c8b4a85b 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -199,11 +199,11 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVL	AX, (m_morebuf+gobuf_g)(BX)
+ 
+ 	// Set up morestack arguments to call f on a new stack.
+-	// We set f's frame size to zero, meaning
+-	// allocate a standard sized stack segment.
+-	// If it turns out that f needs a larger frame than this,
+-	// f's usual stack growth prolog will allocate
+-	// a new segment (and recopy the arguments).
++	// We set f's frame size to 1, as a hint to newstack
++	// that this is a call from reflect·call.
++	// If it turns out that f needs a larger frame than
++	// the default stack, f's usual stack growth prolog will
++	// allocate a new segment (and recopy the arguments).
+ 	MOVL	4(SP), AX	// fn
+ 	MOVL	8(SP), DX	// arg frame
+ 	MOVL	12(SP), CX	// arg size
+@@ -211,7 +211,7 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVL	AX, m_morepc(BX)	// f's PC
+ 	MOVL	DX, m_morefp(BX)	// argument frame pointer
+ 	MOVL	CX, m_moreargs(BX)	// f's argument size
+-	MOVL	$0, m_moreframe(BX)	// f's frame size
++	MOVL	$1, m_moreframe(BX)	// f's frame size
+ 
+ 	// Call newstack on m's scheduling stack.
+ 	MOVL	m_g0(BX), BP
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index a7d1c9711e..c8466318c1 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -143,11 +143,11 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVQ	g, (m_morebuf+gobuf_g)(m)
+ 
+ 	// Set up morestack arguments to call f on a new stack.
+-	// We set f's frame size to zero, meaning
+-	// allocate a standard sized stack segment.
+-	// If it turns out that f needs a larger frame than this,
+-	// f's usual stack growth prolog will allocate
+-	// a new segment (and recopy the arguments).
++	// We set f's frame size to 1, as a hint to newstack
++	// that this is a call from reflect·call.
++	// If it turns out that f needs a larger frame than
++	// the default stack, f's usual stack growth prolog will
++	// allocate a new segment (and recopy the arguments).
+ 	MOVQ	8(SP), AX	// fn
+ 	MOVQ	16(SP), BX	// arg frame
+ 	MOVL	24(SP), CX	// arg size
+@@ -155,7 +155,7 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVQ	AX, m_morepc(m)	// f's PC
+ 	MOVQ	BX, m_morefp(m)	// argument frame pointer
+ 	MOVL	CX, m_moreargs(m)	// f's argument size
+-	MOVL	$0, m_moreframe(m)	// f's frame size
++	MOVL	$1, m_moreframe(m)	// f's frame size
+ 
+ 	// Call newstack on m's scheduling stack.
+ 	MOVQ	m_g0(m), g
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 31765d2144..19fa1cc2e3 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -175,11 +175,11 @@ TEXT reflect·call(SB), 7, $-4
+ 	MOVW	g,  (m_morebuf+gobuf_g)(m)
+ 
+ 	// Set up morestack arguments to call f on a new stack.
+-	// We set f's frame size to zero, meaning
+-	// allocate a standard sized stack segment.
+-	// If it turns out that f needs a larger frame than this,
+-	// f's usual stack growth prolog will allocate
+-	// a new segment (and recopy the arguments).
++	// We set f's frame size to 1, as a hint to newstack
++	// that this is a call from reflect·call.
++	// If it turns out that f needs a larger frame than
++	// the default stack, f's usual stack growth prolog will
++	// allocate a new segment (and recopy the arguments).
+ 	MOVW	4(SP), R0	// fn
+ 	MOVW	8(SP), R1	// arg frame
+ 	MOVW	12(SP), R2	// arg size
+@@ -187,7 +187,7 @@ TEXT reflect·call(SB), 7, $-4
+ 	MOVW	R0, m_morepc(m)	// f's PC
+ 	MOVW	R1, m_morefp(m)	// argument frame pointer
+ 	MOVW	R2, m_moreargs(m)	// f's argument size
+-	MOVW	$0, R3
++	MOVW	$1, R3
+ 	MOVW	R3, m_moreframe(m)	// f's frame size
+ 
+ 	// Call newstack on m's scheduling stack.
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 6d98e50db4..1e284e8d71 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -15,6 +15,7 @@ package runtime
+ func Gosched()
+ 
+ // Goexit terminates the goroutine that calls it.  No other goroutine is affected.
++// Goexit runs all deferred calls before terminating the goroutine.
+ func Goexit()
+ 
+ // Breakpoint() executes a breakpoint trap.
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index cc48b61deb..3ef6ae8efe 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -7,6 +7,8 @@
+ #include "malloc.h"
+ #include "os.h"
+ 
++static void unwindstack(G*, byte*);
++
+ typedef struct Sched Sched;
+ 
+ M	m0;
+@@ -223,26 +225,6 @@ mget(G *g)
+ 	return m;
+ }
+ 
+-// Put on gfree list.  Sched must be locked.
+-static void
+-gfput(G *g)
+-{
+-	g->schedlink = sched.gfree;
+-	sched.gfree = g;
+-}
+-
+-// Get from gfree list.  Sched must be locked.
+-static G*
+-gfget(void)
+-{
+-	G *g;
+-
+-	g = sched.gfree;
+-	if(g)
+-		sched.gfree = g->schedlink;
+-	return g;
+-}
+-
+ // Mark g ready to run.
+ void
+ ready(G *g)
+@@ -494,6 +476,7 @@ scheduler(void)
+ 				gp->lockedm = nil;
+ 				m->lockedg = nil;
+ 			}
++			unwindstack(gp, nil);
+ 			gfput(gp);
+ 			if(--sched.gcount == 0)
+ 				exit(0);
+@@ -684,7 +667,8 @@ oldstack(void)
+ 	}
+ 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
+ 
+-	stackfree(g1->stackguard - StackGuard);
++	if(old.free)
++		stackfree(g1->stackguard - StackGuard);
+ 	g1->stackbase = old.stackbase;
+ 	g1->stackguard = old.stackguard;
+ 
+@@ -699,29 +683,42 @@ newstack(void)
+ 	byte *stk, *sp;
+ 	G *g1;
+ 	Gobuf label;
++	bool free;
+ 
+ 	frame = m->moreframe;
+ 	args = m->moreargs;
+-
+-	// Round up to align things nicely.
+-	// This is sufficient for both 32- and 64-bit machines.
+-	args = (args+7) & ~7;
+-
+-	if(frame < StackBig)
+-		frame = StackBig;
+-	frame += 1024;	// for more functions, Stktop.
+-	stk = stackalloc(frame);
+-
++	g1 = m->curg;
++	
++	if(frame == 1 && args > 0 && m->morebuf.sp - sizeof(Stktop) - args - 32 > g1->stackguard) {
++		// special case: called from reflect.call (frame == 1)
++		// to call code with an arbitrary argument size,
++		// and we have enough space on the current stack.
++		// the new Stktop* is necessary to unwind, but
++		// we don't need to create a new segment.
++		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
++		stk = g1->stackguard - StackGuard;
++		free = false;
++	} else {
++		// allocate new segment.
++		if(frame == 1)	// failed reflect.call hint
++			frame = 0;
++		frame += args;
++		if(frame < StackBig)
++			frame = StackBig;
++		frame += 1024;	// room for more functions, Stktop.
++		stk = stackalloc(frame);
++		top = (Stktop*)(stk+frame-sizeof(*top));
++		free = true;
++	}
+ 
+ //printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
+ 
+-	g1 = m->curg;
+-	top = (Stktop*)(stk+frame-sizeof(*top));
+ 	top->stackbase = g1->stackbase;
+ 	top->stackguard = g1->stackguard;
+ 	top->gobuf = m->morebuf;
+ 	top->fp = m->morefp;
+ 	top->args = args;
++	top->free = free;
+ 
+ 	g1->stackbase = (byte*)top;
+ 	g1->stackguard = stk + StackGuard;
+@@ -792,6 +789,8 @@ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ 
+ 	if((newg = gfget()) != nil){
+ 		newg->status = Gwaiting;
++		if(newg->stackguard - StackGuard != newg->stack0)
++			throw("invalid stack in newg");
+ 	} else {
+ 		newg = malg(4096);
+ 		newg->status = Gwaiting;
+@@ -853,7 +852,63 @@ void
+ 	fn = d->fn;
+ 	free(d);
+ 	jmpdefer(fn, sp);
+-  }
++}
++
++static void
++rundefer(void)
++{	
++	Defer *d;
++	
++	while((d = g->defer) != nil) {
++		g->defer = d->link;
++		reflect·call(d->fn, d->args, d->siz);
++		free(d);
++	}
++}
++
++// Free stack frames until we hit the last one
++// or until we find the one that contains the sp.
++static void
++unwindstack(G *gp, byte *sp)
++{
++	Stktop *top;
++	byte *stk;
++	
++	// Must be called from a different goroutine, usually m->g0.
++	if(g == gp)
++		throw("unwindstack on self");
++
++	while((top = (Stktop*)gp->stackbase) != nil && top->stackbase != nil) {
++		stk = gp->stackguard - StackGuard;
++		if(stk <= sp && sp < gp->stackbase)
++			break;
++		gp->stackbase = top->stackbase;
++		gp->stackguard = top->stackguard;
++		free(stk);
++	}
++}
++
++// Put on gfree list.  Sched must be locked.
++static void
++gfput(G *g)
++{
++	if(g->stackguard - StackGuard != g->stack0)
++		throw("invalid stack in gfput");
++	g->schedlink = sched.gfree;
++	sched.gfree = g;
++}
++
++// Get from gfree list.  Sched must be locked.
++static G*
++gfget(void)
++{
++	G *g;
++
++	g = sched.gfree;
++	if(g)
++		sched.gfree = g->schedlink;
++	return g;
++}
+ 
+ void
+ ·Breakpoint(void)
+@@ -864,6 +919,7 @@ void
+ void
+ ·Goexit(void)
+ {
++	rundefer();
+ 	goexit();
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index d20d5b9362..2671a05924 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -239,6 +239,7 @@ struct	Stktop
+ 	// fp == gobuf.sp except in the case of a reflected
+ 	// function call, which uses an off-stack argument frame.
+ 	uint8*	fp;
++	bool	free;	// call stackfree for this frame?
+ };
+ struct	Alg
+ {

@@ -17,6 +17,25 @@ Date:   Sun Aug 20 18:15:43 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/subr.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index d72807a778..867eee28e7 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -763,12 +763,10 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 			*ptr = 0
+ 			return false
+ 		}
+-		followptr := tm.Embedded == 2
+ 
+ 		// if pointer receiver in method,
+ 		// the method does not exist for value types.
+-		rcvr := tm.Type.Recv().Type
+-		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !types.IsInterfaceMethod(tm.Type) {
++		if !types.IsMethodApplicable(t0, tm) {
+ 			if false && base.Flag.LowerR != 0 {
+ 				base.Errorf("interface pointer mismatch")
+ 			}

@@ -7,6 +7,43 @@ Date:   Fri Feb 1 09:08:25 2013 -0800
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7220075
-
+---
  src/pkg/sort/example_reverse_test.go | 30 ------------------------------
  1 file changed, 30 deletions(-)
+
+diff --git a/src/pkg/sort/example_reverse_test.go b/src/pkg/sort/example_reverse_test.go
+deleted file mode 100644
+index 7c7f05bf3a..0000000000
+--- a/src/pkg/sort/example_reverse_test.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sort_test
+-
+-import (
+-	"fmt"
+-	"sort"
+-)
+-
+-// Reverse embeds a sort.Interface value and implements a reverse sort over
+-// that value.
+-type Reverse struct {
+-	// This embedded Interface permits Reverse to use the methods of
+-	// another Interface implementation.
+-	sort.Interface
+-}
+-
+-// Less returns the opposite of the embedded implementation's Less method.
+-func (r Reverse) Less(i, j int) bool {
+-	return r.Interface.Less(j, i)
+-}
+-
+-func ExampleInterface_reverse() {
+-	s := []int{5, 2, 6, 3, 1, 4} // unsorted
+-	sort.Sort(Reverse{sort.IntSlice(s)})
+-	fmt.Println(s)
+-	// Output: [6 5 4 3 2 1]
+-}

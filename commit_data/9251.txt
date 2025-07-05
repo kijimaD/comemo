@@ -138,7 +138,7 @@ Date:   Fri Jul 29 12:44:06 2011 -0400
     R=rsc, iant, msolo, fw, iant
     CC=golang-dev
     https://golang.org/cl/4711045
-
+---
  src/cmd/6a/lex.c                   |   1 +
  src/cmd/6l/6.out.h                 |   1 +
  src/cmd/6l/optab.c                 |   1 +
@@ -158,3 +158,711 @@ Date:   Fri Jul 29 12:44:06 2011 -0400
  src/pkg/runtime/runtime.h          |   9 +-
  src/pkg/runtime/string.goc         |  22 +++++
  18 files changed, 278 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 5009a7b832..42f4b1d11d 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -527,6 +527,7 @@ struct
+ 	"OUTSB",	LTYPE0,	AOUTSB,
+ 	"OUTSL",	LTYPE0,	AOUTSL,
+ 	"OUTSW",	LTYPE0,	AOUTSW,
++	"PAUSE",	LTYPEN,	APAUSE,
+ 	"POPAL",	LTYPE0,	APOPAL,
+ 	"POPAW",	LTYPE0,	APOPAW,
+ 	"POPFL",	LTYPE0,	APOPFL,
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 24fede53c2..262da02abd 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -190,6 +190,7 @@ enum	as
+ 	AOUTSB,
+ 	AOUTSL,
+ 	AOUTSW,
++	APAUSE,
+ 	APOPAL,
+ 	APOPAW,
+ 	APOPFL,
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 928ad5d9ae..36806ec4b6 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -919,6 +919,7 @@ Optab optab[] =
+ 	{ APADDW,	ymm,	Py, 0xfd,Pe,0xfd },
+ 	{ APAND,	ymm,	Py, 0xdb,Pe,0xdb },
+ 	{ APANDN,	ymm,	Py, 0xdf,Pe,0xdf },
++	{ APAUSE,	ynone,	Px, 0xf3,0x90 },
+ 	{ APAVGB,	ymm,	Py, 0xe0,Pe,0xe0 },
+ 	{ APAVGW,	ymm,	Py, 0xe3,Pe,0xe3 },
+ 	{ APCMPEQB,	ymm,	Py, 0x74,Pe,0x74 },
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index ab4de417a5..e56460e4bd 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -421,6 +421,7 @@ struct
+ 	"OUTSB",	LTYPE0,	AOUTSB,
+ 	"OUTSL",	LTYPE0,	AOUTSL,
+ 	"OUTSW",	LTYPE0,	AOUTSW,
++	"PAUSE",	LTYPEN,	APAUSE,
+ 	"POPAL",	LTYPE0,	APOPAL,
+ 	"POPAW",	LTYPE0,	APOPAW,
+ 	"POPFL",	LTYPE0,	APOPFL,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 03db0016b5..9a8483aaf4 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -180,6 +180,7 @@ enum	as
+ 	AOUTSB,
+ 	AOUTSL,
+ 	AOUTSW,
++	APAUSE,
+ 	APOPAL,
+ 	APOPAW,
+ 	APOPFL,
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 1e89a21053..f5c195d75f 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -495,6 +495,7 @@ Optab optab[] =
+ 	{ AOUTSB,	ynone,	Pb, 0x6e },
+ 	{ AOUTSL,	ynone,	Px, 0x6f },
+ 	{ AOUTSW,	ynone,	Pe, 0x6f },
++	{ APAUSE,	ynone,	Px, 0xf3,0x90 },
+ 	{ APOPAL,	ynone,	Px, 0x61 },
+ 	{ APOPAW,	ynone,	Pe, 0x61 },
+ 	{ APOPFL,	ynone,	Px, 0x9d },
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 24e64a11e5..2505e4df6a 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -334,6 +334,20 @@ TEXT runtime·xadd(SB), 7, $0
+ 	ADDL	CX, AX
+ 	RET
+ 
++TEXT runtime·xchg(SB), 7, $0
++	MOVL	4(SP), BX
++	MOVL	8(SP), AX
++	XCHGL	AX, 0(BX)
++	RET
++
++TEXT runtime·procyield(SB),7,$0
++	MOVL	4(SP), AX
++again:
++	PAUSE
++	SUBL	$1, AX
++	JNZ	again
++	RET
++
+ TEXT runtime·atomicstorep(SB), 7, $0
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), AX
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 6ac84c408d..4723018a7a 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -378,6 +378,20 @@ TEXT runtime·xadd(SB), 7, $0
+ 	ADDL	CX, AX
+ 	RET
+ 
++TEXT runtime·xchg(SB), 7, $0
++	MOVQ	8(SP), BX
++	MOVL	16(SP), AX
++	XCHGL	AX, 0(BX)
++	RET
++
++TEXT runtime·procyield(SB),7,$0
++	MOVL	8(SP), AX
++again:
++	PAUSE
++	SUBL	$1, AX
++	JNZ	again
++	RET
++
+ TEXT runtime·atomicstorep(SB), 7, $0
+ 	MOVQ	8(SP), BX
+ 	MOVQ	16(SP), AX
+diff --git a/src/pkg/runtime/arm/atomic.c b/src/pkg/runtime/arm/atomic.c
+index d229e8c347..3199afe622 100644
+--- a/src/pkg/runtime/arm/atomic.c
++++ b/src/pkg/runtime/arm/atomic.c
+@@ -19,6 +19,29 @@ runtime·xadd(uint32 volatile *val, int32 delta)
+ 	}
+ }
+ 
++#pragma textflag 7
++uint32
++runtime·xchg(uint32 volatile* addr, uint32 v)
++{
++	uint32 old;
++
++	for(;;) {
++		old = *addr;
++		if(runtime·cas(addr, old, v))
++			return old;
++	}
++}
++
++#pragma textflag 7
++void
++runtime·procyield(uint32 cnt)
++{
++	uint32 volatile i;
++
++	for(i = 0; i < cnt; i++) {
++	}
++}
++
+ #pragma textflag 7
+ uint32
+ runtime·atomicload(uint32 volatile* addr)
+diff --git a/src/pkg/runtime/linux/386/defs.h b/src/pkg/runtime/linux/386/defs.h
+index 6ae1c4e139..73fe23ef98 100644
+--- a/src/pkg/runtime/linux/386/defs.h
++++ b/src/pkg/runtime/linux/386/defs.h
+@@ -61,6 +61,8 @@ enum {
+ 	ITIMER_REAL = 0,
+ 	ITIMER_VIRTUAL = 0x1,
+ 	ITIMER_PROF = 0x2,
++	O_RDONLY = 0,
++	O_CLOEXEC = 02000000,
+ };
+ 
+ // Types
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index e8b4233242..0b4a34986c 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -22,9 +22,31 @@ TEXT runtime·exit1(SB),7,$0
+ 	INT $3	// not reached
+ 	RET
+ 
++TEXT runtime·open(SB),7,$0
++	MOVL	$5, AX		// syscall - open
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	INT	$0x80
++	RET
++
++TEXT runtime·close(SB),7,$0
++	MOVL	$6, AX		// syscall - close
++	MOVL	4(SP), BX
++	INT	$0x80
++	RET
++
+ TEXT runtime·write(SB),7,$0
+ 	MOVL	$4, AX		// syscall - write
+-	MOVL	4(SP),  BX
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	INT	$0x80
++	RET
++
++TEXT runtime·read(SB),7,$0
++	MOVL	$3, AX		// syscall - read
++	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+ 	MOVL	12(SP), DX
+ 	INT	$0x80
+@@ -315,3 +337,8 @@ TEXT runtime·setldt(SB),7,$32
+ 	MOVW	AX, GS
+ 
+ 	RET
++
++TEXT runtime·osyield(SB),7,$0
++	MOVL	$158, AX
++	INT	$0x80
++	RET
+diff --git a/src/pkg/runtime/linux/amd64/defs.h b/src/pkg/runtime/linux/amd64/defs.h
+index 70d63145c6..8053dd16fe 100644
+--- a/src/pkg/runtime/linux/amd64/defs.h
++++ b/src/pkg/runtime/linux/amd64/defs.h
+@@ -61,6 +61,8 @@ enum {
+ 	ITIMER_REAL = 0,
+ 	ITIMER_VIRTUAL = 0x1,
+ 	ITIMER_PROF = 0x2,
++	O_RDONLY = 0,
++	O_CLOEXEC = 02000000,
+ };
+ 
+ // Types
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 66fdab2083..8b4dcd921e 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -28,6 +28,12 @@ TEXT runtime·open(SB),7,$0-16
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·close(SB),7,$0-16
++	MOVL	8(SP), DI
++	MOVL	$3, AX			// syscall entry
++	SYSCALL
++	RET
++
+ TEXT runtime·write(SB),7,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+@@ -36,6 +42,14 @@ TEXT runtime·write(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·read(SB),7,$0-24
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVL	24(SP), DX
++	MOVL	$0, AX			// syscall entry
++	SYSCALL
++	RET
++
+ TEXT runtime·raisesigpipe(SB),7,$12
+ 	MOVL	$186, AX	// syscall - gettid
+ 	SYSCALL
+@@ -232,3 +246,7 @@ TEXT runtime·settls(SB),7,$32
+ 	CALL	runtime·notok(SB)
+ 	RET
+ 
++TEXT runtime·osyield(SB),7,$0
++	MOVL	$24, AX
++	SYSCALL
++	RET
+diff --git a/src/pkg/runtime/linux/arm/defs.h b/src/pkg/runtime/linux/arm/defs.h
+index 6b2f22c66a..09b558ed0f 100644
+--- a/src/pkg/runtime/linux/arm/defs.h
++++ b/src/pkg/runtime/linux/arm/defs.h
+@@ -61,6 +61,8 @@ enum {
+ 	ITIMER_REAL = 0,
+ 	ITIMER_PROF = 0x2,
+ 	ITIMER_VIRTUAL = 0x1,
++	O_RDONLY = 0,
++	O_CLOEXEC = 02000000,
+ };
+ 
+ // Types
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index ab53498222..8619f0945c 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -15,7 +15,10 @@
+ #define SYS_BASE 0x0
+ 
+ #define SYS_exit (SYS_BASE + 1)
++#define SYS_read (SYS_BASE + 3)
+ #define SYS_write (SYS_BASE + 4)
++#define SYS_open (SYS_BASE + 5)
++#define SYS_close (SYS_BASE + 6)
+ #define SYS_gettimeofday (SYS_BASE + 78)
+ #define SYS_clone (SYS_BASE + 120)
+ #define SYS_rt_sigreturn (SYS_BASE + 173)
+@@ -29,10 +32,25 @@
+ #define SYS_mincore (SYS_BASE + 219)
+ #define SYS_gettid (SYS_BASE + 224)
+ #define SYS_tkill (SYS_BASE + 238)
++#define SYS_sched_yield (SYS_BASE + 158)
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ #define SYS_ARM_cacheflush (ARM_BASE + 2)
+ 
++TEXT runtime·open(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	8(FP), R2
++	MOVW	$SYS_open, R7
++	SWI	$0
++	RET
++
++TEXT runtime·close(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	$SYS_close, R7
++	SWI	$0
++	RET
++
+ TEXT runtime·write(SB),7,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+@@ -41,6 +59,14 @@ TEXT runtime·write(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
++TEXT runtime·read(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	8(FP), R2
++	MOVW	$SYS_read, R7
++	SWI	$0
++	RET
++
+ TEXT runtime·exit(SB),7,$-4
+ 	MOVW	0(FP), R0
+ 	MOVW	$SYS_exit_group, R7
+@@ -287,3 +313,7 @@ cascheck:
+ TEXT runtime·casp(SB),7,$0
+ 	B	runtime·cas(SB)
+ 
++TEXT runtime·osyield(SB),7,$0
++	MOVW	$SYS_sched_yield, R7
++	SWI	$0
++	RET
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index 7c7ca7b4e1..8efba2b98b 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -8,6 +8,11 @@
+ #include "stack.h"
+ 
+ extern SigTab runtime·sigtab[];
++static int32 proccount;
++
++int32 runtime·open(uint8*, int32, int32);
++int32 runtime·close(int32);
++int32 runtime·read(int32, void*, int32);
+ 
+ // Linux futex.
+ //
+@@ -15,11 +20,19 @@ extern SigTab runtime·sigtab[];
+ //	futexwakeup(uint32 *addr)
+ //
+ // Futexsleep atomically checks if *addr == val and if so, sleeps on addr.
+-// Futexwakeup wakes up one thread sleeping on addr.
++// Futexwakeup wakes up threads sleeping on addr.
+ // Futexsleep is allowed to wake up spuriously.
+ 
+ enum
+ {
++	MUTEX_UNLOCKED = 0,
++	MUTEX_LOCKED = 1,
++	MUTEX_SLEEPING = 2,
++
++	ACTIVE_SPIN = 4,
++	ACTIVE_SPIN_CNT = 30,
++	PASSIVE_SPIN = 1,
++
+ 	FUTEX_WAIT = 0,
+ 	FUTEX_WAKE = 1,
+ 
+@@ -52,13 +65,13 @@ futexsleep(uint32 *addr, uint32 val)
+ 	runtime·futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
+ }
+ 
+-// If any procs are sleeping on addr, wake up at least one.
++// If any procs are sleeping on addr, wake up at most cnt.
+ static void
+-futexwakeup(uint32 *addr)
++futexwakeup(uint32 *addr, uint32 cnt)
+ {
+ 	int64 ret;
+ 
+-	ret = runtime·futex(addr, FUTEX_WAKE, 1, nil, nil, 0);
++	ret = runtime·futex(addr, FUTEX_WAKE, cnt, nil, nil, 0);
+ 
+ 	if(ret >= 0)
+ 		return;
+@@ -66,70 +79,96 @@ futexwakeup(uint32 *addr)
+ 	// I don't know that futex wakeup can return
+ 	// EAGAIN or EINTR, but if it does, it would be
+ 	// safe to loop and call futex again.
+-
+-	runtime·prints("futexwakeup addr=");
+-	runtime·printpointer(addr);
+-	runtime·prints(" returned ");
+-	runtime·printint(ret);
+-	runtime·prints("\n");
++	runtime·printf("futexwakeup addr=%p returned %D\n", addr, ret);
+ 	*(int32*)0x1006 = 0x1006;
+ }
+ 
++static int32
++getproccount(void)
++{
++	int32 fd, rd, cnt, cpustrlen;
++	byte *cpustr, *pos, *bufpos;
++	byte buf[256];
++
++	fd = runtime·open((byte*)"/proc/stat", O_RDONLY|O_CLOEXEC, 0);
++	if(fd == -1)
++		return 1;
++	cnt = 0;
++	bufpos = buf;
++	cpustr = (byte*)"\ncpu";
++	cpustrlen = runtime·findnull(cpustr);
++	for(;;) {
++		rd = runtime·read(fd, bufpos, sizeof(buf)-cpustrlen);
++		if(rd == -1)
++			break;
++		bufpos[rd] = 0;
++		for(pos=buf; pos=runtime·strstr(pos, cpustr); cnt++, pos++) {
++		}
++		if(rd < cpustrlen)
++			break;
++		runtime·memmove(buf, bufpos+rd-cpustrlen+1, cpustrlen-1);
++		bufpos = buf+cpustrlen-1;
++	}
++	runtime·close(fd);
++	return cnt ? cnt : 1;
++}
+ 
+-// Lock and unlock.
+-//
+-// The lock state is a single 32-bit word that holds
+-// a 31-bit count of threads waiting for the lock
+-// and a single bit (the low bit) saying whether the lock is held.
+-// The uncontended case runs entirely in user space.
+-// When contention is detected, we defer to the kernel (futex).
+-//
+-// A reminder: compare-and-swap runtime·cas(addr, old, new) does
+-//	if(*addr == old) { *addr = new; return 1; }
+-//	else return 0;
+-// but atomically.
+-
++// Possible lock states are MUTEX_UNLOCKED, MUTEX_LOCKED and MUTEX_SLEEPING.
++// MUTEX_SLEEPING means that there is presumably at least one sleeping thread.
++// Note that there can be spinning threads during all states - they do not
++// affect mutex's state.
+ static void
+ futexlock(Lock *l)
+ {
+-	uint32 v;
++	uint32 i, v, wait, spin;
+ 
+-again:
+-	v = l->key;
+-	if((v&1) == 0){
+-		if(runtime·cas(&l->key, v, v|1)){
+-			// Lock wasn't held; we grabbed it.
+-			return;
++	// Speculative grab for lock.
++	v = runtime·xchg(&l->key, MUTEX_LOCKED);
++	if(v == MUTEX_UNLOCKED)
++		return;
++
++	// wait is either MUTEX_LOCKED or MUTEX_SLEEPING
++	// depending on whether there is a thread sleeping
++	// on this mutex.  If we ever change l->key from
++	// MUTEX_SLEEPING to some other value, we must be
++	// careful to change it back to MUTEX_SLEEPING before
++	// returning, to ensure that the sleeping thread gets
++	// its wakeup call.
++	wait = v;
++
++	if(proccount == 0)
++		proccount = getproccount();
++
++	// On uniprocessor's, no point spinning.
++	// On multiprocessors, spin for ACTIVE_SPIN attempts.
++	spin = 0;
++	if(proccount > 1)
++		spin = ACTIVE_SPIN;
++
++	for(;;) {
++		// Try for lock, spinning.
++		for(i = 0; i < spin; i++) {
++			while(l->key == MUTEX_UNLOCKED)
++				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
++						return;
++			runtime·procyield(ACTIVE_SPIN_CNT);
+ 		}
+-		goto again;
+-	}
+ 
+-	// Lock was held; try to add ourselves to the waiter count.
+-	if(!runtime·cas(&l->key, v, v+2))
+-		goto again;
+-
+-	// We're accounted for, now sleep in the kernel.
+-	//
+-	// We avoid the obvious lock/unlock race because
+-	// the kernel won't put us to sleep if l->key has
+-	// changed underfoot and is no longer v+2.
+-	//
+-	// We only really care that (v&1) == 1 (the lock is held),
+-	// and in fact there is a futex variant that could
+-	// accommodate that check, but let's not get carried away.)
+-	futexsleep(&l->key, v+2);
+-
+-	// We're awake: remove ourselves from the count.
+-	for(;;){
+-		v = l->key;
+-		if(v < 2)
+-			runtime·throw("bad lock key");
+-		if(runtime·cas(&l->key, v, v-2))
+-			break;
+-	}
++		// Try for lock, rescheduling.
++		for(i=0; i < PASSIVE_SPIN; i++) {
++			while(l->key == MUTEX_UNLOCKED)
++				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
++					return;
++			runtime·osyield();
++		}
+ 
+-	// Try for the lock again.
+-	goto again;
++		// Sleep.
++		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
++		if(v == MUTEX_UNLOCKED)
++			return;
++		wait = MUTEX_SLEEPING;
++		futexsleep(&l->key, MUTEX_SLEEPING);
++	}
+ }
+ 
+ static void
+@@ -137,34 +176,26 @@ futexunlock(Lock *l)
+ {
+ 	uint32 v;
+ 
+-	// Atomically get value and clear lock bit.
+-again:
+-	v = l->key;
+-	if((v&1) == 0)
++	v = runtime·xchg(&l->key, MUTEX_UNLOCKED);
++	if(v == MUTEX_UNLOCKED)
+ 		runtime·throw("unlock of unlocked lock");
+-	if(!runtime·cas(&l->key, v, v&~1))
+-		goto again;
+-
+-	// If there were waiters, wake one.
+-	if(v & ~1)
+-		futexwakeup(&l->key);
++	if(v == MUTEX_SLEEPING)
++		futexwakeup(&l->key, 1);
+ }
+ 
+ void
+ runtime·lock(Lock *l)
+ {
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	m->locks++;
++	if(m->locks++ < 0)
++		runtime·throw("runtime·lock: lock count");
+ 	futexlock(l);
+ }
+ 
+ void
+ runtime·unlock(Lock *l)
+ {
+-	m->locks--;
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
++	if(--m->locks < 0)
++		runtime·throw("runtime·unlock: lock count");
+ 	futexunlock(l);
+ }
+ 
+@@ -175,35 +206,24 @@ runtime·destroylock(Lock*)
+ 
+ 
+ // One-time notifications.
+-//
+-// Since the lock/unlock implementation already
+-// takes care of sleeping in the kernel, we just reuse it.
+-// (But it's a weird use, so it gets its own interface.)
+-//
+-// We use a lock to represent the event:
+-// unlocked == event has happened.
+-// Thus the lock starts out locked, and to wait for the
+-// event you try to lock the lock.  To signal the event,
+-// you unlock the lock.
+-
+ void
+ runtime·noteclear(Note *n)
+ {
+-	n->lock.key = 0;	// memset(n, 0, sizeof *n)
+-	futexlock(&n->lock);
++	n->state = 0;
+ }
+ 
+ void
+ runtime·notewakeup(Note *n)
+ {
+-	futexunlock(&n->lock);
++	runtime·xchg(&n->state, 1);
++	futexwakeup(&n->state, 1<<30);
+ }
+ 
+ void
+ runtime·notesleep(Note *n)
+ {
+-	futexlock(&n->lock);
+-	futexunlock(&n->lock);	// Let other sleepers find out too.
++	while(runtime·atomicload(&n->state) == 0)
++		futexsleep(&n->state, 0);
+ }
+ 
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 15b1e8eb9d..eee346844b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -131,7 +131,10 @@ struct	Usema
+ union	Note
+ {
+ 	struct {	// Linux
+-		Lock	lock;
++		uint32	state;
++	};
++	struct {	// Windows
++		Lock lock;
+ 	};
+ 	struct {	// OS X
+ 		int32	wakeup;
+@@ -382,6 +385,7 @@ extern	bool	runtime·iscgo;
+  * common functions and data
+  */
+ int32	runtime·strcmp(byte*, byte*);
++byte*	runtime·strstr(byte*, byte*);
+ int32	runtime·findnull(byte*);
+ int32	runtime·findnullw(uint16*);
+ void	runtime·dump(byte*, int32);
+@@ -427,6 +431,7 @@ bool	runtime·casp(void**, void*, void*);
+ // Don't confuse with XADD x86 instruction,
+ // this one is actually 'addx', that is, add-and-fetch.
+ uint32	runtime·xadd(uint32 volatile*, int32);
++uint32	runtime·xchg(uint32 volatile*, uint32);
+ uint32	runtime·atomicload(uint32 volatile*);
+ void*	runtime·atomicloadp(void* volatile*);
+ void	runtime·atomicstorep(void* volatile*, void*);
+@@ -596,6 +601,8 @@ void	runtime·semacquire(uint32*);
+ void	runtime·semrelease(uint32*);
+ String	runtime·signame(int32 sig);
+ int32	runtime·gomaxprocsfunc(int32 n);
++void	runtime·procyield(uint32);
++void	runtime·osyield(void);
+ 
+ void	runtime·mapassign(Hmap*, byte*, byte*);
+ void	runtime·mapaccess(Hmap*, byte*, byte*, bool*);
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index e0daac49ab..48bf3183b5 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -203,6 +203,28 @@ runtime·strcmp(byte *s1, byte *s2)
+ 	}
+ }
+ 
++byte*
++runtime·strstr(byte *s1, byte *s2)
++{
++	byte *sp1, *sp2;
++
++	if(*s2 == 0)
++		return s1;
++	for(; *s1; s1++) {
++		if(*s1 != *s2)
++			continue;
++		sp1 = s1;
++		sp2 = s2;
++		for(;;) {
++			if(*sp2 == 0)
++				return s1;
++			if(*sp1++ != *sp2++)
++				break;
++		}
++	}
++	return nil;
++}
++
+ func slicestring(si String, lindex int32, hindex int32) (so String) {
+ 	int32 l;
+ 

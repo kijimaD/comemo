@@ -10,7 +10,34 @@ Date:   Wed Dec 18 19:36:14 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/44140043
-
+---
  include/link.h        | 1 +
  src/liblink/objfile.c | 3 ++-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/include/link.h b/include/link.h
+index c5089fc84c..2e23d20c7c 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -131,6 +131,7 @@ struct	LSym
+ 	uchar	hide;
+ 	uchar	leaf;	// arm only
+ 	uchar	fnptr;	// arm only
++	uchar	seenglobl;
+ 	int16	symid;	// for writing .5/.6/.8 files
+ 	int32	dynid;
+ 	int32	sig;
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index ba4087f075..94a2561062 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -167,7 +167,8 @@ linkwriteobj(Link *ctxt, Biobuf *b)
+ 
+ 			if(p->as == ctxt->arch->AGLOBL) {
+ 				s = p->from.sym;
+-				if(s->size) print("duplicate %P\n", p);
++				if(s->seenglobl++)
++					print("duplicate %P\n", p);
+ 				if(data == nil)
+ 					data = s;
+ 				else

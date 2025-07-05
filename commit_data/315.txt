@@ -5,7 +5,103 @@ Date:   Wed Jul 9 10:16:33 2008 -0700
     - fixed scanner and parser issues to be able to parse math lib
     
     SVN=126501
-
+---
  usr/gri/src/parser.go  | 28 +++++++++++++++++-----------
  usr/gri/src/scanner.go | 11 ++++++++---
  2 files changed, 25 insertions(+), 14 deletions(-)
+
+diff --git a/usr/gri/src/parser.go b/usr/gri/src/parser.go
+index d54937eba7..82aca39c2a 100644
+--- a/usr/gri/src/parser.go
++++ b/usr/gri/src/parser.go
+@@ -262,12 +262,12 @@ func (P *Parser) ParseImportDecl() {
+ 	P.Trace("ImportDecl");
+ 	P.Expect(Scanner.IMPORT);
+ 	if P.tok == Scanner.LPAREN {
+-		P.ParseImportSpec();
+-		for P.tok == Scanner.SEMICOLON {
+-			P.Next();
++		P.Next();
++		for P.tok != Scanner.RPAREN {
+ 			P.ParseImportSpec();
++			P.Optional(Scanner.SEMICOLON);  // TODO this seems wrong
+ 		}
+-		P.Optional(Scanner.SEMICOLON);
++		P.Next();
+ 	} else {
+ 		P.ParseImportSpec();
+ 	}
+@@ -738,12 +738,20 @@ func (P *Parser) ParseFuncDecl() {
+ func (P *Parser) ParseExportDecl() {
+ 	P.Trace("ExportDecl");
+ 	P.Expect(Scanner.EXPORT);
+-	P.ParseIdent();
+-	for P.tok == Scanner.COMMA {
++	if P.tok == Scanner.LPAREN {
++		P.Next();
++		for P.tok != Scanner.RPAREN {
++			P.ParseIdent();
++			P.Optional(Scanner.COMMA);  // TODO this seems wrong
++		}
+ 		P.Next();
++	} else {
+ 		P.ParseIdent();
++		for P.tok == Scanner.COMMA {
++			P.Next();
++			P.ParseIdent();
++		}
+ 	}
+-	P.Optional(Scanner.COMMA);
+ 	P.Ecart();
+ }
+ 
+@@ -787,14 +795,12 @@ func (P *Parser) ParseOperand() {
+ 	switch P.tok {
+ 	case Scanner.IDENT:
+ 		P.ParseQualifiedIdent();
+-	case Scanner.STRING:
+-		fallthrough;
+-	case Scanner.NUMBER:
+-		P.Next();
+ 	case Scanner.LPAREN:
+ 		P.Next();
+ 		P.ParseExpression();
+ 		P.Expect(Scanner.RPAREN);
++	case Scanner.STRING: fallthrough;
++	case Scanner.NUMBER: fallthrough;
+ 	case Scanner.NIL: fallthrough;
+ 	case Scanner.IOTA: fallthrough;
+ 	case Scanner.TRUE: fallthrough;
+diff --git a/usr/gri/src/scanner.go b/usr/gri/src/scanner.go
+index b3a29ab69a..0ce6eca403 100644
+--- a/usr/gri/src/scanner.go
++++ b/usr/gri/src/scanner.go
+@@ -458,20 +458,25 @@ func (S *Scanner) ScanNumber (seen_decimal_point bool) int {
+ 	}
+ 	
+ 	if S.ch == '0' {
+-		// TODO bug: doesn't accept 09.0 !
+-		// int
++		// int or float
+ 		S.Next();
+ 		if S.ch == 'x' || S.ch == 'X' {
+ 			// hexadecimal int
+ 			S.Next();
+ 			S.ScanMantissa(16);
+ 		} else {
+-			// octal int
++			// octal int or float
+ 			S.ScanMantissa(8);
++			if digit_val(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
++				// float
++				goto mantissa;
++			}
++			// octal int
+ 		}
+ 		return NUMBER;
+ 	}
+ 	
++mantissa:
+ 	// decimal int or float
+ 	S.ScanMantissa(10);
+ 	

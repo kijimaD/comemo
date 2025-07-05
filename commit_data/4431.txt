@@ -8,7 +8,37 @@ Date:   Tue Dec 15 16:44:28 2009 -0800
     
     R=ken2
     https://golang.org/cl/180052
-
+---
  src/cmd/gc/go.y          |  2 +-
  test/fixedbugs/bug233.go | 10 ++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 6d86a6a99f..35e7742d96 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -195,7 +195,7 @@ import_stmt:
+ 		}
+ 		my->def = pack;
+ 		my->lastlineno = $1;
+-		import->block = 1;	// at top level
++		my->block = 1;	// at top level
+ 	}
+ 
+ 
+diff --git a/test/fixedbugs/bug233.go b/test/fixedbugs/bug233.go
+new file mode 100644
+index 0000000000..31bb673ebd
+--- /dev/null
++++ b/test/fixedbugs/bug233.go
+@@ -0,0 +1,10 @@
++// $G $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++import p "fmt"
++var _ = p.Print
++var fmt = 10

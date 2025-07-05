@@ -8,7 +8,7 @@ Date:   Fri Sep 18 11:49:22 2009 -0700
     DELTA=784  (784 added, 0 deleted, 0 changed)
     OCL=34715
     CL=34788
-
+---
  src/pkg/debug/macho/Makefile                       |  12 +
  src/pkg/debug/macho/file.go                        | 374 +++++++++++++++++++++
  src/pkg/debug/macho/file_test.go                   | 159 +++++++++
@@ -17,3 +17,815 @@ Date:   Fri Sep 18 11:49:22 2009 -0700
  src/pkg/debug/macho/testdata/gcc-amd64-darwin-exec | Bin 0 -> 8512 bytes
  .../macho/testdata/gcc-amd64-darwin-exec-debug     | Bin 0 -> 4540 bytes
  7 files changed, 775 insertions(+)
+
+diff --git a/src/pkg/debug/macho/Makefile b/src/pkg/debug/macho/Makefile
+new file mode 100644
+index 0000000000..1a88c73778
+--- /dev/null
++++ b/src/pkg/debug/macho/Makefile
+@@ -0,0 +1,12 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=debug/macho
++GOFILES=\
++	macho.go\
++	file.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+new file mode 100644
+index 0000000000..fee02fb27a
+--- /dev/null
++++ b/src/pkg/debug/macho/file.go
+@@ -0,0 +1,374 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package macho implements access to Mach-O object files, as defined by
++// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html.
++package macho
++
++// High level access to low level data structures.
++
++import (
++	"bytes";
++	"debug/binary";
++	"debug/dwarf";
++	"fmt";
++	"io";
++	"os";
++)
++
++// A File represents an open Mach-O file.
++type File struct {
++	FileHeader;
++	ByteOrder binary.ByteOrder;
++	Loads []Load;
++	Sections []*Section;
++
++	closer io.Closer;
++}
++
++// A Load represents any Mach-O load command.
++type Load interface {
++	Raw() []byte
++}
++
++// A LoadBytes is the uninterpreted bytes of a Mach-O load command.
++type LoadBytes []byte
++
++func (b LoadBytes) Raw() []byte {
++	return b
++}
++
++// A SegmentHeader is the header for a Mach-O 32-bit or 64-bit load segment command.
++type SegmentHeader struct {
++	Cmd LoadCmd;
++	Len uint32;
++	Name string;
++	Addr uint64;
++	Memsz uint64;
++	Offset uint64;
++	Filesz uint64;
++	Maxprot uint32;
++	Prot uint32;
++	Nsect uint32;
++	Flag uint32;
++}
++
++// A Segment represents a Mach-O 32-bit or 64-bit load segment command.
++type Segment struct {
++	LoadBytes;
++	SegmentHeader;
++
++	// Embed ReaderAt for ReadAt method.
++	// Do not embed SectionReader directly
++	// to avoid having Read and Seek.
++	// If a client wants Read and Seek it must use
++	// Open() to avoid fighting over the seek offset
++	// with other clients.
++	io.ReaderAt;
++	sr *io.SectionReader;
++}
++
++// Data reads and returns the contents of the segment.
++func (s *Segment) Data() ([]byte, os.Error) {
++	dat := make([]byte, s.sr.Size());
++	n, err := s.sr.ReadAt(dat, 0);
++	return dat[0:n], err;
++}
++
++// Open returns a new ReadSeeker reading the segment.
++func (s *Segment) Open() io.ReadSeeker {
++	return io.NewSectionReader(s.sr, 0, 1<<63 - 1);
++}
++
++type SectionHeader struct {
++	Name	string;
++	Seg	string;
++	Addr	uint64;
++	Size	uint64;
++	Offset	uint32;
++	Align	uint32;
++	Reloff	uint32;
++	Nreloc	uint32;
++	Flags	uint32;
++}
++
++type Section struct {
++	SectionHeader;
++
++	// Embed ReaderAt for ReadAt method.
++	// Do not embed SectionReader directly
++	// to avoid having Read and Seek.
++	// If a client wants Read and Seek it must use
++	// Open() to avoid fighting over the seek offset
++	// with other clients.
++	io.ReaderAt;
++	sr *io.SectionReader;
++}
++
++// Data reads and returns the contents of the Mach-O section.
++func (s *Section) Data() ([]byte, os.Error) {
++	dat := make([]byte, s.sr.Size());
++	n, err := s.sr.ReadAt(dat, 0);
++	return dat[0:n], err;
++}
++
++// Open returns a new ReadSeeker reading the Mach-O section.
++func (s *Section) Open() io.ReadSeeker {
++	return io.NewSectionReader(s.sr, 0, 1<<63 - 1);
++}
++
++
++/*
++ * Mach-O reader
++ */
++
++type FormatError struct {
++	off int64;
++	msg string;
++	val interface{};
++}
++
++func (e *FormatError) String() string {
++	msg := e.msg;
++	if e.val != nil {
++		msg += fmt.Sprintf(" '%v' ", e.val);
++	}
++	msg += fmt.Sprintf("in record at byte %#x", e.off);
++	return msg;
++}
++
++// Open opens the named file using os.Open and prepares it for use as a Mach-O binary.
++func Open(name string) (*File, os.Error) {
++	f, err := os.Open(name, os.O_RDONLY, 0);
++	if err != nil {
++		return nil, err;
++	}
++	ff, err := NewFile(f);
++	if err != nil {
++		f.Close();
++		return nil, err;
++	}
++	ff.closer = f;
++	return ff, nil;
++}
++
++// Close closes the File.
++// If the File was created using NewFile directly instead of Open,
++// Close has no effect.
++func (f *File) Close() os.Error {
++	var err os.Error;
++	if f.closer != nil {
++		err = f.closer.Close();
++		f.closer = nil;
++	}
++	return err;
++}
++
++// NewFile creates a new File for acecssing a Mach-O binary in an underlying reader.
++// The Mach-O binary is expected to start at position 0 in the ReaderAt.
++func NewFile(r io.ReaderAt) (*File, os.Error) {
++	f := new(File);
++	sr := io.NewSectionReader(r, 0, 1<<63 - 1);
++
++	// Read and decode Mach magic to determine byte order, size.
++	// Magic32 and Magic64 differ only in the bottom bit.
++	var ident [4]uint8;
++	if _, err := r.ReadAt(&ident, 0); err != nil {
++		return nil, err;
++	}
++	be := binary.BigEndian.Uint32(&ident);
++	le := binary.LittleEndian.Uint32(&ident);
++	switch Magic32&^1 {
++	case be&^1:
++		f.ByteOrder = binary.BigEndian;
++		f.Magic = be;
++	case le&^1:
++		f.ByteOrder = binary.LittleEndian;
++		f.Magic = le;
++	}
++
++	// Read entire file header.
++	if err := binary.Read(sr, f.ByteOrder, &f.FileHeader); err != nil {
++		return nil, err;
++	}
++
++	// Then load commands.
++	offset := int64(fileHeaderSize32);
++	if f.Magic == Magic64 {
++		offset = fileHeaderSize64;
++	}
++	dat := make([]byte, f.Cmdsz);
++	if _, err := r.ReadAt(dat, offset); err != nil {
++		return nil, err;
++	}
++	f.Loads = make([]Load, f.Ncmd);
++	bo := f.ByteOrder;
++	for i := range f.Loads {
++		// Each load command begins with uint32 command and length.
++		if len(dat) < 8 {
++			return nil, &FormatError{offset, "command block too small", nil};
++		}
++		cmd, siz := LoadCmd(bo.Uint32(dat[0:4])), bo.Uint32(dat[4:8]);
++		if siz < 8 || siz > uint32(len(dat)) {
++			return nil, &FormatError{offset, "invalid command block size", nil};
++		}
++		var cmddat []byte;
++		cmddat, dat = dat[0:siz], dat[siz:len(dat)];
++		offset += int64(siz);
++		var s *Segment;
++		switch cmd {
++		default:
++			f.Loads[i] = LoadBytes(cmddat);
++
++		case LoadCmdSegment:
++			var seg32 Segment32;
++			b := bytes.NewBuffer(cmddat);
++			if err := binary.Read(b, bo, &seg32); err != nil {
++				return nil, err;
++			}
++			s = new(Segment);
++			s.LoadBytes = cmddat;
++			s.Cmd = cmd;
++			s.Len = siz;
++			s.Name = cstring(&seg32.Name);
++			s.Addr = uint64(seg32.Addr);
++			s.Memsz = uint64(seg32.Memsz);
++			s.Offset = uint64(seg32.Offset);
++			s.Filesz = uint64(seg32.Filesz);
++			s.Maxprot = seg32.Maxprot;
++			s.Prot = seg32.Prot;
++			s.Nsect = seg32.Nsect;
++			s.Flag = seg32.Flag;
++			f.Loads[i] = s;
++			for i := 0; i < int(s.Nsect); i++ {
++				var sh32 Section32;
++				if err := binary.Read(b, bo, &sh32); err != nil {
++					return nil, err;
++				}
++				sh := new(Section);
++				sh.Name = cstring(&sh32.Name);
++				sh.Seg = cstring(&sh32.Seg);
++				sh.Addr = uint64(sh32.Addr);
++				sh.Size = uint64(sh32.Size);
++				sh.Offset = sh32.Offset;
++				sh.Align = sh32.Align;
++				sh.Reloff = sh32.Reloff;
++				sh.Nreloc = sh32.Nreloc;
++				sh.Flags = sh32.Flags;
++				f.pushSection(sh, r);
++			}
++
++		case LoadCmdSegment64:
++			var seg64 Segment64;
++			b := bytes.NewBuffer(cmddat);
++			if err := binary.Read(b, bo, &seg64); err != nil {
++				return nil, err;
++			}
++			s = new(Segment);
++			s.LoadBytes = cmddat;
++			s.Cmd = cmd;
++			s.Len = siz;
++			s.Name = cstring(&seg64.Name);
++			s.Addr = seg64.Addr;
++			s.Memsz = seg64.Memsz;
++			s.Offset = seg64.Offset;
++			s.Filesz = seg64.Filesz;
++			s.Maxprot = seg64.Maxprot;
++			s.Prot = seg64.Prot;
++			s.Nsect = seg64.Nsect;
++			s.Flag = seg64.Flag;
++			f.Loads[i] = s;
++			for i := 0; i < int(s.Nsect); i++ {
++				var sh64 Section64;
++				if err := binary.Read(b, bo, &sh64); err != nil {
++					return nil, err;
++				}
++				sh := new(Section);
++				sh.Name = cstring(&sh64.Name);
++				sh.Seg = cstring(&sh64.Seg);
++				sh.Addr = sh64.Addr;
++				sh.Size = sh64.Size;
++				sh.Offset = sh64.Offset;
++				sh.Align = sh64.Align;
++				sh.Reloff = sh64.Reloff;
++				sh.Nreloc = sh64.Nreloc;
++				sh.Flags = sh64.Flags;
++				f.pushSection(sh, r);
++			}
++		}
++		if s != nil {
++			s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.Filesz));
++			s.ReaderAt = s.sr;
++		}
++	}
++	return f, nil;
++}
++
++func (f *File) pushSection(sh *Section, r io.ReaderAt) {
++	n := len(f.Sections);
++	if n >= cap(f.Sections) {
++		m := (n+1)*2;
++		new := make([]*Section, n, m);
++		for i, sh := range f.Sections {
++			new[i] = sh;
++		}
++		f.Sections = new;
++	}
++	f.Sections = f.Sections[0:n+1];
++	f.Sections[n] = sh;
++	sh.sr = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size));
++	sh.ReaderAt = sh.sr;
++}
++
++func cstring(b []byte) string {
++	var i int;
++	for i=0; i<len(b) && b[i] != 0; i++ {
++	}
++	return string(b[0:i]);
++}
++
++// Segment returns the first Segment with the given name, or nil if no such segment exists.
++func (f *File) Segment(name string) *Segment {
++	for _, l := range f.Loads {
++		if s, ok := l.(*Segment); ok && s.Name == name {
++			return s;
++		}
++	}
++	return nil;
++}
++
++// Section returns the first section with the given name, or nil if no such
++// section exists.
++func (f *File) Section(name string) *Section {
++	for _, s := range f.Sections {
++		if s.Name == name {
++			return s;
++		}
++	}
++	return nil;
++}
++
++// DWARF returns the DWARF debug information for the Mach-O file.
++func (f *File) DWARF() (*dwarf.Data, os.Error) {
++	// There are many other DWARF sections, but these
++	// are the required ones, and the debug/dwarf package
++	// does not use the others, so don't bother loading them.
++	var names = [...]string{"abbrev", "info", "str"};
++	var dat [len(names)][]byte;
++	for i, name := range names {
++		name = "__debug_" + name;
++		s := f.Section(name);
++		if s == nil {
++			return nil, os.NewError("missing Mach-O section " + name);
++		}
++		b, err := s.Data();
++		if err != nil && uint64(len(b)) < s.Size {
++			return nil, err;
++		}
++		dat[i] = b;
++	}
++
++	abbrev, info, str := dat[0], dat[1], dat[2];
++	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str);
++}
+diff --git a/src/pkg/debug/macho/file_test.go b/src/pkg/debug/macho/file_test.go
+new file mode 100644
+index 0000000000..69b87575f2
+--- /dev/null
++++ b/src/pkg/debug/macho/file_test.go
+@@ -0,0 +1,159 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package macho
++
++import (
++	"reflect";
++	"testing";
++)
++
++type fileTest struct {
++	file string;
++	hdr FileHeader;
++	segments []*SegmentHeader;
++	sections []*SectionHeader;
++}
++
++var fileTests = []fileTest {
++	fileTest{
++		"testdata/gcc-386-darwin-exec",
++		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0xc, 0x3c0, 0x85},
++		[]*SegmentHeader{
++			&SegmentHeader{LoadCmdSegment, 0x38, "__PAGEZERO", 0x0, 0x1000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
++			&SegmentHeader{LoadCmdSegment, 0xc0, "__TEXT", 0x1000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x2, 0x0},
++			&SegmentHeader{LoadCmdSegment, 0xc0, "__DATA", 0x2000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x2, 0x0},
++			&SegmentHeader{LoadCmdSegment, 0x7c, "__IMPORT", 0x3000, 0x1000, 0x2000, 0x1000, 0x7, 0x7, 0x1, 0x0},
++			&SegmentHeader{LoadCmdSegment, 0x38, "__LINKEDIT", 0x4000, 0x1000, 0x3000, 0x12c, 0x7, 0x1, 0x0, 0x0},
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++		},
++		[]*SectionHeader{
++			&SectionHeader{"__text", "__TEXT", 0x1f68, 0x88, 0xf68, 0x2, 0x0, 0x0, 0x80000400},
++			&SectionHeader{"__cstring", "__TEXT", 0x1ff0, 0xd, 0xff0, 0x0, 0x0, 0x0, 0x2},
++			&SectionHeader{"__data", "__DATA", 0x2000, 0x14, 0x1000, 0x2, 0x0, 0x0, 0x0},
++			&SectionHeader{"__dyld", "__DATA", 0x2014, 0x1c, 0x1014, 0x2, 0x0, 0x0, 0x0},
++			&SectionHeader{"__jump_table", "__IMPORT", 0x3000, 0xa, 0x2000, 0x6, 0x0, 0x0, 0x4000008},
++		},
++	},
++	fileTest{
++		"testdata/gcc-amd64-darwin-exec",
++		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0x2, 0xb, 0x568, 0x85},
++		[]*SegmentHeader{
++			&SegmentHeader{LoadCmdSegment64, 0x48, "__PAGEZERO", 0x0, 0x100000000, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
++			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x1000, 0x7, 0x5, 0x5, 0x0},
++			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x1000, 0x1000, 0x7, 0x3, 0x3, 0x0},
++			&SegmentHeader{LoadCmdSegment64, 0x48, "__LINKEDIT", 0x100002000, 0x1000, 0x2000, 0x140, 0x7, 0x1, 0x0, 0x0},
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++		},
++		[]*SectionHeader{
++			&SectionHeader{"__text", "__TEXT", 0x100000f14, 0x6d, 0xf14, 0x2, 0x0, 0x0, 0x80000400},
++			&SectionHeader{"__symbol_stub1", "__TEXT", 0x100000f81, 0xc, 0xf81, 0x0, 0x0, 0x0, 0x80000408},
++			&SectionHeader{"__stub_helper", "__TEXT", 0x100000f90, 0x18, 0xf90, 0x2, 0x0, 0x0, 0x0},
++			&SectionHeader{"__cstring", "__TEXT", 0x100000fa8, 0xd, 0xfa8, 0x0, 0x0, 0x0, 0x2},
++			&SectionHeader{"__eh_frame", "__TEXT", 0x100000fb8, 0x48, 0xfb8, 0x3, 0x0, 0x0, 0x6000000b},
++			&SectionHeader{"__data", "__DATA", 0x100001000, 0x1c, 0x1000, 0x3, 0x0, 0x0, 0x0},
++			&SectionHeader{"__dyld", "__DATA", 0x100001020, 0x38, 0x1020, 0x3, 0x0, 0x0, 0x0},
++			&SectionHeader{"__la_symbol_ptr", "__DATA", 0x100001058, 0x10, 0x1058, 0x2, 0x0, 0x0, 0x7},
++		},
++	},
++	fileTest{
++		"testdata/gcc-amd64-darwin-exec-debug",
++		FileHeader{0xfeedfacf, CpuAmd64, 0x80000003, 0xa, 0x4, 0x5a0, 0},
++		[]*SegmentHeader{
++			nil,
++			&SegmentHeader{LoadCmdSegment64, 0x1d8, "__TEXT", 0x100000000, 0x1000, 0x0, 0x0, 0x7, 0x5, 0x5, 0x0},
++			&SegmentHeader{LoadCmdSegment64, 0x138, "__DATA", 0x100001000, 0x1000, 0x0, 0x0, 0x7, 0x3, 0x3, 0x0},
++			&SegmentHeader{LoadCmdSegment64, 0x278, "__DWARF", 0x100002000, 0x1000, 0x1000, 0x1bc, 0x7, 0x3, 0x7, 0x0},
++		},
++		[]*SectionHeader{
++			&SectionHeader{"__text", "__TEXT", 0x100000f14, 0x0, 0x0, 0x2, 0x0, 0x0, 0x80000400},
++			&SectionHeader{"__symbol_stub1", "__TEXT", 0x100000f81, 0x0, 0x0, 0x0, 0x0, 0x0, 0x80000408},
++			&SectionHeader{"__stub_helper", "__TEXT", 0x100000f90, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0},
++			&SectionHeader{"__cstring", "__TEXT", 0x100000fa8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2},
++			&SectionHeader{"__eh_frame", "__TEXT", 0x100000fb8, 0x0, 0x0, 0x3, 0x0, 0x0, 0x6000000b},
++			&SectionHeader{"__data", "__DATA", 0x100001000, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0},
++			&SectionHeader{"__dyld", "__DATA", 0x100001020, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0},
++			&SectionHeader{"__la_symbol_ptr", "__DATA", 0x100001058, 0x0, 0x0, 0x2, 0x0, 0x0, 0x7},
++			&SectionHeader{"__debug_abbrev", "__DWARF", 0x100002000, 0x36, 0x1000, 0x0, 0x0, 0x0, 0x0},
++			&SectionHeader{"__debug_aranges", "__DWARF", 0x100002036, 0x30, 0x1036, 0x0, 0x0, 0x0, 0x0},
++			&SectionHeader{"__debug_frame", "__DWARF", 0x100002066, 0x40, 0x1066, 0x0, 0x0, 0x0, 0x0},
++			&SectionHeader{"__debug_info", "__DWARF", 0x1000020a6, 0x54, 0x10a6, 0x0, 0x0, 0x0, 0x0},
++			&SectionHeader{"__debug_line", "__DWARF", 0x1000020fa, 0x47, 0x10fa, 0x0, 0x0, 0x0, 0x0},
++			&SectionHeader{"__debug_pubnames", "__DWARF", 0x100002141, 0x1b, 0x1141, 0x0, 0x0, 0x0, 0x0},
++			&SectionHeader{"__debug_str", "__DWARF", 0x10000215c, 0x60, 0x115c, 0x0, 0x0, 0x0, 0x0},
++		},
++	},
++}
++
++func TestOpen(t *testing.T) {
++	for i := range fileTests {
++		tt := &fileTests[i];
++
++		f, err := Open(tt.file);
++		if err != nil {
++			t.Error(err);
++			continue;
++		}
++		if !reflect.DeepEqual(f.FileHeader, tt.hdr) {
++			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr);
++			continue;
++		}
++		for i, l := range f.Loads {
++			if i >= len(tt.segments) {
++				break;
++			}
++			sh := tt.segments[i];
++			s, ok := l.(*Segment);
++			if sh == nil {
++				if ok {
++					t.Errorf("open %s, section %d: skipping %#v\n", tt.file, i, &s.SegmentHeader);
++				}
++				continue;
++			}
++			if !ok {
++				t.Errorf("open %s, section %d: not *Segment\n", tt.file, i);
++				continue;
++			}
++			have := &s.SegmentHeader;
++			want := sh;
++			if !reflect.DeepEqual(have, want) {
++				t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want);
++			}
++		}
++		tn := len(tt.segments);
++		fn := len(f.Loads);
++		if tn != fn {
++			t.Errorf("open %s: len(Loads) = %d, want %d", tt.file, fn, tn);
++		}
++
++		for i, sh := range f.Sections {
++			if i >= len(tt.sections) {
++				break;
++			}
++			have := &sh.SectionHeader;
++			want := tt.sections[i];
++			if !reflect.DeepEqual(have, want) {
++				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want);
++			}
++		}
++		tn = len(tt.sections);
++		fn = len(f.Sections);
++		if tn != fn {
++			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn);
++		}
++
++	}
++}
+diff --git a/src/pkg/debug/macho/macho.go b/src/pkg/debug/macho/macho.go
+new file mode 100644
+index 0000000000..78f2d7fc3b
+--- /dev/null
++++ b/src/pkg/debug/macho/macho.go
+@@ -0,0 +1,230 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Mach-O header data structures
++// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
++
++package macho
++
++import "strconv"
++
++// A FileHeader represents a Mach-O file header.
++type FileHeader struct {
++	Magic	uint32;
++	Cpu	Cpu;
++	SubCpu	uint32;
++	Type	Type;
++	Ncmd	uint32;
++	Cmdsz	uint32;
++	Flags	uint32;
++}
++const (
++	fileHeaderSize32 = 7*4;
++	fileHeaderSize64 = 8*4;
++)
++
++const (
++	Magic32 uint32 = 0xfeedface;
++	Magic64 uint32 = 0xfeedfacf;
++)
++
++// A Type is a Mach-O file type, either an object or an executable.
++type Type uint32
++const (
++	TypeObj Type = 1;
++	TypeExec Type = 2;
++)
++
++// A Cpu is a Mach-O cpu type.
++type Cpu uint32
++const (
++	Cpu386 Cpu = 7;
++	CpuAmd64 Cpu = Cpu386 + 1<<24;
++)
++
++var cpuStrings = []intName {
++	intName{ uint32(Cpu386), "Cpu386" },
++	intName{ uint32(CpuAmd64), "CpuAmd64" },
++}
++func (i Cpu) String() string {
++	return stringName(uint32(i), cpuStrings, false)
++}
++func (i Cpu) GoString() string {
++	return stringName(uint32(i), cpuStrings, true)
++}
++
++// A LoadCmd is a Mach-O load command.
++type LoadCmd uint32;
++const (
++	LoadCmdSegment LoadCmd = 1;
++	LoadCmdSegment64 LoadCmd = 25;
++	LoadCmdThread LoadCmd = 4;
++	LoadCmdUnixThread LoadCmd = 5;	// thread+stack
++)
++var cmdStrings = []intName {
++	intName{ uint32(LoadCmdSegment), "LoadCmdSegment" },
++	intName{ uint32(LoadCmdSegment64), "LoadCmdSegment64" },
++	intName{ uint32(LoadCmdThread), "LoadCmdThread" },
++	intName{ uint32(LoadCmdUnixThread), "LoadCmdUnixThread" },
++}
++func (i LoadCmd) String() string {
++	return stringName(uint32(i), cmdStrings, false)
++}
++func (i LoadCmd) GoString() string {
++	return stringName(uint32(i), cmdStrings, true)
++}
++
++// A Segment64 is a 64-bit Mach-O segment load command.
++type Segment64 struct {
++	Cmd	LoadCmd;
++	Len	uint32;
++	Name	[16]byte;
++	Addr	uint64;
++	Memsz	uint64;
++	Offset	uint64;
++	Filesz	uint64;
++	Maxprot	uint32;
++	Prot	uint32;
++	Nsect	uint32;
++	Flag	uint32;
++}
++
++// A Segment32 is a 32-bit Mach-O segment load command.
++type Segment32 struct {
++	Cmd	LoadCmd;
++	Len	uint32;
++	Name	[16]byte;
++	Addr	uint32;
++	Memsz	uint32;
++	Offset	uint32;
++	Filesz	uint32;
++	Maxprot	uint32;
++	Prot	uint32;
++	Nsect	uint32;
++	Flag	uint32;
++}
++
++// A Section32 is a 32-bit Mach-O section header.
++type Section32 struct {
++	Name	[16]byte;
++	Seg		[16]byte;
++	Addr	uint32;
++	Size	uint32;
++	Offset	uint32;
++	Align	uint32;
++	Reloff	uint32;
++	Nreloc	uint32;
++	Flags	uint32;
++	Reserve1	uint32;
++	Reserve2	uint32;
++}
++
++// A Section32 is a 64-bit Mach-O section header.
++type Section64 struct {
++	Name	[16]byte;
++	Seg		[16]byte;
++	Addr	uint64;
++	Size	uint64;
++	Offset	uint32;
++	Align	uint32;
++	Reloff	uint32;
++	Nreloc	uint32;
++	Flags	uint32;
++	Reserve1	uint32;
++	Reserve2	uint32;
++	Reserve3	uint32;
++}
++
++// A Thread is a Mach-O thread state command.
++type Thread struct {
++	Cmd	LoadCmd;
++	Len	uint32;
++	Type	uint32;
++	Data	[]uint32;
++}
++
++// Regs386 is the Mach-O 386 register structure.
++type Regs386 struct {
++	AX	uint32;
++	BX	uint32;
++	CX	uint32;
++	DX	uint32;
++	DI	uint32;
++	SI	uint32;
++	BP	uint32;
++	SP	uint32;
++	SS	uint32;
++	FLAGS	uint32;
++	IP	uint32;
++	CS	uint32;
++	DS	uint32;
++	ES	uint32;
++	FS	uint32;
++	GS	uint32;
++}
++
++// RegsAMD64 is the Mach-O AMD64 register structure.
++type RegsAMD64 struct {
++	AX	uint64;
++	BX	uint64;
++	CX	uint64;
++	DX	uint64;
++	DI	uint64;
++	SI	uint64;
++	BP	uint64;
++	SP	uint64;
++	R8	uint64;
++	R9	uint64;
++	R10	uint64;
++	R11	uint64;
++	R12	uint64;
++	R13	uint64;
++	R14	uint64;
++	R15	uint64;
++	IP	uint64;
++	FLAGS	uint64;
++	CS	uint64;
++	FS	uint64;
++	GS	uint64;
++}
++
++type intName struct {
++	i uint32;
++	s string;
++}
++
++func stringName(i uint32, names []intName, goSyntax bool) string {
++	for _, n := range names {
++		if n.i == i {
++			if goSyntax {
++				return "macho." + n.s
++			}
++			return n.s
++		}
++	}
++	return strconv.Uitoa64(uint64(i))
++}
++
++func flagName(i uint32, names []intName, goSyntax bool) string {
++	s := "";
++	for _, n := range names {
++		if n.i & i == n.i {
++			if len(s) > 0 {
++				s += "+";
++			}
++			if goSyntax {
++				s += "macho.";
++			}
++			s += n.s;
++			i -= n.i;
++		}
++	}
++	if len(s) == 0 {
++		return "0x" + strconv.Uitob64(uint64(i), 16)
++	}
++	if i != 0 {
++		s += "+0x" + strconv.Uitob64(uint64(i), 16)
++	}
++	return s
++}
+diff --git a/src/pkg/debug/macho/testdata/gcc-386-darwin-exec b/src/pkg/debug/macho/testdata/gcc-386-darwin-exec
+new file mode 100755
+index 0000000000..03ba1bafac
+Binary files /dev/null and b/src/pkg/debug/macho/testdata/gcc-386-darwin-exec differ
+diff --git a/src/pkg/debug/macho/testdata/gcc-amd64-darwin-exec b/src/pkg/debug/macho/testdata/gcc-amd64-darwin-exec
+new file mode 100755
+index 0000000000..5155a5a26f
+Binary files /dev/null and b/src/pkg/debug/macho/testdata/gcc-amd64-darwin-exec differ
+diff --git a/src/pkg/debug/macho/testdata/gcc-amd64-darwin-exec-debug b/src/pkg/debug/macho/testdata/gcc-amd64-darwin-exec-debug
+new file mode 100644
+index 0000000000..a47d3aef78
+Binary files /dev/null and b/src/pkg/debug/macho/testdata/gcc-amd64-darwin-exec-debug differ

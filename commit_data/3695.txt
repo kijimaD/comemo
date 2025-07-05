@@ -13,7 +13,7 @@ Date:   Sun Nov 1 11:13:27 2009 -0800
     
     R=r
     http://go/go-review/1017009
-
+---
  src/cmd/godefs/main.c                    |   4 +-
  src/pkg/os/file.go                       |   2 +-
  src/pkg/syscall/exec.go                  |   2 +-
@@ -41,3 +41,4642 @@ Date:   Sun Nov 1 11:13:27 2009 -0800
  src/pkg/syscall/ztypes_linux_386.go      | 141 ++-----
  src/pkg/syscall/ztypes_linux_amd64.go    | 135 ++-----
  26 files changed, 2493 insertions(+), 1414 deletions(-)
+
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+index f6531ad8ef..d5881ef872 100644
+--- a/src/cmd/godefs/main.c
++++ b/src/cmd/godefs/main.c
+@@ -376,7 +376,7 @@ main(int argc, char **argv)
+ 					snprint(nambuf, sizeof nambuf, "Pad%d", npad++);
+ 					name = nambuf;
+ 				}
+-				Bprint(bout, "\t%lT;\n", name, f->type);
++				Bprint(bout, "\t%#lT;\n", name, f->type);
+ 				if(t->kind == Union && lang == &go)
+ 					break;
+ 			}
+@@ -488,6 +488,8 @@ gotypefmt(Fmt *f)
+ 		name = va_arg(f->args, char*);
+ 		if('a' <= name[0] && name[0] <= 'z')
+ 			name[0] += 'A' - 'a';
++		if(name[0] == '_' && (f->flags & FmtSharp))
++			fmtprint(f, "X");
+ 		fmtprint(f, "%s ", name);
+ 	}
+ 	t = va_arg(f->args, Type*);
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 75cc048517..578bc2e9e4 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -60,6 +60,7 @@ const (
+ 	O_APPEND	= syscall.O_APPEND;	// open the file append-only.
+ 	O_ASYNC		= syscall.O_ASYNC;	// generate a signal when I/O is available.
+ 	O_CREAT		= syscall.O_CREAT;	// create a new file if none exists.
++	O_EXCL		= syscall.O_EXCL;	// used with O_CREAT, file must not exist
+ 	O_NOCTTY	= syscall.O_NOCTTY;	// do not make file the controlling tty.
+ 	O_NONBLOCK	= syscall.O_NONBLOCK;	// open in non-blocking mode.
+ 	O_NDELAY	= O_NONBLOCK;		// synonym for O_NONBLOCK
+@@ -115,7 +116,6 @@ var EOF Error = eofError(0)
+ // Read reads up to len(b) bytes from the File.
+ // It returns the number of bytes read and an Error, if any.
+ // EOF is signaled by a zero count with err set to EOF.
+-// TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
+ func (file *File) Read(b []byte) (n int, err Error) {
+ 	if file == nil {
+ 		return 0, EINVAL;
+diff --git a/src/pkg/syscall/exec.go b/src/pkg/syscall/exec.go
+index 9aeeda1c4c..7abf59dff9 100644
+--- a/src/pkg/syscall/exec.go
++++ b/src/pkg/syscall/exec.go
+@@ -133,7 +133,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
+ 
+ 	// Enable tracing if requested.
+ 	if traceme {
+-		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(_PTRACE_TRACEME), 0, 0);
++		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0);
+ 		if err1 != 0 {
+ 			goto childerror;
+ 		}
+diff --git a/src/pkg/syscall/PORT.sh b/src/pkg/syscall/mkall.sh
+similarity index 90%
+rename from src/pkg/syscall/PORT.sh
+rename to src/pkg/syscall/mkall.sh
+index 72356b358f..d0383f54a8 100755
+--- a/src/pkg/syscall/PORT.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -10,7 +10,7 @@
+ # much of the process.  The auto-generated files have names
+ # beginning with z.
+ #
+-# This script prints suggested commands to generate z files
++# This script runs or (given -n) prints suggested commands to generate z files
+ # for the current system.  Running those commands is not automatic.
+ # This script is documentation more than anything else.
+ #
+@@ -78,6 +78,21 @@ GOOSARCH="${GOOS}_${GOARCH}"
+ # defaults
+ mksyscall="mksyscall.sh"
+ mkerrors="mkerrors.sh"
++run="sh"
++
++case "$1" in
++-n)
++	run="cat"
++	shift
++esac
++
++case "$#" in
++0)
++	;;
++*)
++	echo 'usage: mkall.sh [-n]' 1>&2
++	exit 2
++esac
+ 
+ case "$GOOSARCH" in
+ _* | *_ | _)
+@@ -126,7 +141,9 @@ linux_arm)
+ 	;;
+ esac
+ 
+-echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"
+-echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
+-echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"
+-echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"
++(
++	echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"
++	echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
++	echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"
++	echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"
++) | $run
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index ff32d45fbf..669cd85a50 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -1,11 +1,11 @@
+-#!/bin/sh
++#!/bin/bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# Generate Go code listing error values (ENAMETOOLONG etc)
+-# and signal values (SIGALRM etc).  They're unrelated except
+-# that we use the same method for finding them.
++# Generate Go code listing errors and other #defined constant
++# values (ENAMETOOLONG etc.), by asking the preprocessor
++# about the definitions.
+ 
+ case "$GOARCH" in
+ arm)
+@@ -16,39 +16,81 @@ arm)
+ 	;;
+ esac
+ 
+-errors=$(
+-	echo '#include <errno.h>' |
+-	# The gcc command line prints all the #defines
+-	# it encounters while processing the input
+-	$GCC -x c - -E -dM |
+-	egrep -h '#define E[A-Z0-9_]+ ' $files |
+-	sed 's/#define //; s/ .*//'
+-)
++uname=$(uname)
+ 
+-signals=$(
+-	echo '#include <sys/signal.h>' |
+-	$GCC -x c - -E -dM |
+-	egrep -h '#define SIG[^_]' |
+-	egrep -v '#define (SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))' |
+-	sed 's/#define //; s/ .*//'
+-)
++includes_Linux='
++#define _LARGEFILE_SOURCE
++#define _LARGEFILE64_SOURCE
++#define _FILE_OFFSET_BITS 64
++#define _GNU_SOURCE
++
++#include <sys/types.h>
++#include <sys/epoll.h>
++#include <linux/ptrace.h>
++#include <linux/wait.h>
++'
++
++includes_Darwin='
++#define __DARWIN_UNIX03 0
++#define KERNEL
++#define _DARWIN_USE_64_BIT_INODE
++#include <sys/wait.h>
++#include <sys/event.h>
++'
++
++includes='
++#include <sys/types.h>
++#include <fcntl.h>
++#include <dirent.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <netinet/tcp.h>
++#include <errno.h>
++#include <sys/signal.h>
++#include <signal.h>
++'
+ 
+ # Write godefs input.
+ (
+-	echo '#include <errno.h>'
+-	echo '#include <signal.h>'
++	indirect="includes_$(uname)"
++	echo "${!indirect} $includes"
++	echo
+ 	echo 'enum {'
+-	for i in $errors $signals
+-	do
+-		echo '$'"$i = $i,"
+-	done
++
++	# The gcc command line prints all the #defines
++	# it encounters while processing the input
++	echo "${!indirect} $includes" | $GCC -x c - -E -dM |
++	awk '
++		$1 != "#define" || $2 ~ /\(/ {next}
++		
++		$2 ~ /^(SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))/ {next}
++
++		$2 ~ /^E[A-Z0-9_]+$/ ||
++		$2 ~ /^SIG[^_]/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|TCP|EVFILT|EV)_/ ||
++		$2 == "SOMAXCONN" ||
++		$2 == "NAME_MAX" ||
++		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
++		$2 ~ /^W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", $2, $2)}
++		
++		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t$%s = %s,\n", substr($2,3), $2)}
++		
++		{next}
++	' | sort
++
+ 	echo '};'
+-) >_errors.c
++) >_const.c
++
++# Pull out just the error names for later.
++errors=$(
++	echo '#include <errno.h>' | $GCC -x c - -E -dM |
++	awk '$1=="#define" && $2 ~ /^E[A-Z0-9_]+$/ { print $2 }'
++)
+ 
+ echo '// mkerrors.sh' "$@"
+ echo '// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT'
+ echo
+-godefs -gsyscall "$@" _errors.c
++godefs -gsyscall "$@" _const.c
+ 
+ # Run C program to print error strings.
+ (
+@@ -95,9 +137,10 @@ main(void)
+ 	next:;
+ 	}
+ 	printf("}\n\n");
++	return 0;
+ }
+ 
+ '
+ ) >_errors.c
+ 
+-gcc -o _errors _errors.c && ./_errors && rm -f _errors.c _errors
++gcc -o _errors _errors.c && ./_errors && rm -f _errors.c _errors _const.c
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index b19d427823..07f12482b1 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -138,6 +138,7 @@ func (w WaitStatus) TrapCause() int {
+ }
+ 
+ //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
++
+ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
+ 	var status _C_int;
+ 	wpid, errno = wait4(pid, &status, options, rusage);
+@@ -148,6 +149,7 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
+ }
+ 
+ //sys	pipe() (r int, w int, errno int)
++
+ func Pipe(p []int) (errno int) {
+ 	if len(p) != 2 {
+ 		return EINVAL;
+@@ -351,7 +353,31 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l));
+ }
+ 
++
++//sys recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
++
++func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
++	var rsa RawSockaddrAny;
++	var len _Socklen = SizeofSockaddrAny;
++	if n, errno = recvfrom(fd, p, flags, &rsa, &len); errno != 0 {
++		return;
++	}
++	from, errno = anyToSockaddr(&rsa);
++	return;
++}
++
++//sys sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
++
++func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
++	ptr, n, err := to.sockaddr();
++	if err != 0 {
++		return err;
++	}
++	return sendto(fd, p, flags, ptr, n);
++}
++
+ //sys	kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int)
++
+ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno int) {
+ 	var change, event uintptr;
+ 	if len(changes) > 0 {
+@@ -449,10 +475,8 @@ func SysctlUint32(name string) (value uint32, errno int) {
+ //	Msync(addr *byte, len int, flags int) (errno int)
+ //	Munmap(addr *byte, len int) (errno int)
+ //	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, errno int)
+-//	Recvfrom(s int, buf *byte, nbuf int, flags int, from *Sockaddr, fromlen *int) (n int, errno int)
+ //	Recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+ //	Sendmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+-//	Sendto(s int, buf *byte, nbuf int, flags int, to *Sockaddr, addrlen int) (errno int)
+ //	Utimes(path string, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
+ //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
+ 
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index ada2084721..bcca5caed8 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -375,6 +375,24 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l));
+ }
+ 
++func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
++	var rsa RawSockaddrAny;
++	var len _Socklen = SizeofSockaddrAny;
++	if n, errno = recvfrom(fd, p, flags, &rsa, &len); errno != 0 {
++		return;
++	}
++	from, errno = anyToSockaddr(&rsa);
++	return;
++}
++
++func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
++	ptr, n, err := to.sockaddr();
++	if err != 0 {
++		return err;
++	}
++	return sendto(fd, p, flags, ptr, n);
++}
++
+ //sys	ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
+ 
+ // See bytes.Copy.
+@@ -429,11 +447,11 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
+ }
+ 
+ func PtracePeekText(pid int, addr uintptr, out []byte) (count int, errno int) {
+-	return ptracePeek(_PTRACE_PEEKTEXT, pid, addr, out);
++	return ptracePeek(PTRACE_PEEKTEXT, pid, addr, out);
+ }
+ 
+ func PtracePeekData(pid int, addr uintptr, out []byte) (count int, errno int) {
+-	return ptracePeek(_PTRACE_PEEKDATA, pid, addr, out);
++	return ptracePeek(PTRACE_PEEKDATA, pid, addr, out);
+ }
+ 
+ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (count int, errno int) {
+@@ -488,46 +506,46 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
+ }
+ 
+ func PtracePokeText(pid int, addr uintptr, data []byte) (count int, errno int) {
+-	return ptracePoke(_PTRACE_POKETEXT, _PTRACE_PEEKTEXT, pid, addr, data);
++	return ptracePoke(PTRACE_POKETEXT, PTRACE_PEEKTEXT, pid, addr, data);
+ }
+ 
+ func PtracePokeData(pid int, addr uintptr, data []byte) (count int, errno int) {
+-	return ptracePoke(_PTRACE_POKEDATA, _PTRACE_PEEKDATA, pid, addr, data);
++	return ptracePoke(PTRACE_POKEDATA, PTRACE_PEEKDATA, pid, addr, data);
+ }
+ 
+ func PtraceGetRegs(pid int, regsout *PtraceRegs) (errno int) {
+-	return ptrace(_PTRACE_GETREGS, pid, 0, uintptr(unsafe.Pointer(regsout)));
++	return ptrace(PTRACE_GETREGS, pid, 0, uintptr(unsafe.Pointer(regsout)));
+ }
+ 
+ func PtraceSetRegs(pid int, regs *PtraceRegs) (errno int) {
+-	return ptrace(_PTRACE_SETREGS, pid, 0, uintptr(unsafe.Pointer(regs)));
++	return ptrace(PTRACE_SETREGS, pid, 0, uintptr(unsafe.Pointer(regs)));
+ }
+ 
+ func PtraceSetOptions(pid int, options int) (errno int) {
+-	return ptrace(_PTRACE_SETOPTIONS, pid, 0, uintptr(options));
++	return ptrace(PTRACE_SETOPTIONS, pid, 0, uintptr(options));
+ }
+ 
+ func PtraceGetEventMsg(pid int) (msg uint, errno int) {
+ 	var data _C_long;
+-	errno = ptrace(_PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)));
++	errno = ptrace(PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)));
+ 	msg = uint(data);
+ 	return;
+ }
+ 
+ func PtraceCont(pid int, signal int) (errno int) {
+-	return ptrace(_PTRACE_CONT, pid, 0, uintptr(signal));
++	return ptrace(PTRACE_CONT, pid, 0, uintptr(signal));
+ }
+ 
+ func PtraceSingleStep(pid int) (errno int) {
+-	return ptrace(_PTRACE_SINGLESTEP, pid, 0, 0);
++	return ptrace(PTRACE_SINGLESTEP, pid, 0, 0);
+ }
+ 
+ func PtraceAttach(pid int) (errno int) {
+-	return ptrace(_PTRACE_ATTACH, pid, 0, 0);
++	return ptrace(PTRACE_ATTACH, pid, 0, 0);
+ }
+ 
+ func PtraceDetach(pid int) (errno int) {
+-	return ptrace(_PTRACE_DETACH, pid, 0, 0);
++	return ptrace(PTRACE_DETACH, pid, 0, 0);
+ }
+ 
+ // Sendto
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 1f9a499e19..c506d783d1 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -57,7 +57,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
+ //sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+ //sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+-
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
+ 
+ // Underlying system call writes to newoffset via pointer.
+@@ -100,25 +99,21 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ }
+ 
+ func getsockname(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	var _ int;
+ 	_, errno = socketcall(_GETSOCKNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
+ 	return;
+ }
+ 
+ func getpeername(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+-	var _ int;
+ 	_, errno = socketcall(_GETPEERNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
+ 	return;
+ }
+ 
+ func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
+-	var _ int;
+ 	_, errno = socketcall(_BIND, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0);
+ 	return;
+ }
+ 
+ func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
+-	var _ int;
+ 	_, errno = socketcall(_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0);
+ 	return;
+ }
+@@ -129,13 +124,29 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ }
+ 
+ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
+-	var _ int;
+ 	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
+ 	return;
+ }
+ 
++func recvfrom(s int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
++	var base uintptr;
++	if len(p) > 0 {
++		base = uintptr(unsafe.Pointer(&p));
++	}
++	n, errno = socketcall(_RECVFROM, uintptr(s), base, uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
++	return;
++}
++
++func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
++	var base uintptr;
++	if len(p) > 0 {
++		base = uintptr(unsafe.Pointer(&p));
++	}
++	_, errno = socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), to, uintptr(addrlen));
++	return;
++}	
++
+ func Listen(s int, n int) (errno int) {
+-	var _ int;
+ 	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0);
+ 	return;
+ }
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 5827d3600b..babaf9e41d 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -39,6 +39,8 @@ package syscall
+ //sys	socket(domain int, typ int, proto int) (fd int, errno int)
+ //sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
++//sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
+ 
+ func Getpagesize() int {
+ 	return 4096
+diff --git a/src/pkg/syscall/types_darwin.c b/src/pkg/syscall/types_darwin.c
+index 4e9bf5b2e2..14deed681b 100644
+--- a/src/pkg/syscall/types_darwin.c
++++ b/src/pkg/syscall/types_darwin.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-Input to godefs.  See PORT.sh
++Input to godefs.  See also mkerrors.sh and mkall.sh
+  */
+ 
+ #define __DARWIN_UNIX03 0
+@@ -68,111 +68,28 @@ typedef gid_t $_Gid_t;
+ 
+ enum
+ {
+-	$O_RDONLY = O_RDONLY,
+-	$O_WRONLY = O_WRONLY,
+-	$O_RDWR = O_RDWR,
+-	$O_APPEND = O_APPEND,
+-	$O_ASYNC = O_ASYNC,
+-	$O_CREAT = O_CREAT,
+-	$O_NOCTTY = O_NOCTTY,
+-	$O_NONBLOCK = O_NONBLOCK,
+-	$O_SYNC = O_SYNC,
+-	$O_TRUNC = O_TRUNC,
+ 	$O_CLOEXEC = 0,	// not supported
+-
+-	$F_GETFD = F_GETFD,
+-	$F_SETFD = F_SETFD,
+-
+-	$F_GETFL = F_GETFL,
+-	$F_SETFL = F_SETFL,
+-
+-	$FD_CLOEXEC = FD_CLOEXEC,
+-
+-	$NAME_MAX = NAME_MAX
+-};
+-
+-enum
+-{	// Directory mode bits
+-	$S_IFMT = S_IFMT,
+-	$S_IFIFO = S_IFIFO,
+-	$S_IFCHR = S_IFCHR,
+-	$S_IFDIR = S_IFDIR,
+-	$S_IFBLK = S_IFBLK,
+-	$S_IFREG = S_IFREG,
+-	$S_IFLNK = S_IFLNK,
+-	$S_IFSOCK = S_IFSOCK,
+-	$S_IFWHT = S_IFWHT,
+-	$S_ISUID = S_ISUID,
+-	$S_ISGID = S_ISGID,
+-	$S_ISVTX = S_ISVTX,
+-	$S_IRUSR = S_IRUSR,
+-	$S_IWUSR = S_IWUSR,
+-	$S_IXUSR = S_IXUSR,
+ };
+ 
+ typedef struct stat64 $Stat_t;
+ typedef struct statfs64 $Statfs_t;
++typedef struct flock $Flock_t;
++typedef struct fstore $Fstore_t;
++typedef struct radvisory $Radvisory_t;
++typedef struct fbootstraptransfer $Fbootstraptransfer_t;
++typedef struct log2phys $Log2phys_t;
+ 
+ typedef struct dirent $Dirent;
+ 
+ // Wait status.
+ 
+-enum
+-{
+-	$WNOHANG = WNOHANG,
+-	$WUNTRACED = WUNTRACED,
+-	$WEXITED = WEXITED,
+-	$WSTOPPED = WSTOPPED,
+-	$WCONTINUED = WCONTINUED,
+-	$WNOWAIT = WNOWAIT,
+-};
+-
+ // Sockets
+ 
+-enum
+-{
+-	$AF_UNIX = AF_UNIX,
+-	$AF_INET = AF_INET,
+-	$AF_DATAKIT = AF_DATAKIT,
+-	$AF_INET6 = AF_INET6,
+-
+-	$SOCK_STREAM = SOCK_STREAM,
+-	$SOCK_DGRAM = SOCK_DGRAM,
+-	$SOCK_RAW = SOCK_RAW,
+-	$SOCK_SEQPACKET = SOCK_SEQPACKET,
+-
+-	$SOL_SOCKET = SOL_SOCKET,
+-
+-	$SO_REUSEADDR = SO_REUSEADDR,
+-	$SO_KEEPALIVE = SO_KEEPALIVE,
+-	$SO_DONTROUTE = SO_DONTROUTE,
+-	$SO_BROADCAST = SO_BROADCAST,
+-	$SO_USELOOPBACK = SO_USELOOPBACK,
+-	$SO_LINGER = SO_LINGER,
+-	$SO_REUSEPORT = SO_REUSEPORT,
+-	$SO_SNDBUF = SO_SNDBUF,
+-	$SO_RCVBUF = SO_RCVBUF,
+-	$SO_SNDTIMEO = SO_SNDTIMEO,
+-	$SO_RCVTIMEO = SO_RCVTIMEO,
+-	$SO_NOSIGPIPE = SO_NOSIGPIPE,
+-
+-	$IPPROTO_TCP = IPPROTO_TCP,
+-	$IPPROTO_UDP = IPPROTO_UDP,
+-
+-	$TCP_NODELAY = TCP_NODELAY,
+-
+-	$SOMAXCONN = SOMAXCONN
+-};
+-
+-typedef struct sockaddr_in $RawSockaddrInet4;
+-typedef struct sockaddr_in6 $RawSockaddrInet6;
+-typedef struct sockaddr_un $RawSockaddrUnix;
+-typedef struct sockaddr $RawSockaddr;
+-
+ union sockaddr_all {
+ 	struct sockaddr s1;	// this one gets used for fields
+ 	struct sockaddr_in s2;	// these pad it out
+ 	struct sockaddr_in6 s3;
++	struct sockaddr_un s4;
+ };
+ 
+ struct sockaddr_any {
+@@ -180,59 +97,37 @@ struct sockaddr_any {
+ 	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+ };
+ 
++typedef struct sockaddr_in $RawSockaddrInet4;
++typedef struct sockaddr_in6 $RawSockaddrInet6;
++typedef struct sockaddr_un $RawSockaddrUnix;
++typedef struct sockaddr $RawSockaddr;
++typedef struct sockaddr_any $RawSockaddrAny;
++typedef socklen_t $_Socklen;
++typedef struct linger $Linger;
++typedef struct iovec $Iovec;
++typedef struct msghdr $Msghdr;
++typedef struct cmsghdr $Cmsghdr;
++
+ enum {
+ 	$SizeofSockaddrInet4 = sizeof(struct sockaddr_in),
+ 	$SizeofSockaddrInet6 = sizeof(struct sockaddr_in6),
+ 	$SizeofSockaddrAny = sizeof(struct sockaddr_any),
+ 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
++	$SizeofLinger = sizeof(struct linger),
++	$SizeofMsghdr = sizeof(struct msghdr),
++	$SizeofCmsghdr = sizeof(struct cmsghdr),
+ };
+ 
+-typedef struct sockaddr_any $RawSockaddrAny;
+-typedef socklen_t $_Socklen;
+-typedef struct linger $Linger;
+-
+ // Ptrace requests
+ enum {
+-	$_PTRACE_TRACEME = PT_TRACE_ME,
+-	$_PTRACE_CONT = PT_CONTINUE,
+-	$_PTRACE_KILL = PT_KILL,
++	$PTRACE_TRACEME = PT_TRACE_ME,
++	$PTRACE_CONT = PT_CONTINUE,
++	$PTRACE_KILL = PT_KILL,
+ };
+ 
+ 
+ // Events (kqueue, kevent)
+ 
+-enum {
+-	// filters
+-	$EVFILT_READ = EVFILT_READ,
+-	$EVFILT_WRITE = EVFILT_WRITE,
+-	$EVFILT_AIO = EVFILT_AIO,
+-	$EVFILT_VNODE = EVFILT_VNODE,
+-	$EVFILT_PROC = EVFILT_PROC,
+-	$EVFILT_SIGNAL = EVFILT_SIGNAL,
+-	$EVFILT_TIMER = EVFILT_TIMER,
+-	$EVFILT_MACHPORT = EVFILT_MACHPORT,
+-	$EVFILT_FS = EVFILT_FS,
+-
+-	$EVFILT_SYSCOUNT = EVFILT_SYSCOUNT,
+-
+-	// actions
+-	$EV_ADD = EV_ADD,
+-	$EV_DELETE = EV_DELETE,
+-	$EV_DISABLE = EV_DISABLE,
+-	$EV_RECEIPT = EV_RECEIPT,
+-
+-	// flags
+-	$EV_ONESHOT = EV_ONESHOT,
+-	$EV_CLEAR = EV_CLEAR,
+-	$EV_SYSFLAGS = EV_SYSFLAGS,
+-	$EV_FLAG0 = EV_FLAG0,
+-	$EV_FLAG1 = EV_FLAG1,
+-
+-	// returned values
+-	$EV_EOF = EV_EOF,
+-	$EV_ERROR = EV_ERROR,
+-};
+-
+ typedef struct kevent $Kevent_t;
+ 
+ // Select
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index d63e9983e8..284e8bf1d4 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-Input to godefs.  See PORT.sh
++Input to godefs.  See also mkerrors.sh and mkall.sh
+  */
+ 
+ #define _LARGEFILE_SOURCE
+@@ -78,113 +78,18 @@ typedef gid_t $_Gid_t;
+ 
+ // Files
+ 
+-enum
+-{
+-	$O_RDONLY = O_RDONLY,
+-	$O_WRONLY = O_WRONLY,
+-	$O_RDWR = O_RDWR,
+-	$O_APPEND = O_APPEND,
+-	$O_ASYNC = O_ASYNC,
+-	$O_CREAT = O_CREAT,
+-	$O_NOCTTY = O_NOCTTY,
+-	$O_NONBLOCK = O_NONBLOCK,
+-	$O_SYNC = O_SYNC,
+-	$O_TRUNC = O_TRUNC,
+-	$O_CLOEXEC = 0,	// not supported
+-
+-	$F_GETFD = F_GETFD,
+-	$F_SETFD = F_SETFD,
+-
+-	$F_GETFL = F_GETFL,
+-	$F_SETFL = F_SETFL,
+-
+-	$FD_CLOEXEC = FD_CLOEXEC,
+-
+-	$NAME_MAX = NAME_MAX
+-};
+-
+-enum
+-{	// Directory mode bits
+-	$S_IFMT = S_IFMT,
+-	$S_IFIFO = S_IFIFO,
+-	$S_IFCHR = S_IFCHR,
+-	$S_IFDIR = S_IFDIR,
+-	$S_IFBLK = S_IFBLK,
+-	$S_IFREG = S_IFREG,
+-	$S_IFLNK = S_IFLNK,
+-	$S_IFSOCK = S_IFSOCK,
+-	$S_ISUID = S_ISUID,
+-	$S_ISGID = S_ISGID,
+-	$S_ISVTX = S_ISVTX,
+-	$S_IRUSR = S_IRUSR,
+-	$S_IWUSR = S_IWUSR,
+-	$S_IXUSR = S_IXUSR,
+-};
+-
+ typedef struct stat $Stat_t;
+ typedef struct statfs $Statfs_t;
+ 
+ typedef struct dirent $Dirent;
+ 
+-// Wait status.
+-
+-enum
+-{
+-	$WNOHANG = WNOHANG,
+-	$WUNTRACED = WUNTRACED,
+-	$WEXITED = WEXITED,
+-	$WSTOPPED = WSTOPPED,
+-	$WCONTINUED = WCONTINUED,
+-	$WNOWAIT = WNOWAIT,
+-
+-        // Linux-specific
+-        $WCLONE = __WCLONE,
+-        $WALL = __WALL,
+-        $WNOTHREAD = __WNOTHREAD,
+-};
+-
+ // Sockets
+ 
+-enum
+-{
+-	$AF_UNIX = AF_UNIX,
+-	$AF_INET = AF_INET,
+-	$AF_INET6 = AF_INET6,
+-
+-	$SOCK_STREAM = SOCK_STREAM,
+-	$SOCK_DGRAM = SOCK_DGRAM,
+-	$SOCK_RAW = SOCK_RAW,
+-	$SOCK_SEQPACKET = SOCK_SEQPACKET,
+-
+-	$SOL_SOCKET = SOL_SOCKET,
+-
+-	$SO_REUSEADDR = SO_REUSEADDR,
+-	$SO_KEEPALIVE = SO_KEEPALIVE,
+-	$SO_DONTROUTE = SO_DONTROUTE,
+-	$SO_BROADCAST = SO_BROADCAST,
+-	$SO_LINGER = SO_LINGER,
+-	$SO_SNDBUF = SO_SNDBUF,
+-	$SO_RCVBUF = SO_RCVBUF,
+-	$SO_SNDTIMEO = SO_SNDTIMEO,
+-	$SO_RCVTIMEO = SO_RCVTIMEO,
+-
+-	$IPPROTO_TCP = IPPROTO_TCP,
+-	$IPPROTO_UDP = IPPROTO_UDP,
+-
+-	$TCP_NODELAY = TCP_NODELAY,
+-
+-	$SOMAXCONN = SOMAXCONN
+-};
+-
+-typedef struct sockaddr_in $RawSockaddrInet4;
+-typedef struct sockaddr_in6 $RawSockaddrInet6;
+-typedef struct sockaddr_un $RawSockaddrUnix;
+-typedef struct sockaddr $RawSockaddr;
+-
+ union sockaddr_all {
+ 	struct sockaddr s1;	// this one gets used for fields
+ 	struct sockaddr_in s2;	// these pad it out
+ 	struct sockaddr_in6 s3;
++	struct sockaddr_un s4;
+ };
+ 
+ struct sockaddr_any {
+@@ -192,83 +97,35 @@ struct sockaddr_any {
+ 	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+ };
+ 
++typedef struct sockaddr_in $RawSockaddrInet4;
++typedef struct sockaddr_in6 $RawSockaddrInet6;
++typedef struct sockaddr_un $RawSockaddrUnix;
++typedef struct sockaddr $RawSockaddr;
++typedef struct sockaddr_any $RawSockaddrAny;
++typedef socklen_t $_Socklen;
++typedef struct linger $Linger;
++typedef struct iovec $Iovec;
++typedef struct msghdr $Msghdr;
++typedef struct cmsghdr $Cmsghdr;
++
+ enum {
+ 	$SizeofSockaddrInet4 = sizeof(struct sockaddr_in),
+ 	$SizeofSockaddrInet6 = sizeof(struct sockaddr_in6),
+ 	$SizeofSockaddrAny = sizeof(struct sockaddr_any),
+ 	$SizeofSockaddrUnix = sizeof(struct sockaddr_un),
++	$SizeofLinger = sizeof(struct linger),
++	$SizeofMsghdr = sizeof(struct msghdr),
++	$SizeofCmsghdr = sizeof(struct cmsghdr),
+ };
+ 
+-typedef struct sockaddr_any $RawSockaddrAny;
+-typedef socklen_t $_Socklen;
+-typedef struct linger $Linger;
+ 
+ // Ptrace
+ 
+-// Ptrace requests
+-enum {
+-	$_PTRACE_TRACEME = PTRACE_TRACEME,
+-	$_PTRACE_PEEKTEXT = PTRACE_PEEKTEXT,
+-	$_PTRACE_PEEKDATA = PTRACE_PEEKDATA,
+-	$_PTRACE_PEEKUSER = PTRACE_PEEKUSER,
+-	$_PTRACE_POKETEXT = PTRACE_POKETEXT,
+-	$_PTRACE_POKEDATA = PTRACE_POKEDATA,
+-	$_PTRACE_POKEUSER = PTRACE_POKEUSER,
+-	$_PTRACE_CONT = PTRACE_CONT,
+-	$_PTRACE_KILL = PTRACE_KILL,
+-	$_PTRACE_SINGLESTEP = PTRACE_SINGLESTEP,
+-	$_PTRACE_GETREGS = PTRACE_GETREGS,
+-	$_PTRACE_SETREGS = PTRACE_SETREGS,
+-	$_PTRACE_GETFPREGS = PTRACE_GETFPREGS,
+-	$_PTRACE_SETFPREGS = PTRACE_SETFPREGS,
+-	$_PTRACE_ATTACH = PTRACE_ATTACH,
+-	$_PTRACE_DETACH = PTRACE_DETACH,
+-	$_PTRACE_GETFPXREGS = PTRACE_GETFPXREGS,
+-	$_PTRACE_SETFPXREGS = PTRACE_SETFPXREGS,
+-	$_PTRACE_SYSCALL = PTRACE_SYSCALL,
+-	$_PTRACE_SETOPTIONS = PTRACE_SETOPTIONS,
+-	$_PTRACE_GETEVENTMSG = PTRACE_GETEVENTMSG,
+-	$_PTRACE_GETSIGINFO = PTRACE_GETSIGINFO,
+-	$_PTRACE_SETSIGINFO = PTRACE_SETSIGINFO,
+-};
+-
+-// PTRACE_SETOPTIONS options
+-enum {
+-	$PTRACE_O_TRACESYSGOOD = PTRACE_O_TRACESYSGOOD,
+-	$PTRACE_O_TRACEFORK = PTRACE_O_TRACEFORK,
+-	$PTRACE_O_TRACEVFORK = PTRACE_O_TRACEVFORK,
+-	$PTRACE_O_TRACECLONE = PTRACE_O_TRACECLONE,
+-	$PTRACE_O_TRACEEXEC = PTRACE_O_TRACEEXEC,
+-	$PTRACE_O_TRACEVFORKDONE = PTRACE_O_TRACEVFORKDONE,
+-	$PTRACE_O_TRACEEXIT = PTRACE_O_TRACEEXIT,
+-	$PTRACE_O_MASK = PTRACE_O_MASK,
+-};
+-
+-// Extended result codes
+-enum {
+-	$PTRACE_EVENT_FORK = PTRACE_EVENT_FORK,
+-	$PTRACE_EVENT_VFORK = PTRACE_EVENT_VFORK,
+-	$PTRACE_EVENT_CLONE = PTRACE_EVENT_CLONE,
+-	$PTRACE_EVENT_EXEC = PTRACE_EVENT_EXEC,
+-	$PTRACE_EVENT_VFORK_DONE = PTRACE_EVENT_VFORK_DONE,
+-	$PTRACE_EVENT_EXIT = PTRACE_EVENT_EXIT,
+-};
+-
+ // Register structures
+ typedef struct user_regs_struct $PtraceRegs;
+ 
+ // Misc
+ 
+-enum {
+-	$EPOLLIN = EPOLLIN,
+-	$EPOLLRDHUP = EPOLLRDHUP,
+-	$EPOLLOUT = EPOLLOUT,
+-	$EPOLLONESHOT = EPOLLONESHOT,
+-	$EPOLL_CTL_MOD = EPOLL_CTL_MOD,
+-	$EPOLL_CTL_ADD = EPOLL_CTL_ADD,
+-	$EPOLL_CTL_DEL = EPOLL_CTL_DEL,
+-};
+-
+ typedef fd_set $FdSet;
+ typedef struct sysinfo $Sysinfo_t;
+ typedef struct utsname $Utsname;
+diff --git a/src/pkg/syscall/types_nacl.c b/src/pkg/syscall/types_nacl.c
+index 67752402b8..76be783271 100644
+--- a/src/pkg/syscall/types_nacl.c
++++ b/src/pkg/syscall/types_nacl.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-Input to godefs.  See PORT.sh
++Input to godefs.  See also mkerrors.sh and mkall.sh
+  */
+ 
+ #define _LARGEFILE_SOURCE
+@@ -88,6 +88,7 @@ enum
+ 	$O_NONBLOCK = O_NONBLOCK,
+ 	$O_SYNC = O_SYNC,
+ 	$O_TRUNC = O_TRUNC,
++	$O_EXCL = O_EXCL,
+ 	$O_CLOEXEC = 0,	// not supported
+ 
+ 	$F_GETFD = F_GETFD,
+diff --git a/src/pkg/syscall/zerrors_darwin_386.go b/src/pkg/syscall/zerrors_darwin_386.go
+index 862a466418..61afee2619 100644
+--- a/src/pkg/syscall/zerrors_darwin_386.go
++++ b/src/pkg/syscall/zerrors_darwin_386.go
+@@ -1,7 +1,7 @@
+ // mkerrors.sh
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+-// godefs -gsyscall _errors.c
++// godefs -gsyscall _const.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -9,143 +9,511 @@ package syscall
+ 
+ // Constants
+ const (
+-	EMULTIHOP	= 0x5f;
+-	EAFNOSUPPORT	= 0x2f;
+-	EACCES		= 0xd;
+-	EDESTADDRREQ	= 0x27;
+-	EILSEQ		= 0x5c;
+-	ESPIPE		= 0x1d;
+-	EMLINK		= 0x1f;
+-	EPROGUNAVAIL	= 0x4a;
+-	ENOTTY		= 0x19;
+-	EBADF		= 0x9;
+-	ERANGE		= 0x22;
+-	ECANCELED	= 0x59;
+-	ETXTBSY		= 0x1a;
+-	ENOMEM		= 0xc;
+-	EINPROGRESS	= 0x24;
+-	ENOTEMPTY	= 0x42;
+-	ENOTBLK		= 0xf;
+-	EPROTOTYPE	= 0x29;
+-	ENOMSG		= 0x5b;
+-	ERPCMISMATCH	= 0x49;
+-	ENOTDIR		= 0x14;
+-	EALREADY	= 0x25;
+-	ETIMEDOUT	= 0x3c;
+-	ENEEDAUTH	= 0x51;
+-	ENODATA		= 0x60;
+-	EINTR		= 0x4;
+-	ENOLINK		= 0x61;
+-	EPERM		= 0x1;
+-	ENETDOWN	= 0x32;
+-	ESTALE		= 0x46;
+-	ENOTSOCK	= 0x26;
+-	ENOSR		= 0x62;
+-	EAUTH		= 0x50;
+-	ECHILD		= 0xa;
+-	EPIPE		= 0x20;
+-	ENOATTR		= 0x5d;
+-	EBADMSG		= 0x5e;
+-	EREMOTE		= 0x47;
+-	ETOOMANYREFS	= 0x3b;
+-	EPFNOSUPPORT	= 0x2e;
+-	EPROCUNAVAIL	= 0x4c;
+-	EADDRINUSE	= 0x30;
+-	ENETRESET	= 0x34;
+-	EISDIR		= 0x15;
+-	EIDRM		= 0x5a;
+-	EDEVERR		= 0x53;
+-	EINVAL		= 0x16;
+-	ESHUTDOWN	= 0x3a;
+-	EPWROFF		= 0x52;
+-	EOVERFLOW	= 0x54;
+-	EBUSY		= 0x10;
+-	EPROCLIM	= 0x43;
+-	EPROTO		= 0x64;
+-	ENODEV		= 0x13;
+-	EROFS		= 0x1e;
+-	E2BIG		= 0x7;
+-	EDEADLK		= 0xb;
+-	ECONNRESET	= 0x36;
+-	EBADMACHO	= 0x58;
+-	ENXIO		= 0x6;
+-	EBADRPC		= 0x48;
+-	ENAMETOOLONG	= 0x3f;
+-	ELAST		= 0x67;
+-	ESOCKTNOSUPPORT	= 0x2c;
+-	EADDRNOTAVAIL	= 0x31;
+-	ETIME		= 0x65;
+-	EPROTONOSUPPORT	= 0x2b;
+-	EIO		= 0x5;
+-	ENETUNREACH	= 0x33;
+-	EXDEV		= 0x12;
+-	EDQUOT		= 0x45;
+-	ENOSPC		= 0x1c;
+-	ENOEXEC		= 0x8;
+-	EMSGSIZE	= 0x28;
+-	EFTYPE		= 0x4f;
+-	EDOM		= 0x21;
+-	ENOSTR		= 0x63;
+-	EFBIG		= 0x1b;
+-	ESRCH		= 0x3;
+-	EHOSTDOWN	= 0x40;
+-	ENOLCK		= 0x4d;
+-	ENFILE		= 0x17;
+-	ENOSYS		= 0x4e;
+-	EBADARCH	= 0x56;
+-	ENOTCONN	= 0x39;
+-	ENOTSUP		= 0x2d;
+-	ECONNABORTED	= 0x35;
+-	EISCONN		= 0x38;
+-	ESHLIBVERS	= 0x57;
+-	EUSERS		= 0x44;
+-	ENOPROTOOPT	= 0x2a;
+-	EMFILE		= 0x18;
+-	ELOOP		= 0x3e;
+-	ENOBUFS		= 0x37;
+-	EFAULT		= 0xe;
+-	EWOULDBLOCK	= 0x23;
+-	EBADEXEC	= 0x55;
+-	ENOPOLICY	= 0x67;
+-	ECONNREFUSED	= 0x3d;
+-	EAGAIN		= 0x23;
+-	EEXIST		= 0x11;
+-	EPROGMISMATCH	= 0x4b;
+-	ENOENT		= 0x2;
+-	EHOSTUNREACH	= 0x41;
+-	EOPNOTSUPP	= 0x66;
+-	SIGBUS		= 0xa;
+-	SIGTTIN		= 0x15;
+-	SIGPROF		= 0x1b;
+-	SIGFPE		= 0x8;
+-	SIGHUP		= 0x1;
+-	SIGTTOU		= 0x16;
+-	SIGUSR1		= 0x1e;
+-	SIGURG		= 0x10;
+-	SIGQUIT		= 0x3;
+-	SIGIO		= 0x17;
+-	SIGABRT		= 0x6;
+-	SIGINFO		= 0x1d;
+-	SIGUSR2		= 0x1f;
+-	SIGTRAP		= 0x5;
+-	SIGVTALRM	= 0x1a;
+-	SIGSEGV		= 0xb;
+-	SIGCONT		= 0x13;
+-	SIGPIPE		= 0xd;
+-	SIGXFSZ		= 0x19;
+-	SIGCHLD		= 0x14;
+-	SIGSYS		= 0xc;
+-	SIGSTOP		= 0x11;
+-	SIGALRM		= 0xe;
+-	SIGTSTP		= 0x12;
+-	SIGEMT		= 0x7;
+-	SIGKILL		= 0x9;
+-	SIGXCPU		= 0x18;
+-	SIGILL		= 0x4;
+-	SIGINT		= 0x2;
+-	SIGIOT		= 0x6;
+-	SIGTERM		= 0xf;
+-	SIGWINCH	= 0x1c;
++	AF_APPLETALK			= 0x10;
++	AF_CCITT			= 0xa;
++	AF_CHAOS			= 0x5;
++	AF_CNT				= 0x15;
++	AF_COIP				= 0x14;
++	AF_DATAKIT			= 0x9;
++	AF_DECnet			= 0xc;
++	AF_DLI				= 0xd;
++	AF_E164				= 0x1c;
++	AF_ECMA				= 0x8;
++	AF_HYLINK			= 0xf;
++	AF_IMPLINK			= 0x3;
++	AF_INET				= 0x2;
++	AF_INET6			= 0x1e;
++	AF_IPX				= 0x17;
++	AF_ISDN				= 0x1c;
++	AF_ISO				= 0x7;
++	AF_LAT				= 0xe;
++	AF_LINK				= 0x12;
++	AF_LOCAL			= 0x1;
++	AF_MAX				= 0x25;
++	AF_NATM				= 0x1f;
++	AF_NDRV				= 0x1b;
++	AF_NETBIOS			= 0x21;
++	AF_NS				= 0x6;
++	AF_OSI				= 0x7;
++	AF_PPP				= 0x22;
++	AF_PUP				= 0x4;
++	AF_RESERVED_36			= 0x24;
++	AF_ROUTE			= 0x11;
++	AF_SIP				= 0x18;
++	AF_SNA				= 0xb;
++	AF_SYSTEM			= 0x20;
++	AF_UNIX				= 0x1;
++	AF_UNSPEC			= 0;
++	E2BIG				= 0x7;
++	EACCES				= 0xd;
++	EADDRINUSE			= 0x30;
++	EADDRNOTAVAIL			= 0x31;
++	EAFNOSUPPORT			= 0x2f;
++	EAGAIN				= 0x23;
++	EALREADY			= 0x25;
++	EAUTH				= 0x50;
++	EBADARCH			= 0x56;
++	EBADEXEC			= 0x55;
++	EBADF				= 0x9;
++	EBADMACHO			= 0x58;
++	EBADMSG				= 0x5e;
++	EBADRPC				= 0x48;
++	EBUSY				= 0x10;
++	ECANCELED			= 0x59;
++	ECHILD				= 0xa;
++	ECONNABORTED			= 0x35;
++	ECONNREFUSED			= 0x3d;
++	ECONNRESET			= 0x36;
++	EDEADLK				= 0xb;
++	EDESTADDRREQ			= 0x27;
++	EDEVERR				= 0x53;
++	EDOM				= 0x21;
++	EDQUOT				= 0x45;
++	EEXIST				= 0x11;
++	EFAULT				= 0xe;
++	EFBIG				= 0x1b;
++	EFTYPE				= 0x4f;
++	EHOSTDOWN			= 0x40;
++	EHOSTUNREACH			= 0x41;
++	EIDRM				= 0x5a;
++	EILSEQ				= 0x5c;
++	EINPROGRESS			= 0x24;
++	EINTR				= 0x4;
++	EINVAL				= 0x16;
++	EIO				= 0x5;
++	EISCONN				= 0x38;
++	EISDIR				= 0x15;
++	ELAST				= 0x67;
++	ELOOP				= 0x3e;
++	EMFILE				= 0x18;
++	EMLINK				= 0x1f;
++	EMSGSIZE			= 0x28;
++	EMULTIHOP			= 0x5f;
++	ENAMETOOLONG			= 0x3f;
++	ENEEDAUTH			= 0x51;
++	ENETDOWN			= 0x32;
++	ENETRESET			= 0x34;
++	ENETUNREACH			= 0x33;
++	ENFILE				= 0x17;
++	ENOATTR				= 0x5d;
++	ENOBUFS				= 0x37;
++	ENODATA				= 0x60;
++	ENODEV				= 0x13;
++	ENOENT				= 0x2;
++	ENOEXEC				= 0x8;
++	ENOLCK				= 0x4d;
++	ENOLINK				= 0x61;
++	ENOMEM				= 0xc;
++	ENOMSG				= 0x5b;
++	ENOPOLICY			= 0x67;
++	ENOPROTOOPT			= 0x2a;
++	ENOSPC				= 0x1c;
++	ENOSR				= 0x62;
++	ENOSTR				= 0x63;
++	ENOSYS				= 0x4e;
++	ENOTBLK				= 0xf;
++	ENOTCONN			= 0x39;
++	ENOTDIR				= 0x14;
++	ENOTEMPTY			= 0x42;
++	ENOTSOCK			= 0x26;
++	ENOTSUP				= 0x2d;
++	ENOTTY				= 0x19;
++	ENXIO				= 0x6;
++	EOPNOTSUPP			= 0x66;
++	EOVERFLOW			= 0x54;
++	EPERM				= 0x1;
++	EPFNOSUPPORT			= 0x2e;
++	EPIPE				= 0x20;
++	EPROCLIM			= 0x43;
++	EPROCUNAVAIL			= 0x4c;
++	EPROGMISMATCH			= 0x4b;
++	EPROGUNAVAIL			= 0x4a;
++	EPROTO				= 0x64;
++	EPROTONOSUPPORT			= 0x2b;
++	EPROTOTYPE			= 0x29;
++	EPWROFF				= 0x52;
++	ERANGE				= 0x22;
++	EREMOTE				= 0x47;
++	EROFS				= 0x1e;
++	ERPCMISMATCH			= 0x49;
++	ESHLIBVERS			= 0x57;
++	ESHUTDOWN			= 0x3a;
++	ESOCKTNOSUPPORT			= 0x2c;
++	ESPIPE				= 0x1d;
++	ESRCH				= 0x3;
++	ESTALE				= 0x46;
++	ETIME				= 0x65;
++	ETIMEDOUT			= 0x3c;
++	ETOOMANYREFS			= 0x3b;
++	ETXTBSY				= 0x1a;
++	EUSERS				= 0x44;
++	EVFILT_AIO			= -0x3;
++	EVFILT_FS			= -0x9;
++	EVFILT_MACHPORT			= -0x8;
++	EVFILT_PROC			= -0x5;
++	EVFILT_READ			= -0x1;
++	EVFILT_SIGNAL			= -0x6;
++	EVFILT_SYSCOUNT			= 0x9;
++	EVFILT_THREADMARKER		= 0x9;
++	EVFILT_TIMER			= -0x7;
++	EVFILT_VNODE			= -0x4;
++	EVFILT_WRITE			= -0x2;
++	EV_ADD				= 0x1;
++	EV_CLEAR			= 0x20;
++	EV_DELETE			= 0x2;
++	EV_DISABLE			= 0x8;
++	EV_ENABLE			= 0x4;
++	EV_EOF				= 0x8000;
++	EV_ERROR			= 0x4000;
++	EV_FLAG0			= 0x1000;
++	EV_FLAG1			= 0x2000;
++	EV_ONESHOT			= 0x10;
++	EV_OOBAND			= 0x2000;
++	EV_POLL				= 0x1000;
++	EV_RECEIPT			= 0x40;
++	EV_SYSFLAGS			= 0xf000;
++	EWOULDBLOCK			= 0x23;
++	EXDEV				= 0x12;
++	FD_CLOEXEC			= 0x1;
++	FD_SETSIZE			= 0x400;
++	F_ADDSIGS			= 0x3b;
++	F_ALLOCATEALL			= 0x4;
++	F_ALLOCATECONTIG		= 0x2;
++	F_CHKCLEAN			= 0x29;
++	F_DUPFD				= 0;
++	F_FREEZE_FS			= 0x35;
++	F_FULLFSYNC			= 0x33;
++	F_GETFD				= 0x1;
++	F_GETFL				= 0x3;
++	F_GETLK				= 0x7;
++	F_GETOWN			= 0x5;
++	F_GETPATH			= 0x32;
++	F_GLOBAL_NOCACHE		= 0x37;
++	F_LOG2PHYS			= 0x31;
++	F_MARKDEPENDENCY		= 0x3c;
++	F_NOCACHE			= 0x30;
++	F_PATHPKG_CHECK			= 0x34;
++	F_PEOFPOSMODE			= 0x3;
++	F_PREALLOCATE			= 0x2a;
++	F_RDADVISE			= 0x2c;
++	F_RDAHEAD			= 0x2d;
++	F_RDLCK				= 0x1;
++	F_READBOOTSTRAP			= 0x2e;
++	F_SETFD				= 0x2;
++	F_SETFL				= 0x4;
++	F_SETLK				= 0x8;
++	F_SETLKW			= 0x9;
++	F_SETOWN			= 0x6;
++	F_SETSIZE			= 0x2b;
++	F_THAW_FS			= 0x36;
++	F_UNLCK				= 0x2;
++	F_VOLPOSMODE			= 0x4;
++	F_WRITEBOOTSTRAP		= 0x2f;
++	F_WRLCK				= 0x3;
++	IPPROTO_3PC			= 0x22;
++	IPPROTO_ADFS			= 0x44;
++	IPPROTO_AH			= 0x33;
++	IPPROTO_AHIP			= 0x3d;
++	IPPROTO_APES			= 0x63;
++	IPPROTO_ARGUS			= 0xd;
++	IPPROTO_AX25			= 0x5d;
++	IPPROTO_BHA			= 0x31;
++	IPPROTO_BLT			= 0x1e;
++	IPPROTO_BRSATMON		= 0x4c;
++	IPPROTO_CFTP			= 0x3e;
++	IPPROTO_CHAOS			= 0x10;
++	IPPROTO_CMTP			= 0x26;
++	IPPROTO_CPHB			= 0x49;
++	IPPROTO_CPNX			= 0x48;
++	IPPROTO_DDP			= 0x25;
++	IPPROTO_DGP			= 0x56;
++	IPPROTO_DIVERT			= 0xfe;
++	IPPROTO_DONE			= 0x101;
++	IPPROTO_DSTOPTS			= 0x3c;
++	IPPROTO_EGP			= 0x8;
++	IPPROTO_EMCON			= 0xe;
++	IPPROTO_ENCAP			= 0x62;
++	IPPROTO_EON			= 0x50;
++	IPPROTO_ESP			= 0x32;
++	IPPROTO_ETHERIP			= 0x61;
++	IPPROTO_FRAGMENT		= 0x2c;
++	IPPROTO_GGP			= 0x3;
++	IPPROTO_GMTP			= 0x64;
++	IPPROTO_GRE			= 0x2f;
++	IPPROTO_HELLO			= 0x3f;
++	IPPROTO_HMP			= 0x14;
++	IPPROTO_HOPOPTS			= 0;
++	IPPROTO_ICMP			= 0x1;
++	IPPROTO_ICMPV6			= 0x3a;
++	IPPROTO_IDP			= 0x16;
++	IPPROTO_IDPR			= 0x23;
++	IPPROTO_IDRP			= 0x2d;
++	IPPROTO_IGMP			= 0x2;
++	IPPROTO_IGP			= 0x55;
++	IPPROTO_IGRP			= 0x58;
++	IPPROTO_IL			= 0x28;
++	IPPROTO_INLSP			= 0x34;
++	IPPROTO_INP			= 0x20;
++	IPPROTO_IP			= 0;
++	IPPROTO_IPCOMP			= 0x6c;
++	IPPROTO_IPCV			= 0x47;
++	IPPROTO_IPEIP			= 0x5e;
++	IPPROTO_IPIP			= 0x4;
++	IPPROTO_IPPC			= 0x43;
++	IPPROTO_IPV4			= 0x4;
++	IPPROTO_IPV6			= 0x29;
++	IPPROTO_IRTP			= 0x1c;
++	IPPROTO_KRYPTOLAN		= 0x41;
++	IPPROTO_LARP			= 0x5b;
++	IPPROTO_LEAF1			= 0x19;
++	IPPROTO_LEAF2			= 0x1a;
++	IPPROTO_MAX			= 0x100;
++	IPPROTO_MAXID			= 0x34;
++	IPPROTO_MEAS			= 0x13;
++	IPPROTO_MHRP			= 0x30;
++	IPPROTO_MICP			= 0x5f;
++	IPPROTO_MTP			= 0x5c;
++	IPPROTO_MUX			= 0x12;
++	IPPROTO_ND			= 0x4d;
++	IPPROTO_NHRP			= 0x36;
++	IPPROTO_NONE			= 0x3b;
++	IPPROTO_NSP			= 0x1f;
++	IPPROTO_NVPII			= 0xb;
++	IPPROTO_OSPFIGP			= 0x59;
++	IPPROTO_PGM			= 0x71;
++	IPPROTO_PIGP			= 0x9;
++	IPPROTO_PIM			= 0x67;
++	IPPROTO_PRM			= 0x15;
++	IPPROTO_PUP			= 0xc;
++	IPPROTO_PVP			= 0x4b;
++	IPPROTO_RAW			= 0xff;
++	IPPROTO_RCCMON			= 0xa;
++	IPPROTO_RDP			= 0x1b;
++	IPPROTO_ROUTING			= 0x2b;
++	IPPROTO_RSVP			= 0x2e;
++	IPPROTO_RVD			= 0x42;
++	IPPROTO_SATEXPAK		= 0x40;
++	IPPROTO_SATMON			= 0x45;
++	IPPROTO_SCCSP			= 0x60;
++	IPPROTO_SDRP			= 0x2a;
++	IPPROTO_SEP			= 0x21;
++	IPPROTO_SRPC			= 0x5a;
++	IPPROTO_ST			= 0x7;
++	IPPROTO_SVMTP			= 0x52;
++	IPPROTO_SWIPE			= 0x35;
++	IPPROTO_TCF			= 0x57;
++	IPPROTO_TCP			= 0x6;
++	IPPROTO_TP			= 0x1d;
++	IPPROTO_TPXX			= 0x27;
++	IPPROTO_TRUNK1			= 0x17;
++	IPPROTO_TRUNK2			= 0x18;
++	IPPROTO_TTP			= 0x54;
++	IPPROTO_UDP			= 0x11;
++	IPPROTO_VINES			= 0x53;
++	IPPROTO_VISA			= 0x46;
++	IPPROTO_VMTP			= 0x51;
++	IPPROTO_WBEXPAK			= 0x4f;
++	IPPROTO_WBMON			= 0x4e;
++	IPPROTO_WSN			= 0x4a;
++	IPPROTO_XNET			= 0xf;
++	IPPROTO_XTP			= 0x24;
++	IP_ADD_MEMBERSHIP		= 0xc;
++	IP_DEFAULT_MULTICAST_LOOP	= 0x1;
++	IP_DEFAULT_MULTICAST_TTL	= 0x1;
++	IP_DROP_MEMBERSHIP		= 0xd;
++	IP_DUMMYNET_CONFIGURE		= 0x3c;
++	IP_DUMMYNET_DEL			= 0x3d;
++	IP_DUMMYNET_FLUSH		= 0x3e;
++	IP_DUMMYNET_GET			= 0x40;
++	IP_FAITH			= 0x16;
++	IP_FW_ADD			= 0x28;
++	IP_FW_DEL			= 0x29;
++	IP_FW_FLUSH			= 0x2a;
++	IP_FW_GET			= 0x2c;
++	IP_FW_RESETLOG			= 0x2d;
++	IP_FW_ZERO			= 0x2b;
++	IP_HDRINCL			= 0x2;
++	IP_IPSEC_POLICY			= 0x15;
++	IP_MAX_MEMBERSHIPS		= 0x14;
++	IP_MULTICAST_IF			= 0x9;
++	IP_MULTICAST_LOOP		= 0xb;
++	IP_MULTICAST_TTL		= 0xa;
++	IP_MULTICAST_VIF		= 0xe;
++	IP_NAT__XXX			= 0x37;
++	IP_OLD_FW_ADD			= 0x32;
++	IP_OLD_FW_DEL			= 0x33;
++	IP_OLD_FW_FLUSH			= 0x34;
++	IP_OLD_FW_GET			= 0x36;
++	IP_OLD_FW_RESETLOG		= 0x38;
++	IP_OLD_FW_ZERO			= 0x35;
++	IP_OPTIONS			= 0x1;
++	IP_PORTRANGE			= 0x13;
++	IP_PORTRANGE_DEFAULT		= 0;
++	IP_PORTRANGE_HIGH		= 0x1;
++	IP_PORTRANGE_LOW		= 0x2;
++	IP_RECVDSTADDR			= 0x7;
++	IP_RECVIF			= 0x14;
++	IP_RECVOPTS			= 0x5;
++	IP_RECVRETOPTS			= 0x6;
++	IP_RECVTTL			= 0x18;
++	IP_RETOPTS			= 0x8;
++	IP_RSVP_OFF			= 0x10;
++	IP_RSVP_ON			= 0xf;
++	IP_RSVP_VIF_OFF			= 0x12;
++	IP_RSVP_VIF_ON			= 0x11;
++	IP_STRIPHDR			= 0x17;
++	IP_TOS				= 0x3;
++	IP_TRAFFIC_MGT_BACKGROUND	= 0x41;
++	IP_TTL				= 0x4;
++	O_ACCMODE			= 0x3;
++	O_ALERT				= 0x20000000;
++	O_APPEND			= 0x8;
++	O_ASYNC				= 0x40;
++	O_CREAT				= 0x200;
++	O_DIRECTORY			= 0x100000;
++	O_EVTONLY			= 0x8000;
++	O_EXCL				= 0x800;
++	O_EXLOCK			= 0x20;
++	O_FSYNC				= 0x80;
++	O_NDELAY			= 0x4;
++	O_NOCTTY			= 0x20000;
++	O_NOFOLLOW			= 0x100;
++	O_NONBLOCK			= 0x4;
++	O_POPUP				= 0x80000000;
++	O_RDONLY			= 0;
++	O_RDWR				= 0x2;
++	O_SHLOCK			= 0x10;
++	O_SYMLINK			= 0x200000;
++	O_SYNC				= 0x80;
++	O_TRUNC				= 0x400;
++	O_WRONLY			= 0x1;
++	SIGABRT				= 0x6;
++	SIGALRM				= 0xe;
++	SIGBUS				= 0xa;
++	SIGCHLD				= 0x14;
++	SIGCONT				= 0x13;
++	SIGEMT				= 0x7;
++	SIGFPE				= 0x8;
++	SIGHUP				= 0x1;
++	SIGILL				= 0x4;
++	SIGINFO				= 0x1d;
++	SIGINT				= 0x2;
++	SIGIO				= 0x17;
++	SIGIOT				= 0x6;
++	SIGKILL				= 0x9;
++	SIGPIPE				= 0xd;
++	SIGPROF				= 0x1b;
++	SIGQUIT				= 0x3;
++	SIGSEGV				= 0xb;
++	SIGSTOP				= 0x11;
++	SIGSYS				= 0xc;
++	SIGTERM				= 0xf;
++	SIGTRAP				= 0x5;
++	SIGTSTP				= 0x12;
++	SIGTTIN				= 0x15;
++	SIGTTOU				= 0x16;
++	SIGURG				= 0x10;
++	SIGUSR1				= 0x1e;
++	SIGUSR2				= 0x1f;
++	SIGVTALRM			= 0x1a;
++	SIGWINCH			= 0x1c;
++	SIGXCPU				= 0x18;
++	SIGXFSZ				= 0x19;
++	SOCK_DGRAM			= 0x2;
++	SOCK_MAXADDRLEN			= 0xff;
++	SOCK_RAW			= 0x3;
++	SOCK_RDM			= 0x4;
++	SOCK_SEQPACKET			= 0x5;
++	SOCK_STREAM			= 0x1;
++	SOL_SOCKET			= 0xffff;
++	SOMAXCONN			= 0x80;
++	SO_ACCEPTCONN			= 0x2;
++	SO_BROADCAST			= 0x20;
++	SO_DEBUG			= 0x1;
++	SO_DONTROUTE			= 0x10;
++	SO_DONTTRUNC			= 0x2000;
++	SO_ERROR			= 0x1007;
++	SO_KEEPALIVE			= 0x8;
++	SO_LABEL			= 0x1010;
++	SO_LINGER			= 0x80;
++	SO_LINGER_SEC			= 0x1080;
++	SO_NKE				= 0x1021;
++	SO_NOADDRERR			= 0x1023;
++	SO_NOSIGPIPE			= 0x1022;
++	SO_NOTIFYCONFLICT		= 0x1026;
++	SO_NREAD			= 0x1020;
++	SO_NWRITE			= 0x1024;
++	SO_OOBINLINE			= 0x100;
++	SO_PEERLABEL			= 0x1011;
++	SO_RCVBUF			= 0x1002;
++	SO_RCVLOWAT			= 0x1004;
++	SO_RCVTIMEO			= 0x1006;
++	SO_RESTRICTIONS			= 0x1081;
++	SO_RESTRICT_DENYIN		= 0x1;
++	SO_RESTRICT_DENYOUT		= 0x2;
++	SO_RESTRICT_DENYSET		= 0x80000000;
++	SO_REUSEADDR			= 0x4;
++	SO_REUSEPORT			= 0x200;
++	SO_REUSESHAREUID		= 0x1025;
++	SO_SNDBUF			= 0x1001;
++	SO_SNDLOWAT			= 0x1003;
++	SO_SNDTIMEO			= 0x1005;
++	SO_TIMESTAMP			= 0x400;
++	SO_TYPE				= 0x1008;
++	SO_USELOOPBACK			= 0x40;
++	SO_WANTMORE			= 0x4000;
++	SO_WANTOOBFLAG			= 0x8000;
++	S_IEXEC				= 0x40;
++	S_IFBLK				= 0x6000;
++	S_IFCHR				= 0x2000;
++	S_IFDIR				= 0x4000;
++	S_IFIFO				= 0x1000;
++	S_IFLNK				= 0xa000;
++	S_IFMT				= 0xf000;
++	S_IFREG				= 0x8000;
++	S_IFSOCK			= 0xc000;
++	S_IFWHT				= 0xe000;
++	S_IFXATTR			= 0x10000;
++	S_IREAD				= 0x100;
++	S_IRGRP				= 0x20;
++	S_IROTH				= 0x4;
++	S_IRUSR				= 0x100;
++	S_IRWXG				= 0x38;
++	S_IRWXO				= 0x7;
++	S_IRWXU				= 0x1c0;
++	S_ISGID				= 0x400;
++	S_ISTXT				= 0x200;
++	S_ISUID				= 0x800;
++	S_ISVTX				= 0x200;
++	S_IWGRP				= 0x10;
++	S_IWOTH				= 0x2;
++	S_IWRITE			= 0x80;
++	S_IWUSR				= 0x80;
++	S_IXGRP				= 0x8;
++	S_IXOTH				= 0x1;
++	S_IXUSR				= 0x40;
++	TCP_KEEPALIVE			= 0x10;
++	TCP_MAXBURST			= 0x4;
++	TCP_MAXHLEN			= 0x3c;
++	TCP_MAXOLEN			= 0x28;
++	TCP_MAXSEG			= 0x2;
++	TCP_MAXWIN			= 0xffff;
++	TCP_MAX_SACK			= 0x3;
++	TCP_MAX_WINSHIFT		= 0xe;
++	TCP_MINMSS			= 0xd8;
++	TCP_MINMSSOVERLOAD		= 0x3e8;
++	TCP_MSS				= 0x200;
++	TCP_NODELAY			= 0x1;
++	TCP_NOOPT			= 0x8;
++	TCP_NOPUSH			= 0x4;
++	WCONTINUED			= 0x10;
++	WCOREFLAG			= 0x80;
++	WEXITED				= 0x4;
++	WNOHANG				= 0x1;
++	WNOWAIT				= 0x20;
++	WORDSIZE			= 0x20;
++	WSTOPPED			= 0x7f;
++	WUNTRACED			= 0x2;
+ )
+ 
+ // Types
+diff --git a/src/pkg/syscall/zerrors_darwin_amd64.go b/src/pkg/syscall/zerrors_darwin_amd64.go
+index 862a466418..4643073c39 100644
+--- a/src/pkg/syscall/zerrors_darwin_amd64.go
++++ b/src/pkg/syscall/zerrors_darwin_amd64.go
+@@ -1,7 +1,7 @@
+ // mkerrors.sh
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+-// godefs -gsyscall _errors.c
++// godefs -gsyscall _const.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -9,143 +9,510 @@ package syscall
+ 
+ // Constants
+ const (
+-	EMULTIHOP	= 0x5f;
+-	EAFNOSUPPORT	= 0x2f;
+-	EACCES		= 0xd;
+-	EDESTADDRREQ	= 0x27;
+-	EILSEQ		= 0x5c;
+-	ESPIPE		= 0x1d;
+-	EMLINK		= 0x1f;
+-	EPROGUNAVAIL	= 0x4a;
+-	ENOTTY		= 0x19;
+-	EBADF		= 0x9;
+-	ERANGE		= 0x22;
+-	ECANCELED	= 0x59;
+-	ETXTBSY		= 0x1a;
+-	ENOMEM		= 0xc;
+-	EINPROGRESS	= 0x24;
+-	ENOTEMPTY	= 0x42;
+-	ENOTBLK		= 0xf;
+-	EPROTOTYPE	= 0x29;
+-	ENOMSG		= 0x5b;
+-	ERPCMISMATCH	= 0x49;
+-	ENOTDIR		= 0x14;
+-	EALREADY	= 0x25;
+-	ETIMEDOUT	= 0x3c;
+-	ENEEDAUTH	= 0x51;
+-	ENODATA		= 0x60;
+-	EINTR		= 0x4;
+-	ENOLINK		= 0x61;
+-	EPERM		= 0x1;
+-	ENETDOWN	= 0x32;
+-	ESTALE		= 0x46;
+-	ENOTSOCK	= 0x26;
+-	ENOSR		= 0x62;
+-	EAUTH		= 0x50;
+-	ECHILD		= 0xa;
+-	EPIPE		= 0x20;
+-	ENOATTR		= 0x5d;
+-	EBADMSG		= 0x5e;
+-	EREMOTE		= 0x47;
+-	ETOOMANYREFS	= 0x3b;
+-	EPFNOSUPPORT	= 0x2e;
+-	EPROCUNAVAIL	= 0x4c;
+-	EADDRINUSE	= 0x30;
+-	ENETRESET	= 0x34;
+-	EISDIR		= 0x15;
+-	EIDRM		= 0x5a;
+-	EDEVERR		= 0x53;
+-	EINVAL		= 0x16;
+-	ESHUTDOWN	= 0x3a;
+-	EPWROFF		= 0x52;
+-	EOVERFLOW	= 0x54;
+-	EBUSY		= 0x10;
+-	EPROCLIM	= 0x43;
+-	EPROTO		= 0x64;
+-	ENODEV		= 0x13;
+-	EROFS		= 0x1e;
+-	E2BIG		= 0x7;
+-	EDEADLK		= 0xb;
+-	ECONNRESET	= 0x36;
+-	EBADMACHO	= 0x58;
+-	ENXIO		= 0x6;
+-	EBADRPC		= 0x48;
+-	ENAMETOOLONG	= 0x3f;
+-	ELAST		= 0x67;
+-	ESOCKTNOSUPPORT	= 0x2c;
+-	EADDRNOTAVAIL	= 0x31;
+-	ETIME		= 0x65;
+-	EPROTONOSUPPORT	= 0x2b;
+-	EIO		= 0x5;
+-	ENETUNREACH	= 0x33;
+-	EXDEV		= 0x12;
+-	EDQUOT		= 0x45;
+-	ENOSPC		= 0x1c;
+-	ENOEXEC		= 0x8;
+-	EMSGSIZE	= 0x28;
+-	EFTYPE		= 0x4f;
+-	EDOM		= 0x21;
+-	ENOSTR		= 0x63;
+-	EFBIG		= 0x1b;
+-	ESRCH		= 0x3;
+-	EHOSTDOWN	= 0x40;
+-	ENOLCK		= 0x4d;
+-	ENFILE		= 0x17;
+-	ENOSYS		= 0x4e;
+-	EBADARCH	= 0x56;
+-	ENOTCONN	= 0x39;
+-	ENOTSUP		= 0x2d;
+-	ECONNABORTED	= 0x35;
+-	EISCONN		= 0x38;
+-	ESHLIBVERS	= 0x57;
+-	EUSERS		= 0x44;
+-	ENOPROTOOPT	= 0x2a;
+-	EMFILE		= 0x18;
+-	ELOOP		= 0x3e;
+-	ENOBUFS		= 0x37;
+-	EFAULT		= 0xe;
+-	EWOULDBLOCK	= 0x23;
+-	EBADEXEC	= 0x55;
+-	ENOPOLICY	= 0x67;
+-	ECONNREFUSED	= 0x3d;
+-	EAGAIN		= 0x23;
+-	EEXIST		= 0x11;
+-	EPROGMISMATCH	= 0x4b;
+-	ENOENT		= 0x2;
+-	EHOSTUNREACH	= 0x41;
+-	EOPNOTSUPP	= 0x66;
+-	SIGBUS		= 0xa;
+-	SIGTTIN		= 0x15;
+-	SIGPROF		= 0x1b;
+-	SIGFPE		= 0x8;
+-	SIGHUP		= 0x1;
+-	SIGTTOU		= 0x16;
+-	SIGUSR1		= 0x1e;
+-	SIGURG		= 0x10;
+-	SIGQUIT		= 0x3;
+-	SIGIO		= 0x17;
+-	SIGABRT		= 0x6;
+-	SIGINFO		= 0x1d;
+-	SIGUSR2		= 0x1f;
+-	SIGTRAP		= 0x5;
+-	SIGVTALRM	= 0x1a;
+-	SIGSEGV		= 0xb;
+-	SIGCONT		= 0x13;
+-	SIGPIPE		= 0xd;
+-	SIGXFSZ		= 0x19;
+-	SIGCHLD		= 0x14;
+-	SIGSYS		= 0xc;
+-	SIGSTOP		= 0x11;
+-	SIGALRM		= 0xe;
+-	SIGTSTP		= 0x12;
+-	SIGEMT		= 0x7;
+-	SIGKILL		= 0x9;
+-	SIGXCPU		= 0x18;
+-	SIGILL		= 0x4;
+-	SIGINT		= 0x2;
+-	SIGIOT		= 0x6;
+-	SIGTERM		= 0xf;
+-	SIGWINCH	= 0x1c;
++	AF_APPLETALK			= 0x10;
++	AF_CCITT			= 0xa;
++	AF_CHAOS			= 0x5;
++	AF_CNT				= 0x15;
++	AF_COIP				= 0x14;
++	AF_DATAKIT			= 0x9;
++	AF_DECnet			= 0xc;
++	AF_DLI				= 0xd;
++	AF_E164				= 0x1c;
++	AF_ECMA				= 0x8;
++	AF_HYLINK			= 0xf;
++	AF_IMPLINK			= 0x3;
++	AF_INET				= 0x2;
++	AF_INET6			= 0x1e;
++	AF_IPX				= 0x17;
++	AF_ISDN				= 0x1c;
++	AF_ISO				= 0x7;
++	AF_LAT				= 0xe;
++	AF_LINK				= 0x12;
++	AF_LOCAL			= 0x1;
++	AF_MAX				= 0x25;
++	AF_NATM				= 0x1f;
++	AF_NDRV				= 0x1b;
++	AF_NETBIOS			= 0x21;
++	AF_NS				= 0x6;
++	AF_OSI				= 0x7;
++	AF_PPP				= 0x22;
++	AF_PUP				= 0x4;
++	AF_RESERVED_36			= 0x24;
++	AF_ROUTE			= 0x11;
++	AF_SIP				= 0x18;
++	AF_SNA				= 0xb;
++	AF_SYSTEM			= 0x20;
++	AF_UNIX				= 0x1;
++	AF_UNSPEC			= 0;
++	E2BIG				= 0x7;
++	EACCES				= 0xd;
++	EADDRINUSE			= 0x30;
++	EADDRNOTAVAIL			= 0x31;
++	EAFNOSUPPORT			= 0x2f;
++	EAGAIN				= 0x23;
++	EALREADY			= 0x25;
++	EAUTH				= 0x50;
++	EBADARCH			= 0x56;
++	EBADEXEC			= 0x55;
++	EBADF				= 0x9;
++	EBADMACHO			= 0x58;
++	EBADMSG				= 0x5e;
++	EBADRPC				= 0x48;
++	EBUSY				= 0x10;
++	ECANCELED			= 0x59;
++	ECHILD				= 0xa;
++	ECONNABORTED			= 0x35;
++	ECONNREFUSED			= 0x3d;
++	ECONNRESET			= 0x36;
++	EDEADLK				= 0xb;
++	EDESTADDRREQ			= 0x27;
++	EDEVERR				= 0x53;
++	EDOM				= 0x21;
++	EDQUOT				= 0x45;
++	EEXIST				= 0x11;
++	EFAULT				= 0xe;
++	EFBIG				= 0x1b;
++	EFTYPE				= 0x4f;
++	EHOSTDOWN			= 0x40;
++	EHOSTUNREACH			= 0x41;
++	EIDRM				= 0x5a;
++	EILSEQ				= 0x5c;
++	EINPROGRESS			= 0x24;
++	EINTR				= 0x4;
++	EINVAL				= 0x16;
++	EIO				= 0x5;
++	EISCONN				= 0x38;
++	EISDIR				= 0x15;
++	ELAST				= 0x67;
++	ELOOP				= 0x3e;
++	EMFILE				= 0x18;
++	EMLINK				= 0x1f;
++	EMSGSIZE			= 0x28;
++	EMULTIHOP			= 0x5f;
++	ENAMETOOLONG			= 0x3f;
++	ENEEDAUTH			= 0x51;
++	ENETDOWN			= 0x32;
++	ENETRESET			= 0x34;
++	ENETUNREACH			= 0x33;
++	ENFILE				= 0x17;
++	ENOATTR				= 0x5d;
++	ENOBUFS				= 0x37;
++	ENODATA				= 0x60;
++	ENODEV				= 0x13;
++	ENOENT				= 0x2;
++	ENOEXEC				= 0x8;
++	ENOLCK				= 0x4d;
++	ENOLINK				= 0x61;
++	ENOMEM				= 0xc;
++	ENOMSG				= 0x5b;
++	ENOPOLICY			= 0x67;
++	ENOPROTOOPT			= 0x2a;
++	ENOSPC				= 0x1c;
++	ENOSR				= 0x62;
++	ENOSTR				= 0x63;
++	ENOSYS				= 0x4e;
++	ENOTBLK				= 0xf;
++	ENOTCONN			= 0x39;
++	ENOTDIR				= 0x14;
++	ENOTEMPTY			= 0x42;
++	ENOTSOCK			= 0x26;
++	ENOTSUP				= 0x2d;
++	ENOTTY				= 0x19;
++	ENXIO				= 0x6;
++	EOPNOTSUPP			= 0x66;
++	EOVERFLOW			= 0x54;
++	EPERM				= 0x1;
++	EPFNOSUPPORT			= 0x2e;
++	EPIPE				= 0x20;
++	EPROCLIM			= 0x43;
++	EPROCUNAVAIL			= 0x4c;
++	EPROGMISMATCH			= 0x4b;
++	EPROGUNAVAIL			= 0x4a;
++	EPROTO				= 0x64;
++	EPROTONOSUPPORT			= 0x2b;
++	EPROTOTYPE			= 0x29;
++	EPWROFF				= 0x52;
++	ERANGE				= 0x22;
++	EREMOTE				= 0x47;
++	EROFS				= 0x1e;
++	ERPCMISMATCH			= 0x49;
++	ESHLIBVERS			= 0x57;
++	ESHUTDOWN			= 0x3a;
++	ESOCKTNOSUPPORT			= 0x2c;
++	ESPIPE				= 0x1d;
++	ESRCH				= 0x3;
++	ESTALE				= 0x46;
++	ETIME				= 0x65;
++	ETIMEDOUT			= 0x3c;
++	ETOOMANYREFS			= 0x3b;
++	ETXTBSY				= 0x1a;
++	EUSERS				= 0x44;
++	EVFILT_AIO			= -0x3;
++	EVFILT_FS			= -0x9;
++	EVFILT_MACHPORT			= -0x8;
++	EVFILT_PROC			= -0x5;
++	EVFILT_READ			= -0x1;
++	EVFILT_SIGNAL			= -0x6;
++	EVFILT_SYSCOUNT			= 0x9;
++	EVFILT_THREADMARKER		= 0x9;
++	EVFILT_TIMER			= -0x7;
++	EVFILT_VNODE			= -0x4;
++	EVFILT_WRITE			= -0x2;
++	EV_ADD				= 0x1;
++	EV_CLEAR			= 0x20;
++	EV_DELETE			= 0x2;
++	EV_DISABLE			= 0x8;
++	EV_ENABLE			= 0x4;
++	EV_EOF				= 0x8000;
++	EV_ERROR			= 0x4000;
++	EV_FLAG0			= 0x1000;
++	EV_FLAG1			= 0x2000;
++	EV_ONESHOT			= 0x10;
++	EV_OOBAND			= 0x2000;
++	EV_POLL				= 0x1000;
++	EV_RECEIPT			= 0x40;
++	EV_SYSFLAGS			= 0xf000;
++	EWOULDBLOCK			= 0x23;
++	EXDEV				= 0x12;
++	FD_CLOEXEC			= 0x1;
++	FD_SETSIZE			= 0x400;
++	F_ADDSIGS			= 0x3b;
++	F_ALLOCATEALL			= 0x4;
++	F_ALLOCATECONTIG		= 0x2;
++	F_CHKCLEAN			= 0x29;
++	F_DUPFD				= 0;
++	F_FREEZE_FS			= 0x35;
++	F_FULLFSYNC			= 0x33;
++	F_GETFD				= 0x1;
++	F_GETFL				= 0x3;
++	F_GETLK				= 0x7;
++	F_GETOWN			= 0x5;
++	F_GETPATH			= 0x32;
++	F_GLOBAL_NOCACHE		= 0x37;
++	F_LOG2PHYS			= 0x31;
++	F_MARKDEPENDENCY		= 0x3c;
++	F_NOCACHE			= 0x30;
++	F_PATHPKG_CHECK			= 0x34;
++	F_PEOFPOSMODE			= 0x3;
++	F_PREALLOCATE			= 0x2a;
++	F_RDADVISE			= 0x2c;
++	F_RDAHEAD			= 0x2d;
++	F_RDLCK				= 0x1;
++	F_READBOOTSTRAP			= 0x2e;
++	F_SETFD				= 0x2;
++	F_SETFL				= 0x4;
++	F_SETLK				= 0x8;
++	F_SETLKW			= 0x9;
++	F_SETOWN			= 0x6;
++	F_SETSIZE			= 0x2b;
++	F_THAW_FS			= 0x36;
++	F_UNLCK				= 0x2;
++	F_VOLPOSMODE			= 0x4;
++	F_WRITEBOOTSTRAP		= 0x2f;
++	F_WRLCK				= 0x3;
++	IPPROTO_3PC			= 0x22;
++	IPPROTO_ADFS			= 0x44;
++	IPPROTO_AH			= 0x33;
++	IPPROTO_AHIP			= 0x3d;
++	IPPROTO_APES			= 0x63;
++	IPPROTO_ARGUS			= 0xd;
++	IPPROTO_AX25			= 0x5d;
++	IPPROTO_BHA			= 0x31;
++	IPPROTO_BLT			= 0x1e;
++	IPPROTO_BRSATMON		= 0x4c;
++	IPPROTO_CFTP			= 0x3e;
++	IPPROTO_CHAOS			= 0x10;
++	IPPROTO_CMTP			= 0x26;
++	IPPROTO_CPHB			= 0x49;
++	IPPROTO_CPNX			= 0x48;
++	IPPROTO_DDP			= 0x25;
++	IPPROTO_DGP			= 0x56;
++	IPPROTO_DIVERT			= 0xfe;
++	IPPROTO_DONE			= 0x101;
++	IPPROTO_DSTOPTS			= 0x3c;
++	IPPROTO_EGP			= 0x8;
++	IPPROTO_EMCON			= 0xe;
++	IPPROTO_ENCAP			= 0x62;
++	IPPROTO_EON			= 0x50;
++	IPPROTO_ESP			= 0x32;
++	IPPROTO_ETHERIP			= 0x61;
++	IPPROTO_FRAGMENT		= 0x2c;
++	IPPROTO_GGP			= 0x3;
++	IPPROTO_GMTP			= 0x64;
++	IPPROTO_GRE			= 0x2f;
++	IPPROTO_HELLO			= 0x3f;
++	IPPROTO_HMP			= 0x14;
++	IPPROTO_HOPOPTS			= 0;
++	IPPROTO_ICMP			= 0x1;
++	IPPROTO_ICMPV6			= 0x3a;
++	IPPROTO_IDP			= 0x16;
++	IPPROTO_IDPR			= 0x23;
++	IPPROTO_IDRP			= 0x2d;
++	IPPROTO_IGMP			= 0x2;
++	IPPROTO_IGP			= 0x55;
++	IPPROTO_IGRP			= 0x58;
++	IPPROTO_IL			= 0x28;
++	IPPROTO_INLSP			= 0x34;
++	IPPROTO_INP			= 0x20;
++	IPPROTO_IP			= 0;
++	IPPROTO_IPCOMP			= 0x6c;
++	IPPROTO_IPCV			= 0x47;
++	IPPROTO_IPEIP			= 0x5e;
++	IPPROTO_IPIP			= 0x4;
++	IPPROTO_IPPC			= 0x43;
++	IPPROTO_IPV4			= 0x4;
++	IPPROTO_IPV6			= 0x29;
++	IPPROTO_IRTP			= 0x1c;
++	IPPROTO_KRYPTOLAN		= 0x41;
++	IPPROTO_LARP			= 0x5b;
++	IPPROTO_LEAF1			= 0x19;
++	IPPROTO_LEAF2			= 0x1a;
++	IPPROTO_MAX			= 0x100;
++	IPPROTO_MAXID			= 0x34;
++	IPPROTO_MEAS			= 0x13;
++	IPPROTO_MHRP			= 0x30;
++	IPPROTO_MICP			= 0x5f;
++	IPPROTO_MTP			= 0x5c;
++	IPPROTO_MUX			= 0x12;
++	IPPROTO_ND			= 0x4d;
++	IPPROTO_NHRP			= 0x36;
++	IPPROTO_NONE			= 0x3b;
++	IPPROTO_NSP			= 0x1f;
++	IPPROTO_NVPII			= 0xb;
++	IPPROTO_OSPFIGP			= 0x59;
++	IPPROTO_PGM			= 0x71;
++	IPPROTO_PIGP			= 0x9;
++	IPPROTO_PIM			= 0x67;
++	IPPROTO_PRM			= 0x15;
++	IPPROTO_PUP			= 0xc;
++	IPPROTO_PVP			= 0x4b;
++	IPPROTO_RAW			= 0xff;
++	IPPROTO_RCCMON			= 0xa;
++	IPPROTO_RDP			= 0x1b;
++	IPPROTO_ROUTING			= 0x2b;
++	IPPROTO_RSVP			= 0x2e;
++	IPPROTO_RVD			= 0x42;
++	IPPROTO_SATEXPAK		= 0x40;
++	IPPROTO_SATMON			= 0x45;
++	IPPROTO_SCCSP			= 0x60;
++	IPPROTO_SDRP			= 0x2a;
++	IPPROTO_SEP			= 0x21;
++	IPPROTO_SRPC			= 0x5a;
++	IPPROTO_ST			= 0x7;
++	IPPROTO_SVMTP			= 0x52;
++	IPPROTO_SWIPE			= 0x35;
++	IPPROTO_TCF			= 0x57;
++	IPPROTO_TCP			= 0x6;
++	IPPROTO_TP			= 0x1d;
++	IPPROTO_TPXX			= 0x27;
++	IPPROTO_TRUNK1			= 0x17;
++	IPPROTO_TRUNK2			= 0x18;
++	IPPROTO_TTP			= 0x54;
++	IPPROTO_UDP			= 0x11;
++	IPPROTO_VINES			= 0x53;
++	IPPROTO_VISA			= 0x46;
++	IPPROTO_VMTP			= 0x51;
++	IPPROTO_WBEXPAK			= 0x4f;
++	IPPROTO_WBMON			= 0x4e;
++	IPPROTO_WSN			= 0x4a;
++	IPPROTO_XNET			= 0xf;
++	IPPROTO_XTP			= 0x24;
++	IP_ADD_MEMBERSHIP		= 0xc;
++	IP_DEFAULT_MULTICAST_LOOP	= 0x1;
++	IP_DEFAULT_MULTICAST_TTL	= 0x1;
++	IP_DROP_MEMBERSHIP		= 0xd;
++	IP_DUMMYNET_CONFIGURE		= 0x3c;
++	IP_DUMMYNET_DEL			= 0x3d;
++	IP_DUMMYNET_FLUSH		= 0x3e;
++	IP_DUMMYNET_GET			= 0x40;
++	IP_FAITH			= 0x16;
++	IP_FW_ADD			= 0x28;
++	IP_FW_DEL			= 0x29;
++	IP_FW_FLUSH			= 0x2a;
++	IP_FW_GET			= 0x2c;
++	IP_FW_RESETLOG			= 0x2d;
++	IP_FW_ZERO			= 0x2b;
++	IP_HDRINCL			= 0x2;
++	IP_IPSEC_POLICY			= 0x15;
++	IP_MAX_MEMBERSHIPS		= 0x14;
++	IP_MULTICAST_IF			= 0x9;
++	IP_MULTICAST_LOOP		= 0xb;
++	IP_MULTICAST_TTL		= 0xa;
++	IP_MULTICAST_VIF		= 0xe;
++	IP_NAT__XXX			= 0x37;
++	IP_OLD_FW_ADD			= 0x32;
++	IP_OLD_FW_DEL			= 0x33;
++	IP_OLD_FW_FLUSH			= 0x34;
++	IP_OLD_FW_GET			= 0x36;
++	IP_OLD_FW_RESETLOG		= 0x38;
++	IP_OLD_FW_ZERO			= 0x35;
++	IP_OPTIONS			= 0x1;
++	IP_PORTRANGE			= 0x13;
++	IP_PORTRANGE_DEFAULT		= 0;
++	IP_PORTRANGE_HIGH		= 0x1;
++	IP_PORTRANGE_LOW		= 0x2;
++	IP_RECVDSTADDR			= 0x7;
++	IP_RECVIF			= 0x14;
++	IP_RECVOPTS			= 0x5;
++	IP_RECVRETOPTS			= 0x6;
++	IP_RECVTTL			= 0x18;
++	IP_RETOPTS			= 0x8;
++	IP_RSVP_OFF			= 0x10;
++	IP_RSVP_ON			= 0xf;
++	IP_RSVP_VIF_OFF			= 0x12;
++	IP_RSVP_VIF_ON			= 0x11;
++	IP_STRIPHDR			= 0x17;
++	IP_TOS				= 0x3;
++	IP_TRAFFIC_MGT_BACKGROUND	= 0x41;
++	IP_TTL				= 0x4;
++	O_ACCMODE			= 0x3;
++	O_ALERT				= 0x20000000;
++	O_APPEND			= 0x8;
++	O_ASYNC				= 0x40;
++	O_CREAT				= 0x200;
++	O_DIRECTORY			= 0x100000;
++	O_EVTONLY			= 0x8000;
++	O_EXCL				= 0x800;
++	O_EXLOCK			= 0x20;
++	O_FSYNC				= 0x80;
++	O_NDELAY			= 0x4;
++	O_NOCTTY			= 0x20000;
++	O_NOFOLLOW			= 0x100;
++	O_NONBLOCK			= 0x4;
++	O_POPUP				= 0x80000000;
++	O_RDONLY			= 0;
++	O_RDWR				= 0x2;
++	O_SHLOCK			= 0x10;
++	O_SYMLINK			= 0x200000;
++	O_SYNC				= 0x80;
++	O_TRUNC				= 0x400;
++	O_WRONLY			= 0x1;
++	SIGABRT				= 0x6;
++	SIGALRM				= 0xe;
++	SIGBUS				= 0xa;
++	SIGCHLD				= 0x14;
++	SIGCONT				= 0x13;
++	SIGEMT				= 0x7;
++	SIGFPE				= 0x8;
++	SIGHUP				= 0x1;
++	SIGILL				= 0x4;
++	SIGINFO				= 0x1d;
++	SIGINT				= 0x2;
++	SIGIO				= 0x17;
++	SIGIOT				= 0x6;
++	SIGKILL				= 0x9;
++	SIGPIPE				= 0xd;
++	SIGPROF				= 0x1b;
++	SIGQUIT				= 0x3;
++	SIGSEGV				= 0xb;
++	SIGSTOP				= 0x11;
++	SIGSYS				= 0xc;
++	SIGTERM				= 0xf;
++	SIGTRAP				= 0x5;
++	SIGTSTP				= 0x12;
++	SIGTTIN				= 0x15;
++	SIGTTOU				= 0x16;
++	SIGURG				= 0x10;
++	SIGUSR1				= 0x1e;
++	SIGUSR2				= 0x1f;
++	SIGVTALRM			= 0x1a;
++	SIGWINCH			= 0x1c;
++	SIGXCPU				= 0x18;
++	SIGXFSZ				= 0x19;
++	SOCK_DGRAM			= 0x2;
++	SOCK_MAXADDRLEN			= 0xff;
++	SOCK_RAW			= 0x3;
++	SOCK_RDM			= 0x4;
++	SOCK_SEQPACKET			= 0x5;
++	SOCK_STREAM			= 0x1;
++	SOL_SOCKET			= 0xffff;
++	SOMAXCONN			= 0x80;
++	SO_ACCEPTCONN			= 0x2;
++	SO_BROADCAST			= 0x20;
++	SO_DEBUG			= 0x1;
++	SO_DONTROUTE			= 0x10;
++	SO_DONTTRUNC			= 0x2000;
++	SO_ERROR			= 0x1007;
++	SO_KEEPALIVE			= 0x8;
++	SO_LABEL			= 0x1010;
++	SO_LINGER			= 0x80;
++	SO_LINGER_SEC			= 0x1080;
++	SO_NKE				= 0x1021;
++	SO_NOADDRERR			= 0x1023;
++	SO_NOSIGPIPE			= 0x1022;
++	SO_NOTIFYCONFLICT		= 0x1026;
++	SO_NREAD			= 0x1020;
++	SO_NWRITE			= 0x1024;
++	SO_OOBINLINE			= 0x100;
++	SO_PEERLABEL			= 0x1011;
++	SO_RCVBUF			= 0x1002;
++	SO_RCVLOWAT			= 0x1004;
++	SO_RCVTIMEO			= 0x1006;
++	SO_RESTRICTIONS			= 0x1081;
++	SO_RESTRICT_DENYIN		= 0x1;
++	SO_RESTRICT_DENYOUT		= 0x2;
++	SO_RESTRICT_DENYSET		= 0x80000000;
++	SO_REUSEADDR			= 0x4;
++	SO_REUSEPORT			= 0x200;
++	SO_REUSESHAREUID		= 0x1025;
++	SO_SNDBUF			= 0x1001;
++	SO_SNDLOWAT			= 0x1003;
++	SO_SNDTIMEO			= 0x1005;
++	SO_TIMESTAMP			= 0x400;
++	SO_TYPE				= 0x1008;
++	SO_USELOOPBACK			= 0x40;
++	SO_WANTMORE			= 0x4000;
++	SO_WANTOOBFLAG			= 0x8000;
++	S_IEXEC				= 0x40;
++	S_IFBLK				= 0x6000;
++	S_IFCHR				= 0x2000;
++	S_IFDIR				= 0x4000;
++	S_IFIFO				= 0x1000;
++	S_IFLNK				= 0xa000;
++	S_IFMT				= 0xf000;
++	S_IFREG				= 0x8000;
++	S_IFSOCK			= 0xc000;
++	S_IFWHT				= 0xe000;
++	S_IFXATTR			= 0x10000;
++	S_IREAD				= 0x100;
++	S_IRGRP				= 0x20;
++	S_IROTH				= 0x4;
++	S_IRUSR				= 0x100;
++	S_IRWXG				= 0x38;
++	S_IRWXO				= 0x7;
++	S_IRWXU				= 0x1c0;
++	S_ISGID				= 0x400;
++	S_ISTXT				= 0x200;
++	S_ISUID				= 0x800;
++	S_ISVTX				= 0x200;
++	S_IWGRP				= 0x10;
++	S_IWOTH				= 0x2;
++	S_IWRITE			= 0x80;
++	S_IWUSR				= 0x80;
++	S_IXGRP				= 0x8;
++	S_IXOTH				= 0x1;
++	S_IXUSR				= 0x40;
++	TCP_KEEPALIVE			= 0x10;
++	TCP_MAXBURST			= 0x4;
++	TCP_MAXHLEN			= 0x3c;
++	TCP_MAXOLEN			= 0x28;
++	TCP_MAXSEG			= 0x2;
++	TCP_MAXWIN			= 0xffff;
++	TCP_MAX_SACK			= 0x3;
++	TCP_MAX_WINSHIFT		= 0xe;
++	TCP_MINMSS			= 0xd8;
++	TCP_MINMSSOVERLOAD		= 0x3e8;
++	TCP_MSS				= 0x200;
++	TCP_NODELAY			= 0x1;
++	TCP_NOOPT			= 0x8;
++	TCP_NOPUSH			= 0x4;
++	WCONTINUED			= 0x10;
++	WCOREFLAG			= 0x80;
++	WEXITED				= 0x4;
++	WNOHANG				= 0x1;
++	WNOWAIT				= 0x20;
++	WSTOPPED			= 0x7f;
++	WUNTRACED			= 0x2;
+ )
+ 
+ // Types
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index b876df3c5f..abc4493193 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -1,7 +1,7 @@
+ // mkerrors.sh
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+-// godefs -gsyscall _errors.c
++// godefs -gsyscall _const.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -9,173 +9,483 @@ package syscall
+ 
+ // Constants
+ const (
+-	EMULTIHOP	= 0x48;
+-	EUNATCH		= 0x31;
+-	EAFNOSUPPORT	= 0x61;
+-	EREMCHG		= 0x4e;
+-	EACCES		= 0xd;
+-	EL3RST		= 0x2f;
+-	EDESTADDRREQ	= 0x59;
+-	EILSEQ		= 0x54;
+-	ESPIPE		= 0x1d;
+-	EMLINK		= 0x1f;
+-	EOWNERDEAD	= 0x82;
+-	ENOTTY		= 0x19;
+-	EBADE		= 0x34;
+-	EBADF		= 0x9;
+-	EBADR		= 0x35;
+-	EADV		= 0x44;
+-	ERANGE		= 0x22;
+-	ECANCELED	= 0x7d;
+-	ETXTBSY		= 0x1a;
+-	ENOMEM		= 0xc;
+-	EINPROGRESS	= 0x73;
+-	ENOTBLK		= 0xf;
+-	EPROTOTYPE	= 0x5b;
+-	ERESTART	= 0x55;
+-	EISNAM		= 0x78;
+-	ENOMSG		= 0x2a;
+-	EALREADY	= 0x72;
+-	ETIMEDOUT	= 0x6e;
+-	ENODATA		= 0x3d;
+-	EINTR		= 0x4;
+-	ENOLINK		= 0x43;
+-	EPERM		= 0x1;
+-	ELOOP		= 0x28;
+-	ENETDOWN	= 0x64;
+-	ESTALE		= 0x74;
+-	ENOTSOCK	= 0x58;
+-	ENOSR		= 0x3f;
+-	ECHILD		= 0xa;
+-	ELNRNG		= 0x30;
+-	EPIPE		= 0x20;
+-	EBADMSG		= 0x4a;
+-	EBFONT		= 0x3b;
+-	EREMOTE		= 0x42;
+-	ETOOMANYREFS	= 0x6d;
+-	EPFNOSUPPORT	= 0x60;
+-	ENONET		= 0x40;
+-	EXFULL		= 0x36;
+-	EBADSLT		= 0x39;
+-	ENOTNAM		= 0x76;
+-	ELIBEXEC	= 0x53;
+-	ENOCSI		= 0x32;
+-	ENOTEMPTY	= 0x27;
+-	EADDRINUSE	= 0x62;
+-	ENETRESET	= 0x66;
+-	EISDIR		= 0x15;
+-	EIDRM		= 0x2b;
+-	ECOMM		= 0x46;
+-	EBADFD		= 0x4d;
+-	EL2HLT		= 0x33;
+-	ENOKEY		= 0x7e;
+-	EINVAL		= 0x16;
+-	ESHUTDOWN	= 0x6c;
+-	EKEYREJECTED	= 0x81;
+-	ELIBSCN		= 0x51;
+-	ENAVAIL		= 0x77;
+-	ENOSTR		= 0x3c;
+-	EOVERFLOW	= 0x4b;
+-	EUCLEAN		= 0x75;
+-	ENOMEDIUM	= 0x7b;
+-	EBUSY		= 0x10;
+-	EPROTO		= 0x47;
+-	ENODEV		= 0x13;
+-	EKEYEXPIRED	= 0x7f;
+-	EROFS		= 0x1e;
+-	ELIBACC		= 0x4f;
+-	E2BIG		= 0x7;
+-	EDEADLK		= 0x23;
+-	ECONNRESET	= 0x68;
+-	ENXIO		= 0x6;
+-	EBADRQC		= 0x38;
+-	ENAMETOOLONG	= 0x24;
+-	ESOCKTNOSUPPORT	= 0x5e;
+-	EDOTDOT		= 0x49;
+-	EADDRNOTAVAIL	= 0x63;
+-	ETIME		= 0x3e;
+-	EPROTONOSUPPORT	= 0x5d;
+-	ENOTRECOVERABLE	= 0x83;
+-	EIO		= 0x5;
+-	ENETUNREACH	= 0x65;
+-	EXDEV		= 0x12;
+-	EDQUOT		= 0x7a;
+-	EREMOTEIO	= 0x79;
+-	ENOSPC		= 0x1c;
+-	ENOEXEC		= 0x8;
+-	EMSGSIZE	= 0x5a;
+-	EDOM		= 0x21;
+-	EFBIG		= 0x1b;
+-	ESRCH		= 0x3;
+-	ECHRNG		= 0x2c;
+-	EHOSTDOWN	= 0x70;
+-	ENOLCK		= 0x25;
+-	ENFILE		= 0x17;
+-	ENOSYS		= 0x26;
+-	ENOTCONN	= 0x6b;
+-	ENOTSUP		= 0x5f;
+-	ESRMNT		= 0x45;
+-	EDEADLOCK	= 0x23;
+-	ECONNABORTED	= 0x67;
+-	ENOANO		= 0x37;
+-	EISCONN		= 0x6a;
+-	EUSERS		= 0x57;
+-	ENOPROTOOPT	= 0x5c;
+-	EMFILE		= 0x18;
+-	ENOBUFS		= 0x69;
+-	EL3HLT		= 0x2e;
+-	EFAULT		= 0xe;
+-	EWOULDBLOCK	= 0xb;
+-	ELIBBAD		= 0x50;
+-	ESTRPIPE	= 0x56;
+-	ECONNREFUSED	= 0x6f;
+-	EAGAIN		= 0xb;
+-	ELIBMAX		= 0x52;
+-	EEXIST		= 0x11;
+-	EL2NSYNC	= 0x2d;
+-	ENOENT		= 0x2;
+-	ENOPKG		= 0x41;
+-	EKEYREVOKED	= 0x80;
+-	EHOSTUNREACH	= 0x71;
+-	ENOTUNIQ	= 0x4c;
+-	EOPNOTSUPP	= 0x5f;
+-	ENOTDIR		= 0x14;
+-	EMEDIUMTYPE	= 0x7c;
+-	SIGBUS		= 0x7;
+-	SIGTTIN		= 0x15;
+-	SIGPROF		= 0x1b;
+-	SIGFPE		= 0x8;
+-	SIGHUP		= 0x1;
+-	SIGTTOU		= 0x16;
+-	SIGSTKFLT	= 0x10;
+-	SIGUSR1		= 0xa;
+-	SIGURG		= 0x17;
+-	SIGQUIT		= 0x3;
+-	SIGCLD		= 0x11;
+-	SIGIO		= 0x1d;
+-	SIGABRT		= 0x6;
+-	SIGUSR2		= 0xc;
+-	SIGTRAP		= 0x5;
+-	SIGVTALRM	= 0x1a;
+-	SIGPOLL		= 0x1d;
+-	SIGSEGV		= 0xb;
+-	SIGCONT		= 0x12;
+-	SIGPIPE		= 0xd;
+-	SIGWINCH	= 0x1c;
+-	SIGXFSZ		= 0x19;
+-	SIGCHLD		= 0x11;
+-	SIGSYS		= 0x1f;
+-	SIGSTOP		= 0x13;
+-	SIGALRM		= 0xe;
+-	SIGTSTP		= 0x14;
+-	SIGKILL		= 0x9;
+-	SIGXCPU		= 0x18;
+-	SIGUNUSED	= 0x1f;
+-	SIGPWR		= 0x1e;
+-	SIGILL		= 0x4;
+-	SIGINT		= 0x2;
+-	SIGIOT		= 0x6;
+-	SIGTERM		= 0xf;
++	AF_APPLETALK				= 0x5;
++	AF_ASH					= 0x12;
++	AF_ATMPVC				= 0x8;
++	AF_ATMSVC				= 0x14;
++	AF_AX25					= 0x3;
++	AF_BLUETOOTH				= 0x1f;
++	AF_BRIDGE				= 0x7;
++	AF_DECnet				= 0xc;
++	AF_ECONET				= 0x13;
++	AF_FILE					= 0x1;
++	AF_INET					= 0x2;
++	AF_INET6				= 0xa;
++	AF_IPX					= 0x4;
++	AF_IRDA					= 0x17;
++	AF_IUCV					= 0x20;
++	AF_KEY					= 0xf;
++	AF_LOCAL				= 0x1;
++	AF_MAX					= 0x22;
++	AF_NETBEUI				= 0xd;
++	AF_NETLINK				= 0x10;
++	AF_NETROM				= 0x6;
++	AF_PACKET				= 0x11;
++	AF_PPPOX				= 0x18;
++	AF_ROSE					= 0xb;
++	AF_ROUTE				= 0x10;
++	AF_RXRPC				= 0x21;
++	AF_SECURITY				= 0xe;
++	AF_SNA					= 0x16;
++	AF_UNIX					= 0x1;
++	AF_UNSPEC				= 0;
++	AF_WANPIPE				= 0x19;
++	AF_X25					= 0x9;
++	E2BIG					= 0x7;
++	EACCES					= 0xd;
++	EADDRINUSE				= 0x62;
++	EADDRNOTAVAIL				= 0x63;
++	EADV					= 0x44;
++	EAFNOSUPPORT				= 0x61;
++	EAGAIN					= 0xb;
++	EALREADY				= 0x72;
++	EBADE					= 0x34;
++	EBADF					= 0x9;
++	EBADFD					= 0x4d;
++	EBADMSG					= 0x4a;
++	EBADR					= 0x35;
++	EBADRQC					= 0x38;
++	EBADSLT					= 0x39;
++	EBFONT					= 0x3b;
++	EBUSY					= 0x10;
++	ECANCELED				= 0x7d;
++	ECHILD					= 0xa;
++	ECHRNG					= 0x2c;
++	ECOMM					= 0x46;
++	ECONNABORTED				= 0x67;
++	ECONNREFUSED				= 0x6f;
++	ECONNRESET				= 0x68;
++	EDEADLK					= 0x23;
++	EDEADLOCK				= 0x23;
++	EDESTADDRREQ				= 0x59;
++	EDOM					= 0x21;
++	EDOTDOT					= 0x49;
++	EDQUOT					= 0x7a;
++	EEXIST					= 0x11;
++	EFAULT					= 0xe;
++	EFBIG					= 0x1b;
++	EHOSTDOWN				= 0x70;
++	EHOSTUNREACH				= 0x71;
++	EIDRM					= 0x2b;
++	EILSEQ					= 0x54;
++	EINPROGRESS				= 0x73;
++	EINTR					= 0x4;
++	EINVAL					= 0x16;
++	EIO					= 0x5;
++	EISCONN					= 0x6a;
++	EISDIR					= 0x15;
++	EISNAM					= 0x78;
++	EKEYEXPIRED				= 0x7f;
++	EKEYREJECTED				= 0x81;
++	EKEYREVOKED				= 0x80;
++	EL2HLT					= 0x33;
++	EL2NSYNC				= 0x2d;
++	EL3HLT					= 0x2e;
++	EL3RST					= 0x2f;
++	ELIBACC					= 0x4f;
++	ELIBBAD					= 0x50;
++	ELIBEXEC				= 0x53;
++	ELIBMAX					= 0x52;
++	ELIBSCN					= 0x51;
++	ELNRNG					= 0x30;
++	ELOOP					= 0x28;
++	EMEDIUMTYPE				= 0x7c;
++	EMFILE					= 0x18;
++	EMLINK					= 0x1f;
++	EMSGSIZE				= 0x5a;
++	EMULTIHOP				= 0x48;
++	ENAMETOOLONG				= 0x24;
++	ENAVAIL					= 0x77;
++	ENETDOWN				= 0x64;
++	ENETRESET				= 0x66;
++	ENETUNREACH				= 0x65;
++	ENFILE					= 0x17;
++	ENOANO					= 0x37;
++	ENOBUFS					= 0x69;
++	ENOCSI					= 0x32;
++	ENODATA					= 0x3d;
++	ENODEV					= 0x13;
++	ENOENT					= 0x2;
++	ENOEXEC					= 0x8;
++	ENOKEY					= 0x7e;
++	ENOLCK					= 0x25;
++	ENOLINK					= 0x43;
++	ENOMEDIUM				= 0x7b;
++	ENOMEM					= 0xc;
++	ENOMSG					= 0x2a;
++	ENONET					= 0x40;
++	ENOPKG					= 0x41;
++	ENOPROTOOPT				= 0x5c;
++	ENOSPC					= 0x1c;
++	ENOSR					= 0x3f;
++	ENOSTR					= 0x3c;
++	ENOSYS					= 0x26;
++	ENOTBLK					= 0xf;
++	ENOTCONN				= 0x6b;
++	ENOTDIR					= 0x14;
++	ENOTEMPTY				= 0x27;
++	ENOTNAM					= 0x76;
++	ENOTRECOVERABLE				= 0x83;
++	ENOTSOCK				= 0x58;
++	ENOTSUP					= 0x5f;
++	ENOTTY					= 0x19;
++	ENOTUNIQ				= 0x4c;
++	ENXIO					= 0x6;
++	EOPNOTSUPP				= 0x5f;
++	EOVERFLOW				= 0x4b;
++	EOWNERDEAD				= 0x82;
++	EPERM					= 0x1;
++	EPFNOSUPPORT				= 0x60;
++	EPIPE					= 0x20;
++	EPOLLERR				= 0x8;
++	EPOLLET					= -0x80000000;
++	EPOLLHUP				= 0x10;
++	EPOLLIN					= 0x1;
++	EPOLLMSG				= 0x400;
++	EPOLLONESHOT				= 0x40000000;
++	EPOLLOUT				= 0x4;
++	EPOLLPRI				= 0x2;
++	EPOLLRDBAND				= 0x80;
++	EPOLLRDHUP				= 0x2000;
++	EPOLLRDNORM				= 0x40;
++	EPOLLWRBAND				= 0x200;
++	EPOLLWRNORM				= 0x100;
++	EPOLL_CTL_ADD				= 0x1;
++	EPOLL_CTL_DEL				= 0x2;
++	EPOLL_CTL_MOD				= 0x3;
++	EPROTO					= 0x47;
++	EPROTONOSUPPORT				= 0x5d;
++	EPROTOTYPE				= 0x5b;
++	ERANGE					= 0x22;
++	EREMCHG					= 0x4e;
++	EREMOTE					= 0x42;
++	EREMOTEIO				= 0x79;
++	ERESTART				= 0x55;
++	EROFS					= 0x1e;
++	ESHUTDOWN				= 0x6c;
++	ESOCKTNOSUPPORT				= 0x5e;
++	ESPIPE					= 0x1d;
++	ESRCH					= 0x3;
++	ESRMNT					= 0x45;
++	ESTALE					= 0x74;
++	ESTRPIPE				= 0x56;
++	ETIME					= 0x3e;
++	ETIMEDOUT				= 0x6e;
++	ETOOMANYREFS				= 0x6d;
++	ETXTBSY					= 0x1a;
++	EUCLEAN					= 0x75;
++	EUNATCH					= 0x31;
++	EUSERS					= 0x57;
++	EWOULDBLOCK				= 0xb;
++	EXDEV					= 0x12;
++	EXFULL					= 0x36;
++	EXPR_NEST_MAX				= 0x20;
++	FD_CLOEXEC				= 0x1;
++	FD_SETSIZE				= 0x400;
++	F_DUPFD					= 0;
++	F_DUPFD_CLOEXEC				= 0x406;
++	F_EXLCK					= 0x4;
++	F_GETFD					= 0x1;
++	F_GETFL					= 0x3;
++	F_GETLEASE				= 0x401;
++	F_GETLK					= 0x5;
++	F_GETLK64				= 0x5;
++	F_GETOWN				= 0x9;
++	F_GETSIG				= 0xb;
++	F_LOCK					= 0x1;
++	F_NOTIFY				= 0x402;
++	F_OK					= 0;
++	F_RDLCK					= 0;
++	F_SETFD					= 0x2;
++	F_SETFL					= 0x4;
++	F_SETLEASE				= 0x400;
++	F_SETLK					= 0x6;
++	F_SETLK64				= 0x6;
++	F_SETLKW				= 0x7;
++	F_SETLKW64				= 0x7;
++	F_SETOWN				= 0x8;
++	F_SETSIG				= 0xa;
++	F_SHLCK					= 0x8;
++	F_TEST					= 0x3;
++	F_TLOCK					= 0x2;
++	F_ULOCK					= 0;
++	F_UNLCK					= 0x2;
++	F_WRLCK					= 0x1;
++	IPPROTO_AH				= 0x33;
++	IPPROTO_COMP				= 0x6c;
++	IPPROTO_DSTOPTS				= 0x3c;
++	IPPROTO_EGP				= 0x8;
++	IPPROTO_ENCAP				= 0x62;
++	IPPROTO_ESP				= 0x32;
++	IPPROTO_FRAGMENT			= 0x2c;
++	IPPROTO_GRE				= 0x2f;
++	IPPROTO_HOPOPTS				= 0;
++	IPPROTO_ICMP				= 0x1;
++	IPPROTO_ICMPV6				= 0x3a;
++	IPPROTO_IDP				= 0x16;
++	IPPROTO_IGMP				= 0x2;
++	IPPROTO_IP				= 0;
++	IPPROTO_IPIP				= 0x4;
++	IPPROTO_IPV6				= 0x29;
++	IPPROTO_MTP				= 0x5c;
++	IPPROTO_NONE				= 0x3b;
++	IPPROTO_PIM				= 0x67;
++	IPPROTO_PUP				= 0xc;
++	IPPROTO_RAW				= 0xff;
++	IPPROTO_ROUTING				= 0x2b;
++	IPPROTO_RSVP				= 0x2e;
++	IPPROTO_SCTP				= 0x84;
++	IPPROTO_TCP				= 0x6;
++	IPPROTO_TP				= 0x1d;
++	IPPROTO_UDP				= 0x11;
++	IP_ADD_MEMBERSHIP			= 0x23;
++	IP_ADD_SOURCE_MEMBERSHIP		= 0x27;
++	IP_BLOCK_SOURCE				= 0x26;
++	IP_DEFAULT_MULTICAST_LOOP		= 0x1;
++	IP_DEFAULT_MULTICAST_TTL		= 0x1;
++	IP_DROP_MEMBERSHIP			= 0x24;
++	IP_DROP_SOURCE_MEMBERSHIP		= 0x28;
++	IP_HDRINCL				= 0x3;
++	IP_MAX_MEMBERSHIPS			= 0x14;
++	IP_MSFILTER				= 0x29;
++	IP_MTU_DISCOVER				= 0xa;
++	IP_MULTICAST_IF				= 0x20;
++	IP_MULTICAST_LOOP			= 0x22;
++	IP_MULTICAST_TTL			= 0x21;
++	IP_OPTIONS				= 0x4;
++	IP_PKTINFO				= 0x8;
++	IP_PKTOPTIONS				= 0x9;
++	IP_PMTUDISC				= 0xa;
++	IP_PMTUDISC_DO				= 0x2;
++	IP_PMTUDISC_DONT			= 0;
++	IP_PMTUDISC_WANT			= 0x1;
++	IP_RECVERR				= 0xb;
++	IP_RECVOPTS				= 0x6;
++	IP_RECVRETOPTS				= 0x7;
++	IP_RECVTOS				= 0xd;
++	IP_RECVTTL				= 0xc;
++	IP_RETOPTS				= 0x7;
++	IP_ROUTER_ALERT				= 0x5;
++	IP_TOS					= 0x1;
++	IP_TTL					= 0x2;
++	IP_UNBLOCK_SOURCE			= 0x25;
++	NAME_MAX				= 0xff;
++	O_ACCMODE				= 0x3;
++	O_APPEND				= 0x400;
++	O_ASYNC					= 0x2000;
++	O_CLOEXEC				= 0x80000;
++	O_CREAT					= 0x40;
++	O_DIRECT				= 0x4000;
++	O_DIRECTORY				= 0x10000;
++	O_DSYNC					= 0x1000;
++	O_EXCL					= 0x80;
++	O_FSYNC					= 0x1000;
++	O_LARGEFILE				= 0;
++	O_NDELAY				= 0x800;
++	O_NOATIME				= 0x40000;
++	O_NOCTTY				= 0x100;
++	O_NOFOLLOW				= 0x20000;
++	O_NONBLOCK				= 0x800;
++	O_RDONLY				= 0;
++	O_RDWR					= 0x2;
++	O_RSYNC					= 0x1000;
++	O_SYNC					= 0x1000;
++	O_TRUNC					= 0x200;
++	O_WRONLY				= 0x1;
++	PTRACE_ARCH_PRCTL			= 0x1e;
++	PTRACE_ATTACH				= 0x10;
++	PTRACE_CONT				= 0x7;
++	PTRACE_DETACH				= 0x11;
++	PTRACE_EVENT_CLONE			= 0x3;
++	PTRACE_EVENT_EXEC			= 0x4;
++	PTRACE_EVENT_EXIT			= 0x6;
++	PTRACE_EVENT_FORK			= 0x1;
++	PTRACE_EVENT_VFORK			= 0x2;
++	PTRACE_EVENT_VFORK_DONE			= 0x5;
++	PTRACE_GETEVENTMSG			= 0x4201;
++	PTRACE_GETFPREGS			= 0xe;
++	PTRACE_GETFPXREGS			= 0x12;
++	PTRACE_GETREGS				= 0xc;
++	PTRACE_GETSIGINFO			= 0x4202;
++	PTRACE_GET_THREAD_AREA			= 0x19;
++	PTRACE_KILL				= 0x8;
++	PTRACE_OLDSETOPTIONS			= 0x15;
++	PTRACE_O_MASK				= 0x7f;
++	PTRACE_O_TRACECLONE			= 0x8;
++	PTRACE_O_TRACEEXEC			= 0x10;
++	PTRACE_O_TRACEEXIT			= 0x40;
++	PTRACE_O_TRACEFORK			= 0x2;
++	PTRACE_O_TRACESYSGOOD			= 0x1;
++	PTRACE_O_TRACEVFORK			= 0x4;
++	PTRACE_O_TRACEVFORKDONE			= 0x20;
++	PTRACE_PEEKDATA				= 0x2;
++	PTRACE_PEEKTEXT				= 0x1;
++	PTRACE_PEEKUSR				= 0x3;
++	PTRACE_POKEDATA				= 0x5;
++	PTRACE_POKETEXT				= 0x4;
++	PTRACE_POKEUSR				= 0x6;
++	PTRACE_SETFPREGS			= 0xf;
++	PTRACE_SETFPXREGS			= 0x13;
++	PTRACE_SETOPTIONS			= 0x4200;
++	PTRACE_SETREGS				= 0xd;
++	PTRACE_SETSIGINFO			= 0x4203;
++	PTRACE_SET_THREAD_AREA			= 0x1a;
++	PTRACE_SINGLESTEP			= 0x9;
++	PTRACE_SYSCALL				= 0x18;
++	PTRACE_TRACEME				= 0;
++	SIGABRT					= 0x6;
++	SIGALRM					= 0xe;
++	SIGBUS					= 0x7;
++	SIGCHLD					= 0x11;
++	SIGCLD					= 0x11;
++	SIGCONT					= 0x12;
++	SIGFPE					= 0x8;
++	SIGHUP					= 0x1;
++	SIGILL					= 0x4;
++	SIGINT					= 0x2;
++	SIGIO					= 0x1d;
++	SIGIOT					= 0x6;
++	SIGKILL					= 0x9;
++	SIGPIPE					= 0xd;
++	SIGPOLL					= 0x1d;
++	SIGPROF					= 0x1b;
++	SIGPWR					= 0x1e;
++	SIGQUIT					= 0x3;
++	SIGSEGV					= 0xb;
++	SIGSTKFLT				= 0x10;
++	SIGSTOP					= 0x13;
++	SIGSYS					= 0x1f;
++	SIGTERM					= 0xf;
++	SIGTRAP					= 0x5;
++	SIGTSTP					= 0x14;
++	SIGTTIN					= 0x15;
++	SIGTTOU					= 0x16;
++	SIGUNUSED				= 0x1f;
++	SIGURG					= 0x17;
++	SIGUSR1					= 0xa;
++	SIGUSR2					= 0xc;
++	SIGVTALRM				= 0x1a;
++	SIGWINCH				= 0x1c;
++	SIGXCPU					= 0x18;
++	SIGXFSZ					= 0x19;
++	SOCK_DGRAM				= 0x2;
++	SOCK_PACKET				= 0xa;
++	SOCK_RAW				= 0x3;
++	SOCK_RDM				= 0x4;
++	SOCK_SEQPACKET				= 0x5;
++	SOCK_STREAM				= 0x1;
++	SOL_AAL					= 0x109;
++	SOL_ATM					= 0x108;
++	SOL_DECNET				= 0x105;
++	SOL_ICMPV6				= 0x3a;
++	SOL_IP					= 0;
++	SOL_IPV6				= 0x29;
++	SOL_IRDA				= 0x10a;
++	SOL_PACKET				= 0x107;
++	SOL_RAW					= 0xff;
++	SOL_SOCKET				= 0x1;
++	SOL_TCP					= 0x6;
++	SOL_X25					= 0x106;
++	SOMAXCONN				= 0x80;
++	SO_ACCEPTCONN				= 0x1e;
++	SO_ATTACH_FILTER			= 0x1a;
++	SO_BINDTODEVICE				= 0x19;
++	SO_BROADCAST				= 0x6;
++	SO_BSDCOMPAT				= 0xe;
++	SO_DEBUG				= 0x1;
++	SO_DETACH_FILTER			= 0x1b;
++	SO_DONTROUTE				= 0x5;
++	SO_ERROR				= 0x4;
++	SO_KEEPALIVE				= 0x9;
++	SO_LINGER				= 0xd;
++	SO_NO_CHECK				= 0xb;
++	SO_OOBINLINE				= 0xa;
++	SO_PASSCRED				= 0x10;
++	SO_PASSSEC				= 0x22;
++	SO_PEERCRED				= 0x11;
++	SO_PEERNAME				= 0x1c;
++	SO_PEERSEC				= 0x1f;
++	SO_PRIORITY				= 0xc;
++	SO_RCVBUF				= 0x8;
++	SO_RCVBUFFORCE				= 0x21;
++	SO_RCVLOWAT				= 0x12;
++	SO_RCVTIMEO				= 0x14;
++	SO_REUSEADDR				= 0x2;
++	SO_SECURITY_AUTHENTICATION		= 0x16;
++	SO_SECURITY_ENCRYPTION_NETWORK		= 0x18;
++	SO_SECURITY_ENCRYPTION_TRANSPORT	= 0x17;
++	SO_SNDBUF				= 0x7;
++	SO_SNDBUFFORCE				= 0x20;
++	SO_SNDLOWAT				= 0x13;
++	SO_SNDTIMEO				= 0x15;
++	SO_TIMESTAMP				= 0x1d;
++	SO_TIMESTAMPNS				= 0x23;
++	SO_TYPE					= 0x3;
++	S_BLKSIZE				= 0x200;
++	S_IEXEC					= 0x40;
++	S_IFBLK					= 0x6000;
++	S_IFCHR					= 0x2000;
++	S_IFDIR					= 0x4000;
++	S_IFIFO					= 0x1000;
++	S_IFLNK					= 0xa000;
++	S_IFMT					= 0xf000;
++	S_IFREG					= 0x8000;
++	S_IFSOCK				= 0xc000;
++	S_IREAD					= 0x100;
++	S_IRGRP					= 0x20;
++	S_IROTH					= 0x4;
++	S_IRUSR					= 0x100;
++	S_IRWXG					= 0x38;
++	S_IRWXO					= 0x7;
++	S_IRWXU					= 0x1c0;
++	S_ISGID					= 0x400;
++	S_ISUID					= 0x800;
++	S_ISVTX					= 0x200;
++	S_IWGRP					= 0x10;
++	S_IWOTH					= 0x2;
++	S_IWRITE				= 0x80;
++	S_IWUSR					= 0x80;
++	S_IXGRP					= 0x8;
++	S_IXOTH					= 0x1;
++	S_IXUSR					= 0x40;
++	TCP_CONGESTION				= 0xd;
++	TCP_CORK				= 0x3;
++	TCP_DEFER_ACCEPT			= 0x9;
++	TCP_INFO				= 0xb;
++	TCP_KEEPCNT				= 0x6;
++	TCP_KEEPIDLE				= 0x4;
++	TCP_KEEPINTVL				= 0x5;
++	TCP_LINGER2				= 0x8;
++	TCP_MAXSEG				= 0x2;
++	TCP_MAXWIN				= 0xffff;
++	TCP_MAX_WINSHIFT			= 0xe;
++	TCP_MD5SIG				= 0xe;
++	TCP_MD5SIG_MAXKEYLEN			= 0x50;
++	TCP_MSS					= 0x200;
++	TCP_NODELAY				= 0x1;
++	TCP_QUICKACK				= 0xc;
++	TCP_SYNCNT				= 0x7;
++	TCP_WINDOW_CLAMP			= 0xa;
++	WALL					= 0x40000000;
++	WCLONE					= 0x80000000;
++	WCONTINUED				= 0x8;
++	WEXITED					= 0x4;
++	WNOHANG					= 0x1;
++	WNOTHREAD				= 0x20000000;
++	WNOWAIT					= 0x1000000;
++	WORDSIZE				= 0x40;
++	WSTOPPED				= 0x2;
++	WUNTRACED				= 0x2;
+ )
+ 
+ // Types
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index b876df3c5f..abc4493193 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -1,7 +1,7 @@
+ // mkerrors.sh
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+-// godefs -gsyscall _errors.c
++// godefs -gsyscall _const.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -9,173 +9,483 @@ package syscall
+ 
+ // Constants
+ const (
+-	EMULTIHOP	= 0x48;
+-	EUNATCH		= 0x31;
+-	EAFNOSUPPORT	= 0x61;
+-	EREMCHG		= 0x4e;
+-	EACCES		= 0xd;
+-	EL3RST		= 0x2f;
+-	EDESTADDRREQ	= 0x59;
+-	EILSEQ		= 0x54;
+-	ESPIPE		= 0x1d;
+-	EMLINK		= 0x1f;
+-	EOWNERDEAD	= 0x82;
+-	ENOTTY		= 0x19;
+-	EBADE		= 0x34;
+-	EBADF		= 0x9;
+-	EBADR		= 0x35;
+-	EADV		= 0x44;
+-	ERANGE		= 0x22;
+-	ECANCELED	= 0x7d;
+-	ETXTBSY		= 0x1a;
+-	ENOMEM		= 0xc;
+-	EINPROGRESS	= 0x73;
+-	ENOTBLK		= 0xf;
+-	EPROTOTYPE	= 0x5b;
+-	ERESTART	= 0x55;
+-	EISNAM		= 0x78;
+-	ENOMSG		= 0x2a;
+-	EALREADY	= 0x72;
+-	ETIMEDOUT	= 0x6e;
+-	ENODATA		= 0x3d;
+-	EINTR		= 0x4;
+-	ENOLINK		= 0x43;
+-	EPERM		= 0x1;
+-	ELOOP		= 0x28;
+-	ENETDOWN	= 0x64;
+-	ESTALE		= 0x74;
+-	ENOTSOCK	= 0x58;
+-	ENOSR		= 0x3f;
+-	ECHILD		= 0xa;
+-	ELNRNG		= 0x30;
+-	EPIPE		= 0x20;
+-	EBADMSG		= 0x4a;
+-	EBFONT		= 0x3b;
+-	EREMOTE		= 0x42;
+-	ETOOMANYREFS	= 0x6d;
+-	EPFNOSUPPORT	= 0x60;
+-	ENONET		= 0x40;
+-	EXFULL		= 0x36;
+-	EBADSLT		= 0x39;
+-	ENOTNAM		= 0x76;
+-	ELIBEXEC	= 0x53;
+-	ENOCSI		= 0x32;
+-	ENOTEMPTY	= 0x27;
+-	EADDRINUSE	= 0x62;
+-	ENETRESET	= 0x66;
+-	EISDIR		= 0x15;
+-	EIDRM		= 0x2b;
+-	ECOMM		= 0x46;
+-	EBADFD		= 0x4d;
+-	EL2HLT		= 0x33;
+-	ENOKEY		= 0x7e;
+-	EINVAL		= 0x16;
+-	ESHUTDOWN	= 0x6c;
+-	EKEYREJECTED	= 0x81;
+-	ELIBSCN		= 0x51;
+-	ENAVAIL		= 0x77;
+-	ENOSTR		= 0x3c;
+-	EOVERFLOW	= 0x4b;
+-	EUCLEAN		= 0x75;
+-	ENOMEDIUM	= 0x7b;
+-	EBUSY		= 0x10;
+-	EPROTO		= 0x47;
+-	ENODEV		= 0x13;
+-	EKEYEXPIRED	= 0x7f;
+-	EROFS		= 0x1e;
+-	ELIBACC		= 0x4f;
+-	E2BIG		= 0x7;
+-	EDEADLK		= 0x23;
+-	ECONNRESET	= 0x68;
+-	ENXIO		= 0x6;
+-	EBADRQC		= 0x38;
+-	ENAMETOOLONG	= 0x24;
+-	ESOCKTNOSUPPORT	= 0x5e;
+-	EDOTDOT		= 0x49;
+-	EADDRNOTAVAIL	= 0x63;
+-	ETIME		= 0x3e;
+-	EPROTONOSUPPORT	= 0x5d;
+-	ENOTRECOVERABLE	= 0x83;
+-	EIO		= 0x5;
+-	ENETUNREACH	= 0x65;
+-	EXDEV		= 0x12;
+-	EDQUOT		= 0x7a;
+-	EREMOTEIO	= 0x79;
+-	ENOSPC		= 0x1c;
+-	ENOEXEC		= 0x8;
+-	EMSGSIZE	= 0x5a;
+-	EDOM		= 0x21;
+-	EFBIG		= 0x1b;
+-	ESRCH		= 0x3;
+-	ECHRNG		= 0x2c;
+-	EHOSTDOWN	= 0x70;
+-	ENOLCK		= 0x25;
+-	ENFILE		= 0x17;
+-	ENOSYS		= 0x26;
+-	ENOTCONN	= 0x6b;
+-	ENOTSUP		= 0x5f;
+-	ESRMNT		= 0x45;
+-	EDEADLOCK	= 0x23;
+-	ECONNABORTED	= 0x67;
+-	ENOANO		= 0x37;
+-	EISCONN		= 0x6a;
+-	EUSERS		= 0x57;
+-	ENOPROTOOPT	= 0x5c;
+-	EMFILE		= 0x18;
+-	ENOBUFS		= 0x69;
+-	EL3HLT		= 0x2e;
+-	EFAULT		= 0xe;
+-	EWOULDBLOCK	= 0xb;
+-	ELIBBAD		= 0x50;
+-	ESTRPIPE	= 0x56;
+-	ECONNREFUSED	= 0x6f;
+-	EAGAIN		= 0xb;
+-	ELIBMAX		= 0x52;
+-	EEXIST		= 0x11;
+-	EL2NSYNC	= 0x2d;
+-	ENOENT		= 0x2;
+-	ENOPKG		= 0x41;
+-	EKEYREVOKED	= 0x80;
+-	EHOSTUNREACH	= 0x71;
+-	ENOTUNIQ	= 0x4c;
+-	EOPNOTSUPP	= 0x5f;
+-	ENOTDIR		= 0x14;
+-	EMEDIUMTYPE	= 0x7c;
+-	SIGBUS		= 0x7;
+-	SIGTTIN		= 0x15;
+-	SIGPROF		= 0x1b;
+-	SIGFPE		= 0x8;
+-	SIGHUP		= 0x1;
+-	SIGTTOU		= 0x16;
+-	SIGSTKFLT	= 0x10;
+-	SIGUSR1		= 0xa;
+-	SIGURG		= 0x17;
+-	SIGQUIT		= 0x3;
+-	SIGCLD		= 0x11;
+-	SIGIO		= 0x1d;
+-	SIGABRT		= 0x6;
+-	SIGUSR2		= 0xc;
+-	SIGTRAP		= 0x5;
+-	SIGVTALRM	= 0x1a;
+-	SIGPOLL		= 0x1d;
+-	SIGSEGV		= 0xb;
+-	SIGCONT		= 0x12;
+-	SIGPIPE		= 0xd;
+-	SIGWINCH	= 0x1c;
+-	SIGXFSZ		= 0x19;
+-	SIGCHLD		= 0x11;
+-	SIGSYS		= 0x1f;
+-	SIGSTOP		= 0x13;
+-	SIGALRM		= 0xe;
+-	SIGTSTP		= 0x14;
+-	SIGKILL		= 0x9;
+-	SIGXCPU		= 0x18;
+-	SIGUNUSED	= 0x1f;
+-	SIGPWR		= 0x1e;
+-	SIGILL		= 0x4;
+-	SIGINT		= 0x2;
+-	SIGIOT		= 0x6;
+-	SIGTERM		= 0xf;
++	AF_APPLETALK				= 0x5;
++	AF_ASH					= 0x12;
++	AF_ATMPVC				= 0x8;
++	AF_ATMSVC				= 0x14;
++	AF_AX25					= 0x3;
++	AF_BLUETOOTH				= 0x1f;
++	AF_BRIDGE				= 0x7;
++	AF_DECnet				= 0xc;
++	AF_ECONET				= 0x13;
++	AF_FILE					= 0x1;
++	AF_INET					= 0x2;
++	AF_INET6				= 0xa;
++	AF_IPX					= 0x4;
++	AF_IRDA					= 0x17;
++	AF_IUCV					= 0x20;
++	AF_KEY					= 0xf;
++	AF_LOCAL				= 0x1;
++	AF_MAX					= 0x22;
++	AF_NETBEUI				= 0xd;
++	AF_NETLINK				= 0x10;
++	AF_NETROM				= 0x6;
++	AF_PACKET				= 0x11;
++	AF_PPPOX				= 0x18;
++	AF_ROSE					= 0xb;
++	AF_ROUTE				= 0x10;
++	AF_RXRPC				= 0x21;
++	AF_SECURITY				= 0xe;
++	AF_SNA					= 0x16;
++	AF_UNIX					= 0x1;
++	AF_UNSPEC				= 0;
++	AF_WANPIPE				= 0x19;
++	AF_X25					= 0x9;
++	E2BIG					= 0x7;
++	EACCES					= 0xd;
++	EADDRINUSE				= 0x62;
++	EADDRNOTAVAIL				= 0x63;
++	EADV					= 0x44;
++	EAFNOSUPPORT				= 0x61;
++	EAGAIN					= 0xb;
++	EALREADY				= 0x72;
++	EBADE					= 0x34;
++	EBADF					= 0x9;
++	EBADFD					= 0x4d;
++	EBADMSG					= 0x4a;
++	EBADR					= 0x35;
++	EBADRQC					= 0x38;
++	EBADSLT					= 0x39;
++	EBFONT					= 0x3b;
++	EBUSY					= 0x10;
++	ECANCELED				= 0x7d;
++	ECHILD					= 0xa;
++	ECHRNG					= 0x2c;
++	ECOMM					= 0x46;
++	ECONNABORTED				= 0x67;
++	ECONNREFUSED				= 0x6f;
++	ECONNRESET				= 0x68;
++	EDEADLK					= 0x23;
++	EDEADLOCK				= 0x23;
++	EDESTADDRREQ				= 0x59;
++	EDOM					= 0x21;
++	EDOTDOT					= 0x49;
++	EDQUOT					= 0x7a;
++	EEXIST					= 0x11;
++	EFAULT					= 0xe;
++	EFBIG					= 0x1b;
++	EHOSTDOWN				= 0x70;
++	EHOSTUNREACH				= 0x71;
++	EIDRM					= 0x2b;
++	EILSEQ					= 0x54;
++	EINPROGRESS				= 0x73;
++	EINTR					= 0x4;
++	EINVAL					= 0x16;
++	EIO					= 0x5;
++	EISCONN					= 0x6a;
++	EISDIR					= 0x15;
++	EISNAM					= 0x78;
++	EKEYEXPIRED				= 0x7f;
++	EKEYREJECTED				= 0x81;
++	EKEYREVOKED				= 0x80;
++	EL2HLT					= 0x33;
++	EL2NSYNC				= 0x2d;
++	EL3HLT					= 0x2e;
++	EL3RST					= 0x2f;
++	ELIBACC					= 0x4f;
++	ELIBBAD					= 0x50;
++	ELIBEXEC				= 0x53;
++	ELIBMAX					= 0x52;
++	ELIBSCN					= 0x51;
++	ELNRNG					= 0x30;
++	ELOOP					= 0x28;
++	EMEDIUMTYPE				= 0x7c;
++	EMFILE					= 0x18;
++	EMLINK					= 0x1f;
++	EMSGSIZE				= 0x5a;
++	EMULTIHOP				= 0x48;
++	ENAMETOOLONG				= 0x24;
++	ENAVAIL					= 0x77;
++	ENETDOWN				= 0x64;
++	ENETRESET				= 0x66;
++	ENETUNREACH				= 0x65;
++	ENFILE					= 0x17;
++	ENOANO					= 0x37;
++	ENOBUFS					= 0x69;
++	ENOCSI					= 0x32;
++	ENODATA					= 0x3d;
++	ENODEV					= 0x13;
++	ENOENT					= 0x2;
++	ENOEXEC					= 0x8;
++	ENOKEY					= 0x7e;
++	ENOLCK					= 0x25;
++	ENOLINK					= 0x43;
++	ENOMEDIUM				= 0x7b;
++	ENOMEM					= 0xc;
++	ENOMSG					= 0x2a;
++	ENONET					= 0x40;
++	ENOPKG					= 0x41;
++	ENOPROTOOPT				= 0x5c;
++	ENOSPC					= 0x1c;
++	ENOSR					= 0x3f;
++	ENOSTR					= 0x3c;
++	ENOSYS					= 0x26;
++	ENOTBLK					= 0xf;
++	ENOTCONN				= 0x6b;
++	ENOTDIR					= 0x14;
++	ENOTEMPTY				= 0x27;
++	ENOTNAM					= 0x76;
++	ENOTRECOVERABLE				= 0x83;
++	ENOTSOCK				= 0x58;
++	ENOTSUP					= 0x5f;
++	ENOTTY					= 0x19;
++	ENOTUNIQ				= 0x4c;
++	ENXIO					= 0x6;
++	EOPNOTSUPP				= 0x5f;
++	EOVERFLOW				= 0x4b;
++	EOWNERDEAD				= 0x82;
++	EPERM					= 0x1;
++	EPFNOSUPPORT				= 0x60;
++	EPIPE					= 0x20;
++	EPOLLERR				= 0x8;
++	EPOLLET					= -0x80000000;
++	EPOLLHUP				= 0x10;
++	EPOLLIN					= 0x1;
++	EPOLLMSG				= 0x400;
++	EPOLLONESHOT				= 0x40000000;
++	EPOLLOUT				= 0x4;
++	EPOLLPRI				= 0x2;
++	EPOLLRDBAND				= 0x80;
++	EPOLLRDHUP				= 0x2000;
++	EPOLLRDNORM				= 0x40;
++	EPOLLWRBAND				= 0x200;
++	EPOLLWRNORM				= 0x100;
++	EPOLL_CTL_ADD				= 0x1;
++	EPOLL_CTL_DEL				= 0x2;
++	EPOLL_CTL_MOD				= 0x3;
++	EPROTO					= 0x47;
++	EPROTONOSUPPORT				= 0x5d;
++	EPROTOTYPE				= 0x5b;
++	ERANGE					= 0x22;
++	EREMCHG					= 0x4e;
++	EREMOTE					= 0x42;
++	EREMOTEIO				= 0x79;
++	ERESTART				= 0x55;
++	EROFS					= 0x1e;
++	ESHUTDOWN				= 0x6c;
++	ESOCKTNOSUPPORT				= 0x5e;
++	ESPIPE					= 0x1d;
++	ESRCH					= 0x3;
++	ESRMNT					= 0x45;
++	ESTALE					= 0x74;
++	ESTRPIPE				= 0x56;
++	ETIME					= 0x3e;
++	ETIMEDOUT				= 0x6e;
++	ETOOMANYREFS				= 0x6d;
++	ETXTBSY					= 0x1a;
++	EUCLEAN					= 0x75;
++	EUNATCH					= 0x31;
++	EUSERS					= 0x57;
++	EWOULDBLOCK				= 0xb;
++	EXDEV					= 0x12;
++	EXFULL					= 0x36;
++	EXPR_NEST_MAX				= 0x20;
++	FD_CLOEXEC				= 0x1;
++	FD_SETSIZE				= 0x400;
++	F_DUPFD					= 0;
++	F_DUPFD_CLOEXEC				= 0x406;
++	F_EXLCK					= 0x4;
++	F_GETFD					= 0x1;
++	F_GETFL					= 0x3;
++	F_GETLEASE				= 0x401;
++	F_GETLK					= 0x5;
++	F_GETLK64				= 0x5;
++	F_GETOWN				= 0x9;
++	F_GETSIG				= 0xb;
++	F_LOCK					= 0x1;
++	F_NOTIFY				= 0x402;
++	F_OK					= 0;
++	F_RDLCK					= 0;
++	F_SETFD					= 0x2;
++	F_SETFL					= 0x4;
++	F_SETLEASE				= 0x400;
++	F_SETLK					= 0x6;
++	F_SETLK64				= 0x6;
++	F_SETLKW				= 0x7;
++	F_SETLKW64				= 0x7;
++	F_SETOWN				= 0x8;
++	F_SETSIG				= 0xa;
++	F_SHLCK					= 0x8;
++	F_TEST					= 0x3;
++	F_TLOCK					= 0x2;
++	F_ULOCK					= 0;
++	F_UNLCK					= 0x2;
++	F_WRLCK					= 0x1;
++	IPPROTO_AH				= 0x33;
++	IPPROTO_COMP				= 0x6c;
++	IPPROTO_DSTOPTS				= 0x3c;
++	IPPROTO_EGP				= 0x8;
++	IPPROTO_ENCAP				= 0x62;
++	IPPROTO_ESP				= 0x32;
++	IPPROTO_FRAGMENT			= 0x2c;
++	IPPROTO_GRE				= 0x2f;
++	IPPROTO_HOPOPTS				= 0;
++	IPPROTO_ICMP				= 0x1;
++	IPPROTO_ICMPV6				= 0x3a;
++	IPPROTO_IDP				= 0x16;
++	IPPROTO_IGMP				= 0x2;
++	IPPROTO_IP				= 0;
++	IPPROTO_IPIP				= 0x4;
++	IPPROTO_IPV6				= 0x29;
++	IPPROTO_MTP				= 0x5c;
++	IPPROTO_NONE				= 0x3b;
++	IPPROTO_PIM				= 0x67;
++	IPPROTO_PUP				= 0xc;
++	IPPROTO_RAW				= 0xff;
++	IPPROTO_ROUTING				= 0x2b;
++	IPPROTO_RSVP				= 0x2e;
++	IPPROTO_SCTP				= 0x84;
++	IPPROTO_TCP				= 0x6;
++	IPPROTO_TP				= 0x1d;
++	IPPROTO_UDP				= 0x11;
++	IP_ADD_MEMBERSHIP			= 0x23;
++	IP_ADD_SOURCE_MEMBERSHIP		= 0x27;
++	IP_BLOCK_SOURCE				= 0x26;
++	IP_DEFAULT_MULTICAST_LOOP		= 0x1;
++	IP_DEFAULT_MULTICAST_TTL		= 0x1;
++	IP_DROP_MEMBERSHIP			= 0x24;
++	IP_DROP_SOURCE_MEMBERSHIP		= 0x28;
++	IP_HDRINCL				= 0x3;
++	IP_MAX_MEMBERSHIPS			= 0x14;
++	IP_MSFILTER				= 0x29;
++	IP_MTU_DISCOVER				= 0xa;
++	IP_MULTICAST_IF				= 0x20;
++	IP_MULTICAST_LOOP			= 0x22;
++	IP_MULTICAST_TTL			= 0x21;
++	IP_OPTIONS				= 0x4;
++	IP_PKTINFO				= 0x8;
++	IP_PKTOPTIONS				= 0x9;
++	IP_PMTUDISC				= 0xa;
++	IP_PMTUDISC_DO				= 0x2;
++	IP_PMTUDISC_DONT			= 0;
++	IP_PMTUDISC_WANT			= 0x1;
++	IP_RECVERR				= 0xb;
++	IP_RECVOPTS				= 0x6;
++	IP_RECVRETOPTS				= 0x7;
++	IP_RECVTOS				= 0xd;
++	IP_RECVTTL				= 0xc;
++	IP_RETOPTS				= 0x7;
++	IP_ROUTER_ALERT				= 0x5;
++	IP_TOS					= 0x1;
++	IP_TTL					= 0x2;
++	IP_UNBLOCK_SOURCE			= 0x25;
++	NAME_MAX				= 0xff;
++	O_ACCMODE				= 0x3;
++	O_APPEND				= 0x400;
++	O_ASYNC					= 0x2000;
++	O_CLOEXEC				= 0x80000;
++	O_CREAT					= 0x40;
++	O_DIRECT				= 0x4000;
++	O_DIRECTORY				= 0x10000;
++	O_DSYNC					= 0x1000;
++	O_EXCL					= 0x80;
++	O_FSYNC					= 0x1000;
++	O_LARGEFILE				= 0;
++	O_NDELAY				= 0x800;
++	O_NOATIME				= 0x40000;
++	O_NOCTTY				= 0x100;
++	O_NOFOLLOW				= 0x20000;
++	O_NONBLOCK				= 0x800;
++	O_RDONLY				= 0;
++	O_RDWR					= 0x2;
++	O_RSYNC					= 0x1000;
++	O_SYNC					= 0x1000;
++	O_TRUNC					= 0x200;
++	O_WRONLY				= 0x1;
++	PTRACE_ARCH_PRCTL			= 0x1e;
++	PTRACE_ATTACH				= 0x10;
++	PTRACE_CONT				= 0x7;
++	PTRACE_DETACH				= 0x11;
++	PTRACE_EVENT_CLONE			= 0x3;
++	PTRACE_EVENT_EXEC			= 0x4;
++	PTRACE_EVENT_EXIT			= 0x6;
++	PTRACE_EVENT_FORK			= 0x1;
++	PTRACE_EVENT_VFORK			= 0x2;
++	PTRACE_EVENT_VFORK_DONE			= 0x5;
++	PTRACE_GETEVENTMSG			= 0x4201;
++	PTRACE_GETFPREGS			= 0xe;
++	PTRACE_GETFPXREGS			= 0x12;
++	PTRACE_GETREGS				= 0xc;
++	PTRACE_GETSIGINFO			= 0x4202;
++	PTRACE_GET_THREAD_AREA			= 0x19;
++	PTRACE_KILL				= 0x8;
++	PTRACE_OLDSETOPTIONS			= 0x15;
++	PTRACE_O_MASK				= 0x7f;
++	PTRACE_O_TRACECLONE			= 0x8;
++	PTRACE_O_TRACEEXEC			= 0x10;
++	PTRACE_O_TRACEEXIT			= 0x40;
++	PTRACE_O_TRACEFORK			= 0x2;
++	PTRACE_O_TRACESYSGOOD			= 0x1;
++	PTRACE_O_TRACEVFORK			= 0x4;
++	PTRACE_O_TRACEVFORKDONE			= 0x20;
++	PTRACE_PEEKDATA				= 0x2;
++	PTRACE_PEEKTEXT				= 0x1;
++	PTRACE_PEEKUSR				= 0x3;
++	PTRACE_POKEDATA				= 0x5;
++	PTRACE_POKETEXT				= 0x4;
++	PTRACE_POKEUSR				= 0x6;
++	PTRACE_SETFPREGS			= 0xf;
++	PTRACE_SETFPXREGS			= 0x13;
++	PTRACE_SETOPTIONS			= 0x4200;
++	PTRACE_SETREGS				= 0xd;
++	PTRACE_SETSIGINFO			= 0x4203;
++	PTRACE_SET_THREAD_AREA			= 0x1a;
++	PTRACE_SINGLESTEP			= 0x9;
++	PTRACE_SYSCALL				= 0x18;
++	PTRACE_TRACEME				= 0;
++	SIGABRT					= 0x6;
++	SIGALRM					= 0xe;
++	SIGBUS					= 0x7;
++	SIGCHLD					= 0x11;
++	SIGCLD					= 0x11;
++	SIGCONT					= 0x12;
++	SIGFPE					= 0x8;
++	SIGHUP					= 0x1;
++	SIGILL					= 0x4;
++	SIGINT					= 0x2;
++	SIGIO					= 0x1d;
++	SIGIOT					= 0x6;
++	SIGKILL					= 0x9;
++	SIGPIPE					= 0xd;
++	SIGPOLL					= 0x1d;
++	SIGPROF					= 0x1b;
++	SIGPWR					= 0x1e;
++	SIGQUIT					= 0x3;
++	SIGSEGV					= 0xb;
++	SIGSTKFLT				= 0x10;
++	SIGSTOP					= 0x13;
++	SIGSYS					= 0x1f;
++	SIGTERM					= 0xf;
++	SIGTRAP					= 0x5;
++	SIGTSTP					= 0x14;
++	SIGTTIN					= 0x15;
++	SIGTTOU					= 0x16;
++	SIGUNUSED				= 0x1f;
++	SIGURG					= 0x17;
++	SIGUSR1					= 0xa;
++	SIGUSR2					= 0xc;
++	SIGVTALRM				= 0x1a;
++	SIGWINCH				= 0x1c;
++	SIGXCPU					= 0x18;
++	SIGXFSZ					= 0x19;
++	SOCK_DGRAM				= 0x2;
++	SOCK_PACKET				= 0xa;
++	SOCK_RAW				= 0x3;
++	SOCK_RDM				= 0x4;
++	SOCK_SEQPACKET				= 0x5;
++	SOCK_STREAM				= 0x1;
++	SOL_AAL					= 0x109;
++	SOL_ATM					= 0x108;
++	SOL_DECNET				= 0x105;
++	SOL_ICMPV6				= 0x3a;
++	SOL_IP					= 0;
++	SOL_IPV6				= 0x29;
++	SOL_IRDA				= 0x10a;
++	SOL_PACKET				= 0x107;
++	SOL_RAW					= 0xff;
++	SOL_SOCKET				= 0x1;
++	SOL_TCP					= 0x6;
++	SOL_X25					= 0x106;
++	SOMAXCONN				= 0x80;
++	SO_ACCEPTCONN				= 0x1e;
++	SO_ATTACH_FILTER			= 0x1a;
++	SO_BINDTODEVICE				= 0x19;
++	SO_BROADCAST				= 0x6;
++	SO_BSDCOMPAT				= 0xe;
++	SO_DEBUG				= 0x1;
++	SO_DETACH_FILTER			= 0x1b;
++	SO_DONTROUTE				= 0x5;
++	SO_ERROR				= 0x4;
++	SO_KEEPALIVE				= 0x9;
++	SO_LINGER				= 0xd;
++	SO_NO_CHECK				= 0xb;
++	SO_OOBINLINE				= 0xa;
++	SO_PASSCRED				= 0x10;
++	SO_PASSSEC				= 0x22;
++	SO_PEERCRED				= 0x11;
++	SO_PEERNAME				= 0x1c;
++	SO_PEERSEC				= 0x1f;
++	SO_PRIORITY				= 0xc;
++	SO_RCVBUF				= 0x8;
++	SO_RCVBUFFORCE				= 0x21;
++	SO_RCVLOWAT				= 0x12;
++	SO_RCVTIMEO				= 0x14;
++	SO_REUSEADDR				= 0x2;
++	SO_SECURITY_AUTHENTICATION		= 0x16;
++	SO_SECURITY_ENCRYPTION_NETWORK		= 0x18;
++	SO_SECURITY_ENCRYPTION_TRANSPORT	= 0x17;
++	SO_SNDBUF				= 0x7;
++	SO_SNDBUFFORCE				= 0x20;
++	SO_SNDLOWAT				= 0x13;
++	SO_SNDTIMEO				= 0x15;
++	SO_TIMESTAMP				= 0x1d;
++	SO_TIMESTAMPNS				= 0x23;
++	SO_TYPE					= 0x3;
++	S_BLKSIZE				= 0x200;
++	S_IEXEC					= 0x40;
++	S_IFBLK					= 0x6000;
++	S_IFCHR					= 0x2000;
++	S_IFDIR					= 0x4000;
++	S_IFIFO					= 0x1000;
++	S_IFLNK					= 0xa000;
++	S_IFMT					= 0xf000;
++	S_IFREG					= 0x8000;
++	S_IFSOCK				= 0xc000;
++	S_IREAD					= 0x100;
++	S_IRGRP					= 0x20;
++	S_IROTH					= 0x4;
++	S_IRUSR					= 0x100;
++	S_IRWXG					= 0x38;
++	S_IRWXO					= 0x7;
++	S_IRWXU					= 0x1c0;
++	S_ISGID					= 0x400;
++	S_ISUID					= 0x800;
++	S_ISVTX					= 0x200;
++	S_IWGRP					= 0x10;
++	S_IWOTH					= 0x2;
++	S_IWRITE				= 0x80;
++	S_IWUSR					= 0x80;
++	S_IXGRP					= 0x8;
++	S_IXOTH					= 0x1;
++	S_IXUSR					= 0x40;
++	TCP_CONGESTION				= 0xd;
++	TCP_CORK				= 0x3;
++	TCP_DEFER_ACCEPT			= 0x9;
++	TCP_INFO				= 0xb;
++	TCP_KEEPCNT				= 0x6;
++	TCP_KEEPIDLE				= 0x4;
++	TCP_KEEPINTVL				= 0x5;
++	TCP_LINGER2				= 0x8;
++	TCP_MAXSEG				= 0x2;
++	TCP_MAXWIN				= 0xffff;
++	TCP_MAX_WINSHIFT			= 0xe;
++	TCP_MD5SIG				= 0xe;
++	TCP_MD5SIG_MAXKEYLEN			= 0x50;
++	TCP_MSS					= 0x200;
++	TCP_NODELAY				= 0x1;
++	TCP_QUICKACK				= 0xc;
++	TCP_SYNCNT				= 0x7;
++	TCP_WINDOW_CLAMP			= 0xa;
++	WALL					= 0x40000000;
++	WCLONE					= 0x80000000;
++	WCONTINUED				= 0x8;
++	WEXITED					= 0x4;
++	WNOHANG					= 0x1;
++	WNOTHREAD				= 0x20000000;
++	WNOWAIT					= 0x1000000;
++	WORDSIZE				= 0x40;
++	WSTOPPED				= 0x2;
++	WUNTRACED				= 0x2;
+ )
+ 
+ // Types
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 29c11f6a7e..ea9ce955f5 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -77,6 +77,27 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	return;
+ }
+ 
++func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0];
++	}
++	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0];
++	}
++	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
++
+ func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS_KEVENT, uintptr(kq), uintptr(change), uintptr(nchange), uintptr(event), uintptr(nevent), uintptr(unsafe.Pointer(timeout)));
+ 	n = int(r0);
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index 40aae8e121..eb637aa21a 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -77,6 +77,27 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	return;
+ }
+ 
++func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0];
++	}
++	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0];
++	}
++	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
++
+ func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS_KEVENT, uintptr(kq), uintptr(change), uintptr(nchange), uintptr(event), uintptr(nevent), uintptr(unsafe.Pointer(timeout)));
+ 	n = int(r0);
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index 226e9d6c06..13ec70e647 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -261,18 +261,6 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ 	return;
+ }
+ 
+-func Ioperm(from int, num int, on int) (errno int) {
+-	_, _, e1 := Syscall(SYS_IOPERM, uintptr(from), uintptr(num), uintptr(on));
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Iopl(level int) (errno int) {
+-	_, _, e1 := Syscall(SYS_IOPL, uintptr(level), 0, 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Kill(pid int, sig int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0);
+ 	errno = int(e1);
+@@ -481,12 +469,6 @@ func Sync() {
+ 	return;
+ }
+ 
+-func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
+-	_, _, e1 := Syscall6(SYS_SYNC_FILE_RANGE, uintptr(fd), uintptr(off), uintptr(off>>32), uintptr(n), uintptr(n>>32), uintptr(flags));
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Sysinfo(info *Sysinfo_t) (errno int) {
+ 	_, _, e1 := Syscall(SYS_SYSINFO, uintptr(unsafe.Pointer(info)), 0, 0);
+ 	errno = int(e1);
+@@ -646,6 +628,18 @@ func Getuid() (uid int) {
+ 	return;
+ }
+ 
++func Ioperm(from int, num int, on int) (errno int) {
++	_, _, e1 := Syscall(SYS_IOPERM, uintptr(from), uintptr(num), uintptr(on));
++	errno = int(e1);
++	return;
++}
++
++func Iopl(level int) (errno int) {
++	_, _, e1 := Syscall(SYS_IOPL, uintptr(level), 0, 0);
++	errno = int(e1);
++	return;
++}
++
+ func Lchown(path string, uid int, gid int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_LCHOWN32, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
+ 	errno = int(e1);
+@@ -712,6 +706,12 @@ func Statfs(path string, buf *Statfs_t) (errno int) {
+ 	return;
+ }
+ 
++func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
++	_, _, e1 := Syscall6(SYS_SYNC_FILE_RANGE, uintptr(fd), uintptr(off), uintptr(off>>32), uintptr(n), uintptr(n>>32), uintptr(flags));
++	errno = int(e1);
++	return;
++}
++
+ func getgroups(n int, list *_Gid_t) (nn int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_GETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0);
+ 	nn = int(r0);
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 597ba05589..0c442fa441 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -261,18 +261,6 @@ func Gettimeofday(tv *Timeval) (errno int) {
+ 	return;
+ }
+ 
+-func Ioperm(from int, num int, on int) (errno int) {
+-	_, _, e1 := Syscall(SYS_IOPERM, uintptr(from), uintptr(num), uintptr(on));
+-	errno = int(e1);
+-	return;
+-}
+-
+-func Iopl(level int) (errno int) {
+-	_, _, e1 := Syscall(SYS_IOPL, uintptr(level), 0, 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Kill(pid int, sig int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0);
+ 	errno = int(e1);
+@@ -482,12 +470,6 @@ func Sync() {
+ 	return;
+ }
+ 
+-func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
+-	_, _, e1 := Syscall6(SYS_SYNC_FILE_RANGE, uintptr(fd), uintptr(off), uintptr(n), uintptr(flags), 0, 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Sysinfo(info *Sysinfo_t) (errno int) {
+ 	_, _, e1 := Syscall(SYS_SYSINFO, uintptr(unsafe.Pointer(info)), 0, 0);
+ 	errno = int(e1);
+@@ -648,6 +630,18 @@ func Getuid() (uid int) {
+ 	return;
+ }
+ 
++func Ioperm(from int, num int, on int) (errno int) {
++	_, _, e1 := Syscall(SYS_IOPERM, uintptr(from), uintptr(num), uintptr(on));
++	errno = int(e1);
++	return;
++}
++
++func Iopl(level int) (errno int) {
++	_, _, e1 := Syscall(SYS_IOPL, uintptr(level), 0, 0);
++	errno = int(e1);
++	return;
++}
++
+ func Lchown(path string, uid int, gid int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_LCHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
+ 	errno = int(e1);
+@@ -740,6 +734,12 @@ func Statfs(path string, buf *Statfs_t) (errno int) {
+ 	return;
+ }
+ 
++func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
++	_, _, e1 := Syscall6(SYS_SYNC_FILE_RANGE, uintptr(fd), uintptr(off), uintptr(n), uintptr(flags), 0, 0);
++	errno = int(e1);
++	return;
++}
++
+ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
+ 	fd = int(r0);
+@@ -796,3 +796,24 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	errno = int(e1);
+ 	return;
+ }
++
++func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0];
++	}
++	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0];
++	}
++	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
+diff --git a/src/pkg/syscall/zsysnum_darwin_386.go b/src/pkg/syscall/zsysnum_darwin_386.go
+index 78ae194141..c1cfbd4fc5 100644
+--- a/src/pkg/syscall/zsysnum_darwin_386.go
++++ b/src/pkg/syscall/zsysnum_darwin_386.go
+@@ -163,7 +163,7 @@ const (
+ 	SYS_FUTIMES	= 139;	// { int futimes(int fd, struct timeval *tptr); }
+ 	SYS_ADJTIME	= 140;	// { int adjtime(struct timeval *delta, struct timeval *olddelta); }
+ 	// SYS_NOSYS = 141;  // { int nosys(void); }   { old getpeername }
+-	SYS_GETHOSTUUID							= 142;	// { int gethostuuid(unsigned char *uuid_buf, const struct timespec *timeoutp); }
++	SYS_GETHOSTUUID	= 142;	// { int gethostuuid(unsigned char *uuid_buf, const struct timespec *timeoutp); }
+ 	// SYS_NOSYS = 143;  // { int nosys(void); }   { old sethostid 	}
+ 	// SYS_NOSYS = 144;  // { int nosys(void); }   { old getrlimit }
+ 	// SYS_NOSYS = 145;  // { int nosys(void); }   { old setrlimit }
+@@ -215,19 +215,19 @@ const (
+ 	SYS_PATHCONF	= 191;	// { int pathconf(char *path, int name); }
+ 	SYS_FPATHCONF	= 192;	// { int fpathconf(int fd, int name); }
+ 	// SYS_NOSYS = 193;  // { int nosys(void); }
+-	SYS_GETRLIMIT					= 194;	// { int getrlimit(u_int which, struct rlimit *rlp); }
+-	SYS_SETRLIMIT					= 195;	// { int setrlimit(u_int which, struct rlimit *rlp); }
+-	SYS_GETDIRENTRIES				= 196;	// { int getdirentries(int fd, char *buf, u_int count, long *basep); }
+-	SYS_MMAP					= 197;	// { user_addr_t mmap(caddr_t addr, size_t len, int prot, int flags, int fd, off_t pos); }
++	SYS_GETRLIMIT		= 194;	// { int getrlimit(u_int which, struct rlimit *rlp); }
++	SYS_SETRLIMIT		= 195;	// { int setrlimit(u_int which, struct rlimit *rlp); }
++	SYS_GETDIRENTRIES	= 196;	// { int getdirentries(int fd, char *buf, u_int count, long *basep); }
++	SYS_MMAP		= 197;	// { user_addr_t mmap(caddr_t addr, size_t len, int prot, int flags, int fd, off_t pos); }
+ 	// SYS_NOSYS = 198;  // { int nosys(void); } 	{ __syscall }
+-	SYS_LSEEK					= 199;	// { off_t lseek(int fd, off_t offset, int whence); }
+-	SYS_TRUNCATE					= 200;	// { int truncate(char *path, off_t length); }
+-	SYS_FTRUNCATE					= 201;	// { int ftruncate(int fd, off_t length); }
+-	SYS___SYSCTL					= 202;	// { int __sysctl(int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen); }
+-	SYS_MLOCK					= 203;	// { int mlock(caddr_t addr, size_t len); }
+-	SYS_MUNLOCK					= 204;	// { int munlock(caddr_t addr, size_t len); }
+-	SYS_UNDELETE					= 205;	// { int undelete(user_addr_t path); }
+-	SYS_ATSOCKET					= 206;	// { int ATsocket(int proto); }
++	SYS_LSEEK	= 199;	// { off_t lseek(int fd, off_t offset, int whence); }
++	SYS_TRUNCATE	= 200;	// { int truncate(char *path, off_t length); }
++	SYS_FTRUNCATE	= 201;	// { int ftruncate(int fd, off_t length); }
++	SYS___SYSCTL	= 202;	// { int __sysctl(int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen); }
++	SYS_MLOCK	= 203;	// { int mlock(caddr_t addr, size_t len); }
++	SYS_MUNLOCK	= 204;	// { int munlock(caddr_t addr, size_t len); }
++	SYS_UNDELETE	= 205;	// { int undelete(user_addr_t path); }
++	SYS_ATSOCKET	= 206;	// { int ATsocket(int proto); }
+ 	// SYS_NOSYS = 213;  // { int nosys(void); } 	{ Reserved for AppleTalk }
+ 	// SYS_NOSYS = 206;  // { int nosys(void); }
+ 	// SYS_NOSYS = 207;  // { int nosys(void); }
+diff --git a/src/pkg/syscall/zsysnum_darwin_amd64.go b/src/pkg/syscall/zsysnum_darwin_amd64.go
+index 78ae194141..c1cfbd4fc5 100644
+--- a/src/pkg/syscall/zsysnum_darwin_amd64.go
++++ b/src/pkg/syscall/zsysnum_darwin_amd64.go
+@@ -163,7 +163,7 @@ const (
+ 	SYS_FUTIMES	= 139;	// { int futimes(int fd, struct timeval *tptr); }
+ 	SYS_ADJTIME	= 140;	// { int adjtime(struct timeval *delta, struct timeval *olddelta); }
+ 	// SYS_NOSYS = 141;  // { int nosys(void); }   { old getpeername }
+-	SYS_GETHOSTUUID							= 142;	// { int gethostuuid(unsigned char *uuid_buf, const struct timespec *timeoutp); }
++	SYS_GETHOSTUUID	= 142;	// { int gethostuuid(unsigned char *uuid_buf, const struct timespec *timeoutp); }
+ 	// SYS_NOSYS = 143;  // { int nosys(void); }   { old sethostid 	}
+ 	// SYS_NOSYS = 144;  // { int nosys(void); }   { old getrlimit }
+ 	// SYS_NOSYS = 145;  // { int nosys(void); }   { old setrlimit }
+@@ -215,19 +215,19 @@ const (
+ 	SYS_PATHCONF	= 191;	// { int pathconf(char *path, int name); }
+ 	SYS_FPATHCONF	= 192;	// { int fpathconf(int fd, int name); }
+ 	// SYS_NOSYS = 193;  // { int nosys(void); }
+-	SYS_GETRLIMIT					= 194;	// { int getrlimit(u_int which, struct rlimit *rlp); }
+-	SYS_SETRLIMIT					= 195;	// { int setrlimit(u_int which, struct rlimit *rlp); }
+-	SYS_GETDIRENTRIES				= 196;	// { int getdirentries(int fd, char *buf, u_int count, long *basep); }
+-	SYS_MMAP					= 197;	// { user_addr_t mmap(caddr_t addr, size_t len, int prot, int flags, int fd, off_t pos); }
++	SYS_GETRLIMIT		= 194;	// { int getrlimit(u_int which, struct rlimit *rlp); }
++	SYS_SETRLIMIT		= 195;	// { int setrlimit(u_int which, struct rlimit *rlp); }
++	SYS_GETDIRENTRIES	= 196;	// { int getdirentries(int fd, char *buf, u_int count, long *basep); }
++	SYS_MMAP		= 197;	// { user_addr_t mmap(caddr_t addr, size_t len, int prot, int flags, int fd, off_t pos); }
+ 	// SYS_NOSYS = 198;  // { int nosys(void); } 	{ __syscall }
+-	SYS_LSEEK					= 199;	// { off_t lseek(int fd, off_t offset, int whence); }
+-	SYS_TRUNCATE					= 200;	// { int truncate(char *path, off_t length); }
+-	SYS_FTRUNCATE					= 201;	// { int ftruncate(int fd, off_t length); }
+-	SYS___SYSCTL					= 202;	// { int __sysctl(int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen); }
+-	SYS_MLOCK					= 203;	// { int mlock(caddr_t addr, size_t len); }
+-	SYS_MUNLOCK					= 204;	// { int munlock(caddr_t addr, size_t len); }
+-	SYS_UNDELETE					= 205;	// { int undelete(user_addr_t path); }
+-	SYS_ATSOCKET					= 206;	// { int ATsocket(int proto); }
++	SYS_LSEEK	= 199;	// { off_t lseek(int fd, off_t offset, int whence); }
++	SYS_TRUNCATE	= 200;	// { int truncate(char *path, off_t length); }
++	SYS_FTRUNCATE	= 201;	// { int ftruncate(int fd, off_t length); }
++	SYS___SYSCTL	= 202;	// { int __sysctl(int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen); }
++	SYS_MLOCK	= 203;	// { int mlock(caddr_t addr, size_t len); }
++	SYS_MUNLOCK	= 204;	// { int munlock(caddr_t addr, size_t len); }
++	SYS_UNDELETE	= 205;	// { int undelete(user_addr_t path); }
++	SYS_ATSOCKET	= 206;	// { int ATsocket(int proto); }
+ 	// SYS_NOSYS = 213;  // { int nosys(void); } 	{ Reserved for AppleTalk }
+ 	// SYS_NOSYS = 206;  // { int nosys(void); }
+ 	// SYS_NOSYS = 207;  // { int nosys(void); }
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index c5f837c91f..003d58ba3c 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -11,97 +11,17 @@ const (
+ 	sizeofInt		= 0x4;
+ 	sizeofLong		= 0x4;
+ 	sizeofLongLong		= 0x8;
+-	O_RDONLY		= 0;
+-	O_WRONLY		= 0x1;
+-	O_RDWR			= 0x2;
+-	O_APPEND		= 0x8;
+-	O_ASYNC			= 0x40;
+-	O_CREAT			= 0x200;
+-	O_NOCTTY		= 0x20000;
+-	O_NONBLOCK		= 0x4;
+-	O_SYNC			= 0x80;
+-	O_TRUNC			= 0x400;
+ 	O_CLOEXEC		= 0;
+-	F_GETFD			= 0x1;
+-	F_SETFD			= 0x2;
+-	F_GETFL			= 0x3;
+-	F_SETFL			= 0x4;
+-	FD_CLOEXEC		= 0x1;
+-	NAME_MAX		= 0xff;
+-	S_IFMT			= 0xf000;
+-	S_IFIFO			= 0x1000;
+-	S_IFCHR			= 0x2000;
+-	S_IFDIR			= 0x4000;
+-	S_IFBLK			= 0x6000;
+-	S_IFREG			= 0x8000;
+-	S_IFLNK			= 0xa000;
+-	S_IFSOCK		= 0xc000;
+-	S_IFWHT			= 0xe000;
+-	S_ISUID			= 0x800;
+-	S_ISGID			= 0x400;
+-	S_ISVTX			= 0x200;
+-	S_IRUSR			= 0x100;
+-	S_IWUSR			= 0x80;
+-	S_IXUSR			= 0x40;
+-	WNOHANG			= 0x1;
+-	WUNTRACED		= 0x2;
+-	WEXITED			= 0x4;
+-	WSTOPPED		= 0x7f;
+-	WCONTINUED		= 0x10;
+-	WNOWAIT			= 0x20;
+-	AF_UNIX			= 0x1;
+-	AF_INET			= 0x2;
+-	AF_DATAKIT		= 0x9;
+-	AF_INET6		= 0x1e;
+-	SOCK_STREAM		= 0x1;
+-	SOCK_DGRAM		= 0x2;
+-	SOCK_RAW		= 0x3;
+-	SOCK_SEQPACKET		= 0x5;
+-	SOL_SOCKET		= 0xffff;
+-	SO_REUSEADDR		= 0x4;
+-	SO_KEEPALIVE		= 0x8;
+-	SO_DONTROUTE		= 0x10;
+-	SO_BROADCAST		= 0x20;
+-	SO_USELOOPBACK		= 0x40;
+-	SO_LINGER		= 0x80;
+-	SO_REUSEPORT		= 0x200;
+-	SO_SNDBUF		= 0x1001;
+-	SO_RCVBUF		= 0x1002;
+-	SO_SNDTIMEO		= 0x1005;
+-	SO_RCVTIMEO		= 0x1006;
+-	SO_NOSIGPIPE		= 0x1022;
+-	IPPROTO_TCP		= 0x6;
+-	IPPROTO_UDP		= 0x11;
+-	TCP_NODELAY		= 0x1;
+-	SOMAXCONN		= 0x80;
+ 	SizeofSockaddrInet4	= 0x10;
+ 	SizeofSockaddrInet6	= 0x1c;
+-	SizeofSockaddrAny	= 0x1c;
++	SizeofSockaddrAny	= 0x6c;
+ 	SizeofSockaddrUnix	= 0x6a;
+-	_PTRACE_TRACEME		= 0;
+-	_PTRACE_CONT		= 0x7;
+-	_PTRACE_KILL		= 0x8;
+-	EVFILT_READ		= -0x1;
+-	EVFILT_WRITE		= -0x2;
+-	EVFILT_AIO		= -0x3;
+-	EVFILT_VNODE		= -0x4;
+-	EVFILT_PROC		= -0x5;
+-	EVFILT_SIGNAL		= -0x6;
+-	EVFILT_TIMER		= -0x7;
+-	EVFILT_MACHPORT		= -0x8;
+-	EVFILT_FS		= -0x9;
+-	EVFILT_SYSCOUNT		= 0x9;
+-	EV_ADD			= 0x1;
+-	EV_DELETE		= 0x2;
+-	EV_DISABLE		= 0x8;
+-	EV_RECEIPT		= 0x40;
+-	EV_ONESHOT		= 0x10;
+-	EV_CLEAR		= 0x20;
+-	EV_SYSFLAGS		= 0xf000;
+-	EV_FLAG0		= 0x1000;
+-	EV_FLAG1		= 0x2000;
+-	EV_EOF			= 0x8000;
+-	EV_ERROR		= 0x4000;
++	SizeofLinger		= 0x8;
++	SizeofMsghdr		= 0x1c;
++	SizeofCmsghdr		= 0xc;
++	PTRACE_TRACEME		= 0;
++	PTRACE_CONT		= 0x7;
++	PTRACE_KILL		= 0x8;
+ )
+ 
+ // Types
+@@ -190,6 +110,39 @@ type Statfs_t struct {
+ 	Reserved	[8]uint32;
+ }
+ 
++type Flock_t struct {
++	Start	int64;
++	Len	int64;
++	Pid	int32;
++	Type	int16;
++	Whence	int16;
++}
++
++type Fstore_t struct {
++	Flags		uint32;
++	Posmode		int32;
++	Offset		int64;
++	Length		int64;
++	Bytesalloc	int64;
++}
++
++type Radvisory_t struct {
++	Offset	int64;
++	Count	int32;
++}
++
++type Fbootstraptransfer_t struct {
++	Offset	int64;
++	Length	uint32;
++	Buffer	*byte;
++}
++
++type Log2phys_t struct {
++	Flags		uint32;
++	Contigbytes	int64;
++	Devoffset	int64;
++}
++
+ type Dirent struct {
+ 	Ino	uint64;
+ 	Seekoff	uint64;
+@@ -231,7 +184,7 @@ type RawSockaddr struct {
+ 
+ type RawSockaddrAny struct {
+ 	Addr	RawSockaddr;
+-	Pad	[12]int8;
++	Pad	[92]int8;
+ }
+ 
+ type _Socklen uint32
+@@ -241,6 +194,27 @@ type Linger struct {
+ 	Linger	int32;
+ }
+ 
++type Iovec struct {
++	Base	*byte;
++	Len	uint32;
++}
++
++type Msghdr struct {
++	Name		*byte;
++	Namelen		uint32;
++	Iov		*Iovec;
++	Iovlen		int32;
++	Control		*byte;
++	Controllen	uint32;
++	Flags		int32;
++}
++
++type Cmsghdr struct {
++	Len	uint32;
++	Level	int32;
++	Type	int32;
++}
++
+ type Kevent_t struct {
+ 	Ident	uint32;
+ 	Filter	int16;
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index 46a301f890..ff85b2723e 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -11,97 +11,17 @@ const (
+ 	sizeofInt		= 0x4;
+ 	sizeofLong		= 0x8;
+ 	sizeofLongLong		= 0x8;
+-	O_RDONLY		= 0;
+-	O_WRONLY		= 0x1;
+-	O_RDWR			= 0x2;
+-	O_APPEND		= 0x8;
+-	O_ASYNC			= 0x40;
+-	O_CREAT			= 0x200;
+-	O_NOCTTY		= 0x20000;
+-	O_NONBLOCK		= 0x4;
+-	O_SYNC			= 0x80;
+-	O_TRUNC			= 0x400;
+ 	O_CLOEXEC		= 0;
+-	F_GETFD			= 0x1;
+-	F_SETFD			= 0x2;
+-	F_GETFL			= 0x3;
+-	F_SETFL			= 0x4;
+-	FD_CLOEXEC		= 0x1;
+-	NAME_MAX		= 0xff;
+-	S_IFMT			= 0xf000;
+-	S_IFIFO			= 0x1000;
+-	S_IFCHR			= 0x2000;
+-	S_IFDIR			= 0x4000;
+-	S_IFBLK			= 0x6000;
+-	S_IFREG			= 0x8000;
+-	S_IFLNK			= 0xa000;
+-	S_IFSOCK		= 0xc000;
+-	S_IFWHT			= 0xe000;
+-	S_ISUID			= 0x800;
+-	S_ISGID			= 0x400;
+-	S_ISVTX			= 0x200;
+-	S_IRUSR			= 0x100;
+-	S_IWUSR			= 0x80;
+-	S_IXUSR			= 0x40;
+-	WNOHANG			= 0x1;
+-	WUNTRACED		= 0x2;
+-	WEXITED			= 0x4;
+-	WSTOPPED		= 0x7f;
+-	WCONTINUED		= 0x10;
+-	WNOWAIT			= 0x20;
+-	AF_UNIX			= 0x1;
+-	AF_INET			= 0x2;
+-	AF_DATAKIT		= 0x9;
+-	AF_INET6		= 0x1e;
+-	SOCK_STREAM		= 0x1;
+-	SOCK_DGRAM		= 0x2;
+-	SOCK_RAW		= 0x3;
+-	SOCK_SEQPACKET		= 0x5;
+-	SOL_SOCKET		= 0xffff;
+-	SO_REUSEADDR		= 0x4;
+-	SO_KEEPALIVE		= 0x8;
+-	SO_DONTROUTE		= 0x10;
+-	SO_BROADCAST		= 0x20;
+-	SO_USELOOPBACK		= 0x40;
+-	SO_LINGER		= 0x80;
+-	SO_REUSEPORT		= 0x200;
+-	SO_SNDBUF		= 0x1001;
+-	SO_RCVBUF		= 0x1002;
+-	SO_SNDTIMEO		= 0x1005;
+-	SO_RCVTIMEO		= 0x1006;
+-	SO_NOSIGPIPE		= 0x1022;
+-	IPPROTO_TCP		= 0x6;
+-	IPPROTO_UDP		= 0x11;
+-	TCP_NODELAY		= 0x1;
+-	SOMAXCONN		= 0x80;
+ 	SizeofSockaddrInet4	= 0x10;
+ 	SizeofSockaddrInet6	= 0x1c;
+-	SizeofSockaddrAny	= 0x1c;
++	SizeofSockaddrAny	= 0x6c;
+ 	SizeofSockaddrUnix	= 0x6a;
+-	_PTRACE_TRACEME		= 0;
+-	_PTRACE_CONT		= 0x7;
+-	_PTRACE_KILL		= 0x8;
+-	EVFILT_READ		= -0x1;
+-	EVFILT_WRITE		= -0x2;
+-	EVFILT_AIO		= -0x3;
+-	EVFILT_VNODE		= -0x4;
+-	EVFILT_PROC		= -0x5;
+-	EVFILT_SIGNAL		= -0x6;
+-	EVFILT_TIMER		= -0x7;
+-	EVFILT_MACHPORT		= -0x8;
+-	EVFILT_FS		= -0x9;
+-	EVFILT_SYSCOUNT		= 0x9;
+-	EV_ADD			= 0x1;
+-	EV_DELETE		= 0x2;
+-	EV_DISABLE		= 0x8;
+-	EV_RECEIPT		= 0x40;
+-	EV_ONESHOT		= 0x10;
+-	EV_CLEAR		= 0x20;
+-	EV_SYSFLAGS		= 0xf000;
+-	EV_FLAG0		= 0x1000;
+-	EV_FLAG1		= 0x2000;
+-	EV_EOF			= 0x8000;
+-	EV_ERROR		= 0x4000;
++	SizeofLinger		= 0x8;
++	SizeofMsghdr		= 0x30;
++	SizeofCmsghdr		= 0xc;
++	PTRACE_TRACEME		= 0;
++	PTRACE_CONT		= 0x7;
++	PTRACE_KILL		= 0x8;
+ )
+ 
+ // Types
+@@ -192,6 +112,40 @@ type Statfs_t struct {
+ 	Reserved	[8]uint32;
+ }
+ 
++type Flock_t struct {
++	Start	int64;
++	Len	int64;
++	Pid	int32;
++	Type	int16;
++	Whence	int16;
++}
++
++type Fstore_t struct {
++	Flags		uint32;
++	Posmode		int32;
++	Offset		int64;
++	Length		int64;
++	Bytesalloc	int64;
++}
++
++type Radvisory_t struct {
++	Offset	int64;
++	Count	int32;
++	Pad0	[4]byte;
++}
++
++type Fbootstraptransfer_t struct {
++	Offset	int64;
++	Length	uint64;
++	Buffer	*byte;
++}
++
++type Log2phys_t struct {
++	Flags		uint32;
++	Contigbytes	int64;
++	Devoffset	int64;
++}
++
+ type Dirent struct {
+ 	Ino	uint64;
+ 	Seekoff	uint64;
+@@ -233,7 +187,7 @@ type RawSockaddr struct {
+ 
+ type RawSockaddrAny struct {
+ 	Addr	RawSockaddr;
+-	Pad	[12]int8;
++	Pad	[92]int8;
+ }
+ 
+ type _Socklen uint32
+@@ -243,6 +197,29 @@ type Linger struct {
+ 	Linger	int32;
+ }
+ 
++type Iovec struct {
++	Base	*byte;
++	Len	uint64;
++}
++
++type Msghdr struct {
++	Name		*byte;
++	Namelen		uint32;
++	Pad0		[4]byte;
++	Iov		*Iovec;
++	Iovlen		int32;
++	Pad1		[4]byte;
++	Control		*byte;
++	Controllen	uint32;
++	Flags		int32;
++}
++
++type Cmsghdr struct {
++	Len	uint32;
++	Level	int32;
++	Type	int32;
++}
++
+ type Kevent_t struct {
+ 	Ident	uint64;
+ 	Filter	int16;
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index 2746d995a7..68f2032b83 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -12,115 +12,13 @@ const (
+ 	sizeofLong		= 0x4;
+ 	sizeofLongLong		= 0x8;
+ 	PathMax			= 0x1000;
+-	O_RDONLY		= 0;
+-	O_WRONLY		= 0x1;
+-	O_RDWR			= 0x2;
+-	O_APPEND		= 0x400;
+-	O_ASYNC			= 0x2000;
+-	O_CREAT			= 0x40;
+-	O_NOCTTY		= 0x100;
+-	O_NONBLOCK		= 0x800;
+-	O_SYNC			= 0x1000;
+-	O_TRUNC			= 0x200;
+-	O_CLOEXEC		= 0;
+-	F_GETFD			= 0x1;
+-	F_SETFD			= 0x2;
+-	F_GETFL			= 0x3;
+-	F_SETFL			= 0x4;
+-	FD_CLOEXEC		= 0x1;
+-	NAME_MAX		= 0xff;
+-	S_IFMT			= 0xf000;
+-	S_IFIFO			= 0x1000;
+-	S_IFCHR			= 0x2000;
+-	S_IFDIR			= 0x4000;
+-	S_IFBLK			= 0x6000;
+-	S_IFREG			= 0x8000;
+-	S_IFLNK			= 0xa000;
+-	S_IFSOCK		= 0xc000;
+-	S_ISUID			= 0x800;
+-	S_ISGID			= 0x400;
+-	S_ISVTX			= 0x200;
+-	S_IRUSR			= 0x100;
+-	S_IWUSR			= 0x80;
+-	S_IXUSR			= 0x40;
+-	WNOHANG			= 0x1;
+-	WUNTRACED		= 0x2;
+-	WEXITED			= 0x4;
+-	WSTOPPED		= 0x2;
+-	WCONTINUED		= 0x8;
+-	WNOWAIT			= 0x1000000;
+-	WCLONE			= 0x80000000;
+-	WALL			= 0x40000000;
+-	WNOTHREAD		= 0x20000000;
+-	AF_UNIX			= 0x1;
+-	AF_INET			= 0x2;
+-	AF_INET6		= 0xa;
+-	SOCK_STREAM		= 0x1;
+-	SOCK_DGRAM		= 0x2;
+-	SOCK_RAW		= 0x3;
+-	SOCK_SEQPACKET		= 0x5;
+-	SOL_SOCKET		= 0x1;
+-	SO_REUSEADDR		= 0x2;
+-	SO_KEEPALIVE		= 0x9;
+-	SO_DONTROUTE		= 0x5;
+-	SO_BROADCAST		= 0x6;
+-	SO_LINGER		= 0xd;
+-	SO_SNDBUF		= 0x7;
+-	SO_RCVBUF		= 0x8;
+-	SO_SNDTIMEO		= 0x15;
+-	SO_RCVTIMEO		= 0x14;
+-	IPPROTO_TCP		= 0x6;
+-	IPPROTO_UDP		= 0x11;
+-	TCP_NODELAY		= 0x1;
+-	SOMAXCONN		= 0x80;
+ 	SizeofSockaddrInet4	= 0x10;
+ 	SizeofSockaddrInet6	= 0x1c;
+-	SizeofSockaddrAny	= 0x1c;
++	SizeofSockaddrAny	= 0x70;
+ 	SizeofSockaddrUnix	= 0x6e;
+-	_PTRACE_TRACEME		= 0;
+-	_PTRACE_PEEKTEXT	= 0x1;
+-	_PTRACE_PEEKDATA	= 0x2;
+-	_PTRACE_PEEKUSER	= 0x3;
+-	_PTRACE_POKETEXT	= 0x4;
+-	_PTRACE_POKEDATA	= 0x5;
+-	_PTRACE_POKEUSER	= 0x6;
+-	_PTRACE_CONT		= 0x7;
+-	_PTRACE_KILL		= 0x8;
+-	_PTRACE_SINGLESTEP	= 0x9;
+-	_PTRACE_GETREGS		= 0xc;
+-	_PTRACE_SETREGS		= 0xd;
+-	_PTRACE_GETFPREGS	= 0xe;
+-	_PTRACE_SETFPREGS	= 0xf;
+-	_PTRACE_ATTACH		= 0x10;
+-	_PTRACE_DETACH		= 0x11;
+-	_PTRACE_GETFPXREGS	= 0x12;
+-	_PTRACE_SETFPXREGS	= 0x13;
+-	_PTRACE_SYSCALL		= 0x18;
+-	_PTRACE_SETOPTIONS	= 0x4200;
+-	_PTRACE_GETEVENTMSG	= 0x4201;
+-	_PTRACE_GETSIGINFO	= 0x4202;
+-	_PTRACE_SETSIGINFO	= 0x4203;
+-	PTRACE_O_TRACESYSGOOD	= 0x1;
+-	PTRACE_O_TRACEFORK	= 0x2;
+-	PTRACE_O_TRACEVFORK	= 0x4;
+-	PTRACE_O_TRACECLONE	= 0x8;
+-	PTRACE_O_TRACEEXEC	= 0x10;
+-	PTRACE_O_TRACEVFORKDONE	= 0x20;
+-	PTRACE_O_TRACEEXIT	= 0x40;
+-	PTRACE_O_MASK		= 0x7f;
+-	PTRACE_EVENT_FORK	= 0x1;
+-	PTRACE_EVENT_VFORK	= 0x2;
+-	PTRACE_EVENT_CLONE	= 0x3;
+-	PTRACE_EVENT_EXEC	= 0x4;
+-	PTRACE_EVENT_VFORK_DONE	= 0x5;
+-	PTRACE_EVENT_EXIT	= 0x6;
+-	EPOLLIN			= 0x1;
+-	EPOLLRDHUP		= 0x2000;
+-	EPOLLOUT		= 0x4;
+-	EPOLLONESHOT		= 0x40000000;
+-	EPOLL_CTL_MOD		= 0x3;
+-	EPOLL_CTL_ADD		= 0x1;
+-	EPOLL_CTL_DEL		= 0x2;
++	SizeofLinger		= 0x8;
++	SizeofMsghdr		= 0x1c;
++	SizeofCmsghdr		= 0xc;
+ )
+ 
+ // Types
+@@ -219,15 +117,15 @@ type _Gid_t uint32
+ 
+ type Stat_t struct {
+ 	Dev		uint64;
+-	__pad1		uint16;
++	X__pad1		uint16;
+ 	Pad0		[2]byte;
+-	__st_ino	uint32;
++	X__st_ino	uint32;
+ 	Mode		uint32;
+ 	Nlink		uint32;
+ 	Uid		uint32;
+ 	Gid		uint32;
+ 	Rdev		uint64;
+-	__pad2		uint16;
++	X__pad2		uint16;
+ 	Pad1		[2]byte;
+ 	Size		int64;
+ 	Blksize		int32;
+@@ -288,7 +186,7 @@ type RawSockaddr struct {
+ 
+ type RawSockaddrAny struct {
+ 	Addr	RawSockaddr;
+-	Pad	[12]int8;
++	Pad	[96]int8;
+ }
+ 
+ type _Socklen uint32
+@@ -298,6 +196,27 @@ type Linger struct {
+ 	Linger	int32;
+ }
+ 
++type Iovec struct {
++	Base	*byte;
++	Len	uint32;
++}
++
++type Msghdr struct {
++	Name		*byte;
++	Namelen		uint32;
++	Iov		*Iovec;
++	Iovlen		uint32;
++	Control		*byte;
++	Controllen	uint32;
++	Flags		int32;
++}
++
++type Cmsghdr struct {
++	Len	uint32;
++	Level	int32;
++	Type	int32;
++}
++
+ type PtraceRegs struct {
+ 	Ebx		int32;
+ 	Ecx		int32;
+@@ -342,7 +261,7 @@ type Sysinfo_t struct {
+ 	Totalhigh	uint32;
+ 	Freehigh	uint32;
+ 	Unit		uint32;
+-	_f		[8]int8;
++	X_f		[8]int8;
+ }
+ 
+ type Utsname struct {
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 57d23d3033..74e9750f9a 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -12,115 +12,13 @@ const (
+ 	sizeofLong		= 0x8;
+ 	sizeofLongLong		= 0x8;
+ 	PathMax			= 0x1000;
+-	O_RDONLY		= 0;
+-	O_WRONLY		= 0x1;
+-	O_RDWR			= 0x2;
+-	O_APPEND		= 0x400;
+-	O_ASYNC			= 0x2000;
+-	O_CREAT			= 0x40;
+-	O_NOCTTY		= 0x100;
+-	O_NONBLOCK		= 0x800;
+-	O_SYNC			= 0x1000;
+-	O_TRUNC			= 0x200;
+-	O_CLOEXEC		= 0;
+-	F_GETFD			= 0x1;
+-	F_SETFD			= 0x2;
+-	F_GETFL			= 0x3;
+-	F_SETFL			= 0x4;
+-	FD_CLOEXEC		= 0x1;
+-	NAME_MAX		= 0xff;
+-	S_IFMT			= 0xf000;
+-	S_IFIFO			= 0x1000;
+-	S_IFCHR			= 0x2000;
+-	S_IFDIR			= 0x4000;
+-	S_IFBLK			= 0x6000;
+-	S_IFREG			= 0x8000;
+-	S_IFLNK			= 0xa000;
+-	S_IFSOCK		= 0xc000;
+-	S_ISUID			= 0x800;
+-	S_ISGID			= 0x400;
+-	S_ISVTX			= 0x200;
+-	S_IRUSR			= 0x100;
+-	S_IWUSR			= 0x80;
+-	S_IXUSR			= 0x40;
+-	WNOHANG			= 0x1;
+-	WUNTRACED		= 0x2;
+-	WEXITED			= 0x4;
+-	WSTOPPED		= 0x2;
+-	WCONTINUED		= 0x8;
+-	WNOWAIT			= 0x1000000;
+-	WCLONE			= 0x80000000;
+-	WALL			= 0x40000000;
+-	WNOTHREAD		= 0x20000000;
+-	AF_UNIX			= 0x1;
+-	AF_INET			= 0x2;
+-	AF_INET6		= 0xa;
+-	SOCK_STREAM		= 0x1;
+-	SOCK_DGRAM		= 0x2;
+-	SOCK_RAW		= 0x3;
+-	SOCK_SEQPACKET		= 0x5;
+-	SOL_SOCKET		= 0x1;
+-	SO_REUSEADDR		= 0x2;
+-	SO_KEEPALIVE		= 0x9;
+-	SO_DONTROUTE		= 0x5;
+-	SO_BROADCAST		= 0x6;
+-	SO_LINGER		= 0xd;
+-	SO_SNDBUF		= 0x7;
+-	SO_RCVBUF		= 0x8;
+-	SO_SNDTIMEO		= 0x15;
+-	SO_RCVTIMEO		= 0x14;
+-	IPPROTO_TCP		= 0x6;
+-	IPPROTO_UDP		= 0x11;
+-	TCP_NODELAY		= 0x1;
+-	SOMAXCONN		= 0x80;
+ 	SizeofSockaddrInet4	= 0x10;
+ 	SizeofSockaddrInet6	= 0x1c;
+-	SizeofSockaddrAny	= 0x1c;
++	SizeofSockaddrAny	= 0x70;
+ 	SizeofSockaddrUnix	= 0x6e;
+-	_PTRACE_TRACEME		= 0;
+-	_PTRACE_PEEKTEXT	= 0x1;
+-	_PTRACE_PEEKDATA	= 0x2;
+-	_PTRACE_PEEKUSER	= 0x3;
+-	_PTRACE_POKETEXT	= 0x4;
+-	_PTRACE_POKEDATA	= 0x5;
+-	_PTRACE_POKEUSER	= 0x6;
+-	_PTRACE_CONT		= 0x7;
+-	_PTRACE_KILL		= 0x8;
+-	_PTRACE_SINGLESTEP	= 0x9;
+-	_PTRACE_GETREGS		= 0xc;
+-	_PTRACE_SETREGS		= 0xd;
+-	_PTRACE_GETFPREGS	= 0xe;
+-	_PTRACE_SETFPREGS	= 0xf;
+-	_PTRACE_ATTACH		= 0x10;
+-	_PTRACE_DETACH		= 0x11;
+-	_PTRACE_GETFPXREGS	= 0x12;
+-	_PTRACE_SETFPXREGS	= 0x13;
+-	_PTRACE_SYSCALL		= 0x18;
+-	_PTRACE_SETOPTIONS	= 0x4200;
+-	_PTRACE_GETEVENTMSG	= 0x4201;
+-	_PTRACE_GETSIGINFO	= 0x4202;
+-	_PTRACE_SETSIGINFO	= 0x4203;
+-	PTRACE_O_TRACESYSGOOD	= 0x1;
+-	PTRACE_O_TRACEFORK	= 0x2;
+-	PTRACE_O_TRACEVFORK	= 0x4;
+-	PTRACE_O_TRACECLONE	= 0x8;
+-	PTRACE_O_TRACEEXEC	= 0x10;
+-	PTRACE_O_TRACEVFORKDONE	= 0x20;
+-	PTRACE_O_TRACEEXIT	= 0x40;
+-	PTRACE_O_MASK		= 0x7f;
+-	PTRACE_EVENT_FORK	= 0x1;
+-	PTRACE_EVENT_VFORK	= 0x2;
+-	PTRACE_EVENT_CLONE	= 0x3;
+-	PTRACE_EVENT_EXEC	= 0x4;
+-	PTRACE_EVENT_VFORK_DONE	= 0x5;
+-	PTRACE_EVENT_EXIT	= 0x6;
+-	EPOLLIN			= 0x1;
+-	EPOLLRDHUP		= 0x2000;
+-	EPOLLOUT		= 0x4;
+-	EPOLLONESHOT		= 0x40000000;
+-	EPOLL_CTL_MOD		= 0x3;
+-	EPOLL_CTL_ADD		= 0x1;
+-	EPOLL_CTL_DEL		= 0x2;
++	SizeofLinger		= 0x8;
++	SizeofMsghdr		= 0x38;
++	SizeofCmsghdr		= 0x10;
+ )
+ 
+ // Types
+@@ -288,7 +186,7 @@ type RawSockaddr struct {
+ 
+ type RawSockaddrAny struct {
+ 	Addr	RawSockaddr;
+-	Pad	[12]int8;
++	Pad	[96]int8;
+ }
+ 
+ type _Socklen uint32
+@@ -298,6 +196,29 @@ type Linger struct {
+ 	Linger	int32;
+ }
+ 
++type Iovec struct {
++	Base	*byte;
++	Len	uint64;
++}
++
++type Msghdr struct {
++	Name		*byte;
++	Namelen		uint32;
++	Pad0		[4]byte;
++	Iov		*Iovec;
++	Iovlen		uint64;
++	Control		*byte;
++	Controllen	uint64;
++	Flags		int32;
++	Pad1		[4]byte;
++}
++
++type Cmsghdr struct {
++	Len	uint64;
++	Level	int32;
++	Type	int32;
++}
++
+ type PtraceRegs struct {
+ 	R15		uint64;
+ 	R14		uint64;

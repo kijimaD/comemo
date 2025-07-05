@@ -7,7 +7,7 @@ Date:   Wed Jan 19 15:10:15 2011 -0500
     R=rsc, brainman
     CC=golang-dev
     https://golang.org/cl/4079041
-
+---
  .hgignore                            |  2 +
  src/cmd/8l/pass.c                    |  7 ++++
  src/cmd/godefs/main.c                |  2 +-
@@ -22,3 +22,619 @@ Date:   Wed Jan 19 15:10:15 2011 -0500
  src/pkg/runtime/windows/os.h         |  2 +
  src/pkg/runtime/windows/thread.c     | 41 ++++++++++++++++++
  13 files changed, 329 insertions(+), 41 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 95a1665ec4..2d037467ab 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -11,6 +11,8 @@ syntax:glob
+ [568a].out
+ *~
+ *.orig
++*.exe
++.*.swp
+ core
+ _cgo_*
+ _obj
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 6e387b0b5e..c3f1f4736f 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -38,8 +38,15 @@ static void xfol(Prog*, Prog**);
+ // see ../../pkg/runtime/proc.c:/StackGuard
+ enum
+ {
++#ifdef __WINDOWS__
++	// use larger stacks to compensate for larger stack guard,
++	// needed for exception handling.
++	StackSmall = 256,
++	StackBig = 8192,
++#else
+ 	StackSmall = 128,
+ 	StackBig = 4096,
++#endif
+ };
+ 
+ Prog*
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+index 69ee1be5db..d4163421d1 100644
+--- a/src/cmd/godefs/main.c
++++ b/src/cmd/godefs/main.c
+@@ -196,7 +196,7 @@ main(int argc, char **argv)
+ 	av[n++] = "gcc";
+ 	av[n++] = "-fdollars-in-identifiers";
+ 	av[n++] = "-S";	// write assembly
+-	av[n++] = "-gstabs";	// include stabs info
++	av[n++] = "-gstabs+";	// include stabs info
+ 	av[n++] = "-o";	// to ...
+ 	av[n++] = "-";	// ... stdout
+ 	av[n++] = "-xc";	// read C
+diff --git a/src/cmd/godefs/stabs.c b/src/cmd/godefs/stabs.c
+index 1bc96d4c8c..f2bb57eb65 100644
+--- a/src/cmd/godefs/stabs.c
++++ b/src/cmd/godefs/stabs.c
+@@ -102,6 +102,23 @@ parsetypenum(char **pp, vlong *n1p, vlong *n2p)
+ 	return 0;
+ }
+ 
++// Written to parse max/min of vlong correctly.
++static vlong
++parseoctal(char **pp)
++{
++	char *p;
++	vlong n;
++
++	p = *pp;
++	if(*p++ != '0')
++		return 0;
++	n = 0;
++	while(*p >= '0' && *p <= '9')
++		n = n << 3 | *p++ - '0';
++	*pp = p;
++	return n;
++}
++
+ // Integer types are represented in stabs as a "range"
+ // type with a lo and a hi value.  The lo and hi used to
+ // be lo and hi for the type, but there are now odd
+@@ -112,31 +129,24 @@ parsetypenum(char **pp, vlong *n1p, vlong *n2p)
+ typedef struct Intrange Intrange;
+ struct Intrange
+ {
+-	int signlo;	// sign of lo
+ 	vlong lo;
+-	int signhi;	// sign of hi
+ 	vlong hi;
+ 	int kind;
+ };
+ 
+-// NOTE(rsc): Iant says that these might be different depending
+-// on the gcc mode, though I haven't observed this yet.
+ Intrange intranges[] = {
+-	'+', 0, '+', 127, Int8,	// char
+-	'-', 128, '+', 127, Int8,	// signed char
+-	'+', 0, '+', 255, Uint8,
+-	'-', 32768, '+', 32767, Int16,
+-	'+', 0, '+', 65535, Uint16,
+-	'-', 2147483648LL, '+', 2147483647LL, Int32,
+-	'+', 0, '+', 4294967295LL, Uint32,
+-
+-	// abnormal cases
+-	'-', 0, '+', 4294967295LL, Int64,
+-	'+', 0, '-', 1, Uint64,
+-
+-	'+', 4, '+', 0, Float32,
+-	'+', 8, '+', 0, Float64,
+-	'+', 16, '+', 0, Void,
++	0, 127, Int8,		// char
++	-128, 127, Int8,	// signed char
++	0, 255, Uint8,
++	-32768, 32767, Int16,
++	0, 65535, Uint16,
++	-2147483648LL, 2147483647LL, Int32,
++	0, 4294967295LL, Uint32,
++	1LL << 63, ~(1LL << 63), Int64,
++	0, -1, Uint64,
++	4, 0, Float32,
++	8, 0, Float64,
++	16, 0, Void,
+ };
+ 
+ static int kindsize[] = {
+@@ -158,7 +168,7 @@ parsedef(char **pp, char *name)
+ {
+ 	char *p;
+ 	Type *t, *tt;
+-	int i, signlo, signhi;
++	int i;
+ 	vlong n1, n2, lo, hi;
+ 	Field *f;
+ 	Intrange *r;
+@@ -213,6 +223,11 @@ parsedef(char **pp, char *name)
+ 		*pp = "";
+ 		return t;
+ 
++	case '@':	// type attribute
++		while (*++p != ';');
++		*pp = ++p;
++		return parsedef(pp, nil);
++
+ 	case '*':	// pointer
+ 		p++;
+ 		t->kind = Ptr;
+@@ -269,6 +284,10 @@ parsedef(char **pp, char *name)
+ 			return nil;
+ 		break;
+ 
++	case 'k':	// const
++		++*pp;
++		return parsedef(pp, nil);
++
+ 	case 'r':	// sub-range (used for integers)
+ 		p++;
+ 		if(parsedef(&p, nil) == nil)
+@@ -280,23 +299,19 @@ parsedef(char **pp, char *name)
+ 				fprint(2, "range expected number: %s\n", p);
+ 			return nil;
+ 		}
+-		if(*p == '-') {
+-			signlo = '-';
+-			p++;
+-		} else
+-			signlo = '+';
+-		lo = strtoll(p, &p, 10);
++		if(*p == '0')
++			lo = parseoctal(&p);
++		else
++			lo = strtoll(p, &p, 10);
+ 		if(*p != ';' || *++p == ';') {
+ 			if(stabsdebug)
+ 				fprint(2, "range expected number: %s\n", p);
+ 			return nil;
+ 		}
+-		if(*p == '-') {
+-			signhi = '-';
+-			p++;
+-		} else
+-			signhi = '+';
+-		hi = strtoll(p, &p, 10);
++		if(*p == '0')
++			hi = parseoctal(&p);
++		else
++			hi = strtoll(p, &p, 10);
+ 		if(*p != ';') {
+ 			if(stabsdebug)
+ 				fprint(2, "range expected trailing semi: %s\n", p);
+@@ -306,7 +321,7 @@ parsedef(char **pp, char *name)
+ 		t->size = hi+1;	// might be array size
+ 		for(i=0; i<nelem(intranges); i++) {
+ 			r = &intranges[i];
+-			if(r->signlo == signlo && r->signhi == signhi && r->lo == lo && r->hi == hi) {
++			if(r->lo == lo && r->hi == hi) {
+ 				t->kind = r->kind;
+ 				break;
+ 			}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 09c7a1dbc9..5eb466e04e 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -733,6 +733,14 @@ runtime·endcgocallback(G* g1)
+  */
+ enum
+ {
++#ifdef __WINDOWS__
++	// need enough room in guard area for exception handler.
++	// use larger stacks to compensate for larger stack guard.
++	StackSmall = 256,
++	StackGuard = 2048,
++	StackBig   = 8192,
++	StackExtra = StackGuard,
++#else
+ 	// byte offset of stack guard (g->stackguard) above bottom of stack.
+ 	StackGuard = 256,
+ 
+@@ -745,6 +753,10 @@ enum
+ 	// the frame is allocated) is assumed not to be much bigger
+ 	// than this amount.  it may not be used efficiently if it is.
+ 	StackBig = 4096,
++
++	// extra room over frame size when allocating a stack.
++	StackExtra = 1024,
++#endif
+ };
+ 
+ void
+@@ -812,7 +824,7 @@ runtime·newstack(void)
+ 		framesize += argsize;
+ 		if(framesize < StackBig)
+ 			framesize = StackBig;
+-		framesize += 1024;	// room for more functions, Stktop.
++		framesize += StackExtra;	// room for more functions, Stktop.
+ 		stk = runtime·stackalloc(framesize);
+ 		top = (Stktop*)(stk+framesize-sizeof(*top));
+ 		free = true;
+@@ -915,7 +927,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ 		if(newg->stackguard - StackGuard != newg->stack0)
+ 			runtime·throw("invalid stack in newg");
+ 	} else {
+-		newg = runtime·malg(4096);
++		newg = runtime·malg(StackBig);
+ 		newg->status = Gwaiting;
+ 		newg->alllink = runtime·allg;
+ 		runtime·allg = newg;
+diff --git a/src/pkg/runtime/windows/386/defs.h b/src/pkg/runtime/windows/386/defs.h
+index f5a16367eb..a2a8821034 100644
+--- a/src/pkg/runtime/windows/386/defs.h
++++ b/src/pkg/runtime/windows/386/defs.h
+@@ -10,8 +10,69 @@ enum {
+ 	PROT_EXEC = 0x4,
+ 	MAP_ANON = 0x1,
+ 	MAP_PRIVATE = 0x2,
++	EXCEPTION_ACCESS_VIOLATION = 0xc0000005,
++	EXCEPTION_BREAKPOINT = 0x80000003,
++	EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d,
++	EXCEPTION_FLT_DIVIDE_BY_ZERO = 0xc000008e,
++	EXCEPTION_FLT_INEXACT_RESULT = 0xc000008f,
++	EXCEPTION_FLT_OVERFLOW = 0xc0000091,
++	EXCEPTION_FLT_UNDERFLOW = 0xc0000093,
++	EXCEPTION_INT_DIVIDE_BY_ZERO = 0xc0000094,
++	EXCEPTION_INT_OVERFLOW = 0xc0000095,
+ };
+ 
+ // Types
+ #pragma pack on
++
++typedef struct ExceptionRecord ExceptionRecord;
++struct ExceptionRecord {
++	uint32 ExceptionCode;
++	uint32 ExceptionFlags;
++	ExceptionRecord *ExceptionRecord;
++	void *ExceptionAddress;
++	uint32 NumberParameters;
++	uint32 ExceptionInformation[15];
++};
++
++typedef struct FloatingSaveArea FloatingSaveArea;
++struct FloatingSaveArea {
++	uint32 ControlWord;
++	uint32 StatusWord;
++	uint32 TagWord;
++	uint32 ErrorOffset;
++	uint32 ErrorSelector;
++	uint32 DataOffset;
++	uint32 DataSelector;
++	uint8 RegisterArea[80];
++	uint32 Cr0NpxState;
++};
++
++typedef struct Context Context;
++struct Context {
++	uint32 ContextFlags;
++	uint32 Dr0;
++	uint32 Dr1;
++	uint32 Dr2;
++	uint32 Dr3;
++	uint32 Dr6;
++	uint32 Dr7;
++	FloatingSaveArea FloatSave;
++	uint32 SegGs;
++	uint32 SegFs;
++	uint32 SegEs;
++	uint32 SegDs;
++	uint32 Edi;
++	uint32 Esi;
++	uint32 Ebx;
++	uint32 Edx;
++	uint32 Ecx;
++	uint32 Eax;
++	uint32 Ebp;
++	uint32 Eip;
++	uint32 SegCs;
++	uint32 EFlags;
++	uint32 Esp;
++	uint32 SegSs;
++	uint8 ExtendedRegisters[512];
++};
+ #pragma pack off
+diff --git a/src/pkg/runtime/windows/386/rt0.s b/src/pkg/runtime/windows/386/rt0.s
+index e379830fb8..4b67a9f42e 100644
+--- a/src/pkg/runtime/windows/386/rt0.s
++++ b/src/pkg/runtime/windows/386/rt0.s
+@@ -3,4 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT _rt0_386_windows(SB),7,$0
++	// Set up SEH frame for bootstrap m
++	PUSHL	$runtime·sigtramp(SB)
++	PUSHL	0(FS)
++	MOVL	SP, 0(FS)
++
+ 	JMP	_rt0_386(SB)
+diff --git a/src/pkg/runtime/windows/386/signal.c b/src/pkg/runtime/windows/386/signal.c
+index 2ae79e5b56..33602527c8 100644
+--- a/src/pkg/runtime/windows/386/signal.c
++++ b/src/pkg/runtime/windows/386/signal.c
+@@ -3,6 +3,26 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "defs.h"
++#include "os.h"
++
++void
++runtime·dumpregs(Context *r)
++{
++	runtime·printf("eax     %x\n", r->Eax);
++	runtime·printf("ebx     %x\n", r->Ebx);
++	runtime·printf("ecx     %x\n", r->Ecx);
++	runtime·printf("edx     %x\n", r->Edx);
++	runtime·printf("edi     %x\n", r->Edi);
++	runtime·printf("esi     %x\n", r->Esi);
++	runtime·printf("ebp     %x\n", r->Ebp);
++	runtime·printf("esp     %x\n", r->Esp);
++	runtime·printf("eip     %x\n", r->Eip);
++	runtime·printf("eflags  %x\n", r->EFlags);
++	runtime·printf("cs      %x\n", r->SegCs);
++	runtime·printf("fs      %x\n", r->SegFs);
++	runtime·printf("gs      %x\n", r->SegGs);
++}
+ 
+ void
+ runtime·initsig(int32)
+@@ -15,3 +35,61 @@ runtime·signame(int32)
+ 	return runtime·emptystring;
+ }
+ 
++uint32
++runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
++{
++	uintptr *sp;
++	G *gp;
++
++	USED(frame);
++
++	switch(info->ExceptionCode) {
++	case EXCEPTION_BREAKPOINT:
++		r->Eip--;	// because 8l generates 2 bytes for INT3
++		return 1;
++	}
++
++	if((gp = m->curg) != nil && runtime·issigpanic(info->ExceptionCode)) {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp->sig = info->ExceptionCode;
++		gp->sigcode0 = info->ExceptionInformation[0];
++		gp->sigcode1 = info->ExceptionInformation[1];
++
++		// Only push runtime·sigpanic if r->eip != 0.
++		// If r->eip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime·sigpanic instead.
++		// (Otherwise the trace will end at runtime·sigpanic and we
++		// won't get to see who faulted.)
++		if(r->Eip != 0) {
++			sp = (uintptr*)r->Esp;
++			*--sp = r->Eip;
++			r->Esp = (uintptr)sp;
++		}
++		r->Eip = (uintptr)runtime·sigpanic;
++		return 0;
++	}
++
++	if(runtime·panicking)	// traceback already printed
++		runtime·exit(2);
++	runtime·panicking = 1;
++
++	runtime·printf("Exception %x %p %p\n", info->ExceptionCode,
++		info->ExceptionInformation[0], info->ExceptionInformation[1]);
++
++	runtime·printf("PC=%x\n", r->Eip);
++	runtime·printf("\n");
++
++	if(runtime·gotraceback()){
++		runtime·traceback((void*)r->Eip, (void*)r->Esp, 0, m->curg);
++		runtime·tracebackothers(m->curg);
++		runtime·dumpregs(r);
++	}
++
++	runtime·breakpoint();
++	runtime·exit(2);
++	return 0;
++}
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index 7f99b34de8..b3abab5cd4 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -48,12 +48,58 @@ TEXT runtime·stdcall_raw(SB),7,$4
+ 
+ 	RET 
+ 
++TEXT runtime·sigtramp(SB),7,$0
++	PUSHL	BP					// cdecl
++	PUSHL	0(FS)
++	CALL	runtime·sigtramp1(SB)
++	POPL	0(FS)
++	POPL	BP
++	RET
++
++TEXT runtime·sigtramp1(SB),0,$16-28
++	// unwinding?
++	MOVL	info+12(FP), BX
++	MOVL	4(BX), CX			// exception flags
++	ANDL	$6, CX
++	MOVL	$1, AX
++	JNZ		sigdone
++
++	// place ourselves at the top of the SEH chain to
++	// ensure SEH frames lie within thread stack bounds
++	MOVL	frame+16(FP), CX	// our SEH frame
++	MOVL	CX, 0(FS)
++
++	// copy arguments for call to sighandler
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	context+20(FP), BX
++	MOVL	BX, 8(SP)
++	MOVL	dispatcher+24(FP), BX
++	MOVL	BX, 12(SP)
++
++	CALL	runtime·sighandler(SB)
++	TESTL	AX, AX
++	JZ		sigdone
++
++	// call windows default handler early
++	MOVL	4(SP), BX			// our SEH frame
++	MOVL	0(BX), BX			// SEH frame of default handler
++	MOVL	4(BX), AX			// handler function pointer
++	MOVL	BX, 4(SP)			// set establisher frame
++	CALL	AX
++
++sigdone:
++	RET
++
+ // void tstart(M *newm);
+ TEXT runtime·tstart(SB),7,$0
+ 	MOVL	newm+4(SP), CX		// m
+ 	MOVL	m_g0(CX), DX		// g
+ 
+-	MOVL	SP, DI			// remember stack
++	// Set up SEH frame
++	PUSHL	$runtime·sigtramp(SB)
++	PUSHL	0(FS)
++	MOVL	SP, 0(FS)
+ 
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVL	SP, AX
+@@ -74,14 +120,14 @@ TEXT runtime·tstart(SB),7,$0
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+ 
+-	PUSHL	DI			// original stack
+-
+ 	CALL	runtime·stackcheck(SB)		// clobbers AX,CX
+ 
+ 	CALL	runtime·mstart(SB)
+ 
+-	POPL	DI			// original stack
+-	MOVL	DI, SP
++	// Pop SEH frame
++	MOVL	0(FS), SP
++	POPL	0(FS)
++	POPL	CX
+ 
+ 	RET
+ 
+diff --git a/src/pkg/runtime/windows/defs.c b/src/pkg/runtime/windows/defs.c
+index db5f1400ef..5aac03c816 100644
+--- a/src/pkg/runtime/windows/defs.c
++++ b/src/pkg/runtime/windows/defs.c
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <stdarg.h>
++#include <windef.h>
++#include <winbase.h>
++
+ enum {
+ 	$PROT_NONE = 0,
+ 	$PROT_READ = 1,
+@@ -10,4 +14,18 @@ enum {
+ 
+ 	$MAP_ANON = 1,
+ 	$MAP_PRIVATE = 2,
++
++	$EXCEPTION_ACCESS_VIOLATION = STATUS_ACCESS_VIOLATION,
++	$EXCEPTION_BREAKPOINT = STATUS_BREAKPOINT,
++	$EXCEPTION_FLT_DENORMAL_OPERAND = STATUS_FLOAT_DENORMAL_OPERAND,
++	$EXCEPTION_FLT_DIVIDE_BY_ZERO = STATUS_FLOAT_DIVIDE_BY_ZERO,
++	$EXCEPTION_FLT_INEXACT_RESULT = STATUS_FLOAT_INEXACT_RESULT,
++	$EXCEPTION_FLT_OVERFLOW = STATUS_FLOAT_OVERFLOW,
++	$EXCEPTION_FLT_UNDERFLOW = STATUS_FLOAT_UNDERFLOW,
++	$EXCEPTION_INT_DIVIDE_BY_ZERO = STATUS_INTEGER_DIVIDE_BY_ZERO,
++	$EXCEPTION_INT_OVERFLOW = STATUS_INTEGER_OVERFLOW,
+ };
++
++typedef EXCEPTION_RECORD $ExceptionRecord;
++typedef FLOATING_SAVE_AREA $FloatingSaveArea;
++typedef CONTEXT $Context;
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index ba89887ea9..c42bf9fef7 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -53,6 +53,7 @@ runtime·SysFree(void *v, uintptr n)
+ {
+ 	uintptr r;
+ 
++	USED(n);
+ 	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, 0, MEM_RELEASE);
+ 	if(r == 0)
+ 		abort("VirtualFree");
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index 77d0d32a0c..23f6863ae6 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -34,3 +34,5 @@ struct StdcallParams
+ };
+ 
+ void runtime·syscall(StdcallParams *p);
++uint32 runtime·issigpanic(uint32);
++void runtime·sigpanic(void);
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 9b51813373..5ab5128eb7 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "defs.h"
+ #include "os.h"
+ 
+ #pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
+@@ -215,3 +216,43 @@ runtime·syscall(StdcallParams *p)
+ 	p->err = (uintptr)runtime·stdcall_raw(runtime·GetLastError, 0, &a);
+ 	runtime·exitsyscall();
+ }
++
++uint32
++runtime·issigpanic(uint32 code)
++{
++	switch(code) {
++	case EXCEPTION_ACCESS_VIOLATION:
++	case EXCEPTION_INT_DIVIDE_BY_ZERO:
++	case EXCEPTION_INT_OVERFLOW:
++	case EXCEPTION_FLT_DENORMAL_OPERAND:
++	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
++	case EXCEPTION_FLT_INEXACT_RESULT:
++	case EXCEPTION_FLT_OVERFLOW:
++	case EXCEPTION_FLT_UNDERFLOW:
++		return 1;
++	}
++	return 0;
++}
++
++void
++runtime·sigpanic(void)
++{
++	switch(g->sig) {
++	case EXCEPTION_ACCESS_VIOLATION:
++		if(g->sigcode1 < 0x1000)
++			runtime·panicstring("invalid memory address or nil pointer dereference");
++		runtime·printf("unexpected fault address %p\n", g->sigcode1);
++		runtime·throw("fault");
++	case EXCEPTION_INT_DIVIDE_BY_ZERO:
++		runtime·panicstring("integer divide by zero");
++	case EXCEPTION_INT_OVERFLOW:
++		runtime·panicstring("integer overflow");
++	case EXCEPTION_FLT_DENORMAL_OPERAND:
++	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
++	case EXCEPTION_FLT_INEXACT_RESULT:
++	case EXCEPTION_FLT_OVERFLOW:
++	case EXCEPTION_FLT_UNDERFLOW:
++		runtime·panicstring("floating point error");
++	}
++	runtime·throw("fault");
++}

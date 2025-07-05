@@ -8,7 +8,44 @@ Date:   Fri Dec 12 13:29:25 2008 -0800
     DELTA=16  (5 added, 10 deleted, 1 changed)
     OCL=21085
     CL=21087
-
+---
  test/{bugs => fixedbugs}/bug104.go | 0
  test/golden.out                    | 7 +------
  2 files changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/test/bugs/bug104.go b/test/fixedbugs/bug104.go
+similarity index 100%
+rename from test/bugs/bug104.go
+rename to test/fixedbugs/bug104.go
+diff --git a/test/golden.out b/test/golden.out
+index 30badd3b14..9821f4ab86 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,8 +1,6 @@
+ 
+ =========== ./convlit.go
+ BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver|incompatible'
+-errchk: ./convlit.go: missing expected error message on line 17: 'conver|incompatible'
+-errchk: ./convlit.go: missing expected error message on line 18: 'conver|incompatible'
+ errchk: ./convlit.go: missing expected error message on line 22: 'convert'
+ errchk: ./convlit.go: missing expected error message on line 23: 'overflow'
+ errchk: ./convlit.go: missing expected error message on line 24: 'overflow'
+@@ -14,7 +12,7 @@ errchk: ./convlit.go: unmatched error messages:
+ ./convlit.go:8: cannot convert non-integer constant to int
+ ./convlit.go:9: cannot convert non-integer constant to int
+ ./convlit.go:11: overflow converting constant to int
+-./convlit.go:12: overflow converting constant to float
++./convlit.go:11: fatal error: too many errors
+ ==================================================
+ 
+ =========== ./helloworld.go
+@@ -123,9 +121,6 @@ bugs/bug098.go:10: illegal types for operand: AS
+ 	**M
+ BUG should compile
+ 
+-=========== bugs/bug104.go
+-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug104.go
+-
+ =========== bugs/bug105.go
+ bugs/bug105.go:8: P: undefined
+ bugs/bug105.go:8: illegal types for operand: RETURN

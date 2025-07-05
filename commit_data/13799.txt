@@ -66,6 +66,19 @@ Date:   Tue Sep 11 19:45:28 2012 +1000
     R=rsc, dave, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/6506089
-
+---
  src/cmd/gc/const.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 2f323c77f9..e4c1a784ab 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1207,6 +1207,7 @@ smallintconst(Node *n)
+ 	case TIDEAL:
+ 	case TINT64:
+ 	case TUINT64:
++	case TPTR64:
+ 		if(mpcmpfixfix(n->val.u.xval, minintval[TINT32]) < 0
+ 		|| mpcmpfixfix(n->val.u.xval, maxintval[TINT32]) > 0)
+ 			break;

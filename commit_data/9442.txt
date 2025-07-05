@@ -7,6 +7,19 @@ Date:   Mon Aug 22 22:43:49 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4930044
-
+---
  src/pkg/gob/debug.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/gob/debug.go b/src/pkg/gob/debug.go
+index ce8a6ff5e5..16c2194eba 100644
+--- a/src/pkg/gob/debug.go
++++ b/src/pkg/gob/debug.go
+@@ -154,6 +154,7 @@ func (deb *debugger) dump(format string, args ...interface{}) {
+ }
+ 
+ // Debug prints a human-readable representation of the gob data read from r.
++// It is a no-op unless debugging was enabled when the package was built.
+ func Debug(r io.Reader) {
+ 	err := debug(r)
+ 	if err != nil {

@@ -19,7 +19,7 @@ Date:   Mon Nov 2 10:46:58 2015 -0800
     Change-Id: I948b2bc1f22d477c1756204996b4e3e1fb568d81
     Reviewed-on: https://go-review.googlesource.com/16610
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 10 ++-
  src/cmd/compile/internal/gc/builtin/runtime.go | 49 +++++++++++++-
  src/cmd/compile/internal/gc/fmt.go             |  8 ---
@@ -35,3 +35,526 @@ Date:   Mon Nov 2 10:46:58 2015 -0800
  src/runtime/select.go                          |  4 +-
  src/runtime/type.go                            |  1 -
  14 files changed, 94 insertions(+), 163 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 4a6e56fe47..d1827ef0fe 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -4,6 +4,10 @@ package gc
+ 
+ const runtimeimport = "" +
+ 	"package runtime safe\n" +
++	"type @\"\".hbucket uint8\n" +
++	"type @\"\".hmap struct { @\"\".count int; @\"\".flags uint8; B uint8; @\"\".hash0 uint32; @\"\".buckets *@\"\".hbucket; @\"\".oldbuckets *@\"\".hbucket; @\"\".nevacuate uintptr; @\"\".overflow *[2]*[]*@\"\".hbucket }\n" +
++	"type @\"\".hiter struct { @\"\".key *byte; @\"\".value *byte; @\"\".t *byte; @\"\".h *@\"\".hmap; @\"\".buckets *@\"\".hbucket; @\"\".bptr *@\"\".hbucket; @\"\".overflow [2]*[]*@\"\".hbucket; @\"\".startBucket uintptr; @\"\".offset uint8; @\"\".wrapped bool; B uint8; @\"\".i uint8; @\"\".bucket uintptr; @\"\".checkBucket uintptr }\n" +
++	"type @\"\".scase struct { @\"\".elem *byte; @\"\".c *byte; @\"\".pc uintptr; @\"\".kind uint16; @\"\".so uint16; @\"\".receivedp *bool; @\"\".releasetime int64 }\n" +
+ 	"func @\"\".newobject (@\"\".typ·2 *byte) (? *any)\n" +
+ 	"func @\"\".panicindex ()\n" +
+ 	"func @\"\".panicslice ()\n" +
+@@ -66,7 +70,7 @@ const runtimeimport = "" +
+ 	"func @\"\".panicdottype (@\"\".have·1 *byte, @\"\".want·2 *byte, @\"\".iface·3 *byte)\n" +
+ 	"func @\"\".ifaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
+ 	"func @\"\".efaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
+-	"func @\"\".makemap (@\"\".mapType·2 *byte, @\"\".hint·3 int64, @\"\".mapbuf·4 *any, @\"\".bucketbuf·5 *any) (@\"\".hmap·1 map[any]any)\n" +
++	"func @\"\".makemap (@\"\".mapType·2 *byte, @\"\".hint·3 int64, @\"\".mapbuf·4 *@\"\".hmap, @\"\".bucketbuf·5 *any) (@\"\".hmap·1 map[any]any)\n" +
+ 	"func @\"\".mapaccess1 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 *any) (@\"\".val·1 *any)\n" +
+ 	"func @\"\".mapaccess1_fast32 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
+ 	"func @\"\".mapaccess1_fast64 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
+@@ -76,9 +80,9 @@ const runtimeimport = "" +
+ 	"func @\"\".mapaccess2_fast64 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
+ 	"func @\"\".mapaccess2_faststr (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
+ 	"func @\"\".mapassign1 (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any, @\"\".val·4 *any)\n" +
+-	"func @\"\".mapiterinit (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".hiter·3 *any)\n" +
++	"func @\"\".mapiterinit (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".hiter·3 *@\"\".hiter)\n" +
+ 	"func @\"\".mapdelete (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any)\n" +
+-	"func @\"\".mapiternext (@\"\".hiter·1 *any)\n" +
++	"func @\"\".mapiternext (@\"\".hiter·1 *@\"\".hiter)\n" +
+ 	"func @\"\".makechan (@\"\".chanType·2 *byte, @\"\".hint·3 int64) (@\"\".hchan·1 chan any)\n" +
+ 	"func @\"\".chanrecv1 (@\"\".chanType·1 *byte, @\"\".hchan·2 <-chan any, @\"\".elem·3 *any)\n" +
+ 	"func @\"\".chanrecv2 (@\"\".chanType·2 *byte, @\"\".hchan·3 <-chan any, @\"\".elem·4 *any) (? bool)\n" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 0fe6242e74..e067d0bfa8 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -12,6 +12,49 @@ package runtime
+ 
+ // emitted by compiler, not referred to by go programs
+ 
++type hbucket byte // placeholder
++
++// Changes here must also be made in src/runtime/hashmap.go.
++type hmap struct {
++	count      int
++	flags      uint8
++	B          uint8
++	hash0      uint32
++	buckets    *hbucket
++	oldbuckets *hbucket
++	nevacuate  uintptr
++	overflow   *[2]*[]*hbucket
++}
++
++// Changes here must also be made in src/runtime/hashmap.go.
++type hiter struct {
++	key         *byte // field name known to walkrange
++	value       *byte // field name known to walkrange
++	t           *byte // *maptype
++	h           *hmap
++	buckets     *hbucket
++	bptr        *hbucket
++	overflow    [2]*[]*hbucket
++	startBucket uintptr
++	offset      uint8
++	wrapped     bool
++	B           uint8
++	i           uint8
++	bucket      uintptr
++	checkBucket uintptr
++}
++
++// Changes here must also be made in src/runtime/select.go.
++type scase struct {
++	elem        *byte
++	c           *byte
++	pc          uintptr
++	kind        uint16
++	so          uint16
++	receivedp   *bool
++	releasetime int64
++}
++
+ func newobject(typ *byte) *any
+ func panicindex()
+ func panicslice()
+@@ -85,7 +128,7 @@ func ifaceeq(i1 any, i2 any) (ret bool)
+ func efaceeq(i1 any, i2 any) (ret bool)
+ 
+ // *byte is really *runtime.Type
+-func makemap(mapType *byte, hint int64, mapbuf *any, bucketbuf *any) (hmap map[any]any)
++func makemap(mapType *byte, hint int64, mapbuf *hmap, bucketbuf *any) (hmap map[any]any)
+ func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
+ func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
+ func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
+@@ -95,9 +138,9 @@ func mapaccess2_fast32(mapType *byte, hmap map[any]any, key any) (val *any, pres
+ func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+ func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+ func mapassign1(mapType *byte, hmap map[any]any, key *any, val *any)
+-func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
++func mapiterinit(mapType *byte, hmap map[any]any, hiter *hiter)
+ func mapdelete(mapType *byte, hmap map[any]any, key *any)
+-func mapiternext(hiter *any)
++func mapiternext(hiter *hiter)
+ 
+ // *byte is really *runtime.Type
+ func makechan(chanType *byte, hint int64) (hchan chan any)
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index c0a1170839..91035b5d07 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -647,14 +647,6 @@ func typefmt(t *Type, flag int) string {
+ 				return fmt.Sprintf("map.bucket[%v]%v", t.Map.Down, t.Map.Type)
+ 			}
+ 
+-			if t.Map.Hmap == t {
+-				return fmt.Sprintf("map.hdr[%v]%v", t.Map.Down, t.Map.Type)
+-			}
+-
+-			if t.Map.Hiter == t {
+-				return fmt.Sprintf("map.iter[%v]%v", t.Map.Down, t.Map.Type)
+-			}
+-
+ 			Yyerror("unknown internal map type")
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 3923bc6e31..3c00f72ec1 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -191,9 +191,7 @@ type Type struct {
+ 
+ 	// TMAP
+ 	Bucket *Type // internal type representing a hash bucket
+-	Hmap   *Type // internal type representing a Hmap (map header object)
+-	Hiter  *Type // internal type representing hash iterator state
+-	Map    *Type // link from the above 3 internal types back to the map type.
++	Map    *Type // link from hash bucket type back to the map type.
+ 
+ 	Maplineno   int32 // first use of TFORW as map key
+ 	Embedlineno int32 // first use of TFORW as embedded type
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 4386bcfeed..8c2eca20d4 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -223,24 +223,28 @@ func walkrange(n *Node) {
+ 	case TMAP:
+ 		ha := a
+ 
+-		th := hiter(t)
++		th := syslook("hiter", 0).Type
++		keytype := t.Down
++		valtype := t.Type
++
+ 		hit := prealloc[n]
+ 		hit.Type = th
+ 		n.Left = nil
+-		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.go:hiter
+-		valname := newname(th.Type.Down.Sym) // ditto
+ 
+-		fn := syslook("mapiterinit", 1)
++		// These depend on hiter's field names.  See builtin/runtime.go:hiter.
++		keyname := newname(Pkglookup("key", Runtimepkg))
++		valname := newname(Pkglookup("value", Runtimepkg))
+ 
+-		substArgTypes(fn, t.Down, t.Type, th)
++		fn := syslook("mapiterinit", 1)
++		substArgTypes(fn, keytype, valtype)
+ 		init = list(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
+ 		n.Left = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
+ 
+-		fn = syslook("mapiternext", 1)
+-		substArgTypes(fn, th)
+-		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
++		n.Right = mkcall("mapiternext", nil, nil, Nod(OADDR, hit, nil))
+ 
+ 		key := Nod(ODOT, hit, keyname)
++		key = Nod(OCONVNOP, key, nil)
++		key.Type = Ptrto(keytype)
+ 		key = Nod(OIND, key, nil)
+ 		if v1 == nil {
+ 			body = nil
+@@ -248,6 +252,8 @@ func walkrange(n *Node) {
+ 			body = list1(Nod(OAS, v1, key))
+ 		} else {
+ 			val := Nod(ODOT, hit, valname)
++			val = Nod(OCONVNOP, val, nil)
++			val.Type = Ptrto(valtype)
+ 			val = Nod(OIND, val, nil)
+ 			a := Nod(OAS2, nil, nil)
+ 			a.List = list(list1(v1), v2)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 8693e3c112..369d015f19 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -149,92 +149,6 @@ func mapbucket(t *Type) *Type {
+ 	return bucket
+ }
+ 
+-// Builds a type representing a Hmap structure for the given map type.
+-// Make sure this stays in sync with ../../../../runtime/hashmap.go!
+-func hmap(t *Type) *Type {
+-	if t.Hmap != nil {
+-		return t.Hmap
+-	}
+-
+-	bucket := mapbucket(t)
+-	var field [8]*Type
+-	field[0] = makefield("count", Types[TINT])
+-	field[1] = makefield("flags", Types[TUINT8])
+-	field[2] = makefield("B", Types[TUINT8])
+-	field[3] = makefield("hash0", Types[TUINT32])
+-	field[4] = makefield("buckets", Ptrto(bucket))
+-	field[5] = makefield("oldbuckets", Ptrto(bucket))
+-	field[6] = makefield("nevacuate", Types[TUINTPTR])
+-	field[7] = makefield("overflow", Types[TUNSAFEPTR])
+-
+-	h := typ(TSTRUCT)
+-	h.Noalg = true
+-	h.Local = t.Local
+-	h.Type = field[0]
+-	for n := int32(0); n < int32(len(field)-1); n++ {
+-		field[n].Down = field[n+1]
+-	}
+-	field[len(field)-1].Down = nil
+-	dowidth(h)
+-	t.Hmap = h
+-	h.Map = t
+-	return h
+-}
+-
+-func hiter(t *Type) *Type {
+-	if t.Hiter != nil {
+-		return t.Hiter
+-	}
+-
+-	// build a struct:
+-	// hiter {
+-	//    key *Key
+-	//    val *Value
+-	//    t *MapType
+-	//    h *Hmap
+-	//    buckets *Bucket
+-	//    bptr *Bucket
+-	//    overflow0 unsafe.Pointer
+-	//    overflow1 unsafe.Pointer
+-	//    startBucket uintptr
+-	//    stuff uintptr
+-	//    bucket uintptr
+-	//    checkBucket uintptr
+-	// }
+-	// must match ../../../../runtime/hashmap.go:hiter.
+-	var field [12]*Type
+-	field[0] = makefield("key", Ptrto(t.Down))
+-
+-	field[1] = makefield("val", Ptrto(t.Type))
+-	field[2] = makefield("t", Ptrto(Types[TUINT8]))
+-	field[3] = makefield("h", Ptrto(hmap(t)))
+-	field[4] = makefield("buckets", Ptrto(mapbucket(t)))
+-	field[5] = makefield("bptr", Ptrto(mapbucket(t)))
+-	field[6] = makefield("overflow0", Types[TUNSAFEPTR])
+-	field[7] = makefield("overflow1", Types[TUNSAFEPTR])
+-	field[8] = makefield("startBucket", Types[TUINTPTR])
+-	field[9] = makefield("stuff", Types[TUINTPTR]) // offset+wrapped+B+I
+-	field[10] = makefield("bucket", Types[TUINTPTR])
+-	field[11] = makefield("checkBucket", Types[TUINTPTR])
+-
+-	// build iterator struct holding the above fields
+-	i := typ(TSTRUCT)
+-
+-	i.Noalg = true
+-	i.Type = field[0]
+-	for n := int32(0); n < int32(len(field)-1); n++ {
+-		field[n].Down = field[n+1]
+-	}
+-	field[len(field)-1].Down = nil
+-	dowidth(i)
+-	if i.Width != int64(12*Widthptr) {
+-		Yyerror("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
+-	}
+-	t.Hiter = i
+-	i.Map = t
+-	return i
+-}
+-
+ // f is method type, with receiver.
+ // return function type, receiver as first argument (or not).
+ func methodfunc(f *Type, receiver *Type) *Type {
+@@ -1112,13 +1026,11 @@ ok:
+ 
+ 		s2 := dtypesym(t.Type)
+ 		s3 := dtypesym(mapbucket(t))
+-		s4 := dtypesym(hmap(t))
+ 		ot = dcommontype(s, ot, t)
+ 		xt = ot - 2*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 		ot = dsymptr(s, ot, s2, 0)
+ 		ot = dsymptr(s, ot, s3, 0)
+-		ot = dsymptr(s, ot, s4, 0)
+ 		if t.Down.Width > MAXKEYSIZE {
+ 			ot = duint8(s, ot, uint8(Widthptr))
+ 			ot = duint8(s, ot, 1) // indirect
+@@ -1339,8 +1251,10 @@ func dalgsym(t *Type) *Sym {
+ 		hashfunc = typesymprefix(".hashfunc", t)
+ 		eqfunc = typesymprefix(".eqfunc", t)
+ 
+-		genhash(hash, t)
+-		geneq(eq, t)
++		if Debug['A'] == 0 {
++			genhash(hash, t)
++			geneq(eq, t)
++		}
+ 
+ 		// make Go funcs (closures) for calling hash and equal from Go
+ 		dsymptr(hashfunc, 0, hash, 0)
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index e770c8f18d..9a619a6d5a 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -318,35 +318,9 @@ out:
+ 	lineno = int32(lno)
+ }
+ 
+-// Keep in sync with src/runtime/runtime2.go and src/runtime/select.go.
++// Keep in sync with src/runtime/select.go.
+ func selecttype(size int32) *Type {
+-	// TODO(dvyukov): it's possible to generate SudoG and Scase only once
+-	// and then cache; and also cache Select per size.
+-	sudog := Nod(OTSTRUCT, nil, nil)
+-
+-	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("g")), typenod(Ptrto(Types[TUINT8]))))
+-	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("selectdone")), typenod(Ptrto(Types[TUINT8]))))
+-	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("next")), typenod(Ptrto(Types[TUINT8]))))
+-	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("prev")), typenod(Ptrto(Types[TUINT8]))))
+-	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
+-	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+-	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("nrelease")), typenod(Types[TINT32])))
+-	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
+-	typecheck(&sudog, Etype)
+-	sudog.Type.Noalg = true
+-	sudog.Type.Local = true
+-
+-	scase := Nod(OTSTRUCT, nil, nil)
+-	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
+-	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("chan")), typenod(Ptrto(Types[TUINT8]))))
+-	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("pc")), typenod(Types[TUINTPTR])))
+-	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("kind")), typenod(Types[TUINT16])))
+-	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("so")), typenod(Types[TUINT16])))
+-	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
+-	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+-	typecheck(&scase, Etype)
+-	scase.Type.Noalg = true
+-	scase.Type.Local = true
++	scase := syslook("scase", 0)
+ 
+ 	sel := Nod(OTSTRUCT, nil, nil)
+ 	sel.List = list(sel.List, Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index ba0a257b3b..f48b7cdc4f 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1419,16 +1419,21 @@ func deep(t *Type) *Type {
+ 	if t == nil {
+ 		return nil
+ 	}
++	if t.Etype == TANY {
++		nt := shallow(t)
++		nt.Copyany = true
++		return nt
++	}
++	if t.Sym != nil {
++		// share named types
++		return t
++	}
+ 
+ 	var nt *Type
+ 	switch t.Etype {
+ 	default:
+ 		nt = t // share from here down
+ 
+-	case TANY:
+-		nt = shallow(t)
+-		nt.Copyany = true
+-
+ 	case TPTR32, TPTR64, TCHAN, TARRAY:
+ 		nt = shallow(t)
+ 		nt.Type = deep(t.Type)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f324d5e00f..f3112c3a61 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1375,7 +1375,7 @@ opswitch:
+ 		r := nodnil() // bucket buffer
+ 		if n.Esc == EscNone {
+ 			// Allocate hmap buffer on stack.
+-			var_ := temp(hmap(t))
++			var_ := temp(syslook("hmap", 0).Type)
+ 
+ 			a = Nod(OAS, var_, nil) // zero temp
+ 			typecheck(&a, Etop)
+@@ -1393,7 +1393,7 @@ opswitch:
+ 			r = Nod(OADDR, var_, nil)
+ 		}
+ 
+-		substArgTypes(fn, hmap(t), mapbucket(t), t.Down, t.Type)
++		substArgTypes(fn, mapbucket(t), t.Down, t.Type)
+ 		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, Types[TINT64]), a, r)
+ 
+ 	case OMAKESLICE:
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 003c610cb1..91563dcf7e 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -340,7 +340,6 @@ type mapType struct {
+ 	key           *rtype // map key type
+ 	elem          *rtype // map element (value) type
+ 	bucket        *rtype // internal bucket structure
+-	hmap          *rtype // internal map header
+ 	keysize       uint8  // size of key slot
+ 	indirectkey   uint8  // store ptr to key instead of key itself
+ 	valuesize     uint8  // size of value slot
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 892a79a914..fcfcd4b607 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -102,6 +102,7 @@ const (
+ )
+ 
+ // A header for a Go map.
++// Changes here must also be made in src/cmd/compile/internal/gc/builtin/runtime.go.
+ type hmap struct {
+ 	// Note: the format of the Hmap is encoded in ../../cmd/internal/gc/reflect.go and
+ 	// ../reflect/type.go.  Don't change this structure without also changing that code!
+@@ -137,11 +138,10 @@ type bmap struct {
+ }
+ 
+ // A hash iteration structure.
+-// If you modify hiter, also change cmd/internal/gc/reflect.go to indicate
+-// the layout of this structure.
++// Changes here must also be made in src/cmd/compile/internal/gc/builtin/runtime.go.
+ type hiter struct {
+-	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/internal/gc/range.go).
+-	value       unsafe.Pointer // Must be in second position (see cmd/internal/gc/range.go).
++	key         unsafe.Pointer // Write nil to indicate iteration end (see cmd/compile/internal/gc/range.go).
++	value       unsafe.Pointer
+ 	t           *maptype
+ 	h           *hmap
+ 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
+@@ -188,11 +188,10 @@ func (h *hmap) createOverflow() {
+ // If h != nil, the map can be created directly in h.
+ // If bucket != nil, bucket can be used as the first bucket.
+ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+-	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != uintptr(t.hmap.size) {
+-		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
++	if sz := unsafe.Sizeof(hmap{}); sz > 48 {
++		println("runtime: sizeof(hmap) =", sz)
+ 		throw("bad hmap size")
+ 	}
+-
+ 	if hint < 0 || int64(int32(hint)) != hint {
+ 		panic("makemap: size out of range")
+ 		// TODO: make hint an int, then none of this nonsense
+@@ -254,7 +253,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+ 
+ 	// initialize Hmap
+ 	if h == nil {
+-		h = (*hmap)(newobject(t.hmap))
++		h = &hmap{}
+ 	}
+ 	h.count = 0
+ 	h.B = B
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 917fe89d38..379fe2678b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -160,8 +160,6 @@ type gobuf struct {
+ 	bp   uintptr // for GOEXPERIMENT=framepointer
+ }
+ 
+-// Known to compiler.
+-// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
+ type sudog struct {
+ 	g           *g
+ 	selectdone  *uint32
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index b6c3fea001..25ebdaa595 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -22,7 +22,7 @@ const (
+ 
+ // Select statement header.
+ // Known to compiler.
+-// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
++// Changes here must also be made in src/cmd/compile/internal/gc/select.go's selecttype.
+ type hselect struct {
+ 	tcase     uint16   // total count of scase[]
+ 	ncase     uint16   // currently filled scase[]
+@@ -33,7 +33,7 @@ type hselect struct {
+ 
+ // Select case descriptor.
+ // Known to compiler.
+-// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
++// Changes here must also be made in src/cmd/compile/internal/gc/builtin/runtime.go.
+ type scase struct {
+ 	elem        unsafe.Pointer // data element
+ 	c           *hchan         // chan
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index d5f3bb1ef0..8350976491 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -60,7 +60,6 @@ type maptype struct {
+ 	key           *_type
+ 	elem          *_type
+ 	bucket        *_type // internal type representing a hash bucket
+-	hmap          *_type // internal type representing a hmap
+ 	keysize       uint8  // size of key slot
+ 	indirectkey   bool   // store ptr to key instead of key itself
+ 	valuesize     uint8  // size of value slot

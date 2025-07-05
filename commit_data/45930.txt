@@ -16,6 +16,19 @@ Date:   Sat Nov 28 17:51:18 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/bug340.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug340.go b/test/fixedbugs/bug340.go
+index 118bbacc22..8c543c98d9 100644
+--- a/test/fixedbugs/bug340.go
++++ b/test/fixedbugs/bug340.go
+@@ -12,6 +12,6 @@ func main() {
+ 	var x interface{}
+ 	switch t := x.(type) {
+ 	case 0:		// ERROR "type"
+-		t.x = 1 // ERROR "type interface \{\}|reference to undefined field or method"
++		t.x = 1 // ERROR "type interface \{\}|reference to undefined field or method|interface with no methods"
+ 	}
+ }

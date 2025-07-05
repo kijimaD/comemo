@@ -27,9 +27,744 @@ Date:   Mon Mar 8 10:07:17 2021 -0600
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        | 124 ++++++++++++++++++++-------
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  48 ++++-------
  src/cmd/compile/internal/ssa/rewritePPC64.go | 107 +++++------------------
  test/fixedbugs/issue44739.go                 |  61 +++++++++++++
  4 files changed, 192 insertions(+), 148 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 2bae35bf44..899f5ee6af 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -798,42 +798,63 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = v.Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 
+-	case ssa.OpPPC64MOVDload:
+-
+-		// MOVDload uses a DS instruction which requires the offset value of the data to be a multiple of 4.
+-		// For offsets known at compile time, a MOVDload won't be selected, but in the case of a go.string,
+-		// the offset is not known until link time. If the load of a go.string uses relocation for the
+-		// offset field of the instruction, and if the offset is not aligned to 4, then a link error will occur.
+-		// To avoid this problem, the full address of the go.string is computed and loaded into the base register,
+-		// and that base register is used for the MOVDload using a 0 offset. This problem can only occur with
+-		// go.string types because other types will have proper alignment.
+-
+-		gostring := false
+-		switch n := v.Aux.(type) {
+-		case *obj.LSym:
+-			gostring = strings.HasPrefix(n.Name, "go.string.")
++	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload:
++
++		// MOVDload and MOVWload are DS form instructions that are restricted to
++		// offsets that are a multiple of 4. If the offset is not a multple of 4,
++		// then the address of the symbol to be loaded is computed (base + offset)
++		// and used as the new base register and the offset field in the instruction
++		// can be set to zero.
++
++		// This same problem can happen with gostrings since the final offset is not
++		// known yet, but could be unaligned after the relocation is resolved.
++		// So gostrings are handled the same way.
++
++		// This allows the MOVDload and MOVWload to be generated in more cases and
++		// eliminates some offset and alignment checking in the rules file.
++
++		fromAddr := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
++		ssagen.AddAux(&fromAddr, v)
++
++		genAddr := false
++
++		switch fromAddr.Name {
++		case obj.NAME_EXTERN, obj.NAME_STATIC:
++			// Special case for a rule combines the bytes of gostring.
++			// The v alignment might seem OK, but we don't want to load it
++			// using an offset because relocation comes later.
++			genAddr = strings.HasPrefix(fromAddr.Sym.Name, "go.string") || v.Type.Alignment()%4 != 0 || fromAddr.Offset%4 != 0
++		default:
++			genAddr = fromAddr.Offset%4 != 0
+ 		}
+-		if gostring {
+-			// Generate full addr of the go.string const
+-			// including AuxInt
++		if genAddr {
++			// Load full address into the temp register.
+ 			p := s.Prog(ppc64.AMOVD)
+ 			p.From.Type = obj.TYPE_ADDR
+ 			p.From.Reg = v.Args[0].Reg()
+ 			ssagen.AddAux(&p.From, v)
++			// Load target using temp as base register
++			// and offset zero. Setting NAME_NONE
++			// prevents any extra offsets from being
++			// added.
+ 			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = v.Reg()
+-			// Load go.string using 0 offset
+-			p = s.Prog(v.Op.Asm())
+-			p.From.Type = obj.TYPE_MEM
+-			p.From.Reg = v.Reg()
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = v.Reg()
+-			break
++			p.To.Reg = ppc64.REGTMP
++			fromAddr.Reg = ppc64.REGTMP
++			// Clear the offset field and other
++			// information that might be used
++			// by the assembler to add to the
++			// final offset value.
++			fromAddr.Offset = 0
++			fromAddr.Name = obj.NAME_NONE
++			fromAddr.Sym = nil
+ 		}
+-		// Not a go.string, generate a normal load
+-		fallthrough
++		p := s.Prog(v.Op.Asm())
++		p.From = fromAddr
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++		break
+ 
+-	case ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload, ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
++	case ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload, ssa.OpPPC64FMOVDload, ssa.OpPPC64FMOVSload:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+@@ -865,7 +886,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+-	case ssa.OpPPC64MOVDstorezero, ssa.OpPPC64MOVWstorezero, ssa.OpPPC64MOVHstorezero, ssa.OpPPC64MOVBstorezero:
++	case ssa.OpPPC64MOVWstorezero, ssa.OpPPC64MOVHstorezero, ssa.OpPPC64MOVBstorezero:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = ppc64.REGZERO
+@@ -873,7 +894,46 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 		ssagen.AddAux(&p.To, v)
+ 
+-	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore, ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
++	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVDstorezero:
++
++		// MOVDstore and MOVDstorezero become DS form instructions that are restricted
++		// to offset values that are a multple of 4. If the offset field is not a
++		// multiple of 4, then the full address of the store target is computed (base +
++		// offset) and used as the new base register and the offset in the instruction
++		// is set to 0.
++
++		// This allows the MOVDstore and MOVDstorezero to be generated in more cases,
++		// and prevents checking of the offset value and alignment in the rules.
++
++		toAddr := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
++		ssagen.AddAux(&toAddr, v)
++
++		if toAddr.Offset%4 != 0 {
++			p := s.Prog(ppc64.AMOVD)
++			p.From.Type = obj.TYPE_ADDR
++			p.From.Reg = v.Args[0].Reg()
++			ssagen.AddAux(&p.From, v)
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = ppc64.REGTMP
++			toAddr.Reg = ppc64.REGTMP
++			// Clear the offset field and other
++			// information that might be used
++			// by the assembler to add to the
++			// final offset value.
++			toAddr.Offset = 0
++			toAddr.Name = obj.NAME_NONE
++			toAddr.Sym = nil
++		}
++		p := s.Prog(v.Op.Asm())
++		p.To = toAddr
++		p.From.Type = obj.TYPE_REG
++		if v.Op == ssa.OpPPC64MOVDstorezero {
++			p.From.Reg = ppc64.REGZERO
++		} else {
++			p.From.Reg = v.Args[1].Reg()
++		}
++
++	case ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore, ssa.OpPPC64FMOVDstore, ssa.OpPPC64FMOVSstore:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+@@ -1476,7 +1536,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			case rem >= 8:
+ 				op, size = ppc64.AMOVD, 8
+ 			case rem >= 4:
+-				op, size = ppc64.AMOVW, 4
++				op, size = ppc64.AMOVWZ, 4
+ 			case rem >= 2:
+ 				op, size = ppc64.AMOVH, 2
+ 			}
+@@ -1743,7 +1803,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			case rem >= 8:
+ 				op, size = ppc64.AMOVD, 8
+ 			case rem >= 4:
+-				op, size = ppc64.AMOVW, 4
++				op, size = ppc64.AMOVWZ, 4
+ 			case rem >= 2:
+ 				op, size = ppc64.AMOVH, 2
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 85ce9a5b54..b618cde529 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -607,24 +607,18 @@
+ 		(MOVHstorezero [4] destptr
+ 			(MOVWstorezero destptr mem)))
+ 
+-// MOVD for store with DS must have offsets that are multiple of 4
+-(Zero [8] {t} destptr mem) && t.Alignment()%4 == 0 =>
+-        (MOVDstorezero destptr mem)
+-(Zero [8] destptr mem) =>
+-        (MOVWstorezero [4] destptr
+-                (MOVWstorezero [0] destptr mem))
+-// Handle these cases only if aligned properly, otherwise use general case below
+-(Zero [12] {t} destptr mem) && t.Alignment()%4 == 0 =>
++(Zero [8] {t} destptr mem) => (MOVDstorezero destptr mem)
++(Zero [12] {t} destptr mem) =>
+         (MOVWstorezero [8] destptr
+                 (MOVDstorezero [0] destptr mem))
+-(Zero [16] {t} destptr mem) && t.Alignment()%4 == 0 =>
++(Zero [16] {t} destptr mem) =>
+        (MOVDstorezero [8] destptr
+                 (MOVDstorezero [0] destptr mem))
+-(Zero [24] {t} destptr mem) && t.Alignment()%4 == 0 =>
++(Zero [24] {t} destptr mem) =>
+        (MOVDstorezero [16] destptr
+                (MOVDstorezero [8] destptr
+                        (MOVDstorezero [0] destptr mem)))
+-(Zero [32] {t} destptr mem) && t.Alignment()%4 == 0 =>
++(Zero [32] {t} destptr mem) =>
+        (MOVDstorezero [24] destptr
+                (MOVDstorezero [16] destptr
+                        (MOVDstorezero [8] destptr
+@@ -639,9 +633,6 @@
+ (Zero [s] ptr mem) && objabi.GOPPC64 >= 9 => (LoweredQuadZero [s] ptr mem)
+ 
+ // moves
+-// Only the MOVD and MOVW instructions require 4 byte
+-// alignment in the offset field.  The other MOVx instructions
+-// allow any alignment.
+ (Move [0] _ _ mem) => mem
+ (Move [1] dst src mem) => (MOVBstore dst (MOVBZload src mem) mem)
+ (Move [2] dst src mem) =>
+@@ -649,11 +640,8 @@
+ (Move [4] dst src mem) =>
+ 	(MOVWstore dst (MOVWZload src mem) mem)
+ // MOVD for load and store must have offsets that are multiple of 4
+-(Move [8] {t} dst src mem) && t.Alignment()%4 == 0 =>
++(Move [8] {t} dst src mem) =>
+ 	(MOVDstore dst (MOVDload src mem) mem)
+-(Move [8] dst src mem) =>
+-	(MOVWstore [4] dst (MOVWZload [4] src mem)
+-		(MOVWstore dst (MOVWZload src mem) mem))
+ (Move [3] dst src mem) =>
+         (MOVBstore [2] dst (MOVBZload [2] src mem)
+                 (MOVHstore dst (MOVHload src mem) mem))
+@@ -875,7 +863,7 @@
+ (MFVSRD x:(FMOVDload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVDload [off] {sym} ptr mem)
+ 
+ // Fold offsets for stores.
+-(MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0 => (MOVDstore [off1+int32(off2)] {sym} x val mem)
++(MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) => (MOVDstore [off1+int32(off2)] {sym} x val mem)
+ (MOVWstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) => (MOVWstore [off1+int32(off2)] {sym} x val mem)
+ (MOVHstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) => (MOVHstore [off1+int32(off2)] {sym} x val mem)
+ (MOVBstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(int64(off1)+off2) => (MOVBstore [off1+int32(off2)] {sym} x val mem)
+@@ -898,7 +886,7 @@
+ 	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+         (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ (MOVDstore [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
+-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 =>
++	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+         (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 
+ (FMOVSstore [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
+@@ -918,13 +906,13 @@
+ 	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+         (MOVHZload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVWload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 =>
++	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+         (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVWZload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+ 	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+         (MOVWZload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVDload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+-	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 =>
++	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+         (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (FMOVSload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
+ 	&& is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) =>
+@@ -937,8 +925,8 @@
+ (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && is16Bit(int64(off1)+off2) => (FMOVSload [off1+int32(off2)] {sym} ptr mem)
+ (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is16Bit(int64(off1)+off2) => (FMOVDload [off1+int32(off2)] {sym} ptr mem)
+ 
+-(MOVDload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0 => (MOVDload [off1+int32(off2)] {sym} x mem)
+-(MOVWload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0 => (MOVWload [off1+int32(off2)] {sym} x mem)
++(MOVDload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVDload [off1+int32(off2)] {sym} x mem)
++(MOVWload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVWload [off1+int32(off2)] {sym} x mem)
+ (MOVWZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVWZload [off1+int32(off2)] {sym} x mem)
+ (MOVHload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVHload [off1+int32(off2)] {sym} x mem)
+ (MOVHZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) => (MOVHZload [off1+int32(off2)] {sym} x mem)
+@@ -947,7 +935,10 @@
+ // Determine load + addressing that can be done as a register indexed load
+ (MOV(D|W|WZ|H|HZ|BZ)load [0] {sym} p:(ADD ptr idx) mem) && sym == nil && p.Uses == 1 => (MOV(D|W|WZ|H|HZ|BZ)loadidx ptr idx mem)
+ 
+-// Determine indexed loads with constant values that can be done without index
++// Determine if there is benefit to using a non-indexed load, since that saves the load
++// of the index register. With MOVDload and MOVWload, there is no benefit if the offset
++// value is not a multiple of 4, since that results in an extra instruction in the base
++// register address computation.
+ (MOV(D|W)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) && c%4 == 0 => (MOV(D|W)load [int32(c)] ptr mem)
+ (MOV(WZ|H|HZ|BZ)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) => (MOV(WZ|H|HZ|BZ)load [int32(c)] ptr mem)
+ (MOV(D|W)loadidx (MOVDconst [c]) ptr mem) && is16Bit(c) && c%4 == 0 => (MOV(D|W)load [int32(c)] ptr mem)
+@@ -960,7 +951,7 @@
+ (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
+ 
+ // Fold offsets for storezero
+-(MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0 =>
++(MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) =>
+     (MOVDstorezero [off1+int32(off2)] {sym} x mem)
+ (MOVWstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(int64(off1)+off2) =>
+     (MOVWstorezero [off1+int32(off2)] {sym} x mem)
+@@ -973,6 +964,7 @@
+ (MOV(D|W|H|B)store [0] {sym} p:(ADD ptr idx) val mem) && sym == nil && p.Uses == 1 => (MOV(D|W|H|B)storeidx ptr idx val mem)
+ 
+ // Stores with constant index values can be done without indexed instructions
++// No need to lower the idx cases if c%4 is not 0
+ (MOVDstoreidx ptr (MOVDconst [c]) val mem) && is16Bit(c) && c%4 == 0 => (MOVDstore [int32(c)] ptr val mem)
+ (MOV(W|H|B)storeidx ptr (MOVDconst [c]) val mem) && is16Bit(c) => (MOV(W|H|B)store [int32(c)] ptr val mem)
+ (MOVDstoreidx (MOVDconst [c]) ptr val mem) && is16Bit(c) && c%4 == 0 => (MOVDstore [int32(c)] ptr val mem)
+@@ -980,7 +972,7 @@
+ 
+ // Fold symbols into storezero
+ (MOVDstorezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2)
+-	&& (x.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 =>
++	&& (x.Op != OpSB || p.Uses == 1) =>
+     (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
+ (MOVWstorezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2)
+ 	&& (x.Op != OpSB || p.Uses == 1) =>
+@@ -1294,7 +1286,6 @@
+ 	o3:(OR <t> s3:(SLDconst x4:(MOVBZload [i4] {s} p mem) [32])
+ 	x0:(MOVWZload {s} [i0] p mem)))))
+ 	&& !config.BigEndian
+-	&& i0%4 == 0
+ 	&& i4 == i0+4
+ 	&& i5 == i0+5
+ 	&& i6 == i0+6
+@@ -1431,7 +1422,6 @@
+ 	x2:(MOVBstore [i4] {s} p (SRDconst w [32])
+ 	x3:(MOVWstore [i0] {s} p w mem)))))
+ 	&& !config.BigEndian
+-	&& i0%4 == 0
+ 	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1
+ 	&& i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
+ 	&& clobber(x0, x1, x2, x3)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 3357864291..a5bbc836cc 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -3528,46 +3528,20 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [8] {t} dst src mem)
+-	// cond: t.Alignment()%4 == 0
+ 	// result: (MOVDstore dst (MOVDload src mem) mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 8 {
+ 			break
+ 		}
+-		t := auxToType(v.Aux)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(t.Alignment()%4 == 0) {
+-			break
+-		}
+ 		v.reset(OpPPC64MOVDstore)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, typ.Int64)
+ 		v0.AddArg2(src, mem)
+ 		v.AddArg3(dst, v0, mem)
+ 		return true
+ 	}
+-	// match: (Move [8] dst src mem)
+-	// result: (MOVWstore [4] dst (MOVWZload [4] src mem) (MOVWstore dst (MOVWZload src mem) mem))
+-	for {
+-		if auxIntToInt64(v.AuxInt) != 8 {
+-			break
+-		}
+-		dst := v_0
+-		src := v_1
+-		mem := v_2
+-		v.reset(OpPPC64MOVWstore)
+-		v.AuxInt = int32ToAuxInt(4)
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, typ.UInt32)
+-		v0.AuxInt = int32ToAuxInt(4)
+-		v0.AddArg2(src, mem)
+-		v1 := b.NewValue0(v.Pos, OpPPC64MOVWstore, types.TypeMem)
+-		v2 := b.NewValue0(v.Pos, OpPPC64MOVWZload, typ.UInt32)
+-		v2.AddArg2(src, mem)
+-		v1.AddArg3(dst, v2, mem)
+-		v.AddArg3(dst, v0, v1)
+-		return true
+-	}
+ 	// match: (Move [3] dst src mem)
+ 	// result: (MOVBstore [2] dst (MOVBZload [2] src mem) (MOVHstore dst (MOVHload src mem) mem))
+ 	for {
+@@ -7881,7 +7855,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBstore [i7] {s} p (SRDconst w [56]) x0:(MOVBstore [i6] {s} p (SRDconst w [48]) x1:(MOVBstore [i5] {s} p (SRDconst w [40]) x2:(MOVBstore [i4] {s} p (SRDconst w [32]) x3:(MOVWstore [i0] {s} p w mem)))))
+-	// cond: !config.BigEndian && i0%4 == 0 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && clobber(x0, x1, x2, x3)
++	// cond: !config.BigEndian && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && clobber(x0, x1, x2, x3)
+ 	// result: (MOVDstore [i0] {s} p w mem)
+ 	for {
+ 		i7 := auxIntToInt32(v.AuxInt)
+@@ -7948,7 +7922,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore(v *Value) bool {
+ 			break
+ 		}
+ 		mem := x3.Args[2]
+-		if p != x3.Args[0] || w != x3.Args[1] || !(!config.BigEndian && i0%4 == 0 && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && clobber(x0, x1, x2, x3)) {
++		if p != x3.Args[0] || w != x3.Args[1] || !(!config.BigEndian && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && clobber(x0, x1, x2, x3)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDstore)
+@@ -8392,7 +8366,7 @@ func rewriteValuePPC64_OpPPC64MOVDload(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0
++	// cond: canMergeSym(sym1,sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)
+ 	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := auxIntToInt32(v.AuxInt)
+@@ -8405,7 +8379,7 @@ func rewriteValuePPC64_OpPPC64MOVDload(v *Value) bool {
+ 		sym2 := auxToSym(p.Aux)
+ 		ptr := p.Args[0]
+ 		mem := v_1
+-		if !(canMergeSym(sym1, sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0) {
++		if !(canMergeSym(sym1, sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDload)
+@@ -8415,7 +8389,7 @@ func rewriteValuePPC64_OpPPC64MOVDload(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDload [off1] {sym} (ADDconst [off2] x) mem)
+-	// cond: is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0
++	// cond: is16Bit(int64(off1)+off2)
+ 	// result: (MOVDload [off1+int32(off2)] {sym} x mem)
+ 	for {
+ 		off1 := auxIntToInt32(v.AuxInt)
+@@ -8426,7 +8400,7 @@ func rewriteValuePPC64_OpPPC64MOVDload(v *Value) bool {
+ 		off2 := auxIntToInt64(v_0.AuxInt)
+ 		x := v_0.Args[0]
+ 		mem := v_1
+-		if !(is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0) {
++		if !(is16Bit(int64(off1) + off2)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDload)
+@@ -8523,7 +8497,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDstore [off1] {sym} (ADDconst [off2] x) val mem)
+-	// cond: is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0
++	// cond: is16Bit(int64(off1)+off2)
+ 	// result: (MOVDstore [off1+int32(off2)] {sym} x val mem)
+ 	for {
+ 		off1 := auxIntToInt32(v.AuxInt)
+@@ -8535,7 +8509,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore(v *Value) bool {
+ 		x := v_0.Args[0]
+ 		val := v_1
+ 		mem := v_2
+-		if !(is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0) {
++		if !(is16Bit(int64(off1) + off2)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDstore)
+@@ -8545,7 +8519,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDstore [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0
++	// cond: canMergeSym(sym1,sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)
+ 	// result: (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := auxIntToInt32(v.AuxInt)
+@@ -8559,7 +8533,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore(v *Value) bool {
+ 		ptr := p.Args[0]
+ 		val := v_1
+ 		mem := v_2
+-		if !(canMergeSym(sym1, sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0) {
++		if !(canMergeSym(sym1, sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDstore)
+@@ -8658,7 +8632,7 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem)
+-	// cond: is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0
++	// cond: is16Bit(int64(off1)+off2)
+ 	// result: (MOVDstorezero [off1+int32(off2)] {sym} x mem)
+ 	for {
+ 		off1 := auxIntToInt32(v.AuxInt)
+@@ -8669,7 +8643,7 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero(v *Value) bool {
+ 		off2 := auxIntToInt64(v_0.AuxInt)
+ 		x := v_0.Args[0]
+ 		mem := v_1
+-		if !(is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0) {
++		if !(is16Bit(int64(off1) + off2)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDstorezero)
+@@ -8679,7 +8653,7 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDstorezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem)
+-	// cond: canMergeSym(sym1,sym2) && (x.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0
++	// cond: canMergeSym(sym1,sym2) && (x.Op != OpSB || p.Uses == 1)
+ 	// result: (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
+ 	for {
+ 		off1 := auxIntToInt32(v.AuxInt)
+@@ -8692,7 +8666,7 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero(v *Value) bool {
+ 		sym2 := auxToSym(p.Aux)
+ 		x := p.Args[0]
+ 		mem := v_1
+-		if !(canMergeSym(sym1, sym2) && (x.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0) {
++		if !(canMergeSym(sym1, sym2) && (x.Op != OpSB || p.Uses == 1)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVDstorezero)
+@@ -10598,7 +10572,7 @@ func rewriteValuePPC64_OpPPC64MOVWload(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (MOVWload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0
++	// cond: canMergeSym(sym1,sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)
+ 	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := auxIntToInt32(v.AuxInt)
+@@ -10611,7 +10585,7 @@ func rewriteValuePPC64_OpPPC64MOVWload(v *Value) bool {
+ 		sym2 := auxToSym(p.Aux)
+ 		ptr := p.Args[0]
+ 		mem := v_1
+-		if !(canMergeSym(sym1, sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0) {
++		if !(canMergeSym(sym1, sym2) && is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVWload)
+@@ -10621,7 +10595,7 @@ func rewriteValuePPC64_OpPPC64MOVWload(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWload [off1] {sym} (ADDconst [off2] x) mem)
+-	// cond: is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0
++	// cond: is16Bit(int64(off1)+off2)
+ 	// result: (MOVWload [off1+int32(off2)] {sym} x mem)
+ 	for {
+ 		off1 := auxIntToInt32(v.AuxInt)
+@@ -10632,7 +10606,7 @@ func rewriteValuePPC64_OpPPC64MOVWload(v *Value) bool {
+ 		off2 := auxIntToInt64(v_0.AuxInt)
+ 		x := v_0.Args[0]
+ 		mem := v_1
+-		if !(is16Bit(int64(off1)+off2) && (int64(off1)+off2)%4 == 0) {
++		if !(is16Bit(int64(off1) + off2)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVWload)
+@@ -12504,7 +12478,7 @@ func rewriteValuePPC64_OpPPC64OR(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (OR <t> s6:(SLDconst x7:(MOVBZload [i7] {s} p mem) [56]) o5:(OR <t> s5:(SLDconst x6:(MOVBZload [i6] {s} p mem) [48]) o4:(OR <t> s4:(SLDconst x5:(MOVBZload [i5] {s} p mem) [40]) o3:(OR <t> s3:(SLDconst x4:(MOVBZload [i4] {s} p mem) [32]) x0:(MOVWZload {s} [i0] p mem)))))
+-	// cond: !config.BigEndian && i0%4 == 0 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x0.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses ==1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x0, x4, x5, x6, x7) != nil && clobber(x0, x4, x5, x6, x7, s3, s4, s5, s6, o3, o4, o5)
++	// cond: !config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x0.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses ==1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x0, x4, x5, x6, x7) != nil && clobber(x0, x4, x5, x6, x7, s3, s4, s5, s6, o3, o4, o5)
+ 	// result: @mergePoint(b,x0,x4,x5,x6,x7) (MOVDload <t> {s} [i0] p mem)
+ 	for {
+ 		t := v.Type
+@@ -12602,7 +12576,7 @@ func rewriteValuePPC64_OpPPC64OR(v *Value) bool {
+ 							continue
+ 						}
+ 						_ = x0.Args[1]
+-						if p != x0.Args[0] || mem != x0.Args[1] || !(!config.BigEndian && i0%4 == 0 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x0.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x0, x4, x5, x6, x7) != nil && clobber(x0, x4, x5, x6, x7, s3, s4, s5, s6, o3, o4, o5)) {
++						if p != x0.Args[0] || mem != x0.Args[1] || !(!config.BigEndian && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7 && x0.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1 && s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1 && mergePoint(b, x0, x4, x5, x6, x7) != nil && clobber(x0, x4, x5, x6, x7, s3, s4, s5, s6, o3, o4, o5)) {
+ 							continue
+ 						}
+ 						b = mergePoint(b, x0, x4, x5, x6, x7)
+@@ -16847,51 +16821,25 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [8] {t} destptr mem)
+-	// cond: t.Alignment()%4 == 0
+ 	// result: (MOVDstorezero destptr mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 8 {
+ 			break
+ 		}
+-		t := auxToType(v.Aux)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !(t.Alignment()%4 == 0) {
+-			break
+-		}
+ 		v.reset(OpPPC64MOVDstorezero)
+ 		v.AddArg2(destptr, mem)
+ 		return true
+ 	}
+-	// match: (Zero [8] destptr mem)
+-	// result: (MOVWstorezero [4] destptr (MOVWstorezero [0] destptr mem))
+-	for {
+-		if auxIntToInt64(v.AuxInt) != 8 {
+-			break
+-		}
+-		destptr := v_0
+-		mem := v_1
+-		v.reset(OpPPC64MOVWstorezero)
+-		v.AuxInt = int32ToAuxInt(4)
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWstorezero, types.TypeMem)
+-		v0.AuxInt = int32ToAuxInt(0)
+-		v0.AddArg2(destptr, mem)
+-		v.AddArg2(destptr, v0)
+-		return true
+-	}
+ 	// match: (Zero [12] {t} destptr mem)
+-	// cond: t.Alignment()%4 == 0
+ 	// result: (MOVWstorezero [8] destptr (MOVDstorezero [0] destptr mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 12 {
+ 			break
+ 		}
+-		t := auxToType(v.Aux)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !(t.Alignment()%4 == 0) {
+-			break
+-		}
+ 		v.reset(OpPPC64MOVWstorezero)
+ 		v.AuxInt = int32ToAuxInt(8)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVDstorezero, types.TypeMem)
+@@ -16901,18 +16849,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [16] {t} destptr mem)
+-	// cond: t.Alignment()%4 == 0
+ 	// result: (MOVDstorezero [8] destptr (MOVDstorezero [0] destptr mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 16 {
+ 			break
+ 		}
+-		t := auxToType(v.Aux)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !(t.Alignment()%4 == 0) {
+-			break
+-		}
+ 		v.reset(OpPPC64MOVDstorezero)
+ 		v.AuxInt = int32ToAuxInt(8)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVDstorezero, types.TypeMem)
+@@ -16922,18 +16865,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [24] {t} destptr mem)
+-	// cond: t.Alignment()%4 == 0
+ 	// result: (MOVDstorezero [16] destptr (MOVDstorezero [8] destptr (MOVDstorezero [0] destptr mem)))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 24 {
+ 			break
+ 		}
+-		t := auxToType(v.Aux)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !(t.Alignment()%4 == 0) {
+-			break
+-		}
+ 		v.reset(OpPPC64MOVDstorezero)
+ 		v.AuxInt = int32ToAuxInt(16)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVDstorezero, types.TypeMem)
+@@ -16946,18 +16884,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [32] {t} destptr mem)
+-	// cond: t.Alignment()%4 == 0
+ 	// result: (MOVDstorezero [24] destptr (MOVDstorezero [16] destptr (MOVDstorezero [8] destptr (MOVDstorezero [0] destptr mem))))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 32 {
+ 			break
+ 		}
+-		t := auxToType(v.Aux)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !(t.Alignment()%4 == 0) {
+-			break
+-		}
+ 		v.reset(OpPPC64MOVDstorezero)
+ 		v.AuxInt = int32ToAuxInt(24)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVDstorezero, types.TypeMem)
+diff --git a/test/fixedbugs/issue44739.go b/test/fixedbugs/issue44739.go
+new file mode 100644
+index 0000000000..3441a90343
+--- /dev/null
++++ b/test/fixedbugs/issue44739.go
+@@ -0,0 +1,61 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 44739: cmd/compile: incorrect offset in MOVD
++// load/store on ppc64/ppc64le causes assembler error.
++
++// Test other 8 byte loads and stores where the
++// compile time offset is not aligned to 8, as
++// well as cases where the offset is not known
++// until link time (e.g. gostrings).
++
++package main
++
++import (
++	"fmt"
++)
++
++type T struct {
++	x [4]byte
++	y [8]byte
++}
++
++var st T
++
++const (
++	gostring1 = "abc"
++	gostring2 = "defghijk"
++	gostring3 = "lmnopqrs"
++)
++
++func f(a T, _ byte, b T) bool {
++	// initialization of a,b
++	// tests unaligned store
++	return a.y == b.y
++}
++
++func g(a T) {
++	// test load of unaligned
++	// 8 byte gostring, store
++	// to unaligned static
++	copy(a.y[:], gostring2)
++}
++
++func main() {
++	var t1, t2 T
++
++	// test copy to automatic storage,
++	// load of unaligned gostring.
++	copy(st.y[:], gostring2)
++	copy(t1.y[:], st.y[:])
++	copy(t2.y[:], gostring3)
++	// test initialization of params
++	if !f(t1, 'a', t2) {
++		// gostring1 added so it has a use
++		fmt.Printf("FAIL: %s\n", gostring1)
++	}
++}
++

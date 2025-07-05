@@ -11,6 +11,21 @@ Date:   Thu Sep 3 17:39:20 2015 -0400
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 3fab3582ed..09a44b28e6 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -1623,6 +1623,9 @@ func getlinepragma() int {
+ 		}
+ 
+ 		if verb == "go:systemstack" {
++			if compiling_runtime == 0 {
++				Yyerror("//go:systemstack only allowed in runtime")
++			}
+ 			systemstack = true
+ 			return c
+ 		}

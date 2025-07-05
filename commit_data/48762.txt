@@ -24,6 +24,25 @@ Date:   Fri Jun 11 05:44:00 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/debug/elf/file.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index cd5bf8fab0..b25d8209e3 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -1164,6 +1164,13 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 			b = dbuf
+ 		}
+ 
++		if f.Type == ET_EXEC {
++			// Do not apply relocations to DWARF sections for ET_EXEC binaries.
++			// Relocations should already be applied, and .rela sections may
++			// contain incorrect data.
++			return b, nil
++		}
++
+ 		for _, r := range f.Sections {
+ 			if r.Type != SHT_RELA && r.Type != SHT_REL {
+ 				continue

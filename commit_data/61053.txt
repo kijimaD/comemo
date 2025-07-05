@@ -14,7 +14,114 @@ Date:   Thu Sep 26 08:08:07 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/hash/crc32/crc32.go | 20 +++++++++-----------
  src/hash/crc64/crc64.go |  9 +++------
  2 files changed, 12 insertions(+), 17 deletions(-)
+
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index b659959959..bc1ae310dd 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -78,10 +78,9 @@ type Table [256]uint32
+ var castagnoliTable *Table
+ var castagnoliTable8 *slicing8Table
+ var updateCastagnoli func(crc uint32, p []byte) uint32
+-var castagnoliOnce sync.Once
+ var haveCastagnoli atomic.Bool
+ 
+-func castagnoliInit() {
++var castagnoliInitOnce = sync.OnceFunc(func() {
+ 	castagnoliTable = simpleMakeTable(Castagnoli)
+ 
+ 	if archAvailableCastagnoli() {
+@@ -96,7 +95,7 @@ func castagnoliInit() {
+ 	}
+ 
+ 	haveCastagnoli.Store(true)
+-}
++})
+ 
+ // IEEETable is the table for the [IEEE] polynomial.
+ var IEEETable = simpleMakeTable(IEEE)
+@@ -104,9 +103,8 @@ var IEEETable = simpleMakeTable(IEEE)
+ // ieeeTable8 is the slicing8Table for IEEE
+ var ieeeTable8 *slicing8Table
+ var updateIEEE func(crc uint32, p []byte) uint32
+-var ieeeOnce sync.Once
+ 
+-func ieeeInit() {
++var ieeeInitOnce = sync.OnceFunc(func() {
+ 	if archAvailableIEEE() {
+ 		archInitIEEE()
+ 		updateIEEE = archUpdateIEEE
+@@ -117,17 +115,17 @@ func ieeeInit() {
+ 			return slicingUpdate(crc, ieeeTable8, p)
+ 		}
+ 	}
+-}
++})
+ 
+ // MakeTable returns a [Table] constructed from the specified polynomial.
+ // The contents of this [Table] must not be modified.
+ func MakeTable(poly uint32) *Table {
+ 	switch poly {
+ 	case IEEE:
+-		ieeeOnce.Do(ieeeInit)
++		ieeeInitOnce()
+ 		return IEEETable
+ 	case Castagnoli:
+-		castagnoliOnce.Do(castagnoliInit)
++		castagnoliInitOnce()
+ 		return castagnoliTable
+ 	default:
+ 		return simpleMakeTable(poly)
+@@ -147,7 +145,7 @@ type digest struct {
+ // marshal and unmarshal the internal state of the hash.
+ func New(tab *Table) hash.Hash32 {
+ 	if tab == IEEETable {
+-		ieeeOnce.Do(ieeeInit)
++		ieeeInitOnce()
+ 	}
+ 	return &digest{0, tab}
+ }
+@@ -202,7 +200,7 @@ func update(crc uint32, tab *Table, p []byte, checkInitIEEE bool) uint32 {
+ 		return updateCastagnoli(crc, p)
+ 	case tab == IEEETable:
+ 		if checkInitIEEE {
+-			ieeeOnce.Do(ieeeInit)
++			ieeeInitOnce()
+ 		}
+ 		return updateIEEE(crc, p)
+ 	default:
+@@ -238,7 +236,7 @@ func Checksum(data []byte, tab *Table) uint32 { return Update(0, tab, data) }
+ // ChecksumIEEE returns the CRC-32 checksum of data
+ // using the [IEEE] polynomial.
+ func ChecksumIEEE(data []byte) uint32 {
+-	ieeeOnce.Do(ieeeInit)
++	ieeeInitOnce()
+ 	return updateIEEE(0, data)
+ }
+ 
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index bdfd82ed31..66e53620b0 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -30,14 +30,11 @@ const (
+ type Table [256]uint64
+ 
+ var (
+-	slicing8TablesBuildOnce sync.Once
+-	slicing8TableISO        *[8]Table
+-	slicing8TableECMA       *[8]Table
++	slicing8TableISO  *[8]Table
++	slicing8TableECMA *[8]Table
+ )
+ 
+-func buildSlicing8TablesOnce() {
+-	slicing8TablesBuildOnce.Do(buildSlicing8Tables)
+-}
++var buildSlicing8TablesOnce = sync.OnceFunc(buildSlicing8Tables)
+ 
+ func buildSlicing8Tables() {
+ 	slicing8TableISO = makeSlicingBy8Table(makeTable(ISO))

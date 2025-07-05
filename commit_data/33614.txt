@@ -19,7 +19,41 @@ Date:   Fri Aug 25 12:27:15 2017 -0400
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 2 ++
  src/cmd/internal/dwarf/dwarf.go     | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 3a6848598b..5029b479b2 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -453,6 +453,8 @@ func createComplexVars(fn *Node, debugInfo *ssa.FuncDebug) ([]*Node, []*dwarf.Va
+ 		if parts == nil {
+ 			continue
+ 		}
++		// Don't work on this variable again, no matter how many slots it has.
++		delete(varParts, n)
+ 
+ 		// Get the order the parts need to be in to represent the memory
+ 		// of the decomposed user variable.
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 3ab036db0c..3fe8c31ea6 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -328,6 +328,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		DW_CHILDREN_no,
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
++			{DW_AT_decl_line, DW_FORM_udata},
+ 			{DW_AT_location, DW_FORM_sec_offset},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+@@ -351,6 +352,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		DW_CHILDREN_no,
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
++			{DW_AT_decl_line, DW_FORM_udata},
+ 			{DW_AT_location, DW_FORM_sec_offset},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 		},

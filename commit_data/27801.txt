@@ -7,8 +7,147 @@ Date:   Tue Apr 12 21:58:44 2016 -0700
     Change-Id: Ic7a1fb0dbbf108052c970a4a830269a5673df7df
     Reviewed-on: https://go-review.googlesource.com/21963
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  5 ++--
  src/cmd/compile/internal/gc/bimport.go | 10 +++++---
  src/go/internal/gcimporter/bimport.go  | 46 ++++++++++++++--------------------
  3 files changed, 27 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index e780bcf577..59a85c2f23 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -59,9 +59,8 @@ Encoding format:
+ 
+ The export data starts with a single byte indicating the encoding format
+ (compact, or with debugging information), followed by a version string
+-(so we can evolve the encoding if need be), the name of the imported
+-package, and a string containing platform-specific information for that
+-package.
++(so we can evolve the encoding if need be), and then the package object
++for the exported package (with an empty path).
+ 
+ After this header, two lists of objects and the list of inlined function
+ bodies follows.
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 2e80b9f81d..4a93b5a91d 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -59,9 +59,6 @@ func Import(in *bufio.Reader) {
+ 
+ 	// read package data
+ 	p.pkg()
+-	if p.pkgList[0] != importpkg {
+-		Fatalf("importer: imported package not found in pkgList[0]")
+-	}
+ 
+ 	// defer some type-checking until all types are read in completely
+ 	// (parser.go:import_package)
+@@ -193,7 +190,12 @@ func (p *importer) pkg() *Pkg {
+ 		Fatalf("importer: bad path in import: %q", path)
+ 	}
+ 
+-	// an empty path denotes the package we are currently importing
++	// an empty path denotes the package we are currently importing;
++	// it must be the first package we see
++	if (path == "") != (len(p.pkgList) == 0) {
++		panic(fmt.Sprintf("package path %q for pkg index %d", path, len(p.pkgList)))
++	}
++
+ 	pkg := importpkg
+ 	if path != "" {
+ 		pkg = mkpkg(path)
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 81af064b88..7a7bc871f4 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -16,12 +16,15 @@ import (
+ )
+ 
+ type importer struct {
+-	imports  map[string]*types.Package
+-	data     []byte
++	imports map[string]*types.Package
++	data    []byte
++	path    string
++
+ 	buf      []byte   // for reading strings
+ 	bufarray [64]byte // initial underlying array for buf, large enough to avoid allocation when compiling std lib
+-	pkgList  []*types.Package
+-	typList  []types.Type
++
++	pkgList []*types.Package
++	typList []types.Type
+ 
+ 	debugFormat bool
+ 	read        int // bytes read
+@@ -35,6 +38,7 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
+ 	p := importer{
+ 		imports: imports,
+ 		data:    data,
++		path:    path,
+ 	}
+ 	p.buf = p.bufarray[:]
+ 
+@@ -58,25 +62,7 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
+ 	p.typList = append(p.typList, predeclared...)
+ 
+ 	// read package data
+-	// TODO(gri) clean this up
+-	i := p.tagOrIndex()
+-	if i != packageTag {
+-		panic(fmt.Sprintf("package tag expected, got %d", i))
+-	}
+-	name := p.string()
+-	if s := p.string(); s != "" {
+-		panic(fmt.Sprintf("empty path expected, got %s", s))
+-	}
+-	pkg := p.imports[path]
+-	if pkg == nil {
+-		pkg = types.NewPackage(path, name)
+-		p.imports[path] = pkg
+-	}
+-	p.pkgList = append(p.pkgList, pkg)
+-
+-	if debug && p.pkgList[0] != pkg {
+-		panic("imported packaged not found in pkgList[0]")
+-	}
++	pkg := p.pkg()
+ 
+ 	// read objects of phase 1 only (see cmd/compiler/internal/gc/bexport.go)
+ 	objcount := 0
+@@ -91,7 +77,7 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
+ 
+ 	// self-verification
+ 	if count := p.int(); count != objcount {
+-		panic(fmt.Sprintf("importer: got %d objects; want %d", objcount, count))
++		panic(fmt.Sprintf("got %d objects; want %d", objcount, count))
+ 	}
+ 
+ 	// ignore compiler-specific import data
+@@ -135,16 +121,22 @@ func (p *importer) pkg() *types.Package {
+ 		panic("empty package name in import")
+ 	}
+ 
+-	// we should never see an empty import path
+-	if path == "" {
+-		panic("empty import path")
++	// an empty path denotes the package we are currently importing;
++	// it must be the first package we see
++	if (path == "") != (len(p.pkgList) == 0) {
++		panic(fmt.Sprintf("package path %q for pkg index %d", path, len(p.pkgList)))
+ 	}
+ 
+ 	// if the package was imported before, use that one; otherwise create a new one
++	if path == "" {
++		path = p.path
++	}
+ 	pkg := p.imports[path]
+ 	if pkg == nil {
+ 		pkg = types.NewPackage(path, name)
+ 		p.imports[path] = pkg
++	} else if pkg.Name() != name {
++		panic(fmt.Sprintf("conflicting names %s and %s for package %q", pkg.Name(), name, path))
+ 	}
+ 	p.pkgList = append(p.pkgList, pkg)
+ 

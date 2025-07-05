@@ -26,7 +26,7 @@ Date:   Fri Mar 6 12:02:24 2015 -0800
     Change-Id: I98abb44fc7f43a2e2e48425cc9f215cd0be37442
     Reviewed-on: https://go-review.googlesource.com/7080
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/gc/closure.go | 17 ++++-------
  src/cmd/internal/gc/dcl.go     |  7 ++---
  src/cmd/internal/gc/gen.go     |  4 +--
@@ -40,3 +40,507 @@ Date:   Fri Mar 6 12:02:24 2015 -0800
  src/cmd/internal/gc/subr.go    |  4 +++
  src/cmd/internal/gc/walk.go    | 18 +++++++-----
  12 files changed, 70 insertions(+), 95 deletions(-)
+
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/internal/gc/closure.go
+index 3155b69a21..df89544162 100644
+--- a/src/cmd/internal/gc/closure.go
++++ b/src/cmd/internal/gc/closure.go
+@@ -174,8 +174,7 @@ func closurename(n *Node) *Sym {
+ 	} else {
+ 		Fatal("closurename called for %v", Nconv(n, obj.FmtShort))
+ 	}
+-	namebuf = fmt.Sprintf("%s.%s%d", outer, prefix, gen)
+-	n.Sym = Lookup(namebuf)
++	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
+ 	return n.Sym
+ }
+ 
+@@ -333,9 +332,7 @@ func transformclosure(xfunc *Node) {
+ 				// we introduce function param &v *T
+ 				// and v remains PPARAMREF with &v heapaddr
+ 				// (accesses will implicitly deref &v).
+-				namebuf = fmt.Sprintf("&%s", v.Sym.Name)
+-
+-				addr = newname(Lookup(namebuf))
++				addr = newname(Lookupf("&%s", v.Sym.Name))
+ 				addr.Type = Ptrto(v.Type)
+ 				addr.Class = PPARAM
+ 				v.Heapaddr = addr
+@@ -397,9 +394,7 @@ func transformclosure(xfunc *Node) {
+ 			} else {
+ 				// Declare variable holding addresses taken from closure
+ 				// and initialize in entry prologue.
+-				namebuf = fmt.Sprintf("&%s", v.Sym.Name)
+-
+-				addr = newname(Lookup(namebuf))
++				addr = newname(Lookupf("&%s", v.Sym.Name))
+ 				addr.Ntype = Nod(OIND, typenod(v.Type), nil)
+ 				addr.Class = PAUTO
+ 				addr.Used = true
+@@ -557,9 +552,8 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	var fld *Node
+ 	var n *Node
+ 	for t := getinargx(t0).Type; t != nil; t = t.Down {
+-		namebuf = fmt.Sprintf("a%d", i)
++		n = newname(Lookupf("a%d", i))
+ 		i++
+-		n = newname(Lookup(namebuf))
+ 		n.Class = PPARAM
+ 		xfunc.Dcl = list(xfunc.Dcl, n)
+ 		callargs = list(callargs, n)
+@@ -577,9 +571,8 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	l = nil
+ 	var retargs *NodeList
+ 	for t := getoutargx(t0).Type; t != nil; t = t.Down {
+-		namebuf = fmt.Sprintf("r%d", i)
++		n = newname(Lookupf("r%d", i))
+ 		i++
+-		n = newname(Lookup(namebuf))
+ 		n.Class = PPARAMOUT
+ 		xfunc.Dcl = list(xfunc.Dcl, n)
+ 		retargs = list(retargs, n)
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/internal/gc/dcl.go
+index 7194c123a2..fa955ba929 100644
+--- a/src/cmd/internal/gc/dcl.go
++++ b/src/cmd/internal/gc/dcl.go
+@@ -645,10 +645,8 @@ func funcargs(nt *Node) {
+ 
+ 		if n.Left == nil {
+ 			// Name so that escape analysis can track it. ~r stands for 'result'.
+-			namebuf = fmt.Sprintf("~r%d", gen)
++			n.Left = newname(Lookupf("~r%d", gen))
+ 			gen++
+-
+-			n.Left = newname(Lookup(namebuf))
+ 		}
+ 
+ 		// TODO: n->left->missing = 1;
+@@ -667,9 +665,8 @@ func funcargs(nt *Node) {
+ 
+ 			*nn = *n.Left
+ 			nn.Orig = nn
+-			namebuf = fmt.Sprintf("~b%d", gen)
++			nn.Sym = Lookupf("~b%d", gen)
+ 			gen++
+-			nn.Sym = Lookup(namebuf)
+ 			n.Left = nn
+ 		}
+ 
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index 70c218e667..3777cc310d 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -590,10 +590,8 @@ func Tempname(nn *Node, t *Type) {
+ 
+ 	// give each tmp a different name so that there
+ 	// a chance to registerizer them
+-	namebuf = fmt.Sprintf("autotmp_%.4d", statuniqgen)
+-
++	s := Lookupf("autotmp_%.4d", statuniqgen)
+ 	statuniqgen++
+-	s := Lookup(namebuf)
+ 	n := Nod(ONAME, nil, nil)
+ 	n.Sym = s
+ 	s.Def = n
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 348dd833e0..e9412d1ff2 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -500,8 +500,6 @@ var safemode int
+ 
+ var nolocalimports int
+ 
+-var namebuf string
+-
+ var lexbuf bytes.Buffer
+ var strbuf bytes.Buffer
+ 
+diff --git a/src/cmd/internal/gc/init.go b/src/cmd/internal/gc/init.go
+index c57e50b13d..8aaed8c63c 100644
+--- a/src/cmd/internal/gc/init.go
++++ b/src/cmd/internal/gc/init.go
+@@ -4,8 +4,6 @@
+ 
+ package gc
+ 
+-import "fmt"
+-
+ //	case OADD:
+ //		if(n->right->op == OLITERAL) {
+ //			v = n->right->vconst;
+@@ -31,8 +29,7 @@ var renameinit_initgen int
+ 
+ func renameinit() *Sym {
+ 	renameinit_initgen++
+-	namebuf = fmt.Sprintf("init.%d", renameinit_initgen)
+-	return Lookup(namebuf)
++	return Lookupf("init.%d", renameinit_initgen)
+ }
+ 
+ /*
+@@ -112,18 +109,14 @@ func fninit(n *NodeList) {
+ 	var r *NodeList
+ 
+ 	// (1)
+-	namebuf = "initdone·"
+-
+-	gatevar := newname(Lookup(namebuf))
++	gatevar := newname(Lookup("initdone·"))
+ 	addvar(gatevar, Types[TUINT8], PEXTERN)
+ 
+ 	// (2)
+ 	Maxarg = 0
+ 
+-	namebuf = "init"
+-
+ 	fn := Nod(ODCLFUNC, nil, nil)
+-	initsym := Lookup(namebuf)
++	initsym := Lookup("init")
+ 	fn.Nname = newname(initsym)
+ 	fn.Nname.Defn = fn
+ 	fn.Nname.Ntype = Nod(OTFUNC, nil, nil)
+@@ -169,8 +162,7 @@ func fninit(n *NodeList) {
+ 	// (9)
+ 	// could check that it is fn of no args/returns
+ 	for i := 1; ; i++ {
+-		namebuf = fmt.Sprintf("init.%d", i)
+-		s := Lookup(namebuf)
++		s := Lookupf("init.%d", i)
+ 		if s.Def == nil {
+ 			break
+ 		}
+diff --git a/src/cmd/internal/gc/inl.go b/src/cmd/internal/gc/inl.go
+index c266f7d7aa..cdd709ed77 100644
+--- a/src/cmd/internal/gc/inl.go
++++ b/src/cmd/internal/gc/inl.go
+@@ -859,8 +859,7 @@ func inlvar(var_ *Node) *Node {
+ 
+ // Synthesize a variable to store the inlined function's results in.
+ func retvar(t *Type, i int) *Node {
+-	namebuf = fmt.Sprintf("~r%d", i)
+-	n := newname(Lookup(namebuf))
++	n := newname(Lookupf("~r%d", i))
+ 	n.Type = t.Type
+ 	n.Class = PAUTO
+ 	n.Used = true
+@@ -872,8 +871,7 @@ func retvar(t *Type, i int) *Node {
+ // Synthesize a variable to store the inlined function's arguments
+ // when they come from a multiple return call.
+ func argvar(t *Type, i int) *Node {
+-	namebuf = fmt.Sprintf("~arg%d", i)
+-	n := newname(Lookup(namebuf))
++	n := newname(Lookupf("~arg%d", i))
+ 	n.Type = t.Type
+ 	n.Class = PAUTO
+ 	n.Used = true
+@@ -886,8 +884,7 @@ var newlabel_inl_label int
+ 
+ func newlabel_inl() *Node {
+ 	newlabel_inl_label++
+-	namebuf = fmt.Sprintf(".inlret%.6d", newlabel_inl_label)
+-	n := newname(Lookup(namebuf))
++	n := newname(Lookupf(".inlret%.6d", newlabel_inl_label))
+ 	n.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
+ 	return n
+ }
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 816e67e89a..03e874929d 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -559,25 +559,24 @@ func islocalname(name string) bool {
+ 		strings.HasPrefix(name, "../") || name == ".."
+ }
+ 
+-func findpkg(name string) bool {
++func findpkg(name string) (file string, ok bool) {
+ 	if islocalname(name) {
+ 		if safemode != 0 || nolocalimports != 0 {
+-			return false
++			return "", false
+ 		}
+ 
+ 		// try .a before .6.  important for building libraries:
+ 		// if there is an array.6 in the array.a library,
+ 		// want to find all of array.a, not just array.6.
+-		namebuf = fmt.Sprintf("%s.a", name)
+-
+-		if obj.Access(namebuf, 0) >= 0 {
+-			return true
++		file = fmt.Sprintf("%s.a", name)
++		if obj.Access(file, 0) >= 0 {
++			return file, true
+ 		}
+-		namebuf = fmt.Sprintf("%s.%c", name, Thearch.Thechar)
+-		if obj.Access(namebuf, 0) >= 0 {
+-			return true
++		file = fmt.Sprintf("%s.%c", name, Thearch.Thechar)
++		if obj.Access(file, 0) >= 0 {
++			return file, true
+ 		}
+-		return false
++		return "", false
+ 	}
+ 
+ 	// local imports should be canonicalized already.
+@@ -587,17 +586,17 @@ func findpkg(name string) bool {
+ 	_ = q
+ 	if path.Clean(name) != name {
+ 		Yyerror("non-canonical import path %q (should be %q)", name, q)
+-		return false
++		return "", false
+ 	}
+ 
+ 	for p := idirs; p != nil; p = p.link {
+-		namebuf = fmt.Sprintf("%s/%s.a", p.dir, name)
+-		if obj.Access(namebuf, 0) >= 0 {
+-			return true
++		file = fmt.Sprintf("%s/%s.a", p.dir, name)
++		if obj.Access(file, 0) >= 0 {
++			return file, true
+ 		}
+-		namebuf = fmt.Sprintf("%s/%s.%c", p.dir, name, Thearch.Thechar)
+-		if obj.Access(namebuf, 0) >= 0 {
+-			return true
++		file = fmt.Sprintf("%s/%s.%c", p.dir, name, Thearch.Thechar)
++		if obj.Access(file, 0) >= 0 {
++			return file, true
+ 		}
+ 	}
+ 
+@@ -612,17 +611,17 @@ func findpkg(name string) bool {
+ 			suffix = "race"
+ 		}
+ 
+-		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
+-		if obj.Access(namebuf, 0) >= 0 {
+-			return true
++		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
++		if obj.Access(file, 0) >= 0 {
++			return file, true
+ 		}
+-		namebuf = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.%c", goroot, goos, goarch, suffixsep, suffix, name, Thearch.Thechar)
+-		if obj.Access(namebuf, 0) >= 0 {
+-			return true
++		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.%c", goroot, goos, goarch, suffixsep, suffix, name, Thearch.Thechar)
++		if obj.Access(file, 0) >= 0 {
++			return file, true
+ 		}
+ 	}
+ 
+-	return false
++	return "", false
+ }
+ 
+ func fakeimport() {
+@@ -698,7 +697,8 @@ func importfile(f *Val, line int) {
+ 		}
+ 	}
+ 
+-	if !findpkg(path_) {
++	file, found := findpkg(path_)
++	if !found {
+ 		Yyerror("can't find import: %q", f.U.Sval)
+ 		errorexit()
+ 	}
+@@ -708,7 +708,6 @@ func importfile(f *Val, line int) {
+ 	// If we already saw that package, feed a dummy statement
+ 	// to the lexer to avoid parsing export data twice.
+ 	if importpkg.Imported != 0 {
+-		file := namebuf
+ 		tag := ""
+ 		if importpkg.Safe {
+ 			tag = "safe"
+@@ -723,16 +722,13 @@ func importfile(f *Val, line int) {
+ 
+ 	var err error
+ 	var imp *obj.Biobuf
+-	imp, err = obj.Bopenr(namebuf)
++	imp, err = obj.Bopenr(file)
+ 	if err != nil {
+ 		Yyerror("can't open import: %q: %v", f.U.Sval, err)
+ 		errorexit()
+ 	}
+ 
+-	file := namebuf
+-
+-	n := len(namebuf)
+-	if n > 2 && namebuf[n-2] == '.' && namebuf[n-1] == 'a' {
++	if strings.HasSuffix(file, ".a") {
+ 		if !skiptopkgdef(imp) {
+ 			Yyerror("import %s: not a package file", file)
+ 			errorexit()
+@@ -757,7 +753,7 @@ func importfile(f *Val, line int) {
+ 
+ 	// assume files move (get installed)
+ 	// so don't record the full path.
+-	linehist(file[n-len(path_)-2:], -1, 1) // acts as #pragma lib
++	linehist(file[len(file)-len(path_)-2:], -1, 1) // acts as #pragma lib
+ 
+ 	/*
+ 	 * position the input right
+@@ -3162,10 +3158,9 @@ func mkpackage(pkgname string) {
+ 				p = p[i+1:]
+ 			}
+ 		}
+-		namebuf = p
+-		if i := strings.LastIndex(namebuf, "."); i >= 0 {
+-			namebuf = namebuf[:i]
++		if i := strings.LastIndex(p, "."); i >= 0 {
++			p = p[:i]
+ 		}
+-		outfile = fmt.Sprintf("%s.%c", namebuf, Thearch.Thechar)
++		outfile = fmt.Sprintf("%s.%c", p, Thearch.Thechar)
+ 	}
+ }
+diff --git a/src/cmd/internal/gc/obj.go b/src/cmd/internal/gc/obj.go
+index d59898f286..077b89b500 100644
+--- a/src/cmd/internal/gc/obj.go
++++ b/src/cmd/internal/gc/obj.go
+@@ -101,8 +101,8 @@ func dumpobj() {
+ 			obj.Bputc(bout, 0)
+ 		}
+ 		obj.Bseek(bout, startobj-ArhdrSize, 0)
+-		namebuf = fmt.Sprintf("_go_.%c", Thearch.Thechar)
+-		formathdr(arhdr[:], namebuf, size)
++		name := fmt.Sprintf("_go_.%c", Thearch.Thechar)
++		formathdr(arhdr[:], name, size)
+ 		obj.Bwrite(bout, arhdr[:])
+ 	}
+ 
+@@ -199,22 +199,23 @@ func duintptr(s *Sym, off int, v uint64) int {
+ var stringsym_gen int
+ 
+ func stringsym(s string) *Sym {
++	var symname string
+ 	var pkg *Pkg
+ 	if len(s) > 100 {
+ 		// huge strings are made static to avoid long names
+ 		stringsym_gen++
+-		namebuf = fmt.Sprintf(".gostring.%d", stringsym_gen)
++		symname = fmt.Sprintf(".gostring.%d", stringsym_gen)
+ 
+ 		pkg = localpkg
+ 	} else {
+ 		// small strings get named by their contents,
+ 		// so that multiple modules using the same string
+ 		// can share it.
+-		namebuf = fmt.Sprintf("%q", s)
++		symname = fmt.Sprintf("%q", s)
+ 		pkg = gostringpkg
+ 	}
+ 
+-	sym := Pkglookup(namebuf, pkg)
++	sym := Pkglookup(symname, pkg)
+ 
+ 	// SymUniq flag indicates that data is generated already
+ 	if sym.Flags&SymUniq != 0 {
+@@ -252,8 +253,8 @@ func slicebytes(nam *Node, s string, len int) {
+ 	var m int
+ 
+ 	slicebytes_gen++
+-	namebuf = fmt.Sprintf(".gobytes.%d", slicebytes_gen)
+-	sym := Pkglookup(namebuf, localpkg)
++	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
++	sym := Pkglookup(symname, localpkg)
+ 	sym.Def = newname(sym)
+ 
+ 	off := 0
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index 208ecb80ff..06239048e2 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -18,9 +18,8 @@ var makefuncdatasym_nsym int32
+ func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
+ 	var nod Node
+ 
+-	namebuf = fmt.Sprintf(namefmt, makefuncdatasym_nsym)
++	sym := Lookupf(namefmt, makefuncdatasym_nsym)
+ 	makefuncdatasym_nsym++
+-	sym := Lookup(namebuf)
+ 	pnod := newname(sym)
+ 	pnod.Class = PEXTERN
+ 	Nodconst(&nod, Types[TINT32], funcdatakind)
+diff --git a/src/cmd/internal/gc/sinit.go b/src/cmd/internal/gc/sinit.go
+index c5e006b160..2dec7572bd 100644
+--- a/src/cmd/internal/gc/sinit.go
++++ b/src/cmd/internal/gc/sinit.go
+@@ -517,9 +517,8 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+  * part of the composite literal.
+  */
+ func staticname(t *Type, ctxt int) *Node {
+-	namebuf = fmt.Sprintf("statictmp_%.4d", statuniqgen)
++	n := newname(Lookupf("statictmp_%.4d", statuniqgen))
+ 	statuniqgen++
+-	n := newname(Lookup(namebuf))
+ 	if ctxt == 0 {
+ 		n.Readonly = true
+ 	}
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index c59b7e6447..f77d1511fc 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -281,6 +281,10 @@ func Lookup(name string) *Sym {
+ 	return localpkg.Lookup(name)
+ }
+ 
++func Lookupf(format string, a ...interface{}) *Sym {
++	return Lookup(fmt.Sprintf(format, a...))
++}
++
+ func LookupBytes(name []byte) *Sym {
+ 	return localpkg.LookupBytes(name)
+ }
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index e88b4c28b0..e4abc282c2 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -1109,17 +1109,18 @@ func walkexpr(np **Node, init **NodeList) {
+ 			if Widthreg >= 8 || (et != TUINT64 && et != TINT64) {
+ 				goto ret
+ 			}
++			var fn string
+ 			if et == TINT64 {
+-				namebuf = "int64"
++				fn = "int64"
+ 			} else {
+-				namebuf = "uint64"
++				fn = "uint64"
+ 			}
+ 			if n.Op == ODIV {
+-				namebuf += "div"
++				fn += "div"
+ 			} else {
+-				namebuf += "mod"
++				fn += "mod"
+ 			}
+-			n = mkcall(namebuf, n.Type, init, conv(n.Left, Types[et]), conv(n.Right, Types[et]))
++			n = mkcall(fn, n.Type, init, conv(n.Left, Types[et]), conv(n.Right, Types[et]))
+ 
+ 		default:
+ 			break
+@@ -2882,13 +2883,14 @@ func addstr(n *Node, init **NodeList) *Node {
+ 		args = list(args, conv(l.N, Types[TSTRING]))
+ 	}
+ 
++	var fn string
+ 	if c <= 5 {
+ 		// small numbers of strings use direct runtime helpers.
+ 		// note: orderexpr knows this cutoff too.
+-		namebuf = fmt.Sprintf("concatstring%d", c)
++		fn = fmt.Sprintf("concatstring%d", c)
+ 	} else {
+ 		// large numbers of strings are passed to the runtime as a slice.
+-		namebuf = "concatstrings"
++		fn = "concatstrings"
+ 
+ 		t := typ(TARRAY)
+ 		t.Type = Types[TSTRING]
+@@ -2901,7 +2903,7 @@ func addstr(n *Node, init **NodeList) *Node {
+ 		slice.Esc = EscNone
+ 	}
+ 
+-	cat := syslook(namebuf, 1)
++	cat := syslook(fn, 1)
+ 	r := Nod(OCALL, cat, nil)
+ 	r.List = args
+ 	typecheck(&r, Erv)

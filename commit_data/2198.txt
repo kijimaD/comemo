@@ -8,9 +8,203 @@ Date:   Wed May 13 10:16:46 2009 -0700
     DELTA=161  (161 added, 0 deleted, 0 changed)
     OCL=28745
     CL=28747
-
+---
  src/lib/os/file.go             | 27 ++++++++++++
  src/lib/os/os_test.go          | 94 ++++++++++++++++++++++++++++++++++++++++++
  src/lib/syscall/file_darwin.go | 20 +++++++++
  src/lib/syscall/file_linux.go  | 20 +++++++++
  4 files changed, 161 insertions(+)
+
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index 9b22a896db..2c609e3183 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -306,3 +306,30 @@ func Remove(name string) Error {
+ 	return ErrnoToError(e);
+ }
+ 
++// Link creates a hard link.
++func Link(oldpath, newpath string) Error {
++	r, e := syscall.Link(oldpath, newpath);
++	return ErrnoToError(e);
++}
++
++// Symlink creates a symbolic link.
++func Symlink(oldpath, newpath string) Error {
++	r, e := syscall.Symlink(oldpath, newpath);
++	return ErrnoToError(e);
++}
++
++// Readlink reads the contents of a symbolic link: the destination of
++// the link.  It returns the contents and an Error, if any.
++func Readlink(path string) (string, Error) {
++	for len := int64(128); ; len *= 2 {
++		b := make([]byte, len);
++		r, e := syscall.Readlink(path, &b[0], len);
++		if r == -1 {
++			return "", ErrnoToError(e);
++		} else if r < len {
++			return string(b[0:r]), nil;
++		}
++	}
++	// Silence 6g.
++	return "", nil;
++}
+diff --git a/src/lib/os/os_test.go b/src/lib/os/os_test.go
+index 7349b22476..e1e2d4b4b3 100644
+--- a/src/lib/os/os_test.go
++++ b/src/lib/os/os_test.go
+@@ -205,3 +205,97 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 	}
+ }
+ 
++func TestHardLink(t *testing.T) {
++	from, to := "hardlinktestfrom", "hardlinktestto";
++	Remove(from); // Just in case.
++	file, err := Open(to, O_CREAT | O_WRONLY, 0666);
++	if err != nil {
++		t.Fatalf("open %q failed: %v", to, err);
++	}
++	defer Remove(to);
++	if err = file.Close(); err != nil {
++		t.Errorf("close %q failed: %v", to, err);
++	}
++	err = Link(to, from);
++	if err != nil {
++		t.Fatalf("link %q, %q failed: %v", to, from, err);
++	}
++	defer Remove(from);
++	tostat, err := Stat(to);
++	if err != nil {
++		t.Fatalf("stat %q failed: %v", to, err);
++	}
++	fromstat, err := Stat(from);
++	if err != nil {
++		t.Fatalf("stat %q failed: %v", from, err);
++	}
++	if tostat.Dev != fromstat.Dev || tostat.Ino != fromstat.Ino {
++		t.Errorf("link %q, %q did not create hard link", to, from);
++	}
++}
++
++func TestSymLink(t *testing.T) {
++	from, to := "symlinktestfrom", "symlinktestto";
++	Remove(from); // Just in case.
++	file, err := Open(to, O_CREAT | O_WRONLY, 0666);
++	if err != nil {
++		t.Fatalf("open %q failed: %v", to, err);
++	}
++	defer Remove(to);
++	if err = file.Close(); err != nil {
++		t.Errorf("close %q failed: %v", to, err);
++	}
++	err = Symlink(to, from);
++	if err != nil {
++		t.Fatalf("symlink %q, %q failed: %v", to, from, err);
++	}
++	defer Remove(from);
++	tostat, err := Stat(to);
++	if err != nil {
++		t.Fatalf("stat %q failed: %v", to, err);
++	}
++	fromstat, err := Stat(from);
++	if err != nil {
++		t.Fatalf("stat %q failed: %v", from, err);
++	}
++	if tostat.Dev != fromstat.Dev || tostat.Ino != fromstat.Ino {
++		t.Errorf("symlink %q, %q did not create symlink", to, from);
++	}
++	fromstat, err = Lstat(from);
++	if err != nil {
++		t.Fatalf("lstat %q failed: %v", from, err);
++	}
++	if !fromstat.IsSymlink() {
++		t.Fatalf("symlink %q, %q did not create symlink", to, from);
++	}
++	s, err := Readlink(from);
++	if err != nil {
++		t.Fatalf("readlink %q failed: %v", from, err);
++	}
++	if s != to {
++		t.Fatalf("after symlink %q != %q", s, to);
++	}
++	file, err = Open(from, O_RDONLY, 0);
++	if err != nil {
++		t.Fatalf("open %q failed: %v", from, err);
++	}
++	file.Close();
++}
++
++func TestLongSymlink(t *testing.T) {
++	s := "0123456789abcdef";
++	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
++	from := "longsymlinktestfrom";
++	err := Symlink(s, from);
++	if err != nil {
++		t.Fatalf("symlink %q, %q failed: %v", s, from, err);
++	}
++	defer Remove(from);
++	r, err := Readlink(from);
++	if err != nil {
++		t.Fatalf("readlink %q failed: %v", from, err);
++	}
++	if r != s {
++		t.Fatalf("after symlink %q != %q", r, s);
++	}
++}
+diff --git a/src/lib/syscall/file_darwin.go b/src/lib/syscall/file_darwin.go
+index 01005d207b..558d66c917 100644
+--- a/src/lib/syscall/file_darwin.go
++++ b/src/lib/syscall/file_darwin.go
+@@ -110,3 +110,23 @@ func Chdir(dir string) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_CHDIR, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
+ 	return r1, err;
+ }
++
++func Link(oldpath, newpath string) (ret int64, errno int64) {
++	oldbuf := StringBytePtr(oldpath);
++	newbuf := StringBytePtr(newpath);
++	r1, r2, err := Syscall(SYS_LINK, int64(uintptr(unsafe.Pointer(oldbuf))), int64(uintptr(unsafe.Pointer(newbuf))), 0);
++	return r1, err;
++}
++
++func Symlink(oldpath, newpath string) (ret int64, errno int64) {
++	oldbuf := StringBytePtr(oldpath);
++	newbuf := StringBytePtr(newpath);
++	r1, r2, err := Syscall(SYS_SYMLINK, int64(uintptr(unsafe.Pointer(oldbuf))), int64(uintptr(unsafe.Pointer(newbuf))), 0);
++	return r1, err;
++}
++
++func Readlink(path string, buf *byte, nbytes int64) (ret int64, errno int64) {
++	pathbuf := StringBytePtr(path);
++	r1, r2, err := Syscall(SYS_READLINK, int64(uintptr(unsafe.Pointer(pathbuf))), int64(uintptr(unsafe.Pointer(buf))), nbytes);
++	return r1, err;
++}
+diff --git a/src/lib/syscall/file_linux.go b/src/lib/syscall/file_linux.go
+index 80800b6158..c7299f8393 100644
+--- a/src/lib/syscall/file_linux.go
++++ b/src/lib/syscall/file_linux.go
+@@ -111,3 +111,23 @@ func Chdir(dir string) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_CHDIR, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
+ 	return r1, err;
+ }
++
++func Link(oldpath, newpath string) (ret int64, errno int64) {
++	oldbuf := StringBytePtr(oldpath);
++	newbuf := StringBytePtr(newpath);
++	r1, r2, err := Syscall(SYS_LINK, int64(uintptr(unsafe.Pointer(oldbuf))), int64(uintptr(unsafe.Pointer(newbuf))), 0);
++	return r1, err;
++}
++
++func Symlink(oldpath, newpath string) (ret int64, errno int64) {
++	oldbuf := StringBytePtr(oldpath);
++	newbuf := StringBytePtr(newpath);
++	r1, r2, err := Syscall(SYS_SYMLINK, int64(uintptr(unsafe.Pointer(oldbuf))), int64(uintptr(unsafe.Pointer(newbuf))), 0);
++	return r1, err;
++}
++
++func Readlink(path string, buf *byte, nbytes int64) (ret int64, errno int64) {
++	pathbuf := StringBytePtr(path);
++	r1, r2, err := Syscall(SYS_READLINK, int64(uintptr(unsafe.Pointer(pathbuf))), int64(uintptr(unsafe.Pointer(buf))), nbytes);
++	return r1, err;
++}

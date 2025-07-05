@@ -14,10 +14,152 @@ Date:   Thu May 10 13:25:39 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/closure.go | 10 ++--------
  src/cmd/compile/internal/gc/range.go   |  3 +--
  src/cmd/compile/internal/gc/select.go  | 13 +++++--------
  src/cmd/compile/internal/gc/subr.go    |  3 +--
  src/cmd/compile/internal/gc/walk.go    | 19 ++++++++++++-------
  5 files changed, 21 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index ce575a6418..834cdc41eb 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -382,10 +382,7 @@ func walkclosure(clo *Node, init *Nodes) *Node {
+ 	clos.List.Set(append([]*Node{nod(OCFUNC, xfunc.Func.Nname, nil)}, clo.Func.Enter.Slice()...))
+ 
+ 	// Force type conversion from *struct to the func type.
+-	clos = nod(OCONVNOP, clos, nil)
+-	clos.Type = clo.Type
+-
+-	clos = typecheck(clos, Erv)
++	clos = convnop(clos, clo.Type)
+ 
+ 	// typecheck will insert a PTRLIT node under CONVNOP,
+ 	// tag it with escape analysis result.
+@@ -511,10 +508,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 	clos.List.Append(n.Left)
+ 
+ 	// Force type conversion from *struct to the func type.
+-	clos = nod(OCONVNOP, clos, nil)
+-	clos.Type = n.Type
+-
+-	clos = typecheck(clos, Erv)
++	clos = convnop(clos, n.Type)
+ 
+ 	// typecheck will insert a PTRLIT node under CONVNOP,
+ 	// tag it with escape analysis result.
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 591bd06368..13f45e164d 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -580,8 +580,7 @@ func arrayClear(n, v1, v2, a *Node) bool {
+ 	tmp := nod(OINDEX, a, nodintconst(0))
+ 	tmp.SetBounded(true)
+ 	tmp = nod(OADDR, tmp, nil)
+-	tmp = nod(OCONVNOP, tmp, nil)
+-	tmp.Type = types.Types[TUNSAFEPTR]
++	tmp = convnop(tmp, types.Types[TUNSAFEPTR])
+ 	n.Nbody.Append(nod(OAS, hp, tmp))
+ 
+ 	// hn = len(a) * sizeof(elem(a))
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 4445edbe92..c7f3908888 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -316,13 +316,11 @@ func walkselectcases(cases *Nodes) []*Node {
+ 
+ 		setField("kind", nodintconst(kind))
+ 		if c != nil {
+-			c = nod(OCONVNOP, c, nil)
+-			c.Type = types.Types[TUNSAFEPTR]
++			c = convnop(c, types.Types[TUNSAFEPTR])
+ 			setField("c", c)
+ 		}
+ 		if elem != nil {
+-			elem = nod(OCONVNOP, elem, nil)
+-			elem.Type = types.Types[TUNSAFEPTR]
++			elem = convnop(elem, types.Types[TUNSAFEPTR])
+ 			setField("elem", elem)
+ 		}
+ 
+@@ -375,10 +373,9 @@ func walkselectcases(cases *Nodes) []*Node {
+ 
+ // bytePtrToIndex returns a Node representing "(*byte)(&n[i])".
+ func bytePtrToIndex(n *Node, i int64) *Node {
+-	s := nod(OCONVNOP, nod(OADDR, nod(OINDEX, n, nodintconst(i)), nil), nil)
+-	s.Type = types.NewPtr(types.Types[TUINT8])
+-	s = typecheck(s, Erv)
+-	return s
++	s := nod(OADDR, nod(OINDEX, n, nodintconst(i)), nil)
++	t := types.NewPtr(types.Types[TUINT8])
++	return convnop(s, t)
+ }
+ 
+ var scase *types.Type
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 0af0ff82c4..61a3b2385d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1674,8 +1674,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 		if !dotlist[0].field.Type.IsPtr() {
+ 			dot = nod(OADDR, dot, nil)
+ 		}
+-		as := nod(OAS, nthis, nod(OCONVNOP, dot, nil))
+-		as.Right.Type = rcvr
++		as := nod(OAS, nthis, convnop(dot, rcvr))
+ 		fn.Nbody.Append(as)
+ 		fn.Nbody.Append(nodSym(ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f75e729eb5..00c3cf2872 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1506,9 +1506,7 @@ opswitch:
+ 				a = typecheck(a, Etop)
+ 				a = walkexpr(a, init)
+ 				init.Append(a)
+-				n = nod(OCONVNOP, h, nil)
+-				n.Type = t
+-				n = typecheck(n, Erv)
++				n = convnop(h, t)
+ 			} else {
+ 				// Call runtime.makehmap to allocate an
+ 				// hmap on the heap and initialize hmap's hash0 field.
+@@ -2029,8 +2027,7 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
+ 		// optimization - can do block copy
+ 		if eqtypenoname(rhs[0].Type, lhs) {
+ 			nl := nodarg(lhs, fp)
+-			nr := nod(OCONVNOP, rhs[0], nil)
+-			nr.Type = nl.Type
++			nr := convnop(rhs[0], nl.Type)
+ 			n := convas(nod(OAS, nl, nr), init)
+ 			n.SetTypecheck(1)
+ 			return []*Node{n}
+@@ -2748,6 +2745,15 @@ func conv(n *Node, t *types.Type) *Node {
+ 	return n
+ }
+ 
++// convnop converts node n to type t using the OCONVNOP op
++// and typechecks the result with Erv.
++func convnop(n *Node, t *types.Type) *Node {
++	n = nod(OCONVNOP, n, nil)
++	n.Type = t
++	n = typecheck(n, Erv)
++	return n
++}
++
+ // byteindex converts n, which is byte-sized, to a uint8.
+ // We cannot use conv, because we allow converting bool to uint8 here,
+ // which is forbidden in user code.
+@@ -3157,8 +3163,7 @@ func extendslice(n *Node, init *Nodes) *Node {
+ 	hp := nod(OINDEX, s, nod(OLEN, l1, nil))
+ 	hp.SetBounded(true)
+ 	hp = nod(OADDR, hp, nil)
+-	hp = nod(OCONVNOP, hp, nil)
+-	hp.Type = types.Types[TUNSAFEPTR]
++	hp = convnop(hp, types.Types[TUNSAFEPTR])
+ 
+ 	// hn := l2 * sizeof(elem(s))
+ 	hn := nod(OMUL, l2, nodintconst(elemtype.Width))

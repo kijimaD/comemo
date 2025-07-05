@@ -8,7 +8,38 @@ Date:   Mon Dec 20 13:36:47 2010 -0800
     R=adg, gri
     CC=golang-dev
     https://golang.org/cl/3809041
-
+---
  src/pkg/template/template.go      | 2 +-
  src/pkg/template/template_test.go | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index be5c59aed8..aa05077616 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -673,7 +673,7 @@ func empty(v reflect.Value) bool {
+ 	case *reflect.SliceValue:
+ 		return v.Len() == 0
+ 	}
+-	return true
++	return false
+ }
+ 
+ // Look up a variable or method, up through the parent if necessary.
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 1c491e34ae..4075444a81 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -197,6 +197,12 @@ var tests = []*Test{
+ 		out: " Header\n",
+ 	},
+ 
++	&Test{
++		in: "{.section integer}{@}{.end}",
++
++		out: "77",
++	},
++
+ 	// Repeated
+ 	&Test{
+ 		in: "{.section pdata }\n" +

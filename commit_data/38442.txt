@@ -16,10 +16,230 @@ Date:   Wed Oct 24 15:49:32 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/doc.go                   |  3 ++
  src/cmd/compile/internal/gc/lang_test.go | 59 +++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/main.go      | 68 ++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/noder.go     |  7 +++-
  src/go/build/build.go                    |  2 +
  5 files changed, 137 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index bce03fc40f..e2a19d98c0 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -64,6 +64,9 @@ Flags:
+ 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
+ 	-l
+ 		Disable inlining.
++	-lang version
++		Set language version to compile, as in -lang=go1.12.
++		Default is current version.
+ 	-largemodel
+ 		Generate code that assumes a large memory model.
+ 	-linkobj file
+diff --git a/src/cmd/compile/internal/gc/lang_test.go b/src/cmd/compile/internal/gc/lang_test.go
+new file mode 100644
+index 0000000000..b225f03a1d
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/lang_test.go
+@@ -0,0 +1,59 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++)
++
++const aliasSrc = `
++package x
++
++type T = int
++`
++
++func TestInvalidLang(t *testing.T) {
++	t.Parallel()
++
++	testenv.MustHaveGoBuild(t)
++
++	dir, err := ioutil.TempDir("", "TestInvalidLang")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	src := filepath.Join(dir, "alias.go")
++	if err := ioutil.WriteFile(src, []byte(aliasSrc), 0644); err != nil {
++		t.Fatal(err)
++	}
++
++	outfile := filepath.Join(dir, "alias.o")
++
++	if testLang(t, "go9.99", src, outfile) == nil {
++		t.Error("compilation with -lang=go9.99 succeeded unexpectedly")
++	}
++
++	if testLang(t, "go1.8", src, outfile) == nil {
++		t.Error("compilation with -lang=go1.8 succeeded unexpectedly")
++	}
++
++	if err := testLang(t, "go1.9", src, outfile); err != nil {
++		t.Errorf("compilation with -lang=go1.9 failed unexpectedly: %v", err)
++	}
++}
++
++func testLang(t *testing.T, lang, src, outfile string) error {
++	run := []string{testenv.GoToolPath(t), "tool", "compile", "-lang", lang, "-o", outfile, src}
++	t.Log(run)
++	out, err := exec.Command(run[0], run[1:]...).CombinedOutput()
++	t.Logf("%s", out)
++	return err
++}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 339e8e08cd..059bf5d1fc 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -19,11 +19,13 @@ import (
+ 	"cmd/internal/sys"
+ 	"flag"
+ 	"fmt"
++	"go/build"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path"
++	"regexp"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -211,6 +213,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
+ 	objabi.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
+ 	objabi.Flagcount("l", "disable inlining", &Debug['l'])
++	flag.StringVar(&flag_lang, "lang", defaultLang(), "release to compile for")
+ 	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
+ 	objabi.Flagcount("live", "debug liveness analysis", &debuglive)
+ 	objabi.Flagcount("m", "print optimization decisions", &Debug['m'])
+@@ -277,6 +280,8 @@ func Main(archInit func(*Arch)) {
+ 		Exit(2)
+ 	}
+ 
++	checkLang()
++
+ 	thearch.LinkArch.Init(Ctxt)
+ 
+ 	if outfile == "" {
+@@ -1304,3 +1309,66 @@ func recordFlags(flags ...string) {
+ 	Ctxt.Data = append(Ctxt.Data, s)
+ 	s.P = cmd.Bytes()[1:]
+ }
++
++// flag_lang is the language version we are compiling for, set by the -lang flag.
++var flag_lang string
++
++// defaultLang returns the default value for the -lang flag.
++func defaultLang() string {
++	tags := build.Default.ReleaseTags
++	return tags[len(tags)-1]
++}
++
++// goVersionRE is a regular expression that matches the valid
++// arguments to the -lang flag.
++var goVersionRE = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
++
++// A lang is a language version broken into major and minor numbers.
++type lang struct {
++	major, minor int
++}
++
++// langWant is the desired language version set by the -lang flag.
++var langWant lang
++
++// langSupported reports whether language version major.minor is supported.
++func langSupported(major, minor int) bool {
++	return langWant.major > major || (langWant.major == major && langWant.minor >= minor)
++}
++
++// checkLang verifies that the -lang flag holds a valid value, and
++// exits if not. It initializes data used by langSupported.
++func checkLang() {
++	var err error
++	langWant, err = parseLang(flag_lang)
++	if err != nil {
++		log.Fatalf("invalid value %q for -lang: %v", flag_lang, err)
++	}
++
++	if def := defaultLang(); flag_lang != def {
++		defVers, err := parseLang(def)
++		if err != nil {
++			log.Fatalf("internal error parsing default lang %q: %v", def, err)
++		}
++		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.major > defVers.minor) {
++			log.Fatalf("invalid value %q for -lang: max known version is %q", flag_lang, def)
++		}
++	}
++}
++
++// parseLang parses a -lang option into a langVer.
++func parseLang(s string) (lang, error) {
++	matches := goVersionRE.FindStringSubmatch(s)
++	if matches == nil {
++		return lang{}, fmt.Errorf(`should be something like "go1.12"`)
++	}
++	major, err := strconv.Atoi(matches[1])
++	if err != nil {
++		return lang{}, err
++	}
++	minor, err := strconv.Atoi(matches[2])
++	if err != nil {
++		return lang{}, err
++	}
++	return lang{major: major, minor: minor}, nil
++}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index ca65c7ccca..8964536ff0 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -417,8 +417,11 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+ 		param.Pragma = 0
+ 	}
+ 
+-	return p.nod(decl, ODCLTYPE, n, nil)
+-
++	nod := p.nod(decl, ODCLTYPE, n, nil)
++	if param.Alias && !langSupported(1, 9) {
++		yyerrorl(nod.Pos, "type aliases only supported as of -lang=go1.9")
++	}
++	return nod
+ }
+ 
+ func (p *noder) declNames(names []*syntax.Name) []*Node {
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index fc8d37789f..015551d008 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -45,6 +45,7 @@ type Context struct {
+ 	// which defaults to the list of Go releases the current release is compatible with.
+ 	// In addition to the BuildTags and ReleaseTags, build constraints
+ 	// consider the values of GOARCH and GOOS as satisfied tags.
++	// The last element in ReleaseTags is assumed to be the current release.
+ 	BuildTags   []string
+ 	ReleaseTags []string
+ 
+@@ -296,6 +297,7 @@ func defaultContext() Context {
+ 	// say "+build go1.x", and code that should only be built before Go 1.x
+ 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
+ 	// NOTE: If you add to this list, also update the doc comment in doc.go.
++	// NOTE: The last element in ReleaseTags should be the current release.
+ 	const version = 11 // go1.11
+ 	for i := 1; i <= version; i++ {
+ 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))

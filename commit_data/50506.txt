@@ -44,9 +44,156 @@ Date:   Thu Oct 28 17:52:22 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/359477
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/malloc.go   | 25 ++++++++++++++++++++-----
  src/runtime/mcache.go   |  9 +++------
  src/runtime/mcentral.go |  2 +-
  src/runtime/mheap.go    | 21 +++++----------------
  4 files changed, 29 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index c389cb1e45..8af1d96f1a 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -980,8 +980,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	var x unsafe.Pointer
+ 	noscan := typ == nil || typ.ptrdata == 0
+ 	// In some cases block zeroing can profitably (for latency reduction purposes)
+-	// be delayed till preemption is possible; isZeroed tracks that state.
+-	isZeroed := true
++	// be delayed till preemption is possible; delayedZeroing tracks that state.
++	delayedZeroing := false
+ 	if size <= maxSmallSize {
+ 		if noscan && size < maxTinySize {
+ 			// Tiny allocator.
+@@ -1079,11 +1079,23 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		shouldhelpgc = true
+ 		// For large allocations, keep track of zeroed state so that
+ 		// bulk zeroing can be happen later in a preemptible context.
+-		span, isZeroed = c.allocLarge(size, needzero && !noscan, noscan)
++		span = c.allocLarge(size, noscan)
+ 		span.freeindex = 1
+ 		span.allocCount = 1
+-		x = unsafe.Pointer(span.base())
+ 		size = span.elemsize
++		x = unsafe.Pointer(span.base())
++		if needzero && span.needzero != 0 {
++			if noscan {
++				delayedZeroing = true
++			} else {
++				memclrNoHeapPointers(x, size)
++				// We've in theory cleared almost the whole span here,
++				// and could take the extra step of actually clearing
++				// the whole thing. However, don't. Any GC bits for the
++				// uncleared parts will be zero, and it's just going to
++				// be needzero = 1 once freed anyway.
++			}
++		}
+ 	}
+ 
+ 	var scanSize uintptr
+@@ -1139,7 +1151,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 
+ 	// Pointerfree data can be zeroed late in a context where preemption can occur.
+ 	// x will keep the memory alive.
+-	if !isZeroed && needzero {
++	if delayedZeroing {
++		if !noscan {
++			throw("delayed zeroing on data that may contain pointers")
++		}
+ 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
+ 	}
+ 
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 21c36ca750..52bb944cdd 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -206,10 +206,7 @@ func (c *mcache) refill(spc spanClass) {
+ }
+ 
+ // allocLarge allocates a span for a large object.
+-// The boolean result indicates whether the span is known-zeroed.
+-// If it did not need to be zeroed, it may not have been zeroed;
+-// but if it came directly from the OS, it is already zeroed.
+-func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) (*mspan, bool) {
++func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
+ 	if size+_PageSize < size {
+ 		throw("out of memory")
+ 	}
+@@ -224,7 +221,7 @@ func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) (*mspan, b
+ 	deductSweepCredit(npages*_PageSize, npages)
+ 
+ 	spc := makeSpanClass(0, noscan)
+-	s, isZeroed := mheap_.alloc(npages, spc, needzero)
++	s := mheap_.alloc(npages, spc)
+ 	if s == nil {
+ 		throw("out of memory")
+ 	}
+@@ -248,7 +245,7 @@ func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) (*mspan, b
+ 	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
+ 	s.limit = s.base() + size
+ 	heapBitsForAddr(s.base()).initSpan(s)
+-	return s, isZeroed
++	return s
+ }
+ 
+ func (c *mcache) releaseAll() {
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 0a871a611e..4ae3a883a4 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -241,7 +241,7 @@ func (c *mcentral) grow() *mspan {
+ 	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
+ 	size := uintptr(class_to_size[c.spanclass.sizeclass()])
+ 
+-	s, _ := mheap_.alloc(npages, c.spanclass, true)
++	s := mheap_.alloc(npages, c.spanclass)
+ 	if s == nil {
+ 		return nil
+ 	}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 4f32e888b2..5fd036c1b3 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -894,10 +894,9 @@ func (s spanAllocType) manual() bool {
+ //
+ // spanclass indicates the span's size class and scannability.
+ //
+-// If needzero is true, the memory for the returned span will be zeroed.
+-// The boolean returned indicates whether the returned span contains zeroes,
+-// either because this was requested, or because it was already zeroed.
+-func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) (*mspan, bool) {
++// Returns a span that has been fully initialized. span.needzero indicates
++// whether the span has been zeroed. Note that it may not be.
++func (h *mheap) alloc(npages uintptr, spanclass spanClass) *mspan {
+ 	// Don't do any operations that lock the heap on the G stack.
+ 	// It might trigger stack growth, and the stack growth code needs
+ 	// to be able to allocate heap.
+@@ -910,17 +909,7 @@ func (h *mheap) alloc(npages uintptr, spanclass spanClass, needzero bool) (*mspa
+ 		}
+ 		s = h.allocSpan(npages, spanAllocHeap, spanclass)
+ 	})
+-
+-	if s == nil {
+-		return nil, false
+-	}
+-	isZeroed := s.needzero == 0
+-	if needzero && !isZeroed {
+-		memclrNoHeapPointers(unsafe.Pointer(s.base()), s.npages<<_PageShift)
+-		isZeroed = true
+-	}
+-	s.needzero = 0
+-	return s, isZeroed
++	return s
+ }
+ 
+ // allocManual allocates a manually-managed span of npage pages.
+@@ -1009,7 +998,7 @@ func (h *mheap) allocNeedsZero(base, npage uintptr) (needZero bool) {
+ 				break
+ 			}
+ 			zeroedBase = atomic.Loaduintptr(&ha.zeroedBase)
+-			// Sanity check zeroedBase.
++			// Double check basic conditions of zeroedBase.
+ 			if zeroedBase <= arenaLimit && zeroedBase > arenaBase {
+ 				// The zeroedBase moved into the space we were trying to
+ 				// claim. That's very bad, and indicates someone allocated

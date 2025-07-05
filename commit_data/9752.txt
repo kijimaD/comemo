@@ -9,7 +9,63 @@ Date:   Mon Sep 19 19:56:51 2011 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5076042
-
+---
  src/pkg/http/serve_test.go | 13 +++++++++++++
  src/pkg/http/server.go     | 13 ++++++-------
  2 files changed, 19 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 17439110f0..86653216fc 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -545,6 +545,19 @@ func TestTLSServer(t *testing.T) {
+ 		}
+ 	}))
+ 	defer ts.Close()
++
++	// Connect an idle TCP connection to this server before we run
++	// our real tests.  This idle connection used to block forever
++	// in the TLS handshake, preventing future connections from
++	// being accepted. It may prevent future accidental blocking
++	// in newConn.
++	idleConn, err := net.Dial("tcp", ts.Listener.Addr().String())
++	if err != nil {
++		t.Fatalf("Dial: %v", err)
++	}
++	defer idleConn.Close()
++	time.AfterFunc(10e9, func() { t.Fatalf("Timeout") })
++
+ 	if !strings.HasPrefix(ts.URL, "https://") {
+ 		t.Fatalf("expected test TLS server to start with https://, got %q", ts.URL)
+ 	}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 654af378a1..6be3611f0f 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -178,13 +178,6 @@ func (srv *Server) newConn(rwc net.Conn) (c *conn, err os.Error) {
+ 	br := bufio.NewReader(c.lr)
+ 	bw := bufio.NewWriter(rwc)
+ 	c.buf = bufio.NewReadWriter(br, bw)
+-
+-	if tlsConn, ok := rwc.(*tls.Conn); ok {
+-		tlsConn.Handshake()
+-		c.tlsState = new(tls.ConnectionState)
+-		*c.tlsState = tlsConn.ConnectionState()
+-	}
+-
+ 	return c, nil
+ }
+ 
+@@ -562,6 +555,12 @@ func (c *conn) serve() {
+ 		log.Print(buf.String())
+ 	}()
+ 
++	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
++		tlsConn.Handshake()
++		c.tlsState = new(tls.ConnectionState)
++		*c.tlsState = tlsConn.ConnectionState()
++	}
++
+ 	for {
+ 		w, err := c.readRequest()
+ 		if err != nil {

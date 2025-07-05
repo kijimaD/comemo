@@ -17,7 +17,7 @@ Date:   Fri Mar 7 11:26:38 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/index.go        | 50 ++++++++++++++++--
  src/cmd/compile/internal/types2/under.go        | 67 -------------------------
  src/go/types/index.go                           | 50 ++++++++++++++++--
@@ -26,3 +26,372 @@ Date:   Fri Mar 7 11:26:38 2025 -0800
  test/complit1.go                                |  6 +--
  test/fixedbugs/bug022.go                        |  2 +-
  7 files changed, 96 insertions(+), 150 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 451c5e2f9a..80e8514168 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -183,7 +183,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 	}
+ 
+ 	if !valid {
+-		check.errorf(e.Pos(), NonSliceableOperand, invalidOp+"cannot index %s", x)
++		check.errorf(e.Pos(), NonSliceableOperand, "cannot index %s", x)
+ 		check.use(e.Index)
+ 		x.mode = invalid
+ 		return false
+@@ -213,11 +213,51 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 		return
+ 	}
+ 
++	// determine common underlying type cu
++	var ct, cu Type // type and respective common underlying type
++	var hasString bool
++	typeset(x.typ, func(t, u Type) bool {
++		if u == nil {
++			check.errorf(x, NonSliceableOperand, "cannot slice %s: no specific type in %s", x, x.typ)
++			cu = nil
++			return false
++		}
++
++		// Treat strings like byte slices but remember that we saw a string.
++		if isString(u) {
++			u = NewSlice(universeByte)
++			hasString = true
++		}
++
++		// If this is the first type we're seeing, we're done.
++		if cu == nil {
++			ct, cu = t, u
++			return true
++		}
++
++		// Otherwise, the current type must have the same underlying type as all previous types.
++		if !Identical(cu, u) {
++			check.errorf(x, NonSliceableOperand, "cannot slice %s: %s and %s have different underlying types", x, ct, t)
++			cu = nil
++			return false
++		}
++
++		return true
++	})
++	if hasString {
++		// If we saw a string, proceed with string type,
++		// but don't go from untyped string to string.
++		cu = Typ[String]
++		if !isTypeParam(x.typ) {
++			cu = under(x.typ) // untyped string remains untyped
++		}
++	}
++
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch u := coreString(x.typ).(type) {
++	switch u := cu.(type) {
+ 	case nil:
+-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no common underlying type", x, x.typ)
++		// error reported above
+ 		x.mode = invalid
+ 		return
+ 
+@@ -247,7 +287,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 		valid = true
+ 		length = u.len
+ 		if x.mode != variable {
+-			check.errorf(x, NonSliceableOperand, invalidOp+"%s (slice of unaddressable value)", x)
++			check.errorf(x, NonSliceableOperand, "cannot slice unaddressable value %s", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -266,7 +306,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 	}
+ 
+ 	if !valid {
+-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s", x)
++		check.errorf(x, NonSliceableOperand, "cannot slice %s", x)
+ 		x.mode = invalid
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/types2/under.go b/src/cmd/compile/internal/types2/under.go
+index d261c08a2f..846788a210 100644
+--- a/src/cmd/compile/internal/types2/under.go
++++ b/src/cmd/compile/internal/types2/under.go
+@@ -135,70 +135,3 @@ func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
+ 	}
+ 	return cu, nil
+ }
+-
+-// coreString is like coreType but also considers []byte
+-// and strings as identical. In this case, if successful and we saw
+-// a string, the result is of type (possibly untyped) string.
+-func coreString(t Type) Type {
+-	// This explicit case is needed because otherwise the
+-	// result would be string if t is an untyped string.
+-	if !isTypeParam(t) {
+-		return under(t) // untyped string remains untyped
+-	}
+-
+-	var su Type
+-	hasString := false
+-	typeset(t, func(_, u Type) bool {
+-		if u == nil {
+-			return false
+-		}
+-		if isString(u) {
+-			u = NewSlice(universeByte)
+-			hasString = true
+-		}
+-		if su != nil {
+-			u = match(su, u)
+-			if u == nil {
+-				su = nil
+-				hasString = false
+-				return false
+-			}
+-		}
+-		// su == nil || match(su, u) != nil
+-		su = u
+-		return true
+-	})
+-	if hasString {
+-		return Typ[String]
+-	}
+-	return su
+-}
+-
+-// If x and y are identical, match returns x.
+-// If x and y are identical channels but for their direction
+-// and one of them is unrestricted, match returns the channel
+-// with the restricted direction.
+-// In all other cases, match returns nil.
+-func match(x, y Type) Type {
+-	// Common case: we don't have channels.
+-	if Identical(x, y) {
+-		return x
+-	}
+-
+-	// We may have channels that differ in direction only.
+-	if x, _ := x.(*Chan); x != nil {
+-		if y, _ := y.(*Chan); y != nil && Identical(x.elem, y.elem) {
+-			// We have channels that differ in direction only.
+-			// If there's an unrestricted channel, select the restricted one.
+-			switch {
+-			case x.dir == SendRecv:
+-				return y
+-			case y.dir == SendRecv:
+-				return x
+-			}
+-		}
+-	}
+-
+-	// types are different
+-	return nil
+-}
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 88c32706ee..58c8893a8d 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -185,7 +185,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
+ 
+ 	if !valid {
+ 		// types2 uses the position of '[' for the error
+-		check.errorf(x, NonIndexableOperand, invalidOp+"cannot index %s", x)
++		check.errorf(x, NonIndexableOperand, "cannot index %s", x)
+ 		check.use(e.indices...)
+ 		x.mode = invalid
+ 		return false
+@@ -215,11 +215,51 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 		return
+ 	}
+ 
++	// determine common underlying type cu
++	var ct, cu Type // type and respective common underlying type
++	var hasString bool
++	typeset(x.typ, func(t, u Type) bool {
++		if u == nil {
++			check.errorf(x, NonSliceableOperand, "cannot slice %s: no specific type in %s", x, x.typ)
++			cu = nil
++			return false
++		}
++
++		// Treat strings like byte slices but remember that we saw a string.
++		if isString(u) {
++			u = NewSlice(universeByte)
++			hasString = true
++		}
++
++		// If this is the first type we're seeing, we're done.
++		if cu == nil {
++			ct, cu = t, u
++			return true
++		}
++
++		// Otherwise, the current type must have the same underlying type as all previous types.
++		if !Identical(cu, u) {
++			check.errorf(x, NonSliceableOperand, "cannot slice %s: %s and %s have different underlying types", x, ct, t)
++			cu = nil
++			return false
++		}
++
++		return true
++	})
++	if hasString {
++		// If we saw a string, proceed with string type,
++		// but don't go from untyped string to string.
++		cu = Typ[String]
++		if !isTypeParam(x.typ) {
++			cu = under(x.typ) // untyped string remains untyped
++		}
++	}
++
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch u := coreString(x.typ).(type) {
++	switch u := cu.(type) {
+ 	case nil:
+-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no common underlying type", x, x.typ)
++		// error reported above
+ 		x.mode = invalid
+ 		return
+ 
+@@ -249,7 +289,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 		valid = true
+ 		length = u.len
+ 		if x.mode != variable {
+-			check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s (value not addressable)", x)
++			check.errorf(x, NonSliceableOperand, "cannot slice unaddressable value %s", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -268,7 +308,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 	}
+ 
+ 	if !valid {
+-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s", x)
++		check.errorf(x, NonSliceableOperand, "cannot slice %s", x)
+ 		x.mode = invalid
+ 		return
+ 	}
+diff --git a/src/go/types/under.go b/src/go/types/under.go
+index 4e4eb7e00d..8d87e24237 100644
+--- a/src/go/types/under.go
++++ b/src/go/types/under.go
+@@ -138,70 +138,3 @@ func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
+ 	}
+ 	return cu, nil
+ }
+-
+-// coreString is like coreType but also considers []byte
+-// and strings as identical. In this case, if successful and we saw
+-// a string, the result is of type (possibly untyped) string.
+-func coreString(t Type) Type {
+-	// This explicit case is needed because otherwise the
+-	// result would be string if t is an untyped string.
+-	if !isTypeParam(t) {
+-		return under(t) // untyped string remains untyped
+-	}
+-
+-	var su Type
+-	hasString := false
+-	typeset(t, func(_, u Type) bool {
+-		if u == nil {
+-			return false
+-		}
+-		if isString(u) {
+-			u = NewSlice(universeByte)
+-			hasString = true
+-		}
+-		if su != nil {
+-			u = match(su, u)
+-			if u == nil {
+-				su = nil
+-				hasString = false
+-				return false
+-			}
+-		}
+-		// su == nil || match(su, u) != nil
+-		su = u
+-		return true
+-	})
+-	if hasString {
+-		return Typ[String]
+-	}
+-	return su
+-}
+-
+-// If x and y are identical, match returns x.
+-// If x and y are identical channels but for their direction
+-// and one of them is unrestricted, match returns the channel
+-// with the restricted direction.
+-// In all other cases, match returns nil.
+-func match(x, y Type) Type {
+-	// Common case: we don't have channels.
+-	if Identical(x, y) {
+-		return x
+-	}
+-
+-	// We may have channels that differ in direction only.
+-	if x, _ := x.(*Chan); x != nil {
+-		if y, _ := y.(*Chan); y != nil && Identical(x.elem, y.elem) {
+-			// We have channels that differ in direction only.
+-			// If there's an unrestricted channel, select the restricted one.
+-			switch {
+-			case x.dir == SendRecv:
+-				return y
+-			case y.dir == SendRecv:
+-				return x
+-			}
+-		}
+-	}
+-
+-	// types are different
+-	return nil
+-}
+diff --git a/src/internal/types/testdata/check/typeparams.go b/src/internal/types/testdata/check/typeparams.go
+index 1504442e06..b73f1fee6d 100644
+--- a/src/internal/types/testdata/check/typeparams.go
++++ b/src/internal/types/testdata/check/typeparams.go
+@@ -134,11 +134,11 @@ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "
+ type myByte1 []byte
+ type myByte2 []byte
+ func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR "no common underlying type" */ [i:j:k] }
++func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR "[]byte and []int have different underlying types" */ [i:j:k] }
+ 
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "3-index slice of string" */ ] }
+-func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR "no common underlying type" */ [i:j] }
++func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR "[]byte and []int have different underlying types" */ [i:j] }
+ 
+ // len/cap built-ins
+ 
+diff --git a/test/complit1.go b/test/complit1.go
+index 8cbcd63ee0..9f33bc422b 100644
+--- a/test/complit1.go
++++ b/test/complit1.go
+@@ -18,9 +18,9 @@ func fp() *[3]int
+ var mp map[int]*[3]int
+ 
+ var (
+-	_ = [3]int{1, 2, 3}[:] // ERROR "slice of unaddressable value"
+-	_ = m[0][:]            // ERROR "slice of unaddressable value"
+-	_ = f()[:]             // ERROR "slice of unaddressable value"
++	_ = [3]int{1, 2, 3}[:] // ERROR "cannot slice unaddressable value"
++	_ = m[0][:]            // ERROR "cannot slice unaddressable value"
++	_ = f()[:]             // ERROR "cannot slice unaddressable value"
+ 
+ 	_ = 301[:]  // ERROR "cannot slice|attempt to slice object that is not"
+ 	_ = 3.1[:]  // ERROR "cannot slice|attempt to slice object that is not"
+diff --git a/test/fixedbugs/bug022.go b/test/fixedbugs/bug022.go
+index 65a8bfe9a1..9e991bb49c 100644
+--- a/test/fixedbugs/bug022.go
++++ b/test/fixedbugs/bug022.go
+@@ -9,7 +9,7 @@ package main
+ func putint(digits *string) {
+ 	var i byte;
+ 	i = (*digits)[7];  // compiles
+-	i = digits[7];  // ERROR "illegal|is not|invalid"
++	i = digits[7];  // ERROR "illegal|is not|cannot index"
+ 	_ = i;
+ }
+ 

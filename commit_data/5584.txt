@@ -9,7 +9,61 @@ Date:   Tue Jun 1 14:37:11 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1453041
-
+---
  src/pkg/big/rat.go      |  8 +++++---
  src/pkg/big/rat_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index f35df4b461..ddd858d5ce 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -160,9 +160,11 @@ func (z *Rat) Quo(x, y *Rat) *Rat {
+ 	if len(y.a.abs) == 0 {
+ 		panic("division by zero")
+ 	}
+-	z.a.abs = z.a.abs.mul(x.a.abs, y.b)
+-	z.b = z.b.mul(x.b, y.a.abs)
+-	z.a.neg = x.a.neg != y.a.neg
++	a := mulNat(&x.a, y.b)
++	b := mulNat(&y.a, x.b)
++	z.a.abs = a.abs
++	z.b = b.abs
++	z.a.neg = a.neg != b.neg
+ 	return z.norm()
+ }
+ 
+diff --git a/src/pkg/big/rat_test.go b/src/pkg/big/rat_test.go
+index 0a77976130..2379cc0d56 100644
+--- a/src/pkg/big/rat_test.go
++++ b/src/pkg/big/rat_test.go
+@@ -175,3 +175,29 @@ func TestRatBin(t *testing.T) {
+ 		}
+ 	}
+ }
++
++
++func TestIssue820(t *testing.T) {
++	x := NewRat(3, 1)
++	y := NewRat(2, 1)
++	z := y.Quo(x, y)
++	q := NewRat(3, 2)
++	if z.Cmp(q) != 0 {
++		t.Errorf("got %s want %s", z, q)
++	}
++
++	y = NewRat(3, 1)
++	x = NewRat(2, 1)
++	z = y.Quo(x, y)
++	q = NewRat(2, 3)
++	if z.Cmp(q) != 0 {
++		t.Errorf("got %s want %s", z, q)
++	}
++
++	x = NewRat(3, 1)
++	z = x.Quo(x, x)
++	q = NewRat(3, 3)
++	if z.Cmp(q) != 0 {
++		t.Errorf("got %s want %s", z, q)
++	}
++}

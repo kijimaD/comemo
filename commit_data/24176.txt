@@ -11,7 +11,82 @@ Date:   Mon Jul 13 22:55:26 2015 -0400
     Change-Id: Ib80c9ac00d6b61cce26c3d20bee3d30ab9af1331
     Reviewed-on: https://go-review.googlesource.com/12148
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/alldocs.go | 10 +++++++---
  src/cmd/go/help.go    | 10 +++++++---
  2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 56c1c0e6d2..33ea685bf5 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -985,7 +985,7 @@ example.org/repo or repo.git.
+ 
+ When a version control system supports multiple protocols,
+ each is tried in turn when downloading.  For example, a Git
+-download tries git://, then https://, then http://.
++download tries https://, then git+ssh://.
+ 
+ If the import path is not a known code hosting site and also lacks a
+ version control qualifier, the go tool attempts to fetch the import
+@@ -1001,6 +1001,10 @@ root. It must be a prefix or an exact match of the package being
+ fetched with "go get". If it's not an exact match, another http
+ request is made at the prefix to verify the <meta> tags match.
+ 
++The meta tag should appear as early in the file as possible.
++In particular, it should appear before any raw JavaScript or CSS,
++to avoid confusing the go command's restricted parser.
++
+ The vcs is one of "git", "hg", "svn", etc,
+ 
+ The repo-root is the root of the version control system
+@@ -1010,10 +1014,10 @@ For example,
+ 
+ 	import "example.org/pkg/foo"
+ 
+-will result in the following request(s):
++will result in the following requests:
+ 
+ 	https://example.org/pkg/foo?go-get=1 (preferred)
+-	http://example.org/pkg/foo?go-get=1  (fallback)
++	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
+ 
+ If that page contains the meta tag
+ 
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index cd71ade5c2..45d8ae5fbd 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -195,7 +195,7 @@ example.org/repo or repo.git.
+ 
+ When a version control system supports multiple protocols,
+ each is tried in turn when downloading.  For example, a Git
+-download tries git://, then https://, then http://.
++download tries https://, then git+ssh://.
+ 
+ If the import path is not a known code hosting site and also lacks a
+ version control qualifier, the go tool attempts to fetch the import
+@@ -211,6 +211,10 @@ root. It must be a prefix or an exact match of the package being
+ fetched with "go get". If it's not an exact match, another http
+ request is made at the prefix to verify the <meta> tags match.
+ 
++The meta tag should appear as early in the file as possible.
++In particular, it should appear before any raw JavaScript or CSS,
++to avoid confusing the go command's restricted parser.
++
+ The vcs is one of "git", "hg", "svn", etc,
+ 
+ The repo-root is the root of the version control system
+@@ -220,10 +224,10 @@ For example,
+ 
+ 	import "example.org/pkg/foo"
+ 
+-will result in the following request(s):
++will result in the following requests:
+ 
+ 	https://example.org/pkg/foo?go-get=1 (preferred)
+-	http://example.org/pkg/foo?go-get=1  (fallback)
++	http://example.org/pkg/foo?go-get=1  (fallback, only with -insecure)
+ 
+ If that page contains the meta tag
+ 

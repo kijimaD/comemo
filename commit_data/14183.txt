@@ -7,6 +7,21 @@ Date:   Sat Oct 20 17:23:48 2012 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6742053
-
+---
  lib/codereview/codereview.py | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 86373ccbfb..ede91fdaed 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1951,7 +1951,8 @@ def submit(ui, repo, *pats, **opts):
+ 
+ 		# Push changes to remote.  If it works, we're committed.  If not, roll back.
+ 		try:
+-			hg_push(ui, repo)
++			if hg_push(ui, repo):
++				raise hg_util.Abort("push error")
+ 		except hg_error.Abort, e:
+ 			if e.message.find("push creates new heads") >= 0:
+ 				# Remote repository had changes we missed.

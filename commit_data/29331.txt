@@ -7,6 +7,20 @@ Date:   Fri Sep 9 16:41:30 2016 +0200
     Change-Id: Ic5160edbbca4a8ffc7c7e6246e34fae1978470fd
     Reviewed-on: https://go-review.googlesource.com/28912
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 255ab38402..a3329e01c6 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1147,7 +1147,7 @@ func (tag StructTag) Get(key string) string {
+ // the value returned by Lookup is unspecified.
+ func (tag StructTag) Lookup(key string) (value string, ok bool) {
+ 	// When modifying this code, also update the validateStructTag code
+-	// in golang.org/x/tools/cmd/vet/structtag.go.
++	// in cmd/vet/structtag.go.
+ 
+ 	for tag != "" {
+ 		// Skip leading space.

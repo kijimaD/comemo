@@ -17,7 +17,7 @@ Date:   Wed Aug 15 11:44:25 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6446137
-
+---
  src/pkg/exp/html/parse_test.go            | 20 +++++++++++++++++++-
  src/pkg/exp/html/render.go                | 22 ++++++++--------------
  src/pkg/exp/html/testlogs/tests16.dat.log | 18 +++++++++---------
@@ -25,3 +25,190 @@ Date:   Wed Aug 15 11:44:25 2012 +1000
  src/pkg/exp/html/testlogs/tests19.dat.log |  2 +-
  src/pkg/exp/html/testlogs/tests20.dat.log |  2 +-
  6 files changed, 42 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index e159b492f5..a68ef12d40 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -385,6 +385,8 @@ var renderTestBlacklist = map[string]bool{
+ 	// The second <a> will be reparented to the first <table>'s parent. This
+ 	// results in an <a> whose parent is an <a>, which is not 'well-formed'.
+ 	`<a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y`: true,
++	// The same thing with a <p>:
++	`<p><table></p>`: true,
+ 	// More cases of <a> being reparented:
+ 	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
+ 	`<a><table><a></table><p><a><div><a>`:                                     true,
+@@ -393,16 +395,26 @@ var renderTestBlacklist = map[string]bool{
+ 	`<!DOCTYPE html><body><b><nobr>1<table><nobr></b><i><nobr>2<nobr></i>3`: true,
+ 	// A <plaintext> element is reparented, putting it before a table.
+ 	// A <plaintext> element can't have anything after it in HTML.
+-	`<table><plaintext><td>`: true,
++	`<table><plaintext><td>`:                                   true,
++	`<!doctype html><table><plaintext></plaintext>`:            true,
++	`<!doctype html><table><tbody><plaintext></plaintext>`:     true,
++	`<!doctype html><table><tbody><tr><plaintext></plaintext>`: true,
++	// A form inside a table inside a form doesn't work either.
++	`<!doctype html><form><table></form><form></table></form>`: true,
+ 	// A script that ends at EOF may escape its own closing tag when rendered.
+ 	`<!doctype html><script><!--<script `:          true,
++	`<!doctype html><script><!--<script <`:         true,
+ 	`<!doctype html><script><!--<script <a`:        true,
++	`<!doctype html><script><!--<script </`:        true,
++	`<!doctype html><script><!--<script </s`:       true,
+ 	`<!doctype html><script><!--<script </script`:  true,
+ 	`<!doctype html><script><!--<script </scripta`: true,
+ 	`<!doctype html><script><!--<script -`:         true,
+ 	`<!doctype html><script><!--<script -a`:        true,
++	`<!doctype html><script><!--<script -<`:        true,
+ 	`<!doctype html><script><!--<script --`:        true,
+ 	`<!doctype html><script><!--<script --a`:       true,
++	`<!doctype html><script><!--<script --<`:       true,
+ 	`<script><!--<script `:                         true,
+ 	`<script><!--<script <a`:                       true,
+ 	`<script><!--<script </script`:                 true,
+@@ -411,6 +423,12 @@ var renderTestBlacklist = map[string]bool{
+ 	`<script><!--<script -a`:                       true,
+ 	`<script><!--<script --`:                       true,
+ 	`<script><!--<script --a`:                      true,
++	`<script><!--<script <`:                        true,
++	`<script><!--<script </`:                       true,
++	`<script><!--<script </s`:                      true,
++	// Reconstructing the active formatting elements results in a <plaintext>
++	// element that contains an <a> element.
++	`<!doctype html><p><a><plaintext>b`: true,
+ }
+ 
+ func TestNodeConsistency(t *testing.T) {
+diff --git a/src/pkg/exp/html/render.go b/src/pkg/exp/html/render.go
+index de9706528f..10a756e266 100644
+--- a/src/pkg/exp/html/render.go
++++ b/src/pkg/exp/html/render.go
+@@ -195,11 +195,14 @@ func render1(w writer, n *Node) error {
+ 	switch n.Data {
+ 	case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "xmp":
+ 		for _, c := range n.Child {
+-			if c.Type != TextNode {
+-				return fmt.Errorf("html: raw text element <%s> has non-text child node", n.Data)
+-			}
+-			if _, err := w.WriteString(c.Data); err != nil {
+-				return err
++			if c.Type == TextNode {
++				if _, err := w.WriteString(c.Data); err != nil {
++					return err
++				}
++			} else {
++				if err := render1(w, c); err != nil {
++					return err
++				}
+ 			}
+ 		}
+ 		if n.Data == "plaintext" {
+@@ -207,15 +210,6 @@ func render1(w writer, n *Node) error {
+ 			// last element in the file, with no closing tag.
+ 			return plaintextAbort
+ 		}
+-	case "textarea", "title":
+-		for _, c := range n.Child {
+-			if c.Type != TextNode && n.Namespace == "" {
+-				return fmt.Errorf("html: RCDATA element <%s> has non-text child node", n.Data)
+-			}
+-			if err := render1(w, c); err != nil {
+-				return err
+-			}
+-		}
+ 	default:
+ 		for _, c := range n.Child {
+ 			if err := render1(w, c); err != nil {
+diff --git a/src/pkg/exp/html/testlogs/tests16.dat.log b/src/pkg/exp/html/testlogs/tests16.dat.log
+index 23e2789eea..6bb850adcc 100644
+--- a/src/pkg/exp/html/testlogs/tests16.dat.log
++++ b/src/pkg/exp/html/testlogs/tests16.dat.log
+@@ -30,10 +30,10 @@ PASS "<!doctype html><script><!--</script "
+ PASS "<!doctype html><script><!--<s"
+ PASS "<!doctype html><script><!--<script"
+ PASS "<!doctype html><script><!--<script "
+-PARSE "<!doctype html><script><!--<script <"
++PASS "<!doctype html><script><!--<script <"
+ PASS "<!doctype html><script><!--<script <a"
+-PARSE "<!doctype html><script><!--<script </"
+-PARSE "<!doctype html><script><!--<script </s"
++PASS "<!doctype html><script><!--<script </"
++PASS "<!doctype html><script><!--<script </s"
+ PASS "<!doctype html><script><!--<script </script"
+ PASS "<!doctype html><script><!--<script </scripta"
+ PASS "<!doctype html><script><!--<script </script "
+@@ -48,10 +48,10 @@ PASS "<!doctype html><script><!--<script </script </script/"
+ PASS "<!doctype html><script><!--<script </script </script>"
+ PASS "<!doctype html><script><!--<script -"
+ PASS "<!doctype html><script><!--<script -a"
+-PARSE "<!doctype html><script><!--<script -<"
++PASS "<!doctype html><script><!--<script -<"
+ PASS "<!doctype html><script><!--<script --"
+ PASS "<!doctype html><script><!--<script --a"
+-PARSE "<!doctype html><script><!--<script --<"
++PASS "<!doctype html><script><!--<script --<"
+ PASS "<!doctype html><script><!--<script -->"
+ PASS "<!doctype html><script><!--<script --><"
+ PASS "<!doctype html><script><!--<script --></"
+@@ -126,10 +126,10 @@ PASS "<script><!--</script "
+ PASS "<script><!--<s"
+ PASS "<script><!--<script"
+ PASS "<script><!--<script "
+-PARSE "<script><!--<script <"
++PASS "<script><!--<script <"
+ PASS "<script><!--<script <a"
+-PARSE "<script><!--<script </"
+-PARSE "<script><!--<script </s"
++PASS "<script><!--<script </"
++PASS "<script><!--<script </s"
+ PASS "<script><!--<script </script"
+ PASS "<script><!--<script </scripta"
+ PASS "<script><!--<script </script "
+@@ -188,4 +188,4 @@ PASS "<xmp><!--<xmp></xmp>--></xmp>"
+ PASS "<noembed><!--<noembed></noembed>--></noembed>"
+ PASS "<!doctype html><table>\n"
+ PASS "<!doctype html><table><td><span><font></span><span>"
+-PARSE "<!doctype html><form><table></form><form></table></form>"
++PASS "<!doctype html><form><table></form><form></table></form>"
+diff --git a/src/pkg/exp/html/testlogs/tests18.dat.log b/src/pkg/exp/html/testlogs/tests18.dat.log
+index d52663e922..376a483b38 100644
+--- a/src/pkg/exp/html/testlogs/tests18.dat.log
++++ b/src/pkg/exp/html/testlogs/tests18.dat.log
+@@ -1,8 +1,8 @@
+ PASS "<!doctype html><plaintext></plaintext>"
+-PARSE "<!doctype html><table><plaintext></plaintext>"
+-PARSE "<!doctype html><table><tbody><plaintext></plaintext>"
+-PARSE "<!doctype html><table><tbody><tr><plaintext></plaintext>"
+-PARSE "<!doctype html><table><tbody><tr><plaintext></plaintext>"
++PASS "<!doctype html><table><plaintext></plaintext>"
++PASS "<!doctype html><table><tbody><plaintext></plaintext>"
++PASS "<!doctype html><table><tbody><tr><plaintext></plaintext>"
++PASS "<!doctype html><table><tbody><tr><plaintext></plaintext>"
+ PASS "<!doctype html><table><td><plaintext></plaintext>"
+ PASS "<!doctype html><table><caption><plaintext></plaintext>"
+ PASS "<!doctype html><table><tr><style></script></style>abc"
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index 7025103d47..b394c2528f 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -100,5 +100,5 @@ PASS "<!doctype html><a><b></a><basefont>"
+ PASS "<!doctype html><a><b></a><bgsound>"
+ PASS "<!doctype html><figcaption><article></figcaption>a"
+ PASS "<!doctype html><summary><article></summary>a"
+-PARSE "<!doctype html><p><a><plaintext>b"
++PASS "<!doctype html><p><a><plaintext>b"
+ PASS "<!DOCTYPE html><div>a<a></div>b<p>c</p>d"
+diff --git a/src/pkg/exp/html/testlogs/tests20.dat.log b/src/pkg/exp/html/testlogs/tests20.dat.log
+index c2a1442193..7537201161 100644
+--- a/src/pkg/exp/html/testlogs/tests20.dat.log
++++ b/src/pkg/exp/html/testlogs/tests20.dat.log
+@@ -19,7 +19,7 @@ PASS "<!doctype html><p><button><xmp>"
+ PASS "<!doctype html><p><button></p>"
+ PASS "<!doctype html><address><button></address>a"
+ PASS "<!doctype html><address><button></address>a"
+-PARSE "<p><table></p>"
++PASS "<p><table></p>"
+ PASS "<!doctype html><svg>"
+ PASS "<!doctype html><p><figcaption>"
+ PASS "<!doctype html><p><summary>"

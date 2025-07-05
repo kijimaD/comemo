@@ -7,6 +7,28 @@ Date:   Sun Jun 19 13:53:07 2011 +1000
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/4638046
-
+---
  doc/go_faq.html | 10 ----------
  1 file changed, 10 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index ef70033ace..560ab3617a 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -183,16 +183,6 @@ easier to understand what happens when things combine.
+ 
+ <h2 id="Usage">Usage</h2>
+ 
+-<h3 id="Who_should_use_the_language">
+-Who should use the language?</h3>
+-
+-<p>
+-Go is an experiment. We hope adventurous users will give it a try and see
+-if they enjoy it. Not every programmer
+-will, but we hope enough will find satisfaction in the approach it
+-offers to justify further development.
+-</p>
+-
+ <h3 id="Is_Google_using_go_internally"> Is Google using Go internally?</h3>
+ 
+ <p>

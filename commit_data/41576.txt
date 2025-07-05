@@ -12,6 +12,21 @@ Date:   Sun Oct 13 23:33:13 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/syscall/unix/at_sysnum_darwin.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_sysnum_darwin.go b/src/internal/syscall/unix/at_sysnum_darwin.go
+index 12b7d79882..aaaaa4751c 100644
+--- a/src/internal/syscall/unix/at_sysnum_darwin.go
++++ b/src/internal/syscall/unix/at_sysnum_darwin.go
+@@ -4,9 +4,5 @@
+ 
+ package unix
+ 
+-const unlinkatTrap uintptr = 472
+-const openatTrap uintptr = 463
+-const fstatatTrap uintptr = 470
+-
+ const AT_REMOVEDIR = 0x80
+ const AT_SYMLINK_NOFOLLOW = 0x0020

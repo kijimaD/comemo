@@ -17,6 +17,20 @@ Date:   Thu Aug 27 10:11:08 2015 -0700
     Change-Id: I488e7499298d9aec71da39c202f6a7235935bc8d
     Reviewed-on: https://go-review.googlesource.com/13980
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a0ad2caeaa..0c0a6a36da 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1373,7 +1373,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		addEdge(b, bResult)
+ 
+ 		s.startBlock(bResult)
+-		return s.variable(n, n.Type)
++		return s.variable(n, Types[TBOOL])
+ 
+ 	// unary ops
+ 	case ONOT, OMINUS, OCOM:

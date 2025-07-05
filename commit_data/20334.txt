@@ -9,6 +9,20 @@ Date:   Mon Sep 1 17:36:45 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/139040043
-
+---
  src/pkg/runtime/traceback_x86.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index ac451240e2..169407ac81 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -132,7 +132,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			// Invoke callback so that stack copier sees an uncopyable frame.
+ 			if(callback != nil) {
+ 				frame.continpc = frame.pc;
+-				frame.argp = nil;
++				frame.argp = 0;
+ 				frame.arglen = 0;
+ 				if(!callback(&frame, v))
+ 					return n;

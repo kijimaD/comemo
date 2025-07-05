@@ -11,6 +11,29 @@ Date:   Sat Jan 5 23:39:24 2019 +0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/zip_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 50218a2bbd..3d5c759851 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -159,7 +159,7 @@ func (r *rleBuffer) Write(p []byte) (n int, err error) {
+ 	return len(p), nil
+ }
+ 
+-func min(x, y int) int {
++func min(x, y int64) int64 {
+ 	if x < y {
+ 		return x
+ 	}
+@@ -190,7 +190,7 @@ func (r *rleBuffer) ReadAt(p []byte, off int64) (n int, err error) {
+ 	if len(parts) > 0 {
+ 		skipBytes := off - parts[0].off
+ 		for _, part := range parts {
+-			repeat := min(int(part.n-skipBytes), len(p)-n)
++			repeat := int(min(part.n-skipBytes, int64(len(p)-n)))
+ 			memset(p[n:n+repeat], part.b)
+ 			n += repeat
+ 			if n == len(p) {

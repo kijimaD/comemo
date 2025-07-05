@@ -11,6 +11,27 @@ Date:   Tue Jan 31 15:41:25 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5604046
-
+---
  src/pkg/go/doc/reader.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 3c30d1a07b..31648b13e1 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -488,6 +488,7 @@ var predeclaredTypes = map[string]bool{
+ 	"byte":       true,
+ 	"complex64":  true,
+ 	"complex128": true,
++	"error":      true,
+ 	"float32":    true,
+ 	"float64":    true,
+ 	"int":        true,
+@@ -495,6 +496,7 @@ var predeclaredTypes = map[string]bool{
+ 	"int16":      true,
+ 	"int32":      true,
+ 	"int64":      true,
++	"rune":       true,
+ 	"string":     true,
+ 	"uint":       true,
+ 	"uint8":      true,

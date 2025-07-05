@@ -12,7 +12,90 @@ Date:   Sun Jan 24 22:59:45 2016 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/clientserver_test.go | 42 +++++++++++++++++++++++++++++++++++++++
  src/net/http/transport.go         |  4 +++-
  2 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 9c1aa7920e..9b581e7311 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -20,6 +20,7 @@ import (
+ 	"net/url"
+ 	"os"
+ 	"reflect"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -999,6 +1000,47 @@ func TestTransportDiscardsUnneededConns(t *testing.T) {
+ 	t.Errorf("%d connections opened, %d closed; want %d to close", open, close, open-1)
+ }
+ 
++// tests that Transport doesn't retain a pointer to the provided request.
++func TestTransportGCRequest_h1(t *testing.T) { testTransportGCRequest(t, h1Mode) }
++func TestTransportGCRequest_h2(t *testing.T) { testTransportGCRequest(t, h2Mode) }
++func testTransportGCRequest(t *testing.T, h2 bool) {
++	defer afterTest(t)
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		ioutil.ReadAll(r.Body)
++		io.WriteString(w, "Hello.")
++	}))
++	defer cst.close()
++
++	didGC := make(chan struct{})
++	(func() {
++		body := strings.NewReader("some body")
++		req, _ := NewRequest("POST", cst.ts.URL, body)
++		runtime.SetFinalizer(req, func(*Request) { close(didGC) })
++		res, err := cst.c.Do(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if _, err := ioutil.ReadAll(res.Body); err != nil {
++			t.Fatal(err)
++		}
++		if err := res.Body.Close(); err != nil {
++			t.Fatal(err)
++		}
++	})()
++	timeout := time.NewTimer(5 * time.Second)
++	defer timeout.Stop()
++	for {
++		select {
++		case <-didGC:
++			return
++		case <-time.After(100 * time.Millisecond):
++			runtime.GC()
++		case <-timeout.C:
++			t.Fatal("never saw GC of request")
++		}
++	}
++}
++
+ type noteCloseConn struct {
+ 	net.Conn
+ 	closeFunc func()
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index fc0ae36b51..41df906cf2 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -298,6 +298,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		var resp *Response
+ 		if pconn.alt != nil {
+ 			// HTTP/2 path.
++			t.setReqCanceler(req, nil) // not cancelable with CancelRequest
+ 			resp, err = pconn.alt.RoundTrip(req)
+ 		} else {
+ 			resp, err = pconn.roundTrip(treq)
+@@ -397,7 +398,8 @@ func (t *Transport) CloseIdleConnections() {
+ // CancelRequest cancels an in-flight request by closing its connection.
+ // CancelRequest should only be called after RoundTrip has returned.
+ //
+-// Deprecated: Use Request.Cancel instead.
++// Deprecated: Use Request.Cancel instead. CancelRequest can not cancel
++// HTTP/2 requests.
+ func (t *Transport) CancelRequest(req *Request) {
+ 	t.reqMu.Lock()
+ 	cancel := t.reqCanceler[req]

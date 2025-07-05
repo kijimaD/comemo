@@ -14,8 +14,67 @@ Date:   Mon Dec 30 16:36:39 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212812
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                        | 10 ----------
  src/cmd/go/testdata/script/build_exe.txt     | 21 +++++++++++++++++++++
  src/cmd/go/testdata/src/not_main/not_main.go |  3 ---
  3 files changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 765dee17db..c842559b6e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1799,16 +1799,6 @@ func TestGoTestMutexprofileDashOControlsBinaryLocation(t *testing.T) {
+ 	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -mutexprofile -o myerrors.test did not create myerrors.test")
+ }
+ 
+-func TestGoBuildNonMain(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("build", "-buildmode=exe", "-o", "not_main"+exeSuffix, "not_main")
+-	tg.grepStderr("-buildmode=exe requires exactly one main package", "go build with -o and -buildmode=exe should on a non-main package should throw an error")
+-	tg.mustNotExist("not_main" + exeSuffix)
+-}
+-
+ func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no standard packages")
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/build_exe.txt b/src/cmd/go/testdata/script/build_exe.txt
+new file mode 100644
+index 0000000000..fd13259fcc
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_exe.txt
+@@ -0,0 +1,21 @@
++# go build with -o and -buildmode=exe should on a non-main package should throw an error
++
++! go build -buildmode=exe -o out$GOEXE not_main
++stderr '-buildmode=exe requires exactly one main package'
++! exists out$GOEXE
++! go build -buildmode=exe -o out$GOEXE main_one main_two
++stderr '-buildmode=exe requires exactly one main package'
++! exists out$GOEXE
++
++-- not_main/not_main.go --
++package not_main
++
++func F() {}
++-- main_one/main_one.go --
++package main
++
++func main() {}
++-- main_two/main_two.go --
++package main
++
++func main() {}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/src/not_main/not_main.go b/src/cmd/go/testdata/src/not_main/not_main.go
+deleted file mode 100644
+index 75a397c6cb..0000000000
+--- a/src/cmd/go/testdata/src/not_main/not_main.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package not_main
+-
+-func F() {}

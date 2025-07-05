@@ -16,6 +16,50 @@ Date:   Wed Mar 5 14:16:30 2014 -0500
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/71550044
-
+---
  src/cmd/dist/windows.c | 22 ++++------------------
  1 file changed, 4 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index 7d03989b27..2839c4bc51 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -840,34 +840,20 @@ void
+ xprintf(char *fmt, ...)
+ {
+ 	va_list arg;
+-	char *p;
+-	DWORD n, w;
+-
++	
+ 	va_start(arg, fmt);
+-	n = vsnprintf(NULL, 0, fmt, arg);
+-	p = xmalloc(n+1);
+-	vsnprintf(p, n+1, fmt, arg);
++	vprintf(fmt, arg);
+ 	va_end(arg);
+-	w = 0;
+-	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), p, n, &w, 0);
+-	xfree(p);
+ }
+ 
+ void
+ errprintf(char *fmt, ...)
+ {
+ 	va_list arg;
+-	char *p;
+-	DWORD n, w;
+-
++	
+ 	va_start(arg, fmt);
+-	n = vsnprintf(NULL, 0, fmt, arg);
+-	p = xmalloc(n+1);
+-	vsnprintf(p, n+1, fmt, arg);
++	vfprintf(stderr, fmt, arg);
+ 	va_end(arg);
+-	w = 0;
+-	WriteFile(GetStdHandle(STD_ERROR_HANDLE), p, n, &w, 0);
+-	xfree(p);
+ }
+ 
+ int

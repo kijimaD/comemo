@@ -11,6 +11,29 @@ Date:   Tue Jul 31 23:26:33 2012 -0400
     R=golang-dev, r, alex.brainman, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/6441074
-
+---
  test/run.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index e1d97e9eef..2b26a5b010 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -172,7 +172,7 @@ type test struct {
+ 	donec       chan bool // closed when done
+ 
+ 	src    string
+-	action string // "compile", "build", "run", "errorcheck", "skip", "runoutput"
++	action string // "compile", "build", "run", "errorcheck", "skip", "runoutput", "compiledir"
+ 
+ 	tempDir string
+ 	err     error
+@@ -315,7 +315,7 @@ func (t *test) run() {
+ 		}
+ 		for _, gofile := range files {
+ 			afile := strings.Replace(gofile.Name(), ".go", "."+letter, -1)
+-			out, err := runcmd("go", "tool", gc, "-e", "-o", afile, filepath.Join(longdir, gofile.Name()))
++			out, err := runcmd("go", "tool", gc, "-e", "-D.", "-I.", "-o", afile, filepath.Join(longdir, gofile.Name()))
+ 			if err != nil {
+ 				t.err = fmt.Errorf("%s\n%s", err, out)
+ 				break

@@ -7,6 +7,22 @@ Date:   Mon Mar 16 12:24:51 2015 -0700
     Change-Id: Id5ce859bd4b6318dc9104f7377ae23d7f0bc30cd
     Reviewed-on: https://go-review.googlesource.com/7640
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/internal/gc/array.go | 9 ---------
  1 file changed, 9 deletions(-)
+
+diff --git a/src/cmd/internal/gc/array.go b/src/cmd/internal/gc/array.go
+deleted file mode 100644
+index 04086138b3..0000000000
+--- a/src/cmd/internal/gc/array.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package gc
+-
+-const (
+-	DEFAULTCAPACITY = 16
+-)

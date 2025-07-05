@@ -34,7 +34,7 @@ Date:   Tue Feb 23 09:58:14 2021 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Cherry Zhang <cherryyz@google.com>
-
+---
  doc/go1.17.html                 |   9 ++++
  misc/cgo/test/cgo_test.go       |   1 +
  misc/cgo/test/test.go           |  22 +++++++++
@@ -44,3 +44,363 @@ Date:   Tue Feb 23 09:58:14 2021 +0100
  src/runtime/cgo/handle.go       | 103 ++++++++++++++++++++++++++++++++++++++++
  src/runtime/cgo/handle_test.go  | 103 ++++++++++++++++++++++++++++++++++++++++
  8 files changed, 259 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index cd61dd8cef..66078b12a9 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -120,6 +120,15 @@ Do not send CLs removing the interior tags from such phrases.
+   has no effect.
+ </p>
+ 
++<h3 id="runtime/cgo"><a href="/pkg/runtime/cgo">Cgo</a></h3>
++
++<p>
++The <a href="/pkg/runtime/cgo">runtime/cgo</a> package now provides a
++new facility that allows to turn any Go values to a safe representation
++that can be used to pass values between C and Go safely. See
++<a href="/pkg/runtime/cgo#Handle">runtime/cgo.Handle</a> for more information.
++</p>
++
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+ <p>
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index f7a76d047b..837307263a 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -80,6 +80,7 @@ func TestNamedEnum(t *testing.T)             { testNamedEnum(t) }
+ func TestCastToEnum(t *testing.T)            { testCastToEnum(t) }
+ func TestErrno(t *testing.T)                 { testErrno(t) }
+ func TestFpVar(t *testing.T)                 { testFpVar(t) }
++func TestHandle(t *testing.T)                { testHandle(t) }
+ func TestHelpers(t *testing.T)               { testHelpers(t) }
+ func TestLibgcc(t *testing.T)                { testLibgcc(t) }
+ func TestMultipleAssign(t *testing.T)        { testMultipleAssign(t) }
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 65823b1ca0..76afa524c3 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -899,6 +899,10 @@ static uint16_t issue31093F(uint16_t v) { return v; }
+ // issue 32579
+ typedef struct S32579 { unsigned char data[1]; } S32579;
+ 
++// issue 37033, cgo.Handle
++extern void GoFunc37033(uintptr_t handle);
++void cFunc37033(uintptr_t handle) { GoFunc37033(handle); }
++
+ // issue 38649
+ // Test that #define'd type aliases work.
+ #define netbsd_gid unsigned int
+@@ -920,6 +924,7 @@ import (
+ 	"os/signal"
+ 	"reflect"
+ 	"runtime"
++	"runtime/cgo"
+ 	"sync"
+ 	"syscall"
+ 	"testing"
+@@ -2230,6 +2235,23 @@ func test32579(t *testing.T) {
+ 	}
+ }
+ 
++// issue 37033, check if cgo.Handle works properly
++
++func testHandle(t *testing.T) {
++	ch := make(chan int)
++
++	for i := 0; i < 42; i++ {
++		h := cgo.NewHandle(ch)
++		go func() {
++			C.cFunc37033(C.uintptr_t(h))
++		}()
++		if v := <-ch; issue37033 != v {
++			t.Fatalf("unexpected receiving value: got %d, want %d", v, issue37033)
++		}
++		h.Delete()
++	}
++}
++
+ // issue 38649
+ 
+ var issue38649 C.netbsd_gid = 42
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index 2b2e69ec00..044c5bceff 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -12,6 +12,7 @@ package cgotest
+ 
+ import (
+ 	"runtime"
++	"runtime/cgo"
+ 	"runtime/debug"
+ 	"strings"
+ 	"sync"
+@@ -558,6 +559,17 @@ func test31891(t *testing.T) {
+ 	C.callIssue31891()
+ }
+ 
++// issue 37033, check if cgo.Handle works properly
++
++var issue37033 = 42
++
++//export GoFunc37033
++func GoFunc37033(handle C.uintptr_t) {
++	h := cgo.Handle(handle)
++	ch := h.Value().(chan int)
++	ch <- issue37033
++}
++
+ // issue 38408
+ // A typedef pointer can be used as the element type.
+ // No runtime test; just make sure it compiles.
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index e782c866ac..a6787f6405 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -387,6 +387,9 @@ and of course there is nothing stopping the C code from doing anything
+ it likes. However, programs that break these rules are likely to fail
+ in unexpected and unpredictable ways.
+ 
++The runtime/cgo.Handle type can be used to safely pass Go values
++between Go and C. See the runtime/cgo package documentation for details.
++
+ Note: the current implementation has a bug. While Go code is permitted
+ to write nil or a C pointer (but not a Go pointer) to C memory, the
+ current implementation may sometimes cause a runtime error if the
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 85d0eedecf..4d5be30d82 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -556,7 +556,12 @@ func (ctxt *Link) loadlib() {
+ 			if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
+ 				Exitf("cannot implicitly include runtime/cgo in a shared library")
+ 			}
+-			loadobjfile(ctxt, lib)
++			for ; i < len(ctxt.Library); i++ {
++				lib := ctxt.Library[i]
++				if lib.Shlib == "" {
++					loadobjfile(ctxt, lib)
++				}
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/cgo/handle.go b/src/runtime/cgo/handle.go
+new file mode 100644
+index 0000000000..a798ba9064
+--- /dev/null
++++ b/src/runtime/cgo/handle.go
+@@ -0,0 +1,103 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgo
++
++import (
++	"sync"
++	"sync/atomic"
++)
++
++// Handle provides a safe representation of Go values to pass between
++// Go and C. The zero value of a handle is not a valid handle, and thus
++// is safe to use as a sentinel in C APIs.
++//
++// The underlying type of Handle is guaranteed to fit in an integer type
++// that is large enough to hold the bit pattern of any pointer.
++// For instance, on the Go side:
++//
++// 	package main
++//
++// 	/*
++// 	#include <stdint.h> // for uintptr_t
++//
++// 	extern void MyGoPrint(uintptr_t handle);
++// 	void myprint(uintptr_t handle);
++// 	*/
++// 	import "C"
++// 	import "runtime/cgo"
++//
++// 	//export MyGoPrint
++// 	func MyGoPrint(handle C.uintptr_t) {
++// 		h := cgo.Handle(handle)
++// 		val := h.Value().(int)
++// 		println(val)
++// 		h.Delete()
++// 	}
++//
++// 	func main() {
++// 		val := 42
++// 		C.myprint(C.uintptr_t(cgo.NewHandle(val)))
++// 		// Output: 42
++// 	}
++//
++// and on the C side:
++//
++// 	#include <stdint.h> // for uintptr_t
++//
++// 	// A Go function
++// 	extern void MyGoPrint(uintptr_t handle);
++//
++// 	// A C function
++// 	void myprint(uintptr_t handle) {
++// 	    MyGoPrint(handle);
++// 	}
++type Handle uintptr
++
++// NewHandle returns a handle for a given value.
++//
++// The handle is valid until the program calls Delete on it. The handle
++// uses resources, and this package assumes that C code may hold on to
++// the handle, so a program must explicitly call Delete when the handle
++// is no longer needed.
++//
++// The intended use is to pass the returned handle to C code, which
++// passes it back to Go, which calls Value.
++func NewHandle(v interface{}) Handle {
++	h := atomic.AddUintptr(&handleIdx, 1)
++	if h == 0 {
++		panic("runtime/cgo: ran out of handle space")
++	}
++
++	handles.Store(h, v)
++	return Handle(h)
++}
++
++// Value returns the associated Go value for a valid handle.
++//
++// The method panics if the handle is invalid.
++func (h Handle) Value() interface{} {
++	v, ok := handles.Load(uintptr(h))
++	if !ok {
++		panic("runtime/cgo: misuse of an invalid Handle")
++	}
++	return v
++}
++
++// Delete invalidates a handle. This method should only be called once
++// the program no longer needs to pass the handle to C and the C code
++// no longer has a copy of the handle value.
++//
++// The method panics if the handle is invalid.
++func (h Handle) Delete() {
++	_, ok := handles.LoadAndDelete(uintptr(h))
++	if !ok {
++		panic("runtime/cgo: misuse of an invalid Handle")
++	}
++}
++
++var (
++	handles   = sync.Map{} // map[Handle]interface{}
++	handleIdx uintptr      // atomic
++)
+diff --git a/src/runtime/cgo/handle_test.go b/src/runtime/cgo/handle_test.go
+new file mode 100644
+index 0000000000..738051a0ea
+--- /dev/null
++++ b/src/runtime/cgo/handle_test.go
+@@ -0,0 +1,103 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgo
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestHandle(t *testing.T) {
++	v := 42
++
++	tests := []struct {
++		v1 interface{}
++		v2 interface{}
++	}{
++		{v1: v, v2: v},
++		{v1: &v, v2: &v},
++		{v1: nil, v2: nil},
++	}
++
++	for _, tt := range tests {
++		h1 := NewHandle(tt.v1)
++		h2 := NewHandle(tt.v2)
++
++		if uintptr(h1) == 0 || uintptr(h2) == 0 {
++			t.Fatalf("NewHandle returns zero")
++		}
++
++		if uintptr(h1) == uintptr(h2) {
++			t.Fatalf("Duplicated Go values should have different handles, but got equal")
++		}
++
++		h1v := h1.Value()
++		h2v := h2.Value()
++		if !reflect.DeepEqual(h1v, h2v) || !reflect.DeepEqual(h1v, tt.v1) {
++			t.Fatalf("Value of a Handle got wrong, got %+v %+v, want %+v", h1v, h2v, tt.v1)
++		}
++
++		h1.Delete()
++		h2.Delete()
++	}
++
++	siz := 0
++	handles.Range(func(k, v interface{}) bool {
++		siz++
++		return true
++	})
++	if siz != 0 {
++		t.Fatalf("handles are not cleared, got %d, want %d", siz, 0)
++	}
++}
++
++func TestInvalidHandle(t *testing.T) {
++	t.Run("zero", func(t *testing.T) {
++		h := Handle(0)
++
++		defer func() {
++			if r := recover(); r != nil {
++				return
++			}
++			t.Fatalf("Delete of zero handle did not trigger a panic")
++		}()
++
++		h.Delete()
++	})
++
++	t.Run("invalid", func(t *testing.T) {
++		h := NewHandle(42)
++
++		defer func() {
++			if r := recover(); r != nil {
++				h.Delete()
++				return
++			}
++			t.Fatalf("Invalid handle did not trigger a panic")
++		}()
++
++		Handle(h + 1).Delete()
++	})
++}
++
++func BenchmarkHandle(b *testing.B) {
++	b.Run("non-concurrent", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			h := NewHandle(i)
++			_ = h.Value()
++			h.Delete()
++		}
++	})
++	b.Run("concurrent", func(b *testing.B) {
++		b.RunParallel(func(pb *testing.PB) {
++			var v int
++			for pb.Next() {
++				h := NewHandle(v)
++				_ = h.Value()
++				h.Delete()
++			}
++		})
++	})
++}

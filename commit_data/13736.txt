@@ -7,7 +7,32 @@ Date:   Sat Sep 1 19:55:03 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6492070
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 1b274ce532..c5c6a9c6a4 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -222,6 +222,7 @@ Timo Savola <timo.savola@gmail.com>
+ Tobias Columbus <tobias.columbus@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Ugorji Nwoke <ugorji@gmail.com>
++Uriel Mangado <uriel@berlinblue.org>
+ Vadim Vygonets <unixdj@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
+ Vincent Vanackere <vincent.vanackere@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 3c0a643c42..d01b17f85b 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -317,6 +317,7 @@ Tom Szymanski <tgs@google.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
+ Ugorji Nwoke <ugorji@gmail.com>
++Uriel Mangado <uriel@berlinblue.org>
+ Vadim Vygonets <unixdj@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
+ Vincent Vanackere <vincent.vanackere@gmail.com>

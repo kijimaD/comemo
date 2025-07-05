@@ -15,7 +15,86 @@ Date:   Tue Feb 15 10:19:16 2022 -0600
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Trust: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/fakedb_test.go |  3 +++
  src/database/sql/sql_test.go    | 31 ++++++++++++++++++-------------
  2 files changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index 8f953f6cb6..d1edcb8c48 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -676,6 +676,9 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
+ 
+ 		if c.waiter != nil {
+ 			c.waiter(ctx)
++			if err := ctx.Err(); err != nil {
++				return nil, err
++			}
+ 		}
+ 
+ 		if stmt.wait > 0 {
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 08ca1f5b9a..a921dd5a84 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -418,26 +418,31 @@ func TestQueryContextWait(t *testing.T) {
+ 	defer closeDB(t, db)
+ 	prepares0 := numPrepares(t, db)
+ 
+-	// TODO(kardianos): convert this from using a timeout to using an explicit
+-	// cancel when the query signals that it is "executing" the query.
+-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
++	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 
+ 	// This will trigger the *fakeConn.Prepare method which will take time
+ 	// performing the query. The ctxDriverPrepare func will check the context
+ 	// after this and close the rows and return an error.
+-	_, err := db.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
+-	if err != context.DeadlineExceeded {
++	c, err := db.Conn(ctx)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	c.dc.ci.(*fakeConn).waiter = func(c context.Context) {
++		cancel()
++		<-ctx.Done()
++	}
++	_, err = c.QueryContext(ctx, "SELECT|people|age,name|")
++	c.Close()
++	if err != context.Canceled {
+ 		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
+ 	}
+ 
+ 	// Verify closed rows connection after error condition.
+ 	waitForFree(t, db, 1)
+ 	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
+-		// TODO(kardianos): if the context timeouts before the db.QueryContext
+-		// executes this check may fail. After adjusting how the context
+-		// is canceled above revert this back to a Fatal error.
+-		t.Logf("executed %d Prepare statements; want 1", prepares)
++		t.Fatalf("executed %d Prepare statements; want 1", prepares)
+ 	}
+ }
+ 
+@@ -455,14 +460,14 @@ func TestTxContextWait(t *testing.T) {
+ 	}
+ 	tx.keepConnOnRollback = false
+ 
+-	go func() {
+-		time.Sleep(15 * time.Millisecond)
++	tx.dc.ci.(*fakeConn).waiter = func(c context.Context) {
+ 		cancel()
+-	}()
++		<-ctx.Done()
++	}
+ 	// This will trigger the *fakeConn.Prepare method which will take time
+ 	// performing the query. The ctxDriverPrepare func will check the context
+ 	// after this and close the rows and return an error.
+-	_, err = tx.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
++	_, err = tx.QueryContext(ctx, "SELECT|people|age,name|")
+ 	if err != context.Canceled {
+ 		t.Fatalf("expected QueryContext to error with context canceled but returned %v", err)
+ 	}

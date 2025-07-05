@@ -20,7 +20,34 @@ Date:   Fri May 2 14:58:42 2025 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/asm_amd64.s | 2 +-
  src/runtime/asm_arm64.s | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 14e2ea6686..8983eeafcb 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -616,7 +616,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	m_g0(BX), BX
+ 	MOVQ	BX, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(BX), SP
+-	MOVQ	(g_sched+gobuf_bp)(BX), BP
++	MOVQ	$0, BP			// clear frame pointer, as caller may execute on another M
+ 	CALL	runtime·newstack(SB)
+ 	CALL	runtime·abort(SB)	// crash if newstack returns
+ 	RET
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 5ba72d8498..d2261c5160 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -387,7 +387,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R0
+ 	MOVD	R0, RSP
+-	MOVD	(g_sched+gobuf_bp)(g), R29
++	MOVD	$0, R29		// clear frame pointer, as caller may execute on another M
+ 	MOVD.W	$0, -16(RSP)	// create a call frame on g0 (saved LR; keep 16-aligned)
+ 	BL	runtime·newstack(SB)
+ 

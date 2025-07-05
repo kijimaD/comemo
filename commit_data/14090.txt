@@ -7,7 +7,32 @@ Date:   Mon Oct 8 17:14:44 2012 -0700
     R=alex.brainman, r
     CC=golang-dev
     https://golang.org/cl/6643045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 51b911d26d..fed8fb2238 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -200,6 +200,7 @@ Rémy Oudompheng <oudomphe@phare.normalesup.org>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Hencke <robert.hencke@gmail.com>
++Robin Eklind <r.eklind.87@gmail.com>
+ Roger Pau Monné <royger@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ron Minnich <rminnich@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f126a00296..b2af2d9812 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -292,6 +292,7 @@ Rob Pike <r@golang.org>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Griesemer <gri@golang.org>
+ Robert Hencke <robert.hencke@gmail.com>
++Robin Eklind <r.eklind.87@gmail.com>
+ Roger Pau Monné <royger@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ron Minnich <rminnich@gmail.com>

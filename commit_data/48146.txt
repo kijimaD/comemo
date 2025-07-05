@@ -12,9 +12,103 @@ Date:   Wed Apr 28 10:07:18 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/fixedbugs/issue44799.go2 |  1 -
  src/go/types/fixedbugs/issue45548.go2 | 13 +++++++++++++
  src/go/types/infer.go                 | 19 +++++++++++++++++++
  src/go/types/unify.go                 | 17 +++++++++++++++++
  4 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/fixedbugs/issue44799.go2 b/src/go/types/fixedbugs/issue44799.go2
+index 33f2c9a25c..9e528a7475 100644
+--- a/src/go/types/fixedbugs/issue44799.go2
++++ b/src/go/types/fixedbugs/issue44799.go2
+@@ -17,4 +17,3 @@ func main() {
+ 	_ = Reduce[int](s, 0, f2)
+ 	_ = Reduce(s, 0, f2)
+ }
+-
+diff --git a/src/go/types/fixedbugs/issue45548.go2 b/src/go/types/fixedbugs/issue45548.go2
+new file mode 100644
+index 0000000000..b1e42497e8
+--- /dev/null
++++ b/src/go/types/fixedbugs/issue45548.go2
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[F interface{type *Q}, G interface{type *R}, Q, R any](q Q, r R) {}
++
++func _() {
++	f[*float64, *int](1, 2)
++	f[*float64](1, 2)
++	f(1, 2)
++}
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 9a45d5e994..da3a521870 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -446,6 +446,25 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ 		dirty = dirty[:n]
+ 	}
+ 
++	// Once nothing changes anymore, we may still have type parameters left;
++	// e.g., a structural constraint *P may match a type parameter Q but we
++	// don't have any type arguments to fill in for *P or Q (issue #45548).
++	// Don't let such inferences escape, instead nil them out.
++	for i, typ := range types {
++		if typ != nil && isParameterized(tparams, typ) {
++			types[i] = nil
++		}
++	}
++
++	// update index
++	index = -1
++	for i, typ := range types {
++		if typ == nil {
++			index = i
++			break
++		}
++	}
++
+ 	return
+ }
+ 
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index fbcd64c442..db06e21cf7 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -7,6 +7,7 @@
+ package types
+ 
+ import (
++	"bytes"
+ 	"go/token"
+ 	"sort"
+ )
+@@ -74,6 +75,22 @@ type tparamsList struct {
+ 	indices []int // len(d.indices) == len(d.tparams)
+ }
+ 
++// String returns a string representation for a tparamsList. For debugging.
++func (d *tparamsList) String() string {
++	var buf bytes.Buffer
++	buf.WriteByte('[')
++	for i, tname := range d.tparams {
++		if i > 0 {
++			buf.WriteString(", ")
++		}
++		writeType(&buf, tname.typ, nil, nil)
++		buf.WriteString(": ")
++		writeType(&buf, d.at(i), nil, nil)
++	}
++	buf.WriteByte(']')
++	return buf.String()
++}
++
+ // init initializes d with the given type parameters.
+ // The type parameters must be in the order in which they appear in their declaration
+ // (this ensures that the tparams indices match the respective type parameter index).

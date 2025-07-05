@@ -8,7 +8,7 @@ Date:   Mon Aug 11 23:44:55 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/123170043
-
+---
  src/cmd/9g/cgen.c   | 1742 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/9g/galign.c |   54 ++
  src/cmd/9g/gg.h     |  119 ++++
@@ -20,3 +20,5567 @@ Date:   Mon Aug 11 23:44:55 2014 -0400
  src/cmd/9g/prog.c   |  138 ++++
  src/cmd/9g/reg.c    |  161 +++++
  10 files changed, 5503 insertions(+)
+
+diff --git a/src/cmd/9g/cgen.c b/src/cmd/9g/cgen.c
+new file mode 100644
+index 0000000000..af87b3a079
+--- /dev/null
++++ b/src/cmd/9g/cgen.c
+@@ -0,0 +1,1742 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <u.h>
++#include <libc.h>
++#include "gg.h"
++
++/*
++ * generate:
++ *	res = n;
++ * simplifies and calls gmove.
++ */
++void
++cgen(Node *n, Node *res)
++{
++	Node *nl, *nr, *r;
++	Node n1, n2;
++	int a, f;
++	Prog *p1, *p2, *p3;
++	Addr addr;
++
++//print("cgen %N(%d) -> %N(%d)\n", n, n->addable, res, res->addable);
++	if(debug['g']) {
++		dump("\ncgen-n", n);
++		dump("cgen-res", res);
++	}
++	if(n == N || n->type == T)
++		goto ret;
++
++	if(res == N || res->type == T)
++		fatal("cgen: res nil");
++
++	while(n->op == OCONVNOP)
++		n = n->left;
++
++	switch(n->op) {
++	case OSLICE:
++	case OSLICEARR:
++	case OSLICESTR:
++	case OSLICE3:
++	case OSLICE3ARR:
++		if (res->op != ONAME || !res->addable) {
++			tempname(&n1, n->type);
++			cgen_slice(n, &n1);
++			cgen(&n1, res);
++		} else
++			cgen_slice(n, res);
++		goto ret;
++	case OEFACE:
++		if (res->op != ONAME || !res->addable) {
++			tempname(&n1, n->type);
++			cgen_eface(n, &n1);
++			cgen(&n1, res);
++		} else
++			cgen_eface(n, res);
++		goto ret;
++	}
++
++	if(n->ullman >= UINF) {
++		if(n->op == OINDREG)
++			fatal("cgen: this is going to misscompile");
++		if(res->ullman >= UINF) {
++			tempname(&n1, n->type);
++			cgen(n, &n1);
++			cgen(&n1, res);
++			goto ret;
++		}
++	}
++
++	if(isfat(n->type)) {
++		if(n->type->width < 0)
++			fatal("forgot to compute width for %T", n->type);
++		sgen(n, res, n->type->width);
++		goto ret;
++	}
++
++	if(!res->addable) {
++		if(n->ullman > res->ullman) {
++			regalloc(&n1, n->type, res);
++			cgen(n, &n1);
++			if(n1.ullman > res->ullman) {
++				dump("n1", &n1);
++				dump("res", res);
++				fatal("loop in cgen");
++			}
++			cgen(&n1, res);
++			regfree(&n1);
++			goto ret;
++		}
++
++		if(res->ullman >= UINF)
++			goto gen;
++
++		if(complexop(n, res)) {
++			complexgen(n, res);
++			goto ret;
++		}
++
++		f = 1;	// gen thru register
++		switch(n->op) {
++		case OLITERAL:
++			if(smallintconst(n))
++				f = 0;
++			break;
++		case OREGISTER:
++			f = 0;
++			break;
++		}
++
++		if(!iscomplex[n->type->etype]) {
++			a = optoas(OAS, res->type);
++			if(sudoaddable(a, res, &addr)) {
++				if(f) {
++					regalloc(&n2, res->type, N);
++					cgen(n, &n2);
++					p1 = gins(a, &n2, N);
++					regfree(&n2);
++				} else
++					p1 = gins(a, n, N);
++				p1->to = addr;
++				if(debug['g'])
++					print("%P [ignore previous line]\n", p1);
++				sudoclean();
++				goto ret;
++			}
++		}
++
++	gen:
++		igen(res, &n1, N);
++		cgen(n, &n1);
++		regfree(&n1);
++		goto ret;
++	}
++
++	// update addressability for string, slice
++	// can't do in walk because n->left->addable
++	// changes if n->left is an escaping local variable.
++	switch(n->op) {
++	case OSPTR:
++	case OLEN:
++		if(isslice(n->left->type) || istype(n->left->type, TSTRING))
++			n->addable = n->left->addable;
++		break;
++	case OCAP:
++		if(isslice(n->left->type))
++			n->addable = n->left->addable;
++		break;
++	case OITAB:
++		n->addable = n->left->addable;
++		break;
++	}
++
++	if(complexop(n, res)) {
++		complexgen(n, res);
++		goto ret;
++	}
++
++	// if both are addressable, move
++	if(n->addable) {
++		if(n->op == OREGISTER || res->op == OREGISTER) {
++			gmove(n, res);
++		} else {
++			regalloc(&n1, n->type, N);
++			gmove(n, &n1);
++			cgen(&n1, res);
++			regfree(&n1);
++		}
++		goto ret;
++	}
++
++	nl = n->left;
++	nr = n->right;
++
++	if(nl != N && nl->ullman >= UINF)
++	if(nr != N && nr->ullman >= UINF) {
++		tempname(&n1, nl->type);
++		cgen(nl, &n1);
++		n2 = *n;
++		n2.left = &n1;
++		cgen(&n2, res);
++		goto ret;
++	}
++
++	if(!iscomplex[n->type->etype]) {
++		a = optoas(OAS, n->type);
++		if(sudoaddable(a, n, &addr)) {
++			if(res->op == OREGISTER) {
++				p1 = gins(a, N, res);
++				p1->from = addr;
++			} else {
++				regalloc(&n2, n->type, N);
++				p1 = gins(a, N, &n2);
++				p1->from = addr;
++				gins(a, &n2, res);
++				regfree(&n2);
++			}
++			sudoclean();
++			goto ret;
++		}
++	}
++
++	// TODO(minux): we shouldn't reverse FP comparisons, but then we need to synthesize
++	// OGE, OLE, and ONE ourselves.
++	// if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype]) goto flt;
++
++	switch(n->op) {
++	default:
++		dump("cgen", n);
++		fatal("cgen: unknown op %+hN", n);
++		break;
++
++	// these call bgen to get a bool value
++	case OOROR:
++	case OANDAND:
++	case OEQ:
++	case ONE:
++	case OLT:
++	case OLE:
++	case OGE:
++	case OGT:
++	case ONOT:
++		p1 = gbranch(ABR, T, 0);
++		p2 = pc;
++		gmove(nodbool(1), res);
++		p3 = gbranch(ABR, T, 0);
++		patch(p1, pc);
++		bgen(n, 1, 0, p2);
++		gmove(nodbool(0), res);
++		patch(p3, pc);
++		goto ret;
++
++	case OPLUS:
++		cgen(nl, res);
++		goto ret;
++
++	// unary
++	case OCOM:
++		a = optoas(OXOR, nl->type);
++		regalloc(&n1, nl->type, N);
++		cgen(nl, &n1);
++		nodconst(&n2, nl->type, -1);
++		gins(a, &n2, &n1);
++		gmove(&n1, res);
++		regfree(&n1);
++		goto ret;
++
++	case OMINUS:
++		if(isfloat[nl->type->etype]) {
++			nr = nodintconst(-1);
++			convlit(&nr, n->type);
++			a = optoas(OMUL, nl->type);
++			goto sbop;
++		}
++		a = optoas(n->op, nl->type);
++		goto uop;
++
++	// symmetric binary
++	case OAND:
++	case OOR:
++	case OXOR:
++	case OADD:
++	case OADDPTR:
++	case OMUL:
++		a = optoas(n->op, nl->type);
++		goto sbop;
++
++	// asymmetric binary
++	case OSUB:
++		a = optoas(n->op, nl->type);
++		goto abop;
++
++	case OHMUL:
++		cgen_hmul(nl, nr, res);
++		break;
++
++	case OCONV:
++		if(n->type->width > nl->type->width) {
++			// If loading from memory, do conversion during load,
++			// so as to avoid use of 8-bit register in, say, int(*byteptr).
++			switch(nl->op) {
++			case ODOT:
++			case ODOTPTR:
++			case OINDEX:
++			case OIND:
++			case ONAME:
++				igen(nl, &n1, res);
++				regalloc(&n2, n->type, res);
++				gmove(&n1, &n2);
++				gmove(&n2, res);
++				regfree(&n2);
++				regfree(&n1);
++				goto ret;
++			}
++		}
++
++		regalloc(&n1, nl->type, res);
++		regalloc(&n2, n->type, &n1);
++		cgen(nl, &n1);
++
++		// if we do the conversion n1 -> n2 here
++		// reusing the register, then gmove won't
++		// have to allocate its own register.
++		gmove(&n1, &n2);
++		gmove(&n2, res);
++		regfree(&n2);
++		regfree(&n1);
++		break;
++
++	case ODOT:
++	case ODOTPTR:
++	case OINDEX:
++	case OIND:
++	case ONAME:	// PHEAP or PPARAMREF var
++		igen(n, &n1, res);
++		gmove(&n1, res);
++		regfree(&n1);
++		break;
++	
++	case OITAB:
++		// interface table is first word of interface value
++		igen(nl, &n1, res);
++		n1.type = n->type;
++		gmove(&n1, res);
++		regfree(&n1);
++		break;
++
++	case OSPTR:
++		// pointer is the first word of string or slice.
++		if(isconst(nl, CTSTR)) {
++			regalloc(&n1, types[tptr], res);
++			p1 = gins(AMOVD, N, &n1);
++			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
++		igen(nl, &n1, res);
++		n1.type = n->type;
++		gmove(&n1, res);
++		regfree(&n1);
++		break;
++
++	case OLEN:
++		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
++			// map and chan have len in the first int-sized word.
++			// a zero pointer means zero length
++			regalloc(&n1, types[tptr], res);
++			cgen(nl, &n1);
++
++			nodconst(&n2, types[tptr], 0);
++			gins(optoas(OCMP, types[tptr]), &n1, &n2);
++			p1 = gbranch(optoas(OEQ, types[tptr]), T, 0);
++
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.type = types[simtype[TINT]];
++			gmove(&n2, &n1);
++
++			patch(p1, pc);
++
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
++		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
++			// both slice and string have len one pointer into the struct.
++			// a zero pointer means zero length
++			igen(nl, &n1, res);
++			n1.type = types[simtype[TUINT]];
++			n1.xoffset += Array_nel;
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
++		fatal("cgen: OLEN: unknown type %lT", nl->type);
++		break;
++
++	case OCAP:
++		if(istype(nl->type, TCHAN)) {
++			// chan has cap in the second int-sized word.
++			// a zero pointer means zero length
++			regalloc(&n1, types[tptr], res);
++			cgen(nl, &n1);
++
++			nodconst(&n2, types[tptr], 0);
++			gins(optoas(OCMP, types[tptr]), &n1, &n2);
++			p1 = gbranch(optoas(OEQ, types[tptr]), T, 0);
++
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.xoffset = widthint;
++			n2.type = types[simtype[TINT]];
++			gmove(&n2, &n1);
++
++			patch(p1, pc);
++
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
++		if(isslice(nl->type)) {
++			igen(nl, &n1, res);
++			n1.type = types[simtype[TUINT]];
++			n1.xoffset += Array_cap;
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
++		fatal("cgen: OCAP: unknown type %lT", nl->type);
++		break;
++
++	case OADDR:
++		if(n->bounded) // let race detector avoid nil checks
++			disable_checknil++;
++		agen(nl, res);
++		if(n->bounded)
++			disable_checknil--;
++		break;
++
++	case OCALLMETH:
++		cgen_callmeth(n, 0);
++		cgen_callret(n, res);
++		break;
++
++	case OCALLINTER:
++		cgen_callinter(n, res, 0);
++		cgen_callret(n, res);
++		break;
++
++	case OCALLFUNC:
++		cgen_call(n, 0);
++		cgen_callret(n, res);
++		break;
++
++	case OMOD:
++	case ODIV:
++		if(isfloat[n->type->etype]) {
++			a = optoas(n->op, nl->type);
++			goto abop;
++		}
++
++		if(nl->ullman >= nr->ullman) {
++			regalloc(&n1, nl->type, res);
++			cgen(nl, &n1);
++			cgen_div(n->op, &n1, nr, res);
++			regfree(&n1);
++		} else {
++			if(!smallintconst(nr)) {
++				regalloc(&n2, nr->type, res);
++				cgen(nr, &n2);
++			} else {
++				n2 = *nr;
++			}
++			cgen_div(n->op, nl, &n2, res);
++			if(n2.op != OLITERAL)
++				regfree(&n2);
++		}
++		break;
++
++	case OLSH:
++	case ORSH:
++	case OLROT:
++		cgen_shift(n->op, n->bounded, nl, nr, res);
++		break;
++	}
++	goto ret;
++
++sbop:	// symmetric binary
++	/*
++	 * put simplest on right - we'll generate into left
++	 * and then adjust it using the computation of right.
++	 * constants and variables have the same ullman
++	 * count, so look for constants specially.
++	 *
++	 * an integer constant we can use as an immediate
++	 * is simpler than a variable - we can use the immediate
++	 * in the adjustment instruction directly - so it goes
++	 * on the right.
++	 *
++	 * other constants, like big integers or floating point
++	 * constants, require a mov into a register, so those
++	 * might as well go on the left, so we can reuse that
++	 * register for the computation.
++	 */
++	if(nl->ullman < nr->ullman ||
++	   (nl->ullman == nr->ullman &&
++	    (smallintconst(nl) || (nr->op == OLITERAL && !smallintconst(nr))))) {
++		r = nl;
++		nl = nr;
++		nr = r;
++	}
++
++abop:	// asymmetric binary
++	if(nl->ullman >= nr->ullman) {
++		regalloc(&n1, nl->type, res);
++		cgen(nl, &n1);
++	/*
++	 * This generates smaller code - it avoids a MOV - but it's
++	 * easily 10% slower due to not being able to
++	 * optimize/manipulate the move.
++	 * To see, run: go test -bench . crypto/md5
++	 * with and without.
++	 *
++		if(sudoaddable(a, nr, &addr)) {
++			p1 = gins(a, N, &n1);
++			p1->from = addr;
++			gmove(&n1, res);
++			sudoclean();
++			regfree(&n1);
++			goto ret;
++		}
++	 *
++	 */
++		// TODO(minux): enable using constants directly in certain instructions.
++		//if(smallintconst(nr))
++		//	n2 = *nr;
++		//else {
++			regalloc(&n2, nr->type, N);
++			cgen(nr, &n2);
++		//}
++	} else {
++		//if(smallintconst(nr))
++		//	n2 = *nr;
++		//else {
++			regalloc(&n2, nr->type, res);
++			cgen(nr, &n2);
++		//}
++		regalloc(&n1, nl->type, N);
++		cgen(nl, &n1);
++	}
++	gins(a, &n2, &n1);
++	// Normalize result for types smaller than word.
++	if(n->type->width < widthreg) {
++		switch(n->op) {
++		case OADD:
++		case OSUB:
++		case OMUL:
++		case OLSH:
++			gins(optoas(OAS, n->type), &n1, &n1);
++			break;
++		}
++	}
++	gmove(&n1, res);
++	regfree(&n1);
++	if(n2.op != OLITERAL)
++		regfree(&n2);
++	goto ret;
++
++uop:	// unary
++	regalloc(&n1, nl->type, res);
++	cgen(nl, &n1);
++	gins(a, N, &n1);
++	gmove(&n1, res);
++	regfree(&n1);
++	goto ret;
++
++ret:
++	;
++}
++
++/*
++ * allocate a register (reusing res if possible) and generate
++ *  a = n
++ * The caller must call regfree(a).
++ */
++void
++cgenr(Node *n, Node *a, Node *res)
++{
++	Node n1;
++
++	if(debug['g'])
++		dump("cgenr-n", n);
++
++	if(isfat(n->type))
++		fatal("cgenr on fat node");
++
++	if(n->addable) {
++		regalloc(a, n->type, res);
++		gmove(n, a);
++		return;
++	}
++
++	switch(n->op) {
++	case ONAME:
++	case ODOT:
++	case ODOTPTR:
++	case OINDEX:
++	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		igen(n, &n1, res);
++		regalloc(a, types[tptr], &n1);
++		gmove(&n1, a);
++		regfree(&n1);
++		break;
++	default:
++		regalloc(a, n->type, res);
++		cgen(n, a);
++		break;
++	}
++}
++
++/*
++ * allocate a register (reusing res if possible) and generate
++ * a = &n
++ * The caller must call regfree(a).
++ * The generated code checks that the result is not nil.
++ */
++void
++agenr(Node *n, Node *a, Node *res)
++{
++	Node *nl, *nr;
++	Node n1, n2, n3, n4, tmp;
++	Prog *p1, *p2;
++	uint32 w;
++	uint64 v;
++
++	if(debug['g'])
++		dump("agenr-n", n);
++
++	nl = n->left;
++	nr = n->right;
++
++	switch(n->op) {
++	case ODOT:
++	case ODOTPTR:
++	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		igen(n, &n1, res);
++		regalloc(a, types[tptr], &n1);
++		agen(&n1, a);
++		regfree(&n1);
++		break;
++
++	case OIND:
++		cgenr(n->left, a, res);
++		cgen_checknil(a);
++		break;
++
++	case OINDEX:
++		p2 = nil;  // to be patched to panicindex.
++		w = n->type->width;
++		//bounded = debug['B'] || n->bounded;
++		if(nr->addable) {
++			if(!isconst(nr, CTINT))
++				tempname(&tmp, types[TINT64]);
++			if(!isconst(nl, CTSTR))
++				agenr(nl, &n3, res);
++			if(!isconst(nr, CTINT)) {
++				cgen(nr, &tmp);
++				regalloc(&n1, tmp.type, N);
++				gmove(&tmp, &n1);
++			}
++		} else if(nl->addable) {
++			if(!isconst(nr, CTINT)) {
++				tempname(&tmp, types[TINT64]);
++				cgen(nr, &tmp);
++				regalloc(&n1, tmp.type, N);
++				gmove(&tmp, &n1);
++			}
++			if(!isconst(nl, CTSTR)) {
++				agenr(nl, &n3, res);
++			}
++		} else {
++			tempname(&tmp, types[TINT64]);
++			cgen(nr, &tmp);
++			nr = &tmp;
++			if(!isconst(nl, CTSTR))
++				agenr(nl, &n3, res);
++			regalloc(&n1, tmp.type, N);
++			gins(optoas(OAS, tmp.type), &tmp, &n1);
++		}
++
++		// &a is in &n3 (allocated in res)
++		// i is in &n1 (if not constant)
++		// w is width
++
++		// constant index
++		if(isconst(nr, CTINT)) {
++			if(isconst(nl, CTSTR))
++				fatal("constant string constant index");
++			v = mpgetfix(nr->val.u.xval);
++			if(isslice(nl->type) || nl->type->etype == TSTRING) {
++				if(!debug['B'] && !n->bounded) {
++					n1 = n3;
++					n1.op = OINDREG;
++					n1.type = types[tptr];
++					n1.xoffset = Array_nel;
++					regalloc(&n4, n1.type, N);
++					gmove(&n1, &n4);
++					nodconst(&n2, types[TUINT64], v);
++					gins(optoas(OCMP, types[TUINT64]), &n4, &n2);
++					regfree(&n4);
++					p1 = gbranch(optoas(OGT, types[TUINT64]), T, +1);
++					ginscall(panicindex, 0);
++					patch(p1, pc);
++				}
++
++				n1 = n3;
++				n1.op = OINDREG;
++				n1.type = types[tptr];
++				n1.xoffset = Array_array;
++				gmove(&n1, &n3);
++			}
++
++			if (v*w != 0) {
++				nodconst(&n2, types[tptr], v*w);
++				gins(optoas(OADD, types[tptr]), &n2, &n3);
++			}
++			*a = n3;
++			break;
++		}
++
++		regalloc(&n2, types[TINT64], &n1);			// i
++		gmove(&n1, &n2);
++		regfree(&n1);
++
++		if(!debug['B'] && !n->bounded) {
++			// check bounds
++			if(isconst(nl, CTSTR)) {
++				nodconst(&n4, types[TUINT64], nl->val.u.sval->len);
++			} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
++				n1 = n3;
++				n1.op = OINDREG;
++				n1.type = types[tptr];
++				n1.xoffset = Array_nel;
++				regalloc(&n4, types[TUINT64], N);
++				gmove(&n1, &n4);
++			} else {
++				if(nl->type->bound < (1<<15)-1)
++					nodconst(&n4, types[TUINT64], nl->type->bound);
++				else {
++					regalloc(&n4, types[TUINT64], N);
++					p1 = gins(AMOVD, N, &n4);
++					p1->from.type = D_CONST;
++					p1->from.offset = nl->type->bound;
++				}
++			}
++			gins(optoas(OCMP, types[TUINT64]), &n2, &n4);
++			if(n4.op == OREGISTER)
++				regfree(&n4);
++			p1 = gbranch(optoas(OLT, types[TUINT64]), T, +1);
++			if(p2)
++				patch(p2, pc);
++			ginscall(panicindex, 0);
++			patch(p1, pc);
++		}
++		
++		if(isconst(nl, CTSTR)) {
++			regalloc(&n3, types[tptr], res);
++			p1 = gins(AMOVD, N, &n3);
++			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
++			p1->from.type = D_CONST;
++		} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
++			n1 = n3;
++			n1.op = OINDREG;
++			n1.type = types[tptr];
++			n1.xoffset = Array_array;
++			gmove(&n1, &n3);
++		}
++
++		if(w == 0) {
++			// nothing to do
++		} else if(w == 1) {
++			/* w already scaled */
++			gins(optoas(OADD, types[tptr]), &n2, &n3);
++		} /* else if(w == 2 || w == 4 || w == 8) {
++			// TODO(minux): scale using shift
++		} */ else {
++			regalloc(&n4, types[TUINT64], N);
++			nodconst(&n1, types[TUINT64], w);
++			gmove(&n1, &n4);
++			gins(optoas(OMUL, types[TUINT64]), &n4, &n2);
++			gins(optoas(OADD, types[tptr]), &n2, &n3);
++			regfree(&n4);
++		}
++
++		*a = n3;
++		regfree(&n2);
++		break;
++
++	default:
++		regalloc(a, types[tptr], res);
++		agen(n, a);
++		break;
++	}
++}
++
++/*
++ * generate:
++ *	res = &n;
++ * The generated code checks that the result is not nil.
++ */
++void
++agen(Node *n, Node *res)
++{
++	Node *nl, *nr;
++	Node n1, n2, n3;
++
++	if(debug['g']) {
++		dump("\nagen-res", res);
++		dump("agen-r", n);
++	}
++	if(n == N || n->type == T)
++		return;
++
++	while(n->op == OCONVNOP)
++		n = n->left;
++
++	if(isconst(n, CTNIL) && n->type->width > widthptr) {
++		// Use of a nil interface or nil slice.
++		// Create a temporary we can take the address of and read.
++		// The generated code is just going to panic, so it need not
++		// be terribly efficient. See issue 3670.
++		tempname(&n1, n->type);
++		gvardef(&n1);
++		clearfat(&n1);
++		regalloc(&n2, types[tptr], res);
++		memset(&n3, 0, sizeof n3);
++		n3.op = OADDR;
++		n3.left = &n1;
++		gins(AMOVD, &n3, &n2);
++		gmove(&n2, res);
++		regfree(&n2);
++		goto ret;
++	}
++		
++	if(n->addable) {
++		memset(&n1, 0, sizeof n1);
++		n1.op = OADDR;
++		n1.left = n;
++		regalloc(&n2, types[tptr], res);
++		gins(AMOVD, &n1, &n2);
++		gmove(&n2, res);
++		regfree(&n2);
++		goto ret;
++	}
++
++	nl = n->left;
++	nr = n->right;
++	USED(nr);
++
++	switch(n->op) {
++	default:
++		fatal("agen: unknown op %+hN", n);
++		break;
++
++	case OCALLMETH:
++		// TODO(minux): 5g has this: Release res so that it is available for cgen_call.
++		// Pick it up again after the call for OCALLMETH and OCALLFUNC.
++		cgen_callmeth(n, 0);
++		cgen_aret(n, res);
++		break;
++
++	case OCALLINTER:
++		cgen_callinter(n, res, 0);
++		cgen_aret(n, res);
++		break;
++
++	case OCALLFUNC:
++		cgen_call(n, 0);
++		cgen_aret(n, res);
++		break;
++
++	case OSLICE:
++	case OSLICEARR:
++	case OSLICESTR:
++	case OSLICE3:
++	case OSLICE3ARR:
++		tempname(&n1, n->type);
++		cgen_slice(n, &n1);
++		agen(&n1, res);
++		break;
++
++	case OEFACE:
++		tempname(&n1, n->type);
++		cgen_eface(n, &n1);
++		agen(&n1, res);
++		break;
++
++	case OINDEX:
++		agenr(n, &n1, res);
++		gmove(&n1, res);
++		regfree(&n1);
++		break;
++
++	case ONAME:
++		// should only get here with names in this func.
++		if(n->funcdepth > 0 && n->funcdepth != funcdepth) {
++			dump("bad agen", n);
++			fatal("agen: bad ONAME funcdepth %d != %d",
++				n->funcdepth, funcdepth);
++		}
++
++		// should only get here for heap vars or paramref
++		if(!(n->class & PHEAP) && n->class != PPARAMREF) {
++			dump("bad agen", n);
++			fatal("agen: bad ONAME class %#x", n->class);
++		}
++		cgen(n->heapaddr, res);
++		if(n->xoffset != 0) {
++			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
++		}
++		break;
++
++	case OIND:
++		cgen(nl, res);
++		cgen_checknil(res);
++		break;
++
++	case ODOT:
++		agen(nl, res);
++		if(n->xoffset != 0) {
++			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
++		}
++		break;
++
++	case ODOTPTR:
++		cgen(nl, res);
++		cgen_checknil(res);
++		if(n->xoffset != 0) {
++			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
++		}
++		break;
++	}
++
++ret:
++	;
++}
++
++/*
++ * generate:
++ *	newreg = &n;
++ *	res = newreg
++ *
++ * on exit, a has been changed to be *newreg.
++ * caller must regfree(a).
++ * The generated code checks that the result is not *nil.
++ */
++void
++igen(Node *n, Node *a, Node *res)
++{
++	Type *fp;
++	Iter flist;
++	Node n1;
++
++	if(debug['g']) {
++		dump("\nigen-n", n);
++	}
++	switch(n->op) {
++	case ONAME:
++		if((n->class&PHEAP) || n->class == PPARAMREF)
++			break;
++		*a = *n;
++		return;
++
++	case OINDREG:
++		// Increase the refcount of the register so that igen's caller
++		// has to call regfree.
++		if(n->val.u.reg != D_R0+REGSP)
++			reg[n->val.u.reg]++;
++		*a = *n;
++		return;
++
++	case ODOT:
++		igen(n->left, a, res);
++		a->xoffset += n->xoffset;
++		a->type = n->type;
++		fixlargeoffset(a);
++		return;
++
++	case ODOTPTR:
++		cgenr(n->left, a, res);
++		cgen_checknil(a);
++		a->op = OINDREG;
++		a->xoffset += n->xoffset;
++		a->type = n->type;
++		fixlargeoffset(a);
++		return;
++
++	case OCALLFUNC:
++	case OCALLMETH:
++	case OCALLINTER:
++		switch(n->op) {
++		case OCALLFUNC:
++			cgen_call(n, 0);
++			break;
++		case OCALLMETH:
++			cgen_callmeth(n, 0);
++			break;
++		case OCALLINTER:
++			cgen_callinter(n, N, 0);
++			break;
++		}
++		fp = structfirst(&flist, getoutarg(n->left->type));
++		memset(a, 0, sizeof *a);
++		a->op = OINDREG;
++		a->val.u.reg = D_R0+REGSP;
++		a->addable = 1;
++		a->xoffset = fp->width + widthptr; // +widthptr: saved lr at 0(SP)
++		a->type = n->type;
++		return;
++
++	case OINDEX:
++		// Index of fixed-size array by constant can
++		// put the offset in the addressing.
++		// Could do the same for slice except that we need
++		// to use the real index for the bounds checking.
++		if(isfixedarray(n->left->type) ||
++		   (isptr[n->left->type->etype] && isfixedarray(n->left->left->type)))
++		if(isconst(n->right, CTINT)) {
++			// Compute &a.
++			if(!isptr[n->left->type->etype])
++				igen(n->left, a, res);
++			else {
++				igen(n->left, &n1, res);
++				cgen_checknil(&n1);
++				regalloc(a, types[tptr], res);
++				gmove(&n1, a);
++				regfree(&n1);
++				a->op = OINDREG;
++			}
++
++			// Compute &a[i] as &a + i*width.
++			a->type = n->type;
++			a->xoffset += mpgetfix(n->right->val.u.xval)*n->type->width;
++			fixlargeoffset(a);
++			return;
++		}
++		break;
++	}
++
++	agenr(n, a, res);
++	a->op = OINDREG;
++	a->type = n->type;
++}
++
++/*
++ * generate:
++ *	if(n == true) goto to;
++ */
++void
++bgen(Node *n, int true, int likely, Prog *to)
++{
++	int et, a;
++	Node *nl, *nr, *l, *r;
++	Node n1, n2, tmp;
++	NodeList *ll;
++	Prog *p1, *p2;
++
++	if(debug['g']) {
++		dump("\nbgen", n);
++	}
++
++	if(n == N)
++		n = nodbool(1);
++
++	if(n->ninit != nil)
++		genlist(n->ninit);
++
++	if(n->type == T) {
++		convlit(&n, types[TBOOL]);
++		if(n->type == T)
++			goto ret;
++	}
++
++	et = n->type->etype;
++	if(et != TBOOL) {
++		yyerror("cgen: bad type %T for %O", n->type, n->op);
++		patch(gins(AEND, N, N), to);
++		goto ret;
++	}
++	nr = N;
++
++	while(n->op == OCONVNOP) {
++		n = n->left;
++		if(n->ninit != nil)
++			genlist(n->ninit);
++	}
++
++	switch(n->op) {
++	default:
++		regalloc(&n1, n->type, N);
++		cgen(n, &n1);
++		nodconst(&n2, n->type, 0);
++		gins(optoas(OCMP, n->type), &n1, &n2);
++		a = ABNE;
++		if(!true)
++			a = ABEQ;
++		patch(gbranch(a, n->type, likely), to);
++		regfree(&n1);
++		goto ret;
++
++	case OLITERAL:
++		// need to ask if it is bool?
++		if(!true == !n->val.u.bval)
++			patch(gbranch(ABR, T, likely), to);
++		goto ret;
++
++	case OANDAND:
++		if(!true)
++			goto caseor;
++
++	caseand:
++		p1 = gbranch(ABR, T, 0);
++		p2 = gbranch(ABR, T, 0);
++		patch(p1, pc);
++		bgen(n->left, !true, -likely, p2);
++		bgen(n->right, !true, -likely, p2);
++		p1 = gbranch(ABR, T, 0);
++		patch(p1, to);
++		patch(p2, pc);
++		goto ret;
++
++	case OOROR:
++		if(!true)
++			goto caseand;
++
++	caseor:
++		bgen(n->left, true, likely, to);
++		bgen(n->right, true, likely, to);
++		goto ret;
++
++	case OEQ:
++	case ONE:
++	case OLT:
++	case OGT:
++	case OLE:
++	case OGE:
++		nr = n->right;
++		if(nr == N || nr->type == T)
++			goto ret;
++
++	case ONOT:	// unary
++		nl = n->left;
++		if(nl == N || nl->type == T)
++			goto ret;
++		break;
++	}
++
++	switch(n->op) {
++
++	case ONOT:
++		bgen(nl, !true, likely, to);
++		goto ret;
++
++	case OEQ:
++	case ONE:
++	case OLT:
++	case OGT:
++	case OLE:
++	case OGE:
++		a = n->op;
++		if(!true) {
++			if(isfloat[nr->type->etype]) {
++				// brcom is not valid on floats when NaN is involved.
++				p1 = gbranch(ABR, T, 0);
++				p2 = gbranch(ABR, T, 0);
++				patch(p1, pc);
++				ll = n->ninit;   // avoid re-genning ninit
++				n->ninit = nil;
++				bgen(n, 1, -likely, p2);
++				n->ninit = ll;
++				patch(gbranch(ABR, T, 0), to);
++				patch(p2, pc);
++				goto ret;
++			}
++			a = brcom(a);
++			true = !true;
++		}
++
++		// make simplest on right
++		if(nl->op == OLITERAL || (nl->ullman < nr->ullman && nl->ullman < UINF)) {
++			a = brrev(a);
++			r = nl;
++			nl = nr;
++			nr = r;
++		}
++
++		if(isslice(nl->type)) {
++			// front end should only leave cmp to literal nil
++			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
++				yyerror("illegal slice comparison");
++				break;
++			}
++			a = optoas(a, types[tptr]);
++			igen(nl, &n1, N);
++			n1.xoffset += Array_array;
++			n1.type = types[tptr];
++			nodconst(&tmp, types[tptr], 0);
++			regalloc(&n2, types[tptr], &n1);
++			gmove(&n1, &n2);
++			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
++			regfree(&n2);
++			patch(gbranch(a, types[tptr], likely), to);
++			regfree(&n1);
++			break;
++		}
++
++		if(isinter(nl->type)) {
++			// front end should only leave cmp to literal nil
++			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
++				yyerror("illegal interface comparison");
++				break;
++			}
++			a = optoas(a, types[tptr]);
++			igen(nl, &n1, N);
++			n1.type = types[tptr];
++			nodconst(&tmp, types[tptr], 0);
++			regalloc(&n2, types[tptr], &n1);
++			gmove(&n1, &n2);
++			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
++			regfree(&n2);
++			patch(gbranch(a, types[tptr], likely), to);
++			regfree(&n1);
++			break;
++		}
++		if(iscomplex[nl->type->etype]) {
++			complexbool(a, nl, nr, true, likely, to);
++			break;
++		}
++
++		if(nr->ullman >= UINF) {
++			regalloc(&n1, nl->type, N);
++			cgen(nl, &n1);
++
++			tempname(&tmp, nl->type);
++			gmove(&n1, &tmp);
++			regfree(&n1);
++
++			regalloc(&n2, nr->type, N);
++			cgen(nr, &n2);
++
++			regalloc(&n1, nl->type, N);
++			cgen(&tmp, &n1);
++
++			goto cmp;
++		}
++
++		regalloc(&n1, nl->type, N);
++		cgen(nl, &n1);
++
++		// TODO(minux): cmpi does accept 16-bit signed immediate as p->to.
++		// and cmpli accepts 16-bit unsigned immediate.
++		//if(smallintconst(nr)) {
++		//	gins(optoas(OCMP, nr->type), &n1, nr);
++		//	patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
++		//	regfree(&n1);
++		//	break;
++		//}
++
++		regalloc(&n2, nr->type, N);
++		cgen(nr, &n2);
++	cmp:
++		l = &n1;
++		r = &n2;
++		gins(optoas(OCMP, nr->type), l, r);
++
++		// TODO(minux): determine the reason for failed test/floatcmp.go.
++		// we might need to specially handle floating point comparisons.
++		/*if(isfloat[nr->type->etype] && (n->op == OEQ || n->op == ONE)) {
++		} else*/
++			patch(gbranch(optoas(a, nr->type), nr->type, likely), to);
++		regfree(&n1);
++		regfree(&n2);
++		break;
++	}
++	goto ret;
++
++ret:
++	;
++}
++
++/*
++ * n is on stack, either local variable
++ * or return value from function call.
++ * return n's offset from SP.
++ */
++int64
++stkof(Node *n)
++{
++	Type *t;
++	Iter flist;
++	int64 off;
++
++	switch(n->op) {
++	case OINDREG:
++		return n->xoffset;
++
++	case ODOT:
++		t = n->left->type;
++		if(isptr[t->etype])
++			break;
++		off = stkof(n->left);
++		if(off == -1000 || off == 1000)
++			return off;
++		return off + n->xoffset;
++
++	case OINDEX:
++		t = n->left->type;
++		if(!isfixedarray(t))
++			break;
++		off = stkof(n->left);
++		if(off == -1000 || off == 1000)
++			return off;
++		if(isconst(n->right, CTINT))
++			return off + t->type->width * mpgetfix(n->right->val.u.xval);
++		return 1000;
++		
++	case OCALLMETH:
++	case OCALLINTER:
++	case OCALLFUNC:
++		t = n->left->type;
++		if(isptr[t->etype])
++			t = t->type;
++
++		t = structfirst(&flist, getoutarg(t));
++		if(t != T)
++			return t->width + widthptr;	// +widthptr: correct for saved LR
++		break;
++	}
++
++	// botch - probably failing to recognize address
++	// arithmetic on the above. eg INDEX and DOT
++	return -1000;
++}
++
++/*
++ * block copy:
++ *	memmove(&ns, &n, w);
++ */
++void
++sgen(Node *n, Node *ns, int64 w)
++{
++	Node dst, src, tmp;
++	int32 c, odst, osrc;
++	int dir, align, op;
++	Prog *p;
++	NodeList *l;
++	Node *res = ns;
++
++	if(debug['g']) {
++		print("\nsgen w=%lld\n", w);
++		dump("r", n);
++		dump("res", ns);
++	}
++
++	if(n->ullman >= UINF && ns->ullman >= UINF)
++		fatal("sgen UINF");
++
++	if(w < 0)
++		fatal("sgen copy %lld", w);
++	
++	// If copying .args, that's all the results, so record definition sites
++	// for them for the liveness analysis.
++	if(ns->op == ONAME && strcmp(ns->sym->name, ".args") == 0)
++		for(l = curfn->dcl; l != nil; l = l->next)
++			if(l->n->class == PPARAMOUT)
++				gvardef(l->n);
++
++	// Avoid taking the address for simple enough types.
++	//if(componentgen(n, ns))
++	//	return;
++	
++	if(w == 0) {
++		// evaluate side effects only.
++		regalloc(&dst, types[tptr], N);
++		agen(res, &dst);
++		agen(n, &dst);
++		regfree(&dst);
++		return;
++	}
++
++	// determine alignment.
++	// want to avoid unaligned access, so have to use
++	// smaller operations for less aligned types.
++	// for example moving [4]byte must use 4 MOVB not 1 MOVW.
++	align = n->type->align;
++	switch(align) {
++	default:
++		fatal("sgen: invalid alignment %d for %T", align, n->type);
++	case 1:
++		op = AMOVBU;
++		break;
++	case 2:
++		op = AMOVHU;
++		break;
++	case 4:
++		op = AMOVWZU; // there is no lwau, only lwaux
++		break;
++	case 8:
++		op = AMOVDU;
++		break;
++	}
++	if(w%align)
++		fatal("sgen: unaligned size %lld (align=%d) for %T", w, align, n->type);
++	c = w / align;
++
++	// offset on the stack
++	osrc = stkof(n);
++	odst = stkof(res);
++	if(osrc != -1000 && odst != -1000 && (osrc == 1000 || odst == 1000)) {
++		// osrc and odst both on stack, and at least one is in
++		// an unknown position.  Could generate code to test
++		// for forward/backward copy, but instead just copy
++		// to a temporary location first.
++		tempname(&tmp, n->type);
++		sgen(n, &tmp, w);
++		sgen(&tmp, res, w);
++		return;
++	}
++	if(osrc%align != 0 || odst%align != 0)
++		fatal("sgen: unaligned offset src %d or dst %d (align %d)", osrc, odst, align);
++
++	// if we are copying forward on the stack and
++	// the src and dst overlap, then reverse direction
++	dir = align;
++	if(osrc < odst && odst < osrc+w)
++		dir = -dir;
++
++	if(n->ullman >= res->ullman) {
++		agenr(n, &dst, res);	// temporarily use dst
++		regalloc(&src, types[tptr], N);
++		gins(AMOVD, &dst, &src);
++		if(res->op == ONAME)
++			gvardef(res);
++		agen(res, &dst);
++	} else {
++		if(res->op == ONAME)
++			gvardef(res);
++		agenr(res, &dst, res);
++		agenr(n, &src, N);
++	}
++
++	regalloc(&tmp, types[tptr], N);
++
++	// set up end marker
++	//memset(&nend, 0, sizeof nend);
++	//if(c >= 4) {
++	//	regalloc(&nend, types[tptr], N);
++	//	p = gins(AMOVD, &src, &nend);
++	//	p->from.type = D_CONST;
++	//	if(dir < 0)
++	//		p->from.offset = dir;
++	//	else
++	//		p->from.offset = w;
++	//}
++
++	// move src and dest to the end of block if necessary
++	if(dir < 0) {
++		p = gins(AADD, N, &src);
++		p->from.type = D_CONST;
++		p->from.offset = w;
++
++		p = gins(AADD, N, &dst);
++		p->from.type = D_CONST;
++		p->from.offset = w;
++	} else {
++		p = gins(AADD, N, &src);
++		p->from.type = D_CONST;
++		p->from.offset = -dir;
++
++		p = gins(AADD, N, &dst);
++		p->from.type = D_CONST;
++		p->from.offset = -dir;
++	}
++	
++	// move
++	// TODO: enable loops and duffcopy for larger copies.
++	/*if(c >= 4) {
++		p = gins(op, &src, &tmp);
++		p->from.type = D_OREG;
++		p->from.offset = dir;
++		ploop = p;
++
++		p = gins(op, &tmp, &dst);
++		p->to.type = D_OREG;
++		p->to.offset = dir;
++
++		p = gins(ACMP, &src, N);
++		raddr(&nend, p);
++
++		patch(gbranch(ABNE, T, 0), ploop);
++ 		regfree(&nend);
++	} else*/ {
++		while(c-- > 0) {
++			p = gins(op, &src, &tmp);
++			p->from.type = D_OREG;
++			p->from.offset = dir;
++	
++			p = gins(op, &tmp, &dst);
++			p->to.type = D_OREG;
++			p->to.offset = dir;
++		}
++	}
++
++	regfree(&dst);
++	regfree(&src);
++	regfree(&tmp);
++}
++
++static int
++cadable(Node *n)
++{
++	if(!n->addable) {
++		// dont know how it happens,
++		// but it does
++		return 0;
++	}
++
++	switch(n->op) {
++	case ONAME:
++		return 1;
++	}
++	return 0;
++}
++
++/*
++ * copy a composite value by moving its individual components.
++ * Slices, strings and interfaces are supported.
++ * Small structs or arrays with elements of basic type are
++ * also supported.
++ * nr is N when assigning a zero value.
++ * return 1 if can do, 0 if can't.
++ */
++int
++componentgen(Node *nr, Node *nl)
++{
++	Node nodl, nodr;
++	Type *t;
++	int freel, freer;
++	vlong fldcount;
++	vlong loffset, roffset;
++
++	freel = 0;
++	freer = 0;
++
++	switch(nl->type->etype) {
++	default:
++		goto no;
++
++	case TARRAY:
++		t = nl->type;
++
++		// Slices are ok.
++		if(isslice(t))
++			break;
++		// Small arrays are ok.
++		if(t->bound > 0 && t->bound <= 3 && !isfat(t->type))
++			break;
++
++		goto no;
++
++	case TSTRUCT:
++		// Small structs with non-fat types are ok.
++		// Zero-sized structs are treated separately elsewhere.
++		fldcount = 0;
++		for(t=nl->type->type; t; t=t->down) {
++			if(isfat(t->type))
++				goto no;
++			if(t->etype != TFIELD)
++				fatal("componentgen: not a TFIELD: %lT", t);
++			fldcount++;
++		}
++		if(fldcount == 0 || fldcount > 4)
++			goto no;
++
++		break;
++
++	case TSTRING:
++	case TINTER:
++		break;
++	}
++
++	nodl = *nl;
++	if(!cadable(nl)) {
++		if(nr == N || !cadable(nr))
++			goto no;
++		igen(nl, &nodl, N);
++		freel = 1;
++	}
++
++	if(nr != N) {
++		nodr = *nr;
++		if(!cadable(nr)) {
++			igen(nr, &nodr, N);
++			freer = 1;
++		}
++	}
++	
++	// nl and nr are 'cadable' which basically means they are names (variables) now.
++	// If they are the same variable, don't generate any code, because the
++	// VARDEF we generate will mark the old value as dead incorrectly.
++	// (And also the assignments are useless.)
++	if(nr != N && nl->op == ONAME && nr->op == ONAME && nl == nr)
++		goto yes;
++
++	switch(nl->type->etype) {
++	case TARRAY:
++		// componentgen for arrays.
++		if(nl->op == ONAME)
++			gvardef(nl);
++		t = nl->type;
++		if(!isslice(t)) {
++			nodl.type = t->type;
++			nodr.type = nodl.type;
++			for(fldcount=0; fldcount < t->bound; fldcount++) {
++				if(nr == N)
++					clearslim(&nodl);
++				else
++					gmove(&nodr, &nodl);
++				nodl.xoffset += t->type->width;
++				nodr.xoffset += t->type->width;
++			}
++			goto yes;
++		}
++
++		// componentgen for slices.
++		nodl.xoffset += Array_array;
++		nodl.type = ptrto(nl->type->type);
++
++		if(nr != N) {
++			nodr.xoffset += Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_nel-Array_array;
++		nodl.type = types[simtype[TUINT]];
++
++		if(nr != N) {
++			nodr.xoffset += Array_nel-Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_cap-Array_nel;
++		nodl.type = types[simtype[TUINT]];
++
++		if(nr != N) {
++			nodr.xoffset += Array_cap-Array_nel;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		goto yes;
++
++	case TSTRING:
++		if(nl->op == ONAME)
++			gvardef(nl);
++		nodl.xoffset += Array_array;
++		nodl.type = ptrto(types[TUINT8]);
++
++		if(nr != N) {
++			nodr.xoffset += Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_nel-Array_array;
++		nodl.type = types[simtype[TUINT]];
++
++		if(nr != N) {
++			nodr.xoffset += Array_nel-Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		goto yes;
++
++	case TINTER:
++		if(nl->op == ONAME)
++			gvardef(nl);
++		nodl.xoffset += Array_array;
++		nodl.type = ptrto(types[TUINT8]);
++
++		if(nr != N) {
++			nodr.xoffset += Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		nodl.xoffset += Array_nel-Array_array;
++		nodl.type = ptrto(types[TUINT8]);
++
++		if(nr != N) {
++			nodr.xoffset += Array_nel-Array_array;
++			nodr.type = nodl.type;
++		} else
++			nodconst(&nodr, nodl.type, 0);
++		gmove(&nodr, &nodl);
++
++		goto yes;
++
++	case TSTRUCT:
++		if(nl->op == ONAME)
++			gvardef(nl);
++		loffset = nodl.xoffset;
++		roffset = nodr.xoffset;
++		// funarg structs may not begin at offset zero.
++		if(nl->type->etype == TSTRUCT && nl->type->funarg && nl->type->type)
++			loffset -= nl->type->type->width;
++		if(nr != N && nr->type->etype == TSTRUCT && nr->type->funarg && nr->type->type)
++			roffset -= nr->type->type->width;
++
++		for(t=nl->type->type; t; t=t->down) {
++			nodl.xoffset = loffset + t->width;
++			nodl.type = t->type;
++
++			if(nr == N)
++				clearslim(&nodl);
++			else {
++				nodr.xoffset = roffset + t->width;
++				nodr.type = nodl.type;
++				gmove(&nodr, &nodl);
++			}
++		}
++		goto yes;
++	}
++
++no:
++	if(freer)
++		regfree(&nodr);
++	if(freel)
++		regfree(&nodl);
++	return 0;
++
++yes:
++	if(freer)
++		regfree(&nodr);
++	if(freel)
++		regfree(&nodl);
++	return 1;
++}
+diff --git a/src/cmd/9g/galign.c b/src/cmd/9g/galign.c
+new file mode 100644
+index 0000000000..97a5a5d06c
+--- /dev/null
++++ b/src/cmd/9g/galign.c
+@@ -0,0 +1,54 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <u.h>
++#include <libc.h>
++#include "gg.h"
++
++int	thechar	= '9';
++char*	thestring = "power64";
++LinkArch*	thelinkarch;
++
++void
++linkarchinit(void)
++{
++	thestring = getgoarch();
++	if(strcmp(thestring, "power64le") == 0)
++		thelinkarch = &linkpower64le;
++	else
++		thelinkarch = &linkpower64;
++}
++
++vlong MAXWIDTH = 1LL<<50;
++
++/*
++ * go declares several platform-specific type aliases:
++ * int, uint, float, and uintptr
++ */
++Typedef	typedefs[] =
++{
++	{"int",		TINT,		TINT64},
++	{"uint",		TUINT,		TUINT64},
++	{"uintptr",	TUINTPTR,	TUINT64},
++	{0}
++};
++
++void
++betypeinit(void)
++{
++	widthptr = 8;
++	widthint = 8;
++	widthreg = 8;
++
++	zprog.link = P;
++	zprog.as = AGOK;
++	zprog.reg = NREG;
++	zprog.from.name = D_NONE;
++	zprog.from.type = D_NONE;
++	zprog.from.reg = NREG;
++	zprog.to = zprog.from;
++	zprog.from3 = zprog.from;
++
++	listinit9();
++}
+diff --git a/src/cmd/9g/gg.h b/src/cmd/9g/gg.h
+new file mode 100644
+index 0000000000..2b95dc7a6f
+--- /dev/null
++++ b/src/cmd/9g/gg.h
+@@ -0,0 +1,119 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#ifndef	EXTERN
++#define	EXTERN	extern
++#endif
++
++#include "../gc/go.h"
++#include "../9l/9.out.h"
++
++// TODO(minux): Remove when no longer used.
++#define noimpl sysfatal("%s not implemented (%s:%d).", __func__, __FILE__, __LINE__)
++
++#define TEXTFLAG reg
++
++EXTERN	int32	dynloc;
++EXTERN	uchar	reg[NREG+NFREG];
++EXTERN	int32	pcloc;		// instruction counter
++EXTERN	Strlit	emptystring;
++EXTERN	Prog	zprog;
++EXTERN	Node*	newproc;
++EXTERN	Node*	deferproc;
++EXTERN	Node*	deferreturn;
++EXTERN	Node*	panicindex;
++EXTERN	Node*	panicslice;
++EXTERN	Node*	panicdiv;
++EXTERN	Node*	throwreturn;
++extern	vlong	unmappedzero;
++
++/*
++ * ggen.c
++ */
++void	compile(Node*);
++void	gen(Node*);
++Node*	lookdot(Node*, Node*, int);
++void	cgen_as(Node*, Node*);
++void	cgen_callmeth(Node*, int);
++void	cgen_callinter(Node*, Node*, int);
++void	cgen_proc(Node*, int);
++void	cgen_callret(Node*, Node*);
++void	cgen_div(int, Node*, Node*, Node*);
++void	cgen_hmul(Node*, Node*, Node*);
++void	cgen_shift(int, int, Node*, Node*, Node*);
++void	cgen_dcl(Node*);
++int	needconvert(Type*, Type*);
++void	genconv(Type*, Type*);
++void	allocparams(void);
++void	checklabels(void);
++void	ginscall(Node*, int);
++int	gen_as_init(Node*);
++void	clearslim(Node*);
++
++/*
++ * cgen.c
++ */
++void	agen(Node*, Node*);
++void	agenr(Node*, Node*, Node*);
++void	cgenr(Node*, Node*, Node*);
++void	igen(Node*, Node*, Node*);
++vlong	fieldoffset(Type*, Node*);
++void	sgen(Node*, Node*, int64);
++void	gmove(Node*, Node*);
++Prog*	gins(int, Node*, Node*);
++int	samaddr(Node*, Node*);
++void	naddr(Node*, Addr*, int);
++void	cgen_aret(Node*, Node*);
++int	componentgen(Node*, Node*);
++
++/*
++ * gsubr.c
++ */
++void	clearp(Prog*);
++Prog*	gbranch(int, Type*, int);
++Prog*	prog(int);
++void	gconv(int, int);
++int	conv2pt(Type*);
++vlong	convvtox(vlong, int);
++void	fnparam(Type*, int, int);
++Prog*	gop(int, Node*, Node*, Node*);
++int	optoas(int, Type*);
++void	ginit(void);
++void	gclean(void);
++void	regalloc(Node*, Type*, Node*);
++void	regfree(Node*);
++Node*	nodarg(Type*, int);
++void	nodreg(Node*, Type*, int);
++void	nodindreg(Node*, Type*, int);
++void	ginscon(int, vlong, Node*);
++void	buildtxt(void);
++Plist*	newplist(void);
++int	isfat(Type*);
++void	sudoclean(void);
++int	sudoaddable(int, Node*, Addr*);
++void	afunclit(Addr*, Node*);
++void	nodfconst(Node*, Type*, Mpflt*);
++void	gtrack(Sym*);
++void	gargsize(vlong);
++void	fixlargeoffset(Node *n);
++
++/*
++ * cplx.c
++ */
++int	complexop(Node*, Node*);
++void	complexmove(Node*, Node*);
++void	complexgen(Node*, Node*);
++
++/*
++ * gobj.c
++ */
++void	datastring(char*, int, Addr*);
++void	datagostring(Strlit*, Addr*);
++
++/*
++ * list.c
++ */
++void	listinit(void);
++
++void	zaddr(Biobuf*, Addr*, int, int);
+diff --git a/src/cmd/9g/ggen.c b/src/cmd/9g/ggen.c
+new file mode 100644
+index 0000000000..999b630faa
+--- /dev/null
++++ b/src/cmd/9g/ggen.c
+@@ -0,0 +1,1028 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#undef	EXTERN
++#define	EXTERN
++#include <u.h>
++#include <libc.h>
++#include "gg.h"
++#include "opt.h"
++
++//static Prog *appendpp(Prog*, int, int, vlong, int, vlong);
++static Prog *zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax);
++
++void
++defframe(Prog *ptxt)
++{
++	uint32 frame, r0;
++	Prog *p;
++	vlong hi, lo;
++	NodeList *l;
++	Node *n;
++
++	// fill in argument size
++	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
++
++	// fill in final stack size
++	ptxt->to.offset <<= 32;
++	frame = rnd(stksize+maxarg, widthreg);
++	ptxt->to.offset |= frame;
++	
++	// insert code to zero ambiguously live variables
++	// so that the garbage collector only sees initialized values
++	// when it looks for pointers.
++	p = ptxt;
++	lo = hi = 0;
++	r0 = 0;
++	// iterate through declarations - they are sorted in decreasing xoffset order.
++	for(l=curfn->dcl; l != nil; l = l->next) {
++		n = l->n;
++		if(!n->needzero)
++			continue;
++		if(n->class != PAUTO)
++			fatal("needzero class %d", n->class);
++		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
++			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
++
++		if(lo != hi && n->xoffset + n->type->width >= lo - 2*widthreg) {
++			// merge with range we already have
++			lo = n->xoffset;
++			continue;
++		}
++		// zero old range
++		p = zerorange(p, frame, lo, hi, &r0);
++
++		// set new range
++		hi = n->xoffset + n->type->width;
++		lo = n->xoffset;
++	}
++	// zero final range
++	zerorange(p, frame, lo, hi, &r0);
++}
++
++static Prog*
++zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *r0)
++{
++	vlong cnt/*, i*/;
++
++	cnt = hi - lo;
++	if(cnt == 0)
++		return p;
++	fprint(2, "zerorange TODO: %P, frame:%lld, lo:%lld, hi:%lld, r0: %p (%d)\n", p, frame, lo, hi, r0, *r0);
++	return p;
++}
++
++/*static*/ Prog*
++appendpp(Prog *p, int as, int ftype, vlong foffset, int ttype, vlong toffset)
++{
++	Prog *q;
++	q = mal(sizeof(*q));	
++	clearp(q);	
++	q->as = as;	
++	q->lineno = p->lineno;	
++	q->from.type = ftype;	
++	q->from.offset = foffset;	
++	q->to.type = ttype;	
++	q->to.offset = toffset;	
++	q->link = p->link;	
++	p->link = q;	
++	return q;	
++}
++
++// Sweep the prog list to mark any used nodes.
++void
++markautoused(Prog *p)
++{
++	for (; p; p = p->link) {
++		if (p->as == ATYPE || p->as == AVARDEF || p->as == AVARKILL)
++			continue;
++
++		if (p->from.node)
++			p->from.node->used = 1;
++
++		if (p->to.node)
++			p->to.node->used = 1;
++	}
++}
++
++// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
++void
++fixautoused(Prog *p)
++{
++	Prog **lp;
++
++	for (lp=&p; (p=*lp) != P; ) {
++		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !p->from.node->used) {
++			*lp = p->link;
++			continue;
++		}
++		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
++			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
++			// VARDEFs are interspersed with other code, and a jump might be using the
++			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
++			// the no-ops.
++			p->to.type = D_NONE;
++			p->to.node = N;
++			p->as = ANOP;
++			continue;
++		}
++		if (p->from.name == D_AUTO && p->from.node)
++			p->from.offset += p->from.node->stkdelta;
++
++		if (p->to.name == D_AUTO && p->to.node)
++			p->to.offset += p->to.node->stkdelta;
++
++		lp = &p->link;
++	}
++}
++
++/*
++ * generate: BL reg, f
++ * where both reg and f are registers.
++ * On power, f must be moved to CTR first.
++ */
++static void
++ginsBL(Node *reg, Node *f)
++{
++	Prog *p;
++	p = gins(AMOVD, f, N);
++	p->to.type = D_SPR;
++	p->to.offset = D_CTR;
++	p = gins(ABL, reg, N);
++	p->to.type = D_SPR;
++	p->to.offset = D_CTR;
++}
++
++/*
++ * generate:
++ *	call f
++ *	proc=-1	normal call but no return
++ *	proc=0	normal call
++ *	proc=1	goroutine run in new proc
++ *	proc=2	defer call save away stack
++  *	proc=3	normal call to C pointer (not Go func value)
++ */
++void
++ginscall(Node *f, int proc)
++{
++	int32 arg;
++	Prog *p;
++	Node reg, con, reg2;
++	Node r1;
++
++	if(f->type != T)
++		setmaxarg(f->type);
++
++	arg = -1;
++	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
++	// Not all, though: there are some variadic functions in package runtime,
++	// and for those we emit call-specific metadata recorded by caller.
++	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
++	// so we do this for all indirect calls as well.
++	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
++		arg = f->type->argwid;
++		if(proc == 1 || proc == 2)
++			arg += 3*widthptr;
++	}
++
++	if(arg != -1)
++		gargsize(arg);
++
++	switch(proc) {
++	default:
++		fatal("ginscall: bad proc %d", proc);
++		break;
++
++	case 0:	// normal call
++	case -1:	// normal call but no return
++		if(f->op == ONAME && f->class == PFUNC) {
++			if(f == deferreturn) {
++				// Deferred calls will appear to be returning to
++				// the CALL deferreturn(SB) that we are about to emit.
++				// However, the stack trace code will show the line
++				// of the instruction byte before the return PC. 
++				// To avoid that being an unrelated instruction,
++				// insert a Power64 NOP that we will have the right line number.
++				// Power64 NOP is really or r0, r0, r0; use that description
++				// because the NOP pseudo-instruction would be removed by
++				// the linker.
++				nodreg(&reg, types[TINT], D_R0);
++				gins(AOR, &reg, &reg);
++			}
++			p = gins(ABL, N, f);
++			afunclit(&p->to, f);
++			if(proc == -1 || noreturn(p))
++				gins(AUNDEF, N, N);
++			break;
++		}
++		nodreg(&reg, types[tptr], D_R0+REGENV);
++		nodreg(&r1, types[tptr], D_R0+3);
++		gmove(f, &reg);
++		reg.op = OINDREG;
++		gmove(&reg, &r1);
++		reg.op = OREGISTER;
++		ginsBL(&reg, &r1);
++		break;
++	
++	case 3:	// normal call of c function pointer
++		ginsBL(N, f);
++		break;
++
++	case 1:	// call in new proc (go)
++	case 2:	// deferred call (defer)
++		nodconst(&con, types[TINT64], argsize(f->type));
++		nodreg(&reg, types[TINT64], D_R0+3);
++		nodreg(&reg2, types[TINT64], D_R0+4);
++		gmove(f, &reg);
++
++		p = gins(ASUB, N, N);
++		p->from.type = D_CONST;
++		p->from.offset = 3 * 8;
++		p->to.type = D_REG;
++		p->to.reg = REGSP;
++
++		gmove(&con, &reg2);
++		p = gins(AMOVW, &reg2, N);
++		p->to.type = D_OREG;
++		p->to.reg = REGSP;
++		p->to.offset = 8;
++
++		p = gins(AMOVD, &reg, N);
++		p->to.type = D_OREG;
++		p->to.reg = REGSP;
++		p->to.offset = 16;
++
++		if(proc == 1)
++			ginscall(newproc, 0);
++		else {
++			if(!hasdefer)
++				fatal("hasdefer=0 but has defer");
++			ginscall(deferproc, 0);
++		}
++
++		p = gins(AADD, N, N);
++		p->from.type = D_CONST;
++		p->from.offset = 3 * 8;
++		p->to.type = D_REG;
++		p->to.reg = REGSP;
++
++		if(proc == 2) {
++			nodreg(&reg, types[TINT64], D_R0+3);
++			p = gins(ACMP, &reg, N);
++			p->to.type = D_REG;
++			p->to.reg = D_R0;
++			p = gbranch(ABEQ, T, +1);
++			cgen_ret(N);
++			patch(p, pc);
++		}
++		break;
++	}
++
++	if(arg != -1)
++		gargsize(-1);
++}
++
++/*
++ * n is call to interface method.
++ * generate res = n.
++ */
++void
++cgen_callinter(Node *n, Node *res, int proc)
++{
++	Node *i, *f;
++	Node tmpi, nodi, nodo, nodr, nodsp;
++	Prog *p;
++
++	i = n->left;
++	if(i->op != ODOTINTER)
++		fatal("cgen_callinter: not ODOTINTER %O", i->op);
++
++	f = i->right;		// field
++	if(f->op != ONAME)
++		fatal("cgen_callinter: not ONAME %O", f->op);
++
++	i = i->left;		// interface
++
++	if(!i->addable) {
++		tempname(&tmpi, i->type);
++		cgen(i, &tmpi);
++		i = &tmpi;
++	}
++
++	genlist(n->list);		// assign the args
++
++	// i is now addable, prepare an indirected
++	// register to hold its address.
++	igen(i, &nodi, res);		// REG = &inter
++
++	nodindreg(&nodsp, types[tptr], D_R0+REGSP);
++	nodsp.xoffset = widthptr;
++	nodi.type = types[tptr];
++	nodi.xoffset += widthptr;
++	cgen(&nodi, &nodsp);	// 0(SP) = 8(REG) -- i.data
++
++	regalloc(&nodo, types[tptr], res);
++	nodi.type = types[tptr];
++	nodi.xoffset -= widthptr;
++	cgen(&nodi, &nodo);	// REG = 0(REG) -- i.tab
++	regfree(&nodi);
++
++	regalloc(&nodr, types[tptr], &nodo);
++	if(n->left->xoffset == BADWIDTH)
++		fatal("cgen_callinter: badwidth");
++	cgen_checknil(&nodo); // in case offset is huge
++	nodo.op = OINDREG;
++	nodo.xoffset = n->left->xoffset + 3*widthptr + 8;
++	if(proc == 0) {
++		// plain call: use direct c function pointer - more efficient
++		cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.tab->fun[f]
++		proc = 3;
++	} else {
++		// go/defer. generate go func value.
++		p = gins(AMOVD, &nodo, &nodr);	// REG = &(32+offset(REG)) -- i.tab->fun[f]
++		p->from.type = D_CONST;
++	}
++
++	nodr.type = n->left->type;
++	ginscall(&nodr, proc);
++
++	regfree(&nodr);
++	regfree(&nodo);
++}
++
++/*
++ * generate function call;
++ *	proc=0	normal call
++ *	proc=1	goroutine run in new proc
++ *	proc=2	defer call save away stack
++ */
++void
++cgen_call(Node *n, int proc)
++{
++	Type *t;
++	Node nod, afun;
++
++	if(n == N)
++		return;
++
++	if(n->left->ullman >= UINF) {
++		// if name involves a fn call
++		// precompute the address of the fn
++		tempname(&afun, types[tptr]);
++		cgen(n->left, &afun);
++	}
++
++	genlist(n->list);		// assign the args
++	t = n->left->type;
++
++	// call tempname pointer
++	if(n->left->ullman >= UINF) {
++		regalloc(&nod, types[tptr], N);
++		cgen_as(&nod, &afun);
++		nod.type = t;
++		ginscall(&nod, proc);
++		regfree(&nod);
++		return;
++	}
++
++	// call pointer
++	if(n->left->op != ONAME || n->left->class != PFUNC) {
++		regalloc(&nod, types[tptr], N);
++		cgen_as(&nod, n->left);
++		nod.type = t;
++		ginscall(&nod, proc);
++		regfree(&nod);
++		return;
++	}
++
++	// call direct
++	n->left->method = 1;
++	ginscall(n->left, proc);
++}
++
++/*
++ * call to n has already been generated.
++ * generate:
++ *	res = return value from call.
++ */
++void
++cgen_callret(Node *n, Node *res)
++{
++	Node nod;
++	Type *fp, *t;
++	Iter flist;
++
++	t = n->left->type;
++	if(t->etype == TPTR32 || t->etype == TPTR64)
++		t = t->type;
++
++	fp = structfirst(&flist, getoutarg(t));
++	if(fp == T)
++		fatal("cgen_callret: nil");
++
++	memset(&nod, 0, sizeof(nod));
++	nod.op = OINDREG;
++	nod.val.u.reg = D_R0+REGSP;
++	nod.addable = 1;
++
++	nod.xoffset = fp->width + widthptr; // +widthptr: saved LR at 0(R1)
++	nod.type = fp->type;
++	cgen_as(res, &nod);
++}
++
++/*
++ * call to n has already been generated.
++ * generate:
++ *	res = &return value from call.
++ */
++void
++cgen_aret(Node *n, Node *res)
++{
++	Node nod1, nod2;
++	Type *fp, *t;
++	Iter flist;
++
++	t = n->left->type;
++	if(isptr[t->etype])
++		t = t->type;
++
++	fp = structfirst(&flist, getoutarg(t));
++	if(fp == T)
++		fatal("cgen_aret: nil");
++
++	memset(&nod1, 0, sizeof(nod1));
++	nod1.op = OINDREG;
++	nod1.val.u.reg = D_R0 + REGSP;
++	nod1.addable = 1;
++
++	nod1.xoffset = fp->width + widthptr; // +widthptr: saved lr at 0(SP)
++	nod1.type = fp->type;
++
++	if(res->op != OREGISTER) {
++		regalloc(&nod2, types[tptr], res);
++		agen(&nod1, &nod2);
++		gins(AMOVD, &nod2, res);
++		regfree(&nod2);
++	} else
++		agen(&nod1, res);
++}
++
++/*
++ * generate return.
++ * n->left is assignments to return values.
++ */
++void
++cgen_ret(Node *n)
++{
++	Prog *p;
++
++	if(n != N)
++		genlist(n->list);		// copy out args
++	if(hasdefer)
++		ginscall(deferreturn, 0);
++	genlist(curfn->exit);
++	p = gins(ARET, N, N);
++	if(n != N && n->op == ORETJMP) {
++		p->to.name = D_EXTERN;
++		p->to.type = D_CONST;
++		p->to.sym = linksym(n->left->sym);
++	}
++}
++
++void
++cgen_asop(Node *n)
++{
++	USED(n);
++	fatal("cgen_asop"); // no longer used
++}
++
++int
++samereg(Node *a, Node *b)
++{
++	if(a == N || b == N)
++		return 0;
++	if(a->op != OREGISTER)
++		return 0;
++	if(b->op != OREGISTER)
++		return 0;
++	if(a->val.u.reg != b->val.u.reg)
++		return 0;
++	return 1;
++}
++
++/*
++ * generate division.
++ * generates one of:
++ *	res = nl / nr
++ *	res = nl % nr
++ * according to op.
++ */
++void
++dodiv(int op, Node *nl, Node *nr, Node *res)
++{
++	int a, check;
++	Type *t, *t0;
++	Node tl, tr, tl2, tr2, nm1, nz, tm;
++	Prog *p1, *p2;
++
++	// Have to be careful about handling
++	// most negative int divided by -1 correctly.
++	// The hardware will generate undefined result.
++	// Also need to explicitly trap on division on zero,
++	// the hardware will silently generate undefined result.
++	// DIVW will leave unpredicable result in higher 32-bit,
++	// so always use DIVD/DIVDU.
++	t = nl->type;
++	t0 = t;
++	check = 0;
++	if(issigned[t->etype]) {
++		check = 1;
++		if(isconst(nl, CTINT) && mpgetfix(nl->val.u.xval) != -(1ULL<<(t->width*8-1)))
++			check = 0;
++		else if(isconst(nr, CTINT) && mpgetfix(nr->val.u.xval) != -1)
++			check = 0;
++	}
++	if(t->width < 8) {
++		if(issigned[t->etype])
++			t = types[TINT64];
++		else
++			t = types[TUINT64];
++		check = 0;
++	}
++
++	a = optoas(ODIV, t);
++
++	regalloc(&tl, t0, N);
++	regalloc(&tr, t0, N);
++	if(nl->ullman >= nr->ullman) {
++		cgen(nl, &tl);
++		cgen(nr, &tr);
++	} else {
++		cgen(nr, &tr);
++		cgen(nl, &tl);
++	}
++	if(t != t0) {
++		// Convert
++		tl2 = tl;
++		tr2 = tr;
++		tl.type = t;
++		tr.type = t;
++		gmove(&tl2, &tl);
++		gmove(&tr2, &tr);
++	}
++
++	// Handle divide-by-zero panic.
++	p1 = gins(optoas(OCMP, t), &tr, N);
++	p1->to.type = D_REG;
++	p1->to.reg = REGZERO;
++	p1 = gbranch(optoas(ONE, t), T, +1);
++	if(panicdiv == N)
++		panicdiv = sysfunc("panicdivide");
++	ginscall(panicdiv, -1);
++	patch(p1, pc);
++
++	if(check) {
++		nodconst(&nm1, t, -1);
++		gins(optoas(OCMP, t), &tr, &nm1);
++		p1 = gbranch(optoas(ONE, t), T, +1);
++		if(op == ODIV) {
++			// a / (-1) is -a.
++			gins(optoas(OMINUS, t), N, &tl);
++			gmove(&tl, res);
++		} else {
++			// a % (-1) is 0.
++			nodconst(&nz, t, 0);
++			gmove(&nz, res);
++		}
++		p2 = gbranch(AJMP, T, 0);
++		patch(p1, pc);
++	}
++	p1 = gins(a, &tr, &tl);
++	if(op == ODIV) {
++		regfree(&tr);
++		gmove(&tl, res);
++	} else {
++		// A%B = A-(A/B*B)
++		regalloc(&tm, t, N);
++		// patch div to use the 3 register form
++		// TODO(minux): add gins3?
++		p1->reg = p1->to.reg;
++		p1->to.reg = tm.val.u.reg;
++		gins(optoas(OMUL, t), &tr, &tm);
++		regfree(&tr);
++		gins(optoas(OSUB, t), &tm, &tl);
++		regfree(&tm);
++		gmove(&tl, res);
++	}
++	regfree(&tl);
++	if(check)
++		patch(p2, pc);
++}
++
++/*
++ * generate division according to op, one of:
++ *	res = nl / nr
++ *	res = nl % nr
++ */
++void
++cgen_div(int op, Node *nl, Node *nr, Node *res)
++{
++	Node n1, n2, n3;
++	int w, a;
++	Magic m;
++
++	// TODO(minux): enable division by magic multiply (also need to fix longmod below)
++	//if(nr->op != OLITERAL)
++		goto longdiv;
++	w = nl->type->width*8;
++
++	// Front end handled 32-bit division. We only need to handle 64-bit.
++	// try to do division by multiply by (2^w)/d
++	// see hacker's delight chapter 10
++	switch(simtype[nl->type->etype]) {
++	default:
++		goto longdiv;
++
++	case TUINT64:
++		m.w = w;
++		m.ud = mpgetfix(nr->val.u.xval);
++		umagic(&m);
++		if(m.bad)
++			break;
++		if(op == OMOD)
++			goto longmod;
++
++		cgenr(nl, &n1, N);
++		nodconst(&n2, nl->type, m.um);
++		regalloc(&n3, nl->type, res);
++		cgen_hmul(&n1, &n2, &n3);
++
++		if(m.ua) {
++			// need to add numerator accounting for overflow
++			gins(optoas(OADD, nl->type), &n1, &n3);
++			nodconst(&n2, nl->type, 1);
++			gins(optoas(ORROTC, nl->type), &n2, &n3);
++			nodconst(&n2, nl->type, m.s-1);
++			gins(optoas(ORSH, nl->type), &n2, &n3);
++		} else {
++			nodconst(&n2, nl->type, m.s);
++			gins(optoas(ORSH, nl->type), &n2, &n3);	// shift dx
++		}
++
++		gmove(&n3, res);
++		regfree(&n1);
++		regfree(&n3);
++		return;
++
++	case TINT64:
++		m.w = w;
++		m.sd = mpgetfix(nr->val.u.xval);
++		smagic(&m);
++		if(m.bad)
++			break;
++		if(op == OMOD)
++			goto longmod;
++
++		cgenr(nl, &n1, res);
++		nodconst(&n2, nl->type, m.sm);
++		regalloc(&n3, nl->type, N);
++		cgen_hmul(&n1, &n2, &n3);
++
++		if(m.sm < 0) {
++			// need to add numerator
++			gins(optoas(OADD, nl->type), &n1, &n3);
++		}
++
++		nodconst(&n2, nl->type, m.s);
++		gins(optoas(ORSH, nl->type), &n2, &n3);	// shift n3
++
++		nodconst(&n2, nl->type, w-1);
++		gins(optoas(ORSH, nl->type), &n2, &n1);	// -1 iff num is neg
++		gins(optoas(OSUB, nl->type), &n1, &n3);	// added
++
++		if(m.sd < 0) {
++			// this could probably be removed
++			// by factoring it into the multiplier
++			gins(optoas(OMINUS, nl->type), N, &n3);
++		}
++
++		gmove(&n3, res);
++		regfree(&n1);
++		regfree(&n3);
++		return;
++	}
++	goto longdiv;
++
++longdiv:
++	// division and mod using (slow) hardware instruction
++	dodiv(op, nl, nr, res);
++	return;
++
++longmod:
++	// mod using formula A%B = A-(A/B*B) but
++	// we know that there is a fast algorithm for A/B
++	regalloc(&n1, nl->type, res);
++	cgen(nl, &n1);
++	regalloc(&n2, nl->type, N);
++	cgen_div(ODIV, &n1, nr, &n2);
++	a = optoas(OMUL, nl->type);
++	if(w == 8) {
++		// use 2-operand 16-bit multiply
++		// because there is no 2-operand 8-bit multiply
++		//a = AIMULW;
++	}
++	if(!smallintconst(nr)) {
++		regalloc(&n3, nl->type, N);
++		cgen(nr, &n3);
++		gins(a, &n3, &n2);
++		regfree(&n3);
++	} else
++		gins(a, nr, &n2);
++	gins(optoas(OSUB, nl->type), &n2, &n1);
++	gmove(&n1, res);
++	regfree(&n1);
++	regfree(&n2);
++}
++
++/*
++ * generate high multiply:
++ *   res = (nl*nr) >> width
++ */
++void
++cgen_hmul(Node *nl, Node *nr, Node *res)
++{
++	int w;
++	Node n1, n2, *tmp;
++	Type *t;
++	Prog *p;
++
++	// largest ullman on left.
++	if(nl->ullman < nr->ullman) {
++		tmp = nl;
++		nl = nr;
++		nr = tmp;
++	}
++	t = nl->type;
++	w = t->width * 8;
++	cgenr(nl, &n1, res);
++	cgenr(nr, &n2, N);
++	switch(simtype[t->etype]) {
++	case TINT8:
++	case TINT16:
++	case TINT32:
++		gins(optoas(OMUL, t), &n2, &n1);
++		p = gins(ASRAD, N, &n1);
++		p->from.type = D_CONST;
++		p->from.offset = w;
++		break;
++	case TUINT8:
++	case TUINT16:
++	case TUINT32:
++		gins(optoas(OMUL, t), &n2, &n1);
++		p = gins(ASRD, N, &n1);
++		p->from.type = D_CONST;
++		p->from.offset = w;
++		break;
++	case TINT64:
++	case TUINT64:
++		if(issigned[t->etype])
++			p = gins(AMULHD, &n2, &n1);
++		else
++			p = gins(AMULHDU, &n2, &n1);
++		break;
++	default:
++		fatal("cgen_hmul %T", t);
++		break;
++	}
++	cgen(&n1, res);
++	regfree(&n1);
++	regfree(&n2);
++}
++
++/*
++ * generate shift according to op, one of:
++ *	res = nl << nr
++ *	res = nl >> nr
++ */
++void
++cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
++{
++	Node n1, n2, n3, n4, n5;
++	int a;
++	Prog *p1;
++	uvlong sc;
++	Type *tcount;
++
++	a = optoas(op, nl->type);
++
++	if(nr->op == OLITERAL) {
++		regalloc(&n1, nl->type, res);
++		cgen(nl, &n1);
++		sc = mpgetfix(nr->val.u.xval);
++		if(sc >= nl->type->width*8) {
++			// large shift gets 2 shifts by width-1
++			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
++			gins(a, &n3, &n1);
++			gins(a, &n3, &n1);
++		} else
++			gins(a, nr, &n1);
++		gmove(&n1, res);
++		regfree(&n1);
++		goto ret;
++	}
++
++	if(nl->ullman >= UINF) {
++		tempname(&n4, nl->type);
++		cgen(nl, &n4);
++		nl = &n4;
++	}
++	if(nr->ullman >= UINF) {
++		tempname(&n5, nr->type);
++		cgen(nr, &n5);
++		nr = &n5;
++	}
++
++	// Allow either uint32 or uint64 as shift type,
++	// to avoid unnecessary conversion from uint32 to uint64
++	// just to do the comparison.
++	tcount = types[simtype[nr->type->etype]];
++	if(tcount->etype < TUINT32)
++		tcount = types[TUINT32];
++
++	regalloc(&n1, nr->type, N);		// to hold the shift type in CX
++	regalloc(&n3, tcount, &n1);	// to clear high bits of CX
++
++	regalloc(&n2, nl->type, res);
++	if(nl->ullman >= nr->ullman) {
++		cgen(nl, &n2);
++		cgen(nr, &n1);
++		gmove(&n1, &n3);
++	} else {
++		cgen(nr, &n1);
++		gmove(&n1, &n3);
++		cgen(nl, &n2);
++	}
++	regfree(&n3);
++
++	// test and fix up large shifts
++	if(!bounded) {
++		nodconst(&n3, tcount, nl->type->width*8);
++		gins(optoas(OCMP, tcount), &n1, &n3);
++		p1 = gbranch(optoas(OLT, tcount), T, +1);
++		if(op == ORSH && issigned[nl->type->etype]) {
++			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
++			gins(a, &n3, &n2);
++		} else {
++			nodconst(&n3, nl->type, 0);
++			gmove(&n3, &n2);
++		}
++		patch(p1, pc);
++	}
++
++	gins(a, &n1, &n2);
++
++	gmove(&n2, res);
++
++	regfree(&n1);
++	regfree(&n2);
++
++ret:
++	;
++}
++
++void
++clearfat(Node *nl)
++{
++	uint64 w, c, q, t;
++	Node dst, end, r0, *f;
++	Prog *p, *pl;
++
++	/* clear a fat object */
++	if(debug['g']) {
++		print("clearfat %N (%T, size: %lld)\n", nl, nl->type, nl->type->width);
++	}
++
++	w = nl->type->width;
++	// Avoid taking the address for simple enough types.
++	//if(componentgen(N, nl))
++	//	return;
++
++	c = w % 8;	// bytes
++	q = w / 8;	// dwords
++
++	if(reg[REGRT1] > 0)
++		fatal("R%d in use during clearfat", REGRT1);
++
++	nodreg(&r0, types[TUINT64], 0); // r0 is always zero
++	nodreg(&dst, types[tptr], D_R0+REGRT1);
++	reg[REGRT1]++;
++	agen(nl, &dst);
++
++	if(q > 128) {
++		p = gins(ASUB, N, &dst);
++		p->from.type = D_CONST;
++		p->from.offset = 8;
++
++		regalloc(&end, types[tptr], N);
++		p = gins(AMOVD, &dst, &end);
++		p->from.type = D_CONST;
++		p->from.offset = q*8;
++
++		p = gins(AMOVDU, &r0, &dst);
++		p->to.type = D_OREG;
++		p->to.offset = 8;
++		pl = p;
++
++		p = gins(ACMP, &dst, &end);
++		patch(gbranch(ABNE, T, 0), pl);
++
++		regfree(&end);
++	} else if(q >= 4) {
++		p = gins(ASUB, N, &dst);
++		p->from.type = D_CONST;
++		p->from.offset = 8;
++		f = sysfunc("duffzero");
++		p = gins(ADUFFZERO, N, f);
++		afunclit(&p->to, f);
++		// 4 and 128 = magic constants: see ../../pkg/runtime/asm_power64x.s
++		p->to.offset = 4*(128-q);
++	} else
++	for(t = 0; t < q; t++) {
++		p = gins(AMOVD, &r0, &dst);
++		p->to.type = D_OREG;
++		p->to.offset = 8*t;
++	}
++
++	for(t = 0; t < c; t++) {
++		p = gins(AMOVB, &r0, &dst);
++		p->to.type = D_OREG;
++		p->to.offset = t;
++	}
++	reg[REGRT1]--;
++}
++
++// Called after regopt and peep have run.
++// Expand CHECKNIL pseudo-op into actual nil pointer check.
++void
++expandchecks(Prog *firstp)
++{
++	Prog *p, *p1, *p2;
++
++	for(p = firstp; p != P; p = p->link) {
++		if(debug_checknil && ctxt->debugvlog)
++			print("expandchecks: %P\n", p);
++		if(p->as != ACHECKNIL)
++			continue;
++		if(debug_checknil && p->lineno > 1) // p->lineno==1 in generated wrappers
++			warnl(p->lineno, "generated nil check");
++		if(p->from.type != D_REG)
++			fatal("invalid nil check %P\n", p);
++		/*
++		// check is
++		//	TD $4, R0, arg (R0 is always zero)
++		// eqv. to:
++		// 	tdeq r0, arg
++		// NOTE: this needs special runtime support to make SIGTRAP recoverable.
++		reg = p->from.reg;
++		p->as = ATD;
++		p->from = p->to = p->from3 = zprog.from;
++		p->from.type = D_CONST;
++		p->from.offset = 4;
++		p->from.reg = NREG;
++		p->reg = 0;
++		p->to.type = D_REG;
++		p->to.reg = reg;
++		*/
++		// check is
++		//	CMP arg, R0
++		//	BNE 2(PC) [likely]
++		//	MOVD R0, 0(R0)
++		p1 = mal(sizeof *p1);
++		p2 = mal(sizeof *p2);
++		clearp(p1);
++		clearp(p2);
++		p1->link = p2;
++		p2->link = p->link;
++		p->link = p1;
++		p1->lineno = p->lineno;
++		p2->lineno = p->lineno;
++		p1->pc = 9999;
++		p2->pc = 9999;
++		p->as = ACMP;
++		p->to.type = D_REG;
++		p->to.reg = REGZERO;
++		p1->as = ABNE;
++		//p1->from.type = D_CONST;
++		//p1->from.offset = 1; // likely
++		p1->to.type = D_BRANCH;
++		p1->to.u.branch = p2->link;
++		// crash by write to memory address 0.
++		p2->as = AMOVD;
++		p2->from.type = D_REG;
++		p2->from.reg = 0;
++		p2->to.type = D_OREG;
++		p2->to.reg = 0;
++		p2->to.offset = 0;
++	}
++}
+diff --git a/src/cmd/9g/gobj.c b/src/cmd/9g/gobj.c
+new file mode 100644
+index 0000000000..fdd7606bcd
+--- /dev/null
++++ b/src/cmd/9g/gobj.c
+@@ -0,0 +1,240 @@
++// Derived from Inferno utils/6c/swt.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/swt.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include <u.h>
++#include <libc.h>
++#include "gg.h"
++
++int
++dsname(Sym *s, int off, char *t, int n)
++{
++	Prog *p;
++
++	p = gins(ADATA, N, N);
++	p->from.type = D_OREG;
++	p->from.name = D_EXTERN;
++	p->from.offset = off;
++	p->from.reg = NREG;
++	p->from.sym = linksym(s);
++
++	p->reg = n;
++	
++	p->to.type = D_SCONST;
++	p->to.name = D_NONE;
++	p->to.reg = NREG;
++	p->to.offset = 0;
++	memmove(p->to.u.sval, t, n);
++	return off + n;
++}
++
++/*
++ * make a refer to the data s, s+len
++ * emitting DATA if needed.
++ */
++void
++datastring(char *s, int len, Addr *a)
++{
++	Sym *sym;
++	
++	sym = stringsym(s, len);
++	a->type = D_OREG;
++	a->name = D_EXTERN;
++	a->etype = simtype[TINT];
++	a->offset = widthptr+widthint;  // skip header
++	a->reg = NREG;
++	a->sym = linksym(sym);
++	a->node = sym->def;
++}
++
++/*
++ * make a refer to the string sval,
++ * emitting DATA if needed.
++ */
++void
++datagostring(Strlit *sval, Addr *a)
++{
++	Sym *sym;
++
++	sym = stringsym(sval->s, sval->len);
++	a->type = D_OREG;
++	a->name = D_EXTERN;
++	a->sym = linksym(sym);
++	a->reg = NREG;
++	a->node = sym->def;
++	a->offset = 0;  // header
++	a->etype = TINT32;
++}
++
++void
++gdata(Node *nam, Node *nr, int wid)
++{
++	Prog *p;
++
++	if(nr->op == OLITERAL) {
++		switch(nr->val.ctype) {
++		case CTCPLX:
++			gdatacomplex(nam, nr->val.u.cval);
++			return;
++		case CTSTR:
++			gdatastring(nam, nr->val.u.sval);
++			return;
++		}
++	}
++	p = gins(ADATA, nam, nr);
++	p->reg = wid;
++}
++
++void
++gdatacomplex(Node *nam, Mpcplx *cval)
++{
++	Prog *p;
++	int w;
++
++	w = cplxsubtype(nam->type->etype);
++	w = types[w]->width;
++
++	p = gins(ADATA, nam, N);
++	p->reg = w;
++	p->to.type = D_FCONST;
++	p->to.u.dval = mpgetflt(&cval->real);
++
++	p = gins(ADATA, nam, N);
++	p->reg = w;
++	p->from.offset += w;
++	p->to.type = D_FCONST;
++	p->to.u.dval = mpgetflt(&cval->imag);
++}
++
++void
++gdatastring(Node *nam, Strlit *sval)
++{
++	Prog *p;
++	Node nod1;
++
++	p = gins(ADATA, nam, N);
++	datastring(sval->s, sval->len, &p->to);
++	p->reg = types[tptr]->width;
++	p->to.type = D_CONST;
++	p->to.etype = simtype[tptr];
++
++	nodconst(&nod1, types[TINT], sval->len);
++	p = gins(ADATA, nam, &nod1);
++	p->reg = widthint;
++	p->from.offset += widthptr;
++}
++
++int
++dstringptr(Sym *s, int off, char *str)
++{
++	Prog *p;
++
++	off = rnd(off, widthptr);
++	p = gins(ADATA, N, N);
++	p->from.type = D_OREG;
++	p->from.name = D_EXTERN;
++	p->from.sym = linksym(s);
++	p->from.offset = off;
++	p->reg = widthptr;
++
++	datastring(str, strlen(str)+1, &p->to);
++	p->to.type = D_CONST;
++	p->to.etype = simtype[TINT];
++	off += widthptr;
++
++	return off;
++}
++
++int
++dgostrlitptr(Sym *s, int off, Strlit *lit)
++{
++	Prog *p;
++
++	if(lit == nil)
++		return duintptr(s, off, 0);
++
++	off = rnd(off, widthptr);
++	p = gins(ADATA, N, N);
++	p->from.type = D_OREG;
++	p->from.name = D_EXTERN;
++	p->from.sym = linksym(s);
++	p->from.offset = off;
++	p->reg = widthptr;
++	datagostring(lit, &p->to);
++	p->to.type = D_CONST;
++	p->to.etype = simtype[TINT];
++	off += widthptr;
++
++	return off;
++}
++
++int
++dgostringptr(Sym *s, int off, char *str)
++{
++	int n;
++	Strlit *lit;
++
++	if(str == nil)
++		return duintptr(s, off, 0);
++
++	n = strlen(str);
++	lit = mal(sizeof *lit + n);
++	strcpy(lit->s, str);
++	lit->len = n;
++	return dgostrlitptr(s, off, lit);
++}
++
++int
++dsymptr(Sym *s, int off, Sym *x, int xoff)
++{
++	Prog *p;
++
++	off = rnd(off, widthptr);
++
++	p = gins(ADATA, N, N);
++	p->from.type = D_OREG;
++	p->from.name = D_EXTERN;
++	p->from.sym = linksym(s);
++	p->from.offset = off;
++	p->reg = widthptr;
++	p->to.type = D_CONST;
++	p->to.name = D_EXTERN;
++	p->to.sym = linksym(x);
++	p->to.offset = xoff;
++	off += widthptr;
++
++	return off;
++}
++
++void
++nopout(Prog *p)
++{
++	p->as = ANOP;
++}
++
+diff --git a/src/cmd/9g/gsubr.c b/src/cmd/9g/gsubr.c
+new file mode 100644
+index 0000000000..bb70bb7fdf
+--- /dev/null
++++ b/src/cmd/9g/gsubr.c
+@@ -0,0 +1,1708 @@
++// Derived from Inferno utils/6c/txt.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/txt.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include <u.h>
++#include <libc.h>
++#include "gg.h"
++#include "../../pkg/runtime/funcdata.h"
++
++// TODO(rsc): Can make this bigger if we move
++// the text segment up higher in 6l for all GOOS.
++// At the same time, can raise StackBig in ../../pkg/runtime/stack.h.
++vlong unmappedzero = 4096;
++
++void
++clearp(Prog *p)
++{
++	*p = zprog;
++	p->as = AEND;
++	p->pc = pcloc;
++	pcloc++;
++}
++
++static int ddumped;
++static Prog *dfirst;
++static Prog *dpc;
++
++/*
++ * generate and return proc with p->as = as,
++ * linked into program. pc is next instruction.
++ */
++Prog*
++prog(int as)
++{
++	Prog *p;
++
++	if(as == ADATA || as == AGLOBL) {
++		if(ddumped)
++			fatal("already dumped data");
++		if(dpc == nil) {
++			dpc = mal(sizeof(*dpc));
++			dfirst = dpc;
++		}
++		p = dpc;
++		dpc = mal(sizeof(*dpc));
++		p->link = dpc;
++		p->reg = 0; // used for flags
++	} else {
++		p = pc;
++		pc = mal(sizeof(*pc));
++		clearp(pc);
++		p->link = pc;
++	}
++
++	if(lineno == 0) {
++		if(debug['K'])
++			warn("prog: line 0");
++	}
++
++	p->as = as;
++	p->lineno = lineno;
++	return p;
++}
++
++void
++dumpdata(void)
++{
++	ddumped = 1;
++	if(dfirst == nil)
++		return;
++	newplist();
++	*pc = *dfirst;
++	pc = dpc;
++	clearp(pc);
++}
++
++/*
++ * generate a branch.
++ * t is ignored.
++ * likely values are for branch prediction:
++ *	-1 unlikely
++ *	0 no opinion
++ *	+1 likely
++ */
++Prog*
++gbranch(int as, Type *t, int likely)
++{
++	Prog *p;
++	
++	USED(t);
++
++	p = prog(as);
++	p->to.type = D_BRANCH;
++	p->to.u.branch = P;
++	// TODO(minux): Enable this code.
++	// Note: liblink used Bcc CR0, label form, so we need another way
++	// to set likely/unlikely flag. Also note the y bit is not exactly
++	// likely/unlikely bit.
++	if(0 && as != ABR && likely != 0) {
++		p->from.type = D_CONST;
++		p->from.offset = likely > 0;
++	}
++	return p;
++}
++
++/*
++ * patch previous branch to jump to to.
++ */
++void
++patch(Prog *p, Prog *to)
++{
++	if(p->to.type != D_BRANCH)
++		fatal("patch: not a branch");
++	p->to.u.branch = to;
++	p->to.offset = to->pc;
++}
++
++Prog*
++unpatch(Prog *p)
++{
++	Prog *q;
++
++	if(p->to.type != D_BRANCH)
++		fatal("unpatch: not a branch");
++	q = p->to.u.branch;
++	p->to.u.branch = P;
++	p->to.offset = 0;
++	return q;
++}
++
++/*
++ * start a new Prog list.
++ */
++Plist*
++newplist(void)
++{
++	Plist *pl;
++
++	pl = linknewplist(ctxt);
++
++	pc = mal(sizeof(*pc));
++	clearp(pc);
++	pl->firstpc = pc;
++
++	return pl;
++}
++
++void
++gused(Node *n)
++{
++	gins(ANOP, n, N);	// used
++}
++
++Prog*
++gjmp(Prog *to)
++{
++	Prog *p;
++
++	p = gbranch(ABR, T, 0);
++	if(to != P)
++		patch(p, to);
++	return p;
++}
++
++void
++ggloblnod(Node *nam)
++{
++	Prog *p;
++
++	p = gins(AGLOBL, nam, N);
++	p->lineno = nam->lineno;
++	p->from.sym->gotype = linksym(ngotype(nam));
++	p->to.sym = nil;
++	p->to.type = D_CONST;
++	p->to.offset = nam->type->width;
++	if(nam->readonly)
++		p->reg = RODATA;
++	if(nam->type != T && !haspointers(nam->type))
++		p->reg |= NOPTR;
++}
++
++void
++gtrack(Sym *s)
++{
++	Prog *p;
++	
++	p = gins(AUSEFIELD, N, N);
++	p->from.type = D_OREG;
++	p->from.name = D_EXTERN;
++	p->from.sym = linksym(s);
++}
++
++void
++gargsize(vlong size)
++{
++	Node n1, n2;
++	
++	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
++	nodconst(&n2, types[TINT32], size);
++	gins(APCDATA, &n1, &n2);
++}
++
++void
++ggloblsym(Sym *s, int32 width, int8 flags)
++{
++	Prog *p;
++
++	p = gins(AGLOBL, N, N);
++	p->from.type = D_OREG;
++	p->from.name = D_EXTERN;
++	p->from.sym = linksym(s);
++	p->to.type = D_CONST;
++	p->to.name = D_NONE;
++	p->to.offset = width;
++	p->reg = flags;
++}
++
++int
++isfat(Type *t)
++{
++	if(t != T)
++	switch(t->etype) {
++	case TSTRUCT:
++	case TARRAY:
++	case TSTRING:
++	case TINTER:	// maybe remove later
++		return 1;
++	}
++	return 0;
++}
++
++/*
++ * naddr of func generates code for address of func.
++ * if using opcode that can take address implicitly,
++ * call afunclit to fix up the argument.
++ */
++void
++afunclit(Addr *a, Node *n)
++{
++	if(a->type == D_CONST && a->name == D_EXTERN) {
++		a->type = D_OREG;
++		a->sym = linksym(n->sym);
++	}
++}
++
++static	int	resvd[] =
++{
++	REGZERO,
++	REGSP,	// reserved for SP, XXX: not reserved in 9c.
++	30,	// for g
++	REGTMP,	// REGTMP
++	FREGCVI+NREG,
++	FREGZERO+NREG,
++	FREGHALF+NREG,
++	FREGONE+NREG,
++	FREGTWO+NREG,
++};
++
++void
++ginit(void)
++{
++	int i;
++
++	for(i=0; i<nelem(reg); i++)
++		reg[i] = 1;
++	for(i=0; i<NREG; i++)
++		reg[i] = 0;
++	for(i=NREG; i<NREG+NREG; i++)
++		reg[i] = 0;
++
++	for(i=0; i<nelem(resvd); i++)
++		reg[resvd[i]]++;
++}
++
++static	uintptr	regpc[nelem(reg)];
++
++void
++gclean(void)
++{
++	int i;
++
++	for(i=0; i<nelem(resvd); i++)
++		reg[resvd[i]]--;
++
++	for(i=0; i<nelem(reg); i++)
++		if(reg[i])
++			yyerror("reg %R left allocated, %p\n", i, regpc[i]);
++}
++
++int32
++anyregalloc(void)
++{
++	int i, j;
++
++	for(i=0; i<nelem(reg); i++) {
++		if(reg[i] == 0)
++			goto ok;
++		for(j=0; j<nelem(resvd); j++)
++			if(resvd[j] == i)
++				goto ok;
++		return 1;
++	ok:;
++	}
++	return 0;
++}
++
++/*
++ * allocate register of type t, leave in n.
++ * if o != N, o is desired fixed register.
++ * caller must regfree(n).
++ */
++void
++regalloc(Node *n, Type *t, Node *o)
++{
++	int i, et;
++	int fixfree, fltfree;
++
++	if(t == T)
++		fatal("regalloc: t nil");
++	et = simtype[t->etype];
++
++	if(debug['r']) {
++		fixfree = 0;
++		fltfree = 0;
++		for(i = D_R0; i < D_F0+NREG; i++)
++			if(reg[i] == 0) {
++				if(i < D_F0)
++					fixfree++;
++				else
++					fltfree++;
++			}
++		print("regalloc fix %d flt %d free\n", fixfree, fltfree);
++	}
++
++	switch(et) {
++	case TINT8:
++	case TUINT8:
++	case TINT16:
++	case TUINT16:
++	case TINT32:
++	case TUINT32:
++	case TINT64:
++	case TUINT64:
++	case TPTR32:
++	case TPTR64:
++	case TBOOL:
++		if(o != N && o->op == OREGISTER) {
++			i = o->val.u.reg;
++			if(i >= D_R0+REGMIN && i <= D_R0+REGMAX)
++				goto out;
++		}
++		for(i=D_R0+REGMIN; i<=D_R0+REGMAX; i++)
++			if(reg[i] == 0) {
++				regpc[i] = (uintptr)getcallerpc(&n);
++				goto out;
++			}
++		flusherrors();
++		for(i=D_R0; i<D_R0+NREG; i++)
++			print("R%d %p\n", i, regpc[i]);
++		fatal("out of fixed registers");
++
++	case TFLOAT32:
++	case TFLOAT64:
++		if(o != N && o->op == OREGISTER) {
++			i = o->val.u.reg;
++			if(i >= D_F0+FREGMIN && i <= D_F0+FREGMAX)
++				goto out;
++		}
++		for(i=D_F0+FREGMIN; i<=D_F0+FREGMAX; i++)
++			if(reg[i] == 0) {
++				regpc[i] = (uintptr)getcallerpc(&n);
++				goto out;
++			}
++		flusherrors();
++		for(i=D_F0; i<D_F0+NREG; i++)
++			print("F%d %p\n", i, regpc[i]);
++		fatal("out of floating registers");
++
++	case TCOMPLEX64:
++	case TCOMPLEX128:
++		tempname(n, t);
++		return;
++	}
++	fatal("regalloc: unknown type %T", t);
++	return;
++
++out:
++	reg[i]++;
++	nodreg(n, t, i);
++}
++
++void
++regfree(Node *n)
++{
++	int i;
++
++	if(n->op == ONAME)
++		return;
++	if(n->op != OREGISTER && n->op != OINDREG)
++		fatal("regfree: not a register");
++	i = n->val.u.reg;
++	if(i == D_R0 + REGSP)
++		return;
++	if(i < 0 || i >= nelem(reg))
++		fatal("regfree: reg out of range");
++	if(reg[i] <= 0)
++		fatal("regfree: reg not allocated");
++	reg[i]--;
++	if(reg[i] == 0)
++		regpc[i] = 0;
++}
++
++/*
++ * initialize n to be register r of type t.
++ */
++void
++nodreg(Node *n, Type *t, int r)
++{
++	if(t == T)
++		fatal("nodreg: t nil");
++
++	memset(n, 0, sizeof(*n));
++	n->op = OREGISTER;
++	n->addable = 1;
++	ullmancalc(n);
++	n->val.u.reg = r;
++	n->type = t;
++}
++
++/*
++ * initialize n to be indirect of register r; n is type t.
++ */
++void
++nodindreg(Node *n, Type *t, int r)
++{
++	nodreg(n, t, r);
++	n->op = OINDREG;
++}
++
++Node*
++nodarg(Type *t, int fp)
++{
++	Node *n;
++	NodeList *l;
++	Type *first;
++	Iter savet;
++
++	// entire argument struct, not just one arg
++	if(t->etype == TSTRUCT && t->funarg) {
++		n = nod(ONAME, N, N);
++		n->sym = lookup(".args");
++		n->type = t;
++		first = structfirst(&savet, &t);
++		if(first == nil)
++			fatal("nodarg: bad struct");
++		if(first->width == BADWIDTH)
++			fatal("nodarg: offset not computed for %T", t);
++		n->xoffset = first->width;
++		n->addable = 1;
++		goto fp;
++	}
++
++	if(t->etype != TFIELD)
++		fatal("nodarg: not field %T", t);
++	
++	if(fp == 1) {
++		for(l=curfn->dcl; l; l=l->next) {
++			n = l->n;
++			if((n->class == PPARAM || n->class == PPARAMOUT) && !isblanksym(t->sym) && n->sym == t->sym)
++				return n;
++		}
++	}
++
++	n = nod(ONAME, N, N);
++	n->type = t->type;
++	n->sym = t->sym;
++	
++	if(t->width == BADWIDTH)
++		fatal("nodarg: offset not computed for %T", t);
++	n->xoffset = t->width;
++	n->addable = 1;
++	n->orig = t->nname;
++
++fp:
++	// Rewrite argument named _ to __,
++	// or else the assignment to _ will be
++	// discarded during code generation.
++	if(isblank(n))
++		n->sym = lookup("__");
++
++	switch(fp) {
++	default:
++		fatal("nodarg %T %d", t, fp);
++
++	case 0:		// output arg for calling another function
++		n->op = OINDREG;
++		n->val.u.reg = D_R0+REGSP;
++		n->xoffset += 8;
++		break;
++
++	case 1:		// input arg to current function
++		n->class = PPARAM;
++		break;
++
++	case 2:		// offset output arg
++fatal("shouldn't be used");
++		n->op = OINDREG;
++		n->val.u.reg = D_R0 + REGSP;
++		n->xoffset += types[tptr]->width;
++		break;
++	}
++	n->typecheck = 1;
++	return n;
++}
++
++/*
++ * generate
++ *	as $c, n
++ */
++void
++ginscon(int as, vlong c, Node *n2)
++{
++	Node n1, ntmp;
++
++	nodconst(&n1, types[TINT64], c);
++
++	if(as != AMOVD && (c < -BIG || c > BIG)) {
++		// cannot have more than 16-bit of immediate in ADD, etc.
++		// instead, MOV into register first.
++		regalloc(&ntmp, types[TINT64], N);
++		gins(AMOVD, &n1, &ntmp);
++		gins(as, &ntmp, n2);
++		regfree(&ntmp);
++		return;
++	}
++	gins(as, &n1, n2);
++}
++
++#define	CASE(a,b)	(((a)<<16)|((b)<<0))
++/*c2go int CASE(int, int); */
++
++/*
++ * Is this node a memory operand?
++ */
++int
++ismem(Node *n)
++{
++	switch(n->op) {
++	case OITAB:
++	case OSPTR:
++	case OLEN:
++	case OCAP:
++	case OINDREG:
++	case ONAME:
++	case OPARAM:
++	case OCLOSUREVAR:
++		return 1;
++	case OADDR:
++		//if(flag_largemodel)
++			return 1;
++		break;
++	}
++	return 0;
++}
++
++/*
++ * set up nodes representing 2^63
++ */
++Node bigi;
++Node bigf;
++
++void
++bignodes(void)
++{
++	static int did;
++
++	if(did)
++		return;
++	did = 1;
++
++	nodconst(&bigi, types[TUINT64], 1);
++	mpshiftfix(bigi.val.u.xval, 63);
++
++	bigf = bigi;
++	bigf.type = types[TFLOAT64];
++	bigf.val.ctype = CTFLT;
++	bigf.val.u.fval = mal(sizeof *bigf.val.u.fval);
++	mpmovefixflt(bigf.val.u.fval, bigi.val.u.xval);
++}
++
++/*
++ * generate move:
++ *	t = f
++ * hard part is conversions.
++ */
++void
++gmove(Node *f, Node *t)
++{
++	int a, ft, tt;
++	Type *cvt;
++	Node r1, r2, r3, con;
++	Prog *p1, *p2;
++
++	if(debug['M'])
++		print("gmove %lN -> %lN\n", f, t);
++
++	ft = simsimtype(f->type);
++	tt = simsimtype(t->type);
++	cvt = t->type;
++
++	if(iscomplex[ft] || iscomplex[tt]) {
++		complexmove(f, t);
++		return;
++	}
++
++	// cannot have two memory operands
++	if(ismem(f) && ismem(t))
++		goto hard;
++
++	// convert constant to desired type
++	if(f->op == OLITERAL) {
++		switch(tt) {
++		default:
++			convconst(&con, t->type, &f->val);
++			break;
++
++		case TINT32:
++		case TINT16:
++		case TINT8:
++			convconst(&con, types[TINT64], &f->val);
++			regalloc(&r1, con.type, t);
++			gins(AMOVD, &con, &r1);
++			gmove(&r1, t);
++			regfree(&r1);
++			return;
++
++		case TUINT32:
++		case TUINT16:
++		case TUINT8:
++			convconst(&con, types[TUINT64], &f->val);
++			regalloc(&r1, con.type, t);
++			gins(AMOVD, &con, &r1);
++			gmove(&r1, t);
++			regfree(&r1);
++			return;
++		}
++
++		f = &con;
++		ft = tt;	// so big switch will choose a simple mov
++
++		// constants can't move directly to memory.
++		if(ismem(t)) {
++			goto hard;
++			// float constants come from memory.
++			//if(isfloat[tt])
++			//	goto hard;
++
++			// 64-bit immediates are also from memory.
++			//if(isint[tt])
++			//	goto hard;
++			//// 64-bit immediates are really 32-bit sign-extended
++			//// unless moving into a register.
++			//if(isint[tt]) {
++			//	if(mpcmpfixfix(con.val.u.xval, minintval[TINT32]) < 0)
++			//		goto hard;
++			//	if(mpcmpfixfix(con.val.u.xval, maxintval[TINT32]) > 0)
++			//		goto hard;
++			//}
++		}
++	}
++
++	// value -> value copy, only one memory operand.
++	// figure out the instruction to use.
++	// break out of switch for one-instruction gins.
++	// goto rdst for "destination must be register".
++	// goto hard for "convert to cvt type first".
++	// otherwise handle and return.
++
++	switch(CASE(ft, tt)) {
++	default:
++		fatal("gmove %lT -> %lT", f->type, t->type);
++
++	/*
++	 * integer copy and truncate
++	 */
++	case CASE(TINT8, TINT8):	// same size
++	case CASE(TUINT8, TINT8):
++	case CASE(TINT16, TINT8):	// truncate
++	case CASE(TUINT16, TINT8):
++	case CASE(TINT32, TINT8):
++	case CASE(TUINT32, TINT8):
++	case CASE(TINT64, TINT8):
++	case CASE(TUINT64, TINT8):
++		a = AMOVB;
++		break;
++
++	case CASE(TINT8, TUINT8):	// same size
++	case CASE(TUINT8, TUINT8):
++	case CASE(TINT16, TUINT8):	// truncate
++	case CASE(TUINT16, TUINT8):
++	case CASE(TINT32, TUINT8):
++	case CASE(TUINT32, TUINT8):
++	case CASE(TINT64, TUINT8):
++	case CASE(TUINT64, TUINT8):
++		a = AMOVBZ;
++		break;
++
++	case CASE(TINT16, TINT16):	// same size
++	case CASE(TUINT16, TINT16):
++	case CASE(TINT32, TINT16):	// truncate
++	case CASE(TUINT32, TINT16):
++	case CASE(TINT64, TINT16):
++	case CASE(TUINT64, TINT16):
++		a = AMOVH;
++
++	case CASE(TINT16, TUINT16):	// same size
++	case CASE(TUINT16, TUINT16):
++	case CASE(TINT32, TUINT16):	// truncate
++	case CASE(TUINT32, TUINT16):
++	case CASE(TINT64, TUINT16):
++	case CASE(TUINT64, TUINT16):
++		a = AMOVHZ;
++		break;
++
++	case CASE(TINT32, TINT32):	// same size
++	case CASE(TUINT32, TINT32):
++	case CASE(TINT64, TINT32):	// truncate
++	case CASE(TUINT64, TINT32):
++		a = AMOVW;
++		break;
++
++	case CASE(TINT32, TUINT32):	// same size
++	case CASE(TUINT32, TUINT32):
++	case CASE(TINT64, TUINT32):
++	case CASE(TUINT64, TUINT32):
++		a = AMOVWZ;
++		break;
++
++	case CASE(TINT64, TINT64):	// same size
++	case CASE(TINT64, TUINT64):
++	case CASE(TUINT64, TINT64):
++	case CASE(TUINT64, TUINT64):
++		a = AMOVD;
++		break;
++
++	/*
++	 * integer up-conversions
++	 */
++	case CASE(TINT8, TINT16):	// sign extend int8
++	case CASE(TINT8, TUINT16):
++	case CASE(TINT8, TINT32):
++	case CASE(TINT8, TUINT32):
++	case CASE(TINT8, TINT64):
++	case CASE(TINT8, TUINT64):
++		a = AMOVB;
++		goto rdst;
++
++	case CASE(TUINT8, TINT16):	// zero extend uint8
++	case CASE(TUINT8, TUINT16):
++	case CASE(TUINT8, TINT32):
++	case CASE(TUINT8, TUINT32):
++	case CASE(TUINT8, TINT64):
++	case CASE(TUINT8, TUINT64):
++		a = AMOVBZ;
++		goto rdst;
++
++	case CASE(TINT16, TINT32):	// sign extend int16
++	case CASE(TINT16, TUINT32):
++	case CASE(TINT16, TINT64):
++	case CASE(TINT16, TUINT64):
++		a = AMOVH;
++		goto rdst;
++
++	case CASE(TUINT16, TINT32):	// zero extend uint16
++	case CASE(TUINT16, TUINT32):
++	case CASE(TUINT16, TINT64):
++	case CASE(TUINT16, TUINT64):
++		a = AMOVHZ;
++		goto rdst;
++
++	case CASE(TINT32, TINT64):	// sign extend int32
++	case CASE(TINT32, TUINT64):
++		a = AMOVW;
++		goto rdst;
++
++	case CASE(TUINT32, TINT64):	// zero extend uint32
++	case CASE(TUINT32, TUINT64):
++		a = AMOVWZ;
++		goto rdst;
++
++	/*
++	* float to integer
++	*/
++	case CASE(TFLOAT32, TINT32):
++	case CASE(TFLOAT64, TINT32):
++	case CASE(TFLOAT32, TINT64):
++	case CASE(TFLOAT64, TINT64):
++	case CASE(TFLOAT32, TINT16):
++	case CASE(TFLOAT32, TINT8):
++	case CASE(TFLOAT32, TUINT16):
++	case CASE(TFLOAT32, TUINT8):
++	case CASE(TFLOAT64, TINT16):
++	case CASE(TFLOAT64, TINT8):
++	case CASE(TFLOAT64, TUINT16):
++	case CASE(TFLOAT64, TUINT8):
++	case CASE(TFLOAT32, TUINT32):
++	case CASE(TFLOAT64, TUINT32):
++	case CASE(TFLOAT32, TUINT64):
++	case CASE(TFLOAT64, TUINT64):
++		//warn("gmove: convert float to int not implemented: %N -> %N\n", f, t);
++		//return;
++		// algorithm is:
++		//	if small enough, use native float64 -> int64 conversion.
++		//	otherwise, subtract 2^63, convert, and add it back.
++		bignodes();
++		regalloc(&r1, types[ft], f);
++		gmove(f, &r1);
++		if(tt == TUINT64) {
++			regalloc(&r2, types[TFLOAT64], N);
++			gmove(&bigf, &r2);
++			gins(AFCMPU, &r1, &r2);
++			p1 = gbranch(optoas(OLT, types[TFLOAT64]), T, +1);
++			gins(AFSUB, &r2, &r1);
++			patch(p1, pc);
++			regfree(&r2);
++		}
++		regalloc(&r2, types[TFLOAT64], N);
++		regalloc(&r3, types[TINT64], t);
++		gins(AFCTIDZ, &r1, &r2);
++		p1 = gins(AFMOVD, &r2, N);
++		p1->to.type = D_OREG;
++		p1->to.reg = REGSP;
++		p1->to.offset = -8;
++		p1 = gins(AMOVD, N, &r3);
++		p1->from.type = D_OREG;
++		p1->from.reg = REGSP;
++		p1->from.offset = -8;
++		regfree(&r2);
++		regfree(&r1);
++		if(tt == TUINT64) {
++			p1 = gbranch(optoas(OLT, types[TFLOAT64]), T, +1); // use CR0 here again
++			nodreg(&r1, types[TINT64], D_R0+REGTMP);
++			gins(AMOVD, &bigi, &r1);
++			gins(AADD, &r1, &r3);
++			patch(p1, pc);
++		}
++		gmove(&r3, t);
++		regfree(&r3);
++		return;
++
++	/*
++	 * integer to float
++	 */
++	case CASE(TINT32, TFLOAT32):
++	case CASE(TINT32, TFLOAT64):
++	case CASE(TINT64, TFLOAT32):
++	case CASE(TINT64, TFLOAT64):
++	case CASE(TINT16, TFLOAT32):
++	case CASE(TINT16, TFLOAT64):
++	case CASE(TINT8, TFLOAT32):
++	case CASE(TINT8, TFLOAT64):
++	case CASE(TUINT16, TFLOAT32):
++	case CASE(TUINT16, TFLOAT64):
++	case CASE(TUINT8, TFLOAT32):
++	case CASE(TUINT8, TFLOAT64):
++	case CASE(TUINT32, TFLOAT32):
++	case CASE(TUINT32, TFLOAT64):
++	case CASE(TUINT64, TFLOAT32):
++	case CASE(TUINT64, TFLOAT64):
++		//warn("gmove: convert int to float not implemented: %N -> %N\n", f, t);
++		//return;
++		// algorithm is:
++		//	if small enough, use native int64 -> uint64 conversion.
++		//	otherwise, halve (rounding to odd?), convert, and double.
++		bignodes();
++		regalloc(&r1, types[TINT64], N);
++		gmove(f, &r1);
++		if(ft == TUINT64) {
++			nodreg(&r2, types[TUINT64], D_R0+REGTMP);
++			gmove(&bigi, &r2);
++			gins(ACMPU, &r1, &r2);
++			p1 = gbranch(optoas(OLT, types[TUINT64]), T, +1);
++			p2 = gins(ASRD, N, &r1);
++			p2->from.type = D_CONST;
++			p2->from.offset = 1;
++			patch(p1, pc);
++		}
++		regalloc(&r2, types[TFLOAT64], t);
++		p1 = gins(AMOVD, &r1, N);
++		p1->to.type = D_OREG;
++		p1->to.reg = REGSP;
++		p1->to.offset = -8;
++		p1 = gins(AFMOVD, N, &r2);
++		p1->from.type = D_OREG;
++		p1->from.reg = REGSP;
++		p1->from.offset = -8;
++		gins(AFCFID, &r2, &r2);
++		regfree(&r1);
++		if(ft == TUINT64) {
++			p1 = gbranch(optoas(OLT, types[TUINT64]), T, +1); // use CR0 here again
++			nodreg(&r1, types[TFLOAT64], D_F0+FREGTWO);
++			gins(AFMUL, &r1, &r2);
++			patch(p1, pc);
++		}
++		gmove(&r2, t);
++		regfree(&r2);
++		return;
++
++	/*
++	 * float to float
++	 */
++	case CASE(TFLOAT32, TFLOAT32):
++		a = AFMOVS;
++		break;
++
++	case CASE(TFLOAT64, TFLOAT64):
++		a = AFMOVD;
++		break;
++
++	case CASE(TFLOAT32, TFLOAT64):
++		a = AFMOVS;
++		goto rdst;
++
++	case CASE(TFLOAT64, TFLOAT32):
++		a = AFRSP;
++		goto rdst;
++	}
++
++	gins(a, f, t);
++	return;
++
++rdst:
++	// requires register destination
++	regalloc(&r1, t->type, t);
++	gins(a, f, &r1);
++	gmove(&r1, t);
++	regfree(&r1);
++	return;
++
++hard:
++	// requires register intermediate
++	regalloc(&r1, cvt, t);
++	gmove(f, &r1);
++	gmove(&r1, t);
++	regfree(&r1);
++	return;
++}
++
++int
++samaddr(Node *f, Node *t)
++{
++	if(f->op != t->op)
++		return 0;
++
++	switch(f->op) {
++	case OREGISTER:
++		if(f->val.u.reg != t->val.u.reg)
++			break;
++		return 1;
++	}
++	return 0;
++}
++
++/*
++ * generate one instruction:
++ *	as f, t
++ */
++Prog*
++gins(int as, Node *f, Node *t)
++{
++	//int32 w;
++	Prog *p;
++	Addr af, at;
++
++	switch(as) {
++	case AMOVW:
++	case AMOVD:
++	case AFMOVS:
++	case AFMOVD:
++		if(f != N && t != N && samaddr(f, t))
++			return nil;
++		break;
++	}
++
++	memset(&af, 0, sizeof af);
++	memset(&at, 0, sizeof at);
++	if(f != N)
++		naddr(f, &af, 1);
++	if(t != N)
++		naddr(t, &at, 1);
++	p = prog(as);
++	if(f != N)
++		p->from = af;
++	if(t != N)
++		p->to = at;
++	if(debug['g'])
++		print("%P\n", p);
++
++	// TODO(minux): enable these.
++	// right now it fails on MOVD $type."".TypeAssertionError(SB) [width=1], R7 [width=8]
++	/*
++	w = 0;
++	switch(as) {
++	case AMOVB:
++	case AMOVBU:
++	case AMOVBZ:
++	case AMOVBZU:
++		w = 1;
++		break;
++	case AMOVH:
++	case AMOVHU:
++	case AMOVHZ:
++	case AMOVHZU:
++		w = 2;
++		break;
++	case AMOVW:
++	case AMOVWU:
++	case AMOVWZ:
++	case AMOVWZU:
++		w = 4;
++		break;
++	case AMOVD:
++	case AMOVDU:
++		w = 8;
++		break;
++	}
++	if(w != 0 && ((f != N && af.width < w) || (t != N && at.width > w))) {
++		dump("f", f);
++		dump("t", t);
++		fatal("bad width: %P (%d, %d)\n", p, af.width, at.width);
++	}
++	*/
++
++	return p;
++}
++
++void
++fixlargeoffset(Node *n)
++{
++	Node a;
++
++	if(n == N)
++		return;
++	if(n->op != OINDREG)
++		return;
++	if(n->val.u.reg == D_R0+REGSP) // stack offset cannot be large
++		return;
++	if(n->xoffset != (int32)n->xoffset) {
++		// TODO(minux): offset too large, move into R31 and add to R31 instead.
++		// this is used only in test/fixedbugs/issue6036.go.
++		print("offset too large: %N\n", n);
++		noimpl;
++		a = *n;
++		a.op = OREGISTER;
++		a.type = types[tptr];
++		a.xoffset = 0;
++		cgen_checknil(&a);
++		ginscon(optoas(OADD, types[tptr]), n->xoffset, &a);
++		n->xoffset = 0;
++	}
++}
++
++/*
++ * generate code to compute n;
++ * make a refer to result.
++ */
++void
++naddr(Node *n, Addr *a, int canemitcode)
++{
++	Sym *s;
++
++	a->type = D_NONE;
++	a->name = D_NONE;
++	a->reg = NREG;
++	a->gotype = nil;
++	a->node = N;
++	a->etype = 0;
++	a->width = 0;
++	if(n == N)
++		return;
++
++	if(n->type != T && n->type->etype != TIDEAL) {
++		dowidth(n->type);
++		a->width = n->type->width;
++	}
++
++	switch(n->op) {
++	default:
++		fatal("naddr: bad %O %D", n->op, a);
++		break;
++
++	case ONAME:
++		a->etype = 0;
++		a->width = 0;
++		a->reg = NREG;
++		if(n->type != T) {
++			a->etype = simtype[n->type->etype];
++			a->width = n->type->width;
++		}
++		a->offset = n->xoffset;
++		s = n->sym;
++		a->node = n->orig;
++		//if(a->node >= (Node*)&n)
++		//	fatal("stack node");
++		if(s == S)
++			s = lookup(".noname");
++		if(n->method) {
++			if(n->type != T)
++			if(n->type->sym != S)
++			if(n->type->sym->pkg != nil)
++				s = pkglookup(s->name, n->type->sym->pkg);
++		}
++
++		a->type = D_OREG;
++		switch(n->class) {
++		default:
++			fatal("naddr: ONAME class %S %d\n", n->sym, n->class);
++		case PEXTERN:
++			a->name = D_EXTERN;
++			break;
++		case PAUTO:
++			a->name = D_AUTO;
++			break;
++		case PPARAM:
++		case PPARAMOUT:
++			a->name = D_PARAM;
++			break;
++		case PFUNC:
++			a->name = D_EXTERN;
++			a->type = D_CONST;
++			a->width = widthptr;
++			s = funcsym(s);
++			break;
++		}
++		a->sym = linksym(s);
++		break;
++
++	case OLITERAL:
++		switch(n->val.ctype) {
++		default:
++			fatal("naddr: const %lT", n->type);
++			break;
++		case CTFLT:
++			a->type = D_FCONST;
++			a->u.dval = mpgetflt(n->val.u.fval);
++			break;
++		case CTINT:
++		case CTRUNE:
++			a->sym = nil;
++			a->type = D_CONST;
++			a->offset = mpgetfix(n->val.u.xval);
++			break;
++		case CTSTR:
++			datagostring(n->val.u.sval, a);
++			break;
++		case CTBOOL:
++			a->sym = nil;
++			a->type = D_CONST;
++			a->offset = n->val.u.bval;
++			break;
++		case CTNIL:
++			a->sym = nil;
++			a->type = D_CONST;
++			a->offset = 0;
++			break;
++		}
++		break;
++
++	case OREGISTER:
++		if(n->val.u.reg < D_F0) {
++			a->type = D_REG;
++			a->reg = n->val.u.reg;
++		} else {
++			a->type = D_FREG;
++			a->reg = n->val.u.reg - D_F0;
++		}
++		a->sym = nil;
++		break;
++
++	case OINDREG:
++		a->type = D_OREG;
++		a->reg = n->val.u.reg;
++		a->sym = linksym(n->sym);
++		a->offset = n->xoffset;
++		if(a->offset != (int32)a->offset)
++			yyerror("offset %lld too large for OINDREG", a->offset);
++		break;
++
++	case OPARAM:
++		// n->left is PHEAP ONAME for stack parameter.
++		// compute address of actual parameter on stack.
++		a->etype = simtype[n->left->type->etype];
++		a->width = n->left->type->width;
++		a->offset = n->xoffset;
++		a->sym = linksym(n->left->sym);
++		a->type = D_OREG;
++		a->name = D_PARAM;
++		a->node = n->left->orig;
++		break;
++
++	case OCLOSUREVAR:
++		if(!curfn->needctxt)
++			fatal("closurevar without needctxt");
++		a->type = D_OREG;
++		a->reg = REGENV;
++		a->offset = n->xoffset;
++		a->sym = nil;
++		break;
++
++	case OCFUNC:
++		naddr(n->left, a, canemitcode);
++		a->sym = linksym(n->left->sym);
++		break;
++
++	case OITAB:
++		// itable of interface value
++		naddr(n->left, a, canemitcode);
++		a->etype = simtype[tptr];
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// len(nil)
++		break;
++
++	case OSPTR:
++		// pointer in a string or slice
++		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// ptr(nil)
++		a->etype = simtype[tptr];
++		a->offset += Array_array;
++		a->width = widthptr;
++		break;
++
++	case OLEN:
++		// len of string or slice
++		naddr(n->left, a, canemitcode);
++		a->etype = simtype[TINT];
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// len(nil)
++		a->offset += Array_nel;
++		break;
++
++	case OCAP:
++		// cap of string or slice
++		naddr(n->left, a, canemitcode);
++		a->etype = simtype[TINT];
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// cap(nil)
++		a->offset += Array_cap;
++		break;
++
++	case OADDR:
++		naddr(n->left, a, canemitcode);
++		a->etype = tptr;
++		switch(a->type) {
++		case D_OREG:
++			a->type = D_CONST;
++			break;
++
++		case D_REG:
++		case D_CONST:
++			break;
++
++		default:
++			fatal("naddr: OADDR %d\n", a->type);
++		}
++	}
++}
++
++/*
++ * return Axxx for Oxxx on type t.
++ */
++int
++optoas(int op, Type *t)
++{
++	int a;
++
++	if(t == T)
++		fatal("optoas: t is nil");
++
++	a = AGOK;
++	switch(CASE(op, simtype[t->etype])) {
++	default:
++		fatal("optoas: no entry for op=%O type=%T", op, t);
++		break;
++
++	case CASE(OEQ, TBOOL):
++	case CASE(OEQ, TINT8):
++	case CASE(OEQ, TUINT8):
++	case CASE(OEQ, TINT16):
++	case CASE(OEQ, TUINT16):
++	case CASE(OEQ, TINT32):
++	case CASE(OEQ, TUINT32):
++	case CASE(OEQ, TINT64):
++	case CASE(OEQ, TUINT64):
++	case CASE(OEQ, TPTR32):
++	case CASE(OEQ, TPTR64):
++	case CASE(OEQ, TFLOAT32):
++	case CASE(OEQ, TFLOAT64):
++		a = ABEQ;
++		break;
++
++	case CASE(ONE, TBOOL):
++	case CASE(ONE, TINT8):
++	case CASE(ONE, TUINT8):
++	case CASE(ONE, TINT16):
++	case CASE(ONE, TUINT16):
++	case CASE(ONE, TINT32):
++	case CASE(ONE, TUINT32):
++	case CASE(ONE, TINT64):
++	case CASE(ONE, TUINT64):
++	case CASE(ONE, TPTR32):
++	case CASE(ONE, TPTR64):
++	case CASE(ONE, TFLOAT32):
++	case CASE(ONE, TFLOAT64):
++		a = ABNE;
++		break;
++
++	case CASE(OLT, TINT8):	// ACMP
++	case CASE(OLT, TINT16):
++	case CASE(OLT, TINT32):
++	case CASE(OLT, TINT64):
++	case CASE(OLT, TUINT8):	// ACMPU
++	case CASE(OLT, TUINT16):
++	case CASE(OLT, TUINT32):
++	case CASE(OLT, TUINT64):
++	case CASE(OLT, TFLOAT32): // AFCMPU
++	case CASE(OLT, TFLOAT64):
++		a = ABLT;
++		break;
++
++	case CASE(OLE, TINT8):	// ACMP
++	case CASE(OLE, TINT16):
++	case CASE(OLE, TINT32):
++	case CASE(OLE, TINT64):
++	case CASE(OLE, TUINT8):	// ACMPU
++	case CASE(OLE, TUINT16):
++	case CASE(OLE, TUINT32):
++	case CASE(OLE, TUINT64):
++	case CASE(OLE, TFLOAT32): // AFCMPU
++	case CASE(OLE, TFLOAT64):
++		a = ABLE;
++		break;
++
++	case CASE(OGT, TINT8):
++	case CASE(OGT, TINT16):
++	case CASE(OGT, TINT32):
++	case CASE(OGT, TINT64):
++	case CASE(OGT, TUINT8):
++	case CASE(OGT, TUINT16):
++	case CASE(OGT, TUINT32):
++	case CASE(OGT, TUINT64):
++	case CASE(OGT, TFLOAT32):
++	case CASE(OGT, TFLOAT64):
++		a = ABGT;
++		break;
++
++	case CASE(OGE, TINT8):
++	case CASE(OGE, TINT16):
++	case CASE(OGE, TINT32):
++	case CASE(OGE, TINT64):
++	case CASE(OGE, TUINT8):
++	case CASE(OGE, TUINT16):
++	case CASE(OGE, TUINT32):
++	case CASE(OGE, TUINT64):
++	case CASE(OGE, TFLOAT32):
++	case CASE(OGE, TFLOAT64):
++		a = ABGE;
++		break;
++
++	case CASE(OCMP, TBOOL):
++	case CASE(OCMP, TINT8):
++	case CASE(OCMP, TINT16):
++	case CASE(OCMP, TINT32):
++	case CASE(OCMP, TPTR32):
++	case CASE(OCMP, TINT64):
++		a = ACMP;
++		break;
++
++	case CASE(OCMP, TUINT8):
++	case CASE(OCMP, TUINT16):
++	case CASE(OCMP, TUINT32):
++	case CASE(OCMP, TUINT64):
++	case CASE(OCMP, TPTR64):
++		a = ACMPU;
++		break;
++
++	case CASE(OCMP, TFLOAT32):
++	case CASE(OCMP, TFLOAT64):
++		a = AFCMPU;
++		break;
++
++	case CASE(OAS, TBOOL):
++	case CASE(OAS, TINT8):
++		a = AMOVB;
++		break;
++
++	case CASE(OAS, TUINT8):
++		a = AMOVBZ;
++		break;
++
++	case CASE(OAS, TINT16):
++		a = AMOVH;
++		break;
++
++	case CASE(OAS, TUINT16):
++		a = AMOVHZ;
++		break;
++
++	case CASE(OAS, TINT32):
++		a = AMOVW;
++		break;
++
++	case CASE(OAS, TUINT32):
++	case CASE(OAS, TPTR32):
++		a = AMOVWZ;
++		break;
++
++	case CASE(OAS, TINT64):
++	case CASE(OAS, TUINT64):
++	case CASE(OAS, TPTR64):
++		a = AMOVD;
++		break;
++
++	case CASE(OAS, TFLOAT32):
++		a = AFMOVS;
++		break;
++
++	case CASE(OAS, TFLOAT64):
++		a = AFMOVD;
++		break;
++
++	case CASE(OADD, TINT8):
++	case CASE(OADD, TUINT8):
++	case CASE(OADD, TINT16):
++	case CASE(OADD, TUINT16):
++	case CASE(OADD, TINT32):
++	case CASE(OADD, TUINT32):
++	case CASE(OADD, TPTR32):
++	case CASE(OADDPTR, TPTR32):
++	case CASE(OADD, TINT64):
++	case CASE(OADD, TUINT64):
++	case CASE(OADD, TPTR64):
++	case CASE(OADDPTR, TPTR64):
++		a = AADD;
++		break;
++
++	case CASE(OADD, TFLOAT32):
++		a = AFADDS;
++		break;
++
++	case CASE(OADD, TFLOAT64):
++		a = AFADD;
++		break;
++
++	case CASE(OSUB, TINT8):
++	case CASE(OSUB, TUINT8):
++	case CASE(OSUB, TINT16):
++	case CASE(OSUB, TUINT16):
++	case CASE(OSUB, TINT32):
++	case CASE(OSUB, TUINT32):
++	case CASE(OSUB, TPTR32):
++	case CASE(OSUB, TINT64):
++	case CASE(OSUB, TUINT64):
++	case CASE(OSUB, TPTR64):
++		a = ASUB;
++		break;
++
++	case CASE(OSUB, TFLOAT32):
++		a = AFSUBS;
++		break;
++
++	case CASE(OSUB, TFLOAT64):
++		a = AFSUB;
++		break;
++
++	case CASE(OMINUS, TINT8):
++	case CASE(OMINUS, TUINT8):
++	case CASE(OMINUS, TINT16):
++	case CASE(OMINUS, TUINT16):
++	case CASE(OMINUS, TINT32):
++	case CASE(OMINUS, TUINT32):
++	case CASE(OMINUS, TPTR32):
++	case CASE(OMINUS, TINT64):
++	case CASE(OMINUS, TUINT64):
++	case CASE(OMINUS, TPTR64):
++		a = ANEG;
++		break;
++
++	case CASE(OAND, TINT8):
++	case CASE(OAND, TUINT8):
++	case CASE(OAND, TINT16):
++	case CASE(OAND, TUINT16):
++	case CASE(OAND, TINT32):
++	case CASE(OAND, TUINT32):
++	case CASE(OAND, TPTR32):
++	case CASE(OAND, TINT64):
++	case CASE(OAND, TUINT64):
++	case CASE(OAND, TPTR64):
++		a = AAND;
++		break;
++
++	case CASE(OOR, TINT8):
++	case CASE(OOR, TUINT8):
++	case CASE(OOR, TINT16):
++	case CASE(OOR, TUINT16):
++	case CASE(OOR, TINT32):
++	case CASE(OOR, TUINT32):
++	case CASE(OOR, TPTR32):
++	case CASE(OOR, TINT64):
++	case CASE(OOR, TUINT64):
++	case CASE(OOR, TPTR64):
++		a = AOR;
++		break;
++
++	case CASE(OXOR, TINT8):
++	case CASE(OXOR, TUINT8):
++	case CASE(OXOR, TINT16):
++	case CASE(OXOR, TUINT16):
++	case CASE(OXOR, TINT32):
++	case CASE(OXOR, TUINT32):
++	case CASE(OXOR, TPTR32):
++	case CASE(OXOR, TINT64):
++	case CASE(OXOR, TUINT64):
++	case CASE(OXOR, TPTR64):
++		a = AXOR;
++		break;
++
++	// TODO(minux): handle rotates
++	//case CASE(OLROT, TINT8):
++	//case CASE(OLROT, TUINT8):
++	//case CASE(OLROT, TINT16):
++	//case CASE(OLROT, TUINT16):
++	//case CASE(OLROT, TINT32):
++	//case CASE(OLROT, TUINT32):
++	//case CASE(OLROT, TPTR32):
++	//case CASE(OLROT, TINT64):
++	//case CASE(OLROT, TUINT64):
++	//case CASE(OLROT, TPTR64):
++	//	a = 0//???; RLDC?
++	//	break;
++
++	case CASE(OLSH, TINT8):
++	case CASE(OLSH, TUINT8):
++	case CASE(OLSH, TINT16):
++	case CASE(OLSH, TUINT16):
++	case CASE(OLSH, TINT32):
++	case CASE(OLSH, TUINT32):
++	case CASE(OLSH, TPTR32):
++	case CASE(OLSH, TINT64):
++	case CASE(OLSH, TUINT64):
++	case CASE(OLSH, TPTR64):
++		a = ASLD;
++		break;
++
++	case CASE(ORSH, TUINT8):
++	case CASE(ORSH, TUINT16):
++	case CASE(ORSH, TUINT32):
++	case CASE(ORSH, TPTR32):
++	case CASE(ORSH, TUINT64):
++	case CASE(ORSH, TPTR64):
++		a = ASRD;
++		break;
++
++	case CASE(ORSH, TINT8):
++	case CASE(ORSH, TINT16):
++	case CASE(ORSH, TINT32):
++	case CASE(ORSH, TINT64):
++		a = ASRAD;
++		break;
++
++	// TODO(minux): handle rotates
++	//case CASE(ORROTC, TINT8):
++	//case CASE(ORROTC, TUINT8):
++	//case CASE(ORROTC, TINT16):
++	//case CASE(ORROTC, TUINT16):
++	//case CASE(ORROTC, TINT32):
++	//case CASE(ORROTC, TUINT32):
++	//case CASE(ORROTC, TINT64):
++	//case CASE(ORROTC, TUINT64):
++	//	a = 0//??? RLDC??
++	//	break;
++
++	case CASE(OHMUL, TINT64):
++		a = AMULHD;
++		break;
++	case CASE(OHMUL, TUINT64):
++	case CASE(OHMUL, TPTR64):
++		a = AMULHDU;
++		break;
++
++	case CASE(OMUL, TINT8):
++	case CASE(OMUL, TINT16):
++	case CASE(OMUL, TINT32):
++	case CASE(OMUL, TINT64):
++		a = AMULLD;
++		break;
++
++	case CASE(OMUL, TUINT8):
++	case CASE(OMUL, TUINT16):
++	case CASE(OMUL, TUINT32):
++	case CASE(OMUL, TPTR32):
++		// don't use word multiply, the high 32-bit are undefined.
++		// fallthrough
++	case CASE(OMUL, TUINT64):
++	case CASE(OMUL, TPTR64):
++		a = AMULLD; // for 64-bit multiplies, signedness doesn't matter.
++		break;
++
++	case CASE(OMUL, TFLOAT32):
++		a = AFMULS;
++		break;
++
++	case CASE(OMUL, TFLOAT64):
++		a = AFMUL;
++		break;
++
++	case CASE(ODIV, TINT8):
++	case CASE(ODIV, TINT16):
++	case CASE(ODIV, TINT32):
++	case CASE(ODIV, TINT64):
++		a = ADIVD;
++		break;
++
++	case CASE(ODIV, TUINT8):
++	case CASE(ODIV, TUINT16):
++	case CASE(ODIV, TUINT32):
++	case CASE(ODIV, TPTR32):
++	case CASE(ODIV, TUINT64):
++	case CASE(ODIV, TPTR64):
++		a = ADIVDU;
++		break;
++
++	case CASE(ODIV, TFLOAT32):
++		a = AFDIVS;
++		break;
++
++	case CASE(ODIV, TFLOAT64):
++		a = AFDIV;
++		break;
++
++	}
++	return a;
++}
++
++enum
++{
++	ODynam		= 1<<0,
++	OAddable	= 1<<1,
++};
++
++int
++xgen(Node *n, Node *a, int o)
++{
++	// TODO(minux)
++	USED(n); USED(a); USED(o);
++	return -1;
++}
++
++void
++sudoclean(void)
++{
++	return;
++}
++
++/*
++ * generate code to compute address of n,
++ * a reference to a (perhaps nested) field inside
++ * an array or struct.
++ * return 0 on failure, 1 on success.
++ * on success, leaves usable address in a.
++ *
++ * caller is responsible for calling sudoclean
++ * after successful sudoaddable,
++ * to release the register used for a.
++ */
++int
++sudoaddable(int as, Node *n, Addr *a)
++{
++	// TODO(minux)
++	USED(as); USED(n); USED(a);
++	return 0;
++}
+diff --git a/src/cmd/9g/opt.h b/src/cmd/9g/opt.h
+new file mode 100644
+index 0000000000..d3cbcb9570
+--- /dev/null
++++ b/src/cmd/9g/opt.h
+@@ -0,0 +1,219 @@
++// Derived from Inferno utils/6c/gc.h
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/gc.h
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include	"../gc/popt.h"
++
++#define	Z	N
++#define	Adr	Addr
++
++#define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
++#define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
++#define	LOAD(r)		(~r->refbehind.b[z] & r->refahead.b[z])
++#define	STORE(r)	(~r->calbehind.b[z] & r->calahead.b[z])
++
++#define	CLOAD	5
++#define	CREF	5
++#define	CINF	1000
++#define	LOOP	3
++
++typedef	struct	Reg	Reg;
++typedef	struct	Rgn	Rgn;
++
++/*c2go
++extern Node *Z;
++enum
++{
++	CLOAD = 5,
++	CREF = 5,
++	CINF = 1000,
++	LOOP = 3,
++};
++
++uint32 BLOAD(Reg*);
++uint32 BSTORE(Reg*);
++uint32 LOAD(Reg*);
++uint32 STORE(Reg*);
++*/
++
++// A Reg is a wrapper around a single Prog (one instruction) that holds
++// register optimization information while the optimizer runs.
++// r->prog is the instruction.
++// r->prog->opt points back to r.
++struct	Reg
++{
++	Flow	f;
++
++	Bits	set;  		// variables written by this instruction.
++	Bits	use1; 		// variables read by prog->from.
++	Bits	use2; 		// variables read by prog->to.
++
++	Bits	refbehind;
++	Bits	refahead;
++	Bits	calbehind;
++	Bits	calahead;
++	Bits	regdiff;
++	Bits	act;
++
++	int32	regu;		// register used bitmap
++};
++#define	R	((Reg*)0)
++/*c2go extern Reg *R; */
++
++#define	NRGN	600
++/*c2go enum { NRGN = 600 }; */
++struct	Rgn
++{
++	Reg*	enter;
++	short	cost;
++	short	varno;
++	short	regno;
++};
++
++EXTERN	int32	exregoffset;		// not set
++EXTERN	int32	exfregoffset;		// not set
++EXTERN	Reg	zreg;
++EXTERN	Rgn	region[NRGN];
++EXTERN	Rgn*	rgp;
++EXTERN	int	nregion;
++EXTERN	int	nvar;
++EXTERN	int32	regbits;
++EXTERN	int32	exregbits;
++EXTERN	Bits	externs;
++EXTERN	Bits	params;
++EXTERN	Bits	consts;
++EXTERN	Bits	addrs;
++EXTERN	Bits	ivar;
++EXTERN	Bits	ovar;
++EXTERN	int	change;
++EXTERN	int32	maxnr;
++
++EXTERN	struct
++{
++	int32	ncvtreg;
++	int32	nspill;
++	int32	nreload;
++	int32	ndelmov;
++	int32	nvar;
++	int32	naddr;
++} ostats;
++
++/*
++ * reg.c
++ */
++int	rcmp(const void*, const void*);
++void	regopt(Prog*);
++void	addmove(Reg*, int, int, int);
++Bits	mkvar(Reg*, Adr*);
++void	prop(Reg*, Bits, Bits);
++void	synch(Reg*, Bits);
++uint32	allreg(uint32, Rgn*);
++void	paint1(Reg*, int);
++uint32	paint2(Reg*, int);
++void	paint3(Reg*, int, int32, int);
++void	addreg(Adr*, int);
++void	dumpone(Flow*, int);
++void	dumpit(char*, Flow*, int);
++
++/*
++ * peep.c
++ */
++void	peep(Prog*);
++void	excise(Flow*);
++int	copyu(Prog*, Adr*, Adr*);
++
++uint64	RtoB(int);
++uint64	FtoB(int);
++int	BtoR(uint64);
++int	BtoF(uint64);
++
++/*
++ * prog.c
++ */
++typedef struct ProgInfo ProgInfo;
++struct ProgInfo
++{
++	uint32 flags; // the bits below
++	uint64 reguse; // required registers used by this instruction
++	uint64 regset; // required registers set by this instruction
++	uint64 regindex; // registers used by addressing mode
++};
++
++enum
++{
++	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
++	Pseudo = 1<<1,
++	
++	// There's nothing to say about the instruction,
++	// but it's still okay to see.
++	OK = 1<<2,
++
++	// Size of right-side write, or right-side read if no write.
++	SizeB = 1<<3,
++	SizeW = 1<<4,
++	SizeL = 1<<5,
++	SizeQ = 1<<6,
++	SizeF = 1<<7, // float aka float32
++	SizeD = 1<<8, // double aka float64
++
++	// Left side: address taken, read, write.
++	LeftAddr = 1<<9,
++	LeftRead = 1<<10,
++	LeftWrite = 1<<11,
++	
++	// Register in middle; never written.
++	RegRead = 1<<12,
++	CanRegRead = 1<<13,
++	
++	// Right side: address taken, read, write.
++	RightAddr = 1<<14,
++	RightRead = 1<<15,
++	RightWrite = 1<<16,
++
++	PostInc = 1<<17,
++
++	// Instruction kinds
++	Move = 1<<18, // straight move
++	Conv = 1<<19, // size conversion
++	Cjmp = 1<<20, // conditional jump
++	Break = 1<<21, // breaks control flow (no fallthrough)
++	Call = 1<<22, // function call
++	Jump = 1<<23, // jump
++	Skip = 1<<24, // data instruction
++};
++
++void proginfo(ProgInfo*, Prog*);
++
++// To allow use of AJMP, ACALL, ARET in ../gc/popt.c.
++enum
++{
++	AJMP = ABR,
++	ACALL = ABL,
++	ARET = ARETURN,
++};
+diff --git a/src/cmd/9g/peep.c b/src/cmd/9g/peep.c
+new file mode 100644
+index 0000000000..5721d7b04f
+--- /dev/null
++++ b/src/cmd/9g/peep.c
+@@ -0,0 +1,94 @@
++// Derived from Inferno utils/6c/peep.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include <u.h>
++#include <libc.h>
++#include "gg.h"
++#include "opt.h"
++
++void
++peep(Prog *p)
++{
++	USED(p);
++	// TODO(minux)
++	return;
++}
++
++void
++excise(Flow *r)
++{
++	Prog *p;
++
++	p = r->prog;
++	if(debug['P'] && debug['v'])
++		print("%P ===delete===\n", p);
++	*p = zprog;
++	p->as = ANOP;
++	ostats.ndelmov++;
++}
++
++int
++regtyp(Adr *a)
++{
++	switch(a->type) {
++	default:
++		return 0;
++	case D_REG:
++	case D_FREG:
++		return 1;
++	}
++}
++
++int
++sameaddr(Addr *a, Addr *v)
++{
++	if(a->type != v->type)
++		return 0;
++	if(regtyp(v) && a->reg == v->reg)
++		return 1;
++	if(v->type == D_AUTO || v->type == D_PARAM)
++		if(v->offset == a->offset)
++			return 1;
++	return 0;
++}
++
++int
++smallindir(Addr *a, Addr *reg)
++{
++	return reg->type == D_REG && a->type == D_OREG &&
++		a->reg == reg->reg &&
++		0 <= a->offset && a->offset < 4096;
++}
++
++int
++stackaddr(Addr *a)
++{
++	return a->type == D_REG && a->reg == REGSP;
++}
+diff --git a/src/cmd/9g/prog.c b/src/cmd/9g/prog.c
+new file mode 100644
+index 0000000000..0a51a533a0
+--- /dev/null
++++ b/src/cmd/9g/prog.c
+@@ -0,0 +1,138 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <u.h>
++#include <libc.h>
++#include "gg.h"
++#include "opt.h"
++
++enum {
++	LeftRdwr = LeftRead | LeftWrite,
++	RightRdwr = RightRead | RightWrite,
++};
++
++// This table gives the basic information about instruction
++// generated by the compiler and processed in the optimizer.
++// See opt.h for bit definitions.
++//
++// Instructions not generated need not be listed.
++// As an exception to that rule, we typically write down all the
++// size variants of an operation even if we just use a subset.
++//
++// The table is formatted for 8-space tabs.
++static ProgInfo progtable[ALAST] = {
++	[ATYPE]=	{Pseudo | Skip},
++	[ATEXT]=	{Pseudo},
++	[AFUNCDATA]=	{Pseudo},
++	[APCDATA]=	{Pseudo},
++	[AUNDEF]=	{Break},
++	[AUSEFIELD]=	{OK},
++	[ACHECKNIL]=	{LeftRead},
++	[AVARDEF]=	{Pseudo | RightWrite},
++	[AVARKILL]=	{Pseudo | RightWrite},
++
++	// NOP is an internal no-op that also stands
++	// for USED and SET annotations, not the Power opcode.
++	[ANOP]=		{LeftRead | RightWrite},
++
++	// Integer
++	[AADD]=		{SizeQ | LeftRead | RegRead | RightWrite},
++	[ASUB]=		{SizeQ | LeftRead | RegRead | RightWrite},
++	[ANEG]=		{SizeQ | LeftRead | RegRead | RightWrite},
++	[AAND]=		{SizeQ | LeftRead | RegRead | RightWrite},
++	[AOR]=		{SizeQ | LeftRead | RegRead | RightWrite},
++	[AXOR]=		{SizeQ | LeftRead | RegRead | RightWrite},
++	[AMULLD]=	{SizeQ | LeftRead | RegRead | RightWrite},
++	[AMULLW]=	{SizeL | LeftRead | RegRead | RightWrite},
++	[AMULHD]=	{SizeL | LeftRead | RegRead | RightWrite},
++	[AMULHDU]=	{SizeL | LeftRead | RegRead | RightWrite},
++	[ADIVD]=	{SizeQ | LeftRead | RegRead | RightWrite},
++	[ADIVDU]=	{SizeQ | LeftRead | RegRead | RightWrite},
++	[ASLD]=		{SizeQ | LeftRead | RegRead | RightWrite},
++	[ASRD]=		{SizeQ | LeftRead | RegRead | RightWrite},
++	[ASRAD]=	{SizeQ | LeftRead | RegRead | RightWrite},
++	[ACMP]=		{SizeQ | LeftRead | RightRead},
++	[ACMPU]=	{SizeQ | LeftRead | RightRead},
++	[ATD]=		{SizeQ | RightRead},
++
++	// Floating point.
++	[AFADD]=	{SizeD | LeftRead | RegRead | RightWrite},
++	[AFADDS]=	{SizeF | LeftRead | RegRead | RightWrite},
++	[AFSUB]=	{SizeD | LeftRead | RegRead | RightWrite},
++	[AFSUBS]=	{SizeF | LeftRead | RegRead | RightWrite},
++	[AFMUL]=	{SizeD | LeftRead | RegRead | RightWrite},
++	[AFMULS]=	{SizeF | LeftRead | RegRead | RightWrite},
++	[AFDIV]=	{SizeD | LeftRead | RegRead | RightWrite},
++	[AFDIVS]=	{SizeF | LeftRead | RegRead | RightWrite},
++	[AFCTIDZ]=	{SizeF | LeftRead | RegRead | RightWrite},
++	[AFCFID]=	{SizeF | LeftRead | RegRead | RightWrite},
++	[AFCMPU]=	{SizeD | LeftRead | RightRead},
++	[AFRSP]=	{SizeD | LeftRead | RightWrite | Conv},
++
++	// Moves
++	[AMOVB]=	{SizeB | LeftRead | RightWrite | Move | Conv},
++	[AMOVBU]=	{SizeB | LeftRead | RightWrite | Move | Conv | PostInc},
++	[AMOVBZ]=	{SizeB | LeftRead | RightWrite | Move | Conv},
++	[AMOVH]=	{SizeW | LeftRead | RightWrite | Move | Conv},
++	[AMOVHU]=	{SizeW | LeftRead | RightWrite | Move | Conv | PostInc},
++	[AMOVHZ]=	{SizeW | LeftRead | RightWrite | Move | Conv},
++	[AMOVW]=	{SizeL | LeftRead | RightWrite | Move | Conv},
++	// there is no AMOVWU.
++	[AMOVWZU]=	{SizeL | LeftRead | RightWrite | Move | Conv | PostInc},
++	[AMOVWZ]=	{SizeL | LeftRead | RightWrite | Move | Conv},
++	[AMOVD]=	{SizeQ | LeftRead | RightWrite | Move},
++	[AMOVDU]=	{SizeQ | LeftRead | RightWrite | Move | PostInc},
++	[AFMOVS]=	{SizeF | LeftRead | RightWrite | Move | Conv},
++	[AFMOVD]=	{SizeD | LeftRead | RightWrite | Move},
++
++	// Jumps
++	[ABR]=		{Jump | Break},
++	[ABL]=		{Call},
++	[ABEQ]=		{Cjmp},
++	[ABNE]=		{Cjmp},
++	[ABGE]=		{Cjmp},
++	[ABLT]=		{Cjmp},
++	[ABGT]=		{Cjmp},
++	[ABLE]=		{Cjmp},
++	[ARETURN]=	{Break},
++	// In addtion, duffzero reads R0,R2 and writes R2.  This fact must be
++	// encoded in peep.c (TODO)
++	[ADUFFZERO]=	{Call},
++	// In addtion, duffcopy reads R0,R2,R3 and writes R2,R3.  This fact must be
++	// encoded in peep.c (TODO)
++	[ADUFFCOPY]=	{Call},
++};
++
++void
++proginfo(ProgInfo *info, Prog *p)
++{
++	*info = progtable[p->as];
++	if(info->flags == 0) {
++		*info = progtable[AADD];
++		fatal("proginfo: unknown instruction %P", p);
++	}
++
++	if((info->flags & RegRead) && p->reg == NREG) {
++		info->flags &= ~RegRead;
++		info->flags |= /*CanRegRead |*/ RightRead;
++	}
++
++	if(p->from.type == D_OREG && p->from.reg != NREG) {
++		info->reguse |= RtoB(p->from.reg);
++		if(info->flags & PostInc) {
++			info->regset |= RtoB(p->from.reg);
++		}
++	}
++	if(p->to.type == D_OREG && p->to.reg != NREG) {
++		info->reguse |= RtoB(p->to.reg);
++		if(info->flags & PostInc) {
++			info->regset |= RtoB(p->to.reg);
++		}
++	}
++
++	if(p->from.type == D_CONST && p->from.sym != nil && (info->flags & LeftRead)) {
++		info->flags &= ~LeftRead;
++		info->flags |= LeftAddr;
++	}
++}
+diff --git a/src/cmd/9g/reg.c b/src/cmd/9g/reg.c
+new file mode 100644
+index 0000000000..bbebf3fe03
+--- /dev/null
++++ b/src/cmd/9g/reg.c
+@@ -0,0 +1,161 @@
++// Derived from Inferno utils/6c/reg.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include <u.h>
++#include <libc.h>
++#include "gg.h"
++#include "opt.h"
++
++void
++regopt(Prog *p)
++{
++	USED(p);
++	// TODO(minux)
++	return;
++}
++
++/*
++ * track register variables including external registers:
++ *	bit	reg
++ *	0	R0
++ *	1	R1
++ *	...	...
++ *	31	R31
++ *	32+0	F0
++ *	32+1	F1
++ *	...	...
++ *	32+31	F31
++ */
++uint64
++RtoB(int r)
++{
++	if(r >= D_R0 && r <= D_R0+31)
++		return 1ULL << (r - D_R0);
++	return 0;
++}
++
++int
++BtoR(uint64 b)
++{
++	b &= 0xffffffff;
++	if(b == 0)
++		return 0;
++	return bitno(b) + D_R0;
++}
++
++uint64
++FtoB(int r)
++{
++	if(r >= D_F0 && r <= D_F0+31)
++		return 1ULL << (32 + r - D_F0);
++	return 0;
++}
++
++int
++BtoF(uint64 b)
++{
++	b >>= 32;
++	if(b == 0)
++		return 0;
++	return bitno(b) + D_F0;
++}
++
++void
++dumpone(Flow *f, int isreg)
++{
++	int z;
++	Bits bit;
++	Reg *r;
++
++	print("%d:%P", f->loop, f->prog);
++	if(isreg) {	
++		r = (Reg*)f;
++		for(z=0; z<BITS; z++)
++			bit.b[z] =
++				r->set.b[z] |
++				r->use1.b[z] |
++				r->use2.b[z] |
++				r->refbehind.b[z] |
++				r->refahead.b[z] |
++				r->calbehind.b[z] |
++				r->calahead.b[z] |
++				r->regdiff.b[z] |
++				r->act.b[z] |
++					0;
++		if(bany(&bit)) {
++			print("\t");
++			if(bany(&r->set))
++				print(" s:%Q", r->set);
++			if(bany(&r->use1))
++				print(" u1:%Q", r->use1);
++			if(bany(&r->use2))
++				print(" u2:%Q", r->use2);
++			if(bany(&r->refbehind))
++				print(" rb:%Q ", r->refbehind);
++			if(bany(&r->refahead))
++				print(" ra:%Q ", r->refahead);
++			if(bany(&r->calbehind))
++				print(" cb:%Q ", r->calbehind);
++			if(bany(&r->calahead))
++				print(" ca:%Q ", r->calahead);
++			if(bany(&r->regdiff))
++				print(" d:%Q ", r->regdiff);
++			if(bany(&r->act))
++				print(" a:%Q ", r->act);
++		}
++	}
++	print("\n");
++}
++
++
++void
++dumpit(char *str, Flow *r0, int isreg)
++{
++	Flow *r, *r1;
++
++	print("\n%s\n", str);
++	for(r = r0; r != nil; r = r->link) {
++		dumpone(r, isreg);
++		r1 = r->p2;
++		if(r1 != nil) {
++			print("	pred:");
++			for(; r1 != nil; r1 = r1->p2link)
++				print(" %.4ud", (int)r1->prog->pc);
++			print("\n");
++		}
++//		r1 = r->s1;
++//		if(r1 != R) {
++//			print("	succ:");
++//			for(; r1 != R; r1 = r1->s1)
++//				print(" %.4ud", (int)r1->prog->pc);
++//			print("\n");
++//		}
++	}
++}

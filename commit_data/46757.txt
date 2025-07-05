@@ -27,7 +27,69 @@ Date:   Mon Jan 25 22:54:20 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275692
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/http/fcgi/child.go     |  3 ---
  src/net/http/fcgi/fcgi_test.go | 12 ++++++++----
  2 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/fcgi/child.go b/src/net/http/fcgi/child.go
+index e97b8440e1..756722ba14 100644
+--- a/src/net/http/fcgi/child.go
++++ b/src/net/http/fcgi/child.go
+@@ -171,12 +171,9 @@ func (c *child) serve() {
+ 	defer c.cleanUp()
+ 	var rec record
+ 	for {
+-		c.conn.mutex.Lock()
+ 		if err := rec.read(c.conn.rwc); err != nil {
+-			c.conn.mutex.Unlock()
+ 			return
+ 		}
+-		c.conn.mutex.Unlock()
+ 		if err := c.handleRecord(&rec); err != nil {
+ 			return
+ 		}
+diff --git a/src/net/http/fcgi/fcgi_test.go b/src/net/http/fcgi/fcgi_test.go
+index d3b704f821..b58111de20 100644
+--- a/src/net/http/fcgi/fcgi_test.go
++++ b/src/net/http/fcgi/fcgi_test.go
+@@ -221,7 +221,11 @@ var cleanUpTests = []struct {
+ }
+ 
+ type nopWriteCloser struct {
+-	io.ReadWriter
++	io.Reader
++}
++
++func (nopWriteCloser) Write(buf []byte) (int, error) {
++	return len(buf), nil
+ }
+ 
+ func (nopWriteCloser) Close() error {
+@@ -235,7 +239,7 @@ func TestChildServeCleansUp(t *testing.T) {
+ 	for _, tt := range cleanUpTests {
+ 		input := make([]byte, len(tt.input))
+ 		copy(input, tt.input)
+-		rc := nopWriteCloser{bytes.NewBuffer(input)}
++		rc := nopWriteCloser{bytes.NewReader(input)}
+ 		done := make(chan bool)
+ 		c := newChild(rc, http.HandlerFunc(func(
+ 			w http.ResponseWriter,
+@@ -325,7 +329,7 @@ func TestChildServeReadsEnvVars(t *testing.T) {
+ 	for _, tt := range envVarTests {
+ 		input := make([]byte, len(tt.input))
+ 		copy(input, tt.input)
+-		rc := nopWriteCloser{bytes.NewBuffer(input)}
++		rc := nopWriteCloser{bytes.NewReader(input)}
+ 		done := make(chan bool)
+ 		c := newChild(rc, http.HandlerFunc(func(
+ 			w http.ResponseWriter,
+@@ -375,7 +379,7 @@ func TestResponseWriterSniffsContentType(t *testing.T) {
+ 		t.Run(tt.name, func(t *testing.T) {
+ 			input := make([]byte, len(streamFullRequestStdin))
+ 			copy(input, streamFullRequestStdin)
+-			rc := nopWriteCloser{bytes.NewBuffer(input)}
++			rc := nopWriteCloser{bytes.NewReader(input)}
+ 			done := make(chan bool)
+ 			var resp *response
+ 			c := newChild(rc, http.HandlerFunc(func(

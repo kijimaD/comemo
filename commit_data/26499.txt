@@ -17,7 +17,7 @@ Date:   Wed Jan 27 16:47:23 2016 -0800
     Change-Id: I1d2d85d3771abc918db4dd7cc30b0b2d854b15e1
     Reviewed-on: https://go-review.googlesource.com/19024
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go            |   2 +-
  src/cmd/compile/internal/ssa/compile.go       |  58 ++++----
  src/cmd/compile/internal/ssa/config.go        |   4 +-
@@ -29,3 +29,704 @@ Date:   Wed Jan 27 16:47:23 2016 -0800
  test/nilcheck.go                              |   1 -
  test/nilcheck_ssa.go                          | 187 ------------------------
  10 files changed, 206 insertions(+), 276 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index de00fe9651..203de6421c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -121,7 +121,7 @@ func buildssa(fn *Node) *ssa.Func {
+ 
+ 	var e ssaExport
+ 	e.log = printssa
+-	s.config = ssa.NewConfig(Thearch.Thestring, &e, Ctxt)
++	s.config = ssa.NewConfig(Thearch.Thestring, &e, Ctxt, Debug['N'] == 0)
+ 	s.f = s.config.NewFunc()
+ 	s.f.Name = name
+ 	s.exitCode = fn.Func.Exit
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 7a515f898c..048f189ffe 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -40,6 +40,9 @@ func Compile(f *Func) {
+ 	checkFunc(f)
+ 	const logMemStats = false
+ 	for _, p := range passes {
++		if !f.Config.optimize && !p.required {
++			continue
++		}
+ 		phaseName = p.name
+ 		f.Logf("  pass %s begin\n", p.name)
+ 		// TODO: capture logging during this pass, add it to the HTML
+@@ -75,38 +78,39 @@ func Compile(f *Func) {
+ }
+ 
+ type pass struct {
+-	name string
+-	fn   func(*Func)
++	name     string
++	fn       func(*Func)
++	required bool
+ }
+ 
+ // list of passes for the compiler
+ var passes = [...]pass{
+ 	// TODO: combine phielim and copyelim into a single pass?
+-	{"early phielim", phielim},
+-	{"early copyelim", copyelim},
+-	{"early deadcode", deadcode}, // remove generated dead code to avoid doing pointless work during opt
+-	{"decompose", decompose},
+-	{"opt", opt},
+-	{"opt deadcode", deadcode}, // remove any blocks orphaned during opt
+-	{"generic cse", cse},
+-	{"nilcheckelim", nilcheckelim},
+-	{"generic deadcode", deadcode},
+-	{"fuse", fuse},
+-	{"dse", dse},
+-	{"tighten", tighten}, // move values closer to their uses
+-	{"lower", lower},
+-	{"lowered cse", cse},
+-	{"lowered deadcode", deadcode},
+-	{"checkLower", checkLower},
+-	{"late phielim", phielim},
+-	{"late copyelim", copyelim},
+-	{"late deadcode", deadcode},
+-	{"critical", critical},   // remove critical edges
+-	{"layout", layout},       // schedule blocks
+-	{"schedule", schedule},   // schedule values
+-	{"flagalloc", flagalloc}, // allocate flags register
+-	{"regalloc", regalloc},   // allocate int & float registers
+-	{"trim", trim},           // remove empty blocks
++	{"early phielim", phielim, false},
++	{"early copyelim", copyelim, false},
++	{"early deadcode", deadcode, false}, // remove generated dead code to avoid doing pointless work during opt
++	{"decompose", decompose, true},
++	{"opt", opt, true},                // TODO: split required rules and optimizing rules
++	{"opt deadcode", deadcode, false}, // remove any blocks orphaned during opt
++	{"generic cse", cse, false},
++	{"nilcheckelim", nilcheckelim, false},
++	{"generic deadcode", deadcode, false},
++	{"fuse", fuse, false},
++	{"dse", dse, false},
++	{"tighten", tighten, false}, // move values closer to their uses
++	{"lower", lower, true},
++	{"lowered cse", cse, false},
++	{"lowered deadcode", deadcode, true},
++	{"checkLower", checkLower, true},
++	{"late phielim", phielim, false},
++	{"late copyelim", copyelim, false},
++	{"late deadcode", deadcode, false},
++	{"critical", critical, true},   // remove critical edges
++	{"layout", layout, true},       // schedule blocks
++	{"schedule", schedule, true},   // schedule values
++	{"flagalloc", flagalloc, true}, // allocate flags register
++	{"regalloc", regalloc, true},   // allocate int & float registers + stack slots
++	{"trim", trim, false},          // remove empty blocks
+ }
+ 
+ // Double-check phase ordering constraints.
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index fb0d886b88..7325873a15 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -15,6 +15,7 @@ type Config struct {
+ 	fe         Frontend                   // callbacks into compiler frontend
+ 	HTML       *HTMLWriter                // html writer, for debugging
+ 	ctxt       *obj.Link                  // Generic arch information
++	optimize   bool                       // Do optimization
+ 
+ 	// TODO: more stuff.  Compiler flags of interest, ...
+ }
+@@ -80,7 +81,7 @@ type GCNode interface {
+ }
+ 
+ // NewConfig returns a new configuration object for the given architecture.
+-func NewConfig(arch string, fe Frontend, ctxt *obj.Link) *Config {
++func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config {
+ 	c := &Config{arch: arch, fe: fe}
+ 	switch arch {
+ 	case "amd64":
+@@ -97,6 +98,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link) *Config {
+ 		fe.Unimplementedf(0, "arch %s not implemented", arch)
+ 	}
+ 	c.ctxt = ctxt
++	c.optimize = optimize
+ 
+ 	return c
+ }
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 58c52f23e6..7603e17ecf 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -25,56 +25,29 @@ func cse(f *Func) {
+ 	// It starts with a coarse partition and iteratively refines it
+ 	// until it reaches a fixed point.
+ 
+-	// Make initial partition based on opcode, type-name, aux, auxint, nargs, phi-block, and the ops of v's first args
+-	type key struct {
+-		op     Op
+-		typ    string
+-		aux    interface{}
+-		auxint int64
+-		nargs  int
+-		block  ID // block id for phi vars, -1 otherwise
+-		arg0op Op // v.Args[0].Op if len(v.Args) > 0, OpInvalid otherwise
+-		arg1op Op // v.Args[1].Op if len(v.Args) > 1, OpInvalid otherwise
+-	}
+-	m := map[key]eqclass{}
++	// Make initial coarse partitions by using a subset of the conditions above.
++	a := make([]*Value, 0, f.NumValues())
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			bid := ID(-1)
+-			if v.Op == OpPhi {
+-				bid = b.ID
++			if v.Type.IsMemory() {
++				continue // memory values can never cse
+ 			}
+-			arg0op := OpInvalid
+-			if len(v.Args) > 0 {
+-				arg0op = v.Args[0].Op
+-			}
+-			arg1op := OpInvalid
+-			if len(v.Args) > 1 {
+-				arg1op = v.Args[1].Op
+-			}
+-
+-			// This assumes that floats are stored in AuxInt
+-			// instead of Aux. If not, then we need to use the
+-			// float bits as part of the key, otherwise since 0.0 == -0.0
+-			// this would incorrectly treat 0.0 and -0.0 as identical values
+-			k := key{v.Op, v.Type.String(), v.Aux, v.AuxInt, len(v.Args), bid, arg0op, arg1op}
+-			m[k] = append(m[k], v)
++			a = append(a, v)
+ 		}
+ 	}
+-
+-	// A partition is a set of disjoint eqclasses.
+-	var partition []eqclass
+-	for _, v := range m {
+-		partition = append(partition, v)
+-	}
+-	// TODO: Sort partition here for perfect reproducibility?
+-	// Sort by what? Partition size?
+-	// (Could that improve efficiency by discovering splits earlier?)
++	partition := partitionValues(a)
+ 
+ 	// map from value id back to eqclass id
+-	valueEqClass := make([]int, f.NumValues())
++	valueEqClass := make([]ID, f.NumValues())
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			// Use negative equivalence class #s for unique values.
++			valueEqClass[v.ID] = -v.ID
++		}
++	}
+ 	for i, e := range partition {
+ 		for _, v := range e {
+-			valueEqClass[v.ID] = i
++			valueEqClass[v.ID] = ID(i)
+ 		}
+ 	}
+ 
+@@ -104,7 +77,7 @@ func cse(f *Func) {
+ 						// move it to the end and shrink e.
+ 						e[j], e[len(e)-1] = e[len(e)-1], e[j]
+ 						e = e[:len(e)-1]
+-						valueEqClass[w.ID] = len(partition)
++						valueEqClass[w.ID] = ID(len(partition))
+ 						changed = true
+ 						continue eqloop
+ 					}
+@@ -131,7 +104,6 @@ func cse(f *Func) {
+ 	// if v and w are in the same equivalence class and v dominates w.
+ 	rewrite := make([]*Value, f.NumValues())
+ 	for _, e := range partition {
+-		sort.Sort(e) // ensure deterministic ordering
+ 		for len(e) > 1 {
+ 			// Find a maximal dominant element in e
+ 			v := e[0]
+@@ -197,7 +169,141 @@ func dom(b, c *Block, idom []*Block) bool {
+ // final equivalence classes.
+ type eqclass []*Value
+ 
+-// Sort an equivalence class by value ID.
+-func (e eqclass) Len() int           { return len(e) }
+-func (e eqclass) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
+-func (e eqclass) Less(i, j int) bool { return e[i].ID < e[j].ID }
++// partitionValues partitions the values into equivalence classes
++// based on having all the following features match:
++//  - opcode
++//  - type
++//  - auxint
++//  - aux
++//  - nargs
++//  - block # if a phi op
++//  - first two arg's opcodes
++// partitionValues returns a list of equivalence classes, each
++// being a sorted by ID list of *Values.  The eqclass slices are
++// backed by the same storage as the input slice.
++// Equivalence classes of size 1 are ignored.
++func partitionValues(a []*Value) []eqclass {
++	typNames := map[Type]string{}
++	auxIDs := map[interface{}]int32{}
++	sort.Sort(sortvalues{a, typNames, auxIDs})
++
++	var partition []eqclass
++	for len(a) > 0 {
++		v := a[0]
++		j := 1
++		for ; j < len(a); j++ {
++			w := a[j]
++			if v.Op != w.Op ||
++				v.AuxInt != w.AuxInt ||
++				len(v.Args) != len(w.Args) ||
++				v.Op == OpPhi && v.Block != w.Block ||
++				v.Aux != w.Aux ||
++				len(v.Args) >= 1 && v.Args[0].Op != w.Args[0].Op ||
++				len(v.Args) >= 2 && v.Args[1].Op != w.Args[1].Op ||
++				typNames[v.Type] != typNames[w.Type] {
++				break
++			}
++		}
++		if j > 1 {
++			partition = append(partition, a[:j])
++		}
++		a = a[j:]
++	}
++
++	return partition
++}
++
++// Sort values to make the initial partition.
++type sortvalues struct {
++	a        []*Value              // array of values
++	typNames map[Type]string       // type -> type ID map
++	auxIDs   map[interface{}]int32 // aux -> aux ID map
++}
++
++func (sv sortvalues) Len() int      { return len(sv.a) }
++func (sv sortvalues) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
++func (sv sortvalues) Less(i, j int) bool {
++	v := sv.a[i]
++	w := sv.a[j]
++	if v.Op != w.Op {
++		return v.Op < w.Op
++	}
++	if v.AuxInt != w.AuxInt {
++		return v.AuxInt < w.AuxInt
++	}
++	if v.Aux == nil && w.Aux != nil { // cheap aux check - expensive one below.
++		return true
++	}
++	if v.Aux != nil && w.Aux == nil {
++		return false
++	}
++	if len(v.Args) != len(w.Args) {
++		return len(v.Args) < len(w.Args)
++	}
++	if v.Op == OpPhi && v.Block.ID != w.Block.ID {
++		return v.Block.ID < w.Block.ID
++	}
++	if len(v.Args) >= 1 {
++		x := v.Args[0].Op
++		y := w.Args[0].Op
++		if x != y {
++			return x < y
++		}
++		if len(v.Args) >= 2 {
++			x = v.Args[1].Op
++			y = w.Args[1].Op
++			if x != y {
++				return x < y
++			}
++		}
++	}
++
++	// Sort by type.  Types are just interfaces, so we can't compare
++	// them with < directly.  Instead, map types to their names and
++	// sort on that.
++	if v.Type != w.Type {
++		x := sv.typNames[v.Type]
++		if x == "" {
++			x = v.Type.String()
++			sv.typNames[v.Type] = x
++		}
++		y := sv.typNames[w.Type]
++		if y == "" {
++			y = w.Type.String()
++			sv.typNames[w.Type] = y
++		}
++		if x != y {
++			return x < y
++		}
++	}
++
++	// Same deal for aux fields.
++	if v.Aux != w.Aux {
++		x := sv.auxIDs[v.Aux]
++		if x == 0 {
++			x = int32(len(sv.auxIDs)) + 1
++			sv.auxIDs[v.Aux] = x
++		}
++		y := sv.auxIDs[w.Aux]
++		if y == 0 {
++			y = int32(len(sv.auxIDs)) + 1
++			sv.auxIDs[w.Aux] = y
++		}
++		if x != y {
++			return x < y
++		}
++	}
++
++	// TODO(khr): is the above really ok to do?  We're building
++	// the aux->auxID map online as sort is asking about it.  If
++	// sort has some internal randomness, then the numbering might
++	// change from run to run.  That will make the ordering of
++	// partitions random.  It won't break the compiler but may
++	// make it nondeterministic.  We could fix this by computing
++	// the aux->auxID map ahead of time, but the hope is here that
++	// we won't need to compute the mapping for many aux fields
++	// because the values they are in are otherwise unique.
++
++	// Sort by value ID last to keep the sort result deterministic.
++	return v.ID < w.ID
++}
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index 84e0093799..7174f10e4d 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -160,7 +160,7 @@ func genMaxPredValue(size int) []bloc {
+ var domBenchRes []*Block
+ 
+ func benchmarkDominators(b *testing.B, size int, bg blockGen) {
+-	c := NewConfig("amd64", DummyFrontend{b}, nil)
++	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
+ 	fun := Fun(c, "entry", bg(size)...)
+ 
+ 	CheckFunc(fun.f)
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index badafadd70..962dc52a5f 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -16,7 +16,7 @@ var Deadcode = deadcode
+ 
+ func testConfig(t *testing.T) *Config {
+ 	testCtxt := &obj.Link{}
+-	return NewConfig("amd64", DummyFrontend{t}, testCtxt)
++	return NewConfig("amd64", DummyFrontend{t}, testCtxt, true)
+ }
+ 
+ // DummyFrontend is a test-only frontend.
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index d4a55c0855..c4aff58d76 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -40,7 +40,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ 		Bloc("exit", Exit("mem")),
+ 	)
+ 
+-	c := NewConfig("amd64", DummyFrontend{b}, nil)
++	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
+ 	fun := Fun(c, "entry", blocs...)
+ 
+ 	CheckFunc(fun.f)
+@@ -64,7 +64,7 @@ func isNilCheck(b *Block) bool {
+ // TestNilcheckSimple verifies that a second repeated nilcheck is removed.
+ func TestNilcheckSimple(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t}, nil)
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+@@ -101,7 +101,7 @@ func TestNilcheckSimple(t *testing.T) {
+ // on the order of the dominees.
+ func TestNilcheckDomOrder(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t}, nil)
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+@@ -137,7 +137,7 @@ func TestNilcheckDomOrder(t *testing.T) {
+ // TestNilcheckAddr verifies that nilchecks of OpAddr constructed values are removed.
+ func TestNilcheckAddr(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t}, nil)
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+@@ -170,7 +170,7 @@ func TestNilcheckAddr(t *testing.T) {
+ // TestNilcheckAddPtr verifies that nilchecks of OpAddPtr constructed values are removed.
+ func TestNilcheckAddPtr(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t}, nil)
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+@@ -204,7 +204,7 @@ func TestNilcheckAddPtr(t *testing.T) {
+ // non-nil are removed.
+ func TestNilcheckPhi(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t}, nil)
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+@@ -248,7 +248,7 @@ func TestNilcheckPhi(t *testing.T) {
+ // are removed, but checks of different pointers are not.
+ func TestNilcheckKeepRemove(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t}, nil)
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+@@ -296,7 +296,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
+ // block are *not* removed.
+ func TestNilcheckInFalseBranch(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t}, nil)
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+@@ -347,7 +347,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
+ // wil remove the generated nil check.
+ func TestNilcheckUser(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t}, nil)
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+@@ -386,7 +386,7 @@ func TestNilcheckUser(t *testing.T) {
+ // TestNilcheckBug reproduces a bug in nilcheckelim found by compiling math/big
+ func TestNilcheckBug(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+-	c := NewConfig("amd64", DummyFrontend{t}, nil)
++	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 7cbd30311f..9238999074 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -316,6 +316,12 @@ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
+ 		fmt.Printf("assignReg %s %s/%s\n", registers[r].Name(), v, c)
+ 	}
+ 	if s.regs[r].v != nil {
++		if v.Op == OpSB && !v.Block.Func.Config.optimize {
++			// Rewrite rules may introduce multiple OpSB, and with
++			// -N they don't get CSEd.  Ignore the extra assignments.
++			s.f.setHome(c, &registers[r])
++			return
++		}
+ 		s.f.Fatalf("tried to assign register %d to %s/%s but it is already used by %s", r, v, c, s.regs[r].v)
+ 	}
+ 
+diff --git a/test/nilcheck.go b/test/nilcheck.go
+index 173fcb33a6..ab28b33d41 100644
+--- a/test/nilcheck.go
++++ b/test/nilcheck.go
+@@ -1,4 +1,3 @@
+-// +build !amd64
+ // errorcheck -0 -N -d=nil
+ 
+ // Copyright 2013 The Go Authors.  All rights reserved.
+diff --git a/test/nilcheck_ssa.go b/test/nilcheck_ssa.go
+deleted file mode 100644
+index a20cfd8ae6..0000000000
+--- a/test/nilcheck_ssa.go
++++ /dev/null
+@@ -1,187 +0,0 @@
+-// +build amd64
+-// errorcheck -0 -N -d=nil
+-
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Test that nil checks are inserted.
+-// Optimization is disabled, so redundant checks are not removed.
+-
+-package p
+-
+-type Struct struct {
+-	X int
+-	Y float64
+-}
+-
+-type BigStruct struct {
+-	X int
+-	Y float64
+-	A [1 << 20]int
+-	Z string
+-}
+-
+-type Empty struct {
+-}
+-
+-type Empty1 struct {
+-	Empty
+-}
+-
+-var (
+-	intp       *int
+-	arrayp     *[10]int
+-	array0p    *[0]int
+-	bigarrayp  *[1 << 26]int
+-	structp    *Struct
+-	bigstructp *BigStruct
+-	emptyp     *Empty
+-	empty1p    *Empty1
+-)
+-
+-func f1() {
+-	_ = *intp    // ERROR "nil check"
+-	_ = *arrayp  // ERROR "nil check"
+-	_ = *array0p // ERROR "nil check"
+-	_ = *array0p // ERROR "nil check"
+-	_ = *intp    // ERROR "nil check"
+-	_ = *arrayp  // ERROR "nil check"
+-	_ = *structp // ERROR "nil check"
+-	_ = *emptyp  // ERROR "nil check"
+-	_ = *arrayp  // ERROR "nil check"
+-}
+-
+-func f2() {
+-	var (
+-		intp       *int
+-		arrayp     *[10]int
+-		array0p    *[0]int
+-		bigarrayp  *[1 << 20]int
+-		structp    *Struct
+-		bigstructp *BigStruct
+-		emptyp     *Empty
+-		empty1p    *Empty1
+-	)
+-
+-	_ = *intp       // ERROR "nil check"
+-	_ = *arrayp     // ERROR "nil check"
+-	_ = *array0p    // ERROR "nil check"
+-	_ = *array0p    // ERROR "removed nil check"
+-	_ = *intp       // ERROR "removed nil check"
+-	_ = *arrayp     // ERROR "removed nil check"
+-	_ = *structp    // ERROR "nil check"
+-	_ = *emptyp     // ERROR "nil check"
+-	_ = *arrayp     // ERROR "removed nil check"
+-	_ = *bigarrayp  // ERROR "nil check"
+-	_ = *bigstructp // ERROR "nil check"
+-	_ = *empty1p    // ERROR "nil check"
+-}
+-
+-func fx10k() *[10000]int
+-
+-var b bool
+-
+-func f3(x *[10000]int) {
+-	// Using a huge type and huge offsets so the compiler
+-	// does not expect the memory hardware to fault.
+-	_ = x[9999] // ERROR "nil check"
+-
+-	for {
+-		if x[9999] != 0 { // ERROR "removed nil check"
+-			break
+-		}
+-	}
+-
+-	x = fx10k()
+-	_ = x[9999] // ERROR "nil check"
+-	if b {
+-		_ = x[9999] // ERROR "removed nil check"
+-	} else {
+-		_ = x[9999] // ERROR "removed nil check"
+-	}
+-	_ = x[9999] // ERROR "removed nil check"
+-
+-	x = fx10k()
+-	if b {
+-		_ = x[9999] // ERROR "nil check"
+-	} else {
+-		_ = x[9999] // ERROR "nil check"
+-	}
+-	_ = x[9999] // ERROR "nil check"
+-
+-	fx10k()
+-	// SSA nilcheck removal works across calls.
+-	_ = x[9999] // ERROR "removed nil check"
+-}
+-
+-func f3a() {
+-	x := fx10k()
+-	y := fx10k()
+-	z := fx10k()
+-	_ = &x[9] // ERROR "nil check"
+-	y = z
+-	_ = &x[9] // ERROR "removed nil check"
+-	x = y
+-	_ = &x[9] // ERROR "nil check"
+-}
+-
+-func f3b() {
+-	x := fx10k()
+-	y := fx10k()
+-	_ = &x[9] // ERROR "nil check"
+-	y = x
+-	_ = &x[9] // ERROR "removed nil check"
+-	x = y
+-	_ = &x[9] // ERROR "removed nil check"
+-}
+-
+-func fx10() *[10]int
+-
+-func f4(x *[10]int) {
+-	// Most of these have no checks because a real memory reference follows,
+-	// and the offset is small enough that if x is nil, the address will still be
+-	// in the first unmapped page of memory.
+-
+-	_ = x[9] // ERROR "nil check"
+-
+-	for {
+-		if x[9] != 0 { // ERROR "removed nil check"
+-			break
+-		}
+-	}
+-
+-	x = fx10()
+-	_ = x[9] // ERROR "nil check"
+-	if b {
+-		_ = x[9] // ERROR "removed nil check"
+-	} else {
+-		_ = x[9] // ERROR "removed nil check"
+-	}
+-	_ = x[9] // ERROR "removed nil check"
+-
+-	x = fx10()
+-	if b {
+-		_ = x[9] // ERROR "nil check"
+-	} else {
+-		_ = &x[9] // ERROR "nil check"
+-	}
+-	_ = x[9] // ERROR "nil check"
+-
+-	fx10()
+-	_ = x[9] // ERROR "removed nil check"
+-
+-	x = fx10()
+-	y := fx10()
+-	_ = &x[9] // ERROR "nil check"
+-	y = x
+-	_ = &x[9] // ERROR "removed nil check"
+-	x = y
+-	_ = &x[9] // ERROR "removed nil check"
+-}
+-
+-func f5(m map[string]struct{}) bool {
+-	// Existence-only map lookups should not generate a nil check
+-	_, ok := m[""]
+-	return ok
+-}

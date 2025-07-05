@@ -12,8 +12,91 @@ Date:   Wed May 25 16:33:19 2016 +0300
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/runtime/asm_amd64.s      |  3 +--
  src/strings/strings_amd64.go |  2 +-
  src/strings/strings_test.go  | 37 +++++++++++++++++++++++++++++++++++++
  3 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index e50c443044..f9932cd434 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1787,7 +1787,7 @@ partial_success9to15:
+ 	JB loop9to15
+ 	JMP fail
+ _16_or_more:
+-	CMPQ AX, $17
++	CMPQ AX, $16
+ 	JA   _17_to_31
+ 	MOVOU (BP), X1
+ 	LEAQ -15(DI)(DX*1), DX
+@@ -1801,7 +1801,6 @@ loop16:
+ 	CMPQ DI,DX
+ 	JB loop16
+ 	JMP fail
+-//TODO: the code below is wrong.  Fix it.  See #15679.
+ _17_to_31:
+ 	LEAQ 1(DI)(DX*1), DX
+ 	SUBQ AX, DX
+diff --git a/src/strings/strings_amd64.go b/src/strings/strings_amd64.go
+index 91b29ce358..55bf2d2f6f 100644
+--- a/src/strings/strings_amd64.go
++++ b/src/strings/strings_amd64.go
+@@ -7,7 +7,7 @@ package strings
+ // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
+ // indexShortStr requires 2 <= len(c) <= shortStringLen
+ func indexShortStr(s, c string) int // ../runtime/asm_$GOARCH.s
+-const shortStringLen = 16           // TODO: restore to 31 when #15679 is fixed
++const shortStringLen = 31
+ 
+ // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+ func Index(s, sep string) int {
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 6bd6fb5443..fcef761da7 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -190,6 +190,43 @@ func TestLastIndexByte(t *testing.T) {
+ 	}
+ }
+ 
++func simpleIndex(s, sep string) int {
++	n := len(sep)
++	for i := n; i <= len(s); i++ {
++		if s[i-n:i] == sep {
++			return i - n
++		}
++	}
++	return -1
++}
++
++func TestIndexRandom(t *testing.T) {
++	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
++	for times := 0; times < 10; times++ {
++		for strLen := 5 + rand.Intn(5); strLen < 140; strLen += 10 { // Arbitrary
++			s1 := make([]byte, strLen)
++			for i := range s1 {
++				s1[i] = chars[rand.Intn(len(chars))]
++			}
++			s := string(s1)
++			for i := 0; i < 50; i++ {
++				begin := rand.Intn(len(s) + 1)
++				end := begin + rand.Intn(len(s)+1-begin)
++				sep := s[begin:end]
++				if i%4 == 0 {
++					pos := rand.Intn(len(sep) + 1)
++					sep = sep[:pos] + "A" + sep[pos:]
++				}
++				want := simpleIndex(s, sep)
++				res := Index(s, sep)
++				if res != want {
++					t.Errorf("Index(%s,%s) = %d; want %d", s, sep, res, want)
++				}
++			}
++		}
++	}
++}
++
+ var indexRuneTests = []struct {
+ 	s    string
+ 	rune rune

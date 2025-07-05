@@ -10,7 +10,7 @@ Date:   Fri May 21 20:25:08 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1240044
-
+---
  src/pkg/exp/draw/draw_test.go                 |  3 ++-
  src/pkg/fmt/print.go                          |  3 ++-
  src/pkg/go/parser/parser.go                   |  3 ++-
@@ -20,3 +20,210 @@ Date:   Fri May 21 20:25:08 2010 -0700
  src/pkg/net/ip.go                             |  3 ++-
  src/pkg/reflect/type.go                       |  3 ++-
  8 files changed, 53 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/exp/draw/draw_test.go b/src/pkg/exp/draw/draw_test.go
+index 5dc9d9593c..675c4eaec5 100644
+--- a/src/pkg/exp/draw/draw_test.go
++++ b/src/pkg/exp/draw/draw_test.go
+@@ -134,7 +134,8 @@ func makeGolden(dst image.Image, t drawTest) image.Image {
+ }
+ 
+ func TestDraw(t *testing.T) {
+-loop: for _, test := range drawTests {
++loop:
++	for _, test := range drawTests {
+ 		dst := hgradRed(255)
+ 		// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
+ 		golden := makeGolden(dst, test)
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 15b7c51452..e4413efa47 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -795,7 +795,8 @@ func (p *pp) doprintf(format string, a []interface{}) {
+ 		i++
+ 		// flags and widths
+ 		p.fmt.clearflags()
+-	F: for ; i < end; i++ {
++	F:
++		for ; i < end; i++ {
+ 			switch format[i] {
+ 			case '#':
+ 				p.fmt.sharp = true
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 52504994e6..f9264f03bb 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1224,7 +1224,8 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
+ 	}
+ 
+ 	x := p.parseOperand()
+-L: for {
++L:
++	for {
+ 		switch p.tok {
+ 		case token.PERIOD:
+ 			x = p.parseSelectorOrTypeAssertion(p.checkExpr(x))
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 044a08a219..77287f82bd 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -1030,14 +1030,17 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 		// a "correcting" unindent immediately following a line break
+ 		// is applied before the line break if there is no comment
+ 		// between (see writeWhitespace)
+-		p.print(unindent)
++		p.print(unindent, s.Pos())
+ 		p.expr(s.Label, multiLine)
+-		p.print(token.COLON, vtab, indent)
+-		if _, isEmpty := s.Stmt.(*ast.EmptyStmt); isEmpty && !nextIsRBrace {
+-			p.print(token.SEMICOLON)
+-			break
++		p.print(token.COLON, indent)
++		if _, isEmpty := s.Stmt.(*ast.EmptyStmt); isEmpty {
++			if !nextIsRBrace {
++				p.print(newline, s.Stmt.Pos(), token.SEMICOLON)
++				break
++			}
++		} else {
++			p.print(newline)
+ 		}
+-		p.linebreak(s.Stmt.Pos().Line, 0, 1, ignore, true)
+ 		p.stmt(s.Stmt, nextIsRBrace, multiLine)
+ 
+ 	case *ast.ExprStmt:
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index eec4ae08d0..9087390e7c 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -247,7 +247,6 @@ func _() {
+ // Formatting around labels.
+ func _() {
+ L:
+-
+ }
+ 
+ 
+@@ -260,36 +259,50 @@ L:	// no semicolon needed
+ func _() {
+ 	switch 0 {
+ 	case 0:
+-	L0:	;	// semicolon required
++	L0:	// semicolon required
++		;
+ 	case 1:
+-	L1:	;	// semicolon required
++	L1:	// semicolon required
++		;
+ 	default:
+ 	L2:	// no semicolon needed
+ 	}
+ }
+ 
+ 
++func _() {
++	f()
++L1:
++	f()
++L2:
++	;
++L3:
++}
++
++
+ func _() {
+ 	// this comment should be indented
+ L:
+-
+ }
+ 
+ 
+ func _() {
+-L:	_ = 0
++L:
++	_ = 0
+ }
+ 
+ 
+ func _() {
+ 	// this comment should be indented
+-L:	_ = 0
++L:
++	_ = 0
+ }
+ 
+ 
+ func _() {
+ 	for {
+-	L1:	_ = 0
++	L1:
++		_ = 0
+ 	L2:
+ 		_ = 0
+ 	}
+@@ -299,7 +312,8 @@ func _() {
+ func _() {
+ 	// this comment should be indented
+ 	for {
+-	L1:	_ = 0
++	L1:
++		_ = 0
+ 	L2:
+ 		_ = 0
+ 	}
+@@ -319,5 +333,6 @@ AnOverlongLabel:
+ 	}
+ 	_ = 0
+ 
+-L:	_ = 0
++L:
++	_ = 0
+ }
+diff --git a/src/pkg/go/printer/testdata/statements.input b/src/pkg/go/printer/testdata/statements.input
+index 42d6a8780c..53f16c050a 100644
+--- a/src/pkg/go/printer/testdata/statements.input
++++ b/src/pkg/go/printer/testdata/statements.input
+@@ -205,6 +205,16 @@ func _() {
+ }
+ 
+ 
++func _() {
++	f()
++L1:
++	f()
++L2:
++	;
++L3:
++}
++
++
+ func _() {
+ 	// this comment should be indented
+ 	L:
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index f7ccf567e0..bd0c75de69 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -346,7 +346,8 @@ func parseIPv6(s string) IP {
+ 
+ 	// Loop, parsing hex numbers followed by colon.
+ 	j := 0
+-L: for j < IPv6len {
++L:
++	for j < IPv6len {
+ 		// Hex number.
+ 		n, i1, ok := xtoi(s, i)
+ 		if !ok || n > 0xFFFF {
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index eb1ba52a9f..19290647c5 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -518,7 +518,8 @@ func (t *StructType) fieldByNameFunc(match func(string) bool, mark map[*StructTy
+ 
+ 	var fi int // field index
+ 	n := 0     // number of matching fields at depth fd
+-L: for i, _ := range t.fields {
++L:
++	for i, _ := range t.fields {
+ 		f := t.Field(i)
+ 		d := inf
+ 		switch {

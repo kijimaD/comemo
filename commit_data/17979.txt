@@ -7,6 +7,22 @@ Date:   Thu Dec 12 17:25:02 2013 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/40720049
-
+---
  .hgignore | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 69141f86a6..b615b8d975 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -33,10 +33,7 @@ misc/goplay/goplay
+ misc/osx/*.pkg
+ misc/osx/*.dmg
+ src/cmd/?a/y.output
+-<<<<<<< local
+-=======
+ src/liblink/anames?.c
+->>>>>>> other
+ src/cmd/cc/y.output
+ src/cmd/cgo/zdefaultcc.go
+ src/cmd/dist/dist.dSYM

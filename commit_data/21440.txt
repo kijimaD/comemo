@@ -11,7 +11,57 @@ Date:   Mon Dec 29 11:47:04 2014 -0500
     Change-Id: I1320d5340a9e421c779f24f3b170e33974e56e4f
     Reviewed-on: https://go-review.googlesource.com/2278
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/cmd/gc/typecheck.c |  1 +
  src/cmd/gc/walk.c      | 12 +++++++++---
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 4512767c38..aa693aff7f 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2786,6 +2786,7 @@ islvalue(Node *n)
+ 	case OIND:
+ 	case ODOTPTR:
+ 	case OCLOSUREVAR:
++	case OPARAM:
+ 		return 1;
+ 	case ODOT:
+ 		return islvalue(n->left);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index df97f17670..99611efce8 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -462,6 +462,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case ONONAME:
+ 	case OINDREG:
+ 	case OEMPTY:
++	case OPARAM:
+ 		goto ret;
+ 
+ 	case ONOT:
+@@ -2519,7 +2520,7 @@ paramstoheap(Type **argin, int out)
+ {
+ 	Type *t;
+ 	Iter savet;
+-	Node *v;
++	Node *v, *as;
+ 	NodeList *nn;
+ 
+ 	nn = nil;
+@@ -2544,8 +2545,13 @@ paramstoheap(Type **argin, int out)
+ 		if(v->alloc == nil)
+ 			v->alloc = callnew(v->type);
+ 		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));
+-		if((v->class & ~PHEAP) != PPARAMOUT)
+-			nn = list(nn, nod(OAS, v, v->stackparam));
++		if((v->class & ~PHEAP) != PPARAMOUT) {
++			as = nod(OAS, v, v->stackparam);
++			v->stackparam->typecheck = 1;
++			typecheck(&as, Etop);
++			as = applywritebarrier(as, &nn);
++			nn = list(nn, as);
++		}
+ 	}
+ 	return nn;
+ }

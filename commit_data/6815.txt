@@ -7,7 +7,32 @@ Date:   Thu Dec 2 09:18:08 2010 -0800
     R=rsc, iant2
     CC=golang-dev
     https://golang.org/cl/3417041
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 1e0e6f8c5d..9dbecad41c 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -97,6 +97,7 @@ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ Spring Mc <heresy.mc@gmail.com>
++Stefan Nilsson <snilsson@nada.kth.se>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 058a2833dd..2fcd4488f5 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -150,6 +150,7 @@ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ Spring Mc <heresy.mc@gmail.com>
++Stefan Nilsson <snilsson@nada.kth.se>
+ Stephen Ma <stephenm@golang.org>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>

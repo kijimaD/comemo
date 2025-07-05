@@ -15,6 +15,34 @@ Date:   Tue Jul 7 07:39:05 2020 -0400
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.15.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 0d185de8f9..45ffec4b34 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -335,6 +335,11 @@ Do not send CLs removing the interior tags from such phrases.
+   improvements expected in future releases.
+ </p>
+ 
++<p><!-- CL 207877 -->
++  TODO: <a href="https://golang.org/cl/207877">https://golang.org/cl/207877</a>: Revert -buildmode=pie to internal linking.
++  The linker defaults to internal linking mode for PIE on linux/amd64 and linux/arm64, which does require a C linker.
++</p>
++
+ <h2 id="objdump">Objdump</h2>
+ 
+ <p><!-- CL 225459 -->
+@@ -938,6 +943,10 @@ Do not send CLs removing the interior tags from such phrases.
+        return temporary directories that are automatically cleaned up
+        at the end of the test.
+     </p>
++
++    <p><!-- CL 229085 -->
++      TODO: <a href="https://golang.org/cl/229085">https://golang.org/cl/229085</a>: reformat test chatty output
++    </p>
+   </dd>
+ </dl><!-- testing -->
+ 

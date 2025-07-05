@@ -97,7 +97,7 @@ Date:   Tue Apr 15 13:45:39 2014 -0400
     R=iant, aram, minux.ma, dave
     CC=golang-codereviews
     https://golang.org/cl/87920043
-
+---
  include/link.h                      |   3 +-
  src/cmd/6a/lex.c                    |   1 +
  src/cmd/6c/txt.c                    |   2 +-
@@ -125,3 +125,1453 @@ Date:   Tue Apr 15 13:45:39 2014 -0400
  src/pkg/runtime/sys_plan9_386.s     |   5 +-
  src/pkg/runtime/sys_plan9_amd64.s   |   2 +-
  26 files changed, 485 insertions(+), 391 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 92b8b73b6b..9a6fca2ab0 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -232,6 +232,8 @@ enum
+ 	R_CONST,
+ 	R_PCREL,
+ 	R_TLS,
++	R_TLS_LE, // TLS local exec offset from TLS segment register
++	R_TLS_IE, // TLS initial exec offset from TLS base pointer
+ 	R_GOTOFF,
+ 	R_PLT0,
+ 	R_PLT1,
+@@ -340,7 +342,6 @@ struct	Link
+ 	char*	thestring; // full name of architecture ("arm", "amd64", ..)
+ 	int32	goarm; // for arm only, GOARM setting
+ 	int	headtype;
+-	int	linkmode;
+ 
+ 	LinkArch*	arch;
+ 	int32	(*ignore)(char*);	// do not emit names satisfying this function
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index e24fbc9dc4..2a1c4b8e1f 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -334,6 +334,7 @@ struct
+ 	"TR5",		LBREG,	D_TR+5,
+ 	"TR6",		LBREG,	D_TR+6,
+ 	"TR7",		LBREG,	D_TR+7,
++	"TLS",		LSREG,	D_TLS,
+ 
+ 	"AAA",		LTYPE0,	AAAA,
+ 	"AAD",		LTYPE0,	AAAD,
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index f308aff08c..4d07436c3f 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -513,7 +513,7 @@ naddr(Node *n, Addr *a)
+ 		break;
+ 
+ 	case OEXREG:
+-		a->type = D_INDIR + D_GS;
++		a->type = D_INDIR + D_TLS;
+ 		a->offset = n->reg - 1;
+ 		break;
+ 
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index a8e11a10d2..1e2a1488f2 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -850,20 +850,18 @@ enum
+ 	D_DR		= 95,
+ 	D_TR		= 103,
+ 
+-	D_NONE		= 111,
+-
+-	D_BRANCH	= 112,
+-	D_EXTERN	= 113,
+-	D_STATIC	= 114,
+-	D_AUTO		= 115,
+-	D_PARAM		= 116,
+-	D_CONST		= 117,
+-	D_FCONST	= 118,
+-	D_SCONST	= 119,
+-	D_ADDR		= 120,
+-
+-	D_FILE,
+-	D_FILE1,
++	D_TLS		= 111,
++	D_NONE		= 112,
++
++	D_BRANCH	= 113,
++	D_EXTERN	= 114,
++	D_STATIC	= 115,
++	D_AUTO		= 116,
++	D_PARAM		= 117,
++	D_CONST		= 118,
++	D_FCONST	= 119,
++	D_SCONST	= 120,
++	D_ADDR		= 121,
+ 
+ 	D_INDIR,	/* additive */
+ 
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 0d872eaebd..3b8e8f4d7a 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -79,7 +79,6 @@ archinit(void)
+ 	case Hsolaris:
+ 		break;
+ 	}
+-	ctxt->linkmode = linkmode;
+ 
+ 	switch(HEADTYPE) {
+ 	default:
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 6c55b31435..49a105da6a 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -241,6 +241,7 @@ struct
+ 	"ES",		LSREG,	D_ES,
+ 	"FS",		LSREG,	D_FS,
+ 	"GS",		LSREG,	D_GS,
++	"TLS",		LSREG,	D_TLS,
+ 
+ 	"GDTR",		LBREG,	D_GDTR,
+ 	"IDTR",		LBREG,	D_IDTR,
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 1b6c2e6d96..25082de05d 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -464,7 +464,7 @@ naddr(Node *n, Addr *a)
+ 		break;
+ 
+ 	case OEXREG:
+-		a->type = D_INDIR + D_GS;
++		a->type = D_INDIR + D_TLS;
+ 		a->offset = n->reg - 1;
+ 		break;
+ 
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 0dcd74a61d..8e642d3903 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -636,21 +636,19 @@ enum
+ 	D_X5,
+ 	D_X6,
+ 	D_X7,
+-
+-	D_NONE		= 67,
+-
+-	D_BRANCH	= 68,
+-	D_EXTERN	= 69,
+-	D_STATIC	= 70,
+-	D_AUTO		= 71,
+-	D_PARAM		= 72,
+-	D_CONST		= 73,
+-	D_FCONST	= 74,
+-	D_SCONST	= 75,
+-	D_ADDR		= 76,
+-
+-	D_FILE,
+-	D_FILE1,
++	
++	D_TLS		= 67,
++	D_NONE		= 68,
++
++	D_BRANCH	= 69,
++	D_EXTERN	= 70,
++	D_STATIC	= 71,
++	D_AUTO		= 72,
++	D_PARAM		= 73,
++	D_CONST		= 74,
++	D_FCONST	= 75,
++	D_SCONST	= 76,
++	D_ADDR		= 77,
+ 
+ 	D_INDIR,	/* additive */
+ 
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index ddbd96aa03..1b65c5eb9e 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -69,7 +69,6 @@ archinit(void)
+ 	case Hopenbsd:
+ 		break;
+ 	}
+-	ctxt->linkmode = linkmode;
+ 
+ 	switch(HEADTYPE) {
+ 	default:
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index e2d46cdac4..ba5993b2fc 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -127,99 +127,22 @@ static struct {
+ 	char *goos;
+ 	char *hdr;
+ } zasmhdr[] = {
+-	{"386", "windows",
+-		"#define	get_tls(r)	MOVL 0x14(FS), r\n"
+-		"#define	g(r)	0(r)\n"
+-		"#define	m(r)	4(r)\n"
+-	},
+-	{"386", "plan9",
+-		"// Plan 9 does not have per-process segment descriptors with\n"
+-		"// which to do thread-local storage. Instead, we will use a\n"
+-		"// fixed offset from the per-process TOS struct address for\n"
+-		"// the local storage. Since the process ID is contained in the\n"
+-		"// TOS struct, we specify an offset for that here as well.\n"
+-		"#define	get_tls(r)	MOVL _tos(SB), r \n"
+-		"#define	g(r)	-8(r)\n"
+-		"#define	m(r)	-4(r)\n"
+-		"#define	procid(r)	48(r)\n"
+-	},
+-	{"386", "linux",
+-		"// On Linux systems, what we call 0(GS) and 4(GS) for g and m\n"
+-		"// turn into %gs:-8 and %gs:-4 (using gcc syntax to denote\n"
+-		"// what the machine sees as opposed to 8l input).\n"
+-		"// 8l rewrites 0(GS) and 4(GS) into these.\n"
+-		"//\n"
+-		"// On Linux Xen, it is not allowed to use %gs:-8 and %gs:-4\n"
+-		"// directly.  Instead, we have to store %gs:0 into a temporary\n"
+-		"// register and then use -8(%reg) and -4(%reg).  This kind\n"
+-		"// of addressing is correct even when not running Xen.\n"
+-		"//\n"
+-		"// 8l can rewrite MOVL 0(GS), CX into the appropriate pair\n"
+-		"// of mov instructions, using CX as the intermediate register\n"
+-		"// (safe because CX is about to be written to anyway).\n"
+-		"// But 8l cannot handle other instructions, like storing into 0(GS),\n"
+-		"// which is where these macros come into play.\n"
+-		"// get_tls sets up the temporary and then g and r use it.\n"
+-		"//\n"
+-		"// Another wrinkle is that get_tls needs to read from %gs:0,\n"
+-		"// but in 8l input it's called 8(GS), because 8l is going to\n"
+-		"// subtract 8 from all the offsets, as described above.\n"
+-		"//\n"
+-		"// The final wrinkle is that when generating an ELF .o file for\n"
+-		"// external linking mode, we need to be able to relocate the\n"
+-		"// -8(r) and -4(r) instructions. Tag them with an extra (GS*1)\n"
+-		"// that is ignored by the linker except for that identification.\n"
+-		"#define	get_tls(r)	MOVL 8(GS), r\n"
+-		"#define	g(r)	-8(r)(GS*1)\n"
+-		"#define	m(r)	-4(r)(GS*1)\n"
+-	},
+-	{"386", "nacl",
+-		// Same as Linux above.
+-		"#define	get_tls(r)	MOVL 8(GS), r\n"
+-		"#define	g(r)	-8(r)(GS*1)\n"
+-		"#define	m(r)	-4(r)(GS*1)\n"
+-	},
+ 	{"386", "",
+-		"#define	get_tls(r)\n"
+-		"#define	g(r)	0(GS)\n"
+-		"#define	m(r)	4(GS)\n"
+-	},
+-
+-	{"amd64p32", "nacl",
+-		"#define get_tls(r)\n"
+-		"#define g(r) 0(GS)\n"
+-		"#define m(r) 4(GS)\n"
+-	},
+-	{"amd64", "windows",
+-		"#define	get_tls(r) MOVQ 0x28(GS), r\n"
+-		"#define	g(r) 0(r)\n"
+-		"#define	m(r) 8(r)\n"
+-	},
+-	{"amd64", "plan9",
+-		"#define	get_tls(r)\n"
+-		"#define	g(r) 0(GS)\n"
+-		"#define	m(r) 8(GS)\n"
+-		"#define	procid(r) 16(GS)\n"
++		"#define	get_tls(r)	MOVL TLS, r\n"
++		"#define	g(r)	0(r)(TLS*1)\n"
++		"#define	m(r)	4(r)(TLS*1)\n"
+ 	},
+-	{"amd64", "solaris",
+-		"#define	get_tls(r) MOVQ 0(FS), r\n"
+-		"#define	g(r) -16(r)(FS*1)\n"
+-		"#define	m(r) -8(r)(FS*1)\n"
+-	},
+-	// The TLS accessors here are defined here to use initial exec model.
+-	// If the linker is not outputting a shared library, it will reduce
+-	// the TLS accessors to the local exec model, effectively removing
+-	// get_tls().
+-	{"amd64", "linux",
+-		"#define	get_tls(r) MOVQ runtime·tlsgm(SB), r\n"
+-		"#define	g(r) 0(r)(GS*1)\n"
+-		"#define	m(r) 8(r)(GS*1)\n"
++	{"amd64p32", "",
++		"#define	get_tls(r)	MOVL TLS, r\n"
++		"#define	g(r)	0(r)(TLS*1)\n"
++		"#define	m(r)	4(r)(TLS*1)\n"
+ 	},
+ 	{"amd64", "",
+-		"#define get_tls(r)\n"
+-		"#define g(r) 0(GS)\n"
+-		"#define m(r) 8(GS)\n"
++		"#define	get_tls(r)	MOVQ TLS, r\n"
++		"#define	g(r)	0(r)(TLS*1)\n"
++		"#define	m(r)	8(r)(TLS*1)\n"
+ 	},	
++
+ 	{"arm", "",
+ 	"#define	LR	R14\n"
+ 	},
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index f4fcc68812..c822f5bd53 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -183,6 +183,17 @@ relocsym(LSym *s)
+ 			if(thechar != '6')
+ 				o = r->add;
+ 			break;
++		case R_TLS_LE:
++			o = ctxt->tlsoffset + r->add;
++			break;
++		case R_TLS_IE:
++			if(iself || ctxt->headtype == Hplan9)
++				o = ctxt->tlsoffset + r->add;
++			else if(ctxt->headtype == Hwindows)
++				o = r->add;
++			else
++				sysfatal("unexpected R_TLS_IE relocation for %s", headstr(ctxt->headtype));
++			break;
+ 		case R_ADDR:
+ 			if(linkmode == LinkExternal && r->sym->type != SCONST) {
+ 				r->done = 0;
+@@ -262,6 +273,10 @@ relocsym(LSym *s)
+ 		default:
+ 			ctxt->cursym = s;
+ 			diag("bad reloc size %#ux for %s", siz, r->sym->name);
++		case 1:
++			// TODO(rsc): Remove.
++			s->p[off] = (int8)o;
++			break;
+ 		case 4:
+ 			if(r->type == R_PCREL) {
+ 				if(o != (int32)o)
+@@ -312,6 +327,8 @@ dynrelocsym(LSym *s)
+ 			return;
+ 		for(r=s->r; r<s->r+s->nr; r++) {
+ 			targ = r->sym;
++			if(targ == nil)
++				continue;
+ 			if(!targ->reachable)
+ 				diag("internal inconsistency: dynamic symbol %s is not reachable.", targ->name);
+ 			if(r->sym->plt == -2 && r->sym->got != -2) { // make dynimport JMP table for PE object files.
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 6bf2449f0c..8276fb7066 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -143,7 +143,6 @@ main(int argc, char *argv[])
+ 		headstring = headstr(HEADTYPE);
+ 
+ 	archinit();
+-	ctxt->linkmode = linkmode;
+ 	ctxt->debugfloat = debug['F'];
+ 
+ 	if(debug['v'])
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 213b1b55d7..104a08e21e 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -114,6 +114,7 @@ enum
+ 	Ytr0,	Ytr1,	Ytr2,	Ytr3,	Ytr4,	Ytr5,	Ytr6,	Ytr7,	Yrl32,	Yrl64,
+ 	Ymr, Ymm,
+ 	Yxr, Yxm,
++	Ytls,
+ 	Ymax,
+ 
+ 	Zxxx		= 0,
+@@ -1871,7 +1872,7 @@ instinit(void)
+ }
+ 
+ static int
+-prefixof(Addr *a)
++prefixof(Link *ctxt, Addr *a)
+ {
+ 	switch(a->type) {
+ 	case D_INDIR+D_CS:
+@@ -1884,6 +1885,27 @@ prefixof(Addr *a)
+ 		return 0x64;
+ 	case D_INDIR+D_GS:
+ 		return 0x65;
++	case D_INDIR+D_TLS:
++		// NOTE: Systems listed here should be only systems that
++		// support direct TLS references like 8(TLS) implemented as
++		// direct references from FS or GS. Systems that require
++		// the initial-exec model, where you load the TLS base into
++		// a register and then index from that register, do not reach
++		// this code and should not be listed.
++		switch(ctxt->headtype) {
++		default:
++			sysfatal("unknown TLS base register for %s", headstr(ctxt->headtype));
++		case Hdragonfly:
++		case Hfreebsd:
++		case Hlinux:
++		case Hnetbsd:
++		case Hopenbsd:
++		case Hplan9:
++		case Hsolaris:
++			return 0x64; // FS
++		case Hdarwin:
++			return 0x65; // GS
++		}
+ 	}
+ 	switch(a->index) {
+ 	case D_CS:
+@@ -2033,6 +2055,7 @@ oclass(Link *ctxt, Addr *a)
+ 	case D_ES:	return	Yes;
+ 	case D_FS:	return	Yfs;
+ 	case D_GS:	return	Ygs;
++	case D_TLS:	return	Ytls;
+ 
+ 	case D_GDTR:	return	Ygdtr;
+ 	case D_IDTR:	return	Yidtr;
+@@ -2278,6 +2301,19 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
+ 				r->type = R_PCREL;
+ 		} else
+ 			r->type = R_ADDR;
++		break;
++	
++	case D_INDIR+D_TLS:
++		if(r == nil) {
++			ctxt->diag("need reloc for %D", a);
++			sysfatal("reloc");
++		}
++		r->type = R_TLS_LE;
++		r->siz = 4;
++		r->off = -1;	// caller must fill in
++		r->add = v;
++		v = 0;
++		break;
+ 	}
+ 	return v;
+ }
+@@ -2294,7 +2330,7 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
+ 	v = a->offset;
+ 	t = a->type;
+ 	rel.siz = 0;
+-	if(a->index != D_NONE && a->index != D_FS && a->index != D_GS) {
++	if(a->index != D_NONE && a->index != D_TLS) {
+ 		if(t < D_INDIR) { 
+ 			switch(t) {
+ 			default:
+@@ -2360,9 +2396,11 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
+ 		scale = 1;
+ 	} else
+ 		t -= D_INDIR;
++	if(t == D_TLS)
++		v = vaddr(ctxt, a, &rel);
+ 
+ 	ctxt->rexflag |= (regrex[t] & Rxb) | rex;
+-	if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
++	if(t == D_NONE || (D_CS <= t && t <= D_GS) || t == D_TLS) {
+ 		if((ctxt->flag_shared || ctxt->headtype == Hnacl) && t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || ctxt->asmode != 64) {
+ 			*ctxt->andptr++ = (0 << 6) | (5 << 0) | (r << 3);
+ 			goto putrelv;
+@@ -2389,17 +2427,38 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
+ 		goto putrelv;
+ 	}
+ 	if(t >= D_AX && t <= D_R15) {
+-		if(v == 0 && t != D_BP && t != D_R13) {
++		// TODO: Remove Hwindows condition.
++		if(v == 0 && t != D_BP && t != D_R13 && (a->index != D_TLS || (ctxt->headtype == Hwindows && a->scale == 2))) {
+ 			*ctxt->andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
+ 			return;
+ 		}
+-		if(v >= -128 && v < 128) {
++		if(v >= -128 && v < 128 && (a->index != D_TLS || a->scale != 1)) {
+ 			ctxt->andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
++			if(a->index == D_TLS) {
++				Reloc *r;
++				memset(&rel, 0, sizeof rel);
++				rel.type = R_TLS_IE;
++				rel.siz = 1;
++				rel.sym = nil;
++				rel.add = v;
++				r = addrel(ctxt->cursym);
++				*r = rel;
++				r->off = ctxt->curp->pc + ctxt->andptr + 1 - ctxt->and;
++				v = 0;
++			}
+ 			ctxt->andptr[1] = v;
+ 			ctxt->andptr += 2;
+ 			return;
+ 		}
+ 		*ctxt->andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
++		if(a->index == D_TLS) {
++			memset(&rel, 0, sizeof rel);
++			rel.type = R_TLS_IE;
++			rel.siz = 4;
++			rel.sym = nil;
++			rel.add = v;
++			v = 0;
++		}
+ 		goto putrelv;
+ 	}
+ 	goto bad;
+@@ -2574,6 +2633,10 @@ static Movtab	ymovtab[] =
+ 	{ASHRQ,	Ycol,	Yml,	6,	Pw,0xac,0xad,0},
+ 	{ASHLW,	Ycol,	Yml,	6,	Pe,0xa4,0xa5,0},
+ 	{ASHRW,	Ycol,	Yml,	6,	Pe,0xac,0xad,0},
++
++/* load TLS base */
++	{AMOVQ,	Ytls,	Yrl,	7,	0,0,0,0},
++
+ 	0
+ };
+ 
+@@ -2664,10 +2727,10 @@ doasm(Link *ctxt, Prog *p)
+ 		return;
+ 	}
+ 	
+-	pre = prefixof(&p->from);
++	pre = prefixof(ctxt, &p->from);
+ 	if(pre)
+ 		*ctxt->andptr++ = pre;
+-	pre = prefixof(&p->to);
++	pre = prefixof(ctxt, &p->to);
+ 	if(pre)
+ 		*ctxt->andptr++ = pre;
+ 
+@@ -3296,6 +3359,43 @@ mfound:
+ 			break;
+ 		}
+ 		break;
++	
++	case 7:	/* mov tls, r */
++		// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
++		// where you load the TLS base register into a register and then index off that
++		// register to access the actual TLS variables. Systems that allow direct TLS access
++		// are handled in prefixof above and should not be listed here.
++		switch(ctxt->headtype) {
++		default:
++			sysfatal("unknown TLS base location for %s", headstr(ctxt->headtype));
++
++		case Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
++			// TLS base is 0(FS).
++			pp.from = p->from;
++			pp.from.type = D_INDIR+D_NONE;
++			pp.from.offset = 0;
++			pp.from.index = D_NONE;
++			pp.from.scale = 0;
++			ctxt->rexflag |= Pw;
++			*ctxt->andptr++ = 0x64; // FS
++			*ctxt->andptr++ = 0x8B;
++			asmand(ctxt, &pp.from, &p->to);
++			break;
++		
++		case Hwindows:
++			// Windows TLS base is always 0x28(GS).
++			pp.from = p->from;
++			pp.from.type = D_INDIR+D_GS;
++			pp.from.offset = 0x28;
++			pp.from.index = D_NONE;
++			pp.from.scale = 0;
++			ctxt->rexflag |= Pw;
++			*ctxt->andptr++ = 0x65; // GS
++			*ctxt->andptr++ = 0x8B;
++			asmand(ctxt, &pp.from, &p->to);
++			break;
++		}
++		break;
+ 	}
+ }
+ 
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index 2bf6707e1e..943db80f2f 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -78,6 +78,7 @@ enum
+ 	Ym,
+ 	Ybr,
+ 	Ycol,
++	Ytls,
+ 
+ 	Ycs,	Yss,	Yds,	Yes,	Yfs,	Ygs,
+ 	Ygdtr,	Yidtr,	Yldtr,	Ymsw,	Ytask,
+@@ -1441,7 +1442,7 @@ instinit(void)
+ }
+ 
+ static int
+-prefixof(Addr *a)
++prefixof(Link *ctxt, Addr *a)
+ {
+ 	switch(a->type) {
+ 	case D_INDIR+D_CS:
+@@ -1454,6 +1455,23 @@ prefixof(Addr *a)
+ 		return 0x64;
+ 	case D_INDIR+D_GS:
+ 		return 0x65;
++	case D_INDIR+D_TLS:
++		// NOTE: Systems listed here should be only systems that
++		// support direct TLS references like 8(TLS) implemented as
++		// direct references from FS or GS. Systems that require
++		// the initial-exec model, where you load the TLS base into
++		// a register and then index from that register, do not reach
++		// this code and should not be listed.
++		switch(ctxt->headtype) {
++		default:
++			sysfatal("unknown TLS base register for %s", headstr(ctxt->headtype));
++		case Hdarwin:
++		case Hdragonfly:
++		case Hfreebsd:
++		case Hnetbsd:
++		case Hopenbsd:
++			return 0x65; // GS
++		}
+ 	}
+ 	return 0;
+ }
+@@ -1543,6 +1561,7 @@ oclass(Addr *a)
+ 	case D_ES:	return	Yes;
+ 	case D_FS:	return	Yfs;
+ 	case D_GS:	return	Ygs;
++	case D_TLS:	return	Ytls;
+ 
+ 	case D_GDTR:	return	Ygdtr;
+ 	case D_IDTR:	return	Yidtr;
+@@ -1724,6 +1743,19 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
+ 			r->add = v;
+ 			v = 0;
+ 		}
++		break;
++	
++	case D_INDIR+D_TLS:
++		if(r == nil) {
++			ctxt->diag("need reloc for %D", a);
++			sysfatal("bad code");
++		}
++		r->type = R_TLS_LE;
++		r->siz = 4;
++		r->off = -1; // caller must fill in
++		r->add = v;
++		v = 0;
++		break;
+ 	}
+ 	return v;
+ }
+@@ -1738,7 +1770,7 @@ asmand(Link *ctxt, Addr *a, int r)
+ 	v = a->offset;
+ 	t = a->type;
+ 	rel.siz = 0;
+-	if(a->index != D_NONE && a->index != D_FS && a->index != D_GS) {
++	if(a->index != D_NONE && a->index != D_TLS) {
+ 		if(t < D_INDIR || t >= 2*D_INDIR) {
+ 			switch(t) {
+ 			default:
+@@ -1801,8 +1833,10 @@ asmand(Link *ctxt, Addr *a, int r)
+ 		scale = 1;
+ 	} else
+ 		t -= D_INDIR;
++	if(t == D_TLS)
++		v = vaddr(ctxt, a, &rel);
+ 
+-	if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
++	if(t == D_NONE || (D_CS <= t && t <= D_GS) || t == D_TLS) {
+ 		*ctxt->andptr++ = (0 << 6) | (5 << 0) | (r << 3);
+ 		goto putrelv;
+ 	}
+@@ -1823,17 +1857,43 @@ asmand(Link *ctxt, Addr *a, int r)
+ 		goto putrelv;
+ 	}
+ 	if(t >= D_AX && t <= D_DI) {
+-		if(v == 0 && rel.siz == 0 && t != D_BP) {
++		// TODO(rsc): Remove the Hwindows test.
++		// As written it produces the same byte-identical output as the code it replaced.
++		if(v == 0 && rel.siz == 0 && t != D_BP && (a->index != D_TLS || ctxt->headtype == Hwindows)) {
+ 			*ctxt->andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
+ 			return;
+ 		}
+-		if(v >= -128 && v < 128 && rel.siz == 0 && a->index != D_FS && a->index != D_GS) {
++		// TODO(rsc): Change a->index tests to check D_TLS.
++		// Then remove the if statement inside the body.
++		// As written the code is clearly incorrect for external linking,
++		// but as written it produces the same byte-identical output as the code it replaced.
++		if(v >= -128 && v < 128 && rel.siz == 0 && (a->index != D_TLS || ctxt->headtype == Hwindows || a->scale != 1))  {
+ 			ctxt->andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
++			if(a->index == D_TLS) {
++				Reloc *r;
++				memset(&rel, 0, sizeof rel);
++				rel.type = R_TLS_IE;
++				rel.siz = 1;
++				rel.sym = nil;
++				rel.add = v;
++				r = addrel(ctxt->cursym);
++				*r = rel;
++				r->off = ctxt->curp->pc + ctxt->andptr + 1 - ctxt->and;
++				v = 0;
++			}
+ 			ctxt->andptr[1] = v;
+ 			ctxt->andptr += 2;
+ 			return;
+ 		}
+ 		*ctxt->andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
++		if(a->index == D_TLS) {
++			memset(&rel, 0, sizeof rel);
++			rel.type = R_TLS_IE;
++			rel.siz = 4;
++			rel.sym = nil;
++			rel.add = v;
++			v = 0;
++		}
+ 		goto putrelv;
+ 	}
+ 	goto bad;
+@@ -1961,6 +2021,10 @@ static uchar	ymovtab[] =
+ /* extra imul */
+ 	AIMULW,	Yml,	Yrl,	7,	Pq,0xaf,0,0,
+ 	AIMULL,	Yml,	Yrl,	7,	Pm,0xaf,0,0,
++
++/* load TLS base pointer */
++	AMOVL,	Ytls,	Yrl,	8,	0,0,0,0,
++
+ 	0
+ };
+ 
+@@ -2108,10 +2172,10 @@ doasm(Link *ctxt, Prog *p)
+ 	
+ 	ctxt->curp = p;	// TODO
+ 
+-	pre = prefixof(&p->from);
++	pre = prefixof(ctxt, &p->from);
+ 	if(pre)
+ 		*ctxt->andptr++ = pre;
+-	pre = prefixof(&p->to);
++	pre = prefixof(ctxt, &p->to);
+ 	if(pre)
+ 		*ctxt->andptr++ = pre;
+ 
+@@ -2628,6 +2692,54 @@ mfound:
+ 		*ctxt->andptr++ = t[5];
+ 		asmand(ctxt, &p->from, reg[p->to.type]);
+ 		break;
++	
++	case 8: /* mov tls, r */
++		// NOTE: The systems listed here are the ones that use the "TLS initial exec" model,
++		// where you load the TLS base register into a register and then index off that
++		// register to access the actual TLS variables. Systems that allow direct TLS access
++		// are handled in prefixof above and should not be listed here.
++		switch(ctxt->headtype) {
++		default:
++			sysfatal("unknown TLS base location for %s", headstr(ctxt->headtype));
++
++		case Hlinux:
++		case Hnacl:
++			// ELF TLS base is 0(GS).
++			pp.from = p->from;
++			pp.from.type = D_INDIR+D_GS;
++			pp.from.offset = 0;
++			pp.from.index = D_NONE;
++			pp.from.scale = 0;
++			*ctxt->andptr++ = 0x65; // GS
++			*ctxt->andptr++ = 0x8B;
++			asmand(ctxt, &pp.from, reg[p->to.type]);
++			break;
++		
++		case Hplan9:
++			if(ctxt->plan9tos == nil)
++				ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
++			memset(&pp.from, 0, sizeof pp.from);
++			pp.from.type = D_EXTERN;
++			pp.from.sym = ctxt->plan9tos;
++			pp.from.offset = 0;
++			pp.from.index = D_NONE;
++			*ctxt->andptr++ = 0x8B;
++			asmand(ctxt, &pp.from, reg[p->to.type]);
++			break;
++
++		case Hwindows:
++			// Windows TLS base is always 0x14(FS).
++			pp.from = p->from;
++			pp.from.type = D_INDIR+D_FS;
++			pp.from.offset = 0x14;
++			pp.from.index = D_NONE;
++			pp.from.scale = 0;
++			*ctxt->andptr++ = 0x64; // FS
++			*ctxt->andptr++ = 0x8B;
++			asmand(ctxt, &pp.from, reg[p->to.type]);
++			break;
++		}
++		break;
+ 	}
+ }
+ 
+diff --git a/src/liblink/list6.c b/src/liblink/list6.c
+index eaf52f2e73..fe708d8774 100644
+--- a/src/liblink/list6.c
++++ b/src/liblink/list6.c
+@@ -341,6 +341,7 @@ char*	regstr[] =
+ 	"TR6",
+ 	"TR7",
+ 
++	"TLS",	/* [D_TLS] */
+ 	"NONE",	/* [D_NONE] */
+ };
+ 
+diff --git a/src/liblink/list8.c b/src/liblink/list8.c
+index c000ce25b0..7866924163 100644
+--- a/src/liblink/list8.c
++++ b/src/liblink/list8.c
+@@ -289,6 +289,7 @@ char*	regstr[] =
+ 	"X6",
+ 	"X7",
+ 
++	"TLS",	/* [D_TLS] */
+ 	"NONE",	/* [D_NONE] */
+ };
+ 
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index b4329e8862..fbb96c5e9e 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -99,6 +99,17 @@ settextflag(Prog *p, int f)
+ 
+ static void nacladdr(Link*, Prog*, Addr*);
+ 
++static int
++canuselocaltls(Link *ctxt)
++{
++	switch(ctxt->headtype) {
++//	case Hlinux:
++	case Hwindows:
++		return 0;
++	}
++	return 1;
++}
++
+ static void
+ progedit(Link *ctxt, Prog *p)
+ {
+@@ -106,105 +117,98 @@ progedit(Link *ctxt, Prog *p)
+ 	LSym *s;
+ 	Prog *q;
+ 
+-	if(ctxt->headtype == Hnacl) {
+-		nacladdr(ctxt, p, &p->from);
+-		nacladdr(ctxt, p, &p->to);
+-	}
+-
+-	if(p->from.type == D_INDIR+D_GS || p->from.index == D_GS)
+-		p->from.offset += ctxt->tlsoffset;
+-	if(p->to.type == D_INDIR+D_GS || p->to.index == D_GS)
+-		p->to.offset += ctxt->tlsoffset;
+-
+-	if(ctxt->gmsym == nil)
+-		ctxt->gmsym = linklookup(ctxt, "runtime.tlsgm", 0);
+-
+-	if(ctxt->headtype == Hwindows) { 
+-		// Windows
+-		// Convert
+-		//   op	  n(GS), reg
+-		// to
+-		//   MOVL 0x28(GS), reg
+-		//   op	  n(reg), reg
+-		// The purpose of this patch is to fix some accesses
+-		// to extern register variables (TLS) on Windows, as
+-		// a different method is used to access them.
+-		if(p->from.type == D_INDIR+D_GS
+-		&& p->to.type >= D_AX && p->to.type <= D_DI 
+-		&& p->from.offset <= 8) {
+-			q = appendp(ctxt, p);
+-			q->from = p->from;
+-			q->from.type = D_INDIR + p->to.type;
+-			q->to = p->to;
+-			q->as = p->as;
+-			p->as = AMOVQ;
+-			p->from.type = D_INDIR+D_GS;
+-			p->from.offset = 0x28;
+-		}
+-	}
+-	if(ctxt->headtype == Hlinux || ctxt->headtype == Hfreebsd
+-	|| ctxt->headtype == Hopenbsd || ctxt->headtype == Hnetbsd
+-	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly
+-	|| ctxt->headtype == Hsolaris) {
+-		// ELF uses FS instead of GS.
+-		if(p->from.type == D_INDIR+D_GS)
+-			p->from.type = D_INDIR+D_FS;
+-		if(p->to.type == D_INDIR+D_GS)
+-			p->to.type = D_INDIR+D_FS;
+-		if(p->from.index == D_GS)
+-			p->from.index = D_FS;
+-		if(p->to.index == D_GS)
+-			p->to.index = D_FS;
+-	}
+-	if(!ctxt->flag_shared) {
+-		// Convert g() or m() accesses of the form
+-		//   op n(reg)(GS*1), reg
+-		// to
+-		//   op n(GS*1), reg
+-		if(p->from.index == D_FS || p->from.index == D_GS) {
+-			p->from.type = D_INDIR + p->from.index;
++	// Thread-local storage references use the TLS pseudo-register.
++	// As a register, TLS refers to the thread-local storage base, and it
++	// can only be loaded into another register:
++	//
++	//         MOVQ TLS, AX
++	//
++	// An offset from the thread-local storage base is written off(reg)(TLS*1).
++	// Semantically it is off(reg), but the (TLS*1) annotation marks this as
++	// indexing from the loaded TLS base. This emits a relocation so that
++	// if the linker needs to adjust the offset, it can. For example:
++	//
++	//         MOVQ TLS, AX
++	//         MOVQ 8(AX)(TLS*1), CX // load m into CX
++	// 
++	// On systems that support direct access to the TLS memory, this
++	// pair of instructions can be reduced to a direct TLS memory reference:
++	// 
++	//         MOVQ 8(TLS), CX // load m into CX
++	//
++	// The 2-instruction and 1-instruction forms correspond roughly to
++	// ELF TLS initial exec mode and ELF TLS local exec mode, respectively.
++	// 
++	// We applies this rewrite on systems that support the 1-instruction form.
++	// The decision is made using only the operating system (and probably
++	// the -shared flag, eventually), not the link mode. If some link modes
++	// on a particular operating system require the 2-instruction form,
++	// then all builds for that operating system will use the 2-instruction
++	// form, so that the link mode decision can be delayed to link time.
++	//
++	// In this way, all supported systems use identical instructions to
++	// access TLS, and they are rewritten appropriately first here in
++	// liblink and then finally using relocations in the linker.
++
++	if(canuselocaltls(ctxt)) {
++		// Reduce TLS initial exec model to TLS local exec model.
++		// Sequences like
++		//	MOVQ TLS, BX
++		//	... off(BX)(TLS*1) ...
++		// become
++		//	NOP
++		//	... off(TLS) ...
++		//
++		// TODO(rsc): Remove the Hsolaris special case. It exists only to
++		// guarantee we are producing byte-identical binaries as before this code.
++		// But it should be unnecessary.
++		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == D_TLS && D_AX <= p->to.type && p->to.type <= D_R15 && ctxt->headtype != Hsolaris)
++			nopout(p);
++		if(p->from.index == D_TLS && D_INDIR+D_AX <= p->from.type && p->from.type <= D_INDIR+D_R15) {
++			p->from.type = D_INDIR+D_TLS;
++			p->from.scale = 0;
+ 			p->from.index = D_NONE;
+ 		}
+-		// Convert g() or m() accesses of the form
+-		//   op reg, n(reg)(GS*1)
+-		// to
+-		//   op reg, n(GS*1)
+-		if(p->to.index == D_FS || p->to.index == D_GS) {
+-			p->to.type = D_INDIR + p->to.index;
++		if(p->to.index == D_TLS && D_INDIR+D_AX <= p->to.type && p->to.type <= D_INDIR+D_R15) {
++			p->to.type = D_INDIR+D_TLS;
++			p->to.scale = 0;
+ 			p->to.index = D_NONE;
+ 		}
+-		// Convert get_tls access of the form
+-		//   op runtime.tlsgm(SB), reg
+-		// to
+-		//   NOP
+-		if(ctxt->gmsym != nil && p->from.sym == ctxt->gmsym) {
+-			p->as = ANOP;
+-			p->from.type = D_NONE;
+-			p->to.type = D_NONE;
+-			p->from.sym = nil;
+-			p->to.sym = nil;
+-		}
+ 	} else {
+-		// Convert TLS reads of the form
+-		//   op n(GS), reg
+-		// to
+-		//   MOVQ $runtime.tlsgm(SB), reg
+-		//   op n(reg)(GS*1), reg
+-		if((p->from.type == D_INDIR+D_FS || p->from.type == D_INDIR + D_GS) && p->to.type >= D_AX && p->to.type <= D_DI) {
++		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
++		// The instruction
++		//	MOVQ off(TLS), BX
++		// becomes the sequence
++		//	MOVQ TLS, BX
++		//	MOVQ off(BX)(TLS*1), BX
++		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
++		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == D_INDIR+D_TLS && D_AX <= p->to.type && p->to.type <= D_R15) {
+ 			q = appendp(ctxt, p);
+-			q->to = p->to;
+ 			q->as = p->as;
+-			q->from.type = D_INDIR+p->to.type;
+-			q->from.index = p->from.type - D_INDIR;
+-			q->from.scale = 1;
+-			q->from.offset = p->from.offset;
+-			p->as = AMOVQ;
+-			p->from.type = D_EXTERN;
+-			p->from.sym = ctxt->gmsym;
++			q->from = p->from;
++			q->from.type = D_INDIR + p->to.type;
++			q->from.index = D_TLS;
++			q->from.scale = 2; // TODO: use 1
++			q->to = p->to;
++			p->from.type = D_TLS;
++			p->from.index = D_NONE;
+ 			p->from.offset = 0;
+ 		}
+ 	}
+ 
++	// TODO: Remove.
++	if(ctxt->headtype == Hwindows || ctxt->headtype == Hplan9) {
++		if(p->from.scale == 1 && p->from.index == D_TLS)
++			p->from.scale = 2;
++		if(p->to.scale == 1 && p->to.index == D_TLS)
++			p->to.scale = 2;
++	}
++
++	if(ctxt->headtype == Hnacl) {
++		nacladdr(ctxt, p, &p->from);
++		nacladdr(ctxt, p, &p->to);
++	}
++
+ 	// Maintain information about code generation mode.
+ 	if(ctxt->mode == 0)
+ 		ctxt->mode = 64;
+@@ -315,9 +319,9 @@ nacladdr(Link *ctxt, Prog *p, Addr *a)
+ 		ctxt->diag("invalid address: %P", p);
+ 		return;
+ 	}
+-	if(a->type == D_INDIR+D_GS)
++	if(a->type == D_INDIR+D_TLS)
+ 		a->type = D_INDIR+D_BP;
+-	else if(a->type == D_GS)
++	else if(a->type == D_TLS)
+ 		a->type = D_BP;
+ 	if(D_INDIR <= a->type && a->type <= D_INDIR+D_INDIR) {
+ 		switch(a->type) {
+@@ -632,48 +636,24 @@ indir_cx(Link *ctxt, Addr *a)
+ // Returns last new instruction.
+ static Prog*
+ load_g_cx(Link *ctxt, Prog *p)
+-{
+-	if(ctxt->flag_shared) {
+-		// Load TLS offset with MOVQ $runtime.tlsgm(SB), CX
+-		p->as = AMOVQ;
+-		p->from.type = D_EXTERN;
+-		p->from.sym = ctxt->gmsym;
+-		p->to.type = D_CX;
+-		p = appendp(ctxt, p);
+-	}
++{	
++	Prog *next;
++
+ 	p->as = AMOVQ;
+-	if(ctxt->headtype == Hlinux || ctxt->headtype == Hfreebsd
+-	|| ctxt->headtype == Hopenbsd || ctxt->headtype == Hnetbsd
+-	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly
+-	|| ctxt->headtype == Hsolaris)
+-		// ELF uses FS
+-		p->from.type = D_INDIR+D_FS;
+-	else if(ctxt->headtype == Hnacl) {
++	if(ctxt->arch->ptrsize == 4)
+ 		p->as = AMOVL;
+-		p->from.type = D_INDIR+D_BP;
+-	} else
+-		p->from.type = D_INDIR+D_GS;
+-	if(ctxt->flag_shared) {
+-		// Add TLS offset stored in CX
+-		p->from.index = p->from.type - D_INDIR;
+-		indir_cx(ctxt, &p->from);
+-	}
+-	p->from.offset = ctxt->tlsoffset+0;
++	p->from.type = D_INDIR+D_TLS;
++	p->from.offset = 0;
+ 	p->to.type = D_CX;
+-	if(ctxt->headtype == Hwindows) {
+-		// movq %gs:0x28, %rcx
+-		// movq (%rcx), %rcx
+-		p->as = AMOVQ;
+-		p->from.type = D_INDIR+D_GS;
+-		p->from.offset = 0x28;
+-		p->to.type = D_CX;
++	
++	next = p->link;
++	progedit(ctxt, p);
++	while(p->link != next)
++		p = p->link;
++	
++	if(p->from.index == D_TLS)
++		p->from.scale = 2;
+ 
+-		p = appendp(ctxt, p);
+-		p->as = AMOVQ;
+-		indir_cx(ctxt, &p->from);
+-		p->from.offset = 0;
+-		p->to.type = D_CX;
+-	}
+ 	return p;
+ }
+ 
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index d36db84705..72934c1499 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -91,80 +91,80 @@ settextflag(Prog *p, int f)
+ 	p->from.scale = f;
+ }
+ 
++static int
++canuselocaltls(Link *ctxt)
++{
++	switch(ctxt->headtype) {
++	case Hlinux:
++	case Hnacl:
++	case Hplan9:
++	case Hwindows:
++		return 0;
++	}
++	return 1;
++}
++
+ static void
+ progedit(Link *ctxt, Prog *p)
+ {
+-	Prog *q;
+ 	char literal[64];
+ 	LSym *s;
+-
+-	if(p->from.type == D_INDIR+D_GS)
+-		p->from.offset += ctxt->tlsoffset;
+-	if(p->to.type == D_INDIR+D_GS)
+-		p->to.offset += ctxt->tlsoffset;
+-
+-	if(ctxt->headtype == Hwindows) {
+-		// Convert
+-		//   op	  n(GS), reg
+-		// to
+-		//   MOVL 0x14(FS), reg
+-		//   op	  n(reg), reg
+-		// The purpose of this patch is to fix some accesses
+-		// to extern register variables (TLS) on Windows, as
+-		// a different method is used to access them.
+-		if(p->from.type == D_INDIR+D_GS
+-		&& p->to.type >= D_AX && p->to.type <= D_DI) {
+-			q = appendp(ctxt, p);
+-			q->from = p->from;
+-			q->from.type = D_INDIR + p->to.type;
+-			q->to = p->to;
+-			q->as = p->as;
+-			p->as = AMOVL;
+-			p->from.type = D_INDIR+D_FS;
+-			p->from.offset = 0x14;
++	Prog *q;
++	
++	// See obj6.c for discussion of TLS.
++	if(canuselocaltls(ctxt)) {
++		// Reduce TLS initial exec model to TLS local exec model.
++		// Sequences like
++		//	MOVL TLS, BX
++		//	... off(BX)(TLS*1) ...
++		// become
++		//	NOP
++		//	... off(TLS) ...
++		if(p->as == AMOVL && p->from.type == D_TLS && D_AX <= p->to.type && p->to.type <= D_DI) {
++			p->as = ANOP;
++			p->from.type = D_NONE;
++			p->to.type = D_NONE;
+ 		}
+-	}
+-	if(ctxt->headtype == Hlinux || ctxt->headtype == Hnacl) {
+-		// Running binaries under Xen requires using
+-		//	MOVL 0(GS), reg
+-		// and then off(reg) instead of saying off(GS) directly
+-		// when the offset is negative.
+-		// In external mode we just produce a reloc.
+-		if(p->from.type == D_INDIR+D_GS && p->from.offset < 0
+-		&& p->to.type >= D_AX && p->to.type <= D_DI) {
+-			if(ctxt->linkmode != LinkExternal) {
+-				q = appendp(ctxt, p);
+-				q->from = p->from;
+-				q->from.type = D_INDIR + p->to.type;
+-				q->to = p->to;
+-				q->as = p->as;
+-				p->as = AMOVL;
+-				p->from.type = D_INDIR+D_GS;
+-				p->from.offset = 0;
+-			} else {
+-				// Add signals to relocate.
+-				p->from.index = D_GS;
+-				p->from.scale = 1;
+-			}
++		if(p->from.index == D_TLS && D_INDIR+D_AX <= p->from.type && p->from.type <= D_INDIR+D_DI) {
++			p->from.type = D_INDIR+D_TLS;
++			p->from.scale = 0;
++			p->from.index = D_NONE;
+ 		}
+-	}
+-	if(ctxt->headtype == Hplan9) {
+-		if(p->from.type == D_INDIR+D_GS
+-		&& p->to.type >= D_AX && p->to.type <= D_DI) {
+-			if(ctxt->plan9tos == nil)
+-				ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
++		if(p->to.index == D_TLS && D_INDIR+D_AX <= p->to.type && p->to.type <= D_INDIR+D_DI) {
++			p->to.type = D_INDIR+D_TLS;
++			p->to.scale = 0;
++			p->to.index = D_NONE;
++		}
++	} else {
++		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
++		// The instruction
++		//	MOVL off(TLS), BX
++		// becomes the sequence
++		//	MOVL TLS, BX
++		//	MOVL off(BX)(TLS*1), BX
++		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
++		if(p->as == AMOVL && p->from.type == D_INDIR+D_TLS && D_AX <= p->to.type && p->to.type <= D_DI) {
+ 			q = appendp(ctxt, p);
++			q->as = p->as;
+ 			q->from = p->from;
+ 			q->from.type = D_INDIR + p->to.type;
++			q->from.index = D_TLS;
++			q->from.scale = 2; // TODO: use 1
+ 			q->to = p->to;
+-			q->as = p->as;
+-			p->as = AMOVL;
+-			p->from.type = D_EXTERN;
+-			p->from.sym = ctxt->plan9tos;
++			p->from.type = D_TLS;
++			p->from.index = D_NONE;
+ 			p->from.offset = 0;
+ 		}
+ 	}
+ 
++	// TODO: Remove.
++	if(ctxt->headtype == Hplan9) {
++		if(p->from.scale == 1 && p->from.index == D_TLS)
++			p->from.scale = 2;
++		if(p->to.scale == 1 && p->to.index == D_TLS)
++			p->to.scale = 2;
++	}
++
+ 	// Rewrite CALL/JMP/RET to symbol as D_BRANCH.
+ 	switch(p->as) {
+ 	case ACALL:
+@@ -435,62 +435,21 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ static Prog*
+ load_g_cx(Link *ctxt, Prog *p)
+ {
+-	switch(ctxt->headtype) {
+-	case Hwindows:
+-		p->as = AMOVL;
+-		p->from.type = D_INDIR+D_FS;
+-		p->from.offset = 0x14;
+-		p->to.type = D_CX;
++	Prog *next;
+ 
+-		p = appendp(ctxt, p);
+-		p->as = AMOVL;
+-		p->from.type = D_INDIR+D_CX;
+-		p->from.offset = 0;
+-		p->to.type = D_CX;
+-		break;
++	p->as = AMOVL;
++	p->from.type = D_INDIR+D_TLS;
++	p->from.offset = 0;
++	p->to.type = D_CX;
++
++	next = p->link;
++	progedit(ctxt, p);
++	while(p->link != next)
++		p = p->link;
+ 	
+-	case Hlinux:
+-	case Hnacl:
+-		if(ctxt->linkmode != LinkExternal) {
+-			p->as = AMOVL;
+-			p->from.type = D_INDIR+D_GS;
+-			p->from.offset = 0;
+-			p->to.type = D_CX;
++	if(p->from.index == D_TLS)
++		p->from.scale = 2;
+ 
+-			p = appendp(ctxt, p);
+-			p->as = AMOVL;
+-			p->from.type = D_INDIR+D_CX;
+-			p->from.offset = ctxt->tlsoffset + 0;
+-			p->to.type = D_CX;
+-		} else {
+-			p->as = AMOVL;
+-			p->from.type = D_INDIR+D_GS;
+-			p->from.offset = ctxt->tlsoffset + 0;
+-			p->to.type = D_CX;
+-			p->from.index = D_GS;
+-			p->from.scale = 1;
+-		}
+-		break;
+-	
+-	case Hplan9:
+-		p->as = AMOVL;
+-		p->from.type = D_EXTERN;
+-		p->from.sym = ctxt->plan9tos;
+-		p->to.type = D_CX;
+-		
+-		p = appendp(ctxt, p);
+-		p->as = AMOVL;
+-		p->from.type = D_INDIR+D_CX;
+-		p->from.offset = ctxt->tlsoffset + 0;
+-		p->to.type = D_CX;				
+-		break;
+-	
+-	default:
+-		p->as = AMOVL;
+-		p->from.type = D_INDIR+D_GS;
+-		p->from.offset = ctxt->tlsoffset + 0;
+-		p->to.type = D_CX;
+-	}
+ 	return p;
+ }
+ 
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 2b11add3b6..c7700cc25c 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -274,6 +274,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
+ 	Pcln *pc;
+ 	Prog *p;
+ 	Auto *a;
++	char *name;
+ 
+ 	if(ctxt->debugasm) {
+ 		Bprint(ctxt->bso, "%s ", s->name);
+@@ -308,7 +309,10 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
+ 		}
+ 		for(i=0; i<s->nr; i++) {
+ 			r = &s->r[i];
+-			Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, r->sym->name, (vlong)r->add);
++			name = "";
++			if(r->sym != nil)
++				name = r->sym->name;
++			Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, name, (vlong)r->add);
+ 		}
+ 	}
+ 
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index 3990f7200e..29fc036bcb 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -118,6 +118,7 @@ linknew(LinkArch *arch)
+ 		sysfatal("unknown goos %s", getgoos());
+ 	
+ 	// Record thread-local storage offset.
++	// TODO(rsc): Move tlsoffset back into the linker.
+ 	switch(ctxt->headtype) {
+ 	default:
+ 		sysfatal("unknown thread-local storage offset for %s", headstr(ctxt->headtype));
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 27efc8a31c..864b681f4a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -99,10 +99,10 @@ typedef	struct	DebugVars	DebugVars;
+  *
+  * "extern register" is a special storage class implemented by 6c, 8c, etc.
+  * On the ARM, it is an actual register; elsewhere it is a slot in thread-
+- * local storage indexed by a segment register. See zasmhdr in
++ * local storage indexed by a pseudo-register TLS. See zasmhdr in
+  * src/cmd/dist/buildruntime.c for details, and be aware that the linker may
+  * make further OS-specific changes to the compiler's output. For example,
+- * 6l/linux rewrites 0(GS) as -16(FS).
++ * 6l/linux rewrites 0(TLS) as -16(FS).
+  *
+  * Every C file linked into a Go program must include runtime.h so that the
+  * C compiler (6c, 8c, etc.) knows to avoid other uses of these dedicated
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index c2a259e5b1..bfaaa00a7e 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -457,8 +457,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
+ 	 * we use its pthread_create and let it set up %gs
+ 	 * for us.  When we do that, the private storage
+ 	 * we get is not at 0(GS) but at 0x468(GS).
+-	 * To insulate the rest of the tool chain from this ugliness,
+-	 * 8l rewrites 0(GS) into 0x468(GS) for us.
++	 * 8l rewrites 0(TLS) into 0x468(GS) for us.
+ 	 * To accommodate that rewrite, we translate the
+ 	 * address and limit here so that 0x468(GS) maps to 0(address).
+ 	 *
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index cdd729957c..b7896f1786 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -383,7 +383,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
+ 	 * for us.  When we do that, the private storage
+ 	 * we get is not at 0(GS), 4(GS), but -8(GS), -4(GS).
+ 	 * To insulate the rest of the tool chain from this
+-	 * ugliness, 8l rewrites 0(GS) into -8(GS) for us.
++	 * ugliness, 8l rewrites 0(TLS) into -8(GS) for us.
+ 	 * To accommodate that rewrite, we translate
+ 	 * the address here and bump the limit to 0xffffffff (no limit)
+ 	 * so that -8(GS) maps to 0(address).
+diff --git a/src/pkg/runtime/sys_nacl_amd64p32.s b/src/pkg/runtime/sys_nacl_amd64p32.s
+index 377e1653f0..43c1723721 100644
+--- a/src/pkg/runtime/sys_nacl_amd64p32.s
++++ b/src/pkg/runtime/sys_nacl_amd64p32.s
+@@ -13,7 +13,7 @@
+ 	MOVL $(0x10000 + ((code)<<5)), AX; JMP AX
+ 
+ TEXT runtime·settls(SB),NOSPLIT,$0
+-	MOVL	DI, GS // really BP
++	MOVL	DI, TLS // really BP
+ 	RET
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0
+@@ -173,7 +173,7 @@ TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
+ TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
+ 	NACL_SYSCALL(SYS_tls_get)
+ 	SUBL	$8, AX
+-	MOVL	AX, GS
++	MOVL	AX, TLS
+ 	JMP runtime·mstart(SB)
+ 
+ TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
+@@ -254,12 +254,12 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$80
+ 	// restore TLS register at time of execution,
+ 	// in case it's been smashed.
+ 	// the TLS register is really BP, but for consistency
+-	// with non-NaCl systems it is referred to here as GS.
++	// with non-NaCl systems it is referred to here as TLS.
+ 	// NOTE: Cannot use SYS_tls_get here (like we do in mstart_nacl),
+ 	// because the main thread never calls tls_set.
+ 	LEAL ctxt+0(FP), AX
+ 	MOVL (16*4+5*8)(AX), AX
+-	MOVL	AX, GS
++	MOVL	AX, TLS
+ 
+ 	// check that m exists
+ 	get_tls(CX)
+@@ -305,7 +305,7 @@ sigtramp_ret:
+ 	MOVQ	16(SI), DX
+ 	MOVQ	24(SI), BX
+ 	MOVL	32(SI), SP	// MOVL for SP sandboxing
+-	// 40(SI) is saved BP aka GS, already restored above
++	// 40(SI) is saved BP aka TLS, already restored above
+ 	// 48(SI) is saved SI, never to be seen again
+ 	MOVQ	56(SI), DI
+ 	MOVQ	64(SI), R8
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index 2513af9cba..143cd2e498 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -100,8 +100,9 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	MOVL	DX, g(AX)
+ 	MOVL	BX, m(AX)
+ 
+-	// Initialize AX from TOS struct.
+-	MOVL	procid(AX), AX
++	// Initialize procid from TOS struct.
++	// TODO: Be explicit and insert a new MOVL _tos(SB), AX here.
++	MOVL	48(AX), AX // procid
+ 	MOVL	AX, m_procid(BX)	// save pid as m->procid
+ 	
+ 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index d6702e865f..e60459cb8e 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -136,7 +136,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	MOVQ	BX, m(AX)
+ 
+ 	// Initialize AX from pid in TLS.
+-	MOVQ	procid(AX), AX
++	MOVQ	0(FS), AX
+ 	MOVQ	AX, m_procid(BX)	// save pid as m->procid
+ 	
+ 	CALL	runtime·stackcheck(SB)	// smashes AX, CX

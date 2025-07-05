@@ -7,6 +7,37 @@ Date:   Wed Dec 14 08:08:49 2011 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/5487064
-
+---
  src/pkg/archive/tar/reader_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 5829d03faa..0a6513d0ca 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
+-	"reflect"
+ 	"testing"
+ 	"time"
+ )
+@@ -127,7 +126,7 @@ testLoop:
+ 				f.Close()
+ 				continue testLoop
+ 			}
+-			if !reflect.DeepEqual(hdr, header) {
++			if *hdr != *header {
+ 				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
+ 					i, j, *hdr, *header)
+ 			}
+@@ -201,7 +200,7 @@ func TestIncrementalRead(t *testing.T) {
+ 		}
+ 
+ 		// check the header
+-		if !reflect.DeepEqual(hdr, headers[nread]) {
++		if *hdr != *headers[nread] {
+ 			t.Errorf("Incorrect header:\nhave %+v\nwant %+v",
+ 				*hdr, headers[nread])
+ 		}

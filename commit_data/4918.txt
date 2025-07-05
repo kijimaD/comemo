@@ -7,6 +7,26 @@ Date:   Mon Feb 22 14:46:59 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/217059
-
+---
  src/pkg/http/client.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 8af6c761f6..8c2c30124f 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -137,11 +137,13 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
+ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Error) {
+ 	var req Request
+ 	req.Method = "POST"
++	req.ProtoMajor = 1
++	req.ProtoMinor = 1
+ 	req.Body = nopCloser{body}
+ 	req.Header = map[string]string{
+ 		"Content-Type": bodyType,
+-		"Transfer-Encoding": "chunked",
+ 	}
++	req.TransferEncoding = []string{"chunked"}
+ 
+ 	req.URL, err = ParseURL(url)
+ 	if err != nil {

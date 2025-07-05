@@ -7,7 +7,130 @@ Date:   Fri Mar 27 18:05:13 2015 +1100
     Change-Id: I3621527c924a43724032f80a072505c60d929ab3
     Reviewed-on: https://go-review.googlesource.com/8180
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/color/ycbcr.go      | 20 +++++++++------
  src/image/color/ycbcr_test.go | 58 +++++++++++++++++++++++++++++++++++++------
  2 files changed, 63 insertions(+), 15 deletions(-)
+
+diff --git a/src/image/color/ycbcr.go b/src/image/color/ycbcr.go
+index bbaaf7e188..f8c1326b3c 100644
+--- a/src/image/color/ycbcr.go
++++ b/src/image/color/ycbcr.go
+@@ -158,11 +158,11 @@ func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
+ 
+ // CMYKToRGB converts a CMYK quadruple to an RGB triple.
+ func CMYKToRGB(c, m, y, k uint8) (uint8, uint8, uint8) {
+-	w := uint32(0xff - k)
+-	r := uint32(0xff-c) * w / 0xff
+-	g := uint32(0xff-m) * w / 0xff
+-	b := uint32(0xff-y) * w / 0xff
+-	return uint8(r), uint8(g), uint8(b)
++	w := uint32(0xffff - uint32(k)*0x101)
++	r := uint32(0xffff-uint32(c)*0x101) * w / 0xffff
++	g := uint32(0xffff-uint32(m)*0x101) * w / 0xffff
++	b := uint32(0xffff-uint32(y)*0x101) * w / 0xffff
++	return uint8(r >> 8), uint8(g >> 8), uint8(b >> 8)
+ }
+ 
+ // CMYK represents a fully opaque CMYK color, having 8 bits for each of cyan,
+@@ -174,8 +174,14 @@ type CMYK struct {
+ }
+ 
+ func (c CMYK) RGBA() (uint32, uint32, uint32, uint32) {
+-	r, g, b := CMYKToRGB(c.C, c.M, c.Y, c.K)
+-	return uint32(r) * 0x101, uint32(g) * 0x101, uint32(b) * 0x101, 0xffff
++	// This code is a copy of the CMYKToRGB function above, except that it
++	// returns values in the range [0, 0xffff] instead of [0, 0xff].
++
++	w := uint32(0xffff - uint32(c.K)*0x101)
++	r := uint32(0xffff-uint32(c.C)*0x101) * w / 0xffff
++	g := uint32(0xffff-uint32(c.M)*0x101) * w / 0xffff
++	b := uint32(0xffff-uint32(c.Y)*0x101) * w / 0xffff
++	return uint32(r), uint32(g), uint32(b), 0xffff
+ }
+ 
+ // CMYKModel is the Model for CMYK colors.
+diff --git a/src/image/color/ycbcr_test.go b/src/image/color/ycbcr_test.go
+index 94c23dd9ea..124f6ca247 100644
+--- a/src/image/color/ycbcr_test.go
++++ b/src/image/color/ycbcr_test.go
+@@ -18,14 +18,34 @@ func delta(x, y uint8) uint8 {
+ // TestYCbCrRoundtrip tests that a subset of RGB space can be converted to YCbCr
+ // and back to within 1/256 tolerance.
+ func TestYCbCrRoundtrip(t *testing.T) {
+-	for r := 0; r < 255; r += 7 {
+-		for g := 0; g < 255; g += 5 {
+-			for b := 0; b < 255; b += 3 {
++	for r := 0; r < 256; r += 7 {
++		for g := 0; g < 256; g += 5 {
++			for b := 0; b < 256; b += 3 {
+ 				r0, g0, b0 := uint8(r), uint8(g), uint8(b)
+ 				y, cb, cr := RGBToYCbCr(r0, g0, b0)
+ 				r1, g1, b1 := YCbCrToRGB(y, cb, cr)
+ 				if delta(r0, r1) > 1 || delta(g0, g1) > 1 || delta(b0, b1) > 1 {
+-					t.Fatalf("r0, g0, b0 = %d, %d, %d   r1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
++					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\nr1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
++				}
++			}
++		}
++	}
++}
++
++// TestYCbCrToRGBConsistency tests that calling the RGBA method (16 bit color)
++// then truncating to 8 bits is equivalent to calling the YCbCrToRGB function (8
++// bit color).
++func TestYCbCrToRGBConsistency(t *testing.T) {
++	for y := 0; y < 256; y += 7 {
++		for cb := 0; cb < 256; cb += 5 {
++			for cr := 0; cr < 256; cr += 3 {
++				x := YCbCr{uint8(y), uint8(cb), uint8(cr)}
++				r0, g0, b0, _ := x.RGBA()
++				r1, g1, b1 := uint8(r0>>8), uint8(g0>>8), uint8(b0>>8)
++				r2, g2, b2 := YCbCrToRGB(x.Y, x.Cb, x.Cr)
++				if r1 != r2 || g1 != g2 || b1 != b2 {
++					t.Fatalf("y, cb, cr = %d, %d, %d\nr1, g1, b1 = %d, %d, %d\nr2, g2, b2 = %d, %d, %d",
++						y, cb, cr, r1, g1, b1, r2, g2, b2)
+ 				}
+ 			}
+ 		}
+@@ -35,14 +55,36 @@ func TestYCbCrRoundtrip(t *testing.T) {
+ // TestCMYKRoundtrip tests that a subset of RGB space can be converted to CMYK
+ // and back to within 1/256 tolerance.
+ func TestCMYKRoundtrip(t *testing.T) {
+-	for r := 0; r < 255; r += 7 {
+-		for g := 0; g < 255; g += 5 {
+-			for b := 0; b < 255; b += 3 {
++	for r := 0; r < 256; r += 7 {
++		for g := 0; g < 256; g += 5 {
++			for b := 0; b < 256; b += 3 {
+ 				r0, g0, b0 := uint8(r), uint8(g), uint8(b)
+ 				c, m, y, k := RGBToCMYK(r0, g0, b0)
+ 				r1, g1, b1 := CMYKToRGB(c, m, y, k)
+ 				if delta(r0, r1) > 1 || delta(g0, g1) > 1 || delta(b0, b1) > 1 {
+-					t.Fatalf("r0, g0, b0 = %d, %d, %d   r1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
++					t.Fatalf("\nr0, g0, b0 = %d, %d, %d\nr1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
++				}
++			}
++		}
++	}
++}
++
++// TestCMYKToRGBConsistency tests that calling the RGBA method (16 bit color)
++// then truncating to 8 bits is equivalent to calling the CMYKToRGB function (8
++// bit color).
++func TestCMYKToRGBConsistency(t *testing.T) {
++	for c := 0; c < 256; c += 7 {
++		for m := 0; m < 256; m += 5 {
++			for y := 0; y < 256; y += 3 {
++				for k := 0; k < 256; k += 11 {
++					x := CMYK{uint8(c), uint8(m), uint8(y), uint8(k)}
++					r0, g0, b0, _ := x.RGBA()
++					r1, g1, b1 := uint8(r0>>8), uint8(g0>>8), uint8(b0>>8)
++					r2, g2, b2 := CMYKToRGB(x.C, x.M, x.Y, x.K)
++					if r1 != r2 || g1 != g2 || b1 != b2 {
++						t.Fatalf("c, m, y, k = %d, %d, %d, %d\nr1, g1, b1 = %d, %d, %d\nr2, g2, b2 = %d, %d, %d",
++							c, m, y, k, r1, g1, b1, r2, g2, b2)
++					}
+ 				}
+ 			}
+ 		}

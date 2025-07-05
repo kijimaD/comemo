@@ -10,6 +10,41 @@ Date:   Wed Sep 29 13:09:34 2021 +0200
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Julie Qiu <julie@golang.org>
-
+---
  src/crypto/crypto.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/crypto/crypto.go b/src/crypto/crypto.go
+index ce473b5afe..cb87972afc 100644
+--- a/src/crypto/crypto.go
++++ b/src/crypto/crypto.go
+@@ -150,9 +150,29 @@ func RegisterHash(h Hash, f func() hash.Hash) {
+ }
+ 
+ // PublicKey represents a public key using an unspecified algorithm.
++//
++// Although this type is an empty interface for backwards compatibility reasons,
++// all public key types in the standard library implement the following interface
++//
++//     interface{
++//         Equal(x crypto.PublicKey) bool
++//     }
++//
++// which can be used for increased type safety within applications.
+ type PublicKey interface{}
+ 
+ // PrivateKey represents a private key using an unspecified algorithm.
++//
++// Although this type is an empty interface for backwards compatibility reasons,
++// all private key types in the standard library implement the following interface
++//
++//     interface{
++//         Public() crypto.PublicKey
++//         Equal(x crypto.PrivateKey) bool
++//     }
++//
++// as well as purpose-specific interfaces such as Signer and Decrypter, which
++// can be used for increased type safety within applications.
+ type PrivateKey interface{}
+ 
+ // Signer is an interface for an opaque private key that can be used for

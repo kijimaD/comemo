@@ -16,6 +16,36 @@ Date:   Thu Aug 6 13:44:37 2015 -0400
     Change-Id: I034671936334b4f3ab733614ef239aa121d20247
     Reviewed-on: https://go-review.googlesource.com/13321
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/proc1.go | 18 +++++++++++++++++-
  1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 23beaf537c..09cb775f0d 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1348,7 +1348,23 @@ func execute(gp *g, inheritTime bool) {
+ 		// GoSysExit has to happen when we have a P, but before GoStart.
+ 		// So we emit it here.
+ 		if gp.syscallsp != 0 && gp.sysblocktraced {
+-			traceGoSysExit(gp.sysexitseq, gp.sysexitticks)
++			// Since gp.sysblocktraced is true, we must emit an event.
++			// There is a race between the code that initializes sysexitseq
++			// and sysexitticks (in exitsyscall, which runs without a P,
++			// and therefore is not stopped with the rest of the world)
++			// and the code that initializes a new trace.
++			// The recorded sysexitseq and sysexitticks must therefore
++			// be treated as "best effort". If they are valid for this trace,
++			// then great, use them for greater accuracy.
++			// But if they're not valid for this trace, assume that the
++			// trace was started after the actual syscall exit (but before
++			// we actually managed to start the goroutine, aka right now),
++			// and assign a fresh time stamp to keep the log consistent.
++			seq, ts := gp.sysexitseq, gp.sysexitticks
++			if seq == 0 || int64(seq)-int64(trace.seqStart) < 0 {
++				seq, ts = tracestamp()
++			}
++			traceGoSysExit(seq, ts)
+ 		}
+ 		traceGoStart()
+ 	}

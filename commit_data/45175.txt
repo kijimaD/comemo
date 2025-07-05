@@ -10,6 +10,20 @@ Date:   Sun Oct 11 03:44:09 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/261317
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 44bea2b1fd..839c2c2c75 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -96,7 +96,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
+ 	return n
+ }
+ 
+-// pkgtype returns the named type declared by symbol s.
++// importtype returns the named type declared by symbol s.
+ // If no such type has been declared yet, a forward declaration is returned.
+ // ipkg is the package being imported
+ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {

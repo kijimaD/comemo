@@ -15,6 +15,20 @@ Date:   Sun Jun 19 22:57:10 2022 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.19.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 4495c1d3e0..b323b0d182 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -35,7 +35,7 @@ Do not send CLs removing the interior tags from such phrases.
+   the memory model used by C, C++, Java, JavaScript, Rust, and Swift.
+   Go only provides sequentially consistent atomics, not any of the more relaxed forms found in other languages.
+   Along with the memory model update,
+-  Go 1.19 introduces <a href="#sync/atomic">new types in the <code>sync/atomic</code> package</a>
++  Go 1.19 introduces <a href="#atomic_types">new types in the <code>sync/atomic</code> package</a>
+   that make it easier to use atomic values, such as
+   <a href="/pkg/sync/atomic/#Int64">atomic.Int64</a>
+   and

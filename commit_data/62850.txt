@@ -39,6 +39,22 @@ Date:   Tue Apr 15 21:17:20 2025 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/internal/fips140/sha512/sha512block_riscv64.s | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/sha512/sha512block_riscv64.s b/src/crypto/internal/fips140/sha512/sha512block_riscv64.s
+index 2b156271e6..f25ed62237 100644
+--- a/src/crypto/internal/fips140/sha512/sha512block_riscv64.s
++++ b/src/crypto/internal/fips140/sha512/sha512block_riscv64.s
+@@ -138,9 +138,8 @@
+ #define SHA512ROUND(index, a, b, c, d, e, f, g, h) \
+ 	SHA512T1(index, e, f, g, h); \
+ 	SHA512T2(a, b, c); \
+-	MOV	X6, h; \
+ 	ADD	X5, d; \
+-	ADD	X5, h
++	ADD	X6, X5, h
+ 
+ #define SHA512ROUND0(index, a, b, c, d, e, f, g, h) \
+ 	MSGSCHEDULE0(index); \

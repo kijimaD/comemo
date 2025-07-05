@@ -7,8 +7,62 @@ Date:   Mon Jul 25 13:39:01 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4742042
-
+---
  include/libc.h       | 8 ++++++--
  src/lib9/fmt/dofmt.c | 2 +-
  src/libmach/5.c      | 2 +-
  3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index a91039dbf7..03e247ff67 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -292,16 +292,20 @@ extern	char*	getgoroot(void);
+ extern	char*	getgoversion(void);
+ 
+ #ifdef _WIN32
++
++#ifndef _WIN64
+ struct timespec {
+ 	int tv_sec;
+ 	long tv_nsec;
+ };
++#define execv(prog, argv) execv(prog, (const char* const*)(argv))
++#define execvp(prog, argv) execvp(prog, (const char**)(argv))
++#endif
++
+ extern int nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
+ extern int fork(void);
+ extern int pread(int fd, void *buf, int n, int off);
+ extern int pwrite(int fd, void *buf, int n, int off);
+-#define execv(prog, argv) execv(prog, (const char* const*)(argv))
+-#define execvp(prog, argv) execvp(prog, (const char**)(argv))
+ #define lseek(fd, n, base) _lseeki64(fd, n, base)
+ #define mkdir(path, perm) mkdir(path)
+ #define pipe(fd) _pipe(fd, 512, O_BINARY)
+diff --git a/src/lib9/fmt/dofmt.c b/src/lib9/fmt/dofmt.c
+index 51f0f079b7..cc6ab92254 100644
+--- a/src/lib9/fmt/dofmt.c
++++ b/src/lib9/fmt/dofmt.c
+@@ -369,7 +369,7 @@ __ifmt(Fmt *f)
+ 	}
+ #endif
+ 	if(f->r == 'p'){
+-		u = (ulong)va_arg(f->args, void*);
++		u = (uintptr)va_arg(f->args, void*);
+ 		f->r = 'x';
+ 		fl |= FmtUnsigned;
+ 	}else if(fl & FmtVLong){
+diff --git a/src/libmach/5.c b/src/libmach/5.c
+index 67bd88db4c..9882c1acdc 100644
+--- a/src/libmach/5.c
++++ b/src/libmach/5.c
+@@ -35,7 +35,7 @@
+ #include "ureg_arm.h"
+ #include <mach.h>
+ 
+-#define	REGOFF(x)	(ulong) (&((struct Ureg *) 0)->x)
++#define	REGOFF(x)	(uintptr) (&((struct Ureg *) 0)->x)
+ 
+ #define SP		REGOFF(r13)
+ #define PC		REGOFF(pc)

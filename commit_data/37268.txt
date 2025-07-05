@@ -21,8 +21,57 @@ Date:   Sat Jul 14 17:18:45 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/issue24161e0/main.go | 3 ++-
  misc/cgo/test/issue24161e1/main.go | 3 ++-
  misc/cgo/test/issue24161e2/main.go | 3 ++-
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/issue24161e0/main.go b/misc/cgo/test/issue24161e0/main.go
+index 4e2e4b01d3..72985b6c77 100644
+--- a/misc/cgo/test/issue24161e0/main.go
++++ b/misc/cgo/test/issue24161e0/main.go
+@@ -9,9 +9,10 @@ package issue24161e0
+ /*
+ #cgo CFLAGS: -x objective-c
+ #cgo LDFLAGS: -framework CoreFoundation -framework Security
++#include <TargetConditionals.h>
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
+-#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++#if TARGET_OS_OSX && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
+   typedef CFStringRef SecKeyAlgorithm;
+   static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
+   #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()
+diff --git a/misc/cgo/test/issue24161e1/main.go b/misc/cgo/test/issue24161e1/main.go
+index 3e2aba2742..8a31e22397 100644
+--- a/misc/cgo/test/issue24161e1/main.go
++++ b/misc/cgo/test/issue24161e1/main.go
+@@ -9,9 +9,10 @@ package issue24161e1
+ /*
+ #cgo CFLAGS: -x objective-c
+ #cgo LDFLAGS: -framework CoreFoundation -framework Security
++#include <TargetConditionals.h>
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
+-#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++#if TARGET_OS_OSX && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
+   typedef CFStringRef SecKeyAlgorithm;
+   static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
+   #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()
+diff --git a/misc/cgo/test/issue24161e2/main.go b/misc/cgo/test/issue24161e2/main.go
+index 9e4053eba5..f4e0def8c0 100644
+--- a/misc/cgo/test/issue24161e2/main.go
++++ b/misc/cgo/test/issue24161e2/main.go
+@@ -9,9 +9,10 @@ package issue24161e2
+ /*
+ #cgo CFLAGS: -x objective-c
+ #cgo LDFLAGS: -framework CoreFoundation -framework Security
++#include <TargetConditionals.h>
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
+-#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++#if TARGET_OS_OSX && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
+   typedef CFStringRef SecKeyAlgorithm;
+   static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
+   #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()

@@ -12,7 +12,7 @@ Date:   Tue Jun 9 20:51:53 2009 -0700
     DELTA=98  (66 added, 10 deleted, 22 changed)
     OCL=30103
     CL=30123
-
+---
  src/cmd/5a/lex.c    |  5 ++++
  src/cmd/5c/swt.c    |  4 +++
  src/cmd/5l/5.out.h  |  2 ++
@@ -22,3 +22,414 @@ Date:   Tue Jun 9 20:51:53 2009 -0700
  src/cmd/5l/obj.c    | 84 ++++++++++++++++++++++++++++++++++-------------------
  src/cmd/5l/pass.c   |  3 +-
  8 files changed, 92 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index fc17b9770f..2184cdccf6 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -166,6 +166,9 @@ assemble(char *file)
+ 
+ 	pass = 1;
+ 	pinit(file);
++
++	Bprint(&obuf, "%s\n", thestring);
++
+ 	for(i=0; i<nDlist; i++)
+ 		dodefine(Dlist[i]);
+ 	yyparse();
+@@ -174,6 +177,8 @@ assemble(char *file)
+ 		return nerrors;
+ 	}
+ 
++	Bprint(&obuf, "\n!\n");
++
+ 	pass = 2;
+ 	outhist();
+ 	pinit(file);
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index a32e3a192f..83f7f5621c 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -473,6 +473,10 @@ outcode(void)
+ 				pc++;
+ 		}
+ 	}
++
++	Bprint(&outbuf, "%s\n", thestring);
++	Bprint(&outbuf, "!\n");
++
+ 	outhist(&outbuf);
+ 	for(sym=0; sym<NSYM; sym++) {
+ 		h[sym].sym = S;
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 22c675b04d..1a0da76952 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -208,6 +208,8 @@ enum	as
+ #define D_REGREG	(D_NONE+21)
+ #define D_ADDR		(D_NONE+22)
+ 
++#define D_SBIG		(D_NONE+23)
++
+ /* name */
+ #define	D_EXTERN	(D_NONE+3)
+ #define	D_STATIC	(D_NONE+4)
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+index a70841f29e..490f723030 100644
+--- a/src/cmd/5l/Makefile
++++ b/src/cmd/5l/Makefile
+@@ -18,7 +18,7 @@ OFILES=\
+ 	pass.$O\
+ 	thumb.$O\
+ 	span.$O\
+-#	go.$O\
++	go.$O\
+ 
+ HFILES=\
+ 	l.h\
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index f0f3185a47..2041009418 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -943,6 +943,16 @@ datblk(int32 s, int32 n, int str)
+ 				break;
+ 			}
+ 			break;
++
++		case D_SBIG:
++			if(debug['a'] && i == 0) {
++				Bprint(&bso, "\t%P\n", curp);
++			}
++			for(; i<c; i++) {
++				buf.dbuf[l] = p->to.sbig[i];
++				l++;
++			}
++			break;
+ 		}
+ 	}
+ 	write(cout, buf.dbuf, n);
+@@ -1311,7 +1321,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
+ 		o6 |= (1<<6);	/* ROL 8 */
+ 
+ 		break;
+-		
++
+ 	case 34:	/* mov $lacon,R */
+ 		o1 = omvl(p, &p->from, REGTMP);
+ 		if(!o1)
+@@ -1617,7 +1627,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
+ 		if(r == NREG)
+ 			r = o->param;
+ 		o1 = oshr(p->from.reg, instoffset, r, p->scond);
+-		break;	
++		break;
+ 	case 71:	/* movb/movh/movhu O(R),R -> ldrsb/ldrsh/ldrh */
+ 		aclass(&p->from);
+ 		r = p->from.reg;
+@@ -1637,7 +1647,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
+ 		if(r == NREG)
+ 			r = o->param;
+ 		o2 = oshrr(p->from.reg, REGTMP,r, p->scond);
+-		break;	
++		break;
+ 	case 73:	/* movb/movh/movhu L(R),R -> ldrsb/ldrsh/ldrh */
+ 		o1 = omvl(p, &p->from, REGTMP);
+ 		if(!o1)
+@@ -1922,7 +1932,7 @@ oshr(int r, int32 v, int b, int sc)
+ 	o = olhr(v, b, r, sc) ^ (1<<20);
+ 	return o;
+ }
+-	
++
+ 
+ int32
+ osrr(int r, int i, int b, int sc)
+@@ -1989,7 +1999,7 @@ ofsr(int a, int r, int32 v, int b, int sc, Prog *p)
+ 
+ int32
+ omvl(Prog *p, Adr *a, int dr)
+-{	
++{
+ 	int32 v, o1;
+ 	if(!p->cond) {
+ 		aclass(a);
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index c8c49998e5..fdb0488275 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -61,6 +61,7 @@ struct	Adr
+ 		int32	u0offset;
+ 		char*	u0sval;
+ 		Ieee*	u0ieee;
++		char*	u0sbig;
+ 	} u0;
+ 	union
+ 	{
+@@ -68,6 +69,7 @@ struct	Adr
+ 		Sym*	u1sym;
+ 	} u1;
+ 	char	type;
++	uchar	index; // not used on arm, required by ld/go.c
+ 	char	reg;
+ 	char	name;
+ 	char	class;
+@@ -76,6 +78,7 @@ struct	Adr
+ #define	offset	u0.u0offset
+ #define	sval	u0.u0sval
+ #define	ieee	u0.u0ieee
++#define	sbig	u0.u0sbig
+ 
+ #define	autom	u1.u1autom
+ #define	sym	u1.u1sym
+@@ -91,6 +94,7 @@ struct	Prog
+ 	} u0;
+ 	Prog*	cond;
+ 	Prog*	link;
++	Prog*	dlink;
+ 	int32	pc;
+ 	int32	line;
+ 	uchar	mark;
+@@ -111,6 +115,7 @@ struct	Sym
+ 	short	become;
+ 	short	frame;
+ 	uchar	subtype;
++	uchar	reachable;
+ 	ushort	file;
+ 	int32	value;
+ 	int32	sig;
+@@ -120,6 +125,8 @@ struct	Sym
+ 	uchar	fnptr;	// used as fn ptr
+ 	Use*		use;
+ 	Sym*	link;
++	Prog*	text;
++	Prog*	data;
+ };
+ 
+ #define SIGNINTERN	(1729*325*1729)
+@@ -296,6 +303,7 @@ EXTERN	Prog*	curtext;
+ EXTERN	Prog*	datap;
+ EXTERN	int32	datsize;
+ EXTERN	char	debug[128];
++EXTERN	Prog*	edatap;
+ EXTERN	Prog*	etextp;
+ EXTERN	Prog*	firstp;
+ EXTERN	char	fnuxi4[4];
+@@ -427,6 +435,7 @@ void	lputl(int32);
+ void	mkfwd(void);
+ void*	mysbrk(uint32);
+ void	names(void);
++Prog*	newdata(Sym *s, int o, int w, int t);
+ void	nocache(Prog*);
+ void	nuxiinit(void);
+ void	objfile(char*);
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 3295348c23..a34a20ebcd 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -247,6 +247,7 @@ main(int argc, char *argv[])
+ 	histgen = 0;
+ 	textp = P;
+ 	datap = P;
++	edatap = P;
+ 	pc = 0;
+ 	dtype = 4;
+ 	if(outfile == 0)
+@@ -278,10 +279,9 @@ main(int argc, char *argv[])
+ 		sprint(a, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
+ 		objfile(a);
+ 	}
+-	// TODO(kaib): add these go specific extensions
+-// 	definetypestrings();
+-// 	definetypesigs();
+-// 	deadcode();
++	definetypestrings();
++	definetypesigs();
++	deadcode();
+ 
+ 	firstp = firstp->link;
+ 	if(firstp == P)
+@@ -786,8 +786,6 @@ ldobj(Biobuf *f, int32 len, char *pn)
+ 
+ 	di = S;
+ 
+-	goto newloop;
+-
+ 	/* check the header */
+ 	start = Boffset(f);
+ 	line = Brdline(f, '\n');
+@@ -803,10 +801,7 @@ ldobj(Biobuf *f, int32 len, char *pn)
+ 		if(line)
+ 			line[n] = '\0';
+ 		diag("file not %s [%s]\n", thestring, line);
+-	// TODO(kaib): Make not finding the header an error again
+-// 		return;
+-		Bseek(f, start, 0);
+-		goto newloop;
++		return;
+ 	}
+ 
+ 	/* skip over exports and other info -- ends with \n!\n */
+@@ -824,8 +819,7 @@ ldobj(Biobuf *f, int32 len, char *pn)
+ 	import1 = Boffset(f);
+ 
+ 	Bseek(f, import0, 0);
+-	// TODO(kaib): add in this go specific extension
+-// 	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
++	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+ 	Bseek(f, import1, 0);
+ 
+ newloop:
+@@ -841,9 +835,6 @@ loop:
+ 	o = Bgetc(f);
+ 	if(o == Beof)
+ 		goto eof;
+-	// TODO(kaib): I wonder if this is an issue.
+-// 	o |= Bgetc(f) << 8; 6l does this, 5l doesn't. I think 5g outputs 2 byte
+-// 	AXXX's
+ 
+ 	if(o <= AXXX || o >= ALAST) {
+ 		diag("%s:#%lld: opcode out of range: %#ux", pn, Boffset(f), o);
+@@ -962,6 +953,7 @@ loop:
+ 		break;
+ 
+ 	case ADYNT:
++		s = p->from.sym;
+ 		if(p->to.sym == S) {
+ 			diag("DYNT without a sym\n%P", p);
+ 			break;
+@@ -975,23 +967,31 @@ loop:
+ 			di->value = dtype;
+ 			dtype += 4;
+ 		}
+-		if(p->from.sym == S)
++		if(s == S)
+ 			break;
+ 
+ 		p->from.offset = di->value;
+-		p->from.sym->type = SDATA;
++		s->type = SDATA;
+ 		if(curtext == P) {
+ 			diag("DYNT not in text: %P", p);
+ 			break;
+ 		}
+ 		p->to.sym = curtext->from.sym;
+ 		p->to.type = D_CONST;
+-		p->link = datap;
+-		datap = p;
++		if(s != S) {
++			p->dlink = s->data;
++			s->data = p;
++		}
++		if(edatap == P)
++			datap = p;
++		else
++			edatap->link = p;
++		edatap = p;
+ 		break;
+ 
+ 	case AINIT:
+-		if(p->from.sym == S) {
++		s = p->from.sym;
++		if(s == S) {
+ 			diag("INIT without a sym\n%P", p);
+ 			break;
+ 		}
+@@ -1000,18 +1000,33 @@ loop:
+ 			break;
+ 		}
+ 		p->from.offset = di->value;
+-		p->from.sym->type = SDATA;
+-		p->link = datap;
+-		datap = p;
++		s->type = SDATA;
++		if(s != S) {
++			p->dlink = s->data;
++			s->data = p;
++		}
++		if(edatap == P)
++			datap = p;
++		else
++			edatap->link = p;
++		edatap = p;
+ 		break;
+ 
+ 	case ADATA:
+-		if(p->from.sym == S) {
++		s = p->from.sym;
++		if(s == S) {
+ 			diag("DATA without a sym\n%P", p);
+ 			break;
+ 		}
+-		p->link = datap;
+-		datap = p;
++		if(s != S) {
++			p->dlink = s->data;
++			s->data = p;
++		}
++		if(edatap == P)
++			datap = p;
++		else
++			edatap->link = p;
++		edatap = p;
+ 		break;
+ 
+ 	case AGOK:
+@@ -1047,6 +1062,7 @@ loop:
+ 			diag("redefinition: %s\n%P", s->name, p);
+ 		}
+ 		s->type = STEXT;
++		s->text = p;
+ 		s->value = pc;
+ 		s->thumb = thumb;
+ 		lastp->link = p;
+@@ -1123,8 +1139,12 @@ loop:
+ 				t->from.name = D_EXTERN;
+ 				t->reg = 4;
+ 				t->to = p->from;
+-				t->link = datap;
+-				datap = t;
++				if(edatap == P)
++					datap = t;
++				else
++					edatap->link = t;
++				edatap = t;
++				t->link = P;
+ 			}
+ 			p->from.type = D_OREG;
+ 			p->from.sym = s;
+@@ -1155,8 +1175,12 @@ loop:
+ 				t->from.name = D_EXTERN;
+ 				t->reg = 8;
+ 				t->to = p->from;
+-				t->link = datap;
+-				datap = t;
++				if(edatap == P)
++					datap = t;
++				else
++					edatap->link = t;
++				edatap = t;
++				t->link = P;
+ 			}
+ 			p->from.type = D_OREG;
+ 			p->from.sym = s;
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index 8bd6a5c416..31af4468ff 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -855,7 +855,7 @@ ckoff(Sym *s, int32 v)
+ 		diag("relocation offset %ld for %s out of range", v, s->name);
+ }
+ 
+-static Prog*
++Prog*
+ newdata(Sym *s, int o, int w, int t)
+ {
+ 	Prog *p;
+@@ -871,6 +871,7 @@ newdata(Sym *s, int o, int w, int t)
+ 	p->from.offset = o;
+ 	p->to.type = D_CONST;
+ 	p->to.name = D_NONE;
++	s->data = p;
+ 	return p;
+ }
+ 

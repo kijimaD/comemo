@@ -14,8 +14,134 @@ Date:   Wed Sep 15 10:31:05 2021 +0300
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 13 +++++++++++++
  test/codegen/math.go                   |  9 +++++++++
  test/codegen/mathbits.go               |  6 +++++-
  3 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 91e585748e..2d8e21ee05 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4245,6 +4245,11 @@ func InitTables() {
+ 				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
+ 				return s.variable(n, types.Types[types.TFLOAT64])
+ 			}
++
++			if buildcfg.GOAMD64 >= 3 {
++				return s.newValue3(ssa.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
++			}
++
+ 			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasFMA)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+@@ -4307,6 +4312,10 @@ func InitTables() {
+ 
+ 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			if buildcfg.GOAMD64 >= 2 {
++				return s.newValue1(op, types.Types[types.TFLOAT64], args[0])
++			}
++
+ 			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasSSE41)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+@@ -4513,6 +4522,10 @@ func InitTables() {
+ 
+ 	makeOnesCountAMD64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			if buildcfg.GOAMD64 >= 2 {
++				return s.newValue1(op, types.Types[types.TINT], args[0])
++			}
++
+ 			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasPOPCNT)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index df2ebd79e1..ad154e0c40 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -11,6 +11,8 @@ import "math"
+ var sink64 [8]float64
+ 
+ func approx(x float64) {
++	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
++	// amd64:"ROUNDSD\t[$]2"
+ 	// s390x:"FIDBR\t[$]6"
+ 	// arm64:"FRINTPD"
+ 	// ppc64:"FRIP"
+@@ -18,6 +20,8 @@ func approx(x float64) {
+ 	// wasm:"F64Ceil"
+ 	sink64[0] = math.Ceil(x)
+ 
++	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
++	// amd64:"ROUNDSD\t[$]1"
+ 	// s390x:"FIDBR\t[$]7"
+ 	// arm64:"FRINTMD"
+ 	// ppc64:"FRIM"
+@@ -31,6 +35,8 @@ func approx(x float64) {
+ 	// ppc64le:"FRIN"
+ 	sink64[2] = math.Round(x)
+ 
++	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
++	// amd64:"ROUNDSD\t[$]3"
+ 	// s390x:"FIDBR\t[$]5"
+ 	// arm64:"FRINTZD"
+ 	// ppc64:"FRIZ"
+@@ -38,6 +44,8 @@ func approx(x float64) {
+ 	// wasm:"F64Trunc"
+ 	sink64[3] = math.Trunc(x)
+ 
++	// amd64/v2:-".*x86HasSSE41" amd64/v3:-".*x86HasSSE41"
++	// amd64:"ROUNDSD\t[$]0"
+ 	// s390x:"FIDBR\t[$]4"
+ 	// arm64:"FRINTND"
+ 	// wasm:"F64Nearest"
+@@ -123,6 +131,7 @@ func copysign(a, b, c float64) {
+ }
+ 
+ func fma(x, y, z float64) float64 {
++	// amd64/v3:-".*x86HasFMA"
+ 	// amd64:"VFMADD231SD"
+ 	// arm/6:"FMULAD"
+ 	// arm64:"FMADDD"
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 50527fea04..2d8790c1de 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -118,8 +118,9 @@ func Len8(n uint8) int {
+ //    bits.OnesCount    //
+ // -------------------- //
+ 
+-// TODO(register args) Restore a m d 6 4 :.*x86HasPOPCNT when only one ABI is tested.
++// TODO(register args) Restore a m d 6 4 / v 1 :.*x86HasPOPCNT when only one ABI is tested.
+ func OnesCount(n uint) int {
++	// amd64/v2:-".*x86HasPOPCNT" amd64/v3:-".*x86HasPOPCNT"
+ 	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+@@ -130,6 +131,7 @@ func OnesCount(n uint) int {
+ }
+ 
+ func OnesCount64(n uint64) int {
++	// amd64/v2:-".*x86HasPOPCNT" amd64/v3:-".*x86HasPOPCNT"
+ 	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+@@ -140,6 +142,7 @@ func OnesCount64(n uint64) int {
+ }
+ 
+ func OnesCount32(n uint32) int {
++	// amd64/v2:-".*x86HasPOPCNT" amd64/v3:-".*x86HasPOPCNT"
+ 	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+@@ -150,6 +153,7 @@ func OnesCount32(n uint32) int {
+ }
+ 
+ func OnesCount16(n uint16) int {
++	// amd64/v2:-".*x86HasPOPCNT" amd64/v3:-".*x86HasPOPCNT"
+ 	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"

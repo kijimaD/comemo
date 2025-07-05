@@ -14,8 +14,78 @@ Date:   Tue Feb 26 14:07:03 2013 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/7365058
-
+---
  src/pkg/exp/ssa/builder.go                  |  1 -
  src/pkg/exp/ssa/func.go                     |  4 +++-
  src/pkg/exp/ssa/interp/testdata/coverage.go | 27 +++++++++++++++++++++++++++
  3 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index d76d1ffa75..9910239347 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -2215,7 +2215,6 @@ func (b *Builder) stmt(fn *Function, _s ast.Stmt) {
+ 	// target is always set; its _break and _continue are set only
+ 	// within the body of switch/typeswitch/select/for/range.
+ 	// It is effectively an additional default-nil parameter of stmt().
+-	// TODO(adonovan): fix: handle multiple labels on the same stmt.
+ 	var label *lblock
+ start:
+ 	switch s := _s.(type) {
+diff --git a/src/pkg/exp/ssa/func.go b/src/pkg/exp/ssa/func.go
+index eb45ee0f82..6e0aa58351 100644
+--- a/src/pkg/exp/ssa/func.go
++++ b/src/pkg/exp/ssa/func.go
+@@ -152,6 +152,9 @@ func (f *Function) labelledBlock(label *ast.Ident) *lblock {
+ 	lb := f.lblocks[label.Obj]
+ 	if lb == nil {
+ 		lb = &lblock{_goto: f.newBasicBlock(label.Name)}
++		if f.lblocks == nil {
++			f.lblocks = make(map[*ast.Object]*lblock)
++		}
+ 		f.lblocks[label.Obj] = lb
+ 	}
+ 	return lb
+@@ -200,7 +203,6 @@ func (f *Function) start(idents map[*ast.Ident]types.Object) {
+ 	if f.syntax == nil {
+ 		return // synthetic function; no syntax tree
+ 	}
+-	f.lblocks = make(map[*ast.Object]*lblock)
+ 
+ 	// Receiver (at most one inner iteration).
+ 	if f.syntax.recvField != nil {
+diff --git a/src/pkg/exp/ssa/interp/testdata/coverage.go b/src/pkg/exp/ssa/interp/testdata/coverage.go
+index a07549b824..c271669ae8 100644
+--- a/src/pkg/exp/ssa/interp/testdata/coverage.go
++++ b/src/pkg/exp/ssa/interp/testdata/coverage.go
+@@ -363,3 +363,30 @@ func init() {
+ 		panic("I.f not called twice")
+ 	}
+ }
++
++// Multiple labels on same statement.
++func multipleLabels() {
++	var trace []int
++	i := 0
++one:
++two:
++	for ; i < 3; i++ {
++		trace = append(trace, i)
++		switch i {
++		case 0:
++			continue two
++		case 1:
++			i++
++			goto one
++		case 2:
++			break two
++		}
++	}
++	if x := fmt.Sprint(trace); x != "[0 1 2]" {
++		panic(x)
++	}
++}
++
++func init() {
++	multipleLabels()
++}

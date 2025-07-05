@@ -9,7 +9,87 @@ Date:   Wed Oct 26 13:06:37 2016 -0400
     Change-Id: Ic8f51ebd8235640143913a07b70f5b41ee061fe4
     Reviewed-on: https://go-review.googlesource.com/32114
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/list.go    | 19 ++++++++++++-------
  src/go/build/build.go | 11 ++++++++---
  2 files changed, 20 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 48678e7395..2f240834b2 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -59,6 +59,8 @@ syntax of package template.  The default output is equivalent to -f
+         SwigFiles      []string // .swig files
+         SwigCXXFiles   []string // .swigcxx files
+         SysoFiles      []string // .syso object files to add to archive
++        TestGoFiles    []string // _test.go files in package
++        XTestGoFiles   []string // _test.go files outside package
+ 
+         // Cgo directives
+         CgoCFLAGS    []string // cgo: flags for C compiler
+@@ -69,20 +71,23 @@ syntax of package template.  The default output is equivalent to -f
+         CgoPkgConfig []string // cgo: pkg-config names
+ 
+         // Dependency information
+-        Imports []string // import paths used by this package
+-        Deps    []string // all (recursively) imported dependencies
++        Imports      []string // import paths used by this package
++        Deps         []string // all (recursively) imported dependencies
++        TestImports  []string // imports from TestGoFiles
++        XTestImports []string // imports from XTestGoFiles
+ 
+         // Error information
+         Incomplete bool            // this package or a dependency has an error
+         Error      *PackageError   // error loading package
+         DepsErrors []*PackageError // errors loading dependencies
+-
+-        TestGoFiles  []string // _test.go files in package
+-        TestImports  []string // imports from TestGoFiles
+-        XTestGoFiles []string // _test.go files outside package
+-        XTestImports []string // imports from XTestGoFiles
+     }
+ 
++Packages stored in vendor directories report an ImportPath that includes the
++path to the vendor directory (for example, "d/vendor/p" instead of "p"),
++so that the ImportPath uniquely identifies a given copy of a package.
++The Imports, Deps, TestImports, and XTestImports lists also contain these
++expanded imports paths. See golang.org/s/go15vendor for more about vendoring.
++
+ The error information, if any, is
+ 
+     type PackageError struct {
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index e26ab48aa4..28de5596c5 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -340,6 +340,11 @@ const (
+ 	// See golang.org/s/go15vendor for more information.
+ 	//
+ 	// Setting IgnoreVendor ignores vendor directories.
++	//
++	// In contrast to the package's ImportPath,
++	// the returned package's Imports, TestImports, and XTestImports
++	// are always the exact import paths from the source files:
++	// Import makes no attempt to resolve or check those paths.
+ 	IgnoreVendor
+ )
+ 
+@@ -385,15 +390,15 @@ type Package struct {
+ 	CgoPkgConfig []string // Cgo pkg-config directives
+ 
+ 	// Dependency information
+-	Imports   []string                    // imports from GoFiles, CgoFiles
++	Imports   []string                    // import paths from GoFiles, CgoFiles
+ 	ImportPos map[string][]token.Position // line information for Imports
+ 
+ 	// Test information
+ 	TestGoFiles    []string                    // _test.go files in package
+-	TestImports    []string                    // imports from TestGoFiles
++	TestImports    []string                    // import paths from TestGoFiles
+ 	TestImportPos  map[string][]token.Position // line information for TestImports
+ 	XTestGoFiles   []string                    // _test.go files outside package
+-	XTestImports   []string                    // imports from XTestGoFiles
++	XTestImports   []string                    // import paths from XTestGoFiles
+ 	XTestImportPos map[string][]token.Position // line information for XTestImports
+ }
+ 

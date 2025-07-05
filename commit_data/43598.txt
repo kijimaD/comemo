@@ -25,6 +25,21 @@ Date:   Tue Apr 14 10:12:32 2020 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 95e732d744..a2be7bb596 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -2164,6 +2164,9 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos
+ 	a = append(a, c)
+ 	e.cache[vid] = a
+ 	if r, ok := loc.(*Register); ok {
++		if e.usedRegs&(regMask(1)<<uint(r.num)) != 0 {
++			e.s.f.Fatalf("%v is already set (v%d/%v)", r, vid, c)
++		}
+ 		e.usedRegs |= regMask(1) << uint(r.num)
+ 		if final {
+ 			e.finalRegs |= regMask(1) << uint(r.num)

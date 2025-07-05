@@ -7,6 +7,19 @@ Date:   Tue Nov 1 21:47:33 2011 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5327051
-
+---
  src/pkg/exp/types/universe.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/exp/types/universe.go b/src/pkg/exp/types/universe.go
+index f0435966d1..780b82625f 100644
+--- a/src/pkg/exp/types/universe.go
++++ b/src/pkg/exp/types/universe.go
+@@ -57,6 +57,7 @@ func init() {
+ 	defType("rune") // TODO(gri) should be an alias for int
+ 	defType("complex64")
+ 	Complex128 = defType("complex128")
++	defType("error")
+ 	defType("float32")
+ 	Float64 = defType("float64")
+ 	defType("int8")

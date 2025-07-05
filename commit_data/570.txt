@@ -7,6 +7,20 @@ Date:   Wed Sep 3 15:22:27 2008 -0700
     R=r
     OCL=14763
     CL=14763
-
+---
  doc/go_spec.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.txt b/doc/go_spec.txt
+index a7009b2e5e..e60fafa6d9 100644
+--- a/doc/go_spec.txt
++++ b/doc/go_spec.txt
+@@ -11,7 +11,7 @@ This document is a semi-formal specification of the Go systems
+ programming language.
+ 
+ <font color=red>
+-This document is not read for external review, it is under active development.
++This document is not ready for external review, it is under active development.
+ Any part may change substantially as design progresses.
+ </font>
+ 

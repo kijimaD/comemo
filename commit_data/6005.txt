@@ -7,7 +7,32 @@ Date:   Wed Aug 11 22:22:36 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/1971042
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6fef72b840..613b01d7c1 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -61,6 +61,7 @@ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
++Mikio Hara <mikioh.mikioh@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0ab84599db..72907ff2c9 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -104,6 +104,7 @@ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
++Mikio Hara <mikioh.mikioh@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>

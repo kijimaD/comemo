@@ -17,8 +17,61 @@ Date:   Wed Mar 7 18:23:21 2018 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_darwin_arm.c   | 6 +++---
  src/runtime/cgo/gcc_darwin_arm64.c | 6 +++---
  src/runtime/cgo/libcgo.h           | 1 +
  3 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_darwin_arm.c b/src/runtime/cgo/gcc_darwin_arm.c
+index e2f96e9dc8..30fca9902a 100644
+--- a/src/runtime/cgo/gcc_darwin_arm.c
++++ b/src/runtime/cgo/gcc_darwin_arm.c
+@@ -9,12 +9,12 @@
+ #include <sys/param.h>
+ #include <unistd.h>
+ 
+-#include "libcgo.h"
+-#include "libcgo_unix.h"
+-
+ #include <CoreFoundation/CFBundle.h>
+ #include <CoreFoundation/CFString.h>
+ 
++#include "libcgo.h"
++#include "libcgo_unix.h"
++
+ #define magic (0xe696c4f4U)
+ 
+ // inittls allocates a thread-local storage slot for g.
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index 25106b75a5..5c483b1845 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -10,12 +10,12 @@
+ #include <unistd.h>
+ #include <stdlib.h>
+ 
+-#include "libcgo.h"
+-#include "libcgo_unix.h"
+-
+ #include <CoreFoundation/CFBundle.h>
+ #include <CoreFoundation/CFString.h>
+ 
++#include "libcgo.h"
++#include "libcgo_unix.h"
++
+ #define magic (0xc476c475c47957UL)
+ 
+ // inittls allocates a thread-local storage slot for g.
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 2b8b4e25a2..c38fb643ff 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -6,6 +6,7 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ 
++#undef nil
+ #define nil ((void*)0)
+ #define nelem(x) (sizeof(x)/sizeof((x)[0]))
+ 

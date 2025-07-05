@@ -8,7 +8,28 @@ Date:   Thu Sep 9 23:31:33 2010 -0700
     R=stephenm
     CC=golang-dev
     https://golang.org/cl/2165046
-
+---
  src/libcgo/arm.S                | 1 +
  src/pkg/runtime/linux/arm/sys.s | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/libcgo/arm.S b/src/libcgo/arm.S
+new file mode 100644
+index 0000000000..32d8629849
+--- /dev/null
++++ b/src/libcgo/arm.S
+@@ -0,0 +1 @@
++/* unimplemented */
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 6824e29e85..7d3317209a 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -65,7 +65,7 @@ TEXT ·mmap(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT ·mmap(SB),7,$0
++TEXT ·munmap(SB),7,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	$SYS_munmap, R7

@@ -15,9 +15,445 @@ Date:   Wed Mar 7 12:24:20 2012 -0800
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5755062
-
+---
  src/pkg/go/parser/error_test.go          | 163 +++++++++++++++++++++++++++++++
  src/pkg/go/parser/parser.go              |  94 +++++++++++++-----
  src/pkg/go/parser/testdata/commas.src    |  19 ++++
  src/pkg/go/parser/testdata/issue3106.src |  46 +++++++++
  4 files changed, 299 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/go/parser/error_test.go b/src/pkg/go/parser/error_test.go
+new file mode 100644
+index 0000000000..0bfa38a9ec
+--- /dev/null
++++ b/src/pkg/go/parser/error_test.go
+@@ -0,0 +1,163 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements a parser test harness. The files in the testdata
++// directory are parsed and the errors reported are compared against the
++// error messages expected in the test files. The test files must end in
++// .src rather than .go so that they are not disturbed by gofmt runs.
++//
++// Expected errors are indicated in the test files by putting a comment
++// of the form /* ERROR "rx" */ immediately following an offending token.
++// The harness will verify that an error matching the regular expression
++// rx is reported at that source position.
++//
++// For instance, the following test file indicates that a "not declared"
++// error should be reported for the undeclared variable x:
++//
++//	package p
++//	func f() {
++//		_ = x /* ERROR "not declared" */ + 1
++//	}
++
++package parser
++
++import (
++	"go/scanner"
++	"go/token"
++	"io/ioutil"
++	"path/filepath"
++	"regexp"
++	"strings"
++	"testing"
++)
++
++const testdata = "testdata"
++
++func getFile(filename string) (file *token.File) {
++	fset.Iterate(func(f *token.File) bool {
++		if f.Name() == filename {
++			file = f
++			return false // end iteration
++		}
++		return true
++	})
++	return file
++}
++
++func getPos(filename string, offset int) token.Pos {
++	if f := getFile(filename); f != nil {
++		return f.Pos(offset)
++	}
++	return token.NoPos
++}
++
++// ERROR comments must be of the form /* ERROR "rx" */ and rx is
++// a regular expression that matches the expected error message.
++//
++var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
++
++// expectedErrors collects the regular expressions of ERROR comments found
++// in files and returns them as a map of error positions to error messages.
++//
++func expectedErrors(t *testing.T, filename string, src []byte) map[token.Pos]string {
++	errors := make(map[token.Pos]string)
++
++	var s scanner.Scanner
++	// file was parsed already - do not add it again to the file
++	// set otherwise the position information returned here will
++	// not match the position information collected by the parser
++	s.Init(getFile(filename), src, nil, scanner.ScanComments)
++	var prev token.Pos // position of last non-comment, non-semicolon token
++
++	for {
++		pos, tok, lit := s.Scan()
++		switch tok {
++		case token.EOF:
++			return errors
++		case token.COMMENT:
++			s := errRx.FindStringSubmatch(lit)
++			if len(s) == 2 {
++				errors[prev] = string(s[1])
++			}
++		default:
++			prev = pos
++		}
++	}
++
++	panic("unreachable")
++}
++
++// compareErrors compares the map of expected error messages with the list
++// of found errors and reports discrepancies.
++//
++func compareErrors(t *testing.T, expected map[token.Pos]string, found scanner.ErrorList) {
++	for _, error := range found {
++		// error.Pos is a token.Position, but we want
++		// a token.Pos so we can do a map lookup
++		pos := getPos(error.Pos.Filename, error.Pos.Offset)
++		if msg, found := expected[pos]; found {
++			// we expect a message at pos; check if it matches
++			rx, err := regexp.Compile(msg)
++			if err != nil {
++				t.Errorf("%s: %v", error.Pos, err)
++				continue
++			}
++			if match := rx.MatchString(error.Msg); !match {
++				t.Errorf("%s: %q does not match %q", error.Pos, error.Msg, msg)
++				continue
++			}
++			// we have a match - eliminate this error
++			delete(expected, pos)
++		} else {
++			// To keep in mind when analyzing failed test output:
++			// If the same error position occurs multiple times in errors,
++			// this message will be triggered (because the first error at
++			// the position removes this position from the expected errors).
++			t.Errorf("%s: unexpected error: %s", error.Pos, error.Msg)
++		}
++	}
++
++	// there should be no expected errors left
++	if len(expected) > 0 {
++		t.Errorf("%d errors not reported:", len(expected))
++		for pos, msg := range expected {
++			t.Errorf("%s: %s\n", fset.Position(pos), msg)
++		}
++	}
++}
++
++func checkErrors(t *testing.T, filename string) {
++	src, err := ioutil.ReadFile(filename)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	_, err = ParseFile(fset, filename, src, DeclarationErrors)
++	found, ok := err.(scanner.ErrorList)
++	if err != nil && !ok {
++		t.Error(err)
++		return
++	}
++
++	// we are expecting the following errors
++	// (collect these after parsing a file so that it is found in the file set)
++	expected := expectedErrors(t, filename, src)
++
++	// verify errors returned by the parser
++	compareErrors(t, expected, found)
++}
++
++func TestErrors(t *testing.T) {
++	list, err := ioutil.ReadDir(testdata)
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, fi := range list {
++		name := fi.Name()
++		if !fi.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
++			checkErrors(t, filepath.Join(testdata, name))
++		}
++	}
++}
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index c39ea5c2a3..4fb9ae398e 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -371,8 +371,16 @@ func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
+ }
+ 
+ func (p *parser) expectSemi() {
++	// semicolon is optional before a closing ')' or '}'
+ 	if p.tok != token.RPAREN && p.tok != token.RBRACE {
+-		p.expect(token.SEMICOLON)
++		if p.tok == token.SEMICOLON {
++			p.next()
++		} else {
++			p.errorExpected(p.pos, "';'")
++			for !isStmtSync(p.tok) {
++				p.next() // make progress
++			}
++		}
+ 	}
+ }
+ 
+@@ -394,6 +402,31 @@ func assert(cond bool, msg string) {
+ 	}
+ }
+ 
++// isStmtSync reports whether tok starts a new statement.
++// Used for synchronization after an error.
++//
++func isStmtSync(tok token.Token) bool {
++	switch tok {
++	case token.BREAK, token.CONST, token.CONTINUE, token.DEFER,
++		token.FALLTHROUGH, token.FOR, token.GO, token.GOTO,
++		token.IF, token.RETURN, token.SELECT, token.SWITCH,
++		token.TYPE, token.VAR, token.EOF:
++		return true
++	}
++	return false
++}
++
++// isDeclSync reports whether tok starts a new declaration.
++// Used for synchronization after an error.
++//
++func isDeclSync(tok token.Token) bool {
++	switch tok {
++	case token.CONST, token.TYPE, token.VAR, token.EOF:
++		return true
++	}
++	return false
++}
++
+ // ----------------------------------------------------------------------------
+ // Identifiers
+ 
+@@ -534,9 +567,11 @@ func (p *parser) makeIdentList(list []ast.Expr) []*ast.Ident {
+ 	for i, x := range list {
+ 		ident, isIdent := x.(*ast.Ident)
+ 		if !isIdent {
+-			pos := x.Pos()
+-			p.errorExpected(pos, "identifier")
+-			ident = &ast.Ident{NamePos: pos, Name: "_"}
++			if _, isBad := x.(*ast.BadExpr); !isBad {
++				// only report error if it's a new one
++				p.errorExpected(x.Pos(), "identifier")
++			}
++			ident = &ast.Ident{NamePos: x.Pos(), Name: "_"}
+ 		}
+ 		idents[i] = ident
+ 	}
+@@ -1003,19 +1038,21 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
+ 
+ 	case token.FUNC:
+ 		return p.parseFuncTypeOrLit()
++	}
+ 
+-	default:
+-		if typ := p.tryIdentOrType(true); typ != nil {
+-			// could be type for composite literal or conversion
+-			_, isIdent := typ.(*ast.Ident)
+-			assert(!isIdent, "type cannot be identifier")
+-			return typ
+-		}
++	if typ := p.tryIdentOrType(true); typ != nil {
++		// could be type for composite literal or conversion
++		_, isIdent := typ.(*ast.Ident)
++		assert(!isIdent, "type cannot be identifier")
++		return typ
+ 	}
+ 
++	// we have an error
+ 	pos := p.pos
+ 	p.errorExpected(pos, "operand")
+-	p.next() // make progress
++	if !isStmtSync(p.tok) {
++		p.next() // make progress
++	}
+ 	return &ast.BadExpr{From: pos, To: p.pos}
+ }
+ 
+@@ -1274,8 +1311,8 @@ L:
+ 				x = p.parseTypeAssertion(p.checkExpr(x))
+ 			default:
+ 				pos := p.pos
+-				p.next() // make progress
+ 				p.errorExpected(pos, "selector or type assertion")
++				p.next() // make progress
+ 				x = &ast.BadExpr{From: pos, To: p.pos}
+ 			}
+ 		case token.LBRACK:
+@@ -1483,7 +1520,10 @@ func (p *parser) parseCallExpr() *ast.CallExpr {
+ 	if call, isCall := x.(*ast.CallExpr); isCall {
+ 		return call
+ 	}
+-	p.errorExpected(x.Pos(), "function/method call")
++	if _, isBad := x.(*ast.BadExpr); !isBad {
++		// only report error if it's a new one
++		p.errorExpected(x.Pos(), "function/method call")
++	}
+ 	return nil
+ }
+ 
+@@ -1874,7 +1914,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
+ 
+ 	switch p.tok {
+ 	case token.CONST, token.TYPE, token.VAR:
+-		s = &ast.DeclStmt{Decl: p.parseDecl()}
++		s = &ast.DeclStmt{Decl: p.parseDecl(isStmtSync)}
+ 	case
+ 		// tokens that may start an expression
+ 		token.IDENT, token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING, token.FUNC, token.LPAREN, // operands
+@@ -1916,7 +1956,9 @@ func (p *parser) parseStmt() (s ast.Stmt) {
+ 		// no statement found
+ 		pos := p.pos
+ 		p.errorExpected(pos, "statement")
+-		p.next() // make progress
++		for !isStmtSync(p.tok) {
++			p.next() // make progress
++		}
+ 		s = &ast.BadStmt{From: pos, To: p.pos}
+ 	}
+ 
+@@ -2107,8 +2149,13 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
+ 	recv := par.List[0]
+ 	base := deref(recv.Type)
+ 	if _, isIdent := base.(*ast.Ident); !isIdent {
+-		p.errorExpected(base.Pos(), "(unqualified) identifier")
+-		par.List = []*ast.Field{{Type: &ast.BadExpr{From: recv.Pos(), To: recv.End()}}}
++		if _, isBad := base.(*ast.BadExpr); !isBad {
++			// only report error if it's a new one
++			p.errorExpected(base.Pos(), "(unqualified) identifier")
++		}
++		par.List = []*ast.Field{
++			{Type: &ast.BadExpr{From: recv.Pos(), To: recv.End()}},
++		}
+ 	}
+ 
+ 	return par
+@@ -2164,7 +2211,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 	return decl
+ }
+ 
+-func (p *parser) parseDecl() ast.Decl {
++func (p *parser) parseDecl(isSync func(token.Token) bool) ast.Decl {
+ 	if p.trace {
+ 		defer un(trace(p, "Declaration"))
+ 	}
+@@ -2186,9 +2233,10 @@ func (p *parser) parseDecl() ast.Decl {
+ 	default:
+ 		pos := p.pos
+ 		p.errorExpected(pos, "declaration")
+-		p.next() // make progress
+-		decl := &ast.BadDecl{From: pos, To: p.pos}
+-		return decl
++		for !isSync(p.tok) {
++			p.next() // make progress
++		}
++		return &ast.BadDecl{From: pos, To: p.pos}
+ 	}
+ 
+ 	return p.parseGenDecl(p.tok, f)
+@@ -2227,7 +2275,7 @@ func (p *parser) parseFile() *ast.File {
+ 		if p.mode&ImportsOnly == 0 {
+ 			// rest of package body
+ 			for p.tok != token.EOF {
+-				decls = append(decls, p.parseDecl())
++				decls = append(decls, p.parseDecl(isDeclSync))
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/go/parser/testdata/commas.src b/src/pkg/go/parser/testdata/commas.src
+new file mode 100644
+index 0000000000..af6e706450
+--- /dev/null
++++ b/src/pkg/go/parser/testdata/commas.src
+@@ -0,0 +1,19 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for error messages/parser synchronization
++// after missing commas.
++
++package p
++
++var _ = []int{
++	0 /* ERROR "missing ','" */
++}
++
++var _ = []int{
++	0,
++	1,
++	2,
++	3 /* ERROR "missing ','" */
++}
+diff --git a/src/pkg/go/parser/testdata/issue3106.src b/src/pkg/go/parser/testdata/issue3106.src
+new file mode 100644
+index 0000000000..82796c8ceb
+--- /dev/null
++++ b/src/pkg/go/parser/testdata/issue3106.src
+@@ -0,0 +1,46 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 3106: Better synchronization of
++// parser after certain syntax errors.
++
++package main
++
++func f() {
++	var m Mutex
++	c := MakeCond(&m)
++	percent := 0
++	const step = 10
++	for i := 0; i < 5; i++ {
++		go func() {
++			for {
++				// Emulates some useful work.
++				time.Sleep(1e8)
++				m.Lock()
++				defer
++				if /* ERROR "expected operand, found 'if'" */ percent == 100 {
++					m.Unlock()
++					break
++				}
++				percent++
++				if percent % step == 0 {
++					//c.Signal()
++				}
++				m.Unlock()
++			}
++		}()
++	}
++	for {
++		m.Lock()
++		if percent == 0 || percent % step != 0 {
++			c.Wait()
++		}
++		fmt.Print(",")
++		if percent == 100 {
++			m.Unlock()
++			break
++		}
++		m.Unlock()
++	}
++}

@@ -9,7 +9,107 @@ Date:   Wed May 23 02:02:01 2012 +0800
     R=golang-dev, rsc, dvyukov
     CC=golang-dev
     https://golang.org/cl/6210071
-
+---
  src/pkg/sync/atomic/64bit_linux_arm.go | 36 ++++++++++++++++++++++++++++++++++
  src/pkg/sync/atomic/asm_linux_arm.s    | 20 +++++++++----------
  2 files changed, 46 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/sync/atomic/64bit_linux_arm.go b/src/pkg/sync/atomic/64bit_linux_arm.go
+new file mode 100644
+index 0000000000..f070e78bd3
+--- /dev/null
++++ b/src/pkg/sync/atomic/64bit_linux_arm.go
+@@ -0,0 +1,36 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package atomic
++
++func loadUint64(addr *uint64) (val uint64) {
++	for {
++		val = *addr
++		if CompareAndSwapUint64(addr, val, val) {
++			break
++		}
++	}
++	return
++}
++
++func storeUint64(addr *uint64, val uint64) {
++	for {
++		old := *addr
++		if CompareAndSwapUint64(addr, old, val) {
++			break
++		}
++	}
++	return
++}
++
++func addUint64(val *uint64, delta uint64) (new uint64) {
++	for {
++		old := *val
++		new = old + delta
++		if CompareAndSwapUint64(val, old, new) {
++			break
++		}
++	}
++	return
++}
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index f03ea66301..4619c23433 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -121,20 +121,20 @@ TEXT setupAndCallCAS64<>(SB),7,$-4
+ 	MOVW	R1, armCAS64(SB)
+ 	MOVW	R1, PC
+ 
+-TEXT ·CompareAndSwapInt64(SB),7,$-4
++TEXT ·CompareAndSwapInt64(SB),7,$0
++	B   	·CompareAndSwapUint64(SB)
++
++TEXT ·CompareAndSwapUint64(SB),7,$-4
+ 	MOVW	armCAS64(SB), R0
+ 	CMP 	$0, R0
+ 	MOVW.NE	R0, PC
+ 	B		setupAndCallCAS64<>(SB)
+ 
+-TEXT ·CompareAndSwapUint64(SB),7,$0
+-	B   	·CompareAndSwapInt64(SB)
+-
+ TEXT ·AddInt64(SB),7,$0
+-	B	·armAddUint64(SB)
++	B	·addUint64(SB)
+ 
+ TEXT ·AddUint64(SB),7,$0
+-	B	·armAddUint64(SB)
++	B	·addUint64(SB)
+ 
+ TEXT ·LoadInt32(SB),7,$0
+ 	B	·LoadUint32(SB)
+@@ -150,10 +150,10 @@ loadloop1:
+ 	RET
+ 
+ TEXT ·LoadInt64(SB),7,$0
+-	B	·armLoadUint64(SB)
++	B	·loadUint64(SB)
+ 
+ TEXT ·LoadUint64(SB),7,$0
+-	B	·armLoadUint64(SB)
++	B	·loadUint64(SB)
+ 
+ TEXT ·LoadUintptr(SB),7,$0
+ 	B	·LoadUint32(SB)
+@@ -174,10 +174,10 @@ storeloop1:
+ 	RET
+ 
+ TEXT ·StoreInt64(SB),7,$0
+-	B	·armStoreUint64(SB)
++	B	·storeUint64(SB)
+ 
+ TEXT ·StoreUint64(SB),7,$0
+-	B	·armStoreUint64(SB)
++	B	·storeUint64(SB)
+ 
+ TEXT ·StoreUintptr(SB),7,$0
+ 	B	·StoreUint32(SB)

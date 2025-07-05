@@ -46,7 +46,7 @@ Date:   Fri Nov 4 13:09:21 2011 -0400
     R=r, r
     CC=golang-dev
     https://golang.org/cl/5270042
-
+---
  src/pkg/html/template/Makefile        |   1 +
  src/pkg/html/template/clone_test.go   |   2 +-
  src/pkg/html/template/content_test.go |   3 +-
@@ -56,3 +56,724 @@ Date:   Fri Nov 4 13:09:21 2011 -0400
  src/pkg/html/template/escape_test.go  |  68 +++++-----
  src/pkg/html/template/template.go     | 239 ++++++++++++++++++++++++++++++++++
  8 files changed, 331 insertions(+), 127 deletions(-)
+
+diff --git a/src/pkg/html/template/Makefile b/src/pkg/html/template/Makefile
+index 3b216ba611..57f0346149 100644
+--- a/src/pkg/html/template/Makefile
++++ b/src/pkg/html/template/Makefile
+@@ -16,6 +16,7 @@ GOFILES=\
+ 	escape.go\
+ 	html.go\
+ 	js.go\
++	template.go\
+ 	transition.go\
+ 	url.go\
+ 
+diff --git a/src/pkg/html/template/clone_test.go b/src/pkg/html/template/clone_test.go
+index d91542529b..9e557d2880 100644
+--- a/src/pkg/html/template/clone_test.go
++++ b/src/pkg/html/template/clone_test.go
+@@ -56,7 +56,7 @@ func TestClone(t *testing.T) {
+ 			t.Errorf("want %q, got %q", want, got)
+ 		}
+ 
+-		d, err := Escape(d)
++		err := escape(d)
+ 		if err != nil {
+ 			t.Errorf("%q: failed to escape: %s", test.input, err)
+ 			continue
+diff --git a/src/pkg/html/template/content_test.go b/src/pkg/html/template/content_test.go
+index 033dee1747..bee2ed1c18 100644
+--- a/src/pkg/html/template/content_test.go
++++ b/src/pkg/html/template/content_test.go
+@@ -7,7 +7,6 @@ package html
+ import (
+ 	"bytes"
+ 	"strings"
+-	"template"
+ 	"testing"
+ )
+ 
+@@ -203,7 +202,7 @@ func TestTypedContent(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		tmpl := template.Must(Escape(template.Must(template.New("x").Parse(test.input))))
++		tmpl := Must(New("x").Parse(test.input))
+ 		pre := strings.Index(test.input, "{{.}}")
+ 		post := len(test.input) - (pre + 5)
+ 		var b bytes.Buffer
+diff --git a/src/pkg/html/template/doc.go b/src/pkg/html/template/doc.go
+index a9b78ca515..8aca42f56b 100644
+--- a/src/pkg/html/template/doc.go
++++ b/src/pkg/html/template/doc.go
+@@ -9,59 +9,54 @@ construction of HTML output that is safe against code injection.
+ 
+ Introduction
+ 
+-To use this package, invoke the standard template package to parse a template
+-set, and then use this package’s EscapeSet function to secure the set.
+-The arguments to EscapeSet are the template set and the names of all templates
+-that will be passed to Execute.
++This package wraps package template so you can use the standard template API
++to parse and execute templates.
+ 
+     set, err := new(template.Set).Parse(...)
+-    set, err = EscapeSet(set, "templateName0", ...)
++    // Error checking elided
++    err = set.Execute(out, "Foo", data)
+ 
+-If successful, set will now be injection-safe. Otherwise, the returned set will
+-be nil and an error, described below, will explain the problem.
++If successful, set will now be injection-safe. Otherwise, err is an error
++defined in the docs for ErrorCode.
+ 
+-The template names do not need to include helper templates but should include
+-all names x used thus:
+-
+-    set.Execute(out, x, ...)
+-
+-EscapeSet modifies the named templates in place to treat data values as plain
+-text safe for embedding in an HTML document. The escaping is contextual, so
+-actions can appear within JavaScript, CSS, and URI contexts without introducing'hazards.
++HTML templates treat data values as plain text which should be encoded so they
++can be safely embedded in an HTML document. The escaping is contextual, so
++actions can appear within JavaScript, CSS, and URI contexts.
+ 
+ The security model used by this package assumes that template authors are
+ trusted, while Execute's data parameter is not. More details are provided below.
+ 
+ Example
+ 
+-    tmpls, err := new(template.Set).Parse(`{{define "t'}}Hello, {{.}}!{{end}}`)
+-
+-when used by itself
+-
+-    tmpls.Execute(out, "t", "<script>alert('you have been pwned')</script>")
++    import "template"
++    ...
++    t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
++    err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
+ 
+ produces
+ 
+     Hello, <script>alert('you have been pwned')</script>!
+ 
+-but after securing with EscapeSet like this,
++but with contextual autoescaping,
+ 
+-    tmpls, err := EscapeSet(tmpls, "t")
+-    tmpls.Execute(out, "t", ...)
++    import "html/template"
++    ...
++    t, err := (&template.Set{}).Parse(`{{define "T"}}Hello, {{.}}!{{end}}`)
++    err = t.Execute(out, "T", "<script>alert('you have been pwned')</script>")
+ 
+-produces the safe, escaped HTML output
++produces safe, escaped HTML output
+ 
+     Hello, &lt;script&gt;alert('you have been pwned')&lt;/script&gt;!
+ 
+ 
+ Contexts
+ 
+-EscapeSet understands HTML, CSS, JavaScript, and URIs. It adds sanitizing
++This package understands HTML, CSS, JavaScript, and URIs. It adds sanitizing
+ functions to each simple action pipeline, so given the excerpt
+ 
+   <a href="/search?q={{.}}">{{.}}</a>
+ 
+-EscapeSet will rewrite each {{.}} to add escaping functions where necessary,
++At parse time each {{.}} is overwritten to add escaping functions as necessary,
+ in this case,
+ 
+   <a href="/search?q={{. | urlquery}}">{{. | html}}</a>
+@@ -134,8 +129,8 @@ embedding in JavaScript contexts.
+ 
+ Typed Strings
+ 
+-By default, EscapeSet assumes all pipelines produce a plain text string. It
+-adds escaping pipeline stages necessary to correctly and safely embed that
++By default, this package assumes that all pipelines produce a plain text string.
++It adds escaping pipeline stages necessary to correctly and safely embed that
+ plain text string in the appropriate context.
+ 
+ When a data value is not plain text, you can make sure it is not over-escaped
+@@ -183,8 +178,8 @@ injecting the template output into a page and all code specified by the
+ template author should run as a result of the same."
+ 
+ Least Surprise Property
+-"A developer (or code reviewer) familiar with HTML, CSS, and JavaScript;
+-who knows that EscapeSet is applied should be able to look at a {{.}}
++"A developer (or code reviewer) familiar with HTML, CSS, and JavaScript, who
++knows that contextual autoescaping happens should be able to look at a {{.}}
+ and correctly infer what sanitization happens."
+ */
+ package html
+diff --git a/src/pkg/html/template/error.go b/src/pkg/html/template/error.go
+index 22fca9e060..cb2994bc8a 100644
+--- a/src/pkg/html/template/error.go
++++ b/src/pkg/html/template/error.go
+@@ -75,12 +75,12 @@ const (
+ 	// Example:
+ 	//   {{if .C}}<a href="{{end}}{{.X}}
+ 	// Discussion:
+-	//   EscapeSet statically examines each possible path when it encounters
+-	//   a {{if}}, {{range}}, or {{with}} to escape any following pipelines.
++	//   Package html/template statically examines each path through an
++	//   {{if}}, {{range}}, or {{with}} to escape any following pipelines.
+ 	//   The example is ambiguous since {{.X}} might be an HTML text node,
+-	//   or a URL prefix in an HTML attribute. EscapeSet needs to understand
+-	//   the context of {{.X}} to escape it, but that depends on the
+-	//   run-time value of {{.C}}.
++	//   or a URL prefix in an HTML attribute. The context of {{.X}} is
++	//   used to figure out how to escape it, but that context depends on
++	//   the run-time value of {{.C}} which is not statically known.
+ 	//
+ 	//   The problem is usually something like missing quotes or angle
+ 	//   brackets, or can be avoided by refactoring to put the two contexts
+@@ -95,44 +95,28 @@ const (
+ 	//   <div title="no close quote>
+ 	//   <script>f()
+ 	// Discussion:
+-	//   EscapeSet assumes the ouput is a DocumentFragment of HTML.
++	//   Executed templates should produce a DocumentFragment of HTML.
+ 	//   Templates that end without closing tags will trigger this error.
+-	//   Templates that produce incomplete Fragments should not be named
+-	//   in the call to EscapeSet.
+-	//
+-	// If you have a helper template in your set that is not meant to
+-	// produce a document fragment, then do not pass its name to
+-	// EscapeSet(set, ...names).
++	//   Templates that should not be used in an HTML context or that
++	//   produce incomplete Fragments should not be executed directly.
+ 	//
+ 	//   {{define "main"}} <script>{{template "helper"}}</script> {{end}}
+ 	//   {{define "helper"}} document.write(' <div title=" ') {{end}}
+ 	// 
+-	// "helper" does not produce a valid document fragment, though it does
+-	// produce a valid JavaScript Program.
++	//   "helper" does not produce a valid document fragment, so should
++	//   not be Executed directly.
+ 	ErrEndContext
+ 
+-	// ErrNoNames: "must specify names of top level templates"
+-	// 
+-	//   EscapeSet does not assume that all templates in a set produce HTML.
+-	//   Some may be helpers that produce snippets of other languages.
+-	//   Passing in no template names is most likely an error,
+-	//   so EscapeSet(set) will panic.
+-	//   If you call EscapeSet with a slice of names, guard it with len:
+-	// 
+-	//     if len(names) != 0 {
+-	//       set, err := EscapeSet(set, ...names)
+-	//     }
+-	ErrNoNames
+-
+ 	// ErrNoSuchTemplate: "no such template ..."
+ 	// Examples:
+ 	//   {{define "main"}}<div {{template "attrs"}}>{{end}}
+ 	//   {{define "attrs"}}href="{{.URL}}"{{end}}
+ 	// Discussion:
+-	//   EscapeSet looks through template calls to compute the context.
++	//   Package html/template looks through template calls to compute the
++	//   context.
+ 	//   Here the {{.URL}} in "attrs" must be treated as a URL when called
+-	//   from "main", but if "attrs" is not in set when
+-	//   EscapeSet(&set, "main") is called, this error will arise.
++	//   from "main", but you will get this error if "attrs" is not defined
++	//   when "main" is parsed.
+ 	ErrNoSuchTemplate
+ 
+ 	// ErrOutputContext: "cannot compute output context for template ..."
+@@ -151,17 +135,18 @@ const (
+ 	// Example:
+ 	//     <script>var pattern = /foo[{{.Chars}}]/</script>
+ 	// Discussion:
+-	//   EscapeSet does not support interpolation into regular expression
+-	//   literal character sets.
++	//   Package html/template does not support interpolation into regular
++	//   expression literal character sets.
+ 	ErrPartialCharset
+ 
+ 	// ErrPartialEscape: "unfinished escape sequence in ..."
+ 	// Example:
+ 	//   <script>alert("\{{.X}}")</script>
+ 	// Discussion:
+-	//   EscapeSet does not support actions following a backslash.
++	//   Package html/template does not support actions following a
++	//   backslash.
+ 	//   This is usually an error and there are better solutions; for
+-	//   our example
++	//   example
+ 	//     <script>alert("{{.X}}")</script>
+ 	//   should work, and if {{.X}} is a partial escape sequence such as
+ 	//   "xA0", mark the whole sequence as safe content: JSStr(`\xA0`)
+@@ -169,16 +154,15 @@ const (
+ 
+ 	// ErrRangeLoopReentry: "on range loop re-entry: ..."
+ 	// Example:
+-	//   {{range .}}<p class={{.}}{{end}}
++	//   <script>var x = [{{range .}}'{{.}},{{end}}]</script>
+ 	// Discussion:
+ 	//   If an iteration through a range would cause it to end in a
+ 	//   different context than an earlier pass, there is no single context.
+-	//   In the example, the <p> tag is missing a '>'.
+-	//   EscapeSet cannot tell whether {{.}} is meant to be an HTML class or
+-	//   the content of a broken <p> element and complains because the
+-	//   second iteration would produce something like
++	//   In the example, there is missing a quote, so it is not clear
++	//   whether {{.}} is meant to be inside a JS string or in a JS value
++	//   context.  The second iteration would produce something like
+ 	// 
+-	//     <p class=foo<p class=bar
++	//     <script>var x = ['firstValue,'secondValue]</script>
+ 	ErrRangeLoopReentry
+ 
+ 	// ErrSlashAmbig: '/' could start a division or regexp.
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 28615a9318..e8eae8f174 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -12,31 +12,23 @@ import (
+ 	"template/parse"
+ )
+ 
+-// Escape rewrites each action in the template to guarantee that the output is
++// escape rewrites each action in the template to guarantee that the output is
+ // properly escaped.
+-func Escape(t *template.Template) (*template.Template, error) {
++func escape(t *template.Template) error {
+ 	var s template.Set
+ 	s.Add(t)
+-	if _, err := EscapeSet(&s, t.Name()); err != nil {
+-		return nil, err
+-	}
++	return escapeSet(&s, t.Name())
+ 	// TODO: if s contains cloned dependencies due to self-recursion
+ 	// cross-context, error out.
+-	return t, nil
+ }
+ 
+-// EscapeSet rewrites the template set to guarantee that the output of any of
++// escapeSet rewrites the template set to guarantee that the output of any of
+ // the named templates is properly escaped.
+ // Names should include the names of all templates that might be Executed but
+ // need not include helper templates.
+ // If no error is returned, then the named templates have been modified. 
+ // Otherwise the named templates have been rendered unusable.
+-func EscapeSet(s *template.Set, names ...string) (*template.Set, error) {
+-	if len(names) == 0 {
+-		// TODO: Maybe add a method to Set to enumerate template names
+-		// and use those instead.
+-		return nil, &Error{ErrNoNames, "", 0, "must specify names of top level templates"}
+-	}
++func escapeSet(s *template.Set, names ...string) error {
+ 	e := newEscaper(s)
+ 	for _, name := range names {
+ 		c, _ := e.escapeTree(context{}, name, 0)
+@@ -53,11 +45,11 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, error) {
+ 					t.Tree = nil
+ 				}
+ 			}
+-			return nil, err
++			return err
+ 		}
+ 	}
+ 	e.commit()
+-	return s, nil
++	return nil
+ }
+ 
+ // funcMap maps command names to functions that render their inputs safe.
+@@ -509,7 +501,7 @@ func (e *escaper) escapeTree(c context, name string, line int) (context, string)
+ 		}, dname
+ 	}
+ 	if dname != name {
+-		// Use any template derived during an earlier call to EscapeSet
++		// Use any template derived during an earlier call to escapeSet
+ 		// with different top level templates, or clone if necessary.
+ 		dt := e.template(dname)
+ 		if dt == nil {
+@@ -675,7 +667,7 @@ func contextAfterText(c context, s []byte) (context, int) {
+ 		// http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
+ 		// lists the runes below as error characters.
+ 		// Error out because HTML parsers may differ on whether
+-		// "<a id= onclick=f("     ends inside id's or onchange's value,
++		// "<a id= onclick=f("     ends inside id's or onclick's value,
+ 		// "<a class=`foo "        ends inside a value,
+ 		// "<a style=font:'Arial'" needs open-quote fixup.
+ 		// IE treats '`' as a quotation character.
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 20599bce15..f705947a0e 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -651,14 +651,14 @@ func TestEscape(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		tmpl := template.New(test.name)
++		tmpl := New(test.name)
+ 		// TODO: Move noescape into template/func.go
+ 		tmpl.Funcs(template.FuncMap{
+ 			"noescape": func(a ...interface{}) string {
+ 				return fmt.Sprint(a...)
+ 			},
+ 		})
+-		tmpl = template.Must(Escape(template.Must(tmpl.Parse(test.input))))
++		tmpl = Must(tmpl.Parse(test.input))
+ 		b := new(bytes.Buffer)
+ 		if err := tmpl.Execute(b, data); err != nil {
+ 			t.Errorf("%s: template execution failed: %s", test.name, err)
+@@ -792,17 +792,13 @@ func TestEscapeSet(t *testing.T) {
+ 	}}
+ 
+ 	for _, test := range tests {
+-		var s template.Set
+-		for name, src := range test.inputs {
+-			t := template.New(name)
+-			t.Funcs(fns)
+-			s.Add(template.Must(t.Parse(src)))
++		source := ""
++		for name, body := range test.inputs {
++			source += fmt.Sprintf("{{define %q}}%s{{end}} ", name, body)
+ 		}
++		s := &Set{}
+ 		s.Funcs(fns)
+-		if _, err := EscapeSet(&s, "main"); err != nil {
+-			t.Errorf("%s for input:\n%v", err, test.inputs)
+-			continue
+-		}
++		s.Parse(source)
+ 		var b bytes.Buffer
+ 
+ 		if err := s.Execute(&b, "main", data); err != nil {
+@@ -962,17 +958,19 @@ func TestErrors(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		var err error
++		buf := new(bytes.Buffer)
+ 		if strings.HasPrefix(test.input, "{{define") {
+-			var s template.Set
+-			_, err = s.Parse(test.input)
+-			if err != nil {
+-				t.Errorf("Failed to parse %q: %s", test.input, err)
+-				continue
++			var s *Set
++			s, err = (&Set{}).Parse(test.input)
++			if err == nil {
++				err = s.Execute(buf, "z", nil)
+ 			}
+-			_, err = EscapeSet(&s, "z")
+ 		} else {
+-			tmpl := template.Must(template.New("z").Parse(test.input))
+-			_, err = Escape(tmpl)
++			var t *Template
++			t, err = New("z").Parse(test.input)
++			if err == nil {
++				err = t.Execute(buf, nil)
++			}
+ 		}
+ 		var got string
+ 		if err != nil {
+@@ -1548,33 +1546,29 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 	}
+ }
+ 
+-func expectExecuteFailure(t *testing.T, b *bytes.Buffer, err error) {
+-	if err != nil {
+-		if b.Len() != 0 {
+-			t.Errorf("output on buffer: %q", b.String())
+-		}
+-	} else {
+-		t.Errorf("unescaped template executed")
+-	}
+-}
+-
+ func TestEscapeErrorsNotIgnorable(t *testing.T) {
+ 	var b bytes.Buffer
+-	tmpl := template.Must(template.New("dangerous").Parse("<a"))
+-	Escape(tmpl)
++	tmpl, _ := New("dangerous").Parse("<a")
+ 	err := tmpl.Execute(&b, nil)
+-	expectExecuteFailure(t, &b, err)
++	if err == nil {
++		t.Errorf("Expected error")
++	} else if b.Len() != 0 {
++		t.Errorf("Emitted output despite escaping failure")
++	}
+ }
+ 
+ func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
+-	s, err := (&template.Set{}).Parse(`{{define "t"}}<a{{end}}`)
++	var b bytes.Buffer
++	s, err := (&Set{}).Parse(`{{define "t"}}<a{{end}}`)
+ 	if err != nil {
+ 		t.Errorf("failed to parse set: %q", err)
+ 	}
+-	EscapeSet(s, "t")
+-	var b bytes.Buffer
+ 	err = s.Execute(&b, "t", nil)
+-	expectExecuteFailure(t, &b, err)
++	if err == nil {
++		t.Errorf("Expected error")
++	} else if b.Len() != 0 {
++		t.Errorf("Emitted output despite escaping failure")
++	}
+ }
+ 
+ func TestRedundantFuncs(t *testing.T) {
+@@ -1612,7 +1606,7 @@ func TestRedundantFuncs(t *testing.T) {
+ }
+ 
+ func BenchmarkEscapedExecute(b *testing.B) {
+-	tmpl := template.Must(Escape(template.Must(template.New("t").Parse(`<a onclick="alert('{{.}}')">{{.}}</a>`))))
++	tmpl := Must(New("t").Parse(`<a onclick="alert('{{.}}')">{{.}}</a>`))
+ 	var buf bytes.Buffer
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+new file mode 100644
+index 0000000000..04066ab40e
+--- /dev/null
++++ b/src/pkg/html/template/template.go
+@@ -0,0 +1,239 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"fmt"
++	"io"
++	"path/filepath"
++	"template"
++)
++
++// Set is a specialized template.Set that produces a safe HTML document
++// fragment.
++type Set struct {
++	escaped map[string]bool
++	template.Set
++}
++
++// Template is a specialized template.Template that produces a safe HTML
++// document fragment.
++type Template struct {
++	escaped bool
++	*template.Template
++}
++
++// Execute applies the named template to the specified data object, writing
++// the output to wr.
++func (s *Set) Execute(wr io.Writer, name string, data interface{}) error {
++	if !s.escaped[name] {
++		if err := escapeSet(&s.Set, name); err != nil {
++			return err
++		}
++		if s.escaped == nil {
++			s.escaped = make(map[string]bool)
++		}
++		s.escaped[name] = true
++	}
++	return s.Set.Execute(wr, name, data)
++}
++
++// Parse parses a string into a set of named templates.  Parse may be called
++// multiple times for a given set, adding the templates defined in the string
++// to the set.  If a template is redefined, the element in the set is
++// overwritten with the new definition.
++func (set *Set) Parse(src string) (*Set, error) {
++	set.escaped = nil
++	s, err := set.Set.Parse(src)
++	if err != nil {
++		return nil, err
++	}
++	if s != &(set.Set) {
++		panic("allocated new set")
++	}
++	return set, nil
++}
++
++// Parse parses the template definition string to construct an internal
++// representation of the template for execution.
++func (tmpl *Template) Parse(src string) (*Template, error) {
++	tmpl.escaped = false
++	t, err := tmpl.Template.Parse(src)
++	if err != nil {
++		return nil, err
++	}
++	tmpl.Template = t
++	return tmpl, nil
++}
++
++// Execute applies a parsed template to the specified data object,
++// writing the output to wr.
++func (t *Template) Execute(wr io.Writer, data interface{}) error {
++	if !t.escaped {
++		if err := escape(t.Template); err != nil {
++			return err
++		}
++		t.escaped = true
++	}
++	return t.Template.Execute(wr, data)
++}
++
++// New allocates a new HTML template with the given name.
++func New(name string) *Template {
++	return &Template{false, template.New(name)}
++}
++
++// Must panics if err is non-nil in the same way as template.Must.
++func Must(t *Template, err error) *Template {
++	t.Template = template.Must(t.Template, err)
++	return t
++}
++
++// ParseFile creates a new Template and parses the template definition from
++// the named file.  The template name is the base name of the file.
++func ParseFile(filename string) (*Template, error) {
++	t, err := template.ParseFile(filename)
++	if err != nil {
++		return nil, err
++	}
++	return &Template{false, t}, nil
++}
++
++// ParseFile reads the template definition from a file and parses it to
++// construct an internal representation of the template for execution.
++// The returned template will be nil if an error occurs.
++func (tmpl *Template) ParseFile(filename string) (*Template, error) {
++	t, err := tmpl.Template.ParseFile(filename)
++	if err != nil {
++		return nil, err
++	}
++	tmpl.Template = t
++	return tmpl, nil
++}
++
++// SetMust panics if the error is non-nil just like template.SetMust.
++func SetMust(s *Set, err error) *Set {
++	if err != nil {
++		template.SetMust(&(s.Set), err)
++	}
++	return s
++}
++
++// ParseFiles parses the named files into a set of named templates.
++// Each file must be parseable by itself.
++// If an error occurs, parsing stops and the returned set is nil.
++func (set *Set) ParseFiles(filenames ...string) (*Set, error) {
++	s, err := set.Set.ParseFiles(filenames...)
++	if err != nil {
++		return nil, err
++	}
++	if s != &(set.Set) {
++		panic("allocated new set")
++	}
++	return set, nil
++}
++
++// ParseSetFiles creates a new Set and parses the set definition from the
++// named files. Each file must be individually parseable.
++func ParseSetFiles(filenames ...string) (*Set, error) {
++	set := new(Set)
++	s, err := set.Set.ParseFiles(filenames...)
++	if err != nil {
++		return nil, err
++	}
++	if s != &(set.Set) {
++		panic("allocated new set")
++	}
++	return set, nil
++}
++
++// ParseGlob parses the set definition from the files identified by the
++// pattern. The pattern is processed by filepath.Glob and must match at
++// least one file.
++// If an error occurs, parsing stops and the returned set is nil.
++func (s *Set) ParseGlob(pattern string) (*Set, error) {
++	filenames, err := filepath.Glob(pattern)
++	if err != nil {
++		return nil, err
++	}
++	if len(filenames) == 0 {
++		return nil, fmt.Errorf("pattern matches no files: %#q", pattern)
++	}
++	return s.ParseFiles(filenames...)
++}
++
++// ParseSetGlob creates a new Set and parses the set definition from the
++// files identified by the pattern. The pattern is processed by filepath.Glob
++// and must match at least one file.
++func ParseSetGlob(pattern string) (*Set, error) {
++	set, err := new(Set).ParseGlob(pattern)
++	if err != nil {
++		return nil, err
++	}
++	return set, nil
++}
++
++// Functions and methods to parse stand-alone template files into a set.
++
++// ParseTemplateFiles parses the named template files and adds them to the set
++// in the same way as template.ParseTemplateFiles but ensures that templates
++// with upper-case names are contextually-autoescaped.
++func (set *Set) ParseTemplateFiles(filenames ...string) (*Set, error) {
++	s, err := set.Set.ParseTemplateFiles(filenames...)
++	if err != nil {
++		return nil, err
++	}
++	if s != &(set.Set) {
++		panic("new set allocated")
++	}
++	return set, nil
++}
++
++// ParseTemplateGlob parses the template files matched by the
++// patern and adds them to the set. Each template will be named
++// the base name of its file.
++// Unlike with ParseGlob, each file should be a stand-alone template
++// definition suitable for Template.Parse (not Set.Parse); that is, the
++// file does not contain {{define}} clauses. ParseTemplateGlob is
++// therefore equivalent to calling the ParseFile function to create
++// individual templates, which are then added to the set.
++// Each file must be parseable by itself.
++// If an error occurs, parsing stops and the returned set is nil.
++func (s *Set) ParseTemplateGlob(pattern string) (*Set, error) {
++	filenames, err := filepath.Glob(pattern)
++	if err != nil {
++		return nil, err
++	}
++	return s.ParseTemplateFiles(filenames...)
++}
++
++// ParseTemplateFiles creates a set by parsing the named files,
++// each of which defines a single template. Each template will be
++// named the base name of its file.
++// Unlike with ParseFiles, each file should be a stand-alone template
++// definition suitable for Template.Parse (not Set.Parse); that is, the
++// file does not contain {{define}} clauses. ParseTemplateFiles is
++// therefore equivalent to calling the ParseFile function to create
++// individual templates, which are then added to the set.
++// Each file must be parseable by itself. Parsing stops if an error is
++// encountered.
++func ParseTemplateFiles(filenames ...string) (*Set, error) {
++	return new(Set).ParseTemplateFiles(filenames...)
++}
++
++// ParseTemplateGlob creates a set by parsing the files matched
++// by the pattern, each of which defines a single template. The pattern
++// is processed by filepath.Glob and must match at least one file. Each
++// template will be named the base name of its file.
++// Unlike with ParseGlob, each file should be a stand-alone template
++// definition suitable for Template.Parse (not Set.Parse); that is, the
++// file does not contain {{define}} clauses. ParseTemplateGlob is
++// therefore equivalent to calling the ParseFile function to create
++// individual templates, which are then added to the set.
++// Each file must be parseable by itself. Parsing stops if an error is
++// encountered.
++func ParseTemplateGlob(pattern string) (*Set, error) {
++	return new(Set).ParseTemplateGlob(pattern)
++}

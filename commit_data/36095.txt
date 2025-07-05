@@ -58,7 +58,38 @@ Date:   Wed Apr 4 11:57:03 2018 +0200
     Change-Id: I7378174e3550b47df4368b24cf24c8ce1b85c906
     Reviewed-on: https://go-review.googlesource.com/104656
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/ssa/dom.go      | 4 +++-
  src/cmd/compile/internal/ssa/schedule.go | 4 +++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index db991f6b7e..ee2748e6df 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -37,7 +37,9 @@ func postorderWithNumbering(f *Func, ponums []int32) []*Block {
+ 	var order []*Block
+ 
+ 	// stack of blocks and next child to visit
+-	var s []blockAndIndex
++	// A constant bound allows this to be stack-allocated. 32 is
++	// enough to cover almost every postorderWithNumbering call.
++	s := make([]blockAndIndex, 0, 32)
+ 	s = append(s, blockAndIndex{b: f.Entry})
+ 	mark[f.Entry.ID] = explored
+ 	for len(s) > 0 {
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index ff8bac8409..78c72f8146 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -74,7 +74,9 @@ func schedule(f *Func) {
+ 	score := make([]int8, f.NumValues())
+ 
+ 	// scheduling order. We queue values in this list in reverse order.
+-	var order []*Value
++	// A constant bound allows this to be stack-allocated. 64 is
++	// enough to cover almost every schedule call.
++	order := make([]*Value, 0, 64)
+ 
+ 	// maps mem values to the next live memory value
+ 	nextMem := make([]*Value, f.NumValues())

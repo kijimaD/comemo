@@ -9,7 +9,49 @@ Date:   Fri Apr 24 21:47:25 2015 +0300
     Change-Id: I764f3c226cf98ff39d9e553e4613d0ee108ef766
     Reviewed-on: https://go-review.googlesource.com/9311
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/serve_test.go | 3 +++
  src/net/http/server.go     | 3 ++-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index de40559ff1..02f1dbf20a 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -207,6 +207,7 @@ var handlers = []struct {
+ }{
+ 	{"/", "Default"},
+ 	{"/someDir/", "someDir"},
++	{"/#/", "hash"},
+ 	{"someHost.com/someDir/", "someHost.com/someDir"},
+ }
+ 
+@@ -215,12 +216,14 @@ var vtests = []struct {
+ 	expected string
+ }{
+ 	{"http://localhost/someDir/apage", "someDir"},
++	{"http://localhost/%23/apage", "hash"},
+ 	{"http://localhost/otherDir/apage", "Default"},
+ 	{"http://someHost.com/someDir/apage", "someHost.com/someDir"},
+ 	{"http://otherHost.com/someDir/apage", "someDir"},
+ 	{"http://otherHost.com/aDir/apage", "Default"},
+ 	// redirections for trees
+ 	{"http://localhost/someDir", "/someDir/"},
++	{"http://localhost/%23", "/%23/"},
+ 	{"http://someHost.com/someDir", "/someDir/"},
+ }
+ 
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 71154ec2be..bac3e04647 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1667,7 +1667,8 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 			// strings.Index can't be -1.
+ 			path = pattern[strings.Index(pattern, "/"):]
+ 		}
+-		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(path, StatusMovedPermanently), pattern: pattern}
++		url := &url.URL{Path: path}
++		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(url.String(), StatusMovedPermanently), pattern: pattern}
+ 	}
+ }
+ 

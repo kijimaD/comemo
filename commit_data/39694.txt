@@ -9,6 +9,19 @@ Date:   Wed Mar 13 20:49:19 2019 +0000
     Change-Id: Ibad3c0781ea70d538592b2e90d8b578e4fae8173
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167385
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/build.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 26234d15cc..d89ee899f0 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -10,7 +10,6 @@ import (
+ 	"go/build"
+ 	"os"
+ 	"os/exec"
+-	//"path"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"

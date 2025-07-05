@@ -14,6 +14,24 @@ Date:   Fri Aug 26 12:10:32 2022 -0700
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/math/rand/rand.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 4cce3dab64..bcf2f9c950 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -40,7 +40,12 @@ type Source64 interface {
+ // NewSource returns a new pseudo-random Source seeded with the given value.
+ // Unlike the default Source used by top-level functions, this source is not
+ // safe for concurrent use by multiple goroutines.
++// The returned Source implements Source64.
+ func NewSource(seed int64) Source {
++	return newSource64(seed)
++}
++
++func newSource64(seed int64) Source64 {
+ 	var rng rngSource
+ 	rng.Seed(seed)
+ 	return &rng

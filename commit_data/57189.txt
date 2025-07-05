@@ -17,6 +17,24 @@ Date:   Wed Jul 12 13:56:44 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  doc/go1.21.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 1a39a27c85..6c58cb0590 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -917,6 +917,12 @@ Do not send CLs removing the interior tags from such phrases.
+       names, stored as UTF-16, can't be represented as valid UTF-8.
+     </p>
+ 
++    <p><!-- CL 463177 -->
++      On Windows <a href="/pkg/os/#Lstat"><code>Lstat</code></a> now resolves
++      symbolic links for paths ending with a path separator, consistent with its
++      behavior on POSIX platforms.
++    </p>
++
+     <p><!-- https://go.dev/issue/54451, CL 491175 -->
+       The implementation of the
+       <a href="/pkg/io/fs/#DirEntry"><code>io/fs.DirEntry</code></a>

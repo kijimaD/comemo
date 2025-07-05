@@ -20,7 +20,7 @@ Date:   Mon Dec 2 17:36:25 2019 -0500
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/defs_linux_amd64.go | 11 +++++++
  src/runtime/os_linux.go         | 10 +++++++
  src/runtime/os_linux_386.go     |  7 +++++
@@ -33,3 +33,246 @@ Date:   Mon Dec 2 17:36:25 2019 -0500
  src/runtime/os_linux_s390x.go   |  2 ++
  src/runtime/sys_linux_amd64.s   | 19 +++++++++++++
  11 files changed, 122 insertions(+)
+
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index 9eb5646ca3..8144354d5a 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -263,3 +263,14 @@ type sockaddr_un struct {
+ 	family uint16
+ 	path   [108]byte
+ }
++
++const __NEW_UTS_LEN = 64
++
++type new_utsname struct {
++	sysname    [__NEW_UTS_LEN + 1]byte
++	nodename   [__NEW_UTS_LEN + 1]byte
++	release    [__NEW_UTS_LEN + 1]byte
++	version    [__NEW_UTS_LEN + 1]byte
++	machine    [__NEW_UTS_LEN + 1]byte
++	domainname [__NEW_UTS_LEN + 1]byte
++}
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 27c66f7449..1eb86e9c8b 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -289,6 +289,7 @@ func getHugePageSize() uintptr {
+ func osinit() {
+ 	ncpu = getproccount()
+ 	physHugePageSize = getHugePageSize()
++	osArchInit()
+ }
+ 
+ var urandom_dev = []byte("/dev/urandom\x00")
+@@ -318,11 +319,20 @@ func libpreinit() {
+ 	initsig(true)
+ }
+ 
++// gsignalInitQuirk, if non-nil, is called for every allocated gsignal G.
++//
++// TODO(austin): Remove this after Go 1.15 when we remove the
++// mlockGsignal workaround.
++var gsignalInitQuirk func(gsignal *g)
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ func mpreinit(mp *m) {
+ 	mp.gsignal = malg(32 * 1024) // Linux wants >= 2K
+ 	mp.gsignal.m = mp
++	if gsignalInitQuirk != nil {
++		gsignalInitQuirk(mp.gsignal)
++	}
+ }
+ 
+ func gettid() uint32
+diff --git a/src/runtime/os_linux_386.go b/src/runtime/os_linux_386.go
+new file mode 100644
+index 0000000000..9be88a5ad2
+--- /dev/null
++++ b/src/runtime/os_linux_386.go
+@@ -0,0 +1,7 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++func osArchInit() {}
+diff --git a/src/runtime/os_linux_amd64.go b/src/runtime/os_linux_amd64.go
+new file mode 100644
+index 0000000000..21e4790c53
+--- /dev/null
++++ b/src/runtime/os_linux_amd64.go
+@@ -0,0 +1,63 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++//go:noescape
++func uname(utsname *new_utsname) int
++
++func mlock(addr, len uintptr) int
++
++func osArchInit() {
++	// Linux 5.2 introduced a bug that can corrupt vector
++	// registers on return from a signal if the signal stack isn't
++	// faulted in:
++	// https://bugzilla.kernel.org/show_bug.cgi?id=205663
++	//
++	// It was fixed in 5.3.15, 5.4.2, and all 5.5 and later
++	// kernels.
++	//
++	// If we're on an affected kernel, work around this issue by
++	// mlocking the top page of every signal stack. This doesn't
++	// help for signal stacks created in C, but there's not much
++	// we can do about that.
++	//
++	// TODO(austin): Remove this in Go 1.15, at which point it
++	// will be unlikely to encounter any of the affected kernels
++	// in the wild.
++
++	var uts new_utsname
++	if uname(&uts) < 0 {
++		throw("uname failed")
++	}
++	// Check for null terminator to ensure gostringnocopy doesn't
++	// walk off the end of the release string.
++	found := false
++	for _, b := range uts.release {
++		if b == 0 {
++			found = true
++			break
++		}
++	}
++	if !found {
++		return
++	}
++	rel := gostringnocopy(&uts.release[0])
++
++	major, minor, patch, ok := parseRelease(rel)
++	if !ok {
++		return
++	}
++
++	if major == 5 && (minor == 2 || minor == 3 && patch < 15 || minor == 4 && patch < 2) {
++		gsignalInitQuirk = mlockGsignal
++		if m0.gsignal != nil {
++			throw("gsignal quirk too late")
++		}
++	}
++}
++
++func mlockGsignal(gsignal *g) {
++	mlock(gsignal.stack.hi-physPageSize, physPageSize)
++}
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index 5f89c30f7a..b590da750f 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -39,6 +39,8 @@ func archauxv(tag, val uintptr) {
+ 	}
+ }
+ 
++func osArchInit() {}
++
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index b51bc88820..19968dc164 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -27,6 +27,8 @@ func archauxv(tag, val uintptr) {
+ 	}
+ }
+ 
++func osArchInit() {}
++
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index 59d2a8f2c6..464a26a8a4 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -10,6 +10,8 @@ package runtime
+ func archauxv(tag, val uintptr) {
+ }
+ 
++func osArchInit() {}
++
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+diff --git a/src/runtime/os_linux_mipsx.go b/src/runtime/os_linux_mipsx.go
+index ccdc3a7fe5..87962ed982 100644
+--- a/src/runtime/os_linux_mipsx.go
++++ b/src/runtime/os_linux_mipsx.go
+@@ -10,6 +10,8 @@ package runtime
+ func archauxv(tag, val uintptr) {
+ }
+ 
++func osArchInit() {}
++
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+diff --git a/src/runtime/os_linux_ppc64x.go b/src/runtime/os_linux_ppc64x.go
+index cc79cc4a66..3aedc23ef9 100644
+--- a/src/runtime/os_linux_ppc64x.go
++++ b/src/runtime/os_linux_ppc64x.go
+@@ -20,3 +20,5 @@ func archauxv(tag, val uintptr) {
+ 		cpu.HWCap2 = uint(val)
+ 	}
+ }
++
++func osArchInit() {}
+diff --git a/src/runtime/os_linux_s390x.go b/src/runtime/os_linux_s390x.go
+index 55d35c7cff..ee18fd1dc2 100644
+--- a/src/runtime/os_linux_s390x.go
++++ b/src/runtime/os_linux_s390x.go
+@@ -17,3 +17,5 @@ func archauxv(tag, val uintptr) {
+ 		cpu.S390X.HasVX = val&_HWCAP_S390_VX != 0
+ 	}
+ }
++
++func osArchInit() {}
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index d16060f6fa..174120f887 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -33,8 +33,10 @@
+ #define SYS_clone		56
+ #define SYS_exit		60
+ #define SYS_kill		62
++#define SYS_uname		63
+ #define SYS_fcntl		72
+ #define SYS_sigaltstack 	131
++#define SYS_mlock		149
+ #define SYS_arch_prctl		158
+ #define SYS_gettid		186
+ #define SYS_futex		202
+@@ -764,3 +766,20 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+ 	SYSCALL
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
++
++// func uname(utsname *new_utsname) int
++TEXT ·uname(SB),NOSPLIT,$0-16
++	MOVQ    utsname+0(FP), DI
++	MOVL    $SYS_uname, AX
++	SYSCALL
++	MOVQ	AX, ret+8(FP)
++	RET
++
++// func mlock(addr, len uintptr) int
++TEXT ·mlock(SB),NOSPLIT,$0-24
++	MOVQ    addr+0(FP), DI
++	MOVQ    len+8(FP), SI
++	MOVL    $SYS_mlock, AX
++	SYSCALL
++	MOVQ	AX, ret+16(FP)
++	RET

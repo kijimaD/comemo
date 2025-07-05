@@ -11,6 +11,57 @@ Date:   Mon Nov 22 10:21:19 2021 -0500
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/server_test.go | 31 ++++++++++++++++++++++++++++++-
  1 file changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 5192c1e0af..33d33b0337 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -7,7 +7,9 @@
+ package net
+ 
+ import (
++	"fmt"
+ 	"os"
++	"reflect"
+ 	"testing"
+ )
+ 
+@@ -187,7 +189,34 @@ func TestUnixAndUnixpacketServer(t *testing.T) {
+ 				}
+ 				t.Fatal(err)
+ 			}
+-			defer os.Remove(c.LocalAddr().String())
++
++			// We really just want to defer os.Remove(c.LocalAddr().String()) here,
++			// but sometimes that panics due to a nil dereference on the
++			// solaris-amd64-oraclerel builder (https://golang.org/issue/34611).
++			// The source of the nil panic is not obvious because there are many
++			// nillable types involved, so we will temporarily inspect all of them to
++			// try to get a better idea of what is happening on that platform.
++			checkNils := func() {
++				if c == nil {
++					panic("Dial returned a nil Conn")
++				}
++				if rc := reflect.ValueOf(c); rc.Kind() == reflect.Pointer && rc.IsNil() {
++					panic(fmt.Sprintf("Dial returned a nil %T", c))
++				}
++				addr := c.LocalAddr()
++				if addr == nil {
++					panic(fmt.Sprintf("(%T).LocalAddr returned a nil Addr", c))
++				}
++				if raddr := reflect.ValueOf(addr); raddr.Kind() == reflect.Pointer && raddr.IsNil() {
++					panic(fmt.Sprintf("(%T).LocalAddr returned a nil %T", c, addr))
++				}
++			}
++			defer func() {
++				checkNils()
++				os.Remove(c.LocalAddr().String())
++			}()
++			checkNils()
++
+ 			defer c.Close()
+ 			trchs = append(trchs, make(chan error, 1))
+ 			go transceiver(c, []byte("UNIX AND UNIXPACKET SERVER TEST"), trchs[i])

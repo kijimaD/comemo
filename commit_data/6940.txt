@@ -9,7 +9,41 @@ Date:   Mon Dec 13 16:51:19 2010 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3627041
-
+---
  src/cmd/gc/gen.c |  2 +-
  test/closure.go  | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 8144fabaa8..04af5a7bb1 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -433,7 +433,7 @@ cgen_discard(Node *nr)
+ 
+ 	switch(nr->op) {
+ 	case ONAME:
+-		if(!(nr->class & PHEAP) && nr->class != PEXTERN && nr->class != PFUNC)
++		if(!(nr->class & PHEAP) && nr->class != PEXTERN && nr->class != PFUNC && nr->class != PPARAMREF)
+ 			gused(nr);
+ 		break;
+ 
+diff --git a/test/closure.go b/test/closure.go
+index 54e4cf8eae..3033c02ed8 100644
+--- a/test/closure.go
++++ b/test/closure.go
+@@ -98,4 +98,15 @@ func main() {
+ 		println("newfunc returned broken funcs")
+ 		panic("fail")
+ 	}
++
++	ff(1)
++}
++
++func ff(x int) {
++	call(func() {
++		_ = x
++	})
++}
++
++func call(func()) {
+ }

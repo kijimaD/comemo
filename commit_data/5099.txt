@@ -9,9 +9,235 @@ Date:   Mon Mar 22 18:51:14 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/680042
-
+---
  src/cmd/gc/go.h        |  2 --
  src/cmd/gc/typecheck.c | 10 +++---
  src/cmd/gc/walk.c      | 95 ++++++++++++++++++++++++--------------------------
  test/golden.out        |  2 +-
  4 files changed, 51 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 46be44d5ee..9b4ab47312 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -348,7 +348,6 @@ enum
+ 	OADD, OSUB, OOR, OXOR, OADDSTR,
+ 	OADDR,
+ 	OANDAND,
+-	OAPPENDSTR,
+ 	OARRAY,
+ 	OARRAYBYTESTR, OARRAYRUNESTR,
+ 	OSTRARRAYBYTE, OSTRARRAYRUNE,
+@@ -1066,7 +1065,6 @@ Node*	ascompatee1(int, Node*, Node*, NodeList**);
+ NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
+ NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
+ NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
+-Node*	mapop(Node*, NodeList**);
+ Type*	fixchan(Type*);
+ Node*	ifacecvt(Type*, Node*, int, NodeList**);
+ int	ifaceas(Type*, Type*, int);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 4e5b5bbcd5..a7ea631e1c 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -80,8 +80,10 @@ typecheck(Node **np, int top)
+ 		}
+ 	}
+ 
+-	if(n->typecheck == 2)
+-		fatal("typecheck loop");
++	if(n->typecheck == 2) {
++		yyerror("typechecking loop");
++		return n;
++	}
+ 	n->typecheck = 2;
+ 
+ redo:
+@@ -355,9 +357,7 @@ reswitch:
+ 			if(iscmp[n->op]) {
+ 				n->etype = n->op;
+ 				n->op = OCMPSTR;
+-			} else if(n->op == OASOP)
+-				n->op = OAPPENDSTR;
+-			else if(n->op == OADD)
++			} else if(n->op == OADD)
+ 				n->op = OADDSTR;
+ 		}
+ 		if(et == TINTER) {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 65ab491f6f..3820a58ff3 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -354,7 +354,6 @@ walkstmt(Node **np)
+ 		dump("nottop", n);
+ 		break;
+ 
+-	case OAPPENDSTR:
+ 	case OASOP:
+ 	case OAS:
+ 	case OAS2:
+@@ -522,8 +521,8 @@ walkexprlistsafe(NodeList *l, NodeList **init)
+ void
+ walkexpr(Node **np, NodeList **init)
+ {
+-	Node *r, *l;
+-	NodeList *ll, *lr;
++	Node *r, *l, *var, *a;
++	NodeList *ll, *lr, *lpost;
+ 	Type *t;
+ 	int et;
+ 	int32 lno;
+@@ -707,8 +706,35 @@ walkexpr(Node **np, NodeList **init)
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r, init);
++		l = n->list->n;
++		
++		// all the really hard stuff - explicit function calls and so on -
++		// is gone, but map assignments remain.
++		// if there are map assignments here, assign via
++		// temporaries, because ascompatet assumes
++		// the targets can be addressed without function calls
++		// and map index has an implicit one.
++		lpost = nil;
++		if(l->op == OINDEXMAP) {
++			var = nod(OXXX, N, N);
++			tempname(var, l->type);
++			n->list->n = var;
++			a = nod(OAS, l, var);
++			typecheck(&a, Etop);
++			lpost = list(lpost, a);
++		}
++		l = n->list->next->n;
++		if(l->op == OINDEXMAP) {
++			var = nod(OXXX, N, N);
++			tempname(var, l->type);
++			n->list->next->n = var;
++			a = nod(OAS, l, var);
++			typecheck(&a, Etop);
++			lpost = list(lpost, a);
++		}
+ 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+-		n = liststmt(concat(list1(r), ll));
++		walkexprlist(lpost, init);
++		n = liststmt(concat(concat(list1(r), ll), lpost));
+ 		goto ret;
+ 
+ 	case OAS2RECV:
+@@ -815,26 +841,35 @@ walkexpr(Node **np, NodeList **init)
+ 		n->left = safeexpr(n->left, init);
+ 		walkexpr(&n->left, init);
+ 		l = n->left;
+-		if(l->op == OINDEXMAP)
+-			n = mapop(n, init);
+ 		walkexpr(&n->right, init);
+ 		if(n->etype == OANDNOT) {
+ 			n->etype = OAND;
+ 			n->right = nod(OCOM, n->right, N);
+ 			typecheck(&n->right, Erv);
+-			goto ret;
+ 		}
+ 
+ 		/*
+ 		 * on 32-bit arch, rewrite 64-bit ops into l = l op r.
+ 		 * on 386, rewrite float ops into l = l op r.
++		 * everywhere, rewrite map ops into l = l op r.
++		 * everywhere, rewrite string += into l = l op r.
+ 		 * TODO(rsc): Maybe this rewrite should be done always?
+ 		 */
+ 		et = n->left->type->etype;
+ 		if((widthptr == 4 && (et == TUINT64 || et == TINT64)) ||
+-		   (thechar == '8' && isfloat[et])) {
++		   (thechar == '8' && isfloat[et]) ||
++		   l->op == OINDEXMAP ||
++		   et == TSTRING) {
+ 			l = safeexpr(n->left, init);
+-			r = nod(OAS, l, nod(n->etype, l, n->right));
++			a = l;
++			if(a->op == OINDEXMAP) {
++				// map index has "lhs" bit set in a->etype.
++				// make a copy so we can clear it on the rhs.
++				a = nod(OXXX, N, N);
++				*a = *l;
++				a->etype = 0;
++			}
++			r = nod(OAS, l, nod(n->etype, a, n->right));
+ 			typecheck(&r, Etop);
+ 			walkexpr(&r, init);
+ 			n = r;
+@@ -1016,17 +1051,6 @@ walkexpr(Node **np, NodeList **init)
+ 			conv(n->right, types[TSTRING]));
+ 		goto ret;
+ 
+-	case OAPPENDSTR:
+-		// s1 = sys_catstring(s1, s2)
+-		if(n->etype != OADD)
+-			fatal("walkasopstring: not add");
+-		r = mkcall("catstring", n->left->type, init,
+-			conv(n->left, types[TSTRING]),
+-			conv(n->right, types[TSTRING]));
+-		r = nod(OAS, n->left, r);
+-		n = r;
+-		goto ret;
+-
+ 	case OSLICESTR:
+ 		// sys_slicestring(s, lb, hb)
+ 		if(n->right->right) {
+@@ -1366,7 +1390,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
+ 		yyerror("assignment count mismatch: %d = %d",
+ 			count(nl), structcount(*nr));
+ 	if(ucount)
+-		yyerror("reorder2: too many function calls evaluating parameters");
++		fatal("reorder2: too many function calls evaluating parameters");
+ 	return concat(nn, mm);
+ }
+ 
+@@ -1862,35 +1886,6 @@ bad:
+ 	return T;
+ }
+ 
+-Node*
+-mapop(Node *n, NodeList **init)
+-{
+-	Node *r, *a;
+-
+-	r = n;
+-	switch(n->op) {
+-	default:
+-		fatal("mapop: unknown op %O", n->op);
+-	case OASOP:
+-		// rewrite map[index] op= right
+-		// into tmpi := index; map[tmpi] = map[tmpi] op right
+-
+-		// make it ok to double-evaluate map[tmpi]
+-		n->left->left = safeexpr(n->left->left, init);
+-		n->left->right = safeexpr(n->left->right, init);
+-
+-		a = nod(OXXX, N, N);
+-		*a = *n->left;		// copy of map[tmpi]
+-		a->etype = 0;
+-		a = nod(n->etype, a, n->right);		// m[tmpi] op right
+-		r = nod(OAS, n->left, a);		// map[tmpi] = map[tmpi] op right
+-		typecheck(&r, Etop);
+-		walkexpr(&r, init);
+-		break;
+-	}
+-	return r;
+-}
+-
+ /*
+  * assigning src to dst involving interfaces?
+  * return op to use.
+diff --git a/test/golden.out b/test/golden.out
+index 96ab549438..036519de70 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -159,7 +159,7 @@ do break
+ broke
+ 
+ =========== fixedbugs/bug081.go
+-fixedbugs/bug081.go:9: fatal error: typecheck loop
++fixedbugs/bug081.go:9: typechecking loop
+ 
+ =========== fixedbugs/bug093.go
+ M

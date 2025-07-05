@@ -34,7 +34,7 @@ Date:   Wed Jan 10 15:49:33 2024 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 17 +++++++++++++++++
  src/cmd/compile/internal/types2/subst.go       |  1 +
  src/cmd/compile/internal/types2/typeset.go     |  1 -
@@ -42,3 +42,102 @@ Date:   Wed Jan 10 15:49:33 2024 -0800
  src/go/types/subst.go                          |  1 +
  src/go/types/typeset.go                        |  1 -
  6 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index a8893cf6de..0117571f7b 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -1076,3 +1076,20 @@ func TestIssue59831(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue64759(t *testing.T) {
++	const src = `
++//go:build go1.18
++package p
++
++func f[S ~[]E, E any](S) {}
++
++func _() {
++	f([]string{})
++}
++`
++	// Per the go:build directive, the source must typecheck
++	// even though the (module) Go version is set to go1.17.
++	conf := Config{GoVersion: "go1.17"}
++	mustTypecheck(src, &conf, nil)
++}
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index aefa53603f..09dc58527a 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -169,6 +169,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		if mcopied || ecopied {
+ 			iface := subst.check.newInterface()
+ 			iface.embeddeds = embeddeds
++			iface.embedPos = t.embedPos
+ 			iface.implicit = t.implicit
+ 			assert(t.complete) // otherwise we are copying incomplete data
+ 			iface.complete = t.complete
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 719041657c..a6ccfdb80c 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -304,7 +304,6 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 		// separately. Here we only need to intersect the term lists and comparable bits.
+ 		allTerms, allComparable = intersectTermLists(allTerms, allComparable, terms, comparable)
+ 	}
+-	ityp.embedPos = nil // not needed anymore (errors have been reported)
+ 
+ 	ityp.tset.comparable = allComparable
+ 	if len(allMethods) != 0 {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index b4c8218bc4..6f9d5978e7 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -1086,3 +1086,20 @@ func TestIssue59831(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue64759(t *testing.T) {
++	const src = `
++//go:build go1.18
++package p
++
++func f[S ~[]E, E any](S) {}
++
++func _() {
++	f([]string{})
++}
++`
++	// Per the go:build directive, the source must typecheck
++	// even though the (module) Go version is set to go1.17.
++	conf := Config{GoVersion: "go1.17"}
++	mustTypecheck(src, &conf, nil)
++}
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 13d3dcbf1e..1934ebab2b 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -171,6 +171,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		if mcopied || ecopied {
+ 			iface := subst.check.newInterface()
+ 			iface.embeddeds = embeddeds
++			iface.embedPos = t.embedPos
+ 			iface.implicit = t.implicit
+ 			assert(t.complete) // otherwise we are copying incomplete data
+ 			iface.complete = t.complete
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 8d8c490c6a..d164749996 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -302,7 +302,6 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 		// separately. Here we only need to intersect the term lists and comparable bits.
+ 		allTerms, allComparable = intersectTermLists(allTerms, allComparable, terms, comparable)
+ 	}
+-	ityp.embedPos = nil // not needed anymore (errors have been reported)
+ 
+ 	ityp.tset.comparable = allComparable
+ 	if len(allMethods) != 0 {

@@ -14,7 +14,58 @@ Date:   Mon Aug 8 14:13:52 2022 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
-
+---
  src/encoding/gob/encode.go | 10 +++++-----
  src/encoding/gob/type.go   |  4 ++--
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 548d614f52..38430342b6 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -577,7 +577,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
+ 			op = func(i *encInstr, state *encoderState, sv reflect.Value) {
+ 				state.update(i)
+ 				// indirect through info to delay evaluation for recursive structs
+-				enc := info.encoder.Load().(*encEngine)
++				enc := info.encoder.Load()
+ 				state.enc.encodeStruct(state.b, enc, sv)
+ 			}
+ 		case reflect.Interface:
+@@ -661,8 +661,8 @@ func getEncEngine(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
+ 	if err != nil {
+ 		error_(err)
+ 	}
+-	enc, ok := info.encoder.Load().(*encEngine)
+-	if !ok {
++	enc := info.encoder.Load()
++	if enc == nil {
+ 		enc = buildEncEngine(info, ut, building)
+ 	}
+ 	return enc
+@@ -675,8 +675,8 @@ func buildEncEngine(info *typeInfo, ut *userTypeInfo, building map[*typeInfo]boo
+ 	}
+ 	info.encInit.Lock()
+ 	defer info.encInit.Unlock()
+-	enc, ok := info.encoder.Load().(*encEngine)
+-	if !ok {
++	enc := info.encoder.Load()
++	if enc == nil {
+ 		if building == nil {
+ 			building = make(map[*typeInfo]bool)
+ 		}
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index 6e2c724232..9eec08615e 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -672,8 +672,8 @@ func (w *wireType) string() string {
+ 
+ type typeInfo struct {
+ 	id      typeId
+-	encInit sync.Mutex   // protects creation of encoder
+-	encoder atomic.Value // *encEngine
++	encInit sync.Mutex // protects creation of encoder
++	encoder atomic.Pointer[encEngine]
+ 	wire    *wireType
+ }
+ 

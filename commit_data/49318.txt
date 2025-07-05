@@ -20,10 +20,192 @@ Date:   Mon Aug 2 15:54:51 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/build.go               | 40 ++++------------------
  .../script/mod_list_command_line_arguments.txt     | 35 +++++++++++++++++++
  src/cmd/go/testdata/script/mod_outside.txt         |  2 +-
  src/cmd/go/testdata/script/version.txt             |  7 ++++
  src/cmd/go/testdata/script/work.txt                | 16 ++++++++-
  5 files changed, 65 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 3f2160d52d..73b51c117a 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -341,15 +341,14 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ // for modules providing packages named by path and deps. path and deps must
+ // name packages that were resolved successfully with LoadPackages.
+ func PackageBuildInfo(path string, deps []string) string {
+-	if isStandardImportPath(path) || !Enabled() {
++	if !Enabled() {
+ 		return ""
+ 	}
+-
+-	target := mustFindModule(loaded, path, path)
++	target, _ := findModule(loaded, path)
+ 	mdeps := make(map[module.Version]bool)
+ 	for _, dep := range deps {
+-		if !isStandardImportPath(dep) {
+-			mdeps[mustFindModule(loaded, path, dep)] = true
++		if m, ok := findModule(loaded, dep); ok {
++			mdeps[m] = true
+ 		}
+ 	}
+ 	var mods []module.Version
+@@ -375,7 +374,9 @@ func PackageBuildInfo(path string, deps []string) string {
+ 		}
+ 	}
+ 
+-	writeEntry("mod", target)
++	if target.Path != "" {
++		writeEntry("mod", target)
++	}
+ 	for _, mod := range mods {
+ 		writeEntry("dep", mod)
+ 	}
+@@ -383,29 +384,6 @@ func PackageBuildInfo(path string, deps []string) string {
+ 	return buf.String()
+ }
+ 
+-// mustFindModule is like findModule, but it calls base.Fatalf if the
+-// module can't be found.
+-//
+-// TODO(jayconrod): remove this. Callers should use findModule and return
+-// errors instead of relying on base.Fatalf.
+-func mustFindModule(ld *loader, target, path string) module.Version {
+-	pkg, ok := ld.pkgCache.Get(path).(*loadPkg)
+-	if ok {
+-		if pkg.err != nil {
+-			base.Fatalf("build %v: cannot load %v: %v", target, path, pkg.err)
+-		}
+-		return pkg.mod
+-	}
+-
+-	if path == "command-line-arguments" {
+-		_ = TODOWorkspaces("support multiple main modules; search by modroot")
+-		return MainModules.mustGetSingleMainModule()
+-	}
+-
+-	base.Fatalf("build %v: cannot find module for path %v", target, path)
+-	panic("unreachable")
+-}
+-
+ // findModule searches for the module that contains the package at path.
+ // If the package was loaded, its containing module and true are returned.
+ // Otherwise, module.Version{} and false are returned.
+@@ -413,10 +391,6 @@ func findModule(ld *loader, path string) (module.Version, bool) {
+ 	if pkg, ok := ld.pkgCache.Get(path).(*loadPkg); ok {
+ 		return pkg.mod, pkg.mod != module.Version{}
+ 	}
+-	if path == "command-line-arguments" {
+-		_ = TODOWorkspaces("support multiple main modules; search by modroot")
+-		return MainModules.mustGetSingleMainModule(), true
+-	}
+ 	return module.Version{}, false
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_list_command_line_arguments.txt b/src/cmd/go/testdata/script/mod_list_command_line_arguments.txt
+new file mode 100644
+index 0000000000..fd99ae84b2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_command_line_arguments.txt
+@@ -0,0 +1,35 @@
++# The command-line-arguments package does not belong to a module...
++cd a
++go list -f '{{.Module}}' ../b/b.go
++stdout '^<nil>$'
++
++# ... even if the arguments are sources from that module
++go list -f '{{.Module}}' a.go
++stdout '^<nil>$'
++
++[short] skip
++
++# check that the version of command-line-arguments doesn't include a module
++go build -o a.exe a.go
++go version -m a.exe
++stdout '^\tpath\tcommand-line-arguments$'
++stdout '^\tdep\ta\t\(devel\)\t$'
++! stdout mod
++
++-- a/go.mod --
++module a
++go 1.17
++-- a/a.go --
++package main
++
++import "a/dep"
++
++func main() {
++    dep.D()
++}
++-- a/dep/dep.go --
++package dep
++
++func D() {}
++-- b/b.go --
++package b
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 33341f7d4b..3b4559405a 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -251,7 +251,7 @@ stdout 'using example.com/version v1.0.1'
+ # outside std.
+ go run ./stdonly/stdonly.go
+ stdout 'path is command-line-arguments$'
+-stdout 'main is command-line-arguments \(devel\)'
++stdout 'main is  $'
+ 
+ # 'go generate' should work with file arguments.
+ [exec:touch] go generate ./needmod/needmod.go
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 8615a4aac5..f3aa57e8c7 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -28,6 +28,13 @@ go version -m fortune.exe
+ stdout '^\tpath\trsc.io/fortune'
+ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+ 
++# Check the build info of a binary built from $GOROOT/src/cmd
++go build -o test2json.exe cmd/test2json
++go version -m test2json.exe
++stdout '^test2json.exe: .+'
++stdout '^\tpath\tcmd/test2json$'
++! stdout 'mod'
++
+ # Repeat the test with -buildmode=pie.
+ [!buildmode:pie] stop
+ go build -buildmode=pie -o external.exe rsc.io/fortune
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index 9be0958579..095d6ff174 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -42,6 +42,13 @@ go run example.com/d
+ cp go.work.backwards go.work
+ go run example.com/d
+ 
++# Test that command-line-arguments work inside and outside modules.
++# This exercises the code that determines which module command-line-arguments
++# belongs to.
++go list ./b/main.go
++go build -n -workfile=off -o foo foo.go
++go build -n -o foo foo.go
++
+ -- go.work.dup --
+ go 1.17
+ 
+@@ -123,4 +130,11 @@ directory (
+     d
+     b
+     a
+-)
+\ No newline at end of file
++)
++
++-- foo.go --
++package main
++import "fmt"
++func main() {
++	fmt.Println("Hello, World")
++}

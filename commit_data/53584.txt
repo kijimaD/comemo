@@ -20,7 +20,80 @@ Date:   Fri Jul 2 13:15:37 2021 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/vendor.go | 23 ++++++++++++++---------
  src/cmd/go/internal/modload/load.go  | 22 ----------------------
  2 files changed, 14 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index ef123700aa..a93c52dbb3 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -222,20 +222,25 @@ func moduleLine(m, r module.Version) string {
+ }
+ 
+ func vendorPkg(vdir, pkg string) {
+-	// TODO(#42504): Instead of calling modload.ImportMap then build.ImportDir,
+-	// just call load.PackagesAndErrors. To do that, we need to add a good way
+-	// to ignore build constraints.
+-	realPath := modload.ImportMap(pkg)
+-	if realPath != pkg && modload.ImportMap(realPath) != "" {
++	src, realPath, _ := modload.Lookup("", false, pkg)
++	if src == "" {
++		base.Errorf("internal error: no pkg for %s\n", pkg)
++		return
++	}
++	if realPath != pkg {
++		// TODO(#26904): Revisit whether this behavior still makes sense.
++		// This should actually be impossible today, because the import map is the
++		// identity function for packages outside of the standard library.
++		//
++		// Part of the purpose of the vendor directory is to allow the packages in
++		// the module to continue to build in GOPATH mode, and GOPATH-mode users
++		// won't know about replacement aliasing. How important is it to maintain
++		// compatibility?
+ 		fmt.Fprintf(os.Stderr, "warning: %s imported as both %s and %s; making two copies.\n", realPath, realPath, pkg)
+ 	}
+ 
+ 	copiedFiles := make(map[string]bool)
+ 	dst := filepath.Join(vdir, pkg)
+-	src := modload.PackageDir(realPath)
+-	if src == "" {
+-		fmt.Fprintf(os.Stderr, "internal error: no pkg for %s -> %s\n", pkg, realPath)
+-	}
+ 	copyDir(dst, src, matchPotentialSourceFile, copiedFiles)
+ 	if m := modload.PackageModule(realPath); m.Path != "" {
+ 		copyMetadata(m.Path, realPath, dst, src, copiedFiles)
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index a36ac9c5bb..7e061f01a4 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -767,28 +767,6 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
+ 	return ".", module.Version{}
+ }
+ 
+-// ImportMap returns the actual package import path
+-// for an import path found in source code.
+-// If the given import path does not appear in the source code
+-// for the packages that have been loaded, ImportMap returns the empty string.
+-func ImportMap(path string) string {
+-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+-	if !ok {
+-		return ""
+-	}
+-	return pkg.path
+-}
+-
+-// PackageDir returns the directory containing the source code
+-// for the package named by the import path.
+-func PackageDir(path string) string {
+-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+-	if !ok {
+-		return ""
+-	}
+-	return pkg.dir
+-}
+-
+ // PackageModule returns the module providing the package named by the import path.
+ func PackageModule(path string) module.Version {
+ 	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)

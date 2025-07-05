@@ -11,10 +11,33 @@ Date:   Mon Feb 16 18:41:56 2015 +0300
     Change-Id: I7d598e53de86586bb9702d8e9276a4d6aece2dfc
     Reviewed-on: https://go-review.googlesource.com/4950
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/race/README                  |   2 +-
  src/runtime/race/race_darwin_amd64.syso  | Bin 278328 -> 314000 bytes
  src/runtime/race/race_freebsd_amd64.syso | Bin 294224 -> 316816 bytes
  src/runtime/race/race_linux_amd64.syso   | Bin 298064 -> 330232 bytes
  src/runtime/race/race_windows_amd64.syso | Bin 292311 -> 331489 bytes
  5 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index 7f185359fe..52dd38e580 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -9,4 +9,4 @@ $ ./buildgo.sh
+ 
+ Tested with gcc 4.6.1 and 4.7.0.  On Windows it's built with 64-bit MinGW.
+ 
+-Current runtime is built on rev 215000.
++Current runtime is built on rev 229396.
+diff --git a/src/runtime/race/race_darwin_amd64.syso b/src/runtime/race/race_darwin_amd64.syso
+index 81b48c6c94..9cf1eccde4 100644
+Binary files a/src/runtime/race/race_darwin_amd64.syso and b/src/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/runtime/race/race_freebsd_amd64.syso b/src/runtime/race/race_freebsd_amd64.syso
+index 5bbe322299..50ae2d342a 100644
+Binary files a/src/runtime/race/race_freebsd_amd64.syso and b/src/runtime/race/race_freebsd_amd64.syso differ
+diff --git a/src/runtime/race/race_linux_amd64.syso b/src/runtime/race/race_linux_amd64.syso
+index 49bf08ef38..a141051931 100644
+Binary files a/src/runtime/race/race_linux_amd64.syso and b/src/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/runtime/race/race_windows_amd64.syso b/src/runtime/race/race_windows_amd64.syso
+index a4eae9bdd9..125115eaab 100644
+Binary files a/src/runtime/race/race_windows_amd64.syso and b/src/runtime/race/race_windows_amd64.syso differ

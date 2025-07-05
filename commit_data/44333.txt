@@ -36,7 +36,7 @@ Date:   Mon Jun 8 18:38:59 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go               |  2 ++
  src/cmd/compile/internal/gc/walk.go                | 11 ++++++++++
  src/cmd/internal/goobj2/objfile.go                 | 20 +++++++++++++-----
@@ -49,3 +49,392 @@ Date:   Mon Jun 8 18:38:59 2020 -0400
  src/cmd/link/internal/loader/loader.go             | 24 +++++++++++++++++++++-
  src/net/http/http_test.go                          |  2 +-
  11 files changed, 142 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index f5d588e63b..3c7571819e 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -277,6 +277,8 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 			return Isconst(val, CTNIL)
+ 		}
+ 
++		markTypeUsedInInterface(val.Type)
++
+ 		var itab *Node
+ 		if l.Type.IsEmptyInterface() {
+ 			itab = typename(val.Type)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1e6d913ae6..19c185d735 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
+@@ -797,6 +798,10 @@ opswitch:
+ 		fromType := n.Left.Type
+ 		toType := n.Type
+ 
++		if !fromType.IsInterface() {
++			markTypeUsedInInterface(fromType)
++		}
++
+ 		// typeword generates the type word of the interface value.
+ 		typeword := func() *Node {
+ 			if toType.IsEmptyInterface() {
+@@ -1605,6 +1610,12 @@ opswitch:
+ 	return n
+ }
+ 
++// markTypeUsedInInterface marks that type t is converted to an interface.
++// This information is used in the linker in dead method elimination.
++func markTypeUsedInInterface(t *types.Type) {
++	typenamesym(t).Linksym().Set(obj.AttrUsedInIface, true)
++}
++
+ // rtconvfn returns the parameter and result types that will be used by a
+ // runtime function to convert from type src to type dst. The runtime function
+ // name can be derived from the names of the returned types.
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 3e6375b812..7354c219c4 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -228,12 +228,13 @@ func (p *ImportedPkg) Write(w *Writer) {
+ //    ABI   uint16
+ //    Type  uint8
+ //    Flag  uint8
++//    Flag2 uint8
+ //    Siz   uint32
+ //    Align uint32
+ // }
+ type Sym [SymSize]byte
+ 
+-const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
++const SymSize = stringRefSize + 2 + 1 + 1 + 1 + 4 + 4
+ 
+ const SymABIstatic = ^uint16(0)
+ 
+@@ -242,6 +243,7 @@ const (
+ 	ObjFlagNeedNameExpansion             // the linker needs to expand `"".` to package path in symbol names
+ )
+ 
++// Sym.Flag
+ const (
+ 	SymFlagDupok = 1 << iota
+ 	SymFlagLocal
+@@ -253,6 +255,11 @@ const (
+ 	SymFlagTopFrame
+ )
+ 
++// Sym.Flag2
++const (
++	SymFlagUsedInIface = 1 << iota
++)
++
+ func (s *Sym) Name(r *Reader) string {
+ 	len := binary.LittleEndian.Uint32(s[:])
+ 	off := binary.LittleEndian.Uint32(s[4:])
+@@ -262,8 +269,9 @@ func (s *Sym) Name(r *Reader) string {
+ func (s *Sym) ABI() uint16   { return binary.LittleEndian.Uint16(s[8:]) }
+ func (s *Sym) Type() uint8   { return s[10] }
+ func (s *Sym) Flag() uint8   { return s[11] }
+-func (s *Sym) Siz() uint32   { return binary.LittleEndian.Uint32(s[12:]) }
+-func (s *Sym) Align() uint32 { return binary.LittleEndian.Uint32(s[16:]) }
++func (s *Sym) Flag2() uint8  { return s[12] }
++func (s *Sym) Siz() uint32   { return binary.LittleEndian.Uint32(s[13:]) }
++func (s *Sym) Align() uint32 { return binary.LittleEndian.Uint32(s[17:]) }
+ 
+ func (s *Sym) Dupok() bool         { return s.Flag()&SymFlagDupok != 0 }
+ func (s *Sym) Local() bool         { return s.Flag()&SymFlagLocal != 0 }
+@@ -273,6 +281,7 @@ func (s *Sym) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
+ func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
+ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+ func (s *Sym) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
++func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
+ 
+ func (s *Sym) SetName(x string, w *Writer) {
+ 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
+@@ -282,8 +291,9 @@ func (s *Sym) SetName(x string, w *Writer) {
+ func (s *Sym) SetABI(x uint16)   { binary.LittleEndian.PutUint16(s[8:], x) }
+ func (s *Sym) SetType(x uint8)   { s[10] = x }
+ func (s *Sym) SetFlag(x uint8)   { s[11] = x }
+-func (s *Sym) SetSiz(x uint32)   { binary.LittleEndian.PutUint32(s[12:], x) }
+-func (s *Sym) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[16:], x) }
++func (s *Sym) SetFlag2(x uint8)  { s[12] = x }
++func (s *Sym) SetSiz(x uint32)   { binary.LittleEndian.PutUint32(s[13:], x) }
++func (s *Sym) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[17:], x) }
+ 
+ func (s *Sym) Write(w *Writer) { w.Bytes(s[:]) }
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index d9628bf3b9..20a9f552e7 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -514,6 +514,12 @@ const (
+ 	// new object file format).
+ 	AttrIndexed
+ 
++	// Only applied on type descriptor symbols, UsedInIface indicates this type is
++	// converted to an interface.
++	//
++	// Used by the linker to determine what methods can be pruned.
++	AttrUsedInIface
++
+ 	// attrABIBase is the value at which the ABI is encoded in
+ 	// Attribute. This must be last; all bits after this are
+ 	// assumed to be an ABI value.
+@@ -538,6 +544,7 @@ func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
+ func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
+ func (a Attribute) TopFrame() bool      { return a&AttrTopFrame != 0 }
+ func (a Attribute) Indexed() bool       { return a&AttrIndexed != 0 }
++func (a Attribute) UsedInIface() bool   { return a&AttrUsedInIface != 0 }
+ 
+ func (a *Attribute) Set(flag Attribute, value bool) {
+ 	if value {
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 591df09015..898f0a113a 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -258,6 +258,10 @@ func (w *writer) Sym(s *LSym) {
+ 	if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
+ 		flag |= goobj2.SymFlagGoType
+ 	}
++	flag2 := uint8(0)
++	if s.UsedInIface() {
++		flag2 |= goobj2.SymFlagUsedInIface
++	}
+ 	name := s.Name
+ 	if strings.HasPrefix(name, "gofile..") {
+ 		name = filepath.ToSlash(name)
+@@ -271,6 +275,7 @@ func (w *writer) Sym(s *LSym) {
+ 	o.SetABI(abi)
+ 	o.SetType(uint8(s.Type))
+ 	o.SetFlag(flag)
++	o.SetFlag2(flag2)
+ 	o.SetSiz(uint32(s.Size))
+ 	o.SetAlign(align)
+ 	o.Write(w.Writer)
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index d59b1f2c65..1060bbca3b 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -102,8 +102,10 @@ func (d *deadcodePass) flood() {
+ 
+ 		isgotype := d.ldr.IsGoType(symIdx)
+ 		relocs := d.ldr.Relocs(symIdx)
++		var usedInIface bool
+ 
+ 		if isgotype {
++			usedInIface = d.ldr.AttrUsedInIface(symIdx)
+ 			p := d.ldr.Data(symIdx)
+ 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
+ 				for _, sig := range d.decodeIfaceMethods(d.ldr, d.ctxt.Arch, symIdx, &relocs) {
+@@ -126,7 +128,9 @@ func (d *deadcodePass) flood() {
+ 				if i+2 >= relocs.Count() {
+ 					panic("expect three consecutive R_METHODOFF relocs")
+ 				}
+-				methods = append(methods, methodref{src: symIdx, r: i})
++				if usedInIface {
++					methods = append(methods, methodref{src: symIdx, r: i})
++				}
+ 				i += 2
+ 				continue
+ 			}
+@@ -136,7 +140,23 @@ func (d *deadcodePass) flood() {
+ 				// do nothing for now as we still load all type symbols.
+ 				continue
+ 			}
+-			d.mark(r.Sym(), symIdx)
++			rs := r.Sym()
++			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
++				// If a type is converted to an interface, it is possible to obtain an
++				// interface with a "child" type of it using reflection (e.g. obtain an
++				// interface of T from []chan T). We need to traverse its "child" types
++				// with UsedInIface attribute set.
++				// When visiting the child type (chan T in the example above), it will
++				// have UsedInIface set, so it in turn will mark and (re)visit its children
++				// (e.g. T above).
++				// We unset the reachable bit here, so if the child type is already visited,
++				// it will be visited again.
++				// Note that a type symbol can be visited at most twice, one without
++				// UsedInIface and one with. So termination is still guaranteed.
++				d.ldr.SetAttrUsedInIface(rs, true)
++				d.ldr.SetAttrReachable(rs, false)
++			}
++			d.mark(rs, symIdx)
+ 		}
+ 		naux := d.ldr.NAux(symIdx)
+ 		for i := 0; i < naux; i++ {
+diff --git a/src/cmd/link/internal/ld/deadcode_test.go b/src/cmd/link/internal/ld/deadcode_test.go
+index 460bc16e56..59122e9603 100644
+--- a/src/cmd/link/internal/ld/deadcode_test.go
++++ b/src/cmd/link/internal/ld/deadcode_test.go
+@@ -25,11 +25,13 @@ func TestDeadcode(t *testing.T) {
+ 	defer os.RemoveAll(tmpdir)
+ 
+ 	tests := []struct {
+-		src     string
+-		pattern string
++		src      string
++		pos, neg string // positive and negative patterns
+ 	}{
+-		{"reflectcall", "main.T.M"},
+-		{"typedesc", "type.main.T"},
++		{"reflectcall", "", "main.T.M"},
++		{"typedesc", "", "type.main.T"},
++		{"ifacemethod", "", "main.T.M"},
++		{"ifacemethod2", "main.T.M", ""},
+ 	}
+ 	for _, test := range tests {
+ 		test := test
+@@ -42,8 +44,11 @@ func TestDeadcode(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+ 			}
+-			if bytes.Contains(out, []byte(test.pattern)) {
+-				t.Errorf("%s should not be reachable. Output:\n%s", test.pattern, out)
++			if test.pos != "" && !bytes.Contains(out, []byte(test.pos)) {
++				t.Errorf("%s should be reachable. Output:\n%s", test.pos, out)
++			}
++			if test.neg != "" && bytes.Contains(out, []byte(test.neg)) {
++				t.Errorf("%s should not be reachable. Output:\n%s", test.neg, out)
+ 			}
+ 		})
+ 	}
+diff --git a/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod.go b/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod.go
+new file mode 100644
+index 0000000000..b62f18c342
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod.go
+@@ -0,0 +1,23 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that a method of a reachable type is not necessarily
++// live even if it matches an interface method, as long as
++// the type is never converted to an interface.
++
++package main
++
++type I interface{ M() }
++
++type T int
++
++func (T) M() { println("XXX") }
++
++var p *T
++var e interface{}
++
++func main() {
++	p = new(T) // used T, but never converted to interface
++	e.(I).M()  // used I and I.M
++}
+diff --git a/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod2.go b/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod2.go
+new file mode 100644
+index 0000000000..48ba55d35e
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/deadcode/ifacemethod2.go
+@@ -0,0 +1,22 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that a method *is* live if it matches an interface
++// method and the type is "indirectly" converted to an
++// interface through reflection.
++
++package main
++
++import "reflect"
++
++type I interface{ M() }
++
++type T int
++
++func (T) M() { println("XXX") }
++
++func main() {
++	e := reflect.ValueOf([]T{1}).Index(0).Interface()
++	e.(I).M()
++}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index f87776ef12..7cebe23065 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -244,7 +244,8 @@ type Loader struct {
+ 	attrReachable        Bitmap // reachable symbols, indexed by global index
+ 	attrOnList           Bitmap // "on list" symbols, indexed by global index
+ 	attrLocal            Bitmap // "local" symbols, indexed by global index
+-	attrNotInSymbolTable Bitmap // "not in symtab" symbols, indexed by glob idx
++	attrNotInSymbolTable Bitmap // "not in symtab" symbols, indexed by global idx
++	attrUsedInIface      Bitmap // "used in interface" symbols, indexed by global idx
+ 	attrVisibilityHidden Bitmap // hidden symbols, indexed by ext sym index
+ 	attrDuplicateOK      Bitmap // dupOK symbols, indexed by ext sym index
+ 	attrShared           Bitmap // shared symbols, indexed by ext sym index
+@@ -768,6 +769,20 @@ func (l *Loader) SetAttrLocal(i Sym, v bool) {
+ 	}
+ }
+ 
++// AttrUsedInIface returns true for a type symbol that is used in
++// an interface.
++func (l *Loader) AttrUsedInIface(i Sym) bool {
++	return l.attrUsedInIface.Has(i)
++}
++
++func (l *Loader) SetAttrUsedInIface(i Sym, v bool) {
++	if v {
++		l.attrUsedInIface.Set(i)
++	} else {
++		l.attrUsedInIface.Unset(i)
++	}
++}
++
+ // SymAddr checks that a symbol is reachable, and returns its value.
+ func (l *Loader) SymAddr(i Sym) int64 {
+ 	if !l.AttrReachable(i) {
+@@ -1665,6 +1680,7 @@ func (l *Loader) growAttrBitmaps(reqLen int) {
+ 		l.attrOnList = growBitmap(reqLen, l.attrOnList)
+ 		l.attrLocal = growBitmap(reqLen, l.attrLocal)
+ 		l.attrNotInSymbolTable = growBitmap(reqLen, l.attrNotInSymbolTable)
++		l.attrUsedInIface = growBitmap(reqLen, l.attrUsedInIface)
+ 	}
+ 	l.growExtAttrBitmaps()
+ }
+@@ -1983,6 +1999,9 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
+ 		if osym.Local() {
+ 			l.SetAttrLocal(gi, true)
+ 		}
++		if osym.UsedInIface() {
++			l.SetAttrUsedInIface(gi, true)
++		}
+ 		if strings.HasPrefix(name, "go.itablink.") {
+ 			l.itablink[gi] = struct{}{}
+ 		}
+@@ -2025,6 +2044,9 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
+ 		if osym.Local() {
+ 			l.SetAttrLocal(gi, true)
+ 		}
++		if osym.UsedInIface() {
++			l.SetAttrUsedInIface(gi, true)
++		}
+ 		l.preprocess(arch, gi, name)
+ 	}
+ }
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index f4ea52db3b..49c2b4196a 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -91,7 +91,7 @@ func TestCmdGoNoHTTPServer(t *testing.T) {
+ 	}
+ 	wantSym := map[string]bool{
+ 		// Verify these exist: (sanity checking this test)
+-		"net/http.(*Client).Get":          true,
++		"net/http.(*Client).do":           true,
+ 		"net/http.(*Transport).RoundTrip": true,
+ 
+ 		// Verify these don't exist:

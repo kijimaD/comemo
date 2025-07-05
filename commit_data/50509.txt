@@ -17,6 +17,26 @@ Date:   Fri Oct 29 17:58:42 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/mcentral.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 4ae3a883a4..e4bdf35071 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -154,10 +154,10 @@ func (c *mcentral) cacheSpan() *mspan {
+ 			// See comment for partial unswept spans.
+ 		}
+ 		sweep.active.end(sl)
+-		if trace.enabled {
+-			traceGCSweepDone()
+-			traceDone = true
+-		}
++	}
++	if trace.enabled {
++		traceGCSweepDone()
++		traceDone = true
+ 	}
+ 
+ 	// We failed to get a span from the mcentral so get one from mheap.

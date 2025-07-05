@@ -16,10 +16,267 @@ Date:   Fri Nov 2 16:58:42 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfile/rule.go         | 20 ++++++++++++--
  src/cmd/go/internal/modload/init.go         | 22 +++++++++++++++
  src/cmd/go/testdata/script/mod_edit.txt     | 42 ++++++++++++++++++++++-------
  src/cmd/go/testdata/script/mod_readonly.txt |  2 ++
  src/cmd/go/testdata/script/mod_tidy.txt     |  9 +++++++
  5 files changed, 84 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfile/rule.go b/src/cmd/go/internal/modfile/rule.go
+index e11f0a6e31..7f9a18c6c2 100644
+--- a/src/cmd/go/internal/modfile/rule.go
++++ b/src/cmd/go/internal/modfile/rule.go
+@@ -154,7 +154,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
+ 	return f, nil
+ }
+ 
+-var goVersionRE = regexp.MustCompile(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
++var GoVersionRE = regexp.MustCompile(`([1-9][0-9]*)\.(0|[1-9][0-9]*)`)
+ 
+ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
+ 	// If strict is false, this module is a dependency.
+@@ -181,7 +181,7 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 			fmt.Fprintf(errs, "%s:%d: repeated go statement\n", f.Syntax.Name, line.Start.Line)
+ 			return
+ 		}
+-		if len(args) != 1 || !goVersionRE.MatchString(args[0]) {
++		if len(args) != 1 || !GoVersionRE.MatchString(args[0]) {
+ 			fmt.Fprintf(errs, "%s:%d: usage: go 1.23\n", f.Syntax.Name, line.Start.Line)
+ 			return
+ 		}
+@@ -477,6 +477,22 @@ func (f *File) Cleanup() {
+ 	f.Syntax.Cleanup()
+ }
+ 
++func (f *File) AddGoStmt(version string) error {
++	if !GoVersionRE.MatchString(version) {
++		return fmt.Errorf("invalid language version string %q", version)
++	}
++	if f.Go == nil {
++		f.Go = &Go{
++			Version: version,
++			Syntax:  f.Syntax.addLine(nil, "go", version),
++		}
++	} else {
++		f.Go.Version = version
++		f.Syntax.updateLine(f.Go.Syntax, "go", version)
++	}
++	return nil
++}
++
+ func (f *File) AddRequire(path, vers string) error {
+ 	need := true
+ 	for _, r := range f.Require {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 2bab3eede1..da778b4fad 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -19,6 +19,7 @@ import (
+ 	"cmd/go/internal/search"
+ 	"encoding/json"
+ 	"fmt"
++	"go/build"
+ 	"io/ioutil"
+ 	"os"
+ 	"path"
+@@ -335,6 +336,8 @@ func legacyModInit() {
+ 		modFile.AddModuleStmt(path)
+ 	}
+ 
++	addGoStmt()
++
+ 	for _, name := range altConfigs {
+ 		cfg := filepath.Join(ModRoot, name)
+ 		data, err := ioutil.ReadFile(cfg)
+@@ -357,6 +360,25 @@ func legacyModInit() {
+ 	}
+ }
+ 
++// InitGoStmt adds a go statement, unless there already is one.
++func InitGoStmt() {
++	if modFile.Go == nil {
++		addGoStmt()
++	}
++}
++
++// addGoStmt adds a go statement referring to the current version.
++func addGoStmt() {
++	tags := build.Default.ReleaseTags
++	version := tags[len(tags)-1]
++	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
++		base.Fatalf("go: unrecognized default version %q", version)
++	}
++	if err := modFile.AddGoStmt(version[2:]); err != nil {
++		base.Fatalf("go: internal error: %v", err)
++	}
++}
++
+ var altConfigs = []string{
+ 	"Gopkg.lock",
+ 
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index 60a6f74536..bf6f2a22c7 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -10,16 +10,16 @@ stderr 'cannot determine module path'
+ 
+ go mod init x.x/y/z
+ stderr 'creating new go.mod: module x.x/y/z'
+-cmp go.mod $WORK/go.mod.init
++cmpenv go.mod $WORK/go.mod.init
+ 
+ ! go mod init
+-cmp go.mod $WORK/go.mod.init
++cmpenv go.mod $WORK/go.mod.init
+ 
+ # go mod edits
+ go mod edit -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z'
+-cmp go.mod $WORK/go.mod.edit1
++cmpenv go.mod $WORK/go.mod.edit1
+ go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0
+-cmp go.mod $WORK/go.mod.edit2
++cmpenv go.mod $WORK/go.mod.edit2
+ 
+ # go mod edit -json
+ go mod edit -json
+@@ -27,20 +27,20 @@ cmp stdout $WORK/go.mod.json
+ 
+ # go mod edit -replace
+ go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
+-cmp go.mod $WORK/go.mod.edit3
++cmpenv go.mod $WORK/go.mod.edit3
+ go mod edit -replace=x.1=y.1/v2@v2.3.6
+-cmp go.mod $WORK/go.mod.edit4
++cmpenv go.mod $WORK/go.mod.edit4
+ go mod edit -dropreplace=x.1
+-cmp go.mod $WORK/go.mod.edit5
++cmpenv go.mod $WORK/go.mod.edit5
+ 
+ # go mod edit -fmt
+ cp $WORK/go.mod.badfmt go.mod
+ go mod edit -fmt -print # -print should avoid writing file
+-cmp stdout $WORK/go.mod.edit4
++cmpenv stdout $WORK/go.mod.edit6
+ cmp go.mod $WORK/go.mod.badfmt
+ go mod edit -fmt # without -print, should write file (and nothing to stdout)
+ ! stdout .
+-cmp go.mod $WORK/go.mod.edit4
++cmpenv go.mod $WORK/go.mod.edit6
+ 
+ -- x.go --
+ package x
+@@ -50,9 +50,13 @@ package w
+ 
+ -- $WORK/go.mod.init --
+ module x.x/y/z
++
++go $goversion
+ -- $WORK/go.mod.edit1 --
+ module x.x/y/z
+ 
++go $goversion
++
+ require x.1 v1.0.0
+ 
+ exclude (
+@@ -67,6 +71,8 @@ replace (
+ -- $WORK/go.mod.edit2 --
+ module x.x/y/z
+ 
++go $goversion
++
+ exclude x.1 v1.2.0
+ 
+ replace x.1 v1.4.0 => ../z
+@@ -104,6 +110,8 @@ require x.3 v1.99.0
+ -- $WORK/go.mod.edit3 --
+ module x.x/y/z
+ 
++go $goversion
++
+ exclude x.1 v1.2.0
+ 
+ replace (
+@@ -115,6 +123,8 @@ require x.3 v1.99.0
+ -- $WORK/go.mod.edit4 --
+ module x.x/y/z
+ 
++go $goversion
++
+ exclude x.1 v1.2.0
+ 
+ replace x.1 => y.1/v2 v2.3.6
+@@ -123,12 +133,26 @@ require x.3 v1.99.0
+ -- $WORK/go.mod.edit5 --
+ module x.x/y/z
+ 
++go $goversion
++
+ exclude x.1 v1.2.0
+ 
++require x.3 v1.99.0
++-- $WORK/go.mod.edit6 --
++module x.x/y/z
++
++go 1.10
++
++exclude x.1 v1.2.0
++
++replace x.1 => y.1/v2 v2.3.6
++
+ require x.3 v1.99.0
+ -- $WORK/go.mod.badfmt --
+ module     x.x/y/z
+ 
++go 1.10
++
+ exclude x.1     v1.2.0
+ 
+ replace x.1    =>   y.1/v2 v2.3.6
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index 1b5932e441..188a66d0e1 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -37,6 +37,8 @@ cmp go.mod go.mod.inconsistent
+ -- go.mod --
+ module m
+ 
++go 1.20
++
+ -- x.go --
+ package x
+ import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_tidy.txt b/src/cmd/go/testdata/script/mod_tidy.txt
+index 449aa073a7..de3b52e2c0 100644
+--- a/src/cmd/go/testdata/script/mod_tidy.txt
++++ b/src/cmd/go/testdata/script/mod_tidy.txt
+@@ -5,6 +5,9 @@ go mod tidy -v
+ stderr '^unused y.1'
+ ! stderr '^unused [^y]'
+ 
++# tidy should not touch existing go line
++grep 'go 1.10' go.mod
++
+ go list -m all
+ ! stdout '^y'
+ stdout '^w.1 v1.2.0'
+@@ -12,11 +15,17 @@ stdout '^z.1 v1.2.0'
+ 
+ # empty tidy should not crash
+ cd triv
++! grep 'go ' go.mod
+ go mod tidy
+ 
++# tidy should add missing go line
++grep 'go ' go.mod
++
+ -- go.mod --
+ module m
+ 
++go 1.10
++
+ require (
+ 	x.1 v1.0.0
+ 	y.1 v1.0.0

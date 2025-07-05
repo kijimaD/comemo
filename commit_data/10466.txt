@@ -7,7 +7,7 @@ Date:   Sat Nov 19 15:17:40 2011 +0900
     R=golang-dev, mikioh.mikioh, rsc
     CC=golang-dev
     https://golang.org/cl/5369092
-
+---
  src/pkg/syscall/mkerrors.sh              |  3 +++
  src/pkg/syscall/zerrors_freebsd_386.go   | 11 +++++++++++
  src/pkg/syscall/zerrors_freebsd_amd64.go | 11 +++++++++++
@@ -20,3 +20,321 @@ Date:   Sat Nov 19 15:17:40 2011 +0900
  src/pkg/syscall/ztypes_linux_386.go      |  2 +-
  src/pkg/syscall/ztypes_linux_amd64.go    |  2 +-
  11 files changed, 103 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 81ed931e2f..91093a1373 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -118,6 +118,7 @@ includes='
+ #include <errno.h>
+ #include <sys/signal.h>
+ #include <signal.h>
++#include <sys/resource.h>
+ '
+ 
+ ccflags="$@"
+@@ -169,6 +170,8 @@ ccflags="$@"
+ 		$2 ~ /^TIOC/ ||
+ 		$2 ~ /^(IFF|IFT|NET_RT|RTM|RTF|RTV|RTA|RTAX)_/ ||
+ 		$2 ~ /^BIOC/ ||
++		$2 ~ /^RUSAGE_(SELF|CHILDREN|THREAD)/ ||
++		$2 ~ /^RLIMIT_(AS|CORE|CPU|DATA|FSIZE|NOFILE|STACK)|RLIM_INFINITY/ ||
+ 		$2 !~ /^(BPF_TIMEVAL)$/ &&
+ 		$2 ~ /^(BPF|DLT)_/ ||
+ 		$2 !~ "WMESGLEN" &&
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+index c4b5d46eeb..f66b5ec1b2 100644
+--- a/src/pkg/syscall/zerrors_freebsd_386.go
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -903,6 +903,14 @@ const (
+ 	O_TRUNC                           = 0x400
+ 	O_TTY_INIT                        = 0x80000
+ 	O_WRONLY                          = 0x1
++	RLIMIT_AS                         = 0xa
++	RLIMIT_CORE                       = 0x4
++	RLIMIT_CPU                        = 0x0
++	RLIMIT_DATA                       = 0x2
++	RLIMIT_FSIZE                      = 0x1
++	RLIMIT_NOFILE                     = 0x8
++	RLIMIT_STACK                      = 0x3
++	RLIM_INFINITY                     = 0x7fffffffffffffff
+ 	RTAX_AUTHOR                       = 0x6
+ 	RTAX_BRD                          = 0x7
+ 	RTAX_DST                          = 0x0
+@@ -972,6 +980,9 @@ const (
+ 	RTV_SPIPE                         = 0x10
+ 	RTV_SSTHRESH                      = 0x20
+ 	RTV_WEIGHT                        = 0x100
++	RUSAGE_CHILDREN                   = -0x1
++	RUSAGE_SELF                       = 0x0
++	RUSAGE_THREAD                     = 0x1
+ 	SCM_BINTIME                       = 0x4
+ 	SCM_CREDS                         = 0x3
+ 	SCM_RIGHTS                        = 0x1
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+index 030a050973..14bb9e589c 100644
+--- a/src/pkg/syscall/zerrors_freebsd_amd64.go
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -903,6 +903,14 @@ const (
+ 	O_TRUNC                           = 0x400
+ 	O_TTY_INIT                        = 0x80000
+ 	O_WRONLY                          = 0x1
++	RLIMIT_AS                         = 0xa
++	RLIMIT_CORE                       = 0x4
++	RLIMIT_CPU                        = 0x0
++	RLIMIT_DATA                       = 0x2
++	RLIMIT_FSIZE                      = 0x1
++	RLIMIT_NOFILE                     = 0x8
++	RLIMIT_STACK                      = 0x3
++	RLIM_INFINITY                     = 0x7fffffffffffffff
+ 	RTAX_AUTHOR                       = 0x6
+ 	RTAX_BRD                          = 0x7
+ 	RTAX_DST                          = 0x0
+@@ -972,6 +980,9 @@ const (
+ 	RTV_SPIPE                         = 0x10
+ 	RTV_SSTHRESH                      = 0x20
+ 	RTV_WEIGHT                        = 0x100
++	RUSAGE_CHILDREN                   = -0x1
++	RUSAGE_SELF                       = 0x0
++	RUSAGE_THREAD                     = 0x1
+ 	SCM_BINTIME                       = 0x4
+ 	SCM_CREDS                         = 0x3
+ 	SCM_RIGHTS                        = 0x1
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index a75dfb8422..bbcc74b31a 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -582,6 +582,7 @@ const (
+ 	NETLINK_NFLOG                    = 0x5
+ 	NETLINK_NO_ENOBUFS               = 0x5
+ 	NETLINK_PKTINFO                  = 0x3
++	NETLINK_RDMA                     = 0x14
+ 	NETLINK_ROUTE                    = 0x0
+ 	NETLINK_SCSITRANSPORT            = 0x12
+ 	NETLINK_SELINUX                  = 0x7
+@@ -699,6 +700,14 @@ const (
+ 	PTRACE_SYSEMU                    = 0x1f
+ 	PTRACE_SYSEMU_SINGLESTEP         = 0x20
+ 	PTRACE_TRACEME                   = 0x0
++	RLIMIT_AS                        = 0x9
++	RLIMIT_CORE                      = 0x4
++	RLIMIT_CPU                       = 0x0
++	RLIMIT_DATA                      = 0x2
++	RLIMIT_FSIZE                     = 0x1
++	RLIMIT_NOFILE                    = 0x7
++	RLIMIT_STACK                     = 0x3
++	RLIM_INFINITY                    = -0x1
+ 	RTAX_ADVMSS                      = 0x8
+ 	RTAX_CWND                        = 0x7
+ 	RTAX_FEATURES                    = 0xc
+@@ -829,6 +838,9 @@ const (
+ 	RT_CLASS_MAIN                    = 0xfe
+ 	RT_CLASS_MAX                     = 0xff
+ 	RT_CLASS_UNSPEC                  = 0x0
++	RUSAGE_CHILDREN                  = -0x1
++	RUSAGE_SELF                      = 0x0
++	RUSAGE_THREAD                    = 0x1
+ 	SCM_CREDENTIALS                  = 0x2
+ 	SCM_RIGHTS                       = 0x1
+ 	SCM_TIMESTAMP                    = 0x1d
+@@ -1100,6 +1112,7 @@ const (
+ 	TIOCSSOFTCAR                     = 0x541a
+ 	TIOCSTI                          = 0x5412
+ 	TIOCSWINSZ                       = 0x5414
++	TIOCVHANGUP                      = 0x5437
+ 	TUNATTACHFILTER                  = 0x400854d5
+ 	TUNDETACHFILTER                  = 0x400854d6
+ 	TUNGETFEATURES                   = 0x800454cf
+@@ -1166,6 +1179,7 @@ const (
+ 	EFBIG           = Errno(0x1b)
+ 	EHOSTDOWN       = Errno(0x70)
+ 	EHOSTUNREACH    = Errno(0x71)
++	EHWPOISON       = Errno(0x85)
+ 	EIDRM           = Errno(0x2b)
+ 	EILSEQ          = Errno(0x54)
+ 	EINPROGRESS     = Errno(0x73)
+@@ -1398,4 +1412,5 @@ var errors = [...]string{
+ 	130: "owner died",
+ 	131: "state not recoverable",
+ 	132: "operation not possible due to RF-kill",
++	133: "unknown error 133",
+ }
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index acac444ef0..59c36c5692 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -582,6 +582,7 @@ const (
+ 	NETLINK_NFLOG                    = 0x5
+ 	NETLINK_NO_ENOBUFS               = 0x5
+ 	NETLINK_PKTINFO                  = 0x3
++	NETLINK_RDMA                     = 0x14
+ 	NETLINK_ROUTE                    = 0x0
+ 	NETLINK_SCSITRANSPORT            = 0x12
+ 	NETLINK_SELINUX                  = 0x7
+@@ -700,6 +701,14 @@ const (
+ 	PTRACE_SYSEMU                    = 0x1f
+ 	PTRACE_SYSEMU_SINGLESTEP         = 0x20
+ 	PTRACE_TRACEME                   = 0x0
++	RLIMIT_AS                        = 0x9
++	RLIMIT_CORE                      = 0x4
++	RLIMIT_CPU                       = 0x0
++	RLIMIT_DATA                      = 0x2
++	RLIMIT_FSIZE                     = 0x1
++	RLIMIT_NOFILE                    = 0x7
++	RLIMIT_STACK                     = 0x3
++	RLIM_INFINITY                    = -0x1
+ 	RTAX_ADVMSS                      = 0x8
+ 	RTAX_CWND                        = 0x7
+ 	RTAX_FEATURES                    = 0xc
+@@ -830,6 +839,9 @@ const (
+ 	RT_CLASS_MAIN                    = 0xfe
+ 	RT_CLASS_MAX                     = 0xff
+ 	RT_CLASS_UNSPEC                  = 0x0
++	RUSAGE_CHILDREN                  = -0x1
++	RUSAGE_SELF                      = 0x0
++	RUSAGE_THREAD                    = 0x1
+ 	SCM_CREDENTIALS                  = 0x2
+ 	SCM_RIGHTS                       = 0x1
+ 	SCM_TIMESTAMP                    = 0x1d
+@@ -1101,6 +1113,7 @@ const (
+ 	TIOCSSOFTCAR                     = 0x541a
+ 	TIOCSTI                          = 0x5412
+ 	TIOCSWINSZ                       = 0x5414
++	TIOCVHANGUP                      = 0x5437
+ 	TUNATTACHFILTER                  = 0x401054d5
+ 	TUNDETACHFILTER                  = 0x401054d6
+ 	TUNGETFEATURES                   = 0x800454cf
+@@ -1167,6 +1180,7 @@ const (
+ 	EFBIG           = Errno(0x1b)
+ 	EHOSTDOWN       = Errno(0x70)
+ 	EHOSTUNREACH    = Errno(0x71)
++	EHWPOISON       = Errno(0x85)
+ 	EIDRM           = Errno(0x2b)
+ 	EILSEQ          = Errno(0x54)
+ 	EINPROGRESS     = Errno(0x73)
+@@ -1399,4 +1413,5 @@ var errors = [...]string{
+ 	130: "owner died",
+ 	131: "state not recoverable",
+ 	132: "operation not possible due to RF-kill",
++	133: "unknown error 133",
+ }
+diff --git a/src/pkg/syscall/zsysnum_freebsd_386.go b/src/pkg/syscall/zsysnum_freebsd_386.go
+index a5b7b664f0..e2b943b129 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_386.go
++++ b/src/pkg/syscall/zsysnum_freebsd_386.go
+@@ -1,4 +1,4 @@
+-// mksysnum_freebsd.sh 
++// mksysnum_freebsd.pl 
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+@@ -317,5 +317,21 @@ const (
+ 	SYS_JAIL_REMOVE              = 508 // { int jail_remove(int jid); }
+ 	SYS_CLOSEFROM                = 509 // { int closefrom(int lowfd); }
+ 	SYS_LPATHCONF                = 513 // { int lpathconf(char *path, int name); }
++	SYS_CAP_NEW                  = 514 // { int cap_new(int fd, u_int64_t rights); }
++	SYS_CAP_GETRIGHTS            = 515 // { int cap_getrights(int fd, \
++	SYS_CAP_ENTER                = 516 // { int cap_enter(void); }
++	SYS_CAP_GETMODE              = 517 // { int cap_getmode(u_int *modep); }
++	SYS_PDFORK                   = 518 // { int pdfork(int *fdp, int flags); }
++	SYS_PDKILL                   = 519 // { int pdkill(int fd, int signum); }
++	SYS_PDGETPID                 = 520 // { int pdgetpid(int fd, pid_t *pidp); }
+ 	SYS_PSELECT                  = 522 // { int pselect(int nd, fd_set *in, \
++	SYS_GETLOGINCLASS            = 523 // { int getloginclass(char *namebuf, \
++	SYS_SETLOGINCLASS            = 524 // { int setloginclass(const char *namebuf); }
++	SYS_RCTL_GET_RACCT           = 525 // { int rctl_get_racct(const void *inbufp, \
++	SYS_RCTL_GET_RULES           = 526 // { int rctl_get_rules(const void *inbufp, \
++	SYS_RCTL_GET_LIMITS          = 527 // { int rctl_get_limits(const void *inbufp, \
++	SYS_RCTL_ADD_RULE            = 528 // { int rctl_add_rule(const void *inbufp, \
++	SYS_RCTL_REMOVE_RULE         = 529 // { int rctl_remove_rule(const void *inbufp, \
++	SYS_POSIX_FALLOCATE          = 530 // { int posix_fallocate(int fd, \
++	SYS_POSIX_FADVISE            = 531 // { int posix_fadvise(int fd, off_t offset, \
+ )
+diff --git a/src/pkg/syscall/zsysnum_freebsd_amd64.go b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+index a5b7b664f0..e2b943b129 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_amd64.go
++++ b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+@@ -1,4 +1,4 @@
+-// mksysnum_freebsd.sh 
++// mksysnum_freebsd.pl 
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+@@ -317,5 +317,21 @@ const (
+ 	SYS_JAIL_REMOVE              = 508 // { int jail_remove(int jid); }
+ 	SYS_CLOSEFROM                = 509 // { int closefrom(int lowfd); }
+ 	SYS_LPATHCONF                = 513 // { int lpathconf(char *path, int name); }
++	SYS_CAP_NEW                  = 514 // { int cap_new(int fd, u_int64_t rights); }
++	SYS_CAP_GETRIGHTS            = 515 // { int cap_getrights(int fd, \
++	SYS_CAP_ENTER                = 516 // { int cap_enter(void); }
++	SYS_CAP_GETMODE              = 517 // { int cap_getmode(u_int *modep); }
++	SYS_PDFORK                   = 518 // { int pdfork(int *fdp, int flags); }
++	SYS_PDKILL                   = 519 // { int pdkill(int fd, int signum); }
++	SYS_PDGETPID                 = 520 // { int pdgetpid(int fd, pid_t *pidp); }
+ 	SYS_PSELECT                  = 522 // { int pselect(int nd, fd_set *in, \
++	SYS_GETLOGINCLASS            = 523 // { int getloginclass(char *namebuf, \
++	SYS_SETLOGINCLASS            = 524 // { int setloginclass(const char *namebuf); }
++	SYS_RCTL_GET_RACCT           = 525 // { int rctl_get_racct(const void *inbufp, \
++	SYS_RCTL_GET_RULES           = 526 // { int rctl_get_rules(const void *inbufp, \
++	SYS_RCTL_GET_LIMITS          = 527 // { int rctl_get_limits(const void *inbufp, \
++	SYS_RCTL_ADD_RULE            = 528 // { int rctl_add_rule(const void *inbufp, \
++	SYS_RCTL_REMOVE_RULE         = 529 // { int rctl_remove_rule(const void *inbufp, \
++	SYS_POSIX_FALLOCATE          = 530 // { int posix_fallocate(int fd, \
++	SYS_POSIX_FADVISE            = 531 // { int posix_fadvise(int fd, off_t offset, \
+ )
+diff --git a/src/pkg/syscall/zsysnum_linux_386.go b/src/pkg/syscall/zsysnum_linux_386.go
+index c40b5f1ace..9864c8c3e5 100644
+--- a/src/pkg/syscall/zsysnum_linux_386.go
++++ b/src/pkg/syscall/zsysnum_linux_386.go
+@@ -342,4 +342,10 @@ const (
+ 	SYS_FANOTIFY_INIT          = 338
+ 	SYS_FANOTIFY_MARK          = 339
+ 	SYS_PRLIMIT64              = 340
++	SYS_NAME_TO_HANDLE_AT      = 341
++	SYS_OPEN_BY_HANDLE_AT      = 342
++	SYS_CLOCK_ADJTIME          = 343
++	SYS_SYNCFS                 = 344
++	SYS_SENDMMSG               = 345
++	SYS_SETNS                  = 346
+ )
+diff --git a/src/pkg/syscall/zsysnum_linux_amd64.go b/src/pkg/syscall/zsysnum_linux_amd64.go
+index 7cf70a4d86..cbbff2ae43 100644
+--- a/src/pkg/syscall/zsysnum_linux_amd64.go
++++ b/src/pkg/syscall/zsysnum_linux_amd64.go
+@@ -307,4 +307,10 @@ const (
+ 	SYS_FANOTIFY_INIT          = 300
+ 	SYS_FANOTIFY_MARK          = 301
+ 	SYS_PRLIMIT64              = 302
++	SYS_NAME_TO_HANDLE_AT      = 303
++	SYS_OPEN_BY_HANDLE_AT      = 304
++	SYS_CLOCK_ADJTIME          = 305
++	SYS_SYNCFS                 = 306
++	SYS_SENDMMSG               = 307
++	SYS_SETNS                  = 308
+ )
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index aab3d32da8..fcead2f97c 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -299,7 +299,7 @@ const (
+ 	IFLA_LINKINFO     = 0x12
+ 	IFLA_NET_NS_PID   = 0x13
+ 	IFLA_IFALIAS      = 0x14
+-	IFLA_MAX          = 0x1a
++	IFLA_MAX          = 0x1c
+ 	RT_SCOPE_UNIVERSE = 0x0
+ 	RT_SCOPE_SITE     = 0xc8
+ 	RT_SCOPE_LINK     = 0xfd
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 940076d682..d5583a7c2e 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -301,7 +301,7 @@ const (
+ 	IFLA_LINKINFO     = 0x12
+ 	IFLA_NET_NS_PID   = 0x13
+ 	IFLA_IFALIAS      = 0x14
+-	IFLA_MAX          = 0x1a
++	IFLA_MAX          = 0x1c
+ 	RT_SCOPE_UNIVERSE = 0x0
+ 	RT_SCOPE_SITE     = 0xc8
+ 	RT_SCOPE_LINK     = 0xfd

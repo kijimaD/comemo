@@ -9,7 +9,86 @@ Date:   Thu Sep 12 16:54:01 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13627046
-
+---
  src/pkg/encoding/xml/marshal.go      | 18 ++++++++++++++++++
  src/pkg/encoding/xml/marshal_test.go | 17 +++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index ac6c6296c0..e723a193cf 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -147,6 +147,8 @@ func (enc *Encoder) Indent(prefix, indent string) {
+ //
+ // See the documentation for Marshal for details about the conversion
+ // of Go values to XML.
++//
++// Encode calls Flush before returning.
+ func (enc *Encoder) Encode(v interface{}) error {
+ 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil)
+ 	if err != nil {
+@@ -160,6 +162,8 @@ func (enc *Encoder) Encode(v interface{}) error {
+ //
+ // See the documentation for Marshal for details about the conversion
+ // of Go values to XML.
++//
++// EncodeElement calls Flush before returning.
+ func (enc *Encoder) EncodeElement(v interface{}, start StartElement) error {
+ 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start)
+ 	if err != nil {
+@@ -176,6 +180,14 @@ var (
+ 
+ // EncodeToken writes the given XML token to the stream.
+ // It returns an error if StartElement and EndElement tokens are not properly matched.
++//
++// EncodeToken does not call Flush, because usually it is part of a larger operation
++// such as Encode or EncodeElement (or a custom Marshaler's MarshalXML invoked
++// during those), and those will call Flush when finished.
++//
++// Callers that create an Encoder and then invoke EncodeToken directly, without
++// using Encode or EncodeElement, need to call Flush when finished to ensure
++// that the XML is written to the underlying writer.
+ func (enc *Encoder) EncodeToken(t Token) error {
+ 	p := &enc.p
+ 	switch t := t.(type) {
+@@ -222,6 +234,12 @@ func (enc *Encoder) EncodeToken(t Token) error {
+ 	return p.cachedWriteError()
+ }
+ 
++// Flush flushes any buffered XML to the underlying writer.
++// See the EncodeToken documentation for details about when it is necessary.
++func (enc *Encoder) Flush() error {
++	return enc.p.Flush()
++}
++
+ type printer struct {
+ 	*bufio.Writer
+ 	encoder    *Encoder
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 6cd894e0c6..1444c9cc2f 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -1084,6 +1084,23 @@ func TestMarshalWriteIOErrors(t *testing.T) {
+ 	}
+ }
+ 
++func TestMarshalFlush(t *testing.T) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	if err := enc.EncodeToken(CharData("hello world")); err != nil {
++		t.Fatalf("enc.EncodeToken: %v", err)
++	}
++	if buf.Len() > 0 {
++		t.Fatalf("enc.EncodeToken caused actual write: %q", buf.Bytes())
++	}
++	if err := enc.Flush(); err != nil {
++		t.Fatalf("enc.Flush: %v", err)
++	}
++	if buf.String() != "hello world" {
++		t.Fatalf("after enc.Flush, buf.String() = %q, want %q", buf.String(), "hello world")
++	}
++}
++
+ func BenchmarkMarshal(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Marshal(atomValue)

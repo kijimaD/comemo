@@ -8,9 +8,170 @@ Date:   Wed Nov 18 13:51:05 2009 -0800
     R=r, dho
     CC=golang-dev
     https://golang.org/cl/157069
-
+---
  src/cmd/6l/asm.c | 25 ++++++++++---------------
  src/cmd/8l/asm.c | 22 ++++++++++------------
  src/cmd/ld/elf.c | 27 +++++++++++++++++++++++++++
  src/cmd/ld/elf.h |  5 ++++-
  4 files changed, 51 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 3679e5cf40..4f7f6e22fe 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -315,19 +315,6 @@ doelf(void)
+ 		elfstr[ElfStrDynstr] = addstring(shstrtab, ".dynstr");
+ 		elfstr[ElfStrRela] = addstring(shstrtab, ".rela");
+ 
+-		/* interpreter string */
+-		s = lookup(".interp", 0);
+-		s->reachable = 1;
+-		s->type = SDATA;	// TODO: rodata
+-		switch(HEADTYPE) {
+-		case 7:
+-			addstring(lookup(".interp", 0), linuxdynld);
+-			break;
+-		case 9:
+-			addstring(lookup(".interp", 0), freebsddynld);
+-			break;
+-		}
+-
+ 		/*
+ 		 * hash table.
+ 		 * only entries that other objects need to find when
+@@ -688,7 +675,14 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			shsym(sh, lookup(".interp", 0));
++			switch(HEADTYPE) {
++			case 7:
++				elfinterp(sh, startva, linuxdynld);
++				break;
++			case 9:
++				elfinterp(sh, startva, freebsddynld);
++				break;
++			}
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -903,7 +897,8 @@ asmb(void)
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+-		if (a > ELFRESERVE)
++		cflush();
++		if(a+elfwriteinterp() > ELFRESERVE)
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 	}
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index e496672e56..689ba12d92 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -304,14 +304,6 @@ doelf(void)
+ 		s = lookup(".interp", 0);
+ 		s->reachable = 1;
+ 		s->type = SDATA;	// TODO: rodata
+-		switch(HEADTYPE) {
+-		case 7:
+-			addstring(lookup(".interp", 0), linuxdynld);
+-			break;
+-		case 9:
+-			addstring(lookup(".interp", 0), freebsddynld);
+-			break;
+-		}
+ 
+ 		/*
+ 		 * hash table - empty for now.
+@@ -794,7 +786,14 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			shsym(sh, lookup(".interp", 0));
++			switch(HEADTYPE) {
++			case 7:
++				elfinterp(sh, startva, linuxdynld);
++				break;
++			case 9:
++				elfinterp(sh, startva, freebsddynld);
++				break;
++			}
+ 
+ 			ph = newElfPhdr();
+ 			ph->type = PT_INTERP;
+@@ -1012,10 +1011,9 @@ asmb(void)
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+ 		a += elfwriteshdrs();
+-		if (a > ELFRESERVE) {
+-			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+-		}
+ 		cflush();
++		if(a+elfwriteinterp() > ELFRESERVE)
++			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 	}
+ 	cflush();
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index f4809e07cf..c57630e808 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -17,6 +17,7 @@ static	int	elf64;
+ static	ElfEhdr	hdr;
+ static	ElfPhdr	*phdr[NSECT];
+ static	ElfShdr	*shdr[NSECT];
++static	char	*interp;
+ 
+ /*
+  Initialize the global variable that describes the ELF header. It will be updated as
+@@ -278,3 +279,29 @@ elfwritedynentsymsize(Sym *s, int tag, Sym *t)
+ 		adduint32(s, tag);
+ 	addsize(s, t);
+ }
++
++int
++elfwriteinterp(void)
++{
++	int n;
++	
++	if(interp == nil)
++		return 0;
++
++	n = strlen(interp)+1;
++	seek(cout, ELFRESERVE-n, 0);
++	write(cout, interp, n);
++	return n;
++}
++
++void
++elfinterp(ElfShdr *sh, uint64 startva, char *p)
++{
++	int n;
++	
++	interp = p;
++	n = strlen(interp)+1;
++	sh->addr = startva + ELFRESERVE - n;
++	sh->off = ELFRESERVE - n;
++	sh->size = n;
++}
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index e0c2bd1b6c..9f18ec3ddc 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -961,11 +961,14 @@ uint64	startelf(void);
+ uint64	endelf(void);
+ extern	int	numelfphdr;
+ extern	int	numelfshdr;
++int	elfwriteinterp(void);
++void	elfinterp(ElfShdr*, uint64, char*);
+ 
+ /*
+  * Total amount of space to reserve at the start of the file
+- * for Header, PHeaders, and SHeaders.
++ * for Header, PHeaders, SHeaders, and interp.
+  * May waste some.
++ * On FreeBSD, cannot be larger than a page.
+  */
+ #define	ELFRESERVE	2048
+ 

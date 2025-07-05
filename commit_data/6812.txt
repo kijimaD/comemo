@@ -7,6 +7,38 @@ Date:   Wed Dec 1 17:10:26 2010 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/3395041
-
+---
  doc/devel/roadmap.html | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/doc/devel/roadmap.html b/doc/devel/roadmap.html
+index 235eedeb72..935910a921 100644
+--- a/doc/devel/roadmap.html
++++ b/doc/devel/roadmap.html
+@@ -56,13 +56,11 @@ Gc compiler roadmap</h4>
+ <li>
+ Implement goto restrictions.
+ <li>
+-Generate DWARF debug info.
+-<li>
+-Provide gdb support for runtime facilities.
+-<li>
+ Improved optimization.
+ <li>
+ 5g: Better floating point support.
++<li>
++Use escape analysis to keep more data on stack.
+ </ul>
+ 
+ <h4 id="Gccgo_roadmap">
+@@ -83,6 +81,10 @@ Use escape analysis to keep more data on stack.
+ 
+ <ul>
+ <li>
++gc: Generate DWARF debug info.
++<li>
++gc: Provide gdb support for runtime facilities.
++<li>
+ Safe compilation mode: generate code that is guaranteed not to obtain an invalid memory address other than via <code>import "unsafe"</code>.
+ <li>
+ Gccgo: garbage collection.

@@ -12,7 +12,7 @@ Date:   Thu Jun 1 12:55:58 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/gover/version.go     | 54 ++++++++++++++++++++++++++++++++
  src/cmd/go/internal/modcmd/download.go   |  2 +-
  src/cmd/go/internal/modload/buildlist.go |  2 +-
@@ -20,3 +20,254 @@ Date:   Thu Jun 1 12:55:58 2023 -0400
  src/cmd/go/internal/modload/load.go      |  4 +--
  src/cmd/go/internal/modload/modfile.go   | 51 +-----------------------------
  6 files changed, 67 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/go/internal/gover/version.go b/src/cmd/go/internal/gover/version.go
+new file mode 100644
+index 0000000000..ca4702120a
+--- /dev/null
++++ b/src/cmd/go/internal/gover/version.go
+@@ -0,0 +1,54 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gover
++
++const (
++	// narrowAllVersion is the Go version at which the
++	// module-module "all" pattern no longer closes over the dependencies of
++	// tests outside of the main module.
++	NarrowAllVersion = "1.16"
++
++	// DefaultGoModVersion is the Go version to assume for go.mod files
++	// that do not declare a Go version. The go command has been
++	// writing go versions to modules since Go 1.12, so a go.mod
++	// without a version is either very old or recently hand-written.
++	// Since we can't tell which, we have to assume it's very old.
++	// The semantics of the go.mod changed at Go 1.17 to support
++	// graph pruning. If see a go.mod without a go line, we have to
++	// assume Go 1.16 so that we interpret the requirements correctly.
++	// Note that this default must stay at Go 1.16; it cannot be moved forward.
++	DefaultGoModVersion = "1.16"
++
++	// DefaultGoWorkVersion is the Go version to assume for go.work files
++	// that do not declare a Go version. Workspaces were added in Go 1.18,
++	// so use that.
++	DefaultGoWorkVersion = "1.18"
++
++	// ExplicitIndirectVersion is the Go version at which a
++	// module's go.mod file is expected to list explicit requirements on every
++	// module that provides any package transitively imported by that module.
++	//
++	// Other indirect dependencies of such a module can be safely pruned out of
++	// the module graph; see https://golang.org/ref/mod#graph-pruning.
++	ExplicitIndirectVersion = "1.17"
++
++	// separateIndirectVersion is the Go version at which
++	// "// indirect" dependencies are added in a block separate from the direct
++	// ones. See https://golang.org/issue/45965.
++	SeparateIndirectVersion = "1.17"
++
++	// tidyGoModSumVersion is the Go version at which
++	// 'go mod tidy' preserves go.mod checksums needed to build test dependencies
++	// of packages in "all", so that 'go test all' can be run without checksum
++	// errors.
++	// See https://go.dev/issue/56222.
++	TidyGoModSumVersion = "1.21"
++
++	// goStrictVersion is the Go version at which the Go versions
++	// became "strict" in the sense that, restricted to modules at this version
++	// or later, every module must have a go version line ≥ all its dependencies.
++	// It is also the version after which "too new" a version is considered a fatal error.
++	GoStrictVersion = "1.21"
++)
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 955f33650a..2fa85e0e21 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -135,7 +135,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		} else {
+ 			mainModule := modload.MainModules.Versions()[0]
+ 			modFile := modload.MainModules.ModFile(mainModule)
+-			if modFile.Go == nil || gover.Compare(modFile.Go.Version, modload.ExplicitIndirectVersion) < 0 {
++			if modFile.Go == nil || gover.Compare(modFile.Go.Version, gover.ExplicitIndirectVersion) < 0 {
+ 				if len(modFile.Require) > 0 {
+ 					args = []string{"all"}
+ 				}
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 0e4c7afb23..dd8e46eaad 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -545,7 +545,7 @@ func LoadModGraph(ctx context.Context, goVersion string) (*ModuleGraph, error) {
+ 
+ 	if goVersion != "" {
+ 		v, _ := rs.rootSelected("go")
+-		if gover.Compare(v, GoStrictVersion) >= 0 && gover.Compare(goVersion, v) < 0 {
++		if gover.Compare(v, gover.GoStrictVersion) >= 0 && gover.Compare(goVersion, v) < 0 {
+ 			return nil, fmt.Errorf("requested Go version %s cannot load module graph (requires Go >= %s)", goVersion, v)
+ 		}
+ 
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 8840188c26..5c942ffeb0 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -225,7 +225,7 @@ func (mms *MainModuleSet) GoVersion() string {
+ 		if mms.workFile != nil && mms.workFile.Go != nil {
+ 			return mms.workFile.Go.Version
+ 		}
+-		return defaultGoWorkVersion
++		return gover.DefaultGoWorkVersion
+ 	}
+ 	if mms != nil && len(mms.versions) == 1 {
+ 		f := mms.ModFile(mms.mustGetSingleMainModule())
+@@ -239,7 +239,7 @@ func (mms *MainModuleSet) GoVersion() string {
+ 			return f.Go.Version
+ 		}
+ 	}
+-	return defaultGoModVersion
++	return gover.DefaultGoModVersion
+ }
+ 
+ // Toolchain returns the toolchain set on the single module, in module mode,
+@@ -876,7 +876,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
+ 			// Go 1.11 through 1.16 do not support graph pruning, but the latest Go
+ 			// version uses a pruned module graph — so we need to convert the
+ 			// requirements to support pruning.
+-			if gover.Compare(v, ExplicitIndirectVersion) >= 0 {
++			if gover.Compare(v, gover.ExplicitIndirectVersion) >= 0 {
+ 				var err error
+ 				rs, err = convertPruning(ctx, rs, pruned)
+ 				if err != nil {
+@@ -884,7 +884,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) *Requirements {
+ 				}
+ 			}
+ 		} else {
+-			rawGoVersion.Store(mainModule, defaultGoModVersion)
++			rawGoVersion.Store(mainModule, gover.DefaultGoModVersion)
+ 		}
+ 	}
+ 
+@@ -1228,7 +1228,7 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
+ 		goVersion = opts.GoVersion
+ 	}
+ 	if goVersion == "" {
+-		goVersion = defaultGoModVersion
++		goVersion = gover.DefaultGoModVersion
+ 	}
+ 	roots = append(roots, module.Version{Path: "go", Version: goVersion})
+ 	direct["go"] = true
+@@ -1618,7 +1618,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 	wroteGo := false
+ 	if modFile.Go == nil || modFile.Go.Version != goVersion {
+ 		alwaysUpdate := cfg.BuildMod == "mod" || cfg.CmdName == "mod tidy" || cfg.CmdName == "get"
+-		if modFile.Go == nil && goVersion == defaultGoModVersion && !alwaysUpdate {
++		if modFile.Go == nil && goVersion == gover.DefaultGoModVersion && !alwaysUpdate {
+ 			// The go.mod has no go line, the implied default Go version matches
+ 			// what we've computed for the graph, and we're not in one of the
+ 			// traditional go.mod-updating programs, so leave it alone.
+@@ -1648,7 +1648,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 	}
+ 
+ 	// Update require blocks.
+-	if gover.Compare(goVersion, separateIndirectVersion) < 0 {
++	if gover.Compare(goVersion, gover.SeparateIndirectVersion) < 0 {
+ 		modFile.SetRequire(list)
+ 	} else {
+ 		modFile.SetRequireSeparateIndirect(list)
+@@ -1764,7 +1764,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 			// However, we didn't do so before Go 1.21, and the bug is relatively
+ 			// minor, so we maintain the previous (buggy) behavior in 'go mod tidy' to
+ 			// avoid introducing unnecessary churn.
+-			if !ld.Tidy || gover.Compare(ld.GoVersion, tidyGoModSumVersion) >= 0 {
++			if !ld.Tidy || gover.Compare(ld.GoVersion, gover.TidyGoModSumVersion) >= 0 {
+ 				r := resolveReplacement(pkg.mod)
+ 				keep[modkey(r)] = true
+ 			}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index b4cf736d75..8f1eb1098b 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1020,12 +1020,12 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			ld.TidyCompatibleVersion = ld.GoVersion
+ 		}
+ 
+-		if gover.Compare(ld.GoVersion, tidyGoModSumVersion) < 0 {
++		if gover.Compare(ld.GoVersion, gover.TidyGoModSumVersion) < 0 {
+ 			ld.skipImportModFiles = true
+ 		}
+ 	}
+ 
+-	if gover.Compare(ld.GoVersion, narrowAllVersion) < 0 && !ld.UseVendorAll {
++	if gover.Compare(ld.GoVersion, gover.NarrowAllVersion) < 0 && !ld.UseVendorAll {
+ 		// The module's go version explicitly predates the change in "all" for graph
+ 		// pruning, so continue to use the older interpretation.
+ 		ld.allClosesOverTests = true
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index b2bae6255b..e4a54869ed 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -27,55 +27,6 @@ import (
+ 	"golang.org/x/mod/module"
+ )
+ 
+-const (
+-	// narrowAllVersion is the Go version at which the
+-	// module-module "all" pattern no longer closes over the dependencies of
+-	// tests outside of the main module.
+-	narrowAllVersion = "1.16"
+-
+-	// defaultGoModVersion is the Go version to assume for go.mod files
+-	// that do not declare a Go version. The go command has been
+-	// writing go versions to modules since Go 1.12, so a go.mod
+-	// without a version is either very old or recently hand-written.
+-	// Since we can't tell which, we have to assume it's very old.
+-	// The semantics of the go.mod changed at Go 1.17 to support
+-	// graph pruning. If see a go.mod without a go line, we have to
+-	// assume Go 1.16 so that we interpret the requirements correctly.
+-	// Note that this default must stay at Go 1.16; it cannot be moved forward.
+-	defaultGoModVersion = "1.16"
+-
+-	// defaultGoWorkVersion is the Go version to assume for go.work files
+-	// that do not declare a Go version. Workspaces were added in Go 1.18,
+-	// so use that.
+-	defaultGoWorkVersion = "1.18"
+-
+-	// ExplicitIndirectVersion is the Go version at which a
+-	// module's go.mod file is expected to list explicit requirements on every
+-	// module that provides any package transitively imported by that module.
+-	//
+-	// Other indirect dependencies of such a module can be safely pruned out of
+-	// the module graph; see https://golang.org/ref/mod#graph-pruning.
+-	ExplicitIndirectVersion = "1.17"
+-
+-	// separateIndirectVersion is the Go version at which
+-	// "// indirect" dependencies are added in a block separate from the direct
+-	// ones. See https://golang.org/issue/45965.
+-	separateIndirectVersion = "1.17"
+-
+-	// tidyGoModSumVersion is the Go version at which
+-	// 'go mod tidy' preserves go.mod checksums needed to build test dependencies
+-	// of packages in "all", so that 'go test all' can be run without checksum
+-	// errors.
+-	// See https://go.dev/issue/56222.
+-	tidyGoModSumVersion = "1.21"
+-
+-	// goStrictVersion is the Go version at which the Go versions
+-	// became "strict" in the sense that, restricted to modules at this version
+-	// or later, every module must have a go version line ≥ all its dependencies.
+-	// It is also the version after which "too new" a version is considered a fatal error.
+-	GoStrictVersion = "1.21"
+-)
+-
+ // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
+ // overlay, locks the file while reading, and applies fix, if applicable.
+ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfile.File, err error) {
+@@ -149,7 +100,7 @@ func (p modPruning) String() string {
+ }
+ 
+ func pruningForGoVersion(goVersion string) modPruning {
+-	if gover.Compare(goVersion, ExplicitIndirectVersion) < 0 {
++	if gover.Compare(goVersion, gover.ExplicitIndirectVersion) < 0 {
+ 		// The go.mod file does not duplicate relevant information about transitive
+ 		// dependencies, so they cannot be pruned out.
+ 		return unpruned

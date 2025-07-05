@@ -17,6 +17,19 @@ Date:   Wed May 6 09:53:48 2015 -0700
     Change-Id: Ic1f6dd1bae3c79c4f7da02bc8c30b5e599627a82
     Reviewed-on: https://go-review.googlesource.com/9794
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/env_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index 2224890869..d1074cdc60 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -101,6 +101,7 @@ func TestLookupEnv(t *testing.T) {
+ 	if ok || value != "" {
+ 		t.Fatalf("%s=%q", smallpox, value)
+ 	}
++	defer Unsetenv(smallpox)
+ 	err := Setenv(smallpox, "virus")
+ 	if err != nil {
+ 		t.Fatalf("failed to release smallpox virus")

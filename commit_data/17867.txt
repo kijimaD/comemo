@@ -9,6 +9,22 @@ Date:   Tue Nov 5 13:54:48 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/21770043
-
+---
  doc/go1.2.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index 7189045205..9d890b2906 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -190,8 +190,8 @@ include new stack management technology that should address the problem better.
+ 
+ <p>
+ The <a href="/cmd/cgo/"><code>cgo</code></a> command will now invoke the C++
+-compiler to build any pieces of the linked-to library that are written in C++; the
+-documentation has more detail.
++compiler to build any pieces of the linked-to library that are written in C++;
++<a href="/cmd/cgo/">the documentation</a> has more detail.
+ </p>
+ 
+ <h3 id="go_tools_godoc">Godoc and vet moved to the go.tools subrepository</h3>

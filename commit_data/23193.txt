@@ -8,6 +8,22 @@ Date:   Wed Apr 29 15:08:49 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9516
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/buildall.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index 89a4501bcb..037ad6d090 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -6,8 +6,8 @@
+ # Usage: buildall.sh [-e] [pattern]
+ #
+ # buildall.bash builds the standard library for all Go-supported
+-# architectures. It is used by the linux-amd64-compilesmoke trybot
+-# builder, as a smoke test to quickly flag portability issues.
++# architectures. It is used by the "all-compile" trybot builder,
++# as a smoke test to quickly flag portability issues.
+ #
+ # Options:
+ #   -e: stop at first failure

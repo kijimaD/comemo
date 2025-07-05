@@ -15,7 +15,7 @@ Date:   Thu Mar 4 10:35:17 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/query.go            |  2 +-
  src/cmd/go/internal/modload/import.go          | 18 +++++----
  src/cmd/go/internal/modload/init.go            |  6 ++-
@@ -26,3 +26,347 @@ Date:   Thu Mar 4 10:35:17 2021 -0500
  src/cmd/go/testdata/script/mod_outside.txt     | 52 +++++++++++++-------------
  src/go/build/build_test.go                     |  2 +-
  9 files changed, 47 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index d8364c8c0d..1a5a60f7eb 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -186,7 +186,7 @@ func (q *query) validate() error {
+ 	if q.pattern == "all" {
+ 		// If there is no main module, "all" is not meaningful.
+ 		if !modload.HasModRoot() {
+-			return fmt.Errorf(`cannot match "all": working directory is not part of a module`)
++			return fmt.Errorf(`cannot match "all": %v`, modload.ErrNoModRoot)
+ 		}
+ 		if !versionOkForMainModule(q.version) {
+ 			// TODO(bcmills): "all@none" seems like a totally reasonable way to
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 182429aee4..995641c9f1 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -51,7 +51,7 @@ func (e *ImportMissingError) Error() string {
+ 		if e.isStd {
+ 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+ 		}
+-		if e.QueryErr != nil {
++		if e.QueryErr != nil && e.QueryErr != ErrNoModRoot {
+ 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
+ 		}
+ 		if cfg.BuildMod == "mod" || (cfg.BuildMod == "readonly" && allowMissingModuleImports) {
+@@ -66,13 +66,11 @@ func (e *ImportMissingError) Error() string {
+ 			return fmt.Sprintf("module %s provides package %s and is replaced but not required; to add it:\n\tgo get %s", e.replaced.Path, e.Path, suggestArg)
+ 		}
+ 
+-		suggestion := ""
+-		if !HasModRoot() {
+-			suggestion = ": working directory is not part of a module"
+-		} else {
+-			suggestion = fmt.Sprintf("; to add it:\n\tgo get %s", e.Path)
++		message := fmt.Sprintf("no required module provides package %s", e.Path)
++		if e.QueryErr != nil {
++			return fmt.Sprintf("%s: %v", message, e.QueryErr)
+ 		}
+-		return fmt.Sprintf("no required module provides package %s%s", e.Path, suggestion)
++		return fmt.Sprintf("%s; to add it:\n\tgo get %s", message, e.Path)
+ 	}
+ 
+ 	if e.newMissingVersion != "" {
+@@ -318,7 +316,11 @@ func importFromBuildList(ctx context.Context, path string, buildList []module.Ve
+ 		return mods[0], dirs[0], nil
+ 	}
+ 
+-	return module.Version{}, "", &ImportMissingError{Path: path, isStd: pathIsStd}
++	var queryErr error
++	if !HasModRoot() {
++		queryErr = ErrNoModRoot
++	}
++	return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: queryErr, isStd: pathIsStd}
+ }
+ 
+ // queryImport attempts to locate a module that can be added to the current
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 4de5ac9303..8ec1c8681a 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -177,7 +177,7 @@ func Init() {
+ 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
+ 			}
+ 			if RootMode == NeedRoot {
+-				base.Fatalf("go: cannot find main module; see 'go help modules'")
++				base.Fatalf("go: %v", ErrNoModRoot)
+ 			}
+ 			if !mustUseModules {
+ 				// GO111MODULE is 'auto', and we can't find a module root.
+@@ -338,9 +338,11 @@ func die() {
+ 		}
+ 		base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
+ 	}
+-	base.Fatalf("go: cannot find main module; see 'go help modules'")
++	base.Fatalf("go: %v", ErrNoModRoot)
+ }
+ 
++var ErrNoModRoot = errors.New("go.mod file not found in current directory or any parent directory; see 'go help modules'")
++
+ // LoadModFile sets Target and, if there is a main module, parses the initial
+ // build list from its go.mod file.
+ //
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 6dba6bea22..c7ef8c9fb7 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -73,7 +73,7 @@ func listModules(ctx context.Context, args []string, listVersions, listRetracted
+ 			base.Fatalf("go: cannot use relative path %s to specify module", arg)
+ 		}
+ 		if !HasModRoot() && (arg == "all" || strings.Contains(arg, "...")) {
+-			base.Fatalf("go: cannot match %q: working directory is not part of a module", arg)
++			base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
+ 		}
+ 		if i := strings.Index(arg, "@"); i >= 0 {
+ 			path := arg[:i]
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 99578b244c..666b1a0e56 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -96,28 +96,12 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("go run: no go files listed")
+ 	}
+ 	cmdArgs := args[i:]
+-	if p.Error != nil {
+-		base.Fatalf("%s", p.Error)
+-	}
++	load.CheckPackageErrors([]*load.Package{p})
+ 
+-	p.Internal.OmitDebug = true
+-	if len(p.DepsErrors) > 0 {
+-		// Since these are errors in dependencies,
+-		// the same error might show up multiple times,
+-		// once in each package that depends on it.
+-		// Only print each once.
+-		printed := map[*load.PackageError]bool{}
+-		for _, err := range p.DepsErrors {
+-			if !printed[err] {
+-				printed[err] = true
+-				base.Errorf("%s", err)
+-			}
+-		}
+-	}
+-	base.ExitIfErrors()
+ 	if p.Name != "main" {
+ 		base.Fatalf("go run: cannot run non-main package")
+ 	}
++	p.Internal.OmitDebug = true
+ 	p.Target = "" // must build - not up to date
+ 	if p.Internal.CmdlineFiles {
+ 		//set executable name if go file is given as cmd-argument
+diff --git a/src/cmd/go/testdata/script/mod_convert_dep.txt b/src/cmd/go/testdata/script/mod_convert_dep.txt
+index ad22aca5be..875a836fd2 100644
+--- a/src/cmd/go/testdata/script/mod_convert_dep.txt
++++ b/src/cmd/go/testdata/script/mod_convert_dep.txt
+@@ -18,7 +18,7 @@ stdout '^m$'
+ # Test that we ignore directories when trying to find alternate config files.
+ cd $WORK/gopkgdir/x
+ ! go list .
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ ! stderr 'Gopkg.lock'
+ 
+ -- $WORK/test/Gopkg.lock --
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index 9468acfd33..1e01973ff4 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -49,7 +49,7 @@ rm go.mod
+ # Test that we ignore directories when trying to find go.mod.
+ cd $WORK/gomoddir
+ ! go list .
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ [!symlink] stop
+ 
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 7b45f1a209..9d4c22c77b 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -12,13 +12,13 @@ stdout 'NUL|/dev/null'
+ # 'go list' without arguments implicitly operates on the current directory,
+ # which is not in a module.
+ ! go list
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ go list -m
+ stdout '^command-line-arguments$'
+ # 'go list' in the working directory should fail even if there is a a 'package
+ # main' present: without a main module, we do not know its package path.
+ ! go list ./needmod
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go list all' lists the transitive import graph of the main module,
+ # which is empty if there is no main module.
+@@ -41,7 +41,7 @@ stdout 'command-line-arguments'
+ 
+ # 'go list' on a package from a module should fail.
+ ! go list example.com/printversion
+-stderr '^no required module provides package example.com/printversion: working directory is not part of a module$'
++stderr '^no required module provides package example.com/printversion: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ 
+ # 'go list -m' with an explicit version should resolve that version.
+@@ -54,19 +54,19 @@ stdout 'v1.0.0\s+v1.0.1\s+v1.1.0'
+ 
+ # 'go list -m all' should fail. "all" is not meaningful outside of a module.
+ ! go list -m all
+-stderr 'go: cannot match "all": working directory is not part of a module'
++stderr 'go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go list -m <mods> all' should also fail.
+ ! go list -m example.com/printversion@v1.0.0 all
+-stderr 'go: cannot match "all": working directory is not part of a module'
++stderr 'go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ ! stdout 'example.com/version'
+ 
+ # 'go list -m' with wildcards should fail. Wildcards match modules in the
+ # build list, so they aren't meaningful outside a module.
+ ! go list -m ...
+-stderr 'go: cannot match "...": working directory is not part of a module'
++stderr 'go: cannot match "...": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ ! go list -m rsc.io/quote/...
+-stderr 'go: cannot match "rsc.io/quote/...": working directory is not part of a module'
++stderr 'go: cannot match "rsc.io/quote/...": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ 
+ # 'go clean' should skip the current directory if it isn't in a module.
+@@ -76,20 +76,20 @@ go clean -n
+ 
+ # 'go mod graph' should fail, since there's no module graph.
+ ! go mod graph
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go mod why' should fail, since there is no main module to depend on anything.
+ ! go mod why -m example.com/version
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go mod edit', 'go mod tidy', and 'go mod fmt' should fail:
+ # there is no go.mod file to edit.
+ ! go mod tidy
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ ! go mod edit -fmt
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ ! go mod edit -require example.com/version@v1.0.0
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ 
+ # 'go mod download' without arguments should report an error.
+@@ -104,33 +104,33 @@ exists $GOPATH/pkg/mod/cache/download/example.com/printversion/@v/v1.0.0.zip
+ 
+ # 'go mod download all' should fail. "all" is not meaningful outside of a module.
+ ! go mod download all
+-stderr 'go: cannot match "all": working directory is not part of a module'
++stderr 'go: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ 
+ # 'go mod vendor' should fail: it starts by clearing the existing vendor
+ # directory, and we don't know where that is.
+ ! go mod vendor
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ 
+ # 'go mod verify' should fail: we have no modules to verify.
+ ! go mod verify
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ 
+ # 'go get' without arguments implicitly operates on the main module, and thus
+ # should fail.
+ ! go get
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ ! go get -u
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ ! go get -u ./needmod
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go get -u all' upgrades the transitive import graph of the main module,
+ # which is empty.
+ ! go get -u all
+-stderr 'go get: cannot match "all": working directory is not part of a module'
++stderr '^go get: cannot match "all": go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go get' should check the proposed module graph for consistency,
+ # even though we won't write it anywhere.
+@@ -147,16 +147,16 @@ exists $GOPATH/pkg/mod/example.com/version@v1.0.0
+ # 'go build' without arguments implicitly operates on the current directory, and should fail.
+ cd needmod
+ ! go build
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ cd ..
+ 
+ # 'go build' of a non-module directory should fail too.
+ ! go build ./needmod
+-stderr 'cannot find main module'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go build' of source files should fail if they import anything outside std.
+ ! go build -n ./needmod/needmod.go
+-stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module$'
++stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go build' of source files should succeed if they do not import anything outside std.
+ go build -n -o ignore ./stdonly/stdonly.go
+@@ -179,7 +179,7 @@ go doc fmt
+ 
+ # 'go doc' should fail for a package path outside a module.
+ ! go doc example.com/version
+-stderr 'doc: no required module provides package example.com/version: working directory is not part of a module'
++stderr 'doc: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go install' with a version should succeed if all constraints are met.
+ # See mod_install_pkg_version.
+@@ -194,7 +194,7 @@ stderr '^go install: version is required when current directory is not in a modu
+ # 'go install' should fail if a source file imports a package that must be
+ # resolved to a module.
+ ! go install ./needmod/needmod.go
+-stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module'
++stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go install' should succeed with a package in GOROOT.
+ go install cmd/addr2line
+@@ -206,12 +206,12 @@ stderr 'can only use path@version syntax with'
+ 
+ # 'go run' should fail if a package argument must be resolved to a module.
+ ! go run example.com/printversion
+-stderr '^no required module provides package example.com/printversion: working directory is not part of a module$'
++stderr '^no required module provides package example.com/printversion: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ # 'go run' should fail if a source file imports a package that must be
+ # resolved to a module.
+ ! go run ./needmod/needmod.go
+-stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module$'
++stderr '^needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+ 
+ 
+ # 'go fmt' should be able to format files outside of a module.
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 0762a150eb..6529b6e47e 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -644,7 +644,7 @@ func TestImportPackageOutsideModule(t *testing.T) {
+ 	ctxt.GOPATH = gopath
+ 	ctxt.Dir = filepath.Join(gopath, "src/example.com/p")
+ 
+-	want := "working directory is not part of a module"
++	want := "go.mod file not found in current directory or any parent directory"
+ 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
+ 		t.Fatal("importing package when no go.mod is present succeeded unexpectedly")
+ 	} else if errStr := err.Error(); !strings.Contains(errStr, want) {

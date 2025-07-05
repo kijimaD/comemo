@@ -8,6 +8,19 @@ Date:   Fri May 8 15:39:18 2009 -0700
     DELTA=1  (0 added, 1 deleted, 0 changed)
     OCL=28576
     CL=28576
-
+---
  src/lib/os/proc.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/lib/os/proc.go b/src/lib/os/proc.go
+index 6a91306091..bae977b1f7 100644
+--- a/src/lib/os/proc.go
++++ b/src/lib/os/proc.go
+@@ -14,7 +14,6 @@ var Envs []string;	// provided by runtime
+ 
+ // Exit causes the current program to exit with the given status code.
+ // Conventionally, code zero indicates success, non-zero an error.
+-// returning exit status n.
+ func Exit(code int) {
+ 	syscall.Syscall(syscall.SYS_EXIT, int64(code), 0, 0)
+ }

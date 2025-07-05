@@ -12,7 +12,387 @@ Date:   Mon Sep 23 22:44:02 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go  | 311 ++++++++++++++++++++-------------------
  src/cmd/link/internal/ld/main.go |   5 +-
  2 files changed, 159 insertions(+), 157 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e2efb95ff4..5ab43cca70 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -415,55 +415,40 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
+-	switch ctxt.BuildMode {
+-	case BuildModeCShared, BuildModePlugin:
+-		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
+-		s.Type = sym.SNOPTRDATA
+-		s.Attr |= sym.AttrDuplicateOK
+-		s.AddUint8(1)
+-	case BuildModeCArchive:
+-		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
+-		s.Type = sym.SNOPTRDATA
+-		s.Attr |= sym.AttrDuplicateOK
+-		s.AddUint8(1)
+-	}
+-
+ 	iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
+ 
+ 	// We now have enough information to determine the link mode.
+ 	determineLinkMode(ctxt)
+ 
+-	// Recalculate pe parameters now that we have ctxt.LinkMode set.
+-	if ctxt.HeadType == objabi.Hwindows {
+-		Peinit(ctxt)
+-	}
++	// Now that we know the link mode, trim the dynexp list.
++	x := sym.AttrCgoExportDynamic
+ 
+-	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
+-		*FlagTextAddr = 0
++	if ctxt.LinkMode == LinkExternal {
++		x = sym.AttrCgoExportStatic
+ 	}
+-
+-	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
+-		toc := ctxt.Syms.Lookup(".TOC.", 0)
+-		toc.Type = sym.SDYNIMPORT
++	w := 0
++	for i := range dynexp {
++		if dynexp[i].Attr&x != 0 {
++			dynexp[w] = dynexp[i]
++			w++
++		}
+ 	}
++	dynexp = dynexp[:w]
+ 
+-	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
+-		// This indicates a user requested -linkmode=external.
+-		// The startup code uses an import of runtime/cgo to decide
+-		// whether to initialize the TLS.  So give it one. This could
+-		// be handled differently but it's an unusual case.
+-		if lib := loadinternal(ctxt, "runtime/cgo"); lib != nil {
+-			if lib.Shlib != "" {
+-				ldshlibsyms(ctxt, lib.Shlib)
+-			} else {
+-				if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
+-					Exitf("cannot implicitly include runtime/cgo in a shared library")
+-				}
+-				loadobjfile(ctxt, lib)
+-			}
++	// Resolve ABI aliases in the list of cgo-exported functions.
++	// This is necessary because we load the ABI0 symbol for all
++	// cgo exports.
++	for i, s := range dynexp {
++		if s.Type != sym.SABIALIAS {
++			continue
+ 		}
++		t := resolveABIAlias(s)
++		t.Attr |= s.Attr
++		t.SetExtname(s.Extname())
++		dynexp[i] = t
+ 	}
+ 
++	// In internal link mode, read the host object files.
+ 	if ctxt.LinkMode == LinkInternal {
+ 		// Drop all the cgo_import_static declarations.
+ 		// Turns out we won't be needing them.
+@@ -480,85 +465,7 @@ func (ctxt *Link) loadlib() {
+ 				}
+ 			}
+ 		}
+-	}
+-
+-	// The Android Q linker started to complain about underalignment of the our TLS
+-	// section. We don't actually use the section on android, so dont't
+-	// generate it.
+-	if objabi.GOOS != "android" {
+-		tlsg := ctxt.Syms.Lookup("runtime.tlsg", 0)
+-
+-		// runtime.tlsg is used for external linking on platforms that do not define
+-		// a variable to hold g in assembly (currently only intel).
+-		if tlsg.Type == 0 {
+-			tlsg.Type = sym.STLSBSS
+-			tlsg.Size = int64(ctxt.Arch.PtrSize)
+-		} else if tlsg.Type != sym.SDYNIMPORT {
+-			Errorf(nil, "runtime declared tlsg variable %v", tlsg.Type)
+-		}
+-		tlsg.Attr |= sym.AttrReachable
+-		ctxt.Tlsg = tlsg
+-	}
+ 
+-	var moduledata *sym.Symbol
+-	if ctxt.BuildMode == BuildModePlugin {
+-		moduledata = ctxt.Syms.Lookup("local.pluginmoduledata", 0)
+-		moduledata.Attr |= sym.AttrLocal
+-	} else {
+-		moduledata = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
+-	}
+-	if moduledata.Type != 0 && moduledata.Type != sym.SDYNIMPORT {
+-		// If the module (toolchain-speak for "executable or shared
+-		// library") we are linking contains the runtime package, it
+-		// will define the runtime.firstmoduledata symbol and we
+-		// truncate it back to 0 bytes so we can define its entire
+-		// contents in symtab.go:symtab().
+-		moduledata.Size = 0
+-
+-		// In addition, on ARM, the runtime depends on the linker
+-		// recording the value of GOARM.
+-		if ctxt.Arch.Family == sys.ARM {
+-			s := ctxt.Syms.Lookup("runtime.goarm", 0)
+-			s.Type = sym.SDATA
+-			s.Size = 0
+-			s.AddUint8(uint8(objabi.GOARM))
+-		}
+-
+-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+-			s := ctxt.Syms.Lookup("runtime.framepointer_enabled", 0)
+-			s.Type = sym.SDATA
+-			s.Size = 0
+-			s.AddUint8(1)
+-		}
+-	} else {
+-		// If OTOH the module does not contain the runtime package,
+-		// create a local symbol for the moduledata.
+-		moduledata = ctxt.Syms.Lookup("local.moduledata", 0)
+-		moduledata.Attr |= sym.AttrLocal
+-	}
+-	// In all cases way we mark the moduledata as noptrdata to hide it from
+-	// the GC.
+-	moduledata.Type = sym.SNOPTRDATA
+-	moduledata.Attr |= sym.AttrReachable
+-	ctxt.Moduledata = moduledata
+-
+-	// Now that we know the link mode, trim the dynexp list.
+-	x := sym.AttrCgoExportDynamic
+-
+-	if ctxt.LinkMode == LinkExternal {
+-		x = sym.AttrCgoExportStatic
+-	}
+-	w := 0
+-	for i := range dynexp {
+-		if dynexp[i].Attr&x != 0 {
+-			dynexp[w] = dynexp[i]
+-			w++
+-		}
+-	}
+-	dynexp = dynexp[:w]
+-
+-	// In internal link mode, read the host object files.
+-	if ctxt.LinkMode == LinkInternal {
+ 		hostobjs(ctxt)
+ 
+ 		// If we have any undefined symbols in external
+@@ -613,40 +520,23 @@ func (ctxt *Link) loadlib() {
+ 	// Record whether we can use plugins.
+ 	ctxt.canUsePlugins = (ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil)
+ 
+-	// If there are no dynamic libraries needed, gcc disables dynamic linking.
+-	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
+-	// assumes that a dynamic binary always refers to at least one dynamic library.
+-	// Rather than be a source of test cases for glibc, disable dynamic linking
+-	// the same way that gcc would.
+-	//
+-	// Exception: on OS X, programs such as Shark only work with dynamic
+-	// binaries, so leave it enabled on OS X (Mach-O) binaries.
+-	// Also leave it enabled on Solaris which doesn't support
+-	// statically linked binaries.
+-	if ctxt.BuildMode == BuildModeExe {
+-		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
+-			*FlagD = true
+-		}
+-	}
+-
+-	// If package versioning is required, generate a hash of the
+-	// packages used in the link.
+-	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
+-		for _, lib := range ctxt.Library {
+-			if lib.Shlib == "" {
+-				genhash(ctxt, lib)
++	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
++		// This indicates a user requested -linkmode=external.
++		// The startup code uses an import of runtime/cgo to decide
++		// whether to initialize the TLS.  So give it one. This could
++		// be handled differently but it's an unusual case.
++		if lib := loadinternal(ctxt, "runtime/cgo"); lib != nil {
++			if lib.Shlib != "" {
++				ldshlibsyms(ctxt, lib.Shlib)
++			} else {
++				if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
++					Exitf("cannot implicitly include runtime/cgo in a shared library")
++				}
++				loadobjfile(ctxt, lib)
+ 			}
+ 		}
+ 	}
+ 
+-	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
+-		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+-			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+-			got.Type = sym.SDYNIMPORT
+-			got.Attr |= sym.AttrReachable
+-		}
+-	}
+-
+ 	importcycles()
+ 
+ 	// put symbols into Textp
+@@ -686,18 +576,129 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 		ctxt.Textp = textp
+ 	}
++}
+ 
+-	// Resolve ABI aliases in the list of cgo-exported functions.
+-	// This is necessary because we load the ABI0 symbol for all
+-	// cgo exports.
+-	for i, s := range dynexp {
+-		if s.Type != sym.SABIALIAS {
+-			continue
++// Set up flags and special symbols depending on the platform build mode.
++func (ctxt *Link) linksetup() {
++	switch ctxt.BuildMode {
++	case BuildModeCShared, BuildModePlugin:
++		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
++		s.Type = sym.SNOPTRDATA
++		s.Attr |= sym.AttrDuplicateOK
++		s.AddUint8(1)
++	case BuildModeCArchive:
++		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
++		s.Type = sym.SNOPTRDATA
++		s.Attr |= sym.AttrDuplicateOK
++		s.AddUint8(1)
++	}
++
++	// Recalculate pe parameters now that we have ctxt.LinkMode set.
++	if ctxt.HeadType == objabi.Hwindows {
++		Peinit(ctxt)
++	}
++
++	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
++		*FlagTextAddr = 0
++	}
++
++	// If there are no dynamic libraries needed, gcc disables dynamic linking.
++	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
++	// assumes that a dynamic binary always refers to at least one dynamic library.
++	// Rather than be a source of test cases for glibc, disable dynamic linking
++	// the same way that gcc would.
++	//
++	// Exception: on OS X, programs such as Shark only work with dynamic
++	// binaries, so leave it enabled on OS X (Mach-O) binaries.
++	// Also leave it enabled on Solaris which doesn't support
++	// statically linked binaries.
++	if ctxt.BuildMode == BuildModeExe {
++		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
++			*FlagD = true
++		}
++	}
++
++	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
++		toc := ctxt.Syms.Lookup(".TOC.", 0)
++		toc.Type = sym.SDYNIMPORT
++	}
++
++	// The Android Q linker started to complain about underalignment of the our TLS
++	// section. We don't actually use the section on android, so dont't
++	// generate it.
++	if objabi.GOOS != "android" {
++		tlsg := ctxt.Syms.Lookup("runtime.tlsg", 0)
++
++		// runtime.tlsg is used for external linking on platforms that do not define
++		// a variable to hold g in assembly (currently only intel).
++		if tlsg.Type == 0 {
++			tlsg.Type = sym.STLSBSS
++			tlsg.Size = int64(ctxt.Arch.PtrSize)
++		} else if tlsg.Type != sym.SDYNIMPORT {
++			Errorf(nil, "runtime declared tlsg variable %v", tlsg.Type)
++		}
++		tlsg.Attr |= sym.AttrReachable
++		ctxt.Tlsg = tlsg
++	}
++
++	var moduledata *sym.Symbol
++	if ctxt.BuildMode == BuildModePlugin {
++		moduledata = ctxt.Syms.Lookup("local.pluginmoduledata", 0)
++		moduledata.Attr |= sym.AttrLocal
++	} else {
++		moduledata = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
++	}
++	if moduledata.Type != 0 && moduledata.Type != sym.SDYNIMPORT {
++		// If the module (toolchain-speak for "executable or shared
++		// library") we are linking contains the runtime package, it
++		// will define the runtime.firstmoduledata symbol and we
++		// truncate it back to 0 bytes so we can define its entire
++		// contents in symtab.go:symtab().
++		moduledata.Size = 0
++
++		// In addition, on ARM, the runtime depends on the linker
++		// recording the value of GOARM.
++		if ctxt.Arch.Family == sys.ARM {
++			s := ctxt.Syms.Lookup("runtime.goarm", 0)
++			s.Type = sym.SDATA
++			s.Size = 0
++			s.AddUint8(uint8(objabi.GOARM))
++		}
++
++		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
++			s := ctxt.Syms.Lookup("runtime.framepointer_enabled", 0)
++			s.Type = sym.SDATA
++			s.Size = 0
++			s.AddUint8(1)
++		}
++	} else {
++		// If OTOH the module does not contain the runtime package,
++		// create a local symbol for the moduledata.
++		moduledata = ctxt.Syms.Lookup("local.moduledata", 0)
++		moduledata.Attr |= sym.AttrLocal
++	}
++	// In all cases way we mark the moduledata as noptrdata to hide it from
++	// the GC.
++	moduledata.Type = sym.SNOPTRDATA
++	moduledata.Attr |= sym.AttrReachable
++	ctxt.Moduledata = moduledata
++
++	// If package versioning is required, generate a hash of the
++	// packages used in the link.
++	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
++		for _, lib := range ctxt.Library {
++			if lib.Shlib == "" {
++				genhash(ctxt, lib)
++			}
++		}
++	}
++
++	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
++		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
++			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
++			got.Type = sym.SDYNIMPORT
++			got.Attr |= sym.AttrReachable
+ 		}
+-		t := resolveABIAlias(s)
+-		t.Attr |= s.Attr
+-		t.SetExtname(s.Extname())
+-		dynexp[i] = t
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 54a5fa199c..759e7fb744 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -208,9 +208,10 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	}
+ 	ctxt.loadlib()
+ 
+-	ctxt.dostrdata()
+ 	deadcode(ctxt)
+-	//ctxt.dumpsyms() // XXX
++	ctxt.linksetup()
++	ctxt.dostrdata()
++
+ 	dwarfGenerateDebugInfo(ctxt)
+ 	if objabi.Fieldtrack_enabled != 0 {
+ 		fieldtrack(ctxt)

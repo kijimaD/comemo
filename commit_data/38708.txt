@@ -17,6 +17,31 @@ Date:   Fri Nov 16 09:23:46 2018 -0500
     Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/vet/vet_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 2471679a14..597681aa30 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -106,8 +106,19 @@ func TestVet(t *testing.T) {
+ 		t.Run(pkg, func(t *testing.T) {
+ 			t.Parallel()
+ 
++			// Skip for now, pending investigation.
++			if pkg == "cgo" {
++				t.Skip("cgo test disabled -- github.com/golang/go/issues/28829")
++				return
++			}
++
+ 			cmd := vetCmd(t, "-printfuncs=Warn,Warnf", pkg)
+ 
++			// The asm test assumes amd64.
++			if pkg == "asm" {
++				cmd.Env = append(cmd.Env, "GOOS=linux", "GOARCH=amd64")
++			}
++
+ 			dir := filepath.Join("testdata/src", pkg)
+ 			gos, err := filepath.Glob(filepath.Join(dir, "*.go"))
+ 			if err != nil {

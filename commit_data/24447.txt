@@ -22,8 +22,147 @@ Date:   Wed Jul 29 15:04:30 2015 -0400
     Change-Id: Ibd6928dc5fdcd896c2bacd0291bf26b364591e28
     Reviewed-on: https://go-review.googlesource.com/12845
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/reflect/asm_arm64.s       |  4 +--
  src/runtime/asm_arm64.s       | 60 ++++++++++++++++++++++---------------------
  src/runtime/sys_linux_arm64.s |  6 ++---
  3 files changed, 36 insertions(+), 34 deletions(-)
+
+diff --git a/src/reflect/asm_arm64.s b/src/reflect/asm_arm64.s
+index a5a8b91c1e..bdd38438ae 100644
+--- a/src/reflect/asm_arm64.s
++++ b/src/reflect/asm_arm64.s
+@@ -9,7 +9,7 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$24
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R26, 8(RSP)
+ 	MOVD	$argframe+0(FP), R3
+@@ -21,7 +21,7 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$24
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R26, 8(RSP)
+ 	MOVD	$argframe+0(FP), R3
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 50094db180..9aff9c7e6c 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -424,33 +424,35 @@ end:						\
+ 	BL	runtime·callwritebarrier(SB);	\
+ 	RET
+ 
+-CALLFN(·call16, 16)
+-CALLFN(·call32, 32)
+-CALLFN(·call64, 64)
+-CALLFN(·call128, 128)
+-CALLFN(·call256, 256)
+-CALLFN(·call512, 512)
+-CALLFN(·call1024, 1024)
+-CALLFN(·call2048, 2048)
+-CALLFN(·call4096, 4096)
+-CALLFN(·call8192, 8192)
+-CALLFN(·call16384, 16384)
+-CALLFN(·call32768, 32768)
+-CALLFN(·call65536, 65536)
+-CALLFN(·call131072, 131072)
+-CALLFN(·call262144, 262144)
+-CALLFN(·call524288, 524288)
+-CALLFN(·call1048576, 1048576)
+-CALLFN(·call2097152, 2097152)
+-CALLFN(·call4194304, 4194304)
+-CALLFN(·call8388608, 8388608)
+-CALLFN(·call16777216, 16777216)
+-CALLFN(·call33554432, 33554432)
+-CALLFN(·call67108864, 67108864)
+-CALLFN(·call134217728, 134217728)
+-CALLFN(·call268435456, 268435456)
+-CALLFN(·call536870912, 536870912)
+-CALLFN(·call1073741824, 1073741824)
++// These have 8 added to make the overall frame size a multiple of 16,
++// as required by the ABI. (There is another +8 for the saved LR.)
++CALLFN(·call16, 24 )
++CALLFN(·call32, 40 )
++CALLFN(·call64, 72 )
++CALLFN(·call128, 136 )
++CALLFN(·call256, 264 )
++CALLFN(·call512, 520 )
++CALLFN(·call1024, 1032 )
++CALLFN(·call2048, 2056 )
++CALLFN(·call4096, 4104 )
++CALLFN(·call8192, 8200 )
++CALLFN(·call16384, 16392 )
++CALLFN(·call32768, 32776 )
++CALLFN(·call65536, 65544 )
++CALLFN(·call131072, 131080 )
++CALLFN(·call262144, 262152 )
++CALLFN(·call524288, 524296 )
++CALLFN(·call1048576, 1048584 )
++CALLFN(·call2097152, 2097160 )
++CALLFN(·call4194304, 4194312 )
++CALLFN(·call8388608, 8388616 )
++CALLFN(·call16777216, 16777224 )
++CALLFN(·call33554432, 33554440 )
++CALLFN(·call67108864, 67108872 )
++CALLFN(·call134217728, 134217736 )
++CALLFN(·call268435456, 268435464 )
++CALLFN(·call536870912, 536870920 )
++CALLFN(·call1073741824, 1073741832 )
+ 
+ // bool cas(uint32 *ptr, uint32 old, uint32 new)
+ // Atomically:
+@@ -613,7 +615,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
+ 
+ // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+ // See cgocall.go for more details.
+-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
++TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-24
+ 	NO_LOCAL_POINTERS
+ 
+ 	// Load g from thread-local storage.
+@@ -721,7 +723,7 @@ droppedm:
+ 
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+-TEXT _cgo_topofstack(SB),NOSPLIT,$16
++TEXT _cgo_topofstack(SB),NOSPLIT,$24
+ 	// g (R28) and REGTMP (R27)  might be clobbered by load_g. They
+ 	// are callee-save in the gcc calling convention, so save them.
+ 	MOVD	R27, savedR27-8(SP)
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 998484f121..7b58d67305 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -115,7 +115,7 @@ TEXT runtime·getrlimit(SB),NOSPLIT,$-8-20
+ 	MOVW	R0, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·usleep(SB),NOSPLIT,$16-4
++TEXT runtime·usleep(SB),NOSPLIT,$24-4
+ 	MOVWU	usec+0(FP), R3
+ 	MOVD	R3, R5
+ 	MOVW	$1000000, R4
+@@ -180,7 +180,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$-8-28
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$16-12
++TEXT time·now(SB),NOSPLIT,$24-12
+ 	MOVD	RSP, R0
+ 	MOVD	$0, R1
+ 	MOVD	$SYS_gettimeofday, R8
+@@ -193,7 +193,7 @@ TEXT time·now(SB),NOSPLIT,$16-12
+ 	MOVW	R5, nsec+8(FP)
+ 	RET
+ 
+-TEXT runtime·nanotime(SB),NOSPLIT,$16-8
++TEXT runtime·nanotime(SB),NOSPLIT,$24-8
+ 	MOVW	$1, R0 // CLOCK_MONOTONIC
+ 	MOVD	RSP, R1
+ 	MOVD	$SYS_clock_gettime, R8

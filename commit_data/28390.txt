@@ -10,7 +10,7 @@ Date:   Thu May 19 17:43:04 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/23255
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/make.bash | 3 +++
  src/make.bat  | 1 +
  src/make.rc   | 2 +-
@@ -18,3 +18,79 @@ Date:   Thu May 19 17:43:04 2016 +0000
  src/run.bat   | 2 ++
  src/run.rc    | 1 +
  6 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 82c903eadb..1a1412a00c 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -50,6 +50,9 @@
+ # GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
+ 
+ set -e
++
++unset GOBIN # Issue 14340
++
+ if [ ! -f run.bash ]; then
+ 	echo 'make.bash must be run from $GOROOT/src' 1>&2
+ 	exit 1
+diff --git a/src/make.bat b/src/make.bat
+index a64777ee91..bf25b95ca5 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -68,6 +68,7 @@ setlocal
+ set GOROOT=%GOROOT_BOOTSTRAP%
+ set GOOS=
+ set GOARCH=
++set GOBIN=
+ "%GOROOT_BOOTSTRAP%\bin\go" build -o cmd\dist\dist.exe .\cmd\dist
+ endlocal
+ if errorlevel 1 goto fail
+diff --git a/src/make.rc b/src/make.rc
+index 60162045ed..243f83cc0f 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -80,7 +80,7 @@ if(~ $sysname vx32)
+ 
+ if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
+ 	echo '##### Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
+-	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
++	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN= \
+ 		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
+ 	echo
+ }
+diff --git a/src/run.bash b/src/run.bash
+index 3acf46a996..293b775efa 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -11,6 +11,7 @@ export GOROOT   # the api test requires GOROOT to be set.
+ unset CDPATH	# in case user has it set
+ unset GOPATH    # we disallow local import for non-local packages, if $GOROOT happens
+                 # to be under $GOPATH, then some tests below will fail
++unset GOBIN     # Issue 14340
+ 
+ export GOHOSTOS
+ export CC
+diff --git a/src/run.bat b/src/run.bat
+index 01a66bc574..6e42922a86 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -15,6 +15,8 @@ set GOBUILDFAIL=0
+ :: we disallow local import for non-local packages, if %GOROOT% happens
+ :: to be under %GOPATH%, then some tests below will fail
+ set GOPATH=
++:: Issue 14340: ignore GOBIN during all.bat.
++set GOBIN=
+ 
+ rem TODO avoid rebuild if possible
+ 
+diff --git a/src/run.rc b/src/run.rc
+index d314808f3f..88d77912e3 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -9,5 +9,6 @@ eval `{go env}
+ 
+ GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
+             # to be under $GOPATH, then some tests below will fail
++GOBIN = () # Issue 14340
+ 
+ exec go tool dist test -rebuild $*

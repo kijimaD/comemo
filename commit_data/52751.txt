@@ -20,7 +20,7 @@ Date:   Mon May 23 17:26:24 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  .../internal/types2/testdata/fixedbugs/issue46090.go   |  2 +-
  .../internal/types2/testdata/fixedbugs/issue47818.go   | 18 ++++++++++--------
  src/cmd/compile/internal/types2/typexpr.go             |  2 +-
@@ -29,3 +29,176 @@ Date:   Mon May 23 17:26:24 2022 -0700
  src/go/types/testdata/fixedbugs/issue47818.go          | 16 ++++++++--------
  src/go/types/typexpr.go                                |  2 +-
  7 files changed, 33 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go
+index 0fb92a3657..07f0101acb 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-type _ comparable // ERROR undeclared
++type _ comparable // ERROR predeclared comparable
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go
+index 58a62092b7..5aa3b82a8d 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go
+@@ -10,13 +10,15 @@
+ 
+ package p
+ 
+-type T[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
++type T[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+-func init[P /* ERROR func init must have no type parameters */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]()   {}
+-func main[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]() {}
++func init[P /* ERROR func init must have no type parameters */ any /* ERROR predeclared any requires go1\.18 or later */]() {
++}
++func main[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */]() {
++}
+ 
+-func f[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ](x P) {
++func f[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */](x P) {
+ 	var _ T[ /* ERROR type instantiation requires go1\.18 or later */ int]
+ 	var _ (T[ /* ERROR type instantiation requires go1\.18 or later */ int])
+ 	_ = T[ /* ERROR type instantiation requires go1\.18 or later */ int]{}
+@@ -30,11 +32,11 @@ func (T[ /* ERROR type instantiation requires go1\.18 or later */ P]) g(x int) {
+ }
+ 
+ type C1 interface {
+-	comparable // ERROR undeclared name: comparable \(requires version go1\.18 or later\)
++	comparable // ERROR predeclared comparable requires go1\.18 or later
+ }
+ 
+ type C2 interface {
+-	comparable // ERROR undeclared name: comparable \(requires version go1\.18 or later\)
++	comparable // ERROR predeclared comparable requires go1\.18 or later
+ 	int        // ERROR embedding non-interface type int requires go1\.18 or later
+ 	~ /* ERROR embedding interface element ~int requires go1\.18 or later */ int
+ 	int /* ERROR embedding interface element int\|~string requires go1\.18 or later */ | ~string
+@@ -47,12 +49,12 @@ type _ interface {
+ }
+ 
+ type (
+-	_ comparable // ERROR undeclared name: comparable \(requires version go1\.18 or later\)
++	_ comparable // ERROR predeclared comparable requires go1\.18 or later
+ 	// errors for these were reported with their declaration
+ 	_ C1
+ 	_ C2
+ 
+-	_ = comparable // ERROR undeclared name: comparable \(requires version go1\.18 or later\)
++	_ = comparable // ERROR predeclared comparable requires go1\.18 or later
+ 	// errors for these were reported with their declaration
+ 	_ = C1
+ 	_ = C2
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 8b9976da79..1610f8ff8f 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -46,7 +46,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 		return
+ 	case universeAny, universeComparable:
+ 		if !check.allowVersion(check.pkg, 1, 18) {
+-			check.errorf(e, "undeclared name: %s (requires version go1.18 or later)", e.Value)
++			check.versionErrorf(e, "go1.18", "predeclared %s", e.Value)
+ 			return // avoid follow-on errors
+ 		}
+ 	}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 0dc0bc8799..f3cb249f5e 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -277,6 +277,17 @@ func (check *Checker) softErrorf(at positioner, code errorCode, format string, a
+ 	check.report(err)
+ }
+ 
++func (check *Checker) versionErrorf(at positioner, code errorCode, goVersion string, format string, args ...interface{}) {
++	msg := check.sprintf(format, args...)
++	var err *error_
++	if compilerErrorMessages {
++		err = newErrorf(at, code, "%s requires %s or later (-lang was set to %s; check go.mod)", msg, goVersion, check.conf.GoVersion)
++	} else {
++		err = newErrorf(at, code, "%s requires %s or later", msg, goVersion)
++	}
++	check.report(err)
++}
++
+ func (check *Checker) invalidAST(at positioner, format string, args ...any) {
+ 	check.errorf(at, 0, "invalid AST: "+format, args...)
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue46090.go b/src/go/types/testdata/fixedbugs/issue46090.go
+index 0fb92a3657..07f0101acb 100644
+--- a/src/go/types/testdata/fixedbugs/issue46090.go
++++ b/src/go/types/testdata/fixedbugs/issue46090.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-type _ comparable // ERROR undeclared
++type _ comparable // ERROR predeclared comparable
+diff --git a/src/go/types/testdata/fixedbugs/issue47818.go b/src/go/types/testdata/fixedbugs/issue47818.go
+index dbd532ac12..2db095c243 100644
+--- a/src/go/types/testdata/fixedbugs/issue47818.go
++++ b/src/go/types/testdata/fixedbugs/issue47818.go
+@@ -10,13 +10,13 @@
+ 
+ package p
+ 
+-type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
++type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */ ] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+-func init[P /* ERROR func init must have no type parameters */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]()   {}
+-func main[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ]() {}
++func init[P /* ERROR func init must have no type parameters */ any /* ERROR predeclared any requires go1\.18 or later */ ]()   {}
++func main[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */ ]() {}
+ 
+-func f[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ](x P) {
++func f[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR predeclared any requires go1\.18 or later */ ](x P) {
+ 	var _ T[ /* ERROR type instantiation requires go1\.18 or later */ int]
+ 	var _ (T[ /* ERROR type instantiation requires go1\.18 or later */ int])
+ 	_ = T[ /* ERROR type instantiation requires go1\.18 or later */ int]{}
+@@ -30,11 +30,11 @@ func (T[ /* ERROR type instantiation requires go1\.18 or later */ P]) g(x int) {
+ }
+ 
+ type C1 interface {
+-	comparable // ERROR undeclared name: comparable \(requires version go1\.18 or later\)
++	comparable // ERROR predeclared comparable requires go1\.18 or later
+ }
+ 
+ type C2 interface {
+-	comparable // ERROR undeclared name: comparable \(requires version go1\.18 or later\)
++	comparable // ERROR predeclared comparable requires go1\.18 or later
+ 	int        // ERROR embedding non-interface type int requires go1\.18 or later
+ 	~ /* ERROR embedding interface element ~int requires go1\.18 or later */ int
+ 	int /* ERROR embedding interface element int\|~string requires go1\.18 or later */ | ~string
+@@ -47,12 +47,12 @@ type _ interface {
+ }
+ 
+ type (
+-	_ comparable // ERROR undeclared name: comparable \(requires version go1\.18 or later\)
++	_ comparable // ERROR predeclared comparable requires go1\.18 or later
+ 	// errors for these were reported with their declaration
+ 	_ C1
+ 	_ C2
+ 
+-	_ = comparable // ERROR undeclared name: comparable \(requires version go1\.18 or later\)
++	_ = comparable // ERROR predeclared comparable requires go1\.18 or later
+ 	// errors for these were reported with their declaration
+ 	_ = C1
+ 	_ = C2
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index b704372dcf..d5fe9a5cc6 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -43,7 +43,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 		return
+ 	case universeAny, universeComparable:
+ 		if !check.allowVersion(check.pkg, 1, 18) {
+-			check.errorf(e, _UndeclaredName, "undeclared name: %s (requires version go1.18 or later)", e.Name)
++			check.versionErrorf(e, _UndeclaredName, "go1.18", "predeclared %s", e.Name)
+ 			return // avoid follow-on errors
+ 		}
+ 	}

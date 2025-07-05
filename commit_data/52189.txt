@@ -11,7 +11,7 @@ Date:   Fri Apr 8 17:33:50 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go           |   7 +-
  src/cmd/compile/internal/ssa/addressingmodes.go |   7 ++
  src/cmd/compile/internal/ssa/gen/AMD64.rules    |   1 +
@@ -20,3 +20,341 @@ Date:   Fri Apr 8 17:33:50 2022 +0800
  src/cmd/compile/internal/ssa/rewriteAMD64.go    |  44 ++++++++
  test/codegen/bmi.go                             |  16 +++
  7 files changed, 216 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 9fde775358..1ec8623320 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -287,7 +287,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.SetFrom3Reg(v.Args[0].Reg())
+ 
+ 	case ssa.OpAMD64SHLXLload, ssa.OpAMD64SHLXQload,
+-		ssa.OpAMD64SHRXLload, ssa.OpAMD64SHRXQload:
++		ssa.OpAMD64SHRXLload, ssa.OpAMD64SHRXQload,
++		ssa.OpAMD64SARXLload, ssa.OpAMD64SARXQload:
+ 		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+ 		m := obj.Addr{Type: obj.TYPE_MEM, Reg: v.Args[0].Reg()}
+ 		ssagen.AddAux(&m, v)
+@@ -295,8 +296,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 
+ 	case ssa.OpAMD64SHLXLloadidx1, ssa.OpAMD64SHLXLloadidx4, ssa.OpAMD64SHLXLloadidx8,
+ 		ssa.OpAMD64SHRXLloadidx1, ssa.OpAMD64SHRXLloadidx4, ssa.OpAMD64SHRXLloadidx8,
++		ssa.OpAMD64SARXLloadidx1, ssa.OpAMD64SARXLloadidx4, ssa.OpAMD64SARXLloadidx8,
+ 		ssa.OpAMD64SHLXQloadidx1, ssa.OpAMD64SHLXQloadidx8,
+-		ssa.OpAMD64SHRXQloadidx1, ssa.OpAMD64SHRXQloadidx8:
++		ssa.OpAMD64SHRXQloadidx1, ssa.OpAMD64SHRXQloadidx8,
++		ssa.OpAMD64SARXQloadidx1, ssa.OpAMD64SARXQloadidx8:
+ 		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[2].Reg())
+ 		m := obj.Addr{Type: obj.TYPE_MEM}
+ 		memIdx(&m, v)
+diff --git a/src/cmd/compile/internal/ssa/addressingmodes.go b/src/cmd/compile/internal/ssa/addressingmodes.go
+index c18ea68665..469ba0d494 100644
+--- a/src/cmd/compile/internal/ssa/addressingmodes.go
++++ b/src/cmd/compile/internal/ssa/addressingmodes.go
+@@ -344,11 +344,18 @@ var combine = map[[2]Op]Op{
+ 	[2]Op{OpAMD64DIVSDload, OpAMD64LEAQ1}: OpAMD64DIVSDloadidx1,
+ 	[2]Op{OpAMD64DIVSDload, OpAMD64LEAQ8}: OpAMD64DIVSDloadidx8,
+ 
++	[2]Op{OpAMD64SARXLload, OpAMD64ADDQ}: OpAMD64SARXLloadidx1,
++	[2]Op{OpAMD64SARXQload, OpAMD64ADDQ}: OpAMD64SARXQloadidx1,
+ 	[2]Op{OpAMD64SHLXLload, OpAMD64ADDQ}: OpAMD64SHLXLloadidx1,
+ 	[2]Op{OpAMD64SHLXQload, OpAMD64ADDQ}: OpAMD64SHLXQloadidx1,
+ 	[2]Op{OpAMD64SHRXLload, OpAMD64ADDQ}: OpAMD64SHRXLloadidx1,
+ 	[2]Op{OpAMD64SHRXQload, OpAMD64ADDQ}: OpAMD64SHRXQloadidx1,
+ 
++	[2]Op{OpAMD64SARXLload, OpAMD64LEAQ1}: OpAMD64SARXLloadidx1,
++	[2]Op{OpAMD64SARXLload, OpAMD64LEAQ4}: OpAMD64SARXLloadidx4,
++	[2]Op{OpAMD64SARXLload, OpAMD64LEAQ8}: OpAMD64SARXLloadidx8,
++	[2]Op{OpAMD64SARXQload, OpAMD64LEAQ1}: OpAMD64SARXQloadidx1,
++	[2]Op{OpAMD64SARXQload, OpAMD64LEAQ8}: OpAMD64SARXQloadidx8,
+ 	[2]Op{OpAMD64SHLXLload, OpAMD64LEAQ1}: OpAMD64SHLXLloadidx1,
+ 	[2]Op{OpAMD64SHLXLload, OpAMD64LEAQ4}: OpAMD64SHLXLloadidx4,
+ 	[2]Op{OpAMD64SHLXLload, OpAMD64LEAQ8}: OpAMD64SHLXLloadidx8,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 3a9de8dd03..2ffdea3d55 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2256,5 +2256,6 @@
+   && clobber(x0, x1, sh)
+   => @mergePoint(b,x0,x1) (MOVBEQload [i] {s} p1 mem)
+ 
++(SARX(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && canMergeLoad(v, l) && clobber(l) => (SARX(Q|L)load [off] {sym} ptr x mem)
+ (SHL(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)  => (SHLX(Q|L)load [off] {sym} ptr x mem)
+ (SHR(Q|L) l:(MOV(Q|L)load [off] {sym} ptr mem) x) && buildcfg.GOAMD64 >= 3 && canMergeLoad(v, l) && clobber(l)  => (SHRX(Q|L)load [off] {sym} ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 2eec6e0324..23c157c2c5 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -956,11 +956,18 @@ func init() {
+ 		{name: "SARXQ", argLength: 2, reg: gp21, asm: "SARXQ"}, // signed arg0 >> arg1, shift amount is mod 64
+ 		{name: "SARXL", argLength: 2, reg: gp21, asm: "SARXL"}, // signed int32(arg0) >> arg1, shift amount is mod 32
+ 
++		{name: "SARXLload", argLength: 3, reg: gp21shxload, asm: "SARXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
++		{name: "SARXQload", argLength: 3, reg: gp21shxload, asm: "SARXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
+ 		{name: "SHLXLload", argLength: 3, reg: gp21shxload, asm: "SHLXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 32
+ 		{name: "SHLXQload", argLength: 3, reg: gp21shxload, asm: "SHLXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 64
+ 		{name: "SHRXLload", argLength: 3, reg: gp21shxload, asm: "SHRXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
+ 		{name: "SHRXQload", argLength: 3, reg: gp21shxload, asm: "SHRXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // unsigned *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
+ 
++		{name: "SARXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
++		{name: "SARXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+4*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
++		{name: "SARXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SARXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 32
++		{name: "SARXQloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SARXQ", scale: 1, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+1*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
++		{name: "SARXQloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SARXQ", scale: 8, aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read"}, // signed *(arg0+8*arg1+auxint+aux) >> arg2, arg3=mem, shift amount is mod 64
+ 		{name: "SHLXLloadidx1", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 1, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+1*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
+ 		{name: "SHLXLloadidx4", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 4, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+4*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
+ 		{name: "SHLXLloadidx8", argLength: 4, reg: gp21shxloadidx, asm: "SHLXL", scale: 8, aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read"}, // *(arg0+8*arg1+auxint+aux) << arg2, arg3=mem, shift amount is mod 32
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 976d887321..c66c8d33d4 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1064,10 +1064,17 @@ const (
+ 	OpAMD64MOVBEQstoreidx8
+ 	OpAMD64SARXQ
+ 	OpAMD64SARXL
++	OpAMD64SARXLload
++	OpAMD64SARXQload
+ 	OpAMD64SHLXLload
+ 	OpAMD64SHLXQload
+ 	OpAMD64SHRXLload
+ 	OpAMD64SHRXQload
++	OpAMD64SARXLloadidx1
++	OpAMD64SARXLloadidx4
++	OpAMD64SARXLloadidx8
++	OpAMD64SARXQloadidx1
++	OpAMD64SARXQloadidx8
+ 	OpAMD64SHLXLloadidx1
+ 	OpAMD64SHLXLloadidx4
+ 	OpAMD64SHLXLloadidx8
+@@ -14147,6 +14154,40 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "SARXLload",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ASARXL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
++	{
++		name:           "SARXQload",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ASARXQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
+ 	{
+ 		name:           "SHLXLload",
+ 		auxType:        auxSymOff,
+@@ -14215,6 +14256,101 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "SARXLloadidx1",
++		auxType:        auxSymOff,
++		argLen:         4,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ASARXL,
++		scale:          1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
++	{
++		name:           "SARXLloadidx4",
++		auxType:        auxSymOff,
++		argLen:         4,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ASARXL,
++		scale:          4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
++	{
++		name:           "SARXLloadidx8",
++		auxType:        auxSymOff,
++		argLen:         4,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ASARXL,
++		scale:          8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
++	{
++		name:           "SARXQloadidx1",
++		auxType:        auxSymOff,
++		argLen:         4,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ASARXQ,
++		scale:          1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
++	{
++		name:           "SARXQloadidx8",
++		auxType:        auxSymOff,
++		argLen:         4,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ASARXQ,
++		scale:          8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{1, 49151},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
+ 	{
+ 		name:           "SHLXLloadidx1",
+ 		auxType:        auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 81f1f1ae4e..ecea8f0962 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -20565,6 +20565,28 @@ func rewriteValueAMD64_OpAMD64SARXL(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (SARXL l:(MOVLload [off] {sym} ptr mem) x)
++	// cond: canMergeLoad(v, l) && clobber(l)
++	// result: (SARXLload [off] {sym} ptr x mem)
++	for {
++		l := v_0
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := auxIntToInt32(l.AuxInt)
++		sym := auxToSym(l.Aux)
++		mem := l.Args[1]
++		ptr := l.Args[0]
++		x := v_1
++		if !(canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64SARXLload)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg3(ptr, x, mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64SARXQ(v *Value) bool {
+@@ -20761,6 +20783,28 @@ func rewriteValueAMD64_OpAMD64SARXQ(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (SARXQ l:(MOVQload [off] {sym} ptr mem) x)
++	// cond: canMergeLoad(v, l) && clobber(l)
++	// result: (SARXQload [off] {sym} ptr x mem)
++	for {
++		l := v_0
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := auxIntToInt32(l.AuxInt)
++		sym := auxToSym(l.Aux)
++		mem := l.Args[1]
++		ptr := l.Args[0]
++		x := v_1
++		if !(canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64SARXQload)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg3(ptr, x, mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64SBBLcarrymask(v *Value) bool {
+diff --git a/test/codegen/bmi.go b/test/codegen/bmi.go
+index 9dd2b0039c..1641d5ddd0 100644
+--- a/test/codegen/bmi.go
++++ b/test/codegen/bmi.go
+@@ -56,6 +56,22 @@ func sarx32(x, y int32) int32 {
+ 	return x >> y
+ }
+ 
++func sarx64_load(x []int64, i int) int64 {
++	// amd64/v3: `SARXQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
++	s := x[i] >> (i & 63)
++	// amd64/v3: `SARXQ\t[A-Z]+[0-9]*, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
++	s = x[i+1] >> (s & 63)
++	return s
++}
++
++func sarx32_load(x []int32, i int) int32 {
++	// amd64/v3: `SARXL\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
++	s := x[i] >> (i & 63)
++	// amd64/v3: `SARXL\t[A-Z]+[0-9]*, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
++	s = x[i+1] >> (s & 63)
++	return s
++}
++
+ func shlrx64(x []uint64, i int, s uint64) uint64 {
+ 	// amd64/v3: `SHRXQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+ 	s = x[i] >> i

@@ -7,7 +7,36 @@ Date:   Fri Jul 26 00:21:37 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/11811043
-
+---
  src/pkg/net/interface_linux_test.go | 2 +-
  src/pkg/net/unicast_posix_test.go   | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/interface_linux_test.go b/src/pkg/net/interface_linux_test.go
+index 085d3de9d2..d8800bd0ce 100644
+--- a/src/pkg/net/interface_linux_test.go
++++ b/src/pkg/net/interface_linux_test.go
+@@ -78,7 +78,7 @@ var (
+ func TestParseProcNet(t *testing.T) {
+ 	defer func() {
+ 		if p := recover(); p != nil {
+-			t.Fatalf("panicked")
++			t.Fatalf("parseProcNetIGMP or parseProtNetIGMP6 panicked: %v", p)
+ 		}
+ 	}()
+ 
+diff --git a/src/pkg/net/unicast_posix_test.go b/src/pkg/net/unicast_posix_test.go
+index b0588f4e52..cc63d1c4e1 100644
+--- a/src/pkg/net/unicast_posix_test.go
++++ b/src/pkg/net/unicast_posix_test.go
+@@ -436,8 +436,8 @@ func TestWildWildcardListener(t *testing.T) {
+ 	}
+ 
+ 	defer func() {
+-		if recover() != nil {
+-			t.Fatalf("panicked")
++		if p := recover(); p != nil {
++			t.Fatalf("Listen, ListenPacket or protocol-specific Listen panicked: %v", p)
+ 		}
+ 	}()
+ 

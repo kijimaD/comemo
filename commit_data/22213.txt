@@ -7,6 +7,28 @@ Date:   Fri Feb 27 22:56:29 2015 -0500
     Change-Id: I783df66d762b52ad3d74340ad5692790cd0ab544
     Reviewed-on: https://go-review.googlesource.com/6360
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/build.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index df4260c359..784c751def 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1744,6 +1744,7 @@ func toolVerify(b *builder, p *Package, newTool string, ofile string, args []int
+ 	if !bytes.Equal(data1, data2) {
+ 		return fmt.Errorf("%s and %s produced different output files:\n%s\n%s", filepath.Base(args[1].(string)), newTool, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
+ 	}
++	os.Remove(ofile + ".new")
+ 	return nil
+ }
+ 
+@@ -1891,7 +1892,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 		}
+ 	}
+ 	ldflags = append(ldflags, buildLdflags...)
+-	return b.run(".", p.ImportPath, nil, stringList(buildToolExec, tool(archChar+"l"), "-o", out, importArgs, ldflags, mainpkg))
++	return b.run(".", p.ImportPath, nil, buildToolExec, tool("new"+archChar+"l"), "-o", out, importArgs, ldflags, mainpkg)
+ }
+ 
+ func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {

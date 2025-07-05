@@ -12,7 +12,38 @@ Date:   Thu Jun 9 17:30:05 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/dist/test.go              | 2 +-
  src/cmd/internal/metadata/main.go | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 677be336ac..26d7fe0f73 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -290,7 +290,7 @@ func (t *tester) maybeLogMetadata() error {
+ 	//
+ 	// TODO(prattmic): If we split dist bootstrap and dist test then this
+ 	// could be simplified to directly use internal/sysinfo here.
+-	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), "go", []string{"run", "."}).Run()
++	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), "go", []string{"run", "main.go"}).Run()
+ }
+ 
+ // short returns a -short flag value to use with 'go test'
+diff --git a/src/cmd/internal/metadata/main.go b/src/cmd/internal/metadata/main.go
+index 157226e890..7478eec1c9 100644
+--- a/src/cmd/internal/metadata/main.go
++++ b/src/cmd/internal/metadata/main.go
+@@ -5,6 +5,12 @@
+ // Metadata prints basic system metadata to include in test logs. This is
+ // separate from cmd/dist so it does not need to build with the bootstrap
+ // toolchain.
++
++// This program is only used by cmd/dist. Add an "ignore" build tag so it
++// is not installed. cmd/dist does "go run main.go" directly.
++
++//go:build ignore
++
+ package main
+ 
+ import (

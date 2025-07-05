@@ -21,8 +21,120 @@ Date:   Mon May 2 11:50:36 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/io/io.go             | 15 +++++++++++++++
  src/io/io_test.go        | 21 +++++++++++++++++++++
  src/net/http/transfer.go | 23 +++++++++++++++++++----
  3 files changed, 55 insertions(+), 4 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 1ea01d5d63..db88125f50 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -621,7 +621,12 @@ func (discard) ReadFrom(r Reader) (n int64, err error) {
+ 
+ // NopCloser returns a ReadCloser with a no-op Close method wrapping
+ // the provided Reader r.
++// If r implements WriterTo, the returned ReadCloser will implement WriterTo
++// by forwarding calls to r.
+ func NopCloser(r Reader) ReadCloser {
++	if _, ok := r.(WriterTo); ok {
++		return nopCloserWriterTo{r}
++	}
+ 	return nopCloser{r}
+ }
+ 
+@@ -631,6 +636,16 @@ type nopCloser struct {
+ 
+ func (nopCloser) Close() error { return nil }
+ 
++type nopCloserWriterTo struct {
++	Reader
++}
++
++func (nopCloserWriterTo) Close() error { return nil }
++
++func (c nopCloserWriterTo) WriteTo(w Writer) (n int64, err error) {
++	return c.Reader.(WriterTo).WriteTo(w)
++}
++
+ // ReadAll reads from r until an error or EOF and returns the data it read.
+ // A successful call returns err == nil, not err == EOF. Because ReadAll is
+ // defined to read from src until EOF, it does not treat an EOF from Read
+diff --git a/src/io/io_test.go b/src/io/io_test.go
+index 3088460480..a51a1fa160 100644
+--- a/src/io/io_test.go
++++ b/src/io/io_test.go
+@@ -471,3 +471,24 @@ func TestCopyLargeWriter(t *testing.T) {
+ 		t.Errorf("Copy error: got %v, want %v", err, want)
+ 	}
+ }
++
++func TestNopCloserWriterToForwarding(t *testing.T) {
++	for _, tc := range [...]struct {
++		Name string
++		r    Reader
++	}{
++		{"not a WriterTo", Reader(nil)},
++		{"a WriterTo", struct {
++			Reader
++			WriterTo
++		}{}},
++	} {
++		nc := NopCloser(tc.r)
++
++		_, expected := tc.r.(WriterTo)
++		_, got := nc.(WriterTo)
++		if expected != got {
++			t.Errorf("NopCloser incorrectly forwards WriterTo for %s, got %t want %t", tc.Name, got, expected)
++		}
++	}
++}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index d9edf8c725..7bea5866f7 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -422,8 +422,8 @@ func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err
+ //
+ // This function is only intended for use in writeBody.
+ func (t *transferWriter) unwrapBody() io.Reader {
+-	if reflect.TypeOf(t.Body) == nopCloserType {
+-		return reflect.ValueOf(t.Body).Field(0).Interface().(io.Reader)
++	if r, ok := unwrapNopCloser(t.Body); ok {
++		return r
+ 	}
+ 	if r, ok := t.Body.(*readTrackingBody); ok {
+ 		r.didRead = true
+@@ -1081,6 +1081,21 @@ func (fr finishAsyncByteRead) Read(p []byte) (n int, err error) {
+ }
+ 
+ var nopCloserType = reflect.TypeOf(io.NopCloser(nil))
++var nopCloserWriterToType = reflect.TypeOf(io.NopCloser(struct {
++	io.Reader
++	io.WriterTo
++}{}))
++
++// unwrapNopCloser return the underlying reader and true if r is a NopCloser
++// else it return false
++func unwrapNopCloser(r io.Reader) (underlyingReader io.Reader, isNopCloser bool) {
++	switch reflect.TypeOf(r) {
++	case nopCloserType, nopCloserWriterToType:
++		return reflect.ValueOf(r).Field(0).Interface().(io.Reader), true
++	default:
++		return nil, false
++	}
++}
+ 
+ // isKnownInMemoryReader reports whether r is a type known to not
+ // block on Read. Its caller uses this as an optional optimization to
+@@ -1090,8 +1105,8 @@ func isKnownInMemoryReader(r io.Reader) bool {
+ 	case *bytes.Reader, *bytes.Buffer, *strings.Reader:
+ 		return true
+ 	}
+-	if reflect.TypeOf(r) == nopCloserType {
+-		return isKnownInMemoryReader(reflect.ValueOf(r).Field(0).Interface().(io.Reader))
++	if r, ok := unwrapNopCloser(r); ok {
++		return isKnownInMemoryReader(r)
+ 	}
+ 	if r, ok := r.(*readTrackingBody); ok {
+ 		return isKnownInMemoryReader(r.ReadCloser)

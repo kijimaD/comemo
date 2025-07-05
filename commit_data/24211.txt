@@ -32,6 +32,32 @@ Date:   Mon Jul 13 18:27:24 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12124
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/proc1.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 909f655eaf..6e9bf88225 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1828,15 +1828,16 @@ func reentersyscall(pc, sp uintptr) {
+ 		save(pc, sp)
+ 	}
+ 
++	if _g_.m.p.ptr().runSafePointFn != 0 {
++		// runSafePointFn may stack split if run on this stack
++		systemstack(runSafePointFn)
++	}
++
+ 	_g_.m.syscalltick = _g_.m.p.ptr().syscalltick
+ 	_g_.sysblocktraced = true
+ 	_g_.m.mcache = nil
+ 	_g_.m.p.ptr().m = 0
+ 	atomicstore(&_g_.m.p.ptr().status, _Psyscall)
+-	if _g_.m.p.ptr().runSafePointFn != 0 {
+-		// runSafePointFn may stack split if run on this stack
+-		systemstack(runSafePointFn)
+-	}
+ 	if sched.gcwaiting != 0 {
+ 		systemstack(entersyscall_gcwait)
+ 		save(pc, sp)

@@ -8,9 +8,86 @@ Date:   Tue Jul 8 13:41:18 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/112810043
-
+---
  src/pkg/net/conn_test.go      |  2 +-
  src/pkg/net/multicast_test.go |  2 +-
  src/pkg/net/parse_test.go     |  4 ++--
  src/pkg/net/unix_test.go      | 15 +++++++++++----
  4 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/conn_test.go b/src/pkg/net/conn_test.go
+index 37bb4e2c07..9c9d1a8057 100644
+--- a/src/pkg/net/conn_test.go
++++ b/src/pkg/net/conn_test.go
+@@ -38,7 +38,7 @@ func TestConnAndListener(t *testing.T) {
+ 			}
+ 		case "unixpacket":
+ 			switch runtime.GOOS {
+-			case "darwin", "nacl", "openbsd", "plan9", "windows":
++			case "android", "darwin", "nacl", "openbsd", "plan9", "windows":
+ 				continue
+ 			case "freebsd": // FreeBSD 8 doesn't support unixpacket
+ 				continue
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 63dbce88e9..5f253f44a4 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -25,7 +25,7 @@ var ipv4MulticastListenerTests = []struct {
+ // port.
+ func TestIPv4MulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9":
++	case "android", "nacl", "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	case "solaris":
+ 		t.Skipf("skipping test on solaris, see issue 7399")
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index b86bc32884..7b213b75bd 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -12,9 +12,9 @@ import (
+ )
+ 
+ func TestReadLine(t *testing.T) {
+-	// /etc/services file does not exist on windows and Plan 9.
++	// /etc/services file does not exist on android, plan9, windows.
+ 	switch runtime.GOOS {
+-	case "plan9", "windows":
++	case "android", "plan9", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	filename := "/etc/services" // a nice big file
+diff --git a/src/pkg/net/unix_test.go b/src/pkg/net/unix_test.go
+index 05643ddf9a..1cdff3908c 100644
+--- a/src/pkg/net/unix_test.go
++++ b/src/pkg/net/unix_test.go
+@@ -256,8 +256,11 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 			t.Fatalf("UnixConn.Write failed: %v", err)
+ 		}
+ 
+-		if runtime.GOOS == "linux" && laddr == "" {
+-			laddr = "@" // autobind feature
++		switch runtime.GOOS {
++		case "android", "linux":
++			if laddr == "" {
++				laddr = "@" // autobind feature
++			}
+ 		}
+ 		var connAddrs = [3]struct{ got, want Addr }{
+ 			{ln.Addr(), ta},
+@@ -308,9 +311,13 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
+ 			}
+ 		}()
+ 
+-		if runtime.GOOS == "linux" && laddr == "" {
+-			laddr = "@" // autobind feature
++		switch runtime.GOOS {
++		case "android", "linux":
++			if laddr == "" {
++				laddr = "@" // autobind feature
++			}
+ 		}
++
+ 		var connAddrs = [4]struct{ got, want Addr }{
+ 			{c1.LocalAddr(), ta},
+ 			{c1.RemoteAddr(), nil},

@@ -15,7 +15,7 @@ Date:   Tue Dec 13 14:28:41 2011 -0500
     R=golang-dev, adg, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/5482048
-
+---
  src/cmd/go/Makefile |   1 +
  src/cmd/go/doc.go   |   2 +
  src/cmd/go/fix.go   |   9 ++-
@@ -25,3 +25,454 @@ Date:   Tue Dec 13 14:28:41 2011 -0500
  src/cmd/go/pkg.go   | 163 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/go/vet.go   |   9 ++-
  8 files changed, 290 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/Makefile b/src/cmd/go/Makefile
+index 82724c0a54..bab29278cd 100644
+--- a/src/cmd/go/Makefile
++++ b/src/cmd/go/Makefile
+@@ -14,6 +14,7 @@ GOFILES=\
+ 	help.go\
+ 	list.go\
+ 	main.go\
++	pkg.go\
+ 	test.go\
+ 	version.go\
+ 	vet.go\
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 2f51774c1a..0494ecfc07 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -31,3 +31,5 @@ Additional help topics:
+ Use "go help [topic]" for more information about that topic.
+ */
+ package documentation
++
++// NOTE: cmdDoc is in fmt.go.
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index 04755634a7..df6bcb347b 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -21,7 +21,10 @@ See also: go fmt, go vet.
+ }
+ 
+ func runFix(cmd *Command, args []string) {
+-	args = importPaths(args)
+-	_ = args
+-	panic("fix not implemented")
++	for _, pkg := range packages(args) {
++		// Use pkg.gofiles instead of pkg.Dir so that
++		// the command only applies to this package,
++		// not to packages in subdirectories.
++		run(append([]string{"gofix"}, pkg.gofiles...)...)
++	}
+ }
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index 0f3baafe29..7a4aa28e4d 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -7,21 +7,48 @@ package main
+ var cmdFmt = &Command{
+ 	Run:       runFmt,
+ 	UsageLine: "fmt [importpath...]",
+-	Short:     "run gofmt -w on packages",
++	Short:     "run gofmt on package sources",
+ 	Long: `
+-Fmt runs the command 'gofmt -w' on the packages named by the import paths.
++Fmt runs the command 'gofmt -l -w' on the packages named
++by the import paths.  It prints the names of the files that are modified.
+ 
+ For more about gofmt, see 'godoc gofmt'.
+ For more about import paths, see 'go help importpath'.
+ 
+ To run gofmt with specific options, run gofmt itself.
+ 
+-See also: go fix, go vet.
++See also: go doc, go fix, go vet.
+ 	`,
+ }
+ 
+ func runFmt(cmd *Command, args []string) {
+-	args = importPaths(args)
+-	_ = args
+-	panic("fmt not implemented")
++	for _, pkg := range packages(args) {
++		// Use pkg.gofiles instead of pkg.Dir so that
++		// the command only applies to this package,
++		// not to packages in subdirectories.
++		run(append([]string{"gofmt", "-l", "-w"}, pkg.gofiles...)...)
++	}
++}
++
++var cmdDoc = &Command{
++	Run:       runDoc,
++	UsageLine: "doc [importpath...]",
++	Short:     "run godoc on package sources",
++	Long: `
++Doc runs the godoc command on the packages named by the
++import paths.
++
++For more about godoc, see 'godoc godoc'.
++For more about import paths, see 'go help importpath'.
++
++To run gofmt with specific options, run gofmt itself.
++
++See also: go fix, go fmt, go vet.
++	`,
++}
++
++func runDoc(cmd *Command, args []string) {
++	for _, pkg := range packages(args) {
++		run("godoc", pkg.Dir)
++	}
+ }
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 46148ae733..89dd813c4e 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -4,8 +4,13 @@
+ 
+ package main
+ 
++import (
++	"encoding/json"
++	"os"
++	"text/template"
++)
++
+ var cmdList = &Command{
+-	Run:       runList,
+ 	UsageLine: "list [-f format] [-json] [importpath...]",
+ 	Short:     "list packages",
+ 	Long: `
+@@ -19,31 +24,59 @@ The default output shows the package name and file system location:
+ 
+ The -f flag specifies an alternate format for the list,
+ using the syntax of package template.  The default output
+-is equivalent to -f '{{.Name}} {{.Dir}}'  The struct
++is equivalent to -f '{{.Name}} {{.Dir}}'.  The struct
+ being passed to the template is:
+ 
+     type Package struct {
+-        Name string         // package name
+-        Doc string          // package documentation string
+-        GoFiles []string    // names of Go source files in package
+-        ImportPath string   // import path denoting package
+-        Imports []string    // import paths used by this package
+-        Deps []string       // all (recursively) imported dependencies
+-        Dir string          // directory containing package sources
+-        Version string      // version of installed package
++        Name       string // package name
++        Doc        string // package documentation string
++        ImportPath string // import path of package in dir
++        Dir        string // directory containing package sources
++        Version    string // version of installed package (TODO)
++
++        // Source files
++        GoFiles  []string // .go source files (excluding CgoFiles)
++        CFiles   []string // .c source files
++        SFiles   []string // .s source files
++        CgoFiles []string // .go sources files that import "C"
++
++        // Dependency information
++        Imports []string // import paths used by this package
++        Deps    []string // all (recursively) imported dependencies
+     }
+ 
+-The -json flag causes the package data to be printed in JSON format.
++The -json flag causes the package data to be printed in JSON format
++instead of using the template format.
+ 
+ For more about import paths, see 'go help importpath'.
+ 	`,
+ }
+ 
++func init() {
++	cmdList.Run = runList // break init cycle
++}
++
+ var listFmt = cmdList.Flag.String("f", "{{.Name}} {{.Dir}}", "")
+ var listJson = cmdList.Flag.Bool("json", false, "")
+ 
+ func runList(cmd *Command, args []string) {
+-	args = importPaths(args)
+-	_ = args
+-	panic("list not implemented")
++	var do func(*Package)
++	if *listJson {
++		enc := json.NewEncoder(os.Stdout)
++		do = func(p *Package) { enc.Encode(p) }
++	} else {
++		tmpl, err := template.New("main").Parse(*listFmt + "\n")
++		if err != nil {
++			fatalf("%s", err)
++		}
++		do = func(p *Package) {
++			if err := tmpl.Execute(os.Stdout, p); err != nil {
++				fatalf("%s", err)
++			}
++		}
++	}
++
++	for _, pkg := range packages(args) {
++		do(pkg)
++	}
+ }
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 239d77d405..4c2c39caf6 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -8,7 +8,9 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"io"
++	"log"
+ 	"os"
++	"os/exec"
+ 	"strings"
+ 	"text/template"
+ )
+@@ -55,6 +57,7 @@ func (c *Command) Usage() {
+ var commands = []*Command{
+ 	cmdBuild,
+ 	cmdClean,
++	cmdDoc,
+ 	cmdFix,
+ 	cmdFmt,
+ 	cmdGet,
+@@ -69,9 +72,12 @@ var commands = []*Command{
+ 	helpRemote,
+ }
+ 
++var exitStatus = 0
++
+ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
++	log.SetFlags(0)
+ 
+ 	args := flag.Args()
+ 	if len(args) < 1 {
+@@ -89,6 +95,7 @@ func main() {
+ 			cmd.Flag.Parse(args[1:])
+ 			args = cmd.Flag.Args()
+ 			cmd.Run(cmd, args)
++			os.Exit(exitStatus)
+ 			return
+ 		}
+ 	}
+@@ -172,3 +179,28 @@ func importPaths(args []string) []string {
+ 	}
+ 	return args
+ }
++
++func fatalf(format string, args ...interface{}) {
++	log.Printf(format, args...)
++	os.Exit(1)
++}
++
++func errorf(format string, args ...interface{}) {
++	log.Printf(format, args...)
++	exitStatus = 1
++}
++
++func exitIfErrors() {
++	if exitStatus != 0 {
++		os.Exit(exitStatus)
++	}
++}
++
++func run(cmdline ...string) {
++	cmd := exec.Command(cmdline[0], cmdline[1:]...)
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	if err := cmd.Run(); err != nil {
++		errorf("%v", err)
++	}
++}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+new file mode 100644
+index 0000000000..4f500f6b30
+--- /dev/null
++++ b/src/cmd/go/pkg.go
+@@ -0,0 +1,163 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"go/build"
++	"go/doc"
++	"path/filepath"
++	"sort"
++	"strings"
++)
++
++// A Package describes a single package found in a directory.
++type Package struct {
++	// Note: These fields are part of the go command's public API.
++	// See list.go.  It is okay to add fields, but not to change or
++	// remove existing ones.  Keep in sync with list.go
++	Name       string // package name
++	Doc        string // package documentation string
++	ImportPath string // import path of package in dir
++	Dir        string // directory containing package sources
++	Version    string // version of installed package (TODO)
++	Standard   bool   // is this package part of the standard Go library?
++
++	// Source files
++	GoFiles  []string // .go source files (excluding CgoFiles)
++	CFiles   []string // .c source files
++	SFiles   []string // .s source files
++	CgoFiles []string // .go sources files that import "C"
++
++	// Dependency information
++	Imports []string // import paths used by this package
++	Deps    []string // all (recursively) imported dependencies
++
++	// Unexported fields are not part of the public API.
++	t       *build.Tree
++	info    *build.DirInfo
++	imports []*Package
++	gofiles []string // GoFiles+CgoFiles
++}
++
++// packageCache is a lookup cache for loadPackage,
++// so that if we look up a package multiple times
++// we return the same pointer each time.
++var packageCache = map[string]*Package{}
++
++// loadPackage scans directory named by arg,
++// which is either an import path or a file system path
++// (if the latter, must be rooted or begin with . or ..),
++// and returns a *Package describing the package
++// found in that directory.
++func loadPackage(arg string) (*Package, error) {
++	// Check package cache.
++	if p := packageCache[arg]; p != nil {
++		// We use p.imports==nil to detect a package that
++		// is in the midst of its own loadPackage call
++		// (all the recursion below happens before p.imports gets set).
++		if p.imports == nil {
++			return nil, fmt.Errorf("import loop at %s", arg)
++		}
++		return p, nil
++	}
++
++	// Find basic information about package path.
++	t, importPath, err := build.FindTree(arg)
++	if err != nil {
++		return nil, err
++	}
++	dir := filepath.Join(t.SrcDir(), importPath)
++
++	// Maybe we know the package by its directory.
++	if p := packageCache[dir]; p != nil {
++		if p.imports == nil {
++			return nil, fmt.Errorf("import loop at %s", arg)
++		}
++		return p, nil
++	}
++
++	// Read the files in the directory to learn the structure
++	// of the package.
++	info, err := build.ScanDir(dir)
++	if err != nil {
++		return nil, err
++	}
++
++	p := &Package{
++		Name:       info.Package,
++		Doc:        doc.CommentText(info.PackageComment),
++		ImportPath: importPath,
++		Dir:        dir,
++		Imports:    info.Imports,
++		GoFiles:    info.GoFiles,
++		CFiles:     info.CFiles,
++		SFiles:     info.SFiles,
++		CgoFiles:   info.CgoFiles,
++		Standard:   t.Goroot && !strings.Contains(importPath, "."),
++	}
++
++	// Build list of full paths to all Go files in the package,
++	// for use by commands like go fmt.
++	for _, f := range info.GoFiles {
++		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
++	}
++	for _, f := range info.CgoFiles {
++		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
++	}
++	sort.Strings(p.gofiles)
++
++	// Record package under both import path and full directory name.
++	packageCache[dir] = p
++	packageCache[importPath] = p
++
++	// Build list of imported packages and full dependency list.
++	imports := make([]*Package, 0, len(p.Imports))
++	deps := make(map[string]bool)
++	for _, path := range p.Imports {
++		deps[path] = true
++		if path == "C" {
++			continue
++		}
++		p1, err := loadPackage(path)
++		if err != nil {
++			delete(packageCache, arg)
++			delete(packageCache, importPath)
++			// Add extra error detail to show full import chain.
++			// Always useful, but especially useful in import loops.
++			return nil, fmt.Errorf("%s: import %s\n\t%v", arg, path, err)
++		}
++		imports = append(imports, p1)
++
++		for _, dep := range p1.Deps {
++			deps[dep] = true
++		}
++	}
++	p.imports = imports
++
++	p.Deps = make([]string, 0, len(deps))
++	for dep := range deps {
++		p.Deps = append(p.Deps, dep)
++	}
++	sort.Strings(p.Deps)
++
++	return p, nil
++}
++
++// packages returns the packages named by the
++// command line arguments 'args'.
++func packages(args []string) []*Package {
++	args = importPaths(args)
++	var pkgs []*Package
++	for _, arg := range args {
++		pkg, err := loadPackage(arg)
++		if err != nil {
++			errorf("%s", err)
++			continue
++		}
++		pkgs = append(pkgs, pkg)
++	}
++	return pkgs
++}
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index 50194ae16a..f8fe92243b 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -21,7 +21,10 @@ See also: go fmt, go fix.
+ }
+ 
+ func runVet(cmd *Command, args []string) {
+-	args = importPaths(args)
+-	_ = args
+-	panic("vet not implemented")
++	for _, pkg := range packages(args) {
++		// Use pkg.gofiles instead of pkg.Dir so that
++		// the command only applies to this package,
++		// not to packages in subdirectories.
++		run(append([]string{"govet"}, pkg.gofiles...)...)
++	}
+ }

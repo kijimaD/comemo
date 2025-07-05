@@ -15,10 +15,185 @@ Date:   Thu Mar 16 14:16:31 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/cgocheck.go |  2 +-
  src/runtime/mbitmap.go  |  2 +-
  src/runtime/mgcmark.go  |  2 +-
  src/runtime/mheap.go    | 34 ++++++++++++++++++----------------
  src/runtime/stack.go    |  4 ++--
  5 files changed, 23 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 8cac5d994d..61aaa0a8f7 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -124,7 +124,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 	aoff := uintptr(src) - mheap_.arena_start
+ 	idx := aoff >> _PageShift
+ 	s := mheap_.spans[idx]
+-	if s.state == _MSpanStack {
++	if s.state == _MSpanManual {
+ 		// There are no heap bits for value stored on the stack.
+ 		// For a channel receive src might be on the stack of some
+ 		// other goroutine, so we can't unwind the stack even if
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index e2add26b06..eb36450508 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -391,7 +391,7 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
+ 	// Consult the span table to find the block beginning.
+ 	s = mheap_.spans[idx]
+ 	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
+-		if s == nil || s.state == _MSpanStack {
++		if s == nil || s.state == _MSpanManual {
+ 			// If s is nil, the virtual address has never been part of the heap.
+ 			// This pointer may be to some mmap'd region, so we allow it.
+ 			// Pointers into stacks are also ok, the runtime manages these explicitly.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index dd7a2bd8eb..f330c1a668 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1299,7 +1299,7 @@ func gcDumpObject(label string, obj, off uintptr) {
+ 
+ 	skipped := false
+ 	size := s.elemsize
+-	if s.state == _MSpanStack && size == 0 {
++	if s.state == _MSpanManual && size == 0 {
+ 		// We're printing something from a stack frame. We
+ 		// don't know how big it is, so just show up to an
+ 		// including off.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 28d2846722..30ec7ab4d9 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -121,7 +121,7 @@ var mheap_ mheap
+ // When a MSpan is in the heap free list, state == MSpanFree
+ // and heapmap(s->start) == span, heapmap(s->start+s->npages-1) == span.
+ //
+-// When a MSpan is allocated, state == MSpanInUse or MSpanStack
++// When a MSpan is allocated, state == MSpanInUse or MSpanManual
+ // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
+ 
+ // Every MSpan is in one doubly-linked list,
+@@ -129,25 +129,25 @@ var mheap_ mheap
+ // MCentral's span lists.
+ 
+ // An MSpan representing actual memory has state _MSpanInUse,
+-// _MSpanStack, or _MSpanFree. Transitions between these states are
++// _MSpanManual, or _MSpanFree. Transitions between these states are
+ // constrained as follows:
+ //
+-// * A span may transition from free to in-use or stack during any GC
++// * A span may transition from free to in-use or manual during any GC
+ //   phase.
+ //
+ // * During sweeping (gcphase == _GCoff), a span may transition from
+-//   in-use to free (as a result of sweeping) or stack to free (as a
++//   in-use to free (as a result of sweeping) or manual to free (as a
+ //   result of stacks being freed).
+ //
+ // * During GC (gcphase != _GCoff), a span *must not* transition from
+-//   stack or in-use to free. Because concurrent GC may read a pointer
++//   manual or in-use to free. Because concurrent GC may read a pointer
+ //   and then look up its span, the span state must be monotonic.
+ type mSpanState uint8
+ 
+ const (
+-	_MSpanDead  mSpanState = iota
+-	_MSpanInUse            // allocated for garbage collected heap
+-	_MSpanStack            // allocated for use by stack allocator
++	_MSpanDead   mSpanState = iota
++	_MSpanInUse             // allocated for garbage collected heap
++	_MSpanManual            // allocated for manual management (e.g., stack allocator)
+ 	_MSpanFree
+ )
+ 
+@@ -156,7 +156,7 @@ const (
+ var mSpanStateNames = []string{
+ 	"_MSpanDead",
+ 	"_MSpanInUse",
+-	"_MSpanStack",
++	"_MSpanManual",
+ 	"_MSpanFree",
+ }
+ 
+@@ -297,7 +297,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ }
+ 
+ // inheap reports whether b is a pointer into a (potentially dead) heap object.
+-// It returns false for pointers into stack spans.
++// It returns false for pointers into _MSpanManual spans.
+ // Non-preemptible because it is used by write barriers.
+ //go:nowritebarrier
+ //go:nosplit
+@@ -313,7 +313,9 @@ func inheap(b uintptr) bool {
+ 	return true
+ }
+ 
+-// inHeapOrStack is a variant of inheap that returns true for pointers into stack spans.
++// inHeapOrStack is a variant of inheap that returns true for pointers
++// into any allocated heap span.
++//
+ //go:nowritebarrier
+ //go:nosplit
+ func inHeapOrStack(b uintptr) bool {
+@@ -326,7 +328,7 @@ func inHeapOrStack(b uintptr) bool {
+ 		return false
+ 	}
+ 	switch s.state {
+-	case mSpanInUse, _MSpanStack:
++	case mSpanInUse, _MSpanManual:
+ 		return b < s.limit
+ 	default:
+ 		return false
+@@ -669,7 +671,7 @@ func (h *mheap) allocStack(npage uintptr) *mspan {
+ 	lock(&h.lock)
+ 	s := h.allocSpanLocked(npage)
+ 	if s != nil {
+-		s.state = _MSpanStack
++		s.state = _MSpanManual
+ 		s.stackfreelist = 0
+ 		s.allocCount = 0
+ 		s.sizeclass = 0
+@@ -739,8 +741,8 @@ HaveSpan:
+ 		h.spans[p] = t
+ 		h.spans[p+t.npages-1] = t
+ 		t.needzero = s.needzero
+-		s.state = _MSpanStack // prevent coalescing with s
+-		t.state = _MSpanStack
++		s.state = _MSpanManual // prevent coalescing with s
++		t.state = _MSpanManual
+ 		h.freeSpanLocked(t, false, false, s.unusedsince)
+ 		s.state = _MSpanFree
+ 	}
+@@ -892,7 +894,7 @@ func (h *mheap) freeStack(s *mspan) {
+ // s must be on a busy list (h.busy or h.busylarge) or unlinked.
+ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince int64) {
+ 	switch s.state {
+-	case _MSpanStack:
++	case _MSpanManual:
+ 		if s.allocCount != 0 {
+ 			throw("MHeap_FreeSpanLocked - invalid stack free")
+ 		}
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index e81bb5ba4c..b8397279a9 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -220,7 +220,7 @@ func stackpoolalloc(order uint8) gclinkptr {
+ // Adds stack x to the free pool. Must be called with stackpoolmu held.
+ func stackpoolfree(x gclinkptr, order uint8) {
+ 	s := mheap_.lookup(unsafe.Pointer(x))
+-	if s.state != _MSpanStack {
++	if s.state != _MSpanManual {
+ 		throw("freeing stack not in a stack span")
+ 	}
+ 	if s.stackfreelist.ptr() == nil {
+@@ -465,7 +465,7 @@ func stackfree(stk stack) {
+ 		}
+ 	} else {
+ 		s := mheap_.lookup(v)
+-		if s.state != _MSpanStack {
++		if s.state != _MSpanManual {
+ 			println(hex(s.base()), v)
+ 			throw("bad span state")
+ 		}

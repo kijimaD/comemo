@@ -13,7 +13,7 @@ Date:   Tue Aug 3 08:10:17 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/escape/expr.go     |  3 ++
  src/cmd/compile/internal/ir/expr.go         |  9 ++++++
  src/cmd/compile/internal/ir/node.go         |  8 +++--
@@ -36,3 +36,597 @@ Date:   Tue Aug 3 08:10:17 2021 -0700
  test/typeparam/typeswitch5.go               | 28 ++++++++++++++++
  test/typeparam/typeswitch5.out              |  4 +++
  21 files changed, 342 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/expr.go b/src/cmd/compile/internal/escape/expr.go
+index 4a6304d47a..62afb5b928 100644
+--- a/src/cmd/compile/internal/escape/expr.go
++++ b/src/cmd/compile/internal/escape/expr.go
+@@ -262,6 +262,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		// Arguments of OADDSTR never escape;
+ 		// runtime.concatstrings makes sure of that.
+ 		e.discards(n.List)
++
++	case ir.ODYNAMICTYPE:
++		// Nothing to do - argument is a *runtime._type (+ maybe a *runtime.itab) pointing to static data section
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 9c5fbbc9aa..dc28483907 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -700,6 +700,15 @@ func NewDynamicTypeAssertExpr(pos src.XPos, op Op, x, t Node) *DynamicTypeAssert
+ 	return n
+ }
+ 
++func (n *DynamicTypeAssertExpr) SetOp(op Op) {
++	switch op {
++	default:
++		panic(n.no("SetOp " + op.String()))
++	case ODYNAMICDOTTYPE, ODYNAMICDOTTYPE2:
++		n.op = op
++	}
++}
++
+ // A UnaryExpr is a unary expression Op X,
+ // or Op(X) for a builtin function that does not end up being a call.
+ type UnaryExpr struct {
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index e5f0c38f86..f071cb78ce 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -258,7 +258,8 @@ const (
+ 	OBREAK // break [Label]
+ 	// OCASE:  case List: Body (List==nil means default)
+ 	//   For OTYPESW, List is a OTYPE node for the specified type (or OLITERAL
+-	//   for nil), and, if a type-switch variable is specified, Rlist is an
++	//   for nil) or an ODYNAMICTYPE indicating a runtime type for generics.
++	//   If a type-switch variable is specified, Var is an
+ 	//   ONAME for the version of the type-switch variable with the specified
+ 	//   type.
+ 	OCASE
+@@ -320,8 +321,9 @@ const (
+ 	OLINKSYMOFFSET // offset within a name
+ 
+ 	// opcodes for generics
+-	ODYNAMICDOTTYPE
+-	ODYNAMICDOTTYPE2
++	ODYNAMICDOTTYPE  // x = i.(T) where T is a type parameter (or derived from a type parameter)
++	ODYNAMICDOTTYPE2 // x, ok = i.(T) where T is a type parameter (or derived from a type parameter)
++	ODYNAMICTYPE     // a type node for type switches (represents a dynamic target type for a type switch)
+ 
+ 	// arch-specific opcodes
+ 	OTAILCALL    // tail call to another function
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 56db6bb9cf..aa41c03beb 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -463,6 +463,34 @@ func (n *Decl) editChildren(edit func(Node) Node) {
+ 	}
+ }
+ 
++func (n *DynamicType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
++func (n *DynamicType) copy() Node {
++	c := *n
++	c.init = copyNodes(c.init)
++	return &c
++}
++func (n *DynamicType) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.ITab != nil && do(n.ITab) {
++		return true
++	}
++	return false
++}
++func (n *DynamicType) editChildren(edit func(Node) Node) {
++	editNodes(n.init, edit)
++	if n.X != nil {
++		n.X = edit(n.X).(Node)
++	}
++	if n.ITab != nil {
++		n.ITab = edit(n.ITab).(Node)
++	}
++}
++
+ func (n *DynamicTypeAssertExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *DynamicTypeAssertExpr) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 7b08ee287a..b8cee71818 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -164,16 +164,17 @@ func _() {
+ 	_ = x[OLINKSYMOFFSET-153]
+ 	_ = x[ODYNAMICDOTTYPE-154]
+ 	_ = x[ODYNAMICDOTTYPE2-155]
+-	_ = x[OTAILCALL-156]
+-	_ = x[OGETG-157]
+-	_ = x[OGETCALLERPC-158]
+-	_ = x[OGETCALLERSP-159]
+-	_ = x[OEND-160]
++	_ = x[ODYNAMICTYPE-156]
++	_ = x[OTAILCALL-157]
++	_ = x[OGETG-158]
++	_ = x[OGETCALLERPC-159]
++	_ = x[OGETCALLERSP-160]
++	_ = x[OEND-161]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETDYNAMICDOTTYPEDYNAMICDOTTYPE2TAILCALLGETGGETCALLERPCGETCALLERSPEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 136, 138, 141, 151, 158, 165, 172, 176, 180, 188, 196, 205, 208, 213, 220, 227, 233, 242, 250, 258, 264, 268, 277, 286, 293, 297, 300, 307, 315, 322, 328, 331, 337, 344, 352, 356, 363, 371, 373, 375, 377, 379, 381, 383, 388, 393, 401, 404, 413, 416, 420, 428, 435, 444, 457, 460, 463, 466, 469, 472, 475, 481, 484, 487, 493, 497, 500, 504, 509, 514, 520, 525, 529, 534, 542, 550, 556, 565, 576, 583, 592, 596, 603, 611, 615, 619, 623, 630, 637, 645, 651, 660, 671, 679, 688, 693, 698, 702, 710, 715, 719, 722, 730, 734, 736, 741, 743, 748, 754, 760, 766, 772, 780, 785, 789, 796, 802, 807, 813, 819, 826, 831, 835, 840, 844, 849, 857, 863, 870, 877, 883, 890, 903, 917, 932, 940, 944, 955, 966, 969}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 136, 138, 141, 151, 158, 165, 172, 176, 180, 188, 196, 205, 208, 213, 220, 227, 233, 242, 250, 258, 264, 268, 277, 286, 293, 297, 300, 307, 315, 322, 328, 331, 337, 344, 352, 356, 363, 371, 373, 375, 377, 379, 381, 383, 388, 393, 401, 404, 413, 416, 420, 428, 435, 444, 457, 460, 463, 466, 469, 472, 475, 481, 484, 487, 493, 497, 500, 504, 509, 514, 520, 525, 529, 534, 542, 550, 556, 565, 576, 583, 592, 596, 603, 611, 615, 619, 623, 630, 637, 645, 651, 660, 671, 679, 688, 693, 698, 702, 710, 715, 719, 722, 730, 734, 736, 741, 743, 748, 754, 760, 766, 772, 780, 785, 789, 796, 802, 807, 813, 819, 826, 831, 835, 840, 844, 849, 857, 863, 870, 877, 883, 890, 903, 917, 932, 943, 951, 955, 966, 977, 980}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index 431468375a..63dd673dcd 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -319,3 +319,17 @@ func TypeNodeAt(pos src.XPos, t *types.Type) Ntype {
+ 	}
+ 	return newTypeNode(pos, t)
+ }
++
++// A DynamicType represents the target type in a type switch.
++type DynamicType struct {
++	miniExpr
++	X    Node // a *runtime._type for the targeted type
++	ITab Node // for type switches from nonempty interfaces to non-interfaces, this is the itab for that pair.
++}
++
++func NewDynamicType(pos src.XPos, x Node) *DynamicType {
++	n := &DynamicType{X: x}
++	n.pos = pos
++	n.op = ODYNAMICTYPE
++	return n
++}
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 571e294416..7bc8a6bcc3 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -107,6 +107,10 @@ type gfInfo struct {
+ 	// Nodes in generic functions that are a conversion from a typeparam/derived
+ 	// type to a specific interface.
+ 	itabConvs []ir.Node
++	// For type switches on nonempty interfaces, a map from OTYPE entries of
++	// HasTParam type, to the interface type we're switching from.
++	// TODO: what if the type we're switching from is a shape type?
++	type2switchType map[ir.Node]*types.Type
+ }
+ 
+ // instInfo is information gathered on an gcshape (or fully concrete)
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index b37f76dcee..5f2250d2f4 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1140,6 +1140,38 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			m = ir.NewDynamicTypeAssertExpr(dt.Pos(), op, dt.X, rt)
+ 			m.SetType(dt.Type())
+ 			m.SetTypecheck(1)
++		case ir.OCASE:
++			if _, ok := x.(*ir.CommClause); ok {
++				// This is not a type switch. TODO: Should we use an OSWITCH case here instead of OCASE?
++				break
++			}
++			x := x.(*ir.CaseClause)
++			m := m.(*ir.CaseClause)
++			for i, c := range x.List {
++				if c.Op() == ir.OTYPE && c.Type().HasTParam() {
++					// Use a *runtime._type for the dynamic type.
++					ix := findDictType(subst.info, c.Type())
++					assert(ix >= 0)
++					dt := ir.NewDynamicType(c.Pos(), getDictionaryEntry(c.Pos(), subst.info.dictParam, ix, subst.info.dictLen))
++
++					// For type switch from nonemoty interfaces to non-interfaces, we need an itab as well.
++					if _, ok := subst.info.gfInfo.type2switchType[c]; ok {
++						// Type switch from nonempty interface. We need a *runtime.itab
++						// for the dynamic type.
++						ix := -1
++						for i, ic := range subst.info.gfInfo.itabConvs {
++							if ic == c {
++								ix = subst.info.startItabConv + i
++								break
++							}
++						}
++						assert(ix >= 0)
++						dt.ITab = getDictionaryEntry(c.Pos(), subst.info.dictParam, ix, subst.info.dictLen)
++					}
++					typed(m.List[i].Type(), dt)
++					m.List[i] = dt
++				}
++			}
+ 		}
+ 		return m
+ 	}
+@@ -1483,6 +1515,9 @@ func (g *irgen) finalizeSyms() {
+ 			case ir.OCONVIFACE:
+ 				srctype = subst.Typ(n.(*ir.ConvExpr).X.Type())
+ 				dsttype = subst.Typ(n.Type())
++			case ir.OTYPE:
++				srctype = subst.Typ(n.Type())
++				dsttype = subst.Typ(info.type2switchType[n])
+ 			default:
+ 				base.Fatalf("itab entry with unknown op %s", n.Op())
+ 			}
+@@ -1652,6 +1687,21 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
+ 				ir.Visit(n1, visitFunc)
+ 			}
+ 		}
++		if n.Op() == ir.OSWITCH && n.(*ir.SwitchStmt).Tag != nil && n.(*ir.SwitchStmt).Tag.Op() == ir.OTYPESW && !n.(*ir.SwitchStmt).Tag.(*ir.TypeSwitchGuard).X.Type().IsEmptyInterface() {
++			for _, cc := range n.(*ir.SwitchStmt).Cases {
++				for _, c := range cc.List {
++					if c.Op() == ir.OTYPE && c.Type().HasTParam() {
++						// Type switch from a non-empty interface to a noninterface.
++						infoPrint("  Itab for type switch: %v\n", c)
++						info.itabConvs = append(info.itabConvs, c)
++						if info.type2switchType == nil {
++							info.type2switchType = map[ir.Node]*types.Type{}
++						}
++						info.type2switchType[c] = n.(*ir.SwitchStmt).Tag.(*ir.TypeSwitchGuard).X.Type()
++					}
++				}
++			}
++		}
+ 		addType(&info, n, n.Type())
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 61af92b62a..ff113877df 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -313,6 +313,10 @@ assignOK:
+ 			r := r.(*ir.TypeAssertExpr)
+ 			stmt.SetOp(ir.OAS2DOTTYPE)
+ 			r.SetOp(ir.ODOTTYPE2)
++		case ir.ODYNAMICDOTTYPE:
++			r := r.(*ir.DynamicTypeAssertExpr)
++			stmt.SetOp(ir.OAS2DOTTYPE)
++			r.SetOp(ir.ODYNAMICDOTTYPE2)
+ 		default:
+ 			break assignOK
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 0143411822..c322d490e5 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -172,6 +172,10 @@ assignOK:
+ 			r := r.(*ir.TypeAssertExpr)
+ 			stmt.SetOp(ir.OAS2DOTTYPE)
+ 			r.SetOp(ir.ODOTTYPE2)
++		case ir.ODYNAMICDOTTYPE:
++			r := r.(*ir.DynamicTypeAssertExpr)
++			stmt.SetOp(ir.OAS2DOTTYPE)
++			r.SetOp(ir.ODYNAMICDOTTYPE2)
+ 		default:
+ 			break assignOK
+ 		}
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 162de018f6..3705c5b192 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -360,10 +360,10 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 			}
+ 
+ 			if singleType != nil && singleType.IsInterface() {
+-				s.Add(ncase.Pos(), n1.Type(), caseVar, jmp)
++				s.Add(ncase.Pos(), n1, caseVar, jmp)
+ 				caseVarInitialized = true
+ 			} else {
+-				s.Add(ncase.Pos(), n1.Type(), nil, jmp)
++				s.Add(ncase.Pos(), n1, nil, jmp)
+ 			}
+ 		}
+ 
+@@ -377,6 +377,17 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 				}
+ 				val = ifaceData(ncase.Pos(), s.facename, singleType)
+ 			}
++			if len(ncase.List) == 1 && ncase.List[0].Op() == ir.ODYNAMICTYPE {
++				dt := ncase.List[0].(*ir.DynamicType)
++				x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.X)
++				if dt.ITab != nil {
++					// TODO: make ITab a separate field in DynamicTypeAssertExpr?
++					x.T = dt.ITab
++				}
++				x.SetType(caseVar.Type())
++				x.SetTypecheck(1)
++				val = x
++			}
+ 			l := []ir.Node{
+ 				ir.NewDecl(ncase.Pos(), ir.ODCL, caseVar),
+ 				ir.NewAssignStmt(ncase.Pos(), caseVar, val),
+@@ -446,7 +457,8 @@ type typeClause struct {
+ 	body ir.Nodes
+ }
+ 
+-func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar *ir.Name, jmp ir.Node) {
++func (s *typeSwitch) Add(pos src.XPos, n1 ir.Node, caseVar *ir.Name, jmp ir.Node) {
++	typ := n1.Type()
+ 	var body ir.Nodes
+ 	if caseVar != nil {
+ 		l := []ir.Node{
+@@ -462,9 +474,25 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar *ir.Name, jmp ir
+ 	// cv, ok = iface.(type)
+ 	as := ir.NewAssignListStmt(pos, ir.OAS2, nil, nil)
+ 	as.Lhs = []ir.Node{caseVar, s.okname} // cv, ok =
+-	dot := ir.NewTypeAssertExpr(pos, s.facename, nil)
+-	dot.SetType(typ) // iface.(type)
+-	as.Rhs = []ir.Node{dot}
++	switch n1.Op() {
++	case ir.OTYPE:
++		// Static type assertion (non-generic)
++		dot := ir.NewTypeAssertExpr(pos, s.facename, nil)
++		dot.SetType(typ) // iface.(type)
++		as.Rhs = []ir.Node{dot}
++	case ir.ODYNAMICTYPE:
++		// Dynamic type assertion (generic)
++		dt := n1.(*ir.DynamicType)
++		dot := ir.NewDynamicTypeAssertExpr(pos, ir.ODYNAMICDOTTYPE, s.facename, dt.X)
++		if dt.ITab != nil {
++			dot.T = dt.ITab
++		}
++		dot.SetType(typ)
++		dot.SetTypecheck(1)
++		as.Rhs = []ir.Node{dot}
++	default:
++		base.Fatalf("unhandled type case %s", n1.Op())
++	}
+ 	appendWalkStmt(&body, as)
+ 
+ 	// if ok { goto label }
+@@ -473,9 +501,10 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar *ir.Name, jmp ir
+ 	nif.Body = []ir.Node{jmp}
+ 	body.Append(nif)
+ 
+-	if !typ.IsInterface() {
++	if n1.Op() == ir.OTYPE && !typ.IsInterface() {
++		// Defer static, noninterface cases so they can be binary searched by hash.
+ 		s.clauses = append(s.clauses, typeClause{
+-			hash: types.TypeHash(typ),
++			hash: types.TypeHash(n1.Type()),
+ 			body: body,
+ 		})
+ 		return
+diff --git a/test/typeparam/typeswitch1.go b/test/typeparam/typeswitch1.go
+new file mode 100644
+index 0000000000..27161b3db8
+--- /dev/null
++++ b/test/typeparam/typeswitch1.go
+@@ -0,0 +1,29 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f[T any](i interface{}) {
++	switch i.(type) {
++	case T:
++		println("T")
++	case int:
++		println("int")
++	case int32, int16:
++		println("int32/int16")
++	case struct { a, b T }:
++		println("struct{T,T}")
++	default:
++		println("other")
++	}
++}
++func main() {
++	f[float64](float64(6))
++	f[float64](int(7))
++	f[float64](int32(8))
++	f[float64](struct{a, b float64}{a:1, b:2})
++	f[float64](int8(9))
++}
+diff --git a/test/typeparam/typeswitch1.out b/test/typeparam/typeswitch1.out
+new file mode 100644
+index 0000000000..4bdbccfddb
+--- /dev/null
++++ b/test/typeparam/typeswitch1.out
+@@ -0,0 +1,5 @@
++T
++int
++int32/int16
++struct{T,T}
++other
+diff --git a/test/typeparam/typeswitch2.go b/test/typeparam/typeswitch2.go
+new file mode 100644
+index 0000000000..913c56321c
+--- /dev/null
++++ b/test/typeparam/typeswitch2.go
+@@ -0,0 +1,31 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "reflect"
++
++func f[T any](i interface{}) {
++	switch x := i.(type) {
++	case T:
++		println("T", x)
++	case int:
++		println("int", x)
++	case int32, int16:
++		println("int32/int16", reflect.ValueOf(x).Int())
++	case struct { a, b T }:
++		println("struct{T,T}", x.a, x.b)
++	default:
++		println("other", reflect.ValueOf(x).Int())
++	}
++}
++func main() {
++	f[float64](float64(6))
++	f[float64](int(7))
++	f[float64](int32(8))
++	f[float64](struct{a, b float64}{a:1, b:2})
++	f[float64](int8(9))
++}
+diff --git a/test/typeparam/typeswitch2.out b/test/typeparam/typeswitch2.out
+new file mode 100644
+index 0000000000..944cc04cc6
+--- /dev/null
++++ b/test/typeparam/typeswitch2.out
+@@ -0,0 +1,5 @@
++T +6.000000e+000
++int 7
++int32/int16 8
++struct{T,T} +1.000000e+000 +2.000000e+000
++other 9
+diff --git a/test/typeparam/typeswitch3.go b/test/typeparam/typeswitch3.go
+new file mode 100644
+index 0000000000..6ab0301140
+--- /dev/null
++++ b/test/typeparam/typeswitch3.go
+@@ -0,0 +1,35 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type I interface { foo() int }
++
++type myint int
++
++func (x myint) foo() int { return int(x) }
++
++type myfloat float64
++func (x myfloat) foo() int { return int(x) }
++
++type myint32 int32
++func (x myint32) foo() int { return int(x) }
++
++func f[T I](i I) {
++	switch x := i.(type) {
++	case T:
++		println("T", x.foo())
++	case myint:
++		println("myint", x.foo())
++	default:
++		println("other", x.foo())
++	}
++}
++func main() {
++	f[myfloat](myint(6))
++	f[myfloat](myfloat(7))
++	f[myfloat](myint32(8))
++}
+diff --git a/test/typeparam/typeswitch3.out b/test/typeparam/typeswitch3.out
+new file mode 100644
+index 0000000000..2c69c72c30
+--- /dev/null
++++ b/test/typeparam/typeswitch3.out
+@@ -0,0 +1,3 @@
++myint 6
++T 7
++other 8
+diff --git a/test/typeparam/typeswitch4.go b/test/typeparam/typeswitch4.go
+new file mode 100644
+index 0000000000..6113026b65
+--- /dev/null
++++ b/test/typeparam/typeswitch4.go
+@@ -0,0 +1,33 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type I interface { foo() int }
++
++type myint int
++
++func (x myint) foo() int {return int(x)}
++
++type myfloat float64
++func (x myfloat) foo() int {return int(x)}
++
++type myint32 int32
++func (x myint32) foo() int { return int(x) }
++
++func f[T I](i I) {
++	switch x := i.(type) {
++	case T, myint32:
++		println("T/myint32", x.foo())
++	default:
++		println("other", x.foo())
++	}
++}
++func main() {
++	f[myfloat](myint(6))
++	f[myfloat](myfloat(7))
++	f[myfloat](myint32(8))
++}
+diff --git a/test/typeparam/typeswitch4.out b/test/typeparam/typeswitch4.out
+new file mode 100644
+index 0000000000..b0d54077c9
+--- /dev/null
++++ b/test/typeparam/typeswitch4.out
+@@ -0,0 +1,3 @@
++other 6
++T/myint32 7
++T/myint32 8
+diff --git a/test/typeparam/typeswitch5.go b/test/typeparam/typeswitch5.go
+new file mode 100644
+index 0000000000..1fc6e0a14e
+--- /dev/null
++++ b/test/typeparam/typeswitch5.go
+@@ -0,0 +1,28 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type myint int
++func (x myint) foo() int {return int(x)}
++
++type myfloat float64
++func (x myfloat) foo() float64 {return float64(x) }
++
++func f[T any](i interface{}) {
++	switch x := i.(type) {
++	case interface { foo() T }:
++		println("fooer", x.foo())
++	default:
++		println("other")
++	}
++}
++func main() {
++	f[int](myint(6))
++	f[int](myfloat(7))
++	f[float64](myint(8))
++	f[float64](myfloat(9))
++}
+diff --git a/test/typeparam/typeswitch5.out b/test/typeparam/typeswitch5.out
+new file mode 100644
+index 0000000000..6b4cb4416f
+--- /dev/null
++++ b/test/typeparam/typeswitch5.out
+@@ -0,0 +1,4 @@
++fooer 6
++other
++other
++fooer +9.000000e+000

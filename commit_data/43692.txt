@@ -7,6 +7,19 @@ Date:   Wed Apr 15 14:44:27 2020 -0700
     Change-Id: Ic95f6f78fa56169998a6890beb873693852c5798
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228419
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f317144bf9..97e2a5eb7b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1309,6 +1309,7 @@ Szabolcs Nagy <nsz@port70.net>
+ Taavi Kivisik <taavi.kivisik@gmail.com>
+ Tad Fisher <tadfisher@gmail.com>
+ Tad Glines <tad.glines@gmail.com>
++Tailscale Inc.
+ Taj Khattra <taj.khattra@gmail.com>
+ Takayoshi Nishida <takayoshi.nishida@gmail.com>
+ Takeshi YAMANASHI <9.nashi@gmail.com>

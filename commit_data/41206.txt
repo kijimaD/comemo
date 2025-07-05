@@ -11,7 +11,90 @@ Date:   Mon Sep 9 16:39:43 2019 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/issue33808_test.go | 53 +++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/macho.go           |  5 +--
  2 files changed, 56 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/issue33808_test.go b/src/cmd/link/internal/ld/issue33808_test.go
+new file mode 100644
+index 0000000000..df928a73d6
+--- /dev/null
++++ b/src/cmd/link/internal/ld/issue33808_test.go
+@@ -0,0 +1,53 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++const prog = `
++package main
++
++import "log"
++
++func main() {
++	log.Fatalf("HERE")
++}
++`
++
++func TestIssue33808(t *testing.T) {
++	if runtime.GOOS != "darwin" {
++		return
++	}
++	testenv.MustHaveGoBuild(t)
++
++	dir, err := ioutil.TempDir("", "TestIssue33808")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	f := gobuild(t, dir, prog, "-ldflags=-linkmode=external")
++	f.Close()
++
++	syms, err := f.Symbols()
++	if err != nil {
++		t.Fatalf("Error reading symbols: %v", err)
++	}
++
++	name := "log.Fatalf"
++	for _, sym := range syms {
++		if strings.Contains(sym.Name, name) {
++			return
++		}
++	}
++	t.Fatalf("Didn't find %v", name)
++}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 02e133e31d..7453f37c62 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -869,6 +869,7 @@ func machosymtab(ctxt *Link) {
+ 		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size))
+ 
+ 		export := machoShouldExport(ctxt, s)
++		isGoSymbol := strings.Contains(s.Extname(), ".")
+ 
+ 		// In normal buildmodes, only add _ to C symbols, as
+ 		// Go symbols have dot in the name.
+@@ -877,8 +878,8 @@ func machosymtab(ctxt *Link) {
+ 		// symbols like crosscall2 are in pclntab and end up
+ 		// pointing at the host binary, breaking unwinding.
+ 		// See Issue #18190.
+-		cexport := !strings.Contains(s.Extname(), ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
+-		if cexport || export {
++		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
++		if cexport || export || isGoSymbol {
+ 			symstr.AddUint8('_')
+ 		}
+ 

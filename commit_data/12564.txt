@@ -9,8 +9,114 @@ Date:   Mon Mar 12 17:33:35 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5777064
-
+---
  src/pkg/archive/tar/reader.go      |  2 +-
  src/pkg/archive/tar/writer.go      | 17 +++++++++++++----
  src/pkg/archive/tar/writer_test.go |  9 +++++++--
  3 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 755a730c8b..1b40af812a 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ var (
+-	ErrHeader = errors.New("invalid tar header")
++	ErrHeader = errors.New("archive/tar: invalid tar header")
+ )
+ 
+ // A Reader provides sequential access to the contents of a tar archive.
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index d35726bf9d..b2b7a58a10 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -5,18 +5,19 @@
+ package tar
+ 
+ // TODO(dsymonds):
+-// - catch more errors (no first header, write after close, etc.)
++// - catch more errors (no first header, etc.)
+ 
+ import (
+ 	"errors"
++	"fmt"
+ 	"io"
+ 	"strconv"
+ )
+ 
+ var (
+-	ErrWriteTooLong    = errors.New("write too long")
+-	ErrFieldTooLong    = errors.New("header field too long")
+-	ErrWriteAfterClose = errors.New("write after close")
++	ErrWriteTooLong    = errors.New("archive/tar: write too long")
++	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
++	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+ )
+ 
+ // A Writer provides sequential writing of a tar archive in POSIX.1 format.
+@@ -48,6 +49,11 @@ func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
+ 
+ // Flush finishes writing the current file (optional).
+ func (tw *Writer) Flush() error {
++	if tw.nb > 0 {
++		tw.err = fmt.Errorf("archive/tar: missed writing %d bytes", tw.nb)
++		return tw.err
++	}
++
+ 	n := tw.nb + tw.pad
+ 	for n > 0 && tw.err == nil {
+ 		nr := n
+@@ -193,6 +199,9 @@ func (tw *Writer) Close() error {
+ 	}
+ 	tw.Flush()
+ 	tw.closed = true
++	if tw.err != nil {
++		return tw.err
++	}
+ 
+ 	// trailer: two zero blocks
+ 	for i := 0; i < 2; i++ {
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 0b413722dd..a214e57b9f 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"strings"
+ 	"testing"
+ 	"testing/iotest"
+ 	"time"
+@@ -95,7 +96,8 @@ var writerTests = []*writerTest{
+ 					Uname:    "dsymonds",
+ 					Gname:    "eng",
+ 				},
+-				// no contents
++				// fake contents
++				contents: strings.Repeat("\x00", 4<<10),
+ 			},
+ 		},
+ 	},
+@@ -150,7 +152,9 @@ testLoop:
+ 
+ 		buf := new(bytes.Buffer)
+ 		tw := NewWriter(iotest.TruncateWriter(buf, 4<<10)) // only catch the first 4 KB
++		big := false
+ 		for j, entry := range test.entries {
++			big = big || entry.header.Size > 1<<10
+ 			if err := tw.WriteHeader(entry.header); err != nil {
+ 				t.Errorf("test %d, entry %d: Failed writing header: %v", i, j, err)
+ 				continue testLoop
+@@ -160,7 +164,8 @@ testLoop:
+ 				continue testLoop
+ 			}
+ 		}
+-		if err := tw.Close(); err != nil {
++		// Only interested in Close failures for the small tests.
++		if err := tw.Close(); err != nil && !big {
+ 			t.Errorf("test %d: Failed closing archive: %v", i, err)
+ 			continue testLoop
+ 		}

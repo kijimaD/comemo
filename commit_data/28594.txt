@@ -11,6 +11,22 @@ Date:   Wed Jun 8 21:09:09 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/os/file.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 74d3c9f963..e546441497 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -46,6 +46,10 @@ func (f *File) Name() string { return f.name }
+ 
+ // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
+ // standard output, and standard error file descriptors.
++//
++// Note that the Go runtime writes to standard error for panics and crashes;
++// closing Stderr may cause those messages to go elsewhere, perhaps
++// to a file opened later.
+ var (
+ 	Stdin  = NewFile(uintptr(syscall.Stdin), "/dev/stdin")
+ 	Stdout = NewFile(uintptr(syscall.Stdout), "/dev/stdout")

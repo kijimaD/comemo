@@ -12,10 +12,143 @@ Date:   Mon Jul 19 10:58:40 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/decl.go                       |  5 +++--
  src/go/types/object_test.go                |  2 +-
  src/go/types/testdata/check/typeparams.go2 |  8 ++++----
  src/go/types/typexpr.go                    | 15 +++++++++++++--
  src/go/types/universe.go                   | 26 ++++++++++----------------
  5 files changed, 31 insertions(+), 25 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 8fae59ffe8..e38124f077 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -678,8 +678,9 @@ func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident)
+ // The type must be an interface, including the predeclared type "any".
+ func (check *Checker) boundType(e ast.Expr) Type {
+ 	// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
+-	if name, _ := unparen(e).(*ast.Ident); name != nil && name.Name == "any" && check.lookup("any") == nil {
+-		return universeAny
++	// If we allow "any" for general use, this if-statement can be removed (issue #33232).
++	if name, _ := unparen(e).(*ast.Ident); name != nil && name.Name == "any" && check.lookup("any") == universeAny {
++		return universeAny.Type()
+ 	}
+ 
+ 	bound := check.typ(e)
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index 2b6057bd93..0ff8fdd6fa 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -22,7 +22,7 @@ func TestIsAlias(t *testing.T) {
+ 	check(Unsafe.Scope().Lookup("Pointer").(*TypeName), false)
+ 	for _, name := range Universe.Names() {
+ 		if obj, _ := Universe.Lookup(name).(*TypeName); obj != nil {
+-			check(obj, name == "byte" || name == "rune")
++			check(obj, name == "any" || name == "byte" || name == "rune")
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index 0e3795724b..b03725ff2a 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -6,11 +6,11 @@ package p
+ 
+ // import "io" // for type assertion tests
+ 
+-// The predeclared identifier "any" is only visible as a constraint
++// The predeclared identifier "any" can only be used as a constraint
+ // in a type parameter list.
+-var _ any // ERROR undeclared
+-func _[_ any /* ok here */ , _ interface{any /* ERROR undeclared */ }](any /* ERROR undeclared */ ) {
+-        var _ any /* ERROR undeclared */
++var _ any // ERROR cannot use any outside constraint position
++func _[_ any /* ok here */ , _ interface{any /* ERROR constraint */ }](any /* ERROR constraint */ ) {
++        var _ any /* ERROR constraint */
+ }
+ 
+ func identity[T any](x T) T { return x }
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 9a9fe32cb3..f2c4762a6b 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -27,13 +27,24 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 	// Note that we cannot use check.lookup here because the returned scope
+ 	// may be different from obj.Parent(). See also Scope.LookupParent doc.
+ 	scope, obj := check.scope.LookupParent(e.Name, check.pos)
+-	if obj == nil || obj == universeComparable && !check.allowVersion(check.pkg, 1, 18) {
++	switch obj {
++	case nil:
+ 		if e.Name == "_" {
+-			check.errorf(e, _InvalidBlank, "cannot use _ as value or type")
++			check.error(e, _InvalidBlank, "cannot use _ as value or type")
+ 		} else {
+ 			check.errorf(e, _UndeclaredName, "undeclared name: %s", e.Name)
+ 		}
+ 		return
++	case universeAny, universeComparable:
++		if !check.allowVersion(check.pkg, 1, 18) {
++			check.errorf(e, _UndeclaredName, "undeclared name: %s (requires version go1.18 or later)", e.Name)
++			return
++		}
++		// If we allow "any" for general use, this if-statement can be removed (issue #33232).
++		if obj == universeAny {
++			check.error(e, _Todo, "cannot use any outside constraint position")
++			return
++		}
+ 	}
+ 	check.recordUse(e, obj)
+ 
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 7c1e29b856..59952bc642 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -21,11 +21,11 @@ var Universe *Scope
+ var Unsafe *Package
+ 
+ var (
+-	universeIota       *Const
+-	universeByte       *Basic // uint8 alias, but has name "byte"
+-	universeRune       *Basic // int32 alias, but has name "rune"
+-	universeAny        *Interface
+-	universeError      *Named
++	universeIota       Object
++	universeByte       Type // uint8 alias, but has name "byte"
++	universeRune       Type // int32 alias, but has name "rune"
++	universeAny        Object
++	universeError      Type
+ 	universeComparable Object
+ )
+ 
+@@ -80,9 +80,6 @@ func defPredeclaredTypes() {
+ 	}
+ 
+ 	// type any = interface{}
+-	// Entered into universe scope so we do all the usual checks;
+-	// but removed again from scope later since it's only visible
+-	// as constraint in a type parameter list.
+ 	def(NewTypeName(token.NoPos, nil, "any", &emptyInterface))
+ 
+ 	// type error interface{ Error() string }
+@@ -225,15 +222,12 @@ func init() {
+ 	defPredeclaredNil()
+ 	defPredeclaredFuncs()
+ 
+-	universeIota = Universe.Lookup("iota").(*Const)
+-	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
+-	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
+-	universeAny = Universe.Lookup("any").(*TypeName).typ.(*Interface)
+-	universeError = Universe.Lookup("error").(*TypeName).typ.(*Named)
++	universeIota = Universe.Lookup("iota")
++	universeByte = Universe.Lookup("byte").Type()
++	universeRune = Universe.Lookup("rune").Type()
++	universeAny = Universe.Lookup("any")
++	universeError = Universe.Lookup("error").Type()
+ 	universeComparable = Universe.Lookup("comparable")
+-
+-	// "any" is only visible as constraint in a type parameter list
+-	delete(Universe.elems, "any")
+ }
+ 
+ // Objects with names containing blanks are internal and not entered into

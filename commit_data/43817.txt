@@ -11,6 +11,20 @@ Date:   Fri Apr 24 17:15:40 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/main.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 35363aa4ee..96860ce4d8 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -211,6 +211,8 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 			if !ctxt.IsAMD64() {
+ 				*flagnewDoData = false
+ 			}
++		case ctxt.IsPlan9(), ctxt.IsWasm():
++			// supported
+ 		default:
+ 			*flagnewDoData = false
+ 		}

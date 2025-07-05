@@ -11,7 +11,105 @@ Date:   Thu Feb 23 20:25:09 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/build/deps_test.go   |  2 +-
  src/go/importer/importer.go | 32 +++++++++++++++++++++++++-------
  2 files changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4220a83e4a..c26ad06aeb 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -217,7 +217,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// Go type checking.
+ 	"go/constant":               {"L4", "go/token", "math/big"},
+-	"go/importer":               {"L4", "go/internal/gcimporter", "go/internal/gccgoimporter", "go/types"},
++	"go/importer":               {"L4", "go/build", "go/internal/gccgoimporter", "go/internal/gcimporter", "go/internal/srcimporter", "go/token", "go/types"},
+ 	"go/internal/gcimporter":    {"L4", "OS", "go/build", "go/constant", "go/token", "go/types", "text/scanner"},
+ 	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "text/scanner"},
+ 	"go/internal/srcimporter":   {"L4", "fmt", "go/ast", "go/build", "go/parser", "go/token", "go/types", "path/filepath"},
+diff --git a/src/go/importer/importer.go b/src/go/importer/importer.go
+index f655bc1e92..fab65181cd 100644
+--- a/src/go/importer/importer.go
++++ b/src/go/importer/importer.go
+@@ -6,8 +6,11 @@
+ package importer
+ 
+ import (
++	"go/build"
+ 	"go/internal/gccgoimporter"
+ 	"go/internal/gcimporter"
++	"go/internal/srcimporter"
++	"go/token"
+ 	"go/types"
+ 	"io"
+ 	"runtime"
+@@ -17,22 +20,30 @@ import (
+ // a given import path, or an error if no matching package is found.
+ type Lookup func(path string) (io.ReadCloser, error)
+ 
+-// For returns an Importer for the given compiler and lookup interface,
+-// or nil. Supported compilers are "gc", and "gccgo". If lookup is nil,
+-// the default package lookup mechanism for the given compiler is used.
++// For returns an Importer for importing from installed packages
++// for the compilers "gc" and "gccgo", or for importing directly
++// from the source if the compiler argument is "source". In this
++// latter case, importing may fail under circumstances where the
++// exported API is not entirely defined in pure Go source code
++// (if the package API depends on cgo-defined entities, the type
++// checker won't have access to those).
++//
++// If lookup is nil, the default package lookup mechanism for the
++// given compiler is used.
++//
+ // BUG(issue13847): For does not support non-nil lookup functions.
+ func For(compiler string, lookup Lookup) types.Importer {
+ 	switch compiler {
+ 	case "gc":
+ 		if lookup != nil {
+-			panic("gc importer for custom import path lookup not yet implemented")
++			panic("gc importer for custom import path lookup not supported (issue #13847).")
+ 		}
+ 
+ 		return make(gcimports)
+ 
+ 	case "gccgo":
+ 		if lookup != nil {
+-			panic("gccgo importer for custom import path lookup not yet implemented")
++			panic("gccgo importer for custom import path lookup not supported (issue #13847).")
+ 		}
+ 
+ 		var inst gccgoimporter.GccgoInstallation
+@@ -43,6 +54,13 @@ func For(compiler string, lookup Lookup) types.Importer {
+ 			packages: make(map[string]*types.Package),
+ 			importer: inst.GetImporter(nil, nil),
+ 		}
++
++	case "source":
++		if lookup != nil {
++			panic("source importer for custom import path lookup not supported (issue #13847).")
++		}
++
++		return srcimporter.New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
+ 	}
+ 
+ 	// compiler not supported
+@@ -55,7 +73,7 @@ func Default() types.Importer {
+ 	return For(runtime.Compiler, nil)
+ }
+ 
+-// gc support
++// gc importer
+ 
+ type gcimports map[string]*types.Package
+ 
+@@ -70,7 +88,7 @@ func (m gcimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
+ 	return gcimporter.Import(m, path, srcDir)
+ }
+ 
+-// gccgo support
++// gccgo importer
+ 
+ type gccgoimports struct {
+ 	packages map[string]*types.Package

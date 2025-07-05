@@ -13,9 +13,865 @@ Date:   Thu Jul 18 16:02:37 2019 -0400
     Change-Id: Ic29f8b587c8c77472260836a5c3e13edaded13fa
     Reviewed-on: https://go-review.googlesource.com/c/go/+/186877
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/bytes/hash/hash.go          | 185 ++++++++++++++++
  src/bytes/hash/hash_test.go     |  66 ++++++
  src/bytes/hash/smhasher_test.go | 461 ++++++++++++++++++++++++++++++++++++++++
  src/go/build/deps_test.go       | 102 ++++-----
  4 files changed, 764 insertions(+), 50 deletions(-)
+
+diff --git a/src/bytes/hash/hash.go b/src/bytes/hash/hash.go
+new file mode 100644
+index 0000000000..0e44e37ae7
+--- /dev/null
++++ b/src/bytes/hash/hash.go
+@@ -0,0 +1,185 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package bytes/hash provides hash functions on byte sequences. These
++// hash functions are intended to be used to implement hash tables or
++// other data structures that need to map arbitrary strings or byte
++// sequences to a uniform distribution of integers. The hash functions
++// are collision-resistant but are not cryptographically secure (use
++// one of the hash functions in crypto/* if you need that).
++//
++// The produced hashes depend only on the sequence of bytes provided
++// to the Hash object, not on the way in which they are provided. For
++// example, the calls
++//     h.AddString("foo")
++//     h.AddBytes([]byte{'f','o','o'})
++//     h.AddByte('f'); h.AddByte('o'); h.AddByte('o')
++// will all have the same effect.
++//
++// Two Hash instances in the same process using the same seed
++// behave identically.
++//
++// Two Hash instances with the same seed in different processes are
++// not guaranteed to behave identically, even if the processes share
++// the same binary.
++//
++// Hashes are intended to be collision-resistant, even for situations
++// where an adversary controls the byte sequences being hashed.
++// All bits of the Hash result are close to uniformly and
++// independently distributed, so can be safely restricted to a range
++// using bit masking, shifting, or modular arithmetic.
++package hash
++
++import (
++	"unsafe"
++)
++
++// A Seed controls the behavior of a Hash.  Two Hash objects with the
++// same seed in the same process will behave identically.  Two Hash
++// objects with different seeds will very likely behave differently.
++type Seed struct {
++	s uint64
++}
++
++// A Hash object is used to compute the hash of a byte sequence.
++type Hash struct {
++	seed  Seed     // initial seed used for this hash
++	state Seed     // current hash of all flushed bytes
++	buf   [64]byte // unflushed byte buffer
++	n     int      // number of unflushed bytes
++}
++
++// AddByte adds b to the sequence of bytes hashed by h.
++func (h *Hash) AddByte(b byte) {
++	if h.n == len(h.buf) {
++		h.flush()
++	}
++	h.buf[h.n] = b
++	h.n++
++}
++
++// AddBytes adds b to the sequence of bytes hashed by h.
++func (h *Hash) AddBytes(b []byte) {
++	for h.n+len(b) > len(h.buf) {
++		k := copy(h.buf[h.n:], b)
++		h.n = len(h.buf)
++		b = b[k:]
++		h.flush()
++	}
++	h.n += copy(h.buf[h.n:], b)
++}
++
++// AddString adds the bytes of s to the sequence of bytes hashed by h.
++func (h *Hash) AddString(s string) {
++	for h.n+len(s) > len(h.buf) {
++		k := copy(h.buf[h.n:], s)
++		h.n = len(h.buf)
++		s = s[k:]
++		h.flush()
++	}
++	h.n += copy(h.buf[h.n:], s)
++}
++
++// Seed returns the seed value specified in the most recent call to
++// SetSeed, or the initial seed if SetSeed was never called.
++func (h *Hash) Seed() Seed {
++	return h.seed
++}
++
++// SetSeed sets the seed used by h. Two Hash objects with the same
++// seed in the same process will behave identically.  Two Hash objects
++// with different seeds will very likely behave differently.  Any
++// bytes added to h previous to this call will be discarded.
++func (h *Hash) SetSeed(seed Seed) {
++	h.seed = seed
++	h.state = seed
++	h.n = 0
++}
++
++// Reset discards all bytes added to h.
++// (The seed remains the same.)
++func (h *Hash) Reset() {
++	h.state = h.seed
++	h.n = 0
++}
++
++// precondition: buffer is full.
++func (h *Hash) flush() {
++	if h.n != len(h.buf) {
++		panic("flush of partially full buffer")
++	}
++	h.state.s = rthash(h.buf[:], h.state.s)
++	h.n = 0
++}
++
++// Hash returns a value which depends on h's seed and the sequence of
++// bytes added to h (since the last call to Reset or SetSeed).
++func (h *Hash) Hash() uint64 {
++	return rthash(h.buf[:h.n], h.state.s)
++}
++
++// MakeSeed returns a Seed initialized using the bits in s.
++// Two seeds generated with the same s are guaranteed to be equal.
++// Two seeds generated with different s are very likely to be different.
++// TODO: disallow this? See Alan's comment in the issue.
++func MakeSeed(s uint64) Seed {
++	return Seed{s: s}
++}
++
++// New returns a new Hash object. Different hash objects allocated by
++// this function will very likely have different seeds.
++func New() *Hash {
++	seed := Seed{s: uint64(runtime_fastrand())}
++	return &Hash{
++		seed:  seed,
++		state: seed,
++	}
++}
++
++//go:linkname runtime_fastrand runtime.fastrand
++func runtime_fastrand() uint32
++
++func rthash(b []byte, seed uint64) uint64 {
++	if len(b) == 0 {
++		return seed
++	}
++	// The runtime hasher only works on uintptr. For 64-bit
++	// architectures, we use the hasher directly. Otherwise,
++	// we use two parallel hashers on the lower and upper 32 bits.
++	if unsafe.Sizeof(uintptr(0)) == 8 {
++		return uint64(runtime_memhash(unsafe.Pointer(&b[0]), uintptr(seed), uintptr(len(b))))
++	}
++	lo := runtime_memhash(unsafe.Pointer(&b[0]), uintptr(seed), uintptr(len(b)))
++	hi := runtime_memhash(unsafe.Pointer(&b[0]), uintptr(seed>>32), uintptr(len(b)))
++	// TODO: mix lo/hi? Get 64 bits some other way?
++	return uint64(hi)<<32 | uint64(lo)
++}
++
++//go:linkname runtime_memhash runtime.memhash
++func runtime_memhash(p unsafe.Pointer, seed, s uintptr) uintptr
++
++// Wrapper functions so that a bytes/hash.Hash implements
++// the hash.Hash and hash.Hash64 interfaces.
++
++func (h *Hash) Write(b []byte) (int, error) {
++	h.AddBytes(b)
++	return len(b), nil
++}
++func (h *Hash) Sum(b []byte) []byte {
++	x := h.Hash()
++	return append(b,
++		byte(x>>0),
++		byte(x>>8),
++		byte(x>>16),
++		byte(x>>24),
++		byte(x>>32),
++		byte(x>>40),
++		byte(x>>48),
++		byte(x>>56))
++}
++func (h *Hash) Sum64() uint64 {
++	return h.Hash()
++}
++func (h *Hash) Size() int      { return 8 }
++func (h *Hash) BlockSize() int { return len(h.buf) }
+diff --git a/src/bytes/hash/hash_test.go b/src/bytes/hash/hash_test.go
+new file mode 100644
+index 0000000000..311f451be2
+--- /dev/null
++++ b/src/bytes/hash/hash_test.go
+@@ -0,0 +1,66 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package hash_test
++
++import (
++	"bytes/hash"
++	basehash "hash"
++	"testing"
++)
++
++func TestUnseededHash(t *testing.T) {
++	m := map[uint64]struct{}{}
++	for i := 0; i < 1000; i++ {
++		h := hash.New()
++		m[h.Hash()] = struct{}{}
++	}
++	if len(m) < 900 {
++		t.Errorf("empty hash not sufficiently random: got %d, want 1000", len(m))
++	}
++}
++
++func TestSeededHash(t *testing.T) {
++	s := hash.MakeSeed(1234)
++	m := map[uint64]struct{}{}
++	for i := 0; i < 1000; i++ {
++		h := hash.New()
++		h.SetSeed(s)
++		m[h.Hash()] = struct{}{}
++	}
++	if len(m) != 1 {
++		t.Errorf("seeded hash is random: got %d, want 1", len(m))
++	}
++}
++
++func TestHashGrouping(t *testing.T) {
++	b := []byte("foo")
++	h1 := hash.New()
++	h2 := hash.New()
++	h2.SetSeed(h1.Seed())
++	h1.AddBytes(b)
++	for _, x := range b {
++		h2.AddByte(x)
++	}
++	if h1.Hash() != h2.Hash() {
++		t.Errorf("hash of \"foo\" and \"f\",\"o\",\"o\" not identical")
++	}
++}
++
++func TestHashBytesVsString(t *testing.T) {
++	s := "foo"
++	b := []byte(s)
++	h1 := hash.New()
++	h2 := hash.New()
++	h2.SetSeed(h1.Seed())
++	h1.AddString(s)
++	h2.AddBytes(b)
++	if h1.Hash() != h2.Hash() {
++		t.Errorf("hash of string and byts not identical")
++	}
++}
++
++// Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
++var _ basehash.Hash = &hash.Hash{}
++var _ basehash.Hash64 = &hash.Hash{}
+diff --git a/src/bytes/hash/smhasher_test.go b/src/bytes/hash/smhasher_test.go
+new file mode 100644
+index 0000000000..1b7b44db09
+--- /dev/null
++++ b/src/bytes/hash/smhasher_test.go
+@@ -0,0 +1,461 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package hash_test
++
++import (
++	"bytes/hash"
++	"fmt"
++	"math"
++	"math/rand"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++// Smhasher is a torture test for hash functions.
++// https://code.google.com/p/smhasher/
++// This code is a port of some of the Smhasher tests to Go.
++
++// Sanity checks.
++// hash should not depend on values outside key.
++// hash should not depend on alignment.
++func TestSmhasherSanity(t *testing.T) {
++	r := rand.New(rand.NewSource(1234))
++	const REP = 10
++	const KEYMAX = 128
++	const PAD = 16
++	const OFFMAX = 16
++	for k := 0; k < REP; k++ {
++		for n := 0; n < KEYMAX; n++ {
++			for i := 0; i < OFFMAX; i++ {
++				var b [KEYMAX + OFFMAX + 2*PAD]byte
++				var c [KEYMAX + OFFMAX + 2*PAD]byte
++				randBytes(r, b[:])
++				randBytes(r, c[:])
++				copy(c[PAD+i:PAD+i+n], b[PAD:PAD+n])
++				if bytesHash(b[PAD:PAD+n], 0) != bytesHash(c[PAD+i:PAD+i+n], 0) {
++					t.Errorf("hash depends on bytes outside key")
++				}
++			}
++		}
++	}
++}
++
++func bytesHash(b []byte, seed uint64) uint64 {
++	h := hash.New()
++	h.SetSeed(hash.MakeSeed(seed))
++	h.AddBytes(b)
++	return h.Hash()
++}
++func stringHash(s string, seed uint64) uint64 {
++	h := hash.New()
++	h.SetSeed(hash.MakeSeed(seed))
++	h.AddString(s)
++	return h.Hash()
++}
++
++const hashSize = 64
++
++func randBytes(r *rand.Rand, b []byte) {
++	r.Read(b) // can't fail
++}
++
++// A hashSet measures the frequency of hash collisions.
++type hashSet struct {
++	m map[uint64]struct{} // set of hashes added
++	n int                 // number of hashes added
++}
++
++func newHashSet() *hashSet {
++	return &hashSet{make(map[uint64]struct{}), 0}
++}
++func (s *hashSet) add(h uint64) {
++	s.m[h] = struct{}{}
++	s.n++
++}
++func (s *hashSet) addS(x string) {
++	s.add(stringHash(x, 0))
++}
++func (s *hashSet) addB(x []byte) {
++	s.add(bytesHash(x, 0))
++}
++func (s *hashSet) addS_seed(x string, seed uint64) {
++	s.add(stringHash(x, seed))
++}
++func (s *hashSet) check(t *testing.T) {
++	const SLOP = 10.0
++	collisions := s.n - len(s.m)
++	pairs := int64(s.n) * int64(s.n-1) / 2
++	expected := float64(pairs) / math.Pow(2.0, float64(hashSize))
++	stddev := math.Sqrt(expected)
++	if float64(collisions) > expected+SLOP*(3*stddev+1) {
++		t.Errorf("unexpected number of collisions: got=%d mean=%f stddev=%f", collisions, expected, stddev)
++	}
++}
++
++// a string plus adding zeros must make distinct hashes
++func TestSmhasherAppendedZeros(t *testing.T) {
++	s := "hello" + strings.Repeat("\x00", 256)
++	h := newHashSet()
++	for i := 0; i <= len(s); i++ {
++		h.addS(s[:i])
++	}
++	h.check(t)
++}
++
++// All 0-3 byte strings have distinct hashes.
++func TestSmhasherSmallKeys(t *testing.T) {
++	h := newHashSet()
++	var b [3]byte
++	for i := 0; i < 256; i++ {
++		b[0] = byte(i)
++		h.addB(b[:1])
++		for j := 0; j < 256; j++ {
++			b[1] = byte(j)
++			h.addB(b[:2])
++			if !testing.Short() {
++				for k := 0; k < 256; k++ {
++					b[2] = byte(k)
++					h.addB(b[:3])
++				}
++			}
++		}
++	}
++	h.check(t)
++}
++
++// Different length strings of all zeros have distinct hashes.
++func TestSmhasherZeros(t *testing.T) {
++	N := 256 * 1024
++	if testing.Short() {
++		N = 1024
++	}
++	h := newHashSet()
++	b := make([]byte, N)
++	for i := 0; i <= N; i++ {
++		h.addB(b[:i])
++	}
++	h.check(t)
++}
++
++// Strings with up to two nonzero bytes all have distinct hashes.
++func TestSmhasherTwoNonzero(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
++	h := newHashSet()
++	for n := 2; n <= 16; n++ {
++		twoNonZero(h, n)
++	}
++	h.check(t)
++}
++func twoNonZero(h *hashSet, n int) {
++	b := make([]byte, n)
++
++	// all zero
++	h.addB(b)
++
++	// one non-zero byte
++	for i := 0; i < n; i++ {
++		for x := 1; x < 256; x++ {
++			b[i] = byte(x)
++			h.addB(b)
++			b[i] = 0
++		}
++	}
++
++	// two non-zero bytes
++	for i := 0; i < n; i++ {
++		for x := 1; x < 256; x++ {
++			b[i] = byte(x)
++			for j := i + 1; j < n; j++ {
++				for y := 1; y < 256; y++ {
++					b[j] = byte(y)
++					h.addB(b)
++					b[j] = 0
++				}
++			}
++			b[i] = 0
++		}
++	}
++}
++
++// Test strings with repeats, like "abcdabcdabcdabcd..."
++func TestSmhasherCyclic(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
++	r := rand.New(rand.NewSource(1234))
++	const REPEAT = 8
++	const N = 1000000
++	for n := 4; n <= 12; n++ {
++		h := newHashSet()
++		b := make([]byte, REPEAT*n)
++		for i := 0; i < N; i++ {
++			b[0] = byte(i * 79 % 97)
++			b[1] = byte(i * 43 % 137)
++			b[2] = byte(i * 151 % 197)
++			b[3] = byte(i * 199 % 251)
++			randBytes(r, b[4:n])
++			for j := n; j < n*REPEAT; j++ {
++				b[j] = b[j-n]
++			}
++			h.addB(b)
++		}
++		h.check(t)
++	}
++}
++
++// Test strings with only a few bits set
++func TestSmhasherSparse(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
++	sparse(t, 32, 6)
++	sparse(t, 40, 6)
++	sparse(t, 48, 5)
++	sparse(t, 56, 5)
++	sparse(t, 64, 5)
++	sparse(t, 96, 4)
++	sparse(t, 256, 3)
++	sparse(t, 2048, 2)
++}
++func sparse(t *testing.T, n int, k int) {
++	b := make([]byte, n/8)
++	h := newHashSet()
++	setbits(h, b, 0, k)
++	h.check(t)
++}
++
++// set up to k bits at index i and greater
++func setbits(h *hashSet, b []byte, i int, k int) {
++	h.addB(b)
++	if k == 0 {
++		return
++	}
++	for j := i; j < len(b)*8; j++ {
++		b[j/8] |= byte(1 << uint(j&7))
++		setbits(h, b, j+1, k-1)
++		b[j/8] &= byte(^(1 << uint(j&7)))
++	}
++}
++
++// Test all possible combinations of n blocks from the set s.
++// "permutation" is a bad name here, but it is what Smhasher uses.
++func TestSmhasherPermutation(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
++	permutation(t, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
++	permutation(t, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
++	permutation(t, []uint32{0, 1}, 20)
++	permutation(t, []uint32{0, 1 << 31}, 20)
++	permutation(t, []uint32{0, 1, 2, 3, 4, 5, 6, 7, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 6)
++}
++func permutation(t *testing.T, s []uint32, n int) {
++	b := make([]byte, n*4)
++	h := newHashSet()
++	genPerm(h, b, s, 0)
++	h.check(t)
++}
++func genPerm(h *hashSet, b []byte, s []uint32, n int) {
++	h.addB(b[:n])
++	if n == len(b) {
++		return
++	}
++	for _, v := range s {
++		b[n] = byte(v)
++		b[n+1] = byte(v >> 8)
++		b[n+2] = byte(v >> 16)
++		b[n+3] = byte(v >> 24)
++		genPerm(h, b, s, n+4)
++	}
++}
++
++type key interface {
++	clear()              // set bits all to 0
++	random(r *rand.Rand) // set key to something random
++	bits() int           // how many bits key has
++	flipBit(i int)       // flip bit i of the key
++	hash() uint64        // hash the key
++	name() string        // for error reporting
++}
++
++type bytesKey struct {
++	b []byte
++}
++
++func (k *bytesKey) clear() {
++	for i := range k.b {
++		k.b[i] = 0
++	}
++}
++func (k *bytesKey) random(r *rand.Rand) {
++	randBytes(r, k.b)
++}
++func (k *bytesKey) bits() int {
++	return len(k.b) * 8
++}
++func (k *bytesKey) flipBit(i int) {
++	k.b[i>>3] ^= byte(1 << uint(i&7))
++}
++func (k *bytesKey) hash() uint64 {
++	return bytesHash(k.b, 0)
++}
++func (k *bytesKey) name() string {
++	return fmt.Sprintf("bytes%d", len(k.b))
++}
++
++// Flipping a single bit of a key should flip each output bit with 50% probability.
++func TestSmhasherAvalanche(t *testing.T) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
++	avalancheTest1(t, &bytesKey{make([]byte, 2)})
++	avalancheTest1(t, &bytesKey{make([]byte, 4)})
++	avalancheTest1(t, &bytesKey{make([]byte, 8)})
++	avalancheTest1(t, &bytesKey{make([]byte, 16)})
++	avalancheTest1(t, &bytesKey{make([]byte, 32)})
++	avalancheTest1(t, &bytesKey{make([]byte, 200)})
++}
++func avalancheTest1(t *testing.T, k key) {
++	const REP = 100000
++	r := rand.New(rand.NewSource(1234))
++	n := k.bits()
++
++	// grid[i][j] is a count of whether flipping
++	// input bit i affects output bit j.
++	grid := make([][hashSize]int, n)
++
++	for z := 0; z < REP; z++ {
++		// pick a random key, hash it
++		k.random(r)
++		h := k.hash()
++
++		// flip each bit, hash & compare the results
++		for i := 0; i < n; i++ {
++			k.flipBit(i)
++			d := h ^ k.hash()
++			k.flipBit(i)
++
++			// record the effects of that bit flip
++			g := &grid[i]
++			for j := 0; j < hashSize; j++ {
++				g[j] += int(d & 1)
++				d >>= 1
++			}
++		}
++	}
++
++	// Each entry in the grid should be about REP/2.
++	// More precisely, we did N = k.bits() * hashSize experiments where
++	// each is the sum of REP coin flips. We want to find bounds on the
++	// sum of coin flips such that a truly random experiment would have
++	// all sums inside those bounds with 99% probability.
++	N := n * hashSize
++	var c float64
++	// find c such that Prob(mean-c*stddev < x < mean+c*stddev)^N > .9999
++	for c = 0.0; math.Pow(math.Erf(c/math.Sqrt(2)), float64(N)) < .9999; c += .1 {
++	}
++	c *= 4.0 // allowed slack - we don't need to be perfectly random
++	mean := .5 * REP
++	stddev := .5 * math.Sqrt(REP)
++	low := int(mean - c*stddev)
++	high := int(mean + c*stddev)
++	for i := 0; i < n; i++ {
++		for j := 0; j < hashSize; j++ {
++			x := grid[i][j]
++			if x < low || x > high {
++				t.Errorf("bad bias for %s bit %d -> bit %d: %d/%d\n", k.name(), i, j, x, REP)
++			}
++		}
++	}
++}
++
++// All bit rotations of a set of distinct keys
++func TestSmhasherWindowed(t *testing.T) {
++	windowed(t, &bytesKey{make([]byte, 128)})
++}
++func windowed(t *testing.T, k key) {
++	if runtime.GOARCH == "wasm" {
++		t.Skip("Too slow on wasm")
++	}
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
++	const BITS = 16
++
++	for r := 0; r < k.bits(); r++ {
++		h := newHashSet()
++		for i := 0; i < 1<<BITS; i++ {
++			k.clear()
++			for j := 0; j < BITS; j++ {
++				if i>>uint(j)&1 != 0 {
++					k.flipBit((j + r) % k.bits())
++				}
++			}
++			h.add(k.hash())
++		}
++		h.check(t)
++	}
++}
++
++// All keys of the form prefix + [A-Za-z0-9]*N + suffix.
++func TestSmhasherText(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
++	text(t, "Foo", "Bar")
++	text(t, "FooBar", "")
++	text(t, "", "FooBar")
++}
++func text(t *testing.T, prefix, suffix string) {
++	const N = 4
++	const S = "ABCDEFGHIJKLMNOPQRSTabcdefghijklmnopqrst0123456789"
++	const L = len(S)
++	b := make([]byte, len(prefix)+N+len(suffix))
++	copy(b, prefix)
++	copy(b[len(prefix)+N:], suffix)
++	h := newHashSet()
++	c := b[len(prefix):]
++	for i := 0; i < L; i++ {
++		c[0] = S[i]
++		for j := 0; j < L; j++ {
++			c[1] = S[j]
++			for k := 0; k < L; k++ {
++				c[2] = S[k]
++				for x := 0; x < L; x++ {
++					c[3] = S[x]
++					h.addB(b)
++				}
++			}
++		}
++	}
++	h.check(t)
++}
++
++// Make sure different seed values generate different hashes.
++func TestSmhasherSeed(t *testing.T) {
++	h := newHashSet()
++	const N = 100000
++	s := "hello"
++	for i := 0; i < N; i++ {
++		h.addS_seed(s, uint64(i))
++		h.addS_seed(s, uint64(i)<<32) // make sure high bits are used
++	}
++	h.check(t)
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index fb862459c8..6b5772226e 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -84,16 +84,18 @@ var pkgDeps = map[string][]string{
+ 	},
+ 
+ 	// L2 adds Unicode and strings processing.
+-	"bufio":   {"L0", "unicode/utf8", "bytes"},
+-	"bytes":   {"L0", "unicode", "unicode/utf8"},
+-	"path":    {"L0", "unicode/utf8", "strings"},
+-	"strings": {"L0", "unicode", "unicode/utf8"},
+-	"unicode": {},
++	"bufio":      {"L0", "unicode/utf8", "bytes"},
++	"bytes":      {"L0", "unicode", "unicode/utf8"},
++	"bytes/hash": {"L0"},
++	"path":       {"L0", "unicode/utf8", "strings"},
++	"strings":    {"L0", "unicode", "unicode/utf8"},
++	"unicode":    {},
+ 
+ 	"L2": {
+ 		"L1",
+ 		"bufio",
+ 		"bytes",
++		"bytes/hash",
+ 		"path",
+ 		"strings",
+ 		"unicode",
+@@ -242,51 +244,51 @@ var pkgDeps = map[string][]string{
+ 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+ 
+ 	// One of a kind.
+-	"archive/tar":                    {"L4", "OS", "syscall", "os/user"},
+-	"archive/zip":                    {"L4", "OS", "compress/flate"},
+-	"container/heap":                 {"sort"},
+-	"compress/bzip2":                 {"L4"},
+-	"compress/flate":                 {"L4"},
+-	"compress/gzip":                  {"L4", "compress/flate"},
+-	"compress/lzw":                   {"L4"},
+-	"compress/zlib":                  {"L4", "compress/flate"},
+-	"context":                        {"errors", "internal/reflectlite", "sync", "time"},
+-	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
+-	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
+-	"debug/dwarf":                    {"L4"},
+-	"debug/elf":                      {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/gosym":                    {"L4"},
+-	"debug/macho":                    {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/pe":                       {"L4", "OS", "debug/dwarf", "compress/zlib"},
+-	"debug/plan9obj":                 {"L4", "OS"},
+-	"encoding":                       {"L4"},
+-	"encoding/ascii85":               {"L4"},
+-	"encoding/asn1":                  {"L4", "math/big"},
+-	"encoding/csv":                   {"L4"},
+-	"encoding/gob":                   {"L4", "OS", "encoding"},
+-	"encoding/hex":                   {"L4"},
+-	"encoding/json":                  {"L4", "encoding"},
+-	"encoding/pem":                   {"L4"},
+-	"encoding/xml":                   {"L4", "encoding"},
+-	"flag":                           {"L4", "OS"},
+-	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion"},
+-	"html":                           {"L4"},
+-	"image/draw":                     {"L4", "image/internal/imageutil"},
+-	"image/gif":                      {"L4", "compress/lzw", "image/color/palette", "image/draw"},
+-	"image/internal/imageutil":       {"L4"},
+-	"image/jpeg":                     {"L4", "image/internal/imageutil"},
+-	"image/png":                      {"L4", "compress/zlib"},
+-	"index/suffixarray":              {"L4", "regexp"},
+-	"internal/goroot":                {"L4", "OS"},
+-	"internal/singleflight":          {"sync"},
+-	"internal/trace":                 {"L4", "OS", "container/heap"},
+-	"internal/xcoff":                 {"L4", "OS", "debug/dwarf"},
+-	"math/big":                       {"L4"},
+-	"mime":                           {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+-	"mime/quotedprintable":           {"L4"},
+-	"net/internal/socktest":          {"L4", "OS", "syscall", "internal/syscall/windows"},
+-	"net/url":                        {"L4"},
+-	"plugin":                         {"L0", "OS", "CGO"},
++	"archive/tar":              {"L4", "OS", "syscall", "os/user"},
++	"archive/zip":              {"L4", "OS", "compress/flate"},
++	"container/heap":           {"sort"},
++	"compress/bzip2":           {"L4"},
++	"compress/flate":           {"L4"},
++	"compress/gzip":            {"L4", "compress/flate"},
++	"compress/lzw":             {"L4"},
++	"compress/zlib":            {"L4", "compress/flate"},
++	"context":                  {"errors", "internal/reflectlite", "sync", "time"},
++	"database/sql":             {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
++	"database/sql/driver":      {"L4", "context", "time", "database/sql/internal"},
++	"debug/dwarf":              {"L4"},
++	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/gosym":              {"L4"},
++	"debug/macho":              {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/pe":                 {"L4", "OS", "debug/dwarf", "compress/zlib"},
++	"debug/plan9obj":           {"L4", "OS"},
++	"encoding":                 {"L4"},
++	"encoding/ascii85":         {"L4"},
++	"encoding/asn1":            {"L4", "math/big"},
++	"encoding/csv":             {"L4"},
++	"encoding/gob":             {"L4", "OS", "encoding"},
++	"encoding/hex":             {"L4"},
++	"encoding/json":            {"L4", "encoding"},
++	"encoding/pem":             {"L4"},
++	"encoding/xml":             {"L4", "encoding"},
++	"flag":                     {"L4", "OS"},
++	"go/build":                 {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion"},
++	"html":                     {"L4"},
++	"image/draw":               {"L4", "image/internal/imageutil"},
++	"image/gif":                {"L4", "compress/lzw", "image/color/palette", "image/draw"},
++	"image/internal/imageutil": {"L4"},
++	"image/jpeg":               {"L4", "image/internal/imageutil"},
++	"image/png":                {"L4", "compress/zlib"},
++	"index/suffixarray":        {"L4", "regexp"},
++	"internal/goroot":          {"L4", "OS"},
++	"internal/singleflight":    {"sync"},
++	"internal/trace":           {"L4", "OS", "container/heap"},
++	"internal/xcoff":           {"L4", "OS", "debug/dwarf"},
++	"math/big":                 {"L4"},
++	"mime":                     {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
++	"mime/quotedprintable":     {"L4"},
++	"net/internal/socktest":    {"L4", "OS", "syscall", "internal/syscall/windows"},
++	"net/url":                  {"L4"},
++	"plugin":                   {"L0", "OS", "CGO"},
+ 	"runtime/pprof/internal/profile": {"L4", "OS", "compress/gzip", "regexp"},
+ 	"testing/internal/testdeps":      {"L4", "internal/testlog", "runtime/pprof", "regexp"},
+ 	"text/scanner":                   {"L4", "OS"},

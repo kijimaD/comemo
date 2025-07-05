@@ -11,7 +11,7 @@ Date:   Thu May 24 17:20:07 2012 -0400
     R=ken, dave, iant
     CC=golang-dev
     https://golang.org/cl/6209077
-
+---
  src/cmd/5g/cgen.c   |   8 +-
  src/cmd/5g/cgen64.c |  42 ++++++++
  src/cmd/5g/gg.h     |   2 +-
@@ -34,3 +34,1614 @@ Date:   Thu May 24 17:20:07 2012 -0400
  test/bounds.go      | 277 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  test/rotate.go      | 141 ++++++++++++++++++++++++++
  21 files changed, 925 insertions(+), 117 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index cccef94c94..e0e635bd26 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -156,6 +156,7 @@ cgen(Node *n, Node *res)
+ 		case OADD:
+ 		case OSUB:
+ 		case OMUL:
++		case OLROT:
+ 		case OLSH:
+ 		case ORSH:
+ 		case OAND:
+@@ -241,9 +242,10 @@ cgen(Node *n, Node *res)
+ 		a = optoas(n->op, nl->type);
+ 		goto abop;
+ 
++	case OLROT:
+ 	case OLSH:
+ 	case ORSH:
+-		cgen_shift(n->op, nl, nr, res);
++		cgen_shift(n->op, n->bounded, nl, nr, res);
+ 		break;
+ 
+ 	case OCONV:
+@@ -620,7 +622,7 @@ agen(Node *n, Node *res)
+ 				fatal("constant string constant index");
+ 			v = mpgetfix(nr->val.u.xval);
+ 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
+-				if(!debug['B'] && !n->etype) {
++				if(!debug['B'] && !n->bounded) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+ 					n1.type = types[tptr];
+@@ -660,7 +662,7 @@ agen(Node *n, Node *res)
+ 		gmove(&n1, &n2);
+ 		regfree(&n1);
+ 
+-		if(!debug['B'] && !n->etype) {
++		if(!debug['B'] && !n->bounded) {
+ 			// check bounds
+ 			regalloc(&n4, types[TUINT32], N);
+ 			if(isconst(nl, CTSTR)) {
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index 1235d1acef..2bd5b0f903 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -94,6 +94,7 @@ cgen64(Node *n, Node *res)
+ 	case OAND:
+ 	case OOR:
+ 	case OXOR:
++	case OLROT:
+ 		// binary operators.
+ 		// common setup below.
+ 		break;
+@@ -197,6 +198,47 @@ cgen64(Node *n, Node *res)
+ 
+ 		break;
+ 
++	case OLROT:
++		// We only rotate by a constant c in [0,64).
++		// if c >= 32:
++		//	lo, hi = hi, lo
++		//	c -= 32
++		// if c == 0:
++		//	no-op
++		// else:
++		//	t = hi
++		//	shld hi:lo, c
++		//	shld lo:t, c
++		v = mpgetfix(r->val.u.xval);
++		regalloc(&bl, lo1.type, N);
++		regalloc(&bh, hi1.type, N);
++		if(v >= 32) {
++			// reverse during load to do the first 32 bits of rotate
++			v -= 32;
++			gins(AMOVW, &hi1, &bl);
++			gins(AMOVW, &lo1, &bh);
++		} else {
++			gins(AMOVW, &hi1, &bh);
++			gins(AMOVW, &lo1, &bl);
++		}
++		if(v == 0) {
++			gins(AMOVW, &bh, &ah);
++			gins(AMOVW, &bl, &al);
++		} else {
++			// rotate by 1 <= v <= 31
++			//	MOVW	bl<<v, al
++			//	MOVW	bh<<v, ah
++			//	OR		bl>>(32-v), ah
++			//	OR		bh>>(32-v), al
++			gshift(AMOVW, &bl, SHIFT_LL, v, &al);
++			gshift(AMOVW, &bh, SHIFT_LL, v, &ah);
++			gshift(AORR, &bl, SHIFT_LR, 32-v, &ah);
++			gshift(AORR, &bh, SHIFT_LR, 32-v, &al);
++		}
++		regfree(&bl);
++		regfree(&bh);
++		break;
++
+ 	case OLSH:
+ 		regalloc(&bl, lo1.type, N);
+ 		regalloc(&bh, hi1.type, N);
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 7dbf3beecd..4c057caec3 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -104,7 +104,7 @@ Prog*	gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs);
+ Prog *	gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs);
+ void	naddr(Node*, Addr*, int);
+ void	cgen_aret(Node*, Node*);
+-void	cgen_shift(int, Node*, Node*, Node*);
++void	cgen_shift(int, int, Node*, Node*, Node*);
+ 
+ /*
+  * cgen64.c
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index de100620be..5ba4e61662 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -469,10 +469,10 @@ samereg(Node *a, Node *b)
+  *	res = nl >> nr
+  */
+ void
+-cgen_shift(int op, Node *nl, Node *nr, Node *res)
++cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ {
+ 	Node n1, n2, n3, nt, t, lo, hi;
+-	int w;
++	int w, v;
+ 	Prog *p1, *p2, *p3;
+ 	Type *tr;
+ 	uvlong sc;
+@@ -482,6 +482,24 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 
+ 	w = nl->type->width * 8;
+ 
++	if(op == OLROT) {
++		v = mpgetfix(nr->val.u.xval);
++		regalloc(&n1, nl->type, res);
++		if(w == 32) {
++			cgen(nl, &n1);
++			gshift(AMOVW, &n1, SHIFT_RR, w-v, &n1);
++		} else {
++			regalloc(&n2, nl->type, N);
++			cgen(nl, &n2);
++			gshift(AMOVW, &n2, SHIFT_LL, v, &n1);
++			gshift(AORR, &n2, SHIFT_LR, w-v, &n1);
++			regfree(&n2);
++		}
++		gmove(&n1, res);
++		regfree(&n1);
++		return;
++	}
++
+ 	if(nr->op == OLITERAL) {
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+@@ -549,6 +567,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	p3 = gbranch(ABEQ, T);
+ 
+ 	// test and fix up large shifts
++	// TODO: if(!bounded), don't emit some of this.
+ 	regalloc(&n3, tr, N);
+ 	nodconst(&t, types[TUINT32], w);
+ 	gmove(&t, &n3);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 9acf93670f..d559306296 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -2032,7 +2032,7 @@ oindex_const:
+ 	v = mpgetfix(r->val.u.xval);
+ 	if(o & ODynam) {
+ 
+-		if(!debug['B'] && !n->etype) {
++		if(!debug['B'] && !n->bounded) {
+ 			n1 = *reg;
+ 			n1.op = OINDREG;
+ 			n1.type = types[tptr];
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 00334e71b1..465fc88f23 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -240,6 +240,25 @@ cgen(Node *n, Node *res)
+ 		goto abop;
+ 
+ 	case OCONV:
++		if(n->type->width > nl->type->width) {
++			// If loading from memory, do conversion during load,
++			// so as to avoid use of 8-bit register in, say, int(*byteptr).
++			switch(nl->op) {
++			case ODOT:
++			case ODOTPTR:
++			case OINDEX:
++			case OIND:
++			case ONAME:
++				igen(nl, &n1, res);
++				regalloc(&n2, n->type, res);
++				gmove(&n1, &n2);
++				gmove(&n2, res);
++				regfree(&n2);
++				regfree(&n1);
++				goto ret;
++			}
++		}
++
+ 		regalloc(&n1, nl->type, res);
+ 		regalloc(&n2, n->type, &n1);
+ 		cgen(nl, &n1);
+@@ -370,13 +389,14 @@ cgen(Node *n, Node *res)
+ 
+ 	case OLSH:
+ 	case ORSH:
+-		cgen_shift(n->op, nl, nr, res);
++	case OLROT:
++		cgen_shift(n->op, n->bounded, nl, nr, res);
+ 		break;
+ 	}
+ 	goto ret;
+ 
+ sbop:	// symmetric binary
+-	if(nl->ullman < nr->ullman) {
++	if(nl->ullman < nr->ullman || nl->op == OLITERAL) {
+ 		r = nl;
+ 		nl = nr;
+ 		nr = r;
+@@ -386,7 +406,13 @@ abop:	// asymmetric binary
+ 	if(nl->ullman >= nr->ullman) {
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+-
++	/*
++	 * This generates smaller code - it avoids a MOV - but it's
++	 * easily 10% slower due to not being able to
++	 * optimize/manipulate the move.
++	 * To see, run: go test -bench . crypto/md5
++	 * with and without.
++	 *
+ 		if(sudoaddable(a, nr, &addr)) {
+ 			p1 = gins(a, N, &n1);
+ 			p1->from = addr;
+@@ -395,18 +421,30 @@ abop:	// asymmetric binary
+ 			regfree(&n1);
+ 			goto ret;
+ 		}
+-		regalloc(&n2, nr->type, N);
+-		cgen(nr, &n2);
++	 *
++	 */
++
++		if(smallintconst(nr))
++			n2 = *nr;
++		else {
++			regalloc(&n2, nr->type, N);
++			cgen(nr, &n2);
++		}
+ 	} else {
+-		regalloc(&n2, nr->type, res);
+-		cgen(nr, &n2);
++		if(smallintconst(nr))
++			n2 = *nr;
++		else {
++			regalloc(&n2, nr->type, res);
++			cgen(nr, &n2);
++		}
+ 		regalloc(&n1, nl->type, N);
+ 		cgen(nl, &n1);
+ 	}
+ 	gins(a, &n2, &n1);
+ 	gmove(&n1, res);
+ 	regfree(&n1);
+-	regfree(&n2);
++	if(n2.op != OLITERAL)
++		regfree(&n2);
+ 	goto ret;
+ 
+ uop:	// unary
+@@ -529,7 +567,7 @@ agen(Node *n, Node *res)
+ 				fatal("constant string constant index");	// front end should handle
+ 			v = mpgetfix(nr->val.u.xval);
+ 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
+-				if(!debug['B'] && !n->etype) {
++				if(!debug['B'] && !n->bounded) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+ 					n1.type = types[tptr];
+@@ -564,7 +602,7 @@ agen(Node *n, Node *res)
+ 		gmove(&n1, &n2);
+ 		regfree(&n1);
+ 
+-		if(!debug['B'] && !n->etype) {
++		if(!debug['B'] && !n->bounded) {
+ 			// check bounds
+ 			n5.op = OXXX;
+ 			t = types[TUINT32];
+@@ -692,6 +730,7 @@ igen(Node *n, Node *a, Node *res)
+ {
+ 	Type *fp;
+ 	Iter flist;
++	Node n1, n2;
+  
+ 	switch(n->op) {
+ 	case ONAME:
+@@ -710,8 +749,29 @@ igen(Node *n, Node *a, Node *res)
+ 		a->xoffset = fp->width;
+ 		a->type = n->type;
+ 		return;
++	
++	case OINDEX:
++		// Index of fixed-size array by constant can
++		// put the offset in the addressing.
++		// Could do the same for slice except that we need
++		// to use the real index for the bounds checking.
++		if(isfixedarray(n->left->type) ||
++		   (isptr[n->left->type->etype] && isfixedarray(n->left->left->type)))
++		if(isconst(n->right, CTINT)) {
++			nodconst(&n1, types[TINT64], 0);
++			n2 = *n;
++			n2.right = &n1;
++
++			regalloc(a, types[tptr], res);
++			agen(&n2, a);
++			a->op = OINDREG;
++			a->xoffset = mpgetfix(n->right->val.u.xval)*n->type->width;
++			a->type = n->type;
++			return;
++		}
++			
+ 	}
+- 
++
+ 	regalloc(a, types[tptr], res);
+ 	agen(n, a);
+ 	a->op = OINDREG;
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 47a540082b..265230da37 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -71,7 +71,7 @@ void	cgen_proc(Node*, int);
+ void	cgen_callret(Node*, Node*);
+ void	cgen_div(int, Node*, Node*, Node*);
+ void	cgen_bmul(int, Node*, Node*, Node*);
+-void	cgen_shift(int, Node*, Node*, Node*);
++void	cgen_shift(int, int, Node*, Node*, Node*);
+ void	cgen_dcl(Node*);
+ int	needconvert(Type*, Type*);
+ void	genconv(Type*, Type*);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 434ee32e35..b861569456 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -865,7 +865,7 @@ longmod:
+  *	res = nl >> nr
+  */
+ void
+-cgen_shift(int op, Node *nl, Node *nr, Node *res)
++cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ {
+ 	Node n1, n2, n3, n4, n5, cx, oldcx;
+ 	int a, rcx;
+@@ -880,7 +880,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 		cgen(nl, &n1);
+ 		sc = mpgetfix(nr->val.u.xval);
+ 		if(sc >= nl->type->width*8) {
+-			// large shift gets 2 shifts by width
++			// large shift gets 2 shifts by width-1
+ 			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
+ 			gins(a, &n3, &n1);
+ 			gins(a, &n3, &n1);
+@@ -939,17 +939,20 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	regfree(&n3);
+ 
+ 	// test and fix up large shifts
+-	nodconst(&n3, tcount, nl->type->width*8);
+-	gins(optoas(OCMP, tcount), &n1, &n3);
+-	p1 = gbranch(optoas(OLT, tcount), T);
+-	if(op == ORSH && issigned[nl->type->etype]) {
+-		nodconst(&n3, types[TUINT32], nl->type->width*8-1);
+-		gins(a, &n3, &n2);
+-	} else {
+-		nodconst(&n3, nl->type, 0);
+-		gmove(&n3, &n2);
++	if(!bounded) {
++		nodconst(&n3, tcount, nl->type->width*8);
++		gins(optoas(OCMP, tcount), &n1, &n3);
++		p1 = gbranch(optoas(OLT, tcount), T);
++		if(op == ORSH && issigned[nl->type->etype]) {
++			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
++			gins(a, &n3, &n2);
++		} else {
++			nodconst(&n3, nl->type, 0);
++			gmove(&n3, &n2);
++		}
++		patch(p1, pc);
+ 	}
+-	patch(p1, pc);
++
+ 	gins(a, &n1, &n2);
+ 
+ 	if(oldcx.op != 0) {
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index fb312126b7..142bbe8671 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -616,7 +616,7 @@ gmove(Node *f, Node *t)
+ 	Prog *p1, *p2;
+ 
+ 	if(debug['M'])
+-		print("gmove %N -> %N\n", f, t);
++		print("gmove %lN -> %lN\n", f, t);
+ 
+ 	ft = simsimtype(f->type);
+ 	tt = simsimtype(t->type);
+@@ -1050,7 +1050,9 @@ gins(int as, Node *f, Node *t)
+ 		w = 8;
+ 		break;
+ 	}
+-	if(w != 0 && f != N && (af.width > w || at.width > w)) {
++	if(w != 0 && ((f != N && af.width < w) || (t != N && at.width > w))) {
++		dump("f", f);
++		dump("t", t);
+ 		fatal("bad width: %P (%d, %d)\n", p, af.width, at.width);
+ 	}
+ 
+@@ -1087,9 +1089,15 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	a->type = D_NONE;
+ 	a->gotype = S;
+ 	a->node = N;
++	a->width = 0;
+ 	if(n == N)
+ 		return;
+ 
++	if(n->type != T && n->type->etype != TIDEAL) {
++		dowidth(n->type);
++		a->width = n->type->width;
++	}
++
+ 	switch(n->op) {
+ 	default:
+ 		fatal("naddr: bad %O %D", n->op, a);
+@@ -1140,10 +1148,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 
+ 	case ONAME:
+ 		a->etype = 0;
+-		a->width = 0;
+ 		if(n->type != T) {
+ 			a->etype = simtype[n->type->etype];
+-			a->width = n->type->width;
+ 			a->gotype = ngotype(n);
+ 		}
+ 		a->offset = n->xoffset;
+@@ -1176,6 +1182,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		case PFUNC:
+ 			a->index = D_EXTERN;
+ 			a->type = D_ADDR;
++			a->width = widthptr;
+ 			break;
+ 		}
+ 		break;
+@@ -1213,6 +1220,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 
+ 	case OADDR:
+ 		naddr(n->left, a, canemitcode);
++		a->width = widthptr;
+ 		if(a->type >= D_INDIR) {
+ 			a->type -= D_INDIR;
+ 			break;
+@@ -1648,6 +1656,28 @@ optoas(int op, Type *t)
+ 		a = AXORQ;
+ 		break;
+ 
++	case CASE(OLROT, TINT8):
++	case CASE(OLROT, TUINT8):
++		a = AROLB;
++		break;
++
++	case CASE(OLROT, TINT16):
++	case CASE(OLROT, TUINT16):
++		a = AROLW;
++		break;
++
++	case CASE(OLROT, TINT32):
++	case CASE(OLROT, TUINT32):
++	case CASE(OLROT, TPTR32):
++		a = AROLL;
++		break;
++
++	case CASE(OLROT, TINT64):
++	case CASE(OLROT, TUINT64):
++	case CASE(OLROT, TPTR64):
++		a = AROLQ;
++		break;
++
+ 	case CASE(OLSH, TINT8):
+ 	case CASE(OLSH, TUINT8):
+ 		a = ASHLB;
+@@ -2056,7 +2086,7 @@ oindex:
+ 	}
+ 
+ 	// check bounds
+-	if(!debug['B'] && !n->etype) {
++	if(!debug['B'] && !n->bounded) {
+ 		// check bounds
+ 		n4.op = OXXX;
+ 		t = types[TUINT32];
+@@ -2143,11 +2173,11 @@ oindex_const:
+ 	reg->op = OEMPTY;
+ 	reg1->op = OEMPTY;
+ 
+-	regalloc(reg, types[tptr], N);
+-	agen(l, reg);
+-
+ 	if(o & ODynam) {
+-		if(!debug['B'] && !n->etype) {
++		regalloc(reg, types[tptr], N);
++		agen(l, reg);
++	
++		if(!debug['B'] && !n->bounded) {
+ 			n1 = *reg;
+ 			n1.op = OINDREG;
+ 			n1.type = types[tptr];
+@@ -2165,14 +2195,24 @@ oindex_const:
+ 		n1.xoffset = Array_array;
+ 		gmove(&n1, reg);
+ 
++		n2 = *reg;
++		n2.op = OINDREG;
++		n2.xoffset = v*w;
++		a->type = D_NONE;
++		a->index = D_NONE;
++		naddr(&n2, a, 1);
++		goto yes;
+ 	}
+-
+-	n2 = *reg;
+-	n2.op = OINDREG;
+-	n2.xoffset = v*w;
++	
++	igen(l, &n1, N);
++	if(n1.op == OINDREG) {
++		*reg = n1;
++		reg->op = OREGISTER;
++	}
++	n1.xoffset += v*w;
+ 	a->type = D_NONE;
+-	a->index = D_NONE;
+-	naddr(&n2, a, 1);
++	a->index= D_NONE;
++	naddr(&n1, a, 1);
+ 	goto yes;
+ 
+ oindex_const_sudo:
+@@ -2183,7 +2223,7 @@ oindex_const_sudo:
+ 	}
+ 
+ 	// slice indexed by a constant
+-	if(!debug['B'] && !n->etype) {
++	if(!debug['B'] && !n->bounded) {
+ 		a->offset += Array_nel;
+ 		nodconst(&n2, types[TUINT64], v);
+ 		p1 = gins(optoas(OCMP, types[TUINT32]), N, &n2);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 48619ac732..541a9bfacf 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -160,6 +160,7 @@ cgen(Node *n, Node *res)
+ 		case OADD:
+ 		case OSUB:
+ 		case OMUL:
++		case OLROT:
+ 		case OLSH:
+ 		case ORSH:
+ 		case OAND:
+@@ -360,20 +361,27 @@ cgen(Node *n, Node *res)
+ 
+ 	case OLSH:
+ 	case ORSH:
+-		cgen_shift(n->op, nl, nr, res);
++	case OLROT:
++		cgen_shift(n->op, n->bounded, nl, nr, res);
+ 		break;
+ 	}
+ 	return;
+ 
+ sbop:	// symmetric binary
+-	if(nl->ullman < nr->ullman) {
++	if(nl->ullman < nr->ullman || nl->op == OLITERAL) {
+ 		r = nl;
+ 		nl = nr;
+ 		nr = r;
+ 	}
+ 
+ abop:	// asymmetric binary
+-	if(nl->ullman >= nr->ullman) {
++	if(smallintconst(nr)) {
++		regalloc(&n1, nr->type, res);
++		cgen(nl, &n1);
++		gins(a, nr, &n1);
++		gmove(&n1, res);
++		regfree(&n1);
++	} else if(nl->ullman >= nr->ullman) {
+ 		tempname(&nt, nl->type);
+ 		cgen(nl, &nt);
+ 		mgen(nr, &n2, N);
+@@ -580,7 +588,7 @@ agen(Node *n, Node *res)
+ 				fatal("constant string constant index");
+ 			v = mpgetfix(nr->val.u.xval);
+ 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
+-				if(!debug['B'] && !n->etype) {
++				if(!debug['B'] && !n->bounded) {
+ 					n1 = n3;
+ 					n1.op = OINDREG;
+ 					n1.type = types[tptr];
+@@ -612,7 +620,7 @@ agen(Node *n, Node *res)
+ 		gmove(&n1, &n2);
+ 		regfree(&n1);
+ 
+-		if(!debug['B'] && !n->etype) {
++		if(!debug['B'] && !n->bounded) {
+ 			// check bounds
+ 			if(isconst(nl, CTSTR))
+ 				nodconst(&n1, types[TUINT32], nl->val.u.sval->len);
+diff --git a/src/cmd/8g/cgen64.c b/src/cmd/8g/cgen64.c
+index 8e568a0f91..3a7de8ab6f 100644
+--- a/src/cmd/8g/cgen64.c
++++ b/src/cmd/8g/cgen64.c
+@@ -49,6 +49,7 @@ cgen64(Node *n, Node *res)
+ 	case OADD:
+ 	case OSUB:
+ 	case OMUL:
++	case OLROT:
+ 	case OLSH:
+ 	case ORSH:
+ 	case OAND:
+@@ -131,6 +132,40 @@ cgen64(Node *n, Node *res)
+ 		regfree(&ex);
+ 		regfree(&fx);
+ 		break;
++	
++	case OLROT:
++		// We only rotate by a constant c in [0,64).
++		// if c >= 32:
++		//	lo, hi = hi, lo
++		//	c -= 32
++		// if c == 0:
++		//	no-op
++		// else:
++		//	t = hi
++		//	shld hi:lo, c
++		//	shld lo:t, c
++		v = mpgetfix(r->val.u.xval);
++		if(v >= 32) {
++			// reverse during load to do the first 32 bits of rotate
++			v -= 32;
++			gins(AMOVL, &lo1, &dx);
++			gins(AMOVL, &hi1, &ax);
++		} else {
++			gins(AMOVL, &lo1, &ax);
++			gins(AMOVL, &hi1, &dx);
++		}
++		if(v == 0) {
++			// done
++		} else {
++			gins(AMOVL, &dx, &cx);
++			p1 = gins(ASHLL, ncon(v), &dx);
++			p1->from.index = D_AX;	// double-width shift
++			p1->from.scale = 0;
++			p1 = gins(ASHLL, ncon(v), &ax);
++			p1->from.index = D_CX;	// double-width shift
++			p1->from.scale = 0;
++		}
++		break;
+ 
+ 	case OLSH:
+ 		if(r->op == OLITERAL) {
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 0a4f0ad2d0..27963f35cc 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -83,7 +83,7 @@ void	cgen_proc(Node*, int);
+ void	cgen_callret(Node*, Node*);
+ void	cgen_div(int, Node*, Node*, Node*);
+ void	cgen_bmul(int, Node*, Node*, Node*);
+-void	cgen_shift(int, Node*, Node*, Node*);
++void	cgen_shift(int, int, Node*, Node*, Node*);
+ void	cgen_dcl(Node*);
+ int	needconvert(Type*, Type*);
+ void	genconv(Type*, Type*);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 6a45701990..4ccf6a0ab8 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -630,7 +630,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+  *	res = nl >> nr
+  */
+ void
+-cgen_shift(int op, Node *nl, Node *nr, Node *res)
++cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ {
+ 	Node n1, n2, nt, cx, oldcx, hi, lo;
+ 	int a, w;
+@@ -651,7 +651,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 		gmove(&n2, &n1);
+ 		sc = mpgetfix(nr->val.u.xval);
+ 		if(sc >= nl->type->width*8) {
+-			// large shift gets 2 shifts by width
++			// large shift gets 2 shifts by width-1
+ 			gins(a, ncon(w-1), &n1);
+ 			gins(a, ncon(w-1), &n1);
+ 		} else
+@@ -689,27 +689,37 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	}
+ 
+ 	// test and fix up large shifts
+-	if(nr->type->width > 4) {
+-		// delayed reg alloc
+-		nodreg(&n1, types[TUINT32], D_CX);
+-		regalloc(&n1, types[TUINT32], &n1);		// to hold the shift type in CX
+-		split64(&nt, &lo, &hi);
+-		gmove(&lo, &n1);
+-		gins(optoas(OCMP, types[TUINT32]), &hi, ncon(0));
+-		p2 = gbranch(optoas(ONE, types[TUINT32]), T);
+-		gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
+-		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-		patch(p2, pc);
+-	} else {
+-		gins(optoas(OCMP, nr->type), &n1, ncon(w));
+-		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+-	}
+-	if(op == ORSH && issigned[nl->type->etype]) {
+-		gins(a, ncon(w-1), &n2);
++	if(bounded) {
++		if(nr->type->width > 4) {
++			// delayed reg alloc
++			nodreg(&n1, types[TUINT32], D_CX);
++			regalloc(&n1, types[TUINT32], &n1);		// to hold the shift type in CX
++			split64(&nt, &lo, &hi);
++			gmove(&lo, &n1);
++		}
+ 	} else {
+-		gmove(ncon(0), &n2);
++		if(nr->type->width > 4) {
++			// delayed reg alloc
++			nodreg(&n1, types[TUINT32], D_CX);
++			regalloc(&n1, types[TUINT32], &n1);		// to hold the shift type in CX
++			split64(&nt, &lo, &hi);
++			gmove(&lo, &n1);
++			gins(optoas(OCMP, types[TUINT32]), &hi, ncon(0));
++			p2 = gbranch(optoas(ONE, types[TUINT32]), T);
++			gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
++			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
++			patch(p2, pc);
++		} else {
++			gins(optoas(OCMP, nr->type), &n1, ncon(w));
++			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
++		}
++		if(op == ORSH && issigned[nl->type->etype]) {
++			gins(a, ncon(w-1), &n2);
++		} else {
++			gmove(ncon(0), &n2);
++		}
++		patch(p1, pc);
+ 	}
+-	patch(p1, pc);
+ 	gins(a, &n1, &n2);
+ 
+ 	if(oldcx.op != 0)
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 5e89af04ab..47bd897a9b 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -572,6 +572,22 @@ optoas(int op, Type *t)
+ 		a = AXORL;
+ 		break;
+ 
++	case CASE(OLROT, TINT8):
++	case CASE(OLROT, TUINT8):
++		a = AROLB;
++		break;
++
++	case CASE(OLROT, TINT16):
++	case CASE(OLROT, TUINT16):
++		a = AROLW;
++		break;
++
++	case CASE(OLROT, TINT32):
++	case CASE(OLROT, TUINT32):
++	case CASE(OLROT, TPTR32):
++		a = AROLL;
++		break;
++
+ 	case CASE(OLSH, TINT8):
+ 	case CASE(OLSH, TUINT8):
+ 		a = ASHLB;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 8c4fff15a0..5b7b1eba3c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -234,6 +234,7 @@ struct	Node
+ 	uchar	addable;	// type of addressability - 0 is not addressable
+ 	uchar	trecur;		// to detect loops
+ 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
++	uchar	bounded;	// bounds check unnecessary
+ 	uchar	class;		// PPARAM, PAUTO, PEXTERN, etc
+ 	uchar	method;		// OCALLMETH name
+ 	uchar	embedded;	// ODCLFIELD embedded type
+@@ -488,6 +489,7 @@ enum
+ 
+ 	// for back ends
+ 	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
++	OLROT,
+ 
+ 	OEND,
+ };
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 9bcd833a70..8e9d1afc5b 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -145,7 +145,7 @@ walkrange(Node *n)
+ 		if(v2) {
+ 			hp = temp(ptrto(n->type->type));
+ 			tmp = nod(OINDEX, ha, nodintconst(0));
+-			tmp->etype = 1;	// no bounds check
++			tmp->bounded = 1;
+ 			init = list(init, nod(OAS, hp, nod(OADDR, tmp, N)));
+ 		}
+ 
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index c8796f8b76..335d9b2538 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -747,7 +747,7 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
+ 		index = r->left;
+ 		value = r->right;
+ 		a = nod(OINDEX, var, index);
+-		a->etype = 1;	// no bounds checking
++		a->bounded = 1;
+ 		// TODO need to check bounds?
+ 
+ 		switch(value->op) {
+@@ -879,11 +879,11 @@ ctxt = 0;
+ 		index = temp(types[TINT]);
+ 
+ 		a = nod(OINDEX, vstat, index);
+-		a->etype = 1;	// no bounds checking
++		a->bounded = 1;
+ 		a = nod(ODOT, a, newname(symb));
+ 
+ 		r = nod(OINDEX, vstat, index);
+-		r->etype = 1;	// no bounds checking
++		r->bounded = 1;
+ 		r = nod(ODOT, r, newname(syma));
+ 		r = nod(OINDEX, var, r);
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 9542b2e718..0fee277fc7 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2663,7 +2663,7 @@ genhash(Sym *sym, Type *t)
+ 		call->list = list(call->list, nh);
+ 		call->list = list(call->list, nodintconst(t->type->width));
+ 		nx = nod(OINDEX, np, ni);
+-		nx->etype = 1;  // no bounds check
++		nx->bounded = 1;
+ 		na = nod(OADDR, nx, N);
+ 		na->etype = 1;  // no escape to heap
+ 		call->list = list(call->list, na);
+@@ -2874,9 +2874,9 @@ geneq(Sym *sym, Type *t)
+ 		
+ 		// if p[i] != q[i] { *eq = false; return }
+ 		nx = nod(OINDEX, np, ni);
+-		nx->etype = 1;  // no bounds check
++		nx->bounded = 1;
+ 		ny = nod(OINDEX, nq, ni);
+-		ny->etype = 1;  // no bounds check
++		ny->bounded = 1;
+ 
+ 		nif = nod(OIF, N, N);
+ 		nif->ntest = nod(ONE, nx, ny);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a4edc90623..026db25edd 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -22,6 +22,9 @@ static	Node*	addstr(Node*, NodeList**);
+ static	Node*	appendslice(Node*, NodeList**);
+ static	Node*	append(Node*, NodeList**);
+ static	void	walkcompare(Node**, NodeList**);
++static	void	walkrotate(Node**);
++static	int	bounded(Node*, int64);
++static	Mpint	mpzero;
+ 
+ // can this code branch reach the end
+ // without an unconditional RETURN
+@@ -454,8 +457,16 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OLSH:
+ 	case ORSH:
++		walkexpr(&n->left, init);
++		walkexpr(&n->right, init);
++	shiftwalked:
++		t = n->left->type;
++		n->bounded = bounded(n->right, 8*t->width);
++		if(debug['m'] && n->etype && !isconst(n->right, CTINT))
++			warn("shift bounds check elided");
++		goto ret;
++
+ 	case OAND:
+-	case OOR:
+ 	case OXOR:
+ 	case OSUB:
+ 	case OMUL:
+@@ -465,10 +476,17 @@ walkexpr(Node **np, NodeList **init)
+ 	case OGT:
+ 	case OADD:
+ 	case OCOMPLEX:
++	case OLROT:
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
+ 		goto ret;
+ 
++	case OOR:
++		walkexpr(&n->left, init);
++		walkexpr(&n->right, init);
++		walkrotate(&n);
++		goto ret;
++
+ 	case OEQ:
+ 	case ONE:
+ 		walkexpr(&n->left, init);
+@@ -794,7 +812,10 @@ walkexpr(Node **np, NodeList **init)
+ 			typecheck(&r, Etop);
+ 			walkexpr(&r, init);
+ 			n = r;
++			goto ret;
+ 		}
++		if(n->etype == OLSH || n->etype == ORSH)
++			goto shiftwalked;
+ 		goto ret;
+ 
+ 	case OANDNOT:
+@@ -844,40 +865,40 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->right, init);
+ 
+ 		// if range of type cannot exceed static array bound,
+-		// disable bounds check
+-		if(isfixedarray(n->left->type))
+-		if(!issigned[n->right->type->etype])
+-		if(n->right->type->width < 4)
+-		if((1<<(8*n->right->type->width)) <= n->left->type->bound)
+-			n->etype = 1;
+-
+-		if(isconst(n->left, CTSTR))
+-		if(!issigned[n->right->type->etype])
+-		if(n->right->type->width < 4)
+-		if((1<<(8*n->right->type->width)) <= n->left->val.u.sval->len)
+-			n->etype = 1;
+-
+-		// check for static out of bounds
+-		if(isconst(n->right, CTINT) && !n->etype) {
+-			v = mpgetfix(n->right->val.u.xval);
+-			len = 1LL<<60;
+-			t = n->left->type;
+-			if(isconst(n->left, CTSTR))
+-				len = n->left->val.u.sval->len;
+-			if(t != T && isptr[t->etype])
+-				t = t->type;
+-			if(isfixedarray(t))
+-				len = t->bound;
+-			if(v < 0 || v >= (1LL<<31) || v >= len)
++		// disable bounds check.
++		if(n->bounded)
++			goto ret;
++		t = n->left->type;
++		if(t != T && isptr[t->etype])
++			t = t->type;
++		if(isfixedarray(t)) {
++			n->bounded = bounded(n->right, t->bound);
++			if(debug['m'] && n->bounded && !isconst(n->right, CTINT))
++				warn("index bounds check elided");
++			if(smallintconst(n->right) && !n->bounded)
+ 				yyerror("index out of bounds");
+-			else if(isconst(n->left, CTSTR)) {
+-				// replace "abc"[2] with 'b'.
+-				// delayed until now because "abc"[2] is not
+-				// an ideal constant.
+-				nodconst(n, n->type, n->left->val.u.sval->s[v]);
+-				n->typecheck = 1;
++		} else if(isconst(n->left, CTSTR)) {
++			n->bounded = bounded(n->right, n->left->val.u.sval->len);
++			if(debug['m'] && n->bounded && !isconst(n->right, CTINT))
++				warn("index bounds check elided");
++			if(smallintconst(n->right)) {
++				if(!n->bounded)
++					yyerror("index out of bounds");
++				else {
++					// replace "abc"[2] with 'b'.
++					// delayed until now because "abc"[2] is not
++					// an ideal constant.
++					v = mpgetfix(n->right->val.u.xval);
++					nodconst(n, n->type, n->left->val.u.sval->s[v]);
++					n->typecheck = 1;
++				}
+ 			}
+ 		}
++
++		if(isconst(n->right, CTINT))
++		if(mpcmpfixfix(n->right->val.u.xval, &mpzero) < 0 ||
++		   mpcmpfixfix(n->right->val.u.xval, maxintval[TINT]) > 0)
++			yyerror("index out of bounds");
+ 		goto ret;
+ 
+ 	case OINDEXMAP:
+@@ -938,7 +959,7 @@ walkexpr(Node **np, NodeList **init)
+ 		// sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
+ 		// sliceslice1(old []any, lb uint64, width uint64) (ary []any)
+ 		t = n->type;
+-		et = n->etype;
++		et = n->bounded;
+ 		if(n->right->left == N)
+ 			l = nodintconst(0);
+ 		else
+@@ -961,7 +982,7 @@ walkexpr(Node **np, NodeList **init)
+ 				l,
+ 				nodintconst(t->type->width));
+ 		}
+-		n->etype = et;	// preserve no-typecheck flag from OSLICE to the slice* call.
++		n->bounded = et;	// preserve flag from OSLICE to the slice* call.
+ 		goto ret;
+ 
+ 	slicearray:
+@@ -2395,12 +2416,12 @@ append(Node *n, NodeList **init)
+ 	l = list(l, nod(OAS, nn, nod(OLEN, ns, N)));	 // n = len(s)
+ 
+ 	nx = nod(OSLICE, ns, nod(OKEY, N, nod(OADD, nn, na)));	 // ...s[:n+argc]
+-	nx->etype = 1;	// disable bounds check
++	nx->bounded = 1;
+ 	l = list(l, nod(OAS, ns, nx));			// s = s[:n+argc]
+ 
+ 	for (a = n->list->next;	 a != nil; a = a->next) {
+ 		nx = nod(OINDEX, ns, nn);		// s[n] ...
+-		nx->etype = 1;	// disable bounds check
++		nx->bounded = 1;
+ 		l = list(l, nod(OAS, nx, a->n));	// s[n] = arg
+ 		if (a->next != nil)
+ 			l = list(l, nod(OAS, nn, nod(OADD, nn, nodintconst(1))));  // n = n + 1
+@@ -2596,3 +2617,135 @@ hard:
+ 	*np = r;
+ 	return;
+ }
++
++static int
++samecheap(Node *a, Node *b)
++{
++	if(a == N || b == N || a->op != b->op)
++		return 0;
++	
++	switch(a->op) {
++	case ONAME:
++		return a == b;
++	// TODO: Could do more here, but maybe this is enough.
++	// It's all cheapexpr does.
++	}
++	return 0;
++}
++
++static void
++walkrotate(Node **np)
++{
++	int w, sl, sr, s;
++	Node *l, *r;
++	Node *n;
++	
++	n = *np;
++
++	// Want << | >> or >> | << on unsigned value.
++	l = n->left;
++	r = n->right;
++	if(n->op != OOR ||
++	   (l->op != OLSH && l->op != ORSH) ||
++	   (r->op != OLSH && r->op != ORSH) ||
++	   n->type == T || issigned[n->type->etype] ||
++	   l->op == r->op) {
++		return;
++	}
++
++	// Want same, side effect-free expression on lhs of both shifts.
++	if(!samecheap(l->left, r->left))
++		return;
++	
++	// Constants adding to width?
++	w = l->type->width * 8;
++	if(smallintconst(l->right) && smallintconst(r->right)) {
++		if((sl=mpgetfix(l->right->val.u.xval)) >= 0 && (sr=mpgetfix(r->right->val.u.xval)) >= 0 && sl+sr == w)
++			goto yes;
++		return;
++	}
++	
++	// TODO: Could allow s and 32-s if s is bounded (maybe s&31 and 32-s&31).
++	return;
++	
++yes:
++	// Rewrite left shift half to left rotate.
++	if(l->op == OLSH)
++		n = l;
++	else
++		n = r;
++	n->op = OLROT;
++	
++	// Remove rotate 0 and rotate w.
++	s = mpgetfix(n->right->val.u.xval);
++	if(s == 0 || s == w)
++		n = n->left;
++
++	*np = n;
++	return;
++}
++
++// return 1 if integer n must be in range [0, max), 0 otherwise
++static int
++bounded(Node *n, int64 max)
++{
++	int64 v;
++	int32 bits;
++	int sign;
++
++	if(n->type == T || !isint[n->type->etype])
++		return 0;
++
++	sign = issigned[n->type->etype];
++	bits = 8*n->type->width;
++
++	if(smallintconst(n)) {
++		v = mpgetfix(n->val.u.xval);
++		return 0 <= v && v < max;
++	}
++
++	switch(n->op) {
++	case OAND:
++		v = -1;
++		if(smallintconst(n->left)) {
++			v = mpgetfix(n->left->val.u.xval);
++		} else if(smallintconst(n->right)) {
++			v = mpgetfix(n->right->val.u.xval);
++		}
++		if(0 <= v && v < max)
++			return 1;
++		break;
++
++	case OMOD:
++		if(!sign && smallintconst(n->right)) {
++			v = mpgetfix(n->right->val.u.xval);
++			if(0 <= v && v <= max)
++				return 1;
++		}
++		break;
++	
++	case ODIV:
++		if(!sign && smallintconst(n->right)) {
++			v = mpgetfix(n->right->val.u.xval);
++			while(bits > 0 && v >= 2) {
++				bits--;
++				v >>= 1;
++			}
++		}
++		break;
++	
++	case ORSH:
++		if(!sign && smallintconst(n->right)) {
++			v = mpgetfix(n->right->val.u.xval);
++			if(v > bits)
++				return 1;
++			bits -= v;
++		}
++		break;
++	}
++	
++	if(!sign && bits <= 62 && (1LL<<bits) <= max)
++		return 1;
++	
++	return 0;
++}
+diff --git a/test/bounds.go b/test/bounds.go
+new file mode 100644
+index 0000000000..7b2b528d6e
+--- /dev/null
++++ b/test/bounds.go
+@@ -0,0 +1,277 @@
++// errchk -0 $G -m -l $D/$F.go
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test, using compiler diagnostic flags, that bounds check elimination
++// is eliminating the correct checks.
++
++package foo
++
++var (
++	s []int
++
++	a1 [1]int
++	a1k [1000]int
++	a100k [100000]int
++
++	p1 *[1]int
++	p1k *[1000]int
++	p100k *[100000]int
++
++	i int
++	ui uint
++	i8 int8
++	ui8 uint8
++	i16 int16
++	ui16 uint16
++	i32 int32
++	ui32 uint32
++	i64 int64
++	ui64 uint64
++)
++
++func main() {
++	// Most things need checks.
++	use(s[i])
++	use(a1[i])
++	use(a1k[i])
++	use(a100k[i])
++	use(p1[i])
++	use(p1k[i])
++	use(p100k[i])
++
++	use(s[ui])
++	use(a1[ui])
++	use(a1k[ui])
++	use(a100k[ui])
++	use(p1[ui])
++	use(p1k[ui])
++	use(p100k[ui])
++
++	use(s[i8])
++	use(a1[i8])
++	use(a1k[i8])
++	use(a100k[i8])
++	use(p1[i8])
++	use(p1k[i8])
++	use(p100k[i8])
++
++	// Unsigned 8-bit numbers don't need checks for len >= 2⁸.
++	use(s[ui8])
++	use(a1[ui8])
++	use(a1k[ui8])  // ERROR "index bounds check elided"
++	use(a100k[ui8])  // ERROR "index bounds check elided"
++	use(p1[ui8])
++	use(p1k[ui8])  // ERROR "index bounds check elided"
++	use(p100k[ui8])  // ERROR "index bounds check elided"
++
++	use(s[i16])
++	use(a1[i16])
++	use(a1k[i16])
++	use(a100k[i16])
++	use(p1[i16])
++	use(p1k[i16])
++	use(p100k[i16])
++
++	// Unsigned 16-bit numbers don't need checks for len >= 2¹⁶.
++	use(s[ui16])
++	use(a1[ui16])
++	use(a1k[ui16])
++	use(a100k[ui16])  // ERROR "index bounds check elided"
++	use(p1[ui16])
++	use(p1k[ui16])
++	use(p100k[ui16])  // ERROR "index bounds check elided"
++
++	use(s[i32])
++	use(a1[i32])
++	use(a1k[i32])
++	use(a100k[i32])
++	use(p1[i32])
++	use(p1k[i32])
++	use(p100k[i32])
++
++	use(s[ui32])
++	use(a1[ui32])
++	use(a1k[ui32])
++	use(a100k[ui32])
++	use(p1[ui32])
++	use(p1k[ui32])
++	use(p100k[ui32])
++
++	use(s[i64])
++	use(a1[i64])
++	use(a1k[i64])
++	use(a100k[i64])
++	use(p1[i64])
++	use(p1k[i64])
++	use(p100k[i64])
++
++	use(s[ui64])
++	use(a1[ui64])
++	use(a1k[ui64])
++	use(a100k[ui64])
++	use(p1[ui64])
++	use(p1k[ui64])
++	use(p100k[ui64])
++
++	// Mod truncates the maximum value to one less than the argument,
++	// but signed mod can be negative, so only unsigned mod counts.
++	use(s[i%999])
++	use(a1[i%999])
++	use(a1k[i%999])
++	use(a100k[i%999])
++	use(p1[i%999])
++	use(p1k[i%999])
++	use(p100k[i%999])
++
++	use(s[ui%999])
++	use(a1[ui%999])
++	use(a1k[ui%999])  // ERROR "index bounds check elided"
++	use(a100k[ui%999])  // ERROR "index bounds check elided"
++	use(p1[ui%999])
++	use(p1k[ui%999])  // ERROR "index bounds check elided"
++	use(p100k[ui%999])  // ERROR "index bounds check elided"
++
++	use(s[i%1000])
++	use(a1[i%1000])
++	use(a1k[i%1000])
++	use(a100k[i%1000])
++	use(p1[i%1000])
++	use(p1k[i%1000])
++	use(p100k[i%1000])
++
++	use(s[ui%1000])
++	use(a1[ui%1000])
++	use(a1k[ui%1000])  // ERROR "index bounds check elided"
++	use(a100k[ui%1000])  // ERROR "index bounds check elided"
++	use(p1[ui%1000])
++	use(p1k[ui%1000])  // ERROR "index bounds check elided"
++	use(p100k[ui%1000])  // ERROR "index bounds check elided"
++
++	use(s[i%1001])
++	use(a1[i%1001])
++	use(a1k[i%1001])
++	use(a100k[i%1001])
++	use(p1[i%1001])
++	use(p1k[i%1001])
++	use(p100k[i%1001])
++
++	use(s[ui%1001])
++	use(a1[ui%1001])
++	use(a1k[ui%1001])
++	use(a100k[ui%1001])  // ERROR "index bounds check elided"
++	use(p1[ui%1001])
++	use(p1k[ui%1001])
++	use(p100k[ui%1001])  // ERROR "index bounds check elided"
++
++	// Bitwise and truncates the maximum value to the mask value.
++	// The result (for a positive mask) cannot be negative, so elision
++	// applies to both signed and unsigned indexes.
++	use(s[i&999])
++	use(a1[i&999])
++	use(a1k[i&999])  // ERROR "index bounds check elided"
++	use(a100k[i&999])  // ERROR "index bounds check elided"
++	use(p1[i&999])
++	use(p1k[i&999])  // ERROR "index bounds check elided"
++	use(p100k[i&999])  // ERROR "index bounds check elided"
++
++	use(s[ui&999])
++	use(a1[ui&999])
++	use(a1k[ui&999])  // ERROR "index bounds check elided"
++	use(a100k[ui&999])  // ERROR "index bounds check elided"
++	use(p1[ui&999])
++	use(p1k[ui&999])  // ERROR "index bounds check elided"
++	use(p100k[ui&999])  // ERROR "index bounds check elided"
++
++	use(s[i&1000])
++	use(a1[i&1000])
++	use(a1k[i&1000])
++	use(a100k[i&1000])  // ERROR "index bounds check elided"
++	use(p1[i&1000])
++	use(p1k[i&1000])
++	use(p100k[i&1000])  // ERROR "index bounds check elided"
++
++	use(s[ui&1000])
++	use(a1[ui&1000])
++	use(a1k[ui&1000])
++	use(a100k[ui&1000])  // ERROR "index bounds check elided"
++	use(p1[ui&1000])
++	use(p1k[ui&1000])
++	use(p100k[ui&1000])  // ERROR "index bounds check elided"
++
++	// Right shift cuts the effective number of bits in the index,
++	// but only for unsigned (signed stays negative).
++	use(s[i32>>22])
++	use(a1[i32>>22])
++	use(a1k[i32>>22])
++	use(a100k[i32>>22])
++	use(p1[i32>>22])
++	use(p1k[i32>>22])
++	use(p100k[i32>>22])
++
++	use(s[ui32>>22])
++	use(a1[ui32>>22])
++	use(a1k[ui32>>22])
++	use(a100k[ui32>>22])  // ERROR "index bounds check elided"
++	use(p1[ui32>>22])
++	use(p1k[ui32>>22])
++	use(p100k[ui32>>22])  // ERROR "index bounds check elided"
++
++	use(s[i32>>23])
++	use(a1[i32>>23])
++	use(a1k[i32>>23])
++	use(a100k[i32>>23])
++	use(p1[i32>>23])
++	use(p1k[i32>>23])
++	use(p100k[i32>>23])
++
++	use(s[ui32>>23])
++	use(a1[ui32>>23])
++	use(a1k[ui32>>23])  // ERROR "index bounds check elided"
++	use(a100k[ui32>>23])  // ERROR "index bounds check elided"
++	use(p1[ui32>>23])
++	use(p1k[ui32>>23])  // ERROR "index bounds check elided"
++	use(p100k[ui32>>23])  // ERROR "index bounds check elided"
++
++	// Division cuts the range like right shift does.
++	use(s[i/1e6])
++	use(a1[i/1e6])
++	use(a1k[i/1e6])
++	use(a100k[i/1e6])
++	use(p1[i/1e6])
++	use(p1k[i/1e6])
++	use(p100k[i/1e6])
++
++	use(s[ui/1e6])
++	use(a1[ui/1e6])
++	use(a1k[ui/1e6])
++	use(a100k[ui/1e6])  // ERROR "index bounds check elided"
++	use(p1[ui/1e6])
++	use(p1k[ui/1e6])
++	use(p100k[ui/1e6])  // ERROR "index bounds check elided"
++
++	use(s[i/1e7])
++	use(a1[i/1e7])
++	use(a1k[i/1e7])
++	use(a100k[i/1e7])
++	use(p1[i/1e7])
++	use(p1k[i/1e7])
++	use(p100k[i/1e7])
++
++	use(s[ui/1e7])
++	use(a1[ui/1e7])
++	use(a1k[ui/1e7])  // ERROR "index bounds check elided"
++	use(a100k[ui/1e7])  // ERROR "index bounds check elided"
++	use(p1[ui/1e7])
++	use(p1k[ui/1e7])  // ERROR "index bounds check elided"
++	use(p100k[ui/1e7])  // ERROR "index bounds check elided"
++
++}
++
++var sum int 
++
++func use(x int) {
++	sum += x
++}
+diff --git a/test/rotate.go b/test/rotate.go
+new file mode 100644
+index 0000000000..67d32d7ac2
+--- /dev/null
++++ b/test/rotate.go
+@@ -0,0 +1,141 @@
++// $G $D/$F.go && $L $F.$A &&
++// ./$A.out >tmp.go && $G tmp.go && $L -o $A.out1 tmp.$A && ./$A.out1
++// rm -f tmp.go $A.out1
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generate test of shift and rotate by constants.
++// The output is compiled and run.
++//
++// The output takes around a minute to compile, link, and run
++// but it is only done during ./run, not in normal builds using run.go.
++
++package main
++
++import (
++	"bufio"
++	"flag"
++	"fmt"
++	"os"
++)
++
++func main() {
++	flag.Parse()
++
++	b := bufio.NewWriter(os.Stdout)
++	defer b.Flush()
++
++	fmt.Fprintf(b, "%s\n", prolog)
++
++	for logBits := uint(3); logBits <= 6; logBits++ {
++		for mode := 0; mode < 1<<2; mode++ {
++			gentest(b, 1<<logBits, mode&1 != 0, mode&2 != 0)
++		}
++	}
++}
++
++const prolog = `
++
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++var (
++	i8 int8 = 0x12
++	i16 int16 = 0x1234
++	i32 int32 = 0x12345678
++	i64 int64 = 0x123456789abcdef0
++	ui8 uint8 = 0x12
++	ui16 uint16 = 0x1234
++	ui32 uint32 = 0x12345678
++	ui64 uint64 = 0x123456789abcdef0
++
++	ni8 = ^i8
++	ni16 = ^i16
++	ni32 = ^i32
++	ni64 = ^i64
++	nui8 = ^ui8
++	nui16 = ^ui16
++	nui32 = ^ui32
++	nui64 = ^ui64
++)
++
++var nfail = 0
++
++func check(desc string, have, want interface{}) {
++	if have != want {
++		nfail++
++		fmt.Printf("%s = %T(%#x), want %T(%#x)\n", desc, have, have, want, want)
++		if nfail >= 100 {
++			fmt.Printf("BUG: stopping after 100 failures\n")
++			os.Exit(0)
++		}
++	}
++}
++
++func main() {
++	if nfail > 0 {
++		fmt.Printf("BUG\n")
++	}
++}
++
++`
++
++func gentest(b *bufio.Writer, bits uint, unsigned, inverted bool) {
++	fmt.Fprintf(b, "func init() {\n")
++	defer fmt.Fprintf(b, "}\n")
++	n := 0
++
++	// Generate tests for left/right and right/left.
++	for l := uint(0); l <= bits; l++ {
++		for r := uint(0); r <= bits; r++ {
++			typ := fmt.Sprintf("int%d", bits)
++			v := fmt.Sprintf("i%d", bits)
++			if unsigned {
++				typ = "u" + typ
++				v = "u" + v
++			}
++			v0 := int64(0x123456789abcdef0)
++			if inverted {
++				v = "n" + v
++				v0 = ^v0
++			}
++			expr1 := fmt.Sprintf("%s<<%d | %s>>%d", v, l, v, r)
++			expr2 := fmt.Sprintf("%s>>%d | %s<<%d", v, r, v, l)
++			
++			var result string
++			if unsigned {
++				v := uint64(v0) >> (64 - bits)
++				v = v<<l | v>>r
++				v <<= 64 - bits
++				v >>= 64 - bits
++				result = fmt.Sprintf("%#x", v)
++			} else {
++				v := int64(v0) >> (64 - bits)
++				v = v<<l | v>>r
++				v <<= 64 - bits
++				v >>= 64 - bits
++				result = fmt.Sprintf("%#x", v)
++			}
++
++			fmt.Fprintf(b, "\tcheck(%q, %s, %s(%s))\n", expr1, expr1, typ, result)
++			fmt.Fprintf(b, "\tcheck(%q, %s, %s(%s))\n", expr2, expr2, typ, result)
++
++			// Chop test into multiple functions so that there's not one
++			// enormous function to compile/link.
++			// All the functions are named init so we don't have to do
++			// anything special to call them.  ☺
++			if n++; n >= 100 {
++				fmt.Fprintf(b, "}\n")
++				fmt.Fprintf(b, "func init() {\n")
++				n = 0
++			}
++		}
++	}
++}
++

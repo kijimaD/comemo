@@ -16,6 +16,43 @@ Date:   Sun Jul 1 00:27:05 2012 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/6343047
-
+---
  src/cmd/dist/windows.c | 18 +++++++++++++++++-
  1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index 0caee73f53..ec26f78724 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -121,6 +121,22 @@ errstr(void)
+ 	return bstr(&b);  // leak but we're dying anyway
+ }
+ 
++static void
++errprintf(char *fmt, ...) {
++	va_list arg;
++	char *p;
++	DWORD n, w;
++
++	va_start(arg, fmt);
++	n = vsnprintf(NULL, 0, fmt, arg);
++	p = xmalloc(n+1);
++	vsnprintf(p, n+1, fmt, arg);
++	va_end(arg);
++	w = 0;
++	WriteFile(GetStdHandle(STD_ERROR_HANDLE), p, n, &w, 0);
++	xfree(p);
++}
++
+ void
+ xgetenv(Buf *b, char *name)
+ {
+@@ -709,7 +725,7 @@ fatal(char *msg, ...)
+ 	vsnprintf(buf1, sizeof buf1, msg, arg);
+ 	va_end(arg);
+ 
+-	xprintf("go tool dist: %s\n", buf1);
++	errprintf("go tool dist: %s\n", buf1);
+ 	
+ 	bgwait();
+ 	ExitProcess(1);

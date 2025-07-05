@@ -12,6 +12,23 @@ Date:   Fri Sep 23 10:38:50 2016 -0400
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 135d908259..411c09b971 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -97,7 +97,10 @@ func schedule(f *Func) {
+ 					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block, b=%s", b.String())
+ 				}
+ 				score[v.ID] = ScorePhi
+-			case v.Op == OpAMD64LoweredNilCheck || v.Op == OpPPC64LoweredNilCheck || v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck || v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck:
++			case v.Op == OpAMD64LoweredNilCheck || v.Op == OpPPC64LoweredNilCheck ||
++				v.Op == OpARMLoweredNilCheck || v.Op == OpARM64LoweredNilCheck ||
++				v.Op == Op386LoweredNilCheck || v.Op == OpMIPS64LoweredNilCheck ||
++				v.Op == OpS390XLoweredNilCheck:
+ 				// Nil checks must come before loads from the same address.
+ 				score[v.ID] = ScoreNilCheck
+ 			case v.Op == OpPhi:

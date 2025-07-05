@@ -15,6 +15,20 @@ Date:   Sun Apr 15 13:46:18 2018 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 1c2cc9518d..3b302a5124 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -96,7 +96,7 @@ func pragmaValue(verb string) syntax.Pragma {
+ func (p *noder) pragcgo(pos syntax.Pos, text string) {
+ 	f := pragmaFields(text)
+ 
+-	verb := strings.TrimPrefix(f[0][3:], "go:")
++	verb := strings.TrimPrefix(f[0], "go:")
+ 	f[0] = verb
+ 
+ 	switch verb {

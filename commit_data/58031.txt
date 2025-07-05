@@ -16,7 +16,7 @@ Date:   Wed Jun 14 09:52:44 2023 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go   |  19 ++
  src/cmd/compile/internal/types2/stdlib_test.go  |   3 +
  src/cmd/compile/internal/types2/stmt.go         | 139 ++++++++----
@@ -34,3 +34,1016 @@ Date:   Wed Jun 14 09:52:44 2023 -0400
  src/internal/types/testdata/spec/range.go       | 157 ++++++++++++++
  test/range2.go                                  |  24 +++
  16 files changed, 523 insertions(+), 166 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 94dfda7d33..791d9f028c 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -34,11 +34,13 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"flag"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+ 	"regexp"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -123,12 +125,23 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
+ 	}
+ 
+ 	var conf Config
++	var goexperiment string
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
++	flags.StringVar(&goexperiment, "goexperiment", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+ 	if err := parseFlags(srcs[0], flags); err != nil {
+ 		t.Fatal(err)
+ 	}
++	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
++	if err != nil {
++		t.Fatal(err)
++	}
++	old := buildcfg.Experiment
++	defer func() {
++		buildcfg.Experiment = old
++	}()
++	buildcfg.Experiment = *exp
+ 
+ 	files, errlist := parseFiles(t, filenames, srcs, 0)
+ 
+@@ -355,6 +368,12 @@ func TestIssue47243_TypedRHS(t *testing.T) {
+ }
+ 
+ func TestCheck(t *testing.T) {
++	old := buildcfg.Experiment.Range
++	defer func() {
++		buildcfg.Experiment.Range = old
++	}()
++	buildcfg.Experiment.Range = true
++
+ 	DefPredeclaredTestFuncs()
+ 	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance
+ }
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index ee852f5c4c..fc93d44497 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -233,6 +233,9 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		filename := filepath.Join(path, f.Name())
+ 		goVersion := ""
+ 		if comment := firstComment(filename); comment != "" {
++			if strings.Contains(comment, "-goexperiment") {
++				continue // ignore this file
++			}
+ 			fields := strings.Fields(comment)
+ 			switch fields[0] {
+ 			case "skip", "compiledir":
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index a671002e12..e00c72685f 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -9,6 +9,7 @@ package types2
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"go/constant"
++	"internal/buildcfg"
+ 	. "internal/types/errors"
+ 	"sort"
+ )
+@@ -828,7 +829,10 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ }
+ 
+ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *syntax.RangeClause) {
+-	// determine lhs, if any
++	// Convert syntax form to local variables.
++	type expr = syntax.Expr
++	type identType = syntax.Name
++	identName := func(n *identType) string { return n.Value }
+ 	sKey := rclause.Lhs // possibly nil
+ 	var sValue, sExtra syntax.Expr
+ 	if p, _ := sKey.(*syntax.ListExpr); p != nil {
+@@ -844,43 +848,48 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 			sExtra = p.ElemList[2]
+ 		}
+ 	}
++	isDef := rclause.Def
++	rangeVar := rclause.X
++	noNewVarPos := s
++
++	// Do not use rclause anymore.
++	rclause = nil
++
++	// Everything from here on is shared between cmd/compile/internal/types2 and go/types.
+ 
+ 	// check expression to iterate over
+ 	var x operand
+-	check.expr(nil, &x, rclause.X)
++	check.expr(nil, &x, rangeVar)
+ 
+ 	// determine key/value types
+ 	var key, val Type
+ 	if x.mode != invalid {
+ 		// Ranging over a type parameter is permitted if it has a core type.
+-		var cause string
+-		u := coreType(x.typ)
+-		if t, _ := u.(*Chan); t != nil {
+-			if sValue != nil {
+-				check.softErrorf(sValue, InvalidIterVar, "range over %s permits only one iteration variable", &x)
+-				// ok to continue
+-			}
+-			if t.dir == SendOnly {
+-				cause = "receive from send-only channel"
+-			}
+-		} else {
+-			if sExtra != nil {
+-				check.softErrorf(sExtra, InvalidIterVar, "range clause permits at most two iteration variables")
+-				// ok to continue
+-			}
+-			if u == nil {
+-				cause = check.sprintf("%s has no core type", x.typ)
++		k, v, cause, isFunc, ok := rangeKeyVal(x.typ)
++		switch {
++		case !ok && cause != "":
++			check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s: %s", &x, cause)
++		case !ok:
++			check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s", &x)
++		case k == nil && sKey != nil:
++			check.softErrorf(sKey, InvalidIterVar, "range over %s permits no iteration variables", &x)
++		case v == nil && sValue != nil:
++			check.softErrorf(sValue, InvalidIterVar, "range over %s permits only one iteration variable", &x)
++		case sExtra != nil:
++			check.softErrorf(sExtra, InvalidIterVar, "range clause permits at most two iteration variables")
++		case isFunc && ((k == nil) != (sKey == nil) || (v == nil) != (sValue == nil)):
++			var count string
++			switch {
++			case k == nil:
++				count = "no iteration variables"
++			case v == nil:
++				count = "one iteration variable"
++			default:
++				count = "two iteration variables"
+ 			}
++			check.softErrorf(&x, InvalidIterVar, "range over %s must have %s", &x, count)
+ 		}
+-		key, val = rangeKeyVal(u)
+-		if key == nil || cause != "" {
+-			if cause == "" {
+-				check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s", &x)
+-			} else {
+-				check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s (%s)", &x, cause)
+-			}
+-			// ok to continue
+-		}
++		key, val = k, v
+ 	}
+ 
+ 	// Open the for-statement block scope now, after the range clause.
+@@ -892,10 +901,10 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	// (irregular assignment, cannot easily map to existing assignment checks)
+ 
+ 	// lhs expressions and initialization value (rhs) types
+-	lhs := [2]syntax.Expr{sKey, sValue}
++	lhs := [2]expr{sKey, sValue}
+ 	rhs := [2]Type{key, val} // key, val may be nil
+ 
+-	if rclause.Def {
++	if isDef {
+ 		// short variable declaration
+ 		var vars []*Var
+ 		for i, lhs := range lhs {
+@@ -905,9 +914,9 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 
+ 			// determine lhs variable
+ 			var obj *Var
+-			if ident, _ := lhs.(*syntax.Name); ident != nil {
++			if ident, _ := lhs.(*identType); ident != nil {
+ 				// declare new variable
+-				name := ident.Value
++				name := identName(ident)
+ 				obj = NewVar(ident.Pos(), check.pkg, name, nil)
+ 				check.recordDef(ident, obj)
+ 				// _ variables don't count as new variables
+@@ -938,7 +947,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 				check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
+ 			}
+ 		} else {
+-			check.error(s, NoNewVar, "no new variables on left side of :=")
++			check.error(noNewVarPos, NoNewVar, "no new variables on left side of :=")
+ 		}
+ 	} else {
+ 		// ordinary assignment
+@@ -959,22 +968,68 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ }
+ 
+ // rangeKeyVal returns the key and value type produced by a range clause
+-// over an expression of type typ. If the range clause is not permitted
+-// the results are nil.
+-func rangeKeyVal(typ Type) (key, val Type) {
+-	switch typ := arrayPtrDeref(typ).(type) {
++// over an expression of type typ. If the range clause is not permitted,
++// rangeKeyVal returns ok = false. When ok = false, rangeKeyVal may also
++// return a reason in cause.
++func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
++	bad := func(cause string) (Type, Type, string, bool, bool) {
++		return Typ[Invalid], Typ[Invalid], cause, false, false
++	}
++	toSig := func(t Type) *Signature {
++		sig, _ := coreType(t).(*Signature)
++		return sig
++	}
++
++	orig := typ
++	switch typ := arrayPtrDeref(coreType(typ)).(type) {
++	case nil:
++		return bad("no core type")
+ 	case *Basic:
+ 		if isString(typ) {
+-			return Typ[Int], universeRune // use 'rune' name
++			return Typ[Int], universeRune, "", false, true // use 'rune' name
++		}
++		if buildcfg.Experiment.Range && isInteger(typ) {
++			return orig, nil, "", false, true
+ 		}
+ 	case *Array:
+-		return Typ[Int], typ.elem
++		return Typ[Int], typ.elem, "", false, true
+ 	case *Slice:
+-		return Typ[Int], typ.elem
++		return Typ[Int], typ.elem, "", false, true
+ 	case *Map:
+-		return typ.key, typ.elem
++		return typ.key, typ.elem, "", false, true
+ 	case *Chan:
+-		return typ.elem, Typ[Invalid]
++		if typ.dir == SendOnly {
++			return bad("receive from send-only channel")
++		}
++		return typ.elem, nil, "", false, true
++	case *Signature:
++		if !buildcfg.Experiment.Range {
++			break
++		}
++		assert(typ.Recv() == nil)
++		switch {
++		case typ.Params().Len() != 1:
++			return bad("func must be func(yield func(...) bool): wrong argument count")
++		case toSig(typ.Params().At(0).Type()) == nil:
++			return bad("func must be func(yield func(...) bool): argument is not func")
++		case typ.Results().Len() != 0:
++			return bad("func must be func(yield func(...) bool): unexpected results")
++		}
++		cb := toSig(typ.Params().At(0).Type())
++		assert(cb.Recv() == nil)
++		switch {
++		case cb.Params().Len() > 2:
++			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
++		case cb.Results().Len() != 1 || !isBoolean(cb.Results().At(0).Type()):
++			return bad("func must be func(yield func(...) bool): yield func does not return bool")
++		}
++		if cb.Params().Len() >= 1 {
++			key = cb.Params().At(0).Type()
++		}
++		if cb.Params().Len() >= 2 {
++			val = cb.Params().At(1).Type()
++		}
++		return key, val, "", true, true
+ 	}
+ 	return
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index ca0c4089a2..187dff74cf 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -288,7 +288,10 @@ var depsRules = `
+ 	math/big, go/token
+ 	< go/constant;
+ 
+-	container/heap, go/constant, go/parser, internal/goversion, internal/types/errors
++	FMT, internal/goexperiment
++	< internal/buildcfg;
++
++	container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
+ 	< go/types;
+ 
+ 	# The vast majority of standard library packages should not be resorting to regexp.
+@@ -299,9 +302,6 @@ var depsRules = `
+ 	go/doc/comment, go/parser, internal/lazyregexp, text/template
+ 	< go/doc;
+ 
+-	FMT, internal/goexperiment
+-	< internal/buildcfg;
+-
+ 	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform
+ 	< go/build;
+ 
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 0841396f35..451e4be9bf 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -38,12 +38,14 @@ import (
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"internal/types/errors"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+ 	"regexp"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -134,12 +136,23 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opt
+ 	}
+ 
+ 	var conf Config
++	var goexperiment string
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
++	flags.StringVar(&goexperiment, "goexperiment", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+ 	if err := parseFlags(srcs[0], flags); err != nil {
+ 		t.Fatal(err)
+ 	}
++	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
++	if err != nil {
++		t.Fatal(err)
++	}
++	old := buildcfg.Experiment
++	defer func() {
++		buildcfg.Experiment = old
++	}()
++	buildcfg.Experiment = *exp
+ 
+ 	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
+ 
+@@ -383,6 +396,12 @@ func TestIssue47243_TypedRHS(t *testing.T) {
+ }
+ 
+ func TestCheck(t *testing.T) {
++	old := buildcfg.Experiment.Range
++	defer func() {
++		buildcfg.Experiment.Range = old
++	}()
++	buildcfg.Experiment.Range = true
++
+ 	DefPredeclaredTestFuncs()
+ 	testDirFiles(t, "../../internal/types/testdata/check", false)
+ }
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 07c9222537..46fa475577 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -237,6 +237,9 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		filename := filepath.Join(path, f.Name())
+ 		goVersion := ""
+ 		if comment := firstComment(filename); comment != "" {
++			if strings.Contains(comment, "-goexperiment") {
++				continue // ignore this file
++			}
+ 			fields := strings.Fields(comment)
+ 			switch fields[0] {
+ 			case "skip", "compiledir":
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 3e56d415b6..203205e19f 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -10,6 +10,7 @@ import (
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
++	"internal/buildcfg"
+ 	. "internal/types/errors"
+ 	"sort"
+ )
+@@ -827,136 +828,199 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 
+ 	case *ast.RangeStmt:
+ 		inner |= breakOk | continueOk
++		check.rangeStmt(inner, s)
+ 
+-		// check expression to iterate over
+-		var x operand
+-		check.expr(nil, &x, s.X)
++	default:
++		check.error(s, InvalidSyntaxTree, "invalid statement")
++	}
++}
+ 
+-		// determine key/value types
+-		var key, val Type
+-		if x.mode != invalid {
+-			// Ranging over a type parameter is permitted if it has a core type.
+-			var cause string
+-			u := coreType(x.typ)
+-			switch t := u.(type) {
+-			case nil:
+-				cause = check.sprintf("%s has no core type", x.typ)
+-			case *Chan:
+-				if s.Value != nil {
+-					check.softErrorf(s.Value, InvalidIterVar, "range over %s permits only one iteration variable", &x)
+-					// ok to continue
+-				}
+-				if t.dir == SendOnly {
+-					cause = "receive from send-only channel"
+-				}
+-			}
+-			key, val = rangeKeyVal(u)
+-			if key == nil || cause != "" {
+-				if cause == "" {
+-					check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s", &x)
+-				} else {
+-					check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s (%s)", &x, cause)
+-				}
+-				// ok to continue
++func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
++	// Convert go/ast form to local variables.
++	type expr = ast.Expr
++	type identType = ast.Ident
++	identName := func(n *identType) string { return n.Name }
++	sKey, sValue := s.Key, s.Value
++	var sExtra ast.Expr = nil
++	isDef := s.Tok == token.DEFINE
++	rangeVar := s.X
++	noNewVarPos := inNode(s, s.TokPos)
++
++	// Everything from here on is shared between cmd/compile/internal/types2 and go/types.
++
++	// check expression to iterate over
++	var x operand
++	check.expr(nil, &x, rangeVar)
++
++	// determine key/value types
++	var key, val Type
++	if x.mode != invalid {
++		// Ranging over a type parameter is permitted if it has a core type.
++		k, v, cause, isFunc, ok := rangeKeyVal(x.typ)
++		switch {
++		case !ok && cause != "":
++			check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s: %s", &x, cause)
++		case !ok:
++			check.softErrorf(&x, InvalidRangeExpr, "cannot range over %s", &x)
++		case k == nil && sKey != nil:
++			check.softErrorf(sKey, InvalidIterVar, "range over %s permits no iteration variables", &x)
++		case v == nil && sValue != nil:
++			check.softErrorf(sValue, InvalidIterVar, "range over %s permits only one iteration variable", &x)
++		case sExtra != nil:
++			check.softErrorf(sExtra, InvalidIterVar, "range clause permits at most two iteration variables")
++		case isFunc && ((k == nil) != (sKey == nil) || (v == nil) != (sValue == nil)):
++			var count string
++			switch {
++			case k == nil:
++				count = "no iteration variables"
++			case v == nil:
++				count = "one iteration variable"
++			default:
++				count = "two iteration variables"
+ 			}
++			check.softErrorf(&x, InvalidIterVar, "range over %s must have %s", &x, count)
+ 		}
++		key, val = k, v
++	}
+ 
+-		// Open the for-statement block scope now, after the range clause.
+-		// Iteration variables declared with := need to go in this scope (was go.dev/issue/51437).
+-		check.openScope(s, "range")
+-		defer check.closeScope()
+-
+-		// check assignment to/declaration of iteration variables
+-		// (irregular assignment, cannot easily map to existing assignment checks)
++	// Open the for-statement block scope now, after the range clause.
++	// Iteration variables declared with := need to go in this scope (was go.dev/issue/51437).
++	check.openScope(s, "range")
++	defer check.closeScope()
+ 
+-		// lhs expressions and initialization value (rhs) types
+-		lhs := [2]ast.Expr{s.Key, s.Value}
+-		rhs := [2]Type{key, val} // key, val may be nil
++	// check assignment to/declaration of iteration variables
++	// (irregular assignment, cannot easily map to existing assignment checks)
+ 
+-		if s.Tok == token.DEFINE {
+-			// short variable declaration
+-			var vars []*Var
+-			for i, lhs := range lhs {
+-				if lhs == nil {
+-					continue
+-				}
++	// lhs expressions and initialization value (rhs) types
++	lhs := [2]expr{sKey, sValue}
++	rhs := [2]Type{key, val} // key, val may be nil
+ 
+-				// determine lhs variable
+-				var obj *Var
+-				if ident, _ := lhs.(*ast.Ident); ident != nil {
+-					// declare new variable
+-					name := ident.Name
+-					obj = NewVar(ident.Pos(), check.pkg, name, nil)
+-					check.recordDef(ident, obj)
+-					// _ variables don't count as new variables
+-					if name != "_" {
+-						vars = append(vars, obj)
+-					}
+-				} else {
+-					check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
+-					obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+-				}
++	if isDef {
++		// short variable declaration
++		var vars []*Var
++		for i, lhs := range lhs {
++			if lhs == nil {
++				continue
++			}
+ 
+-				// initialize lhs variable
+-				if typ := rhs[i]; typ != nil {
+-					x.mode = value
+-					x.expr = lhs // we don't have a better rhs expression to use here
+-					x.typ = typ
+-					check.initVar(obj, &x, "range clause")
+-				} else {
+-					obj.typ = Typ[Invalid]
+-					obj.used = true // don't complain about unused variable
++			// determine lhs variable
++			var obj *Var
++			if ident, _ := lhs.(*identType); ident != nil {
++				// declare new variable
++				name := identName(ident)
++				obj = NewVar(ident.Pos(), check.pkg, name, nil)
++				check.recordDef(ident, obj)
++				// _ variables don't count as new variables
++				if name != "_" {
++					vars = append(vars, obj)
+ 				}
++			} else {
++				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
++				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+ 			}
+ 
+-			// declare variables
+-			if len(vars) > 0 {
+-				scopePos := s.Body.Pos()
+-				for _, obj := range vars {
+-					check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
+-				}
++			// initialize lhs variable
++			if typ := rhs[i]; typ != nil {
++				x.mode = value
++				x.expr = lhs // we don't have a better rhs expression to use here
++				x.typ = typ
++				check.initVar(obj, &x, "range clause")
+ 			} else {
+-				check.error(inNode(s, s.TokPos), NoNewVar, "no new variables on left side of :=")
++				obj.typ = Typ[Invalid]
++				obj.used = true // don't complain about unused variable
++			}
++		}
++
++		// declare variables
++		if len(vars) > 0 {
++			scopePos := s.Body.Pos()
++			for _, obj := range vars {
++				check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
+ 			}
+ 		} else {
+-			// ordinary assignment
+-			for i, lhs := range lhs {
+-				if lhs == nil {
+-					continue
+-				}
+-				if typ := rhs[i]; typ != nil {
+-					x.mode = value
+-					x.expr = lhs // we don't have a better rhs expression to use here
+-					x.typ = typ
+-					check.assignVar(lhs, nil, &x)
+-				}
++			check.error(noNewVarPos, NoNewVar, "no new variables on left side of :=")
++		}
++	} else {
++		// ordinary assignment
++		for i, lhs := range lhs {
++			if lhs == nil {
++				continue
++			}
++			if typ := rhs[i]; typ != nil {
++				x.mode = value
++				x.expr = lhs // we don't have a better rhs expression to use here
++				x.typ = typ
++				check.assignVar(lhs, nil, &x)
+ 			}
+ 		}
+-
+-		check.stmt(inner, s.Body)
+-
+-	default:
+-		check.error(s, InvalidSyntaxTree, "invalid statement")
+ 	}
++
++	check.stmt(inner, s.Body)
+ }
+ 
+ // rangeKeyVal returns the key and value type produced by a range clause
+-// over an expression of type typ. If the range clause is not permitted
+-// the results are nil.
+-func rangeKeyVal(typ Type) (key, val Type) {
+-	switch typ := arrayPtrDeref(typ).(type) {
++// over an expression of type typ. If the range clause is not permitted,
++// rangeKeyVal returns ok = false. When ok = false, rangeKeyVal may also
++// return a reason in cause.
++func rangeKeyVal(typ Type) (key, val Type, cause string, isFunc, ok bool) {
++	bad := func(cause string) (Type, Type, string, bool, bool) {
++		return Typ[Invalid], Typ[Invalid], cause, false, false
++	}
++	toSig := func(t Type) *Signature {
++		sig, _ := coreType(t).(*Signature)
++		return sig
++	}
++
++	orig := typ
++	switch typ := arrayPtrDeref(coreType(typ)).(type) {
++	case nil:
++		return bad("no core type")
+ 	case *Basic:
+ 		if isString(typ) {
+-			return Typ[Int], universeRune // use 'rune' name
++			return Typ[Int], universeRune, "", false, true // use 'rune' name
++		}
++		if buildcfg.Experiment.Range && isInteger(typ) {
++			return orig, nil, "", false, true
+ 		}
+ 	case *Array:
+-		return Typ[Int], typ.elem
++		return Typ[Int], typ.elem, "", false, true
+ 	case *Slice:
+-		return Typ[Int], typ.elem
++		return Typ[Int], typ.elem, "", false, true
+ 	case *Map:
+-		return typ.key, typ.elem
++		return typ.key, typ.elem, "", false, true
+ 	case *Chan:
+-		return typ.elem, Typ[Invalid]
++		if typ.dir == SendOnly {
++			return bad("receive from send-only channel")
++		}
++		return typ.elem, nil, "", false, true
++	case *Signature:
++		if !buildcfg.Experiment.Range {
++			break
++		}
++		assert(typ.Recv() == nil)
++		switch {
++		case typ.Params().Len() != 1:
++			return bad("func must be func(yield func(...) bool): wrong argument count")
++		case toSig(typ.Params().At(0).Type()) == nil:
++			return bad("func must be func(yield func(...) bool): argument is not func")
++		case typ.Results().Len() != 0:
++			return bad("func must be func(yield func(...) bool): unexpected results")
++		}
++		cb := toSig(typ.Params().At(0).Type())
++		assert(cb.Recv() == nil)
++		switch {
++		case cb.Params().Len() > 2:
++			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
++		case cb.Results().Len() != 1 || !isBoolean(cb.Results().At(0).Type()):
++			return bad("func must be func(yield func(...) bool): yield func does not return bool")
++		}
++		if cb.Params().Len() >= 1 {
++			key = cb.Params().At(0).Type()
++		}
++		if cb.Params().Len() >= 2 {
++			val = cb.Params().At(1).Type()
++		}
++		return key, val, "", true, true
+ 	}
+ 	return
+ }
+diff --git a/src/internal/goexperiment/exp_newinliner_off.go b/src/internal/goexperiment/exp_newinliner_off.go
+index 27bdec3e2d..307c651b7a 100644
+--- a/src/internal/goexperiment/exp_newinliner_off.go
++++ b/src/internal/goexperiment/exp_newinliner_off.go
+@@ -1,7 +1,3 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build !goexperiment.newinliner
+diff --git a/src/internal/goexperiment/exp_newinliner_on.go b/src/internal/goexperiment/exp_newinliner_on.go
+index 099e4e5caa..59f400ff57 100644
+--- a/src/internal/goexperiment/exp_newinliner_on.go
++++ b/src/internal/goexperiment/exp_newinliner_on.go
+@@ -1,7 +1,3 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+ // Code generated by mkconsts.go. DO NOT EDIT.
+ 
+ //go:build goexperiment.newinliner
+diff --git a/src/internal/goexperiment/exp_range_off.go b/src/internal/goexperiment/exp_range_off.go
+new file mode 100644
+index 0000000000..4afb988ea7
+--- /dev/null
++++ b/src/internal/goexperiment/exp_range_off.go
+@@ -0,0 +1,9 @@
++// Code generated by mkconsts.go. DO NOT EDIT.
++
++//go:build !goexperiment.range
++// +build !goexperiment.range
++
++package goexperiment
++
++const Range = false
++const RangeInt = 0
+diff --git a/src/internal/goexperiment/exp_range_on.go b/src/internal/goexperiment/exp_range_on.go
+new file mode 100644
+index 0000000000..67317593d3
+--- /dev/null
++++ b/src/internal/goexperiment/exp_range_on.go
+@@ -0,0 +1,9 @@
++// Code generated by mkconsts.go. DO NOT EDIT.
++
++//go:build goexperiment.range
++// +build goexperiment.range
++
++package goexperiment
++
++const Range = true
++const RangeInt = 1
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index f767cfa45d..c43c5d0323 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -113,4 +113,7 @@ type Flags struct {
+ 	// NewInliner enables a new+improved version of the function
+ 	// inlining phase within the Go compiler.
+ 	NewInliner bool
++
++	// Range enables range over int and func.
++	Range bool
+ }
+diff --git a/src/internal/types/errors/codes.go b/src/internal/types/errors/codes.go
+index 62358c7e8c..cae688ff87 100644
+--- a/src/internal/types/errors/codes.go
++++ b/src/internal/types/errors/codes.go
+@@ -1004,12 +1004,12 @@ const (
+ 	//  }
+ 	InvalidIterVar
+ 
+-	// InvalidRangeExpr occurs when the type of a range expression is not array,
+-	// slice, string, map, or channel.
++	// InvalidRangeExpr occurs when the type of a range expression is not
++	// a valid type for use with a range loop.
+ 	//
+ 	// Example:
+-	//  func f(i int) {
+-	//  	for j := range i {
++	//  func f(f float64) {
++	//  	for j := range f {
+ 	//  		println(j)
+ 	//  	}
+ 	//  }
+diff --git a/src/internal/types/testdata/check/stmt0.go b/src/internal/types/testdata/check/stmt0.go
+index 5232285419..b61f1c7232 100644
+--- a/src/internal/types/testdata/check/stmt0.go
++++ b/src/internal/types/testdata/check/stmt0.go
+@@ -805,7 +805,6 @@ func fors1() {
+ 
+ func rangeloops1() {
+ 	var (
+-		x int
+ 		a [10]float32
+ 		b []string
+ 		p *[10]complex128
+@@ -815,11 +814,12 @@ func rangeloops1() {
+ 		c chan int
+ 		sc chan<- int
+ 		rc <-chan int
++		xs struct{}
+ 	)
+ 
+-	for range x /* ERROR "cannot range over" */ {}
+-	for _ = range x /* ERROR "cannot range over" */ {}
+-	for i := range x /* ERROR "cannot range over" */ {}
++	for range xs /* ERROR "cannot range over" */ {}
++	for _ = range xs /* ERROR "cannot range over" */ {}
++	for i := range xs /* ERROR "cannot range over" */ { _ = i }
+ 
+ 	for range a {}
+ 	for i := range a {
+@@ -953,10 +953,10 @@ func issue10148() {
+ 	for y /* ERROR "declared and not used" */ := range "" {
+ 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
+ 	}
+-	for range 1 /* ERROR "cannot range over 1" */ {
++	for range 1.5 /* ERROR "cannot range over 1.5" */ {
+ 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
+ 	}
+-	for y := range 1 /* ERROR "cannot range over 1" */ {
++	for y := range 1.5 /* ERROR "cannot range over 1.5" */ {
+ 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
+ 	}
+ }
+diff --git a/src/internal/types/testdata/spec/range.go b/src/internal/types/testdata/spec/range.go
+new file mode 100644
+index 0000000000..8547ed343a
+--- /dev/null
++++ b/src/internal/types/testdata/spec/range.go
+@@ -0,0 +1,157 @@
++// -goexperiment=range
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type MyInt int32
++type MyBool bool
++type MyString string
++type MyFunc1 func(func(int) bool)
++type MyFunc2 func(int) bool
++type MyFunc3 func(MyFunc2)
++
++type T struct{}
++
++func (*T) PM() {}
++func (T) M()   {}
++
++func f1()                             {}
++func f2(func())                       {}
++func f4(func(int) bool)               {}
++func f5(func(int, string) bool)       {}
++func f7(func(int) MyBool)             {}
++func f8(func(MyInt, MyString) MyBool) {}
++
++func test() {
++	// TODO: Would be nice to 'for range T.M' and 'for range (*T).PM' directly,
++	// but there is no gofmt-friendly way to write the error pattern in the right place.
++	m1 := T.M
++	for range m1 /* ERROR "cannot range over m1 (variable of type func(T)): func must be func(yield func(...) bool): argument is not func" */ {
++	}
++	m2 := (*T).PM
++	for range m2 /* ERROR "cannot range over m2 (variable of type func(*T)): func must be func(yield func(...) bool): argument is not func" */ {
++	}
++	for range f1 /* ERROR "cannot range over f1 (value of type func()): func must be func(yield func(...) bool): wrong argument count" */ {
++	}
++	for range f2 /* ERROR "cannot range over f2 (value of type func(func())): func must be func(yield func(...) bool): yield func does not return bool" */ {
++	}
++	for range f4 /* ERROR "range over f4 (value of type func(func(int) bool)) must have one iteration variable" */ {
++	}
++	for _ = range f4 {
++	}
++	for _, _ = range f5 {
++	}
++	for _ = range f7 {
++	}
++	for _, _ = range f8 {
++	}
++	for range 1 {
++	}
++	for range uint8(1) {
++	}
++	for range int64(1) {
++	}
++	for range MyInt(1) {
++	}
++	for range 'x' {
++	}
++	for range 1.0 /* ERROR "cannot range over 1.0 (untyped float constant 1)" */ {
++	}
++	for _ = range MyFunc1(nil) {
++	}
++	for _ = range MyFunc3(nil) {
++	}
++	for _ = range (func(MyFunc2))(nil) {
++	}
++
++	var i int
++	var s string
++	var mi MyInt
++	var ms MyString
++	for i := range f4 {
++		_ = i
++	}
++	for i = range f4 {
++		_ = i
++	}
++	for i, s := range f5 {
++		_, _ = i, s
++	}
++	for i, s = range f5 {
++		_, _ = i, s
++	}
++	for i, _ := range f5 {
++		_ = i
++	}
++	for i, _ = range f5 {
++		_ = i
++	}
++	for i := range f7 {
++		_ = i
++	}
++	for i = range f7 {
++		_ = i
++	}
++	for mi, _ := range f8 {
++		_ = mi
++	}
++	for mi, _ = range f8 {
++		_ = mi
++	}
++	for mi, ms := range f8 {
++		_, _ = mi, ms
++	}
++	for i /* ERROR "cannot use i (value of type MyInt) as int value in assignment" */, s /* ERROR "cannot use s (value of type MyString) as string value in assignment" */ = range f8 {
++		_, _ = mi, ms
++	}
++	for mi, ms := range f8 {
++		i, s = mi /* ERROR "cannot use mi (variable of type MyInt) as int value in assignment" */, ms /* ERROR "cannot use ms (variable of type MyString) as string value in assignment" */
++	}
++	for mi, ms = range f8 {
++		_, _ = mi, ms
++	}
++
++	for i := range 10 {
++		_ = i
++	}
++	for i = range 10 {
++		_ = i
++	}
++	for i, j /* ERROR "range over 10 (untyped int constant) permits only one iteration variable" */ := range 10 {
++		_, _ = i, j
++	}
++	for mi := range MyInt(10) {
++		_ = mi
++	}
++	for mi = range MyInt(10) {
++		_ = mi
++	}
++}
++
++func _[T int | string](x T) {
++	for range x /* ERROR "cannot range over x (variable of type T constrained by int | string): no core type" */ {
++	}
++}
++
++func _[T int | int64](x T) {
++	for range x /* ERROR "cannot range over x (variable of type T constrained by int | int64): no core type" */ {
++	}
++}
++
++func _[T ~int](x T) {
++	for range x { // ok
++	}
++}
++
++func _[T any](x func(func(T) bool)) {
++	for _ = range x { // ok
++	}
++}
++
++func _[T ~func(func(int) bool)](x T) {
++	for _ = range x { // ok
++	}
++}
+diff --git a/test/range2.go b/test/range2.go
+new file mode 100644
+index 0000000000..bb2200b98b
+--- /dev/null
++++ b/test/range2.go
+@@ -0,0 +1,24 @@
++// errorcheck -goexperiment range
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// See ../internal/types/testdata/spec/range.go for most tests.
++// The ones in this file cannot be expressed in that framework
++// due to conflicts between that framework's error location pickiness
++// and gofmt's comment location pickiness.
++
++package p
++
++type T struct{}
++
++func (*T) PM() {}
++func (T) M()   {}
++
++func test() {
++	for range T.M { // ERROR "cannot range over T.M \(value of type func\(T\)\): func must be func\(yield func\(...\) bool\): argument is not func"
++	}
++	for range (*T).PM { // ERROR "cannot range over \(\*T\).PM \(value of type func\(\*T\)\): func must be func\(yield func\(...\) bool\): argument is not func"
++	}
++}

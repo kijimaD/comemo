@@ -9,6 +9,44 @@ Date:   Sat Apr 11 19:25:45 2015 -0400
     Change-Id: Ib9a32bb0aed5f08b27de11a93aaf273cacdf5779
     Reviewed-on: https://go-review.googlesource.com/8819
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/net/http/cgi/matryoshka_test.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/cgi/matryoshka_test.go b/src/net/http/cgi/matryoshka_test.go
+index bf28c5625b..c89c6d525e 100644
+--- a/src/net/http/cgi/matryoshka_test.go
++++ b/src/net/http/cgi/matryoshka_test.go
+@@ -21,10 +21,13 @@ import (
+ 	"time"
+ )
+ 
++// iOS cannot fork, so we skip some tests
++var iOS = runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
++
+ // This test is a CGI host (testing host.go) that runs its own binary
+ // as a child process testing the other half of CGI (child.go).
+ func TestHostingOurselves(t *testing.T) {
+-	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
++	if runtime.GOOS == "nacl" || iOS {
+ 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+@@ -93,7 +96,7 @@ func (w *limitWriter) Write(p []byte) (n int, err error) {
+ // If there's an error copying the child's output to the parent, test
+ // that we kill the child.
+ func TestKillChildAfterCopyError(t *testing.T) {
+-	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
++	if runtime.GOOS == "nacl" || iOS {
+ 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+@@ -140,7 +143,7 @@ func TestKillChildAfterCopyError(t *testing.T) {
+ // Test that a child handler writing only headers works.
+ // golang.org/issue/7196
+ func TestChildOnlyHeaders(t *testing.T) {
+-	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
++	if runtime.GOOS == "nacl" || iOS {
+ 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 

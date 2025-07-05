@@ -7,7 +7,7 @@ Date:   Wed Apr 21 16:40:53 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/953041
-
+---
  src/pkg/expvar/expvar.go          |  11 +-
  src/pkg/expvar/expvar_test.go     |   3 +-
  src/pkg/json/Makefile             |   2 +-
@@ -20,3 +20,2769 @@ Date:   Wed Apr 21 16:40:53 2010 -0700
  src/pkg/json/struct_test.go       | 375 ----------------
  src/pkg/template/template_test.go |   2 +-
  11 files changed, 1547 insertions(+), 1030 deletions(-)
+
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 070ba4ee6a..4017027b77 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -225,16 +225,13 @@ func expvarHandler(c *http.Conn, req *http.Request) {
+ }
+ 
+ func memstats() string {
+-	var buf bytes.Buffer
+-	json.MarshalIndent(&buf, &runtime.MemStats, "    ")
+-	s := buf.String()
+-	return s[0 : len(s)-1] // chop final \n
++	b, _ := json.MarshalIndent(&runtime.MemStats, "", "\t")
++	return string(b)
+ }
+ 
+ func cmdline() string {
+-	var buf bytes.Buffer
+-	json.Marshal(&buf, os.Args)
+-	return buf.String()
++	b, _ := json.Marshal(os.Args)
++	return string(b)
+ }
+ 
+ func init() {
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index 2dc399e7dc..98cd9c2ea0 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -61,7 +61,8 @@ func TestMapCounter(t *testing.T) {
+ 	// colours.String() should be '{"red":3, "blue":4}',
+ 	// though the order of red and blue could vary.
+ 	s := colours.String()
+-	j, err := json.Decode(s)
++	var j interface{}
++	err := json.Unmarshal([]byte(s), &j)
+ 	if err != nil {
+ 		t.Errorf("colours.String() isn't valid JSON: %v", err)
+ 	}
+diff --git a/src/pkg/json/Makefile b/src/pkg/json/Makefile
+index fd56f878f8..5371aee7f2 100644
+--- a/src/pkg/json/Makefile
++++ b/src/pkg/json/Makefile
+@@ -7,10 +7,10 @@ include ../../Make.$(GOARCH)
+ TARG=json
+ GOFILES=\
+ 	decode.go\
++	encode.go\
+ 	error.go\
+ 	indent.go\
+ 	parse.go\
+ 	scanner.go\
+-	struct.go\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 64f3e764bb..d37f609233 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -1,4 +1,4 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -10,96 +10,888 @@ package json
+ import (
+ 	"container/vector"
+ 	"os"
++	"reflect"
++	"runtime"
++	"strconv"
++	"strings"
++	"unicode"
++	"utf16"
++	"utf8"
+ )
+ 
+-// Decode a JSON string
+-
+-// Decode parses the string s as a JSON-syntax string and returns the
+-// generic JSON object representation.  The object representation is a tree
+-// of Go data types.  The data return value may be one of float64, string,
+-// bool, nil, []interface{} or map[string]interface{}.  The array and map
+-// elements may in turn contain any of the types listed above and so on.
++// Unmarshal parses the JSON-encoded data and stores the result
++// in the value pointed at by v.
+ //
+-// If Decode encounters a syntax error, it returns with err set to an
+-// instance of ParseError.  See ParseError documentation for details.
+-func Decode(s string) (data interface{}, err os.Error) {
+-	jb := newDecoder(nil, nil)
+-	ok, errPos, errTok := Parse(s, jb)
+-	if ok {
+-		data = jb.Data()
+-	} else {
+-		err = &ParseError{Index: errPos, Token: errTok}
++// Unmarshal traverses the value v recursively.
++// If an encountered value implements the Unmarshaler interface,
++// Unmarshal calls its UnmarshalJSON method with a well-formed
++// JSON encoding.
++//
++// Otherwise, Unmarshal uses the inverse of the encodings that
++// Marshal uses, allocating maps, slices, and pointers as necessary,
++// with the following additional rules:
++//
++// To unmarshal a JSON value into a nil interface value, the
++// type stored in the interface value is one of:
++//
++//	bool, for JSON booleans
++//	float64, for JSON numbers
++//	string, for JSON strings
++//	[]interface{}, for JSON arrays
++//	map[string]interface{}, for JSON objects
++//	nil for JSON null
++//
++// If a JSON value is not appropriate for a given target type,
++// or if a JSON number overflows the target type, Unmarshal
++// skips that field and completes the unmarshalling as best it can.
++// If no more serious errors are encountered, Unmarshal returns
++// an UnmarshalTypeError describing the earliest such error.
++//
++func Unmarshal(data []byte, v interface{}) os.Error {
++	d := new(decodeState).init(data)
++
++	// Quick check for well-formedness.
++	// Avoids filling out half a data structure
++	// before discovering a JSON syntax error.
++	err := checkValid(data, &d.scan)
++	if err != nil {
++		return err
+ 	}
+-	return
++
++	return d.unmarshal(v)
+ }
+ 
+-type decoder struct {
+-	// A value being constructed.
+-	value interface{}
+-	// Container entity to flush into.  Can be either vector.Vector or
+-	// map[string]interface{}.
+-	container interface{}
+-	// The index into the container interface.  Either int or string.
+-	index interface{}
++// Unmarshaler is the interface implemented by objects
++// that can unmarshal a JSON description of themselves.
++// The input can be assumed to be a valid JSON object
++// encoding.  UnmarshalJSON must copy the JSON data
++// if it wishes to retain the data after returning.
++type Unmarshaler interface {
++	UnmarshalJSON([]byte) os.Error
+ }
+ 
+-func newDecoder(container interface{}, key interface{}) *decoder {
+-	return &decoder{container: container, index: key}
++
++// An UnmarshalTypeError describes a JSON value that was
++// not appropriate for a value of a specific Go type.
++type UnmarshalTypeError struct {
++	Value string       // description of JSON value - "bool", "array", "number -5"
++	Type  reflect.Type // type of Go value it could not be assigned to
+ }
+ 
+-func (j *decoder) Int64(i int64) { j.value = float64(i) }
++func (e *UnmarshalTypeError) String() string {
++	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
++}
+ 
+-func (j *decoder) Uint64(i uint64) { j.value = float64(i) }
++// An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
++// (The argument to Unmarshal must be a non-nil pointer.)
++type InvalidUnmarshalError struct {
++	Type reflect.Type
++}
+ 
+-func (j *decoder) Float64(f float64) { j.value = float64(f) }
++func (e *InvalidUnmarshalError) String() string {
++	if e.Type == nil {
++		return "json: Unmarshal(nil)"
++	}
+ 
+-func (j *decoder) String(s string) { j.value = s }
++	if _, ok := e.Type.(*reflect.PtrType); !ok {
++		return "json: Unmarshal(non-pointer " + e.Type.String() + ")"
++	}
++	return "json: Unmarshal(nil " + e.Type.String() + ")"
++}
+ 
+-func (j *decoder) Bool(b bool) { j.value = b }
++func (d *decodeState) unmarshal(v interface{}) (err os.Error) {
++	defer func() {
++		if r := recover(); r != nil {
++			if _, ok := r.(runtime.Error); ok {
++				panic(r)
++			}
++			err = r.(os.Error)
++		}
++	}()
+ 
+-func (j *decoder) Null() { j.value = nil }
++	rv := reflect.NewValue(v)
++	pv, ok := rv.(*reflect.PtrValue)
++	if !ok || pv.IsNil() {
++		return &InvalidUnmarshalError{reflect.Typeof(v)}
++	}
+ 
+-func (j *decoder) Array() { j.value = new(vector.Vector) }
++	d.scan.reset()
++	d.value(pv.Elem())
++	return d.savedError
++}
+ 
+-func (j *decoder) Map() { j.value = make(map[string]interface{}) }
++// decodeState represents the state while decoding a JSON value.
++type decodeState struct {
++	data       []byte
++	off        int // read offset in data
++	scan       scanner
++	nextscan   scanner // for calls to nextValue
++	savedError os.Error
++}
+ 
+-func (j *decoder) Elem(i int) Builder {
+-	v, ok := j.value.(*vector.Vector)
+-	if !ok {
+-		v = new(vector.Vector)
+-		j.value = v
++// errPhase is used for errors that should not happen unless
++// there is a bug in the JSON decoder or something is editing
++// the data slice while the decoder executes.
++var errPhase = os.NewError("JSON decoder out of sync - data changing underfoot?")
++
++func (d *decodeState) init(data []byte) *decodeState {
++	d.data = data
++	d.off = 0
++	d.savedError = nil
++	return d
++}
++
++// error aborts the decoding by panicking with err.
++func (d *decodeState) error(err os.Error) {
++	panic(err)
++}
++
++// saveError saves the first err it is called with,
++// for reporting at the end of the unmarshal.
++func (d *decodeState) saveError(err os.Error) {
++	if d.savedError == nil {
++		d.savedError = err
++	}
++}
++
++// next cuts off and returns the next full JSON value in d.data[d.off:].
++// The next value is known to be an object or array, not a literal.
++func (d *decodeState) next() []byte {
++	c := d.data[d.off]
++	item, rest, err := nextValue(d.data[d.off:], &d.nextscan)
++	if err != nil {
++		d.error(err)
++	}
++	d.off = len(d.data) - len(rest)
++
++	// Our scanner has seen the opening brace/bracket
++	// and thinks we're still in the middle of the object.
++	// invent a closing brace/bracket to get it out.
++	if c == '{' {
++		d.scan.step(&d.scan, '}')
++	} else {
++		d.scan.step(&d.scan, ']')
+ 	}
+-	if v.Len() <= i {
+-		v.Resize(i+1, (i+1)*2)
++
++	return item
++}
++
++// scanWhile processes bytes in d.data[d.off:] until it
++// receives a scan code not equal to op.
++// It updates d.off and returns the new scan code.
++func (d *decodeState) scanWhile(op int) int {
++	var newOp int
++	for {
++		if d.off >= len(d.data) {
++			newOp = d.scan.eof()
++			d.off = len(d.data) + 1 // mark processed EOF with len+1
++		} else {
++			c := int(d.data[d.off])
++			d.off++
++			newOp = d.scan.step(&d.scan, c)
++		}
++		if newOp != op {
++			break
++		}
++	}
++	return newOp
++}
++
++// value decodes a JSON value from d.data[d.off:] into the value.
++// it updates d.off to point past the decoded value.
++func (d *decodeState) value(v reflect.Value) {
++	if v == nil {
++		_, rest, err := nextValue(d.data[d.off:], &d.nextscan)
++		if err != nil {
++			d.error(err)
++		}
++		d.off = len(d.data) - len(rest)
++
++		// d.scan thinks we're still at the beginning of the item.
++		// Feed in an empty string - the shortest, simplest value -
++		// so that it knows we got to the end of the value.
++		if d.scan.step == stateRedo {
++			panic("redo")
++		}
++		d.scan.step(&d.scan, '"')
++		d.scan.step(&d.scan, '"')
++		return
++	}
++
++	switch op := d.scanWhile(scanSkipSpace); op {
++	default:
++		d.error(errPhase)
++
++	case scanBeginArray:
++		d.array(v)
++
++	case scanBeginObject:
++		d.object(v)
++
++	case scanBeginLiteral:
++		d.literal(v)
++	}
++}
++
++// indirect walks down v allocating pointers as needed,
++// until it gets to a non-pointer.
++// if it encounters an Unmarshaler, indirect stops and returns that.
++// if wantptr is true, indirect stops at the last pointer.
++func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, reflect.Value) {
++	for {
++		var isUnmarshaler bool
++		if v.Type().NumMethod() > 0 {
++			// Remember that this is an unmarshaler,
++			// but wait to return it until after allocating
++			// the pointer (if necessary).
++			_, isUnmarshaler = v.Interface().(Unmarshaler)
++		}
++
++		pv, ok := v.(*reflect.PtrValue)
++		if !ok {
++			break
++		}
++		_, isptrptr := pv.Elem().(*reflect.PtrValue)
++		if !isptrptr && wantptr && !isUnmarshaler {
++			return nil, pv
++		}
++		pv.PointTo(reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem()))
++		if isUnmarshaler {
++			// Using v.Interface().(Unmarshaler)
++			// here means that we have to use a pointer
++			// as the struct field.  We cannot use a value inside
++			// a pointer to a struct, because in that case
++			// v.Interface() is the value (x.f) not the pointer (&x.f).
++			// This is an unfortunate consequence of reflect.
++			// An alternative would be to look up the
++			// UnmarshalJSON method and return a FuncValue.
++			return v.Interface().(Unmarshaler), nil
++		}
++		v = pv.Elem()
+ 	}
+-	return newDecoder(v, i)
++	return nil, v
+ }
+ 
+-func (j *decoder) Key(s string) Builder {
+-	m, ok := j.value.(map[string]interface{})
++// array consumes an array from d.data[d.off-1:], decoding into the value v.
++// the first byte of the array ('[') has been read already.
++func (d *decodeState) array(v reflect.Value) {
++	// Check for unmarshaler.
++	unmarshaler, pv := d.indirect(v, false)
++	if unmarshaler != nil {
++		d.off--
++		err := unmarshaler.UnmarshalJSON(d.next())
++		if err != nil {
++			d.error(err)
++		}
++		return
++	}
++	v = pv
++
++	// Decoding into nil interface?  Switch to non-reflect code.
++	iv, ok := v.(*reflect.InterfaceValue)
++	if ok {
++		iv.Set(reflect.NewValue(d.arrayInterface()))
++		return
++	}
++
++	// Check type of target.
++	av, ok := v.(reflect.ArrayOrSliceValue)
+ 	if !ok {
+-		m = make(map[string]interface{})
+-		j.value = m
++		d.saveError(&UnmarshalTypeError{"array", v.Type()})
++	}
++
++	sv, _ := v.(*reflect.SliceValue)
++
++	i := 0
++	for {
++		// Look ahead for ] - can only happen on first iteration.
++		op := d.scanWhile(scanSkipSpace)
++		if op == scanEndArray {
++			break
++		}
++
++		// Back up so d.value can have the byte we just read.
++		d.off--
++		d.scan.undo(op)
++
++		// Get element of array, growing if necessary.
++		if i >= av.Cap() && sv != nil {
++			newcap := sv.Cap() + sv.Cap()/2
++			if newcap < 4 {
++				newcap = 4
++			}
++			newv := reflect.MakeSlice(sv.Type().(*reflect.SliceType), sv.Len(), newcap)
++			reflect.ArrayCopy(newv, sv)
++			sv.Set(newv)
++		}
++		if i >= av.Len() && sv != nil {
++			// Must be slice; gave up on array during i >= av.Cap().
++			sv.SetLen(i + 1)
++		}
++
++		// Decode into element.
++		if i < av.Len() {
++			d.value(av.Elem(i))
++		} else {
++			// Ran out of fixed array: skip.
++			d.value(nil)
++		}
++		i++
++
++		// Next token must be , or ].
++		op = d.scanWhile(scanSkipSpace)
++		if op == scanEndArray {
++			break
++		}
++		if op != scanArrayValue {
++			d.error(errPhase)
++		}
++	}
++	if i < av.Len() {
++		if sv == nil {
++			// Array.  Zero the rest.
++			z := reflect.MakeZero(av.Type().(*reflect.ArrayType).Elem())
++			for ; i < av.Len(); i++ {
++				av.Elem(i).SetValue(z)
++			}
++		} else {
++			sv.SetLen(i)
++		}
++	}
++}
++
++// matchName returns true if key should be written to a field named name.
++func matchName(key, name string) bool {
++	return strings.ToLower(key) == strings.ToLower(name)
++}
++
++// object consumes an object from d.data[d.off-1:], decoding into the value v.
++// the first byte of the object ('{') has been read already.
++func (d *decodeState) object(v reflect.Value) {
++	// Check for unmarshaler.
++	unmarshaler, pv := d.indirect(v, false)
++	if unmarshaler != nil {
++		d.off--
++		err := unmarshaler.UnmarshalJSON(d.next())
++		if err != nil {
++			d.error(err)
++		}
++		return
++	}
++	v = pv
++
++	// Decoding into nil interface?  Switch to non-reflect code.
++	iv, ok := v.(*reflect.InterfaceValue)
++	if ok {
++		iv.Set(reflect.NewValue(d.objectInterface()))
++		return
++	}
++
++	// Check type of target: struct or map[string]T
++	var (
++		mv *reflect.MapValue
++		sv *reflect.StructValue
++	)
++	switch v := v.(type) {
++	case *reflect.MapValue:
++		// map must have string type
++		t := v.Type().(*reflect.MapType)
++		if t.Key() != reflect.Typeof("") {
++			d.saveError(&UnmarshalTypeError{"object", v.Type()})
++			break
++		}
++		mv = v
++		if mv.IsNil() {
++			mv.SetValue(reflect.MakeMap(t))
++		}
++	case *reflect.StructValue:
++		sv = v
++	default:
++		d.saveError(&UnmarshalTypeError{"object", v.Type()})
++	}
++
++	if mv == nil && sv == nil {
++		d.off--
++		d.next() // skip over { } in input
++		return
++	}
++
++	for {
++		// Read opening " of string key or closing }.
++		op := d.scanWhile(scanSkipSpace)
++		if op == scanEndObject {
++			// closing } - can only happen on first iteration.
++			break
++		}
++		if op != scanBeginLiteral {
++			d.error(errPhase)
++		}
++
++		// Read string key.
++		start := d.off - 1
++		op = d.scanWhile(scanContinue)
++		item := d.data[start : d.off-1]
++		key, ok := unquote(item)
++		if !ok {
++			d.error(errPhase)
++		}
++
++		// Figure out
++		var subv reflect.Value
++		if mv != nil {
++			subv = reflect.MakeZero(mv.Type().(*reflect.MapType).Elem())
++		} else {
++			for i := 0; i < sv.NumField(); i++ {
++				f := sv.Type().(*reflect.StructType).Field(i)
++				if f.Tag == key {
++					subv = sv.Field(i)
++					break
++				}
++			}
++			if subv == nil {
++				subv = sv.FieldByNameFunc(func(s string) bool { return matchName(key, s) })
++			}
++		}
++
++		// Read : before value.
++		if op == scanSkipSpace {
++			op = d.scanWhile(scanSkipSpace)
++		}
++		if op != scanObjectKey {
++			d.error(errPhase)
++		}
++
++		// Read value.
++		d.value(subv)
++
++		// Write value back to map;
++		// if using struct, subv points into struct already.
++		if mv != nil {
++			mv.SetElem(reflect.NewValue(key), subv)
++		}
++
++		// Next token must be , or }.
++		op = d.scanWhile(scanSkipSpace)
++		if op == scanEndObject {
++			break
++		}
++		if op != scanObjectValue {
++			d.error(errPhase)
++		}
++	}
++}
++
++// literal consumes a literal from d.data[d.off-1:], decoding into the value v.
++// The first byte of the literal has been read already
++// (that's how the caller knows it's a literal).
++func (d *decodeState) literal(v reflect.Value) {
++	// All bytes inside literal return scanContinue op code.
++	start := d.off - 1
++	op := d.scanWhile(scanContinue)
++
++	// Scan read one byte too far; back up.
++	d.off--
++	d.scan.undo(op)
++	item := d.data[start:d.off]
++
++	// Check for unmarshaler.
++	wantptr := item[0] == 'n' // null
++	unmarshaler, pv := d.indirect(v, wantptr)
++	if unmarshaler != nil {
++		err := unmarshaler.UnmarshalJSON(item)
++		if err != nil {
++			d.error(err)
++		}
++		return
++	}
++	v = pv
++
++	switch c := item[0]; c {
++	case 'n': // null
++		switch v.(type) {
++		default:
++			d.saveError(&UnmarshalTypeError{"null", v.Type()})
++		case *reflect.InterfaceValue, *reflect.PtrValue, *reflect.MapValue:
++			v.SetValue(nil)
++		}
++
++	case 't', 'f': // true, false
++		value := c == 't'
++		switch v := v.(type) {
++		default:
++			d.saveError(&UnmarshalTypeError{"bool", v.Type()})
++		case *reflect.BoolValue:
++			v.Set(value)
++		case *reflect.InterfaceValue:
++			v.Set(reflect.NewValue(value))
++		}
++
++	case '"': // string
++		s, ok := unquote(item)
++		if !ok {
++			d.error(errPhase)
++		}
++		switch v := v.(type) {
++		default:
++			d.saveError(&UnmarshalTypeError{"string", v.Type()})
++		case *reflect.StringValue:
++			v.Set(s)
++		case *reflect.InterfaceValue:
++			v.Set(reflect.NewValue(s))
++		}
++
++	default: // number
++		if c != '-' && (c < '0' || c > '9') {
++			d.error(errPhase)
++		}
++		s := string(item)
++		switch v := v.(type) {
++		default:
++			d.error(&UnmarshalTypeError{"number", v.Type()})
++		case *reflect.InterfaceValue:
++			n, err := strconv.Atof64(s)
++			if err != nil {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(reflect.NewValue(n))
++
++		case *reflect.IntValue:
++			n, err := strconv.Atoi(s)
++			if err != nil {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(n)
++		case *reflect.Int8Value:
++			n, err := strconv.Atoi(s)
++			if err != nil || int(int8(n)) != n {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(int8(n))
++		case *reflect.Int16Value:
++			n, err := strconv.Atoi(s)
++			if err != nil || int(int16(n)) != n {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(int16(n))
++		case *reflect.Int32Value:
++			n, err := strconv.Atoi(s)
++			if err != nil || int(int32(n)) != n {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(int32(n))
++		case *reflect.Int64Value:
++			n, err := strconv.Atoi64(s)
++			if err != nil {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(n)
++
++		case *reflect.UintValue:
++			n, err := strconv.Atoui(s)
++			if err != nil {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(n)
++		case *reflect.Uint8Value:
++			n, err := strconv.Atoui(s)
++			if err != nil || uint(uint8(n)) != n {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(uint8(n))
++		case *reflect.Uint16Value:
++			n, err := strconv.Atoui(s)
++			if err != nil || uint(uint16(n)) != n {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(uint16(n))
++		case *reflect.Uint32Value:
++			n, err := strconv.Atoui(s)
++			if err != nil || uint(uint32(n)) != n {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(uint32(n))
++		case *reflect.Uint64Value:
++			n, err := strconv.Atoui64(s)
++			if err != nil {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(n)
++		case *reflect.UintptrValue:
++			n, err := strconv.Atoui64(s)
++			if err != nil || uint64(uintptr(n)) != n {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(uintptr(n))
++
++		case *reflect.FloatValue:
++			n, err := strconv.Atof(s)
++			if err != nil {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(n)
++		case *reflect.Float32Value:
++			n, err := strconv.Atof32(s)
++			if err != nil {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(n)
++		case *reflect.Float64Value:
++			n, err := strconv.Atof64(s)
++			if err != nil {
++				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
++				break
++			}
++			v.Set(n)
++		}
+ 	}
+-	return newDecoder(m, s)
+ }
+ 
+-func (j *decoder) Flush() {
+-	switch c := j.container.(type) {
+-	case *vector.Vector:
+-		index := j.index.(int)
+-		c.Set(index, j.Data())
+-	case map[string]interface{}:
+-		index := j.index.(string)
+-		c[index] = j.Data()
++// The xxxInterface routines build up a value to be stored
++// in an empty interface.  They are not strictly necessary,
++// but they avoid the weight of reflection in this common case.
++
++// valueInterface is like value but returns interface{}
++func (d *decodeState) valueInterface() interface{} {
++	switch d.scanWhile(scanSkipSpace) {
++	default:
++		d.error(errPhase)
++	case scanBeginArray:
++		return d.arrayInterface()
++	case scanBeginObject:
++		return d.objectInterface()
++	case scanBeginLiteral:
++		return d.literalInterface()
++	}
++	panic("unreachable")
++}
++
++// arrayInterface is like array but returns []interface{}.
++func (d *decodeState) arrayInterface() []interface{} {
++	var v vector.Vector
++	for {
++		// Look ahead for ] - can only happen on first iteration.
++		op := d.scanWhile(scanSkipSpace)
++		if op == scanEndArray {
++			break
++		}
++
++		// Back up so d.value can have the byte we just read.
++		d.off--
++		d.scan.undo(op)
++
++		v.Push(d.valueInterface())
++
++		// Next token must be , or ].
++		op = d.scanWhile(scanSkipSpace)
++		if op == scanEndArray {
++			break
++		}
++		if op != scanArrayValue {
++			d.error(errPhase)
++		}
++	}
++	return v
++}
++
++// objectInterface is like object but returns map[string]interface{}.
++func (d *decodeState) objectInterface() map[string]interface{} {
++	m := make(map[string]interface{})
++	for {
++		// Read opening " of string key or closing }.
++		op := d.scanWhile(scanSkipSpace)
++		if op == scanEndObject {
++			// closing } - can only happen on first iteration.
++			break
++		}
++		if op != scanBeginLiteral {
++			d.error(errPhase)
++		}
++
++		// Read string key.
++		start := d.off - 1
++		op = d.scanWhile(scanContinue)
++		item := d.data[start : d.off-1]
++		key, ok := unquote(item)
++		if !ok {
++			d.error(errPhase)
++		}
++
++		// Read : before value.
++		if op == scanSkipSpace {
++			op = d.scanWhile(scanSkipSpace)
++		}
++		if op != scanObjectKey {
++			d.error(errPhase)
++		}
++
++		// Read value.
++		m[key] = d.valueInterface()
++
++		// Next token must be , or }.
++		op = d.scanWhile(scanSkipSpace)
++		if op == scanEndObject {
++			break
++		}
++		if op != scanObjectValue {
++			d.error(errPhase)
++		}
+ 	}
++	return m
+ }
+ 
+-// Get the value built by this builder.
+-func (j *decoder) Data() interface{} {
+-	switch v := j.value.(type) {
+-	case *vector.Vector:
+-		return v.Data()
++
++// literalInterface is like literal but returns an interface value.
++func (d *decodeState) literalInterface() interface{} {
++	// All bytes inside literal return scanContinue op code.
++	start := d.off - 1
++	op := d.scanWhile(scanContinue)
++
++	// Scan read one byte too far; back up.
++	d.off--
++	d.scan.undo(op)
++	item := d.data[start:d.off]
++
++	switch c := item[0]; c {
++	case 'n': // null
++		return nil
++
++	case 't', 'f': // true, false
++		return c == 't'
++
++	case '"': // string
++		s, ok := unquote(item)
++		if !ok {
++			d.error(errPhase)
++		}
++		return s
++
++	default: // number
++		if c != '-' && (c < '0' || c > '9') {
++			d.error(errPhase)
++		}
++		n, err := strconv.Atof64(string(item))
++		if err != nil {
++			d.saveError(&UnmarshalTypeError{"number " + string(item), reflect.Typeof(float64(0))})
++		}
++		return n
++	}
++	panic("unreachable")
++}
++
++// getu4 decodes \uXXXX from the beginning of s, returning the hex value,
++// or it returns -1.
++func getu4(s []byte) int {
++	if len(s) < 6 || s[0] != '\\' || s[1] != 'u' {
++		return -1
++	}
++	rune, err := strconv.Btoui64(string(s[2:6]), 16)
++	if err != nil {
++		return -1
++	}
++	return int(rune)
++}
++
++// unquote converts a quoted JSON string literal s into an actual string t.
++// The rules are different than for Go, so cannot use strconv.Unquote.
++func unquote(s []byte) (t string, ok bool) {
++	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
++		return
++	}
++	b := make([]byte, len(s)+2*utf8.UTFMax)
++	w := 0
++	for r := 1; r < len(s)-1; {
++		// Out of room?  Can only happen if s is full of
++		// malformed UTF-8 and we're replacing each
++		// byte with RuneError.
++		if w >= len(b)-2*utf8.UTFMax {
++			nb := make([]byte, (len(b)+utf8.UTFMax)*2)
++			copy(nb, b[0:w])
++			b = nb
++		}
++		switch c := s[r]; {
++		case c == '\\':
++			r++
++			if r >= len(s)-1 {
++				return
++			}
++			switch s[r] {
++			default:
++				return
++			case '"', '\\', '/', '\'':
++				b[w] = s[r]
++				r++
++				w++
++			case 'b':
++				b[w] = '\b'
++				r++
++				w++
++			case 'f':
++				b[w] = '\f'
++				r++
++				w++
++			case 'n':
++				b[w] = '\n'
++				r++
++				w++
++			case 'r':
++				b[w] = '\r'
++				r++
++				w++
++			case 't':
++				b[w] = '\t'
++				r++
++				w++
++			case 'u':
++				r--
++				rune := getu4(s[r:])
++				if rune < 0 {
++					return
++				}
++				r += 6
++				if utf16.IsSurrogate(rune) {
++					rune1 := getu4(s[r:])
++					if dec := utf16.DecodeRune(rune, rune1); dec != unicode.ReplacementChar {
++						// A valid pair; consume.
++						r += 6
++						w += utf8.EncodeRune(dec, b[w:])
++						break
++					}
++					// Invalid surrogate; fall back to replacement rune.
++					rune = unicode.ReplacementChar
++				}
++				w += utf8.EncodeRune(rune, b[w:])
++			}
++
++		// Quote, control characters are invalid.
++		case c == '"', c < ' ':
++			return
++
++		// ASCII
++		case c < utf8.RuneSelf:
++			b[w] = c
++			r++
++			w++
++
++		// Coerce to well-formed UTF-8.
++		default:
++			rune, size := utf8.DecodeRune(s[r:])
++			r += size
++			w += utf8.EncodeRune(rune, b[w:])
++		}
+ 	}
+-	return j.value
++	return string(b[0:w]), true
+ }
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index b712d65586..288bb1b404 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -1,133 +1,427 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package json
+ 
+ import (
+-	"container/vector"
++	"bytes"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+-func TestDecodeInt64(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.Int64(-15)
+-	assertResult(t, nb.Data(), float64(-15))
++type unmarshalTest struct {
++	in  string
++	ptr interface{}
++	out interface{}
+ }
+ 
+-func TestDecodeUint64(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.Uint64(15)
+-	assertResult(t, nb.Data(), float64(15))
+-}
++var unmarshalTests = []unmarshalTest{
++	// basic types
++	unmarshalTest{`true`, new(bool), true},
++	unmarshalTest{`1`, new(int), 1},
++	unmarshalTest{`1.2`, new(float), 1.2},
++	unmarshalTest{`-5`, new(int16), int16(-5)},
++	unmarshalTest{`"a\u1234"`, new(string), "a\u1234"},
++	unmarshalTest{`"g-clef: \uD834\uDD1E"`, new(string), "g-clef: \U0001D11E"},
++	unmarshalTest{`"invalid: \uD834x\uDD1E"`, new(string), "invalid: \uFFFDx\uFFFD"},
++	unmarshalTest{"null", new(interface{}), nil},
+ 
+-func TestDecodeFloat64(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.Float64(3.14159)
+-	assertResult(t, nb.Data(), float64(3.14159))
++	// composite tests
++	unmarshalTest{allValueIndent, new(All), allValue},
++	unmarshalTest{allValueCompact, new(All), allValue},
++	unmarshalTest{allValueIndent, new(*All), &allValue},
++	unmarshalTest{allValueCompact, new(*All), &allValue},
++	unmarshalTest{pallValueIndent, new(All), pallValue},
++	unmarshalTest{pallValueCompact, new(All), pallValue},
++	unmarshalTest{pallValueIndent, new(*All), &pallValue},
++	unmarshalTest{pallValueCompact, new(*All), &pallValue},
+ }
+ 
+-func TestDecodeString(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.String("Some string")
+-	assertResult(t, nb.Data(), "Some string")
+-}
++func TestMarshal(t *testing.T) {
++	b, err := Marshal(allValue)
++	if err != nil {
++		t.Fatalf("Marshal allValue: %v", err)
++	}
++	if string(b) != allValueCompact {
++		t.Errorf("Marshal allValueCompact")
++		diff(t, b, []byte(allValueCompact))
++		return
++	}
+ 
+-func TestDecodeBool(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.Bool(true)
+-	assertResult(t, nb.Data(), true)
++	b, err = Marshal(pallValue)
++	if err != nil {
++		t.Fatalf("Marshal pallValue: %v", err)
++	}
++	if string(b) != pallValueCompact {
++		t.Errorf("Marshal pallValueCompact")
++		diff(t, b, []byte(pallValueCompact))
++		return
++	}
+ }
+ 
+-func TestDecodeNull(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.Null()
+-	assertResult(t, nb.Data(), nil)
++func TestUnmarshal(t *testing.T) {
++	var scan scanner
++	for i, tt := range unmarshalTests {
++		in := []byte(tt.in)
++		if err := checkValid(in, &scan); err != nil {
++			t.Errorf("#%d: checkValid: %v", i, err)
++			continue
++		}
++		// v = new(right-type)
++		v := reflect.NewValue(tt.ptr).(*reflect.PtrValue)
++		v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()))
++		if err := Unmarshal([]byte(in), v.Interface()); err != nil {
++			t.Errorf("#%d: %v", i, err)
++			continue
++		}
++		if !reflect.DeepEqual(v.Elem().Interface(), tt.out) {
++			t.Errorf("#%d: mismatch\nhave: %#+v\nwant: %#+v", i, v.Elem().Interface(), tt.out)
++			data, _ := Marshal(v.Elem().Interface())
++			println(string(data))
++			data, _ = Marshal(tt.out)
++			println(string(data))
++			return
++			continue
++		}
++	}
+ }
+ 
+-func TestDecodeEmptyArray(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.Array()
+-	assertResult(t, nb.Data(), []interface{}{})
++func TestUnmarshalMarshal(t *testing.T) {
++	var v interface{}
++	if err := Unmarshal(jsonBig, &v); err != nil {
++		t.Fatalf("Unmarshal: %v", err)
++	}
++	b, err := Marshal(v)
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++	if bytes.Compare(jsonBig, b) != 0 {
++		t.Errorf("Marshal jsonBig")
++		diff(t, b, jsonBig)
++		return
++	}
+ }
+ 
+-func TestDecodeEmptyMap(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.Map()
+-	assertResult(t, nb.Data(), map[string]interface{}{})
++func noSpace(c int) int {
++	if isSpace(c) {
++		return -1
++	}
++	return c
+ }
+ 
+-func TestDecodeFlushElem(t *testing.T) {
+-	testVec := new(vector.Vector).Resize(2, 2)
+-	nb := newDecoder(testVec, 1)
+-	nb.Float64(3.14159)
+-	nb.Flush()
+-	assertResult(t, testVec.Data(), []interface{}{nil, float64(3.14159)})
+-}
++type All struct {
++	Bool    bool
++	Int     int
++	Int8    int8
++	Int16   int16
++	Int32   int32
++	Int64   int64
++	Uint    uint
++	Uint8   uint8
++	Uint16  uint16
++	Uint32  uint32
++	Uint64  uint64
++	Uintptr uintptr
++	Float   float
++	Float32 float32
++	Float64 float64
+ 
+-func TestDecodeFlushKey(t *testing.T) {
+-	testMap := make(map[string]interface{})
+-	nb := newDecoder(testMap, "key")
+-	nb.Float64(3.14159)
+-	nb.Flush()
+-	assertResult(t, testMap, map[string]interface{}{"key": float64(3.14159)})
+-}
++	Foo string "bar"
+ 
+-// Elem() and Key() are hard to test in isolation because all they do
+-// is create a new, properly initialized, decoder, and modify state of
+-// the underlying decoder.  I'm testing them through already tested
+-// Array(), String(), and Flush().
+-
+-func TestDecodeElem(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.Array()
+-	var b Builder = nb.Elem(0)
+-	b.String("0")
+-	b.Flush()
+-	assertResult(t, nb.Data(), []interface{}{"0"})
+-}
++	PBool    *bool
++	PInt     *int
++	PInt8    *int8
++	PInt16   *int16
++	PInt32   *int32
++	PInt64   *int64
++	PUint    *uint
++	PUint8   *uint8
++	PUint16  *uint16
++	PUint32  *uint32
++	PUint64  *uint64
++	PUintptr *uintptr
++	PFloat   *float
++	PFloat32 *float32
++	PFloat64 *float64
++
++	String  string
++	PString *string
+ 
+-func TestDecodeKey(t *testing.T) {
+-	nb := newDecoder(nil, nil)
+-	nb.Map()
+-	var b Builder = nb.Key("a")
+-	b.String("0")
+-	b.Flush()
+-	assertResult(t, nb.Data(), map[string]interface{}{"a": "0"})
++	Map   map[string]Small
++	MapP  map[string]*Small
++	PMap  *map[string]Small
++	PMapP *map[string]*Small
++
++	EmptyMap map[string]Small
++	NilMap   map[string]Small
++
++	Slice   []Small
++	SliceP  []*Small
++	PSlice  *[]Small
++	PSliceP *[]*Small
++
++	EmptySlice []Small
++	NilSlice   []Small
++
++	StringSlice []string
++	ByteSlice   []byte
++
++	Small   Small
++	PSmall  *Small
++	PPSmall **Small
++
++	Interface  interface{}
++	PInterface *interface{}
+ }
+ 
+-func assertResult(t *testing.T, results, expected interface{}) {
+-	if !reflect.DeepEqual(results, expected) {
+-		t.Fatalf("have %T(%#v) want %T(%#v)", results, results, expected, expected)
+-	}
++type Small struct {
++	Tag string
+ }
+ 
+-type decodeTest struct {
+-	s string
+-	r interface{}
++var allValue = All{
++	Bool:    true,
++	Int:     2,
++	Int8:    3,
++	Int16:   4,
++	Int32:   5,
++	Int64:   6,
++	Uint:    7,
++	Uint8:   8,
++	Uint16:  9,
++	Uint32:  10,
++	Uint64:  11,
++	Uintptr: 12,
++	Float:   13.1,
++	Float32: 14.1,
++	Float64: 15.1,
++	Foo:     "foo",
++	String:  "16",
++	Map: map[string]Small{
++		"17": Small{Tag: "tag17"},
++		"18": Small{Tag: "tag18"},
++	},
++	MapP: map[string]*Small{
++		"19": &Small{Tag: "tag19"},
++		"20": nil,
++	},
++	EmptyMap:    map[string]Small{},
++	Slice:       []Small{Small{Tag: "tag20"}, Small{Tag: "tag21"}},
++	SliceP:      []*Small{&Small{Tag: "tag22"}, nil, &Small{Tag: "tag23"}},
++	EmptySlice:  []Small{},
++	StringSlice: []string{"str24", "str25", "str26"},
++	ByteSlice:   []byte{27, 28, 29},
++	Small:       Small{Tag: "tag30"},
++	PSmall:      &Small{Tag: "tag31"},
++	Interface:   float64(5.2),
+ }
+ 
+-var tests = []decodeTest{
+-	decodeTest{`null`, nil},
+-	decodeTest{`true`, true},
+-	decodeTest{`false`, false},
+-	decodeTest{`"abc"`, "abc"},
+-	decodeTest{`123`, float64(123)},
+-	decodeTest{`0.1`, float64(0.1)},
+-	decodeTest{`1e-10`, float64(1e-10)},
+-	decodeTest{`[]`, []interface{}{}},
+-	decodeTest{`[1,2,3,4]`, []interface{}{float64(1), float64(2), float64(3), float64(4)}},
+-	decodeTest{`[1,2,"abc",null,true,false]`, []interface{}{float64(1), float64(2), "abc", nil, true, false}},
+-	decodeTest{`{}`, map[string]interface{}{}},
+-	decodeTest{`{"a":1}`, map[string]interface{}{"a": float64(1)}},
+-	decodeTest{`"q\u0302"`, "q\u0302"},
++var pallValue = All{
++	PBool:      &allValue.Bool,
++	PInt:       &allValue.Int,
++	PInt8:      &allValue.Int8,
++	PInt16:     &allValue.Int16,
++	PInt32:     &allValue.Int32,
++	PInt64:     &allValue.Int64,
++	PUint:      &allValue.Uint,
++	PUint8:     &allValue.Uint8,
++	PUint16:    &allValue.Uint16,
++	PUint32:    &allValue.Uint32,
++	PUint64:    &allValue.Uint64,
++	PUintptr:   &allValue.Uintptr,
++	PFloat:     &allValue.Float,
++	PFloat32:   &allValue.Float32,
++	PFloat64:   &allValue.Float64,
++	PString:    &allValue.String,
++	PMap:       &allValue.Map,
++	PMapP:      &allValue.MapP,
++	PSlice:     &allValue.Slice,
++	PSliceP:    &allValue.SliceP,
++	PPSmall:    &allValue.PSmall,
++	PInterface: &allValue.Interface,
+ }
+ 
+-func TestDecode(t *testing.T) {
+-	for _, test := range tests {
+-		if val, err := Decode(test.s); err != nil || !reflect.DeepEqual(val, test.r) {
+-			t.Errorf("Decode(%#q) = %v, %v want %v, nil", test.s, val, err, test.r)
++var allValueIndent = `{
++	"bool": true,
++	"int": 2,
++	"int8": 3,
++	"int16": 4,
++	"int32": 5,
++	"int64": 6,
++	"uint": 7,
++	"uint8": 8,
++	"uint16": 9,
++	"uint32": 10,
++	"uint64": 11,
++	"uintptr": 12,
++	"float": 13.1,
++	"float32": 14.1,
++	"float64": 15.1,
++	"bar": "foo",
++	"pbool": null,
++	"pint": null,
++	"pint8": null,
++	"pint16": null,
++	"pint32": null,
++	"pint64": null,
++	"puint": null,
++	"puint8": null,
++	"puint16": null,
++	"puint32": null,
++	"puint64": null,
++	"puintptr": null,
++	"pfloat": null,
++	"pfloat32": null,
++	"pfloat64": null,
++	"string": "16",
++	"pstring": null,
++	"map": {
++		"17": {
++			"tag": "tag17"
++		},
++		"18": {
++			"tag": "tag18"
+ 		}
+-	}
+-}
++	},
++	"mapp": {
++		"19": {
++			"tag": "tag19"
++		},
++		"20": null
++	},
++	"pmap": null,
++	"pmapp": null,
++	"emptymap": {},
++	"nilmap": null,
++	"slice": [
++		{
++			"tag": "tag20"
++		},
++		{
++			"tag": "tag21"
++		}
++	],
++	"slicep": [
++		{
++			"tag": "tag22"
++		},
++		null,
++		{
++			"tag": "tag23"
++		}
++	],
++	"pslice": null,
++	"pslicep": null,
++	"emptyslice": [],
++	"nilslice": [],
++	"stringslice": [
++		"str24",
++		"str25",
++		"str26"
++	],
++	"byteslice": [
++		27,
++		28,
++		29
++	],
++	"small": {
++		"tag": "tag30"
++	},
++	"psmall": {
++		"tag": "tag31"
++	},
++	"ppsmall": null,
++	"interface": 5.2,
++	"pinterface": null
++}`
++
++var allValueCompact = strings.Map(noSpace, allValueIndent)
++
++var pallValueIndent = `{
++	"bool": false,
++	"int": 0,
++	"int8": 0,
++	"int16": 0,
++	"int32": 0,
++	"int64": 0,
++	"uint": 0,
++	"uint8": 0,
++	"uint16": 0,
++	"uint32": 0,
++	"uint64": 0,
++	"uintptr": 0,
++	"float": 0,
++	"float32": 0,
++	"float64": 0,
++	"bar": "",
++	"pbool": true,
++	"pint": 2,
++	"pint8": 3,
++	"pint16": 4,
++	"pint32": 5,
++	"pint64": 6,
++	"puint": 7,
++	"puint8": 8,
++	"puint16": 9,
++	"puint32": 10,
++	"puint64": 11,
++	"puintptr": 12,
++	"pfloat": 13.1,
++	"pfloat32": 14.1,
++	"pfloat64": 15.1,
++	"string": "",
++	"pstring": "16",
++	"map": null,
++	"mapp": null,
++	"pmap": {
++		"17": {
++			"tag": "tag17"
++		},
++		"18": {
++			"tag": "tag18"
++		}
++	},
++	"pmapp": {
++		"19": {
++			"tag": "tag19"
++		},
++		"20": null
++	},
++	"emptymap": null,
++	"nilmap": null,
++	"slice": [],
++	"slicep": [],
++	"pslice": [
++		{
++			"tag": "tag20"
++		},
++		{
++			"tag": "tag21"
++		}
++	],
++	"pslicep": [
++		{
++			"tag": "tag22"
++		},
++		null,
++		{
++			"tag": "tag23"
++		}
++	],
++	"emptyslice": [],
++	"nilslice": [],
++	"stringslice": [],
++	"byteslice": [],
++	"small": {
++		"tag": ""
++	},
++	"psmall": null,
++	"ppsmall": {
++		"tag": "tag31"
++	},
++	"interface": null,
++	"pinterface": 5.2
++}`
++
++var pallValueCompact = strings.Map(noSpace, pallValueIndent)
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+new file mode 100644
+index 0000000000..1de22086d2
+--- /dev/null
++++ b/src/pkg/json/encode.go
+@@ -0,0 +1,282 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package json
++
++import (
++	"os"
++	"bytes"
++	"reflect"
++	"runtime"
++	"sort"
++	"strconv"
++	"strings"
++)
++
++// Marshal returns the JSON encoding of v.
++//
++// Marshal traverses the value v recursively.
++// If an encountered value implements the Marshaler interface,
++// Marshal calls its MarshalJSON method to produce JSON.
++//
++// Otherwise, Marshal uses the following type-dependent default encodings:
++//
++// Boolean values encode as JSON booleans.
++//
++// Floating point and integer values encode as JSON numbers.
++//
++// String values encode as JSON strings, with each invalid UTF-8 sequence
++// replaced by the encoding of the Unicode replacement character U+FFFD.
++//
++// Array and slice values encode as JSON arrays.
++//
++// Struct values encode as JSON objects.  Each struct field becomes
++// a member of the object.  By default the object's key name is the
++// struct field name converted to lower case.  If the struct field
++// has a tag, that tag will be used as the name instead.
++//
++// Map values encode as JSON objects.
++// The map's key type must be string; the object keys are used directly
++// as map keys.
++//
++// Pointer values encode as the value pointed at.
++// A nil pointer encodes as the null JSON object.
++//
++// Interface values encode as the value contained in the interface.
++// A nil interface value encodes as the null JSON object.
++//
++// Channel, complex, and function values cannot be encoded in JSON.
++// Attempting to encode such a value causes Marshal to return
++// an InvalidTypeError.
++//
++// JSON cannot represent cyclic data structures and Marshal does not
++// handle them.  Passing cyclic structures to Marshal will result in
++// an infinite recursion.
++//
++func Marshal(v interface{}) ([]byte, os.Error) {
++	e := &encodeState{}
++	err := e.marshal(v)
++	if err != nil {
++		return nil, err
++	}
++	return e.Bytes(), nil
++}
++
++// MarshalIndent is like Marshal but applies Indent to format the output.
++func MarshalIndent(v interface{}, prefix, indent string) ([]byte, os.Error) {
++	b, err := Marshal(v)
++	if err != nil {
++		return nil, err
++	}
++	var buf bytes.Buffer
++	err = Indent(&buf, b, prefix, indent)
++	if err != nil {
++		return nil, err
++	}
++	return buf.Bytes(), nil
++}
++
++// Marshaler is the interface implemented by objects that
++// can marshal themselves into valid JSON.
++type Marshaler interface {
++	MarshalJSON() ([]byte, os.Error)
++}
++
++type UnsupportedTypeError struct {
++	Type reflect.Type
++}
++
++func (e *UnsupportedTypeError) String() string {
++	return "json: unsupported type: " + e.Type.String()
++}
++
++type MarshalerError struct {
++	Type  reflect.Type
++	Error os.Error
++}
++
++func (e *MarshalerError) String() string {
++	return "json: error calling MarshalJSON for type " + e.Type.String() + ": " + e.Error.String()
++}
++
++type interfaceOrPtrValue interface {
++	IsNil() bool
++	Elem() reflect.Value
++}
++
++var hex = "0123456789abcdef"
++
++// An encodeState encodes JSON into a bytes.Buffer.
++type encodeState struct {
++	bytes.Buffer // accumulated output
++}
++
++func (e *encodeState) marshal(v interface{}) (err os.Error) {
++	defer func() {
++		if r := recover(); r != nil {
++			if _, ok := r.(runtime.Error); ok {
++				panic(r)
++			}
++			err = r.(os.Error)
++		}
++	}()
++	e.reflectValue(reflect.NewValue(v))
++	return nil
++}
++
++func (e *encodeState) error(err os.Error) {
++	panic(err)
++}
++
++func (e *encodeState) reflectValue(v reflect.Value) {
++	if v == nil {
++		e.WriteString("null")
++		return
++	}
++
++	if j, ok := v.Interface().(Marshaler); ok {
++		b, err := j.MarshalJSON()
++		if err == nil {
++			// copy JSON into buffer, checking validity.
++			err = Compact(&e.Buffer, b)
++		}
++		if err != nil {
++			e.error(&MarshalerError{v.Type(), err})
++		}
++		return
++	}
++
++	switch v := v.(type) {
++	case *reflect.BoolValue:
++		x := v.Get()
++		if x {
++			e.WriteString("true")
++		} else {
++			e.WriteString("false")
++		}
++
++	case *reflect.IntValue:
++		e.WriteString(strconv.Itoa(v.Get()))
++	case *reflect.Int8Value:
++		e.WriteString(strconv.Itoa(int(v.Get())))
++	case *reflect.Int16Value:
++		e.WriteString(strconv.Itoa(int(v.Get())))
++	case *reflect.Int32Value:
++		e.WriteString(strconv.Itoa(int(v.Get())))
++	case *reflect.Int64Value:
++		e.WriteString(strconv.Itoa64(v.Get()))
++
++	case *reflect.UintValue:
++		e.WriteString(strconv.Uitoa(v.Get()))
++	case *reflect.Uint8Value:
++		e.WriteString(strconv.Uitoa(uint(v.Get())))
++	case *reflect.Uint16Value:
++		e.WriteString(strconv.Uitoa(uint(v.Get())))
++	case *reflect.Uint32Value:
++		e.WriteString(strconv.Uitoa(uint(v.Get())))
++	case *reflect.Uint64Value:
++		e.WriteString(strconv.Uitoa64(v.Get()))
++	case *reflect.UintptrValue:
++		e.WriteString(strconv.Uitoa64(uint64(v.Get())))
++
++	case *reflect.FloatValue:
++		e.WriteString(strconv.Ftoa(v.Get(), 'g', -1))
++	case *reflect.Float32Value:
++		e.WriteString(strconv.Ftoa32(v.Get(), 'g', -1))
++	case *reflect.Float64Value:
++		e.WriteString(strconv.Ftoa64(v.Get(), 'g', -1))
++
++	case *reflect.StringValue:
++		e.string(v.Get())
++
++	case *reflect.StructValue:
++		e.WriteByte('{')
++		t := v.Type().(*reflect.StructType)
++		n := v.NumField()
++		for i := 0; i < n; i++ {
++			if i > 0 {
++				e.WriteByte(',')
++			}
++			f := t.Field(i)
++			if f.Tag != "" {
++				e.string(f.Tag)
++			} else {
++				e.string(strings.ToLower(f.Name))
++			}
++			e.WriteByte(':')
++			e.reflectValue(v.Field(i))
++		}
++		e.WriteByte('}')
++
++	case *reflect.MapValue:
++		if _, ok := v.Type().(*reflect.MapType).Key().(*reflect.StringType); !ok {
++			e.error(&UnsupportedTypeError{v.Type()})
++		}
++		if v.IsNil() {
++			e.WriteString("null")
++			break
++		}
++		e.WriteByte('{')
++		var sv stringValues = v.Keys()
++		sort.Sort(sv)
++		for i, k := range sv {
++			if i > 0 {
++				e.WriteByte(',')
++			}
++			e.string(k.(*reflect.StringValue).Get())
++			e.WriteByte(':')
++			e.reflectValue(v.Elem(k))
++		}
++		e.WriteByte('}')
++
++	case reflect.ArrayOrSliceValue:
++		e.WriteByte('[')
++		n := v.Len()
++		for i := 0; i < n; i++ {
++			if i > 0 {
++				e.WriteByte(',')
++			}
++			e.reflectValue(v.Elem(i))
++		}
++		e.WriteByte(']')
++
++	case interfaceOrPtrValue:
++		if v.IsNil() {
++			e.WriteString("null")
++			return
++		}
++		e.reflectValue(v.Elem())
++
++	default:
++		e.error(&UnsupportedTypeError{v.Type()})
++	}
++	return
++}
++
++// stringValues is a slice of reflect.Value holding *reflect.StringValue.
++// It implements the methods to sort by string.
++type stringValues []reflect.Value
++
++func (sv stringValues) Len() int           { return len(sv) }
++func (sv stringValues) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
++func (sv stringValues) Less(i, j int) bool { return sv.get(i) < sv.get(j) }
++func (sv stringValues) get(i int) string   { return sv[i].(*reflect.StringValue).Get() }
++
++func (e *encodeState) string(s string) {
++	e.WriteByte('"')
++	for _, c := range s {
++		switch {
++		case c < 0x20:
++			e.WriteString(`\u00`)
++			e.WriteByte(hex[c>>4])
++			e.WriteByte(hex[c&0xF])
++		case c == '\\' || c == '"':
++			e.WriteByte('\\')
++			fallthrough
++		default:
++			e.WriteRune(c)
++		}
++	}
++	e.WriteByte('"')
++}
+diff --git a/src/pkg/json/scanner.go b/src/pkg/json/scanner.go
+index c622bc679a..c1934c8d99 100644
+--- a/src/pkg/json/scanner.go
++++ b/src/pkg/json/scanner.go
+@@ -181,6 +181,10 @@ func (s *scanner) popParseState() {
+ 	}
+ }
+ 
++func isSpace(c int) bool {
++	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
++}
++
+ // NOTE(rsc): The various instances of
+ //
+ //	if c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+@@ -590,7 +594,7 @@ func stateError(s *scanner, c int) int {
+ // error records an error and switches to the error state.
+ func (s *scanner) error(c int, context string) int {
+ 	s.step = stateError
+-	s.err = SyntaxError("invalid character '" + quoteChar(c) + "' " + context)
++	s.err = SyntaxError("invalid character " + quoteChar(c) + " " + context)
+ 	return scanError
+ }
+ 
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/json/scanner_test.go
+index 592960482b..cdc032263e 100644
+--- a/src/pkg/json/scanner_test.go
++++ b/src/pkg/json/scanner_test.go
+@@ -175,6 +175,7 @@ func diff(t *testing.T, a, b []byte) {
+ 				j = 0
+ 			}
+ 			t.Errorf("diverge at %d: «%s» vs «%s»", i, trim(a[j:]), trim(b[j:]))
++			return
+ 		}
+ 	}
+ }
+@@ -191,9 +192,11 @@ func trim(b []byte) []byte {
+ var jsonBig []byte
+ 
+ func init() {
+-	var buf bytes.Buffer
+-	Marshal(&buf, genValue(100000))
+-	jsonBig = buf.Bytes()
++	b, err := Marshal(genValue(10000))
++	if err != nil {
++		panic(err)
++	}
++	jsonBig = b
+ }
+ 
+ func genValue(n int) interface{} {
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+deleted file mode 100644
+index 9be89cbd6f..0000000000
+--- a/src/pkg/json/struct.go
++++ /dev/null
+@@ -1,481 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Marshalling and unmarshalling of
+-// JSON data into Go structs using reflection.
+-
+-package json
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"io"
+-	"os"
+-	"reflect"
+-	"strings"
+-)
+-
+-type structBuilder struct {
+-	val reflect.Value
+-
+-	// if map_ != nil, write val to map_[key] on each change
+-	map_ *reflect.MapValue
+-	key  reflect.Value
+-}
+-
+-var nobuilder *structBuilder
+-
+-func isfloat(v reflect.Value) bool {
+-	switch v.(type) {
+-	case *reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value:
+-		return true
+-	}
+-	return false
+-}
+-
+-func setfloat(v reflect.Value, f float64) {
+-	switch v := v.(type) {
+-	case *reflect.FloatValue:
+-		v.Set(float(f))
+-	case *reflect.Float32Value:
+-		v.Set(float32(f))
+-	case *reflect.Float64Value:
+-		v.Set(float64(f))
+-	}
+-}
+-
+-func setint(v reflect.Value, i int64) {
+-	switch v := v.(type) {
+-	case *reflect.IntValue:
+-		v.Set(int(i))
+-	case *reflect.Int8Value:
+-		v.Set(int8(i))
+-	case *reflect.Int16Value:
+-		v.Set(int16(i))
+-	case *reflect.Int32Value:
+-		v.Set(int32(i))
+-	case *reflect.Int64Value:
+-		v.Set(int64(i))
+-	case *reflect.UintValue:
+-		v.Set(uint(i))
+-	case *reflect.Uint8Value:
+-		v.Set(uint8(i))
+-	case *reflect.Uint16Value:
+-		v.Set(uint16(i))
+-	case *reflect.Uint32Value:
+-		v.Set(uint32(i))
+-	case *reflect.Uint64Value:
+-		v.Set(uint64(i))
+-	}
+-}
+-
+-// If updating b.val is not enough to update the original,
+-// copy a changed b.val out to the original.
+-func (b *structBuilder) Flush() {
+-	if b == nil {
+-		return
+-	}
+-	if b.map_ != nil {
+-		b.map_.SetElem(b.key, b.val)
+-	}
+-}
+-
+-func (b *structBuilder) Int64(i int64) {
+-	if b == nil {
+-		return
+-	}
+-	v := b.val
+-	if isfloat(v) {
+-		setfloat(v, float64(i))
+-	} else {
+-		setint(v, i)
+-	}
+-}
+-
+-func (b *structBuilder) Uint64(i uint64) {
+-	if b == nil {
+-		return
+-	}
+-	v := b.val
+-	if isfloat(v) {
+-		setfloat(v, float64(i))
+-	} else {
+-		setint(v, int64(i))
+-	}
+-}
+-
+-func (b *structBuilder) Float64(f float64) {
+-	if b == nil {
+-		return
+-	}
+-	v := b.val
+-	if isfloat(v) {
+-		setfloat(v, f)
+-	} else {
+-		setint(v, int64(f))
+-	}
+-}
+-
+-func (b *structBuilder) Null() {}
+-
+-func (b *structBuilder) String(s string) {
+-	if b == nil {
+-		return
+-	}
+-	if v, ok := b.val.(*reflect.StringValue); ok {
+-		v.Set(s)
+-	}
+-}
+-
+-func (b *structBuilder) Bool(tf bool) {
+-	if b == nil {
+-		return
+-	}
+-	if v, ok := b.val.(*reflect.BoolValue); ok {
+-		v.Set(tf)
+-	}
+-}
+-
+-func (b *structBuilder) Array() {
+-	if b == nil {
+-		return
+-	}
+-	if v, ok := b.val.(*reflect.SliceValue); ok {
+-		if v.IsNil() {
+-			v.Set(reflect.MakeSlice(v.Type().(*reflect.SliceType), 0, 8))
+-		}
+-	}
+-}
+-
+-func (b *structBuilder) Elem(i int) Builder {
+-	if b == nil || i < 0 {
+-		return nobuilder
+-	}
+-	switch v := b.val.(type) {
+-	case *reflect.ArrayValue:
+-		if i < v.Len() {
+-			return &structBuilder{val: v.Elem(i)}
+-		}
+-	case *reflect.SliceValue:
+-		if i >= v.Cap() {
+-			n := v.Cap()
+-			if n < 8 {
+-				n = 8
+-			}
+-			for n <= i {
+-				n *= 2
+-			}
+-			nv := reflect.MakeSlice(v.Type().(*reflect.SliceType), v.Len(), n)
+-			reflect.ArrayCopy(nv, v)
+-			v.Set(nv)
+-		}
+-		if v.Len() <= i && i < v.Cap() {
+-			v.SetLen(i + 1)
+-		}
+-		if i < v.Len() {
+-			return &structBuilder{val: v.Elem(i)}
+-		}
+-	}
+-	return nobuilder
+-}
+-
+-func (b *structBuilder) Map() {
+-	if b == nil {
+-		return
+-	}
+-	if v, ok := b.val.(*reflect.PtrValue); ok && v.IsNil() {
+-		if v.IsNil() {
+-			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()))
+-			b.Flush()
+-		}
+-		b.map_ = nil
+-		b.val = v.Elem()
+-	}
+-	if v, ok := b.val.(*reflect.MapValue); ok && v.IsNil() {
+-		v.Set(reflect.MakeMap(v.Type().(*reflect.MapType)))
+-	}
+-}
+-
+-func (b *structBuilder) Key(k string) Builder {
+-	if b == nil {
+-		return nobuilder
+-	}
+-	switch v := reflect.Indirect(b.val).(type) {
+-	case *reflect.StructValue:
+-		t := v.Type().(*reflect.StructType)
+-		// Case-insensitive field lookup.
+-		k = strings.ToLower(k)
+-		for i := 0; i < t.NumField(); i++ {
+-			if strings.ToLower(t.Field(i).Name) == k {
+-				return &structBuilder{val: v.Field(i)}
+-			}
+-		}
+-	case *reflect.MapValue:
+-		t := v.Type().(*reflect.MapType)
+-		if t.Key() != reflect.Typeof(k) {
+-			break
+-		}
+-		key := reflect.NewValue(k)
+-		elem := v.Elem(key)
+-		if elem == nil {
+-			v.SetElem(key, reflect.MakeZero(t.Elem()))
+-			elem = v.Elem(key)
+-		}
+-		return &structBuilder{val: elem, map_: v, key: key}
+-	}
+-	return nobuilder
+-}
+-
+-// Unmarshal parses the JSON syntax string s and fills in
+-// an arbitrary struct or slice pointed at by val.
+-// It uses the reflect package to assign to fields
+-// and arrays embedded in val.  Well-formed data that does not fit
+-// into the struct is discarded.
+-//
+-// For example, given these definitions:
+-//
+-//	type Email struct {
+-//		Where string
+-//		Addr string
+-//	}
+-//
+-//	type Result struct {
+-//		Name string
+-//		Phone string
+-//		Email []Email
+-//	}
+-//
+-//	var r = Result{ "name", "phone", nil }
+-//
+-// unmarshalling the JSON syntax string
+-//
+-//	{
+-//	  "email": [
+-//	    {
+-//	      "where": "home",
+-//	      "addr": "gre@example.com"
+-//	    },
+-//	    {
+-//	      "where": "work",
+-//	      "addr": "gre@work.com"
+-//	    }
+-//	  ],
+-//	  "name": "Grace R. Emlin",
+-//	  "address": "123 Main Street"
+-//	}
+-//
+-// via Unmarshal(s, &r) is equivalent to assigning
+-//
+-//	r = Result{
+-//		"Grace R. Emlin",	// name
+-//		"phone",		// no phone given
+-//		[]Email{
+-//			Email{ "home", "gre@example.com" },
+-//			Email{ "work", "gre@work.com" },
+-//		},
+-//	}
+-//
+-// Note that the field r.Phone has not been modified and
+-// that the JSON field "address" was discarded.
+-//
+-// Because Unmarshal uses the reflect package, it can only
+-// assign to upper case fields.  Unmarshal uses a case-insensitive
+-// comparison to match JSON field names to struct field names.
+-//
+-// To unmarshal a top-level JSON array, pass in a pointer to an empty
+-// slice of the correct type.
+-//
+-// On success, Unmarshal returns with ok set to true.
+-// On a syntax error, it returns with ok set to false and errtok
+-// set to the offending token.
+-func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
+-	v := reflect.NewValue(val)
+-	var b *structBuilder
+-
+-	// If val is a pointer to a slice, we append to the slice.
+-	if ptr, ok := v.(*reflect.PtrValue); ok {
+-		if slice, ok := ptr.Elem().(*reflect.SliceValue); ok {
+-			b = &structBuilder{val: slice}
+-		}
+-	}
+-
+-	if b == nil {
+-		b = &structBuilder{val: v}
+-	}
+-
+-	ok, _, errtok = Parse(s, b)
+-	if !ok {
+-		return false, errtok
+-	}
+-	return true, ""
+-}
+-
+-type MarshalError struct {
+-	T reflect.Type
+-}
+-
+-func (e *MarshalError) String() string {
+-	return "json cannot encode value of type " + e.T.String()
+-}
+-
+-type writeState struct {
+-	bytes.Buffer
+-	indent   string
+-	newlines bool
+-	depth    int
+-}
+-
+-func (s *writeState) descend(bra byte) {
+-	s.depth++
+-	s.WriteByte(bra)
+-}
+-
+-func (s *writeState) ascend(ket byte) {
+-	s.depth--
+-	s.writeIndent()
+-	s.WriteByte(ket)
+-}
+-
+-func (s *writeState) writeIndent() {
+-	if s.newlines {
+-		s.WriteByte('\n')
+-	}
+-	for i := 0; i < s.depth; i++ {
+-		s.WriteString(s.indent)
+-	}
+-}
+-
+-func (s *writeState) writeArrayOrSlice(val reflect.ArrayOrSliceValue) {
+-	s.descend('[')
+-
+-	for i := 0; i < val.Len(); i++ {
+-		s.writeIndent()
+-		s.writeValue(val.Elem(i))
+-		if i < val.Len()-1 {
+-			s.WriteByte(',')
+-		}
+-	}
+-
+-	s.ascend(']')
+-}
+-
+-func (s *writeState) writeMap(val *reflect.MapValue) {
+-	key := val.Type().(*reflect.MapType).Key()
+-	if _, ok := key.(*reflect.StringType); !ok {
+-		panic(&MarshalError{val.Type()})
+-	}
+-
+-	s.descend('{')
+-
+-	keys := val.Keys()
+-	for i := 0; i < len(keys); i++ {
+-		s.writeIndent()
+-		fmt.Fprintf(s, "%s:", Quote(keys[i].(*reflect.StringValue).Get()))
+-		s.writeValue(val.Elem(keys[i]))
+-		if i < len(keys)-1 {
+-			s.WriteByte(',')
+-		}
+-	}
+-
+-	s.ascend('}')
+-}
+-
+-func (s *writeState) writeStruct(val *reflect.StructValue) {
+-	s.descend('{')
+-
+-	typ := val.Type().(*reflect.StructType)
+-
+-	for i := 0; i < val.NumField(); i++ {
+-		s.writeIndent()
+-		fmt.Fprintf(s, "%s:", Quote(typ.Field(i).Name))
+-		s.writeValue(val.Field(i))
+-		if i < val.NumField()-1 {
+-			s.WriteByte(',')
+-		}
+-	}
+-
+-	s.ascend('}')
+-}
+-
+-func (s *writeState) writeValue(val reflect.Value) {
+-	if val == nil {
+-		fmt.Fprint(s, "null")
+-		return
+-	}
+-
+-	switch v := val.(type) {
+-	case *reflect.StringValue:
+-		fmt.Fprint(s, Quote(v.Get()))
+-	case *reflect.ArrayValue:
+-		s.writeArrayOrSlice(v)
+-	case *reflect.SliceValue:
+-		s.writeArrayOrSlice(v)
+-	case *reflect.MapValue:
+-		s.writeMap(v)
+-	case *reflect.StructValue:
+-		s.writeStruct(v)
+-	case *reflect.ChanValue,
+-		*reflect.UnsafePointerValue,
+-		*reflect.FuncValue:
+-		panic(&MarshalError{val.Type()})
+-	case *reflect.InterfaceValue:
+-		if v.IsNil() {
+-			fmt.Fprint(s, "null")
+-		} else {
+-			s.writeValue(v.Elem())
+-		}
+-	case *reflect.PtrValue:
+-		if v.IsNil() {
+-			fmt.Fprint(s, "null")
+-		} else {
+-			s.writeValue(v.Elem())
+-		}
+-	case *reflect.UintptrValue:
+-		fmt.Fprintf(s, "%d", v.Get())
+-	case *reflect.Uint64Value:
+-		fmt.Fprintf(s, "%d", v.Get())
+-	case *reflect.Uint32Value:
+-		fmt.Fprintf(s, "%d", v.Get())
+-	case *reflect.Uint16Value:
+-		fmt.Fprintf(s, "%d", v.Get())
+-	case *reflect.Uint8Value:
+-		fmt.Fprintf(s, "%d", v.Get())
+-	default:
+-		value := val.(reflect.Value)
+-		fmt.Fprintf(s, "%#v", value.Interface())
+-	}
+-}
+-
+-func (s *writeState) marshal(w io.Writer, val interface{}) (err os.Error) {
+-	defer func() {
+-		if e := recover(); e != nil {
+-			err = e.(*MarshalError)
+-		}
+-	}()
+-	s.writeValue(reflect.NewValue(val))
+-	if s.newlines {
+-		s.WriteByte('\n')
+-	}
+-	_, err = s.WriteTo(w)
+-	return
+-}
+-
+-// Marshal writes the JSON encoding of val to w.
+-//
+-// Due to limitations in JSON, val cannot include cyclic data
+-// structures, channels, functions, or maps.
+-func Marshal(w io.Writer, val interface{}) os.Error {
+-	s := &writeState{indent: "", newlines: false, depth: 0}
+-	return s.marshal(w, val)
+-}
+-
+-// MarshalIndent writes the JSON encoding of val to w,
+-// indenting nested values using the indent string.
+-//
+-// Due to limitations in JSON, val cannot include cyclic data
+-// structures, channels, functions, or maps.
+-func MarshalIndent(w io.Writer, val interface{}, indent string) os.Error {
+-	s := &writeState{indent: indent, newlines: true, depth: 0}
+-	return s.marshal(w, val)
+-}
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+deleted file mode 100644
+index d8528f2801..0000000000
+--- a/src/pkg/json/struct_test.go
++++ /dev/null
+@@ -1,375 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package json
+-
+-import (
+-	"bytes"
+-	"reflect"
+-	"strconv"
+-	"testing"
+-)
+-
+-type myStruct struct {
+-	T            bool
+-	F            bool
+-	S            string
+-	I8           int8
+-	I16          int16
+-	I32          int32
+-	I64          int64
+-	U8           uint8
+-	U16          uint16
+-	U32          uint32
+-	U64          uint64
+-	I            int
+-	U            uint
+-	Fl           float
+-	Fl32         float32
+-	Fl64         float64
+-	A            []string
+-	My           *myStruct
+-	Map          map[string][]int
+-	MapStruct    map[string]myStruct
+-	MapPtrStruct map[string]*myStruct
+-}
+-
+-const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,` +
+-	` "u8":5,"u16":6,"u32":7,"u64":8,` +
+-	` "i":-9,"u":10,"bogusfield":"should be ignored",` +
+-	` "fl":11.5,"fl32":12.25,"fl64":13.75,` +
+-	` "a":["x","y","z"],"my":{"s":"subguy"},` +
+-	`"map":{"k1":[1,2,3],"k2":[],"k3":[3,4]},` +
+-	`"mapstruct":{"m1":{"u8":8}},` +
+-	`"mapptrstruct":{"m1":{"u8":8}}}`
+-
+-var decodedMap = map[string][]int{
+-	"k1": []int{1, 2, 3},
+-	"k2": []int{},
+-	"k3": []int{3, 4},
+-}
+-
+-var decodedMapStruct = map[string]myStruct{
+-	"m1": myStruct{U8: 8},
+-}
+-
+-var decodedMapPtrStruct = map[string]*myStruct{
+-	"m1": &myStruct{U8: 8},
+-}
+-
+-func check(t *testing.T, ok bool, name string, v interface{}) {
+-	if !ok {
+-		t.Errorf("%s = %v (BAD)", name, v)
+-	} else {
+-		t.Logf("%s = %v (good)", name, v)
+-	}
+-}
+-
+-const whiteSpaceEncoded = " \t{\n\"s\"\r:\"string\"\v}"
+-
+-func TestUnmarshalWhitespace(t *testing.T) {
+-	var m myStruct
+-	ok, errtok := Unmarshal(whiteSpaceEncoded, &m)
+-	if !ok {
+-		t.Fatalf("Unmarshal failed near %s", errtok)
+-	}
+-	check(t, m.S == "string", "string", m.S)
+-}
+-
+-func TestUnmarshal(t *testing.T) {
+-	var m myStruct
+-	m.F = true
+-	ok, errtok := Unmarshal(encoded, &m)
+-	if !ok {
+-		t.Fatalf("Unmarshal failed near %s", errtok)
+-	}
+-	check(t, m.T == true, "t", m.T)
+-	check(t, m.F == false, "f", m.F)
+-	check(t, m.S == "abc", "s", m.S)
+-	check(t, m.I8 == 1, "i8", m.I8)
+-	check(t, m.I16 == 2, "i16", m.I16)
+-	check(t, m.I32 == 3, "i32", m.I32)
+-	check(t, m.I64 == 4, "i64", m.I64)
+-	check(t, m.U8 == 5, "u8", m.U8)
+-	check(t, m.U16 == 6, "u16", m.U16)
+-	check(t, m.U32 == 7, "u32", m.U32)
+-	check(t, m.U64 == 8, "u64", m.U64)
+-	check(t, m.I == -9, "i", m.I)
+-	check(t, m.U == 10, "u", m.U)
+-	check(t, m.Fl == 11.5, "fl", m.Fl)
+-	check(t, m.Fl32 == 12.25, "fl32", m.Fl32)
+-	check(t, m.Fl64 == 13.75, "fl64", m.Fl64)
+-	check(t, m.A != nil, "a", m.A)
+-	if m.A != nil {
+-		check(t, m.A[0] == "x", "a[0]", m.A[0])
+-		check(t, m.A[1] == "y", "a[1]", m.A[1])
+-		check(t, m.A[2] == "z", "a[2]", m.A[2])
+-	}
+-	check(t, m.My != nil, "my", m.My)
+-	if m.My != nil {
+-		check(t, m.My.S == "subguy", "my.s", m.My.S)
+-	}
+-	check(t, reflect.DeepEqual(m.Map, decodedMap), "map", m.Map)
+-	check(t, reflect.DeepEqual(m.MapStruct, decodedMapStruct), "mapstruct", m.MapStruct)
+-	check(t, reflect.DeepEqual(m.MapPtrStruct, decodedMapPtrStruct), "mapptrstruct", m.MapPtrStruct)
+-}
+-
+-type Issue147Text struct {
+-	Text string
+-}
+-
+-type Issue147 struct {
+-	Test []Issue147Text
+-}
+-
+-const issue147Input = `{"test": [{"text":"0"},{"text":"1"},{"text":"2"},
+-{"text":"3"},{"text":"4"},{"text":"5"},
+-{"text":"6"},{"text":"7"},{"text":"8"},
+-{"text":"9"},{"text":"10"},{"text":"11"},
+-{"text":"12"},{"text":"13"},{"text":"14"},
+-{"text":"15"},{"text":"16"},{"text":"17"},
+-{"text":"18"},{"text":"19"},{"text":"20"},
+-{"text":"21"},{"text":"22"},{"text":"23"},
+-{"text":"24"},{"text":"25"},{"text":"26"},
+-{"text":"27"},{"text":"28"},{"text":"29"}]}`
+-
+-func TestIssue147(t *testing.T) {
+-	var timeline Issue147
+-	Unmarshal(issue147Input, &timeline)
+-
+-	if len(timeline.Test) != 30 {
+-		t.Errorf("wrong length: got %d want 30", len(timeline.Test))
+-	}
+-
+-	for i, e := range timeline.Test {
+-		if e.Text != strconv.Itoa(i) {
+-			t.Errorf("index: %d got: %s want: %d", i, e.Text, i)
+-		}
+-	}
+-}
+-
+-type Issue114 struct {
+-	Text string
+-}
+-
+-const issue114Input = `[{"text" : "0"}, {"text" : "1"}, {"text" : "2"}, {"text" : "3"}]`
+-
+-func TestIssue114(t *testing.T) {
+-	var items []Issue114
+-	Unmarshal(issue114Input, &items)
+-
+-	if len(items) != 4 {
+-		t.Errorf("wrong length: got %d want 4", len(items))
+-	}
+-
+-	for i, e := range items {
+-		if e.Text != strconv.Itoa(i) {
+-			t.Errorf("index: %d got: %s want: %d", i, e.Text, i)
+-		}
+-	}
+-}
+-
+-type marshalTest struct {
+-	val interface{}
+-	out string
+-}
+-
+-type MTE string
+-
+-type OneField struct {
+-	a int
+-}
+-
+-type ScalarWithString int
+-
+-const (
+-	AA ScalarWithString = iota
+-	BB
+-	CC
+-)
+-
+-var scalarStrings = []string{"AA", "BB", "CC"}
+-
+-func (x ScalarWithString) String() string { return scalarStrings[x] }
+-
+-var marshalTests = []marshalTest{
+-	// basic string
+-	marshalTest{nil, "null"},
+-	marshalTest{true, "true"},
+-	marshalTest{false, "false"},
+-	marshalTest{123, "123"},
+-	marshalTest{0.1, "0.1"},
+-	marshalTest{1e-10, "1e-10"},
+-	marshalTest{"teststring", `"teststring"`},
+-	marshalTest{[4]int{1, 2, 3, 4}, "[1,2,3,4]"},
+-	marshalTest{[]int{1, 2, 3, 4}, "[1,2,3,4]"},
+-	marshalTest{[]interface{}{nil}, "[null]"},
+-	marshalTest{[][]int{[]int{1, 2}, []int{3, 4}}, "[[1,2],[3,4]]"},
+-	marshalTest{map[string]string{"one": "one"}, `{"one":"one"}`},
+-	marshalTest{map[string]int{"one": 1}, `{"one":1}`},
+-	marshalTest{map[string]interface{}{"null": nil}, `{"null":null}`},
+-	marshalTest{struct{}{}, "{}"},
+-	marshalTest{struct{ a int }{1}, `{"a":1}`},
+-	marshalTest{struct{ a interface{} }{nil}, `{"a":null}`},
+-	marshalTest{struct {
+-		a int
+-		b string
+-	}{1, "hello"},
+-		`{"a":1,"b":"hello"}`,
+-	},
+-	marshalTest{map[string][]int{"3": []int{1, 2, 3}}, `{"3":[1,2,3]}`},
+-	marshalTest{map[string]*MTE{"hi": nil}, `{"hi":null}`},
+-	marshalTest{map[string]interface{}{"hi": 3}, `{"hi":3}`},
+-	marshalTest{&OneField{3}, `{"a":3}`},
+-	marshalTest{"\x05\x06", `"\u0005\u0006"`},
+-	marshalTest{uintptr(50000), "50000"},
+-	marshalTest{uint64(50000), "50000"},
+-	marshalTest{uint32(50000), "50000"},
+-	marshalTest{uint16(50000), "50000"},
+-	marshalTest{uint8(50), "50"},
+-	marshalTest{int64(50000), "50000"},
+-	marshalTest{int32(50000), "50000"},
+-	marshalTest{int16(10000), "10000"},
+-	marshalTest{int8(50), "50"},
+-	marshalTest{BB, "1"},
+-}
+-
+-func TestMarshal(t *testing.T) {
+-	for _, tt := range marshalTests {
+-		var buf bytes.Buffer
+-
+-		err := Marshal(&buf, tt.val)
+-		if err != nil {
+-			t.Fatalf("Marshal(%T): %s", tt.val, err)
+-		}
+-
+-		s := buf.String()
+-		if s != tt.out {
+-			t.Errorf("Marshal(%T) = %q, want %q\n", tt.val, s, tt.out)
+-		}
+-	}
+-}
+-
+-type marshalIndentTest struct {
+-	val    interface{}
+-	indent string
+-	out    string
+-}
+-
+-const marshalIndentTest1 = `[
+-  1,
+-  2,
+-  3,
+-  4
+-]
+-`
+-const marshalIndentTest2 = `[
+-[
+-1,
+-2
+-],
+-[
+-3,
+-4
+-]
+-]
+-`
+-const marshalIndentTest3 = `[
+- [
+-  1,
+-  2
+- ],
+- [
+-  3,
+-  4
+- ]
+-]
+-`
+-const marshalIndentTest4 = `[
+-  [
+-    1,
+-    2
+-  ],
+-  [
+-    3,
+-    4
+-  ]
+-]
+-`
+-const marshalIndentTest5 = `{
+-   "a":1,
+-   "b":"hello"
+-}
+-`
+-const marshalIndentTest6 = `{
+- "3":[
+-  1,
+-  2,
+-  3
+- ]
+-}
+-`
+-
+-var marshalIndentTests = []marshalIndentTest{
+-	marshalIndentTest{[]int{1, 2, 3, 4}, "  ", marshalIndentTest1},
+-	marshalIndentTest{[][]int{[]int{1, 2}, []int{3, 4}}, "", marshalIndentTest2},
+-	marshalIndentTest{[][]int{[]int{1, 2}, []int{3, 4}}, " ", marshalIndentTest3},
+-	marshalIndentTest{[][]int{[]int{1, 2}, []int{3, 4}}, "  ", marshalIndentTest4},
+-	marshalIndentTest{struct {
+-		a int
+-		b string
+-	}{1, "hello"},
+-		"   ",
+-		marshalIndentTest5,
+-	},
+-	marshalIndentTest{map[string][]int{"3": []int{1, 2, 3}}, " ", marshalIndentTest6},
+-}
+-
+-func TestMarshalIndent(t *testing.T) {
+-	for _, tt := range marshalIndentTests {
+-		var buf bytes.Buffer
+-
+-		err := MarshalIndent(&buf, tt.val, tt.indent)
+-		if err != nil {
+-			t.Fatalf("MarshalIndent(%v): %s", tt.val, err)
+-		}
+-
+-		s := buf.String()
+-		if s != tt.out {
+-			t.Errorf("MarshalIndent(%v) = %q, want %q\n", tt.val, s, tt.out)
+-		}
+-	}
+-}
+-
+-type marshalErrorTest struct {
+-	val   interface{}
+-	error string
+-}
+-
+-type ChanVal struct {
+-	C chan int
+-}
+-
+-var marshalErrorTests = []marshalErrorTest{
+-	marshalErrorTest{map[chan int]string{make(chan int): "one"}, "json cannot encode value of type map[chan int] string"},
+-	marshalErrorTest{make(chan int, 100), "json cannot encode value of type chan int"},
+-	marshalErrorTest{new(ChanVal), "json cannot encode value of type chan int"},
+-}
+-
+-func TestMarshalError(t *testing.T) {
+-	for _, tt := range marshalErrorTests {
+-		var buf bytes.Buffer
+-
+-		err := Marshal(&buf, tt.val)
+-
+-		if err == nil {
+-			t.Fatalf("Marshal(%T): no error, want error %s", tt.val, tt.error)
+-		}
+-
+-		if err.String() != tt.error {
+-			t.Fatalf("Marshal(%T) = error %s, want error %s", tt.val, err, tt.error)
+-		}
+-
+-	}
+-}
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 2dd6468077..39c43e3e2d 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -415,7 +415,7 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
+ 	s.false = false
+ 	s.mp = make(map[string]string)
+ 	s.mp["mapkey"] = "Ahoy!"
+-	s.json, _ = json.Decode("{\"maps\":[{\"a\":1,\"b\":2},{\"a\":3,\"b\":4}]}")
++	json.Unmarshal([]byte(`{"maps":[{"a":1,"b":2},{"a":3,"b":4}]}`), &s.json)
+ 	s.innermap.mp = make(map[string]int)
+ 	s.innermap.mp["innerkey"] = 55
+ 	s.stringmap = make(map[string]string)

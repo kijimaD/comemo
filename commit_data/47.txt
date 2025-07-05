@@ -7,8 +7,252 @@ Date:   Sat Mar 29 15:37:38 2008 -0700
     from one function to another
     
     SVN=114252
-
+---
  src/c/dcl.c | 47 +++++++++++++++++++++++++++++++++++++++++------
  src/c/go.h  |  6 ++++--
  src/c/go.y  | 35 ++++++++++++++++++++---------------
  3 files changed, 65 insertions(+), 23 deletions(-)
+
+diff --git a/src/c/dcl.c b/src/c/dcl.c
+index f59399746b..abf6b7ac73 100644
+--- a/src/c/dcl.c
++++ b/src/c/dcl.c
+@@ -309,6 +309,7 @@ funchdr(Node *n)
+ 	if(dclcontext != PEXTERN)
+ 		fatal("funchdr: dclcontext");
+ 	dclcontext = PAUTO;
++	markdcl("func");
+ 
+ 	funcargs(n->type);
+ 	if(n->type->thistuple > 0) {
+@@ -364,6 +365,7 @@ funcbody(Node *n)
+ 	if(dclcontext != PAUTO)
+ 		fatal("funcbody: dclcontext");
+ 	dclcontext = PEXTERN;
++	popdcl("func");
+ }
+ 
+ /*
+@@ -477,7 +479,7 @@ pushdcl(Sym *s)
+ }
+ 
+ void
+-popdcl(void)
++popdcl(char *why)
+ {
+ 	Sym *d, *s;
+ 
+@@ -491,18 +493,38 @@ popdcl(void)
+ 		if(debug['d'])
+ 			print("\t%ld pop %S\n", curio.lineno, s);
+ 	}
+-	if(d != S)
+-		d = d->link;
+-	dclstack = d;
++	if(d == S)
++		fatal("popdcl: no mark");
++	if(strcmp(why, d->package) != 0)
++		fatal("popdcl: pushed as %s poped as %s", d->package, why);
++	dclstack = d->link;
+ }
+ 
+ void
+-markdcl(void)
++poptodcl(void)
++{
++	Sym *d, *s;
++
++	for(d=dclstack; d!=S; d=d->link) {
++		if(d->name == nil)
++			break;
++		s = pkglookup(d->name, d->package);
++		dcopy(s, d);
++		if(debug['d'])
++			print("\t%ld pop %S\n", curio.lineno, s);
++	}
++	if(d == S)
++		fatal("poptodcl: no mark");
++}
++
++void
++markdcl(char *why)
+ {
+ 	Sym *d;
+ 
+ 	d = push();
+ 	d->name = nil;		// used as a mark in fifo
++	d->package = why;	// diagnostic for unmatched
+ //	if(debug['d'])
+ //		print("markdcl\n");
+ }
+@@ -512,7 +534,7 @@ markdclstack(void)
+ {
+ 	Sym *d, *s;
+ 
+-	markdcl();
++	markdcl("fnlit");
+ 
+ 	// copy the entire pop of the stack
+ 	// all the way back to block0.
+@@ -529,6 +551,19 @@ markdclstack(void)
+ 	}
+ }
+ 
++void
++testdclstack(void)
++{
++	Sym *d;
++
++	for(d=dclstack; d!=S; d=d->link) {
++		if(d->name == nil) {
++			yyerror("mark left on the stack");
++			continue;
++		}
++	}
++}
++
+ void
+ addvar(Node *n, Node *t, int ctxt)
+ {
+diff --git a/src/c/go.h b/src/c/go.h
+index eaada80666..a0fd35e1aa 100644
+--- a/src/c/go.h
++++ b/src/c/go.h
+@@ -446,9 +446,11 @@ void	funcbody(Node*);
+ Node*	dostruct(Node*, int);
+ Node**	stotype(Node*, Node**, Node*);
+ Node*	sortinter(Node*);
+-void	markdcl(void);
+-void	popdcl(void);
++void	markdcl(char*);
++void	popdcl(char*);
++void	poptodcl(void);
+ void	markdclstack(void);
++void	testdclstack(void);
+ Sym*	pushdcl(Sym*);
+ void	addvar(Node*, Node*, int);
+ void	addtyp(Node*, Node*, int);
+diff --git a/src/c/go.y b/src/c/go.y
+index 0c8fac798a..eb122474f2 100644
+--- a/src/c/go.y
++++ b/src/c/go.y
+@@ -62,6 +62,7 @@ file:
+ 	{
+ 		if(debug['f'])
+ 			frame(1);
++		testdclstack();
+ 	}
+ 
+ package:
+@@ -286,12 +287,12 @@ complex_stmt:
+ 	LFOR for_stmt
+ 	{
+ 		/* FOR and WHILE are the same keyword */
+-		popdcl();
++		popdcl("for/while");
+ 		$$ = $2;
+ 	}
+ |	LSWITCH if_stmt
+ 	{
+-		popdcl();
++		popdcl("if/switch");
+ 		if(!casebody($2->nbody))
+ 			yyerror("switch statement must have case labels");
+ 		$$ = $2;
+@@ -299,18 +300,18 @@ complex_stmt:
+ 	}
+ |	LIF if_stmt
+ 	{
+-		popdcl();
++		popdcl("if/switch");
+ 		$$ = $2;
+ 	}
+ |	LIF if_stmt LELSE else_stmt
+ 	{
+-		popdcl();
++		popdcl("if/switch");
+ 		$$ = $2;
+ 		$$->nelse = $4;
+ 	}
+ |	LRANGE range_stmt
+ 	{
+-		popdcl();
++		popdcl("range");
+ 		$$ = $2;
+ 	}
+ |	LRETURN oexpr_list ';'
+@@ -322,14 +323,12 @@ complex_stmt:
+ 		// will be converted to OCASE
+ 		// right will point to next case
+ 		// done in casebody()
+-		popdcl();
+-		markdcl();
++		poptodcl();
+ 		$$ = nod(OXCASE, $2, N);
+ 	}
+ |	LDEFAULT ':'
+ 	{
+-		popdcl();
+-		markdcl();
++		poptodcl();
+ 		$$ = nod(OXCASE, N, N);
+ 	}
+ |	LFALL ';'
+@@ -369,13 +368,13 @@ complex_stmt:
+ compound_stmt:
+ 	'{'
+ 	{
+-		markdcl();
++		markdcl("compound");
+ 	} ostmt_list '}'
+ 	{
+ 		$$ = $3;
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+-		popdcl();
++		popdcl("compound");
+ 	}
+ 
+ for_header:
+@@ -404,7 +403,9 @@ for_body:
+ 	}
+ 
+ for_stmt:
+-	{ markdcl(); } for_body
++	{
++		markdcl("for/while");
++	} for_body
+ 	{
+ 		$$ = $2;
+ 	}
+@@ -433,7 +434,9 @@ if_body:
+ 	}
+ 
+ if_stmt:
+-	{ markdcl(); } if_body
++	{
++		markdcl("if/switch");
++	} if_body
+ 	{
+ 		$$ = $2;
+ 	}
+@@ -461,7 +464,9 @@ range_body:
+ 	}
+ 
+ range_stmt:
+-	{ markdcl(); } range_body
++	{
++		markdcl("range");
++	} range_body
+ 	{
+ 		$$ = $2;
+ 	}
+@@ -883,7 +888,7 @@ fnlitdcl:
+ fnliteral:
+ 	fnlitdcl '{' ostmt_list '}'
+ 	{
+-		popdcl();
++		popdcl("fnlit");
+ 
+ 		vargen++;
+ 		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);

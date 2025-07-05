@@ -7,6 +7,20 @@ Date:   Fri Feb 3 10:54:05 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5620053
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 7e9f6ca728..6f5b8d590d 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -925,7 +925,7 @@ def CheckGofmt(ui, repo, files, just_warn):
+ 
+ # Check that *.[chys] files indent using tabs.
+ def CheckTabfmt(ui, repo, files, just_warn):
+-	files = [f for f in files if f.startswith('src/') and re.search(r"\.[chys]$", f)]
++	files = [f for f in files if f.startswith('src/') and re.search(r"\.[chys]$", f) and not re.search(r"\.tab\.[ch]$", f)]
+ 	if not files:
+ 		return
+ 	cwd = os.getcwd()

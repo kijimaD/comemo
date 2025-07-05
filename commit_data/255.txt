@@ -5,6 +5,20 @@ Date:   Fri Jun 27 16:43:02 2008 -0700
     sametype message
     
     SVN=125216
-
+---
  src/cmd/gc/export.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 8dcf12170f..3d81b6bb95 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -423,7 +423,7 @@ importaddtyp(Node *ss, Type *t)
+ 		addtyp(newtype(s), t, PEXTERN);
+ 		return;
+ 	}
+-	print("sametype %S %lT => %lT\n", s, s->otype, t);
++//	print("sametype %S %lT => %lT\n", s, s->otype, t);
+ }
+ 
+ /*

@@ -14,6 +14,23 @@ Date:   Tue Apr 16 15:52:05 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/writev.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/writev.go b/src/internal/poll/writev.go
+index 04e3522d8a..a48a38be08 100644
+--- a/src/internal/poll/writev.go
++++ b/src/internal/poll/writev.go
+@@ -51,7 +51,10 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
+ 		if len(iovecs) == 0 {
+ 			break
+ 		}
+-		fd.iovecs = &iovecs // cache
++		if fd.iovecs == nil {
++			fd.iovecs = new([]syscall.Iovec)
++		}
++		*fd.iovecs = iovecs // cache
+ 
+ 		var wrote uintptr
+ 		wrote, err = writev(fd.Sysfd, iovecs)

@@ -16,9 +16,190 @@ Date:   Mon Sep 19 08:30:01 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/md5/md5.go       | 22 +++++-----------------
  src/crypto/sha1/sha1.go     | 24 ++++++------------------
  src/crypto/sha256/sha256.go | 30 +++++++++---------------------
  src/crypto/sha512/sha512.go | 24 +++++++++---------------
  4 files changed, 29 insertions(+), 71 deletions(-)
+
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index 0115784047..ccee4ea3a9 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -59,13 +59,13 @@ const (
+ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize)
+ 	b = append(b, magic...)
+-	b = appendUint32(b, d.s[0])
+-	b = appendUint32(b, d.s[1])
+-	b = appendUint32(b, d.s[2])
+-	b = appendUint32(b, d.s[3])
++	b = binary.BigEndian.AppendUint32(b, d.s[0])
++	b = binary.BigEndian.AppendUint32(b, d.s[1])
++	b = binary.BigEndian.AppendUint32(b, d.s[2])
++	b = binary.BigEndian.AppendUint32(b, d.s[3])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = b[:len(b)+len(d.x)-d.nx] // already zero
+-	b = appendUint64(b, d.len)
++	b = binary.BigEndian.AppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -87,18 +87,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
+-func appendUint64(b []byte, x uint64) []byte {
+-	var a [8]byte
+-	binary.BigEndian.PutUint64(a[:], x)
+-	return append(b, a[:]...)
+-}
+-
+-func appendUint32(b []byte, x uint32) []byte {
+-	var a [4]byte
+-	binary.BigEndian.PutUint32(a[:], x)
+-	return append(b, a[:]...)
+-}
+-
+ func consumeUint64(b []byte) ([]byte, uint64) {
+ 	return b[8:], binary.BigEndian.Uint64(b[0:8])
+ }
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index 271852d21b..80c5623725 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -50,14 +50,14 @@ const (
+ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize)
+ 	b = append(b, magic...)
+-	b = appendUint32(b, d.h[0])
+-	b = appendUint32(b, d.h[1])
+-	b = appendUint32(b, d.h[2])
+-	b = appendUint32(b, d.h[3])
+-	b = appendUint32(b, d.h[4])
++	b = binary.BigEndian.AppendUint32(b, d.h[0])
++	b = binary.BigEndian.AppendUint32(b, d.h[1])
++	b = binary.BigEndian.AppendUint32(b, d.h[2])
++	b = binary.BigEndian.AppendUint32(b, d.h[3])
++	b = binary.BigEndian.AppendUint32(b, d.h[4])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+-	b = appendUint64(b, d.len)
++	b = binary.BigEndian.AppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -80,18 +80,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
+-func appendUint64(b []byte, x uint64) []byte {
+-	var a [8]byte
+-	binary.BigEndian.PutUint64(a[:], x)
+-	return append(b, a[:]...)
+-}
+-
+-func appendUint32(b []byte, x uint32) []byte {
+-	var a [4]byte
+-	binary.BigEndian.PutUint32(a[:], x)
+-	return append(b, a[:]...)
+-}
+-
+ func consumeUint64(b []byte) ([]byte, uint64) {
+ 	_ = b[7]
+ 	x := uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index e3c15e66ca..92abbf9b84 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -70,17 +70,17 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	} else {
+ 		b = append(b, magic256...)
+ 	}
+-	b = appendUint32(b, d.h[0])
+-	b = appendUint32(b, d.h[1])
+-	b = appendUint32(b, d.h[2])
+-	b = appendUint32(b, d.h[3])
+-	b = appendUint32(b, d.h[4])
+-	b = appendUint32(b, d.h[5])
+-	b = appendUint32(b, d.h[6])
+-	b = appendUint32(b, d.h[7])
++	b = binary.BigEndian.AppendUint32(b, d.h[0])
++	b = binary.BigEndian.AppendUint32(b, d.h[1])
++	b = binary.BigEndian.AppendUint32(b, d.h[2])
++	b = binary.BigEndian.AppendUint32(b, d.h[3])
++	b = binary.BigEndian.AppendUint32(b, d.h[4])
++	b = binary.BigEndian.AppendUint32(b, d.h[5])
++	b = binary.BigEndian.AppendUint32(b, d.h[6])
++	b = binary.BigEndian.AppendUint32(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+-	b = appendUint64(b, d.len)
++	b = binary.BigEndian.AppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -106,18 +106,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
+-func appendUint64(b []byte, x uint64) []byte {
+-	var a [8]byte
+-	binary.BigEndian.PutUint64(a[:], x)
+-	return append(b, a[:]...)
+-}
+-
+-func appendUint32(b []byte, x uint32) []byte {
+-	var a [4]byte
+-	binary.BigEndian.PutUint32(a[:], x)
+-	return append(b, a[:]...)
+-}
+-
+ func consumeUint64(b []byte) ([]byte, uint64) {
+ 	_ = b[7]
+ 	x := uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index c800a294a2..883948f482 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -153,17 +153,17 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	default:
+ 		return nil, errors.New("crypto/sha512: invalid hash function")
+ 	}
+-	b = appendUint64(b, d.h[0])
+-	b = appendUint64(b, d.h[1])
+-	b = appendUint64(b, d.h[2])
+-	b = appendUint64(b, d.h[3])
+-	b = appendUint64(b, d.h[4])
+-	b = appendUint64(b, d.h[5])
+-	b = appendUint64(b, d.h[6])
+-	b = appendUint64(b, d.h[7])
++	b = binary.BigEndian.AppendUint64(b, d.h[0])
++	b = binary.BigEndian.AppendUint64(b, d.h[1])
++	b = binary.BigEndian.AppendUint64(b, d.h[2])
++	b = binary.BigEndian.AppendUint64(b, d.h[3])
++	b = binary.BigEndian.AppendUint64(b, d.h[4])
++	b = binary.BigEndian.AppendUint64(b, d.h[5])
++	b = binary.BigEndian.AppendUint64(b, d.h[6])
++	b = binary.BigEndian.AppendUint64(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
+-	b = appendUint64(b, d.len)
++	b = binary.BigEndian.AppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -197,12 +197,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
+-func appendUint64(b []byte, x uint64) []byte {
+-	var a [8]byte
+-	binary.BigEndian.PutUint64(a[:], x)
+-	return append(b, a[:]...)
+-}
+-
+ func consumeUint64(b []byte) ([]byte, uint64) {
+ 	_ = b[7]
+ 	x := uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |

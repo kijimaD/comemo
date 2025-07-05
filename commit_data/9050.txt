@@ -7,7 +7,39 @@ Date:   Wed Jul 13 10:15:00 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4662083
-
+---
  src/pkg/exp/regexp/syntax/compile.go | 4 ++++
  src/pkg/exp/regexp/syntax/prog.go    | 5 +++--
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/regexp/syntax/compile.go b/src/pkg/exp/regexp/syntax/compile.go
+index ec9556fded..97f94de338 100644
+--- a/src/pkg/exp/regexp/syntax/compile.go
++++ b/src/pkg/exp/regexp/syntax/compile.go
+@@ -185,6 +185,10 @@ func (c *compiler) cap(arg uint32) frag {
+ 	f := c.inst(InstCapture)
+ 	f.out = patchList(f.i << 1)
+ 	c.p.Inst[f.i].Arg = arg
++
++	if c.p.NumCap < int(arg)+1 {
++		c.p.NumCap = int(arg) + 1
++	}
+ 	return f
+ }
+ 
+diff --git a/src/pkg/exp/regexp/syntax/prog.go b/src/pkg/exp/regexp/syntax/prog.go
+index 6eeb3da0ce..4af4a32e16 100644
+--- a/src/pkg/exp/regexp/syntax/prog.go
++++ b/src/pkg/exp/regexp/syntax/prog.go
+@@ -10,8 +10,9 @@ import (
+ 
+ // A Prog is a compiled regular expression program.
+ type Prog struct {
+-	Inst  []Inst
+-	Start int // index of start instruction
++	Inst   []Inst
++	Start  int // index of start instruction
++	NumCap int // number of InstCapture insts in re
+ }
+ 
+ // An InstOp is an instruction opcode.

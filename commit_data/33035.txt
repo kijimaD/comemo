@@ -9,6 +9,20 @@ Date:   Tue Jun 27 18:00:59 2017 -0300
     Change-Id: I22e0a89deff30f935c3e25a237d6c0c161103339
     Reviewed-on: https://go-review.googlesource.com/46890
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/code.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index ee9988b0a9..f22e6b4919 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -270,7 +270,7 @@ This command builds the <code>hello</code> command, producing an executable
+ binary. It then installs that binary to the workspace's <code>bin</code>
+ directory as <code>hello</code> (or, under Windows, <code>hello.exe</code>).
+ In our example, that will be <code>$GOPATH/bin/hello</code>, which is
+-<code>$HOME/work/bin/hello</code>.
++<code>$HOME/go/bin/hello</code>.
+ </p>
+ 
+ <p>

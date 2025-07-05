@@ -15,7 +15,66 @@ Date:   Tue Nov 14 12:51:58 2017 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go       | 15 ++++++---------
  src/runtime/syscall_windows_test.go | 10 +++++++++-
  2 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index a4f4dd606d..25ff34397f 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -454,7 +454,12 @@ func TestCgoLockOSThreadExit(t *testing.T) {
+ 	testLockOSThreadExit(t, "testprogcgo")
+ }
+ 
+-func testWindowsStackMemory(t *testing.T, o string) {
++func TestWindowsStackMemoryCgo(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		t.Skip("skipping windows specific test")
++	}
++	testenv.SkipFlaky(t, 22575)
++	o := runTestProg(t, "testprogcgo", "StackMemory")
+ 	stackUsage, err := strconv.Atoi(o)
+ 	if err != nil {
+ 		t.Fatalf("Failed to read stack usage: %v", err)
+@@ -463,11 +468,3 @@ func testWindowsStackMemory(t *testing.T, o string) {
+ 		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
+ 	}
+ }
+-
+-func TestWindowsStackMemoryCgo(t *testing.T) {
+-	if runtime.GOOS != "windows" {
+-		t.Skip("skipping windows specific test")
+-	}
+-	testenv.SkipFlaky(t, 22575)
+-	testWindowsStackMemory(t, runTestProg(t, "testprogcgo", "StackMemory"))
+-}
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 20acf1b626..dfde12a211 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -538,7 +539,14 @@ func TestWERDialogue(t *testing.T) {
+ }
+ 
+ func TestWindowsStackMemory(t *testing.T) {
+-	testWindowsStackMemory(t, runTestProg(t, "testprog", "StackMemory"))
++	o := runTestProg(t, "testprog", "StackMemory")
++	stackUsage, err := strconv.Atoi(o)
++	if err != nil {
++		t.Fatalf("Failed to read stack usage: %v", err)
++	}
++	if expected, got := 100<<10, stackUsage; got > expected {
++		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
++	}
+ }
+ 
+ var used byte

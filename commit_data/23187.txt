@@ -20,6 +20,24 @@ Date:   Tue Apr 28 14:53:19 2015 -0700
     Change-Id: I2bcea48c0197fbf78ab6fa080027cd80181083ad
     Reviewed-on: https://go-review.googlesource.com/9435
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/traceback.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 512ccd4e94..9f34e37ea4 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -627,7 +627,11 @@ func tracebackothers(me *g) {
+ 		}
+ 		print("\n")
+ 		goroutineheader(gp)
+-		if readgstatus(gp)&^_Gscan == _Grunning {
++		// Note: gp.m == g.m occurs when tracebackothers is
++		// called from a signal handler initiated during a
++		// systemstack call.  The original G is still in the
++		// running state, and we want to print its stack.
++		if gp.m != g.m && readgstatus(gp)&^_Gscan == _Grunning {
+ 			print("\tgoroutine running on other thread; stack unavailable\n")
+ 			printcreatedby(gp)
+ 		} else {

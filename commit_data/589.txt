@@ -9,7 +9,52 @@ Date:   Mon Sep 8 15:22:55 2008 -0700
     R=r
     OCL=14953
     CL=14959
-
+---
  src/cmd/6l/asm.c | 6 +++---
  src/cmd/6l/obj.c | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 53e39ac40a..8683228645 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -426,7 +426,7 @@ asmb(void)
+ 		wputl(4);			/* Shdr with strings */
+ 
+ 		fo = 0;
+-		va = INITRND;
++		va = INITTEXT & ~((vlong)INITRND - 1);
+ 		w = HEADR+textsize;
+ 
+ 		linuxphdr(1,			/* text - type = PT_LOAD */
+@@ -537,7 +537,7 @@ asmb(void)
+ 		w = symsize;
+ 
+ 		linuxshdr(".gosymtab",		/* name */
+-			2,			/* type */
++			7,			/* type */
+ 			0,			/* flags */
+ 			0,			/* addr */
+ 			fo,			/* off */
+@@ -551,7 +551,7 @@ asmb(void)
+ 		w = lcsize;
+ 
+ 		linuxshdr(".gopclntab",		/* name */
+-			2,			/* type */
++			7,			/* type */
+ 			0,			/* flags */
+ 			0,			/* addr */
+ 			fo,			/* off */
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 47c0280de5..1b57687ea7 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -198,7 +198,7 @@ main(int argc, char *argv[])
+ 	case 7:	/* elf64 executable */
+ 		HEADR = linuxheadr();
+ 		if(INITTEXT == -1)
+-			INITTEXT = 4096+HEADR;
++			INITTEXT = (1<<22)+HEADR;
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+ 		if(INITRND == -1)

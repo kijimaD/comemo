@@ -11,7 +11,54 @@ Date:   Sat Aug 15 00:44:58 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go | 12 +++++++++++-
  test/fixedbugs/issue17758.go           | 17 +++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 04fb7d5495..23e48939b4 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -108,7 +108,17 @@ func typecheckclosure(clo *Node, top int) {
+ 
+ 	xfunc.Func.Nname.Sym = closurename(Curfn)
+ 	disableExport(xfunc.Func.Nname.Sym)
+-	declare(xfunc.Func.Nname, PFUNC)
++	if xfunc.Func.Nname.Sym.Def != nil {
++		// The only case we can reach here is when the outer function was redeclared.
++		// In that case, don't bother to redeclare the closure. Otherwise, we will get
++		// a spurious error message, see #17758. While we are here, double check that
++		// we already reported other error.
++		if nsavederrors+nerrors == 0 {
++			Fatalf("unexpected symbol collision %v", xfunc.Func.Nname.Sym)
++		}
++	} else {
++		declare(xfunc.Func.Nname, PFUNC)
++	}
+ 	xfunc = typecheck(xfunc, ctxStmt)
+ 
+ 	// Type check the body now, but only if we're inside a function.
+diff --git a/test/fixedbugs/issue17758.go b/test/fixedbugs/issue17758.go
+new file mode 100644
+index 0000000000..e7f2f3af91
+--- /dev/null
++++ b/test/fixedbugs/issue17758.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func foo() {
++	_ = func() {}
++}
++
++func foo() { // ERROR "foo redeclared in this block"
++	_ = func() {}
++}
++
++func main() {}

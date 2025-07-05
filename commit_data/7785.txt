@@ -9,7 +9,49 @@ Date:   Wed Mar 16 10:12:25 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4274061
-
+---
  src/cmd/gotest/doc.go       | 2 +-
  src/pkg/bufio/bufio_test.go | 8 ++++----
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index 517108629c..04e426bab3 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -42,7 +42,7 @@ The resulting binary, called (for amd64) 6.out, has several flags.
+ 
+ Usage:
+ 	6.out [-test.v] [-test.run pattern] [-test.bench pattern] \
+-		[test.memprofile=prof.out] [-test.memprofilerate=1]
++		[-test.memprofile=prof.out] [-test.memprofilerate=1]
+ 
+ The -test.v flag causes the tests to be logged as they run.  The
+ -test.run flag causes only those tests whose names match the regular
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 059ca6dd22..8028e04dcd 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package bufio
++package bufio_test
+ 
+ import (
++	. "bufio"
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+@@ -502,9 +503,8 @@ func TestWriteString(t *testing.T) {
+ 	b.WriteString("7890")                      // easy after flush
+ 	b.WriteString("abcdefghijklmnopqrstuvwxy") // hard
+ 	b.WriteString("z")
+-	b.Flush()
+-	if b.err != nil {
+-		t.Error("WriteString", b.err)
++	if err := b.Flush(); err != nil {
++		t.Error("WriteString", err)
+ 	}
+ 	s := "01234567890abcdefghijklmnopqrstuvwxyz"
+ 	if string(buf.Bytes()) != s {

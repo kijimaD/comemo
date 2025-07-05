@@ -21,6 +21,49 @@ Date:   Wed Nov 9 10:37:28 2022 +0000
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/net/http/transport.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 2a508ec41b..184cf27518 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2057,7 +2057,7 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
+ 		if pc.nwrite == startBytesWritten {
+ 			return nothingWrittenError{err}
+ 		}
+-		return fmt.Errorf("net/http: HTTP/1.x transport connection broken: %v", err)
++		return fmt.Errorf("net/http: HTTP/1.x transport connection broken: %w", err)
+ 	}
+ 	return err
+ }
+@@ -2264,7 +2264,7 @@ func (pc *persistConn) readLoopPeekFailLocked(peekErr error) {
+ 		// common case.
+ 		pc.closeLocked(errServerClosedIdle)
+ 	} else {
+-		pc.closeLocked(fmt.Errorf("readLoopPeekFailLocked: %v", peekErr))
++		pc.closeLocked(fmt.Errorf("readLoopPeekFailLocked: %w", peekErr))
+ 	}
+ }
+ 
+@@ -2398,6 +2398,10 @@ type nothingWrittenError struct {
+ 	error
+ }
+ 
++func (nwe nothingWrittenError) Unwrap() error {
++	return nwe.error
++}
++
+ func (pc *persistConn) writeLoop() {
+ 	defer close(pc.writeLoopDone)
+ 	for {
+@@ -2635,7 +2639,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 				req.logf("writeErrCh resv: %T/%#v", err, err)
+ 			}
+ 			if err != nil {
+-				pc.close(fmt.Errorf("write error: %v", err))
++				pc.close(fmt.Errorf("write error: %w", err))
+ 				return nil, pc.mapRoundTripError(req, startBytesWritten, err)
+ 			}
+ 			if d := pc.t.ResponseHeaderTimeout; d > 0 {

@@ -10,6 +10,19 @@ Date:   Thu Aug 18 05:26:51 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/27322
     Reviewed-by: anatoly techtonik <techtonik@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/env.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/os/env.go b/src/os/env.go
+index 4a147144c3..aa83ee3a97 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -76,6 +76,7 @@ func getShellName(s string) (string, int) {
+ 
+ // Getenv retrieves the value of the environment variable named by the key.
+ // It returns the value, which will be empty if the variable is not present.
++// To distinguish between an empty value and an unset value, use LookupEnv.
+ func Getenv(key string) string {
+ 	v, _ := syscall.Getenv(key)
+ 	return v

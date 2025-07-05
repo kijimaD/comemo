@@ -7,9 +7,91 @@ Date:   Sat May 30 17:06:51 2009 -0700
     R=r
     OCL=29646
     CL=29646
-
+---
  src/cmd/gc/swt.c                   | 14 +++++++++++---
  test/bugs/bug157.go                |  4 ++--
  test/{bugs => fixedbugs}/bug158.go |  2 +-
  test/golden.out                    |  4 ----
  4 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 3f62706f70..3184276365 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -33,6 +33,14 @@ struct	Case
+ };
+ #define	C	((Case*)nil)
+ 
++Type*
++notideal(Type *t)
++{
++	if(t != T && t->etype == TIDEAL)
++		return T;
++	return t;
++}
++
+ void
+ dumpcase(Case *c0)
+ {
+@@ -254,8 +262,8 @@ sw0(Node *c, Type *place, int arg)
+ Type*
+ sw1(Node *c, Type *place, int arg)
+ {
+-	if(place == T)
+-		return c->type;
++	if(place != T)
++		return notideal(c->type);
+ 	return place;
+ }
+ 
+@@ -605,7 +613,7 @@ exprswitch(Node *sw)
+ 	 * walk the cases as appropriate for switch type
+ 	 */
+ 	walkcases(sw, sw0, arg);
+-	t = sw->ntest->type;
++	t = notideal(sw->ntest->type);
+ 	if(t == T)
+ 		t = walkcases(sw, sw1, arg);
+ 	if(t == T)
+diff --git a/test/bugs/bug157.go b/test/bugs/bug157.go
+index 207f6bcfdb..9bf68f7a47 100644
+--- a/test/bugs/bug157.go
++++ b/test/bugs/bug157.go
+@@ -27,6 +27,6 @@ func main() {
+ 
+ 
+ /*
+-bug155.go:20: syntax error near default
+-bug155.go:20: first switch statement must be a case
++bug157.go:20: syntax error near default
++bug157.go:20: first switch statement must be a case
+ */
+diff --git a/test/bugs/bug158.go b/test/fixedbugs/bug158.go
+similarity index 86%
+rename from test/bugs/bug158.go
+rename to test/fixedbugs/bug158.go
+index a40bf823a0..cdf3195feb 100644
+--- a/test/bugs/bug158.go
++++ b/test/fixedbugs/bug158.go
+@@ -22,5 +22,5 @@ func main() {
+ 
+ 
+ /*
+-bug156.go:14: fatal error: dowidth: unknown type: E-33
++bug158.go:14: fatal error: dowidth: unknown type: E-33
+ */
+diff --git a/test/golden.out b/test/golden.out
+index 13c83aa80d..4e7f81552e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -109,10 +109,6 @@ bugs/bug157.go:20: syntax error near default
+ bugs/bug157.go:20: first switch statement must be a case
+ BUG: should compile
+ 
+-=========== bugs/bug158.go
+-bugs/bug158.go:14: fatal error: dowidth: unknown type: E-33
+-BUG: should compile
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

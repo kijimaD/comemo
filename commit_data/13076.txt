@@ -13,8 +13,164 @@ Date:   Wed May 16 04:32:49 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6215049
-
+---
  src/pkg/runtime/os_netbsd.h        | 15 ++++++++++-----
  src/pkg/runtime/sys_netbsd_386.s   | 28 +++++++++++++++++-----------
  src/pkg/runtime/sys_netbsd_amd64.s | 26 ++++++++++++++++++++++----
  3 files changed, 49 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index 4ecf78d882..50983a3e5e 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -5,17 +5,22 @@
+ #define SIG_DFL ((void*)0)
+ #define SIG_IGN ((void*)1)
+ 
++#define SIG_BLOCK 1
++#define SIG_UNBLOCK 2
++#define SIG_SETMASK 3
++
+ struct sigaction;
+ 
+-void	runtime·sigpanic(void);
+-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+-void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
++void	runtime·raisesigpipe(void);
+ void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
++void	runtime·sigpanic(void);
++
++void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
++void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
++void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+-void	runtime·raisesigpipe(void);
+-
+ #define	NSIG 33
+ #define	SI_USER	0
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 9b99807ad6..d88467ceff 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -122,12 +122,26 @@ TEXT runtime·nanotime(SB),7,$32
+ 	IMULL	$1000, BX
+ 	ADDL	BX, AX
+ 	ADCL	$0, DX
+-	
++
+ 	MOVL	ret+0(FP), DI
+ 	MOVL	AX, 0(DI)
+ 	MOVL	DX, 4(DI)
+ 	RET
+ 
++TEXT runtime·getcontext(SB),7,$-4
++	MOVL	$307, AX		// sys_getcontext
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1		// crash
++	RET
++
++TEXT runtime·sigprocmask(SB),7,$-4
++	MOVL	$293, AX		// sys_sigprocmask
++	INT	$0x80
++	JAE	2(PC)
++	MOVL	$0xf1, 0xf1		// crash
++	RET
++
+ TEXT runtime·sigreturn_tramp(SB),7,$0
+ 	LEAL	140(SP), AX		// Load address of ucontext
+ 	MOVL	AX, 4(SP)
+@@ -166,7 +180,7 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	// save g
+ 	MOVL	g(CX), DI
+ 	MOVL	DI, 20(SP)
+-	
++
+ 	// g = m->gsignal
+ 	MOVL	m_gsignal(BX), BX
+ 	MOVL	BX, g(CX)
+@@ -186,14 +200,6 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	get_tls(CX)
+ 	MOVL	20(SP), BX
+ 	MOVL	BX, g(CX)
+-	
+-	// call sigreturn
+-	MOVL	context+8(FP), AX
+-	MOVL	$0, 0(SP)		// syscall gap
+-	MOVL	AX, 4(SP)		// arg 1 - sigcontext
+-	MOVL	$103, AX		// sys_sigreturn
+-	INT	$0x80
+-	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ // int32 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+@@ -255,7 +261,7 @@ TEXT runtime·rfork_thread(SB),7,$8
+ 	CALL	runtime·settls(SB)
+ 	POPL	AX
+ 	POPAL
+-	
++
+ 	// Now segment is established.  Initialize m, g.
+ 	get_tls(AX)
+ 	MOVL	DX, g(AX)
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index c57d413bc4..940eb22675 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -163,6 +163,24 @@ TEXT runtime·nanotime(SB),7,$32
+ 	ADDQ	DX, AX
+ 	RET
+ 
++TEXT runtime·getcontext(SB),7,$-8
++	MOVQ	8(SP), DI		// arg 1 - context
++	MOVL	$307, AX		// sys_getcontext
++	SYSCALL
++	JCC	2(PC)
++	MOVL	$0xf1, 0xf1		// crash
++	RET
++
++TEXT runtime·sigprocmask(SB),7,$0
++	MOVL	8(SP), DI		// arg 1 - how
++	MOVQ	16(SP), SI		// arg 2 - set
++	MOVQ	24(SP), DX		// arg 3 - oset
++	MOVL	$293, AX		// sys_sigprocmask
++	SYSCALL
++	JCC	2(PC)
++	MOVL	$0xf1, 0xf1		// crash
++	RET
++
+ TEXT runtime·sigreturn_tramp(SB),7,$-8
+ 	MOVQ	R15, DI			// Load address of ucontext
+ 	MOVQ	$308, AX		// sys_setcontext
+@@ -186,7 +204,7 @@ TEXT runtime·sigaction(SB),7,$-8
+ 
+ TEXT runtime·sigtramp(SB),7,$64
+ 	get_tls(BX)
+-	
++
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+@@ -196,16 +214,16 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	// save g
+ 	MOVQ	g(BX), R10
+ 	MOVQ	R10, 40(SP)
+-	
++
+ 	// g = m->signal
+ 	MOVQ	m_gsignal(BP), BP
+ 	MOVQ	BP, g(BX)
+-	
++
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SI, 8(SP)
+ 	MOVQ	DX, 16(SP)
+ 	MOVQ	R10, 24(SP)
+-	
++
+ 	CALL	runtime·sighandler(SB)
+ 
+ 	// restore g

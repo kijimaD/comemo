@@ -12,9 +12,174 @@ Date:   Wed Jun 27 20:19:30 2018 +0200
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/roundtrip_js.go | 12 ++++++------
  src/syscall/js/callback.go   | 18 ++++++++++--------
  src/syscall/js/js.go         |  2 +-
  src/syscall/js/js_test.go    |  8 ++++----
  4 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 1e6f83a666..336c413cea 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -110,7 +110,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		case <-req.Context().Done():
+ 		}
+ 	})
+-	defer success.Close()
++	defer success.Release()
+ 	failure := js.NewCallback(func(args []js.Value) {
+ 		err := fmt.Errorf("net/http: fetch() failed: %s", args[0].String())
+ 		select {
+@@ -118,7 +118,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		case <-req.Context().Done():
+ 		}
+ 	})
+-	defer failure.Close()
++	defer failure.Release()
+ 	respPromise.Call("then", success, failure)
+ 	select {
+ 	case <-req.Context().Done():
+@@ -171,7 +171,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
+ 			a.Release()
+ 			bCh <- value
+ 		})
+-		defer success.Close()
++		defer success.Release()
+ 		failure := js.NewCallback(func(args []js.Value) {
+ 			// Assumes it's a TypeError. See
+ 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
+@@ -180,7 +180,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
+ 			// the read method.
+ 			errCh <- errors.New(args[0].Get("message").String())
+ 		})
+-		defer failure.Close()
++		defer failure.Release()
+ 		r.stream.Call("read").Call("then", success, failure)
+ 		select {
+ 		case b := <-bCh:
+@@ -234,7 +234,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
+ 			a.Release()
+ 			bCh <- value
+ 		})
+-		defer success.Close()
++		defer success.Release()
+ 		failure := js.NewCallback(func(args []js.Value) {
+ 			// Assumes it's a TypeError. See
+ 			// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
+@@ -242,7 +242,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
+ 			// See https://fetch.spec.whatwg.org/#concept-body-consume-body for reasons this might error.
+ 			errCh <- errors.New(args[0].Get("message").String())
+ 		})
+-		defer failure.Close()
++		defer failure.Release()
+ 		r.arrayPromise.Call("then", success, failure)
+ 		select {
+ 		case b := <-bCh:
+diff --git a/src/syscall/js/callback.go b/src/syscall/js/callback.go
+index cfcce693cb..fa8a03ab0c 100644
+--- a/src/syscall/js/callback.go
++++ b/src/syscall/js/callback.go
+@@ -46,8 +46,8 @@ var (
+ // A Callback can be passed to functions of this package that accept interface{},
+ // for example Value.Set and Value.Call.
+ type Callback struct {
+-	id        uint32
+-	enqueueFn Value // the JavaScript function that queues the callback for execution
++	Value // the JavaScript function that queues the callback for execution
++	id    uint32
+ }
+ 
+ // NewCallback returns a wrapped callback function. It can be passed to functions of this package
+@@ -59,7 +59,7 @@ type Callback struct {
+ // As a consequence, if one callback blocks this goroutine, other callbacks will not be processed.
+ // A blocking callback should therefore explicitly start a new goroutine.
+ //
+-// Callback.Close must be called to free up resources when the callback will not be used any more.
++// Callback.Release must be called to free up resources when the callback will not be used any more.
+ func NewCallback(fn func(args []Value)) Callback {
+ 	callbackLoopOnce.Do(func() {
+ 		go callbackLoop()
+@@ -71,8 +71,8 @@ func NewCallback(fn func(args []Value)) Callback {
+ 	callbacks[id] = fn
+ 	callbacksMu.Unlock()
+ 	return Callback{
+-		id:        id,
+-		enqueueFn: makeCallbackHelper.Invoke(id, pendingCallbacks, resolveCallbackPromise),
++		Value: makeCallbackHelper.Invoke(id, pendingCallbacks, resolveCallbackPromise),
++		id:    id,
+ 	}
+ }
+ 
+@@ -95,17 +95,19 @@ func NewEventCallback(flags EventCallbackFlag, fn func(event Value)) Callback {
+ 		fn(args[0])
+ 	})
+ 	return Callback{
+-		id: c.id,
+-		enqueueFn: makeEventCallbackHelper.Invoke(
++		Value: makeEventCallbackHelper.Invoke(
+ 			flags&PreventDefault != 0,
+ 			flags&StopPropagation != 0,
+ 			flags&StopImmediatePropagation != 0,
+ 			c,
+ 		),
++		id: c.id,
+ 	}
+ }
+ 
+-func (c Callback) Close() {
++// Release frees up resources allocated for the callback.
++// The callback must not be invoked after calling Release.
++func (c Callback) Release() {
+ 	callbacksMu.Lock()
+ 	delete(callbacks, c.id)
+ 	callbacksMu.Unlock()
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index a7b1ed8d29..7f0a5a1a8a 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -99,7 +99,7 @@ func ValueOf(x interface{}) Value {
+ 	case TypedArray:
+ 		return x.Value
+ 	case Callback:
+-		return x.enqueueFn
++		return x.Value
+ 	case nil:
+ 		return valueNull
+ 	case bool:
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 0aaa65d054..497b9467bb 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -214,7 +214,7 @@ func TestCallback(t *testing.T) {
+ 		}
+ 		c <- struct{}{}
+ 	})
+-	defer cb.Close()
++	defer cb.Release()
+ 	js.Global().Call("setTimeout", cb, 0, 42)
+ 	<-c
+ }
+@@ -234,10 +234,10 @@ func TestEventCallback(t *testing.T) {
+ 		cb := js.NewEventCallback(flags, func(event js.Value) {
+ 			c <- struct{}{}
+ 		})
+-		defer cb.Close()
++		defer cb.Release()
+ 
+ 		event := js.Global().Call("eval", fmt.Sprintf("({ called: false, %s: function() { this.called = true; } })", name))
+-		js.ValueOf(cb).Invoke(event)
++		cb.Invoke(event)
+ 		if !event.Get("called").Bool() {
+ 			t.Errorf("%s not called", name)
+ 		}
+@@ -250,7 +250,7 @@ func ExampleNewCallback() {
+ 	var cb js.Callback
+ 	cb = js.NewCallback(func(args []js.Value) {
+ 		fmt.Println("button clicked")
+-		cb.Close() // close the callback if the button will not be clicked again
++		cb.Release() // release the callback if the button will not be clicked again
+ 	})
+ 	js.Global().Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
+ }

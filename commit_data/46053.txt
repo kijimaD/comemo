@@ -17,8 +17,181 @@ Date:   Fri Dec 4 00:30:53 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/copy.go | 21 -------------
  src/cmd/compile/internal/ir/expr.go | 11 -------
  src/cmd/compile/internal/ir/type.go | 59 -------------------------------------
  3 files changed, 91 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/copy.go b/src/cmd/compile/internal/ir/copy.go
+index 86e78cfc33..7f5d313513 100644
+--- a/src/cmd/compile/internal/ir/copy.go
++++ b/src/cmd/compile/internal/ir/copy.go
+@@ -70,33 +70,12 @@ func copyList(x Nodes) Nodes {
+ 	return AsNodes(c)
+ }
+ 
+-// A Node can implement DeepCopyNode to provide a custom implementation
+-// of DeepCopy. If the compiler only needs access to a Node's structure during
+-// DeepCopy, then a Node can implement DeepCopyNode instead of providing
+-// fine-grained mutable access with Left, SetLeft, Right, SetRight, and so on.
+-type DeepCopyNode interface {
+-	Node
+-	DeepCopy(pos src.XPos) Node
+-}
+-
+ // DeepCopy returns a “deep” copy of n, with its entire structure copied
+ // (except for shared nodes like ONAME, ONONAME, OLITERAL, and OTYPE).
+ // If pos.IsKnown(), it sets the source position of newly allocated Nodes to pos.
+-//
+-// The default implementation is to traverse the Node graph, making
+-// a shallow copy of each node and then updating each field to point
+-// at shallow copies of children, recursively, using Left, SetLeft, and so on.
+-//
+-// If a Node wishes to provide an alternate implementation, it can
+-// implement a DeepCopy method: see the DeepCopyNode interface.
+-//
+-// TODO(rsc): Once Nodes implement EditChildren, remove the DeepCopyNode interface.
+ func DeepCopy(pos src.XPos, n Node) Node {
+ 	var edit func(Node) Node
+ 	edit = func(x Node) Node {
+-		if x, ok := x.(DeepCopyNode); ok {
+-			return x.DeepCopy(pos)
+-		}
+ 		switch x.Op() {
+ 		case OPACK, ONAME, ONONAME, OLITERAL, ONIL, OTYPE:
+ 			return x
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 312faa8436..cfdb86f221 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -1163,17 +1163,6 @@ func (n *StarExpr) SetOTYPE(t *types.Type) {
+ 	t.SetNod(n)
+ }
+ 
+-func (n *StarExpr) DeepCopy(pos src.XPos) Node {
+-	if n.op == OTYPE {
+-		// Can't change types and no node references left.
+-		return n
+-	}
+-	c := SepCopy(n).(*StarExpr)
+-	c.pos = n.posOr(pos)
+-	c.X = DeepCopy(pos, n.X)
+-	return c
+-}
+-
+ // A TypeAssertionExpr is a selector expression X.(Type).
+ // Before type-checking, the type is Ntype.
+ type TypeAssertExpr struct {
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index d69dc3fd2a..9f82c9faa2 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -88,14 +88,6 @@ func (n *ChanType) SetOTYPE(t *types.Type) {
+ 	n.Elem = nil
+ }
+ 
+-func (n *ChanType) DeepCopy(pos src.XPos) Node {
+-	if n.op == OTYPE {
+-		// Can't change types and no node references left.
+-		return n
+-	}
+-	return NewChanType(n.posOr(pos), DeepCopy(pos, n.Elem), n.Dir)
+-}
+-
+ // A MapType represents a map[Key]Value type syntax.
+ type MapType struct {
+ 	miniType
+@@ -129,14 +121,6 @@ func (n *MapType) SetOTYPE(t *types.Type) {
+ 	n.Elem = nil
+ }
+ 
+-func (n *MapType) DeepCopy(pos src.XPos) Node {
+-	if n.op == OTYPE {
+-		// Can't change types and no node references left.
+-		return n
+-	}
+-	return NewMapType(n.posOr(pos), DeepCopy(pos, n.Key), DeepCopy(pos, n.Elem))
+-}
+-
+ // A StructType represents a struct { ... } type syntax.
+ type StructType struct {
+ 	miniType
+@@ -171,14 +155,6 @@ func (n *StructType) SetOTYPE(t *types.Type) {
+ 	n.Fields = nil
+ }
+ 
+-func (n *StructType) DeepCopy(pos src.XPos) Node {
+-	if n.op == OTYPE {
+-		// Can't change types and no node references left.
+-		return n
+-	}
+-	return NewStructType(n.posOr(pos), deepCopyFields(pos, n.Fields))
+-}
+-
+ func deepCopyFields(pos src.XPos, fields []*Field) []*Field {
+ 	var out []*Field
+ 	for _, f := range fields {
+@@ -221,14 +197,6 @@ func (n *InterfaceType) SetOTYPE(t *types.Type) {
+ 	n.Methods = nil
+ }
+ 
+-func (n *InterfaceType) DeepCopy(pos src.XPos) Node {
+-	if n.op == OTYPE {
+-		// Can't change types and no node references left.
+-		return n
+-	}
+-	return NewInterfaceType(n.posOr(pos), deepCopyFields(pos, n.Methods))
+-}
+-
+ // A FuncType represents a func(Args) Results type syntax.
+ type FuncType struct {
+ 	miniType
+@@ -275,17 +243,6 @@ func (n *FuncType) SetOTYPE(t *types.Type) {
+ 	n.Results = nil
+ }
+ 
+-func (n *FuncType) DeepCopy(pos src.XPos) Node {
+-	if n.op == OTYPE {
+-		// Can't change types and no node references left.
+-		return n
+-	}
+-	return NewFuncType(n.posOr(pos),
+-		n.Recv.deepCopy(pos),
+-		deepCopyFields(pos, n.Params),
+-		deepCopyFields(pos, n.Results))
+-}
+-
+ // A Field is a declared struct field, interface method, or function argument.
+ // It is not a Node.
+ type Field struct {
+@@ -424,14 +381,6 @@ func (n *SliceType) SetOTYPE(t *types.Type) {
+ 	n.Elem = nil
+ }
+ 
+-func (n *SliceType) DeepCopy(pos src.XPos) Node {
+-	if n.op == OTYPE {
+-		// Can't change types and no node references left.
+-		return n
+-	}
+-	return NewSliceType(n.posOr(pos), DeepCopy(pos, n.Elem))
+-}
+-
+ // An ArrayType represents a [Len]Elem type syntax.
+ // If Len is nil, the type is a [...]Elem in an array literal.
+ type ArrayType struct {
+@@ -461,14 +410,6 @@ func (n *ArrayType) editChildren(edit func(Node) Node) {
+ 	n.Elem = maybeEdit(n.Elem, edit)
+ }
+ 
+-func (n *ArrayType) DeepCopy(pos src.XPos) Node {
+-	if n.op == OTYPE {
+-		// Can't change types and no node references left.
+-		return n
+-	}
+-	return NewArrayType(n.posOr(pos), DeepCopy(pos, n.Len), DeepCopy(pos, n.Elem))
+-}
+-
+ func (n *ArrayType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+ 	n.Len = nil

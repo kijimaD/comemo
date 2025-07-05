@@ -8,7 +8,34 @@ Date:   Wed May 22 15:39:03 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/587595
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/rangefunc/rangefunc_test.go | 2 +-
  src/runtime/panic.go                                 | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/rangefunc/rangefunc_test.go b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+index c50059fe18..cd180f95a1 100644
+--- a/src/cmd/compile/internal/rangefunc/rangefunc_test.go
++++ b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+@@ -264,7 +264,7 @@ func (e errorString) Error() string {
+ 
+ const (
+ 	// RERR_ is for runtime error, and may be regexps/substrings, to simplify use of tests with tools
+-	RERR_DONE      = "runtime error: range function continued iteration after loop body exit"
++	RERR_DONE      = "runtime error: range function continued iteration after function for loop body returned false"
+ 	RERR_PANIC     = "runtime error: range function continued iteration after loop body panic"
+ 	RERR_EXHAUSTED = "runtime error: range function continued iteration after whole loop exit"
+ 	RERR_MISSING   = "runtime error: range function recovered a loop body panic and did not resume panicking"
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 8bbb769df7..e68d857c6d 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -297,7 +297,7 @@ func deferproc(fn func()) {
+ 	// been set and must not be clobbered.
+ }
+ 
+-var rangeDoneError = error(errorString("range function continued iteration after loop body exit"))
++var rangeDoneError = error(errorString("range function continued iteration after function for loop body returned false"))
+ var rangePanicError = error(errorString("range function continued iteration after loop body panic"))
+ var rangeExhaustedError = error(errorString("range function continued iteration after whole loop exit"))
+ var rangeMissingPanicError = error(errorString("range function recovered a loop body panic and did not resume panicking"))

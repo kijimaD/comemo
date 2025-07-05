@@ -9,6 +9,20 @@ Date:   Thu Feb 8 16:19:24 2018 +0100
     Change-Id: I850d91a512394c4292927d51c475064bfa4e3053
     Reviewed-on: https://go-review.googlesource.com/92815
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rsa/pss.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index 75558a92cf..3ff0c2f4d0 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -36,7 +36,7 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
+ 	// 3.  If emLen < hLen + sLen + 2, output "encoding error" and stop.
+ 
+ 	if emLen < hLen+sLen+2 {
+-		return nil, errors.New("crypto/rsa: encoding error")
++		return nil, errors.New("crypto/rsa: key size too small for PSS signature")
+ 	}
+ 
+ 	em := make([]byte, emLen)

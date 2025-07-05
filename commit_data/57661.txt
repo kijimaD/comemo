@@ -19,9 +19,130 @@ Date:   Tue Aug 22 11:01:29 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/cgi/host_test.go | 5 +++--
  src/net/http/fs_test.go       | 5 +++--
  src/net/http/http_test.go     | 7 +++----
  src/net/http/serve_test.go    | 3 +--
  4 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index 860e9b3e8f..707af71dd7 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -9,6 +9,7 @@ package cgi
+ import (
+ 	"bufio"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"net"
+ 	"net/http"
+@@ -93,7 +94,7 @@ var cgiTested, cgiWorks bool
+ func check(t *testing.T) {
+ 	if !cgiTested {
+ 		cgiTested = true
+-		cgiWorks = exec.Command("./testdata/test.cgi").Run() == nil
++		cgiWorks = testenv.Command(t, "./testdata/test.cgi").Run() == nil
+ 	}
+ 	if !cgiWorks {
+ 		// No Perl on Windows, needed by test.cgi
+@@ -462,7 +463,7 @@ func findPerl(t *testing.T) string {
+ 	}
+ 	perl, _ = filepath.Abs(perl)
+ 
+-	cmd := exec.Command(perl, "-e", "print 123")
++	cmd := testenv.Command(t, perl, "-e", "print 123")
+ 	cmd.Env = []string{"PATH=/garbage"}
+ 	out, err := cmd.Output()
+ 	if err != nil || string(out) != "123" {
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index bb96d2ca68..2e15773652 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"io/fs"
+ 	"mime"
+@@ -1266,7 +1267,7 @@ func TestLinuxSendfile(t *testing.T) {
+ 	defer ln.Close()
+ 
+ 	// Attempt to run strace, and skip on failure - this test requires SYS_PTRACE.
+-	if err := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=^$").Run(); err != nil {
++	if err := testenv.Command(t, "strace", "-f", "-q", os.Args[0], "-test.run=^$").Run(); err != nil {
+ 		t.Skipf("skipping; failed to run strace: %v", err)
+ 	}
+ 
+@@ -1279,7 +1280,7 @@ func TestLinuxSendfile(t *testing.T) {
+ 	defer os.Remove(filepath)
+ 
+ 	var buf strings.Builder
+-	child := exec.Command("strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
++	child := testenv.Command(t, "strace", "-f", "-q", os.Args[0], "-test.run=TestLinuxSendfileChild")
+ 	child.ExtraFiles = append(child.ExtraFiles, lnf)
+ 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
+ 	child.Stdout = &buf
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index 91bb1b2620..2e7e024e20 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"io/fs"
+ 	"net/url"
+ 	"os"
+-	"os/exec"
+ 	"reflect"
+ 	"regexp"
+ 	"strings"
+@@ -55,7 +54,7 @@ func TestForeachHeaderElement(t *testing.T) {
+ func TestCmdGoNoHTTPServer(t *testing.T) {
+ 	t.Parallel()
+ 	goBin := testenv.GoToolPath(t)
+-	out, err := exec.Command(goBin, "tool", "nm", goBin).CombinedOutput()
++	out, err := testenv.Command(t, goBin, "tool", "nm", goBin).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go tool nm: %v: %s", err, out)
+ 	}
+@@ -89,7 +88,7 @@ func TestOmitHTTP2(t *testing.T) {
+ 	}
+ 	t.Parallel()
+ 	goTool := testenv.GoToolPath(t)
+-	out, err := exec.Command(goTool, "test", "-short", "-tags=nethttpomithttp2", "net/http").CombinedOutput()
++	out, err := testenv.Command(t, goTool, "test", "-short", "-tags=nethttpomithttp2", "net/http").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go test -short failed: %v, %s", err, out)
+ 	}
+@@ -101,7 +100,7 @@ func TestOmitHTTP2(t *testing.T) {
+ func TestOmitHTTP2Vet(t *testing.T) {
+ 	t.Parallel()
+ 	goTool := testenv.GoToolPath(t)
+-	out, err := exec.Command(goTool, "vet", "-tags=nethttpomithttp2", "net/http").CombinedOutput()
++	out, err := testenv.Command(t, goTool, "vet", "-tags=nethttpomithttp2", "net/http").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go vet failed: %v, %s", err, out)
+ 	}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index bb380cf4a5..1f215bd843 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -30,7 +30,6 @@ import (
+ 	"net/http/internal/testcert"
+ 	"net/url"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"regexp"
+@@ -5005,7 +5004,7 @@ func BenchmarkServer(b *testing.B) {
+ 	defer ts.Close()
+ 	b.StartTimer()
+ 
+-	cmd := exec.Command(os.Args[0], "-test.run=XXXX", "-test.bench=BenchmarkServer$")
++	cmd := testenv.Command(b, os.Args[0], "-test.run=XXXX", "-test.bench=BenchmarkServer$")
+ 	cmd.Env = append([]string{
+ 		fmt.Sprintf("TEST_BENCH_CLIENT_N=%d", b.N),
+ 		fmt.Sprintf("TEST_BENCH_SERVER_URL=%s", ts.URL),

@@ -8,6 +8,41 @@ Date:   Thu Aug 7 18:41:09 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/127770043
-
+---
  src/liblink/objfile.c | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 22c9199d5e..3b78571b74 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -138,6 +138,8 @@ writeobj(Link *ctxt, Biobuf *b)
+ 	edata = nil;
+ 	for(pl = ctxt->plist; pl != nil; pl = pl->link) {
+ 		for(p = pl->firstpc; p != nil; p = plink) {
++			if(ctxt->debugasm && ctxt->debugvlog)
++				print("obj: %p %P\n", p, p);
+ 			plink = p->link;
+ 			p->link = nil;
+ 
+@@ -322,7 +324,10 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
+ 			name = "";
+ 			if(r->sym != nil)
+ 				name = r->sym->name;
+-			Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, name, (vlong)r->add);
++			if(ctxt->arch->thechar == '5' || ctxt->arch->thechar == '9')
++				Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%llux\n", (int)r->off, r->siz, r->type, name, (vlong)r->add);
++			else
++				Bprint(ctxt->bso, "\trel %d+%d t=%d %s+%lld\n", (int)r->off, r->siz, r->type, name, (vlong)r->add);
+ 		}
+ 	}
+ 
+@@ -725,7 +730,7 @@ rdsym(Link *ctxt, Biobuf *f, char *pkg)
+ 			s->type = SRODATA;
+ 			adduint32(ctxt, s, i32);
+ 			s->reachable = 0;
+-		} else if(strncmp(s->name, "$f64.", 5) == 0) {
++		} else if(strncmp(s->name, "$f64.", 5) == 0 || strncmp(s->name, "$i64.", 5) == 0) {
+ 			int64 i64;
+ 			i64 = strtoull(s->name+5, nil, 16);
+ 			s->type = SRODATA;

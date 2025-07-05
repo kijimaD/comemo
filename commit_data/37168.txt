@@ -7,8 +7,65 @@ Date:   Fri Jul 6 16:32:13 2018 +0000
     Change-Id: Ie801fe6a2883d79229ee2955e26948c1b4964802
     Reviewed-on: https://go-review.googlesource.com/122496
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/image/jpeg/reader.go |  3 ++-
  src/net/http/request.go  | 14 +++++++++++---
  src/net/http/server.go   |  4 +++-
  3 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 26b312cfd2..4a4706ffe7 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -89,7 +89,8 @@ var unzig = [blockSize]int{
+ 	53, 60, 61, 54, 47, 55, 62, 63,
+ }
+ 
+-// Deprecated: Reader is deprecated.
++// Deprecated: Reader is not used by the image/jpeg package and should
++// not be used by others. It is kept for compatibility.
+ type Reader interface {
+ 	io.ByteReader
+ 	io.Reader
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 13c5417053..8cb278ea2c 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -65,11 +65,19 @@ var (
+ 	// request's Content-Type is not multipart/form-data.
+ 	ErrNotMultipart = &ProtocolError{"request Content-Type isn't multipart/form-data"}
+ 
+-	// Deprecated: ErrHeaderTooLong is not used.
++	// Deprecated: ErrHeaderTooLong is no longer returned by
++	// anything in the net/http package. Callers should not
++	// compare errors against this variable.
+ 	ErrHeaderTooLong = &ProtocolError{"header too long"}
+-	// Deprecated: ErrShortBody is not used.
++
++	// Deprecated: ErrShortBody is no longer returned by
++	// anything in the net/http package. Callers should not
++	// compare errors against this variable.
+ 	ErrShortBody = &ProtocolError{"entity body too short"}
+-	// Deprecated: ErrMissingContentLength is not used.
++
++	// Deprecated: ErrMissingContentLength is no longer returned by
++	// anything in the net/http package. Callers should not
++	// compare errors against this variable.
+ 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
+ )
+ 
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index de77485bd6..9b1095c703 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -51,7 +51,9 @@ var (
+ 	// declared.
+ 	ErrContentLength = errors.New("http: wrote more than the declared Content-Length")
+ 
+-	// Deprecated: ErrWriteAfterFlush is no longer used.
++	// Deprecated: ErrWriteAfterFlush is no longer returned by
++	// anything in the net/http package. Callers should not
++	// compare errors against this variable.
+ 	ErrWriteAfterFlush = errors.New("unused")
+ )
+ 

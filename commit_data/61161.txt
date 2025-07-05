@@ -10,6 +10,37 @@ Date:   Wed Oct 9 11:23:11 2024 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/mail/example_test.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/net/mail/example_test.go b/src/net/mail/example_test.go
+index d325dc791f..9fadda2463 100644
+--- a/src/net/mail/example_test.go
++++ b/src/net/mail/example_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"log"
+ 	"net/mail"
+ 	"strings"
++	"time"
+ )
+ 
+ func ExampleParseAddressList() {
+@@ -75,3 +76,17 @@ Message body
+ 	// Subject: Gophers at Gophercon
+ 	// Message body
+ }
++
++func ExampleParseDate() {
++	dateStr := "Wed, 09 Oct 2024 09:55:06 -0700"
++
++	t, err := mail.ParseDate(dateStr)
++	if err != nil {
++		log.Fatalf("Failed to parse date: %v", err)
++	}
++
++	fmt.Println(t.Format(time.RFC3339))
++
++	// Output:
++	// 2024-10-09T09:55:06-07:00
++}

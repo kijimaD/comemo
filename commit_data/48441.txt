@@ -14,6 +14,19 @@ Date:   Wed May 19 17:34:19 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/symtab.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 00f557875a..1f5e333cfd 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -300,6 +300,7 @@ func putplan9sym(ctxt *Link, ldr *loader.Loader, s loader.Sym, char SymbolType)
+ 	ctxt.Out.Write8(uint8(t + 0x80)) /* 0x80 is variable length */
+ 
+ 	name := ldr.SymName(s)
++	name = mangleABIName(ctxt, ldr, s, name)
+ 	ctxt.Out.WriteString(name)
+ 	ctxt.Out.Write8(0)
+ 

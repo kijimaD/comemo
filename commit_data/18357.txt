@@ -11,7 +11,7 @@ Date:   Mon Jan 27 11:05:01 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/54660045
-
+---
  src/pkg/archive/tar/reader_test.go       |  4 ++--
  src/pkg/bufio/bufio_test.go              | 18 +++++++++---------
  src/pkg/bufio/scan_test.go               | 12 ++++++------
@@ -44,3 +44,834 @@ Date:   Mon Jan 27 11:05:01 2014 -0800
  src/pkg/runtime/race/race_test.go        |  2 +-
  src/pkg/text/scanner/scanner_test.go     | 14 +++++++-------
  31 files changed, 80 insertions(+), 77 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 1285616565..acd45410e3 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -321,7 +321,7 @@ func TestParsePAXHeader(t *testing.T) {
+ 		{"mtime", "mtime=1350244992.023960108", "30 mtime=1350244992.023960108\n"}}
+ 	for _, test := range paxTests {
+ 		key, expected, raw := test[0], test[1], test[2]
+-		reader := bytes.NewBuffer([]byte(raw))
++		reader := bytes.NewReader([]byte(raw))
+ 		headers, err := parsePAX(reader)
+ 		if err != nil {
+ 			t.Errorf("Couldn't parse correctly formatted headers: %v", err)
+@@ -337,7 +337,7 @@ func TestParsePAXHeader(t *testing.T) {
+ 			t.Error("Buffer wasn't consumed")
+ 		}
+ 	}
+-	badHeader := bytes.NewBuffer([]byte("3 somelongkey="))
++	badHeader := bytes.NewReader([]byte("3 somelongkey="))
+ 	if _, err := parsePAX(badHeader); err != ErrHeader {
+ 		t.Fatal("Unexpected success when parsing bad header")
+ 	}
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 06d365b796..3c86857e10 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -65,12 +65,12 @@ func readBytes(buf *Reader) string {
+ 
+ func TestReaderSimple(t *testing.T) {
+ 	data := "hello world"
+-	b := NewReader(bytes.NewBufferString(data))
++	b := NewReader(strings.NewReader(data))
+ 	if s := readBytes(b); s != "hello world" {
+ 		t.Errorf("simple hello world test failed: got %q", s)
+ 	}
+ 
+-	b = NewReader(newRot13Reader(bytes.NewBufferString(data)))
++	b = NewReader(newRot13Reader(strings.NewReader(data)))
+ 	if s := readBytes(b); s != "uryyb jbeyq" {
+ 		t.Errorf("rot13 hello world test failed: got %q", s)
+ 	}
+@@ -161,7 +161,7 @@ func TestReader(t *testing.T) {
+ 					readmaker := readMakers[i]
+ 					bufreader := bufreaders[j]
+ 					bufsize := bufsizes[k]
+-					read := readmaker.fn(bytes.NewBufferString(text))
++					read := readmaker.fn(strings.NewReader(text))
+ 					buf := NewReaderSize(read, bufsize)
+ 					s := bufreader.fn(buf)
+ 					if s != text {
+@@ -479,7 +479,7 @@ func TestWriteErrors(t *testing.T) {
+ 
+ func TestNewReaderSizeIdempotent(t *testing.T) {
+ 	const BufSize = 1000
+-	b := NewReaderSize(bytes.NewBufferString("hello world"), BufSize)
++	b := NewReaderSize(strings.NewReader("hello world"), BufSize)
+ 	// Does it recognize itself?
+ 	b1 := NewReaderSize(b, BufSize)
+ 	if b1 != b {
+@@ -677,7 +677,7 @@ func TestLineTooLong(t *testing.T) {
+ 	for i := 0; i < minReadBufferSize*5/2; i++ {
+ 		data = append(data, '0'+byte(i%10))
+ 	}
+-	buf := bytes.NewBuffer(data)
++	buf := bytes.NewReader(data)
+ 	l := NewReaderSize(buf, minReadBufferSize)
+ 	line, isPrefix, err := l.ReadLine()
+ 	if !isPrefix || !bytes.Equal(line, data[:minReadBufferSize]) || err != nil {
+@@ -702,7 +702,7 @@ func TestLineTooLong(t *testing.T) {
+ func TestReadAfterLines(t *testing.T) {
+ 	line1 := "this is line1"
+ 	restData := "this is line2\nthis is line 3\n"
+-	inbuf := bytes.NewBuffer([]byte(line1 + "\n" + restData))
++	inbuf := bytes.NewReader([]byte(line1 + "\n" + restData))
+ 	outbuf := new(bytes.Buffer)
+ 	maxLineLength := len(line1) + len(restData)/2
+ 	l := NewReaderSize(inbuf, maxLineLength)
+@@ -728,7 +728,7 @@ func TestReadEmptyBuffer(t *testing.T) {
+ }
+ 
+ func TestLinesAfterRead(t *testing.T) {
+-	l := NewReaderSize(bytes.NewBuffer([]byte("foo")), minReadBufferSize)
++	l := NewReaderSize(bytes.NewReader([]byte("foo")), minReadBufferSize)
+ 	_, err := ioutil.ReadAll(l)
+ 	if err != nil {
+ 		t.Error(err)
+@@ -818,7 +818,7 @@ func createTestInput(n int) []byte {
+ 
+ func TestReaderWriteTo(t *testing.T) {
+ 	input := createTestInput(8192)
+-	r := NewReader(onlyReader{bytes.NewBuffer(input)})
++	r := NewReader(onlyReader{bytes.NewReader(input)})
+ 	w := new(bytes.Buffer)
+ 	if n, err := r.WriteTo(w); err != nil || n != int64(len(input)) {
+ 		t.Fatalf("r.WriteTo(w) = %d, %v, want %d, nil", n, err, len(input))
+@@ -877,7 +877,7 @@ func TestWriterReadFrom(t *testing.T) {
+ 			input := createTestInput(8192)
+ 			b := new(bytes.Buffer)
+ 			w := NewWriter(wfunc(b))
+-			r := rfunc(bytes.NewBuffer(input))
++			r := rfunc(bytes.NewReader(input))
+ 			if n, err := w.ReadFrom(r); err != nil || n != int64(len(input)) {
+ 				t.Errorf("ws[%d],rs[%d]: w.ReadFrom(r) = %d, %v, want %d, nil", wi, ri, n, err, len(input))
+ 				continue
+diff --git a/src/pkg/bufio/scan_test.go b/src/pkg/bufio/scan_test.go
+index c1483b2685..4ac529fd6d 100644
+--- a/src/pkg/bufio/scan_test.go
++++ b/src/pkg/bufio/scan_test.go
+@@ -38,7 +38,7 @@ var scanTests = []string{
+ 
+ func TestScanByte(t *testing.T) {
+ 	for n, test := range scanTests {
+-		buf := bytes.NewBufferString(test)
++		buf := strings.NewReader(test)
+ 		s := NewScanner(buf)
+ 		s.Split(ScanBytes)
+ 		var i int
+@@ -60,7 +60,7 @@ func TestScanByte(t *testing.T) {
+ // Test that the rune splitter returns same sequence of runes (not bytes) as for range string.
+ func TestScanRune(t *testing.T) {
+ 	for n, test := range scanTests {
+-		buf := bytes.NewBufferString(test)
++		buf := strings.NewReader(test)
+ 		s := NewScanner(buf)
+ 		s.Split(ScanRunes)
+ 		var i, runeCount int
+@@ -104,7 +104,7 @@ var wordScanTests = []string{
+ // Test that the word splitter returns the same data as strings.Fields.
+ func TestScanWords(t *testing.T) {
+ 	for n, test := range wordScanTests {
+-		buf := bytes.NewBufferString(test)
++		buf := strings.NewReader(test)
+ 		s := NewScanner(buf)
+ 		s.Split(ScanWords)
+ 		words := strings.Fields(test)
+@@ -135,7 +135,7 @@ func TestScanWords(t *testing.T) {
+ // reads in Scanner.Scan.
+ type slowReader struct {
+ 	max int
+-	buf *bytes.Buffer
++	buf io.Reader
+ }
+ 
+ func (sr *slowReader) Read(p []byte) (n int, err error) {
+@@ -248,7 +248,7 @@ func TestScanLineTooLong(t *testing.T) {
+ 
+ // Test that the line splitter handles a final line without a newline.
+ func testNoNewline(text string, lines []string, t *testing.T) {
+-	buf := bytes.NewBufferString(text)
++	buf := strings.NewReader(text)
+ 	s := NewScanner(&slowReader{7, buf})
+ 	s.Split(ScanLines)
+ 	for lineNum := 0; s.Scan(); lineNum++ {
+@@ -328,7 +328,7 @@ func TestSplitError(t *testing.T) {
+ 	}
+ 	// Read the data.
+ 	const text = "abcdefghijklmnopqrstuvwxyz"
+-	buf := bytes.NewBufferString(text)
++	buf := strings.NewReader(text)
+ 	s := NewScanner(&slowReader{1, buf})
+ 	s.Split(errorSplit)
+ 	var i int
+diff --git a/src/pkg/compress/bzip2/bzip2_test.go b/src/pkg/compress/bzip2/bzip2_test.go
+index ada1f9a001..cd647e5ae0 100644
+--- a/src/pkg/compress/bzip2/bzip2_test.go
++++ b/src/pkg/compress/bzip2/bzip2_test.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ func TestBitReader(t *testing.T) {
+-	buf := bytes.NewBuffer([]byte{0xaa})
++	buf := bytes.NewReader([]byte{0xaa})
+ 	br := newBitReader(buf)
+ 	if n := br.ReadBits(1); n != 1 {
+ 		t.Errorf("read 1 wrong")
+@@ -31,7 +31,7 @@ func TestBitReader(t *testing.T) {
+ }
+ 
+ func TestBitReaderLarge(t *testing.T) {
+-	buf := bytes.NewBuffer([]byte{0x12, 0x34, 0x56, 0x78})
++	buf := bytes.NewReader([]byte{0x12, 0x34, 0x56, 0x78})
+ 	br := newBitReader(buf)
+ 	if n := br.ReadBits(32); n != 0x12345678 {
+ 		t.Errorf("got: %x want: %x", n, 0x12345678)
+@@ -43,7 +43,7 @@ func readerFromHex(s string) io.Reader {
+ 	if err != nil {
+ 		panic("readerFromHex: bad input")
+ 	}
+-	return bytes.NewBuffer(data)
++	return bytes.NewReader(data)
+ }
+ 
+ func decompressHex(s string) (out []byte, err error) {
+@@ -191,7 +191,7 @@ func benchmarkDecode(b *testing.B, testfile int) {
+ 	}
+ 	b.SetBytes(int64(len(compressed)))
+ 	for i := 0; i < b.N; i++ {
+-		r := bytes.NewBuffer(compressed)
++		r := bytes.NewReader(compressed)
+ 		io.Copy(ioutil.Discard, NewReader(r))
+ 	}
+ }
+@@ -201,7 +201,7 @@ func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
+ 
+ func TestBufferOverrun(t *testing.T) {
+ 	// Tests https://code.google.com/p/go/issues/detail?id=5747.
+-	buffer := bytes.NewBuffer([]byte(bufferOverrunBase64))
++	buffer := bytes.NewReader([]byte(bufferOverrunBase64))
+ 	decoder := base64.NewDecoder(base64.StdEncoding, buffer)
+ 	decompressor := NewReader(decoder)
+ 	// This shouldn't panic.
+diff --git a/src/pkg/compress/flate/flate_test.go b/src/pkg/compress/flate/flate_test.go
+index 57fea5ab4d..0687663233 100644
+--- a/src/pkg/compress/flate/flate_test.go
++++ b/src/pkg/compress/flate/flate_test.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ func TestUncompressedSource(t *testing.T) {
+-	decoder := NewReader(bytes.NewBuffer([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}))
++	decoder := NewReader(bytes.NewReader([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}))
+ 	output := make([]byte, 1)
+ 	n, error := decoder.Read(output)
+ 	if n != 1 || error != nil {
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 572fb58488..5615373737 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -284,7 +284,7 @@ var gunzipTests = []gunzipTest{
+ func TestDecompressor(t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	for _, tt := range gunzipTests {
+-		in := bytes.NewBuffer(tt.gzip)
++		in := bytes.NewReader(tt.gzip)
+ 		gzip, err := NewReader(in)
+ 		if err != nil {
+ 			t.Errorf("%s: NewReader: %s", tt.name, err)
+diff --git a/src/pkg/compress/gzip/gzip_test.go b/src/pkg/compress/gzip/gzip_test.go
+index 119be2e135..09271b24e9 100644
+--- a/src/pkg/compress/gzip/gzip_test.go
++++ b/src/pkg/compress/gzip/gzip_test.go
+@@ -85,7 +85,7 @@ func TestRoundTrip(t *testing.T) {
+ func TestLatin1(t *testing.T) {
+ 	latin1 := []byte{0xc4, 'u', 0xdf, 'e', 'r', 'u', 'n', 'g', 0}
+ 	utf8 := "Äußerung"
+-	z := Reader{r: bufio.NewReader(bytes.NewBuffer(latin1))}
++	z := Reader{r: bufio.NewReader(bytes.NewReader(latin1))}
+ 	s, err := z.readString()
+ 	if err != nil {
+ 		t.Fatalf("readString: %v", err)
+diff --git a/src/pkg/compress/lzw/reader_test.go b/src/pkg/compress/lzw/reader_test.go
+index 6f155b1bde..9006c91c23 100644
+--- a/src/pkg/compress/lzw/reader_test.go
++++ b/src/pkg/compress/lzw/reader_test.go
+@@ -127,7 +127,7 @@ func benchmarkDecoder(b *testing.B, n int) {
+ 		if len(buf0) > n-i {
+ 			buf0 = buf0[:n-i]
+ 		}
+-		io.Copy(w, bytes.NewBuffer(buf0))
++		w.Write(buf0)
+ 	}
+ 	w.Close()
+ 	buf1 := compressed.Bytes()
+@@ -135,7 +135,7 @@ func benchmarkDecoder(b *testing.B, n int) {
+ 	runtime.GC()
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+-		io.Copy(ioutil.Discard, NewReader(bytes.NewBuffer(buf1), LSB, 8))
++		io.Copy(ioutil.Discard, NewReader(bytes.NewReader(buf1), LSB, 8))
+ 	}
+ }
+ 
+diff --git a/src/pkg/compress/zlib/example_test.go b/src/pkg/compress/zlib/example_test.go
+index b934ffa618..70408895ff 100644
+--- a/src/pkg/compress/zlib/example_test.go
++++ b/src/pkg/compress/zlib/example_test.go
+@@ -25,7 +25,7 @@ func ExampleNewWriter() {
+ func ExampleNewReader() {
+ 	buff := []byte{120, 156, 202, 72, 205, 201, 201, 215, 81, 40, 207,
+ 		47, 202, 73, 225, 2, 4, 0, 0, 255, 255, 33, 231, 4, 147}
+-	b := bytes.NewBuffer(buff)
++	b := bytes.NewReader(buff)
+ 
+ 	r, err := zlib.NewReader(b)
+ 	if err != nil {
+diff --git a/src/pkg/compress/zlib/reader_test.go b/src/pkg/compress/zlib/reader_test.go
+index 3b02a08684..218ccba141 100644
+--- a/src/pkg/compress/zlib/reader_test.go
++++ b/src/pkg/compress/zlib/reader_test.go
+@@ -102,7 +102,7 @@ var zlibTests = []zlibTest{
+ func TestDecompressor(t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	for _, tt := range zlibTests {
+-		in := bytes.NewBuffer(tt.compressed)
++		in := bytes.NewReader(tt.compressed)
+ 		zlib, err := NewReaderDict(in, tt.dict)
+ 		if err != nil {
+ 			if err != tt.err {
+diff --git a/src/pkg/crypto/rsa/rsa_test.go b/src/pkg/crypto/rsa/rsa_test.go
+index cf193c669f..4ee1c3a8b2 100644
+--- a/src/pkg/crypto/rsa/rsa_test.go
++++ b/src/pkg/crypto/rsa/rsa_test.go
+@@ -197,7 +197,7 @@ func TestEncryptOAEP(t *testing.T) {
+ 		public := PublicKey{n, test.e}
+ 
+ 		for j, message := range test.msgs {
+-			randomSource := bytes.NewBuffer(message.seed)
++			randomSource := bytes.NewReader(message.seed)
+ 			out, err := EncryptOAEP(sha1, randomSource, &public, message.in, nil)
+ 			if err != nil {
+ 				t.Errorf("#%d,%d error: %s", i, j, err)
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 07661aa166..a406170996 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -412,7 +412,7 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
+ 	if err != nil {
+ 		return nil, nil, errors.New("cannot load symbol section")
+ 	}
+-	symtab := bytes.NewBuffer(data)
++	symtab := bytes.NewReader(data)
+ 	if symtab.Len()%Sym32Size != 0 {
+ 		return nil, nil, errors.New("length of symbol section is not a multiple of SymSize")
+ 	}
+@@ -455,7 +455,7 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
+ 	if err != nil {
+ 		return nil, nil, errors.New("cannot load symbol section")
+ 	}
+-	symtab := bytes.NewBuffer(data)
++	symtab := bytes.NewReader(data)
+ 	if symtab.Len()%Sym64Size != 0 {
+ 		return nil, nil, errors.New("length of symbol section is not a multiple of Sym64Size")
+ 	}
+@@ -533,7 +533,7 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
+ 		return err
+ 	}
+ 
+-	b := bytes.NewBuffer(rels)
++	b := bytes.NewReader(rels)
+ 	var rela Rela64
+ 
+ 	for b.Len() > 0 {
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index f5f0dedb7c..c799fa49df 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -246,7 +246,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 		case LoadCmdDylib:
+ 			var hdr DylibCmd
+-			b := bytes.NewBuffer(cmddat)
++			b := bytes.NewReader(cmddat)
+ 			if err := binary.Read(b, bo, &hdr); err != nil {
+ 				return nil, err
+ 			}
+@@ -263,7 +263,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 		case LoadCmdSymtab:
+ 			var hdr SymtabCmd
+-			b := bytes.NewBuffer(cmddat)
++			b := bytes.NewReader(cmddat)
+ 			if err := binary.Read(b, bo, &hdr); err != nil {
+ 				return nil, err
+ 			}
+@@ -290,7 +290,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 		case LoadCmdDysymtab:
+ 			var hdr DysymtabCmd
+-			b := bytes.NewBuffer(cmddat)
++			b := bytes.NewReader(cmddat)
+ 			if err := binary.Read(b, bo, &hdr); err != nil {
+ 				return nil, err
+ 			}
+@@ -299,7 +299,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				return nil, err
+ 			}
+ 			x := make([]uint32, hdr.Nindirectsyms)
+-			if err := binary.Read(bytes.NewBuffer(dat), bo, x); err != nil {
++			if err := binary.Read(bytes.NewReader(dat), bo, x); err != nil {
+ 				return nil, err
+ 			}
+ 			st := new(Dysymtab)
+@@ -311,7 +311,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 		case LoadCmdSegment:
+ 			var seg32 Segment32
+-			b := bytes.NewBuffer(cmddat)
++			b := bytes.NewReader(cmddat)
+ 			if err := binary.Read(b, bo, &seg32); err != nil {
+ 				return nil, err
+ 			}
+@@ -349,7 +349,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 		case LoadCmdSegment64:
+ 			var seg64 Segment64
+-			b := bytes.NewBuffer(cmddat)
++			b := bytes.NewReader(cmddat)
+ 			if err := binary.Read(b, bo, &seg64); err != nil {
+ 				return nil, err
+ 			}
+@@ -396,7 +396,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ func (f *File) parseSymtab(symdat, strtab, cmddat []byte, hdr *SymtabCmd, offset int64) (*Symtab, error) {
+ 	bo := f.ByteOrder
+ 	symtab := make([]Symbol, hdr.Nsyms)
+-	b := bytes.NewBuffer(symdat)
++	b := bytes.NewReader(symdat)
+ 	for i := range symtab {
+ 		var n Nlist64
+ 		if f.Magic == Magic64 {
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index dc1134dccd..77bc465d59 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"io"
+ 	"io/ioutil"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -115,7 +116,7 @@ func TestDecode(t *testing.T) {
+ 
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range pairs {
+-		decoder := NewDecoder(bytes.NewBufferString(p.encoded))
++		decoder := NewDecoder(strings.NewReader(p.encoded))
+ 		dbuf, err := ioutil.ReadAll(decoder)
+ 		if err != nil {
+ 			t.Fatal("Read failed", err)
+@@ -130,7 +131,7 @@ func TestDecoder(t *testing.T) {
+ 
+ func TestDecoderBuffering(t *testing.T) {
+ 	for bs := 1; bs <= 12; bs++ {
+-		decoder := NewDecoder(bytes.NewBufferString(bigtest.encoded))
++		decoder := NewDecoder(strings.NewReader(bigtest.encoded))
+ 		buf := make([]byte, len(bigtest.decoded)+12)
+ 		var total int
+ 		for total = 0; total < len(bigtest.decoded); {
+diff --git a/src/pkg/encoding/base32/base32_test.go b/src/pkg/encoding/base32/base32_test.go
+index 63298d1c94..f56b996faa 100644
+--- a/src/pkg/encoding/base32/base32_test.go
++++ b/src/pkg/encoding/base32/base32_test.go
+@@ -108,7 +108,7 @@ func TestDecode(t *testing.T) {
+ 
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range pairs {
+-		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(p.encoded))
++		decoder := NewDecoder(StdEncoding, strings.NewReader(p.encoded))
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
+ 		count, err := decoder.Read(dbuf)
+ 		if err != nil && err != io.EOF {
+@@ -125,7 +125,7 @@ func TestDecoder(t *testing.T) {
+ 
+ func TestDecoderBuffering(t *testing.T) {
+ 	for bs := 1; bs <= 12; bs++ {
+-		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(bigtest.encoded))
++		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
+ 		buf := make([]byte, len(bigtest.decoded)+12)
+ 		var total int
+ 		for total = 0; total < len(bigtest.decoded); {
+@@ -267,13 +267,13 @@ LNEBUWIIDFON2CA3DBMJXXE5LNFY==
+ ====`
+ 	encodedShort := strings.Replace(encoded, "\n", "", -1)
+ 
+-	dec := NewDecoder(StdEncoding, bytes.NewBufferString(encoded))
++	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
+ 	res1, err := ioutil.ReadAll(dec)
+ 	if err != nil {
+ 		t.Errorf("ReadAll failed: %v", err)
+ 	}
+ 
+-	dec = NewDecoder(StdEncoding, bytes.NewBufferString(encodedShort))
++	dec = NewDecoder(StdEncoding, strings.NewReader(encodedShort))
+ 	var res2 []byte
+ 	res2, err = ioutil.ReadAll(dec)
+ 	if err != nil {
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index 579591a88d..6bcc724d9b 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -113,7 +113,7 @@ func TestDecode(t *testing.T) {
+ 
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range pairs {
+-		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(p.encoded))
++		decoder := NewDecoder(StdEncoding, strings.NewReader(p.encoded))
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
+ 		count, err := decoder.Read(dbuf)
+ 		if err != nil && err != io.EOF {
+@@ -130,7 +130,7 @@ func TestDecoder(t *testing.T) {
+ 
+ func TestDecoderBuffering(t *testing.T) {
+ 	for bs := 1; bs <= 12; bs++ {
+-		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(bigtest.encoded))
++		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
+ 		buf := make([]byte, len(bigtest.decoded)+12)
+ 		var total int
+ 		for total = 0; total < len(bigtest.decoded); {
+@@ -308,13 +308,13 @@ bqbPb06551Y4
+ `
+ 	encodedShort := strings.Replace(encoded, "\n", "", -1)
+ 
+-	dec := NewDecoder(StdEncoding, bytes.NewBufferString(encoded))
++	dec := NewDecoder(StdEncoding, strings.NewReader(encoded))
+ 	res1, err := ioutil.ReadAll(dec)
+ 	if err != nil {
+ 		t.Errorf("ReadAll failed: %v", err)
+ 	}
+ 
+-	dec = NewDecoder(StdEncoding, bytes.NewBufferString(encodedShort))
++	dec = NewDecoder(StdEncoding, strings.NewReader(encodedShort))
+ 	var res2 []byte
+ 	res2, err = ioutil.ReadAll(dec)
+ 	if err != nil {
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index fdfee7d871..1aa6ecd248 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -111,7 +111,7 @@ func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, wan
+ 
+ func testRead(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
+ 	var s2 Struct
+-	err := Read(bytes.NewBuffer(b), order, &s2)
++	err := Read(bytes.NewReader(b), order, &s2)
+ 	checkResult(t, "Read", order, err, s2, s1)
+ }
+ 
+@@ -131,7 +131,7 @@ func TestBigEndianPtrWrite(t *testing.T) { testWrite(t, BigEndian, big, &s) }
+ 
+ func TestReadSlice(t *testing.T) {
+ 	slice := make([]int32, 2)
+-	err := Read(bytes.NewBuffer(src), BigEndian, slice)
++	err := Read(bytes.NewReader(src), BigEndian, slice)
+ 	checkResult(t, "ReadSlice", BigEndian, err, slice, res)
+ }
+ 
+diff --git a/src/pkg/encoding/binary/varint_test.go b/src/pkg/encoding/binary/varint_test.go
+index 9476bd5fb7..ca411ecbd6 100644
+--- a/src/pkg/encoding/binary/varint_test.go
++++ b/src/pkg/encoding/binary/varint_test.go
+@@ -35,7 +35,7 @@ func testVarint(t *testing.T, x int64) {
+ 		t.Errorf("Varint(%d): got n = %d; want %d", x, m, n)
+ 	}
+ 
+-	y, err := ReadVarint(bytes.NewBuffer(buf))
++	y, err := ReadVarint(bytes.NewReader(buf))
+ 	if err != nil {
+ 		t.Errorf("ReadVarint(%d): %s", x, err)
+ 	}
+@@ -55,7 +55,7 @@ func testUvarint(t *testing.T, x uint64) {
+ 		t.Errorf("Uvarint(%d): got n = %d; want %d", x, m, n)
+ 	}
+ 
+-	y, err := ReadUvarint(bytes.NewBuffer(buf))
++	y, err := ReadUvarint(bytes.NewReader(buf))
+ 	if err != nil {
+ 		t.Errorf("ReadUvarint(%d): %s", x, err)
+ 	}
+@@ -114,7 +114,7 @@ func TestBufferTooSmall(t *testing.T) {
+ 			t.Errorf("Uvarint(%v): got x = %d, n = %d", buf, x, n)
+ 		}
+ 
+-		x, err := ReadUvarint(bytes.NewBuffer(buf))
++		x, err := ReadUvarint(bytes.NewReader(buf))
+ 		if x != 0 || err != io.EOF {
+ 			t.Errorf("ReadUvarint(%v): got x = %d, err = %s", buf, x, err)
+ 		}
+@@ -127,7 +127,7 @@ func testOverflow(t *testing.T, buf []byte, n0 int, err0 error) {
+ 		t.Errorf("Uvarint(%v): got x = %d, n = %d; want 0, %d", buf, x, n, n0)
+ 	}
+ 
+-	x, err := ReadUvarint(bytes.NewBuffer(buf))
++	x, err := ReadUvarint(bytes.NewReader(buf))
+ 	if x != 0 || err != err0 {
+ 		t.Errorf("ReadUvarint(%v): got x = %d, err = %s; want 0, %s", buf, x, err, err0)
+ 	}
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index 4ecf51d122..299a19914a 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -630,7 +630,7 @@ func TestSliceReusesMemory(t *testing.T) {
+ // Used to crash: negative count in recvMessage.
+ func TestBadCount(t *testing.T) {
+ 	b := []byte{0xfb, 0xa5, 0x82, 0x2f, 0xca, 0x1}
+-	if err := NewDecoder(bytes.NewBuffer(b)).Decode(nil); err == nil {
++	if err := NewDecoder(bytes.NewReader(b)).Decode(nil); err == nil {
+ 		t.Error("expected error from bad count")
+ 	} else if err.Error() != errBadCount.Error() {
+ 		t.Error("expected bad count error; got", err)
+diff --git a/src/pkg/encoding/json/encode_test.go b/src/pkg/encoding/json/encode_test.go
+index 265a237e44..2e89a78eb9 100644
+--- a/src/pkg/encoding/json/encode_test.go
++++ b/src/pkg/encoding/json/encode_test.go
+@@ -93,7 +93,7 @@ func TestStringTag(t *testing.T) {
+ 
+ 	// Verify that it round-trips.
+ 	var s2 StringTag
+-	err = NewDecoder(bytes.NewBuffer(got)).Decode(&s2)
++	err = NewDecoder(bytes.NewReader(got)).Decode(&s2)
+ 	if err != nil {
+ 		t.Fatalf("Decode: %v", err)
+ 	}
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 8890508f85..651d13d4d0 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -112,7 +112,7 @@ import (
+ // to a freshly allocated value and then mapping the element to that value.
+ //
+ func Unmarshal(data []byte, v interface{}) error {
+-	return NewDecoder(bytes.NewBuffer(data)).Decode(v)
++	return NewDecoder(bytes.NewReader(data)).Decode(v)
+ }
+ 
+ // Decode works like xml.Unmarshal, except it reads the decoder
+diff --git a/src/pkg/mime/multipart/formdata_test.go b/src/pkg/mime/multipart/formdata_test.go
+index 4bc4649317..6e2388bafe 100644
+--- a/src/pkg/mime/multipart/formdata_test.go
++++ b/src/pkg/mime/multipart/formdata_test.go
+@@ -9,12 +9,13 @@ import (
+ 	"io"
+ 	"os"
+ 	"regexp"
++	"strings"
+ 	"testing"
+ )
+ 
+ func TestReadForm(t *testing.T) {
+ 	testBody := regexp.MustCompile("\n").ReplaceAllString(message, "\r\n")
+-	b := bytes.NewBufferString(testBody)
++	b := strings.NewReader(testBody)
+ 	r := NewReader(b, boundary)
+ 	f, err := r.ReadForm(25)
+ 	if err != nil {
+diff --git a/src/pkg/net/http/httputil/dump.go b/src/pkg/net/http/httputil/dump.go
+index 265499fb00..ab1eab21bc 100644
+--- a/src/pkg/net/http/httputil/dump.go
++++ b/src/pkg/net/http/httputil/dump.go
+@@ -29,7 +29,7 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
+ 	if err = b.Close(); err != nil {
+ 		return nil, nil, err
+ 	}
+-	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewBuffer(buf.Bytes())), nil
++	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
+ }
+ 
+ // dumpConn is a net.Conn which writes to Writer and reads from Reader
+diff --git a/src/pkg/net/http/httputil/dump_test.go b/src/pkg/net/http/httputil/dump_test.go
+index 987a820487..a1dbfc39d6 100644
+--- a/src/pkg/net/http/httputil/dump_test.go
++++ b/src/pkg/net/http/httputil/dump_test.go
+@@ -119,7 +119,7 @@ func TestDumpRequest(t *testing.T) {
+ 			}
+ 			switch b := tt.Body.(type) {
+ 			case []byte:
+-				tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(b))
++				tt.Req.Body = ioutil.NopCloser(bytes.NewReader(b))
+ 			case func() io.ReadCloser:
+ 				tt.Req.Body = b()
+ 			}
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 0c1e16b8d5..61542366b3 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -80,7 +80,7 @@ func TestParseFormUnknownContentType(t *testing.T) {
+ 		req := &Request{
+ 			Method: "POST",
+ 			Header: Header(test.contentType),
+-			Body:   ioutil.NopCloser(bytes.NewBufferString("body")),
++			Body:   ioutil.NopCloser(strings.NewReader("body")),
+ 		}
+ 		err := req.ParseForm()
+ 		switch {
+@@ -368,7 +368,7 @@ func testMissingFile(t *testing.T, req *Request) {
+ }
+ 
+ func newTestMultipartRequest(t *testing.T) *Request {
+-	b := bytes.NewBufferString(strings.Replace(message, "\n", "\r\n", -1))
++	b := strings.NewReader(strings.Replace(message, "\n", "\r\n", -1))
+ 	req, err := NewRequest("POST", "/", b)
+ 	if err != nil {
+ 		t.Fatal("NewRequest:", err)
+diff --git a/src/pkg/net/http/requestwrite_test.go b/src/pkg/net/http/requestwrite_test.go
+index b27b1f7ce3..561eea28e5 100644
+--- a/src/pkg/net/http/requestwrite_test.go
++++ b/src/pkg/net/http/requestwrite_test.go
+@@ -427,7 +427,7 @@ func TestRequestWrite(t *testing.T) {
+ 			}
+ 			switch b := tt.Body.(type) {
+ 			case []byte:
+-				tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(b))
++				tt.Req.Body = ioutil.NopCloser(bytes.NewReader(b))
+ 			case func() io.ReadCloser:
+ 				tt.Req.Body = b()
+ 			}
+diff --git a/src/pkg/net/http/responsewrite_test.go b/src/pkg/net/http/responsewrite_test.go
+index 5c10e2161c..4799b4792b 100644
+--- a/src/pkg/net/http/responsewrite_test.go
++++ b/src/pkg/net/http/responsewrite_test.go
+@@ -7,6 +7,7 @@ package http
+ import (
+ 	"bytes"
+ 	"io/ioutil"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -41,7 +42,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:    0,
+ 				Request:       dummyReq("GET"),
+ 				Header:        Header{},
+-				Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
++				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
+ 				ContentLength: -1,
+ 			},
+ 			"HTTP/1.0 200 OK\r\n" +
+@@ -56,7 +57,7 @@ func TestResponseWrite(t *testing.T) {
+ 				ProtoMinor:       1,
+ 				Request:          dummyReq("GET"),
+ 				Header:           Header{},
+-				Body:             ioutil.NopCloser(bytes.NewBufferString("abcdef")),
++				Body:             ioutil.NopCloser(strings.NewReader("abcdef")),
+ 				ContentLength:    6,
+ 				TransferEncoding: []string{"chunked"},
+ 				Close:            true,
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index d76e8167c6..82197cac7b 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -419,7 +419,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
+ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ 	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
+ 	for _, path := range paths {
+-		req, err := ReadRequest(bufio.NewReader(bytes.NewBufferString("GET " + path + " HTTP/1.1\r\nHost: test\r\n\r\n")))
++		req, err := ReadRequest(bufio.NewReader(strings.NewReader("GET " + path + " HTTP/1.1\r\nHost: test\r\n\r\n")))
+ 		if err != nil {
+ 			t.Errorf("%s", err)
+ 		}
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 4a2bda19fa..344b1ba242 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -60,7 +60,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 					// Stich the Body back together again, re-attaching our
+ 					// consumed byte.
+ 					t.ContentLength = -1
+-					t.Body = io.MultiReader(bytes.NewBuffer(buf[:]), t.Body)
++					t.Body = io.MultiReader(bytes.NewReader(buf[:]), t.Body)
+ 				} else {
+ 					// Body is actually empty.
+ 					t.Body = nil
+diff --git a/src/pkg/runtime/race/race_test.go b/src/pkg/runtime/race/race_test.go
+index 4776ae22da..88ef89d82a 100644
+--- a/src/pkg/runtime/race/race_test.go
++++ b/src/pkg/runtime/race/race_test.go
+@@ -44,7 +44,7 @@ func TestRace(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Failed to run tests: %v\n%v", err, string(testOutput))
+ 	}
+-	reader := bufio.NewReader(bytes.NewBuffer(testOutput))
++	reader := bufio.NewReader(bytes.NewReader(testOutput))
+ 
+ 	funcName := ""
+ 	var tsanLog []string
+diff --git a/src/pkg/text/scanner/scanner_test.go b/src/pkg/text/scanner/scanner_test.go
+index 496eed4a31..086ab5660e 100644
+--- a/src/pkg/text/scanner/scanner_test.go
++++ b/src/pkg/text/scanner/scanner_test.go
+@@ -360,7 +360,7 @@ func TestScanSelectedMask(t *testing.T) {
+ func TestScanNext(t *testing.T) {
+ 	const BOM = '\uFEFF'
+ 	BOMs := string(BOM)
+-	s := new(Scanner).Init(bytes.NewBufferString(BOMs + "if a == bcd /* com" + BOMs + "ment */ {\n\ta += c\n}" + BOMs + "// line comment ending in eof"))
++	s := new(Scanner).Init(strings.NewReader(BOMs + "if a == bcd /* com" + BOMs + "ment */ {\n\ta += c\n}" + BOMs + "// line comment ending in eof"))
+ 	checkTok(t, s, 1, s.Scan(), Ident, "if") // the first BOM is ignored
+ 	checkTok(t, s, 1, s.Scan(), Ident, "a")
+ 	checkTok(t, s, 1, s.Scan(), '=', "=")
+@@ -402,7 +402,7 @@ func TestScanWhitespace(t *testing.T) {
+ }
+ 
+ func testError(t *testing.T, src, pos, msg string, tok rune) {
+-	s := new(Scanner).Init(bytes.NewBufferString(src))
++	s := new(Scanner).Init(strings.NewReader(src))
+ 	errorCalled := false
+ 	s.Error = func(s *Scanner, m string) {
+ 		if !errorCalled {
+@@ -491,13 +491,13 @@ func checkScanPos(t *testing.T, s *Scanner, offset, line, column int, char rune)
+ 
+ func TestPos(t *testing.T) {
+ 	// corner case: empty source
+-	s := new(Scanner).Init(bytes.NewBufferString(""))
++	s := new(Scanner).Init(strings.NewReader(""))
+ 	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
+ 	s.Peek() // peek doesn't affect the position
+ 	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
+ 
+ 	// corner case: source with only a newline
+-	s = new(Scanner).Init(bytes.NewBufferString("\n"))
++	s = new(Scanner).Init(strings.NewReader("\n"))
+ 	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
+ 	checkNextPos(t, s, 1, 2, 1, '\n')
+ 	// after EOF position doesn't change
+@@ -509,7 +509,7 @@ func TestPos(t *testing.T) {
+ 	}
+ 
+ 	// corner case: source with only a single character
+-	s = new(Scanner).Init(bytes.NewBufferString("本"))
++	s = new(Scanner).Init(strings.NewReader("本"))
+ 	checkPos(t, s.Pos(), Position{Offset: 0, Line: 1, Column: 1})
+ 	checkNextPos(t, s, 3, 1, 2, '本')
+ 	// after EOF position doesn't change
+@@ -521,7 +521,7 @@ func TestPos(t *testing.T) {
+ 	}
+ 
+ 	// positions after calling Next
+-	s = new(Scanner).Init(bytes.NewBufferString("  foo६४  \n\n本語\n"))
++	s = new(Scanner).Init(strings.NewReader("  foo६४  \n\n本語\n"))
+ 	checkNextPos(t, s, 1, 1, 2, ' ')
+ 	s.Peek() // peek doesn't affect the position
+ 	checkNextPos(t, s, 2, 1, 3, ' ')
+@@ -546,7 +546,7 @@ func TestPos(t *testing.T) {
+ 	}
+ 
+ 	// positions after calling Scan
+-	s = new(Scanner).Init(bytes.NewBufferString("abc\n本語\n\nx"))
++	s = new(Scanner).Init(strings.NewReader("abc\n本語\n\nx"))
+ 	s.Mode = 0
+ 	s.Whitespace = 0
+ 	checkScanPos(t, s, 0, 1, 1, 'a')

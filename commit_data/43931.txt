@@ -25,8 +25,209 @@ Date:   Wed Apr 15 15:38:00 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/debugcall.go         | 124 ++++++++++++++++++++++++++++++++++++++-
  src/runtime/export_debug_test.go |  12 ++--
  src/runtime/runtime2.go          |   2 +
  3 files changed, 132 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index f03d2358eb..0644f71aaf 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -95,9 +95,129 @@ func debugCallCheck(pc uintptr) string {
+ 	return ret
+ }
+ 
+-// debugCallWrap pushes a defer to recover from panics in debug calls
+-// and then calls the dispatching function at PC dispatch.
++// debugCallWrap starts a new goroutine to run a debug call and blocks
++// the calling goroutine. On the goroutine, it prepares to recover
++// panics from the debug call, and then calls the call dispatching
++// function at PC dispatch.
+ func debugCallWrap(dispatch uintptr) {
++	var lockedm bool
++	var lockedExt uint32
++	callerpc := getcallerpc()
++	gp := getg()
++
++	// Create a new goroutine to execute the call on. Run this on
++	// the system stack to avoid growing our stack.
++	systemstack(func() {
++		var args struct {
++			dispatch uintptr
++			callingG *g
++		}
++		args.dispatch = dispatch
++		args.callingG = gp
++		fn := debugCallWrap1
++		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), unsafe.Pointer(&args), int32(unsafe.Sizeof(args)), gp, callerpc)
++
++		// If the current G is locked, then transfer that
++		// locked-ness to the new goroutine.
++		if gp.lockedm != 0 {
++			// Save lock state to restore later.
++			mp := gp.m
++			if mp != gp.lockedm.ptr() {
++				throw("inconsistent lockedm")
++			}
++
++			lockedm = true
++			lockedExt = mp.lockedExt
++
++			// Transfer external lock count to internal so
++			// it can't be unlocked from the debug call.
++			mp.lockedInt++
++			mp.lockedExt = 0
++
++			mp.lockedg.set(newg)
++			newg.lockedm.set(mp)
++			gp.lockedm = 0
++		}
++
++		// Stash newg away so we can execute it below (mcall's
++		// closure can't capture anything).
++		gp.schedlink.set(newg)
++	})
++
++	// Switch to the new goroutine.
++	mcall(func(gp *g) {
++		// Get newg.
++		newg := gp.schedlink.ptr()
++		gp.schedlink = 0
++
++		// Park the calling goroutine.
++		gp.waitreason = waitReasonDebugCall
++		if trace.enabled {
++			traceGoPark(traceEvGoBlock, 1)
++		}
++		casgstatus(gp, _Grunning, _Gwaiting)
++		dropg()
++
++		// Directly execute the new goroutine. The debug
++		// protocol will continue on the new goroutine, so
++		// it's important we not just let the scheduler do
++		// this or it may resume a different goroutine.
++		execute(newg, true)
++	})
++
++	// We'll resume here when the call returns.
++
++	// Restore locked state.
++	if lockedm {
++		mp := gp.m
++		mp.lockedExt = lockedExt
++		mp.lockedInt--
++		mp.lockedg.set(gp)
++		gp.lockedm.set(mp)
++	}
++}
++
++// debugCallWrap1 is the continuation of debugCallWrap on the callee
++// goroutine.
++func debugCallWrap1(dispatch uintptr, callingG *g) {
++	// Dispatch call and trap panics.
++	debugCallWrap2(dispatch)
++
++	// Resume the caller goroutine.
++	getg().schedlink.set(callingG)
++	mcall(func(gp *g) {
++		callingG := gp.schedlink.ptr()
++		gp.schedlink = 0
++
++		// Unlock this goroutine from the M if necessary. The
++		// calling G will relock.
++		if gp.lockedm != 0 {
++			gp.lockedm = 0
++			gp.m.lockedg = 0
++		}
++
++		// Switch back to the calling goroutine. At some point
++		// the scheduler will schedule us again and we'll
++		// finish exiting.
++		if trace.enabled {
++			traceGoSched()
++		}
++		casgstatus(gp, _Grunning, _Grunnable)
++		dropg()
++		lock(&sched.lock)
++		globrunqput(gp)
++		unlock(&sched.lock)
++
++		if trace.enabled {
++			traceGoUnpark(callingG, 0)
++		}
++		casgstatus(callingG, _Gwaiting, _Grunnable)
++		execute(callingG, true)
++	})
++}
++
++func debugCallWrap2(dispatch uintptr) {
++	// Call the dispatch function and trap panics.
+ 	var dispatchF func()
+ 	dispatchFV := funcval{dispatch}
+ 	*(*unsafe.Pointer)(unsafe.Pointer(&dispatchF)) = noescape(unsafe.Pointer(&dispatchFV))
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 97bb7bd62a..ed4242ef24 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -48,6 +48,9 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, ret
+ 
+ 	h := new(debugCallHandler)
+ 	h.gp = gp
++	// gp may not be running right now, but we can still get the M
++	// it will run on since it's locked.
++	h.mp = gp.lockedm.ptr()
+ 	h.fv, h.argp, h.argSize = fv, argp, argSize
+ 	h.handleF = h.handle // Avoid allocating closure during signal
+ 
+@@ -86,6 +89,7 @@ func InjectDebugCall(gp *g, fn, args interface{}, tkill func(tid int) error, ret
+ 
+ type debugCallHandler struct {
+ 	gp      *g
++	mp      *m
+ 	fv      *funcval
+ 	argp    unsafe.Pointer
+ 	argSize uintptr
+@@ -102,8 +106,8 @@ type debugCallHandler struct {
+ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 	switch h.gp.atomicstatus {
+ 	case _Grunning:
+-		if getg().m != h.gp.m {
+-			println("trap on wrong M", getg().m, h.gp.m)
++		if getg().m != h.mp {
++			println("trap on wrong M", getg().m, h.mp)
+ 			return false
+ 		}
+ 		// Push current PC on the stack.
+@@ -135,8 +139,8 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 
+ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 	// Sanity check.
+-	if getg().m != h.gp.m {
+-		println("trap on wrong M", getg().m, h.gp.m)
++	if getg().m != h.mp {
++		println("trap on wrong M", getg().m, h.mp)
+ 		return false
+ 	}
+ 	f := findfunc(uintptr(ctxt.rip()))
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 15e24c8175..89a2419110 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -980,6 +980,7 @@ const (
+ 	waitReasonWaitForGCCycle                          // "wait for GC cycle"
+ 	waitReasonGCWorkerIdle                            // "GC worker (idle)"
+ 	waitReasonPreempted                               // "preempted"
++	waitReasonDebugCall                               // "debug call"
+ )
+ 
+ var waitReasonStrings = [...]string{
+@@ -1009,6 +1010,7 @@ var waitReasonStrings = [...]string{
+ 	waitReasonWaitForGCCycle:        "wait for GC cycle",
+ 	waitReasonGCWorkerIdle:          "GC worker (idle)",
+ 	waitReasonPreempted:             "preempted",
++	waitReasonDebugCall:             "debug call",
+ }
+ 
+ func (w waitReason) String() string {

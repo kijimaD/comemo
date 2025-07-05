@@ -14,7 +14,7 @@ Date:   Fri Mar 17 08:55:40 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38328
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go  | 4 ++--
  src/cmd/compile/internal/arm/ggen.go    | 4 ++--
  src/cmd/compile/internal/arm64/ggen.go  | 4 ++--
@@ -26,3 +26,182 @@ Date:   Fri Mar 17 08:55:40 2017 -0700
  src/cmd/compile/internal/s390x/ggen.go  | 4 ++--
  src/cmd/compile/internal/x86/ggen.go    | 4 ++--
  10 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 2d968069dc..0772bb4e37 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -13,12 +13,12 @@ import (
+ // no floating point in note handlers on Plan 9
+ var isPlan9 = obj.GOOS == "plan9"
+ 
+-func defframe(ptxt *obj.Prog, fn *gc.Node) {
++func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+ 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+ 	// insert code to zero ambiguously live variables
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 4bf13fb870..bf7ad5e44e 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -10,12 +10,12 @@ import (
+ 	"cmd/internal/obj/arm"
+ )
+ 
+-func defframe(ptxt *obj.Prog, fn *gc.Node) {
++func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+ 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+ 	// insert code to contain ambiguously live variables
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 814bc35b63..d3b2fbd92d 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -10,12 +10,12 @@ import (
+ 	"cmd/internal/obj/arm64"
+ )
+ 
+-func defframe(ptxt *obj.Prog, fn *gc.Node) {
++func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+ 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+ 
+ 	// arm64 requires that the frame size (not counting saved LR)
+ 	// be empty or be 8 mod 16. If not, pad it.
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index d7372e7bed..fe9411066a 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -365,7 +365,7 @@ type Arch struct {
+ 	MAXWIDTH int64
+ 	Use387   bool // should 386 backend use 387 FP instructions instead of sse2.
+ 
+-	Defframe func(*obj.Prog, *Node)
++	Defframe func(*obj.Prog, *Node, int64)
+ 	Ginsnop  func()
+ 	Proginfo func(*obj.Prog) ProgInfo
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 921d897b04..dc8eb02c21 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4355,7 +4355,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	liveness(e.curfn, ptxt, gcargs, gclocals)
+ 
+ 	// Add frame prologue. Zero ambiguously live variables.
+-	thearch.Defframe(ptxt, e.curfn)
++	thearch.Defframe(ptxt, e.curfn, Stksize+Maxarg)
+ 	if Debug['f'] != 0 {
+ 		frame(0)
+ 	}
+diff --git a/src/cmd/compile/internal/mips/ggen.go b/src/cmd/compile/internal/mips/ggen.go
+index 73a28d5f31..5d818a6706 100644
+--- a/src/cmd/compile/internal/mips/ggen.go
++++ b/src/cmd/compile/internal/mips/ggen.go
+@@ -10,12 +10,12 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-func defframe(ptxt *obj.Prog, fn *gc.Node) {
++func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+ 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+ 	// insert code to zero ambiguously live variables
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index da900697c4..2784ca3a7e 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -10,12 +10,12 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-func defframe(ptxt *obj.Prog, fn *gc.Node) {
++func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+ 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+ 	// insert code to zero ambiguously live variables
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index b503f3214f..5d72e3080b 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -10,12 +10,12 @@ import (
+ 	"cmd/internal/obj/ppc64"
+ )
+ 
+-func defframe(ptxt *obj.Prog, fn *gc.Node) {
++func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+ 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+ 	// insert code to zero ambiguously live variables
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index 563ded1035..6e23d4e1a4 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -16,12 +16,12 @@ import (
+ // Must be between 256 and 4096.
+ const clearLoopCutoff = 1024
+ 
+-func defframe(ptxt *obj.Prog, fn *gc.Node) {
++func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+ 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+ 	// insert code to zero ambiguously live variables
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 27a92eb36c..a45d41fda1 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -10,12 +10,12 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
+-func defframe(ptxt *obj.Prog, fn *gc.Node) {
++func defframe(ptxt *obj.Prog, fn *gc.Node, sz int64) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+ 	ptxt.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
++	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+ 	// insert code to zero ambiguously live variables

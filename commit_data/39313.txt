@@ -21,7 +21,70 @@ Date:   Thu Feb 21 12:00:12 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/imports/scan.go        |  2 +-
  src/cmd/go/testdata/script/mod_symlink.txt | 29 ++++++++++++++++++++++++-----
  2 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/imports/scan.go b/src/cmd/go/internal/imports/scan.go
+index 966a38cfef..3d9b6132b1 100644
+--- a/src/cmd/go/internal/imports/scan.go
++++ b/src/cmd/go/internal/imports/scan.go
+@@ -26,7 +26,7 @@ func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
+ 		// If the directory entry is a symlink, stat it to obtain the info for the
+ 		// link target instead of the link itself.
+ 		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(name)
++			info, err = os.Stat(filepath.Join(dir, name))
+ 			if err != nil {
+ 				continue // Ignore broken symlinks.
+ 			}
+diff --git a/src/cmd/go/testdata/script/mod_symlink.txt b/src/cmd/go/testdata/script/mod_symlink.txt
+index 61da3cc355..49bece2b84 100644
+--- a/src/cmd/go/testdata/script/mod_symlink.txt
++++ b/src/cmd/go/testdata/script/mod_symlink.txt
+@@ -2,16 +2,31 @@ env GO111MODULE=on
+ [!symlink] skip
+ 
+ # 'go list' should resolve modules of imported packages.
+-go list -deps -f '{{.Module}}'
++go list -deps -f '{{.Module}}' .
+ stdout golang.org/x/text
+ 
+-# They should continue to resolve if the importing file is a symlink.
++go list -deps -f '{{.Module}}' ./subpkg
++stdout golang.org/x/text
++
++# Create a copy of the module using symlinks in src/links.
+ mkdir links
++symlink links/go.mod -> $GOPATH/src/go.mod
++symlink links/issue.go -> $GOPATH/src/issue.go
++mkdir links/subpkg
++symlink links/subpkg/issue.go -> $GOPATH/src/subpkg/issue.go
++
++# We should see the copy as a valid module root.
+ cd links
+-symlink go.mod -> ../go.mod
+-symlink issue.go -> ../issue.go
++go env GOMOD
++stdout links[/\\]go.mod
++go list -m
++stdout golang.org/issue/28107
+ 
+-go list -deps -f '{{.Module}}'
++# The symlink-based copy should contain the same packages
++# and have the same dependencies as the original.
++go list -deps -f '{{.Module}}' .
++stdout golang.org/x/text
++go list -deps -f '{{.Module}}' ./subpkg
+ stdout golang.org/x/text
+ 
+ -- go.mod --
+@@ -21,3 +36,7 @@ module golang.org/issue/28107
+ package issue
+ 
+ import _ "golang.org/x/text/language"
++-- subpkg/issue.go --
++package issue
++
++import _ "golang.org/x/text/language"

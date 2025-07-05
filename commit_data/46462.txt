@@ -14,10 +14,137 @@ Date:   Fri Jan 1 02:14:45 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/func.go        |  7 -------
  src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
  src/cmd/compile/internal/typecheck/func.go | 14 ++++----------
  src/cmd/compile/internal/walk/closure.go   | 22 +++++++++++++++++++++-
  src/cmd/compile/internal/walk/expr.go      |  3 +--
  5 files changed, 27 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index c54b742669..1eaca9c6f3 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -75,13 +75,6 @@ type Func struct {
+ 	// Byval set if they're captured by value.
+ 	ClosureVars []*Name
+ 
+-	// ClosureEnter holds the expressions that the enclosing function
+-	// will use to initialize the closure's free variables. These
+-	// correspond one-to-one with the variables in ClosureVars, and will
+-	// be either an ONAME node (if the variable is captured by value) or
+-	// an OADDR-of-ONAME node (if not).
+-	ClosureEnter Nodes
+-
+ 	// Parents records the parent scope of each scope within a
+ 	// function. The root scope (0) has no parent, so the i'th
+ 	// scope's parent is stored at Parents[i-1].
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 8f5fae8a12..60120f2998 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 196, 344},
++		{Func{}, 184, 320},
+ 		{Name{}, 124, 216},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index d8c1748432..2bc911882f 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -122,20 +122,17 @@ func CaptureVars(fn *ir.Func) {
+ 		}
+ 		out = append(out, v)
+ 
+-		// type check the & of closed variables outside the closure,
++		// type check closed variables outside the closure,
+ 		// so that the outer frame also grabs them and knows they escape.
+-		types.CalcSize(v.Type())
++		Expr(v.Outer)
+ 
+-		var outer ir.Node
+-		outer = v.Outer
+ 		outermost := v.Defn.(*ir.Name)
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+-		if outermost.Class_ != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Width <= 128 {
++		if outermost.Class_ != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type().Size() <= 128 {
+ 			v.SetByval(true)
+ 		} else {
+ 			outermost.SetAddrtaken(true)
+-			outer = NodAddr(outer)
+ 		}
+ 
+ 		if base.Flag.LowerM > 1 {
+@@ -147,11 +144,8 @@ func CaptureVars(fn *ir.Func) {
+ 			if v.Byval() {
+ 				how = "value"
+ 			}
+-			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Addrtaken(), outermost.Assigned(), int32(v.Type().Width))
++			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Addrtaken(), outermost.Assigned(), v.Type().Size())
+ 		}
+-
+-		outer = Expr(outer)
+-		fn.ClosureEnter.Append(outer)
+ 	}
+ 
+ 	fn.ClosureVars = out
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 0726d3b552..d4eb4eb8a3 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -131,7 +131,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 
+ 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
+ 	clos.SetEsc(clo.Esc())
+-	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, fn.ClosureEnter...))
++	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...))
+ 
+ 	addr := typecheck.NodAddr(clos)
+ 	addr.SetEsc(clo.Esc())
+@@ -151,6 +151,26 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 	return walkExpr(cfn, init)
+ }
+ 
++// closureArgs returns a slice of expressions that an be used to
++// initialize the given closure's free variables. These correspond
++// one-to-one with the variables in clo.Func.ClosureVars, and will be
++// either an ONAME node (if the variable is captured by value) or an
++// OADDR-of-ONAME node (if not).
++func closureArgs(clo *ir.ClosureExpr) []ir.Node {
++	fn := clo.Func
++
++	args := make([]ir.Node, len(fn.ClosureVars))
++	for i, v := range fn.ClosureVars {
++		var outer ir.Node
++		outer = v.Outer
++		if !v.Byval() {
++			outer = typecheck.NodAddrAt(fn.Pos(), outer)
++		}
++		args[i] = typecheck.Expr(outer)
++	}
++	return args
++}
++
+ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+ 	// Create closure in the form of a composite literal.
+ 	// For x.M with receiver (x) type T, the generated code looks like:
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index f06a87c37f..1fd09b42af 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -498,8 +498,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 
+ 		// Prepend captured variables to argument list.
+ 		clo := n.X.(*ir.ClosureExpr)
+-		n.Args.Prepend(clo.Func.ClosureEnter...)
+-		clo.Func.ClosureEnter.Set(nil)
++		n.Args.Prepend(closureArgs(clo)...)
+ 
+ 		// Replace OCLOSURE with ONAME/PFUNC.
+ 		n.X = clo.Func.Nname

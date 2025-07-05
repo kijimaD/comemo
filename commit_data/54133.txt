@@ -14,6 +14,20 @@ Date:   Tue Sep 27 09:10:21 2022 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index ae6c4daf58..89cc37f1db 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3261,7 +3261,7 @@ func (v Value) CanConvert(t Type) bool {
+ 	return true
+ }
+ 
+-// Comparable reports whether the type of v is comparable.
++// Comparable reports whether the value v is comparable.
+ // If the type of v is an interface, this checks the dynamic type.
+ // If this reports true then v.Interface() == x will not panic for any x.
+ func (v Value) Comparable() bool {

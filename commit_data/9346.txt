@@ -7,9 +7,68 @@ Date:   Fri Aug 12 14:44:16 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4837048
-
+---
  src/pkg/crypto/rand/Makefile   | 3 +++
  src/pkg/exec/Makefile          | 3 +++
  src/pkg/path/filepath/Makefile | 3 +++
  src/pkg/time/Makefile          | 5 +++++
  4 files changed, 14 insertions(+)
+
+diff --git a/src/pkg/crypto/rand/Makefile b/src/pkg/crypto/rand/Makefile
+index d1321297d9..d1a3d45e8c 100644
+--- a/src/pkg/crypto/rand/Makefile
++++ b/src/pkg/crypto/rand/Makefile
+@@ -19,6 +19,9 @@ GOFILES_darwin=\
+ GOFILES_linux=\
+ 	rand_unix.go\
+ 
++GOFILES_openbsd=\
++	rand_unix.go\
++
+ GOFILES_windows=\
+ 	rand_windows.go\
+ 
+diff --git a/src/pkg/exec/Makefile b/src/pkg/exec/Makefile
+index 90bb74b41c..ba19d0e4d0 100644
+--- a/src/pkg/exec/Makefile
++++ b/src/pkg/exec/Makefile
+@@ -17,6 +17,9 @@ GOFILES_darwin=\
+ GOFILES_linux=\
+ 	lp_unix.go\
+ 
++GOFILES_openbsd=\
++	lp_unix.go\
++
+ GOFILES_windows=\
+ 	lp_windows.go\
+ 
+diff --git a/src/pkg/path/filepath/Makefile b/src/pkg/path/filepath/Makefile
+index bc26a7d6a0..af250ab330 100644
+--- a/src/pkg/path/filepath/Makefile
++++ b/src/pkg/path/filepath/Makefile
+@@ -18,6 +18,9 @@ GOFILES_darwin=\
+ GOFILES_linux=\
+ 	path_unix.go
+ 
++GOFILES_openbsd=\
++	path_unix.go
++
+ GOFILES_plan9=\
+ 	path_plan9.go
+ 
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+index 023e8775ec..a6fce3fa1f 100644
+--- a/src/pkg/time/Makefile
++++ b/src/pkg/time/Makefile
+@@ -27,6 +27,11 @@ GOFILES_linux=\
+ 	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
++GOFILES_openbsd=\
++	sys_posix.go\
++	zoneinfo_posix.go\
++	zoneinfo_unix.go\
++
+ GOFILES_windows=\
+ 	sys_posix.go\
+ 	zoneinfo_windows.go\

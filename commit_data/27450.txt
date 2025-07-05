@@ -17,6 +17,24 @@ Date:   Mon Mar 28 14:12:10 2016 -0700
     Change-Id: I88e8e919ea9868ceb2df46173d187af4109bd947
     Reviewed-on: https://go-review.googlesource.com/21241
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/syntax.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 3e8452b4c7..76f3123ebf 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -415,7 +415,11 @@ func (n *Nodes) Set(s []*Node) {
+ 	if len(s) == 0 {
+ 		n.slice = nil
+ 	} else {
+-		n.slice = &s
++		// Copy s and take address of t rather than s to avoid
++		// allocation in the case where len(s) == 0 (which is
++		// over 3x more common, dynamically, for make.bash).
++		t := s
++		n.slice = &t
+ 	}
+ }
+ 

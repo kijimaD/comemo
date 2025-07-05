@@ -13,9 +13,80 @@ Date:   Wed Apr 22 16:27:59 2015 -0400
     Change-Id: I81650445fb2a5ee161da7e0608c3d3547d5ac2a6
     Reviewed-on: https://go-review.googlesource.com/9245
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/log/syslog/doc.go            | 18 ++++++++++++++++++
  src/log/syslog/syslog.go         |  7 -------
  src/log/syslog/syslog_plan9.go   |  8 --------
  src/log/syslog/syslog_windows.go |  8 --------
  4 files changed, 18 insertions(+), 23 deletions(-)
+
+diff --git a/src/log/syslog/doc.go b/src/log/syslog/doc.go
+new file mode 100644
+index 0000000000..54e76edb34
+--- /dev/null
++++ b/src/log/syslog/doc.go
+@@ -0,0 +1,18 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package syslog provides a simple interface to the system log
++// service. It can send messages to the syslog daemon using UNIX
++// domain sockets, UDP or TCP.
++//
++// Only one call to Dial is necessary. On write failures,
++// the syslog client will attempt to reconnect to the server
++// and write again.
++package syslog
++
++// BUG(brainman): This package is not implemented on Windows yet.
++
++// BUG(akumar): This package is not implemented on Plan 9 yet.
++
++// BUG(minux): This package is not implemented on NaCl (Native Client) yet.
+diff --git a/src/log/syslog/syslog.go b/src/log/syslog/syslog.go
+index 5e09599162..4bf447626f 100644
+--- a/src/log/syslog/syslog.go
++++ b/src/log/syslog/syslog.go
+@@ -4,13 +4,6 @@
+ 
+ // +build !windows,!nacl,!plan9
+ 
+-// Package syslog provides a simple interface to the system log
+-// service. It can send messages to the syslog daemon using UNIX
+-// domain sockets, UDP or TCP.
+-//
+-// Only one call to Dial is necessary. On write failures,
+-// the syslog client will attempt to reconnect to the server
+-// and write again.
+ package syslog
+ 
+ import (
+diff --git a/src/log/syslog/syslog_plan9.go b/src/log/syslog/syslog_plan9.go
+deleted file mode 100644
+index 0c05f6f83c..0000000000
+--- a/src/log/syslog/syslog_plan9.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package syslog provides a simple interface to the system log service.
+-package syslog
+-
+-// BUG(akumar): This package is not implemented on Plan 9 yet.
+diff --git a/src/log/syslog/syslog_windows.go b/src/log/syslog/syslog_windows.go
+deleted file mode 100644
+index 8d99e2e594..0000000000
+--- a/src/log/syslog/syslog_windows.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package syslog provides a simple interface to the system log service.
+-package syslog
+-
+-// BUG(brainman): This package is not implemented on Windows yet.

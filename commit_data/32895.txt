@@ -26,7 +26,36 @@ Date:   Tue Jun 13 10:33:24 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mstats.go | 3 +--
  src/runtime/proc.go   | 3 +--
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 849e01860b..1cb44a15dd 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -591,8 +591,7 @@ func updatememstats() {
+ 
+ //go:nowritebarrier
+ func cachestats() {
+-	for i := 0; ; i++ {
+-		p := allp[i]
++	for _, p := range &allp {
+ 		if p == nil {
+ 			break
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 099605fe52..afedf19aed 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3158,8 +3158,7 @@ func badunlockosthread() {
+ 
+ func gcount() int32 {
+ 	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
+-	for i := 0; ; i++ {
+-		_p_ := allp[i]
++	for _, _p_ := range &allp {
+ 		if _p_ == nil {
+ 			break
+ 		}

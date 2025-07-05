@@ -13,8 +13,73 @@ Date:   Wed Sep 6 21:43:58 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/func.go      | 14 +++++++++++---
  src/cmd/compile/internal/ssa/func_test.go |  4 +---
  src/cmd/compile/internal/ssagen/ssa.go    |  8 ++++----
  3 files changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 2d203e583b..c5716e3a9a 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -84,9 +84,17 @@ type LocalSlotSplitKey struct {
+ }
+ 
+ // NewFunc returns a new, empty function object.
+-// Caller must set f.Config and f.Cache before using f.
+-func NewFunc(fe Frontend) *Func {
+-	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value), CanonicalLocalSlots: make(map[LocalSlot]*LocalSlot), CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot)}
++// Caller must reset cache before calling NewFunc.
++func (c *Config) NewFunc(fe Frontend, cache *Cache) *Func {
++	return &Func{
++		fe:     fe,
++		Config: c,
++		Cache:  cache,
++
++		NamedValues:          make(map[LocalSlot][]*Value),
++		CanonicalLocalSlots:  make(map[LocalSlot]*LocalSlot),
++		CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot),
++	}
+ }
+ 
+ // NumBlocks returns an integer larger than the id of any Block in the Func.
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index bbb228d8a5..6923aaa58e 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -152,12 +152,10 @@ func AuxCallLSym(name string) *AuxCall {
+ // supplied to one of the Bloc functions. Each of the bloc names and
+ // valu names should be unique across the Fun.
+ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
+-	f := NewFunc(c.Frontend())
+-	f.Config = c.config
+ 	// TODO: Either mark some SSA tests as t.Parallel,
+ 	// or set up a shared Cache and Reset it between tests.
+ 	// But not both.
+-	f.Cache = new(Cache)
++	f := c.config.NewFunc(c.Frontend(), new(Cache))
+ 	f.pass = &emptyPass
+ 	f.cachedLineStarts = newXposmap(map[int]lineRange{0: {0, 100}, 1: {0, 100}, 2: {0, 100}, 3: {0, 100}, 4: {0, 100}})
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6f8487757d..2934c8b527 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -344,12 +344,12 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	}
+ 	s.curfn = fn
+ 
+-	s.f = ssa.NewFunc(&fe)
++	cache := &ssaCaches[worker]
++	cache.Reset()
++
++	s.f = ssaConfig.NewFunc(&fe, cache)
+ 	s.config = ssaConfig
+ 	s.f.Type = fn.Type()
+-	s.f.Config = ssaConfig
+-	s.f.Cache = &ssaCaches[worker]
+-	s.f.Cache.Reset()
+ 	s.f.Name = name
+ 	s.f.PrintOrHtmlSSA = printssa
+ 	if fn.Pragma&ir.Nosplit != 0 {

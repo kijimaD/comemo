@@ -7,6 +7,19 @@ Date:   Fri Jun 18 22:42:48 2010 -0700
     R=rsc
     CC=golang-dev, r
     https://golang.org/cl/1706043
-
+---
  test/zerodivide.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/zerodivide.go b/test/zerodivide.go
+index ce0fc82c89..9d35b392bc 100644
+--- a/test/zerodivide.go
++++ b/test/zerodivide.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"math"
+ 	"strings"
++	"syscall"
+ )
+ 
+ type Error interface {

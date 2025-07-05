@@ -12,9 +12,79 @@ Date:   Tue Jul 21 12:17:29 2015 -0700
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/generate.go |  2 +-
  src/cmd/go/go_test.go  | 15 +++++++++++++++
  src/cmd/go/main.go     |  3 +++
  src/cmd/go/run.go      |  1 +
  4 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index 98513ce122..efdc229b22 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -402,7 +402,7 @@ func (g *Generator) exec(words []string) {
+ 		"GOFILE=" + g.file,
+ 		"GOPACKAGE=" + g.pkg,
+ 	}
+-	cmd.Env = mergeEnvLists(env, os.Environ())
++	cmd.Env = mergeEnvLists(env, origEnv)
+ 	err := cmd.Run()
+ 	if err != nil {
+ 		g.errorf("running %q: %s", words[0], err)
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a6353f580f..147917c46f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2229,3 +2229,18 @@ func TestGoInstallShadowedGOPATH(t *testing.T) {
+ 	tg.runFail("install")
+ 	tg.grepStderr("no install location for.*gopath2.src.test: hidden by .*gopath1.src.test", "missing error")
+ }
++
++func TestIssue11709(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempFile("run.go", `
++		package main
++		import "os"
++		func main() {
++			if os.Getenv("TERM") != "" {
++				os.Exit(1)
++			}
++		}`)
++	tg.unsetenv("TERM")
++	tg.run("run", tg.path("run.go"))
++}
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index c8267e919e..ae1f954b3e 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -112,6 +112,8 @@ func setExitStatus(n int) {
+ 	exitMu.Unlock()
+ }
+ 
++var origEnv []string
++
+ func main() {
+ 	_ = go11tag
+ 	flag.Usage = usage
+@@ -159,6 +161,7 @@ func main() {
+ 	// the same default computation of these as we do,
+ 	// but in practice there might be skew
+ 	// This makes sure we all agree.
++	origEnv = os.Environ()
+ 	for _, env := range mkEnv() {
+ 		if os.Getenv(env.name) != env.value {
+ 			os.Setenv(env.name, env.value)
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index f815cb982b..6a04a9e19d 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -137,6 +137,7 @@ func runStdin(cmdline []string) {
+ 	cmd.Stdin = os.Stdin
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
++	cmd.Env = origEnv
+ 	startSigHandlers()
+ 	if err := cmd.Run(); err != nil {
+ 		errorf("%v", err)

@@ -17,7 +17,64 @@ Date:   Wed Oct 13 19:44:38 2021 +0800
     Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 21 ---------------------
  test/inline.go                         |  6 ++----
  2 files changed, 2 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 51270a3315..a2268a5465 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -390,27 +390,6 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		// These nodes don't produce code; omit from inlining budget.
+ 		return false
+ 
+-	case ir.OFOR, ir.OFORUNTIL:
+-		n := n.(*ir.ForStmt)
+-		if n.Label != nil {
+-			v.reason = "labeled control"
+-			return true
+-		}
+-	case ir.OSWITCH:
+-		n := n.(*ir.SwitchStmt)
+-		if n.Label != nil {
+-			v.reason = "labeled control"
+-			return true
+-		}
+-	// case ir.ORANGE, ir.OSELECT in "unhandled" above
+-
+-	case ir.OBREAK, ir.OCONTINUE:
+-		n := n.(*ir.BranchStmt)
+-		if n.Label != nil {
+-			// Should have short-circuited due to labeled control error above.
+-			base.Fatalf("unexpected labeled break/continue: %v", n)
+-		}
+-
+ 	case ir.OIF:
+ 		n := n.(*ir.IfStmt)
+ 		if ir.IsConst(n.Cond, constant.Bool) {
+diff --git a/test/inline.go b/test/inline.go
+index a73c0ba7b1..599d5233e0 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -135,8 +135,7 @@ func s1(x int) int { // ERROR "can inline s1"
+ 	return foo() // ERROR "inlining call to s1.func1"
+ }
+ 
+-// can't currently inline functions with a break statement
+-func switchBreak(x, y int) int {
++func switchBreak(x, y int) int { // ERROR "can inline switchBreak"
+ 	var n int
+ 	switch x {
+ 	case 0:
+@@ -218,8 +217,7 @@ func for1(fn func() bool) { // ERROR "can inline for1" "fn does not escape"
+ 	}
+ }
+ 
+-// BAD: for2 should be inlineable too.
+-func for2(fn func() bool) { // ERROR "fn does not escape"
++func for2(fn func() bool) { // ERROR "can inline for2" "fn does not escape"
+ Loop:
+ 	for {
+ 		if fn() {

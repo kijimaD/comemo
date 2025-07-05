@@ -19,7 +19,7 @@ Date:   Fri Feb 26 10:54:11 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/internal/test/genflags.go             |  1 +
  src/cmd/go/testdata/script/test_fuzz_match.txt   |  2 +-
  src/cmd/go/testdata/script/test_fuzz_mutator.txt |  2 +-
@@ -28,3 +28,198 @@ Date:   Fri Feb 26 10:54:11 2021 -0500
  src/testing/fuzz.go                              | 31 +++++++++++++++++++++++-
  src/testing/internal/testdeps/deps.go            |  2 +-
  7 files changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/genflags.go b/src/cmd/go/internal/test/genflags.go
+index 949d65ae80..645aae68b1 100644
+--- a/src/cmd/go/internal/test/genflags.go
++++ b/src/cmd/go/internal/test/genflags.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/cmd/go/testdata/script/test_fuzz_match.txt b/src/cmd/go/testdata/script/test_fuzz_match.txt
+index 5ead41411f..4ea2fe2540 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_match.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_match.txt
+@@ -14,7 +14,7 @@ stdout '^ok'
+ # Matches none for fuzzing but will run the fuzz target as a test.
+ go test -fuzz ThisWillNotMatch -fuzztime 5s -parallel 1 standalone_fuzz_test.go
+ ! stdout '^ok.*\[no tests to run\]'
+-stdout ok
++stdout '^ok'
+ stdout '\[no targets to fuzz\]'
+ 
+ [short] stop
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index b94fa90245..4a33eba339 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -15,7 +15,7 @@ go run check_logs.go fuzz fuzz.worker
+ 
+ # Test that the mutator is good enough to find several unique mutations.
+ ! go test -fuzz=Fuzz -parallel=1 -fuzztime=30s mutator_test.go
+-! stdout ok
++! stdout '^ok'
+ stdout FAIL
+ stdout 'mutator found enough unique mutations'
+ 
+diff --git a/src/internal/fuzz/sys_posix.go b/src/internal/fuzz/sys_posix.go
+index d29ff40e8d..3fbbb47869 100644
+--- a/src/internal/fuzz/sys_posix.go
++++ b/src/internal/fuzz/sys_posix.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin || linux
+ // +build darwin linux
+ 
+ package fuzz
+diff --git a/src/internal/fuzz/sys_unimplemented.go b/src/internal/fuzz/sys_unimplemented.go
+index 331b8761d0..5f80379c22 100644
+--- a/src/internal/fuzz/sys_unimplemented.go
++++ b/src/internal/fuzz/sys_unimplemented.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // TODO(jayconrod): support more platforms.
++//go:build !darwin && !linux && !windows
+ // +build !darwin,!linux,!windows
+ 
+ package fuzz
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index f670ef4546..1a634dbe8b 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -70,6 +70,7 @@ func (f *F) Cleanup(fn func()) {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.Cleanup was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.Cleanup(fn)
+ }
+ 
+@@ -78,6 +79,7 @@ func (f *F) Error(args ...interface{}) {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.Error was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.Error(args...)
+ }
+ 
+@@ -86,6 +88,7 @@ func (f *F) Errorf(format string, args ...interface{}) {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.Errorf was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.Errorf(format, args...)
+ }
+ 
+@@ -94,6 +97,7 @@ func (f *F) Fail() {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.Fail was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.Fail()
+ }
+ 
+@@ -109,6 +113,7 @@ func (f *F) FailNow() {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.FailNow was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.FailNow()
+ }
+ 
+@@ -117,6 +122,7 @@ func (f *F) Fatal(args ...interface{}) {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.Fatal was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.Fatal(args...)
+ }
+ 
+@@ -125,6 +131,7 @@ func (f *F) Fatalf(format string, args ...interface{}) {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.Fatalf was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.Fatalf(format, args...)
+ }
+ 
+@@ -135,7 +142,25 @@ func (f *F) Helper() {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.Helper was called inside the f.Fuzz function")
+ 	}
+-	f.common.Helper()
++
++	// common.Helper is inlined here.
++	// If we called it, it would mark F.Helper as the helper
++	// instead of the caller.
++	f.mu.Lock()
++	defer f.mu.Unlock()
++	if f.helperPCs == nil {
++		f.helperPCs = make(map[uintptr]struct{})
++	}
++	// repeating code from callerName here to save walking a stack frame
++	var pc [1]uintptr
++	n := runtime.Callers(2, pc[:]) // skip runtime.Callers + Helper
++	if n == 0 {
++		panic("testing: zero callers found")
++	}
++	if _, found := f.helperPCs[pc[0]]; !found {
++		f.helperPCs[pc[0]] = struct{}{}
++		f.helperNames = nil // map will be recreated next time it is needed
++	}
+ }
+ 
+ // Skip is equivalent to Log followed by SkipNow.
+@@ -143,6 +168,7 @@ func (f *F) Skip(args ...interface{}) {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.Skip was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.Skip(args...)
+ }
+ 
+@@ -158,6 +184,7 @@ func (f *F) SkipNow() {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.SkipNow was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.SkipNow()
+ }
+ 
+@@ -166,6 +193,7 @@ func (f *F) Skipf(format string, args ...interface{}) {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.Skipf was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	f.common.Skipf(format, args...)
+ }
+ 
+@@ -178,6 +206,7 @@ func (f *F) TempDir() string {
+ 	if f.inFuzzFn {
+ 		panic("testing: f.TempDir was called inside the f.Fuzz function")
+ 	}
++	f.common.Helper()
+ 	return f.common.TempDir()
+ }
+ 
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index d5481d6608..8f587b2e1d 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -166,7 +166,7 @@ func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
+ 	if err == ctx.Err() {
+ 		return nil
+ 	}
+-	return nil
++	return err
+ }
+ 
+ func (TestDeps) ReadCorpus(dir string, types []reflect.Type) ([]fuzz.CorpusEntry, error) {

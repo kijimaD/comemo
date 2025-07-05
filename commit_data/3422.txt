@@ -9,6 +9,20 @@ Date:   Thu Oct 1 17:50:16 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=35208
     CL=35261
-
+---
  src/pkg/compress/flate/deflate.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index fbc41bbc99..548bff4202 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -411,7 +411,7 @@ func (d *deflater) deflater(r io.Reader, w io.Writer, level int, logWindowSize u
+ 	case level == NoCompression:
+ 		err = d.storedDeflate();
+ 	case level == DefaultCompression:
+-		d.level = 4;
++		d.level = 6;
+ 		fallthrough;
+ 	case 1 <= level && level <= 9:
+ 		err = d.doDeflate();

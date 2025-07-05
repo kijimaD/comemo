@@ -7,6 +7,19 @@ Date:   Mon Apr 25 15:33:57 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4438069
-
+---
  src/pkg/runtime/linux/arm/sys.s | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 3fe7d4a828..d866b0e220 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -22,7 +22,6 @@
+ #define SYS_rt_sigaction (SYS_BASE + 174)
+ #define SYS_sigaltstack (SYS_BASE + 186)
+ #define SYS_mmap2 (SYS_BASE + 192)
+-#define SYS_gettid (SYS_BASE + 224)
+ #define SYS_futex (SYS_BASE + 240)
+ #define SYS_exit_group (SYS_BASE + 248)
+ #define SYS_munmap (SYS_BASE + 91)

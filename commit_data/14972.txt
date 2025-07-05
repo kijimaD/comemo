@@ -7,6 +7,19 @@ Date:   Tue Jan 22 22:42:08 2013 -0500
     R=dsymonds, adg
     CC=golang-dev
     https://golang.org/cl/7180050
-
+---
  AUTHORS | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 655549713e..9c634611ec 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -262,7 +262,6 @@ Tor Andersson <tor.andersson@gmail.com>
+ Ugorji Nwoke <ugorji@gmail.com>
+ Uriel Mangado <uriel@berlinblue.org>
+ Vadim Vygonets <unixdj@gmail.com>
+-Vega Garcia Luis Alfonso <vegacom@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
+ Vincent Vanackere <vincent.vanackere@gmail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>

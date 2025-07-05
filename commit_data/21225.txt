@@ -11,6 +11,30 @@ Date:   Tue Dec 9 12:31:11 2014 -0500
     Change-Id: I8086932783fd29a337d7dea31b9d6facb64cb5c1
     Reviewed-on: https://go-review.googlesource.com/1226
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/proc1.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 5a898ff41b..599e3980df 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -861,8 +861,7 @@ func needm(x byte) {
+ 	if needextram != 0 {
+ 		// Can happen if C/C++ code calls Go from a global ctor.
+ 		// Can not throw, because scheduler is not initialized yet.
+-		// XXX
+-		// write(2, unsafe.Pointer("fatal error: cgo callback before cgo call\n"), sizeof("fatal error: cgo callback before cgo call\n") - 1)
++		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
+ 		exit(1)
+ 	}
+ 
+@@ -898,6 +897,8 @@ func needm(x byte) {
+ 	minit()
+ }
+ 
++var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
++
+ // newextram allocates an m and puts it on the extra list.
+ // It is called with a working local m, so that it can do things
+ // like call schedlock and allocate.

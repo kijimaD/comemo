@@ -17,9 +17,57 @@ Date:   Mon Nov 18 16:15:36 2024 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-
+---
  src/cmd/compile/internal/ssa/_gen/go.mod       | 5 +++++
  src/cmd/compile/internal/ssa/_gen/go.sum       | 2 ++
  src/cmd/compile/internal/types2/stdlib_test.go | 3 ++-
  src/go/types/stdlib_test.go                    | 3 ++-
  4 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/go.mod b/src/cmd/compile/internal/ssa/_gen/go.mod
+new file mode 100644
+index 0000000000..6f750a5618
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/_gen/go.mod
+@@ -0,0 +1,5 @@
++module _gen
++
++go 1.24
++
++require golang.org/x/tools v0.27.0
+diff --git a/src/cmd/compile/internal/ssa/_gen/go.sum b/src/cmd/compile/internal/ssa/_gen/go.sum
+new file mode 100644
+index 0000000000..6c355a67c3
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/_gen/go.sum
+@@ -0,0 +1,2 @@
++golang.org/x/tools v0.27.0 h1:qEKojBykQkQ4EynWy4S8Weg69NumxKdn40Fce3uc/8o=
++golang.org/x/tools v0.27.0/go.mod h1:sUi0ZgbwW9ZPAq26Ekut+weQPR5eIM6GQLQ1Yjm1H0Q=
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 0c63e5d77c..6966bb94b0 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -354,7 +354,8 @@ func TestStdKen(t *testing.T) {
+ 
+ // Package paths of excluded packages.
+ var excluded = map[string]bool{
+-	"builtin": true,
++	"builtin":                       true,
++	"cmd/compile/internal/ssa/_gen": true,
+ }
+ 
+ // printPackageMu synchronizes the printing of type-checked package files in
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 3b9b2852c4..ec76f8ee17 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -356,7 +356,8 @@ func TestStdKen(t *testing.T) {
+ 
+ // Package paths of excluded packages.
+ var excluded = map[string]bool{
+-	"builtin": true,
++	"builtin":                       true,
++	"cmd/compile/internal/ssa/_gen": true,
+ }
+ 
+ // printPackageMu synchronizes the printing of type-checked package files in

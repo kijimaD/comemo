@@ -10,10 +10,297 @@ Date:   Wed May 11 23:59:36 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4538046
-
+---
  src/cmd/5l/asm.c | 68 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
  src/cmd/6l/l.h   |  3 ---
  src/cmd/8l/asm.c | 62 ++++++++++++++++++++++++++++++++++++---------------
  src/cmd/ld/elf.h |  4 ++++
  src/cmd/ld/lib.h |  1 +
  5 files changed, 111 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index e2583e7c31..2b377e64e1 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -73,6 +73,8 @@ enum {
+ 	ElfStrGosymcounts,
+ 	ElfStrGosymtab,
+ 	ElfStrGopclntab,
++	ElfStrSymtab,
++	ElfStrStrtab,
+ 	ElfStrShstrtab,
+ 	ElfStrRelPlt,
+ 	ElfStrPlt,
+@@ -163,6 +165,8 @@ doelf(void)
+ 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
+ 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+ 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
++		elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
++		elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
+ 	}
+ 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+ 
+@@ -288,7 +292,7 @@ asmb(void)
+ {
+ 	int32 t;
+ 	int a, dynsym;
+-	uint32 va, fo, w, startva;
++	uint32 va, fo, w, symo, startva, elfsymo, elfstro, elfsymsize;
+ 	int strtabsize;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+@@ -301,6 +305,10 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+ 
++	elfsymsize = 0;
++	elfstro = 0;
++	elfsymo = 0;
++
+ 	sect = segtext.sect;
+ 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+ 	codeblk(sect->vaddr, sect->len);
+@@ -322,15 +330,30 @@ asmb(void)
+ 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+ 	datblk(sect->vaddr, sect->len);
+ 
++	if(iself) {
++		/* index of elf text section; needed by asmelfsym, double-checked below */
++		/* !debug['d'] causes extra sections before the .text section */
++		elftextsh = 1;
++		if(!debug['d']) {
++			elftextsh += 10;
++			if(elfverneed)
++				elftextsh += 2;
++		}
++	}
++
+ 	/* output symbol table */
+ 	symsize = 0;
+ 	lcsize = 0;
++	symo = 0;
+ 	if(!debug['s']) {
+ 		// TODO: rationalize
+ 		if(debug['v'])
+ 			Bprint(&bso, "%5.2f sym\n", cputime());
+ 		Bflush(&bso);
+ 		switch(HEADTYPE) {
++		default:
++			if(iself)
++				goto ElfSym;
+ 		case Hnoheader:
+ 		case Hrisc:
+ 		case Hixp1200:
+@@ -345,14 +368,29 @@ asmb(void)
+ 			OFFSET += rnd(segdata.filelen, 4096);
+ 			seek(cout, OFFSET, 0);
+ 			break;
+-		case Hlinux:
+-			OFFSET += segdata.filelen;
+-			seek(cout, rnd(OFFSET, INITRND), 0);
++		ElfSym:
++			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
++			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
+-		if(!debug['s'])
+-			asmthumbmap();
++		if(iself) {
++			if(debug['v'])
++			       Bprint(&bso, "%5.2f elfsym\n", cputime());
++			elfsymo = symo+8+symsize+lcsize;
++			seek(cout, elfsymo, 0);
++			asmelfsym32();
++			cflush();
++			elfstro = seek(cout, 0, 1);
++			elfsymsize = elfstro - elfsymo;
++			ewrite(cout, elfstrdat, elfstrsize);
++
++			// if(debug['v'])
++			// 	Bprint(&bso, "%5.2f dwarf\n", cputime());
++			// dwarfemitdebugsections();
++		}
++		asmthumbmap();
+ 		cflush();
++		
+ 	}
+ 
+ 	cursym = nil;
+@@ -541,6 +579,8 @@ asmb(void)
+ 		ph->flags = PF_W+PF_R;
+ 		ph->align = 4;
+ 
++		if(elftextsh != eh->shnum)
++			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
+ 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+ 			elfshbits(sect);
+ 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+@@ -558,6 +598,22 @@ asmb(void)
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+ 			shsym(sh, lookup("pclntab", 0));
++
++			sh = newElfShdr(elfstr[ElfStrSymtab]);
++			sh->type = SHT_SYMTAB;
++			sh->off = elfsymo;
++			sh->size = elfsymsize;
++			sh->addralign = 4;
++			sh->entsize = 16;
++			sh->link = eh->shnum;	// link to strtab
++
++			sh = newElfShdr(elfstr[ElfStrStrtab]);
++			sh->type = SHT_STRTAB;
++			sh->off = elfstro;
++			sh->size = elfstrsize;
++			sh->addralign = 1;
++
++			// dwarfaddelfheaders();
+ 		}
+ 
+ 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 33ca51b2c8..f4ee6aa923 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -350,9 +350,6 @@ EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
+ 
+ EXTERN	vlong	textstksiz;
+ EXTERN	vlong	textarg;
+-EXTERN	int	elfstrsize;
+-EXTERN	char*	elfstrdat;
+-EXTERN	int	elftextsh;
+ 
+ extern	Optab	optab[];
+ extern	Optab*	opindex[];
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index f28b8d9049..1e973c180a 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -532,6 +532,8 @@ doelf(void)
+ 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
+ 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+ 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
++		elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
++		elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
+ 		dwarfaddshstrings(shstrtab);
+ 	}
+ 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+@@ -658,7 +660,7 @@ asmb(void)
+ {
+ 	int32 v, magic;
+ 	int a, dynsym;
+-	uint32 symo, startva, machlink;
++	uint32 symo, startva, machlink, elfsymo, elfstro, elfsymsize;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -670,6 +672,10 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+ 
++	elfsymsize = 0;
++	elfstro = 0;
++	elfsymo = 0;
++
+ 	sect = segtext.sect;
+ 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+ 	codeblk(sect->vaddr, sect->len);
+@@ -741,27 +747,33 @@ asmb(void)
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+ 		}
+-		if(!debug['s']) {
++		if(HEADTYPE == Hplan9x32) {
+ 			seek(cout, symo, 0);
++			asmplan9sym();
++			cflush();
+ 			
+-			if(HEADTYPE == Hplan9x32) {
+-				asmplan9sym();
+-				cflush();
++			sym = lookup("pclntab", 0);
++			if(sym != nil) {
++				lcsize = sym->np;
++				for(i=0; i < lcsize; i++)
++					cput(sym->p[i]);
+ 				
+-				sym = lookup("pclntab", 0);
+-				if(sym != nil) {
+-					lcsize = sym->np;
+-					for(i=0; i < lcsize; i++)
+-						cput(sym->p[i]);
+-					
+-					cflush();
+-				}
+-				
+-			} else if(HEADTYPE != Hwindows) {
+-				if(debug['v'])
+-					Bprint(&bso, "%5.2f dwarf\n", cputime());
+-				dwarfemitdebugsections();
++				cflush();
+ 			}
++		} else if(iself) {
++			if(debug['v'])
++			       Bprint(&bso, "%5.2f elfsym\n", cputime());
++			elfsymo = symo+8+symsize+lcsize;
++			seek(cout, elfsymo, 0);
++			asmelfsym32();
++			cflush();
++			elfstro = seek(cout, 0, 1);
++			elfsymsize = elfstro - elfsymo;
++			ewrite(cout, elfstrdat, elfstrsize);
++
++			if(debug['v'])
++				Bprint(&bso, "%5.2f dwarf\n", cputime());
++			dwarfemitdebugsections();
+ 		}
+ 	}
+ 	if(debug['v'])
+@@ -1082,6 +1094,20 @@ asmb(void)
+ 			sh->addralign = 1;
+ 			shsym(sh, lookup("pclntab", 0));
+ 
++			sh = newElfShdr(elfstr[ElfStrSymtab]);
++			sh->type = SHT_SYMTAB;
++			sh->off = elfsymo;
++			sh->size = elfsymsize;
++			sh->addralign = 4;
++			sh->entsize = 16;
++			sh->link = eh->shnum;	// link to strtab
++
++			sh = newElfShdr(elfstr[ElfStrStrtab]);
++			sh->type = SHT_STRTAB;
++			sh->off = elfstro;
++			sh->size = elfstrsize;
++			sh->addralign = 1;
++
+ 			dwarfaddelfheaders();
+ 		}
+ 
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 08583cc8f0..d1370d28be 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -978,6 +978,10 @@ ElfShdr* elfshbits(Section*);
+ void	elfsetstring(char*, int);
+ void	elfaddverneed(Sym*);
+ 
++EXTERN	int	elfstrsize;
++EXTERN	char*	elfstrdat;
++EXTERN	int	elftextsh;
++
+ /*
+  * Total amount of space to reserve at the start of the file
+  * for Header, PHeaders, SHeaders, and interp.
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 447045f01b..cd4608085f 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -186,6 +186,7 @@ vlong	addsize(Sym*, Sym*);
+ vlong	adduint8(Sym*, uint8);
+ vlong	adduint16(Sym*, uint16);
+ void	asmsym(void);
++void	asmelfsym32(void);
+ void	asmelfsym64(void);
+ void	asmplan9sym(void);
+ void	strnput(char*, int);

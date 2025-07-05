@@ -625,6 +625,23 @@ Date:   Mon Jan 13 21:35:04 2025 +0100
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/walk/range.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index a51b218ae5..ede9f2182d 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -342,7 +342,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 
+ 		// if hv2 < utf8.RuneSelf
+ 		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
+-		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, ir.NewInt(base.Pos, utf8.RuneSelf))
++
++		// On x86, hv2 <= 127 is shorter to encode than hv2 < 128
++		// Doesn't hurt other archs.
++		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLE, hv2, ir.NewInt(base.Pos, utf8.RuneSelf-1))
+ 
+ 		// hv1++
+ 		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(base.Pos, 1)))}

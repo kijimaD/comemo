@@ -13,6 +13,10 @@ Date:   Fri Dec 14 13:40:59 2012 +0400
     R=minux.ma
     CC=golang-dev
     https://golang.org/cl/6946051
-
+---
  src/pkg/runtime/race/race_linux_amd64.syso | Bin 147064 -> 149080 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+index d58aea78a4..6585aede3b 100644
+Binary files a/src/pkg/runtime/race/race_linux_amd64.syso and b/src/pkg/runtime/race/race_linux_amd64.syso differ

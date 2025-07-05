@@ -21,7 +21,51 @@ Date:   Sat May 19 09:42:52 2018 +0200
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  test/codegen/memcombine.go | 4 ++--
  test/run.go                | 9 +++++----
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 0db366250f..9c4b36818e 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -503,7 +503,7 @@ func zero_byte_16(b []byte) {
+ 
+ /* TODO: enable them when corresponding optimization are implemented
+ func zero_byte_4_idx(b []byte, idx int) {
+-	// arm64: `MOVW\sZR,\s\(R[0-9]+\)\(R[0-9]+<<2\)`,-`MOV[BH]`
++	// arm64(DISABLED): `MOVW\sZR,\s\(R[0-9]+\)\(R[0-9]+<<2\)`,-`MOV[BH]`
+ 	b[(idx<<2)+0] = 0
+ 	b[(idx<<2)+1] = 0
+ 	b[(idx<<2)+2] = 0
+@@ -511,7 +511,7 @@ func zero_byte_4_idx(b []byte, idx int) {
+ }
+ 
+ func zero_byte_8_idx(b []byte, idx int) {
+-	// arm64: `MOVD\sZR,\s\(R[0-9]+\)\(R[0-9]+<<3\)`,-`MOV[BHW]`
++	// arm64(DISABLED): `MOVD\sZR,\s\(R[0-9]+\)\(R[0-9]+<<3\)`,-`MOV[BHW]`
+ 	b[(idx<<3)+0] = 0
+ 	b[(idx<<3)+1] = 0
+ 	b[(idx<<3)+2] = 0
+diff --git a/test/run.go b/test/run.go
+index 82508d1c1f..24a4d4f425 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1329,11 +1329,12 @@ const (
+ 
+ var (
+ 	// Regexp to split a line in code and comment, trimming spaces
+-	rxAsmComment = regexp.MustCompile(`^\s*(.*?)\s*(?:\/\/\s*(.+)\s*)?$`)
++	rxAsmComment = regexp.MustCompile(`^\s*(.*?)\s*(?://\s*(.+)\s*)?$`)
+ 
+-	// Regexp to extract an architecture check: architecture name, followed by semi-colon,
+-	// followed by a comma-separated list of opcode checks.
+-	rxAsmPlatform = regexp.MustCompile(`(\w+)(/\w+)?(/\w*)?:(` + reMatchCheck + `(?:,` + reMatchCheck + `)*)`)
++	// Regexp to extract an architecture check: architecture name (or triplet),
++	// followed by semi-colon, followed by a comma-separated list of opcode checks.
++	// Extraneous spaces are ignored.
++	rxAsmPlatform = regexp.MustCompile(`(\w+)(/\w+)?(/\w*)?\s*:\s*(` + reMatchCheck + `(?:\s*,\s*` + reMatchCheck + `)*)`)
+ 
+ 	// Regexp to extract a single opcoded check
+ 	rxAsmCheck = regexp.MustCompile(reMatchCheck)

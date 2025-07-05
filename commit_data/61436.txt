@@ -16,6 +16,23 @@ Date:   Wed Nov 22 08:55:40 2023 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/loong64/obj.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index 0446fb78a0..f75e2d8716 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -101,9 +101,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+-			sym = ctxt.Lookup("runtime.duffzero")
++			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
+ 		} else {
+-			sym = ctxt.Lookup("runtime.duffcopy")
++			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
+ 		}
+ 		offset := p.To.Offset
+ 		p.As = AMOVV

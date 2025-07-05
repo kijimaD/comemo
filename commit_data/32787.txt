@@ -24,7 +24,7 @@ Date:   Tue May 30 16:06:59 2017 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules   |  8 ++-
  src/cmd/compile/internal/ssa/gen/AMD64.rules | 11 ++--
  src/cmd/compile/internal/ssa/gen/ARM.rules   | 11 ++--
@@ -33,3 +33,456 @@ Date:   Tue May 30 16:06:59 2017 -0400
  src/cmd/compile/internal/ssa/rewriteARM.go   | 36 +++++-------
  test/fixedbugs/issue20530.go                 | 18 ++++++
  7 files changed, 182 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 15e2a0606c..49fcd36530 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -615,10 +615,12 @@
+ (MOVWLZX x:(MOVWloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
+ (MOVWLZX x:(MOVWloadidx2 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx2 <v.Type> [off] {sym} ptr idx mem)
+ 
+-// replace load from same location as preceding store with copy
+-(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
++// replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
++(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBLZX x)
++(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWLZX x)
+ (MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
++(MOVBLSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBLSX x)
++(MOVWLSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWLSX x)
+ 
+ // Fold extensions and ANDs together.
+ (MOVBLZX (ANDLconst [c] x)) -> (ANDLconst [c & 0xff] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 711373a3e0..5887a9454c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -965,11 +965,14 @@
+ (MOVLQZX x:(MOVLloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLloadidx1 <v.Type> [off] {sym} ptr idx mem)
+ (MOVLQZX x:(MOVLloadidx4 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLloadidx4 <v.Type> [off] {sym} ptr idx mem)
+ 
+-// replace load from same location as preceding store with copy
+-(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-(MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
++// replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
++(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBQZX x)
++(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWQZX x)
++(MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVLQZX x)
+ (MOVQload [off] {sym} ptr (MOVQstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
++(MOVBQSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBQSX x)
++(MOVWQSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWQSX x)
++(MOVLQSXload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVLQSX x)
+ 
+ // Fold extensions and ANDs together.
+ (MOVBQZX (ANDLconst [c] x)) -> (ANDLconst [c & 0xff] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 6570e8a5a4..d66e50f17a 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -485,12 +485,13 @@
+ (MOVDstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+ 	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 
+-// replace load from same location as preceding store with copy
+-(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type) -> x
+-(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type) -> x
+-(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type) -> x
+-(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type) -> x
++// replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
++(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBreg x)
++(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBUreg x)
++(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVHreg x)
++(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVHUreg x)
+ (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
++
+ (MOVFload [off] {sym} ptr (MOVFstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ (MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 6e94c7c284..f9cddd0f70 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -2886,6 +2886,30 @@ func rewriteValue386_Op386MOVBLSXload_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (MOVBLSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVBLSX x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != Op386MOVBstore {
++			break
++		}
++		off2 := v_1.AuxInt
++		sym2 := v_1.Aux
++		_ = v_1.Args[2]
++		ptr2 := v_1.Args[0]
++		x := v_1.Args[1]
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
++			break
++		}
++		v.reset(Op386MOVBLSX)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVBLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
+ 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVBLSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+@@ -2994,7 +3018,7 @@ func rewriteValue386_Op386MOVBload_0(v *Value) bool {
+ 	_ = config
+ 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: x
++	// result: (MOVBLZX x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -3012,8 +3036,7 @@ func rewriteValue386_Op386MOVBload_0(v *Value) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(Op386MOVBLZX)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -6324,6 +6347,30 @@ func rewriteValue386_Op386MOVWLSXload_0(v *Value) bool {
+ 	_ = b
+ 	config := b.Func.Config
+ 	_ = config
++	// match: (MOVWLSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVWLSX x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != Op386MOVWstore {
++			break
++		}
++		off2 := v_1.AuxInt
++		sym2 := v_1.Aux
++		_ = v_1.Args[2]
++		ptr2 := v_1.Args[0]
++		x := v_1.Args[1]
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
++			break
++		}
++		v.reset(Op386MOVWLSX)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVWLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
+ 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWLSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+@@ -6460,7 +6507,7 @@ func rewriteValue386_Op386MOVWload_0(v *Value) bool {
+ 	_ = config
+ 	// match: (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: x
++	// result: (MOVWLZX x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -6478,8 +6525,7 @@ func rewriteValue386_Op386MOVWload_0(v *Value) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(Op386MOVWLZX)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 06b52e5c39..641dc11a17 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -4335,6 +4335,30 @@ func rewriteValueAMD64_OpAMD64MOVBQSX_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVBQSXload_0(v *Value) bool {
++	// match: (MOVBQSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVBQSX x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVBstore {
++			break
++		}
++		off2 := v_1.AuxInt
++		sym2 := v_1.Aux
++		_ = v_1.Args[2]
++		ptr2 := v_1.Args[0]
++		x := v_1.Args[1]
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
++			break
++		}
++		v.reset(OpAMD64MOVBQSX)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVBQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
+ 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+ 	// result: (MOVBQSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+@@ -4530,7 +4554,7 @@ func rewriteValueAMD64_OpAMD64MOVBQZX_0(v *Value) bool {
+ func rewriteValueAMD64_OpAMD64MOVBload_0(v *Value) bool {
+ 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: x
++	// result: (MOVBQZX x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -4548,8 +4572,7 @@ func rewriteValueAMD64_OpAMD64MOVBload_0(v *Value) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpAMD64MOVBQZX)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -6387,6 +6410,30 @@ func rewriteValueAMD64_OpAMD64MOVLQSX_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVLQSXload_0(v *Value) bool {
++	// match: (MOVLQSXload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _))
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVLQSX x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVLstore {
++			break
++		}
++		off2 := v_1.AuxInt
++		sym2 := v_1.Aux
++		_ = v_1.Args[2]
++		ptr2 := v_1.Args[0]
++		x := v_1.Args[1]
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
++			break
++		}
++		v.reset(OpAMD64MOVLQSX)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVLQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
+ 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+ 	// result: (MOVLQSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+@@ -6636,7 +6683,7 @@ func rewriteValueAMD64_OpAMD64MOVLatomicload_0(v *Value) bool {
+ func rewriteValueAMD64_OpAMD64MOVLload_0(v *Value) bool {
+ 	// match: (MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: x
++	// result: (MOVLQZX x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -6654,8 +6701,7 @@ func rewriteValueAMD64_OpAMD64MOVLload_0(v *Value) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpAMD64MOVLQZX)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -10594,6 +10640,30 @@ func rewriteValueAMD64_OpAMD64MOVWQSX_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVWQSXload_0(v *Value) bool {
++	// match: (MOVWQSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVWQSX x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVWstore {
++			break
++		}
++		off2 := v_1.AuxInt
++		sym2 := v_1.Aux
++		_ = v_1.Args[2]
++		ptr2 := v_1.Args[0]
++		x := v_1.Args[1]
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
++			break
++		}
++		v.reset(OpAMD64MOVWQSX)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVWQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
+ 	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+ 	// result: (MOVWQSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+@@ -10804,7 +10874,7 @@ func rewriteValueAMD64_OpAMD64MOVWQZX_0(v *Value) bool {
+ func rewriteValueAMD64_OpAMD64MOVWload_0(v *Value) bool {
+ 	// match: (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: x
++	// result: (MOVWQZX x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -10822,8 +10892,7 @@ func rewriteValueAMD64_OpAMD64MOVWload_0(v *Value) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpAMD64MOVWQZX)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 9d794598cf..6bb8da5daa 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -5823,8 +5823,8 @@ func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)
+-	// result: x
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVBUreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -5839,11 +5839,10 @@ func rewriteValueARM_OpARMMOVBUload_0(v *Value) bool {
+ 		_ = v_1.Args[2]
+ 		ptr2 := v_1.Args[0]
+ 		x := v_1.Args[1]
+-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)) {
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpARMMOVBUreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -5974,8 +5973,8 @@ func rewriteValueARM_OpARMMOVBload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)
+-	// result: x
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVBreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -5990,11 +5989,10 @@ func rewriteValueARM_OpARMMOVBload_0(v *Value) bool {
+ 		_ = v_1.Args[2]
+ 		ptr2 := v_1.Args[0]
+ 		x := v_1.Args[1]
+-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)) {
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpARMMOVBreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -6634,8 +6632,8 @@ func rewriteValueARM_OpARMMOVHUload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
+-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)
+-	// result: x
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVHUreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -6650,11 +6648,10 @@ func rewriteValueARM_OpARMMOVHUload_0(v *Value) bool {
+ 		_ = v_1.Args[2]
+ 		ptr2 := v_1.Args[0]
+ 		x := v_1.Args[1]
+-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)) {
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpARMMOVHUreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -6810,8 +6807,8 @@ func rewriteValueARM_OpARMMOVHload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
+-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)
+-	// result: x
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVHreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -6826,11 +6823,10 @@ func rewriteValueARM_OpARMMOVHload_0(v *Value) bool {
+ 		_ = v_1.Args[2]
+ 		ptr2 := v_1.Args[0]
+ 		x := v_1.Args[1]
+-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)) {
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpARMMOVHreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/test/fixedbugs/issue20530.go b/test/fixedbugs/issue20530.go
+new file mode 100644
+index 0000000000..7027b10745
+--- /dev/null
++++ b/test/fixedbugs/issue20530.go
+@@ -0,0 +1,18 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a uint8
++
++func main() {
++	b := int8(func() int32 { return -1 }())
++	a = uint8(b)
++	if int32(a) != 255 {
++		// Failing case prints 'got 255 expected 255'
++		println("got", a, "expected 255")
++	}
++}

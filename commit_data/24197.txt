@@ -7,6 +7,30 @@ Date:   Wed Jul 15 01:16:47 2015 -0400
     Change-Id: I0f167d9769d9b6b9888c13fcb48e538fc87aa1b7
     Reviewed-on: https://go-review.googlesource.com/12240
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8af8ab6cc3..67f2534c7f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"go/build"
+ 	"go/format"
+ 	"internal/testenv"
+ 	"io/ioutil"
+@@ -2106,6 +2107,10 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
+ 		t.Skip("no race detector on %s", sys)
+ 	}
+ 
++	if !build.Default.CgoEnabled {
++		t.Skip("no race detector without cgo")
++	}
++
+ 	// golang.org/issue/10500.
+ 	// This used to install a race-enabled cgo.
+ 	tg := testgo(t)

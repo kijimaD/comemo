@@ -15,10 +15,89 @@ Date:   Tue Feb 25 15:40:39 2025 -0800
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/msan.go        | 2 +-
  src/runtime/msan/msan.go   | 6 ++++++
  src/runtime/msan_amd64.s   | 4 ++--
  src/runtime/msan_arm64.s   | 4 ++--
  src/runtime/msan_loong64.s | 4 ++--
  5 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/msan.go b/src/runtime/msan.go
+index cb740dc2d8..04378805a8 100644
+--- a/src/runtime/msan.go
++++ b/src/runtime/msan.go
+@@ -64,4 +64,4 @@ func msanmove(dst, src unsafe.Pointer, sz uintptr)
+ //go:cgo_import_static __msan_write_go
+ //go:cgo_import_static __msan_malloc_go
+ //go:cgo_import_static __msan_free_go
+-//go:cgo_import_static __msan_memmove
++//go:cgo_import_static __msan_memmove_go
+diff --git a/src/runtime/msan/msan.go b/src/runtime/msan/msan.go
+index 7b3e8e608d..8d4471b816 100644
+--- a/src/runtime/msan/msan.go
++++ b/src/runtime/msan/msan.go
+@@ -13,6 +13,8 @@ package msan
+ #include <stdint.h>
+ #include <sanitizer/msan_interface.h>
+ 
++extern void __msan_memmove(void*, const void*, uintptr_t);
++
+ void __msan_read_go(void *addr, uintptr_t sz) {
+ 	__msan_check_mem_is_initialized(addr, sz);
+ }
+@@ -28,5 +30,9 @@ void __msan_malloc_go(void *addr, uintptr_t sz) {
+ void __msan_free_go(void *addr, uintptr_t sz) {
+ 	__msan_poison(addr, sz);
+ }
++
++void __msan_memmove_go(void *to, const void *from, uintptr_t sz) {
++	__msan_memmove(to, from, sz);
++}
+ */
+ import "C"
+diff --git a/src/runtime/msan_amd64.s b/src/runtime/msan_amd64.s
+index a1dc388063..aac67c695b 100644
+--- a/src/runtime/msan_amd64.s
++++ b/src/runtime/msan_amd64.s
+@@ -63,8 +63,8 @@ TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
+ 	MOVQ	dst+0(FP), RARG0
+ 	MOVQ	src+8(FP), RARG1
+ 	MOVQ	sz+16(FP), RARG2
+-	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
+-	MOVQ	$__msan_memmove(SB), AX
++	// void __msan_memmove_go(void *dst, void *src, uintptr_t sz);
++	MOVQ	$__msan_memmove_go(SB), AX
+ 	JMP	msancall<>(SB)
+ 
+ // Switches SP to g0 stack and calls (AX). Arguments already set.
+diff --git a/src/runtime/msan_arm64.s b/src/runtime/msan_arm64.s
+index ce475cf44a..044a68e1c7 100644
+--- a/src/runtime/msan_arm64.s
++++ b/src/runtime/msan_arm64.s
+@@ -51,8 +51,8 @@ TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
+ 	MOVD	dst+0(FP), RARG0
+ 	MOVD	src+8(FP), RARG1
+ 	MOVD	sz+16(FP), RARG2
+-	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
+-	MOVD	$__msan_memmove(SB), FARG
++	// void __msan_memmove_go(void *dst, void *src, uintptr_t sz);
++	MOVD	$__msan_memmove_go(SB), FARG
+ 	JMP	msancall<>(SB)
+ 
+ // Switches SP to g0 stack and calls (FARG). Arguments already set.
+diff --git a/src/runtime/msan_loong64.s b/src/runtime/msan_loong64.s
+index b9fa5fd120..71332e2935 100644
+--- a/src/runtime/msan_loong64.s
++++ b/src/runtime/msan_loong64.s
+@@ -51,8 +51,8 @@ TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
+ 	MOVV	dst+0(FP), RARG0
+ 	MOVV	src+8(FP), RARG1
+ 	MOVV	sz+16(FP), RARG2
+-	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
+-	MOVV	$__msan_memmove(SB), FARG
++	// void __msan_memmove_go(void *dst, void *src, uintptr_t sz);
++	MOVV	$__msan_memmove_go(SB), FARG
+ 	JMP	msancall<>(SB)
+ 
+ // Switches SP to g0 stack and calls (FARG). Arguments already set.

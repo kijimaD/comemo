@@ -23,7 +23,7 @@ Date:   Mon Dec 28 16:14:11 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go       |  8 ++--
  src/cmd/compile/internal/inline/inl.go          | 11 +++--
  src/cmd/compile/internal/ir/expr.go             | 60 ++++++-------------------
@@ -39,3 +39,533 @@ Date:   Mon Dec 28 16:14:11 2020 -0800
  src/cmd/compile/internal/walk/expr.go           |  4 +-
  src/cmd/compile/internal/walk/order.go          |  2 +-
  14 files changed, 58 insertions(+), 154 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index d8f0111d2d..7b4037e028 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -612,10 +612,10 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		// Flow the receiver argument to both the closure and
+ 		// to the receiver parameter.
+ 
+-		n := n.(*ir.CallPartExpr)
++		n := n.(*ir.SelectorExpr)
+ 		closureK := e.spill(k, n)
+ 
+-		m := n.Method
++		m := n.Selection
+ 
+ 		// We don't know how the method value will be called
+ 		// later, so conservatively assume the result
+@@ -1542,7 +1542,7 @@ func (e *escape) finish(fns []*ir.Func) {
+ 					n := n.(*ir.ClosureExpr)
+ 					n.SetTransient(true)
+ 				case ir.OCALLPART:
+-					n := n.(*ir.CallPartExpr)
++					n := n.(*ir.SelectorExpr)
+ 					n.SetTransient(true)
+ 				case ir.OSLICELIT:
+ 					n := n.(*ir.CompLitExpr)
+@@ -1863,7 +1863,7 @@ func HeapAllocReason(n ir.Node) string {
+ 	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() >= ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"
+ 	}
+-	if n.Op() == ir.OCALLPART && typecheck.PartialCallType(n.(*ir.CallPartExpr)).Size() >= ir.MaxImplicitStackVarSize {
++	if n.Op() == ir.OCALLPART && typecheck.PartialCallType(n.(*ir.SelectorExpr)).Size() >= ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 67162771e9..fc6a17b933 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -419,6 +419,9 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 
+ 	case ir.OCALLPART, ir.OSLICELIT:
+ 		v.budget-- // Hack for toolstash -cmp.
++
++	case ir.OMETHEXPR:
++		v.budget++ // Hack for toolstash -cmp.
+ 	}
+ 
+ 	v.budget--
+@@ -613,12 +616,12 @@ func inlCallee(fn ir.Node) *ir.Func {
+ 	fn = ir.StaticValue(fn)
+ 	switch fn.Op() {
+ 	case ir.OMETHEXPR:
+-		fn := fn.(*ir.MethodExpr)
++		fn := fn.(*ir.SelectorExpr)
+ 		n := ir.MethodExprName(fn)
+-		// Check that receiver type matches fn.Left.
++		// Check that receiver type matches fn.X.
+ 		// TODO(mdempsky): Handle implicit dereference
+ 		// of pointer receiver argument?
+-		if n == nil || !types.Identical(n.Type().Recv().Type, fn.T) {
++		if n == nil || !types.Identical(n.Type().Recv().Type, fn.X.Type()) {
+ 			return nil
+ 		}
+ 		return n.Func
+@@ -1098,7 +1101,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		return n
+ 
+ 	case ir.OMETHEXPR:
+-		n := n.(*ir.MethodExpr)
++		n := n.(*ir.SelectorExpr)
+ 		return n
+ 
+ 	case ir.OLITERAL, ir.ONIL, ir.OTYPE:
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 1337d356a1..872f81a447 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -225,26 +225,6 @@ func (n *CallExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// A CallPartExpr is a method expression X.Method (uncalled).
+-type CallPartExpr struct {
+-	miniExpr
+-	Func     *Func
+-	X        Node
+-	Method   *types.Field
+-	Prealloc *Name
+-}
+-
+-func NewCallPartExpr(pos src.XPos, x Node, method *types.Field, fn *Func) *CallPartExpr {
+-	n := &CallPartExpr{Func: fn, X: x, Method: method}
+-	n.op = OCALLPART
+-	n.pos = pos
+-	n.typ = fn.Type()
+-	n.Func = fn
+-	return n
+-}
+-
+-func (n *CallPartExpr) Sym() *types.Sym { return n.Method.Sym }
+-
+ // A ClosureExpr is a function literal expression.
+ type ClosureExpr struct {
+ 	miniExpr
+@@ -476,24 +456,6 @@ func (n *MakeExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// A MethodExpr is a method expression T.M (where T is a type).
+-type MethodExpr struct {
+-	miniExpr
+-	T         *types.Type
+-	Method    *types.Field
+-	FuncName_ *Name
+-}
+-
+-func NewMethodExpr(pos src.XPos, t *types.Type, method *types.Field) *MethodExpr {
+-	n := &MethodExpr{T: t, Method: method}
+-	n.pos = pos
+-	n.op = OMETHEXPR
+-	return n
+-}
+-
+-func (n *MethodExpr) FuncName() *Name { return n.FuncName_ }
+-func (n *MethodExpr) Sym() *types.Sym { panic("MethodExpr.Sym") }
+-
+ // A NilExpr represents the predefined untyped constant nil.
+ // (It may be copied and assigned a type, though.)
+ type NilExpr struct {
+@@ -567,12 +529,13 @@ func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type)
+ 	return n
+ }
+ 
+-// A SelectorExpr is a selector expression X.Sym.
++// A SelectorExpr is a selector expression X.Sel.
+ type SelectorExpr struct {
+ 	miniExpr
+ 	X         Node
+ 	Sel       *types.Sym
+ 	Selection *types.Field
++	Prealloc  *Name // preallocated storage for OCALLPART, if any
+ }
+ 
+ func NewSelectorExpr(pos src.XPos, op Op, x Node, sel *types.Sym) *SelectorExpr {
+@@ -586,7 +549,7 @@ func (n *SelectorExpr) SetOp(op Op) {
+ 	switch op {
+ 	default:
+ 		panic(n.no("SetOp " + op.String()))
+-	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
++	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OCALLPART, OMETHEXPR:
+ 		n.op = op
+ 	}
+ }
+@@ -596,6 +559,16 @@ func (n *SelectorExpr) Implicit() bool     { return n.flags&miniExprImplicit !=
+ func (n *SelectorExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
+ func (n *SelectorExpr) Offset() int64      { return n.Selection.Offset }
+ 
++func (n *SelectorExpr) FuncName() *Name {
++	if n.Op() != OMETHEXPR {
++		panic(n.no("FuncName"))
++	}
++	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
++	fn.Class_ = PFUNC
++	fn.SetType(n.Type())
++	return fn
++}
++
+ // Before type-checking, bytes.Buffer is a SelectorExpr.
+ // After type-checking it becomes a Name.
+ func (*SelectorExpr) CanBeNtype() {}
+@@ -1089,13 +1062,8 @@ func MethodExprName(n Node) *Name {
+ // MethodFunc is like MethodName, but returns the types.Field instead.
+ func MethodExprFunc(n Node) *types.Field {
+ 	switch n.Op() {
+-	case ODOTMETH:
++	case ODOTMETH, OMETHEXPR, OCALLPART:
+ 		return n.(*SelectorExpr).Selection
+-	case OMETHEXPR:
+-		return n.(*MethodExpr).Method
+-	case OCALLPART:
+-		n := n.(*CallPartExpr)
+-		return n.Method
+ 	}
+ 	base.Fatalf("unexpected node: %v (%v)", n, n.Op())
+ 	panic("unreachable")
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 49f451a5d8..7680f05ad2 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -630,10 +630,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 	case OPACK, ONONAME:
+ 		fmt.Fprint(s, n.Sym())
+ 
+-	case OMETHEXPR:
+-		n := n.(*MethodExpr)
+-		fmt.Fprint(s, n.FuncName().Sym())
+-
+ 	case ONAMEOFFSET:
+ 		n := n.(*NameOffsetExpr)
+ 		fmt.Fprintf(s, "(%v)(%v@%d)", n.Type(), n.Name_, n.Offset_)
+@@ -749,16 +745,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		n := n.(*StructKeyExpr)
+ 		fmt.Fprintf(s, "%v:%v", n.Field, n.Value)
+ 
+-	case OCALLPART:
+-		n := n.(*CallPartExpr)
+-		exprFmt(n.X, s, nprec)
+-		if n.Method.Sym == nil {
+-			fmt.Fprint(s, ".<nil>")
+-			return
+-		}
+-		fmt.Fprintf(s, ".%s", n.Method.Sym.Name)
+-
+-	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
++	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH, OCALLPART, OMETHEXPR:
+ 		n := n.(*SelectorExpr)
+ 		exprFmt(n.X, s, nprec)
+ 		if n.Sel == nil {
+@@ -1160,12 +1147,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 		}
+ 		return
+ 
+-	case OMETHEXPR:
+-		n := n.(*MethodExpr)
+-		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.FuncName().Sym())
+-		dumpNodeHeader(w, n)
+-		return
+-
+ 	case OASOP:
+ 		n := n.(*AssignOpStmt)
+ 		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.AsOp)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 27a5311748..a1ce9a4e9d 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -209,23 +209,6 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.Body, edit)
+ }
+ 
+-func (n *CallPartExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *CallPartExpr) copy() Node {
+-	c := *n
+-	c.init = c.init.Copy()
+-	return &c
+-}
+-func (n *CallPartExpr) doChildren(do func(Node) error) error {
+-	var err error
+-	err = maybeDoList(n.init, err, do)
+-	err = maybeDo(n.X, err, do)
+-	return err
+-}
+-func (n *CallPartExpr) editChildren(edit func(Node) Node) {
+-	editList(n.init, edit)
+-	n.X = maybeEdit(n.X, edit)
+-}
+-
+ func (n *CaseClause) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *CaseClause) copy() Node {
+ 	c := *n
+@@ -655,21 +638,6 @@ func (n *MapType) editChildren(edit func(Node) Node) {
+ 	n.Elem = maybeEdit(n.Elem, edit)
+ }
+ 
+-func (n *MethodExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *MethodExpr) copy() Node {
+-	c := *n
+-	c.init = c.init.Copy()
+-	return &c
+-}
+-func (n *MethodExpr) doChildren(do func(Node) error) error {
+-	var err error
+-	err = maybeDoList(n.init, err, do)
+-	return err
+-}
+-func (n *MethodExpr) editChildren(edit func(Node) Node) {
+-	editList(n.init, edit)
+-}
+-
+ func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *Name) copy() Node                    { panic("Name.copy") }
+ func (n *Name) doChildren(do func(Node) error) error {
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 2711f6cec0..d8f51766de 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -104,7 +104,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
+ 
+ 	switch r.Op() {
+ 	case ir.OMETHEXPR:
+-		r = r.(*ir.MethodExpr).FuncName()
++		r = r.(*ir.SelectorExpr).FuncName()
+ 		fallthrough
+ 	case ir.ONAME:
+ 		r := r.(*ir.Name)
+@@ -165,7 +165,7 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
+ 			}
+ 			x := e.Expr
+ 			if x.Op() == ir.OMETHEXPR {
+-				x = x.(*ir.MethodExpr).FuncName()
++				x = x.(*ir.SelectorExpr).FuncName()
+ 			}
+ 			if x.Op() == ir.ONAME && s.staticcopy(l, loff+e.Xoffset, x.(*ir.Name), typ) {
+ 				continue
+@@ -195,7 +195,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		return s.staticcopy(l, loff, r, typ)
+ 
+ 	case ir.OMETHEXPR:
+-		r := r.(*ir.MethodExpr)
++		r := r.(*ir.SelectorExpr)
+ 		return s.staticcopy(l, loff, r.FuncName(), typ)
+ 
+ 	case ir.ONIL:
+@@ -461,7 +461,7 @@ func StaticLoc(n ir.Node) (name *ir.Name, offset int64, ok bool) {
+ 		return n, 0, true
+ 
+ 	case ir.OMETHEXPR:
+-		n := n.(*ir.MethodExpr)
++		n := n.(*ir.SelectorExpr)
+ 		return StaticLoc(n.FuncName())
+ 
+ 	case ir.ODOT:
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 3e7a880c2a..0682548c27 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -626,10 +626,8 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
+ 	}
+ 
+ 	if (n.Op() == ir.ODOTINTER || n.Op() == ir.ODOTMETH) && top&ctxCallee == 0 {
+-		// Create top-level function.
+-		fn := makepartialcall(n)
+-
+-		return ir.NewCallPartExpr(n.Pos(), n.X, n.Selection, fn)
++		n.SetOp(ir.OCALLPART)
++		n.SetType(MethodValueWrapper(n).Type())
+ 	}
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index ed4f3ad4fe..c58fef10ec 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -91,7 +91,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
+ // PartialCallType returns the struct type used to hold all the information
+ // needed in the closure for n (n must be a OCALLPART node).
+ // The address of a variable of the returned type can be cast to a func.
+-func PartialCallType(n *ir.CallPartExpr) *types.Type {
++func PartialCallType(n *ir.SelectorExpr) *types.Type {
+ 	t := types.NewStruct(types.NoPkg, []*types.Field{
+ 		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
+ 		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
+@@ -247,9 +247,17 @@ func closurename(outerfunc *ir.Func) *types.Sym {
+ // globClosgen is like Func.Closgen, but for the global scope.
+ var globClosgen int32
+ 
+-// makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+-// for partial calls.
+-func makepartialcall(dot *ir.SelectorExpr) *ir.Func {
++// MethodValueWrapper returns the DCLFUNC node representing the
++// wrapper function (*-fm) needed for the given method value. If the
++// wrapper function hasn't already been created yet, it's created and
++// added to Target.Decls.
++//
++// TODO(mdempsky): Move into walk. This isn't part of type checking.
++func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
++	if dot.Op() != ir.OCALLPART {
++		base.Fatalf("MethodValueWrapper: unexpected %v (%v)", dot, dot.Op())
++	}
++
+ 	t0 := dot.Type()
+ 	meth := dot.Sel
+ 	rcvrtype := dot.X.Type()
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 3b071a61ab..e35cbcafa2 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1252,17 +1252,6 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.pos(n.Pos())
+ 		w.value(n.Type(), n.Val())
+ 
+-	case ir.OMETHEXPR:
+-		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
+-		// but for export, this should be rendered as (*pkg.T).meth.
+-		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
+-		n := n.(*ir.MethodExpr)
+-		w.op(ir.OXDOT)
+-		w.pos(n.Pos())
+-		w.op(ir.OTYPE)
+-		w.typ(n.T) // n.Left.Op == OTYPE
+-		w.selector(n.Method.Sym)
+-
+ 	case ir.ONAME:
+ 		// Package scope name.
+ 		n := n.(*ir.Name)
+@@ -1336,15 +1325,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 	// case OSTRUCTKEY:
+ 	//	unreachable - handled in case OSTRUCTLIT by elemList
+ 
+-	case ir.OCALLPART:
+-		// An OCALLPART is an OXDOT before type checking.
+-		n := n.(*ir.CallPartExpr)
+-		w.op(ir.OXDOT)
+-		w.pos(n.Pos())
+-		w.expr(n.X)
+-		w.selector(n.Method.Sym)
+-
+-	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH:
++	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+ 		n := n.(*ir.SelectorExpr)
+ 		w.op(ir.OXDOT)
+ 		w.pos(n.Pos())
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index e23c249ff2..ff9178b597 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1176,19 +1176,16 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
+ 		return n
+ 	}
+ 
+-	me := ir.NewMethodExpr(n.Pos(), n.X.Type(), m)
+-	me.SetType(NewMethodType(m.Type, n.X.Type()))
+-	f := NewName(ir.MethodSym(t, m.Sym))
+-	f.Class_ = ir.PFUNC
+-	f.SetType(me.Type())
+-	me.FuncName_ = f
++	n.SetOp(ir.OMETHEXPR)
++	n.Selection = m
++	n.SetType(NewMethodType(m.Type, n.X.Type()))
+ 
+ 	// Issue 25065. Make sure that we emit the symbol for a local method.
+ 	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
+-		NeedFuncSym(me.FuncName_.Sym())
++		NeedFuncSym(n.FuncName().Sym())
+ 	}
+ 
+-	return me
++	return n
+ }
+ 
+ func derefall(t *types.Type) *types.Type {
+@@ -1422,7 +1419,7 @@ notenough:
+ 			// Method expressions have the form T.M, and the compiler has
+ 			// rewritten those to ONAME nodes but left T in Left.
+ 			if call.Op() == ir.OMETHEXPR {
+-				call := call.(*ir.MethodExpr)
++				call := call.(*ir.SelectorExpr)
+ 				base.Errorf("not enough arguments in call to method expression %v%s", call, details)
+ 			} else {
+ 				base.Errorf("not enough arguments in call to %v%s", call, details)
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 30f86f0965..9bcb82bc03 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -151,7 +151,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 	return walkExpr(cfn, init)
+ }
+ 
+-func walkCallPart(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
++func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+ 	// Create closure in the form of a composite literal.
+ 	// For x.M with receiver (x) type T, the generated code looks like:
+ 	//
+@@ -176,7 +176,7 @@ func walkCallPart(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
+ 
+ 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
+ 	clos.SetEsc(n.Esc())
+-	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, n.Func.Nname), n.X}
++	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, typecheck.MethodValueWrapper(n).Nname), n.X}
+ 
+ 	addr := typecheck.NodAddr(clos)
+ 	addr.SetEsc(n.Esc())
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 8c4f9583ef..fadcd87f25 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -539,7 +539,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, n))
+ 
+ 	case ir.OMETHEXPR:
+-		n := n.(*ir.MethodExpr)
++		n := n.(*ir.SelectorExpr)
+ 		anylit(n.FuncName(), var_, init)
+ 
+ 	case ir.OPTRLIT:
+@@ -666,7 +666,7 @@ func genAsStatic(as *ir.AssignStmt) {
+ 		staticdata.InitConst(name, offset, r, int(r.Type().Width))
+ 		return
+ 	case ir.OMETHEXPR:
+-		r := r.(*ir.MethodExpr)
++		r := r.(*ir.SelectorExpr)
+ 		staticdata.InitFunc(name, offset, r.FuncName())
+ 		return
+ 	case ir.ONAME:
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index fd0dd5b062..7cc6758024 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -100,7 +100,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 
+ 	case ir.OMETHEXPR:
+ 		// TODO(mdempsky): Do this right after type checking.
+-		n := n.(*ir.MethodExpr)
++		n := n.(*ir.SelectorExpr)
+ 		return n.FuncName()
+ 
+ 	case ir.ONOT, ir.ONEG, ir.OPLUS, ir.OBITNOT, ir.OREAL, ir.OIMAG, ir.OSPTR, ir.OITAB, ir.OIDATA:
+@@ -306,7 +306,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		return walkClosure(n.(*ir.ClosureExpr), init)
+ 
+ 	case ir.OCALLPART:
+-		return walkCallPart(n.(*ir.CallPartExpr), init)
++		return walkCallPart(n.(*ir.SelectorExpr), init)
+ 	}
+ 
+ 	// No return! Each case must return (or panic),
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index ebbd467570..0dd76ccee9 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1310,7 +1310,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 		return n
+ 
+ 	case ir.OCALLPART:
+-		n := n.(*ir.CallPartExpr)
++		n := n.(*ir.SelectorExpr)
+ 		n.X = o.expr(n.X, nil)
+ 		if n.Transient() {
+ 			t := typecheck.PartialCallType(n)

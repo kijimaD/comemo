@@ -17,7 +17,127 @@ Date:   Wed May 8 08:51:39 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/walk/assign.go | 43 ++++++++++++++++++++-------------
  test/fixedbugs/issue67255.go            | 33 +++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index fc3b858a80..63b6a1d2c1 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -623,21 +623,23 @@ func isAppendOfMake(n ir.Node) bool {
+ //	    panicmakeslicelen()
+ //	  }
+ //	  s := l1
+-//	  n := len(s) + l2
+-//	  // Compare n and s as uint so growslice can panic on overflow of len(s) + l2.
+-//	  // cap is a positive int and n can become negative when len(s) + l2
+-//	  // overflows int. Interpreting n when negative as uint makes it larger
+-//	  // than cap(s). growslice will check the int n arg and panic if n is
+-//	  // negative. This prevents the overflow from being undetected.
+-//	  if uint(n) <= uint(cap(s)) {
+-//	    s = s[:n]
+-//	  } else {
+-//	    s = growslice(T, s.ptr, n, s.cap, l2, T)
++//	  if l2 != 0 {
++//	    n := len(s) + l2
++//	    // Compare n and s as uint so growslice can panic on overflow of len(s) + l2.
++//	    // cap is a positive int and n can become negative when len(s) + l2
++//	    // overflows int. Interpreting n when negative as uint makes it larger
++//	    // than cap(s). growslice will check the int n arg and panic if n is
++//	    // negative. This prevents the overflow from being undetected.
++//	    if uint(n) <= uint(cap(s)) {
++//	      s = s[:n]
++//	    } else {
++//	      s = growslice(T, s.ptr, n, s.cap, l2, T)
++//	    }
++//	    // clear the new portion of the underlying array.
++//	    hp := &s[len(s)-l2]
++//	    hn := l2 * sizeof(T)
++//	    memclr(hp, hn)
+ //	  }
+-//	  // clear the new portion of the underlying array.
+-//	  hp := &s[len(s)-l2]
+-//	  hn := l2 * sizeof(T)
+-//	  memclr(hp, hn)
+ //	}
+ //	s
+ //
+@@ -671,11 +673,18 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	s := typecheck.TempAt(base.Pos, ir.CurFunc, l1.Type())
+ 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, s, l1))
+ 
++	// if l2 != 0 {
++	// Avoid work if we're not appending anything. But more importantly,
++	// avoid allowing hp to be a past-the-end pointer when clearing. See issue 67255.
++	nifnz := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.ONE, l2, ir.NewInt(base.Pos, 0)), nil, nil)
++	nifnz.Likely = true
++	nodes = append(nodes, nifnz)
++
+ 	elemtype := s.Type().Elem()
+ 
+ 	// n := s.len + l2
+ 	nn := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+-	nodes = append(nodes, ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), l2)))
++	nifnz.Body = append(nifnz.Body, ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), l2)))
+ 
+ 	// if uint(n) <= uint(s.cap)
+ 	nuint := typecheck.Conv(nn, types.Types[types.TUINT])
+@@ -697,7 +706,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			l2)),
+ 	}
+ 
+-	nodes = append(nodes, nif)
++	nifnz.Body = append(nifnz.Body, nif)
+ 
+ 	// hp := &s[s.len - l2]
+ 	// TODO: &s[s.len] - hn?
+@@ -723,7 +732,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		// if growslice isn't called do we need to do the zeroing ourselves.
+ 		nif.Body = append(nif.Body, clr...)
+ 	} else {
+-		nodes = append(nodes, clr...)
++		nifnz.Body = append(nifnz.Body, clr...)
+ 	}
+ 
+ 	typecheck.Stmts(nodes)
+diff --git a/test/fixedbugs/issue67255.go b/test/fixedbugs/issue67255.go
+new file mode 100644
+index 0000000000..7ca7a239dd
+--- /dev/null
++++ b/test/fixedbugs/issue67255.go
+@@ -0,0 +1,33 @@
++// run
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var zero int
++
++var sink any
++
++func main() {
++	var objs [][]*byte
++	for i := 10; i < 200; i++ {
++		// The objects we're allocating here are pointer-ful. Some will
++		// max out their size class, which are the ones we want.
++		// We also allocate from small to large, so that the object which
++		// maxes out its size class is the last one allocated in that class.
++		// This allocation pattern leaves the next object in the class
++		// unallocated, which we need to reproduce the bug.
++		objs = append(objs, make([]*byte, i))
++	}
++	sink = objs // force heap allocation
++
++	// Bug will happen as soon as the write barrier turns on.
++	for range 10000 {
++		sink = make([]*byte, 1024)
++		for _, s := range objs {
++			s = append(s, make([]*byte, zero)...)
++		}
++	}
++}

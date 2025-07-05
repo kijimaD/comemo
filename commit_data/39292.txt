@@ -28,7 +28,7 @@ Date:   Sun Feb 17 15:35:52 2019 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     |  8 ++++----
  src/cmd/compile/internal/gc/mpfloat.go   |  2 ++
  src/cmd/compile/internal/gc/noder.go     |  2 +-
@@ -36,3 +36,133 @@ Date:   Sun Feb 17 15:35:52 2019 -0800
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue30243.go             | 27 +++++++++++++++++++++++++++
  6 files changed, 36 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 3a9080e67d..f2035bf9a8 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -427,13 +427,13 @@ bad:
+ func tocplx(v Val) Val {
+ 	switch u := v.U.(type) {
+ 	case *Mpint:
+-		c := new(Mpcplx)
++		c := newMpcmplx()
+ 		c.Real.SetInt(u)
+ 		c.Imag.SetFloat64(0.0)
+ 		v.U = c
+ 
+ 	case *Mpflt:
+-		c := new(Mpcplx)
++		c := newMpcmplx()
+ 		c.Real.Set(u)
+ 		c.Imag.SetFloat64(0.0)
+ 		v.U = c
+@@ -845,7 +845,7 @@ Outer:
+ 	case CTCPLX:
+ 		x, y := x.U.(*Mpcplx), y.U.(*Mpcplx)
+ 
+-		u := new(Mpcplx)
++		u := newMpcmplx()
+ 		u.Real.Set(&x.Real)
+ 		u.Imag.Set(&x.Imag)
+ 		switch op {
+@@ -900,7 +900,7 @@ func unaryOp(op Op, x Val, t *types.Type) Val {
+ 
+ 		case CTCPLX:
+ 			x := x.U.(*Mpcplx)
+-			u := new(Mpcplx)
++			u := newMpcmplx()
+ 			u.Real.Set(&x.Real)
+ 			u.Imag.Set(&x.Imag)
+ 			u.Real.Neg()
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index 846ce4cca7..b3a9af452a 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -32,12 +32,14 @@ type Mpcplx struct {
+ 	Imag Mpflt
+ }
+ 
++// Use newMpflt (not new(Mpflt)!) to get the correct default precision.
+ func newMpflt() *Mpflt {
+ 	var a Mpflt
+ 	a.Val.SetPrec(Mpprec)
+ 	return &a
+ }
+ 
++// Use newMpcmplx (not new(Mpcplx)!) to get the correct default precision.
+ func newMpcmplx() *Mpcplx {
+ 	var a Mpcplx
+ 	a.Real = *newMpflt()
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 3aa303c0c1..3fab95b917 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1327,7 +1327,7 @@ func (p *noder) basicLit(lit *syntax.BasicLit) Val {
+ 		return Val{U: x}
+ 
+ 	case syntax.ImagLit:
+-		x := new(Mpcplx)
++		x := newMpcmplx()
+ 		x.Imag.SetString(strings.TrimSuffix(s, "i"))
+ 		return Val{U: x}
+ 
+diff --git a/src/cmd/compile/internal/gc/swt_test.go b/src/cmd/compile/internal/gc/swt_test.go
+index 74419596d2..2f73ef7b99 100644
+--- a/src/cmd/compile/internal/gc/swt_test.go
++++ b/src/cmd/compile/internal/gc/swt_test.go
+@@ -16,7 +16,7 @@ func nodrune(r rune) *Node {
+ }
+ 
+ func nodflt(f float64) *Node {
+-	v := new(Mpflt)
++	v := newMpflt()
+ 	v.SetFloat64(f)
+ 	return nodlit(Val{v})
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 63e0d78273..e22fd6445a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1589,7 +1589,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 
+ 		if l.Op == OLITERAL && r.Op == OLITERAL {
+ 			// make it a complex literal
+-			c := new(Mpcplx)
++			c := newMpcmplx()
+ 			c.Real.Set(toflt(l.Val()).U.(*Mpflt))
+ 			c.Imag.Set(toflt(r.Val()).U.(*Mpflt))
+ 			setconst(n, Val{c})
+diff --git a/test/fixedbugs/issue30243.go b/test/fixedbugs/issue30243.go
+new file mode 100644
+index 0000000000..51fd204cbc
+--- /dev/null
++++ b/test/fixedbugs/issue30243.go
+@@ -0,0 +1,27 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Compile-time constants, even if they cannot be represented
++// accurately, should remain the same in operations that don't
++// affect their values.
++
++package main
++
++import "fmt"
++
++func main() {
++	const x = 0.01
++	const xi = 0.01i
++	const xc = complex(0, x)
++
++	if imag(xi) != x {
++		fmt.Printf("FAILED: %g != %g\n", imag(xi), x)
++	}
++
++	if xi != complex(0, x) {
++		fmt.Printf("FAILED: %g != %g\n", xi, complex(0, x))
++	}
++}

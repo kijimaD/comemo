@@ -7,6 +7,20 @@ Date:   Mon Jul 1 21:44:14 2013 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/10856043
-
+---
  src/pkg/sort/sort_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 2dd65c4436..fb872c2941 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -504,7 +504,7 @@ func countOps(t *testing.T, algo func(Interface), name string) {
+ 			desc:    name,
+ 			t:       t,
+ 			data:    make([]int, n),
+-			maxswap: 1 << 31,
++			maxswap: 1<<31 - 1,
+ 		}
+ 		for i := 0; i < n; i++ {
+ 			td.data[i] = rand.Intn(n / 5)

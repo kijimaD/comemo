@@ -7,6 +7,20 @@ Date:   Fri Jun 17 15:55:54 2011 +1000
     R=lucio.dere, vcc.163, bradfitz
     CC=golang-dev
     https://golang.org/cl/4645044
-
+---
  src/cmd/ld/ldpe.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 77a8b82e4c..288186e88c 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -371,7 +371,7 @@ readsym(PeObj *obj, int i, PeSym **y)
+ 	name = sym->name;
+ 	if(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0) // section
+ 		name = obj->sect[sym->sectnum-1].sym->name;
+-	if(strncmp(sym->name, "__imp__", 6) == 0)
++	if(strncmp(sym->name, "__imp__", 7) == 0)
+ 		name = &sym->name[7]; // __imp__Name => Name
+ 	else if(sym->name[0] == '_') 
+ 		name = &sym->name[1]; // _Name => Name

@@ -15,7 +15,47 @@ Date:   Sat Sep 23 23:04:31 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go |  5 +++++
  test/fixedbugs/issue21988.go       | 17 +++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 469af86aa6..dc285ae91c 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -610,6 +610,11 @@ func checkDupExprCases(exprname *Node, clauses []*Node) {
+ 				if ct := consttype(n); ct < 0 || ct == CTBOOL {
+ 					continue
+ 				}
++				// If the value has no type, we have
++				// already printed an error about it.
++				if n.Type == nil {
++					continue
++				}
+ 
+ 				val := n.Val().Interface()
+ 				prev, dup := seen[val]
+diff --git a/test/fixedbugs/issue21988.go b/test/fixedbugs/issue21988.go
+new file mode 100644
+index 0000000000..850e0398d6
+--- /dev/null
++++ b/test/fixedbugs/issue21988.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 21988: panic on switch case with invalid value
++
++package p
++
++const X = Wrong(0) // ERROR "undefined: Wrong"
++
++func _() {
++	switch 0 {
++	case X:
++	}
++}

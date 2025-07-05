@@ -8,7 +8,7 @@ Date:   Mon Jun 21 13:19:29 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1699045
-
+---
  src/pkg/fmt/print.go     |   8 +--
  src/pkg/fmt/scan.go      |  23 +++++----
  src/pkg/gob/decode.go    |  10 ++--
@@ -19,3 +19,655 @@ Date:   Mon Jun 21 13:19:29 2010 -0700
  src/pkg/reflect/value.go | 128 ++++++++++++++---------------------------------
  test/ken/cplx3.go        |   3 --
  9 files changed, 112 insertions(+), 144 deletions(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 6ae7e5c2c2..bb2f08ea7b 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -612,10 +612,10 @@ func (p *pp) fmtUintptrGetter(field interface{}, value reflect.Value, verb int,
+ }
+ 
+ var (
+-	intBits     = uintptr(reflect.Typeof(int(0)).Size() * 8)
+-	floatBits   = uintptr(reflect.Typeof(float(0)).Size() * 8)
+-	complexBits = uintptr(reflect.Typeof(complex(0+0i)).Size() * 8)
+-	uintptrBits = uintptr(reflect.Typeof(uintptr(0)).Size() * 8)
++	intBits     = reflect.Typeof(0).Bits()
++	floatBits   = reflect.Typeof(0.0).Bits()
++	complexBits = reflect.Typeof(1i).Bits()
++	uintptrBits = reflect.Typeof(uintptr(0)).Bits()
+ )
+ 
+ func (p *pp) printField(field interface{}, verb int, plus, sharp bool, depth int) (was_string bool) {
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 94383807a5..9f3b401173 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -456,9 +456,10 @@ func (s *ss) scanNumber(digits string) string {
+ }
+ 
+ // scanRune returns the next rune value in the input.
+-func (s *ss) scanRune(bitSize uintptr) int64 {
++func (s *ss) scanRune(bitSize int) int64 {
+ 	rune := int64(s.mustGetRune())
+-	x := (rune << (64 - bitSize)) >> (64 - bitSize)
++	n := uint(bitSize)
++	x := (rune << (64 - n)) >> (64 - n)
+ 	if x != rune {
+ 		s.errorString("overflow on character value " + string(rune))
+ 	}
+@@ -467,7 +468,7 @@ func (s *ss) scanRune(bitSize uintptr) int64 {
+ 
+ // scanInt returns the value of the integer represented by the next
+ // token, checking for overflow.  Any error is stored in s.err.
+-func (s *ss) scanInt(verb int, bitSize uintptr) int64 {
++func (s *ss) scanInt(verb int, bitSize int) int64 {
+ 	if verb == 'c' {
+ 		return s.scanRune(bitSize)
+ 	}
+@@ -479,7 +480,8 @@ func (s *ss) scanInt(verb int, bitSize uintptr) int64 {
+ 	if err != nil {
+ 		s.error(err)
+ 	}
+-	x := (i << (64 - bitSize)) >> (64 - bitSize)
++	n := uint(bitSize)
++	x := (i << (64 - n)) >> (64 - n)
+ 	if x != i {
+ 		s.errorString("integer overflow on token " + tok)
+ 	}
+@@ -488,7 +490,7 @@ func (s *ss) scanInt(verb int, bitSize uintptr) int64 {
+ 
+ // scanUint returns the value of the unsigned integer represented
+ // by the next token, checking for overflow.  Any error is stored in s.err.
+-func (s *ss) scanUint(verb int, bitSize uintptr) uint64 {
++func (s *ss) scanUint(verb int, bitSize int) uint64 {
+ 	if verb == 'c' {
+ 		return uint64(s.scanRune(bitSize))
+ 	}
+@@ -499,7 +501,8 @@ func (s *ss) scanUint(verb int, bitSize uintptr) uint64 {
+ 	if err != nil {
+ 		s.error(err)
+ 	}
+-	x := (i << (64 - bitSize)) >> (64 - bitSize)
++	n := uint(bitSize)
++	x := (i << (64 - n)) >> (64 - n)
+ 	if x != i {
+ 		s.errorString("unsigned integer overflow on token " + tok)
+ 	}
+@@ -766,9 +769,9 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 		case *reflect.BoolValue:
+ 			v.Set(s.scanBool(verb))
+ 		case *reflect.IntValue:
+-			v.Set(s.scanInt(verb, v.Type().Size()*8))
++			v.Set(s.scanInt(verb, v.Type().Bits()))
+ 		case *reflect.UintValue:
+-			v.Set(s.scanUint(verb, v.Type().Size()*8))
++			v.Set(s.scanUint(verb, v.Type().Bits()))
+ 		case *reflect.StringValue:
+ 			v.Set(s.convertString(verb))
+ 		case *reflect.SliceValue:
+@@ -784,9 +787,9 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 			}
+ 		case *reflect.FloatValue:
+ 			s.skipSpace()
+-			v.Set(s.convertFloat(s.floatToken(), int(v.Type().Size()*8)))
++			v.Set(s.convertFloat(s.floatToken(), v.Type().Bits()))
+ 		case *reflect.ComplexValue:
+-			v.Set(s.scanComplex(verb, int(v.Type().Size()*8)))
++			v.Set(s.scanComplex(verb, v.Type().Bits()))
+ 		default:
+ 		CantHandle:
+ 			s.errorString("Scan: can't handle type: " + val.Type().String())
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 459acaf0b7..8f5c383ea9 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -540,7 +540,7 @@ func ignoreSlice(state *decodeState, elemOp decOp) os.Error {
+ 	return ignoreArrayHelper(state, elemOp, int(decodeUint(state)))
+ }
+ 
+-var decOpMap = map[reflect.Kind]decOp{
++var decOpMap = []decOp{
+ 	reflect.Bool:    decBool,
+ 	reflect.Int8:    decInt8,
+ 	reflect.Int16:   decInt16,
+@@ -568,8 +568,12 @@ var decIgnoreOpMap = map[typeId]decOp{
+ // the indirection count to reach it.
+ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error) {
+ 	typ, indir := indirect(rt)
+-	op, ok := decOpMap[typ.Kind()]
+-	if !ok {
++	var op decOp
++	k := typ.Kind()
++	if int(k) < len(decOpMap) {
++		op = decOpMap[k]
++	}
++	if op == nil {
+ 		// Special cases
+ 		switch t := typ.(type) {
+ 		case *reflect.ArrayType:
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 93f9e509b8..76032389e3 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -601,7 +601,7 @@ func encodeMap(b *bytes.Buffer, rt reflect.Type, p uintptr, keyOp, elemOp encOp,
+ 	return state.err
+ }
+ 
+-var encOpMap = map[reflect.Kind]encOp{
++var encOpMap = []encOp{
+ 	reflect.Bool:    encBool,
+ 	reflect.Int:     encInt,
+ 	reflect.Int8:    encInt8,
+@@ -624,8 +624,12 @@ var encOpMap = map[reflect.Kind]encOp{
+ // the indirection count to reach it.
+ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+ 	typ, indir := indirect(rt)
+-	op, ok := encOpMap[typ.Kind()]
+-	if !ok {
++	var op encOp
++	k := typ.Kind()
++	if int(k) < len(encOpMap) {
++		op = encOpMap[k]
++	}
++	if op == nil {
+ 		// Special cases
+ 		switch t := typ.(type) {
+ 		case *reflect.SliceType:
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 6f768d4b8c..3f69650097 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -588,7 +588,7 @@ func (d *decodeState) literal(v reflect.Value) {
+ 			v.Set(n)
+ 
+ 		case *reflect.FloatValue:
+-			n, err := strconv.AtofN(s, int(v.Type().Size()*8))
++			n, err := strconv.AtofN(s, v.Type().Bits())
+ 			if err != nil || v.Overflow(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 8b0f784883..5d7ce35cbb 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -162,7 +162,7 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 		e.WriteString(strconv.Uitoa64(v.Get()))
+ 
+ 	case *reflect.FloatValue:
+-		e.WriteString(strconv.FtoaN(v.Get(), 'g', -1, int(v.Type().Size()*8)))
++		e.WriteString(strconv.FtoaN(v.Get(), 'g', -1, v.Type().Bits()))
+ 
+ 	case *reflect.StringValue:
+ 		e.string(v.Get())
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 5fadcf2699..d87ccc984c 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -34,6 +34,11 @@ import (
+  * copy in order to access the private fields.
+  */
+ 
++// commonType is the common implementation of most values.
++// It is embedded in other, public struct types, but always
++// with a unique tag like "uint" or "float" so that the client cannot
++// convert from, say, *UintType to *FloatType.
++
+ type commonType struct {
+ 	size       uintptr
+ 	hash       uint32
+@@ -62,44 +67,44 @@ type uncommonType struct {
+ 
+ // BoolType represents a boolean type.
+ type BoolType struct {
+-	commonType
++	commonType "bool"
+ }
+ 
+ // FloatType represents a float type.
+ type FloatType struct {
+-	commonType
++	commonType "float"
+ }
+ 
+ // ComplexType represents a complex type.
+ type ComplexType struct {
+-	commonType
++	commonType "complex"
+ }
+ 
+ // IntType represents a signed integer type.
+ type IntType struct {
+-	commonType
++	commonType "int"
+ }
+ 
+ // UintType represents a uint type.
+ type UintType struct {
+-	commonType
++	commonType "uint"
+ }
+ 
+ // StringType represents a string type.
+ type StringType struct {
+-	commonType
++	commonType "string"
+ }
+ 
+ // UnsafePointerType represents an unsafe.Pointer type.
+ type UnsafePointerType struct {
+-	commonType
++	commonType "unsafe.Pointer"
+ }
+ 
+ // ArrayType represents a fixed array type.
+ type ArrayType struct {
+-	commonType
+-	elem *runtime.Type
+-	len  uintptr
++	commonType "array"
++	elem       *runtime.Type
++	len        uintptr
+ }
+ 
+ // ChanDir represents a channel type's direction.
+@@ -113,17 +118,17 @@ const (
+ 
+ // ChanType represents a channel type.
+ type ChanType struct {
+-	commonType
+-	elem *runtime.Type
+-	dir  uintptr
++	commonType "chan"
++	elem       *runtime.Type
++	dir        uintptr
+ }
+ 
+ // FuncType represents a function type.
+ type FuncType struct {
+-	commonType
+-	dotdotdot bool
+-	in        []*runtime.Type
+-	out       []*runtime.Type
++	commonType "func"
++	dotdotdot  bool
++	in         []*runtime.Type
++	out        []*runtime.Type
+ }
+ 
+ // Method on interface type
+@@ -135,27 +140,27 @@ type imethod struct {
+ 
+ // InterfaceType represents an interface type.
+ type InterfaceType struct {
+-	commonType
+-	methods []imethod
++	commonType "interface"
++	methods    []imethod
+ }
+ 
+ // MapType represents a map type.
+ type MapType struct {
+-	commonType
+-	key  *runtime.Type
+-	elem *runtime.Type
++	commonType "map"
++	key        *runtime.Type
++	elem       *runtime.Type
+ }
+ 
+ // PtrType represents a pointer type.
+ type PtrType struct {
+-	commonType
+-	elem *runtime.Type
++	commonType "ptr"
++	elem       *runtime.Type
+ }
+ 
+ // SliceType represents a slice type.
+ type SliceType struct {
+-	commonType
+-	elem *runtime.Type
++	commonType "slice"
++	elem       *runtime.Type
+ }
+ 
+ // Struct field
+@@ -169,8 +174,8 @@ type structField struct {
+ 
+ // StructType represents a struct type.
+ type StructType struct {
+-	commonType
+-	fields []structField
++	commonType "struct"
++	fields     []structField
+ }
+ 
+ 
+@@ -214,6 +219,11 @@ type Type interface {
+ 	// a value of the given type; it is analogous to unsafe.Sizeof.
+ 	Size() uintptr
+ 
++	// Bits returns the size of the type in bits.
++	// It is intended for use with numeric types and may overflow
++	// when used for composite types.
++	Bits() int
++
+ 	// Align returns the alignment of a value of this type
+ 	// when allocated in memory.
+ 	Align() int
+@@ -333,6 +343,8 @@ func (t *commonType) String() string { return *t.string }
+ 
+ func (t *commonType) Size() uintptr { return t.size }
+ 
++func (t *commonType) Bits() int { return int(t.size * 8) }
++
+ func (t *commonType) Align() int { return int(t.align) }
+ 
+ func (t *commonType) FieldAlign() int { return int(t.fieldAlign) }
+@@ -352,7 +364,7 @@ func (t *uncommonType) Method(i int) (m Method) {
+ 	}
+ 	m.Type = toType(*p.typ).(*FuncType)
+ 	fn := p.tfn
+-	m.Func = newFuncValue(m.Type, addr(&fn), true)
++	m.Func = &FuncValue{value: value{m.Type, addr(&fn), true}}
+ 	return
+ }
+ 
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 5505c46241..56a5d69d86 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -75,6 +75,10 @@ type Value interface {
+ 	getAddr() addr
+ }
+ 
++// value is the common implementation of most values.
++// It is embedded in other, public struct types, but always
++// with a unique tag like "uint" or "float" so that the client cannot
++// convert from, say, *UintValue to *FloatValue.
+ type value struct {
+ 	typ    Type
+ 	addr   addr
+@@ -113,7 +117,7 @@ func (v *value) CanSet() bool { return v.canSet }
+ 
+ // BoolValue represents a bool value.
+ type BoolValue struct {
+-	value
++	value "bool"
+ }
+ 
+ // Get returns the underlying bool value.
+@@ -132,7 +136,7 @@ func (v *BoolValue) SetValue(x Value) { v.Set(x.(*BoolValue).Get()) }
+ 
+ // FloatValue represents a float value.
+ type FloatValue struct {
+-	value
++	value "float"
+ }
+ 
+ // Get returns the underlying int value.
+@@ -181,7 +185,7 @@ func (v *FloatValue) SetValue(x Value) { v.Set(x.(*FloatValue).Get()) }
+ 
+ // ComplexValue represents a complex value.
+ type ComplexValue struct {
+-	value
++	value "complex"
+ }
+ 
+ // Get returns the underlying complex value.
+@@ -217,47 +221,9 @@ func (v *ComplexValue) Set(x complex128) {
+ // Set sets v to the value x.
+ func (v *ComplexValue) SetValue(x Value) { v.Set(x.(*ComplexValue).Get()) }
+ 
+-// Complex64Value represents a complex64 value.
+-type Complex64Value struct {
+-	value
+-}
+-
+-// Get returns the underlying complex64 value.
+-func (v *Complex64Value) Get() complex64 { return *(*complex64)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Complex64Value) Set(x complex64) {
+-	if !v.canSet {
+-		panic(cannotSet)
+-	}
+-	*(*complex64)(v.addr) = x
+-}
+-
+-// Set sets v to the value x.
+-func (v *Complex64Value) SetValue(x Value) { v.Set(x.(*Complex64Value).Get()) }
+-
+-// Complex128Value represents a complex128 value.
+-type Complex128Value struct {
+-	value
+-}
+-
+-// Get returns the underlying complex128 value.
+-func (v *Complex128Value) Get() complex128 { return *(*complex128)(v.addr) }
+-
+-// Set sets v to the value x.
+-func (v *Complex128Value) Set(x complex128) {
+-	if !v.canSet {
+-		panic(cannotSet)
+-	}
+-	*(*complex128)(v.addr) = x
+-}
+-
+-// Set sets v to the value x.
+-func (v *Complex128Value) SetValue(x Value) { v.Set(x.(*Complex128Value).Get()) }
+-
+ // IntValue represents an int value.
+ type IntValue struct {
+-	value
++	value "int"
+ }
+ 
+ // Get returns the underlying int value.
+@@ -303,7 +269,7 @@ func (v *IntValue) SetValue(x Value) { v.Set(x.(*IntValue).Get()) }
+ 
+ // Overflow returns true if x cannot be represented by the type of v.
+ func (v *IntValue) Overflow(x int64) bool {
+-	bitSize := v.typ.Size() * 8
++	bitSize := uint(v.typ.Bits())
+ 	trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+ 	return x != trunc
+ }
+@@ -316,7 +282,7 @@ type StringHeader struct {
+ 
+ // StringValue represents a string value.
+ type StringValue struct {
+-	value
++	value "string"
+ }
+ 
+ // Get returns the underlying string value.
+@@ -335,7 +301,7 @@ func (v *StringValue) SetValue(x Value) { v.Set(x.(*StringValue).Get()) }
+ 
+ // UintValue represents a uint value.
+ type UintValue struct {
+-	value
++	value "uint"
+ }
+ 
+ // Get returns the underlying uuint value.
+@@ -382,7 +348,7 @@ func (v *UintValue) Set(x uint64) {
+ 
+ // Overflow returns true if x cannot be represented by the type of v.
+ func (v *UintValue) Overflow(x uint64) bool {
+-	bitSize := v.typ.Size() * 8
++	bitSize := uint(v.typ.Bits())
+ 	trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+ 	return x != trunc
+ }
+@@ -392,7 +358,7 @@ func (v *UintValue) SetValue(x Value) { v.Set(x.(*UintValue).Get()) }
+ 
+ // UnsafePointerValue represents an unsafe.Pointer value.
+ type UnsafePointerValue struct {
+-	value
++	value "unsafe.Pointer"
+ }
+ 
+ // Get returns the underlying uintptr value.
+@@ -454,7 +420,7 @@ func ArrayCopy(dst, src ArrayOrSliceValue) int {
+ 
+ // An ArrayValue represents an array.
+ type ArrayValue struct {
+-	value
++	value "array"
+ }
+ 
+ // Len returns the length of the array.
+@@ -503,7 +469,7 @@ type SliceHeader struct {
+ 
+ // A SliceValue represents a slice.
+ type SliceValue struct {
+-	value
++	value "slice"
+ }
+ 
+ func (v *SliceValue) slice() *SliceHeader { return (*SliceHeader)(v.value.addr) }
+@@ -593,7 +559,7 @@ func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
+ 
+ // A ChanValue represents a chan.
+ type ChanValue struct {
+-	value
++	value "chan"
+ }
+ 
+ // IsNil returns whether v is a nil channel.
+@@ -714,7 +680,7 @@ func MakeChan(typ *ChanType, buffer int) *ChanValue {
+ 
+ // A FuncValue represents a function value.
+ type FuncValue struct {
+-	value
++	value       "func"
+ 	first       *value
+ 	isInterface bool
+ }
+@@ -874,7 +840,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
+ 
+ // An InterfaceValue represents an interface value.
+ type InterfaceValue struct {
+-	value
++	value "interface"
+ }
+ 
+ // No Get because v.Interface() is available.
+@@ -939,7 +905,7 @@ func (v *InterfaceValue) Method(i int) *FuncValue {
+ 
+ // A MapValue represents a map value.
+ type MapValue struct {
+-	value
++	value "map"
+ }
+ 
+ // IsNil returns whether v is a nil map value.
+@@ -1056,7 +1022,7 @@ func MakeMap(typ *MapType) *MapValue {
+ 
+ // A PtrValue represents a pointer.
+ type PtrValue struct {
+-	value
++	value "ptr"
+ }
+ 
+ // IsNil returns whether v is a nil pointer.
+@@ -1127,7 +1093,7 @@ func Indirect(v Value) Value {
+ 
+ // A StructValue represents a struct value.
+ type StructValue struct {
+-	value
++	value "struct"
+ }
+ 
+ // Set assigns x to v.
+@@ -1211,57 +1177,39 @@ func NewValue(i interface{}) Value {
+ 	return newValue(toType(t), addr(a), true)
+ }
+ 
+-
+-func newFuncValue(typ Type, addr addr, canSet bool) *FuncValue {
+-	return &FuncValue{value: value{typ, addr, canSet}}
+-}
+-
+ func newValue(typ Type, addr addr, canSet bool) Value {
+-	// FuncValue has a different layout;
+-	// it needs a extra space for the fixed receivers.
+-	if _, ok := typ.(*FuncType); ok {
+-		return newFuncValue(typ, addr, canSet)
+-	}
+-
+-	// All values have same memory layout;
+-	// build once and convert.
+-	v := &struct{ value }{value{typ, addr, canSet}}
++	v := value{typ, addr, canSet}
+ 	switch typ.(type) {
+ 	case *ArrayType:
+-		// TODO(rsc): Something must prevent
+-		// clients of the package from doing
+-		// this same kind of cast.
+-		// We should be allowed because
+-		// they're our types.
+-		// Something about implicit assignment
+-		// to struct fields.
+-		return (*ArrayValue)(v)
++		return &ArrayValue{v}
+ 	case *BoolType:
+-		return (*BoolValue)(v)
++		return &BoolValue{v}
+ 	case *ChanType:
+-		return (*ChanValue)(v)
++		return &ChanValue{v}
+ 	case *FloatType:
+-		return (*FloatValue)(v)
++		return &FloatValue{v}
++	case *FuncType:
++		return &FuncValue{value: v}
+ 	case *ComplexType:
+-		return (*ComplexValue)(v)
++		return &ComplexValue{v}
+ 	case *IntType:
+-		return (*IntValue)(v)
++		return &IntValue{v}
+ 	case *InterfaceType:
+-		return (*InterfaceValue)(v)
++		return &InterfaceValue{v}
+ 	case *MapType:
+-		return (*MapValue)(v)
++		return &MapValue{v}
+ 	case *PtrType:
+-		return (*PtrValue)(v)
++		return &PtrValue{v}
+ 	case *SliceType:
+-		return (*SliceValue)(v)
++		return &SliceValue{v}
+ 	case *StringType:
+-		return (*StringValue)(v)
++		return &StringValue{v}
+ 	case *StructType:
+-		return (*StructValue)(v)
++		return &StructValue{v}
+ 	case *UintType:
+-		return (*UintValue)(v)
++		return &UintValue{v}
+ 	case *UnsafePointerType:
+-		return (*UnsafePointerValue)(v)
++		return &UnsafePointerValue{v}
+ 	}
+ 	panic("newValue" + typ.String())
+ }
+diff --git a/test/ken/cplx3.go b/test/ken/cplx3.go
+index 6c3826df6a..997894b418 100644
+--- a/test/ken/cplx3.go
++++ b/test/ken/cplx3.go
+@@ -30,9 +30,6 @@ func main() {
+ 
+ 	var a interface{}
+ 	switch c := reflect.NewValue(a).(type) {
+-	case *reflect.Complex64Value:
+-		v := c.Get()
+-		_, _ = complex64(v), true
+ 	case *reflect.ComplexValue:
+ 		if complexBits == 64 {
+ 			v := c.Get()

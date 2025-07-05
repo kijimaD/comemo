@@ -14,8 +14,58 @@ Date:   Tue Jun 13 22:25:50 2023 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/unified.go | 10 ++++++++++
  src/runtime/export_test.go                |  8 ++++++++
  src/runtime/gc_test.go                    |  4 ++++
  3 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 6c4ac66e3d..0afa505550 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -118,6 +118,16 @@ func unified(m posMap, noders []*noder) {
+ 		}
+ 	}
+ 
++	// For functions originally came from package runtime,
++	// mark as norace to prevent instrumenting, see issue #60439.
++	for _, n := range target.Decls {
++		if fn, ok := n.(*ir.Func); ok {
++			if !base.Flag.CompilingRuntime && types.IsRuntimePkg(fn.Sym().Pkg) {
++				fn.Pragma |= ir.Norace
++			}
++		}
++	}
++
+ 	base.ExitIfErrors() // just in case
+ }
+ 
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 5641005401..a4a1fa580d 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1932,3 +1932,11 @@ func SetPinnerLeakPanic(f func()) {
+ func GetPinnerLeakPanic() func() {
+ 	return pinnerLeakPanic
+ }
++
++var testUintptr uintptr
++
++func MyGenericFunc[T any]() {
++	systemstack(func() {
++		testUintptr = 4
++	})
++}
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index bd01e36103..0c21cd43cd 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -929,3 +929,7 @@ func TestMemoryLimitNoGCPercent(t *testing.T) {
+ 		t.Fatalf("expected %q, but got %q", want, got)
+ 	}
+ }
++
++func TestMyGenericFunc(t *testing.T) {
++	runtime.MyGenericFunc[int]()
++}

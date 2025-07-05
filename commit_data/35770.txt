@@ -40,6 +40,20 @@ Date:   Wed Mar 7 15:06:50 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/codegen/movesmall.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/test/codegen/movesmall.go b/test/codegen/movesmall.go
+index 59b2a16dd1..9ad83a5b9e 100644
+--- a/test/codegen/movesmall.go
++++ b/test/codegen/movesmall.go
+@@ -7,7 +7,6 @@
+ package codegen
+ 
+ func movesmall() {
+-	// arm64:-"memmove"
+ 	x := [...]byte{1, 2, 3, 4, 5, 6, 7}
+-	copy(x[1:], x[:])
++	copy(x[1:], x[:]) // arm64:-".*memmove"
+ }

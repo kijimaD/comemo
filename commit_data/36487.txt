@@ -15,6 +15,37 @@ Date:   Fri Apr 6 21:45:55 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 7be2820909..ce3f63883e 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -839,9 +839,11 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
+ 			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", targetpc, ")\n")
+ 			throw("scanframe: bad symbol table")
+ 		}
+-		bv := stackmapdata(stkmap, pcdata)
+-		size = uintptr(bv.n) * sys.PtrSize
+-		scanblock(frame.varp-size, size, bv.bytedata, gcw)
++		if stkmap.nbit > 0 {
++			bv := stackmapdata(stkmap, pcdata)
++			size = uintptr(bv.n) * sys.PtrSize
++			scanblock(frame.varp-size, size, bv.bytedata, gcw)
++		}
+ 	}
+ 
+ 	// Scan arguments.
+@@ -862,7 +864,9 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
+ 			}
+ 			bv = stackmapdata(stkmap, pcdata)
+ 		}
+-		scanblock(frame.argp, uintptr(bv.n)*sys.PtrSize, bv.bytedata, gcw)
++		if bv.n > 0 {
++			scanblock(frame.argp, uintptr(bv.n)*sys.PtrSize, bv.bytedata, gcw)
++		}
+ 	}
+ }
+ 

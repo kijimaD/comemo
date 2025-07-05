@@ -18,10 +18,121 @@ Date:   Wed Jun 27 07:08:41 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/121176
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_fake.go    |  6 ++++++
  src/net/lookup_plan9.go   |  6 ++++++
  src/net/lookup_unix.go    | 25 +++++++++++++++++++++++++
  src/net/lookup_windows.go |  6 ++++++
  src/net/net.go            |  8 +++++++-
  5 files changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_fake.go b/src/net/lookup_fake.go
+index 90c6d47183..d3d1dbc900 100644
+--- a/src/net/lookup_fake.go
++++ b/src/net/lookup_fake.go
+@@ -50,3 +50,9 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) (txts []string, err
+ func (*Resolver) lookupAddr(ctx context.Context, addr string) (ptrs []string, err error) {
+ 	return nil, syscall.ENOPROTOOPT
+ }
++
++// concurrentThreadsLimit returns the number of threads we permit to
++// run concurrently doing DNS lookups.
++func concurrentThreadsLimit() int {
++	return 500
++}
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index e0b38c69b9..5547f0b0ee 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -329,3 +329,9 @@ func (*Resolver) lookupAddr(ctx context.Context, addr string) (name []string, er
+ 	}
+ 	return
+ }
++
++// concurrentThreadsLimit returns the number of threads we permit to
++// run concurrently doing DNS lookups.
++func concurrentThreadsLimit() int {
++	return 500
++}
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 0cf4c99e0c..2c3191aca8 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -9,6 +9,7 @@ package net
+ import (
+ 	"context"
+ 	"sync"
++	"syscall"
+ 
+ 	"golang_org/x/net/dns/dnsmessage"
+ )
+@@ -315,3 +316,27 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
+ 	}
+ 	return r.goLookupPTR(ctx, addr)
+ }
++
++// concurrentThreadsLimit returns the number of threads we permit to
++// run concurrently doing DNS lookups via cgo. A DNS lookup may use a
++// file descriptor so we limit this to less than the number of
++// permitted open files. On some systems, notably Darwin, if
++// getaddrinfo is unable to open a file descriptor it simply returns
++// EAI_NONAME rather than a useful error. Limiting the number of
++// concurrent getaddrinfo calls to less than the permitted number of
++// file descriptors makes that error less likely. We don't bother to
++// apply the same limit to DNS lookups run directly from Go, because
++// there we will return a meaningful "too many open files" error.
++func concurrentThreadsLimit() int {
++	var rlim syscall.Rlimit
++	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim); err != nil {
++		return 500
++	}
++	r := int(rlim.Cur)
++	if r > 500 {
++		r = 500
++	} else if r > 30 {
++		r -= 30
++	}
++	return r
++}
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index e1a811ce39..f76e0af400 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -364,3 +364,9 @@ Cname:
+ 	}
+ 	return name
+ }
++
++// concurrentThreadsLimit returns the number of threads we permit to
++// run concurrently doing DNS lookups.
++func concurrentThreadsLimit() int {
++	return 500
++}
+diff --git a/src/net/net.go b/src/net/net.go
+index 48c5001670..c909986269 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -84,6 +84,7 @@ import (
+ 	"internal/poll"
+ 	"io"
+ 	"os"
++	"sync"
+ 	"syscall"
+ 	"time"
+ )
+@@ -610,9 +611,14 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
+ // server is not responding. Then the many lookups each use a different
+ // thread, and the system or the program runs out of threads.
+ 
+-var threadLimit = make(chan struct{}, 500)
++var threadLimit chan struct{}
++
++var threadOnce sync.Once
+ 
+ func acquireThread() {
++	threadOnce.Do(func() {
++		threadLimit = make(chan struct{}, concurrentThreadsLimit())
++	})
+ 	threadLimit <- struct{}{}
+ }
+ 

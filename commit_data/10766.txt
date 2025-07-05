@@ -7,7 +7,34 @@ Date:   Tue Dec 13 17:53:00 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5488066
-
+---
  src/clean.bash               | 2 +-
  test/bench/shootout/Makefile | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index e4e2f8f55a..3c6a3972d8 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -24,7 +24,7 @@ for i in lib9 libbio libmach cmd pkg \
+ 	../misc/cgo/life ../misc/cgo/test \
+ 	../misc/dashboard/builder ../misc/goplay\
+ 	../doc/codelab/wiki\
+-	../test/bench ../test/garbage
++	../test/bench/shootout ../test/garbage
+ do
+ 	# Do not use gomake here. It may not be available.
+ 	$MAKE -C "$GOROOT/src/$i" clean
+diff --git a/test/bench/shootout/Makefile b/test/bench/shootout/Makefile
+index 145fe0cea6..e1c9b7b80e 100644
+--- a/test/bench/shootout/Makefile
++++ b/test/bench/shootout/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../src/Make.inc
++include ../../../src/Make.inc
+ 
+ all:
+ 	@echo "make clean or timing"

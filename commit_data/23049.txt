@@ -12,6 +12,36 @@ Date:   Mon Apr 20 10:20:36 2015 -0700
     Change-Id: Ia21b37134a8906a4e23d53fdc15235b4aa7bbb34
     Reviewed-on: https://go-review.googlesource.com/9085
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/objfile.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 461a926fe7..62426a5d73 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -463,18 +463,21 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
+ 	}
+ }
+ 
++// Reusable buffer to avoid allocations.
++// This buffer was responsible for 15% of gc's allocations.
++var varintbuf [10]uint8
++
+ func wrint(b *Biobuf, sval int64) {
+ 	var v uint64
+-	var buf [10]uint8
+ 	uv := (uint64(sval) << 1) ^ uint64(int64(sval>>63))
+-	p := buf[:]
++	p := varintbuf[:]
+ 	for v = uv; v >= 0x80; v >>= 7 {
+ 		p[0] = uint8(v | 0x80)
+ 		p = p[1:]
+ 	}
+ 	p[0] = uint8(v)
+ 	p = p[1:]
+-	Bwrite(b, buf[:len(buf)-len(p)])
++	Bwrite(b, varintbuf[:len(varintbuf)-len(p)])
+ }
+ 
+ func wrstring(b *Biobuf, s string) {

@@ -7,7 +7,69 @@ Date:   Wed Jun 9 19:59:22 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1633042
-
+---
  src/pkg/path/path.go      | 22 ++++++++++++++++++++++
  src/pkg/path/path_test.go | 23 +++++++++++++++++++++++
  2 files changed, 45 insertions(+)
+
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 86bfe64555..9c1d09374c 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -186,3 +186,25 @@ func Walk(root string, v Visitor, errors chan<- os.Error) {
+ 	}
+ 	walk(root, f, v, errors)
+ }
++
++// Base returns the last path element of the slash-separated name.
++// Trailing slashes are removed before extracting the last element.  If the name is
++// empty, "." is returned.  If it consists entirely of slashes, "/" is returned.
++func Base(name string) string {
++	if name == "" {
++		return "."
++	}
++	// Strip trailing slashes.
++	for len(name) > 0 && name[len(name)-1] == '/' {
++		name = name[0 : len(name)-1]
++	}
++	// Find the last element
++	if i := strings.LastIndex(name, "/"); i >= 0 {
++		name = name[i+1:]
++	}
++	// If empty now, it had only slashes.
++	if name == "" {
++		return "/"
++	}
++	return name
++}
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index e2458f20c4..6915b48bbb 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -284,3 +284,26 @@ func TestWalk(t *testing.T) {
+ 		t.Errorf("removeTree: %v", err)
+ 	}
+ }
++
++var basetests = []CleanTest{
++	// Already clean
++	CleanTest{"", "."},
++	CleanTest{".", "."},
++	CleanTest{"/.", "."},
++	CleanTest{"/", "/"},
++	CleanTest{"////", "/"},
++	CleanTest{"x/", "x"},
++	CleanTest{"abc", "abc"},
++	CleanTest{"abc/def", "def"},
++	CleanTest{"a/b/.x", ".x"},
++	CleanTest{"a/b/c.", "c."},
++	CleanTest{"a/b/c.x", "c.x"},
++}
++
++func TestBase(t *testing.T) {
++	for _, test := range basetests {
++		if s := Base(test.path); s != test.clean {
++			t.Errorf("Base(%q) = %q, want %q", test.path, s, test.clean)
++		}
++	}
++}

@@ -15,10 +15,232 @@ Date:   Tue Mar 7 19:01:38 2023 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/predicates.go      | 32 ++++++++++------------
  src/cmd/compile/internal/types2/unify.go           | 22 +++++++--------
  src/go/types/predicates.go                         | 32 ++++++++++------------
  src/go/types/unify.go                              | 22 +++++++--------
  .../types/testdata/fixedbugs/issue53692.go         | 15 ++++++++++
  5 files changed, 63 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index c92c1dc292..4f8441467e 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -433,33 +433,23 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 
+ 	case *Named:
+ 		// Two named types are identical if their type names originate
+-		// in the same type declaration.
++		// in the same type declaration; if they are instantiated they
++		// must have identical type argument lists.
+ 		if y, ok := y.(*Named); ok {
++			// check type arguments before origins to match unifier
++			// (for correct source code we need to do all checks so
++			// order doesn't matter)
+ 			xargs := x.TypeArgs().list()
+ 			yargs := y.TypeArgs().list()
+-
+ 			if len(xargs) != len(yargs) {
+ 				return false
+ 			}
+-
+-			if len(xargs) > 0 {
+-				// Instances are identical if their original type and type arguments
+-				// are identical.
+-				if !Identical(x.Origin(), y.Origin()) {
++			for i, xarg := range xargs {
++				if !Identical(xarg, yargs[i]) {
+ 					return false
+ 				}
+-				for i, xa := range xargs {
+-					if !Identical(xa, yargs[i]) {
+-						return false
+-					}
+-				}
+-				return true
+ 			}
+-
+-			// TODO(gri) Why is x == y not sufficient? And if it is,
+-			//           we can just return false here because x == y
+-			//           is caught in the very beginning of this function.
+-			return x.obj == y.obj
++			return indenticalOrigin(x, y)
+ 		}
+ 
+ 	case *TypeParam:
+@@ -475,6 +465,12 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 	return false
+ }
+ 
++// identicalOrigin reports whether x and y originated in the same declaration.
++func indenticalOrigin(x, y *Named) bool {
++	// TODO(gri) is this correct?
++	return x.Origin().obj == y.Origin().obj
++}
++
+ // identicalInstance reports if two type instantiations are identical.
+ // Instantiations are identical if their origin and type arguments are
+ // identical.
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 23362bf766..a5ccc6eb41 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -506,26 +506,24 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		}
+ 
+ 	case *Named:
+-		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
++		// Two named types are identical if their type names originate
++		// in the same type declaration; if they are instantiated they
++		// must have identical type argument lists.
+ 		if y, ok := y.(*Named); ok {
++			// check type arguments before origins so they unify
++			// even if the origins don't match; for better error
++			// messages (see go.dev/issue/53692)
+ 			xargs := x.TypeArgs().list()
+ 			yargs := y.TypeArgs().list()
+-
+ 			if len(xargs) != len(yargs) {
+ 				return false
+ 			}
+-
+-			// TODO(gri) This is not always correct: two types may have the same names
+-			//           in the same package if one of them is nested in a function.
+-			//           Extremely unlikely but we need an always correct solution.
+-			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
+-				for i, x := range xargs {
+-					if !u.nify(x, yargs[i], p) {
+-						return false
+-					}
++			for i, xarg := range xargs {
++				if !u.nify(xarg, yargs[i], p) {
++					return false
+ 				}
+-				return true
+ 			}
++			return indenticalOrigin(x, y)
+ 		}
+ 
+ 	case *TypeParam:
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index cf02a8cab5..e09e774f2a 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -435,33 +435,23 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 
+ 	case *Named:
+ 		// Two named types are identical if their type names originate
+-		// in the same type declaration.
++		// in the same type declaration; if they are instantiated they
++		// must have identical type argument lists.
+ 		if y, ok := y.(*Named); ok {
++			// check type arguments before origins to match unifier
++			// (for correct source code we need to do all checks so
++			// order doesn't matter)
+ 			xargs := x.TypeArgs().list()
+ 			yargs := y.TypeArgs().list()
+-
+ 			if len(xargs) != len(yargs) {
+ 				return false
+ 			}
+-
+-			if len(xargs) > 0 {
+-				// Instances are identical if their original type and type arguments
+-				// are identical.
+-				if !Identical(x.Origin(), y.Origin()) {
++			for i, xarg := range xargs {
++				if !Identical(xarg, yargs[i]) {
+ 					return false
+ 				}
+-				for i, xa := range xargs {
+-					if !Identical(xa, yargs[i]) {
+-						return false
+-					}
+-				}
+-				return true
+ 			}
+-
+-			// TODO(gri) Why is x == y not sufficient? And if it is,
+-			//           we can just return false here because x == y
+-			//           is caught in the very beginning of this function.
+-			return x.obj == y.obj
++			return indenticalOrigin(x, y)
+ 		}
+ 
+ 	case *TypeParam:
+@@ -477,6 +467,12 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 	return false
+ }
+ 
++// identicalOrigin reports whether x and y originated in the same declaration.
++func indenticalOrigin(x, y *Named) bool {
++	// TODO(gri) is this correct?
++	return x.Origin().obj == y.Origin().obj
++}
++
+ // identicalInstance reports if two type instantiations are identical.
+ // Instantiations are identical if their origin and type arguments are
+ // identical.
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 89af7745b4..107e569380 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -508,26 +508,24 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		}
+ 
+ 	case *Named:
+-		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
++		// Two named types are identical if their type names originate
++		// in the same type declaration; if they are instantiated they
++		// must have identical type argument lists.
+ 		if y, ok := y.(*Named); ok {
++			// check type arguments before origins so they unify
++			// even if the origins don't match; for better error
++			// messages (see go.dev/issue/53692)
+ 			xargs := x.TypeArgs().list()
+ 			yargs := y.TypeArgs().list()
+-
+ 			if len(xargs) != len(yargs) {
+ 				return false
+ 			}
+-
+-			// TODO(gri) This is not always correct: two types may have the same names
+-			//           in the same package if one of them is nested in a function.
+-			//           Extremely unlikely but we need an always correct solution.
+-			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
+-				for i, x := range xargs {
+-					if !u.nify(x, yargs[i], p) {
+-						return false
+-					}
++			for i, xarg := range xargs {
++				if !u.nify(xarg, yargs[i], p) {
++					return false
+ 				}
+-				return true
+ 			}
++			return indenticalOrigin(x, y)
+ 		}
+ 
+ 	case *TypeParam:
+diff --git a/src/internal/types/testdata/fixedbugs/issue53692.go b/src/internal/types/testdata/fixedbugs/issue53692.go
+new file mode 100644
+index 0000000000..a7bd5728d4
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue53692.go
+@@ -0,0 +1,15 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Cache[K comparable, V any] interface{}
++
++type LRU[K comparable, V any] struct{}
++
++func WithLocking2[K comparable, V any](Cache[K, V]) {}
++
++func _() {
++	WithLocking2[string](LRU /* ERROR "type LRU[string, int] of LRU[string, int]{} does not match inferred type Cache[string, int] for Cache[string, V]" */ [string, int]{})
++}

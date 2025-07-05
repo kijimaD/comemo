@@ -7,6 +7,102 @@ Date:   Mon Jun 17 17:59:53 2013 +0400
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/10257043
-
+---
  src/pkg/runtime/race/testdata/mop_test.go | 87 +++++++++++++++++++++++++++++++
  1 file changed, 87 insertions(+)
+
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index 9a0cb81f53..b5eecd9fdf 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -1811,3 +1811,90 @@ And Brutus is an honourable man.`
+ 	}
+ 	_ = res
+ }
++
++type Base int
++
++func (b *Base) Foo() int {
++	return 42
++}
++
++func (b Base) Bar() int {
++	return int(b)
++}
++
++func TestNoRaceMethodThunk(t *testing.T) {
++	type Derived struct {
++		pad int
++		Base
++	}
++	var d Derived
++	done := make(chan bool)
++	go func() {
++		_ = d.Foo()
++		done <- true
++	}()
++	d = Derived{}
++	<-done
++}
++
++func TestRaceMethodThunk(t *testing.T) {
++	type Derived struct {
++		pad int
++		*Base
++	}
++	var d Derived
++	done := make(chan bool)
++	go func() {
++		_ = d.Foo()
++		done <- true
++	}()
++	d = Derived{}
++	<-done
++}
++
++func TestRaceMethodThunk2(t *testing.T) {
++	type Derived struct {
++		pad int
++		Base
++	}
++	var d Derived
++	done := make(chan bool)
++	go func() {
++		_ = d.Bar()
++		done <- true
++	}()
++	d = Derived{}
++	<-done
++}
++
++func TestRaceMethodThunk3(t *testing.T) {
++	type Derived struct {
++		pad int
++		*Base
++	}
++	var d Derived
++	d.Base = new(Base)
++	done := make(chan bool)
++	go func() {
++		_ = d.Bar()
++		done <- true
++	}()
++	d.Base = new(Base)
++	<-done
++}
++
++func TestRaceMethodThunk4(t *testing.T) {
++	type Derived struct {
++		pad int
++		*Base
++	}
++	var d Derived
++	d.Base = new(Base)
++	done := make(chan bool)
++	go func() {
++		_ = d.Bar()
++		done <- true
++	}()
++	*(*int)(d.Base) = 42
++	<-done
++}

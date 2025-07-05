@@ -16,8 +16,353 @@ Date:   Thu Aug 5 16:11:28 2021 +1000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/340049
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Nigel Tao <nigeltao@golang.org>
-
+---
  doc/go1.18.html             |  13 +++
  src/image/draw/draw.go      |  81 +++++++++++++++++-
  src/image/draw/draw_test.go | 201 +++++++++++++++++++++++++++++++++++++++-----
  3 files changed, 272 insertions(+), 23 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index df4b56c49f..911bb712f7 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -83,6 +83,19 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: complete this section
+ </p>
+ 
++<dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
++  <dd>
++    <p><!-- CL 340049 -->
++      The <code>Draw</code> and <code>DrawMask</code> fallback implementations
++      (used when the arguments are not the most common image types) are now
++      faster when those arguments implement the optional
++      <a href="/pkg/image/draw/#RGBA64Image"><code>draw.RGBA64Image</code></a>
++      and <a href="/pkg/image/#RGBA64Image"><code>image.RGBA64Image</code></a>
++      interfaces that were added in Go 1.17.
++    </p>
++  </dd>
++</dl><!-- image/draw -->
++
+ <dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+   <dd>
+     <p><!-- CL 336550 -->
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 13f6668293..4431028201 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -119,7 +119,8 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 		return
+ 	}
+ 
+-	// Fast paths for special cases. If none of them apply, then we fall back to a general but slow implementation.
++	// Fast paths for special cases. If none of them apply, then we fall back
++	// to general but slower implementations.
+ 	switch dst0 := dst.(type) {
+ 	case *image.RGBA:
+ 		if op == Over {
+@@ -219,6 +220,84 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 		y0, y1, dy = y1-1, y0-1, -1
+ 	}
+ 
++	// Try the draw.RGBA64Image and image.RGBA64Image interfaces, part of the
++	// standard library since Go 1.17. These are like the draw.Image and
++	// image.Image interfaces but they can avoid allocations from converting
++	// concrete color types to the color.Color interface type.
++
++	if dst0, _ := dst.(RGBA64Image); dst0 != nil {
++		if src0, _ := src.(image.RGBA64Image); src0 != nil {
++			if mask == nil {
++				sy := sp.Y + y0 - r.Min.Y
++				my := mp.Y + y0 - r.Min.Y
++				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
++					sx := sp.X + x0 - r.Min.X
++					mx := mp.X + x0 - r.Min.X
++					for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
++						if op == Src {
++							dst0.SetRGBA64(x, y, src0.RGBA64At(sx, sy))
++						} else {
++							srgba := src0.RGBA64At(sx, sy)
++							a := m - uint32(srgba.A)
++							drgba := dst0.RGBA64At(x, y)
++							dst0.SetRGBA64(x, y, color.RGBA64{
++								R: uint16((uint32(drgba.R)*a)/m) + srgba.R,
++								G: uint16((uint32(drgba.G)*a)/m) + srgba.G,
++								B: uint16((uint32(drgba.B)*a)/m) + srgba.B,
++								A: uint16((uint32(drgba.A)*a)/m) + srgba.A,
++							})
++						}
++					}
++				}
++				return
++
++			} else if mask0, _ := mask.(image.RGBA64Image); mask0 != nil {
++				sy := sp.Y + y0 - r.Min.Y
++				my := mp.Y + y0 - r.Min.Y
++				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
++					sx := sp.X + x0 - r.Min.X
++					mx := mp.X + x0 - r.Min.X
++					for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
++						ma := uint32(mask0.RGBA64At(mx, my).A)
++						switch {
++						case ma == 0:
++							if op == Over {
++								// No-op.
++							} else {
++								dst0.SetRGBA64(x, y, color.RGBA64{})
++							}
++						case ma == m && op == Src:
++							dst0.SetRGBA64(x, y, src0.RGBA64At(sx, sy))
++						default:
++							srgba := src0.RGBA64At(sx, sy)
++							if op == Over {
++								drgba := dst0.RGBA64At(x, y)
++								a := m - (uint32(srgba.A) * ma / m)
++								dst0.SetRGBA64(x, y, color.RGBA64{
++									R: uint16((uint32(drgba.R)*a + uint32(srgba.R)*ma) / m),
++									G: uint16((uint32(drgba.G)*a + uint32(srgba.G)*ma) / m),
++									B: uint16((uint32(drgba.B)*a + uint32(srgba.B)*ma) / m),
++									A: uint16((uint32(drgba.A)*a + uint32(srgba.A)*ma) / m),
++								})
++							} else {
++								dst0.SetRGBA64(x, y, color.RGBA64{
++									R: uint16(uint32(srgba.R) * ma / m),
++									G: uint16(uint32(srgba.G) * ma / m),
++									B: uint16(uint32(srgba.B) * ma / m),
++									A: uint16(uint32(srgba.A) * ma / m),
++								})
++							}
++						}
++					}
++				}
++				return
++			}
++		}
++	}
++
++	// If none of the faster code paths above apply, use the draw.Image and
++	// image.Image interfaces, part of the standard library since Go 1.0.
++
+ 	var out color.RGBA64
+ 	sy := sp.Y + y0 - r.Min.Y
+ 	my := mp.Y + y0 - r.Min.Y
+diff --git a/src/image/draw/draw_test.go b/src/image/draw/draw_test.go
+index 9c5a118400..ea383a0172 100644
+--- a/src/image/draw/draw_test.go
++++ b/src/image/draw/draw_test.go
+@@ -13,6 +13,138 @@ import (
+ 	"testing/quick"
+ )
+ 
++// slowestRGBA is a draw.Image like image.RGBA but it is a different type and
++// therefore does not trigger the draw.go fastest code paths.
++//
++// Unlike slowerRGBA, it does not implement the draw.RGBA64Image interface.
++type slowestRGBA struct {
++	Pix    []uint8
++	Stride int
++	Rect   image.Rectangle
++}
++
++func (p *slowestRGBA) ColorModel() color.Model { return color.RGBAModel }
++
++func (p *slowestRGBA) Bounds() image.Rectangle { return p.Rect }
++
++func (p *slowestRGBA) At(x, y int) color.Color {
++	return p.RGBA64At(x, y)
++}
++
++func (p *slowestRGBA) RGBA64At(x, y int) color.RGBA64 {
++	if !(image.Point{x, y}.In(p.Rect)) {
++		return color.RGBA64{}
++	}
++	i := p.PixOffset(x, y)
++	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
++	r := uint16(s[0])
++	g := uint16(s[1])
++	b := uint16(s[2])
++	a := uint16(s[3])
++	return color.RGBA64{
++		(r << 8) | r,
++		(g << 8) | g,
++		(b << 8) | b,
++		(a << 8) | a,
++	}
++}
++
++func (p *slowestRGBA) Set(x, y int, c color.Color) {
++	if !(image.Point{x, y}.In(p.Rect)) {
++		return
++	}
++	i := p.PixOffset(x, y)
++	c1 := color.RGBAModel.Convert(c).(color.RGBA)
++	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
++	s[0] = c1.R
++	s[1] = c1.G
++	s[2] = c1.B
++	s[3] = c1.A
++}
++
++func (p *slowestRGBA) PixOffset(x, y int) int {
++	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
++}
++
++func init() {
++	var p interface{} = (*slowestRGBA)(nil)
++	if _, ok := p.(RGBA64Image); ok {
++		panic("slowestRGBA should not be an RGBA64Image")
++	}
++}
++
++// slowerRGBA is a draw.Image like image.RGBA but it is a different type and
++// therefore does not trigger the draw.go fastest code paths.
++//
++// Unlike slowestRGBA, it still implements the draw.RGBA64Image interface.
++type slowerRGBA struct {
++	Pix    []uint8
++	Stride int
++	Rect   image.Rectangle
++}
++
++func (p *slowerRGBA) ColorModel() color.Model { return color.RGBAModel }
++
++func (p *slowerRGBA) Bounds() image.Rectangle { return p.Rect }
++
++func (p *slowerRGBA) At(x, y int) color.Color {
++	return p.RGBA64At(x, y)
++}
++
++func (p *slowerRGBA) RGBA64At(x, y int) color.RGBA64 {
++	if !(image.Point{x, y}.In(p.Rect)) {
++		return color.RGBA64{}
++	}
++	i := p.PixOffset(x, y)
++	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
++	r := uint16(s[0])
++	g := uint16(s[1])
++	b := uint16(s[2])
++	a := uint16(s[3])
++	return color.RGBA64{
++		(r << 8) | r,
++		(g << 8) | g,
++		(b << 8) | b,
++		(a << 8) | a,
++	}
++}
++
++func (p *slowerRGBA) Set(x, y int, c color.Color) {
++	if !(image.Point{x, y}.In(p.Rect)) {
++		return
++	}
++	i := p.PixOffset(x, y)
++	c1 := color.RGBAModel.Convert(c).(color.RGBA)
++	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
++	s[0] = c1.R
++	s[1] = c1.G
++	s[2] = c1.B
++	s[3] = c1.A
++}
++
++func (p *slowerRGBA) SetRGBA64(x, y int, c color.RGBA64) {
++	if !(image.Point{x, y}.In(p.Rect)) {
++		return
++	}
++	i := p.PixOffset(x, y)
++	s := p.Pix[i : i+4 : i+4] // Small cap improves performance, see https://golang.org/issue/27857
++	s[0] = uint8(c.R >> 8)
++	s[1] = uint8(c.G >> 8)
++	s[2] = uint8(c.B >> 8)
++	s[3] = uint8(c.A >> 8)
++}
++
++func (p *slowerRGBA) PixOffset(x, y int) int {
++	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
++}
++
++func init() {
++	var p interface{} = (*slowerRGBA)(nil)
++	if _, ok := p.(RGBA64Image); !ok {
++		panic("slowerRGBA should be an RGBA64Image")
++	}
++}
++
+ func eq(c0, c1 color.Color) bool {
+ 	r0, g0, b0, a0 := c0.RGBA()
+ 	r1, g1, b1, a1 := c1.RGBA()
+@@ -260,30 +392,55 @@ func TestDraw(t *testing.T) {
+ 	for _, r := range rr {
+ 	loop:
+ 		for _, test := range drawTests {
+-			dst := hgradRed(255).(*image.RGBA).SubImage(r).(Image)
+-			// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
+-			golden := makeGolden(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
+-			b := dst.Bounds()
+-			if !b.Eq(golden.Bounds()) {
+-				t.Errorf("draw %v %s: bounds %v versus %v", r, test.desc, dst.Bounds(), golden.Bounds())
+-				continue
+-			}
+-			// Draw the same combination onto the actual dst using the optimized DrawMask implementation.
+-			DrawMask(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
+-			if image.Pt(8, 8).In(r) {
+-				// Check that the resultant pixel at (8, 8) matches what we expect
+-				// (the expected value can be verified by hand).
+-				if !eq(dst.At(8, 8), test.expected) {
+-					t.Errorf("draw %v %s: at (8, 8) %v versus %v", r, test.desc, dst.At(8, 8), test.expected)
++			for i := 0; i < 3; i++ {
++				dst := hgradRed(255).(*image.RGBA).SubImage(r).(Image)
++				// For i != 0, substitute a different-typed dst that will take
++				// us off the fastest code paths. We should still get the same
++				// result, in terms of final pixel RGBA values.
++				switch i {
++				case 1:
++					d := dst.(*image.RGBA)
++					dst = &slowerRGBA{
++						Pix:    d.Pix,
++						Stride: d.Stride,
++						Rect:   d.Rect,
++					}
++				case 2:
++					d := dst.(*image.RGBA)
++					dst = &slowestRGBA{
++						Pix:    d.Pix,
++						Stride: d.Stride,
++						Rect:   d.Rect,
++					}
++				}
++
++				// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
++				golden := makeGolden(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
++				b := dst.Bounds()
++				if !b.Eq(golden.Bounds()) {
++					t.Errorf("draw %v %s on %T: bounds %v versus %v",
++						r, test.desc, dst, dst.Bounds(), golden.Bounds())
+ 					continue
+ 				}
+-			}
+-			// Check that the resultant dst image matches the golden output.
+-			for y := b.Min.Y; y < b.Max.Y; y++ {
+-				for x := b.Min.X; x < b.Max.X; x++ {
+-					if !eq(dst.At(x, y), golden.At(x, y)) {
+-						t.Errorf("draw %v %s: at (%d, %d), %v versus golden %v", r, test.desc, x, y, dst.At(x, y), golden.At(x, y))
+-						continue loop
++				// Draw the same combination onto the actual dst using the optimized DrawMask implementation.
++				DrawMask(dst, image.Rect(0, 0, 16, 16), test.src, image.ZP, test.mask, image.ZP, test.op)
++				if image.Pt(8, 8).In(r) {
++					// Check that the resultant pixel at (8, 8) matches what we expect
++					// (the expected value can be verified by hand).
++					if !eq(dst.At(8, 8), test.expected) {
++						t.Errorf("draw %v %s on %T: at (8, 8) %v versus %v",
++							r, test.desc, dst, dst.At(8, 8), test.expected)
++						continue
++					}
++				}
++				// Check that the resultant dst image matches the golden output.
++				for y := b.Min.Y; y < b.Max.Y; y++ {
++					for x := b.Min.X; x < b.Max.X; x++ {
++						if !eq(dst.At(x, y), golden.At(x, y)) {
++							t.Errorf("draw %v %s on %T: at (%d, %d), %v versus golden %v",
++								r, test.desc, dst, x, y, dst.At(x, y), golden.At(x, y))
++							continue loop
++						}
+ 					}
+ 				}
+ 			}

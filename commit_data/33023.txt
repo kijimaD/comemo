@@ -11,6 +11,45 @@ Date:   Mon Jun 26 16:11:33 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/cgo.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/cgo.go b/src/runtime/testdata/testprogcgo/cgo.go
+index 870d4efdea..209524a24d 100644
+--- a/src/runtime/testdata/testprogcgo/cgo.go
++++ b/src/runtime/testdata/testprogcgo/cgo.go
+@@ -45,10 +45,13 @@ func CgoSignalDeadlock() {
+ 				}()
+ 				var s *string
+ 				*s = ""
++				fmt.Printf("continued after expected panic\n")
+ 			}()
+ 		}
+ 	}()
+ 	time.Sleep(time.Millisecond)
++	start := time.Now()
++	var times []time.Duration
+ 	for i := 0; i < 64; i++ {
+ 		go func() {
+ 			runtime.LockOSThread()
+@@ -62,8 +65,9 @@ func CgoSignalDeadlock() {
+ 		ping <- false
+ 		select {
+ 		case <-ping:
++			times = append(times, time.Since(start))
+ 		case <-time.After(time.Second):
+-			fmt.Printf("HANG\n")
++			fmt.Printf("HANG 1 %v\n", times)
+ 			return
+ 		}
+ 	}
+@@ -71,7 +75,7 @@ func CgoSignalDeadlock() {
+ 	select {
+ 	case <-ping:
+ 	case <-time.After(time.Second):
+-		fmt.Printf("HANG\n")
++		fmt.Printf("HANG 2 %v\n", times)
+ 		return
+ 	}
+ 	fmt.Printf("OK\n")

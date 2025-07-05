@@ -11,7 +11,7 @@ Date:   Tue Apr 19 09:57:58 2011 -0400
     R=bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4407046
-
+---
  src/pkg/crypto/tls/Makefile            |   1 -
  src/pkg/crypto/tls/ca_set.go           |  89 --------
  src/pkg/crypto/tls/common.go           |  12 +-
@@ -22,3 +22,991 @@ Date:   Tue Apr 19 09:57:58 2011 -0400
  src/pkg/crypto/x509/verify.go          | 233 ++++++++++++++++++++
  src/pkg/crypto/x509/verify_test.go     | 390 +++++++++++++++++++++++++++++++++
  9 files changed, 737 insertions(+), 129 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/Makefile b/src/pkg/crypto/tls/Makefile
+index f8ec1511aa..000314be51 100644
+--- a/src/pkg/crypto/tls/Makefile
++++ b/src/pkg/crypto/tls/Makefile
+@@ -7,7 +7,6 @@ include ../../../Make.inc
+ TARG=crypto/tls
+ GOFILES=\
+ 	alert.go\
+-	ca_set.go\
+ 	cipher_suites.go\
+ 	common.go\
+ 	conn.go\
+diff --git a/src/pkg/crypto/tls/ca_set.go b/src/pkg/crypto/tls/ca_set.go
+deleted file mode 100644
+index ae00ac5586..0000000000
+--- a/src/pkg/crypto/tls/ca_set.go
++++ /dev/null
+@@ -1,89 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package tls
+-
+-import (
+-	"crypto/x509"
+-	"encoding/pem"
+-	"strings"
+-)
+-
+-// A CASet is a set of certificates.
+-type CASet struct {
+-	bySubjectKeyId map[string][]*x509.Certificate
+-	byName         map[string][]*x509.Certificate
+-}
+-
+-// NewCASet returns a new, empty CASet.
+-func NewCASet() *CASet {
+-	return &CASet{
+-		make(map[string][]*x509.Certificate),
+-		make(map[string][]*x509.Certificate),
+-	}
+-}
+-
+-func nameToKey(name *x509.Name) string {
+-	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
+-}
+-
+-// FindVerifiedParent attempts to find the certificate in s which has signed
+-// the given certificate. If no such certificate can be found or the signature
+-// doesn't match, it returns nil.
+-func (s *CASet) FindVerifiedParent(cert *x509.Certificate) (parent *x509.Certificate) {
+-	var candidates []*x509.Certificate
+-
+-	if len(cert.AuthorityKeyId) > 0 {
+-		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
+-	}
+-	if len(candidates) == 0 {
+-		candidates = s.byName[nameToKey(&cert.Issuer)]
+-	}
+-
+-	for _, c := range candidates {
+-		if cert.CheckSignatureFrom(c) == nil {
+-			return c
+-		}
+-	}
+-
+-	return nil
+-}
+-
+-// AddCert adds a certificate to the set
+-func (s *CASet) AddCert(cert *x509.Certificate) {
+-	if len(cert.SubjectKeyId) > 0 {
+-		keyId := string(cert.SubjectKeyId)
+-		s.bySubjectKeyId[keyId] = append(s.bySubjectKeyId[keyId], cert)
+-	}
+-	name := nameToKey(&cert.Subject)
+-	s.byName[name] = append(s.byName[name], cert)
+-}
+-
+-// SetFromPEM attempts to parse a series of PEM encoded root certificates. It
+-// appends any certificates found to s and returns true if any certificates
+-// were successfully parsed. On many Linux systems, /etc/ssl/cert.pem will
+-// contains the system wide set of root CAs in a format suitable for this
+-// function.
+-func (s *CASet) SetFromPEM(pemCerts []byte) (ok bool) {
+-	for len(pemCerts) > 0 {
+-		var block *pem.Block
+-		block, pemCerts = pem.Decode(pemCerts)
+-		if block == nil {
+-			break
+-		}
+-		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
+-			continue
+-		}
+-
+-		cert, err := x509.ParseCertificate(block.Bytes)
+-		if err != nil {
+-			continue
+-		}
+-
+-		s.AddCert(cert)
+-		ok = true
+-	}
+-
+-	return
+-}
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 102d986f00..204d255314 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -122,7 +122,7 @@ type Config struct {
+ 	// RootCAs defines the set of root certificate authorities
+ 	// that clients use when verifying server certificates.
+ 	// If RootCAs is nil, TLS uses the host's root CA set.
+-	RootCAs *CASet
++	RootCAs *x509.CertPool
+ 
+ 	// NextProtos is a list of supported, application level protocols.
+ 	NextProtos []string
+@@ -158,7 +158,7 @@ func (c *Config) time() int64 {
+ 	return t()
+ }
+ 
+-func (c *Config) rootCAs() *CASet {
++func (c *Config) rootCAs() *x509.CertPool {
+ 	s := c.RootCAs
+ 	if s == nil {
+ 		s = defaultRoots()
+@@ -224,7 +224,7 @@ var certFiles = []string{
+ 
+ var once sync.Once
+ 
+-func defaultRoots() *CASet {
++func defaultRoots() *x509.CertPool {
+ 	once.Do(initDefaults)
+ 	return varDefaultRoots
+ }
+@@ -239,14 +239,14 @@ func initDefaults() {
+ 	initDefaultCipherSuites()
+ }
+ 
+-var varDefaultRoots *CASet
++var varDefaultRoots *x509.CertPool
+ 
+ func initDefaultRoots() {
+-	roots := NewCASet()
++	roots := x509.NewCertPool()
+ 	for _, file := range certFiles {
+ 		data, err := ioutil.ReadFile(file)
+ 		if err == nil {
+-			roots.SetFromPEM(data)
++			roots.AppendCertsFromPEM(data)
+ 			break
+ 		}
+ 	}
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index b94e235c81..63d56310c3 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -34,6 +34,9 @@ type Conn struct {
+ 	cipherSuite       uint16
+ 	ocspResponse      []byte // stapled OCSP response
+ 	peerCertificates  []*x509.Certificate
++	// verifedChains contains the certificate chains that we built, as
++	// opposed to the ones presented by the server.
++	verifiedChains [][]*x509.Certificate
+ 
+ 	clientProtocol         string
+ 	clientProtocolFallback bool
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 0e45c5057d..ddc2769e1b 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -88,7 +88,6 @@ func (c *Conn) clientHandshake() os.Error {
+ 	finishedHash.Write(certMsg.marshal())
+ 
+ 	certs := make([]*x509.Certificate, len(certMsg.certificates))
+-	chain := NewCASet()
+ 	for i, asn1Data := range certMsg.certificates {
+ 		cert, err := x509.ParseCertificate(asn1Data)
+ 		if err != nil {
+@@ -96,47 +95,29 @@ func (c *Conn) clientHandshake() os.Error {
+ 			return os.ErrorString("failed to parse certificate from server: " + err.String())
+ 		}
+ 		certs[i] = cert
+-		chain.AddCert(cert)
+ 	}
+ 
+ 	// If we don't have a root CA set configured then anything is accepted.
+ 	// TODO(rsc): Find certificates for OS X 10.6.
+-	for cur := certs[0]; c.config.RootCAs != nil; {
+-		parent := c.config.RootCAs.FindVerifiedParent(cur)
+-		if parent != nil {
+-			break
++	if c.config.RootCAs != nil {
++		opts := x509.VerifyOptions{
++			Roots:         c.config.RootCAs,
++			CurrentTime:   c.config.Time(),
++			DNSName:       c.config.ServerName,
++			Intermediates: x509.NewCertPool(),
+ 		}
+ 
+-		parent = chain.FindVerifiedParent(cur)
+-		if parent == nil {
+-			c.sendAlert(alertBadCertificate)
+-			return os.ErrorString("could not find root certificate for chain")
++		for i, cert := range certs {
++			if i == 0 {
++				continue
++			}
++			opts.Intermediates.AddCert(cert)
+ 		}
+-
+-		if !parent.BasicConstraintsValid || !parent.IsCA {
++		c.verifiedChains, err = certs[0].Verify(opts)
++		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+-			return os.ErrorString("intermediate certificate does not have CA bit set")
++			return err
+ 		}
+-		// KeyUsage status flags are ignored. From Engineering
+-		// Security, Peter Gutmann: A European government CA marked its
+-		// signing certificates as being valid for encryption only, but
+-		// no-one noticed. Another European CA marked its signature
+-		// keys as not being valid for signatures. A different CA
+-		// marked its own trusted root certificate as being invalid for
+-		// certificate signing.  Another national CA distributed a
+-		// certificate to be used to encrypt data for the country’s tax
+-		// authority that was marked as only being usable for digital
+-		// signatures but not for encryption. Yet another CA reversed
+-		// the order of the bit flags in the keyUsage due to confusion
+-		// over encoding endianness, essentially setting a random
+-		// keyUsage in certificates that it issued. Another CA created
+-		// a self-invalidating certificate by adding a certificate
+-		// policy statement stipulating that the certificate had to be
+-		// used strictly as specified in the keyUsage, and a keyUsage
+-		// containing a flag indicating that the RSA encryption key
+-		// could only be used for Diffie-Hellman key agreement.
+-
+-		cur = parent
+ 	}
+ 
+ 	if _, ok := certs[0].PublicKey.(*rsa.PublicKey); !ok {
+diff --git a/src/pkg/crypto/x509/Makefile b/src/pkg/crypto/x509/Makefile
+index 329a61b7c3..14ffd095f1 100644
+--- a/src/pkg/crypto/x509/Makefile
++++ b/src/pkg/crypto/x509/Makefile
+@@ -6,6 +6,8 @@ include ../../../Make.inc
+ 
+ TARG=crypto/x509
+ GOFILES=\
++	cert_pool.go\
++	verify.go\
+ 	x509.go\
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/crypto/x509/cert_pool.go b/src/pkg/crypto/x509/cert_pool.go
+new file mode 100644
+index 0000000000..7de8dfa2ec
+--- /dev/null
++++ b/src/pkg/crypto/x509/cert_pool.go
+@@ -0,0 +1,89 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++import (
++	"encoding/pem"
++	"strings"
++)
++
++// Roots is a set of certificates.
++type CertPool struct {
++	bySubjectKeyId map[string][]*Certificate
++	byName         map[string][]*Certificate
++}
++
++// NewCertPool returns a new, empty CertPool.
++func NewCertPool() *CertPool {
++	return &CertPool{
++		make(map[string][]*Certificate),
++		make(map[string][]*Certificate),
++	}
++}
++
++func nameToKey(name *Name) string {
++	return strings.Join(name.Country, ",") + "/" + strings.Join(name.Organization, ",") + "/" + strings.Join(name.OrganizationalUnit, ",") + "/" + name.CommonName
++}
++
++// FindVerifiedParents attempts to find certificates in s which have signed the
++// given certificate. If no such certificate can be found or the signature
++// doesn't match, it returns nil.
++func (s *CertPool) FindVerifiedParents(cert *Certificate) (parents []*Certificate) {
++	var candidates []*Certificate
++
++	if len(cert.AuthorityKeyId) > 0 {
++		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
++	}
++	if len(candidates) == 0 {
++		candidates = s.byName[nameToKey(&cert.Issuer)]
++	}
++
++	for _, c := range candidates {
++		if cert.CheckSignatureFrom(c) == nil {
++			parents = append(parents, c)
++		}
++	}
++
++	return
++}
++
++// AddCert adds a certificate to a pool.
++func (s *CertPool) AddCert(cert *Certificate) {
++	if len(cert.SubjectKeyId) > 0 {
++		keyId := string(cert.SubjectKeyId)
++		s.bySubjectKeyId[keyId] = append(s.bySubjectKeyId[keyId], cert)
++	}
++	name := nameToKey(&cert.Subject)
++	s.byName[name] = append(s.byName[name], cert)
++}
++
++// AppendCertsFromPEM attempts to parse a series of PEM encoded root
++// certificates. It appends any certificates found to s and returns true if any
++// certificates were successfully parsed.
++//
++// On many Linux systems, /etc/ssl/cert.pem will contains the system wide set
++// of root CAs in a format suitable for this function.
++func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
++	for len(pemCerts) > 0 {
++		var block *pem.Block
++		block, pemCerts = pem.Decode(pemCerts)
++		if block == nil {
++			break
++		}
++		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
++			continue
++		}
++
++		cert, err := ParseCertificate(block.Bytes)
++		if err != nil {
++			continue
++		}
++
++		s.AddCert(cert)
++		ok = true
++	}
++
++	return
++}
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+new file mode 100644
+index 0000000000..df3e2ec298
+--- /dev/null
++++ b/src/pkg/crypto/x509/verify.go
+@@ -0,0 +1,233 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++import (
++	"os"
++	"strings"
++	"time"
++)
++
++type InvalidReason int
++
++const (
++	// NotAuthorizedToSign results when a certificate is signed by another
++	// which isn't marked as a CA certificate.
++	NotAuthorizedToSign InvalidReason = iota
++	// Expired results when a certificate has expired, based on the time
++	// given in the VerifyOptions.
++	Expired
++	// CANotAuthorizedForThisName results when an intermediate or root
++	// certificate has a name constraint which doesn't include the name
++	// being checked.
++	CANotAuthorizedForThisName
++)
++
++// CertificateInvalidError results when an odd error occurs. Users of this
++// library probably want to handle all these errors uniformly.
++type CertificateInvalidError struct {
++	Cert   *Certificate
++	Reason InvalidReason
++}
++
++func (e CertificateInvalidError) String() string {
++	switch e.Reason {
++	case NotAuthorizedToSign:
++		return "x509: certificate is not authorized to sign other other certificates"
++	case Expired:
++		return "x509: certificate has expired or is not yet valid"
++	case CANotAuthorizedForThisName:
++		return "x509: a root or intermediate certificate is not authorized to sign in this domain"
++	}
++	return "x509: unknown error"
++}
++
++// HostnameError results when the set of authorized names doesn't match the
++// requested name.
++type HostnameError struct {
++	Certificate *Certificate
++	Host        string
++}
++
++func (h HostnameError) String() string {
++	var valid string
++	c := h.Certificate
++	if len(c.DNSNames) > 0 {
++		valid = strings.Join(c.DNSNames, ", ")
++	} else {
++		valid = c.Subject.CommonName
++	}
++	return "certificate is valid for " + valid + ", not " + h.Host
++}
++
++
++// UnknownAuthorityError results when the certificate issuer is unknown
++type UnknownAuthorityError struct {
++	cert *Certificate
++}
++
++func (e UnknownAuthorityError) String() string {
++	return "x509: certificate signed by unknown authority"
++}
++
++// VerifyOptions contains parameters for Certificate.Verify. It's a structure
++// because other PKIX verification APIs have ended up needing many options.
++type VerifyOptions struct {
++	DNSName       string
++	Intermediates *CertPool
++	Roots         *CertPool
++	CurrentTime   int64 // if 0, the current system time is used.
++}
++
++const (
++	leafCertificate = iota
++	intermediateCertificate
++	rootCertificate
++)
++
++// isValid performs validity checks on the c.
++func (c *Certificate) isValid(certType int, opts *VerifyOptions) os.Error {
++	if opts.CurrentTime < c.NotBefore.Seconds() ||
++		opts.CurrentTime > c.NotAfter.Seconds() {
++		return CertificateInvalidError{c, Expired}
++	}
++
++	if len(c.PermittedDNSDomains) > 0 {
++		for _, domain := range c.PermittedDNSDomains {
++			if opts.DNSName == domain ||
++				(strings.HasSuffix(opts.DNSName, domain) &&
++					len(opts.DNSName) >= 1+len(domain) &&
++					opts.DNSName[len(opts.DNSName)-len(domain)-1] == '.') {
++				continue
++			}
++
++			return CertificateInvalidError{c, CANotAuthorizedForThisName}
++		}
++	}
++
++	// KeyUsage status flags are ignored. From Engineering Security, Peter
++	// Gutmann: A European government CA marked its signing certificates as
++	// being valid for encryption only, but no-one noticed. Another
++	// European CA marked its signature keys as not being valid for
++	// signatures. A different CA marked its own trusted root certificate
++	// as being invalid for certificate signing.  Another national CA
++	// distributed a certificate to be used to encrypt data for the
++	// country’s tax authority that was marked as only being usable for
++	// digital signatures but not for encryption. Yet another CA reversed
++	// the order of the bit flags in the keyUsage due to confusion over
++	// encoding endianness, essentially setting a random keyUsage in
++	// certificates that it issued. Another CA created a self-invalidating
++	// certificate by adding a certificate policy statement stipulating
++	// that the certificate had to be used strictly as specified in the
++	// keyUsage, and a keyUsage containing a flag indicating that the RSA
++	// encryption key could only be used for Diffie-Hellman key agreement.
++
++	if certType == intermediateCertificate && (!c.BasicConstraintsValid || !c.IsCA) {
++		return CertificateInvalidError{c, NotAuthorizedToSign}
++	}
++
++	return nil
++}
++
++// Verify attempts to verify c by building one or more chains from c to a
++// certificate in opts.roots, using certificates in opts.Intermediates if
++// needed. If successful, it returns one or chains where the first element of
++// the chain is c and the last element is from opts.Roots.
++//
++// WARNING: this doesn't do any revocation checking.
++func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err os.Error) {
++	if opts.CurrentTime == 0 {
++		opts.CurrentTime = time.Seconds()
++	}
++	err = c.isValid(leafCertificate, &opts)
++	if err != nil {
++		return
++	}
++	if len(opts.DNSName) > 0 {
++		err = c.VerifyHostname(opts.DNSName)
++		if err != nil {
++			return
++		}
++	}
++	return c.buildChains([]*Certificate{c}, &opts)
++}
++
++func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
++	n := make([]*Certificate, len(chain)+1)
++	copy(n, chain)
++	n[len(chain)] = cert
++	return n
++}
++
++func (c *Certificate) buildChains(currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err os.Error) {
++	for _, root := range opts.Roots.FindVerifiedParents(c) {
++		err = root.isValid(rootCertificate, opts)
++		if err != nil {
++			continue
++		}
++		chains = append(chains, appendToFreshChain(currentChain, root))
++	}
++
++	for _, intermediate := range opts.Intermediates.FindVerifiedParents(c) {
++		err = intermediate.isValid(intermediateCertificate, opts)
++		if err != nil {
++			continue
++		}
++		var childChains [][]*Certificate
++		childChains, err = intermediate.buildChains(appendToFreshChain(currentChain, intermediate), opts)
++		chains = append(chains, childChains...)
++	}
++
++	if len(chains) > 0 {
++		err = nil
++	}
++
++	if len(chains) == 0 && err == nil {
++		err = UnknownAuthorityError{c}
++	}
++
++	return
++}
++
++func matchHostnames(pattern, host string) bool {
++	if len(pattern) == 0 || len(host) == 0 {
++		return false
++	}
++
++	patternParts := strings.Split(pattern, ".", -1)
++	hostParts := strings.Split(host, ".", -1)
++
++	if len(patternParts) != len(hostParts) {
++		return false
++	}
++
++	for i, patternPart := range patternParts {
++		if patternPart == "*" {
++			continue
++		}
++		if patternPart != hostParts[i] {
++			return false
++		}
++	}
++
++	return true
++}
++
++// VerifyHostname returns nil if c is a valid certificate for the named host.
++// Otherwise it returns an os.Error describing the mismatch.
++func (c *Certificate) VerifyHostname(h string) os.Error {
++	if len(c.DNSNames) > 0 {
++		for _, match := range c.DNSNames {
++			if matchHostnames(match, h) {
++				return nil
++			}
++		}
++		// If Subject Alt Name is given, we ignore the common name.
++	} else if matchHostnames(c.Subject.CommonName, h) {
++		return nil
++	}
++
++	return HostnameError{c, h}
++}
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+new file mode 100644
+index 0000000000..ca9f91381a
+--- /dev/null
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -0,0 +1,390 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++import (
++	"encoding/pem"
++	"os"
++	"strings"
++	"testing"
++)
++
++type verifyTest struct {
++	leaf          string
++	intermediates []string
++	roots         []string
++	currentTime   int64
++	dnsName       string
++
++	errorCallback  func(*testing.T, int, os.Error) bool
++	expectedChains [][]string
++}
++
++var verifyTests = []verifyTest{
++	{
++		leaf:          googleLeaf,
++		intermediates: []string{thawteIntermediate},
++		roots:         []string{verisignRoot},
++		currentTime:   1302726541,
++		dnsName:       "www.google.com",
++
++		expectedChains: [][]string{
++			[]string{"Google", "Thawte", "VeriSign"},
++		},
++	},
++	{
++		leaf:          googleLeaf,
++		intermediates: []string{thawteIntermediate},
++		roots:         []string{verisignRoot},
++		currentTime:   1302726541,
++		dnsName:       "www.example.com",
++
++		errorCallback: expectHostnameError,
++	},
++	{
++		leaf:          googleLeaf,
++		intermediates: []string{thawteIntermediate},
++		roots:         []string{verisignRoot},
++		currentTime:   1,
++		dnsName:       "www.example.com",
++
++		errorCallback: expectExpired,
++	},
++	{
++		leaf:        googleLeaf,
++		roots:       []string{verisignRoot},
++		currentTime: 1302726541,
++		dnsName:     "www.google.com",
++
++		errorCallback: expectAuthorityUnknown,
++	},
++	{
++		leaf:          googleLeaf,
++		intermediates: []string{verisignRoot, thawteIntermediate},
++		roots:         []string{verisignRoot},
++		currentTime:   1302726541,
++		dnsName:       "www.google.com",
++
++		expectedChains: [][]string{
++			[]string{"Google", "Thawte", "VeriSign"},
++		},
++	},
++	{
++		leaf:          googleLeaf,
++		intermediates: []string{verisignRoot, thawteIntermediate},
++		roots:         []string{verisignRoot},
++		currentTime:   1302726541,
++
++		expectedChains: [][]string{
++			[]string{"Google", "Thawte", "VeriSign"},
++		},
++	},
++	{
++		leaf:          dnssecExpLeaf,
++		intermediates: []string{startComIntermediate},
++		roots:         []string{startComRoot},
++		currentTime:   1302726541,
++
++		expectedChains: [][]string{
++			[]string{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
++		},
++	},
++}
++
++func expectHostnameError(t *testing.T, i int, err os.Error) (ok bool) {
++	if _, ok := err.(HostnameError); !ok {
++		t.Errorf("#%d: error was not a HostnameError: %s", i, err)
++		return false
++	}
++	return true
++}
++
++func expectExpired(t *testing.T, i int, err os.Error) (ok bool) {
++	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != Expired {
++		t.Errorf("#%d: error was not Expired: %s", i, err)
++		return false
++	}
++	return true
++}
++
++func expectAuthorityUnknown(t *testing.T, i int, err os.Error) (ok bool) {
++	if _, ok := err.(UnknownAuthorityError); !ok {
++		t.Errorf("#%d: error was not UnknownAuthorityError: %s", i, err)
++		return false
++	}
++	return true
++}
++
++func certificateFromPEM(pemBytes string) (*Certificate, os.Error) {
++	block, _ := pem.Decode([]byte(pemBytes))
++	if block == nil {
++		return nil, os.ErrorString("failed to decode PEM")
++	}
++	return ParseCertificate(block.Bytes)
++}
++
++func TestVerify(t *testing.T) {
++	for i, test := range verifyTests {
++		opts := VerifyOptions{
++			Roots:         NewCertPool(),
++			Intermediates: NewCertPool(),
++			DNSName:       test.dnsName,
++			CurrentTime:   test.currentTime,
++		}
++
++		for j, root := range test.roots {
++			ok := opts.Roots.AppendCertsFromPEM([]byte(root))
++			if !ok {
++				t.Error("#%d: failed to parse root #%d", i, j)
++				return
++			}
++		}
++
++		for j, intermediate := range test.intermediates {
++			ok := opts.Intermediates.AppendCertsFromPEM([]byte(intermediate))
++			if !ok {
++				t.Error("#%d: failed to parse intermediate #%d", i, j)
++				return
++			}
++		}
++
++		leaf, err := certificateFromPEM(test.leaf)
++		if err != nil {
++			t.Errorf("#%d: failed to parse leaf: %s", i, err)
++			return
++		}
++
++		chains, err := leaf.Verify(opts)
++
++		if test.errorCallback == nil && err != nil {
++			t.Errorf("#%d: unexpected error: %s", i, err)
++		}
++		if test.errorCallback != nil {
++			if !test.errorCallback(t, i, err) {
++				return
++			}
++		}
++
++		if len(chains) != len(test.expectedChains) {
++			t.Errorf("#%d: wanted %d chains, got %d", i, len(test.expectedChains), len(chains))
++		}
++
++		// We check that each returned chain matches a chain from
++		// expectedChains but an entry in expectedChains can't match
++		// two chains.
++		seenChains := make([]bool, len(chains))
++	NextOutputChain:
++		for _, chain := range chains {
++		TryNextExpected:
++			for j, expectedChain := range test.expectedChains {
++				if seenChains[j] {
++					continue
++				}
++				if len(chain) != len(expectedChain) {
++					continue
++				}
++				for k, cert := range chain {
++					if strings.Index(nameToKey(&cert.Subject), expectedChain[k]) == -1 {
++						continue TryNextExpected
++					}
++				}
++				// we matched
++				seenChains[j] = true
++				continue NextOutputChain
++			}
++			t.Errorf("#%d: No expected chain matched %s", i, chainToDebugString(chain))
++		}
++	}
++}
++
++func chainToDebugString(chain []*Certificate) string {
++	var chainStr string
++	for _, cert := range chain {
++		if len(chainStr) > 0 {
++			chainStr += " -> "
++		}
++		chainStr += nameToKey(&cert.Subject)
++	}
++	return chainStr
++}
++
++const verisignRoot = `-----BEGIN CERTIFICATE-----
++MIICPDCCAaUCEHC65B0Q2Sk0tjjKewPMur8wDQYJKoZIhvcNAQECBQAwXzELMAkG
++A1UEBhMCVVMxFzAVBgNVBAoTDlZlcmlTaWduLCBJbmMuMTcwNQYDVQQLEy5DbGFz
++cyAzIFB1YmxpYyBQcmltYXJ5IENlcnRpZmljYXRpb24gQXV0aG9yaXR5MB4XDTk2
++MDEyOTAwMDAwMFoXDTI4MDgwMTIzNTk1OVowXzELMAkGA1UEBhMCVVMxFzAVBgNV
++BAoTDlZlcmlTaWduLCBJbmMuMTcwNQYDVQQLEy5DbGFzcyAzIFB1YmxpYyBQcmlt
++YXJ5IENlcnRpZmljYXRpb24gQXV0aG9yaXR5MIGfMA0GCSqGSIb3DQEBAQUAA4GN
++ADCBiQKBgQDJXFme8huKARS0EN8EQNvjV69qRUCPhAwL0TPZ2RHP7gJYHyX3KqhE
++BarsAx94f56TuZoAqiN91qyFomNFx3InzPRMxnVx0jnvT0Lwdd8KkMaOIG+YD/is
++I19wKTakyYbnsZogy1Olhec9vn2a/iRFM9x2Fe0PonFkTGUugWhFpwIDAQABMA0G
++CSqGSIb3DQEBAgUAA4GBALtMEivPLCYATxQT3ab7/AoRhIzzKBxnki98tsX63/Do
++lbwdj2wsqFHMc9ikwFPwTtYmwHYBV4GSXiHx0bH/59AhWM1pF+NEHJwZRDmJXNyc
++AA9WjQKZ7aKQRUzkuxCkPfAyAw7xzvjoyVGM5mKf5p/AfbdynMk2OmufTqj/ZA1k
++-----END CERTIFICATE-----
++`
++
++const thawteIntermediate = `-----BEGIN CERTIFICATE-----
++MIIDIzCCAoygAwIBAgIEMAAAAjANBgkqhkiG9w0BAQUFADBfMQswCQYDVQQGEwJV
++UzEXMBUGA1UEChMOVmVyaVNpZ24sIEluYy4xNzA1BgNVBAsTLkNsYXNzIDMgUHVi
++bGljIFByaW1hcnkgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMDQwNTEzMDAw
++MDAwWhcNMTQwNTEyMjM1OTU5WjBMMQswCQYDVQQGEwJaQTElMCMGA1UEChMcVGhh
++d3RlIENvbnN1bHRpbmcgKFB0eSkgTHRkLjEWMBQGA1UEAxMNVGhhd3RlIFNHQyBD
++QTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA1NNn0I0Vf67NMf59HZGhPwtx
++PKzMyGT7Y/wySweUvW+Aui/hBJPAM/wJMyPpC3QrccQDxtLN4i/1CWPN/0ilAL/g
++5/OIty0y3pg25gqtAHvEZEo7hHUD8nCSfQ5i9SGraTaEMXWQ+L/HbIgbBpV8yeWo
++3nWhLHpo39XKHIdYYBkCAwEAAaOB/jCB+zASBgNVHRMBAf8ECDAGAQH/AgEAMAsG
++A1UdDwQEAwIBBjARBglghkgBhvhCAQEEBAMCAQYwKAYDVR0RBCEwH6QdMBsxGTAX
++BgNVBAMTEFByaXZhdGVMYWJlbDMtMTUwMQYDVR0fBCowKDAmoCSgIoYgaHR0cDov
++L2NybC52ZXJpc2lnbi5jb20vcGNhMy5jcmwwMgYIKwYBBQUHAQEEJjAkMCIGCCsG
++AQUFBzABhhZodHRwOi8vb2NzcC50aGF3dGUuY29tMDQGA1UdJQQtMCsGCCsGAQUF
++BwMBBggrBgEFBQcDAgYJYIZIAYb4QgQBBgpghkgBhvhFAQgBMA0GCSqGSIb3DQEB
++BQUAA4GBAFWsY+reod3SkF+fC852vhNRj5PZBSvIG3dLrWlQoe7e3P3bB+noOZTc
++q3J5Lwa/q4FwxKjt6lM07e8eU9kGx1Yr0Vz00YqOtCuxN5BICEIlxT6Ky3/rbwTR
++bcV0oveifHtgPHfNDs5IAn8BL7abN+AqKjbc1YXWrOU/VG+WHgWv
++-----END CERTIFICATE-----
++`
++
++const googleLeaf = `-----BEGIN CERTIFICATE-----
++MIIDITCCAoqgAwIBAgIQL9+89q6RUm0PmqPfQDQ+mjANBgkqhkiG9w0BAQUFADBM
++MQswCQYDVQQGEwJaQTElMCMGA1UEChMcVGhhd3RlIENvbnN1bHRpbmcgKFB0eSkg
++THRkLjEWMBQGA1UEAxMNVGhhd3RlIFNHQyBDQTAeFw0wOTEyMTgwMDAwMDBaFw0x
++MTEyMTgyMzU5NTlaMGgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlh
++MRYwFAYDVQQHFA1Nb3VudGFpbiBWaWV3MRMwEQYDVQQKFApHb29nbGUgSW5jMRcw
++FQYDVQQDFA53d3cuZ29vZ2xlLmNvbTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkC
++gYEA6PmGD5D6htffvXImttdEAoN4c9kCKO+IRTn7EOh8rqk41XXGOOsKFQebg+jN
++gtXj9xVoRaELGYW84u+E593y17iYwqG7tcFR39SDAqc9BkJb4SLD3muFXxzW2k6L
++05vuuWciKh0R73mkszeK9P4Y/bz5RiNQl/Os/CRGK1w7t0UCAwEAAaOB5zCB5DAM
++BgNVHRMBAf8EAjAAMDYGA1UdHwQvMC0wK6ApoCeGJWh0dHA6Ly9jcmwudGhhd3Rl
++LmNvbS9UaGF3dGVTR0NDQS5jcmwwKAYDVR0lBCEwHwYIKwYBBQUHAwEGCCsGAQUF
++BwMCBglghkgBhvhCBAEwcgYIKwYBBQUHAQEEZjBkMCIGCCsGAQUFBzABhhZodHRw
++Oi8vb2NzcC50aGF3dGUuY29tMD4GCCsGAQUFBzAChjJodHRwOi8vd3d3LnRoYXd0
++ZS5jb20vcmVwb3NpdG9yeS9UaGF3dGVfU0dDX0NBLmNydDANBgkqhkiG9w0BAQUF
++AAOBgQCfQ89bxFApsb/isJr/aiEdLRLDLE5a+RLizrmCUi3nHX4adpaQedEkUjh5
++u2ONgJd8IyAPkU0Wueru9G2Jysa9zCRo1kNbzipYvzwY4OA8Ys+WAi0oR1A04Se6
++z5nRUP8pJcA2NhUzUnC+MY+f6H/nEQyNv4SgQhqAibAxWEEHXw==
++-----END CERTIFICATE-----`
++
++const dnssecExpLeaf = `-----BEGIN CERTIFICATE-----
++MIIGzTCCBbWgAwIBAgIDAdD6MA0GCSqGSIb3DQEBBQUAMIGMMQswCQYDVQQGEwJJ
++TDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0
++YWwgQ2VydGlmaWNhdGUgU2lnbmluZzE4MDYGA1UEAxMvU3RhcnRDb20gQ2xhc3Mg
++MSBQcmltYXJ5IEludGVybWVkaWF0ZSBTZXJ2ZXIgQ0EwHhcNMTAwNzA0MTQ1MjQ1
++WhcNMTEwNzA1MTA1NzA0WjCBwTEgMB4GA1UEDRMXMjIxMTM3LWxpOWE5dHhJRzZM
++NnNyVFMxCzAJBgNVBAYTAlVTMR4wHAYDVQQKExVQZXJzb25hIE5vdCBWYWxpZGF0
++ZWQxKTAnBgNVBAsTIFN0YXJ0Q29tIEZyZWUgQ2VydGlmaWNhdGUgTWVtYmVyMRsw
++GQYDVQQDExJ3d3cuZG5zc2VjLWV4cC5vcmcxKDAmBgkqhkiG9w0BCQEWGWhvc3Rt
++YXN0ZXJAZG5zc2VjLWV4cC5vcmcwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK
++AoIBAQDEdF/22vaxrPbqpgVYMWi+alfpzBctpbfLBdPGuqOazJdCT0NbWcK8/+B4
++X6OlSOURNIlwLzhkmwVsWdVv6dVSaN7d4yI/fJkvgfDB9+au+iBJb6Pcz8ULBfe6
++D8HVvqKdORp6INzHz71z0sghxrQ0EAEkoWAZLh+kcn2ZHdcmZaBNUfjmGbyU6PRt
++RjdqoP+owIaC1aktBN7zl4uO7cRjlYFdusINrh2kPP02KAx2W84xjxX1uyj6oS6e
++7eBfvcwe8czW/N1rbE0CoR7h9+HnIrjnVG9RhBiZEiw3mUmF++Up26+4KTdRKbu3
+++BL4yMpfd66z0+zzqu+HkvyLpFn5AgMBAAGjggL/MIIC+zAJBgNVHRMEAjAAMAsG
++A1UdDwQEAwIDqDATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUy04I5guM
++drzfh2JQaXhgV86+4jUwHwYDVR0jBBgwFoAU60I00Jiwq5/0G2sI98xkLu8OLEUw
++LQYDVR0RBCYwJIISd3d3LmRuc3NlYy1leHAub3Jngg5kbnNzZWMtZXhwLm9yZzCC
++AUIGA1UdIASCATkwggE1MIIBMQYLKwYBBAGBtTcBAgIwggEgMC4GCCsGAQUFBwIB
++FiJodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9wb2xpY3kucGRmMDQGCCsGAQUFBwIB
++FihodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9pbnRlcm1lZGlhdGUucGRmMIG3Bggr
++BgEFBQcCAjCBqjAUFg1TdGFydENvbSBMdGQuMAMCAQEagZFMaW1pdGVkIExpYWJp
++bGl0eSwgc2VlIHNlY3Rpb24gKkxlZ2FsIExpbWl0YXRpb25zKiBvZiB0aGUgU3Rh
++cnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkgUG9saWN5IGF2YWlsYWJsZSBh
++dCBodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9wb2xpY3kucGRmMGEGA1UdHwRaMFgw
++KqAooCaGJGh0dHA6Ly93d3cuc3RhcnRzc2wuY29tL2NydDEtY3JsLmNybDAqoCig
++JoYkaHR0cDovL2NybC5zdGFydHNzbC5jb20vY3J0MS1jcmwuY3JsMIGOBggrBgEF
++BQcBAQSBgTB/MDkGCCsGAQUFBzABhi1odHRwOi8vb2NzcC5zdGFydHNzbC5jb20v
++c3ViL2NsYXNzMS9zZXJ2ZXIvY2EwQgYIKwYBBQUHMAKGNmh0dHA6Ly93d3cuc3Rh
++cnRzc2wuY29tL2NlcnRzL3N1Yi5jbGFzczEuc2VydmVyLmNhLmNydDAjBgNVHRIE
++HDAahhhodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS8wDQYJKoZIhvcNAQEFBQADggEB
++ACXj6SB59KRJPenn6gUdGEqcta97U769SATyiQ87i9er64qLwvIGLMa3o2Rcgl2Y
++kghUeyLdN/EXyFBYA8L8uvZREPoc7EZukpT/ZDLXy9i2S0jkOxvF2fD/XLbcjGjM
++iEYG1/6ASw0ri9C0k4oDDoJLCoeH9++yqF7SFCCMcDkJqiAGXNb4euDpa8vCCtEQ
++CSS+ObZbfkreRt3cNCf5LfCXe9OsTnCfc8Cuq81c0oLaG+SmaLUQNBuToq8e9/Zm
+++b+/a3RVjxmkV5OCcGVBxsXNDn54Q6wsdw0TBMcjwoEndzpLS7yWgFbbkq5ZiGpw
++Qibb2+CfKuQ+WFV1GkVQmVA=
++-----END CERTIFICATE-----`
++
++const startComIntermediate = `-----BEGIN CERTIFICATE-----
++MIIGNDCCBBygAwIBAgIBGDANBgkqhkiG9w0BAQUFADB9MQswCQYDVQQGEwJJTDEW
++MBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
++Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNh
++dGlvbiBBdXRob3JpdHkwHhcNMDcxMDI0MjA1NDE3WhcNMTcxMDI0MjA1NDE3WjCB
++jDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0ZC4xKzApBgNVBAsT
++IlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMTL1N0
++YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgU2VydmVyIENBMIIB
++IjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtonGrO8JUngHrJJj0PREGBiE
++gFYfka7hh/oyULTTRwbw5gdfcA4Q9x3AzhA2NIVaD5Ksg8asWFI/ujjo/OenJOJA
++pgh2wJJuniptTT9uYSAK21ne0n1jsz5G/vohURjXzTCm7QduO3CHtPn66+6CPAVv
++kvek3AowHpNz/gfK11+AnSJYUq4G2ouHI2mw5CrY6oPSvfNx23BaKA+vWjhwRRI/
++ME3NO68X5Q/LoKldSKqxYVDLNM08XMML6BDAjJvwAwNi/rJsPnIO7hxDKslIDlc5
++xDEhyBDBLIf+VJVSH1I8MRKbf+fAoKVZ1eKPPvDVqOHXcDGpxLPPr21TLwb0pwID
++AQABo4IBrTCCAakwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYD
++VR0OBBYEFOtCNNCYsKuf9BtrCPfMZC7vDixFMB8GA1UdIwQYMBaAFE4L7xqkQFul
++F2mHMMo0aEPQQa7yMGYGCCsGAQUFBwEBBFowWDAnBggrBgEFBQcwAYYbaHR0cDov
++L29jc3Auc3RhcnRzc2wuY29tL2NhMC0GCCsGAQUFBzAChiFodHRwOi8vd3d3LnN0
++YXJ0c3NsLmNvbS9zZnNjYS5jcnQwWwYDVR0fBFQwUjAnoCWgI4YhaHR0cDovL3d3
++dy5zdGFydHNzbC5jb20vc2ZzY2EuY3JsMCegJaAjhiFodHRwOi8vY3JsLnN0YXJ0
++c3NsLmNvbS9zZnNjYS5jcmwwgYAGA1UdIAR5MHcwdQYLKwYBBAGBtTcBAgEwZjAu
++BggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjA0
++BggrBgEFBQcCARYoaHR0cDovL3d3dy5zdGFydHNzbC5jb20vaW50ZXJtZWRpYXRl
++LnBkZjANBgkqhkiG9w0BAQUFAAOCAgEAIQlJPqWIbuALi0jaMU2P91ZXouHTYlfp
++tVbzhUV1O+VQHwSL5qBaPucAroXQ+/8gA2TLrQLhxpFy+KNN1t7ozD+hiqLjfDen
++xk+PNdb01m4Ge90h2c9W/8swIkn+iQTzheWq8ecf6HWQTd35RvdCNPdFWAwRDYSw
++xtpdPvkBnufh2lWVvnQce/xNFE+sflVHfXv0pQ1JHpXo9xLBzP92piVH0PN1Nb6X
++t1gW66pceG/sUzCv6gRNzKkC4/C2BBL2MLERPZBOVmTX3DxDX3M570uvh+v2/miI
++RHLq0gfGabDBoYvvF0nXYbFFSF87ICHpW7LM9NfpMfULFWE7epTj69m8f5SuauNi
++YpaoZHy4h/OZMn6SolK+u/hlz8nyMPyLwcKmltdfieFcNID1j0cHL7SRv7Gifl9L
++WtBbnySGBVFaaQNlQ0lxxeBvlDRr9hvYqbBMflPrj0jfyjO1SPo2ShpTpjMM0InN
++SRXNiTE8kMBy12VLUjWKRhFEuT2OKGWmPnmeXAhEKa2wNREuIU640ucQPl2Eg7PD
++wuTSxv0JS3QJ3fGz0xk+gA2iCxnwOOfFwq/iI9th4p1cbiCJSS4jarJiwUW0n6+L
++p/EiO/h94pDQehn7Skzj0n1fSoMD7SfWI55rjbRZotnvbIIp3XUZPD9MEI3vu3Un
++0q6Dp6jOW6c=
++-----END CERTIFICATE-----`
++
++const startComRoot = `-----BEGIN CERTIFICATE-----
++MIIHyTCCBbGgAwIBAgIBATANBgkqhkiG9w0BAQUFADB9MQswCQYDVQQGEwJJTDEW
++MBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
++Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNh
++dGlvbiBBdXRob3JpdHkwHhcNMDYwOTE3MTk0NjM2WhcNMzYwOTE3MTk0NjM2WjB9
++MQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMi
++U2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3Rh
++cnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwggIiMA0GCSqGSIb3DQEBAQUA
++A4ICDwAwggIKAoICAQDBiNsJvGxGfHiflXu1M5DycmLWwTYgIiRezul38kMKogZk
++pMyONvg45iPwbm2xPN1yo4UcodM9tDMr0y+v/uqwQVlntsQGfQqedIXWeUyAN3rf
++OQVSWff0G0ZDpNKFhdLDcfN1YjS6LIp/Ho/u7TTQEceWzVI9ujPW3U3eCztKS5/C
++Ji/6tRYccjV3yjxd5srhJosaNnZcAdt0FCX+7bWgiA/deMotHweXMAEtcnn6RtYT
++Kqi5pquDSR3l8u/d5AGOGAqPY1MWhWKpDhk6zLVmpsJrdAfkK+F2PrRt2PZE4XNi
++HzvEvqBTViVsUQn3qqvKv3b9bZvzndu/PWa8DFaqr5hIlTpL36dYUNk4dalb6kMM
++Av+Z6+hsTXBbKWWc3apdzK8BMewM69KN6Oqce+Zu9ydmDBpI125C4z/eIT574Q1w
+++2OqqGwaVLRcJXrJosmLFqa7LH4XXgVNWG4SHQHuEhANxjJ/GP/89PrNbpHoNkm+
++Gkhpi8KWTRoSsmkXwQqQ1vp5Iki/untp+HDH+no32NgN0nZPV/+Qt+OR0t3vwmC3
++Zzrd/qqc8NSLf3Iizsafl7b4r4qgEKjZ+xjGtrVcUjyJthkqcwEKDwOzEmDyei+B
++26Nu/yYwl/WL3YlXtq09s68rxbd2AvCl1iuahhQqcvbjM4xdCUsT37uMdBNSSwID
++AQABo4ICUjCCAk4wDAYDVR0TBAUwAwEB/zALBgNVHQ8EBAMCAa4wHQYDVR0OBBYE
++FE4L7xqkQFulF2mHMMo0aEPQQa7yMGQGA1UdHwRdMFswLKAqoCiGJmh0dHA6Ly9j
++ZXJ0LnN0YXJ0Y29tLm9yZy9zZnNjYS1jcmwuY3JsMCugKaAnhiVodHRwOi8vY3Js
++LnN0YXJ0Y29tLm9yZy9zZnNjYS1jcmwuY3JsMIIBXQYDVR0gBIIBVDCCAVAwggFM
++BgsrBgEEAYG1NwEBATCCATswLwYIKwYBBQUHAgEWI2h0dHA6Ly9jZXJ0LnN0YXJ0
++Y29tLm9yZy9wb2xpY3kucGRmMDUGCCsGAQUFBwIBFilodHRwOi8vY2VydC5zdGFy
++dGNvbS5vcmcvaW50ZXJtZWRpYXRlLnBkZjCB0AYIKwYBBQUHAgIwgcMwJxYgU3Rh
++cnQgQ29tbWVyY2lhbCAoU3RhcnRDb20pIEx0ZC4wAwIBARqBl0xpbWl0ZWQgTGlh
++YmlsaXR5LCByZWFkIHRoZSBzZWN0aW9uICpMZWdhbCBMaW1pdGF0aW9ucyogb2Yg
++dGhlIFN0YXJ0Q29tIENlcnRpZmljYXRpb24gQXV0aG9yaXR5IFBvbGljeSBhdmFp
++bGFibGUgYXQgaHR0cDovL2NlcnQuc3RhcnRjb20ub3JnL3BvbGljeS5wZGYwEQYJ
++YIZIAYb4QgEBBAQDAgAHMDgGCWCGSAGG+EIBDQQrFilTdGFydENvbSBGcmVlIFNT
++TCBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTANBgkqhkiG9w0BAQUFAAOCAgEAFmyZ
++9GYMNPXQhV59CuzaEE44HF7fpiUFS5Eyweg78T3dRAlbB0mKKctmArexmvclmAk8
++jhvh3TaHK0u7aNM5Zj2gJsfyOZEdUauCe37Vzlrk4gNXcGmXCPleWKYK34wGmkUW
++FjgKXlf2Ysd6AgXmvB618p70qSmD+LIU424oh0TDkBreOKk8rENNZEXO3SipXPJz
++ewT4F+irsfMuXGRuczE6Eri8sxHkfY+BUZo7jYn0TZNmezwD7dOaHZrzZVD1oNB1
++ny+v8OqCQ5j4aZyJecRDjkZy42Q2Eq/3JR44iZB3fsNrarnDy0RLrHiQi+fHLB5L
++EUTINFInzQpdn4XBidUaePKVEFMy3YCEZnXZtWgo+2EuvoSoOMCZEoalHmdkrQYu
++L6lwhceWD3yJZfWOQ1QOq92lgDmUYMA0yZZwLKMS9R9Ie70cfmu3nZD0Ijuu+Pwq
++yvqCUqDvr0tVk+vBtfAii6w0TiYiBKGHLHVKt+V9E9e4DGTANtLJL4YSjCMJwRuC
++O3NJo2pXh5Tl1njFmUNj403gdy3hZZlyaQQaRwnmDwFWJPsfvw55qVguucQJAX6V
++um0ABj6y6koQOdjQK/W/7HW/lwLFCRsI3FU34oH7N4RDYiDK51ZLZer+bMEkkySh
++NOsF/5oirpt9P/FlUQqmMGqz9IgcgA38corog14=
++-----END CERTIFICATE-----`

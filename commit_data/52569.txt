@@ -14,7 +14,7 @@ Date:   Fri Apr 22 10:10:23 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/doc/example.go                              | 135 +++++++++++--
  .../doc/testdata/examples/generic_constraints.go   |  38 ++++
  .../testdata/examples/generic_constraints.golden   |  39 ++++
@@ -25,3 +25,791 @@ Date:   Fri Apr 22 10:10:23 2022 -0400
  src/go/doc/testdata/examples/values.go             |  22 ++
  src/go/doc/testdata/examples/values.golden         |  21 ++
  9 files changed, 676 insertions(+), 15 deletions(-)
+
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index a24c47da74..6d0459ec5b 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -324,10 +324,23 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
+ 	}
+ }
+ 
++// findDeclsAndUnresolved returns all the top-level declarations mentioned in
++// the body, and a set of unresolved symbols (those that appear in the body but
++// have no declaration in the program).
++//
++// topDecls maps objects to the top-level declaration declaring them (not
++// necessarily obj.Decl, as obj.Decl will be a Spec for GenDecls, but
++// topDecls[obj] will be the GenDecl itself).
+ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, typMethods map[string][]ast.Decl) ([]ast.Decl, map[string]bool) {
++	// This function recursively finds every top-level declaration used
++	// transitively by the body, populating usedDecls and usedObjs. Then it
++	// trims down the declarations to include only the symbols actually
++	// referenced by the body.
++
+ 	unresolved := make(map[string]bool)
+ 	var depDecls []ast.Decl
+-	hasDepDecls := make(map[ast.Decl]bool)
++	usedDecls := make(map[ast.Decl]bool)   // set of top-level decls reachable from the body
++	usedObjs := make(map[*ast.Object]bool) // set of objects reachable from the body (each declared by a usedDecl)
+ 
+ 	var inspectFunc func(ast.Node) bool
+ 	inspectFunc = func(n ast.Node) bool {
+@@ -336,8 +349,10 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
+ 			if e.Obj == nil && e.Name != "_" {
+ 				unresolved[e.Name] = true
+ 			} else if d := topDecls[e.Obj]; d != nil {
+-				if !hasDepDecls[d] {
+-					hasDepDecls[d] = true
++
++				usedObjs[e.Obj] = true
++				if !usedDecls[d] {
++					usedDecls[d] = true
+ 					depDecls = append(depDecls, d)
+ 				}
+ 			}
+@@ -357,21 +372,27 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
+ 		}
+ 		return true
+ 	}
++
++	inspectFieldList := func(fl *ast.FieldList) {
++		if fl != nil {
++			for _, f := range fl.List {
++				ast.Inspect(f.Type, inspectFunc)
++			}
++		}
++	}
++
++	// Find the decls immediately referenced by body.
+ 	ast.Inspect(body, inspectFunc)
++	// Now loop over them, adding to the list when we find a new decl that the
++	// body depends on. Keep going until we don't find anything new.
+ 	for i := 0; i < len(depDecls); i++ {
+ 		switch d := depDecls[i].(type) {
+ 		case *ast.FuncDecl:
++			// Inpect type parameters.
++			inspectFieldList(d.Type.TypeParams)
+ 			// Inspect types of parameters and results. See #28492.
+-			if d.Type.Params != nil {
+-				for _, p := range d.Type.Params.List {
+-					ast.Inspect(p.Type, inspectFunc)
+-				}
+-			}
+-			if d.Type.Results != nil {
+-				for _, r := range d.Type.Results.List {
+-					ast.Inspect(r.Type, inspectFunc)
+-				}
+-			}
++			inspectFieldList(d.Type.Params)
++			inspectFieldList(d.Type.Results)
+ 
+ 			// Functions might not have a body. See #42706.
+ 			if d.Body != nil {
+@@ -381,8 +402,8 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
+ 			for _, spec := range d.Specs {
+ 				switch s := spec.(type) {
+ 				case *ast.TypeSpec:
++					inspectFieldList(s.TypeParams)
+ 					ast.Inspect(s.Type, inspectFunc)
+-
+ 					depDecls = append(depDecls, typMethods[s.Name.Name]...)
+ 				case *ast.ValueSpec:
+ 					if s.Type != nil {
+@@ -395,7 +416,91 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
+ 			}
+ 		}
+ 	}
+-	return depDecls, unresolved
++
++	// Some decls include multiple specs, such as a variable declaration with
++	// multiple variables on the same line, or a parenthesized declaration. Trim
++	// the declarations to include only the specs that are actually mentioned.
++	// However, if there is a constant group with iota, leave it all: later
++	// constant declarations in the group may have no value and so cannot stand
++	// on their own, and removing any constant from the group could change the
++	// values of subsequent ones.
++	// See testdata/examples/iota.go for a minimal example.
++	var ds []ast.Decl
++	for _, d := range depDecls {
++		switch d := d.(type) {
++		case *ast.FuncDecl:
++			ds = append(ds, d)
++		case *ast.GenDecl:
++			containsIota := false // does any spec have iota?
++			// Collect all Specs that were mentioned in the example.
++			var specs []ast.Spec
++			for _, s := range d.Specs {
++				switch s := s.(type) {
++				case *ast.TypeSpec:
++					if usedObjs[s.Name.Obj] {
++						specs = append(specs, s)
++					}
++				case *ast.ValueSpec:
++					if !containsIota {
++						containsIota = hasIota(s)
++					}
++					// A ValueSpec may have multiple names (e.g. "var a, b int").
++					// Keep only the names that were mentioned in the example.
++					// Exception: the multiple names have a single initializer (which
++					// would be a function call with multiple return values). In that
++					// case, keep everything.
++					if len(s.Names) > 1 && len(s.Values) == 1 {
++						specs = append(specs, s)
++						continue
++					}
++					ns := *s
++					ns.Names = nil
++					ns.Values = nil
++					for i, n := range s.Names {
++						if usedObjs[n.Obj] {
++							ns.Names = append(ns.Names, n)
++							if s.Values != nil {
++								ns.Values = append(ns.Values, s.Values[i])
++							}
++						}
++					}
++					if len(ns.Names) > 0 {
++						specs = append(specs, &ns)
++					}
++				}
++			}
++			if len(specs) > 0 {
++				// Constant with iota? Keep it all.
++				if d.Tok == token.CONST && containsIota {
++					ds = append(ds, d)
++				} else {
++					// Synthesize a GenDecl with just the Specs we need.
++					nd := *d // copy the GenDecl
++					nd.Specs = specs
++					if len(specs) == 1 {
++						// Remove grouping parens if there is only one spec.
++						nd.Lparen = 0
++					}
++					ds = append(ds, &nd)
++				}
++			}
++		}
++	}
++	return ds, unresolved
++}
++
++func hasIota(s ast.Spec) bool {
++	has := false
++	ast.Inspect(s, func(n ast.Node) bool {
++		// Check that this is the special built-in "iota" identifier, not
++		// a user-defined shadow.
++		if id, ok := n.(*ast.Ident); ok && id.Name == "iota" && id.Obj == nil {
++			has = true
++			return false
++		}
++		return true
++	})
++	return has
+ }
+ 
+ // findImportGroupStarts finds the start positions of each sequence of import
+diff --git a/src/go/doc/testdata/examples/generic_constraints.go b/src/go/doc/testdata/examples/generic_constraints.go
+new file mode 100644
+index 0000000000..ea5d2b37f4
+--- /dev/null
++++ b/src/go/doc/testdata/examples/generic_constraints.go
+@@ -0,0 +1,38 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p_test
++
++import (
++	"fmt"
++	"time"
++)
++
++type C1 interface {
++	string | int
++}
++
++type C2 interface {
++	M(time.Time)
++}
++
++type G[T C1] int
++
++func g[T C2](x T) {}
++
++type Tm int
++
++func (Tm) M(time.Time) {}
++
++type Foo int
++
++func Example() {
++	fmt.Println("hello")
++}
++
++func ExampleGeneric() {
++	var x G[string]
++	g(Tm(3))
++	fmt.Println(x)
++}
+diff --git a/src/go/doc/testdata/examples/generic_constraints.golden b/src/go/doc/testdata/examples/generic_constraints.golden
+new file mode 100644
+index 0000000000..6c7b0eda9f
+--- /dev/null
++++ b/src/go/doc/testdata/examples/generic_constraints.golden
+@@ -0,0 +1,39 @@
++-- .Play --
++package main
++
++import (
++	"fmt"
++)
++
++func main() {
++	fmt.Println("hello")
++}
++-- Generic.Play --
++package main
++
++import (
++	"fmt"
++	"time"
++)
++
++type C1 interface {
++	string | int
++}
++
++type C2 interface {
++	M(time.Time)
++}
++
++type G[T C1] int
++
++func g[T C2](x T) {}
++
++type Tm int
++
++func (Tm) M(time.Time) {}
++
++func main() {
++	var x G[string]
++	g(Tm(3))
++	fmt.Println(x)
++}
+diff --git a/src/go/doc/testdata/examples/iota.go b/src/go/doc/testdata/examples/iota.go
+new file mode 100644
+index 0000000000..c878b7708e
+--- /dev/null
++++ b/src/go/doc/testdata/examples/iota.go
+@@ -0,0 +1,34 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo_test
++
++const (
++	a = iota
++	b
++)
++
++const (
++	c = 3
++	d = 4
++)
++
++const (
++	e = iota
++	f
++)
++
++// The example refers to only one of the constants in the iota group, but we
++// must keep all of them because of the iota. The second group of constants can
++// be trimmed. The third has an iota, but is unused, so it can be eliminated.
++
++func Example() {
++	_ = b
++	_ = d
++}
++
++// Need two examples to hit the playExample function.
++
++func Example2() {
++}
+diff --git a/src/go/doc/testdata/examples/iota.golden b/src/go/doc/testdata/examples/iota.golden
+new file mode 100644
+index 0000000000..748770260b
+--- /dev/null
++++ b/src/go/doc/testdata/examples/iota.golden
+@@ -0,0 +1,23 @@
++-- .Play --
++package main
++
++import ()
++
++const (
++	a = iota
++	b
++)
++
++const d = 4
++
++func main() {
++	_ = b
++	_ = d
++}
++-- 2.Play --
++package main
++
++import ()
++
++func main() {
++}
+diff --git a/src/go/doc/testdata/examples/issue43658.go b/src/go/doc/testdata/examples/issue43658.go
+new file mode 100644
+index 0000000000..385223acf3
+--- /dev/null
++++ b/src/go/doc/testdata/examples/issue43658.go
+@@ -0,0 +1,223 @@
++// Copyright ©2016 The Gonum Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
++// (above line required for our license-header checker)
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package community_test
++
++import (
++	"fmt"
++	"log"
++	"sort"
++
++	"golang.org/x/exp/rand"
++
++	"gonum.org/v1/gonum/graph/community"
++	"gonum.org/v1/gonum/graph/internal/ordered"
++	"gonum.org/v1/gonum/graph/simple"
++)
++
++func ExampleProfile_simple() {
++	// Profile calls Modularize which implements the Louvain modularization algorithm.
++	// Since this is a randomized algorithm we use a defined random source to ensure
++	// consistency between test runs. In practice, results will not differ greatly
++	// between runs with different PRNG seeds.
++	src := rand.NewSource(1)
++
++	// Create dumbell graph:
++	//
++	//  0       4
++	//  |\     /|
++	//  | 2 - 3 |
++	//  |/     \|
++	//  1       5
++	//
++	g := simple.NewUndirectedGraph()
++	for u, e := range smallDumbell {
++		for v := range e {
++			g.SetEdge(simple.Edge{F: simple.Node(u), T: simple.Node(v)})
++		}
++	}
++
++	// Get the profile of internal node weight for resolutions
++	// between 0.1 and 10 using logarithmic bisection.
++	p, err := community.Profile(
++		community.ModularScore(g, community.Weight, 10, src),
++		true, 1e-3, 0.1, 10,
++	)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// Print out each step with communities ordered.
++	for _, d := range p {
++		comm := d.Communities()
++		for _, c := range comm {
++			sort.Sort(ordered.ByID(c))
++		}
++		sort.Sort(ordered.BySliceIDs(comm))
++		fmt.Printf("Low:%.2v High:%.2v Score:%v Communities:%v Q=%.3v\n",
++			d.Low, d.High, d.Score, comm, community.Q(g, comm, d.Low))
++	}
++
++	// Output:
++	// Low:0.1 High:0.29 Score:14 Communities:[[0 1 2 3 4 5]] Q=0.9
++	// Low:0.29 High:2.3 Score:12 Communities:[[0 1 2] [3 4 5]] Q=0.714
++	// Low:2.3 High:3.5 Score:4 Communities:[[0 1] [2] [3] [4 5]] Q=-0.31
++	// Low:3.5 High:10 Score:0 Communities:[[0] [1] [2] [3] [4] [5]] Q=-0.607
++}
++
++// intset is an integer set.
++type intset map[int]struct{}
++
++func linksTo(i ...int) intset {
++	if len(i) == 0 {
++		return nil
++	}
++	s := make(intset)
++	for _, v := range i {
++		s[v] = struct{}{}
++	}
++	return s
++}
++
++var (
++	smallDumbell = []intset{
++		0: linksTo(1, 2),
++		1: linksTo(2),
++		2: linksTo(3),
++		3: linksTo(4, 5),
++		4: linksTo(5),
++		5: nil,
++	}
++
++	// http://www.slate.com/blogs/the_world_/2014/07/17/the_middle_east_friendship_chart.html
++	middleEast = struct{ friends, complicated, enemies []intset }{
++		// green cells
++		friends: []intset{
++			0:  nil,
++			1:  linksTo(5, 7, 9, 12),
++			2:  linksTo(11),
++			3:  linksTo(4, 5, 10),
++			4:  linksTo(3, 5, 10),
++			5:  linksTo(1, 3, 4, 8, 10, 12),
++			6:  nil,
++			7:  linksTo(1, 12),
++			8:  linksTo(5, 9, 11),
++			9:  linksTo(1, 8, 12),
++			10: linksTo(3, 4, 5),
++			11: linksTo(2, 8),
++			12: linksTo(1, 5, 7, 9),
++		},
++
++		// yellow cells
++		complicated: []intset{
++			0:  linksTo(2, 4),
++			1:  linksTo(4, 8),
++			2:  linksTo(0, 3, 4, 5, 8, 9),
++			3:  linksTo(2, 8, 11),
++			4:  linksTo(0, 1, 2, 8),
++			5:  linksTo(2),
++			6:  nil,
++			7:  linksTo(9, 11),
++			8:  linksTo(1, 2, 3, 4, 10, 12),
++			9:  linksTo(2, 7, 11),
++			10: linksTo(8),
++			11: linksTo(3, 7, 9, 12),
++			12: linksTo(8, 11),
++		},
++
++		// red cells
++		enemies: []intset{
++			0:  linksTo(1, 3, 5, 6, 7, 8, 9, 10, 11, 12),
++			1:  linksTo(0, 2, 3, 6, 10, 11),
++			2:  linksTo(1, 6, 7, 10, 12),
++			3:  linksTo(0, 1, 6, 7, 9, 12),
++			4:  linksTo(6, 7, 9, 11, 12),
++			5:  linksTo(0, 6, 7, 9, 11),
++			6:  linksTo(0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12),
++			7:  linksTo(0, 2, 3, 4, 5, 6, 8, 10),
++			8:  linksTo(0, 6, 7),
++			9:  linksTo(0, 3, 4, 5, 6, 10),
++			10: linksTo(0, 1, 2, 6, 7, 9, 11, 12),
++			11: linksTo(0, 1, 4, 5, 6, 10),
++			12: linksTo(0, 2, 3, 4, 6, 10),
++		},
++	}
++)
++
++var friends, enemies *simple.WeightedUndirectedGraph
++
++func init() {
++	friends = simple.NewWeightedUndirectedGraph(0, 0)
++	for u, e := range middleEast.friends {
++		// Ensure unconnected nodes are included.
++		if friends.Node(int64(u)) == nil {
++			friends.AddNode(simple.Node(u))
++		}
++		for v := range e {
++			friends.SetWeightedEdge(simple.WeightedEdge{F: simple.Node(u), T: simple.Node(v), W: 1})
++		}
++	}
++	enemies = simple.NewWeightedUndirectedGraph(0, 0)
++	for u, e := range middleEast.enemies {
++		// Ensure unconnected nodes are included.
++		if enemies.Node(int64(u)) == nil {
++			enemies.AddNode(simple.Node(u))
++		}
++		for v := range e {
++			enemies.SetWeightedEdge(simple.WeightedEdge{F: simple.Node(u), T: simple.Node(v), W: -1})
++		}
++	}
++}
++
++func ExampleProfile_multiplex() {
++	// Profile calls ModularizeMultiplex which implements the Louvain modularization
++	// algorithm. Since this is a randomized algorithm we use a defined random source
++	// to ensure consistency between test runs. In practice, results will not differ
++	// greatly between runs with different PRNG seeds.
++	src := rand.NewSource(1)
++
++	// The undirected graphs, friends and enemies, are the political relationships
++	// in the Middle East as described in the Slate article:
++	// http://www.slate.com/blogs/the_world_/2014/07/17/the_middle_east_friendship_chart.html
++	g, err := community.NewUndirectedLayers(friends, enemies)
++	if err != nil {
++		log.Fatal(err)
++	}
++	weights := []float64{1, -1}
++
++	// Get the profile of internal node weight for resolutions
++	// between 0.1 and 10 using logarithmic bisection.
++	p, err := community.Profile(
++		community.ModularMultiplexScore(g, weights, true, community.WeightMultiplex, 10, src),
++		true, 1e-3, 0.1, 10,
++	)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// Print out each step with communities ordered.
++	for _, d := range p {
++		comm := d.Communities()
++		for _, c := range comm {
++			sort.Sort(ordered.ByID(c))
++		}
++		sort.Sort(ordered.BySliceIDs(comm))
++		fmt.Printf("Low:%.2v High:%.2v Score:%v Communities:%v Q=%.3v\n",
++			d.Low, d.High, d.Score, comm, community.QMultiplex(g, comm, weights, []float64{d.Low}))
++	}
++
++	// Output:
++	// Low:0.1 High:0.72 Score:26 Communities:[[0] [1 7 9 12] [2 8 11] [3 4 5 10] [6]] Q=[24.7 1.97]
++	// Low:0.72 High:1.1 Score:24 Communities:[[0 6] [1 7 9 12] [2 8 11] [3 4 5 10]] Q=[16.9 14.1]
++	// Low:1.1 High:1.2 Score:18 Communities:[[0 2 6 11] [1 7 9 12] [3 4 5 8 10]] Q=[9.16 25.1]
++	// Low:1.2 High:1.6 Score:10 Communities:[[0 3 4 5 6 10] [1 7 9 12] [2 8 11]] Q=[10.5 26.7]
++	// Low:1.6 High:1.6 Score:8 Communities:[[0 1 6 7 9 12] [2 8 11] [3 4 5 10]] Q=[5.56 39.8]
++	// Low:1.6 High:1.8 Score:2 Communities:[[0 2 3 4 5 6 10] [1 7 8 9 11 12]] Q=[-1.82 48.6]
++	// Low:1.8 High:2.3 Score:-6 Communities:[[0 2 3 4 5 6 8 10 11] [1 7 9 12]] Q=[-5 57.5]
++	// Low:2.3 High:2.4 Score:-10 Communities:[[0 1 2 6 7 8 9 11 12] [3 4 5 10]] Q=[-11.2 79]
++	// Low:2.4 High:4.3 Score:-52 Communities:[[0 1 2 3 4 5 6 7 8 9 10 11 12]] Q=[-46.1 117]
++	// Low:4.3 High:10 Score:-54 Communities:[[0 1 2 3 4 6 7 8 9 10 11 12] [5]] Q=[-82 254]
++}
+diff --git a/src/go/doc/testdata/examples/issue43658.golden b/src/go/doc/testdata/examples/issue43658.golden
+new file mode 100644
+index 0000000000..5200d14584
+--- /dev/null
++++ b/src/go/doc/testdata/examples/issue43658.golden
+@@ -0,0 +1,156 @@
++-- Profile_simple.Play --
++package main
++
++import (
++	"fmt"
++	"log"
++	"sort"
++
++	"golang.org/x/exp/rand"
++
++	"gonum.org/v1/gonum/graph/community"
++	"gonum.org/v1/gonum/graph/internal/ordered"
++	"gonum.org/v1/gonum/graph/simple"
++)
++
++func main() {
++	// Profile calls Modularize which implements the Louvain modularization algorithm.
++	// Since this is a randomized algorithm we use a defined random source to ensure
++	// consistency between test runs. In practice, results will not differ greatly
++	// between runs with different PRNG seeds.
++	src := rand.NewSource(1)
++
++	// Create dumbell graph:
++	//
++	//  0       4
++	//  |\     /|
++	//  | 2 - 3 |
++	//  |/     \|
++	//  1       5
++	//
++	g := simple.NewUndirectedGraph()
++	for u, e := range smallDumbell {
++		for v := range e {
++			g.SetEdge(simple.Edge{F: simple.Node(u), T: simple.Node(v)})
++		}
++	}
++
++	// Get the profile of internal node weight for resolutions
++	// between 0.1 and 10 using logarithmic bisection.
++	p, err := community.Profile(
++		community.ModularScore(g, community.Weight, 10, src),
++		true, 1e-3, 0.1, 10,
++	)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// Print out each step with communities ordered.
++	for _, d := range p {
++		comm := d.Communities()
++		for _, c := range comm {
++			sort.Sort(ordered.ByID(c))
++		}
++		sort.Sort(ordered.BySliceIDs(comm))
++		fmt.Printf("Low:%.2v High:%.2v Score:%v Communities:%v Q=%.3v\n",
++			d.Low, d.High, d.Score, comm, community.Q(g, comm, d.Low))
++	}
++
++}
++
++// intset is an integer set.
++type intset map[int]struct{}
++
++func linksTo(i ...int) intset {
++	if len(i) == 0 {
++		return nil
++	}
++	s := make(intset)
++	for _, v := range i {
++		s[v] = struct{}{}
++	}
++	return s
++}
++
++var smallDumbell = []intset{
++	0: linksTo(1, 2),
++	1: linksTo(2),
++	2: linksTo(3),
++	3: linksTo(4, 5),
++	4: linksTo(5),
++	5: nil,
++}
++
++-- Profile_simple.Output --
++Low:0.1 High:0.29 Score:14 Communities:[[0 1 2 3 4 5]] Q=0.9
++Low:0.29 High:2.3 Score:12 Communities:[[0 1 2] [3 4 5]] Q=0.714
++Low:2.3 High:3.5 Score:4 Communities:[[0 1] [2] [3] [4 5]] Q=-0.31
++Low:3.5 High:10 Score:0 Communities:[[0] [1] [2] [3] [4] [5]] Q=-0.607
++
++-- Profile_multiplex.Play --
++
++package main
++
++import (
++	"fmt"
++	"log"
++	"sort"
++
++	"golang.org/x/exp/rand"
++
++	"gonum.org/v1/gonum/graph/community"
++	"gonum.org/v1/gonum/graph/internal/ordered"
++	"gonum.org/v1/gonum/graph/simple"
++)
++
++var friends, enemies *simple.WeightedUndirectedGraph
++
++func main() {
++	// Profile calls ModularizeMultiplex which implements the Louvain modularization
++	// algorithm. Since this is a randomized algorithm we use a defined random source
++	// to ensure consistency between test runs. In practice, results will not differ
++	// greatly between runs with different PRNG seeds.
++	src := rand.NewSource(1)
++
++	// The undirected graphs, friends and enemies, are the political relationships
++	// in the Middle East as described in the Slate article:
++	// http://www.slate.com/blogs/the_world_/2014/07/17/the_middle_east_friendship_chart.html
++	g, err := community.NewUndirectedLayers(friends, enemies)
++	if err != nil {
++		log.Fatal(err)
++	}
++	weights := []float64{1, -1}
++
++	// Get the profile of internal node weight for resolutions
++	// between 0.1 and 10 using logarithmic bisection.
++	p, err := community.Profile(
++		community.ModularMultiplexScore(g, weights, true, community.WeightMultiplex, 10, src),
++		true, 1e-3, 0.1, 10,
++	)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// Print out each step with communities ordered.
++	for _, d := range p {
++		comm := d.Communities()
++		for _, c := range comm {
++			sort.Sort(ordered.ByID(c))
++		}
++		sort.Sort(ordered.BySliceIDs(comm))
++		fmt.Printf("Low:%.2v High:%.2v Score:%v Communities:%v Q=%.3v\n",
++			d.Low, d.High, d.Score, comm, community.QMultiplex(g, comm, weights, []float64{d.Low}))
++	}
++
++}
++-- Profile_multiplex.Output --
++Low:0.1 High:0.72 Score:26 Communities:[[0] [1 7 9 12] [2 8 11] [3 4 5 10] [6]] Q=[24.7 1.97]
++Low:0.72 High:1.1 Score:24 Communities:[[0 6] [1 7 9 12] [2 8 11] [3 4 5 10]] Q=[16.9 14.1]
++Low:1.1 High:1.2 Score:18 Communities:[[0 2 6 11] [1 7 9 12] [3 4 5 8 10]] Q=[9.16 25.1]
++Low:1.2 High:1.6 Score:10 Communities:[[0 3 4 5 6 10] [1 7 9 12] [2 8 11]] Q=[10.5 26.7]
++Low:1.6 High:1.6 Score:8 Communities:[[0 1 6 7 9 12] [2 8 11] [3 4 5 10]] Q=[5.56 39.8]
++Low:1.6 High:1.8 Score:2 Communities:[[0 2 3 4 5 6 10] [1 7 8 9 11 12]] Q=[-1.82 48.6]
++Low:1.8 High:2.3 Score:-6 Communities:[[0 2 3 4 5 6 8 10 11] [1 7 9 12]] Q=[-5 57.5]
++Low:2.3 High:2.4 Score:-10 Communities:[[0 1 2 6 7 8 9 11 12] [3 4 5 10]] Q=[-11.2 79]
++Low:2.4 High:4.3 Score:-52 Communities:[[0 1 2 3 4 5 6 7 8 9 10 11 12]] Q=[-46.1 117]
++Low:4.3 High:10 Score:-54 Communities:[[0 1 2 3 4 6 7 8 9 10 11 12] [5]] Q=[-82 254]
+diff --git a/src/go/doc/testdata/examples/values.go b/src/go/doc/testdata/examples/values.go
+new file mode 100644
+index 0000000000..64b0de476d
+--- /dev/null
++++ b/src/go/doc/testdata/examples/values.go
+@@ -0,0 +1,22 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo_test
++
++// Variable declaration with fewer values than names.
++
++func f() (int, int) {
++	return 1, 2
++}
++
++var a, b = f()
++
++// Need two examples to hit playExample.
++
++func ExampleA() {
++	_ = a
++}
++
++func ExampleB() {
++}
+diff --git a/src/go/doc/testdata/examples/values.golden b/src/go/doc/testdata/examples/values.golden
+new file mode 100644
+index 0000000000..00c19917af
+--- /dev/null
++++ b/src/go/doc/testdata/examples/values.golden
+@@ -0,0 +1,21 @@
++-- A.Play --
++package main
++
++import ()
++
++func f() (int, int) {
++	return 1, 2
++}
++
++var a, b = f()
++
++func main() {
++	_ = a
++}
++-- B.Play --
++package main
++
++import ()
++
++func main() {
++}

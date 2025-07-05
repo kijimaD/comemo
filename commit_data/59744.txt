@@ -30,7 +30,7 @@ Date:   Thu Feb 29 16:23:03 2024 -0500
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/5-toolchain.md                        |  4 +++
  src/cmd/go/internal/work/action.go             | 42 +++++++++++++++++++++++++-
  src/cmd/go/internal/work/buildid.go            |  8 +++++
@@ -39,3 +39,190 @@ Date:   Thu Feb 29 16:23:03 2024 -0500
  src/cmd/go/testdata/script/build_pgo_auto.txt  |  4 +++
  src/cmd/preprofile/main.go                     |  3 ++
  7 files changed, 92 insertions(+), 1 deletion(-)
+
+diff --git a/doc/next/5-toolchain.md b/doc/next/5-toolchain.md
+index 0f4a816479..ce763f1b93 100644
+--- a/doc/next/5-toolchain.md
++++ b/doc/next/5-toolchain.md
+@@ -1,5 +1,9 @@
+ ## Compiler {#compiler}
+ 
++The build time overhead to building with [Profile Guided Optimization](/doc/pgo) has been reduced significantly.
++Previously, large builds could see 100%+ build time increase from enabling PGO.
++In Go 1.23, overhead should be in the single digit percentages.
++
+ ## Assembler {#assembler}
+ 
+ ## Linker {#linker}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 249c802269..5e83f1ebfd 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -461,6 +461,17 @@ func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
+ 	return b.build(ctx, a)
+ }
+ 
++// pgoActionID computes the action ID for a preprocess PGO action.
++func (b *Builder) pgoActionID(input string) cache.ActionID {
++	h := cache.NewHash("preprocess PGO profile " + input)
++
++	fmt.Fprintf(h, "preprocess PGO profile\n")
++	fmt.Fprintf(h, "preprofile %s\n", b.toolID("preprofile"))
++	fmt.Fprintf(h, "input %q\n", b.fileHash(input))
++
++	return h.Sum()
++}
++
+ // pgoActor implements the Actor interface for preprocessing PGO profiles.
+ type pgoActor struct {
+ 	// input is the path to the original pprof profile.
+@@ -468,7 +479,10 @@ type pgoActor struct {
+ }
+ 
+ func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
+-	// TODO(prattmic): Integrate with build cache to cache output.
++	if b.useCache(a, b.pgoActionID(p.input), a.Target, !b.IsCmdList) || b.IsCmdList {
++		return nil
++	}
++	defer b.flushOutput(a)
+ 
+ 	sh := b.Shell(a)
+ 
+@@ -480,7 +494,33 @@ func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
+ 		return err
+ 	}
+ 
++	// N.B. Builder.build looks for the out in a.built, regardless of
++	// whether this came from cache.
+ 	a.built = a.Target
++
++	if !cfg.BuildN {
++		// Cache the output.
++		//
++		// N.B. We don't use updateBuildID here, as preprocessed PGO profiles
++		// do not contain a build ID. updateBuildID is typically responsible
++		// for adding to the cache, thus we must do so ourselves instead.
++
++		r, err := os.Open(a.Target)
++		if err != nil {
++			return fmt.Errorf("error opening target for caching: %w", err)
++		}
++
++		c := cache.Default()
++		outputID, _, err := c.Put(a.actionID, r)
++		r.Close()
++		if err != nil {
++			return fmt.Errorf("error adding target to cache: %w", err)
++		}
++		if cfg.BuildX {
++			sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", a.Target, c.OutputFile(outputID))))
++		}
++	}
++
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index bf923d0d5e..acbda1af55 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -527,6 +527,14 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string,
+ 
+ 	// Check to see if the action output is cached.
+ 	if file, _, err := cache.GetFile(c, actionHash); err == nil {
++		if a.Mode == "preprocess PGO profile" {
++			// Preprocessed PGO profiles don't embed a build ID, so
++			// skip the build ID lookup.
++			// TODO(prattmic): better would be to add a build ID to the format.
++			a.built = file
++			a.Target = "DO NOT USE - using cache"
++			return true
++		}
+ 		if buildID, err := buildid.ReadFile(file); err == nil {
+ 			if printOutput {
+ 				showStdout(b, c, a, "stdout")
+diff --git a/src/cmd/go/testdata/script/build_cache_pgo.txt b/src/cmd/go/testdata/script/build_cache_pgo.txt
+new file mode 100644
+index 0000000000..5efecab49e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_cache_pgo.txt
+@@ -0,0 +1,28 @@
++[short] skip
++
++# Set up fresh GOCACHE.
++env GOCACHE=$WORK/gocache
++mkdir $GOCACHE
++
++# Building trivial non-main package should run preprofile the first time.
++go build -x -pgo=default.pgo lib.go
++stderr 'preprofile.*default\.pgo'
++
++# ... but not again ...
++go build -x -pgo=default.pgo lib.go
++! stderr 'preprofile.*default\.pgo'
++
++# ... unless we use -a.
++go build -a -x -pgo=default.pgo lib.go
++stderr 'preprofile.*default\.pgo'
++
++# ... building a different package should not run preprofile again, instead using a profile from cache.
++go build -x -pgo=default.pgo lib2.go
++! stderr 'preprofile.*default\.pgo'
++stderr 'compile.*-pgoprofile=.*'$GOCACHE'.*lib2.go'
++
++-- lib.go --
++package lib
++-- lib2.go --
++package lib2
++-- default.pgo --
+diff --git a/src/cmd/go/testdata/script/build_pgo.txt b/src/cmd/go/testdata/script/build_pgo.txt
+index 0ca2105f56..792d299ab1 100644
+--- a/src/cmd/go/testdata/script/build_pgo.txt
++++ b/src/cmd/go/testdata/script/build_pgo.txt
+@@ -3,6 +3,10 @@
+ 
+ [short] skip 'compiles and links executables'
+ 
++# Set up fresh GOCACHE.
++env GOCACHE=$WORK/gocache
++mkdir $GOCACHE
++
+ # build without PGO
+ go build triv.go
+ 
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto.txt b/src/cmd/go/testdata/script/build_pgo_auto.txt
+index 1ae86d4e57..dc2570272f 100644
+--- a/src/cmd/go/testdata/script/build_pgo_auto.txt
++++ b/src/cmd/go/testdata/script/build_pgo_auto.txt
+@@ -2,6 +2,10 @@
+ 
+ [short] skip 'compiles and links executables'
+ 
++# Set up fresh GOCACHE.
++env GOCACHE=$WORK/gocache
++mkdir $GOCACHE
++
+ # use default.pgo for a single main package
+ go build -n -pgo=auto -o a1.exe ./a/a1
+ stderr 'preprofile.*-i.*default\.pgo'
+diff --git a/src/cmd/preprofile/main.go b/src/cmd/preprofile/main.go
+index 4cb87f63c8..f29b5279e2 100644
+--- a/src/cmd/preprofile/main.go
++++ b/src/cmd/preprofile/main.go
+@@ -16,6 +16,7 @@ package main
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/objabi"
+ 	"cmd/internal/pgo"
+ 	"flag"
+ 	"fmt"
+@@ -67,6 +68,8 @@ func preprocess(profileFile string, outputFile string) error {
+ }
+ 
+ func main() {
++	objabi.AddVersionFlag()
++
+ 	log.SetFlags(0)
+ 	log.SetPrefix("preprofile: ")
+ 

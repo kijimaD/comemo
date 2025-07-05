@@ -9,7 +9,35 @@ Date:   Wed Mar 9 11:30:24 2016 +1100
     Change-Id: I8f7d5e8d2dd8dc763e940e061b424427359246e7
     Reviewed-on: https://go-review.googlesource.com/20462
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  CONTRIBUTING.md     | 3 ++-
  doc/contribute.html | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 712431cab5..4120daf281 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -26,7 +26,8 @@ Please read the [Contribution Guidelines](https://golang.org/doc/contribute.html
+ before sending patches.
+ 
+ **We do not accept GitHub pull requests**
+-(we use [Gerrit](https://code.google.com/p/gerrit/) instead for code review).
++(we use [an instance](https://go-review.googlesource.com/) of the
++[Gerrit](https://www.gerritcodereview.com/) code review system instead).
+ 
+ Unless otherwise noted, the Go source files are distributed under
+ the BSD-style license found in the LICENSE file.
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 4619c81124..b624c6675c 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -78,7 +78,7 @@ no matter who makes the change.
+ A custom git command called <code>git-codereview</code>,
+ discussed below, helps manage the code review process through a Google-hosted
+ <a href="https://go-review.googlesource.com/">instance</a> of the code review
+-system called <a href="https://code.google.com/p/gerrit/">Gerrit</a>.
++system called <a https://www.gerritcodereview.com/">Gerrit</a>.
+ </p>
+ 
+ <h3 id="auth">Set up authentication for code review</h3>

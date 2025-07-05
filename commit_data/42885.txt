@@ -13,8 +13,71 @@ Date:   Sat Nov 30 14:04:35 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 +++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 17 +++++++++++++++++
  test/codegen/addrcalc.go                     | 14 ++++++++++++++
  3 files changed, 34 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 47194c0853..491d6795b4 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1513,6 +1513,9 @@
+ (TESTWconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTW x x)
+ (TESTBconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTB x x)
+ 
++// Convert LEAQ1 back to ADDQ if we can
++(LEAQ1 [0] x y) && v.Aux == nil -> (ADDQ x y)
++
+ // Combining byte loads into larger (unaligned) loads.
+ // There are many ways these combinations could occur.  This is
+ // designed to match the way encoding/binary.LittleEndian does it.
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index df9f0d0f34..40e7091fe1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -9829,6 +9829,23 @@ func rewriteValueAMD64_OpAMD64LEAQ1(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (LEAQ1 [0] x y)
++	// cond: v.Aux == nil
++	// result: (ADDQ x y)
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		x := v_0
++		y := v_1
++		if !(v.Aux == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDQ)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64LEAQ2(v *Value) bool {
+diff --git a/test/codegen/addrcalc.go b/test/codegen/addrcalc.go
+new file mode 100644
+index 0000000000..45552d278c
+--- /dev/null
++++ b/test/codegen/addrcalc.go
+@@ -0,0 +1,14 @@
++// asmcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++// Make sure we use ADDQ instead of LEAQ when we can.
++
++func f(p *[4][2]int, x int) *int {
++	// amd64:"ADDQ",-"LEAQ"
++	return &p[x][0]
++}

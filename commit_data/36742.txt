@@ -9,6 +9,36 @@ Date:   Thu Nov 30 22:32:39 2017 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/example_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index 5749194871..e21415a3fd 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -82,6 +82,24 @@ func init() {
+ 	os.Unsetenv("GOPATH")
+ }
+ 
++func ExampleExpand() {
++	mapper := func(placeholderName string) string {
++		switch placeholderName {
++		case "DAY_PART":
++			return "morning"
++		case "USER":
++			return "Gopher"
++		}
++
++		return ""
++	}
++
++	fmt.Println(os.Expand("Good ${DAY_PART}, $USER!", mapper))
++
++	// Output:
++	// Good morning, Gopher!
++}
++
+ func ExampleExpandEnv() {
+ 	fmt.Println(os.ExpandEnv("$USER lives in ${HOME}."))
+ 

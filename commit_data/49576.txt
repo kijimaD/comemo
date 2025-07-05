@@ -9,6 +9,19 @@ Date:   Thu Jul 29 04:22:47 2021 +0900
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/runtime/stack.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 54ad66dca2..368ad6efa4 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1198,7 +1198,6 @@ func shrinkstack(gp *g) {
+ 
+ // freeStackSpans frees unused stack spans at the end of GC.
+ func freeStackSpans() {
+-
+ 	// Scan stack pools for empty stack spans.
+ 	for order := range stackpool {
+ 		lock(&stackpool[order].item.mu)

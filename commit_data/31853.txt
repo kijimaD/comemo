@@ -19,7 +19,7 @@ Date:   Mon Mar 20 11:56:15 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     | 56 +++++++++++++++++++-
  src/cmd/compile/internal/gc/bimport.go   |  1 -
  src/cmd/compile/internal/gc/dcl.go       | 87 +++++++-------------------------
@@ -30,3 +30,397 @@ Date:   Mon Mar 20 11:56:15 2017 -0700
  test/fixedbugs/bug251.go                 | 10 ++--
  test/fixedbugs/issue18392.go             |  5 +-
  9 files changed, 99 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index ee3c7aec7e..db5edee451 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -4,6 +4,10 @@
+ 
+ package gc
+ 
++import (
++	"sort"
++)
++
+ // machine size and rounding alignment is dictated around
+ // the size of a pointer, set in betypeinit (see ../amd64/galign.go).
+ var defercalc int
+@@ -15,6 +19,47 @@ func Rnd(o int64, r int64) int64 {
+ 	return (o + r - 1) &^ (r - 1)
+ }
+ 
++// expandiface computes the method set for interface type t by
++// expanding embedded interfaces.
++func expandiface(t *Type) {
++	var fields []*Field
++	for _, m := range t.Methods().Slice() {
++		if m.Sym != nil {
++			fields = append(fields, m)
++			continue
++		}
++
++		if !m.Type.IsInterface() {
++			yyerrorl(m.Nname.Pos, "interface contains embedded non-interface %v", m.Type)
++			m.SetBroke(true)
++			t.SetBroke(true)
++			// Add to fields so that error messages
++			// include the broken embedded type when
++			// printing t.
++			// TODO(mdempsky): Revisit this.
++			fields = append(fields, m)
++			continue
++		}
++
++		// Embedded interface: duplicate all methods
++		// (including broken ones, if any) and add to t's
++		// method set.
++		for _, t1 := range m.Type.Fields().Slice() {
++			f := newField()
++			f.Type = t1.Type
++			f.SetBroke(t1.Broke())
++			f.Sym = t1.Sym
++			f.Nname = m.Nname // preserve embedding position
++			fields = append(fields, f)
++		}
++	}
++	sort.Sort(methcmp(fields))
++
++	// Access fields directly to avoid recursively calling dowidth
++	// within Type.Fields().
++	t.Extra.(*InterType).fields.Set(fields)
++}
++
+ func offmod(t *Type) {
+ 	o := int32(0)
+ 	for _, f := range t.Fields().Slice() {
+@@ -203,9 +248,8 @@ func dowidth(t *Type) {
+ 
+ 	case TINTER: // implemented as 2 pointers
+ 		w = 2 * int64(Widthptr)
+-
+ 		t.Align = uint8(Widthptr)
+-		offmod(t)
++		expandiface(t)
+ 
+ 	case TCHAN: // implemented as pointer
+ 		w = int64(Widthptr)
+@@ -316,6 +360,14 @@ func dowidth(t *Type) {
+ 		t.Align = uint8(w)
+ 	}
+ 
++	if t.Etype == TINTER {
++		// We defer calling these functions until after
++		// setting t.Width and t.Align so the recursive calls
++		// to dowidth within t.Fields() will succeed.
++		checkdupfields("method", t)
++		offmod(t)
++	}
++
+ 	lineno = lno
+ 
+ 	if defercalc == 1 {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index e7308df2a8..e417536fc8 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -535,7 +535,6 @@ func (p *importer) typ() *Type {
+ 			t = p.newtyp(TINTER)
+ 			t.SetInterface(ml)
+ 		}
+-		checkwidth(t)
+ 
+ 	case mapTag:
+ 		t = p.newtyp(TMAP)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6fca2062d0..9bc7f84a5e 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -7,7 +7,6 @@ package gc
+ import (
+ 	"cmd/internal/src"
+ 	"fmt"
+-	"sort"
+ 	"strings"
+ )
+ 
+@@ -705,24 +704,19 @@ func structfield(n *Node) *Field {
+ // checkdupfields emits errors for duplicately named fields or methods in
+ // a list of struct or interface types.
+ func checkdupfields(what string, ts ...*Type) {
+-	lno := lineno
+-
+ 	seen := make(map[*Sym]bool)
+ 	for _, t := range ts {
+ 		for _, f := range t.Fields().Slice() {
+-			if f.Sym == nil || f.Nname == nil || isblank(f.Nname) {
++			if f.Sym == nil || isblanksym(f.Sym) || f.Nname == nil {
+ 				continue
+ 			}
+ 			if seen[f.Sym] {
+-				lineno = f.Nname.Pos
+-				yyerror("duplicate %s %s", what, f.Sym.Name)
++				yyerrorl(f.Nname.Pos, "duplicate %s %s", what, f.Sym.Name)
+ 				continue
+ 			}
+ 			seen[f.Sym] = true
+ 		}
+ 	}
+-
+-	lineno = lno
+ }
+ 
+ // convert a parsed id/type list into
+@@ -805,50 +799,26 @@ func interfacefield(n *Node) *Field {
+ 		yyerror("interface method cannot have annotation")
+ 	}
+ 
+-	f := newField()
+-	f.SetIsddd(n.Isddd())
++	// MethodSpec = MethodName Signature | InterfaceTypeName .
++	//
++	// If Left != nil, then Left is MethodName and Right is Signature.
++	// Otherwise, Right is InterfaceTypeName.
+ 
+ 	if n.Right != nil {
+-		if n.Left != nil {
+-			// queue resolution of method type for later.
+-			// right now all we need is the name list.
+-			// avoids cycles for recursive interface types.
+-			n.Type = typ(TINTERMETH)
+-			n.Type.SetNname(n.Right)
+-			n.Left.Type = n.Type
+-			queuemethod(n)
+-
+-			if n.Left.Op == ONAME {
+-				f.Nname = n.Left
+-				f.Embedded = n.Embedded
+-				f.Sym = f.Nname.Sym
+-			}
+-		} else {
+-			n.Right = typecheck(n.Right, Etype)
+-			n.Type = n.Right.Type
+-
+-			if n.Embedded != 0 {
+-				checkembeddedtype(n.Type)
+-			}
+-
+-			if n.Type != nil {
+-				switch n.Type.Etype {
+-				case TINTER:
+-					break
+-
+-				case TFORW:
+-					yyerror("interface type loop involving %v", n.Type)
+-					f.SetBroke(true)
+-
+-				default:
+-					yyerror("interface contains embedded non-interface %v", n.Type)
+-					f.SetBroke(true)
+-				}
+-			}
+-		}
++		n.Right = typecheck(n.Right, Etype)
++		n.Type = n.Right.Type
++		n.Right = nil
+ 	}
+ 
+-	n.Right = nil
++	f := newField()
++	if n.Left != nil {
++		f.Nname = n.Left
++		f.Sym = f.Nname.Sym
++	} else {
++		// Placeholder ONAME just to hold Pos.
++		// TODO(mdempsky): Add Pos directly to Field instead.
++		f.Nname = newname(nblank.Sym)
++	}
+ 
+ 	f.Type = n.Type
+ 	if f.Type == nil {
+@@ -876,32 +846,13 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 	var fields []*Field
+ 	for _, n := range l {
+ 		f := interfacefield(n)
+-
+-		if n.Left == nil && f.Type.IsInterface() {
+-			// embedded interface, inline methods
+-			for _, t1 := range f.Type.Fields().Slice() {
+-				f = newField()
+-				f.Type = t1.Type
+-				f.SetBroke(t1.Broke())
+-				f.Sym = t1.Sym
+-				if f.Sym != nil {
+-					f.Nname = newname(f.Sym)
+-				}
+-				fields = append(fields, f)
+-			}
+-		} else {
+-			fields = append(fields, f)
+-		}
+ 		if f.Broke() {
+ 			t.SetBroke(true)
+ 		}
++		fields = append(fields, f)
+ 	}
+-	sort.Sort(methcmp(fields))
+ 	t.SetInterface(fields)
+ 
+-	checkdupfields("method", t)
+-	checkwidth(t)
+-
+ 	return t
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index d09c9808ea..6932f6de2c 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -642,7 +642,6 @@ var etnames = []string{
+ 	TBLANK:      "TBLANK",
+ 	TFUNCARGS:   "TFUNCARGS",
+ 	TCHANARGS:   "TCHANARGS",
+-	TINTERMETH:  "TINTERMETH",
+ 	TDDDFIELD:   "TDDDFIELD",
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index e4841708f6..8beba292f6 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -65,7 +65,6 @@ const (
+ 	// pseudo-types for frame layout
+ 	TFUNCARGS
+ 	TCHANARGS
+-	TINTERMETH
+ 
+ 	// pseudo-types for import/export
+ 	TDDDFIELD // wrapper: contained type is a ... field
+@@ -420,8 +419,6 @@ func typ(et EType) *Type {
+ 		t.Extra = new(ForwardType)
+ 	case TFUNC:
+ 		t.Extra = new(FuncType)
+-	case TINTERMETH:
+-		t.Extra = InterMethType{}
+ 	case TSTRUCT:
+ 		t.Extra = new(StructType)
+ 	case TINTER:
+@@ -807,8 +804,6 @@ func (t *Type) Nname() *Node {
+ 	switch t.Etype {
+ 	case TFUNC:
+ 		return t.Extra.(*FuncType).Nname
+-	case TINTERMETH:
+-		return t.Extra.(InterMethType).Nname
+ 	}
+ 	Fatalf("Type.Nname %v %v", t.Etype, t)
+ 	return nil
+@@ -819,8 +814,6 @@ func (t *Type) SetNname(n *Node) {
+ 	switch t.Etype {
+ 	case TFUNC:
+ 		t.Extra.(*FuncType).Nname = n
+-	case TINTERMETH:
+-		t.Extra = InterMethType{Nname: n}
+ 	default:
+ 		Fatalf("Type.SetNname %v %v", t.Etype, t)
+ 	}
+@@ -846,6 +839,7 @@ func (t *Type) Fields() *Fields {
+ 	case TSTRUCT:
+ 		return &t.Extra.(*StructType).fields
+ 	case TINTER:
++		dowidth(t)
+ 		return &t.Extra.(*InterType).fields
+ 	}
+ 	Fatalf("Fields: type %v does not have fields", t)
+@@ -882,7 +876,7 @@ func (t *Type) SetFields(fields []*Field) {
+ 
+ func (t *Type) SetInterface(methods []*Field) {
+ 	t.wantEtype(TINTER)
+-	t.Fields().Set(methods)
++	t.Methods().Set(methods)
+ }
+ 
+ func (t *Type) isDDDArray() bool {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 27b9bb7b5e..353380a0d9 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3571,8 +3571,15 @@ func copytype(n *Node, t *Type) {
+ 	if n.Name != nil {
+ 		t.Vargen = n.Name.Vargen
+ 	}
+-	t.methods = Fields{}
+-	t.allMethods = Fields{}
++
++	// spec: "The declared type does not inherit any methods bound
++	// to the existing type, but the method set of an interface
++	// type [...] remains unchanged."
++	if !t.IsInterface() {
++		t.methods = Fields{}
++		t.allMethods = Fields{}
++	}
++
+ 	t.nod = n
+ 	t.SetDeferwidth(false)
+ 	t.ptrTo = ptrTo
+diff --git a/test/fixedbugs/bug195.go b/test/fixedbugs/bug195.go
+index 85367cb888..8d392bda71 100644
+--- a/test/fixedbugs/bug195.go
++++ b/test/fixedbugs/bug195.go
+@@ -14,14 +14,14 @@ type I3 interface { int }	// ERROR "interface"
+ type S struct {
+ 	x interface{ S }	// ERROR "interface"
+ }
+-type I4 interface {
+-	I4	// ERROR "interface"
++type I4 interface { // GC_ERROR "invalid recursive type"
++	I4	// GCCGO_ERROR "interface"
+ }
+ 
+ type I5 interface {
+ 	I6	// GCCGO_ERROR "interface"
+ }
+ 
+-type I6 interface {
+-	I5	// ERROR "interface"
++type I6 interface { // GC_ERROR "invalid recursive type"
++	I5	// GCCGO_ERROR "interface"
+ }
+diff --git a/test/fixedbugs/bug251.go b/test/fixedbugs/bug251.go
+index f061723eda..05e111a61f 100644
+--- a/test/fixedbugs/bug251.go
++++ b/test/fixedbugs/bug251.go
+@@ -6,13 +6,17 @@
+ 
+ package main
+ 
+-type I1 interface {
++type I1 interface { // GC_ERROR "invalid recursive type"
+ 	m() I2
+-	I2 // GCCGO_ERROR "loop|interface"
++	// TODO(mdempsky): The duplicate method error is silly
++	// and redundant, but tricky to prevent as it's actually
++	// being emitted against the underlying interface type
++	// literal, not I1 itself.
++	I2 // ERROR "loop|interface|duplicate method m"
+ }
+ 
+ type I2 interface {
+-	I1 // ERROR "loop|interface"
++	I1 // GCCGO_ERROR "loop|interface"
+ }
+ 
+ 
+diff --git a/test/fixedbugs/issue18392.go b/test/fixedbugs/issue18392.go
+index ad64238983..053a337867 100644
+--- a/test/fixedbugs/issue18392.go
++++ b/test/fixedbugs/issue18392.go
+@@ -7,5 +7,8 @@
+ package p
+ 
+ type A interface {
+-	Fn(A.Fn) // ERROR "type A has no method A.Fn"
++	// TODO(mdempsky): This should be an error, but this error is
++	// nonsense. The error should actually mention that there's a
++	// type loop.
++	Fn(A.Fn) // ERROR "type A has no method Fn"
+ }

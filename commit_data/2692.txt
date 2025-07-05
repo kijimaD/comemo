@@ -8,6 +8,29 @@ Date:   Mon Jul 13 23:30:30 2009 -0700
     R=ken
     OCL=31583
     CL=31583
-
+---
  src/cmd/6g/peep.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 6a12940bab..4cfdf59e0d 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -844,7 +844,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case ACALL:	/* funny */
+ 		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
+ 			return 2;
+-		if(REGARG && v->type == REGARG)
++		if(REGARG >= 0 && v->type == (uchar)REGARG)
+ 			return 2;
+ 
+ 		if(s != A) {
+@@ -857,7 +857,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ATEXT:	/* funny */
+-		if(REGARG && v->type == REGARG)
++		if(REGARG >= 0 && v->type == (uchar)REGARG)
+ 			return 3;
+ 		return 0;
+ 	}

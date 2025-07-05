@@ -13,6 +13,27 @@ Date:   Wed Jan 12 09:54:19 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/ast/ast.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index bc140473d5..a74a827c8f 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -224,11 +224,12 @@ func (f *Field) End() token.Pos {
+ 	return token.NoPos
+ }
+ 
+-// A FieldList represents a list of Fields, enclosed by parentheses or braces.
++// A FieldList represents a list of Fields, enclosed by parentheses,
++// curly braces, or square brackets.
+ type FieldList struct {
+-	Opening token.Pos // position of opening parenthesis/brace, if any
++	Opening token.Pos // position of opening parenthesis/brace/bracket, if any
+ 	List    []*Field  // field list; or nil
+-	Closing token.Pos // position of closing parenthesis/brace, if any
++	Closing token.Pos // position of closing parenthesis/brace/bracket, if any
+ }
+ 
+ func (f *FieldList) Pos() token.Pos {

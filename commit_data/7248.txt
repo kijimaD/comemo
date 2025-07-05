@@ -7,7 +7,45 @@ Date:   Wed Jan 26 12:54:07 2011 -0500
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/4077045
-
+---
  doc/codelab/wiki/test.sh        | 8 ++++----
  doc/codelab/wiki/test_edit.good | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/codelab/wiki/test.sh b/doc/codelab/wiki/test.sh
+index 5b752fe3c2..5aad5704f1 100755
+--- a/doc/codelab/wiki/test.sh
++++ b/doc/codelab/wiki/test.sh
+@@ -1,4 +1,4 @@
+-#1/bin/bash
++#!/bin/bash
+ 
+ ./final.bin &
+ wiki_pid=$!
+@@ -13,11 +13,11 @@ trap cleanup INT
+ sleep 1
+ 
+ curl -s -o test_edit.out http://localhost:8080/edit/Test 
+-cmp test_edit.out test_edit.good || cleanup 1
++diff -u test_edit.out test_edit.good || cleanup 1
+ curl -s -o /dev/null -d body=some%20content http://localhost:8080/save/Test
+-cmp Test.txt test_Test.txt.good || cleanup 1
++diff -u Test.txt test_Test.txt.good || cleanup 1
+ curl -s -o test_view.out http://localhost:8080/view/Test
+-cmp test_view.out test_view.good || cleanup 1
++diff -u test_view.out test_view.good || cleanup 1
+ 
+ echo "Passed"
+ cleanup 0
+diff --git a/doc/codelab/wiki/test_edit.good b/doc/codelab/wiki/test_edit.good
+index e4edf8cb23..36c6dbb732 100644
+--- a/doc/codelab/wiki/test_edit.good
++++ b/doc/codelab/wiki/test_edit.good
+@@ -1,6 +1,6 @@
+ <h1>Editing Test</h1>
+ 
+ <form action="/save/Test" method="POST">
+-<div><textarea name="Body" rows="20" cols="80"></textarea></div>
++<div><textarea name="body" rows="20" cols="80"></textarea></div>
+ <div><input type="submit" value="Save"></div>
+ </form>

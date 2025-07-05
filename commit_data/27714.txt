@@ -9,6 +9,20 @@ Date:   Sun Apr 10 14:51:07 2016 +0000
     Change-Id: I9e927a2f604213338b4572f1a32d0247c58bdc60
     Reviewed-on: https://go-review.googlesource.com/21798
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/html/escape.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/html/escape.go b/src/html/escape.go
+index 71906ac586..8dd1f4ad2f 100644
+--- a/src/html/escape.go
++++ b/src/html/escape.go
+@@ -181,7 +181,7 @@ func EscapeString(s string) string {
+ 
+ // UnescapeString unescapes entities like "&lt;" to become "<". It unescapes a
+ // larger range of entities than EscapeString escapes. For example, "&aacute;"
+-// unescapes to "á", as does "&#225;" and "&xE1;".
++// unescapes to "á", as does "&#225;" and "&#xE1;".
+ // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
+ // always true.
+ func UnescapeString(s string) string {

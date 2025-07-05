@@ -9,7 +9,58 @@ Date:   Tue May 1 11:37:44 2012 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6139048
-
+---
  src/pkg/encoding/json/decode.go      | 13 +++++++++----
  src/pkg/encoding/json/decode_test.go |  8 ++++++++
  2 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 110c6fd623..701cba9bd0 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -504,10 +504,15 @@ func (d *decodeState) object(v reflect.Value) {
+ 				}
+ 				// First, tag match
+ 				tagName, _ := parseTag(tag)
+-				if tagName == key {
+-					f = sf
+-					ok = true
+-					break // no better match possible
++				if tagName != "" {
++					if tagName == key {
++						f = sf
++						ok = true
++						break // no better match possible
++					}
++					// There was a tag, but it didn't match.
++					// Ignore field names.
++					continue
+ 				}
+ 				// Second, exact field name match
+ 				if sf.Name == key {
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index d758758d97..78768c8ba1 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -18,6 +18,10 @@ type T struct {
+ 	Z int `json:"-"`
+ }
+ 
++type U struct {
++	Alphabet string `json:"alpha"`
++}
++
+ type tx struct {
+ 	x int
+ }
+@@ -72,6 +76,10 @@ var unmarshalTests = []unmarshalTest{
+ 	// Z has a "-" tag.
+ 	{`{"Y": 1, "Z": 2}`, new(T), T{Y: 1}, nil},
+ 
++	{`{"alpha": "abc", "alphabet": "xyz"}`, new(U), U{Alphabet: "abc"}, nil},
++	{`{"alpha": "abc"}`, new(U), U{Alphabet: "abc"}, nil},
++	{`{"alphabet": "xyz"}`, new(U), U{}, nil},
++
+ 	// syntax errors
+ 	{`{"X": "foo", "Y"}`, nil, nil, &SyntaxError{"invalid character '}' after object key", 17}},
+ 	{`[1, 2, 3+]`, nil, nil, &SyntaxError{"invalid character '+' after array element", 9}},

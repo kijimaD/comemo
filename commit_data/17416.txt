@@ -12,6 +12,23 @@ Date:   Thu Aug 29 11:42:18 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13368045
-
+---
  src/pkg/runtime/parfor_test.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/pkg/runtime/parfor_test.go b/src/pkg/runtime/parfor_test.go
+index 4c69a68cee..de64285b8a 100644
+--- a/src/pkg/runtime/parfor_test.go
++++ b/src/pkg/runtime/parfor_test.go
+@@ -102,11 +102,6 @@ func TestParForSetup(t *testing.T) {
+ 
+ // Test parallel parallelfor.
+ func TestParForParallel(t *testing.T) {
+-	if GOARCH != "amd64" {
+-		t.Log("temporarily disabled, see http://golang.org/issue/4155")
+-		return
+-	}
+-
+ 	N := uint64(1e7)
+ 	if testing.Short() {
+ 		N /= 10

@@ -11,7 +11,54 @@ Date:   Fri Apr 9 14:15:15 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/907041
-
+---
  src/pkg/runtime/amd64/asm.s       | 9 ++++++++-
  src/pkg/runtime/linux/amd64/rt0.s | 7 -------
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 627af66320..52b0a89bcb 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -9,10 +9,16 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	MOVQ	0(DI), AX		// argc
+ 	LEAQ	8(DI), BX		// argv
+ 	SUBQ	$(4*8+7), SP		// 2args 2auto
+-	ANDQ	$~7, SP
++	ANDQ	$~15, SP
+ 	MOVQ	AX, 16(SP)
+ 	MOVQ	BX, 24(SP)
+ 
++	// if there is an initcgo, call it.
++	MOVQ	initcgo(SB), AX
++	TESTQ	AX, AX
++	JZ	2(PC)
++	CALL	AX
++
+ 	// set the per-goroutine and per-mach registers
+ 	LEAQ	m0(SB), m
+ 	LEAQ	g0(SB), g
+@@ -372,4 +378,5 @@ TEXT getcallersp(SB),7,$0
+ 	MOVQ	sp+0(FP), AX
+ 	RET
+ 
++GLOBL initcgo(SB), $8
+ GLOBL libcgo_set_scheduler(SB), $8
+diff --git a/src/pkg/runtime/linux/amd64/rt0.s b/src/pkg/runtime/linux/amd64/rt0.s
+index 6b1b297752..2190b44144 100644
+--- a/src/pkg/runtime/linux/amd64/rt0.s
++++ b/src/pkg/runtime/linux/amd64/rt0.s
+@@ -5,13 +5,6 @@
+ // Darwin and Linux use the same linkage to main
+ 
+ TEXT	_rt0_amd64_linux(SB),7,$-8
+-	MOVQ	initcgo(SB), AX
+-	TESTQ	AX, AX
+-	JZ	2(PC)
+-	CALL	AX
+-
+ 	MOVQ	$_rt0_amd64(SB), AX
+ 	MOVQ	SP, DI
+ 	JMP	AX
+-
+-GLOBL initcgo(SB), $8

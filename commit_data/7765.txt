@@ -7,7 +7,7 @@ Date:   Tue Mar 15 14:05:07 2011 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4274052
-
+---
  src/pkg/net/ip.go            | 109 +++++++++++++++++++++++++++++++++++++++----
  src/pkg/template/template.go |   1 -
  src/pkg/xml/xml.go           |   1 -
@@ -20,3 +20,433 @@ Date:   Tue Mar 15 14:05:07 2011 -0400
  test/fixedbugs/bug178.go     |  18 ++++---
  test/fixedbugs/bug179.go     |  14 +++---
  11 files changed, 177 insertions(+), 53 deletions(-)
+
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index e82224a283..1904af0d6a 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -12,6 +12,8 @@
+ 
+ package net
+ 
++import "os"
++
+ // IP address lengths (bytes).
+ const (
+ 	IPv4len = 4
+@@ -39,11 +41,7 @@ type IPMask []byte
+ // IPv4 address a.b.c.d.
+ func IPv4(a, b, c, d byte) IP {
+ 	p := make(IP, IPv6len)
+-	for i := 0; i < 10; i++ {
+-		p[i] = 0
+-	}
+-	p[10] = 0xff
+-	p[11] = 0xff
++	copy(p, v4InV6Prefix)
+ 	p[12] = a
+ 	p[13] = b
+ 	p[14] = c
+@@ -51,6 +49,8 @@ func IPv4(a, b, c, d byte) IP {
+ 	return p
+ }
+ 
++var v4InV6Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
++
+ // IPv4Mask returns the IP mask (in 16-byte form) of the
+ // IPv4 mask a.b.c.d.
+ func IPv4Mask(a, b, c, d byte) IPMask {
+@@ -140,9 +140,24 @@ func (ip IP) DefaultMask() IPMask {
+ 	return nil // not reached
+ }
+ 
++func allFF(b []byte) bool {
++	for _, c := range b {
++		if c != 0xff {
++			return false
++		}
++	}
++	return true
++}
++
+ // Mask returns the result of masking the IP address ip with mask.
+ func (ip IP) Mask(mask IPMask) IP {
+ 	n := len(ip)
++	if len(mask) == 16 && len(ip) == 4 && allFF(mask[:12]) {
++		mask = mask[12:]
++	}
++	if len(mask) == 4 && len(ip) == 16 && bytesEqual(ip[:12], v4InV6Prefix) {
++		ip = ip[12:]
++	}
+ 	if n != len(mask) {
+ 		return nil
+ 	}
+@@ -245,6 +260,34 @@ func (ip IP) String() string {
+ 	return s
+ }
+ 
++// Equal returns true if ip and x are the same IP address.
++// An IPv4 address and that same address in IPv6 form are
++// considered to be equal.
++func (ip IP) Equal(x IP) bool {
++	if len(ip) == len(x) {
++		return bytesEqual(ip, x)
++	}
++	if len(ip) == 4 && len(x) == 16 {
++		return bytesEqual(x[0:12], v4InV6Prefix) && bytesEqual(ip, x[12:])
++	}
++	if len(ip) == 16 && len(x) == 4 {
++		return bytesEqual(ip[0:12], v4InV6Prefix) && bytesEqual(ip[12:], x)
++	}
++	return false
++}
++
++func bytesEqual(x, y []byte) bool {
++	if len(x) != len(y) {
++		return false
++	}
++	for i, b := range x {
++		if y[i] != b {
++			return false
++		}
++	}
++	return true
++}
++
+ // If mask is a sequence of 1 bits followed by 0 bits,
+ // return the number of 1 bits.
+ func simpleMaskLength(mask IPMask) int {
+@@ -351,7 +394,6 @@ func parseIPv6(s string) IP {
+ 
+ 	// Loop, parsing hex numbers followed by colon.
+ 	j := 0
+-L:
+ 	for j < IPv6len {
+ 		// Hex number.
+ 		n, i1, ok := xtoi(s, i)
+@@ -432,15 +474,66 @@ L:
+ 	return p
+ }
+ 
++// A SyntaxError represents a malformed text string and the type of string that was expected.
++type SyntaxError struct {
++	Type string
++	Text string
++}
++
++func (e *SyntaxError) String() string {
++	return "invalid " + e.Type + ": " + e.Text
++}
++
++func parseIP(s string) IP {
++	if p := parseIPv4(s); p != nil {
++		return p
++	}
++	if p := parseIPv6(s); p != nil {
++		return p
++	}
++	return nil
++}
++
+ // ParseIP parses s as an IP address, returning the result.
+ // The string s can be in dotted decimal ("74.125.19.99")
+ // or IPv6 ("2001:4860:0:2001::68") form.
+ // If s is not a valid textual representation of an IP address,
+ // ParseIP returns nil.
+ func ParseIP(s string) IP {
+-	p := parseIPv4(s)
+-	if p != nil {
++	if p := parseIPv4(s); p != nil {
+ 		return p
+ 	}
+ 	return parseIPv6(s)
+ }
++
++// ParseCIDR parses s as a CIDR notation IP address and mask,
++// like "192.168.100.1/24" or "2001:DB8::/48".
++func ParseCIDR(s string) (ip IP, mask IPMask, err os.Error) {
++	i := byteIndex(s, '/')
++	if i < 0 {
++		return nil, nil, &SyntaxError{"CIDR address", s}
++	}
++	ipstr, maskstr := s[:i], s[i+1:]
++	ip = ParseIP(ipstr)
++	nn, i, ok := dtoi(maskstr, 0)
++	if ip == nil || !ok || i != len(maskstr) || nn < 0 || nn > 8*len(ip) {
++		return nil, nil, &SyntaxError{"CIDR address", s}
++	}
++	n := uint(nn)
++	if len(ip) == 4 {
++		v4mask := ^uint32(0xffffffff >> n)
++		mask = IPMask(IPv4(byte(v4mask>>24), byte(v4mask>>16), byte(v4mask>>8), byte(v4mask)))
++		return ip, mask, nil
++	}
++	mask = make(IPMask, 16)
++	for i := 0; i < 16; i++ {
++		if n >= 8 {
++			mask[i] = 0xff
++			n -= 8
++			continue
++		}
++		mask[i] = ^byte(0xff >> n)
++		n = 0
++	}
++	return ip, mask, nil
++}
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index f27c987abe..ba06de4e3a 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -267,7 +267,6 @@ func (t *Template) nextItem() []byte {
+ 	}
+ 	leadingSpace := i > start
+ 	// What's left is nothing, newline, delimited string, or plain text
+-Switch:
+ 	switch {
+ 	case i == len(t.buf):
+ 		// EOF; nothing to do
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 691c13a118..f92abe8256 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -815,7 +815,6 @@ Input:
+ 			// Parsers are required to recognize lt, gt, amp, apos, and quot
+ 			// even if they have not been declared.  That's all we allow.
+ 			var i int
+-		CharLoop:
+ 			for i = 0; i < len(p.tmp); i++ {
+ 				var ok bool
+ 				p.tmp[i], ok = p.getc()
+diff --git a/test/fixedbugs/bug055.go b/test/fixedbugs/bug055.go
+index 0326d828f2..8617396109 100644
+--- a/test/fixedbugs/bug055.go
++++ b/test/fixedbugs/bug055.go
+@@ -7,16 +7,21 @@
+ package main
+ 
+ func main() {
+-	var i int;
+-	var j int;
+-	if true {}
+-	{ return }
+-	i = 0;
+-	if true {} else i++;
+-	type s struct {};
+-	i = 0;
+-	type s2 int;
+-	var k = func (a int) int { return a+1 }(3);
+-	_, _ = j, k;
+-ro: ;
++	var i int
++	var j int
++	if true {
++	}
++	{
++		return
++	}
++	i = 0
++	if true {
++	} else {
++		i++
++	}
++	type s struct{}
++	i = 0
++	type s2 int
++	var k = func(a int) int { return a + 1 }(3)
++	_, _ = j, k
+ }
+diff --git a/test/fixedbugs/bug076.go b/test/fixedbugs/bug076.go
+index 065cecc015..2ca518d76d 100644
+--- a/test/fixedbugs/bug076.go
++++ b/test/fixedbugs/bug076.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// $G $D/$F.go && $L $F.$A
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,12 +7,16 @@
+ package main
+ 
+ func f() {
+-exit: ;
++exit:
++	;
++	goto exit
+ }
+ 
+ 
+ func main() {
+-exit: ; // this should be legal (labels not properly scoped?)
++exit:
++	; // this should be legal (labels not properly scoped?)
++	goto exit
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug077.go b/test/fixedbugs/bug077.go
+index 08028ab10f..2cbf96d98f 100644
+--- a/test/fixedbugs/bug077.go
++++ b/test/fixedbugs/bug077.go
+@@ -7,7 +7,8 @@
+ package main
+ 
+ func main() {
+-	var exit int;
++	var exit int
+ exit:
+-	_ = exit;
++	_ = exit
++	goto exit
+ }
+diff --git a/test/fixedbugs/bug091.go b/test/fixedbugs/bug091.go
+index cfbb09cd82..c2ede7153c 100644
+--- a/test/fixedbugs/bug091.go
++++ b/test/fixedbugs/bug091.go
+@@ -7,18 +7,19 @@
+ package main
+ 
+ func f1() {
+-	exit:
+-		print("hi\n");
++exit:
++	print("hi\n")
++	goto exit
+ }
+ 
+ func f2() {
+-	const c = 1234;
++	const c = 1234
+ }
+ 
+ func f3() {
+-	i := c;	// ERROR "undef"
++	i := c // ERROR "undef"
+ }
+ 
+ func main() {
+-	f3();
++	f3()
+ }
+diff --git a/test/fixedbugs/bug137.go b/test/fixedbugs/bug137.go
+index 1527924116..9d43f431be 100644
+--- a/test/fixedbugs/bug137.go
++++ b/test/fixedbugs/bug137.go
+@@ -8,16 +8,21 @@ package main
+ 
+ func main() {
+ L1:
+-L2:	for i := 0; i < 10; i++ {
+-		print(i);
+-		break L2;
++L2:
++	for i := 0; i < 10; i++ {
++		print(i)
++		break L2
+ 	}
+ 
+-L3: ;
+-L4:	for i := 0; i < 10; i++ {
+-		print(i);
+-		break L4;
++L3:
++	;
++L4:
++	for i := 0; i < 10; i++ {
++		print(i)
++		break L4
+ 	}
++	goto L1
++	goto L3
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug140.go b/test/fixedbugs/bug140.go
+index 298081663b..e27b370e76 100644
+--- a/test/fixedbugs/bug140.go
++++ b/test/fixedbugs/bug140.go
+@@ -7,8 +7,17 @@
+ package main
+ 
+ func main() {
+-	if true {} else L1: ;
+-	if true {} else L2: main() ;
++	if true {
++	} else {
++	L1:
++	}
++	if true {
++	} else {
++	L2:
++		main()
++	}
++	goto L1
++	goto L2
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug178.go b/test/fixedbugs/bug178.go
+index 4f586342b4..2059610244 100644
+--- a/test/fixedbugs/bug178.go
++++ b/test/fixedbugs/bug178.go
+@@ -9,19 +9,25 @@ package main
+ func main() {
+ L:
+ 	for i := 0; i < 1; i++ {
+-L1:
++	L1:
+ 		for {
+-			break L;
++			break L
+ 		}
+-		panic("BUG: not reached - break");
++		panic("BUG: not reached - break")
+ 	}
+ 
+ L2:
+ 	for i := 0; i < 1; i++ {
+-L3:
++	L3:
+ 		for {
+-			continue L2;
++			continue L2
+ 		}
+-		panic("BUG: not reached - continue");
++		panic("BUG: not reached - continue")
++	}
++	if false {
++		goto L1
++	}
++	if false {
++		goto L3
+ 	}
+ }
+diff --git a/test/fixedbugs/bug179.go b/test/fixedbugs/bug179.go
+index 67548733ce..3347613d8d 100644
+--- a/test/fixedbugs/bug179.go
++++ b/test/fixedbugs/bug179.go
+@@ -10,16 +10,18 @@ func main() {
+ L:
+ 	for {
+ 		for {
+-			break L2;	// ERROR "L2"
+-			continue L2;	// ERROR "L2"
++			break L2    // ERROR "L2"
++			continue L2 // ERROR "L2"
+ 		}
+ 	}
+ 
+ L1:
+-	x := 1;
+-	_ = x;
++	x := 1
++	_ = x
+ 	for {
+-		break L1;	// ERROR "L1"
+-		continue L1;	// ERROR "L1"
++		break L1    // ERROR "L1"
++		continue L1 // ERROR "L1"
+ 	}
++
++	goto L
+ }

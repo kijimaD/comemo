@@ -26,6 +26,20 @@ Date:   Wed Feb 19 13:10:36 2025 -0500
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
-
+---
  src/crypto/tls/bogo_config.json | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 0ca65a6c3b..1521594034 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -53,7 +53,7 @@
+         "JustConfiguringKyberWorks": "we always send a X25519 key share with Kyber",
+         "KyberKeyShareIncludedSecond": "we always send the Kyber key share first",
+         "KyberKeyShareIncludedThird": "we always send the Kyber key share first",
+-        "GREASE-Server-TLS13": "TODO ???",
++        "GREASE-Server-TLS13": "We don't send GREASE extensions",
+         "GarbageCertificate*": "TODO ask davidben, alertDecode vs alertBadCertificate",
+         "SendBogusAlertType": "sending wrong alert type",
+         "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",

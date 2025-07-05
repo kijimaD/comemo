@@ -13,7 +13,7 @@ Date:   Fri Jul 16 19:49:43 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/api_test.go    |  4 ++-
  src/go/types/call.go        |  4 +--
  src/go/types/instance.go    |  3 ++-
@@ -22,3 +22,269 @@ Date:   Fri Jul 16 19:49:43 2021 -0400
  src/go/types/subst.go       | 54 ++++++++++++++++++++++++++------------
  src/go/types/typexpr.go     |  2 ++
  7 files changed, 53 insertions(+), 80 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 0a91f139fe..444cb44087 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1833,7 +1833,9 @@ func TestInstantiate(t *testing.T) {
+ 	}
+ 
+ 	// instantiation should succeed (no endless recursion)
+-	res := Instantiate(token.NoPos, T, []Type{Typ[Int]})
++	// even with a nil *Checker
++	var check *Checker
++	res := check.Instantiate(token.NoPos, T, []Type{Typ[Int]}, nil, false)
+ 
+ 	// instantiated type should point to itself
+ 	if res.Underlying().(*Pointer).Elem() != res {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index bcd569e82f..9453b53c3a 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -60,7 +60,7 @@ func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
+ 	}
+ 
+ 	// instantiate function signature
+-	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
++	res := check.Instantiate(x.Pos(), sig, targs, poslist, true).(*Signature)
+ 	assert(res.tparams == nil) // signature is not generic anymore
+ 	if inferred {
+ 		check.recordInferred(ix.Orig, targs, res)
+@@ -333,7 +333,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 		}
+ 
+ 		// compute result signature
+-		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
++		rsig = check.Instantiate(call.Pos(), sig, targs, nil, true).(*Signature)
+ 		assert(rsig.tparams == nil) // signature is not generic anymore
+ 		check.recordInferred(call, targs, rsig)
+ 
+diff --git a/src/go/types/instance.go b/src/go/types/instance.go
+index 99771104bf..143ba693a6 100644
+--- a/src/go/types/instance.go
++++ b/src/go/types/instance.go
+@@ -16,6 +16,7 @@ type instance struct {
+ 	base    *Named      // parameterized type to be instantiated
+ 	targs   []Type      // type arguments
+ 	poslist []token.Pos // position of each targ; for error reporting only
++	verify  bool        // if set, constraint satisfaction is verified
+ 	value   Type        // base[targs...] after instantiation or Typ[Invalid]; nil if not yet set
+ }
+ 
+@@ -25,7 +26,7 @@ type instance struct {
+ func (t *instance) expand() Type {
+ 	v := t.value
+ 	if v == nil {
+-		v = t.check.instantiate(t.pos, t.base, t.targs, t.poslist)
++		v = t.check.Instantiate(t.pos, t.base, t.targs, t.poslist, t.verify)
+ 		if v == nil {
+ 			v = Typ[Invalid]
+ 		}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 1c15ac199c..61b9055326 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -9,71 +9,19 @@ import (
+ 	"go/token"
+ )
+ 
+-// Instantiate instantiates the type typ with the given type arguments.
+-// typ must be a *Named or a *Signature type, it must be generic, and
+-// its number of type parameters must match the number of provided type
+-// arguments. The result is a new, instantiated (not generic) type of
+-// the same kind (either a *Named or a *Signature). The type arguments
+-// are not checked against the constraints of the type parameters.
+-// Any methods attached to a *Named are simply copied; they are not
+-// instantiated.
+-func Instantiate(pos token.Pos, typ Type, targs []Type) (res Type) {
+-	// TODO(gri) This code is basically identical to the prolog
+-	//           in Checker.instantiate. Factor.
+-	var tparams []*TypeName
+-	switch t := typ.(type) {
+-	case *Named:
+-		tparams = t.TParams()
+-	case *Signature:
+-		tparams = t.tparams
+-		defer func() {
+-			// If we had an unexpected failure somewhere don't panic below when
+-			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
+-			// is returned.
+-			if _, ok := res.(*Signature); !ok {
+-				return
+-			}
+-			// If the signature doesn't use its type parameters, subst
+-			// will not make a copy. In that case, make a copy now (so
+-			// we can set tparams to nil w/o causing side-effects).
+-			if t == res {
+-				copy := *t
+-				res = &copy
+-			}
+-			// After instantiating a generic signature, it is not generic
+-			// anymore; we need to set tparams to nil.
+-			res.(*Signature).tparams = nil
+-		}()
+-
+-	default:
+-		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+-	}
+-
+-	// the number of supplied types must match the number of type parameters
+-	if len(targs) != len(tparams) {
+-		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), len(tparams)))
+-	}
+-
+-	if len(tparams) == 0 {
+-		return typ // nothing to do (minor optimization)
+-	}
+-
+-	smap := makeSubstMap(tparams, targs)
+-	return (*Checker)(nil).subst(pos, typ, smap)
+-}
+-
+ // InstantiateLazy is like Instantiate, but avoids actually
+ // instantiating the type until needed.
+-func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type) (res Type) {
++func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type, verify bool) (res Type) {
+ 	base := asNamed(typ)
+ 	if base == nil {
+ 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+ 	}
+ 
+ 	return &instance{
+-		check: check,
+-		pos:   pos,
+-		base:  base,
+-		targs: targs,
++		check:  check,
++		pos:    pos,
++		base:   base,
++		targs:  targs,
++		verify: verify,
+ 	}
+ }
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index d03e1ea0cb..8c18de8675 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -32,7 +32,7 @@ func TestSizeof(t *testing.T) {
+ 		{Chan{}, 12, 24},
+ 		{Named{}, 84, 160},
+ 		{TypeParam{}, 28, 48},
+-		{instance{}, 44, 88},
++		{instance{}, 48, 96},
+ 		{top{}, 0, 0},
+ 
+ 		// Objects
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 64146be27e..d367369158 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -56,8 +56,24 @@ func (m *substMap) lookup(tpar *TypeParam) Type {
+ 	return tpar
+ }
+ 
+-func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist []token.Pos) (res Type) {
+-	if trace {
++// Instantiate instantiates the type typ with the given type arguments
++// targs. To check type constraint satisfaction, verify must be set.
++// pos and posList correspond to the instantiation and type argument
++// positions respectively; posList may be nil or shorter than the number
++// of type arguments provided.
++// typ must be a *Named or a *Signature type, and its number of type
++// parameters must match the number of provided type arguments.
++// The receiver (check) may be nil if and only if verify is not set.
++// The result is a new, instantiated (not generic) type of the same kind
++// (either a *Named or a *Signature).
++// Any methods attached to a *Named are simply copied; they are not
++// instantiated.
++func (check *Checker) Instantiate(pos token.Pos, typ Type, targs []Type, posList []token.Pos, verify bool) (res Type) {
++	if verify && check == nil {
++		panic("cannot have nil receiver if verify is set")
++	}
++
++	if check != nil && trace {
+ 		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
+ 		check.indent++
+ 		defer func() {
+@@ -73,7 +89,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
+ 		}()
+ 	}
+ 
+-	assert(len(poslist) <= len(targs))
++	assert(len(posList) <= len(targs))
+ 
+ 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
+ 	var tparams []*TypeName
+@@ -100,17 +116,19 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
+ 			// anymore; we need to set tparams to nil.
+ 			res.(*Signature).tparams = nil
+ 		}()
+-
+ 	default:
+-		check.dump("%v: cannot instantiate %v", pos, typ)
+-		unreachable() // only defined types and (defined) functions can be generic
++		// only types and functions can be generic
++		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+ 	}
+ 
+ 	// the number of supplied types must match the number of type parameters
+ 	if len(targs) != len(tparams) {
+ 		// TODO(gri) provide better error message
+-		check.errorf(atPos(pos), _Todo, "got %d arguments but %d type parameters", len(targs), len(tparams))
+-		return Typ[Invalid]
++		if check != nil {
++			check.errorf(atPos(pos), _Todo, "got %d arguments but %d type parameters", len(targs), len(tparams))
++			return Typ[Invalid]
++		}
++		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), len(tparams)))
+ 	}
+ 
+ 	if len(tparams) == 0 {
+@@ -120,16 +138,18 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
+ 	smap := makeSubstMap(tparams, targs)
+ 
+ 	// check bounds
+-	for i, tname := range tparams {
+-		// best position for error reporting
+-		pos := pos
+-		if i < len(poslist) {
+-			pos = poslist[i]
+-		}
++	if verify {
++		for i, tname := range tparams {
++			// best position for error reporting
++			pos := pos
++			if i < len(posList) {
++				pos = posList[i]
++			}
+ 
+-		// stop checking bounds after the first failure
+-		if !check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap) {
+-			break
++			// stop checking bounds after the first failure
++			if !check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap) {
++				break
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 342317048b..e93c50a087 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -413,12 +413,14 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) Typ
+ 	// create a new type instance rather than instantiate the type
+ 	// TODO(gri) should do argument number check here rather than
+ 	//           when instantiating the type?
++	// TODO(gri) use InstantiateLazy here (cleanup)
+ 	typ := new(instance)
+ 	def.setUnderlying(typ)
+ 
+ 	typ.check = check
+ 	typ.pos = ix.X.Pos()
+ 	typ.base = base
++	typ.verify = true
+ 
+ 	// evaluate arguments (always)
+ 	typ.targs = check.typeList(ix.Indices)

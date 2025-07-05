@@ -7,9 +7,373 @@ Date:   Wed Feb 23 20:52:43 2011 +1100
     R=rsc
     CC=bsiegert, golang-dev, mpl
     https://golang.org/cl/4182081
-
+---
  src/pkg/Makefile                    |   1 +
  src/pkg/compress/lzw/Makefile       |  11 ++
  src/pkg/compress/lzw/reader.go      | 211 ++++++++++++++++++++++++++++++++++++
  src/pkg/compress/lzw/reader_test.go | 111 +++++++++++++++++++
  4 files changed, 334 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 177bfdc23a..55340b84fa 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -23,6 +23,7 @@ DIRS=\
+ 	cmath\
+ 	compress/flate\
+ 	compress/gzip\
++	compress/lzw \
+ 	compress/zlib\
+ 	container/heap\
+ 	container/list\
+diff --git a/src/pkg/compress/lzw/Makefile b/src/pkg/compress/lzw/Makefile
+new file mode 100644
+index 0000000000..8f2a376f4b
+--- /dev/null
++++ b/src/pkg/compress/lzw/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=compress/lzw
++GOFILES=\
++	reader.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/compress/lzw/reader.go b/src/pkg/compress/lzw/reader.go
+new file mode 100644
+index 0000000000..47b10a8cbd
+--- /dev/null
++++ b/src/pkg/compress/lzw/reader.go
+@@ -0,0 +1,211 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The lzw package implements the Lempel-Ziv-Welch compressed data format,
++// described in T. A. Welch, ``A Technique for High-Performance Data
++// Compression'', Computer, 17(6) (June 1984), pp 8-19.
++//
++// In particular, it implements LZW as used by the GIF, TIFF and PDF file
++// formats, which means variable-width codes up to 12 bits and the first
++// two non-literal codes are a clear code and an EOF code.
++package lzw
++
++// TODO(nigeltao): check that TIFF and PDF use LZW in the same way as GIF,
++// modulo LSB/MSB packing order.
++
++// TODO(nigeltao): write an encoder.
++
++import (
++	"bufio"
++	"fmt"
++	"io"
++	"os"
++)
++
++// Order specifies the bit ordering in an LZW data stream.
++type Order int
++
++const (
++	// LSB means Least Significant Bits first, as used in the GIF file format.
++	LSB Order = iota
++	// MSB means Most Significant Bits first, as used in the TIFF and PDF
++	// file formats.
++	MSB
++)
++
++// decoder is the state from which the readXxx method converts a byte
++// stream into a code stream.
++type decoder struct {
++	r     io.ByteReader
++	bits  uint32
++	nBits uint
++	width uint
++}
++
++// readLSB returns the next code for "Least Significant Bits first" data.
++func (d *decoder) readLSB() (uint16, os.Error) {
++	for d.nBits < d.width {
++		c, err := d.r.ReadByte()
++		if err != nil {
++			return 0, err
++		}
++		d.bits |= uint32(c) << d.nBits
++		d.nBits += 8
++	}
++	code := uint16(d.bits & (1<<d.width - 1))
++	d.bits >>= d.width
++	d.nBits -= d.width
++	return code, nil
++}
++
++// readMSB returns the next code for "Most Significant Bits first" data.
++func (d *decoder) readMSB() (uint16, os.Error) {
++	for d.nBits < d.width {
++		c, err := d.r.ReadByte()
++		if err != nil {
++			return 0, err
++		}
++		d.bits |= uint32(c) << (24 - d.nBits)
++		d.nBits += 8
++	}
++	code := uint16(d.bits >> (32 - d.width))
++	d.bits <<= d.width
++	d.nBits -= d.width
++	return code, nil
++}
++
++// decode decompresses bytes from r and writes them to pw.
++// read specifies how to decode bytes into codes.
++// litWidth is the width in bits of literal codes.
++func decode(pw *io.PipeWriter, r io.ByteReader, read func(*decoder) (uint16, os.Error), litWidth uint) os.Error {
++	const (
++		maxWidth    = 12
++		invalidCode = 0xffff
++	)
++	d := decoder{r, 0, 0, 1 + litWidth}
++	w := bufio.NewWriter(pw)
++	// The first 1<<litWidth codes are literal codes.
++	// The next two codes mean clear and EOF.
++	// Other valid codes are in the range [lo, hi] where lo := clear + 2,
++	// with the upper bound incrementing on each code seen.
++	clear := uint16(1) << litWidth
++	eof, hi := clear+1, clear+1
++	// overflow is the code at which hi overflows the code width.
++	overflow := uint16(1) << d.width
++	var (
++		// Each code c in [lo, hi] expands to two or more bytes. For c != hi:
++		//   suffix[c] is the last of these bytes.
++		//   prefix[c] is the code for all but the last byte.
++		//   This code can either be a literal code or another code in [lo, c).
++		// The c == hi case is a special case.
++		suffix [1 << maxWidth]uint8
++		prefix [1 << maxWidth]uint16
++	)
++
++	// Loop over the code stream, converting codes into decompressed bytes.
++	last := uint16(invalidCode)
++	for {
++		code, err := read(&d)
++		if err != nil {
++			if err == os.EOF {
++				err = io.ErrUnexpectedEOF
++			}
++			return err
++		}
++		switch {
++		case code < clear:
++			// We have a literal code.
++			if err := w.WriteByte(uint8(code)); err != nil {
++				return err
++			}
++			if last != invalidCode {
++				// Save what the hi code expands to.
++				suffix[hi] = uint8(code)
++				prefix[hi] = last
++			}
++		case code == clear:
++			d.width = 1 + litWidth
++			hi = eof
++			overflow = 1 << d.width
++			last = invalidCode
++			continue
++		case code == eof:
++			return w.Flush()
++		case code <= hi:
++			// buf is a scratch buffer for reconstituting the bytes that a code expands to.
++			// Code suffixes are written right-to-left from the end of the buffer.
++			var buf [1 << maxWidth]byte
++			c, i := code, len(buf)-1
++			if code == hi {
++				// code == hi is a special case which expands to the last expansion
++				// followed by the head of the last expansion. To find the head, we walk
++				// the prefix chain until we find a literal code.
++				c = last
++				for c >= clear {
++					c = prefix[c]
++				}
++				buf[i] = uint8(c)
++				i--
++				c = last
++			}
++			// Copy the suffix chain into buf and then write that to w.
++			for c >= clear {
++				buf[i] = suffix[c]
++				i--
++				c = prefix[c]
++			}
++			buf[i] = uint8(c)
++			if _, err := w.Write(buf[i:]); err != nil {
++				return err
++			}
++			// Save what the hi code expands to.
++			suffix[hi] = uint8(c)
++			prefix[hi] = last
++		default:
++			return os.NewError("lzw: invalid code")
++		}
++		last, hi = code, hi+1
++		if hi == overflow {
++			if d.width == maxWidth {
++				return os.NewError("lzw: missing clear code")
++			}
++			d.width++
++			overflow <<= 1
++		}
++	}
++	panic("unreachable")
++}
++
++// NewReader returns a new ReadCloser that can be used to read the uncompressed
++// version of r. It is the caller's responsibility to call Close on the
++// ReadCloser when finished reading.
++// order is either LSB or MSB for Least or Most Significant Bits first packing
++// order. GIF uses LSB. TIFF and PDF use MSB.
++// litWidth is the width in bits for literal codes. Valid values range from
++// 2 to 8 inclusive.
++func NewReader(r io.Reader, order Order, litWidth int) io.ReadCloser {
++	pr, pw := io.Pipe()
++	var read func(*decoder) (uint16, os.Error)
++	switch order {
++	case LSB:
++		read = (*decoder).readLSB
++	case MSB:
++		read = (*decoder).readMSB
++	default:
++		pw.CloseWithError(os.NewError("lzw: unknown order"))
++		return pr
++	}
++	if litWidth < 2 || 8 < litWidth {
++		pw.CloseWithError(fmt.Errorf("lzw: litWidth %d out of range", litWidth))
++		return pr
++	}
++	go func() {
++		br, ok := r.(io.ByteReader)
++		if !ok {
++			br = bufio.NewReader(r)
++		}
++		pw.CloseWithError(decode(pw, br, read, uint(litWidth)))
++	}()
++	return pr
++}
+diff --git a/src/pkg/compress/lzw/reader_test.go b/src/pkg/compress/lzw/reader_test.go
+new file mode 100644
+index 0000000000..cfc15065bb
+--- /dev/null
++++ b/src/pkg/compress/lzw/reader_test.go
+@@ -0,0 +1,111 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package lzw
++
++import (
++	"bytes"
++	"io"
++	"os"
++	"strconv"
++	"strings"
++	"testing"
++)
++
++type lzwTest struct {
++	desc       string
++	raw        string
++	compressed string
++	err        os.Error
++}
++
++var lzwTests = []lzwTest{
++	{
++		"empty;LSB;8",
++		"",
++		"\x01\x01",
++		nil,
++	},
++	{
++		"empty;MSB;8",
++		"",
++		"\x80\x80",
++		nil,
++	},
++	{
++		"tobe;LSB;7",
++		"TOBEORNOTTOBEORTOBEORNOT",
++		"\x54\x4f\x42\x45\x4f\x52\x4e\x4f\x54\x82\x84\x86\x8b\x85\x87\x89\x81",
++		nil,
++	},
++	{
++		"tobe;LSB;8",
++		"TOBEORNOTTOBEORTOBEORNOT",
++		"\x54\x9e\x08\x29\xf2\x44\x8a\x93\x27\x54\x04\x12\x34\xb8\xb0\xe0\xc1\x84\x01\x01",
++		nil,
++	},
++	{
++		"tobe;MSB;7",
++		"TOBEORNOTTOBEORTOBEORNOT",
++		"\x54\x4f\x42\x45\x4f\x52\x4e\x4f\x54\x82\x84\x86\x8b\x85\x87\x89\x81",
++		nil,
++	},
++	{
++		"tobe;MSB;8",
++		"TOBEORNOTTOBEORTOBEORNOT",
++		"\x2a\x13\xc8\x44\x52\x79\x48\x9c\x4f\x2a\x40\xa0\x90\x68\x5c\x16\x0f\x09\x80\x80",
++		nil,
++	},
++	{
++		"tobe-truncated;LSB;8",
++		"TOBEORNOTTOBEORTOBEORNOT",
++		"\x54\x9e\x08\x29\xf2\x44\x8a\x93\x27\x54\x04",
++		io.ErrUnexpectedEOF,
++	},
++	// This example comes from http://en.wikipedia.org/wiki/Graphics_Interchange_Format.
++	{
++		"gif;LSB;8",
++		"\x28\xff\xff\xff\x28\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff",
++		"\x00\x51\xfc\x1b\x28\x70\xa0\xc1\x83\x01\x01",
++		nil,
++	},
++	// This example comes from http://compgroups.net/comp.lang.ruby/Decompressing-LZW-compression-from-PDF-file
++	{
++		"pdf;MSB;8",
++		"-----A---B",
++		"\x80\x0b\x60\x50\x22\x0c\x0c\x85\x01",
++		nil,
++	},
++}
++
++func TestReader(t *testing.T) {
++	b := bytes.NewBuffer(nil)
++	for _, tt := range lzwTests {
++		d := strings.Split(tt.desc, ";", -1)
++		var order Order
++		switch d[1] {
++		case "LSB":
++			order = LSB
++		case "MSB":
++			order = MSB
++		default:
++			t.Errorf("%s: bad order %q", tt.desc, d[1])
++		}
++		litWidth, _ := strconv.Atoi(d[2])
++		rc := NewReader(strings.NewReader(tt.compressed), order, litWidth)
++		defer rc.Close()
++		b.Reset()
++		n, err := io.Copy(b, rc)
++		if err != nil {
++			if err != tt.err {
++				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
++			}
++			continue
++		}
++		s := b.String()
++		if s != tt.raw {
++			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
++		}
++	}
++}

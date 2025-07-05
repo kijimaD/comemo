@@ -9,10 +9,204 @@ Date:   Thu Nov 3 15:54:08 2011 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5305090
-
+---
  src/pkg/Makefile                                   |  1 -
  src/pkg/net/http/Makefile                          |  3 +--
  src/pkg/net/http/httputil/Makefile                 |  1 +
  src/pkg/net/http/{ => httputil}/reverseproxy.go    | 27 +++++++++++-----------
  .../net/http/{ => httputil}/reverseproxy_test.go   | 12 +++++-----
  5 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 2f3da7c801..8971f7c1d0 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -212,7 +212,6 @@ NOTEST+=\
+ 	net/dict\
+ 	net/http/pprof\
+ 	net/http/httptest\
+-	net/http/httputil\
+ 	runtime/cgo\
+ 	syscall\
+ 	testing\
+diff --git a/src/pkg/net/http/Makefile b/src/pkg/net/http/Makefile
+index 3d8e6d3fc3..e94f4ccf43 100644
+--- a/src/pkg/net/http/Makefile
++++ b/src/pkg/net/http/Makefile
+@@ -16,7 +16,6 @@ GOFILES=\
+ 	lex.go\
+ 	request.go\
+ 	response.go\
+-	reverseproxy.go\
+ 	server.go\
+ 	sniff.go\
+ 	status.go\
+@@ -25,7 +24,7 @@ GOFILES=\
+ 
+ GOFILES_windows=\
+ 	transport_windows.go\
+-	
++
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/net/http/httputil/Makefile b/src/pkg/net/http/httputil/Makefile
+index b5f14df128..799b31359d 100644
+--- a/src/pkg/net/http/httputil/Makefile
++++ b/src/pkg/net/http/httputil/Makefile
+@@ -7,5 +7,6 @@ include ../../../../Make.inc
+ TARG=net/http/httputil
+ GOFILES=\
+ 	persist.go\
++	reverseproxy.go\
+ 
+ include ../../../../Make.pkg
+diff --git a/src/pkg/net/http/reverseproxy.go b/src/pkg/net/http/httputil/reverseproxy.go
+similarity index 87%
+rename from src/pkg/net/http/reverseproxy.go
+rename to src/pkg/net/http/httputil/reverseproxy.go
+index 9cd359f16b..1c5a4463a0 100644
+--- a/src/pkg/net/http/reverseproxy.go
++++ b/src/pkg/net/http/httputil/reverseproxy.go
+@@ -4,9 +4,10 @@
+ 
+ // HTTP reverse proxy handler
+ 
+-package http
++package httputil
+ 
+ import (
++	"http"
+ 	"io"
+ 	"log"
+ 	"net"
+@@ -24,11 +25,11 @@ type ReverseProxy struct {
+ 	// the request into a new request to be sent
+ 	// using Transport. Its response is then copied
+ 	// back to the original client unmodified.
+-	Director func(*Request)
++	Director func(*http.Request)
+ 
+-	// The Transport used to perform proxy requests.
+-	// If nil, DefaultTransport is used.
+-	Transport RoundTripper
++	// The transport used to perform proxy requests.
++	// If nil, http.DefaultTransport is used.
++	Transport http.RoundTripper
+ 
+ 	// FlushInterval specifies the flush interval, in
+ 	// nanoseconds, to flush to the client while
+@@ -54,7 +55,7 @@ func singleJoiningSlash(a, b string) string {
+ // target's path is "/base" and the incoming request was for "/dir",
+ // the target request will be for /base/dir.
+ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
+-	director := func(req *Request) {
++	director := func(req *http.Request) {
+ 		req.URL.Scheme = target.Scheme
+ 		req.URL.Host = target.Host
+ 		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
+@@ -68,7 +69,7 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
+ 	return &ReverseProxy{Director: director}
+ }
+ 
+-func copyHeader(dst, src Header) {
++func copyHeader(dst, src http.Header) {
+ 	for k, vv := range src {
+ 		for _, v := range vv {
+ 			dst.Add(k, v)
+@@ -76,13 +77,13 @@ func copyHeader(dst, src Header) {
+ 	}
+ }
+ 
+-func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
++func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	transport := p.Transport
+ 	if transport == nil {
+-		transport = DefaultTransport
++		transport = http.DefaultTransport
+ 	}
+ 
+-	outreq := new(Request)
++	outreq := new(http.Request)
+ 	*outreq = *req // includes shallow copies of maps, but okay
+ 
+ 	p.Director(outreq)
+@@ -96,7 +97,7 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
+ 	// to us.  This is modifying the same underlying map from req
+ 	// (shallow copied above) so we only copy it if necessary.
+ 	if outreq.Header.Get("Connection") != "" {
+-		outreq.Header = make(Header)
++		outreq.Header = make(http.Header)
+ 		copyHeader(outreq.Header, req.Header)
+ 		outreq.Header.Del("Connection")
+ 	}
+@@ -108,7 +109,7 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
+ 	res, err := transport.RoundTrip(outreq)
+ 	if err != nil {
+ 		log.Printf("http: proxy error: %v", err)
+-		rw.WriteHeader(StatusInternalServerError)
++		rw.WriteHeader(http.StatusInternalServerError)
+ 		return
+ 	}
+ 
+@@ -129,7 +130,7 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
+ 
+ type writeFlusher interface {
+ 	io.Writer
+-	Flusher
++	http.Flusher
+ }
+ 
+ type maxLatencyWriter struct {
+diff --git a/src/pkg/net/http/reverseproxy_test.go b/src/pkg/net/http/httputil/reverseproxy_test.go
+similarity index 86%
+rename from src/pkg/net/http/reverseproxy_test.go
+rename to src/pkg/net/http/httputil/reverseproxy_test.go
+index 663218d61b..d76829a3c5 100644
+--- a/src/pkg/net/http/reverseproxy_test.go
++++ b/src/pkg/net/http/httputil/reverseproxy_test.go
+@@ -4,10 +4,10 @@
+ 
+ // Reverse proxy tests.
+ 
+-package http_test
++package httputil
+ 
+ import (
+-	. "http"
++	"http"
+ 	"http/httptest"
+ 	"io/ioutil"
+ 	"testing"
+@@ -17,7 +17,7 @@ import (
+ func TestReverseProxy(t *testing.T) {
+ 	const backendResponse = "I am the backend"
+ 	const backendStatus = 404
+-	backend := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		if len(r.TransferEncoding) > 0 {
+ 			t.Errorf("backend got unexpected TransferEncoding: %v", r.TransferEncoding)
+ 		}
+@@ -31,7 +31,7 @@ func TestReverseProxy(t *testing.T) {
+ 			t.Errorf("backend got Host header %q, want %q", g, e)
+ 		}
+ 		w.Header().Set("X-Foo", "bar")
+-		SetCookie(w, &Cookie{Name: "flavor", Value: "chocolateChip"})
++		http.SetCookie(w, &http.Cookie{Name: "flavor", Value: "chocolateChip"})
+ 		w.WriteHeader(backendStatus)
+ 		w.Write([]byte(backendResponse))
+ 	}))
+@@ -44,11 +44,11 @@ func TestReverseProxy(t *testing.T) {
+ 	frontend := httptest.NewServer(proxyHandler)
+ 	defer frontend.Close()
+ 
+-	getReq, _ := NewRequest("GET", frontend.URL, nil)
++	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+ 	getReq.Host = "some-name"
+ 	getReq.Header.Set("Connection", "close")
+ 	getReq.Close = true
+-	res, err := DefaultClient.Do(getReq)
++	res, err := http.DefaultClient.Do(getReq)
+ 	if err != nil {
+ 		t.Fatalf("Get: %v", err)
+ 	}

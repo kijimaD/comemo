@@ -14,7 +14,52 @@ Date:   Wed Sep 7 20:11:00 2022 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mheap.go      | 6 ------
  src/runtime/mpagealloc.go | 2 --
  2 files changed, 8 deletions(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index be53f7bd91..610011863b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -65,8 +65,6 @@ type mheap struct {
+ 	// could self-deadlock if its stack grows with the lock held.
+ 	lock mutex
+ 
+-	_ uint32 // 8-byte align pages so its alignment is consistent with tests.
+-
+ 	pages pageAlloc // page allocation data structure
+ 
+ 	sweepgen uint32 // sweep generation, see comment in mspan; written during STW
+@@ -84,8 +82,6 @@ type mheap struct {
+ 	// access (since that may free the backing store).
+ 	allspans []*mspan // all spans out there
+ 
+-	// _ uint32 // align uint64 fields on 32-bit for atomics
+-
+ 	// Proportional sweep
+ 	//
+ 	// These parameters represent a linear function from gcController.heapLive
+@@ -191,8 +187,6 @@ type mheap struct {
+ 		base, end uintptr
+ 	}
+ 
+-	_ uint32 // ensure 64-bit alignment of central
+-
+ 	// central free lists for small size classes.
+ 	// the padding makes sure that the mcentrals are
+ 	// spaced CacheLinePadSize bytes apart, so that each mcentral.lock
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 83df7c5150..853d7fc9ca 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -267,8 +267,6 @@ type pageAlloc struct {
+ 	// All access is protected by the mheapLock.
+ 	inUse addrRanges
+ 
+-	_ uint32 // Align scav so it's easier to reason about alignment within scav.
+-
+ 	// scav stores the scavenger state.
+ 	scav struct {
+ 		// index is an efficient index of chunks that have pages available to

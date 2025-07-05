@@ -15,7 +15,52 @@ Date:   Fri Feb 5 18:07:46 2021 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go        | 8 +++++++-
  src/cmd/link/internal/loader/loader.go | 4 ++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 71cef0b774..314896824a 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -489,10 +489,16 @@ func (ctxt *Link) loadlib() {
+ 	case 0:
+ 		// nothing to do
+ 	case 1, 2:
+-		flags = loader.FlagStrictDups
++		flags |= loader.FlagStrictDups
+ 	default:
+ 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+ 	}
++	if !*flagAbiWrap || ctxt.linkShared {
++		// Use ABI aliases if ABI wrappers are not used.
++		// TODO: for now we still use ABI aliases in shared linkage, even if
++		// the wrapper is enabled.
++		flags |= loader.FlagUseABIAlias
++	}
+ 	elfsetstring1 := func(str string, off int) { elfsetstring(ctxt, 0, str, off) }
+ 	ctxt.loader = loader.NewLoader(flags, elfsetstring1, &ctxt.ErrorReporter.ErrorReporter)
+ 	ctxt.ErrorReporter.SymName = func(s loader.Sym) string {
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 971cc432ff..98c2131c2b 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -322,6 +322,7 @@ type extSymPayload struct {
+ const (
+ 	// Loader.flags
+ 	FlagStrictDups = 1 << iota
++	FlagUseABIAlias
+ )
+ 
+ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
+@@ -2270,6 +2271,9 @@ func abiToVer(abi uint16, localSymVersion int) int {
+ // symbol. If the sym in question is not an alias, the sym itself is
+ // returned.
+ func (l *Loader) ResolveABIAlias(s Sym) Sym {
++	if l.flags&FlagUseABIAlias == 0 {
++		return s
++	}
+ 	if s == 0 {
+ 		return 0
+ 	}

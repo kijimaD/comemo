@@ -12,7 +12,7 @@ Date:   Thu Apr 23 15:04:35 2015 +1000
     Change-Id: I965a5a41d4739b3ba38e539a7b8d96d3223e3d56
     Reviewed-on: https://go-review.googlesource.com/9271
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go                              |   1 +
  src/go/build/deps_test.go                          |  41 +-
  src/internal/syscall/windows/registry/key.go       | 175 ++++++
@@ -23,3 +23,1489 @@ Date:   Thu Apr 23 15:04:35 2015 +1000
  src/mime/type_windows.go                           |  48 +-
  src/time/zoneinfo_windows.go                       |  54 +-
  9 files changed, 1253 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 9bfe2d080e..64b2399972 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -862,6 +862,7 @@ var buildorder = []string{
+ 	"container/heap",
+ 	"encoding/base64",
+ 	"syscall",
++	"internal/syscall/windows/registry",
+ 	"time",
+ 	"internal/syscall/windows",
+ 	"os",
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 3097a3289e..84c1e2ab31 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -125,7 +125,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// Operating system access.
+ 	"syscall":       {"L0", "unicode/utf16"},
+-	"time":          {"L0", "syscall"},
++	"time":          {"L0", "syscall", "internal/syscall/windows/registry"},
+ 	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
+ 	"path/filepath": {"L2", "os", "syscall"},
+ 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
+@@ -216,7 +216,7 @@ var pkgDeps = map[string][]string{
+ 	"image/png":           {"L4", "compress/zlib"},
+ 	"index/suffixarray":   {"L4", "regexp"},
+ 	"math/big":            {"L4"},
+-	"mime":                {"L4", "OS", "syscall"},
++	"mime":                {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+ 	"net/url":             {"L4"},
+ 	"text/scanner":        {"L4", "OS"},
+ 	"text/template/parse": {"L4"},
+@@ -338,24 +338,25 @@ var pkgDeps = map[string][]string{
+ 	// When updating these entries, move them to an appropriate
+ 	// location above and assign them a justified set of
+ 	// dependencies.  Do not simply update them in situ.
+-	"container/heap":           {"sort"},
+-	"debug/plan9obj":           {"encoding/binary", "errors", "fmt", "io", "os"},
+-	"go/constants":             {"fmt", "go/token", "math/big", "strconv"},
+-	"go/format":                {"bytes", "fmt", "go/ast", "go/parser", "go/printer", "go/token", "internal/format", "io"},
+-	"go/importer":              {"go/internal/gcimporter", "go/types", "io", "runtime"},
+-	"go/internal/gcimporter":   {"bufio", "errors", "fmt", "go/build", "go/constants", "go/token", "go/types", "io", "os", "path/filepath", "strconv", "strings", "text/scanner"},
+-	"go/types":                 {"bytes", "container/heap", "fmt", "go/ast", "go/constants", "go/parser", "go/token", "io", "math", "path", "sort", "strconv", "strings", "sync", "unicode"},
+-	"image/internal/imageutil": {"image"},
+-	"internal/format":          {"bytes", "go/ast", "go/parser", "go/printer", "go/token", "strings"},
+-	"internal/mime":            {"bytes", "encoding/base64", "errors", "fmt", "io", "io/ioutil", "strconv", "strings", "unicode"},
+-	"internal/singleflight":    {"sync"},
+-	"internal/syscall/unix":    {"runtime", "sync/atomic", "syscall", "unsafe"},
+-	"internal/syscall/windows": {"syscall", "unsafe"},
+-	"internal/trace":           {"bufio", "bytes", "fmt", "io", "os", "os/exec", "sort", "strconv", "strings"},
+-	"mime/quotedprintable":     {"bufio", "bytes", "fmt", "io"},
+-	"net/http/cookiejar":       {"errors", "fmt", "net", "net/http", "net/url", "sort", "strings", "sync", "time", "unicode/utf8"},
+-	"net/http/internal":        {"bufio", "bytes", "errors", "fmt", "io"},
+-	"net/internal/socktest":    {"fmt", "sync", "syscall"},
++	"container/heap":                    {"sort"},
++	"debug/plan9obj":                    {"encoding/binary", "errors", "fmt", "io", "os"},
++	"go/constants":                      {"fmt", "go/token", "math/big", "strconv"},
++	"go/format":                         {"bytes", "fmt", "go/ast", "go/parser", "go/printer", "go/token", "internal/format", "io"},
++	"go/importer":                       {"go/internal/gcimporter", "go/types", "io", "runtime"},
++	"go/internal/gcimporter":            {"bufio", "errors", "fmt", "go/build", "go/constants", "go/token", "go/types", "io", "os", "path/filepath", "strconv", "strings", "text/scanner"},
++	"go/types":                          {"bytes", "container/heap", "fmt", "go/ast", "go/constants", "go/parser", "go/token", "io", "math", "path", "sort", "strconv", "strings", "sync", "unicode"},
++	"image/internal/imageutil":          {"image"},
++	"internal/format":                   {"bytes", "go/ast", "go/parser", "go/printer", "go/token", "strings"},
++	"internal/mime":                     {"bytes", "encoding/base64", "errors", "fmt", "io", "io/ioutil", "strconv", "strings", "unicode"},
++	"internal/singleflight":             {"sync"},
++	"internal/syscall/unix":             {"runtime", "sync/atomic", "syscall", "unsafe"},
++	"internal/syscall/windows":          {"syscall", "unsafe"},
++	"internal/syscall/windows/registry": {"errors", "io", "syscall", "unicode/utf16", "unsafe"},
++	"internal/trace":                    {"bufio", "bytes", "fmt", "io", "os", "os/exec", "sort", "strconv", "strings"},
++	"mime/quotedprintable":              {"bufio", "bytes", "fmt", "io"},
++	"net/http/cookiejar":                {"errors", "fmt", "net", "net/http", "net/url", "sort", "strings", "sync", "time", "unicode/utf8"},
++	"net/http/internal":                 {"bufio", "bytes", "errors", "fmt", "io"},
++	"net/internal/socktest":             {"fmt", "sync", "syscall"},
+ }
+ 
+ // isMacro reports whether p is a package dependency macro
+diff --git a/src/internal/syscall/windows/registry/key.go b/src/internal/syscall/windows/registry/key.go
+new file mode 100644
+index 0000000000..62144d39b7
+--- /dev/null
++++ b/src/internal/syscall/windows/registry/key.go
+@@ -0,0 +1,175 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++// Package registry provides access to the Windows registry.
++//
++// Here is a simple example, opening a registry key and reading a string value from it.
++//
++//	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//	defer k.Close()
++//
++//	s, _, err := k.GetStringValue("SystemRoot")
++//	if err != nil {
++//		log.Fatal(err)
++//	}
++//	fmt.Printf("Windows system root is %q\n", s)
++//
++// NOTE: This package is a copy of golang.org/x/sys/windows/registry
++// with KeyInfo.ModTime removed to prevent dependency cycles.
++//
++package registry
++
++import (
++	"io"
++	"syscall"
++)
++
++const (
++	// Registry key security and access rights.
++	// See https://msdn.microsoft.com/en-us/library/windows/desktop/ms724878.aspx
++	// for details.
++	ALL_ACCESS         = 0xf003f
++	CREATE_LINK        = 0x00020
++	CREATE_SUB_KEY     = 0x00004
++	ENUMERATE_SUB_KEYS = 0x00008
++	EXECUTE            = 0x20019
++	NOTIFY             = 0x00010
++	QUERY_VALUE        = 0x00001
++	READ               = 0x20019
++	SET_VALUE          = 0x00002
++	WOW64_32KEY        = 0x00200
++	WOW64_64KEY        = 0x00100
++	WRITE              = 0x20006
++)
++
++// Key is a handle to an open Windows registry key.
++// Keys can be obtained by calling OpenKey; there are
++// also some predefined root keys such as CURRENT_USER.
++// Keys can be used directly in the Windows API.
++type Key syscall.Handle
++
++const (
++	// Windows defines some predefined root keys that are always open.
++	// An application can use these keys as entry points to the registry.
++	// Normally these keys are used in OpenKey to open new keys,
++	// but they can also be used anywhere a Key is required.
++	CLASSES_ROOT   = Key(syscall.HKEY_CLASSES_ROOT)
++	CURRENT_USER   = Key(syscall.HKEY_CURRENT_USER)
++	LOCAL_MACHINE  = Key(syscall.HKEY_LOCAL_MACHINE)
++	USERS          = Key(syscall.HKEY_USERS)
++	CURRENT_CONFIG = Key(syscall.HKEY_CURRENT_CONFIG)
++)
++
++// Close closes open key k.
++func (k Key) Close() error {
++	return syscall.RegCloseKey(syscall.Handle(k))
++}
++
++// OpenKey opens a new key with path name relative to key k.
++// It accepts any open key, including CURRENT_USER and others,
++// and returns the new key and an error.
++// The access parameter specifies desired access rights to the
++// key to be opened.
++func OpenKey(k Key, path string, access uint32) (Key, error) {
++	p, err := syscall.UTF16PtrFromString(path)
++	if err != nil {
++		return 0, err
++	}
++	var subkey syscall.Handle
++	err = syscall.RegOpenKeyEx(syscall.Handle(k), p, 0, access, &subkey)
++	if err != nil {
++		return 0, err
++	}
++	return Key(subkey), nil
++}
++
++// ReadSubKeyNames returns the names of subkeys of key k.
++// The parameter n controls the number of returned names,
++// analogous to the way os.File.Readdirnames works.
++func (k Key) ReadSubKeyNames(n int) ([]string, error) {
++	ki, err := k.Stat()
++	if err != nil {
++		return nil, err
++	}
++	names := make([]string, 0, ki.SubKeyCount)
++	buf := make([]uint16, ki.MaxSubKeyLen+1) // extra room for terminating zero byte
++loopItems:
++	for i := uint32(0); ; i++ {
++		if n > 0 {
++			if len(names) == n {
++				return names, nil
++			}
++		}
++		l := uint32(len(buf))
++		for {
++			err := syscall.RegEnumKeyEx(syscall.Handle(k), i, &buf[0], &l, nil, nil, nil, nil)
++			if err == nil {
++				break
++			}
++			if err == syscall.ERROR_MORE_DATA {
++				// Double buffer size and try again.
++				l = uint32(2 * len(buf))
++				buf = make([]uint16, l)
++				continue
++			}
++			if err == _ERROR_NO_MORE_ITEMS {
++				break loopItems
++			}
++			return names, err
++		}
++		names = append(names, syscall.UTF16ToString(buf[:l]))
++	}
++	if n > len(names) {
++		return names, io.EOF
++	}
++	return names, nil
++}
++
++// CreateKey creates a key named path under open key k.
++// CreateKey returns the new key and a boolean flag that reports
++// whether the key already existed.
++// The access parameter specifies the access rights for the key
++// to be created.
++func CreateKey(k Key, path string, access uint32) (newk Key, openedExisting bool, err error) {
++	var h syscall.Handle
++	var d uint32
++	err = regCreateKeyEx(syscall.Handle(k), syscall.StringToUTF16Ptr(path),
++		0, nil, _REG_OPTION_NON_VOLATILE, access, nil, &h, &d)
++	if err != nil {
++		return 0, false, err
++	}
++	return Key(h), d == _REG_OPENED_EXISTING_KEY, nil
++}
++
++// DeleteKey deletes the subkey path of key k and its values.
++func DeleteKey(k Key, path string) error {
++	return regDeleteKey(syscall.Handle(k), syscall.StringToUTF16Ptr(path))
++}
++
++// A KeyInfo describes the statistics of a key. It is returned by Stat.
++type KeyInfo struct {
++	SubKeyCount     uint32
++	MaxSubKeyLen    uint32 // size of the key's subkey with the longest name, in Unicode characters, not including the terminating zero byte
++	ValueCount      uint32
++	MaxValueNameLen uint32 // size of the key's longest value name, in Unicode characters, not including the terminating zero byte
++	MaxValueLen     uint32 // longest data component among the key's values, in bytes
++	lastWriteTime   syscall.Filetime
++}
++
++// Stat retrieves information about the open key k.
++func (k Key) Stat() (*KeyInfo, error) {
++	var ki KeyInfo
++	err := syscall.RegQueryInfoKey(syscall.Handle(k), nil, nil, nil,
++		&ki.SubKeyCount, &ki.MaxSubKeyLen, nil, &ki.ValueCount,
++		&ki.MaxValueNameLen, &ki.MaxValueLen, nil, &ki.lastWriteTime)
++	if err != nil {
++		return nil, err
++	}
++	return &ki, nil
++}
+diff --git a/src/internal/syscall/windows/registry/registry_test.go b/src/internal/syscall/windows/registry/registry_test.go
+new file mode 100644
+index 0000000000..5f75febd27
+--- /dev/null
++++ b/src/internal/syscall/windows/registry/registry_test.go
+@@ -0,0 +1,613 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package registry_test
++
++import (
++	"bytes"
++	"crypto/rand"
++	"os"
++	"syscall"
++	"testing"
++
++	"internal/syscall/windows/registry"
++)
++
++func randKeyName(prefix string) string {
++	const numbers = "0123456789"
++	buf := make([]byte, 10)
++	rand.Read(buf)
++	for i, b := range buf {
++		buf[i] = numbers[b%byte(len(numbers))]
++	}
++	return prefix + string(buf)
++}
++
++func TestReadSubKeyNames(t *testing.T) {
++	k, err := registry.OpenKey(registry.CLASSES_ROOT, "TypeLib", registry.ENUMERATE_SUB_KEYS|registry.QUERY_VALUE)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer k.Close()
++
++	names, err := k.ReadSubKeyNames(-1)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var foundStdOle bool
++	for _, name := range names {
++		// Every PC has "stdole 2.0 OLE Automation" library installed.
++		if name == "{00020430-0000-0000-C000-000000000046}" {
++			foundStdOle = true
++		}
++	}
++	if !foundStdOle {
++		t.Fatal("could not find stdole 2.0 OLE Automation")
++	}
++}
++
++func TestCreateOpenDeleteKey(t *testing.T) {
++	k, err := registry.OpenKey(registry.CURRENT_USER, "Software", registry.QUERY_VALUE)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer k.Close()
++
++	testKName := randKeyName("TestCreateOpenDeleteKey_")
++
++	testK, exist, err := registry.CreateKey(k, testKName, registry.CREATE_SUB_KEY)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer testK.Close()
++
++	if exist {
++		t.Fatalf("key %q already exists", testKName)
++	}
++
++	testKAgain, exist, err := registry.CreateKey(k, testKName, registry.CREATE_SUB_KEY)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer testKAgain.Close()
++
++	if !exist {
++		t.Fatalf("key %q should already exist", testKName)
++	}
++
++	testKOpened, err := registry.OpenKey(k, testKName, registry.ENUMERATE_SUB_KEYS)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer testKOpened.Close()
++
++	err = registry.DeleteKey(k, testKName)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	testKOpenedAgain, err := registry.OpenKey(k, testKName, registry.ENUMERATE_SUB_KEYS)
++	if err == nil {
++		defer testKOpenedAgain.Close()
++		t.Fatalf("key %q should already been deleted", testKName)
++	}
++	if err != registry.ErrNotExist {
++		t.Fatalf(`unexpected error ("not exist" expected): %v`, err)
++	}
++}
++
++func equalStringSlice(a, b []string) bool {
++	if len(a) != len(b) {
++		return false
++	}
++	if a == nil {
++		return true
++	}
++	for i := range a {
++		if a[i] != b[i] {
++			return false
++		}
++	}
++	return true
++}
++
++type ValueTest struct {
++	Type     uint32
++	Name     string
++	Value    interface{}
++	WillFail bool
++}
++
++var ValueTests = []ValueTest{
++	{Type: registry.SZ, Name: "String1", Value: ""},
++	{Type: registry.SZ, Name: "String2", Value: "\000", WillFail: true},
++	{Type: registry.SZ, Name: "String3", Value: "Hello World"},
++	{Type: registry.SZ, Name: "String4", Value: "Hello World\000", WillFail: true},
++	{Type: registry.EXPAND_SZ, Name: "ExpString1", Value: ""},
++	{Type: registry.EXPAND_SZ, Name: "ExpString2", Value: "\000", WillFail: true},
++	{Type: registry.EXPAND_SZ, Name: "ExpString3", Value: "Hello World"},
++	{Type: registry.EXPAND_SZ, Name: "ExpString4", Value: "Hello\000World", WillFail: true},
++	{Type: registry.EXPAND_SZ, Name: "ExpString5", Value: "%PATH%"},
++	{Type: registry.EXPAND_SZ, Name: "ExpString6", Value: "%NO_SUCH_VARIABLE%"},
++	{Type: registry.EXPAND_SZ, Name: "ExpString7", Value: "%PATH%;."},
++	{Type: registry.BINARY, Name: "Binary1", Value: []byte{}},
++	{Type: registry.BINARY, Name: "Binary2", Value: []byte{1, 2, 3}},
++	{Type: registry.BINARY, Name: "Binary3", Value: []byte{3, 2, 1, 0, 1, 2, 3}},
++	{Type: registry.DWORD, Name: "Dword1", Value: uint64(0)},
++	{Type: registry.DWORD, Name: "Dword2", Value: uint64(1)},
++	{Type: registry.DWORD, Name: "Dword3", Value: uint64(0xff)},
++	{Type: registry.DWORD, Name: "Dword4", Value: uint64(0xffff)},
++	{Type: registry.QWORD, Name: "Qword1", Value: uint64(0)},
++	{Type: registry.QWORD, Name: "Qword2", Value: uint64(1)},
++	{Type: registry.QWORD, Name: "Qword3", Value: uint64(0xff)},
++	{Type: registry.QWORD, Name: "Qword4", Value: uint64(0xffff)},
++	{Type: registry.QWORD, Name: "Qword5", Value: uint64(0xffffff)},
++	{Type: registry.QWORD, Name: "Qword6", Value: uint64(0xffffffff)},
++	{Type: registry.MULTI_SZ, Name: "MultiString1", Value: []string{"a", "b", "c"}},
++	{Type: registry.MULTI_SZ, Name: "MultiString2", Value: []string{"abc", "", "cba"}},
++	{Type: registry.MULTI_SZ, Name: "MultiString3", Value: []string{""}},
++	{Type: registry.MULTI_SZ, Name: "MultiString4", Value: []string{"abcdef"}},
++	{Type: registry.MULTI_SZ, Name: "MultiString5", Value: []string{"\000"}, WillFail: true},
++	{Type: registry.MULTI_SZ, Name: "MultiString6", Value: []string{"a\000b"}, WillFail: true},
++	{Type: registry.MULTI_SZ, Name: "MultiString7", Value: []string{"ab", "\000", "cd"}, WillFail: true},
++	{Type: registry.MULTI_SZ, Name: "MultiString8", Value: []string{"\000", "cd"}, WillFail: true},
++	{Type: registry.MULTI_SZ, Name: "MultiString9", Value: []string{"ab", "\000"}, WillFail: true},
++}
++
++func setValues(t *testing.T, k registry.Key) {
++	for _, test := range ValueTests {
++		var err error
++		switch test.Type {
++		case registry.SZ:
++			err = k.SetStringValue(test.Name, test.Value.(string))
++		case registry.EXPAND_SZ:
++			err = k.SetExpandStringValue(test.Name, test.Value.(string))
++		case registry.MULTI_SZ:
++			err = k.SetStringsValue(test.Name, test.Value.([]string))
++		case registry.BINARY:
++			err = k.SetBinaryValue(test.Name, test.Value.([]byte))
++		case registry.DWORD:
++			err = k.SetDWordValue(test.Name, uint32(test.Value.(uint64)))
++		case registry.QWORD:
++			err = k.SetQWordValue(test.Name, test.Value.(uint64))
++		default:
++			t.Fatalf("unsupported type %d for %s value", test.Type, test.Name)
++		}
++		if test.WillFail {
++			if err == nil {
++				t.Fatalf("setting %s value %q should fail, but succeeded", test.Name, test.Value)
++			}
++		} else {
++			if err != nil {
++				t.Fatal(err)
++			}
++		}
++	}
++}
++
++func enumerateValues(t *testing.T, k registry.Key) {
++	names, err := k.ReadValueNames(-1)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	haveNames := make(map[string]bool)
++	for _, n := range names {
++		haveNames[n] = false
++	}
++	for _, test := range ValueTests {
++		wantFound := !test.WillFail
++		_, haveFound := haveNames[test.Name]
++		if wantFound && !haveFound {
++			t.Errorf("value %s is not found while enumerating", test.Name)
++		}
++		if haveFound && !wantFound {
++			t.Errorf("value %s is found while enumerating, but expected to fail", test.Name)
++		}
++		if haveFound {
++			delete(haveNames, test.Name)
++		}
++	}
++	for n, v := range haveNames {
++		t.Errorf("value %s (%v) is found while enumerating, but has not been cretaed", n, v)
++	}
++}
++
++func testErrNotExist(t *testing.T, name string, err error) {
++	if err == nil {
++		t.Errorf("%s value should not exist", name)
++		return
++	}
++	if err != registry.ErrNotExist {
++		t.Errorf("reading %s value should return 'not exist' error, but got: %s", name, err)
++		return
++	}
++}
++
++func testErrUnexpectedType(t *testing.T, test ValueTest, gottype uint32, err error) {
++	if err == nil {
++		t.Errorf("GetXValue(%q) should not succeed", test.Name)
++		return
++	}
++	if err != registry.ErrUnexpectedType {
++		t.Errorf("reading %s value should return 'unexpected key value type' error, but got: %s", test.Name, err)
++		return
++	}
++	if gottype != test.Type {
++		t.Errorf("want %s value type %v, got %v", test.Name, test.Type, gottype)
++		return
++	}
++}
++
++func testGetStringValue(t *testing.T, k registry.Key, test ValueTest) {
++	got, gottype, err := k.GetStringValue(test.Name)
++	if err != nil {
++		t.Errorf("GetStringValue(%s) failed: %v", test.Name, err)
++		return
++	}
++	if got != test.Value {
++		t.Errorf("want %s value %q, got %q", test.Name, test.Value, got)
++		return
++	}
++	if gottype != test.Type {
++		t.Errorf("want %s value type %v, got %v", test.Name, test.Type, gottype)
++		return
++	}
++	if gottype == registry.EXPAND_SZ {
++		_, err = registry.ExpandString(got)
++		if err != nil {
++			t.Errorf("ExpandString(%s) failed: %v", got, err)
++			return
++		}
++	}
++}
++
++func testGetIntegerValue(t *testing.T, k registry.Key, test ValueTest) {
++	got, gottype, err := k.GetIntegerValue(test.Name)
++	if err != nil {
++		t.Errorf("GetIntegerValue(%s) failed: %v", test.Name, err)
++		return
++	}
++	if got != test.Value.(uint64) {
++		t.Errorf("want %s value %v, got %v", test.Name, test.Value, got)
++		return
++	}
++	if gottype != test.Type {
++		t.Errorf("want %s value type %v, got %v", test.Name, test.Type, gottype)
++		return
++	}
++}
++
++func testGetBinaryValue(t *testing.T, k registry.Key, test ValueTest) {
++	got, gottype, err := k.GetBinaryValue(test.Name)
++	if err != nil {
++		t.Errorf("GetBinaryValue(%s) failed: %v", test.Name, err)
++		return
++	}
++	if !bytes.Equal(got, test.Value.([]byte)) {
++		t.Errorf("want %s value %v, got %v", test.Name, test.Value, got)
++		return
++	}
++	if gottype != test.Type {
++		t.Errorf("want %s value type %v, got %v", test.Name, test.Type, gottype)
++		return
++	}
++}
++
++func testGetStringsValue(t *testing.T, k registry.Key, test ValueTest) {
++	got, gottype, err := k.GetStringsValue(test.Name)
++	if err != nil {
++		t.Errorf("GetStringsValue(%s) failed: %v", test.Name, err)
++		return
++	}
++	if !equalStringSlice(got, test.Value.([]string)) {
++		t.Errorf("want %s value %#v, got %#v", test.Name, test.Value, got)
++		return
++	}
++	if gottype != test.Type {
++		t.Errorf("want %s value type %v, got %v", test.Name, test.Type, gottype)
++		return
++	}
++}
++
++func testGetValue(t *testing.T, k registry.Key, test ValueTest, size int) {
++	if size <= 0 {
++		return
++	}
++	// read data with no buffer
++	gotsize, gottype, err := k.GetValue(test.Name, nil)
++	if err != nil {
++		t.Errorf("GetValue(%s, [%d]byte) failed: %v", test.Name, size, err)
++		return
++	}
++	if gotsize != size {
++		t.Errorf("want %s value size of %d, got %v", test.Name, size, gotsize)
++		return
++	}
++	if gottype != test.Type {
++		t.Errorf("want %s value type %v, got %v", test.Name, test.Type, gottype)
++		return
++	}
++	// read data with short buffer
++	gotsize, gottype, err = k.GetValue(test.Name, make([]byte, size-1))
++	if err == nil {
++		t.Errorf("GetValue(%s, [%d]byte) should fail, but suceeded", test.Name, size-1)
++		return
++	}
++	if err != registry.ErrShortBuffer {
++		t.Errorf("reading %s value should return 'short buffer' error, but got: %s", test.Name, err)
++		return
++	}
++	if gotsize != size {
++		t.Errorf("want %s value size of %d, got %v", test.Name, size, gotsize)
++		return
++	}
++	if gottype != test.Type {
++		t.Errorf("want %s value type %v, got %v", test.Name, test.Type, gottype)
++		return
++	}
++	// read full data
++	gotsize, gottype, err = k.GetValue(test.Name, make([]byte, size))
++	if err != nil {
++		t.Errorf("GetValue(%s, [%d]byte) failed: %v", test.Name, size, err)
++		return
++	}
++	if gotsize != size {
++		t.Errorf("want %s value size of %d, got %v", test.Name, size, gotsize)
++		return
++	}
++	if gottype != test.Type {
++		t.Errorf("want %s value type %v, got %v", test.Name, test.Type, gottype)
++		return
++	}
++	// check GetValue returns ErrNotExist as required
++	_, _, err = k.GetValue(test.Name+"_not_there", make([]byte, size))
++	if err == nil {
++		t.Errorf("GetValue(%q) should not succeed", test.Name)
++		return
++	}
++	if err != registry.ErrNotExist {
++		t.Errorf("GetValue(%q) should return 'not exist' error, but got: %s", test.Name, err)
++		return
++	}
++}
++
++func testValues(t *testing.T, k registry.Key) {
++	for _, test := range ValueTests {
++		switch test.Type {
++		case registry.SZ, registry.EXPAND_SZ:
++			if test.WillFail {
++				_, _, err := k.GetStringValue(test.Name)
++				testErrNotExist(t, test.Name, err)
++			} else {
++				testGetStringValue(t, k, test)
++				_, gottype, err := k.GetIntegerValue(test.Name)
++				testErrUnexpectedType(t, test, gottype, err)
++				// Size of utf16 string in bytes is not perfect,
++				// but correct for current test values.
++				// Size also includes terminating 0.
++				testGetValue(t, k, test, (len(test.Value.(string))+1)*2)
++			}
++			_, _, err := k.GetStringValue(test.Name + "_string_not_created")
++			testErrNotExist(t, test.Name+"_string_not_created", err)
++		case registry.DWORD, registry.QWORD:
++			testGetIntegerValue(t, k, test)
++			_, gottype, err := k.GetBinaryValue(test.Name)
++			testErrUnexpectedType(t, test, gottype, err)
++			_, _, err = k.GetIntegerValue(test.Name + "_int_not_created")
++			testErrNotExist(t, test.Name+"_int_not_created", err)
++			size := 8
++			if test.Type == registry.DWORD {
++				size = 4
++			}
++			testGetValue(t, k, test, size)
++		case registry.BINARY:
++			testGetBinaryValue(t, k, test)
++			_, gottype, err := k.GetStringsValue(test.Name)
++			testErrUnexpectedType(t, test, gottype, err)
++			_, _, err = k.GetBinaryValue(test.Name + "_byte_not_created")
++			testErrNotExist(t, test.Name+"_byte_not_created", err)
++			testGetValue(t, k, test, len(test.Value.([]byte)))
++		case registry.MULTI_SZ:
++			if test.WillFail {
++				_, _, err := k.GetStringsValue(test.Name)
++				testErrNotExist(t, test.Name, err)
++			} else {
++				testGetStringsValue(t, k, test)
++				_, gottype, err := k.GetStringValue(test.Name)
++				testErrUnexpectedType(t, test, gottype, err)
++				size := 0
++				for _, s := range test.Value.([]string) {
++					size += len(s) + 1 // nil terminated
++				}
++				size += 1 // extra nil at the end
++				size *= 2 // count bytes, not uint16
++				testGetValue(t, k, test, size)
++			}
++			_, _, err := k.GetStringsValue(test.Name + "_strings_not_created")
++			testErrNotExist(t, test.Name+"_strings_not_created", err)
++		default:
++			t.Errorf("unsupported type %d for %s value", test.Type, test.Name)
++			continue
++		}
++	}
++}
++
++func testStat(t *testing.T, k registry.Key) {
++	subk, _, err := registry.CreateKey(k, "subkey", registry.CREATE_SUB_KEY)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	defer subk.Close()
++
++	defer registry.DeleteKey(k, "subkey")
++
++	ki, err := k.Stat()
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	if ki.SubKeyCount != 1 {
++		t.Error("key must have 1 subkey")
++	}
++	if ki.MaxSubKeyLen != 6 {
++		t.Error("key max subkey name length must be 6")
++	}
++	if ki.ValueCount != 24 {
++		t.Errorf("key must have 24 values, but is %d", ki.ValueCount)
++	}
++	if ki.MaxValueNameLen != 12 {
++		t.Errorf("key max value name length must be 10, but is %d", ki.MaxValueNameLen)
++	}
++	if ki.MaxValueLen != 38 {
++		t.Errorf("key max value length must be 38, but is %d", ki.MaxValueLen)
++	}
++}
++
++func deleteValues(t *testing.T, k registry.Key) {
++	for _, test := range ValueTests {
++		if test.WillFail {
++			continue
++		}
++		err := k.DeleteValue(test.Name)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++	}
++	names, err := k.ReadValueNames(-1)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	if len(names) != 0 {
++		t.Errorf("some values remain after deletion: %v", names)
++	}
++}
++
++func TestValues(t *testing.T) {
++	softwareK, err := registry.OpenKey(registry.CURRENT_USER, "Software", registry.QUERY_VALUE)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer softwareK.Close()
++
++	testKName := randKeyName("TestValues_")
++
++	k, exist, err := registry.CreateKey(softwareK, testKName, registry.CREATE_SUB_KEY|registry.QUERY_VALUE|registry.SET_VALUE)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer k.Close()
++
++	if exist {
++		t.Fatalf("key %q already exists", testKName)
++	}
++
++	defer registry.DeleteKey(softwareK, testKName)
++
++	setValues(t, k)
++
++	enumerateValues(t, k)
++
++	testValues(t, k)
++
++	testStat(t, k)
++
++	deleteValues(t, k)
++}
++
++func walkKey(t *testing.T, k registry.Key, kname string) {
++	names, err := k.ReadValueNames(-1)
++	if err != nil {
++		t.Fatalf("reading value names of %s failed: %v", kname, err)
++	}
++	for _, name := range names {
++		_, valtype, err := k.GetValue(name, nil)
++		if err != nil {
++			t.Fatalf("reading value type of %s of %s failed: %v", name, kname, err)
++		}
++		switch valtype {
++		case registry.NONE:
++		case registry.SZ:
++			_, _, err := k.GetStringValue(name)
++			if err != nil {
++				t.Error(err)
++			}
++		case registry.EXPAND_SZ:
++			s, _, err := k.GetStringValue(name)
++			if err != nil {
++				t.Error(err)
++			}
++			_, err = registry.ExpandString(s)
++			if err != nil {
++				t.Error(err)
++			}
++		case registry.DWORD, registry.QWORD:
++			_, _, err := k.GetIntegerValue(name)
++			if err != nil {
++				t.Error(err)
++			}
++		case registry.BINARY:
++			_, _, err := k.GetBinaryValue(name)
++			if err != nil {
++				t.Error(err)
++			}
++		case registry.MULTI_SZ:
++			_, _, err := k.GetStringsValue(name)
++			if err != nil {
++				t.Error(err)
++			}
++		case registry.FULL_RESOURCE_DESCRIPTOR, registry.RESOURCE_LIST, registry.RESOURCE_REQUIREMENTS_LIST:
++			// TODO: not implemented
++		default:
++			t.Fatalf("value type %d of %s of %s failed: %v", valtype, name, kname, err)
++		}
++	}
++
++	names, err = k.ReadSubKeyNames(-1)
++	if err != nil {
++		t.Fatalf("reading sub-keys of %s failed: %v", kname, err)
++	}
++	for _, name := range names {
++		func() {
++			subk, err := registry.OpenKey(k, name, registry.ENUMERATE_SUB_KEYS|registry.QUERY_VALUE)
++			if err != nil {
++				if err == syscall.ERROR_ACCESS_DENIED {
++					// ignore error, if we are not allowed to access this key
++					return
++				}
++				t.Fatalf("opening sub-keys %s of %s failed: %v", name, kname, err)
++			}
++			defer subk.Close()
++
++			walkKey(t, subk, kname+`\`+name)
++		}()
++	}
++}
++
++func TestWalkFullRegistry(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping long running test in short mode")
++	}
++	walkKey(t, registry.CLASSES_ROOT, "CLASSES_ROOT")
++	walkKey(t, registry.CURRENT_USER, "CURRENT_USER")
++	walkKey(t, registry.LOCAL_MACHINE, "LOCAL_MACHINE")
++	walkKey(t, registry.USERS, "USERS")
++	walkKey(t, registry.CURRENT_CONFIG, "CURRENT_CONFIG")
++}
++
++func TestExpandString(t *testing.T) {
++	got, err := registry.ExpandString("%PATH%")
++	if err != nil {
++		t.Fatal(err)
++	}
++	want := os.Getenv("PATH")
++	if got != want {
++		t.Errorf("want %q string expanded, got %q", want, got)
++	}
++}
+diff --git a/src/internal/syscall/windows/registry/syscall.go b/src/internal/syscall/windows/registry/syscall.go
+new file mode 100644
+index 0000000000..38e573fd22
+--- /dev/null
++++ b/src/internal/syscall/windows/registry/syscall.go
+@@ -0,0 +1,28 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package registry
++
++import "syscall"
++
++//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall.go
++
++const (
++	_REG_OPTION_NON_VOLATILE = 0
++
++	_REG_CREATED_NEW_KEY     = 1
++	_REG_OPENED_EXISTING_KEY = 2
++
++	_ERROR_NO_MORE_ITEMS syscall.Errno = 259
++)
++
++//sys	regCreateKeyEx(key syscall.Handle, subkey *uint16, reserved uint32, class *uint16, options uint32, desired uint32, sa *syscall.SecurityAttributes, result *syscall.Handle, disposition *uint32) (regerrno error) = advapi32.RegCreateKeyExW
++//sys	regDeleteKey(key syscall.Handle, subkey *uint16) (regerrno error) = advapi32.RegDeleteKeyW
++//sys	regSetValueEx(key syscall.Handle, valueName *uint16, reserved uint32, vtype uint32, buf *byte, bufsize uint32) (regerrno error) = advapi32.RegSetValueExW
++//sys	regEnumValue(key syscall.Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegEnumValueW
++//sys	regDeleteValue(key syscall.Handle, name *uint16) (regerrno error) = advapi32.RegDeleteValueW
++
++//sys	expandEnvironmentStrings(src *uint16, dst *uint16, size uint32) (n uint32, err error) = kernel32.ExpandEnvironmentStringsW
+diff --git a/src/internal/syscall/windows/registry/value.go b/src/internal/syscall/windows/registry/value.go
+new file mode 100644
+index 0000000000..1c1771d30e
+--- /dev/null
++++ b/src/internal/syscall/windows/registry/value.go
+@@ -0,0 +1,316 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package registry
++
++import (
++	"errors"
++	"io"
++	"syscall"
++	"unicode/utf16"
++	"unsafe"
++)
++
++const (
++	// Registry value types.
++	NONE                       = 0
++	SZ                         = 1
++	EXPAND_SZ                  = 2
++	BINARY                     = 3
++	DWORD                      = 4
++	DWORD_BIG_ENDIAN           = 5
++	LINK                       = 6
++	MULTI_SZ                   = 7
++	RESOURCE_LIST              = 8
++	FULL_RESOURCE_DESCRIPTOR   = 9
++	RESOURCE_REQUIREMENTS_LIST = 10
++	QWORD                      = 11
++)
++
++var (
++	// ErrShortBuffer is returned when the buffer was too short for the operation.
++	ErrShortBuffer = syscall.ERROR_MORE_DATA
++
++	// ErrNotExist is returned when a registry key or value does not exist.
++	ErrNotExist = syscall.ERROR_FILE_NOT_FOUND
++
++	// ErrUnexpectedType is returned by Get*Value when the value's type was unexpected.
++	ErrUnexpectedType = errors.New("unexpected key value type")
++)
++
++// GetValue retrieves the type and data for the specified value associated
++// with an open key k. It fills up buffer buf and returns the retrieved
++// byte count n. If buf is too small to fit the stored value it returns
++// ErrShortBuffer error along with the required buffer size n.
++// If no buffer is provided, it returns true and actual buffer size n.
++// If no buffer is provided, GetValue returns the value's type only.
++// If the value does not exist, the error returned is ErrNotExist.
++//
++// GetValue is a low level function. If value's type is known, use the appropriate
++// Get*Value function instead.
++func (k Key) GetValue(name string, buf []byte) (n int, valtype uint32, err error) {
++	pname, err := syscall.UTF16PtrFromString(name)
++	if err != nil {
++		return 0, 0, err
++	}
++	var pbuf *byte
++	if len(buf) > 0 {
++		pbuf = (*byte)(unsafe.Pointer(&buf[0]))
++	}
++	l := uint32(len(buf))
++	err = syscall.RegQueryValueEx(syscall.Handle(k), pname, nil, &valtype, pbuf, &l)
++	if err != nil {
++		return int(l), valtype, err
++	}
++	return int(l), valtype, nil
++}
++
++func (k Key) getValue(name string, buf []byte) (date []byte, valtype uint32, err error) {
++	p, err := syscall.UTF16PtrFromString(name)
++	if err != nil {
++		return nil, 0, err
++	}
++	var t uint32
++	n := uint32(len(buf))
++	for {
++		err = syscall.RegQueryValueEx(syscall.Handle(k), p, nil, &t, (*byte)(unsafe.Pointer(&buf[0])), &n)
++		if err == nil {
++			return buf[:n], t, nil
++		}
++		if err != syscall.ERROR_MORE_DATA {
++			return nil, 0, err
++		}
++		if n <= uint32(len(buf)) {
++			return nil, 0, err
++		}
++		buf = make([]byte, n)
++	}
++}
++
++// GetStringValue retrieves the string value for the specified
++// value name associated with an open key k. It also returns the value's type.
++// If value does not exist, GetStringValue returns ErrNotExist.
++// If value is not SZ or EXPAND_SZ, it will return the correct value
++// type and ErrUnexpectedType.
++func (k Key) GetStringValue(name string) (val string, valtype uint32, err error) {
++	data, typ, err2 := k.getValue(name, make([]byte, 64))
++	if err2 != nil {
++		return "", typ, err2
++	}
++	switch typ {
++	case SZ, EXPAND_SZ:
++	default:
++		return "", typ, ErrUnexpectedType
++	}
++	if len(data) == 0 {
++		return "", typ, nil
++	}
++	u := (*[1 << 10]uint16)(unsafe.Pointer(&data[0]))[:]
++	return syscall.UTF16ToString(u), typ, nil
++}
++
++// ExpandString expands environment-variable strings and replaces
++// them with the values defined for the current user.
++// Use ExpandString to expand EXPAND_SZ strings.
++func ExpandString(value string) (string, error) {
++	if value == "" {
++		return "", nil
++	}
++	p, err := syscall.UTF16PtrFromString(value)
++	if err != nil {
++		return "", err
++	}
++	r := make([]uint16, 100)
++	for {
++		n, err := expandEnvironmentStrings(p, &r[0], uint32(len(r)))
++		if err != nil {
++			return "", err
++		}
++		if n <= uint32(len(r)) {
++			u := (*[1 << 10]uint16)(unsafe.Pointer(&r[0]))[:]
++			return syscall.UTF16ToString(u), nil
++		}
++		r = make([]uint16, n)
++	}
++}
++
++// GetStringsValue retrieves the []string value for the specified
++// value name associated with an open key k. It also returns the value's type.
++// If value does not exist, GetStringsValue returns ErrNotExist.
++// If value is not MULTI_SZ, it will return the correct value
++// type and ErrUnexpectedType.
++func (k Key) GetStringsValue(name string) (val []string, valtype uint32, err error) {
++	data, typ, err2 := k.getValue(name, make([]byte, 64))
++	if err2 != nil {
++		return nil, typ, err2
++	}
++	if typ != MULTI_SZ {
++		return nil, typ, ErrUnexpectedType
++	}
++	val = make([]string, 0, 5)
++	p := (*[1 << 24]uint16)(unsafe.Pointer(&data[0]))[:len(data)/2]
++	p = p[:len(p)-1] // remove terminating nil
++	from := 0
++	for i, c := range p {
++		if c == 0 {
++			val = append(val, string(utf16.Decode(p[from:i])))
++			from = i + 1
++		}
++	}
++	return val, typ, nil
++}
++
++// GetIntegerValue retrieves the integer value for the specified
++// value name associated with an open key k. It also returns the value's type.
++// If value does not exist, GetIntegerValue returns ErrNotExist.
++// If value is not DWORD or QWORD, it will return the correct value
++// type and ErrUnexpectedType.
++func (k Key) GetIntegerValue(name string) (val uint64, valtype uint32, err error) {
++	data, typ, err2 := k.getValue(name, make([]byte, 8))
++	if err2 != nil {
++		return 0, typ, err2
++	}
++	switch typ {
++	case DWORD:
++		return uint64(*(*uint32)(unsafe.Pointer(&data[0]))), DWORD, nil
++	case QWORD:
++		return uint64(*(*uint64)(unsafe.Pointer(&data[0]))), QWORD, nil
++	default:
++		return 0, typ, ErrUnexpectedType
++	}
++}
++
++// GetBinaryValue retrieves the binary value for the specified
++// value name associated with an open key k. It also returns the value's type.
++// If value does not exist, GetBinaryValue returns ErrNotExist.
++// If value is not BINARY, it will return the correct value
++// type and ErrUnexpectedType.
++func (k Key) GetBinaryValue(name string) (val []byte, valtype uint32, err error) {
++	data, typ, err2 := k.getValue(name, make([]byte, 64))
++	if err2 != nil {
++		return nil, typ, err2
++	}
++	if typ != BINARY {
++		return nil, typ, ErrUnexpectedType
++	}
++	return data, typ, nil
++}
++
++func (k Key) setValue(name string, valtype uint32, data []byte) error {
++	p, err := syscall.UTF16PtrFromString(name)
++	if err != nil {
++		return err
++	}
++	if len(data) == 0 {
++		return regSetValueEx(syscall.Handle(k), p, 0, valtype, nil, 0)
++	}
++	return regSetValueEx(syscall.Handle(k), p, 0, valtype, &data[0], uint32(len(data)))
++}
++
++// SetDWordValue sets the data and type of a name value
++// under key k to value and DWORD.
++func (k Key) SetDWordValue(name string, value uint32) error {
++	return k.setValue(name, DWORD, (*[4]byte)(unsafe.Pointer(&value))[:])
++}
++
++// SetQWordValue sets the data and type of a name value
++// under key k to value and QWORD.
++func (k Key) SetQWordValue(name string, value uint64) error {
++	return k.setValue(name, QWORD, (*[8]byte)(unsafe.Pointer(&value))[:])
++}
++
++func (k Key) setStringValue(name string, valtype uint32, value string) error {
++	v, err := syscall.UTF16FromString(value)
++	if err != nil {
++		return err
++	}
++	buf := (*[1 << 10]byte)(unsafe.Pointer(&v[0]))[:len(v)*2]
++	return k.setValue(name, valtype, buf)
++}
++
++// SetStringValue sets the data and type of a name value
++// under key k to value and SZ. The value must not contain a zero byte.
++func (k Key) SetStringValue(name, value string) error {
++	return k.setStringValue(name, SZ, value)
++}
++
++// SetExpandStringValue sets the data and type of a name value
++// under key k to value and EXPAND_SZ. The value must not contain a zero byte.
++func (k Key) SetExpandStringValue(name, value string) error {
++	return k.setStringValue(name, EXPAND_SZ, value)
++}
++
++// SetStringsValue sets the data and type of a name value
++// under key k to value and MULTI_SZ. The value strings
++// must not contain a zero byte.
++func (k Key) SetStringsValue(name string, value []string) error {
++	ss := ""
++	for _, s := range value {
++		for i := 0; i < len(s); i++ {
++			if s[i] == 0 {
++				return errors.New("string cannot have 0 inside")
++			}
++		}
++		ss += s + "\x00"
++	}
++	v := utf16.Encode([]rune(ss + "\x00"))
++	buf := (*[1 << 10]byte)(unsafe.Pointer(&v[0]))[:len(v)*2]
++	return k.setValue(name, MULTI_SZ, buf)
++}
++
++// SetBinaryValue sets the data and type of a name value
++// under key k to value and BINARY.
++func (k Key) SetBinaryValue(name string, value []byte) error {
++	return k.setValue(name, BINARY, value)
++}
++
++// DeleteValue removes a named value from the key k.
++func (k Key) DeleteValue(name string) error {
++	return regDeleteValue(syscall.Handle(k), syscall.StringToUTF16Ptr(name))
++}
++
++// ReadValueNames returns the value names of key k.
++// The parameter n controls the number of returned names,
++// analogous to the way os.File.Readdirnames works.
++func (k Key) ReadValueNames(n int) ([]string, error) {
++	ki, err := k.Stat()
++	if err != nil {
++		return nil, err
++	}
++	names := make([]string, 0, ki.ValueCount)
++	buf := make([]uint16, ki.MaxValueNameLen+1) // extra room for terminating null character
++loopItems:
++	for i := uint32(0); ; i++ {
++		if n > 0 {
++			if len(names) == n {
++				return names, nil
++			}
++		}
++		l := uint32(len(buf))
++		for {
++			err := regEnumValue(syscall.Handle(k), i, &buf[0], &l, nil, nil, nil, nil)
++			if err == nil {
++				break
++			}
++			if err == syscall.ERROR_MORE_DATA {
++				println(len(buf), l)
++				// Double buffer size and try again.
++				l = uint32(2 * len(buf))
++				buf = make([]uint16, l)
++				continue
++			}
++			if err == _ERROR_NO_MORE_ITEMS {
++				break loopItems
++			}
++			return names, err
++		}
++		names = append(names, syscall.UTF16ToString(buf[:l]))
++	}
++	if n > len(names) {
++		return names, io.EOF
++	}
++	return names, nil
++}
+diff --git a/src/internal/syscall/windows/registry/zsyscall_windows.go b/src/internal/syscall/windows/registry/zsyscall_windows.go
+new file mode 100644
+index 0000000000..2b3de633c9
+--- /dev/null
++++ b/src/internal/syscall/windows/registry/zsyscall_windows.go
+@@ -0,0 +1,73 @@
++// MACHINE GENERATED BY 'go generate' COMMAND; DO NOT EDIT
++
++package registry
++
++import "unsafe"
++import "syscall"
++
++var _ unsafe.Pointer
++
++var (
++	modadvapi32 = syscall.NewLazyDLL("advapi32.dll")
++	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
++
++	procRegCreateKeyExW           = modadvapi32.NewProc("RegCreateKeyExW")
++	procRegDeleteKeyW             = modadvapi32.NewProc("RegDeleteKeyW")
++	procRegSetValueExW            = modadvapi32.NewProc("RegSetValueExW")
++	procRegEnumValueW             = modadvapi32.NewProc("RegEnumValueW")
++	procRegDeleteValueW           = modadvapi32.NewProc("RegDeleteValueW")
++	procExpandEnvironmentStringsW = modkernel32.NewProc("ExpandEnvironmentStringsW")
++)
++
++func regCreateKeyEx(key syscall.Handle, subkey *uint16, reserved uint32, class *uint16, options uint32, desired uint32, sa *syscall.SecurityAttributes, result *syscall.Handle, disposition *uint32) (regerrno error) {
++	r0, _, _ := syscall.Syscall9(procRegCreateKeyExW.Addr(), 9, uintptr(key), uintptr(unsafe.Pointer(subkey)), uintptr(reserved), uintptr(unsafe.Pointer(class)), uintptr(options), uintptr(desired), uintptr(unsafe.Pointer(sa)), uintptr(unsafe.Pointer(result)), uintptr(unsafe.Pointer(disposition)))
++	if r0 != 0 {
++		regerrno = syscall.Errno(r0)
++	}
++	return
++}
++
++func regDeleteKey(key syscall.Handle, subkey *uint16) (regerrno error) {
++	r0, _, _ := syscall.Syscall(procRegDeleteKeyW.Addr(), 2, uintptr(key), uintptr(unsafe.Pointer(subkey)), 0)
++	if r0 != 0 {
++		regerrno = syscall.Errno(r0)
++	}
++	return
++}
++
++func regSetValueEx(key syscall.Handle, valueName *uint16, reserved uint32, vtype uint32, buf *byte, bufsize uint32) (regerrno error) {
++	r0, _, _ := syscall.Syscall6(procRegSetValueExW.Addr(), 6, uintptr(key), uintptr(unsafe.Pointer(valueName)), uintptr(reserved), uintptr(vtype), uintptr(unsafe.Pointer(buf)), uintptr(bufsize))
++	if r0 != 0 {
++		regerrno = syscall.Errno(r0)
++	}
++	return
++}
++
++func regEnumValue(key syscall.Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) {
++	r0, _, _ := syscall.Syscall9(procRegEnumValueW.Addr(), 8, uintptr(key), uintptr(index), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(nameLen)), uintptr(unsafe.Pointer(reserved)), uintptr(unsafe.Pointer(valtype)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(buflen)), 0)
++	if r0 != 0 {
++		regerrno = syscall.Errno(r0)
++	}
++	return
++}
++
++func regDeleteValue(key syscall.Handle, name *uint16) (regerrno error) {
++	r0, _, _ := syscall.Syscall(procRegDeleteValueW.Addr(), 2, uintptr(key), uintptr(unsafe.Pointer(name)), 0)
++	if r0 != 0 {
++		regerrno = syscall.Errno(r0)
++	}
++	return
++}
++
++func expandEnvironmentStrings(src *uint16, dst *uint16, size uint32) (n uint32, err error) {
++	r0, _, e1 := syscall.Syscall(procExpandEnvironmentStringsW.Addr(), 3, uintptr(unsafe.Pointer(src)), uintptr(unsafe.Pointer(dst)), uintptr(size))
++	n = uint32(r0)
++	if n == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/mime/type_windows.go b/src/mime/type_windows.go
+index 60362b4b37..97b9aeba7a 100644
+--- a/src/mime/type_windows.go
++++ b/src/mime/type_windows.go
+@@ -5,8 +5,7 @@
+ package mime
+ 
+ import (
+-	"syscall"
+-	"unsafe"
++	"internal/syscall/windows/registry"
+ )
+ 
+ func init() {
+@@ -14,49 +13,24 @@ func init() {
+ }
+ 
+ func initMimeWindows() {
+-	var root syscall.Handle
+-	rootpathp, _ := syscall.UTF16PtrFromString(`\`)
+-	if syscall.RegOpenKeyEx(syscall.HKEY_CLASSES_ROOT, rootpathp,
+-		0, syscall.KEY_READ, &root) != nil {
++	names, err := registry.CLASSES_ROOT.ReadSubKeyNames(-1)
++	if err != nil {
+ 		return
+ 	}
+-	defer syscall.RegCloseKey(root)
+-	var count uint32
+-	if syscall.RegQueryInfoKey(root, nil, nil, nil, &count, nil, nil, nil, nil, nil, nil, nil) != nil {
+-		return
+-	}
+-	contenttypep, _ := syscall.UTF16PtrFromString("Content Type")
+-	var buf [1 << 10]uint16
+-	for i := uint32(0); i < count; i++ {
+-		n := uint32(len(buf))
+-		if syscall.RegEnumKeyEx(root, i, &buf[0], &n, nil, nil, nil, nil) != nil {
+-			continue
+-		}
+-		ext := syscall.UTF16ToString(buf[:])
+-		if len(ext) < 2 || ext[0] != '.' { // looking for extensions only
+-			continue
+-		}
+-		var h syscall.Handle
+-		extpathp, _ := syscall.UTF16PtrFromString(`\` + ext)
+-		if syscall.RegOpenKeyEx(
+-			syscall.HKEY_CLASSES_ROOT, extpathp,
+-			0, syscall.KEY_READ, &h) != nil {
++	for _, name := range names {
++		if len(name) < 2 || name[0] != '.' { // looking for extensions only
+ 			continue
+ 		}
+-		var typ uint32
+-		n = uint32(len(buf) * 2) // api expects array of bytes, not uint16
+-		if syscall.RegQueryValueEx(
+-			h, contenttypep,
+-			nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n) != nil {
+-			syscall.RegCloseKey(h)
++		k, err := registry.OpenKey(registry.CLASSES_ROOT, name, registry.READ)
++		if err != nil {
+ 			continue
+ 		}
+-		syscall.RegCloseKey(h)
+-		if typ != syscall.REG_SZ { // null terminated strings only
++		v, _, err := k.GetStringValue("Content Type")
++		k.Close()
++		if err != nil {
+ 			continue
+ 		}
+-		mimeType := syscall.UTF16ToString(buf[:])
+-		setExtensionType(ext, mimeType)
++		setExtensionType(name, v)
+ 	}
+ }
+ 
+diff --git a/src/time/zoneinfo_windows.go b/src/time/zoneinfo_windows.go
+index 5077f4bd86..9f987ab302 100644
+--- a/src/time/zoneinfo_windows.go
++++ b/src/time/zoneinfo_windows.go
+@@ -6,9 +6,9 @@ package time
+ 
+ import (
+ 	"errors"
++	"internal/syscall/windows/registry"
+ 	"runtime"
+ 	"syscall"
+-	"unsafe"
+ )
+ 
+ //go:generate go run genzabbrs.go -output zoneinfo_abbrs_windows.go
+@@ -20,39 +20,23 @@ import (
+ // The implementation assumes that this year's rules for daylight savings
+ // time apply to all previous and future years as well.
+ 
+-// getKeyValue retrieves the string value kname associated with the open registry key kh.
+-func getKeyValue(kh syscall.Handle, kname string) (string, error) {
+-	var buf [50]uint16 // buf needs to be large enough to fit zone descriptions
+-	var typ uint32
+-	n := uint32(len(buf) * 2) // RegQueryValueEx's signature expects array of bytes, not uint16
+-	p, _ := syscall.UTF16PtrFromString(kname)
+-	if err := syscall.RegQueryValueEx(kh, p, nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n); err != nil {
+-		return "", err
+-	}
+-	if typ != syscall.REG_SZ { // null terminated strings only
+-		return "", errors.New("Key is not string")
+-	}
+-	return syscall.UTF16ToString(buf[:]), nil
+-}
+-
+ // matchZoneKey checks if stdname and dstname match the corresponding "Std"
+ // and "Dlt" key values in the kname key stored under the open registry key zones.
+-func matchZoneKey(zones syscall.Handle, kname string, stdname, dstname string) (matched bool, err2 error) {
+-	var h syscall.Handle
+-	p, _ := syscall.UTF16PtrFromString(kname)
+-	if err := syscall.RegOpenKeyEx(zones, p, 0, syscall.KEY_READ, &h); err != nil {
++func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (matched bool, err2 error) {
++	k, err := registry.OpenKey(zones, kname, registry.READ)
++	if err != nil {
+ 		return false, err
+ 	}
+-	defer syscall.RegCloseKey(h)
++	defer k.Close()
+ 
+-	s, err := getKeyValue(h, "Std")
++	s, _, err := k.GetStringValue("Std")
+ 	if err != nil {
+ 		return false, err
+ 	}
+ 	if s != stdname {
+ 		return false, nil
+ 	}
+-	s, err = getKeyValue(h, "Dlt")
++	s, _, err = k.GetStringValue("Dlt")
+ 	if err != nil {
+ 		return false, err
+ 	}
+@@ -65,28 +49,20 @@ func matchZoneKey(zones syscall.Handle, kname string, stdname, dstname string) (
+ // toEnglishName searches the registry for an English name of a time zone
+ // whose zone names are stdname and dstname and returns the English name.
+ func toEnglishName(stdname, dstname string) (string, error) {
+-	var zones syscall.Handle
+-	p, _ := syscall.UTF16PtrFromString(`SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones`)
+-	if err := syscall.RegOpenKeyEx(syscall.HKEY_LOCAL_MACHINE, p, 0, syscall.KEY_READ, &zones); err != nil {
++	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones`, registry.ENUMERATE_SUB_KEYS)
++	if err != nil {
+ 		return "", err
+ 	}
+-	defer syscall.RegCloseKey(zones)
++	defer k.Close()
+ 
+-	var count uint32
+-	if err := syscall.RegQueryInfoKey(zones, nil, nil, nil, &count, nil, nil, nil, nil, nil, nil, nil); err != nil {
++	names, err := k.ReadSubKeyNames(-1)
++	if err != nil {
+ 		return "", err
+ 	}
+-
+-	var buf [50]uint16 // buf needs to be large enough to fit zone descriptions
+-	for i := uint32(0); i < count; i++ {
+-		n := uint32(len(buf))
+-		if syscall.RegEnumKeyEx(zones, i, &buf[0], &n, nil, nil, nil, nil) != nil {
+-			continue
+-		}
+-		kname := syscall.UTF16ToString(buf[:])
+-		matched, err := matchZoneKey(zones, kname, stdname, dstname)
++	for _, name := range names {
++		matched, err := matchZoneKey(k, name, stdname, dstname)
+ 		if err == nil && matched {
+-			return kname, nil
++			return name, nil
+ 		}
+ 	}
+ 	return "", errors.New(`English name for time zone "` + stdname + `" not found in registry`)

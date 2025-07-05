@@ -10,6 +10,19 @@ Date:   Fri Aug 14 14:47:44 2009 -0700
     DELTA=1  (1 added, 0 deleted, 0 changed)
     OCL=33249
     CL=33296
-
+---
  src/libmach/linux.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/libmach/linux.c b/src/libmach/linux.c
+index 20e62ee7a1..46724b87e2 100644
+--- a/src/libmach/linux.c
++++ b/src/libmach/linux.c
+@@ -199,6 +199,7 @@ attachthread(int pid, int tid, int *new, int newstate)
+ 	t = malloc(sizeof *t);
+ 	if(t == nil)
+ 		return nil;
++        memset(t, 0, sizeof *t);
+ 
+ 	thr[nthr++] = t;
+ 	t->pid = pid;

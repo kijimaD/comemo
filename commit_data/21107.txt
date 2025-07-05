@@ -193,3 +193,6126 @@ Date:   Fri Nov 14 12:10:52 2014 -0500
  test/nilptr3.go                                    |    2 +
  test/nosplit.go                                    |   21 +-
  171 files changed, 40693 insertions(+), 2893 deletions(-)
+
+diff --cc src/cmd/dist/build.c
+index 62dec05394,8fd2e998a4..e4f307bee5
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@@ -521,7 -524,12 +524,8 @@@ static struct 
+  		"anames5.c",
+  		"anames6.c",
+  		"anames8.c",
++ 		"anames9.c",
+  	}},
+ -	{"cmd/cc", {
+ -		"-pgen.c",
+ -		"-pswt.c",
+ -	}},
+  	{"cmd/gc", {
+  		"-cplx.c",
+  		"-pgen.c",
+@@@ -597,6 -638,8 +612,7 @@@ static struct 
+  	{"anames5.c", mkanames},
+  	{"anames6.c", mkanames},
+  	{"anames8.c", mkanames},
++ 	{"anames9.c", mkanames},
+ -	{"zasm_", mkzasm},
+  	{"zdefaultcc.go", mkzdefaultcc},
+  	{"zsys_", mkzsys},
+  	{"zgoarch_", mkzgoarch},
+@@@ -1309,8 -1398,15 +1339,11 @@@ static char *cleantab[] = 
+  	"cmd/6g",
+  	"cmd/6l",
+  	"cmd/8a",
+ -	"cmd/8c",
+  	"cmd/8g",
+  	"cmd/8l",
++ 	"cmd/9a",
+ -	"cmd/9c",
++ 	"cmd/9g",
++ 	"cmd/9l",
+ -	"cmd/cc",
+  	"cmd/gc",
+  	"cmd/go",	
+  	"lib9",
+diff --cc src/runtime/malloc.go
+index 89b6ffac3f,294bc4870e..20cb6818d2
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@@ -253,11 -259,14 +251,13 @@@ func mallocgc(size uintptr, typ *_type
+  				goto marked
+  			}
+  			ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
+- 			// Check whether the program is already unrolled.
+- 			if uintptr(atomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
++ 			// Check whether the program is already unrolled
++ 			// by checking if the unroll flag byte is set
++ 			maskword := uintptr(atomicloadp(unsafe.Pointer(ptrmask)))
++ 			if *(*uint8)(unsafe.Pointer(&maskword)) == 0 {
+ -				mp := acquirem()
+ -				mp.ptrarg[0] = unsafe.Pointer(typ)
+ -				onM(unrollgcprog_m)
+ -				releasem(mp)
+ +				systemstack(func() {
+ +					unrollgcprog_m(typ)
+ +				})
+  			}
+  			ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
+  		} else {
+diff --cc src/runtime/mem_linux.go
+index 0ef6eeac18,0000000000..85b55ef49a
+mode 100644,000000..100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@@ -1,135 -1,0 +1,135 @@@
+ +// Copyright 2010 The Go Authors.  All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package runtime
+ +
+ +import "unsafe"
+ +
+ +const (
+- 	_PAGE_SIZE = 4096
+++	_PAGE_SIZE = _PhysPageSize
+ +	_EACCES    = 13
+ +)
+ +
+ +// NOTE: vec must be just 1 byte long here.
+ +// Mincore returns ENOMEM if any of the pages are unmapped,
+ +// but we want to know that all of the pages are unmapped.
+ +// To make these the same, we can only ask about one page
+ +// at a time. See golang.org/issue/7476.
+ +var addrspace_vec [1]byte
+ +
+ +func addrspace_free(v unsafe.Pointer, n uintptr) bool {
+ +	var chunk uintptr
+ +	for off := uintptr(0); off < n; off += chunk {
+ +		chunk = _PAGE_SIZE * uintptr(len(addrspace_vec))
+ +		if chunk > (n - off) {
+ +			chunk = n - off
+ +		}
+ +		errval := mincore(unsafe.Pointer(uintptr(v)+off), chunk, &addrspace_vec[0])
+ +		// ENOMEM means unmapped, which is what we want.
+ +		// Anything else we assume means the pages are mapped.
+ +		if errval != -_ENOMEM {
+ +			return false
+ +		}
+ +	}
+ +	return true
+ +}
+ +
+ +func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint32) unsafe.Pointer {
+ +	p := mmap(v, n, prot, flags, fd, offset)
+++	// On some systems, mmap ignores v without
+++	// MAP_FIXED, so retry if the address space is free.
+ +	if p != v && addrspace_free(v, n) {
+- 		// On some systems, mmap ignores v without
+- 		// MAP_FIXED, so retry if the address space is free.
+ +		if uintptr(p) > 4096 {
+ +			munmap(p, n)
+ +		}
+ +		p = mmap(v, n, prot, flags|_MAP_FIXED, fd, offset)
+ +	}
+ +	return p
+ +}
+ +
+ +//go:nosplit
+ +func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
+ +	p := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ +	if uintptr(p) < 4096 {
+ +		if uintptr(p) == _EACCES {
+ +			print("runtime: mmap: access denied\n")
+ +			print("if you're running SELinux, enable execmem for this process.\n")
+ +			exit(2)
+ +		}
+ +		if uintptr(p) == _EAGAIN {
+ +			print("runtime: mmap: too much locked memory (check 'ulimit -l').\n")
+ +			exit(2)
+ +		}
+ +		return nil
+ +	}
+ +	xadd64(stat, int64(n))
+ +	return p
+ +}
+ +
+ +func sysUnused(v unsafe.Pointer, n uintptr) {
+ +	madvise(v, n, _MADV_DONTNEED)
+ +}
+ +
+ +func sysUsed(v unsafe.Pointer, n uintptr) {
+ +}
+ +
+ +func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
+ +	xadd64(stat, -int64(n))
+ +	munmap(v, n)
+ +}
+ +
+ +func sysFault(v unsafe.Pointer, n uintptr) {
+ +	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+ +}
+ +
+ +func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ +	// On 64-bit, people with ulimit -v set complain if we reserve too
+ +	// much address space.  Instead, assume that the reservation is okay
+ +	// if we can reserve at least 64K and check the assumption in SysMap.
+ +	// Only user-mode Linux (UML) rejects these requests.
+ +	if ptrSize == 7 && uint64(n) > 1<<32 {
+ +		p := mmap_fixed(v, 64<<10, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ +		if p != v {
+ +			if uintptr(p) >= 4096 {
+ +				munmap(p, 64<<10)
+ +			}
+ +			return nil
+ +		}
+ +		munmap(p, 64<<10)
+ +		*reserved = false
+ +		return v
+ +	}
+ +
+ +	p := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ +	if uintptr(p) < 4096 {
+ +		return nil
+ +	}
+ +	*reserved = true
+ +	return p
+ +}
+ +
+ +func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
+ +	xadd64(stat, int64(n))
+ +
+ +	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ +	if !reserved {
+ +		p := mmap_fixed(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ +		if uintptr(p) == _ENOMEM {
+ +			gothrow("runtime: out of memory")
+ +		}
+ +		if p != v {
+ +			print("runtime: address space conflict: map(", v, ") = ", p, "\n")
+ +			gothrow("runtime: address space conflict")
+ +		}
+ +		return
+ +	}
+ +
+ +	p := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ +	if uintptr(p) == _ENOMEM {
+ +		gothrow("runtime: out of memory")
+ +	}
+ +	if p != v {
+ +		gothrow("runtime: cannot map pages in arena address space")
+ +	}
+ +}
+diff --cc src/runtime/mgc.go
+index 0bb735355b,0000000000..f44d7ddbce
+mode 100644,000000..100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@@ -1,1799 -1,0 +1,1798 @@@
+ +// Copyright 2009 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +// TODO(rsc): The code having to do with the heap bitmap needs very serious cleanup.
+ +// It has gotten completely out of control.
+ +
+ +// Garbage collector (GC).
+ +//
+ +// GC is:
+ +// - mark&sweep
+ +// - mostly precise (with the exception of some C-allocated objects, assembly frames/arguments, etc)
+ +// - parallel (up to MaxGcproc threads)
+ +// - partially concurrent (mark is stop-the-world, while sweep is concurrent)
+ +// - non-moving/non-compacting
+ +// - full (non-partial)
+ +//
+ +// GC rate.
+ +// Next GC is after we've allocated an extra amount of memory proportional to
+ +// the amount already in use. The proportion is controlled by GOGC environment variable
+ +// (100 by default). If GOGC=100 and we're using 4M, we'll GC again when we get to 8M
+ +// (this mark is tracked in next_gc variable). This keeps the GC cost in linear
+ +// proportion to the allocation cost. Adjusting GOGC just changes the linear constant
+ +// (and also the amount of extra memory used).
+ +//
+ +// Concurrent sweep.
+ +// The sweep phase proceeds concurrently with normal program execution.
+ +// The heap is swept span-by-span both lazily (when a goroutine needs another span)
+ +// and concurrently in a background goroutine (this helps programs that are not CPU bound).
+ +// However, at the end of the stop-the-world GC phase we don't know the size of the live heap,
+ +// and so next_gc calculation is tricky and happens as follows.
+ +// At the end of the stop-the-world phase next_gc is conservatively set based on total
+ +// heap size; all spans are marked as "needs sweeping".
+ +// Whenever a span is swept, next_gc is decremented by GOGC*newly_freed_memory.
+ +// The background sweeper goroutine simply sweeps spans one-by-one bringing next_gc
+ +// closer to the target value. However, this is not enough to avoid over-allocating memory.
+ +// Consider that a goroutine wants to allocate a new span for a large object and
+ +// there are no free swept spans, but there are small-object unswept spans.
+ +// If the goroutine naively allocates a new span, it can surpass the yet-unknown
+ +// target next_gc value. In order to prevent such cases (1) when a goroutine needs
+ +// to allocate a new small-object span, it sweeps small-object spans for the same
+ +// object size until it frees at least one object; (2) when a goroutine needs to
+ +// allocate large-object span from heap, it sweeps spans until it frees at least
+ +// that many pages into heap. Together these two measures ensure that we don't surpass
+ +// target next_gc value by a large margin. There is an exception: if a goroutine sweeps
+ +// and frees two nonadjacent one-page spans to the heap, it will allocate a new two-page span,
+ +// but there can still be other one-page unswept spans which could be combined into a two-page span.
+ +// It's critical to ensure that no operations proceed on unswept spans (that would corrupt
+ +// mark bits in GC bitmap). During GC all mcaches are flushed into the central cache,
+ +// so they are empty. When a goroutine grabs a new span into mcache, it sweeps it.
+ +// When a goroutine explicitly frees an object or sets a finalizer, it ensures that
+ +// the span is swept (either by sweeping it, or by waiting for the concurrent sweep to finish).
+ +// The finalizer goroutine is kicked off only when all spans are swept.
+ +// When the next GC starts, it sweeps all not-yet-swept spans (if any).
+ +
+ +package runtime
+ +
+ +import "unsafe"
+ +
+ +const (
+ +	_DebugGC         = 0
+ +	_DebugGCPtrs     = false // if true, print trace of every pointer load during GC
+ +	_ConcurrentSweep = true
+ +
+ +	_WorkbufSize     = 4 * 1024
+ +	_FinBlockSize    = 4 * 1024
+ +	_RootData        = 0
+ +	_RootBss         = 1
+ +	_RootFinalizers  = 2
+ +	_RootSpans       = 3
+ +	_RootFlushCaches = 4
+ +	_RootCount       = 5
+ +)
+ +
+ +// ptrmask for an allocation containing a single pointer.
+ +var oneptr = [...]uint8{bitsPointer}
+ +
+ +// Initialized from $GOGC.  GOGC=off means no gc.
+ +var gcpercent int32
+ +
+ +// Holding worldsema grants an M the right to try to stop the world.
+ +// The procedure is:
+ +//
+ +//	semacquire(&worldsema);
+ +//	m.gcing = 1;
+ +//	stoptheworld();
+ +//
+ +//	... do stuff ...
+ +//
+ +//	m.gcing = 0;
+ +//	semrelease(&worldsema);
+ +//	starttheworld();
+ +//
+ +var worldsema uint32 = 1
+ +
+ +type workbuf struct {
+ +	node lfnode // must be first
+ +	nobj uintptr
+ +	obj  [(_WorkbufSize - unsafe.Sizeof(lfnode{}) - ptrSize) / ptrSize]uintptr
+ +}
+ +
+ +var data, edata, bss, ebss, gcdata, gcbss struct{}
+ +
+ +var finlock mutex  // protects the following variables
+ +var fing *g        // goroutine that runs finalizers
+ +var finq *finblock // list of finalizers that are to be executed
+ +var finc *finblock // cache of free blocks
+ +var finptrmask [_FinBlockSize / ptrSize / pointersPerByte]byte
+ +var fingwait bool
+ +var fingwake bool
+ +var allfin *finblock // list of all blocks
+ +
+ +var gcdatamask bitvector
+ +var gcbssmask bitvector
+ +
+ +var gclock mutex
+ +
+ +var badblock [1024]uintptr
+ +var nbadblock int32
+ +
+ +type workdata struct {
+ +	full    uint64                // lock-free list of full blocks
+ +	empty   uint64                // lock-free list of empty blocks
+ +	pad0    [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
+ +	nproc   uint32
+ +	tstart  int64
+ +	nwait   uint32
+ +	ndone   uint32
+ +	alldone note
+ +	markfor *parfor
+ +
+ +	// Copy of mheap.allspans for marker or sweeper.
+ +	spans []*mspan
+ +}
+ +
+ +var work workdata
+ +
+ +//go:linkname weak_cgo_allocate go.weak.runtime._cgo_allocate_internal
+ +var weak_cgo_allocate byte
+ +
+ +// Is _cgo_allocate linked into the binary?
+ +func have_cgo_allocate() bool {
+ +	return &weak_cgo_allocate != nil
+ +}
+ +
+ +// scanblock scans a block of n bytes starting at pointer b for references
+ +// to other objects, scanning any it finds recursively until there are no
+ +// unscanned objects left.  Instead of using an explicit recursion, it keeps
+ +// a work list in the Workbuf* structures and loops in the main function
+ +// body.  Keeping an explicit work list is easier on the stack allocator and
+ +// more efficient.
+ +func scanblock(b, n uintptr, ptrmask *uint8) {
+ +	// Cache memory arena parameters in local vars.
+ +	arena_start := mheap_.arena_start
+ +	arena_used := mheap_.arena_used
+ +
+ +	wbuf := getempty(nil)
+ +	nobj := wbuf.nobj
+ +	wp := &wbuf.obj[nobj]
+ +	keepworking := b == 0
+ +
+ +	var ptrbitp unsafe.Pointer
+ +
+ +	// ptrmask can have 2 possible values:
+ +	// 1. nil - obtain pointer mask from GC bitmap.
+ +	// 2. pointer to a compact mask (for stacks and data).
+ +	goto_scanobj := b != 0
+ +
+ +	for {
+ +		if goto_scanobj {
+ +			goto_scanobj = false
+ +		} else {
+ +			if nobj == 0 {
+ +				// Out of work in workbuf.
+ +				if !keepworking {
+ +					putempty(wbuf)
+ +					return
+ +				}
+ +
+ +				// Refill workbuf from global queue.
+ +				wbuf = getfull(wbuf)
+ +				if wbuf == nil {
+ +					return
+ +				}
+ +				nobj = wbuf.nobj
+ +				if nobj < uintptr(len(wbuf.obj)) {
+ +					wp = &wbuf.obj[nobj]
+ +				} else {
+ +					wp = nil
+ +				}
+ +			}
+ +
+ +			// If another proc wants a pointer, give it some.
+ +			if work.nwait > 0 && nobj > 4 && work.full == 0 {
+ +				wbuf.nobj = nobj
+ +				wbuf = handoff(wbuf)
+ +				nobj = wbuf.nobj
+ +				if nobj < uintptr(len(wbuf.obj)) {
+ +					wp = &wbuf.obj[nobj]
+ +				} else {
+ +					wp = nil
+ +				}
+ +			}
+ +
+ +			nobj--
+ +			wp = &wbuf.obj[nobj]
+ +			b = *wp
+ +			n = arena_used - uintptr(b)
+ +			ptrmask = nil // use GC bitmap for pointer info
+ +		}
+ +
+ +		if _DebugGCPtrs {
+ +			print("scanblock ", b, " +", hex(n), " ", ptrmask, "\n")
+ +		}
+ +
+ +		// Find bits of the beginning of the object.
+ +		if ptrmask == nil {
+ +			off := (uintptr(b) - arena_start) / ptrSize
+ +			ptrbitp = unsafe.Pointer(arena_start - off/wordsPerBitmapByte - 1)
+ +		}
+ +
+ +		var i uintptr
+ +		for i = 0; i < n; i += ptrSize {
+ +			// Find bits for this word.
+ +			var bits uintptr
+ +			if ptrmask == nil {
+ +				// Check if we have reached end of span.
+ +				if (uintptr(b)+i)%_PageSize == 0 &&
+ +					h_spans[(uintptr(b)-arena_start)>>_PageShift] != h_spans[(uintptr(b)+i-arena_start)>>_PageShift] {
+ +					break
+ +				}
+ +
+ +				// Consult GC bitmap.
+ +				bits = uintptr(*(*byte)(ptrbitp))
+ +
+ +				if wordsPerBitmapByte != 2 {
+ +					gothrow("alg doesn't work for wordsPerBitmapByte != 2")
+ +				}
+ +				j := (uintptr(b) + i) / ptrSize & 1
+ +				ptrbitp = add(ptrbitp, -j)
+ +				bits >>= gcBits * j
+ +
+ +				if bits&bitBoundary != 0 && i != 0 {
+ +					break // reached beginning of the next object
+ +				}
+ +				bits = (bits >> 2) & bitsMask
+ +				if bits == bitsDead {
+ +					break // reached no-scan part of the object
+ +				}
+ +			} else {
+ +				// dense mask (stack or data)
+ +				bits = (uintptr(*(*byte)(add(unsafe.Pointer(ptrmask), (i/ptrSize)/4))) >> (((i / ptrSize) % 4) * bitsPerPointer)) & bitsMask
+ +			}
+ +
+ +			if bits <= _BitsScalar { // BitsScalar || BitsDead
+ +				continue
+ +			}
+ +
+ +			if bits != _BitsPointer {
+ +				gothrow("unexpected garbage collection bits")
+ +			}
+ +
+ +			obj := *(*uintptr)(unsafe.Pointer(b + i))
+ +			obj0 := obj
+ +
+ +		markobj:
+ +			var s *mspan
+ +			var off, bitp, shift, xbits uintptr
+ +
+ +			// At this point we have extracted the next potential pointer.
+ +			// Check if it points into heap.
+ +			if obj == 0 {
+ +				continue
+ +			}
+ +			if obj < arena_start || arena_used <= obj {
+ +				if uintptr(obj) < _PhysPageSize && invalidptr != 0 {
+ +					s = nil
+ +					goto badobj
+ +				}
+ +				continue
+ +			}
+ +
+ +			// Mark the object.
+ +			obj &^= ptrSize - 1
+ +			off = (obj - arena_start) / ptrSize
+ +			bitp = arena_start - off/wordsPerBitmapByte - 1
+ +			shift = (off % wordsPerBitmapByte) * gcBits
+ +			xbits = uintptr(*(*byte)(unsafe.Pointer(bitp)))
+ +			bits = (xbits >> shift) & bitMask
+ +			if (bits & bitBoundary) == 0 {
+ +				// Not a beginning of a block, consult span table to find the block beginning.
+ +				k := pageID(obj >> _PageShift)
+ +				x := k
+ +				x -= pageID(arena_start >> _PageShift)
+ +				s = h_spans[x]
+ +				if s == nil || k < s.start || s.limit <= obj || s.state != mSpanInUse {
+ +					// Stack pointers lie within the arena bounds but are not part of the GC heap.
+ +					// Ignore them.
+ +					if s != nil && s.state == _MSpanStack {
+ +						continue
+ +					}
+ +					goto badobj
+ +				}
+ +				p := uintptr(s.start) << _PageShift
+ +				if s.sizeclass != 0 {
+ +					size := s.elemsize
+ +					idx := (obj - p) / size
+ +					p = p + idx*size
+ +				}
+ +				if p == obj {
+ +					print("runtime: failed to find block beginning for ", hex(p), " s=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), "\n")
+ +					gothrow("failed to find block beginning")
+ +				}
+ +				obj = p
+ +				goto markobj
+ +			}
+ +
+ +			if _DebugGCPtrs {
+ +				print("scan *", hex(b+i), " = ", hex(obj0), " => base ", hex(obj), "\n")
+ +			}
+ +
+ +			if nbadblock > 0 && obj == badblock[nbadblock-1] {
+ +				// Running garbage collection again because
+ +				// we want to find the path from a root to a bad pointer.
+ +				// Found possible next step; extend or finish path.
+ +				for j := int32(0); j < nbadblock; j++ {
+ +					if badblock[j] == b {
+ +						goto AlreadyBad
+ +					}
+ +				}
+ +				print("runtime: found *(", hex(b), "+", hex(i), ") = ", hex(obj0), "+", hex(obj-obj0), "\n")
+ +				if ptrmask != nil {
+ +					gothrow("bad pointer")
+ +				}
+ +				if nbadblock >= int32(len(badblock)) {
+ +					gothrow("badblock trace too long")
+ +				}
+ +				badblock[nbadblock] = uintptr(b)
+ +				nbadblock++
+ +			AlreadyBad:
+ +			}
+ +
+ +			// Now we have bits, bitp, and shift correct for
+ +			// obj pointing at the base of the object.
+ +			// Only care about not marked objects.
+ +			if bits&bitMarked != 0 {
+ +				continue
+ +			}
+ +
+ +			// If obj size is greater than 8, then each byte of GC bitmap
+ +			// contains info for at most one object. In such case we use
+ +			// non-atomic byte store to mark the object. This can lead
+ +			// to double enqueue of the object for scanning, but scanning
+ +			// is an idempotent operation, so it is OK. This cannot lead
+ +			// to bitmap corruption because the single marked bit is the
+ +			// only thing that can change in the byte.
+ +			// For 8-byte objects we use non-atomic store, if the other
+ +			// quadruple is already marked. Otherwise we resort to CAS
+ +			// loop for marking.
+ +			if xbits&(bitMask|bitMask<<gcBits) != bitBoundary|bitBoundary<<gcBits || work.nproc == 1 {
+ +				*(*byte)(unsafe.Pointer(bitp)) = uint8(xbits | bitMarked<<shift)
+ +			} else {
+ +				atomicor8((*byte)(unsafe.Pointer(bitp)), bitMarked<<shift)
+ +			}
+ +
+ +			if (xbits>>(shift+2))&bitsMask == bitsDead {
+ +				continue // noscan object
+ +			}
+ +
+ +			// Queue the obj for scanning.
+ +			// TODO: PREFETCH here.
+ +
+ +			// If workbuf is full, obtain an empty one.
+ +			if nobj >= uintptr(len(wbuf.obj)) {
+ +				wbuf.nobj = nobj
+ +				wbuf = getempty(wbuf)
+ +				nobj = wbuf.nobj
+ +				wp = &wbuf.obj[nobj]
+ +			}
+ +			*wp = obj
+ +			nobj++
+ +			if nobj < uintptr(len(wbuf.obj)) {
+ +				wp = &wbuf.obj[nobj]
+ +			} else {
+ +				wp = nil
+ +			}
+ +			continue
+ +
+ +		badobj:
+ +			// If cgo_allocate is linked into the binary, it can allocate
+ +			// memory as []unsafe.Pointer that may not contain actual
+ +			// pointers and must be scanned conservatively.
+ +			// In this case alone, allow the bad pointer.
+ +			if have_cgo_allocate() && ptrmask == nil {
+ +				continue
+ +			}
+ +
+ +			// Anything else indicates a bug somewhere.
+ +			// If we're in the middle of chasing down a different bad pointer,
+ +			// don't confuse the trace by printing about this one.
+ +			if nbadblock > 0 {
+ +				continue
+ +			}
+ +
+ +			print("runtime: garbage collector found invalid heap pointer *(", hex(b), "+", hex(i), ")=", hex(obj))
+ +			if s == nil {
+ +				print(" s=nil\n")
+ +			} else {
+ +				print(" span=", uintptr(s.start)<<_PageShift, "-", s.limit, "-", (uintptr(s.start)+s.npages)<<_PageShift, " state=", s.state, "\n")
+ +			}
+ +			if ptrmask != nil {
+ +				gothrow("invalid heap pointer")
+ +			}
+ +			// Add to badblock list, which will cause the garbage collection
+ +			// to keep repeating until it has traced the chain of pointers
+ +			// leading to obj all the way back to a root.
+ +			if nbadblock == 0 {
+ +				badblock[nbadblock] = uintptr(b)
+ +				nbadblock++
+ +			}
+ +		}
+ +		if _DebugGCPtrs {
+ +			print("end scanblock ", hex(b), " +", hex(n), " ", ptrmask, "\n")
+ +		}
+ +		if _DebugGC > 0 && ptrmask == nil {
+ +			// For heap objects ensure that we did not overscan.
+ +			var p, n uintptr
+ +			if mlookup(b, &p, &n, nil) == 0 || b != p || i > n {
+ +				print("runtime: scanned (", hex(b), "+", hex(i), "), heap object (", hex(p), "+", hex(n), ")\n")
+ +				gothrow("scanblock: scanned invalid object")
+ +			}
+ +		}
+ +	}
+ +}
+ +
+ +func markroot(desc *parfor, i uint32) {
+ +	// Note: if you add a case here, please also update heapdump.c:dumproots.
+ +	switch i {
+ +	case _RootData:
+ +		scanblock(uintptr(unsafe.Pointer(&data)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)), gcdatamask.bytedata)
+ +
+ +	case _RootBss:
+ +		scanblock(uintptr(unsafe.Pointer(&bss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)), gcbssmask.bytedata)
+ +
+ +	case _RootFinalizers:
+ +		for fb := allfin; fb != nil; fb = fb.alllink {
+ +			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), uintptr(fb.cnt)*unsafe.Sizeof(fb.fin[0]), &finptrmask[0])
+ +		}
+ +
+ +	case _RootSpans:
+ +		// mark MSpan.specials
+ +		sg := mheap_.sweepgen
+ +		for spanidx := uint32(0); spanidx < uint32(len(work.spans)); spanidx++ {
+ +			s := work.spans[spanidx]
+ +			if s.state != mSpanInUse {
+ +				continue
+ +			}
+ +			if s.sweepgen != sg {
+ +				print("sweep ", s.sweepgen, " ", sg, "\n")
+ +				gothrow("gc: unswept span")
+ +			}
+ +			for sp := s.specials; sp != nil; sp = sp.next {
+ +				if sp.kind != _KindSpecialFinalizer {
+ +					continue
+ +				}
+ +				// don't mark finalized object, but scan it so we
+ +				// retain everything it points to.
+ +				spf := (*specialfinalizer)(unsafe.Pointer(sp))
+ +				// A finalizer can be set for an inner byte of an object, find object beginning.
+ +				p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+ +				scanblock(p, s.elemsize, nil)
+ +				scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptr[0])
+ +			}
+ +		}
+ +
+ +	case _RootFlushCaches:
+ +		flushallmcaches()
+ +
+ +	default:
+ +		// the rest is scanning goroutine stacks
+ +		if uintptr(i-_RootCount) >= allglen {
+ +			gothrow("markroot: bad index")
+ +		}
+ +		gp := allgs[i-_RootCount]
+ +		// remember when we've first observed the G blocked
+ +		// needed only to output in traceback
+ +		status := readgstatus(gp)
+ +		if (status == _Gwaiting || status == _Gsyscall) && gp.waitsince == 0 {
+ +			gp.waitsince = work.tstart
+ +		}
+ +		// Shrink a stack if not much of it is being used.
+ +		shrinkstack(gp)
+ +		if readgstatus(gp) == _Gdead {
+ +			gp.gcworkdone = true
+ +		} else {
+ +			gp.gcworkdone = false
+ +		}
+ +		restart := stopg(gp)
+ +		scanstack(gp)
+ +		if restart {
+ +			restartg(gp)
+ +		}
+ +	}
+ +}
+ +
+ +// Get an empty work buffer off the work.empty list,
+ +// allocating new buffers as needed.
+ +func getempty(b *workbuf) *workbuf {
+ +	_g_ := getg()
+ +	if b != nil {
+ +		lfstackpush(&work.full, &b.node)
+ +	}
+ +	b = nil
+ +	c := _g_.m.mcache
+ +	if c.gcworkbuf != nil {
+ +		b = (*workbuf)(c.gcworkbuf)
+ +		c.gcworkbuf = nil
+ +	}
+ +	if b == nil {
+ +		b = (*workbuf)(lfstackpop(&work.empty))
+ +	}
+ +	if b == nil {
+ +		b = (*workbuf)(persistentalloc(unsafe.Sizeof(*b), _CacheLineSize, &memstats.gc_sys))
+ +	}
+ +	b.nobj = 0
+ +	return b
+ +}
+ +
+ +func putempty(b *workbuf) {
+ +	_g_ := getg()
+ +	c := _g_.m.mcache
+ +	if c.gcworkbuf == nil {
+ +		c.gcworkbuf = (unsafe.Pointer)(b)
+ +		return
+ +	}
+ +	lfstackpush(&work.empty, &b.node)
+ +}
+ +
+ +func gcworkbuffree(b unsafe.Pointer) {
+ +	if b != nil {
+ +		putempty((*workbuf)(b))
+ +	}
+ +}
+ +
+ +// Get a full work buffer off the work.full list, or return nil.
+ +func getfull(b *workbuf) *workbuf {
+ +	if b != nil {
+ +		lfstackpush(&work.empty, &b.node)
+ +	}
+ +	b = (*workbuf)(lfstackpop(&work.full))
+ +	if b != nil || work.nproc == 1 {
+ +		return b
+ +	}
+ +
+ +	xadd(&work.nwait, +1)
+ +	for i := 0; ; i++ {
+ +		if work.full != 0 {
+ +			xadd(&work.nwait, -1)
+ +			b = (*workbuf)(lfstackpop(&work.full))
+ +			if b != nil {
+ +				return b
+ +			}
+ +			xadd(&work.nwait, +1)
+ +		}
+ +		if work.nwait == work.nproc {
+ +			return nil
+ +		}
+ +		_g_ := getg()
+ +		if i < 10 {
+ +			_g_.m.gcstats.nprocyield++
+ +			procyield(20)
+ +		} else if i < 20 {
+ +			_g_.m.gcstats.nosyield++
+ +			osyield()
+ +		} else {
+ +			_g_.m.gcstats.nsleep++
+ +			usleep(100)
+ +		}
+ +	}
+ +}
+ +
+ +func handoff(b *workbuf) *workbuf {
+ +	// Make new buffer with half of b's pointers.
+ +	b1 := getempty(nil)
+ +	n := b.nobj / 2
+ +	b.nobj -= n
+ +	b1.nobj = n
+ +	memmove(unsafe.Pointer(&b1.obj[0]), unsafe.Pointer(&b.obj[b.nobj]), n*unsafe.Sizeof(b1.obj[0]))
+ +	_g_ := getg()
+ +	_g_.m.gcstats.nhandoff++
+ +	_g_.m.gcstats.nhandoffcnt += uint64(n)
+ +
+ +	// Put b on full list - let first half of b get stolen.
+ +	lfstackpush(&work.full, &b.node)
+ +	return b1
+ +}
+ +
+ +func stackmapdata(stkmap *stackmap, n int32) bitvector {
+ +	if n < 0 || n >= stkmap.n {
+ +		gothrow("stackmapdata: index out of range")
+ +	}
+ +	return bitvector{stkmap.nbit, (*byte)(add(unsafe.Pointer(&stkmap.bytedata), uintptr(n*((stkmap.nbit+31)/32*4))))}
+ +}
+ +
+ +// Scan a stack frame: local variables and function arguments/results.
+ +func scanframe(frame *stkframe, unused unsafe.Pointer) bool {
+ +
+ +	f := frame.fn
+ +	targetpc := frame.continpc
+ +	if targetpc == 0 {
+ +		// Frame is dead.
+ +		return true
+ +	}
+ +	if _DebugGC > 1 {
+ +		print("scanframe ", gofuncname(f), "\n")
+ +	}
+ +	if targetpc != f.entry {
+ +		targetpc--
+ +	}
+ +	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc)
+ +	if pcdata == -1 {
+ +		// We do not have a valid pcdata value but there might be a
+ +		// stackmap for this function.  It is likely that we are looking
+ +		// at the function prologue, assume so and hope for the best.
+ +		pcdata = 0
+ +	}
+ +
+ +	// Scan local variables if stack frame has been allocated.
+ +	size := frame.varp - frame.sp
+ +	var minsize uintptr
+ +	if thechar != '6' && thechar != '8' {
+ +		minsize = ptrSize
+ +	} else {
+ +		minsize = 0
+ +	}
+ +	if size > minsize {
+ +		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+ +		if stkmap == nil || stkmap.n <= 0 {
+ +			print("runtime: frame ", gofuncname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
+ +			gothrow("missing stackmap")
+ +		}
+ +
+ +		// Locals bitmap information, scan just the pointers in locals.
+ +		if pcdata < 0 || pcdata >= stkmap.n {
+ +			// don't know where we are
+ +			print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " locals stack map entries for ", gofuncname(f), " (targetpc=", targetpc, ")\n")
+ +			gothrow("scanframe: bad symbol table")
+ +		}
+ +		bv := stackmapdata(stkmap, pcdata)
+ +		size = (uintptr(bv.n) * ptrSize) / bitsPerPointer
+ +		scanblock(frame.varp-size, uintptr(bv.n)/bitsPerPointer*ptrSize, bv.bytedata)
+ +	}
+ +
+ +	// Scan arguments.
+ +	if frame.arglen > 0 {
+ +		var bv bitvector
+ +		if frame.argmap != nil {
+ +			bv = *frame.argmap
+ +		} else {
+ +			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+ +			if stkmap == nil || stkmap.n <= 0 {
+ +				print("runtime: frame ", gofuncname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
+ +				gothrow("missing stackmap")
+ +			}
+ +			if pcdata < 0 || pcdata >= stkmap.n {
+ +				// don't know where we are
+ +				print("runtime: pcdata is ", pcdata, " and ", stkmap.n, " args stack map entries for ", gofuncname(f), " (targetpc=", targetpc, ")\n")
+ +				gothrow("scanframe: bad symbol table")
+ +			}
+ +			bv = stackmapdata(stkmap, pcdata)
+ +		}
+ +		scanblock(frame.argp, uintptr(bv.n)/bitsPerPointer*ptrSize, bv.bytedata)
+ +	}
+ +	return true
+ +}
+ +
+ +func scanstack(gp *g) {
+ +	// TODO(rsc): Due to a precedence error, this was never checked in the original C version.
+ +	// If you enable the check, the gothrow happens.
+ +	/*
+ +		if readgstatus(gp)&_Gscan == 0 {
+ +			print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
+ +			gothrow("mark - bad status")
+ +		}
+ +	*/
+ +
+ +	switch readgstatus(gp) &^ _Gscan {
+ +	default:
+ +		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
+ +		gothrow("mark - bad status")
+ +	case _Gdead:
+ +		return
+ +	case _Grunning:
+ +		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
+ +		gothrow("mark - world not stopped")
+ +	case _Grunnable, _Gsyscall, _Gwaiting:
+ +		// ok
+ +	}
+ +
+ +	if gp == getg() {
+ +		gothrow("can't scan our own stack")
+ +	}
+ +	mp := gp.m
+ +	if mp != nil && mp.helpgc != 0 {
+ +		gothrow("can't scan gchelper stack")
+ +	}
+ +
+ +	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+ +	tracebackdefers(gp, scanframe, nil)
+ +}
+ +
+ +// The gp has been moved to a gc safepoint. If there is gcphase specific
+ +// work it is done here.
+ +func gcphasework(gp *g) {
+ +	switch gcphase {
+ +	default:
+ +		gothrow("gcphasework in bad gcphase")
+ +	case _GCoff, _GCquiesce, _GCstw, _GCsweep:
+ +		// No work for now.
+ +	case _GCmark:
+ +		// Disabled until concurrent GC is implemented
+ +		// but indicate the scan has been done.
+ +		// scanstack(gp);
+ +	}
+ +	gp.gcworkdone = true
+ +}
+ +
+ +var finalizer1 = [...]byte{
+ +	// Each Finalizer is 5 words, ptr ptr uintptr ptr ptr.
+ +	// Each byte describes 4 words.
+ +	// Need 4 Finalizers described by 5 bytes before pattern repeats:
+ +	//	ptr ptr uintptr ptr ptr
+ +	//	ptr ptr uintptr ptr ptr
+ +	//	ptr ptr uintptr ptr ptr
+ +	//	ptr ptr uintptr ptr ptr
+ +	// aka
+ +	//	ptr ptr uintptr ptr
+ +	//	ptr ptr ptr uintptr
+ +	//	ptr ptr ptr ptr
+ +	//	uintptr ptr ptr ptr
+ +	//	ptr uintptr ptr ptr
+ +	// Assumptions about Finalizer layout checked below.
+ +	bitsPointer | bitsPointer<<2 | bitsScalar<<4 | bitsPointer<<6,
+ +	bitsPointer | bitsPointer<<2 | bitsPointer<<4 | bitsScalar<<6,
+ +	bitsPointer | bitsPointer<<2 | bitsPointer<<4 | bitsPointer<<6,
+ +	bitsScalar | bitsPointer<<2 | bitsPointer<<4 | bitsPointer<<6,
+ +	bitsPointer | bitsScalar<<2 | bitsPointer<<4 | bitsPointer<<6,
+ +}
+ +
+ +func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot *ptrtype) {
+ +	lock(&finlock)
+ +	if finq == nil || finq.cnt == finq.cap {
+ +		if finc == nil {
+ +			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gc_sys))
+ +			finc.cap = int32((_FinBlockSize-unsafe.Sizeof(finblock{}))/unsafe.Sizeof(finalizer{}) + 1)
+ +			finc.alllink = allfin
+ +			allfin = finc
+ +			if finptrmask[0] == 0 {
+ +				// Build pointer mask for Finalizer array in block.
+ +				// Check assumptions made in finalizer1 array above.
+ +				if (unsafe.Sizeof(finalizer{}) != 5*ptrSize ||
+ +					unsafe.Offsetof(finalizer{}.fn) != 0 ||
+ +					unsafe.Offsetof(finalizer{}.arg) != ptrSize ||
+ +					unsafe.Offsetof(finalizer{}.nret) != 2*ptrSize ||
+ +					unsafe.Offsetof(finalizer{}.fint) != 3*ptrSize ||
+ +					unsafe.Offsetof(finalizer{}.ot) != 4*ptrSize ||
+ +					bitsPerPointer != 2) {
+ +					gothrow("finalizer out of sync")
+ +				}
+ +				for i := range finptrmask {
+ +					finptrmask[i] = finalizer1[i%len(finalizer1)]
+ +				}
+ +			}
+ +		}
+ +		block := finc
+ +		finc = block.next
+ +		block.next = finq
+ +		finq = block
+ +	}
+ +	f := (*finalizer)(add(unsafe.Pointer(&finq.fin[0]), uintptr(finq.cnt)*unsafe.Sizeof(finq.fin[0])))
+ +	finq.cnt++
+ +	f.fn = fn
+ +	f.nret = nret
+ +	f.fint = fint
+ +	f.ot = ot
+ +	f.arg = p
+ +	fingwake = true
+ +	unlock(&finlock)
+ +}
+ +
+ +func iterate_finq(callback func(*funcval, unsafe.Pointer, uintptr, *_type, *ptrtype)) {
+ +	for fb := allfin; fb != nil; fb = fb.alllink {
+ +		for i := int32(0); i < fb.cnt; i++ {
+ +			f := &fb.fin[i]
+ +			callback(f.fn, f.arg, f.nret, f.fint, f.ot)
+ +		}
+ +	}
+ +}
+ +
+ +func mSpan_EnsureSwept(s *mspan) {
+ +	// Caller must disable preemption.
+ +	// Otherwise when this function returns the span can become unswept again
+ +	// (if GC is triggered on another goroutine).
+ +	_g_ := getg()
+ +	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
+ +		gothrow("MSpan_EnsureSwept: m is not locked")
+ +	}
+ +
+ +	sg := mheap_.sweepgen
+ +	if atomicload(&s.sweepgen) == sg {
+ +		return
+ +	}
+ +	if cas(&s.sweepgen, sg-2, sg-1) {
+ +		mSpan_Sweep(s, false)
+ +		return
+ +	}
+ +	// unfortunate condition, and we don't have efficient means to wait
+ +	for atomicload(&s.sweepgen) != sg {
+ +		osyield()
+ +	}
+ +}
+ +
+ +// Sweep frees or collects finalizers for blocks not marked in the mark phase.
+ +// It clears the mark bits in preparation for the next GC round.
+ +// Returns true if the span was returned to heap.
+ +// If preserve=true, don't return it to heap nor relink in MCentral lists;
+ +// caller takes care of it.
+ +func mSpan_Sweep(s *mspan, preserve bool) bool {
+ +	// It's critical that we enter this function with preemption disabled,
+ +	// GC must not start while we are in the middle of this function.
+ +	_g_ := getg()
+ +	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
+ +		gothrow("MSpan_Sweep: m is not locked")
+ +	}
+ +	sweepgen := mheap_.sweepgen
+ +	if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
+ +		print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+ +		gothrow("MSpan_Sweep: bad span state")
+ +	}
+ +	arena_start := mheap_.arena_start
+ +	cl := s.sizeclass
+ +	size := s.elemsize
+ +	var n int32
+ +	var npages int32
+ +	if cl == 0 {
+ +		n = 1
+ +	} else {
+ +		// Chunk full of small blocks.
+ +		npages = class_to_allocnpages[cl]
+ +		n = (npages << _PageShift) / int32(size)
+ +	}
+ +	res := false
+ +	nfree := 0
+ +	var head mlink
+ +	end := &head
+ +	c := _g_.m.mcache
+ +	sweepgenset := false
+ +
+ +	// Mark any free objects in this span so we don't collect them.
+ +	for link := s.freelist; link != nil; link = link.next {
+ +		off := (uintptr(unsafe.Pointer(link)) - arena_start) / ptrSize
+ +		bitp := arena_start - off/wordsPerBitmapByte - 1
+ +		shift := (off % wordsPerBitmapByte) * gcBits
+ +		*(*byte)(unsafe.Pointer(bitp)) |= bitMarked << shift
+ +	}
+ +
+ +	// Unlink & free special records for any objects we're about to free.
+ +	specialp := &s.specials
+ +	special := *specialp
+ +	for special != nil {
+ +		// A finalizer can be set for an inner byte of an object, find object beginning.
+ +		p := uintptr(s.start<<_PageShift) + uintptr(special.offset)/size*size
+ +		off := (p - arena_start) / ptrSize
+ +		bitp := arena_start - off/wordsPerBitmapByte - 1
+ +		shift := (off % wordsPerBitmapByte) * gcBits
+ +		bits := (*(*byte)(unsafe.Pointer(bitp)) >> shift) & bitMask
+ +		if bits&bitMarked == 0 {
+ +			// Find the exact byte for which the special was setup
+ +			// (as opposed to object beginning).
+ +			p := uintptr(s.start<<_PageShift) + uintptr(special.offset)
+ +			// about to free object: splice out special record
+ +			y := special
+ +			special = special.next
+ +			*specialp = special
+ +			if !freespecial(y, unsafe.Pointer(p), size, false) {
+ +				// stop freeing of object if it has a finalizer
+ +				*(*byte)(unsafe.Pointer(bitp)) |= bitMarked << shift
+ +			}
+ +		} else {
+ +			// object is still live: keep special record
+ +			specialp = &special.next
+ +			special = *specialp
+ +		}
+ +	}
+ +
+ +	// Sweep through n objects of given size starting at p.
+ +	// This thread owns the span now, so it can manipulate
+ +	// the block bitmap without atomic operations.
+ +	p := uintptr(s.start << _PageShift)
+ +	off := (p - arena_start) / ptrSize
+ +	bitp := arena_start - off/wordsPerBitmapByte - 1
+ +	shift := uint(0)
+ +	step := size / (ptrSize * wordsPerBitmapByte)
+ +	// Rewind to the previous quadruple as we move to the next
+ +	// in the beginning of the loop.
+ +	bitp += step
+ +	if step == 0 {
+ +		// 8-byte objects.
+ +		bitp++
+ +		shift = gcBits
+ +	}
+ +	for ; n > 0; n, p = n-1, p+size {
+ +		bitp -= step
+ +		if step == 0 {
+ +			if shift != 0 {
+ +				bitp--
+ +			}
+ +			shift = gcBits - shift
+ +		}
+ +
+ +		xbits := *(*byte)(unsafe.Pointer(bitp))
+ +		bits := (xbits >> shift) & bitMask
+ +
+ +		// Allocated and marked object, reset bits to allocated.
+ +		if bits&bitMarked != 0 {
+ +			*(*byte)(unsafe.Pointer(bitp)) &^= bitMarked << shift
+ +			continue
+ +		}
+ +
+ +		// At this point we know that we are looking at garbage object
+ +		// that needs to be collected.
+ +		if debug.allocfreetrace != 0 {
+ +			tracefree(unsafe.Pointer(p), size)
+ +		}
+ +
+ +		// Reset to allocated+noscan.
+ +		*(*byte)(unsafe.Pointer(bitp)) = uint8(uintptr(xbits&^((bitMarked|bitsMask<<2)<<shift)) | uintptr(bitsDead)<<(shift+2))
+ +		if cl == 0 {
+ +			// Free large span.
+ +			if preserve {
+ +				gothrow("can't preserve large span")
+ +			}
+ +			unmarkspan(p, s.npages<<_PageShift)
+ +			s.needzero = 1
+ +
+ +			// important to set sweepgen before returning it to heap
+ +			atomicstore(&s.sweepgen, sweepgen)
+ +			sweepgenset = true
+ +
+ +			// NOTE(rsc,dvyukov): The original implementation of efence
+ +			// in CL 22060046 used SysFree instead of SysFault, so that
+ +			// the operating system would eventually give the memory
+ +			// back to us again, so that an efence program could run
+ +			// longer without running out of memory. Unfortunately,
+ +			// calling SysFree here without any kind of adjustment of the
+ +			// heap data structures means that when the memory does
+ +			// come back to us, we have the wrong metadata for it, either in
+ +			// the MSpan structures or in the garbage collection bitmap.
+ +			// Using SysFault here means that the program will run out of
+ +			// memory fairly quickly in efence mode, but at least it won't
+ +			// have mysterious crashes due to confused memory reuse.
+ +			// It should be possible to switch back to SysFree if we also
+ +			// implement and then call some kind of MHeap_DeleteSpan.
+ +			if debug.efence > 0 {
+ +				s.limit = 0 // prevent mlookup from finding this span
+ +				sysFault(unsafe.Pointer(p), size)
+ +			} else {
+ +				mHeap_Free(&mheap_, s, 1)
+ +			}
+ +			c.local_nlargefree++
+ +			c.local_largefree += size
+ +			xadd64(&memstats.next_gc, -int64(size)*int64(gcpercent+100)/100)
+ +			res = true
+ +		} else {
+ +			// Free small object.
+ +			if size > 2*ptrSize {
+ +				*(*uintptr)(unsafe.Pointer(p + ptrSize)) = uintptrMask & 0xdeaddeaddeaddead // mark as "needs to be zeroed"
+ +			} else if size > ptrSize {
+ +				*(*uintptr)(unsafe.Pointer(p + ptrSize)) = 0
+ +			}
+ +			end.next = (*mlink)(unsafe.Pointer(p))
+ +			end = end.next
+ +			nfree++
+ +		}
+ +	}
+ +
+ +	// We need to set s.sweepgen = h.sweepgen only when all blocks are swept,
+ +	// because of the potential for a concurrent free/SetFinalizer.
+ +	// But we need to set it before we make the span available for allocation
+ +	// (return it to heap or mcentral), because allocation code assumes that a
+ +	// span is already swept if available for allocation.
+ +	if !sweepgenset && nfree == 0 {
+ +		// The span must be in our exclusive ownership until we update sweepgen,
+ +		// check for potential races.
+ +		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
+ +			print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+ +			gothrow("MSpan_Sweep: bad span state after sweep")
+ +		}
+ +		atomicstore(&s.sweepgen, sweepgen)
+ +	}
+ +	if nfree > 0 {
+ +		c.local_nsmallfree[cl] += uintptr(nfree)
+ +		c.local_cachealloc -= intptr(uintptr(nfree) * size)
+ +		xadd64(&memstats.next_gc, -int64(nfree)*int64(size)*int64(gcpercent+100)/100)
+ +		res = mCentral_FreeSpan(&mheap_.central[cl].mcentral, s, int32(nfree), head.next, end, preserve)
+ +		// MCentral_FreeSpan updates sweepgen
+ +	}
+ +	return res
+ +}
+ +
+ +// State of background sweep.
+ +// Protected by gclock.
+ +type sweepdata struct {
+ +	g       *g
+ +	parked  bool
+ +	started bool
+ +
+ +	spanidx uint32 // background sweeper position
+ +
+ +	nbgsweep    uint32
+ +	npausesweep uint32
+ +}
+ +
+ +var sweep sweepdata
+ +
+ +// sweeps one span
+ +// returns number of pages returned to heap, or ^uintptr(0) if there is nothing to sweep
+ +func sweepone() uintptr {
+ +	_g_ := getg()
+ +
+ +	// increment locks to ensure that the goroutine is not preempted
+ +	// in the middle of sweep thus leaving the span in an inconsistent state for next GC
+ +	_g_.m.locks++
+ +	sg := mheap_.sweepgen
+ +	for {
+ +		idx := xadd(&sweep.spanidx, 1) - 1
+ +		if idx >= uint32(len(work.spans)) {
+ +			mheap_.sweepdone = 1
+ +			_g_.m.locks--
+ +			return ^uintptr(0)
+ +		}
+ +		s := work.spans[idx]
+ +		if s.state != mSpanInUse {
+ +			s.sweepgen = sg
+ +			continue
+ +		}
+ +		if s.sweepgen != sg-2 || !cas(&s.sweepgen, sg-2, sg-1) {
+ +			continue
+ +		}
+ +		npages := s.npages
+ +		if !mSpan_Sweep(s, false) {
+ +			npages = 0
+ +		}
+ +		_g_.m.locks--
+ +		return npages
+ +	}
+ +}
+ +
+ +func gosweepone() uintptr {
+ +	var ret uintptr
+ +	systemstack(func() {
+ +		ret = sweepone()
+ +	})
+ +	return ret
+ +}
+ +
+ +func gosweepdone() bool {
+ +	return mheap_.sweepdone != 0
+ +}
+ +
+ +func gchelper() {
+ +	_g_ := getg()
+ +	_g_.m.traceback = 2
+ +	gchelperstart()
+ +
+ +	// parallel mark for over gc roots
+ +	parfordo(work.markfor)
+ +
+ +	// help other threads scan secondary blocks
+ +	scanblock(0, 0, nil)
+ +
+ +	nproc := work.nproc // work.nproc can change right after we increment work.ndone
+ +	if xadd(&work.ndone, +1) == nproc-1 {
+ +		notewakeup(&work.alldone)
+ +	}
+ +	_g_.m.traceback = 0
+ +}
+ +
+ +func cachestats() {
+ +	for i := 0; ; i++ {
+ +		p := allp[i]
+ +		if p == nil {
+ +			break
+ +		}
+ +		c := p.mcache
+ +		if c == nil {
+ +			continue
+ +		}
+ +		purgecachedstats(c)
+ +	}
+ +}
+ +
+ +func flushallmcaches() {
+ +	for i := 0; ; i++ {
+ +		p := allp[i]
+ +		if p == nil {
+ +			break
+ +		}
+ +		c := p.mcache
+ +		if c == nil {
+ +			continue
+ +		}
+ +		mCache_ReleaseAll(c)
+ +		stackcache_clear(c)
+ +	}
+ +}
+ +
+ +func updatememstats(stats *gcstats) {
+ +	if stats != nil {
+ +		*stats = gcstats{}
+ +	}
+ +	for mp := allm; mp != nil; mp = mp.alllink {
+ +		if stats != nil {
+ +			src := (*[unsafe.Sizeof(gcstats{}) / 8]uint64)(unsafe.Pointer(&mp.gcstats))
+ +			dst := (*[unsafe.Sizeof(gcstats{}) / 8]uint64)(unsafe.Pointer(stats))
+ +			for i, v := range src {
+ +				dst[i] += v
+ +			}
+ +			mp.gcstats = gcstats{}
+ +		}
+ +	}
+ +
+ +	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
+ +	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
+ +	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
+ +		memstats.mcache_sys + memstats.buckhash_sys + memstats.gc_sys + memstats.other_sys
+ +
+ +	// Calculate memory allocator stats.
+ +	// During program execution we only count number of frees and amount of freed memory.
+ +	// Current number of alive object in the heap and amount of alive heap memory
+ +	// are calculated by scanning all spans.
+ +	// Total number of mallocs is calculated as number of frees plus number of alive objects.
+ +	// Similarly, total amount of allocated memory is calculated as amount of freed memory
+ +	// plus amount of alive heap memory.
+ +	memstats.alloc = 0
+ +	memstats.total_alloc = 0
+ +	memstats.nmalloc = 0
+ +	memstats.nfree = 0
+ +	for i := 0; i < len(memstats.by_size); i++ {
+ +		memstats.by_size[i].nmalloc = 0
+ +		memstats.by_size[i].nfree = 0
+ +	}
+ +
+ +	// Flush MCache's to MCentral.
+ +	systemstack(flushallmcaches)
+ +
+ +	// Aggregate local stats.
+ +	cachestats()
+ +
+ +	// Scan all spans and count number of alive objects.
+ +	lock(&mheap_.lock)
+ +	for i := uint32(0); i < mheap_.nspan; i++ {
+ +		s := h_allspans[i]
+ +		if s.state != mSpanInUse {
+ +			continue
+ +		}
+ +		if s.sizeclass == 0 {
+ +			memstats.nmalloc++
+ +			memstats.alloc += uint64(s.elemsize)
+ +		} else {
+ +			memstats.nmalloc += uint64(s.ref)
+ +			memstats.by_size[s.sizeclass].nmalloc += uint64(s.ref)
+ +			memstats.alloc += uint64(s.ref) * uint64(s.elemsize)
+ +		}
+ +	}
+ +	unlock(&mheap_.lock)
+ +
+ +	// Aggregate by size class.
+ +	smallfree := uint64(0)
+ +	memstats.nfree = mheap_.nlargefree
+ +	for i := 0; i < len(memstats.by_size); i++ {
+ +		memstats.nfree += mheap_.nsmallfree[i]
+ +		memstats.by_size[i].nfree = mheap_.nsmallfree[i]
+ +		memstats.by_size[i].nmalloc += mheap_.nsmallfree[i]
+ +		smallfree += uint64(mheap_.nsmallfree[i]) * uint64(class_to_size[i])
+ +	}
+ +	memstats.nfree += memstats.tinyallocs
+ +	memstats.nmalloc += memstats.nfree
+ +
+ +	// Calculate derived stats.
+ +	memstats.total_alloc = uint64(memstats.alloc) + uint64(mheap_.largefree) + smallfree
+ +	memstats.heap_alloc = memstats.alloc
+ +	memstats.heap_objects = memstats.nmalloc - memstats.nfree
+ +}
+ +
+ +func gcinit() {
+ +	if unsafe.Sizeof(workbuf{}) != _WorkbufSize {
+ +		gothrow("runtime: size of Workbuf is suboptimal")
+ +	}
+ +
+ +	work.markfor = parforalloc(_MaxGcproc)
+ +	gcpercent = readgogc()
+ +	gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcdata)), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)))
+ +	gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(&gcbss)), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)))
+ +}
+ +
+ +func gc_m(start_time int64, eagersweep bool) {
+ +	_g_ := getg()
+ +	gp := _g_.m.curg
+ +	casgstatus(gp, _Grunning, _Gwaiting)
+ +	gp.waitreason = "garbage collection"
+ +
+ +	gc(start_time, eagersweep)
+ +
+ +	if nbadblock > 0 {
+ +		// Work out path from root to bad block.
+ +		for {
+ +			gc(start_time, eagersweep)
+ +			if nbadblock >= int32(len(badblock)) {
+ +				gothrow("cannot find path to bad pointer")
+ +			}
+ +		}
+ +	}
+ +
+ +	casgstatus(gp, _Gwaiting, _Grunning)
+ +}
+ +
+ +func gc(start_time int64, eagersweep bool) {
+ +	if _DebugGCPtrs {
+ +		print("GC start\n")
+ +	}
+ +
+ +	if debug.allocfreetrace > 0 {
+ +		tracegc()
+ +	}
+ +
+ +	_g_ := getg()
+ +	_g_.m.traceback = 2
+ +	t0 := start_time
+ +	work.tstart = start_time
+ +
+ +	var t1 int64
+ +	if debug.gctrace > 0 {
+ +		t1 = nanotime()
+ +	}
+ +
+ +	// Sweep what is not sweeped by bgsweep.
+ +	for sweepone() != ^uintptr(0) {
+ +		sweep.npausesweep++
+ +	}
+ +
+ +	// Cache runtime.mheap_.allspans in work.spans to avoid conflicts with
+ +	// resizing/freeing allspans.
+ +	// New spans can be created while GC progresses, but they are not garbage for
+ +	// this round:
+ +	//  - new stack spans can be created even while the world is stopped.
+ +	//  - new malloc spans can be created during the concurrent sweep
+ +
+ +	// Even if this is stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+ +	lock(&mheap_.lock)
+ +	// Free the old cached sweep array if necessary.
+ +	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
+ +		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
+ +	}
+ +	// Cache the current array for marking.
+ +	mheap_.gcspans = mheap_.allspans
+ +	work.spans = h_allspans
+ +	unlock(&mheap_.lock)
+ +
+ +	work.nwait = 0
+ +	work.ndone = 0
+ +	work.nproc = uint32(gcprocs())
+ +	parforsetup(work.markfor, work.nproc, uint32(_RootCount+allglen), nil, false, markroot)
+ +	if work.nproc > 1 {
+ +		noteclear(&work.alldone)
+ +		helpgc(int32(work.nproc))
+ +	}
+ +
+ +	var t2 int64
+ +	if debug.gctrace > 0 {
+ +		t2 = nanotime()
+ +	}
+ +
+ +	gchelperstart()
+ +	parfordo(work.markfor)
+ +	scanblock(0, 0, nil)
+ +
+ +	var t3 int64
+ +	if debug.gctrace > 0 {
+ +		t3 = nanotime()
+ +	}
+ +
+ +	if work.nproc > 1 {
+ +		notesleep(&work.alldone)
+ +	}
+ +
+ +	shrinkfinish()
+ +
+ +	cachestats()
+ +	// next_gc calculation is tricky with concurrent sweep since we don't know size of live heap
+ +	// estimate what was live heap size after previous GC (for printing only)
+ +	heap0 := memstats.next_gc * 100 / (uint64(gcpercent) + 100)
+ +	// conservatively set next_gc to high value assuming that everything is live
+ +	// concurrent/lazy sweep will reduce this number while discovering new garbage
+ +	memstats.next_gc = memstats.heap_alloc + memstats.heap_alloc*uint64(gcpercent)/100
+ +
+ +	t4 := nanotime()
+ +	atomicstore64(&memstats.last_gc, uint64(unixnanotime())) // must be Unix time to make sense to user
+ +	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(t4 - t0)
+ +	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(t4)
+ +	memstats.pause_total_ns += uint64(t4 - t0)
+ +	memstats.numgc++
+ +	if memstats.debuggc {
+ +		print("pause ", t4-t0, "\n")
+ +	}
+ +
+ +	if debug.gctrace > 0 {
+ +		heap1 := memstats.heap_alloc
+ +		var stats gcstats
+ +		updatememstats(&stats)
+ +		if heap1 != memstats.heap_alloc {
+ +			print("runtime: mstats skew: heap=", heap1, "/", memstats.heap_alloc, "\n")
+ +			gothrow("mstats skew")
+ +		}
+ +		obj := memstats.nmalloc - memstats.nfree
+ +
+ +		stats.nprocyield += work.markfor.nprocyield
+ +		stats.nosyield += work.markfor.nosyield
+ +		stats.nsleep += work.markfor.nsleep
+ +
+ +		print("gc", memstats.numgc, "(", work.nproc, "): ",
+ +			(t1-t0)/1000, "+", (t2-t1)/1000, "+", (t3-t2)/1000, "+", (t4-t3)/1000, " us, ",
+ +			heap0>>20, " -> ", heap1>>20, " MB, ",
+ +			obj, " (", memstats.nmalloc, "-", memstats.nfree, ") objects, ",
+ +			gcount(), " goroutines, ",
+ +			len(work.spans), "/", sweep.nbgsweep, "/", sweep.npausesweep, " sweeps, ",
+ +			stats.nhandoff, "(", stats.nhandoffcnt, ") handoff, ",
+ +			work.markfor.nsteal, "(", work.markfor.nstealcnt, ") steal, ",
+ +			stats.nprocyield, "/", stats.nosyield, "/", stats.nsleep, " yields\n")
+ +		sweep.nbgsweep = 0
+ +		sweep.npausesweep = 0
+ +	}
+ +
+ +	// See the comment in the beginning of this function as to why we need the following.
+ +	// Even if this is still stop-the-world, a concurrent exitsyscall can allocate a stack from heap.
+ +	lock(&mheap_.lock)
+ +	// Free the old cached mark array if necessary.
+ +	if work.spans != nil && &work.spans[0] != &h_allspans[0] {
+ +		sysFree(unsafe.Pointer(&work.spans[0]), uintptr(len(work.spans))*unsafe.Sizeof(work.spans[0]), &memstats.other_sys)
+ +	}
+ +
+ +	// Cache the current array for sweeping.
+ +	mheap_.gcspans = mheap_.allspans
+ +	mheap_.sweepgen += 2
+ +	mheap_.sweepdone = 0
+ +	work.spans = h_allspans
+ +	sweep.spanidx = 0
+ +	unlock(&mheap_.lock)
+ +
+ +	if _ConcurrentSweep && !eagersweep {
+ +		lock(&gclock)
+ +		if !sweep.started {
+ +			go bgsweep()
+ +			sweep.started = true
+ +		} else if sweep.parked {
+ +			sweep.parked = false
+ +			ready(sweep.g)
+ +		}
+ +		unlock(&gclock)
+ +	} else {
+ +		// Sweep all spans eagerly.
+ +		for sweepone() != ^uintptr(0) {
+ +			sweep.npausesweep++
+ +		}
+ +		// Do an additional mProf_GC, because all 'free' events are now real as well.
+ +		mProf_GC()
+ +	}
+ +
+ +	mProf_GC()
+ +	_g_.m.traceback = 0
+ +
+ +	if _DebugGCPtrs {
+ +		print("GC end\n")
+ +	}
+ +}
+ +
+ +func readmemstats_m(stats *MemStats) {
+ +	updatememstats(nil)
+ +
+ +	// Size of the trailing by_size array differs between Go and C,
+ +	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
+ +	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
+ +
+ +	// Stack numbers are part of the heap numbers, separate those out for user consumption
+ +	stats.StackSys = stats.StackInuse
+ +	stats.HeapInuse -= stats.StackInuse
+ +	stats.HeapSys -= stats.StackInuse
+ +}
+ +
+ +//go:linkname readGCStats runtime/debug.readGCStats
+ +func readGCStats(pauses *[]uint64) {
+ +	systemstack(func() {
+ +		readGCStats_m(pauses)
+ +	})
+ +}
+ +
+ +func readGCStats_m(pauses *[]uint64) {
+ +	p := *pauses
+ +	// Calling code in runtime/debug should make the slice large enough.
+ +	if cap(p) < len(memstats.pause_ns)+3 {
+ +		gothrow("runtime: short slice passed to readGCStats")
+ +	}
+ +
+ +	// Pass back: pauses, pause ends, last gc (absolute time), number of gc, total pause ns.
+ +	lock(&mheap_.lock)
+ +
+ +	n := memstats.numgc
+ +	if n > uint32(len(memstats.pause_ns)) {
+ +		n = uint32(len(memstats.pause_ns))
+ +	}
+ +
+ +	// The pause buffer is circular. The most recent pause is at
+ +	// pause_ns[(numgc-1)%len(pause_ns)], and then backward
+ +	// from there to go back farther in time. We deliver the times
+ +	// most recent first (in p[0]).
+ +	p = p[:cap(p)]
+ +	for i := uint32(0); i < n; i++ {
+ +		j := (memstats.numgc - 1 - i) % uint32(len(memstats.pause_ns))
+ +		p[i] = memstats.pause_ns[j]
+ +		p[n+i] = memstats.pause_end[j]
+ +	}
+ +
+ +	p[n+n] = memstats.last_gc
+ +	p[n+n+1] = uint64(memstats.numgc)
+ +	p[n+n+2] = memstats.pause_total_ns
+ +	unlock(&mheap_.lock)
+ +	*pauses = p[:n+n+3]
+ +}
+ +
+ +func setGCPercent(in int32) (out int32) {
+ +	lock(&mheap_.lock)
+ +	out = gcpercent
+ +	if in < 0 {
+ +		in = -1
+ +	}
+ +	gcpercent = in
+ +	unlock(&mheap_.lock)
+ +	return out
+ +}
+ +
+ +func gchelperstart() {
+ +	_g_ := getg()
+ +
+ +	if _g_.m.helpgc < 0 || _g_.m.helpgc >= _MaxGcproc {
+ +		gothrow("gchelperstart: bad m->helpgc")
+ +	}
+ +	if _g_ != _g_.m.g0 {
+ +		gothrow("gchelper not running on g0 stack")
+ +	}
+ +}
+ +
+ +func wakefing() *g {
+ +	var res *g
+ +	lock(&finlock)
+ +	if fingwait && fingwake {
+ +		fingwait = false
+ +		fingwake = false
+ +		res = fing
+ +	}
+ +	unlock(&finlock)
+ +	return res
+ +}
+ +
+ +func addb(p *byte, n uintptr) *byte {
+ +	return (*byte)(add(unsafe.Pointer(p), n))
+ +}
+ +
+ +// Recursively unrolls GC program in prog.
+ +// mask is where to store the result.
+ +// ppos is a pointer to position in mask, in bits.
+ +// sparse says to generate 4-bits per word mask for heap (2-bits for data/bss otherwise).
+ +func unrollgcprog1(maskp *byte, prog *byte, ppos *uintptr, inplace, sparse bool) *byte {
+ +	arena_start := mheap_.arena_start
+ +	pos := *ppos
+ +	mask := (*[1 << 30]byte)(unsafe.Pointer(maskp))
+ +	for {
+ +		switch *prog {
+ +		default:
+ +			gothrow("unrollgcprog: unknown instruction")
+ +
+ +		case insData:
+ +			prog = addb(prog, 1)
+ +			siz := int(*prog)
+ +			prog = addb(prog, 1)
+ +			p := (*[1 << 30]byte)(unsafe.Pointer(prog))
+ +			for i := 0; i < siz; i++ {
+ +				v := p[i/_PointersPerByte]
+ +				v >>= (uint(i) % _PointersPerByte) * _BitsPerPointer
+ +				v &= _BitsMask
+ +				if inplace {
+ +					// Store directly into GC bitmap.
+ +					off := (uintptr(unsafe.Pointer(&mask[pos])) - arena_start) / ptrSize
+ +					bitp := (*byte)(unsafe.Pointer(arena_start - off/wordsPerBitmapByte - 1))
+ +					shift := (off % wordsPerBitmapByte) * gcBits
+ +					if shift == 0 {
+ +						*bitp = 0
+ +					}
+ +					*bitp |= v << (shift + 2)
+ +					pos += ptrSize
+ +				} else if sparse {
+ +					// 4-bits per word
+ +					v <<= (pos % 8) + 2
+ +					mask[pos/8] |= v
+ +					pos += gcBits
+ +				} else {
+ +					// 2-bits per word
+ +					v <<= pos % 8
+ +					mask[pos/8] |= v
+ +					pos += _BitsPerPointer
+ +				}
+ +			}
+ +			prog = addb(prog, round(uintptr(siz)*_BitsPerPointer, 8)/8)
+ +
+ +		case insArray:
+ +			prog = (*byte)(add(unsafe.Pointer(prog), 1))
+ +			siz := uintptr(0)
+ +			for i := uintptr(0); i < ptrSize; i++ {
+ +				siz = (siz << 8) + uintptr(*(*byte)(add(unsafe.Pointer(prog), ptrSize-i-1)))
+ +			}
+ +			prog = (*byte)(add(unsafe.Pointer(prog), ptrSize))
+ +			var prog1 *byte
+ +			for i := uintptr(0); i < siz; i++ {
+ +				prog1 = unrollgcprog1(&mask[0], prog, &pos, inplace, sparse)
+ +			}
+ +			if *prog1 != insArrayEnd {
+ +				gothrow("unrollgcprog: array does not end with insArrayEnd")
+ +			}
+ +			prog = (*byte)(add(unsafe.Pointer(prog1), 1))
+ +
+ +		case insArrayEnd, insEnd:
+ +			*ppos = pos
+ +			return prog
+ +		}
+ +	}
+ +}
+ +
+ +// Unrolls GC program prog for data/bss, returns dense GC mask.
+ +func unrollglobgcprog(prog *byte, size uintptr) bitvector {
+ +	masksize := round(round(size, ptrSize)/ptrSize*bitsPerPointer, 8) / 8
+ +	mask := (*[1 << 30]byte)(persistentalloc(masksize+1, 0, &memstats.gc_sys))
+ +	mask[masksize] = 0xa1
+ +	pos := uintptr(0)
+ +	prog = unrollgcprog1(&mask[0], prog, &pos, false, false)
+ +	if pos != size/ptrSize*bitsPerPointer {
+ +		print("unrollglobgcprog: bad program size, got ", pos, ", expect ", size/ptrSize*bitsPerPointer, "\n")
+ +		gothrow("unrollglobgcprog: bad program size")
+ +	}
+ +	if *prog != insEnd {
+ +		gothrow("unrollglobgcprog: program does not end with insEnd")
+ +	}
+ +	if mask[masksize] != 0xa1 {
+ +		gothrow("unrollglobgcprog: overflow")
+ +	}
+ +	return bitvector{int32(masksize * 8), &mask[0]}
+ +}
+ +
+ +func unrollgcproginplace_m(v unsafe.Pointer, typ *_type, size, size0 uintptr) {
+ +	pos := uintptr(0)
+ +	prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
+ +	for pos != size0 {
+ +		unrollgcprog1((*byte)(v), prog, &pos, true, true)
+ +	}
+ +
+ +	// Mark first word as bitAllocated.
+ +	arena_start := mheap_.arena_start
+ +	off := (uintptr(v) - arena_start) / ptrSize
+ +	bitp := (*byte)(unsafe.Pointer(arena_start - off/wordsPerBitmapByte - 1))
+ +	shift := (off % wordsPerBitmapByte) * gcBits
+ +	*bitp |= bitBoundary << shift
+ +
+ +	// Mark word after last as BitsDead.
+ +	if size0 < size {
+ +		off := (uintptr(v) + size0 - arena_start) / ptrSize
+ +		bitp := (*byte)(unsafe.Pointer(arena_start - off/wordsPerBitmapByte - 1))
+ +		shift := (off % wordsPerBitmapByte) * gcBits
+ +		*bitp &= uint8(^(bitPtrMask << shift) | uintptr(bitsDead)<<(shift+2))
+ +	}
+ +}
+ +
+ +var unroll mutex
+ +
+ +// Unrolls GC program in typ.gc[1] into typ.gc[0]
+ +func unrollgcprog_m(typ *_type) {
+ +	lock(&unroll)
+ +	mask := (*byte)(unsafe.Pointer(uintptr(typ.gc[0])))
+ +	if *mask == 0 {
+ +		pos := uintptr(8) // skip the unroll flag
+ +		prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
+ +		prog = unrollgcprog1(mask, prog, &pos, false, true)
+ +		if *prog != insEnd {
+ +			gothrow("unrollgcprog: program does not end with insEnd")
+ +		}
+ +		if typ.size/ptrSize%2 != 0 {
+ +			// repeat the program
+ +			prog := (*byte)(unsafe.Pointer(uintptr(typ.gc[1])))
+ +			unrollgcprog1(mask, prog, &pos, false, true)
+ +		}
+++
+ +		// atomic way to say mask[0] = 1
+- 		x := *(*uintptr)(unsafe.Pointer(mask))
+- 		*(*byte)(unsafe.Pointer(&x)) = 1
+- 		atomicstoreuintptr((*uintptr)(unsafe.Pointer(mask)), x)
+++		atomicor8(mask, 1)
+ +	}
+ +	unlock(&unroll)
+ +}
+ +
+ +// mark the span of memory at v as having n blocks of the given size.
+ +// if leftover is true, there is left over space at the end of the span.
+ +func markspan(v unsafe.Pointer, size uintptr, n uintptr, leftover bool) {
+ +	if uintptr(v)+size*n > mheap_.arena_used || uintptr(v) < mheap_.arena_start {
+ +		gothrow("markspan: bad pointer")
+ +	}
+ +
+ +	// Find bits of the beginning of the span.
+ +	off := (uintptr(v) - uintptr(mheap_.arena_start)) / ptrSize
+ +	if off%wordsPerBitmapByte != 0 {
+ +		gothrow("markspan: unaligned length")
+ +	}
+ +	b := mheap_.arena_start - off/wordsPerBitmapByte - 1
+ +
+ +	// Okay to use non-atomic ops here, because we control
+ +	// the entire span, and each bitmap byte has bits for only
+ +	// one span, so no other goroutines are changing these bitmap words.
+ +
+ +	if size == ptrSize {
+ +		// Possible only on 64-bits (minimal size class is 8 bytes).
+ +		// Set memory to 0x11.
+ +		if (bitBoundary|bitsDead)<<gcBits|bitBoundary|bitsDead != 0x11 {
+ +			gothrow("markspan: bad bits")
+ +		}
+ +		if n%(wordsPerBitmapByte*ptrSize) != 0 {
+ +			gothrow("markspan: unaligned length")
+ +		}
+ +		b = b - n/wordsPerBitmapByte + 1 // find first byte
+ +		if b%ptrSize != 0 {
+ +			gothrow("markspan: unaligned pointer")
+ +		}
+ +		for i := uintptr(0); i < n; i, b = i+wordsPerBitmapByte*ptrSize, b+ptrSize {
+ +			*(*uintptr)(unsafe.Pointer(b)) = uintptrMask & 0x1111111111111111 // bitBoundary | bitsDead, repeated
+ +		}
+ +		return
+ +	}
+ +
+ +	if leftover {
+ +		n++ // mark a boundary just past end of last block too
+ +	}
+ +	step := size / (ptrSize * wordsPerBitmapByte)
+ +	for i := uintptr(0); i < n; i, b = i+1, b-step {
+ +		*(*byte)(unsafe.Pointer(b)) = bitBoundary | bitsDead<<2
+ +	}
+ +}
+ +
+ +// unmark the span of memory at v of length n bytes.
+ +func unmarkspan(v, n uintptr) {
+ +	if v+n > mheap_.arena_used || v < mheap_.arena_start {
+ +		gothrow("markspan: bad pointer")
+ +	}
+ +
+ +	off := (v - mheap_.arena_start) / ptrSize // word offset
+ +	if off%(ptrSize*wordsPerBitmapByte) != 0 {
+ +		gothrow("markspan: unaligned pointer")
+ +	}
+ +
+ +	b := mheap_.arena_start - off/wordsPerBitmapByte - 1
+ +	n /= ptrSize
+ +	if n%(ptrSize*wordsPerBitmapByte) != 0 {
+ +		gothrow("unmarkspan: unaligned length")
+ +	}
+ +
+ +	// Okay to use non-atomic ops here, because we control
+ +	// the entire span, and each bitmap word has bits for only
+ +	// one span, so no other goroutines are changing these
+ +	// bitmap words.
+ +	n /= wordsPerBitmapByte
+ +	memclr(unsafe.Pointer(b-n+1), n)
+ +}
+ +
+ +func mHeap_MapBits(h *mheap) {
+ +	// Caller has added extra mappings to the arena.
+ +	// Add extra mappings of bitmap words as needed.
+ +	// We allocate extra bitmap pieces in chunks of bitmapChunk.
+ +	const bitmapChunk = 8192
+ +
+ +	n := (h.arena_used - h.arena_start) / (ptrSize * wordsPerBitmapByte)
+ +	n = round(n, bitmapChunk)
+ +	n = round(n, _PhysPageSize)
+ +	if h.bitmap_mapped >= n {
+ +		return
+ +	}
+ +
+ +	sysMap(unsafe.Pointer(h.arena_start-n), n-h.bitmap_mapped, h.arena_reserved, &memstats.gc_sys)
+ +	h.bitmap_mapped = n
+ +}
+ +
+ +func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
+ +	target := (*stkframe)(ctxt)
+ +	if frame.sp <= target.sp && target.sp < frame.varp {
+ +		*target = *frame
+ +		return false
+ +	}
+ +	return true
+ +}
+ +
+ +// Returns GC type info for object p for testing.
+ +func getgcmask(p unsafe.Pointer, t *_type, mask **byte, len *uintptr) {
+ +	*mask = nil
+ +	*len = 0
+ +
+ +	// data
+ +	if uintptr(unsafe.Pointer(&data)) <= uintptr(p) && uintptr(p) < uintptr(unsafe.Pointer(&edata)) {
+ +		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+ +		*len = n / ptrSize
+ +		*mask = &make([]byte, *len)[0]
+ +		for i := uintptr(0); i < n; i += ptrSize {
+ +			off := (uintptr(p) + i - uintptr(unsafe.Pointer(&data))) / ptrSize
+ +			bits := (*(*byte)(add(unsafe.Pointer(gcdatamask.bytedata), off/pointersPerByte)) >> ((off % pointersPerByte) * bitsPerPointer)) & bitsMask
+ +			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
+ +		}
+ +		return
+ +	}
+ +
+ +	// bss
+ +	if uintptr(unsafe.Pointer(&bss)) <= uintptr(p) && uintptr(p) < uintptr(unsafe.Pointer(&ebss)) {
+ +		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+ +		*len = n / ptrSize
+ +		*mask = &make([]byte, *len)[0]
+ +		for i := uintptr(0); i < n; i += ptrSize {
+ +			off := (uintptr(p) + i - uintptr(unsafe.Pointer(&bss))) / ptrSize
+ +			bits := (*(*byte)(add(unsafe.Pointer(gcbssmask.bytedata), off/pointersPerByte)) >> ((off % pointersPerByte) * bitsPerPointer)) & bitsMask
+ +			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
+ +		}
+ +		return
+ +	}
+ +
+ +	// heap
+ +	var n uintptr
+ +	var base uintptr
+ +	if mlookup(uintptr(p), &base, &n, nil) != 0 {
+ +		*len = n / ptrSize
+ +		*mask = &make([]byte, *len)[0]
+ +		for i := uintptr(0); i < n; i += ptrSize {
+ +			off := (uintptr(base) + i - mheap_.arena_start) / ptrSize
+ +			b := mheap_.arena_start - off/wordsPerBitmapByte - 1
+ +			shift := (off % wordsPerBitmapByte) * gcBits
+ +			bits := (*(*byte)(unsafe.Pointer(b)) >> (shift + 2)) & bitsMask
+ +			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
+ +		}
+ +		return
+ +	}
+ +
+ +	// stack
+ +	var frame stkframe
+ +	frame.sp = uintptr(p)
+ +	_g_ := getg()
+ +	gentraceback(_g_.m.curg.sched.pc, _g_.m.curg.sched.sp, 0, _g_.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
+ +	if frame.fn != nil {
+ +		f := frame.fn
+ +		targetpc := frame.continpc
+ +		if targetpc == 0 {
+ +			return
+ +		}
+ +		if targetpc != f.entry {
+ +			targetpc--
+ +		}
+ +		pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc)
+ +		if pcdata == -1 {
+ +			return
+ +		}
+ +		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
+ +		if stkmap == nil || stkmap.n <= 0 {
+ +			return
+ +		}
+ +		bv := stackmapdata(stkmap, pcdata)
+ +		size := uintptr(bv.n) / bitsPerPointer * ptrSize
+ +		n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+ +		*len = n / ptrSize
+ +		*mask = &make([]byte, *len)[0]
+ +		for i := uintptr(0); i < n; i += ptrSize {
+ +			off := (uintptr(p) + i - frame.varp + size) / ptrSize
+ +			bits := ((*(*byte)(add(unsafe.Pointer(bv.bytedata), off*bitsPerPointer/8))) >> ((off * bitsPerPointer) % 8)) & bitsMask
+ +			*(*byte)(add(unsafe.Pointer(*mask), i/ptrSize)) = bits
+ +		}
+ +	}
+ +}
+ +
+ +func unixnanotime() int64 {
+ +	var now int64
+ +	gc_unixnanotime(&now)
+ +	return now
+ +}
+diff --cc src/runtime/os1_linux.go
+index cbbd2d689b,0000000000..7b096533c2
+mode 100644,000000..100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@@ -1,277 -1,0 +1,287 @@@
+ +// Copyright 2009 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package runtime
+ +
+ +import "unsafe"
+ +
+ +var sigset_none sigset
+ +var sigset_all sigset = sigset{^uint32(0), ^uint32(0)}
+ +
+ +// Linux futex.
+ +//
+ +//	futexsleep(uint32 *addr, uint32 val)
+ +//	futexwakeup(uint32 *addr)
+ +//
+ +// Futexsleep atomically checks if *addr == val and if so, sleeps on addr.
+ +// Futexwakeup wakes up threads sleeping on addr.
+ +// Futexsleep is allowed to wake up spuriously.
+ +
+ +const (
+ +	_FUTEX_WAIT = 0
+ +	_FUTEX_WAKE = 1
+ +)
+ +
+ +// Atomically,
+ +//	if(*addr == val) sleep
+ +// Might be woken up spuriously; that's allowed.
+ +// Don't sleep longer than ns; ns < 0 means forever.
+ +//go:nosplit
+ +func futexsleep(addr *uint32, val uint32, ns int64) {
+ +	var ts timespec
+ +
+ +	// Some Linux kernels have a bug where futex of
+ +	// FUTEX_WAIT returns an internal error code
+ +	// as an errno.  Libpthread ignores the return value
+ +	// here, and so can we: as it says a few lines up,
+ +	// spurious wakeups are allowed.
+ +	if ns < 0 {
+ +		futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, nil, nil, 0)
+ +		return
+ +	}
+ +
+- 	// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+- 	ts.tv_nsec = 0
+- 	ts.set_sec(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec))))
+++	// It's difficult to live within the no-split stack limits here.
+++	// On ARM and 386, a 64-bit divide invokes a general software routine
+++	// that needs more stack than we can afford. So we use timediv instead.
+++	// But on real 64-bit systems, where words are larger but the stack limit
+++	// is not, even timediv is too heavy, and we really need to use just an
+++	// ordinary machine instruction.
+++	if ptrSize == 8 {
+++		ts.set_sec(ns / 1000000000)
+++		ts.set_nsec(ns % 1000000000)
+++	} else {
+++		ts.tv_nsec = 0
+++		ts.set_sec(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec))))
+++	}
+ +	futex(unsafe.Pointer(addr), _FUTEX_WAIT, val, unsafe.Pointer(&ts), nil, 0)
+ +}
+ +
+ +// If any procs are sleeping on addr, wake up at most cnt.
+ +//go:nosplit
+ +func futexwakeup(addr *uint32, cnt uint32) {
+ +	ret := futex(unsafe.Pointer(addr), _FUTEX_WAKE, cnt, nil, nil, 0)
+ +	if ret >= 0 {
+ +		return
+ +	}
+ +
+ +	// I don't know that futex wakeup can return
+ +	// EAGAIN or EINTR, but if it does, it would be
+ +	// safe to loop and call futex again.
+ +	systemstack(func() {
+ +		print("futexwakeup addr=", addr, " returned ", ret, "\n")
+ +	})
+ +
+ +	*(*int32)(unsafe.Pointer(uintptr(0x1006))) = 0x1006
+ +}
+ +
+ +func getproccount() int32 {
+ +	var buf [16]uintptr
+ +	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
+ +	n := int32(0)
+ +	for _, v := range buf[:r/ptrSize] {
+ +		for i := 0; i < 64; i++ {
+ +			n += int32(v & 1)
+ +			v >>= 1
+ +		}
+ +	}
+ +	if n == 0 {
+ +		n = 1
+ +	}
+ +	return n
+ +}
+ +
+ +// Clone, the Linux rfork.
+ +const (
+ +	_CLONE_VM             = 0x100
+ +	_CLONE_FS             = 0x200
+ +	_CLONE_FILES          = 0x400
+ +	_CLONE_SIGHAND        = 0x800
+ +	_CLONE_PTRACE         = 0x2000
+ +	_CLONE_VFORK          = 0x4000
+ +	_CLONE_PARENT         = 0x8000
+ +	_CLONE_THREAD         = 0x10000
+ +	_CLONE_NEWNS          = 0x20000
+ +	_CLONE_SYSVSEM        = 0x40000
+ +	_CLONE_SETTLS         = 0x80000
+ +	_CLONE_PARENT_SETTID  = 0x100000
+ +	_CLONE_CHILD_CLEARTID = 0x200000
+ +	_CLONE_UNTRACED       = 0x800000
+ +	_CLONE_CHILD_SETTID   = 0x1000000
+ +	_CLONE_STOPPED        = 0x2000000
+ +	_CLONE_NEWUTS         = 0x4000000
+ +	_CLONE_NEWIPC         = 0x8000000
+ +)
+ +
+ +func newosproc(mp *m, stk unsafe.Pointer) {
+ +	/*
+ +	 * note: strace gets confused if we use CLONE_PTRACE here.
+ +	 */
+ +	var flags int32 = _CLONE_VM | /* share memory */
+ +		_CLONE_FS | /* share cwd, etc */
+ +		_CLONE_FILES | /* share fd table */
+ +		_CLONE_SIGHAND | /* share sig handler table */
+ +		_CLONE_THREAD /* revisit - okay for now */
+ +
+ +	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
+ +	if false {
+ +		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
+ +	}
+ +
+ +	// Disable signals during clone, so that the new thread starts
+ +	// with signals disabled.  It will enable them in minit.
+ +	var oset sigset
+ +	rtsigprocmask(_SIG_SETMASK, &sigset_all, &oset, int32(unsafe.Sizeof(oset)))
+ +	ret := clone(flags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+ +	rtsigprocmask(_SIG_SETMASK, &oset, nil, int32(unsafe.Sizeof(oset)))
+ +
+ +	if ret < 0 {
+ +		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+ +		gothrow("newosproc")
+ +	}
+ +}
+ +
+ +func osinit() {
+ +	ncpu = getproccount()
+ +}
+ +
+ +// Random bytes initialized at startup.  These come
+ +// from the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.c).
+ +// byte*	runtime·startup_random_data;
+ +// uint32	runtime·startup_random_data_len;
+ +
+ +var urandom_data [_HashRandomBytes]byte
+ +var urandom_dev = []byte("/dev/random\x00")
+ +
+ +//go:nosplit
+ +func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
+ +	if startup_random_data != nil {
+ +		*rnd = unsafe.Pointer(startup_random_data)
+ +		*rnd_len = int32(startup_random_data_len)
+ +		return
+ +	}
+ +	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ +	if read(fd, unsafe.Pointer(&urandom_data), _HashRandomBytes) == _HashRandomBytes {
+ +		*rnd = unsafe.Pointer(&urandom_data[0])
+ +		*rnd_len = _HashRandomBytes
+ +	} else {
+ +		*rnd = nil
+ +		*rnd_len = 0
+ +	}
+ +	close(fd)
+ +}
+ +
+ +func goenvs() {
+ +	goenvs_unix()
+ +}
+ +
+ +// Called to initialize a new m (including the bootstrap m).
+ +// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ +func mpreinit(mp *m) {
+ +	mp.gsignal = malg(32 * 1024) // Linux wants >= 2K
+ +	mp.gsignal.m = mp
+ +}
+ +
+ +// Called to initialize a new m (including the bootstrap m).
+ +// Called on the new thread, can not allocate memory.
+ +func minit() {
+ +	// Initialize signal handling.
+ +	_g_ := getg()
+ +	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
+ +	rtsigprocmask(_SIG_SETMASK, &sigset_none, nil, int32(unsafe.Sizeof(sigset_none)))
+ +}
+ +
+ +// Called from dropm to undo the effect of an minit.
+ +func unminit() {
+ +	signalstack(nil, 0)
+ +}
+ +
+ +func memlimit() uintptr {
+ +	/*
+ +		TODO: Convert to Go when something actually uses the result.
+ +
+ +		Rlimit rl;
+ +		extern byte runtime·text[], runtime·end[];
+ +		uintptr used;
+ +
+ +		if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+ +			return 0;
+ +		if(rl.rlim_cur >= 0x7fffffff)
+ +			return 0;
+ +
+ +		// Estimate our VM footprint excluding the heap.
+ +		// Not an exact science: use size of binary plus
+ +		// some room for thread stacks.
+ +		used = runtime·end - runtime·text + (64<<20);
+ +		if(used >= rl.rlim_cur)
+ +			return 0;
+ +
+ +		// If there's not at least 16 MB left, we're probably
+ +		// not going to be able to do much.  Treat as no limit.
+ +		rl.rlim_cur -= used;
+ +		if(rl.rlim_cur < (16<<20))
+ +			return 0;
+ +
+ +		return rl.rlim_cur - used;
+ +	*/
+ +
+ +	return 0
+ +}
+ +
+ +//#ifdef GOARCH_386
+ +//#define sa_handler k_sa_handler
+ +//#endif
+ +
+ +func sigreturn()
+ +func sigtramp()
+ +
+ +func setsig(i int32, fn uintptr, restart bool) {
+ +	var sa sigactiont
+ +	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
+ +	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTORER
+ +	if restart {
+ +		sa.sa_flags |= _SA_RESTART
+ +	}
+ +	sa.sa_mask = ^uint64(0)
+ +	// Although Linux manpage says "sa_restorer element is obsolete and
+ +	// should not be used". x86_64 kernel requires it. Only use it on
+ +	// x86.
+ +	if GOARCH == "386" || GOARCH == "amd64" {
+ +		sa.sa_restorer = funcPC(sigreturn)
+ +	}
+ +	if fn == funcPC(sighandler) {
+ +		fn = funcPC(sigtramp)
+ +	}
+ +	sa.sa_handler = fn
+ +	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
+ +		gothrow("rt_sigaction failure")
+ +	}
+ +}
+ +
+ +func getsig(i int32) uintptr {
+ +	var sa sigactiont
+ +
+ +	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
+ +	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+ +		gothrow("rt_sigaction read failure")
+ +	}
+ +	if sa.sa_handler == funcPC(sigtramp) {
+ +		return funcPC(sighandler)
+ +	}
+ +	return sa.sa_handler
+ +}
+ +
+ +func signalstack(p *byte, n int32) {
+ +	var st sigaltstackt
+ +	st.ss_sp = p
+ +	st.ss_size = uintptr(n)
+ +	st.ss_flags = 0
+ +	if p == nil {
+ +		st.ss_flags = _SS_DISABLE
+ +	}
+ +	sigaltstack(&st, nil)
+ +}
+ +
+ +func unblocksignals() {
+ +	rtsigprocmask(_SIG_SETMASK, &sigset_none, nil, int32(unsafe.Sizeof(sigset_none)))
+ +}
+diff --cc src/runtime/panic.go
+index 8debd33560,91b5da2943..8929467025
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@@ -66,21 -61,23 +66,21 @@@ func deferproc(siz int32, fn *funcval) 
+  	// we can only call nosplit routines.
+  	argp := uintptr(unsafe.Pointer(&fn))
+  	argp += unsafe.Sizeof(fn)
+- 	if GOARCH == "arm" {
++ 	if GOARCH == "arm" || GOARCH == "power64" || GOARCH == "power64le" {
+  		argp += ptrSize // skip caller's saved link register
+  	}
+ -	mp := acquirem()
+ -	mp.scalararg[0] = uintptr(siz)
+ -	mp.ptrarg[0] = unsafe.Pointer(fn)
+ -	mp.scalararg[1] = argp
+ -	mp.scalararg[2] = getcallerpc(unsafe.Pointer(&siz))
+ -
+ -	if mp.curg != getg() {
+ -		// go code on the m stack can't defer
+ -		gothrow("defer on m")
+ -	}
+ -
+ -	onM(deferproc_m)
+ +	callerpc := getcallerpc(unsafe.Pointer(&siz))
+  
+ -	releasem(mp)
+ +	systemstack(func() {
+ +		d := newdefer(siz)
+ +		if d._panic != nil {
+ +			gothrow("deferproc: d.panic != nil after newdefer")
+ +		}
+ +		d.fn = fn
+ +		d.pc = callerpc
+ +		d.argp = argp
+ +		memmove(add(unsafe.Pointer(d), unsafe.Sizeof(*d)), unsafe.Pointer(argp), uintptr(siz))
+ +	})
+  
+  	// deferproc returns 0 normally.
+  	// a deferred func that stops a panic
+diff --cc src/runtime/panic1.go
+index 17eadb4135,0000000000..17379f9630
+mode 100644,000000..100644
+--- a/src/runtime/panic1.go
++++ b/src/runtime/panic1.go
+@@@ -1,161 -1,0 +1,161 @@@
+ +// Copyright 2012 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package runtime
+ +
+ +import "unsafe"
+ +
+ +// Code related to defer, panic and recover.
+ +// TODO: Merge into panic.go.
+ +
+ +//uint32 runtime·panicking;
+ +var paniclk mutex
+ +
+- const hasLinkRegister = thechar == '5'
+++const hasLinkRegister = GOARCH == "arm" || GOARCH == "power64" || GOARCH == "power64le"
+ +
+ +// Unwind the stack after a deferred function calls recover
+ +// after a panic.  Then arrange to continue running as though
+ +// the caller of the deferred function returned normally.
+ +func recovery(gp *g) {
+ +	// Info about defer passed in G struct.
+ +	argp := (unsafe.Pointer)(gp.sigcode0)
+ +	pc := uintptr(gp.sigcode1)
+ +
+ +	// d's arguments need to be in the stack.
+ +	if argp != nil && (uintptr(argp) < gp.stack.lo || gp.stack.hi < uintptr(argp)) {
+ +		print("recover: ", argp, " not in [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
+ +		gothrow("bad recovery")
+ +	}
+ +
+ +	// Make the deferproc for this d return again,
+ +	// this time returning 1.  The calling function will
+ +	// jump to the standard return epilogue.
+ +	// The -2*sizeof(uintptr) makes up for the
+ +	// two extra words that are on the stack at
+ +	// each call to deferproc.
+ +	// (The pc we're returning to does pop pop
+ +	// before it tests the return value.)
+- 	// On the arm there are 2 saved LRs mixed in too.
+++	// On the arm and power there are 2 saved LRs mixed in too.
+ +	if hasLinkRegister {
+ +		gp.sched.sp = uintptr(argp) - 4*ptrSize
+ +	} else {
+ +		gp.sched.sp = uintptr(argp) - 2*ptrSize
+ +	}
+ +	gp.sched.pc = pc
+ +	gp.sched.lr = 0
+ +	gp.sched.ret = 1
+ +	gogo(&gp.sched)
+ +}
+ +
+ +func startpanic_m() {
+ +	_g_ := getg()
+ +	if mheap_.cachealloc.size == 0 { // very early
+ +		print("runtime: panic before malloc heap initialized\n")
+ +		_g_.m.mallocing = 1 // tell rest of panic not to try to malloc
+ +	} else if _g_.m.mcache == nil { // can happen if called from signal handler or throw
+ +		_g_.m.mcache = allocmcache()
+ +	}
+ +
+ +	switch _g_.m.dying {
+ +	case 0:
+ +		_g_.m.dying = 1
+ +		if _g_ != nil {
+ +			_g_.writebuf = nil
+ +		}
+ +		xadd(&panicking, 1)
+ +		lock(&paniclk)
+ +		if debug.schedtrace > 0 || debug.scheddetail > 0 {
+ +			schedtrace(true)
+ +		}
+ +		freezetheworld()
+ +		return
+ +	case 1:
+ +		// Something failed while panicing, probably the print of the
+ +		// argument to panic().  Just print a stack trace and exit.
+ +		_g_.m.dying = 2
+ +		print("panic during panic\n")
+ +		dopanic(0)
+ +		exit(3)
+ +		fallthrough
+ +	case 2:
+ +		// This is a genuine bug in the runtime, we couldn't even
+ +		// print the stack trace successfully.
+ +		_g_.m.dying = 3
+ +		print("stack trace unavailable\n")
+ +		exit(4)
+ +		fallthrough
+ +	default:
+ +		// Can't even print!  Just exit.
+ +		exit(5)
+ +	}
+ +}
+ +
+ +var didothers bool
+ +var deadlock mutex
+ +
+ +func dopanic_m(gp *g, pc, sp uintptr) {
+ +	if gp.sig != 0 {
+ +		print("[signal ", hex(gp.sig), " code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
+ +	}
+ +
+ +	var docrash bool
+ +	_g_ := getg()
+ +	if t := gotraceback(&docrash); t > 0 {
+ +		if gp != gp.m.g0 {
+ +			print("\n")
+ +			goroutineheader(gp)
+ +			traceback(pc, sp, 0, gp)
+ +		} else if t >= 2 || _g_.m.throwing > 0 {
+ +			print("\nruntime stack:\n")
+ +			traceback(pc, sp, 0, gp)
+ +		}
+ +		if !didothers {
+ +			didothers = true
+ +			tracebackothers(gp)
+ +		}
+ +	}
+ +	unlock(&paniclk)
+ +
+ +	if xadd(&panicking, -1) != 0 {
+ +		// Some other m is panicking too.
+ +		// Let it print what it needs to print.
+ +		// Wait forever without chewing up cpu.
+ +		// It will exit when it's done.
+ +		lock(&deadlock)
+ +		lock(&deadlock)
+ +	}
+ +
+ +	if docrash {
+ +		crash()
+ +	}
+ +
+ +	exit(2)
+ +}
+ +
+ +//go:nosplit
+ +func canpanic(gp *g) bool {
+ +	// Note that g is m->gsignal, different from gp.
+ +	// Note also that g->m can change at preemption, so m can go stale
+ +	// if this function ever makes a function call.
+ +	_g_ := getg()
+ +	_m_ := _g_.m
+ +
+ +	// Is it okay for gp to panic instead of crashing the program?
+ +	// Yes, as long as it is running Go code, not runtime code,
+ +	// and not stuck in a system call.
+ +	if gp == nil || gp != _m_.curg {
+ +		return false
+ +	}
+ +	if _m_.locks-_m_.softfloat != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.gcing != 0 || _m_.dying != 0 {
+ +		return false
+ +	}
+ +	status := readgstatus(gp)
+ +	if status&^_Gscan != _Grunning || gp.syscallsp != 0 {
+ +		return false
+ +	}
+ +	if GOOS == "windows" && _m_.libcallsp != 0 {
+ +		return false
+ +	}
+ +	return true
+ +}
+diff --cc src/runtime/proc1.go
+index a19bf144c1,0000000000..81b211d0d3
+mode 100644,000000..100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@@ -1,3170 -1,0 +1,3170 @@@
+ +// Copyright 2009 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package runtime
+ +
+ +import "unsafe"
+ +
+ +var (
+ +	m0 m
+ +	g0 g
+ +)
+ +
+ +// Goroutine scheduler
+ +// The scheduler's job is to distribute ready-to-run goroutines over worker threads.
+ +//
+ +// The main concepts are:
+ +// G - goroutine.
+ +// M - worker thread, or machine.
+ +// P - processor, a resource that is required to execute Go code.
+ +//     M must have an associated P to execute Go code, however it can be
+ +//     blocked or in a syscall w/o an associated P.
+ +//
+ +// Design doc at http://golang.org/s/go11sched.
+ +
+ +const (
+ +	// Number of goroutine ids to grab from sched.goidgen to local per-P cache at once.
+ +	// 16 seems to provide enough amortization, but other than that it's mostly arbitrary number.
+ +	_GoidCacheBatch = 16
+ +)
+ +
+ +/*
+ +SchedT	sched;
+ +int32	gomaxprocs;
+ +uint32	needextram;
+ +bool	iscgo;
+ +M	m0;
+ +G	g0;	// idle goroutine for m0
+ +G*	lastg;
+ +M*	allm;
+ +M*	extram;
+ +P*	allp[MaxGomaxprocs+1];
+ +int8*	goos;
+ +int32	ncpu;
+ +int32	newprocs;
+ +
+ +Mutex allglock;	// the following vars are protected by this lock or by stoptheworld
+ +G**	allg;
+ +Slice	allgs;
+ +uintptr allglen;
+ +ForceGCState	forcegc;
+ +
+ +void mstart(void);
+ +static void runqput(P*, G*);
+ +static G* runqget(P*);
+ +static bool runqputslow(P*, G*, uint32, uint32);
+ +static G* runqsteal(P*, P*);
+ +static void mput(M*);
+ +static M* mget(void);
+ +static void mcommoninit(M*);
+ +static void schedule(void);
+ +static void procresize(int32);
+ +static void acquirep(P*);
+ +static P* releasep(void);
+ +static void newm(void(*)(void), P*);
+ +static void stopm(void);
+ +static void startm(P*, bool);
+ +static void handoffp(P*);
+ +static void wakep(void);
+ +static void stoplockedm(void);
+ +static void startlockedm(G*);
+ +static void sysmon(void);
+ +static uint32 retake(int64);
+ +static void incidlelocked(int32);
+ +static void checkdead(void);
+ +static void exitsyscall0(G*);
+ +void park_m(G*);
+ +static void goexit0(G*);
+ +static void gfput(P*, G*);
+ +static G* gfget(P*);
+ +static void gfpurge(P*);
+ +static void globrunqput(G*);
+ +static void globrunqputbatch(G*, G*, int32);
+ +static G* globrunqget(P*, int32);
+ +static P* pidleget(void);
+ +static void pidleput(P*);
+ +static void injectglist(G*);
+ +static bool preemptall(void);
+ +static bool preemptone(P*);
+ +static bool exitsyscallfast(void);
+ +static bool haveexperiment(int8*);
+ +void allgadd(G*);
+ +static void dropg(void);
+ +
+ +extern String buildVersion;
+ +*/
+ +
+ +// The bootstrap sequence is:
+ +//
+ +//	call osinit
+ +//	call schedinit
+ +//	make & queue new G
+ +//	call runtime·mstart
+ +//
+ +// The new G calls runtime·main.
+ +func schedinit() {
+ +	// raceinit must be the first call to race detector.
+ +	// In particular, it must be done before mallocinit below calls racemapshadow.
+ +	_g_ := getg()
+ +	if raceenabled {
+ +		_g_.racectx = raceinit()
+ +	}
+ +
+ +	sched.maxmcount = 10000
+ +
+ +	tracebackinit()
+ +	symtabinit()
+ +	stackinit()
+ +	mallocinit()
+ +	mcommoninit(_g_.m)
+ +
+ +	goargs()
+ +	goenvs()
+ +	parsedebugvars()
+ +	gcinit()
+ +
+ +	sched.lastpoll = uint64(nanotime())
+ +	procs := 1
+ +	if n := goatoi(gogetenv("GOMAXPROCS")); n > 0 {
+ +		if n > _MaxGomaxprocs {
+ +			n = _MaxGomaxprocs
+ +		}
+ +		procs = n
+ +	}
+ +	procresize(int32(procs))
+ +
+ +	if buildVersion == "" {
+ +		// Condition should never trigger.  This code just serves
+ +		// to ensure runtime·buildVersion is kept in the resulting binary.
+ +		buildVersion = "unknown"
+ +	}
+ +}
+ +
+ +func newsysmon() {
+ +	_newm(sysmon, nil)
+ +}
+ +
+ +func dumpgstatus(gp *g) {
+ +	_g_ := getg()
+ +	print("runtime: gp: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
+ +	print("runtime:  g:  g=", _g_, ", goid=", _g_.goid, ",  g->atomicstatus=", readgstatus(_g_), "\n")
+ +}
+ +
+ +func checkmcount() {
+ +	// sched lock is held
+ +	if sched.mcount > sched.maxmcount {
+ +		print("runtime: program exceeds ", sched.maxmcount, "-thread limit\n")
+ +		gothrow("thread exhaustion")
+ +	}
+ +}
+ +
+ +func mcommoninit(mp *m) {
+ +	_g_ := getg()
+ +
+ +	// g0 stack won't make sense for user (and is not necessary unwindable).
+ +	if _g_ != _g_.m.g0 {
+ +		callers(1, &mp.createstack[0], len(mp.createstack))
+ +	}
+ +
+ +	mp.fastrand = 0x49f6428a + uint32(mp.id) + uint32(cputicks())
+ +	if mp.fastrand == 0 {
+ +		mp.fastrand = 0x49f6428a
+ +	}
+ +
+ +	lock(&sched.lock)
+ +	mp.id = sched.mcount
+ +	sched.mcount++
+ +	checkmcount()
+ +	mpreinit(mp)
+ +	if mp.gsignal != nil {
+ +		mp.gsignal.stackguard1 = mp.gsignal.stack.lo + _StackGuard
+ +	}
+ +
+ +	// Add to allm so garbage collector doesn't free g->m
+ +	// when it is just in a register or thread-local storage.
+ +	mp.alllink = allm
+ +
+ +	// NumCgoCall() iterates over allm w/o schedlock,
+ +	// so we need to publish it safely.
+ +	atomicstorep(unsafe.Pointer(&allm), unsafe.Pointer(mp))
+ +	unlock(&sched.lock)
+ +}
+ +
+ +// Mark gp ready to run.
+ +func ready(gp *g) {
+ +	status := readgstatus(gp)
+ +
+ +	// Mark runnable.
+ +	_g_ := getg()
+ +	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+ +	if status&^_Gscan != _Gwaiting {
+ +		dumpgstatus(gp)
+ +		gothrow("bad g->status in ready")
+ +	}
+ +
+ +	// status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
+ +	casgstatus(gp, _Gwaiting, _Grunnable)
+ +	runqput(_g_.m.p, gp)
+ +	if atomicload(&sched.npidle) != 0 && atomicload(&sched.nmspinning) == 0 { // TODO: fast atomic
+ +		wakep()
+ +	}
+ +	_g_.m.locks--
+ +	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+ +		_g_.stackguard0 = stackPreempt
+ +	}
+ +}
+ +
+ +func gcprocs() int32 {
+ +	// Figure out how many CPUs to use during GC.
+ +	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.
+ +	lock(&sched.lock)
+ +	n := gomaxprocs
+ +	if n > ncpu {
+ +		n = ncpu
+ +	}
+ +	if n > _MaxGcproc {
+ +		n = _MaxGcproc
+ +	}
+ +	if n > sched.nmidle+1 { // one M is currently running
+ +		n = sched.nmidle + 1
+ +	}
+ +	unlock(&sched.lock)
+ +	return n
+ +}
+ +
+ +func needaddgcproc() bool {
+ +	lock(&sched.lock)
+ +	n := gomaxprocs
+ +	if n > ncpu {
+ +		n = ncpu
+ +	}
+ +	if n > _MaxGcproc {
+ +		n = _MaxGcproc
+ +	}
+ +	n -= sched.nmidle + 1 // one M is currently running
+ +	unlock(&sched.lock)
+ +	return n > 0
+ +}
+ +
+ +func helpgc(nproc int32) {
+ +	_g_ := getg()
+ +	lock(&sched.lock)
+ +	pos := 0
+ +	for n := int32(1); n < nproc; n++ { // one M is currently running
+ +		if allp[pos].mcache == _g_.m.mcache {
+ +			pos++
+ +		}
+ +		mp := mget()
+ +		if mp == nil {
+ +			gothrow("gcprocs inconsistency")
+ +		}
+ +		mp.helpgc = n
+ +		mp.mcache = allp[pos].mcache
+ +		pos++
+ +		notewakeup(&mp.park)
+ +	}
+ +	unlock(&sched.lock)
+ +}
+ +
+ +// Similar to stoptheworld but best-effort and can be called several times.
+ +// There is no reverse operation, used during crashing.
+ +// This function must not lock any mutexes.
+ +func freezetheworld() {
+ +	if gomaxprocs == 1 {
+ +		return
+ +	}
+ +	// stopwait and preemption requests can be lost
+ +	// due to races with concurrently executing threads,
+ +	// so try several times
+ +	for i := 0; i < 5; i++ {
+ +		// this should tell the scheduler to not start any new goroutines
+ +		sched.stopwait = 0x7fffffff
+ +		atomicstore(&sched.gcwaiting, 1)
+ +		// this should stop running goroutines
+ +		if !preemptall() {
+ +			break // no running goroutines
+ +		}
+ +		usleep(1000)
+ +	}
+ +	// to be sure
+ +	usleep(1000)
+ +	preemptall()
+ +	usleep(1000)
+ +}
+ +
+ +func isscanstatus(status uint32) bool {
+ +	if status == _Gscan {
+ +		gothrow("isscanstatus: Bad status Gscan")
+ +	}
+ +	return status&_Gscan == _Gscan
+ +}
+ +
+ +// All reads and writes of g's status go through readgstatus, casgstatus
+ +// castogscanstatus, casfrom_Gscanstatus.
+ +//go:nosplit
+ +func readgstatus(gp *g) uint32 {
+ +	return atomicload(&gp.atomicstatus)
+ +}
+ +
+ +// The Gscanstatuses are acting like locks and this releases them.
+ +// If it proves to be a performance hit we should be able to make these
+ +// simple atomic stores but for now we are going to throw if
+ +// we see an inconsistent state.
+ +func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ +	success := false
+ +
+ +	// Check that transition is valid.
+ +	switch oldval {
+ +	case _Gscanrunnable,
+ +		_Gscanwaiting,
+ +		_Gscanrunning,
+ +		_Gscansyscall:
+ +		if newval == oldval&^_Gscan {
+ +			success = cas(&gp.atomicstatus, oldval, newval)
+ +		}
+ +	case _Gscanenqueue:
+ +		if newval == _Gwaiting {
+ +			success = cas(&gp.atomicstatus, oldval, newval)
+ +		}
+ +	}
+ +	if !success {
+ +		print("runtime: casfrom_Gscanstatus failed gp=", gp, ", oldval=", hex(oldval), ", newval=", hex(newval), "\n")
+ +		dumpgstatus(gp)
+ +		gothrow("casfrom_Gscanstatus: gp->status is not in scan state")
+ +	}
+ +}
+ +
+ +// This will return false if the gp is not in the expected status and the cas fails.
+ +// This acts like a lock acquire while the casfromgstatus acts like a lock release.
+ +func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ +	switch oldval {
+ +	case _Grunnable,
+ +		_Gwaiting,
+ +		_Gsyscall:
+ +		if newval == oldval|_Gscan {
+ +			return cas(&gp.atomicstatus, oldval, newval)
+ +		}
+ +	case _Grunning:
+ +		if newval == _Gscanrunning || newval == _Gscanenqueue {
+ +			return cas(&gp.atomicstatus, oldval, newval)
+ +		}
+ +	}
+ +	print("runtime: castogscanstatus oldval=", hex(oldval), " newval=", hex(newval), "\n")
+ +	gothrow("castogscanstatus")
+ +	panic("not reached")
+ +}
+ +
+ +// If asked to move to or from a Gscanstatus this will throw. Use the castogscanstatus
+ +// and casfrom_Gscanstatus instead.
+ +// casgstatus will loop if the g->atomicstatus is in a Gscan status until the routine that
+ +// put it in the Gscan state is finished.
+ +//go:nosplit
+ +func casgstatus(gp *g, oldval, newval uint32) {
+ +	if (oldval&_Gscan != 0) || (newval&_Gscan != 0) || oldval == newval {
+ +		systemstack(func() {
+ +			print("casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
+ +			gothrow("casgstatus: bad incoming values")
+ +		})
+ +	}
+ +
+ +	// loop if gp->atomicstatus is in a scan state giving
+ +	// GC time to finish and change the state to oldval.
+ +	for !cas(&gp.atomicstatus, oldval, newval) {
+ +		// Help GC if needed.
+ +		if gp.preemptscan && !gp.gcworkdone && (oldval == _Grunning || oldval == _Gsyscall) {
+ +			gp.preemptscan = false
+ +			systemstack(func() {
+ +				gcphasework(gp)
+ +			})
+ +		}
+ +	}
+ +}
+ +
+ +// stopg ensures that gp is stopped at a GC safe point where its stack can be scanned
+ +// or in the context of a moving collector the pointers can be flipped from pointing
+ +// to old object to pointing to new objects.
+ +// If stopg returns true, the caller knows gp is at a GC safe point and will remain there until
+ +// the caller calls restartg.
+ +// If stopg returns false, the caller is not responsible for calling restartg. This can happen
+ +// if another thread, either the gp itself or another GC thread is taking the responsibility
+ +// to do the GC work related to this thread.
+ +func stopg(gp *g) bool {
+ +	for {
+ +		if gp.gcworkdone {
+ +			return false
+ +		}
+ +
+ +		switch s := readgstatus(gp); s {
+ +		default:
+ +			dumpgstatus(gp)
+ +			gothrow("stopg: gp->atomicstatus is not valid")
+ +
+ +		case _Gdead:
+ +			return false
+ +
+ +		case _Gcopystack:
+ +			// Loop until a new stack is in place.
+ +
+ +		case _Grunnable,
+ +			_Gsyscall,
+ +			_Gwaiting:
+ +			// Claim goroutine by setting scan bit.
+ +			if !castogscanstatus(gp, s, s|_Gscan) {
+ +				break
+ +			}
+ +			// In scan state, do work.
+ +			gcphasework(gp)
+ +			return true
+ +
+ +		case _Gscanrunnable,
+ +			_Gscanwaiting,
+ +			_Gscansyscall:
+ +			// Goroutine already claimed by another GC helper.
+ +			return false
+ +
+ +		case _Grunning:
+ +			// Claim goroutine, so we aren't racing with a status
+ +			// transition away from Grunning.
+ +			if !castogscanstatus(gp, _Grunning, _Gscanrunning) {
+ +				break
+ +			}
+ +
+ +			// Mark gp for preemption.
+ +			if !gp.gcworkdone {
+ +				gp.preemptscan = true
+ +				gp.preempt = true
+ +				gp.stackguard0 = stackPreempt
+ +			}
+ +
+ +			// Unclaim.
+ +			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
+ +			return false
+ +		}
+ +	}
+ +}
+ +
+ +// The GC requests that this routine be moved from a scanmumble state to a mumble state.
+ +func restartg(gp *g) {
+ +	s := readgstatus(gp)
+ +	switch s {
+ +	default:
+ +		dumpgstatus(gp)
+ +		gothrow("restartg: unexpected status")
+ +
+ +	case _Gdead:
+ +		// ok
+ +
+ +	case _Gscanrunnable,
+ +		_Gscanwaiting,
+ +		_Gscansyscall:
+ +		casfrom_Gscanstatus(gp, s, s&^_Gscan)
+ +
+ +	// Scan is now completed.
+ +	// Goroutine now needs to be made runnable.
+ +	// We put it on the global run queue; ready blocks on the global scheduler lock.
+ +	case _Gscanenqueue:
+ +		casfrom_Gscanstatus(gp, _Gscanenqueue, _Gwaiting)
+ +		if gp != getg().m.curg {
+ +			gothrow("processing Gscanenqueue on wrong m")
+ +		}
+ +		dropg()
+ +		ready(gp)
+ +	}
+ +}
+ +
+ +func stopscanstart(gp *g) {
+ +	_g_ := getg()
+ +	if _g_ == gp {
+ +		gothrow("GC not moved to G0")
+ +	}
+ +	if stopg(gp) {
+ +		if !isscanstatus(readgstatus(gp)) {
+ +			dumpgstatus(gp)
+ +			gothrow("GC not in scan state")
+ +		}
+ +		restartg(gp)
+ +	}
+ +}
+ +
+ +// Runs on g0 and does the actual work after putting the g back on the run queue.
+ +func mquiesce(gpmaster *g) {
+ +	activeglen := len(allgs)
+ +	// enqueue the calling goroutine.
+ +	restartg(gpmaster)
+ +	for i := 0; i < activeglen; i++ {
+ +		gp := allgs[i]
+ +		if readgstatus(gp) == _Gdead {
+ +			gp.gcworkdone = true // noop scan.
+ +		} else {
+ +			gp.gcworkdone = false
+ +		}
+ +		stopscanstart(gp)
+ +	}
+ +
+ +	// Check that the G's gcwork (such as scanning) has been done. If not do it now.
+ +	// You can end up doing work here if the page trap on a Grunning Goroutine has
+ +	// not been sprung or in some race situations. For example a runnable goes dead
+ +	// and is started up again with a gp->gcworkdone set to false.
+ +	for i := 0; i < activeglen; i++ {
+ +		gp := allgs[i]
+ +		for !gp.gcworkdone {
+ +			status := readgstatus(gp)
+ +			if status == _Gdead {
+ +				//do nothing, scan not needed.
+ +				gp.gcworkdone = true // scan is a noop
+ +				break
+ +			}
+ +			if status == _Grunning && gp.stackguard0 == uintptr(stackPreempt) && notetsleep(&sched.stopnote, 100*1000) { // nanosecond arg
+ +				noteclear(&sched.stopnote)
+ +			} else {
+ +				stopscanstart(gp)
+ +			}
+ +		}
+ +	}
+ +
+ +	for i := 0; i < activeglen; i++ {
+ +		gp := allgs[i]
+ +		status := readgstatus(gp)
+ +		if isscanstatus(status) {
+ +			print("mstopandscang:bottom: post scan bad status gp=", gp, " has status ", hex(status), "\n")
+ +			dumpgstatus(gp)
+ +		}
+ +		if !gp.gcworkdone && status != _Gdead {
+ +			print("mstopandscang:bottom: post scan gp=", gp, "->gcworkdone still false\n")
+ +			dumpgstatus(gp)
+ +		}
+ +	}
+ +
+ +	schedule() // Never returns.
+ +}
+ +
+ +// quiesce moves all the goroutines to a GC safepoint which for now is a at preemption point.
+ +// If the global gcphase is GCmark quiesce will ensure that all of the goroutine's stacks
+ +// have been scanned before it returns.
+ +func quiesce(mastergp *g) {
+ +	castogscanstatus(mastergp, _Grunning, _Gscanenqueue)
+ +	// Now move this to the g0 (aka m) stack.
+ +	// g0 will potentially scan this thread and put mastergp on the runqueue
+ +	mcall(mquiesce)
+ +}
+ +
+ +// This is used by the GC as well as the routines that do stack dumps. In the case
+ +// of GC all the routines can be reliably stopped. This is not always the case
+ +// when the system is in panic or being exited.
+ +func stoptheworld() {
+ +	_g_ := getg()
+ +
+ +	// If we hold a lock, then we won't be able to stop another M
+ +	// that is blocked trying to acquire the lock.
+ +	if _g_.m.locks > 0 {
+ +		gothrow("stoptheworld: holding locks")
+ +	}
+ +
+ +	lock(&sched.lock)
+ +	sched.stopwait = gomaxprocs
+ +	atomicstore(&sched.gcwaiting, 1)
+ +	preemptall()
+ +	// stop current P
+ +	_g_.m.p.status = _Pgcstop // Pgcstop is only diagnostic.
+ +	sched.stopwait--
+ +	// try to retake all P's in Psyscall status
+ +	for i := 0; i < int(gomaxprocs); i++ {
+ +		p := allp[i]
+ +		s := p.status
+ +		if s == _Psyscall && cas(&p.status, s, _Pgcstop) {
+ +			sched.stopwait--
+ +		}
+ +	}
+ +	// stop idle P's
+ +	for {
+ +		p := pidleget()
+ +		if p == nil {
+ +			break
+ +		}
+ +		p.status = _Pgcstop
+ +		sched.stopwait--
+ +	}
+ +	wait := sched.stopwait > 0
+ +	unlock(&sched.lock)
+ +
+ +	// wait for remaining P's to stop voluntarily
+ +	if wait {
+ +		for {
+ +			// wait for 100us, then try to re-preempt in case of any races
+ +			if notetsleep(&sched.stopnote, 100*1000) {
+ +				noteclear(&sched.stopnote)
+ +				break
+ +			}
+ +			preemptall()
+ +		}
+ +	}
+ +	if sched.stopwait != 0 {
+ +		gothrow("stoptheworld: not stopped")
+ +	}
+ +	for i := 0; i < int(gomaxprocs); i++ {
+ +		p := allp[i]
+ +		if p.status != _Pgcstop {
+ +			gothrow("stoptheworld: not stopped")
+ +		}
+ +	}
+ +}
+ +
+ +func mhelpgc() {
+ +	_g_ := getg()
+ +	_g_.m.helpgc = -1
+ +}
+ +
+ +func starttheworld() {
+ +	_g_ := getg()
+ +
+ +	_g_.m.locks++        // disable preemption because it can be holding p in a local var
+ +	gp := netpoll(false) // non-blocking
+ +	injectglist(gp)
+ +	add := needaddgcproc()
+ +	lock(&sched.lock)
+ +	if newprocs != 0 {
+ +		procresize(newprocs)
+ +		newprocs = 0
+ +	} else {
+ +		procresize(gomaxprocs)
+ +	}
+ +	sched.gcwaiting = 0
+ +
+ +	var p1 *p
+ +	for {
+ +		p := pidleget()
+ +		if p == nil {
+ +			break
+ +		}
+ +		// procresize() puts p's with work at the beginning of the list.
+ +		// Once we reach a p without a run queue, the rest don't have one either.
+ +		if p.runqhead == p.runqtail {
+ +			pidleput(p)
+ +			break
+ +		}
+ +		p.m = mget()
+ +		p.link = p1
+ +		p1 = p
+ +	}
+ +	if sched.sysmonwait != 0 {
+ +		sched.sysmonwait = 0
+ +		notewakeup(&sched.sysmonnote)
+ +	}
+ +	unlock(&sched.lock)
+ +
+ +	for p1 != nil {
+ +		p := p1
+ +		p1 = p1.link
+ +		if p.m != nil {
+ +			mp := p.m
+ +			p.m = nil
+ +			if mp.nextp != nil {
+ +				gothrow("starttheworld: inconsistent mp->nextp")
+ +			}
+ +			mp.nextp = p
+ +			notewakeup(&mp.park)
+ +		} else {
+ +			// Start M to run P.  Do not start another M below.
+ +			_newm(nil, p)
+ +			add = false
+ +		}
+ +	}
+ +
+ +	if add {
+ +		// If GC could have used another helper proc, start one now,
+ +		// in the hope that it will be available next time.
+ +		// It would have been even better to start it before the collection,
+ +		// but doing so requires allocating memory, so it's tricky to
+ +		// coordinate.  This lazy approach works out in practice:
+ +		// we don't mind if the first couple gc rounds don't have quite
+ +		// the maximum number of procs.
+ +		_newm(mhelpgc, nil)
+ +	}
+ +	_g_.m.locks--
+ +	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+ +		_g_.stackguard0 = stackPreempt
+ +	}
+ +}
+ +
+ +// Called to start an M.
+ +//go:nosplit
+ +func mstart() {
+ +	_g_ := getg()
+ +
+ +	if _g_.stack.lo == 0 {
+ +		// Initialize stack bounds from system stack.
+ +		// Cgo may have left stack size in stack.hi.
+ +		size := _g_.stack.hi
+ +		if size == 0 {
+ +			size = 8192
+ +		}
+ +		_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&size)))
+ +		_g_.stack.lo = _g_.stack.hi - size + 1024
+ +	}
+ +	// Initialize stack guards so that we can start calling
+ +	// both Go and C functions with stack growth prologues.
+ +	_g_.stackguard0 = _g_.stack.lo + _StackGuard
+ +	_g_.stackguard1 = _g_.stackguard0
+ +	mstart1()
+ +}
+ +
+ +func mstart1() {
+ +	_g_ := getg()
+ +
+ +	if _g_ != _g_.m.g0 {
+ +		gothrow("bad runtime·mstart")
+ +	}
+ +
+ +	// Record top of stack for use by mcall.
+ +	// Once we call schedule we're never coming back,
+ +	// so other calls can reuse this stack space.
+ +	gosave(&_g_.m.g0.sched)
+ +	_g_.m.g0.sched.pc = ^uintptr(0) // make sure it is never used
+ +	asminit()
+ +	minit()
+ +
+ +	// Install signal handlers; after minit so that minit can
+ +	// prepare the thread to be able to handle the signals.
+ +	if _g_.m == &m0 {
+ +		initsig()
+ +	}
+ +
+ +	if _g_.m.mstartfn != nil {
+ +		fn := *(*func())(unsafe.Pointer(&_g_.m.mstartfn))
+ +		fn()
+ +	}
+ +
+ +	if _g_.m.helpgc != 0 {
+ +		_g_.m.helpgc = 0
+ +		stopm()
+ +	} else if _g_.m != &m0 {
+ +		acquirep(_g_.m.nextp)
+ +		_g_.m.nextp = nil
+ +	}
+ +	schedule()
+ +
+ +	// TODO(brainman): This point is never reached, because scheduler
+ +	// does not release os threads at the moment. But once this path
+ +	// is enabled, we must remove our seh here.
+ +}
+ +
+ +// When running with cgo, we call _cgo_thread_start
+ +// to start threads for us so that we can play nicely with
+ +// foreign code.
+ +var cgoThreadStart unsafe.Pointer
+ +
+ +type cgothreadstart struct {
+ +	g   *g
+ +	tls *uint64
+ +	fn  unsafe.Pointer
+ +}
+ +
+ +// Allocate a new m unassociated with any thread.
+ +// Can use p for allocation context if needed.
+ +func allocm(_p_ *p) *m {
+ +	_g_ := getg()
+ +	_g_.m.locks++ // disable GC because it can be called from sysmon
+ +	if _g_.m.p == nil {
+ +		acquirep(_p_) // temporarily borrow p for mallocs in this function
+ +	}
+ +	mp := newM()
+ +	mcommoninit(mp)
+ +
+ +	// In case of cgo or Solaris, pthread_create will make us a stack.
+ +	// Windows and Plan 9 will layout sched stack on OS stack.
+ +	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" {
+ +		mp.g0 = malg(-1)
+ +	} else {
+ +		mp.g0 = malg(8192)
+ +	}
+ +	mp.g0.m = mp
+ +
+ +	if _p_ == _g_.m.p {
+ +		releasep()
+ +	}
+ +	_g_.m.locks--
+ +	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+ +		_g_.stackguard0 = stackPreempt
+ +	}
+ +
+ +	return mp
+ +}
+ +
+ +func allocg() *g {
+ +	return newG()
+ +}
+ +
+ +// needm is called when a cgo callback happens on a
+ +// thread without an m (a thread not created by Go).
+ +// In this case, needm is expected to find an m to use
+ +// and return with m, g initialized correctly.
+ +// Since m and g are not set now (likely nil, but see below)
+ +// needm is limited in what routines it can call. In particular
+ +// it can only call nosplit functions (textflag 7) and cannot
+ +// do any scheduling that requires an m.
+ +//
+ +// In order to avoid needing heavy lifting here, we adopt
+ +// the following strategy: there is a stack of available m's
+ +// that can be stolen. Using compare-and-swap
+ +// to pop from the stack has ABA races, so we simulate
+ +// a lock by doing an exchange (via casp) to steal the stack
+ +// head and replace the top pointer with MLOCKED (1).
+ +// This serves as a simple spin lock that we can use even
+ +// without an m. The thread that locks the stack in this way
+ +// unlocks the stack by storing a valid stack head pointer.
+ +//
+ +// In order to make sure that there is always an m structure
+ +// available to be stolen, we maintain the invariant that there
+ +// is always one more than needed. At the beginning of the
+ +// program (if cgo is in use) the list is seeded with a single m.
+ +// If needm finds that it has taken the last m off the list, its job
+ +// is - once it has installed its own m so that it can do things like
+ +// allocate memory - to create a spare m and put it on the list.
+ +//
+ +// Each of these extra m's also has a g0 and a curg that are
+ +// pressed into service as the scheduling stack and current
+ +// goroutine for the duration of the cgo callback.
+ +//
+ +// When the callback is done with the m, it calls dropm to
+ +// put the m back on the list.
+ +//go:nosplit
+ +func needm(x byte) {
+ +	if needextram != 0 {
+ +		// Can happen if C/C++ code calls Go from a global ctor.
+ +		// Can not throw, because scheduler is not initialized yet.
+ +		// XXX
+ +		// write(2, unsafe.Pointer("fatal error: cgo callback before cgo call\n"), sizeof("fatal error: cgo callback before cgo call\n") - 1)
+ +		exit(1)
+ +	}
+ +
+ +	// Lock extra list, take head, unlock popped list.
+ +	// nilokay=false is safe here because of the invariant above,
+ +	// that the extra list always contains or will soon contain
+ +	// at least one m.
+ +	mp := lockextra(false)
+ +
+ +	// Set needextram when we've just emptied the list,
+ +	// so that the eventual call into cgocallbackg will
+ +	// allocate a new m for the extra list. We delay the
+ +	// allocation until then so that it can be done
+ +	// after exitsyscall makes sure it is okay to be
+ +	// running at all (that is, there's no garbage collection
+ +	// running right now).
+ +	mp.needextram = mp.schedlink == nil
+ +	unlockextra(mp.schedlink)
+ +
+ +	// Install g (= m->g0) and set the stack bounds
+ +	// to match the current stack. We don't actually know
+ +	// how big the stack is, like we don't know how big any
+ +	// scheduling stack is, but we assume there's at least 32 kB,
+ +	// which is more than enough for us.
+ +	setg(mp.g0)
+ +	_g_ := getg()
+ +	_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&x))) + 1024
+ +	_g_.stack.lo = uintptr(noescape(unsafe.Pointer(&x))) - 32*1024
+ +	_g_.stackguard0 = _g_.stack.lo + _StackGuard
+ +
+ +	// Initialize this thread to use the m.
+ +	asminit()
+ +	minit()
+ +}
+ +
+ +// newextram allocates an m and puts it on the extra list.
+ +// It is called with a working local m, so that it can do things
+ +// like call schedlock and allocate.
+ +func newextram() {
+ +	// Create extra goroutine locked to extra m.
+ +	// The goroutine is the context in which the cgo callback will run.
+ +	// The sched.pc will never be returned to, but setting it to
+ +	// goexit makes clear to the traceback routines where
+ +	// the goroutine stack ends.
+ +	mp := allocm(nil)
+ +	gp := malg(4096)
+ +	gp.sched.pc = funcPC(goexit) + _PCQuantum
+ +	gp.sched.sp = gp.stack.hi
+ +	gp.sched.sp -= 4 * regSize // extra space in case of reads slightly beyond frame
+ +	gp.sched.lr = 0
+ +	gp.sched.g = gp
+ +	gp.syscallpc = gp.sched.pc
+ +	gp.syscallsp = gp.sched.sp
+ +	// malg returns status as Gidle, change to Gsyscall before adding to allg
+ +	// where GC will see it.
+ +	casgstatus(gp, _Gidle, _Gsyscall)
+ +	gp.m = mp
+ +	mp.curg = gp
+ +	mp.locked = _LockInternal
+ +	mp.lockedg = gp
+ +	gp.lockedm = mp
+ +	gp.goid = int64(xadd64(&sched.goidgen, 1))
+ +	if raceenabled {
+ +		gp.racectx = racegostart(funcPC(newextram))
+ +	}
+ +	// put on allg for garbage collector
+ +	allgadd(gp)
+ +
+ +	// Add m to the extra list.
+ +	mnext := lockextra(true)
+ +	mp.schedlink = mnext
+ +	unlockextra(mp)
+ +}
+ +
+ +// dropm is called when a cgo callback has called needm but is now
+ +// done with the callback and returning back into the non-Go thread.
+ +// It puts the current m back onto the extra list.
+ +//
+ +// The main expense here is the call to signalstack to release the
+ +// m's signal stack, and then the call to needm on the next callback
+ +// from this thread. It is tempting to try to save the m for next time,
+ +// which would eliminate both these costs, but there might not be
+ +// a next time: the current thread (which Go does not control) might exit.
+ +// If we saved the m for that thread, there would be an m leak each time
+ +// such a thread exited. Instead, we acquire and release an m on each
+ +// call. These should typically not be scheduling operations, just a few
+ +// atomics, so the cost should be small.
+ +//
+ +// TODO(rsc): An alternative would be to allocate a dummy pthread per-thread
+ +// variable using pthread_key_create. Unlike the pthread keys we already use
+ +// on OS X, this dummy key would never be read by Go code. It would exist
+ +// only so that we could register at thread-exit-time destructor.
+ +// That destructor would put the m back onto the extra list.
+ +// This is purely a performance optimization. The current version,
+ +// in which dropm happens on each cgo call, is still correct too.
+ +// We may have to keep the current version on systems with cgo
+ +// but without pthreads, like Windows.
+ +func dropm() {
+ +	// Undo whatever initialization minit did during needm.
+ +	unminit()
+ +
+ +	// Clear m and g, and return m to the extra list.
+ +	// After the call to setmg we can only call nosplit functions.
+ +	mp := getg().m
+ +	setg(nil)
+ +
+ +	mnext := lockextra(true)
+ +	mp.schedlink = mnext
+ +	unlockextra(mp)
+ +}
+ +
+ +var extram uintptr
+ +
+ +// lockextra locks the extra list and returns the list head.
+ +// The caller must unlock the list by storing a new list head
+ +// to extram. If nilokay is true, then lockextra will
+ +// return a nil list head if that's what it finds. If nilokay is false,
+ +// lockextra will keep waiting until the list head is no longer nil.
+ +//go:nosplit
+ +func lockextra(nilokay bool) *m {
+ +	const locked = 1
+ +
+ +	for {
+ +		old := atomicloaduintptr(&extram)
+ +		if old == locked {
+ +			yield := osyield
+ +			yield()
+ +			continue
+ +		}
+ +		if old == 0 && !nilokay {
+ +			usleep(1)
+ +			continue
+ +		}
+ +		if casuintptr(&extram, old, locked) {
+ +			return (*m)(unsafe.Pointer(old))
+ +		}
+ +		yield := osyield
+ +		yield()
+ +		continue
+ +	}
+ +}
+ +
+ +//go:nosplit
+ +func unlockextra(mp *m) {
+ +	atomicstoreuintptr(&extram, uintptr(unsafe.Pointer(mp)))
+ +}
+ +
+ +// Create a new m.  It will start off with a call to fn, or else the scheduler.
+ +func _newm(fn func(), _p_ *p) {
+ +	mp := allocm(_p_)
+ +	mp.nextp = _p_
+ +	mp.mstartfn = *(*unsafe.Pointer)(unsafe.Pointer(&fn))
+ +
+ +	if iscgo {
+ +		var ts cgothreadstart
+ +		if _cgo_thread_start == nil {
+ +			gothrow("_cgo_thread_start missing")
+ +		}
+ +		ts.g = mp.g0
+ +		ts.tls = (*uint64)(unsafe.Pointer(&mp.tls[0]))
+ +		ts.fn = unsafe.Pointer(funcPC(mstart))
+ +		asmcgocall(_cgo_thread_start, unsafe.Pointer(&ts))
+ +		return
+ +	}
+ +	newosproc(mp, unsafe.Pointer(mp.g0.stack.hi))
+ +}
+ +
+ +// Stops execution of the current m until new work is available.
+ +// Returns with acquired P.
+ +func stopm() {
+ +	_g_ := getg()
+ +
+ +	if _g_.m.locks != 0 {
+ +		gothrow("stopm holding locks")
+ +	}
+ +	if _g_.m.p != nil {
+ +		gothrow("stopm holding p")
+ +	}
+ +	if _g_.m.spinning {
+ +		_g_.m.spinning = false
+ +		xadd(&sched.nmspinning, -1)
+ +	}
+ +
+ +retry:
+ +	lock(&sched.lock)
+ +	mput(_g_.m)
+ +	unlock(&sched.lock)
+ +	notesleep(&_g_.m.park)
+ +	noteclear(&_g_.m.park)
+ +	if _g_.m.helpgc != 0 {
+ +		gchelper()
+ +		_g_.m.helpgc = 0
+ +		_g_.m.mcache = nil
+ +		goto retry
+ +	}
+ +	acquirep(_g_.m.nextp)
+ +	_g_.m.nextp = nil
+ +}
+ +
+ +func mspinning() {
+ +	getg().m.spinning = true
+ +}
+ +
+ +// Schedules some M to run the p (creates an M if necessary).
+ +// If p==nil, tries to get an idle P, if no idle P's does nothing.
+ +func startm(_p_ *p, spinning bool) {
+ +	lock(&sched.lock)
+ +	if _p_ == nil {
+ +		_p_ = pidleget()
+ +		if _p_ == nil {
+ +			unlock(&sched.lock)
+ +			if spinning {
+ +				xadd(&sched.nmspinning, -1)
+ +			}
+ +			return
+ +		}
+ +	}
+ +	mp := mget()
+ +	unlock(&sched.lock)
+ +	if mp == nil {
+ +		var fn func()
+ +		if spinning {
+ +			fn = mspinning
+ +		}
+ +		_newm(fn, _p_)
+ +		return
+ +	}
+ +	if mp.spinning {
+ +		gothrow("startm: m is spinning")
+ +	}
+ +	if mp.nextp != nil {
+ +		gothrow("startm: m has p")
+ +	}
+ +	mp.spinning = spinning
+ +	mp.nextp = _p_
+ +	notewakeup(&mp.park)
+ +}
+ +
+ +// Hands off P from syscall or locked M.
+ +func handoffp(_p_ *p) {
+ +	// if it has local work, start it straight away
+ +	if _p_.runqhead != _p_.runqtail || sched.runqsize != 0 {
+ +		startm(_p_, false)
+ +		return
+ +	}
+ +	// no local work, check that there are no spinning/idle M's,
+ +	// otherwise our help is not required
+ +	if atomicload(&sched.nmspinning)+atomicload(&sched.npidle) == 0 && cas(&sched.nmspinning, 0, 1) { // TODO: fast atomic
+ +		startm(_p_, true)
+ +		return
+ +	}
+ +	lock(&sched.lock)
+ +	if sched.gcwaiting != 0 {
+ +		_p_.status = _Pgcstop
+ +		sched.stopwait--
+ +		if sched.stopwait == 0 {
+ +			notewakeup(&sched.stopnote)
+ +		}
+ +		unlock(&sched.lock)
+ +		return
+ +	}
+ +	if sched.runqsize != 0 {
+ +		unlock(&sched.lock)
+ +		startm(_p_, false)
+ +		return
+ +	}
+ +	// If this is the last running P and nobody is polling network,
+ +	// need to wakeup another M to poll network.
+ +	if sched.npidle == uint32(gomaxprocs-1) && atomicload64(&sched.lastpoll) != 0 {
+ +		unlock(&sched.lock)
+ +		startm(_p_, false)
+ +		return
+ +	}
+ +	pidleput(_p_)
+ +	unlock(&sched.lock)
+ +}
+ +
+ +// Tries to add one more P to execute G's.
+ +// Called when a G is made runnable (newproc, ready).
+ +func wakep() {
+ +	// be conservative about spinning threads
+ +	if !cas(&sched.nmspinning, 0, 1) {
+ +		return
+ +	}
+ +	startm(nil, true)
+ +}
+ +
+ +// Stops execution of the current m that is locked to a g until the g is runnable again.
+ +// Returns with acquired P.
+ +func stoplockedm() {
+ +	_g_ := getg()
+ +
+ +	if _g_.m.lockedg == nil || _g_.m.lockedg.lockedm != _g_.m {
+ +		gothrow("stoplockedm: inconsistent locking")
+ +	}
+ +	if _g_.m.p != nil {
+ +		// Schedule another M to run this p.
+ +		_p_ := releasep()
+ +		handoffp(_p_)
+ +	}
+ +	incidlelocked(1)
+ +	// Wait until another thread schedules lockedg again.
+ +	notesleep(&_g_.m.park)
+ +	noteclear(&_g_.m.park)
+ +	status := readgstatus(_g_.m.lockedg)
+ +	if status&^_Gscan != _Grunnable {
+ +		print("runtime:stoplockedm: g is not Grunnable or Gscanrunnable\n")
+ +		dumpgstatus(_g_)
+ +		gothrow("stoplockedm: not runnable")
+ +	}
+ +	acquirep(_g_.m.nextp)
+ +	_g_.m.nextp = nil
+ +}
+ +
+ +// Schedules the locked m to run the locked gp.
+ +func startlockedm(gp *g) {
+ +	_g_ := getg()
+ +
+ +	mp := gp.lockedm
+ +	if mp == _g_.m {
+ +		gothrow("startlockedm: locked to me")
+ +	}
+ +	if mp.nextp != nil {
+ +		gothrow("startlockedm: m has p")
+ +	}
+ +	// directly handoff current P to the locked m
+ +	incidlelocked(-1)
+ +	_p_ := releasep()
+ +	mp.nextp = _p_
+ +	notewakeup(&mp.park)
+ +	stopm()
+ +}
+ +
+ +// Stops the current m for stoptheworld.
+ +// Returns when the world is restarted.
+ +func gcstopm() {
+ +	_g_ := getg()
+ +
+ +	if sched.gcwaiting == 0 {
+ +		gothrow("gcstopm: not waiting for gc")
+ +	}
+ +	if _g_.m.spinning {
+ +		_g_.m.spinning = false
+ +		xadd(&sched.nmspinning, -1)
+ +	}
+ +	_p_ := releasep()
+ +	lock(&sched.lock)
+ +	_p_.status = _Pgcstop
+ +	sched.stopwait--
+ +	if sched.stopwait == 0 {
+ +		notewakeup(&sched.stopnote)
+ +	}
+ +	unlock(&sched.lock)
+ +	stopm()
+ +}
+ +
+ +// Schedules gp to run on the current M.
+ +// Never returns.
+ +func execute(gp *g) {
+ +	_g_ := getg()
+ +
+ +	casgstatus(gp, _Grunnable, _Grunning)
+ +	gp.waitsince = 0
+ +	gp.preempt = false
+ +	gp.stackguard0 = gp.stack.lo + _StackGuard
+ +	_g_.m.p.schedtick++
+ +	_g_.m.curg = gp
+ +	gp.m = _g_.m
+ +
+ +	// Check whether the profiler needs to be turned on or off.
+ +	hz := sched.profilehz
+ +	if _g_.m.profilehz != hz {
+ +		resetcpuprofiler(hz)
+ +	}
+ +
+ +	gogo(&gp.sched)
+ +}
+ +
+ +// Finds a runnable goroutine to execute.
+ +// Tries to steal from other P's, get g from global queue, poll network.
+ +func findrunnable() *g {
+ +	_g_ := getg()
+ +
+ +top:
+ +	if sched.gcwaiting != 0 {
+ +		gcstopm()
+ +		goto top
+ +	}
+ +	if fingwait && fingwake {
+ +		if gp := wakefing(); gp != nil {
+ +			ready(gp)
+ +		}
+ +	}
+ +
+ +	// local runq
+ +	if gp := runqget(_g_.m.p); gp != nil {
+ +		return gp
+ +	}
+ +
+ +	// global runq
+ +	if sched.runqsize != 0 {
+ +		lock(&sched.lock)
+ +		gp := globrunqget(_g_.m.p, 0)
+ +		unlock(&sched.lock)
+ +		if gp != nil {
+ +			return gp
+ +		}
+ +	}
+ +
+ +	// poll network - returns list of goroutines
+ +	if gp := netpoll(false); gp != nil { // non-blocking
+ +		injectglist(gp.schedlink)
+ +		casgstatus(gp, _Gwaiting, _Grunnable)
+ +		return gp
+ +	}
+ +
+ +	// If number of spinning M's >= number of busy P's, block.
+ +	// This is necessary to prevent excessive CPU consumption
+ +	// when GOMAXPROCS>>1 but the program parallelism is low.
+ +	if !_g_.m.spinning && 2*atomicload(&sched.nmspinning) >= uint32(gomaxprocs)-atomicload(&sched.npidle) { // TODO: fast atomic
+ +		goto stop
+ +	}
+ +	if !_g_.m.spinning {
+ +		_g_.m.spinning = true
+ +		xadd(&sched.nmspinning, 1)
+ +	}
+ +	// random steal from other P's
+ +	for i := 0; i < int(2*gomaxprocs); i++ {
+ +		if sched.gcwaiting != 0 {
+ +			goto top
+ +		}
+ +		_p_ := allp[fastrand1()%uint32(gomaxprocs)]
+ +		var gp *g
+ +		if _p_ == _g_.m.p {
+ +			gp = runqget(_p_)
+ +		} else {
+ +			gp = runqsteal(_g_.m.p, _p_)
+ +		}
+ +		if gp != nil {
+ +			return gp
+ +		}
+ +	}
+ +stop:
+ +
+ +	// return P and block
+ +	lock(&sched.lock)
+ +	if sched.gcwaiting != 0 {
+ +		unlock(&sched.lock)
+ +		goto top
+ +	}
+ +	if sched.runqsize != 0 {
+ +		gp := globrunqget(_g_.m.p, 0)
+ +		unlock(&sched.lock)
+ +		return gp
+ +	}
+ +	_p_ := releasep()
+ +	pidleput(_p_)
+ +	unlock(&sched.lock)
+ +	if _g_.m.spinning {
+ +		_g_.m.spinning = false
+ +		xadd(&sched.nmspinning, -1)
+ +	}
+ +
+ +	// check all runqueues once again
+ +	for i := 0; i < int(gomaxprocs); i++ {
+ +		_p_ := allp[i]
+ +		if _p_ != nil && _p_.runqhead != _p_.runqtail {
+ +			lock(&sched.lock)
+ +			_p_ = pidleget()
+ +			unlock(&sched.lock)
+ +			if _p_ != nil {
+ +				acquirep(_p_)
+ +				goto top
+ +			}
+ +			break
+ +		}
+ +	}
+ +
+ +	// poll network
+ +	if xchg64(&sched.lastpoll, 0) != 0 {
+ +		if _g_.m.p != nil {
+ +			gothrow("findrunnable: netpoll with p")
+ +		}
+ +		if _g_.m.spinning {
+ +			gothrow("findrunnable: netpoll with spinning")
+ +		}
+ +		gp := netpoll(true) // block until new work is available
+ +		atomicstore64(&sched.lastpoll, uint64(nanotime()))
+ +		if gp != nil {
+ +			lock(&sched.lock)
+ +			_p_ = pidleget()
+ +			unlock(&sched.lock)
+ +			if _p_ != nil {
+ +				acquirep(_p_)
+ +				injectglist(gp.schedlink)
+ +				casgstatus(gp, _Gwaiting, _Grunnable)
+ +				return gp
+ +			}
+ +			injectglist(gp)
+ +		}
+ +	}
+ +	stopm()
+ +	goto top
+ +}
+ +
+ +func resetspinning() {
+ +	_g_ := getg()
+ +
+ +	var nmspinning uint32
+ +	if _g_.m.spinning {
+ +		_g_.m.spinning = false
+ +		nmspinning = xadd(&sched.nmspinning, -1)
+ +		if nmspinning < 0 {
+ +			gothrow("findrunnable: negative nmspinning")
+ +		}
+ +	} else {
+ +		nmspinning = atomicload(&sched.nmspinning)
+ +	}
+ +
+ +	// M wakeup policy is deliberately somewhat conservative (see nmspinning handling),
+ +	// so see if we need to wakeup another P here.
+ +	if nmspinning == 0 && atomicload(&sched.npidle) > 0 {
+ +		wakep()
+ +	}
+ +}
+ +
+ +// Injects the list of runnable G's into the scheduler.
+ +// Can run concurrently with GC.
+ +func injectglist(glist *g) {
+ +	if glist == nil {
+ +		return
+ +	}
+ +	lock(&sched.lock)
+ +	var n int
+ +	for n = 0; glist != nil; n++ {
+ +		gp := glist
+ +		glist = gp.schedlink
+ +		casgstatus(gp, _Gwaiting, _Grunnable)
+ +		globrunqput(gp)
+ +	}
+ +	unlock(&sched.lock)
+ +	for ; n != 0 && sched.npidle != 0; n-- {
+ +		startm(nil, false)
+ +	}
+ +}
+ +
+ +// One round of scheduler: find a runnable goroutine and execute it.
+ +// Never returns.
+ +func schedule() {
+ +	_g_ := getg()
+ +
+ +	if _g_.m.locks != 0 {
+ +		gothrow("schedule: holding locks")
+ +	}
+ +
+ +	if _g_.m.lockedg != nil {
+ +		stoplockedm()
+ +		execute(_g_.m.lockedg) // Never returns.
+ +	}
+ +
+ +top:
+ +	if sched.gcwaiting != 0 {
+ +		gcstopm()
+ +		goto top
+ +	}
+ +
+ +	var gp *g
+ +	// Check the global runnable queue once in a while to ensure fairness.
+ +	// Otherwise two goroutines can completely occupy the local runqueue
+ +	// by constantly respawning each other.
+ +	tick := _g_.m.p.schedtick
+ +	// This is a fancy way to say tick%61==0,
+ +	// it uses 2 MUL instructions instead of a single DIV and so is faster on modern processors.
+ +	if uint64(tick)-((uint64(tick)*0x4325c53f)>>36)*61 == 0 && sched.runqsize > 0 {
+ +		lock(&sched.lock)
+ +		gp = globrunqget(_g_.m.p, 1)
+ +		unlock(&sched.lock)
+ +		if gp != nil {
+ +			resetspinning()
+ +		}
+ +	}
+ +	if gp == nil {
+ +		gp = runqget(_g_.m.p)
+ +		if gp != nil && _g_.m.spinning {
+ +			gothrow("schedule: spinning with local work")
+ +		}
+ +	}
+ +	if gp == nil {
+ +		gp = findrunnable() // blocks until work is available
+ +		resetspinning()
+ +	}
+ +
+ +	if gp.lockedm != nil {
+ +		// Hands off own p to the locked m,
+ +		// then blocks waiting for a new p.
+ +		startlockedm(gp)
+ +		goto top
+ +	}
+ +
+ +	execute(gp)
+ +}
+ +
+ +// dropg removes the association between m and the current goroutine m->curg (gp for short).
+ +// Typically a caller sets gp's status away from Grunning and then
+ +// immediately calls dropg to finish the job. The caller is also responsible
+ +// for arranging that gp will be restarted using ready at an
+ +// appropriate time. After calling dropg and arranging for gp to be
+ +// readied later, the caller can do other work but eventually should
+ +// call schedule to restart the scheduling of goroutines on this m.
+ +func dropg() {
+ +	_g_ := getg()
+ +
+ +	if _g_.m.lockedg == nil {
+ +		_g_.m.curg.m = nil
+ +		_g_.m.curg = nil
+ +	}
+ +}
+ +
+ +// Puts the current goroutine into a waiting state and calls unlockf.
+ +// If unlockf returns false, the goroutine is resumed.
+ +func park(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string) {
+ +	_g_ := getg()
+ +
+ +	_g_.m.waitlock = lock
+ +	_g_.m.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
+ +	_g_.waitreason = reason
+ +	mcall(park_m)
+ +}
+ +
+ +func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
+ +	unlock((*mutex)(lock))
+ +	return true
+ +}
+ +
+ +// Puts the current goroutine into a waiting state and unlocks the lock.
+ +// The goroutine can be made runnable again by calling ready(gp).
+ +func parkunlock(lock *mutex, reason string) {
+ +	park(parkunlock_c, unsafe.Pointer(lock), reason)
+ +}
+ +
+ +// park continuation on g0.
+ +func park_m(gp *g) {
+ +	_g_ := getg()
+ +
+ +	casgstatus(gp, _Grunning, _Gwaiting)
+ +	dropg()
+ +
+ +	if _g_.m.waitunlockf != nil {
+ +		fn := *(*func(*g, unsafe.Pointer) bool)(unsafe.Pointer(&_g_.m.waitunlockf))
+ +		ok := fn(gp, _g_.m.waitlock)
+ +		_g_.m.waitunlockf = nil
+ +		_g_.m.waitlock = nil
+ +		if !ok {
+ +			casgstatus(gp, _Gwaiting, _Grunnable)
+ +			execute(gp) // Schedule it back, never returns.
+ +		}
+ +	}
+ +	schedule()
+ +}
+ +
+ +// Gosched continuation on g0.
+ +func gosched_m(gp *g) {
+ +	status := readgstatus(gp)
+ +	if status&^_Gscan != _Grunning {
+ +		dumpgstatus(gp)
+ +		gothrow("bad g status")
+ +	}
+ +	casgstatus(gp, _Grunning, _Grunnable)
+ +	dropg()
+ +	lock(&sched.lock)
+ +	globrunqput(gp)
+ +	unlock(&sched.lock)
+ +
+ +	schedule()
+ +}
+ +
+ +// Finishes execution of the current goroutine.
+ +// Must be NOSPLIT because it is called from Go. (TODO - probably not anymore)
+ +//go:nosplit
+ +func goexit1() {
+ +	if raceenabled {
+ +		racegoend()
+ +	}
+ +	mcall(goexit0)
+ +}
+ +
+ +// goexit continuation on g0.
+ +func goexit0(gp *g) {
+ +	_g_ := getg()
+ +
+ +	casgstatus(gp, _Grunning, _Gdead)
+ +	gp.m = nil
+ +	gp.lockedm = nil
+ +	_g_.m.lockedg = nil
+ +	gp.paniconfault = false
+ +	gp._defer = nil // should be true already but just in case.
+ +	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
+ +	gp.writebuf = nil
+ +	gp.waitreason = ""
+ +	gp.param = nil
+ +
+ +	dropg()
+ +
+ +	if _g_.m.locked&^_LockExternal != 0 {
+ +		print("invalid m->locked = ", _g_.m.locked, "\n")
+ +		gothrow("internal lockOSThread error")
+ +	}
+ +	_g_.m.locked = 0
+ +	gfput(_g_.m.p, gp)
+ +	schedule()
+ +}
+ +
+ +//go:nosplit
+ +func save(pc, sp uintptr) {
+ +	_g_ := getg()
+ +
+ +	_g_.sched.pc = pc
+ +	_g_.sched.sp = sp
+ +	_g_.sched.lr = 0
+ +	_g_.sched.ret = 0
+ +	_g_.sched.ctxt = nil
+ +	_g_.sched.g = _g_
+ +}
+ +
+ +// The goroutine g is about to enter a system call.
+ +// Record that it's not using the cpu anymore.
+ +// This is called only from the go syscall library and cgocall,
+ +// not from the low-level system calls used by the
+ +//
+ +// Entersyscall cannot split the stack: the gosave must
+ +// make g->sched refer to the caller's stack segment, because
+ +// entersyscall is going to return immediately after.
+ +//
+ +// Nothing entersyscall calls can split the stack either.
+ +// We cannot safely move the stack during an active call to syscall,
+ +// because we do not know which of the uintptr arguments are
+ +// really pointers (back into the stack).
+ +// In practice, this means that we make the fast path run through
+ +// entersyscall doing no-split things, and the slow path has to use systemstack
+ +// to run bigger things on the system stack.
+ +//
+ +// reentersyscall is the entry point used by cgo callbacks, where explicitly
+ +// saved SP and PC are restored. This is needed when exitsyscall will be called
+ +// from a function further up in the call stack than the parent, as g->syscallsp
+ +// must always point to a valid stack frame. entersyscall below is the normal
+ +// entry point for syscalls, which obtains the SP and PC from the caller.
+ +//go:nosplit
+ +func reentersyscall(pc, sp uintptr) {
+ +	_g_ := getg()
+ +
+ +	// Disable preemption because during this function g is in Gsyscall status,
+ +	// but can have inconsistent g->sched, do not let GC observe it.
+ +	_g_.m.locks++
+ +
+ +	// Entersyscall must not call any function that might split/grow the stack.
+ +	// (See details in comment above.)
+ +	// Catch calls that might, by replacing the stack guard with something that
+ +	// will trip any stack check and leaving a flag to tell newstack to die.
+ +	_g_.stackguard0 = stackPreempt
+ +	_g_.throwsplit = true
+ +
+ +	// Leave SP around for GC and traceback.
+ +	save(pc, sp)
+ +	_g_.syscallsp = sp
+ +	_g_.syscallpc = pc
+ +	casgstatus(_g_, _Grunning, _Gsyscall)
+ +	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+ +		systemstack(entersyscall_bad)
+ +	}
+ +
+ +	if atomicload(&sched.sysmonwait) != 0 { // TODO: fast atomic
+ +		systemstack(entersyscall_sysmon)
+ +		save(pc, sp)
+ +	}
+ +
+ +	_g_.m.mcache = nil
+ +	_g_.m.p.m = nil
+ +	atomicstore(&_g_.m.p.status, _Psyscall)
+ +	if sched.gcwaiting != 0 {
+ +		systemstack(entersyscall_gcwait)
+ +		save(pc, sp)
+ +	}
+ +
+ +	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
+ +	// We set _StackGuard to StackPreempt so that first split stack check calls morestack.
+ +	// Morestack detects this case and throws.
+ +	_g_.stackguard0 = stackPreempt
+ +	_g_.m.locks--
+ +}
+ +
+ +// Standard syscall entry used by the go syscall library and normal cgo calls.
+ +//go:nosplit
+ +func entersyscall(dummy int32) {
+ +	reentersyscall(getcallerpc(unsafe.Pointer(&dummy)), getcallersp(unsafe.Pointer(&dummy)))
+ +}
+ +
+ +func entersyscall_bad() {
+ +	var gp *g
+ +	gp = getg().m.curg
+ +	print("entersyscall inconsistent ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
+ +	gothrow("entersyscall")
+ +}
+ +
+ +func entersyscall_sysmon() {
+ +	lock(&sched.lock)
+ +	if atomicload(&sched.sysmonwait) != 0 {
+ +		atomicstore(&sched.sysmonwait, 0)
+ +		notewakeup(&sched.sysmonnote)
+ +	}
+ +	unlock(&sched.lock)
+ +}
+ +
+ +func entersyscall_gcwait() {
+ +	_g_ := getg()
+ +
+ +	lock(&sched.lock)
+ +	if sched.stopwait > 0 && cas(&_g_.m.p.status, _Psyscall, _Pgcstop) {
+ +		if sched.stopwait--; sched.stopwait == 0 {
+ +			notewakeup(&sched.stopnote)
+ +		}
+ +	}
+ +	unlock(&sched.lock)
+ +}
+ +
+ +// The same as entersyscall(), but with a hint that the syscall is blocking.
+ +//go:nosplit
+ +func entersyscallblock(dummy int32) {
+ +	_g_ := getg()
+ +
+ +	_g_.m.locks++ // see comment in entersyscall
+ +	_g_.throwsplit = true
+ +	_g_.stackguard0 = stackPreempt // see comment in entersyscall
+ +
+ +	// Leave SP around for GC and traceback.
+ +	save(getcallerpc(unsafe.Pointer(&dummy)), getcallersp(unsafe.Pointer(&dummy)))
+ +	_g_.syscallsp = _g_.sched.sp
+ +	_g_.syscallpc = _g_.sched.pc
+ +	casgstatus(_g_, _Grunning, _Gsyscall)
+ +	if _g_.syscallsp < _g_.stack.lo || _g_.stack.hi < _g_.syscallsp {
+ +		systemstack(entersyscall_bad)
+ +	}
+ +
+ +	systemstack(entersyscallblock_handoff)
+ +
+ +	// Resave for traceback during blocked call.
+ +	save(getcallerpc(unsafe.Pointer(&dummy)), getcallersp(unsafe.Pointer(&dummy)))
+ +
+ +	_g_.m.locks--
+ +}
+ +
+ +func entersyscallblock_handoff() {
+ +	handoffp(releasep())
+ +}
+ +
+ +// The goroutine g exited its system call.
+ +// Arrange for it to run on a cpu again.
+ +// This is called only from the go syscall library, not
+ +// from the low-level system calls used by the
+ +//go:nosplit
+ +func exitsyscall(dummy int32) {
+ +	_g_ := getg()
+ +
+ +	_g_.m.locks++ // see comment in entersyscall
+ +	if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
+ +		gothrow("exitsyscall: syscall frame is no longer valid")
+ +	}
+ +
+ +	_g_.waitsince = 0
+ +	if exitsyscallfast() {
+ +		if _g_.m.mcache == nil {
+ +			gothrow("lost mcache")
+ +		}
+ +		// There's a cpu for us, so we can run.
+ +		_g_.m.p.syscalltick++
+ +		// We need to cas the status and scan before resuming...
+ +		casgstatus(_g_, _Gsyscall, _Grunning)
+ +
+ +		// Garbage collector isn't running (since we are),
+ +		// so okay to clear syscallsp.
+ +		_g_.syscallsp = 0
+ +		_g_.m.locks--
+ +		if _g_.preempt {
+ +			// restore the preemption request in case we've cleared it in newstack
+ +			_g_.stackguard0 = stackPreempt
+ +		} else {
+ +			// otherwise restore the real _StackGuard, we've spoiled it in entersyscall/entersyscallblock
+ +			_g_.stackguard0 = _g_.stack.lo + _StackGuard
+ +		}
+ +		_g_.throwsplit = false
+ +		return
+ +	}
+ +
+ +	_g_.m.locks--
+ +
+ +	// Call the scheduler.
+ +	mcall(exitsyscall0)
+ +
+ +	if _g_.m.mcache == nil {
+ +		gothrow("lost mcache")
+ +	}
+ +
+ +	// Scheduler returned, so we're allowed to run now.
+ +	// Delete the syscallsp information that we left for
+ +	// the garbage collector during the system call.
+ +	// Must wait until now because until gosched returns
+ +	// we don't know for sure that the garbage collector
+ +	// is not running.
+ +	_g_.syscallsp = 0
+ +	_g_.m.p.syscalltick++
+ +	_g_.throwsplit = false
+ +}
+ +
+ +//go:nosplit
+ +func exitsyscallfast() bool {
+ +	_g_ := getg()
+ +
+ +	// Freezetheworld sets stopwait but does not retake P's.
+ +	if sched.stopwait != 0 {
+ +		_g_.m.p = nil
+ +		return false
+ +	}
+ +
+ +	// Try to re-acquire the last P.
+ +	if _g_.m.p != nil && _g_.m.p.status == _Psyscall && cas(&_g_.m.p.status, _Psyscall, _Prunning) {
+ +		// There's a cpu for us, so we can run.
+ +		_g_.m.mcache = _g_.m.p.mcache
+ +		_g_.m.p.m = _g_.m
+ +		return true
+ +	}
+ +
+ +	// Try to get any other idle P.
+ +	_g_.m.p = nil
+ +	if sched.pidle != nil {
+ +		var ok bool
+ +		systemstack(func() {
+ +			ok = exitsyscallfast_pidle()
+ +		})
+ +		if ok {
+ +			return true
+ +		}
+ +	}
+ +	return false
+ +}
+ +
+ +func exitsyscallfast_pidle() bool {
+ +	lock(&sched.lock)
+ +	_p_ := pidleget()
+ +	if _p_ != nil && atomicload(&sched.sysmonwait) != 0 {
+ +		atomicstore(&sched.sysmonwait, 0)
+ +		notewakeup(&sched.sysmonnote)
+ +	}
+ +	unlock(&sched.lock)
+ +	if _p_ != nil {
+ +		acquirep(_p_)
+ +		return true
+ +	}
+ +	return false
+ +}
+ +
+ +// exitsyscall slow path on g0.
+ +// Failed to acquire P, enqueue gp as runnable.
+ +func exitsyscall0(gp *g) {
+ +	_g_ := getg()
+ +
+ +	casgstatus(gp, _Gsyscall, _Grunnable)
+ +	dropg()
+ +	lock(&sched.lock)
+ +	_p_ := pidleget()
+ +	if _p_ == nil {
+ +		globrunqput(gp)
+ +	} else if atomicload(&sched.sysmonwait) != 0 {
+ +		atomicstore(&sched.sysmonwait, 0)
+ +		notewakeup(&sched.sysmonnote)
+ +	}
+ +	unlock(&sched.lock)
+ +	if _p_ != nil {
+ +		acquirep(_p_)
+ +		execute(gp) // Never returns.
+ +	}
+ +	if _g_.m.lockedg != nil {
+ +		// Wait until another thread schedules gp and so m again.
+ +		stoplockedm()
+ +		execute(gp) // Never returns.
+ +	}
+ +	stopm()
+ +	schedule() // Never returns.
+ +}
+ +
+ +func beforefork() {
+ +	gp := getg().m.curg
+ +
+ +	// Fork can hang if preempted with signals frequently enough (see issue 5517).
+ +	// Ensure that we stay on the same M where we disable profiling.
+ +	gp.m.locks++
+ +	if gp.m.profilehz != 0 {
+ +		resetcpuprofiler(0)
+ +	}
+ +
+ +	// This function is called before fork in syscall package.
+ +	// Code between fork and exec must not allocate memory nor even try to grow stack.
+ +	// Here we spoil g->_StackGuard to reliably detect any attempts to grow stack.
+ +	// runtime_AfterFork will undo this in parent process, but not in child.
+ +	gp.stackguard0 = stackFork
+ +}
+ +
+ +// Called from syscall package before fork.
+ +//go:nosplit
+ +func syscall_BeforeFork() {
+ +	systemstack(beforefork)
+ +}
+ +
+ +func afterfork() {
+ +	gp := getg().m.curg
+ +
+ +	// See the comment in beforefork.
+ +	gp.stackguard0 = gp.stack.lo + _StackGuard
+ +
+ +	hz := sched.profilehz
+ +	if hz != 0 {
+ +		resetcpuprofiler(hz)
+ +	}
+ +	gp.m.locks--
+ +}
+ +
+ +// Called from syscall package after fork in parent.
+ +//go:nosplit
+ +func syscall_AfterFork() {
+ +	systemstack(afterfork)
+ +}
+ +
+ +// Allocate a new g, with a stack big enough for stacksize bytes.
+ +func malg(stacksize int32) *g {
+ +	newg := allocg()
+ +	if stacksize >= 0 {
+ +		stacksize = round2(_StackSystem + stacksize)
+ +		systemstack(func() {
+ +			newg.stack = stackalloc(uint32(stacksize))
+ +		})
+ +		newg.stackguard0 = newg.stack.lo + _StackGuard
+ +		newg.stackguard1 = ^uintptr(0)
+ +	}
+ +	return newg
+ +}
+ +
+ +// Create a new g running fn with siz bytes of arguments.
+ +// Put it on the queue of g's waiting to run.
+ +// The compiler turns a go statement into a call to this.
+ +// Cannot split the stack because it assumes that the arguments
+ +// are available sequentially after &fn; they would not be
+ +// copied if a stack split occurred.
+ +//go:nosplit
+ +func newproc(siz int32, fn *funcval) {
+ +	argp := add(unsafe.Pointer(&fn), ptrSize)
+- 	if thechar == '5' {
+++	if hasLinkRegister {
+ +		argp = add(argp, ptrSize) // skip caller's saved LR
+ +	}
+ +
+ +	pc := getcallerpc(unsafe.Pointer(&siz))
+ +	systemstack(func() {
+ +		newproc1(fn, (*uint8)(argp), siz, 0, pc)
+ +	})
+ +}
+ +
+ +// Create a new g running fn with narg bytes of arguments starting
+ +// at argp and returning nret bytes of results.  callerpc is the
+ +// address of the go statement that created this.  The new g is put
+ +// on the queue of g's waiting to run.
+ +func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr) *g {
+ +	_g_ := getg()
+ +
+ +	if fn == nil {
+ +		_g_.m.throwing = -1 // do not dump full stacks
+ +		gothrow("go of nil func value")
+ +	}
+ +	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+ +	siz := narg + nret
+ +	siz = (siz + 7) &^ 7
+ +
+ +	// We could allocate a larger initial stack if necessary.
+ +	// Not worth it: this is almost always an error.
+ +	// 4*sizeof(uintreg): extra space added below
+ +	// sizeof(uintreg): caller's LR (arm) or return address (x86, in gostartcall).
+ +	if siz >= _StackMin-4*regSize-regSize {
+ +		gothrow("newproc: function arguments too large for new goroutine")
+ +	}
+ +
+ +	_p_ := _g_.m.p
+ +	newg := gfget(_p_)
+ +	if newg == nil {
+ +		newg = malg(_StackMin)
+ +		casgstatus(newg, _Gidle, _Gdead)
+ +		allgadd(newg) // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
+ +	}
+ +	if newg.stack.hi == 0 {
+ +		gothrow("newproc1: newg missing stack")
+ +	}
+ +
+ +	if readgstatus(newg) != _Gdead {
+ +		gothrow("newproc1: new g is not Gdead")
+ +	}
+ +
+ +	sp := newg.stack.hi
+ +	sp -= 4 * regSize // extra space in case of reads slightly beyond frame
+ +	sp -= uintptr(siz)
+ +	memmove(unsafe.Pointer(sp), unsafe.Pointer(argp), uintptr(narg))
+- 	if thechar == '5' {
+++	if hasLinkRegister {
+ +		// caller's LR
+ +		sp -= ptrSize
+ +		*(*unsafe.Pointer)(unsafe.Pointer(sp)) = nil
+ +	}
+ +
+ +	memclr(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
+ +	newg.sched.sp = sp
+ +	newg.sched.pc = funcPC(goexit) + _PCQuantum // +PCQuantum so that previous instruction is in same function
+ +	newg.sched.g = newg
+ +	gostartcallfn(&newg.sched, fn)
+ +	newg.gopc = callerpc
+ +	casgstatus(newg, _Gdead, _Grunnable)
+ +
+ +	if _p_.goidcache == _p_.goidcacheend {
+ +		// Sched.goidgen is the last allocated id,
+ +		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
+ +		// At startup sched.goidgen=0, so main goroutine receives goid=1.
+ +		_p_.goidcache = xadd64(&sched.goidgen, _GoidCacheBatch)
+ +		_p_.goidcache -= _GoidCacheBatch - 1
+ +		_p_.goidcacheend = _p_.goidcache + _GoidCacheBatch
+ +	}
+ +	newg.goid = int64(_p_.goidcache)
+ +	_p_.goidcache++
+ +	if raceenabled {
+ +		newg.racectx = racegostart(callerpc)
+ +	}
+ +	runqput(_p_, newg)
+ +
+ +	if atomicload(&sched.npidle) != 0 && atomicload(&sched.nmspinning) == 0 && unsafe.Pointer(fn.fn) != unsafe.Pointer(funcPC(main)) { // TODO: fast atomic
+ +		wakep()
+ +	}
+ +	_g_.m.locks--
+ +	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+ +		_g_.stackguard0 = stackPreempt
+ +	}
+ +	return newg
+ +}
+ +
+ +// Put on gfree list.
+ +// If local list is too long, transfer a batch to the global list.
+ +func gfput(_p_ *p, gp *g) {
+ +	if readgstatus(gp) != _Gdead {
+ +		gothrow("gfput: bad status (not Gdead)")
+ +	}
+ +
+ +	stksize := gp.stack.hi - gp.stack.lo
+ +
+ +	if stksize != _FixedStack {
+ +		// non-standard stack size - free it.
+ +		stackfree(gp.stack)
+ +		gp.stack.lo = 0
+ +		gp.stack.hi = 0
+ +		gp.stackguard0 = 0
+ +	}
+ +
+ +	gp.schedlink = _p_.gfree
+ +	_p_.gfree = gp
+ +	_p_.gfreecnt++
+ +	if _p_.gfreecnt >= 64 {
+ +		lock(&sched.gflock)
+ +		for _p_.gfreecnt >= 32 {
+ +			_p_.gfreecnt--
+ +			gp = _p_.gfree
+ +			_p_.gfree = gp.schedlink
+ +			gp.schedlink = sched.gfree
+ +			sched.gfree = gp
+ +			sched.ngfree++
+ +		}
+ +		unlock(&sched.gflock)
+ +	}
+ +}
+ +
+ +// Get from gfree list.
+ +// If local list is empty, grab a batch from global list.
+ +func gfget(_p_ *p) *g {
+ +retry:
+ +	gp := _p_.gfree
+ +	if gp == nil && sched.gfree != nil {
+ +		lock(&sched.gflock)
+ +		for _p_.gfreecnt < 32 && sched.gfree != nil {
+ +			_p_.gfreecnt++
+ +			gp = sched.gfree
+ +			sched.gfree = gp.schedlink
+ +			sched.ngfree--
+ +			gp.schedlink = _p_.gfree
+ +			_p_.gfree = gp
+ +		}
+ +		unlock(&sched.gflock)
+ +		goto retry
+ +	}
+ +	if gp != nil {
+ +		_p_.gfree = gp.schedlink
+ +		_p_.gfreecnt--
+ +		if gp.stack.lo == 0 {
+ +			// Stack was deallocated in gfput.  Allocate a new one.
+ +			systemstack(func() {
+ +				gp.stack = stackalloc(_FixedStack)
+ +			})
+ +			gp.stackguard0 = gp.stack.lo + _StackGuard
+ +		} else {
+ +			if raceenabled {
+ +				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+ +			}
+ +		}
+ +	}
+ +	return gp
+ +}
+ +
+ +// Purge all cached G's from gfree list to the global list.
+ +func gfpurge(_p_ *p) {
+ +	lock(&sched.gflock)
+ +	for _p_.gfreecnt != 0 {
+ +		_p_.gfreecnt--
+ +		gp := _p_.gfree
+ +		_p_.gfree = gp.schedlink
+ +		gp.schedlink = sched.gfree
+ +		sched.gfree = gp
+ +		sched.ngfree++
+ +	}
+ +	unlock(&sched.gflock)
+ +}
+ +
+ +// Breakpoint executes a breakpoint trap.
+ +func Breakpoint() {
+ +	breakpoint()
+ +}
+ +
+ +// dolockOSThread is called by LockOSThread and lockOSThread below
+ +// after they modify m.locked. Do not allow preemption during this call,
+ +// or else the m might be different in this function than in the caller.
+ +//go:nosplit
+ +func dolockOSThread() {
+ +	_g_ := getg()
+ +	_g_.m.lockedg = _g_
+ +	_g_.lockedm = _g_.m
+ +}
+ +
+ +//go:nosplit
+ +
+ +// LockOSThread wires the calling goroutine to its current operating system thread.
+ +// Until the calling goroutine exits or calls UnlockOSThread, it will always
+ +// execute in that thread, and no other goroutine can.
+ +func LockOSThread() {
+ +	getg().m.locked |= _LockExternal
+ +	dolockOSThread()
+ +}
+ +
+ +//go:nosplit
+ +func lockOSThread() {
+ +	getg().m.locked += _LockInternal
+ +	dolockOSThread()
+ +}
+ +
+ +// dounlockOSThread is called by UnlockOSThread and unlockOSThread below
+ +// after they update m->locked. Do not allow preemption during this call,
+ +// or else the m might be in different in this function than in the caller.
+ +//go:nosplit
+ +func dounlockOSThread() {
+ +	_g_ := getg()
+ +	if _g_.m.locked != 0 {
+ +		return
+ +	}
+ +	_g_.m.lockedg = nil
+ +	_g_.lockedm = nil
+ +}
+ +
+ +//go:nosplit
+ +
+ +// UnlockOSThread unwires the calling goroutine from its fixed operating system thread.
+ +// If the calling goroutine has not called LockOSThread, UnlockOSThread is a no-op.
+ +func UnlockOSThread() {
+ +	getg().m.locked &^= _LockExternal
+ +	dounlockOSThread()
+ +}
+ +
+ +//go:nosplit
+ +func unlockOSThread() {
+ +	_g_ := getg()
+ +	if _g_.m.locked < _LockInternal {
+ +		systemstack(badunlockosthread)
+ +	}
+ +	_g_.m.locked -= _LockInternal
+ +	dounlockOSThread()
+ +}
+ +
+ +func badunlockosthread() {
+ +	gothrow("runtime: internal error: misuse of lockOSThread/unlockOSThread")
+ +}
+ +
+ +func gcount() int32 {
+ +	n := int32(allglen) - sched.ngfree
+ +	for i := 0; ; i++ {
+ +		_p_ := allp[i]
+ +		if _p_ == nil {
+ +			break
+ +		}
+ +		n -= _p_.gfreecnt
+ +	}
+ +
+ +	// All these variables can be changed concurrently, so the result can be inconsistent.
+ +	// But at least the current goroutine is running.
+ +	if n < 1 {
+ +		n = 1
+ +	}
+ +	return n
+ +}
+ +
+ +func mcount() int32 {
+ +	return sched.mcount
+ +}
+ +
+ +var prof struct {
+ +	lock uint32
+ +	hz   int32
+ +}
+ +
+ +func _System()       { _System() }
+ +func _ExternalCode() { _ExternalCode() }
+ +func _GC()           { _GC() }
+ +
+ +var etext struct{}
+ +
+ +// Called if we receive a SIGPROF signal.
+ +func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
+ +	var n int32
+ +	var traceback bool
+ +	var stk [100]uintptr
+ +
+ +	if prof.hz == 0 {
+ +		return
+ +	}
+ +
+ +	// Profiling runs concurrently with GC, so it must not allocate.
+ +	mp.mallocing++
+ +
+ +	// Define that a "user g" is a user-created goroutine, and a "system g"
+ +	// is one that is m->g0 or m->gsignal. We've only made sure that we
+ +	// can unwind user g's, so exclude the system g's.
+ +	//
+ +	// It is not quite as easy as testing gp == m->curg (the current user g)
+ +	// because we might be interrupted for profiling halfway through a
+ +	// goroutine switch. The switch involves updating three (or four) values:
+ +	// g, PC, SP, and (on arm) LR. The PC must be the last to be updated,
+ +	// because once it gets updated the new g is running.
+ +	//
+ +	// When switching from a user g to a system g, LR is not considered live,
+ +	// so the update only affects g, SP, and PC. Since PC must be last, there
+ +	// the possible partial transitions in ordinary execution are (1) g alone is updated,
+ +	// (2) both g and SP are updated, and (3) SP alone is updated.
+ +	// If g is updated, we'll see a system g and not look closer.
+ +	// If SP alone is updated, we can detect the partial transition by checking
+ +	// whether the SP is within g's stack bounds. (We could also require that SP
+ +	// be changed only after g, but the stack bounds check is needed by other
+ +	// cases, so there is no need to impose an additional requirement.)
+ +	//
+ +	// There is one exceptional transition to a system g, not in ordinary execution.
+ +	// When a signal arrives, the operating system starts the signal handler running
+ +	// with an updated PC and SP. The g is updated last, at the beginning of the
+ +	// handler. There are two reasons this is okay. First, until g is updated the
+ +	// g and SP do not match, so the stack bounds check detects the partial transition.
+ +	// Second, signal handlers currently run with signals disabled, so a profiling
+ +	// signal cannot arrive during the handler.
+ +	//
+ +	// When switching from a system g to a user g, there are three possibilities.
+ +	//
+ +	// First, it may be that the g switch has no PC update, because the SP
+ +	// either corresponds to a user g throughout (as in asmcgocall)
+ +	// or because it has been arranged to look like a user g frame
+ +	// (as in cgocallback_gofunc). In this case, since the entire
+ +	// transition is a g+SP update, a partial transition updating just one of
+ +	// those will be detected by the stack bounds check.
+ +	//
+ +	// Second, when returning from a signal handler, the PC and SP updates
+ +	// are performed by the operating system in an atomic update, so the g
+ +	// update must be done before them. The stack bounds check detects
+ +	// the partial transition here, and (again) signal handlers run with signals
+ +	// disabled, so a profiling signal cannot arrive then anyway.
+ +	//
+ +	// Third, the common case: it may be that the switch updates g, SP, and PC
+ +	// separately, as in gogo.
+ +	//
+ +	// Because gogo is the only instance, we check whether the PC lies
+ +	// within that function, and if so, not ask for a traceback. This approach
+ +	// requires knowing the size of the gogo function, which we
+ +	// record in arch_*.h and check in runtime_test.go.
+ +	//
+ +	// There is another apparently viable approach, recorded here in case
+ +	// the "PC within gogo" check turns out not to be usable.
+ +	// It would be possible to delay the update of either g or SP until immediately
+ +	// before the PC update instruction. Then, because of the stack bounds check,
+ +	// the only problematic interrupt point is just before that PC update instruction,
+ +	// and the sigprof handler can detect that instruction and simulate stepping past
+ +	// it in order to reach a consistent state. On ARM, the update of g must be made
+ +	// in two places (in R10 and also in a TLS slot), so the delayed update would
+ +	// need to be the SP update. The sigprof handler must read the instruction at
+ +	// the current PC and if it was the known instruction (for example, JMP BX or
+ +	// MOV R2, PC), use that other register in place of the PC value.
+ +	// The biggest drawback to this solution is that it requires that we can tell
+ +	// whether it's safe to read from the memory pointed at by PC.
+ +	// In a correct program, we can test PC == nil and otherwise read,
+ +	// but if a profiling signal happens at the instant that a program executes
+ +	// a bad jump (before the program manages to handle the resulting fault)
+ +	// the profiling handler could fault trying to read nonexistent memory.
+ +	//
+ +	// To recap, there are no constraints on the assembly being used for the
+ +	// transition. We simply require that g and SP match and that the PC is not
+ +	// in gogo.
+ +	traceback = true
+ +	usp := uintptr(unsafe.Pointer(sp))
+ +	gogo := funcPC(gogo)
+ +	if gp == nil || gp != mp.curg ||
+ +		usp < gp.stack.lo || gp.stack.hi < usp ||
+ +		(gogo <= uintptr(unsafe.Pointer(pc)) && uintptr(unsafe.Pointer(pc)) < gogo+_RuntimeGogoBytes) {
+ +		traceback = false
+ +	}
+ +
+ +	n = 0
+ +	if traceback {
+ +		n = int32(gentraceback(uintptr(unsafe.Pointer(pc)), uintptr(unsafe.Pointer(sp)), uintptr(unsafe.Pointer(lr)), gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap))
+ +	}
+ +	if !traceback || n <= 0 {
+ +		// Normal traceback is impossible or has failed.
+ +		// See if it falls into several common cases.
+ +		n = 0
+ +		if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
+ +			// Cgo, we can't unwind and symbolize arbitrary C code,
+ +			// so instead collect Go stack that leads to the cgo call.
+ +			// This is especially important on windows, since all syscalls are cgo calls.
+ +			n = int32(gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0))
+ +		}
+ +		if GOOS == "windows" && n == 0 && mp.libcallg != nil && mp.libcallpc != 0 && mp.libcallsp != 0 {
+ +			// Libcall, i.e. runtime syscall on windows.
+ +			// Collect Go stack that leads to the call.
+ +			n = int32(gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg, 0, &stk[0], len(stk), nil, nil, 0))
+ +		}
+ +		if n == 0 {
+ +			// If all of the above has failed, account it against abstract "System" or "GC".
+ +			n = 2
+ +			// "ExternalCode" is better than "etext".
+ +			if uintptr(unsafe.Pointer(pc)) > uintptr(unsafe.Pointer(&etext)) {
+ +				pc = (*uint8)(unsafe.Pointer(uintptr(funcPC(_ExternalCode) + _PCQuantum)))
+ +			}
+ +			stk[0] = uintptr(unsafe.Pointer(pc))
+ +			if mp.gcing != 0 || mp.helpgc != 0 {
+ +				stk[1] = funcPC(_GC) + _PCQuantum
+ +			} else {
+ +				stk[1] = funcPC(_System) + _PCQuantum
+ +			}
+ +		}
+ +	}
+ +
+ +	if prof.hz != 0 {
+ +		// Simple cas-lock to coordinate with setcpuprofilerate.
+ +		for !cas(&prof.lock, 0, 1) {
+ +			osyield()
+ +		}
+ +		if prof.hz != 0 {
+ +			cpuproftick(&stk[0], n)
+ +		}
+ +		atomicstore(&prof.lock, 0)
+ +	}
+ +	mp.mallocing--
+ +}
+ +
+ +// Arrange to call fn with a traceback hz times a second.
+ +func setcpuprofilerate_m(hz int32) {
+ +	// Force sane arguments.
+ +	if hz < 0 {
+ +		hz = 0
+ +	}
+ +
+ +	// Disable preemption, otherwise we can be rescheduled to another thread
+ +	// that has profiling enabled.
+ +	_g_ := getg()
+ +	_g_.m.locks++
+ +
+ +	// Stop profiler on this thread so that it is safe to lock prof.
+ +	// if a profiling signal came in while we had prof locked,
+ +	// it would deadlock.
+ +	resetcpuprofiler(0)
+ +
+ +	for !cas(&prof.lock, 0, 1) {
+ +		osyield()
+ +	}
+ +	prof.hz = hz
+ +	atomicstore(&prof.lock, 0)
+ +
+ +	lock(&sched.lock)
+ +	sched.profilehz = hz
+ +	unlock(&sched.lock)
+ +
+ +	if hz != 0 {
+ +		resetcpuprofiler(hz)
+ +	}
+ +
+ +	_g_.m.locks--
+ +}
+ +
+ +// Change number of processors.  The world is stopped, sched is locked.
+ +func procresize(new int32) {
+ +	old := gomaxprocs
+ +	if old < 0 || old > _MaxGomaxprocs || new <= 0 || new > _MaxGomaxprocs {
+ +		gothrow("procresize: invalid arg")
+ +	}
+ +
+ +	// initialize new P's
+ +	for i := int32(0); i < new; i++ {
+ +		p := allp[i]
+ +		if p == nil {
+ +			p = newP()
+ +			p.id = i
+ +			p.status = _Pgcstop
+ +			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(p))
+ +		}
+ +		if p.mcache == nil {
+ +			if old == 0 && i == 0 {
+ +				if getg().m.mcache == nil {
+ +					gothrow("missing mcache?")
+ +				}
+ +				p.mcache = getg().m.mcache // bootstrap
+ +			} else {
+ +				p.mcache = allocmcache()
+ +			}
+ +		}
+ +	}
+ +
+ +	// redistribute runnable G's evenly
+ +	// collect all runnable goroutines in global queue preserving FIFO order
+ +	// FIFO order is required to ensure fairness even during frequent GCs
+ +	// see http://golang.org/issue/7126
+ +	empty := false
+ +	for !empty {
+ +		empty = true
+ +		for i := int32(0); i < old; i++ {
+ +			p := allp[i]
+ +			if p.runqhead == p.runqtail {
+ +				continue
+ +			}
+ +			empty = false
+ +			// pop from tail of local queue
+ +			p.runqtail--
+ +			gp := p.runq[p.runqtail%uint32(len(p.runq))]
+ +			// push onto head of global queue
+ +			gp.schedlink = sched.runqhead
+ +			sched.runqhead = gp
+ +			if sched.runqtail == nil {
+ +				sched.runqtail = gp
+ +			}
+ +			sched.runqsize++
+ +		}
+ +	}
+ +
+ +	// fill local queues with at most len(p.runq)/2 goroutines
+ +	// start at 1 because current M already executes some G and will acquire allp[0] below,
+ +	// so if we have a spare G we want to put it into allp[1].
+ +	var _p_ p
+ +	for i := int32(1); i < new*int32(len(_p_.runq))/2 && sched.runqsize > 0; i++ {
+ +		gp := sched.runqhead
+ +		sched.runqhead = gp.schedlink
+ +		if sched.runqhead == nil {
+ +			sched.runqtail = nil
+ +		}
+ +		sched.runqsize--
+ +		runqput(allp[i%new], gp)
+ +	}
+ +
+ +	// free unused P's
+ +	for i := new; i < old; i++ {
+ +		p := allp[i]
+ +		freemcache(p.mcache)
+ +		p.mcache = nil
+ +		gfpurge(p)
+ +		p.status = _Pdead
+ +		// can't free P itself because it can be referenced by an M in syscall
+ +	}
+ +
+ +	_g_ := getg()
+ +	if _g_.m.p != nil {
+ +		_g_.m.p.m = nil
+ +	}
+ +	_g_.m.p = nil
+ +	_g_.m.mcache = nil
+ +	p := allp[0]
+ +	p.m = nil
+ +	p.status = _Pidle
+ +	acquirep(p)
+ +	for i := new - 1; i > 0; i-- {
+ +		p := allp[i]
+ +		p.status = _Pidle
+ +		pidleput(p)
+ +	}
+ +	var int32p *int32 = &gomaxprocs // make compiler check that gomaxprocs is an int32
+ +	atomicstore((*uint32)(unsafe.Pointer(int32p)), uint32(new))
+ +}
+ +
+ +// Associate p and the current m.
+ +func acquirep(_p_ *p) {
+ +	_g_ := getg()
+ +
+ +	if _g_.m.p != nil || _g_.m.mcache != nil {
+ +		gothrow("acquirep: already in go")
+ +	}
+ +	if _p_.m != nil || _p_.status != _Pidle {
+ +		id := int32(0)
+ +		if _p_.m != nil {
+ +			id = _p_.m.id
+ +		}
+ +		print("acquirep: p->m=", _p_.m, "(", id, ") p->status=", _p_.status, "\n")
+ +		gothrow("acquirep: invalid p state")
+ +	}
+ +	_g_.m.mcache = _p_.mcache
+ +	_g_.m.p = _p_
+ +	_p_.m = _g_.m
+ +	_p_.status = _Prunning
+ +}
+ +
+ +// Disassociate p and the current m.
+ +func releasep() *p {
+ +	_g_ := getg()
+ +
+ +	if _g_.m.p == nil || _g_.m.mcache == nil {
+ +		gothrow("releasep: invalid arg")
+ +	}
+ +	_p_ := _g_.m.p
+ +	if _p_.m != _g_.m || _p_.mcache != _g_.m.mcache || _p_.status != _Prunning {
+ +		print("releasep: m=", _g_.m, " m->p=", _g_.m.p, " p->m=", _p_.m, " m->mcache=", _g_.m.mcache, " p->mcache=", _p_.mcache, " p->status=", _p_.status, "\n")
+ +		gothrow("releasep: invalid p state")
+ +	}
+ +	_g_.m.p = nil
+ +	_g_.m.mcache = nil
+ +	_p_.m = nil
+ +	_p_.status = _Pidle
+ +	return _p_
+ +}
+ +
+ +func incidlelocked(v int32) {
+ +	lock(&sched.lock)
+ +	sched.nmidlelocked += v
+ +	if v > 0 {
+ +		checkdead()
+ +	}
+ +	unlock(&sched.lock)
+ +}
+ +
+ +// Check for deadlock situation.
+ +// The check is based on number of running M's, if 0 -> deadlock.
+ +func checkdead() {
+ +	// If we are dying because of a signal caught on an already idle thread,
+ +	// freezetheworld will cause all running threads to block.
+ +	// And runtime will essentially enter into deadlock state,
+ +	// except that there is a thread that will call exit soon.
+ +	if panicking > 0 {
+ +		return
+ +	}
+ +
+ +	// -1 for sysmon
+ +	run := sched.mcount - sched.nmidle - sched.nmidlelocked - 1
+ +	if run > 0 {
+ +		return
+ +	}
+ +	if run < 0 {
+ +		print("runtime: checkdead: nmidle=", sched.nmidle, " nmidlelocked=", sched.nmidlelocked, " mcount=", sched.mcount, "\n")
+ +		gothrow("checkdead: inconsistent counts")
+ +	}
+ +
+ +	grunning := 0
+ +	lock(&allglock)
+ +	for i := 0; i < len(allgs); i++ {
+ +		gp := allgs[i]
+ +		if gp.issystem {
+ +			continue
+ +		}
+ +		s := readgstatus(gp)
+ +		switch s &^ _Gscan {
+ +		case _Gwaiting:
+ +			grunning++
+ +		case _Grunnable,
+ +			_Grunning,
+ +			_Gsyscall:
+ +			unlock(&allglock)
+ +			print("runtime: checkdead: find g ", gp.goid, " in status ", s, "\n")
+ +			gothrow("checkdead: runnable g")
+ +		}
+ +	}
+ +	unlock(&allglock)
+ +	if grunning == 0 { // possible if main goroutine calls runtime·Goexit()
+ +		gothrow("no goroutines (main called runtime.Goexit) - deadlock!")
+ +	}
+ +
+ +	// Maybe jump time forward for playground.
+ +	gp := timejump()
+ +	if gp != nil {
+ +		casgstatus(gp, _Gwaiting, _Grunnable)
+ +		globrunqput(gp)
+ +		_p_ := pidleget()
+ +		if _p_ == nil {
+ +			gothrow("checkdead: no p for timer")
+ +		}
+ +		mp := mget()
+ +		if mp == nil {
+ +			_newm(nil, _p_)
+ +		} else {
+ +			mp.nextp = _p_
+ +			notewakeup(&mp.park)
+ +		}
+ +		return
+ +	}
+ +
+ +	getg().m.throwing = -1 // do not dump full stacks
+ +	gothrow("all goroutines are asleep - deadlock!")
+ +}
+ +
+ +func sysmon() {
+ +	// If we go two minutes without a garbage collection, force one to run.
+ +	forcegcperiod := int64(2 * 60 * 1e9)
+ +
+ +	// If a heap span goes unused for 5 minutes after a garbage collection,
+ +	// we hand it back to the operating system.
+ +	scavengelimit := int64(5 * 60 * 1e9)
+ +
+ +	if debug.scavenge > 0 {
+ +		// Scavenge-a-lot for testing.
+ +		forcegcperiod = 10 * 1e6
+ +		scavengelimit = 20 * 1e6
+ +	}
+ +
+ +	lastscavenge := nanotime()
+ +	nscavenge := 0
+ +
+ +	// Make wake-up period small enough for the sampling to be correct.
+ +	maxsleep := forcegcperiod / 2
+ +	if scavengelimit < forcegcperiod {
+ +		maxsleep = scavengelimit / 2
+ +	}
+ +
+ +	lasttrace := int64(0)
+ +	idle := 0 // how many cycles in succession we had not wokeup somebody
+ +	delay := uint32(0)
+ +	for {
+ +		if idle == 0 { // start with 20us sleep...
+ +			delay = 20
+ +		} else if idle > 50 { // start doubling the sleep after 1ms...
+ +			delay *= 2
+ +		}
+ +		if delay > 10*1000 { // up to 10ms
+ +			delay = 10 * 1000
+ +		}
+ +		usleep(delay)
+ +		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomicload(&sched.npidle) == uint32(gomaxprocs)) { // TODO: fast atomic
+ +			lock(&sched.lock)
+ +			if atomicload(&sched.gcwaiting) != 0 || atomicload(&sched.npidle) == uint32(gomaxprocs) {
+ +				atomicstore(&sched.sysmonwait, 1)
+ +				unlock(&sched.lock)
+ +				notetsleep(&sched.sysmonnote, maxsleep)
+ +				lock(&sched.lock)
+ +				atomicstore(&sched.sysmonwait, 0)
+ +				noteclear(&sched.sysmonnote)
+ +				idle = 0
+ +				delay = 20
+ +			}
+ +			unlock(&sched.lock)
+ +		}
+ +		// poll network if not polled for more than 10ms
+ +		lastpoll := int64(atomicload64(&sched.lastpoll))
+ +		now := nanotime()
+ +		unixnow := unixnanotime()
+ +		if lastpoll != 0 && lastpoll+10*1000*1000 < now {
+ +			cas64(&sched.lastpoll, uint64(lastpoll), uint64(now))
+ +			gp := netpoll(false) // non-blocking - returns list of goroutines
+ +			if gp != nil {
+ +				// Need to decrement number of idle locked M's
+ +				// (pretending that one more is running) before injectglist.
+ +				// Otherwise it can lead to the following situation:
+ +				// injectglist grabs all P's but before it starts M's to run the P's,
+ +				// another M returns from syscall, finishes running its G,
+ +				// observes that there is no work to do and no other running M's
+ +				// and reports deadlock.
+ +				incidlelocked(-1)
+ +				injectglist(gp)
+ +				incidlelocked(1)
+ +			}
+ +		}
+ +		// retake P's blocked in syscalls
+ +		// and preempt long running G's
+ +		if retake(now) != 0 {
+ +			idle = 0
+ +		} else {
+ +			idle++
+ +		}
+ +		// check if we need to force a GC
+ +		lastgc := int64(atomicload64(&memstats.last_gc))
+ +		if lastgc != 0 && unixnow-lastgc > forcegcperiod && atomicload(&forcegc.idle) != 0 {
+ +			lock(&forcegc.lock)
+ +			forcegc.idle = 0
+ +			forcegc.g.schedlink = nil
+ +			injectglist(forcegc.g)
+ +			unlock(&forcegc.lock)
+ +		}
+ +		// scavenge heap once in a while
+ +		if lastscavenge+scavengelimit/2 < now {
+ +			mHeap_Scavenge(int32(nscavenge), uint64(now), uint64(scavengelimit))
+ +			lastscavenge = now
+ +			nscavenge++
+ +		}
+ +		if debug.schedtrace > 0 && lasttrace+int64(debug.schedtrace*1000000) <= now {
+ +			lasttrace = now
+ +			schedtrace(debug.scheddetail > 0)
+ +		}
+ +	}
+ +}
+ +
+ +var pdesc [_MaxGomaxprocs]struct {
+ +	schedtick   uint32
+ +	schedwhen   int64
+ +	syscalltick uint32
+ +	syscallwhen int64
+ +}
+ +
+ +func retake(now int64) uint32 {
+ +	n := 0
+ +	for i := int32(0); i < gomaxprocs; i++ {
+ +		_p_ := allp[i]
+ +		if _p_ == nil {
+ +			continue
+ +		}
+ +		pd := &pdesc[i]
+ +		s := _p_.status
+ +		if s == _Psyscall {
+ +			// Retake P from syscall if it's there for more than 1 sysmon tick (at least 20us).
+ +			t := int64(_p_.syscalltick)
+ +			if int64(pd.syscalltick) != t {
+ +				pd.syscalltick = uint32(t)
+ +				pd.syscallwhen = now
+ +				continue
+ +			}
+ +			// On the one hand we don't want to retake Ps if there is no other work to do,
+ +			// but on the other hand we want to retake them eventually
+ +			// because they can prevent the sysmon thread from deep sleep.
+ +			if _p_.runqhead == _p_.runqtail && atomicload(&sched.nmspinning)+atomicload(&sched.npidle) > 0 && pd.syscallwhen+10*1000*1000 > now {
+ +				continue
+ +			}
+ +			// Need to decrement number of idle locked M's
+ +			// (pretending that one more is running) before the CAS.
+ +			// Otherwise the M from which we retake can exit the syscall,
+ +			// increment nmidle and report deadlock.
+ +			incidlelocked(-1)
+ +			if cas(&_p_.status, s, _Pidle) {
+ +				n++
+ +				handoffp(_p_)
+ +			}
+ +			incidlelocked(1)
+ +		} else if s == _Prunning {
+ +			// Preempt G if it's running for more than 10ms.
+ +			t := int64(_p_.schedtick)
+ +			if int64(pd.schedtick) != t {
+ +				pd.schedtick = uint32(t)
+ +				pd.schedwhen = now
+ +				continue
+ +			}
+ +			if pd.schedwhen+10*1000*1000 > now {
+ +				continue
+ +			}
+ +			preemptone(_p_)
+ +		}
+ +	}
+ +	return uint32(n)
+ +}
+ +
+ +// Tell all goroutines that they have been preempted and they should stop.
+ +// This function is purely best-effort.  It can fail to inform a goroutine if a
+ +// processor just started running it.
+ +// No locks need to be held.
+ +// Returns true if preemption request was issued to at least one goroutine.
+ +func preemptall() bool {
+ +	res := false
+ +	for i := int32(0); i < gomaxprocs; i++ {
+ +		_p_ := allp[i]
+ +		if _p_ == nil || _p_.status != _Prunning {
+ +			continue
+ +		}
+ +		if preemptone(_p_) {
+ +			res = true
+ +		}
+ +	}
+ +	return res
+ +}
+ +
+ +// Tell the goroutine running on processor P to stop.
+ +// This function is purely best-effort.  It can incorrectly fail to inform the
+ +// goroutine.  It can send inform the wrong goroutine.  Even if it informs the
+ +// correct goroutine, that goroutine might ignore the request if it is
+ +// simultaneously executing newstack.
+ +// No lock needs to be held.
+ +// Returns true if preemption request was issued.
+ +// The actual preemption will happen at some point in the future
+ +// and will be indicated by the gp->status no longer being
+ +// Grunning
+ +func preemptone(_p_ *p) bool {
+ +	mp := _p_.m
+ +	if mp == nil || mp == getg().m {
+ +		return false
+ +	}
+ +	gp := mp.curg
+ +	if gp == nil || gp == mp.g0 {
+ +		return false
+ +	}
+ +
+ +	gp.preempt = true
+ +
+ +	// Every call in a go routine checks for stack overflow by
+ +	// comparing the current stack pointer to gp->stackguard0.
+ +	// Setting gp->stackguard0 to StackPreempt folds
+ +	// preemption into the normal stack overflow check.
+ +	gp.stackguard0 = stackPreempt
+ +	return true
+ +}
+ +
+ +var starttime int64
+ +
+ +func schedtrace(detailed bool) {
+ +	now := nanotime()
+ +	if starttime == 0 {
+ +		starttime = now
+ +	}
+ +
+ +	lock(&sched.lock)
+ +	print("SCHED ", (now-starttime)/1e6, "ms: gomaxprocs=", gomaxprocs, " idleprocs=", sched.npidle, " threads=", sched.mcount, " spinningthreads=", sched.nmspinning, " idlethreads=", sched.nmidle, " runqueue=", sched.runqsize)
+ +	if detailed {
+ +		print(" gcwaiting=", sched.gcwaiting, " nmidlelocked=", sched.nmidlelocked, " stopwait=", sched.stopwait, " sysmonwait=", sched.sysmonwait, "\n")
+ +	}
+ +	// We must be careful while reading data from P's, M's and G's.
+ +	// Even if we hold schedlock, most data can be changed concurrently.
+ +	// E.g. (p->m ? p->m->id : -1) can crash if p->m changes from non-nil to nil.
+ +	for i := int32(0); i < gomaxprocs; i++ {
+ +		_p_ := allp[i]
+ +		if _p_ == nil {
+ +			continue
+ +		}
+ +		mp := _p_.m
+ +		h := atomicload(&_p_.runqhead)
+ +		t := atomicload(&_p_.runqtail)
+ +		if detailed {
+ +			id := int32(-1)
+ +			if mp != nil {
+ +				id = mp.id
+ +			}
+ +			print("  P", i, ": status=", _p_.status, " schedtick=", _p_.schedtick, " syscalltick=", _p_.syscalltick, " m=", id, " runqsize=", t-h, " gfreecnt=", _p_.gfreecnt, "\n")
+ +		} else {
+ +			// In non-detailed mode format lengths of per-P run queues as:
+ +			// [len1 len2 len3 len4]
+ +			print(" ")
+ +			if i == 0 {
+ +				print("[")
+ +			}
+ +			print(t - h)
+ +			if i == gomaxprocs-1 {
+ +				print("]\n")
+ +			}
+ +		}
+ +	}
+ +
+ +	if !detailed {
+ +		unlock(&sched.lock)
+ +		return
+ +	}
+ +
+ +	for mp := allm; mp != nil; mp = mp.alllink {
+ +		_p_ := mp.p
+ +		gp := mp.curg
+ +		lockedg := mp.lockedg
+ +		id1 := int32(-1)
+ +		if _p_ != nil {
+ +			id1 = _p_.id
+ +		}
+ +		id2 := int64(-1)
+ +		if gp != nil {
+ +			id2 = gp.goid
+ +		}
+ +		id3 := int64(-1)
+ +		if lockedg != nil {
+ +			id3 = lockedg.goid
+ +		}
+ +		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " gcing=", mp.gcing, ""+" locks=", mp.locks, " dying=", mp.dying, " helpgc=", mp.helpgc, " spinning=", mp.spinning, " blocked=", getg().m.blocked, " lockedg=", id3, "\n")
+ +	}
+ +
+ +	lock(&allglock)
+ +	for gi := 0; gi < len(allgs); gi++ {
+ +		gp := allgs[gi]
+ +		mp := gp.m
+ +		lockedm := gp.lockedm
+ +		id1 := int32(-1)
+ +		if mp != nil {
+ +			id1 = mp.id
+ +		}
+ +		id2 := int32(-1)
+ +		if lockedm != nil {
+ +			id2 = lockedm.id
+ +		}
+ +		print("  G", gp.goid, ": status=", readgstatus(gp), "(", gp.waitreason, ") m=", id1, " lockedm=", id2, "\n")
+ +	}
+ +	unlock(&allglock)
+ +	unlock(&sched.lock)
+ +}
+ +
+ +// Put mp on midle list.
+ +// Sched must be locked.
+ +func mput(mp *m) {
+ +	mp.schedlink = sched.midle
+ +	sched.midle = mp
+ +	sched.nmidle++
+ +	checkdead()
+ +}
+ +
+ +// Try to get an m from midle list.
+ +// Sched must be locked.
+ +func mget() *m {
+ +	mp := sched.midle
+ +	if mp != nil {
+ +		sched.midle = mp.schedlink
+ +		sched.nmidle--
+ +	}
+ +	return mp
+ +}
+ +
+ +// Put gp on the global runnable queue.
+ +// Sched must be locked.
+ +func globrunqput(gp *g) {
+ +	gp.schedlink = nil
+ +	if sched.runqtail != nil {
+ +		sched.runqtail.schedlink = gp
+ +	} else {
+ +		sched.runqhead = gp
+ +	}
+ +	sched.runqtail = gp
+ +	sched.runqsize++
+ +}
+ +
+ +// Put a batch of runnable goroutines on the global runnable queue.
+ +// Sched must be locked.
+ +func globrunqputbatch(ghead *g, gtail *g, n int32) {
+ +	gtail.schedlink = nil
+ +	if sched.runqtail != nil {
+ +		sched.runqtail.schedlink = ghead
+ +	} else {
+ +		sched.runqhead = ghead
+ +	}
+ +	sched.runqtail = gtail
+ +	sched.runqsize += n
+ +}
+ +
+ +// Try get a batch of G's from the global runnable queue.
+ +// Sched must be locked.
+ +func globrunqget(_p_ *p, max int32) *g {
+ +	if sched.runqsize == 0 {
+ +		return nil
+ +	}
+ +
+ +	n := sched.runqsize/gomaxprocs + 1
+ +	if n > sched.runqsize {
+ +		n = sched.runqsize
+ +	}
+ +	if max > 0 && n > max {
+ +		n = max
+ +	}
+ +	if n > int32(len(_p_.runq))/2 {
+ +		n = int32(len(_p_.runq)) / 2
+ +	}
+ +
+ +	sched.runqsize -= n
+ +	if sched.runqsize == 0 {
+ +		sched.runqtail = nil
+ +	}
+ +
+ +	gp := sched.runqhead
+ +	sched.runqhead = gp.schedlink
+ +	n--
+ +	for ; n > 0; n-- {
+ +		gp1 := sched.runqhead
+ +		sched.runqhead = gp1.schedlink
+ +		runqput(_p_, gp1)
+ +	}
+ +	return gp
+ +}
+ +
+ +// Put p to on _Pidle list.
+ +// Sched must be locked.
+ +func pidleput(_p_ *p) {
+ +	_p_.link = sched.pidle
+ +	sched.pidle = _p_
+ +	xadd(&sched.npidle, 1) // TODO: fast atomic
+ +}
+ +
+ +// Try get a p from _Pidle list.
+ +// Sched must be locked.
+ +func pidleget() *p {
+ +	_p_ := sched.pidle
+ +	if _p_ != nil {
+ +		sched.pidle = _p_.link
+ +		xadd(&sched.npidle, -1) // TODO: fast atomic
+ +	}
+ +	return _p_
+ +}
+ +
+ +// Try to put g on local runnable queue.
+ +// If it's full, put onto global queue.
+ +// Executed only by the owner P.
+ +func runqput(_p_ *p, gp *g) {
+ +retry:
+ +	h := atomicload(&_p_.runqhead) // load-acquire, synchronize with consumers
+ +	t := _p_.runqtail
+ +	if t-h < uint32(len(_p_.runq)) {
+ +		_p_.runq[t%uint32(len(_p_.runq))] = gp
+ +		atomicstore(&_p_.runqtail, t+1) // store-release, makes the item available for consumption
+ +		return
+ +	}
+ +	if runqputslow(_p_, gp, h, t) {
+ +		return
+ +	}
+ +	// the queue is not full, now the put above must suceed
+ +	goto retry
+ +}
+ +
+ +// Put g and a batch of work from local runnable queue on global queue.
+ +// Executed only by the owner P.
+ +func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
+ +	var batch [len(_p_.runq)/2 + 1]*g
+ +
+ +	// First, grab a batch from local queue.
+ +	n := t - h
+ +	n = n / 2
+ +	if n != uint32(len(_p_.runq)/2) {
+ +		gothrow("runqputslow: queue is not full")
+ +	}
+ +	for i := uint32(0); i < n; i++ {
+ +		batch[i] = _p_.runq[(h+i)%uint32(len(_p_.runq))]
+ +	}
+ +	if !cas(&_p_.runqhead, h, h+n) { // cas-release, commits consume
+ +		return false
+ +	}
+ +	batch[n] = gp
+ +
+ +	// Link the goroutines.
+ +	for i := uint32(0); i < n; i++ {
+ +		batch[i].schedlink = batch[i+1]
+ +	}
+ +
+ +	// Now put the batch on global queue.
+ +	lock(&sched.lock)
+ +	globrunqputbatch(batch[0], batch[n], int32(n+1))
+ +	unlock(&sched.lock)
+ +	return true
+ +}
+ +
+ +// Get g from local runnable queue.
+ +// Executed only by the owner P.
+ +func runqget(_p_ *p) *g {
+ +	for {
+ +		h := atomicload(&_p_.runqhead) // load-acquire, synchronize with other consumers
+ +		t := _p_.runqtail
+ +		if t == h {
+ +			return nil
+ +		}
+ +		gp := _p_.runq[h%uint32(len(_p_.runq))]
+ +		if cas(&_p_.runqhead, h, h+1) { // cas-release, commits consume
+ +			return gp
+ +		}
+ +	}
+ +}
+ +
+ +// Grabs a batch of goroutines from local runnable queue.
+ +// batch array must be of size len(p->runq)/2. Returns number of grabbed goroutines.
+ +// Can be executed by any P.
+ +func runqgrab(_p_ *p, batch []*g) uint32 {
+ +	for {
+ +		h := atomicload(&_p_.runqhead) // load-acquire, synchronize with other consumers
+ +		t := atomicload(&_p_.runqtail) // load-acquire, synchronize with the producer
+ +		n := t - h
+ +		n = n - n/2
+ +		if n == 0 {
+ +			return 0
+ +		}
+ +		if n > uint32(len(_p_.runq)/2) { // read inconsistent h and t
+ +			continue
+ +		}
+ +		for i := uint32(0); i < n; i++ {
+ +			batch[i] = _p_.runq[(h+i)%uint32(len(_p_.runq))]
+ +		}
+ +		if cas(&_p_.runqhead, h, h+n) { // cas-release, commits consume
+ +			return n
+ +		}
+ +	}
+ +}
+ +
+ +// Steal half of elements from local runnable queue of p2
+ +// and put onto local runnable queue of p.
+ +// Returns one of the stolen elements (or nil if failed).
+ +func runqsteal(_p_, p2 *p) *g {
+ +	var batch [len(_p_.runq) / 2]*g
+ +
+ +	n := runqgrab(p2, batch[:])
+ +	if n == 0 {
+ +		return nil
+ +	}
+ +	n--
+ +	gp := batch[n]
+ +	if n == 0 {
+ +		return gp
+ +	}
+ +	h := atomicload(&_p_.runqhead) // load-acquire, synchronize with consumers
+ +	t := _p_.runqtail
+ +	if t-h+n >= uint32(len(_p_.runq)) {
+ +		gothrow("runqsteal: runq overflow")
+ +	}
+ +	for i := uint32(0); i < n; i++ {
+ +		_p_.runq[(t+i)%uint32(len(_p_.runq))] = batch[i]
+ +	}
+ +	atomicstore(&_p_.runqtail, t+n) // store-release, makes the item available for consumption
+ +	return gp
+ +}
+ +
+ +func testSchedLocalQueue() {
+ +	_p_ := new(p)
+ +	gs := make([]g, len(_p_.runq))
+ +	for i := 0; i < len(_p_.runq); i++ {
+ +		if runqget(_p_) != nil {
+ +			gothrow("runq is not empty initially")
+ +		}
+ +		for j := 0; j < i; j++ {
+ +			runqput(_p_, &gs[i])
+ +		}
+ +		for j := 0; j < i; j++ {
+ +			if runqget(_p_) != &gs[i] {
+ +				print("bad element at iter ", i, "/", j, "\n")
+ +				gothrow("bad element")
+ +			}
+ +		}
+ +		if runqget(_p_) != nil {
+ +			gothrow("runq is not empty afterwards")
+ +		}
+ +	}
+ +}
+ +
+ +func testSchedLocalQueueSteal() {
+ +	p1 := new(p)
+ +	p2 := new(p)
+ +	gs := make([]g, len(p1.runq))
+ +	for i := 0; i < len(p1.runq); i++ {
+ +		for j := 0; j < i; j++ {
+ +			gs[j].sig = 0
+ +			runqput(p1, &gs[j])
+ +		}
+ +		gp := runqsteal(p2, p1)
+ +		s := 0
+ +		if gp != nil {
+ +			s++
+ +			gp.sig++
+ +		}
+ +		for {
+ +			gp = runqget(p2)
+ +			if gp == nil {
+ +				break
+ +			}
+ +			s++
+ +			gp.sig++
+ +		}
+ +		for {
+ +			gp = runqget(p1)
+ +			if gp == nil {
+ +				break
+ +			}
+ +			gp.sig++
+ +		}
+ +		for j := 0; j < i; j++ {
+ +			if gs[j].sig != 1 {
+ +				print("bad element ", j, "(", gs[j].sig, ") at iter ", i, "\n")
+ +				gothrow("bad element")
+ +			}
+ +		}
+ +		if s != i/2 && s != i/2+1 {
+ +			print("bad steal ", s, ", want ", i/2, " or ", i/2+1, ", iter ", i, "\n")
+ +			gothrow("bad steal")
+ +		}
+ +	}
+ +}
+ +
+ +func setMaxThreads(in int) (out int) {
+ +	lock(&sched.lock)
+ +	out = int(sched.maxmcount)
+ +	sched.maxmcount = int32(in)
+ +	checkmcount()
+ +	unlock(&sched.lock)
+ +	return
+ +}
+ +
+ +var goexperiment string = "GOEXPERIMENT" // TODO: defined in zaexperiment.h
+ +
+ +func haveexperiment(name string) bool {
+ +	x := goexperiment
+ +	for x != "" {
+ +		xname := ""
+ +		i := index(x, ",")
+ +		if i < 0 {
+ +			xname, x = x, ""
+ +		} else {
+ +			xname, x = x[:i], x[i+1:]
+ +		}
+ +		if xname == name {
+ +			return true
+ +		}
+ +	}
+ +	return false
+ +}
+ +
+ +//go:nosplit
+ +func sync_procPin() int {
+ +	_g_ := getg()
+ +	mp := _g_.m
+ +
+ +	mp.locks++
+ +	return int(mp.p.id)
+ +}
+ +
+ +//go:nosplit
+ +func sync_procUnpin() {
+ +	_g_ := getg()
+ +	_g_.m.locks--
+ +}
+diff --cc src/runtime/runtime1.go
+index 3530619016,0000000000..15dea01a3c
+mode 100644,000000..100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@@ -1,402 -1,0 +1,417 @@@
+ +// Copyright 2009 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package runtime
+ +
+ +import "unsafe"
+ +
+ +// Keep a cached value to make gotraceback fast,
+ +// since we call it on every call to gentraceback.
+ +// The cached value is a uint32 in which the low bit
+ +// is the "crash" setting and the top 31 bits are the
+ +// gotraceback value.
+ +var traceback_cache uint32 = 2 << 1
+ +
+ +// The GOTRACEBACK environment variable controls the
+ +// behavior of a Go program that is crashing and exiting.
+ +//	GOTRACEBACK=0   suppress all tracebacks
+ +//	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
+ +//	GOTRACEBACK=2   show tracebacks including runtime frames
+ +//	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
+ +//go:nosplit
+ +func gotraceback(crash *bool) int32 {
+ +	_g_ := getg()
+ +	if crash != nil {
+ +		*crash = false
+ +	}
+ +	if _g_.m.traceback != 0 {
+ +		return int32(_g_.m.traceback)
+ +	}
+ +	if crash != nil {
+ +		*crash = traceback_cache&1 != 0
+ +	}
+ +	return int32(traceback_cache >> 1)
+ +}
+ +
+ +var (
+ +	argc int32
+ +	argv **byte
+ +)
+ +
+ +// nosplit for use in linux/386 startup linux_setup_vdso
+ +//go:nosplit
+ +func argv_index(argv **byte, i int32) *byte {
+ +	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*ptrSize))
+ +}
+ +
+ +func args(c int32, v **byte) {
+ +	argc = c
+ +	argv = v
+ +	sysargs(c, v)
+ +}
+ +
+ +var (
+ +	// TODO: Retire in favor of GOOS== checks.
+ +	isplan9   int32
+ +	issolaris int32
+ +	iswindows int32
+ +)
+ +
+ +// Information about what cpu features are available.
+ +// Set on startup in asm_{x86/amd64}.s.
+ +var (
+ +//cpuid_ecx uint32
+ +//cpuid_edx uint32
+ +)
+ +
+ +func goargs() {
+ +	if GOOS == "windows" {
+ +		return
+ +	}
+ +
+ +	argslice = make([]string, argc)
+ +	for i := int32(0); i < argc; i++ {
+ +		argslice[i] = gostringnocopy(argv_index(argv, i))
+ +	}
+ +}
+ +
+ +func goenvs_unix() {
+ +	n := int32(0)
+ +	for argv_index(argv, argc+1+n) != nil {
+ +		n++
+ +	}
+ +
+ +	envs = make([]string, n)
+ +	for i := int32(0); i < n; i++ {
+ +		envs[i] = gostringnocopy(argv_index(argv, argc+1+i))
+ +	}
+ +}
+ +
+ +func environ() []string {
+ +	return envs
+ +}
+ +
+ +func testAtomic64() {
+ +	var z64, x64 uint64
+ +
+ +	z64 = 42
+ +	x64 = 0
+ +	// TODO: PREFETCH((unsafe.Pointer)(&z64))
+ +	if cas64(&z64, x64, 1) {
+ +		gothrow("cas64 failed")
+ +	}
+ +	if x64 != 0 {
+ +		gothrow("cas64 failed")
+ +	}
+ +	x64 = 42
+ +	if !cas64(&z64, x64, 1) {
+ +		gothrow("cas64 failed")
+ +	}
+ +	if x64 != 42 || z64 != 1 {
+ +		gothrow("cas64 failed")
+ +	}
+ +	if atomicload64(&z64) != 1 {
+ +		gothrow("load64 failed")
+ +	}
+ +	atomicstore64(&z64, (1<<40)+1)
+ +	if atomicload64(&z64) != (1<<40)+1 {
+ +		gothrow("store64 failed")
+ +	}
+ +	if xadd64(&z64, (1<<40)+1) != (2<<40)+2 {
+ +		gothrow("xadd64 failed")
+ +	}
+ +	if atomicload64(&z64) != (2<<40)+2 {
+ +		gothrow("xadd64 failed")
+ +	}
+ +	if xchg64(&z64, (3<<40)+3) != (2<<40)+2 {
+ +		gothrow("xchg64 failed")
+ +	}
+ +	if atomicload64(&z64) != (3<<40)+3 {
+ +		gothrow("xchg64 failed")
+ +	}
+ +}
+ +
+ +func check() {
+ +	var (
+ +		a     int8
+ +		b     uint8
+ +		c     int16
+ +		d     uint16
+ +		e     int32
+ +		f     uint32
+ +		g     int64
+ +		h     uint64
+ +		i, i1 float32
+ +		j, j1 float64
+ +		k, k1 unsafe.Pointer
+ +		l     *uint16
+++		m     [4]byte
+ +	)
+ +	type x1t struct {
+ +		x uint8
+ +	}
+ +	type y1t struct {
+ +		x1 x1t
+ +		y  uint8
+ +	}
+ +	var x1 x1t
+ +	var y1 y1t
+ +
+ +	if unsafe.Sizeof(a) != 1 {
+ +		gothrow("bad a")
+ +	}
+ +	if unsafe.Sizeof(b) != 1 {
+ +		gothrow("bad b")
+ +	}
+ +	if unsafe.Sizeof(c) != 2 {
+ +		gothrow("bad c")
+ +	}
+ +	if unsafe.Sizeof(d) != 2 {
+ +		gothrow("bad d")
+ +	}
+ +	if unsafe.Sizeof(e) != 4 {
+ +		gothrow("bad e")
+ +	}
+ +	if unsafe.Sizeof(f) != 4 {
+ +		gothrow("bad f")
+ +	}
+ +	if unsafe.Sizeof(g) != 8 {
+ +		gothrow("bad g")
+ +	}
+ +	if unsafe.Sizeof(h) != 8 {
+ +		gothrow("bad h")
+ +	}
+ +	if unsafe.Sizeof(i) != 4 {
+ +		gothrow("bad i")
+ +	}
+ +	if unsafe.Sizeof(j) != 8 {
+ +		gothrow("bad j")
+ +	}
+ +	if unsafe.Sizeof(k) != ptrSize {
+ +		gothrow("bad k")
+ +	}
+ +	if unsafe.Sizeof(l) != ptrSize {
+ +		gothrow("bad l")
+ +	}
+ +	if unsafe.Sizeof(x1) != 1 {
+ +		gothrow("bad unsafe.Sizeof x1")
+ +	}
+ +	if unsafe.Offsetof(y1.y) != 1 {
+ +		gothrow("bad offsetof y1.y")
+ +	}
+ +	if unsafe.Sizeof(y1) != 2 {
+ +		gothrow("bad unsafe.Sizeof y1")
+ +	}
+ +
+ +	if timediv(12345*1000000000+54321, 1000000000, &e) != 12345 || e != 54321 {
+ +		gothrow("bad timediv")
+ +	}
+ +
+ +	var z uint32
+ +	z = 1
+ +	if !cas(&z, 1, 2) {
+ +		gothrow("cas1")
+ +	}
+ +	if z != 2 {
+ +		gothrow("cas2")
+ +	}
+ +
+ +	z = 4
+ +	if cas(&z, 5, 6) {
+ +		gothrow("cas3")
+ +	}
+ +	if z != 4 {
+ +		gothrow("cas4")
+ +	}
+ +
+++	z = 0xffffffff
+++	if !cas(&z, 0xffffffff, 0xfffffffe) {
+++		gothrow("cas5")
+++	}
+++	if z != 0xfffffffe {
+++		gothrow("cas6")
+++	}
+++
+ +	k = unsafe.Pointer(uintptr(0xfedcb123))
+ +	if ptrSize == 8 {
+ +		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
+ +	}
+ +	if casp(&k, nil, nil) {
+ +		gothrow("casp1")
+ +	}
+ +	k1 = add(k, 1)
+ +	if !casp(&k, k, k1) {
+ +		gothrow("casp2")
+ +	}
+ +	if k != k1 {
+ +		gothrow("casp3")
+ +	}
+ +
+++	m = [4]byte{1, 1, 1, 1}
+++	atomicor8(&m[1], 0xf0)
+++	if m[0] != 1 || m[1] != 0xf1 || m[2] != 1 || m[3] != 1 {
+++		gothrow("atomicor8")
+++	}
+++
+ +	*(*uint64)(unsafe.Pointer(&j)) = ^uint64(0)
+ +	if j == j {
+ +		gothrow("float64nan")
+ +	}
+ +	if !(j != j) {
+ +		gothrow("float64nan1")
+ +	}
+ +
+ +	*(*uint64)(unsafe.Pointer(&j1)) = ^uint64(1)
+ +	if j == j1 {
+ +		gothrow("float64nan2")
+ +	}
+ +	if !(j != j1) {
+ +		gothrow("float64nan3")
+ +	}
+ +
+ +	*(*uint32)(unsafe.Pointer(&i)) = ^uint32(0)
+ +	if i == i {
+ +		gothrow("float32nan")
+ +	}
+ +	if i == i {
+ +		gothrow("float32nan1")
+ +	}
+ +
+ +	*(*uint32)(unsafe.Pointer(&i1)) = ^uint32(1)
+ +	if i == i1 {
+ +		gothrow("float32nan2")
+ +	}
+ +	if i == i1 {
+ +		gothrow("float32nan3")
+ +	}
+ +
+ +	testAtomic64()
+ +
+ +	if _FixedStack != round2(_FixedStack) {
+ +		gothrow("FixedStack is not power-of-2")
+ +	}
+ +}
+ +
+ +type dbgVar struct {
+ +	name  string
+ +	value *int32
+ +}
+ +
+ +// Do we report invalid pointers found during stack or heap scans?
+ +//var invalidptr int32 = 1
+ +
+ +var dbgvars = []dbgVar{
+ +	{"allocfreetrace", &debug.allocfreetrace},
+ +	{"invalidptr", &invalidptr},
+ +	{"efence", &debug.efence},
+ +	{"gctrace", &debug.gctrace},
+ +	{"gcdead", &debug.gcdead},
+ +	{"scheddetail", &debug.scheddetail},
+ +	{"schedtrace", &debug.schedtrace},
+ +	{"scavenge", &debug.scavenge},
+ +}
+ +
+ +func parsedebugvars() {
+ +	for p := gogetenv("GODEBUG"); p != ""; {
+ +		field := ""
+ +		i := index(p, ",")
+ +		if i < 0 {
+ +			field, p = p, ""
+ +		} else {
+ +			field, p = p[:i], p[i+1:]
+ +		}
+ +		i = index(field, "=")
+ +		if i < 0 {
+ +			continue
+ +		}
+ +		key, value := field[:i], field[i+1:]
+ +		for _, v := range dbgvars {
+ +			if v.name == key {
+ +				*v.value = int32(goatoi(value))
+ +			}
+ +		}
+ +	}
+ +
+ +	switch p := gogetenv("GOTRACEBACK"); p {
+ +	case "":
+ +		traceback_cache = 1 << 1
+ +	case "crash":
+ +		traceback_cache = 2<<1 | 1
+ +	default:
+ +		traceback_cache = uint32(goatoi(p)) << 1
+ +	}
+ +}
+ +
+ +// Poor mans 64-bit division.
+ +// This is a very special function, do not use it if you are not sure what you are doing.
+ +// int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
+ +// Handles overflow in a time-specific manner.
+ +//go:nosplit
+ +func timediv(v int64, div int32, rem *int32) int32 {
+ +	res := int32(0)
+ +	for bit := 30; bit >= 0; bit-- {
+ +		if v >= int64(div)<<uint(bit) {
+ +			v = v - (int64(div) << uint(bit))
+ +			res += 1 << uint(bit)
+ +		}
+ +	}
+ +	if v >= int64(div) {
+ +		if rem != nil {
+ +			*rem = 0
+ +		}
+ +		return 0x7fffffff
+ +	}
+ +	if rem != nil {
+ +		*rem = int32(v)
+ +	}
+ +	return res
+ +}
+ +
+ +// Helpers for Go. Must be NOSPLIT, must only call NOSPLIT functions, and must not block.
+ +
+ +//go:nosplit
+ +func acquirem() *m {
+ +	_g_ := getg()
+ +	_g_.m.locks++
+ +	return _g_.m
+ +}
+ +
+ +//go:nosplit
+ +func releasem(mp *m) {
+ +	_g_ := getg()
+ +	mp.locks--
+ +	if mp.locks == 0 && _g_.preempt {
+ +		// restore the preemption request in case we've cleared it in newstack
+ +		_g_.stackguard0 = stackPreempt
+ +	}
+ +}
+ +
+ +//go:nosplit
+ +func gomcache() *mcache {
+ +	return getg().m.mcache
+ +}
+ +
+ +var typelink, etypelink [0]byte
+ +
+ +//go:nosplit
+ +func typelinks() []*_type {
+ +	var ret []*_type
+ +	sp := (*slice)(unsafe.Pointer(&ret))
+ +	sp.array = (*byte)(unsafe.Pointer(&typelink))
+ +	sp.len = uint((uintptr(unsafe.Pointer(&etypelink)) - uintptr(unsafe.Pointer(&typelink))) / unsafe.Sizeof(ret[0]))
+ +	sp.cap = sp.len
+ +	return ret
+ +}
+ +
+ +// TODO: move back into mgc0.c when converted to Go
+ +func readgogc() int32 {
+ +	p := gogetenv("GOGC")
+ +	if p == "" {
+ +		return 100
+ +	}
+ +	if p == "off" {
+ +		return -1
+ +	}
+ +	return int32(goatoi(p))
+ +}

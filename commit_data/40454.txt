@@ -11,6 +11,60 @@ Date:   Fri Feb 22 20:16:24 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/dist/test.go | 35 +++++++++++++++++++++++++++++++++++
  1 file changed, 35 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9e259f1835..ba8ba4e89e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -190,6 +190,11 @@ func (t *tester) run() {
+ 		}
+ 	}
+ 
++	// On a few builders, make GOROOT unwritable to catch tests writing to it.
++	if strings.HasPrefix(os.Getenv("GO_BUILDER_NAME"), "linux-") {
++		t.makeGOROOTUnwritable()
++	}
++
+ 	for _, dt := range t.tests {
+ 		if !t.shouldRunTest(dt.name) {
+ 			t.partial = true
+@@ -1388,6 +1393,36 @@ func (t *tester) packageHasBenchmarks(pkg string) bool {
+ 	return false
+ }
+ 
++// makeGOROOTUnwritable makes all $GOROOT files & directories non-writable to
++// check that no tests accidentally write to $GOROOT.
++func (t *tester) makeGOROOTUnwritable() {
++	if os.Getenv("GO_BUILDER_NAME") == "" {
++		panic("not a builder")
++	}
++	if os.Getenv("GOROOT") == "" {
++		panic("GOROOT not set")
++	}
++	err := filepath.Walk(os.Getenv("GOROOT"), func(name string, fi os.FileInfo, err error) error {
++		if err != nil {
++			return err
++		}
++		if !fi.Mode().IsRegular() && !fi.IsDir() {
++			return nil
++		}
++		mode := fi.Mode()
++		newMode := mode & ^os.FileMode(0222)
++		if newMode != mode {
++			if err := os.Chmod(name, newMode); err != nil {
++				return err
++			}
++		}
++		return nil
++	})
++	if err != nil {
++		log.Fatalf("making builder's files read-only: %v", err)
++	}
++}
++
+ // raceDetectorSupported is a copy of the function
+ // cmd/internal/sys.RaceDetectorSupported, which can't be used here
+ // because cmd/dist has to be buildable by Go 1.4.

@@ -7,6 +7,24 @@ Date:   Mon Nov 5 22:46:28 2012 +0100
     R=gri
     CC=golang-dev
     https://golang.org/cl/6815081
-
+---
  src/cmd/godoc/play.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/play.go b/src/cmd/godoc/play.go
+index dc549c0ee5..7033169c83 100644
+--- a/src/cmd/godoc/play.go
++++ b/src/cmd/godoc/play.go
+@@ -59,7 +59,11 @@ func gofmt(body string) (string, error) {
+ 	}
+ 	ast.SortImports(fset, f)
+ 	var buf bytes.Buffer
+-	err = printer.Fprint(&buf, fset, f)
++	config := printer.Config{
++		Mode:     printer.UseSpaces | printer.TabIndent,
++		Tabwidth: 8,
++	}
++	err = config.Fprint(&buf, fset, f)
+ 	if err != nil {
+ 		return "", err
+ 	}

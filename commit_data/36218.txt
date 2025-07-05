@@ -11,7 +11,58 @@ Date:   Wed Apr 11 21:18:58 2018 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/time.go      |  9 ++++++++-
  src/time/time_test.go | 12 +++++++++++-
  2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 1d7f76c2f2..6579639740 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -323,7 +323,14 @@ var days = [...]string{
+ }
+ 
+ // String returns the English name of the day ("Sunday", "Monday", ...).
+-func (d Weekday) String() string { return days[d] }
++func (d Weekday) String() string {
++	if Sunday <= d && d <= Saturday {
++		return days[d]
++	}
++	buf := make([]byte, 20)
++	n := fmtInt(buf, uint64(d))
++	return "%!Weekday(" + string(buf[n:]) + ")"
++}
+ 
+ // Computations on time.
+ //
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 867e61ea33..dee144fe13 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -673,7 +673,7 @@ var gobTests = []Time{
+ 	Date(0, 1, 2, 3, 4, 5, 6, UTC),
+ 	Date(7, 8, 9, 10, 11, 12, 13, FixedZone("", 0)),
+ 	Unix(81985467080890095, 0x76543210), // Time.sec: 0x0123456789ABCDEF
+-	{},                                  // nil location
++	{}, // nil location
+ 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", 32767*60)),
+ 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", -32768*60)),
+ }
+@@ -1319,6 +1319,16 @@ func TestZeroMonthString(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 24692: Out of range weekday panics
++func TestWeekdayString(t *testing.T) {
++	if got, want := Weekday(Tuesday).String(), "Tuesday"; got != want {
++		t.Errorf("Tuesday weekday = %q; want %q", got, want)
++	}
++	if got, want := Weekday(14).String(), "%!Weekday(14)"; got != want {
++		t.Errorf("14th weekday = %q; want %q", got, want)
++	}
++}
++
+ func TestReadFileLimit(t *testing.T) {
+ 	const zero = "/dev/zero"
+ 	if _, err := os.Stat(zero); err != nil {

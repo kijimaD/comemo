@@ -7,6 +7,21 @@ Date:   Thu Feb 2 15:18:33 2012 +1100
     R=golang-dev, dsymonds, bradfitz
     CC=golang-dev
     https://golang.org/cl/5619050
-
+---
  src/cmd/godoc/appinit.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/godoc/appinit.go b/src/cmd/godoc/appinit.go
+index 3113498c84..e65be40945 100644
+--- a/src/cmd/godoc/appinit.go
++++ b/src/cmd/godoc/appinit.go
+@@ -56,6 +56,9 @@ func init() {
+ 	// initialize directory trees for user-defined file systems (-path flag).
+ 	initDirTrees()
+ 
++	// Immediately update metadata.
++	updateMetadata()
++
+ 	// initialize search index
+ 	if *indexEnabled {
+ 		go indexer()

@@ -8,7 +8,7 @@ Date:   Fri Jan 30 14:39:31 2009 -0800
     DELTA=367  (111 added, 59 deleted, 197 changed)
     OCL=23957
     CL=23960
-
+---
  doc/progs/server.go                |  8 ++--
  doc/progs/server1.go               |  8 ++--
  src/cmd/gotest/gotest              |  6 +--
@@ -34,3 +34,657 @@ Date:   Fri Jan 30 14:39:31 2009 -0800
  test/ken/ptrfun.go                 |  4 +-
  test/newfn.go                      | 17 ---------
  24 files changed, 169 insertions(+), 121 deletions(-)
+
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+index c3f772bf90..4592453161 100644
+--- a/doc/progs/server.go
++++ b/doc/progs/server.go
+@@ -9,21 +9,21 @@ type request struct {
+ 	replyc  chan int;
+ }
+ 
+-type binOp (a, b int) int;
++type binOp func(a, b int) int;
+ 
+-func run(op *binOp, req *request) {
++func run(op binOp, req *request) {
+ 	reply := op(req.a, req.b);
+ 	req.replyc <- reply;
+ }
+ 
+-func server(op *binOp, service chan *request) {
++func server(op binOp, service chan *request) {
+ 	for {
+ 		req := <-service;
+ 		go run(op, req);  // don't wait for it
+ 	}
+ }
+ 
+-func startServer(op *binOp) chan *request {
++func startServer(op binOp) chan *request {
+ 	req := make(chan *request);
+ 	go server(op, req);
+ 	return req;
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index 51362502d3..6a1b6f1561 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -9,14 +9,14 @@ type request struct {
+ 	replyc	chan int;
+ }
+ 
+-type binOp (a, b int) int;
++type binOp func(a, b int) int;
+ 
+-func run(op *binOp, req *request) {
++func run(op binOp, req *request) {
+ 	reply := op(req.a, req.b);
+ 	req.replyc <- reply;
+ }
+ 
+-func server(op *binOp, service chan *request, quit chan bool) {
++func server(op binOp, service chan *request, quit chan bool) {
+ 	for {
+ 		select {
+ 		case req := <-service:
+@@ -27,7 +27,7 @@ func server(op *binOp, service chan *request, quit chan bool) {
+ 	}
+ }
+ 
+-func startServer(op *binOp) (service chan *request, quit chan bool) {
++func startServer(op binOp) (service chan *request, quit chan bool) {
+ 	service = make(chan *request);
+ 	quit = make(chan bool);
+ 	go server(op, service, quit);
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index f292034cbd..0ec17322d1 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -47,7 +47,7 @@ files=$(echo $gofiles | sed 's/\.go//g')
+ 
+ # Run any commands given in sources, like
+ #   // gotest: $GC foo.go
+-# to build any test-only dependencies. 
++# to build any test-only dependencies.
+ sed -n 's/^\/\/ gotest: //p' $gofiles | sh
+ 
+ for i in $gofiles
+@@ -71,7 +71,7 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ 	echo 'import "testing"'
+ 	# test array
+ 	echo
+-	echo 'var tests = []testing.Test {'	# TODO(rsc): *&
++	echo 'var tests = []testing.Test {'
+ 	for ofile in $ofiles
+ 	do
+ 		# test functions are named TestFoo
+@@ -84,7 +84,7 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ 		else
+ 			for i in $tests
+ 			do
+-				echo '	testing.Test{ "'$i'", &'$i' },'
++				echo '	testing.Test{ "'$i'", '$i' },'
+ 			done
+ 		fi
+ 	done
+diff --git a/src/lib/bufio_test.go b/src/lib/bufio_test.go
+index eead927b41..17fb379cb7 100644
+--- a/src/lib/bufio_test.go
++++ b/src/lib/bufio_test.go
+@@ -96,7 +96,7 @@ func (r13 *rot13Reader) Read(p []byte) (int, *os.Error) {
+ 
+ type readMaker struct {
+ 	name string;
+-	fn *([]byte) io.Read;
++	fn func([]byte) io.Read;
+ }
+ var readMakers = []readMaker {
+ 	readMaker{ "full", func(p []byte) io.Read { return newByteReader(p) } },
+@@ -155,7 +155,7 @@ func reads(buf *BufRead, m int) string {
+ 
+ type bufReader struct {
+ 	name string;
+-	fn *(*BufRead) string;
++	fn func(*BufRead) string;
+ }
+ var bufreaders = []bufReader {
+ 	bufReader{ "1", func(b *BufRead) string { return reads(b, 1) } },
+@@ -164,8 +164,8 @@ var bufreaders = []bufReader {
+ 	bufReader{ "4", func(b *BufRead) string { return reads(b, 4) } },
+ 	bufReader{ "5", func(b *BufRead) string { return reads(b, 5) } },
+ 	bufReader{ "7", func(b *BufRead) string { return reads(b, 7) } },
+-	bufReader{ "bytes", &readBytes },
+-	bufReader{ "lines", &readLines },
++	bufReader{ "bytes", readBytes },
++	bufReader{ "lines", readLines },
+ }
+ 
+ var bufsizes = []int {
+@@ -276,14 +276,14 @@ func (w *halfByteWriter) GetBytes() []byte {
+ 
+ type writeMaker struct {
+ 	name string;
+-	fn *()writeBuffer;
++	fn func()writeBuffer;
+ }
+ func TestBufWrite(t *testing.T) {
+ 	var data [8192]byte;
+ 
+ 	var writers = []writeMaker {
+-		writeMaker{ "full", &newByteWriter },
+-		writeMaker{ "half", &newHalfByteWriter },
++		writeMaker{ "full", newByteWriter },
++		writeMaker{ "half", newHalfByteWriter },
+ 	};
+ 
+ 	for i := 0; i < len(data); i++ {
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index 13648ad58f..855eb98a59 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ // Serve a new connection.
+-func serveConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
++func serveConnection(fd net.Conn, raddr string, f func(*Conn, *Request)) {
+ 	c, err := NewConn(fd);
+ 	if err != nil {
+ 		return
+@@ -36,7 +36,7 @@ func serveConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
+ }
+ 
+ // Web server: already listening on l, call f for each request.
+-func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
++func Serve(l net.Listener, f func(*Conn, *Request)) *os.Error {
+ 	// TODO: Make this unnecessary
+ 	s, e := os.Getenv("GOMAXPROCS");
+ 	if n, ok := strconv.Atoi(s); n < 3 {
+@@ -54,7 +54,7 @@ func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
+ }
+ 
+ // Web server: listen on address, call f for each request.
+-func ListenAndServe(addr string, f *(*Conn, *Request)) *os.Error {
++func ListenAndServe(addr string, f func(*Conn, *Request)) *os.Error {
+ 	l, e := net.Listen("tcp", addr);
+ 	if e != nil {
+ 		return e
+diff --git a/src/lib/net/dnsclient.go b/src/lib/net/dnsclient.go
+index 5c26d51c57..072ffb3e47 100644
+--- a/src/lib/net/dnsclient.go
++++ b/src/lib/net/dnsclient.go
+@@ -175,7 +175,7 @@ func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
+ 	// TODO(rsc): Pick out obvious non-DNS names to avoid
+ 	// sending stupid requests to the server?
+ 
+-	once.Do(&_LoadConfig);
++	once.Do(_LoadConfig);
+ 	if cfg == nil {
+ 		err = DNS_MissingConfig;
+ 		return;
+diff --git a/src/lib/net/dnsmsg.go b/src/lib/net/dnsmsg.go
+index 2cd8b2ffb3..b93a9c3755 100644
+--- a/src/lib/net/dnsmsg.go
++++ b/src/lib/net/dnsmsg.go
+@@ -197,7 +197,7 @@ type DNS_RR_A struct {
+ // packing sequence.
+ 
+ // Map of constructors for each RR wire type.
+-var rr_mk = map[int]*()DNS_RR {
++var rr_mk = map[int] func()DNS_RR {
+ 	DNS_TypeCNAME: func() DNS_RR { return new(DNS_RR_CNAME) },
+ 	DNS_TypeHINFO: func() DNS_RR { return new(DNS_RR_HINFO) },
+ 	DNS_TypeMB: func() DNS_RR { return new(DNS_RR_MB) },
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index 2b126843bd..83394ddd33 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -209,7 +209,7 @@ func _StartServer() {
+ 
+ func NewFD(fd int64) (f *FD, err *os.Error) {
+ 	if pollserver == nil {
+-		once.Do(&_StartServer);
++		once.Do(_StartServer);
+ 	}
+ 	if err = _SetNonblock(fd); err != nil {
+ 		return nil, err
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index 44172047b6..5d9550cc8f 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -327,13 +327,13 @@ func _InternetSocket(net, laddr, raddr string, proto int64, mode string) (fd *FD
+ 		}
+ 	}
+ 
+-	var cvt *(addr []byte, port int) (sa *syscall.Sockaddr, err *os.Error);
++	var cvt func(addr []byte, port int) (sa *syscall.Sockaddr, err *os.Error);
+ 	var family int64;
+ 	if vers == 4 {
+-		cvt = &IPv4ToSockaddr;
++		cvt = IPv4ToSockaddr;
+ 		family = syscall.AF_INET
+ 	} else {
+-		cvt = &IPv6ToSockaddr;
++		cvt = IPv6ToSockaddr;
+ 		family = syscall.AF_INET6
+ 	}
+ 
+diff --git a/src/lib/net/port.go b/src/lib/net/port.go
+index 03c0ccee2c..b64b353950 100644
+--- a/src/lib/net/port.go
++++ b/src/lib/net/port.go
+@@ -49,7 +49,7 @@ func _ReadServices() {
+ }
+ 
+ func LookupPort(netw, name string) (port int, ok bool) {
+-	once.Do(&_ReadServices);
++	once.Do(_ReadServices);
+ 
+ 	switch netw {
+ 	case "tcp4", "tcp6":
+diff --git a/src/lib/once.go b/src/lib/once.go
+index 6019df5154..e1466ab8eb 100644
+--- a/src/lib/once.go
++++ b/src/lib/once.go
+@@ -17,12 +17,12 @@ type _Job struct {
+ }
+ 
+ type _Request struct {
+-	f *();
++	f func();
+ 	reply chan *_Job
+ }
+ 
+ var service = make(chan _Request)
+-var jobmap = make(map[*()]*_Job)
++var jobmap = make(map[func()]*_Job)
+ 
+ // Moderate access to the jobmap.
+ // Even if accesses were thread-safe (they should be but are not)
+@@ -42,7 +42,7 @@ func server() {
+ 	}
+ }
+ 
+-func Do(f *()) {
++func Do(f func()) {
+ 	// Look for job in map (avoids channel communication).
+ 	// If not there, ask map server to make one.
+ 	// TODO: Uncomment use of jobmap[f] once
+diff --git a/src/lib/once_test.go b/src/lib/once_test.go
+index a19d34dcac..9506ff3d79 100644
+--- a/src/lib/once_test.go
++++ b/src/lib/once_test.go
+@@ -16,16 +16,16 @@ func call() {
+ 
+ func TestOnce(t *testing.T) {
+ 	ncall = 0;
+-	once.Do(&call);
++	once.Do(call);
+ 	if ncall != 1 {
+-		t.Fatalf("once.Do(&call) didn't call(): ncall=%d", ncall);
++		t.Fatalf("once.Do(call) didn't call(): ncall=%d", ncall);
+ 	}
+-	once.Do(&call);
++	once.Do(call);
+ 	if ncall != 1 {
+-		t.Fatalf("second once.Do(&call) did call(): ncall=%d", ncall);
++		t.Fatalf("second once.Do(call) did call(): ncall=%d", ncall);
+ 	}
+-	once.Do(&call);
++	once.Do(call);
+ 	if ncall != 1 {
+-		t.Fatalf("third once.Do(&call) did call(): ncall=%d", ncall);
++		t.Fatalf("third once.Do(call) did call(): ncall=%d", ncall);
+ 	}
+ }
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 8d60a8b9b2..8a2706e974 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -60,7 +60,7 @@ func (c *commonValue) Interface() interface {} {
+ 
+ func newValueAddr(typ Type, addr Addr) Value
+ 
+-type creatorFn *(typ Type, addr Addr) Value
++type creatorFn func(typ Type, addr Addr) Value
+ 
+ 
+ // -- Missing
+@@ -790,31 +790,31 @@ func funcCreator(typ Type, addr Addr) Value {
+ }
+ 
+ var creator = map[int] creatorFn {
+-	MissingKind : &missingCreator,
+-	IntKind : &intCreator,
+-	Int8Kind : &int8Creator,
+-	Int16Kind : &int16Creator,
+-	Int32Kind : &int32Creator,
+-	Int64Kind : &int64Creator,
+-	UintKind : &uintCreator,
+-	Uint8Kind : &uint8Creator,
+-	Uint16Kind : &uint16Creator,
+-	Uint32Kind : &uint32Creator,
+-	Uint64Kind : &uint64Creator,
+-	UintptrKind : &uintptrCreator,
+-	FloatKind : &floatCreator,
+-	Float32Kind : &float32Creator,
+-	Float64Kind : &float64Creator,
+-	Float80Kind : &float80Creator,
+-	StringKind : &stringCreator,
+-	BoolKind : &boolCreator,
+-	PtrKind : &ptrCreator,
+-	ArrayKind : &arrayCreator,
+-	MapKind : &mapCreator,
+-	ChanKind : &chanCreator,
+-	StructKind : &structCreator,
+-	InterfaceKind : &interfaceCreator,
+-	FuncKind : &funcCreator,
++	MissingKind : missingCreator,
++	IntKind : intCreator,
++	Int8Kind : int8Creator,
++	Int16Kind : int16Creator,
++	Int32Kind : int32Creator,
++	Int64Kind : int64Creator,
++	UintKind : uintCreator,
++	Uint8Kind : uint8Creator,
++	Uint16Kind : uint16Creator,
++	Uint32Kind : uint32Creator,
++	Uint64Kind : uint64Creator,
++	UintptrKind : uintptrCreator,
++	FloatKind : floatCreator,
++	Float32Kind : float32Creator,
++	Float64Kind : float64Creator,
++	Float80Kind : float80Creator,
++	StringKind : stringCreator,
++	BoolKind : boolCreator,
++	PtrKind : ptrCreator,
++	ArrayKind : arrayCreator,
++	MapKind : mapCreator,
++	ChanKind : chanCreator,
++	StructKind : structCreator,
++	InterfaceKind : interfaceCreator,
++	FuncKind : funcCreator,
+ }
+ 
+ var typecache = make(map[string] Type);
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index 1ab85839b3..d4abdfb5e4 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -71,7 +71,7 @@ func (t *T) Fatalf(format string, args ...) {
+ 
+ type Test struct {
+ 	Name string;
+-	F *(*T);
++	F func(*T);
+ }
+ 
+ func tRunner(t *T, test *Test) {
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index e43547c5e9..9f7499c3da 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -251,7 +251,7 @@ func _SetupZone() {
+ }
+ 
+ func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
+-	once.Do(&_SetupZone);
++	once.Do(_SetupZone);
+ 	if zoneerr != nil || len(zones) == 0 {
+ 		return "GMT", 0, zoneerr
+ 	}
+diff --git a/test/fixedbugs/bug029.go b/test/fixedbugs/bug029.go
+deleted file mode 100644
+index 7abb018c57..0000000000
+--- a/test/fixedbugs/bug029.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// ! $G $D/$F.go
+-
+-package main
+-
+-//should be f *func but compiler accepts it
+-func iterate(f func(int)) {
+-}
+-
+-func main() {
+-}
+diff --git a/test/fixedbugs/bug088.dir/bug0.go b/test/fixedbugs/bug088.dir/bug0.go
+index 082cce81de..af9d991e60 100644
+--- a/test/fixedbugs/bug088.dir/bug0.go
++++ b/test/fixedbugs/bug088.dir/bug0.go
+@@ -4,6 +4,6 @@
+ 
+ package bug0
+ 
+-var V0 *() int;
+-var V1 *() (a int);
+-var V2 *() (a, b int);
++var V0 func() int;
++var V1 func() (a int);
++var V2 func() (a, b int);
+diff --git a/test/bugs/bug121.go b/test/fixedbugs/bug121.go
+similarity index 96%
+rename from test/bugs/bug121.go
+rename to test/fixedbugs/bug121.go
+index cc960e318c..5840095b9c 100644
+--- a/test/bugs/bug121.go
++++ b/test/fixedbugs/bug121.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-type T ()
++type T func()
+ 
+ type I interface {
+ 	f, g ();
+diff --git a/test/fixedbugs/bug134.go b/test/fixedbugs/bug134.go
+deleted file mode 100644
+index e0817a41e8..0000000000
+--- a/test/fixedbugs/bug134.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// errchk $G $D/$F.go
+-
+-package main
+-
+-type T struct {
+-	v ();  // ERROR "field type"
+-}
+diff --git a/test/func4.go b/test/func4.go
+new file mode 100644
+index 0000000000..843e6d341b
+--- /dev/null
++++ b/test/func4.go
+@@ -0,0 +1,14 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var notmain func()
++
++func main() {
++	var x = &main;		// ERROR "address of function"
++	main = notmain;	// ERROR "assign to function"
++}
+diff --git a/test/func5.go b/test/func5.go
+new file mode 100644
+index 0000000000..556d94d291
+--- /dev/null
++++ b/test/func5.go
+@@ -0,0 +1,77 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func caller(f func(int, int) int, a, b int, c chan int) {
++	c <- f(a,b)
++}
++	
++func gocall(f func(int, int) int, a, b int) int {
++	c := make(chan int);
++	go caller(f, a, b, c);
++	return <-c;
++}
++
++func call(f func(int, int) int, a, b int) int {
++	return f(a, b)
++}
++
++func call1(f func(int, int) int, a, b int) int {
++	return call(f, a, b)
++}
++
++var f func(int, int) int
++
++func add(x, y int) int {
++	return x + y
++}
++
++func fn() (func(int, int) int) {
++	return f
++}
++
++var fc func(int, int, chan int)
++
++func addc(x, y int, c chan int) {
++	c <- x+y
++}
++
++func fnc() (func(int, int, chan int)) {
++	return fc
++}
++
++func three(x int) {
++	if x != 3 {
++		panic("wrong val", x)
++	}
++}
++
++var notmain func()
++
++func main() {
++	three(call(add, 1, 2));
++	three(call1(add, 1, 2));
++	f = add;
++	three(call(f, 1, 2));
++	three(call1(f, 1, 2));
++	three(call(fn(), 1, 2));
++	three(call1(fn(), 1, 2));
++	three(call(func(a,b int) int {return a+b}, 1, 2));
++	three(call1(func(a,b int) int {return a+b}, 1, 2));
++
++	fc = addc;
++	c := make(chan int);
++	go addc(1, 2, c);
++	three(<-c);
++	go fc(1, 2, c);
++	three(<-c);
++	go fnc()(1, 2, c);
++	three(<-c);
++	go func(a, b int, c chan int){c <- a+b}(1, 2, c);
++	three(<-c);
++}
++
+diff --git a/test/golden.out b/test/golden.out
+index 80f325edc1..1074a9114f 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -155,9 +155,6 @@ bugs/bug117.go:9: illegal types for operand: RETURN
+ 	int
+ BUG: should compile
+ 
+-=========== bugs/bug121.go
+-BUG: compilation succeeds incorrectly
+-
+ =========== bugs/bug122.go
+ BUG: compilation succeeds incorrectly
+ 
+@@ -197,11 +194,6 @@ hi
+ 3 11
+ 4 0
+ 
+-=========== fixedbugs/bug029.go
+-fixedbugs/bug029.go:6: f is not a type
+-fixedbugs/bug029.go:6: syntax error near func
+-fixedbugs/bug029.go:6: syntax error near int
+-
+ =========== fixedbugs/bug035.go
+ fixedbugs/bug035.go:6: variable i redeclared in this block
+ 	previous declaration at fixedbugs/bug035.go:5
+@@ -300,6 +292,13 @@ Faulting address: 0x0
+ pc: xxx
+ 
+ 
++=========== fixedbugs/bug121.go
++fixedbugs/bug121.go:9: syntax error near T
++fixedbugs/bug121.go:20: incomplete type I
++fixedbugs/bug121.go:20: illegal types for operand: AS
++	I
++	*S
++
+ =========== fixedbugs/bug133.go
+ fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T
+ fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
+diff --git a/test/ken/ptrfun.go b/test/ken/ptrfun.go
+index e7db3a94d3..fe16fce3aa 100644
+--- a/test/ken/ptrfun.go
++++ b/test/ken/ptrfun.go
+@@ -10,7 +10,7 @@ package main
+ type C struct
+ {
+ 	a	int;
+-	x	*(p *C)int;
++	x	func(p *C)int;
+ }
+ 
+ func	g(p *C)int;
+@@ -29,7 +29,7 @@ main()
+ 
+ 	c = new(C);
+ 	c.a = 6;
+-	c.x = &g;
++	c.x = g;
+ 
+ 	v = g(c);
+ 	if v != 6 { panic(v); }
+diff --git a/test/newfn.go b/test/newfn.go
+deleted file mode 100644
+index 63df683ce6..0000000000
+--- a/test/newfn.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// errchk $G $D/$F.go
+-
+-package main
+-
+-func main()
+-{
+-	f := new(());	// ERROR "new"
+-	g := new((x int, f float) string);	// ERROR "new"
+-	h := new(*());	// ok
+-	i := new(string);	// ok
+-	j := new(map[int]int);	// ok
+-	k := new(chan int);	// ok
+-}

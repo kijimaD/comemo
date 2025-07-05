@@ -36,10 +36,135 @@ Date:   Sat Jun 23 13:23:52 2018 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/Wasm.rules |  5 +++++
  src/cmd/compile/internal/ssa/gen/WasmOps.go |  2 +-
  src/cmd/compile/internal/ssa/rewriteWasm.go | 21 +++++++++++++++++++++
  src/cmd/compile/internal/wasm/ssa.go        | 16 +++++-----------
  test/fixedbugs/issue25966.go                | 24 ++++++++++++++++++++++++
  5 files changed, 56 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index 18c208cccb..272b260cb7 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -390,6 +390,7 @@
+ (I64AddConst [0] x) -> x
+ (I64Eqz (I64Eqz (I64Eqz x))) -> (I64Eqz x)
+ 
++// folding offset into load/store
+ ((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off] (I64AddConst [off2] ptr) mem)
+ 	&& isU32Bit(off+off2) ->
+ 	((I64Load|I64Load32U|I64Load32S|I64Load16U|I64Load16S|I64Load8U|I64Load8S) [off+off2] ptr mem)
+@@ -397,3 +398,7 @@
+ ((I64Store|I64Store32|I64Store16|I64Store8) [off] (I64AddConst [off2] ptr) val mem)
+ 	&& isU32Bit(off+off2) ->
+ 	((I64Store|I64Store32|I64Store16|I64Store8) [off+off2] ptr val mem)
++
++// folding offset into address
++(I64AddConst [off] (LoweredAddr {sym} [off2] base)) && isU32Bit(off+off2) ->
++	(LoweredAddr {sym} [off+off2] base)
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index c8d7677355..9b4f66d3f1 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -103,7 +103,7 @@ func init() {
+ 		{name: "LoweredClosureCall", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp, 0}, clobbers: callerSave}, aux: "Int64", call: true}, // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "LoweredInterCall", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", call: true},          // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+-		{name: "LoweredAddr", argLength: 1, reg: gp11, aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // returns base+aux, arg0=base
++		{name: "LoweredAddr", argLength: 1, reg: gp11, aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // returns base+aux+auxint, arg0=base
+ 		{name: "LoweredMove", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Int64"},                // large move. arg0=dst, arg1=src, arg2=mem, auxint=len/8, returns mem
+ 		{name: "LoweredZero", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, aux: "Int64"},                    // large zeroing. arg0=start, arg1=mem, auxint=len/8, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index f3648ebca1..26dd254952 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -5210,6 +5210,27 @@ func rewriteValueWasm_OpWasmI64AddConst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (I64AddConst [off] (LoweredAddr {sym} [off2] base))
++	// cond: isU32Bit(off+off2)
++	// result: (LoweredAddr {sym} [off+off2] base)
++	for {
++		off := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpWasmLoweredAddr {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym := v_0.Aux
++		base := v_0.Args[0]
++		if !(isU32Bit(off + off2)) {
++			break
++		}
++		v.reset(OpWasmLoweredAddr)
++		v.AuxInt = off + off2
++		v.Aux = sym
++		v.AddArg(base)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueWasm_OpWasmI64And_0(v *Value) bool {
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 8daf749a12..d82b1f7953 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -232,19 +232,13 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 	case ssa.OpWasmLoweredAddr:
+ 		p := s.Prog(wasm.AGet)
+-		switch n := v.Aux.(type) {
++		p.From.Type = obj.TYPE_ADDR
++		switch v.Aux.(type) {
+ 		case *obj.LSym:
+-			p.From = obj.Addr{Type: obj.TYPE_ADDR, Name: obj.NAME_EXTERN, Sym: n}
++			gc.AddAux(&p.From, v)
+ 		case *gc.Node:
+-			p.From = obj.Addr{
+-				Type:   obj.TYPE_ADDR,
+-				Name:   obj.NAME_AUTO,
+-				Reg:    v.Args[0].Reg(),
+-				Offset: n.Xoffset,
+-			}
+-			if n.Class() == gc.PPARAM || n.Class() == gc.PPARAMOUT {
+-				p.From.Name = obj.NAME_PARAM
+-			}
++			p.From.Reg = v.Args[0].Reg()
++			gc.AddAux(&p.From, v)
+ 		default:
+ 			panic("wasm: bad LoweredAddr")
+ 		}
+diff --git a/test/fixedbugs/issue25966.go b/test/fixedbugs/issue25966.go
+new file mode 100644
+index 0000000000..7b5f2a7e4f
+--- /dev/null
++++ b/test/fixedbugs/issue25966.go
+@@ -0,0 +1,24 @@
++// compile -N
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 25966: liveness code complains autotmp live on
++// function entry.
++
++package p
++
++var F = []func(){
++	func() func() { return (func())(nil) }(),
++}
++
++var A = []int{}
++
++type ss struct {
++	string
++	float64
++	i int
++}
++
++var V = A[ss{}.i]

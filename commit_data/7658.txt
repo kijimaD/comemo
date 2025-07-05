@@ -7,6 +7,30 @@ Date:   Mon Mar 7 12:23:57 2011 +1100
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4235054
-
+---
  src/pkg/path/filepath/path_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 469ca6a802..8f887f00bb 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -279,6 +280,10 @@ func (v *TestVisitor) VisitFile(path string, f *os.FileInfo) {
+ }
+ 
+ func TestWalk(t *testing.T) {
++	// TODO(brainman): enable test once Windows version is implemented.
++	if runtime.GOOS == "windows" {
++		return
++	}
+ 	makeTree(t)
+ 
+ 	// 1) ignore error handling, expect none

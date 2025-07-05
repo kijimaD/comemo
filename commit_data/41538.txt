@@ -14,9 +14,114 @@ Date:   Thu Oct 10 10:26:21 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/doc/dirs.go                        | 10 +++++++++-
  src/cmd/go/internal/modget/get.go          |  4 ++++
  src/cmd/go/internal/modload/list.go        |  3 +++
  src/cmd/go/testdata/script/mod_outside.txt | 22 +++++++++++++---------
  4 files changed, 29 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/doc/dirs.go b/src/cmd/doc/dirs.go
+index c6f5cd9af8..0f990f7017 100644
+--- a/src/cmd/doc/dirs.go
++++ b/src/cmd/doc/dirs.go
+@@ -162,7 +162,15 @@ func findCodeRoots() []Dir {
+ 		// Check for use of modules by 'go env GOMOD',
+ 		// which reports a go.mod file path if modules are enabled.
+ 		stdout, _ := exec.Command("go", "env", "GOMOD").Output()
+-		usingModules = len(bytes.TrimSpace(stdout)) > 0
++		gomod := string(bytes.TrimSpace(stdout))
++		usingModules = len(gomod) > 0
++		if gomod == os.DevNull {
++			// Modules are enabled, but the working directory is outside any module.
++			// We can still access std, cmd, and packages specified as source files
++			// on the command line, but there are no module roots.
++			// Avoid 'go list -m all' below, since it will not work.
++			return list
++		}
+ 	}
+ 
+ 	if !usingModules {
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 6e67eac983..6bb8cdf55c 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -358,6 +358,10 @@ func runGet(cmd *base.Command, args []string) {
+ 			// upgrade golang.org/x/tools.
+ 
+ 		case path == "all":
++			// If there is no main module, "all" is not meaningful.
++			if !modload.HasModRoot() {
++				base.Errorf(`go get %s: cannot match "all": working directory is not part of a module`, arg)
++			}
+ 			// Don't query modules until we load packages. We'll automatically
+ 			// look up any missing modules.
+ 
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 35d0c28cde..6c0b3945cb 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -55,6 +55,9 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
+ 		if search.IsRelativePath(arg) {
+ 			base.Fatalf("go: cannot use relative path %s to specify module", arg)
+ 		}
++		if !HasModRoot() && arg == "all" {
++			base.Fatalf(`go: cannot match "all": working directory is not part of a module`)
++		}
+ 		if i := strings.Index(arg, "@"); i >= 0 {
+ 			path := arg[:i]
+ 			vers := arg[i+1:]
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index dd4e2d5800..815745e8bf 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -25,8 +25,6 @@ stderr 'cannot find main module'
+ go list all
+ ! stdout .
+ stderr 'warning: "all" matched no packages'
+-go list -m all
+-stderr 'warning: pattern "all" matched no module dependencies'
+ 
+ # 'go list' on standard-library packages should work, since they do not depend
+ # on the contents of any module.
+@@ -49,10 +47,13 @@ stdout 'example.com/version v1.1.0'
+ go list -m -versions example.com/version
+ stdout 'v1.0.0\s+v1.0.1\s+v1.1.0'
+ 
+-# 'go list -m <mods> all' does not include the dependencies of <mods> in the computation of 'all'.
+-go list -m example.com/printversion@v1.0.0 all
+-stdout 'example.com/printversion v1.0.0'
+-stderr 'warning: pattern "all" matched no module dependencies'
++# 'go list -m all' should fail. "all" is not meaningful outside of a module.
++! go list -m all
++stderr 'go: cannot match "all": working directory is not part of a module'
++
++# 'go list -m <mods> all' should also fail.
++! go list -m example.com/printversion@v1.0.0 all
++stderr 'go: cannot match "all": working directory is not part of a module'
+ ! stdout 'example.com/version'
+ 
+ 
+@@ -87,6 +88,10 @@ go mod download example.com/printversion@v1.0.0
+ exists $GOPATH/pkg/mod/cache/download/example.com/printversion/@v/v1.0.0.zip
+ ! exists $GOPATH/pkg/mod/cache/download/example.com/version/@v/v1.0.0.zip
+ 
++# 'go mod download all' should fail. "all" is not meaningful outside of a module.
++! go mod download all
++stderr 'go: cannot match "all": working directory is not part of a module'
++
+ # 'go mod vendor' should fail: it starts by clearing the existing vendor
+ # directory, and we don't know where that is.
+ ! go mod vendor
+@@ -109,9 +114,8 @@ stderr 'cannot find main module'
+ 
+ # 'go get -u all' upgrades the transitive import graph of the main module,
+ # which is empty.
+-go get -u all
+-! stdout .
+-stderr 'warning: "all" matched no packages'
++! go get -u all
++stderr 'go get all: cannot match "all": working directory is not part of a module'
+ 
+ # 'go get' should check the proposed module graph for consistency,
+ # even though we won't write it anywhere.

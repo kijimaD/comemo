@@ -9,7 +9,35 @@ Date:   Sat Jul 15 11:25:37 2017 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/io/ioutil/example_test.go | 12 ++++++++++++
  src/io/ioutil/testdata/hello  |  1 +
  2 files changed, 13 insertions(+)
+
+diff --git a/src/io/ioutil/example_test.go b/src/io/ioutil/example_test.go
+index 0ccc92db84..53f71070d3 100644
+--- a/src/io/ioutil/example_test.go
++++ b/src/io/ioutil/example_test.go
+@@ -69,3 +69,15 @@ func ExampleTempFile() {
+ 		log.Fatal(err)
+ 	}
+ }
++
++func ExampleReadFile() {
++	content, err := ioutil.ReadFile("testdata/hello")
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Printf("File contents: %s", content)
++
++	// Output:
++	// File contents: Hello, Gophers!
++}
+diff --git a/src/io/ioutil/testdata/hello b/src/io/ioutil/testdata/hello
+new file mode 100644
+index 0000000000..e47c092a51
+--- /dev/null
++++ b/src/io/ioutil/testdata/hello
+@@ -0,0 +1 @@
++Hello, Gophers!

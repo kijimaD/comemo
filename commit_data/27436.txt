@@ -18,7 +18,7 @@ Date:   Mon Mar 28 02:44:43 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go  |  8 --------
  src/cmd/go/get.go      | 10 ----------
  src/cmd/go/go_test.go  | 16 ---------------
@@ -26,3 +26,186 @@ Date:   Mon Mar 28 02:44:43 2016 +0200
  src/cmd/go/vcs.go      | 53 --------------------------------------------------
  src/cmd/go/vcs_test.go | 14 -------------
  6 files changed, 109 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a58ffe8613..1f5981055c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1144,14 +1144,6 @@ A few common code hosting sites have special syntax:
+ 		import "github.com/user/project"
+ 		import "github.com/user/project/sub/directory"
+ 
+-	Google Code Project Hosting (Git, Mercurial, Subversion)
+-
+-		import "code.google.com/p/project"
+-		import "code.google.com/p/project/sub/directory"
+-
+-		import "code.google.com/p/project.subrepository"
+-		import "code.google.com/p/project.subrepository/sub/directory"
+-
+ 	Launchpad (Bazaar)
+ 
+ 		import "launchpad.net/project"
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 56a34c0b1b..7e0045fb1d 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -236,16 +236,6 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 			stk.pop()
+ 			return
+ 		}
+-
+-		// Warn that code.google.com is shutting down. We
+-		// issue the warning here because this is where we
+-		// have the import stack.
+-		if strings.HasPrefix(p.ImportPath, "code.google.com") {
+-			fmt.Fprintf(os.Stderr, "warning: code.google.com is shutting down; import path %v will stop working\n", p.ImportPath)
+-			if len(*stk) > 1 {
+-				fmt.Fprintf(os.Stderr, "warning: package %v\n", strings.Join(*stk, "\n\timports "))
+-			}
+-		}
+ 		stk.pop()
+ 
+ 		args := []string{arg}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 05e509d41d..3e595d187f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2439,22 +2439,6 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
+ 	tg.run("get", "-d", "-insecure", repo)
+ }
+ 
+-func TestIssue10193(t *testing.T) {
+-	t.Skip("depends on code.google.com")
+-	testenv.MustHaveExternalNetwork(t)
+-	if _, err := exec.LookPath("hg"); err != nil {
+-		t.Skip("skipping because hg binary not found")
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempDir("src")
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.runFail("get", "code.google.com/p/rsc/pdf")
+-	tg.grepStderr("is shutting down", "missed warning about code.google.com")
+-}
+-
+ func TestGoRunDirs(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 9adfd5b72a..394e171594 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -149,14 +149,6 @@ A few common code hosting sites have special syntax:
+ 		import "github.com/user/project"
+ 		import "github.com/user/project/sub/directory"
+ 
+-	Google Code Project Hosting (Git, Mercurial, Subversion)
+-
+-		import "code.google.com/p/project"
+-		import "code.google.com/p/project/sub/directory"
+-
+-		import "code.google.com/p/project.subrepository"
+-		import "code.google.com/p/project.subrepository/sub/directory"
+-
+ 	Launchpad (Bazaar)
+ 
+ 		import "launchpad.net/project"
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 8d480d74fb..a9663b2185 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -815,20 +815,6 @@ func expand(match map[string]string, s string) string {
+ // and import paths referring to a fully-qualified importPath
+ // containing a VCS type (foo.com/repo.git/dir)
+ var vcsPaths = []*vcsPath{
+-	// Google Code - new syntax
+-	{
+-		prefix: "code.google.com/",
+-		re:     `^(?P<root>code\.google\.com/p/(?P<project>[a-z0-9\-]+)(\.(?P<subrepo>[a-z0-9\-]+))?)(/[A-Za-z0-9_.\-]+)*$`,
+-		repo:   "https://{root}",
+-		check:  googleCodeVCS,
+-	},
+-
+-	// Google Code - old syntax
+-	{
+-		re:    `^(?P<project>[a-z0-9_\-.]+)\.googlecode\.com/(git|hg|svn)(?P<path>/.*)?$`,
+-		check: oldGoogleCode,
+-	},
+-
+ 	// Github
+ 	{
+ 		prefix: "github.com/",
+@@ -911,45 +897,6 @@ func noVCSSuffix(match map[string]string) error {
+ 	return nil
+ }
+ 
+-var googleCheckout = regexp.MustCompile(`id="checkoutcmd">(hg|git|svn)`)
+-
+-// googleCodeVCS determines the version control system for
+-// a code.google.com repository, by scraping the project's
+-// /source/checkout page.
+-func googleCodeVCS(match map[string]string) error {
+-	if err := noVCSSuffix(match); err != nil {
+-		return err
+-	}
+-	data, err := httpGET(expand(match, "https://code.google.com/p/{project}/source/checkout?repo={subrepo}"))
+-	if err != nil {
+-		return err
+-	}
+-
+-	if m := googleCheckout.FindSubmatch(data); m != nil {
+-		if vcs := vcsByCmd(string(m[1])); vcs != nil {
+-			// Subversion requires the old URLs.
+-			// TODO: Test.
+-			if vcs == vcsSvn {
+-				if match["subrepo"] != "" {
+-					return fmt.Errorf("sub-repositories not supported in Google Code Subversion projects")
+-				}
+-				match["repo"] = expand(match, "https://{project}.googlecode.com/svn")
+-			}
+-			match["vcs"] = vcs.cmd
+-			return nil
+-		}
+-	}
+-
+-	return fmt.Errorf("unable to detect version control system for code.google.com/ path")
+-}
+-
+-// oldGoogleCode is invoked for old-style foo.googlecode.com paths.
+-// It prints an error giving the equivalent new path.
+-func oldGoogleCode(match map[string]string) error {
+-	return fmt.Errorf("invalid Google Code import path: use %s instead",
+-		expand(match, "code.google.com/p/{project}{path}"))
+-}
+-
+ // bitbucketVCS determines the version control system for a
+ // Bitbucket repository, by using the Bitbucket API.
+ func bitbucketVCS(match map[string]string) error {
+diff --git a/src/cmd/go/vcs_test.go b/src/cmd/go/vcs_test.go
+index d817ce3ed0..52a534a3a3 100644
+--- a/src/cmd/go/vcs_test.go
++++ b/src/cmd/go/vcs_test.go
+@@ -18,20 +18,6 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 		path string
+ 		want *repoRoot
+ 	}{
+-		/*{
+-			"code.google.com/p/go",
+-			&repoRoot{
+-				vcs:  vcsHg,
+-				repo: "https://code.google.com/p/go",
+-			},
+-		},
+-		{
+-		        "code.google.com/r/go",
+-		        &repoRoot{
+-		                vcs:  vcsHg,
+-		                repo: "https://code.google.com/r/go",
+-		        },
+-		},*/
+ 		{
+ 			"github.com/golang/groupcache",
+ 			&repoRoot{

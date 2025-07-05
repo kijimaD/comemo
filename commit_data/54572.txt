@@ -17,9 +17,70 @@ Date:   Fri Oct 28 17:23:58 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/build/build.go                                    |  6 +++---
  src/go/build/build_test.go                               | 10 ++++++++++
  src/go/build/testdata/non_source_tags/non_source_tags.go |  5 +++++
  src/go/build/testdata/non_source_tags/x_arm.go.ignore    |  5 +++++
  4 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 28c7445580..1cb10f50bf 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1423,12 +1423,12 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
+ 	}
+ 	ext := name[i:]
+ 
+-	if !ctxt.goodOSArchFile(name, allTags) && !ctxt.UseAllFiles {
++	if ext != ".go" && fileListForExt(&dummyPkg, ext) == nil {
++		// skip
+ 		return nil, nil
+ 	}
+ 
+-	if ext != ".go" && fileListForExt(&dummyPkg, ext) == nil {
+-		// skip
++	if !ctxt.goodOSArchFile(name, allTags) && !ctxt.UseAllFiles {
+ 		return nil, nil
+ 	}
+ 
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 1b0a371d67..3322377715 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -790,3 +790,13 @@ func TestAllTags(t *testing.T) {
+ 		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
+ 	}
+ }
++
++func TestAllTagsNonSourceFile(t *testing.T) {
++	p, err := Default.ImportDir("testdata/non_source_tags", 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(p.AllTags) > 0 {
++		t.Errorf("AllTags = %v, want empty", p.AllTags)
++	}
++}
+diff --git a/src/go/build/testdata/non_source_tags/non_source_tags.go b/src/go/build/testdata/non_source_tags/non_source_tags.go
+new file mode 100644
+index 0000000000..068acc42f1
+--- /dev/null
++++ b/src/go/build/testdata/non_source_tags/non_source_tags.go
+@@ -0,0 +1,5 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package non_source_tags
+diff --git a/src/go/build/testdata/non_source_tags/x_arm.go.ignore b/src/go/build/testdata/non_source_tags/x_arm.go.ignore
+new file mode 100644
+index 0000000000..068acc42f1
+--- /dev/null
++++ b/src/go/build/testdata/non_source_tags/x_arm.go.ignore
+@@ -0,0 +1,5 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package non_source_tags

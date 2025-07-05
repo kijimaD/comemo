@@ -11,7 +11,293 @@ Date:   Mon Sep 10 10:16:09 2012 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6503090
-
+---
  src/pkg/net/http/fs.go      |  64 ++++++++++++++++-
  src/pkg/net/http/fs_test.go | 163 ++++++++++++++++++++++++++++++++++----------
  2 files changed, 189 insertions(+), 38 deletions(-)
+
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 208d6cabb2..b6bea0dfaa 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -100,6 +100,9 @@ func dirList(w ResponseWriter, f File) {
+ // The content's Seek method must work: ServeContent uses
+ // a seek to the end of the content to determine its size.
+ //
++// If the caller has set w's ETag header, ServeContent uses it to
++// handle requests using If-Range and If-None-Match.
++//
+ // Note that *os.File implements the io.ReadSeeker interface.
+ func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
+ 	size, err := content.Seek(0, os.SEEK_END)
+@@ -122,6 +125,10 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 	if checkLastModified(w, r, modtime) {
+ 		return
+ 	}
++	rangeReq, done := checkETag(w, r)
++	if done {
++		return
++	}
+ 
+ 	code := StatusOK
+ 
+@@ -148,7 +155,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 	sendSize := size
+ 	var sendContent io.Reader = content
+ 	if size >= 0 {
+-		ranges, err := parseRange(r.Header.Get("Range"), size)
++		ranges, err := parseRange(rangeReq, size)
+ 		if err != nil {
+ 			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+ 			return
+@@ -240,6 +247,9 @@ func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
+ 	// The Date-Modified header truncates sub-second precision, so
+ 	// use mtime < t+1s instead of mtime <= t to check for unmodified.
+ 	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && modtime.Before(t.Add(1*time.Second)) {
++		h := w.Header()
++		delete(h, "Content-Type")
++		delete(h, "Content-Length")
+ 		w.WriteHeader(StatusNotModified)
+ 		return true
+ 	}
+@@ -247,6 +257,58 @@ func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
+ 	return false
+ }
+ 
++// checkETag implements If-None-Match and If-Range checks.
++// The ETag must have been previously set in the ResponseWriter's headers.
++//
++// The return value is the effective request "Range" header to use and
++// whether this request is now considered done.
++func checkETag(w ResponseWriter, r *Request) (rangeReq string, done bool) {
++	etag := w.Header().get("Etag")
++	rangeReq = r.Header.get("Range")
++
++	// Invalidate the range request if the entity doesn't match the one
++	// the client was expecting.
++	// "If-Range: version" means "ignore the Range: header unless version matches the
++	// current file."
++	// We only support ETag versions.
++	// The caller must have set the ETag on the response already.
++	if ir := r.Header.get("If-Range"); ir != "" && ir != etag {
++		// TODO(bradfitz): handle If-Range requests with Last-Modified
++		// times instead of ETags? I'd rather not, at least for
++		// now. That seems like a bug/compromise in the RFC 2616, and
++		// I've never heard of anybody caring about that (yet).
++		rangeReq = ""
++	}
++
++	if inm := r.Header.get("If-None-Match"); inm != "" {
++		// Must know ETag.
++		if etag == "" {
++			return rangeReq, false
++		}
++
++		// TODO(bradfitz): non-GET/HEAD requests require more work:
++		// sending a different status code on matches, and
++		// also can't use weak cache validators (those with a "W/
++		// prefix).  But most users of ServeContent will be using
++		// it on GET or HEAD, so only support those for now.
++		if r.Method != "GET" && r.Method != "HEAD" {
++			return rangeReq, false
++		}
++
++		// TODO(bradfitz): deal with comma-separated or multiple-valued
++		// list of If-None-match values.  For now just handle the common
++		// case of a single item.
++		if inm == etag || inm == "*" {
++			h := w.Header()
++			delete(h, "Content-Type")
++			delete(h, "Content-Length")
++			w.WriteHeader(StatusNotModified)
++			return "", true
++		}
++	}
++	return rangeReq, false
++}
++
+ // name is '/'-separated, not filepath.Separator.
+ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirect bool) {
+ 	const indexPage = "/index.html"
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index da06fa2fae..fb2ccb9bc2 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -527,51 +527,140 @@ func TestDirectoryIfNotModified(t *testing.T) {
+ 	res.Body.Close()
+ }
+ 
+-func TestServeContent(t *testing.T) {
+-	type req struct {
+-		name    string
+-		modtime time.Time
+-		content io.ReadSeeker
++func mustStat(t *testing.T, fileName string) os.FileInfo {
++	fi, err := os.Stat(fileName)
++	if err != nil {
++		t.Fatal(err)
+ 	}
+-	ch := make(chan req, 1)
++	return fi
++}
++
++func TestServeContent(t *testing.T) {
++	type serveParam struct {
++		name        string
++		modtime     time.Time
++		content     io.ReadSeeker
++		contentType string
++		etag        string
++	}
++	servec := make(chan serveParam, 1)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+-		p := <-ch
++		p := <-servec
++		if p.etag != "" {
++			w.Header().Set("ETag", p.etag)
++		}
++		if p.contentType != "" {
++			w.Header().Set("Content-Type", p.contentType)
++		}
+ 		ServeContent(w, r, p.name, p.modtime, p.content)
+ 	}))
+ 	defer ts.Close()
+ 
+-	css, err := os.Open("testdata/style.css")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer css.Close()
+-
+-	ch <- req{"style.css", time.Time{}, css}
+-	res, err := Get(ts.URL)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if g, e := res.Header.Get("Content-Type"), "text/css; charset=utf-8"; g != e {
+-		t.Errorf("style.css: content type = %q, want %q", g, e)
+-	}
+-	if g := res.Header.Get("Last-Modified"); g != "" {
+-		t.Errorf("want empty Last-Modified; got %q", g)
++	type testCase struct {
++		file             string
++		modtime          time.Time
++		serveETag        string // optional
++		serveContentType string // optional
++		reqHeader        map[string]string
++		wantLastMod      string
++		wantContentType  string
++		wantStatus       int
++	}
++	htmlModTime := mustStat(t, "testdata/index.html").ModTime()
++	tests := map[string]testCase{
++		"no_last_modified": {
++			file:            "testdata/style.css",
++			wantContentType: "text/css; charset=utf-8",
++			wantStatus:      200,
++		},
++		"with_last_modified": {
++			file:            "testdata/index.html",
++			wantContentType: "text/html; charset=utf-8",
++			modtime:         htmlModTime,
++			wantLastMod:     htmlModTime.UTC().Format(TimeFormat),
++			wantStatus:      200,
++		},
++		"not_modified_modtime": {
++			file:    "testdata/style.css",
++			modtime: htmlModTime,
++			reqHeader: map[string]string{
++				"If-Modified-Since": htmlModTime.UTC().Format(TimeFormat),
++			},
++			wantStatus: 304,
++		},
++		"not_modified_modtime_with_contenttype": {
++			file:             "testdata/style.css",
++			serveContentType: "text/css", // explicit content type
++			modtime:          htmlModTime,
++			reqHeader: map[string]string{
++				"If-Modified-Since": htmlModTime.UTC().Format(TimeFormat),
++			},
++			wantStatus: 304,
++		},
++		"not_modified_etag": {
++			file:      "testdata/style.css",
++			serveETag: `"foo"`,
++			reqHeader: map[string]string{
++				"If-None-Match": `"foo"`,
++			},
++			wantStatus: 304,
++		},
++		"range_good": {
++			file:      "testdata/style.css",
++			serveETag: `"A"`,
++			reqHeader: map[string]string{
++				"Range": "bytes=0-4",
++			},
++			wantStatus:      StatusPartialContent,
++			wantContentType: "text/css; charset=utf-8",
++		},
++		// An If-Range resource for entity "A", but entity "B" is now current.
++		// The Range request should be ignored.
++		"range_no_match": {
++			file:      "testdata/style.css",
++			serveETag: `"A"`,
++			reqHeader: map[string]string{
++				"Range":    "bytes=0-4",
++				"If-Range": `"B"`,
++			},
++			wantStatus:      200,
++			wantContentType: "text/css; charset=utf-8",
++		},
+ 	}
++	for testName, tt := range tests {
++		f, err := os.Open(tt.file)
++		if err != nil {
++			t.Fatalf("test %q: %v", testName, err)
++		}
++		defer f.Close()
+ 
+-	fi, err := css.Stat()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	ch <- req{"style.html", fi.ModTime(), css}
+-	res, err = Get(ts.URL)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if g, e := res.Header.Get("Content-Type"), "text/html; charset=utf-8"; g != e {
+-		t.Errorf("style.html: content type = %q, want %q", g, e)
+-	}
+-	if g := res.Header.Get("Last-Modified"); g == "" {
+-		t.Errorf("want non-empty last-modified")
++		servec <- serveParam{
++			name:        filepath.Base(tt.file),
++			content:     f,
++			modtime:     tt.modtime,
++			etag:        tt.serveETag,
++			contentType: tt.serveContentType,
++		}
++		req, err := NewRequest("GET", ts.URL, nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++		for k, v := range tt.reqHeader {
++			req.Header.Set(k, v)
++		}
++		res, err := DefaultClient.Do(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if res.StatusCode != tt.wantStatus {
++			t.Errorf("test %q: status = %d; want %d", testName, res.StatusCode, tt.wantStatus)
++		}
++		if g, e := res.Header.Get("Content-Type"), tt.wantContentType; g != e {
++			t.Errorf("test %q: content-type = %q, want %q", testName, g, e)
++		}
++		if g, e := res.Header.Get("Last-Modified"), tt.wantLastMod; g != e {
++			t.Errorf("test %q: last-modified = %q, want %q", testName, g, e)
++		}
+ 	}
+ }
+ 

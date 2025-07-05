@@ -9,7 +9,7 @@ Date:   Fri May 6 08:26:37 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os1_freebsd.go |  30 ++++++++++
  src/runtime/os1_nacl.go    |  62 +++++++++++++++++++
  src/runtime/os1_openbsd.go |  33 +++++++++++
@@ -19,3 +19,622 @@ Date:   Fri May 6 08:26:37 2016 -0700
  src/runtime/os_openbsd.go  |  33 -----------
  src/runtime/os_plan9.go    | 145 ---------------------------------------------
  8 files changed, 268 insertions(+), 274 deletions(-)
+
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 0dafe02325..3a73b66277 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -9,6 +9,36 @@ import (
+ 	"unsafe"
+ )
+ 
++type mOS struct{}
++
++//go:noescape
++func thr_new(param *thrparam, size int32)
++
++//go:noescape
++func sigaltstack(new, old *stackt)
++
++//go:noescape
++func sigaction(sig int32, new, old *sigactiont)
++
++//go:noescape
++func sigprocmask(how int32, new, old *sigset)
++
++//go:noescape
++func setitimer(mode int32, new, old *itimerval)
++
++//go:noescape
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++
++//go:noescape
++func getrlimit(kind int32, limit unsafe.Pointer) int32
++func raise(sig int32)
++func raiseproc(sig int32)
++
++//go:noescape
++func sys_umtx_op(addr *uint32, mode int32, val uint32, ptr2, ts *timespec) int32
++
++func osyield()
++
+ // From FreeBSD's <sys/sysctl.h>
+ const (
+ 	_CTL_HW  = 6
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index feea496652..6cbd16de15 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -6,6 +6,68 @@ package runtime
+ 
+ import "unsafe"
+ 
++type mOS struct {
++	waitsema      int32 // semaphore for parking on locks
++	waitsemacount int32
++	waitsemalock  int32
++}
++
++func nacl_exception_stack(p uintptr, size int32) int32
++func nacl_exception_handler(fn uintptr, arg unsafe.Pointer) int32
++func nacl_sem_create(flag int32) int32
++func nacl_sem_wait(sem int32) int32
++func nacl_sem_post(sem int32) int32
++func nacl_mutex_create(flag int32) int32
++func nacl_mutex_lock(mutex int32) int32
++func nacl_mutex_trylock(mutex int32) int32
++func nacl_mutex_unlock(mutex int32) int32
++func nacl_cond_create(flag int32) int32
++func nacl_cond_wait(cond, n int32) int32
++func nacl_cond_signal(cond int32) int32
++func nacl_cond_broadcast(cond int32) int32
++
++//go:noescape
++func nacl_cond_timed_wait_abs(cond, lock int32, ts *timespec) int32
++func nacl_thread_create(fn uintptr, stk, tls, xx unsafe.Pointer) int32
++
++//go:noescape
++func nacl_nanosleep(ts, extra *timespec) int32
++func nanotime() int64
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
++func exit(code int32)
++func osyield()
++
++//go:noescape
++func write(fd uintptr, p unsafe.Pointer, n int32) int32
++
++//go:linkname os_sigpipe os.sigpipe
++func os_sigpipe() {
++	throw("too many writes on closed pipe")
++}
++
++func dieFromSignal(sig int32) {
++	exit(2)
++}
++
++func sigpanic() {
++	g := getg()
++	if !canpanic(g) {
++		throw("unexpected signal during runtime execution")
++	}
++
++	// Native Client only invokes the exception handler for memory faults.
++	g.sig = _SIGSEGV
++	panicmem()
++}
++
++func raiseproc(sig int32) {
++}
++
++// Stubs so tests can link correctly. These should never be called.
++func open(name *byte, mode, perm int32) int32
++func closefd(fd int32) int32
++func read(fd int32, p unsafe.Pointer, n int32) int32
++
+ type sigset struct{}
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 447dff8193..ded6b1d4ea 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -9,6 +9,39 @@ import (
+ 	"unsafe"
+ )
+ 
++type mOS struct {
++	waitsemacount uint32
++}
++
++//go:noescape
++func setitimer(mode int32, new, old *itimerval)
++
++//go:noescape
++func sigaction(sig int32, new, old *sigactiont)
++
++//go:noescape
++func sigaltstack(new, old *stackt)
++
++//go:noescape
++func sigprocmask(mode int32, new sigset) sigset
++
++//go:noescape
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++
++func raise(sig int32)
++func raiseproc(sig int32)
++
++//go:noescape
++func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
++
++//go:noescape
++func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32
++
++//go:noescape
++func thrwakeup(ident uintptr, n int32) int32
++
++func osyield()
++
+ const (
+ 	_ESRCH       = 3
+ 	_EAGAIN      = 35
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 6c7e36d062..2f3a0d1a19 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -9,6 +9,149 @@ import (
+ 	"unsafe"
+ )
+ 
++type mOS struct {
++	waitsemacount uint32
++	notesig       *int8
++	errstr        *byte
++}
++
++func closefd(fd int32) int32
++
++//go:noescape
++func open(name *byte, mode, perm int32) int32
++
++//go:noescape
++func pread(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
++
++//go:noescape
++func pwrite(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
++
++func seek(fd int32, offset int64, whence int32) int64
++
++//go:noescape
++func exits(msg *byte)
++
++//go:noescape
++func brk_(addr unsafe.Pointer) int32
++
++func sleep(ms int32) int32
++
++func rfork(flags int32) int32
++
++//go:noescape
++func plan9_semacquire(addr *uint32, block int32) int32
++
++//go:noescape
++func plan9_tsemacquire(addr *uint32, ms int32) int32
++
++//go:noescape
++func plan9_semrelease(addr *uint32, count int32) int32
++
++//go:noescape
++func notify(fn unsafe.Pointer) int32
++
++func noted(mode int32) int32
++
++//go:noescape
++func nsec(*int64) int64
++
++//go:noescape
++func sigtramp(ureg, msg unsafe.Pointer)
++
++func setfpmasks()
++
++//go:noescape
++func tstart_plan9(newm *m)
++
++func errstr() string
++
++type _Plink uintptr
++
++//go:linkname os_sigpipe os.sigpipe
++func os_sigpipe() {
++	throw("too many writes on closed pipe")
++}
++
++func sigpanic() {
++	g := getg()
++	if !canpanic(g) {
++		throw("unexpected signal during runtime execution")
++	}
++
++	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
++	switch g.sig {
++	case _SIGRFAULT, _SIGWFAULT:
++		i := index(note, "addr=")
++		if i >= 0 {
++			i += 5
++		} else if i = index(note, "va="); i >= 0 {
++			i += 3
++		} else {
++			panicmem()
++		}
++		addr := note[i:]
++		g.sigcode1 = uintptr(atolwhex(addr))
++		if g.sigcode1 < 0x1000 || g.paniconfault {
++			panicmem()
++		}
++		print("unexpected fault address ", hex(g.sigcode1), "\n")
++		throw("fault")
++	case _SIGTRAP:
++		if g.paniconfault {
++			panicmem()
++		}
++		throw(note)
++	case _SIGINTDIV:
++		panicdivide()
++	case _SIGFLOAT:
++		panicfloat()
++	default:
++		panic(errorString(note))
++	}
++}
++
++func atolwhex(p string) int64 {
++	for hasprefix(p, " ") || hasprefix(p, "\t") {
++		p = p[1:]
++	}
++	neg := false
++	if hasprefix(p, "-") || hasprefix(p, "+") {
++		neg = p[0] == '-'
++		p = p[1:]
++		for hasprefix(p, " ") || hasprefix(p, "\t") {
++			p = p[1:]
++		}
++	}
++	var n int64
++	switch {
++	case hasprefix(p, "0x"), hasprefix(p, "0X"):
++		p = p[2:]
++		for ; len(p) > 0; p = p[1:] {
++			if '0' <= p[0] && p[0] <= '9' {
++				n = n*16 + int64(p[0]-'0')
++			} else if 'a' <= p[0] && p[0] <= 'f' {
++				n = n*16 + int64(p[0]-'a'+10)
++			} else if 'A' <= p[0] && p[0] <= 'F' {
++				n = n*16 + int64(p[0]-'A'+10)
++			} else {
++				break
++			}
++		}
++	case hasprefix(p, "0"):
++		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '7'; p = p[1:] {
++			n = n*8 + int64(p[0]-'0')
++		}
++	default:
++		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '9'; p = p[1:] {
++			n = n*10 + int64(p[0]-'0')
++		}
++	}
++	if neg {
++		n = -n
++	}
++	return n
++}
++
+ type sigset struct{}
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 44830650e1..47bf8fc20d 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -3,35 +3,3 @@
+ // license that can be found in the LICENSE file.
+ 
+ package runtime
+-
+-import "unsafe"
+-
+-type mOS struct{}
+-
+-//go:noescape
+-func thr_new(param *thrparam, size int32)
+-
+-//go:noescape
+-func sigaltstack(new, old *stackt)
+-
+-//go:noescape
+-func sigaction(sig int32, new, old *sigactiont)
+-
+-//go:noescape
+-func sigprocmask(how int32, new, old *sigset)
+-
+-//go:noescape
+-func setitimer(mode int32, new, old *itimerval)
+-
+-//go:noescape
+-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+-
+-//go:noescape
+-func getrlimit(kind int32, limit unsafe.Pointer) int32
+-func raise(sig int32)
+-func raiseproc(sig int32)
+-
+-//go:noescape
+-func sys_umtx_op(addr *uint32, mode int32, val uint32, ptr2, ts *timespec) int32
+-
+-func osyield()
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 6f126b4770..47bf8fc20d 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -3,67 +3,3 @@
+ // license that can be found in the LICENSE file.
+ 
+ package runtime
+-
+-import "unsafe"
+-
+-type mOS struct {
+-	waitsema      int32 // semaphore for parking on locks
+-	waitsemacount int32
+-	waitsemalock  int32
+-}
+-
+-func nacl_exception_stack(p uintptr, size int32) int32
+-func nacl_exception_handler(fn uintptr, arg unsafe.Pointer) int32
+-func nacl_sem_create(flag int32) int32
+-func nacl_sem_wait(sem int32) int32
+-func nacl_sem_post(sem int32) int32
+-func nacl_mutex_create(flag int32) int32
+-func nacl_mutex_lock(mutex int32) int32
+-func nacl_mutex_trylock(mutex int32) int32
+-func nacl_mutex_unlock(mutex int32) int32
+-func nacl_cond_create(flag int32) int32
+-func nacl_cond_wait(cond, n int32) int32
+-func nacl_cond_signal(cond int32) int32
+-func nacl_cond_broadcast(cond int32) int32
+-
+-//go:noescape
+-func nacl_cond_timed_wait_abs(cond, lock int32, ts *timespec) int32
+-func nacl_thread_create(fn uintptr, stk, tls, xx unsafe.Pointer) int32
+-
+-//go:noescape
+-func nacl_nanosleep(ts, extra *timespec) int32
+-func nanotime() int64
+-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+-func exit(code int32)
+-func osyield()
+-
+-//go:noescape
+-func write(fd uintptr, p unsafe.Pointer, n int32) int32
+-
+-//go:linkname os_sigpipe os.sigpipe
+-func os_sigpipe() {
+-	throw("too many writes on closed pipe")
+-}
+-
+-func dieFromSignal(sig int32) {
+-	exit(2)
+-}
+-
+-func sigpanic() {
+-	g := getg()
+-	if !canpanic(g) {
+-		throw("unexpected signal during runtime execution")
+-	}
+-
+-	// Native Client only invokes the exception handler for memory faults.
+-	g.sig = _SIGSEGV
+-	panicmem()
+-}
+-
+-func raiseproc(sig int32) {
+-}
+-
+-// Stubs so tests can link correctly. These should never be called.
+-func open(name *byte, mode, perm int32) int32
+-func closefd(fd int32) int32
+-func read(fd int32, p unsafe.Pointer, n int32) int32
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 3748ed2e51..47bf8fc20d 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -3,36 +3,3 @@
+ // license that can be found in the LICENSE file.
+ 
+ package runtime
+-
+-type mOS struct {
+-	waitsemacount uint32
+-}
+-
+-//go:noescape
+-func setitimer(mode int32, new, old *itimerval)
+-
+-//go:noescape
+-func sigaction(sig int32, new, old *sigactiont)
+-
+-//go:noescape
+-func sigaltstack(new, old *stackt)
+-
+-//go:noescape
+-func sigprocmask(mode int32, new sigset) sigset
+-
+-//go:noescape
+-func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+-
+-func raise(sig int32)
+-func raiseproc(sig int32)
+-
+-//go:noescape
+-func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
+-
+-//go:noescape
+-func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort *uint32) int32
+-
+-//go:noescape
+-func thrwakeup(ident uintptr, n int32) int32
+-
+-func osyield()
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 5c43a3bd85..47bf8fc20d 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -3,148 +3,3 @@
+ // license that can be found in the LICENSE file.
+ 
+ package runtime
+-
+-import "unsafe"
+-
+-type mOS struct {
+-	waitsemacount uint32
+-	notesig       *int8
+-	errstr        *byte
+-}
+-
+-func closefd(fd int32) int32
+-
+-//go:noescape
+-func open(name *byte, mode, perm int32) int32
+-
+-//go:noescape
+-func pread(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
+-
+-//go:noescape
+-func pwrite(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
+-
+-func seek(fd int32, offset int64, whence int32) int64
+-
+-//go:noescape
+-func exits(msg *byte)
+-
+-//go:noescape
+-func brk_(addr unsafe.Pointer) int32
+-
+-func sleep(ms int32) int32
+-
+-func rfork(flags int32) int32
+-
+-//go:noescape
+-func plan9_semacquire(addr *uint32, block int32) int32
+-
+-//go:noescape
+-func plan9_tsemacquire(addr *uint32, ms int32) int32
+-
+-//go:noescape
+-func plan9_semrelease(addr *uint32, count int32) int32
+-
+-//go:noescape
+-func notify(fn unsafe.Pointer) int32
+-
+-func noted(mode int32) int32
+-
+-//go:noescape
+-func nsec(*int64) int64
+-
+-//go:noescape
+-func sigtramp(ureg, msg unsafe.Pointer)
+-
+-func setfpmasks()
+-
+-//go:noescape
+-func tstart_plan9(newm *m)
+-
+-func errstr() string
+-
+-type _Plink uintptr
+-
+-//go:linkname os_sigpipe os.sigpipe
+-func os_sigpipe() {
+-	throw("too many writes on closed pipe")
+-}
+-
+-func sigpanic() {
+-	g := getg()
+-	if !canpanic(g) {
+-		throw("unexpected signal during runtime execution")
+-	}
+-
+-	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
+-	switch g.sig {
+-	case _SIGRFAULT, _SIGWFAULT:
+-		i := index(note, "addr=")
+-		if i >= 0 {
+-			i += 5
+-		} else if i = index(note, "va="); i >= 0 {
+-			i += 3
+-		} else {
+-			panicmem()
+-		}
+-		addr := note[i:]
+-		g.sigcode1 = uintptr(atolwhex(addr))
+-		if g.sigcode1 < 0x1000 || g.paniconfault {
+-			panicmem()
+-		}
+-		print("unexpected fault address ", hex(g.sigcode1), "\n")
+-		throw("fault")
+-	case _SIGTRAP:
+-		if g.paniconfault {
+-			panicmem()
+-		}
+-		throw(note)
+-	case _SIGINTDIV:
+-		panicdivide()
+-	case _SIGFLOAT:
+-		panicfloat()
+-	default:
+-		panic(errorString(note))
+-	}
+-}
+-
+-func atolwhex(p string) int64 {
+-	for hasprefix(p, " ") || hasprefix(p, "\t") {
+-		p = p[1:]
+-	}
+-	neg := false
+-	if hasprefix(p, "-") || hasprefix(p, "+") {
+-		neg = p[0] == '-'
+-		p = p[1:]
+-		for hasprefix(p, " ") || hasprefix(p, "\t") {
+-			p = p[1:]
+-		}
+-	}
+-	var n int64
+-	switch {
+-	case hasprefix(p, "0x"), hasprefix(p, "0X"):
+-		p = p[2:]
+-		for ; len(p) > 0; p = p[1:] {
+-			if '0' <= p[0] && p[0] <= '9' {
+-				n = n*16 + int64(p[0]-'0')
+-			} else if 'a' <= p[0] && p[0] <= 'f' {
+-				n = n*16 + int64(p[0]-'a'+10)
+-			} else if 'A' <= p[0] && p[0] <= 'F' {
+-				n = n*16 + int64(p[0]-'A'+10)
+-			} else {
+-				break
+-			}
+-		}
+-	case hasprefix(p, "0"):
+-		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '7'; p = p[1:] {
+-			n = n*8 + int64(p[0]-'0')
+-		}
+-	default:
+-		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '9'; p = p[1:] {
+-			n = n*10 + int64(p[0]-'0')
+-		}
+-	}
+-	if neg {
+-		n = -n
+-	}
+-	return n
+-}

@@ -18,6 +18,20 @@ Date:   Wed Apr 19 09:56:45 2023 -0400
     Commit-Queue: Bryan Mills <bcmills@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/fifo_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/fifo_test.go b/src/os/fifo_test.go
+index 7a6acce1af..867c294f5e 100644
+--- a/src/os/fifo_test.go
++++ b/src/os/fifo_test.go
+@@ -79,7 +79,7 @@ func TestNonPollable(t *testing.T) {
+ 
+ 	f, err := os.OpenFile(nonPollable, os.O_RDWR, 0)
+ 	if err != nil {
+-		if errors.Is(err, fs.ErrExist) || errors.Is(err, fs.ErrPermission) || testenv.SyscallIsNotSupported(err) {
++		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) || testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("can't open %q: %v", nonPollable, err)
+ 		}
+ 		t.Fatal(err)

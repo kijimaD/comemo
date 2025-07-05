@@ -9,6 +9,20 @@ Date:   Sat Sep 23 17:43:16 2017 +0900
     Change-Id: I2593d294b0497aeb9e8c54a4dad052b5c33ecaee
     Reviewed-on: https://go-review.googlesource.com/65630
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/dead.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/dead.go b/src/cmd/vet/dead.go
+index b3a157b2a5..130f619626 100644
+--- a/src/cmd/vet/dead.go
++++ b/src/cmd/vet/dead.go
+@@ -4,7 +4,7 @@
+ //
+ // Simplified dead code detector. Used for skipping certain checks
+ // on unreachable code (for instance, shift checks on arch-specific code).
+-//
++
+ package main
+ 
+ import (

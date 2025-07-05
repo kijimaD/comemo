@@ -57,8 +57,436 @@ Date:   Sat Sep 23 00:34:37 2017 +0300
     Change-Id: I8bc6be5a03e71157ced533c01416451ff6f1a7f0
     Reviewed-on: https://go-review.googlesource.com/65530
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go        | 104 ++++++++++++
  src/cmd/compile/internal/ssa/gen/generic.rules |  14 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 213 +++++++++++++++++++++++++
  3 files changed, 331 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index f676b5f5eb..cdd7c3b735 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -1140,6 +1140,58 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tSETHI\t\\("},
+ 	},
++	// Check that len() and cap() div by a constant power of two
++	// are compiled into SHRQ.
++	{
++		fn: `
++		func $(a []int) int {
++			return len(a) / 1024
++		}
++		`,
++		pos: []string{"\tSHRQ\t\\$10,"},
++	},
++	{
++		fn: `
++		func $(s string) int {
++			return len(s) / (4097 >> 1)
++		}
++		`,
++		pos: []string{"\tSHRQ\t\\$11,"},
++	},
++	{
++		fn: `
++		func $(a []int) int {
++			return cap(a) / ((1 << 11) + 2048)
++		}
++		`,
++		pos: []string{"\tSHRQ\t\\$12,"},
++	},
++	// Check that len() and cap() mod by a constant power of two
++	// are compiled into ANDQ.
++	{
++		fn: `
++		func $(a []int) int {
++			return len(a) % 1024
++		}
++		`,
++		pos: []string{"\tANDQ\t\\$1023,"},
++	},
++	{
++		fn: `
++		func $(s string) int {
++			return len(s) % (4097 >> 1)
++		}
++		`,
++		pos: []string{"\tANDQ\t\\$2047,"},
++	},
++	{
++		fn: `
++		func $(a []int) int {
++			return cap(a) % ((1 << 11) + 2048)
++		}
++		`,
++		pos: []string{"\tANDQ\t\\$4095,"},
++	},
+ }
+ 
+ var linux386Tests = []*asmTest{
+@@ -1219,6 +1271,58 @@ var linux386Tests = []*asmTest{
+ 		}`,
+ 		pos: []string{"\tADDL\t[$]-19", "\tIMULL"}, // (n-19)*a
+ 	},
++	// Check that len() and cap() div by a constant power of two
++	// are compiled into SHRL.
++	{
++		fn: `
++		func $(a []int) int {
++			return len(a) / 1024
++		}
++		`,
++		pos: []string{"\tSHRL\t\\$10,"},
++	},
++	{
++		fn: `
++		func $(s string) int {
++			return len(s) / (4097 >> 1)
++		}
++		`,
++		pos: []string{"\tSHRL\t\\$11,"},
++	},
++	{
++		fn: `
++		func $(a []int) int {
++			return cap(a) / ((1 << 11) + 2048)
++		}
++		`,
++		pos: []string{"\tSHRL\t\\$12,"},
++	},
++	// Check that len() and cap() mod by a constant power of two
++	// are compiled into ANDL.
++	{
++		fn: `
++		func $(a []int) int {
++			return len(a) % 1024
++		}
++		`,
++		pos: []string{"\tANDL\t\\$1023,"},
++	},
++	{
++		fn: `
++		func $(s string) int {
++			return len(s) % (4097 >> 1)
++		}
++		`,
++		pos: []string{"\tANDL\t\\$2047,"},
++	},
++	{
++		fn: `
++		func $(a []int) int {
++			return cap(a) % ((1 << 11) + 2048)
++		}
++		`,
++		pos: []string{"\tANDL\t\\$4095,"},
++	},
+ }
+ 
+ var linuxS390XTests = []*asmTest{
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 9ad99277f3..bc0ee4904c 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1003,6 +1003,13 @@
+ (Div64u n (Const64 [c])) && isPowerOfTwo(c)            -> (Rsh64Ux64 n (Const64 <typ.UInt64> [log2(c)]))
+ (Div64u n (Const64 [-1<<63]))                          -> (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
+ 
++// Signed non-negative divide by power of 2.
++(Div8  n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo(c&0xff)       -> (Rsh8Ux64 n  (Const64 <typ.UInt64> [log2(c&0xff)]))
++(Div16 n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo(c&0xffff)     -> (Rsh16Ux64 n (Const64 <typ.UInt64> [log2(c&0xffff)]))
++(Div32 n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo(c&0xffffffff) -> (Rsh32Ux64 n (Const64 <typ.UInt64> [log2(c&0xffffffff)]))
++(Div64 n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo(c)            -> (Rsh64Ux64 n (Const64 <typ.UInt64> [log2(c)]))
++(Div64 n (Const64 [-1<<63])) && isNonNegative(n)                          -> (Const64 [0])
++
+ // Unsigned divide, not a power of 2.  Strength reduce to a multiply.
+ // For 8-bit divides, we just do a direct 9-bit by 8-bit multiply.
+ (Div8u x (Const8 [c])) && umagicOK(8, c) ->
+@@ -1236,6 +1243,13 @@
+ (Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c)            -> (And64 n (Const64 <t> [c-1]))
+ (Mod64u <t> n (Const64 [-1<<63]))                          -> (And64 n (Const64 <t> [1<<63-1]))
+ 
++// Signed non-negative mod by power of 2 constant.
++(Mod8  <t> n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo(c&0xff)       -> (And8 n (Const8 <t> [(c&0xff)-1]))
++(Mod16 <t> n (Const16 [c])) && isNonNegative(n) && isPowerOfTwo(c&0xffff)     -> (And16 n (Const16 <t> [(c&0xffff)-1]))
++(Mod32 <t> n (Const32 [c])) && isNonNegative(n) && isPowerOfTwo(c&0xffffffff) -> (And32 n (Const32 <t> [(c&0xffffffff)-1]))
++(Mod64 <t> n (Const64 [c])) && isNonNegative(n) && isPowerOfTwo(c)            -> (And64 n (Const64 <t> [c-1]))
++(Mod64 n (Const64 [-1<<63])) && isNonNegative(n)                              -> n
++
+ // Signed mod by negative constant.
+ (Mod8  <t> n (Const8  [c])) && c < 0 && c != -1<<7  -> (Mod8  <t> n (Const8  <t> [-c]))
+ (Mod16 <t> n (Const16 [c])) && c < 0 && c != -1<<15 -> (Mod16 <t> n (Const16 <t> [-c]))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 8b261e5eb5..d937855c90 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -7266,6 +7266,27 @@ func rewriteValuegeneric_OpDiv16_0(v *Value) bool {
+ 		v.AuxInt = int64(int16(c) / int16(d))
+ 		return true
+ 	}
++	// match: (Div16 n (Const16 [c]))
++	// cond: isNonNegative(n) && isPowerOfTwo(c&0xffff)
++	// result: (Rsh16Ux64 n (Const64 <typ.UInt64> [log2(c&0xffff)]))
++	for {
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isNonNegative(n) && isPowerOfTwo(c&0xffff)) {
++			break
++		}
++		v.reset(OpRsh16Ux64)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
++		v0.AuxInt = log2(c & 0xffff)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Div16 <t> n (Const16 [c]))
+ 	// cond: c < 0 && c != -1<<15
+ 	// result: (Neg16 (Div16 <t> n (Const16 <t> [-c])))
+@@ -7609,6 +7630,27 @@ func rewriteValuegeneric_OpDiv32_0(v *Value) bool {
+ 		v.AuxInt = int64(int32(c) / int32(d))
+ 		return true
+ 	}
++	// match: (Div32 n (Const32 [c]))
++	// cond: isNonNegative(n) && isPowerOfTwo(c&0xffffffff)
++	// result: (Rsh32Ux64 n (Const64 <typ.UInt64> [log2(c&0xffffffff)]))
++	for {
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isNonNegative(n) && isPowerOfTwo(c&0xffffffff)) {
++			break
++		}
++		v.reset(OpRsh32Ux64)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
++		v0.AuxInt = log2(c & 0xffffffff)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Div32 <t> n (Const32 [c]))
+ 	// cond: c < 0 && c != -1<<31
+ 	// result: (Neg32 (Div32 <t> n (Const32 <t> [-c])))
+@@ -8130,6 +8172,47 @@ func rewriteValuegeneric_OpDiv64_0(v *Value) bool {
+ 		v.AuxInt = c / d
+ 		return true
+ 	}
++	// match: (Div64 n (Const64 [c]))
++	// cond: isNonNegative(n) && isPowerOfTwo(c)
++	// result: (Rsh64Ux64 n (Const64 <typ.UInt64> [log2(c)]))
++	for {
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isNonNegative(n) && isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpRsh64Ux64)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
++		v0.AuxInt = log2(c)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Div64 n (Const64 [-1<<63]))
++	// cond: isNonNegative(n)
++	// result: (Const64 [0])
++	for {
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != -1<<63 {
++			break
++		}
++		if !(isNonNegative(n)) {
++			break
++		}
++		v.reset(OpConst64)
++		v.AuxInt = 0
++		return true
++	}
+ 	// match: (Div64 <t> n (Const64 [c]))
+ 	// cond: c < 0 && c != -1<<63
+ 	// result: (Neg64 (Div64 <t> n (Const64 <t> [-c])))
+@@ -8526,6 +8609,27 @@ func rewriteValuegeneric_OpDiv8_0(v *Value) bool {
+ 		v.AuxInt = int64(int8(c) / int8(d))
+ 		return true
+ 	}
++	// match: (Div8 n (Const8 [c]))
++	// cond: isNonNegative(n) && isPowerOfTwo(c&0xff)
++	// result: (Rsh8Ux64 n  (Const64 <typ.UInt64> [log2(c&0xff)]))
++	for {
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isNonNegative(n) && isPowerOfTwo(c&0xff)) {
++			break
++		}
++		v.reset(OpRsh8Ux64)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
++		v0.AuxInt = log2(c & 0xff)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Div8 <t> n (Const8 [c]))
+ 	// cond: c < 0 && c != -1<<7
+ 	// result: (Neg8  (Div8  <t> n (Const8  <t> [-c])))
+@@ -13476,6 +13580,28 @@ func rewriteValuegeneric_OpMod16_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod16 <t> n (Const16 [c]))
++	// cond: isNonNegative(n) && isPowerOfTwo(c&0xffff)
++	// result: (And16 n (Const16 <t> [(c&0xffff)-1]))
++	for {
++		t := v.Type
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isNonNegative(n) && isPowerOfTwo(c&0xffff)) {
++			break
++		}
++		v.reset(OpAnd16)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst16, t)
++		v0.AuxInt = (c & 0xffff) - 1
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Mod16 <t> n (Const16 [c]))
+ 	// cond: c < 0 && c != -1<<15
+ 	// result: (Mod16 <t> n (Const16 <t> [-c]))
+ 	for {
+@@ -13635,6 +13761,28 @@ func rewriteValuegeneric_OpMod32_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod32 <t> n (Const32 [c]))
++	// cond: isNonNegative(n) && isPowerOfTwo(c&0xffffffff)
++	// result: (And32 n (Const32 <t> [(c&0xffffffff)-1]))
++	for {
++		t := v.Type
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isNonNegative(n) && isPowerOfTwo(c&0xffffffff)) {
++			break
++		}
++		v.reset(OpAnd32)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst32, t)
++		v0.AuxInt = (c & 0xffffffff) - 1
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Mod32 <t> n (Const32 [c]))
+ 	// cond: c < 0 && c != -1<<31
+ 	// result: (Mod32 <t> n (Const32 <t> [-c]))
+ 	for {
+@@ -13794,6 +13942,49 @@ func rewriteValuegeneric_OpMod64_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod64 <t> n (Const64 [c]))
++	// cond: isNonNegative(n) && isPowerOfTwo(c)
++	// result: (And64 n (Const64 <t> [c-1]))
++	for {
++		t := v.Type
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isNonNegative(n) && isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpAnd64)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst64, t)
++		v0.AuxInt = c - 1
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Mod64 n (Const64 [-1<<63]))
++	// cond: isNonNegative(n)
++	// result: n
++	for {
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != -1<<63 {
++			break
++		}
++		if !(isNonNegative(n)) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = n.Type
++		v.AddArg(n)
++		return true
++	}
++	// match: (Mod64 <t> n (Const64 [c]))
+ 	// cond: c < 0 && c != -1<<63
+ 	// result: (Mod64 <t> n (Const64 <t> [-c]))
+ 	for {
+@@ -13974,6 +14165,28 @@ func rewriteValuegeneric_OpMod8_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod8 <t> n (Const8 [c]))
++	// cond: isNonNegative(n) && isPowerOfTwo(c&0xff)
++	// result: (And8 n (Const8 <t> [(c&0xff)-1]))
++	for {
++		t := v.Type
++		_ = v.Args[1]
++		n := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(isNonNegative(n) && isPowerOfTwo(c&0xff)) {
++			break
++		}
++		v.reset(OpAnd8)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Pos, OpConst8, t)
++		v0.AuxInt = (c & 0xff) - 1
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Mod8 <t> n (Const8 [c]))
+ 	// cond: c < 0 && c != -1<<7
+ 	// result: (Mod8  <t> n (Const8  <t> [-c]))
+ 	for {

@@ -9,8 +9,45 @@ Date:   Thu Sep 27 16:55:24 2018 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 2 +-
  src/crypto/rand/rand_freebsd.go  | 2 +-
  src/strconv/atoi.go              | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index d3389e4f15..23ff7f32af 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2288,7 +2288,7 @@ func instinit(ctxt *obj.Link) {
+ 	}
+ }
+ 
+-var isAndroid = (objabi.GOOS == "android")
++var isAndroid = objabi.GOOS == "android"
+ 
+ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+ 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
+diff --git a/src/crypto/rand/rand_freebsd.go b/src/crypto/rand/rand_freebsd.go
+index b4d6653343..75f683c386 100644
+--- a/src/crypto/rand/rand_freebsd.go
++++ b/src/crypto/rand/rand_freebsd.go
+@@ -6,4 +6,4 @@ package rand
+ 
+ // maxGetRandomRead is the maximum number of bytes to ask for in one call to the
+ // getrandom() syscall. In FreeBSD at most 256 bytes will be returned per call.
+-const maxGetRandomRead = (1 << 8)
++const maxGetRandomRead = 1 << 8
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index bebed04820..bbfdb7dc39 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -44,7 +44,7 @@ const intSize = 32 << (^uint(0) >> 63)
+ // IntSize is the size in bits of an int or uint value.
+ const IntSize = intSize
+ 
+-const maxUint64 = (1<<64 - 1)
++const maxUint64 = 1<<64 - 1
+ 
+ // ParseUint is like ParseInt but for unsigned numbers.
+ func ParseUint(s string, base int, bitSize int) (uint64, error) {

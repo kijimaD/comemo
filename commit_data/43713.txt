@@ -35,9 +35,317 @@ Date:   Fri Apr 17 05:05:07 2020 -0700
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/S390X.rules |  11 ++
  src/cmd/compile/internal/ssa/gen/rulegen.go  |  12 +-
  src/cmd/compile/internal/ssa/rewriteS390X.go | 168 +++++++++++++++++++++++++++
  test/codegen/compare_and_branch.go           |  52 +++++++++
  4 files changed, 238 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 2e5b0d385d..7e713303af 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -581,6 +581,11 @@
+   && int32(x) != 0
+   => (BRC {d} cmp yes no)
+ 
++// Canonicalize BRC condition code mask by removing impossible conditions.
++// Integer comparisons cannot generate the unordered condition.
++(BRC {c} x:((CMP|CMPW|CMPU|CMPWU)    _ _) yes no) && c&s390x.Unordered != 0 => (BRC {c&^s390x.Unordered} x yes no)
++(BRC {c} x:((CMP|CMPW|CMPU|CMPWU)const _) yes no) && c&s390x.Unordered != 0 => (BRC {c&^s390x.Unordered} x yes no)
++
+ // Compare-and-branch.
+ // Note: bit 3 (unordered) must not be set so we mask out s390x.Unordered.
+ (BRC {c} (CMP   x y) yes no) => (CGRJ  {c&^s390x.Unordered} x y yes no)
+@@ -629,6 +634,12 @@
+ (BRC {s390x.Less}           (CMP(WU|U)const  x [256]) yes no) => (C(L|LG)IJ {s390x.LessOrEqual} x [255] yes no)
+ (BRC {s390x.GreaterOrEqual} (CMP(WU|U)const  x [256]) yes no) => (C(L|LG)IJ {s390x.Greater}     x [255] yes no)
+ 
++// Bring out-of-range immediates into range by switching signedness (only == and !=).
++(BRC {c} (CMPconst   x [y]) yes no) && y == int32(uint8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater) => (CLGIJ {c} x [uint8(y)] yes no)
++(BRC {c} (CMPWconst  x [y]) yes no) && y == int32(uint8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater) => (CLIJ  {c} x [uint8(y)] yes no)
++(BRC {c} (CMPUconst  x [y]) yes no) && y == int32( int8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater) => (CGIJ  {c} x [ int8(y)] yes no)
++(BRC {c} (CMPWUconst x [y]) yes no) && y == int32( int8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater) => (CIJ   {c} x [ int8(y)] yes no)
++
+ // Fold constants into instructions.
+ (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
+ (ADDW x (MOVDconst [c])) -> (ADDWconst [int64(int32(c))] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 1c59cfc6bd..0c8ba65e7e 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -865,12 +865,14 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 	controls := s[:data.controls]
+ 	pos := make([]string, data.controls)
+ 	for i, arg := range controls {
++		cname := fmt.Sprintf("b.Controls[%v]", i)
+ 		if strings.Contains(arg, "(") {
+-			// TODO: allow custom names?
+-			cname := fmt.Sprintf("b.Controls[%v]", i)
+-			vname := fmt.Sprintf("v_%v", i)
++			vname, expr := splitNameExpr(arg)
++			if vname == "" {
++				vname = fmt.Sprintf("v_%v", i)
++			}
+ 			rr.add(declf(vname, cname))
+-			p, op := genMatch0(rr, arch, arg, vname, nil, false) // TODO: pass non-nil cnt?
++			p, op := genMatch0(rr, arch, expr, vname, nil, false) // TODO: pass non-nil cnt?
+ 			if op != "" {
+ 				check := fmt.Sprintf("%s.Op == %s", cname, op)
+ 				if rr.Check == "" {
+@@ -884,7 +886,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
+ 			}
+ 			pos[i] = p
+ 		} else {
+-			rr.add(declf(arg, "b.Controls[%v]", i))
++			rr.add(declf(arg, cname))
+ 			pos[i] = arg + ".Pos"
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 29a6cb67fa..01b654ac95 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -19020,6 +19020,110 @@ func rewriteBlockS390X(b *Block) bool {
+ 	typ := &b.Func.Config.Types
+ 	switch b.Kind {
+ 	case BlockS390XBRC:
++		// match: (BRC {c} x:(CMP _ _) yes no)
++		// cond: c&s390x.Unordered != 0
++		// result: (BRC {c&^s390x.Unordered} x yes no)
++		for b.Controls[0].Op == OpS390XCMP {
++			x := b.Controls[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered != 0) {
++				break
++			}
++			b.resetWithControl(BlockS390XBRC, x)
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
++			return true
++		}
++		// match: (BRC {c} x:(CMPW _ _) yes no)
++		// cond: c&s390x.Unordered != 0
++		// result: (BRC {c&^s390x.Unordered} x yes no)
++		for b.Controls[0].Op == OpS390XCMPW {
++			x := b.Controls[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered != 0) {
++				break
++			}
++			b.resetWithControl(BlockS390XBRC, x)
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
++			return true
++		}
++		// match: (BRC {c} x:(CMPU _ _) yes no)
++		// cond: c&s390x.Unordered != 0
++		// result: (BRC {c&^s390x.Unordered} x yes no)
++		for b.Controls[0].Op == OpS390XCMPU {
++			x := b.Controls[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered != 0) {
++				break
++			}
++			b.resetWithControl(BlockS390XBRC, x)
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
++			return true
++		}
++		// match: (BRC {c} x:(CMPWU _ _) yes no)
++		// cond: c&s390x.Unordered != 0
++		// result: (BRC {c&^s390x.Unordered} x yes no)
++		for b.Controls[0].Op == OpS390XCMPWU {
++			x := b.Controls[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered != 0) {
++				break
++			}
++			b.resetWithControl(BlockS390XBRC, x)
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
++			return true
++		}
++		// match: (BRC {c} x:(CMPconst _) yes no)
++		// cond: c&s390x.Unordered != 0
++		// result: (BRC {c&^s390x.Unordered} x yes no)
++		for b.Controls[0].Op == OpS390XCMPconst {
++			x := b.Controls[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered != 0) {
++				break
++			}
++			b.resetWithControl(BlockS390XBRC, x)
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
++			return true
++		}
++		// match: (BRC {c} x:(CMPWconst _) yes no)
++		// cond: c&s390x.Unordered != 0
++		// result: (BRC {c&^s390x.Unordered} x yes no)
++		for b.Controls[0].Op == OpS390XCMPWconst {
++			x := b.Controls[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered != 0) {
++				break
++			}
++			b.resetWithControl(BlockS390XBRC, x)
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
++			return true
++		}
++		// match: (BRC {c} x:(CMPUconst _) yes no)
++		// cond: c&s390x.Unordered != 0
++		// result: (BRC {c&^s390x.Unordered} x yes no)
++		for b.Controls[0].Op == OpS390XCMPUconst {
++			x := b.Controls[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered != 0) {
++				break
++			}
++			b.resetWithControl(BlockS390XBRC, x)
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
++			return true
++		}
++		// match: (BRC {c} x:(CMPWUconst _) yes no)
++		// cond: c&s390x.Unordered != 0
++		// result: (BRC {c&^s390x.Unordered} x yes no)
++		for b.Controls[0].Op == OpS390XCMPWUconst {
++			x := b.Controls[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(c&s390x.Unordered != 0) {
++				break
++			}
++			b.resetWithControl(BlockS390XBRC, x)
++			b.Aux = s390xCCMaskToAux(c &^ s390x.Unordered)
++			return true
++		}
+ 		// match: (BRC {c} (CMP x y) yes no)
+ 		// result: (CGRJ {c&^s390x.Unordered} x y yes no)
+ 		for b.Controls[0].Op == OpS390XCMP {
+@@ -19320,6 +19424,70 @@ func rewriteBlockS390X(b *Block) bool {
+ 			b.Aux = s390xCCMaskToAux(s390x.Greater)
+ 			return true
+ 		}
++		// match: (BRC {c} (CMPconst x [y]) yes no)
++		// cond: y == int32(uint8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater)
++		// result: (CLGIJ {c} x [uint8(y)] yes no)
++		for b.Controls[0].Op == OpS390XCMPconst {
++			v_0 := b.Controls[0]
++			y := auxIntToInt32(v_0.AuxInt)
++			x := v_0.Args[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(y == int32(uint8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater)) {
++				break
++			}
++			b.resetWithControl(BlockS390XCLGIJ, x)
++			b.AuxInt = uint8ToAuxInt(uint8(y))
++			b.Aux = s390xCCMaskToAux(c)
++			return true
++		}
++		// match: (BRC {c} (CMPWconst x [y]) yes no)
++		// cond: y == int32(uint8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater)
++		// result: (CLIJ {c} x [uint8(y)] yes no)
++		for b.Controls[0].Op == OpS390XCMPWconst {
++			v_0 := b.Controls[0]
++			y := auxIntToInt32(v_0.AuxInt)
++			x := v_0.Args[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(y == int32(uint8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater)) {
++				break
++			}
++			b.resetWithControl(BlockS390XCLIJ, x)
++			b.AuxInt = uint8ToAuxInt(uint8(y))
++			b.Aux = s390xCCMaskToAux(c)
++			return true
++		}
++		// match: (BRC {c} (CMPUconst x [y]) yes no)
++		// cond: y == int32( int8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater)
++		// result: (CGIJ {c} x [ int8(y)] yes no)
++		for b.Controls[0].Op == OpS390XCMPUconst {
++			v_0 := b.Controls[0]
++			y := auxIntToInt32(v_0.AuxInt)
++			x := v_0.Args[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(y == int32(int8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater)) {
++				break
++			}
++			b.resetWithControl(BlockS390XCGIJ, x)
++			b.AuxInt = int8ToAuxInt(int8(y))
++			b.Aux = s390xCCMaskToAux(c)
++			return true
++		}
++		// match: (BRC {c} (CMPWUconst x [y]) yes no)
++		// cond: y == int32( int8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater)
++		// result: (CIJ {c} x [ int8(y)] yes no)
++		for b.Controls[0].Op == OpS390XCMPWUconst {
++			v_0 := b.Controls[0]
++			y := auxIntToInt32(v_0.AuxInt)
++			x := v_0.Args[0]
++			c := auxToS390xCCMask(b.Aux)
++			if !(y == int32(int8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater)) {
++				break
++			}
++			b.resetWithControl(BlockS390XCIJ, x)
++			b.AuxInt = int8ToAuxInt(int8(y))
++			b.Aux = s390xCCMaskToAux(c)
++			return true
++		}
+ 		// match: (BRC {c} (InvertFlags cmp) yes no)
+ 		// result: (BRC {c.ReverseComparison()} cmp yes no)
+ 		for b.Controls[0].Op == OpS390XInvertFlags {
+diff --git a/test/codegen/compare_and_branch.go b/test/codegen/compare_and_branch.go
+index 23e7810b31..696a2d5f1c 100644
+--- a/test/codegen/compare_and_branch.go
++++ b/test/codegen/compare_and_branch.go
+@@ -152,3 +152,55 @@ func ui32x8() {
+ 		dummy()
+ 	}
+ }
++
++// Signed 64-bit comparison with unsigned 8-bit immediate.
++func si64xu8(x chan int64) {
++        // s390x:"CLGIJ\t[$]8, R[0-9]+, [$]128, "
++        for <-x == 128 {
++                dummy()
++        }
++
++        // s390x:"CLGIJ\t[$]6, R[0-9]+, [$]255, "
++        for <-x != 255 {
++                dummy()
++        }
++}
++
++// Signed 32-bit comparison with unsigned 8-bit immediate.
++func si32xu8(x chan int32) {
++        // s390x:"CLIJ\t[$]8, R[0-9]+, [$]255, "
++        for <-x == 255 {
++                dummy()
++        }
++
++        // s390x:"CLIJ\t[$]6, R[0-9]+, [$]128, "
++        for <-x != 128 {
++                dummy()
++        }
++}
++
++// Unsigned 64-bit comparison with signed 8-bit immediate.
++func ui64xu8(x chan uint64) {
++        // s390x:"CGIJ\t[$]8, R[0-9]+, [$]-1, "
++        for <-x == ^uint64(0) {
++                dummy()
++        }
++
++        // s390x:"CGIJ\t[$]6, R[0-9]+, [$]-128, "
++        for <-x != ^uint64(127) {
++                dummy()
++        }
++}
++
++// Unsigned 32-bit comparison with signed 8-bit immediate.
++func ui32xu8(x chan uint32) {
++        // s390x:"CIJ\t[$]8, R[0-9]+, [$]-128, "
++        for <-x == ^uint32(127) {
++                dummy()
++        }
++
++        // s390x:"CIJ\t[$]6, R[0-9]+, [$]-1, "
++        for <-x != ^uint32(0) {
++                dummy()
++        }
++}

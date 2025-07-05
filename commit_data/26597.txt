@@ -21,9 +21,115 @@ Date:   Fri Feb 12 10:33:51 2016 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/crash_test.go                 | 19 +++++++++++++++++++
  src/runtime/pprof/pprof.go                |  2 +-
  src/runtime/testdata/testprog/deadlock.go | 20 +++++++++++++++++++-
  src/runtime/traceback.go                  | 10 +++++++---
  4 files changed, 46 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index b622eb4526..5f0e77b0dc 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -317,3 +317,22 @@ func TestNetpollDeadlock(t *testing.T) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+ 	}
+ }
++
++func TestPanicTraceback(t *testing.T) {
++	output := runTestProg(t, "testprog", "PanicTraceback")
++	want := "panic: hello"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++
++	// Check functions in the traceback.
++	fns := []string{"panic", "main.pt1.func1", "panic", "main.pt2.func1", "panic", "main.pt2", "main.pt1"}
++	for _, fn := range fns {
++		re := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(fn) + `\(.*\n`)
++		idx := re.FindStringIndex(output)
++		if idx == nil {
++			t.Fatalf("expected %q function in traceback:\n%s", fn, output)
++		}
++		output = output[idx[1]:]
++	}
++}
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 7d677cb64e..e09a33d5d9 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -346,7 +346,7 @@ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
+ 			name := f.Name()
+ 			// Hide runtime.goexit and any runtime functions at the beginning.
+ 			// This is useful mainly for allocation traces.
+-			wasPanic = name == "runtime.panic"
++			wasPanic = name == "runtime.gopanic"
+ 			if name == "runtime.goexit" || !show && strings.HasPrefix(name, "runtime.") {
+ 				continue
+ 			}
+diff --git a/src/runtime/testdata/testprog/deadlock.go b/src/runtime/testdata/testprog/deadlock.go
+index 7f0a0cd1e0..73fbf6224d 100644
+--- a/src/runtime/testdata/testprog/deadlock.go
++++ b/src/runtime/testdata/testprog/deadlock.go
+@@ -29,7 +29,7 @@ func init() {
+ 	register("GoexitInPanic", GoexitInPanic)
+ 	register("PanicAfterGoexit", PanicAfterGoexit)
+ 	register("RecoveredPanicAfterGoexit", RecoveredPanicAfterGoexit)
+-
++	register("PanicTraceback", PanicTraceback)
+ }
+ 
+ func SimpleDeadlock() {
+@@ -171,3 +171,21 @@ func RecoveredPanicAfterGoexit() {
+ 	}()
+ 	runtime.Goexit()
+ }
++
++func PanicTraceback() {
++	pt1()
++}
++
++func pt1() {
++	defer func() {
++		panic("panic pt1")
++	}()
++	pt2()
++}
++
++func pt2() {
++	defer func() {
++		panic("panic pt2")
++	}()
++	panic("hello")
++}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 6559cd7ba3..b4bfe71627 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -380,7 +380,11 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+ 					tracepc--
+ 				}
+-				print(funcname(f), "(")
++				name := funcname(f)
++				if name == "runtime.gopanic" {
++					name = "panic"
++				}
++				print(name, "(")
+ 				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
+ 				for i := uintptr(0); i < frame.arglen/sys.PtrSize; i++ {
+ 					if i >= 10 {
+@@ -617,10 +621,10 @@ func showframe(f *_func, gp *g) bool {
+ 	level, _, _ := gotraceback()
+ 	name := funcname(f)
+ 
+-	// Special case: always show runtime.panic frame, so that we can
++	// Special case: always show runtime.gopanic frame, so that we can
+ 	// see where a panic started in the middle of a stack trace.
+ 	// See golang.org/issue/5832.
+-	if name == "runtime.panic" {
++	if name == "runtime.gopanic" {
+ 		return true
+ 	}
+ 

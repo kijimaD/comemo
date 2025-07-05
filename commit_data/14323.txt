@@ -11,9 +11,104 @@ Date:   Tue Nov 6 20:40:40 2012 +0100
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6812079
-
+---
  src/cmd/gc/builtin.c    |  2 ++
  src/cmd/gc/runtime.go   |  2 ++
  src/cmd/gc/walk.c       | 25 +++++++++++++++++++++++++
  src/pkg/runtime/iface.c | 14 ++++++++++++++
  4 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index d993bc7fc8..fc99597387 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -54,6 +54,8 @@ char *runtimeimport =
+ 	"func @\"\".assertI2I2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
+ 	"func @\"\".assertI2T(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any)\n"
+ 	"func @\"\".assertI2T2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
++	"func @\"\".assertI2TOK(@\"\".typ *byte, @\"\".iface any) (@\"\".ok bool)\n"
++	"func @\"\".assertE2TOK(@\"\".typ *byte, @\"\".iface any) (@\"\".ok bool)\n"
+ 	"func @\"\".ifaceeq(@\"\".i1 any, @\"\".i2 any) (@\"\".ret bool)\n"
+ 	"func @\"\".efaceeq(@\"\".i1 any, @\"\".i2 any) (@\"\".ret bool)\n"
+ 	"func @\"\".ifacethash(@\"\".i1 any) (@\"\".ret uint32)\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index b8204ebcf3..f45de0c997 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -76,6 +76,8 @@ func assertI2I(typ *byte, iface any) (ret any)
+ func assertI2I2(typ *byte, iface any) (ret any, ok bool)
+ func assertI2T(typ *byte, iface any) (ret any)
+ func assertI2T2(typ *byte, iface any) (ret any, ok bool)
++func assertI2TOK(typ *byte, iface any) (ok bool)
++func assertE2TOK(typ *byte, iface any) (ok bool)
+ 
+ func ifaceeq(i1 any, i2 any) (ret bool)
+ func efaceeq(i1 any, i2 any) (ret bool)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 2c1a32eaef..ecc81c41bb 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -686,6 +686,31 @@ walkexpr(Node **np, NodeList **init)
+ 		n->ninit = nil;
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
++		if(isblank(n->list->n) && !isinter(r->type)) {
++			strcpy(buf, "assert");
++			p = buf+strlen(buf);
++			if(isnilinter(r->left->type))
++				*p++ = 'E';
++			else
++				*p++ = 'I';
++			*p++ = '2';
++			*p++ = 'T';
++			*p++ = 'O';
++			*p++ = 'K';
++			*p = '\0';
++			
++			fn = syslook(buf, 1);
++			ll = list1(typename(r->type));
++			ll = list(ll, r->left);
++			argtype(fn, r->left->type);
++			n1 = nod(OCALL, fn, N);
++			n1->list = ll;
++			n = nod(OAS, n->list->next->n, n1);
++			typecheck(&n, Etop);
++			walkexpr(&n, init);
++			goto ret;
++		}
++
+ 		r->op = ODOTTYPE2;
+ 		walkexpr(&r, init);
+ 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 634c9e98f6..f12ff7626d 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -278,6 +278,13 @@ runtime·assertI2T2(Type *t, Iface i, ...)
+ 	copyout(t, &i.data, ret);
+ }
+ 
++void
++runtime·assertI2TOK(Type *t, Iface i, bool ok)
++{
++	ok = i.tab!=nil && i.tab->type==t;
++	FLUSH(&ok);
++}
++
+ static void assertE2Tret(Type *t, Eface e, byte *ret);
+ 
+ // func ifaceE2T(typ *byte, iface any) (ret any)
+@@ -334,6 +341,13 @@ runtime·assertE2T2(Type *t, Eface e, ...)
+ 	copyout(t, &e.data, ret);
+ }
+ 
++void
++runtime·assertE2TOK(Type *t, Eface e, bool ok)
++{
++	ok = t==e.type;
++	FLUSH(&ok);
++}
++
+ // func convI2E(elem any) (ret any)
+ void
+ runtime·convI2E(Iface i, Eface ret)

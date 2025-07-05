@@ -70,10 +70,584 @@ Date:   Mon Nov 4 16:50:03 2019 -0500
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/doc.go              | 104 +++++++++++++++++++-
  src/go/doc/doc_test.go         |  13 ++-
  src/go/doc/example.go          | 111 +++++++++++++++++++++-
  src/go/doc/example_test.go     | 211 +++++++++++++++++++++++++++++++++++++++++
  src/go/doc/testdata/bugpara.go |   4 +
  5 files changed, 435 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/doc/doc.go b/src/go/doc/doc.go
+index d0d4d3265b..0e50af04f6 100644
+--- a/src/go/doc/doc.go
++++ b/src/go/doc/doc.go
+@@ -6,8 +6,10 @@
+ package doc
+ 
+ import (
++	"fmt"
+ 	"go/ast"
+ 	"go/token"
++	"strings"
+ )
+ 
+ // Package is the documentation for an entire package.
+@@ -28,6 +30,11 @@ type Package struct {
+ 	Types  []*Type
+ 	Vars   []*Value
+ 	Funcs  []*Func
++
++	// Examples is a sorted list of examples associated with
++	// the package. Examples are extracted from _test.go files
++	// provided to NewFromFiles.
++	Examples []*Example
+ }
+ 
+ // Value is the documentation for a (possibly grouped) var or const declaration.
+@@ -50,6 +57,11 @@ type Type struct {
+ 	Vars    []*Value // sorted list of variables of (mostly) this type
+ 	Funcs   []*Func  // sorted list of functions returning this type
+ 	Methods []*Func  // sorted list of methods (including embedded ones) of this type
++
++	// Examples is a sorted list of examples associated with
++	// this type. Examples are extracted from _test.go files
++	// provided to NewFromFiles.
++	Examples []*Example
+ }
+ 
+ // Func is the documentation for a func declaration.
+@@ -63,6 +75,11 @@ type Func struct {
+ 	Recv  string // actual   receiver "T" or "*T"
+ 	Orig  string // original receiver "T" or "*T"
+ 	Level int    // embedding level; 0 means not embedded
++
++	// Examples is a sorted list of examples associated with this
++	// function or method. Examples are extracted from _test.go files
++	// provided to NewFromFiles.
++	Examples []*Example
+ }
+ 
+ // A Note represents a marked comment starting with "MARKER(uid): note body".
+@@ -75,7 +92,7 @@ type Note struct {
+ 	Body     string    // note body text
+ }
+ 
+-// Mode values control the operation of New.
++// Mode values control the operation of New and NewFromFiles.
+ type Mode int
+ 
+ const (
+@@ -95,6 +112,8 @@ const (
+ 
+ // New computes the package documentation for the given package AST.
+ // New takes ownership of the AST pkg and may edit or overwrite it.
++// To have the Examples fields populated, use NewFromFiles and include
++// the package's _test.go files.
+ //
+ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+ 	var r reader
+@@ -115,3 +134,86 @@ func New(pkg *ast.Package, importPath string, mode Mode) *Package {
+ 		Funcs:      sortedFuncs(r.funcs, true),
+ 	}
+ }
++
++// NewFromFiles computes documentation for a package.
++//
++// The package is specified by a list of *ast.Files and corresponding
++// file set, which must not be nil. NewFromFiles does not skip files
++// based on build constraints, so it is the caller's responsibility to
++// provide only the files that are matched by the build context.
++// The import path of the package is specified by importPath.
++//
++// Examples found in _test.go files are associated with the corresponding
++// type, function, method, or the package, based on their name.
++// If the example has a suffix in its name, it is set in the
++// Example.Suffix field. Examples with malformed names are skipped.
++//
++// Optionally, a single extra argument of type Mode can be provided to
++// control low-level aspects of the documentation extraction behavior.
++//
++// NewFromFiles takes ownership of the AST files and may edit them,
++// unless the PreserveAST Mode bit is on.
++//
++func NewFromFiles(fset *token.FileSet, files []*ast.File, importPath string, opts ...interface{}) (*Package, error) {
++	// Check for invalid API usage.
++	if fset == nil {
++		panic(fmt.Errorf("doc.NewFromFiles: no token.FileSet provided (fset == nil)"))
++	}
++	var mode Mode
++	switch len(opts) { // There can only be 0 or 1 options, so a simple switch works for now.
++	case 0:
++		// Nothing to do.
++	case 1:
++		m, ok := opts[0].(Mode)
++		if !ok {
++			panic(fmt.Errorf("doc.NewFromFiles: option argument type must be doc.Mode"))
++		}
++		mode = m
++	default:
++		panic(fmt.Errorf("doc.NewFromFiles: there must not be more than 1 option argument"))
++	}
++
++	// Collect .go and _test.go files.
++	var (
++		goFiles     = make(map[string]*ast.File)
++		testGoFiles []*ast.File
++	)
++	for i := range files {
++		f := fset.File(files[i].Pos())
++		if f == nil {
++			return nil, fmt.Errorf("file files[%d] is not found in the provided file set", i)
++		}
++		switch name := f.Name(); {
++		case strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go"):
++			goFiles[name] = files[i]
++		case strings.HasSuffix(name, "_test.go"):
++			testGoFiles = append(testGoFiles, files[i])
++		default:
++			return nil, fmt.Errorf("file files[%d] filename %q does not have a .go extension", i, name)
++		}
++	}
++
++	// TODO(dmitshur,gri): A relatively high level call to ast.NewPackage with a simpleImporter
++	// ast.Importer implementation is made below. It might be possible to short-circuit and simplify.
++
++	// Compute package documentation.
++	pkg, _ := ast.NewPackage(fset, goFiles, simpleImporter, nil) // Ignore errors that can happen due to unresolved identifiers.
++	p := New(pkg, importPath, mode)
++	classifyExamples(p, Examples(testGoFiles...))
++	return p, nil
++}
++
++// simpleImporter returns a (dummy) package object named by the last path
++// component of the provided package path (as is the convention for packages).
++// This is sufficient to resolve package identifiers without doing an actual
++// import. It never returns an error.
++func simpleImporter(imports map[string]*ast.Object, path string) (*ast.Object, error) {
++	pkg := imports[path]
++	if pkg == nil {
++		// note that strings.LastIndex returns -1 if there is no "/"
++		pkg = ast.NewObj(ast.Pkg, path[strings.LastIndex(path, "/")+1:])
++		pkg.Data = ast.NewScope(nil) // required by ast.NewPackage for dot-import
++		imports[path] = pkg
++	}
++	return pkg, nil
++}
+diff --git a/src/go/doc/doc_test.go b/src/go/doc/doc_test.go
+index 0b2d2b63cc..f1e612c18b 100644
+--- a/src/go/doc/doc_test.go
++++ b/src/go/doc/doc_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"go/ast"
+ 	"go/parser"
+ 	"go/printer"
+ 	"go/token"
+@@ -99,8 +100,16 @@ func test(t *testing.T, mode Mode) {
+ 
+ 	// test packages
+ 	for _, pkg := range pkgs {
+-		importpath := dataDir + "/" + pkg.Name
+-		doc := New(pkg, importpath, mode)
++		importPath := dataDir + "/" + pkg.Name
++		var files []*ast.File
++		for _, f := range pkg.Files {
++			files = append(files, f)
++		}
++		doc, err := NewFromFiles(fset, files, importPath, mode)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
+ 
+ 		// golden files always use / in filenames - canonicalize them
+ 		for i, filename := range doc.Filenames {
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 7d1a57058a..f337f2c2d7 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -18,9 +18,10 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// An Example represents an example function found in a source files.
++// An Example represents an example function found in a test source file.
+ type Example struct {
+-	Name        string // name of the item being exemplified
++	Name        string // name of the item being exemplified (including optional suffix)
++	Suffix      string // example suffix, without leading '_' (only populated by NewFromFiles)
+ 	Doc         string // example function doc string
+ 	Code        ast.Node
+ 	Play        *ast.File // a whole program version of the example
+@@ -31,8 +32,10 @@ type Example struct {
+ 	Order       int  // original source code order
+ }
+ 
+-// Examples returns the examples found in the files, sorted by Name field.
++// Examples returns the examples found in testFiles, sorted by Name field.
+ // The Order fields record the order in which the examples were encountered.
++// The Suffix field is not populated when Examples is called directly, it is
++// only populated by NewFromFiles for examples it finds in _test.go files.
+ //
+ // Playable Examples must be in a package whose name ends in "_test".
+ // An Example is "playable" (the Play field is non-nil) in either of these
+@@ -44,9 +47,9 @@ type Example struct {
+ //     example function, zero test or benchmark functions, and at least one
+ //     top-level function, type, variable, or constant declaration other
+ //     than the example function.
+-func Examples(files ...*ast.File) []*Example {
++func Examples(testFiles ...*ast.File) []*Example {
+ 	var list []*Example
+-	for _, file := range files {
++	for _, file := range testFiles {
+ 		hasTests := false // file contains tests or benchmarks
+ 		numDecl := 0      // number of non-import declarations in the file
+ 		var flist []*Example
+@@ -441,3 +444,101 @@ func lastComment(b *ast.BlockStmt, c []*ast.CommentGroup) (i int, last *ast.Comm
+ 	}
+ 	return
+ }
++
++// classifyExamples classifies examples and assigns them to the Examples field
++// of the relevant Func, Type, or Package that the example is associated with.
++//
++// The classification process is ambiguous in some cases:
++//
++// 	- ExampleFoo_Bar matches a type named Foo_Bar
++// 	  or a method named Foo.Bar.
++// 	- ExampleFoo_bar matches a type named Foo_bar
++// 	  or Foo (with a "bar" suffix).
++//
++// Examples with malformed names are not associated with anything.
++//
++func classifyExamples(p *Package, examples []*Example) {
++	if len(examples) == 0 {
++		return
++	}
++
++	// Mapping of names for funcs, types, and methods to the example listing.
++	ids := make(map[string]*[]*Example)
++	ids[""] = &p.Examples // package-level examples have an empty name
++	for _, f := range p.Funcs {
++		if !token.IsExported(f.Name) {
++			continue
++		}
++		ids[f.Name] = &f.Examples
++	}
++	for _, t := range p.Types {
++		if !token.IsExported(t.Name) {
++			continue
++		}
++		ids[t.Name] = &t.Examples
++		for _, f := range t.Funcs {
++			if !token.IsExported(f.Name) {
++				continue
++			}
++			ids[f.Name] = &f.Examples
++		}
++		for _, m := range t.Methods {
++			if !token.IsExported(m.Name) || m.Level != 0 { // avoid forwarded methods from embedding
++				continue
++			}
++			ids[strings.TrimPrefix(m.Recv, "*")+"_"+m.Name] = &m.Examples
++		}
++	}
++
++	// Group each example with the associated func, type, or method.
++	for _, ex := range examples {
++		// Consider all possible split points for the suffix
++		// by starting at the end of string (no suffix case),
++		// then trying all positions that contain a '_' character.
++		//
++		// An association is made on the first successful match.
++		// Examples with malformed names that match nothing are skipped.
++		for i := len(ex.Name); i >= 0; i = strings.LastIndexByte(ex.Name[:i], '_') {
++			prefix, suffix, ok := splitExampleName(ex.Name, i)
++			if !ok {
++				continue
++			}
++			exs, ok := ids[prefix]
++			if !ok {
++				continue
++			}
++			ex.Suffix = suffix
++			*exs = append(*exs, ex)
++			break
++		}
++	}
++
++	// Sort list of example according to the user-specified suffix name.
++	for _, exs := range ids {
++		sort.Slice((*exs), func(i, j int) bool {
++			return (*exs)[i].Suffix < (*exs)[j].Suffix
++		})
++	}
++}
++
++// splitExampleName attempts to split example name s at index i,
++// and reports if that produces a valid split. The suffix may be
++// absent. Otherwise, it must start with a lower-case letter and
++// be preceded by '_'.
++//
++// One of i == len(s) or s[i] == '_' must be true.
++func splitExampleName(s string, i int) (prefix, suffix string, ok bool) {
++	if i == len(s) {
++		return s, "", true
++	}
++	if i == len(s)-1 {
++		return "", "", false
++	}
++	prefix, suffix = s[:i], s[i+1:]
++	return prefix, suffix, isExampleSuffix(suffix)
++}
++
++func isExampleSuffix(s string) bool {
++	r, size := utf8.DecodeRuneInString(s)
++	return size > 0 && unicode.IsLower(r)
++}
+diff --git a/src/go/doc/example_test.go b/src/go/doc/example_test.go
+index 74fd10626d..cd2f469c2f 100644
+--- a/src/go/doc/example_test.go
++++ b/src/go/doc/example_test.go
+@@ -6,11 +6,13 @@ package doc_test
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"go/ast"
+ 	"go/doc"
+ 	"go/format"
+ 	"go/parser"
+ 	"go/token"
++	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+@@ -458,3 +460,212 @@ func formatFile(t *testing.T, fset *token.FileSet, n *ast.File) string {
+ 	}
+ 	return buf.String()
+ }
++
++// This example illustrates how to use NewFromFiles
++// to compute package documentation with examples.
++func ExampleNewFromFiles() {
++	// src and test are two source files that make up
++	// a package whose documentation will be computed.
++	const src = `
++// This is the package comment.
++package p
++
++import "fmt"
++
++// This comment is associated with the Greet function.
++func Greet(who string) {
++	fmt.Printf("Hello, %s!\n", who)
++}
++`
++	const test = `
++package p_test
++
++// This comment is associated with the ExampleGreet_world example.
++func ExampleGreet_world() {
++	Greet("world")
++}
++`
++
++	// Create the AST by parsing src and test.
++	fset := token.NewFileSet()
++	files := []*ast.File{
++		mustParse(fset, "src.go", src),
++		mustParse(fset, "src_test.go", test),
++	}
++
++	// Compute package documentation with examples.
++	p, err := doc.NewFromFiles(fset, files, "example.com/p")
++	if err != nil {
++		panic(err)
++	}
++
++	fmt.Printf("package %s - %s", p.Name, p.Doc)
++	fmt.Printf("func %s - %s", p.Funcs[0].Name, p.Funcs[0].Doc)
++	fmt.Printf(" ⤷ example with suffix %q - %s", p.Funcs[0].Examples[0].Suffix, p.Funcs[0].Examples[0].Doc)
++
++	// Output:
++	// package p - This is the package comment.
++	// func Greet - This comment is associated with the Greet function.
++	//  ⤷ example with suffix "world" - This comment is associated with the ExampleGreet_world example.
++}
++
++func TestClassifyExamples(t *testing.T) {
++	const src = `
++package p
++
++const Const1 = 0
++var   Var1   = 0
++
++type (
++	Type1     int
++	Type1_Foo int
++	Type1_foo int
++	type2     int
++
++	Embed struct { Type1 }
++)
++
++func Func1()     {}
++func Func1_Foo() {}
++func Func1_foo() {}
++func func2()     {}
++
++func (Type1) Func1() {}
++func (Type1) Func1_Foo() {}
++func (Type1) Func1_foo() {}
++func (Type1) func2() {}
++
++type (
++	Conflict          int
++	Conflict_Conflict int
++	Conflict_conflict int
++)
++
++func (Conflict) Conflict() {}
++`
++	const test = `
++package p_test
++
++func ExampleConst1() {} // invalid - no support for consts and vars
++func ExampleVar1()   {} // invalid - no support for consts and vars
++
++func Example()               {}
++func Example_()              {} // invalid - suffix must start with a lower-case letter
++func Example_suffix()        {}
++func Example_suffix_xX_X_x() {}
++func Example_世界()           {} // invalid - suffix must start with a lower-case letter
++func Example_123()           {} // invalid - suffix must start with a lower-case letter
++func Example_BadSuffix()     {} // invalid - suffix must start with a lower-case letter
++
++func ExampleType1()               {}
++func ExampleType1_()              {} // invalid - suffix must start with a lower-case letter
++func ExampleType1_suffix()        {}
++func ExampleType1_BadSuffix()     {} // invalid - suffix must start with a lower-case letter
++func ExampleType1_Foo()           {}
++func ExampleType1_Foo_suffix()    {}
++func ExampleType1_Foo_BadSuffix() {} // invalid - suffix must start with a lower-case letter
++func ExampleType1_foo()           {}
++func ExampleType1_foo_suffix()    {}
++func ExampleType1_foo_Suffix()    {} // matches Type1, instead of Type1_foo
++func Exampletype2()               {} // invalid - cannot match unexported
++
++func ExampleFunc1()               {}
++func ExampleFunc1_()              {} // invalid - suffix must start with a lower-case letter
++func ExampleFunc1_suffix()        {}
++func ExampleFunc1_BadSuffix()     {} // invalid - suffix must start with a lower-case letter
++func ExampleFunc1_Foo()           {}
++func ExampleFunc1_Foo_suffix()    {}
++func ExampleFunc1_Foo_BadSuffix() {} // invalid - suffix must start with a lower-case letter
++func ExampleFunc1_foo()           {}
++func ExampleFunc1_foo_suffix()    {}
++func ExampleFunc1_foo_Suffix()    {} // matches Func1, instead of Func1_foo
++func Examplefunc1()               {} // invalid - cannot match unexported
++
++func ExampleType1_Func1()               {}
++func ExampleType1_Func1_()              {} // invalid - suffix must start with a lower-case letter
++func ExampleType1_Func1_suffix()        {}
++func ExampleType1_Func1_BadSuffix()     {} // invalid - suffix must start with a lower-case letter
++func ExampleType1_Func1_Foo()           {}
++func ExampleType1_Func1_Foo_suffix()    {}
++func ExampleType1_Func1_Foo_BadSuffix() {} // invalid - suffix must start with a lower-case letter
++func ExampleType1_Func1_foo()           {}
++func ExampleType1_Func1_foo_suffix()    {}
++func ExampleType1_Func1_foo_Suffix()    {} // matches Type1.Func1, instead of Type1.Func1_foo
++func ExampleType1_func2()               {} // matches Type1, instead of Type1.func2
++
++func ExampleEmbed_Func1() {} // invalid - no support for forwarded methods from embedding
++
++func ExampleConflict_Conflict()        {} // ambiguous with either Conflict or Conflict_Conflict type
++func ExampleConflict_conflict()        {} // ambiguous with either Conflict or Conflict_conflict type
++func ExampleConflict_Conflict_suffix() {} // ambiguous with either Conflict or Conflict_Conflict type
++func ExampleConflict_conflict_suffix() {} // ambiguous with either Conflict or Conflict_conflict type
++`
++
++	// Parse literal source code as a *doc.Package.
++	fset := token.NewFileSet()
++	files := []*ast.File{
++		mustParse(fset, "src.go", src),
++		mustParse(fset, "src_test.go", test),
++	}
++	p, err := doc.NewFromFiles(fset, files, "example.com/p")
++	if err != nil {
++		t.Fatalf("doc.NewFromFiles: %v", err)
++	}
++
++	// Collect the association of examples to top-level identifiers.
++	got := map[string][]string{}
++	got[""] = exampleNames(p.Examples)
++	for _, f := range p.Funcs {
++		got[f.Name] = exampleNames(f.Examples)
++	}
++	for _, t := range p.Types {
++		got[t.Name] = exampleNames(t.Examples)
++		for _, f := range t.Funcs {
++			got[f.Name] = exampleNames(f.Examples)
++		}
++		for _, m := range t.Methods {
++			got[t.Name+"."+m.Name] = exampleNames(m.Examples)
++		}
++	}
++
++	want := map[string][]string{
++		"": {"", "suffix", "suffix_xX_X_x"}, // Package-level examples.
++
++		"Type1":     {"", "foo_Suffix", "func2", "suffix"},
++		"Type1_Foo": {"", "suffix"},
++		"Type1_foo": {"", "suffix"},
++
++		"Func1":     {"", "foo_Suffix", "suffix"},
++		"Func1_Foo": {"", "suffix"},
++		"Func1_foo": {"", "suffix"},
++
++		"Type1.Func1":     {"", "foo_Suffix", "suffix"},
++		"Type1.Func1_Foo": {"", "suffix"},
++		"Type1.Func1_foo": {"", "suffix"},
++
++		// These are implementation dependent due to the ambiguous parsing.
++		"Conflict_Conflict": {"", "suffix"},
++		"Conflict_conflict": {"", "suffix"},
++	}
++
++	for id := range got {
++		if !reflect.DeepEqual(got[id], want[id]) {
++			t.Errorf("classification mismatch for %q:\ngot  %q\nwant %q", id, got[id], want[id])
++		}
++	}
++}
++
++func exampleNames(exs []*doc.Example) (out []string) {
++	for _, ex := range exs {
++		out = append(out, ex.Suffix)
++	}
++	return out
++}
++
++func mustParse(fset *token.FileSet, filename, src string) *ast.File {
++	f, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
++	if err != nil {
++		panic(err)
++	}
++	return f
++}
+diff --git a/src/go/doc/testdata/bugpara.go b/src/go/doc/testdata/bugpara.go
+index f5345a7975..0360a6f667 100644
+--- a/src/go/doc/testdata/bugpara.go
++++ b/src/go/doc/testdata/bugpara.go
+@@ -1,3 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package bugpara
+ 
+ // BUG(rsc): Sometimes bugs have multiple paragraphs.

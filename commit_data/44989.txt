@@ -31,7 +31,7 @@ Date:   Thu Sep 17 16:24:29 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/list/list.go         |   2 +-
  src/cmd/go/internal/load/pkg.go          |  36 ++++--
  src/cmd/go/internal/modcmd/tidy.go       |   9 +-
@@ -46,3 +46,744 @@ Date:   Thu Sep 17 16:24:29 2020 -0400
  src/cmd/go/internal/vet/vet.go           |   3 +-
  src/cmd/go/testdata/script/mod_why.txt   |  14 ++-
  13 files changed, 199 insertions(+), 142 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 23500dd9d8..33409eb774 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -325,7 +325,7 @@ var (
+ var nl = []byte{'\n'}
+ 
+ func runList(ctx context.Context, cmd *base.Command, args []string) {
+-	modload.LoadTests = *listTest
++	load.ModResolveTests = *listTest
+ 	work.BuildInit()
+ 	out := newTrackingWriter(os.Stdout)
+ 	defer out.w.Flush()
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 077fdf25d3..df9d9964e6 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -742,7 +742,7 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
+ 	// For vendored imports, it is the expanded form.
+ 	//
+ 	// Note that when modules are enabled, local import paths are normally
+-	// canonicalized by modload.ImportPaths before now. However, if there's an
++	// canonicalized by modload.LoadPackages before now. However, if there's an
+ 	// error resolving a local path, it will be returned untransformed
+ 	// so that 'go list -e' reports something useful.
+ 	importKey := importSpec{
+@@ -885,7 +885,7 @@ var preloadWorkerCount = runtime.GOMAXPROCS(0)
+ // because of global mutable state that cannot safely be read and written
+ // concurrently. In particular, packageDataCache may be cleared by "go get"
+ // in GOPATH mode, and modload.loaded (accessed via modload.Lookup) may be
+-// modified by modload.ImportPaths.
++// modified by modload.LoadPackages.
+ type preload struct {
+ 	cancel chan struct{}
+ 	sema   chan struct{}
+@@ -2106,6 +2106,18 @@ func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack,
+ 	return p
+ }
+ 
++// ModResolveTests indicates whether calls to the module loader should also
++// resolve test dependencies of the requested packages.
++//
++// If ModResolveTests is true, then the module loader needs to resolve test
++// dependencies at the same time as packages; otherwise, the test dependencies
++// of those packages could be missing, and resolving those missing dependencies
++// could change the selected versions of modules that provide other packages.
++//
++// TODO(#40775): Change this from a global variable to an explicit function
++// argument where needed.
++var ModResolveTests bool
++
+ // Packages returns the packages named by the
+ // command line arguments 'args'. If a named package
+ // cannot be loaded at all (for example, if the directory does not exist),
+@@ -2147,7 +2159,18 @@ func PackagesAndErrors(ctx context.Context, patterns []string) []*Package {
+ 		}
+ 	}
+ 
+-	matches := ImportPaths(ctx, patterns)
++	var matches []*search.Match
++	if modload.Init(); cfg.ModulesEnabled {
++		loadOpts := modload.PackageOpts{
++			ResolveMissingImports: true,
++			LoadTests:             ModResolveTests,
++			AllowErrors:           true,
++		}
++		matches, _ = modload.LoadPackages(ctx, loadOpts, patterns...)
++	} else {
++		matches = search.ImportPaths(patterns)
++	}
++
+ 	var (
+ 		pkgs    []*Package
+ 		stk     ImportStack
+@@ -2217,13 +2240,6 @@ func setToolFlags(pkgs ...*Package) {
+ 	}
+ }
+ 
+-func ImportPaths(ctx context.Context, args []string) []*search.Match {
+-	if modload.Init(); cfg.ModulesEnabled {
+-		return modload.ImportPaths(ctx, args)
+-	}
+-	return search.ImportPaths(args)
+-}
+-
+ // PackagesForBuild is like Packages but exits
+ // if any of the packages or their dependencies have errors
+ // (cannot be built).
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index cbe3ded5f8..6cba26cc71 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -9,6 +9,7 @@ package modcmd
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modload"
+ 	"context"
+ )
+@@ -49,11 +50,15 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 	// those packages. In order to make 'go test' reproducible for the packages
+ 	// that are in 'all' but outside of the main module, we must explicitly
+ 	// request that their test dependencies be included.
+-	modload.LoadTests = true
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
+ 
+-	modload.LoadALL(ctx)
++	modload.LoadPackages(ctx, modload.PackageOpts{
++		Tags:                  imports.AnyTags(),
++		ResolveMissingImports: true,
++		LoadTests:             true,
++		AllowErrors:           false, // TODO(#26603): Make this a flag.
++	}, "all")
+ 	modload.TidyBuildList()
+ 	modload.TrimGoSum()
+ 	modload.WriteGoMod()
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 44094b7252..ddc27deb78 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -49,7 +49,13 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
+-	pkgs := modload.LoadVendor(ctx)
++
++	loadOpts := modload.PackageOpts{
++		Tags:                  imports.AnyTags(),
++		ResolveMissingImports: true,
++		UseVendorAll:          true,
++	}
++	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
+ 
+ 	vdir := filepath.Join(modload.ModRoot(), "vendor")
+ 	if err := os.RemoveAll(vdir); err != nil {
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index ea7c28e0b8..5a6d535700 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -10,6 +10,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modload"
+ 
+ 	"golang.org/x/mod/module"
+@@ -63,12 +64,14 @@ func init() {
+ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
+-	loadALL := modload.LoadALL
+-	if *whyVendor {
+-		loadALL = modload.LoadVendor
+-	} else {
+-		modload.LoadTests = true
++
++	loadOpts := modload.PackageOpts{
++		Tags:         imports.AnyTags(),
++		LoadTests:    !*whyVendor,
++		AllowErrors:  true,
++		UseVendorAll: *whyVendor,
+ 	}
++
+ 	if *whyM {
+ 		listU := false
+ 		listVersions := false
+@@ -80,7 +83,8 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		mods := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
+ 		byModule := make(map[module.Version][]string)
+-		for _, path := range loadALL(ctx) {
++		_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
++		for _, path := range pkgs {
+ 			m := modload.PackageModule(path)
+ 			if m.Path != "" {
+ 				byModule[m] = append(byModule[m], path)
+@@ -109,8 +113,11 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 			sep = "\n"
+ 		}
+ 	} else {
+-		matches := modload.ImportPaths(ctx, args) // resolve to packages
+-		loadALL(ctx)                              // rebuild graph, from main module (not from named packages)
++		// Resolve to packages.
++		matches, _ := modload.LoadPackages(ctx, loadOpts, args...)
++
++		modload.LoadPackages(ctx, loadOpts, "all") // rebuild graph, from main module (not from named packages)
++
+ 		sep := ""
+ 		for _, m := range matches {
+ 			for _, path := range m.Pkgs {
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index f7b5cfaf2e..371ba8b690 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -284,7 +284,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	if cfg.Insecure {
+ 		fmt.Fprintf(os.Stderr, "go get: -insecure flag is deprecated; see 'go help get' for details\n")
+ 	}
+-	modload.LoadTests = *getT
++	load.ModResolveTests = *getT
+ 
+ 	// Do not allow any updating of go.mod until we've applied
+ 	// all the requested changes and checked that the result matches
+@@ -314,7 +314,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Add missing modules to the build list.
+ 	// We call SetBuildList here and elsewhere, since newUpgrader,
+-	// ImportPathsQuiet, and other functions read the global build list.
++	// LoadPackages, and other functions read the global build list.
+ 	for _, q := range queries {
+ 		if _, ok := selectedVersion[q.m.Path]; !ok && q.m.Version != "none" {
+ 			buildList = append(buildList, q.m)
+@@ -400,9 +400,16 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 		if len(pkgPatterns) > 0 {
+ 			// Don't load packages if pkgPatterns is empty. Both
+-			// modload.ImportPathsQuiet and ModulePackages convert an empty list
++			// modload.LoadPackages and ModulePackages convert an empty list
+ 			// of patterns to []string{"."}, which is not what we want.
+-			matches = modload.ImportPathsQuiet(ctx, pkgPatterns, imports.AnyTags())
++			loadOpts := modload.PackageOpts{
++				Tags:                     imports.AnyTags(),
++				ResolveMissingImports:    true, // dubious; see https://golang.org/issue/32567
++				LoadTests:                *getT,
++				AllowErrors:              true, // Errors may be fixed by subsequent upgrades or downgrades.
++				SilenceUnmatchedWarnings: true, // We will warn after iterating below.
++			}
++			matches, _ = modload.LoadPackages(ctx, loadOpts, pkgPatterns...)
+ 			seenPkgs = make(map[string]bool)
+ 			for i, match := range matches {
+ 				arg := pkgGets[i]
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 2c7cfb732d..f49b52df56 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -50,7 +50,7 @@ func findStandardImportPath(path string) string {
+ // PackageModuleInfo returns information about the module that provides
+ // a given package. If modules are not enabled or if the package is in the
+ // standard library or if the package was not successfully loaded with
+-// ImportPaths or a similar loading function, nil is returned.
++// LoadPackages or ImportFromFiles, nil is returned.
+ func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {
+ 	if isStandardImportPath(pkgpath) || !Enabled() {
+ 		return nil
+@@ -250,8 +250,7 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetrac
+ 
+ // PackageBuildInfo returns a string containing module version information
+ // for modules providing packages named by path and deps. path and deps must
+-// name packages that were resolved successfully with ImportPaths or one of
+-// the Load functions.
++// name packages that were resolved successfully with LoadPackages.
+ func PackageBuildInfo(path string, deps []string) string {
+ 	if isStandardImportPath(path) || !Enabled() {
+ 		return ""
+@@ -321,9 +320,8 @@ func mustFindModule(target, path string) module.Version {
+ }
+ 
+ // findModule searches for the module that contains the package at path.
+-// If the package was loaded with ImportPaths or one of the other loading
+-// functions, its containing module and true are returned. Otherwise,
+-// module.Version{} and false are returend.
++// If the package was loaded, its containing module and true are returned.
++// Otherwise, module.Version{} and false are returend.
+ func findModule(path string) (module.Version, bool) {
+ 	if pkg, ok := loaded.pkgCache.Get(path).(*loadPkg); ok {
+ 		return pkg.mod, pkg.mod != module.Version{}
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 581a1b944a..059b020420 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -17,8 +17,8 @@ import (
+ )
+ 
+ // buildList is the list of modules to use for building packages.
+-// It is initialized by calling ImportPaths, ImportFromFiles,
+-// LoadALL, or LoadBuildList, each of which uses loaded.load.
++// It is initialized by calling LoadPackages or ImportFromFiles,
++// each of which uses loaded.load.
+ //
+ // Ideally, exactly ONE of those functions would be called,
+ // and exactly once. Most of the time, that's true.
+@@ -31,8 +31,8 @@ var buildList []module.Version
+ // module pattern, starting with the Target module and in a deterministic
+ // (stable) order, without loading any packages.
+ //
+-// Modules are loaded automatically (and lazily) in ImportPaths:
+-// LoadAllModules need only be called if ImportPaths is not,
++// Modules are loaded automatically (and lazily) in LoadPackages:
++// LoadAllModules need only be called if LoadPackages is not,
+ // typically in commands that care about modules but no particular package.
+ //
+ // The caller must not modify the returned list.
+@@ -44,7 +44,7 @@ func LoadAllModules(ctx context.Context) []module.Version {
+ }
+ 
+ // LoadedModules returns the list of module requirements loaded or set by a
+-// previous call (typically LoadAllModules or ImportPaths), starting with the
++// previous call (typically LoadAllModules or LoadPackages), starting with the
+ // Target module and in a deterministic (stable) order.
+ //
+ // The caller must not modify the returned list.
+@@ -71,8 +71,8 @@ func ReloadBuildList() []module.Version {
+ }
+ 
+ // TidyBuildList trims the build list to the minimal requirements needed to
+-// retain the same versions of all packages from the preceding Load* or
+-// ImportPaths* call.
++// retain the same versions of all packages from the preceding call to
++// LoadPackages.
+ func TidyBuildList() {
+ 	used := map[module.Version]bool{Target: true}
+ 	for _, pkg := range loaded.pkgs {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 9596368f00..9d05eadda5 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -83,12 +83,12 @@ const (
+ 
+ // ModFile returns the parsed go.mod file.
+ //
+-// Note that after calling ImportPaths or LoadBuildList,
++// Note that after calling LoadPackages or LoadAllModules,
+ // the require statements in the modfile.File are no longer
+ // the source of truth and will be ignored: edits made directly
+ // will be lost at the next call to WriteGoMod.
+ // To make permanent changes to the require statements
+-// in go.mod, edit it before calling ImportPaths or LoadBuildList.
++// in go.mod, edit it before loading.
+ func ModFile() *modfile.File {
+ 	Init()
+ 	if modFile == nil {
+@@ -943,9 +943,9 @@ func WriteGoMod() {
+ 
+ // keepSums returns a set of module sums to preserve in go.sum. The set
+ // includes entries for all modules used to load packages (according to
+-// the last load function like ImportPaths, LoadALL, etc.). It also contains
+-// entries for go.mod files needed for MVS (the version of these entries
+-// ends with "/go.mod").
++// the last load function such as LoadPackages or ImportFromFiles).
++// It also contains entries for go.mod files needed for MVS (the version
++// of these entries ends with "/go.mod").
+ //
+ // If addDirect is true, the set also includes sums for modules directly
+ // required by go.mod, as represented by the index, with replacements applied.
+@@ -977,8 +977,7 @@ func keepSums(addDirect bool) map[module.Version]bool {
+ 	}
+ 	walk(Target)
+ 
+-	// Add entries for modules that provided packages loaded with ImportPaths,
+-	// LoadALL, or similar functions.
++	// Add entries for modules from which packages were loaded.
+ 	if loaded != nil {
+ 		for _, pkg := range loaded.pkgs {
+ 			m := pkg.mod
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 2fe68e6f88..f268144709 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -7,9 +7,9 @@ package modload
+ // This file contains the module-mode package loader, as well as some accessory
+ // functions pertaining to the package import graph.
+ //
+-// There are several exported entry points into package loading (such as
+-// ImportPathsQuiet and LoadALL), but they are all implemented in terms of
+-// loadFromRoots, which itself manipulates an instance of the loader struct.
++// There are two exported entry points into package loading — LoadPackages and
++// ImportFromFiles — both implemented in terms of loadFromRoots, which itself
++// manipulates an instance of the loader struct.
+ //
+ // Although most of the loading state is maintained in the loader struct,
+ // one key piece - the build list - is a global, so that it can be modified
+@@ -24,13 +24,12 @@ package modload
+ //
+ // The first step of each iteration identifies a set of “root” packages.
+ // Normally the root packages are exactly those matching the named pattern
+-// arguments. However, for the "all" meta-pattern and related functions
+-// (LoadALL, LoadVendor), the final set of packages is computed from the package
+-// import graph, and therefore cannot be an initial input to loading that graph.
+-// Instead, the root packages for the "all" pattern are those contained in the
+-// main module, and allPatternIsRoot parameter to the loader instructs it to
+-// dynamically expand those roots to the full "all" pattern as loading
+-// progresses.
++// arguments. However, for the "all" meta-pattern, the final set of packages is
++// computed from the package import graph, and therefore cannot be an initial
++// input to loading that graph. Instead, the root packages for the "all" pattern
++// are those contained in the main module, and allPatternIsRoot parameter to the
++// loader instructs it to dynamically expand those roots to the full "all"
++// pattern as loading progresses.
+ //
+ // The pkgInAll flag on each loadPkg instance tracks whether that
+ // package is known to match the "all" meta-pattern.
+@@ -126,25 +125,54 @@ import (
+ // It holds details about individual packages.
+ var loaded *loader
+ 
+-// ImportPaths returns the set of packages matching the args (patterns),
+-// on the target platform. Modules may be added to the build list
+-// to satisfy new imports.
+-func ImportPaths(ctx context.Context, patterns []string) []*search.Match {
+-	matches := ImportPathsQuiet(ctx, patterns, imports.Tags())
+-	search.WarnUnmatched(matches)
+-	return matches
++// PackageOpts control the behavior of the LoadPackages function.
++type PackageOpts struct {
++	// Tags are the build tags in effect (as interpreted by the
++	// cmd/go/internal/imports package).
++	// If nil, treated as equivalent to imports.Tags().
++	Tags map[string]bool
++
++	// ResolveMissingImports indicates that we should attempt to add module
++	// dependencies as needed to resolve imports of packages that are not found.
++	//
++	// For commands that support the -mod flag, resolving imports may still fail
++	// if the flag is set to "readonly" (the default) or "vendor".
++	ResolveMissingImports bool
++
++	// LoadTests loads the test dependencies of each package matching a requested
++	// pattern. If ResolveMissingImports is also true, test dependencies will be
++	// resolved if missing.
++	LoadTests bool
++
++	// UseVendorAll causes the "all" package pattern to be interpreted as if
++	// running "go mod vendor" (or building with "-mod=vendor").
++	//
++	// Once lazy loading is implemented, this will be a no-op for modules that
++	// declare 'go 1.16' or higher.
++	UseVendorAll bool
++
++	// AllowErrors indicates that LoadPackages should not log errors in resolving
++	// patterns or imports, and should not terminate the process if such an error
++	// occurs.
++	AllowErrors bool
++
++	// SilenceUnmatchedWarnings suppresses the warnings normally emitted for
++	// patterns that did not match any packages.
++	SilenceUnmatchedWarnings bool
+ }
+ 
+-// ImportPathsQuiet is like ImportPaths but does not warn about patterns with
+-// no matches. It also lets the caller specify a set of build tags to match
+-// packages. The build tags should typically be imports.Tags() or
+-// imports.AnyTags(); a nil map has no special meaning.
+-func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bool) []*search.Match {
++// LoadPackages identifies the set of packages matching the given patterns and
++// loads the packages in the import graph rooted at that set.
++func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (matches []*search.Match, loadedPackages []string) {
+ 	InitMod(ctx)
++	if opts.Tags == nil {
++		opts.Tags = imports.Tags()
++	}
+ 
++	patterns = search.CleanPatterns(patterns)
++	matches = make([]*search.Match, 0, len(patterns))
+ 	allPatternIsRoot := false
+-	var matches []*search.Match
+-	for _, pattern := range search.CleanPatterns(patterns) {
++	for _, pattern := range patterns {
+ 		matches = append(matches, search.NewMatch(pattern))
+ 		if pattern == "all" {
+ 			allPatternIsRoot = true
+@@ -191,14 +219,14 @@ func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bo
+ 
+ 			case strings.Contains(m.Pattern(), "..."):
+ 				m.Errs = m.Errs[:0]
+-				matchPackages(ctx, m, tags, includeStd, buildList)
++				matchPackages(ctx, m, opts.Tags, includeStd, buildList)
+ 
+ 			case m.Pattern() == "all":
+ 				if ld == nil {
+ 					// The initial roots are the packages in the main module.
+ 					// loadFromRoots will expand that to "all".
+ 					m.Errs = m.Errs[:0]
+-					matchPackages(ctx, m, tags, omitStd, []module.Version{Target})
++					matchPackages(ctx, m, opts.Tags, omitStd, []module.Version{Target})
+ 				} else {
+ 					// Starting with the packages in the main module,
+ 					// enumerate the full list of "all".
+@@ -217,9 +245,12 @@ func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bo
+ 	}
+ 
+ 	loaded = loadFromRoots(loaderParams{
+-		tags:               tags,
++		tags:           opts.Tags,
++		loadTests:      opts.LoadTests,
++		resolveMissing: opts.ResolveMissingImports,
++
++		allClosesOverTests: index.allPatternClosesOverTests() && !opts.UseVendorAll,
+ 		allPatternIsRoot:   allPatternIsRoot,
+-		allClosesOverTests: index.allPatternClosesOverTests(),
+ 
+ 		listRoots: func() (roots []string) {
+ 			updateMatches(nil)
+@@ -235,7 +266,31 @@ func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bo
+ 	checkMultiplePaths()
+ 	WriteGoMod()
+ 
+-	return matches
++	for _, pkg := range loaded.pkgs {
++		if pkg.err != nil && !opts.AllowErrors {
++			base.Errorf("%s: %v", pkg.stackText(), pkg.err)
++		}
++		if !pkg.isTest() {
++			loadedPackages = append(loadedPackages, pkg.path)
++		}
++	}
++	if !opts.AllowErrors {
++		// Also list errors in matching patterns (such as directory permission
++		// errors for wildcard patterns).
++		for _, match := range matches {
++			for _, err := range match.Errs {
++				base.Errorf("%v", err)
++			}
++		}
++	}
++	base.ExitIfErrors()
++
++	if !opts.SilenceUnmatchedWarnings {
++		search.WarnUnmatched(matches)
++	}
++
++	sort.Strings(loadedPackages)
++	return matches, loadedPackages
+ }
+ 
+ // matchLocalDirs is like m.MatchDirs, but tries to avoid scanning directories
+@@ -425,13 +480,14 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
+ 	}
+ 
+ 	loaded = loadFromRoots(loaderParams{
+-		tags: tags,
++		tags:               tags,
++		resolveMissing:     true,
++		allClosesOverTests: index.allPatternClosesOverTests(),
+ 		listRoots: func() (roots []string) {
+ 			roots = append(roots, imports...)
+ 			roots = append(roots, testImports...)
+ 			return roots
+ 		},
+-		allClosesOverTests: index.allPatternClosesOverTests(),
+ 	})
+ 	WriteGoMod()
+ }
+@@ -462,58 +518,6 @@ func DirImportPath(dir string) string {
+ 	return "."
+ }
+ 
+-// LoadALL returns the set of all packages in the current module
+-// and their dependencies in any other modules, without filtering
+-// due to build tags, except "+build ignore".
+-// It adds modules to the build list as needed to satisfy new imports.
+-// This set is useful for deciding whether a particular import is needed
+-// anywhere in a module.
+-//
+-// In modules that specify "go 1.16" or higher, ALL follows only one layer of
+-// test dependencies. In "go 1.15" or lower, ALL follows the imports of tests of
+-// dependencies of tests.
+-func LoadALL(ctx context.Context) []string {
+-	InitMod(ctx)
+-	return loadAll(ctx, index.allPatternClosesOverTests())
+-}
+-
+-// LoadVendor is like LoadALL but only follows test dependencies
+-// for tests in the main module. Tests in dependency modules are
+-// ignored completely.
+-// This set is useful for identifying the which packages to include in a vendor directory.
+-func LoadVendor(ctx context.Context) []string {
+-	InitMod(ctx)
+-	// 'go mod vendor' has never followed test dependencies since Go 1.11.
+-	const closeOverTests = false
+-	return loadAll(ctx, closeOverTests)
+-}
+-
+-func loadAll(ctx context.Context, closeOverTests bool) []string {
+-	inTarget := TargetPackages(ctx, "...")
+-	loaded = loadFromRoots(loaderParams{
+-		tags:               imports.AnyTags(),
+-		listRoots:          func() []string { return inTarget.Pkgs },
+-		allPatternIsRoot:   true,
+-		allClosesOverTests: closeOverTests,
+-	})
+-	checkMultiplePaths()
+-	WriteGoMod()
+-
+-	var paths []string
+-	for _, pkg := range loaded.pkgs {
+-		if pkg.err != nil {
+-			base.Errorf("%s: %v", pkg.stackText(), pkg.err)
+-			continue
+-		}
+-		paths = append(paths, pkg.path)
+-	}
+-	for _, err := range inTarget.Errs {
+-		base.Errorf("%v", err)
+-	}
+-	base.ExitIfErrors()
+-	return paths
+-}
+-
+ // TargetPackages returns the list of packages in the target (top-level) module
+ // matching pattern, which may be relative to the working directory, under all
+ // build tag settings.
+@@ -631,14 +635,15 @@ type loader struct {
+ }
+ 
+ type loaderParams struct {
+-	tags               map[string]bool // tags for scanDir
+-	listRoots          func() []string
+-	allPatternIsRoot   bool // Is the "all" pattern an additional root?
++	tags           map[string]bool // tags for scanDir
++	loadTests      bool
++	resolveMissing bool
++
+ 	allClosesOverTests bool // Does the "all" pattern include the transitive closure of tests of packages in "all"?
+-}
++	allPatternIsRoot   bool // Is the "all" pattern an additional root?
+ 
+-// LoadTests controls whether the loaders load tests of the root packages.
+-var LoadTests bool
++	listRoots func() []string
++}
+ 
+ func (ld *loader) reset() {
+ 	select {
+@@ -791,6 +796,10 @@ func loadFromRoots(params loaderParams) *loader {
+ 
+ 		ld.buildStacks()
+ 
++		if !ld.resolveMissing {
++			// We've loaded as much as we can without resolving missing imports.
++			break
++		}
+ 		modAddedBy := ld.resolveMissingImports(addedModuleFor)
+ 		if len(modAddedBy) == 0 {
+ 			break
+@@ -958,7 +967,7 @@ func (ld *loader) applyPkgFlags(pkg *loadPkg, flags loadPkgFlags) {
+ 			// also in "all" (as above).
+ 			wantTest = true
+ 
+-		case LoadTests && new.has(pkgIsRoot):
++		case ld.loadTests && new.has(pkgIsRoot):
+ 			// LoadTest explicitly requests tests of “the root packages”.
+ 			wantTest = true
+ 		}
+@@ -1252,7 +1261,7 @@ func (pkg *loadPkg) why() string {
+ 
+ // Why returns the "go mod why" output stanza for the given package,
+ // without the leading # comment.
+-// The package graph must have been loaded already, usually by LoadALL.
++// The package graph must have been loaded already, usually by LoadPackages.
+ // If there is no reason for the package to be in the current build,
+ // Why returns an empty string.
+ func Why(path string) string {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 1ea6d2881e..51d333d866 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -29,7 +29,6 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/lockedfile"
+-	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+@@ -568,7 +567,7 @@ var defaultVetFlags = []string{
+ }
+ 
+ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+-	modload.LoadTests = true
++	load.ModResolveTests = true
+ 
+ 	pkgArgs, testArgs = testFlags(args)
+ 
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index cf2c8d59e8..b1bf806e46 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -13,7 +13,6 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+-	"cmd/go/internal/modload"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+ )
+@@ -54,7 +53,7 @@ See also: go fmt, go fix.
+ }
+ 
+ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+-	modload.LoadTests = true
++	load.ModResolveTests = true
+ 
+ 	vetFlags, pkgArgs := vetFlags(args)
+ 
+diff --git a/src/cmd/go/testdata/script/mod_why.txt b/src/cmd/go/testdata/script/mod_why.txt
+index c0ff4647a7..b3036fa830 100644
+--- a/src/cmd/go/testdata/script/mod_why.txt
++++ b/src/cmd/go/testdata/script/mod_why.txt
+@@ -3,6 +3,7 @@ env GO111MODULE=on
+ 
+ # Populate go.sum.
+ go mod tidy
++cp go.mod go.mod.orig
+ 
+ go list -test all
+ stdout rsc.io/quote
+@@ -20,7 +21,7 @@ cmp stdout why-text-module.txt
+ go mod why rsc.io/testonly
+ cmp stdout why-testonly.txt
+ 
+-# why a module used only in tests?
++# why a module used only in a test of a dependency?
+ go mod why -m rsc.io/testonly
+ cmp stdout why-testonly.txt
+ 
+@@ -44,6 +45,14 @@ cmp stdout why-both.txt
+ go mod why -m rsc.io/quote rsc.io/sampler
+ cmp stdout why-both-module.txt
+ 
++# package in a module that isn't even in the module graph
++# (https://golang.org/issue/26977)
++go mod why rsc.io/fortune
++cmp stdout why-missing.txt
++
++# None of these command should have changed the go.mod file.
++cmp go.mod go.mod.orig
++
+ -- go.mod --
+ module mymodule
+ require rsc.io/quote v1.5.2
+@@ -116,3 +125,6 @@ mymodule/y
+ mymodule/y.test
+ rsc.io/quote
+ rsc.io/sampler
++-- why-missing.txt --
++# rsc.io/fortune
++(main module does not need package rsc.io/fortune)

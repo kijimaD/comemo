@@ -27,9 +27,82 @@ Date:   Wed Jun 3 22:21:07 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10669
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/go/alldocs.go  | 5 +++++
  src/cmd/go/test.go     | 5 +++++
  src/cmd/go/testflag.go | 1 +
  src/testing/testing.go | 9 +++++++--
  4 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 2b1cbf98ec..2c4451a0a7 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1135,6 +1135,11 @@ control the execution of any test:
+ 	    if -test.blockprofile is set without this flag, all blocking events
+ 	    are recorded, equivalent to -test.blockprofilerate=1.
+ 
++	-count n
++	    Run each test and benchmark n times (default 1).
++	    If -cpu is set, run n times for each GOMAXPROCS value.
++	    Examples are always run once.
++
+ 	-cover
+ 	    Enable coverage analysis.
+ 
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 22018f9372..ae9a9fa537 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -141,6 +141,11 @@ control the execution of any test:
+ 	    if -test.blockprofile is set without this flag, all blocking events
+ 	    are recorded, equivalent to -test.blockprofilerate=1.
+ 
++	-count n
++	    Run each test and benchmark n times (default 1).
++	    If -cpu is set, run n times for each GOMAXPROCS value.
++	    Examples are always run once.
++
+ 	-cover
+ 	    Enable coverage analysis.
+ 
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index db1266ea94..03416d582e 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -55,6 +55,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "bench", passToTest: true},
+ 	{name: "benchmem", boolVar: new(bool), passToTest: true},
+ 	{name: "benchtime", passToTest: true},
++	{name: "count", passToTest: true},
+ 	{name: "coverprofile", passToTest: true},
+ 	{name: "cpu", passToTest: true},
+ 	{name: "cpuprofile", passToTest: true},
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 2a1c45f768..f64629fe53 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -172,6 +172,7 @@ var (
+ 
+ 	// Report as tests are run; default is silent for success.
+ 	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
++	count            = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
+ 	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to the named file after execution")
+ 	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
+ 	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
+@@ -724,9 +725,13 @@ func parseCpuList() {
+ 			fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu\n", val)
+ 			os.Exit(1)
+ 		}
+-		cpuList = append(cpuList, cpu)
++		for i := uint(0); i < *count; i++ {
++			cpuList = append(cpuList, cpu)
++		}
+ 	}
+ 	if cpuList == nil {
+-		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
++		for i := uint(0); i < *count; i++ {
++			cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
++		}
+ 	}
+ }

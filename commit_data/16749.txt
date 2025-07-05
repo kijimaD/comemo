@@ -9,7 +9,61 @@ Date:   Fri Jul 12 00:42:46 2013 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/10803045
-
+---
  src/pkg/runtime/asm_386.s    | 14 +++++---------
  src/pkg/runtime/atomic_386.c |  2 +-
  2 files changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 630f006bcb..f2265cbf01 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -319,30 +319,26 @@ TEXT runtime·cas(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
+-// bool runtime·cas64(uint64 *val, uint64 *old, uint64 new)
++// bool runtime·cas64(uint64 *val, uint64 old, uint64 new)
+ // Atomically:
+ //	if(*val == *old){
+ //		*val = new;
+ //		return 1;
+ //	} else {
+-//		*old = *val
+ //		return 0;
+ //	}
+ TEXT runtime·cas64(SB), 7, $0
+ 	MOVL	4(SP), BP
+-	MOVL	8(SP), SI
+-	MOVL	0(SI), AX
+-	MOVL	4(SI), DX
+-	MOVL	12(SP), BX
+-	MOVL	16(SP), CX
++	MOVL	8(SP), AX
++	MOVL	12(SP), DX
++	MOVL	16(SP), BX
++	MOVL	20(SP), CX
+ 	LOCK
+ 	CMPXCHG8B	0(BP)
+ 	JNZ	cas64_fail
+ 	MOVL	$1, AX
+ 	RET
+ cas64_fail:
+-	MOVL	AX, 0(SI)
+-	MOVL	DX, 4(SI)
+ 	MOVL	$0, AX
+ 	RET
+ 
+diff --git a/src/pkg/runtime/atomic_386.c b/src/pkg/runtime/atomic_386.c
+index fbbe9b58e9..cec86e95bb 100644
+--- a/src/pkg/runtime/atomic_386.c
++++ b/src/pkg/runtime/atomic_386.c
+@@ -38,7 +38,7 @@ runtime·xchg64(uint64 volatile* addr, uint64 v)
+ 	uint64 old;
+ 
+ 	do
+-		old = addr;
++		old = *addr;
+ 	while(!runtime·cas64(addr, old, v));
+ 
+ 	return old;

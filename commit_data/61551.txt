@@ -14,7 +14,7 @@ Date:   Fri Jun 21 17:20:00 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go/build/deps_test.go                          |  9 +--
  src/internal/sync/export_test.go                   | 37 +++++++++++
  src/internal/{concurrent => sync}/hashtriemap.go   |  5 +-
@@ -22,3 +22,322 @@ Date:   Fri Jun 21 17:20:00 2024 +0000
  .../{concurrent => sync}/hashtriemap_test.go       | 71 +++-------------------
  src/unique/handle.go                               | 10 +--
  6 files changed, 64 insertions(+), 79 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index dd824471c7..4d80aa7356 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -103,8 +103,7 @@ var depsRules = `
+ 	< internal/godebug
+ 	< internal/reflectlite
+ 	< errors
+-	< internal/oserror
+-	< internal/concurrent;
++	< internal/oserror;
+ 
+ 	cmp, runtime, math/bits
+ 	< iter
+@@ -115,7 +114,8 @@ var depsRules = `
+ 
+ 	RUNTIME
+ 	< sort
+-	< container/heap;
++	< container/heap
++	< unique;
+ 
+ 	RUNTIME
+ 	< io;
+@@ -178,9 +178,6 @@ var depsRules = `
+ 	bufio, path, strconv
+ 	< STR;
+ 
+-	RUNTIME, internal/concurrent
+-	< unique;
+-
+ 	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
+ 	# OS includes string routines, but those must be layered above package os.
+ 	# OS does not include reflection.
+diff --git a/src/internal/sync/export_test.go b/src/internal/sync/export_test.go
+new file mode 100644
+index 0000000000..7475d320a4
+--- /dev/null
++++ b/src/internal/sync/export_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync
++
++import (
++	"internal/abi"
++	"unsafe"
++)
++
++// NewBadHashTrieMap creates a new HashTrieMap for the provided key and value
++// but with an intentionally bad hash function.
++func NewBadHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
++	// Stub out the good hash function with a terrible one.
++	// Everything should still work as expected.
++	m := NewHashTrieMap[K, V]()
++	m.keyHash = func(_ unsafe.Pointer, _ uintptr) uintptr {
++		return 0
++	}
++	return m
++}
++
++// NewTruncHashTrieMap creates a new HashTrieMap for the provided key and value
++// but with an intentionally bad hash function.
++func NewTruncHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
++	// Stub out the good hash function with a terrible one.
++	// Everything should still work as expected.
++	m := NewHashTrieMap[K, V]()
++	var mx map[string]int
++	mapType := abi.TypeOf(mx).MapType()
++	hasher := mapType.Hasher
++	m.keyHash = func(p unsafe.Pointer, n uintptr) uintptr {
++		return hasher(p, n) & ((uintptr(1) << 4) - 1)
++	}
++	return m
++}
+diff --git a/src/internal/concurrent/hashtriemap.go b/src/internal/sync/hashtriemap.go
+similarity index 99%
+rename from src/internal/concurrent/hashtriemap.go
+rename to src/internal/sync/hashtriemap.go
+index be74a608fa..a7e833ef37 100644
+--- a/src/internal/concurrent/hashtriemap.go
++++ b/src/internal/sync/hashtriemap.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package concurrent
++package sync
+ 
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"sync"
+ 	"sync/atomic"
+ 	"unsafe"
+ )
+@@ -317,7 +316,7 @@ const (
+ type indirect[K, V comparable] struct {
+ 	node[K, V]
+ 	dead     atomic.Bool
+-	mu       sync.Mutex // Protects mutation to children and any children that are entry nodes.
++	mu       Mutex // Protects mutation to children and any children that are entry nodes.
+ 	parent   *indirect[K, V]
+ 	children [nChildren]atomic.Pointer[node[K, V]]
+ }
+diff --git a/src/internal/concurrent/hashtriemap_bench_test.go b/src/internal/sync/hashtriemap_bench_test.go
+similarity index 89%
+rename from src/internal/concurrent/hashtriemap_bench_test.go
+rename to src/internal/sync/hashtriemap_bench_test.go
+index 32a263d540..a6ebcd0a11 100644
+--- a/src/internal/concurrent/hashtriemap_bench_test.go
++++ b/src/internal/sync/hashtriemap_bench_test.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package concurrent
++package sync_test
+ 
+-import "testing"
++import (
++	isync "internal/sync"
++	"testing"
++)
+ 
+ func BenchmarkHashTrieMapLoadSmall(b *testing.B) {
+ 	benchmarkHashTrieMapLoad(b, testDataSmall[:])
+@@ -20,7 +23,7 @@ func BenchmarkHashTrieMapLoadLarge(b *testing.B) {
+ 
+ func benchmarkHashTrieMapLoad(b *testing.B, data []string) {
+ 	b.ReportAllocs()
+-	m := NewHashTrieMap[string, int]()
++	m := isync.NewHashTrieMap[string, int]()
+ 	for i := range data {
+ 		m.LoadOrStore(data[i], i)
+ 	}
+@@ -47,7 +50,7 @@ func BenchmarkHashTrieMapLoadOrStoreLarge(b *testing.B) {
+ 
+ func benchmarkHashTrieMapLoadOrStore(b *testing.B, data []string) {
+ 	b.ReportAllocs()
+-	m := NewHashTrieMap[string, int]()
++	m := isync.NewHashTrieMap[string, int]()
+ 
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		i := 0
+diff --git a/src/internal/concurrent/hashtriemap_test.go b/src/internal/sync/hashtriemap_test.go
+similarity index 81%
+rename from src/internal/concurrent/hashtriemap_test.go
+rename to src/internal/sync/hashtriemap_test.go
+index 498ead8c1d..ae9696d371 100644
+--- a/src/internal/concurrent/hashtriemap_test.go
++++ b/src/internal/sync/hashtriemap_test.go
+@@ -2,56 +2,41 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package concurrent
++package sync_test
+ 
+ import (
+ 	"fmt"
+-	"internal/abi"
++	isync "internal/sync"
+ 	"math"
+ 	"runtime"
+ 	"strconv"
+-	"strings"
+ 	"sync"
+ 	"testing"
+-	"unsafe"
+ )
+ 
+ func TestHashTrieMap(t *testing.T) {
+-	testHashTrieMap(t, func() *HashTrieMap[string, int] {
+-		return NewHashTrieMap[string, int]()
++	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
++		return isync.NewHashTrieMap[string, int]()
+ 	})
+ }
+ 
+ func TestHashTrieMapBadHash(t *testing.T) {
+-	testHashTrieMap(t, func() *HashTrieMap[string, int] {
+-		// Stub out the good hash function with a terrible one.
+-		// Everything should still work as expected.
+-		m := NewHashTrieMap[string, int]()
+-		m.keyHash = func(_ unsafe.Pointer, _ uintptr) uintptr {
+-			return 0
+-		}
+-		return m
++	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
++		return isync.NewBadHashTrieMap[string, int]()
+ 	})
+ }
+ 
+ func TestHashTrieMapTruncHash(t *testing.T) {
+-	testHashTrieMap(t, func() *HashTrieMap[string, int] {
++	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
+ 		// Stub out the good hash function with a different terrible one
+ 		// (truncated hash). Everything should still work as expected.
+ 		// This is useful to test independently to catch issues with
+ 		// near collisions, where only the last few bits of the hash differ.
+-		m := NewHashTrieMap[string, int]()
+-		var mx map[string]int
+-		mapType := abi.TypeOf(mx).MapType()
+-		hasher := mapType.Hasher
+-		m.keyHash = func(p unsafe.Pointer, n uintptr) uintptr {
+-			return hasher(p, n) & ((uintptr(1) << 4) - 1)
+-		}
+-		return m
++		return isync.NewTruncHashTrieMap[string, int]()
+ 	})
+ }
+ 
+-func testHashTrieMap(t *testing.T, newMap func() *HashTrieMap[string, int]) {
++func testHashTrieMap(t *testing.T, newMap func() *isync.HashTrieMap[string, int]) {
+ 	t.Run("LoadEmpty", func(t *testing.T) {
+ 		m := newMap()
+ 
+@@ -218,7 +203,7 @@ func testHashTrieMap(t *testing.T, newMap func() *HashTrieMap[string, int]) {
+ 	})
+ }
+ 
+-func testAll[K, V comparable](t *testing.T, m *HashTrieMap[K, V], testData map[K]V, yield func(K, V) bool) {
++func testAll[K, V comparable](t *testing.T, m *isync.HashTrieMap[K, V], testData map[K]V, yield func(K, V) bool) {
+ 	for k, v := range testData {
+ 		expectStored(t, k, v)(m.LoadOrStore(k, v))
+ 	}
+@@ -351,39 +336,3 @@ func init() {
+ 		testDataLarge[i] = fmt.Sprintf("%b", i)
+ 	}
+ }
+-
+-func dumpMap[K, V comparable](ht *HashTrieMap[K, V]) {
+-	dumpNode(ht, &ht.root.node, 0)
+-}
+-
+-func dumpNode[K, V comparable](ht *HashTrieMap[K, V], n *node[K, V], depth int) {
+-	var sb strings.Builder
+-	for range depth {
+-		fmt.Fprintf(&sb, "\t")
+-	}
+-	prefix := sb.String()
+-	if n.isEntry {
+-		e := n.entry()
+-		for e != nil {
+-			fmt.Printf("%s%p [Entry Key=%v Value=%v Overflow=%p, Hash=%016x]\n", prefix, e, e.key, e.value, e.overflow.Load(), ht.keyHash(unsafe.Pointer(&e.key), ht.seed))
+-			e = e.overflow.Load()
+-		}
+-		return
+-	}
+-	i := n.indirect()
+-	fmt.Printf("%s%p [Indirect Parent=%p Dead=%t Children=[", prefix, i, i.parent, i.dead.Load())
+-	for j := range i.children {
+-		c := i.children[j].Load()
+-		fmt.Printf("%p", c)
+-		if j != len(i.children)-1 {
+-			fmt.Printf(", ")
+-		}
+-	}
+-	fmt.Printf("]]\n")
+-	for j := range i.children {
+-		c := i.children[j].Load()
+-		if c != nil {
+-			dumpNode(ht, c, depth+1)
+-		}
+-	}
+-}
+diff --git a/src/unique/handle.go b/src/unique/handle.go
+index 6ff37dc610..2aa6a81083 100644
+--- a/src/unique/handle.go
++++ b/src/unique/handle.go
+@@ -6,7 +6,7 @@ package unique
+ 
+ import (
+ 	"internal/abi"
+-	"internal/concurrent"
++	isync "internal/sync"
+ 	"internal/weak"
+ 	"runtime"
+ 	"sync"
+@@ -89,7 +89,7 @@ func Make[T comparable](value T) Handle[T] {
+ }
+ 
+ var (
+-	// uniqueMaps is an index of type-specific concurrent maps used for unique.Make.
++	// uniqueMaps is an index of type-specific sync maps used for unique.Make.
+ 	//
+ 	// The two-level map might seem odd at first since the HashTrieMap could have "any"
+ 	// as its key type, but the issue is escape analysis. We do not want to force lookups
+@@ -98,7 +98,7 @@ var (
+ 	// benefit of not cramming every different type into a single map, but that's certainly
+ 	// not enough to outweigh the cost of two map lookups. What is worth it though, is saving
+ 	// on those allocations.
+-	uniqueMaps = concurrent.NewHashTrieMap[*abi.Type, any]() // any is always a *uniqueMap[T].
++	uniqueMaps = isync.NewHashTrieMap[*abi.Type, any]() // any is always a *uniqueMap[T].
+ 
+ 	// cleanupFuncs are functions that clean up dead weak pointers in type-specific
+ 	// maps in uniqueMaps. We express cleanup this way because there's no way to iterate
+@@ -114,7 +114,7 @@ var (
+ )
+ 
+ type uniqueMap[T comparable] struct {
+-	*concurrent.HashTrieMap[T, weak.Pointer[T]]
++	*isync.HashTrieMap[T, weak.Pointer[T]]
+ 	cloneSeq
+ }
+ 
+@@ -124,7 +124,7 @@ func addUniqueMap[T comparable](typ *abi.Type) *uniqueMap[T] {
+ 	// small, stray allocation. The number of allocations
+ 	// this can create is bounded by a small constant.
+ 	m := &uniqueMap[T]{
+-		HashTrieMap: concurrent.NewHashTrieMap[T, weak.Pointer[T]](),
++		HashTrieMap: isync.NewHashTrieMap[T, weak.Pointer[T]](),
+ 		cloneSeq:    makeCloneSeq(typ),
+ 	}
+ 	a, loaded := uniqueMaps.LoadOrStore(typ, m)

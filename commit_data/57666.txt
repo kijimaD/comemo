@@ -26,9 +26,180 @@ Date:   Fri Jun 30 16:33:49 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go | 13 ++++++++++---
  src/cmd/dist/build.go                 |  3 ---
  src/cmd/go/internal/work/gc.go        | 34 ----------------------------------
  src/cmd/internal/objabi/pkgspecial.go | 34 ++++++++++++++++++++++++++++++++++
  4 files changed, 44 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 817dfd4ca5..8ffb41b16d 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -201,6 +201,12 @@ func ParseFlags() {
+ 		hashDebug = NewHashDebug("gossahash", Debug.Gossahash, nil)
+ 	}
+ 
++	// Compute whether we're compiling the runtime from the package path. Test
++	// code can also use the flag to set this explicitly.
++	if Flag.Std && objabi.LookupPkgSpecial(Ctxt.Pkgpath).Runtime {
++		Flag.CompilingRuntime = true
++	}
++
+ 	// Three inputs govern loop iteration variable rewriting, hash, experiment, flag.
+ 	// The loop variable rewriting is:
+ 	// IF non-empty hash, then hash determines behavior (function+line match) (*)
+@@ -317,9 +323,6 @@ func ParseFlags() {
+ 		}
+ 	}
+ 
+-	if Flag.CompilingRuntime && Flag.N != 0 {
+-		log.Fatal("cannot disable optimizations while compiling runtime")
+-	}
+ 	if Flag.LowerC < 1 {
+ 		log.Fatalf("-c must be at least 1, got %d", Flag.LowerC)
+ 	}
+@@ -328,6 +331,10 @@ func ParseFlags() {
+ 	}
+ 
+ 	if Flag.CompilingRuntime {
++		// It is not possible to build the runtime with no optimizations,
++		// because the compiler cannot eliminate enough write barriers.
++		Flag.N = 0
++
+ 		// Runtime can't use -d=checkptr, at least not yet.
+ 		Debug.Checkptr = 0
+ 
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 031a8d9013..193db6f52d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -946,9 +946,6 @@ func runInstall(pkg string, ch chan struct{}) {
+ 	if gogcflags != "" {
+ 		compile = append(compile, strings.Fields(gogcflags)...)
+ 	}
+-	if pkg == "runtime" {
+-		compile = append(compile, "-+")
+-	}
+ 	if len(sfiles) > 0 {
+ 		compile = append(compile, "-asmhdr", goasmh)
+ 	}
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 216cbcf344..5ced6eebd4 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -32,20 +32,6 @@ var ToolchainVersion = runtime.Version()
+ // The 'path' used for GOROOT_FINAL when -trimpath is specified
+ const trimPathGoRootFinal string = "$GOROOT"
+ 
+-var runtimePackages = map[string]struct{}{
+-	"internal/abi":             struct{}{},
+-	"internal/bytealg":         struct{}{},
+-	"internal/coverage/rtcov":  struct{}{},
+-	"internal/cpu":             struct{}{},
+-	"internal/goarch":          struct{}{},
+-	"internal/goos":            struct{}{},
+-	"runtime":                  struct{}{},
+-	"runtime/internal/atomic":  struct{}{},
+-	"runtime/internal/math":    struct{}{},
+-	"runtime/internal/sys":     struct{}{},
+-	"runtime/internal/syscall": struct{}{},
+-}
+-
+ // The Go toolchain.
+ 
+ type gcToolchain struct{}
+@@ -93,14 +79,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	if p.Standard {
+ 		defaultGcFlags = append(defaultGcFlags, "-std")
+ 	}
+-	_, compilingRuntime := runtimePackages[p.ImportPath]
+-	compilingRuntime = compilingRuntime && p.Standard
+-	if compilingRuntime {
+-		// runtime compiles with a special gc flag to check for
+-		// memory allocations that are invalid in the runtime package,
+-		// and to implement some special compiler pragmas.
+-		defaultGcFlags = append(defaultGcFlags, "-+")
+-	}
+ 
+ 	// If we're giving the compiler the entire package (no C etc files), tell it that,
+ 	// so that it can give good error messages about forward declarations.
+@@ -146,18 +124,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	if p.Internal.FuzzInstrument {
+ 		gcflags = append(gcflags, fuzzInstrumentFlags()...)
+ 	}
+-	if compilingRuntime {
+-		// Remove -N, if present.
+-		// It is not possible to build the runtime with no optimizations,
+-		// because the compiler cannot eliminate enough write barriers.
+-		for i := 0; i < len(gcflags); i++ {
+-			if gcflags[i] == "-N" {
+-				copy(gcflags[i:], gcflags[i+1:])
+-				gcflags = gcflags[:len(gcflags)-1]
+-				i--
+-			}
+-		}
+-	}
+ 	// Add -c=N to use concurrent backend compilation, if possible.
+ 	if c := gcBackendConcurrency(gcflags); c > 1 {
+ 		defaultGcFlags = append(defaultGcFlags, fmt.Sprintf("-c=%d", c))
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index ac38c1b52e..22b974a06c 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -9,6 +9,21 @@ import "sync"
+ // PkgSpecial indicates special build properties of a given runtime-related
+ // package.
+ type PkgSpecial struct {
++	// Runtime indicates that this package is "runtime" or imported by
++	// "runtime". This has several effects (which maybe should be split out):
++	//
++	// - Implicit allocation is disallowed.
++	//
++	// - Various runtime pragmas are enabled.
++	//
++	// - Optimizations are always enabled.
++	//
++	// This should be set for runtime and all packages it imports, and may be
++	// set for additional packages.
++	//
++	// TODO(austin): Test that all of `go list -deps runtime` is marked Runtime.
++	Runtime bool
++
+ 	// AllowAsmABI indicates that assembly in this package is allowed to use ABI
+ 	// selectors in symbol names. Generally this is needed for packages that
+ 	// interact closely with the runtime package or have performance-critical
+@@ -16,6 +31,22 @@ type PkgSpecial struct {
+ 	AllowAsmABI bool
+ }
+ 
++var runtimePkgs = []string{
++	"runtime",
++
++	"runtime/internal/atomic",
++	"runtime/internal/math",
++	"runtime/internal/sys",
++	"runtime/internal/syscall",
++
++	"internal/abi",
++	"internal/bytealg",
++	"internal/coverage/rtcov",
++	"internal/cpu",
++	"internal/goarch",
++	"internal/goos",
++}
++
+ var allowAsmABIPkgs = []string{
+ 	"runtime",
+ 	"reflect",
+@@ -42,6 +73,9 @@ func LookupPkgSpecial(pkgPath string) PkgSpecial {
+ 			f(&s)
+ 			pkgSpecials[elt] = s
+ 		}
++		for _, pkg := range runtimePkgs {
++			set(pkg, func(ps *PkgSpecial) { ps.Runtime = true })
++		}
+ 		for _, pkg := range allowAsmABIPkgs {
+ 			set(pkg, func(ps *PkgSpecial) { ps.AllowAsmABI = true })
+ 		}

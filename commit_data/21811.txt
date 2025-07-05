@@ -7,6 +7,20 @@ Date:   Thu Feb 5 16:50:11 2015 +0300
     Change-Id: I6ee7aa76673e51576b5a84c512b22a0f8af5b02f
     Reviewed-on: https://go-review.googlesource.com/3966
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/expvar/expvar_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index 544e3fbc70..11e6497b96 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -271,7 +271,7 @@ func BenchmarkRealworldExpvarUsage(b *testing.B) {
+ 	// Setup P client/server connections.
+ 	clients := make([]net.Conn, P)
+ 	servers := make([]net.Conn, P)
+-	ln, err := net.Listen("tcp", laddr)
++	ln, err := net.Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		b.Fatalf("Listen failed: %v", err)
+ 	}

@@ -7,6 +7,24 @@ Date:   Wed Jul 18 12:00:16 2018 +0200
     Change-Id: I6f8d9cc8997128d0076a3a3e82fe5155d53db40d
     Reviewed-on: https://go-review.googlesource.com/124659
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.11.html | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 48b18c737a..c337df5ff1 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -728,7 +728,10 @@ func f(v interface{}) {
+ <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+   <dd>
+     <p><!-- CL 98157 -->
+-      TODO: <a href="https://golang.org/cl/98157">https://golang.org/cl/98157</a>: add support for parsing timezones denoted by sign and offset
++	  Parsing of timezones denoted by sign and offset is now
++	  supported. In previous versions, numeric timezone names
++	  (such as <code>+03</code>) were not considered valid, and only
++	  three-letter abbreviations (such as <code>MST</code>) were accepted
++	  when expecting a timezone name.
+     </p>
+-
+ </dl><!-- time -->

@@ -7,6 +7,26 @@ Date:   Wed Aug 12 10:12:14 2015 -0700
     Change-Id: Iaa40f14a1e3e4393af3c446953ffc315e79a3762
     Reviewed-on: https://go-review.googlesource.com/13581
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 81f9c8f6ce..2a1c184803 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1268,6 +1268,14 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return s.constInt(Types[TINT], n.Left.Type.Bound)
+ 		}
+ 
++	case OSPTR:
++		a := s.expr(n.Left)
++		if n.Left.Type.IsSlice() {
++			return s.newValue1(ssa.OpSlicePtr, n.Type, a)
++		} else {
++			return s.newValue1(ssa.OpStringPtr, n.Type, a)
++		}
++
+ 	case OITAB:
+ 		a := s.expr(n.Left)
+ 		return s.newValue1(ssa.OpITab, n.Type, a)

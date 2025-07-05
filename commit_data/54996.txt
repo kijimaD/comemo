@@ -15,6 +15,20 @@ Date:   Wed Nov 30 12:29:46 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/des/block.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/des/block.go b/src/crypto/des/block.go
+index 192913094e..e0299760d9 100644
+--- a/src/crypto/des/block.go
++++ b/src/crypto/des/block.go
+@@ -182,7 +182,7 @@ func permuteInitialBlock(block uint64) uint64 {
+ 	return block
+ }
+ 
+-// permuteInitialBlock is equivalent to the permutation defined
++// permuteFinalBlock is equivalent to the permutation defined
+ // by finalPermutation.
+ func permuteFinalBlock(block uint64) uint64 {
+ 	// Perform the same bit exchanges as permuteInitialBlock

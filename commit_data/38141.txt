@@ -11,6 +11,38 @@ Date:   Sat Dec 23 02:25:35 2017 +0300
     Change-Id: Ica0f4c2cbd554f2195c6d1762ed26742ff8e3924
     Reviewed-on: https://go-review.googlesource.com/c/85375
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/pow.go | 12 +++---------
  1 file changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/math/pow.go b/src/math/pow.go
+index 336193bce1..2219a906b8 100644
+--- a/src/math/pow.go
++++ b/src/math/pow.go
+@@ -83,13 +83,7 @@ func pow(x, y float64) float64 {
+ 		return 1 / Sqrt(x)
+ 	}
+ 
+-	absy := y
+-	flip := false
+-	if absy < 0 {
+-		absy = -absy
+-		flip = true
+-	}
+-	yi, yf := Modf(absy)
++	yi, yf := Modf(Abs(y))
+ 	if yf != 0 && x < 0 {
+ 		return NaN()
+ 	}
+@@ -147,9 +141,9 @@ func pow(x, y float64) float64 {
+ 	}
+ 
+ 	// ans = a1*2**ae
+-	// if flip { ans = 1 / ans }
++	// if y < 0 { ans = 1 / ans }
+ 	// but in the opposite order
+-	if flip {
++	if y < 0 {
+ 		a1 = 1 / a1
+ 		ae = -ae
+ 	}

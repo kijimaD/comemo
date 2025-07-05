@@ -37,6 +37,21 @@ Date:   Wed Apr 25 23:11:42 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/data.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 23d1809e0c..c04539423c 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -185,6 +185,9 @@ func (s *LSym) WriteBytes(ctxt *Link, off int64, b []byte) int64 {
+ }
+ 
+ func Addrel(s *LSym) *Reloc {
++	if s.R == nil {
++		s.R = make([]Reloc, 0, 4)
++	}
+ 	s.R = append(s.R, Reloc{})
+ 	return &s.R[len(s.R)-1]
+ }

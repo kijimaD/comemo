@@ -13,6 +13,20 @@ Date:   Fri Jun 7 04:07:05 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/ssa/debug_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 2f21aca784..5920428bf9 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -591,7 +591,7 @@ func newGdb(t testing.TB, tag, executable string, args ...string) dbgr {
+ 	s := &gdbState{tagg: tag, cmd: cmd, args: args}
+ 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
+ 	s.funcFileLinePCre = regexp.MustCompile(
+-		"([^ ]+) [(][^)]*[)][ \\t\\n]+at ([^:]+):([0-9]+)")
++		`([^ ]+) [(][^)]*[)][ \t\n]+at ([^:]+):([0-9]+)`)
+ 	// runtime.main () at /Users/drchase/GoogleDrive/work/go/src/runtime/proc.go:201
+ 	//                                    function              file    line
+ 	// Thread 2 hit Breakpoint 1, main.main () at /Users/drchase/GoogleDrive/work/debug/hist.go:18

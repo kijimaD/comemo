@@ -8,6 +8,20 @@ Date:   Mon Nov 10 09:30:57 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/166380043
-
+---
  src/cmd/api/run.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index 52b23de454..1f9a4cf8d8 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -27,7 +27,7 @@ import (
+ // goToolsVersion is the hg revision of the go.tools subrepo we need
+ // to build cmd/api.  This only needs to be updated whenever a go/types
+ // bug fix is needed by the cmd/api tool.
+-const goToolsVersion = "6698ca2900e2"
++const goToolsVersion = "ae08a5291439"
+ 
+ var goroot string
+ 

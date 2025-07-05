@@ -13,7 +13,55 @@ Date:   Fri Aug 19 18:46:18 2022 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/align_runtime_test.go | 1 -
  src/runtime/runtime.go            | 9 ++++-----
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/align_runtime_test.go b/src/runtime/align_runtime_test.go
+index 3a6a575481..d78b0b2d39 100644
+--- a/src/runtime/align_runtime_test.go
++++ b/src/runtime/align_runtime_test.go
+@@ -33,7 +33,6 @@ var AtomicFields = []uintptr{
+ 	unsafe.Offsetof(lfnode{}.next),
+ 	unsafe.Offsetof(mstats{}.last_gc_nanotime),
+ 	unsafe.Offsetof(mstats{}.last_gc_unix),
+-	unsafe.Offsetof(ticksType{}.val),
+ 	unsafe.Offsetof(workType{}.bytesMarked),
+ }
+ 
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index e9fd56b46d..50f68a327c 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -18,18 +18,17 @@ var ticks ticksType
+ 
+ type ticksType struct {
+ 	lock mutex
+-	pad  uint32 // ensure 8-byte alignment of val on 386
+-	val  uint64
++	val  atomic.Int64
+ }
+ 
+ // Note: Called by runtime/pprof in addition to runtime code.
+ func tickspersecond() int64 {
+-	r := int64(atomic.Load64(&ticks.val))
++	r := ticks.val.Load()
+ 	if r != 0 {
+ 		return r
+ 	}
+ 	lock(&ticks.lock)
+-	r = int64(ticks.val)
++	r = ticks.val.Load()
+ 	if r == 0 {
+ 		t0 := nanotime()
+ 		c0 := cputicks()
+@@ -43,7 +42,7 @@ func tickspersecond() int64 {
+ 		if r == 0 {
+ 			r++
+ 		}
+-		atomic.Store64(&ticks.val, uint64(r))
++		ticks.val.Store(r)
+ 	}
+ 	unlock(&ticks.lock)
+ 	return r

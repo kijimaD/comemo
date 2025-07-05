@@ -7,7 +7,7 @@ Date:   Tue Jun 29 20:23:39 2010 -0700
     R=rsc, Mateusz Czaplinski
     CC=golang-dev
     https://golang.org/cl/1600041
-
+---
  src/pkg/net/Makefile                    |  20 +-
  src/pkg/net/fd_windows.go               | 368 ++++++++++++++++++++++++++++++++
  src/pkg/syscall/mksyscall_windows.sh    |  25 ++-
@@ -16,3 +16,1059 @@ Date:   Tue Jun 29 20:23:39 2010 -0700
  src/pkg/syscall/zsyscall_windows_386.go | 230 +++++++++++++++++---
  src/pkg/syscall/ztypes_windows_386.go   |  78 +++++--
  7 files changed, 861 insertions(+), 48 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 7d8eadf241..955485a6b1 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -10,8 +10,6 @@ GOFILES=\
+ 	dnsclient.go\
+ 	dnsconfig.go\
+ 	dnsmsg.go\
+-	newpollserver.go\
+-	fd.go\
+ 	fd_$(GOOS).go\
+ 	hosts.go\
+ 	ip.go\
+@@ -26,4 +24,22 @@ GOFILES=\
+ 	udpsock.go\
+ 	unixsock.go\
+ 
++GOFILES_freebsd=\
++	newpollserver.go\
++	fd.go\
++
++GOFILES_darwin=\
++	newpollserver.go\
++	fd.go\
++
++GOFILES_linux=\
++	newpollserver.go\
++	fd.go\
++
++GOFILES_nacl=\
++	newpollserver.go\
++	fd.go\
++
++GOFILES+=$(GOFILES_$(GOOS))
++
+ include ../../Make.pkg
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+new file mode 100644
+index 0000000000..90887b0a9a
+--- /dev/null
++++ b/src/pkg/net/fd_windows.go
+@@ -0,0 +1,368 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"once"
++	"os"
++	"sync"
++	"syscall"
++	"unsafe"
++)
++
++// BUG(brainman): The Windows implementation does not implement SetTimeout.
++
++// IO completion result parameters.
++type ioResult struct {
++	key   uint32
++	qty   uint32
++	errno int
++}
++
++// Network file descriptor.
++type netFD struct {
++	// locking/lifetime of sysfd
++	sysmu   sync.Mutex
++	sysref  int
++	closing bool
++
++	// immutable until Close
++	sysfd   int
++	family  int
++	proto   int
++	sysfile *os.File
++	cr      chan *ioResult
++	cw      chan *ioResult
++	net     string
++	laddr   Addr
++	raddr   Addr
++
++	// owned by client
++	rdeadline_delta int64
++	rdeadline       int64
++	rio             sync.Mutex
++	wdeadline_delta int64
++	wdeadline       int64
++	wio             sync.Mutex
++}
++
++type InvalidConnError struct{}
++
++func (e *InvalidConnError) String() string  { return "invalid net.Conn" }
++func (e *InvalidConnError) Temporary() bool { return false }
++func (e *InvalidConnError) Timeout() bool   { return false }
++
++// pollServer will run around waiting for io completion request
++// to arrive. Every request received will contain channel to signal
++// io owner about the completion.
++
++type pollServer struct {
++	iocp int32
++}
++
++func newPollServer() (s *pollServer, err os.Error) {
++	s = new(pollServer)
++	var e int
++	if s.iocp, e = syscall.CreateIoCompletionPort(-1, 0, 0, 1); e != 0 {
++		return nil, os.NewSyscallError("CreateIoCompletionPort", e)
++	}
++	go s.Run()
++	return s, nil
++}
++
++type ioPacket struct {
++	// Used by IOCP interface,
++	// it must be first field of the struct,
++	// as our code rely on it.
++	o syscall.Overlapped
++
++	// Link to the io owner.
++	c chan *ioResult
++}
++
++func (s *pollServer) getCompletedIO() (ov *syscall.Overlapped, result *ioResult, err os.Error) {
++	var r ioResult
++	var o *syscall.Overlapped
++	_, e := syscall.GetQueuedCompletionStatus(s.iocp, &r.qty, &r.key, &o, syscall.INFINITE)
++	switch {
++	case e == 0:
++		// Dequeued successfully completed io packet.
++		return o, &r, nil
++	case e == syscall.WAIT_TIMEOUT && o == nil:
++		// Wait has timed out (should not happen now, but might be used in the future).
++		return nil, &r, os.NewSyscallError("GetQueuedCompletionStatus", e)
++	case o == nil:
++		// Failed to dequeue anything -> report the error.
++		return nil, &r, os.NewSyscallError("GetQueuedCompletionStatus", e)
++	default:
++		// Dequeued failed io packet.
++		r.errno = e
++		return o, &r, nil
++	}
++	return
++}
++
++func (s *pollServer) Run() {
++	for {
++		o, r, err := s.getCompletedIO()
++		if err != nil {
++			panic("Run pollServer: " + err.String() + "\n")
++		}
++		p := (*ioPacket)(unsafe.Pointer(o))
++		p.c <- r
++	}
++}
++
++// Network FD methods.
++// All the network FDs use a single pollServer.
++
++var pollserver *pollServer
++
++func startServer() {
++	p, err := newPollServer()
++	if err != nil {
++		panic("Start pollServer: " + err.String() + "\n")
++	}
++	pollserver = p
++}
++
++var initErr os.Error
++
++func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err os.Error) {
++	if initErr != nil {
++		return nil, initErr
++	}
++	once.Do(startServer)
++	// Associate our socket with pollserver.iocp.
++	if _, e := syscall.CreateIoCompletionPort(int32(fd), pollserver.iocp, 0, 0); e != 0 {
++		return nil, &OpError{"CreateIoCompletionPort", net, laddr, os.Errno(e)}
++	}
++	f = &netFD{
++		sysfd:  fd,
++		family: family,
++		proto:  proto,
++		cr:     make(chan *ioResult),
++		cw:     make(chan *ioResult),
++		net:    net,
++		laddr:  laddr,
++		raddr:  raddr,
++	}
++	var ls, rs string
++	if laddr != nil {
++		ls = laddr.String()
++	}
++	if raddr != nil {
++		rs = raddr.String()
++	}
++	f.sysfile = os.NewFile(fd, net+":"+ls+"->"+rs)
++	return f, nil
++}
++
++// Add a reference to this fd.
++func (fd *netFD) incref() {
++	fd.sysmu.Lock()
++	fd.sysref++
++	fd.sysmu.Unlock()
++}
++
++// Remove a reference to this FD and close if we've been asked to do so (and
++// there are no references left.
++func (fd *netFD) decref() {
++	fd.sysmu.Lock()
++	fd.sysref--
++	if fd.closing && fd.sysref == 0 && fd.sysfd >= 0 {
++		// In case the user has set linger, switch to blocking mode so
++		// the close blocks.  As long as this doesn't happen often, we
++		// can handle the extra OS processes.  Otherwise we'll need to
++		// use the pollserver for Close too.  Sigh.
++		syscall.SetNonblock(fd.sysfd, false)
++		fd.sysfile.Close()
++		fd.sysfile = nil
++		fd.sysfd = -1
++	}
++	fd.sysmu.Unlock()
++}
++
++func (fd *netFD) Close() os.Error {
++	if fd == nil || fd.sysfile == nil {
++		return os.EINVAL
++	}
++
++	fd.incref()
++	syscall.Shutdown(fd.sysfd, syscall.SHUT_RDWR)
++	fd.closing = true
++	fd.decref()
++	return nil
++}
++
++func newWSABuf(p []byte) *syscall.WSABuf {
++	return &syscall.WSABuf{uint32(len(p)), (*byte)(unsafe.Pointer(&p[0]))}
++}
++
++func (fd *netFD) Read(p []byte) (n int, err os.Error) {
++	if fd == nil {
++		return 0, os.EINVAL
++	}
++	fd.rio.Lock()
++	defer fd.rio.Unlock()
++	fd.incref()
++	defer fd.decref()
++	if fd.sysfile == nil {
++		return 0, os.EINVAL
++	}
++	// Submit receive request.
++	var pckt ioPacket
++	pckt.c = fd.cr
++	var done uint32
++	flags := uint32(0)
++	e := syscall.WSARecv(uint32(fd.sysfd), newWSABuf(p), 1, &done, &flags, &pckt.o, nil)
++	switch e {
++	case 0:
++		// IO completed immediately, but we need to get our completion message anyway.
++	case syscall.ERROR_IO_PENDING:
++		// IO started, and we have to wait for it's completion.
++	default:
++		return 0, &OpError{"WSARecv", fd.net, fd.laddr, os.Errno(e)}
++	}
++	// Wait for our request to complete.
++	r := <-pckt.c
++	if r.errno != 0 {
++		err = &OpError{"WSARecv", fd.net, fd.laddr, os.Errno(r.errno)}
++	}
++	n = int(r.qty)
++	return
++}
++
++func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
++	var r syscall.Sockaddr
++	return 0, r, nil
++}
++
++func (fd *netFD) Write(p []byte) (n int, err os.Error) {
++	if fd == nil {
++		return 0, os.EINVAL
++	}
++	fd.wio.Lock()
++	defer fd.wio.Unlock()
++	fd.incref()
++	defer fd.decref()
++	if fd.sysfile == nil {
++		return 0, os.EINVAL
++	}
++	// Submit send request.
++	var pckt ioPacket
++	pckt.c = fd.cw
++	var done uint32
++	e := syscall.WSASend(uint32(fd.sysfd), newWSABuf(p), 1, &done, uint32(0), &pckt.o, nil)
++	switch e {
++	case 0:
++		// IO completed immediately, but we need to get our completion message anyway.
++	case syscall.ERROR_IO_PENDING:
++		// IO started, and we have to wait for it's completion.
++	default:
++		return 0, &OpError{"WSASend", fd.net, fd.laddr, os.Errno(e)}
++	}
++	// Wait for our request to complete.
++	r := <-pckt.c
++	if r.errno != 0 {
++		err = &OpError{"WSASend", fd.net, fd.laddr, os.Errno(r.errno)}
++	}
++	n = int(r.qty)
++	return
++}
++
++func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
++	return 0, nil
++}
++
++func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
++	if fd == nil || fd.sysfile == nil {
++		return nil, os.EINVAL
++	}
++	fd.incref()
++	defer fd.decref()
++
++	// Get new socket.
++	// See ../syscall/exec.go for description of ForkLock.
++	syscall.ForkLock.RLock()
++	s, e := syscall.Socket(fd.family, fd.proto, 0)
++	if e != 0 {
++		syscall.ForkLock.RUnlock()
++		return nil, os.Errno(e)
++	}
++	syscall.CloseOnExec(s)
++	syscall.ForkLock.RUnlock()
++
++	// Associate our new socket with IOCP.
++	once.Do(startServer)
++	if _, e = syscall.CreateIoCompletionPort(int32(s), pollserver.iocp, 0, 0); e != 0 {
++		return nil, &OpError{"CreateIoCompletionPort", fd.net, fd.laddr, os.Errno(e)}
++	}
++
++	// Submit accept request.
++	// Will use new unique channel here, because, unlike Read or Write,
++	// Accept is expected to be executed by many goroutines simultaniously.
++	var pckt ioPacket
++	pckt.c = make(chan *ioResult)
++	attrs, e := syscall.AcceptIOCP(fd.sysfd, s, &pckt.o)
++	switch e {
++	case 0:
++		// IO completed immediately, but we need to get our completion message anyway.
++	case syscall.ERROR_IO_PENDING:
++		// IO started, and we have to wait for it's completion.
++	default:
++		syscall.Close(s)
++		return nil, &OpError{"AcceptEx", fd.net, fd.laddr, os.Errno(e)}
++	}
++
++	// Wait for peer connection.
++	r := <-pckt.c
++	if r.errno != 0 {
++		syscall.Close(s)
++		return nil, &OpError{"AcceptEx", fd.net, fd.laddr, os.Errno(r.errno)}
++	}
++
++	// Inherit properties of the listening socket.
++	e = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, fd.sysfd)
++	if e != 0 {
++		syscall.Close(s)
++		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, os.Errno(r.errno)}
++	}
++
++	// Get local and peer addr out of AcceptEx buffer.
++	lsa, rsa := syscall.GetAcceptIOCPSockaddrs(attrs)
++
++	// Create our netFD and return it for further use.
++	laddr := toAddr(lsa)
++	raddr := toAddr(rsa)
++
++	f := &netFD{
++		sysfd:  s,
++		family: fd.family,
++		proto:  fd.proto,
++		cr:     make(chan *ioResult),
++		cw:     make(chan *ioResult),
++		net:    fd.net,
++		laddr:  laddr,
++		raddr:  raddr,
++	}
++	var ls, rs string
++	if laddr != nil {
++		ls = laddr.String()
++	}
++	if raddr != nil {
++		rs = raddr.String()
++	}
++	f.sysfile = os.NewFile(s, fd.net+":"+ls+"->"+rs)
++	return f, nil
++}
++
++func init() {
++	var d syscall.WSAData
++	e := syscall.WSAStartup(uint32(0x101), &d)
++	if e != 0 {
++		initErr = os.NewSyscallError("WSAStartup", e)
++	}
++}
+diff --git a/src/pkg/syscall/mksyscall_windows.sh b/src/pkg/syscall/mksyscall_windows.sh
+index e5d47e1f31..f9b4584fc2 100755
+--- a/src/pkg/syscall/mksyscall_windows.sh
++++ b/src/pkg/syscall/mksyscall_windows.sh
+@@ -62,6 +62,8 @@ sub parseparam($) {
+ 
+ $text = "";
+ $vars = "";
++$mods = "";
++$modnames = "";
+ while(<>) {
+ 	chomp;
+ 	s/\s+/ /g;
+@@ -72,17 +74,27 @@ while(<>) {
+ 	# Line must be of the form
+ 	#	func Open(path string, mode int, perm int) (fd int, errno int)
+ 	# Split into name, in params, out params.
+-	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval=(.*)\])?\s*(?:=\s*(\w*))?$/) {
++	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval=(.*)\])?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$/) {
+ 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
+ 		$errors = 1;
+ 		next;
+ 	}
+-	my ($func, $in, $out, $failretval, $sysname) = ($1, $2, $3, $4, $5);
++	my ($func, $in, $out, $failretval, $modname, $sysname) = ($1, $2, $3, $4, $5, $6);
+ 
+ 	# Split argument lists on comma.
+ 	my @in = parseparamlist($in);
+ 	my @out = parseparamlist($out);
+ 
++	# Dll file name.
++	if($modname eq "") {
++		$modname = "kernel32";
++	}
++	$modvname = "mod$modname";
++	if($modnames !~ /$modname/) {
++		$modnames .= ".$modname";
++		$mods .= "\t$modvname = loadDll(\"$modname.dll\")\n";
++	}
++
+ 	# System call name.
+ 	if($sysname eq "") {
+ 		$sysname = "$func";
+@@ -104,7 +116,7 @@ while(<>) {
+ 	}
+ 
+ 	# Winapi proc address variable.
+-	$vars .= sprintf "\t%s = getSysProcAddr(modKERNEL32, \"%s\")\n", $sysvarname, $sysname;
++	$vars .= sprintf "\t%s = getSysProcAddr(%s, \"%s\")\n", $sysvarname, $modvname, $sysname;
+ 
+ 	# Go function header.
+ 	$text .= sprintf "func %s(%s) (%s) {\n", $func, join(', ', @in), join(', ', @out);
+@@ -198,6 +210,9 @@ while(<>) {
+ 		if($i == 0) {
+ 			if($type eq "bool") {
+ 				$failexpr = "!$name";
++			} elsif($name eq "errno") {
++				$ret[$i] = "r1";
++				$failexpr = "int(r1) == $failretval";
+ 			} else {
+ 				$failexpr = "$name == $failretval";
+ 			}
+@@ -212,7 +227,7 @@ while(<>) {
+ 		} else {
+ 			$body .= "\t$name = $type($reg);\n";
+ 		}
+-		push @pout, sprintf "\"%s=\", %s(%s), ", $name, $type, $reg;
++		push @pout, sprintf "\"%s=\", %s, ", $name, $name;
+ 	}
+ 	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
+ 		$text .= "\t$call;\n";
+@@ -241,7 +256,7 @@ package syscall
+ import "unsafe"
+ 
+ var (
+-	modKERNEL32 = loadDll("kernel32.dll")
++$mods
+ $vars
+ )
+ 
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 5b3fe2d9dd..2f0552b6a4 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -128,6 +128,8 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	SetEndOfFile(handle int32) (ok bool, errno int)
+ //sys	GetSystemTimeAsFileTime(time *Filetime)
+ //sys   sleep(msec uint32) = Sleep
++//sys	CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int)
++//sys	GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int)
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -382,6 +384,191 @@ func Utimes(path string, tv []Timeval) (errno int) {
+ 	return EWINDOWS
+ }
+ 
++// net api calls
++
++//sys	WSAStartup(verreq uint32, data *WSAData) (sockerrno int) = wsock32.WSAStartup
++//sys	WSACleanup() (errno int) [failretval=-1] = wsock32.WSACleanup
++//sys	socket(af int32, typ int32, protocol int32) (handle int32, errno int) [failretval=-1] = wsock32.socket
++//sys	setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32) (errno int) [failretval=-1] = wsock32.setsockopt
++//sys	bind(s int32, name uintptr, namelen int32) (errno int) [failretval=-1] = wsock32.bind
++//sys	connect(s int32, name uintptr, namelen int32) (errno int) [failretval=-1] = wsock32.connect
++//sys	getsockname(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval=-1] = wsock32.getsockname
++//sys	getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval=-1] = wsock32.getpeername
++//sys	listen(s int32, backlog int32) (errno int) [failretval=-1] = wsock32.listen
++//sys	shutdown(s int32, how int32) (errno int) [failretval=-1] = wsock32.shutdown
++//sys	AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) = wsock32.AcceptEx
++//sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
++//sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecv
++//sys	WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASend
++
++type RawSockaddrInet4 struct {
++	Family uint16
++	Port   uint16
++	Addr   [4]byte /* in_addr */
++	Zero   [8]uint8
++}
++
++type RawSockaddr struct {
++	Family uint16
++	Data   [14]int8
++}
++
++type RawSockaddrAny struct {
++	Addr RawSockaddr
++	Pad  [96]int8
++}
++
++type Sockaddr interface {
++	sockaddr() (ptr uintptr, len int32, errno int) // lowercase; only we can define Sockaddrs
++}
++
++type SockaddrInet4 struct {
++	Port int
++	Addr [4]byte
++	raw  RawSockaddrInet4
++}
++
++func (sa *SockaddrInet4) sockaddr() (uintptr, int32, int) {
++	if sa.Port < 0 || sa.Port > 0xFFFF {
++		return 0, 0, EINVAL
++	}
++	sa.raw.Family = AF_INET
++	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
++	p[0] = byte(sa.Port >> 8)
++	p[1] = byte(sa.Port)
++	for i := 0; i < len(sa.Addr); i++ {
++		sa.raw.Addr[i] = sa.Addr[i]
++	}
++	return uintptr(unsafe.Pointer(&sa.raw)), int32(unsafe.Sizeof(sa.raw)), 0
++}
++
++type SockaddrInet6 struct {
++	Port int
++	Addr [16]byte
++}
++
++func (sa *SockaddrInet6) sockaddr() (uintptr, int32, int) {
++	// TODO(brainman): implement SockaddrInet6.sockaddr()
++	return 0, 0, EWINDOWS
++}
++
++type SockaddrUnix struct {
++	Name string
++}
++
++func (sa *SockaddrUnix) sockaddr() (uintptr, int32, int) {
++	// TODO(brainman): implement SockaddrUnix.sockaddr()
++	return 0, 0, EWINDOWS
++}
++
++func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, int) {
++	switch rsa.Addr.Family {
++	case AF_UNIX:
++		return nil, EWINDOWS
++
++	case AF_INET:
++		pp := (*RawSockaddrInet4)(unsafe.Pointer(rsa))
++		sa := new(SockaddrInet4)
++		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
++		sa.Port = int(p[0])<<8 + int(p[1])
++		for i := 0; i < len(sa.Addr); i++ {
++			sa.Addr[i] = pp.Addr[i]
++		}
++		return sa, 0
++
++	case AF_INET6:
++		return nil, EWINDOWS
++	}
++	return nil, EAFNOSUPPORT
++}
++
++func Socket(domain, typ, proto int) (fd, errno int) {
++	h, e := socket(int32(domain), int32(typ), int32(proto))
++	return int(h), int(e)
++}
++
++func SetsockoptInt(fd, level, opt int, value int) (errno int) {
++	v := int32(value)
++	return int(setsockopt(int32(fd), int32(level), int32(opt), (*byte)(unsafe.Pointer(&v)), int32(unsafe.Sizeof(v))))
++}
++
++func Bind(fd int, sa Sockaddr) (errno int) {
++	ptr, n, err := sa.sockaddr()
++	if err != 0 {
++		return err
++	}
++	return bind(int32(fd), ptr, n)
++}
++
++func Connect(fd int, sa Sockaddr) (errno int) {
++	ptr, n, err := sa.sockaddr()
++	if err != 0 {
++		return err
++	}
++	return connect(int32(fd), ptr, n)
++}
++
++func Getsockname(fd int) (sa Sockaddr, errno int) {
++	var rsa RawSockaddrAny
++	l := int32(unsafe.Sizeof(rsa))
++	if errno = getsockname(int32(fd), &rsa, &l); errno != 0 {
++		return
++	}
++	return rsa.Sockaddr()
++}
++
++func Getpeername(fd int) (sa Sockaddr, errno int) {
++	var rsa RawSockaddrAny
++	l := int32(unsafe.Sizeof(rsa))
++	if errno = getpeername(int32(fd), &rsa, &l); errno != 0 {
++		return
++	}
++	return rsa.Sockaddr()
++}
++
++func Listen(s int, n int) (errno int) {
++	return int(listen(int32(s), int32(n)))
++}
++
++func Shutdown(fd, how int) (errno int) {
++	return int(shutdown(int32(fd), int32(how)))
++}
++
++func AcceptIOCP(iocpfd, fd int, o *Overlapped) (attrs *byte, errno int) {
++	// Will ask for local and remote address only.
++	rsa := make([]RawSockaddrAny, 2)
++	attrs = (*byte)(unsafe.Pointer(&rsa[0]))
++	alen := uint32(unsafe.Sizeof(rsa[0]))
++	var done uint32
++	_, errno = AcceptEx(uint32(iocpfd), uint32(fd), attrs, 0, alen, alen, &done, o)
++	return
++}
++
++func GetAcceptIOCPSockaddrs(attrs *byte) (lsa, rsa Sockaddr) {
++	var lrsa, rrsa *RawSockaddrAny
++	var llen, rlen int32
++	alen := uint32(unsafe.Sizeof(*lrsa))
++	GetAcceptExSockaddrs(attrs, 0, alen, alen, &lrsa, &llen, &rrsa, &rlen)
++	lsa, _ = lrsa.Sockaddr()
++	rsa, _ = rrsa.Sockaddr()
++	return
++}
++
++// TODO(brainman): fix all needed for net
++
++func Accept(fd int) (nfd int, sa Sockaddr, errno int)                        { return 0, nil, EWINDOWS }
++func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) { return 0, nil, EWINDOWS }
++func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int)            { return EWINDOWS }
++func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int)          { return EWINDOWS }
++
++type Linger struct {
++	Onoff  int32
++	Linger int32
++}
++
++func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) { return EWINDOWS }
++func BindToDevice(fd int, device string) (errno int)             { return EWINDOWS }
++
+ // TODO(brainman): fix all needed for os
+ 
+ const (
+diff --git a/src/pkg/syscall/zerrors_windows_386.go b/src/pkg/syscall/zerrors_windows_386.go
+index e96c817037..4f3a5811b8 100644
+--- a/src/pkg/syscall/zerrors_windows_386.go
++++ b/src/pkg/syscall/zerrors_windows_386.go
+@@ -13,6 +13,7 @@ const (
+ 	ERROR_MOD_NOT_FOUND       = 126
+ 	ERROR_PROC_NOT_FOUND      = 127
+ 	ERROR_DIRECTORY           = 267
++	ERROR_IO_PENDING          = 997
+ 	// TODO(brainman): should use value for EWINDOWS that does not clashes with anything else
+ 	EWINDOWS = 99999 /* otherwise unused */
+ )
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index bbe6b558a4..fcd6dc6b14 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -6,34 +6,53 @@ package syscall
+ import "unsafe"
+ 
+ var (
+-	modKERNEL32                    = loadDll("kernel32.dll")
+-	procGetLastError               = getSysProcAddr(modKERNEL32, "GetLastError")
+-	procLoadLibraryW               = getSysProcAddr(modKERNEL32, "LoadLibraryW")
+-	procFreeLibrary                = getSysProcAddr(modKERNEL32, "FreeLibrary")
+-	procGetProcAddress             = getSysProcAddr(modKERNEL32, "GetProcAddress")
+-	procGetVersion                 = getSysProcAddr(modKERNEL32, "GetVersion")
+-	procFormatMessageW             = getSysProcAddr(modKERNEL32, "FormatMessageW")
+-	procExitProcess                = getSysProcAddr(modKERNEL32, "ExitProcess")
+-	procCreateFileW                = getSysProcAddr(modKERNEL32, "CreateFileW")
+-	procReadFile                   = getSysProcAddr(modKERNEL32, "ReadFile")
+-	procWriteFile                  = getSysProcAddr(modKERNEL32, "WriteFile")
+-	procSetFilePointer             = getSysProcAddr(modKERNEL32, "SetFilePointer")
+-	procCloseHandle                = getSysProcAddr(modKERNEL32, "CloseHandle")
+-	procGetStdHandle               = getSysProcAddr(modKERNEL32, "GetStdHandle")
+-	procFindFirstFileW             = getSysProcAddr(modKERNEL32, "FindFirstFileW")
+-	procFindNextFileW              = getSysProcAddr(modKERNEL32, "FindNextFileW")
+-	procFindClose                  = getSysProcAddr(modKERNEL32, "FindClose")
+-	procGetFileInformationByHandle = getSysProcAddr(modKERNEL32, "GetFileInformationByHandle")
+-	procGetCurrentDirectoryW       = getSysProcAddr(modKERNEL32, "GetCurrentDirectoryW")
+-	procSetCurrentDirectoryW       = getSysProcAddr(modKERNEL32, "SetCurrentDirectoryW")
+-	procCreateDirectoryW           = getSysProcAddr(modKERNEL32, "CreateDirectoryW")
+-	procRemoveDirectoryW           = getSysProcAddr(modKERNEL32, "RemoveDirectoryW")
+-	procDeleteFileW                = getSysProcAddr(modKERNEL32, "DeleteFileW")
+-	procMoveFileW                  = getSysProcAddr(modKERNEL32, "MoveFileW")
+-	procGetComputerNameW           = getSysProcAddr(modKERNEL32, "GetComputerNameW")
+-	procSetEndOfFile               = getSysProcAddr(modKERNEL32, "SetEndOfFile")
+-	procGetSystemTimeAsFileTime    = getSysProcAddr(modKERNEL32, "GetSystemTimeAsFileTime")
+-	procSleep                      = getSysProcAddr(modKERNEL32, "Sleep")
++	modkernel32 = loadDll("kernel32.dll")
++	modwsock32  = loadDll("wsock32.dll")
++	modws2_32   = loadDll("ws2_32.dll")
++
++	procGetLastError               = getSysProcAddr(modkernel32, "GetLastError")
++	procLoadLibraryW               = getSysProcAddr(modkernel32, "LoadLibraryW")
++	procFreeLibrary                = getSysProcAddr(modkernel32, "FreeLibrary")
++	procGetProcAddress             = getSysProcAddr(modkernel32, "GetProcAddress")
++	procGetVersion                 = getSysProcAddr(modkernel32, "GetVersion")
++	procFormatMessageW             = getSysProcAddr(modkernel32, "FormatMessageW")
++	procExitProcess                = getSysProcAddr(modkernel32, "ExitProcess")
++	procCreateFileW                = getSysProcAddr(modkernel32, "CreateFileW")
++	procReadFile                   = getSysProcAddr(modkernel32, "ReadFile")
++	procWriteFile                  = getSysProcAddr(modkernel32, "WriteFile")
++	procSetFilePointer             = getSysProcAddr(modkernel32, "SetFilePointer")
++	procCloseHandle                = getSysProcAddr(modkernel32, "CloseHandle")
++	procGetStdHandle               = getSysProcAddr(modkernel32, "GetStdHandle")
++	procFindFirstFileW             = getSysProcAddr(modkernel32, "FindFirstFileW")
++	procFindNextFileW              = getSysProcAddr(modkernel32, "FindNextFileW")
++	procFindClose                  = getSysProcAddr(modkernel32, "FindClose")
++	procGetFileInformationByHandle = getSysProcAddr(modkernel32, "GetFileInformationByHandle")
++	procGetCurrentDirectoryW       = getSysProcAddr(modkernel32, "GetCurrentDirectoryW")
++	procSetCurrentDirectoryW       = getSysProcAddr(modkernel32, "SetCurrentDirectoryW")
++	procCreateDirectoryW           = getSysProcAddr(modkernel32, "CreateDirectoryW")
++	procRemoveDirectoryW           = getSysProcAddr(modkernel32, "RemoveDirectoryW")
++	procDeleteFileW                = getSysProcAddr(modkernel32, "DeleteFileW")
++	procMoveFileW                  = getSysProcAddr(modkernel32, "MoveFileW")
++	procGetComputerNameW           = getSysProcAddr(modkernel32, "GetComputerNameW")
++	procSetEndOfFile               = getSysProcAddr(modkernel32, "SetEndOfFile")
++	procGetSystemTimeAsFileTime    = getSysProcAddr(modkernel32, "GetSystemTimeAsFileTime")
++	procSleep                      = getSysProcAddr(modkernel32, "Sleep")
++	procCreateIoCompletionPort     = getSysProcAddr(modkernel32, "CreateIoCompletionPort")
++	procGetQueuedCompletionStatus  = getSysProcAddr(modkernel32, "GetQueuedCompletionStatus")
++	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
++	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
++	procsocket                     = getSysProcAddr(modwsock32, "socket")
++	procsetsockopt                 = getSysProcAddr(modwsock32, "setsockopt")
++	procbind                       = getSysProcAddr(modwsock32, "bind")
++	procconnect                    = getSysProcAddr(modwsock32, "connect")
++	procgetsockname                = getSysProcAddr(modwsock32, "getsockname")
++	procgetpeername                = getSysProcAddr(modwsock32, "getpeername")
++	proclisten                     = getSysProcAddr(modwsock32, "listen")
++	procshutdown                   = getSysProcAddr(modwsock32, "shutdown")
++	procAcceptEx                   = getSysProcAddr(modwsock32, "AcceptEx")
++	procGetAcceptExSockaddrs       = getSysProcAddr(modwsock32, "GetAcceptExSockaddrs")
++	procWSARecv                    = getSysProcAddr(modws2_32, "WSARecv")
++	procWSASend                    = getSysProcAddr(modws2_32, "WSASend")
+ )
+ 
+ func GetLastError() (lasterrno int) {
+@@ -321,3 +340,158 @@ func sleep(msec uint32) {
+ 	Syscall(procSleep, uintptr(msec), 0, 0)
+ 	return
+ }
++
++func CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int) {
++	r0, _, e1 := Syscall6(procCreateIoCompletionPort, uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt), 0, 0)
++	handle = int32(r0)
++	if handle == 0 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int) {
++	r0, _, e1 := Syscall6(procGetQueuedCompletionStatus, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func WSAStartup(verreq uint32, data *WSAData) (sockerrno int) {
++	r0, _, _ := Syscall(procWSAStartup, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
++	sockerrno = int(r0)
++	return
++}
++
++func WSACleanup() (errno int) {
++	r1, _, e1 := Syscall(procWSACleanup, 0, 0, 0)
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func socket(af int32, typ int32, protocol int32) (handle int32, errno int) {
++	r0, _, e1 := Syscall(procsocket, uintptr(af), uintptr(typ), uintptr(protocol))
++	handle = int32(r0)
++	if handle == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32) (errno int) {
++	r1, _, e1 := Syscall6(procsetsockopt, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(optlen), 0)
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func bind(s int32, name uintptr, namelen int32) (errno int) {
++	r1, _, e1 := Syscall(procbind, uintptr(s), uintptr(name), uintptr(namelen))
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func connect(s int32, name uintptr, namelen int32) (errno int) {
++	r1, _, e1 := Syscall(procconnect, uintptr(s), uintptr(name), uintptr(namelen))
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func getsockname(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) {
++	r1, _, e1 := Syscall(procgetsockname, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) {
++	r1, _, e1 := Syscall(procgetpeername, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func listen(s int32, backlog int32) (errno int) {
++	r1, _, e1 := Syscall(proclisten, uintptr(s), uintptr(backlog), 0)
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func shutdown(s int32, how int32) (errno int) {
++	r1, _, e1 := Syscall(procshutdown, uintptr(s), uintptr(how), 0)
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) {
++	r0, _, e1 := Syscall9(procAcceptEx, uintptr(ls), uintptr(as), uintptr(unsafe.Pointer(buf)), uintptr(rxdatalen), uintptr(laddrlen), uintptr(raddrlen), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(overlapped)), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) {
++	Syscall9(procGetAcceptExSockaddrs, uintptr(unsafe.Pointer(buf)), uintptr(rxdatalen), uintptr(laddrlen), uintptr(raddrlen), uintptr(unsafe.Pointer(lrsa)), uintptr(unsafe.Pointer(lrsalen)), uintptr(unsafe.Pointer(rrsa)), uintptr(unsafe.Pointer(rrsalen)), 0)
++	return
++}
++
++func WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) {
++	r1, _, e1 := Syscall9(procWSARecv, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(flags)), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)), 0, 0)
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) {
++	r1, _, e1 := Syscall9(procWSASend, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)), 0, 0)
++	if int(r1) == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 9898db9361..ad2980c1d1 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -10,19 +10,15 @@ package syscall
+ 
+ // Constants
+ const (
+-	sizeofPtr           = 0x4
+-	sizeofShort         = 0x2
+-	sizeofInt           = 0x4
+-	sizeofLong          = 0x4
+-	sizeofLongLong      = 0x8
+-	PathMax             = 0x1000
+-	SizeofSockaddrInet4 = 0x10
+-	SizeofSockaddrInet6 = 0x1c
+-	SizeofSockaddrAny   = 0x70
+-	SizeofSockaddrUnix  = 0x6e
+-	SizeofLinger        = 0x8
+-	SizeofMsghdr        = 0x1c
+-	SizeofCmsghdr       = 0xc
++	sizeofPtr      = 0x4
++	sizeofShort    = 0x2
++	sizeofInt      = 0x4
++	sizeofLong     = 0x4
++	sizeofLongLong = 0x8
++	PathMax        = 0x1000
++	SizeofLinger   = 0x8
++	SizeofMsghdr   = 0x1c
++	SizeofCmsghdr  = 0xc
+ )
+ 
+ const (
+@@ -82,6 +78,10 @@ const (
+ 	MAX_PATH = 260
+ 
+ 	MAX_COMPUTERNAME_LENGTH = 15
++
++	INFINITE = 0xffffffff
++
++	WAIT_TIMEOUT = 258
+ )
+ 
+ // Types
+@@ -155,6 +155,58 @@ type Stat_t struct {
+ 	Mode    uint32
+ }
+ 
++// Socket related.
++
++const (
++	AF_UNIX  = 1
++	AF_INET  = 2
++	AF_INET6 = 23
++
++	SOCK_STREAM = 1
++	SOCK_DGRAM  = 2
++	SOCK_RAW    = 3
++
++	IPPROTO_IP  = 0
++	IPPROTO_TCP = 6
++	IPPROTO_UDP = 17
++
++	SOL_SOCKET               = 0xffff
++	SO_REUSEADDR             = 4
++	SO_KEEPALIVE             = 8
++	SO_DONTROUTE             = 16
++	SO_BROADCAST             = 32
++	SO_LINGER                = 128
++	SO_RCVBUF                = 0x1002
++	SO_SNDBUF                = 0x1001
++	SO_UPDATE_ACCEPT_CONTEXT = 0x700b
++
++	SOMAXCONN = 5
++
++	TCP_NODELAY = 1
++
++	SHUT_RD   = 0
++	SHUT_WR   = 1
++	SHUT_RDWR = 2
++
++	WSADESCRIPTION_LEN = 256
++	WSASYS_STATUS_LEN  = 128
++)
++
++type WSAData struct {
++	Version      uint16
++	HighVersion  uint16
++	Description  [WSADESCRIPTION_LEN + 1]byte
++	SystemStatus [WSASYS_STATUS_LEN + 1]byte
++	MaxSockets   uint16
++	MaxUdpDg     uint16
++	VendorInfo   *byte
++}
++
++type WSABuf struct {
++	Len uint32
++	Buf *byte
++}
++
+ // TODO(brainman): fix all needed for os
+ 
+ const (

@@ -14,10 +14,110 @@ Date:   Tue Jan 22 19:10:29 2019 -0500
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go   |  2 +-
  src/cmd/compile/internal/gc/subr.go      |  6 +++---
  src/cmd/compile/internal/gc/typecheck.go |  5 +++--
  src/cmd/compile/internal/types/type.go   |  5 +++++
  test/fixedbugs/issue29855.go             | 17 +++++++++++++++++
  5 files changed, 29 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 7a93ece8b9..8b058330dd 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -375,7 +375,7 @@ func methods(t *types.Type) []*Sig {
+ 	// generating code if necessary.
+ 	var ms []*Sig
+ 	for _, f := range mt.AllMethods().Slice() {
+-		if f.Type.Etype != TFUNC || f.Type.Recv() == nil {
++		if !f.IsMethod() {
+ 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
+ 		}
+ 		if f.Type.Recv() == nil {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7dcbc6a9e1..3a261244d1 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1180,7 +1180,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool)
+ 	c := 0
+ 	if u.IsStruct() || u.IsInterface() {
+ 		for _, f := range u.Fields().Slice() {
+-			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Recv() != nil && strings.EqualFold(f.Sym.Name, s.Name)) {
++			if f.Sym == s || (ignorecase && f.IsMethod() && strings.EqualFold(f.Sym.Name, s.Name)) {
+ 				if save != nil {
+ 					*save = f
+ 				}
+@@ -1420,7 +1420,7 @@ func expandmeth(t *types.Type) {
+ 		}
+ 
+ 		// dotpath may have dug out arbitrary fields, we only want methods.
+-		if f.Type.Etype != TFUNC || f.Type.Recv() == nil {
++		if !f.IsMethod() {
+ 			continue
+ 		}
+ 
+@@ -1631,7 +1631,7 @@ func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) (m *types.Field,
+ 		}
+ 	}
+ 
+-	if m.Type.Etype != TFUNC || m.Type.Recv() == nil {
++	if !m.IsMethod() {
+ 		yyerror("%v.%v is a field, not a method", t, s)
+ 		return nil, followptr
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e22fd6445a..0702da25ee 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3250,8 +3250,9 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 						}
+ 						continue
+ 					}
+-					p, _ := dotpath(l.Sym, t, nil, true)
+-					if p == nil {
++					var f *types.Field
++					p, _ := dotpath(l.Sym, t, &f, true)
++					if p == nil || f.IsMethod() {
+ 						yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
+ 						continue
+ 					}
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 3e5f5cbf49..7d123e4610 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -392,6 +392,11 @@ func (f *Field) End() int64 {
+ 	return f.Offset + f.Type.Width
+ }
+ 
++// IsMethod reports whether f represents a method rather than a struct field.
++func (f *Field) IsMethod() bool {
++	return f.Type.Etype == TFUNC && f.Type.Recv() != nil
++}
++
+ // Fields is a pointer to a slice of *Field.
+ // This saves space in Types that do not have fields or methods
+ // compared to a simple slice of *Field.
+diff --git a/test/fixedbugs/issue29855.go b/test/fixedbugs/issue29855.go
+new file mode 100644
+index 0000000000..b57eae2b44
+--- /dev/null
++++ b/test/fixedbugs/issue29855.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct {
++	GlobalName string
++}
++
++var t = T{Name: "foo"} // ERROR "unknown field 'Name' in struct literal of type T"
++
++func (t T) Name() string {
++	return t.GlobalName
++}

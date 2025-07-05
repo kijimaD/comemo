@@ -11,6 +11,20 @@ Date:   Sat Nov 1 08:28:09 2014 -0700
     R=iant
     CC=golang-codereviews, sqweek
     https://golang.org/cl/170850043
-
+---
  misc/cgo/test/issue6997_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue6997_linux.go b/misc/cgo/test/issue6997_linux.go
+index 871bd517a7..5455f0c536 100644
+--- a/misc/cgo/test/issue6997_linux.go
++++ b/misc/cgo/test/issue6997_linux.go
+@@ -34,7 +34,7 @@ func test6997(t *testing.T) {
+ 		if r == 0 {
+ 			t.Error("pthread finished but wasn't cancelled??")
+ 		}
+-	case <-time.After(5 * time.Second):
++	case <-time.After(30 * time.Second):
+ 		t.Error("hung in pthread_cancel/pthread_join")
+ 	}
+ }

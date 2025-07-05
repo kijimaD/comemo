@@ -15,7 +15,58 @@ Date:   Fri Apr 21 17:10:58 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go              | 26 ++++++++++++++++++++++++++
  src/syscall/syscall_windows.go |  2 +-
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index a7fbfa4cb3..895a3e2bc5 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1286,6 +1286,32 @@ func TestSeek(t *testing.T) {
+ 	}
+ }
+ 
++func TestSeekError(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9", "nacl":
++		t.Skipf("skipping test on %v", runtime.GOOS)
++	}
++
++	r, w, err := Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, err = r.Seek(0, 0)
++	if err == nil {
++		t.Fatal("Seek on pipe should fail")
++	}
++	if perr, ok := err.(*PathError); !ok || perr.Err != syscall.ESPIPE {
++		t.Errorf("Seek returned error %v, want &PathError{Err: syscall.ESPIPE}", err)
++	}
++	_, err = w.Seek(0, 0)
++	if err == nil {
++		t.Fatal("Seek on pipe should fail")
++	}
++	if perr, ok := err.(*PathError); !ok || perr.Err != syscall.ESPIPE {
++		t.Errorf("Seek returned error %v, want &PathError{Err: syscall.ESPIPE}", err)
++	}
++}
++
+ type openErrorTest struct {
+ 	path  string
+ 	mode  int
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 19a7deb230..7f92bf7ca4 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -348,7 +348,7 @@ func Seek(fd Handle, offset int64, whence int) (newoffset int64, err error) {
+ 	// use GetFileType to check pipe, pipe can't do seek
+ 	ft, _ := GetFileType(fd)
+ 	if ft == FILE_TYPE_PIPE {
+-		return 0, EPIPE
++		return 0, ESPIPE
+ 	}
+ 	rlo, e := SetFilePointer(fd, lo, &hi, w)
+ 	if e != nil {

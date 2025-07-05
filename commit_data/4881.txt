@@ -7,7 +7,32 @@ Date:   Wed Feb 17 22:41:04 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/215042
-
+---
  src/cmd/5g/galign.c | 1 +
  src/cmd/8g/galign.c | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index f5c642735e..76affbf008 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -18,6 +18,7 @@ Typedef	typedefs[] =
+ 	"uint",		TUINT,		TUINT32,
+ 	"uintptr",	TUINTPTR,	TUINT32,
+ 	"float",	TFLOAT,		TFLOAT32,
++	"complex",	TCOMPLEX,	TCOMPLEX64,
+ 	0
+ };
+ 
+diff --git a/src/cmd/8g/galign.c b/src/cmd/8g/galign.c
+index 351cd01b77..346647205a 100644
+--- a/src/cmd/8g/galign.c
++++ b/src/cmd/8g/galign.c
+@@ -18,6 +18,7 @@ Typedef	typedefs[] =
+ 	"uint",		TUINT,		TUINT32,
+ 	"uintptr",	TUINTPTR,	TUINT32,
+ 	"float",	TFLOAT,		TFLOAT32,
++	"complex",	TCOMPLEX,	TCOMPLEX64,
+ 	0
+ };
+ 

@@ -23,7 +23,165 @@ Date:   Thu Jun 1 17:51:02 2017 -0700
     Change-Id: Ia8710806b6d3d4e5044116b142c036a4ab5a1764
     Reviewed-on: https://go-review.googlesource.com/44651
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/printer/printer.go      | 28 ++++++++++++++---------
  src/go/printer/printer_test.go | 51 ++++++++++++++++++++++++++++++++++++++++--
  2 files changed, 66 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index eb1c72c76c..9d738f41b4 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -69,7 +69,7 @@ type printer struct {
+ 	// The out position differs from the pos position when the result
+ 	// formatting differs from the source formatting (in the amount of
+ 	// white space). If there's a difference and SourcePos is set in
+-	// ConfigMode, //line comments are used in the output to restore
++	// ConfigMode, //line directives are used in the output to restore
+ 	// original source positions for a reader.
+ 	pos     token.Position // current position in AST (source) space
+ 	out     token.Position // current position in output space
+@@ -203,19 +203,20 @@ func (p *printer) lineFor(pos token.Pos) int {
+ 	return p.cachedLine
+ }
+ 
+-// atLineBegin emits a //line comment if necessary and prints indentation.
+-func (p *printer) atLineBegin(pos token.Position) {
+-	// write a //line comment if necessary
+-	if p.Config.Mode&SourcePos != 0 && pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
++// writeLineDirective writes a //line directive if necessary.
++func (p *printer) writeLineDirective(pos token.Position) {
++	if pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
+ 		p.output = append(p.output, tabwriter.Escape) // protect '\n' in //line from tabwriter interpretation
+ 		p.output = append(p.output, fmt.Sprintf("//line %s:%d\n", pos.Filename, pos.Line)...)
+ 		p.output = append(p.output, tabwriter.Escape)
+-		// p.out must match the //line comment
++		// p.out must match the //line directive
+ 		p.out.Filename = pos.Filename
+ 		p.out.Line = pos.Line
+ 	}
++}
+ 
+-	// write indentation
++// writeIndent writes indentation.
++func (p *printer) writeIndent() {
+ 	// use "hard" htabs - indentation columns
+ 	// must not be discarded by the tabwriter
+ 	n := p.Config.Indent + p.indent // include base indentation
+@@ -230,9 +231,11 @@ func (p *printer) atLineBegin(pos token.Position) {
+ }
+ 
+ // writeByte writes ch n times to p.output and updates p.pos.
++// Only used to write formatting (white space) characters.
+ func (p *printer) writeByte(ch byte, n int) {
+ 	if p.out.Column == 1 {
+-		p.atLineBegin(p.pos)
++		// no need to write line directives before white space
++		p.writeIndent()
+ 	}
+ 
+ 	for i := 0; i < n; i++ {
+@@ -265,13 +268,16 @@ func (p *printer) writeByte(ch byte, n int) {
+ //
+ func (p *printer) writeString(pos token.Position, s string, isLit bool) {
+ 	if p.out.Column == 1 {
+-		p.atLineBegin(pos)
++		if p.Config.Mode&SourcePos != 0 {
++			p.writeLineDirective(pos)
++		}
++		p.writeIndent()
+ 	}
+ 
+ 	if pos.IsValid() {
+ 		// update p.pos (if pos is invalid, continue with existing p.pos)
+ 		// Note: Must do this after handling line beginnings because
+-		// atLineBegin updates p.pos if there's indentation, but p.pos
++		// writeIndent updates p.pos if there's indentation, but p.pos
+ 		// is the position of s.
+ 		p.pos = pos
+ 	}
+@@ -1237,7 +1243,7 @@ const (
+ 	RawFormat Mode = 1 << iota // do not use a tabwriter; if set, UseSpaces is ignored
+ 	TabIndent                  // use tabs for indentation independent of UseSpaces
+ 	UseSpaces                  // use spaces instead of tabs for alignment
+-	SourcePos                  // emit //line comments to preserve original source positions
++	SourcePos                  // emit //line directives to preserve original source positions
+ )
+ 
+ // A Config node controls the output of Fprint.
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 0badbfba69..409a53fd29 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -363,7 +363,7 @@ func identCount(f *ast.File) int {
+ 	return n
+ }
+ 
+-// Verify that the SourcePos mode emits correct //line comments
++// Verify that the SourcePos mode emits correct //line directives
+ // by testing that position information for matching identifiers
+ // is maintained.
+ func TestSourcePos(t *testing.T) {
+@@ -394,7 +394,7 @@ func (t *t) foo(a, b, c int) int {
+ 	}
+ 
+ 	// parse pretty printed original
+-	// (//line comments must be interpreted even w/o parser.ParseComments set)
++	// (//line directives must be interpreted even w/o parser.ParseComments set)
+ 	f2, err := parser.ParseFile(fset, "", buf.Bytes(), 0)
+ 	if err != nil {
+ 		t.Fatalf("%s\n%s", err, buf.Bytes())
+@@ -434,6 +434,53 @@ func (t *t) foo(a, b, c int) int {
+ 	}
+ }
+ 
++// Verify that the SourcePos mode doesn't emit unnecessary //line directives
++// before empty lines.
++func TestIssue5945(t *testing.T) {
++	const orig = `
++package p   // line 2
++func f() {} // line 3
++
++var x, y, z int
++
++
++func g() { // line 8
++}
++`
++
++	const want = `//line src.go:2
++package p
++
++//line src.go:3
++func f() {}
++
++var x, y, z int
++
++//line src.go:8
++func g() {
++}
++`
++
++	// parse original
++	f1, err := parser.ParseFile(fset, "src.go", orig, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// pretty-print original
++	var buf bytes.Buffer
++	err = (&Config{Mode: UseSpaces | SourcePos, Tabwidth: 8}).Fprint(&buf, fset, f1)
++	if err != nil {
++		t.Fatal(err)
++	}
++	got := buf.String()
++
++	// compare original with desired output
++	if got != want {
++		t.Errorf("got:\n%s\nwant:\n%s\n", got, want)
++	}
++}
++
+ var decls = []string{
+ 	`import "fmt"`,
+ 	"const pi = 3.1415\nconst e = 2.71828\n\nvar x = pi",

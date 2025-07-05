@@ -7,7 +7,81 @@ Date:   Wed Feb 2 12:38:48 2011 -0800
     R=rsc, rog, r2
     CC=golang-dev
     https://golang.org/cl/4128049
-
+---
  src/pkg/fmt/scan.go      | 26 ++++++++++++++++++++++++--
  src/pkg/fmt/scan_test.go |  4 ++++
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index a408c42aaf..224293da26 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -7,6 +7,7 @@ package fmt
+ import (
+ 	"bytes"
+ 	"io"
++	"math"
+ 	"os"
+ 	"reflect"
+ 	"strconv"
+@@ -459,7 +460,7 @@ const (
+ 	hexadecimalDigits = "0123456789aAbBcCdDeEfF"
+ 	sign              = "+-"
+ 	period            = "."
+-	exponent          = "eE"
++	exponent          = "eEp"
+ )
+ 
+ // getBase returns the numeric base represented by the verb and its digit string.
+@@ -617,6 +618,27 @@ func (s *ss) complexTokens() (real, imag string) {
+ 
+ // convertFloat converts the string to a float64value.
+ func (s *ss) convertFloat(str string, n int) float64 {
++	if p := strings.Index(str, "p"); p >= 0 {
++		// Atof doesn't handle power-of-2 exponents,
++		// but they're easy to evaluate.
++		f, err := strconv.AtofN(str[:p], n)
++		if err != nil {
++			// Put full string into error.
++			if e, ok := err.(*strconv.NumError); ok {
++				e.Num = str
++			}
++			s.error(err)
++		}
++		n, err := strconv.Atoi(str[p+1:])
++		if err != nil {
++			// Put full string into error.
++			if e, ok := err.(*strconv.NumError); ok {
++				e.Num = str
++			}
++			s.error(err)
++		}
++		return math.Ldexp(f, n)
++	}
+ 	f, err := strconv.AtofN(str, n)
+ 	if err != nil {
+ 		s.error(err)
+@@ -747,7 +769,7 @@ func (s *ss) hexString() string {
+ 	return s.buf.String()
+ }
+ 
+-const floatVerbs = "eEfFgGv"
++const floatVerbs = "beEfFgGv"
+ 
+ // scanOne scans a single value, deriving the scanner from the type of the argument.
+ func (s *ss) scanOne(verb int, field interface{}) {
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 78b9fbb4ab..c647fc7b5d 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -160,6 +160,10 @@ var scanTests = []ScanTest{
+ 	{"2.3\n", &float64Val, 2.3},
+ 	{"2.3e1\n", &float32Val, float32(2.3e1)},
+ 	{"2.3e2\n", &float64Val, 2.3e2},
++	{"2.3p2\n", &float64Val, 2.3 * 4},
++	{"2.3p+2\n", &float64Val, 2.3 * 4},
++	{"2.3p+66\n", &float64Val, 2.3 * (1 << 32) * (1 << 32) * 4},
++	{"2.3p-66\n", &float64Val, 2.3 / ((1 << 32) * (1 << 32) * 4)},
+ 	{"2.35\n", &stringVal, "2.35"},
+ 	{"2345678\n", &bytesVal, []byte("2345678")},
+ 	{"(3.4e1-2i)\n", &complex128Val, 3.4e1 - 2i},

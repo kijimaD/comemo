@@ -23,6 +23,28 @@ Date:   Thu Sep 17 08:32:09 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/14484
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file_unix.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 0677707ee0..36b2a608ff 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -90,8 +90,16 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+ 		}
+ 	}
+ 
++retry:
+ 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+ 	if e != nil {
++		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
++		// open(2) to be restarted for regular files. This is easy to reproduce on
++		// fuse file systems (see http://golang.org/issue/11180).
++		if e == syscall.EINTR {
++			goto retry
++		}
++
+ 		return nil, &PathError{"open", name, e}
+ 	}
+ 

@@ -12,6 +12,32 @@ Date:   Thu Jan 10 11:12:28 2019 -0800
     Change-Id: I701f34927731fb5c658a1be271c04388e5e7e3f7
     Reviewed-on: https://go-review.googlesource.com/c/157417
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 568920df6d..e228d98a8c 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -553,6 +553,20 @@ for {
+ 
+ </dl><!-- lib/time -->
+ 
++<dl id="math"><dt><a href="/pkg/math/">math</a></dt>
++  <dd>
++    <p><!-- CL 153059 -->
++      The functions
++      <a href="/pkg/math/#Sin"><code>Sin</code></a>,
++      <a href="/pkg/math/#Cos"><code>Cos</code></a>,
++      <a href="/pkg/math/#Tan"><code>Tan</code></a>,
++      and <a href="/pkg/math/#Sincos"><code>Sincos</code></a> now
++      apply Payne-Hanek range reduction to huge arguments. This
++      produces more accurate answers, but they will not be bit-for-bit
++      identical with the results in earlier releases.
++    </p>
++</dl><!-- math -->
++
+ <dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
+   <dd>
+     <p><!-- CL 123157 -->

@@ -7,7 +7,7 @@ Date:   Mon Jan 21 11:25:28 2013 -0500
     R=golang-dev, krautz, rsc
     CC=golang-dev
     https://golang.org/cl/7157044
-
+---
  src/pkg/crypto/x509/root_darwin.go  |  9 ++++----
  src/pkg/crypto/x509/root_plan9.go   |  6 +++--
  src/pkg/crypto/x509/root_stub.go    |  1 -
@@ -16,3 +16,189 @@ Date:   Mon Jan 21 11:25:28 2013 -0500
  src/pkg/crypto/x509/verify.go       | 11 +++++++++
  src/pkg/crypto/x509/verify_test.go  | 46 +++++++++++++++++++++++++++++++------
  7 files changed, 63 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/root_darwin.go b/src/pkg/crypto/x509/root_darwin.go
+index 0f99581e8a..ad3bfb4b43 100644
+--- a/src/pkg/crypto/x509/root_darwin.go
++++ b/src/pkg/crypto/x509/root_darwin.go
+@@ -70,11 +70,12 @@ func initSystemRoots() {
+ 
+ 	var data C.CFDataRef = nil
+ 	err := C.FetchPEMRoots(&data)
+-	if err != -1 {
+-		defer C.CFRelease(C.CFTypeRef(data))
+-		buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
+-		roots.AppendCertsFromPEM(buf)
++	if err == -1 {
++		return
+ 	}
+ 
++	defer C.CFRelease(C.CFTypeRef(data))
++	buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
++	roots.AppendCertsFromPEM(buf)
+ 	systemRoots = roots
+ }
+diff --git a/src/pkg/crypto/x509/root_plan9.go b/src/pkg/crypto/x509/root_plan9.go
+index 677927a3b6..9965caadee 100644
+--- a/src/pkg/crypto/x509/root_plan9.go
++++ b/src/pkg/crypto/x509/root_plan9.go
+@@ -23,9 +23,11 @@ func initSystemRoots() {
+ 		data, err := ioutil.ReadFile(file)
+ 		if err == nil {
+ 			roots.AppendCertsFromPEM(data)
+-			break
++			systemRoots = roots
++			return
+ 		}
+ 	}
+ 
+-	systemRoots = roots
++	// All of the files failed to load. systemRoots will be nil which will
++	// trigger a specific error at verification time.
+ }
+diff --git a/src/pkg/crypto/x509/root_stub.go b/src/pkg/crypto/x509/root_stub.go
+index 756732f7d4..4c742ccc37 100644
+--- a/src/pkg/crypto/x509/root_stub.go
++++ b/src/pkg/crypto/x509/root_stub.go
+@@ -11,5 +11,4 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ }
+ 
+ func initSystemRoots() {
+-	systemRoots = NewCertPool()
+ }
+diff --git a/src/pkg/crypto/x509/root_unix.go b/src/pkg/crypto/x509/root_unix.go
+index 76e79f494f..1b25a94d08 100644
+--- a/src/pkg/crypto/x509/root_unix.go
++++ b/src/pkg/crypto/x509/root_unix.go
+@@ -27,9 +27,11 @@ func initSystemRoots() {
+ 		data, err := ioutil.ReadFile(file)
+ 		if err == nil {
+ 			roots.AppendCertsFromPEM(data)
+-			break
++			systemRoots = roots
++			return
+ 		}
+ 	}
+ 
+-	systemRoots = roots
++	// All of the files failed to load. systemRoots will be nil which will
++	// trigger a specific error at verification time.
+ }
+diff --git a/src/pkg/crypto/x509/root_windows.go b/src/pkg/crypto/x509/root_windows.go
+index 96ca57b420..e8f70a49da 100644
+--- a/src/pkg/crypto/x509/root_windows.go
++++ b/src/pkg/crypto/x509/root_windows.go
+@@ -226,5 +226,4 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ }
+ 
+ func initSystemRoots() {
+-	systemRoots = NewCertPool()
+ }
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 68929c7bb6..51be5feb06 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -82,6 +82,14 @@ func (e UnknownAuthorityError) Error() string {
+ 	return "x509: certificate signed by unknown authority"
+ }
+ 
++// SystemRootsError results when we fail to load the system root certificates.
++type SystemRootsError struct {
++}
++
++func (e SystemRootsError) Error() string {
++	return "x509: failed to load system roots and no roots provided"
++}
++
+ // VerifyOptions contains parameters for Certificate.Verify. It's a structure
+ // because other PKIX verification APIs have ended up needing many options.
+ type VerifyOptions struct {
+@@ -170,6 +178,9 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 
+ 	if opts.Roots == nil {
+ 		opts.Roots = systemRootsPool()
++		if opts.Roots == nil {
++			return nil, SystemRootsError{}
++		}
+ 	}
+ 
+ 	err = c.isValid(leafCertificate, nil, &opts)
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index 510a119ff7..1ed95fe628 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -15,19 +15,32 @@ import (
+ )
+ 
+ type verifyTest struct {
+-	leaf          string
+-	intermediates []string
+-	roots         []string
+-	currentTime   int64
+-	dnsName       string
+-	systemSkip    bool
+-	keyUsages     []ExtKeyUsage
++	leaf                 string
++	intermediates        []string
++	roots                []string
++	currentTime          int64
++	dnsName              string
++	systemSkip           bool
++	keyUsages            []ExtKeyUsage
++	testSystemRootsError bool
+ 
+ 	errorCallback  func(*testing.T, int, error) bool
+ 	expectedChains [][]string
+ }
+ 
+ var verifyTests = []verifyTest{
++	{
++		leaf:                 googleLeaf,
++		intermediates:        []string{thawteIntermediate},
++		currentTime:          1302726541,
++		dnsName:              "www.google.com",
++		testSystemRootsError: true,
++		systemSkip:           true,
++
++		// Without any roots specified we should get a system roots
++		// error.
++		errorCallback: expectSystemRootsError,
++	},
+ 	{
+ 		leaf:          googleLeaf,
+ 		intermediates: []string{thawteIntermediate},
+@@ -180,6 +193,14 @@ func expectAuthorityUnknown(t *testing.T, i int, err error) (ok bool) {
+ 	return true
+ }
+ 
++func expectSystemRootsError(t *testing.T, i int, err error) bool {
++	if _, ok := err.(SystemRootsError); !ok {
++		t.Errorf("#%d: error was not SystemRootsError: %s", i, err)
++		return false
++	}
++	return true
++}
++
+ func certificateFromPEM(pemBytes string) (*Certificate, error) {
+ 	block, _ := pem.Decode([]byte(pemBytes))
+ 	if block == nil {
+@@ -226,8 +247,19 @@ func testVerify(t *testing.T, useSystemRoots bool) {
+ 			return
+ 		}
+ 
++		var oldSystemRoots *CertPool
++		if test.testSystemRootsError {
++			oldSystemRoots = systemRootsPool()
++			systemRoots = nil
++			opts.Roots = nil
++		}
++
+ 		chains, err := leaf.Verify(opts)
+ 
++		if test.testSystemRootsError {
++			systemRoots = oldSystemRoots
++		}
++
+ 		if test.errorCallback == nil && err != nil {
+ 			t.Errorf("#%d: unexpected error: %s", i, err)
+ 		}

@@ -12,7 +12,7 @@ Date:   Thu Oct 3 10:19:38 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201401
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/os_linux.go         | 12 +++++++++++-
  src/runtime/sys_linux_386.s     | 14 ++++++++++++++
  src/runtime/sys_linux_amd64.s   | 14 ++++++++++++++
@@ -23,3 +23,229 @@ Date:   Thu Oct 3 10:19:38 2019 -0400
  src/runtime/sys_linux_ppc64x.s  | 12 ++++++++++++
  src/runtime/sys_linux_s390x.s   | 14 ++++++++++++++
  9 files changed, 121 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index b1ddf53dd1..20b947f250 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -332,7 +332,9 @@ func gettid() uint32
+ func minit() {
+ 	minitSignals()
+ 
+-	// for debuggers, in case cgo created the thread
++	// Cgo-created threads and the bootstrap m are missing a
++	// procid. We need this for asynchronous preemption and its
++	// useful in debuggers.
+ 	getg().m.procid = uint64(gettid())
+ }
+ 
+@@ -454,3 +456,11 @@ func sysSigaction(sig uint32, new, old *sigactiont) {
+ // rt_sigaction is implemented in assembly.
+ //go:noescape
+ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
++
++func getpid() int
++func tgkill(tgid, tid, sig int)
++
++// signalM sends a signal to mp.
++func signalM(mp *m, sig int) {
++	tgkill(getpid(), int(mp.procid), sig)
++}
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 4b440b13cb..373d9d3bc2 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -188,6 +188,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
+ 	INVOKE_SYSCALL
+ 	RET
+ 
++TEXT ·getpid(SB),NOSPLIT,$0-4
++	MOVL	$SYS_getpid, AX
++	INVOKE_SYSCALL
++	MOVL	AX, ret+0(FP)
++	RET
++
++TEXT ·tgkill(SB),NOSPLIT,$0
++	MOVL	$SYS_tgkill, AX
++	MOVL	tgid+0(FP), BX
++	MOVL	tid+4(FP), CX
++	MOVL	sig+8(FP), DX
++	INVOKE_SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
+ 	MOVL	$SYS_setittimer, AX
+ 	MOVL	mode+0(FP), BX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 0728d1766e..d16060f6fa 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -171,6 +171,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	RET
+ 
++TEXT ·getpid(SB),NOSPLIT,$0-8
++	MOVL	$SYS_getpid, AX
++	SYSCALL
++	MOVQ	AX, ret+0(FP)
++	RET
++
++TEXT ·tgkill(SB),NOSPLIT,$0
++	MOVQ	tgid+0(FP), DI
++	MOVQ	tid+8(FP), SI
++	MOVQ	sig+16(FP), DX
++	MOVL	$SYS_tgkill, AX
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$0-24
+ 	MOVL	mode+0(FP), DI
+ 	MOVQ	new+8(FP), SI
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 9a9e1c92c7..a787440a15 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -172,6 +172,20 @@ TEXT	runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
+ 	SWI	$0
+ 	RET
+ 
++TEXT ·getpid(SB),NOSPLIT,$0-4
++	MOVW	$SYS_getpid, R7
++	SWI	$0
++	MOVW	R0, ret+0(FP)
++	RET
++
++TEXT ·tgkill(SB),NOSPLIT,$0-12
++	MOVW	tgid+0(FP), R0
++	MOVW	tid+4(FP), R1
++	MOVW	sig+8(FP), R2
++	MOVW	$SYS_tgkill, R7
++	SWI	$0
++	RET
++
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R0
+ 	MOVW	n+4(FP), R1
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index a77be98739..e0d681ebf1 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -175,6 +175,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
+ 	SVC
+ 	RET
+ 
++TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
++	MOVD	$SYS_getpid, R8
++	SVC
++	MOVD	R0, ret+0(FP)
++	RET
++
++TEXT ·tgkill(SB),NOSPLIT,$0-24
++	MOVD	tgid+0(FP), R0
++	MOVD	tid+8(FP), R1
++	MOVD	sig+16(FP), R2
++	MOVD	$SYS_tgkill, R8
++	SVC
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	MOVW	mode+0(FP), R0
+ 	MOVD	new+8(FP), R1
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 49459b0cec..e4d02a3953 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -177,6 +177,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
+ 	SYSCALL
+ 	RET
+ 
++TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
++	MOVV	$SYS_getpid, R2
++	SYSCALL
++	MOVV	R2, ret+0(FP)
++	RET
++
++TEXT ·tgkill(SB),NOSPLIT|NOFRAME,$0-24
++	MOVV	tgid+0(FP), R4
++	MOVV	tid+8(FP), R5
++	MOVV	sig+16(FP), R6
++	MOVV	$SYS_tgkill, R2
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	MOVW	mode+0(FP), R4
+ 	MOVV	new+8(FP), R5
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index 3c405c264e..15893a7a28 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -183,6 +183,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	RET
+ 
++TEXT ·getpid(SB),NOSPLIT,$0-4
++	MOVW	$SYS_getpid, R2
++	SYSCALL
++	MOVW	R2, ret+0(FP)
++	RET
++
++TEXT ·tgkill(SB),NOSPLIT,$0-12
++	MOVW	tgid+0(FP), R4
++	MOVW	tid+4(FP), R5
++	MOVW	sig+8(FP), R6
++	MOVW	$SYS_tgkill, R2
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
+ 	MOVW	mode+0(FP), R4
+ 	MOVW	new+4(FP), R5
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 203ce089c1..de14418338 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -156,6 +156,18 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
+ 	SYSCALL	$SYS_kill
+ 	RET
+ 
++TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
++	SYSCALL $SYS_getpid
++	MOVD	R3, ret+0(FP)
++	RET
++
++TEXT ·tgkill(SB),NOSPLIT|NOFRAME,$0-24
++	MOVD	tgid+0(FP), R3
++	MOVD	tid+8(FP), R4
++	MOVD	sig+16(FP), R5
++	SYSCALL $SYS_tgkill
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	MOVW	mode+0(FP), R3
+ 	MOVD	new+8(FP), R4
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index df01271f7b..c15a1d5364 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -163,6 +163,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
+ 	SYSCALL
+ 	RET
+ 
++TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
++	MOVW	$SYS_getpid, R1
++	SYSCALL
++	MOVD	R2, ret+0(FP)
++	RET
++
++TEXT ·tgkill(SB),NOSPLIT|NOFRAME,$0-24
++	MOVD	tgid+0(FP), R2
++	MOVD	tid+8(FP), R3
++	MOVD	sig+16(FP), R4
++	MOVW	$SYS_tgkill, R1
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	MOVW	mode+0(FP), R2
+ 	MOVD	new+8(FP), R3

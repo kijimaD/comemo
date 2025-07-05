@@ -14,6 +14,21 @@ Date:   Tue Apr 7 08:01:24 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index fdc020dd2a..acce23c0c2 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2593,9 +2593,6 @@ func (l *Loader) SetRelocVariant(s Sym, ri int, v sym.RelocVariant) {
+ // RelocVariant returns the 'variant' property of a relocation on
+ // some specific symbol.
+ func (l *Loader) RelocVariant(s Sym, ri int) sym.RelocVariant {
+-	if relocs := l.Relocs(s); ri >= relocs.Count() {
+-		panic("invalid relocation ID")
+-	}
+ 	return l.relocVariant[relocId{s, ri}]
+ }
+ 

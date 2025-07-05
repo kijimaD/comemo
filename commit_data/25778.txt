@@ -13,6 +13,25 @@ Date:   Fri Nov 20 10:42:05 2015 -0500
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index ef06ba28d1..2ddaeb4f9c 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -47,10 +47,10 @@ var sysdir = func() *sysDir {
+ 	switch runtime.GOOS {
+ 	case "android":
+ 		return &sysDir{
+-			"/system/etc",
++			"/system/framework",
+ 			[]string{
+-				"audio_policy.conf",
+-				"system_fonts.xml",
++				"ext.jar",
++				"framework.jar",
+ 			},
+ 		}
+ 	case "darwin":

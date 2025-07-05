@@ -12,7 +12,124 @@ Date:   Sat Jun 16 06:54:23 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 +++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 80 ++++++++++++++++++++++++++++
  2 files changed, 87 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index a7474ec465..4c11f8d036 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2430,6 +2430,13 @@
+ // See issue 22947 for details
+ (ADD(Q|L)const [off] x:(SP)) -> (LEA(Q|L) [off] x)
+ 
++// HMULx is commutative, but its first argument must go in AX.
++// If possible, put a rematerializeable value in the first argument slot,
++// to reduce the odds that another value will be have to spilled
++// specifically to free up AX.
++(HMUL(Q|L)  x y) && !x.rematerializeable() && y.rematerializeable() -> (HMUL(Q|L)  y x)
++(HMUL(Q|L)U x y) && !x.rematerializeable() && y.rematerializeable() -> (HMUL(Q|L)U y x)
++
+ // Fold loads into compares
+ // Note: these may be undone by the flagalloc pass.
+ (CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(Q|L|W|B)load {sym} [off] ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 9a443ec0c4..1b531954db 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -173,6 +173,14 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64DIVSS_0(v)
+ 	case OpAMD64DIVSSload:
+ 		return rewriteValueAMD64_OpAMD64DIVSSload_0(v)
++	case OpAMD64HMULL:
++		return rewriteValueAMD64_OpAMD64HMULL_0(v)
++	case OpAMD64HMULLU:
++		return rewriteValueAMD64_OpAMD64HMULLU_0(v)
++	case OpAMD64HMULQ:
++		return rewriteValueAMD64_OpAMD64HMULQ_0(v)
++	case OpAMD64HMULQU:
++		return rewriteValueAMD64_OpAMD64HMULQU_0(v)
+ 	case OpAMD64LEAL:
+ 		return rewriteValueAMD64_OpAMD64LEAL_0(v)
+ 	case OpAMD64LEAL1:
+@@ -9238,6 +9246,78 @@ func rewriteValueAMD64_OpAMD64DIVSSload_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64HMULL_0(v *Value) bool {
++	// match: (HMULL x y)
++	// cond: !x.rematerializeable() && y.rematerializeable()
++	// result: (HMULL y x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(!x.rematerializeable() && y.rematerializeable()) {
++			break
++		}
++		v.reset(OpAMD64HMULL)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64HMULLU_0(v *Value) bool {
++	// match: (HMULLU x y)
++	// cond: !x.rematerializeable() && y.rematerializeable()
++	// result: (HMULLU y x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(!x.rematerializeable() && y.rematerializeable()) {
++			break
++		}
++		v.reset(OpAMD64HMULLU)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64HMULQ_0(v *Value) bool {
++	// match: (HMULQ x y)
++	// cond: !x.rematerializeable() && y.rematerializeable()
++	// result: (HMULQ y x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(!x.rematerializeable() && y.rematerializeable()) {
++			break
++		}
++		v.reset(OpAMD64HMULQ)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64HMULQU_0(v *Value) bool {
++	// match: (HMULQU x y)
++	// cond: !x.rematerializeable() && y.rematerializeable()
++	// result: (HMULQU y x)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		if !(!x.rematerializeable() && y.rematerializeable()) {
++			break
++		}
++		v.reset(OpAMD64HMULQU)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64LEAL_0(v *Value) bool {
+ 	// match: (LEAL [c] {s} (ADDLconst [d] x))
+ 	// cond: is32Bit(c+d)

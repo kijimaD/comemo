@@ -15,6 +15,20 @@ Date:   Tue Nov 19 13:22:55 2019 +0100
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/config.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index dcbe136832..86d8779512 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -244,7 +244,7 @@ func determineLinkMode(ctxt *Link) {
+ 			ctxt.LinkMode = LinkExternal
+ 			via = "via GO_EXTLINK_ENABLED "
+ 		default:
+-			if extNeeded || (iscgo && externalobj) || ctxt.BuildMode == BuildModePIE {
++			if extNeeded || (iscgo && externalobj) {
+ 				ctxt.LinkMode = LinkExternal
+ 			} else {
+ 				ctxt.LinkMode = LinkInternal

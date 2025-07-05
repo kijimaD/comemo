@@ -7,7 +7,7 @@ Date:   Wed Aug 22 11:05:24 2012 +1000
     R=golang-dev, r, adg
     CC=golang-dev
     https://golang.org/cl/6463050
-
+---
  src/pkg/archive/zip/reader.go          | 114 +++++++++++++++++++++++++---
  src/pkg/archive/zip/reader_test.go     |  11 +++
  src/pkg/archive/zip/struct.go          |  93 ++++++++++++++++-------
@@ -15,3 +15,720 @@ Date:   Wed Aug 22 11:05:24 2012 +1000
  src/pkg/archive/zip/writer.go          | 134 +++++++++++++++++++++++++++------
  src/pkg/archive/zip/zip_test.go        | 114 +++++++++++++++++++++++++---
  6 files changed, 394 insertions(+), 72 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index ddd507538b..a6b049ec32 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -103,7 +103,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 		}
+ 		z.File = append(z.File, f)
+ 	}
+-	if uint16(len(z.File)) != end.directoryRecords {
++	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
+ 		// Return the readDirectoryHeader error if we read
+ 		// the wrong number of directory entries.
+ 		return err
+@@ -123,7 +123,7 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	size := int64(f.CompressedSize)
++	size := int64(f.CompressedSize64)
+ 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
+ 	switch f.Method {
+ 	case Store: // (no compression)
+@@ -220,6 +220,8 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 	f.CRC32 = b.uint32()
+ 	f.CompressedSize = b.uint32()
+ 	f.UncompressedSize = b.uint32()
++	f.CompressedSize64 = uint64(f.CompressedSize)
++	f.UncompressedSize64 = uint64(f.UncompressedSize)
+ 	filenameLen := int(b.uint16())
+ 	extraLen := int(b.uint16())
+ 	commentLen := int(b.uint16())
+@@ -233,6 +235,28 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 	f.Name = string(d[:filenameLen])
+ 	f.Extra = d[filenameLen : filenameLen+extraLen]
+ 	f.Comment = string(d[filenameLen+extraLen:])
++
++	if len(f.Extra) > 0 {
++		b := readBuf(f.Extra)
++		for len(b) > 0 {
++			tag := b.uint16()
++			size := b.uint16()
++			if tag == zip64ExtraId {
++				// update directory values from the zip64 extra block
++				eb := readBuf(b)
++				if len(eb) >= 8 {
++					f.UncompressedSize64 = eb.uint64()
++				}
++				if len(eb) >= 8 {
++					f.CompressedSize64 = eb.uint64()
++				}
++				if len(eb) >= 8 {
++					f.headerOffset = int64(eb.uint64())
++				}
++			}
++			b = b[size:]
++		}
++	}
+ 	return nil
+ }
+ 
+@@ -263,15 +287,23 @@ func readDataDescriptor(r io.Reader, f *File) error {
+ 		return err
+ 	}
+ 	b := readBuf(buf[:12])
+-	f.CRC32 = b.uint32()
+-	f.CompressedSize = b.uint32()
+-	f.UncompressedSize = b.uint32()
++	if b.uint32() != f.CRC32 {
++		return ErrChecksum
++	}
++
++	// The two sizes that follow here can be either 32 bits or 64 bits
++	// but the spec is not very clear on this and different
++	// interpretations has been made causing incompatibilities. We
++	// already have the sizes from the central directory so we can
++	// just ignore these.
++
+ 	return nil
+ }
+ 
+ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) {
+ 	// look for directoryEndSignature in the last 1k, then in the last 65k
+ 	var buf []byte
++	var directoryEndOffset int64
+ 	for i, bLen := range []int64{1024, 65 * 1024} {
+ 		if bLen > size {
+ 			bLen = size
+@@ -282,6 +314,7 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 		}
+ 		if p := findSignatureInBlock(buf); p >= 0 {
+ 			buf = buf[p:]
++			directoryEndOffset = size - bLen + int64(p)
+ 			break
+ 		}
+ 		if i == 1 || bLen == size {
+@@ -292,12 +325,12 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 	// read header into struct
+ 	b := readBuf(buf[4:]) // skip signature
+ 	d := &directoryEnd{
+-		diskNbr:            b.uint16(),
+-		dirDiskNbr:         b.uint16(),
+-		dirRecordsThisDisk: b.uint16(),
+-		directoryRecords:   b.uint16(),
+-		directorySize:      b.uint32(),
+-		directoryOffset:    b.uint32(),
++		diskNbr:            uint32(b.uint16()),
++		dirDiskNbr:         uint32(b.uint16()),
++		dirRecordsThisDisk: uint64(b.uint16()),
++		directoryRecords:   uint64(b.uint16()),
++		directorySize:      uint64(b.uint32()),
++		directoryOffset:    uint64(b.uint32()),
+ 		commentLen:         b.uint16(),
+ 	}
+ 	l := int(d.commentLen)
+@@ -305,9 +338,62 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 		return nil, errors.New("zip: invalid comment length")
+ 	}
+ 	d.comment = string(b[:l])
++
++	p, err := findDirectory64End(r, directoryEndOffset)
++	if err == nil && p >= 0 {
++		err = readDirectory64End(r, p, d)
++	}
++	if err != nil {
++		return nil, err
++	}
+ 	return d, nil
+ }
+ 
++// findDirectory64End tries to read the zip64 locator just before the
++// directory end and returns the offset of the zip64 directory end if
++// found.
++func findDirectory64End(r io.ReaderAt, directoryEndOffset int64) (int64, error) {
++	locOffset := directoryEndOffset - directory64LocLen
++	if locOffset < 0 {
++		return -1, nil // no need to look for a header outside the file
++	}
++	buf := make([]byte, directory64LocLen)
++	if _, err := r.ReadAt(buf, locOffset); err != nil {
++		return -1, err
++	}
++	b := readBuf(buf)
++	if sig := b.uint32(); sig != directory64LocSignature {
++		return -1, nil
++	}
++	b = b[4:]       // skip number of the disk with the start of the zip64 end of central directory
++	p := b.uint64() // relative offset of the zip64 end of central directory record
++	return int64(p), nil
++}
++
++// readDirectory64End reads the zip64 directory end and updates the
++// directory end with the zip64 directory end values.
++func readDirectory64End(r io.ReaderAt, offset int64, d *directoryEnd) (err error) {
++	buf := make([]byte, directory64EndLen)
++	if _, err := r.ReadAt(buf, offset); err != nil {
++		return err
++	}
++
++	b := readBuf(buf)
++	if sig := b.uint32(); sig != directory64EndSignature {
++		return ErrFormat
++	}
++
++	b = b[12:]                        // skip dir size, version and version needed (uint64 + 2x uint16)
++	d.diskNbr = b.uint32()            // number of this disk
++	d.dirDiskNbr = b.uint32()         // number of the disk with the start of the central directory
++	d.dirRecordsThisDisk = b.uint64() // total number of entries in the central directory on this disk
++	d.directoryRecords = b.uint64()   // total number of entries in the central directory
++	d.directorySize = b.uint64()      // size of the central directory
++	d.directoryOffset = b.uint64()    // offset of start of central directory with respect to the starting disk number
++
++	return nil
++}
++
+ func findSignatureInBlock(b []byte) int {
+ 	for i := len(b) - directoryEndLen; i >= 0; i-- {
+ 		// defined from directoryEndSignature in struct.go
+@@ -335,3 +421,9 @@ func (b *readBuf) uint32() uint32 {
+ 	*b = (*b)[4:]
+ 	return v
+ }
++
++func (b *readBuf) uint64() uint64 {
++	v := binary.LittleEndian.Uint64(*b)
++	*b = (*b)[8:]
++	return v
++}
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 5f1d1b28a9..cf9c59c4b9 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -206,6 +206,17 @@ var tests = []ZipTest{
+ 			},
+ 		},
+ 	},
++	{
++		Name: "zip64.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "README",
++				Content: []byte("This small file is in ZIP64 format.\n"),
++				Mtime:   "08-10-12 14:33:32",
++				Mode:    0644,
++			},
++		},
++	},
+ }
+ 
+ var crossPlatform = []ZipTestFile{
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index 55f3dcfb82..ea067f3554 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -7,12 +7,19 @@ Package zip provides support for reading and writing ZIP archives.
+ 
+ See: http://www.pkware.com/documents/casestudies/APPNOTE.TXT
+ 
+-This package does not support ZIP64 or disk spanning.
++This package does not support disk spanning.
++
++A note about ZIP64:
++
++To be backwards compatible the FileHeader has both 32 and 64 bit Size
++fields. The 64 bit fields will always contain the correct value and
++for normal archives both fields will be the same. For files requiring
++the ZIP64 format the 32 bit fields will be 0xffffffff and the 64 bit
++fields must be used instead.
+ */
+ package zip
+ 
+ import (
+-	"errors"
+ 	"os"
+ 	"time"
+ )
+@@ -27,11 +34,16 @@ const (
+ 	fileHeaderSignature      = 0x04034b50
+ 	directoryHeaderSignature = 0x02014b50
+ 	directoryEndSignature    = 0x06054b50
++	directory64LocSignature  = 0x07064b50
++	directory64EndSignature  = 0x06064b50
+ 	dataDescriptorSignature  = 0x08074b50 // de-facto standard; required by OS X Finder
+ 	fileHeaderLen            = 30         // + filename + extra
+ 	directoryHeaderLen       = 46         // + filename + extra + comment
+ 	directoryEndLen          = 22         // + comment
+ 	dataDescriptorLen        = 16         // four uint32: descriptor signature, crc32, compressed size, size
++	dataDescriptor64Len      = 24         // descriptor with 8 byte sizes
++	directory64LocLen        = 20         //
++	directory64EndLen        = 56         // + extra
+ 
+ 	// Constants for the first byte in CreatorVersion
+ 	creatorFAT    = 0
+@@ -39,22 +51,35 @@ const (
+ 	creatorNTFS   = 11
+ 	creatorVFAT   = 14
+ 	creatorMacOSX = 19
++
++	// version numbers
++	zipVersion20 = 20 // 2.0
++	zipVersion45 = 45 // 4.5 (reads and writes zip64 archives)
++
++	// limits for non zip64 files
++	uint16max = (1 << 16) - 1
++	uint32max = (1 << 32) - 1
++
++	// extra header id's
++	zip64ExtraId = 0x0001 // zip64 Extended Information Extra Field
+ )
+ 
+ type FileHeader struct {
+-	Name             string
+-	CreatorVersion   uint16
+-	ReaderVersion    uint16
+-	Flags            uint16
+-	Method           uint16
+-	ModifiedTime     uint16 // MS-DOS time
+-	ModifiedDate     uint16 // MS-DOS date
+-	CRC32            uint32
+-	CompressedSize   uint32
+-	UncompressedSize uint32
+-	Extra            []byte
+-	ExternalAttrs    uint32 // Meaning depends on CreatorVersion
+-	Comment          string
++	Name               string
++	CreatorVersion     uint16
++	ReaderVersion      uint16
++	Flags              uint16
++	Method             uint16
++	ModifiedTime       uint16 // MS-DOS time
++	ModifiedDate       uint16 // MS-DOS date
++	CRC32              uint32
++	CompressedSize     uint32 // deprecated; use CompressedSize64
++	UncompressedSize   uint32 // deprecated; use UncompressedSize64
++	CompressedSize64   uint64
++	UncompressedSize64 uint64
++	Extra              []byte
++	ExternalAttrs      uint32 // Meaning depends on CreatorVersion
++	Comment            string
+ }
+ 
+ // FileInfo returns an os.FileInfo for the FileHeader.
+@@ -67,8 +92,13 @@ type headerFileInfo struct {
+ 	fh *FileHeader
+ }
+ 
+-func (fi headerFileInfo) Name() string       { return fi.fh.Name }
+-func (fi headerFileInfo) Size() int64        { return int64(fi.fh.UncompressedSize) }
++func (fi headerFileInfo) Name() string { return fi.fh.Name }
++func (fi headerFileInfo) Size() int64 {
++	if fi.fh.UncompressedSize64 > 0 {
++		return int64(fi.fh.UncompressedSize64)
++	}
++	return int64(fi.fh.UncompressedSize)
++}
+ func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
+ func (fi headerFileInfo) ModTime() time.Time { return fi.fh.ModTime() }
+ func (fi headerFileInfo) Mode() os.FileMode  { return fi.fh.Mode() }
+@@ -78,25 +108,27 @@ func (fi headerFileInfo) Sys() interface{}   { return fi.fh }
+ // os.FileInfo.
+ func FileInfoHeader(fi os.FileInfo) (*FileHeader, error) {
+ 	size := fi.Size()
+-	if size > (1<<32 - 1) {
+-		return nil, errors.New("zip: file over 4GB")
+-	}
+ 	fh := &FileHeader{
+-		Name:             fi.Name(),
+-		UncompressedSize: uint32(size),
++		Name:               fi.Name(),
++		UncompressedSize64: uint64(size),
+ 	}
+ 	fh.SetModTime(fi.ModTime())
+ 	fh.SetMode(fi.Mode())
++	if fh.UncompressedSize64 > uint32max {
++		fh.UncompressedSize = uint32max
++	} else {
++		fh.UncompressedSize = uint32(fh.UncompressedSize64)
++	}
+ 	return fh, nil
+ }
+ 
+ type directoryEnd struct {
+-	diskNbr            uint16 // unused
+-	dirDiskNbr         uint16 // unused
+-	dirRecordsThisDisk uint16 // unused
+-	directoryRecords   uint16
+-	directorySize      uint32
+-	directoryOffset    uint32 // relative to file
++	diskNbr            uint32 // unused
++	dirDiskNbr         uint32 // unused
++	dirRecordsThisDisk uint64 // unused
++	directoryRecords   uint64
++	directorySize      uint64
++	directoryOffset    uint64 // relative to file
+ 	commentLen         uint16
+ 	comment            string
+ }
+@@ -190,6 +222,11 @@ func (h *FileHeader) SetMode(mode os.FileMode) {
+ 	}
+ }
+ 
++// isZip64 returns true if the file size exceeds the 32 bit limit
++func (fh *FileHeader) isZip64() bool {
++	return fh.CompressedSize64 > uint32max || fh.UncompressedSize64 > uint32max
++}
++
+ func msdosModeToFileMode(m uint32) (mode os.FileMode) {
+ 	if m&msdosDir != 0 {
+ 		mode = os.ModeDir | 0777
+diff --git a/src/pkg/archive/zip/testdata/zip64.zip b/src/pkg/archive/zip/testdata/zip64.zip
+new file mode 100644
+index 0000000000..a2ee1fa33d
+Binary files /dev/null and b/src/pkg/archive/zip/testdata/zip64.zip differ
+diff --git a/src/pkg/archive/zip/writer.go b/src/pkg/archive/zip/writer.go
+index 45eb6bd730..50d83946d2 100644
+--- a/src/pkg/archive/zip/writer.go
++++ b/src/pkg/archive/zip/writer.go
+@@ -27,7 +27,7 @@ type Writer struct {
+ 
+ type header struct {
+ 	*FileHeader
+-	offset uint32
++	offset uint64
+ }
+ 
+ // NewWriter returns a new Writer writing a zip file to w.
+@@ -62,14 +62,36 @@ func (w *Writer) Close() error {
+ 		b.uint16(h.ModifiedTime)
+ 		b.uint16(h.ModifiedDate)
+ 		b.uint32(h.CRC32)
+-		b.uint32(h.CompressedSize)
+-		b.uint32(h.UncompressedSize)
++		if h.isZip64() || h.offset > uint32max {
++			// the file needs a zip64 header. store maxint in both
++			// 32 bit size fields (and offset later) to signal that the
++			// zip64 extra header should be used.
++			b.uint32(uint32max) // compressed size
++			b.uint32(uint32max) // uncompressed size
++
++			// append a zip64 extra block to Extra
++			var buf [28]byte // 2x uint16 + 3x uint64
++			eb := writeBuf(buf[:])
++			eb.uint16(zip64ExtraId)
++			eb.uint16(24) // size = 3x uint64
++			eb.uint64(h.UncompressedSize64)
++			eb.uint64(h.CompressedSize64)
++			eb.uint64(h.offset)
++			h.Extra = append(h.Extra, buf[:]...)
++		} else {
++			b.uint32(h.CompressedSize)
++			b.uint32(h.UncompressedSize)
++		}
+ 		b.uint16(uint16(len(h.Name)))
+ 		b.uint16(uint16(len(h.Extra)))
+ 		b.uint16(uint16(len(h.Comment)))
+ 		b = b[4:] // skip disk number start and internal file attr (2x uint16)
+ 		b.uint32(h.ExternalAttrs)
+-		b.uint32(h.offset)
++		if h.offset > uint32max {
++			b.uint32(uint32max)
++		} else {
++			b.uint32(uint32(h.offset))
++		}
+ 		if _, err := w.cw.Write(buf[:]); err != nil {
+ 			return err
+ 		}
+@@ -85,15 +107,52 @@ func (w *Writer) Close() error {
+ 	}
+ 	end := w.cw.count
+ 
++	records := uint64(len(w.dir))
++	size := uint64(end - start)
++	offset := uint64(start)
++
++	if records > uint16max || size > uint32max || offset > uint32max {
++		var buf [directory64EndLen + directory64LocLen]byte
++		b := writeBuf(buf[:])
++
++		// zip64 end of central directory record
++		b.uint32(directory64EndSignature)
++		b.uint64(directory64EndLen)
++		b.uint16(zipVersion45) // version made by
++		b.uint16(zipVersion45) // version needed to extract
++		b.uint32(0)            // number of this disk
++		b.uint32(0)            // number of the disk with the start of the central directory
++		b.uint64(records)      // total number of entries in the central directory on this disk
++		b.uint64(records)      // total number of entries in the central directory
++		b.uint64(size)         // size of the central directory
++		b.uint64(offset)       // offset of start of central directory with respect to the starting disk number
++
++		// zip64 end of central directory locator
++		b.uint32(directory64LocSignature)
++		b.uint32(0)           // number of the disk with the start of the zip64 end of central directory
++		b.uint64(uint64(end)) // relative offset of the zip64 end of central directory record
++		b.uint32(1)           // total number of disks
++
++		if _, err := w.cw.Write(buf[:]); err != nil {
++			return err
++		}
++
++		// store max values in the regular end record to signal that
++		// that the zip64 values should be used instead
++		records = uint16max
++		size = uint32max
++		offset = uint32max
++	}
++
+ 	// write end record
+ 	var buf [directoryEndLen]byte
+ 	b := writeBuf(buf[:])
+ 	b.uint32(uint32(directoryEndSignature))
+-	b = b[4:]                     // skip over disk number and first disk number (2x uint16)
+-	b.uint16(uint16(len(w.dir)))  // number of entries this disk
+-	b.uint16(uint16(len(w.dir)))  // number of entries total
+-	b.uint32(uint32(end - start)) // size of directory
+-	b.uint32(uint32(start))       // start of directory
++	b = b[4:]                 // skip over disk number and first disk number (2x uint16)
++	b.uint16(uint16(records)) // number of entries this disk
++	b.uint16(uint16(records)) // number of entries total
++	b.uint32(uint32(size))    // size of directory
++	b.uint32(uint32(offset))  // start of directory
+ 	// skipped size of comment (always zero)
+ 	if _, err := w.cw.Write(buf[:]); err != nil {
+ 		return err
+@@ -127,8 +186,9 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 	}
+ 
+ 	fh.Flags |= 0x8 // we will write a data descriptor
+-	fh.CreatorVersion = fh.CreatorVersion&0xff00 | 0x14
+-	fh.ReaderVersion = 0x14
++
++	fh.CreatorVersion = fh.CreatorVersion&0xff00 | zipVersion20 // preserve compatibility byte
++	fh.ReaderVersion = zipVersion20
+ 
+ 	fw := &fileWriter{
+ 		zipw:      w.cw,
+@@ -151,7 +211,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 
+ 	h := &header{
+ 		FileHeader: fh,
+-		offset:     uint32(w.cw.count),
++		offset:     uint64(w.cw.count),
+ 	}
+ 	w.dir = append(w.dir, h)
+ 	fw.header = h
+@@ -173,9 +233,9 @@ func writeHeader(w io.Writer, h *FileHeader) error {
+ 	b.uint16(h.Method)
+ 	b.uint16(h.ModifiedTime)
+ 	b.uint16(h.ModifiedDate)
+-	b.uint32(h.CRC32)
+-	b.uint32(h.CompressedSize)
+-	b.uint32(h.UncompressedSize)
++	b.uint32(0) // since we are writing a data descriptor crc32,
++	b.uint32(0) // compressed size,
++	b.uint32(0) // and uncompressed size should be zero
+ 	b.uint16(uint16(len(h.Name)))
+ 	b.uint16(uint16(len(h.Extra)))
+ 	if _, err := w.Write(buf[:]); err != nil {
+@@ -218,17 +278,40 @@ func (w *fileWriter) close() error {
+ 	// update FileHeader
+ 	fh := w.header.FileHeader
+ 	fh.CRC32 = w.crc32.Sum32()
+-	fh.CompressedSize = uint32(w.compCount.count)
+-	fh.UncompressedSize = uint32(w.rawCount.count)
++	fh.CompressedSize64 = uint64(w.compCount.count)
++	fh.UncompressedSize64 = uint64(w.rawCount.count)
+ 
+-	// write data descriptor
+-	var buf [dataDescriptorLen]byte
+-	b := writeBuf(buf[:])
++	if fh.isZip64() {
++		fh.CompressedSize = uint32max
++		fh.UncompressedSize = uint32max
++		fh.ReaderVersion = zipVersion45 // requires 4.5 - File uses ZIP64 format extensions
++	} else {
++		fh.CompressedSize = uint32(fh.CompressedSize64)
++		fh.UncompressedSize = uint32(fh.UncompressedSize64)
++	}
++
++	// Write data descriptor. This is more complicated than one would
++	// think, see e.g. comments in zipfile.c:putextended() and
++	// http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=7073588.
++	// The approach here is to write 8 byte sizes if needed without
++	// adding a zip64 extra in the local header (too late anyway).
++	var buf []byte
++	if fh.isZip64() {
++		buf = make([]byte, dataDescriptor64Len)
++	} else {
++		buf = make([]byte, dataDescriptorLen)
++	}
++	b := writeBuf(buf)
+ 	b.uint32(dataDescriptorSignature) // de-facto standard, required by OS X
+ 	b.uint32(fh.CRC32)
+-	b.uint32(fh.CompressedSize)
+-	b.uint32(fh.UncompressedSize)
+-	_, err := w.zipw.Write(buf[:])
++	if fh.isZip64() {
++		b.uint64(fh.CompressedSize64)
++		b.uint64(fh.UncompressedSize64)
++	} else {
++		b.uint32(fh.CompressedSize)
++		b.uint32(fh.UncompressedSize)
++	}
++	_, err := w.zipw.Write(buf)
+ 	return err
+ }
+ 
+@@ -262,3 +345,8 @@ func (b *writeBuf) uint32(v uint32) {
+ 	binary.LittleEndian.PutUint32(*b, v)
+ 	*b = (*b)[4:]
+ }
++
++func (b *writeBuf) uint64(v uint64) {
++	binary.LittleEndian.PutUint64(*b, v)
++	*b = (*b)[8:]
++}
+diff --git a/src/pkg/archive/zip/zip_test.go b/src/pkg/archive/zip/zip_test.go
+index d6490c4cbb..1d229d080a 100644
+--- a/src/pkg/archive/zip/zip_test.go
++++ b/src/pkg/archive/zip/zip_test.go
+@@ -9,7 +9,8 @@ package zip
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"reflect"
++	"io"
++	"io/ioutil"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -58,6 +59,33 @@ func TestModTime(t *testing.T) {
+ 	}
+ }
+ 
++func testHeaderRoundTrip(fh *FileHeader, wantUncompressedSize uint32, wantUncompressedSize64 uint64, t *testing.T) {
++	fi := fh.FileInfo()
++	fh2, err := FileInfoHeader(fi)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got, want := fh2.Name, fh.Name; got != want {
++		t.Errorf("Name: got %s, want %s\n", got, want)
++	}
++	if got, want := fh2.UncompressedSize, wantUncompressedSize; got != want {
++		t.Errorf("UncompressedSize: got %d, want %d\n", got, want)
++	}
++	if got, want := fh2.UncompressedSize64, wantUncompressedSize64; got != want {
++		t.Errorf("UncompressedSize64: got %d, want %d\n", got, want)
++	}
++	if got, want := fh2.ModifiedTime, fh.ModifiedTime; got != want {
++		t.Errorf("ModifiedTime: got %d, want %d\n", got, want)
++	}
++	if got, want := fh2.ModifiedDate, fh.ModifiedDate; got != want {
++		t.Errorf("ModifiedDate: got %d, want %d\n", got, want)
++	}
++
++	if sysfh, ok := fi.Sys().(*FileHeader); !ok && sysfh != fh {
++		t.Errorf("Sys didn't return original *FileHeader")
++	}
++}
++
+ func TestFileHeaderRoundTrip(t *testing.T) {
+ 	fh := &FileHeader{
+ 		Name:             "foo.txt",
+@@ -65,17 +93,83 @@ func TestFileHeaderRoundTrip(t *testing.T) {
+ 		ModifiedTime:     1234,
+ 		ModifiedDate:     5678,
+ 	}
+-	fi := fh.FileInfo()
+-	fh2, err := FileInfoHeader(fi)
++	testHeaderRoundTrip(fh, fh.UncompressedSize, uint64(fh.UncompressedSize), t)
++}
+ 
+-	// Ignore these fields:
+-	fh2.CreatorVersion = 0
+-	fh2.ExternalAttrs = 0
++func TestFileHeaderRoundTrip64(t *testing.T) {
++	fh := &FileHeader{
++		Name:               "foo.txt",
++		UncompressedSize64: 9876543210,
++		ModifiedTime:       1234,
++		ModifiedDate:       5678,
++	}
++	testHeaderRoundTrip(fh, uint32max, fh.UncompressedSize64, t)
++}
+ 
+-	if !reflect.DeepEqual(fh, fh2) {
+-		t.Errorf("mismatch\n input=%#v\noutput=%#v\nerr=%v", fh, fh2, err)
++func TestZip64(t *testing.T) {
++	if testing.Short() {
++		t.Logf("slow test; skipping")
++		return
+ 	}
+-	if sysfh, ok := fi.Sys().(*FileHeader); !ok && sysfh != fh {
+-		t.Errorf("Sys didn't return original *FileHeader")
++	// write 2^32 bytes plus "END\n" to a zip file
++	buf := new(bytes.Buffer)
++	w := NewWriter(buf)
++	f, err := w.Create("huge.txt")
++	if err != nil {
++		t.Fatal(err)
++	}
++	chunk := make([]byte, 1024)
++	for i := range chunk {
++		chunk[i] = '.'
++	}
++	chunk[len(chunk)-1] = '\n'
++	end := []byte("END\n")
++	for i := 0; i < (1<<32)/1024; i++ {
++		_, err := f.Write(chunk)
++		if err != nil {
++			t.Fatal("write chunk:", err)
++		}
++	}
++	_, err = f.Write(end)
++	if err != nil {
++		t.Fatal("write end:", err)
++	}
++	if err := w.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	// read back zip file and check that we get to the end of it
++	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
++	if err != nil {
++		t.Fatal("reader:", err)
++	}
++	f0 := r.File[0]
++	rc, err := f0.Open()
++	if err != nil {
++		t.Fatal("opening:", err)
++	}
++	for i := 0; i < (1<<32)/1024; i++ {
++		_, err := io.ReadFull(rc, chunk)
++		if err != nil {
++			t.Fatal("read:", err)
++		}
++	}
++	gotEnd, err := ioutil.ReadAll(rc)
++	if err != nil {
++		t.Fatal("read end:", err)
++	}
++	if !bytes.Equal(gotEnd, end) {
++		t.Errorf("End of zip64 archive %q, want %q", gotEnd, end)
++	}
++	err = rc.Close()
++	if err != nil {
++		t.Fatal("closing:", err)
++	}
++	if got, want := f0.UncompressedSize, uint32(uint32max); got != want {
++		t.Errorf("UncompressedSize %d, want %d", got, want)
++	}
++
++	if got, want := f0.UncompressedSize64, (1<<32)+uint64(len(end)); got != want {
++		t.Errorf("UncompressedSize64 %d, want %d", got, want)
+ 	}
+ }

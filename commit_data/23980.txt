@@ -10,6 +10,27 @@ Date:   Mon Jun 8 17:45:54 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/10831
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  test/fixedbugs/issue8154.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/test/fixedbugs/issue8154.go b/test/fixedbugs/issue8154.go
+new file mode 100644
+index 0000000000..92c3cacc46
+--- /dev/null
++++ b/test/fixedbugs/issue8154.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8154: cmd/5g: ICE in walkexpr walk.c
++
++package main
++
++func main() {
++	c := make(chan int)
++	_ = [1][]func(){[]func(){func() { <-c }}}
++}

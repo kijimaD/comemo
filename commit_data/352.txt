@@ -5,7 +5,113 @@ Date:   Mon Jul 14 17:41:38 2008 -0700
     chan asynch
     
     SVN=127121
-
+---
  src/cmd/gc/go.y    |  5 +++++
  src/runtime/chan.c | 50 +++++++++++++++++++++++++++++++++++++++++++++-----
  2 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index aea7fec71f..c5f42bfd57 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -706,6 +706,11 @@ pexpr:
+ 		$$ = nod(ONEW, N, N);
+ 		$$->type = ptrto($3);
+ 	}
++|	LNEW '(' type ',' expr_list ')'
++	{
++		$$ = nod(ONEW, $5, N);
++		$$->type = ptrto($3);
++	}
+ |	fnliteral
+ |	'[' expr_list ']'
+ 	{
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index a2263a5e7f..78ad5d8af7 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -26,7 +26,7 @@ struct	Hchan
+ struct	Link
+ {
+ 	Link*	link;
+-	byte	data[8];
++	byte	elem[8];
+ };
+ 
+ // newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+@@ -124,7 +124,17 @@ sys·chansend(Hchan* c, ...)
+ 	return;
+ 
+ asynch:
+-	throw("sys·chansend: asynch not yet");
++	while(c->qcount >= c->dataqsiz) {
++		g->status = Gwaiting;
++		enqueue(&c->sendq, g);
++		sys·gosched();
++	}
++	c->elemalg->copy(c->elemsize, c->senddataq->elem, ae);
++	c->senddataq = c->senddataq->link;
++	c->qcount++;
++	gr = dequeue(&c->recvq);
++	if(gr != nil)
++		gr->status = Grunnable;
+ }
+ 
+ // chanrecv1(hchan *chan any) (elem any);
+@@ -156,7 +166,17 @@ sys·chanrecv1(Hchan* c, ...)
+ 	return;
+ 
+ asynch:
+-	throw("sys·chanrecv1: asynch not yet");
++	while(c->qcount <= 0) {
++		g->status = Gwaiting;
++		enqueue(&c->recvq, g);
++		sys·gosched();
++	}
++	c->elemalg->copy(c->elemsize, ae, c->recvdataq->elem);
++	c->recvdataq = c->recvdataq->link;
++	c->qcount--;
++	gs = dequeue(&c->sendq);
++	if(gs != nil)
++		gs->status = Grunnable;
+ }
+ 
+ // chanrecv2(hchan *chan any) (elem any, pres bool);
+@@ -164,6 +184,7 @@ void
+ sys·chanrecv2(Hchan* c, ...)
+ {
+ 	byte *ae, *ap;
++	G *gs;
+ 
+ 	ae = (byte*)&c + c->eo;
+ 	ap = (byte*)&c + c->po;
+@@ -174,8 +195,27 @@ sys·chanrecv2(Hchan* c, ...)
+ 	}
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+-	throw("sys·chanrecv2: synch not yet");
++
++	gs = dequeue(&c->sendq);
++	if(gs != nil) {
++		c->elemalg->copy(c->elemsize, ae, gs->elem);
++		gs->status = Grunnable;
++		*ap = true;
++		return;
++	}
++	*ap = false;
++	return;
+ 
+ asynch:
+-	throw("sys·chanrecv2: asynch not yet");
++	if(c->qcount <= 0) {
++		*ap = false;
++		return;
++	}
++	c->elemalg->copy(c->elemsize, ae, c->recvdataq->elem);
++	c->recvdataq = c->recvdataq->link;
++	c->qcount--;
++	gs = dequeue(&c->sendq);
++	if(gs != nil)
++		gs->status = Grunnable;
++	*ap = true;
+ }

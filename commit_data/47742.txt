@@ -25,7 +25,56 @@ Date:   Thu Apr 8 12:50:39 2021 -0400
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/dist/build.go             |  2 +-
  src/cmd/go/internal/cache/hash.go | 17 ++++++++++++++++-
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 8accb6db8f..f8f8003ff7 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1541,7 +1541,7 @@ func checkNotStale(goBinary string, targets ...string) {
+ 				break
+ 			}
+ 		}
+-		fatalf("unexpected stale targets reported by %s list -gcflags=\"%s\" -ldflags=\"%s\" for %v:\n%s", goBinary, gogcflags, goldflags, targets, out)
++		fatalf("unexpected stale targets reported by %s list -gcflags=\"%s\" -ldflags=\"%s\" for %v (consider rerunning with GOMAXPROCS=1 GODEBUG=gocachehash=1):\n%s", goBinary, gogcflags, goldflags, targets, out)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/cache/hash.go b/src/cmd/go/internal/cache/hash.go
+index e4bb2a34bb..f16215428a 100644
+--- a/src/cmd/go/internal/cache/hash.go
++++ b/src/cmd/go/internal/cache/hash.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"runtime"
++	"strings"
+ 	"sync"
+ )
+ 
+@@ -36,7 +37,21 @@ type Hash struct {
+ // of other versions. This salt will result in additional ActionID files
+ // in the cache, but not additional copies of the large output files,
+ // which are still addressed by unsalted SHA256.
+-var hashSalt = []byte(runtime.Version())
++//
++// We strip any GOEXPERIMENTs the go tool was built with from this
++// version string on the assumption that they shouldn't affect go tool
++// execution. This also allows bootstrapping to converge faster
++// because dist builds go_bootstrap without any experiments.
++var hashSalt = []byte(stripExperiment(runtime.Version()))
++
++// stripExperiment strips any GOEXPERIMENT configuration from the Go
++// version string.
++func stripExperiment(version string) string {
++	if i := strings.Index(version, " X:"); i >= 0 {
++		return version[:i]
++	}
++	return version
++}
+ 
+ // Subkey returns an action ID corresponding to mixing a parent
+ // action ID with a string description of the subkey.

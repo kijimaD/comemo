@@ -7,6 +7,19 @@ Date:   Fri Nov 1 09:18:35 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/19990045
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 380438e2d8..22b5934f50 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -97,6 +97,7 @@ Bjorn Tipling <bjorn.tipling@gmail.com>
+ Blake Mizerany <blake.mizerany@gmail.com>
+ Bobby Powers <bobbypowers@gmail.com>
+ Brad Fitzpatrick <bradfitz@golang.org> <bradfitz@gmail.com>
++Brad Garcia <bgarcia@golang.org>
+ Brendan O'Dea <bod@golang.org>
+ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian G. Merrell <bgmerrell@gmail.com>

@@ -13,7 +13,7 @@ Date:   Tue Oct 25 22:20:20 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/5301049
-
+---
  src/cmd/godoc/dirtrees.go       |  2 +-
  src/cmd/godoc/spec.go           |  4 ++--
  src/pkg/exp/ebnf/ebnf.go        |  2 +-
@@ -23,3 +23,433 @@ Date:   Tue Oct 25 22:20:20 2011 -0700
  src/pkg/scanner/scanner.go      | 46 ++++++++++++++++++++---------------------
  src/pkg/scanner/scanner_test.go | 12 +++++------
  8 files changed, 51 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index 7595ef96fb..7a9abdd83a 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -46,7 +46,7 @@ func isPkgDir(fi FileInfo) bool {
+ func firstSentence(s string) string {
+ 	i := -1 // index+1 of first terminator (punctuation ending a sentence)
+ 	j := -1 // index+1 of first terminator followed by white space
+-	prev := 'A'
++	prev := rune('A')
+ 	for k, ch := range s {
+ 		k1 := k + 1
+ 		if ch == '.' || ch == '!' || ch == '?' {
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index 4487cad013..a83348d1bd 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -23,7 +23,7 @@ type ebnfParser struct {
+ 	scanner scanner.Scanner
+ 	prev    int    // offset of previous token
+ 	pos     int    // offset of current token
+-	tok     int    // one token look-ahead
++	tok     rune   // one token look-ahead
+ 	lit     string // token literal
+ }
+ 
+@@ -47,7 +47,7 @@ func (p *ebnfParser) errorExpected(msg string) {
+ 	p.printf(`<span class="highlight">error: expected %s, found %s</span>`, msg, scanner.TokenString(p.tok))
+ }
+ 
+-func (p *ebnfParser) expect(tok int) {
++func (p *ebnfParser) expect(tok rune) {
+ 	if p.tok != tok {
+ 		p.errorExpected(scanner.TokenString(tok))
+ 	}
+diff --git a/src/pkg/exp/ebnf/ebnf.go b/src/pkg/exp/ebnf/ebnf.go
+index 2ec7f00800..7070cc79fd 100644
+--- a/src/pkg/exp/ebnf/ebnf.go
++++ b/src/pkg/exp/ebnf/ebnf.go
+@@ -163,7 +163,7 @@ func (v *verifier) push(prod *Production) {
+ 	}
+ }
+ 
+-func (v *verifier) verifyChar(x *Token) int {
++func (v *verifier) verifyChar(x *Token) rune {
+ 	s := x.String
+ 	if utf8.RuneCountInString(s) != 1 {
+ 		v.error(x.Pos(), "single char expected, found "+s)
+diff --git a/src/pkg/exp/ebnf/parser.go b/src/pkg/exp/ebnf/parser.go
+index 2dbbefb751..dac5dd8339 100644
+--- a/src/pkg/exp/ebnf/parser.go
++++ b/src/pkg/exp/ebnf/parser.go
+@@ -15,7 +15,7 @@ type parser struct {
+ 	errors  errorList
+ 	scanner scanner.Scanner
+ 	pos     scanner.Position // token position
+-	tok     int              // one token look-ahead
++	tok     rune             // one token look-ahead
+ 	lit     string           // token literal
+ }
+ 
+@@ -42,7 +42,7 @@ func (p *parser) errorExpected(pos scanner.Position, msg string) {
+ 	p.error(pos, msg)
+ }
+ 
+-func (p *parser) expect(tok int) scanner.Position {
++func (p *parser) expect(tok rune) scanner.Position {
+ 	pos := p.pos
+ 	if p.tok != tok {
+ 		p.errorExpected(pos, scanner.TokenString(tok))
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index e744a63a96..4e5172a3d2 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -71,7 +71,7 @@ func findPkg(path string) (filename, id string) {
+ // object/archive file and populates its scope with the results.
+ type gcParser struct {
+ 	scanner scanner.Scanner
+-	tok     int                    // current token
++	tok     rune                   // current token
+ 	lit     string                 // literal string; only valid for Ident, Int, String tokens
+ 	id      string                 // package id of imported package
+ 	imports map[string]*ast.Object // package id -> package object
+@@ -195,7 +195,7 @@ func (p *gcParser) errorf(format string, args ...interface{}) {
+ 	p.error(fmt.Sprintf(format, args...))
+ }
+ 
+-func (p *gcParser) expect(tok int) string {
++func (p *gcParser) expect(tok rune) string {
+ 	lit := p.lit
+ 	if p.tok != tok {
+ 		p.errorf("expected %q, got %q (%q)", scanner.TokenString(tok), scanner.TokenString(p.tok), lit)
+@@ -205,9 +205,9 @@ func (p *gcParser) expect(tok int) string {
+ }
+ 
+ func (p *gcParser) expectSpecial(tok string) {
+-	sep := 'x' // not white space
++	sep := rune('x') // not white space
+ 	i := 0
+-	for i < len(tok) && p.tok == int(tok[i]) && sep > ' ' {
++	for i < len(tok) && p.tok == rune(tok[i]) && sep > ' ' {
+ 		sep = p.scanner.Peek() // if sep <= ' ', there is white space before the next token
+ 		p.next()
+ 		i++
+@@ -260,7 +260,7 @@ func (p *gcParser) parsePkgId() *ast.Object {
+ func (p *gcParser) parseDotIdent() string {
+ 	ident := ""
+ 	if p.tok != scanner.Int {
+-		sep := 'x' // not white space
++		sep := rune('x') // not white space
+ 		for (p.tok == scanner.Ident || p.tok == scanner.Int || p.tok == '·') && sep > ' ' {
+ 			ident += p.lit
+ 			sep = p.scanner.Peek() // if sep <= ' ', there is white space before the next token
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 589ec68a67..dfbdaa3a12 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -43,7 +43,7 @@ type Scanner struct {
+ 	mode uint         // scanning mode
+ 
+ 	// scanning state
+-	ch         int  // current character
++	ch         rune // current character
+ 	offset     int  // character offset
+ 	rdOffset   int  // reading offset (position after current character)
+ 	lineOffset int  // current line offset
+@@ -63,7 +63,7 @@ func (S *Scanner) next() {
+ 			S.lineOffset = S.offset
+ 			S.file.AddLine(S.offset)
+ 		}
+-		r, w := int(S.src[S.rdOffset]), 1
++		r, w := rune(S.src[S.rdOffset]), 1
+ 		switch {
+ 		case r == 0:
+ 			S.error(S.offset, "illegal character NUL")
+@@ -232,11 +232,11 @@ func (S *Scanner) findLineEnd() bool {
+ 	return false
+ }
+ 
+-func isLetter(ch int) bool {
++func isLetter(ch rune) bool {
+ 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 0x80 && unicode.IsLetter(ch)
+ }
+ 
+-func isDigit(ch int) bool {
++func isDigit(ch rune) bool {
+ 	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch)
+ }
+ 
+@@ -248,14 +248,14 @@ func (S *Scanner) scanIdentifier() token.Token {
+ 	return token.Lookup(S.src[offs:S.offset])
+ }
+ 
+-func digitVal(ch int) int {
++func digitVal(ch rune) int {
+ 	switch {
+ 	case '0' <= ch && ch <= '9':
+-		return ch - '0'
++		return int(ch - '0')
+ 	case 'a' <= ch && ch <= 'f':
+-		return ch - 'a' + 10
++		return int(ch - 'a' + 10)
+ 	case 'A' <= ch && ch <= 'F':
+-		return ch - 'A' + 10
++		return int(ch - 'A' + 10)
+ 	}
+ 	return 16 // larger than any legal digit val
+ }
+@@ -337,7 +337,7 @@ exit:
+ 	return tok
+ }
+ 
+-func (S *Scanner) scanEscape(quote int) {
++func (S *Scanner) scanEscape(quote rune) {
+ 	offs := S.offset
+ 
+ 	var i, base, max uint32
+@@ -462,7 +462,7 @@ func (S *Scanner) switch2(tok0, tok1 token.Token) token.Token {
+ 	return tok0
+ }
+ 
+-func (S *Scanner) switch3(tok0, tok1 token.Token, ch2 int, tok2 token.Token) token.Token {
++func (S *Scanner) switch3(tok0, tok1 token.Token, ch2 rune, tok2 token.Token) token.Token {
+ 	if S.ch == '=' {
+ 		S.next()
+ 		return tok1
+@@ -474,7 +474,7 @@ func (S *Scanner) switch3(tok0, tok1 token.Token, ch2 int, tok2 token.Token) tok
+ 	return tok0
+ }
+ 
+-func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Token) token.Token {
++func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Token) token.Token {
+ 	if S.ch == '=' {
+ 		S.next()
+ 		return tok1
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/scanner/scanner.go
+index 29e5f8c742..3594db997d 100644
+--- a/src/pkg/scanner/scanner.go
++++ b/src/pkg/scanner/scanner.go
+@@ -93,7 +93,7 @@ const (
+ 	skipComment
+ )
+ 
+-var tokenString = map[int]string{
++var tokenString = map[rune]string{
+ 	EOF:       "EOF",
+ 	Ident:     "Ident",
+ 	Int:       "Int",
+@@ -105,7 +105,7 @@ var tokenString = map[int]string{
+ }
+ 
+ // TokenString returns a (visible) string for a token or Unicode character.
+-func TokenString(tok int) string {
++func TokenString(tok rune) string {
+ 	if s, found := tokenString[tok]; found {
+ 		return s
+ 	}
+@@ -144,7 +144,7 @@ type Scanner struct {
+ 	tokEnd int          // token text tail end (srcBuf index)
+ 
+ 	// One character look-ahead
+-	ch int // character before current srcPos
++	ch rune // character before current srcPos
+ 
+ 	// Error is called for each error encountered. If no Error
+ 	// function is set, the error is reported to os.Stderr.
+@@ -218,8 +218,8 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
+ // that only a minimal amount of work needs to be done in the common ASCII
+ // case (one test to check for both ASCII and end-of-buffer, and one test
+ // to check for newlines).
+-func (s *Scanner) next() int {
+-	ch, width := int(s.srcBuf[s.srcPos]), 1
++func (s *Scanner) next() rune {
++	ch, width := rune(s.srcBuf[s.srcPos]), 1
+ 
+ 	if ch >= utf8.RuneSelf {
+ 		// uncommon case: not ASCII or not enough bytes
+@@ -264,7 +264,7 @@ func (s *Scanner) next() int {
+ 			}
+ 		}
+ 		// at least one byte
+-		ch = int(s.srcBuf[s.srcPos])
++		ch = rune(s.srcBuf[s.srcPos])
+ 		if ch >= utf8.RuneSelf {
+ 			// uncommon case: not ASCII
+ 			ch, width = utf8.DecodeRune(s.srcBuf[s.srcPos:s.srcEnd])
+@@ -304,7 +304,7 @@ func (s *Scanner) next() int {
+ // it prints an error message to os.Stderr. Next does not
+ // update the Scanner's Position field; use Pos() to
+ // get the current position.
+-func (s *Scanner) Next() int {
++func (s *Scanner) Next() rune {
+ 	s.tokPos = -1 // don't collect token text
+ 	s.Line = 0    // invalidate token position
+ 	ch := s.Peek()
+@@ -315,7 +315,7 @@ func (s *Scanner) Next() int {
+ // Peek returns the next Unicode character in the source without advancing
+ // the scanner. It returns EOF if the scanner's position is at the last
+ // character of the source.
+-func (s *Scanner) Peek() int {
++func (s *Scanner) Peek() rune {
+ 	if s.ch < 0 {
+ 		s.ch = s.next()
+ 	}
+@@ -335,7 +335,7 @@ func (s *Scanner) error(msg string) {
+ 	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
+ }
+ 
+-func (s *Scanner) scanIdentifier() int {
++func (s *Scanner) scanIdentifier() rune {
+ 	ch := s.next() // read character after first '_' or letter
+ 	for ch == '_' || unicode.IsLetter(ch) || unicode.IsDigit(ch) {
+ 		ch = s.next()
+@@ -343,35 +343,35 @@ func (s *Scanner) scanIdentifier() int {
+ 	return ch
+ }
+ 
+-func digitVal(ch int) int {
++func digitVal(ch rune) int {
+ 	switch {
+ 	case '0' <= ch && ch <= '9':
+-		return ch - '0'
++		return int(ch - '0')
+ 	case 'a' <= ch && ch <= 'f':
+-		return ch - 'a' + 10
++		return int(ch - 'a' + 10)
+ 	case 'A' <= ch && ch <= 'F':
+-		return ch - 'A' + 10
++		return int(ch - 'A' + 10)
+ 	}
+ 	return 16 // larger than any legal digit val
+ }
+ 
+-func isDecimal(ch int) bool { return '0' <= ch && ch <= '9' }
++func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
+ 
+-func (s *Scanner) scanMantissa(ch int) int {
++func (s *Scanner) scanMantissa(ch rune) rune {
+ 	for isDecimal(ch) {
+ 		ch = s.next()
+ 	}
+ 	return ch
+ }
+ 
+-func (s *Scanner) scanFraction(ch int) int {
++func (s *Scanner) scanFraction(ch rune) rune {
+ 	if ch == '.' {
+ 		ch = s.scanMantissa(s.next())
+ 	}
+ 	return ch
+ }
+ 
+-func (s *Scanner) scanExponent(ch int) int {
++func (s *Scanner) scanExponent(ch rune) rune {
+ 	if ch == 'e' || ch == 'E' {
+ 		ch = s.next()
+ 		if ch == '-' || ch == '+' {
+@@ -382,7 +382,7 @@ func (s *Scanner) scanExponent(ch int) int {
+ 	return ch
+ }
+ 
+-func (s *Scanner) scanNumber(ch int) (int, int) {
++func (s *Scanner) scanNumber(ch rune) (rune, rune) {
+ 	// isDecimal(ch)
+ 	if ch == '0' {
+ 		// int or float
+@@ -426,7 +426,7 @@ func (s *Scanner) scanNumber(ch int) (int, int) {
+ 	return Int, ch
+ }
+ 
+-func (s *Scanner) scanDigits(ch, base, n int) int {
++func (s *Scanner) scanDigits(ch rune, base, n int) rune {
+ 	for n > 0 && digitVal(ch) < base {
+ 		ch = s.next()
+ 		n--
+@@ -437,7 +437,7 @@ func (s *Scanner) scanDigits(ch, base, n int) int {
+ 	return ch
+ }
+ 
+-func (s *Scanner) scanEscape(quote int) int {
++func (s *Scanner) scanEscape(quote rune) rune {
+ 	ch := s.next() // read character after '/'
+ 	switch ch {
+ 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
+@@ -457,7 +457,7 @@ func (s *Scanner) scanEscape(quote int) int {
+ 	return ch
+ }
+ 
+-func (s *Scanner) scanString(quote int) (n int) {
++func (s *Scanner) scanString(quote rune) (n int) {
+ 	ch := s.next() // read character after quote
+ 	for ch != quote {
+ 		if ch == '\n' || ch < 0 {
+@@ -491,7 +491,7 @@ func (s *Scanner) scanChar() {
+ 	}
+ }
+ 
+-func (s *Scanner) scanComment(ch int) int {
++func (s *Scanner) scanComment(ch rune) rune {
+ 	// ch == '/' || ch == '*'
+ 	if ch == '/' {
+ 		// line comment
+@@ -524,7 +524,7 @@ func (s *Scanner) scanComment(ch int) int {
+ // It returns EOF at the end of the source. It reports scanner errors (read and
+ // token errors) by calling s.Error, if not nil; otherwise it prints an error
+ // message to os.Stderr.
+-func (s *Scanner) Scan() int {
++func (s *Scanner) Scan() rune {
+ 	ch := s.Peek()
+ 
+ 	// reset token text position
+diff --git a/src/pkg/scanner/scanner_test.go b/src/pkg/scanner/scanner_test.go
+index bbbba12834..fb398831e1 100644
+--- a/src/pkg/scanner/scanner_test.go
++++ b/src/pkg/scanner/scanner_test.go
+@@ -64,7 +64,7 @@ func TestNext(t *testing.T) {
+ }
+ 
+ type token struct {
+-	tok  int
++	tok  rune
+ 	text string
+ }
+ 
+@@ -233,7 +233,7 @@ func makeSource(pattern string) *bytes.Buffer {
+ 	return &buf
+ }
+ 
+-func checkTok(t *testing.T, s *Scanner, line, got, want int, text string) {
++func checkTok(t *testing.T, s *Scanner, line int, got, want rune, text string) {
+ 	if got != want {
+ 		t.Fatalf("tok = %s, want %s for %q", TokenString(got), TokenString(want), text)
+ 	}
+@@ -329,7 +329,7 @@ func TestScanZeroMode(t *testing.T) {
+ 	}
+ }
+ 
+-func testScanSelectedMode(t *testing.T, mode uint, class int) {
++func testScanSelectedMode(t *testing.T, mode uint, class rune) {
+ 	src := makeSource("%s\n")
+ 	s := new(Scanner).Init(src)
+ 	s.Mode = mode
+@@ -398,7 +398,7 @@ func TestScanWhitespace(t *testing.T) {
+ 	}
+ }
+ 
+-func testError(t *testing.T, src, pos, msg string, tok int) {
++func testError(t *testing.T, src, pos, msg string, tok rune) {
+ 	s := new(Scanner).Init(bytes.NewBufferString(src))
+ 	errorCalled := false
+ 	s.Error = func(s *Scanner, m string) {
+@@ -463,7 +463,7 @@ func checkPos(t *testing.T, got, want Position) {
+ 	}
+ }
+ 
+-func checkNextPos(t *testing.T, s *Scanner, offset, line, column, char int) {
++func checkNextPos(t *testing.T, s *Scanner, offset, line, column int, char rune) {
+ 	if ch := s.Next(); ch != char {
+ 		t.Errorf("ch = %s, want %s", TokenString(ch), TokenString(char))
+ 	}
+@@ -471,7 +471,7 @@ func checkNextPos(t *testing.T, s *Scanner, offset, line, column, char int) {
+ 	checkPos(t, s.Pos(), want)
+ }
+ 
+-func checkScanPos(t *testing.T, s *Scanner, offset, line, column, char int) {
++func checkScanPos(t *testing.T, s *Scanner, offset, line, column int, char rune) {
+ 	want := Position{Offset: offset, Line: line, Column: column}
+ 	checkPos(t, s.Pos(), want)
+ 	if ch := s.Scan(); ch != char {

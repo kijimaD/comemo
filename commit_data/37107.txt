@@ -13,6 +13,20 @@ Date:   Thu Jun 28 18:49:30 2018 +0000
     GitHub-Pull-Request: golang/go#26112
     Reviewed-on: https://go-review.googlesource.com/121416
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/text/template/parse/lex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index fae8841fb1..fc259f351e 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -42,7 +42,7 @@ const (
+ 	itemChar                         // printable ASCII character; grab bag for comma etc.
+ 	itemCharConstant                 // character constant
+ 	itemComplex                      // complex constant (1+2i); imaginary is just a number
+-	itemAssign                       // colon-equals ('=') introducing an assignment
++	itemAssign                       // equals ('=') introducing an assignment
+ 	itemDeclare                      // colon-equals (':=') introducing a declaration
+ 	itemEOF
+ 	itemField      // alphanumeric identifier starting with '.'

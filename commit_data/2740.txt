@@ -8,9 +8,326 @@ Date:   Fri Jul 17 11:38:31 2009 -0700
     DELTA=113  (74 added, 14 deleted, 25 changed)
     OCL=31776
     CL=31776
-
+---
  src/pkg/gob/codec_test.go   |  7 +++-
  src/pkg/gob/decode.go       | 95 +++++++++++++++++++++++++++++++++++----------
  src/pkg/gob/encoder_test.go | 22 +++++------
  src/pkg/gob/type.go         | 12 +++---
  4 files changed, 98 insertions(+), 38 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 294506589d..de2c5d6bc9 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -703,6 +703,7 @@ type IT0 struct {
+ 	ignore_f bool;
+ 	ignore_g string;
+ 	ignore_h []byte;
++	ignore_i *RT1;
+ 	c float;
+ }
+ 
+@@ -718,13 +719,17 @@ func TestIgnoredFields(t *testing.T) {
+ 	it0.ignore_f = true;
+ 	it0.ignore_g = "pay no attention";
+ 	it0.ignore_h = strings.Bytes("to the curtain");
++	it0.ignore_i = &RT1{ 3.1, "hi", 7, "hello" };
+ 
+ 	b := new(bytes.Buffer);
+ 	encode(b, it0);
+ 	rt0Id := getTypeInfo(reflect.Typeof(it0)).typeId;
+ 	var rt1 RT1;
+ 	// Wire type is IT0, local type is RT1.
+-	decode(b, rt0Id, &rt1);
++	err := decode(b, rt0Id, &rt1);
++	if err != nil {
++		t.Error("error: ", err);
++	}
+ 	if int(it0.a) != rt1.a || it0.b != rt1.b || it0.c != rt1.c {
+ 		t.Errorf("rt1->rt0: expected %v; got %v", it0, rt1);
+ 	}
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 659ab68d24..1de74e260a 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -361,6 +361,31 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer,
+ 	return state.err
+ }
+ 
++func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
++	state := new(decodeState);
++	state.b = b;
++	state.fieldnum = -1;
++	for state.err == nil {
++		delta := int(decodeUint(state));
++		if delta < 0 {
++			state.err = os.ErrorString("gob ignore decode: corrupted data: negative delta");
++			break
++		}
++		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
++			break
++		}
++		fieldnum := state.fieldnum + delta;
++		if fieldnum >= len(engine.instr) {
++			state.err = ErrRange;
++			break;
++		}
++		instr := &engine.instr[fieldnum];
++		instr.op(instr, state, unsafe.Pointer(nil));
++		state.fieldnum = fieldnum;
++	}
++	return state.err
++}
++
+ func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int) os.Error {
+ 	instr := &decInstr{elemOp, 0, elemIndir, 0};
+ 	for i := 0; i < length && state.err == nil; i++ {
+@@ -459,6 +484,7 @@ var decIgnoreOpMap = map[TypeId] decOp {
+ }
+ 
+ func getDecEnginePtr(wireId TypeId, rt reflect.Type) (enginePtr **decEngine, err os.Error)
++func getIgnoreEnginePtr(wireId TypeId) (enginePtr **decEngine, err os.Error)
+ 
+ // Return the decoding op for the base type under rt and
+ // the indirection count to reach it.
+@@ -499,7 +525,7 @@ func decOpFor(wireId TypeId, rt reflect.Type) (decOp, int, os.Error) {
+ 				return nil, 0, err
+ 			}
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+-				// indirect through info to delay evaluation for recursive structs
++				// indirect through enginePtr to delay evaluation for recursive structs
+ 				state.err = decodeStruct(*enginePtr, t, state.b, uintptr(p), i.indir)
+ 			};
+ 		}
+@@ -537,7 +563,15 @@ func decIgnoreOpFor(wireId TypeId) (decOp, os.Error) {
+ 			};
+ 
+ 		case *structType:
+-			// TODO: write an ignore engine for structs
++			// Generate a closure that calls out to the engine for the nested type.
++			enginePtr, err := getIgnoreEnginePtr(wireId);
++			if err != nil {
++				return nil, err
++			}
++			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
++				// indirect through enginePtr to delay evaluation for recursive structs
++				state.err = ignoreStruct(*enginePtr, state.b)
++			};
+ 		}
+ 	}
+ 	if op == nil {
+@@ -547,7 +581,8 @@ func decIgnoreOpFor(wireId TypeId) (decOp, os.Error) {
+ }
+ 
+ // Are these two gob Types compatible?
+-// Answers the question for basic types, arrays, and slices.  Defers for structs.
++// Answers the question for basic types, arrays, and slices.
++// Structs are considered ok; fields will be checked later.
+ func compatibleType(fr reflect.Type, fw TypeId) bool {
+ 	for {
+ 		if pt, ok := fr.(*reflect.PtrType); ok {
+@@ -592,8 +627,6 @@ func compatibleType(fr reflect.Type, fw TypeId) bool {
+ 		return fw == tFloat;
+ 	case *reflect.StringType:
+ 		return fw == tString;
+-	case *reflect.StructType:
+-		return true;	// defer for now
+ 	case *reflect.ArrayType:
+ 		aw, ok := fw.gobType().(*arrayType);
+ 		return ok && t.Len() == aw.Len && compatibleType(t.Elem(), aw.Elem);
+@@ -604,7 +637,10 @@ func compatibleType(fr reflect.Type, fw TypeId) bool {
+ 			return fw == tBytes
+ 		}
+ 		sw, ok := fw.gobType().(*sliceType);
+-		return ok && compatibleType(t.Elem(), sw.Elem);
++		elem, _ := indirect(t.Elem());
++		return ok && compatibleType(elem, sw.Elem);
++	case *reflect.StructType:
++		return true;
+ 	}
+ 	return true;
+ }
+@@ -624,7 +660,6 @@ func compileDec(wireId TypeId, rt reflect.Type) (engine *decEngine, err os.Error
+ 		localField, present := srt.FieldByName(wireField.name);
+ 		// TODO(r): anonymous names
+ 		if !present || localField.Anonymous {
+-			println("no matching field", wireField.name, "in type", wireId.String());
+ 			op, err := decIgnoreOpFor(wireField.typeId);
+ 			if err != nil {
+ 				return nil, err
+@@ -633,7 +668,7 @@ func compileDec(wireId TypeId, rt reflect.Type) (engine *decEngine, err os.Error
+ 			continue;
+ 		}
+ 		if !compatibleType(localField.Type, wireField.typeId) {
+-			return nil, os.ErrorString("gob: TODO: wrong type for field " + wireField.name + " in type " + wireId.String());
++			return nil, os.ErrorString("gob: wrong type for field " + wireField.name + " in type " + wireId.Name());
+ 		}
+ 		op, indir, err := decOpFor(wireField.typeId, localField.Type);
+ 		if err != nil {
+@@ -645,22 +680,42 @@ func compileDec(wireId TypeId, rt reflect.Type) (engine *decEngine, err os.Error
+ 	return;
+ }
+ 
++var decoderCache = make(map[reflect.Type] map[TypeId] **decEngine)
++var ignorerCache = make(map[TypeId] **decEngine)
+ 
+ // typeLock must be held.
+ func getDecEnginePtr(wireId TypeId, rt reflect.Type) (enginePtr **decEngine, err os.Error) {
+-	info := getTypeInfo(rt);	// TODO: eliminate this; creates a gobType you don't need.
+-	var ok bool;
+-	if enginePtr, ok = info.decoderPtr[wireId]; !ok {
+-		if info.typeId.gobType() == nil {
+-			_pkg, name := rt.Name();
+-			info.typeId = newType(name, rt).id();
+-		}
+-		// mark this engine as underway before compiling to handle recursive types.
++	decoderMap, ok := decoderCache[rt];
++	if !ok {
++		decoderMap = make(map[TypeId] **decEngine);
++		decoderCache[rt] = decoderMap;
++	}
++	if enginePtr, ok = decoderMap[wireId]; !ok {
++		// To handle recursive types, mark this engine as underway before compiling.
+ 		enginePtr = new(*decEngine);
+-		info.decoderPtr[wireId] = enginePtr;
++		decoderMap[wireId] = enginePtr;
+ 		*enginePtr, err = compileDec(wireId, rt);
+ 		if err != nil {
+-			info.decoderPtr[wireId] = nil, false;
++			decoderMap[wireId] = nil, false;
++		}
++	}
++	return
++}
++
++// When ignoring data, in effect we compile it into this type
++type emptyStruct struct {}
++var emptyStructType = reflect.Typeof(emptyStruct{})
++
++// typeLock must be held.
++func getIgnoreEnginePtr(wireId TypeId) (enginePtr **decEngine, err os.Error) {
++	var ok bool;
++	if enginePtr, ok = ignorerCache[wireId]; !ok {
++		// To handle recursive types, mark this engine as underway before compiling.
++		enginePtr = new(*decEngine);
++		ignorerCache[wireId] = enginePtr;
++		*enginePtr, err = compileDec(wireId, emptyStructType);
++		if err != nil {
++			ignorerCache[wireId] = nil, false;
+ 		}
+ 	}
+ 	return
+@@ -685,9 +740,9 @@ func decode(b *bytes.Buffer, wireId TypeId, e interface{}) os.Error {
+ 		return err
+ 	}
+ 	engine := *enginePtr;
+-	if engine.numInstr == 0 && st.NumField() > 0 {
++	if engine.numInstr == 0 && st.NumField() > 0 && len(wireId.gobType().(*structType).field) > 0 {
+ 		path, name := rt.Name();
+-		return os.ErrorString("type mismatch: no fields matched compiling decoder for " + name)
++		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
+ 	}
+ 	return decodeStruct(engine, rt.(*reflect.StructType), b, uintptr(v.Addr()), 0);
+ }
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index c261376ef1..4d9258345b 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -35,12 +35,7 @@ type ET3 struct {
+ type ET4 struct {
+ 	a int;
+ 	et2 *ET1;
+-	next *ET2;
+-}
+-
+-// Has different type for a self-referencing field compared to ET1
+-type ET5 struct {
+-	next *ET2;
++	next int;
+ }
+ 
+ func TestBasicEncoder(t *testing.T) {
+@@ -206,7 +201,8 @@ func TestEncoderDecoder(t *testing.T) {
+ }
+ 
+ // Run one value through the encoder/decoder, but use the wrong type.
+-func badTypeCheck(e interface{}, msg string, t *testing.T) {
++// Input is always an ET1; we compare it to whatever is under 'e'.
++func badTypeCheck(e interface{}, shouldFail bool, msg string, t *testing.T) {
+ 	b := new(bytes.Buffer);
+ 	enc := NewEncoder(b);
+ 	et1 := new(ET1);
+@@ -218,15 +214,17 @@ func badTypeCheck(e interface{}, msg string, t *testing.T) {
+ 	}
+ 	dec := NewDecoder(b);
+ 	dec.Decode(e);
+-	if dec.state.err == nil {
++	if shouldFail && (dec.state.err == nil) {
+ 		t.Error("expected error for", msg);
+ 	}
++	if !shouldFail && (dec.state.err != nil) {
++		t.Error("unexpected error for", msg);
++	}
+ }
+ 
+ // Test that we recognize a bad type the first time.
+ func TestWrongTypeDecoder(t *testing.T) {
+-	badTypeCheck(new(ET2), "no fields in common", t);
+-	badTypeCheck(new(ET3), "different name of field", t);
+-	badTypeCheck(new(ET4), "different type of field", t);
+-	badTypeCheck(new(ET5), "different type of self-reference field", t);
++	badTypeCheck(new(ET2), true, "no fields in common", t);
++	badTypeCheck(new(ET3), false, "different name of field", t);
++	badTypeCheck(new(ET4), true, "different type of field", t);
+ }
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 6f84e7bcf8..1c8bf61bc5 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -23,6 +23,7 @@ var typeLock	sync.Mutex	// set while building a type
+ type gobType interface {
+ 	id()	TypeId;
+ 	setId(id TypeId);
++	Name()	string;
+ 	String()	string;
+ 	safeString(seen map[TypeId] bool)	string;
+ }
+@@ -47,6 +48,10 @@ func (t TypeId) String() string {
+ 	return t.gobType().String()
+ }
+ 
++func (t TypeId) Name() string {
++	return t.gobType().Name()
++}
++
+ // Common elements of all types.
+ type commonType struct {
+ 	name	string;
+@@ -236,7 +241,8 @@ func newTypeObject(name string, rt reflect.Type) gobType {
+ 		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
+ 			return tBytes.gobType()
+ 		}
+-		return newSliceType(name, newType("", t.Elem()));
++		_, elemName := t.Elem().Name();
++		return newSliceType(name, newType(elemName, t.Elem()));
+ 
+ 	case *reflect.StructType:
+ 		// Install the struct type itself before the fields so recursive
+@@ -325,9 +331,6 @@ type decEngine struct	// defined in decode.go
+ type encEngine struct	// defined in encode.go
+ type typeInfo struct {
+ 	typeId	TypeId;
+-	// Decoder engine to convert TypeId.Type() to this type.  Stored as a pointer to a
+-	// pointer to aid construction of recursive types.  Protected by typeLock.
+-	decoderPtr	map[TypeId] **decEngine;
+ 	encoder	*encEngine;
+ 	wire	*wireType;
+ }
+@@ -345,7 +348,6 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
+ 		info = new(typeInfo);
+ 		path, name := rt.Name();
+ 		info.typeId = getType(name, rt).id();
+-		info.decoderPtr = make(map[TypeId] **decEngine);
+ 		// assume it's a struct type
+ 		info.wire = &wireType{info.typeId.gobType().(*structType)};
+ 		typeInfoMap[rt] = info;

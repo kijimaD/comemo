@@ -17,6 +17,29 @@ Date:   Tue Nov 11 18:18:34 2008 -0800
     DELTA=5  (0 added, 0 deleted, 5 changed)
     OCL=18962
     CL=19058
-
+---
  test/method1.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/test/method1.go b/test/method1.go
+index f25eb30c8b..c88607d425 100644
+--- a/test/method1.go
++++ b/test/method1.go
+@@ -7,12 +7,12 @@
+ package main
+ 
+ type T struct { }
+-func (t *T) M(int, string);
+-func (t *T) M(int, float) { }   // ERROR "redeclared"
++func (t *T) M(int, string);	// GCCGO_ERROR "previous"
++func (t *T) M(int, float) { }   // ERROR "redeclared|redefinition"
+ 
+-func f(int, string);
+-func f(int, float) { }  // ERROR "redeclared"
++func f(int, string);	// GCCGO_ERROR "previous"
++func f(int, float) { }  // ERROR "redeclared|redefinition"
+ 
+-func g(a int, b string);
++func g(a int, b string);  // GCCGO_ERROR "previous"
+ func g(a int, c string);  // ERROR "names changed"
+ 

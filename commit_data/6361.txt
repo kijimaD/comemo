@@ -10,6 +10,28 @@ Date:   Thu Sep 23 22:05:42 2010 -0400
     R=nigeltao_gnome
     CC=golang-dev
     https://golang.org/cl/2272041
-
+---
  src/pkg/html/token.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index 39f6700321..1137d948af 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -7,16 +7,10 @@ package html
+ import (
+ 	"bytes"
+ 	"io"
+-	"log"
+ 	"os"
+ 	"strconv"
+ )
+ 
+-func init() {
+-	// TODO(nigeltao): Remove this when ready.
+-	log.Stderr("The html package is incomplete; do not use for production software.")
+-}
+-
+ // A TokenType is the type of a Token.
+ type TokenType int
+ 

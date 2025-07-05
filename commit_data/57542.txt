@@ -18,7 +18,7 @@ Date:   Thu Aug 10 11:17:25 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/syscall/windows/symlink_windows.go |  2 +
  src/internal/syscall/windows/syscall_windows.go | 15 +++++
  src/os/dir_windows.go                           | 82 +++++++++++++++++++------
@@ -26,3 +26,346 @@ Date:   Thu Aug 10 11:17:25 2023 +0200
  src/os/os_windows_test.go                       | 70 +++++++++++++++++++++
  src/os/types_windows.go                         | 31 ++++++++--
  6 files changed, 181 insertions(+), 28 deletions(-)
+
+diff --git a/src/internal/syscall/windows/symlink_windows.go b/src/internal/syscall/windows/symlink_windows.go
+index b64d058d13..62e3f79986 100644
+--- a/src/internal/syscall/windows/symlink_windows.go
++++ b/src/internal/syscall/windows/symlink_windows.go
+@@ -9,6 +9,8 @@ import "syscall"
+ const (
+ 	ERROR_INVALID_PARAMETER syscall.Errno = 87
+ 
++	FILE_SUPPORTS_OPEN_BY_FILE_ID = 0x01000000
++
+ 	// symlink support for CreateSymbolicLink() starting with Windows 10 (1703, v10.0.14972)
+ 	SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2
+ 
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index ad36bd48a6..68778e7764 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -397,6 +397,21 @@ type FILE_ID_BOTH_DIR_INFO struct {
+ 	FileName        [1]uint16
+ }
+ 
++type FILE_FULL_DIR_INFO struct {
++	NextEntryOffset uint32
++	FileIndex       uint32
++	CreationTime    syscall.Filetime
++	LastAccessTime  syscall.Filetime
++	LastWriteTime   syscall.Filetime
++	ChangeTime      syscall.Filetime
++	EndOfFile       uint64
++	AllocationSize  uint64
++	FileAttributes  uint32
++	FileNameLength  uint32
++	EaSize          uint32
++	FileName        [1]uint16
++}
++
+ //sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
+ //sys	GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16, bufferlength uint32) (err error) = GetVolumeNameForVolumeMountPointW
+ 
+diff --git a/src/os/dir_windows.go b/src/os/dir_windows.go
+index 1724af58d5..84dee5c7b3 100644
+--- a/src/os/dir_windows.go
++++ b/src/os/dir_windows.go
+@@ -19,9 +19,11 @@ type dirInfo struct {
+ 	// buf is a slice pointer so the slice header
+ 	// does not escape to the heap when returning
+ 	// buf to dirBufPool.
+-	buf  *[]byte // buffer for directory I/O
+-	bufp int     // location of next record in buf
+-	vol  uint32
++	buf   *[]byte // buffer for directory I/O
++	bufp  int     // location of next record in buf
++	vol   uint32
++	class uint32 // type of entries in buf
++	path  string // absolute directory path, empty if the file system supports FILE_ID_BOTH_DIR_INFO
+ }
+ 
+ const (
+@@ -49,26 +51,47 @@ func (d *dirInfo) close() {
+ 	}
+ }
+ 
++// allowReadDirFileID indicates whether File.readdir should try to use FILE_ID_BOTH_DIR_INFO
++// if the underlying file system supports it.
++// Useful for testing purposes.
++var allowReadDirFileID = true
++
+ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+ 	// If this file has no dirinfo, create one.
+-	var infoClass uint32 = windows.FileIdBothDirectoryInfo
+ 	if file.dirinfo == nil {
+ 		// vol is used by os.SameFile.
+ 		// It is safe to query it once and reuse the value.
+ 		// Hard links are not allowed to reference files in other volumes.
+ 		// Junctions and symbolic links can reference files and directories in other volumes,
+ 		// but the reparse point should still live in the parent volume.
+-		var vol uint32
+-		err = windows.GetVolumeInformationByHandle(file.pfd.Sysfd, nil, 0, &vol, nil, nil, nil, 0)
++		var vol, flags uint32
++		err = windows.GetVolumeInformationByHandle(file.pfd.Sysfd, nil, 0, &vol, nil, &flags, nil, 0)
+ 		runtime.KeepAlive(file)
+ 		if err != nil {
+ 			err = &PathError{Op: "readdir", Path: file.name, Err: err}
+ 			return
+ 		}
+-		infoClass = windows.FileIdBothDirectoryRestartInfo
+ 		file.dirinfo = new(dirInfo)
+ 		file.dirinfo.buf = dirBufPool.Get().(*[]byte)
+ 		file.dirinfo.vol = vol
++		if allowReadDirFileID && flags&windows.FILE_SUPPORTS_OPEN_BY_FILE_ID != 0 {
++			file.dirinfo.class = windows.FileIdBothDirectoryRestartInfo
++		} else {
++			file.dirinfo.class = windows.FileFullDirectoryRestartInfo
++			// Set the directory path for use by os.SameFile, as it is possible that
++			// the file system supports retrieving the file ID using GetFileInformationByHandle.
++			file.dirinfo.path = file.name
++			if !isAbs(file.dirinfo.path) {
++				// If the path is relative, we need to convert it to an absolute path
++				// in case the current directory changes between this call and a
++				// call to os.SameFile.
++				file.dirinfo.path, err = syscall.FullPath(file.dirinfo.path)
++				if err != nil {
++					err = &PathError{Op: "readdir", Path: file.name, Err: err}
++					return
++				}
++			}
++		}
+ 	}
+ 	d := file.dirinfo
+ 	wantAll := n <= 0
+@@ -78,13 +101,14 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
+ 	for n != 0 {
+ 		// Refill the buffer if necessary
+ 		if d.bufp == 0 {
+-			err = windows.GetFileInformationByHandleEx(file.pfd.Sysfd, infoClass, (*byte)(unsafe.Pointer(&(*d.buf)[0])), uint32(len(*d.buf)))
++			err = windows.GetFileInformationByHandleEx(file.pfd.Sysfd, d.class, (*byte)(unsafe.Pointer(&(*d.buf)[0])), uint32(len(*d.buf)))
+ 			runtime.KeepAlive(file)
+ 			if err != nil {
+ 				if err == syscall.ERROR_NO_MORE_FILES {
+ 					break
+ 				}
+-				if infoClass == windows.FileIdBothDirectoryRestartInfo && err == syscall.ERROR_FILE_NOT_FOUND {
++				if err == syscall.ERROR_FILE_NOT_FOUND &&
++					(d.class == windows.FileIdBothDirectoryRestartInfo || d.class == windows.FileFullDirectoryRestartInfo) {
+ 					// GetFileInformationByHandleEx doesn't document the return error codes when the info class is FileIdBothDirectoryRestartInfo,
+ 					// but MS-FSA 2.1.5.6.3 [1] specifies that the underlying file system driver should return STATUS_NO_SUCH_FILE when
+ 					// reading an empty root directory, which is mapped to ERROR_FILE_NOT_FOUND by Windows.
+@@ -103,18 +127,32 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
+ 				}
+ 				return
+ 			}
+-			infoClass = windows.FileIdBothDirectoryInfo
++			if d.class == windows.FileIdBothDirectoryRestartInfo {
++				d.class = windows.FileIdBothDirectoryInfo
++			} else if d.class == windows.FileFullDirectoryRestartInfo {
++				d.class = windows.FileFullDirectoryInfo
++			}
+ 		}
+ 		// Drain the buffer
+ 		var islast bool
+ 		for n != 0 && !islast {
+-			info := (*windows.FILE_ID_BOTH_DIR_INFO)(unsafe.Pointer(&(*d.buf)[d.bufp]))
+-			d.bufp += int(info.NextEntryOffset)
+-			islast = info.NextEntryOffset == 0
++			var nextEntryOffset uint32
++			var nameslice []uint16
++			entry := unsafe.Pointer(&(*d.buf)[d.bufp])
++			if d.class == windows.FileIdBothDirectoryInfo {
++				info := (*windows.FILE_ID_BOTH_DIR_INFO)(entry)
++				nextEntryOffset = info.NextEntryOffset
++				nameslice = unsafe.Slice(&info.FileName[0], info.FileNameLength/2)
++			} else {
++				info := (*windows.FILE_FULL_DIR_INFO)(entry)
++				nextEntryOffset = info.NextEntryOffset
++				nameslice = unsafe.Slice(&info.FileName[0], info.FileNameLength/2)
++			}
++			d.bufp += int(nextEntryOffset)
++			islast = nextEntryOffset == 0
+ 			if islast {
+ 				d.bufp = 0
+ 			}
+-			nameslice := unsafe.Slice(&info.FileName[0], info.FileNameLength/2)
+ 			name := syscall.UTF16ToString(nameslice)
+ 			if name == "." || name == ".." { // Useless names
+ 				continue
+@@ -122,13 +160,19 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
+ 			if mode == readdirName {
+ 				names = append(names, name)
+ 			} else {
+-				f := newFileStatFromFileIDBothDirInfo(info)
++				var f *fileStat
++				if d.class == windows.FileIdBothDirectoryInfo {
++					f = newFileStatFromFileIDBothDirInfo((*windows.FILE_ID_BOTH_DIR_INFO)(entry))
++				} else {
++					f = newFileStatFromFileFullDirInfo((*windows.FILE_FULL_DIR_INFO)(entry))
++					// Defer appending the entry name to the parent directory path until
++					// it is really needed, to avoid allocating a string that may not be used.
++					// It is currently only used in os.SameFile.
++					f.appendNameToPath = true
++					f.path = d.path
++				}
+ 				f.name = name
+ 				f.vol = d.vol
+-				// f.path is used by os.SameFile to decide if it needs
+-				// to fetch vol, idxhi and idxlo. But these are already set,
+-				// so set f.path to "" to prevent os.SameFile doing it again.
+-				f.path = ""
+ 				if mode == readdirDirEntry {
+ 					dirents = append(dirents, dirEntry{f})
+ 				} else {
+diff --git a/src/os/export_windows_test.go b/src/os/export_windows_test.go
+index ff4f8995f8..6e1188816b 100644
+--- a/src/os/export_windows_test.go
++++ b/src/os/export_windows_test.go
+@@ -7,8 +7,9 @@ package os
+ // Export for testing.
+ 
+ var (
+-	FixLongPath       = fixLongPath
+-	CanUseLongPaths   = canUseLongPaths
+-	NewConsoleFile    = newConsoleFile
+-	CommandLineToArgv = commandLineToArgv
++	FixLongPath        = fixLongPath
++	CanUseLongPaths    = canUseLongPaths
++	NewConsoleFile     = newConsoleFile
++	CommandLineToArgv  = commandLineToArgv
++	AllowReadDirFileID = &allowReadDirFileID
+ )
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index daac3db1da..bfbe7ec815 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1524,3 +1524,73 @@ func TestNewFileInvalid(t *testing.T) {
+ 		t.Errorf("NewFile(InvalidHandle) got %v want nil", f)
+ 	}
+ }
++
++func TestReadDirPipe(t *testing.T) {
++	dir := `\\.\pipe\`
++	fi, err := os.Stat(dir)
++	if err != nil || !fi.IsDir() {
++		t.Skipf("%s is not a directory", dir)
++	}
++	_, err = os.ReadDir(dir)
++	if err != nil {
++		t.Errorf("ReadDir(%q) = %v", dir, err)
++	}
++}
++
++func TestReadDirNoFileID(t *testing.T) {
++	*os.AllowReadDirFileID = false
++	defer func() { *os.AllowReadDirFileID = true }()
++
++	dir := t.TempDir()
++	pathA := filepath.Join(dir, "a")
++	pathB := filepath.Join(dir, "b")
++	if err := os.WriteFile(pathA, nil, 0666); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(pathB, nil, 0666); err != nil {
++		t.Fatal(err)
++	}
++
++	files, err := os.ReadDir(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if len(files) != 2 {
++		t.Fatalf("ReadDir(%q) = %v; want 2 files", dir, files)
++	}
++
++	// Check that os.SameFile works with files returned by os.ReadDir.
++	f1, err := files[0].Info()
++	if err != nil {
++		t.Fatal(err)
++	}
++	f2, err := files[1].Info()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !os.SameFile(f1, f1) {
++		t.Errorf("SameFile(%v, %v) = false; want true", f1, f1)
++	}
++	if !os.SameFile(f2, f2) {
++		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2)
++	}
++	if os.SameFile(f1, f2) {
++		t.Errorf("SameFile(%v, %v) = true; want false", f1, f2)
++	}
++
++	// Check that os.SameFile works with a mix of os.ReadDir and os.Stat files.
++	f1s, err := os.Stat(pathA)
++	if err != nil {
++		t.Fatal(err)
++	}
++	f2s, err := os.Stat(pathB)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !os.SameFile(f1, f1s) {
++		t.Errorf("SameFile(%v, %v) = false; want true", f1, f1s)
++	}
++	if !os.SameFile(f2, f2s) {
++		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2s)
++	}
++}
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index e0b3a73581..b457410a4f 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -32,10 +32,11 @@ type fileStat struct {
+ 
+ 	// used to implement SameFile
+ 	sync.Mutex
+-	path  string
+-	vol   uint32
+-	idxhi uint32
+-	idxlo uint32
++	path             string
++	vol              uint32
++	idxhi            uint32
++	idxlo            uint32
++	appendNameToPath bool
+ }
+ 
+ // newFileStatFromGetFileInformationByHandle calls GetFileInformationByHandle
+@@ -99,6 +100,20 @@ func newFileStatFromFileIDBothDirInfo(d *windows.FILE_ID_BOTH_DIR_INFO) *fileSta
+ 	}
+ }
+ 
++// newFileStatFromFileFullDirInfo copies all required information
++// from windows.FILE_FULL_DIR_INFO d into the newly created fileStat.
++func newFileStatFromFileFullDirInfo(d *windows.FILE_FULL_DIR_INFO) *fileStat {
++	return &fileStat{
++		FileAttributes: d.FileAttributes,
++		CreationTime:   d.CreationTime,
++		LastAccessTime: d.LastAccessTime,
++		LastWriteTime:  d.LastWriteTime,
++		FileSizeHigh:   uint32(d.EndOfFile >> 32),
++		FileSizeLow:    uint32(d.EndOfFile),
++		ReparseTag:     d.EaSize,
++	}
++}
++
+ // newFileStatFromWin32finddata copies all required information
+ // from syscall.Win32finddata d into the newly created fileStat.
+ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
+@@ -198,7 +213,13 @@ func (fs *fileStat) loadFileId() error {
+ 		// already done
+ 		return nil
+ 	}
+-	pathp, err := syscall.UTF16PtrFromString(fs.path)
++	var path string
++	if fs.appendNameToPath {
++		path = fixLongPath(fs.path + `\` + fs.name)
++	} else {
++		path = fs.path
++	}
++	pathp, err := syscall.UTF16PtrFromString(path)
+ 	if err != nil {
+ 		return err
+ 	}

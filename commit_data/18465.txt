@@ -13,6 +13,22 @@ Date:   Wed Feb 12 11:58:48 2014 -0500
     R=golang-codereviews, hanwen, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/62190043
-
+---
  src/pkg/crypto/subtle/constant_time.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/crypto/subtle/constant_time.go b/src/pkg/crypto/subtle/constant_time.go
+index dfb658465e..de1a4e8c54 100644
+--- a/src/pkg/crypto/subtle/constant_time.go
++++ b/src/pkg/crypto/subtle/constant_time.go
+@@ -10,6 +10,10 @@ package subtle
+ // and y, have equal contents. The time taken is a function of the length of
+ // the slices and is independent of the contents.
+ func ConstantTimeCompare(x, y []byte) int {
++	if len(x) != len(y) {
++		panic("subtle: slices have different lengths")
++	}
++
+ 	var v byte
+ 
+ 	for i := 0; i < len(x); i++ {

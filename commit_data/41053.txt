@@ -15,7 +15,38 @@ Date:   Thu Aug 29 09:49:36 2019 -0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cover/func.go                          | 4 ++++
  src/cmd/go/testdata/script/cover_mod_empty.txt | 9 +++++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/cover/func.go b/src/cmd/cover/func.go
+index fe64374189..988c4caebf 100644
+--- a/src/cmd/cover/func.go
++++ b/src/cmd/cover/func.go
+@@ -191,6 +191,10 @@ func findPkgs(profiles []*Profile) (map[string]*Pkg, error) {
+ 		}
+ 	}
+ 
++	if len(list) == 0 {
++		return pkgs, nil
++	}
++
+ 	// Note: usually run as "go tool cover" in which case $GOROOT is set,
+ 	// in which case runtime.GOROOT() does exactly what we want.
+ 	goTool := filepath.Join(runtime.GOROOT(), "bin/go")
+diff --git a/src/cmd/go/testdata/script/cover_mod_empty.txt b/src/cmd/go/testdata/script/cover_mod_empty.txt
+new file mode 100644
+index 0000000000..3c45243edb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_mod_empty.txt
+@@ -0,0 +1,9 @@
++go tool cover -func=cover.out
++stdout total.*statements.*0.0%
++
++go mod init golang.org/issue/33855
++
++go tool cover -func=cover.out
++stdout total.*statements.*0.0%
++
++-- cover.out --

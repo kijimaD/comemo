@@ -16,8 +16,514 @@ Date:   Thu Apr 15 11:36:23 2021 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    | 187 +++++++++++++++++++++
  src/cmd/go/internal/work/build.go                  | 144 ++--------------
  .../go/testdata/script/mod_install_pkg_version.txt |  26 +--
  3 files changed, 210 insertions(+), 147 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 8a74930209..98a695ca24 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -14,6 +14,7 @@ import (
+ 	"go/build"
+ 	"go/scanner"
+ 	"go/token"
++	"internal/goroot"
+ 	"io/fs"
+ 	"os"
+ 	"path"
+@@ -30,6 +31,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/imports"
++	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/par"
+@@ -38,6 +40,7 @@ import (
+ 	"cmd/go/internal/trace"
+ 	"cmd/internal/sys"
+ 
++	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+ )
+ 
+@@ -2390,6 +2393,13 @@ type PackageOpts struct {
+ 	// of those packages could be missing, and resolving those missing dependencies
+ 	// could change the selected versions of modules that provide other packages.
+ 	ModResolveTests bool
++
++	// MainOnly is true if the caller only wants to load main packages.
++	// For a literal argument matching a non-main package, a stub may be returned
++	// with an error. For a non-literal argument (with "..."), non-main packages
++	// are not be matched, and their dependencies may not be loaded. A warning
++	// may be printed for non-literal arguments that match no main packages.
++	MainOnly bool
+ }
+ 
+ // PackagesAndErrors returns the packages named by the command line arguments
+@@ -2480,6 +2490,10 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
+ 		}
+ 	}
+ 
++	if opts.MainOnly {
++		pkgs = mainPackagesOnly(pkgs, patterns)
++	}
++
+ 	// Now that CmdlinePkg is set correctly,
+ 	// compute the effective flags for all loaded packages
+ 	// (not just the ones matching the patterns but also
+@@ -2528,6 +2542,51 @@ func CheckPackageErrors(pkgs []*Package) {
+ 	base.ExitIfErrors()
+ }
+ 
++// mainPackagesOnly filters out non-main packages matched only by arguments
++// containing "..." and returns the remaining main packages.
++//
++// mainPackagesOnly sets a package's error if it is named by a literal argument.
++//
++// mainPackagesOnly prints warnings for non-literal arguments that only match
++// non-main packages.
++func mainPackagesOnly(pkgs []*Package, patterns []string) []*Package {
++	matchers := make([]func(string) bool, len(patterns))
++	for i, p := range patterns {
++		if strings.Contains(p, "...") {
++			matchers[i] = search.MatchPattern(p)
++		}
++	}
++
++	mainPkgs := make([]*Package, 0, len(pkgs))
++	mainCount := make([]int, len(patterns))
++	nonMainCount := make([]int, len(patterns))
++	for _, pkg := range pkgs {
++		if pkg.Name == "main" {
++			mainPkgs = append(mainPkgs, pkg)
++			for i := range patterns {
++				if matchers[i] != nil && matchers[i](pkg.ImportPath) {
++					mainCount[i]++
++				}
++			}
++		} else {
++			for i := range patterns {
++				if matchers[i] == nil && patterns[i] == pkg.ImportPath && pkg.Error == nil {
++					pkg.Error = &PackageError{Err: ImportErrorf(pkg.ImportPath, "package %s is not a main package", pkg.ImportPath)}
++				} else if matchers[i] != nil && matchers[i](pkg.ImportPath) {
++					nonMainCount[i]++
++				}
++			}
++		}
++	}
++	for i, p := range patterns {
++		if matchers[i] != nil && mainCount[i] == 0 && nonMainCount[i] > 0 {
++			fmt.Fprintf(os.Stderr, "go: warning: %q matched no main packages\n", p)
++		}
++	}
++
++	return mainPkgs
++}
++
+ func setToolFlags(pkgs ...*Package) {
+ 	for _, p := range PackageList(pkgs) {
+ 		p.Internal.Asmflags = BuildAsmflags.For(p)
+@@ -2624,3 +2683,131 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
+ 
+ 	return pkg
+ }
++
++// PackagesAndErrorsOutsideModule is like PackagesAndErrors but runs in
++// module-aware mode and ignores the go.mod file in the current directory or any
++// parent directory, if there is one. This is used in the implementation of 'go
++// install pkg@version' and other commands that support similar forms.
++//
++// modload.ForceUseModules must be true, and modload.RootMode must be NoRoot
++// before calling this function.
++//
++// PackagesAndErrorsOutsideModule imposes several constraints to avoid
++// ambiguity. All arguments must have the same version suffix (not just a suffix
++// that resolves to the same version). They must refer to packages in the same
++// module, which must not be std or cmd. That module is not considered the main
++// module, but its go.mod file (if it has one) must not contain directives that
++// would cause it to be interpreted differently if it were the main module
++// (replace, exclude).
++func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args []string) ([]*Package, error) {
++	if !modload.ForceUseModules {
++		panic("modload.ForceUseModules must be true")
++	}
++	if modload.RootMode != modload.NoRoot {
++		panic("modload.RootMode must be NoRoot")
++	}
++
++	// Check that the arguments satisfy syntactic constraints.
++	var version string
++	for _, arg := range args {
++		if i := strings.Index(arg, "@"); i >= 0 {
++			version = arg[i+1:]
++			if version == "" {
++				return nil, fmt.Errorf("%s: version must not be empty", arg)
++			}
++			break
++		}
++	}
++	patterns := make([]string, len(args))
++	for i, arg := range args {
++		if !strings.HasSuffix(arg, "@"+version) {
++			return nil, fmt.Errorf("%s: all arguments must have the same version (@%s)", arg, version)
++		}
++		p := arg[:len(arg)-len(version)-1]
++		switch {
++		case build.IsLocalImport(p):
++			return nil, fmt.Errorf("%s: argument must be a package path, not a relative path", arg)
++		case filepath.IsAbs(p):
++			return nil, fmt.Errorf("%s: argument must be a package path, not an absolute path", arg)
++		case search.IsMetaPackage(p):
++			return nil, fmt.Errorf("%s: argument must be a package path, not a meta-package", arg)
++		case path.Clean(p) != p:
++			return nil, fmt.Errorf("%s: argument must be a clean package path", arg)
++		case !strings.Contains(p, "...") && search.IsStandardImportPath(p) && goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, p):
++			return nil, fmt.Errorf("%s: argument must not be a package in the standard library", arg)
++		default:
++			patterns[i] = p
++		}
++	}
++
++	// Query the module providing the first argument, load its go.mod file, and
++	// check that it doesn't contain directives that would cause it to be
++	// interpreted differently if it were the main module.
++	//
++	// If multiple modules match the first argument, accept the longest match
++	// (first result). It's possible this module won't provide packages named by
++	// later arguments, and other modules would. Let's not try to be too
++	// magical though.
++	allowed := modload.CheckAllowed
++	if modload.IsRevisionQuery(version) {
++		// Don't check for retractions if a specific revision is requested.
++		allowed = nil
++	}
++	noneSelected := func(path string) (version string) { return "none" }
++	qrs, err := modload.QueryPackages(ctx, patterns[0], version, noneSelected, allowed)
++	if err != nil {
++		return nil, fmt.Errorf("%s: %w", args[0], err)
++	}
++	rootMod := qrs[0].Mod
++	data, err := modfetch.GoMod(rootMod.Path, rootMod.Version)
++	if err != nil {
++		return nil, fmt.Errorf("%s: %w", args[0], err)
++	}
++	f, err := modfile.Parse("go.mod", data, nil)
++	if err != nil {
++		return nil, fmt.Errorf("%s (in %s): %w", args[0], rootMod, err)
++	}
++	directiveFmt := "%s (in %s):\n" +
++		"\tThe go.mod file for the module providing named packages contains one or\n" +
++		"\tmore %s directives. It must not contain directives that would cause\n" +
++		"\tit to be interpreted differently than if it were the main module."
++	if len(f.Replace) > 0 {
++		return nil, fmt.Errorf(directiveFmt, args[0], rootMod, "replace")
++	}
++	if len(f.Exclude) > 0 {
++		return nil, fmt.Errorf(directiveFmt, args[0], rootMod, "exclude")
++	}
++
++	// Since we are in NoRoot mode, the build list initially contains only
++	// the dummy command-line-arguments module. Add a requirement on the
++	// module that provides the packages named on the command line.
++	if _, err := modload.EditBuildList(ctx, nil, []module.Version{rootMod}); err != nil {
++		return nil, fmt.Errorf("%s: %w", args[0], err)
++	}
++
++	// Load packages for all arguments.
++	pkgs := PackagesAndErrors(ctx, opts, patterns)
++
++	// Check that named packages are all provided by the same module.
++	for _, pkg := range pkgs {
++		var pkgErr error
++		if pkg.Module == nil {
++			// Packages in std, cmd, and their vendored dependencies
++			// don't have this field set.
++			pkgErr = fmt.Errorf("package %s not provided by module %s", pkg.ImportPath, rootMod)
++		} else if pkg.Module.Path != rootMod.Path || pkg.Module.Version != rootMod.Version {
++			pkgErr = fmt.Errorf("package %s provided by module %s@%s\n\tAll packages must be provided by the same module (%s).", pkg.ImportPath, pkg.Module.Path, pkg.Module.Version, rootMod)
++		}
++		if pkgErr != nil && pkg.Error == nil {
++			pkg.Error = &PackageError{Err: pkgErr}
++		}
++	}
++
++	matchers := make([]func(string) bool, len(patterns))
++	for i, p := range patterns {
++		if strings.Contains(p, "...") {
++			matchers[i] = search.MatchPattern(p)
++		}
++	}
++	return pkgs, nil
++}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index dcb9e3785c..a75ace7d4e 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -10,9 +10,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	exec "internal/execabs"
+-	"internal/goroot"
+ 	"os"
+-	"path"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+@@ -21,13 +19,9 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
+-	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/trace"
+-
+-	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/module"
+ )
+ 
+ var CmdBuild = &base.Command{
+@@ -762,145 +756,27 @@ func installOutsideModule(ctx context.Context, args []string) {
+ 	modload.RootMode = modload.NoRoot
+ 	modload.AllowMissingModuleImports()
+ 	modload.Init()
+-
+-	// Check that the arguments satisfy syntactic constraints.
+-	var version string
+-	for _, arg := range args {
+-		if i := strings.Index(arg, "@"); i >= 0 {
+-			version = arg[i+1:]
+-			if version == "" {
+-				base.Fatalf("go install %s: version must not be empty", arg)
+-			}
+-			break
+-		}
+-	}
+-	patterns := make([]string, len(args))
+-	for i, arg := range args {
+-		if !strings.HasSuffix(arg, "@"+version) {
+-			base.Errorf("go install %s: all arguments must have the same version (@%s)", arg, version)
+-			continue
+-		}
+-		p := arg[:len(arg)-len(version)-1]
+-		switch {
+-		case build.IsLocalImport(p):
+-			base.Errorf("go install %s: argument must be a package path, not a relative path", arg)
+-		case filepath.IsAbs(p):
+-			base.Errorf("go install %s: argument must be a package path, not an absolute path", arg)
+-		case search.IsMetaPackage(p):
+-			base.Errorf("go install %s: argument must be a package path, not a meta-package", arg)
+-		case path.Clean(p) != p:
+-			base.Errorf("go install %s: argument must be a clean package path", arg)
+-		case !strings.Contains(p, "...") && search.IsStandardImportPath(p) && goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, p):
+-			base.Errorf("go install %s: argument must not be a package in the standard library", arg)
+-		default:
+-			patterns[i] = p
+-		}
+-	}
+-	base.ExitIfErrors()
+ 	BuildInit()
+ 
+-	// Query the module providing the first argument, load its go.mod file, and
+-	// check that it doesn't contain directives that would cause it to be
+-	// interpreted differently if it were the main module.
+-	//
+-	// If multiple modules match the first argument, accept the longest match
+-	// (first result). It's possible this module won't provide packages named by
+-	// later arguments, and other modules would. Let's not try to be too
+-	// magical though.
+-	allowed := modload.CheckAllowed
+-	if modload.IsRevisionQuery(version) {
+-		// Don't check for retractions if a specific revision is requested.
+-		allowed = nil
+-	}
+-	noneSelected := func(path string) (version string) { return "none" }
+-	qrs, err := modload.QueryPackages(ctx, patterns[0], version, noneSelected, allowed)
+-	if err != nil {
+-		base.Fatalf("go install %s: %v", args[0], err)
+-	}
+-	installMod := qrs[0].Mod
+-	data, err := modfetch.GoMod(installMod.Path, installMod.Version)
+-	if err != nil {
+-		base.Fatalf("go install %s: %v", args[0], err)
+-	}
+-	f, err := modfile.Parse("go.mod", data, nil)
+-	if err != nil {
+-		base.Fatalf("go install %s: %s: %v", args[0], installMod, err)
+-	}
+-	directiveFmt := "go install %s: %s\n" +
+-		"\tThe go.mod file for the module providing named packages contains one or\n" +
+-		"\tmore %s directives. It must not contain directives that would cause\n" +
+-		"\tit to be interpreted differently than if it were the main module."
+-	if len(f.Replace) > 0 {
+-		base.Fatalf(directiveFmt, args[0], installMod, "replace")
+-	}
+-	if len(f.Exclude) > 0 {
+-		base.Fatalf(directiveFmt, args[0], installMod, "exclude")
+-	}
+-
+-	// Since we are in NoRoot mode, the build list initially contains only
+-	// the dummy command-line-arguments module. Add a requirement on the
+-	// module that provides the packages named on the command line.
+-	if _, err := modload.EditBuildList(ctx, nil, []module.Version{installMod}); err != nil {
+-		base.Fatalf("go install %s: %v", args[0], err)
+-	}
+-
+-	// Load packages for all arguments. Ignore non-main packages.
++	// Load packages. Ignore non-main packages.
+ 	// Print a warning if an argument contains "..." and matches no main packages.
+ 	// PackagesAndErrors already prints warnings for patterns that don't match any
+ 	// packages, so be careful not to double print.
+-	matchers := make([]func(string) bool, len(patterns))
+-	for i, p := range patterns {
+-		if strings.Contains(p, "...") {
+-			matchers[i] = search.MatchPattern(p)
+-		}
+-	}
+-
+ 	// TODO(golang.org/issue/40276): don't report errors loading non-main packages
+ 	// matched by a pattern.
+-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, patterns)
+-	load.CheckPackageErrors(pkgs)
+-	mainPkgs := make([]*load.Package, 0, len(pkgs))
+-	mainCount := make([]int, len(patterns))
+-	nonMainCount := make([]int, len(patterns))
+-	for _, pkg := range pkgs {
+-		if pkg.Name == "main" {
+-			mainPkgs = append(mainPkgs, pkg)
+-			for i := range patterns {
+-				if matchers[i] != nil && matchers[i](pkg.ImportPath) {
+-					mainCount[i]++
+-				}
+-			}
+-		} else {
+-			for i := range patterns {
+-				if matchers[i] == nil && patterns[i] == pkg.ImportPath {
+-					base.Errorf("go install: package %s is not a main package", pkg.ImportPath)
+-				} else if matchers[i] != nil && matchers[i](pkg.ImportPath) {
+-					nonMainCount[i]++
+-				}
+-			}
+-		}
+-	}
+-	base.ExitIfErrors()
+-	for i, p := range patterns {
+-		if matchers[i] != nil && mainCount[i] == 0 && nonMainCount[i] > 0 {
+-			fmt.Fprintf(os.Stderr, "go: warning: %q matched no main packages\n", p)
+-		}
++	pkgOpts := load.PackageOpts{MainOnly: true}
++	pkgs, err := load.PackagesAndErrorsOutsideModule(ctx, pkgOpts, args)
++	if err != nil {
++		base.Fatalf("go install: %v", err)
+ 	}
+-
+-	// Check that named packages are all provided by the same module.
+-	for _, pkg := range mainPkgs {
+-		if pkg.Module == nil {
+-			// Packages in std, cmd, and their vendored dependencies
+-			// don't have this field set.
+-			base.Errorf("go install: package %s not provided by module %s", pkg.ImportPath, installMod)
+-		} else if pkg.Module.Path != installMod.Path || pkg.Module.Version != installMod.Version {
+-			base.Errorf("go install: package %s provided by module %s@%s\n\tAll packages must be provided by the same module (%s).", pkg.ImportPath, pkg.Module.Path, pkg.Module.Version, installMod)
+-		}
++	load.CheckPackageErrors(pkgs)
++	patterns := make([]string, len(args))
++	for i, arg := range args {
++		patterns[i] = arg[:strings.Index(arg, "@")]
+ 	}
+-	base.ExitIfErrors()
+ 
+ 	// Build and install the packages.
+-	InstallPackages(ctx, patterns, mainPkgs)
++	InstallPackages(ctx, patterns, pkgs)
+ }
+ 
+ // ExecCmd is the command to use to run user binaries.
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index c14085c4fd..3b387cd8b6 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -81,17 +81,17 @@ env GO111MODULE=auto
+ # 'go install pkg@version' reports errors for meta packages, std packages,
+ # and directories.
+ ! go install std@v1.0.0
+-stderr '^go install std@v1.0.0: argument must be a package path, not a meta-package$'
++stderr '^go install: std@v1.0.0: argument must be a package path, not a meta-package$'
+ ! go install fmt@v1.0.0
+-stderr '^go install fmt@v1.0.0: argument must not be a package in the standard library$'
++stderr '^go install: fmt@v1.0.0: argument must not be a package in the standard library$'
+ ! go install example.com//cmd/a@v1.0.0
+-stderr '^go install example.com//cmd/a@v1.0.0: argument must be a clean package path$'
++stderr '^go install: example.com//cmd/a@v1.0.0: argument must be a clean package path$'
+ ! go install example.com/cmd/a@v1.0.0 ./x@v1.0.0
+-stderr '^go install ./x@v1.0.0: argument must be a package path, not a relative path$'
++stderr '^go install: ./x@v1.0.0: argument must be a package path, not a relative path$'
+ ! go install example.com/cmd/a@v1.0.0 $GOPATH/src/x@v1.0.0
+-stderr '^go install '$WORK'[/\\]gopath/src/x@v1.0.0: argument must be a package path, not an absolute path$'
++stderr '^go install: '$WORK'[/\\]gopath/src/x@v1.0.0: argument must be a package path, not an absolute path$'
+ ! go install example.com/cmd/a@v1.0.0 cmd/...@v1.0.0
+-stderr '^go install: package cmd/go not provided by module example.com/cmd@v1.0.0$'
++stderr '^package cmd/go not provided by module example.com/cmd@v1.0.0$'
+ 
+ # 'go install pkg@version' should accept multiple arguments but report an error
+ # if the version suffixes are different, even if they refer to the same version.
+@@ -106,19 +106,19 @@ stdout '^example.com/cmd v1.0.0$'
+ env GO111MODULE=auto
+ 
+ ! go install example.com/cmd/a@v1.0.0 example.com/cmd/b@latest
+-stderr '^go install example.com/cmd/b@latest: all arguments must have the same version \(@v1.0.0\)$'
++stderr '^go install: example.com/cmd/b@latest: all arguments must have the same version \(@v1.0.0\)$'
+ 
+ 
+ # 'go install pkg@version' should report an error if the arguments are in
+ # different modules.
+ ! go install example.com/cmd/a@v1.0.0 rsc.io/fortune@v1.0.0
+-stderr '^go install: package rsc.io/fortune provided by module rsc.io/fortune@v1.0.0\n\tAll packages must be provided by the same module \(example.com/cmd@v1.0.0\).$'
++stderr '^package rsc.io/fortune provided by module rsc.io/fortune@v1.0.0\n\tAll packages must be provided by the same module \(example.com/cmd@v1.0.0\).$'
+ 
+ 
+ # 'go install pkg@version' should report an error if an argument is not
+ # a main package.
+ ! go install example.com/cmd/a@v1.0.0 example.com/cmd/err@v1.0.0
+-stderr '^go install: package example.com/cmd/err is not a main package$'
++stderr '^go: package example.com/cmd/err is not a main package$'
+ 
+ # Wildcards should match only main packages. This module has a non-main package
+ # with an error, so we'll know if that gets built.
+@@ -137,7 +137,7 @@ rm $GOPATH/bin
+ 
+ # If a wildcard matches no packages, we should see a warning.
+ ! go install example.com/cmd/nomatch...@v1.0.0
+-stderr '^go install example.com/cmd/nomatch\.\.\.@v1.0.0: module example.com/cmd@v1.0.0 found, but does not contain packages matching example.com/cmd/nomatch\.\.\.$'
++stderr '^go install: example.com/cmd/nomatch\.\.\.@v1.0.0: module example.com/cmd@v1.0.0 found, but does not contain packages matching example.com/cmd/nomatch\.\.\.$'
+ go install example.com/cmd/a@v1.0.0 example.com/cmd/nomatch...@v1.0.0
+ stderr '^go: warning: "example.com/cmd/nomatch\.\.\." matched no packages$'
+ 
+@@ -159,7 +159,7 @@ cmp stderr exclude-err
+ # 'go install pkg@version' should report an error if the module requires a
+ # higher version of itself.
+ ! go install example.com/cmd/a@v1.0.0-newerself
+-stderr '^go install example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
++stderr '^go install: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
+ 
+ 
+ # 'go install pkg@version' will only match a retracted version if it's
+@@ -192,12 +192,12 @@ package main
+ 
+ func main() {}
+ -- replace-err --
+-go install example.com/cmd/a@v1.0.0-replace: example.com/cmd@v1.0.0-replace
++go install: example.com/cmd/a@v1.0.0-replace (in example.com/cmd@v1.0.0-replace):
+ 	The go.mod file for the module providing named packages contains one or
+ 	more replace directives. It must not contain directives that would cause
+ 	it to be interpreted differently than if it were the main module.
+ -- exclude-err --
+-go install example.com/cmd/a@v1.0.0-exclude: example.com/cmd@v1.0.0-exclude
++go install: example.com/cmd/a@v1.0.0-exclude (in example.com/cmd@v1.0.0-exclude):
+ 	The go.mod file for the module providing named packages contains one or
+ 	more exclude directives. It must not contain directives that would cause
+ 	it to be interpreted differently than if it were the main module.

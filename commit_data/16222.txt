@@ -7,7 +7,7 @@ Date:   Wed Apr 24 04:46:14 2013 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8896045
-
+---
  doc/articles/image_package.html | 4 ++--
  doc/codewalk/urlpoll.go         | 2 +-
  doc/devel/weekly.html           | 4 ++--
@@ -16,3 +16,113 @@ Date:   Wed Apr 24 04:46:14 2013 +0800
  src/pkg/runtime/chan.c          | 2 +-
  src/pkg/runtime/os_darwin.c     | 2 +-
  7 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/doc/articles/image_package.html b/doc/articles/image_package.html
+index ebe92a1ca9..39a93ccdae 100644
+--- a/doc/articles/image_package.html
++++ b/doc/articles/image_package.html
+@@ -130,7 +130,7 @@ much easier to type.
+ A <code>Rectangle</code> is inclusive at the top-left and exclusive at the
+ bottom-right. For a <code>Point p</code> and a <code>Rectangle r</code>,
+ <code>p.In(r)</code> if and only if
+-<code>r.Min.X &lt;= p.X &amp;&amp; p.X &lt; r.Max.X</code>, and similarly for <code>Y</code>. This is analagous to how
++<code>r.Min.X &lt;= p.X &amp;&amp; p.X &lt; r.Max.X</code>, and similarly for <code>Y</code>. This is analogous to how
+ a slice <code>s[i0:i1]</code> is inclusive at the low end and exclusive at the
+ high end. (Unlike arrays and slices, a <code>Rectangle</code> often has a
+ non-zero origin.)
+@@ -236,7 +236,7 @@ more complicated, to access these struct type's <code>Pix</code> field directly.
+ The slice-based <code>Image</code> implementations also provide a
+ <code>SubImage</code> method, which returns an <code>Image</code> backed by the
+ same array. Modifying the pixels of a sub-image will affect the pixels of the
+-original image, analagous to how modifying the contents of a sub-slice
++original image, analogous to how modifying the contents of a sub-slice
+ <code>s[i0:i1]</code> will affect the contents of the original slice
+ <code>s</code>.
+ </p>
+diff --git a/doc/codewalk/urlpoll.go b/doc/codewalk/urlpoll.go
+index e716c7e6c4..1fb99581f0 100644
+--- a/doc/codewalk/urlpoll.go
++++ b/doc/codewalk/urlpoll.go
+@@ -76,7 +76,7 @@ func (r *Resource) Poll() string {
+ 	return resp.Status
+ }
+ 
+-// Sleep sleeps for an appropriate interval (dependant on error state)
++// Sleep sleeps for an appropriate interval (dependent on error state)
+ // before sending the Resource to done.
+ func (r *Resource) Sleep(done chan<- *Resource) {
+ 	time.Sleep(pollInterval + errTimeout*time.Duration(r.errCount))
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index f8d3ec6dd4..c22064258c 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -2035,7 +2035,7 @@ Other changes:
+ * spec: define order of multiple assignment.
+ * syscall/windows: dll function load and calling changes (thanks Alex Brainman).
+ * syscall: add #ifdefs to fix the manual corrections in ztypes_linux_arm.go (thanks Dave Cheney),
+-	adjust Mount to accomodate stricter FS implementations.
++	adjust Mount to accommodate stricter FS implementations.
+ * testing: fix time reported for failing tests.
+ * utf8: add Valid and ValidString.
+ * websocket: tweak hybi ReadHandshake to support Firefox (thanks Luca Greco).
+@@ -4362,7 +4362,7 @@ The print/println bootstrapping functions now write to standard error.
+ To write to standard output, use fmt.Print[ln].
+ 
+ A new tool, govet, has been added to the Go distribution. Govet is a static
+-checker for Go programs. At the moment, and for the forseeable future,
++checker for Go programs. At the moment, and for the foreseeable future,
+ it only checks arguments to print calls.
+ 
+ The cgo tool for writing Go bindings for C code has changed so that it no
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 27085fa1e2..d7b321597c 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1966,7 +1966,7 @@ Host: golang.org
+ 
+ const someResponse = "<html>some response</html>"
+ 
+-// A Reponse that's just no bigger than 2KB, the buffer-before-chunking threshold.
++// A Response that's just no bigger than 2KB, the buffer-before-chunking threshold.
+ var response = bytes.Repeat([]byte(someResponse), 2<<10/len(someResponse))
+ 
+ // Both Content-Type and Content-Length set. Should be no buffering.
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 768a2b08cd..b259607050 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1492,7 +1492,7 @@ type Server struct {
+ 
+ 	// TLSNextProto optionally specifies a function to take over
+ 	// ownership of the provided TLS connection when an NPN
+-	// protocol upgrade has occured.  The map key is the protocol
++	// protocol upgrade has occurred.  The map key is the protocol
+ 	// name negotiated. The Handler argument should be used to
+ 	// handle HTTP requests and will initialize the Request's TLS
+ 	// and RemoteAddr if not already set.  The connection is
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 32995c6ddd..69b90bda56 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -1011,7 +1011,7 @@ loop:
+ 	c = cas->chan;
+ 
+ 	if(c->dataqsiz > 0)
+-		runtime·throw("selectgo: shouldnt happen");
++		runtime·throw("selectgo: shouldn't happen");
+ 
+ 	if(debug)
+ 		runtime·printf("wait-return: sel=%p c=%p cas=%p kind=%d\n",
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index 6216e3a3ce..390e76ec58 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -92,7 +92,7 @@ runtime·goenvs(void)
+ 
+ 	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
+ 	// but only if we're not using cgo.  If we are using cgo we need
+-	// to let the C pthread libary install its own thread-creation callback.
++	// to let the C pthread library install its own thread-creation callback.
+ 	if(!runtime·iscgo) {
+ 		if(runtime·bsdthread_register() != 0) {
+ 			if(runtime·getenv("DYLD_INSERT_LIBRARIES"))

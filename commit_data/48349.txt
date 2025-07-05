@@ -39,9 +39,163 @@ Date:   Wed May 13 18:24:16 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/elliptic/elliptic.go      | 39 ++++++++++++++++++++++++++++++++++++
  src/crypto/elliptic/elliptic_test.go | 18 +++++++++++++----
  src/crypto/elliptic/p256_asm.go      |  4 +---
  src/crypto/elliptic/p256_generic.go  |  4 +---
  4 files changed, 55 insertions(+), 10 deletions(-)
+
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index 85d105419b..b8e5a3097d 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -40,6 +40,15 @@ type Curve interface {
+ 	ScalarBaseMult(k []byte) (x, y *big.Int)
+ }
+ 
++func matchesSpecificCurve(params *CurveParams, available ...Curve) (Curve, bool) {
++	for _, c := range available {
++		if params == c.Params() {
++			return c, true
++		}
++	}
++	return nil, false
++}
++
+ // CurveParams contains the parameters of an elliptic curve and also provides
+ // a generic, non-constant time implementation of Curve.
+ type CurveParams struct {
+@@ -71,6 +80,12 @@ func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
+ }
+ 
+ func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
++	// If there is a dedicated constant-time implementation for this curve operation,
++	// use that instead of the generic one.
++	if specific, ok := matchesSpecificCurve(curve, p224, p521); ok {
++		return specific.IsOnCurve(x, y)
++	}
++
+ 	// y² = x³ - 3x + b
+ 	y2 := new(big.Int).Mul(y, y)
+ 	y2.Mod(y2, curve.P)
+@@ -108,6 +123,12 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
+ }
+ 
+ func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
++	// If there is a dedicated constant-time implementation for this curve operation,
++	// use that instead of the generic one.
++	if specific, ok := matchesSpecificCurve(curve, p224, p521); ok {
++		return specific.Add(x1, y1, x2, y2)
++	}
++
+ 	z1 := zForAffine(x1, y1)
+ 	z2 := zForAffine(x2, y2)
+ 	return curve.affineFromJacobian(curve.addJacobian(x1, y1, z1, x2, y2, z2))
+@@ -192,6 +213,12 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
+ }
+ 
+ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
++	// If there is a dedicated constant-time implementation for this curve operation,
++	// use that instead of the generic one.
++	if specific, ok := matchesSpecificCurve(curve, p224, p521); ok {
++		return specific.Double(x1, y1)
++	}
++
+ 	z1 := zForAffine(x1, y1)
+ 	return curve.affineFromJacobian(curve.doubleJacobian(x1, y1, z1))
+ }
+@@ -258,6 +285,12 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int,
+ }
+ 
+ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
++	// If there is a dedicated constant-time implementation for this curve operation,
++	// use that instead of the generic one.
++	if specific, ok := matchesSpecificCurve(curve, p224, p256, p521); ok {
++		return specific.ScalarMult(Bx, By, k)
++	}
++
+ 	Bz := new(big.Int).SetInt64(1)
+ 	x, y, z := new(big.Int), new(big.Int), new(big.Int)
+ 
+@@ -275,6 +308,12 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
+ }
+ 
+ func (curve *CurveParams) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
++	// If there is a dedicated constant-time implementation for this curve operation,
++	// use that instead of the generic one.
++	if specific, ok := matchesSpecificCurve(curve, p224, p256, p521); ok {
++		return specific.ScalarBaseMult(k)
++	}
++
+ 	return curve.ScalarMult(curve.Gx, curve.Gy, k)
+ }
+ 
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index 0d43b736f9..183861a54b 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -12,19 +12,29 @@ import (
+ 	"testing"
+ )
+ 
++// genericParamsForCurve returns the dereferenced CurveParams for
++// the specified curve. This is used to avoid the logic for
++// upgrading a curve to it's specific implementation, forcing
++// usage of the generic implementation. This is only relevant
++// for the P224, P256, and P521 curves.
++func genericParamsForCurve(c Curve) *CurveParams {
++	d := *(c.Params())
++	return &d
++}
++
+ func testAllCurves(t *testing.T, f func(*testing.T, Curve)) {
+ 	tests := []struct {
+ 		name  string
+ 		curve Curve
+ 	}{
+ 		{"P256", P256()},
+-		{"P256/Params", P256().Params()},
++		{"P256/Params", genericParamsForCurve(P256())},
+ 		{"P224", P224()},
+-		{"P224/Params", P224().Params()},
++		{"P224/Params", genericParamsForCurve(P224())},
+ 		{"P384", P384()},
+-		{"P384/Params", P384().Params()},
++		{"P384/Params", genericParamsForCurve(P384())},
+ 		{"P521", P521()},
+-		{"P521/Params", P521().Params()},
++		{"P521/Params", genericParamsForCurve(P521())},
+ 	}
+ 	if testing.Short() {
+ 		tests = tests[:1]
+diff --git a/src/crypto/elliptic/p256_asm.go b/src/crypto/elliptic/p256_asm.go
+index 08dbd2ea54..9a808f260a 100644
+--- a/src/crypto/elliptic/p256_asm.go
++++ b/src/crypto/elliptic/p256_asm.go
+@@ -29,9 +29,7 @@ type (
+ 	}
+ )
+ 
+-var (
+-	p256 p256Curve
+-)
++var p256 p256Curve
+ 
+ func initP256() {
+ 	// See FIPS 186-3, section D.2.3
+diff --git a/src/crypto/elliptic/p256_generic.go b/src/crypto/elliptic/p256_generic.go
+index 8ad56638e9..25762a8f76 100644
+--- a/src/crypto/elliptic/p256_generic.go
++++ b/src/crypto/elliptic/p256_generic.go
+@@ -7,9 +7,7 @@
+ 
+ package elliptic
+ 
+-var (
+-	p256 p256Curve
+-)
++var p256 p256Curve
+ 
+ func initP256Arch() {
+ 	// Use pure Go implementation.

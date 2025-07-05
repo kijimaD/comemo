@@ -8,7 +8,7 @@ Date:   Wed Jan 19 23:08:11 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4071041
-
+---
  src/cmd/5g/cgen.c      |  3 +--
  src/cmd/5g/galign.c    |  2 --
  src/cmd/5g/reg.c       |  1 -
@@ -30,3 +30,445 @@ Date:   Wed Jan 19 23:08:11 2011 -0500
  src/cmd/gc/walk.c      |  2 +-
  src/cmd/ld/dwarf.c     |  4 ----
  20 files changed, 19 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 7cfde993eb..032409baee 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -169,7 +169,7 @@ cgen(Node *n, Node *res)
+ 
+ 	case OREAL:
+ 	case OIMAG:
+-	case OCMPLX:
++	case OCOMPLEX:
+ 		fatal("unexpected complex");
+ 		break;
+ 
+@@ -879,7 +879,6 @@ bgen(Node *n, int true, Prog *to)
+ 
+ 	switch(n->op) {
+ 	default:
+-	def:
+ 		a = ONE;
+ 		if(!true)
+ 			a = OEQ;
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index 9c8760aea7..0fece9a08f 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -17,8 +17,6 @@ Typedef	typedefs[] =
+ 	"int",		TINT,		TINT32,
+ 	"uint",		TUINT,		TUINT32,
+ 	"uintptr",	TUINTPTR,	TUINT32,
+-	"float",	TFLOAT,		TFLOAT32,
+-	"complex",	TCOMPLEX,	TCOMPLEX64,
+ 	0
+ };
+ 
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index d30d03b206..3f1ec07e4e 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1066,7 +1066,6 @@ allreg(uint32 b, Rgn *r)
+ 
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-	case TFLOAT:
+ 		i = BtoF(~b);
+ 		if(i && r->cost >= 0) {
+ 			r->regno = i+NREG;
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index bdfc9947e8..97bfb58e88 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -17,8 +17,6 @@ Typedef	typedefs[] =
+ 	"int",		TINT,		TINT32,
+ 	"uint",		TUINT,		TUINT32,
+ 	"uintptr",	TUINTPTR,	TUINT64,
+-	"float",	TFLOAT,		TFLOAT32,
+-	"complex",	TCOMPLEX,	TCOMPLEX64,
+ 	0
+ };
+ 
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 4646270663..1e1d64c59e 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -748,7 +748,6 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	case TPTR64:
+ 		p1->as = AMOVQ;
+ 		break;
+-	case TFLOAT:
+ 	case TFLOAT32:
+ 		p1->as = AMOVSS;
+ 		break;
+@@ -1180,7 +1179,6 @@ allreg(uint32 b, Rgn *r)
+ 
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-	case TFLOAT:
+ 		i = BtoF(~b);
+ 		if(i && r->cost > 0) {
+ 			r->regno = i;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 875d434fa7..9c326e8ef1 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -174,7 +174,7 @@ cgen(Node *n, Node *res)
+ 
+ 	case OREAL:
+ 	case OIMAG:
+-	case OCMPLX:
++	case OCOMPLEX:
+ 		fatal("unexpected complex");
+ 		return;
+ 
+diff --git a/src/cmd/8g/galign.c b/src/cmd/8g/galign.c
+index 1c14dfe471..48edfdf3cc 100644
+--- a/src/cmd/8g/galign.c
++++ b/src/cmd/8g/galign.c
+@@ -17,8 +17,6 @@ Typedef	typedefs[] =
+ 	"int",		TINT,		TINT32,
+ 	"uint",		TUINT,		TUINT32,
+ 	"uintptr",	TUINTPTR,	TUINT32,
+-	"float",	TFLOAT,		TFLOAT32,
+-	"complex",	TCOMPLEX,	TCOMPLEX64,
+ 	0
+ };
+ 
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index e1dacf55ad..1465d372ce 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -1095,7 +1095,6 @@ allreg(uint32 b, Rgn *r)
+ 
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-	case TFLOAT:
+ 		break;
+ 	}
+ 	return 0;
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index a3785e8718..ed20e7e8b4 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -412,11 +412,9 @@ typeinit(void)
+ 
+ 	isfloat[TFLOAT32] = 1;
+ 	isfloat[TFLOAT64] = 1;
+-	isfloat[TFLOAT] = 1;
+ 
+ 	iscomplex[TCOMPLEX64] = 1;
+ 	iscomplex[TCOMPLEX128] = 1;
+-	iscomplex[TCOMPLEX] = 1;
+ 
+ 	isptr[TPTR32] = 1;
+ 	isptr[TPTR64] = 1;
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 72e67a6340..0ee693c025 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -980,10 +980,10 @@ defaultlit(Node **np, Type *t)
+ 		n->type = types[TINT];
+ 		goto num;
+ 	case CTFLT:
+-		n->type = types[TFLOAT];
++		n->type = types[TFLOAT64];
+ 		goto num;
+ 	case CTCPLX:
+-		n->type = types[TCOMPLEX];
++		n->type = types[TCOMPLEX128];
+ 		goto num;
+ 	num:
+ 		if(t != T) {
+@@ -1034,13 +1034,13 @@ defaultlit2(Node **lp, Node **rp, int force)
+ 	if(!force)
+ 		return;
+ 	if(isconst(l, CTCPLX) || isconst(r, CTCPLX)) {
+-		convlit(lp, types[TCOMPLEX]);
+-		convlit(rp, types[TCOMPLEX]);
++		convlit(lp, types[TCOMPLEX128]);
++		convlit(rp, types[TCOMPLEX128]);
+ 		return;
+ 	}
+ 	if(isconst(l, CTFLT) || isconst(r, CTFLT)) {
+-		convlit(lp, types[TFLOAT]);
+-		convlit(rp, types[TFLOAT]);
++		convlit(lp, types[TFLOAT64]);
++		convlit(rp, types[TFLOAT64]);
+ 		return;
+ 	}
+ 	convlit(lp, types[TINT]);
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index e25f3cabb9..3ec9fe5a2c 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -84,7 +84,7 @@ maybe:
+ 	case OSUB:
+ 	case OMUL:
+ 	case OMINUS:
+-	case OCMPLX:
++	case OCOMPLEX:
+ 	case OREAL:
+ 	case OIMAG:
+ 		goto yes;
+@@ -120,7 +120,7 @@ complexgen(Node *n, Node *res)
+ 
+ 	// pick off float/complex opcodes
+ 	switch(n->op) {
+-	case OCMPLX:
++	case OCOMPLEX:
+ 		if(res->addable) {
+ 			subnode(&n1, &n2, res);
+ 			tempname(&tmp, n1.type);
+@@ -195,7 +195,7 @@ complexgen(Node *n, Node *res)
+ 	case OSUB:
+ 	case OMUL:
+ 	case OMINUS:
+-	case OCMPLX:
++	case OCOMPLEX:
+ 	case OREAL:
+ 	case OIMAG:
+ 		break;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ee31a33575..b2d025b787 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -390,7 +390,7 @@ enum
+ 	ORUNESTR,
+ 	OSELRECV,
+ 	OIOTA,
+-	OREAL, OIMAG, OCMPLX,
++	OREAL, OIMAG, OCOMPLEX,
+ 
+ 	// stmts
+ 	OBLOCK,
+@@ -440,11 +440,9 @@ enum
+ 
+ 	TCOMPLEX64,		// 12
+ 	TCOMPLEX128,
+-	TCOMPLEX,
+ 
+ 	TFLOAT32,		// 15
+ 	TFLOAT64,
+-	TFLOAT,
+ 
+ 	TBOOL,			// 18
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 0f1acd2fcd..45b1257fad 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1531,7 +1531,7 @@ static	struct
+ 	"cap",		LNAME,		Txxx,		OCAP,
+ 	"close",	LNAME,		Txxx,		OCLOSE,
+ 	"closed",	LNAME,		Txxx,		OCLOSED,
+-	"cmplx",	LNAME,		Txxx,		OCMPLX,
++	"complex",	LNAME,		Txxx,		OCOMPLEX,
+ 	"copy",		LNAME,		Txxx,		OCOPY,
+ 	"imag",		LNAME,		Txxx,		OIMAG,
+ 	"len",		LNAME,		Txxx,		OLEN,
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 6bb1f026be..25c4126397 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -365,8 +365,8 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, ")");
+ 		break;
+ 
+-	case OCMPLX:
+-		fmtprint(f, "cmplx(");
++	case OCOMPLEX:
++		fmtprint(f, "complex(");
+ 		exprfmt(f, n->left, 0);
+ 		fmtprint(f, ", ");
+ 		exprfmt(f, n->right, 0);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index b31eb51549..36c245d478 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -419,10 +419,8 @@ enum {
+ 	KindUint32,
+ 	KindUint64,
+ 	KindUintptr,
+-	KindFloat,
+ 	KindFloat32,
+ 	KindFloat64,
+-	KindComplex,
+ 	KindComplex64,
+ 	KindComplex128,
+ 	KindArray,
+@@ -453,7 +451,6 @@ kinds[] =
+ 	[TINT64]	= KindInt64,
+ 	[TUINT64]	= KindUint64,
+ 	[TUINTPTR]	= KindUintptr,
+-	[TFLOAT]	= KindFloat,
+ 	[TFLOAT32]	= KindFloat32,
+ 	[TFLOAT64]	= KindFloat64,
+ 	[TBOOL]		= KindBool,
+@@ -466,7 +463,6 @@ kinds[] =
+ 	[TMAP]		= KindMap,
+ 	[TARRAY]		= KindArray,
+ 	[TFUNC]		= KindFunc,
+-	[TCOMPLEX]	= KindComplex,
+ 	[TCOMPLEX64]	= KindComplex64,
+ 	[TCOMPLEX128]	= KindComplex128,
+ };
+@@ -485,10 +481,8 @@ structnames[] =
+ 	[TINT64]	= "*runtime.IntType",
+ 	[TUINT64]	= "*runtime.UintType",
+ 	[TUINTPTR]	= "*runtime.UintType",
+-	[TCOMPLEX]	= "*runtime.ComplexType",
+ 	[TCOMPLEX64]	= "*runtime.ComplexType",
+ 	[TCOMPLEX128]	= "*runtime.ComplexType",
+-	[TFLOAT]	= "*runtime.FloatType",
+ 	[TFLOAT32]	= "*runtime.FloatType",
+ 	[TFLOAT64]	= "*runtime.FloatType",
+ 	[TBOOL]		= "*runtime.BoolType",
+@@ -542,7 +536,6 @@ haspointers(Type *t)
+ 	case TINT64:
+ 	case TUINT64:
+ 	case TUINTPTR:
+-	case TFLOAT:
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+ 	case TBOOL:
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 19ee3327b4..be96a1477a 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -917,14 +917,12 @@ gen_as_init(Node *n)
+ 	case TPTR64:
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-	case TFLOAT:
+ 		gused(N); // in case the data is the dest of a goto
+ 		gdata(&nam, nr, nr->type->width);
+ 		break;
+ 
+ 	case TCOMPLEX64:
+ 	case TCOMPLEX128:
+-	case TCOMPLEX:
+ 		gused(N); // in case the data is the dest of a goto
+ 		gdatacomplex(&nam, nr->val.u.cval);
+ 		break;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3c45010962..cb5e2a831d 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -836,7 +836,7 @@ goopnames[] =
+ 	[OCASE]		= "case",
+ 	[OCLOSED]	= "closed",
+ 	[OCLOSE]	= "close",
+-	[OCMPLX]	= "cmplx",
++	[OCOMPLEX]	= "complex",
+ 	[OCOM]		= "^",
+ 	[OCONTINUE]	= "continue",
+ 	[OCOPY]		= "copy",
+@@ -993,10 +993,8 @@ etnames[] =
+ 	[TINT64]	= "INT64",
+ 	[TUINT64]	= "UINT64",
+ 	[TUINTPTR]	= "UINTPTR",
+-	[TFLOAT]	= "FLOAT",
+ 	[TFLOAT32]	= "FLOAT32",
+ 	[TFLOAT64]	= "FLOAT64",
+-	[TCOMPLEX]	= "COMPLEX",
+ 	[TCOMPLEX64]	= "COMPLEX64",
+ 	[TCOMPLEX128]	= "COMPLEX128",
+ 	[TBOOL]		= "BOOL",
+@@ -1117,10 +1115,8 @@ basicnames[] =
+ 	[TINT64]	= "int64",
+ 	[TUINT64]	= "uint64",
+ 	[TUINTPTR]	= "uintptr",
+-	[TFLOAT]	= "float",
+ 	[TFLOAT32]	= "float32",
+ 	[TFLOAT64]	= "float64",
+-	[TCOMPLEX]	= "complex",
+ 	[TCOMPLEX64]	= "complex64",
+ 	[TCOMPLEX128]	= "complex128",
+ 	[TBOOL]		= "bool",
+@@ -1752,8 +1748,6 @@ int
+ cplxsubtype(int et)
+ {
+ 	switch(et) {
+-	case TCOMPLEX:
+-		return TFLOAT;
+ 	case TCOMPLEX64:
+ 		return TFLOAT32;
+ 	case TCOMPLEX128:
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index ca114d47cd..88e0fc0136 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -852,7 +852,7 @@ reswitch:
+ 		n->type = types[TINT];
+ 		goto ret;
+ 
+-	case OCMPLX:
++	case OCOMPLEX:
+ 		ok |= Erv;
+ 		if(twoarg(n) < 0)
+ 			goto error;
+@@ -865,7 +865,7 @@ reswitch:
+ 		n->right = r;
+ 		if(l->type->etype != r->type->etype) {
+ 		badcmplx:
+-			yyerror("invalid operation: %#N (cmplx of types %T, %T)", n, l->type, r->type);
++			yyerror("invalid operation: %#N (complex of types %T, %T)", n, l->type, r->type);
+ 			goto error;
+ 		}
+ 		switch(l->type->etype) {
+@@ -874,9 +874,6 @@ reswitch:
+ 		case TIDEAL:
+ 			t = types[TIDEAL];
+ 			break;
+-		case TFLOAT:
+-			t = types[TCOMPLEX];
+-			break;
+ 		case TFLOAT32:
+ 			t = types[TCOMPLEX64];
+ 			break;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1d4c5a58e3..8b89d9ee49 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -671,7 +671,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case OGE:
+ 	case OGT:
+ 	case OADD:
+-	case OCMPLX:
++	case OCOMPLEX:
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
+ 		goto ret;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 506c6e5db8..4683f806fa 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -768,10 +768,8 @@ enum {
+ 	KindUint32,
+ 	KindUint64,
+ 	KindUintptr,
+-	KindFloat,
+ 	KindFloat32,
+ 	KindFloat64,
+-	KindComplex,
+ 	KindComplex64,
+ 	KindComplex128,
+ 	KindArray,
+@@ -1049,7 +1047,6 @@ defgotype(Sym *gotype)
+ 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
+ 		break;
+ 
+-	case KindFloat:
+ 	case KindFloat32:
+ 	case KindFloat64:
+ 		die = newdie(&dwtypes, DW_ABRV_BASETYPE, name);
+@@ -1057,7 +1054,6 @@ defgotype(Sym *gotype)
+ 		newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, bytesize, 0);
+ 		break;
+ 
+-	case KindComplex:
+ 	case KindComplex64:
+ 	case KindComplex128:
+ 		die = newdie(&dwtypes, DW_ABRV_BASETYPE, name);

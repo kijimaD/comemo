@@ -6,7 +6,38 @@ Date:   Wed Dec 2 11:40:54 2009 -0800
     
     R=rsc
     https://golang.org/cl/164071
-
+---
  src/pkg/json/decode.go      | 4 +---
  src/pkg/json/decode_test.go | 4 ++--
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 55659a82e0..386ca00160 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -51,9 +51,7 @@ func (j *decoder) Int64(i int64)	{ j.value = float64(i) }
+ 
+ func (j *decoder) Uint64(i uint64)	{ j.value = float64(i) }
+ 
+-func (j *decoder) Float64(f float64) {
+-	j.value = float64(f)
+-}
++func (j *decoder) Float64(f float64)	{ j.value = float64(f) }
+ 
+ func (j *decoder) String(s string)	{ j.value = s }
+ 
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index bab95b65aa..1b429b0ee0 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -104,8 +104,8 @@ func assertResult(t *testing.T, results, expected interface{}) {
+ }
+ 
+ type decodeTest struct {
+-	s string;
+-	r interface{};
++	s	string;
++	r	interface{};
+ }
+ 
+ var tests = []decodeTest{

@@ -12,9 +12,71 @@ Date:   Fri Jan 10 01:33:24 2014 +0100
     R=rsc, dave, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/46190043
-
+---
  src/cmd/gc/fmt.c                  |  1 +
  test/fixedbugs/issue7023.dir/a.go | 10 ++++++++++
  test/fixedbugs/issue7023.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue7023.go       | 10 ++++++++++
  4 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 4217321831..6f40c7ff30 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1039,6 +1039,7 @@ static int opprec[] = {
+ 	[OEMPTY] = -1,
+ 	[OFALL] = -1,
+ 	[OFOR] = -1,
++	[OGOTO] = -1,
+ 	[OIF] = -1,
+ 	[OLABEL] = -1,
+ 	[OPROC] = -1,
+diff --git a/test/fixedbugs/issue7023.dir/a.go b/test/fixedbugs/issue7023.dir/a.go
+new file mode 100644
+index 0000000000..cdb5432095
+--- /dev/null
++++ b/test/fixedbugs/issue7023.dir/a.go
+@@ -0,0 +1,10 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func Foo() {
++	goto bar
++bar:
++}
+diff --git a/test/fixedbugs/issue7023.dir/b.go b/test/fixedbugs/issue7023.dir/b.go
+new file mode 100644
+index 0000000000..c6fe40dfa2
+--- /dev/null
++++ b/test/fixedbugs/issue7023.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import (
++	"./a"
++)
++
++var f = a.Foo
+diff --git a/test/fixedbugs/issue7023.go b/test/fixedbugs/issue7023.go
+new file mode 100644
+index 0000000000..f18c6113ef
+--- /dev/null
++++ b/test/fixedbugs/issue7023.go
+@@ -0,0 +1,10 @@
++// compiledir
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7023: corrupted export data when an inlined function
++// contains a goto.
++
++package ignored

@@ -9,6 +9,28 @@ Date:   Mon Feb 29 20:11:33 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go | 9 ---------
  1 file changed, 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 68d0ded631..df460f8ddc 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -10,16 +10,7 @@ import (
+ 	"cmd/internal/obj"
+ )
+ 
+-// The parser's maximum stack size.
+-// We have to use a #define macro here since yacc
+-// or bison will check for its definition and use
+-// a potentially smaller value if it is undefined.
+ const (
+-	NHUNK           = 50000
+-	BUFSIZ          = 8192
+-	NSYMB           = 500
+-	NHASH           = 1024
+-	MAXALIGN        = 7
+ 	UINF            = 100
+ 	PRIME1          = 3
+ 	BADWIDTH        = -1000000000

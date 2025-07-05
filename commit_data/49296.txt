@@ -27,10 +27,239 @@ Date:   Fri Aug 6 13:24:14 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/helpers.go   | 45 +++++++++----------
  src/cmd/compile/internal/noder/stencil.go   | 11 +++--
  src/cmd/compile/internal/noder/stmt.go      |  1 +
  src/cmd/compile/internal/noder/transform.go | 70 ++++-------------------------
  test/typeparam/issue47514b.go               | 19 ++++++++
  5 files changed, 55 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 2b00a9d7a6..b9dbd030af 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -171,39 +171,34 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 		}
+ 	}
+ 
+-	if fun.Type().HasTParam() {
++	if fun.Type().HasTParam() || fun.Op() == ir.OXDOT || fun.Op() == ir.OFUNCINST {
+ 		// If the fun arg is or has a type param, we can't do all the
+-		// transformations, since we may not have needed properties yet.
+-		// (e.g. number of return values, etc). However, if we do have the
+-		// function type (even though it is parameterized), then can add in
+-		// any needed CONVIFACE nodes. We can't do anything if fun is a type
+-		// param (which is probably described by a structural constraint)
++		// transformations, since we may not have needed properties yet
++		// (e.g. number of return values, etc). The same applies if a fun
++		// which is an XDOT could not be transformed yet because of a generic
++		// type in the X of the selector expression.
++		//
++		// A function instantiation (even if fully concrete) shouldn't be
++		// transformed yet, because we need to add the dictionary during the
++		// transformation.
++		//
++		// However, if we have a function type (even though it is
++		// parameterized), then we can add in any needed CONVIFACE nodes via
++		// typecheckaste(). We need to call transformArgs() to deal first
++		// with the f(g(()) case where g returns multiple return values. We
++		// can't do anything if fun is a type param (which is probably
++		// described by a structural constraint)
+ 		if fun.Type().Kind() == types.TFUNC {
++			transformArgs(n)
+ 			typecheckaste(ir.OCALL, fun, n.IsDDD, fun.Type().Params(), n.Args, true)
+ 		}
+ 		return typed(typ, n)
+ 	}
+ 
+-	if fun.Op() == ir.OXDOT {
+-		if !fun.(*ir.SelectorExpr).X.Type().HasTParam() {
+-			base.FatalfAt(pos, "Expecting type param receiver in %v", fun)
+-		}
+-		// For methods called in a generic function, don't do any extra
+-		// transformations. We will do those later when we create the
+-		// instantiated function and have the correct receiver type.
+-		typed(typ, n)
+-		return n
+-	}
+-	if fun.Op() != ir.OFUNCINST {
+-		// If no type params, do the normal call transformations. This
+-		// will convert OCALL to OCALLFUNC.
+-		typed(typ, n)
+-		transformCall(n)
+-		return n
+-	}
+-
+-	// Leave the op as OCALL, which indicates the call still needs typechecking.
++	// If no type params, do the normal call transformations. This
++	// will convert OCALL to OCALLFUNC.
+ 	typed(typ, n)
++	transformCall(n)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 5f2250d2f4..23e8090136 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -161,18 +161,21 @@ func (g *irgen) stencil() {
+ 					}
+ 				}
+ 
++				// Transform the Call now, which changes OCALL
++				// to OCALLFUNC and does typecheckaste/assignconvfn.
++				transformCall(call)
++
+ 				st := g.getInstantiation(gf, targs, true)
+ 				dictValue, usingSubdict := g.getDictOrSubdict(declInfo, n, gf, targs, true)
+ 				// We have to be using a subdictionary, since this is
+ 				// a generic method call.
+ 				assert(usingSubdict)
+ 
+-				call.SetOp(ir.OCALL)
++				// Transform to a function call, by appending the
++				// dictionary and the receiver to the args.
++				call.SetOp(ir.OCALLFUNC)
+ 				call.X = st.Nname
+ 				call.Args.Prepend(dictValue, meth.X)
+-				// Transform the Call now, which changes OCALL
+-				// to OCALLFUNC and does typecheckaste/assignconvfn.
+-				transformCall(call)
+ 				modified = true
+ 			}
+ 		})
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index 5af4a2da9c..1949f56095 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -129,6 +129,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 				// Delay transforming the return statement if any of the
+ 				// return values have a type param.
+ 				if !ir.HasNamedResults(ir.CurFunc) {
++					transformArgs(n)
+ 					// But add CONVIFACE nodes where needed if
+ 					// any of the return values have interface type.
+ 					typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, true)
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index ff113877df..e1eeb8e739 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -365,7 +365,7 @@ assignOK:
+ 	}
+ }
+ 
+-// Corresponds to, but slightly more general than, typecheck.typecheckargs.
++// Corresponds to typecheck.typecheckargs.  Really just deals with multi-value calls.
+ func transformArgs(n ir.InitNode) {
+ 	var list []ir.Node
+ 	switch n := n.(type) {
+@@ -379,76 +379,22 @@ func transformArgs(n ir.InitNode) {
+ 	case *ir.ReturnStmt:
+ 		list = n.Results
+ 	}
+-
+-	// Look to see if we have any multi-return functions as arguments.
+-	extra := 0
+-	for _, arg := range list {
+-		t := arg.Type()
+-		if t.IsFuncArgStruct() {
+-			num := t.Fields().Len()
+-			if num <= 1 {
+-				base.Fatalf("multi-return type with only %d parts", num)
+-			}
+-			extra += num - 1
+-		}
+-	}
+-	// If not, nothing to do.
+-	if extra == 0 {
++	if len(list) != 1 {
+ 		return
+ 	}
+ 
+-	// Rewrite f(..., g(), ...) into t1, ..., tN = g(); f(..., t1, ..., tN, ...).
++	t := list[0].Type()
++	if t == nil || !t.IsFuncArgStruct() {
++		return
++	}
+ 
+ 	// Save n as n.Orig for fmt.go.
+ 	if ir.Orig(n) == n {
+ 		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
+ 	}
+ 
+-	// If we're outside of function context, then this call will
+-	// be executed during the generated init function. However,
+-	// init.go hasn't yet created it. Instead, associate the
+-	// temporary variables with  InitTodoFunc for now, and init.go
+-	// will reassociate them later when it's appropriate.
+-	static := ir.CurFunc == nil
+-	if static {
+-		ir.CurFunc = typecheck.InitTodoFunc
+-	}
+-
+-	// Expand multi-return function calls.
+-	// The spec only allows a multi-return function as an argument
+-	// if it is the only argument. This code must handle calls to
+-	// stenciled generic functions which have extra arguments
+-	// (like the dictionary) so it must handle a slightly more general
+-	// cases, like f(n, g()) where g is multi-return.
+-	newList := make([]ir.Node, 0, len(list)+extra)
+-	for _, arg := range list {
+-		t := arg.Type()
+-		if t.IsFuncArgStruct() {
+-			as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, []ir.Node{arg})
+-			for _, f := range t.FieldSlice() {
+-				t := typecheck.Temp(f.Type)
+-				as.PtrInit().Append(ir.NewDecl(base.Pos, ir.ODCL, t))
+-				as.Lhs.Append(t)
+-				newList = append(newList, t)
+-			}
+-			transformAssign(as, as.Lhs, as.Rhs)
+-			as.SetTypecheck(1)
+-			n.PtrInit().Append(as)
+-		} else {
+-			newList = append(newList, arg)
+-		}
+-	}
+-
+-	if static {
+-		ir.CurFunc = nil
+-	}
+-
+-	switch n := n.(type) {
+-	case *ir.CallExpr:
+-		n.Args = newList
+-	case *ir.ReturnStmt:
+-		n.Results = newList
+-	}
++	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
++	typecheck.RewriteMultiValueCall(n, list[0])
+ }
+ 
+ // assignconvfn converts node n for assignment to type t. Corresponds to
+diff --git a/test/typeparam/issue47514b.go b/test/typeparam/issue47514b.go
+new file mode 100644
+index 0000000000..5428a0edc5
+--- /dev/null
++++ b/test/typeparam/issue47514b.go
+@@ -0,0 +1,19 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func Do[T any](do func() (T, string)) {
++	_ = func() (T, string) {
++		return do()
++	}
++}
++
++func main() {
++	Do[int](func() (int, string) {
++		return 3, "3"
++	})
++}

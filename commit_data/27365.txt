@@ -9,10 +9,136 @@ Date:   Wed Mar 23 14:02:36 2016 +0200
     Change-Id: I175049ca749b510eedaf65162355bc4d7a93315e
     Reviewed-on: https://go-review.googlesource.com/21041
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode.go |  2 +-
  src/cmd/link/internal/ld/dwarf.go    |  2 +-
  src/cmd/link/internal/ld/link.go     |  4 ----
  src/cmd/link/internal/ld/objfile.go  |  3 ---
  src/cmd/link/internal/ld/pcln.go     | 18 +++++++++---------
  5 files changed, 11 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 9ed9c56f99..900364cdfb 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -344,7 +344,7 @@ func (d *deadcodepass) flood() {
+ 		}
+ 
+ 		if s.Pcln != nil {
+-			for i := 0; i < s.Pcln.Nfuncdata; i++ {
++			for i := range s.Pcln.Funcdata {
+ 				d.mark(s.Pcln.Funcdata[i], s)
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 81f7c306f2..8e0394bdbe 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1367,7 +1367,7 @@ func finddebugruntimepath(s *LSym) {
+ 		return
+ 	}
+ 
+-	for i := 0; i < s.Pcln.Nfile; i++ {
++	for i := range s.Pcln.File {
+ 		f := s.Pcln.File[i]
+ 		if i := strings.Index(f.Name, "runtime/runtime.go"); i >= 0 {
+ 			gdbscript = f.Name[:i] + "runtime/runtime-gdb.py"
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 81d2a58d85..54ebab9ebb 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -235,13 +235,9 @@ type Pcln struct {
+ 	Pcfile      Pcdata
+ 	Pcline      Pcdata
+ 	Pcdata      []Pcdata
+-	Npcdata     int
+ 	Funcdata    []*LSym
+ 	Funcdataoff []int64
+-	Nfuncdata   int
+ 	File        []*LSym
+-	Nfile       int
+-	Mfile       int
+ 	Lastfile    *LSym
+ 	Lastindex   int
+ }
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 6e5bf37b60..34ef61be82 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -282,14 +282,12 @@ overwrite:
+ 		pc.Pcline.P = rddata(f, buf)
+ 		n = rdint(f)
+ 		pc.Pcdata = make([]Pcdata, n)
+-		pc.Npcdata = n
+ 		for i := 0; i < n; i++ {
+ 			pc.Pcdata[i].P = rddata(f, buf)
+ 		}
+ 		n = rdint(f)
+ 		pc.Funcdata = make([]*LSym, n)
+ 		pc.Funcdataoff = make([]int64, n)
+-		pc.Nfuncdata = n
+ 		for i := 0; i < n; i++ {
+ 			pc.Funcdata[i] = rdsym(ctxt, f, pkg)
+ 		}
+@@ -298,7 +296,6 @@ overwrite:
+ 		}
+ 		n = rdint(f)
+ 		pc.File = make([]*LSym, n)
+-		pc.Nfile = n
+ 		for i := 0; i < n; i++ {
+ 			pc.File[i] = rdsym(ctxt, f, pkg)
+ 		}
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 2a21ac0458..ff29ce2d70 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -280,8 +280,8 @@ func pclntab() {
+ 		// fixed size of struct, checked below
+ 		off = funcstart
+ 
+-		end = funcstart + int32(Thearch.Ptrsize) + 3*4 + 5*4 + int32(pcln.Npcdata)*4 + int32(pcln.Nfuncdata)*int32(Thearch.Ptrsize)
+-		if pcln.Nfuncdata > 0 && (end&int32(Thearch.Ptrsize-1) != 0) {
++		end = funcstart + int32(Thearch.Ptrsize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(Thearch.Ptrsize)
++		if len(pcln.Funcdata) > 0 && (end&int32(Thearch.Ptrsize-1) != 0) {
+ 			end += 4
+ 		}
+ 		Symgrow(Ctxt, ftab, int64(end))
+@@ -321,19 +321,19 @@ func pclntab() {
+ 
+ 		off = addpctab(ftab, off, &pcln.Pcfile)
+ 		off = addpctab(ftab, off, &pcln.Pcline)
+-		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(pcln.Npcdata)))
+-		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(pcln.Nfuncdata)))
+-		for i = 0; i < int32(pcln.Npcdata); i++ {
++		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(len(pcln.Pcdata))))
++		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(len(pcln.Funcdata))))
++		for i = 0; i < int32(len(pcln.Pcdata)); i++ {
+ 			off = addpctab(ftab, off, &pcln.Pcdata[i])
+ 		}
+ 
+ 		// funcdata, must be pointer-aligned and we're only int32-aligned.
+ 		// Missing funcdata will be 0 (nil pointer).
+-		if pcln.Nfuncdata > 0 {
++		if len(pcln.Funcdata) > 0 {
+ 			if off&int32(Thearch.Ptrsize-1) != 0 {
+ 				off += 4
+ 			}
+-			for i = 0; i < int32(pcln.Nfuncdata); i++ {
++			for i = 0; i < int32(len(pcln.Funcdata)); i++ {
+ 				if pcln.Funcdata[i] == nil {
+ 					setuintxx(Ctxt, ftab, int64(off)+int64(Thearch.Ptrsize)*int64(i), uint64(pcln.Funcdataoff[i]), int64(Thearch.Ptrsize))
+ 				} else {
+@@ -344,11 +344,11 @@ func pclntab() {
+ 				}
+ 			}
+ 
+-			off += int32(pcln.Nfuncdata) * int32(Thearch.Ptrsize)
++			off += int32(len(pcln.Funcdata)) * int32(Thearch.Ptrsize)
+ 		}
+ 
+ 		if off != end {
+-			Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln.Npcdata, pcln.Nfuncdata, Thearch.Ptrsize)
++			Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), Thearch.Ptrsize)
+ 			errorexit()
+ 		}
+ 

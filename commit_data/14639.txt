@@ -8,7 +8,64 @@ Date:   Thu Dec 13 18:36:24 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6858062
-
+---
  src/pkg/io/io.go      |  5 +++++
  src/pkg/io/io_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index bddb701786..859adaf1b7 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -468,6 +468,11 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+ 	off += s.base
+ 	if max := s.limit - off; int64(len(p)) > max {
+ 		p = p[0:max]
++		n, err = s.r.ReadAt(p, off)
++		if err == nil {
++			err = EOF
++		}
++		return n, err
+ 	}
+ 	return s.r.ReadAt(p, off)
+ }
+diff --git a/src/pkg/io/io_test.go b/src/pkg/io/io_test.go
+index 1e671b59b3..f3ec050fad 100644
+--- a/src/pkg/io/io_test.go
++++ b/src/pkg/io/io_test.go
+@@ -203,3 +203,35 @@ func TestTeeReader(t *testing.T) {
+ 		t.Errorf("closed tee: ReadFull(r, dst) = %d, %v; want 0, EPIPE", n, err)
+ 	}
+ }
++
++func TestSectionReader_ReadAt(tst *testing.T) {
++	dat := "a long sample data, 1234567890"
++	tests := []struct {
++		data   string
++		off    int
++		n      int
++		bufLen int
++		at     int
++		exp    string
++		err    error
++	}{
++		{data: "", off: 0, n: 10, bufLen: 2, at: 0, exp: "", err: EOF},
++		{data: dat, off: 0, n: len(dat), bufLen: 0, at: 0, exp: "", err: nil},
++		{data: dat, off: len(dat), n: 1, bufLen: 1, at: 0, exp: "", err: EOF},
++		{data: dat, off: 0, n: len(dat) + 2, bufLen: len(dat), at: 0, exp: dat, err: nil},
++		{data: dat, off: 0, n: len(dat), bufLen: len(dat) / 2, at: 0, exp: dat[:len(dat)/2], err: nil},
++		{data: dat, off: 0, n: len(dat), bufLen: len(dat), at: 0, exp: dat, err: nil},
++		{data: dat, off: 0, n: len(dat), bufLen: len(dat) / 2, at: 2, exp: dat[2 : 2+len(dat)/2], err: nil},
++		{data: dat, off: 3, n: len(dat), bufLen: len(dat) / 2, at: 2, exp: dat[5 : 5+len(dat)/2], err: nil},
++		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 - 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: nil},
++		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 + 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: EOF},
++	}
++	for i, t := range tests {
++		r := strings.NewReader(t.data)
++		s := NewSectionReader(r, int64(t.off), int64(t.n))
++		buf := make([]byte, t.bufLen)
++		if n, err := s.ReadAt(buf, int64(t.at)); n != len(t.exp) || string(buf[:n]) != t.exp || err != t.err {
++			tst.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, t.at, buf[:n], err, t.exp, t.err)
++		}
++	}
++}

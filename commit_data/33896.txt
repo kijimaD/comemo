@@ -20,8 +20,86 @@ Date:   Thu Sep 7 12:14:31 2017 -0400
     Change-Id: Iad84ab3e2cc12dbecef25c3fc8f2662d157b0d0b
     Reviewed-on: https://go-review.googlesource.com/63910
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/internal/boring/goboringcrypto.h        |   1 +
  .../boring/goboringcrypto_linux_amd64.syso         | Bin 7576080 -> 7576096 bytes
  src/crypto/internal/boring/hmac.go                 |  36 +++++++--------------
  3 files changed, 13 insertions(+), 24 deletions(-)
+
+diff --git a/src/crypto/internal/boring/goboringcrypto.h b/src/crypto/internal/boring/goboringcrypto.h
+index 2cc327f16c..f982ce83c2 100644
+--- a/src/crypto/internal/boring/goboringcrypto.h
++++ b/src/crypto/internal/boring/goboringcrypto.h
+@@ -90,6 +90,7 @@ int _goboringcrypto_HMAC_Init(GO_HMAC_CTX*, const void*, int, const GO_EVP_MD*);
+ int _goboringcrypto_HMAC_Update(GO_HMAC_CTX*, const uint8_t*, size_t);
+ int _goboringcrypto_HMAC_Final(GO_HMAC_CTX*, uint8_t*, unsigned int*);
+ size_t _goboringcrypto_HMAC_size(const GO_HMAC_CTX*);
++int _goboringcrypto_HMAC_CTX_copy_ex(GO_HMAC_CTX *dest, const GO_HMAC_CTX *src);
+ 
+ // #include <openssl/aes.h>
+ typedef struct GO_AES_KEY { char data[244]; } GO_AES_KEY;
+diff --git a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso
+index 89c88e9953..e439dc3cd4 100644
+Binary files a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso and b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso differ
+diff --git a/src/crypto/internal/boring/hmac.go b/src/crypto/internal/boring/hmac.go
+index 3757da6805..673b007e59 100644
+--- a/src/crypto/internal/boring/hmac.go
++++ b/src/crypto/internal/boring/hmac.go
+@@ -84,6 +84,7 @@ func NewHMAC(h func() hash.Hash, key []byte) hash.Hash {
+ type boringHMAC struct {
+ 	md          *C.GO_EVP_MD
+ 	ctx         C.GO_HMAC_CTX
++	ctx2        C.GO_HMAC_CTX
+ 	size        int
+ 	blockSize   int
+ 	key         []byte
+@@ -114,12 +115,8 @@ func (h *boringHMAC) finalize() {
+ 	C._goboringcrypto_HMAC_CTX_cleanup(&h.ctx)
+ }
+ 
+-var badSum = make([]byte, 1)
+-
+ func (h *boringHMAC) Write(p []byte) (int, error) {
+-	if h.sum != nil {
+-		h.sum = badSum
+-	} else if len(p) > 0 {
++	if len(p) > 0 {
+ 		C._goboringcrypto_HMAC_Update(&h.ctx, (*C.uint8_t)(unsafe.Pointer(&p[0])), C.size_t(len(p)))
+ 	}
+ 	return len(p), nil
+@@ -137,25 +134,16 @@ func (h *boringHMAC) Sum(in []byte) []byte {
+ 	if h.sum == nil {
+ 		size := h.Size()
+ 		h.sum = make([]byte, size)
+-		C._goboringcrypto_HMAC_Final(&h.ctx, (*C.uint8_t)(unsafe.Pointer(&h.sum[0])), nil)
+-
+-		// Clean up and disable finalizer since most of the time
+-		// there is no Reset coming. If we do get a Reset, we will
+-		// re-enable the finalizer. We have a saved copy of the key.
+-		C._goboringcrypto_HMAC_CTX_cleanup(&h.ctx)
+-		h.needCleanup = false
+-		runtime.SetFinalizer(h, nil)
+-	} else if &h.sum[0] == &badSum[0] {
+-		// crypto/tls's tls10.MAC method calls Write after Sum,
+-		// in an attempt to do more-like-constant-time checksums
+-		// during TLS 1.0 SHA1-based MACs. We can't support that,
+-		// so we ignore the Write in that case above, but we also
+-		// poison h.sum so that future Sum calls panic, to avoid
+-		// returning the pre-Write checksum.
+-		// We expect no code actually does Sum, Write, Sum.
+-		// Under FIPS restrictions, crypto/tls would not use
+-		// any SHA1-based MACs anyway.
+-		panic("boringcrypto: hmac used with Sum, Write, Sum")
+ 	}
++	// Make copy of context because Go hash.Hash mandates
++	// that Sum has no effect on the underlying stream.
++	// In particular it is OK to Sum, then Write more, then Sum again,
++	// and the second Sum acts as if the first didn't happen.
++	C._goboringcrypto_HMAC_CTX_init(&h.ctx2)
++	if C._goboringcrypto_HMAC_CTX_copy_ex(&h.ctx2, &h.ctx) == 0 {
++		panic("boringcrypto: HMAC_CTX_copy_ex failed")
++	}
++	C._goboringcrypto_HMAC_Final(&h.ctx2, (*C.uint8_t)(unsafe.Pointer(&h.sum[0])), nil)
++	C._goboringcrypto_HMAC_CTX_cleanup(&h.ctx2)
+ 	return append(in, h.sum...)
+ }

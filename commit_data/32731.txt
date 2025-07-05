@@ -18,7 +18,64 @@ Date:   Sat May 20 14:50:06 2017 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 16 ++++++++++++++--
  src/net/http/httputil/reverseproxy_test.go |  4 ++++
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 488db97313..fd78d45602 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -233,7 +233,8 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 
+ 	// The "Trailer" header isn't included in the Transport's response,
+ 	// at least for *http.Transport. Build it up from Trailer.
+-	if len(res.Trailer) > 0 {
++	announcedTrailers := len(res.Trailer)
++	if announcedTrailers > 0 {
+ 		trailerKeys := make([]string, 0, len(res.Trailer))
+ 		for k := range res.Trailer {
+ 			trailerKeys = append(trailerKeys, k)
+@@ -252,7 +253,18 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	}
+ 	p.copyResponse(rw, res.Body)
+ 	res.Body.Close() // close now, instead of defer, to populate res.Trailer
+-	copyHeader(rw.Header(), res.Trailer)
++
++	if len(res.Trailer) == announcedTrailers {
++		copyHeader(rw.Header(), res.Trailer)
++		return
++	}
++
++	for k, vv := range res.Trailer {
++		k = http.TrailerPrefix + k
++		for _, v := range vv {
++			rw.Header().Add(k, v)
++		}
++	}
+ }
+ 
+ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 008e4e717f..04ac6b4059 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -69,6 +69,7 @@ func TestReverseProxy(t *testing.T) {
+ 		w.WriteHeader(backendStatus)
+ 		w.Write([]byte(backendResponse))
+ 		w.Header().Set("X-Trailer", "trailer_value")
++		w.Header().Set(http.TrailerPrefix+"X-Unannounced-Trailer", "unannounced_trailer_value")
+ 	}))
+ 	defer backend.Close()
+ 	backendURL, err := url.Parse(backend.URL)
+@@ -122,6 +123,9 @@ func TestReverseProxy(t *testing.T) {
+ 	if g, e := res.Trailer.Get("X-Trailer"), "trailer_value"; g != e {
+ 		t.Errorf("Trailer(X-Trailer) = %q ; want %q", g, e)
+ 	}
++	if g, e := res.Trailer.Get("X-Unannounced-Trailer"), "unannounced_trailer_value"; g != e {
++		t.Errorf("Trailer(X-Unannounced-Trailer) = %q ; want %q", g, e)
++	}
+ 
+ 	// Test that a backend failing to be reached or one which doesn't return
+ 	// a response results in a StatusBadGateway.

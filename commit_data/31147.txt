@@ -15,6 +15,31 @@ Date:   Fri Jan 27 15:24:48 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/io/multi_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/io/multi_test.go b/src/io/multi_test.go
+index 1a6292fa8a..710776ad24 100644
+--- a/src/io/multi_test.go
++++ b/src/io/multi_test.go
+@@ -239,14 +239,17 @@ func TestMultiReaderFinalEOF(t *testing.T) {
+ func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
+ 	var mr Reader
+ 	closed := make(chan struct{})
+-	{
++	// The closure ensures that we don't have a live reference to buf1
++	// on our stack after MultiReader is inlined (Issue 18819).  This
++	// is a work around for a limitation in liveness analysis.
++	func() {
+ 		buf1 := bytes.NewReader([]byte("foo"))
+ 		buf2 := bytes.NewReader([]byte("bar"))
+ 		mr = MultiReader(buf1, buf2)
+ 		runtime.SetFinalizer(buf1, func(*bytes.Reader) {
+ 			close(closed)
+ 		})
+-	}
++	}()
+ 
+ 	buf := make([]byte, 4)
+ 	if n, err := ReadFull(mr, buf); err != nil || string(buf) != "foob" {

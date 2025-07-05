@@ -12,6 +12,26 @@ Date:   Mon Apr 16 11:29:53 2018 +0200
     Change-Id: Ie513cd3e15aa04822898be57f71976e6fe6bd816
     Reviewed-on: https://go-review.googlesource.com/107078
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/devel/release.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 75832b2c5c..4de4adbd68 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -16,11 +16,11 @@ git checkout <i>release-branch</i>
+ 
+ <p>
+ Each major Go release is supported until there are two newer major releases.
+-For example, Go 1.8 is supported until Go 1.10 is released,
+-and Go 1.9 is supported until Go 1.11 is released.
++For example, Go 1.5 was supported until the Go 1.7 release, and Go 1.6 was
++supported until the Go 1.8 release.
+ We fix critical problems, including <a href="/security">critical security problems</a>,
+ in supported releases as needed by issuing minor revisions
+-(for example, Go 1.9.1, Go 1.9.2, and so on).
++(for example, Go 1.6.1, Go 1.6.2, and so on).
+ </p>
+ 
+ <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>

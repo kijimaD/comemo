@@ -7,7 +7,69 @@ Date:   Mon Apr 19 16:36:50 2010 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/824051
-
+---
  src/pkg/strings/strings.go      | 11 +++++++++--
  src/pkg/strings/strings_test.go | 16 ++++++++++++++++
  2 files changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 0a9f64ca0c..90417f811d 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -172,12 +172,19 @@ func SplitAfter(s, sep string, n int) []string {
+ // Fields splits the string s around each instance of one or more consecutive white space
+ // characters, returning an array of substrings of s or an empty list if s contains only white space.
+ func Fields(s string) []string {
++	return FieldsFunc(s, unicode.IsSpace)
++}
++
++// FieldsFunc splits the string s at each run of Unicode code points c satifying f(c)
++// and returns an array of slices of s. If no code points in s satisfy f(c), an empty slice
++// is returned.
++func FieldsFunc(s string, f func(int) bool) []string {
+ 	// First count the fields.
+ 	n := 0
+ 	inField := false
+ 	for _, rune := range s {
+ 		wasInField := inField
+-		inField = !unicode.IsSpace(rune)
++		inField = !f(rune)
+ 		if inField && !wasInField {
+ 			n++
+ 		}
+@@ -188,7 +195,7 @@ func Fields(s string) []string {
+ 	na := 0
+ 	fieldStart := -1 // Set to -1 when looking for start of field.
+ 	for i, rune := range s {
+-		if unicode.IsSpace(rune) {
++		if f(rune) {
+ 			if fieldStart >= 0 {
+ 				a[na] = s[fieldStart:i]
+ 				na++
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 6c2bd727d7..3c9dc5847a 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -222,6 +222,22 @@ func TestFields(t *testing.T) {
+ 	}
+ }
+ 
++func TestFieldsFunc(t *testing.T) {
++	pred := func(c int) bool { return c == 'X' }
++	var fieldsFuncTests = []FieldsTest{
++		FieldsTest{"", []string{}},
++		FieldsTest{"XX", []string{}},
++		FieldsTest{"XXhiXXX", []string{"hi"}},
++		FieldsTest{"aXXbXXXcX", []string{"a", "b", "c"}},
++	}
++	for _, tt := range fieldsFuncTests {
++		a := FieldsFunc(tt.s, pred)
++		if !eq(a, tt.a) {
++			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
++		}
++	}
++}
++
+ 
+ // Test case for any function which accepts and returns a single string.
+ type StringTest struct {

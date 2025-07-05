@@ -18,8 +18,114 @@ Date:   Thu Sep 9 01:11:26 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go | 18 +++---------------
  test/typeparam/issue47797.go           | 22 ++++++++++++++++++++++
  test/typeparam/issue48253.go           | 34 ++++++++++++++++++++++++++++++++++
  3 files changed, 59 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 5eeafddae2..045f028e1a 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -360,12 +360,10 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 				n.(*ir.SelectorExpr).Selection.Nname = method
+ 				typed(method.Type(), n)
+ 
+-				// selinfo.Targs() are the types used to
+-				// instantiate the type of receiver
+-				targs2 := getTargs(selinfo)
+-				targs := make([]ir.Node, targs2.Len())
++				xt := deref(x.Type())
++				targs := make([]ir.Node, len(xt.RParams()))
+ 				for i := range targs {
+-					targs[i] = ir.TypeNode(g.typ(targs2.At(i)))
++					targs[i] = ir.TypeNode(xt.RParams()[i])
+ 				}
+ 
+ 				// Create function instantiation with the type
+@@ -388,16 +386,6 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 	return n
+ }
+ 
+-// getTargs gets the targs associated with the receiver of a selected method
+-func getTargs(selinfo *types2.Selection) *types2.TypeList {
+-	r := deref2(selinfo.Recv())
+-	n := types2.AsNamed(r)
+-	if n == nil {
+-		base.Fatalf("Incorrect type for selinfo %v", selinfo)
+-	}
+-	return n.TypeArgs()
+-}
+-
+ func (g *irgen) exprList(expr syntax.Expr) []ir.Node {
+ 	return g.exprs(unpackListExpr(expr))
+ }
+diff --git a/test/typeparam/issue47797.go b/test/typeparam/issue47797.go
+new file mode 100644
+index 0000000000..3e80d3c7a9
+--- /dev/null
++++ b/test/typeparam/issue47797.go
+@@ -0,0 +1,22 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Foo[T any] struct {
++        Val T
++}
++
++func (f Foo[T]) Bat() {}
++
++type Bar struct {
++        Foo[int]
++}
++
++func foo() {
++        var b Bar
++        b.Bat()
++}
+diff --git a/test/typeparam/issue48253.go b/test/typeparam/issue48253.go
+new file mode 100644
+index 0000000000..7bd0234e57
+--- /dev/null
++++ b/test/typeparam/issue48253.go
+@@ -0,0 +1,34 @@
++// run -gcflags="-G=3"
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"reflect"
++)
++
++type A[T any] struct {
++	B[int]
++}
++
++type B[T any] struct {
++}
++
++func (b B[T]) Bat() {
++	t := new(T)
++	if tt := reflect.TypeOf(t); tt.Kind() != reflect.Pointer || tt.Elem().Kind() != reflect.Int {
++		panic("unexpected type, want: *int, got: "+tt.String())
++	}
++}
++
++type Foo struct {
++	A[string]
++}
++func main() {
++	Foo{}.A.Bat()
++	Foo{}.A.B.Bat()
++	Foo{}.Bat()
++}

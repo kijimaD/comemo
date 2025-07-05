@@ -10,6 +10,24 @@ Date:   Sun Jan 29 14:16:11 2012 -0500
     R=golang-dev, rsc
     CC=bradfitz, golang-dev
     https://golang.org/cl/5576065
-
+---
  src/pkg/net/http/client.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index c9f0240175..09afd5ef1d 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -274,7 +274,11 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
+ 		return nil, err
+ 	}
+ 	req.Header.Set("Content-Type", bodyType)
+-	return send(req, c.Transport)
++	r, err = send(req, c.Transport)
++	if c.Jar != nil {
++		c.Jar.SetCookies(req.URL, r.Cookies())
++	}
++	return r, err
+ }
+ 
+ // PostForm issues a POST to the specified URL, 

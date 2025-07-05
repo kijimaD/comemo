@@ -12,6 +12,19 @@ Date:   Thu May 14 17:32:07 2015 -0700
     Change-Id: I17ff036f68d29a9ed0097a8b23ae1c91e6ce8c21
     Reviewed-on: https://go-review.googlesource.com/10058
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/gen.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index fcb2499d3b..8f6a43c121 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -348,6 +348,7 @@ func Clearslim(n *Node) {
+ 
+ 	case TBOOL:
+ 		z.Val.Ctype = CTBOOL
++		z.Val.U.Bval = false
+ 
+ 	case TINT8,
+ 		TINT16,

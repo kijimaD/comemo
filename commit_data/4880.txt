@@ -12,7 +12,7 @@ Date:   Wed Feb 17 22:08:30 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/214042
-
+---
  src/cmd/6g/galign.c     |   1 +
  src/cmd/gc/align.c      |  24 +++++-
  src/cmd/gc/const.c      | 211 +++++++++++++++++++++++++++++++++++++++---------
@@ -23,3 +23,718 @@ Date:   Wed Feb 17 22:08:30 2010 -0800
  src/cmd/gc/subr.c       |  23 +++++-
  src/pkg/runtime/type.go |   9 +++
  9 files changed, 285 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index fa73150579..68647e21b4 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -18,6 +18,7 @@ Typedef	typedefs[] =
+ 	"uint",		TUINT,		TUINT32,
+ 	"uintptr",	TUINTPTR,	TUINT64,
+ 	"float",	TFLOAT,		TFLOAT32,
++	"complex",	TCOMPLEX,	TCOMPLEX64,
+ 	0
+ };
+ 
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index dfb9f9e892..095645955b 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -166,8 +166,12 @@ dowidth(Type *t)
+ 	case TINT64:
+ 	case TUINT64:
+ 	case TFLOAT64:
++	case TCOMPLEX64:
+ 		w = 8;
+ 		break;
++	case TCOMPLEX128:
++		w = 16;
++		break;
+ 	case TPTR32:
+ 		w = 4;
+ 		checkwidth(t->type);
+@@ -385,10 +389,14 @@ typeinit(void)
+ 	isint[TUINT] = 1;
+ 	isint[TUINTPTR] = 1;
+ 
+-	for(i=TFLOAT32; i<=TFLOAT64; i++)
+-		isfloat[i] = 1;
++	isfloat[TFLOAT32] = 1;
++	isfloat[TFLOAT64] = 1;
+ 	isfloat[TFLOAT] = 1;
+ 
++	iscomplex[TCOMPLEX64] = 1;
++	iscomplex[TCOMPLEX128] = 1;
++	iscomplex[TCOMPLEX] = 1;
++
+ 	isptr[TPTR32] = 1;
+ 	isptr[TPTR64] = 1;
+ 
+@@ -425,6 +433,13 @@ typeinit(void)
+ 			minfltval[i] = mal(sizeof(*minfltval[i]));
+ 			maxfltval[i] = mal(sizeof(*maxfltval[i]));
+ 		}
++		if(iscomplex[i]) {
++			okforeq[i] = 1;
++			okforadd[i] = 1;
++			okforarith[i] = 1;
++			okforconst[i] = 1;
++//			issimple[i] = 1;
++		}
+ 	}
+ 
+ 	issimple[TBOOL] = 1;
+@@ -518,6 +533,11 @@ typeinit(void)
+ 	mpatoflt(maxfltval[TFLOAT64], "18014398509481983p970");	/* 2^53-1 p (1023-52) + 1/2 ulp */
+ 	mpatoflt(minfltval[TFLOAT64], "-18014398509481983p970");
+ 
++	maxfltval[TCOMPLEX64] = maxfltval[TFLOAT32];
++	minfltval[TCOMPLEX64] = minfltval[TFLOAT32];
++	maxfltval[TCOMPLEX128] = maxfltval[TFLOAT64];
++	minfltval[TCOMPLEX128] = minfltval[TFLOAT64];
++
+ 	/* for walk to use in error messages */
+ 	types[TFUNC] = functype(N, nil, nil);
+ 
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index d541c60c54..fed3b14762 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -5,6 +5,7 @@
+ #include	"go.h"
+ #define	TUP(x,y)	(((x)<<16)|(y))
+ 
++static Val tocplx(Val);
+ static Val toflt(Val);
+ static Val tostr(Val);
+ static Val copyval(Val);
+@@ -165,24 +166,51 @@ convlit1(Node **np, Type *t, int explicit)
+ 
+ 	case CTINT:
+ 	case CTFLT:
++	case CTCPLX:
+ 		ct = n->val.ctype;
+ 		if(isint[et]) {
+-			if(ct == CTFLT)
++			switch(ct) {
++			default:
++			case CTCPLX:
++			case CTFLT:
+ 				n->val = toint(n->val);
+-			else if(ct != CTINT)
+-				goto bad;
+-			overflow(n->val, t);
+-		} else if(isfloat[et]) {
+-			if(ct == CTINT)
++				// flowthrough
++			case CTINT:
++				overflow(n->val, t);
++				break;
++			}
++		} else
++		if(isfloat[et]) {
++			switch(ct) {
++			default:
++			case CTCPLX:
++			case CTINT:
+ 				n->val = toflt(n->val);
+-			else if(ct != CTFLT)
++				// flowthrough
++			case CTFLT:
++				overflow(n->val, t);
++				n->val.u.fval = truncfltlit(n->val.u.fval, t);
++				break;
++			}
++		} else
++		if(iscomplex[et]) {
++			switch(ct) {
++			default:
+ 				goto bad;
+-			overflow(n->val, t);
+-			n->val.u.fval = truncfltlit(n->val.u.fval, t);
+-		} else if(et == TSTRING && ct == CTINT && explicit)
++			case CTFLT:
++			case CTINT:
++				n->val = tocplx(n->val);
++				break;
++			case CTCPLX:
++				overflow(n->val, t);
++				break;
++			}
++		} else
++		if(et == TSTRING && ct == CTINT && explicit)
+ 			n->val = tostr(n->val);
+ 		else
+ 			goto bad;
++		break;
+ 	}
+ 	n->type = t;
+ 	return;
+@@ -204,6 +232,7 @@ copyval(Val v)
+ {
+ 	Mpint *i;
+ 	Mpflt *f;
++	Mpcplx *c;
+ 
+ 	switch(v.ctype) {
+ 	case CTINT:
+@@ -216,6 +245,36 @@ copyval(Val v)
+ 		mpmovefltflt(f, v.u.fval);
+ 		v.u.fval = f;
+ 		break;
++	case CTCPLX:
++		c = mal(sizeof(*c));
++		mpmovefltflt(&c->real, &v.u.cval->real);
++		mpmovefltflt(&c->imag, &v.u.cval->imag);
++		v.u.cval = c;
++		break;
++	}
++	return v;
++}
++
++static Val
++tocplx(Val v)
++{
++	Mpcplx *c;
++
++	switch(v.ctype) {
++	case CTINT:
++		c = mal(sizeof(*c));
++		mpmovefixflt(&c->real, v.u.xval);
++		mpmovecflt(&c->imag, 0.0);
++		v.ctype = CTCPLX;
++		v.u.cval = c;
++		break;
++	case CTFLT:
++		c = mal(sizeof(*c));
++		mpmovefltflt(&c->real, v.u.fval);
++		mpmovecflt(&c->imag, 0.0);
++		v.ctype = CTCPLX;
++		v.u.cval = c;
++		break;
+ 	}
+ 	return v;
+ }
+@@ -225,11 +284,21 @@ toflt(Val v)
+ {
+ 	Mpflt *f;
+ 
+-	if(v.ctype == CTINT) {
++	switch(v.ctype) {
++	case CTINT:
+ 		f = mal(sizeof(*f));
+ 		mpmovefixflt(f, v.u.xval);
+ 		v.ctype = CTFLT;
+ 		v.u.fval = f;
++		break;
++	case CTCPLX:
++		f = mal(sizeof(*f));
++		mpmovefltflt(f, &v.u.cval->real);
++		if(mpcmpfltc(&v.u.cval->imag, 0) != 0)
++			yyerror("constant %#F truncated to real", v.u.fval);
++		v.ctype = CTFLT;
++		v.u.fval = f;
++		break;
+ 	}
+ 	return v;
+ }
+@@ -239,12 +308,23 @@ toint(Val v)
+ {
+ 	Mpint *i;
+ 
+-	if(v.ctype == CTFLT) {
++	switch(v.ctype) {
++	case CTFLT:
+ 		i = mal(sizeof(*i));
+ 		if(mpmovefltfix(i, v.u.fval) < 0)
+ 			yyerror("constant %#F truncated to integer", v.u.fval);
+ 		v.ctype = CTINT;
+ 		v.u.xval = i;
++		break;
++	case CTCPLX:
++		i = mal(sizeof(*i));
++		if(mpmovefltfix(i, &v.u.cval->real) < 0)
++			yyerror("constant %#F truncated to integer", v.u.fval);
++		if(mpcmpfltc(&v.u.cval->imag, 0) != 0)
++			yyerror("constant %#F truncated to real", v.u.fval);
++		v.ctype = CTINT;
++		v.u.xval = i;
++		break;
+ 	}
+ 	return v;
+ }
+@@ -260,15 +340,24 @@ overflow(Val v, Type *t)
+ 	case CTINT:
+ 		if(!isint[t->etype])
+ 			fatal("overflow: %T integer constant", t);
+-		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0
+-		|| mpcmpfixfix(v.u.xval, maxintval[t->etype]) > 0)
++		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0 ||
++		   mpcmpfixfix(v.u.xval, maxintval[t->etype]) > 0)
+ 			yyerror("constant %B overflows %T", v.u.xval, t);
+ 		break;
+ 	case CTFLT:
+ 		if(!isfloat[t->etype])
+ 			fatal("overflow: %T floating-point constant", t);
+-		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) <= 0
+-		|| mpcmpfltflt(v.u.fval, maxfltval[t->etype]) >= 0)
++		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) <= 0 ||
++		   mpcmpfltflt(v.u.fval, maxfltval[t->etype]) >= 0)
++			yyerror("constant %#F overflows %T", v.u.fval, t);
++		break;
++	case CTCPLX:
++		if(!iscomplex[t->etype])
++			fatal("overflow: %T complex constant", t);
++		if(mpcmpfltflt(&v.u.cval->real, minfltval[t->etype]) <= 0 ||
++		   mpcmpfltflt(&v.u.cval->real, maxfltval[t->etype]) >= 0 ||
++		   mpcmpfltflt(&v.u.cval->imag, minfltval[t->etype]) <= 0 ||
++		   mpcmpfltflt(&v.u.cval->imag, maxfltval[t->etype]) >= 0)
+ 			yyerror("constant %#F overflows %T", v.u.fval, t);
+ 		break;
+ 	}
+@@ -283,8 +372,8 @@ tostr(Val v)
+ 
+ 	switch(v.ctype) {
+ 	case CTINT:
+-		if(mpcmpfixfix(v.u.xval, minintval[TINT]) < 0
+-		|| mpcmpfixfix(v.u.xval, maxintval[TINT]) > 0)
++		if(mpcmpfixfix(v.u.xval, minintval[TINT]) < 0 ||
++		   mpcmpfixfix(v.u.xval, maxintval[TINT]) > 0)
+ 			yyerror("overflow in int -> string");
+ 		rune = mpgetfix(v.u.xval);
+ 		l = runelen(rune);
+@@ -380,7 +469,7 @@ evconst(Node *n)
+ 	if(consttype(nl) < 0)
+ 		return;
+ 	wl = nl->type->etype;
+-	if(isint[wl] || isfloat[wl])
++	if(isint[wl] || isfloat[wl] || iscomplex[wl])
+ 		wl = TIDEAL;
+ 
+ 	nr = n->right;
+@@ -391,7 +480,7 @@ evconst(Node *n)
+ 	if(consttype(nr) < 0)
+ 		return;
+ 	wr = nr->type->etype;
+-	if(isint[wr] || isfloat[wr])
++	if(isint[wr] || isfloat[wr] || iscomplex[wr])
+ 		wr = TIDEAL;
+ 
+ 	// check for compatible general types (numeric, string, etc)
+@@ -433,11 +522,12 @@ evconst(Node *n)
+ 
+ 	rv = nr->val;
+ 
+-	// since wl == wr,
+-	// the only way v.ctype != nr->val.ctype
+-	// is when one is CTINT and the other CTFLT.
+-	// make both CTFLT.
+-	if(v.ctype != nr->val.ctype) {
++	// convert to common ideal
++	if(v.ctype == CTCPLX || rv.ctype == CTCPLX) {
++		v = tocplx(v);
++		rv = tocplx(rv);
++	}
++	if(v.ctype == CTFLT || rv.ctype == CTFLT) {
+ 		v = toflt(v);
+ 		rv = toflt(rv);
+ 	}
+@@ -515,6 +605,20 @@ evconst(Node *n)
+ 		mpdivfltflt(v.u.fval, rv.u.fval);
+ 		break;
+ 
++	case TUP(OADD, CTCPLX):
++		mpaddfltflt(&v.u.cval->real, &rv.u.cval->real);
++		mpaddfltflt(&v.u.cval->imag, &rv.u.cval->imag);
++		break;
++	case TUP(OSUB, CTCPLX):
++		mpsubfltflt(&v.u.cval->real, &rv.u.cval->real);
++		mpsubfltflt(&v.u.cval->imag, &rv.u.cval->imag);
++		break;
++	case TUP(OMUL, CTCPLX):
++		goto illegal;	// TODO
++	case TUP(ODIV, CTCPLX):
++		goto illegal;	// TODO
++		break;
++
+ 	case TUP(OEQ, CTNIL):
+ 		goto settrue;
+ 	case TUP(ONE, CTNIL):
+@@ -737,6 +841,7 @@ nodlit(Val v)
+ 		break;
+ 	case CTINT:
+ 	case CTFLT:
++	case CTCPLX:
+ 		n->type = types[TIDEAL];
+ 		break;
+ 	case CTNIL:
+@@ -815,7 +920,8 @@ defaultlit(Node **np, Type *t)
+ 		if(t != T) {
+ 			if(isint[t->etype])
+ 				n->type = t;
+-			else if(isfloat[t->etype]) {
++			else
++			if(isfloat[t->etype]) {
+ 				n->type = t;
+ 				n->val = toflt(n->val);
+ 			}
+@@ -827,7 +933,25 @@ defaultlit(Node **np, Type *t)
+ 		if(t != T) {
+ 			if(isfloat[t->etype])
+ 				n->type = t;
+-			else if(isint[t->etype]) {
++			else
++			if(isint[t->etype]) {
++				n->type = t;
++				n->val = toint(n->val);
++			}
++		}
++		overflow(n->val, n->type);
++		break;
++	case CTCPLX:
++		n->type = types[TCOMPLEX];
++		if(t != T) {
++			if(iscomplex[t->etype])
++				n->type = t;
++			else
++			if(isfloat[t->etype]) {
++				n->type = t;
++				n->val = toflt(n->val);
++			} else
++			if(isint[t->etype]) {
+ 				n->type = t;
+ 				n->val = toint(n->val);
+ 			}
+@@ -862,6 +986,11 @@ defaultlit2(Node **lp, Node **rp, int force)
+ 	}
+ 	if(!force)
+ 		return;
++	if(isconst(l, CTCPLX) || isconst(r, CTCPLX)) {
++		convlit(lp, types[TCOMPLEX]);
++		convlit(rp, types[TCOMPLEX]);
++		return;
++	}
+ 	if(isconst(l, CTFLT) || isconst(r, CTFLT)) {
+ 		convlit(lp, types[TFLOAT]);
+ 		convlit(rp, types[TFLOAT]);
+@@ -1013,22 +1142,28 @@ convconst(Node *con, Type *t, Val *val)
+ 	}
+ 
+ 	if(isfloat[tt]) {
+-		if(con->val.ctype == CTINT) {
+-			con->val.ctype = CTFLT;
+-			con->val.u.fval = mal(sizeof *con->val.u.fval);
+-			mpmovefixflt(con->val.u.fval, val->u.xval);
+-		}
+-		if(con->val.ctype != CTFLT)
+-			fatal("convconst ctype=%d %T", con->val.ctype, t);
+-		if(!isfloat[tt]) {
+-			// easy to handle, but can it happen?
+-			fatal("convconst CTINT %T", t);
+-		}
++		con->val = toflt(con->val);
++//		if(con->val.ctype == CTINT) {
++//			con->val.ctype = CTFLT;
++//			con->val.u.fval = mal(sizeof *con->val.u.fval);
++//			mpmovefixflt(con->val.u.fval, val->u.xval);
++//		}
++//		if(con->val.ctype != CTFLT)
++//			fatal("convconst ctype=%d %T", con->val.ctype, t);
+ 		if(tt == TFLOAT32)
+ 			con->val.u.fval = truncfltlit(con->val.u.fval, t);
+ 		return;
+ 	}
+ 
++	if(iscomplex[tt]) {
++		con->val = tocplx(con->val);
++		if(tt == TCOMPLEX64) {
++			con->val.u.cval->real = *truncfltlit(&con->val.u.cval->real, types[TFLOAT32]);
++			con->val.u.cval->imag = *truncfltlit(&con->val.u.cval->imag, types[TFLOAT32]);
++		}
++		return;
++	}
++
+ 	fatal("convconst %lT constant", t);
+ 
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f3bab1355d..b9d87070c3 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -113,6 +113,13 @@ struct	Mpflt
+ 	short	exp;
+ };
+ 
++typedef	struct	Mpcplx	Mpcplx;
++struct	Mpcplx
++{
++	Mpflt	real;
++	Mpflt	imag;
++};
++
+ typedef	struct	Val	Val;
+ struct	Val
+ {
+@@ -123,6 +130,7 @@ struct	Val
+ 		short	bval;		// bool value CTBOOL
+ 		Mpint*	xval;		// int CTINT
+ 		Mpflt*	fval;		// float CTFLT
++		Mpcplx*	cval;		// float CTCPLX
+ 		Strlit*	sval;		// string CTSTR
+ 	} u;
+ };
+@@ -422,28 +430,32 @@ enum
+ 	TINT64,	TUINT64,
+ 	TINT, TUINT, TUINTPTR,
+ 
+-	TFLOAT32,		// 12
++	TCOMPLEX64,		// 12
++	TCOMPLEX128,
++	TCOMPLEX,
++
++	TFLOAT32,		// 15
+ 	TFLOAT64,
+ 	TFLOAT,
+ 
+-	TBOOL,			// 15
++	TBOOL,			// 18
+ 
+-	TPTR32, TPTR64,		// 16
++	TPTR32, TPTR64,		// 19
+ 
+-	TFUNC,		// 18
++	TFUNC,			// 21
+ 	TARRAY,
+ 	T_old_DARRAY,
+-	TSTRUCT,		// 21
++	TSTRUCT,		// 24
+ 	TCHAN,
+ 	TMAP,
+-	TINTER,			// 24
++	TINTER,			// 27
+ 	TFORW,
+ 	TFIELD,
+ 	TANY,
+ 	TSTRING,
+ 
+ 	// pseudo-types for literals
+-	TIDEAL,			// 29
++	TIDEAL,			// 32
+ 	TNIL,
+ 	TBLANK,
+ 	
+@@ -459,6 +471,7 @@ enum
+ 
+ 	CTINT,
+ 	CTFLT,
++	CTCPLX,
+ 	CTSTR,
+ 	CTBOOL,
+ 	CTNIL,
+@@ -668,6 +681,7 @@ EXTERN	uchar	isptr[NTYPE];
+ EXTERN	uchar	isforw[NTYPE];
+ EXTERN	uchar	isint[NTYPE];
+ EXTERN	uchar	isfloat[NTYPE];
++EXTERN	uchar	iscomplex[NTYPE];
+ EXTERN	uchar	issigned[NTYPE];
+ EXTERN	uchar	issimple[NTYPE];
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 6862774253..e6db4e7a7a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -900,6 +900,8 @@ tnum:
+ 		goto casedot;
+ 	if(c == 'e' || c == 'E')
+ 		goto casee;
++	if(c == 'i')
++		goto casei;
+ 	if(c1)
+ 		yyerror("malformed octal constant");
+ 	goto ncu;
+@@ -911,6 +913,8 @@ dc:
+ 		goto casee;
+ 	if(c == 'p' || c == 'P')
+ 		goto casep;
++	if(c == 'i')
++		goto casei;
+ 
+ ncu:
+ 	*cp = 0;
+@@ -933,6 +937,8 @@ casedot:
+ 		if(!isdigit(c))
+ 			break;
+ 	}
++	if(c == 'i')
++		goto casei;
+ 	if(c != 'e' && c != 'E')
+ 		goto caseout;
+ 
+@@ -949,6 +955,8 @@ casee:
+ 		*cp++ = c;
+ 		c = getc();
+ 	}
++	if(c == 'i')
++		goto casei;
+ 	goto caseout;
+ 
+ casep:
+@@ -964,8 +972,24 @@ casep:
+ 		*cp++ = c;
+ 		c = getc();
+ 	}
++	if(c == 'i')
++		goto casei;
+ 	goto caseout;
+ 
++casei:
++	// imaginary constant
++	*cp = 0;
++	yylval.val.u.cval = mal(sizeof(*yylval.val.u.cval));
++	mpmovecflt(&yylval.val.u.cval->real, 0.0);
++	mpatoflt(&yylval.val.u.cval->imag, lexbuf);
++	if(yylval.val.u.cval->imag.val.ovf) {
++		yyerror("overflow in imaginary constant");
++		mpmovecflt(&yylval.val.u.cval->real, 0.0);
++	}
++	yylval.val.ctype = CTCPLX;
++	DBG("lex: imaginary literal\n");
++	return LLITERAL;
++
+ caseout:
+ 	*cp = 0;
+ 	ungetc(c);
+@@ -1235,6 +1259,9 @@ static	struct
+ 	"float32",	LNAME,		TFLOAT32,	OXXX,
+ 	"float64",	LNAME,		TFLOAT64,	OXXX,
+ 
++	"complex64",	LNAME,		TCOMPLEX64,	OXXX,
++	"complex128",	LNAME,		TCOMPLEX128,	OXXX,
++
+ 	"bool",		LNAME,		TBOOL,		OXXX,
+ 	"byte",		LNAME,		TUINT8,		OXXX,
+ 	"string",	LNAME,		TSTRING,	OXXX,
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 57ebe3f1cf..b460953a2a 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -129,6 +129,11 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			else
+ 				fmtprint(f, "false");
+ 			break;
++		case CTCPLX:
++			fmtprint(f, "%.17g+%.17gi",
++				mpgetflt(&n->val.u.cval->real),
++				mpgetflt(&n->val.u.cval->imag));
++			break;
+ 		case CTFLT:
+ 			fmtprint(f, "%.17g", mpgetflt(n->val.u.fval));
+ 			break;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 12d27aa886..2217b582c6 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -447,19 +447,22 @@ structnames[] =
+ 	[TINT64]	= "*runtime.Int64Type",
+ 	[TUINT64]	= "*runtime.Uint64Type",
+ 	[TUINTPTR]	= "*runtime.UintptrType",
++	[TCOMPLEX]	= "*runtime.ComplexType",
++	[TCOMPLEX64]	= "*runtime.Complex64Type",
++	[TCOMPLEX128]	= "*runtime.Complex128Type",
+ 	[TFLOAT]	= "*runtime.FloatType",
+ 	[TFLOAT32]	= "*runtime.Float32Type",
+ 	[TFLOAT64]	= "*runtime.Float64Type",
+ 	[TBOOL]		= "*runtime.BoolType",
+-	[TSTRING]		= "*runtime.StringType",
++	[TSTRING]	= "*runtime.StringType",
+ 
+-	[TPTR32]		= "*runtime.PtrType",
+-	[TPTR64]		= "*runtime.PtrType",
++	[TPTR32]	= "*runtime.PtrType",
++	[TPTR64]	= "*runtime.PtrType",
+ 	[TSTRUCT]	= "*runtime.StructType",
+-	[TINTER]		= "*runtime.InterfaceType",
++	[TINTER]	= "*runtime.InterfaceType",
+ 	[TCHAN]		= "*runtime.ChanType",
+ 	[TMAP]		= "*runtime.MapType",
+-	[TARRAY]		= "*runtime.ArrayType",
++	[TARRAY]	= "*runtime.ArrayType",
+ 	[TFUNC]		= "*runtime.FuncType",
+ };
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 8b0ce600b3..8af57bdf75 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -954,6 +954,9 @@ etnames[] =
+ 	[TFLOAT]	= "FLOAT",
+ 	[TFLOAT32]	= "FLOAT32",
+ 	[TFLOAT64]	= "FLOAT64",
++	[TCOMPLEX]	= "COMPLEX",
++	[TCOMPLEX64]	= "COMPLEX64",
++	[TCOMPLEX128]	= "COMPLEX128",
+ 	[TBOOL]		= "BOOL",
+ 	[TPTR32]	= "PTR32",
+ 	[TPTR64]	= "PTR64",
+@@ -1106,10 +1109,10 @@ basicnames[] =
+ 	[TFLOAT64]	= "float64",
+ 	[TBOOL]		= "bool",
+ 	[TANY]		= "any",
+-	[TSTRING]		= "string",
++	[TSTRING]	= "string",
+ 	[TNIL]		= "nil",
+-	[TIDEAL]		= "ideal",
+-	[TBLANK]		= "blank",
++	[TIDEAL]	= "ideal",
++	[TBLANK]	= "blank",
+ };
+ 
+ int
+@@ -1453,6 +1456,11 @@ Nconv(Fmt *fp)
+ 		case CTFLT:
+ 			snprint(buf1, sizeof(buf1), "F%g", mpgetflt(n->val.u.fval));
+ 			break;
++		case CTCPLX:
++			snprint(buf1, sizeof(buf1), "(F%g+F%gi)",
++				mpgetflt(&n->val.u.cval->real),
++				mpgetflt(&n->val.u.cval->imag));
++			break;
+ 		case CTSTR:
+ 			snprint(buf1, sizeof(buf1), "S\"%Z\"", n->val.u.sval);
+ 			break;
+@@ -1665,7 +1673,14 @@ isideal(Type *t)
+ {
+ 	if(t == T)
+ 		return 0;
+-	return t == idealstring || t == idealbool || t->etype == TNIL || t->etype == TIDEAL;
++	if(t == idealstring || t == idealbool)
++		return 1;
++	switch(t->etype) {
++	case TNIL:
++	case TIDEAL:
++		return 1;
++	}
++	return 0;
+ }
+ 
+ /*
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index d76edeba4b..7227904acd 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -99,6 +99,15 @@ type Float64Type commonType
+ // FloatType represents a float type.
+ type FloatType commonType
+ 
++// Complex64Type represents a complex64 type.
++type Complex64Type commonType
++
++// Complex128Type represents a complex32 type.
++type Complex128Type commonType
++
++// ComplexType represents a complex type.
++type ComplexType commonType
++
+ // Int16Type represents an int16 type.
+ type Int16Type commonType
+ 

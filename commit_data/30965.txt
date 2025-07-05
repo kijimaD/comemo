@@ -10,6 +10,25 @@ Date:   Wed Jan 4 13:37:33 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/34831
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 83556521fa..de92e92355 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -631,6 +631,13 @@ now implements the new
+   <a href="/pkg/runtime/#SetMutexProfileFraction"><code>SetMutexProfileFraction</code></a>.
+ </p>
+ 
++<p>
++  A known limitation for Go 1.8 is that the profile only reports contention for
++  <a href="/pkg/sync/#Mutex"><code>sync.Mutex</code></a>,
++  not 
++  <a href="/pkg/sync/#RWMutex"><code>sync.RWMutex</code></a>.
++</p>
++
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+ <p>

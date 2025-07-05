@@ -16,7 +16,103 @@ Date:   Sun Apr 4 13:44:21 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/os/os_windows_test.go | 19 +++++++++++++++++++
  src/os/removeall_test.go  | 35 +++++++++++++++--------------------
  2 files changed, 34 insertions(+), 20 deletions(-)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index b4339c3f7e..f310a75f39 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -29,6 +29,25 @@ import (
+ // For TestRawConnReadWrite.
+ type syscallDescriptor = syscall.Handle
+ 
++// chdir changes the current working directory to the named directory,
++// and then restore the original working directory at the end of the test.
++func chdir(t *testing.T, dir string) {
++	olddir, err := os.Getwd()
++	if err != nil {
++		t.Fatalf("chdir: %v", err)
++	}
++	if err := os.Chdir(dir); err != nil {
++		t.Fatalf("chdir %s: %v", dir, err)
++	}
++
++	t.Cleanup(func() {
++		if err := os.Chdir(olddir); err != nil {
++			t.Errorf("chdir to original working directory %s: %v", olddir, err)
++			os.Exit(1)
++		}
++	})
++}
++
+ func TestSameWindowsFile(t *testing.T) {
+ 	temp, err := os.MkdirTemp("", "TestSameWindowsFile")
+ 	if err != nil {
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 45a85792ce..3a2f6e3759 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -156,25 +156,6 @@ func TestRemoveAllLarge(t *testing.T) {
+ 	}
+ }
+ 
+-// chdir changes the current working directory to the named directory,
+-// and then restore the original working directory at the end of the test.
+-func chdir(t *testing.T, dir string) {
+-	olddir, err := os.Getwd()
+-	if err != nil {
+-		t.Fatalf("chdir: %v", err)
+-	}
+-	if err := os.Chdir(dir); err != nil {
+-		t.Fatalf("chdir %s: %v", dir, err)
+-	}
+-
+-	t.Cleanup(func() {
+-		if err := os.Chdir(olddir); err != nil {
+-			t.Errorf("chdir to original working directory %s: %v", olddir, err)
+-			os.Exit(1)
+-		}
+-	})
+-}
+-
+ func TestRemoveAllLongPath(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "aix", "darwin", "ios", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
+@@ -183,12 +164,21 @@ func TestRemoveAllLongPath(t *testing.T) {
+ 		t.Skip("skipping for not implemented platforms")
+ 	}
+ 
++	prevDir, err := Getwd()
++	if err != nil {
++		t.Fatalf("Could not get wd: %s", err)
++	}
++
+ 	startPath, err := os.MkdirTemp("", "TestRemoveAllLongPath-")
+ 	if err != nil {
+ 		t.Fatalf("Could not create TempDir: %s", err)
+ 	}
+ 	defer RemoveAll(startPath)
+-	chdir(t, startPath)
++
++	err = Chdir(startPath)
++	if err != nil {
++		t.Fatalf("Could not chdir %s: %s", startPath, err)
++	}
+ 
+ 	// Removing paths with over 4096 chars commonly fails
+ 	for i := 0; i < 41; i++ {
+@@ -205,6 +195,11 @@ func TestRemoveAllLongPath(t *testing.T) {
+ 		}
+ 	}
+ 
++	err = Chdir(prevDir)
++	if err != nil {
++		t.Fatalf("Could not chdir %s: %s", prevDir, err)
++	}
++
+ 	err = RemoveAll(startPath)
+ 	if err != nil {
+ 		t.Errorf("RemoveAll could not remove long file path %s: %s", startPath, err)

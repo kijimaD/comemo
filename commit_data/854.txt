@@ -7,10 +7,158 @@ Date:   Tue Oct 14 15:08:23 2008 -0700
     R=r
     OCL=17116
     CL=17118
-
+---
  src/cmd/gc/lex.c       |  1 +
  src/cmd/gc/sys.go      |  1 +
  src/cmd/gc/sysimport.c |  1 +
  src/cmd/gc/walk.c      | 28 +++++++++++++++++++++++++++-
  src/runtime/iface.c    | 47 +++++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 77 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index df02fc2f80..41bc1c74b2 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1063,6 +1063,7 @@ lexinit(void)
+ 
+ 		case TPTR32:
+ 		case TPTR64:
++		case TINTER:
+ 			okforeq[i] = 1;
+ 			break;
+ 		}
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 83be8da946..ddfffa5645 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -31,6 +31,7 @@ export func	arraystring(*[]byte) string;
+ export func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
+ export func	ifaceI2T(sigt *byte, iface any) (ret any);
+ export func	ifaceI2I(sigi *byte, iface any) (ret any);
++export func	ifaceeq(i1 any, i2 any) (ret bool);
+ 
+ export func	argc() int32;
+ export func	envc() int32;
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 81ed5321b9..9303cea2f4 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -31,6 +31,7 @@ char *sysimport =
+ 	"export func sys.ifaceT2I (sigi *sys.uint8, sigt *sys.uint8, elem sys.any) (ret sys.any)\n"
+ 	"export func sys.ifaceI2T (sigt *sys.uint8, iface sys.any) (ret sys.any)\n"
+ 	"export func sys.ifaceI2I (sigi *sys.uint8, iface sys.any) (ret sys.any)\n"
++	"export func sys.ifaceeq (i1 sys.any, i2 sys.any) (ret sys.bool)\n"
+ 	"export func sys.argc () (? sys.int32)\n"
+ 	"export func sys.envc () (? sys.int32)\n"
+ 	"export func sys.argv (? sys.int32) (? sys.string)\n"
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4f9ccd34a7..47a3d10cb6 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -681,7 +681,7 @@ loop:
+ 		convlit(n->right, n->left->type);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto ret;
+-		if(!ascompat(n->left->type, n->right->type))
++		if(!eqtype(n->left->type, n->right->type, 0))
+ 			goto badt;
+ 
+ 		switch(n->op) {
+@@ -952,6 +952,10 @@ loop:
+ 		et = n->left->type->etype;
+ 		if(!okforeq[et])
+ 			goto badt;
++		if(isinter(n->left->type)) {
++			indir(n, ifaceop(T, n, n->op));
++			goto ret;
++		}
+ 		t = types[TBOOL];
+ 		break;
+ 
+@@ -2550,6 +2554,28 @@ ifaceop(Type *tl, Node *n, int op)
+ 		argtype(on, tr);
+ 		argtype(on, tl);
+ 		break;
++
++	case OEQ:
++	case ONE:
++		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
++		a = n->right;				// i2
++		r = a;
++
++		a = n->left;				// i1
++		r = list(a, r);
++
++		on = syslook("ifaceeq", 1);
++		argtype(on, n->right->type);
++		argtype(on, n->left->type);
++
++		r = nod(OCALL, on, r);
++		if(op == ONE)
++			r = nod(ONOT, r, N);
++
++		dump("bef", r);
++		walktype(r, Erv);
++		dump("aft", r);
++		return r;
+ 	}
+ 
+ 	r = nod(OCALL, on, r);
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index de59172d17..b303e459e1 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -261,6 +261,53 @@ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
+ 	FLUSH(&retit);
+ }
+ 
++// ifaceeq(i1 any, i2 any) (ret bool);
++void
++sys·ifaceeq(Map *im1, void *it1, Map *im2, void *it2, byte ret)
++{
++	if(debug) {
++		prints("Ieq i1=");
++		printiface(im1, it1);
++		prints(" i2=");
++		printiface(im2, it2);
++		prints("\n");
++	}
++
++	ret = false;
++
++	// are they both nil
++	if(im1 == nil) {
++		if(im2 == nil)
++			goto yes;
++		goto no;
++	}
++	if(im2 == nil)
++		goto no;
++
++	// values
++	if(it1 != it2)
++		goto no;
++
++	// types
++	if(im1 == im2)
++		goto yes;
++	if(im1->sigt == im2->sigt)
++		goto yes;
++	if(im1->sigt->hash != im2->sigt->hash)
++		goto no;
++
++
++yes:
++	ret = true;
++no:
++	if(debug) {
++		prints("Ieq ret=");
++		sys·printbool(ret);
++		prints("\n");
++	}
++	FLUSH(&ret);
++}
++
+ void
+ sys·printinter(Map *im, void *it)
+ {

@@ -18,6 +18,32 @@ Date:   Fri Mar 25 15:40:44 2016 +0100
     Change-Id: I62429e92042a0a49c4f1ea553fdb32b6ea53a43e
     Reviewed-on: https://go-review.googlesource.com/21137
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 6f0b98f112..1eeb289c7d 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -50,6 +50,11 @@ var (
+ 	teamID string
+ )
+ 
++// lock is a file lock to serialize iOS runs. It is global to avoid the
++// garbage collector finalizing it, closing the file and releasing the
++// lock prematurely.
++var lock *os.File
++
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("go_darwin_arm_exec: ")
+@@ -84,7 +89,7 @@ func main() {
+ 	// The lock file is never deleted, to avoid concurrent locks on distinct
+ 	// files with the same path.
+ 	lockName := filepath.Join(os.TempDir(), "go_darwin_arm_exec.lock")
+-	lock, err := os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
++	lock, err = os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}

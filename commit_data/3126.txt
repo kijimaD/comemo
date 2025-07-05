@@ -9,9 +9,171 @@ Date:   Fri Aug 28 12:45:30 2009 -0700
     DELTA=32  (14 added, 1 deleted, 17 changed)
     OCL=34043
     CL=34043
-
+---
  usr/austin/eval/bridge.go |  2 +-
  usr/austin/eval/expr.go   |  2 +-
  usr/austin/eval/type.go   | 34 ++++++++++++++++++++++++----------
  usr/austin/eval/typec.go  | 11 +++++------
  4 files changed, 31 insertions(+), 18 deletions(-)
+
+diff --git a/usr/austin/eval/bridge.go b/usr/austin/eval/bridge.go
+index aed763fc64..f349135a05 100644
+--- a/usr/austin/eval/bridge.go
++++ b/usr/austin/eval/bridge.go
+@@ -117,7 +117,7 @@ func TypeFromNative(t reflect.Type) Type {
+ 	}
+ 
+ 	if nt != nil {
+-		nt.def = et;
++		nt.Complete(et);
+ 		et = nt;
+ 	}
+ 
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index c6650729a5..6ca0f9b286 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -876,7 +876,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
+ 				mark(depth, pathName + "." + name);
+ 				log.Crash("Methods not implemented");
+ 			}
+-			t = ti.def;
++			t = ti.Def;
+ 		}
+ 
+ 		// If it's a struct type, check fields and embedded types
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+index c0c58532e2..457b18be75 100644
+--- a/usr/austin/eval/type.go
++++ b/usr/austin/eval/type.go
+@@ -960,16 +960,30 @@ type Method struct {
+ 
+ type NamedType struct {
+ 	token.Position;
+-	name string;
++	Name string;
+ 	// Underlying type.  If incomplete is true, this will be nil.
+ 	// If incomplete is false and this is still nil, then this is
+ 	// a placeholder type representing an error.
+-	def Type;
++	Def Type;
+ 	// True while this type is being defined.
+ 	incomplete bool;
+ 	methods map[string] Method;
+ }
+ 
++// TODO(austin) This is temporarily needed by the debugger's remote
++// type parser.  This should only be possible with block.DefineType.
++func NewNamedType(name string) *NamedType {
++	return &NamedType{token.Position{}, name, nil, true, make(map[string] Method)};
++}
++
++func (t *NamedType) Complete(def Type) {
++	if !t.incomplete {
++		log.Crashf("cannot complete already completed NamedType %+v", *t);
++	}
++	t.Def = def;
++	t.incomplete = false;
++}
++
+ func (t *NamedType) compat(o Type, conv bool) bool {
+ 	t2, ok := o.(*NamedType);
+ 	if ok {
+@@ -977,7 +991,7 @@ func (t *NamedType) compat(o Type, conv bool) bool {
+ 			// Two named types are conversion compatible
+ 			// if their literals are conversion
+ 			// compatible.
+-			return t.def.compat(t2.def, conv);
++			return t.Def.compat(t2.Def, conv);
+ 		} else {
+ 			// Two named types are compatible if their
+ 			// type names originate in the same type
+@@ -987,23 +1001,23 @@ func (t *NamedType) compat(o Type, conv bool) bool {
+ 	}
+ 	// A named and an unnamed type are compatible if the
+ 	// respective type literals are compatible.
+-	return o.compat(t.def, conv);
++	return o.compat(t.Def, conv);
+ }
+ 
+ func (t *NamedType) lit() Type {
+-	return t.def.lit();
++	return t.Def.lit();
+ }
+ 
+ func (t *NamedType) isBoolean() bool {
+-	return t.def.isBoolean();
++	return t.Def.isBoolean();
+ }
+ 
+ func (t *NamedType) isInteger() bool {
+-	return t.def.isInteger();
++	return t.Def.isInteger();
+ }
+ 
+ func (t *NamedType) isFloat() bool {
+-	return t.def.isFloat();
++	return t.Def.isFloat();
+ }
+ 
+ func (t *NamedType) isIdeal() bool {
+@@ -1011,11 +1025,11 @@ func (t *NamedType) isIdeal() bool {
+ }
+ 
+ func (t *NamedType) String() string {
+-	return t.name;
++	return t.Name;
+ }
+ 
+ func (t *NamedType) Zero() Value {
+-	return t.def.Zero();
++	return t.Def.Zero();
+ }
+ 
+ /*
+diff --git a/usr/austin/eval/typec.go b/usr/austin/eval/typec.go
+index 3a9fd0c45b..2f60210be5 100644
+--- a/usr/austin/eval/typec.go
++++ b/usr/austin/eval/typec.go
+@@ -43,7 +43,7 @@ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
+ 			a.diagAt(x, "illegal recursive type");
+ 			return nil;
+ 		}
+-		if !def.incomplete && def.def == nil {
++		if !def.incomplete && def.Def == nil {
+ 			// Placeholder type from an earlier error
+ 			return nil;
+ 		}
+@@ -158,12 +158,12 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type
+ 			// type name acts as the field identifier.
+ 			switch t := ts[i].(type) {
+ 			case *NamedType:
+-				name = t.name;
++				name = t.Name;
+ 				nt = t;
+ 			case *PtrType:
+ 				switch t := t.Elem.(type) {
+ 				case *NamedType:
+-					name = t.name;
++					name = t.Name;
+ 					nt = t;
+ 				}
+ 			}
+@@ -338,15 +338,14 @@ func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool {
+ 		}
+ 		// Fill incomplete type
+ 		if nt != nil {
+-			nt.(*NamedType).def = t;
+-			nt.(*NamedType).incomplete = false;
++			nt.(*NamedType).Complete(t);
+ 		}
+ 		// Perform late type checking with complete type
+ 		if !tc.lateCheck() {
+ 			ok = false;
+ 			if nt != nil {
+ 				// Make the type a placeholder
+-				nt.(*NamedType).def = nil;
++				nt.(*NamedType).Def = nil;
+ 			}
+ 		}
+ 	}

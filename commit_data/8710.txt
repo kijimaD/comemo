@@ -7,7 +7,16 @@ Date:   Tue Jun 14 16:42:52 2011 +1000
     R=golang-dev, r, adg
     CC=golang-dev
     https://golang.org/cl/4591077
-
+---
  doc/gopher/appenginegopher.jpg      | Bin 0 -> 135882 bytes
  doc/gopher/appenginegophercolor.jpg | Bin 0 -> 162023 bytes
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/gopher/appenginegopher.jpg b/doc/gopher/appenginegopher.jpg
+new file mode 100644
+index 0000000000..0a64306666
+Binary files /dev/null and b/doc/gopher/appenginegopher.jpg differ
+diff --git a/doc/gopher/appenginegophercolor.jpg b/doc/gopher/appenginegophercolor.jpg
+new file mode 100644
+index 0000000000..68795a99b3
+Binary files /dev/null and b/doc/gopher/appenginegophercolor.jpg differ

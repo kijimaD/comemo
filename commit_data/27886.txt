@@ -21,7 +21,69 @@ Date:   Mon Apr 18 11:17:55 2016 -0700
     Change-Id: I7cd0404ecc7a2d1750cbd8fe1222dba0fa44611f
     Reviewed-on: https://go-review.googlesource.com/22192
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 26 ++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/walk.go  | 13 +++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 85ef78b973..1021609d3a 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -563,6 +563,32 @@ func getdyn(n *Node, top int) initGenType {
+ 	return mode
+ }
+ 
++// isStaticCompositeLiteral reports whether n is a compile-time constant.
++// n must be a struct or array literal.
++func isStaticCompositeLiteral(n *Node) bool {
++	for _, r := range n.List.Slice() {
++		if r.Op != OKEY {
++			Fatalf("isStaticCompositeLiteral: rhs not OKEY: %v", r)
++		}
++		index := r.Left
++		if n.Op == OARRAYLIT && index.Op != OLITERAL {
++			return false
++		}
++		value := r.Right
++		switch value.Op {
++		case OSTRUCTLIT, OARRAYLIT:
++			if !isStaticCompositeLiteral(value) {
++				return false
++			}
++		default:
++			if value.Op != OLITERAL {
++				return false
++			}
++		}
++	}
++	return true
++}
++
+ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 	for _, r := range n.List.Slice() {
+ 		if r.Op != OKEY {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 78bad8d348..1a15bd93d0 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1531,6 +1531,19 @@ opswitch:
+ 		n = r
+ 
+ 	case OARRAYLIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
++		if (n.Op == OSTRUCTLIT || (n.Op == OARRAYLIT && !n.Type.IsSlice())) && isStaticCompositeLiteral(n) {
++			// n can be directly represented in the read-only data section.
++			// Make direct reference to the static data. See issue 12841.
++			vstat := staticname(n.Type, 0)
++			if n.Op == OSTRUCTLIT {
++				structlit(0, 1, n, vstat, init)
++			} else {
++				arraylit(0, 1, n, vstat, init)
++			}
++			n = vstat
++			n = typecheck(n, Erv)
++			break
++		}
+ 		var_ := temp(n.Type)
+ 		anylit(0, n, var_, init)
+ 		n = var_

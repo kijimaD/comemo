@@ -15,8 +15,103 @@ Date:   Mon Dec 2 17:32:01 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/export_test.go |  2 ++
  src/runtime/string.go      | 34 ++++++++++++++++++++++++++++++++++
  src/runtime/string_test.go | 31 +++++++++++++++++++++++++++++++
  3 files changed, 67 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 75882d02b6..5206fa0109 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -43,6 +43,8 @@ var PhysHugePageSize = physHugePageSize
+ 
+ var NetpollGenericInit = netpollGenericInit
+ 
++var ParseRelease = parseRelease
++
+ const PreemptMSupported = preemptMSupported
+ 
+ type LFNode struct {
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index d198f73756..184245b105 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -495,3 +495,37 @@ func gostringw(strw *uint16) string {
+ 	b[n2] = 0 // for luck
+ 	return s[:n2]
+ }
++
++// parseRelease parses a dot-separated version number. It follows the
++// semver syntax, but allows the minor and patch versions to be
++// elided.
++func parseRelease(rel string) (major, minor, patch int, ok bool) {
++	// Strip anything after a dash or plus.
++	for i := 0; i < len(rel); i++ {
++		if rel[i] == '-' || rel[i] == '+' {
++			rel = rel[:i]
++			break
++		}
++	}
++
++	next := func() (int, bool) {
++		for i := 0; i < len(rel); i++ {
++			if rel[i] == '.' {
++				ver, ok := atoi(rel[:i])
++				rel = rel[i+1:]
++				return ver, ok
++			}
++		}
++		ver, ok := atoi(rel)
++		rel = ""
++		return ver, ok
++	}
++	if major, ok = next(); !ok || rel == "" {
++		return
++	}
++	if minor, ok = next(); !ok || rel == "" {
++		return
++	}
++	patch, ok = next()
++	return
++}
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index a1716fa32f..80c5fa6406 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -454,3 +454,34 @@ func TestAtoi32(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type parseReleaseTest struct {
++	in                  string
++	major, minor, patch int
++}
++
++var parseReleaseTests = []parseReleaseTest{
++	{"", -1, -1, -1},
++	{"x", -1, -1, -1},
++	{"5", 5, 0, 0},
++	{"5.12", 5, 12, 0},
++	{"5.12-x", 5, 12, 0},
++	{"5.12.1", 5, 12, 1},
++	{"5.12.1-x", 5, 12, 1},
++	{"5.12.1.0", 5, 12, 1},
++	{"5.20496382327982653440", -1, -1, -1},
++}
++
++func TestParseRelease(t *testing.T) {
++	for _, test := range parseReleaseTests {
++		major, minor, patch, ok := runtime.ParseRelease(test.in)
++		if !ok {
++			major, minor, patch = -1, -1, -1
++		}
++		if test.major != major || test.minor != minor || test.patch != patch {
++			t.Errorf("parseRelease(%q) = (%v, %v, %v) want (%v, %v, %v)",
++				test.in, major, minor, patch,
++				test.major, test.minor, test.patch)
++		}
++	}
++}

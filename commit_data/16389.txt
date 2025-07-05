@@ -12,7 +12,7 @@ Date:   Thu May 23 16:22:05 2013 +0900
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/9373046
-
+---
  src/pkg/syscall/mkerrors.sh              |  5 ++++-
  src/pkg/syscall/syscall_bsd.go           | 18 ++++++++++++++++++
  src/pkg/syscall/syscall_linux.go         | 17 +++++++++++++++++
@@ -48,3 +48,798 @@ Date:   Thu May 23 16:22:05 2013 +0900
  src/pkg/syscall/ztypes_openbsd_386.go    | 11 +++++++++++
  src/pkg/syscall/ztypes_openbsd_amd64.go  | 11 +++++++++++
  34 files changed, 230 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 5a39d707bf..66cb690c7a 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -71,6 +71,7 @@ includes_Linux='
+ #include <sys/prctl.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
++#include <sys/socket.h>
+ #include <linux/if_addr.h>
+ #include <linux/if_ether.h>
+ #include <linux/if_tun.h>
+@@ -80,6 +81,7 @@ includes_Linux='
+ #include <linux/rtnetlink.h>
+ #include <linux/ptrace.h>
+ #include <linux/wait.h>
++#include <linux/icmpv6.h>
+ #include <net/if.h>
+ #include <net/if_arp.h>
+ #include <net/route.h>
+@@ -200,7 +202,8 @@ ccflags="$@"
+ 		$2 ~ /^O[CNPFP][A-Z]+[^_][A-Z]+$/ ||
+ 		$2 ~ /^IN_/ ||
+ 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|NOTE|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV|PR)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|ICMP6|TCP|EVFILT|NOTE|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV|PR)_/ ||
++		$2 == "ICMPV6_FILTER" ||
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+ 		$2 == "IFNAMSIZ" ||
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 560409a262..3e7870a0a5 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -414,6 +414,20 @@ func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, error) {
+ 	return &value, err
+ }
+ 
++func GetsockoptIPv6MTUInfo(fd, level, opt int) (*IPv6MTUInfo, error) {
++	var value IPv6MTUInfo
++	vallen := _Socklen(SizeofIPv6MTUInfo)
++	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, err
++}
++
++func GetsockoptICMPv6Filter(fd, level, opt int) (*ICMPv6Filter, error) {
++	var value ICMPv6Filter
++	vallen := _Socklen(SizeofICMPv6Filter)
++	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, err
++}
++
+ func SetsockoptByte(fd, level, opt int, value byte) (err error) {
+ 	var n = byte(value)
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 1)
+@@ -444,6 +458,10 @@ func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (err error) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+ }
+ 
++func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(filter)), SizeofICMPv6Filter)
++}
++
+ func SetsockoptString(fd, level, opt int, s string) (err error) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
+ }
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 4f458be73d..391d80e5fb 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -540,6 +540,20 @@ func GetsockoptIPv6Mreq(fd, level, opt int) (*IPv6Mreq, error) {
+ 	return &value, err
+ }
+ 
++func GetsockoptIPv6MTUInfo(fd, level, opt int) (*IPv6MTUInfo, error) {
++	var value IPv6MTUInfo
++	vallen := _Socklen(SizeofIPv6MTUInfo)
++	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, err
++}
++
++func GetsockoptICMPv6Filter(fd, level, opt int) (*ICMPv6Filter, error) {
++	var value ICMPv6Filter
++	vallen := _Socklen(SizeofICMPv6Filter)
++	err := getsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), &vallen)
++	return &value, err
++}
++
+ func GetsockoptUcred(fd, level, opt int) (*Ucred, error) {
+ 	var value Ucred
+ 	vallen := _Socklen(SizeofUcred)
+@@ -576,6 +590,9 @@ func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (err error) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+ }
+ 
++func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(filter)), SizeofICMPv6Filter)
++}
+ func SetsockoptString(fd, level, opt int, s string) (err error) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
+ }
+diff --git a/src/pkg/syscall/types_darwin.go b/src/pkg/syscall/types_darwin.go
+index 098bbff6f2..a043071f26 100644
+--- a/src/pkg/syscall/types_darwin.go
++++ b/src/pkg/syscall/types_darwin.go
+@@ -45,6 +45,7 @@ package syscall
+ #include <net/if_var.h>
+ #include <net/route.h>
+ #include <netinet/in.h>
++#include <netinet/icmp6.h>
+ #include <netinet/tcp.h>
+ 
+ enum {
+@@ -154,6 +155,10 @@ type Inet4Pktinfo C.struct_in_pktinfo
+ 
+ type Inet6Pktinfo C.struct_in6_pktinfo
+ 
++type IPv6MTUInfo C.struct_ip6_mtuinfo
++
++type ICMPv6Filter C.struct_icmp6_filter
++
+ const (
+ 	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+ 	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+@@ -167,6 +172,8 @@ const (
+ 	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+ 	SizeofInet4Pktinfo     = C.sizeof_struct_in_pktinfo
+ 	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
++	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
++	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+ )
+ 
+ // Ptrace requests
+diff --git a/src/pkg/syscall/types_freebsd.go b/src/pkg/syscall/types_freebsd.go
+index 7d4923d5a5..ccf53d0adf 100644
+--- a/src/pkg/syscall/types_freebsd.go
++++ b/src/pkg/syscall/types_freebsd.go
+@@ -39,6 +39,7 @@ package syscall
+ #include <net/if_dl.h>
+ #include <net/route.h>
+ #include <netinet/in.h>
++#include <netinet/icmp6.h>
+ #include <netinet/tcp.h>
+ 
+ enum {
+@@ -159,6 +160,10 @@ type Cmsghdr C.struct_cmsghdr
+ 
+ type Inet6Pktinfo C.struct_in6_pktinfo
+ 
++type IPv6MTUInfo C.struct_ip6_mtuinfo
++
++type ICMPv6Filter C.struct_icmp6_filter
++
+ const (
+ 	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+ 	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+@@ -172,6 +177,8 @@ const (
+ 	SizeofMsghdr           = C.sizeof_struct_msghdr
+ 	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+ 	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
++	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
++	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+ )
+ 
+ // Ptrace requests
+diff --git a/src/pkg/syscall/types_linux.go b/src/pkg/syscall/types_linux.go
+index 1514cbc951..fea09d1d7f 100644
+--- a/src/pkg/syscall/types_linux.go
++++ b/src/pkg/syscall/types_linux.go
+@@ -49,6 +49,7 @@ package syscall
+ #include <linux/filter.h>
+ #include <linux/netlink.h>
+ #include <linux/rtnetlink.h>
++#include <linux/icmpv6.h>
+ #include <termios.h>
+ #include <time.h>
+ #include <unistd.h>
+@@ -193,6 +194,10 @@ type Inet4Pktinfo C.struct_in_pktinfo
+ 
+ type Inet6Pktinfo C.struct_in6_pktinfo
+ 
++type IPv6MTUInfo C.struct_ip6_mtuinfo
++
++type ICMPv6Filter C.struct_icmp6_filter
++
+ type Ucred C.struct_ucred
+ 
+ type TCPInfo C.struct_tcp_info
+@@ -212,6 +217,8 @@ const (
+ 	SizeofCmsghdr           = C.sizeof_struct_cmsghdr
+ 	SizeofInet4Pktinfo      = C.sizeof_struct_in_pktinfo
+ 	SizeofInet6Pktinfo      = C.sizeof_struct_in6_pktinfo
++	SizeofIPv6MTUInfo       = C.sizeof_struct_ip6_mtuinfo
++	SizeofICMPv6Filter      = C.sizeof_struct_icmp6_filter
+ 	SizeofUcred             = C.sizeof_struct_ucred
+ 	SizeofTCPInfo           = C.sizeof_struct_tcp_info
+ )
+diff --git a/src/pkg/syscall/types_netbsd.go b/src/pkg/syscall/types_netbsd.go
+index 4906a99ef6..badaa1049a 100644
+--- a/src/pkg/syscall/types_netbsd.go
++++ b/src/pkg/syscall/types_netbsd.go
+@@ -41,6 +41,7 @@ package syscall
+ #include <net/if_dl.h>
+ #include <net/route.h>
+ #include <netinet/in.h>
++#include <netinet/icmp6.h>
+ #include <netinet/tcp.h>
+ 
+ enum {
+@@ -138,6 +139,10 @@ type Cmsghdr C.struct_cmsghdr
+ 
+ type Inet6Pktinfo C.struct_in6_pktinfo
+ 
++type IPv6MTUInfo C.struct_ip6_mtuinfo
++
++type ICMPv6Filter C.struct_icmp6_filter
++
+ const (
+ 	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+ 	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+@@ -150,6 +155,8 @@ const (
+ 	SizeofMsghdr           = C.sizeof_struct_msghdr
+ 	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+ 	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
++	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
++	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+ )
+ 
+ // Ptrace requests
+diff --git a/src/pkg/syscall/types_openbsd.go b/src/pkg/syscall/types_openbsd.go
+index 2430a166b4..6fe2af6e0a 100644
+--- a/src/pkg/syscall/types_openbsd.go
++++ b/src/pkg/syscall/types_openbsd.go
+@@ -40,6 +40,7 @@ package syscall
+ #include <net/if_dl.h>
+ #include <net/route.h>
+ #include <netinet/in.h>
++#include <netinet/icmp6.h>
+ #include <netinet/tcp.h>
+ 
+ enum {
+@@ -154,6 +155,10 @@ type Cmsghdr C.struct_cmsghdr
+ 
+ type Inet6Pktinfo C.struct_in6_pktinfo
+ 
++type IPv6MTUInfo C.struct_ip6_mtuinfo
++
++type ICMPv6Filter C.struct_icmp6_filter
++
+ const (
+ 	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+ 	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+@@ -166,6 +171,8 @@ const (
+ 	SizeofMsghdr           = C.sizeof_struct_msghdr
+ 	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+ 	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
++	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
++	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+ )
+ 
+ // Ptrace requests
+diff --git a/src/pkg/syscall/zerrors_darwin_386.go b/src/pkg/syscall/zerrors_darwin_386.go
+index cdb8605435..29e6190a92 100644
+--- a/src/pkg/syscall/zerrors_darwin_386.go
++++ b/src/pkg/syscall/zerrors_darwin_386.go
+@@ -273,6 +273,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFF_ALLMULTI                      = 0x200
+diff --git a/src/pkg/syscall/zerrors_darwin_amd64.go b/src/pkg/syscall/zerrors_darwin_amd64.go
+index 8ffcbcc04b..db02b6a541 100644
+--- a/src/pkg/syscall/zerrors_darwin_amd64.go
++++ b/src/pkg/syscall/zerrors_darwin_amd64.go
+@@ -273,6 +273,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFF_ALLMULTI                      = 0x200
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+index 0486873610..55f255a54b 100644
+--- a/src/pkg/syscall/zerrors_freebsd_386.go
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -461,6 +461,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFAN_ARRIVAL                      = 0x0
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+index a45d7f495a..ab92a94920 100644
+--- a/src/pkg/syscall/zerrors_freebsd_amd64.go
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -461,6 +461,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFAN_ARRIVAL                      = 0x0
+diff --git a/src/pkg/syscall/zerrors_freebsd_arm.go b/src/pkg/syscall/zerrors_freebsd_arm.go
+index 82f30abc56..29d92be2ec 100644
+--- a/src/pkg/syscall/zerrors_freebsd_arm.go
++++ b/src/pkg/syscall/zerrors_freebsd_arm.go
+@@ -466,6 +466,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFAN_ARRIVAL                      = 0x0
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index a689942b87..9510cccd6d 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -276,6 +276,7 @@ const (
+ 	F_ULOCK                          = 0x0
+ 	F_UNLCK                          = 0x2
+ 	F_WRLCK                          = 0x1
++	ICMPV6_FILTER                    = 0x1
+ 	IFA_F_DADFAILED                  = 0x8
+ 	IFA_F_DEPRECATED                 = 0x20
+ 	IFA_F_HOMEADDRESS                = 0x10
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index a1ac1773b2..7435155e20 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -276,6 +276,7 @@ const (
+ 	F_ULOCK                          = 0x0
+ 	F_UNLCK                          = 0x2
+ 	F_WRLCK                          = 0x1
++	ICMPV6_FILTER                    = 0x1
+ 	IFA_F_DADFAILED                  = 0x8
+ 	IFA_F_DEPRECATED                 = 0x20
+ 	IFA_F_HOMEADDRESS                = 0x10
+diff --git a/src/pkg/syscall/zerrors_linux_arm.go b/src/pkg/syscall/zerrors_linux_arm.go
+index 0730f2140d..fe54fe72d9 100644
+--- a/src/pkg/syscall/zerrors_linux_arm.go
++++ b/src/pkg/syscall/zerrors_linux_arm.go
+@@ -274,6 +274,7 @@ const (
+ 	F_ULOCK                          = 0x0
+ 	F_UNLCK                          = 0x2
+ 	F_WRLCK                          = 0x1
++	ICMPV6_FILTER                    = 0x1
+ 	IFA_F_DADFAILED                  = 0x8
+ 	IFA_F_DEPRECATED                 = 0x20
+ 	IFA_F_HOMEADDRESS                = 0x10
+diff --git a/src/pkg/syscall/zerrors_netbsd_386.go b/src/pkg/syscall/zerrors_netbsd_386.go
+index 68051f9f8a..c0ef19fdda 100644
+--- a/src/pkg/syscall/zerrors_netbsd_386.go
++++ b/src/pkg/syscall/zerrors_netbsd_386.go
+@@ -570,6 +570,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFAN_ARRIVAL                      = 0x0
+diff --git a/src/pkg/syscall/zerrors_netbsd_amd64.go b/src/pkg/syscall/zerrors_netbsd_amd64.go
+index f719528a7f..e4f5a903f4 100644
+--- a/src/pkg/syscall/zerrors_netbsd_amd64.go
++++ b/src/pkg/syscall/zerrors_netbsd_amd64.go
+@@ -560,6 +560,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFAN_ARRIVAL                      = 0x0
+diff --git a/src/pkg/syscall/zerrors_netbsd_arm.go b/src/pkg/syscall/zerrors_netbsd_arm.go
+index 3899f6ba63..3264cef89d 100644
+--- a/src/pkg/syscall/zerrors_netbsd_arm.go
++++ b/src/pkg/syscall/zerrors_netbsd_arm.go
+@@ -560,6 +560,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFAN_ARRIVAL                      = 0x0
+diff --git a/src/pkg/syscall/zerrors_openbsd_386.go b/src/pkg/syscall/zerrors_openbsd_386.go
+index 5330d15b15..003958efaf 100644
+--- a/src/pkg/syscall/zerrors_openbsd_386.go
++++ b/src/pkg/syscall/zerrors_openbsd_386.go
+@@ -439,6 +439,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFAN_ARRIVAL                      = 0x0
+diff --git a/src/pkg/syscall/zerrors_openbsd_amd64.go b/src/pkg/syscall/zerrors_openbsd_amd64.go
+index 5a7edd341b..7c53ceca69 100644
+--- a/src/pkg/syscall/zerrors_openbsd_amd64.go
++++ b/src/pkg/syscall/zerrors_openbsd_amd64.go
+@@ -445,6 +445,7 @@ const (
+ 	F_WRLCK                           = 0x3
+ 	HUPCL                             = 0x4000
+ 	ICANON                            = 0x100
++	ICMP6_FILTER                      = 0x12
+ 	ICRNL                             = 0x100
+ 	IEXTEN                            = 0x400
+ 	IFAN_ARRIVAL                      = 0x0
+diff --git a/src/pkg/syscall/ztypes_darwin_386.go b/src/pkg/syscall/ztypes_darwin_386.go
+index 71346fbc12..13724c3cc6 100644
+--- a/src/pkg/syscall/ztypes_darwin_386.go
++++ b/src/pkg/syscall/ztypes_darwin_386.go
+@@ -237,6 +237,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -250,6 +259,8 @@ const (
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet4Pktinfo     = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (
+diff --git a/src/pkg/syscall/ztypes_darwin_amd64.go b/src/pkg/syscall/ztypes_darwin_amd64.go
+index f0809fe4ac..65b02ae4f5 100644
+--- a/src/pkg/syscall/ztypes_darwin_amd64.go
++++ b/src/pkg/syscall/ztypes_darwin_amd64.go
+@@ -245,6 +245,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -258,6 +267,8 @@ const (
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet4Pktinfo     = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (
+diff --git a/src/pkg/syscall/ztypes_freebsd_386.go b/src/pkg/syscall/ztypes_freebsd_386.go
+index 89de58e53f..e77bd4b413 100644
+--- a/src/pkg/syscall/ztypes_freebsd_386.go
++++ b/src/pkg/syscall/ztypes_freebsd_386.go
+@@ -236,6 +236,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -249,6 +258,8 @@ const (
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (
+diff --git a/src/pkg/syscall/ztypes_freebsd_amd64.go b/src/pkg/syscall/ztypes_freebsd_amd64.go
+index d5e87682da..922de2ce50 100644
+--- a/src/pkg/syscall/ztypes_freebsd_amd64.go
++++ b/src/pkg/syscall/ztypes_freebsd_amd64.go
+@@ -238,6 +238,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -251,6 +260,8 @@ const (
+ 	SizeofMsghdr           = 0x30
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (
+diff --git a/src/pkg/syscall/ztypes_freebsd_arm.go b/src/pkg/syscall/ztypes_freebsd_arm.go
+index 4f67a39e60..b1bf83b4c1 100644
+--- a/src/pkg/syscall/ztypes_freebsd_arm.go
++++ b/src/pkg/syscall/ztypes_freebsd_arm.go
+@@ -238,6 +238,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -251,6 +260,8 @@ const (
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index e1c30b6494..9abd647acf 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -245,6 +245,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Data [8]uint32
++}
++
+ type Ucred struct {
+ 	Pid int32
+ 	Uid uint32
+@@ -300,6 +309,8 @@ const (
+ 	SizeofCmsghdr           = 0xc
+ 	SizeofInet4Pktinfo      = 0xc
+ 	SizeofInet6Pktinfo      = 0x14
++	SizeofIPv6MTUInfo       = 0x20
++	SizeofICMPv6Filter      = 0x20
+ 	SizeofUcred             = 0xc
+ 	SizeofTCPInfo           = 0x68
+ )
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 5800c3c6cb..32da4e4b5c 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -247,6 +247,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Data [8]uint32
++}
++
+ type Ucred struct {
+ 	Pid int32
+ 	Uid uint32
+@@ -302,6 +311,8 @@ const (
+ 	SizeofCmsghdr           = 0x10
+ 	SizeofInet4Pktinfo      = 0xc
+ 	SizeofInet6Pktinfo      = 0x14
++	SizeofIPv6MTUInfo       = 0x20
++	SizeofICMPv6Filter      = 0x20
+ 	SizeofUcred             = 0xc
+ 	SizeofTCPInfo           = 0x68
+ )
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index 4a81d340cf..4a918a8a72 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -247,6 +247,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Data [8]uint32
++}
++
+ type Ucred struct {
+ 	Pid int32
+ 	Uid uint32
+@@ -302,6 +311,8 @@ const (
+ 	SizeofCmsghdr           = 0xc
+ 	SizeofInet4Pktinfo      = 0xc
+ 	SizeofInet6Pktinfo      = 0x14
++	SizeofIPv6MTUInfo       = 0x20
++	SizeofICMPv6Filter      = 0x20
+ 	SizeofUcred             = 0xc
+ 	SizeofTCPInfo           = 0x68
+ )
+diff --git a/src/pkg/syscall/ztypes_netbsd_386.go b/src/pkg/syscall/ztypes_netbsd_386.go
+index dd9cf221a2..59314bad28 100644
+--- a/src/pkg/syscall/ztypes_netbsd_386.go
++++ b/src/pkg/syscall/ztypes_netbsd_386.go
+@@ -185,6 +185,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -197,6 +206,8 @@ const (
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (
+diff --git a/src/pkg/syscall/ztypes_netbsd_amd64.go b/src/pkg/syscall/ztypes_netbsd_amd64.go
+index 89d1ef8168..a021a57387 100644
+--- a/src/pkg/syscall/ztypes_netbsd_amd64.go
++++ b/src/pkg/syscall/ztypes_netbsd_amd64.go
+@@ -191,6 +191,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -203,6 +212,8 @@ const (
+ 	SizeofMsghdr           = 0x30
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (
+diff --git a/src/pkg/syscall/ztypes_netbsd_arm.go b/src/pkg/syscall/ztypes_netbsd_arm.go
+index dd9cf221a2..59314bad28 100644
+--- a/src/pkg/syscall/ztypes_netbsd_arm.go
++++ b/src/pkg/syscall/ztypes_netbsd_arm.go
+@@ -185,6 +185,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -197,6 +206,8 @@ const (
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (
+diff --git a/src/pkg/syscall/ztypes_openbsd_386.go b/src/pkg/syscall/ztypes_openbsd_386.go
+index 528e92c85d..3c9cdf28bf 100644
+--- a/src/pkg/syscall/ztypes_openbsd_386.go
++++ b/src/pkg/syscall/ztypes_openbsd_386.go
+@@ -226,6 +226,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -238,6 +247,8 @@ const (
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (
+diff --git a/src/pkg/syscall/ztypes_openbsd_amd64.go b/src/pkg/syscall/ztypes_openbsd_amd64.go
+index 4b93930540..3a0ac96fab 100644
+--- a/src/pkg/syscall/ztypes_openbsd_amd64.go
++++ b/src/pkg/syscall/ztypes_openbsd_amd64.go
+@@ -231,6 +231,15 @@ type Inet6Pktinfo struct {
+ 	Ifindex uint32
+ }
+ 
++type IPv6MTUInfo struct {
++	Addr RawSockaddrInet6
++	Mtu  uint32
++}
++
++type ICMPv6Filter struct {
++	Filt [8]uint32
++}
++
+ const (
+ 	SizeofSockaddrInet4    = 0x10
+ 	SizeofSockaddrInet6    = 0x1c
+@@ -243,6 +252,8 @@ const (
+ 	SizeofMsghdr           = 0x30
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
++	SizeofIPv6MTUInfo      = 0x20
++	SizeofICMPv6Filter     = 0x20
+ )
+ 
+ const (

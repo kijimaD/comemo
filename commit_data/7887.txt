@@ -10,6 +10,18 @@ Date:   Sun Mar 27 12:10:50 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4313050
-
+---
  test/fixedbugs/bug325.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug325.go b/test/fixedbugs/bug325.go
+index 205b836b08..b86740fff9 100644
+--- a/test/fixedbugs/bug325.go
++++ b/test/fixedbugs/bug325.go
+@@ -11,5 +11,5 @@ import "unsafe"
+ func main() {
+ 	var x unsafe.Pointer
+ 	println(*x) // ERROR "invalid indirect.*unsafe.Pointer"
+-	var _ = (unsafe.Pointer)(nil).foo  // ERROR "no field or method foo"
++	var _ = (unsafe.Pointer)(nil).foo  // ERROR "foo"
+ }

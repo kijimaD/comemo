@@ -14,7 +14,7 @@ Date:   Mon Jan 6 14:26:28 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213425
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 31 --------------
  src/cmd/go/testdata/importcom/bad.go               |  3 --
  src/cmd/go/testdata/importcom/conflict.go          |  3 --
@@ -28,3 +28,177 @@ Date:   Mon Jan 6 14:26:28 2020 -0500
  src/cmd/go/testdata/importcom/wrongplace.go        |  3 --
  .../go/testdata/script/build_import_comment.txt    | 47 ++++++++++++++++++++++
  12 files changed, 47 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 014af70e83..8ca34d49ca 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1041,37 +1041,6 @@ func TestInternalCache(t *testing.T) {
+ 	tg.grepStderr("internal", "did not fail to build p")
+ }
+ 
+-func TestImportCommandMatch(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/importcom"))
+-	tg.run("build", "./testdata/importcom/works.go")
+-}
+-
+-func TestImportCommentMismatch(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/importcom"))
+-	tg.runFail("build", "./testdata/importcom/wrongplace.go")
+-	tg.grepStderr(`wrongplace expects import "my/x"`, "go build did not mention incorrect import")
+-}
+-
+-func TestImportCommentSyntaxError(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/importcom"))
+-	tg.runFail("build", "./testdata/importcom/bad.go")
+-	tg.grepStderr("cannot parse import comment", "go build did not mention syntax error")
+-}
+-
+-func TestImportCommentConflict(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/importcom"))
+-	tg.runFail("build", "./testdata/importcom/conflict.go")
+-	tg.grepStderr("found import comments", "go build did not mention comment conflict")
+-}
+-
+ // cmd/go: custom import path checking should not apply to Go packages without import comment.
+ func TestIssue10952(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/testdata/importcom/bad.go b/src/cmd/go/testdata/importcom/bad.go
+deleted file mode 100644
+index e104c2e992..0000000000
+--- a/src/cmd/go/testdata/importcom/bad.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p
+-
+-import "bad"
+diff --git a/src/cmd/go/testdata/importcom/conflict.go b/src/cmd/go/testdata/importcom/conflict.go
+deleted file mode 100644
+index 995556c511..0000000000
+--- a/src/cmd/go/testdata/importcom/conflict.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p
+-
+-import "conflict"
+diff --git a/src/cmd/go/testdata/importcom/src/bad/bad.go b/src/cmd/go/testdata/importcom/src/bad/bad.go
+deleted file mode 100644
+index bc51fd3fde..0000000000
+--- a/src/cmd/go/testdata/importcom/src/bad/bad.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package bad // import
+diff --git a/src/cmd/go/testdata/importcom/src/conflict/a.go b/src/cmd/go/testdata/importcom/src/conflict/a.go
+deleted file mode 100644
+index 2d67703511..0000000000
+--- a/src/cmd/go/testdata/importcom/src/conflict/a.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package conflict // import "a"
+diff --git a/src/cmd/go/testdata/importcom/src/conflict/b.go b/src/cmd/go/testdata/importcom/src/conflict/b.go
+deleted file mode 100644
+index 8fcfb3c8bd..0000000000
+--- a/src/cmd/go/testdata/importcom/src/conflict/b.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package conflict /* import "b" */
+diff --git a/src/cmd/go/testdata/importcom/src/works/x/x.go b/src/cmd/go/testdata/importcom/src/works/x/x.go
+deleted file mode 100644
+index 044c6eca80..0000000000
+--- a/src/cmd/go/testdata/importcom/src/works/x/x.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package x // import "works/x"
+diff --git a/src/cmd/go/testdata/importcom/src/works/x/x1.go b/src/cmd/go/testdata/importcom/src/works/x/x1.go
+deleted file mode 100644
+index 2449b29df5..0000000000
+--- a/src/cmd/go/testdata/importcom/src/works/x/x1.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package x // important! not an import comment
+diff --git a/src/cmd/go/testdata/importcom/src/wrongplace/x.go b/src/cmd/go/testdata/importcom/src/wrongplace/x.go
+deleted file mode 100644
+index b89849da78..0000000000
+--- a/src/cmd/go/testdata/importcom/src/wrongplace/x.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package x // import "my/x"
+diff --git a/src/cmd/go/testdata/importcom/works.go b/src/cmd/go/testdata/importcom/works.go
+deleted file mode 100644
+index 31b55d08a3..0000000000
+--- a/src/cmd/go/testdata/importcom/works.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p
+-
+-import _ "works/x"
+diff --git a/src/cmd/go/testdata/importcom/wrongplace.go b/src/cmd/go/testdata/importcom/wrongplace.go
+deleted file mode 100644
+index e2535e01ae..0000000000
+--- a/src/cmd/go/testdata/importcom/wrongplace.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p
+-
+-import "wrongplace"
+diff --git a/src/cmd/go/testdata/script/build_import_comment.txt b/src/cmd/go/testdata/script/build_import_comment.txt
+new file mode 100644
+index 0000000000..6b7d1715cd
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_import_comment.txt
+@@ -0,0 +1,47 @@
++// TODO: add a go.mod file and test with GO111MODULE explicitly on and off.
++// We only report the 'expects import' error when modules are disabled.
++// Do we report comment parse errors or conflicts in module mode? We shouldn't.
++
++# Import comment matches
++go build -n works.go
++
++# Import comment mismatch
++! go build -n wrongplace.go
++stderr 'wrongplace expects import "my/x"'
++
++# Import comment syntax error
++! go build -n bad.go
++stderr 'cannot parse import comment'
++
++# Import comment conflict
++! go build -n conflict.go
++stderr 'found import comments'
++
++-- bad.go --
++package p
++
++import "bad"
++-- conflict.go --
++package p
++
++import "conflict"
++-- works.go --
++package p
++
++import _ "works/x"
++-- wrongplace.go --
++package p
++
++import "wrongplace"
++-- bad/bad.go --
++package bad // import
++-- conflict/a.go --
++package conflict // import "a"
++-- conflict/b.go --
++package conflict /* import "b" */
++-- works/x/x.go --
++package x // import "works/x"
++-- works/x/x1.go --
++package x // important! not an import comment
++-- wrongplace/x.go --
++package x // import "my/x"

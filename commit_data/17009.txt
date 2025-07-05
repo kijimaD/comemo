@@ -11,8 +11,129 @@ Date:   Sat Aug 3 12:17:01 2013 +0900
     R=golang-dev, bradfitz, dave, fvbommel
     CC=golang-dev
     https://golang.org/cl/11958043
-
+---
  src/pkg/net/ipsock.go       | 49 +++++++++++++++++++++++++++++++++------------
  src/pkg/net/ipsock_plan9.go |  8 ++++++++
  src/pkg/net/ipsock_posix.go | 11 ++++++++++
  3 files changed, 55 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index d930595879..bde4394ff0 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -8,10 +8,24 @@ package net
+ 
+ import "time"
+ 
+-var supportsIPv6, supportsIPv4map bool
++var (
++	// supportsIPv4 reports whether the platform supports IPv4
++	// networking functionality.
++	supportsIPv4 bool
++
++	// supportsIPv6 reports whether the platfrom supports IPv6
++	// networking functionality.
++	supportsIPv6 bool
++
++	// supportsIPv4map reports whether the platform supports
++	// mapping an IPv4 address inside an IPv6 address at transport
++	// layer protocols.  See RFC 4291, RFC 4038 and RFC 3493.
++	supportsIPv4map bool
++)
+ 
+ func init() {
+ 	sysInit()
++	supportsIPv4 = probeIPv4Stack()
+ 	supportsIPv6, supportsIPv4map = probeIPv6Stack()
+ }
+ 
+@@ -41,23 +55,32 @@ func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
+ 	return nil
+ }
+ 
+-func anyaddr(x IP) IP {
+-	if x4 := x.To4(); x4 != nil {
+-		return x4
++// anyaddr returns IP addresses that we can use with the current
++// kernel configuration.  It returns nil when ip is not suitable for
++// the configuration and an IP address.
++func anyaddr(ip IP) IP {
++	if ip4 := ipv4only(ip); ip4 != nil {
++		return ip4
+ 	}
+-	if supportsIPv6 {
+-		return x
++	return ipv6only(ip)
++}
++
++// ipv4only returns IPv4 addresses that we can use with the kernel's
++// IPv4 addressing modes.  It returns IPv4-mapped IPv6 addresses as
++// IPv4 addresses and returns other IPv6 address types as nils.
++func ipv4only(ip IP) IP {
++	if supportsIPv4 {
++		return ip.To4()
+ 	}
+ 	return nil
+ }
+ 
+-func ipv4only(x IP) IP { return x.To4() }
+-
+-func ipv6only(x IP) IP {
+-	// Only return addresses that we can use
+-	// with the kernel's IPv6 addressing modes.
+-	if len(x) == IPv6len && x.To4() == nil && supportsIPv6 {
+-		return x
++// ipv6only returns IPv6 addresses that we can use with the kernel's
++// IPv6 addressing modes.  It returns IPv4-mapped IPv6 addresses as
++// nils and returns other IPv6 address types as IPv6 addresses.
++func ipv6only(ip IP) IP {
++	if supportsIPv6 && len(ip) == IPv6len && ip.To4() == nil {
++		return ip
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 5be57ad6ab..fcec4164f4 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -12,10 +12,18 @@ import (
+ 	"syscall"
+ )
+ 
++func probeIPv4Stack() bool {
++	// TODO(mikio): implement this when Plan 9 supports IPv6-only
++	// kernel.
++	return true
++}
++
+ // probeIPv6Stack returns two boolean values.  If the first boolean
+ // value is true, kernel supports basic IPv6 functionality.  If the
+ // second boolean value is true, kernel supports IPv6 IPv4-mapping.
+ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
++	// TODO(mikio): implement this once Plan 9 gets an IPv6
++	// protocol stack implementation.
+ 	return false, false
+ }
+ 
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index d1940a43b9..f0c575a7db 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -13,6 +13,17 @@ import (
+ 	"time"
+ )
+ 
++func probeIPv4Stack() bool {
++	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
++	switch err {
++	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
++		return false
++	case nil:
++		closesocket(s)
++	}
++	return true
++}
++
+ // Should we try to use the IPv4 socket interface if we're
+ // only dealing with IPv4 sockets?  As long as the host system
+ // understands IPv6, it's okay to pass IPv4 addresses to the IPv6

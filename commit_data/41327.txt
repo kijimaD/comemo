@@ -19,10 +19,119 @@ Date:   Tue Sep 24 17:35:15 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go |  5 +----
  test/escape2.go                       |  1 +
  test/escape2n.go                      |  1 +
  test/fixedbugs/issue21709.go          |  2 ++
  test/fixedbugs/issue27557.go          | 42 +++++++++++++++++++++++++++++++++++
  5 files changed, 47 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 85a495a769..106b877349 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -505,10 +505,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 	case OCALLPART:
+ 		e.spill(k, n)
+ 
+-		// esc.go says "Contents make it to memory, lose
+-		// track."  I think we can just flow n.Left to our
+-		// spilled location though.
+-		// TODO(mdempsky): Try that.
++		// TODO(mdempsky): We can do better here. See #27557.
+ 		e.assignHeap(n.Left, "call part", n)
+ 
+ 	case OPTRLIT:
+diff --git a/test/escape2.go b/test/escape2.go
+index b7cd914c22..4e30331380 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1386,6 +1386,7 @@ func (t *Tm) M() { // ERROR "t does not escape$"
+ func foo141() {
+ 	var f func()
+ 
++	// BAD: new(Tm) should not escape
+ 	t := new(Tm) // ERROR "new\(Tm\) escapes to heap$"
+ 	f = t.M      // ERROR "t.M does not escape$"
+ 	_ = f
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 42312fe41d..26b0a1d8c5 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1386,6 +1386,7 @@ func (t *Tm) M() { // ERROR "t does not escape$"
+ func foo141() {
+ 	var f func()
+ 
++	// BAD: new(Tm) should not escape
+ 	t := new(Tm) // ERROR "new\(Tm\) escapes to heap$"
+ 	f = t.M      // ERROR "t.M does not escape$"
+ 	_ = f
+diff --git a/test/fixedbugs/issue21709.go b/test/fixedbugs/issue21709.go
+index 10f5660e1b..abc9e767e5 100644
+--- a/test/fixedbugs/issue21709.go
++++ b/test/fixedbugs/issue21709.go
+@@ -14,6 +14,7 @@ func (s *S) Inc() {} // ERROR "s does not escape"
+ var N int
+ 
+ func F1() {
++	// BAD: s should not escape
+ 	var s S // ERROR "moved to heap: s"
+ 	for i := 0; i < N; i++ {
+ 		fs := []func(){ // ERROR "\[\]func\(\) literal does not escape"
+@@ -26,6 +27,7 @@ func F1() {
+ }
+ 
+ func F2() {
++	// BAD: s should not escape
+ 	var s S // ERROR "moved to heap: s"
+ 	for i := 0; i < N; i++ {
+ 		for _, f := range []func(){ // ERROR "\[\]func\(\) literal does not escape"
+diff --git a/test/fixedbugs/issue27557.go b/test/fixedbugs/issue27557.go
+new file mode 100644
+index 0000000000..11a23f6932
+--- /dev/null
++++ b/test/fixedbugs/issue27557.go
+@@ -0,0 +1,42 @@
++// errorcheck -0 -l -m
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var sink interface{}
++
++func _() {
++	// BAD: t should not escape
++	var t T         // ERROR "moved to heap"
++	f := t.noescape // ERROR "t.noescape does not escape"
++	f()
++}
++
++func _() {
++	var t T       // ERROR "moved to heap"
++	f := t.escape // ERROR "t.escape does not escape"
++	f()
++}
++
++func _() {
++	var t T        // ERROR "moved to heap"
++	f := t.returns // ERROR "t.returns does not escape"
++	sink = f()
++}
++
++type T struct{}
++
++func (t *T) noescape()   {}           // ERROR "t does not escape"
++func (t *T) escape()     { sink = t } // ERROR "leaking param: t$"
++func (t *T) returns() *T { return t } // ERROR "leaking param: t to result ~r0 level=0"
++
++func (t *T) recursive() { // ERROR "leaking param: t$"
++	sink = t
++
++	var t2 T          // ERROR "moved to heap"
++	f := t2.recursive // ERROR "t2.recursive does not escape"
++	f()
++}

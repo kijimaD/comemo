@@ -14,7 +14,7 @@ Date:   Thu Dec 1 12:35:37 2011 -0500
     R=rsc, cw, rogpeppe
     CC=golang-dev
     https://golang.org/cl/5448065
-
+---
  src/cmd/cgo/main.go                                |  2 +-
  src/cmd/gofix/typecheck.go                         |  2 +-
  src/pkg/archive/tar/reader_test.go                 |  2 +-
@@ -65,3 +65,1260 @@ Date:   Thu Dec 1 12:35:37 2011 -0500
  src/pkg/websocket/hybi.go                          |  2 +-
  test/fixedbugs/bug257.go                           |  5 +-
  49 files changed, 202 insertions(+), 200 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 338fef391d..2749ca74f2 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -189,7 +189,7 @@ func main() {
+ 		io.Copy(h, f)
+ 		f.Close()
+ 	}
+-	cPrefix = fmt.Sprintf("_%x", h.Sum()[0:6])
++	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
+ 
+ 	fs := make([]*File, len(goFiles))
+ 	for i, input := range goFiles {
+diff --git a/src/cmd/gofix/typecheck.go b/src/cmd/gofix/typecheck.go
+index a6c7eac634..1614a90d33 100644
+--- a/src/cmd/gofix/typecheck.go
++++ b/src/cmd/gofix/typecheck.go
+@@ -97,7 +97,7 @@ func (cfg *TypeConfig) typeof(name string) string {
+ // looked for in the Embed list.
+ type Type struct {
+ 	Field  map[string]string // map field name to type
+-	Method map[string]string // map method name to comma-separated return types
++	Method map[string]string // map method name to comma-separated return types (should start with "func ")
+ 	Embed  []string          // list of types this type embeds (for extra methods)
+ 	Def    string            // definition of named type
+ }
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 794cedb2d7..5ca4212ae7 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -222,7 +222,7 @@ func TestIncrementalRead(t *testing.T) {
+ 			h.Write(rdbuf[0:nr])
+ 		}
+ 		// verify checksum
+-		have := fmt.Sprintf("%x", h.Sum())
++		have := fmt.Sprintf("%x", h.Sum(nil))
+ 		want := cksums[nread]
+ 		if want != have {
+ 			t.Errorf("Bad checksum on file %s:\nhave %+v\nwant %+v", hdr.Name, have, want)
+diff --git a/src/pkg/crypto/ecdsa/ecdsa_test.go b/src/pkg/crypto/ecdsa/ecdsa_test.go
+index 22360b5708..45433e1020 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa_test.go
++++ b/src/pkg/crypto/ecdsa/ecdsa_test.go
+@@ -214,7 +214,7 @@ func TestVectors(t *testing.T) {
+ 		msg, _ := hex.DecodeString(test.msg)
+ 		sha.Reset()
+ 		sha.Write(msg)
+-		hashed := sha.Sum()
++		hashed := sha.Sum(nil)
+ 		r := fromHex(test.r)
+ 		s := fromHex(test.s)
+ 		if Verify(&pub, hashed, r, s) != test.ok {
+diff --git a/src/pkg/crypto/hmac/hmac.go b/src/pkg/crypto/hmac/hmac.go
+index 6a17bbd44f..deaceafb26 100644
+--- a/src/pkg/crypto/hmac/hmac.go
++++ b/src/pkg/crypto/hmac/hmac.go
+@@ -48,15 +48,15 @@ func (h *hmac) tmpPad(xor byte) {
+ 	}
+ }
+ 
+-func (h *hmac) Sum() []byte {
+-	sum := h.inner.Sum()
++func (h *hmac) Sum(in []byte) []byte {
++	sum := h.inner.Sum(nil)
+ 	h.tmpPad(0x5c)
+ 	for i, b := range sum {
+ 		h.tmp[padSize+i] = b
+ 	}
+ 	h.outer.Reset()
+ 	h.outer.Write(h.tmp)
+-	return h.outer.Sum()
++	return h.outer.Sum(in)
+ }
+ 
+ func (h *hmac) Write(p []byte) (n int, err error) {
+@@ -81,7 +81,7 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
+ 	if len(key) > padSize {
+ 		// If key is too big, hash it.
+ 		hm.outer.Write(key)
+-		key = hm.outer.Sum()
++		key = hm.outer.Sum(nil)
+ 	}
+ 	hm.key = make([]byte, len(key))
+ 	copy(hm.key, key)
+diff --git a/src/pkg/crypto/hmac/hmac_test.go b/src/pkg/crypto/hmac/hmac_test.go
+index 03431c92f7..eac254b9d1 100644
+--- a/src/pkg/crypto/hmac/hmac_test.go
++++ b/src/pkg/crypto/hmac/hmac_test.go
+@@ -192,7 +192,7 @@ func TestHMAC(t *testing.T) {
+ 
+ 			// Repetitive Sum() calls should return the same value
+ 			for k := 0; k < 2; k++ {
+-				sum := fmt.Sprintf("%x", h.Sum())
++				sum := fmt.Sprintf("%x", h.Sum(nil))
+ 				if sum != tt.out {
+ 					t.Errorf("test %d.%d.%d: have %s want %s\n", i, j, k, sum, tt.out)
+ 				}
+diff --git a/src/pkg/crypto/md4/md4.go b/src/pkg/crypto/md4/md4.go
+index f21cc51a21..e51e8bee50 100644
+--- a/src/pkg/crypto/md4/md4.go
++++ b/src/pkg/crypto/md4/md4.go
+@@ -77,7 +77,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum() []byte {
++func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0, so that caller can keep writing and summing.
+ 	d := new(digest)
+ 	*d = *d0
+@@ -103,14 +103,11 @@ func (d0 *digest) Sum() []byte {
+ 		panic("d.nx != 0")
+ 	}
+ 
+-	p := make([]byte, 16)
+-	j := 0
+ 	for _, s := range d.s {
+-		p[j+0] = byte(s >> 0)
+-		p[j+1] = byte(s >> 8)
+-		p[j+2] = byte(s >> 16)
+-		p[j+3] = byte(s >> 24)
+-		j += 4
++		in = append(in, byte(s>>0))
++		in = append(in, byte(s>>8))
++		in = append(in, byte(s>>16))
++		in = append(in, byte(s>>24))
+ 	}
+-	return p
++	return in
+ }
+diff --git a/src/pkg/crypto/md4/md4_test.go b/src/pkg/crypto/md4/md4_test.go
+index 721bd4cbcc..b56edd7875 100644
+--- a/src/pkg/crypto/md4/md4_test.go
++++ b/src/pkg/crypto/md4/md4_test.go
+@@ -58,10 +58,10 @@ func TestGolden(t *testing.T) {
+ 				io.WriteString(c, g.in)
+ 			} else {
+ 				io.WriteString(c, g.in[0:len(g.in)/2])
+-				c.Sum()
++				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+-			s := fmt.Sprintf("%x", c.Sum())
++			s := fmt.Sprintf("%x", c.Sum(nil))
+ 			if s != g.out {
+ 				t.Fatalf("md4[%d](%s) = %s want %s", j, g.in, s, g.out)
+ 			}
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index 20f3a1b6f7..182cfb8537 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -77,7 +77,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum() []byte {
++func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+ 	d := new(digest)
+ 	*d = *d0
+@@ -103,14 +103,11 @@ func (d0 *digest) Sum() []byte {
+ 		panic("d.nx != 0")
+ 	}
+ 
+-	p := make([]byte, 16)
+-	j := 0
+ 	for _, s := range d.s {
+-		p[j+0] = byte(s >> 0)
+-		p[j+1] = byte(s >> 8)
+-		p[j+2] = byte(s >> 16)
+-		p[j+3] = byte(s >> 24)
+-		j += 4
++		in = append(in, byte(s>>0))
++		in = append(in, byte(s>>8))
++		in = append(in, byte(s>>16))
++		in = append(in, byte(s>>24))
+ 	}
+-	return p
++	return in
+ }
+diff --git a/src/pkg/crypto/md5/md5_test.go b/src/pkg/crypto/md5/md5_test.go
+index 857002b701..b15e4668c3 100644
+--- a/src/pkg/crypto/md5/md5_test.go
++++ b/src/pkg/crypto/md5/md5_test.go
+@@ -58,10 +58,10 @@ func TestGolden(t *testing.T) {
+ 				io.WriteString(c, g.in)
+ 			} else {
+ 				io.WriteString(c, g.in[0:len(g.in)/2])
+-				c.Sum()
++				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+-			s := fmt.Sprintf("%x", c.Sum())
++			s := fmt.Sprintf("%x", c.Sum(nil))
+ 			if s != g.out {
+ 				t.Fatalf("md5[%d](%s) = %s want %s", j, g.in, s, g.out)
+ 			}
+diff --git a/src/pkg/crypto/ocsp/ocsp.go b/src/pkg/crypto/ocsp/ocsp.go
+index aff7913b2f..b9dfdf94e3 100644
+--- a/src/pkg/crypto/ocsp/ocsp.go
++++ b/src/pkg/crypto/ocsp/ocsp.go
+@@ -161,7 +161,7 @@ func ParseResponse(bytes []byte) (*Response, error) {
+ 
+ 	pub := ret.Certificate.PublicKey.(*rsa.PublicKey)
+ 	h.Write(basicResp.TBSResponseData.Raw)
+-	digest := h.Sum()
++	digest := h.Sum(nil)
+ 	signature := basicResp.Signature.RightAlign()
+ 
+ 	if rsa.VerifyPKCS1v15(pub, hashType, digest, signature) != nil {
+diff --git a/src/pkg/crypto/openpgp/canonical_text.go b/src/pkg/crypto/openpgp/canonical_text.go
+index fe4557aafc..98cee5e75a 100644
+--- a/src/pkg/crypto/openpgp/canonical_text.go
++++ b/src/pkg/crypto/openpgp/canonical_text.go
+@@ -41,8 +41,8 @@ func (cth *canonicalTextHash) Write(buf []byte) (int, error) {
+ 	return len(buf), nil
+ }
+ 
+-func (cth *canonicalTextHash) Sum() []byte {
+-	return cth.h.Sum()
++func (cth *canonicalTextHash) Sum(in []byte) []byte {
++	return cth.h.Sum(in)
+ }
+ 
+ func (cth *canonicalTextHash) Reset() {
+diff --git a/src/pkg/crypto/openpgp/canonical_text_test.go b/src/pkg/crypto/openpgp/canonical_text_test.go
+index ae54f8c83e..841475f80c 100644
+--- a/src/pkg/crypto/openpgp/canonical_text_test.go
++++ b/src/pkg/crypto/openpgp/canonical_text_test.go
+@@ -17,8 +17,8 @@ func (r recordingHash) Write(b []byte) (n int, err error) {
+ 	return r.buf.Write(b)
+ }
+ 
+-func (r recordingHash) Sum() []byte {
+-	return r.buf.Bytes()
++func (r recordingHash) Sum(in []byte) []byte {
++	return append(in, r.buf.Bytes()...)
+ }
+ 
+ func (r recordingHash) Reset() {
+@@ -33,7 +33,7 @@ func testCanonicalText(t *testing.T, input, expected string) {
+ 	r := recordingHash{bytes.NewBuffer(nil)}
+ 	c := NewCanonicalTextHash(r)
+ 	c.Write([]byte(input))
+-	result := c.Sum()
++	result := c.Sum(nil)
+ 	if expected != string(result) {
+ 		t.Errorf("input: %x got: %x want: %x", input, result, expected)
+ 	}
+diff --git a/src/pkg/crypto/openpgp/packet/private_key.go b/src/pkg/crypto/openpgp/packet/private_key.go
+index 729e88d686..d67e968861 100644
+--- a/src/pkg/crypto/openpgp/packet/private_key.go
++++ b/src/pkg/crypto/openpgp/packet/private_key.go
+@@ -192,7 +192,7 @@ func (pk *PrivateKey) Decrypt(passphrase []byte) error {
+ 		}
+ 		h := sha1.New()
+ 		h.Write(data[:len(data)-sha1.Size])
+-		sum := h.Sum()
++		sum := h.Sum(nil)
+ 		if !bytes.Equal(sum, data[len(data)-sha1.Size:]) {
+ 			return error_.StructuralError("private key checksum failure")
+ 		}
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+index 865313e597..9aa30e0c15 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key.go
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -88,7 +88,7 @@ func (pk *PublicKey) setFingerPrintAndKeyId() {
+ 	fingerPrint := sha1.New()
+ 	pk.SerializeSignaturePrefix(fingerPrint)
+ 	pk.serializeWithoutHeaders(fingerPrint)
+-	copy(pk.Fingerprint[:], fingerPrint.Sum())
++	copy(pk.Fingerprint[:], fingerPrint.Sum(nil))
+ 	pk.KeyId = binary.BigEndian.Uint64(pk.Fingerprint[12:20])
+ }
+ 
+@@ -271,7 +271,7 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err erro
+ 	}
+ 
+ 	signed.Write(sig.HashSuffix)
+-	hashBytes := signed.Sum()
++	hashBytes := signed.Sum(nil)
+ 
+ 	if hashBytes[0] != sig.HashTag[0] || hashBytes[1] != sig.HashTag[1] {
+ 		return error_.SignatureError("hash tag doesn't match")
+diff --git a/src/pkg/crypto/openpgp/packet/signature.go b/src/pkg/crypto/openpgp/packet/signature.go
+index f5bc8e86ad..1cdc1ee0f0 100644
+--- a/src/pkg/crypto/openpgp/packet/signature.go
++++ b/src/pkg/crypto/openpgp/packet/signature.go
+@@ -423,7 +423,7 @@ func (sig *Signature) signPrepareHash(h hash.Hash) (digest []byte, err error) {
+ 	}
+ 
+ 	h.Write(sig.HashSuffix)
+-	digest = h.Sum()
++	digest = h.Sum(nil)
+ 	copy(sig.HashTag[:], digest)
+ 	return
+ }
+diff --git a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+index 8225db6d2f..dff776e3eb 100644
+--- a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
++++ b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+@@ -201,7 +201,7 @@ func (ser *seMDCReader) Close() error {
+ 	}
+ 	ser.h.Write(ser.trailer[:2])
+ 
+-	final := ser.h.Sum()
++	final := ser.h.Sum(nil)
+ 	if subtle.ConstantTimeCompare(final, ser.trailer[2:]) != 1 {
+ 		return error_.SignatureError("hash mismatch")
+ 	}
+@@ -227,7 +227,7 @@ func (w *seMDCWriter) Close() (err error) {
+ 	buf[0] = mdcPacketTagByte
+ 	buf[1] = sha1.Size
+ 	w.h.Write(buf[:2])
+-	digest := w.h.Sum()
++	digest := w.h.Sum(nil)
+ 	copy(buf[2:], digest)
+ 
+ 	_, err = w.w.Write(buf[:])
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k.go b/src/pkg/crypto/openpgp/s2k/s2k.go
+index 2a753db16b..83673e1733 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k.go
+@@ -34,7 +34,7 @@ func Salted(out []byte, h hash.Hash, in []byte, salt []byte) {
+ 		}
+ 		h.Write(salt)
+ 		h.Write(in)
+-		n := copy(out[done:], h.Sum())
++		n := copy(out[done:], h.Sum(nil))
+ 		done += n
+ 	}
+ }
+@@ -68,7 +68,7 @@ func Iterated(out []byte, h hash.Hash, in []byte, salt []byte, count int) {
+ 				written += len(combined)
+ 			}
+ 		}
+-		n := copy(out[done:], h.Sum())
++		n := copy(out[done:], h.Sum(nil))
+ 		done += n
+ 	}
+ }
+diff --git a/src/pkg/crypto/ripemd160/ripemd160.go b/src/pkg/crypto/ripemd160/ripemd160.go
+index 6ccfe875f5..c128ee445a 100644
+--- a/src/pkg/crypto/ripemd160/ripemd160.go
++++ b/src/pkg/crypto/ripemd160/ripemd160.go
+@@ -81,7 +81,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum() []byte {
++func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+ 	d := new(digest)
+ 	*d = *d0
+@@ -107,11 +107,11 @@ func (d0 *digest) Sum() []byte {
+ 		panic("d.nx != 0")
+ 	}
+ 
+-	p := make([]byte, 20)
+-	j := 0
+ 	for _, s := range d.s {
+-		p[j], p[j+1], p[j+2], p[j+3] = byte(s), byte(s>>8), byte(s>>16), byte(s>>24)
+-		j += 4
++		in = append(in, byte(s))
++		in = append(in, byte(s>>8))
++		in = append(in, byte(s>>16))
++		in = append(in, byte(s>>24))
+ 	}
+-	return p
++	return in
+ }
+diff --git a/src/pkg/crypto/ripemd160/ripemd160_test.go b/src/pkg/crypto/ripemd160/ripemd160_test.go
+index f4135f5cf6..5df1b2593d 100644
+--- a/src/pkg/crypto/ripemd160/ripemd160_test.go
++++ b/src/pkg/crypto/ripemd160/ripemd160_test.go
+@@ -38,10 +38,10 @@ func TestVectors(t *testing.T) {
+ 				io.WriteString(md, tv.in)
+ 			} else {
+ 				io.WriteString(md, tv.in[0:len(tv.in)/2])
+-				md.Sum()
++				md.Sum(nil)
+ 				io.WriteString(md, tv.in[len(tv.in)/2:])
+ 			}
+-			s := fmt.Sprintf("%x", md.Sum())
++			s := fmt.Sprintf("%x", md.Sum(nil))
+ 			if s != tv.out {
+ 				t.Fatalf("RIPEMD-160[%d](%s) = %s, expected %s", j, tv.in, s, tv.out)
+ 			}
+@@ -56,7 +56,7 @@ func TestMillionA(t *testing.T) {
+ 		io.WriteString(md, "aaaaaaaaaa")
+ 	}
+ 	out := "52783243c1697bdbe16d37f97f68f08325dc1528"
+-	s := fmt.Sprintf("%x", md.Sum())
++	s := fmt.Sprintf("%x", md.Sum(nil))
+ 	if s != out {
+ 		t.Fatalf("RIPEMD-160 (1 million 'a') = %s, expected %s", s, out)
+ 	}
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index 66188ac10e..58d5fda197 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -168,7 +168,7 @@ func TestSignPKCS1v15(t *testing.T) {
+ 	for i, test := range signPKCS1v15Tests {
+ 		h := sha1.New()
+ 		h.Write([]byte(test.in))
+-		digest := h.Sum()
++		digest := h.Sum(nil)
+ 
+ 		s, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.SHA1, digest)
+ 		if err != nil {
+@@ -186,7 +186,7 @@ func TestVerifyPKCS1v15(t *testing.T) {
+ 	for i, test := range signPKCS1v15Tests {
+ 		h := sha1.New()
+ 		h.Write([]byte(test.in))
+-		digest := h.Sum()
++		digest := h.Sum(nil)
+ 
+ 		sig, _ := hex.DecodeString(test.out)
+ 
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index 27ccf61c4f..f74525c103 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -194,7 +194,7 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
+ 	for done < len(out) {
+ 		hash.Write(seed)
+ 		hash.Write(counter[0:4])
+-		digest := hash.Sum()
++		digest := hash.Sum(nil)
+ 		hash.Reset()
+ 
+ 		for i := 0; i < len(digest) && done < len(out); i++ {
+@@ -231,7 +231,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 	}
+ 
+ 	hash.Write(label)
+-	lHash := hash.Sum()
++	lHash := hash.Sum(nil)
+ 	hash.Reset()
+ 
+ 	em := make([]byte, k)
+@@ -428,7 +428,7 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext
+ 	}
+ 
+ 	hash.Write(label)
+-	lHash := hash.Sum()
++	lHash := hash.Sum(nil)
+ 	hash.Reset()
+ 
+ 	// Converting the plaintext number to bytes will strip any
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index 4cdf5b2e98..f41cdb5b02 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -79,7 +79,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum() []byte {
++func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+ 	d := new(digest)
+ 	*d = *d0
+@@ -105,14 +105,11 @@ func (d0 *digest) Sum() []byte {
+ 		panic("d.nx != 0")
+ 	}
+ 
+-	p := make([]byte, 20)
+-	j := 0
+ 	for _, s := range d.h {
+-		p[j+0] = byte(s >> 24)
+-		p[j+1] = byte(s >> 16)
+-		p[j+2] = byte(s >> 8)
+-		p[j+3] = byte(s >> 0)
+-		j += 4
++		in = append(in, byte(s>>24))
++		in = append(in, byte(s>>16))
++		in = append(in, byte(s>>8))
++		in = append(in, byte(s))
+ 	}
+-	return p
++	return in
+ }
+diff --git a/src/pkg/crypto/sha1/sha1_test.go b/src/pkg/crypto/sha1/sha1_test.go
+index 2712fe35ea..c23df6c41e 100644
+--- a/src/pkg/crypto/sha1/sha1_test.go
++++ b/src/pkg/crypto/sha1/sha1_test.go
+@@ -60,10 +60,10 @@ func TestGolden(t *testing.T) {
+ 				io.WriteString(c, g.in)
+ 			} else {
+ 				io.WriteString(c, g.in[0:len(g.in)/2])
+-				c.Sum()
++				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+-			s := fmt.Sprintf("%x", c.Sum())
++			s := fmt.Sprintf("%x", c.Sum(nil))
+ 			if s != g.out {
+ 				t.Fatalf("sha1[%d](%s) = %s want %s", j, g.in, s, g.out)
+ 			}
+diff --git a/src/pkg/crypto/sha256/sha256.go b/src/pkg/crypto/sha256/sha256.go
+index 14b8cfc7ec..34861f6cf4 100644
+--- a/src/pkg/crypto/sha256/sha256.go
++++ b/src/pkg/crypto/sha256/sha256.go
+@@ -123,7 +123,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum() []byte {
++func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+ 	d := new(digest)
+ 	*d = *d0
+@@ -149,17 +149,15 @@ func (d0 *digest) Sum() []byte {
+ 		panic("d.nx != 0")
+ 	}
+ 
+-	p := make([]byte, 32)
+-	j := 0
+-	for _, s := range d.h {
+-		p[j+0] = byte(s >> 24)
+-		p[j+1] = byte(s >> 16)
+-		p[j+2] = byte(s >> 8)
+-		p[j+3] = byte(s >> 0)
+-		j += 4
+-	}
++	h := d.h[:]
+ 	if d.is224 {
+-		return p[0:28]
++		h = d.h[:7]
++	}
++	for _, s := range h {
++		in = append(in, byte(s>>24))
++		in = append(in, byte(s>>16))
++		in = append(in, byte(s>>8))
++		in = append(in, byte(s))
+ 	}
+-	return p
++	return in
+ }
+diff --git a/src/pkg/crypto/sha256/sha256_test.go b/src/pkg/crypto/sha256/sha256_test.go
+index 42a3fa7a01..a6efb37545 100644
+--- a/src/pkg/crypto/sha256/sha256_test.go
++++ b/src/pkg/crypto/sha256/sha256_test.go
+@@ -94,10 +94,10 @@ func TestGolden(t *testing.T) {
+ 				io.WriteString(c, g.in)
+ 			} else {
+ 				io.WriteString(c, g.in[0:len(g.in)/2])
+-				c.Sum()
++				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+-			s := fmt.Sprintf("%x", c.Sum())
++			s := fmt.Sprintf("%x", c.Sum(nil))
+ 			if s != g.out {
+ 				t.Fatalf("sha256[%d](%s) = %s want %s", j, g.in, s, g.out)
+ 			}
+@@ -112,10 +112,10 @@ func TestGolden(t *testing.T) {
+ 				io.WriteString(c, g.in)
+ 			} else {
+ 				io.WriteString(c, g.in[0:len(g.in)/2])
+-				c.Sum()
++				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+-			s := fmt.Sprintf("%x", c.Sum())
++			s := fmt.Sprintf("%x", c.Sum(nil))
+ 			if s != g.out {
+ 				t.Fatalf("sha224[%d](%s) = %s want %s", j, g.in, s, g.out)
+ 			}
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+index 1bd27982bb..3cf65cbe7c 100644
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -123,7 +123,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 	return
+ }
+ 
+-func (d0 *digest) Sum() []byte {
++func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+ 	d := new(digest)
+ 	*d = *d0
+@@ -149,21 +149,19 @@ func (d0 *digest) Sum() []byte {
+ 		panic("d.nx != 0")
+ 	}
+ 
+-	p := make([]byte, 64)
+-	j := 0
+-	for _, s := range d.h {
+-		p[j+0] = byte(s >> 56)
+-		p[j+1] = byte(s >> 48)
+-		p[j+2] = byte(s >> 40)
+-		p[j+3] = byte(s >> 32)
+-		p[j+4] = byte(s >> 24)
+-		p[j+5] = byte(s >> 16)
+-		p[j+6] = byte(s >> 8)
+-		p[j+7] = byte(s >> 0)
+-		j += 8
+-	}
++	h := d.h[:]
+ 	if d.is384 {
+-		return p[0:48]
++		h = d.h[:6]
++	}
++	for _, s := range h {
++		in = append(in, byte(s>>56))
++		in = append(in, byte(s>>48))
++		in = append(in, byte(s>>40))
++		in = append(in, byte(s>>32))
++		in = append(in, byte(s>>24))
++		in = append(in, byte(s>>16))
++		in = append(in, byte(s>>8))
++		in = append(in, byte(s))
+ 	}
+-	return p
++	return in
+ }
+diff --git a/src/pkg/crypto/sha512/sha512_test.go b/src/pkg/crypto/sha512/sha512_test.go
+index dd116dc17b..a70f7c54e3 100644
+--- a/src/pkg/crypto/sha512/sha512_test.go
++++ b/src/pkg/crypto/sha512/sha512_test.go
+@@ -94,10 +94,10 @@ func TestGolden(t *testing.T) {
+ 				io.WriteString(c, g.in)
+ 			} else {
+ 				io.WriteString(c, g.in[0:len(g.in)/2])
+-				c.Sum()
++				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+-			s := fmt.Sprintf("%x", c.Sum())
++			s := fmt.Sprintf("%x", c.Sum(nil))
+ 			if s != g.out {
+ 				t.Fatalf("sha512[%d](%s) = %s want %s", j, g.in, s, g.out)
+ 			}
+@@ -112,10 +112,10 @@ func TestGolden(t *testing.T) {
+ 				io.WriteString(c, g.in)
+ 			} else {
+ 				io.WriteString(c, g.in[0:len(g.in)/2])
+-				c.Sum()
++				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+-			s := fmt.Sprintf("%x", c.Sum())
++			s := fmt.Sprintf("%x", c.Sum(nil))
+ 			if s != g.out {
+ 				t.Fatalf("sha384[%d](%s) = %s want %s", j, g.in, s, g.out)
+ 			}
+diff --git a/src/pkg/crypto/tls/cipher_suites.go b/src/pkg/crypto/tls/cipher_suites.go
+index ff0ff2b09a..c0e8656f79 100644
+--- a/src/pkg/crypto/tls/cipher_suites.go
++++ b/src/pkg/crypto/tls/cipher_suites.go
+@@ -127,13 +127,13 @@ func (s ssl30MAC) MAC(seq, record []byte) []byte {
+ 	s.h.Write(record[:1])
+ 	s.h.Write(record[3:5])
+ 	s.h.Write(record[recordHeaderLen:])
+-	digest := s.h.Sum()
++	digest := s.h.Sum(nil)
+ 
+ 	s.h.Reset()
+ 	s.h.Write(s.key)
+ 	s.h.Write(ssl30Pad2[:padLength])
+ 	s.h.Write(digest)
+-	return s.h.Sum()
++	return s.h.Sum(nil)
+ }
+ 
+ // tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
+@@ -149,7 +149,7 @@ func (s tls10MAC) MAC(seq, record []byte) []byte {
+ 	s.h.Reset()
+ 	s.h.Write(seq)
+ 	s.h.Write(record)
+-	return s.h.Sum()
++	return s.h.Sum(nil)
+ }
+ 
+ func rsaKA() keyAgreement {
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 5559c7a22d..b4337f2aac 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -232,8 +232,8 @@ func (c *Conn) clientHandshake() error {
+ 	if cert != nil {
+ 		certVerify := new(certificateVerifyMsg)
+ 		var digest [36]byte
+-		copy(digest[0:16], finishedHash.serverMD5.Sum())
+-		copy(digest[16:36], finishedHash.serverSHA1.Sum())
++		copy(digest[0:16], finishedHash.serverMD5.Sum(nil))
++		copy(digest[16:36], finishedHash.serverSHA1.Sum(nil))
+ 		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, crypto.MD5SHA1, digest[0:])
+ 		if err != nil {
+ 			return c.sendAlert(alertInternalError)
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 11ea500fc7..bbb23c0c9f 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -235,8 +235,8 @@ FindCipherSuite:
+ 		}
+ 
+ 		digest := make([]byte, 36)
+-		copy(digest[0:16], finishedHash.serverMD5.Sum())
+-		copy(digest[16:36], finishedHash.serverSHA1.Sum())
++		copy(digest[0:16], finishedHash.serverMD5.Sum(nil))
++		copy(digest[16:36], finishedHash.serverSHA1.Sum(nil))
+ 		err = rsa.VerifyPKCS1v15(pub, crypto.MD5SHA1, digest, certVerify.signature)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index 08fb852d66..b531717d84 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -90,13 +90,13 @@ func md5SHA1Hash(slices ...[]byte) []byte {
+ 	for _, slice := range slices {
+ 		hmd5.Write(slice)
+ 	}
+-	copy(md5sha1, hmd5.Sum())
++	copy(md5sha1, hmd5.Sum(nil))
+ 
+ 	hsha1 := sha1.New()
+ 	for _, slice := range slices {
+ 		hsha1.Write(slice)
+ 	}
+-	copy(md5sha1[md5.Size:], hsha1.Sum())
++	copy(md5sha1[md5.Size:], hsha1.Sum(nil))
+ 	return md5sha1
+ }
+ 
+diff --git a/src/pkg/crypto/tls/prf.go b/src/pkg/crypto/tls/prf.go
+index d758f21aa8..637ef03e2d 100644
+--- a/src/pkg/crypto/tls/prf.go
++++ b/src/pkg/crypto/tls/prf.go
+@@ -22,14 +22,14 @@ func splitPreMasterSecret(secret []byte) (s1, s2 []byte) {
+ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
+ 	h := hmac.New(hash, secret)
+ 	h.Write(seed)
+-	a := h.Sum()
++	a := h.Sum(nil)
+ 
+ 	j := 0
+ 	for j < len(result) {
+ 		h.Reset()
+ 		h.Write(a)
+ 		h.Write(seed)
+-		b := h.Sum()
++		b := h.Sum(nil)
+ 		todo := len(b)
+ 		if j+todo > len(result) {
+ 			todo = len(result) - j
+@@ -39,7 +39,7 @@ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
+ 
+ 		h.Reset()
+ 		h.Write(a)
+-		a = h.Sum()
++		a = h.Sum(nil)
+ 	}
+ }
+ 
+@@ -84,13 +84,13 @@ func pRF30(result, secret, label, seed []byte) {
+ 		hashSHA1.Write(b[:i+1])
+ 		hashSHA1.Write(secret)
+ 		hashSHA1.Write(seed)
+-		digest := hashSHA1.Sum()
++		digest := hashSHA1.Sum(nil)
+ 
+ 		hashMD5.Reset()
+ 		hashMD5.Write(secret)
+ 		hashMD5.Write(digest)
+ 
+-		done += copy(result[done:], hashMD5.Sum())
++		done += copy(result[done:], hashMD5.Sum(nil))
+ 		i++
+ 	}
+ }
+@@ -182,24 +182,24 @@ func finishedSum30(md5, sha1 hash.Hash, masterSecret []byte, magic [4]byte) []by
+ 	md5.Write(magic[:])
+ 	md5.Write(masterSecret)
+ 	md5.Write(ssl30Pad1[:])
+-	md5Digest := md5.Sum()
++	md5Digest := md5.Sum(nil)
+ 
+ 	md5.Reset()
+ 	md5.Write(masterSecret)
+ 	md5.Write(ssl30Pad2[:])
+ 	md5.Write(md5Digest)
+-	md5Digest = md5.Sum()
++	md5Digest = md5.Sum(nil)
+ 
+ 	sha1.Write(magic[:])
+ 	sha1.Write(masterSecret)
+ 	sha1.Write(ssl30Pad1[:40])
+-	sha1Digest := sha1.Sum()
++	sha1Digest := sha1.Sum(nil)
+ 
+ 	sha1.Reset()
+ 	sha1.Write(masterSecret)
+ 	sha1.Write(ssl30Pad2[:40])
+ 	sha1.Write(sha1Digest)
+-	sha1Digest = sha1.Sum()
++	sha1Digest = sha1.Sum(nil)
+ 
+ 	ret := make([]byte, len(md5Digest)+len(sha1Digest))
+ 	copy(ret, md5Digest)
+@@ -217,8 +217,8 @@ func (h finishedHash) clientSum(masterSecret []byte) []byte {
+ 		return finishedSum30(h.clientMD5, h.clientSHA1, masterSecret, ssl3ClientFinishedMagic)
+ 	}
+ 
+-	md5 := h.clientMD5.Sum()
+-	sha1 := h.clientSHA1.Sum()
++	md5 := h.clientMD5.Sum(nil)
++	sha1 := h.clientSHA1.Sum(nil)
+ 	return finishedSum10(md5, sha1, clientFinishedLabel, masterSecret)
+ }
+ 
+@@ -229,7 +229,7 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
+ 		return finishedSum30(h.serverMD5, h.serverSHA1, masterSecret, ssl3ServerFinishedMagic)
+ 	}
+ 
+-	md5 := h.serverMD5.Sum()
+-	sha1 := h.serverSHA1.Sum()
++	md5 := h.serverMD5.Sum(nil)
++	sha1 := h.serverSHA1.Sum(nil)
+ 	return finishedSum10(md5, sha1, serverFinishedLabel, masterSecret)
+ }
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index d64723a156..7e6b5c96f5 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -398,7 +398,7 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature
+ 	}
+ 
+ 	h.Write(signed)
+-	digest := h.Sum()
++	digest := h.Sum(nil)
+ 
+ 	switch pub := c.PublicKey.(type) {
+ 	case *rsa.PublicKey:
+@@ -957,7 +957,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ 
+ 	h := sha1.New()
+ 	h.Write(tbsCertContents)
+-	digest := h.Sum()
++	digest := h.Sum(nil)
+ 
+ 	signature, err := rsa.SignPKCS1v15(rand, priv, crypto.SHA1, digest)
+ 	if err != nil {
+@@ -1024,7 +1024,7 @@ func (c *Certificate) CreateCRL(rand io.Reader, priv *rsa.PrivateKey, revokedCer
+ 
+ 	h := sha1.New()
+ 	h.Write(tbsCertListContents)
+-	digest := h.Sum()
++	digest := h.Sum(nil)
+ 
+ 	signature, err := rsa.SignPKCS1v15(rand, priv, crypto.SHA1, digest)
+ 	if err != nil {
+diff --git a/src/pkg/exp/ssh/client.go b/src/pkg/exp/ssh/client.go
+index 7f0515806f..429dee975b 100644
+--- a/src/pkg/exp/ssh/client.go
++++ b/src/pkg/exp/ssh/client.go
+@@ -172,7 +172,7 @@ func (c *ClientConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
+ 	marshalInt(K, kInt)
+ 	h.Write(K)
+ 
+-	H := h.Sum()
++	H := h.Sum(nil)
+ 
+ 	return H, K, nil
+ }
+diff --git a/src/pkg/exp/ssh/client_auth_test.go b/src/pkg/exp/ssh/client_auth_test.go
+index 6467f57835..4ef9213a9c 100644
+--- a/src/pkg/exp/ssh/client_auth_test.go
++++ b/src/pkg/exp/ssh/client_auth_test.go
+@@ -70,7 +70,7 @@ func (k *keychain) Sign(i int, rand io.Reader, data []byte) (sig []byte, err err
+ 	hashFunc := crypto.SHA1
+ 	h := hashFunc.New()
+ 	h.Write(data)
+-	digest := h.Sum()
++	digest := h.Sum(nil)
+ 	return rsa.SignPKCS1v15(rand, k.keys[i], hashFunc, digest)
+ }
+ 
+diff --git a/src/pkg/exp/ssh/server.go b/src/pkg/exp/ssh/server.go
+index 428a747e1e..1eee9a4a97 100644
+--- a/src/pkg/exp/ssh/server.go
++++ b/src/pkg/exp/ssh/server.go
+@@ -207,11 +207,11 @@ func (s *ServerConn) kexDH(group *dhGroup, hashFunc crypto.Hash, magics *handsha
+ 	marshalInt(K, kInt)
+ 	h.Write(K)
+ 
+-	H = h.Sum()
++	H = h.Sum(nil)
+ 
+ 	h.Reset()
+ 	h.Write(H)
+-	hh := h.Sum()
++	hh := h.Sum(nil)
+ 
+ 	var sig []byte
+ 	switch hostKeyAlgo {
+@@ -478,7 +478,7 @@ userAuthLoop:
+ 					hashFunc := crypto.SHA1
+ 					h := hashFunc.New()
+ 					h.Write(signedData)
+-					digest := h.Sum()
++					digest := h.Sum(nil)
+ 					rsaKey, ok := parseRSA(pubKey)
+ 					if !ok {
+ 						return ParseError{msgUserAuthRequest}
+diff --git a/src/pkg/exp/ssh/transport.go b/src/pkg/exp/ssh/transport.go
+index b8cb2c319d..bcd073e7ce 100644
+--- a/src/pkg/exp/ssh/transport.go
++++ b/src/pkg/exp/ssh/transport.go
+@@ -123,7 +123,7 @@ func (r *reader) readOnePacket() ([]byte, error) {
+ 
+ 	if r.mac != nil {
+ 		r.mac.Write(packet[:length-1])
+-		if subtle.ConstantTimeCompare(r.mac.Sum(), mac) != 1 {
++		if subtle.ConstantTimeCompare(r.mac.Sum(nil), mac) != 1 {
+ 			return nil, errors.New("ssh: MAC failure")
+ 		}
+ 	}
+@@ -201,7 +201,7 @@ func (w *writer) writePacket(packet []byte) error {
+ 	}
+ 
+ 	if w.mac != nil {
+-		if _, err := w.Write(w.mac.Sum()); err != nil {
++		if _, err := w.Write(w.mac.Sum(nil)); err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -297,7 +297,7 @@ func generateKeyMaterial(out, tag []byte, K, H, sessionId []byte, h hash.Hash) {
+ 			h.Write(digestsSoFar)
+ 		}
+ 
+-		digest := h.Sum()
++		digest := h.Sum(nil)
+ 		n := copy(out, digest)
+ 		out = out[n:]
+ 		if len(out) > 0 {
+@@ -317,9 +317,9 @@ func (t truncatingMAC) Write(data []byte) (int, error) {
+ 	return t.hmac.Write(data)
+ }
+ 
+-func (t truncatingMAC) Sum() []byte {
+-	digest := t.hmac.Sum()
+-	return digest[:t.length]
++func (t truncatingMAC) Sum(in []byte) []byte {
++	out := t.hmac.Sum(in)
++	return out[:len(in)+t.length]
+ }
+ 
+ func (t truncatingMAC) Reset() {
+diff --git a/src/pkg/hash/adler32/adler32.go b/src/pkg/hash/adler32/adler32.go
+index 10bed2f05e..8103a89d43 100644
+--- a/src/pkg/hash/adler32/adler32.go
++++ b/src/pkg/hash/adler32/adler32.go
+@@ -71,14 +71,13 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 
+ func (d *digest) Sum32() uint32 { return finish(d.a, d.b) }
+ 
+-func (d *digest) Sum() []byte {
+-	p := make([]byte, 4)
++func (d *digest) Sum(in []byte) []byte {
+ 	s := d.Sum32()
+-	p[0] = byte(s >> 24)
+-	p[1] = byte(s >> 16)
+-	p[2] = byte(s >> 8)
+-	p[3] = byte(s)
+-	return p
++	in = append(in, byte(s>>24))
++	in = append(in, byte(s>>16))
++	in = append(in, byte(s>>8))
++	in = append(in, byte(s))
++	return in
+ }
+ 
+ // Checksum returns the Adler-32 checksum of data.
+diff --git a/src/pkg/hash/crc32/crc32.go b/src/pkg/hash/crc32/crc32.go
+index 5980ec0dc9..557fab8a52 100644
+--- a/src/pkg/hash/crc32/crc32.go
++++ b/src/pkg/hash/crc32/crc32.go
+@@ -119,14 +119,13 @@ func (d *digest) Write(p []byte) (n int, err error) {
+ 
+ func (d *digest) Sum32() uint32 { return d.crc }
+ 
+-func (d *digest) Sum() []byte {
+-	p := make([]byte, 4)
++func (d *digest) Sum(in []byte) []byte {
+ 	s := d.Sum32()
+-	p[0] = byte(s >> 24)
+-	p[1] = byte(s >> 16)
+-	p[2] = byte(s >> 8)
+-	p[3] = byte(s)
+-	return p
++	in = append(in, byte(s>>24))
++	in = append(in, byte(s>>16))
++	in = append(in, byte(s>>8))
++	in = append(in, byte(s))
++	return in
+ }
+ 
+ // Checksum returns the CRC-32 checksum of data
+diff --git a/src/pkg/hash/crc64/crc64.go b/src/pkg/hash/crc64/crc64.go
+index 42e53c3a5b..e5c1db4b3d 100644
+--- a/src/pkg/hash/crc64/crc64.go
++++ b/src/pkg/hash/crc64/crc64.go
+@@ -75,18 +75,17 @@ func (d *digest) Write(p []byte) (n int, err error) {
+ 
+ func (d *digest) Sum64() uint64 { return d.crc }
+ 
+-func (d *digest) Sum() []byte {
+-	p := make([]byte, 8)
++func (d *digest) Sum(in []byte) []byte {
+ 	s := d.Sum64()
+-	p[0] = byte(s >> 56)
+-	p[1] = byte(s >> 48)
+-	p[2] = byte(s >> 40)
+-	p[3] = byte(s >> 32)
+-	p[4] = byte(s >> 24)
+-	p[5] = byte(s >> 16)
+-	p[6] = byte(s >> 8)
+-	p[7] = byte(s)
+-	return p
++	in = append(in, byte(s>>56))
++	in = append(in, byte(s>>48))
++	in = append(in, byte(s>>40))
++	in = append(in, byte(s>>32))
++	in = append(in, byte(s>>24))
++	in = append(in, byte(s>>16))
++	in = append(in, byte(s>>8))
++	in = append(in, byte(s))
++	return in
+ }
+ 
+ // Checksum returns the CRC-64 checksum of data
+diff --git a/src/pkg/hash/fnv/fnv.go b/src/pkg/hash/fnv/fnv.go
+index ce3ed0d0f4..2c8a25118e 100644
+--- a/src/pkg/hash/fnv/fnv.go
++++ b/src/pkg/hash/fnv/fnv.go
+@@ -8,7 +8,6 @@
+ package fnv
+ 
+ import (
+-	"encoding/binary"
+ 	"hash"
+ )
+ 
+@@ -105,26 +104,46 @@ func (s *sum32a) Size() int { return 4 }
+ func (s *sum64) Size() int  { return 8 }
+ func (s *sum64a) Size() int { return 8 }
+ 
+-func (s *sum32) Sum() []byte {
+-	a := make([]byte, 4)
+-	binary.BigEndian.PutUint32(a, uint32(*s))
+-	return a
++func (s *sum32) Sum(in []byte) []byte {
++	v := uint32(*s)
++	in = append(in, byte(v>>24))
++	in = append(in, byte(v>>16))
++	in = append(in, byte(v>>8))
++	in = append(in, byte(v))
++	return in
+ }
+ 
+-func (s *sum32a) Sum() []byte {
+-	a := make([]byte, 4)
+-	binary.BigEndian.PutUint32(a, uint32(*s))
+-	return a
++func (s *sum32a) Sum(in []byte) []byte {
++	v := uint32(*s)
++	in = append(in, byte(v>>24))
++	in = append(in, byte(v>>16))
++	in = append(in, byte(v>>8))
++	in = append(in, byte(v))
++	return in
+ }
+ 
+-func (s *sum64) Sum() []byte {
+-	a := make([]byte, 8)
+-	binary.BigEndian.PutUint64(a, uint64(*s))
+-	return a
++func (s *sum64) Sum(in []byte) []byte {
++	v := uint64(*s)
++	in = append(in, byte(v>>56))
++	in = append(in, byte(v>>48))
++	in = append(in, byte(v>>40))
++	in = append(in, byte(v>>32))
++	in = append(in, byte(v>>24))
++	in = append(in, byte(v>>16))
++	in = append(in, byte(v>>8))
++	in = append(in, byte(v))
++	return in
+ }
+ 
+-func (s *sum64a) Sum() []byte {
+-	a := make([]byte, 8)
+-	binary.BigEndian.PutUint64(a, uint64(*s))
+-	return a
++func (s *sum64a) Sum(in []byte) []byte {
++	v := uint64(*s)
++	in = append(in, byte(v>>56))
++	in = append(in, byte(v>>48))
++	in = append(in, byte(v>>40))
++	in = append(in, byte(v>>32))
++	in = append(in, byte(v>>24))
++	in = append(in, byte(v>>16))
++	in = append(in, byte(v>>8))
++	in = append(in, byte(v))
++	return in
+ }
+diff --git a/src/pkg/hash/fnv/fnv_test.go b/src/pkg/hash/fnv/fnv_test.go
+index 429230c80b..17454deda9 100644
+--- a/src/pkg/hash/fnv/fnv_test.go
++++ b/src/pkg/hash/fnv/fnv_test.go
+@@ -72,7 +72,7 @@ func testGolden(t *testing.T, hash hash.Hash, gold []golden) {
+ 		if done != len(g.text) {
+ 			t.Fatalf("wrote only %d out of %d bytes", done, len(g.text))
+ 		}
+-		if actual := hash.Sum(); !bytes.Equal(g.sum, actual) {
++		if actual := hash.Sum(nil); !bytes.Equal(g.sum, actual) {
+ 			t.Errorf("hash(%q) = 0x%x want 0x%x", g.text, actual, g.sum)
+ 		}
+ 	}
+@@ -97,26 +97,26 @@ func TestIntegrity64a(t *testing.T) {
+ func testIntegrity(t *testing.T, h hash.Hash) {
+ 	data := []byte{'1', '2', 3, 4, 5}
+ 	h.Write(data)
+-	sum := h.Sum()
++	sum := h.Sum(nil)
+ 
+ 	if size := h.Size(); size != len(sum) {
+ 		t.Fatalf("Size()=%d but len(Sum())=%d", size, len(sum))
+ 	}
+ 
+-	if a := h.Sum(); !bytes.Equal(sum, a) {
++	if a := h.Sum(nil); !bytes.Equal(sum, a) {
+ 		t.Fatalf("first Sum()=0x%x, second Sum()=0x%x", sum, a)
+ 	}
+ 
+ 	h.Reset()
+ 	h.Write(data)
+-	if a := h.Sum(); !bytes.Equal(sum, a) {
++	if a := h.Sum(nil); !bytes.Equal(sum, a) {
+ 		t.Fatalf("Sum()=0x%x, but after Reset() Sum()=0x%x", sum, a)
+ 	}
+ 
+ 	h.Reset()
+ 	h.Write(data[:2])
+ 	h.Write(data[2:])
+-	if a := h.Sum(); !bytes.Equal(sum, a) {
++	if a := h.Sum(nil); !bytes.Equal(sum, a) {
+ 		t.Fatalf("Sum()=0x%x, but with partial writes, Sum()=0x%x", sum, a)
+ 	}
+ 
+@@ -162,6 +162,6 @@ func benchmark(b *testing.B, h hash.Hash) {
+ 	for todo := b.N; todo != 0; todo-- {
+ 		h.Reset()
+ 		h.Write(data)
+-		h.Sum()
++		h.Sum(nil)
+ 	}
+ }
+diff --git a/src/pkg/hash/hash.go b/src/pkg/hash/hash.go
+index 3536c0b6a6..0d7765dc50 100644
+--- a/src/pkg/hash/hash.go
++++ b/src/pkg/hash/hash.go
+@@ -13,9 +13,9 @@ type Hash interface {
+ 	// It never returns an error.
+ 	io.Writer
+ 
+-	// Sum returns the current hash, without changing the
+-	// underlying hash state.
+-	Sum() []byte
++	// Sum appends the current hash in the same manner as append(), without
++	// changing the underlying hash state.
++	Sum(in []byte) []byte
+ 
+ 	// Reset resets the hash to one with zero bytes written.
+ 	Reset()
+diff --git a/src/pkg/io/multi_test.go b/src/pkg/io/multi_test.go
+index 0de5cc312d..eb717f7bc2 100644
+--- a/src/pkg/io/multi_test.go
++++ b/src/pkg/io/multi_test.go
+@@ -77,7 +77,7 @@ func TestMultiWriter(t *testing.T) {
+ 		t.Errorf("unexpected error: %v", err)
+ 	}
+ 
+-	sha1hex := fmt.Sprintf("%x", sha1.Sum())
++	sha1hex := fmt.Sprintf("%x", sha1.Sum(nil))
+ 	if sha1hex != "01cb303fa8c30a64123067c5aa6284ba7ec2d31b" {
+ 		t.Error("incorrect sha1 value")
+ 	}
+diff --git a/src/pkg/patch/git.go b/src/pkg/patch/git.go
+index 454eadecec..5c233fbaeb 100644
+--- a/src/pkg/patch/git.go
++++ b/src/pkg/patch/git.go
+@@ -22,7 +22,7 @@ func gitSHA1(data []byte) []byte {
+ 	h := sha1.New()
+ 	fmt.Fprintf(h, "blob %d\x00", len(data))
+ 	h.Write(data)
+-	return h.Sum()
++	return h.Sum(nil)
+ }
+ 
+ // BUG(rsc): The Git binary delta format is not implemented, only Git binary literals.
+diff --git a/src/pkg/websocket/hixie.go b/src/pkg/websocket/hixie.go
+index 4d5360ff4b..ec7b7ae0a4 100644
+--- a/src/pkg/websocket/hixie.go
++++ b/src/pkg/websocket/hixie.go
+@@ -274,7 +274,7 @@ func getChallengeResponse(number1, number2 uint32, key3 []byte) (expected []byte
+ 	if _, err = h.Write(challenge); err != nil {
+ 		return
+ 	}
+-	expected = h.Sum()
++	expected = h.Sum(nil)
+ 	return
+ }
+ 
+diff --git a/src/pkg/websocket/hybi.go b/src/pkg/websocket/hybi.go
+index b17d9470bb..ff386dc7f2 100644
+--- a/src/pkg/websocket/hybi.go
++++ b/src/pkg/websocket/hybi.go
+@@ -371,7 +371,7 @@ func getNonceAccept(nonce []byte) (expected []byte, err error) {
+ 		return
+ 	}
+ 	expected = make([]byte, 28)
+-	base64.StdEncoding.Encode(expected, h.Sum())
++	base64.StdEncoding.Encode(expected, h.Sum(nil))
+ 	return
+ }
+ 
+diff --git a/test/fixedbugs/bug257.go b/test/fixedbugs/bug257.go
+index 713c42481f..1b32475003 100644
+--- a/test/fixedbugs/bug257.go
++++ b/test/fixedbugs/bug257.go
+@@ -20047,11 +20047,10 @@ var gettysburg = "  Four score and seven years ago our fathers brought forth on\
+ 	"\n" +
+ 	"Abraham Lincoln, November 19, 1863, Gettysburg, Pennsylvania\n"
+ 
+-
+ func main() {
+ 	m := md5.New()
+ 	io.WriteString(m, data)
+-	hash := fmt.Sprintf("%x", m.Sum())
++	hash := fmt.Sprintf("%x", m.Sum(nil))
+ 	if hash != "525f06bc62a65017cd2217d7584e5920" {
+ 		println("BUG a", hash)
+ 		return
+@@ -20059,7 +20058,7 @@ func main() {
+ 
+ 	m = md5.New()
+ 	io.WriteString(m, gettysburg)
+-	hash = fmt.Sprintf("%x", m.Sum())
++	hash = fmt.Sprintf("%x", m.Sum(nil))
+ 	if hash != "d7ec5d9d47a4d166091e8d9ebd7ea0aa" {
+ 		println("BUG gettysburg", hash)
+ 		println(len(gettysburg))

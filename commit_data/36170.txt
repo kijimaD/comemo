@@ -9,7 +9,99 @@ Date:   Tue Apr 10 11:20:20 2018 +0200
     Change-Id: I24f421b87e8cb4770c887a6dfd58eacd0088947d
     Reviewed-on: https://go-review.googlesource.com/106056
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 43 ---------------------------------
  test/codegen/bits.go                    | 29 ++++++++++++++++++++++
  2 files changed, 29 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index a23e958995..1b7c94837f 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -283,49 +283,6 @@ var linuxARMTests = []*asmTest{
+ }
+ 
+ var linuxARM64Tests = []*asmTest{
+-	{
+-		fn: `
+-		func $(x, y uint32) uint32 {
+-			return x &^ y
+-		}
+-		`,
+-		pos: []string{"\tBIC\t"},
+-		neg: []string{"\tAND\t"},
+-	},
+-	{
+-		fn: `
+-		func $(x, y uint32) uint32 {
+-			return x ^ ^y
+-		}
+-		`,
+-		pos: []string{"\tEON\t"},
+-		neg: []string{"\tXOR\t"},
+-	},
+-	{
+-		fn: `
+-		func $(x, y uint32) uint32 {
+-			return x | ^y
+-		}
+-		`,
+-		pos: []string{"\tORN\t"},
+-		neg: []string{"\tORR\t"},
+-	},
+-	{
+-		fn: `
+-		func f34(a uint64) uint64 {
+-			return a & ((1<<63)-1)
+-		}
+-		`,
+-		pos: []string{"\tAND\t"},
+-	},
+-	{
+-		fn: `
+-		func f35(a uint64) uint64 {
+-			return a & (1<<63)
+-		}
+-		`,
+-		pos: []string{"\tAND\t"},
+-	},
+ 	// Load-combining tests.
+ 	{
+ 		fn: `
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 53f03094d7..9de2201cb1 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -261,3 +261,32 @@ func bitcompl32(a, b uint32) (n uint32) {
+ 
+ 	return n
+ }
++
++// Check AND masking on arm64 (Issue #19857)
++
++func and_mask_1(a uint64) uint64 {
++	// arm64:`AND\t`
++	return a & ((1 << 63) - 1)
++}
++
++func and_mask_2(a uint64) uint64 {
++	// arm64:`AND\t`
++	return a & (1 << 63)
++}
++
++// Check generation of arm64 BIC/EON/ORN instructions
++
++func op_bic(x, y uint32) uint32 {
++	// arm64:`BIC\t`,-`AND`
++	return x &^ y
++}
++
++func op_eon(x, y uint32) uint32 {
++	// arm64:`EON\t`,-`XOR`
++	return x ^ ^y
++}
++
++func op_orn(x, y uint32) uint32 {
++	// arm64:`ORN\t`,-`ORR`
++	return x | ^y
++}

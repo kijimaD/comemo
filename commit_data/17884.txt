@@ -7,6 +7,20 @@ Date:   Thu Nov 14 09:20:29 2013 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/26220045
-
+---
  src/pkg/encoding/gob/example_encdec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/example_encdec_test.go b/src/pkg/encoding/gob/example_encdec_test.go
+index 0ae6d9d991..e45ad4ccfb 100644
+--- a/src/pkg/encoding/gob/example_encdec_test.go
++++ b/src/pkg/encoding/gob/example_encdec_test.go
+@@ -37,7 +37,7 @@ func (v *Vector) UnmarshalBinary(data []byte) error {
+ }
+ 
+ // This example transmits a value that implements the custom encoding and decoding methods.
+-func Example_gob_encode_decode() {
++func Example_encodeDecode() {
+ 	var network bytes.Buffer // Stand-in for the network.
+ 
+ 	// Create an encoder and send a value.

@@ -11,7 +11,7 @@ Date:   Wed Feb 1 04:14:37 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5599053
-
+---
  .hgignore           | 2 +-
  src/cmd/5c/Makefile | 2 +-
  src/cmd/5g/Makefile | 2 +-
@@ -23,3 +23,134 @@ Date:   Wed Feb 1 04:14:37 2012 -0800
  src/cmd/gc/Makefile | 2 +-
  src/cmd/gc/go.h     | 2 ++
  10 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 81c3d41560..488bc97fc8 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -3,7 +3,7 @@ syntax:glob
+ .git
+ .gitignore
+ *.[568ao]
+-*.ao
++*.a[568o]
+ *.so
+ *.pyc
+ ._*
+diff --git a/src/cmd/5c/Makefile b/src/cmd/5c/Makefile
+index 60268e1c95..d2cddfa522 100644
+--- a/src/cmd/5c/Makefile
++++ b/src/cmd/5c/Makefile
+@@ -26,7 +26,7 @@ OFILES=\
+ 	../5l/enam.$O\
+ 
+ LIB=\
+-	../cc/cc.a\
++	../cc/cc.a$O\
+ 
+ include ../../Make.ctool
+ 
+diff --git a/src/cmd/5g/Makefile b/src/cmd/5g/Makefile
+index 3c2a65fdf1..647446246b 100644
+--- a/src/cmd/5g/Makefile
++++ b/src/cmd/5g/Makefile
+@@ -28,7 +28,7 @@ OFILES=\
+ 	reg.$O\
+ 
+ LIB=\
+-	../gc/gc.a\
++	../gc/gc.a$O\
+ 
+ include ../../Make.ctool
+ 
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+index e78b2b1aaa..169a080d51 100644
+--- a/src/cmd/6c/Makefile
++++ b/src/cmd/6c/Makefile
+@@ -28,7 +28,7 @@ OFILES=\
+ 	../6l/enam.$O\
+ 
+ LIB=\
+-	../cc/cc.a\
++	../cc/cc.a$O\
+ 
+ include ../../Make.ctool
+ 
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index 870984a8c6..43e375174e 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -27,7 +27,7 @@ OFILES=\
+ 	reg.$O\
+ 
+ LIB=\
+-	../gc/gc.a\
++	../gc/gc.a$O\
+ 
+ include ../../Make.ctool
+ 
+diff --git a/src/cmd/8c/Makefile b/src/cmd/8c/Makefile
+index f078fbdf58..22ffedad8c 100644
+--- a/src/cmd/8c/Makefile
++++ b/src/cmd/8c/Makefile
+@@ -29,7 +29,7 @@ OFILES=\
+ 	../8l/enam.$O\
+ 
+ LIB=\
+-	../cc/cc.a\
++	../cc/cc.a$O\
+ 
+ include ../../Make.ctool
+ 
+diff --git a/src/cmd/8g/Makefile b/src/cmd/8g/Makefile
+index 617cf1bb68..1422d07cc2 100644
+--- a/src/cmd/8g/Makefile
++++ b/src/cmd/8g/Makefile
+@@ -28,7 +28,7 @@ OFILES=\
+ 	reg.$O\
+ 
+ LIB=\
+-	../gc/gc.a\
++	../gc/gc.a$O\
+ 
+ include ../../Make.ctool
+ 
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index 8327d9516f..737af1f42d 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -5,7 +5,7 @@
+ include ../../Make.inc
+ O:=$(HOST_O)
+ 
+-LIB=cc.a
++LIB=cc.a$O
+ 
+ HFILES=\
+ 	cc.h\
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index bb0d01637e..060b086c6e 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -5,7 +5,7 @@
+ include ../../Make.inc
+ O:=$(HOST_O)
+ 
+-LIB=gc.a
++LIB=gc.a$O
+ 
+ HFILES=\
+ 	go.h\
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 9584bb7443..7dc8e57e50 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -4,6 +4,8 @@
+ 
+ #include	<bio.h>
+ 
++#pragma	lib	"../gc/gc.a$O"
++
+ #undef OAPPEND
+ 
+ // avoid <ctype.h>

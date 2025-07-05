@@ -12,10 +12,146 @@ Date:   Thu Apr 19 15:09:34 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/gc.go     |  2 +-
  src/cmd/link/dwarf_test.go         | 30 ++++++++++++++++++++++++++++--
  src/cmd/link/internal/arm/obj.go   |  1 -
  src/cmd/link/internal/arm64/obj.go |  1 -
  src/cmd/link/internal/ld/lib.go    | 35 ++++++++++++++++-------------------
  5 files changed, 45 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 4827cea9ef..04fabd995e 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -89,7 +89,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
+ 		gcargs = append(gcargs, "-buildid", a.buildID)
+ 	}
+ 	platform := cfg.Goos + "/" + cfg.Goarch
+-	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || platform == "darwin/arm" || platform == "darwin/arm64" || cfg.Goos == "plan9" {
++	if p.Internal.OmitDebug || platform == "nacl/amd64p32" || cfg.Goos == "plan9" {
+ 		gcargs = append(gcargs, "-dwarf=false")
+ 	}
+ 	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 2b3771eabc..208664a612 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -19,7 +19,7 @@ import (
+ 	"testing"
+ )
+ 
+-func TestDWARF(t *testing.T) {
++func testDWARF(t *testing.T, env ...string) {
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveGoBuild(t)
+ 
+@@ -48,7 +48,11 @@ func TestDWARF(t *testing.T) {
+ 		t.Run(prog, func(t *testing.T) {
+ 			exe := filepath.Join(tmpDir, prog+".exe")
+ 			dir := "../../runtime/testdata/" + prog
+-			out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, dir).CombinedOutput()
++			cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, dir)
++			if env != nil {
++				cmd.Env = append(os.Environ(), env...)
++			}
++			out, err := cmd.CombinedOutput()
+ 			if err != nil {
+ 				t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)
+ 			}
+@@ -122,3 +126,25 @@ func TestDWARF(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestDWARF(t *testing.T) {
++	testDWARF(t)
++}
++
++func TestDWARFiOS(t *testing.T) {
++	// Normally we run TestDWARF on native platform. But on iOS we don't have
++	// go build, so we do this test with a cross build.
++	// Only run this on darwin/amd64, where we can cross build for iOS.
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
++		t.Skip("skipping on non-darwin/amd64 platform")
++	}
++	if err := exec.Command("xcrun", "--help").Run(); err != nil {
++		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
++	}
++	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
++	testDWARF(t, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
++	testDWARF(t, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
++}
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index da16f92345..788be68522 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -120,7 +120,6 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case objabi.Hdarwin: /* apple MACH */
+-		*ld.FlagW = true // disable DWARF generation
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 6b386ad737..405d22d74f 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -101,7 +101,6 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case objabi.Hdarwin: /* apple MACH */
+-		*ld.FlagW = true // disable DWARF generation
+ 		ld.HEADR = ld.INITIAL_MACHO_HEADR
+ 		if *ld.FlagTextAddr == -1 {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 80a7632f64..a27f29af46 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1333,25 +1333,22 @@ func (ctxt *Link) hostlink() {
+ 	}
+ 
+ 	if !*FlagS && !*FlagW && !debug_s && ctxt.HeadType == objabi.Hdarwin {
+-		// Skip combining dwarf on arm.
+-		if !ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
+-			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
+-			if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
+-				Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+-			}
+-			// Skip combining if `dsymutil` didn't generate a file. See #11994.
+-			if _, err := os.Stat(dsym); os.IsNotExist(err) {
+-				return
+-			}
+-			// For os.Rename to work reliably, must be in same directory as outfile.
+-			combinedOutput := *flagOutfile + "~"
+-			if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode); err != nil {
+-				Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+-			}
+-			os.Remove(*flagOutfile)
+-			if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
+-				Exitf("%s: %v", os.Args[0], err)
+-			}
++		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
++		if out, err := exec.Command("dsymutil", "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
++			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
++		}
++		// Skip combining if `dsymutil` didn't generate a file. See #11994.
++		if _, err := os.Stat(dsym); os.IsNotExist(err) {
++			return
++		}
++		// For os.Rename to work reliably, must be in same directory as outfile.
++		combinedOutput := *flagOutfile + "~"
++		if err := machoCombineDwarf(*flagOutfile, dsym, combinedOutput, ctxt.BuildMode); err != nil {
++			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
++		}
++		os.Remove(*flagOutfile)
++		if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
++			Exitf("%s: %v", os.Args[0], err)
+ 		}
+ 	}
+ }

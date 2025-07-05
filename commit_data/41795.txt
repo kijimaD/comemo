@@ -14,7 +14,7 @@ Date:   Fri Oct 4 10:07:36 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/defs_freebsd_arm64.go   | 257 +++++++++++++++++
  src/runtime/os_freebsd_arm64.go     | 156 +++++++++++
  src/runtime/os_freebsd_noauxv.go    |   2 +-
@@ -26,3 +26,1234 @@ Date:   Fri Oct 4 10:07:36 2019 +0200
  src/runtime/tls_arm64.h             |   5 +
  src/runtime/vdso_freebsd_arm64.go   |  21 ++
  10 files changed, 1151 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/defs_freebsd_arm64.go b/src/runtime/defs_freebsd_arm64.go
+new file mode 100644
+index 0000000000..3eebe5dbb3
+--- /dev/null
++++ b/src/runtime/defs_freebsd_arm64.go
+@@ -0,0 +1,257 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_freebsd.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_NBBY            = 0x8
++	_CTL_MAXNAME     = 0x18
++	_CPU_LEVEL_WHICH = 0x3
++	_CPU_WHICH_PID   = 0x2
++)
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++	_EAGAIN = 0x23
++	_ENOSYS = 0x4e
++
++	_O_NONBLOCK = 0x4
++	_O_CLOEXEC  = 0x100000
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_SHARED  = 0x1
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x5
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_CLOCK_MONOTONIC = 0x4
++	_CLOCK_REALTIME  = 0x0
++
++	_UMTX_OP_WAIT_UINT         = 0xb
++	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
++	_UMTX_OP_WAKE              = 0x3
++	_UMTX_OP_WAKE_PRIVATE      = 0x10
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x2
++	_FPE_INTOVF = 0x1
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0x40
++	_EV_ERROR     = 0x4000
++	_EV_EOF       = 0x8000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type rtprio struct {
++	_type uint16
++	prio  uint16
++}
++
++type thrparam struct {
++	start_func uintptr
++	arg        unsafe.Pointer
++	stack_base uintptr
++	stack_size uintptr
++	tls_base   unsafe.Pointer
++	tls_size   uintptr
++	child_tid  unsafe.Pointer // *int64
++	parent_tid *int64
++	flags      int32
++	pad_cgo_0  [4]byte
++	rtp        *rtprio
++	spare      [3]uintptr
++}
++
++type sigset struct {
++	__bits [4]uint32
++}
++
++type stackt struct {
++	ss_sp     uintptr
++	ss_size   uintptr
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	si_pid    int32
++	si_uid    uint32
++	si_status int32
++	si_addr   uint64
++	si_value  [8]byte
++	_reason   [40]byte
++}
++
++type gpregs struct {
++	gp_x    [30]uint64
++	gp_lr   uint64
++	gp_sp   uint64
++	gp_elr  uint64
++	gp_spsr uint32
++	gp_pad  int32
++}
++
++type fpregs struct {
++	fp_q     [64]uint64 // actually [32]uint128
++	fp_sr    uint32
++	fp_cr    uint32
++	fp_flags int32
++	fp_pad   int32
++}
++
++type mcontext struct {
++	mc_gpregs gpregs
++	mc_fpregs fpregs
++	mc_flags  int32
++	mc_pad    int32
++	mc_spare  [8]uint64
++}
++
++type ucontext struct {
++	uc_sigmask  sigset
++	uc_mcontext mcontext
++	uc_link     *ucontext
++	uc_stack    stackt
++	uc_flags    int32
++	__spare__   [4]int32
++	pad_cgo_0   [12]byte
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++//go:nosplit
++func (ts *timespec) setNsec(ns int64) {
++	ts.tv_sec = ns / 1e9
++	ts.tv_nsec = ns % 1e9
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int64
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = int64(x)
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type umtx_time struct {
++	_timeout timespec
++	_flags   uint32
++	_clockid uint32
++}
++
++type keventt struct {
++	ident  uint64
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int64
++	udata  *byte
++}
++
++type bintime struct {
++	sec  int64
++	frac uint64
++}
++
++type vdsoTimehands struct {
++	algo         uint32
++	gen          uint32
++	scale        uint64
++	offset_count uint32
++	counter_mask uint32
++	offset       bintime
++	boottime     bintime
++	physical     uint32
++	res          [7]uint32
++}
++
++type vdsoTimekeep struct {
++	ver       uint32
++	enabled   uint32
++	current   uint32
++	pad_cgo_0 [4]byte
++}
++
++const (
++	_VDSO_TK_VER_CURR = 0x1
++
++	vdsoTimehandsSize = 0x58
++	vdsoTimekeepSize  = 0x10
++)
+diff --git a/src/runtime/os_freebsd_arm64.go b/src/runtime/os_freebsd_arm64.go
+new file mode 100644
+index 0000000000..800bd2fa6e
+--- /dev/null
++++ b/src/runtime/os_freebsd_arm64.go
+@@ -0,0 +1,156 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "internal/cpu"
++
++const (
++	hwcap_FP       = 1 << 0
++	hwcap_ASIMD    = 1 << 1
++	hwcap_EVTSTRM  = 1 << 2
++	hwcap_AES      = 1 << 3
++	hwcap_PMULL    = 1 << 4
++	hwcap_SHA1     = 1 << 5
++	hwcap_SHA2     = 1 << 6
++	hwcap_CRC32    = 1 << 7
++	hwcap_ATOMICS  = 1 << 8
++	hwcap_FPHP     = 1 << 9
++	hwcap_ASIMDHP  = 1 << 10
++	hwcap_CPUID    = 1 << 11
++	hwcap_ASIMDRDM = 1 << 12
++	hwcap_JSCVT    = 1 << 13
++	hwcap_FCMA     = 1 << 14
++	hwcap_LRCPC    = 1 << 15
++	hwcap_DCPOP    = 1 << 16
++	hwcap_SHA3     = 1 << 17
++	hwcap_SM3      = 1 << 18
++	hwcap_SM4      = 1 << 19
++	hwcap_ASIMDDP  = 1 << 20
++	hwcap_SHA512   = 1 << 21
++	hwcap_SVE      = 1 << 22
++	hwcap_ASIMDFHM = 1 << 23
++)
++
++func getisar0() uint64
++func getisar1() uint64
++func getpfr0() uint64
++
++// no hwcap support on FreeBSD aarch64, we need to retrieve the info from
++// ID_AA64ISAR0_EL1, ID_AA64ISAR1_EL1 and ID_AA64PFR0_EL1
++func archauxv(tag, val uintptr) {
++	var isar0, isar1, pfr0 uint64
++
++	isar0 = getisar0()
++	isar1 = getisar1()
++	pfr0 = getpfr0()
++
++	// ID_AA64ISAR0_EL1
++	switch extractBits(isar0, 4, 7) {
++	case 1:
++		cpu.HWCap |= hwcap_AES
++	case 2:
++		cpu.HWCap |= hwcap_PMULL | hwcap_AES
++	}
++
++	switch extractBits(isar0, 8, 11) {
++	case 1:
++		cpu.HWCap |= hwcap_SHA1
++	}
++
++	switch extractBits(isar0, 12, 15) {
++	case 1:
++		cpu.HWCap |= hwcap_SHA2
++	case 2:
++		cpu.HWCap |= hwcap_SHA2 | hwcap_SHA512
++	}
++
++	switch extractBits(isar0, 16, 19) {
++	case 1:
++		cpu.HWCap |= hwcap_CRC32
++	}
++
++	switch extractBits(isar0, 20, 23) {
++	case 2:
++		cpu.HWCap |= hwcap_ATOMICS
++	}
++
++	switch extractBits(isar0, 28, 31) {
++	case 1:
++		cpu.HWCap |= hwcap_ASIMDRDM
++	}
++
++	switch extractBits(isar0, 32, 35) {
++	case 1:
++		cpu.HWCap |= hwcap_SHA3
++	}
++
++	switch extractBits(isar0, 36, 39) {
++	case 1:
++		cpu.HWCap |= hwcap_SM3
++	}
++
++	switch extractBits(isar0, 40, 43) {
++	case 1:
++		cpu.HWCap |= hwcap_SM4
++	}
++
++	switch extractBits(isar0, 44, 47) {
++	case 1:
++		cpu.HWCap |= hwcap_ASIMDDP
++	}
++
++	// ID_AA64ISAR1_EL1
++	switch extractBits(isar1, 0, 3) {
++	case 1:
++		cpu.HWCap |= hwcap_DCPOP
++	}
++
++	switch extractBits(isar1, 12, 15) {
++	case 1:
++		cpu.HWCap |= hwcap_JSCVT
++	}
++
++	switch extractBits(isar1, 16, 19) {
++	case 1:
++		cpu.HWCap |= hwcap_FCMA
++	}
++
++	switch extractBits(isar1, 20, 23) {
++	case 1:
++		cpu.HWCap |= hwcap_LRCPC
++	}
++
++	// ID_AA64PFR0_EL1
++	switch extractBits(pfr0, 16, 19) {
++	case 0:
++		cpu.HWCap |= hwcap_FP
++	case 1:
++		cpu.HWCap |= hwcap_FP | hwcap_FPHP
++	}
++
++	switch extractBits(pfr0, 20, 23) {
++	case 0:
++		cpu.HWCap |= hwcap_ASIMD
++	case 1:
++		cpu.HWCap |= hwcap_ASIMD | hwcap_ASIMDHP
++	}
++
++	switch extractBits(pfr0, 32, 35) {
++	case 1:
++		cpu.HWCap |= hwcap_SVE
++	}
++}
++
++func extractBits(data uint64, start, end uint) uint {
++	return (uint)(data>>start) & ((1 << (end - start + 1)) - 1)
++}
++
++//go:nosplit
++func cputicks() int64 {
++	// Currently cputicks() is used in blocking profiler and to seed fastrand().
++	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
++	// TODO: need more entropy to better seed fastrand.
++	return nanotime()
++}
+diff --git a/src/runtime/os_freebsd_noauxv.go b/src/runtime/os_freebsd_noauxv.go
+index 01efb9b7c9..c6a49927c8 100644
+--- a/src/runtime/os_freebsd_noauxv.go
++++ b/src/runtime/os_freebsd_noauxv.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build freebsd
+-// +build !arm
++// +build !arm,!arm64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/rt0_freebsd_arm64.s b/src/runtime/rt0_freebsd_arm64.s
+new file mode 100644
+index 0000000000..3a348c33e2
+--- /dev/null
++++ b/src/runtime/rt0_freebsd_arm64.s
+@@ -0,0 +1,106 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// On FreeBSD argc/argv are passed in R0, not RSP
++TEXT _rt0_arm64_freebsd(SB),NOSPLIT|NOFRAME,$0
++	ADD	$8, R0, R1	// argv
++	MOVD	0(R0), R0	// argc
++	BL	main(SB)
++
++// When building with -buildmode=c-shared, this symbol is called when the shared
++// library is loaded.
++TEXT _rt0_arm64_freebsd_lib(SB),NOSPLIT,$184
++	// Preserve callee-save registers.
++	MOVD R19, 24(RSP)
++	MOVD R20, 32(RSP)
++	MOVD R21, 40(RSP)
++	MOVD R22, 48(RSP)
++	MOVD R23, 56(RSP)
++	MOVD R24, 64(RSP)
++	MOVD R25, 72(RSP)
++	MOVD R26, 80(RSP)
++	MOVD R27, 88(RSP)
++	FMOVD F8, 96(RSP)
++	FMOVD F9, 104(RSP)
++	FMOVD F10, 112(RSP)
++	FMOVD F11, 120(RSP)
++	FMOVD F12, 128(RSP)
++	FMOVD F13, 136(RSP)
++	FMOVD F14, 144(RSP)
++	FMOVD F15, 152(RSP)
++	MOVD g, 160(RSP)
++
++	// Initialize g as null in case of using g later e.g. sigaction in cgo_sigaction.go
++	MOVD	ZR, g
++
++	MOVD	R0, _rt0_arm64_freebsd_lib_argc<>(SB)
++	MOVD	R1, _rt0_arm64_freebsd_lib_argv<>(SB)
++
++	// Synchronous initialization.
++	MOVD	$runtime·libpreinit(SB), R4
++	BL	(R4)
++
++	// Create a new thread to do the runtime initialization and return.
++	MOVD	_cgo_sys_thread_create(SB), R4
++	CMP	$0, R4
++	BEQ	nocgo
++	MOVD	$_rt0_arm64_freebsd_lib_go(SB), R0
++	MOVD	$0, R1
++	SUB	$16, RSP	// reserve 16 bytes for sp-8 where fp may be saved.
++	BL	(R4)
++	ADD	$16, RSP
++	B	restore
++
++nocgo:
++	MOVD	$0x800000, R0                     // stacksize = 8192KB
++	MOVD	$_rt0_arm64_freebsd_lib_go(SB), R1
++	MOVD	R0, 8(RSP)
++	MOVD	R1, 16(RSP)
++	MOVD	$runtime·newosproc0(SB),R4
++	BL	(R4)
++
++restore:
++	// Restore callee-save registers.
++	MOVD 24(RSP), R19
++	MOVD 32(RSP), R20
++	MOVD 40(RSP), R21
++	MOVD 48(RSP), R22
++	MOVD 56(RSP), R23
++	MOVD 64(RSP), R24
++	MOVD 72(RSP), R25
++	MOVD 80(RSP), R26
++	MOVD 88(RSP), R27
++	FMOVD 96(RSP), F8
++	FMOVD 104(RSP), F9
++	FMOVD 112(RSP), F10
++	FMOVD 120(RSP), F11
++	FMOVD 128(RSP), F12
++	FMOVD 136(RSP), F13
++	FMOVD 144(RSP), F14
++	FMOVD 152(RSP), F15
++	MOVD 160(RSP), g
++	RET
++
++TEXT _rt0_arm64_freebsd_lib_go(SB),NOSPLIT,$0
++	MOVD	_rt0_arm64_freebsd_lib_argc<>(SB), R0
++	MOVD	_rt0_arm64_freebsd_lib_argv<>(SB), R1
++	MOVD	$runtime·rt0_go(SB),R4
++	B       (R4)
++
++DATA _rt0_arm64_freebsd_lib_argc<>(SB)/8, $0
++GLOBL _rt0_arm64_freebsd_lib_argc<>(SB),NOPTR, $8
++DATA _rt0_arm64_freebsd_lib_argv<>(SB)/8, $0
++GLOBL _rt0_arm64_freebsd_lib_argv<>(SB),NOPTR, $8
++
++
++TEXT main(SB),NOSPLIT|NOFRAME,$0
++	MOVD	$runtime·rt0_go(SB), R2
++	BL	(R2)
++exit:
++	MOVD	$0, R0
++	MOVD	$1, R8	// SYS_exit
++	SVC
++	B	exit
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 7a3b1ccbb8..e1fe62d99d 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin linux netbsd openbsd
++// +build darwin freebsd linux netbsd openbsd
+ 
+ package runtime
+ 
+diff --git a/src/runtime/signal_freebsd_arm64.go b/src/runtime/signal_freebsd_arm64.go
+new file mode 100644
+index 0000000000..159e965a7d
+--- /dev/null
++++ b/src/runtime/signal_freebsd_arm64.go
+@@ -0,0 +1,66 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) regs() *mcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
++
++func (c *sigctxt) r0() uint64  { return c.regs().mc_gpregs.gp_x[0] }
++func (c *sigctxt) r1() uint64  { return c.regs().mc_gpregs.gp_x[1] }
++func (c *sigctxt) r2() uint64  { return c.regs().mc_gpregs.gp_x[2] }
++func (c *sigctxt) r3() uint64  { return c.regs().mc_gpregs.gp_x[3] }
++func (c *sigctxt) r4() uint64  { return c.regs().mc_gpregs.gp_x[4] }
++func (c *sigctxt) r5() uint64  { return c.regs().mc_gpregs.gp_x[5] }
++func (c *sigctxt) r6() uint64  { return c.regs().mc_gpregs.gp_x[6] }
++func (c *sigctxt) r7() uint64  { return c.regs().mc_gpregs.gp_x[7] }
++func (c *sigctxt) r8() uint64  { return c.regs().mc_gpregs.gp_x[8] }
++func (c *sigctxt) r9() uint64  { return c.regs().mc_gpregs.gp_x[9] }
++func (c *sigctxt) r10() uint64 { return c.regs().mc_gpregs.gp_x[10] }
++func (c *sigctxt) r11() uint64 { return c.regs().mc_gpregs.gp_x[11] }
++func (c *sigctxt) r12() uint64 { return c.regs().mc_gpregs.gp_x[12] }
++func (c *sigctxt) r13() uint64 { return c.regs().mc_gpregs.gp_x[13] }
++func (c *sigctxt) r14() uint64 { return c.regs().mc_gpregs.gp_x[14] }
++func (c *sigctxt) r15() uint64 { return c.regs().mc_gpregs.gp_x[15] }
++func (c *sigctxt) r16() uint64 { return c.regs().mc_gpregs.gp_x[16] }
++func (c *sigctxt) r17() uint64 { return c.regs().mc_gpregs.gp_x[17] }
++func (c *sigctxt) r18() uint64 { return c.regs().mc_gpregs.gp_x[18] }
++func (c *sigctxt) r19() uint64 { return c.regs().mc_gpregs.gp_x[19] }
++func (c *sigctxt) r20() uint64 { return c.regs().mc_gpregs.gp_x[20] }
++func (c *sigctxt) r21() uint64 { return c.regs().mc_gpregs.gp_x[21] }
++func (c *sigctxt) r22() uint64 { return c.regs().mc_gpregs.gp_x[22] }
++func (c *sigctxt) r23() uint64 { return c.regs().mc_gpregs.gp_x[23] }
++func (c *sigctxt) r24() uint64 { return c.regs().mc_gpregs.gp_x[24] }
++func (c *sigctxt) r25() uint64 { return c.regs().mc_gpregs.gp_x[25] }
++func (c *sigctxt) r26() uint64 { return c.regs().mc_gpregs.gp_x[26] }
++func (c *sigctxt) r27() uint64 { return c.regs().mc_gpregs.gp_x[27] }
++func (c *sigctxt) r28() uint64 { return c.regs().mc_gpregs.gp_x[28] }
++func (c *sigctxt) r29() uint64 { return c.regs().mc_gpregs.gp_x[29] }
++func (c *sigctxt) lr() uint64  { return c.regs().mc_gpregs.gp_lr }
++func (c *sigctxt) sp() uint64  { return c.regs().mc_gpregs.gp_sp }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint64 { return c.regs().mc_gpregs.gp_elr }
++
++func (c *sigctxt) fault() uint64 { return c.info.si_addr }
++
++func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
++
++func (c *sigctxt) set_pc(x uint64)  { c.regs().mc_gpregs.gp_elr = x }
++func (c *sigctxt) set_sp(x uint64)  { c.regs().mc_gpregs.gp_sp = x }
++func (c *sigctxt) set_lr(x uint64)  { c.regs().mc_gpregs.gp_lr = x }
++func (c *sigctxt) set_r28(x uint64) { c.regs().mc_gpregs.gp_x[28] = x }
++
++func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint64) { c.info.si_addr = x }
+diff --git a/src/runtime/stubs_arm64.go b/src/runtime/stubs_arm64.go
+index 44c566e602..8a1c49cc0f 100644
+--- a/src/runtime/stubs_arm64.go
++++ b/src/runtime/stubs_arm64.go
+@@ -7,3 +7,4 @@ package runtime
+ // Called from assembly only; declared for go vet.
+ func load_g()
+ func save_g()
++func emptyfunc()
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+new file mode 100644
+index 0000000000..808daa063a
+--- /dev/null
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -0,0 +1,537 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls and other sys.stuff for arm64, FreeBSD
++// /usr/src/sys/kern/syscalls.master for syscall numbers.
++//
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++#define CLOCK_REALTIME		0
++#define CLOCK_MONOTONIC		4
++#define FD_CLOEXEC		1
++#define F_SETFD			2
++#define F_GETFL			3
++#define F_SETFL			4
++#define O_NONBLOCK		4
++
++#define SYS_exit		1
++#define SYS_read		3
++#define SYS_write		4
++#define SYS_open		5
++#define SYS_close		6
++#define SYS_getpid		20
++#define SYS_kill		37
++#define SYS_sigaltstack		53
++#define SYS_munmap		73
++#define SYS_madvise		75
++#define SYS_setitimer		83
++#define SYS_fcntl		92
++#define SYS___sysctl		202
++#define SYS_nanosleep		240
++#define SYS_clock_gettime	232
++#define SYS_sched_yield		331
++#define SYS_sigprocmask		340
++#define SYS_kqueue		362
++#define SYS_kevent		363
++#define SYS_sigaction		416
++#define SYS_thr_exit		431
++#define SYS_thr_self		432
++#define SYS_thr_kill		433
++#define SYS__umtx_op		454
++#define SYS_thr_new		455
++#define SYS_mmap		477
++#define SYS_cpuset_getaffinity	487
++#define SYS_pipe2 		542
++
++TEXT runtime·emptyfunc(SB),0,$0-0
++	RET
++
++// func sys_umtx_op(addr *uint32, mode int32, val uint32, uaddr1 uintptr, ut *umtx_time) int32
++TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
++	MOVD	addr+0(FP), R0
++	MOVW	mode+8(FP), R1
++	MOVW	val+12(FP), R2
++	MOVD	uaddr1+16(FP), R3
++	MOVD	ut+24(FP), R4
++	MOVD	$SYS__umtx_op, R8
++	SVC
++	MOVW	R0, ret+32(FP)
++	RET
++
++// func thr_new(param *thrparam, size int32) int32
++TEXT runtime·thr_new(SB),NOSPLIT,$0
++	MOVD	param+0(FP), R0
++	MOVW	size+8(FP), R1
++	MOVD	$SYS_thr_new, R8
++	SVC
++	MOVW	R0, ret+16(FP)
++	RET
++
++// func thr_start()
++TEXT runtime·thr_start(SB),NOSPLIT,$0
++	// set up g
++	MOVD	m_g0(R0), g
++	MOVD	R0, g_m(g)
++	BL	runtime·emptyfunc(SB)	 // fault if stack check is wrong
++	BL	runtime·mstart(SB)
++
++	MOVD	$2, R8	// crash (not reached)
++	MOVD	R8, (R8)
++	RET
++
++// func exit(code int32)
++TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
++	MOVW	code+0(FP), R0
++	MOVD	$SYS_exit, R8
++	SVC
++	MOVD	$0, R0
++	MOVD	R0, (R0)
++
++// func exitThread(wait *uint32)
++TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
++	MOVD	wait+0(FP), R0
++	// We're done using the stack.
++	MOVW	$0, R1
++	STLRW	R1, (R0)
++	MOVW	$0, R0
++	MOVD	$SYS_thr_exit, R8
++	SVC
++	JMP	0(PC)
++
++// func open(name *byte, mode, perm int32) int32
++TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0-20
++	MOVD	name+0(FP), R0
++	MOVW	mode+8(FP), R1
++	MOVW	perm+12(FP), R2
++	MOVD	$SYS_open, R8
++	SVC
++	BCC	ok
++	MOVW	$-1, R0
++ok:
++	MOVW	R0, ret+16(FP)
++	RET
++
++// func closefd(fd int32) int32
++TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
++	MOVW	fd+0(FP), R0
++	MOVD	$SYS_close, R8
++	SVC
++	BCC	ok
++	MOVW	$-1, R0
++ok:
++	MOVW	R0, ret+8(FP)
++	RET
++
++// func pipe() (r, w int32, errno int32)
++TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
++	ADD	$8, RSP, R0
++	MOVW	$0, R1
++	MOVD	$SYS_pipe2, R8
++	SVC
++	BCC	ok
++	NEG	R0, R0
++ok:
++	MOVW	R0, errno+8(FP)
++	RET
++
++// func pipe2(flags int32) (r, w int32, errno int32)
++TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
++	ADD	$16, RSP, R0
++	MOVW	flags+0(FP), R1
++	MOVD	$SYS_pipe2, R8
++	SVC
++	BCC	ok
++	NEG	R0, R0
++ok:
++	MOVW	R0, errno+16(FP)
++	RET
++
++// func write1(fd uintptr, p unsafe.Pointer, n int32) int32
++TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
++	MOVD	fd+0(FP), R0
++	MOVD	p+8(FP), R1
++	MOVW	n+16(FP), R2
++	MOVD	$SYS_write, R8
++	SVC
++	BCC	ok
++	NEG	R0, R0		// caller expects negative errno
++ok:
++	MOVW	R0, ret+24(FP)
++	RET
++
++// func read(fd int32, p unsafe.Pointer, n int32) int32
++TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
++	MOVW	fd+0(FP), R0
++	MOVD	p+8(FP), R1
++	MOVW	n+16(FP), R2
++	MOVD	$SYS_read, R8
++	SVC
++	BCC	ok
++	NEG	R0, R0		// caller expects negative errno
++ok:
++	MOVW	R0, ret+24(FP)
++	RET
++
++// func usleep(usec uint32)
++TEXT runtime·usleep(SB),NOSPLIT,$24-4
++	MOVWU	usec+0(FP), R3
++	MOVD	R3, R5
++	MOVW	$1000000, R4
++	UDIV	R4, R3
++	MOVD	R3, 8(RSP)
++	MUL	R3, R4
++	SUB	R4, R5
++	MOVW	$1000, R4
++	MUL	R4, R5
++	MOVD	R5, 16(RSP)
++
++	// nanosleep(&ts, 0)
++	ADD	$8, RSP, R0
++	MOVD	$0, R1
++	MOVD	$SYS_nanosleep, R8
++	SVC
++	RET
++
++// func raise(sig uint32)
++TEXT runtime·raise(SB),NOSPLIT,$8
++	MOVD	$8(RSP), R0	// arg 1 &8(RSP)
++	MOVD	$SYS_thr_self, R8
++	SVC
++	MOVD	8(RSP), R0	// arg 1 pid
++	MOVW	sig+0(FP), R1
++	MOVD	$SYS_thr_kill, R8
++	SVC
++	RET
++
++// func raiseproc(sig uint32)
++TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
++	MOVD	$SYS_getpid, R8
++	SVC
++	MOVW	sig+0(FP), R1
++	MOVD	$SYS_kill, R8
++	SVC
++	RET
++
++// func setitimer(mode int32, new, old *itimerval)
++TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
++	MOVW	mode+0(FP), R0
++	MOVD	new+8(FP), R1
++	MOVD	old+16(FP), R2
++	MOVD	$SYS_setitimer, R8
++	SVC
++	RET
++
++// func fallback_walltime() (sec int64, nsec int32)
++TEXT runtime·fallback_walltime(SB),NOSPLIT,$24-12
++	MOVW	$CLOCK_REALTIME, R0
++	MOVD	$8(RSP), R1
++	MOVD	$SYS_clock_gettime, R8
++	SVC
++	MOVD	8(RSP), R0	// sec
++	MOVW	16(RSP), R1	// nsec
++	MOVD	R0, sec+0(FP)
++	MOVW	R1, nsec+8(FP)
++	RET
++
++// func fallback_nanotime() int64
++TEXT runtime·fallback_nanotime(SB),NOSPLIT,$24-8
++	MOVD	$CLOCK_MONOTONIC, R0
++	MOVD	$8(RSP), R1
++	MOVD	$SYS_clock_gettime, R8
++	SVC
++	MOVD	8(RSP), R0	// sec
++	MOVW	16(RSP), R2	// nsec
++
++	// sec is in R0, nsec in R2
++	// return nsec in R2
++	MOVD	$1000000000, R3
++	MUL	R3, R0
++	ADD	R2, R0
++
++	MOVD	R0, ret+0(FP)
++	RET
++
++// func asmSigaction(sig uintptr, new, old *sigactiont) int32
++TEXT runtime·asmSigaction(SB),NOSPLIT|NOFRAME,$0
++	MOVD	sig+0(FP), R0		// arg 1 sig
++	MOVD	new+8(FP), R1		// arg 2 act
++	MOVD	old+16(FP), R2		// arg 3 oact
++	MOVD	$SYS_sigaction, R8
++	SVC
++	BCC	ok
++	MOVW	$-1, R0
++ok:
++	MOVW	R0, ret+24(FP)
++	RET
++
++// func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
++TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
++	MOVW	sig+8(FP), R0
++	MOVD	info+16(FP), R1
++	MOVD	ctx+24(FP), R2
++	MOVD	fn+0(FP), R11
++	BL	(R11)
++	RET
++
++// func sigtramp()
++TEXT runtime·sigtramp(SB),NOSPLIT,$192
++	// Save callee-save registers in the case of signal forwarding.
++	// Please refer to https://golang.org/issue/31827 .
++	MOVD	R19, 8*4(RSP)
++	MOVD	R20, 8*5(RSP)
++	MOVD	R21, 8*6(RSP)
++	MOVD	R22, 8*7(RSP)
++	MOVD	R23, 8*8(RSP)
++	MOVD	R24, 8*9(RSP)
++	MOVD	R25, 8*10(RSP)
++	MOVD	R26, 8*11(RSP)
++	MOVD	R27, 8*12(RSP)
++	MOVD	g, 8*13(RSP)
++	MOVD	R29, 8*14(RSP)
++	FMOVD	F8, 8*15(RSP)
++	FMOVD	F9, 8*16(RSP)
++	FMOVD	F10, 8*17(RSP)
++	FMOVD	F11, 8*18(RSP)
++	FMOVD	F12, 8*19(RSP)
++	FMOVD	F13, 8*20(RSP)
++	FMOVD	F14, 8*21(RSP)
++	FMOVD	F15, 8*22(RSP)
++
++	// this might be called in external code context,
++	// where g is not set.
++	// first save R0, because runtime·load_g will clobber it
++	MOVW	R0, 8(RSP)
++	MOVBU	runtime·iscgo(SB), R0
++	CMP	$0, R0
++	BEQ	2(PC)
++	BL	runtime·load_g(SB)
++
++	MOVD	R1, 16(RSP)
++	MOVD	R2, 24(RSP)
++	MOVD	$runtime·sigtrampgo(SB), R0
++	BL	(R0)
++
++	// Restore callee-save registers.
++	MOVD	8*4(RSP), R19
++	MOVD	8*5(RSP), R20
++	MOVD	8*6(RSP), R21
++	MOVD	8*7(RSP), R22
++	MOVD	8*8(RSP), R23
++	MOVD	8*9(RSP), R24
++	MOVD	8*10(RSP), R25
++	MOVD	8*11(RSP), R26
++	MOVD	8*12(RSP), R27
++	MOVD	8*13(RSP), g
++	MOVD	8*14(RSP), R29
++	FMOVD	8*15(RSP), F8
++	FMOVD	8*16(RSP), F9
++	FMOVD	8*17(RSP), F10
++	FMOVD	8*18(RSP), F11
++	FMOVD	8*19(RSP), F12
++	FMOVD	8*20(RSP), F13
++	FMOVD	8*21(RSP), F14
++	FMOVD	8*22(RSP), F15
++
++	RET
++
++// func mmap(addr uintptr, n uintptr, prot int, flags int, fd int, off int64) (ret uintptr, err error)
++TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
++	MOVD	addr+0(FP), R0
++	MOVD	n+8(FP), R1
++	MOVW	prot+16(FP), R2
++	MOVW	flags+20(FP), R3
++	MOVW	fd+24(FP), R4
++	MOVW	off+28(FP), R5
++	MOVD	$SYS_mmap, R8
++	SVC
++	BCS	fail
++	MOVD	R0, p+32(FP)
++	MOVD	$0, err+40(FP)
++	RET
++fail:
++	MOVD	$0, p+32(FP)
++	MOVD	R0, err+40(FP)
++	RET
++
++// func munmap(addr uintptr, n uintptr) (err error)
++TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
++	MOVD	addr+0(FP), R0
++	MOVD	n+8(FP), R1
++	MOVD	$SYS_munmap, R8
++	SVC
++	BCS	fail
++	RET
++fail:
++	MOVD	$0, R0
++	MOVD	R0, (R0)	// crash
++
++// func madvise(addr unsafe.Pointer, n uintptr, flags int32) int32
++TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
++	MOVD	addr+0(FP), R0
++	MOVD	n+8(FP), R1
++	MOVW	flags+16(FP), R2
++	MOVD	$SYS_madvise, R8
++	SVC
++	BCC	ok
++	MOVW	$-1, R0
++ok:
++	MOVW	R0, ret+24(FP)
++	RET
++
++// func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++TEXT runtime·sysctl(SB),NOSPLIT,$0
++	MOVD	mib+0(FP), R0
++	MOVD	miblen+8(FP), R1
++	MOVD	out+16(FP), R2
++	MOVD	size+24(FP), R3
++	MOVD	dst+32(FP), R4
++	MOVD	ndst+40(FP), R5
++	MOVD	$SYS___sysctl, R8
++	SVC
++	BCC	ok
++	NEG	R0, R0
++ok:
++	MOVW	R0, ret+48(FP)
++	RET
++
++// func sigaltstack(new, old *stackt)
++TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
++	MOVD	new+0(FP), R0
++	MOVD	old+8(FP), R1
++	MOVD	$SYS_sigaltstack, R8
++	SVC
++	BCS	fail
++	RET
++fail:
++	MOVD	$0, R0
++	MOVD	R0, (R0)	// crash
++
++// func osyield()
++TEXT runtime·osyield(SB),NOSPLIT|NOFRAME,$0
++	MOVD	$SYS_sched_yield, R8
++	SVC
++	RET
++
++// func sigprocmask(how int32, new, old *sigset)
++TEXT runtime·sigprocmask(SB),NOSPLIT|NOFRAME,$0-24
++	MOVW	how+0(FP), R0
++	MOVD	new+8(FP), R1
++	MOVD	old+16(FP), R2
++	MOVD	$SYS_sigprocmask, R8
++	SVC
++	BCS	fail
++	RET
++fail:
++	MOVD	$0, R0
++	MOVD	R0, (R0)	// crash
++
++// func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
++TEXT runtime·cpuset_getaffinity(SB),NOSPLIT|NOFRAME,$0-44
++	MOVD	level+0(FP), R0
++	MOVD	which+8(FP), R1
++	MOVD	id+16(FP), R2
++	MOVD	size+24(FP), R3
++	MOVD	mask+32(FP), R4
++	MOVD	$SYS_cpuset_getaffinity, R8
++	SVC
++	BCC	ok
++	MOVW	$-1, R0
++ok:
++	MOVW	R0, ret+40(FP)
++	RET
++
++// func kqueue() int32
++TEXT runtime·kqueue(SB),NOSPLIT|NOFRAME,$0
++	MOVD $SYS_kqueue, R8
++	SVC
++	BCC	ok
++	MOVW	$-1, R0
++ok:
++	MOVW	R0, ret+0(FP)
++	RET
++
++// func kevent(kq int, ch unsafe.Pointer, nch int, ev unsafe.Pointer, nev int, ts *Timespec) (n int, err error)
++TEXT runtime·kevent(SB),NOSPLIT,$0
++	MOVW	kq+0(FP), R0
++	MOVD	ch+8(FP), R1
++	MOVW	nch+16(FP), R2
++	MOVD	ev+24(FP), R3
++	MOVW	nev+32(FP), R4
++	MOVD	ts+40(FP), R5
++	MOVD	$SYS_kevent, R8
++	SVC
++	BCC	ok
++	NEG	R0, R0
++ok:
++	MOVW	R0, ret+48(FP)
++	RET
++
++// func closeonexec(fd int32)
++TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
++	MOVW	fd+0(FP), R0
++	MOVD	$F_SETFD, R1
++	MOVD	$FD_CLOEXEC, R2
++	MOVD	$SYS_fcntl, R8
++	SVC
++	RET
++
++// func runtime·setNonblock(fd int32)
++TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
++	MOVW	fd+0(FP), R0
++	MOVD	$F_GETFL, R1
++	MOVD	$0, R2
++	MOVD	$SYS_fcntl, R8
++	SVC
++	ORR	$O_NONBLOCK, R0, R2
++	MOVW	fd+0(FP), R0
++	MOVW	$F_SETFL, R1
++	MOVW	$SYS_fcntl, R7
++	SVC
++	RET
++
++// func getCntxct(physical bool) uint32
++TEXT runtime·getCntxct(SB),NOSPLIT,$0
++	MOVB	physical+0(FP), R0
++	CMP	$0, R0
++	BEQ	3(PC)
++
++	// get CNTPCT (Physical Count Register) into x0
++	// mrs x0, cntpct_el0 = d53be020
++	WORD	$0xd53be020 // SIGILL
++	B	2(PC)
++
++	// get CNTVCT (Virtual Count Register) into x0
++	// mrs x0, cntvct_el0 = d53be040
++	WORD	$0xd53be040
++
++	MOVW	R0, ret+8(FP)
++	RET
++
++// func getisar0() uint64
++TEXT runtime·getisar0(SB),NOSPLIT,$0
++	// get Instruction Set Attributes 0 into x0
++	// mrs x0, ID_AA64ISAR0_EL1 = d5380600
++	WORD	$0xd5380600
++	MOVD	R0, ret+0(FP)
++	RET
++
++// func getisar1() uint64
++TEXT runtime·getisar1(SB),NOSPLIT,$0
++	// get Instruction Set Attributes 1 into x0
++	// mrs x0, ID_AA64ISAR1_EL1 = d5380620
++	WORD	$0xd5380620
++	MOVD	R0, ret+0(FP)
++	RET
++
++// func getpfr0() uint64
++TEXT runtime·getpfr0(SB),NOSPLIT,$0
++	// get Processor Feature Register 0 into x0
++	// mrs x0, ID_AA64PFR0_EL1 = d5380400
++	WORD	$0xd5380400
++	MOVD	R0, ret+0(FP)
++	RET
+diff --git a/src/runtime/tls_arm64.h b/src/runtime/tls_arm64.h
+index 27f517c155..f60f4f6d5b 100644
+--- a/src/runtime/tls_arm64.h
++++ b/src/runtime/tls_arm64.h
+@@ -20,6 +20,11 @@
+ #define MRS_TPIDR_R0 WORD $0xd53bd060 // MRS TPIDRRO_EL0, R0
+ #endif
+ 
++#ifdef GOOS_freebsd
++#define TPIDR TPIDR_EL0
++#define MRS_TPIDR_R0 WORD $0xd53bd040 // MRS TPIDR_EL0, R0
++#endif
++
+ #ifdef GOOS_netbsd
+ #define TPIDR TPIDRRO_EL0
+ #define MRS_TPIDR_R0 WORD $0xd53bd040 // MRS TPIDRRO_EL0, R0
+diff --git a/src/runtime/vdso_freebsd_arm64.go b/src/runtime/vdso_freebsd_arm64.go
+new file mode 100644
+index 0000000000..7d9f62d5f9
+--- /dev/null
++++ b/src/runtime/vdso_freebsd_arm64.go
+@@ -0,0 +1,21 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	_VDSO_TH_ALGO_ARM_GENTIM = 1
++)
++
++func getCntxct(physical bool) uint32
++
++//go:nosplit
++func (th *vdsoTimehands) getTimecounter() (uint32, bool) {
++	switch th.algo {
++	case _VDSO_TH_ALGO_ARM_GENTIM:
++		return getCntxct(false), true
++	default:
++		return 0, false
++	}
++}

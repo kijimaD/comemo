@@ -15,7 +15,74 @@ Date:   Wed Oct 14 12:05:13 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/testing/fuzz.go      |  7 -------
  src/testing/fuzz_test.go | 42 ------------------------------------------
  2 files changed, 49 deletions(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 6773b7161d..766242f75d 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -256,13 +256,6 @@ type fuzzContext struct {
+ 	runFuzzWorker     func(func([]byte) error) error
+ }
+ 
+-// RunFuzzTargets is an internal function but exported because it is cross-package;
+-// it is part of the implementation of the "go test" command.
+-func RunFuzzTargets(matchString func(pat, str string) (bool, error), fuzzTargets []InternalFuzzTarget) (ok bool) {
+-	_, ok = runFuzzTargets(matchString, fuzzTargets)
+-	return ok
+-}
+-
+ // runFuzzTargets runs the fuzz targets matching the pattern for -run. This will
+ // only run the f.Fuzz function for each seed corpus without using the fuzzing
+ // engine to generate or mutate inputs.
+diff --git a/src/testing/fuzz_test.go b/src/testing/fuzz_test.go
+deleted file mode 100644
+index 77a7d5ea4e..0000000000
+--- a/src/testing/fuzz_test.go
++++ /dev/null
+@@ -1,42 +0,0 @@
+-package testing_test
+-
+-import (
+-	"testing"
+-)
+-
+-func TestFuzzAdd(t *testing.T) {
+-	matchFunc := func(a, b string) (bool, error) { return true, nil }
+-	tests := []struct {
+-		name string
+-		fn   func(f *testing.F)
+-		ok   bool
+-	}{
+-		{
+-			"empty",
+-			func(f *testing.F) { f.Add() },
+-			false,
+-		},
+-		{
+-			"multiple arguments",
+-			func(f *testing.F) { f.Add([]byte("hello"), []byte("bye")) },
+-			false,
+-		},
+-		{
+-			"string",
+-			func(f *testing.F) { f.Add("hello") },
+-			false,
+-		},
+-		{
+-			"bytes",
+-			func(f *testing.F) { f.Add([]byte("hello")) },
+-			true,
+-		},
+-	}
+-	for _, tc := range tests {
+-		t.Run(tc.name, func(t *testing.T) {
+-			if got, want := testing.RunFuzzTargets(matchFunc, []testing.InternalFuzzTarget{{Fn: tc.fn}}), tc.ok; got != want {
+-				t.Errorf("testing.Add: ok %t, want %t", got, want)
+-			}
+-		})
+-	}
+-}

@@ -9,6 +9,22 @@ Date:   Wed Nov 7 19:56:30 2018 +0530
     Change-Id: I00878ec246d5249d910f2b57749f74cfc38dbec6
     Reviewed-on: https://go-review.googlesource.com/c/148117
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/time.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 5dc0d8a973..59555c2d05 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -105,6 +105,10 @@ import (
+ // change the instant in time being denoted and therefore does not affect the
+ // computations described in earlier paragraphs.
+ //
++// Representations of a Time value saved by the GobEncode, MarshalBinary
++// MarshalJSON, and MarshalText methods store the Time.Location's offset, but not
++// the location name. They therefore lose information about Daylight Saving Time.
++//
+ // In addition to the required “wall clock” reading, a Time may contain an optional
+ // reading of the current process's monotonic clock, to provide additional precision
+ // for comparison or subtraction.

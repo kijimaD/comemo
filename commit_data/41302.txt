@@ -12,8 +12,126 @@ Date:   Mon Sep 23 16:16:04 2019 -0400
     Change-Id: Ic762e423b20275fd9f8118dae7951c258d59738c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/196960
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        | 12 +++++++-
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 42 ++++++++++++++--------------
  src/cmd/compile/internal/ssa/opGen.go        |  9 ------
  3 files changed, 32 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index c45842efe6..a12b256680 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -566,7 +566,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpPPC64ROTL, ssa.OpPPC64ROTLW,
+ 		ssa.OpPPC64MULHD, ssa.OpPPC64MULHW, ssa.OpPPC64MULHDU, ssa.OpPPC64MULHWU,
+ 		ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS, ssa.OpPPC64FCPSGN,
+-		ssa.OpPPC64AND, ssa.OpPPC64ANDCC, ssa.OpPPC64OR, ssa.OpPPC64ORCC, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64XORCC, ssa.OpPPC64EQV:
++		ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64EQV:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+@@ -577,6 +577,16 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
++	case ssa.OpPPC64ANDCC, ssa.OpPPC64ORCC, ssa.OpPPC64XORCC:
++		r1 := v.Args[0].Reg()
++		r2 := v.Args[1].Reg()
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r2
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = ppc64.REGTMP // result is not needed
++
+ 	case ssa.OpPPC64ROTLconst, ssa.OpPPC64ROTLWconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 5ed8ed41f4..138fe23ca8 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -252,27 +252,27 @@ func init() {
+ 		{name: "MFVSRD", argLength: 1, reg: fpgp, asm: "MFVSRD", typ: "Int64"},   // move 64 bits of F register into G register
+ 		{name: "MTVSRD", argLength: 1, reg: gpfp, asm: "MTVSRD", typ: "Float64"}, // move 64 bits of G register into F register
+ 
+-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},                   // arg0&arg1
+-		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                    // arg0&^arg1
+-		{name: "ANDCC", argLength: 2, reg: gp21, asm: "ANDCC", commutative: true, typ: "Flags"}, // arg0&arg1 sets CC
+-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                     // arg0|arg1
+-		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                      // arg0|^arg1
+-		{name: "ORCC", argLength: 2, reg: gp21, asm: "ORCC", commutative: true, typ: "Flags"},   // arg0|arg1 sets CC
+-		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                   // ^(arg0|arg1)
+-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true},     // arg0^arg1
+-		{name: "XORCC", argLength: 2, reg: gp21, asm: "XORCC", commutative: true, typ: "Flags"}, // arg0^arg1 sets CC
+-		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true},     // arg0^^arg1
+-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                      // -arg0 (integer)
+-		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                    // -arg0 (floating point)
+-		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                                  // sqrt(arg0) (floating point)
+-		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                                // sqrt(arg0) (floating point, single precision)
+-		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                                  // floor(arg0), float64
+-		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                                   // ceil(arg0), float64
+-		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                                  // trunc(arg0), float64
+-		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                                  // round(arg0), float64
+-		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                    // abs(arg0), float64
+-		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                                  // -abs(arg0), float64
+-		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                                // copysign arg0 -> arg1, float64
++		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},                    // arg0&arg1
++		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                     // arg0&^arg1
++		{name: "ANDCC", argLength: 2, reg: gp2cr, asm: "ANDCC", commutative: true, typ: "Flags"}, // arg0&arg1 sets CC
++		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                      // arg0|arg1
++		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                       // arg0|^arg1
++		{name: "ORCC", argLength: 2, reg: gp2cr, asm: "ORCC", commutative: true, typ: "Flags"},   // arg0|arg1 sets CC
++		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                    // ^(arg0|arg1)
++		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true},      // arg0^arg1
++		{name: "XORCC", argLength: 2, reg: gp2cr, asm: "XORCC", commutative: true, typ: "Flags"}, // arg0^arg1 sets CC
++		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true},      // arg0^^arg1
++		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                       // -arg0 (integer)
++		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                     // -arg0 (floating point)
++		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                                   // sqrt(arg0) (floating point)
++		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                                 // sqrt(arg0) (floating point, single precision)
++		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                                   // floor(arg0), float64
++		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                                    // ceil(arg0), float64
++		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                                   // trunc(arg0), float64
++		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                                   // round(arg0), float64
++		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                     // abs(arg0), float64
++		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                                   // -abs(arg0), float64
++		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                                 // copysign arg0 -> arg1, float64
+ 
+ 		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                                     // arg0|aux
+ 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                   // arg0^aux
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 31ed3cad1f..93db9872e7 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -23026,9 +23026,6 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+-			outputs: []outputInfo{
+-				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+ 		},
+ 	},
+ 	{
+@@ -23070,9 +23067,6 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+-			outputs: []outputInfo{
+-				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+ 		},
+ 	},
+ 	{
+@@ -23115,9 +23109,6 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+-			outputs: []outputInfo{
+-				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+ 		},
+ 	},
+ 	{

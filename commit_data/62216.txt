@@ -23,7 +23,44 @@ Date:   Tue Feb 11 12:59:54 2025 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/alldocs.go            | 7 +++++++
  src/cmd/go/internal/tool/tool.go | 7 +++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7289b5f4b1..fc85995373 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1953,6 +1953,13 @@
+ // The -n flag causes tool to print the command that would be
+ // executed but not execute it.
+ //
++// The -modfile=file.mod build flag causes tool to use an alternate file
++// instead of the go.mod in the module root directory.
++//
++// Tool also provides the -C, -overlay, and -modcacherw build flags.
++//
++// For more about build flags, see 'go help build'.
++//
+ // For more about each builtin tool command, see 'go doc cmd/<command>'.
+ //
+ // # Print Go version
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 64c40adab2..7033eb1d9c 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -46,6 +46,13 @@ With no arguments it prints the list of known tools.
+ The -n flag causes tool to print the command that would be
+ executed but not execute it.
+ 
++The -modfile=file.mod build flag causes tool to use an alternate file
++instead of the go.mod in the module root directory.
++
++Tool also provides the -C, -overlay, and -modcacherw build flags.
++
++For more about build flags, see 'go help build'.
++
+ For more about each builtin tool command, see 'go doc cmd/<command>'.
+ `,
+ }

@@ -16,7 +16,95 @@ Date:   Wed Oct 14 15:18:10 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/json/encode.go      | 16 ++++++----------
  src/encoding/json/encode_test.go | 10 ++--------
  2 files changed, 8 insertions(+), 18 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 21f403e788..60d1c9011b 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -448,12 +448,10 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
+ 	}
+ 	m := v.Interface().(encoding.TextMarshaler)
+ 	b, err := m.MarshalText()
+-	if err == nil {
+-		_, err = e.stringBytes(b)
+-	}
+ 	if err != nil {
+ 		e.error(&MarshalerError{v.Type(), err})
+ 	}
++	e.stringBytes(b)
+ }
+ 
+ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
+@@ -464,12 +462,10 @@ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
+ 	}
+ 	m := va.Interface().(encoding.TextMarshaler)
+ 	b, err := m.MarshalText()
+-	if err == nil {
+-		_, err = e.stringBytes(b)
+-	}
+ 	if err != nil {
+ 		e.error(&MarshalerError{v.Type(), err})
+ 	}
++	e.stringBytes(b)
+ }
+ 
+ func boolEncoder(e *encodeState, v reflect.Value, quoted bool) {
+@@ -783,7 +779,7 @@ func (sv stringValues) Less(i, j int) bool { return sv.get(i) < sv.get(j) }
+ func (sv stringValues) get(i int) string   { return sv[i].String() }
+ 
+ // NOTE: keep in sync with stringBytes below.
+-func (e *encodeState) string(s string) (int, error) {
++func (e *encodeState) string(s string) int {
+ 	len0 := e.Len()
+ 	e.WriteByte('"')
+ 	start := 0
+@@ -855,11 +851,11 @@ func (e *encodeState) string(s string) (int, error) {
+ 		e.WriteString(s[start:])
+ 	}
+ 	e.WriteByte('"')
+-	return e.Len() - len0, nil
++	return e.Len() - len0
+ }
+ 
+ // NOTE: keep in sync with string above.
+-func (e *encodeState) stringBytes(s []byte) (int, error) {
++func (e *encodeState) stringBytes(s []byte) int {
+ 	len0 := e.Len()
+ 	e.WriteByte('"')
+ 	start := 0
+@@ -931,7 +927,7 @@ func (e *encodeState) stringBytes(s []byte) (int, error) {
+ 		e.Write(s[start:])
+ 	}
+ 	e.WriteByte('"')
+-	return e.Len() - len0, nil
++	return e.Len() - len0
+ }
+ 
+ // A field represents a single field found in a struct.
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 7abfa85db7..2206b2ee2e 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -381,16 +381,10 @@ func TestStringBytes(t *testing.T) {
+ 		r = append(r, i)
+ 	}
+ 	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
+-	_, err := es.string(s)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	es.string(s)
+ 
+ 	esBytes := &encodeState{}
+-	_, err = esBytes.stringBytes([]byte(s))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	esBytes.stringBytes([]byte(s))
+ 
+ 	enc := es.Buffer.String()
+ 	encBytes := esBytes.Buffer.String()

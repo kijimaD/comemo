@@ -9,9 +9,107 @@ Date:   Tue Mar 18 14:38:40 2014 +1100
     R=golang-codereviews, gobot, adg
     CC=golang-codereviews
     https://golang.org/cl/76370043
-
+---
  src/cmd/go/doc.go      |  3 ++-
  src/cmd/go/test.bash   | 31 +++++++++++++++++++++++++++++++
  src/cmd/go/test.go     |  3 ++-
  src/cmd/go/testflag.go |  9 ++++++++-
  4 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 155623000e..6169378935 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -802,7 +802,8 @@ control the execution of any test:
+ 
+ 	-covermode set,count,atomic
+ 	    Set the mode for coverage analysis for the package[s]
+-	    being tested. The default is "set".
++	    being tested. The default is "set" unless -race is enabled,
++	    in which case it is "atomic".
+ 	    The values:
+ 		set: bool: does this statement run?
+ 		count: int: how many times does this statement run?
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 507f2885dd..fe00df9e24 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -568,6 +568,37 @@ TEST coverage runs
+ ./testgo test -short -coverpkg=strings strings regexp || ok=false
+ ./testgo test -short -cover strings math regexp || ok=false
+ 
++# Check that coverage analysis uses set mode.
++TEST coverage uses set mode
++if ./testgo test -short -coverpkg=encoding/binary -coverprofile=testdata/cover.out; then
++	if ! grep -q 'mode: set' testdata/cover.out; then
++		ok=false
++	fi
++else
++	ok=false
++fi
++rm -f testdata/cover.out
++
++TEST coverage uses atomic mode for -race.
++if ./testgo test -short -race -coverpkg=encoding/binary -coverprofile=testdata/cover.out; then
++	if ! grep -q 'mode: atomic' testdata/cover.out; then
++		ok=false
++	fi
++else
++	ok=false
++fi
++rm -f testdata/cover.out
++
++TEST coverage uses actual setting to override even for -race.
++if ./testgo test -short -race -coverpkg=encoding/binary -covermode=count -coverprofile=testdata/cover.out; then
++	if ! grep -q 'mode: count' testdata/cover.out; then
++		ok=false
++	fi
++else
++	ok=false
++fi
++rm -f testdata/cover.out
++
+ TEST coverage with cgo
+ d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+ ./testgo test -short -cover ./testdata/cgocover >$d/cgo.out 2>&1 || ok=false
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 3344f0e5b8..20a9e74af1 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -137,7 +137,8 @@ control the execution of any test:
+ 
+ 	-covermode set,count,atomic
+ 	    Set the mode for coverage analysis for the package[s]
+-	    being tested. The default is "set".
++	    being tested. The default is "set" unless -race is enabled,
++	    in which case it is "atomic".
+ 	    The values:
+ 		set: bool: does this statement run?
+ 		count: int: how many times does this statement run?
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 69c33d39e6..2b5f89ba5f 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -117,7 +117,6 @@ var testFlagDefn = []*testFlagSpec{
+ func testFlags(args []string) (packageNames, passToTest []string) {
+ 	inPkg := false
+ 	outputDir := ""
+-	testCoverMode = "set"
+ 	for i := 0; i < len(args); i++ {
+ 		if !strings.HasPrefix(args[i], "-") {
+ 			if !inPkg && packageNames == nil {
+@@ -218,6 +217,14 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		}
+ 	}
+ 
++	if testCoverMode == "" {
++		testCoverMode = "set"
++		if buildRace {
++			// Default coverage mode is atomic when -race is set.
++			testCoverMode = "atomic"
++		}
++	}
++
+ 	// Tell the test what directory we're running in, so it can write the profiles there.
+ 	if testProfile && outputDir == "" {
+ 		dir, err := os.Getwd()

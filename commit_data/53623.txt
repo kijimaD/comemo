@@ -23,6 +23,22 @@ Date:   Wed Aug 24 13:47:48 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/internal/gcimporter/ureader.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 15c8c2032d..53bb9bacb0 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -539,7 +539,9 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 						embeds[i] = iface.EmbeddedType(i)
+ 					}
+ 
+-					underlying = types.NewInterfaceType(methods, embeds)
++					newIface := types.NewInterfaceType(methods, embeds)
++					r.p.ifaces = append(r.p.ifaces, newIface)
++					underlying = newIface
+ 				}
+ 
+ 				named.SetUnderlying(underlying)

@@ -14,7 +14,34 @@ Date:   Tue Aug 21 08:28:16 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/types_dragonfly.go        | 2 ++
  src/syscall/ztypes_dragonfly_amd64.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/syscall/types_dragonfly.go b/src/syscall/types_dragonfly.go
+index 0c060d932e..53bc12403b 100644
+--- a/src/syscall/types_dragonfly.go
++++ b/src/syscall/types_dragonfly.go
+@@ -113,6 +113,8 @@ const ( // Directory mode bits
+ 	S_IRUSR  = C.S_IRUSR
+ 	S_IWUSR  = C.S_IWUSR
+ 	S_IXUSR  = C.S_IXUSR
++	S_IRWXG  = C.S_IRWXG
++	S_IRWXO  = C.S_IRWXO
+ )
+ 
+ type Stat_t C.struct_stat
+diff --git a/src/syscall/ztypes_dragonfly_amd64.go b/src/syscall/ztypes_dragonfly_amd64.go
+index 1cb8608228..e9e811f776 100644
+--- a/src/syscall/ztypes_dragonfly_amd64.go
++++ b/src/syscall/ztypes_dragonfly_amd64.go
+@@ -71,6 +71,8 @@ const (
+ 	S_IRUSR  = 0x100
+ 	S_IWUSR  = 0x80
+ 	S_IXUSR  = 0x40
++	S_IRWXG  = 0x38
++	S_IRWXO  = 0x7
+ )
+ 
+ type Stat_t struct {

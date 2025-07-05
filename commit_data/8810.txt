@@ -9,6 +9,39 @@ Date:   Tue Jun 21 12:26:38 2011 +1000
     R=golang-dev
     CC=bradfitz, golang-dev
     https://golang.org/cl/4644049
-
+---
  misc/dashboard/builder/main.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 9377fbe326..9a714fe79f 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -357,7 +357,10 @@ func (b *Builder) envv() []string {
+ 		"GOROOT_FINAL=/usr/local/go",
+ 	}
+ 	for _, k := range extraEnv {
+-		e = append(e, k+"="+os.Getenv(k))
++		s, err := os.Getenverror(k)
++		if err == nil {
++			e = append(e, k+"="+s)
++		}
+ 	}
+ 	return e
+ }
+@@ -368,9 +371,14 @@ func (b *Builder) envvWindows() []string {
+ 		"GOOS":         b.goos,
+ 		"GOARCH":       b.goarch,
+ 		"GOROOT_FINAL": "/c/go",
++		// TODO(brainman): remove once we find make that does not hang.
++		"MAKEFLAGS": "-j1",
+ 	}
+ 	for _, name := range extraEnv {
+-		start[name] = os.Getenv(name)
++		s, err := os.Getenverror(name)
++		if err == nil {
++			start[name] = s
++		}
+ 	}
+ 	skip := map[string]bool{
+ 		"GOBIN":   true,

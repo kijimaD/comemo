@@ -9,7 +9,7 @@ Date:   Wed Aug 12 13:18:54 2009 -0700
     DELTA=138  (2 added, 127 deleted, 9 changed)
     OCL=33068
     CL=33099
-
+---
  test/chan/powser1.go                   |  6 +--
  test/chan/powser2.go                   |  6 +--
  test/fixedbugs/bug043.go               | 23 ------------
@@ -24,3 +24,324 @@ Date:   Wed Aug 12 13:18:54 2009 -0700
  usr/dsymonds/iterable/Makefile         | 67 +++-------------------------------
  usr/dsymonds/iterable/iterable_test.go |  1 -
  13 files changed, 11 insertions(+), 140 deletions(-)
+
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index f37f639aba..fc82833068 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -41,8 +41,6 @@ var chnames string
+ var chnameserial int
+ var seqno int
+ 
+-func Init();
+-
+ func mkdch() *dch {
+ 	c := chnameserial % len(chnames);
+ 	chnameserial++;
+@@ -428,7 +426,7 @@ func Poly(a []rat) PS {
+ */
+ 
+ // Multiply. The algorithm is
+-// 	let U = u + x*UU
++//	let U = u + x*UU
+ //	let V = v + x*VV
+ //	then UV = u*v + x*(u*VV+v*UU) + x*x*UU*VV
+ 
+@@ -547,7 +545,7 @@ func Exp(U PS) PS {
+ // Substitute V for x in U, where the leading term of V is zero
+ //	let U = u + x*UU
+ //	let V = v + x*VV
+-// 	then S(U,V) = u + VV*S(V,UU)
++//	then S(U,V) = u + VV*S(V,UU)
+ // bug: a nonzero constant term is ignored
+ 
+ func Subst(U, V PS) PS {
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index d910019691..afd126f07d 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -50,8 +50,6 @@ var chnames string
+ var chnameserial int
+ var seqno int
+ 
+-func Init();
+-
+ func mkdch() *dch {
+ 	c := chnameserial % len(chnames);
+ 	chnameserial++;
+@@ -441,7 +439,7 @@ func Poly(a [] *rat) PS{
+ */
+ 
+ // Multiply. The algorithm is
+-// 	let U = u + x*UU
++//	let U = u + x*UU
+ //	let V = v + x*VV
+ //	then UV = u*v + x*(u*VV+v*UU) + x*x*UU*VV
+ 
+@@ -560,7 +558,7 @@ func Exp(U PS) PS{
+ // Substitute V for x in U, where the leading term of V is zero
+ //	let U = u + x*UU
+ //	let V = v + x*VV
+-// 	then S(U,V) = u + VV*S(V,UU)
++//	then S(U,V) = u + VV*S(V,UU)
+ // bug: a nonzero constant term is ignored
+ 
+ func Subst(U, V PS) PS {
+diff --git a/test/fixedbugs/bug043.go b/test/fixedbugs/bug043.go
+deleted file mode 100644
+index 65d720b800..0000000000
+--- a/test/fixedbugs/bug043.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go && $L $F.$A && ./$A.out
+-
+-// Forward declarations
+-
+-package main
+-
+-func f (x int) ;  // this works
+-func f (x int) {}
+-
+-func i (x, y int) ;  // this works
+-func i (x, y int) {}
+-
+-func g (x int) float ;  // BUG this doesn't
+-func g (x int) float { return 0.0 }
+-
+-func h (x int) (u int, v int) ;  // BUG this doesn't
+-func h (x int) (u int, v int) { return; }
+-
+-func main() {}
+diff --git a/test/fixedbugs/bug044.go b/test/fixedbugs/bug044.go
+deleted file mode 100644
+index 789237abe6..0000000000
+--- a/test/fixedbugs/bug044.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go && $L $F.$A && ./$A.out
+-
+-package main
+-
+-type S struct {
+-};
+-
+-func (p *S) M1a() ;
+-
+-func (p *S) M2a() {
+-  p.M1a();
+-}
+-
+-func (p *S) M1a() {}  // this works
+-
+-
+-func (p *S) M1b() int;
+-
+-func (p *S) M2b() {
+-  p.M1b();
+-}
+-
+-func (p *S) M1b() int { return 0 }  // BUG this doesn't
+-
+-func main() {}
+diff --git a/test/fixedbugs/bug085.go b/test/fixedbugs/bug085.go
+index c1133fe928..02be717534 100644
+--- a/test/fixedbugs/bug085.go
++++ b/test/fixedbugs/bug085.go
+@@ -9,11 +9,11 @@ package P
+ var x int
+ 
+ func foo() {
+-	print(P.x);  // P should be defined between the outermost "universe" scope and the global scope
++	print(P.x);  // ERROR "undefined"
+ }
+ 
+ /*
+-uetli:~/Source/go1/test/bugs gri$ 6g bug085.go 
++uetli:~/Source/go1/test/bugs gri$ 6g bug085.go
+ bug085.go:6: P: undefined
+ Bus error
+ */
+diff --git a/test/hashmap.go b/test/hashmap.go
+index 6f70f2b50c..49007810c6 100755
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -87,9 +87,6 @@ func (m *HashMap) Probe (key *KeyType) *Entry {
+ }
+ 
+ 
+-func (m *HashMap) Resize();
+-
+-
+ func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
+ 	// Find a matching entry.
+ 	var p *Entry = m.Probe(key);
+diff --git a/test/interface/recursive.go b/test/interface/recursive.go
+index 707cfcb8c3..87509838f4 100644
+--- a/test/interface/recursive.go
++++ b/test/interface/recursive.go
+@@ -19,6 +19,5 @@ type I2 interface {
+ }
+ 
+ type T int
+-func (t T) bar() I1;
+ func (t T) foo() I2 { return t }
+ func (t T) bar() I1 { return t }
+diff --git a/test/ken/mfunc.go b/test/ken/mfunc.go
+index ab579e9324..78c9617a8f 100644
+--- a/test/ken/mfunc.go
++++ b/test/ken/mfunc.go
+@@ -6,8 +6,6 @@
+ 
+ package main
+ 
+-func	simple(ia,ib,ic int) (oa,ob int);
+-
+ func
+ main()
+ {
+diff --git a/test/ken/ptrfun.go b/test/ken/ptrfun.go
+index fe16fce3aa..111ac61bb9 100644
+--- a/test/ken/ptrfun.go
++++ b/test/ken/ptrfun.go
+@@ -13,8 +13,6 @@ type C struct
+ 	x	func(p *C)int;
+ }
+ 
+-func	g(p *C)int;
+-
+ func
+ (this *C) f()int
+ {
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index 29be2efcc1..5098d93990 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -36,8 +36,6 @@ type Slist struct {
+ 
+ }
+ 
+-func (this *Slist) Print();
+-
+ func (this *Slist) Car() *Slist {
+ 	return this.list.car;
+ }
+@@ -67,9 +65,6 @@ func (slist *Slist) Free() {
+ //	free(slist);
+ }
+ 
+-func OpenFile();
+-func Parse() *Slist;
+-
+ //Slist* atom(byte *s, int i);
+ 
+ var token int;
+diff --git a/test/ken/simpfun.go b/test/ken/simpfun.go
+index 1e063bf0f6..ee2c1a9a09 100644
+--- a/test/ken/simpfun.go
++++ b/test/ken/simpfun.go
+@@ -7,8 +7,6 @@
+ 
+ package main
+ 
+-func fun(ia,ib,ic int)int;
+-
+ func
+ main()
+ {
+diff --git a/usr/dsymonds/iterable/Makefile b/usr/dsymonds/iterable/Makefile
+index e47791c42b..3485d0ee43 100644
+--- a/usr/dsymonds/iterable/Makefile
++++ b/usr/dsymonds/iterable/Makefile
+@@ -2,67 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# DO NOT EDIT.  Automatically generated by gobuild.
+-# gobuild -m >Makefile
++include $(GOROOT)/src/Make.$(GOARCH)
+ 
+-D=
++TARG=iterable
++GOFILES=\
++	iterable.go\
+ 
+-O_arm=5
+-O_amd64=6
+-O_386=8
+-OS=568vq
+-
+-O=$(O_$(GOARCH))
+-GC=$(O)g -I_obj
+-CC=$(O)c -FVw
+-AS=$(O)a
+-AR=6ar
+-
+-default: packages
+-
+-clean:
+-	rm -rf *.[$(OS)] *.a [$(OS)].out _obj
+-
+-test: packages
+-	gotest
+-
+-coverage: packages
+-	gotest
+-	6cov -g `pwd` | grep -v '_test\.go:'
+-
+-%.$O: %.go
+-	$(GC) $*.go
+-
+-%.$O: %.c
+-	$(CC) $*.c
+-
+-%.$O: %.s
+-	$(AS) $*.s
+-
+-O1=\
+-	iterable.$O\
+-
+-
+-phases: a1
+-_obj$D/iterable.a: phases
+-
+-a1: $(O1)
+-	$(AR) grc _obj$D/iterable.a iterable.$O
+-	rm -f $(O1)
+-
+-
+-newpkg: clean
+-	mkdir -p _obj$D
+-	$(AR) grc _obj$D/iterable.a
+-
+-$(O1): newpkg
+-$(O2): a1
+-
+-nuke: clean
+-	rm -f $(GOROOT)/pkg$D/iterable.a
+-
+-packages: _obj$D/iterable.a
+-
+-install: packages
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/iterable.a $(GOROOT)/pkg$D/iterable.a
++include $(GOROOT)/src/Make.pkg
+diff --git a/usr/dsymonds/iterable/iterable_test.go b/usr/dsymonds/iterable/iterable_test.go
+index 8abba646e1..512cac1398 100644
+--- a/usr/dsymonds/iterable/iterable_test.go
++++ b/usr/dsymonds/iterable/iterable_test.go
+@@ -5,7 +5,6 @@
+ package iterable
+ 
+ import (
+-	"iterable";
+ 	"testing";
+ )
+ 

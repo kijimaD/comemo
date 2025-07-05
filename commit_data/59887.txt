@@ -14,8 +14,57 @@ Date:   Tue May 7 13:32:42 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/internal/reflectlite/export_test.go | 2 +-
  src/internal/reflectlite/type.go        | 5 -----
  src/internal/reflectlite/value.go       | 4 ++--
  3 files changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/reflectlite/export_test.go b/src/internal/reflectlite/export_test.go
+index ea937b8db7..0ad3d97c15 100644
+--- a/src/internal/reflectlite/export_test.go
++++ b/src/internal/reflectlite/export_test.go
+@@ -70,7 +70,7 @@ func Zero(typ Type) Value {
+ 	}
+ 	t := typ.common()
+ 	fl := flag(t.Kind())
+-	if ifaceIndir(t) {
++	if t.IfaceIndir() {
+ 		return Value{t, unsafe_New(t), fl | flagIndir}
+ 	}
+ 	return Value{t, nil, fl}
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index af581d3a71..88cc50db9e 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -641,8 +641,3 @@ func toType(t *abi.Type) Type {
+ 	}
+ 	return toRType(t)
+ }
+-
+-// ifaceIndir reports whether t is stored indirectly in an interface value.
+-func ifaceIndir(t *abi.Type) bool {
+-	return abi.Kind(t.Kind_)&abi.KindDirectIface == 0
+-}
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index f898b86108..c38b498ea7 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -116,7 +116,7 @@ func packEface(v Value) any {
+ 	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
+ 	// First, fill in the data portion of the interface.
+ 	switch {
+-	case ifaceIndir(t):
++	case t.IfaceIndir():
+ 		if v.flag&flagIndir == 0 {
+ 			panic("bad indir")
+ 		}
+@@ -153,7 +153,7 @@ func unpackEface(i any) Value {
+ 		return Value{}
+ 	}
+ 	f := flag(t.Kind())
+-	if ifaceIndir(t) {
++	if t.IfaceIndir() {
+ 		f |= flagIndir
+ 	}
+ 	return Value{t, e.Data, f}

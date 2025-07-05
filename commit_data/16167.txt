@@ -7,6 +7,20 @@ Date:   Fri Apr 12 07:58:50 2013 -0700
     R=golang-dev, minux.ma, r
     CC=golang-dev
     https://golang.org/cl/8709043
-
+---
  src/cmd/ld/ldpe.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 98923bfbf6..52134405fb 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -232,7 +232,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				s->type = STEXT;
+ 				break;
+ 			default:
+-				werrstr("unexpected flags for PE section %s", sect->name);
++				werrstr("unexpected flags %#08x for PE section %s", sect->sh.Characteristics, sect->name);
+ 				goto bad;
+ 		}
+ 		s->p = sect->base;

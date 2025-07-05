@@ -23,10 +23,290 @@ Date:   Thu Nov 13 13:42:26 2008 -0800
     DELTA=494  (277 added, 203 deleted, 14 changed)
     OCL=19090
     CL=19171
-
+---
  src/cmd/6l/obj.c              | 47 ++++++++++++++++++++++++++++++++++++++++---
  src/cmd/ar/ar.c               |  6 ++++++
  src/cmd/gobuild/gobuild.c     | 29 ++++++++++++++++++++------
  src/lib/math/Makefile         | 12 ++++++++---
  test/{math.go => mathtest.go} | 10 ++++++---
  5 files changed, 89 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index bc7413fe15..9777cdf42a 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -542,6 +542,10 @@ objfile(char *file)
+ 				goto bad;
+ 			if(strncmp(arhdr.fmag, ARFMAG, sizeof(arhdr.fmag)))
+ 				goto bad;
++			l = SARNAME;
++			while(l > 0 && arhdr.name[l-1] == ' ')
++				l--;
++			sprint(pname, "%s(%.*s)", file, l, arhdr.name);
+ 			l = atolwhex(arhdr.size);
+ 			ldobj(f, l, pname);
+ 			if(s->type == SXREF) {
+@@ -635,9 +639,9 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ }
+ 
+ void
+-addlib(char *obj)
++addlib(char *src, char *obj)
+ {
+-	char name[1024], comp[256], *p;
++	char name[1024], comp[256], *p, *q;
+ 	int i;
+ 
+ 	if(histfrogp <= 0)
+@@ -685,6 +689,23 @@ addlib(char *obj)
+ 		strcat(name, "/");
+ 		strcat(name, comp);
+ 	}
++	if(debug['v'])
++		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
++
++	p = strrchr(src, '/');
++	q = strrchr(name, '/');
++	if(p != nil && q != nil && p - src == q - name && memcmp(src, name, p - src) == 0) {
++		// leading paths are the same.
++		// if the source file refers to an object in its own directory
++		// and we are inside an archive, ignore the reference, in the hope
++		// that the archive contains that object too.
++		if(strchr(obj, '(')) {
++			if(debug['v'])
++				Bprint(&bso, "%5.2f ignored srcdir object %s\n", cputime(), name);
++			return;
++		}
++	}
++
+ 	for(i=0; i<libraryp; i++)
+ 		if(strcmp(name, library[i]) == 0)
+ 			return;
+@@ -702,6 +723,22 @@ addlib(char *obj)
+ 	libraryp++;
+ }
+ 
++void
++copyhistfrog(char *buf, int nbuf)
++{
++	char *p, *ep;
++	int i;
++
++	p = buf;
++	ep = buf + nbuf;
++	i = 0;
++	for(i=0; i<histfrogp; i++) {
++		p = seprint(p, ep, "%s", histfrog[i]->name+1);
++		if(i+1<histfrogp && (p == buf || p[-1] != '/'))
++			p = seprint(p, ep, "/");
++	}
++}
++
+ void
+ addhist(int32 line, int type)
+ {
+@@ -800,7 +837,9 @@ ldobj(Biobuf *f, int64 len, char *pn)
+ 	int ntext, n, c1, c2, c3;
+ 	vlong eof;
+ 	vlong import0, import1;
++	char src[1024];
+ 
++	src[0] = '\0';
+ 	eof = Boffset(f) + len;
+ 
+ 	ntext = 0;
+@@ -938,10 +977,12 @@ loop:
+ 	switch(p->as) {
+ 	case AHISTORY:
+ 		if(p->to.offset == -1) {
+-			addlib(pn);
++			addlib(src, pn);
+ 			histfrogp = 0;
+ 			goto loop;
+ 		}
++		if(src[0] == '\0')
++			copyhistfrog(src, sizeof src);
+ 		addhist(p->line, D_FILE);		/* 'z' */
+ 		if(p->to.offset)
+ 			addhist(p->to.offset, D_FILE1);	/* 'Z' */
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index cb6ae6d442..513d6af436 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -1671,6 +1671,12 @@ getpkgdef(char **datap, int *lenp)
+ 	char *data, *p;
+ 	Import **all, *x;
+ 
++	if(pkgstmt == nil) {
++		*datap = nil;
++		*lenp = 0;
++		return;
++	}
++
+ 	// make a list of all the exports and count string sizes
+ 	all = armalloc(nimport*sizeof all[0]);
+ 	j = 0;
+diff --git a/src/cmd/gobuild/gobuild.c b/src/cmd/gobuild/gobuild.c
+index 56c044e966..3a37cfd7c5 100644
+--- a/src/cmd/gobuild/gobuild.c
++++ b/src/cmd/gobuild/gobuild.c
+@@ -52,6 +52,8 @@ run(char **argv, int showoutput)
+ 		if(!showoutput){
+ 			dup(devnull, 1);
+ 			dup(devnull, 2);
++		}else{
++			dup(2, 1);
+ 		}
+ 		if(devnull > 2)
+ 			close(devnull);
+@@ -173,15 +175,17 @@ char preamble[] =
+ 	"AS=$(O)a\n"
+ 	"AR=$(O)ar\n"
+ 	"\n"
+-	"PKG=$(GOROOT)/pkg/%s.a\n"
++	"PKG=%s.a\n"
++	"PKGDIR=$(GOROOT)/pkg%s\n"
+ 	"\n"
+ 	"install: $(PKG)\n"
++	"\tmv $(PKG) $(PKGDIR)/$(PKG)\n"
+ 	"\n"
+ 	"nuke: clean\n"
+-	"\trm -f $(PKG)\n"
++	"\trm -f $(PKGDIR)/$(PKG)\n"
+ 	"\n"
+ 	"clean:\n"
+-	"\trm -f *.$O *.a\n"
++	"\trm -f *.$O *.a $(PKG)\n"
+ 	"\n"
+ 	"%%.$O: %%.go\n"
+ 	"\t$(GC) $*.go\n"
+@@ -198,7 +202,7 @@ void
+ main(int argc, char **argv)
+ {
+ 	int i, o, p, n, pass, nar, njob, nthis, nnext, oargc;
+-	char **ar, **next, **this, **tmp, *goroot, *pkgname, *pkgpath, **oargv;
++	char **ar, **next, **this, **tmp, *goroot, *pkgname, *pkgpath, *pkgdir, **oargv, *q;
+ 	Job *job;
+ 	Biobuf bout;
+ 
+@@ -241,7 +245,17 @@ main(int argc, char **argv)
+ 		usage();
+ 	}
+ 
+-	pkgpath = smprint("%s/pkg/%s.a", goroot, pkgname);
++	q = strrchr(pkgname, '/');
++	if(q) {
++		pkgdir = pkgname;
++		*q++ = '\0';
++		pkgname = q;
++		pkgdir = smprint("/%s", pkgdir);
++	} else {
++		pkgdir = "";
++	}
++
++	pkgpath = smprint("%s.a", pkgname);
+ 	unlink(pkgpath);
+ 	if(chatty)
+ 		fprint(2, "pkg %s\n", pkgpath);
+@@ -275,6 +289,9 @@ main(int argc, char **argv)
+ 	ar[0] = smprint("%sar", thechar);
+ 	ar[1] = "grc";
+ 	ar[2] = pkgpath;
++	ar[3] = nil;
++	if(run(ar, 1) < 0)
++		sysfatal("ar: %r");
+ 
+ 	njob = 0;
+ 
+@@ -333,7 +350,7 @@ main(int argc, char **argv)
+ 			Bprint(&bout, " %s", oargv[i]);
+ 		}
+ 		Bprint(&bout, "\n");
+-		Bprint(&bout, preamble, thechar, pkgname);
++		Bprint(&bout, preamble, thechar, pkgname, pkgdir);
+ 
+ 		// O2=\
+ 		//	os_file.$O\
+diff --git a/src/lib/math/Makefile b/src/lib/math/Makefile
+index c792a8eb1a..a64d7b34a0 100644
+--- a/src/lib/math/Makefile
++++ b/src/lib/math/Makefile
+@@ -12,15 +12,17 @@ CC=$(O)c -w
+ AS=$(O)a
+ AR=$(O)ar
+ 
+-PKG=$(GOROOT)/pkg/math.a
++PKG=math.a
++PKGDIR=$(GOROOT)/pkg
+ 
+ install: $(PKG)
++	mv $(PKG) $(PKGDIR)/$(PKG)
+ 
+ nuke: clean
+-	rm -f $(PKG)
++	rm -f $(PKGDIR)/$(PKG)
+ 
+ clean:
+-	rm -f *.$O *.a
++	rm -f *.$O *.a $(PKG)
+ 
+ %.$O: %.go
+ 	$(GC) $*.go
+@@ -59,12 +61,16 @@ O4=\
+ $(PKG): a1 a2 a3 a4
+ a1:	$(O1)
+ 	$(AR) grc $(PKG) $(O1)
++	rm -f $(O1)
+ a2:	$(O2)
+ 	$(AR) grc $(PKG) $(O2)
++	rm -f $(O2)
+ a3:	$(O3)
+ 	$(AR) grc $(PKG) $(O3)
++	rm -f $(O3)
+ a4:	$(O4)
+ 	$(AR) grc $(PKG) $(O4)
++	rm -f $(O4)
+ 
+ $(O1): nuke
+ $(O2): a1
+diff --git a/test/math.go b/test/mathtest.go
+similarity index 97%
+rename from test/math.go
+rename to test/mathtest.go
+index e24421e880..acfb9bab72 100644
+--- a/test/math.go
++++ b/test/mathtest.go
+@@ -2,10 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// $G $F.go && $L $F.$A && (./$A.out || echo BUG: math fails)
+ 
+ package main
+ 
+-import math "math"
++import (
++	"fmt";
++	"math";
++)
+ 
+ const	length	= 10;
+ 
+@@ -57,7 +61,7 @@ ck(a,b float64)
+ 		d = -d;
+ 	}
+ 
+-	e := 1e-14;
++	e := float64(1e-13);
+ 	if a != 0 {
+ 		e = e*a;
+ 		if e < 0 {
+@@ -66,7 +70,7 @@ ck(a,b float64)
+ 	}
+ 
+ 	if d > e {
+-		panic(a, " ", b, "\n");
++		panic(fmt.sprintf("%.17g %.17g", a, b));
+ 	}
+ }
+ 

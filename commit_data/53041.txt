@@ -13,7 +13,80 @@ Date:   Fri Jun 10 19:53:27 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  api/go1.19.txt     |  4 ++++
  src/debug/pe/pe.go | 46 ++++++++++++++++++++++++----------------------
  2 files changed, 28 insertions(+), 22 deletions(-)
+
+diff --git a/api/go1.19.txt b/api/go1.19.txt
+index b3fade45aa..523f752d70 100644
+--- a/api/go1.19.txt
++++ b/api/go1.19.txt
+@@ -126,6 +126,10 @@ pkg debug/pe, const IMAGE_COMDAT_SELECT_NODUPLICATES = 1 #51868
+ pkg debug/pe, const IMAGE_COMDAT_SELECT_NODUPLICATES ideal-int #51868
+ pkg debug/pe, const IMAGE_COMDAT_SELECT_SAME_SIZE = 3 #51868
+ pkg debug/pe, const IMAGE_COMDAT_SELECT_SAME_SIZE ideal-int #51868
++pkg debug/pe, const IMAGE_FILE_MACHINE_LOONGARCH32 = 25138 #46229
++pkg debug/pe, const IMAGE_FILE_MACHINE_LOONGARCH32 ideal-int #46229
++pkg debug/pe, const IMAGE_FILE_MACHINE_LOONGARCH64 = 25188 #46229
++pkg debug/pe, const IMAGE_FILE_MACHINE_LOONGARCH64 ideal-int #46229
+ pkg debug/pe, const IMAGE_SCN_CNT_CODE = 32 #51868
+ pkg debug/pe, const IMAGE_SCN_CNT_CODE ideal-int #51868
+ pkg debug/pe, const IMAGE_SCN_CNT_INITIALIZED_DATA = 64 #51868
+diff --git a/src/debug/pe/pe.go b/src/debug/pe/pe.go
+index db112fe7ad..9d55c40f9c 100644
+--- a/src/debug/pe/pe.go
++++ b/src/debug/pe/pe.go
+@@ -87,28 +87,30 @@ type OptionalHeader64 struct {
+ }
+ 
+ const (
+-	IMAGE_FILE_MACHINE_UNKNOWN   = 0x0
+-	IMAGE_FILE_MACHINE_AM33      = 0x1d3
+-	IMAGE_FILE_MACHINE_AMD64     = 0x8664
+-	IMAGE_FILE_MACHINE_ARM       = 0x1c0
+-	IMAGE_FILE_MACHINE_ARMNT     = 0x1c4
+-	IMAGE_FILE_MACHINE_ARM64     = 0xaa64
+-	IMAGE_FILE_MACHINE_EBC       = 0xebc
+-	IMAGE_FILE_MACHINE_I386      = 0x14c
+-	IMAGE_FILE_MACHINE_IA64      = 0x200
+-	IMAGE_FILE_MACHINE_M32R      = 0x9041
+-	IMAGE_FILE_MACHINE_MIPS16    = 0x266
+-	IMAGE_FILE_MACHINE_MIPSFPU   = 0x366
+-	IMAGE_FILE_MACHINE_MIPSFPU16 = 0x466
+-	IMAGE_FILE_MACHINE_POWERPC   = 0x1f0
+-	IMAGE_FILE_MACHINE_POWERPCFP = 0x1f1
+-	IMAGE_FILE_MACHINE_R4000     = 0x166
+-	IMAGE_FILE_MACHINE_SH3       = 0x1a2
+-	IMAGE_FILE_MACHINE_SH3DSP    = 0x1a3
+-	IMAGE_FILE_MACHINE_SH4       = 0x1a6
+-	IMAGE_FILE_MACHINE_SH5       = 0x1a8
+-	IMAGE_FILE_MACHINE_THUMB     = 0x1c2
+-	IMAGE_FILE_MACHINE_WCEMIPSV2 = 0x169
++	IMAGE_FILE_MACHINE_UNKNOWN     = 0x0
++	IMAGE_FILE_MACHINE_AM33        = 0x1d3
++	IMAGE_FILE_MACHINE_AMD64       = 0x8664
++	IMAGE_FILE_MACHINE_ARM         = 0x1c0
++	IMAGE_FILE_MACHINE_ARMNT       = 0x1c4
++	IMAGE_FILE_MACHINE_ARM64       = 0xaa64
++	IMAGE_FILE_MACHINE_EBC         = 0xebc
++	IMAGE_FILE_MACHINE_I386        = 0x14c
++	IMAGE_FILE_MACHINE_IA64        = 0x200
++	IMAGE_FILE_MACHINE_LOONGARCH32 = 0x6232
++	IMAGE_FILE_MACHINE_LOONGARCH64 = 0x6264
++	IMAGE_FILE_MACHINE_M32R        = 0x9041
++	IMAGE_FILE_MACHINE_MIPS16      = 0x266
++	IMAGE_FILE_MACHINE_MIPSFPU     = 0x366
++	IMAGE_FILE_MACHINE_MIPSFPU16   = 0x466
++	IMAGE_FILE_MACHINE_POWERPC     = 0x1f0
++	IMAGE_FILE_MACHINE_POWERPCFP   = 0x1f1
++	IMAGE_FILE_MACHINE_R4000       = 0x166
++	IMAGE_FILE_MACHINE_SH3         = 0x1a2
++	IMAGE_FILE_MACHINE_SH3DSP      = 0x1a3
++	IMAGE_FILE_MACHINE_SH4         = 0x1a6
++	IMAGE_FILE_MACHINE_SH5         = 0x1a8
++	IMAGE_FILE_MACHINE_THUMB       = 0x1c2
++	IMAGE_FILE_MACHINE_WCEMIPSV2   = 0x169
+ )
+ 
+ // IMAGE_DIRECTORY_ENTRY constants

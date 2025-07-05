@@ -15,6 +15,30 @@ Date:   Fri Sep 5 14:59:09 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews, r
     https://golang.org/cl/141110043
-
+---
  misc/cgo/test/issue5548.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/test/issue5548.go b/misc/cgo/test/issue5548.go
+index b41f465623..c879f2ae91 100644
+--- a/misc/cgo/test/issue5548.go
++++ b/misc/cgo/test/issue5548.go
+@@ -14,13 +14,14 @@ import "C"
+ //export issue5548FromC
+ func issue5548FromC(s string, i int) int {
+ 	if len(s) == 4 && s == "test" && i == 42 {
+-		return 1
++		return 12345
+ 	}
+-	return 0
++	println("got", len(s), i)
++	return 9876
+ }
+ 
+ func test5548(t *testing.T) {
+-	if C.issue5548_in_c() == 0 {
+-		t.Fail()
++	if x := C.issue5548_in_c(); x != 12345 {
++		t.Errorf("issue5548_in_c = %d, want %d", x, 12345)
+ 	}
+ }

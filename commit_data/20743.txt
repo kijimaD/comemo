@@ -10,6 +10,20 @@ Date:   Mon Oct 6 15:48:17 2014 -0400
     R=golang-codereviews, r
     CC=golang-codereviews, iant
     https://golang.org/cl/149570043
-
+---
  src/encoding/json/encode.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index b63538c922..9b7b9d5fd1 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -93,6 +93,8 @@ import (
+ // as described in the next paragraph.
+ // An anonymous struct field with a name given in its JSON tag is treated as
+ // having that name, rather than being anonymous.
++// An anonymous struct field of interface type is treated the same as having
++// that type as its name, rather than being anonymous.
+ //
+ // The Go visibility rules for struct fields are amended for JSON when
+ // deciding which field to marshal or unmarshal. If there are

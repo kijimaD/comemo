@@ -7,7 +7,146 @@ Date:   Wed Nov 23 15:51:45 2016 -0800
     Change-Id: Ib936539946f43556a7dd501f8127054f6a27861f
     Reviewed-on: https://go-review.googlesource.com/33553
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  doc/go1.8.txt  | 19 ++++++++--------
  2 files changed, 78 insertions(+), 10 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 90878a0a31..9080840fc2 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -422,6 +422,65 @@ in mind.
+   </dd>
+ </dl>
+ 
++<dl id="database_sql"><dt><a href="/pkg/database/sql/">database/sql</a></dt>
++  <dd>
++    <p>
++	  The package now supports <code>context.Context</code>. There are new methods
++	  ending in <code>Context</code> such as
++	  <a href="/pkg/database/sql/#DB.QueryContext"><code>DB.QueryContext</code></a> and
++	  <a href="/pkg/database/sql/#DB.PrepareContext"><code>DB.PrepareContext</code></a>
++	  that support <code>Context</code>. By using the new <code>Context</code> methods it ensures
++	  connections are closed and returned to the connection pool when the
++	  request is done. It also enables canceling in-progress queries
++	  should the driver support it. Finally, using the <code>Context</code>
++	  methods allows the database pool to cancel waiting for the next
++	  available connection.
++    </p>
++    <p>
++      The <a href="/pkg/database/sql#IsolationLevel"><code>IsolationLevel</code></a>
++	  can now be set when starting a transaction by setting the isolation level
++	  on the <code>Context</code> then passing that <code>Context</code> to
++	  <a href="/pkg/database/sql#DB.BeginContext"><code>DB.BeginContext</code></a>.
++	  An error will be returned if an isolation level is selected that the driver
++	  does not support. A read-only attribute may also be set on the transaction
++	  with <a href="/pkg/database/sql/#ReadOnlyContext"><code>ReadOnlyContext</code></a>
++	</p>
++	<p>
++      Queries now expose the SQL column type information for drivers that support it.
++	  Rows can return <a href="/pkg/database/sql#Rows.ColumnTypes"><code>ColumnTypes</code></a>
++	  which can include SQL type information, column type lengths, and the Go type.
++    </p>
++	<p>
++      Multiple result sets are now supported on Rows. After
++	  <a href="/pkg/database/sql/#Rows.Next"><code>Rows.Next</code></a> returns false
++	  <a href="/pkg/database/sql/#Rows.NextResultSet"><code>Rows.NextResultSet</code></a>
++	  may be called to advance to the next result set. The existing <code>Rows</code>
++	  should be continued to be used after it advances to the next result set.
++    </p>
++	<p>
++	  <a href="/pkg/database/sql/#NamedParam"><code>NamedParam</code></a> may be used
++	  as query arguments. The new function <a href="/pkg/database/sql/#Param"><code>Param</code></a>
++	  helps create a <a href="/pkg/database/sql/#NamedParam"><code>NamedParam</code></a>
++	  more succinctly.
++	<p>
++	  Drivers that support the new <a href="/pkg/database/sql/driver/#Pinger"><code>Pinger</code></a>
++	  interface can now check if the server is still alive when the the
++	  <a href="/pkg/database/sql/#DB.Ping"><code>DB.Ping</code></a>
++	  or <a href="/pkg/database/sql/#DB.PingContext"><code>DB.PingContext</code></a>
++	  is called.
++	</p>
++    <p>
++	  The new <code>Context</code> query methods work for all drivers, but
++	  <code>Context</code> cancelation is not responsive unless the driver has been
++	  updated to used them. The other features require driver support in
++	  <a href="/pkg/database/sql/driver"><code>database/sql/driver</code></a>.
++	  Driver authors should review the new interfaces. Users of existing
++	  driver should review the driver documentation to see what
++	  it supports and any system specific documentation on each feature.
++	</p>
++  </dd>
++</dl>
++
+ <dl id="debug_pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+   <dd>
+     <p> <!-- CL 22720, CL 27212, CL 22181, CL 22332, CL 22336, Issue 15345 -->
+@@ -749,6 +808,16 @@ pkg debug/pe, type StringTable []uint8</pre>
+   </dd>
+ </dl>
+ 
++<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
++  <dd>
++    <p>
++      The new function
++      <a href="/pkg/os/#Executable"><code>Executable</code></a> returns
++	  the running executable path name.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
+     <p> <!-- CL 30088 -->
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index 0c9f6ce249..5d2f6b5aa7 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -125,15 +125,6 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+ crypto/x509: support PSS signatures (CL 24743)
+ crypto/x509: support RHEL 7 cert bundle (CL 30375)
+ 
+-database/sql: accept nil pointers to Valuers implemented on value receivers (CL 31259)
+-database/sql: add Pinger interface to driver Conn (CL 32136)
+-database/sql: add context helper methods and transaction types (CL 31258)
+-database/sql: add context methods (CL 29381)
+-database/sql: add option to use named parameter in query arguments (CL 30166)
+-database/sql: add support for multiple result sets (CL 30592)
+-database/sql: don't hang if the driver Exec method panics (CL 23576)
+-database/sql: support returning query database types (CL 29961)
+-
+ encoding/asn1: return error for unexported fields in Marshal, Unmarshal (CL 31540)
+ 
+ encoding/xml: add wildcard support for collecting all attributes (CL 30946)
+@@ -190,7 +181,6 @@ net: use libresolv rules for ndots range and validation (CL 24901)
+ 
+ os, syscall: fix incorrect offset calculation in Readlink on windows (CL 31118)
+ os: add ErrClosed, return for use of closed File (CL 30614)
+-os: add Executable() (CL 16551)
+ os: consider only files from #M as regular on Plan 9 (CL 32152)
+ os: don't let File.Readdir return an empty slice and nil error (CL 28056)
+ os: make IsExist report true on ERROR_DIR_NOT_EMPTY on Windows (CL 29753)
+@@ -412,6 +402,14 @@ compress/flate: make compression level 0 consistent (CL 31174)
+ compress/flate: tighten the BestSpeed max match offset bound. (CL 32149)
+ compress/gzip: only encode MTIME if it is valid (CL 32325)
+ context: make DeadlineExceeded implement net.Error (CL 30370)
++database/sql: accept nil pointers to Valuers implemented on value receivers (CL 31259)
++database/sql: add Pinger interface to driver Conn (CL 32136)
++database/sql: add context helper methods and transaction types (CL 31258)
++database/sql: add context methods (CL 29381)
++database/sql: add option to use named parameter in query arguments (CL 30166)
++database/sql: add support for multiple result sets (CL 30592)
++database/sql: don't hang if the driver Exec method panics (CL 23576)
++database/sql: support returning query database types (CL 29961)
+ debug/pe: revert CL 22720 (CL 27212)
+ encoding/base64: add Encoding.Strict (CL 24964)
+ encoding/binary: add bool support (CL 28514)
+@@ -471,6 +469,7 @@ net: always wake up the readers on close on Plan 9 (CL 31390)
+ net: close the connection gracefully on Plan 9 (CL 31271)
+ net: implement network interface API for Plan 9 (CL 29963)
+ net: make lookupPort case-insensitive on Plan 9 (CL 29051)
++os: add Executable() (CL 16551)
+ plugin: darwin support (CL 29392)
+ plugin: mention OS X support and concurrency (CL 31463)
+ plugin: new package for loading plugins (CL 27823)

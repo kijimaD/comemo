@@ -15,6 +15,43 @@ Date:   Tue Aug 15 12:13:23 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Avelino <t@avelino.xxx>
-
+---
  src/syscall/exec_linux.go | 18 ++++++++++--------
  1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index fd87b86ff8..bfbe2b3d59 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -199,14 +199,6 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		}
+ 	}
+ 
+-	// Enable tracing if requested.
+-	if sys.Ptrace {
+-		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+ 	// Session ID
+ 	if sys.Setsid {
+ 		_, _, err1 = RawSyscall(SYS_SETSID, 0, 0, 0)
+@@ -402,6 +394,16 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		}
+ 	}
+ 
++	// Enable tracing if requested.
++	// Do this right before exec so that we don't unnecessarily trace the runtime
++	// setting up after the fork. See issue #21428.
++	if sys.Ptrace {
++		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
+ 	// Time to exec.
+ 	_, _, err1 = RawSyscall(SYS_EXECVE,
+ 		uintptr(unsafe.Pointer(argv0)),

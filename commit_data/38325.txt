@@ -16,6 +16,21 @@ Date:   Thu Oct 18 16:26:56 2018 +0100
     Reviewed-by: Richard Musiol <neelance@gmail.com>
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index bd9754e53a..78eb306253 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -59,6 +59,9 @@
+ 				err.code = "ENOSYS";
+ 				callback(err);
+ 			},
++			fsync(fd, callback) {
++				callback(null);
++			},
+ 		};
+ 	}
+ 

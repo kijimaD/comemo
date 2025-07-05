@@ -7,6 +7,46 @@ Date:   Thu Oct 30 15:29:55 2008 -0700
     R=ken
     OCL=18179
     CL=18179
-
+---
  src/cmd/gc/go.y | 12 +++++++++---
  1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index cc5a101524..cb802025a9 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1395,11 +1395,16 @@ structdcl:
+ 		$$->type = $2;
+ 		$$->val = $3;
+ 	}
+-|	embed
+-|	'*' embed
++|	embed oliteral
++	{
++		$$ = $1;
++		$$->val = $2;
++	}
++|	'*' embed oliteral
+ 	{
+ 		$$ = $2;
+ 		$$->type = ptrto($$->type);
++		$$->val = $3;
+ 	}
+ 
+ embed:
+@@ -1898,13 +1903,14 @@ hidden_structdcl:
+ 		$$->type = $2;
+ 		$$->val = $3;
+ 	}
+-|	'?' hidden_type
++|	'?' hidden_type oliteral
+ 	{
+ 		if(isptr[$2->etype]) {
+ 			$$ = embedded($2->type->sym);
+ 			$$->type = ptrto($$->type);
+ 		} else
+ 			$$ = embedded($2->sym);
++		$$->val = $3;
+ 	}
+ 
+ hidden_interfacedcl:

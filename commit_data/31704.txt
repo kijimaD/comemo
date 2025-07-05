@@ -13,6 +13,19 @@ Date:   Thu Mar 9 10:23:10 2017 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcarchive/main3.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/cgo/testcarchive/main3.c b/misc/cgo/testcarchive/main3.c
+index 5a1a60d4cd..60a16cf5fc 100644
+--- a/misc/cgo/testcarchive/main3.c
++++ b/misc/cgo/testcarchive/main3.c
+@@ -11,6 +11,7 @@
+ #include <string.h>
+ #include <time.h>
+ #include <sched.h>
++#include <unistd.h>
+ 
+ #include "libgo3.h"
+ 

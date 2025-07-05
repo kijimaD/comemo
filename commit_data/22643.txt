@@ -15,7 +15,7 @@ Date:   Sun Mar 29 23:38:20 2015 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_386.s      | 6 +++---
  src/runtime/asm_amd64.s    | 6 +++---
  src/runtime/asm_amd64p32.s | 6 +++---
@@ -23,3 +23,148 @@ Date:   Sun Mar 29 23:38:20 2015 +0000
  src/runtime/asm_arm64.s    | 6 +++---
  src/runtime/asm_ppc64x.s   | 6 +++---
  6 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index b5b793deec..3472e071cc 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -114,7 +114,7 @@ ok:
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	PUSHL	$runtime·main·f(SB)	// entry
++	PUSHL	$runtime·mainPC(SB)	// entry
+ 	PUSHL	$0	// arg size
+ 	CALL	runtime·newproc(SB)
+ 	POPL	AX
+@@ -126,8 +126,8 @@ ok:
+ 	INT $3
+ 	RET
+ 
+-DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
+-GLOBL	runtime·main·f(SB),RODATA,$4
++DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
++GLOBL	runtime·mainPC(SB),RODATA,$4
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+ 	INT $3
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 3039358d23..fdea05366e 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -109,7 +109,7 @@ ok:
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	MOVQ	$runtime·main·f(SB), AX		// entry
++	MOVQ	$runtime·mainPC(SB), AX		// entry
+ 	PUSHQ	AX
+ 	PUSHQ	$0			// arg size
+ 	CALL	runtime·newproc(SB)
+@@ -122,8 +122,8 @@ ok:
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-DATA	runtime·main·f+0(SB)/8,$runtime·main(SB)
+-GLOBL	runtime·main·f(SB),RODATA,$8
++DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
++GLOBL	runtime·mainPC(SB),RODATA,$8
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+ 	BYTE	$0xcc
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index f8ef2f0e4e..e144c4071f 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -73,7 +73,7 @@ ok:
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	MOVL	$runtime·main·f(SB), AX	// entry
++	MOVL	$runtime·mainPC(SB), AX	// entry
+ 	MOVL	$0, 0(SP)
+ 	MOVL	AX, 4(SP)
+ 	CALL	runtime·newproc(SB)
+@@ -84,8 +84,8 @@ ok:
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
+-GLOBL	runtime·main·f(SB),RODATA,$4
++DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
++GLOBL	runtime·mainPC(SB),RODATA,$4
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+ 	INT $3
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 4074e503cc..a5f6bdeac9 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -60,7 +60,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
+ 	BL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	MOVW	$runtime·main·f(SB), R0
++	MOVW	$runtime·mainPC(SB), R0
+ 	MOVW.W	R0, -4(R13)
+ 	MOVW	$8, R0
+ 	MOVW.W	R0, -4(R13)
+@@ -76,8 +76,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
+ 	MOVW	$1000, R1
+ 	MOVW	R0, (R1)	// fail hard
+ 
+-DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
+-GLOBL	runtime·main·f(SB),RODATA,$4
++DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
++GLOBL	runtime·mainPC(SB),RODATA,$4
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+ 	// gdb won't skip this breakpoint instruction automatically,
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 0d3363e78b..0068e848ac 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -60,7 +60,7 @@ nocgo:
+ 	BL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	MOVD	$runtime·main·f(SB), R0		// entry
++	MOVD	$runtime·mainPC(SB), R0		// entry
+ 	MOVD	RSP, R7
+ 	MOVD.W	$0, -8(R7)
+ 	MOVD.W	R0, -8(R7)
+@@ -77,8 +77,8 @@ nocgo:
+ 	MOVD	R0, (R0)	// boom
+ 	UNDEF
+ 
+-DATA	runtime·main·f+0(SB)/8,$runtime·main(SB)
+-GLOBL	runtime·main·f(SB),RODATA,$8
++DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
++GLOBL	runtime·mainPC(SB),RODATA,$8
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
+ 	BRK
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 048477c5e2..10461bb076 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -69,7 +69,7 @@ nocgo:
+ 	BL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+-	MOVD	$runtime·main·f(SB), R3		// entry
++	MOVD	$runtime·mainPC(SB), R3		// entry
+ 	MOVDU	R3, -8(R1)
+ 	MOVDU	R0, -8(R1)
+ 	MOVDU	R0, -8(R1)
+@@ -82,8 +82,8 @@ nocgo:
+ 	MOVD	R0, 1(R0)
+ 	RETURN
+ 
+-DATA	runtime·main·f+0(SB)/8,$runtime·main(SB)
+-GLOBL	runtime·main·f(SB),RODATA,$8
++DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
++GLOBL	runtime·mainPC(SB),RODATA,$8
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
+ 	MOVD	R0, 2(R0) // TODO: TD

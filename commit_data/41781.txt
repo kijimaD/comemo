@@ -21,7 +21,7 @@ Date:   Tue Oct 22 11:30:20 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.14.html                             | 16 ++++--
  src/cmd/go/alldocs.go                       |  7 +++
  src/cmd/go/internal/cfg/cfg.go              |  3 +-
@@ -34,3 +34,400 @@ Date:   Tue Oct 22 11:30:20 2019 -0400
  src/cmd/go/main.go                          |  2 +-
  src/cmd/go/testdata/script/modfile_flag.txt | 67 +++++++++++++++++++++++++
  11 files changed, 186 insertions(+), 13 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index ddaf73d0a5..4a69ec4ed4 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -113,9 +113,9 @@ TODO
+ </p>
+ 
+ <p><!-- golang.org/issue/31481 -->
+-  The <code>go</code> command now accepts a new flag, <code>-modcacherw</code>,
+-  which leaves newly-created directories in the module cache at their default
+-  permissions rather than making them read-only.
++  <code>-modcacherw</code> is a new flag that instructs the <code>go</code>
++  command to leave newly-created directories in the module cache at their
++  default permissions rather than making them read-only.
+   The use of this flag makes it more likely that tests or other tools will
+   accidentally add files not included in the module's verified checksum.
+   However, it allows the use of <code>rm</code> <code>-rf</code>
+@@ -123,6 +123,16 @@ TODO
+   to remove the module cache.
+ </p>
+ 
++<p><!-- golang.org/issue/34506 -->
++  <code>-modfile=file</code> is a new flag that instructs the <code>go</code>
++  command to read (and possibly write) an alternate go.mod file instead of the
++  one in the module root directory. A file named "go.mod" must still be present
++  in order to determine the module root directory, but it is not
++  accessed. When <code>-modfile</code> is specified, an alternate go.sum file
++  is also used: its path is derived from the <code>-modfile</code> flag by
++  trimming the ".mod" extension and appending ".sum".
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index c5ceec8009..a6af7738b5 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -153,6 +153,13 @@
+ // 	-modcacherw
+ // 		leave newly-created directories in the module cache read-write
+ // 		instead of making them read-only.
++// 	-modfile file
++// 		in module aware mode, read (and possibly write) an alternate go.mod
++// 		file instead of the one in the module root directory. A file named
++// 		"go.mod" must still be present in order to determine the module root
++// 		directory, but it is not accessed. When -modfile is specified, an
++// 		alternate go.sum file is also used: its path is derived from the
++// 		-modfile flag by trimming the ".mod" extension and appending ".sum".
+ // 	-pkgdir dir
+ // 		install and load all packages from dir instead of the usual locations.
+ // 		For example, when building with a non-standard configuration,
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 36b2348888..b5d6ddca17 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -44,7 +44,8 @@ var (
+ 	BuildWork              bool // -work flag
+ 	BuildX                 bool // -x flag
+ 
+-	ModCacheRW bool // -modcacherw flag
++	ModCacheRW bool   // -modcacherw flag
++	ModFile    string // -modfile flag
+ 
+ 	CmdName string // "build", "install", "list", "mod tidy", etc.
+ 
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 239f88bdc2..97cc0fa02f 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -12,7 +12,6 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+-	"path/filepath"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+@@ -159,7 +158,7 @@ func runEdit(cmd *base.Command, args []string) {
+ 	if len(args) == 1 {
+ 		gomod = args[0]
+ 	} else {
+-		gomod = filepath.Join(modload.ModRoot(), "go.mod")
++		gomod = modload.ModFilePath()
+ 	}
+ 
+ 	if *editModule != "" {
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index 2858a46c4e..714ff2e205 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -43,7 +43,8 @@ func runInit(cmd *base.Command, args []string) {
+ 	if os.Getenv("GO111MODULE") == "off" {
+ 		base.Fatalf("go mod init: modules disabled by GO111MODULE=off; see 'go help modules'")
+ 	}
+-	if _, err := os.Stat("go.mod"); err == nil {
++	modFilePath := modload.ModFilePath()
++	if _, err := os.Stat(modFilePath); err == nil {
+ 		base.Fatalf("go mod init: go.mod already exists")
+ 	}
+ 	if strings.Contains(modload.CmdModModule, "@") {
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index f150cc9728..1750522158 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -5,7 +5,10 @@
+ // Package modcmd implements the ``go mod'' command.
+ package modcmd
+ 
+-import "cmd/go/internal/base"
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++)
+ 
+ var CmdMod = &base.Command{
+ 	UsageLine: "go mod",
+@@ -29,3 +32,7 @@ See 'go help modules' for an overview of module functionality.
+ 		cmdWhy,
+ 	},
+ }
++
++func addModFlags(cmd *base.Command) {
++	cmd.Flag.StringVar(&cfg.ModFile, "modfile", "", "")
++}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 393121df6c..984fbaf1f1 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -91,6 +91,9 @@ func Init() {
+ 	}
+ 	initialized = true
+ 
++	// Keep in sync with WillBeEnabled. We perform extra validation here, and
++	// there are lots of diagnostics and side effects, so we can't use
++	// WillBeEnabled directly.
+ 	env := cfg.Getenv("GO111MODULE")
+ 	switch env {
+ 	default:
+@@ -137,6 +140,9 @@ func Init() {
+ 	} else {
+ 		modRoot = findModuleRoot(base.Cwd)
+ 		if modRoot == "" {
++			if cfg.ModFile != "" {
++				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
++			}
+ 			if !mustUseModules {
+ 				// GO111MODULE is 'auto', and we can't find a module root.
+ 				// Stay in GOPATH mode.
+@@ -152,6 +158,9 @@ func Init() {
+ 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
+ 		}
+ 	}
++	if cfg.ModFile != "" && !strings.HasSuffix(cfg.ModFile, ".mod") {
++		base.Fatalf("go: -modfile=%s: file does not have .mod extension", cfg.ModFile)
++	}
+ 
+ 	// We're in module mode. Install the hooks to make it work.
+ 
+@@ -210,7 +219,7 @@ func Init() {
+ 		//
+ 		// See golang.org/issue/32027.
+ 	} else {
+-		modfetch.GoSumFile = filepath.Join(modRoot, "go.sum")
++		modfetch.GoSumFile = strings.TrimSuffix(ModFilePath(), ".mod") + ".sum"
+ 		search.SetModRoot(modRoot)
+ 	}
+ }
+@@ -226,6 +235,54 @@ func init() {
+ 	}
+ }
+ 
++// WillBeEnabled checks whether modules should be enabled but does not
++// initialize modules by installing hooks. If Init has already been called,
++// WillBeEnabled returns the same result as Enabled.
++//
++// This function is needed to break a cycle. The main package needs to know
++// whether modules are enabled in order to install the module or GOPATH version
++// of 'go get', but Init reads the -modfile flag in 'go get', so it shouldn't
++// be called until the command is installed and flags are parsed. Instead of
++// calling Init and Enabled, the main package can call this function.
++func WillBeEnabled() bool {
++	if modRoot != "" || mustUseModules {
++		return true
++	}
++	if initialized {
++		return false
++	}
++
++	// Keep in sync with Init. Init does extra validation and prints warnings or
++	// exits, so it can't call this function directly.
++	env := cfg.Getenv("GO111MODULE")
++	switch env {
++	case "on":
++		return true
++	case "auto", "":
++		break
++	default:
++		return false
++	}
++
++	if CmdModInit {
++		// Running 'go mod init': go.mod will be created in current directory.
++		return true
++	}
++	if modRoot := findModuleRoot(base.Cwd); modRoot == "" {
++		// GO111MODULE is 'auto', and we can't find a module root.
++		// Stay in GOPATH mode.
++		return false
++	} else if search.InDir(modRoot, os.TempDir()) == "." {
++		// If you create /tmp/go.mod for experimenting,
++		// then any tests that create work directories under /tmp
++		// will find it and get modules when they're not expecting them.
++		// It's a bit of a peculiar thing to disallow but quite mysterious
++		// when it happens. See golang.org/issue/26708.
++		return false
++	}
++	return true
++}
++
+ // Enabled reports whether modules are (or must be) enabled.
+ // If modules are enabled but there is no main module, Enabled returns true
+ // and then the first use of module information will call die
+@@ -252,6 +309,20 @@ func HasModRoot() bool {
+ 	return modRoot != ""
+ }
+ 
++// ModFilePath returns the effective path of the go.mod file. Normally, this
++// "go.mod" in the directory returned by ModRoot, but the -modfile flag may
++// change its location. ModFilePath calls base.Fatalf if there is no main
++// module, even if -modfile is set.
++func ModFilePath() string {
++	if !HasModRoot() {
++		die()
++	}
++	if cfg.ModFile != "" {
++		return cfg.ModFile
++	}
++	return filepath.Join(modRoot, "go.mod")
++}
++
+ // printStackInDie causes die to print a stack trace.
+ //
+ // It is enabled by the testgo tag, and helps to diagnose paths that
+@@ -305,7 +376,7 @@ func InitMod() {
+ 		return
+ 	}
+ 
+-	gomod := filepath.Join(modRoot, "go.mod")
++	gomod := ModFilePath()
+ 	data, err := renameio.ReadFile(gomod)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+@@ -801,7 +872,7 @@ func WriteGoMod() {
+ 	unlock := modfetch.SideLock()
+ 	defer unlock()
+ 
+-	file := filepath.Join(modRoot, "go.mod")
++	file := ModFilePath()
+ 	old, err := renameio.ReadFile(file)
+ 	if !bytes.Equal(old, modFileData) {
+ 		if bytes.Equal(old, new) {
+@@ -819,7 +890,6 @@ func WriteGoMod() {
+ 		// want to run concurrent commands, they need to start with a complete,
+ 		// consistent module definition.
+ 		base.Fatalf("go: updates to go.mod needed, but contents have changed")
+-
+ 	}
+ 
+ 	if err := renameio.WriteFile(file, new, 0666); err != nil {
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index d2b4bd3c65..7dd8104683 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -105,6 +105,13 @@ and test commands:
+ 	-modcacherw
+ 		leave newly-created directories in the module cache read-write
+ 		instead of making them read-only.
++	-modfile file
++		in module aware mode, read (and possibly write) an alternate go.mod
++		file instead of the one in the module root directory. A file named
++		"go.mod" must still be present in order to determine the module root
++		directory, but it is not accessed. When -modfile is specified, an
++		alternate go.sum file is also used: its path is derived from the
++		-modfile flag by trimming the ".mod" extension and appending ".sum".
+ 	-pkgdir dir
+ 		install and load all packages from dir instead of the usual locations.
+ 		For example, when building with a non-standard configuration,
+@@ -266,6 +273,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ // and 'go mod' subcommands.
+ func AddModCommonFlags(cmd *base.Command) {
+ 	cmd.Flag.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
++	cmd.Flag.StringVar(&cfg.ModFile, "modfile", "", "")
+ }
+ 
+ // tagsFlag is the implementation of the -tags flag.
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 2f9fde4cb8..55f6d4644a 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -258,6 +258,9 @@ func buildModeInit() {
+ 		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
+ 			base.Fatalf("build flag -modcacherw only valid when using modules")
+ 		}
++		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
++			base.Fatalf("build flag -modfile only valid when using modules")
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 73da736882..4882375f4e 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -91,7 +91,7 @@ func main() {
+ 	}
+ 
+ 	if args[0] == "get" || args[0] == "help" {
+-		if modload.Init(); !modload.Enabled() {
++		if !modload.WillBeEnabled() {
+ 			// Replace module-aware get with GOPATH get if appropriate.
+ 			*modget.CmdGet = *get.CmdGet
+ 		}
+diff --git a/src/cmd/go/testdata/script/modfile_flag.txt b/src/cmd/go/testdata/script/modfile_flag.txt
+new file mode 100644
+index 0000000000..46a169fc42
+--- /dev/null
++++ b/src/cmd/go/testdata/script/modfile_flag.txt
+@@ -0,0 +1,67 @@
++# Tests the behavior of the -modfile flag in commands that support it.
++# The go.mod file exists but should not be read or written.
++# Same with go.sum.
++
++env GOFLAGS=-modfile=go.alt.mod
++cp go.mod go.mod.orig
++cp go.sum go.sum.orig
++
++
++# go mod init should create a new file, even though go.mod already exists.
++go mod init example.com/m
++grep example.com/m go.alt.mod
++
++# go mod edit should operate on the alternate file
++go mod edit -require rsc.io/quote@v1.5.2
++grep rsc.io/quote go.alt.mod
++
++# other 'go mod' commands should work. 'go mod vendor' is tested later.
++go mod download rsc.io/quote
++go mod graph
++stdout rsc.io/quote
++go mod tidy
++grep rsc.io/quote go.alt.sum
++go mod verify
++go mod why rsc.io/quote
++
++
++# 'go list' and other commands with build flags should work.
++# They should update the alternate go.mod when a dependency is missing.
++go mod edit -droprequire rsc.io/quote
++go list .
++grep rsc.io/quote go.alt.mod
++go build -n .
++go test -n .
++go get -d rsc.io/quote
++
++
++# 'go mod vendor' should work.
++go mod vendor
++exists vendor
++
++# Automatic vendoring should be broken by editing an explicit requirement
++# in the alternate go.mod file.
++go mod edit -require rsc.io/quote@v1.5.1
++! go list .
++go list -mod=mod
++
++
++# The original files should not have been modified.
++cmp go.mod go.mod.orig
++cmp go.sum go.sum.orig
++
++
++# If the altnernate mod file does not have a ".mod" suffix, an error
++# should be reported.
++cp go.alt.mod goaltmod
++! go mod tidy -modfile=goaltmod
++stderr '-modfile=goaltmod: file does not have .mod extension'
++
++-- go.mod --
++ʕ◔ϖ◔ʔ
++-- go.sum --
++ʕ◔ϖ◔ʔ
++-- use.go --
++package use
++
++import _ "rsc.io/quote"

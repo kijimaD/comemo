@@ -18,7 +18,7 @@ Date:   Mon Jul 6 18:44:42 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/241178
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/obj.go |  1 +
  src/cmd/link/internal/arm64/asm.go |  6 ++++-
  src/cmd/link/internal/arm64/obj.go |  1 +
@@ -27,3 +27,285 @@ Date:   Mon Jul 6 18:44:42 2020 -0400
  src/cmd/link/internal/ld/lib.go    | 15 ++++++-----
  src/cmd/link/internal/ld/macho.go  | 24 ++++++++++-------
  7 files changed, 87 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index fcc2499cb0..777f99dbe2 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -65,6 +65,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		Machoreloc1:      machoreloc1,
++		MachorelocSize:   8,
+ 		PEreloc1:         pereloc1,
+ 		TLSIEtoLE:        tlsIEtoLE,
+ 
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index bbd53825b6..2d964e9cb6 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -453,7 +453,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		default:
+ 		case objabi.R_ARM64_GOTPCREL,
+ 			objabi.R_ADDRARM64:
+-			nExtReloc = 2 // need two ELF relocations. see elfreloc1
+ 
+ 			// set up addend for eventual relocation via outer symbol.
+ 			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+@@ -464,6 +463,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 			}
+ 			rr.Xsym = rs
+ 
++			nExtReloc = 2 // need two ELF/Mach-O relocations. see elfreloc1/machoreloc1
++			if target.IsDarwin() && rt == objabi.R_ADDRARM64 && rr.Xadd != 0 {
++				nExtReloc = 4 // need another two relocations for non-zero addend
++			}
++
+ 			// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
+ 			// will make the linking fail because it thinks the code is not PIC even though
+ 			// the BR26 relocation should be fully resolved at link time.
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 5d07746ad5..e7c23978a6 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -55,6 +55,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		Machoreloc1:      machoreloc1,
++		MachorelocSize:   8,
+ 
+ 		Androiddynld: "/system/bin/linker64",
+ 		Linuxdynld:   "/lib/ld-linux-aarch64.so.1",
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index 216e9b6cc4..dc8a96b568 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -6,7 +6,10 @@ package ld
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
+ 	"fmt"
++	"runtime"
+ 	"sync"
+ )
+ 
+@@ -163,3 +166,54 @@ func asmbPlan9(ctxt *Link) {
+ 	ctxt.Out.SeekSet(0)
+ 	writePlan9Header(ctxt.Out, thearch.Plan9Magic, Entryvalue(ctxt), thearch.Plan9_64Bit)
+ }
++
++// sizeExtRelocs precomputes the size needed for the reloc records,
++// sets the size and offset for relocation records in each section,
++// and mmap the output buffer with the proper size.
++func sizeExtRelocs(ctxt *Link, relsize uint32) {
++	if relsize == 0 {
++		panic("sizeExtRelocs: relocation size not set")
++	}
++	var sz int64
++	for _, seg := range Segments {
++		for _, sect := range seg.Sections {
++			sect.Reloff = uint64(ctxt.Out.Offset() + sz)
++			sect.Rellen = uint64(relsize * sect.Relcount)
++			sz += int64(sect.Rellen)
++		}
++	}
++	filesz := ctxt.Out.Offset() + sz
++	ctxt.Out.Mmap(uint64(filesz))
++}
++
++// relocSectFn wraps the function writing relocations of a section
++// for parallel execution. Returns the wrapped function and a wait
++// group for which the caller should wait.
++func relocSectFn(ctxt *Link, relocSect func(*Link, *OutBuf, *sym.Section, []loader.Sym)) (func(*Link, *sym.Section, []loader.Sym), *sync.WaitGroup) {
++	var fn func(ctxt *Link, sect *sym.Section, syms []loader.Sym)
++	var wg sync.WaitGroup
++	var sem chan int
++	if ctxt.Out.isMmapped() {
++		// Write sections in parallel.
++		sem = make(chan int, 2*runtime.GOMAXPROCS(0))
++		fn = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
++			wg.Add(1)
++			sem <- 1
++			out, err := ctxt.Out.View(sect.Reloff)
++			if err != nil {
++				panic(err)
++			}
++			go func() {
++				relocSect(ctxt, out, sect, syms)
++				wg.Done()
++				<-sem
++			}()
++		}
++	} else {
++		// We cannot Mmap. Write sequentially.
++		fn = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
++			relocSect(ctxt, ctxt.Out, sect, syms)
++		}
++	}
++	return fn, &wg
++}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 5af6020ced..022da8aa19 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -13,10 +13,8 @@ import (
+ 	"encoding/binary"
+ 	"encoding/hex"
+ 	"path/filepath"
+-	"runtime"
+ 	"sort"
+ 	"strings"
+-	"sync"
+ )
+ 
+ /*
+@@ -1405,48 +1403,9 @@ func elfEmitReloc(ctxt *Link) {
+ 		ctxt.Out.Write8(0)
+ 	}
+ 
+-	// Precompute the size needed for the reloc records if we can
+-	// Mmap the output buffer with the proper size.
+-	if thearch.ElfrelocSize == 0 {
+-		panic("elfEmitReloc: ELF relocation size not set")
+-	}
+-	var sz int64
+-	for _, seg := range Segments {
+-		for _, sect := range seg.Sections {
+-			sect.Reloff = uint64(ctxt.Out.Offset() + sz)
+-			sect.Rellen = uint64(thearch.ElfrelocSize * sect.Relcount)
+-			sz += int64(sect.Rellen)
+-		}
+-	}
+-	filesz := ctxt.Out.Offset() + sz
+-	ctxt.Out.Mmap(uint64(filesz))
+-
+-	// Now emits the records.
+-	var relocSect func(ctxt *Link, sect *sym.Section, syms []loader.Sym)
+-	var wg sync.WaitGroup
+-	var sem chan int
+-	if ctxt.Out.isMmapped() {
+-		// Write sections in parallel.
+-		sem = make(chan int, 2*runtime.GOMAXPROCS(0))
+-		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+-			wg.Add(1)
+-			sem <- 1
+-			out, err := ctxt.Out.View(sect.Reloff)
+-			if err != nil {
+-				panic(err)
+-			}
+-			go func() {
+-				elfrelocsect(ctxt, out, sect, syms)
+-				wg.Done()
+-				<-sem
+-			}()
+-		}
+-	} else {
+-		// We cannot Mmap. Write sequentially.
+-		relocSect = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
+-			elfrelocsect(ctxt, ctxt.Out, sect, syms)
+-		}
+-	}
++	sizeExtRelocs(ctxt, thearch.ElfrelocSize)
++	relocSect, wg := relocSectFn(ctxt, elfrelocsect)
++
+ 	for _, sect := range Segtext.Sections {
+ 		if sect.Name == ".text" {
+ 			relocSect(ctxt, sect, ctxt.Textp)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a53bb45327..02ae26ec8d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -237,13 +237,14 @@ type Arch struct {
+ 	Asmb  func(*Link, *loader.Loader)
+ 	Asmb2 func(*Link, *loader.Loader)
+ 
+-	Elfreloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
+-	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1.
+-	Elfsetupplt  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
+-	Gentext      func(*Link, *loader.Loader)
+-	Machoreloc1  func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
+-	PEreloc1     func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
+-	Xcoffreloc1  func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
++	Elfreloc1      func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
++	ElfrelocSize   uint32 // size of an ELF relocation record, must match Elfreloc1.
++	Elfsetupplt    func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
++	Gentext        func(*Link, *loader.Loader)
++	Machoreloc1    func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
++	MachorelocSize uint32 // size of an Mach-O relocation record, must match Machoreloc1.
++	PEreloc1       func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
++	Xcoffreloc1    func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
+ 
+ 	// TLSIEtoLE converts a TLS Initial Executable relocation to
+ 	// a TLS Local Executable relocation.
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index c8f02c4f0e..4a0bb5d381 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -1020,13 +1020,13 @@ func doMachoLink(ctxt *Link) int64 {
+ 	return Rnd(int64(size), int64(*FlagRound))
+ }
+ 
+-func machorelocsect(ctxt *Link, ldr *loader.Loader, sect *sym.Section, syms []loader.Sym) {
++func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {
+ 	// If main section has no bits, nothing to relocate.
+ 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
+ 		return
+ 	}
++	ldr := ctxt.loader
+ 
+-	sect.Reloff = uint64(ctxt.Out.Offset())
+ 	for i, s := range syms {
+ 		if !ldr.AttrReachable(s) {
+ 			continue
+@@ -1055,13 +1055,16 @@ func machorelocsect(ctxt *Link, ldr *loader.Loader, sect *sym.Section, syms []lo
+ 			if !ldr.AttrReachable(r.Xsym) {
+ 				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(r.Xsym))
+ 			}
+-			if !thearch.Machoreloc1(ctxt.Arch, ctxt.Out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
++			if !thearch.Machoreloc1(ctxt.Arch, out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+ 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
+ 			}
+ 		}
+ 	}
+ 
+-	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
++	// sanity check
++	if uint64(out.Offset()) != sect.Reloff+sect.Rellen {
++		panic("machorelocsect: size mismatch")
++	}
+ }
+ 
+ func machoEmitReloc(ctxt *Link) {
+@@ -1069,13 +1072,15 @@ func machoEmitReloc(ctxt *Link) {
+ 		ctxt.Out.Write8(0)
+ 	}
+ 
+-	ldr := ctxt.loader
+-	machorelocsect(ctxt, ldr, Segtext.Sections[0], ctxt.Textp)
++	sizeExtRelocs(ctxt, thearch.MachorelocSize)
++	relocSect, wg := relocSectFn(ctxt, machorelocsect)
++
++	relocSect(ctxt, Segtext.Sections[0], ctxt.Textp)
+ 	for _, sect := range Segtext.Sections[1:] {
+-		machorelocsect(ctxt, ldr, sect, ctxt.datap)
++		relocSect(ctxt, sect, ctxt.datap)
+ 	}
+ 	for _, sect := range Segdata.Sections {
+-		machorelocsect(ctxt, ldr, sect, ctxt.datap)
++		relocSect(ctxt, sect, ctxt.datap)
+ 	}
+ 	for i := 0; i < len(Segdwarf.Sections); i++ {
+ 		sect := Segdwarf.Sections[i]
+@@ -1084,8 +1089,9 @@ func machoEmitReloc(ctxt *Link) {
+ 			ctxt.loader.SymSect(si.secSym()) != sect {
+ 			panic("inconsistency between dwarfp and Segdwarf")
+ 		}
+-		machorelocsect(ctxt, ldr, sect, si.syms)
++		relocSect(ctxt, sect, si.syms)
+ 	}
++	wg.Wait()
+ }
+ 
+ // hostobjMachoPlatform returns the first platform load command found

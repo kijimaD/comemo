@@ -11,6 +11,20 @@ Date:   Thu Apr 14 16:51:18 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 84cd2e816a..3ee4461352 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1009,7 +1009,7 @@ func (p *Package) rewriteRef(f *File) {
+ 			if r.Name.Kind == "var" {
+ 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
+ 			} else {
+-				error_(r.Pos(), "only C variables allowed in selector expression", fixGo(r.Name.Go))
++				error_(r.Pos(), "only C variables allowed in selector expression %s", fixGo(r.Name.Go))
+ 			}
+ 
+ 		case "type":

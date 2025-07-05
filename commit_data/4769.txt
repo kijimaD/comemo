@@ -7,7 +7,45 @@ Date:   Tue Feb 2 15:00:13 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/199066
-
+---
  src/cmd/gc/typecheck.c   |  5 +++++
  test/fixedbugs/bug252.go | 15 +++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 9c06ff6a15..0643f77a95 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1517,6 +1517,11 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 	for(tl=tstruct->type; tl; tl=tl->down) {
+ 		t = tl->type;
+ 		if(tl->isddd) {
++			if(nl != nil && nl->n->isddd && !eqtype(nl->n->type, t)) {
++				// TODO(rsc): This is not actually illegal but will
++				// help catch bugs.
++				yyerror("cannot pass %+N as %T (... mismatch)", nl->n, tl);
++			}
+ 			if(nl != nil && nl->next == nil && nl->n->isddd && eqtype(nl->n->type, t))
+ 				goto out;
+ 			for(; nl; nl=nl->next) {
+diff --git a/test/fixedbugs/bug252.go b/test/fixedbugs/bug252.go
+new file mode 100644
+index 0000000000..7ed8b87cbe
+--- /dev/null
++++ b/test/fixedbugs/bug252.go
+@@ -0,0 +1,15 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f(args ...) {
++	g(args)	// ERROR "[.][.][.] mismatch"
++}
++
++func g(args ...interface{}) {
++	f(args)	// ERROR "[.][.][.] mismatch"
++}

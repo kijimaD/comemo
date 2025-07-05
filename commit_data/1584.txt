@@ -7,8 +7,131 @@ Date:   Thu Jan 29 15:13:36 2009 -0800
     R=r
     OCL=23820
     CL=23820
-
+---
  src/cmd/6c/peep.c | 22 +++++++++++++++++++---
  src/cmd/6g/peep.c | 22 +++++++++++++++++++---
  src/cmd/8c/peep.c | 18 ++++++++++++++++--
  3 files changed, 54 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6c/peep.c b/src/cmd/6c/peep.c
+index 77c034b07b..2800d58c2a 100644
+--- a/src/cmd/6c/peep.c
++++ b/src/cmd/6c/peep.c
+@@ -377,6 +377,10 @@ subprop(Reg *r0)
+ 		case ACDQ:
+ 		case ACQO:
+ 
++		case ASTOSB:
++		case ASTOSL:
++		case ASTOSQ:
++		case AMOVSB:
+ 		case AMOVSL:
+ 		case AMOVSQ:
+ 			return 0;
+@@ -755,11 +759,23 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 			return 2;
+ 		goto caseread;
+ 
+-	case AMOVSL:
+-	case AMOVSQ:
+ 	case AREP:
+ 	case AREPN:
+-		if(v->type == D_CX || v->type == D_DI || v->type == D_SI)
++		if(v->type == D_CX)
++			return 2;
++		goto caseread;
++
++	case AMOVSB:
++	case AMOVSL:
++	case AMOVSQ:
++		if(v->type == D_DI || v->type == D_SI)
++			return 2;
++		goto caseread;
++
++	case ASTOSB:
++	case ASTOSL:
++	case ASTOSQ:
++		if(v->type == D_AX || v->type == D_DI)
+ 			return 2;
+ 		goto caseread;
+ 
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index cdf8a8bc35..c84ff3ce72 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -392,6 +392,10 @@ subprop(Reg *r0)
+ 		case ACDQ:
+ 		case ACQO:
+ 
++		case ASTOSB:
++		case ASTOSL:
++		case ASTOSQ:
++		case AMOVSB:
+ 		case AMOVSL:
+ 		case AMOVSQ:
+ 			return 0;
+@@ -770,11 +774,23 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 			return 2;
+ 		goto caseread;
+ 
+-	case AMOVSL:
+-	case AMOVSQ:
+ 	case AREP:
+ 	case AREPN:
+-		if(v->type == D_CX || v->type == D_DI || v->type == D_SI)
++		if(v->type == D_CX)
++			return 2;
++		goto caseread;
++
++	case AMOVSB:
++	case AMOVSL:
++	case AMOVSQ:
++		if(v->type == D_DI || v->type == D_SI)
++			return 2;
++		goto caseread;
++
++	case ASTOSB:
++	case ASTOSL:
++	case ASTOSQ:
++		if(v->type == D_AX || v->type == D_DI)
+ 			return 2;
+ 		goto caseread;
+ 
+diff --git a/src/cmd/8c/peep.c b/src/cmd/8c/peep.c
+index b30a57b0a2..64ce5fa786 100644
+--- a/src/cmd/8c/peep.c
++++ b/src/cmd/8c/peep.c
+@@ -305,6 +305,9 @@ subprop(Reg *r0)
+ 		case ACWD:
+ 		case ACDQ:
+ 
++		case ASTOSB:
++		case ASTOSL:
++		case AMOVSB:
+ 		case AMOVSL:
+ 		case AFSTSW:
+ 			return 0;
+@@ -669,10 +672,21 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 			return 2;
+ 		goto caseread;
+ 
+-	case AMOVSL:
+ 	case AREP:
+ 	case AREPN:
+-		if(v->type == D_CX || v->type == D_DI || v->type == D_SI)
++		if(v->type == D_CX)
++			return 2;
++		goto caseread;
++
++	case AMOVSB:
++	case AMOVSL:
++		if(v->type == D_DI || v->type == D_SI)
++			return 2;
++		goto caseread;
++
++	case ASTOSB:
++	case ASTOSL:
++		if(v->type == D_AX || v->type == D_DI)
+ 			return 2;
+ 		goto caseread;
+ 

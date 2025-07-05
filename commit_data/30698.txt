@@ -12,8 +12,59 @@ Date:   Wed Nov 23 19:03:46 2016 +0530
     Change-Id: Iba7932491e02e555190b6fce053088b580a853ef
     Reviewed-on: https://go-review.googlesource.com/33530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/header.go      | 6 ++++--
  src/net/mail/message.go     | 4 ++++
  src/net/textproto/header.go | 4 +++-
  3 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index 6343165a84..832169247f 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -32,9 +32,11 @@ func (h Header) Set(key, value string) {
+ }
+ 
+ // Get gets the first value associated with the given key.
++// It is case insensitive; textproto.CanonicalMIMEHeaderKey is used
++// to canonicalize the provided key.
+ // If there are no values associated with the key, Get returns "".
+-// To access multiple values of a key, access the map directly
+-// with CanonicalHeaderKey.
++// To access multiple values of a key, or to use non-canonical keys,
++// access the map directly.
+ func (h Header) Get(key string) string {
+ 	return textproto.MIMEHeader(h).Get(key)
+ }
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index aa3a3e78c4..702b765c34 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -107,7 +107,11 @@ func ParseDate(date string) (time.Time, error) {
+ type Header map[string][]string
+ 
+ // Get gets the first value associated with the given key.
++// It is case insensitive; CanonicalMIMEHeaderKey is used
++// to canonicalize the provided key.
+ // If there are no values associated with the key, Get returns "".
++// To access multiple values of a key, or to use non-canonical keys,
++// access the map directly.
+ func (h Header) Get(key string) string {
+ 	return textproto.MIMEHeader(h).Get(key)
+ }
+diff --git a/src/net/textproto/header.go b/src/net/textproto/header.go
+index 2e2752a755..ed096d9a3c 100644
+--- a/src/net/textproto/header.go
++++ b/src/net/textproto/header.go
+@@ -23,8 +23,10 @@ func (h MIMEHeader) Set(key, value string) {
+ }
+ 
+ // Get gets the first value associated with the given key.
++// It is case insensitive; CanonicalMIMEHeaderKey is used
++// to canonicalize the provided key.
+ // If there are no values associated with the key, Get returns "".
+-// Get is a convenience method. For more complex queries,
++// To access multiple values of a key, or to use non-canonical keys,
+ // access the map directly.
+ func (h MIMEHeader) Get(key string) string {
+ 	if h == nil {

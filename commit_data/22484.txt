@@ -16,7 +16,52 @@ Date:   Tue Mar 17 15:07:05 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/7667
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/lock_sema.go | 6 ++++--
  src/runtime/runtime2.go  | 2 +-
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 47cb88335b..d9d91c9155 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -72,7 +72,7 @@ Loop:
+ 			// for this lock, chained through m->nextwaitm.
+ 			// Queue this M.
+ 			for {
+-				gp.m.nextwaitm = (*m)((unsafe.Pointer)(v &^ locked))
++				gp.m.nextwaitm = v &^ locked
+ 				if casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
+ 					break
+ 				}
+@@ -90,6 +90,8 @@ Loop:
+ 	}
+ }
+ 
++//go:nowritebarrier
++// We might not be holding a p in this code.
+ func unlock(l *mutex) {
+ 	gp := getg()
+ 	var mp *m
+@@ -103,7 +105,7 @@ func unlock(l *mutex) {
+ 			// Other M's are waiting for the lock.
+ 			// Dequeue an M.
+ 			mp = (*m)((unsafe.Pointer)(v &^ locked))
+-			if casuintptr(&l.key, v, uintptr(unsafe.Pointer(mp.nextwaitm))) {
++			if casuintptr(&l.key, v, mp.nextwaitm) {
+ 				// Dequeued an M.  Wake it.
+ 				semawakeup(mp)
+ 				break
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 27700b6217..6604b9920c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -301,7 +301,7 @@ type m struct {
+ 	freghi        [16]uint32  // d[i] msb and f[i+16]
+ 	fflag         uint32      // floating point compare flags
+ 	locked        uint32      // tracking for lockosthread
+-	nextwaitm     *m          // next m waiting for lock
++	nextwaitm     uintptr     // next m waiting for lock
+ 	waitsema      uintptr     // semaphore for parking on locks
+ 	waitsemacount uint32
+ 	waitsemalock  uint32

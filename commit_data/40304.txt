@@ -12,6 +12,20 @@ Date:   Wed May 1 14:43:16 2019 -0400
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/web/http.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index e126b03273..51a5dfc54d 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -127,7 +127,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 	// Note: accepting a non-200 OK here, so people can serve a
+ 	// meta import in their http 404 page.
+ 	if cfg.BuildV {
+-		log.Printf("Parsing meta tags from %s (status code %d)", Redacted(fetched), res.StatusCode)
++		log.Printf("reading from %s: status code %d", Redacted(fetched), res.StatusCode)
+ 	}
+ 	r := &Response{
+ 		URL:        Redacted(fetched),

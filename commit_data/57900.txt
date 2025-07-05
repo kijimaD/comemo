@@ -14,6 +14,21 @@ Date:   Fri Sep 8 19:28:58 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/eclassify.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/eclassify.go b/src/cmd/compile/internal/inline/inlheur/eclassify.go
+index 4230603b99..1e6d1b9e37 100644
+--- a/src/cmd/compile/internal/inline/inlheur/eclassify.go
++++ b/src/cmd/compile/internal/inline/inlheur/eclassify.go
+@@ -139,8 +139,7 @@ func (ec *exprClassifier) Visit(n ir.Node) {
+ 			ndisp = exprLiterals
+ 
+ 		case ir.OLITERAL:
+-			if _, ok := n.(*ir.ConstExpr); ok {
+-			} else if _, ok := n.(*ir.BasicLit); ok {
++			if _, ok := n.(*ir.BasicLit); ok {
+ 			} else {
+ 				panic("unexpected")
+ 			}

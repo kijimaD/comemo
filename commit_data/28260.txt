@@ -16,7 +16,42 @@ Date:   Mon Mar 28 02:29:18 2016 -0700
     Change-Id: I43d46b93e38f98a04901dc7d4f18ed2f9e09f6fb
     Reviewed-on: https://go-review.googlesource.com/21218
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/gzip/gunzip.go | 2 ++
  src/compress/zlib/reader.go | 5 ++++-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 926bae88c7..7e640692f3 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -282,4 +282,6 @@ func (z *Reader) Read(p []byte) (n int, err error) {
+ }
+ 
+ // Close closes the Reader. It does not close the underlying io.Reader.
++// In order for the GZIP checksum to be verified, the reader must be
++// fully consumed until the io.EOF.
+ func (z *Reader) Close() error { return z.decompressor.Close() }
+diff --git a/src/compress/zlib/reader.go b/src/compress/zlib/reader.go
+index 30535fd980..2efa193035 100644
+--- a/src/compress/zlib/reader.go
++++ b/src/compress/zlib/reader.go
+@@ -62,7 +62,8 @@ type Resetter interface {
+ 
+ // NewReader creates a new ReadCloser.
+ // Reads from the returned ReadCloser read and decompress data from r.
+-// The implementation buffers input and may read more data than necessary from r.
++// If r does not implement io.ByteReader, the decompressor may read more
++// data than necessary from r.
+ // It is the caller's responsibility to call Close on the ReadCloser when done.
+ //
+ // The ReadCloser returned by NewReader also implements Resetter.
+@@ -115,6 +116,8 @@ func (z *reader) Read(p []byte) (int, error) {
+ }
+ 
+ // Calling Close does not close the wrapped io.Reader originally passed to NewReader.
++// In order for the ZLIB checksum to be verified, the reader must be
++// fully consumed until the io.EOF.
+ func (z *reader) Close() error {
+ 	if z.err != nil && z.err != io.EOF {
+ 		return z.err

@@ -25,7 +25,7 @@ Date:   Thu May 28 13:50:23 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/10484
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/aes/aes_gcm.go           |  160 +++++
  src/crypto/aes/cipher.go            |    9 +-
  src/crypto/aes/cipher_generic.go    |    8 +
@@ -34,3 +34,1672 @@ Date:   Thu May 28 13:50:23 2015 -0700
  src/crypto/cipher/gcm.go            |   11 +
  src/crypto/cipher/gcm_test.go       |   58 +-
  7 files changed, 1542 insertions(+), 11 deletions(-)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+new file mode 100644
+index 0000000000..fbb17d82c9
+--- /dev/null
++++ b/src/crypto/aes/aes_gcm.go
+@@ -0,0 +1,160 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build amd64
++
++package aes
++
++import (
++	"crypto/cipher"
++	"crypto/subtle"
++	"errors"
++)
++
++// The following functions are defined in gcm_amd64.s.
++func hasGCMAsm() bool
++func aesEncBlock(dst, src *[16]byte, ks []uint32)
++func gcmAesInit(productTable *[256]byte, ks []uint32)
++func gcmAesData(productTable *[256]byte, data []byte, T *[16]byte)
++func gcmAesEnc(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
++func gcmAesDec(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
++func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
++
++const (
++	gcmBlockSize         = 16
++	gcmTagSize           = 16
++	gcmStandardNonceSize = 12
++)
++
++var errOpen = errors.New("cipher: message authentication failed")
++
++// aesCipherGCM implements crypto/cipher.gcmAble so that crypto/cipher.NewGCM
++// will use the optimised implementation in this file when possible. Instances
++// of this type only exist when hasGCMAsm returns true.
++type aesCipherGCM struct {
++	aesCipher
++}
++
++// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
++// called by crypto/cipher.NewGCM via the gcmAble interface.
++func (c *aesCipherGCM) NewGCM(nonceSize int) (cipher.AEAD, error) {
++	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize}
++	gcmAesInit(&g.productTable, g.ks)
++	return g, nil
++}
++
++type gcmAsm struct {
++	// ks is the key schedule, the length of which depends on the size of
++	// the AES key.
++	ks []uint32
++	// productTable contains pre-computed multiples of the binary-field
++	// element used in GHASH.
++	productTable [256]byte
++	// nonceSize contains the expected size of the nonce, in bytes.
++	nonceSize int
++}
++
++func (g *gcmAsm) NonceSize() int {
++	return g.nonceSize
++}
++
++func (*gcmAsm) Overhead() int {
++	return gcmTagSize
++}
++
++// sliceForAppend takes a slice and a requested number of bytes. It returns a
++// slice with the contents of the given slice followed by that many bytes and a
++// second slice that aliases into it and contains only the extra bytes. If the
++// original slice has sufficient capacity then no allocation is performed.
++func sliceForAppend(in []byte, n int) (head, tail []byte) {
++	if total := len(in) + n; cap(in) >= total {
++		head = in[:total]
++	} else {
++		head = make([]byte, total)
++		copy(head, in)
++	}
++	tail = head[len(in):]
++	return
++}
++
++// Seal encrypts and authenticates plaintext. See the cipher.AEAD interface for
++// details.
++func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
++	if len(nonce) != g.nonceSize {
++		panic("cipher: incorrect nonce length given to GCM")
++	}
++
++	var counter, tagMask [gcmBlockSize]byte
++
++	if len(nonce) == gcmStandardNonceSize {
++		// Init counter to nonce||1
++		copy(counter[:], nonce)
++		counter[gcmBlockSize-1] = 1
++	} else {
++		// Otherwise counter = GHASH(nonce)
++		gcmAesData(&g.productTable, nonce, &counter)
++		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
++	}
++
++	aesEncBlock(&tagMask, &counter, g.ks)
++
++	var tagOut [gcmTagSize]byte
++	gcmAesData(&g.productTable, data, &tagOut)
++
++	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
++	if len(plaintext) > 0 {
++		gcmAesEnc(&g.productTable, out, plaintext, &counter, &tagOut, g.ks)
++	}
++	gcmAesFinish(&g.productTable, &tagMask, &tagOut, uint64(len(plaintext)), uint64(len(data)))
++	copy(out[len(plaintext):], tagOut[:])
++
++	return ret
++}
++
++// Open authenticates and decrypts ciphertext. See the cipher.AEAD interface
++// for details.
++func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++	if len(nonce) != g.nonceSize {
++		panic("cipher: incorrect nonce length given to GCM")
++	}
++
++	if len(ciphertext) < gcmTagSize {
++		return nil, errOpen
++	}
++	tag := ciphertext[len(ciphertext)-gcmTagSize:]
++	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
++
++	// See GCM spec, section 7.1.
++	var counter, tagMask [gcmBlockSize]byte
++
++	if len(nonce) == gcmStandardNonceSize {
++		// Init counter to nonce||1
++		copy(counter[:], nonce)
++		counter[gcmBlockSize-1] = 1
++	} else {
++		// Otherwise counter = GHASH(nonce)
++		gcmAesData(&g.productTable, nonce, &counter)
++		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
++	}
++
++	aesEncBlock(&tagMask, &counter, g.ks)
++
++	var expectedTag [gcmTagSize]byte
++	gcmAesData(&g.productTable, data, &expectedTag)
++
++	ret, out := sliceForAppend(dst, len(ciphertext))
++	if len(ciphertext) > 0 {
++		gcmAesDec(&g.productTable, out, ciphertext, &counter, &expectedTag, g.ks)
++	}
++	gcmAesFinish(&g.productTable, &tagMask, &expectedTag, uint64(len(ciphertext)), uint64(len(data)))
++
++	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
++		for i := range out {
++			out[i] = 0
++		}
++		return nil, errOpen
++	}
++
++	return ret, nil
++}
+diff --git a/src/crypto/aes/cipher.go b/src/crypto/aes/cipher.go
+index 2c6bb0a89c..04d2be1283 100644
+--- a/src/crypto/aes/cipher.go
++++ b/src/crypto/aes/cipher.go
+@@ -38,9 +38,14 @@ func NewCipher(key []byte) (cipher.Block, error) {
+ 	}
+ 
+ 	n := k + 28
+-	c := &aesCipher{make([]uint32, n), make([]uint32, n)}
++	c := aesCipher{make([]uint32, n), make([]uint32, n)}
+ 	expandKey(key, c.enc, c.dec)
+-	return c, nil
++
++	if hasGCMAsm() {
++		return &aesCipherGCM{c}, nil
++	}
++
++	return &c, nil
+ }
+ 
+ func (c *aesCipher) BlockSize() int { return BlockSize }
+diff --git a/src/crypto/aes/cipher_generic.go b/src/crypto/aes/cipher_generic.go
+index 1714e0f1e5..32b2b3cc56 100644
+--- a/src/crypto/aes/cipher_generic.go
++++ b/src/crypto/aes/cipher_generic.go
+@@ -17,3 +17,11 @@ func decryptBlock(xk []uint32, dst, src []byte) {
+ func expandKey(key []byte, enc, dec []uint32) {
+ 	expandKeyGo(key, enc, dec)
+ }
++
++func hasGCMAsm() bool {
++	return false
++}
++
++type aesCipherGCM struct {
++	aesCipher
++}
+diff --git a/src/crypto/aes/gcm_amd64.s b/src/crypto/aes/gcm_amd64.s
+new file mode 100644
+index 0000000000..f60c92d6ea
+--- /dev/null
++++ b/src/crypto/aes/gcm_amd64.s
+@@ -0,0 +1,1277 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is an optimized implementation of AES-GCM using AES-NI and CLMUL-NI
++// The implementation uses some optimization as described in:
++// [1] Gueron, S., Kounavis, M.E.: Intel® Carry-Less Multiplication
++//     Instruction and its Usage for Computing the GCM Mode rev. 2.02
++// [2] Gueron, S., Krasnov, V.: Speeding up Counter Mode in Software and
++//     Hardware
++
++#include "textflag.h"
++
++#define B0 X0
++#define B1 X1
++#define B2 X2
++#define B3 X3
++#define B4 X4
++#define B5 X5
++#define B6 X6
++#define B7 X7
++
++#define ACC0 X8
++#define ACC1 X9
++#define ACCM X10
++
++#define T0 X11
++#define T1 X12
++#define T2 X13
++#define POLY X14
++#define BSWAP X15
++
++DATA bswapMask<>+0x00(SB)/8, $0x08090a0b0c0d0e0f
++DATA bswapMask<>+0x08(SB)/8, $0x0001020304050607
++
++DATA gcmPoly<>+0x00(SB)/8, $0x0000000000000001
++DATA gcmPoly<>+0x08(SB)/8, $0xc200000000000000
++
++DATA andMask<>+0x00(SB)/8, $0x00000000000000ff
++DATA andMask<>+0x08(SB)/8, $0x0000000000000000
++DATA andMask<>+0x10(SB)/8, $0x000000000000ffff
++DATA andMask<>+0x18(SB)/8, $0x0000000000000000
++DATA andMask<>+0x20(SB)/8, $0x0000000000ffffff
++DATA andMask<>+0x28(SB)/8, $0x0000000000000000
++DATA andMask<>+0x30(SB)/8, $0x00000000ffffffff
++DATA andMask<>+0x38(SB)/8, $0x0000000000000000
++DATA andMask<>+0x40(SB)/8, $0x000000ffffffffff
++DATA andMask<>+0x48(SB)/8, $0x0000000000000000
++DATA andMask<>+0x50(SB)/8, $0x0000ffffffffffff
++DATA andMask<>+0x58(SB)/8, $0x0000000000000000
++DATA andMask<>+0x60(SB)/8, $0x00ffffffffffffff
++DATA andMask<>+0x68(SB)/8, $0x0000000000000000
++DATA andMask<>+0x70(SB)/8, $0xffffffffffffffff
++DATA andMask<>+0x78(SB)/8, $0x0000000000000000
++DATA andMask<>+0x80(SB)/8, $0xffffffffffffffff
++DATA andMask<>+0x88(SB)/8, $0x00000000000000ff
++DATA andMask<>+0x90(SB)/8, $0xffffffffffffffff
++DATA andMask<>+0x98(SB)/8, $0x000000000000ffff
++DATA andMask<>+0xa0(SB)/8, $0xffffffffffffffff
++DATA andMask<>+0xa8(SB)/8, $0x0000000000ffffff
++DATA andMask<>+0xb0(SB)/8, $0xffffffffffffffff
++DATA andMask<>+0xb8(SB)/8, $0x00000000ffffffff
++DATA andMask<>+0xc0(SB)/8, $0xffffffffffffffff
++DATA andMask<>+0xc8(SB)/8, $0x000000ffffffffff
++DATA andMask<>+0xd0(SB)/8, $0xffffffffffffffff
++DATA andMask<>+0xd8(SB)/8, $0x0000ffffffffffff
++DATA andMask<>+0xe0(SB)/8, $0xffffffffffffffff
++DATA andMask<>+0xe8(SB)/8, $0x00ffffffffffffff
++
++GLOBL bswapMask<>(SB), (NOPTR+RODATA), $16
++GLOBL gcmPoly<>(SB), (NOPTR+RODATA), $16
++GLOBL andMask<>(SB), (NOPTR+RODATA), $240
++
++// func hasGCMAsm() bool
++// returns whether AES-NI AND CLMUL-NI are supported
++TEXT ·hasGCMAsm(SB),NOSPLIT,$0
++	XORQ AX, AX
++	INCL AX
++	CPUID
++	MOVQ CX, DX
++	SHRQ $25, CX
++	SHRQ $1, DX
++	ANDQ DX, CX
++	ANDQ $1, CX
++	MOVB CX, ret+0(FP)
++	RET
++
++// func aesEncBlock(dst, src *[16]byte, ks []uint32)
++TEXT ·aesEncBlock(SB),NOSPLIT,$0
++	MOVQ dst+0(FP), DI
++	MOVQ src+8(FP), SI
++	MOVQ ks+16(FP), DX
++	MOVQ ks+24(FP), CX
++
++	SHRQ $2, CX
++	DECQ CX
++
++	MOVOU (SI), X0
++	MOVOU (16*0)(DX), X1
++	PXOR X1, X0
++	MOVOU (16*1)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*2)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*3)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*4)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*5)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*6)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*7)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*8)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*9)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*10)(DX), X1
++	CMPQ CX, $12
++	JB encLast
++	AESENC X1, X0
++	MOVOU (16*11)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*12)(DX), X1
++	JE encLast
++	AESENC X1, X0
++	MOVOU (16*13)(DX), X1
++	AESENC X1, X0
++	MOVOU (16*14)(DX), X1
++
++encLast:
++	AESENCLAST X1, X0
++	MOVOU X0, (DI)
++
++	RET
++
++// func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
++TEXT ·gcmAesFinish(SB),NOSPLIT,$0
++#define pTbl DI
++#define tMsk SI
++#define tPtr DX
++#define plen AX
++#define dlen CX
++
++	MOVQ productTable+0(FP), pTbl
++	MOVQ tagMask+8(FP), tMsk
++	MOVQ T+16(FP), tPtr
++	MOVQ pLen+24(FP), plen
++	MOVQ dLen+32(FP), dlen
++
++	MOVOU (tPtr), ACC0
++	MOVOU (tMsk), T2
++
++	MOVOU bswapMask<>(SB), BSWAP
++	MOVOU gcmPoly<>(SB), POLY
++
++	SHLQ $3, plen
++	SHLQ $3, dlen
++
++	MOVQ plen, B0
++	PINSRQ $1, dlen, B0
++
++	PXOR ACC0, B0
++
++	MOVOU (16*14)(pTbl), ACC0
++	MOVOU (16*15)(pTbl), ACCM
++	MOVOU ACC0, ACC1
++
++	PCLMULQDQ $0x00, B0, ACC0
++	PCLMULQDQ $0x11, B0, ACC1
++	PSHUFD $78, B0, T0
++	PXOR B0, T0
++	PCLMULQDQ $0x00, T0, ACCM
++
++	PXOR ACC0, ACCM
++	PXOR ACC1, ACCM
++	MOVOU ACCM, T0
++	PSRLDQ $8, ACCM
++	PSLLDQ $8, T0
++	PXOR ACCM, ACC1
++	PXOR T0, ACC0
++
++	MOVOU POLY, T0
++	PCLMULQDQ $0x01, ACC0, T0
++	PSHUFD $78, ACC0, ACC0
++	PXOR T0, ACC0
++
++	MOVOU POLY, T0
++	PCLMULQDQ $0x01, ACC0, T0
++	PSHUFD $78, ACC0, ACC0
++	PXOR T0, ACC0
++
++	PXOR ACC1, ACC0
++
++	PSHUFB BSWAP, ACC0
++	PXOR T2, ACC0
++	MOVOU ACC0, (tPtr)
++
++	RET
++#undef pTbl
++#undef tMsk
++#undef tPtr
++#undef plen
++#undef dlen
++
++// func gcmAesInit(productTable *[256]byte, ks []uint32)
++TEXT ·gcmAesInit(SB),NOSPLIT,$0
++#define dst DI
++#define KS SI
++#define NR DX
++
++	MOVQ productTable+0(FP), dst
++	MOVQ ks+8(FP), KS
++	MOVQ ks+16(FP), NR
++
++	SHRQ $2, NR
++	DECQ NR
++
++	MOVOU bswapMask<>(SB), BSWAP
++	MOVOU gcmPoly<>(SB), POLY
++
++	// Encrypt block 0, with the AES key to generate the hash key H
++	MOVOU (16*0)(KS), B0
++	MOVOU (16*1)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*2)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*3)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*4)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*5)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*6)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*7)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*8)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*9)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*10)(KS), T0
++	CMPQ NR, $12
++	JB initEncLast
++	AESENC T0, B0
++	MOVOU (16*11)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*12)(KS), T0
++	JE initEncLast
++	AESENC T0, B0
++	MOVOU (16*13)(KS), T0
++	AESENC T0, B0
++	MOVOU (16*14)(KS), T0
++initEncLast:
++	AESENCLAST T0, B0
++
++	PSHUFB BSWAP, B0
++	// H * 2
++	PSHUFD $0xff, B0, T0
++	MOVOU B0, T1
++	PSRAL $31, T0
++	PAND POLY, T0
++	PSRLL $31, T1
++	PSLLDQ $4, T1
++	PSLLL $1, B0
++	PXOR T0, B0
++	PXOR T1, B0
++	// Karatsuba pre-computations
++	MOVOU B0, (16*14)(dst)
++	PSHUFD $78, B0, B1
++	PXOR B0, B1
++	MOVOU B1, (16*15)(dst)
++
++	MOVOU B0, B2
++	MOVOU B1, B3
++	// Now prepare powers of H and pre-computations for them
++	MOVQ $7, AX
++
++initLoop:
++		MOVOU B2, T0
++		MOVOU B2, T1
++		MOVOU B3, T2
++		PCLMULQDQ $0x00, B0, T0
++		PCLMULQDQ $0x11, B0, T1
++		PCLMULQDQ $0x00, B1, T2
++
++		PXOR T0, T2
++		PXOR T1, T2
++		MOVOU T2, B4
++		PSLLDQ $8, B4
++		PSRLDQ $8, T2
++		PXOR B4, T0
++		PXOR T2, T1
++
++		MOVOU POLY, B2
++		PCLMULQDQ $0x01, T0, B2
++		PSHUFD $78, T0, T0
++		PXOR B2, T0
++		MOVOU POLY, B2
++		PCLMULQDQ $0x01, T0, B2
++		PSHUFD $78, T0, T0
++		PXOR T0, B2
++		PXOR T1, B2
++
++		MOVOU B2, (16*12)(dst)
++		PSHUFD $78, B2, B3
++		PXOR B2, B3
++		MOVOU B3, (16*13)(dst)
++
++		DECQ AX
++		LEAQ (-16*2)(dst), dst
++	JNE initLoop
++
++	RET
++#undef NR
++#undef KS
++#undef dst
++
++// func gcmAesData(productTable *[256]byte, data []byte, T *[16]byte)
++TEXT ·gcmAesData(SB),NOSPLIT,$0
++#define pTbl DI
++#define aut SI
++#define tPtr CX
++#define autLen DX
++
++	MOVQ productTable+0(FP), pTbl
++	MOVQ data+8(FP), aut
++	MOVQ data+16(FP), autLen
++	MOVQ T+32(FP), tPtr
++
++	PXOR ACC0, ACC0
++	MOVOU bswapMask<>(SB), BSWAP
++	MOVOU gcmPoly<>(SB), POLY
++
++	MOVOU (16*14)(pTbl), T1
++	MOVOU (16*15)(pTbl), T2
++
++	TESTQ autLen, autLen
++	JEQ dataBail
++
++	CMPQ autLen, $13	// optimize the TLS case
++	JNE dataSinglesLoop
++
++	PXOR B0, B0
++	MOVQ (aut), B0
++	PINSRD $2, 8(aut), B0
++	BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x20; BYTE $0x46; BYTE $0x0c; BYTE $0x0c  //PINSRB $12, 12(aut), B0
++	XORQ autLen, autLen
++	JMP dataMul
++
++dataSinglesLoop:
++
++		CMPQ autLen, $16
++		JB dataEnd
++		SUBQ $16, autLen
++
++		MOVOU (aut), B0
++dataMul:
++		PSHUFB BSWAP, B0
++		PXOR ACC0, B0
++
++		MOVOU T1, ACC0
++		MOVOU T2, ACCM
++		MOVOU T1, ACC1
++
++		PSHUFD $78, B0, T0
++		PXOR B0, T0
++		PCLMULQDQ $0x00, B0, ACC0
++		PCLMULQDQ $0x11, B0, ACC1
++		PCLMULQDQ $0x00, T0, ACCM
++
++		PXOR ACC0, ACCM
++		PXOR ACC1, ACCM
++		MOVOU ACCM, T0
++		PSRLDQ $8, ACCM
++		PSLLDQ $8, T0
++		PXOR ACCM, ACC1
++		PXOR T0, ACC0
++
++		MOVOU POLY, T0
++		PCLMULQDQ $0x01, ACC0, T0
++		PSHUFD $78, ACC0, ACC0
++		PXOR T0, ACC0
++
++		MOVOU POLY, T0
++		PCLMULQDQ $0x01, ACC0, T0
++		PSHUFD $78, ACC0, ACC0
++		PXOR T0, ACC0
++		PXOR ACC1, ACC0
++
++		LEAQ 16(aut), aut
++
++	JMP dataSinglesLoop
++
++dataEnd:
++
++	TESTQ autLen, autLen
++	JEQ dataBail
++
++	PXOR B0, B0
++	LEAQ -1(aut)(autLen*1), aut
++
++dataLoadLoop:
++
++		PSLLDQ $1, B0
++		BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x20; BYTE $0x06; BYTE $0x00   //PINSRB $0, (aut), B0
++
++		LEAQ -1(aut), aut
++		DECQ autLen
++		JNE dataLoadLoop
++
++	JMP dataMul
++
++dataBail:
++	MOVOU ACC0, (tPtr)
++	RET
++#undef pTbl
++#undef aut
++#undef tPtr
++#undef autLen
++
++// func gcmAesEnc(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
++TEXT ·gcmAesEnc(SB),0,$256-144
++#define pTbl DI
++#define ctx DX
++#define ctrPtr CX
++#define ptx SI
++#define ks AX
++#define tPtr R8
++#define ptxLen R9
++#define aluCTR R10
++#define aluTMP R11
++#define aluK R12
++#define NR R13
++
++#define increment(i) ADDL $1, aluCTR; MOVL aluCTR, aluTMP; XORL aluK, aluTMP; BSWAPL aluTMP; MOVL aluTMP, (3*4 + 8*16 + i*16)(SP)
++#define aesRnd(k) AESENC k, B0; AESENC k, B1; AESENC k, B2; AESENC k, B3; AESENC k, B4; AESENC k, B5; AESENC k, B6; AESENC k, B7
++#define aesRound(i) MOVOU (16*i)(ks), T0;AESENC T0, B0; AESENC T0, B1; AESENC T0, B2; AESENC T0, B3; AESENC T0, B4; AESENC T0, B5; AESENC T0, B6; AESENC T0, B7
++#define aesRndLast(k) AESENCLAST k, B0; AESENCLAST k, B1; AESENCLAST k, B2; AESENCLAST k, B3; AESENCLAST k, B4; AESENCLAST k, B5; AESENCLAST k, B6; AESENCLAST k, B7
++#define reduceRound(a) 	MOVOU POLY, T0;	PCLMULQDQ $0x01, a, T0; PSHUFD $78, a, a; PXOR T0, a
++#define combinedRound(i) \
++	MOVOU (16*i)(ks), T0;\
++	AESENC T0, B0;\
++	AESENC T0, B1;\
++	AESENC T0, B2;\
++	AESENC T0, B3;\
++	 MOVOU (16*(i*2))(pTbl), T1;\
++	 MOVOU T1, T2;\
++	AESENC T0, B4;\
++	AESENC T0, B5;\
++	AESENC T0, B6;\
++	AESENC T0, B7;\
++	 MOVOU (16*i)(SP), T0;\
++	 PCLMULQDQ $0x00, T0, T1;\
++	 PXOR T1, ACC0;\
++	 PSHUFD $78, T0, T1;\
++	 PCLMULQDQ $0x11, T0, T2;\
++	 PXOR T1, T0;\
++	 PXOR T2, ACC1;\
++	 MOVOU (16*(i*2+1))(pTbl), T2;\
++	 PCLMULQDQ $0x00, T2, T0;\
++	 PXOR T0, ACCM
++#define mulRound(i) \
++	MOVOU (16*i)(SP), T0;\
++	MOVOU (16*(i*2))(pTbl), T1;\
++	MOVOU T1, T2;\
++	PCLMULQDQ $0x00, T0, T1;\
++	PXOR T1, ACC0;\
++	PCLMULQDQ $0x11, T0, T2;\
++	PXOR T2, ACC1;\
++	PSHUFD $78, T0, T1;\
++	PXOR T1, T0;\
++	MOVOU (16*(i*2+1))(pTbl), T1;\
++	PCLMULQDQ $0x00, T0, T1;\
++	PXOR T1, ACCM
++
++	MOVQ productTable+0(FP), pTbl
++	MOVQ dst+8(FP), ctx
++	MOVQ src+32(FP), ptx
++	MOVQ src+40(FP), ptxLen
++	MOVQ ctr+56(FP), ctrPtr
++	MOVQ T+64(FP), tPtr
++	MOVQ KS+72(FP), ks
++	MOVQ nr+80(FP), NR
++
++	SHRQ $2, NR
++	DECQ NR
++
++	MOVOU bswapMask<>(SB), BSWAP
++	MOVOU gcmPoly<>(SB), POLY
++
++	MOVOU (tPtr), ACC0
++	PXOR ACC1, ACC1
++	PXOR ACCM, ACCM
++	MOVOU (ctrPtr), B0
++	MOVL (3*4)(ctrPtr), aluCTR
++	MOVOU (ks), T0
++	MOVL (3*4)(ks), aluK
++	BSWAPL aluCTR
++	BSWAPL aluK
++
++	PXOR B0, T0
++	MOVOU T0, (8*16 + 0*16)(SP)
++	increment(0)
++
++	CMPQ ptxLen, $128
++	JB gcmAesEncSingles
++	SUBQ $128, ptxLen
++
++	// We have at least 8 blocks to encrypt, prepare the rest of the counters
++	MOVOU T0, (8*16 + 1*16)(SP)
++	increment(1)
++	MOVOU T0, (8*16 + 2*16)(SP)
++	increment(2)
++	MOVOU T0, (8*16 + 3*16)(SP)
++	increment(3)
++	MOVOU T0, (8*16 + 4*16)(SP)
++	increment(4)
++	MOVOU T0, (8*16 + 5*16)(SP)
++	increment(5)
++	MOVOU T0, (8*16 + 6*16)(SP)
++	increment(6)
++	MOVOU T0, (8*16 + 7*16)(SP)
++	increment(7)
++
++	MOVOU (8*16 + 0*16)(SP), B0
++	MOVOU (8*16 + 1*16)(SP), B1
++	MOVOU (8*16 + 2*16)(SP), B2
++	MOVOU (8*16 + 3*16)(SP), B3
++	MOVOU (8*16 + 4*16)(SP), B4
++	MOVOU (8*16 + 5*16)(SP), B5
++	MOVOU (8*16 + 6*16)(SP), B6
++	MOVOU (8*16 + 7*16)(SP), B7
++
++	aesRound(1)
++	increment(0)
++	aesRound(2)
++	increment(1)
++	aesRound(3)
++	increment(2)
++	aesRound(4)
++	increment(3)
++	aesRound(5)
++	increment(4)
++	aesRound(6)
++	increment(5)
++	aesRound(7)
++	increment(6)
++	aesRound(8)
++	increment(7)
++	aesRound(9)
++	MOVOU (16*10)(ks), T0
++	CMPQ NR, $12
++	JB encLast1
++	aesRnd(T0)
++	aesRound(11)
++	MOVOU (16*12)(ks), T0
++	JE encLast1
++	aesRnd(T0)
++	aesRound(13)
++	MOVOU (16*14)(ks), T0
++encLast1:
++	aesRndLast(T0)
++
++	MOVOU (16*0)(ptx), T0
++	PXOR T0, B0
++	MOVOU (16*1)(ptx), T0
++	PXOR T0, B1
++	MOVOU (16*2)(ptx), T0
++	PXOR T0, B2
++	MOVOU (16*3)(ptx), T0
++	PXOR T0, B3
++	MOVOU (16*4)(ptx), T0
++	PXOR T0, B4
++	MOVOU (16*5)(ptx), T0
++	PXOR T0, B5
++	MOVOU (16*6)(ptx), T0
++	PXOR T0, B6
++	MOVOU (16*7)(ptx), T0
++	PXOR T0, B7
++
++	MOVOU B0, (16*0)(ctx)
++	PSHUFB BSWAP, B0
++	PXOR ACC0, B0
++	MOVOU B1, (16*1)(ctx)
++	PSHUFB BSWAP, B1
++	MOVOU B2, (16*2)(ctx)
++	PSHUFB BSWAP, B2
++	MOVOU B3, (16*3)(ctx)
++	PSHUFB BSWAP, B3
++	MOVOU B4, (16*4)(ctx)
++	PSHUFB BSWAP, B4
++	MOVOU B5, (16*5)(ctx)
++	PSHUFB BSWAP, B5
++	MOVOU B6, (16*6)(ctx)
++	PSHUFB BSWAP, B6
++	MOVOU B7, (16*7)(ctx)
++	PSHUFB BSWAP, B7
++
++	MOVOU B0, (16*0)(SP)
++	MOVOU B1, (16*1)(SP)
++	MOVOU B2, (16*2)(SP)
++	MOVOU B3, (16*3)(SP)
++	MOVOU B4, (16*4)(SP)
++	MOVOU B5, (16*5)(SP)
++	MOVOU B6, (16*6)(SP)
++	MOVOU B7, (16*7)(SP)
++
++	LEAQ 128(ptx), ptx
++	LEAQ 128(ctx), ctx
++
++gcmAesEncOctetsLoop:
++
++		CMPQ ptxLen, $128
++		JB gcmAesEncOctetsEnd
++		SUBQ $128, ptxLen
++
++		MOVOU (8*16 + 0*16)(SP), B0
++		MOVOU (8*16 + 1*16)(SP), B1
++		MOVOU (8*16 + 2*16)(SP), B2
++		MOVOU (8*16 + 3*16)(SP), B3
++		MOVOU (8*16 + 4*16)(SP), B4
++		MOVOU (8*16 + 5*16)(SP), B5
++		MOVOU (8*16 + 6*16)(SP), B6
++		MOVOU (8*16 + 7*16)(SP), B7
++
++		MOVOU (16*0)(SP), T0
++		PSHUFD $78, T0, T1
++		PXOR T0, T1
++
++		MOVOU (16*0)(pTbl), ACC0
++		MOVOU (16*1)(pTbl), ACCM
++		MOVOU ACC0, ACC1
++
++		PCLMULQDQ $0x00, T1, ACCM
++		PCLMULQDQ $0x00, T0, ACC0
++		PCLMULQDQ $0x11, T0, ACC1
++
++		combinedRound(1)
++		increment(0)
++		combinedRound(2)
++		increment(1)
++		combinedRound(3)
++		increment(2)
++		combinedRound(4)
++		increment(3)
++		combinedRound(5)
++		increment(4)
++		combinedRound(6)
++		increment(5)
++		combinedRound(7)
++		increment(6)
++
++		aesRound(8)
++		increment(7)
++
++		PXOR ACC0, ACCM
++		PXOR ACC1, ACCM
++		MOVOU ACCM, T0
++		PSRLDQ $8, ACCM
++		PSLLDQ $8, T0
++		PXOR ACCM, ACC1
++		PXOR T0, ACC0
++
++		reduceRound(ACC0)
++		aesRound(9)
++
++		reduceRound(ACC0)
++		PXOR ACC1, ACC0
++
++		MOVOU (16*10)(ks), T0
++		CMPQ NR, $12
++		JB encLast2
++		aesRnd(T0)
++		aesRound(11)
++		MOVOU (16*12)(ks), T0
++		JE encLast2
++		aesRnd(T0)
++		aesRound(13)
++		MOVOU (16*14)(ks), T0
++encLast2:
++		aesRndLast(T0)
++
++		MOVOU (16*0)(ptx), T0
++		PXOR T0, B0
++		MOVOU (16*1)(ptx), T0
++		PXOR T0, B1
++		MOVOU (16*2)(ptx), T0
++		PXOR T0, B2
++		MOVOU (16*3)(ptx), T0
++		PXOR T0, B3
++		MOVOU (16*4)(ptx), T0
++		PXOR T0, B4
++		MOVOU (16*5)(ptx), T0
++		PXOR T0, B5
++		MOVOU (16*6)(ptx), T0
++		PXOR T0, B6
++		MOVOU (16*7)(ptx), T0
++		PXOR T0, B7
++
++		MOVOU B0, (16*0)(ctx)
++		PSHUFB BSWAP, B0
++		PXOR ACC0, B0
++		MOVOU B1, (16*1)(ctx)
++		PSHUFB BSWAP, B1
++		MOVOU B2, (16*2)(ctx)
++		PSHUFB BSWAP, B2
++		MOVOU B3, (16*3)(ctx)
++		PSHUFB BSWAP, B3
++		MOVOU B4, (16*4)(ctx)
++		PSHUFB BSWAP, B4
++		MOVOU B5, (16*5)(ctx)
++		PSHUFB BSWAP, B5
++		MOVOU B6, (16*6)(ctx)
++		PSHUFB BSWAP, B6
++		MOVOU B7, (16*7)(ctx)
++		PSHUFB BSWAP, B7
++
++		MOVOU B0, (16*0)(SP)
++		MOVOU B1, (16*1)(SP)
++		MOVOU B2, (16*2)(SP)
++		MOVOU B3, (16*3)(SP)
++		MOVOU B4, (16*4)(SP)
++		MOVOU B5, (16*5)(SP)
++		MOVOU B6, (16*6)(SP)
++		MOVOU B7, (16*7)(SP)
++
++		LEAQ 128(ptx), ptx
++		LEAQ 128(ctx), ctx
++
++		JMP gcmAesEncOctetsLoop
++
++gcmAesEncOctetsEnd:
++
++	MOVOU (16*0)(SP), T0
++	MOVOU (16*0)(pTbl), ACC0
++	MOVOU (16*1)(pTbl), ACCM
++	MOVOU ACC0, ACC1
++	PSHUFD $78, T0, T1
++	PXOR T0, T1
++	PCLMULQDQ $0x00, T0, ACC0
++	PCLMULQDQ $0x11, T0, ACC1
++	PCLMULQDQ $0x00, T1, ACCM
++
++	mulRound(1)
++	mulRound(2)
++	mulRound(3)
++	mulRound(4)
++	mulRound(5)
++	mulRound(6)
++	mulRound(7)
++
++	PXOR ACC0, ACCM
++	PXOR ACC1, ACCM
++	MOVOU ACCM, T0
++	PSRLDQ $8, ACCM
++	PSLLDQ $8, T0
++	PXOR ACCM, ACC1
++	PXOR T0, ACC0
++
++	reduceRound(ACC0)
++	reduceRound(ACC0)
++	PXOR ACC1, ACC0
++
++	TESTQ ptxLen, ptxLen
++	JE gcmAesEncDone
++
++	SUBQ $7, aluCTR
++
++gcmAesEncSingles:
++
++	MOVOU (16*1)(ks), B1
++	MOVOU (16*2)(ks), B2
++	MOVOU (16*3)(ks), B3
++	MOVOU (16*4)(ks), B4
++	MOVOU (16*5)(ks), B5
++	MOVOU (16*6)(ks), B6
++	MOVOU (16*7)(ks), B7
++
++	MOVOU (16*14)(pTbl), T2
++
++gcmAesEncSinglesLoop:
++
++		CMPQ ptxLen, $16
++		JB gcmAesEncTail
++		SUBQ $16, ptxLen
++
++		MOVOU (8*16 + 0*16)(SP), B0
++		increment(0)
++
++		AESENC B1, B0
++		AESENC B2, B0
++		AESENC B3, B0
++		AESENC B4, B0
++		AESENC B5, B0
++		AESENC B6, B0
++		AESENC B7, B0
++		MOVOU (16*8)(ks), T0
++		AESENC T0, B0
++		MOVOU (16*9)(ks), T0
++		AESENC T0, B0
++		MOVOU (16*10)(ks), T0
++		CMPQ NR, $12
++		JB encLast3
++		AESENC T0, B0
++		MOVOU (16*11)(ks), T0
++		AESENC T0, B0
++		MOVOU (16*12)(ks), T0
++		JE encLast3
++		AESENC T0, B0
++		MOVOU (16*13)(ks), T0
++		AESENC T0, B0
++		MOVOU (16*14)(ks), T0
++encLast3:
++		AESENCLAST T0, B0
++
++		MOVOU (ptx), T0
++		PXOR T0, B0
++		MOVOU B0, (ctx)
++
++		PSHUFB BSWAP, B0
++		PXOR ACC0, B0
++
++		MOVOU T2, ACC0
++		MOVOU T2, ACC1
++		MOVOU (16*15)(pTbl), ACCM
++
++		PSHUFD $78, B0, T0
++		PXOR B0, T0
++		PCLMULQDQ $0x00, B0, ACC0
++		PCLMULQDQ $0x11, B0, ACC1
++		PCLMULQDQ $0x00, T0, ACCM
++
++		PXOR ACC0, ACCM
++		PXOR ACC1, ACCM
++		MOVOU ACCM, T0
++		PSRLDQ $8, ACCM
++		PSLLDQ $8, T0
++		PXOR ACCM, ACC1
++		PXOR T0, ACC0
++
++		reduceRound(ACC0)
++		reduceRound(ACC0)
++		PXOR ACC1, ACC0
++
++		LEAQ (16*1)(ptx), ptx
++		LEAQ (16*1)(ctx), ctx
++
++	JMP gcmAesEncSinglesLoop
++
++gcmAesEncTail:
++	TESTQ ptxLen, ptxLen
++	JE gcmAesEncDone
++
++	MOVOU (8*16 + 0*16)(SP), B0
++	AESENC B1, B0
++	AESENC B2, B0
++	AESENC B3, B0
++	AESENC B4, B0
++	AESENC B5, B0
++	AESENC B6, B0
++	AESENC B7, B0
++	MOVOU (16*8)(ks), T0
++	AESENC T0, B0
++	MOVOU (16*9)(ks), T0
++	AESENC T0, B0
++	MOVOU (16*10)(ks), T0
++	CMPQ NR, $12
++	JB encLast4
++	AESENC T0, B0
++	MOVOU (16*11)(ks), T0
++	AESENC T0, B0
++	MOVOU (16*12)(ks), T0
++	JE encLast4
++	AESENC T0, B0
++	MOVOU (16*13)(ks), T0
++	AESENC T0, B0
++	MOVOU (16*14)(ks), T0
++encLast4:
++	AESENCLAST T0, B0
++	MOVOU B0, T0
++
++	LEAQ -1(ptx)(ptxLen*1), ptx
++
++	MOVQ ptxLen, aluTMP
++	SHLQ $4, aluTMP
++
++	LEAQ andMask<>(SB), aluCTR
++	MOVOU -16(aluCTR)(aluTMP*1), T1
++
++	PXOR B0, B0
++ptxLoadLoop:
++		PSLLDQ $1, B0
++		BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x20; BYTE $0x06; BYTE $0x00  //PINSRB $0, (ptx), B0
++		LEAQ -1(ptx), ptx
++		DECQ ptxLen
++	JNE ptxLoadLoop
++
++	PXOR T0, B0
++	PAND T1, B0
++	MOVOU B0, (ctx)	// I assume there is always space, due to TAG in the end of the CT
++
++	PSHUFB BSWAP, B0
++	PXOR ACC0, B0
++
++	MOVOU T2, ACC0
++	MOVOU T2, ACC1
++	MOVOU (16*15)(pTbl), ACCM
++
++	PSHUFD $78, B0, T0
++	PXOR B0, T0
++	PCLMULQDQ $0x00, B0, ACC0
++	PCLMULQDQ $0x11, B0, ACC1
++	PCLMULQDQ $0x00, T0, ACCM
++
++	PXOR ACC0, ACCM
++	PXOR ACC1, ACCM
++	MOVOU ACCM, T0
++	PSRLDQ $8, ACCM
++	PSLLDQ $8, T0
++	PXOR ACCM, ACC1
++	PXOR T0, ACC0
++
++	reduceRound(ACC0)
++	reduceRound(ACC0)
++	PXOR ACC1, ACC0
++
++gcmAesEncDone:
++	MOVOU ACC0, (tPtr)
++	RET
++#undef increment
++
++// func gcmAesDec(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
++TEXT ·gcmAesDec(SB),0,$128-144
++#define increment(i) ADDL $1, aluCTR; MOVL aluCTR, aluTMP; XORL aluK, aluTMP; BSWAPL aluTMP; MOVL aluTMP, (3*4 + i*16)(SP)
++#define combinedDecRound(i) \
++	MOVOU (16*i)(ks), T0;\
++	AESENC T0, B0;\
++	AESENC T0, B1;\
++	AESENC T0, B2;\
++	AESENC T0, B3;\
++	MOVOU (16*(i*2))(pTbl), T1;\
++	MOVOU T1, T2;\
++	AESENC T0, B4;\
++	AESENC T0, B5;\
++	AESENC T0, B6;\
++	AESENC T0, B7;\
++	MOVOU (16*i)(ctx), T0;\
++	PSHUFB BSWAP, T0;\
++	PCLMULQDQ $0x00, T0, T1;\
++	PXOR T1, ACC0;\
++	PSHUFD $78, T0, T1;\
++	PCLMULQDQ $0x11, T0, T2;\
++	PXOR T1, T0;\
++	PXOR T2, ACC1;\
++	MOVOU (16*(i*2+1))(pTbl), T2;\
++	PCLMULQDQ $0x00, T2, T0;\
++	PXOR T0, ACCM
++
++	MOVQ productTable+0(FP), pTbl
++	MOVQ dst+8(FP), ptx
++	MOVQ src+32(FP), ctx
++	MOVQ src+40(FP), ptxLen
++	MOVQ ctr+56(FP), ctrPtr
++	MOVQ T+64(FP), tPtr
++	MOVQ KS+72(FP), ks
++	MOVQ nr+80(FP), NR
++
++	SHRQ $2, NR
++	DECQ NR
++
++	MOVOU bswapMask<>(SB), BSWAP
++	MOVOU gcmPoly<>(SB), POLY
++
++	MOVOU (tPtr), ACC0
++	PXOR ACC1, ACC1
++	PXOR ACCM, ACCM
++	MOVOU (ctrPtr), B0
++	MOVL (3*4)(ctrPtr), aluCTR
++	MOVOU (ks), T0
++	MOVL (3*4)(ks), aluK
++	BSWAPL aluCTR
++	BSWAPL aluK
++
++	PXOR B0, T0
++	MOVOU T0, (0*16)(SP)
++	increment(0)
++
++	CMPQ ptxLen, $128
++	JB gcmAesDecSingles
++
++	MOVOU T0, (1*16)(SP)
++	increment(1)
++	MOVOU T0, (2*16)(SP)
++	increment(2)
++	MOVOU T0, (3*16)(SP)
++	increment(3)
++	MOVOU T0, (4*16)(SP)
++	increment(4)
++	MOVOU T0, (5*16)(SP)
++	increment(5)
++	MOVOU T0, (6*16)(SP)
++	increment(6)
++	MOVOU T0, (7*16)(SP)
++	increment(7)
++
++gcmAesDecOctetsLoop:
++
++		CMPQ ptxLen, $128
++		JB gcmAesDecEndOctets
++		SUBQ $128, ptxLen
++
++		MOVOU (0*16)(SP), B0
++		MOVOU (1*16)(SP), B1
++		MOVOU (2*16)(SP), B2
++		MOVOU (3*16)(SP), B3
++		MOVOU (4*16)(SP), B4
++		MOVOU (5*16)(SP), B5
++		MOVOU (6*16)(SP), B6
++		MOVOU (7*16)(SP), B7
++
++		MOVOU (16*0)(ctx), T0
++		PSHUFB BSWAP, T0
++		PXOR ACC0, T0
++		PSHUFD $78, T0, T1
++		PXOR T0, T1
++
++		MOVOU (16*0)(pTbl), ACC0
++		MOVOU (16*1)(pTbl), ACCM
++		MOVOU ACC0, ACC1
++
++		PCLMULQDQ $0x00, T1, ACCM
++		PCLMULQDQ $0x00, T0, ACC0
++		PCLMULQDQ $0x11, T0, ACC1
++
++		combinedDecRound(1)
++		increment(0)
++		combinedDecRound(2)
++		increment(1)
++		combinedDecRound(3)
++		increment(2)
++		combinedDecRound(4)
++		increment(3)
++		combinedDecRound(5)
++		increment(4)
++		combinedDecRound(6)
++		increment(5)
++		combinedDecRound(7)
++		increment(6)
++
++		aesRound(8)
++		increment(7)
++
++		PXOR ACC0, ACCM
++		PXOR ACC1, ACCM
++		MOVOU ACCM, T0
++		PSRLDQ $8, ACCM
++		PSLLDQ $8, T0
++		PXOR ACCM, ACC1
++		PXOR T0, ACC0
++
++		reduceRound(ACC0)
++		aesRound(9)
++
++		reduceRound(ACC0)
++		PXOR ACC1, ACC0
++
++		MOVOU (16*10)(ks), T0
++		CMPQ NR, $12
++		JB decLast1
++		aesRnd(T0)
++		aesRound(11)
++		MOVOU (16*12)(ks), T0
++		JE decLast1
++		aesRnd(T0)
++		aesRound(13)
++		MOVOU (16*14)(ks), T0
++decLast1:
++		aesRndLast(T0)
++
++		MOVOU (16*0)(ctx), T0
++		PXOR T0, B0
++		MOVOU (16*1)(ctx), T0
++		PXOR T0, B1
++		MOVOU (16*2)(ctx), T0
++		PXOR T0, B2
++		MOVOU (16*3)(ctx), T0
++		PXOR T0, B3
++		MOVOU (16*4)(ctx), T0
++		PXOR T0, B4
++		MOVOU (16*5)(ctx), T0
++		PXOR T0, B5
++		MOVOU (16*6)(ctx), T0
++		PXOR T0, B6
++		MOVOU (16*7)(ctx), T0
++		PXOR T0, B7
++
++		MOVOU B0, (16*0)(ptx)
++		MOVOU B1, (16*1)(ptx)
++		MOVOU B2, (16*2)(ptx)
++		MOVOU B3, (16*3)(ptx)
++		MOVOU B4, (16*4)(ptx)
++		MOVOU B5, (16*5)(ptx)
++		MOVOU B6, (16*6)(ptx)
++		MOVOU B7, (16*7)(ptx)
++
++		LEAQ 128(ptx), ptx
++		LEAQ 128(ctx), ctx
++
++		JMP gcmAesDecOctetsLoop
++
++gcmAesDecEndOctets:
++
++	SUBQ $7, aluCTR
++
++gcmAesDecSingles:
++
++	MOVOU (16*1)(ks), B1
++	MOVOU (16*2)(ks), B2
++	MOVOU (16*3)(ks), B3
++	MOVOU (16*4)(ks), B4
++	MOVOU (16*5)(ks), B5
++	MOVOU (16*6)(ks), B6
++	MOVOU (16*7)(ks), B7
++
++	MOVOU (16*14)(pTbl), T2
++
++gcmAesDecSinglesLoop:
++
++		CMPQ ptxLen, $16
++		JB gcmAesDecTail
++		SUBQ $16, ptxLen
++
++		MOVOU (ctx), B0
++		MOVOU B0, T1
++		PSHUFB BSWAP, B0
++		PXOR ACC0, B0
++
++		MOVOU T2, ACC0
++		MOVOU T2, ACC1
++		MOVOU (16*15)(pTbl), ACCM
++
++		PCLMULQDQ $0x00, B0, ACC0
++		PCLMULQDQ $0x11, B0, ACC1
++		PSHUFD $78, B0, T0
++		PXOR B0, T0
++		PCLMULQDQ $0x00, T0, ACCM
++
++		PXOR ACC0, ACCM
++		PXOR ACC1, ACCM
++		MOVOU ACCM, T0
++		PSRLDQ $8, ACCM
++		PSLLDQ $8, T0
++		PXOR ACCM, ACC1
++		PXOR T0, ACC0
++
++		reduceRound(ACC0)
++		reduceRound(ACC0)
++		PXOR ACC1, ACC0
++
++		MOVOU (0*16)(SP), B0
++		increment(0)
++		AESENC B1, B0
++		AESENC B2, B0
++		AESENC B3, B0
++		AESENC B4, B0
++		AESENC B5, B0
++		AESENC B6, B0
++		AESENC B7, B0
++		MOVOU (16*8)(ks), T0
++		AESENC T0, B0
++		MOVOU (16*9)(ks), T0
++		AESENC T0, B0
++		MOVOU (16*10)(ks), T0
++		CMPQ NR, $12
++		JB decLast2
++		AESENC T0, B0
++		MOVOU (16*11)(ks), T0
++		AESENC T0, B0
++		MOVOU (16*12)(ks), T0
++		JE decLast2
++		AESENC T0, B0
++		MOVOU (16*13)(ks), T0
++		AESENC T0, B0
++		MOVOU (16*14)(ks), T0
++decLast2:
++		AESENCLAST T0, B0
++
++		PXOR T1, B0
++		MOVOU B0, (ptx)
++
++		LEAQ (16*1)(ptx), ptx
++		LEAQ (16*1)(ctx), ctx
++
++	JMP gcmAesDecSinglesLoop
++
++gcmAesDecTail:
++
++	TESTQ ptxLen, ptxLen
++	JE gcmAesDecDone
++
++	MOVQ ptxLen, aluTMP
++	SHLQ $4, aluTMP
++	LEAQ andMask<>(SB), aluCTR
++	MOVOU -16(aluCTR)(aluTMP*1), T1
++
++	MOVOU (ctx), B0	// I assume there is TAG attached to the ctx, and there is no read overflow
++	PAND T1, B0
++
++	MOVOU B0, T1
++	PSHUFB BSWAP, B0
++	PXOR ACC0, B0
++
++	MOVOU (16*14)(pTbl), ACC0
++	MOVOU (16*15)(pTbl), ACCM
++	MOVOU ACC0, ACC1
++
++	PCLMULQDQ $0x00, B0, ACC0
++	PCLMULQDQ $0x11, B0, ACC1
++	PSHUFD $78, B0, T0
++	PXOR B0, T0
++	PCLMULQDQ $0x00, T0, ACCM
++
++	PXOR ACC0, ACCM
++	PXOR ACC1, ACCM
++	MOVOU ACCM, T0
++	PSRLDQ $8, ACCM
++	PSLLDQ $8, T0
++	PXOR ACCM, ACC1
++	PXOR T0, ACC0
++
++	reduceRound(ACC0)
++	reduceRound(ACC0)
++	PXOR ACC1, ACC0
++
++	MOVOU (0*16)(SP), B0
++	increment(0)
++	AESENC B1, B0
++	AESENC B2, B0
++	AESENC B3, B0
++	AESENC B4, B0
++	AESENC B5, B0
++	AESENC B6, B0
++	AESENC B7, B0
++	MOVOU (16*8)(ks), T0
++	AESENC T0, B0
++	MOVOU (16*9)(ks), T0
++	AESENC T0, B0
++	MOVOU (16*10)(ks), T0
++	CMPQ NR, $12
++	JB decLast3
++	AESENC T0, B0
++	MOVOU (16*11)(ks), T0
++	AESENC T0, B0
++	MOVOU (16*12)(ks), T0
++	JE decLast3
++	AESENC T0, B0
++	MOVOU (16*13)(ks), T0
++	AESENC T0, B0
++	MOVOU (16*14)(ks), T0
++decLast3:
++	AESENCLAST T0, B0
++	PXOR T1, B0
++
++ptxStoreLoop:
++		BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x14; BYTE $0x06; BYTE $0x00  // PEXTRB $0, B0, (ptx)
++		PSRLDQ $1, B0
++		LEAQ 1(ptx), ptx
++		DECQ ptxLen
++
++	JNE ptxStoreLoop
++
++gcmAesDecDone:
++
++	MOVOU ACC0, (tPtr)
++	RET
+diff --git a/src/crypto/cipher/benchmark_test.go b/src/crypto/cipher/benchmark_test.go
+index 027b248510..93c40d0f46 100644
+--- a/src/crypto/cipher/benchmark_test.go
++++ b/src/crypto/cipher/benchmark_test.go
+@@ -10,42 +10,58 @@ import (
+ 	"testing"
+ )
+ 
+-func BenchmarkAESGCMSeal1K(b *testing.B) {
+-	buf := make([]byte, 1024)
++func benchmarkAESGCMSeal(b *testing.B, buf []byte) {
+ 	b.SetBytes(int64(len(buf)))
+ 
+ 	var key [16]byte
+ 	var nonce [12]byte
++	var ad [13]byte
+ 	aes, _ := aes.NewCipher(key[:])
+ 	aesgcm, _ := cipher.NewGCM(aes)
+ 	var out []byte
+ 
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		out = aesgcm.Seal(out[:0], nonce[:], buf, nonce[:])
++		out = aesgcm.Seal(out[:0], nonce[:], buf, ad[:])
+ 	}
+ }
+ 
+-func BenchmarkAESGCMOpen1K(b *testing.B) {
+-	buf := make([]byte, 1024)
++func benchmarkAESGCMOpen(b *testing.B, buf []byte) {
+ 	b.SetBytes(int64(len(buf)))
+ 
+ 	var key [16]byte
+ 	var nonce [12]byte
++	var ad [13]byte
+ 	aes, _ := aes.NewCipher(key[:])
+ 	aesgcm, _ := cipher.NewGCM(aes)
+ 	var out []byte
+-	out = aesgcm.Seal(out[:0], nonce[:], buf, nonce[:])
++	out = aesgcm.Seal(out[:0], nonce[:], buf, ad[:])
+ 
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		_, err := aesgcm.Open(buf[:0], nonce[:], out, nonce[:])
++		_, err := aesgcm.Open(buf[:0], nonce[:], out, ad[:])
+ 		if err != nil {
+ 			b.Errorf("Open: %v", err)
+ 		}
+ 	}
+ }
+ 
++func BenchmarkAESGCMSeal1K(b *testing.B) {
++	benchmarkAESGCMSeal(b, make([]byte, 1024))
++}
++
++func BenchmarkAESGCMOpen1K(b *testing.B) {
++	benchmarkAESGCMOpen(b, make([]byte, 1024))
++}
++
++func BenchmarkAESGCMSeal8K(b *testing.B) {
++	benchmarkAESGCMSeal(b, make([]byte, 8*1024))
++}
++
++func BenchmarkAESGCMOpen8K(b *testing.B) {
++	benchmarkAESGCMOpen(b, make([]byte, 8*1024))
++}
++
+ // If we test exactly 1K blocks, we would generate exact multiples of
+ // the cipher's block size, and the cipher stream fragments would
+ // always be wordsize aligned, whereas non-aligned is a more typical
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index bbdf9f5d3d..3a0474f502 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -38,6 +38,13 @@ type AEAD interface {
+ 	Open(dst, nonce, ciphertext, data []byte) ([]byte, error)
+ }
+ 
++// gcmAble is an interface implemented by ciphers that have a specific optimized
++// implementation of GCM, like crypto/aes. NewGCM will check for this interface
++// and return the specific AEAD if found.
++type gcmAble interface {
++	NewGCM(int) (AEAD, error)
++}
++
+ // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
+ // standard and make getUint64 suitable for marshaling these values, the bits
+ // are stored backwards. For example:
+@@ -72,6 +79,10 @@ func NewGCM(cipher Block) (AEAD, error) {
+ // cryptosystem that uses non-standard nonce lengths. All other users should use
+ // NewGCM, which is faster and more resistant to misuse.
+ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
++	if cipher, ok := cipher.(gcmAble); ok {
++		return cipher.NewGCM(size)
++	}
++
+ 	if cipher.BlockSize() != gcmBlockSize {
+ 		return nil, errors.New("cipher: NewGCM requires 128-bit block cipher")
+ 	}
+diff --git a/src/crypto/cipher/gcm_test.go b/src/crypto/cipher/gcm_test.go
+index 81b9aa2419..904091ed5d 100644
+--- a/src/crypto/cipher/gcm_test.go
++++ b/src/crypto/cipher/gcm_test.go
+@@ -12,8 +12,6 @@ import (
+ 	"testing"
+ )
+ 
+-// AES-GCM test vectors taken from gcmEncryptExtIV128.rsp from
+-// http://csrc.nist.gov/groups/STM/cavp/index.html.
+ var aesGCMTests = []struct {
+ 	key, nonce, plaintext, ad, result string
+ }{
+@@ -31,6 +29,27 @@ var aesGCMTests = []struct {
+ 		"",
+ 		"60d20404af527d248d893ae495707d1a",
+ 	},
++	{
++		"fbe3467cc254f81be8e78d765a2e6333",
++		"c6697351ff4aec29cdbaabf2",
++		"",
++		"67",
++		"3659cdc25288bf499ac736c03bfc1159",
++	},
++	{
++		"8a7f9d80d08ad0bd5a20fb689c88f9fc",
++		"88b7b27d800937fda4f47301",
++		"",
++		"50edd0503e0d7b8c91608eb5a1",
++		"ed6f65322a4740011f91d2aae22dd44e",
++	},
++	{
++		"051758e95ed4abb2cdc69bb454110e82",
++		"c99a66320db73158a35a255d",
++		"",
++		"67c6697351ff4aec29cdbaabf2fbe3467cc254f81be8e78d765a2e63339f",
++		"6ce77f1a5616c505b6aec09420234036",
++	},
+ 	{
+ 		"77be63708971c4e240d1cb79e8d77feb",
+ 		"e0e00f19fed7ba0136a797f3",
+@@ -130,6 +149,41 @@ var aesGCMTests = []struct {
+ 		"8d8c7ffc55086d539b5a8f0d1232654c",
+ 		"0d803ec309482f35b8e6226f2b56303239298e06b281c2d51aaba3c125",
+ 	},
++	{
++		"0e18a844ac5bf38e4cd72d9b0942e506",
++		"0870d4b28a2954489a0abcd5",
++		"67c6697351ff4aec29cdbaabf2fbe3467cc254f81be8e78d765a2e63339fc99a66320db73158a35a255d051758e95ed4abb2cdc69bb454110e827441213ddc8770e93ea141e1fc673e017e97eadc6b968f385c2aecb03bfb32af3c54ec18db5c021afe43fbfaaa3afb29d1e6053c7c9475d8be6189f95cbba8990f95b1ebf1b3",
++		"05eff700e9a13ae5ca0bcbd0484764bd1f231ea81c7b64c514735ac55e4b79633b706424119e09dcaad4acf21b10af3b33cde3504847155cbb6f2219ba9b7df50be11a1c7f23f829f8a41b13b5ca4ee8983238e0794d3d34bc5f4e77facb6c05ac86212baa1a55a2be70b5733b045cd33694b3afe2f0e49e4f321549fd824ea9",
++		"cace28f4976afd72e3c5128167eb788fbf6634dda0a2f53148d00f6fa557f5e9e8f736c12e450894af56cb67f7d99e1027258c8571bd91ee3b7360e0d508aa1f382411a16115f9c05251cc326d4016f62e0eb8151c048465b0c6c8ff12558d43310e18b2cb1889eec91557ce21ba05955cf4c1d4847aadfb1b0a83f3a3b82b7efa62a5f03c5d6eda381a85dd78dbc55c",
++	},
++	{
++		"1f6c3a3bc0542aabba4ef8f6c7169e73",
++		"f3584606472b260e0dd2ebb2",
++		"67c6697351ff4aec29cdbaabf2fbe3467cc254f81be8e78d765a2e63339fc99a66320db73158a35a255d051758e95ed4abb2cdc69bb454110e827441213ddc8770e93ea141e1fc673e017e97eadc6b968f385c2aecb03bfb32af3c54ec18db5c021afe43fbfaaa3afb29d1e6053c7c9475d8be6189f95cbba8990f95b1ebf1b305eff700e9a13ae5ca0bcbd0484764bd1f231ea81c7b64c514735ac55e4b79633b706424119e09dcaad4acf21b10af3b33cde3504847155cbb6f2219ba9b7df50be11a1c7f23f829f8a41b13b5ca4ee8983238e0794d3d34bc5f4e77facb6c05ac86212baa1a55a2be70b5733b045cd33694b3afe2f0e49e4f321549fd824ea90870d4b28a2954489a0abcd50e18a844ac5bf38e4cd72d9b0942e506c433afcda3847f2dadd47647de321cec4ac430f62023856cfbb20704f4ec0bb920ba86c33e05f1ecd96733b79950a3e314d3d934f75ea0f210a8f6059401beb4bc4478fa4969e623d01ada696a7e4c7e5125b34884533a94fb319990325744ee9bbce9e525cf08f5e9e25e5360aad2b2d085fa54d835e8d466826498d9a8877565705a8a3f62802944de7ca5894e5759d351adac869580ec17e485f18c0c66f17cc07cbb22fce466da610b63af62bc83b4692f3affaf271693ac071fb86d11342d8def4f89d4b66335c1c7e4248367d8ed9612ec453902d8e50af89d7709d1a596c1f41f",
++		"95aa82ca6c49ae90cd1668baac7aa6f2b4a8ca99b2c2372acb08cf61c9c3805e6e0328da4cd76a19edd2d3994c798b0022569ad418d1fee4d9cd45a391c601ffc92ad91501432fee150287617c13629e69fc7281cd7165a63eab49cf714bce3a75a74f76ea7e64ff81eb61fdfec39b67bf0de98c7e4e32bdf97c8c6ac75ba43c02f4b2ed7216ecf3014df000108b67cf99505b179f8ed4980a6103d1bca70dbe9bbfab0ed59801d6e5f2d6f67d3ec5168e212e2daf02c6b963c98a1f7097de0c56891a2b211b01070dd8fd8b16c2a1a4e3cfd292d2984b3561d555d16c33ddc2bcf7edde13efe520c7e2abdda44d81881c531aeeeb66244c3b791ea8acfb6a68",
++		"55864065117e07650ca650a0f0d9ef4b02aee7c58928462fddb49045bf85355b4653fa26158210a7f3ef5b3ca48612e8b7adf5c025c1b821960af770d935df1c9a1dd25077d6b1c7f937b2e20ce981b07980880214698f3fad72fa370b3b7da257ce1d0cf352bc5304fada3e0f8927bd4e5c1abbffa563bdedcb567daa64faaed748cb361732200ba3506836a3c1c82aafa14c76dc07f6c4277ff2c61325f91fdbd6c1883e745fcaadd5a6d692eeaa5ad56eead6a9d74a595d22757ed89532a4b8831e2b9e2315baea70a9b95d228f09d491a5ed5ab7076766703457e3159bbb9b17b329525669863153079448c68cd2f200c0be9d43061a60639cb59d50993d276c05caaa565db8ce633b2673e4012bebbca02b1a64d779d04066f3e949ece173825885ec816468c819a8129007cc05d8785c48077d09eb1abcba14508dde85a6f16a744bc95faef24888d53a8020515ab20307efaecbdf143a26563c67989bceedc2d6d2bb9699bb6c615d93767e4158c1124e3b6c723aaa47796e59a60d3696cd85adfae9a62f2c02c22009f80ed494bdc587f31dd892c253b5c6d6b7db078fa72d23474ee54f8144d6561182d71c862941dbc0b2cb37a4d4b23cbad5637e6be901cc73f16d5aec39c60dddee631511e57b47520b61ae1892d2d1bd2b486e30faec892f171b6de98d96108016fac805604761f8e74742b3bb7dc8a290a46bf697c3e4446e6e65832cbae7cf1aaad1",
++	},
++	{
++		"0795d80bc7f40f4d41c280271a2e4f7f",
++		"ff824c906594aff365d3cb1f",
++		"1ad4e74d127f935beee57cff920665babe7ce56227377afe570ba786193ded3412d4812453157f42fafc418c02a746c1232c234a639d49baa8f041c12e2ef540027764568ce49886e0d913e28059a3a485c6eee96337a30b28e4cd5612c2961539fa6bc5de034cbedc5fa15db844013e0bef276e27ca7a4faf47a5c1093bd643354108144454d221b3737e6cb87faac36ed131959babe44af2890cfcc4e23ffa24470e689ce0894f5407bb0c8665cff536008ad2ac6f1c9ef8289abd0bd9b72f21c597bda5210cf928c805af2dd4a464d52e36819d521f967bba5386930ab5b4cf4c71746d7e6e964673457348e9d71d170d9eb560bd4bdb779e610ba816bf776231ebd0af5966f5cdab6815944032ab4dd060ad8dab880549e910f1ffcf6862005432afad",
++		"98a47a430d8fd74dc1829a91e3481f8ed024d8ba34c9b903321b04864db333e558ae28653dffb2",
++		"3b8f91443480e647473a0a0b03d571c622b7e70e4309a02c9bb7980053010d865e6aec161354dc9f481b2cd5213e09432b57ec4e58fbd0a8549dd15c8c4e74a6529f75fad0ce5a9e20e2beeb2f91eb638bf88999968de438d2f1cedbfb0a1c81f9e8e7362c738e0fddd963692a4f4df9276b7f040979ce874cf6fa3de26da0713784bdb25e4efcb840554ef5b38b5fe8380549a496bd8e423a7456df6f4ae78a07ebe2276a8e22fc2243ec4f78abe0c99c733fd67c8c492699fa5ee2289cdd0a8d469bf883520ee74efb854bfadc7366a49ee65ca4e894e3335e2b672618d362eee12a577dd8dc2ba55c49c1fc3ad68180e9b112d0234d4aa28f5661f1e036450ca6f18be0166676bd80f8a4890c6ddea306fabb7ff3cb2860aa32a827e3a312912a2dfa70f6bc1c07de238448f2d751bd0cf15bf7",
++	},
++	{
++		"e2e001a36c60d2bf40d69ff5b2b1161ea218db263be16a4e",
++		"84230643130d05425826641e",
++		"adb034f3f4a7ca45e2993812d113a9821d50df151af978bccc6d3bc113e15bc0918fb385377dca1916022ce816d56a332649484043c0fc0f2d37d040182b00a9bbb42ef231f80b48fb3730110d9a4433e38c73264c703579a705b9c031b969ec6d98de9f90e9e78b21179c2eb1e061946cd4bbb844f031ecf6eaac27a4151311adf1b03eda97c9fbae66295f468af4b35faf6ba39f9d8f95873bbc2b51cf3dfec0ed3c9b850696336cc093b24a8765a936d14dd56edc6bf518272169f75e67b74ba452d0aae90416a997c8f31e2e9d54ffea296dc69462debc8347b3e1af6a2d53bdfdfda601134f98db42b609df0a08c9347590c8d86e845bb6373d65a26ab85f67b50569c85401a396b8ad76c2b53ff62bcfbf033e435ef47b9b591d05117c6dc681d68e",
++		"d5d7316b8fdee152942148bff007c22e4b2022c6bc7be3c18c5f2e52e004e0b5dc12206bf002bd",
++		"f2c39423ee630dfe961da81909159dba018ce09b1073a12a477108316af5b7a31f86be6a0548b572d604bd115ea737dde899e0bd7f7ac9b23e38910dc457551ecc15c814a9f46d8432a1a36097dc1afe2712d1ba0838fa88cb55d9f65a2e9bece0dbf8999562503989041a2c87d7eb80ef649769d2f4978ce5cf9664f2bd0849646aa81cb976e45e1ade2f17a8126219e917aadbb4bae5e2c4b3f57bbc7f13fcc807df7842d9727a1b389e0b749e5191482adacabd812627c6eae2c7a30caf0844ad2a22e08f39edddf0ae10413e47db433dfe3febbb5a5cec9ade21fbba1e548247579395880b747669a8eb7e2ec0c1bff7fed2defdb92b07a14edf07b1bde29c31ab052ff1214e6b5ebbefcb8f21b5d6f8f6e07ee57ad6e14d4e142cb3f51bb465ab3a28a2a12f01b7514ad0463f2bde0d71d221",
++	},
++	{
++		"5394e890d37ba55ec9d5f327f15680f6a63ef5279c79331643ad0af6d2623525",
++		"815e840b7aca7af3b324583f",
++		"8e63067cd15359f796b43c68f093f55fdf3589fc5f2fdfad5f9d156668a617f7091d73da71cdd207810e6f71a165d0809a597df9885ca6e8f9bb4e616166586b83cc45f49917fc1a256b8bc7d05c476ab5c4633e20092619c4747b26dad3915e9fd65238ee4e5213badeda8a3a22f5efe6582d0762532026c89b4ca26fdd000eb45347a2a199b55b7790e6b1b2dba19833ce9f9522c0bcea5b088ccae68dd99ae0203c81b9f1dd3181c3e2339e83ccd1526b67742b235e872bea5111772aab574ae7d904d9b6355a79178e179b5ae8edc54f61f172bf789ea9c9af21f45b783e4251421b077776808f04972a5e801723cf781442378ce0e0568f014aea7a882dcbcb48d342be53d1c2ebfb206b12443a8a587cc1e55ca23beca385d61d0d03e9d84cbc1b0a",
++		"0feccdfae8ed65fa31a0858a1c466f79e8aa658c2f3ba93c3f92158b4e30955e1c62580450beff",
++		"b69a7e17bb5af688883274550a4ded0d1aff49a0b18343f4b382f745c163f7f714c9206a32a1ff012427e19431951edd0a755e5f491b0eedfd7df68bbc6085dd2888607a2f998c3e881eb1694109250db28291e71f4ad344a125624fb92e16ea9815047cd1111cabfdc9cb8c3b4b0f40aa91d31774009781231400789ed545404af6c3f76d07ddc984a7bd8f52728159782832e298cc4d529be96d17be898efd83e44dc7b0e2efc645849fd2bba61fef0ae7be0dcab233cc4e2b7ba4e887de9c64b97f2a1818aa54371a8d629dae37975f7784e5e3cc77055ed6e975b1e5f55e6bbacdc9f295ce4ada2c16113cd5b323cf78b7dde39f4a87aa8c141a31174e3584ccbd380cf5ec6d1dba539928b084fa9683e9c0953acf47cc3ac384a2c38914f1da01fb2cfd78905c2b58d36b2574b9df15535d82",
++	},
+ }
+ 
+ func TestAESGCM(t *testing.T) {

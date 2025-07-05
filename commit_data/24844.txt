@@ -17,7 +17,7 @@ Date:   Thu May 21 13:07:19 2015 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcshared/test.bash         |   7 +++
  misc/cgo/testshared/shared_test.go     |  39 +++++++++++++++++
  src/cmd/internal/obj/link.go           |  20 +++++++++
@@ -32,3 +32,427 @@ Date:   Thu May 21 13:07:19 2015 +1200
  src/cmd/newlink/testdata/layout.6      | Bin 356 -> 396 bytes
  src/cmd/newlink/testdata/pclntab.6     | Bin 3764 -> 3804 bytes
  13 files changed, 206 insertions(+), 18 deletions(-)
+
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index 57221bc36d..1b7fec1549 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -81,6 +81,13 @@ GOPATH=$(pwd) go install -buildmode=c-shared $suffix libgo
+ GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo.$libext src/libgo/libgo.go
+ binpush libgo.$libext
+ 
++if [ "$goos" == "linux" ]; then
++    if readelf -d libgo.$libext | grep TEXTREL >/dev/null; then
++        echo "libgo.$libext has TEXTREL set"
++        exit 1
++    fi
++fi
++
+ # test0: exported symbols in shared lib are accessible.
+ # TODO(iant): using _shared here shouldn't really be necessary.
+ $(go env CC) $(go env GOGCCFLAGS) -I ${installdir} -o testp main0.c libgo.$libext
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 2e12364163..7f677d6a37 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -163,6 +163,45 @@ func TestSOBuilt(t *testing.T) {
+ 	}
+ }
+ 
++func hasDynTag(f *elf.File, tag elf.DynTag) bool {
++	ds := f.SectionByType(elf.SHT_DYNAMIC)
++	if ds == nil {
++		return false
++	}
++	d, err := ds.Data()
++	if err != nil {
++		return false
++	}
++	for len(d) > 0 {
++		var t elf.DynTag
++		switch f.Class {
++		case elf.ELFCLASS32:
++			t = elf.DynTag(f.ByteOrder.Uint32(d[0:4]))
++			d = d[8:]
++		case elf.ELFCLASS64:
++			t = elf.DynTag(f.ByteOrder.Uint64(d[0:8]))
++			d = d[16:]
++		}
++		if t == tag {
++			return true
++		}
++	}
++	return false
++}
++
++// The shared library does not have relocations against the text segment.
++func TestNoTextrel(t *testing.T) {
++	sopath := filepath.Join(gorootInstallDir, soname)
++	f, err := elf.Open(sopath)
++	if err != nil {
++		t.Fatal("elf.Open failed: ", err)
++	}
++	defer f.Close()
++	if hasDynTag(f, elf.DT_TEXTREL) {
++		t.Errorf("%s has DT_TEXTREL set", soname)
++	}
++}
++
+ // The install command should have created a "shlibname" file for the
+ // listed packages (and runtime/cgo) indicating the name of the shared
+ // library containing it.
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a5d622a70a..6066493baf 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -334,6 +334,7 @@ const (
+ 	Sxxx = iota
+ 	STEXT
+ 	SELFRXSECT
++
+ 	STYPE
+ 	SSTRING
+ 	SGOSTRING
+@@ -341,6 +342,25 @@ const (
+ 	SGCBITS
+ 	SRODATA
+ 	SFUNCTAB
++
++	// Types STYPE-SFUNCTAB above are written to the .rodata section by default.
++	// When linking a shared object, some conceptually "read only" types need to
++	// be written to by relocations and putting them in a section called
++	// ".rodata" interacts poorly with the system linkers. The GNU linkers
++	// support this situation by arranging for sections of the name
++	// ".data.rel.ro.XXX" to be mprotected read only by the dynamic linker after
++	// relocations have applied, so when the Go linker is creating a shared
++	// object it checks all objects of the above types and bumps any object that
++	// has a relocation to it to the corresponding type below, which are then
++	// written to sections with appropriate magic names.
++	STYPERELRO
++	SSTRINGRELRO
++	SGOSTRINGRELRO
++	SGOFUNCRELRO
++	SGCBITSRELRO
++	SRODATARELRO
++	SFUNCTABRELRO
++
+ 	STYPELINK
+ 	SSYMTAB
+ 	SPCLNTAB
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index f1561d3c82..4263e8cf26 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1207,6 +1207,31 @@ func dodata() {
+ 
+ 	*l = nil
+ 
++	if UseRelro() {
++		// "read only" data with relocations needs to go in its own section
++		// when building a shared library. We do this by boosting objects of
++		// type SXXX with relocations to type SXXXRELRO.
++		for s := datap; s != nil; s = s.Next {
++			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.SGOSTRING {
++				s.Type += (obj.STYPERELRO - obj.STYPE)
++				if s.Outer != nil {
++					s.Outer.Type = s.Type
++				}
++			}
++		}
++		// Check that we haven't made two symbols with the same .Outer into
++		// different types (because references two symbols with non-nil Outer
++		// become references to the outer symbol + offset it's vital that the
++		// symbol and the outer end up in the same section).
++		for s := datap; s != nil; s = s.Next {
++			if s.Outer != nil && s.Outer.Type != s.Type {
++				Diag("inconsistent types for %s and its Outer %s (%d != %d)",
++					s.Name, s.Outer.Name, s.Type, s.Outer.Type)
++			}
++		}
++
++	}
++
+ 	datap = listsort(datap, datcmp, listnextp)
+ 
+ 	if Iself {
+@@ -1465,12 +1490,12 @@ func dodata() {
+ 	/* read-only data */
+ 	sect = addsection(segro, ".rodata", 04)
+ 
+-	sect.Align = maxalign(s, obj.STYPELINK-1)
++	sect.Align = maxalign(s, obj.STYPERELRO-1)
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = 0
+ 	Linklookup(Ctxt, "runtime.rodata", 0).Sect = sect
+ 	Linklookup(Ctxt, "runtime.erodata", 0).Sect = sect
+-	for ; s != nil && s.Type < obj.STYPELINK; s = s.Next {
++	for ; s != nil && s.Type < obj.STYPERELRO; s = s.Next {
+ 		datsize = aligndatsize(datsize, s)
+ 		s.Sect = sect
+ 		s.Type = obj.SRODATA
+@@ -1480,8 +1505,45 @@ func dodata() {
+ 
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
++	// There is some data that are conceptually read-only but are written to by
++	// relocations. On GNU systems, we can arrange for the dynamic linker to
++	// mprotect sections after relocations are applied by giving them write
++	// permissions in the object file and calling them ".data.rel.ro.FOO". We
++	// divide the .rodata section between actual .rodata and .data.rel.ro.rodata,
++	// but for the other sections that this applies to, we just write a read-only
++	// .FOO section or a read-write .data.rel.ro.FOO section depending on the
++	// situation.
++	// TODO(mwhudson): It would make sense to do this more widely, but it makes
++	// the system linker segfault on darwin.
++	relro_perms := 04
++	relro_prefix := ""
++
++	if UseRelro() {
++		relro_perms = 06
++		relro_prefix = ".data.rel.ro"
++		/* data only written by relocations */
++		sect = addsection(segro, ".data.rel.ro", 06)
++
++		sect.Align = maxalign(s, obj.STYPELINK-1)
++		datsize = Rnd(datsize, int64(sect.Align))
++		sect.Vaddr = 0
++		for ; s != nil && s.Type < obj.STYPELINK; s = s.Next {
++			datsize = aligndatsize(datsize, s)
++			if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
++				Diag("s.Outer (%s) in different section from s (%s)", s.Outer.Name, s.Name)
++			}
++			s.Sect = sect
++			s.Type = obj.SRODATA
++			s.Value = int64(uint64(datsize) - sect.Vaddr)
++			growdatsize(&datsize, s)
++		}
++
++		sect.Length = uint64(datsize) - sect.Vaddr
++
++	}
++
+ 	/* typelink */
+-	sect = addsection(segro, ".typelink", 04)
++	sect = addsection(segro, relro_prefix+".typelink", relro_perms)
+ 
+ 	sect.Align = maxalign(s, obj.STYPELINK)
+ 	datsize = Rnd(datsize, int64(sect.Align))
+@@ -1499,7 +1561,7 @@ func dodata() {
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+ 	/* gosymtab */
+-	sect = addsection(segro, ".gosymtab", 04)
++	sect = addsection(segro, relro_prefix+".gosymtab", relro_perms)
+ 
+ 	sect.Align = maxalign(s, obj.SPCLNTAB-1)
+ 	datsize = Rnd(datsize, int64(sect.Align))
+@@ -1517,7 +1579,7 @@ func dodata() {
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+ 	/* gopclntab */
+-	sect = addsection(segro, ".gopclntab", 04)
++	sect = addsection(segro, relro_prefix+".gopclntab", relro_perms)
+ 
+ 	sect.Align = maxalign(s, obj.SELFROSECT-1)
+ 	datsize = Rnd(datsize, int64(sect.Align))
+@@ -1723,6 +1785,11 @@ func address() {
+ 		rodata = text.Next
+ 	}
+ 	typelink := rodata.Next
++	if UseRelro() {
++		// There is another section (.data.rel.ro) when building a shared
++		// object on elf systems.
++		typelink = typelink.Next
++	}
+ 	symtab := typelink.Next
+ 	pclntab := symtab.Next
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 187643e41b..a842cf6df4 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1690,9 +1690,18 @@ func doelf() {
+ 	}
+ 	Addstring(shstrtab, ".elfdata")
+ 	Addstring(shstrtab, ".rodata")
+-	Addstring(shstrtab, ".typelink")
+-	Addstring(shstrtab, ".gosymtab")
+-	Addstring(shstrtab, ".gopclntab")
++	if Buildmode == BuildmodeShared || Buildmode == BuildmodeCShared {
++		Addstring(shstrtab, ".data.rel.ro")
++	}
++	// See the comment about data.rel.ro.FOO section names in data.go.
++	relro_prefix := ""
++
++	if UseRelro() {
++		relro_prefix = ".data.rel.ro"
++	}
++	Addstring(shstrtab, relro_prefix+".typelink")
++	Addstring(shstrtab, relro_prefix+".gosymtab")
++	Addstring(shstrtab, relro_prefix+".gopclntab")
+ 
+ 	if Linkmode == LinkExternal {
+ 		Debug['d'] = 1
+@@ -1701,20 +1710,26 @@ func doelf() {
+ 		case '6', '7', '9':
+ 			Addstring(shstrtab, ".rela.text")
+ 			Addstring(shstrtab, ".rela.rodata")
+-			Addstring(shstrtab, ".rela.typelink")
+-			Addstring(shstrtab, ".rela.gosymtab")
+-			Addstring(shstrtab, ".rela.gopclntab")
++			Addstring(shstrtab, ".rela"+relro_prefix+".typelink")
++			Addstring(shstrtab, ".rela"+relro_prefix+".gosymtab")
++			Addstring(shstrtab, ".rela"+relro_prefix+".gopclntab")
+ 			Addstring(shstrtab, ".rela.noptrdata")
+ 			Addstring(shstrtab, ".rela.data")
++			if UseRelro() {
++				Addstring(shstrtab, ".rela.data.rel.ro")
++			}
+ 
+ 		default:
+ 			Addstring(shstrtab, ".rel.text")
+ 			Addstring(shstrtab, ".rel.rodata")
+-			Addstring(shstrtab, ".rel.typelink")
+-			Addstring(shstrtab, ".rel.gosymtab")
+-			Addstring(shstrtab, ".rel.gopclntab")
++			Addstring(shstrtab, ".rel"+relro_prefix+".typelink")
++			Addstring(shstrtab, ".rel"+relro_prefix+".gosymtab")
++			Addstring(shstrtab, ".rel"+relro_prefix+".gopclntab")
+ 			Addstring(shstrtab, ".rel.noptrdata")
+ 			Addstring(shstrtab, ".rel.data")
++			if UseRelro() {
++				Addstring(shstrtab, ".rel.data.rel.ro")
++			}
+ 		}
+ 
+ 		// add a .note.GNU-stack section to mark the stack as non-executable
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 89f805d483..6d265b2d30 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -174,6 +174,12 @@ func DynlinkingGo() bool {
+ 	return Buildmode == BuildmodeShared || Linkshared
+ }
+ 
++// UseRelro returns whether to make use of "read only relocations" aka
++// relro.
++func UseRelro() bool {
++	return (Buildmode == BuildmodeCShared || Buildmode == BuildmodeShared) && Iself
++}
++
+ var (
+ 	Thestring          string
+ 	Thelinkarch        *LinkArch
+@@ -980,6 +986,9 @@ func hostlink() {
+ 			argv = append(argv, "-dynamiclib")
+ 		} else {
+ 			argv = append(argv, "-Wl,-Bsymbolic")
++			if UseRelro() {
++				argv = append(argv, "-Wl,-z,relro")
++			}
+ 			argv = append(argv, "-shared")
+ 		}
+ 	case BuildmodeShared:
+@@ -991,7 +1000,10 @@ func hostlink() {
+ 		// think we may well end up wanting to use -Bsymbolic here
+ 		// anyway.
+ 		argv = append(argv, "-Wl,-Bsymbolic-functions")
+-		argv = append(argv, "-shared")
++		if UseRelro() {
++			argv = append(argv, "-shared")
++		}
++		argv = append(argv, "-Wl,-z,relro")
+ 	}
+ 
+ 	if Linkshared && Iself {
+@@ -1771,6 +1783,12 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 			obj.SGOSTRING,
+ 			obj.SGOFUNC,
+ 			obj.SGCBITS,
++			obj.STYPERELRO,
++			obj.SSTRINGRELRO,
++			obj.SGOSTRINGRELRO,
++			obj.SGOFUNCRELRO,
++			obj.SGCBITSRELRO,
++			obj.SRODATARELRO,
+ 			obj.SWINDOWS:
+ 			if !s.Reachable {
+ 				continue
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 250c053143..918ca8ac13 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -350,13 +350,29 @@ func symtab() {
+ 
+ 	// pseudo-symbols to mark locations of type, string, and go string data.
+ 	var symtype *LSym
+-	if !DynlinkingGo() {
++	var symtyperel *LSym
++	if UseRelro() && Buildmode == BuildmodeCShared {
++		s = Linklookup(Ctxt, "type.*", 0)
++
++		s.Type = obj.STYPE
++		s.Size = 0
++		s.Reachable = true
++		symtype = s
++
++		s = Linklookup(Ctxt, "typerel.*", 0)
++
++		s.Type = obj.STYPERELRO
++		s.Size = 0
++		s.Reachable = true
++		symtyperel = s
++	} else if !DynlinkingGo() {
+ 		s = Linklookup(Ctxt, "type.*", 0)
+ 
+ 		s.Type = obj.STYPE
+ 		s.Size = 0
+ 		s.Reachable = true
+ 		symtype = s
++		symtyperel = s
+ 	}
+ 
+ 	s = Linklookup(Ctxt, "go.string.*", 0)
+@@ -381,6 +397,7 @@ func symtab() {
+ 	symgcbits := s
+ 
+ 	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
++	symtypelink.Type = obj.STYPELINK
+ 
+ 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
+ 	symt.Local = true
+@@ -400,9 +417,14 @@ func symtab() {
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
+-			s.Type = obj.STYPE
+ 			s.Hide = 1
+-			s.Outer = symtype
++			if UseRelro() && len(s.R) > 0 {
++				s.Type = obj.STYPERELRO
++				s.Outer = symtyperel
++			} else {
++				s.Type = obj.STYPE
++				s.Outer = symtype
++			}
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "go.typelink.") {
+diff --git a/src/cmd/newlink/testdata/autosection.6 b/src/cmd/newlink/testdata/autosection.6
+index 3681f70db8..90c842792c 100644
+Binary files a/src/cmd/newlink/testdata/autosection.6 and b/src/cmd/newlink/testdata/autosection.6 differ
+diff --git a/src/cmd/newlink/testdata/autoweak.6 b/src/cmd/newlink/testdata/autoweak.6
+index 99cf465928..c95dd20214 100644
+Binary files a/src/cmd/newlink/testdata/autoweak.6 and b/src/cmd/newlink/testdata/autoweak.6 differ
+diff --git a/src/cmd/newlink/testdata/dead.6 b/src/cmd/newlink/testdata/dead.6
+index 5b17ef1adb..a3ec719808 100644
+Binary files a/src/cmd/newlink/testdata/dead.6 and b/src/cmd/newlink/testdata/dead.6 differ
+diff --git a/src/cmd/newlink/testdata/hello.6 b/src/cmd/newlink/testdata/hello.6
+index 1f08d2155e..6731f525d0 100644
+Binary files a/src/cmd/newlink/testdata/hello.6 and b/src/cmd/newlink/testdata/hello.6 differ
+diff --git a/src/cmd/newlink/testdata/layout.6 b/src/cmd/newlink/testdata/layout.6
+index d1669866a4..fcfbe1b3de 100644
+Binary files a/src/cmd/newlink/testdata/layout.6 and b/src/cmd/newlink/testdata/layout.6 differ
+diff --git a/src/cmd/newlink/testdata/pclntab.6 b/src/cmd/newlink/testdata/pclntab.6
+index dfe53ddc38..abc8aef0ab 100644
+Binary files a/src/cmd/newlink/testdata/pclntab.6 and b/src/cmd/newlink/testdata/pclntab.6 differ

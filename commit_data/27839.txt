@@ -18,7 +18,59 @@ Date:   Thu Apr 14 13:47:58 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go |  2 +-
  test/fixedbugs/issue15252.go        | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 32ca1ae940..658cc8a50e 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -946,7 +946,7 @@ func Cgenr(n *Node, a *Node, res *Node) {
+ 		OCALLINTER:
+ 		var n1 Node
+ 		Igen(n, &n1, res)
+-		Regalloc(a, Types[Tptr], &n1)
++		Regalloc(a, n.Type, &n1)
+ 		Thearch.Gmove(&n1, a)
+ 		Regfree(&n1)
+ 
+diff --git a/test/fixedbugs/issue15252.go b/test/fixedbugs/issue15252.go
+new file mode 100644
+index 0000000000..370a885c7f
+--- /dev/null
++++ b/test/fixedbugs/issue15252.go
+@@ -0,0 +1,32 @@
++// run
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test makes sure that we use all 64 bits of an
++// index, even on 32 bit machines.  It also tests that nacl
++// can compile 64 bit indexes loaded from ODOTPTR properly.
++
++package main
++
++type T struct {
++	i int64
++}
++
++func f(t *T) byte {
++	b := [2]byte{3, 4}
++	return b[t.i]
++}
++
++func main() {
++	t := &T{0x100000001}
++	defer func() {
++		r := recover()
++		if r == nil {
++			panic("panic wasn't recoverable")
++		}
++	}()
++	f(t)
++	panic("index didn't panic")
++}

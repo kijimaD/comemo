@@ -14,7 +14,7 @@ Date:   Fri Sep 20 03:09:07 2019 +1000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204624
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/dist/buildtool.go                   |   1 +
  src/cmd/internal/objabi/reloctype.go        |  15 +++-
  src/cmd/internal/objabi/reloctype_string.go |   4 +-
@@ -25,3 +25,369 @@ Date:   Fri Sep 20 03:09:07 2019 +1000
  src/cmd/link/internal/riscv64/obj.go        |  60 ++++++++++++++
  src/cmd/link/main.go                        |   3 +
  9 files changed, 225 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 788598873d..d30529bc5d 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -82,6 +82,7 @@ var bootstrapDirs = []string{
+ 	"cmd/link/internal/mips64",
+ 	"cmd/link/internal/objfile",
+ 	"cmd/link/internal/ppc64",
++	"cmd/link/internal/riscv64",
+ 	"cmd/link/internal/s390x",
+ 	"cmd/link/internal/sym",
+ 	"cmd/link/internal/x86",
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index aed7e2a74d..dc6482802a 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -64,6 +64,8 @@ const (
+ 	// R_CALLMIPS (only used on mips64) resolves to non-PC-relative target address
+ 	// of a CALL (JAL) instruction, by encoding the address into the instruction.
+ 	R_CALLMIPS
++	// R_CALLRISCV marks RISC-V CALLs for stack checking.
++	R_CALLRISCV
+ 	R_CONST
+ 	R_PCREL
+ 	// R_TLS_LE, used on 386, amd64, and ARM, resolves to the offset of the
+@@ -200,6 +202,16 @@ const (
+ 	// relocated symbol rather than the symbol's address.
+ 	R_ADDRPOWER_TOCREL_DS
+ 
++	// RISC-V.
++
++	// R_RISCV_PCREL_ITYPE resolves a 32-bit PC-relative address using an
++	// AUIPC + I-type instruction pair.
++	R_RISCV_PCREL_ITYPE
++
++	// R_RISCV_PCREL_STYPE resolves a 32-bit PC-relative address using an
++	// AUIPC + S-type instruction pair.
++	R_RISCV_PCREL_STYPE
++
+ 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
+ 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
+ 	R_PCRELDBL
+@@ -210,6 +222,7 @@ const (
+ 	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
+ 	// address (offset from thread pointer), by encoding it into the instruction.
+ 	R_ADDRMIPSTLS
++
+ 	// R_ADDRCUOFF resolves to a pointer-sized offset from the start of the
+ 	// symbol's DWARF compile unit.
+ 	R_ADDRCUOFF
+@@ -230,7 +243,7 @@ const (
+ // the target address in register or memory.
+ func (r RelocType) IsDirectCall() bool {
+ 	switch r {
+-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER:
++	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER, R_CALLRISCV:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index a1c4c1aa51..83dfe71e07 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -4,9 +4,9 @@ package objabi
+ 
+ import "strconv"
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_WEAKADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_METHODOFFR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_WEAKADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CALLRISCVR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_METHODOFFR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_LDST8R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_PCRELDBLR_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 60, 66, 72, 81, 92, 101, 112, 122, 129, 136, 144, 152, 160, 166, 172, 178, 188, 197, 208, 219, 229, 238, 251, 265, 279, 293, 309, 320, 333, 346, 360, 374, 389, 403, 417, 428, 442, 457, 474, 492, 513, 523, 534, 547, 558, 570, 580}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 60, 66, 72, 81, 92, 101, 112, 122, 133, 140, 147, 155, 163, 171, 177, 183, 189, 199, 208, 219, 230, 240, 249, 262, 276, 290, 304, 320, 331, 344, 357, 371, 385, 400, 414, 428, 439, 453, 468, 485, 503, 524, 543, 562, 572, 583, 596, 607, 619, 629}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 3f5b6d4fdf..dcbe136832 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -258,7 +258,10 @@ func determineLinkMode(ctxt *Link) {
+ 			Exitf("internal linking requested %sbut external linking required: %s", via, extReason)
+ 		}
+ 	case LinkExternal:
+-		if objabi.GOARCH == "ppc64" && objabi.GOOS != "aix" {
++		switch {
++		case objabi.GOARCH == "riscv64":
++			Exitf("external linking not supported for %s/riscv64", objabi.GOOS)
++		case objabi.GOARCH == "ppc64" && objabi.GOOS != "aix":
+ 			Exitf("external linking not supported for %s/ppc64", objabi.GOOS)
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 91198efd27..69cad383d0 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -176,6 +176,7 @@ const (
+ 	EM_MIPS_RS4_BE       = 10
+ 	EM_ALPHA_STD         = 41
+ 	EM_ALPHA             = 0x9026
++	EM_RISCV             = 243
+ 	SHN_UNDEF            = 0
+ 	SHN_LORESERVE        = 0xff00
+ 	SHN_LOPROC           = 0xff00
+@@ -485,7 +486,7 @@ var buildinfo []byte
+ func Elfinit(ctxt *Link) {
+ 	ctxt.IsELF = true
+ 
+-	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.S390X) {
++	if ctxt.Arch.InFamily(sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X) {
+ 		elfRelType = ".rela"
+ 	} else {
+ 		elfRelType = ".rel"
+@@ -500,7 +501,7 @@ func Elfinit(ctxt *Link) {
+ 			ehdr.flags = 2 /* Version 2 ABI */
+ 		}
+ 		fallthrough
+-	case sys.AMD64, sys.ARM64, sys.MIPS64:
++	case sys.AMD64, sys.ARM64, sys.MIPS64, sys.RISCV64:
+ 		if ctxt.Arch.Family == sys.MIPS64 {
+ 			ehdr.flags = 0x20000004 /* MIPS 3 CPIC */
+ 		}
+@@ -1758,6 +1759,8 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		eh.machine = EM_386
+ 	case sys.PPC64:
+ 		eh.machine = EM_PPC64
++	case sys.RISCV64:
++		eh.machine = EM_RISCV
+ 	case sys.S390X:
+ 		eh.machine = EM_S390
+ 	}
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+new file mode 100644
+index 0000000000..111ff9da12
+--- /dev/null
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -0,0 +1,122 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv64
++
++import (
++	"cmd/internal/objabi"
++	"cmd/internal/sys"
++	"cmd/link/internal/ld"
++	"cmd/link/internal/sym"
++	"fmt"
++	"log"
++)
++
++func gentext(ctxt *ld.Link) {
++}
++
++func adddynrela(ctxt *ld.Link, rel *sym.Symbol, s *sym.Symbol, r *sym.Reloc) {
++	log.Fatalf("adddynrela not implemented")
++}
++
++func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++	log.Fatalf("adddynrel not implemented")
++	return false
++}
++
++func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
++	log.Fatalf("elfreloc1")
++	return false
++}
++
++func elfsetupplt(ctxt *ld.Link) {
++	log.Fatalf("elfsetuplt")
++}
++
++func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, sectoff int64) bool {
++	log.Fatalf("machoreloc1 not implemented")
++	return false
++}
++
++func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
++	// TODO(jsing): Implement.
++	log.Fatalf("archreloc not implemented")
++	return val, false
++}
++
++func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
++	log.Fatalf("archrelocvariant")
++	return -1
++}
++
++func asmb(ctxt *ld.Link) {
++	if ctxt.IsELF {
++		ld.Asmbelfsetup()
++	}
++
++	sect := ld.Segtext.Sections[0]
++	ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
++	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
++	for _, sect = range ld.Segtext.Sections[1:] {
++		ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
++		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
++	}
++
++	if ld.Segrodata.Filelen > 0 {
++		ctxt.Out.SeekSet(int64(ld.Segrodata.Fileoff))
++		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
++	}
++	if ld.Segrelrodata.Filelen > 0 {
++		ctxt.Out.SeekSet(int64(ld.Segrelrodata.Fileoff))
++		ld.Datblk(ctxt, int64(ld.Segrelrodata.Vaddr), int64(ld.Segrelrodata.Filelen))
++	}
++
++	ctxt.Out.SeekSet(int64(ld.Segdata.Fileoff))
++	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
++
++	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
++	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
++}
++
++func asmb2(ctxt *ld.Link) {
++	ld.Symsize = 0
++	ld.Lcsize = 0
++	symo := uint32(0)
++
++	if !*ld.FlagS {
++		if !ctxt.IsELF {
++			ld.Errorf(nil, "unsupported executable format")
++		}
++
++		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
++		symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
++		ctxt.Out.SeekSet(int64(symo))
++
++		ld.Asmelfsym(ctxt)
++		ctxt.Out.Flush()
++		ctxt.Out.Write(ld.Elfstrdat)
++
++		if ctxt.LinkMode == ld.LinkExternal {
++			ld.Elfemitreloc(ctxt)
++		}
++	}
++
++	ctxt.Out.SeekSet(0)
++	switch ctxt.HeadType {
++	case objabi.Hlinux:
++		ld.Asmbelf(ctxt, int64(symo))
++	default:
++		ld.Errorf(nil, "unsupported operating system")
++	}
++	ctxt.Out.Flush()
++
++	if *ld.FlagC {
++		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
++		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
++		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
++		fmt.Printf("symsize=%d\n", ld.Symsize)
++		fmt.Printf("lcsize=%d\n", ld.Lcsize)
++		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
++	}
++}
+diff --git a/src/cmd/link/internal/riscv64/l.go b/src/cmd/link/internal/riscv64/l.go
+new file mode 100644
+index 0000000000..a302657726
+--- /dev/null
++++ b/src/cmd/link/internal/riscv64/l.go
+@@ -0,0 +1,14 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv64
++
++const (
++	maxAlign  = 32 // max data alignment
++	minAlign  = 1
++	funcAlign = 8
++
++	dwarfRegLR = 1
++	dwarfRegSP = 2
++)
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+new file mode 100644
+index 0000000000..c1e46807ff
+--- /dev/null
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -0,0 +1,60 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv64
++
++import (
++	"cmd/internal/objabi"
++	"cmd/internal/sys"
++	"cmd/link/internal/ld"
++)
++
++func Init() (*sys.Arch, ld.Arch) {
++	arch := sys.ArchRISCV64
++
++	theArch := ld.Arch{
++		Funcalign:  funcAlign,
++		Maxalign:   maxAlign,
++		Minalign:   minAlign,
++		Dwarfregsp: dwarfRegSP,
++		Dwarfreglr: dwarfRegLR,
++
++		Adddynrel:        adddynrel,
++		Archinit:         archinit,
++		Archreloc:        archreloc,
++		Archrelocvariant: archrelocvariant,
++		Asmb:             asmb,
++		Asmb2:            asmb2,
++		Elfreloc1:        elfreloc1,
++		Elfsetupplt:      elfsetupplt,
++		Gentext:          gentext,
++		Machoreloc1:      machoreloc1,
++
++		Linuxdynld: "/lib/ld.so.1",
++
++		Freebsddynld:   "XXX",
++		Netbsddynld:    "XXX",
++		Openbsddynld:   "XXX",
++		Dragonflydynld: "XXX",
++		Solarisdynld:   "XXX",
++	}
++
++	return arch, theArch
++}
++
++func archinit(ctxt *ld.Link) {
++	switch ctxt.HeadType {
++	case objabi.Hlinux:
++		ld.Elfinit(ctxt)
++		ld.HEADR = ld.ELFRESERVE
++		if *ld.FlagTextAddr == -1 {
++			*ld.FlagTextAddr = 0x10000 + int64(ld.HEADR)
++		}
++		if *ld.FlagRound == -1 {
++			*ld.FlagRound = 0x10000
++		}
++	default:
++		ld.Exitf("unknown -H option: %v", ctxt.HeadType)
++	}
++}
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+index 99550b0584..6b4ca9706d 100644
+--- a/src/cmd/link/main.go
++++ b/src/cmd/link/main.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/link/internal/mips"
+ 	"cmd/link/internal/mips64"
+ 	"cmd/link/internal/ppc64"
++	"cmd/link/internal/riscv64"
+ 	"cmd/link/internal/s390x"
+ 	"cmd/link/internal/wasm"
+ 	"cmd/link/internal/x86"
+@@ -57,6 +58,8 @@ func main() {
+ 		arch, theArch = mips64.Init()
+ 	case "ppc64", "ppc64le":
+ 		arch, theArch = ppc64.Init()
++	case "riscv64":
++		arch, theArch = riscv64.Init()
+ 	case "s390x":
+ 		arch, theArch = s390x.Init()
+ 	case "wasm":

@@ -8,7 +8,68 @@ Date:   Mon Aug 3 18:28:05 2009 -0700
     DELTA=41  (41 added, 0 deleted, 0 changed)
     OCL=32692
     CL=32697
-
+---
  src/pkg/bufio/bufio.go      | 19 +++++++++++++++++++
  src/pkg/bufio/bufio_test.go | 22 ++++++++++++++++++++++
  2 files changed, 41 insertions(+)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 7e4df4ef5c..5ef1b69e9d 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -487,6 +487,25 @@ func (b *Writer) WriteByte(c byte) os.Error {
+ 	return nil
+ }
+ 
++// WriteString writes a string.
++func (b *Writer) WriteString(s string) os.Error {
++	if b.err != nil {
++		return b.err
++	}
++	// Common case, worth making fast.
++	if b.Available() >= len(s) || len(b.buf) >= len(s) && b.Flush() == nil {
++		for i := 0; i < len(s); i++ {	// loop over bytes, not runes.
++			b.buf[b.n] = s[i];
++			b.n++;
++		}
++		return nil;
++	}
++	for i := 0; i < len(s); i++ {	// loop over bytes, not runes.
++		b.WriteByte(s[i]);
++	}
++	return b.err
++}
++
+ // buffered input and output
+ 
+ // ReadWriter stores pointers to a Reader and a Writer.
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 9aab267292..ec7f949725 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -298,3 +298,25 @@ func TestNewWriterSizeIdempotent(t *testing.T) {
+ 		t.Error("NewWriterSize did not enlarge buffer");
+ 	}
+ }
++
++func TestWriteString(t *testing.T) {
++	const BufSize = 8;
++	buf := new(bytes.Buffer);
++	b, err := NewWriterSize(buf, BufSize);
++	if err != nil {
++		t.Error("NewWriterSize create fail", err);
++	}
++	b.WriteString("0");	// easy
++	b.WriteString("123456");	// still easy
++	b.WriteString("7890");	// easy after flush
++	b.WriteString("abcdefghijklmnopqrstuvwxy");	// hard
++	b.WriteString("z");
++	b.Flush();
++	if b.err != nil {
++		t.Error("WriteString", b.err);
++	}
++	s := "01234567890abcdefghijklmnopqrstuvwxyz";
++	if string(buf.Data()) != s {
++		t.Errorf("WriteString wants %q gets %q", s, string(buf.Data()))
++	}
++}

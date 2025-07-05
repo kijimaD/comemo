@@ -14,9 +14,61 @@ Date:   Sun Apr 19 20:57:41 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9113
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/main.go          | 2 +-
  src/cmd/internal/asm/asm.go  | 2 +-
  src/cmd/internal/gc/lex.go   | 2 +-
  src/cmd/internal/obj/link.go | 1 -
  4 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 9b07dd22e1..48315d08ce 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -40,7 +40,7 @@ func main() {
+ 	if *flags.PrintOut {
+ 		ctxt.Debugasm = 1
+ 	}
+-	ctxt.Trimpath = *flags.TrimPath
++	ctxt.LineHist.TrimPathPrefix = *flags.TrimPath
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+ 	if *flags.Shared || *flags.Dynlink {
+ 		ctxt.Flag_shared = 1
+diff --git a/src/cmd/internal/asm/asm.go b/src/cmd/internal/asm/asm.go
+index b67b4d717c..90a4781e7b 100644
+--- a/src/cmd/internal/asm/asm.go
++++ b/src/cmd/internal/asm/asm.go
+@@ -192,7 +192,7 @@ func Main() {
+ 	flag.Var((*count)(&debug['S']), "S", "print assembly and machine code")
+ 	flag.Var((*count)(&debug['m']), "m", "debug preprocessor macros")
+ 	flag.StringVar(&outfile, "o", "", "file: set output file")
+-	flag.StringVar(&Ctxt.Trimpath, "trimpath", "", "prefix: remove prefix from recorded source file paths")
++	flag.StringVar(&Ctxt.LineHist.TrimPathPrefix, "trimpath", "", "prefix: remove prefix from recorded source file paths")
+ 
+ 	flag.Parse()
+ 
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 8266e5e5f6..3ff550131b 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -213,7 +213,7 @@ func Main() {
+ 	obj.Flagcount("r", "debug generated wrappers", &Debug['r'])
+ 	obj.Flagcount("race", "enable race detector", &flag_race)
+ 	obj.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+-	obj.Flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &Ctxt.Trimpath)
++	obj.Flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &Ctxt.LineHist.TrimPathPrefix)
+ 	obj.Flagcount("u", "reject unsafe code", &safemode)
+ 	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
+ 	obj.Flagcount("w", "debug type checking", &Debug['w'])
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index c7c5abe002..6be5a816c2 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -439,7 +439,6 @@ type Link struct {
+ 	Bso                *Biobuf
+ 	Pathname           string
+ 	Windows            int32
+-	Trimpath           string
+ 	Goroot             string
+ 	Goroot_final       string
+ 	Enforce_data_order int32

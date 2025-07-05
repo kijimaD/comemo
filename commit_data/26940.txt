@@ -12,7 +12,7 @@ Date:   Fri Mar 4 13:15:40 2016 +1100
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/peep.go  | 19 +++++--------------
  src/cmd/compile/internal/arm/ggen.go    |  2 +-
  src/cmd/compile/internal/arm/peep.go    | 29 +++++++++++++----------------
@@ -24,3 +24,351 @@ Date:   Fri Mar 4 13:15:40 2016 +1100
  src/cmd/compile/internal/ppc64/ggen.go  |  6 +++---
  src/cmd/compile/internal/ppc64/peep.go  |  4 +---
  10 files changed, 32 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/peep.go b/src/cmd/compile/internal/amd64/peep.go
+index f0e22de6fd..e8817e829c 100644
+--- a/src/cmd/compile/internal/amd64/peep.go
++++ b/src/cmd/compile/internal/amd64/peep.go
+@@ -605,9 +605,7 @@ func subprop(r0 *gc.Flow) bool {
+ 				}
+ 			}
+ 
+-			t := int(v1.Reg)
+-			v1.Reg = v2.Reg
+-			v2.Reg = int16(t)
++			v1.Reg, v2.Reg = v2.Reg, v1.Reg
+ 			if gc.Debug['P'] != 0 {
+ 				fmt.Printf("%v last\n", r.Prog)
+ 			}
+@@ -948,19 +946,16 @@ func copyau(a *obj.Addr, v *obj.Addr) bool {
+  */
+ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
+ 	if copyas(a, v) {
+-		reg := int(s.Reg)
+-		if reg >= x86.REG_AX && reg <= x86.REG_R15 || reg >= x86.REG_X0 && reg <= x86.REG_X0+15 {
++		if s.Reg >= x86.REG_AX && s.Reg <= x86.REG_R15 || s.Reg >= x86.REG_X0 && s.Reg <= x86.REG_X0+15 {
+ 			if f != 0 {
+-				a.Reg = int16(reg)
++				a.Reg = s.Reg
+ 			}
+ 		}
+-
+ 		return 0
+ 	}
+ 
+ 	if regtyp(v) {
+-		reg := int(v.Reg)
+-		if a.Type == obj.TYPE_MEM && int(a.Reg) == reg {
++		if a.Type == obj.TYPE_MEM && a.Reg == v.Reg {
+ 			if (s.Reg == x86.REG_BP || s.Reg == x86.REG_R13) && a.Index != x86.REG_NONE {
+ 				return 1 /* can't use BP-base with index */
+ 			}
+@@ -968,18 +963,14 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
+ 				a.Reg = s.Reg
+ 			}
+ 		}
+-
+-		//			return 0;
+-		if int(a.Index) == reg {
++		if a.Index == v.Reg {
+ 			if f != 0 {
+ 				a.Index = s.Reg
+ 			}
+ 			return 0
+ 		}
+-
+ 		return 0
+ 	}
+-
+ 	return 0
+ }
+ 
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index d52e27a3b1..d4d4e27d09 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -121,7 +121,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ 
+ 	t := nl.Type
+-	w := int(t.Width * 8)
++	w := t.Width * 8
+ 	var n1 gc.Node
+ 	gc.Regalloc(&n1, t, res)
+ 	gc.Cgen(nl, &n1)
+diff --git a/src/cmd/compile/internal/arm/peep.go b/src/cmd/compile/internal/arm/peep.go
+index 6794441489..3f13b4993a 100644
+--- a/src/cmd/compile/internal/arm/peep.go
++++ b/src/cmd/compile/internal/arm/peep.go
+@@ -308,9 +308,7 @@ func subprop(r0 *gc.Flow) bool {
+ 							}
+ 						}
+ 
+-						t := int(v1.Reg)
+-						v1.Reg = v2.Reg
+-						v2.Reg = int16(t)
++						v1.Reg, v2.Reg = v2.Reg, v1.Reg
+ 						if gc.Debug['P'] != 0 {
+ 							fmt.Printf("%v last\n", r.Prog)
+ 						}
+@@ -571,8 +569,8 @@ func shiftprop(r *gc.Flow) bool {
+ 		return false
+ 	}
+ 
+-	n := int(p.To.Reg)
+-	a := obj.Addr{}
++	n := p.To.Reg
++	var a obj.Addr
+ 	if p.Reg != 0 && p.Reg != p.To.Reg {
+ 		a.Type = obj.TYPE_REG
+ 		a.Reg = p.Reg
+@@ -644,7 +642,7 @@ func shiftprop(r *gc.Flow) bool {
+ 		arm.ASBC,
+ 		arm.ARSB,
+ 		arm.ARSC:
+-		if int(p1.Reg) == n || (p1.Reg == 0 && p1.To.Type == obj.TYPE_REG && int(p1.To.Reg) == n) {
++		if p1.Reg == n || (p1.Reg == 0 && p1.To.Type == obj.TYPE_REG && p1.To.Reg == n) {
+ 			if p1.From.Type != obj.TYPE_REG {
+ 				if gc.Debug['P'] != 0 {
+ 					fmt.Printf("\tcan't swap; FAILURE\n")
+@@ -653,7 +651,7 @@ func shiftprop(r *gc.Flow) bool {
+ 			}
+ 
+ 			p1.Reg = p1.From.Reg
+-			p1.From.Reg = int16(n)
++			p1.From.Reg = n
+ 			switch p1.As {
+ 			case arm.ASUB:
+ 				p1.As = arm.ARSB
+@@ -678,14 +676,14 @@ func shiftprop(r *gc.Flow) bool {
+ 		arm.ATST,
+ 		arm.ACMP,
+ 		arm.ACMN:
+-		if int(p1.Reg) == n {
++		if p1.Reg == n {
+ 			if gc.Debug['P'] != 0 {
+ 				fmt.Printf("\tcan't swap; FAILURE\n")
+ 			}
+ 			return false
+ 		}
+ 
+-		if p1.Reg == 0 && int(p1.To.Reg) == n {
++		if p1.Reg == 0 && p1.To.Reg == n {
+ 			if gc.Debug['P'] != 0 {
+ 				fmt.Printf("\tshift result used twice; FAILURE\n")
+ 			}
+@@ -700,7 +698,7 @@ func shiftprop(r *gc.Flow) bool {
+ 			return false
+ 		}
+ 
+-		if p1.From.Type != obj.TYPE_REG || int(p1.From.Reg) != n {
++		if p1.From.Type != obj.TYPE_REG || p1.From.Reg != n {
+ 			if gc.Debug['P'] != 0 {
+ 				fmt.Printf("\tBOTCH: where is it used?; FAILURE\n")
+ 			}
+@@ -711,7 +709,7 @@ func shiftprop(r *gc.Flow) bool {
+ 	/* check whether shift result is used subsequently */
+ 	p2 := p1
+ 
+-	if int(p1.To.Reg) != n {
++	if p1.To.Reg != n {
+ 		var p1 *obj.Prog
+ 		for {
+ 			r1 = gc.Uniqs(r1)
+@@ -746,19 +744,18 @@ func shiftprop(r *gc.Flow) bool {
+ 
+ 	/* make the substitution */
+ 	p2.From.Reg = 0
+-
+-	o := int(p.Reg)
++	o := p.Reg
+ 	if o == 0 {
+-		o = int(p.To.Reg)
++		o = p.To.Reg
+ 	}
+ 	o &= 15
+ 
+ 	switch p.From.Type {
+ 	case obj.TYPE_CONST:
+-		o |= int((p.From.Offset & 0x1f) << 7)
++		o |= int16(p.From.Offset&0x1f) << 7
+ 
+ 	case obj.TYPE_REG:
+-		o |= 1<<4 | (int(p.From.Reg)&15)<<8
++		o |= 1<<4 | (p.From.Reg&15)<<8
+ 	}
+ 
+ 	switch p.As {
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 13be1b6fe1..da2f71cfc3 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -263,7 +263,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ 
+ 	t := nl.Type
+-	w := int(t.Width * 8)
++	w := t.Width * 8
+ 	var n1 gc.Node
+ 	gc.Cgenr(nl, &n1, res)
+ 	var n2 gc.Node
+@@ -275,7 +275,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+ 		p := gins(arm64.AASR, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(w)
++		p.From.Offset = w
+ 
+ 	case gc.TUINT8,
+ 		gc.TUINT16,
+@@ -283,7 +283,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+ 		p := gins(arm64.ALSR, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(w)
++		p.From.Offset = w
+ 
+ 	case gc.TINT64,
+ 		gc.TUINT64:
+@@ -315,7 +315,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node)
+ 		gc.Regalloc(&n1, nl.Type, res)
+ 		gc.Cgen(nl, &n1)
+ 		sc := uint64(nr.Int())
+-		if sc >= uint64(nl.Type.Width*8) {
++		if sc >= uint64(nl.Type.Width)*8 {
+ 			// large shift gets 2 shifts by width-1
+ 			var n3 gc.Node
+ 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
+diff --git a/src/cmd/compile/internal/arm64/peep.go b/src/cmd/compile/internal/arm64/peep.go
+index 0d3dc2b59d..d821edfed3 100644
+--- a/src/cmd/compile/internal/arm64/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -253,9 +253,7 @@ func subprop(r0 *gc.Flow) bool {
+ 						}
+ 					}
+ 
+-					t := int(v1.Reg)
+-					v1.Reg = v2.Reg
+-					v2.Reg = int16(t)
++					v1.Reg, v2.Reg = v2.Reg, v1.Reg
+ 					if gc.Debug['P'] != 0 {
+ 						fmt.Printf("%v last\n", r.Prog)
+ 					}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 432637ab55..963d59fcba 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -355,7 +355,6 @@ func compile(fn *Node) {
+ 	Curfn = fn
+ 	dowidth(Curfn.Type)
+ 
+-	var oldstksize int64
+ 	var nod1 Node
+ 	var ptxt *obj.Prog
+ 	var pl *obj.Plist
+@@ -535,13 +534,8 @@ func compile(fn *Node) {
+ 
+ 	Thearch.Expandchecks(ptxt)
+ 
+-	oldstksize = Stksize
+ 	allocauto(ptxt)
+ 
+-	if false {
+-		fmt.Printf("allocauto: %d to %d\n", oldstksize, Stksize)
+-	}
+-
+ 	setlineno(Curfn)
+ 	if Stksize+Maxarg > 1<<31 {
+ 		Yyerror("stack frame too large (>2GB)")
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 6ef661a24c..6436ce6a83 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -204,7 +204,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ 
+ 	t := nl.Type
+-	w := int(t.Width * 8)
++	w := t.Width * 8
+ 	var n1 gc.Node
+ 	gc.Cgenr(nl, &n1, res)
+ 	var n2 gc.Node
+@@ -219,7 +219,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gins(mips.AMOVV, &lo, &n1)
+ 		p := gins(mips.ASRAV, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(w)
++		p.From.Offset = w
+ 
+ 	case gc.TUINT8,
+ 		gc.TUINT16,
+@@ -230,7 +230,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gins(mips.AMOVV, &lo, &n1)
+ 		p := gins(mips.ASRLV, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(w)
++		p.From.Offset = w
+ 
+ 	case gc.TINT64,
+ 		gc.TUINT64:
+diff --git a/src/cmd/compile/internal/mips64/peep.go b/src/cmd/compile/internal/mips64/peep.go
+index aa57c15ca8..1da55001a8 100644
+--- a/src/cmd/compile/internal/mips64/peep.go
++++ b/src/cmd/compile/internal/mips64/peep.go
+@@ -242,9 +242,7 @@ func subprop(r0 *gc.Flow) bool {
+ 						}
+ 					}
+ 
+-					t := int(v1.Reg)
+-					v1.Reg = v2.Reg
+-					v2.Reg = int16(t)
++					v1.Reg, v2.Reg = v2.Reg, v1.Reg
+ 					if gc.Debug['P'] != 0 {
+ 						fmt.Printf("%v last\n", r.Prog)
+ 					}
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index ac7ccc0a79..8e63d38ce1 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -252,7 +252,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	}
+ 
+ 	t := nl.Type
+-	w := int(t.Width * 8)
++	w := t.Width * 8
+ 	var n1 gc.Node
+ 	gc.Cgenr(nl, &n1, res)
+ 	var n2 gc.Node
+@@ -264,7 +264,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+ 		p := gins(ppc64.ASRAD, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(w)
++		p.From.Offset = w
+ 
+ 	case gc.TUINT8,
+ 		gc.TUINT16,
+@@ -272,7 +272,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		gins(optoas(gc.OMUL, t), &n2, &n1)
+ 		p := gins(ppc64.ASRD, nil, &n1)
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(w)
++		p.From.Offset = w
+ 
+ 	case gc.TINT64,
+ 		gc.TUINT64:
+diff --git a/src/cmd/compile/internal/ppc64/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+index 68ca5149eb..a23ed10429 100644
+--- a/src/cmd/compile/internal/ppc64/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -441,9 +441,7 @@ func subprop(r0 *gc.Flow) bool {
+ 						}
+ 					}
+ 
+-					t := int(v1.Reg)
+-					v1.Reg = v2.Reg
+-					v2.Reg = int16(t)
++					v1.Reg, v2.Reg = v2.Reg, v1.Reg
+ 					if gc.Debug['P'] != 0 {
+ 						fmt.Printf("%v last\n", r.Prog)
+ 					}

@@ -7,7 +7,43 @@ Date:   Wed Dec 10 12:38:16 2008 -0800
     R=r
     OCL=20906
     CL=20906
-
+---
  src/cmd/gc/dcl.c | 11 +++++------
  src/cmd/gc/go.y  |  1 +
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index c1dad5d0ee..7448b6cc15 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -701,13 +701,12 @@ testdclstack(void)
+ static void
+ redeclare(char *str, Sym *s)
+ {
+-	if(s->block != block) {
+-		s->block = block;
+-		s->lastlineno = lineno;
+-		return;
++	if(s->block == block) {
++		yyerror("%s %S redeclared in this block", str, s);
++		print("	previous declaration at %L\n", s->lastlineno);
+ 	}
+-	yyerror("%s %S redeclared in this block %d", str, s, block);
+-	print("	previous declaration at %L\n", s->lastlineno);
++	s->block = block;
++	s->lastlineno = lineno;
+ }
+ 
+ void
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index f504595cb7..6bab8402f6 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1087,6 +1087,7 @@ nametype:
+ 	LATYPE
+ 	{
+ 		if($1->otype != T && $1->otype->etype == TANY)
++		if(strcmp(package, "PACKAGE") != 0)
+ 			yyerror("the any type is restricted");
+ 		$$ = oldtype($1);
+ 	}

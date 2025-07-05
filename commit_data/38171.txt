@@ -7,7 +7,49 @@ Date:   Sun Oct 7 00:58:08 2018 +0900
     Change-Id: I775eb4b33422a95f4255799d551c9962d7e181d3
     Reviewed-on: https://go-review.googlesource.com/c/140318
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/typexpr.go        |  2 +-
  src/os/user/cgo_lookup_unix.go | 10 ++++------
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index eb0d8e8fb9..0f23345792 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -562,7 +562,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 			// its position, and because interface method
+ 			// signatures don't get a receiver via regular
+ 			// type-checking (there isn't a receiver in the
+-			// the method's AST). Setting the correct receiver
++			// method's AST). Setting the correct receiver
+ 			// type is also important for ptrRecv() (see methodset.go).
+ 			//
+ 			// TODO(gri) Consider marking methods signatures
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 210bd6e0b3..ccb2278246 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -94,9 +94,8 @@ func lookupUnixUid(uid int) (*User, error) {
+ 	defer buf.free()
+ 
+ 	err := retryWithBuffer(buf, func() syscall.Errno {
+-		// mygetpwuid_r is a wrapper around getpwuid_r to
+-		// to avoid using uid_t because C.uid_t(uid) for
+-		// unknown reasons doesn't work on linux.
++		// mygetpwuid_r is a wrapper around getpwuid_r to avoid using uid_t
++		// because C.uid_t(uid) for unknown reasons doesn't work on linux.
+ 		return syscall.Errno(C.mygetpwuid_r(C.int(uid),
+ 			&pwd,
+ 			(*C.char)(buf.ptr),
+@@ -175,9 +174,8 @@ func lookupUnixGid(gid int) (*Group, error) {
+ 	defer buf.free()
+ 
+ 	err := retryWithBuffer(buf, func() syscall.Errno {
+-		// mygetgrgid_r is a wrapper around getgrgid_r to
+-		// to avoid using gid_t because C.gid_t(gid) for
+-		// unknown reasons doesn't work on linux.
++		// mygetgrgid_r is a wrapper around getgrgid_r to avoid using gid_t
++		// because C.gid_t(gid) for unknown reasons doesn't work on linux.
+ 		return syscall.Errno(C.mygetgrgid_r(C.int(gid),
+ 			&grp,
+ 			(*C.char)(buf.ptr),

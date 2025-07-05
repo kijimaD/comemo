@@ -13,10 +13,89 @@ Date:   Thu Oct 12 10:25:25 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/bug504.dir/a.go    |  7 +++++++
  test/fixedbugs/bug504.dir/b.go    | 11 +++++++++++
  test/fixedbugs/bug504.dir/c.go    |  9 +++++++++
  test/fixedbugs/bug504.dir/main.go | 11 +++++++++++
  test/fixedbugs/bug504.go          | 10 ++++++++++
  5 files changed, 48 insertions(+)
+
+diff --git a/test/fixedbugs/bug504.dir/a.go b/test/fixedbugs/bug504.dir/a.go
+new file mode 100644
+index 0000000000..ac0be937ab
+--- /dev/null
++++ b/test/fixedbugs/bug504.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type MyInt = int
+diff --git a/test/fixedbugs/bug504.dir/b.go b/test/fixedbugs/bug504.dir/b.go
+new file mode 100644
+index 0000000000..e8f8da9af8
+--- /dev/null
++++ b/test/fixedbugs/bug504.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func F() a.MyInt {
++	return 0
++}
+diff --git a/test/fixedbugs/bug504.dir/c.go b/test/fixedbugs/bug504.dir/c.go
+new file mode 100644
+index 0000000000..5a6e889905
+--- /dev/null
++++ b/test/fixedbugs/bug504.dir/c.go
+@@ -0,0 +1,9 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import "./b"
++
++var V = b.F()
+diff --git a/test/fixedbugs/bug504.dir/main.go b/test/fixedbugs/bug504.dir/main.go
+new file mode 100644
+index 0000000000..bdbd95c7a3
+--- /dev/null
++++ b/test/fixedbugs/bug504.dir/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./c"
++
++func main() {
++	println(c.V)
++}
+diff --git a/test/fixedbugs/bug504.go b/test/fixedbugs/bug504.go
+new file mode 100644
+index 0000000000..ae1f2e52d8
+--- /dev/null
++++ b/test/fixedbugs/bug504.go
+@@ -0,0 +1,10 @@
++// compiledir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo mishandled a reference to a type alias in a package that was
++// not directly imported.
++
++package ignored

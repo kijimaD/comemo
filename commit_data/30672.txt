@@ -13,7 +13,33 @@ Date:   Tue Nov 22 01:40:07 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/format.go      | 2 +-
  src/time/format_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 3608b04e44..3fbfa734d0 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1012,7 +1012,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 	}
+ 
+ 	// Validate the day of the month.
+-	if day > daysIn(Month(month), year) {
++	if day < 1 || day > daysIn(Month(month), year) {
+ 		return Time{}, &ParseError{alayout, avalue, "", value, ": day out of range"}
+ 	}
+ 
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 640e8180e3..aa4434a09c 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -224,6 +224,7 @@ var dayOutOfRangeTests = []struct {
+ 	{"Thu Nov 31 21:00:57 2010", false},
+ 	{"Thu Dec 31 21:00:57 2010", true},
+ 	{"Thu Dec 32 21:00:57 2010", false},
++	{"Thu Dec 00 21:00:57 2010", false},
+ }
+ 
+ func TestParseDayOutOfRange(t *testing.T) {

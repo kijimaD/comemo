@@ -7,6 +7,21 @@ Date:   Tue Feb 1 11:49:33 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4042045
-
+---
  src/cmd/6l/asm.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 2e401db913..f82fef543f 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -213,7 +213,8 @@ adddynrel(Sym *s, Reloc *r)
+ 				r->add += 4;
+ 				return;
+ 			}
+-			// unknown instruction (CMOV* maybe), use GOT
++			// fall back to using GOT and hope for the best (CMOV*)
++			// TODO: just needs relocation, no need to put in .dynsym
+ 			targ->dynimpname = targ->name;
+ 		}
+ 		addgotsym(targ);

@@ -5,6 +5,17 @@ Date:   Sun Jun 8 17:02:01 2008 -0700
     use /bin/ed to avoid compatibility issues with plan 9 ed
     
     SVN=121611
-
+---
  src/cmd/gc/mksys.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/mksys.bash b/src/cmd/gc/mksys.bash
+index 42279868be..8e22567409 100644
+--- a/src/cmd/gc/mksys.bash
++++ b/src/cmd/gc/mksys.bash
+@@ -16,4 +16,4 @@ $a
+ 
+ .
+ w sysimport.c
+-q' | ed sys.6
++q' | /bin/ed sys.6

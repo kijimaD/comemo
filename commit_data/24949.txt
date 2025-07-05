@@ -7,6 +7,21 @@ Date:   Thu Sep 10 13:53:42 2015 -0700
     Change-Id: Ie86b703407f0f655a4552dd6e03df5f263be43db
     Reviewed-on: https://go-review.googlesource.com/14492
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.6.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 7308b6fc91..b4b04e24f7 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -8,6 +8,8 @@ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
+ 
+ API additions and behavior changes:
+ 
++fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
+ strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)
+ text/template: trimming spaces (https://golang.org/cl/14391/)
++time: allow one and two-digit days of the month during Parse (https://golang.org/cl/14123/)
+\ No newline at end of file

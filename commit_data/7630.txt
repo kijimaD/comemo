@@ -7,7 +7,7 @@ Date:   Fri Mar 4 10:55:47 2011 -0800
     R=rsc, adg, jnw, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4247048
-
+---
  src/pkg/Makefile                   |   3 +
  src/pkg/http/cgi/Makefile          |  11 ++
  src/pkg/http/cgi/cgi.go            | 201 +++++++++++++++++++++++++++++++++++++
@@ -17,3 +17,716 @@ Date:   Fri Mar 4 10:55:47 2011 -0800
  src/pkg/http/httptest/recorder.go  |  88 ++++++++++++++++
  src/pkg/http/serve_test.go         |  73 ++------------
  8 files changed, 556 insertions(+), 65 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 139cee1a48..331bb68e5a 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -96,7 +96,9 @@ DIRS=\
+ 	hash/crc64\
+ 	html\
+ 	http\
++	http/cgi\
+ 	http/pprof\
++	http/httptest\
+ 	image\
+ 	image/jpeg\
+ 	image/png\
+@@ -172,6 +174,7 @@ NOTEST=\
+ 	go/token\
+ 	hash\
+ 	http/pprof\
++	http/httptest\
+ 	image/jpeg\
+ 	net/dict\
+ 	rand\
+diff --git a/src/pkg/http/cgi/Makefile b/src/pkg/http/cgi/Makefile
+new file mode 100644
+index 0000000000..02f6cfc9e7
+--- /dev/null
++++ b/src/pkg/http/cgi/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=http/cgi
++GOFILES=\
++	cgi.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/http/cgi/cgi.go b/src/pkg/http/cgi/cgi.go
+new file mode 100644
+index 0000000000..dba59efa27
+--- /dev/null
++++ b/src/pkg/http/cgi/cgi.go
+@@ -0,0 +1,201 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package cgi implements CGI (Common Gateway Interface) as specified
++// in RFC 3875.
++//
++// Note that using CGI means starting a new process to handle each
++// request, which is typically less efficient than using a
++// long-running server.  This package is intended primarily for
++// compatibility with existing systems.
++package cgi
++
++import (
++	"encoding/line"
++	"exec"
++	"fmt"
++	"http"
++	"io"
++	"log"
++	"os"
++	"path"
++	"regexp"
++	"strconv"
++	"strings"
++)
++
++var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
++
++// Handler runs an executable in a subprocess with a CGI environment.
++type Handler struct {
++	Path   string      // path to the CGI executable
++	Root   string      // root URI prefix of handler or empty for "/"
++	Env    []string    // extra environment variables to set, if any
++	Logger *log.Logger // optional log for errors or nil to use log.Print
++}
++
++func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
++	root := h.Root
++	if root == "" {
++		root = "/"
++	}
++
++	if len(req.TransferEncoding) > 0 && req.TransferEncoding[0] == "chunked" {
++		rw.WriteHeader(http.StatusBadRequest)
++		rw.Write([]byte("Chunked request bodies are not supported by CGI."))
++		return
++	}
++
++	pathInfo := req.URL.Path
++	if root != "/" && strings.HasPrefix(pathInfo, root) {
++		pathInfo = pathInfo[len(root):]
++	}
++
++	port := "80"
++	if matches := trailingPort.FindStringSubmatch(req.Host); len(matches) != 0 {
++		port = matches[1]
++	}
++
++	env := []string{
++		"SERVER_SOFTWARE=go",
++		"SERVER_NAME=" + req.Host,
++		"HTTP_HOST=" + req.Host,
++		"GATEWAY_INTERFACE=CGI/1.1",
++		"REQUEST_METHOD=" + req.Method,
++		"QUERY_STRING=" + req.URL.RawQuery,
++		"REQUEST_URI=" + req.URL.RawPath,
++		"PATH_INFO=" + pathInfo,
++		"SCRIPT_NAME=" + root,
++		"SCRIPT_FILENAME=" + h.Path,
++		"REMOTE_ADDR=" + rw.RemoteAddr(),
++		"REMOTE_HOST=" + rw.RemoteAddr(),
++		"SERVER_PORT=" + port,
++	}
++
++	for k, _ := range req.Header {
++		k = strings.Map(upperCaseAndUnderscore, k)
++		env = append(env, "HTTP_"+k+"="+req.Header.Get(k))
++	}
++
++	if req.ContentLength > 0 {
++		env = append(env, fmt.Sprintf("CONTENT_LENGTH=%d", req.ContentLength))
++	}
++	if ctype := req.Header.Get("Content-Type"); ctype != "" {
++		env = append(env, "CONTENT_TYPE="+ctype)
++	}
++
++	if h.Env != nil {
++		env = append(env, h.Env...)
++	}
++
++	// TODO: use filepath instead of path when available
++	cwd, pathBase := path.Split(h.Path)
++	if cwd == "" {
++		cwd = "."
++	}
++
++	cmd, err := exec.Run(
++		pathBase,
++		[]string{h.Path},
++		env,
++		cwd,
++		exec.Pipe,        // stdin
++		exec.Pipe,        // stdout
++		exec.PassThrough, // stderr (for now)
++	)
++	if err != nil {
++		rw.WriteHeader(http.StatusInternalServerError)
++		h.printf("CGI error: %v", err)
++		return
++	}
++	defer func() {
++		cmd.Stdin.Close()
++		cmd.Stdout.Close()
++		cmd.Wait(0) // no zombies
++	}()
++
++	if req.ContentLength != 0 {
++		go io.Copy(cmd.Stdin, req.Body)
++	}
++
++	linebody := line.NewReader(cmd.Stdout, 1024)
++	headers := make(map[string]string)
++	statusCode := http.StatusOK
++	for {
++		line, isPrefix, err := linebody.ReadLine()
++		if isPrefix {
++			rw.WriteHeader(http.StatusInternalServerError)
++			h.printf("CGI: long header line from subprocess.")
++			return
++		}
++		if err == os.EOF {
++			break
++		}
++		if err != nil {
++			rw.WriteHeader(http.StatusInternalServerError)
++			h.printf("CGI: error reading headers: %v", err)
++			return
++		}
++		if len(line) == 0 {
++			break
++		}
++		parts := strings.Split(string(line), ":", 2)
++		if len(parts) < 2 {
++			h.printf("CGI: bogus header line: %s", string(line))
++			continue
++		}
++		header, val := parts[0], parts[1]
++		header = strings.TrimSpace(header)
++		val = strings.TrimSpace(val)
++		switch {
++		case header == "Status":
++			if len(val) < 3 {
++				h.printf("CGI: bogus status (short): %q", val)
++				return
++			}
++			code, err := strconv.Atoi(val[0:3])
++			if err != nil {
++				h.printf("CGI: bogus status: %q", val)
++				h.printf("CGI: line was %q", line)
++				return
++			}
++			statusCode = code
++		default:
++			headers[header] = val
++		}
++	}
++	for h, v := range headers {
++		rw.SetHeader(h, v)
++	}
++	rw.WriteHeader(statusCode)
++
++	_, err = io.Copy(rw, linebody)
++	if err != nil {
++		h.printf("CGI: copy error: %v", err)
++	}
++}
++
++func (h *Handler) printf(format string, v ...interface{}) {
++	if h.Logger != nil {
++		h.Logger.Printf(format, v...)
++	} else {
++		log.Printf(format, v...)
++	}
++}
++
++func upperCaseAndUnderscore(rune int) int {
++	switch {
++	case rune >= 'a' && rune <= 'z':
++		return rune - ('a' - 'A')
++	case rune == '-':
++		return '_'
++	case rune == '=':
++		// Maybe not part of the CGI 'spec' but would mess up
++		// the environment in any case, as Go represents the
++		// environment as a slice of "key=value" strings.
++		return '_'
++	}
++	// TODO: other transformations in spec or practice?
++	return rune
++}
+diff --git a/src/pkg/http/cgi/cgi_test.go b/src/pkg/http/cgi/cgi_test.go
+new file mode 100644
+index 0000000000..41ea26e3a6
+--- /dev/null
++++ b/src/pkg/http/cgi/cgi_test.go
+@@ -0,0 +1,200 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests for package cgi
++
++package cgi
++
++import (
++	"bufio"
++	"fmt"
++	"http"
++	"http/httptest"
++	"os"
++	"strings"
++	"testing"
++)
++
++func newRequest(httpreq string) *http.Request {
++	buf := bufio.NewReader(strings.NewReader(httpreq))
++	req, err := http.ReadRequest(buf)
++	if err != nil {
++		panic("cgi: bogus http request in test: " + httpreq)
++	}
++	return req
++}
++
++func runCgiTest(t *testing.T, h *Handler, httpreq string, expectedMap map[string]string) *httptest.ResponseRecorder {
++	rw := httptest.NewRecorder()
++	req := newRequest(httpreq)
++	h.ServeHTTP(rw, req)
++
++	// Make a map to hold the test map that the CGI returns.
++	m := make(map[string]string)
++readlines:
++	for {
++		line, err := rw.Body.ReadString('\n')
++		switch {
++		case err == os.EOF:
++			break readlines
++		case err != nil:
++			t.Fatalf("unexpected error reading from CGI: %v", err)
++		}
++		line = strings.TrimRight(line, "\r\n")
++		split := strings.Split(line, "=", 2)
++		if len(split) != 2 {
++			t.Fatalf("Unexpected %d parts from invalid line: %q", len(split), line)
++		}
++		m[split[0]] = split[1]
++	}
++
++	for key, expected := range expectedMap {
++		if got := m[key]; got != expected {
++			t.Errorf("for key %q got %q; expected %q", key, got, expected)
++		}
++	}
++	return rw
++}
++
++func TestCGIBasicGet(t *testing.T) {
++	h := &Handler{
++		Path: "testdata/test.cgi",
++		Root: "/test.cgi",
++	}
++	expectedMap := map[string]string{
++		"test":                  "Hello CGI",
++		"param-a":               "b",
++		"param-foo":             "bar",
++		"env-GATEWAY_INTERFACE": "CGI/1.1",
++		"env-HTTP_HOST":         "example.com",
++		"env-PATH_INFO":         "",
++		"env-QUERY_STRING":      "foo=bar&a=b",
++		"env-REMOTE_ADDR":       "1.2.3.4",
++		"env-REMOTE_HOST":       "1.2.3.4",
++		"env-REQUEST_METHOD":    "GET",
++		"env-REQUEST_URI":       "/test.cgi?foo=bar&a=b",
++		"env-SCRIPT_FILENAME":   "testdata/test.cgi",
++		"env-SCRIPT_NAME":       "/test.cgi",
++		"env-SERVER_NAME":       "example.com",
++		"env-SERVER_PORT":       "80",
++		"env-SERVER_SOFTWARE":   "go",
++	}
++	replay := runCgiTest(t, h, "GET /test.cgi?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
++
++	if expected, got := "text/html", replay.Header.Get("Content-Type"); got != expected {
++		t.Errorf("got a Content-Type of %q; expected %q", got, expected)
++	}
++	if expected, got := "X-Test-Value", replay.Header.Get("X-Test-Header"); got != expected {
++		t.Errorf("got a X-Test-Header of %q; expected %q", got, expected)
++	}
++}
++
++func TestCGIBasicGetAbsPath(t *testing.T) {
++	pwd, err := os.Getwd()
++	if err != nil {
++		t.Fatalf("getwd error: %v", err)
++	}
++	h := &Handler{
++		Path: pwd + "/testdata/test.cgi",
++		Root: "/test.cgi",
++	}
++	expectedMap := map[string]string{
++		"env-REQUEST_URI":     "/test.cgi?foo=bar&a=b",
++		"env-SCRIPT_FILENAME": pwd + "/testdata/test.cgi",
++		"env-SCRIPT_NAME":     "/test.cgi",
++	}
++	runCgiTest(t, h, "GET /test.cgi?foo=bar&a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
++}
++
++func TestPathInfo(t *testing.T) {
++	h := &Handler{
++		Path: "testdata/test.cgi",
++		Root: "/test.cgi",
++	}
++	expectedMap := map[string]string{
++		"param-a":             "b",
++		"env-PATH_INFO":       "/extrapath",
++		"env-QUERY_STRING":    "a=b",
++		"env-REQUEST_URI":     "/test.cgi/extrapath?a=b",
++		"env-SCRIPT_FILENAME": "testdata/test.cgi",
++		"env-SCRIPT_NAME":     "/test.cgi",
++	}
++	runCgiTest(t, h, "GET /test.cgi/extrapath?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
++}
++
++func TestPathInfoDirRoot(t *testing.T) {
++	h := &Handler{
++		Path: "testdata/test.cgi",
++		Root: "/myscript/",
++	}
++	expectedMap := map[string]string{
++		"env-PATH_INFO":       "bar",
++		"env-QUERY_STRING":    "a=b",
++		"env-REQUEST_URI":     "/myscript/bar?a=b",
++		"env-SCRIPT_FILENAME": "testdata/test.cgi",
++		"env-SCRIPT_NAME":     "/myscript/",
++	}
++	runCgiTest(t, h, "GET /myscript/bar?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
++}
++
++func TestPathInfoNoRoot(t *testing.T) {
++	h := &Handler{
++		Path: "testdata/test.cgi",
++		Root: "",
++	}
++	expectedMap := map[string]string{
++		"env-PATH_INFO":       "/bar",
++		"env-QUERY_STRING":    "a=b",
++		"env-REQUEST_URI":     "/bar?a=b",
++		"env-SCRIPT_FILENAME": "testdata/test.cgi",
++		"env-SCRIPT_NAME":     "/",
++	}
++	runCgiTest(t, h, "GET /bar?a=b HTTP/1.0\nHost: example.com\n\n", expectedMap)
++}
++
++func TestCGIBasicPost(t *testing.T) {
++	postReq := `POST /test.cgi?a=b HTTP/1.0
++Host: example.com
++Content-Type: application/x-www-form-urlencoded
++Content-Length: 15
++
++postfoo=postbar`
++	h := &Handler{
++		Path: "testdata/test.cgi",
++		Root: "/test.cgi",
++	}
++	expectedMap := map[string]string{
++		"test":               "Hello CGI",
++		"param-postfoo":      "postbar",
++		"env-REQUEST_METHOD": "POST",
++		"env-CONTENT_LENGTH": "15",
++		"env-REQUEST_URI":    "/test.cgi?a=b",
++	}
++	runCgiTest(t, h, postReq, expectedMap)
++}
++
++func chunk(s string) string {
++	return fmt.Sprintf("%x\r\n%s\r\n", len(s), s)
++}
++
++// The CGI spec doesn't allow chunked requests.
++func TestCGIPostChunked(t *testing.T) {
++	postReq := `POST /test.cgi?a=b HTTP/1.1
++Host: example.com
++Content-Type: application/x-www-form-urlencoded
++Transfer-Encoding: chunked
++
++` + chunk("postfoo") + chunk("=") + chunk("postbar") + chunk("")
++
++	h := &Handler{
++		Path: "testdata/test.cgi",
++		Root: "/test.cgi",
++	}
++	expectedMap := map[string]string{}
++	resp := runCgiTest(t, h, postReq, expectedMap)
++	if got, expected := resp.Code, http.StatusBadRequest; got != expected {
++		t.Fatalf("Expected %v response code from chunked request body; got %d",
++			expected, got)
++	}
++}
+diff --git a/src/pkg/http/cgi/testdata/test.cgi b/src/pkg/http/cgi/testdata/test.cgi
+new file mode 100755
+index 0000000000..b931b04c55
+--- /dev/null
++++ b/src/pkg/http/cgi/testdata/test.cgi
+@@ -0,0 +1,34 @@
++#!/usr/bin/perl
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++#
++# Test script run as a child process under cgi_test.go
++
++use strict;
++use CGI;
++
++my $q = CGI->new;
++my $params = $q->Vars;
++
++my $NL = "\r\n";
++$NL = "\n" if 1 || $params->{mode} eq "NL";
++
++my $p = sub {
++  print "$_[0]$NL";
++};
++
++# With carriage returns
++$p->("Content-Type: text/html");
++$p->("X-Test-Header: X-Test-Value");
++$p->("");
++
++print "test=Hello CGI\n";
++
++foreach my $k (sort keys %$params) {
++  print "param-$k=$params->{$k}\n";
++}
++
++foreach my $k (sort keys %ENV) {
++  print "env-$k=$ENV{$k}\n";
++}
+diff --git a/src/pkg/http/httptest/Makefile b/src/pkg/http/httptest/Makefile
+new file mode 100644
+index 0000000000..fa5ec1db00
+--- /dev/null
++++ b/src/pkg/http/httptest/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=http/httptest
++GOFILES=\
++	recorder.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/http/httptest/recorder.go b/src/pkg/http/httptest/recorder.go
+new file mode 100644
+index 0000000000..44571ddd2b
+--- /dev/null
++++ b/src/pkg/http/httptest/recorder.go
+@@ -0,0 +1,88 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The httptest package provides utilities for HTTP testing.
++package httptest
++
++import (
++	"bufio"
++	"bytes"
++	"http"
++	"io"
++	"os"
++)
++
++// ResponseRecorder is an implementation of http.ResponseWriter that
++// records its mutations for later inspection in tests.
++//
++// Note that Hijack is not implemented and simply panics.
++type ResponseRecorder struct {
++	Code    int           // the HTTP response code from WriteHeader
++	Header  http.Header   // if non-nil, the headers to populate
++	Body    *bytes.Buffer // if non-nil, the bytes.Buffer to append written data to
++	Flushed bool
++
++	FakeRemoteAddr string // the fake RemoteAddr to return, or "" for DefaultRemoteAddr
++	FakeUsingTLS   bool   // whether to return true from the UsingTLS method
++}
++
++// NewRecorder returns an initialized ResponseRecorder.
++func NewRecorder() *ResponseRecorder {
++	return &ResponseRecorder{
++		Header: http.Header(make(map[string][]string)),
++		Body:   new(bytes.Buffer),
++	}
++}
++
++// DefaultRemoteAddr is the default remote address to return in RemoteAddr if
++// an explicit DefaultRemoteAddr isn't set on ResponseRecorder.
++const DefaultRemoteAddr = "1.2.3.4"
++
++// RemoteAddr returns the value of rw.FakeRemoteAddr, if set, else
++// returns DefaultRemoteAddr.
++func (rw *ResponseRecorder) RemoteAddr() string {
++	if rw.FakeRemoteAddr != "" {
++		return rw.FakeRemoteAddr
++	}
++	return DefaultRemoteAddr
++}
++
++// UsingTLS returns the fake value in rw.FakeUsingTLS
++func (rw *ResponseRecorder) UsingTLS() bool {
++	return rw.FakeUsingTLS
++}
++
++// SetHeader populates rw.Header, if non-nil.
++func (rw *ResponseRecorder) SetHeader(k, v string) {
++	if rw.Header != nil {
++		if v == "" {
++			rw.Header.Del(k)
++		} else {
++			rw.Header.Set(k, v)
++		}
++	}
++}
++
++// Write always succeeds and writes to rw.Body, if not nil.
++func (rw *ResponseRecorder) Write(buf []byte) (int, os.Error) {
++	if rw.Body != nil {
++		rw.Body.Write(buf)
++	}
++	return len(buf), nil
++}
++
++// WriteHeader sets rw.Code.
++func (rw *ResponseRecorder) WriteHeader(code int) {
++	rw.Code = code
++}
++
++// Flush sets rw.Flushed to true.
++func (rw *ResponseRecorder) Flush() {
++	rw.Flushed = true
++}
++
++// Hijack is not implemented in ResponseRecorder and instead panics.
++func (rw *ResponseRecorder) Hijack() (io.ReadWriteCloser, *bufio.ReadWriter, os.Error) {
++	panic("Hijack not implemented in ResponseRecorder")
++}
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 42fe3e5e4d..80fb829004 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -4,13 +4,14 @@
+ 
+ // End-to-end serving tests
+ 
+-package http
++package http_test
+ 
+ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
+-	"io"
++	. "http"
++	"http/httptest"
+ 	"io/ioutil"
+ 	"os"
+ 	"net"
+@@ -205,46 +206,6 @@ func TestHostHandlers(t *testing.T) {
+ 	}
+ }
+ 
+-type responseWriterMethodCall struct {
+-	method                 string
+-	headerKey, headerValue string // if method == "SetHeader"
+-	bytesWritten           []byte // if method == "Write"
+-	responseCode           int    // if method == "WriteHeader"
+-}
+-
+-type recordingResponseWriter struct {
+-	log []*responseWriterMethodCall
+-}
+-
+-func (rw *recordingResponseWriter) RemoteAddr() string {
+-	return "1.2.3.4"
+-}
+-
+-func (rw *recordingResponseWriter) UsingTLS() bool {
+-	return false
+-}
+-
+-func (rw *recordingResponseWriter) SetHeader(k, v string) {
+-	rw.log = append(rw.log, &responseWriterMethodCall{method: "SetHeader", headerKey: k, headerValue: v})
+-}
+-
+-func (rw *recordingResponseWriter) Write(buf []byte) (int, os.Error) {
+-	rw.log = append(rw.log, &responseWriterMethodCall{method: "Write", bytesWritten: buf})
+-	return len(buf), nil
+-}
+-
+-func (rw *recordingResponseWriter) WriteHeader(code int) {
+-	rw.log = append(rw.log, &responseWriterMethodCall{method: "WriteHeader", responseCode: code})
+-}
+-
+-func (rw *recordingResponseWriter) Flush() {
+-	rw.log = append(rw.log, &responseWriterMethodCall{method: "Flush"})
+-}
+-
+-func (rw *recordingResponseWriter) Hijack() (io.ReadWriteCloser, *bufio.ReadWriter, os.Error) {
+-	panic("Not supported")
+-}
+-
+ // Tests for http://code.google.com/p/go/issues/detail?id=900
+ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ 	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
+@@ -254,35 +215,17 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ 			t.Errorf("%s", err)
+ 		}
+ 		mux := NewServeMux()
+-		resp := new(recordingResponseWriter)
+-		resp.log = make([]*responseWriterMethodCall, 0)
++		resp := httptest.NewRecorder()
+ 
+ 		mux.ServeHTTP(resp, req)
+ 
+-		dumpLog := func() {
+-			t.Logf("For path %q:", path)
+-			for _, call := range resp.log {
+-				t.Logf("Got call: %s, header=%s, value=%s, buf=%q, code=%d", call.method,
+-					call.headerKey, call.headerValue, call.bytesWritten, call.responseCode)
+-			}
+-		}
+-
+-		if len(resp.log) != 2 {
+-			dumpLog()
+-			t.Errorf("expected 2 calls to response writer; got %d", len(resp.log))
+-			return
+-		}
+-
+-		if resp.log[0].method != "SetHeader" ||
+-			resp.log[0].headerKey != "Location" || resp.log[0].headerValue != "/foo.txt" {
+-			dumpLog()
+-			t.Errorf("Expected SetHeader of Location to /foo.txt")
++		if loc, expected := resp.Header.Get("Location"), "/foo.txt"; loc != expected {
++			t.Errorf("Expected Location header set to %q; got %q", expected, loc)
+ 			return
+ 		}
+ 
+-		if resp.log[1].method != "WriteHeader" || resp.log[1].responseCode != StatusMovedPermanently {
+-			dumpLog()
+-			t.Errorf("Expected WriteHeader of StatusMovedPermanently")
++		if code, expected := resp.Code, StatusMovedPermanently; code != expected {
++			t.Errorf("Expected response code of StatusMovedPermanently; got %d", code)
+ 			return
+ 		}
+ 	}

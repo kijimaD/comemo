@@ -16,6 +16,46 @@ Date:   Tue Oct 25 11:11:40 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue15141.go | 33 +++++++++++++++++++++++++++++++++
  1 file changed, 33 insertions(+)
+
+diff --git a/test/fixedbugs/issue15141.go b/test/fixedbugs/issue15141.go
+new file mode 100644
+index 0000000000..752f530273
+--- /dev/null
++++ b/test/fixedbugs/issue15141.go
+@@ -0,0 +1,33 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	a := f(1, 99)
++	b := g(0xFFFFFFe, 98)
++	c := h(0xFFFFFFe, 98)
++	println(a[1], b[1], c[1], a[0xFFFFFFe], b[0xFFFFFFe], c[0xFFFFFFe])
++}
++
++//go:noinline
++func f(i, y int) (a [0xFFFFFFF]byte) {
++	a[i] = byte(y)
++	return
++}
++
++//go:noinline
++func g(i, y int) [0xFFFFFFF]byte {
++	var a [0xFFFFFFF]byte
++	a[i] = byte(y)
++	return a
++}
++
++//go:noinline
++func h(i, y int) (a [0xFFFFFFF]byte) {
++	a[i] = byte(y)
++	return a
++}

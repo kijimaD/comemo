@@ -11,7 +11,127 @@ Date:   Sat Sep 6 15:27:26 2014 -0400
     R=golang-codereviews, bradfitz
     CC=dvyukov, golang-codereviews, iant, khr, r
     https://golang.org/cl/134580043
-
+---
  src/pkg/runtime/runtime.c | 48 +++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/stubs.goc | 57 -----------------------------------------------
  2 files changed, 48 insertions(+), 57 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index d28ee58179..42ce1dadfb 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -341,3 +341,51 @@ runtime·timediv(int64 v, int32 div, int32 *rem)
+ 		*rem = v;
+ 	return res;
+ }
++
++// Helpers for Go. Must be NOSPLIT, must only call NOSPLIT functions, and must not block.
++
++#pragma textflag NOSPLIT
++G*
++runtime·getg(void)
++{
++	return g;
++}
++
++#pragma textflag NOSPLIT
++M*
++runtime·acquirem(void)
++{
++	g->m->locks++;
++	return g->m;
++}
++
++#pragma textflag NOSPLIT
++void
++runtime·releasem(M *mp)
++{
++	mp->locks--;
++	if(mp->locks == 0 && g->preempt) {
++		// restore the preemption request in case we've cleared it in newstack
++		g->stackguard0 = StackPreempt;
++	}
++}
++
++#pragma textflag NOSPLIT
++MCache*
++runtime·gomcache(void)
++{
++	return g->m->mcache;
++}
++
++#pragma textflag NOSPLIT
++Slice
++reflect·typelinks(void)
++{
++	extern Type *runtime·typelink[], *runtime·etypelink[];
++	Slice ret;
++
++	ret.array = (byte*)runtime·typelink;
++	ret.len = runtime·etypelink - runtime·typelink;
++	ret.cap = ret.len;
++	return ret;
++}
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+deleted file mode 100644
+index e1b1a02101..0000000000
+--- a/src/pkg/runtime/stubs.goc
++++ /dev/null
+@@ -1,57 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "stack.h"
+-#include "textflag.h"
+-
+-// This file contains functions called by Go but written
+-// in C.  These functions are problematic for the garbage
+-// collector and stack copier because we don't have
+-// stack maps for them.  So we must ensure that the
+-// garbage collector and stack copier cannot see these
+-// frames.  So we impose the following invariants:
+-
+-// 1) Functions should be marked NOSPLIT and call
+-//    out to only NOSPLIT functions (recursively).
+-// 2) Functions should not block.
+-
+-// These invariants do not hold yet but will be established once we have
+-// finished converting runtime support code from C to Go.
+-
+-#pragma textflag NOSPLIT
+-func runtime·getg() (ret *G) {
+-	ret = g;
+-}
+-
+-#pragma textflag NOSPLIT
+-func runtime·acquirem() (ret *M) {
+-	ret = g->m;
+-	ret->locks++;
+-}
+-
+-#pragma textflag NOSPLIT
+-func runtime·releasem(mp *M) {
+-	mp->locks--;
+-	if(mp->locks == 0 && g->preempt) {
+-		// restore the preemption request in case we've cleared it in newstack
+-		g->stackguard0 = StackPreempt;
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-func runtime·gomcache() (ret *MCache) {
+-	ret = g->m->mcache;
+-}
+-
+-#pragma textflag NOSPLIT
+-func reflect·typelinks() (ret Slice) {
+-        extern Type *runtime·typelink[], *runtime·etypelink[];
+-        ret.array = (byte*)runtime·typelink;
+-        ret.len = runtime·etypelink - runtime·typelink;
+-        ret.cap = ret.len;
+-}

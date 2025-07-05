@@ -21,7 +21,7 @@ Date:   Wed Apr 28 14:40:53 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check_test.go                                   | 12 +++++++-----
  src/go/types/testdata/{ => check}/blank.src                  |  0
  src/go/types/testdata/{ => check}/builtins.go2               |  0
@@ -125,3 +125,452 @@ Date:   Wed Apr 28 14:40:53 2021 -0400
  src/go/types/{ => testdata}/fixedbugs/issue45635.go2         |  0
  src/go/types/{ => testdata}/fixedbugs/issue6977.src          |  0
  102 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 422488744b..0f23952380 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -47,8 +47,8 @@ import (
+ var (
+ 	haltOnError = flag.Bool("halt", false, "halt on error")
+ 	listErrors  = flag.Bool("errlist", false, "list errors")
+-	testFiles   = flag.String("files", "", "comma-separated list of test files")
+-	goVersion   = flag.String("lang", "", "Go language version (e.g. \"go1.12\"")
++	testFiles   = flag.String("files", "", "comma-separated list of test files for TestManual")
++	goVersion   = flag.String("lang", "", "Go language version (e.g. \"go1.12\") for TestManual")
+ )
+ 
+ var fset = token.NewFileSet()
+@@ -297,9 +297,10 @@ func checkFiles(t *testing.T, sizes Sizes, goVersion string, filenames []string,
+ 	}
+ }
+ 
+-// TestCheck is for manual testing of selected input files, provided with -files.
++// TestManual is for manual testing of selected input files, provided with
++// -files.
+ // The accepted Go language version can be controlled with the -lang flag.
+-func TestCheck(t *testing.T) {
++func TestManual(t *testing.T) {
+ 	if *testFiles == "" {
+ 		return
+ 	}
+@@ -322,13 +323,14 @@ func TestIndexRepresentability(t *testing.T) {
+ 	checkFiles(t, &StdSizes{4, 4}, "", []string{"index.go"}, [][]byte{[]byte(src)})
+ }
+ 
+-func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, "testdata") }
++func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDir(t, "check") }
+ func TestExamples(t *testing.T)  { testDir(t, "examples") }
+ func TestFixedbugs(t *testing.T) { testDir(t, "fixedbugs") }
+ 
+ func testDir(t *testing.T, dir string) {
+ 	testenv.MustHaveGoBuild(t)
+ 
++	dir = filepath.Join("testdata", dir)
+ 	fis, err := os.ReadDir(dir)
+ 	if err != nil {
+ 		t.Error(err)
+diff --git a/src/go/types/testdata/blank.src b/src/go/types/testdata/check/blank.src
+similarity index 100%
+rename from src/go/types/testdata/blank.src
+rename to src/go/types/testdata/check/blank.src
+diff --git a/src/go/types/testdata/builtins.go2 b/src/go/types/testdata/check/builtins.go2
+similarity index 100%
+rename from src/go/types/testdata/builtins.go2
+rename to src/go/types/testdata/check/builtins.go2
+diff --git a/src/go/types/testdata/builtins.src b/src/go/types/testdata/check/builtins.src
+similarity index 100%
+rename from src/go/types/testdata/builtins.src
+rename to src/go/types/testdata/check/builtins.src
+diff --git a/src/go/types/testdata/chans.go2 b/src/go/types/testdata/check/chans.go2
+similarity index 100%
+rename from src/go/types/testdata/chans.go2
+rename to src/go/types/testdata/check/chans.go2
+diff --git a/src/go/types/testdata/const0.src b/src/go/types/testdata/check/const0.src
+similarity index 100%
+rename from src/go/types/testdata/const0.src
+rename to src/go/types/testdata/check/const0.src
+diff --git a/src/go/types/testdata/const1.src b/src/go/types/testdata/check/const1.src
+similarity index 100%
+rename from src/go/types/testdata/const1.src
+rename to src/go/types/testdata/check/const1.src
+diff --git a/src/go/types/testdata/constdecl.src b/src/go/types/testdata/check/constdecl.src
+similarity index 100%
+rename from src/go/types/testdata/constdecl.src
+rename to src/go/types/testdata/check/constdecl.src
+diff --git a/src/go/types/testdata/conversions.src b/src/go/types/testdata/check/conversions.src
+similarity index 100%
+rename from src/go/types/testdata/conversions.src
+rename to src/go/types/testdata/check/conversions.src
+diff --git a/src/go/types/testdata/conversions2.src b/src/go/types/testdata/check/conversions2.src
+similarity index 100%
+rename from src/go/types/testdata/conversions2.src
+rename to src/go/types/testdata/check/conversions2.src
+diff --git a/src/go/types/testdata/cycles.src b/src/go/types/testdata/check/cycles.src
+similarity index 100%
+rename from src/go/types/testdata/cycles.src
+rename to src/go/types/testdata/check/cycles.src
+diff --git a/src/go/types/testdata/cycles1.src b/src/go/types/testdata/check/cycles1.src
+similarity index 100%
+rename from src/go/types/testdata/cycles1.src
+rename to src/go/types/testdata/check/cycles1.src
+diff --git a/src/go/types/testdata/cycles2.src b/src/go/types/testdata/check/cycles2.src
+similarity index 100%
+rename from src/go/types/testdata/cycles2.src
+rename to src/go/types/testdata/check/cycles2.src
+diff --git a/src/go/types/testdata/cycles3.src b/src/go/types/testdata/check/cycles3.src
+similarity index 100%
+rename from src/go/types/testdata/cycles3.src
+rename to src/go/types/testdata/check/cycles3.src
+diff --git a/src/go/types/testdata/cycles4.src b/src/go/types/testdata/check/cycles4.src
+similarity index 100%
+rename from src/go/types/testdata/cycles4.src
+rename to src/go/types/testdata/check/cycles4.src
+diff --git a/src/go/types/testdata/cycles5.src b/src/go/types/testdata/check/cycles5.src
+similarity index 100%
+rename from src/go/types/testdata/cycles5.src
+rename to src/go/types/testdata/check/cycles5.src
+diff --git a/src/go/types/testdata/decls0.src b/src/go/types/testdata/check/decls0.src
+similarity index 100%
+rename from src/go/types/testdata/decls0.src
+rename to src/go/types/testdata/check/decls0.src
+diff --git a/src/go/types/testdata/decls1.src b/src/go/types/testdata/check/decls1.src
+similarity index 100%
+rename from src/go/types/testdata/decls1.src
+rename to src/go/types/testdata/check/decls1.src
+diff --git a/src/go/types/testdata/decls2/decls2a.src b/src/go/types/testdata/check/decls2/decls2a.src
+similarity index 100%
+rename from src/go/types/testdata/decls2/decls2a.src
+rename to src/go/types/testdata/check/decls2/decls2a.src
+diff --git a/src/go/types/testdata/decls2/decls2b.src b/src/go/types/testdata/check/decls2/decls2b.src
+similarity index 100%
+rename from src/go/types/testdata/decls2/decls2b.src
+rename to src/go/types/testdata/check/decls2/decls2b.src
+diff --git a/src/go/types/testdata/decls3.src b/src/go/types/testdata/check/decls3.src
+similarity index 100%
+rename from src/go/types/testdata/decls3.src
+rename to src/go/types/testdata/check/decls3.src
+diff --git a/src/go/types/testdata/decls4.src b/src/go/types/testdata/check/decls4.src
+similarity index 100%
+rename from src/go/types/testdata/decls4.src
+rename to src/go/types/testdata/check/decls4.src
+diff --git a/src/go/types/testdata/decls5.src b/src/go/types/testdata/check/decls5.src
+similarity index 100%
+rename from src/go/types/testdata/decls5.src
+rename to src/go/types/testdata/check/decls5.src
+diff --git a/src/go/types/testdata/errors.src b/src/go/types/testdata/check/errors.src
+similarity index 100%
+rename from src/go/types/testdata/errors.src
+rename to src/go/types/testdata/check/errors.src
+diff --git a/src/go/types/testdata/expr0.src b/src/go/types/testdata/check/expr0.src
+similarity index 100%
+rename from src/go/types/testdata/expr0.src
+rename to src/go/types/testdata/check/expr0.src
+diff --git a/src/go/types/testdata/expr1.src b/src/go/types/testdata/check/expr1.src
+similarity index 100%
+rename from src/go/types/testdata/expr1.src
+rename to src/go/types/testdata/check/expr1.src
+diff --git a/src/go/types/testdata/expr2.src b/src/go/types/testdata/check/expr2.src
+similarity index 100%
+rename from src/go/types/testdata/expr2.src
+rename to src/go/types/testdata/check/expr2.src
+diff --git a/src/go/types/testdata/expr3.src b/src/go/types/testdata/check/expr3.src
+similarity index 100%
+rename from src/go/types/testdata/expr3.src
+rename to src/go/types/testdata/check/expr3.src
+diff --git a/src/go/types/testdata/go1_12.src b/src/go/types/testdata/check/go1_12.src
+similarity index 100%
+rename from src/go/types/testdata/go1_12.src
+rename to src/go/types/testdata/check/go1_12.src
+diff --git a/src/go/types/testdata/go1_13.src b/src/go/types/testdata/check/go1_13.src
+similarity index 100%
+rename from src/go/types/testdata/go1_13.src
+rename to src/go/types/testdata/check/go1_13.src
+diff --git a/src/go/types/testdata/go1_8.src b/src/go/types/testdata/check/go1_8.src
+similarity index 100%
+rename from src/go/types/testdata/go1_8.src
+rename to src/go/types/testdata/check/go1_8.src
+diff --git a/src/go/types/testdata/gotos.src b/src/go/types/testdata/check/gotos.src
+similarity index 100%
+rename from src/go/types/testdata/gotos.src
+rename to src/go/types/testdata/check/gotos.src
+diff --git a/src/go/types/testdata/importC.src b/src/go/types/testdata/check/importC.src
+similarity index 100%
+rename from src/go/types/testdata/importC.src
+rename to src/go/types/testdata/check/importC.src
+diff --git a/src/go/types/testdata/importdecl0/importdecl0a.src b/src/go/types/testdata/check/importdecl0/importdecl0a.src
+similarity index 100%
+rename from src/go/types/testdata/importdecl0/importdecl0a.src
+rename to src/go/types/testdata/check/importdecl0/importdecl0a.src
+diff --git a/src/go/types/testdata/importdecl0/importdecl0b.src b/src/go/types/testdata/check/importdecl0/importdecl0b.src
+similarity index 100%
+rename from src/go/types/testdata/importdecl0/importdecl0b.src
+rename to src/go/types/testdata/check/importdecl0/importdecl0b.src
+diff --git a/src/go/types/testdata/importdecl1/importdecl1a.src b/src/go/types/testdata/check/importdecl1/importdecl1a.src
+similarity index 100%
+rename from src/go/types/testdata/importdecl1/importdecl1a.src
+rename to src/go/types/testdata/check/importdecl1/importdecl1a.src
+diff --git a/src/go/types/testdata/importdecl1/importdecl1b.src b/src/go/types/testdata/check/importdecl1/importdecl1b.src
+similarity index 100%
+rename from src/go/types/testdata/importdecl1/importdecl1b.src
+rename to src/go/types/testdata/check/importdecl1/importdecl1b.src
+diff --git a/src/go/types/testdata/init0.src b/src/go/types/testdata/check/init0.src
+similarity index 100%
+rename from src/go/types/testdata/init0.src
+rename to src/go/types/testdata/check/init0.src
+diff --git a/src/go/types/testdata/init1.src b/src/go/types/testdata/check/init1.src
+similarity index 100%
+rename from src/go/types/testdata/init1.src
+rename to src/go/types/testdata/check/init1.src
+diff --git a/src/go/types/testdata/init2.src b/src/go/types/testdata/check/init2.src
+similarity index 100%
+rename from src/go/types/testdata/init2.src
+rename to src/go/types/testdata/check/init2.src
+diff --git a/src/go/types/testdata/issue25008/issue25008a.src b/src/go/types/testdata/check/issue25008/issue25008a.src
+similarity index 100%
+rename from src/go/types/testdata/issue25008/issue25008a.src
+rename to src/go/types/testdata/check/issue25008/issue25008a.src
+diff --git a/src/go/types/testdata/issue25008/issue25008b.src b/src/go/types/testdata/check/issue25008/issue25008b.src
+similarity index 100%
+rename from src/go/types/testdata/issue25008/issue25008b.src
+rename to src/go/types/testdata/check/issue25008/issue25008b.src
+diff --git a/src/go/types/testdata/issues.go2 b/src/go/types/testdata/check/issues.go2
+similarity index 100%
+rename from src/go/types/testdata/issues.go2
+rename to src/go/types/testdata/check/issues.go2
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/check/issues.src
+similarity index 100%
+rename from src/go/types/testdata/issues.src
+rename to src/go/types/testdata/check/issues.src
+diff --git a/src/go/types/testdata/labels.src b/src/go/types/testdata/check/labels.src
+similarity index 100%
+rename from src/go/types/testdata/labels.src
+rename to src/go/types/testdata/check/labels.src
+diff --git a/src/go/types/testdata/linalg.go2 b/src/go/types/testdata/check/linalg.go2
+similarity index 100%
+rename from src/go/types/testdata/linalg.go2
+rename to src/go/types/testdata/check/linalg.go2
+diff --git a/src/go/types/testdata/literals.src b/src/go/types/testdata/check/literals.src
+similarity index 100%
+rename from src/go/types/testdata/literals.src
+rename to src/go/types/testdata/check/literals.src
+diff --git a/src/go/types/testdata/main.src b/src/go/types/testdata/check/main.src
+similarity index 100%
+rename from src/go/types/testdata/main.src
+rename to src/go/types/testdata/check/main.src
+diff --git a/src/go/types/testdata/map.go2 b/src/go/types/testdata/check/map.go2
+similarity index 100%
+rename from src/go/types/testdata/map.go2
+rename to src/go/types/testdata/check/map.go2
+diff --git a/src/go/types/testdata/map2.go2 b/src/go/types/testdata/check/map2.go2
+similarity index 100%
+rename from src/go/types/testdata/map2.go2
+rename to src/go/types/testdata/check/map2.go2
+diff --git a/src/go/types/testdata/methodsets.src b/src/go/types/testdata/check/methodsets.src
+similarity index 100%
+rename from src/go/types/testdata/methodsets.src
+rename to src/go/types/testdata/check/methodsets.src
+diff --git a/src/go/types/testdata/shifts.src b/src/go/types/testdata/check/shifts.src
+similarity index 100%
+rename from src/go/types/testdata/shifts.src
+rename to src/go/types/testdata/check/shifts.src
+diff --git a/src/go/types/testdata/slices.go2 b/src/go/types/testdata/check/slices.go2
+similarity index 100%
+rename from src/go/types/testdata/slices.go2
+rename to src/go/types/testdata/check/slices.go2
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/check/stmt0.src
+similarity index 100%
+rename from src/go/types/testdata/stmt0.src
+rename to src/go/types/testdata/check/stmt0.src
+diff --git a/src/go/types/testdata/stmt1.src b/src/go/types/testdata/check/stmt1.src
+similarity index 100%
+rename from src/go/types/testdata/stmt1.src
+rename to src/go/types/testdata/check/stmt1.src
+diff --git a/src/go/types/testdata/tinference.go2 b/src/go/types/testdata/check/tinference.go2
+similarity index 100%
+rename from src/go/types/testdata/tinference.go2
+rename to src/go/types/testdata/check/tinference.go2
+diff --git a/src/go/types/testdata/tmp.go2 b/src/go/types/testdata/check/tmp.go2
+similarity index 100%
+rename from src/go/types/testdata/tmp.go2
+rename to src/go/types/testdata/check/tmp.go2
+diff --git a/src/go/types/testdata/todos.go2 b/src/go/types/testdata/check/todos.go2
+similarity index 100%
+rename from src/go/types/testdata/todos.go2
+rename to src/go/types/testdata/check/todos.go2
+diff --git a/src/go/types/testdata/typeinst.go2 b/src/go/types/testdata/check/typeinst.go2
+similarity index 100%
+rename from src/go/types/testdata/typeinst.go2
+rename to src/go/types/testdata/check/typeinst.go2
+diff --git a/src/go/types/testdata/typeinst2.go2 b/src/go/types/testdata/check/typeinst2.go2
+similarity index 100%
+rename from src/go/types/testdata/typeinst2.go2
+rename to src/go/types/testdata/check/typeinst2.go2
+diff --git a/src/go/types/testdata/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+similarity index 100%
+rename from src/go/types/testdata/typeparams.go2
+rename to src/go/types/testdata/check/typeparams.go2
+diff --git a/src/go/types/testdata/vardecl.src b/src/go/types/testdata/check/vardecl.src
+similarity index 100%
+rename from src/go/types/testdata/vardecl.src
+rename to src/go/types/testdata/check/vardecl.src
+diff --git a/src/go/types/examples/functions.go2 b/src/go/types/testdata/examples/functions.go2
+similarity index 100%
+rename from src/go/types/examples/functions.go2
+rename to src/go/types/testdata/examples/functions.go2
+diff --git a/src/go/types/examples/inference.go2 b/src/go/types/testdata/examples/inference.go2
+similarity index 100%
+rename from src/go/types/examples/inference.go2
+rename to src/go/types/testdata/examples/inference.go2
+diff --git a/src/go/types/examples/methods.go2 b/src/go/types/testdata/examples/methods.go2
+similarity index 100%
+rename from src/go/types/examples/methods.go2
+rename to src/go/types/testdata/examples/methods.go2
+diff --git a/src/go/types/examples/types.go2 b/src/go/types/testdata/examples/types.go2
+similarity index 100%
+rename from src/go/types/examples/types.go2
+rename to src/go/types/testdata/examples/types.go2
+diff --git a/src/go/types/fixedbugs/issue20583.src b/src/go/types/testdata/fixedbugs/issue20583.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue20583.src
+rename to src/go/types/testdata/fixedbugs/issue20583.src
+diff --git a/src/go/types/fixedbugs/issue23203a.src b/src/go/types/testdata/fixedbugs/issue23203a.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue23203a.src
+rename to src/go/types/testdata/fixedbugs/issue23203a.src
+diff --git a/src/go/types/fixedbugs/issue23203b.src b/src/go/types/testdata/fixedbugs/issue23203b.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue23203b.src
+rename to src/go/types/testdata/fixedbugs/issue23203b.src
+diff --git a/src/go/types/fixedbugs/issue26390.src b/src/go/types/testdata/fixedbugs/issue26390.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue26390.src
+rename to src/go/types/testdata/fixedbugs/issue26390.src
+diff --git a/src/go/types/fixedbugs/issue28251.src b/src/go/types/testdata/fixedbugs/issue28251.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue28251.src
+rename to src/go/types/testdata/fixedbugs/issue28251.src
+diff --git a/src/go/types/fixedbugs/issue39634.go2 b/src/go/types/testdata/fixedbugs/issue39634.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39634.go2
+rename to src/go/types/testdata/fixedbugs/issue39634.go2
+diff --git a/src/go/types/fixedbugs/issue39664.go2 b/src/go/types/testdata/fixedbugs/issue39664.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39664.go2
+rename to src/go/types/testdata/fixedbugs/issue39664.go2
+diff --git a/src/go/types/fixedbugs/issue39680.go2 b/src/go/types/testdata/fixedbugs/issue39680.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39680.go2
+rename to src/go/types/testdata/fixedbugs/issue39680.go2
+diff --git a/src/go/types/fixedbugs/issue39693.go2 b/src/go/types/testdata/fixedbugs/issue39693.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39693.go2
+rename to src/go/types/testdata/fixedbugs/issue39693.go2
+diff --git a/src/go/types/fixedbugs/issue39699.go2 b/src/go/types/testdata/fixedbugs/issue39699.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39699.go2
+rename to src/go/types/testdata/fixedbugs/issue39699.go2
+diff --git a/src/go/types/fixedbugs/issue39711.go2 b/src/go/types/testdata/fixedbugs/issue39711.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39711.go2
+rename to src/go/types/testdata/fixedbugs/issue39711.go2
+diff --git a/src/go/types/fixedbugs/issue39723.go2 b/src/go/types/testdata/fixedbugs/issue39723.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39723.go2
+rename to src/go/types/testdata/fixedbugs/issue39723.go2
+diff --git a/src/go/types/fixedbugs/issue39725.go2 b/src/go/types/testdata/fixedbugs/issue39725.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39725.go2
+rename to src/go/types/testdata/fixedbugs/issue39725.go2
+diff --git a/src/go/types/fixedbugs/issue39754.go2 b/src/go/types/testdata/fixedbugs/issue39754.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39754.go2
+rename to src/go/types/testdata/fixedbugs/issue39754.go2
+diff --git a/src/go/types/fixedbugs/issue39755.go2 b/src/go/types/testdata/fixedbugs/issue39755.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39755.go2
+rename to src/go/types/testdata/fixedbugs/issue39755.go2
+diff --git a/src/go/types/fixedbugs/issue39768.go2 b/src/go/types/testdata/fixedbugs/issue39768.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39768.go2
+rename to src/go/types/testdata/fixedbugs/issue39768.go2
+diff --git a/src/go/types/fixedbugs/issue39938.go2 b/src/go/types/testdata/fixedbugs/issue39938.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39938.go2
+rename to src/go/types/testdata/fixedbugs/issue39938.go2
+diff --git a/src/go/types/fixedbugs/issue39948.go2 b/src/go/types/testdata/fixedbugs/issue39948.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39948.go2
+rename to src/go/types/testdata/fixedbugs/issue39948.go2
+diff --git a/src/go/types/fixedbugs/issue39976.go2 b/src/go/types/testdata/fixedbugs/issue39976.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39976.go2
+rename to src/go/types/testdata/fixedbugs/issue39976.go2
+diff --git a/src/go/types/fixedbugs/issue39982.go2 b/src/go/types/testdata/fixedbugs/issue39982.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue39982.go2
+rename to src/go/types/testdata/fixedbugs/issue39982.go2
+diff --git a/src/go/types/fixedbugs/issue40038.go2 b/src/go/types/testdata/fixedbugs/issue40038.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue40038.go2
+rename to src/go/types/testdata/fixedbugs/issue40038.go2
+diff --git a/src/go/types/fixedbugs/issue40056.go2 b/src/go/types/testdata/fixedbugs/issue40056.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue40056.go2
+rename to src/go/types/testdata/fixedbugs/issue40056.go2
+diff --git a/src/go/types/fixedbugs/issue40057.go2 b/src/go/types/testdata/fixedbugs/issue40057.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue40057.go2
+rename to src/go/types/testdata/fixedbugs/issue40057.go2
+diff --git a/src/go/types/fixedbugs/issue40301.go2 b/src/go/types/testdata/fixedbugs/issue40301.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue40301.go2
+rename to src/go/types/testdata/fixedbugs/issue40301.go2
+diff --git a/src/go/types/fixedbugs/issue40684.go2 b/src/go/types/testdata/fixedbugs/issue40684.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue40684.go2
+rename to src/go/types/testdata/fixedbugs/issue40684.go2
+diff --git a/src/go/types/fixedbugs/issue41124.go2 b/src/go/types/testdata/fixedbugs/issue41124.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue41124.go2
+rename to src/go/types/testdata/fixedbugs/issue41124.go2
+diff --git a/src/go/types/fixedbugs/issue42695.src b/src/go/types/testdata/fixedbugs/issue42695.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue42695.src
+rename to src/go/types/testdata/fixedbugs/issue42695.src
+diff --git a/src/go/types/fixedbugs/issue42758.go2 b/src/go/types/testdata/fixedbugs/issue42758.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue42758.go2
+rename to src/go/types/testdata/fixedbugs/issue42758.go2
+diff --git a/src/go/types/fixedbugs/issue43087.src b/src/go/types/testdata/fixedbugs/issue43087.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue43087.src
+rename to src/go/types/testdata/fixedbugs/issue43087.src
+diff --git a/src/go/types/fixedbugs/issue43110.src b/src/go/types/testdata/fixedbugs/issue43110.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue43110.src
+rename to src/go/types/testdata/fixedbugs/issue43110.src
+diff --git a/src/go/types/fixedbugs/issue43124.src b/src/go/types/testdata/fixedbugs/issue43124.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue43124.src
+rename to src/go/types/testdata/fixedbugs/issue43124.src
+diff --git a/src/go/types/fixedbugs/issue44688.go2 b/src/go/types/testdata/fixedbugs/issue44688.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue44688.go2
+rename to src/go/types/testdata/fixedbugs/issue44688.go2
+diff --git a/src/go/types/fixedbugs/issue44799.go2 b/src/go/types/testdata/fixedbugs/issue44799.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue44799.go2
+rename to src/go/types/testdata/fixedbugs/issue44799.go2
+diff --git a/src/go/types/fixedbugs/issue45548.go2 b/src/go/types/testdata/fixedbugs/issue45548.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue45548.go2
+rename to src/go/types/testdata/fixedbugs/issue45548.go2
+diff --git a/src/go/types/fixedbugs/issue45635.go2 b/src/go/types/testdata/fixedbugs/issue45635.go2
+similarity index 100%
+rename from src/go/types/fixedbugs/issue45635.go2
+rename to src/go/types/testdata/fixedbugs/issue45635.go2
+diff --git a/src/go/types/fixedbugs/issue6977.src b/src/go/types/testdata/fixedbugs/issue6977.src
+similarity index 100%
+rename from src/go/types/fixedbugs/issue6977.src
+rename to src/go/types/testdata/fixedbugs/issue6977.src

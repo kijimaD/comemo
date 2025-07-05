@@ -11,7 +11,90 @@ Date:   Fri Feb 3 17:49:53 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/race.go   |  6 ++++--
  src/runtime/symtab.go | 30 +++++++++++++++---------------
  2 files changed, 19 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 7e9ef40e6c..144043bb66 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -187,7 +187,8 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
+ 							continue
+ 						}
+ 						ctx.pc = f.Entry() + uintptr(inltree[ix].parentPc) // "caller" pc
+-						ctx.fn = cfuncnameFromNameOff(fi, inltree[ix].nameOff)
++						name := funcnameFromNameOff(fi, inltree[ix].nameOff)
++						ctx.fn = &bytes(name)[0] // assume NUL-terminated
+ 						ctx.line = uintptr(line)
+ 						ctx.file = &bytes(file)[0] // assume NUL-terminated
+ 						ctx.off = pc - f.Entry()
+@@ -197,7 +198,8 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
+ 					break
+ 				}
+ 			}
+-			ctx.fn = cfuncname(fi)
++			name := funcname(fi)
++			ctx.fn = &bytes(name)[0] // assume NUL-terminated
+ 			ctx.line = uintptr(line)
+ 			ctx.file = &bytes(file)[0] // assume NUL-terminated
+ 			ctx.off = pc - f.Entry()
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index da83fd93ea..4f41749353 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -733,6 +733,14 @@ func (md *moduledata) textOff(pc uintptr) (uint32, bool) {
+ 	return res, true
+ }
+ 
++// funcName returns the string at nameOff in the function name table.
++func (md *moduledata) funcName(nameOff int32) string {
++	if nameOff == 0 {
++		return ""
++	}
++	return gostringnocopy(&md.funcnametab[nameOff])
++}
++
+ // FuncForPC returns a *Func describing the function that contains the
+ // given program counter address, or else nil.
+ //
+@@ -1004,15 +1012,11 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
+ 	return -1, 0
+ }
+ 
+-func cfuncname(f funcInfo) *byte {
+-	if !f.valid() || f.nameOff == 0 {
+-		return nil
+-	}
+-	return &f.datap.funcnametab[f.nameOff]
+-}
+-
+ func funcname(f funcInfo) string {
+-	return gostringnocopy(cfuncname(f))
++	if !f.valid() {
++		return ""
++	}
++	return f.datap.funcName(f.nameOff)
+ }
+ 
+ func funcpkgpath(f funcInfo) string {
+@@ -1031,15 +1035,11 @@ func funcpkgpath(f funcInfo) string {
+ 	return name[:i]
+ }
+ 
+-func cfuncnameFromNameOff(f funcInfo, nameOff int32) *byte {
++func funcnameFromNameOff(f funcInfo, nameOff int32) string {
+ 	if !f.valid() {
+-		return nil
++		return ""
+ 	}
+-	return &f.datap.funcnametab[nameOff]
+-}
+-
+-func funcnameFromNameOff(f funcInfo, nameOff int32) string {
+-	return gostringnocopy(cfuncnameFromNameOff(f, nameOff))
++	return f.datap.funcName(nameOff)
+ }
+ 
+ func funcfile(f funcInfo, fileno int32) string {

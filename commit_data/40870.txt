@@ -15,7 +15,7 @@ Date:   Fri Aug 2 09:09:27 2019 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  api/go1.13.txt                      |  3 ---
  src/context/context.go              |  4 ----
  src/context/context_test.go         |  5 -----
@@ -36,3 +36,442 @@ Date:   Fri Aug 2 09:09:27 2019 -0700
  src/syscall/syscall_unix.go         |  2 --
  src/syscall/syscall_windows.go      |  2 --
  19 files changed, 8 insertions(+), 150 deletions(-)
+
+diff --git a/api/go1.13.txt b/api/go1.13.txt
+index a8e39ce8ea..d964d64019 100644
+--- a/api/go1.13.txt
++++ b/api/go1.13.txt
+@@ -209,8 +209,6 @@ pkg net/http, type Transport struct, ForceAttemptHTTP2 bool
+ pkg net/http, type Transport struct, ReadBufferSize int
+ pkg net/http, type Transport struct, WriteBufferSize int
+ pkg net, method (*DNSConfigError) Unwrap() error
+-pkg net, method (*DNSError) Is(error) bool
+-pkg net, method (*OpError) Is(error) bool
+ pkg net, method (*OpError) Unwrap() error
+ pkg net, type DNSError struct, IsNotFound bool
+ pkg net, type ListenConfig struct, KeepAlive time.Duration
+@@ -237,7 +235,6 @@ pkg os (netbsd-arm64), const O_SYNC = 128
+ pkg os (netbsd-arm64), const O_TRUNC = 1024
+ pkg os (netbsd-arm64), const PathListSeparator = 58
+ pkg os (netbsd-arm64), const PathSeparator = 47
+-pkg os, var ErrTimeout error
+ pkg path/filepath (netbsd-arm64-cgo), const ListSeparator = 58
+ pkg path/filepath (netbsd-arm64-cgo), const Separator = 47
+ pkg path/filepath (netbsd-arm64), const ListSeparator = 58
+diff --git a/src/context/context.go b/src/context/context.go
+index b400396513..62590850a6 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -49,7 +49,6 @@ package context
+ 
+ import (
+ 	"errors"
+-	"internal/oserror"
+ 	"internal/reflectlite"
+ 	"sync"
+ 	"time"
+@@ -163,9 +162,6 @@ type deadlineExceededError struct{}
+ func (deadlineExceededError) Error() string   { return "context deadline exceeded" }
+ func (deadlineExceededError) Timeout() bool   { return true }
+ func (deadlineExceededError) Temporary() bool { return true }
+-func (deadlineExceededError) Is(target error) bool {
+-	return target == oserror.ErrTimeout
+-}
+ 
+ // An emptyCtx is never canceled, has no values, and has no deadline. It is not
+ // struct{}, since vars of this type must have distinct addresses.
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 9991c5b09c..0e69e2f6fd 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -5,10 +5,8 @@
+ package context
+ 
+ import (
+-	"errors"
+ 	"fmt"
+ 	"math/rand"
+-	"os"
+ 	"runtime"
+ 	"strings"
+ 	"sync"
+@@ -649,7 +647,4 @@ func XTestDeadlineExceededSupportsTimeout(t testingT) {
+ 	if !i.Timeout() {
+ 		t.Fatal("wrong value for timeout")
+ 	}
+-	if !errors.Is(DeadlineExceeded, os.ErrTimeout) {
+-		t.Fatal("errors.Is(DeadlineExceeded, os.ErrTimeout) = false, want true")
+-	}
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index bd866ee738..fb862459c8 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -250,7 +250,7 @@ var pkgDeps = map[string][]string{
+ 	"compress/gzip":                  {"L4", "compress/flate"},
+ 	"compress/lzw":                   {"L4"},
+ 	"compress/zlib":                  {"L4", "compress/flate"},
+-	"context":                        {"errors", "internal/oserror", "internal/reflectlite", "sync", "time"},
++	"context":                        {"errors", "internal/reflectlite", "sync", "time"},
+ 	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
+ 	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
+ 	"debug/dwarf":                    {"L4"},
+diff --git a/src/internal/oserror/errors.go b/src/internal/oserror/errors.go
+index 8fccc95482..28a1ab32d3 100644
+--- a/src/internal/oserror/errors.go
++++ b/src/internal/oserror/errors.go
+@@ -15,32 +15,4 @@ var (
+ 	ErrExist      = errors.New("file already exists")
+ 	ErrNotExist   = errors.New("file does not exist")
+ 	ErrClosed     = errors.New("file already closed")
+-	ErrTimeout    = timeoutError{}
+ )
+-
+-type timeoutError struct{}
+-
+-func (timeoutError) Error() string { return "deadline exceeded" }
+-func (timeoutError) Timeout() bool { return true }
+-
+-type temporaryError struct{}
+-
+-func (temporaryError) Error() string   { return "temporary error" }
+-func (temporaryError) Temporary() bool { return true }
+-
+-// IsTimeout reports whether err indicates a timeout.
+-func IsTimeout(err error) bool {
+-	for err != nil {
+-		if err == ErrTimeout {
+-			return true
+-		}
+-		if x, ok := err.(interface{ Timeout() bool }); ok {
+-			return x.Timeout()
+-		}
+-		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(ErrTimeout) {
+-			return true
+-		}
+-		err = errors.Unwrap(err)
+-	}
+-	return false
+-}
+diff --git a/src/internal/oserror/errors_test.go b/src/internal/oserror/errors_test.go
+deleted file mode 100644
+index bf3e057ccf..0000000000
+--- a/src/internal/oserror/errors_test.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-package oserror_test
+-
+-import (
+-	"errors"
+-	"fmt"
+-	"internal/oserror"
+-	"os"
+-	"testing"
+-)
+-
+-type ttError struct {
+-	timeout bool
+-}
+-
+-func (e ttError) Error() string {
+-	return fmt.Sprintf("ttError{timeout:%v}", e.timeout)
+-}
+-func (e ttError) Timeout() bool { return e.timeout }
+-
+-type isError struct {
+-	err error
+-}
+-
+-func (e isError) Error() string        { return fmt.Sprintf("isError(%v)", e.err) }
+-func (e isError) Is(target error) bool { return e.err == target }
+-
+-func TestIsTimeout(t *testing.T) {
+-	for _, test := range []struct {
+-		want bool
+-		err  error
+-	}{
+-		{true, ttError{timeout: true}},
+-		{true, isError{os.ErrTimeout}},
+-		{true, os.ErrTimeout},
+-		{true, fmt.Errorf("wrap: %w", os.ErrTimeout)},
+-		{false, ttError{timeout: false}},
+-		{false, errors.New("error")},
+-	} {
+-		if got, want := oserror.IsTimeout(test.err), test.want; got != want {
+-			t.Errorf("IsTimeout(err) = %v, want %v\n%+v", got, want, test.err)
+-		}
+-	}
+-}
+diff --git a/src/internal/poll/fd.go b/src/internal/poll/fd.go
+index 5009e2671b..c0de50c1b4 100644
+--- a/src/internal/poll/fd.go
++++ b/src/internal/poll/fd.go
+@@ -11,7 +11,6 @@ package poll
+ 
+ import (
+ 	"errors"
+-	"internal/oserror"
+ )
+ 
+ // ErrNetClosing is returned when a network descriptor is used after
+@@ -47,10 +46,6 @@ func (e *TimeoutError) Error() string   { return "i/o timeout" }
+ func (e *TimeoutError) Timeout() bool   { return true }
+ func (e *TimeoutError) Temporary() bool { return true }
+ 
+-func (e *TimeoutError) Is(target error) bool {
+-	return target == oserror.ErrTimeout
+-}
+-
+ // ErrNotPollable is returned when the file or socket is not suitable
+ // for event notification.
+ var ErrNotPollable = errors.New("not pollable")
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index c31cbfd814..69c99fe7db 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -24,7 +24,6 @@ import "C"
+ 
+ import (
+ 	"context"
+-	"os"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -38,14 +37,6 @@ func (eai addrinfoErrno) Error() string   { return C.GoString(C.gai_strerror(C.i
+ func (eai addrinfoErrno) Temporary() bool { return eai == C.EAI_AGAIN }
+ func (eai addrinfoErrno) Timeout() bool   { return false }
+ 
+-func (eai addrinfoErrno) Is(target error) bool {
+-	switch target {
+-	case os.ErrTimeout:
+-		return eai.Timeout()
+-	}
+-	return false
+-}
+-
+ type portLookupResult struct {
+ 	port int
+ 	err  error
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index e3a1a10cc6..5c1708c832 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2284,14 +2284,6 @@ func (e *httpError) Error() string   { return e.err }
+ func (e *httpError) Timeout() bool   { return e.timeout }
+ func (e *httpError) Temporary() bool { return true }
+ 
+-func (e *httpError) Is(target error) bool {
+-	switch target {
+-	case os.ErrTimeout:
+-		return e.timeout
+-	}
+-	return false
+-}
+-
+ var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
+ 
+ // errRequestCanceled is set to be identical to the one from h2 to facilitate
+@@ -2626,10 +2618,6 @@ func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
+ func (tlsHandshakeTimeoutError) Temporary() bool { return true }
+ func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
+ 
+-func (tlsHandshakeTimeoutError) Is(target error) bool {
+-	return target == os.ErrTimeout
+-}
+-
+ // fakeLocker is a sync.Locker which does nothing. It's used to guard
+ // test-only fields when not under test, to avoid runtime atomic
+ // overhead.
+diff --git a/src/net/net.go b/src/net/net.go
+index 54e1ac383a..4ed40237a8 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -516,14 +516,6 @@ func (e *OpError) Temporary() bool {
+ 	return ok && t.Temporary()
+ }
+ 
+-func (e *OpError) Is(target error) bool {
+-	switch target {
+-	case os.ErrTimeout:
+-		return e.Timeout()
+-	}
+-	return false
+-}
+-
+ // A ParseError is the error type of literal network address parsers.
+ type ParseError struct {
+ 	// Type is the type of string that was expected, such as
+@@ -615,14 +607,6 @@ func (e *DNSError) Timeout() bool { return e.IsTimeout }
+ // error and return a DNSError for which Temporary returns false.
+ func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
+ 
+-func (e *DNSError) Is(target error) bool {
+-	switch target {
+-	case os.ErrTimeout:
+-		return e.Timeout()
+-	}
+-	return false
+-}
+-
+ type writerOnly struct {
+ 	io.Writer
+ }
+diff --git a/src/net/pipe.go b/src/net/pipe.go
+index 5abc4aabe6..9177fc4036 100644
+--- a/src/net/pipe.go
++++ b/src/net/pipe.go
+@@ -6,7 +6,6 @@ package net
+ 
+ import (
+ 	"io"
+-	"os"
+ 	"sync"
+ 	"time"
+ )
+@@ -85,10 +84,6 @@ func (timeoutError) Error() string   { return "deadline exceeded" }
+ func (timeoutError) Timeout() bool   { return true }
+ func (timeoutError) Temporary() bool { return true }
+ 
+-func (timeoutError) Is(target error) bool {
+-	return target == os.ErrTimeout
+-}
+-
+ type pipeAddr struct{}
+ 
+ func (pipeAddr) Network() string { return "pipe" }
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 93e46025a2..b4fc2c0198 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -7,9 +7,7 @@
+ package net
+ 
+ import (
+-	"errors"
+ 	"fmt"
+-	"internal/oserror"
+ 	"internal/poll"
+ 	"internal/testenv"
+ 	"io"
+@@ -90,9 +88,6 @@ func TestDialTimeout(t *testing.T) {
+ 			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+ 				t.Fatalf("#%d: %v", i, err)
+ 			}
+-			if !errors.Is(err, oserror.ErrTimeout) {
+-				t.Fatalf("#%d: Dial error is not os.ErrTimeout: %v", i, err)
+-			}
+ 		}
+ 	}
+ }
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 3212b9e998..982cfe6c0c 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -13,7 +13,6 @@ package url
+ import (
+ 	"errors"
+ 	"fmt"
+-	"internal/oserror"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -28,7 +27,13 @@ type Error struct {
+ 
+ func (e *Error) Unwrap() error { return e.Err }
+ func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
+-func (e *Error) Timeout() bool { return oserror.IsTimeout(e.Err) }
++
++func (e *Error) Timeout() bool {
++	t, ok := e.Err.(interface {
++		Timeout() bool
++	})
++	return ok && t.Timeout()
++}
+ 
+ func (e *Error) Temporary() bool {
+ 	t, ok := e.Err.(interface {
+diff --git a/src/os/error.go b/src/os/error.go
+index 4cf35f2b77..09ba158677 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -22,7 +22,6 @@ var (
+ 	ErrExist      = errExist()      // "file already exists"
+ 	ErrNotExist   = errNotExist()   // "file does not exist"
+ 	ErrClosed     = errClosed()     // "file already closed"
+-	ErrTimeout    = errTimeout()    // "deadline exceeded"
+ 	ErrNoDeadline = errNoDeadline() // "file type does not support deadline"
+ )
+ 
+@@ -31,7 +30,6 @@ func errPermission() error { return oserror.ErrPermission }
+ func errExist() error      { return oserror.ErrExist }
+ func errNotExist() error   { return oserror.ErrNotExist }
+ func errClosed() error     { return oserror.ErrClosed }
+-func errTimeout() error    { return oserror.ErrTimeout }
+ func errNoDeadline() error { return poll.ErrNoDeadline }
+ 
+ type timeout interface {
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index 6db01c32f1..175fe47fca 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -58,8 +58,6 @@ func (e Errno) Error() string {
+ 
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTimeout:
+-		return e.Timeout()
+ 	case oserror.ErrPermission:
+ 		return e == EACCES || e == EPERM
+ 	case oserror.ErrExist:
+diff --git a/src/syscall/syscall_nacl.go b/src/syscall/syscall_nacl.go
+index 33ad8bfab0..e887b1e04e 100644
+--- a/src/syscall/syscall_nacl.go
++++ b/src/syscall/syscall_nacl.go
+@@ -65,8 +65,6 @@ func (e Errno) Error() string {
+ 
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTimeout:
+-		return e.Timeout()
+ 	case oserror.ErrPermission:
+ 		return e == EACCES || e == EPERM
+ 	case oserror.ErrExist:
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index d1b4bd9bd5..c11f030531 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -29,8 +29,6 @@ func NewError(s string) error { return ErrorString(s) }
+ 
+ func (e ErrorString) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTimeout:
+-		return e.Timeout()
+ 	case oserror.ErrPermission:
+ 		return checkErrMessageContent(e, "permission denied")
+ 	case oserror.ErrExist:
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 4bb7799d53..59c8c34933 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -121,8 +121,6 @@ func (e Errno) Error() string {
+ 
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTimeout:
+-		return e.Timeout()
+ 	case oserror.ErrPermission:
+ 		return e == EACCES || e == EPERM
+ 	case oserror.ErrExist:
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index aa4cfa7243..2e8edc7acc 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -115,8 +115,6 @@ const _ERROR_BAD_NETPATH = Errno(53)
+ 
+ func (e Errno) Is(target error) bool {
+ 	switch target {
+-	case oserror.ErrTimeout:
+-		return e.Timeout()
+ 	case oserror.ErrPermission:
+ 		return e == ERROR_ACCESS_DENIED
+ 	case oserror.ErrExist:

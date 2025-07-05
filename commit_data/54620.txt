@@ -12,6 +12,15 @@ Date:   Fri Nov 4 10:48:39 2022 +0800
     Auto-Submit: Than McIntosh <thanm@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/55301.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/api/next/55301.txt b/api/next/55301.txt
+index e86ecfb7a2..0e3d5b10ee 100644
+--- a/api/next/55301.txt
++++ b/api/next/55301.txt
+@@ -1 +1 @@
+-pkg net, type Dialer struct, ControlContext func(context.Context, string, string, syscall.RawConn) error #55301
+\ No newline at end of file
++pkg net, type Dialer struct, ControlContext func(context.Context, string, string, syscall.RawConn) error #55301

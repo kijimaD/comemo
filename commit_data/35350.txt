@@ -20,6 +20,40 @@ Date:   Wed Jan 10 16:05:12 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/87316
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 6b52950b94..d01ad6056e 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -170,9 +170,9 @@ func (p *parser) syntax_error_at(pos src.Pos, msg string) {
+ 	switch {
+ 	case msg == "":
+ 		// nothing to do
+-	case strings.HasPrefix(msg, "in"), strings.HasPrefix(msg, "at"), strings.HasPrefix(msg, "after"):
++	case strings.HasPrefix(msg, "in "), strings.HasPrefix(msg, "at "), strings.HasPrefix(msg, "after "):
+ 		msg = " " + msg
+-	case strings.HasPrefix(msg, "expecting"):
++	case strings.HasPrefix(msg, "expecting "):
+ 		msg = ", " + msg
+ 	default:
+ 		// plain error - we don't care about current token
+@@ -1844,7 +1844,15 @@ done:
+ 	case *ExprStmt:
+ 		cond = s.X
+ 	default:
+-		p.syntax_error(fmt.Sprintf("%s used as value", String(s)))
++		// A common syntax error is to write '=' instead of '==',
++		// which turns an expression into an assignment. Provide
++		// a more explicit error message in that case to prevent
++		// further confusion.
++		str := String(s)
++		if as, ok := s.(*AssignStmt); ok && as.Op == 0 {
++			str = "assignment " + str
++		}
++		p.syntax_error(fmt.Sprintf("%s used as value", str))
+ 	}
+ 
+ 	p.xnest = outer

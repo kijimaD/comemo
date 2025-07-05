@@ -19,6 +19,24 @@ Date:   Wed Feb 12 08:45:34 2025 -0600
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Vishwanatha HD <vishwanatha.hd@ibm.com>
-
+---
  src/runtime/sys_linux_s390x.s | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 7da4a52729..2f9d4beda8 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -112,9 +112,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	MOVW	$1000000, R3
+ 	DIVD	R3, R2
+ 	MOVD	R2, 8(R15)
+-	MOVW	$1000, R3
+-	MULLD	R2, R3
++	MULLD	R2, R3		// Convert sec to usec and subtract
+ 	SUB	R3, R4
++	MOVW	$1000, R3
++	MULLD	R3, R4		// Convert remaining usec into nsec.
+ 	MOVD	R4, 16(R15)
+ 
+ 	// nanosleep(&ts, 0)

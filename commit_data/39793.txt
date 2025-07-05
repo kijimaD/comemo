@@ -22,9 +22,158 @@ Date:   Tue Mar 19 13:19:48 2019 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/168321
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/dwarf_test.go        | 51 +++++++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/macho.go | 39 ++++++++++++++++++++++++++++--
  src/cmd/link/testdata/lib.go      |  8 ++++++
  src/cmd/link/testdata/main.m      |  5 ++++
  4 files changed, 101 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index ecc96019be..e9c9e29301 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -171,3 +171,54 @@ func TestDWARFiOS(t *testing.T) {
+ 	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm", "GOARM=7")
+ 	testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
+ }
++
++func TestBuildFortvOS(t *testing.T) {
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveGoBuild(t)
++
++	// Only run this on darwin/amd64, where we can cross build for tvOS.
++	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
++		t.Skip("skipping on non-darwin/amd64 platform")
++	}
++	if err := exec.Command("xcrun", "--help").Run(); err != nil {
++		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
++	}
++
++	sdkPath, err := exec.Command("xcrun", "--sdk", "appletvos", "--show-sdk-path").Output()
++	if err != nil {
++		t.Fatalf("xcrun --sdk appletvos --show-sdk-path failed: %v", err)
++	}
++	CC := []string{
++		"clang",
++		"-arch",
++		"arm64",
++		"-isysroot", strings.TrimSpace(string(sdkPath)),
++		"-mtvos-version-min=12.0",
++		"-fembed-bitcode",
++		"-framework", "CoreFoundation",
++	}
++	lib := filepath.Join("testdata", "lib.go")
++	tmpDir, err := ioutil.TempDir("", "go-link-TestBuildFortvOS")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpDir)
++
++	ar := filepath.Join(tmpDir, "lib.a")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", ar, lib)
++	cmd.Env = append(os.Environ(),
++		"CGO_ENABLED=1",
++		"GOOS=darwin",
++		"GOARCH=arm64",
++		"CC="+strings.Join(CC, " "),
++	)
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
++	}
++
++	link := exec.Command(CC[0], CC[1:]...)
++	link.Args = append(link.Args, ar, filepath.Join("testdata", "main.m"))
++	if out, err := link.CombinedOutput(); err != nil {
++		t.Fatalf("%v: %v:\n%s", link.Args, err, out)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 32b2013059..98359c26fc 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -11,6 +11,9 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/macho"
+ 	"encoding/binary"
++	"fmt"
++	"io"
++	"os"
+ 	"sort"
+ 	"strings"
+ )
+@@ -691,8 +694,14 @@ func Asmbmacho(ctxt *Link) {
+ 			}
+ 		}
+ 	}
+-
+-	if ctxt.LinkMode == LinkInternal {
++	load, err := hostobjMachoPlatform(hostobj)
++	if err != nil {
++		Exitf("%v", err)
++	}
++	if load != nil {
++		ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
++		copy(ml.data, load.cmd.data)
++	} else if ctxt.LinkMode == LinkInternal {
+ 		// For lldb, must say LC_VERSION_MIN_MACOSX or else
+ 		// it won't know that this Mach-O binary is from OS X
+ 		// (could be iOS or WatchOS instead).
+@@ -1017,6 +1026,32 @@ func Machoemitreloc(ctxt *Link) {
+ 	}
+ }
+ 
++// hostobjMachoPlatform returns the first platform load command found
++// in the host objects, if any.
++func hostobjMachoPlatform(hostobj []Hostobj) (*MachoPlatformLoad, error) {
++	for _, h := range hostobj {
++		f, err := os.Open(h.file)
++		if err != nil {
++			return nil, fmt.Errorf("%s: failed to open host object: %v\n", h.file, err)
++		}
++		defer f.Close()
++		sr := io.NewSectionReader(f, h.off, h.length)
++		m, err := macho.NewFile(sr)
++		if err != nil {
++			// Not a valid Mach-O file.
++			return nil, nil
++		}
++		load, err := peekMachoPlatform(m)
++		if err != nil {
++			return nil, err
++		}
++		if load != nil {
++			return load, nil
++		}
++	}
++	return nil, nil
++}
++
+ // peekMachoPlatform returns the first LC_VERSION_MIN_* or LC_BUILD_VERSION
+ // load command found in the Mach-O file, if any.
+ func peekMachoPlatform(m *macho.File) (*MachoPlatformLoad, error) {
+diff --git a/src/cmd/link/testdata/lib.go b/src/cmd/link/testdata/lib.go
+new file mode 100644
+index 0000000000..bc6c699440
+--- /dev/null
++++ b/src/cmd/link/testdata/lib.go
+@@ -0,0 +1,8 @@
++package main
++
++import "C"
++
++//export GoFunc
++func GoFunc() {}
++
++func main() {}
+diff --git a/src/cmd/link/testdata/main.m b/src/cmd/link/testdata/main.m
+new file mode 100644
+index 0000000000..1c8175f6cc
+--- /dev/null
++++ b/src/cmd/link/testdata/main.m
+@@ -0,0 +1,5 @@
++extern void GoFunc();
++
++int main(int argc, char **argv) {
++	GoFunc();
++}

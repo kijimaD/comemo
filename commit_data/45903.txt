@@ -16,6 +16,31 @@ Date:   Fri Nov 27 22:07:23 2020 +0100
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/runtime/signal_windows.go | 13 +++----------
  1 file changed, 3 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 6d98d02598..3af2e39b08 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -43,16 +43,9 @@ func initExceptionHandler() {
+ //
+ //go:nosplit
+ func isAbort(r *context) bool {
+-	switch GOARCH {
+-	case "386", "amd64":
+-		// In the case of an abort, the exception IP is one byte after
+-		// the INT3 (this differs from UNIX OSes).
+-		return isAbortPC(r.ip() - 1)
+-	case "arm":
+-		return isAbortPC(r.ip())
+-	default:
+-		return false
+-	}
++	// In the case of an abort, the exception IP is one byte after
++	// the INT3 (this differs from UNIX OSes).
++	return isAbortPC(r.ip() - 1)
+ }
+ 
+ // isgoexception reports whether this exception should be translated

@@ -16,6 +16,25 @@ Date:   Sat Oct 24 13:28:00 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/errors_plan9.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/syscall/errors_plan9.go b/src/syscall/errors_plan9.go
+index ede3d6a329..d7634c995e 100644
+--- a/src/syscall/errors_plan9.go
++++ b/src/syscall/errors_plan9.go
+@@ -46,3 +46,13 @@ var (
+ 	EACCES       = NewError("access permission denied")
+ 	EAFNOSUPPORT = NewError("address family not supported by protocol")
+ )
++
++// Notes
++const (
++	SIGABRT = Note("abort")
++	SIGALRM = Note("alarm")
++	SIGHUP  = Note("hangup")
++	SIGINT  = Note("interrupt")
++	SIGKILL = Note("kill")
++	SIGTERM = Note("interrupt")
++)

@@ -7,10 +7,152 @@ Date:   Wed Sep 10 19:49:35 2008 -0700
     R=r
     OCL=15119
     CL=15119
-
+---
  src/cmd/6g/gsubr.c |  6 +++++-
  src/cmd/6g/obj.c   | 42 ++++++++++++++++++++++++++++++++++++++++--
  src/cmd/gc/dcl.c   |  1 +
  src/cmd/gc/go.h    |  4 +++-
  src/cmd/gc/walk.c  |  4 ----
  5 files changed, 49 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 20654fa9d8..ac807c651e 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -322,7 +322,11 @@ loop:
+ 
+ 	s = t->sym;
+ 	if(s == S)
+-		fatal("nodtypesig: no sym for type");
++		fatal("signame: no sym for type");
++
++	// mark it as used so signature will be generated
++	if(s->local == 1)
++		s->local = 2;
+ 
+ 	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
+ 	s = pkglookup(namebuf, s->package);
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 709ece3c38..f1f86ee988 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -459,7 +459,7 @@ sigcmp(Sig *a, Sig *b)
+ void
+ dumpsignatures(void)
+ {
+-	Dcl *d;
++	Dcl *d, *x;
+ 	Type *t, *f;
+ 	Sym *s1, *s;
+ 	int et, o, wi, ot;
+@@ -468,6 +468,44 @@ dumpsignatures(void)
+ 	Prog *p;
+ 	char *sp;
+ 
++	// copy externdcl list to signatlist
++	for(d=externdcl; d!=D; d=d->forw) {
++		if(d->op != OTYPE)
++			continue;
++
++		t = d->dtype;
++		if(t == T)
++			continue;
++
++		et = t->etype;
++		if(et != TSTRUCT && et != TINTER)
++			continue;
++
++		s = d->dsym;
++		if(s == S)
++			continue;
++
++		if(s->name[0] == '_')
++			continue;
++
++		// if it was imported
++		if(s->local == 0)
++			continue;
++
++// until i can figure out
++// when/if it is used, do them all
++//		// if not used and not exported
++//		if(s->local == 1 && !s->export)
++//			continue;
++
++		x = mal(sizeof(*d));
++		x->op = OTYPE;
++		x->dsym = s;
++		x->dtype = t;
++		x->forw = signatlist;
++		signatlist = x;
++	}
++
+ 	/*
+ 	 * put all the names into a linked
+ 	 * list so that it may be generated in sorted order.
+@@ -505,7 +543,7 @@ dumpsignatures(void)
+ 
+ 	wi = types[TINT32]->width;
+ 
+-	for(d=externdcl; d!=D; d=d->forw) {
++	for(d=signatlist; d!=D; d=d->forw) {
+ 		if(d->op != OTYPE)
+ 			continue;
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 54c437d3cd..01b4902179 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -52,6 +52,7 @@ dodcltype(Type *n, Type *t)
+ 	}
+ 	if(exportadj)
+ 		exportsym(n->sym);
++	n->sym->local = 1;
+ 	addtyp(n, t, dclcontext);
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 11d8b56b9c..b7019bccbd 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -195,8 +195,9 @@ struct	Sym
+ 
+ 	uchar	undef;		// a diagnostic has been generated
+ 	uchar	export;		// marked as export
+-	uchar	exported;	// has been exported
++	uchar	exported;	// exported
+ 	uchar	sym;		// huffman encoding in object file
++	uchar	local;		// created in this file
+ 
+ 	char*	opackage;	// original package name
+ 	char*	package;	// package name
+@@ -429,6 +430,7 @@ EXTERN	Dcl*	autodcl;
+ EXTERN	Dcl*	paramdcl;
+ EXTERN	Dcl*	externdcl;
+ EXTERN	Dcl*	exportlist;
++EXTERN	Dcl*	signatlist;
+ EXTERN	int	dclcontext;	// PEXTERN/PAUTO
+ EXTERN	int	importflag;
+ EXTERN	int	inimportsys;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c317fbdaea..8612f6d130 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1970,8 +1970,6 @@ mapop(Node *n, int top)
+ 			goto shape;
+ 
+ 		// mapassign1(hmap *map[any-1]any-2, key any-3, val any-4);
+-
+-//dump("assign1", n);
+ 		if(n->left->op != OINDEX)
+ 			goto shape;
+ 
+@@ -1999,8 +1997,6 @@ mapop(Node *n, int top)
+ 
+ 	assign2:
+ 		// mapassign2(hmap *map[any]any, key any, val any, pres bool);
+-
+-//dump("assign2", n);
+ 		if(n->left->op != OINDEX)
+ 			goto shape;
+ 

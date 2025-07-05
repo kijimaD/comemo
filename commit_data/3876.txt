@@ -6,6 +6,20 @@ Date:   Sat Nov 7 11:22:30 2009 -0800
     
     R=iant
     http://go/go-review/1026016
-
+---
  doc/gccgo_install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index 360da95999..b9ca4c6230 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -34,7 +34,7 @@ Building <code>gccgo</code> is just like building <code>gcc</code>
+ with one additional option.  See
+ the <a href="http://gcc.gnu.org/install/">instructions on the gcc web
+ site</a>.  When you run <code>configure</code>, add the
+-option <code>--enable-languages=go</code> (along with other languages you
++option <code>--enable-languages=c,c++,go</code> (along with other languages you
+ may want to build).
+ </p>
+ 

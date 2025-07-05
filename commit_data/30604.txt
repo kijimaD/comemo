@@ -11,7 +11,77 @@ Date:   Wed Nov 16 14:28:12 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go  |  3 ---
  src/cmd/compile/internal/gc/walk.go | 37 -------------------------------------
  2 files changed, 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 98efedc084..3d3496d643 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -11,9 +11,6 @@ const (
+ 	switchKindExpr  = iota // switch a {...} or switch 5 {...}
+ 	switchKindTrue         // switch true {...} or switch {...}
+ 	switchKindFalse        // switch false {...}
+-
+-	// type switch
+-	switchKindType // switch a.(type) {...}
+ )
+ 
+ const (
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3adfd465d8..8248d503b3 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -433,38 +433,6 @@ func convFuncName(from, to *Type) string {
+ 	panic("unreachable")
+ }
+ 
+-// Build name of function: assertI2E etc.
+-// If with2suffix is true, the form ending in "2" is returned".
+-func assertFuncName(from, to *Type, with2suffix bool) string {
+-	l := len("assertX2X2")
+-	if !with2suffix {
+-		l--
+-	}
+-	tkind := to.iet()
+-	switch from.iet() {
+-	case 'E':
+-		switch tkind {
+-		case 'I':
+-			return "assertE2I2"[:l]
+-		case 'E':
+-			return "assertE2E2"[:l]
+-		case 'T':
+-			return "assertE2T2"[:l]
+-		}
+-	case 'I':
+-		switch tkind {
+-		case 'I':
+-			return "assertI2I2"[:l]
+-		case 'E':
+-			return "assertI2E2"[:l]
+-		case 'T':
+-			return "assertI2T2"[:l]
+-		}
+-	}
+-	Fatalf("unknown assert func %c2%c", from.iet(), to.iet())
+-	panic("unreachable")
+-}
+-
+ // The result of walkexpr MUST be assigned back to n, e.g.
+ // 	n.Left = walkexpr(n.Left, init)
+ func walkexpr(n *Node, init *Nodes) *Node {
+@@ -2099,11 +2067,6 @@ func isstack(n *Node) bool {
+ 	return false
+ }
+ 
+-func (n *Node) isGlobal() bool {
+-	n = outervalue(n)
+-	return n.Op == ONAME && n.Class == PEXTERN
+-}
+-
+ // Do we need a write barrier for the assignment l = r?
+ func needwritebarrier(l *Node, r *Node) bool {
+ 	if !use_writebarrier {

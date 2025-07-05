@@ -7,6 +7,30 @@ Date:   Wed Oct 3 11:41:18 2012 +0800
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/6591051
-
+---
  src/pkg/testing/testing.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 66d26b8ad8..b30505d76a 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -27,15 +27,14 @@
+ //
+ // The benchmark package will vary b.N until the benchmark function lasts
+ // long enough to be timed reliably.  The output
+-//     testing.BenchmarkHello    10000000    282 ns/op
++//     BenchmarkHello    10000000    282 ns/op
+ // means that the loop ran 10000000 times at a speed of 282 ns per loop.
+ //
+ // If a benchmark needs some expensive setup before running, the timer
+-// may be stopped:
++// may be reset:
+ //     func BenchmarkBigLen(b *testing.B) {
+-//         b.StopTimer()
+ //         big := NewBig()
+-//         b.StartTimer()
++//         b.ResetTimer()
+ //         for i := 0; i < b.N; i++ {
+ //             big.Len()
+ //         }

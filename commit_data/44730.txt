@@ -20,9 +20,429 @@ Date:   Thu Jul 23 00:45:27 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/build.go               |  15 +-
  src/cmd/go/internal/modload/modfile.go             | 171 +++++++++++++++++++++
  src/cmd/go/internal/modload/mvs.go                 | 109 +------------
  src/cmd/go/testdata/script/mod_invalid_version.txt |   4 +-
  4 files changed, 190 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index b6f955d591..7e182b4a4d 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -132,6 +132,8 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
+ 
+ 	// completeFromModCache fills in the extra fields in m using the module cache.
+ 	completeFromModCache := func(m *modinfo.ModulePublic) {
++		mod := module.Version{Path: m.Path, Version: m.Version}
++
+ 		if m.Version != "" {
+ 			if q, err := Query(ctx, m.Path, m.Version, "", nil); err != nil {
+ 				m.Error = &modinfo.ModuleError{Err: err.Error()}
+@@ -140,7 +142,6 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
+ 				m.Time = &q.Time
+ 			}
+ 
+-			mod := module.Version{Path: m.Path, Version: m.Version}
+ 			gomod, err := modfetch.CachePath(mod, "mod")
+ 			if err == nil {
+ 				if info, err := os.Stat(gomod); err == nil && info.Mode().IsRegular() {
+@@ -152,6 +153,12 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
+ 				m.Dir = dir
+ 			}
+ 		}
++
++		if m.GoVersion == "" {
++			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersionV != "" {
++				m.GoVersion = summary.goVersionV[1:]
++			}
++		}
+ 	}
+ 
+ 	if !fromBuildList {
+@@ -183,9 +190,8 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
+ 		Path:    r.Path,
+ 		Version: r.Version,
+ 	}
+-	if goV, ok := rawGoVersion.Load(r); ok {
+-		info.Replace.GoVersion = goV.(string)
+-		info.GoVersion = info.Replace.GoVersion
++	if v, ok := rawGoVersion.Load(m); ok {
++		info.Replace.GoVersion = v.(string)
+ 	}
+ 	if r.Version == "" {
+ 		if filepath.IsAbs(r.Path) {
+@@ -200,6 +206,7 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
+ 		info.Dir = info.Replace.Dir
+ 		info.GoMod = info.Replace.GoMod
+ 	}
++	info.GoVersion = info.Replace.GoVersion
+ 	return info
+ }
+ 
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 9ff00e9b5c..c04e2add13 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -7,10 +7,17 @@ package modload
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/lockedfile"
++	"cmd/go/internal/modfetch"
++	"cmd/go/internal/par"
++	"errors"
++	"fmt"
++	"path/filepath"
+ 	"sync"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
++	"golang.org/x/mod/semver"
+ )
+ 
+ var modFile *modfile.File
+@@ -171,3 +178,167 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
+ // If a module is replaced, the version of the replacement is keyed by the
+ // replacement module.Version, not the version being replaced.
+ var rawGoVersion sync.Map // map[module.Version]string
++
++// A modFileSummary is a summary of a go.mod file for which we do not need to
++// retain complete information — for example, the go.mod file of a dependency
++// module.
++type modFileSummary struct {
++	module     module.Version
++	goVersionV string // GoVersion with "v" prefix
++	require    []module.Version
++}
++
++// goModSummary returns a summary of the go.mod file for module m,
++// taking into account any replacements for m, exclusions of its dependencies,
++// and or vendoring.
++//
++// goModSummary cannot be used on the Target module, as its requirements
++// may change.
++//
++// The caller must not modify the returned summary.
++func goModSummary(m module.Version) (*modFileSummary, error) {
++	if m == Target {
++		panic("internal error: goModSummary called on the Target module")
++	}
++
++	type cached struct {
++		summary *modFileSummary
++		err     error
++	}
++	c := goModSummaryCache.Do(m, func() interface{} {
++		if cfg.BuildMod == "vendor" {
++			summary := &modFileSummary{
++				module: module.Version{Path: m.Path},
++			}
++			if vendorVersion[m.Path] != m.Version {
++				// This module is not vendored, so packages cannot be loaded from it and
++				// it cannot be relevant to the build.
++				return cached{summary, nil}
++			}
++
++			// For every module other than the target,
++			// return the full list of modules from modules.txt.
++			readVendorList()
++
++			// TODO(#36876): Load the "go" version from vendor/modules.txt and store it
++			// in rawGoVersion with the appropriate key.
++
++			// We don't know what versions the vendored module actually relies on,
++			// so assume that it requires everything.
++			summary.require = vendorList
++			return cached{summary, nil}
++		}
++
++		actual := Replacement(m)
++		if actual.Path == "" {
++			actual = m
++		}
++		summary, err := rawGoModSummary(actual)
++		if err != nil {
++			return cached{nil, err}
++		}
++
++		if actual.Version == "" {
++			// The actual module is a filesystem-local replacement, for which we have
++			// unfortunately not enforced any sort of invariants about module lines or
++			// matching module paths. Anything goes.
++			//
++			// TODO(bcmills): Remove this special-case, update tests, and add a
++			// release note.
++		} else {
++			if summary.module.Path == "" {
++				return cached{nil, module.VersionError(actual, errors.New("parsing go.mod: missing module line"))}
++			}
++
++			// In theory we should only allow mpath to be unequal to mod.Path here if the
++			// version that we fetched lacks an explicit go.mod file: if the go.mod file
++			// is explicit, then it should match exactly (to ensure that imports of other
++			// packages within the module are interpreted correctly). Unfortunately, we
++			// can't determine that information from the module proxy protocol: we'll have
++			// to leave that validation for when we load actual packages from within the
++			// module.
++			if mpath := summary.module.Path; mpath != m.Path && mpath != actual.Path {
++				return cached{nil, module.VersionError(actual, fmt.Errorf(`parsing go.mod:
++	module declares its path as: %s
++	        but was required as: %s`, mpath, m.Path))}
++			}
++		}
++
++		if index != nil && len(index.exclude) > 0 {
++			// Drop any requirements on excluded versions.
++			nonExcluded := summary.require[:0]
++			for _, r := range summary.require {
++				if !index.exclude[r] {
++					nonExcluded = append(nonExcluded, r)
++				}
++			}
++			summary.require = nonExcluded
++		}
++		return cached{summary, nil}
++	}).(cached)
++
++	return c.summary, c.err
++}
++
++var goModSummaryCache par.Cache // module.Version → goModSummary result
++
++// rawGoModSummary returns a new summary of the go.mod file for module m,
++// ignoring all replacements that may apply to m and excludes that may apply to
++// its dependencies.
++//
++// rawGoModSummary cannot be used on the Target module.
++func rawGoModSummary(m module.Version) (*modFileSummary, error) {
++	if m == Target {
++		panic("internal error: rawGoModSummary called on the Target module")
++	}
++
++	summary := new(modFileSummary)
++	var f *modfile.File
++	if m.Version == "" {
++		// m is a replacement module with only a file path.
++		dir := m.Path
++		if !filepath.IsAbs(dir) {
++			dir = filepath.Join(ModRoot(), dir)
++		}
++		gomod := filepath.Join(dir, "go.mod")
++
++		data, err := lockedfile.Read(gomod)
++		if err != nil {
++			return nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(gomod), err))
++		}
++		f, err = modfile.ParseLax(gomod, data, nil)
++		if err != nil {
++			return nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err))
++		}
++	} else {
++		if !semver.IsValid(m.Version) {
++			// Disallow the broader queries supported by fetch.Lookup.
++			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
++		}
++
++		data, err := modfetch.GoMod(m.Path, m.Version)
++		if err != nil {
++			return nil, err
++		}
++		f, err = modfile.ParseLax("go.mod", data, nil)
++		if err != nil {
++			return nil, module.VersionError(m, fmt.Errorf("parsing go.mod: %v", err))
++		}
++	}
++
++	if f.Module != nil {
++		summary.module = f.Module.Mod
++	}
++	if f.Go != nil && f.Go.Version != "" {
++		rawGoVersion.LoadOrStore(m, f.Go.Version)
++		summary.goVersionV = "v" + f.Go.Version
++	}
++	if len(f.Require) > 0 {
++		summary.require = make([]module.Version, 0, len(f.Require))
++		for _, req := range f.Require {
++			summary.require = append(summary.require, req.Mod)
++		}
++	}
++
++	return summary, nil
++}
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 873f5891c9..6b6ad945e4 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -6,20 +6,15 @@ package modload
+ 
+ import (
+ 	"context"
+-	"errors"
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+ 
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+-	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/par"
+ 
+-	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+ )
+@@ -28,7 +23,7 @@ import (
+ // with any exclusions or replacements applied internally.
+ type mvsReqs struct {
+ 	buildList []module.Version
+-	cache     par.Cache
++	cache     par.Cache // module.Version → Required method results
+ }
+ 
+ // Reqs returns the current module requirement graph.
+@@ -42,113 +37,21 @@ func Reqs() mvs.Reqs {
+ }
+ 
+ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
+-	type cached struct {
+-		list []module.Version
+-		err  error
+-	}
+-
+-	c := r.cache.Do(mod, func() interface{} {
+-		list, err := r.required(mod)
+-		if err != nil {
+-			return cached{nil, err}
+-		}
+-		if index != nil && len(index.exclude) > 0 {
+-			// Drop requirements on excluded versions.
+-			nonExcluded := list[:0]
+-			for _, r := range list {
+-				if !index.exclude[r] {
+-					nonExcluded = append(nonExcluded, r)
+-				}
+-			}
+-			list = nonExcluded
+-		}
+-
+-		return cached{list, nil}
+-	}).(cached)
+-
+-	return c.list, c.err
+-}
+-
+-func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
+-	list := make([]module.Version, 0, len(f.Require))
+-	for _, r := range f.Require {
+-		list = append(list, r.Mod)
+-	}
+-	return list
+-}
+-
+-// required returns a unique copy of the requirements of mod.
+-func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 	if mod == Target {
+-		if modFile != nil && modFile.Go != nil {
+-			rawGoVersion.LoadOrStore(mod, modFile.Go.Version)
+-		}
+-		return append([]module.Version(nil), r.buildList[1:]...), nil
+-	}
+-
+-	if cfg.BuildMod == "vendor" {
+-		// For every module other than the target,
+-		// return the full list of modules from modules.txt.
+-		readVendorList()
+-		return append([]module.Version(nil), vendorList...), nil
+-	}
+-
+-	origPath := mod.Path
+-	if repl := Replacement(mod); repl.Path != "" {
+-		if repl.Version == "" {
+-			// TODO: need to slip the new version into the tags list etc.
+-			dir := repl.Path
+-			if !filepath.IsAbs(dir) {
+-				dir = filepath.Join(ModRoot(), dir)
+-			}
+-			gomod := filepath.Join(dir, "go.mod")
+-			data, err := lockedfile.Read(gomod)
+-			if err != nil {
+-				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
+-			}
+-			f, err := modfile.ParseLax(gomod, data, nil)
+-			if err != nil {
+-				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
+-			}
+-			if f.Go != nil {
+-				rawGoVersion.LoadOrStore(repl, f.Go.Version)
+-			}
+-			return r.modFileToList(f), nil
+-		}
+-		mod = repl
++		// Use the build list as it existed when r was constructed, not the current
++		// global build list.
++		return r.buildList[1:], nil
+ 	}
+ 
+ 	if mod.Version == "none" {
+ 		return nil, nil
+ 	}
+ 
+-	if !semver.IsValid(mod.Version) {
+-		// Disallow the broader queries supported by fetch.Lookup.
+-		base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", mod.Path, mod.Version)
+-	}
+-
+-	data, err := modfetch.GoMod(mod.Path, mod.Version)
++	summary, err := goModSummary(mod)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	f, err := modfile.ParseLax("go.mod", data, nil)
+-	if err != nil {
+-		return nil, module.VersionError(mod, fmt.Errorf("parsing go.mod: %v", err))
+-	}
+-
+-	if f.Module == nil {
+-		return nil, module.VersionError(mod, errors.New("parsing go.mod: missing module line"))
+-	}
+-	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
+-		return nil, module.VersionError(mod, fmt.Errorf(`parsing go.mod:
+-	module declares its path as: %s
+-	        but was required as: %s`, mpath, origPath))
+-	}
+-	if f.Go != nil {
+-		rawGoVersion.LoadOrStore(mod, f.Go.Version)
+-	}
+-
+-	return r.modFileToList(f), nil
++	return summary.require, nil
+ }
+ 
+ // Max returns the maximum of v1 and v2 according to semver.Compare.
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index 7e1bc9ea4f..6dddd4b036 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -18,7 +18,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go: example.com@v0.0.0: parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "14c0d48ead0c" invalid: must be of the form v1.2.3'
++stderr 'go: example.com@v0.0.0 \(replaced by \./\..\): parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "14c0d48ead0c" invalid: must be of the form v1.2.3'
+ cd ..
+ go list -m golang.org/x/text
+ stdout 'golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'
+@@ -46,7 +46,7 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v2.1.1-0.20170915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go: example.com@v0.0.0: parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
++stderr 'go: example.com@v0.0.0 \(replaced by \./\.\.\): parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
+ cd ..
+ ! go list -m golang.org/x/text
+ stderr $WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'

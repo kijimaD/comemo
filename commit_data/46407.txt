@@ -15,6 +15,22 @@ Date:   Sun Dec 27 10:48:10 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/func.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 50f514a6db..a9d92c668c 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -527,9 +527,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 	default:
+ 		n.SetOp(ir.OCALLFUNC)
+ 		if t.Kind() != types.TFUNC {
+-			// TODO(mdempsky): Remove "o.Sym() != nil" once we stop
+-			// using ir.Name for numeric literals.
+-			if o := ir.Orig(l); o.Name() != nil && o.Sym() != nil && types.BuiltinPkg.Lookup(o.Sym().Name).Def != nil {
++			if o := ir.Orig(l); o.Name() != nil && types.BuiltinPkg.Lookup(o.Sym().Name).Def != nil {
+ 				// be more specific when the non-function
+ 				// name matches a predeclared function
+ 				base.Errorf("cannot call non-function %L, declared at %s",

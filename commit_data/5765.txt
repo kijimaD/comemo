@@ -7,6 +7,56 @@ Date:   Fri Jul 2 13:32:02 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/1674045
-
+---
  doc/go_learning.html | 24 +++++++++++++++++++++++-
  1 file changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_learning.html b/doc/go_learning.html
+index 072d047f07..630daf0861 100644
+--- a/doc/go_learning.html
++++ b/doc/go_learning.html
+@@ -68,6 +68,15 @@ An introduction to Go for C++ programmers.
+ How to write a new package and how to test code.
+ </p>
+ 
++
++<h2 id="tutorials_nonenglish">Tutorials in languages other than English</h2>
++
++<h3 id="tutorial_de"><a href="http://bitloeffel.de/DOC/golang/go_tutorial_20100613_de.html">Eine Anleitung zum Programmieren in Go</a></h3>
++<p>
++A German translation of the Go Tutorial.
++</p>
++
++
+ <h2 id="faqs">Frequently Asked Questions</h2>
+ 
+ <h3 id="go_faq"><a href="go_faq.html">Go FAQ</a></h3>
+@@ -85,7 +94,7 @@ Answers to common questions about the design decisions behind Go.
+ Answers to common questions about programming with Go.
+ </p>
+ 
+-<h2 id="faqs">Development</h2>
++<h2 id="dev">Development</h2>
+ 
+ <h3 id="contibute"><a href="contribute.html">Contributing to the Go project</a></h3>
+ <p>
+@@ -125,6 +134,19 @@ A YouTube channel that includes screencasts and other Go-related videos:
+ A short promotional video featuring Russ Cox demonstrating Go's fast compiler.
+ </p>
+ 
++<h2 id="codewalks">Codewalks</h2>
++
++<h3 id="codewalk_sharemem"><a href="codewalk/sharemem/">Share Memory By Communicating</a></h3>
++<p>
++A demonstration of the practical use of goroutines and channels.
++</p>
++
++<h3 id="codewalk_codewalk"><a href="codewalk/codewalk/">How to write a Codewalk</a></h3>
++<p>
++A self-describing Codewalk.
++</p>
++
++
+ <h2 id="blogs">Blog Posts</h2>
+ <p>
+ Articles about Go from external blogs.

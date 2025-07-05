@@ -12,6 +12,25 @@ Date:   Wed Jan 23 15:15:06 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/159077
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/sql.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 38a173adba..8cdc903c68 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2256,6 +2256,13 @@ var (
+ 
+ // Stmt is a prepared statement.
+ // A Stmt is safe for concurrent use by multiple goroutines.
++//
++// If a Stmt is prepared on a Tx or Conn, it will be bound to a single
++// underlying connection forever. If the Tx or Conn closes, the Stmt will
++// become unusable and all operations will return an error.
++// If a Stmt is prepared on a DB, it will remain usable for the lifetime of the
++// DB. When the Stmt needs to execute on a new underlying connection, it will
++// prepare itself on the new connection automatically.
+ type Stmt struct {
+ 	// Immutable:
+ 	db        *DB    // where we came from

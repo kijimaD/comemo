@@ -14,6 +14,20 @@ Date:   Tue Jan 16 17:00:51 2018 -0800
     Change-Id: I52409aebe13ec784ddd7e41190a81c7e126bdd0c
     Reviewed-on: https://go-review.googlesource.com/87901
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index d01ad6056e..0a872e03ef 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1036,7 +1036,7 @@ func (p *parser) type_() Expr {
+ 	if typ == nil {
+ 		typ = p.bad()
+ 		p.syntax_error("expecting type")
+-		p.advance()
++		p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
+ 	}
+ 
+ 	return typ

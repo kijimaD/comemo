@@ -19,9 +19,213 @@ Date:   Tue Apr 6 10:17:28 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/internal/lex/input.go | 10 +++++-----
  src/runtime/asm_amd64.s           | 10 +++++-----
  src/runtime/race_amd64.s          | 18 +++++++++---------
  src/runtime/sys_linux_amd64.s     |  8 ++++----
  4 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index d3ad328954..8aa6becf55 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -57,19 +57,19 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
+ 			}
+ 		}
+ 		if objabi.Experiment.RegabiWrappers {
+-			set("GOEXPERIMENT_REGABI_WRAPPERS")
++			set("GOEXPERIMENT_regabiwrappers")
+ 		}
+ 		if objabi.Experiment.RegabiG {
+-			set("GOEXPERIMENT_REGABI_G")
++			set("GOEXPERIMENT_regabig")
+ 		}
+ 		if objabi.Experiment.RegabiReflect {
+-			set("GOEXPERIMENT_REGABI_REFLECT")
++			set("GOEXPERIMENT_regabireflect")
+ 		}
+ 		if objabi.Experiment.RegabiDefer {
+-			set("GOEXPERIMENT_REGABI_DEFER")
++			set("GOEXPERIMENT_regabidefer")
+ 		}
+ 		if objabi.Experiment.RegabiArgs {
+-			set("GOEXPERIMENT_REGABI_ARGS")
++			set("GOEXPERIMENT_regabiargs")
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index c245fce7ef..c0bfcb7ade 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -285,7 +285,7 @@ TEXT gogo<>(SB), NOSPLIT, $0
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return. It should gogo(&g->sched)
+ // to keep running g.
+-#ifdef GOEXPERIMENT_REGABI_ARGS
++#ifdef GOEXPERIMENT_regabiargs
+ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $0-8
+ 	MOVQ	AX, DX	// DX = fn
+ 
+@@ -471,7 +471,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ 	MOVL	$0, DX
+ 	JMP	runtime·morestack(SB)
+ 
+-#ifdef GOEXPERIMENT_REGABI_REFLECT
++#ifdef GOEXPERIMENT_regabireflect
+ // spillArgs stores return values from registers to a *internal/abi.RegArgs in R12.
+ TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+ 	MOVQ AX, 0(R12)
+@@ -689,7 +689,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+ // or else unwinding from systemstack_switch is incorrect.
+ // Smashes R9.
+ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
+-#ifndef GOEXPERIMENT_REGABI_G
++#ifndef GOEXPERIMENT_regabig
+ 	get_tls(R14)
+ 	MOVQ	g(R14), R14
+ #endif
+@@ -1499,7 +1499,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ // signals. It is quite painful to set X15 in the signal context,
+ // so we do it here.
+ TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
+-#ifdef GOEXPERIMENT_REGABI_G
++#ifdef GOEXPERIMENT_regabig
+ 	get_tls(R14)
+ 	MOVQ	g(R14), R14
+ 	XORPS	X15, X15
+@@ -1521,7 +1521,7 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
+ 	MOVQ	R13, 104(SP)
+ 	// TODO: Consider passing g.m.p in as an argument so they can be shared
+ 	// across a sequence of write barriers.
+-#ifdef GOEXPERIMENT_REGABI_G
++#ifdef GOEXPERIMENT_regabig
+ 	MOVQ	g_m(R14), R13
+ #else
+ 	get_tls(R13)
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 426777b8bf..bb3afeb6ee 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -44,7 +44,7 @@
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+ // which would render runtime.getcallerpc ineffective.
+ TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
+-#ifdef GOEXPERIMENT_REGABI_ARGS
++#ifdef GOEXPERIMENT_regabiargs
+ 	MOVQ	AX, RARG1
+ #else
+ 	MOVQ	addr+0(FP), RARG1
+@@ -74,7 +74,7 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+ // which would render runtime.getcallerpc ineffective.
+ TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
+-#ifdef GOEXPERIMENT_REGABI_ARGS
++#ifdef GOEXPERIMENT_regabiargs
+ 	MOVQ	AX, RARG1
+ #else
+ 	MOVQ	addr+0(FP), RARG1
+@@ -129,7 +129,7 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+ // which would render runtime.getcallerpc ineffective.
+ TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
+-#ifdef GOEXPERIMENT_REGABI_ARGS
++#ifdef GOEXPERIMENT_regabiargs
+ 	MOVQ	AX, RARG1
+ 	MOVQ	BX, RARG2
+ #else
+@@ -159,7 +159,7 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
+ // If addr (RARG1) is out of range, do nothing.
+ // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
+ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
+-#ifndef GOEXPERIMENT_REGABI_G
++#ifndef GOEXPERIMENT_regabig
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -190,7 +190,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ // R11 = caller's return address
+ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ 	MOVQ	DX, BX		// save function entry context (for closures)
+-#ifndef GOEXPERIMENT_REGABI_G
++#ifndef GOEXPERIMENT_regabig
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -206,7 +206,7 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ // func runtime·racefuncexit()
+ // Called from instrumented code.
+ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
+-#ifndef GOEXPERIMENT_REGABI_G
++#ifndef GOEXPERIMENT_regabig
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -368,7 +368,7 @@ racecallatomic_data:
+ 	JAE	racecallatomic_ignore
+ racecallatomic_ok:
+ 	// Addr is within the good range, call the atomic function.
+-#ifndef GOEXPERIMENT_REGABI_G
++#ifndef GOEXPERIMENT_regabig
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -383,7 +383,7 @@ racecallatomic_ignore:
+ 	// An attempt to synchronize on the address would cause crash.
+ 	MOVQ	AX, BX	// remember the original function
+ 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
+-#ifndef GOEXPERIMENT_REGABI_G
++#ifndef GOEXPERIMENT_regabig
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -414,7 +414,7 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
+ 
+ // Switches SP to g0 stack and calls (AX). Arguments already set.
+ TEXT	racecall<>(SB), NOSPLIT, $0-0
+-#ifndef GOEXPERIMENT_REGABI_G
++#ifndef GOEXPERIMENT_regabig
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 7b538c3e2f..215277a9cf 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -215,7 +215,7 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+ 
+ 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
+ 
+-#ifdef GOEXPERIMENT_REGABI_G
++#ifdef GOEXPERIMENT_regabig
+ 	MOVQ	g_m(R14), BX // BX unchanged by C code.
+ #else
+ 	get_tls(CX)
+@@ -236,7 +236,7 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+ 	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	DX, m_vdsoSP(BX)
+ 
+-#ifdef GOEXPERIMENT_REGABI_G
++#ifdef GOEXPERIMENT_regabig
+ 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
+ #else
+ 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
+@@ -283,7 +283,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 
+ 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
+ 
+-#ifdef GOEXPERIMENT_REGABI_G
++#ifdef GOEXPERIMENT_regabig
+ 	MOVQ	g_m(R14), BX // BX unchanged by C code.
+ #else
+ 	get_tls(CX)
+@@ -304,7 +304,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	DX, m_vdsoSP(BX)
+ 
+-#ifdef GOEXPERIMENT_REGABI_G
++#ifdef GOEXPERIMENT_regabig
+ 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
+ #else
+ 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.

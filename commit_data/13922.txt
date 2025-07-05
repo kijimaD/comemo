@@ -9,6 +9,20 @@ Date:   Mon Sep 24 11:47:27 2012 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/6543067
-
+---
  src/pkg/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 4878f2dc28..493a6721d8 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -1101,7 +1101,7 @@ func (t *commonType) AssignableTo(u Type) bool {
+ 
+ func (t *commonType) ConvertibleTo(u Type) bool {
+ 	if u == nil {
+-		panic("reflect: nil type passed to Type.AssignableTo")
++		panic("reflect: nil type passed to Type.ConvertibleTo")
+ 	}
+ 	uu := u.(*commonType)
+ 	return convertOp(uu, t) != nil

@@ -9,8 +9,67 @@ Date:   Mon Mar 29 15:27:59 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/839041
-
+---
  src/cmd/gc/walk.c                  | 25 ++++++++++++++++++++-----
  test/{bugs => fixedbugs}/bug265.go |  0
  test/golden.out                    |  3 ---
  3 files changed, 20 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index fa6157bb02..b64d58e7fe 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -328,6 +328,23 @@ samelist(NodeList *a, NodeList *b)
+ 	return a == b;
+ }
+ 
++static int
++paramoutheap(Node *fn)
++{
++	NodeList *l;
++	
++	for(l=fn->dcl; l; l=l->next) {
++		switch(l->n->class) {
++		case PPARAMOUT|PHEAP:
++			return 1;
++		case PAUTO:
++		case PAUTO|PHEAP:
++			// stop early - parameters are over
++			return 0;
++		}
++	}
++	return 0;
++}
+ 
+ void
+ walkstmt(Node **np)
+@@ -441,11 +458,9 @@ walkstmt(Node **np)
+ 
+ 	case ORETURN:
+ 		walkexprlist(n->list, &n->ninit);
+-		if(curfn->type->outnamed && count(n->list) != 1) {
+-			if(n->list == nil) {
+-				// print("special return\n");
+-				break;
+-			}
++		if(n->list == nil)
++			break;
++		if((curfn->type->outnamed && count(n->list) > 1) || paramoutheap(curfn)) {
+ 			// assign to the function out parameters,
+ 			// so that reorder3 can fix up conflicts
+ 			rl = nil;
+diff --git a/test/bugs/bug265.go b/test/fixedbugs/bug265.go
+similarity index 100%
+rename from test/bugs/bug265.go
+rename to test/fixedbugs/bug265.go
+diff --git a/test/golden.out b/test/golden.out
+index f83f15996c..9e08b20e01 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -192,6 +192,3 @@ bal
+ barCount != 1
+ panic PC=xxx
+ BUG
+-
+-=========== bugs/bug265.go
+-BUG

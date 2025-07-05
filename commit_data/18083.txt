@@ -12,7 +12,40 @@ Date:   Thu Dec 19 12:14:07 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/35330043
-
+---
  src/cmd/yacc/Makefile | 8 +++++---
  src/cmd/yacc/expr.y   | 2 +-
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/yacc/Makefile b/src/cmd/yacc/Makefile
+index 480844805f..f8c8169bd1 100644
+--- a/src/cmd/yacc/Makefile
++++ b/src/cmd/yacc/Makefile
+@@ -2,9 +2,11 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-expr: yacc.go expr.y
++TARG=expr$(shell go env GOEXE)
++
++$(TARG): yacc.go expr.y
+ 	go run yacc.go -p expr expr.y
+-	go build -o expr y.go
++	go build -o $(TARG) y.go
+ 
+ clean:
+-	rm -f y.go y.output expr
++	rm -f y.go y.output $(TARG)
+diff --git a/src/cmd/yacc/expr.y b/src/cmd/yacc/expr.y
+index 3afffe7ee8..77e9259dae 100644
+--- a/src/cmd/yacc/expr.y
++++ b/src/cmd/yacc/expr.y
+@@ -125,7 +125,7 @@ func (x *exprLex) Lex(yylval *exprSymType) int {
+ 		case '÷':
+ 			return '/'
+ 
+-		case ' ', '\t', '\n':
++		case ' ', '\t', '\n', '\r':
+ 		default:
+ 			log.Printf("unrecognized character %q", c)
+ 		}

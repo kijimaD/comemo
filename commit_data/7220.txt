@@ -9,8 +9,80 @@ Date:   Sat Jan 22 00:10:11 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4044043
-
+---
  src/pkg/gob/codec_test.go   |  4 ++--
  src/pkg/gob/encode.go       | 19 +++++++++----------
  src/pkg/gob/encoder_test.go |  2 +-
  3 files changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 4b8bd347e8..eb1ff5c616 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -1088,11 +1088,11 @@ func (v Vector) Square() int {
+ }
+ 
+ type Point struct {
+-	a, b int
++	X, Y int
+ }
+ 
+ func (p Point) Square() int {
+-	return p.a*p.a + p.b*p.b
++	return p.X*p.X + p.Y*p.Y
+ }
+ 
+ // A struct with interfaces in it.
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index d286a7e00b..832bc340fd 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -264,9 +264,6 @@ func encComplex128(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 	}
+ }
+ 
+-func encNoOp(i *encInstr, state *encoderState, p unsafe.Pointer) {
+-}
+-
+ // Byte arrays are encoded as an unsigned count followed by the raw bytes.
+ func encUint8Array(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 	b := *(*[]byte)(p)
+@@ -516,16 +513,18 @@ func (enc *Encoder) compileEnc(rt reflect.Type) *encEngine {
+ 	srt, isStruct := rt.(*reflect.StructType)
+ 	engine := new(encEngine)
+ 	if isStruct {
+-		engine.instr = make([]encInstr, srt.NumField()+1) // +1 for terminator
+-		for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
+-			f := srt.Field(fieldnum)
+-			op, indir := enc.encOpFor(f.Type)
++		for fieldNum := 0; fieldNum < srt.NumField(); fieldNum++ {
++			f := srt.Field(fieldNum)
+ 			if !isExported(f.Name) {
+-				op = encNoOp
++				continue
+ 			}
+-			engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)}
++			op, indir := enc.encOpFor(f.Type)
++			engine.instr = append(engine.instr, encInstr{op, fieldNum, indir, uintptr(f.Offset)})
++		}
++		if srt.NumField() > 0 && len(engine.instr) == 0 {
++			errorf("type %s has no exported fields", rt)
+ 		}
+-		engine.instr[srt.NumField()] = encInstr{encStructTerminator, 0, 0, 0}
++		engine.instr = append(engine.instr, encInstr{encStructTerminator, 0, 0, 0})
+ 	} else {
+ 		engine.instr = make([]encInstr, 1)
+ 		op, indir := enc.encOpFor(rt)
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index c2309352a0..402fd2a13d 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -220,7 +220,7 @@ func TestSlice(t *testing.T) {
+ func TestValueError(t *testing.T) {
+ 	// Encode a *T, decode a T
+ 	type Type4 struct {
+-		a int
++		A int
+ 	}
+ 	t4p := &Type4{3}
+ 	var t4 Type4 // note: not a pointer.

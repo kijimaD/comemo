@@ -14,8 +14,49 @@ Date:   Mon Apr 17 16:13:59 2017 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/errors/issue18889.go | 7 +++++++
  misc/cgo/errors/test.bash     | 1 +
  src/cmd/cgo/gcc.go            | 4 ++++
  3 files changed, 12 insertions(+)
+
+diff --git a/misc/cgo/errors/issue18889.go b/misc/cgo/errors/issue18889.go
+new file mode 100644
+index 0000000000..bba6b8f9bb
+--- /dev/null
++++ b/misc/cgo/errors/issue18889.go
+@@ -0,0 +1,7 @@
++package main
++
++import "C"
++
++func main() {
++	_ = C.malloc // ERROR HERE
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index 27d7dc1cfe..e9e36ce2cf 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -47,6 +47,7 @@ expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulongl
+ check issue13830.go
+ check issue16116.go
+ check issue16591.go
++check issue18889.go
+ 
+ if ! go build issue14669.go; then
+ 	exit 1
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 8be5f25e6d..3b6d4580de 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1086,6 +1086,10 @@ func (p *Package) rewriteRef(f *File) {
+ 			}
+ 		case "expr":
+ 			if r.Name.Kind == "func" {
++				if builtinDefs[r.Name.C] != "" {
++					error_(r.Pos(), "use of builtin '%s' not in function call", fixGo(r.Name.C))
++				}
++
+ 				// Function is being used in an expression, to e.g. pass around a C function pointer.
+ 				// Create a new Name for this Ref which causes the variable to be declared in Go land.
+ 				fpName := "fp_" + r.Name.Go

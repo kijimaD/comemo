@@ -16,6 +16,27 @@ Date:   Thu Oct 8 02:12:43 2020 +0000
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/envcmd/env.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index b5a48558fa..557e418921 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -217,6 +217,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 		needCostly = true
+ 	} else {
+ 		needCostly = false
++	checkCostly:
+ 		for _, arg := range args {
+ 			switch argKey(arg) {
+ 			case "CGO_CFLAGS",
+@@ -227,6 +228,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 				"PKG_CONFIG",
+ 				"GOGCCFLAGS":
+ 				needCostly = true
++				break checkCostly
+ 			}
+ 		}
+ 	}

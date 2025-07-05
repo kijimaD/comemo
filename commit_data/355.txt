@@ -5,7 +5,85 @@ Date:   Mon Jul 14 20:40:48 2008 -0700
     go call fn address
     
     SVN=127151
-
+---
  src/cmd/6g/gen.c    | 10 ++++++++--
  src/cmd/gc/export.c |  8 ++++----
  2 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 0fcfe717c8..a487d13c6f 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -606,8 +606,11 @@ ginscall(Node *f, int proc)
+ 
+ 	if(proc) {
+ 		nodreg(&reg, types[TINT64], D_AX);
+-		gins(ALEAQ, f, &reg);
+-		gins(APUSHQ, &reg, N);
++		if(f->op != OREGISTER) {
++			gins(ALEAQ, f, &reg);
++			gins(APUSHQ, &reg, N);
++		} else
++			gins(APUSHQ, f, N);
+ 		nodconst(&con, types[TINT32], argsize(f->type));
+ 		gins(APUSHQ, &con, N);
+ 		gins(ACALL, N, newproc);
+@@ -658,6 +661,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	nodo.xoffset = n->left->xoffset + 4*widthptr;
+ 	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
+ 
++	// BOTCH nodr.type = fntype;
+ 	ginscall(&nodr, proc);
+ 
+ 	regfree(&nodr);
+@@ -717,6 +721,7 @@ cgen_call(Node *n, int proc)
+ 	if(n->left->ullman >= UINF) {
+ 		regalloc(&nod, types[tptr], N);
+ 		cgen_as(&nod, &afun, 0);
++		nod.type = t;
+ 		ginscall(&nod, proc);
+ 		regfree(&nod);
+ 		goto ret;
+@@ -726,6 +731,7 @@ cgen_call(Node *n, int proc)
+ 	if(isptr[n->left->type->etype]) {
+ 		regalloc(&nod, types[tptr], N);
+ 		cgen_as(&nod, n->left, 0);
++		nod.type = t;
+ 		ginscall(&nod, proc);
+ 		regfree(&nod);
+ 		goto ret;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 31972ba241..c8bfe8c605 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -118,7 +118,7 @@ dumpexportvar(Sym *s)
+ 
+ 	n = s->oname;
+ 	if(n == N || n->type == T) {
+-		yyerror("variable exported but not defined: %S\n", s);
++		yyerror("variable exported but not defined: %S", s);
+ 		return;
+ 	}
+ 
+@@ -144,7 +144,7 @@ dumpexporttype(Sym *s)
+ 
+ 	t = s->otype;
+ 	if(t == T) {
+-		yyerror("type exported but not defined: %S\n", s);
++		yyerror("type exported but not defined: %S", s);
+ 		return;
+ 	}
+ 
+@@ -251,10 +251,10 @@ dumpe(Sym *s)
+ {
+ 	switch(s->lexical) {
+ 	default:
+-		yyerror("unknown export symbol: %S\n", s, s->lexical);
++		yyerror("unknown export symbol: %S", s, s->lexical);
+ 		break;
+ 	case LPACK:
+-		yyerror("package export symbol: %S\n", s);
++		yyerror("package export symbol: %S", s);
+ 		break;
+ 	case LATYPE:
+ 	case LBASETYPE:

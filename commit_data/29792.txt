@@ -21,7 +21,7 @@ Date:   Tue Oct 4 07:11:55 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/crash_cgo_test.go                   |  4 ++
  src/runtime/defs_plan9_386.go                   |  3 +
  src/runtime/defs_plan9_amd64.go                 |  3 +
@@ -61,3 +61,1723 @@ Date:   Tue Oct 4 07:11:55 2016 -0700
  src/runtime/signal_unix.go                      |  9 +--
  src/runtime/testdata/testprogcgo/threadpprof.go |  8 +++
  38 files changed, 726 insertions(+), 491 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 2642c28f0d..34d1f0594a 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -311,6 +311,10 @@ func TestCgoPprofThread(t *testing.T) {
+ 	testCgoPprof(t, "", "CgoPprofThread")
+ }
+ 
++func TestCgoPprofThreadNoTraceback(t *testing.T) {
++	testCgoPprof(t, "", "CgoPprofThreadNoTraceback")
++}
++
+ func TestRaceProf(t *testing.T) {
+ 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+ 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+diff --git a/src/runtime/defs_plan9_386.go b/src/runtime/defs_plan9_386.go
+index 54ace4871e..220169d280 100644
+--- a/src/runtime/defs_plan9_386.go
++++ b/src/runtime/defs_plan9_386.go
+@@ -28,7 +28,10 @@ type sigctxt struct {
+ 	u *ureg
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) pc() uintptr { return uintptr(c.u.pc) }
++
+ func (c *sigctxt) sp() uintptr { return uintptr(c.u.sp) }
+ func (c *sigctxt) lr() uintptr { return uintptr(0) }
+ 
+diff --git a/src/runtime/defs_plan9_amd64.go b/src/runtime/defs_plan9_amd64.go
+index 1633ec1e0b..29a2643c3a 100644
+--- a/src/runtime/defs_plan9_amd64.go
++++ b/src/runtime/defs_plan9_amd64.go
+@@ -37,7 +37,10 @@ type sigctxt struct {
+ 	u *ureg
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) pc() uintptr { return uintptr(c.u.ip) }
++
+ func (c *sigctxt) sp() uintptr { return uintptr(c.u.sp) }
+ func (c *sigctxt) lr() uintptr { return uintptr(0) }
+ 
+diff --git a/src/runtime/defs_plan9_arm.go b/src/runtime/defs_plan9_arm.go
+index 9c700ae1c0..1adc16e47f 100644
+--- a/src/runtime/defs_plan9_arm.go
++++ b/src/runtime/defs_plan9_arm.go
+@@ -31,7 +31,10 @@ type sigctxt struct {
+ 	u *ureg
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) pc() uintptr { return uintptr(c.u.pc) }
++
+ func (c *sigctxt) sp() uintptr { return uintptr(c.u.sp) }
+ func (c *sigctxt) lr() uintptr { return uintptr(c.u.link) }
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2c50fb5afe..b74cb88506 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3194,7 +3194,8 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ var sigprofCallers cgoCallers
+ var sigprofCallersUse uint32
+ 
+-// Called if we receive a SIGPROF signal on a non-Go thread.
++// sigprofNonGo is called if we receive a SIGPROF signal on a non-Go thread,
++// and the signal handler collected a stack trace in sigprofCallers.
+ // When this is called, sigprofCallersUse will be non-zero.
+ // g is nil, and what we can do is very limited.
+ //go:nosplit
+@@ -3207,17 +3208,41 @@ func sigprofNonGo() {
+ 		}
+ 
+ 		// Simple cas-lock to coordinate with setcpuprofilerate.
+-		if atomic.Cas(&prof.lock, 0, 1) {
+-			if prof.hz != 0 {
+-				cpuprof.addNonGo(sigprofCallers[:n])
+-			}
+-			atomic.Store(&prof.lock, 0)
++		for !atomic.Cas(&prof.lock, 0, 1) {
++			osyield()
+ 		}
++		if prof.hz != 0 {
++			cpuprof.addNonGo(sigprofCallers[:n])
++		}
++		atomic.Store(&prof.lock, 0)
+ 	}
+ 
+ 	atomic.Store(&sigprofCallersUse, 0)
+ }
+ 
++// sigprofNonGoPC is called when a profiling signal arrived on a
++// non-Go thread and we have a single PC value, not a stack trace.
++// g is nil, and what we can do is very limited.
++//go:nosplit
++//go:nowritebarrierrec
++func sigprofNonGoPC(pc uintptr) {
++	if prof.hz != 0 {
++		pc := []uintptr{
++			pc,
++			funcPC(_ExternalCode) + sys.PCQuantum,
++		}
++
++		// Simple cas-lock to coordinate with setcpuprofilerate.
++		for !atomic.Cas(&prof.lock, 0, 1) {
++			osyield()
++		}
++		if prof.hz != 0 {
++			cpuprof.addNonGo(pc)
++		}
++		atomic.Store(&prof.lock, 0)
++	}
++}
++
+ // Reports whether a function will set the SP
+ // to an absolute value. Important that
+ // we don't traceback when these are at the bottom
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index 502d502e6f..8807552da2 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -27,7 +27,10 @@ func dumpregs(c *sigctxt) {
+ 	print("gs     ", hex(c.gs()), "\n")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) sigpc() uintptr { return uintptr(c.eip()) }
++
+ func (c *sigctxt) sigsp() uintptr { return uintptr(c.esp()) }
+ func (c *sigctxt) siglr() uintptr { return 0 }
+ func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index 78afb5a9f4..c8a6513261 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -36,7 +36,10 @@ func dumpregs(c *sigctxt) {
+ 	print("gs     ", hex(c.gs()), "\n")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) sigpc() uintptr { return uintptr(c.rip()) }
++
+ func (c *sigctxt) sigsp() uintptr { return uintptr(c.rsp()) }
+ func (c *sigctxt) siglr() uintptr { return 0 }
+ func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index 0733ec0042..9748544e0e 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -32,7 +32,10 @@ func dumpregs(c *sigctxt) {
+ 	print("fault   ", hex(c.fault()), "\n")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
++
+ func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
+ func (c *sigctxt) siglr() uintptr { return uintptr(c.lr()) }
+ 
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 8f0a6a540b..4c6df425d8 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -48,7 +48,10 @@ func dumpregs(c *sigctxt) {
+ 	print("fault   ", hex(c.fault()), "\n")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
++
+ func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
+ func (c *sigctxt) siglr() uintptr { return uintptr(c.lr()) }
+ 
+diff --git a/src/runtime/signal_darwin_386.go b/src/runtime/signal_darwin_386.go
+index 056f09ab1e..c162959c12 100644
+--- a/src/runtime/signal_darwin_386.go
++++ b/src/runtime/signal_darwin_386.go
+@@ -11,16 +11,23 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
+-func (c *sigctxt) regs() *regs32   { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
+-func (c *sigctxt) eax() uint32     { return c.regs().eax }
+-func (c *sigctxt) ebx() uint32     { return c.regs().ebx }
+-func (c *sigctxt) ecx() uint32     { return c.regs().ecx }
+-func (c *sigctxt) edx() uint32     { return c.regs().edx }
+-func (c *sigctxt) edi() uint32     { return c.regs().edi }
+-func (c *sigctxt) esi() uint32     { return c.regs().esi }
+-func (c *sigctxt) ebp() uint32     { return c.regs().ebp }
+-func (c *sigctxt) esp() uint32     { return c.regs().esp }
+-func (c *sigctxt) eip() uint32     { return c.regs().eip }
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) regs() *regs32 { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
++
++func (c *sigctxt) eax() uint32 { return c.regs().eax }
++func (c *sigctxt) ebx() uint32 { return c.regs().ebx }
++func (c *sigctxt) ecx() uint32 { return c.regs().ecx }
++func (c *sigctxt) edx() uint32 { return c.regs().edx }
++func (c *sigctxt) edi() uint32 { return c.regs().edi }
++func (c *sigctxt) esi() uint32 { return c.regs().esi }
++func (c *sigctxt) ebp() uint32 { return c.regs().ebp }
++func (c *sigctxt) esp() uint32 { return c.regs().esp }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) eip() uint32 { return c.regs().eip }
++
+ func (c *sigctxt) eflags() uint32  { return c.regs().eflags }
+ func (c *sigctxt) cs() uint32      { return c.regs().cs }
+ func (c *sigctxt) fs() uint32      { return c.regs().fs }
+diff --git a/src/runtime/signal_darwin_amd64.go b/src/runtime/signal_darwin_amd64.go
+index 3551b0d63c..40de4812b8 100644
+--- a/src/runtime/signal_darwin_amd64.go
++++ b/src/runtime/signal_darwin_amd64.go
+@@ -11,24 +11,31 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
+-func (c *sigctxt) regs() *regs64   { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
+-func (c *sigctxt) rax() uint64     { return c.regs().rax }
+-func (c *sigctxt) rbx() uint64     { return c.regs().rbx }
+-func (c *sigctxt) rcx() uint64     { return c.regs().rcx }
+-func (c *sigctxt) rdx() uint64     { return c.regs().rdx }
+-func (c *sigctxt) rdi() uint64     { return c.regs().rdi }
+-func (c *sigctxt) rsi() uint64     { return c.regs().rsi }
+-func (c *sigctxt) rbp() uint64     { return c.regs().rbp }
+-func (c *sigctxt) rsp() uint64     { return c.regs().rsp }
+-func (c *sigctxt) r8() uint64      { return c.regs().r8 }
+-func (c *sigctxt) r9() uint64      { return c.regs().r9 }
+-func (c *sigctxt) r10() uint64     { return c.regs().r10 }
+-func (c *sigctxt) r11() uint64     { return c.regs().r11 }
+-func (c *sigctxt) r12() uint64     { return c.regs().r12 }
+-func (c *sigctxt) r13() uint64     { return c.regs().r13 }
+-func (c *sigctxt) r14() uint64     { return c.regs().r14 }
+-func (c *sigctxt) r15() uint64     { return c.regs().r15 }
+-func (c *sigctxt) rip() uint64     { return c.regs().rip }
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) regs() *regs64 { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
++
++func (c *sigctxt) rax() uint64 { return c.regs().rax }
++func (c *sigctxt) rbx() uint64 { return c.regs().rbx }
++func (c *sigctxt) rcx() uint64 { return c.regs().rcx }
++func (c *sigctxt) rdx() uint64 { return c.regs().rdx }
++func (c *sigctxt) rdi() uint64 { return c.regs().rdi }
++func (c *sigctxt) rsi() uint64 { return c.regs().rsi }
++func (c *sigctxt) rbp() uint64 { return c.regs().rbp }
++func (c *sigctxt) rsp() uint64 { return c.regs().rsp }
++func (c *sigctxt) r8() uint64  { return c.regs().r8 }
++func (c *sigctxt) r9() uint64  { return c.regs().r9 }
++func (c *sigctxt) r10() uint64 { return c.regs().r10 }
++func (c *sigctxt) r11() uint64 { return c.regs().r11 }
++func (c *sigctxt) r12() uint64 { return c.regs().r12 }
++func (c *sigctxt) r13() uint64 { return c.regs().r13 }
++func (c *sigctxt) r14() uint64 { return c.regs().r14 }
++func (c *sigctxt) r15() uint64 { return c.regs().r15 }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) rip() uint64 { return c.regs().rip }
++
+ func (c *sigctxt) rflags() uint64  { return c.regs().rflags }
+ func (c *sigctxt) cs() uint64      { return c.regs().cs }
+ func (c *sigctxt) fs() uint64      { return c.regs().fs }
+diff --git a/src/runtime/signal_darwin_arm.go b/src/runtime/signal_darwin_arm.go
+index 82c7c936a7..c88b90c5e2 100644
+--- a/src/runtime/signal_darwin_arm.go
++++ b/src/runtime/signal_darwin_arm.go
+@@ -11,23 +11,30 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
+-func (c *sigctxt) regs() *regs32   { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
+-func (c *sigctxt) r0() uint32      { return c.regs().r[0] }
+-func (c *sigctxt) r1() uint32      { return c.regs().r[1] }
+-func (c *sigctxt) r2() uint32      { return c.regs().r[2] }
+-func (c *sigctxt) r3() uint32      { return c.regs().r[3] }
+-func (c *sigctxt) r4() uint32      { return c.regs().r[4] }
+-func (c *sigctxt) r5() uint32      { return c.regs().r[5] }
+-func (c *sigctxt) r6() uint32      { return c.regs().r[6] }
+-func (c *sigctxt) r7() uint32      { return c.regs().r[7] }
+-func (c *sigctxt) r8() uint32      { return c.regs().r[8] }
+-func (c *sigctxt) r9() uint32      { return c.regs().r[9] }
+-func (c *sigctxt) r10() uint32     { return c.regs().r[10] }
+-func (c *sigctxt) fp() uint32      { return c.regs().r[11] }
+-func (c *sigctxt) ip() uint32      { return c.regs().r[12] }
+-func (c *sigctxt) sp() uint32      { return c.regs().sp }
+-func (c *sigctxt) lr() uint32      { return c.regs().lr }
+-func (c *sigctxt) pc() uint32      { return c.regs().pc }
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) regs() *regs32 { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
++
++func (c *sigctxt) r0() uint32  { return c.regs().r[0] }
++func (c *sigctxt) r1() uint32  { return c.regs().r[1] }
++func (c *sigctxt) r2() uint32  { return c.regs().r[2] }
++func (c *sigctxt) r3() uint32  { return c.regs().r[3] }
++func (c *sigctxt) r4() uint32  { return c.regs().r[4] }
++func (c *sigctxt) r5() uint32  { return c.regs().r[5] }
++func (c *sigctxt) r6() uint32  { return c.regs().r[6] }
++func (c *sigctxt) r7() uint32  { return c.regs().r[7] }
++func (c *sigctxt) r8() uint32  { return c.regs().r[8] }
++func (c *sigctxt) r9() uint32  { return c.regs().r[9] }
++func (c *sigctxt) r10() uint32 { return c.regs().r[10] }
++func (c *sigctxt) fp() uint32  { return c.regs().r[11] }
++func (c *sigctxt) ip() uint32  { return c.regs().r[12] }
++func (c *sigctxt) sp() uint32  { return c.regs().sp }
++func (c *sigctxt) lr() uint32  { return c.regs().lr }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint32 { return c.regs().pc }
++
+ func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
+ func (c *sigctxt) fault() uint32   { return c.info.si_addr }
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
+diff --git a/src/runtime/signal_darwin_arm64.go b/src/runtime/signal_darwin_arm64.go
+index 12fa52096f..b14b9f1e50 100644
+--- a/src/runtime/signal_darwin_arm64.go
++++ b/src/runtime/signal_darwin_arm64.go
+@@ -11,40 +11,47 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *regs64 { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
+-func (c *sigctxt) r0() uint64    { return c.regs().x[0] }
+-func (c *sigctxt) r1() uint64    { return c.regs().x[1] }
+-func (c *sigctxt) r2() uint64    { return c.regs().x[2] }
+-func (c *sigctxt) r3() uint64    { return c.regs().x[3] }
+-func (c *sigctxt) r4() uint64    { return c.regs().x[4] }
+-func (c *sigctxt) r5() uint64    { return c.regs().x[5] }
+-func (c *sigctxt) r6() uint64    { return c.regs().x[6] }
+-func (c *sigctxt) r7() uint64    { return c.regs().x[7] }
+-func (c *sigctxt) r8() uint64    { return c.regs().x[8] }
+-func (c *sigctxt) r9() uint64    { return c.regs().x[9] }
+-func (c *sigctxt) r10() uint64   { return c.regs().x[10] }
+-func (c *sigctxt) r11() uint64   { return c.regs().x[11] }
+-func (c *sigctxt) r12() uint64   { return c.regs().x[12] }
+-func (c *sigctxt) r13() uint64   { return c.regs().x[13] }
+-func (c *sigctxt) r14() uint64   { return c.regs().x[14] }
+-func (c *sigctxt) r15() uint64   { return c.regs().x[15] }
+-func (c *sigctxt) r16() uint64   { return c.regs().x[16] }
+-func (c *sigctxt) r17() uint64   { return c.regs().x[17] }
+-func (c *sigctxt) r18() uint64   { return c.regs().x[18] }
+-func (c *sigctxt) r19() uint64   { return c.regs().x[19] }
+-func (c *sigctxt) r20() uint64   { return c.regs().x[20] }
+-func (c *sigctxt) r21() uint64   { return c.regs().x[21] }
+-func (c *sigctxt) r22() uint64   { return c.regs().x[22] }
+-func (c *sigctxt) r23() uint64   { return c.regs().x[23] }
+-func (c *sigctxt) r24() uint64   { return c.regs().x[24] }
+-func (c *sigctxt) r25() uint64   { return c.regs().x[25] }
+-func (c *sigctxt) r26() uint64   { return c.regs().x[26] }
+-func (c *sigctxt) r27() uint64   { return c.regs().x[27] }
+-func (c *sigctxt) r28() uint64   { return c.regs().x[28] }
+-func (c *sigctxt) r29() uint64   { return c.regs().fp }
+-func (c *sigctxt) lr() uint64    { return c.regs().lr }
+-func (c *sigctxt) sp() uint64    { return c.regs().sp }
+-func (c *sigctxt) pc() uint64    { return c.regs().pc }
++
++func (c *sigctxt) r0() uint64  { return c.regs().x[0] }
++func (c *sigctxt) r1() uint64  { return c.regs().x[1] }
++func (c *sigctxt) r2() uint64  { return c.regs().x[2] }
++func (c *sigctxt) r3() uint64  { return c.regs().x[3] }
++func (c *sigctxt) r4() uint64  { return c.regs().x[4] }
++func (c *sigctxt) r5() uint64  { return c.regs().x[5] }
++func (c *sigctxt) r6() uint64  { return c.regs().x[6] }
++func (c *sigctxt) r7() uint64  { return c.regs().x[7] }
++func (c *sigctxt) r8() uint64  { return c.regs().x[8] }
++func (c *sigctxt) r9() uint64  { return c.regs().x[9] }
++func (c *sigctxt) r10() uint64 { return c.regs().x[10] }
++func (c *sigctxt) r11() uint64 { return c.regs().x[11] }
++func (c *sigctxt) r12() uint64 { return c.regs().x[12] }
++func (c *sigctxt) r13() uint64 { return c.regs().x[13] }
++func (c *sigctxt) r14() uint64 { return c.regs().x[14] }
++func (c *sigctxt) r15() uint64 { return c.regs().x[15] }
++func (c *sigctxt) r16() uint64 { return c.regs().x[16] }
++func (c *sigctxt) r17() uint64 { return c.regs().x[17] }
++func (c *sigctxt) r18() uint64 { return c.regs().x[18] }
++func (c *sigctxt) r19() uint64 { return c.regs().x[19] }
++func (c *sigctxt) r20() uint64 { return c.regs().x[20] }
++func (c *sigctxt) r21() uint64 { return c.regs().x[21] }
++func (c *sigctxt) r22() uint64 { return c.regs().x[22] }
++func (c *sigctxt) r23() uint64 { return c.regs().x[23] }
++func (c *sigctxt) r24() uint64 { return c.regs().x[24] }
++func (c *sigctxt) r25() uint64 { return c.regs().x[25] }
++func (c *sigctxt) r26() uint64 { return c.regs().x[26] }
++func (c *sigctxt) r27() uint64 { return c.regs().x[27] }
++func (c *sigctxt) r28() uint64 { return c.regs().x[28] }
++func (c *sigctxt) r29() uint64 { return c.regs().fp }
++func (c *sigctxt) lr() uint64  { return c.regs().lr }
++func (c *sigctxt) sp() uint64  { return c.regs().sp }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint64 { return c.regs().pc }
++
+ func (c *sigctxt) fault() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
+ 
+ func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
+diff --git a/src/runtime/signal_dragonfly_amd64.go b/src/runtime/signal_dragonfly_amd64.go
+index b32df29d28..c473eddb6d 100644
+--- a/src/runtime/signal_dragonfly_amd64.go
++++ b/src/runtime/signal_dragonfly_amd64.go
+@@ -11,26 +11,33 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *mcontext {
+ 	return (*mcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
+ }
+-func (c *sigctxt) rax() uint64     { return c.regs().mc_rax }
+-func (c *sigctxt) rbx() uint64     { return c.regs().mc_rbx }
+-func (c *sigctxt) rcx() uint64     { return c.regs().mc_rcx }
+-func (c *sigctxt) rdx() uint64     { return c.regs().mc_rdx }
+-func (c *sigctxt) rdi() uint64     { return c.regs().mc_rdi }
+-func (c *sigctxt) rsi() uint64     { return c.regs().mc_rsi }
+-func (c *sigctxt) rbp() uint64     { return c.regs().mc_rbp }
+-func (c *sigctxt) rsp() uint64     { return c.regs().mc_rsp }
+-func (c *sigctxt) r8() uint64      { return c.regs().mc_r8 }
+-func (c *sigctxt) r9() uint64      { return c.regs().mc_r9 }
+-func (c *sigctxt) r10() uint64     { return c.regs().mc_r10 }
+-func (c *sigctxt) r11() uint64     { return c.regs().mc_r11 }
+-func (c *sigctxt) r12() uint64     { return c.regs().mc_r12 }
+-func (c *sigctxt) r13() uint64     { return c.regs().mc_r13 }
+-func (c *sigctxt) r14() uint64     { return c.regs().mc_r14 }
+-func (c *sigctxt) r15() uint64     { return c.regs().mc_r15 }
+-func (c *sigctxt) rip() uint64     { return c.regs().mc_rip }
++
++func (c *sigctxt) rax() uint64 { return c.regs().mc_rax }
++func (c *sigctxt) rbx() uint64 { return c.regs().mc_rbx }
++func (c *sigctxt) rcx() uint64 { return c.regs().mc_rcx }
++func (c *sigctxt) rdx() uint64 { return c.regs().mc_rdx }
++func (c *sigctxt) rdi() uint64 { return c.regs().mc_rdi }
++func (c *sigctxt) rsi() uint64 { return c.regs().mc_rsi }
++func (c *sigctxt) rbp() uint64 { return c.regs().mc_rbp }
++func (c *sigctxt) rsp() uint64 { return c.regs().mc_rsp }
++func (c *sigctxt) r8() uint64  { return c.regs().mc_r8 }
++func (c *sigctxt) r9() uint64  { return c.regs().mc_r9 }
++func (c *sigctxt) r10() uint64 { return c.regs().mc_r10 }
++func (c *sigctxt) r11() uint64 { return c.regs().mc_r11 }
++func (c *sigctxt) r12() uint64 { return c.regs().mc_r12 }
++func (c *sigctxt) r13() uint64 { return c.regs().mc_r13 }
++func (c *sigctxt) r14() uint64 { return c.regs().mc_r14 }
++func (c *sigctxt) r15() uint64 { return c.regs().mc_r15 }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) rip() uint64 { return c.regs().mc_rip }
++
+ func (c *sigctxt) rflags() uint64  { return c.regs().mc_rflags }
+ func (c *sigctxt) cs() uint64      { return c.regs().mc_cs }
+ func (c *sigctxt) fs() uint64      { return c.regs().mc_ss }
+diff --git a/src/runtime/signal_freebsd_386.go b/src/runtime/signal_freebsd_386.go
+index 092e6dff22..f7cc0df6a3 100644
+--- a/src/runtime/signal_freebsd_386.go
++++ b/src/runtime/signal_freebsd_386.go
+@@ -11,16 +11,23 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *mcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
+-func (c *sigctxt) eax() uint32     { return c.regs().mc_eax }
+-func (c *sigctxt) ebx() uint32     { return c.regs().mc_ebx }
+-func (c *sigctxt) ecx() uint32     { return c.regs().mc_ecx }
+-func (c *sigctxt) edx() uint32     { return c.regs().mc_edx }
+-func (c *sigctxt) edi() uint32     { return c.regs().mc_edi }
+-func (c *sigctxt) esi() uint32     { return c.regs().mc_esi }
+-func (c *sigctxt) ebp() uint32     { return c.regs().mc_ebp }
+-func (c *sigctxt) esp() uint32     { return c.regs().mc_esp }
+-func (c *sigctxt) eip() uint32     { return c.regs().mc_eip }
++
++func (c *sigctxt) eax() uint32 { return c.regs().mc_eax }
++func (c *sigctxt) ebx() uint32 { return c.regs().mc_ebx }
++func (c *sigctxt) ecx() uint32 { return c.regs().mc_ecx }
++func (c *sigctxt) edx() uint32 { return c.regs().mc_edx }
++func (c *sigctxt) edi() uint32 { return c.regs().mc_edi }
++func (c *sigctxt) esi() uint32 { return c.regs().mc_esi }
++func (c *sigctxt) ebp() uint32 { return c.regs().mc_ebp }
++func (c *sigctxt) esp() uint32 { return c.regs().mc_esp }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) eip() uint32 { return c.regs().mc_eip }
++
+ func (c *sigctxt) eflags() uint32  { return c.regs().mc_eflags }
+ func (c *sigctxt) cs() uint32      { return c.regs().mc_cs }
+ func (c *sigctxt) fs() uint32      { return c.regs().mc_fs }
+diff --git a/src/runtime/signal_freebsd_amd64.go b/src/runtime/signal_freebsd_amd64.go
+index a0b4a72ed5..20b86e7f32 100644
+--- a/src/runtime/signal_freebsd_amd64.go
++++ b/src/runtime/signal_freebsd_amd64.go
+@@ -11,26 +11,33 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *mcontext {
+ 	return (*mcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
+ }
+-func (c *sigctxt) rax() uint64     { return c.regs().mc_rax }
+-func (c *sigctxt) rbx() uint64     { return c.regs().mc_rbx }
+-func (c *sigctxt) rcx() uint64     { return c.regs().mc_rcx }
+-func (c *sigctxt) rdx() uint64     { return c.regs().mc_rdx }
+-func (c *sigctxt) rdi() uint64     { return c.regs().mc_rdi }
+-func (c *sigctxt) rsi() uint64     { return c.regs().mc_rsi }
+-func (c *sigctxt) rbp() uint64     { return c.regs().mc_rbp }
+-func (c *sigctxt) rsp() uint64     { return c.regs().mc_rsp }
+-func (c *sigctxt) r8() uint64      { return c.regs().mc_r8 }
+-func (c *sigctxt) r9() uint64      { return c.regs().mc_r9 }
+-func (c *sigctxt) r10() uint64     { return c.regs().mc_r10 }
+-func (c *sigctxt) r11() uint64     { return c.regs().mc_r11 }
+-func (c *sigctxt) r12() uint64     { return c.regs().mc_r12 }
+-func (c *sigctxt) r13() uint64     { return c.regs().mc_r13 }
+-func (c *sigctxt) r14() uint64     { return c.regs().mc_r14 }
+-func (c *sigctxt) r15() uint64     { return c.regs().mc_r15 }
+-func (c *sigctxt) rip() uint64     { return c.regs().mc_rip }
++
++func (c *sigctxt) rax() uint64 { return c.regs().mc_rax }
++func (c *sigctxt) rbx() uint64 { return c.regs().mc_rbx }
++func (c *sigctxt) rcx() uint64 { return c.regs().mc_rcx }
++func (c *sigctxt) rdx() uint64 { return c.regs().mc_rdx }
++func (c *sigctxt) rdi() uint64 { return c.regs().mc_rdi }
++func (c *sigctxt) rsi() uint64 { return c.regs().mc_rsi }
++func (c *sigctxt) rbp() uint64 { return c.regs().mc_rbp }
++func (c *sigctxt) rsp() uint64 { return c.regs().mc_rsp }
++func (c *sigctxt) r8() uint64  { return c.regs().mc_r8 }
++func (c *sigctxt) r9() uint64  { return c.regs().mc_r9 }
++func (c *sigctxt) r10() uint64 { return c.regs().mc_r10 }
++func (c *sigctxt) r11() uint64 { return c.regs().mc_r11 }
++func (c *sigctxt) r12() uint64 { return c.regs().mc_r12 }
++func (c *sigctxt) r13() uint64 { return c.regs().mc_r13 }
++func (c *sigctxt) r14() uint64 { return c.regs().mc_r14 }
++func (c *sigctxt) r15() uint64 { return c.regs().mc_r15 }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) rip() uint64 { return c.regs().mc_rip }
++
+ func (c *sigctxt) rflags() uint64  { return c.regs().mc_rflags }
+ func (c *sigctxt) cs() uint64      { return c.regs().mc_cs }
+ func (c *sigctxt) fs() uint64      { return uint64(c.regs().mc_fs) }
+diff --git a/src/runtime/signal_freebsd_arm.go b/src/runtime/signal_freebsd_arm.go
+index 035730480c..9601370112 100644
+--- a/src/runtime/signal_freebsd_arm.go
++++ b/src/runtime/signal_freebsd_arm.go
+@@ -11,23 +11,30 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *mcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
+-func (c *sigctxt) r0() uint32      { return c.regs().__gregs[0] }
+-func (c *sigctxt) r1() uint32      { return c.regs().__gregs[1] }
+-func (c *sigctxt) r2() uint32      { return c.regs().__gregs[2] }
+-func (c *sigctxt) r3() uint32      { return c.regs().__gregs[3] }
+-func (c *sigctxt) r4() uint32      { return c.regs().__gregs[4] }
+-func (c *sigctxt) r5() uint32      { return c.regs().__gregs[5] }
+-func (c *sigctxt) r6() uint32      { return c.regs().__gregs[6] }
+-func (c *sigctxt) r7() uint32      { return c.regs().__gregs[7] }
+-func (c *sigctxt) r8() uint32      { return c.regs().__gregs[8] }
+-func (c *sigctxt) r9() uint32      { return c.regs().__gregs[9] }
+-func (c *sigctxt) r10() uint32     { return c.regs().__gregs[10] }
+-func (c *sigctxt) fp() uint32      { return c.regs().__gregs[11] }
+-func (c *sigctxt) ip() uint32      { return c.regs().__gregs[12] }
+-func (c *sigctxt) sp() uint32      { return c.regs().__gregs[13] }
+-func (c *sigctxt) lr() uint32      { return c.regs().__gregs[14] }
+-func (c *sigctxt) pc() uint32      { return c.regs().__gregs[15] }
++
++func (c *sigctxt) r0() uint32  { return c.regs().__gregs[0] }
++func (c *sigctxt) r1() uint32  { return c.regs().__gregs[1] }
++func (c *sigctxt) r2() uint32  { return c.regs().__gregs[2] }
++func (c *sigctxt) r3() uint32  { return c.regs().__gregs[3] }
++func (c *sigctxt) r4() uint32  { return c.regs().__gregs[4] }
++func (c *sigctxt) r5() uint32  { return c.regs().__gregs[5] }
++func (c *sigctxt) r6() uint32  { return c.regs().__gregs[6] }
++func (c *sigctxt) r7() uint32  { return c.regs().__gregs[7] }
++func (c *sigctxt) r8() uint32  { return c.regs().__gregs[8] }
++func (c *sigctxt) r9() uint32  { return c.regs().__gregs[9] }
++func (c *sigctxt) r10() uint32 { return c.regs().__gregs[10] }
++func (c *sigctxt) fp() uint32  { return c.regs().__gregs[11] }
++func (c *sigctxt) ip() uint32  { return c.regs().__gregs[12] }
++func (c *sigctxt) sp() uint32  { return c.regs().__gregs[13] }
++func (c *sigctxt) lr() uint32  { return c.regs().__gregs[14] }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint32 { return c.regs().__gregs[15] }
++
+ func (c *sigctxt) cpsr() uint32    { return c.regs().__gregs[16] }
+ func (c *sigctxt) fault() uint32   { return uint32(c.info.si_addr) }
+ func (c *sigctxt) trap() uint32    { return 0 }
+diff --git a/src/runtime/signal_linux_386.go b/src/runtime/signal_linux_386.go
+index 415f361ed1..13d9df4071 100644
+--- a/src/runtime/signal_linux_386.go
++++ b/src/runtime/signal_linux_386.go
+@@ -14,22 +14,29 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *sigcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
+-func (c *sigctxt) eax() uint32       { return c.regs().eax }
+-func (c *sigctxt) ebx() uint32       { return c.regs().ebx }
+-func (c *sigctxt) ecx() uint32       { return c.regs().ecx }
+-func (c *sigctxt) edx() uint32       { return c.regs().edx }
+-func (c *sigctxt) edi() uint32       { return c.regs().edi }
+-func (c *sigctxt) esi() uint32       { return c.regs().esi }
+-func (c *sigctxt) ebp() uint32       { return c.regs().ebp }
+-func (c *sigctxt) esp() uint32       { return c.regs().esp }
+-func (c *sigctxt) eip() uint32       { return c.regs().eip }
+-func (c *sigctxt) eflags() uint32    { return c.regs().eflags }
+-func (c *sigctxt) cs() uint32        { return uint32(c.regs().cs) }
+-func (c *sigctxt) fs() uint32        { return uint32(c.regs().fs) }
+-func (c *sigctxt) gs() uint32        { return uint32(c.regs().gs) }
+-func (c *sigctxt) sigcode() uint32   { return uint32(c.info.si_code) }
+-func (c *sigctxt) sigaddr() uint32   { return c.info.si_addr }
++
++func (c *sigctxt) eax() uint32 { return c.regs().eax }
++func (c *sigctxt) ebx() uint32 { return c.regs().ebx }
++func (c *sigctxt) ecx() uint32 { return c.regs().ecx }
++func (c *sigctxt) edx() uint32 { return c.regs().edx }
++func (c *sigctxt) edi() uint32 { return c.regs().edi }
++func (c *sigctxt) esi() uint32 { return c.regs().esi }
++func (c *sigctxt) ebp() uint32 { return c.regs().ebp }
++func (c *sigctxt) esp() uint32 { return c.regs().esp }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) eip() uint32 { return c.regs().eip }
++
++func (c *sigctxt) eflags() uint32  { return c.regs().eflags }
++func (c *sigctxt) cs() uint32      { return uint32(c.regs().cs) }
++func (c *sigctxt) fs() uint32      { return uint32(c.regs().fs) }
++func (c *sigctxt) gs() uint32      { return uint32(c.regs().gs) }
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint32 { return c.info.si_addr }
+ 
+ func (c *sigctxt) set_eip(x uint32)     { c.regs().eip = x }
+ func (c *sigctxt) set_esp(x uint32)     { c.regs().esp = x }
+diff --git a/src/runtime/signal_linux_amd64.go b/src/runtime/signal_linux_amd64.go
+index 433747f0e4..210e8967e5 100644
+--- a/src/runtime/signal_linux_amd64.go
++++ b/src/runtime/signal_linux_amd64.go
+@@ -14,26 +14,33 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *sigcontext {
+ 	return (*sigcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
+ }
+-func (c *sigctxt) rax() uint64     { return c.regs().rax }
+-func (c *sigctxt) rbx() uint64     { return c.regs().rbx }
+-func (c *sigctxt) rcx() uint64     { return c.regs().rcx }
+-func (c *sigctxt) rdx() uint64     { return c.regs().rdx }
+-func (c *sigctxt) rdi() uint64     { return c.regs().rdi }
+-func (c *sigctxt) rsi() uint64     { return c.regs().rsi }
+-func (c *sigctxt) rbp() uint64     { return c.regs().rbp }
+-func (c *sigctxt) rsp() uint64     { return c.regs().rsp }
+-func (c *sigctxt) r8() uint64      { return c.regs().r8 }
+-func (c *sigctxt) r9() uint64      { return c.regs().r9 }
+-func (c *sigctxt) r10() uint64     { return c.regs().r10 }
+-func (c *sigctxt) r11() uint64     { return c.regs().r11 }
+-func (c *sigctxt) r12() uint64     { return c.regs().r12 }
+-func (c *sigctxt) r13() uint64     { return c.regs().r13 }
+-func (c *sigctxt) r14() uint64     { return c.regs().r14 }
+-func (c *sigctxt) r15() uint64     { return c.regs().r15 }
+-func (c *sigctxt) rip() uint64     { return c.regs().rip }
++
++func (c *sigctxt) rax() uint64 { return c.regs().rax }
++func (c *sigctxt) rbx() uint64 { return c.regs().rbx }
++func (c *sigctxt) rcx() uint64 { return c.regs().rcx }
++func (c *sigctxt) rdx() uint64 { return c.regs().rdx }
++func (c *sigctxt) rdi() uint64 { return c.regs().rdi }
++func (c *sigctxt) rsi() uint64 { return c.regs().rsi }
++func (c *sigctxt) rbp() uint64 { return c.regs().rbp }
++func (c *sigctxt) rsp() uint64 { return c.regs().rsp }
++func (c *sigctxt) r8() uint64  { return c.regs().r8 }
++func (c *sigctxt) r9() uint64  { return c.regs().r9 }
++func (c *sigctxt) r10() uint64 { return c.regs().r10 }
++func (c *sigctxt) r11() uint64 { return c.regs().r11 }
++func (c *sigctxt) r12() uint64 { return c.regs().r12 }
++func (c *sigctxt) r13() uint64 { return c.regs().r13 }
++func (c *sigctxt) r14() uint64 { return c.regs().r14 }
++func (c *sigctxt) r15() uint64 { return c.regs().r15 }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) rip() uint64 { return c.regs().rip }
++
+ func (c *sigctxt) rflags() uint64  { return c.regs().eflags }
+ func (c *sigctxt) cs() uint64      { return uint64(c.regs().cs) }
+ func (c *sigctxt) fs() uint64      { return uint64(c.regs().fs) }
+diff --git a/src/runtime/signal_linux_arm.go b/src/runtime/signal_linux_arm.go
+index cd6a0d7c2d..06a57b83b9 100644
+--- a/src/runtime/signal_linux_arm.go
++++ b/src/runtime/signal_linux_arm.go
+@@ -14,28 +14,35 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *sigcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
+-func (c *sigctxt) r0() uint32        { return c.regs().r0 }
+-func (c *sigctxt) r1() uint32        { return c.regs().r1 }
+-func (c *sigctxt) r2() uint32        { return c.regs().r2 }
+-func (c *sigctxt) r3() uint32        { return c.regs().r3 }
+-func (c *sigctxt) r4() uint32        { return c.regs().r4 }
+-func (c *sigctxt) r5() uint32        { return c.regs().r5 }
+-func (c *sigctxt) r6() uint32        { return c.regs().r6 }
+-func (c *sigctxt) r7() uint32        { return c.regs().r7 }
+-func (c *sigctxt) r8() uint32        { return c.regs().r8 }
+-func (c *sigctxt) r9() uint32        { return c.regs().r9 }
+-func (c *sigctxt) r10() uint32       { return c.regs().r10 }
+-func (c *sigctxt) fp() uint32        { return c.regs().fp }
+-func (c *sigctxt) ip() uint32        { return c.regs().ip }
+-func (c *sigctxt) sp() uint32        { return c.regs().sp }
+-func (c *sigctxt) lr() uint32        { return c.regs().lr }
+-func (c *sigctxt) pc() uint32        { return c.regs().pc }
+-func (c *sigctxt) cpsr() uint32      { return c.regs().cpsr }
+-func (c *sigctxt) fault() uint32     { return c.regs().fault_address }
+-func (c *sigctxt) trap() uint32      { return c.regs().trap_no }
+-func (c *sigctxt) error() uint32     { return c.regs().error_code }
+-func (c *sigctxt) oldmask() uint32   { return c.regs().oldmask }
++
++func (c *sigctxt) r0() uint32  { return c.regs().r0 }
++func (c *sigctxt) r1() uint32  { return c.regs().r1 }
++func (c *sigctxt) r2() uint32  { return c.regs().r2 }
++func (c *sigctxt) r3() uint32  { return c.regs().r3 }
++func (c *sigctxt) r4() uint32  { return c.regs().r4 }
++func (c *sigctxt) r5() uint32  { return c.regs().r5 }
++func (c *sigctxt) r6() uint32  { return c.regs().r6 }
++func (c *sigctxt) r7() uint32  { return c.regs().r7 }
++func (c *sigctxt) r8() uint32  { return c.regs().r8 }
++func (c *sigctxt) r9() uint32  { return c.regs().r9 }
++func (c *sigctxt) r10() uint32 { return c.regs().r10 }
++func (c *sigctxt) fp() uint32  { return c.regs().fp }
++func (c *sigctxt) ip() uint32  { return c.regs().ip }
++func (c *sigctxt) sp() uint32  { return c.regs().sp }
++func (c *sigctxt) lr() uint32  { return c.regs().lr }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint32 { return c.regs().pc }
++
++func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
++func (c *sigctxt) fault() uint32   { return c.regs().fault_address }
++func (c *sigctxt) trap() uint32    { return c.regs().trap_no }
++func (c *sigctxt) error() uint32   { return c.regs().error_code }
++func (c *sigctxt) oldmask() uint32 { return c.regs().oldmask }
+ 
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint32 { return c.info.si_addr }
+diff --git a/src/runtime/signal_linux_arm64.go b/src/runtime/signal_linux_arm64.go
+index 4964e7b028..f3d4d384e5 100644
+--- a/src/runtime/signal_linux_arm64.go
++++ b/src/runtime/signal_linux_arm64.go
+@@ -14,42 +14,49 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *sigcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
+-func (c *sigctxt) r0() uint64        { return c.regs().regs[0] }
+-func (c *sigctxt) r1() uint64        { return c.regs().regs[1] }
+-func (c *sigctxt) r2() uint64        { return c.regs().regs[2] }
+-func (c *sigctxt) r3() uint64        { return c.regs().regs[3] }
+-func (c *sigctxt) r4() uint64        { return c.regs().regs[4] }
+-func (c *sigctxt) r5() uint64        { return c.regs().regs[5] }
+-func (c *sigctxt) r6() uint64        { return c.regs().regs[6] }
+-func (c *sigctxt) r7() uint64        { return c.regs().regs[7] }
+-func (c *sigctxt) r8() uint64        { return c.regs().regs[8] }
+-func (c *sigctxt) r9() uint64        { return c.regs().regs[9] }
+-func (c *sigctxt) r10() uint64       { return c.regs().regs[10] }
+-func (c *sigctxt) r11() uint64       { return c.regs().regs[11] }
+-func (c *sigctxt) r12() uint64       { return c.regs().regs[12] }
+-func (c *sigctxt) r13() uint64       { return c.regs().regs[13] }
+-func (c *sigctxt) r14() uint64       { return c.regs().regs[14] }
+-func (c *sigctxt) r15() uint64       { return c.regs().regs[15] }
+-func (c *sigctxt) r16() uint64       { return c.regs().regs[16] }
+-func (c *sigctxt) r17() uint64       { return c.regs().regs[17] }
+-func (c *sigctxt) r18() uint64       { return c.regs().regs[18] }
+-func (c *sigctxt) r19() uint64       { return c.regs().regs[19] }
+-func (c *sigctxt) r20() uint64       { return c.regs().regs[20] }
+-func (c *sigctxt) r21() uint64       { return c.regs().regs[21] }
+-func (c *sigctxt) r22() uint64       { return c.regs().regs[22] }
+-func (c *sigctxt) r23() uint64       { return c.regs().regs[23] }
+-func (c *sigctxt) r24() uint64       { return c.regs().regs[24] }
+-func (c *sigctxt) r25() uint64       { return c.regs().regs[25] }
+-func (c *sigctxt) r26() uint64       { return c.regs().regs[26] }
+-func (c *sigctxt) r27() uint64       { return c.regs().regs[27] }
+-func (c *sigctxt) r28() uint64       { return c.regs().regs[28] }
+-func (c *sigctxt) r29() uint64       { return c.regs().regs[29] }
+-func (c *sigctxt) lr() uint64        { return c.regs().regs[30] }
+-func (c *sigctxt) sp() uint64        { return c.regs().sp }
+-func (c *sigctxt) pc() uint64        { return c.regs().pc }
+-func (c *sigctxt) pstate() uint64    { return c.regs().pstate }
+-func (c *sigctxt) fault() uint64     { return c.regs().fault_address }
++
++func (c *sigctxt) r0() uint64  { return c.regs().regs[0] }
++func (c *sigctxt) r1() uint64  { return c.regs().regs[1] }
++func (c *sigctxt) r2() uint64  { return c.regs().regs[2] }
++func (c *sigctxt) r3() uint64  { return c.regs().regs[3] }
++func (c *sigctxt) r4() uint64  { return c.regs().regs[4] }
++func (c *sigctxt) r5() uint64  { return c.regs().regs[5] }
++func (c *sigctxt) r6() uint64  { return c.regs().regs[6] }
++func (c *sigctxt) r7() uint64  { return c.regs().regs[7] }
++func (c *sigctxt) r8() uint64  { return c.regs().regs[8] }
++func (c *sigctxt) r9() uint64  { return c.regs().regs[9] }
++func (c *sigctxt) r10() uint64 { return c.regs().regs[10] }
++func (c *sigctxt) r11() uint64 { return c.regs().regs[11] }
++func (c *sigctxt) r12() uint64 { return c.regs().regs[12] }
++func (c *sigctxt) r13() uint64 { return c.regs().regs[13] }
++func (c *sigctxt) r14() uint64 { return c.regs().regs[14] }
++func (c *sigctxt) r15() uint64 { return c.regs().regs[15] }
++func (c *sigctxt) r16() uint64 { return c.regs().regs[16] }
++func (c *sigctxt) r17() uint64 { return c.regs().regs[17] }
++func (c *sigctxt) r18() uint64 { return c.regs().regs[18] }
++func (c *sigctxt) r19() uint64 { return c.regs().regs[19] }
++func (c *sigctxt) r20() uint64 { return c.regs().regs[20] }
++func (c *sigctxt) r21() uint64 { return c.regs().regs[21] }
++func (c *sigctxt) r22() uint64 { return c.regs().regs[22] }
++func (c *sigctxt) r23() uint64 { return c.regs().regs[23] }
++func (c *sigctxt) r24() uint64 { return c.regs().regs[24] }
++func (c *sigctxt) r25() uint64 { return c.regs().regs[25] }
++func (c *sigctxt) r26() uint64 { return c.regs().regs[26] }
++func (c *sigctxt) r27() uint64 { return c.regs().regs[27] }
++func (c *sigctxt) r28() uint64 { return c.regs().regs[28] }
++func (c *sigctxt) r29() uint64 { return c.regs().regs[29] }
++func (c *sigctxt) lr() uint64  { return c.regs().regs[30] }
++func (c *sigctxt) sp() uint64  { return c.regs().sp }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint64 { return c.regs().pc }
++
++func (c *sigctxt) pstate() uint64 { return c.regs().pstate }
++func (c *sigctxt) fault() uint64  { return c.regs().fault_address }
+ 
+ func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+diff --git a/src/runtime/signal_linux_mips64x.go b/src/runtime/signal_linux_mips64x.go
+index 0f590e49ea..9e0cf42c70 100644
+--- a/src/runtime/signal_linux_mips64x.go
++++ b/src/runtime/signal_linux_mips64x.go
+@@ -17,44 +17,51 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *sigcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
+-func (c *sigctxt) r0() uint64        { return c.regs().sc_regs[0] }
+-func (c *sigctxt) r1() uint64        { return c.regs().sc_regs[1] }
+-func (c *sigctxt) r2() uint64        { return c.regs().sc_regs[2] }
+-func (c *sigctxt) r3() uint64        { return c.regs().sc_regs[3] }
+-func (c *sigctxt) r4() uint64        { return c.regs().sc_regs[4] }
+-func (c *sigctxt) r5() uint64        { return c.regs().sc_regs[5] }
+-func (c *sigctxt) r6() uint64        { return c.regs().sc_regs[6] }
+-func (c *sigctxt) r7() uint64        { return c.regs().sc_regs[7] }
+-func (c *sigctxt) r8() uint64        { return c.regs().sc_regs[8] }
+-func (c *sigctxt) r9() uint64        { return c.regs().sc_regs[9] }
+-func (c *sigctxt) r10() uint64       { return c.regs().sc_regs[10] }
+-func (c *sigctxt) r11() uint64       { return c.regs().sc_regs[11] }
+-func (c *sigctxt) r12() uint64       { return c.regs().sc_regs[12] }
+-func (c *sigctxt) r13() uint64       { return c.regs().sc_regs[13] }
+-func (c *sigctxt) r14() uint64       { return c.regs().sc_regs[14] }
+-func (c *sigctxt) r15() uint64       { return c.regs().sc_regs[15] }
+-func (c *sigctxt) r16() uint64       { return c.regs().sc_regs[16] }
+-func (c *sigctxt) r17() uint64       { return c.regs().sc_regs[17] }
+-func (c *sigctxt) r18() uint64       { return c.regs().sc_regs[18] }
+-func (c *sigctxt) r19() uint64       { return c.regs().sc_regs[19] }
+-func (c *sigctxt) r20() uint64       { return c.regs().sc_regs[20] }
+-func (c *sigctxt) r21() uint64       { return c.regs().sc_regs[21] }
+-func (c *sigctxt) r22() uint64       { return c.regs().sc_regs[22] }
+-func (c *sigctxt) r23() uint64       { return c.regs().sc_regs[23] }
+-func (c *sigctxt) r24() uint64       { return c.regs().sc_regs[24] }
+-func (c *sigctxt) r25() uint64       { return c.regs().sc_regs[25] }
+-func (c *sigctxt) r26() uint64       { return c.regs().sc_regs[26] }
+-func (c *sigctxt) r27() uint64       { return c.regs().sc_regs[27] }
+-func (c *sigctxt) r28() uint64       { return c.regs().sc_regs[28] }
+-func (c *sigctxt) r29() uint64       { return c.regs().sc_regs[29] }
+-func (c *sigctxt) r30() uint64       { return c.regs().sc_regs[30] }
+-func (c *sigctxt) r31() uint64       { return c.regs().sc_regs[31] }
+-func (c *sigctxt) sp() uint64        { return c.regs().sc_regs[29] }
+-func (c *sigctxt) pc() uint64        { return c.regs().sc_pc }
+-func (c *sigctxt) link() uint64      { return c.regs().sc_regs[31] }
+-func (c *sigctxt) lo() uint64        { return c.regs().sc_mdlo }
+-func (c *sigctxt) hi() uint64        { return c.regs().sc_mdhi }
++
++func (c *sigctxt) r0() uint64  { return c.regs().sc_regs[0] }
++func (c *sigctxt) r1() uint64  { return c.regs().sc_regs[1] }
++func (c *sigctxt) r2() uint64  { return c.regs().sc_regs[2] }
++func (c *sigctxt) r3() uint64  { return c.regs().sc_regs[3] }
++func (c *sigctxt) r4() uint64  { return c.regs().sc_regs[4] }
++func (c *sigctxt) r5() uint64  { return c.regs().sc_regs[5] }
++func (c *sigctxt) r6() uint64  { return c.regs().sc_regs[6] }
++func (c *sigctxt) r7() uint64  { return c.regs().sc_regs[7] }
++func (c *sigctxt) r8() uint64  { return c.regs().sc_regs[8] }
++func (c *sigctxt) r9() uint64  { return c.regs().sc_regs[9] }
++func (c *sigctxt) r10() uint64 { return c.regs().sc_regs[10] }
++func (c *sigctxt) r11() uint64 { return c.regs().sc_regs[11] }
++func (c *sigctxt) r12() uint64 { return c.regs().sc_regs[12] }
++func (c *sigctxt) r13() uint64 { return c.regs().sc_regs[13] }
++func (c *sigctxt) r14() uint64 { return c.regs().sc_regs[14] }
++func (c *sigctxt) r15() uint64 { return c.regs().sc_regs[15] }
++func (c *sigctxt) r16() uint64 { return c.regs().sc_regs[16] }
++func (c *sigctxt) r17() uint64 { return c.regs().sc_regs[17] }
++func (c *sigctxt) r18() uint64 { return c.regs().sc_regs[18] }
++func (c *sigctxt) r19() uint64 { return c.regs().sc_regs[19] }
++func (c *sigctxt) r20() uint64 { return c.regs().sc_regs[20] }
++func (c *sigctxt) r21() uint64 { return c.regs().sc_regs[21] }
++func (c *sigctxt) r22() uint64 { return c.regs().sc_regs[22] }
++func (c *sigctxt) r23() uint64 { return c.regs().sc_regs[23] }
++func (c *sigctxt) r24() uint64 { return c.regs().sc_regs[24] }
++func (c *sigctxt) r25() uint64 { return c.regs().sc_regs[25] }
++func (c *sigctxt) r26() uint64 { return c.regs().sc_regs[26] }
++func (c *sigctxt) r27() uint64 { return c.regs().sc_regs[27] }
++func (c *sigctxt) r28() uint64 { return c.regs().sc_regs[28] }
++func (c *sigctxt) r29() uint64 { return c.regs().sc_regs[29] }
++func (c *sigctxt) r30() uint64 { return c.regs().sc_regs[30] }
++func (c *sigctxt) r31() uint64 { return c.regs().sc_regs[31] }
++func (c *sigctxt) sp() uint64  { return c.regs().sc_regs[29] }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint64 { return c.regs().sc_pc }
++
++func (c *sigctxt) link() uint64 { return c.regs().sc_regs[31] }
++func (c *sigctxt) lo() uint64   { return c.regs().sc_mdlo }
++func (c *sigctxt) hi() uint64   { return c.regs().sc_mdhi }
+ 
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+diff --git a/src/runtime/signal_linux_ppc64x.go b/src/runtime/signal_linux_ppc64x.go
+index 95835ca4d5..b6831bc22d 100644
+--- a/src/runtime/signal_linux_ppc64x.go
++++ b/src/runtime/signal_linux_ppc64x.go
+@@ -17,46 +17,53 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *ptregs { return (*ucontext)(c.ctxt).uc_mcontext.regs }
+-func (c *sigctxt) r0() uint64    { return c.regs().gpr[0] }
+-func (c *sigctxt) r1() uint64    { return c.regs().gpr[1] }
+-func (c *sigctxt) r2() uint64    { return c.regs().gpr[2] }
+-func (c *sigctxt) r3() uint64    { return c.regs().gpr[3] }
+-func (c *sigctxt) r4() uint64    { return c.regs().gpr[4] }
+-func (c *sigctxt) r5() uint64    { return c.regs().gpr[5] }
+-func (c *sigctxt) r6() uint64    { return c.regs().gpr[6] }
+-func (c *sigctxt) r7() uint64    { return c.regs().gpr[7] }
+-func (c *sigctxt) r8() uint64    { return c.regs().gpr[8] }
+-func (c *sigctxt) r9() uint64    { return c.regs().gpr[9] }
+-func (c *sigctxt) r10() uint64   { return c.regs().gpr[10] }
+-func (c *sigctxt) r11() uint64   { return c.regs().gpr[11] }
+-func (c *sigctxt) r12() uint64   { return c.regs().gpr[12] }
+-func (c *sigctxt) r13() uint64   { return c.regs().gpr[13] }
+-func (c *sigctxt) r14() uint64   { return c.regs().gpr[14] }
+-func (c *sigctxt) r15() uint64   { return c.regs().gpr[15] }
+-func (c *sigctxt) r16() uint64   { return c.regs().gpr[16] }
+-func (c *sigctxt) r17() uint64   { return c.regs().gpr[17] }
+-func (c *sigctxt) r18() uint64   { return c.regs().gpr[18] }
+-func (c *sigctxt) r19() uint64   { return c.regs().gpr[19] }
+-func (c *sigctxt) r20() uint64   { return c.regs().gpr[20] }
+-func (c *sigctxt) r21() uint64   { return c.regs().gpr[21] }
+-func (c *sigctxt) r22() uint64   { return c.regs().gpr[22] }
+-func (c *sigctxt) r23() uint64   { return c.regs().gpr[23] }
+-func (c *sigctxt) r24() uint64   { return c.regs().gpr[24] }
+-func (c *sigctxt) r25() uint64   { return c.regs().gpr[25] }
+-func (c *sigctxt) r26() uint64   { return c.regs().gpr[26] }
+-func (c *sigctxt) r27() uint64   { return c.regs().gpr[27] }
+-func (c *sigctxt) r28() uint64   { return c.regs().gpr[28] }
+-func (c *sigctxt) r29() uint64   { return c.regs().gpr[29] }
+-func (c *sigctxt) r30() uint64   { return c.regs().gpr[30] }
+-func (c *sigctxt) r31() uint64   { return c.regs().gpr[31] }
+-func (c *sigctxt) sp() uint64    { return c.regs().gpr[1] }
+-func (c *sigctxt) pc() uint64    { return c.regs().nip }
+-func (c *sigctxt) trap() uint64  { return c.regs().trap }
+-func (c *sigctxt) ctr() uint64   { return c.regs().ctr }
+-func (c *sigctxt) link() uint64  { return c.regs().link }
+-func (c *sigctxt) xer() uint64   { return c.regs().xer }
+-func (c *sigctxt) ccr() uint64   { return c.regs().ccr }
++
++func (c *sigctxt) r0() uint64  { return c.regs().gpr[0] }
++func (c *sigctxt) r1() uint64  { return c.regs().gpr[1] }
++func (c *sigctxt) r2() uint64  { return c.regs().gpr[2] }
++func (c *sigctxt) r3() uint64  { return c.regs().gpr[3] }
++func (c *sigctxt) r4() uint64  { return c.regs().gpr[4] }
++func (c *sigctxt) r5() uint64  { return c.regs().gpr[5] }
++func (c *sigctxt) r6() uint64  { return c.regs().gpr[6] }
++func (c *sigctxt) r7() uint64  { return c.regs().gpr[7] }
++func (c *sigctxt) r8() uint64  { return c.regs().gpr[8] }
++func (c *sigctxt) r9() uint64  { return c.regs().gpr[9] }
++func (c *sigctxt) r10() uint64 { return c.regs().gpr[10] }
++func (c *sigctxt) r11() uint64 { return c.regs().gpr[11] }
++func (c *sigctxt) r12() uint64 { return c.regs().gpr[12] }
++func (c *sigctxt) r13() uint64 { return c.regs().gpr[13] }
++func (c *sigctxt) r14() uint64 { return c.regs().gpr[14] }
++func (c *sigctxt) r15() uint64 { return c.regs().gpr[15] }
++func (c *sigctxt) r16() uint64 { return c.regs().gpr[16] }
++func (c *sigctxt) r17() uint64 { return c.regs().gpr[17] }
++func (c *sigctxt) r18() uint64 { return c.regs().gpr[18] }
++func (c *sigctxt) r19() uint64 { return c.regs().gpr[19] }
++func (c *sigctxt) r20() uint64 { return c.regs().gpr[20] }
++func (c *sigctxt) r21() uint64 { return c.regs().gpr[21] }
++func (c *sigctxt) r22() uint64 { return c.regs().gpr[22] }
++func (c *sigctxt) r23() uint64 { return c.regs().gpr[23] }
++func (c *sigctxt) r24() uint64 { return c.regs().gpr[24] }
++func (c *sigctxt) r25() uint64 { return c.regs().gpr[25] }
++func (c *sigctxt) r26() uint64 { return c.regs().gpr[26] }
++func (c *sigctxt) r27() uint64 { return c.regs().gpr[27] }
++func (c *sigctxt) r28() uint64 { return c.regs().gpr[28] }
++func (c *sigctxt) r29() uint64 { return c.regs().gpr[29] }
++func (c *sigctxt) r30() uint64 { return c.regs().gpr[30] }
++func (c *sigctxt) r31() uint64 { return c.regs().gpr[31] }
++func (c *sigctxt) sp() uint64  { return c.regs().gpr[1] }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint64 { return c.regs().nip }
++
++func (c *sigctxt) trap() uint64 { return c.regs().trap }
++func (c *sigctxt) ctr() uint64  { return c.regs().ctr }
++func (c *sigctxt) link() uint64 { return c.regs().link }
++func (c *sigctxt) xer() uint64  { return c.regs().xer }
++func (c *sigctxt) ccr() uint64  { return c.regs().ccr }
+ 
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+diff --git a/src/runtime/signal_linux_s390x.go b/src/runtime/signal_linux_s390x.go
+index 04f06d0441..de71ee950d 100644
+--- a/src/runtime/signal_linux_s390x.go
++++ b/src/runtime/signal_linux_s390x.go
+@@ -14,28 +14,35 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *sigcontext {
+ 	return (*sigcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
+ }
+-func (c *sigctxt) r0() uint64      { return c.regs().gregs[0] }
+-func (c *sigctxt) r1() uint64      { return c.regs().gregs[1] }
+-func (c *sigctxt) r2() uint64      { return c.regs().gregs[2] }
+-func (c *sigctxt) r3() uint64      { return c.regs().gregs[3] }
+-func (c *sigctxt) r4() uint64      { return c.regs().gregs[4] }
+-func (c *sigctxt) r5() uint64      { return c.regs().gregs[5] }
+-func (c *sigctxt) r6() uint64      { return c.regs().gregs[6] }
+-func (c *sigctxt) r7() uint64      { return c.regs().gregs[7] }
+-func (c *sigctxt) r8() uint64      { return c.regs().gregs[8] }
+-func (c *sigctxt) r9() uint64      { return c.regs().gregs[9] }
+-func (c *sigctxt) r10() uint64     { return c.regs().gregs[10] }
+-func (c *sigctxt) r11() uint64     { return c.regs().gregs[11] }
+-func (c *sigctxt) r12() uint64     { return c.regs().gregs[12] }
+-func (c *sigctxt) r13() uint64     { return c.regs().gregs[13] }
+-func (c *sigctxt) r14() uint64     { return c.regs().gregs[14] }
+-func (c *sigctxt) r15() uint64     { return c.regs().gregs[15] }
+-func (c *sigctxt) link() uint64    { return c.regs().gregs[14] }
+-func (c *sigctxt) sp() uint64      { return c.regs().gregs[15] }
+-func (c *sigctxt) pc() uint64      { return c.regs().psw_addr }
++
++func (c *sigctxt) r0() uint64   { return c.regs().gregs[0] }
++func (c *sigctxt) r1() uint64   { return c.regs().gregs[1] }
++func (c *sigctxt) r2() uint64   { return c.regs().gregs[2] }
++func (c *sigctxt) r3() uint64   { return c.regs().gregs[3] }
++func (c *sigctxt) r4() uint64   { return c.regs().gregs[4] }
++func (c *sigctxt) r5() uint64   { return c.regs().gregs[5] }
++func (c *sigctxt) r6() uint64   { return c.regs().gregs[6] }
++func (c *sigctxt) r7() uint64   { return c.regs().gregs[7] }
++func (c *sigctxt) r8() uint64   { return c.regs().gregs[8] }
++func (c *sigctxt) r9() uint64   { return c.regs().gregs[9] }
++func (c *sigctxt) r10() uint64  { return c.regs().gregs[10] }
++func (c *sigctxt) r11() uint64  { return c.regs().gregs[11] }
++func (c *sigctxt) r12() uint64  { return c.regs().gregs[12] }
++func (c *sigctxt) r13() uint64  { return c.regs().gregs[13] }
++func (c *sigctxt) r14() uint64  { return c.regs().gregs[14] }
++func (c *sigctxt) r15() uint64  { return c.regs().gregs[15] }
++func (c *sigctxt) link() uint64 { return c.regs().gregs[14] }
++func (c *sigctxt) sp() uint64   { return c.regs().gregs[15] }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint64 { return c.regs().psw_addr }
++
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+ 
+@@ -70,7 +77,10 @@ func dumpregs(c *sigctxt) {
+ 	print("link ", hex(c.link()), "\n")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
++
+ func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
+ func (c *sigctxt) siglr() uintptr { return uintptr(c.link()) }
+ func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
+diff --git a/src/runtime/signal_mips64x.go b/src/runtime/signal_mips64x.go
+index 900009e957..973ec2dc36 100644
+--- a/src/runtime/signal_mips64x.go
++++ b/src/runtime/signal_mips64x.go
+@@ -51,7 +51,10 @@ func dumpregs(c *sigctxt) {
+ 	print("hi   ", hex(c.hi()), "\n")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
++
+ func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
+ func (c *sigctxt) siglr() uintptr { return uintptr(c.link()) }
+ func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
+diff --git a/src/runtime/signal_nacl_386.go b/src/runtime/signal_nacl_386.go
+index 1f4859085b..1a30a89c76 100644
+--- a/src/runtime/signal_nacl_386.go
++++ b/src/runtime/signal_nacl_386.go
+@@ -11,22 +11,29 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *excregs386 { return &(*exccontext)(c.ctxt).regs }
+-func (c *sigctxt) eax() uint32       { return c.regs().eax }
+-func (c *sigctxt) ebx() uint32       { return c.regs().ebx }
+-func (c *sigctxt) ecx() uint32       { return c.regs().ecx }
+-func (c *sigctxt) edx() uint32       { return c.regs().edx }
+-func (c *sigctxt) edi() uint32       { return c.regs().edi }
+-func (c *sigctxt) esi() uint32       { return c.regs().esi }
+-func (c *sigctxt) ebp() uint32       { return c.regs().ebp }
+-func (c *sigctxt) esp() uint32       { return c.regs().esp }
+-func (c *sigctxt) eip() uint32       { return c.regs().eip }
+-func (c *sigctxt) eflags() uint32    { return c.regs().eflags }
+-func (c *sigctxt) cs() uint32        { return ^uint32(0) }
+-func (c *sigctxt) fs() uint32        { return ^uint32(0) }
+-func (c *sigctxt) gs() uint32        { return ^uint32(0) }
+-func (c *sigctxt) sigcode() uint32   { return ^uint32(0) }
+-func (c *sigctxt) sigaddr() uint32   { return 0 }
++
++func (c *sigctxt) eax() uint32 { return c.regs().eax }
++func (c *sigctxt) ebx() uint32 { return c.regs().ebx }
++func (c *sigctxt) ecx() uint32 { return c.regs().ecx }
++func (c *sigctxt) edx() uint32 { return c.regs().edx }
++func (c *sigctxt) edi() uint32 { return c.regs().edi }
++func (c *sigctxt) esi() uint32 { return c.regs().esi }
++func (c *sigctxt) ebp() uint32 { return c.regs().ebp }
++func (c *sigctxt) esp() uint32 { return c.regs().esp }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) eip() uint32 { return c.regs().eip }
++
++func (c *sigctxt) eflags() uint32  { return c.regs().eflags }
++func (c *sigctxt) cs() uint32      { return ^uint32(0) }
++func (c *sigctxt) fs() uint32      { return ^uint32(0) }
++func (c *sigctxt) gs() uint32      { return ^uint32(0) }
++func (c *sigctxt) sigcode() uint32 { return ^uint32(0) }
++func (c *sigctxt) sigaddr() uint32 { return 0 }
+ 
+ func (c *sigctxt) set_eip(x uint32)     { c.regs().eip = x }
+ func (c *sigctxt) set_esp(x uint32)     { c.regs().esp = x }
+diff --git a/src/runtime/signal_nacl_amd64p32.go b/src/runtime/signal_nacl_amd64p32.go
+index cb72dd0717..6d656fe14b 100644
+--- a/src/runtime/signal_nacl_amd64p32.go
++++ b/src/runtime/signal_nacl_amd64p32.go
+@@ -11,26 +11,33 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *excregsamd64 {
+ 	return &(*exccontext)(c.ctxt).regs
+ }
+-func (c *sigctxt) rax() uint64     { return c.regs().rax }
+-func (c *sigctxt) rbx() uint64     { return c.regs().rbx }
+-func (c *sigctxt) rcx() uint64     { return c.regs().rcx }
+-func (c *sigctxt) rdx() uint64     { return c.regs().rdx }
+-func (c *sigctxt) rdi() uint64     { return c.regs().rdi }
+-func (c *sigctxt) rsi() uint64     { return c.regs().rsi }
+-func (c *sigctxt) rbp() uint64     { return c.regs().rbp }
+-func (c *sigctxt) rsp() uint64     { return c.regs().rsp }
+-func (c *sigctxt) r8() uint64      { return c.regs().r8 }
+-func (c *sigctxt) r9() uint64      { return c.regs().r9 }
+-func (c *sigctxt) r10() uint64     { return c.regs().r10 }
+-func (c *sigctxt) r11() uint64     { return c.regs().r11 }
+-func (c *sigctxt) r12() uint64     { return c.regs().r12 }
+-func (c *sigctxt) r13() uint64     { return c.regs().r13 }
+-func (c *sigctxt) r14() uint64     { return c.regs().r14 }
+-func (c *sigctxt) r15() uint64     { return c.regs().r15 }
+-func (c *sigctxt) rip() uint64     { return c.regs().rip }
++
++func (c *sigctxt) rax() uint64 { return c.regs().rax }
++func (c *sigctxt) rbx() uint64 { return c.regs().rbx }
++func (c *sigctxt) rcx() uint64 { return c.regs().rcx }
++func (c *sigctxt) rdx() uint64 { return c.regs().rdx }
++func (c *sigctxt) rdi() uint64 { return c.regs().rdi }
++func (c *sigctxt) rsi() uint64 { return c.regs().rsi }
++func (c *sigctxt) rbp() uint64 { return c.regs().rbp }
++func (c *sigctxt) rsp() uint64 { return c.regs().rsp }
++func (c *sigctxt) r8() uint64  { return c.regs().r8 }
++func (c *sigctxt) r9() uint64  { return c.regs().r9 }
++func (c *sigctxt) r10() uint64 { return c.regs().r10 }
++func (c *sigctxt) r11() uint64 { return c.regs().r11 }
++func (c *sigctxt) r12() uint64 { return c.regs().r12 }
++func (c *sigctxt) r13() uint64 { return c.regs().r13 }
++func (c *sigctxt) r14() uint64 { return c.regs().r14 }
++func (c *sigctxt) r15() uint64 { return c.regs().r15 }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) rip() uint64 { return c.regs().rip }
++
+ func (c *sigctxt) rflags() uint64  { return uint64(c.regs().rflags) }
+ func (c *sigctxt) cs() uint64      { return ^uint64(0) }
+ func (c *sigctxt) fs() uint64      { return ^uint64(0) }
+diff --git a/src/runtime/signal_nacl_arm.go b/src/runtime/signal_nacl_arm.go
+index b99827c5f2..959dbfbab1 100644
+--- a/src/runtime/signal_nacl_arm.go
++++ b/src/runtime/signal_nacl_arm.go
+@@ -11,24 +11,30 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *excregsarm { return &(*exccontext)(c.ctxt).regs }
+ 
+-func (c *sigctxt) r0() uint32      { return c.regs().r0 }
+-func (c *sigctxt) r1() uint32      { return c.regs().r1 }
+-func (c *sigctxt) r2() uint32      { return c.regs().r2 }
+-func (c *sigctxt) r3() uint32      { return c.regs().r3 }
+-func (c *sigctxt) r4() uint32      { return c.regs().r4 }
+-func (c *sigctxt) r5() uint32      { return c.regs().r5 }
+-func (c *sigctxt) r6() uint32      { return c.regs().r6 }
+-func (c *sigctxt) r7() uint32      { return c.regs().r7 }
+-func (c *sigctxt) r8() uint32      { return c.regs().r8 }
+-func (c *sigctxt) r9() uint32      { return c.regs().r9 }
+-func (c *sigctxt) r10() uint32     { return c.regs().r10 }
+-func (c *sigctxt) fp() uint32      { return c.regs().r11 }
+-func (c *sigctxt) ip() uint32      { return c.regs().r12 }
+-func (c *sigctxt) sp() uint32      { return c.regs().sp }
+-func (c *sigctxt) lr() uint32      { return c.regs().lr }
+-func (c *sigctxt) pc() uint32      { return c.regs().pc }
++func (c *sigctxt) r0() uint32  { return c.regs().r0 }
++func (c *sigctxt) r1() uint32  { return c.regs().r1 }
++func (c *sigctxt) r2() uint32  { return c.regs().r2 }
++func (c *sigctxt) r3() uint32  { return c.regs().r3 }
++func (c *sigctxt) r4() uint32  { return c.regs().r4 }
++func (c *sigctxt) r5() uint32  { return c.regs().r5 }
++func (c *sigctxt) r6() uint32  { return c.regs().r6 }
++func (c *sigctxt) r7() uint32  { return c.regs().r7 }
++func (c *sigctxt) r8() uint32  { return c.regs().r8 }
++func (c *sigctxt) r9() uint32  { return c.regs().r9 }
++func (c *sigctxt) r10() uint32 { return c.regs().r10 }
++func (c *sigctxt) fp() uint32  { return c.regs().r11 }
++func (c *sigctxt) ip() uint32  { return c.regs().r12 }
++func (c *sigctxt) sp() uint32  { return c.regs().sp }
++func (c *sigctxt) lr() uint32  { return c.regs().lr }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint32 { return c.regs().pc }
++
+ func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
+ func (c *sigctxt) fault() uint32   { return ^uint32(0) }
+ func (c *sigctxt) trap() uint32    { return ^uint32(0) }
+diff --git a/src/runtime/signal_netbsd_386.go b/src/runtime/signal_netbsd_386.go
+index af49d5dec0..845a575268 100644
+--- a/src/runtime/signal_netbsd_386.go
++++ b/src/runtime/signal_netbsd_386.go
+@@ -11,21 +11,28 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *mcontextt { return &(*ucontextt)(c.ctxt).uc_mcontext }
+-func (c *sigctxt) eax() uint32      { return c.regs().__gregs[_REG_EAX] }
+-func (c *sigctxt) ebx() uint32      { return c.regs().__gregs[_REG_EBX] }
+-func (c *sigctxt) ecx() uint32      { return c.regs().__gregs[_REG_ECX] }
+-func (c *sigctxt) edx() uint32      { return c.regs().__gregs[_REG_EDX] }
+-func (c *sigctxt) edi() uint32      { return c.regs().__gregs[_REG_EDI] }
+-func (c *sigctxt) esi() uint32      { return c.regs().__gregs[_REG_ESI] }
+-func (c *sigctxt) ebp() uint32      { return c.regs().__gregs[_REG_EBP] }
+-func (c *sigctxt) esp() uint32      { return c.regs().__gregs[_REG_UESP] }
+-func (c *sigctxt) eip() uint32      { return c.regs().__gregs[_REG_EIP] }
+-func (c *sigctxt) eflags() uint32   { return c.regs().__gregs[_REG_EFL] }
+-func (c *sigctxt) cs() uint32       { return c.regs().__gregs[_REG_CS] }
+-func (c *sigctxt) fs() uint32       { return c.regs().__gregs[_REG_FS] }
+-func (c *sigctxt) gs() uint32       { return c.regs().__gregs[_REG_GS] }
+-func (c *sigctxt) sigcode() uint32  { return uint32(c.info._code) }
++
++func (c *sigctxt) eax() uint32 { return c.regs().__gregs[_REG_EAX] }
++func (c *sigctxt) ebx() uint32 { return c.regs().__gregs[_REG_EBX] }
++func (c *sigctxt) ecx() uint32 { return c.regs().__gregs[_REG_ECX] }
++func (c *sigctxt) edx() uint32 { return c.regs().__gregs[_REG_EDX] }
++func (c *sigctxt) edi() uint32 { return c.regs().__gregs[_REG_EDI] }
++func (c *sigctxt) esi() uint32 { return c.regs().__gregs[_REG_ESI] }
++func (c *sigctxt) ebp() uint32 { return c.regs().__gregs[_REG_EBP] }
++func (c *sigctxt) esp() uint32 { return c.regs().__gregs[_REG_UESP] }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) eip() uint32 { return c.regs().__gregs[_REG_EIP] }
++
++func (c *sigctxt) eflags() uint32  { return c.regs().__gregs[_REG_EFL] }
++func (c *sigctxt) cs() uint32      { return c.regs().__gregs[_REG_CS] }
++func (c *sigctxt) fs() uint32      { return c.regs().__gregs[_REG_FS] }
++func (c *sigctxt) gs() uint32      { return c.regs().__gregs[_REG_GS] }
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info._code) }
+ func (c *sigctxt) sigaddr() uint32 {
+ 	return *(*uint32)(unsafe.Pointer(&c.info._reason[0]))
+ }
+diff --git a/src/runtime/signal_netbsd_amd64.go b/src/runtime/signal_netbsd_amd64.go
+index db230f8ac0..67fe4377fd 100644
+--- a/src/runtime/signal_netbsd_amd64.go
++++ b/src/runtime/signal_netbsd_amd64.go
+@@ -11,26 +11,33 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *mcontextt {
+ 	return (*mcontextt)(unsafe.Pointer(&(*ucontextt)(c.ctxt).uc_mcontext))
+ }
+-func (c *sigctxt) rax() uint64     { return c.regs().__gregs[_REG_RAX] }
+-func (c *sigctxt) rbx() uint64     { return c.regs().__gregs[_REG_RBX] }
+-func (c *sigctxt) rcx() uint64     { return c.regs().__gregs[_REG_RCX] }
+-func (c *sigctxt) rdx() uint64     { return c.regs().__gregs[_REG_RDX] }
+-func (c *sigctxt) rdi() uint64     { return c.regs().__gregs[_REG_RDI] }
+-func (c *sigctxt) rsi() uint64     { return c.regs().__gregs[_REG_RSI] }
+-func (c *sigctxt) rbp() uint64     { return c.regs().__gregs[_REG_RBP] }
+-func (c *sigctxt) rsp() uint64     { return c.regs().__gregs[_REG_RSP] }
+-func (c *sigctxt) r8() uint64      { return c.regs().__gregs[_REG_R8] }
+-func (c *sigctxt) r9() uint64      { return c.regs().__gregs[_REG_R8] }
+-func (c *sigctxt) r10() uint64     { return c.regs().__gregs[_REG_R10] }
+-func (c *sigctxt) r11() uint64     { return c.regs().__gregs[_REG_R11] }
+-func (c *sigctxt) r12() uint64     { return c.regs().__gregs[_REG_R12] }
+-func (c *sigctxt) r13() uint64     { return c.regs().__gregs[_REG_R13] }
+-func (c *sigctxt) r14() uint64     { return c.regs().__gregs[_REG_R14] }
+-func (c *sigctxt) r15() uint64     { return c.regs().__gregs[_REG_R15] }
+-func (c *sigctxt) rip() uint64     { return c.regs().__gregs[_REG_RIP] }
++
++func (c *sigctxt) rax() uint64 { return c.regs().__gregs[_REG_RAX] }
++func (c *sigctxt) rbx() uint64 { return c.regs().__gregs[_REG_RBX] }
++func (c *sigctxt) rcx() uint64 { return c.regs().__gregs[_REG_RCX] }
++func (c *sigctxt) rdx() uint64 { return c.regs().__gregs[_REG_RDX] }
++func (c *sigctxt) rdi() uint64 { return c.regs().__gregs[_REG_RDI] }
++func (c *sigctxt) rsi() uint64 { return c.regs().__gregs[_REG_RSI] }
++func (c *sigctxt) rbp() uint64 { return c.regs().__gregs[_REG_RBP] }
++func (c *sigctxt) rsp() uint64 { return c.regs().__gregs[_REG_RSP] }
++func (c *sigctxt) r8() uint64  { return c.regs().__gregs[_REG_R8] }
++func (c *sigctxt) r9() uint64  { return c.regs().__gregs[_REG_R8] }
++func (c *sigctxt) r10() uint64 { return c.regs().__gregs[_REG_R10] }
++func (c *sigctxt) r11() uint64 { return c.regs().__gregs[_REG_R11] }
++func (c *sigctxt) r12() uint64 { return c.regs().__gregs[_REG_R12] }
++func (c *sigctxt) r13() uint64 { return c.regs().__gregs[_REG_R13] }
++func (c *sigctxt) r14() uint64 { return c.regs().__gregs[_REG_R14] }
++func (c *sigctxt) r15() uint64 { return c.regs().__gregs[_REG_R15] }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) rip() uint64 { return c.regs().__gregs[_REG_RIP] }
++
+ func (c *sigctxt) rflags() uint64  { return c.regs().__gregs[_REG_RFLAGS] }
+ func (c *sigctxt) cs() uint64      { return c.regs().__gregs[_REG_CS] }
+ func (c *sigctxt) fs() uint64      { return c.regs().__gregs[_REG_FS] }
+diff --git a/src/runtime/signal_netbsd_arm.go b/src/runtime/signal_netbsd_arm.go
+index 4e58d3ba30..64cfffae5a 100644
+--- a/src/runtime/signal_netbsd_arm.go
++++ b/src/runtime/signal_netbsd_arm.go
+@@ -11,28 +11,35 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *mcontextt { return &(*ucontextt)(c.ctxt).uc_mcontext }
+-func (c *sigctxt) r0() uint32       { return c.regs().__gregs[_REG_R0] }
+-func (c *sigctxt) r1() uint32       { return c.regs().__gregs[_REG_R1] }
+-func (c *sigctxt) r2() uint32       { return c.regs().__gregs[_REG_R2] }
+-func (c *sigctxt) r3() uint32       { return c.regs().__gregs[_REG_R3] }
+-func (c *sigctxt) r4() uint32       { return c.regs().__gregs[_REG_R4] }
+-func (c *sigctxt) r5() uint32       { return c.regs().__gregs[_REG_R5] }
+-func (c *sigctxt) r6() uint32       { return c.regs().__gregs[_REG_R6] }
+-func (c *sigctxt) r7() uint32       { return c.regs().__gregs[_REG_R7] }
+-func (c *sigctxt) r8() uint32       { return c.regs().__gregs[_REG_R8] }
+-func (c *sigctxt) r9() uint32       { return c.regs().__gregs[_REG_R9] }
+-func (c *sigctxt) r10() uint32      { return c.regs().__gregs[_REG_R10] }
+-func (c *sigctxt) fp() uint32       { return c.regs().__gregs[_REG_R11] }
+-func (c *sigctxt) ip() uint32       { return c.regs().__gregs[_REG_R12] }
+-func (c *sigctxt) sp() uint32       { return c.regs().__gregs[_REG_R13] }
+-func (c *sigctxt) lr() uint32       { return c.regs().__gregs[_REG_R14] }
+-func (c *sigctxt) pc() uint32       { return c.regs().__gregs[_REG_R15] }
+-func (c *sigctxt) cpsr() uint32     { return c.regs().__gregs[_REG_CPSR] }
+-func (c *sigctxt) fault() uint32    { return uint32(c.info._reason) }
+-func (c *sigctxt) trap() uint32     { return 0 }
+-func (c *sigctxt) error() uint32    { return 0 }
+-func (c *sigctxt) oldmask() uint32  { return 0 }
++
++func (c *sigctxt) r0() uint32  { return c.regs().__gregs[_REG_R0] }
++func (c *sigctxt) r1() uint32  { return c.regs().__gregs[_REG_R1] }
++func (c *sigctxt) r2() uint32  { return c.regs().__gregs[_REG_R2] }
++func (c *sigctxt) r3() uint32  { return c.regs().__gregs[_REG_R3] }
++func (c *sigctxt) r4() uint32  { return c.regs().__gregs[_REG_R4] }
++func (c *sigctxt) r5() uint32  { return c.regs().__gregs[_REG_R5] }
++func (c *sigctxt) r6() uint32  { return c.regs().__gregs[_REG_R6] }
++func (c *sigctxt) r7() uint32  { return c.regs().__gregs[_REG_R7] }
++func (c *sigctxt) r8() uint32  { return c.regs().__gregs[_REG_R8] }
++func (c *sigctxt) r9() uint32  { return c.regs().__gregs[_REG_R9] }
++func (c *sigctxt) r10() uint32 { return c.regs().__gregs[_REG_R10] }
++func (c *sigctxt) fp() uint32  { return c.regs().__gregs[_REG_R11] }
++func (c *sigctxt) ip() uint32  { return c.regs().__gregs[_REG_R12] }
++func (c *sigctxt) sp() uint32  { return c.regs().__gregs[_REG_R13] }
++func (c *sigctxt) lr() uint32  { return c.regs().__gregs[_REG_R14] }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint32 { return c.regs().__gregs[_REG_R15] }
++
++func (c *sigctxt) cpsr() uint32    { return c.regs().__gregs[_REG_CPSR] }
++func (c *sigctxt) fault() uint32   { return uint32(c.info._reason) }
++func (c *sigctxt) trap() uint32    { return 0 }
++func (c *sigctxt) error() uint32   { return 0 }
++func (c *sigctxt) oldmask() uint32 { return 0 }
+ 
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info._code) }
+ func (c *sigctxt) sigaddr() uint32 { return uint32(c.info._reason) }
+diff --git a/src/runtime/signal_openbsd_386.go b/src/runtime/signal_openbsd_386.go
+index dbbb2c8a5c..2fc4b1dcb2 100644
+--- a/src/runtime/signal_openbsd_386.go
++++ b/src/runtime/signal_openbsd_386.go
+@@ -11,19 +11,25 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *sigcontext {
+ 	return (*sigcontext)(c.ctxt)
+ }
+ 
+-func (c *sigctxt) eax() uint32     { return c.regs().sc_eax }
+-func (c *sigctxt) ebx() uint32     { return c.regs().sc_ebx }
+-func (c *sigctxt) ecx() uint32     { return c.regs().sc_ecx }
+-func (c *sigctxt) edx() uint32     { return c.regs().sc_edx }
+-func (c *sigctxt) edi() uint32     { return c.regs().sc_edi }
+-func (c *sigctxt) esi() uint32     { return c.regs().sc_esi }
+-func (c *sigctxt) ebp() uint32     { return c.regs().sc_ebp }
+-func (c *sigctxt) esp() uint32     { return c.regs().sc_esp }
+-func (c *sigctxt) eip() uint32     { return c.regs().sc_eip }
++func (c *sigctxt) eax() uint32 { return c.regs().sc_eax }
++func (c *sigctxt) ebx() uint32 { return c.regs().sc_ebx }
++func (c *sigctxt) ecx() uint32 { return c.regs().sc_ecx }
++func (c *sigctxt) edx() uint32 { return c.regs().sc_edx }
++func (c *sigctxt) edi() uint32 { return c.regs().sc_edi }
++func (c *sigctxt) esi() uint32 { return c.regs().sc_esi }
++func (c *sigctxt) ebp() uint32 { return c.regs().sc_ebp }
++func (c *sigctxt) esp() uint32 { return c.regs().sc_esp }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) eip() uint32 { return c.regs().sc_eip }
++
+ func (c *sigctxt) eflags() uint32  { return c.regs().sc_eflags }
+ func (c *sigctxt) cs() uint32      { return c.regs().sc_cs }
+ func (c *sigctxt) fs() uint32      { return c.regs().sc_fs }
+diff --git a/src/runtime/signal_openbsd_amd64.go b/src/runtime/signal_openbsd_amd64.go
+index 5631ab4408..091a88a54a 100644
+--- a/src/runtime/signal_openbsd_amd64.go
++++ b/src/runtime/signal_openbsd_amd64.go
+@@ -11,27 +11,33 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *sigcontext {
+ 	return (*sigcontext)(c.ctxt)
+ }
+ 
+-func (c *sigctxt) rax() uint64     { return c.regs().sc_rax }
+-func (c *sigctxt) rbx() uint64     { return c.regs().sc_rbx }
+-func (c *sigctxt) rcx() uint64     { return c.regs().sc_rcx }
+-func (c *sigctxt) rdx() uint64     { return c.regs().sc_rdx }
+-func (c *sigctxt) rdi() uint64     { return c.regs().sc_rdi }
+-func (c *sigctxt) rsi() uint64     { return c.regs().sc_rsi }
+-func (c *sigctxt) rbp() uint64     { return c.regs().sc_rbp }
+-func (c *sigctxt) rsp() uint64     { return c.regs().sc_rsp }
+-func (c *sigctxt) r8() uint64      { return c.regs().sc_r8 }
+-func (c *sigctxt) r9() uint64      { return c.regs().sc_r9 }
+-func (c *sigctxt) r10() uint64     { return c.regs().sc_r10 }
+-func (c *sigctxt) r11() uint64     { return c.regs().sc_r11 }
+-func (c *sigctxt) r12() uint64     { return c.regs().sc_r12 }
+-func (c *sigctxt) r13() uint64     { return c.regs().sc_r13 }
+-func (c *sigctxt) r14() uint64     { return c.regs().sc_r14 }
+-func (c *sigctxt) r15() uint64     { return c.regs().sc_r15 }
+-func (c *sigctxt) rip() uint64     { return c.regs().sc_rip }
++func (c *sigctxt) rax() uint64 { return c.regs().sc_rax }
++func (c *sigctxt) rbx() uint64 { return c.regs().sc_rbx }
++func (c *sigctxt) rcx() uint64 { return c.regs().sc_rcx }
++func (c *sigctxt) rdx() uint64 { return c.regs().sc_rdx }
++func (c *sigctxt) rdi() uint64 { return c.regs().sc_rdi }
++func (c *sigctxt) rsi() uint64 { return c.regs().sc_rsi }
++func (c *sigctxt) rbp() uint64 { return c.regs().sc_rbp }
++func (c *sigctxt) rsp() uint64 { return c.regs().sc_rsp }
++func (c *sigctxt) r8() uint64  { return c.regs().sc_r8 }
++func (c *sigctxt) r9() uint64  { return c.regs().sc_r9 }
++func (c *sigctxt) r10() uint64 { return c.regs().sc_r10 }
++func (c *sigctxt) r11() uint64 { return c.regs().sc_r11 }
++func (c *sigctxt) r12() uint64 { return c.regs().sc_r12 }
++func (c *sigctxt) r13() uint64 { return c.regs().sc_r13 }
++func (c *sigctxt) r14() uint64 { return c.regs().sc_r14 }
++func (c *sigctxt) r15() uint64 { return c.regs().sc_r15 }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) rip() uint64 { return c.regs().sc_rip }
++
+ func (c *sigctxt) rflags() uint64  { return c.regs().sc_rflags }
+ func (c *sigctxt) cs() uint64      { return c.regs().sc_cs }
+ func (c *sigctxt) fs() uint64      { return c.regs().sc_fs }
+diff --git a/src/runtime/signal_openbsd_arm.go b/src/runtime/signal_openbsd_arm.go
+index 3158a4e57d..66aea934f1 100644
+--- a/src/runtime/signal_openbsd_arm.go
++++ b/src/runtime/signal_openbsd_arm.go
+@@ -11,26 +11,32 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *sigcontext {
+ 	return (*sigcontext)(c.ctxt)
+ }
+ 
+-func (c *sigctxt) r0() uint32      { return c.regs().sc_r0 }
+-func (c *sigctxt) r1() uint32      { return c.regs().sc_r1 }
+-func (c *sigctxt) r2() uint32      { return c.regs().sc_r2 }
+-func (c *sigctxt) r3() uint32      { return c.regs().sc_r3 }
+-func (c *sigctxt) r4() uint32      { return c.regs().sc_r4 }
+-func (c *sigctxt) r5() uint32      { return c.regs().sc_r5 }
+-func (c *sigctxt) r6() uint32      { return c.regs().sc_r6 }
+-func (c *sigctxt) r7() uint32      { return c.regs().sc_r7 }
+-func (c *sigctxt) r8() uint32      { return c.regs().sc_r8 }
+-func (c *sigctxt) r9() uint32      { return c.regs().sc_r9 }
+-func (c *sigctxt) r10() uint32     { return c.regs().sc_r10 }
+-func (c *sigctxt) fp() uint32      { return c.regs().sc_r11 }
+-func (c *sigctxt) ip() uint32      { return c.regs().sc_r12 }
+-func (c *sigctxt) sp() uint32      { return c.regs().sc_usr_sp }
+-func (c *sigctxt) lr() uint32      { return c.regs().sc_usr_lr }
+-func (c *sigctxt) pc() uint32      { return c.regs().sc_pc }
++func (c *sigctxt) r0() uint32  { return c.regs().sc_r0 }
++func (c *sigctxt) r1() uint32  { return c.regs().sc_r1 }
++func (c *sigctxt) r2() uint32  { return c.regs().sc_r2 }
++func (c *sigctxt) r3() uint32  { return c.regs().sc_r3 }
++func (c *sigctxt) r4() uint32  { return c.regs().sc_r4 }
++func (c *sigctxt) r5() uint32  { return c.regs().sc_r5 }
++func (c *sigctxt) r6() uint32  { return c.regs().sc_r6 }
++func (c *sigctxt) r7() uint32  { return c.regs().sc_r7 }
++func (c *sigctxt) r8() uint32  { return c.regs().sc_r8 }
++func (c *sigctxt) r9() uint32  { return c.regs().sc_r9 }
++func (c *sigctxt) r10() uint32 { return c.regs().sc_r10 }
++func (c *sigctxt) fp() uint32  { return c.regs().sc_r11 }
++func (c *sigctxt) ip() uint32  { return c.regs().sc_r12 }
++func (c *sigctxt) sp() uint32  { return c.regs().sc_usr_sp }
++func (c *sigctxt) lr() uint32  { return c.regs().sc_usr_lr }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) pc() uint32 { return c.regs().sc_pc }
++
+ func (c *sigctxt) cpsr() uint32    { return c.regs().sc_spsr }
+ func (c *sigctxt) fault() uint32   { return c.sigaddr() }
+ func (c *sigctxt) trap() uint32    { return 0 }
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index 73ce09172a..f09f890aee 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -53,7 +53,10 @@ func dumpregs(c *sigctxt) {
+ 	print("trap ", hex(c.trap()), "\n")
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
++
+ func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
+ func (c *sigctxt) siglr() uintptr { return uintptr(c.link()) }
+ 
+diff --git a/src/runtime/signal_solaris_amd64.go b/src/runtime/signal_solaris_amd64.go
+index a577c8c199..b1da3139ed 100644
+--- a/src/runtime/signal_solaris_amd64.go
++++ b/src/runtime/signal_solaris_amd64.go
+@@ -11,26 +11,33 @@ type sigctxt struct {
+ 	ctxt unsafe.Pointer
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
+ func (c *sigctxt) regs() *mcontext {
+ 	return (*mcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
+ }
+-func (c *sigctxt) rax() uint64     { return uint64(c.regs().gregs[_REG_RAX]) }
+-func (c *sigctxt) rbx() uint64     { return uint64(c.regs().gregs[_REG_RBX]) }
+-func (c *sigctxt) rcx() uint64     { return uint64(c.regs().gregs[_REG_RCX]) }
+-func (c *sigctxt) rdx() uint64     { return uint64(c.regs().gregs[_REG_RDX]) }
+-func (c *sigctxt) rdi() uint64     { return uint64(c.regs().gregs[_REG_RDI]) }
+-func (c *sigctxt) rsi() uint64     { return uint64(c.regs().gregs[_REG_RSI]) }
+-func (c *sigctxt) rbp() uint64     { return uint64(c.regs().gregs[_REG_RBP]) }
+-func (c *sigctxt) rsp() uint64     { return uint64(c.regs().gregs[_REG_RSP]) }
+-func (c *sigctxt) r8() uint64      { return uint64(c.regs().gregs[_REG_R8]) }
+-func (c *sigctxt) r9() uint64      { return uint64(c.regs().gregs[_REG_R9]) }
+-func (c *sigctxt) r10() uint64     { return uint64(c.regs().gregs[_REG_R10]) }
+-func (c *sigctxt) r11() uint64     { return uint64(c.regs().gregs[_REG_R11]) }
+-func (c *sigctxt) r12() uint64     { return uint64(c.regs().gregs[_REG_R12]) }
+-func (c *sigctxt) r13() uint64     { return uint64(c.regs().gregs[_REG_R13]) }
+-func (c *sigctxt) r14() uint64     { return uint64(c.regs().gregs[_REG_R14]) }
+-func (c *sigctxt) r15() uint64     { return uint64(c.regs().gregs[_REG_R15]) }
+-func (c *sigctxt) rip() uint64     { return uint64(c.regs().gregs[_REG_RIP]) }
++
++func (c *sigctxt) rax() uint64 { return uint64(c.regs().gregs[_REG_RAX]) }
++func (c *sigctxt) rbx() uint64 { return uint64(c.regs().gregs[_REG_RBX]) }
++func (c *sigctxt) rcx() uint64 { return uint64(c.regs().gregs[_REG_RCX]) }
++func (c *sigctxt) rdx() uint64 { return uint64(c.regs().gregs[_REG_RDX]) }
++func (c *sigctxt) rdi() uint64 { return uint64(c.regs().gregs[_REG_RDI]) }
++func (c *sigctxt) rsi() uint64 { return uint64(c.regs().gregs[_REG_RSI]) }
++func (c *sigctxt) rbp() uint64 { return uint64(c.regs().gregs[_REG_RBP]) }
++func (c *sigctxt) rsp() uint64 { return uint64(c.regs().gregs[_REG_RSP]) }
++func (c *sigctxt) r8() uint64  { return uint64(c.regs().gregs[_REG_R8]) }
++func (c *sigctxt) r9() uint64  { return uint64(c.regs().gregs[_REG_R9]) }
++func (c *sigctxt) r10() uint64 { return uint64(c.regs().gregs[_REG_R10]) }
++func (c *sigctxt) r11() uint64 { return uint64(c.regs().gregs[_REG_R11]) }
++func (c *sigctxt) r12() uint64 { return uint64(c.regs().gregs[_REG_R12]) }
++func (c *sigctxt) r13() uint64 { return uint64(c.regs().gregs[_REG_R13]) }
++func (c *sigctxt) r14() uint64 { return uint64(c.regs().gregs[_REG_R14]) }
++func (c *sigctxt) r15() uint64 { return uint64(c.regs().gregs[_REG_R15]) }
++
++//go:nosplit
++//go:nowritebarrierrec
++func (c *sigctxt) rip() uint64 { return uint64(c.regs().gregs[_REG_RIP]) }
++
+ func (c *sigctxt) rflags() uint64  { return uint64(c.regs().gregs[_REG_RFLAGS]) }
+ func (c *sigctxt) cs() uint64      { return uint64(c.regs().gregs[_REG_CS]) }
+ func (c *sigctxt) fs() uint64      { return uint64(c.regs().gregs[_REG_FS]) }
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index f0c27cedbf..6b85490f75 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -202,15 +202,12 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	}
+ 	g := getg()
+ 	if g == nil {
++		c := &sigctxt{info, ctx}
+ 		if sig == _SIGPROF {
+-			// Ignore profiling signals that arrive on
+-			// non-Go threads. On some systems they will
+-			// be handled directly by the signal handler,
+-			// by calling sigprofNonGo, in which case we won't
+-			// get here anyhow.
++			sigprofNonGoPC(c.sigpc())
+ 			return
+ 		}
+-		badsignal(uintptr(sig), &sigctxt{info, ctx})
++		badsignal(uintptr(sig), c)
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/testdata/testprogcgo/threadpprof.go b/src/runtime/testdata/testprogcgo/threadpprof.go
+index 81965831a7..5f16e2526f 100644
+--- a/src/runtime/testdata/testprogcgo/threadpprof.go
++++ b/src/runtime/testdata/testprogcgo/threadpprof.go
+@@ -80,11 +80,19 @@ import (
+ 
+ func init() {
+ 	register("CgoPprofThread", CgoPprofThread)
++	register("CgoPprofThreadNoTraceback", CgoPprofThreadNoTraceback)
+ }
+ 
+ func CgoPprofThread() {
+ 	runtime.SetCgoTraceback(0, unsafe.Pointer(C.pprofCgoThreadTraceback), nil, nil)
++	pprofThread()
++}
++
++func CgoPprofThreadNoTraceback() {
++	pprofThread()
++}
+ 
++func pprofThread() {
+ 	f, err := ioutil.TempFile("", "prof")
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, err)

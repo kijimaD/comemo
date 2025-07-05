@@ -33,7 +33,7 @@ Date:   Fri Dec 11 15:15:43 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/277233
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/debug/dwarf/dwarf5ranges_test.go           |   7 +-
  src/debug/dwarf/entry.go                       | 123 +++++++++++++++++--------
  src/debug/dwarf/entry_test.go                  | 100 ++++++++++++++------
@@ -41,3 +41,508 @@ Date:   Fri Dec 11 15:15:43 2020 -0800
  src/debug/dwarf/testdata/line-clang-dwarf5.elf | Bin 0 -> 18384 bytes
  src/debug/dwarf/testdata/line-gcc-dwarf5.elf   | Bin 0 -> 18040 bytes
  6 files changed, 164 insertions(+), 151 deletions(-)
+
+diff --git a/src/debug/dwarf/dwarf5ranges_test.go b/src/debug/dwarf/dwarf5ranges_test.go
+index 0ff1a55bc9..8bc50bcab6 100644
+--- a/src/debug/dwarf/dwarf5ranges_test.go
++++ b/src/debug/dwarf/dwarf5ranges_test.go
+@@ -22,7 +22,12 @@ func TestDwarf5Ranges(t *testing.T) {
+ 	if err := d.AddSection(".debug_rnglists", rngLists); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	ret, err := d.dwarf5Ranges(nil, 0x5fbd, 0xc, [][2]uint64{})
++	u := &unit{
++		asize: 8,
++		vers:  5,
++		is64:  true,
++	}
++	ret, err := d.dwarf5Ranges(u, nil, 0x5fbd, 0xc, [][2]uint64{})
+ 	if err != nil {
+ 		t.Fatalf("could not read rnglist: %v", err)
+ 	}
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index bc05d7ef31..3fc73b8ead 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -423,6 +423,47 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry
+ 		Children: a.children,
+ 		Field:    make([]Field, len(a.field)),
+ 	}
++
++	// If we are currently parsing the compilation unit,
++	// we can't evaluate Addrx or Strx until we've seen the
++	// relevant base entry.
++	type delayed struct {
++		idx int
++		off uint64
++		fmt format
++	}
++	var delay []delayed
++
++	resolveStrx := func(strBase, off uint64) string {
++		off += strBase
++		if uint64(int(off)) != off {
++			b.error("DW_FORM_strx offset out of range")
++		}
++
++		b1 := makeBuf(b.dwarf, b.format, "str_offsets", 0, b.dwarf.strOffsets)
++		b1.skip(int(off))
++		is64, _ := b.format.dwarf64()
++		if is64 {
++			off = b1.uint64()
++		} else {
++			off = uint64(b1.uint32())
++		}
++		if b1.err != nil {
++			b.err = b1.err
++			return ""
++		}
++		if uint64(int(off)) != off {
++			b.error("DW_FORM_strx indirect offset out of range")
++		}
++		b1 = makeBuf(b.dwarf, b.format, "str", 0, b.dwarf.str)
++		b1.skip(int(off))
++		val := b1.string()
++		if b1.err != nil {
++			b.err = b1.err
++		}
++		return val
++	}
++
+ 	for i := range e.Field {
+ 		e.Field[i].Attr = a.field[i].attr
+ 		e.Field[i].Class = a.field[i].class
+@@ -467,10 +508,13 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry
+ 			var addrBase int64
+ 			if cu != nil {
+ 				addrBase, _ = cu.Val(AttrAddrBase).(int64)
++			} else if a.tag == TagCompileUnit {
++				delay = append(delay, delayed{i, off, formAddrx})
++				break
+ 			}
+ 
+ 			var err error
+-			val, err = b.dwarf.debugAddr(uint64(addrBase), off)
++			val, err = b.dwarf.debugAddr(b.format, uint64(addrBase), off)
+ 			if err != nil {
+ 				if b.err == nil {
+ 					b.err = err
+@@ -611,38 +655,16 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry
+ 			// compilation unit. This won't work if the
+ 			// program uses Reader.Seek to skip over the
+ 			// unit. Not much we can do about that.
++			var strBase int64
+ 			if cu != nil {
+-				cuOff, ok := cu.Val(AttrStrOffsetsBase).(int64)
+-				if ok {
+-					off += uint64(cuOff)
+-				}
++				strBase, _ = cu.Val(AttrStrOffsetsBase).(int64)
++			} else if a.tag == TagCompileUnit {
++				delay = append(delay, delayed{i, off, formStrx})
++				break
+ 			}
+ 
+-			if uint64(int(off)) != off {
+-				b.error("DW_FORM_strx offset out of range")
+-			}
++			val = resolveStrx(uint64(strBase), off)
+ 
+-			b1 := makeBuf(b.dwarf, b.format, "str_offsets", 0, b.dwarf.strOffsets)
+-			b1.skip(int(off))
+-			if is64 {
+-				off = b1.uint64()
+-			} else {
+-				off = uint64(b1.uint32())
+-			}
+-			if b1.err != nil {
+-				b.err = b1.err
+-				return nil
+-			}
+-			if uint64(int(off)) != off {
+-				b.error("DW_FORM_strx indirect offset out of range")
+-			}
+-			b1 = makeBuf(b.dwarf, b.format, "str", 0, b.dwarf.str)
+-			b1.skip(int(off))
+-			val = b1.string()
+-			if b1.err != nil {
+-				b.err = b1.err
+-				return nil
+-			}
+ 		case formStrpSup:
+ 			is64, known := b.format.dwarf64()
+ 			if !known {
+@@ -689,11 +711,32 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry
+ 		case formRnglistx:
+ 			val = b.uint()
+ 		}
++
+ 		e.Field[i].Val = val
+ 	}
+ 	if b.err != nil {
+ 		return nil
+ 	}
++
++	for _, del := range delay {
++		switch del.fmt {
++		case formAddrx:
++			addrBase, _ := e.Val(AttrAddrBase).(int64)
++			val, err := b.dwarf.debugAddr(b.format, uint64(addrBase), del.off)
++			if err != nil {
++				b.err = err
++				return nil
++			}
++			e.Field[del.idx].Val = val
++		case formStrx:
++			strBase, _ := e.Val(AttrStrOffsetsBase).(int64)
++			e.Field[del.idx].Val = resolveStrx(uint64(strBase), del.off)
++			if b.err != nil {
++				return nil
++			}
++		}
++	}
++
+ 	return e
+ }
+ 
+@@ -877,6 +920,7 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
+ 		r.err = nil
+ 		r.lastChildren = false
+ 		r.unit = unit
++		r.cu = nil
+ 		u := &r.d.unit[unit]
+ 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+ 		e, err := r.Next()
+@@ -946,7 +990,7 @@ func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			return d.dwarf5Ranges(cu, base, ranges, ret)
++			return d.dwarf5Ranges(u, cu, base, ranges, ret)
+ 
+ 		case ClassRngList:
+ 			// TODO: support DW_FORM_rnglistx
+@@ -1023,13 +1067,13 @@ func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64)
+ 
+ // dwarf5Ranges interpets a debug_rnglists sequence, see DWARFv5 section
+ // 2.17.3 (page 53).
+-func (d *Data) dwarf5Ranges(cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
++func (d *Data) dwarf5Ranges(u *unit, cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+ 	var addrBase int64
+ 	if cu != nil {
+ 		addrBase, _ = cu.Val(AttrAddrBase).(int64)
+ 	}
+ 
+-	buf := makeBuf(d, d.rngLists, "rnglists", 0, d.rngLists.data)
++	buf := makeBuf(d, u, "rnglists", 0, d.rngLists)
+ 	buf.skip(int(ranges))
+ 	for {
+ 		opcode := buf.uint8()
+@@ -1043,7 +1087,7 @@ func (d *Data) dwarf5Ranges(cu *Entry, base uint64, ranges int64, ret [][2]uint6
+ 		case rleBaseAddressx:
+ 			baseIdx := buf.uint()
+ 			var err error
+-			base, err = d.debugAddr(uint64(addrBase), baseIdx)
++			base, err = d.debugAddr(u, uint64(addrBase), baseIdx)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -1052,11 +1096,11 @@ func (d *Data) dwarf5Ranges(cu *Entry, base uint64, ranges int64, ret [][2]uint6
+ 			startIdx := buf.uint()
+ 			endIdx := buf.uint()
+ 
+-			start, err := d.debugAddr(uint64(addrBase), startIdx)
++			start, err := d.debugAddr(u, uint64(addrBase), startIdx)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			end, err := d.debugAddr(uint64(addrBase), endIdx)
++			end, err := d.debugAddr(u, uint64(addrBase), endIdx)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -1065,7 +1109,7 @@ func (d *Data) dwarf5Ranges(cu *Entry, base uint64, ranges int64, ret [][2]uint6
+ 		case rleStartxLength:
+ 			startIdx := buf.uint()
+ 			len := buf.uint()
+-			start, err := d.debugAddr(uint64(addrBase), startIdx)
++			start, err := d.debugAddr(u, uint64(addrBase), startIdx)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -1093,19 +1137,18 @@ func (d *Data) dwarf5Ranges(cu *Entry, base uint64, ranges int64, ret [][2]uint6
+ }
+ 
+ // debugAddr returns the address at idx in debug_addr
+-func (d *Data) debugAddr(addrBase, idx uint64) (uint64, error) {
+-	off := idx*uint64(d.addr.addrsize()) + addrBase
++func (d *Data) debugAddr(format dataFormat, addrBase, idx uint64) (uint64, error) {
++	off := idx*uint64(format.addrsize()) + addrBase
+ 
+ 	if uint64(int(off)) != off {
+ 		return 0, errors.New("offset out of range")
+ 	}
+ 
+-	b := makeBuf(d, d.addr, "addr", 0, d.addr.data)
++	b := makeBuf(d, format, "addr", 0, d.addr)
+ 	b.skip(int(off))
+ 	val := b.addr()
+ 	if b.err != nil {
+ 		return 0, b.err
+ 	}
+-
+ 	return val, nil
+ }
+diff --git a/src/debug/dwarf/entry_test.go b/src/debug/dwarf/entry_test.go
+index 2e6ee048aa..b54f8b4f8d 100644
+--- a/src/debug/dwarf/entry_test.go
++++ b/src/debug/dwarf/entry_test.go
+@@ -55,6 +55,20 @@ func TestReaderSeek(t *testing.T) {
+ 		{0x400611, nil},
+ 	}
+ 	testRanges(t, "testdata/line-gcc.elf", want)
++
++	want = []wantRange{
++		{0x401122, [][2]uint64{{0x401122, 0x401166}}},
++		{0x401165, [][2]uint64{{0x401122, 0x401166}}},
++		{0x401166, [][2]uint64{{0x401166, 0x401179}}},
++	}
++	testRanges(t, "testdata/line-gcc-dwarf5.elf", want)
++
++	want = []wantRange{
++		{0x401130, [][2]uint64{{0x401130, 0x40117e}}},
++		{0x40117d, [][2]uint64{{0x401130, 0x40117e}}},
++		{0x40117e, nil},
++	}
++	testRanges(t, "testdata/line-clang-dwarf5.elf", want)
+ }
+ 
+ func TestRangesSection(t *testing.T) {
+@@ -97,44 +111,72 @@ func testRanges(t *testing.T, name string, want []wantRange) {
+ }
+ 
+ func TestReaderRanges(t *testing.T) {
+-	d := elfData(t, "testdata/line-gcc.elf")
+-
+-	subprograms := []struct {
++	type subprograms []struct {
+ 		name   string
+ 		ranges [][2]uint64
++	}
++	tests := []struct {
++		filename    string
++		subprograms subprograms
+ 	}{
+-		{"f1", [][2]uint64{{0x40059d, 0x4005e7}}},
+-		{"main", [][2]uint64{{0x4005e7, 0x400601}}},
+-		{"f2", [][2]uint64{{0x400601, 0x400611}}},
++		{
++			"testdata/line-gcc.elf",
++			subprograms{
++				{"f1", [][2]uint64{{0x40059d, 0x4005e7}}},
++				{"main", [][2]uint64{{0x4005e7, 0x400601}}},
++				{"f2", [][2]uint64{{0x400601, 0x400611}}},
++			},
++		},
++		{
++			"testdata/line-gcc-dwarf5.elf",
++			subprograms{
++				{"main", [][2]uint64{{0x401147, 0x401166}}},
++				{"f1", [][2]uint64{{0x401122, 0x401147}}},
++				{"f2", [][2]uint64{{0x401166, 0x401179}}},
++			},
++		},
++		{
++			"testdata/line-clang-dwarf5.elf",
++			subprograms{
++				{"main", [][2]uint64{{0x401130, 0x401144}}},
++				{"f1", [][2]uint64{{0x401150, 0x40117e}}},
++				{"f2", [][2]uint64{{0x401180, 0x401197}}},
++			},
++		},
+ 	}
+ 
+-	r := d.Reader()
+-	i := 0
+-	for entry, err := r.Next(); entry != nil && err == nil; entry, err = r.Next() {
+-		if entry.Tag != TagSubprogram {
+-			continue
+-		}
++	for _, test := range tests {
++		d := elfData(t, test.filename)
++		subprograms := test.subprograms
+ 
+-		if i > len(subprograms) {
+-			t.Fatalf("too many subprograms (expected at most %d)", i)
+-		}
++		r := d.Reader()
++		i := 0
++		for entry, err := r.Next(); entry != nil && err == nil; entry, err = r.Next() {
++			if entry.Tag != TagSubprogram {
++				continue
++			}
+ 
+-		if got := entry.Val(AttrName).(string); got != subprograms[i].name {
+-			t.Errorf("subprogram %d name is %s, expected %s", i, got, subprograms[i].name)
+-		}
+-		ranges, err := d.Ranges(entry)
+-		if err != nil {
+-			t.Errorf("subprogram %d: %v", i, err)
+-			continue
+-		}
+-		if !reflect.DeepEqual(ranges, subprograms[i].ranges) {
+-			t.Errorf("subprogram %d ranges are %x, expected %x", i, ranges, subprograms[i].ranges)
++			if i > len(subprograms) {
++				t.Fatalf("%s: too many subprograms (expected at most %d)", test.filename, i)
++			}
++
++			if got := entry.Val(AttrName).(string); got != subprograms[i].name {
++				t.Errorf("%s: subprogram %d name is %s, expected %s", test.filename, i, got, subprograms[i].name)
++			}
++			ranges, err := d.Ranges(entry)
++			if err != nil {
++				t.Errorf("%s: subprogram %d: %v", test.filename, i, err)
++				continue
++			}
++			if !reflect.DeepEqual(ranges, subprograms[i].ranges) {
++				t.Errorf("%s: subprogram %d ranges are %x, expected %x", test.filename, i, ranges, subprograms[i].ranges)
++			}
++			i++
+ 		}
+-		i++
+-	}
+ 
+-	if i < len(subprograms) {
+-		t.Errorf("saw only %d subprograms, expected %d", i, len(subprograms))
++		if i < len(subprograms) {
++			t.Errorf("%s: saw only %d subprograms, expected %d", test.filename, i, len(subprograms))
++		}
+ 	}
+ }
+ 
+diff --git a/src/debug/dwarf/open.go b/src/debug/dwarf/open.go
+index 617b8c56dd..e94103a1d7 100644
+--- a/src/debug/dwarf/open.go
++++ b/src/debug/dwarf/open.go
+@@ -26,10 +26,10 @@ type Data struct {
+ 	str      []byte
+ 
+ 	// New sections added in DWARF 5.
+-	addr       *debugAddr
++	addr       []byte
+ 	lineStr    []byte
+ 	strOffsets []byte
+-	rngLists   *rngLists
++	rngLists   []byte
+ 
+ 	// parsed data
+ 	abbrevCache map[uint64]abbrevTable
+@@ -40,21 +40,6 @@ type Data struct {
+ 	unit        []unit
+ }
+ 
+-// rngLists represents the contents of a debug_rnglists section (DWARFv5).
+-type rngLists struct {
+-	is64  bool
+-	asize uint8
+-	data  []byte
+-	ver   uint16
+-}
+-
+-// debugAddr represents the contents of a debug_addr section (DWARFv5).
+-type debugAddr struct {
+-	is64  bool
+-	asize uint8
+-	data  []byte
+-}
+-
+ var errSegmentSelector = errors.New("non-zero segment_selector size not supported")
+ 
+ // New returns a new Data object initialized from the given parameters.
+@@ -132,76 +117,14 @@ func (d *Data) AddSection(name string, contents []byte) error {
+ 	var err error
+ 	switch name {
+ 	case ".debug_addr":
+-		d.addr, err = d.parseAddrHeader(contents)
++		d.addr = contents
+ 	case ".debug_line_str":
+ 		d.lineStr = contents
+ 	case ".debug_str_offsets":
+ 		d.strOffsets = contents
+ 	case ".debug_rnglists":
+-		d.rngLists, err = d.parseRngListsHeader(contents)
++		d.rngLists = contents
+ 	}
+ 	// Just ignore names that we don't yet support.
+ 	return err
+ }
+-
+-// parseRngListsHeader reads the header of a debug_rnglists section, see
+-// DWARFv5 section 7.28 (page 242).
+-func (d *Data) parseRngListsHeader(bytes []byte) (*rngLists, error) {
+-	rngLists := &rngLists{data: bytes}
+-
+-	buf := makeBuf(d, unknownFormat{}, "rnglists", 0, bytes)
+-	_, rngLists.is64 = buf.unitLength()
+-
+-	rngLists.ver = buf.uint16() // version
+-
+-	rngLists.asize = buf.uint8()
+-	segsize := buf.uint8()
+-	if segsize != 0 {
+-		return nil, errSegmentSelector
+-	}
+-
+-	// Header fields not read: offset_entry_count, offset table
+-
+-	return rngLists, nil
+-}
+-
+-func (rngLists *rngLists) version() int {
+-	return int(rngLists.ver)
+-}
+-
+-func (rngLists *rngLists) dwarf64() (bool, bool) {
+-	return rngLists.is64, true
+-}
+-
+-func (rngLists *rngLists) addrsize() int {
+-	return int(rngLists.asize)
+-}
+-
+-// parseAddrHeader reads the header of a debug_addr section, see DWARFv5
+-// section 7.27 (page 241).
+-func (d *Data) parseAddrHeader(bytes []byte) (*debugAddr, error) {
+-	addr := &debugAddr{data: bytes}
+-
+-	buf := makeBuf(d, unknownFormat{}, "addr", 0, bytes)
+-	_, addr.is64 = buf.unitLength()
+-
+-	addr.asize = buf.uint8()
+-	segsize := buf.uint8()
+-	if segsize != 0 {
+-		return nil, errSegmentSelector
+-	}
+-
+-	return addr, nil
+-}
+-
+-func (addr *debugAddr) version() int {
+-	return 5
+-}
+-
+-func (addr *debugAddr) dwarf64() (bool, bool) {
+-	return addr.is64, true
+-}
+-
+-func (addr *debugAddr) addrsize() int {
+-	return int(addr.asize)
+-}
+diff --git a/src/debug/dwarf/testdata/line-clang-dwarf5.elf b/src/debug/dwarf/testdata/line-clang-dwarf5.elf
+new file mode 100644
+index 0000000000..7b80c9c5da
+Binary files /dev/null and b/src/debug/dwarf/testdata/line-clang-dwarf5.elf differ
+diff --git a/src/debug/dwarf/testdata/line-gcc-dwarf5.elf b/src/debug/dwarf/testdata/line-gcc-dwarf5.elf
+new file mode 100644
+index 0000000000..34ce17cc42
+Binary files /dev/null and b/src/debug/dwarf/testdata/line-gcc-dwarf5.elf differ

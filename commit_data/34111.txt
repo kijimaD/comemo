@@ -13,8 +13,155 @@ Date:   Sat Sep 30 16:50:00 2017 +0000
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go     |  3 ++-
  src/cmd/link/internal/ld/link.go    | 30 +++++++++++++++++++++---------
  src/cmd/link/internal/ld/objfile.go | 25 +++++++++++--------------
  3 files changed, 34 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 196e86abf7..42498cbc9b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1425,7 +1425,8 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
+ 	ldpkg(ctxt, f, pkg, import1-import0-2, pn, whence) // -2 for !\n
+ 	f.Seek(import1, 0)
+ 
+-	LoadObjFile(ctxt, f, lib, eof-f.Offset(), pn)
++	LoadObjFile(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
++	lib.addImports(ctxt, pn)
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 8d1201bb89..76ba09965b 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -206,21 +206,33 @@ func (l *Link) Logf(format string, args ...interface{}) {
+ }
+ 
+ type Library struct {
+-	Objref      string
+-	Srcref      string
+-	File        string
+-	Pkg         string
+-	Shlib       string
+-	hash        string
+-	imports     []*Library
+-	textp       []*Symbol // text symbols defined in this library
+-	dupTextSyms []*Symbol // dupok text symbols defined in this library
++	Objref        string
++	Srcref        string
++	File          string
++	Pkg           string
++	Shlib         string
++	hash          string
++	importStrings []string
++	imports       []*Library
++	textp         []*Symbol // text symbols defined in this library
++	dupTextSyms   []*Symbol // dupok text symbols defined in this library
+ }
+ 
+ func (l Library) String() string {
+ 	return l.Pkg
+ }
+ 
++func (l *Library) addImports(ctxt *Link, pn string) {
++	pkg := objabi.PathToPrefix(l.Pkg)
++	for _, importStr := range l.importStrings {
++		lib := addlib(ctxt, pkg, pn, importStr)
++		if lib != nil {
++			l.imports = append(l.imports, lib)
++		}
++	}
++	l.importStrings = nil
++}
++
+ type FuncInfo struct {
+ 	Args        int32
+ 	Locals      int32
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 566b916519..a7ca2a61ec 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"crypto/sha1"
+ 	"encoding/base64"
+ 	"io"
+@@ -30,7 +31,8 @@ var emptyPkg = []byte(`"".`)
+ // objReader reads Go object files.
+ type objReader struct {
+ 	rd              *bufio.Reader
+-	ctxt            *Link
++	arch            *sys.Arch
++	syms            *Symbols
+ 	lib             *Library
+ 	pn              string
+ 	dupSym          *Symbol
+@@ -50,16 +52,16 @@ type objReader struct {
+ 	file        []*Symbol
+ }
+ 
+-func LoadObjFile(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string) {
+-
++func LoadObjFile(arch *sys.Arch, syms *Symbols, f *bio.Reader, lib *Library, length int64, pn string) {
+ 	start := f.Offset()
+ 	r := &objReader{
+ 		rd:              f.Reader,
+ 		lib:             lib,
+-		ctxt:            ctxt,
++		arch:            arch,
++		syms:            syms,
+ 		pn:              pn,
+ 		dupSym:          &Symbol{Name: ".dup"},
+-		localSymVersion: ctxt.Syms.IncVersion(),
++		localSymVersion: syms.IncVersion(),
+ 	}
+ 	r.loadObjFile()
+ 	if f.Offset() != start+length {
+@@ -68,8 +70,6 @@ func LoadObjFile(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn strin
+ }
+ 
+ func (r *objReader) loadObjFile() {
+-	pkg := objabi.PathToPrefix(r.lib.Pkg)
+-
+ 	// Magic header
+ 	var buf [8]uint8
+ 	r.readFull(buf[:])
+@@ -89,10 +89,7 @@ func (r *objReader) loadObjFile() {
+ 		if lib == "" {
+ 			break
+ 		}
+-		l := addlib(r.ctxt, pkg, r.pn, lib)
+-		if l != nil {
+-			r.lib.imports = append(r.lib.imports, l)
+-		}
++		r.lib.importStrings = append(r.lib.importStrings, lib)
+ 	}
+ 
+ 	// Symbol references
+@@ -386,7 +383,7 @@ func (r *objReader) readRef() {
+ 	if v == 1 {
+ 		v = r.localSymVersion
+ 	}
+-	s := r.ctxt.Syms.Lookup(name, v)
++	s := r.syms.Lookup(name, v)
+ 	r.refs = append(r.refs, s)
+ 
+ 	if s == nil || v != 0 {
+@@ -404,9 +401,9 @@ func (r *objReader) readRef() {
+ 			if uint64(uint32(x)) != x {
+ 				log.Panicf("$-symbol %s too large: %d", s.Name, x)
+ 			}
+-			s.AddUint32(r.ctxt.Arch, uint32(x))
++			s.AddUint32(r.arch, uint32(x))
+ 		case "$f64.", "$i64.":
+-			s.AddUint64(r.ctxt.Arch, x)
++			s.AddUint64(r.arch, x)
+ 		default:
+ 			log.Panicf("unrecognized $-symbol: %s", s.Name)
+ 		}

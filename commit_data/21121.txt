@@ -21,6 +21,49 @@ Date:   Sun Nov 16 22:55:07 2014 +0100
     R=rsc
     CC=austin, golang-codereviews, mischief
     https://golang.org/cl/177860043
-
+---
  src/cmd/8g/reg.c | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 79d60bed55..aa39dbd43f 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -926,7 +926,7 @@ paint1(Reg *r, int bn)
+ 	Reg *r1;
+ 	Prog *p;
+ 	int z;
+-	uint64 bb;
++	uint64 bb, rbz;
+ 
+ 	z = bn/64;
+ 	bb = 1LL<<(bn%64);
+@@ -945,7 +945,8 @@ paint1(Reg *r, int bn)
+ 		r = r1;
+ 	}
+ 
+-	if(LOAD(r) & ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z])) & bb) {
++	rbz = ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z]));
++	if(LOAD(r) & rbz & bb) {
+ 		change -= CLOAD * r->f.loop;
+ 	}
+ 	for(;;) {
+@@ -1053,7 +1054,7 @@ paint3(Reg *r, int bn, uint32 rb, int rn)
+ 	Reg *r1;
+ 	Prog *p;
+ 	int z;
+-	uint64 bb;
++	uint64 bb, rbz;
+ 
+ 	z = bn/64;
+ 	bb = 1LL << (bn%64);
+@@ -1072,7 +1073,8 @@ paint3(Reg *r, int bn, uint32 rb, int rn)
+ 		r = r1;
+ 	}
+ 
+-	if(LOAD(r) & ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z])) & bb)
++	rbz = ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z]));
++	if(LOAD(r) & rbz & bb)
+ 		addmove(r, bn, rn, 0);
+ 	for(;;) {
+ 		r->act.b[z] |= bb;

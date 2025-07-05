@@ -40,7 +40,7 @@ Date:   Thu Oct 26 12:21:16 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/cmd/vet/all/whitelist/amd64.txt |   1 +
  src/runtime/asm_amd64.s             |  89 +++++++++++++++
  src/runtime/cgocheck.go             |   4 +
@@ -52,3 +52,493 @@ Date:   Thu Oct 26 12:21:16 2017 -0400
  src/runtime/runtime1.go             |   7 --
  src/runtime/runtime2.go             |   5 +
  10 files changed, 369 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 56a6e2eb8d..ebde7be58b 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -31,3 +31,4 @@ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+ runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
+ runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration
+ runtime/asm_amd64.s: [amd64] countByte: function countByte missing Go declaration
++runtime/asm_amd64.s: [amd64] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 01a1710046..ea48a8e3c0 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2371,3 +2371,92 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ 	MOVQ	DI, runtime·lastmoduledatap(SB)
+ 	POPQ	R15
+ 	RET
++
++// gcWriteBarrier performs a heap pointer write and informs the GC.
++//
++// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
++// - DI is the destination of the write
++// - AX is the value being written at DI
++// It clobbers FLAGS. It does not clobber any general-purpose registers,
++// but may clobber others (e.g., SSE registers).
++//
++// TODO: AX may be a bad choice because regalloc likes to use it.
++TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$120
++	// Save the registers clobbered by the fast path.
++	//
++	// TODO: Teach the register allocator that this clobbers some registers
++	// so we don't always have to save them? Use regs it's least likely to
++	// care about.
++	MOVQ	R14, 104(SP)
++	MOVQ	R13, 112(SP)
++	// TODO: Consider passing g.m.p in as an argument so they can be shared
++	// across a sequence of write barriers.
++	get_tls(R13)
++	MOVQ	g(R13), R13
++	MOVQ	g_m(R13), R13
++	MOVQ	m_p(R13), R13
++	MOVQ	(p_wbBuf+wbBuf_next)(R13), R14
++	// Increment wbBuf.next position.
++	LEAQ	16(R14), R14
++	MOVQ	R14, (p_wbBuf+wbBuf_next)(R13)
++	CMPQ	R14, (p_wbBuf+wbBuf_end)(R13)
++	// Record the write.
++	MOVQ	AX, -16(R14)	// Record value
++	MOVQ	(DI), R13	// TODO: This turns bad writes into bad reads.
++	MOVQ	R13, -8(R14)	// Record *slot
++	// Is the buffer full? (flags set in CMPQ above)
++	JEQ	flush
++ret:
++	MOVQ	104(SP), R14
++	MOVQ	112(SP), R13
++	// Do the write.
++	MOVQ	AX, (DI)
++	RET
++
++flush:
++	// Save all general purpose registers since these could be
++	// clobbered by wbBufFlush and were not saved by the caller.
++	// It is possible for wbBufFlush to clobber other registers
++	// (e.g., SSE registers), but the compiler takes care of saving
++	// those in the caller if necessary. This strikes a balance
++	// with registers that are likely to be used.
++	//
++	// We don't have type information for these, but all code under
++	// here is NOSPLIT, so nothing will observe these.
++	//
++	// TODO: We could strike a different balance; e.g., saving X0
++	// and not saving GP registers that are less likely to be used.
++	MOVQ	DI, 0(SP)	// Also first argument to wbBufFlush
++	MOVQ	AX, 8(SP)	// Also second argument to wbBufFlush
++	MOVQ	BX, 16(SP)
++	MOVQ	CX, 24(SP)
++	MOVQ	DX, 32(SP)
++	// DI already saved
++	MOVQ	SI, 40(SP)
++	MOVQ	BP, 48(SP)
++	MOVQ	R8, 56(SP)
++	MOVQ	R9, 64(SP)
++	MOVQ	R10, 72(SP)
++	MOVQ	R11, 80(SP)
++	MOVQ	R12, 88(SP)
++	// R13 already saved
++	// R14 already saved
++	MOVQ	R15, 96(SP)
++
++	// This takes arguments DI and AX
++	CALL	runtime·wbBufFlush(SB)
++
++	MOVQ	0(SP), DI
++	MOVQ	8(SP), AX
++	MOVQ	16(SP), BX
++	MOVQ	24(SP), CX
++	MOVQ	32(SP), DX
++	MOVQ	40(SP), SI
++	MOVQ	48(SP), BP
++	MOVQ	56(SP), R8
++	MOVQ	64(SP), R9
++	MOVQ	72(SP), R10
++	MOVQ	80(SP), R11
++	MOVQ	88(SP), R12
++	MOVQ	96(SP), R15
++	JMP	ret
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 61aaa0a8f7..ea1ab974c3 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -16,6 +16,10 @@ const cgoWriteBarrierFail = "Go pointer stored into non-Go memory"
+ 
+ // cgoCheckWriteBarrier is called whenever a pointer is stored into memory.
+ // It throws if the program is storing a Go pointer into non-Go memory.
++//
++// This is called from the write barrier, so its entire call tree must
++// be nosplit.
++//
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 628a77fc1e..bc5e4fb40a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1394,6 +1394,7 @@ top:
+ 			// workers have exited their loop so we can
+ 			// start new mark 2 workers.
+ 			forEachP(func(_p_ *p) {
++				wbBufFlush1(_p_)
+ 				_p_.gcw.dispose()
+ 			})
+ 		})
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index ce697e5809..5664390eae 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1234,6 +1234,9 @@ func shade(b uintptr) {
+ // obj is the start of an object with mark mbits.
+ // If it isn't already marked, mark it and enqueue into gcw.
+ // base and off are for debugging only and could be removed.
++//
++// See also wbBufFlush1, which partially duplicates this logic.
++//
+ //go:nowritebarrierrec
+ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork, objIndex uintptr) {
+ 	// obj should be start of allocation, and so must be at least pointer-aligned.
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 8e3a41246f..c6634fc78c 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -150,6 +150,39 @@ func (w *gcWork) putFast(obj uintptr) bool {
+ 	return true
+ }
+ 
++// putBatch performs a put on every pointer in obj. See put for
++// constraints on these pointers.
++//
++//go:nowritebarrierrec
++func (w *gcWork) putBatch(obj []uintptr) {
++	if len(obj) == 0 {
++		return
++	}
++
++	flushed := false
++	wbuf := w.wbuf1
++	if wbuf == nil {
++		w.init()
++		wbuf = w.wbuf1
++	}
++
++	for len(obj) > 0 {
++		for wbuf.nobj == len(wbuf.obj) {
++			putfull(wbuf)
++			w.wbuf1, w.wbuf2 = w.wbuf2, getempty()
++			wbuf = w.wbuf1
++			flushed = true
++		}
++		n := copy(wbuf.obj[wbuf.nobj:], obj)
++		wbuf.nobj += n
++		obj = obj[n:]
++	}
++
++	if flushed && gcphase == _GCmark {
++		gcController.enlistWorker()
++	}
++}
++
+ // tryGet dequeues a pointer for the garbage collector to trace.
+ //
+ // If there are no pointers remaining in this gcWork or in the global
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+new file mode 100644
+index 0000000000..d1cd193665
+--- /dev/null
++++ b/src/runtime/mwbbuf.go
+@@ -0,0 +1,216 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This implements the write barrier buffer. The write barrier itself
++// is gcWriteBarrier and is implemented in assembly.
++//
++// The write barrier has a fast path and a slow path. The fast path
++// simply enqueues to a per-P write barrier buffer. It's written in
++// assembly and doesn't clobber any general purpose registers, so it
++// doesn't have the usual overheads of a Go call.
++//
++// When the buffer fills up, the write barrier invokes the slow path
++// (wbBufFlush) to flush the buffer to the GC work queues. In this
++// path, since the compiler didn't spill registers, we spill *all*
++// registers and disallow any GC safe points that could observe the
++// stack frame (since we don't know the types of the spilled
++// registers).
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++// testSmallBuf forces a small write barrier buffer to stress write
++// barrier flushing.
++const testSmallBuf = false
++
++// wbBuf is a per-P buffer of pointers queued by the write barrier.
++// This buffer is flushed to the GC workbufs when it fills up and on
++// various GC transitions.
++//
++// This is closely related to a "sequential store buffer" (SSB),
++// except that SSBs are usually used for maintaining remembered sets,
++// while this is used for marking.
++type wbBuf struct {
++	// next points to the next slot in buf. It must not be a
++	// pointer type because it can point past the end of buf and
++	// must be updated without write barriers.
++	//
++	// This is a pointer rather than an index to optimize the
++	// write barrier assembly.
++	next uintptr
++
++	// end points to just past the end of buf. It must not be a
++	// pointer type because it points past the end of buf and must
++	// be updated without write barriers.
++	end uintptr
++
++	// buf stores a series of pointers to execute write barriers
++	// on. This must be a multiple of wbBufEntryPointers because
++	// the write barrier only checks for overflow once per entry.
++	buf [wbBufEntryPointers * wbBufEntries]uintptr
++}
++
++const (
++	// wbBufEntries is the number of write barriers between
++	// flushes of the write barrier buffer.
++	//
++	// This trades latency for throughput amortization. Higher
++	// values amortize flushing overhead more, but increase the
++	// latency of flushing. Higher values also increase the cache
++	// footprint of the buffer.
++	//
++	// TODO: What is the latency cost of this? Tune this value.
++	wbBufEntries = 256
++
++	// wbBufEntryPointers is the number of pointers added to the
++	// buffer by each write barrier.
++	wbBufEntryPointers = 2
++)
++
++// reset empties b by resetting its next and end pointers.
++func (b *wbBuf) reset() {
++	start := uintptr(unsafe.Pointer(&b.buf[0]))
++	b.next = start
++	if gcBlackenPromptly || writeBarrier.cgo {
++		// Effectively disable the buffer by forcing a flush
++		// on every barrier.
++		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
++	} else if testSmallBuf {
++		// For testing, allow two barriers in the buffer. If
++		// we only did one, then barriers of non-heap pointers
++		// would be no-ops. This lets us combine a buffered
++		// barrier with a flush at a later time.
++		b.end = uintptr(unsafe.Pointer(&b.buf[2*wbBufEntryPointers]))
++	} else {
++		b.end = start + uintptr(len(b.buf))*unsafe.Sizeof(b.buf[0])
++	}
++
++	if (b.end-b.next)%(wbBufEntryPointers*unsafe.Sizeof(b.buf[0])) != 0 {
++		throw("bad write barrier buffer bounds")
++	}
++}
++
++// wbBufFlush flushes the current P's write barrier buffer to the GC
++// workbufs. It is passed the slot and value of the write barrier that
++// caused the flush so that it can implement cgocheck.
++//
++// This must not have write barriers because it is part of the write
++// barrier implementation.
++//
++// This and everything it calls must be nosplit because 1) the stack
++// contains untyped slots from gcWriteBarrier and 2) there must not be
++// a GC safe point between the write barrier test in the caller and
++// flushing the buffer.
++//
++// TODO: A "go:nosplitrec" annotation would be perfect for this.
++//
++//go:nowritebarrierrec
++//go:nosplit
++func wbBufFlush(dst *uintptr, src uintptr) {
++	if getg().m.dying > 0 {
++		// We're going down. Not much point in write barriers
++		// and this way we can allow write barriers in the
++		// panic path.
++		return
++	}
++
++	if writeBarrier.cgo {
++		// This must be called from the stack that did the
++		// write. It's nosplit all the way down.
++		cgoCheckWriteBarrier(dst, src)
++		if !writeBarrier.needed {
++			// We were only called for cgocheck.
++			b := &getg().m.p.ptr().wbBuf
++			b.next = uintptr(unsafe.Pointer(&b.buf[0]))
++			return
++		}
++	}
++
++	// Switch to the system stack so we don't have to worry about
++	// the untyped stack slots or safe points.
++	systemstack(func() {
++		wbBufFlush1(getg().m.p.ptr())
++	})
++}
++
++// wbBufFlush1 flushes p's write barrier buffer to the GC work queue.
++//
++// This must not have write barriers because it is part of the write
++// barrier implementation, so this may lead to infinite loops or
++// buffer corruption.
++//
++// This must be non-preemptible because it uses the P's workbuf.
++//
++//go:nowritebarrierrec
++//go:systemstack
++func wbBufFlush1(_p_ *p) {
++	// Get the buffered pointers.
++	start := uintptr(unsafe.Pointer(&_p_.wbBuf.buf[0]))
++	n := (_p_.wbBuf.next - start) / unsafe.Sizeof(_p_.wbBuf.buf[0])
++	ptrs := _p_.wbBuf.buf[:n]
++
++	// Reset the buffer.
++	_p_.wbBuf.reset()
++
++	if useCheckmark {
++		// Slow path for checkmark mode.
++		for _, ptr := range ptrs {
++			shade(ptr)
++		}
++		return
++	}
++
++	// Mark all of the pointers in the buffer and record only the
++	// pointers we greyed. We use the buffer itself to temporarily
++	// record greyed pointers.
++	//
++	// TODO: Should scanobject/scanblock just stuff pointers into
++	// the wbBuf? Then this would become the sole greying path.
++	gcw := &_p_.gcw
++	pos := 0
++	arenaStart := mheap_.arena_start
++	for _, ptr := range ptrs {
++		if ptr < arenaStart {
++			// nil pointers are very common, especially
++			// for the "old" values. Filter out these and
++			// other "obvious" non-heap pointers ASAP.
++			//
++			// TODO: Should we filter out nils in the fast
++			// path to reduce the rate of flushes?
++			continue
++		}
++		// TODO: This doesn't use hbits, so calling
++		// heapBitsForObject seems a little silly. We could
++		// easily separate this out since heapBitsForObject
++		// just calls heapBitsForAddr(obj) to get hbits.
++		obj, _, span, objIndex := heapBitsForObject(ptr, 0, 0)
++		if obj == 0 {
++			continue
++		}
++		// TODO: Consider making two passes where the first
++		// just prefetches the mark bits.
++		mbits := span.markBitsForIndex(objIndex)
++		if mbits.isMarked() {
++			continue
++		}
++		mbits.setMarked()
++		if span.spanclass.noscan() {
++			gcw.bytesMarked += uint64(span.elemsize)
++			continue
++		}
++		ptrs[pos] = obj
++		pos++
++	}
++
++	// Enqueue the greyed objects.
++	gcw.putBatch(ptrs[:pos])
++	if gcphase == _GCmarktermination || gcBlackenPromptly {
++		// Ps aren't allowed to cache work during mark
++		// termination.
++		gcw.dispose()
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8383eb51a1..112543db10 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -506,6 +506,17 @@ func schedinit() {
+ 		throw("unknown runnable goroutine during bootstrap")
+ 	}
+ 
++	// For cgocheck > 1, we turn on the write barrier at all times
++	// and check all pointer writes. We can't do this until after
++	// procresize because the write barrier needs a P.
++	if debug.cgocheck > 1 {
++		writeBarrier.cgo = true
++		writeBarrier.enabled = true
++		for _, p := range allp {
++			p.wbBuf.reset()
++		}
++	}
++
+ 	if buildVersion == "" {
+ 		// Condition should never trigger. This code just serves
+ 		// to ensure runtime·buildVersion is kept in the resulting binary.
+@@ -3862,6 +3873,7 @@ func procresize(nprocs int32) *p {
+ 			for i := range pp.deferpool {
+ 				pp.deferpool[i] = pp.deferpoolbuf[i][:0]
+ 			}
++			pp.wbBuf.reset()
+ 			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
+ 		}
+ 		if pp.mcache == nil {
+@@ -3917,6 +3929,11 @@ func procresize(nprocs int32) *p {
+ 			// world is stopped.
+ 			p.gcBgMarkWorker.set(nil)
+ 		}
++		// Flush p's write barrier buffer.
++		if gcphase != _GCoff {
++			wbBufFlush1(p)
++			p.gcw.dispose()
++		}
+ 		for i := range p.sudogbuf {
+ 			p.sudogbuf[i] = nil
+ 		}
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 3ae30ab59e..0971e0cb37 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -386,13 +386,6 @@ func parsedebugvars() {
+ 
+ 	setTraceback(gogetenv("GOTRACEBACK"))
+ 	traceback_env = traceback_cache
+-
+-	// For cgocheck > 1, we turn on the write barrier at all times
+-	// and check all pointer writes.
+-	if debug.cgocheck > 1 {
+-		writeBarrier.cgo = true
+-		writeBarrier.enabled = true
+-	}
+ }
+ 
+ //go:linkname setTraceback runtime/debug.SetTraceback
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index a79faba8ce..0e7ef2fda2 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -538,6 +538,11 @@ type p struct {
+ 	// disposed on certain GC state transitions.
+ 	gcw gcWork
+ 
++	// wbBuf is this P's GC write barrier buffer.
++	//
++	// TODO: Consider caching this in the running G.
++	wbBuf wbBuf
++
+ 	runSafePointFn uint32 // if 1, run sched.safePointFn at next safe point
+ 
+ 	pad [sys.CacheLineSize]byte

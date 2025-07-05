@@ -15,7 +15,7 @@ Date:   Wed Feb 27 18:18:47 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/166981
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go     | 116 +++++--------------------------
  src/cmd/compile/internal/gc/typecheck.go |  13 ++--
  test/fixedbugs/bug297.go                 |   2 +-
@@ -23,3 +23,242 @@ Date:   Wed Feb 27 18:18:47 2019 -0800
  test/fixedbugs/issue17038.go             |   2 +-
  test/fixedbugs/issue8183.go              |   4 +-
  6 files changed, 30 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 218d1d1d7f..18f8d352e9 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -584,14 +584,6 @@ func Isconst(n *Node, ct Ctype) bool {
+ 
+ // evconst rewrites constant expressions into OLITERAL nodes.
+ func evconst(n *Node) {
+-	if !n.isGoConst() {
+-		// Avoid constant evaluation of things that aren't actually constants
+-		// according to the spec. See issue 24760.
+-		// The SSA backend has a more robust optimizer that will catch
+-		// all of these weird cases (like uintptr(unsafe.Pointer(uintptr(1)))).
+-		return
+-	}
+-
+ 	nl, nr := n.Left, n.Right
+ 
+ 	// Pick off just the opcodes that can be constant evaluated.
+@@ -626,24 +618,18 @@ func evconst(n *Node) {
+ 		}
+ 
+ 	case OCONV:
+-		if n.Type != nil && okforconst[n.Type.Etype] && nl.Op == OLITERAL {
++		if okforconst[n.Type.Etype] && nl.Op == OLITERAL {
+ 			// TODO(mdempsky): There should be a convval function.
+ 			setconst(n, convlit1(nl, n.Type, true, false).Val())
+ 		}
+ 
+ 	case OCONVNOP:
+-		if nl.Op == OLITERAL && nl.isGoConst() {
++		if okforconst[n.Type.Etype] && nl.Op == OLITERAL {
+ 			// set so n.Orig gets OCONV instead of OCONVNOP
+ 			n.Op = OCONV
+ 			setconst(n, nl.Val())
+ 		}
+ 
+-	case OBYTES2STR:
+-		// string([]byte(nil)) or string([]rune(nil))
+-		if nl.Op == OLITERAL && nl.Val().Ctype() == CTNIL {
+-			setconst(n, Val{U: ""})
+-		}
+-
+ 	case OADDSTR:
+ 		// Merge adjacent constants in the argument list.
+ 		s := n.List.Slice()
+@@ -657,6 +643,17 @@ func evconst(n *Node) {
+ 					i2++
+ 				}
+ 
++				// Hack to appease toolstash. Because
++				// we were checking isGoConst early
++				// on, we wouldn't collapse adjacent
++				// string constants unless the entire
++				// string was a constant.
++				//
++				// TODO(mdempsky): Remove in next commit.
++				if i1 != 0 || i2 != len(s) {
++					return
++				}
++
+ 				nl := *s[i1]
+ 				nl.Orig = &nl
+ 				nl.SetVal(Val{strings.Join(strs, "")})
+@@ -714,6 +711,10 @@ func evconst(n *Node) {
+ 		}
+ 
+ 	case OCOMPLEX:
++		if nl == nil || nr == nil {
++			// TODO(mdempsky): Remove after early OAS2FUNC rewrite CL lands.
++			break
++		}
+ 		if nl.Op == OLITERAL && nr.Op == OLITERAL {
+ 			// make it a complex literal
+ 			c := newMpcmplx()
+@@ -1338,88 +1339,7 @@ func indexconst(n *Node) int64 {
+ // Expressions derived from nil, like string([]byte(nil)), while they
+ // may be known at compile time, are not Go language constants.
+ func (n *Node) isGoConst() bool {
+-	if n.Orig != nil {
+-		n = n.Orig
+-	}
+-
+-	switch n.Op {
+-	case OADD,
+-		OAND,
+-		OANDAND,
+-		OANDNOT,
+-		OBITNOT,
+-		ODIV,
+-		OEQ,
+-		OGE,
+-		OGT,
+-		OLE,
+-		OLSH,
+-		OLT,
+-		ONEG,
+-		OMOD,
+-		OMUL,
+-		ONE,
+-		ONOT,
+-		OOR,
+-		OOROR,
+-		OPLUS,
+-		ORSH,
+-		OSUB,
+-		OXOR,
+-		OIOTA,
+-		OREAL,
+-		OIMAG:
+-		if n.Left.isGoConst() && (n.Right == nil || n.Right.isGoConst()) {
+-			return true
+-		}
+-
+-	case OCOMPLEX:
+-		if n.List.Len() == 0 && n.Left.isGoConst() && n.Right.isGoConst() {
+-			return true
+-		}
+-
+-	case OADDSTR:
+-		for _, n1 := range n.List.Slice() {
+-			if !n1.isGoConst() {
+-				return false
+-			}
+-		}
+-		return true
+-
+-	case OCONV, OCONVNOP:
+-		if okforconst[n.Type.Etype] && n.Left.isGoConst() {
+-			return true
+-		}
+-
+-	case OLEN, OCAP:
+-		l := n.Left
+-		if l.isGoConst() {
+-			return true
+-		}
+-
+-		// Special case: len/cap is constant when applied to array or
+-		// pointer to array when the expression does not contain
+-		// function calls or channel receive operations.
+-		t := l.Type
+-
+-		if t != nil && t.IsPtr() {
+-			t = t.Elem()
+-		}
+-		if t != nil && t.IsArray() && !hascallchan(l) {
+-			return true
+-		}
+-
+-	case OLITERAL:
+-		if n.Val().Ctype() != CTNIL {
+-			return true
+-		}
+-
+-	case OALIGNOF, OOFFSETOF, OSIZEOF:
+-		return true
+-	}
+-
+-	//dump("nonconst", n);
+-	return false
++	return n.Op == OLITERAL && n.Val().Ctype() != CTNIL
+ }
+ 
+ func hascallchan(n *Node) bool {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8ae6c112b6..0efcaac200 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3671,17 +3671,18 @@ func typecheckdef(n *Node) {
+ 		}
+ 
+ 		e = typecheck(e, ctxExpr)
+-		if Isconst(e, CTNIL) {
+-			yyerrorl(n.Pos, "const initializer cannot be nil")
++		if e.Type == nil {
+ 			goto ret
+ 		}
+-
+-		if e.Type != nil && e.Op != OLITERAL || !e.isGoConst() {
++		if !e.isGoConst() {
+ 			if !e.Diag() {
+-				yyerrorl(n.Pos, "const initializer %v is not a constant", e)
++				if Isconst(e, CTNIL) {
++					yyerrorl(n.Pos, "const initializer cannot be nil")
++				} else {
++					yyerrorl(n.Pos, "const initializer %v is not a constant", e)
++				}
+ 				e.SetDiag(true)
+ 			}
+-
+ 			goto ret
+ 		}
+ 
+diff --git a/test/fixedbugs/bug297.go b/test/fixedbugs/bug297.go
+index 852d208251..c2bd253d05 100644
+--- a/test/fixedbugs/bug297.go
++++ b/test/fixedbugs/bug297.go
+@@ -11,5 +11,5 @@ package main
+ type ByteSize float64
+ const (
+ 	_ = iota;   // ignore first value by assigning to blank identifier
+-	KB ByteSize = 1<<(10*X) // ERROR "undefined" "is not a constant|as type ByteSize"
++	KB ByteSize = 1<<(10*X) // ERROR "undefined"
+ )
+diff --git a/test/fixedbugs/issue11361.go b/test/fixedbugs/issue11361.go
+index d01776b47c..1260ea89c9 100644
+--- a/test/fixedbugs/issue11361.go
++++ b/test/fixedbugs/issue11361.go
+@@ -8,4 +8,4 @@ package a
+ 
+ import "fmt"  // ERROR "imported and not used"
+ 
+-const n = fmt // ERROR "fmt without selector" "fmt is not a constant"
++const n = fmt // ERROR "fmt without selector"
+diff --git a/test/fixedbugs/issue17038.go b/test/fixedbugs/issue17038.go
+index e07a4b22ce..1b65ffc1f0 100644
+--- a/test/fixedbugs/issue17038.go
++++ b/test/fixedbugs/issue17038.go
+@@ -6,4 +6,4 @@
+ 
+ package main
+ 
+-const A = complex(0()) // ERROR "cannot call non-function" "const initializer .* is not a constant"
++const A = complex(0()) // ERROR "cannot call non-function"
+diff --git a/test/fixedbugs/issue8183.go b/test/fixedbugs/issue8183.go
+index f23e660e94..531dd4dbf8 100644
+--- a/test/fixedbugs/issue8183.go
++++ b/test/fixedbugs/issue8183.go
+@@ -18,6 +18,6 @@ const (
+ const (
+ 	c = len([1 - iota]int{})
+ 	d
+-	e // ERROR "array bound must be non-negative" "const initializer len\(composite literal\) is not a constant"
+-	f // ERROR "array bound must be non-negative" "const initializer len\(composite literal\) is not a constant"
++	e // ERROR "array bound must be non-negative"
++	f // ERROR "array bound must be non-negative"
+ )

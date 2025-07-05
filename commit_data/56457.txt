@@ -14,7 +14,7 @@ Date:   Sat May 6 00:11:33 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/loopvar/loopvar.go      | 2 +-
  src/cmd/compile/internal/ssa/value.go            | 2 +-
  src/cmd/compile/internal/ssagen/ssa.go           | 2 +-
@@ -36,3 +36,318 @@ Date:   Sat May 6 00:11:33 2023 +0800
  src/sync/atomic/type.go                          | 6 +++---
  src/syscall/fs_wasip1.go                         | 2 +-
  20 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loopvar/loopvar.go b/src/cmd/compile/internal/loopvar/loopvar.go
+index 7752cac535..ccb14df80b 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar.go
++++ b/src/cmd/compile/internal/loopvar/loopvar.go
+@@ -443,7 +443,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 	return transformed
+ }
+ 
+-// forAllDefInInitUpdate applies "do" to all the defining assignemnts in the Init clause of a ForStmt.
++// forAllDefInInitUpdate applies "do" to all the defining assignments in the Init clause of a ForStmt.
+ // This abstracts away some of the boilerplate from the already complex and verbose for-3-clause case.
+ func forAllDefInInitUpdate(x *ir.ForStmt, do func(z ir.Node, update *ir.Node)) {
+ 	for _, s := range x.Init() {
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 6b0367a3dc..e89024b3c6 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -86,7 +86,7 @@ func (v *Value) AuxInt8() int8 {
+ 
+ func (v *Value) AuxUInt8() uint8 {
+ 	if opcodeTable[v.Op].auxType != auxUInt8 {
+-		v.Fatalf("op %s doesn't have an uint8 aux field", v.Op)
++		v.Fatalf("op %s doesn't have a uint8 aux field", v.Op)
+ 	}
+ 	return uint8(v.AuxInt)
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index a037b7494d..9248424b08 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -718,7 +718,7 @@ func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value
+ 		count = s.constInt(types.Types[types.TUINTPTR], 1)
+ 	}
+ 	if count.Type.Size() != s.config.PtrSize {
+-		s.Fatalf("expected count fit to an uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
++		s.Fatalf("expected count fit to a uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
+ 	}
+ 	var rtype *ssa.Value
+ 	if rtypeExpr != nil {
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 0f4fc6d4b4..94a59f94bb 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -576,7 +576,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 		// of a generic function type (or an interface method) that is
+ 		// part of the type we're testing. We don't care about these type
+ 		// parameters.
+-		// Similarly, the receiver of a method may declare (rather then
++		// Similarly, the receiver of a method may declare (rather than
+ 		// use) type parameters, we don't care about those either.
+ 		// Thus, we only need to look at the input and result parameters.
+ 		return t.params != nil && w.varList(t.params.vars) || t.results != nil && w.varList(t.results.vars)
+diff --git a/src/cmd/compile/internal/types2/resolver_test.go b/src/cmd/compile/internal/types2/resolver_test.go
+index 923712b268..8105d8af42 100644
+--- a/src/cmd/compile/internal/types2/resolver_test.go
++++ b/src/cmd/compile/internal/types2/resolver_test.go
+@@ -166,7 +166,7 @@ func TestResolveIdents(t *testing.T) {
+ 	}
+ 
+ 	// Check that each identifier in the source is found in uses or defs or both.
+-	// We need the foundUses/Defs maps (rather then just deleting the found objects
++	// We need the foundUses/Defs maps (rather than just deleting the found objects
+ 	// from the uses and defs maps) because syntax.Walk traverses shared nodes multiple
+ 	// times (e.g. types in field lists such as "a, b, c int").
+ 	foundUses := make(map[*syntax.Name]bool)
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 3c4027d189..c02d56a7e1 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -277,7 +277,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 	// Unification will fail if we match a defined type against a type literal.
+ 	// Per the (spec) assignment rules, assignments of values to variables with
+ 	// the same type structure are permitted as long as at least one of them
+-	// is not a defined type. To accomodate for that possibility, we continue
++	// is not a defined type. To accommodate for that possibility, we continue
+ 	// unification with the underlying type of a defined type if the other type
+ 	// is a type literal.
+ 	// We also continue if the other type is a basic type because basic types
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 72f7832346..fe67812580 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -759,7 +759,7 @@ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
+ 
+ // mapKeyArg returns an expression for key that is suitable to be passed
+ // as the key argument for runtime map* functions.
+-// n is is the map indexing or delete Node (to provide Pos).
++// n is the map indexing or delete Node (to provide Pos).
+ func mapKeyArg(fast int, n, key ir.Node, assigned bool) ir.Node {
+ 	if fast == mapslow {
+ 		// standard version takes key by reference.
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index 4f320ee9f7..9046148ac2 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -351,7 +351,7 @@ func checkSemi(t *testing.T, input, want string, mode Mode) {
+ 			break
+ 		}
+ 		if tok == token.SEMICOLON && lit != ";" {
+-			// Artifical semicolon:
++			// Artificial semicolon:
+ 			// assert that position is EOF or that of a newline.
+ 			off := file.Offset(pos)
+ 			if off != len(input) && input[off] != '\n' {
+diff --git a/src/go/types/eval.go b/src/go/types/eval.go
+index 1655a8bd27..ff2af58b30 100644
+--- a/src/go/types/eval.go
++++ b/src/go/types/eval.go
+@@ -52,7 +52,7 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ Type
+ // to compute types and values, but in addition to Check, as these
+ // functions ignore the context in which an expression is used (e.g., an
+ // assignment). Thus, top-level untyped constants will return an
+-// untyped type rather then the respective context-specific type.
++// untyped type rather than the respective context-specific type.
+ func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, info *Info) (err error) {
+ 	// determine scope
+ 	var scope *Scope
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index e40b9921a4..661ff771c8 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -578,7 +578,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 		// of a generic function type (or an interface method) that is
+ 		// part of the type we're testing. We don't care about these type
+ 		// parameters.
+-		// Similarly, the receiver of a method may declare (rather then
++		// Similarly, the receiver of a method may declare (rather than
+ 		// use) type parameters, we don't care about those either.
+ 		// Thus, we only need to look at the input and result parameters.
+ 		return t.params != nil && w.varList(t.params.vars) || t.results != nil && w.varList(t.results.vars)
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 9d89a687de..34455ac40f 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -279,7 +279,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 	// Unification will fail if we match a defined type against a type literal.
+ 	// Per the (spec) assignment rules, assignments of values to variables with
+ 	// the same type structure are permitted as long as at least one of them
+-	// is not a defined type. To accomodate for that possibility, we continue
++	// is not a defined type. To accommodate for that possibility, we continue
+ 	// unification with the underlying type of a defined type if the other type
+ 	// is a type literal.
+ 	// We also continue if the other type is a basic type because basic types
+diff --git a/src/internal/types/testdata/check/errors.go b/src/internal/types/testdata/check/errors.go
+index d9d22ac2b4..10b6a22eb1 100644
+--- a/src/internal/types/testdata/check/errors.go
++++ b/src/internal/types/testdata/check/errors.go
+@@ -58,7 +58,7 @@ func _() {
+ 
+ // Use unqualified names for package-local objects.
+ type T struct{}
+-var _ int = T /* ERROR "value of type T" */ {} // use T in error message rather then errors.T
++var _ int = T /* ERROR "value of type T" */ {} // use T in error message rather than errors.T
+ 
+ // Don't report errors containing "invalid type" (issue #24182).
+ func _(x *missing /* ERROR "undefined: missing" */ ) {
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index 3bb51c7dea..6501185fbe 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -248,7 +248,7 @@ func (z *Float) pow5(n uint64) *Float {
+ // no prefix is accepted. The octal prefix "0" is not supported (a leading
+ // "0" is simply considered a "0").
+ //
+-// A "p" or "P" exponent indicates a base 2 (rather then base 10) exponent;
++// A "p" or "P" exponent indicates a base 2 (rather than base 10) exponent;
+ // for instance, "0x1.fffffffffffffp1023" (using base 0) represents the
+ // maximum float64 value. For hexadecimal mantissae, the exponent character
+ // must be one of 'p' or 'P', if present (an "e" or "E" exponent indicator
+diff --git a/src/net/http/cookiejar/jar_test.go b/src/net/http/cookiejar/jar_test.go
+index 13d994aa39..56d0695a66 100644
+--- a/src/net/http/cookiejar/jar_test.go
++++ b/src/net/http/cookiejar/jar_test.go
+@@ -349,7 +349,7 @@ func expiresIn(delta int) string {
+ 	return "expires=" + t.Format(time.RFC1123)
+ }
+ 
+-// mustParseURL parses s to an URL and panics on error.
++// mustParseURL parses s to a URL and panics on error.
+ func mustParseURL(s string) *url.URL {
+ 	u, err := url.Parse(s)
+ 	if err != nil || u.Scheme == "" || u.Host == "" {
+@@ -670,7 +670,7 @@ var updateAndDeleteTests = [...]jarTest{
+ 		},
+ 	},
+ 	{
+-		"Clear Secure flag from a http.",
++		"Clear Secure flag from an http.",
+ 		"http://www.host.test/",
+ 		[]string{
+ 			"b=xx",
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 23e49d6b8e..76c8790f16 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -31,7 +31,7 @@ func TestQuery(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue #25192: Test that ParseForm fails but still parses the form when an URL
++// Issue #25192: Test that ParseForm fails but still parses the form when a URL
+ // containing a semicolon is provided.
+ func TestParseFormSemicolonSeparator(t *testing.T) {
+ 	for _, method := range []string{"POST", "PATCH", "PUT", "GET"} {
+@@ -379,7 +379,7 @@ func TestMultipartRequest(t *testing.T) {
+ }
+ 
+ // Issue #25192: Test that ParseMultipartForm fails but still parses the
+-// multi-part form when an URL containing a semicolon is provided.
++// multi-part form when a URL containing a semicolon is provided.
+ func TestParseMultipartFormSemicolonSeparator(t *testing.T) {
+ 	req := newTestMultipartRequest(t)
+ 	req.URL = &url.URL{RawQuery: "q=foo;q=bar"}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index f9e8a285c5..fdbc5daa8d 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2353,7 +2353,7 @@ func testTransportResponseHeaderTimeout(t *testing.T, mode testMode) {
+ 			if err != nil {
+ 				uerr, ok := err.(*url.Error)
+ 				if !ok {
+-					t.Errorf("error is not an url.Error; got: %#v", err)
++					t.Errorf("error is not a url.Error; got: %#v", err)
+ 					continue
+ 				}
+ 				nerr, ok := uerr.Err.(net.Error)
+@@ -3889,7 +3889,7 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
+ }
+ 
+ // Test for issue 34282
+-// Ensure that getConn doesn't call the GotConn trace hook on a HTTP/2 idle conn
++// Ensure that getConn doesn't call the GotConn trace hook on an HTTP/2 idle conn
+ func TestTransportTraceGotConnH2IdleConns(t *testing.T) {
+ 	tr := &Transport{}
+ 	wantIdle := func(when string, n int) bool {
+@@ -4952,7 +4952,7 @@ func TestTransportRejectsAlphaPort(t *testing.T) {
+ 	}
+ }
+ 
+-// Test the httptrace.TLSHandshake{Start,Done} hooks with a https http1
++// Test the httptrace.TLSHandshake{Start,Done} hooks with an https http1
+ // connections. The http2 test is done in TestTransportEventTrace_h2
+ func TestTLSHandshakeTrace(t *testing.T) {
+ 	run(t, testTLSHandshakeTrace, []testMode{https1Mode, http2Mode})
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 62859a5659..46f014fc76 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -325,7 +325,7 @@ def iface_dtype(obj):
+ 		return
+ 
+ 	type_size = int(dynamic_go_type['size'])
+-	uintptr_size = int(dynamic_go_type['size'].type.sizeof)	 # size is itself an uintptr
++	uintptr_size = int(dynamic_go_type['size'].type.sizeof)	 # size is itself a uintptr
+ 	if type_size > uintptr_size:
+ 			dynamic_gdb_type = dynamic_gdb_type.pointer()
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index eb9a1693ba..2cbc823fd9 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -665,7 +665,7 @@ type p struct {
+ 		// We need an explicit length here because this field is used
+ 		// in allocation codepaths where write barriers are not allowed,
+ 		// and eliminating the write barrier/keeping it eliminated from
+-		// slice updates is tricky, moreso than just managing the length
++		// slice updates is tricky, more so than just managing the length
+ 		// ourselves.
+ 		len int
+ 		buf [128]*mspan
+diff --git a/src/sync/atomic/type.go b/src/sync/atomic/type.go
+index cc016833d1..179fa93092 100644
+--- a/src/sync/atomic/type.go
++++ b/src/sync/atomic/type.go
+@@ -111,7 +111,7 @@ func (x *Int64) CompareAndSwap(old, new int64) (swapped bool) {
+ // Add atomically adds delta to x and returns the new value.
+ func (x *Int64) Add(delta int64) (new int64) { return AddInt64(&x.v, delta) }
+ 
+-// An Uint32 is an atomic uint32. The zero value is zero.
++// A Uint32 is an atomic uint32. The zero value is zero.
+ type Uint32 struct {
+ 	_ noCopy
+ 	v uint32
+@@ -134,7 +134,7 @@ func (x *Uint32) CompareAndSwap(old, new uint32) (swapped bool) {
+ // Add atomically adds delta to x and returns the new value.
+ func (x *Uint32) Add(delta uint32) (new uint32) { return AddUint32(&x.v, delta) }
+ 
+-// An Uint64 is an atomic uint64. The zero value is zero.
++// A Uint64 is an atomic uint64. The zero value is zero.
+ type Uint64 struct {
+ 	_ noCopy
+ 	_ align64
+@@ -158,7 +158,7 @@ func (x *Uint64) CompareAndSwap(old, new uint64) (swapped bool) {
+ // Add atomically adds delta to x and returns the new value.
+ func (x *Uint64) Add(delta uint64) (new uint64) { return AddUint64(&x.v, delta) }
+ 
+-// An Uintptr is an atomic uintptr. The zero value is zero.
++// A Uintptr is an atomic uintptr. The zero value is zero.
+ type Uintptr struct {
+ 	_ noCopy
+ 	v uintptr
+diff --git a/src/syscall/fs_wasip1.go b/src/syscall/fs_wasip1.go
+index ab00e5ba22..fa7c5c8885 100644
+--- a/src/syscall/fs_wasip1.go
++++ b/src/syscall/fs_wasip1.go
+@@ -390,7 +390,7 @@ func appendCleanPath(buf []byte, path string, lookupParent bool) ([]byte, bool)
+ 
+ // joinPath concatenates dir and file paths, producing a cleaned path where
+ // "." and ".." have been removed, unless dir is relative and the references
+-// to parent directories in file represented a location relatie to a parent
++// to parent directories in file represented a location relative to a parent
+ // of dir.
+ //
+ // This function is used for path resolution of all wasi functions expecting

@@ -9,6 +9,25 @@ Date:   Mon Feb 29 10:41:45 2016 -0900
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/objfile.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 11cdf91d74..d758fbd55d 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -437,10 +437,9 @@ func rdstring(f *obj.Biobuf) string {
+ 	return string(rdBuf[:n])
+ }
+ 
+-var (
+-	rddataBuf    = make([]byte, rddataBufMax)
+-	rddataBufMax = 1 << 14
+-)
++const rddataBufMax = 1 << 14
++
++var rddataBuf = make([]byte, rddataBufMax)
+ 
+ func rddata(f *obj.Biobuf) []byte {
+ 	var p []byte

@@ -13,10 +13,162 @@ Date:   Wed Sep 18 17:13:46 2019 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/articles/wiki/index.html      |  2 +-
  doc/gccgo_contribute.html         |  2 +-
  doc/gccgo_install.html            |  2 +-
  doc/go_faq.html                   |  4 ++--
  misc/trace/trace_viewer_full.html | 20 ++++++++++----------
  5 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/doc/articles/wiki/index.html b/doc/articles/wiki/index.html
+index b7ab2cc622..f8144bbac3 100644
+--- a/doc/articles/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -581,7 +581,7 @@ this, we can write a function to validate the title with a regular expression.
+ 
+ <p>
+ First, add <code>"regexp"</code> to the <code>import</code> list.
+-Then we can create a global variable to store our validation 
++Then we can create a global variable to store our validation
+ expression:
+ </p>
+ 
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 6374cd0cbe..395902d7cb 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -105,7 +105,7 @@ or <code>gcc/testsuite/go.dg</code> directories in the GCC repository.
+ <p>
+ Changes to the Go frontend should follow the same process as for the
+ main Go repository, only for the <code>gofrontend</code> project and
+-the <code>gofrontend-dev@googlegroups.com</code> mailing list 
++the <code>gofrontend-dev@googlegroups.com</code> mailing list
+ rather than the <code>go</code> project and the
+ <code>golang-dev@googlegroups.com</code> mailing list.  Those changes
+ will then be merged into the GCC sources.
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index 5b026ba57e..08415a871b 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -80,7 +80,7 @@ release.
+ 
+ <p>
+ If you cannot use a release, or prefer to build gccgo for
+-yourself, 
++yourself,
+ the gccgo source code is accessible via Subversion. The
+ GCC web site
+ has <a href="https://gcc.gnu.org/svn.html">instructions for getting the
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index dd3ba84cac..e40dde77e8 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -39,7 +39,7 @@ garbage collection, or at least some sort of safe automatic memory management wa
+ 
+ <p>
+ These considerations led to
+-<a href="https://commandcenter.blogspot.com/2017/09/go-ten-years-and-climbing.html">a 
++<a href="https://commandcenter.blogspot.com/2017/09/go-ten-years-and-climbing.html">a
+ series of discussions</a> from which Go arose, first as a set of ideas and
+ desiderata, then as a language.
+ An overarching goal was that Go do more to help the working programmer
+@@ -1282,7 +1282,7 @@ Why does "go get" use HTTPS when cloning a repository?</h3>
+ 
+ <p>
+ Companies often permit outgoing traffic only on the standard TCP ports 80 (HTTP)
+-and 443 (HTTPS), blocking outgoing traffic on other ports, including TCP port 9418 
++and 443 (HTTPS), blocking outgoing traffic on other ports, including TCP port 9418
+ (git) and TCP port 22 (SSH).
+ When using HTTPS instead of HTTP, <code>git</code> enforces certificate validation by
+ default, providing protection against man-in-the-middle, eavesdropping and tampering attacks.
+diff --git a/misc/trace/trace_viewer_full.html b/misc/trace/trace_viewer_full.html
+index ba9dcc6652..29360698ba 100644
+--- a/misc/trace/trace_viewer_full.html
++++ b/misc/trace/trace_viewer_full.html
+@@ -397,7 +397,7 @@
+     <span id="content"></span>
+ 
+     <span id="significance">
+-      
++
+       <svg id="insignificant" viewBox="0 0 128 128">
+         <circle cx="64" cy="64" r="60"></circle>
+         <circle cx="44" cy="44" r="4"></circle>
+@@ -405,7 +405,7 @@
+         <line x1="36" x2="92" y1="80" y2="80"></line>
+       </svg>
+ 
+-      
++
+       <svg id="significantly_better" viewBox="0 0 128 128">
+         <circle cx="64" cy="64" r="60"></circle>
+         <circle cx="44" cy="44" r="4"></circle>
+@@ -413,7 +413,7 @@
+         <path d="M 28 64 Q 64 128 100 64"></path>
+       </svg>
+ 
+-      
++
+       <svg id="significantly_worse" viewBox="0 0 128 128">
+         <circle cx="64" cy="64" r="60"></circle>
+         <circle cx="44" cy="44" r="4"></circle>
+@@ -677,7 +677,7 @@
+ 
+   <div id="header"></div>
+   <input id="stacking-distance-slider" max="400" min="1" step="1" type="range"/>
+-  
++
+   <canvas id="canvas"></canvas>
+   <img id="chrome-left"/>
+   <img id="chrome-mid"/>
+@@ -815,7 +815,7 @@
+     <label id="label"></label>
+   </template>
+ </dom-module><template id="chart-base-template">
+-  <svg> 
++  <svg>
+     <g id="chart-area" xmlns="http://www.w3.org/2000/svg">
+       <g class="x axis"></g>
+       <g class="y axis"></g>
+@@ -1185,7 +1185,7 @@
+       <div id="label">Heap details</div>
+       <div id="view_mode_container">
+         <span>View mode:</span>
+-        
++
+       </div>
+     </div>
+     <div id="contents">
+@@ -1392,11 +1392,11 @@
+         font-size: 15px;
+       }
+     </style>
+-    
++
+     <div id="label"></div>
+     <div id="aggregation_mode_container">
+       <span>Metric aggregation:</span>
+-      
++
+     </div>
+   </template>
+ </dom-module><dom-module id="tr-ui-a-stacked-pane-view">
+@@ -1450,7 +1450,7 @@
+     </style>
+     <tr-ui-b-table id="table">
+     </tr-ui-b-table>
+-    
++
+   </template>
+ </dom-module><dom-module id="tr-ui-a-selection-summary-table">
+   <template>
+@@ -1466,7 +1466,7 @@
+     </style>
+     <tr-ui-b-table id="table">
+     </tr-ui-b-table>
+-    
++
+   </template>
+ </dom-module><dom-module id="tr-ui-b-radio-picker">
+   <template>

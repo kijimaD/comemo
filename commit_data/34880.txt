@@ -11,7 +11,38 @@ Date:   Wed Nov 22 11:27:16 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/signal/internal/pty/pty.go | 2 +-
  src/os/signal/signal_cgo_test.go  | 4 +++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/signal/internal/pty/pty.go b/src/os/signal/internal/pty/pty.go
+index 704af3f67b..c59185adb5 100644
+--- a/src/os/signal/internal/pty/pty.go
++++ b/src/os/signal/internal/pty/pty.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ // +build cgo
+ 
+ // Package pty is a simple pseudo-terminal package for Unix systems,
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index 0daaacb07c..a11adca0cc 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -2,9 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ // +build cgo
+ 
++// Note that this test does not work on Solaris: issue #22849.
++
+ package signal_test
+ 
+ import (

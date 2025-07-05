@@ -18,7 +18,7 @@ Date:   Thu Apr 6 10:29:29 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/fmt_test.go         |  2 --
  src/cmd/compile/internal/x86/ssa.go | 14 ++++++--------
  src/cmd/internal/obj/arm/obj5.go    | 12 ++----------
@@ -29,3 +29,409 @@ Date:   Thu Apr 6 10:29:29 2017 -0700
  src/cmd/internal/obj/sym.go         | 28 ++++++++++++++++++++++++++++
  src/cmd/internal/obj/x86/obj6.go    | 14 +++-----------
  9 files changed, 60 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 1dc4434e25..e9b78df2fb 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -703,10 +703,8 @@ var knownFormats = map[string]string{
+ 	"uint16 %d":        "",
+ 	"uint16 %v":        "",
+ 	"uint16 %x":        "",
+-	"uint32 %08x":      "",
+ 	"uint32 %d":        "",
+ 	"uint32 %x":        "",
+-	"uint64 %016x":     "",
+ 	"uint64 %08x":      "",
+ 	"uint64 %d":        "",
+ 	"uint64 %x":        "",
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 144cfaee2d..e7fcc97855 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -443,17 +443,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x
+ 	case ssa.Op386MOVSSconst1, ssa.Op386MOVSDconst1:
+-		var literal string
+-		if v.Op == ssa.Op386MOVSDconst1 {
+-			literal = fmt.Sprintf("$f64.%016x", uint64(v.AuxInt))
+-		} else {
+-			literal = fmt.Sprintf("$f32.%08x", math.Float32bits(float32(math.Float64frombits(uint64(v.AuxInt)))))
+-		}
+ 		p := s.Prog(x86.ALEAL)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Name = obj.NAME_EXTERN
+-		p.From.Sym = gc.Ctxt.Lookup(literal, 0)
+-		p.From.Sym.Set(obj.AttrLocal, true)
++		f := math.Float64frombits(uint64(v.AuxInt))
++		if v.Op == ssa.Op386MOVSDconst1 {
++			p.From.Sym = gc.Ctxt.Float64Sym(f)
++		} else {
++			p.From.Sym = gc.Ctxt.Float32Sym(float32(f))
++		}
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 0949088a97..f14577e2fa 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -33,8 +33,6 @@ package arm
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+-	"fmt"
+-	"math"
+ )
+ 
+ var progedit_tlsfallback *obj.LSym
+@@ -108,22 +106,16 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case AMOVF:
+ 		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
+ 			f32 := float32(p.From.Val.(float64))
+-			i32 := math.Float32bits(f32)
+-			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := ctxt.Lookup(literal, 0)
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
++			p.From.Sym = ctxt.Float32Sym(f32)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+ 
+ 	case AMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
+-			i64 := math.Float64bits(p.From.Val.(float64))
+-			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := ctxt.Lookup(literal, 0)
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
++			p.From.Sym = ctxt.Float64Sym(p.From.Val.(float64))
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index f1fdef236b..b09454445a 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -33,7 +33,6 @@ package arm64
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+-	"fmt"
+ 	"math"
+ )
+ 
+@@ -259,36 +258,27 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case AFMOVS:
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			f32 := float32(p.From.Val.(float64))
+-			i32 := math.Float32bits(f32)
+-			if i32 == 0 {
++			if math.Float32bits(f32) == 0 {
+ 				p.From.Type = obj.TYPE_REG
+ 				p.From.Reg = REGZERO
+ 				break
+ 			}
+-			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
+-			p.From.Sym.Set(obj.AttrLocal, true)
++			p.From.Sym = ctxt.Float32Sym(f32)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+ 
+ 	case AFMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			i64 := math.Float64bits(p.From.Val.(float64))
+-			if i64 == 0 {
++			f64 := p.From.Val.(float64)
++			if math.Float64bits(f64) == 0 {
+ 				p.From.Type = obj.TYPE_REG
+ 				p.From.Reg = REGZERO
+ 				break
+ 			}
+-			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
+-			p.From.Sym.Set(obj.AttrLocal, true)
++			p.From.Sym = ctxt.Float64Sym(f64)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 86e3b920d5..3724808be1 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -58,36 +58,29 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case AMOVF:
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			f32 := float32(p.From.Val.(float64))
+-			i32 := math.Float32bits(f32)
+-			if i32 == 0 {
++			if math.Float32bits(f32) == 0 {
+ 				p.As = AMOVW
+ 				p.From.Type = obj.TYPE_REG
+ 				p.From.Reg = REGZERO
+ 				break
+ 			}
+-			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
++			p.From.Sym = ctxt.Float32Sym(f32)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+ 
+ 	case AMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			i64 := math.Float64bits(p.From.Val.(float64))
+-			if i64 == 0 && ctxt.Arch.Family == sys.MIPS64 {
++			f64 := p.From.Val.(float64)
++			if math.Float64bits(f64) == 0 && ctxt.Arch.Family == sys.MIPS64 {
+ 				p.As = AMOVV
+ 				p.From.Type = obj.TYPE_REG
+ 				p.From.Reg = REGZERO
+ 				break
+ 			}
+-			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
++			p.From.Sym = ctxt.Float64Sym(f64)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -95,11 +88,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		// Put >32-bit constants in memory and load them
+ 	case AMOVV:
+ 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
+-			literal := fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
++			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 96d10caeb2..6e93cc3996 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -32,8 +32,6 @@ package ppc64
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+-	"fmt"
+-	"math"
+ )
+ 
+ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+@@ -57,26 +55,17 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case AFMOVS:
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			f32 := float32(p.From.Val.(float64))
+-			i32 := math.Float32bits(f32)
+-			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
+-			p.From.Sym.Set(obj.AttrLocal, true)
++			p.From.Sym = ctxt.Float32Sym(f32)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+ 
+ 	case AFMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			i64 := math.Float64bits(p.From.Val.(float64))
+-			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 8
++			f64 := p.From.Val.(float64)
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
+-			p.From.Sym.Set(obj.AttrLocal, true)
++			p.From.Sym = ctxt.Float64Sym(f64)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -84,12 +73,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		// Put >32-bit constants in memory and load them
+ 	case AMOVD:
+ 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == 0 && int64(int32(p.From.Offset)) != p.From.Offset {
+-			literal := fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
+-			p.From.Sym.Set(obj.AttrLocal, true)
++			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 7b82ae4350..3815db51fc 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -32,7 +32,6 @@ package s390x
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+-	"fmt"
+ 	"math"
+ )
+ 
+@@ -57,32 +56,23 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	case AFMOVS:
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			f32 := float32(p.From.Val.(float64))
+-			i32 := math.Float32bits(f32)
+-			if i32 == 0 { // +0
++			if math.Float32bits(f32) == 0 { // +0
+ 				break
+ 			}
+-			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
+-			p.From.Sym.Set(obj.AttrLocal, true)
++			p.From.Sym = ctxt.Float32Sym(f32)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+ 
+ 	case AFMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			i64 := math.Float64bits(p.From.Val.(float64))
+-			if i64 == 0 { // +0
++			f64 := p.From.Val.(float64)
++			if math.Float64bits(f64) == 0 { // +0
+ 				break
+ 			}
+-			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := ctxt.Lookup(literal, 0)
+-			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+-			p.From.Sym = s
+-			p.From.Sym.Set(obj.AttrLocal, true)
++			p.From.Sym = ctxt.Float64Sym(f64)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -94,12 +84,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			if int64(int32(val)) != val &&
+ 				int64(uint32(val)) != val &&
+ 				int64(uint64(val)&(0xffffffff<<32)) != val {
+-				literal := fmt.Sprintf("$i64.%016x", uint64(p.From.Offset))
+-				s := ctxt.Lookup(literal, 0)
+-				s.Size = 8
+ 				p.From.Type = obj.TYPE_MEM
+-				p.From.Sym = s
+-				p.From.Sym.Set(obj.AttrLocal, true)
++				p.From.Sym = ctxt.Int64Sym(p.From.Offset)
+ 				p.From.Name = obj.NAME_EXTERN
+ 				p.From.Offset = 0
+ 			}
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index f5c1c8005a..61d65f9e5f 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -32,7 +32,9 @@
+ package obj
+ 
+ import (
++	"fmt"
+ 	"log"
++	"math"
+ 	"os"
+ 	"path/filepath"
+ )
+@@ -82,6 +84,32 @@ func (ctxt *Link) Lookup(name string, v int) *LSym {
+ 	return s
+ }
+ 
++func (ctxt *Link) Float32Sym(f float32) *LSym {
++	i := math.Float32bits(f)
++	name := fmt.Sprintf("$f32.%08x", i)
++	s := ctxt.Lookup(name, 0)
++	s.Size = 4
++	s.Set(AttrLocal, true)
++	return s
++}
++
++func (ctxt *Link) Float64Sym(f float64) *LSym {
++	i := math.Float64bits(f)
++	name := fmt.Sprintf("$f64.%016x", i)
++	s := ctxt.Lookup(name, 0)
++	s.Size = 8
++	s.Set(AttrLocal, true)
++	return s
++}
++
++func (ctxt *Link) Int64Sym(i int64) *LSym {
++	name := fmt.Sprintf("$i64.%016x", uint64(i))
++	s := ctxt.Lookup(name, 0)
++	s.Size = 8
++	s.Set(AttrLocal, true)
++	return s
++}
++
+ func Linksymfmt(s *LSym) string {
+ 	if s == nil {
+ 		return "<nil>"
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index fb3756ad31..29ec849893 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -33,7 +33,6 @@ package x86
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+-	"fmt"
+ 	"math"
+ 	"strings"
+ )
+@@ -241,13 +240,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		AUCOMISS:
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			f32 := float32(p.From.Val.(float64))
+-			i32 := math.Float32bits(f32)
+-			literal := fmt.Sprintf("$f32.%08x", i32)
+-			s := ctxt.Lookup(literal, 0)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+-			p.From.Sym = s
+-			p.From.Sym.Set(obj.AttrLocal, true)
++			p.From.Sym = ctxt.Float32Sym(f32)
+ 			p.From.Offset = 0
+ 		}
+ 
+@@ -281,13 +276,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		ACOMISD,
+ 		AUCOMISD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			i64 := math.Float64bits(p.From.Val.(float64))
+-			literal := fmt.Sprintf("$f64.%016x", i64)
+-			s := ctxt.Lookup(literal, 0)
++			f64 := p.From.Val.(float64)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+-			p.From.Sym = s
+-			p.From.Sym.Set(obj.AttrLocal, true)
++			p.From.Sym = ctxt.Float64Sym(f64)
+ 			p.From.Offset = 0
+ 		}
+ 	}

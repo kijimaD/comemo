@@ -7,7 +7,80 @@ Date:   Thu Feb 16 20:49:50 2012 +0000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5671072
-
+---
  src/make.bat | 9 ++++-----
  src/run.bat  | 8 ++++----
  2 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index d1e340be39..8bb9262c58 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -38,8 +38,7 @@ if errorlevel 1 goto fail
+ if errorlevel 1 goto fail
+ call env.bat
+ del env.bat
+-:: Echo with no arguments prints whether echo is turned on, so echo dot.
+-echo .
++echo.
+ 
+ echo # Building compilers and Go bootstrap tool.
+ set buildall=-a
+@@ -49,7 +48,7 @@ if errorlevel 1 goto fail
+ :: Delay move of dist tool to now, because bootstrap cleared tool directory.
+ move .\cmd\dist\dist.exe %GOTOOLDIR%\dist.exe
+ %GOTOOLDIR%\go_bootstrap clean -i std
+-echo .
++echo.
+ 
+ if not %GOHOSTARCH% == %GOARCH% goto localbuild
+ if not %GOHOSTOS% == %GOOS% goto localbuild
+@@ -63,14 +62,14 @@ set GOARCH=%GOHOSTARCH%
+ %GOTOOLDIR%\go_bootstrap install -v std
+ endlocal
+ if errorlevel 1 goto fail
+-echo .
++echo.
+ 
+ :mainbuild
+ echo # Building packages and commands.
+ %GOTOOLDIR%\go_bootstrap install -a -v std
+ if errorlevel 1 goto fail
+ del %GOTOOLDIR%\go_bootstrap.exe
+-echo .
++echo.
+ 
+ if x%1==x--no-banner goto nobanner
+ %GOTOOLDIR%\dist banner
+diff --git a/src/run.bat b/src/run.bat
+index f258ae10f8..9f2af3978b 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -18,23 +18,23 @@ if x%1==x--no-rebuild goto norebuild
+ echo # Building packages and commands.
+ go install -a -v std
+ if errorlevel 1 goto fail
+-echo .
++echo.
+ :norebuild
+ 
+ echo # Testing packages.
+ go test std -short -timeout=120s
+ if errorlevel 1 goto fail
+-echo .
++echo.
+ 
+ echo # runtime -cpu=1,2,4
+ go test runtime -short -timeout=120s -cpu=1,2,4
+ if errorlevel 1 goto fail
+-echo .
++echo.
+ 
+ echo # sync -cpu=10
+ go test sync -short -timeout=120s -cpu=10
+ if errorlevel 1 goto fail
+-echo .
++echo.
+ 
+ :: TODO: The other tests in run.bash, especially $GOROOT/test/run.
+ 

@@ -25,8 +25,176 @@ Date:   Tue Oct 18 15:21:46 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/31390
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/fd_plan9.go     | 43 +++++++++++++++++++++++++++++++------------
  src/net/file_plan9.go   |  2 +-
  src/net/ipsock_plan9.go | 25 ++++++++++++++++---------
  3 files changed, 48 insertions(+), 22 deletions(-)
+
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index e7dea696e7..d32b622966 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -17,11 +17,11 @@ type netFD struct {
+ 	fdmu fdMutex
+ 
+ 	// immutable until Close
+-	net          string
+-	n            string
+-	dir          string
+-	ctl, data    *os.File
+-	laddr, raddr Addr
++	net               string
++	n                 string
++	dir               string
++	listen, ctl, data *os.File
++	laddr, raddr      Addr
+ }
+ 
+ var (
+@@ -32,8 +32,16 @@ func sysInit() {
+ 	netdir = "/net"
+ }
+ 
+-func newFD(net, name string, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
+-	return &netFD{net: net, n: name, dir: netdir + "/" + net + "/" + name, ctl: ctl, data: data, laddr: laddr, raddr: raddr}, nil
++func newFD(net, name string, listen, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
++	return &netFD{
++		net:    net,
++		n:      name,
++		dir:    netdir + "/" + net + "/" + name,
++		listen: listen,
++		ctl:    ctl, data: data,
++		laddr: laddr,
++		raddr: raddr,
++	}, nil
+ }
+ 
+ func (fd *netFD) init() error {
+@@ -64,8 +72,14 @@ func (fd *netFD) destroy() {
+ 			err = err1
+ 		}
+ 	}
++	if fd.listen != nil {
++		if err1 := fd.listen.Close(); err1 != nil && err == nil {
++			err = err1
++		}
++	}
+ 	fd.ctl = nil
+ 	fd.data = nil
++	fd.listen = nil
+ }
+ 
+ func (fd *netFD) Read(b []byte) (n int, err error) {
+@@ -124,11 +138,10 @@ func (fd *netFD) Close() error {
+ 	}
+ 	if fd.net == "tcp" {
+ 		// The following line is required to unblock Reads.
+-		// For some reason, WriteString returns an error:
+-		// "write /net/tcp/39/listen: inappropriate use of fd"
+-		// But without it, Reads on dead conns hang forever.
+-		// See Issue 9554.
+-		fd.ctl.WriteString("close")
++		_, err := fd.ctl.WriteString("close")
++		if err != nil {
++			return err
++		}
+ 	}
+ 	err := fd.ctl.Close()
+ 	if fd.data != nil {
+@@ -136,8 +149,14 @@ func (fd *netFD) Close() error {
+ 			err = err1
+ 		}
+ 	}
++	if fd.listen != nil {
++		if err1 := fd.listen.Close(); err1 != nil && err == nil {
++			err = err1
++		}
++	}
+ 	fd.ctl = nil
+ 	fd.data = nil
++	fd.listen = nil
+ 	return err
+ }
+ 
+diff --git a/src/net/file_plan9.go b/src/net/file_plan9.go
+index 2939c09a43..d16e5a166c 100644
+--- a/src/net/file_plan9.go
++++ b/src/net/file_plan9.go
+@@ -81,7 +81,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return newFD(comp[1], name, ctl, nil, laddr, nil)
++	return newFD(comp[1], name, nil, ctl, nil, laddr, nil)
+ }
+ 
+ func fileConn(f *os.File) (Conn, error) {
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index ddde370dba..3675b23dbc 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -213,7 +213,7 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
+ 		f.Close()
+ 		return nil, err
+ 	}
+-	return newFD(proto, name, f, data, laddr, raddr)
++	return newFD(proto, name, nil, f, data, laddr, raddr)
+ }
+ 
+ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err error) {
+@@ -232,11 +232,11 @@ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err er
+ 		f.Close()
+ 		return nil, err
+ 	}
+-	return newFD(proto, name, f, nil, laddr, nil)
++	return newFD(proto, name, nil, f, nil, laddr, nil)
+ }
+ 
+ func (fd *netFD) netFD() (*netFD, error) {
+-	return newFD(fd.net, fd.n, fd.ctl, fd.data, fd.laddr, fd.raddr)
++	return newFD(fd.net, fd.n, fd.listen, fd.ctl, fd.data, fd.laddr, fd.raddr)
+ }
+ 
+ func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
+@@ -245,27 +245,34 @@ func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
+ 		return nil, err
+ 	}
+ 	defer fd.readUnlock()
+-	f, err := os.Open(fd.dir + "/listen")
++	listen, err := os.Open(fd.dir + "/listen")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	var buf [16]byte
+-	n, err := f.Read(buf[:])
++	n, err := listen.Read(buf[:])
+ 	if err != nil {
+-		f.Close()
++		listen.Close()
+ 		return nil, err
+ 	}
+ 	name := string(buf[:n])
++	ctl, err := os.OpenFile(netdir+"/"+fd.net+"/"+name+"/ctl", os.O_RDWR, 0)
++	if err != nil {
++		listen.Close()
++		return nil, err
++	}
+ 	data, err := os.OpenFile(netdir+"/"+fd.net+"/"+name+"/data", os.O_RDWR, 0)
+ 	if err != nil {
+-		f.Close()
++		listen.Close()
++		ctl.Close()
+ 		return nil, err
+ 	}
+ 	raddr, err := readPlan9Addr(fd.net, netdir+"/"+fd.net+"/"+name+"/remote")
+ 	if err != nil {
++		listen.Close()
++		ctl.Close()
+ 		data.Close()
+-		f.Close()
+ 		return nil, err
+ 	}
+-	return newFD(fd.net, name, f, data, fd.laddr, raddr)
++	return newFD(fd.net, name, listen, ctl, data, fd.laddr, raddr)
+ }

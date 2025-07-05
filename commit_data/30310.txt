@@ -21,8 +21,90 @@ Date:   Mon Oct 31 12:01:32 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/gsubr.go  | 9 +--------
  src/cmd/compile/internal/gc/main.go   | 9 ---------
  src/cmd/compile/internal/gc/parser.go | 2 --
  3 files changed, 1 insertion(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index fd536ee06d..d1c012baed 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -30,10 +30,7 @@
+ 
+ package gc
+ 
+-import (
+-	"cmd/internal/obj"
+-	"fmt"
+-)
++import "cmd/internal/obj"
+ 
+ func Prog(as obj.As) *obj.Prog {
+ 	var p *obj.Prog
+@@ -314,9 +311,5 @@ func Gins(as obj.As, f, t *Node) *obj.Prog {
+ 	p := Prog(as)
+ 	Naddr(&p.From, f)
+ 	Naddr(&p.To, t)
+-
+-	if Debug['g'] != 0 {
+-		fmt.Printf("%v\n", p)
+-	}
+ 	return p
+ }
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c5ae7d3fba..edb37c2c74 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -155,10 +155,7 @@ func Main() {
+ 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
+ 	obj.Flagfn1("I", "add `directory` to import search path", addidir)
+ 	obj.Flagcount("K", "debug missing line numbers", &Debug['K'])
+-	obj.Flagcount("M", "debug move generation", &Debug['M'])
+ 	obj.Flagcount("N", "disable optimizations", &Debug['N'])
+-	obj.Flagcount("P", "debug peephole optimizer", &Debug['P'])
+-	obj.Flagcount("R", "debug register optimizer", &Debug['R'])
+ 	obj.Flagcount("S", "print assembly listing", &Debug['S'])
+ 	obj.Flagfn0("V", "print compiler version", doversion)
+ 	obj.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
+@@ -168,7 +165,6 @@ func Main() {
+ 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`")
+ 	obj.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
+ 	obj.Flagcount("f", "debug stack frames", &Debug['f'])
+-	obj.Flagcount("g", "debug code generation", &Debug['g'])
+ 	obj.Flagcount("h", "halt on error", &Debug['h'])
+ 	obj.Flagcount("i", "debug line number stack", &Debug['i'])
+ 	obj.Flagfn1("importmap", "add `definition` of the form source=actual to import map", addImportMap)
+@@ -191,7 +187,6 @@ func Main() {
+ 	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
+ 	obj.Flagcount("w", "debug type checking", &Debug['w'])
+ 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
+-	obj.Flagcount("x", "debug lexer", &Debug['x'])
+ 	var flag_shared bool
+ 	var flag_dynlink bool
+ 	if supportsDynlink(Thearch.LinkArch.Arch) {
+@@ -309,10 +304,6 @@ func Main() {
+ 	timings.Start("fe", "parse")
+ 	lexlineno0 := lexlineno
+ 	for _, infile = range flag.Args() {
+-		if trace && Debug['x'] != 0 {
+-			fmt.Printf("--- %s ---\n", infile)
+-		}
+-
+ 		linehistpush(infile)
+ 		block = 1
+ 		iota_ = -1000000
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 641dcb65d0..8f630183ef 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -12,8 +12,6 @@ package gc
+ // Semicolons are inserted by the lexer. The parser uses one-token look-ahead
+ // to handle optional commas and semicolons before a closing ) or } .
+ 
+-const trace = false // if set, parse tracing can be enabled with -x
+-
+ func mkname(sym *Sym) *Node {
+ 	n := oldname(sym)
+ 	if n.Name != nil && n.Name.Pack != nil {

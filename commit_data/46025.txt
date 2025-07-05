@@ -11,6 +11,40 @@ Date:   Tue Dec 1 14:19:57 2020 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274475
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.16.html | 16 ++++++++++++----
  1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 1628c6f437..f3bc2fb4d0 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -732,16 +732,24 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="path"><dt><a href="/pkg/path/">path</a></dt>
+   <dd>
+-    <p><!-- CL 264397 -->
+-      TODO: <a href="https://golang.org/cl/264397">https://golang.org/cl/264397</a>: validate patterns in Match, Glob
++    <p><!-- CL 264397, golang.org/issues/28614 -->
++      The <code>Match</code> and <code>Glob</code> functions now
++      return an error if the unmatched part of the pattern has a
++      syntax error. Previously, the functions returned early on a failed
++      match, and thus did not report any later syntax error in the
++      pattern.
+     </p>
+   </dd>
+ </dl><!-- path -->
+ 
+ <dl id="path/filepath"><dt><a href="/pkg/path/filepath/">path/filepath</a></dt>
+   <dd>
+-    <p><!-- CL 264397 -->
+-      TODO: <a href="https://golang.org/cl/264397">https://golang.org/cl/264397</a>: validate patterns in Match, Glob
++    <p><!-- CL 264397, golang.org/issues/28614 -->
++      The <code>Match</code> and <code>Glob</code> functions now
++      return an error if the unmatched part of the pattern has a
++      syntax error. Previously, the functions returned early on a failed
++      match, and thus did not report any later syntax error in the
++      pattern.
+     </p>
+   </dd>
+ </dl><!-- path/filepath -->

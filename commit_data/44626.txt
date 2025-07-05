@@ -15,8 +15,93 @@ Date:   Sun Aug 16 21:58:40 2020 +0000
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/testing/iotest/logger_test.go | 12 ++----------
  src/testing/iotest/reader.go      | 15 +++++++++++++++
  src/testing/iotest/reader_test.go | 10 ++++++++++
  3 files changed, 27 insertions(+), 10 deletions(-)
+
+diff --git a/src/testing/iotest/logger_test.go b/src/testing/iotest/logger_test.go
+index c121bf48f7..575f37e05c 100644
+--- a/src/testing/iotest/logger_test.go
++++ b/src/testing/iotest/logger_test.go
+@@ -81,14 +81,6 @@ func TestWriteLogger_errorOnWrite(t *testing.T) {
+ 	}
+ }
+ 
+-type errReader struct {
+-	err error
+-}
+-
+-func (r errReader) Read([]byte) (int, error) {
+-	return 0, r.err
+-}
+-
+ func TestReadLogger(t *testing.T) {
+ 	olw := log.Writer()
+ 	olf := log.Flags()
+@@ -146,14 +138,14 @@ func TestReadLogger_errorOnRead(t *testing.T) {
+ 	data := []byte("Hello, World!")
+ 	p := make([]byte, len(data))
+ 
+-	lr := errReader{err: errors.New("Read Error!")}
++	lr := ErrReader()
+ 	rl := NewReadLogger("read", lr)
+ 	n, err := rl.Read(p)
+ 	if err == nil {
+ 		t.Fatalf("Unexpectedly succeeded to read: %v", err)
+ 	}
+ 
+-	wantLogWithHex := fmt.Sprintf("lr: read %x: %v\n", p[:n], "Read Error!")
++	wantLogWithHex := fmt.Sprintf("lr: read %x: %v\n", p[:n], "io")
+ 	if g, w := lOut.String(), wantLogWithHex; g != w {
+ 		t.Errorf("ReadLogger mismatch\n\tgot:  %q\n\twant: %q", g, w)
+ 	}
+diff --git a/src/testing/iotest/reader.go b/src/testing/iotest/reader.go
+index 8d82018fd6..b18e912f27 100644
+--- a/src/testing/iotest/reader.go
++++ b/src/testing/iotest/reader.go
+@@ -68,6 +68,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err error) {
+ 	return
+ }
+ 
++// ErrTimeout is a fake timeout error.
+ var ErrTimeout = errors.New("timeout")
+ 
+ // TimeoutReader returns ErrTimeout on the second read
+@@ -86,3 +87,17 @@ func (r *timeoutReader) Read(p []byte) (int, error) {
+ 	}
+ 	return r.r.Read(p)
+ }
++
++// ErrIO is a fake IO error.
++var ErrIO = errors.New("io")
++
++// ErrReader returns a fake error every time it is read from.
++func ErrReader() io.Reader {
++	return errReader(0)
++}
++
++type errReader int
++
++func (r errReader) Read(p []byte) (int, error) {
++	return 0, ErrIO
++}
+diff --git a/src/testing/iotest/reader_test.go b/src/testing/iotest/reader_test.go
+index 9397837e08..ccba22ee29 100644
+--- a/src/testing/iotest/reader_test.go
++++ b/src/testing/iotest/reader_test.go
+@@ -224,3 +224,13 @@ func TestDataErrReader_emptyReader(t *testing.T) {
+ 		t.Errorf("Unexpectedly read %d bytes, wanted %d", g, w)
+ 	}
+ }
++
++func TestErrReader(t *testing.T) {
++	n, err := ErrReader().Read([]byte{})
++	if err != ErrIO {
++		t.Errorf("ErrReader.Read(any) should have returned ErrIO, returned %v", err)
++	}
++	if n != 0 {
++		t.Errorf("ErrReader.Read(any) should have read 0 bytes, read %v", n)
++	}
++}

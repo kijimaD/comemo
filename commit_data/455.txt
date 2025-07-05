@@ -9,7 +9,7 @@ Date:   Wed Jul 30 21:26:15 2008 -0700
     R=r
     OCL=13680
     CL=13680
-
+---
  usr/gri/gosrc/compilation.go |  13 ++++--
  usr/gri/gosrc/decls.go       |   2 +-
  usr/gri/gosrc/export.go      |  64 +++++++++++----------------
@@ -20,3 +20,732 @@ Date:   Wed Jul 30 21:26:15 2008 -0700
  usr/gri/gosrc/parser.go      |  29 +++++++++++--
  usr/gri/gosrc/type.go        |  25 +++++++++++
  9 files changed, 156 insertions(+), 105 deletions(-)
+
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index 33d5029e96..a7d1c9a1ad 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -14,6 +14,7 @@ import AST "ast"
+ import Parser "parser"
+ import Export "export"
+ import Printer "printer"
++import Verifier "verifier"
+ 
+ 
+ export Compile
+@@ -36,9 +37,15 @@ func Compile(comp *Globals.Compilation, file_name string) {
+ 		return;
+ 	}
+ 	
+-	// export
+-	if comp.flags.semantic_checks {
++	if !comp.flags.semantic_checks {
++		return;
++	}
++	
++	Verifier.Verify(comp);
++	
++	if comp.flags.print_export {
+ 		Printer.PrintObject(comp, comp.pkgs[0].obj, false);
+-		Export.Export(comp, file_name);
+ 	}
++	
++	Export.Export(comp, file_name);
+ }
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+index f8e70d5ff6..37b261e3bd 100755
+--- a/usr/gri/gosrc/decls.go
++++ b/usr/gri/gosrc/decls.go
+@@ -6,7 +6,7 @@
+ 
+ package decls
+ 
+-// import "base"  // this fails
++import "base"
+ import base "base"
+ import base2 "base"
+ 
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 17e4145867..441e68a611 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -15,7 +15,7 @@ type Exporter struct {
+ 	comp *Globals.Compilation;
+ 	debug bool;
+ 	buf [4*1024] byte;
+-	pos int;
++	buf_pos int;
+ 	pkg_ref int;
+ 	type_ref int;
+ };
+@@ -27,8 +27,8 @@ func (E *Exporter) WritePackage(pkg *Globals.Package);
+ 
+ 
+ func (E *Exporter) WriteByte(x byte) {
+-	E.buf[E.pos] = x;
+-	E.pos++;
++	E.buf[E.buf_pos] = x;
++	E.buf_pos++;
+ 	/*
+ 	if E.debug {
+ 		print " ", x;
+@@ -71,7 +71,7 @@ func (E *Exporter) WriteObjectTag(tag int) {
+ 	}
+ 	E.WriteInt(tag);
+ 	if E.debug {
+-		print "\nObj: ", tag;  // obj kind
++		print "\n", Object.KindStr(tag);
+ 	}
+ }
+ 
+@@ -79,10 +79,10 @@ func (E *Exporter) WriteObjectTag(tag int) {
+ func (E *Exporter) WriteTypeTag(tag int) {
+ 	E.WriteInt(tag);
+ 	if E.debug {
+-		if tag > 0 {
+-			print "\nTyp ", E.type_ref, ": ", tag;  // type form
++		if tag >= 0 {
++			print " [T", tag, "]";  // type ref
+ 		} else {
+-			print " [Typ ", -tag, "]";  // type ref
++			print "\nT", E.type_ref, ": ", Type.FormStr(-tag);
+ 		}
+ 	}
+ }
+@@ -91,23 +91,15 @@ func (E *Exporter) WriteTypeTag(tag int) {
+ func (E *Exporter) WritePackageTag(tag int) {
+ 	E.WriteInt(tag);
+ 	if E.debug {
+-		if tag > 0 {
+-			print "\nPkg ", E.pkg_ref, ": ", tag;  // package no
++		if tag >= 0 {
++			print " [P", tag, "]";  // package ref
+ 		} else {
+-			print " [Pkg ", -tag, "]";  // package ref
++			print "\nP", E.pkg_ref, ": ", -tag;  // package no
+ 		}
+ 	}
+ }
+ 
+ 
+-func (E *Exporter) WriteTypeField(fld *Globals.Object) {
+-	if fld.kind != Object.VAR {
+-		panic "fld.kind != Object.VAR";
+-	}
+-	E.WriteType(fld.typ);
+-}
+-
+-
+ func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 	if E.debug {
+ 		print " {";
+@@ -118,7 +110,7 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 			E.WriteObject(p.obj);
+ 		}
+ 	}
+-	E.WriteObjectTag(0);  // terminator
++	E.WriteObjectTag(Object.EOS);
+ 	
+ 	if E.debug {
+ 		print " }";
+@@ -127,8 +119,8 @@ func (E *Exporter) WriteScope(scope *Globals.Scope) {
+ 
+ 
+ func (E *Exporter) WriteObject(obj *Globals.Object) {
+-	if obj == nil || !obj.exported {
+-		panic "obj == nil || !obj.exported";
++	if !obj.exported {
++		panic "!obj.exported";
+ 	}
+ 
+ 	if obj.kind == Object.TYPE && obj.typ.obj == obj {
+@@ -156,7 +148,6 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ 			E.WriteInt(0);  // should be the correct address/offset
+ 			
+ 		default:
+-			print "obj.kind = ", obj.kind, "\n";
+ 			panic "UNREACHABLE";
+ 		}
+ 	}
+@@ -164,19 +155,16 @@ func (E *Exporter) WriteObject(obj *Globals.Object) {
+ 
+ 
+ func (E *Exporter) WriteType(typ *Globals.Type) {
+-	if typ == nil {
+-		panic "typ == nil";
+-	}
+-
+ 	if typ.ref >= 0 {
+-		E.WriteTypeTag(-typ.ref);  // type already exported
++		E.WriteTypeTag(typ.ref);  // type already exported
+ 		return;
+ 	}
+ 
+-	if typ.form <= 0 {
+-		panic "typ.form <= 0";
++	if -typ.form >= 0 {
++		panic "-typ.form >= 0";  // conflict with ref numbers
+ 	}
+-	E.WriteTypeTag(typ.form);
++	
++	E.WriteTypeTag(-typ.form);
+ 	typ.ref = E.type_ref;
+ 	E.type_ref++;
+ 
+@@ -214,7 +202,6 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 		E.WriteType(typ.elt);
+ 
+ 	default:
+-		print "typ.form = ", typ.form, "\n";
+ 		panic "UNREACHABLE";
+ 	}
+ }
+@@ -222,14 +209,15 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 
+ func (E *Exporter) WritePackage(pkg *Globals.Package) {
+ 	if pkg.ref >= 0 {
+-		E.WritePackageTag(-pkg.ref);  // package already exported
++		E.WritePackageTag(pkg.ref);  // package already exported
+ 		return;
+ 	}
+ 
+-	if Object.PACKAGE <= 0 {
+-		panic "Object.PACKAGE <= 0";
++	if -Object.PACKAGE >= 0 {
++		panic "-Object.PACKAGE >= 0";  // conflict with ref numbers
+ 	}
+-	E.WritePackageTag(Object.PACKAGE);
++	
++	E.WritePackageTag(-Object.PACKAGE);
+ 	pkg.ref = E.pkg_ref;
+ 	E.pkg_ref++;
+ 
+@@ -242,7 +230,7 @@ func (E *Exporter) WritePackage(pkg *Globals.Package) {
+ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 	E.comp = comp;
+ 	E.debug = comp.flags.debug;
+-	E.pos = 0;
++	E.buf_pos = 0;
+ 	E.pkg_ref = 0;
+ 	E.type_ref = 0;
+ 	
+@@ -267,10 +255,10 @@ func (E *Exporter) Export(comp* Globals.Compilation, file_name string) {
+ 	E.WriteScope(pkg.scope);
+ 	
+ 	if E.debug {
+-		print "\n(", E.pos, " bytes)\n";
++		print "\n(", E.buf_pos, " bytes)\n";
+ 	}
+ 	
+-	data := string(E.buf)[0 : E.pos];
++	data := string(E.buf)[0 : E.buf_pos];
+ 	ok := sys.writefile(file_name, data);
+ 	
+ 	if !ok {
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 6e872dfdbc..34743551cf 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -78,8 +78,10 @@ type Scope struct {
+ export Flags;
+ type Flags struct {
+ 	debug bool;
++	print_export bool;
+ 	semantic_checks bool;
+ 	verbose int;
++	sixg bool;
+ }
+ 
+ 
+@@ -102,7 +104,7 @@ func NewObject(pos, kind int, ident string) *Object {
+ 	obj.pos = pos;
+ 	obj.kind = kind;
+ 	obj.ident = ident;
+-	obj.typ = nil;  // Universe::undef_t;
++	obj.typ = nil;  // Universe::undef_t;  (cyclic import...)
+ 	obj.pnolev = 0;
+ 	return obj;
+ }
+diff --git a/usr/gri/gosrc/go.go b/usr/gri/gosrc/go.go
+index 85b4a9fec8..31f1b87c53 100644
+--- a/usr/gri/gosrc/go.go
++++ b/usr/gri/gosrc/go.go
+@@ -18,9 +18,11 @@ func PrintHelp() {
+   print "usage:\n";
+   print "  go { flag | file }\n";
+   print "  -d  print debug information\n";
++  print "  -p  print export\n";
+   print "  -s  enable semantic checks\n";
+   print "  -v  verbose mode\n";
+   print "  -vv  very verbose mode\n";
++  print "  -6g  6g compatibility mode\n";
+ }
+ 
+ 
+@@ -36,9 +38,11 @@ func main() {
+ 	for i := 1; i < sys.argc(); i++ {
+ 		switch arg := sys.argv(i); arg {
+ 		case "-d": flags.debug = true;
++		case "-p": flags.print_export = true;
+ 		case "-s": flags.semantic_checks = true;
+ 		case "-v": flags.verbose = 1;
+ 		case "-vv": flags.verbose = 2;
++		case "-6g": flags.sixg = true;
+ 		default: files.AddStr(arg);
+ 		}
+ 	}
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index 77b0f3050a..66c6e2f91b 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -15,11 +15,11 @@ type Importer struct {
+ 	comp *Globals.Compilation;
+ 	debug bool;
+ 	buf string;
+-	pos int;
++	buf_pos int;
+ 	pkgs [256] *Globals.Package;
+-	npkgs int;
++	pkg_ref int;
+ 	types [1024] *Globals.Type;
+-	ntypes int;
++	type_ref int;
+ };
+ 
+ 
+@@ -29,8 +29,8 @@ func (I *Importer) ReadPackage() *Globals.Package;
+ 
+ 
+ func (I *Importer) ReadByte() byte {
+-	x := I.buf[I.pos];
+-	I.pos++;
++	x := I.buf[I.buf_pos];
++	I.buf_pos++;
+ 	/*
+ 	if E.debug {
+ 		print " ", x;
+@@ -80,7 +80,7 @@ func (I *Importer) ReadObjectTag() int {
+ 		panic "tag < 0";
+ 	}
+ 	if I.debug {
+-		print "\nObj: ", tag;  // obj kind
++		print "\n", Object.KindStr(tag);
+ 	}
+ 	return tag;
+ }
+@@ -89,10 +89,10 @@ func (I *Importer) ReadObjectTag() int {
+ func (I *Importer) ReadTypeTag() int {
+ 	tag := I.ReadInt();
+ 	if I.debug {
+-		if tag > 0 {
+-			print "\nTyp ", I.ntypes, ": ", tag;  // type form
++		if tag >= 0 {
++			print " [T", tag, "]";  // type ref
+ 		} else {
+-			print " [Typ ", -tag, "]";  // type ref
++			print "\nT", I.type_ref, ": ", Type.FormStr(-tag);
+ 		}
+ 	}
+ 	return tag;
+@@ -102,23 +102,16 @@ func (I *Importer) ReadTypeTag() int {
+ func (I *Importer) ReadPackageTag() int {
+ 	tag := I.ReadInt();
+ 	if I.debug {
+-		if tag > 0 {
+-			print "\nPkg ", I.npkgs, ": ", tag;  // package tag
++		if tag >= 0 {
++			print " [P", tag, "]";  // package ref
+ 		} else {
+-			print " [Pkg ", -tag, "]";  // package ref
++			print "\nP", I.pkg_ref, ": ", -tag;  // package tag
+ 		}
+ 	}
+ 	return tag;
+ }
+ 
+ 
+-func (I *Importer) ReadTypeField() *Globals.Object {
+-	fld := Globals.NewObject(0, Object.VAR, "");
+-	fld.typ = I.ReadType();
+-	return fld;
+-}
+-
+-
+ func (I *Importer) ReadScope() *Globals.Scope {
+ 	if I.debug {
+ 		print " {";
+@@ -127,7 +120,7 @@ func (I *Importer) ReadScope() *Globals.Scope {
+ 	scope := Globals.NewScope(nil);
+ 	for {
+ 		tag := I.ReadObjectTag();
+-		if tag == 0 {
++		if tag == Object.EOS {  // terminator
+ 			break;
+ 		}
+ 		// InsertImport only needed for package scopes
+@@ -159,12 +152,6 @@ func (I *Importer) ReadObject(tag int) *Globals.Object {
+ 		obj.pnolev = I.ReadPackage().obj.pnolev;
+ 
+ 		switch (tag) {
+-		default: fallthrough;
+-		case Object.BAD: fallthrough;
+-		case Object.PACKAGE: fallthrough;
+-		case Object.PTYPE:
+-			panic "UNREACHABLE";
+-
+ 		case Object.CONST:
+ 			I.ReadInt();  // should set the value field
+ 
+@@ -176,6 +163,9 @@ func (I *Importer) ReadObject(tag int) *Globals.Object {
+ 
+ 		case Object.FUNC:
+ 			I.ReadInt();  // should set the address/offset field
++			
++		default:
++			panic "UNREACHABLE";
+ 		}
+ 
+ 		return obj;
+@@ -186,14 +176,14 @@ func (I *Importer) ReadObject(tag int) *Globals.Object {
+ func (I *Importer) ReadType() *Globals.Type {
+ 	tag := I.ReadTypeTag();
+ 
+-	if tag <= 0 {
+-		return I.types[-tag];  // type already imported
++	if tag >= 0 {
++		return I.types[tag];  // type already imported
+ 	}
+ 
+-	typ := Globals.NewType(tag);
++	typ := Globals.NewType(-tag);
+ 	ptyp := typ;  // primary type
+ 	ident := I.ReadString();
+-	if (len(ident) > 0) {
++	if len(ident) > 0 {
+ 		// primary type
+ 		obj := Globals.NewObject(0, Object.TYPE, ident);
+ 		obj.typ = typ;
+@@ -206,22 +196,11 @@ func (I *Importer) ReadType() *Globals.Type {
+ 
+ 		ptyp = obj.typ;
+ 	}
+-	I.types[I.ntypes] = ptyp;
+-	I.ntypes++;
++	I.types[I.type_ref] = ptyp;
++	I.type_ref++;
+ 
+-	switch (tag) {
++	switch (typ.form) {
+ 	default: fallthrough;
+-	case Type.UNDEF: fallthrough;
+-	case Type.BAD: fallthrough;
+-	case Type.NIL: fallthrough;
+-	case Type.BOOL: fallthrough;
+-	case Type.UINT: fallthrough;
+-	case Type.INT: fallthrough;
+-	case Type.FLOAT: fallthrough;
+-	case Type.STRING: fallthrough;
+-	case Type.ANY:
+-		panic "UNREACHABLE";
+-
+ 	case Type.ARRAY:
+ 		typ.len_ = I.ReadInt();
+ 		typ.elt = I.ReadType();
+@@ -243,6 +222,9 @@ func (I *Importer) ReadType() *Globals.Type {
+ 
+ 	case Type.POINTER, Type.REFERENCE:
+ 		typ.elt = I.ReadType();
++
++	default:
++		panic "UNREACHABLE";
+ 	}
+ 
+ 	return ptyp;  // only use primary type
+@@ -252,10 +234,14 @@ func (I *Importer) ReadType() *Globals.Type {
+ func (I *Importer) ReadPackage() *Globals.Package {
+ 	tag := I.ReadPackageTag();
+ 
+-	if (tag <= 0) {
+-		return I.pkgs[-tag];  // package already imported
++	if tag >= 0 {
++		return I.pkgs[tag];  // package already imported
+ 	}
+ 
++	if -tag != Object.PACKAGE {
++		panic "incorrect package tag";
++	}
++	
+ 	ident := I.ReadString();
+ 	file_name := I.ReadString();
+ 	key := I.ReadString();
+@@ -268,12 +254,12 @@ func (I *Importer) ReadPackage() *Globals.Package {
+ 		pkg.scope = Globals.NewScope(nil);
+ 		pkg = I.comp.InsertImport(pkg);
+ 
+-	} else if (key != pkg.key) {
++	} else if key != pkg.key {
+ 		// package inconsistency
+ 		panic "package key inconsistency";
+ 	}
+-	I.pkgs[I.npkgs] = pkg;
+-	I.npkgs++;
++	I.pkgs[I.pkg_ref] = pkg;
++	I.pkg_ref++;
+ 
+ 	return pkg;
+ }
+@@ -283,9 +269,9 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 	I.comp = comp;
+ 	I.debug = comp.flags.debug;
+ 	I.buf = "";
+-	I.pos = 0;
+-	I.npkgs = 0;
+-	I.ntypes = 0;
++	I.buf_pos = 0;
++	I.pkg_ref = 0;
++	I.type_ref = 0;
+ 	
+ 	if I.debug {
+ 		print "importing from ", file_name, "\n";
+@@ -299,17 +285,17 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 	
+ 	// Predeclared types are "pre-imported".
+ 	for p := Universe.types.first; p != nil; p = p.next {
+-		if p.typ.ref != I.ntypes {
++		if p.typ.ref != I.type_ref {
+ 			panic "incorrect ref for predeclared type";
+ 		}
+-		I.types[I.ntypes] = p.typ;
+-		I.ntypes++;
++		I.types[I.type_ref] = p.typ;
++		I.type_ref++;
+ 	}
+ 
+ 	pkg := I.ReadPackage();
+ 	for {
+ 		tag := I.ReadObjectTag();
+-		if tag == 0 {
++		if tag == Object.EOS {
+ 			break;
+ 		}
+ 		obj := I.ReadObject(tag);
+@@ -318,7 +304,7 @@ func (I *Importer) Import(comp* Globals.Compilation, file_name string) *Globals.
+ 	}
+ 
+ 	if I.debug {
+-		print "\n(", I.pos, " bytes)\n";
++		print "\n(", I.buf_pos, " bytes)\n";
+ 	}
+ 	
+ 	return pkg;
+diff --git a/usr/gri/gosrc/object.go b/usr/gri/gosrc/object.go
+index bef5fbcee5..aab80cc57e 100755
+--- a/usr/gri/gosrc/object.go
++++ b/usr/gri/gosrc/object.go
+@@ -7,14 +7,32 @@ package Object
+ import Globals "globals"
+ 
+ 
+-export BAD, CONST, TYPE, VAR, FUNC, PACKAGE, LABEL, PTYPE
++export BAD, CONST, TYPE, VAR, FUNC, PACKAGE, LABEL, PTYPE, EOS
+ const /* kind */ (
+ 	BAD = iota;  // error handling
+ 	CONST; TYPE; VAR; FUNC; PACKAGE; LABEL;
+ 	PTYPE;  // primary type (import/export only)
++	EOS;  // end of scope (import/export only)
+ )
+ 
+ 
+ // The 'Object' declaration should be here as well, but 6g cannot handle
+ // this due to cross-package circular references. For now it's all in
+ // globals.go.
++
++
++export KindStr
++func KindStr(kind int) string {
++	switch kind {
++	case BAD: return "BAD";
++	case CONST: return "CONST";
++	case TYPE: return "TYPE";
++	case VAR: return "VAR";
++	case FUNC: return "FUNC";
++	case PACKAGE: return "PACKAGE";
++	case LABEL: return "LABEL";
++	case PTYPE: return "PTYPE";
++	case EOS: return "EOS";
++	}
++	return "<unknown Object kind>";
++}
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index d12ce764eb..45b529dd51 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -27,7 +27,7 @@ type Parser struct {
+ 	val string;  // token value (for IDENT, NUMBER, STRING only)
+ 
+ 	// Semantic analysis
+-	level int;  // 0 = global scope, -1 = function scope of global functions, etc.
++	level int;  // 0 = global scope, -1 = function/struct scope of global functions/structs, etc.
+ 	top_scope *Globals.Scope;
+ 	undef_types *Globals.List;
+ 	exports *Globals.List;
+@@ -486,6 +486,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 	P.Trace("AnonymousSignature");
+ 	
+ 	P.OpenScope();
++	P.level--;
+ 	sig := P.top_scope;
+ 	p0 := 0;
+ 	
+@@ -505,6 +506,7 @@ func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+ 	
+ 	r0 := sig.entries.len_;
+ 	P.TryResult();
++	P.level++;
+ 	P.CloseScope();
+ 	
+ 	P.Ecart();
+@@ -525,6 +527,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
+ 	P.Trace("NamedSignature");
+ 	
+ 	P.OpenScope();
++	P.level--;
+ 	sig := P.top_scope;
+ 	p0 := 0;
+ 
+@@ -546,6 +549,7 @@ func (P *Parser) ParseNamedSignature() (name string, typ *Globals.Type) {
+ 	
+ 	r0 := sig.entries.len_;
+ 	P.TryResult();
++	P.level++;
+ 	P.CloseScope();
+ 	
+ 	P.Ecart();
+@@ -569,11 +573,13 @@ func (P *Parser) ParseMethodDecl() {
+ 	
+ 	P.ParseIdent();
+ 	P.OpenScope();
++	P.level--;
+ 	sig := P.top_scope;
+ 	p0 := 0;
+ 	P.ParseParameters();
+ 	r0 := sig.entries.len_;
+ 	P.TryResult();
++	P.level++;
+ 	P.CloseScope();
+ 	P.Optional(Scanner.SEMICOLON);
+ 	
+@@ -587,11 +593,13 @@ func (P *Parser) ParseInterfaceType() *Globals.Type {
+ 	P.Expect(Scanner.INTERFACE);
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
++	P.level--;
+ 	typ := Globals.NewType(Type.INTERFACE);
+ 	typ.scope = P.top_scope;
+ 	for P.tok == Scanner.IDENT {
+ 		P.ParseMethodDecl();
+ 	}
++	P.level++;
+ 	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
+ 	
+@@ -628,6 +636,7 @@ func (P *Parser) ParseStructType() *Globals.Type {
+ 	P.Expect(Scanner.STRUCT);
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
++	P.level--;
+ 	typ := Globals.NewType(Type.STRUCT);
+ 	typ.scope = P.top_scope;
+ 	for P.tok == Scanner.IDENT {
+@@ -637,6 +646,7 @@ func (P *Parser) ParseStructType() *Globals.Type {
+ 		}
+ 	}
+ 	P.Optional(Scanner.SEMICOLON);
++	P.level++;
+ 	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
+ 	
+@@ -745,8 +755,12 @@ func (P *Parser) ParseBlock(sig *Globals.Scope) {
+ 	if sig != nil {
+ 		P.level--;
+ 		// add function parameters to scope
++		// TODO do we need to make a copy? what if we change obj fields?
+ 		scope := P.top_scope;
+ 		for p := sig.entries.first; p != nil; p = p.next {
++			if p.obj.pnolev != P.level {
++				panic "incorrect level";
++			}
+ 			scope.Insert(p.obj)
+ 		}
+ 	}
+@@ -1560,12 +1574,13 @@ func (P *Parser) ParseImportSpec() {
+ 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
+ 		pkg := Import.Import(P.comp, pkg_name);
+ 		if pkg != nil {
++			pno := pkg.obj.pnolev;  // preserve pno
+ 			if obj == nil {
+ 				// use original package name
+ 				obj = pkg.obj;
+-				P.Declare(obj);
++				P.Declare(obj);  // this changes (pkg.)obj.pnolev!
+ 			}
+-			obj.pnolev = pkg.obj.pnolev;
++			obj.pnolev = pno;  // correct pno
+ 		} else {
+ 			P.Error(P.pos, `import of "` + pkg_name + `" failed`);
+ 		}
+@@ -1836,7 +1851,10 @@ func (P *Parser) ParseProgram() {
+ 	}
+ 	P.Optional(Scanner.SEMICOLON);
+ 	
+-	{	P.OpenScope();
++	{	if P.level != 0 {
++			panic "incorrect scope level";
++		}
++		P.OpenScope();
+ 		pkg.scope = P.top_scope;
+ 		for P.tok == Scanner.IMPORT {
+ 			P.ParseDecl(false, Scanner.IMPORT);
+@@ -1851,6 +1869,9 @@ func (P *Parser) ParseProgram() {
+ 		P.ResolveUndefTypes();
+ 		P.MarkExports();
+ 		P.CloseScope();
++		if P.level != 0 {
++			panic "incorrect scope level";
++		}
+ 	}
+ 	
+ 	P.CloseScope();
+diff --git a/usr/gri/gosrc/type.go b/usr/gri/gosrc/type.go
+index f46f58d001..ea0877990e 100644
+--- a/usr/gri/gosrc/type.go
++++ b/usr/gri/gosrc/type.go
+@@ -34,3 +34,28 @@ const /* flag */ (
+ // The 'Type' declaration should be here as well, but 6g cannot handle
+ // this due to cross-package circular references. For now it's all in
+ // globals.go.
++
++
++export FormStr
++func FormStr(form int) string {
++	switch form {
++	case UNDEF: return "UNDEF";
++	case BAD: return "BAD";
++	case NIL: return "NIL";
++	case BOOL: return "BOOL";
++	case UINT: return "UINT";
++	case INT: return "INT";
++	case FLOAT: return "FLOAT";
++	case STRING: return "STRING";
++	case ANY: return "ANY";
++	case ARRAY: return "ARRAY";
++	case STRUCT: return "STRUCT";
++	case INTERFACE: return "INTERFACE";
++	case MAP: return "MAP";
++	case CHANNEL: return "CHANNEL";
++	case FUNCTION: return "FUNCTION";
++	case POINTER: return "POINTER";
++	case REFERENCE: return "REFERENCE";
++	}
++	return "<unknown Type form>";
++}

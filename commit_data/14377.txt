@@ -7,6 +7,20 @@ Date:   Mon Nov 12 07:25:54 2012 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/6822111
-
+---
  doc/go_faq.html | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 65445d4220..69296bc27b 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1262,6 +1262,8 @@ each iteration of the loop uses the same instance of the variable <code>v</code>
+ each closure shares that single variable. When the closure runs, it prints the 
+ value of <code>v</code> at the time <code>fmt.Println</code> is executed,
+ but <code>v</code> may have been modified since the goroutine was launched. 
++To help detect this and other problems before they happen, run
++<a href="http://golang.org/cmd/go/#Run_go_tool_vet_on_packages"><code>go vet</code></a>.
+ </p>
+ 
+ <p>

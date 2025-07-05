@@ -11,9 +11,80 @@ Date:   Mon Oct 25 18:15:43 2021 +0800
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go   | 4 ++--
  src/cmd/compile/internal/noder/noder.go  | 4 ++--
  src/cmd/compile/internal/walk/complit.go | 2 +-
  src/cmd/compile/internal/walk/select.go  | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 1ae6a58de0..483b3d5d46 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1259,7 +1259,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		n := n.(*ir.BranchStmt)
+ 		m := ir.Copy(n).(*ir.BranchStmt)
+ 		m.SetPos(subst.updatedPos(m.Pos()))
+-		*m.PtrInit() = nil
++		m.SetInit(nil)
+ 		m.Label = translateLabel(n.Label)
+ 		return m
+ 
+@@ -1271,7 +1271,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		n := n.(*ir.LabelStmt)
+ 		m := ir.Copy(n).(*ir.LabelStmt)
+ 		m.SetPos(subst.updatedPos(m.Pos()))
+-		*m.PtrInit() = nil
++		m.SetInit(nil)
+ 		m.Label = translateLabel(n.Label)
+ 		return m
+ 
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 7c14fcf041..fc1541f74e 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1238,7 +1238,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
+ 	init := p.stmt(stmt.Init)
+ 	n := ir.NewIfStmt(p.pos(stmt), p.expr(stmt.Cond), p.blockStmt(stmt.Then), nil)
+ 	if init != nil {
+-		*n.PtrInit() = []ir.Node{init}
++		n.SetInit([]ir.Node{init})
+ 	}
+ 	if stmt.Else != nil {
+ 		e := p.stmt(stmt.Else)
+@@ -1285,7 +1285,7 @@ func (p *noder) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
+ 	init := p.stmt(stmt.Init)
+ 	n := ir.NewSwitchStmt(p.pos(stmt), p.expr(stmt.Tag), nil)
+ 	if init != nil {
+-		*n.PtrInit() = []ir.Node{init}
++		n.SetInit([]ir.Node{init})
+ 	}
+ 
+ 	var tswitch *ir.TypeSwitchGuard
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index ad54fa7b96..b985b4caeb 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -482,7 +482,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 
+ 		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
+ 		loop.Body = []ir.Node{body}
+-		*loop.PtrInit() = []ir.Node{zero}
++		loop.SetInit([]ir.Node{zero})
+ 
+ 		appendWalkStmt(init, loop)
+ 		return
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index d2b67ddf55..fde8f50895 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -105,7 +105,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 		n := cas.Comm
+ 		ir.SetPos(n)
+ 		r := ir.NewIfStmt(base.Pos, nil, nil, nil)
+-		*r.PtrInit() = cas.Init()
++		r.SetInit(cas.Init())
+ 		var cond ir.Node
+ 		switch n.Op() {
+ 		default:

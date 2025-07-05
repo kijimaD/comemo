@@ -19,7 +19,7 @@ Date:   Sat Jun 25 13:51:06 2016 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/doc.go      |  2 ++
  src/cmd/dist/build.go   | 55 ++++++++++++++++++++++++++++---------------------
  src/cmd/dist/buildgo.go |  6 ++++--
@@ -28,3 +28,191 @@ Date:   Sat Jun 25 13:51:06 2016 +0200
  src/cmd/go/help.go      |  2 ++
  src/make.bash           |  2 ++
  7 files changed, 53 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index d3a7b6d2a7..e6f9173aaf 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -53,6 +53,8 @@ For example:
+ 	// #include <png.h>
+ 	import "C"
+ 
++The default pkg-config tool may be changed by setting the PKG_CONFIG environment variable.
++
+ When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
+ CGO_LDFLAGS environment variables are added to the flags derived from
+ these directives.  Package-specific flags should be set using the
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 9eb9caf392..28a145581d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -21,30 +21,31 @@ import (
+ 
+ // The usual variables.
+ var (
+-	goarch           string
+-	gobin            string
+-	gohostarch       string
+-	gohostos         string
+-	goos             string
+-	goarm            string
+-	go386            string
+-	goroot           string
+-	goroot_final     string
+-	goextlinkenabled string
+-	gogcflags        string // For running built compiler
+-	workdir          string
+-	tooldir          string
+-	oldgoos          string
+-	oldgoarch        string
+-	slash            string
+-	exe              string
+-	defaultcc        string
+-	defaultcflags    string
+-	defaultldflags   string
+-	defaultcxxtarget string
+-	defaultcctarget  string
+-	rebuildall       bool
+-	defaultclang     bool
++	goarch                 string
++	gobin                  string
++	gohostarch             string
++	gohostos               string
++	goos                   string
++	goarm                  string
++	go386                  string
++	goroot                 string
++	goroot_final           string
++	goextlinkenabled       string
++	gogcflags              string // For running built compiler
++	workdir                string
++	tooldir                string
++	oldgoos                string
++	oldgoarch              string
++	slash                  string
++	exe                    string
++	defaultcc              string
++	defaultcflags          string
++	defaultldflags         string
++	defaultcxxtarget       string
++	defaultcctarget        string
++	defaultpkgconfigtarget string
++	rebuildall             bool
++	defaultclang           bool
+ 
+ 	vflag int // verbosity
+ )
+@@ -208,6 +209,12 @@ func xinit() {
+ 	}
+ 	defaultcxxtarget = b
+ 
++	b = os.Getenv("PKG_CONFIG")
++	if b == "" {
++		b = "pkg-config"
++	}
++	defaultpkgconfigtarget = b
++
+ 	// For tools being invoked but also for os.ExpandEnv.
+ 	os.Setenv("GO386", go386)
+ 	os.Setenv("GOARCH", goarch)
+diff --git a/src/cmd/dist/buildgo.go b/src/cmd/dist/buildgo.go
+index 3fab2354ad..dc478f87fe 100644
+--- a/src/cmd/dist/buildgo.go
++++ b/src/cmd/dist/buildgo.go
+@@ -19,6 +19,7 @@ import (
+ //	package main
+ //	const defaultCC = <defaultcc>
+ //	const defaultCXX = <defaultcxx>
++//	const defaultPkgConfig = <defaultpkgconfig>
+ //
+ // It is invoked to write cmd/go/zdefaultcc.go
+ // but we also write cmd/cgo/zdefaultcc.go
+@@ -29,8 +30,9 @@ func mkzdefaultcc(dir, file string) {
+ 			"package main\n"+
+ 			"\n"+
+ 			"const defaultCC = `%s`\n"+
+-			"const defaultCXX = `%s`\n",
+-		defaultcctarget, defaultcxxtarget)
++			"const defaultCXX = `%s`\n"+
++			"const defaultPkgConfig = `%s`\n",
++		defaultcctarget, defaultcxxtarget, defaultpkgconfigtarget)
+ 
+ 	writefile(out, file, writeSkipSame)
+ 
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 522f791473..71befe57c4 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1104,6 +1104,8 @@
+ // 		Flags that cgo will pass to the compiler when linking.
+ // 	CXX
+ // 		The command to use to compile C++ code.
++// 	PKG_CONFIG
++// 		Path to pkg-config tool.
+ //
+ // Architecture-specific environment variables:
+ //
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 4344d84702..5c317cef81 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1624,13 +1624,19 @@ func (b *builder) build(a *action) (err error) {
+ 	return nil
+ }
+ 
++// pkgconfigCmd returns a pkg-config binary name
++// defaultPkgConfig is defined in zdefaultcc.go, written by cmd/dist.
++func (b *builder) pkgconfigCmd() string {
++	return envList("PKG_CONFIG", defaultPkgConfig)[0]
++}
++
+ // Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
+ func (b *builder) getPkgConfigFlags(p *Package) (cflags, ldflags []string, err error) {
+ 	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
+ 		var out []byte
+-		out, err = b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--cflags", pkgs)
++		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.pkgconfigCmd(), "--cflags", pkgs)
+ 		if err != nil {
+-			b.showOutput(p.Dir, "pkg-config --cflags "+strings.Join(pkgs, " "), string(out))
++			b.showOutput(p.Dir, b.pkgconfigCmd()+" --cflags "+strings.Join(pkgs, " "), string(out))
+ 			b.print(err.Error() + "\n")
+ 			err = errPrintedOutput
+ 			return
+@@ -1638,9 +1644,9 @@ func (b *builder) getPkgConfigFlags(p *Package) (cflags, ldflags []string, err e
+ 		if len(out) > 0 {
+ 			cflags = strings.Fields(string(out))
+ 		}
+-		out, err = b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--libs", pkgs)
++		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.pkgconfigCmd(), "--libs", pkgs)
+ 		if err != nil {
+-			b.showOutput(p.Dir, "pkg-config --libs "+strings.Join(pkgs, " "), string(out))
++			b.showOutput(p.Dir, b.pkgconfigCmd()+" --libs "+strings.Join(pkgs, " "), string(out))
+ 			b.print(err.Error() + "\n")
+ 			err = errPrintedOutput
+ 			return
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 8ad85e3b1f..410701646d 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -465,6 +465,8 @@ Environment variables for use with cgo:
+ 		Flags that cgo will pass to the compiler when linking.
+ 	CXX
+ 		The command to use to compile C++ code.
++	PKG_CONFIG
++		Path to pkg-config tool.
+ 
+ Architecture-specific environment variables:
+ 
+diff --git a/src/make.bash b/src/make.bash
+index 1a1412a00c..84aaab56db 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -47,6 +47,8 @@
+ # FC: Command line to run to compile Fortran code for GOARCH.
+ # This is used by cgo. Default is "gfortran".
+ #
++# PKG_CONFIG: Path to pkg-config tool. Default is "pkg-config".
++#
+ # GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
+ 
+ set -e

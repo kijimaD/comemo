@@ -16,7 +16,7 @@ Date:   Mon Apr 11 08:57:52 2016 +0200
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/nacl/testzip.proto                            |   4 +
  src/cmd/trace/main.go                              |   2 +-
  src/internal/trace/parser.go                       | 314 +++++++++++++++------
@@ -28,3 +28,665 @@ Date:   Mon Apr 11 08:57:52 2016 +0200
  src/runtime/trace.go                               |   2 +-
  src/runtime/trace/trace_test.go                    |   4 +-
  10 files changed, 295 insertions(+), 92 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 42db92f327..8c14b87f0a 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -109,6 +109,10 @@ go	src=..
+ 			png
+ 				testdata
+ 					+
++		internal
++			trace
++				testdata
++					+
+ 		io
+ 			+
+ 		mime
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 12bf8c3c16..cfd222e132 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -99,7 +99,7 @@ func parseEvents() ([]*trace.Event, error) {
+ 		defer tracef.Close()
+ 
+ 		// Parse and symbolize.
+-		events, err := trace.Parse(bufio.NewReader(tracef))
++		events, err := trace.Parse(bufio.NewReader(tracef), programBinary)
+ 		if err != nil {
+ 			loader.err = fmt.Errorf("failed to parse trace: %v", err)
+ 			return
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 65530b15c3..82ddb8b6c8 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -5,17 +5,22 @@
+ package trace
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"os"
++	"os/exec"
+ 	"sort"
++	"strconv"
++	"strings"
+ )
+ 
+ // Event describes one event in the trace.
+ type Event struct {
+ 	Off   int       // offset in input file (for debugging and error reporting)
+ 	Type  byte      // one of Ev*
+-	Seq   int64     // sequence number
++	seq   int64     // sequence number
+ 	Ts    int64     // timestamp in nanoseconds
+ 	P     int       // P on which the event happened (can be one of TimerP, NetpollP, SyscallP)
+ 	G     uint64    // G on which the event happened
+@@ -53,12 +58,12 @@ const (
+ )
+ 
+ // Parse parses, post-processes and verifies the trace.
+-func Parse(r io.Reader) ([]*Event, error) {
+-	rawEvents, strings, err := readTrace(r)
++func Parse(r io.Reader, bin string) ([]*Event, error) {
++	ver, rawEvents, strings, err := readTrace(r)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	events, stacks, err := parseEvents(rawEvents, strings)
++	events, stacks, err := parseEvents(ver, rawEvents, strings)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -66,7 +71,7 @@ func Parse(r io.Reader) ([]*Event, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	err = postProcessTrace(events)
++	err = postProcessTrace(ver, events)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -76,6 +81,11 @@ func Parse(r io.Reader) ([]*Event, error) {
+ 			ev.Stk = stacks[ev.StkID]
+ 		}
+ 	}
++	if ver < 1007 && bin != "" {
++		if err := symbolize(events, bin); err != nil {
++			return nil, err
++		}
++	}
+ 	return events, nil
+ }
+ 
+@@ -88,61 +98,82 @@ type rawEvent struct {
+ 
+ // readTrace does wire-format parsing and verification.
+ // It does not care about specific event types and argument meaning.
+-func readTrace(r io.Reader) ([]rawEvent, map[uint64]string, error) {
++func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]string, err error) {
+ 	// Read and validate trace header.
+ 	var buf [16]byte
+-	off, err := r.Read(buf[:])
+-	if off != 16 || err != nil {
+-		return nil, nil, fmt.Errorf("failed to read header: read %v, err %v", off, err)
++	off, err := io.ReadFull(r, buf[:])
++	if err != nil {
++		err = fmt.Errorf("failed to read header: read %v, err %v", off, err)
++		return
+ 	}
+-	if !bytes.Equal(buf[:], []byte("go 1.5 trace\x00\x00\x00\x00")) {
+-		return nil, nil, fmt.Errorf("not a trace file")
++	ver, err = parseHeader(buf[:])
++	if err != nil {
++		return
++	}
++	switch ver {
++	case 1005, 1007:
++		break
++	default:
++		err = fmt.Errorf("unsupported trace file version %v.%v (update Go toolchain) %v", ver/1000, ver%1000, ver)
++		return
+ 	}
+ 
+ 	// Read events.
+-	var events []rawEvent
+-	strings := make(map[uint64]string)
++	strings = make(map[uint64]string)
+ 	for {
+ 		// Read event type and number of arguments (1 byte).
+ 		off0 := off
+-		n, err := r.Read(buf[:1])
++		var n int
++		n, err = r.Read(buf[:1])
+ 		if err == io.EOF {
++			err = nil
+ 			break
+ 		}
+ 		if err != nil || n != 1 {
+-			return nil, nil, fmt.Errorf("failed to read trace at offset 0x%x: n=%v err=%v", off0, n, err)
++			err = fmt.Errorf("failed to read trace at offset 0x%x: n=%v err=%v", off0, n, err)
++			return
+ 		}
+ 		off += n
+ 		typ := buf[0] << 2 >> 2
+ 		narg := buf[0] >> 6
++		if typ == EvNone || typ >= EvCount || EventDescriptions[typ].minVersion > ver {
++			err = fmt.Errorf("unknown event type %v at offset 0x%x", typ, off0)
++			return
++		}
+ 		if typ == EvString {
+ 			// String dictionary entry [ID, length, string].
+ 			var id uint64
+ 			id, off, err = readVal(r, off)
+ 			if err != nil {
+-				return nil, nil, err
++				return
+ 			}
+ 			if id == 0 {
+-				return nil, nil, fmt.Errorf("string at offset %d has invalid id 0", off)
++				err = fmt.Errorf("string at offset %d has invalid id 0", off)
++				return
+ 			}
+ 			if strings[id] != "" {
+-				return nil, nil, fmt.Errorf("string at offset %d has duplicate id %v", off, id)
++				err = fmt.Errorf("string at offset %d has duplicate id %v", off, id)
++				return
+ 			}
+ 			var ln uint64
+ 			ln, off, err = readVal(r, off)
+ 			if err != nil {
+-				return nil, nil, err
++				return
+ 			}
+ 			if ln == 0 {
+-				return nil, nil, fmt.Errorf("string at offset %d has invalid length 0", off)
++				err = fmt.Errorf("string at offset %d has invalid length 0", off)
++				return
+ 			}
+ 			if ln > 1e6 {
+-				return nil, nil, fmt.Errorf("string at offset %d has too large length %v", off, ln)
++				err = fmt.Errorf("string at offset %d has too large length %v", off, ln)
++				return
+ 			}
+ 			buf := make([]byte, ln)
+-			n, err := io.ReadFull(r, buf)
++			var n int
++			n, err = io.ReadFull(r, buf)
+ 			if err != nil {
+-				return nil, nil, fmt.Errorf("failed to read trace at offset %d: read %v, want %v, error %v", off, n, ln, err)
++				err = fmt.Errorf("failed to read trace at offset %d: read %v, want %v, error %v", off, n, ln, err)
++				return
+ 			}
+ 			off += n
+ 			strings[id] = string(buf)
+@@ -154,7 +185,8 @@ func readTrace(r io.Reader) ([]rawEvent, map[uint64]string, error) {
+ 				var v uint64
+ 				v, off, err = readVal(r, off)
+ 				if err != nil {
+-					return nil, nil, err
++					err = fmt.Errorf("failed to read event %v argument at offset %v (%v)", typ, off, err)
++					return
+ 				}
+ 				ev.args = append(ev.args, v)
+ 			}
+@@ -163,39 +195,62 @@ func readTrace(r io.Reader) ([]rawEvent, map[uint64]string, error) {
+ 			var v uint64
+ 			v, off, err = readVal(r, off)
+ 			if err != nil {
+-				return nil, nil, err
++				err = fmt.Errorf("failed to read event %v argument at offset %v (%v)", typ, off, err)
++				return
+ 			}
+ 			evLen := v
+ 			off1 := off
+ 			for evLen > uint64(off-off1) {
+ 				v, off, err = readVal(r, off)
+ 				if err != nil {
+-					return nil, nil, err
++					err = fmt.Errorf("failed to read event %v argument at offset %v (%v)", typ, off, err)
++					return
+ 				}
+ 				ev.args = append(ev.args, v)
+ 			}
+ 			if evLen != uint64(off-off1) {
+-				return nil, nil, fmt.Errorf("event has wrong length at offset 0x%x: want %v, got %v", off0, evLen, off-off1)
++				err = fmt.Errorf("event has wrong length at offset 0x%x: want %v, got %v", off0, evLen, off-off1)
++				return
+ 			}
+ 		}
+ 		events = append(events, ev)
+ 	}
+-	return events, strings, nil
++	return
++}
++
++// parseHeader parses trace header of the form "go 1.7 trace\x00\x00\x00\x00"
++// and returns parsed version as 1007.
++func parseHeader(buf []byte) (int, error) {
++	if len(buf) != 16 {
++		return 0, fmt.Errorf("bad header length")
++	}
++	if buf[0] != 'g' || buf[1] != 'o' || buf[2] != ' ' ||
++		buf[3] < '1' || buf[3] > '9' ||
++		buf[4] != '.' ||
++		buf[5] < '1' || buf[5] > '9' {
++		return 0, fmt.Errorf("not a trace file")
++	}
++	ver := int(buf[5] - '0')
++	i := 0
++	for ; buf[6+i] >= '0' && buf[6+i] <= '9' && i < 2; i++ {
++		ver = ver*10 + int(buf[6+i]-'0')
++	}
++	ver += int(buf[3]-'0') * 1000
++	if !bytes.Equal(buf[6+i:], []byte(" trace\x00\x00\x00\x00")[:10-i]) {
++		return 0, fmt.Errorf("not a trace file")
++	}
++	return ver, nil
+ }
+ 
+ // Parse events transforms raw events into events.
+ // It does analyze and verify per-event-type arguments.
+-func parseEvents(rawEvents []rawEvent, strings map[uint64]string) (events []*Event, stacks map[uint64][]*Frame, err error) {
++func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (events []*Event, stacks map[uint64][]*Frame, err error) {
+ 	var ticksPerSec, lastSeq, lastTs int64
+ 	var lastG, timerGoid uint64
+ 	var lastP int
+ 	lastGs := make(map[int]uint64) // last goroutine running on P
+ 	stacks = make(map[uint64][]*Frame)
+ 	for _, raw := range rawEvents {
+-		if raw.typ == EvNone || raw.typ >= EvCount {
+-			err = fmt.Errorf("unknown event type %v at offset 0x%x", raw.typ, raw.off)
+-			return
+-		}
+ 		desc := EventDescriptions[raw.typ]
+ 		if desc.Name == "" {
+ 			err = fmt.Errorf("missing description for event type %v", raw.typ)
+@@ -246,7 +301,11 @@ func parseEvents(rawEvents []rawEvent, strings map[uint64]string) (events []*Eve
+ 					raw.off, size)
+ 				return
+ 			}
+-			if want := 2 + 4*size; uint64(len(raw.args)) != want {
++			want := 2 + 4*size
++			if ver < 1007 {
++				want = 2 + size
++			}
++			if uint64(len(raw.args)) != want {
+ 				err = fmt.Errorf("EvStack has wrong number of arguments at offset 0x%x: want %v, got %v",
+ 					raw.off, want, len(raw.args))
+ 				return
+@@ -255,19 +314,23 @@ func parseEvents(rawEvents []rawEvent, strings map[uint64]string) (events []*Eve
+ 			if id != 0 && size > 0 {
+ 				stk := make([]*Frame, size)
+ 				for i := 0; i < int(size); i++ {
+-					pc := raw.args[2+i*4+0]
+-					fn := raw.args[2+i*4+1]
+-					file := raw.args[2+i*4+2]
+-					line := raw.args[2+i*4+3]
+-					stk[i] = &Frame{PC: pc, Fn: strings[fn], File: strings[file], Line: int(line)}
++					if ver < 1007 {
++						stk[i] = &Frame{PC: raw.args[2+i]}
++					} else {
++						pc := raw.args[2+i*4+0]
++						fn := raw.args[2+i*4+1]
++						file := raw.args[2+i*4+2]
++						line := raw.args[2+i*4+3]
++						stk[i] = &Frame{PC: pc, Fn: strings[fn], File: strings[file], Line: int(line)}
++					}
+ 				}
+ 				stacks[id] = stk
+ 			}
+ 		default:
+ 			e := &Event{Off: raw.off, Type: raw.typ, P: lastP, G: lastG}
+-			e.Seq = lastSeq + int64(raw.args[0])
++			e.seq = lastSeq + int64(raw.args[0])
+ 			e.Ts = lastTs + int64(raw.args[1])
+-			lastSeq = e.Seq
++			lastSeq = e.seq
+ 			lastTs = e.Ts
+ 			for i := range desc.Args {
+ 				e.Args[i] = raw.args[i+2]
+@@ -289,7 +352,7 @@ func parseEvents(rawEvents []rawEvent, strings map[uint64]string) (events []*Eve
+ 			case EvGoSysExit:
+ 				// EvGoSysExit emission is delayed until the thread has a P.
+ 				// Give it the real sequence number and time stamp.
+-				e.Seq = int64(e.Args[1])
++				e.seq = int64(e.Args[1])
+ 				if e.Args[2] != 0 {
+ 					e.Ts = int64(e.Args[2])
+ 				}
+@@ -387,7 +450,7 @@ var ErrTimeOrder = fmt.Errorf("time stamps out of order")
+ // The resulting trace is guaranteed to be consistent
+ // (for example, a P does not run two Gs at the same time, or a G is indeed
+ // blocked before an unblock event).
+-func postProcessTrace(events []*Event) error {
++func postProcessTrace(ver int, events []*Event) error {
+ 	const (
+ 		gDead = iota
+ 		gRunnable
+@@ -510,7 +573,12 @@ func postProcessTrace(events []*Event) error {
+ 			g.evStart = ev
+ 			p.g = ev.G
+ 			if g.evCreate != nil {
+-				ev.StkID = g.evCreate.Args[1]
++				if ver < 1007 {
++					// +1 because symbolizer expects return pc.
++					ev.Stk = []*Frame{{PC: g.evCreate.Args[1] + 1}}
++				} else {
++					ev.StkID = g.evCreate.Args[1]
++				}
+ 				g.evCreate = nil
+ 			}
+ 
+@@ -611,6 +679,79 @@ func postProcessTrace(events []*Event) error {
+ 	return nil
+ }
+ 
++// symbolize attaches func/file/line info to stack traces.
++func symbolize(events []*Event, bin string) error {
++	// First, collect and dedup all pcs.
++	pcs := make(map[uint64]*Frame)
++	for _, ev := range events {
++		for _, f := range ev.Stk {
++			pcs[f.PC] = nil
++		}
++	}
++
++	// Start addr2line.
++	cmd := exec.Command("go", "tool", "addr2line", bin)
++	in, err := cmd.StdinPipe()
++	if err != nil {
++		return fmt.Errorf("failed to pipe addr2line stdin: %v", err)
++	}
++	cmd.Stderr = os.Stderr
++	out, err := cmd.StdoutPipe()
++	if err != nil {
++		return fmt.Errorf("failed to pipe addr2line stdout: %v", err)
++	}
++	err = cmd.Start()
++	if err != nil {
++		return fmt.Errorf("failed to start addr2line: %v", err)
++	}
++	outb := bufio.NewReader(out)
++
++	// Write all pcs to addr2line.
++	// Need to copy pcs to an array, because map iteration order is non-deterministic.
++	var pcArray []uint64
++	for pc := range pcs {
++		pcArray = append(pcArray, pc)
++		_, err := fmt.Fprintf(in, "0x%x\n", pc-1)
++		if err != nil {
++			return fmt.Errorf("failed to write to addr2line: %v", err)
++		}
++	}
++	in.Close()
++
++	// Read in answers.
++	for _, pc := range pcArray {
++		fn, err := outb.ReadString('\n')
++		if err != nil {
++			return fmt.Errorf("failed to read from addr2line: %v", err)
++		}
++		file, err := outb.ReadString('\n')
++		if err != nil {
++			return fmt.Errorf("failed to read from addr2line: %v", err)
++		}
++		f := &Frame{PC: pc}
++		f.Fn = fn[:len(fn)-1]
++		f.File = file[:len(file)-1]
++		if colon := strings.LastIndex(f.File, ":"); colon != -1 {
++			ln, err := strconv.Atoi(f.File[colon+1:])
++			if err == nil {
++				f.File = f.File[:colon]
++				f.Line = ln
++			}
++		}
++		pcs[pc] = f
++	}
++	cmd.Wait()
++
++	// Replace frames in events array.
++	for _, ev := range events {
++		for i, f := range ev.Stk {
++			ev.Stk[i] = pcs[f.PC]
++		}
++	}
++
++	return nil
++}
++
+ // readVal reads unsigned base-128 value from r.
+ func readVal(r io.Reader, off0 int) (v uint64, off int, err error) {
+ 	off = off0
+@@ -637,7 +778,7 @@ func (l eventList) Len() int {
+ }
+ 
+ func (l eventList) Less(i, j int) bool {
+-	return l[i].Seq < l[j].Seq
++	return l[i].seq < l[j].seq
+ }
+ 
+ func (l eventList) Swap(i, j int) {
+@@ -701,46 +842,47 @@ const (
+ )
+ 
+ var EventDescriptions = [EvCount]struct {
+-	Name  string
+-	Stack bool
+-	Args  []string
++	Name       string
++	minVersion int
++	Stack      bool
++	Args       []string
+ }{
+-	EvNone:           {"None", false, []string{}},
+-	EvBatch:          {"Batch", false, []string{"p", "seq", "ticks"}},
+-	EvFrequency:      {"Frequency", false, []string{"freq", "unused"}},
+-	EvStack:          {"Stack", false, []string{"id", "siz"}},
+-	EvGomaxprocs:     {"Gomaxprocs", true, []string{"procs"}},
+-	EvProcStart:      {"ProcStart", false, []string{"thread"}},
+-	EvProcStop:       {"ProcStop", false, []string{}},
+-	EvGCStart:        {"GCStart", true, []string{}},
+-	EvGCDone:         {"GCDone", false, []string{}},
+-	EvGCScanStart:    {"GCScanStart", false, []string{}},
+-	EvGCScanDone:     {"GCScanDone", false, []string{}},
+-	EvGCSweepStart:   {"GCSweepStart", true, []string{}},
+-	EvGCSweepDone:    {"GCSweepDone", false, []string{}},
+-	EvGoCreate:       {"GoCreate", true, []string{"g", "stack"}},
+-	EvGoStart:        {"GoStart", false, []string{"g"}},
+-	EvGoEnd:          {"GoEnd", false, []string{}},
+-	EvGoStop:         {"GoStop", true, []string{}},
+-	EvGoSched:        {"GoSched", true, []string{}},
+-	EvGoPreempt:      {"GoPreempt", true, []string{}},
+-	EvGoSleep:        {"GoSleep", true, []string{}},
+-	EvGoBlock:        {"GoBlock", true, []string{}},
+-	EvGoUnblock:      {"GoUnblock", true, []string{"g"}},
+-	EvGoBlockSend:    {"GoBlockSend", true, []string{}},
+-	EvGoBlockRecv:    {"GoBlockRecv", true, []string{}},
+-	EvGoBlockSelect:  {"GoBlockSelect", true, []string{}},
+-	EvGoBlockSync:    {"GoBlockSync", true, []string{}},
+-	EvGoBlockCond:    {"GoBlockCond", true, []string{}},
+-	EvGoBlockNet:     {"GoBlockNet", true, []string{}},
+-	EvGoSysCall:      {"GoSysCall", true, []string{}},
+-	EvGoSysExit:      {"GoSysExit", false, []string{"g", "seq", "ts"}},
+-	EvGoSysBlock:     {"GoSysBlock", false, []string{}},
+-	EvGoWaiting:      {"GoWaiting", false, []string{"g"}},
+-	EvGoInSyscall:    {"GoInSyscall", false, []string{"g"}},
+-	EvHeapAlloc:      {"HeapAlloc", false, []string{"mem"}},
+-	EvNextGC:         {"NextGC", false, []string{"mem"}},
+-	EvTimerGoroutine: {"TimerGoroutine", false, []string{"g", "unused"}},
+-	EvFutileWakeup:   {"FutileWakeup", false, []string{}},
+-	EvString:         {"String", false, []string{}},
++	EvNone:           {"None", 1005, false, []string{}},
++	EvBatch:          {"Batch", 1005, false, []string{"p", "seq", "ticks"}},
++	EvFrequency:      {"Frequency", 1005, false, []string{"freq", "unused"}},
++	EvStack:          {"Stack", 1005, false, []string{"id", "siz"}},
++	EvGomaxprocs:     {"Gomaxprocs", 1005, true, []string{"procs"}},
++	EvProcStart:      {"ProcStart", 1005, false, []string{"thread"}},
++	EvProcStop:       {"ProcStop", 1005, false, []string{}},
++	EvGCStart:        {"GCStart", 1005, true, []string{}},
++	EvGCDone:         {"GCDone", 1005, false, []string{}},
++	EvGCScanStart:    {"GCScanStart", 1005, false, []string{}},
++	EvGCScanDone:     {"GCScanDone", 1005, false, []string{}},
++	EvGCSweepStart:   {"GCSweepStart", 1005, true, []string{}},
++	EvGCSweepDone:    {"GCSweepDone", 1005, false, []string{}},
++	EvGoCreate:       {"GoCreate", 1005, true, []string{"g", "stack"}},
++	EvGoStart:        {"GoStart", 1005, false, []string{"g"}},
++	EvGoEnd:          {"GoEnd", 1005, false, []string{}},
++	EvGoStop:         {"GoStop", 1005, true, []string{}},
++	EvGoSched:        {"GoSched", 1005, true, []string{}},
++	EvGoPreempt:      {"GoPreempt", 1005, true, []string{}},
++	EvGoSleep:        {"GoSleep", 1005, true, []string{}},
++	EvGoBlock:        {"GoBlock", 1005, true, []string{}},
++	EvGoUnblock:      {"GoUnblock", 1005, true, []string{"g"}},
++	EvGoBlockSend:    {"GoBlockSend", 1005, true, []string{}},
++	EvGoBlockRecv:    {"GoBlockRecv", 1005, true, []string{}},
++	EvGoBlockSelect:  {"GoBlockSelect", 1005, true, []string{}},
++	EvGoBlockSync:    {"GoBlockSync", 1005, true, []string{}},
++	EvGoBlockCond:    {"GoBlockCond", 1005, true, []string{}},
++	EvGoBlockNet:     {"GoBlockNet", 1005, true, []string{}},
++	EvGoSysCall:      {"GoSysCall", 1005, true, []string{}},
++	EvGoSysExit:      {"GoSysExit", 1005, false, []string{"g", "seq", "ts"}},
++	EvGoSysBlock:     {"GoSysBlock", 1005, false, []string{}},
++	EvGoWaiting:      {"GoWaiting", 1005, false, []string{"g"}},
++	EvGoInSyscall:    {"GoInSyscall", 1005, false, []string{"g"}},
++	EvHeapAlloc:      {"HeapAlloc", 1005, false, []string{"mem"}},
++	EvNextGC:         {"NextGC", 1005, false, []string{"mem"}},
++	EvTimerGoroutine: {"TimerGoroutine", 1005, false, []string{"g", "unused"}},
++	EvFutileWakeup:   {"FutileWakeup", 1005, false, []string{}},
++	EvString:         {"String", 1007, false, []string{}},
+ }
+diff --git a/src/internal/trace/parser_test.go b/src/internal/trace/parser_test.go
+index fecefc4053..db8d2a30ce 100644
+--- a/src/internal/trace/parser_test.go
++++ b/src/internal/trace/parser_test.go
+@@ -5,6 +5,9 @@
+ package trace
+ 
+ import (
++	"bytes"
++	"io/ioutil"
++	"path/filepath"
+ 	"strings"
+ 	"testing"
+ )
+@@ -22,9 +25,63 @@ func TestCorruptedInputs(t *testing.T) {
+ 		"go 1.5 trace\x00\x00\x00\x00\xc3\x0200",
+ 	}
+ 	for _, data := range tests {
+-		events, err := Parse(strings.NewReader(data))
++		events, err := Parse(strings.NewReader(data), "")
+ 		if err == nil || events != nil {
+-			t.Fatalf("no error on input: %q\n", data)
++			t.Fatalf("no error on input: %q", data)
++		}
++	}
++}
++
++func TestParseCanned(t *testing.T) {
++	files, err := ioutil.ReadDir("./testdata")
++	if err != nil {
++		t.Fatalf("failed to read ./testdata: %v", err)
++	}
++	for _, f := range files {
++		data, err := ioutil.ReadFile(filepath.Join("./testdata", f.Name()))
++		if err != nil {
++			t.Fatalf("failed to read input file: %v", err)
++		}
++		_, err = Parse(bytes.NewReader(data), "")
++		switch {
++		case strings.HasSuffix(f.Name(), "_good"):
++			if err != nil {
++				t.Errorf("failed to parse good trace %v: %v", f.Name(), err)
++			}
++		case strings.HasSuffix(f.Name(), "_unordered"):
++			if err != ErrTimeOrder {
++				t.Errorf("unordered trace is not detected %v: %v", f.Name(), err)
++			}
++		default:
++			t.Errorf("unknown input file suffix: %v", f.Name())
++		}
++	}
++}
++
++func TestParseVersion(t *testing.T) {
++	tests := map[string]int{
++		"go 1.5 trace\x00\x00\x00\x00": 1005,
++		"go 1.7 trace\x00\x00\x00\x00": 1007,
++		"go 1.10 trace\x00\x00\x00":    1010,
++		"go 1.25 trace\x00\x00\x00":    1025,
++		"go 1.234 trace\x00\x00":       1234,
++		"go 1.2345 trace\x00":          -1,
++		"go 0.0 trace\x00\x00\x00\x00": -1,
++		"go a.b trace\x00\x00\x00\x00": -1,
++	}
++	for header, ver := range tests {
++		ver1, err := parseHeader([]byte(header))
++		if ver == -1 {
++			if err == nil {
++				t.Fatalf("no error on input: %q, version %v", header, ver1)
++			}
++		} else {
++			if err != nil {
++				t.Fatalf("failed to parse: %q (%v)", header, err)
++			}
++			if ver != ver1 {
++				t.Fatalf("wrong version: %v, want %v, input: %q", ver1, ver, header)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/internal/trace/testdata/http_1_5_good b/src/internal/trace/testdata/http_1_5_good
+new file mode 100644
+index 0000000000..0736cae674
+Binary files /dev/null and b/src/internal/trace/testdata/http_1_5_good differ
+diff --git a/src/internal/trace/testdata/stress_1_5_good b/src/internal/trace/testdata/stress_1_5_good
+new file mode 100644
+index 0000000000..c5055ebd19
+Binary files /dev/null and b/src/internal/trace/testdata/stress_1_5_good differ
+diff --git a/src/internal/trace/testdata/stress_1_5_unordered b/src/internal/trace/testdata/stress_1_5_unordered
+new file mode 100644
+index 0000000000..11f7d745ca
+Binary files /dev/null and b/src/internal/trace/testdata/stress_1_5_unordered differ
+diff --git a/src/internal/trace/testdata/stress_start_stop_1_5_good b/src/internal/trace/testdata/stress_start_stop_1_5_good
+new file mode 100644
+index 0000000000..72a887b844
+Binary files /dev/null and b/src/internal/trace/testdata/stress_start_stop_1_5_good differ
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index f54e5e0a7e..dcf534549a 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -356,7 +356,7 @@ func ReadTrace() []byte {
+ 		trace.headerWritten = true
+ 		trace.lockOwner = nil
+ 		unlock(&trace.lock)
+-		return []byte("go 1.5 trace\x00\x00\x00\x00")
++		return []byte("go 1.7 trace\x00\x00\x00\x00")
+ 	}
+ 	// Wait for new data.
+ 	if trace.fullHead == 0 && !trace.shutdown {
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index b787a2fc27..d10e928a66 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -52,7 +52,7 @@ func TestTrace(t *testing.T) {
+ 		t.Fatalf("failed to start tracing: %v", err)
+ 	}
+ 	Stop()
+-	_, err := trace.Parse(buf)
++	_, err := trace.Parse(buf, "")
+ 	if err == trace.ErrTimeOrder {
+ 		t.Skipf("skipping trace: %v", err)
+ 	}
+@@ -62,7 +62,7 @@ func TestTrace(t *testing.T) {
+ }
+ 
+ func parseTrace(t *testing.T, r io.Reader) ([]*trace.Event, map[uint64]*trace.GDesc, error) {
+-	events, err := trace.Parse(r)
++	events, err := trace.Parse(r, "")
+ 	if err == trace.ErrTimeOrder {
+ 		t.Skipf("skipping trace: %v", err)
+ 	}

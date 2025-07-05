@@ -7,6 +7,20 @@ Date:   Fri Feb 10 22:39:57 2012 -0200
     R=go.peter.90, n13m3y3r, gustavo
     CC=golang-dev
     https://golang.org/cl/5655053
-
+---
  src/pkg/net/http/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/doc.go b/src/pkg/net/http/doc.go
+index 652d729e08..b6ae8b87a2 100644
+--- a/src/pkg/net/http/doc.go
++++ b/src/pkg/net/http/doc.go
+@@ -60,7 +60,7 @@ Handle and HandleFunc add handlers to DefaultServeMux:
+ 	http.Handle("/foo", fooHandler)
+ 
+ 	http.HandleFunc("/bar", func(w http.ResponseWriter, r *http.Request) {
+-		fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.RawPath))
++		fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
+ 	})
+ 
+ 	log.Fatal(http.ListenAndServe(":8080", nil))

@@ -9,6 +9,48 @@ Date:   Thu Jul 23 11:41:35 2015 -0400
     Change-Id: Ie092a3a512a2d35967364b41081a066ab3a6aab4
     Reviewed-on: https://go-review.googlesource.com/12571
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/main.go | 25 ++++++++++++++++++++++++-
  1 file changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index e07651bb02..88a94417d7 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -235,12 +235,35 @@ var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reser
+ package main
+ `
+ 
++// An errWriter wraps a writer, recording whether a write error occurred.
++type errWriter struct {
++	w   io.Writer
++	err error
++}
++
++func (w *errWriter) Write(b []byte) (int, error) {
++	n, err := w.w.Write(b)
++	if err != nil {
++		w.err = err
++	}
++	return n, err
++}
++
+ // tmpl executes the given template text on data, writing the result to w.
+ func tmpl(w io.Writer, text string, data interface{}) {
+ 	t := template.New("top")
+ 	t.Funcs(template.FuncMap{"trim": strings.TrimSpace, "capitalize": capitalize})
+ 	template.Must(t.Parse(text))
+-	if err := t.Execute(w, data); err != nil {
++	ew := &errWriter{w: w}
++	err := t.Execute(ew, data)
++	if ew.err != nil {
++		// I/O error writing. Ignore write on closed pipe.
++		if strings.Contains(ew.err.Error(), "pipe") {
++			os.Exit(1)
++		}
++		fatalf("writing output: %v", ew.err)
++	}
++	if err != nil {
+ 		panic(err)
+ 	}
+ }

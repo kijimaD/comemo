@@ -29,6 +29,48 @@ Date:   Wed Sep 9 21:10:43 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/encodedword.go | 20 ++++++++++++++++----
  1 file changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+index 3b414dd5c4..db4b5f4510 100644
+--- a/src/mime/encodedword.go
++++ b/src/mime/encodedword.go
+@@ -194,12 +194,24 @@ type WordDecoder struct {
+ 
+ // Decode decodes an RFC 2047 encoded-word.
+ func (d *WordDecoder) Decode(word string) (string, error) {
+-	fields := strings.Split(word, "?") // TODO: remove allocation?
+-	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" || len(fields[2]) != 1 {
++	if !strings.HasPrefix(word, "=?") || !strings.HasSuffix(word, "?=") || strings.Count(word, "?") != 4 {
+ 		return "", errInvalidWord
+ 	}
++	word = word[2 : len(word)-2]
+ 
+-	content, err := decode(fields[2][0], fields[3])
++	// split delimits the first 2 fields
++	split := strings.IndexByte(word, '?')
++	// the field after split must only be one byte
++	if word[split+2] != '?' {
++		return "", errInvalidWord
++	}
++
++	// split word "UTF-8?q?ascii" into "UTF-8", 'q', and "ascii"
++	charset := word[:split]
++	encoding := word[split+1]
++	text := word[split+3:]
++
++	content, err := decode(encoding, text)
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -207,7 +219,7 @@ func (d *WordDecoder) Decode(word string) (string, error) {
+ 	buf := getBuffer()
+ 	defer putBuffer(buf)
+ 
+-	if err := d.convert(buf, fields[1], content); err != nil {
++	if err := d.convert(buf, charset, content); err != nil {
+ 		return "", err
+ 	}
+ 

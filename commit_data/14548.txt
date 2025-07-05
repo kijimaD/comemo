@@ -7,6 +7,27 @@ Date:   Mon Dec 3 18:49:14 2012 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/6870053
-
+---
  test/fixedbugs/issue4468.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/test/fixedbugs/issue4468.go b/test/fixedbugs/issue4468.go
+new file mode 100644
+index 0000000000..c9d7699e26
+--- /dev/null
++++ b/test/fixedbugs/issue4468.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4468: go/defer calls may not be parenthesized.
++
++package p
++
++func F() {
++	go (F())	// ERROR "must be function call"
++	defer (F())	// ERROR "must be function call"
++}

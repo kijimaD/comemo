@@ -9,6 +9,48 @@ Date:   Mon Jun 15 21:30:53 2009 -0700
     DELTA=8  (4 added, 3 deleted, 1 changed)
     OCL=30320
     CL=30325
-
+---
  src/pkg/runtime/proc.c | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 1d065e6d2a..ada3efd4f6 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -447,7 +447,7 @@ scheduler(void)
+ 	if(debug > 1) {
+ 		lock(&debuglock);
+ 		printf("m%d run g%d at %p\n", m->id, gp->goid, gp->sched.PC);
+-		traceback(gp->sched.PC, gp->sched.SP+8, gp);
++		traceback(gp->sched.PC, gp->sched.SP+sizeof(uintptr), gp);
+ 		unlock(&debuglock);
+ 	}
+ 	m->curg = gp;
+@@ -488,6 +488,10 @@ sys·entersyscall(uint64 callerpc, int64 trap)
+ 	}
+ 	lock(&sched);
+ 	g->status = Gsyscall;
++	// Leave SP around for gc and traceback.
++	// Do before notewakeup so that gc
++	// never sees Gsyscall with wrong stack.
++	gosave(&g->sched);
+ 	sched.mcpu--;
+ 	sched.msyscall++;
+ 	if(sched.gwait != 0)
+@@ -497,8 +501,6 @@ sys·entersyscall(uint64 callerpc, int64 trap)
+ 		notewakeup(&sched.stopped);
+ 	}
+ 	unlock(&sched);
+-	// leave SP around for gc and traceback
+-	gosave(&g->sched);
+ }
+ 
+ // The goroutine g exited its system call.
+@@ -823,7 +825,6 @@ sys·deferreturn(uintptr arg0)
+ {
+ 	Defer *d;
+ 	byte *sp, *fn;
+-	uintptr *caller;
+ 
+ 	d = g->defer;
+ 	if(d == nil)

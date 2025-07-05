@@ -9,7 +9,50 @@ Date:   Fri Aug 28 13:02:34 2009 -0700
     DELTA=12  (10 added, 0 deleted, 2 changed)
     OCL=34042
     CL=34044
-
+---
  src/pkg/fmt/fmt_test.go |  4 ++++
  src/pkg/fmt/print.go    | 10 ++++++++--
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 76234e552b..5e16c5f276 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -85,6 +85,10 @@ var fmttests = []fmtTest{
+ 	fmtTest{ "%v",		&array,			"&[1 2 3 4 5]" },
+ 	fmtTest{ "%v",		&iarray,			"&[1 hello 2.5 <nil>]" },
+ 
++	// erroneous formats
++	fmtTest{ "",		2,			"?(extra int=2)" },
++	fmtTest{ "%d",		"hello",		"%d(string=hello)%" },
++
+ 	// old test/fmt_test.go
+ 	fmtTest{ "%d",		1234,			"1234" },
+ 	fmtTest{ "%d",		-1234,			"-1234" },
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index bb1030e726..e5177ef19c 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -700,14 +700,20 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
+ 
+ 			default:
+ 			badtype:
+-				s = "%" + string(c) + "(" + field.Type().String() + ")%";
++				s = "%" + string(c) + "(" + field.Type().String() + "=";
++				p.addstr(s);
++				p.printField(field);
++				s= ")%";
+ 		}
+ 		p.addstr(s);
+ 	}
+ 	if fieldnum < v.NumField() {
+ 		p.addstr("?(extra ");
+ 		for ; fieldnum < v.NumField(); fieldnum++ {
+-			p.addstr(getField(v, fieldnum).Type().String());
++			field := getField(v, fieldnum);
++			p.addstr(field.Type().String());
++			p.addstr("=");
++			p.printField(field);
+ 			if fieldnum + 1 < v.NumField() {
+ 				p.addstr(", ");
+ 			}

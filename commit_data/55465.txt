@@ -18,7 +18,109 @@ Date:   Sat Feb 4 12:00:20 2023 +0700
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/const.go | 36 ++---------------------------
  test/fixedbugs/issue58293.go                | 13 +++++++++++
  2 files changed, 15 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 26a3753c5f..d43fa31782 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -34,10 +34,7 @@ func roundFloat(v constant.Value, sz int64) constant.Value {
+ // truncate float literal fv to 32-bit or 64-bit precision
+ // according to type; return truncated value.
+ func truncfltlit(v constant.Value, t *types.Type) constant.Value {
+-	if t.IsUntyped() || overflow(v, t) {
+-		// If there was overflow, simply continuing would set the
+-		// value to Inf which in turn would lead to spurious follow-on
+-		// errors. Avoid this by returning the existing value.
++	if t.IsUntyped() {
+ 		return v
+ 	}
+ 
+@@ -48,10 +45,7 @@ func truncfltlit(v constant.Value, t *types.Type) constant.Value {
+ // precision, according to type; return truncated value. In case of
+ // overflow, calls Errorf but does not truncate the input value.
+ func trunccmplxlit(v constant.Value, t *types.Type) constant.Value {
+-	if t.IsUntyped() || overflow(v, t) {
+-		// If there was overflow, simply continuing would set the
+-		// value to Inf which in turn would lead to spurious follow-on
+-		// errors. Avoid this by returning the existing value.
++	if t.IsUntyped() {
+ 		return v
+ 	}
+ 
+@@ -251,7 +245,6 @@ func convertVal(v constant.Value, t *types.Type, explicit bool) constant.Value {
+ 		switch {
+ 		case t.IsInteger():
+ 			v = toint(v)
+-			overflow(v, t)
+ 			return v
+ 		case t.IsFloat():
+ 			v = toflt(v)
+@@ -273,9 +266,6 @@ func tocplx(v constant.Value) constant.Value {
+ 
+ func toflt(v constant.Value) constant.Value {
+ 	if v.Kind() == constant.Complex {
+-		if constant.Sign(constant.Imag(v)) != 0 {
+-			base.Errorf("constant %v truncated to real", v)
+-		}
+ 		v = constant.Real(v)
+ 	}
+ 
+@@ -284,9 +274,6 @@ func toflt(v constant.Value) constant.Value {
+ 
+ func toint(v constant.Value) constant.Value {
+ 	if v.Kind() == constant.Complex {
+-		if constant.Sign(constant.Imag(v)) != 0 {
+-			base.Errorf("constant %v truncated to integer", v)
+-		}
+ 		v = constant.Real(v)
+ 	}
+ 
+@@ -321,25 +308,6 @@ func toint(v constant.Value) constant.Value {
+ 	return constant.MakeInt64(1)
+ }
+ 
+-// overflow reports whether constant value v is too large
+-// to represent with type t, and emits an error message if so.
+-func overflow(v constant.Value, t *types.Type) bool {
+-	// v has already been converted
+-	// to appropriate form for t.
+-	if t.IsUntyped() {
+-		return false
+-	}
+-	if v.Kind() == constant.Int && constant.BitLen(v) > ir.ConstPrec {
+-		base.Errorf("integer too large")
+-		return true
+-	}
+-	if ir.ConstOverflow(v, t) {
+-		base.Errorf("constant %v overflows %v", types.FmtConst(v, false), t)
+-		return true
+-	}
+-	return false
+-}
+-
+ func tostr(v constant.Value) constant.Value {
+ 	if v.Kind() == constant.Int {
+ 		r := unicode.ReplacementChar
+diff --git a/test/fixedbugs/issue58293.go b/test/fixedbugs/issue58293.go
+new file mode 100644
+index 0000000000..58d5500253
+--- /dev/null
++++ b/test/fixedbugs/issue58293.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var bar = f(13579)
++
++func f(x uint16) uint16 {
++	return x>>8 | x<<8
++}

@@ -8,7 +8,7 @@ Date:   Fri Apr 10 22:14:43 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/8782
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/arch1_arm64.go          |   2 +-
  src/runtime/asm_arm64.s             |   5 +-
  src/runtime/defs_darwin_arm64.go    | 248 ++++++++++++++++++++
@@ -22,3 +22,1007 @@ Date:   Fri Apr 10 22:14:43 2015 -0400
  src/runtime/tls_arm64.h             |   8 +-
  src/runtime/tls_arm64.s             |  33 ++-
  12 files changed, 871 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/arch1_arm64.go b/src/runtime/arch1_arm64.go
+index 49a56b6837..549a635ca4 100644
+--- a/src/runtime/arch1_arm64.go
++++ b/src/runtime/arch1_arm64.go
+@@ -9,7 +9,7 @@ const (
+ 	_BigEndian        = 0
+ 	_CacheLineSize    = 32
+ 	_RuntimeGogoBytes = 64
+-	_PhysPageSize     = 4096
++	_PhysPageSize     = 4096*(1-goos_darwin) + 16384*goos_darwin
+ 	_PCQuantum        = 4
+ 	_Int64Align       = 8
+ 	hugePageSize      = 0
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 7899153b13..a78bdc8afb 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -35,8 +35,11 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 
+ 	MRS_TPIDR_R0			// load TLS base pointer
+ 	MOVD	R0, R3			// arg 3: TLS base pointer
+-	//MOVD	$runtime·tlsg(SB), R2 	// arg 2: tlsg
++#ifdef TLSG_IS_VARIABLE
++	MOVD	$runtime·tls_g(SB), R2 	// arg 2: tlsg
++#else
+ 	MOVD	$0x10, R2		// arg 2: tlsg TODO(minux): hardcoded for linux
++#endif
+ 	MOVD	$setg_gcc<>(SB), R1	// arg 1: setg
+ 	MOVD	g, R0			// arg 0: G
+ 	BL	(R12)
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+new file mode 100644
+index 0000000000..3cc77c1066
+--- /dev/null
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -0,0 +1,248 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_darwin.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x5
++
++	_MACH_MSG_TYPE_MOVE_RECEIVE   = 0x10
++	_MACH_MSG_TYPE_MOVE_SEND      = 0x11
++	_MACH_MSG_TYPE_MOVE_SEND_ONCE = 0x12
++	_MACH_MSG_TYPE_COPY_SEND      = 0x13
++	_MACH_MSG_TYPE_MAKE_SEND      = 0x14
++	_MACH_MSG_TYPE_MAKE_SEND_ONCE = 0x15
++	_MACH_MSG_TYPE_COPY_RECEIVE   = 0x16
++
++	_MACH_MSG_PORT_DESCRIPTOR         = 0x0
++	_MACH_MSG_OOL_DESCRIPTOR          = 0x1
++	_MACH_MSG_OOL_PORTS_DESCRIPTOR    = 0x2
++	_MACH_MSG_OOL_VOLATILE_DESCRIPTOR = 0x3
++
++	_MACH_MSGH_BITS_COMPLEX = 0x80000000
++
++	_MACH_SEND_MSG  = 0x1
++	_MACH_RCV_MSG   = 0x2
++	_MACH_RCV_LARGE = 0x4
++
++	_MACH_SEND_TIMEOUT   = 0x10
++	_MACH_SEND_INTERRUPT = 0x40
++	_MACH_SEND_ALWAYS    = 0x10000
++	_MACH_SEND_TRAILER   = 0x20000
++	_MACH_RCV_TIMEOUT    = 0x100
++	_MACH_RCV_NOTIFY     = 0x200
++	_MACH_RCV_INTERRUPT  = 0x400
++	_MACH_RCV_OVERWRITE  = 0x1000
++
++	_NDR_PROTOCOL_2_0      = 0x0
++	_NDR_INT_BIG_ENDIAN    = 0x0
++	_NDR_INT_LITTLE_ENDIAN = 0x1
++	_NDR_FLOAT_IEEE        = 0x0
++	_NDR_CHAR_ASCII        = 0x0
++
++	_SA_SIGINFO   = 0x40
++	_SA_RESTART   = 0x2
++	_SA_ONSTACK   = 0x1
++	_SA_USERTRAMP = 0x100
++	_SA_64REGSET  = 0x200
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x7
++	_FPE_INTOVF = 0x8
++	_FPE_FLTDIV = 0x1
++	_FPE_FLTOVF = 0x2
++	_FPE_FLTUND = 0x3
++	_FPE_FLTRES = 0x4
++	_FPE_FLTINV = 0x5
++	_FPE_FLTSUB = 0x6
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0x40
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type machbody struct {
++	msgh_descriptor_count uint32
++}
++
++type machheader struct {
++	msgh_bits        uint32
++	msgh_size        uint32
++	msgh_remote_port uint32
++	msgh_local_port  uint32
++	msgh_reserved    uint32
++	msgh_id          int32
++}
++
++type machndr struct {
++	mig_vers     uint8
++	if_vers      uint8
++	reserved1    uint8
++	mig_encoding uint8
++	int_rep      uint8
++	char_rep     uint8
++	float_rep    uint8
++	reserved2    uint8
++}
++
++type machport struct {
++	name        uint32
++	pad1        uint32
++	pad2        uint16
++	disposition uint8
++	_type       uint8
++}
++
++type stackt struct {
++	ss_sp     *byte
++	ss_size   uintptr
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type sigactiont struct {
++	__sigaction_u [8]byte
++	sa_tramp      unsafe.Pointer
++	sa_mask       uint32
++	sa_flags      int32
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	si_pid    int32
++	si_uid    uint32
++	si_status int32
++	si_addr   *byte
++	si_value  [8]byte
++	si_band   int64
++	__pad     [7]uint64
++}
++
++type timeval struct {
++	tv_sec    int64
++	tv_usec   int32
++	pad_cgo_0 [4]byte
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++type exceptionstate64 struct {
++	far uint64 // virtual fault addr
++	esr uint32 // exception syndrome
++	exc uint32 // number of arm exception taken
++}
++
++type regs64 struct {
++	x     [29]uint64 // registers x0 to x28
++	fp    uint64     // frame register, x29
++	lr    uint64     // link register, x30
++	sp    uint64     // stack pointer, x31
++	pc    uint64     // program counter
++	cpsr  uint32     // current program status register
++	__pad uint32
++}
++
++type neonstate64 struct {
++	v    [64]uint64 // actually [32]uint128
++	fpsr uint32
++	fpcr uint32
++}
++
++type mcontext64 struct {
++	es exceptionstate64
++	ss regs64
++	ns neonstate64
++}
++
++type ucontext struct {
++	uc_onstack  int32
++	uc_sigmask  uint32
++	uc_stack    stackt
++	uc_link     *ucontext
++	uc_mcsize   uint64
++	uc_mcontext *mcontext64
++}
++
++type keventt struct {
++	ident  uint64
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int64
++	udata  *byte
++}
+diff --git a/src/runtime/lfstack_darwin_arm64.go b/src/runtime/lfstack_darwin_arm64.go
+new file mode 100644
+index 0000000000..54cae39fbc
+--- /dev/null
++++ b/src/runtime/lfstack_darwin_arm64.go
+@@ -0,0 +1,25 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// In addition to the 16 bits taken from the top, we can take 3 from the
++// bottom, because node must be pointer-aligned, giving a total of 19 bits
++// of count.
++const (
++	addrBits = 48
++	cntBits  = 64 - addrBits + 3
++)
++
++func lfstackPack(node *lfnode, cnt uintptr) uint64 {
++	return uint64(uintptr(unsafe.Pointer(node)))<<(64-addrBits) | uint64(cnt&(1<<cntBits-1))
++}
++
++func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
++	node = (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
++	cnt = uintptr(val & (1<<cntBits - 1))
++	return
++}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 72a10d1f94..e41c2736b1 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -155,7 +155,10 @@ const (
+ 	// See http://golang.org/issue/5402 and http://golang.org/issue/5236.
+ 	// On other 64-bit platforms, we limit the arena to 128GB, or 37 bits.
+ 	// On 32-bit, we don't bother limiting anything, so we use the full 32-bit address.
+-	_MHeapMap_TotalBits = (_64bit*goos_windows)*35 + (_64bit*(1-goos_windows))*37 + (1-_64bit)*32
++	// On Darwin/arm64, we cannot reserve more than ~5GB of virtual memory,
++	// but as most devices have less than 4GB of physical memory anyway, we
++	// try to be conservative here, and only ask for a 2GB heap.
++	_MHeapMap_TotalBits = (_64bit*goos_windows)*35 + (_64bit*(1-goos_windows)*(1-goos_darwin*goarch_arm64))*37 + goos_darwin*goarch_arm64*31 + (1-_64bit)*32
+ 	_MHeapMap_Bits      = _MHeapMap_TotalBits - _PageShift
+ 
+ 	_MaxMem = uintptr(1<<_MHeapMap_TotalBits - 1)
+@@ -257,14 +260,18 @@ func mallocinit() {
+ 		// However, on arm64, we ignore all this advice above and slam the
+ 		// allocation at 0x40 << 32 because when using 4k pages with 3-level
+ 		// translation buffers, the user address space is limited to 39 bits
++		// On darwin/arm64, the address space is even smaller.
+ 		arenaSize := round(_MaxMem, _PageSize)
+ 		bitmapSize = arenaSize / (ptrSize * 8 / 4)
+ 		spansSize = arenaSize / _PageSize * ptrSize
+ 		spansSize = round(spansSize, _PageSize)
+ 		for i := 0; i <= 0x7f; i++ {
+-			if GOARCH == "arm64" {
++			switch {
++			case GOARCH == "arm64" && GOOS == "darwin":
++				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
++			case GOARCH == "arm64":
+ 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
+-			} else {
++			default:
+ 				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
+ 			}
+ 			pSize = bitmapSize + spansSize + arenaSize + _PageSize
+diff --git a/src/runtime/os_darwin_arm64.go b/src/runtime/os_darwin_arm64.go
+new file mode 100644
+index 0000000000..4d35af9c6a
+--- /dev/null
++++ b/src/runtime/os_darwin_arm64.go
+@@ -0,0 +1,13 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++//go:nosplit
++func cputicks() int64 {
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
++	// TODO: need more entropy to better seed fastrand1.
++	return nanotime()
++}
+diff --git a/src/runtime/rt0_darwin_arm64.s b/src/runtime/rt0_darwin_arm64.s
+new file mode 100644
+index 0000000000..c728859008
+--- /dev/null
++++ b/src/runtime/rt0_darwin_arm64.s
+@@ -0,0 +1,21 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// No need for _rt0_arm64_darwin as darwin/arm64 only
++// supports external linking.
++TEXT _rt0_arm64_darwin(SB),NOSPLIT,$-8
++	MOVD	$42, R0
++	MOVD	$1, R16	// SYS_exit
++	SVC	$0x80
++
++TEXT main(SB),NOSPLIT,$-8
++	MOVD	$runtime·rt0_go(SB), R2
++	BL	(R2)
++exit:
++	MOVD	$0, R0
++	MOVD	$1, R16	// sys_exit
++	SVC	$0x80
++	B	exit
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index efb84029e2..d1904de215 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux
++// +build linux darwin
+ 
+ package runtime
+ 
+diff --git a/src/runtime/signal_darwin_arm64.go b/src/runtime/signal_darwin_arm64.go
+new file mode 100644
+index 0000000000..2df4229626
+--- /dev/null
++++ b/src/runtime/signal_darwin_arm64.go
+@@ -0,0 +1,60 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *regs64 { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
++func (c *sigctxt) r0() uint64    { return c.regs().x[0] }
++func (c *sigctxt) r1() uint64    { return c.regs().x[1] }
++func (c *sigctxt) r2() uint64    { return c.regs().x[2] }
++func (c *sigctxt) r3() uint64    { return c.regs().x[3] }
++func (c *sigctxt) r4() uint64    { return c.regs().x[4] }
++func (c *sigctxt) r5() uint64    { return c.regs().x[5] }
++func (c *sigctxt) r6() uint64    { return c.regs().x[6] }
++func (c *sigctxt) r7() uint64    { return c.regs().x[7] }
++func (c *sigctxt) r8() uint64    { return c.regs().x[8] }
++func (c *sigctxt) r9() uint64    { return c.regs().x[9] }
++func (c *sigctxt) r10() uint64   { return c.regs().x[10] }
++func (c *sigctxt) r11() uint64   { return c.regs().x[11] }
++func (c *sigctxt) r12() uint64   { return c.regs().x[12] }
++func (c *sigctxt) r13() uint64   { return c.regs().x[13] }
++func (c *sigctxt) r14() uint64   { return c.regs().x[14] }
++func (c *sigctxt) r15() uint64   { return c.regs().x[15] }
++func (c *sigctxt) r16() uint64   { return c.regs().x[16] }
++func (c *sigctxt) r17() uint64   { return c.regs().x[17] }
++func (c *sigctxt) r18() uint64   { return c.regs().x[18] }
++func (c *sigctxt) r19() uint64   { return c.regs().x[19] }
++func (c *sigctxt) r20() uint64   { return c.regs().x[20] }
++func (c *sigctxt) r21() uint64   { return c.regs().x[21] }
++func (c *sigctxt) r22() uint64   { return c.regs().x[22] }
++func (c *sigctxt) r23() uint64   { return c.regs().x[23] }
++func (c *sigctxt) r24() uint64   { return c.regs().x[24] }
++func (c *sigctxt) r25() uint64   { return c.regs().x[25] }
++func (c *sigctxt) r26() uint64   { return c.regs().x[26] }
++func (c *sigctxt) r27() uint64   { return c.regs().x[27] }
++func (c *sigctxt) r28() uint64   { return c.regs().x[28] }
++func (c *sigctxt) r29() uint64   { return c.regs().fp }
++func (c *sigctxt) lr() uint64    { return c.regs().lr }
++func (c *sigctxt) sp() uint64    { return c.regs().sp }
++func (c *sigctxt) pc() uint64    { return c.regs().pc }
++func (c *sigctxt) fault() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
++
++func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
++
++func (c *sigctxt) set_pc(x uint64)  { c.regs().pc = x }
++func (c *sigctxt) set_sp(x uint64)  { c.regs().sp = x }
++func (c *sigctxt) set_lr(x uint64)  { c.regs().lr = x }
++func (c *sigctxt) set_r28(x uint64) { c.regs().x[28] = x }
++
++func (c *sigctxt) set_sigaddr(x uint64) {
++	c.info.si_addr = (*byte)(unsafe.Pointer(uintptr(x)))
++}
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+new file mode 100644
+index 0000000000..de040e3bb7
+--- /dev/null
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -0,0 +1,450 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// System calls and other sys.stuff for ARM64, Darwin
++// See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
++// or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++// Copied from /usr/include/sys/syscall.h
++#define	SYS_exit           1
++#define	SYS_read           3
++#define	SYS_write          4
++#define	SYS_open           5
++#define	SYS_close          6
++#define	SYS_mmap           197
++#define	SYS_munmap         73
++#define	SYS_madvise        75
++#define	SYS_mincore        78
++#define	SYS_gettimeofday   116
++#define	SYS_kill           37
++#define	SYS_getpid         20
++#define	SYS___pthread_kill 328
++#define	SYS_setitimer      83
++#define	SYS___sysctl       202
++#define	SYS_sigprocmask    48
++#define	SYS_sigaction      46
++#define	SYS_sigreturn      184
++#define	SYS_select         93
++#define	SYS_bsdthread_register 366
++#define	SYS_bsdthread_create 360
++#define	SYS_bsdthread_terminate 361
++#define	SYS_kqueue         362
++#define	SYS_kevent         363
++#define	SYS_fcntl          92
++
++TEXT notok<>(SB),NOSPLIT,$0
++	MOVD	$0, R8
++	MOVD	R8, (R8)
++	B	0(PC)
++
++TEXT runtime·open(SB),NOSPLIT,$0
++	MOVD	name+0(FP), R0
++	MOVW	mode+8(FP), R1
++	MOVW	perm+12(FP), R2
++	MOVD	$SYS_open, R16
++	SVC	$0x80
++	CSINV	LO, R0, ZR, R0
++	MOVW	R0, ret+16(FP)
++	RET
++
++TEXT runtime·closefd(SB),NOSPLIT,$0
++	MOVW	fd+0(FP), R0
++	MOVW	$SYS_close, R16
++	SVC	$0x80
++	CSINV	LO, R0, ZR, R0
++	MOVW	R0, ret+8(FP)
++	RET
++
++TEXT runtime·write(SB),NOSPLIT,$0
++	MOVW	fd+0(FP), R0
++	MOVD	p+8(FP), R1
++	MOVW	n+16(FP), R2
++	MOVW	$SYS_write, R16
++	SVC	$0x80
++	CSINV	LO, R0, ZR, R0
++	MOVW	R0, ret+24(FP)
++	RET
++
++TEXT runtime·read(SB),NOSPLIT,$0
++	MOVW	fd+0(FP), R0
++	MOVD	p+8(FP), R1
++	MOVW	n+16(FP), R2
++	MOVW	$SYS_read, R16
++	SVC	$0x80
++	CSINV	LO, R0, ZR, R0
++	MOVW	R0, ret+24(FP)
++	RET
++
++TEXT runtime·exit(SB),NOSPLIT,$-8
++	MOVW	n+0(FP), R0
++	MOVW	$SYS_exit, R16
++	SVC	$0x80
++	MOVD	$1234, R0
++	MOVD	$1002, R1
++	MOVD	R0, (R1)	// fail hard
++
++// Exit this OS thread (like pthread_exit, which eventually
++// calls __bsdthread_terminate).
++TEXT runtime·exit1(SB),NOSPLIT,$0
++	MOVW	$SYS_bsdthread_terminate, R16
++	SVC	$0x80
++	MOVD	$1234, R0
++	MOVD	$1003, R1
++	MOVD	R0, (R1)	// fail hard
++
++TEXT runtime·raise(SB),NOSPLIT,$0
++	MOVW	$SYS_getpid, R16
++	SVC	$0x80
++	// arg 1 pid already in R0 from getpid
++	MOVW	sig+0(FP), R1	// arg 2 - signal
++	MOVW	$1, R2	// arg 3 - posix
++	MOVW	$SYS_kill, R16
++	SVC	$0x80
++	RET
++
++TEXT runtime·mmap(SB),NOSPLIT,$0
++	MOVD	addr+0(FP), R0
++	MOVD	n+8(FP), R1
++	MOVW	prot+16(FP), R2
++	MOVW	flags+20(FP), R3
++	MOVW	fd+24(FP), R4
++	MOVW	off+28(FP), R5
++	MOVW	$SYS_mmap, R16
++	SVC	$0x80
++	MOVD	R0, ret+32(FP)
++	RET
++
++TEXT runtime·munmap(SB),NOSPLIT,$0
++	MOVD	addr+0(FP), R0
++	MOVD	n+8(FP), R1
++	MOVW	$SYS_munmap, R16
++	SVC	$0x80
++	BCC	2(PC)
++	BL	notok<>(SB)
++	RET
++
++TEXT runtime·madvise(SB),NOSPLIT,$0
++	MOVD	addr+0(FP), R0
++	MOVD	n+8(FP), R1
++	MOVW	flags+16(FP), R2
++	MOVW	$SYS_madvise, R16
++	SVC	$0x80
++	BCC	2(PC)
++	BL	notok<>(SB)
++	RET
++
++TEXT runtime·setitimer(SB),NOSPLIT,$0
++	MOVW	mode+0(FP), R0
++	MOVD	new+8(FP), R1
++	MOVD	old+16(FP), R2
++	MOVW	$SYS_setitimer, R16
++	SVC	$0x80
++	RET
++
++TEXT time·now(SB),NOSPLIT,$32-12
++	MOVD	RSP, R0	// timeval
++	MOVD	R0, R9	// this is how dyld calls gettimeofday
++	MOVW	$0, R1	// zone
++	MOVW	$SYS_gettimeofday, R16
++	SVC	$0x80	// Note: x0 is tv_sec, w1 is tv_usec
++
++	MOVD	R0, sec+0(FP)
++	MOVW	$1000, R3
++	MUL	R3, R1
++	MOVW	R1, nsec+8(FP)
++	RET
++
++TEXT runtime·nanotime(SB),NOSPLIT,$32
++	MOVD	RSP, R0	// timeval
++	MOVD	R0, R9	// this is how dyld calls gettimeofday
++	MOVW	$0, R1	// zone
++	MOVW	$SYS_gettimeofday, R16
++	SVC	$0x80	// Note: x0 is tv_sec, w1 is tv_usec
++
++	MOVW	$1000000000, R3
++	MUL	R3, R0
++	MOVW	$1000, R3
++	MUL	R3, R1
++	ADD	R1, R0
++
++	MOVD	R0, ret+0(FP)
++	RET
++
++// Sigtramp's job is to call the actual signal handler.
++// It is called with the following arguments on the stack:
++//	LR	"return address" - ignored
++//	R0	actual handler
++//	R1	siginfo style - ignored
++//	R2	signal number
++//	R3	siginfo
++//	R4	context
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
++	// this might be called in external code context,
++	// where g is not set.
++	// first save R0, because runtime·load_g will clobber it
++	MOVD.W	R0, -16(RSP)	// note: stack must be 16-byte aligned
++	MOVB	runtime·iscgo(SB), R0
++	CMP	$0, R0
++	BEQ	2(PC)
++	BL	runtime·load_g(SB)
++
++	CMP	$0, g
++	BNE	cont
++	// fake function call stack frame for badsignal
++	// we only need to pass R2 (signal number), but
++	// badsignal will expect R2 at 8(RSP), so we also
++	// push R1 onto stack. turns out we do need R1
++	// to do sigreturn.
++	MOVD.W	R1, -16(RSP)
++	MOVD	R2, 8(RSP)
++	MOVD	R4, 24(RSP)	// save ucontext, badsignal might clobber R4
++	MOVD	$runtime·badsignal(SB), R26
++	BL	(R26)
++	MOVD	0(RSP), R1	// saved infostype
++	MOVD	24(RSP), R0	// the ucontext
++	ADD	$(16+16), RSP
++	B	ret
++
++cont:
++	// Restore R0
++	MOVD.P	16(RSP), R0
++
++	// NOTE: some Darwin/ARM kernels always use the main stack to run the
++	// signal handler. We need to switch to gsignal ourselves.
++	MOVD	g_m(g), R11
++	MOVD	m_gsignal(R11), R5
++	MOVD	(g_stack+stack_hi)(R5), R6
++	SUB	$64, R6
++
++	// copy arguments for call to sighandler
++	MOVD	R2, 8(R6)	// signal num
++	MOVD	R3, 16(R6)	// signal info
++	MOVD	R4, 24(R6)	// context
++	MOVD	g, 32(R6)	// old_g
++
++	// Backup ucontext and infostyle
++	MOVD	R4, 40(R6)
++	MOVD	R1, 48(R6)
++
++	// switch stack and g
++	MOVD	R6, RSP	// sigtramp can not re-entrant, so no need to back up RSP.
++	MOVD	R5, g
++
++	BL	(R0)
++
++	// call sigreturn
++	MOVD	40(RSP), R0	// saved ucontext
++	MOVD	48(RSP), R1	// saved infostyle
++ret:
++	MOVW	$SYS_sigreturn, R16 // sigreturn(ucontext, infostyle)
++	SVC	$0x80
++
++	// if sigreturn fails, we can do nothing but exit
++	B	runtime·exit(SB)
++
++TEXT runtime·sigprocmask(SB),NOSPLIT,$0
++	MOVW	sig+0(FP), R0
++	MOVD	new+8(FP), R1
++	MOVD	old+16(FP), R2
++	MOVW	$SYS_sigprocmask, R16
++	SVC	$0x80
++	BCC	2(PC)
++	BL	notok<>(SB)
++	RET
++
++TEXT runtime·sigaction(SB),NOSPLIT,$0
++	MOVW	mode+0(FP), R0
++	MOVD	new+8(FP), R1
++	MOVD	old+16(FP), R2
++	MOVW	$SYS_sigaction, R16
++	SVC	$0x80
++	BCC	2(PC)
++	BL	notok<>(SB)
++	RET
++
++TEXT runtime·usleep(SB),NOSPLIT,$12
++	MOVW	usec+0(FP), R0
++	MOVW	R0, R1
++	MOVW	$1000000, R2
++	UDIV	R2, R0
++	MUL	R0, R2
++	SUB	R2, R1
++	MOVD	R0, 0(RSP)
++	MOVW	R1, 8(RSP)
++
++	// select(0, 0, 0, 0, &tv)
++	MOVW	$0, R0
++	MOVW	$0, R1
++	MOVW	$0, R2
++	MOVW	$0, R3
++	MOVD	RSP, R4
++	MOVW	$SYS_select, R16
++	SVC	$0x80
++	RET
++
++TEXT runtime·sysctl(SB),NOSPLIT,$0
++	MOVD	mib+0(FP), R0
++	MOVW	miblen+8(FP), R1
++	MOVD	out+16(FP), R2
++	MOVD	size+24(FP), R3
++	MOVD	dst+32(FP), R4
++	MOVD	ndst+40(FP), R5
++	MOVW	$SYS___sysctl, R16
++	SVC	$0x80
++	BCC	ok
++	NEG	R0, R0
++	MOVW	R0, ret+48(FP)
++	RET
++ok:
++	MOVW	$0, R0
++	MOVW	R0, ret+48(FP)
++	RET
++
++// Thread related functions
++// Note: On darwin/arm64, it is no longer possible to use bsdthread_register
++// as the libc is always linked in. The runtime must use runtime/cgo to
++// create threads, so all thread related functions will just exit with a
++// unique status.
++// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
++TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
++	MOVD	$44, R0
++	MOVW	$SYS_exit, R16
++	SVC	$0x80
++	RET
++
++// The thread that bsdthread_create creates starts executing here,
++// because we registered this function using bsdthread_register
++// at startup.
++//	R0 = "pthread"
++//	R1 = mach thread port
++//	R2 = "func" (= fn)
++//	R3 = "arg" (= m)
++//	R4 = stack
++//	R5 = flags (= 0)
++TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
++	MOVD	$45, R0
++	MOVW	$SYS_exit, R16
++	SVC	$0x80
++	RET
++
++// int32 bsdthread_register(void)
++// registers callbacks for threadstart (see bsdthread_create above
++// and wqthread and pthsize (not used).  returns 0 on success.
++TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
++	MOVD	$46, R0
++	MOVW	$SYS_exit, R16
++	SVC	$0x80
++	RET
++
++// uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
++TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
++	MOVD	h+0(FP), R0
++	MOVW	op+8(FP), R1
++	MOVW	send_size+12(FP), R2
++	MOVW	rcv_size+16(FP), R3
++	MOVW	rcv_name+20(FP), R4
++	MOVW	timeout+24(FP), R5
++	MOVW	notify+28(FP), R6
++	MOVN	$30, R16
++	SVC	$0x80
++	MOVW	R0, ret+32(FP)
++	RET
++
++TEXT runtime·mach_task_self(SB),NOSPLIT,$0
++	MOVN	$27, R16 // task_self_trap
++	SVC	$0x80
++	MOVW	R0, ret+0(FP)
++	RET
++
++TEXT runtime·mach_thread_self(SB),NOSPLIT,$0
++	MOVN	$26, R16 // thread_self_trap
++	SVC	$0x80
++	MOVW	R0, ret+0(FP)
++	RET
++
++TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
++	MOVN	$25, R16	// mach_reply_port
++	SVC	$0x80
++	MOVW	R0, ret+0(FP)
++	RET
++
++// Mach provides trap versions of the semaphore ops,
++// instead of requiring the use of RPC.
++
++// uint32 mach_semaphore_wait(uint32)
++TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
++	MOVW	sema+0(FP), R0
++	MOVN	$35, R16	// semaphore_wait_trap
++	SVC	$0x80
++	MOVW	R0, ret+8(FP)
++	RET
++
++// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
++TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
++	MOVW	sema+0(FP), R0
++	MOVW	sec+4(FP), R1
++	MOVW	nsec+8(FP), R2
++	MOVN	$37, R16	// semaphore_timedwait_trap
++	SVC	$0x80
++	MOVW	R0, ret+16(FP)
++	RET
++
++// uint32 mach_semaphore_signal(uint32)
++TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
++	MOVW	sema+0(FP), R0
++	MOVN	$32, R16	// semaphore_signal_trap
++	SVC	$0x80
++	MOVW	R0, ret+8(FP)
++	RET
++
++// uint32 mach_semaphore_signal_all(uint32)
++TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
++	MOVW	sema+0(FP), R0
++	MOVN	$33, R16	// semaphore_signal_all_trap
++	SVC	$0x80
++	MOVW	R0, ret+8(FP)
++	RET
++
++// int32 runtime·kqueue(void)
++TEXT runtime·kqueue(SB),NOSPLIT,$0
++	MOVW	$SYS_kqueue, R16
++	SVC	$0x80
++	BCC	2(PC)
++	NEG	R0, R0
++	MOVW	R0, ret+0(FP)
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int events, Timespec *timeout)
++TEXT runtime·kevent(SB),NOSPLIT,$0
++	MOVW	kq+0(FP), R0
++	MOVD	changelist+8(FP), R1
++	MOVW	nchanges+16(FP), R2
++	MOVD	eventlist+24(FP), R3
++	MOVW	nevents+32(FP), R4
++	MOVD	timeout+40(FP), R5
++	MOVW	$SYS_kevent, R16
++	SVC	$0x80
++	BCC	2(PC)
++	NEG	R0, R0
++	MOVW	R0, ret+48(FP)
++	RET
++
++// int32 runtime·closeonexec(int32 fd)
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
++	MOVW	fd+0(FP), R0
++	MOVW	$2, R1	// F_SETFD
++	MOVW	$1, R2	// FD_CLOEXEC
++	MOVW	$SYS_fcntl, R16
++	SVC	$0x80
++	RET
++
++// sigaltstack on some darwin/arm version is buggy and will always
++// run the signal handler on the main stack, so our sigtramp has
++// to do the stack switch ourselves.
++TEXT runtime·sigaltstack(SB),NOSPLIT,$0
++	RET
+diff --git a/src/runtime/tls_arm64.h b/src/runtime/tls_arm64.h
+index 54163060d2..d5676aba34 100644
+--- a/src/runtime/tls_arm64.h
++++ b/src/runtime/tls_arm64.h
+@@ -4,7 +4,13 @@
+ 
+ #ifdef GOOS_linux
+ #define TPIDR TPIDR_EL0
+-#define MRS_TPIDR_R0 WORD $0xd53bd040
++#define MRS_TPIDR_R0 WORD $0xd53bd040 // MRS TPIDR_EL0, R0
++#endif
++
++#ifdef GOOS_darwin
++#define TPIDR TPIDRRO_EL0
++#define TLSG_IS_VARIABLE
++#define MRS_TPIDR_R0 WORD $0xd53bd060 // MRS TPIDRRO_EL0, R0
+ #endif
+ 
+ // Define something that will break the build if
+diff --git a/src/runtime/tls_arm64.s b/src/runtime/tls_arm64.s
+index 3ab087ada1..a5f86c4199 100644
+--- a/src/runtime/tls_arm64.s
++++ b/src/runtime/tls_arm64.s
+@@ -14,7 +14,18 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
+ 	BEQ	nocgo
+ 
+ 	MRS_TPIDR_R0
+-	MOVD	0x10(R0), g
++#ifdef GOOS_darwin
++	// Darwin sometimes returns unaligned pointers
++	AND	$0xfffffffffffffff8, R0
++#endif
++#ifdef TLSG_IS_VARIABLE
++	MOVD	runtime·tls_g(SB), R27
++	ADD	R27, R0
++#else
++	// TODO(minux): use real TLS relocation, instead of hard-code for Linux
++	ADD	$0x10, R0
++#endif
++	MOVD	0(R0), g
+ 
+ nocgo:
+ 	RET
+@@ -25,7 +36,25 @@ TEXT runtime·save_g(SB),NOSPLIT,$0
+ 	BEQ	nocgo
+ 
+ 	MRS_TPIDR_R0
+-	MOVD	g, 0x10(R0)
++#ifdef GOOS_darwin
++	// Darwin sometimes returns unaligned pointers
++	AND	$0xfffffffffffffff8, R0
++#endif
++#ifdef TLSG_IS_VARIABLE
++	MOVD	runtime·tls_g(SB), R27
++	ADD	R27, R0
++#else
++	// TODO(minux): use real TLS relocation, instead of hard-code for Linux
++	ADD	$0x10, R0
++#endif
++	MOVD	g, 0(R0)
+ 
+ nocgo:
+ 	RET
++
++#ifdef TLSG_IS_VARIABLE
++// The runtime.tlsg name is being handled specially in the
++// linker. As we just need a regular variable here, don't
++// use that name.
++GLOBL runtime·tls_g+0(SB), NOPTR, $8
++#endif

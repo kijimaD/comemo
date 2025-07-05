@@ -9,9 +9,86 @@ Date:   Sun Feb 12 21:11:16 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go      | 2 --
  src/cmd/compile/internal/gc/opnames.go  | 7 -------
  src/cmd/compile/internal/gc/racewalk.go | 5 -----
  src/cmd/compile/internal/gc/syntax.go   | 7 -------
  4 files changed, 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index cd976f0321..0f8e4795e6 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -163,7 +163,6 @@ var goopnames = []string{
+ 	OCOM:      "^",
+ 	OCONTINUE: "continue",
+ 	OCOPY:     "copy",
+-	ODEC:      "--",
+ 	ODELETE:   "delete",
+ 	ODEFER:    "defer",
+ 	ODIV:      "/",
+@@ -175,7 +174,6 @@ var goopnames = []string{
+ 	OGT:       ">",
+ 	OIF:       "if",
+ 	OIMAG:     "imag",
+-	OINC:      "++",
+ 	OIND:      "*",
+ 	OLEN:      "len",
+ 	OLE:       "<=",
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index 25e3c660d7..8524015c90 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -152,15 +152,8 @@ var opnames = []string{
+ 	OVARKILL:         "VARKILL",
+ 	OVARLIVE:         "VARLIVE",
+ 	OINDREGSP:        "INDREGSP",
+-	OCMP:             "CMP",
+-	ODEC:             "DEC",
+-	OINC:             "INC",
+-	OEXTEND:          "EXTEND",
+ 	OHMUL:            "HMUL",
+-	ORROTC:           "RROTC",
+ 	ORETJMP:          "RETJMP",
+-	OPS:              "PS",
+-	OPC:              "PC",
+ 	OGETG:            "GETG",
+ 	OEND:             "END",
+ }
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index f9a897c20c..d6c4501ee7 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -369,11 +369,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 
+ 		goto ret
+ 
+-		// impossible nodes: only appear in backend.
+-	case ORROTC, OEXTEND:
+-		yyerror("instrument: %v cannot exist now", n.Op)
+-		goto ret
+-
+ 	case OGETG:
+ 		yyerror("instrument: OGETG can happen only in runtime which we don't instrument")
+ 		goto ret
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index abc0e02aee..b2dce1527a 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -494,15 +494,8 @@ const (
+ 	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
+ 
+ 	// arch-specific opcodes
+-	OCMP    // compare: ACMP.
+-	ODEC    // decrement: ADEC.
+-	OINC    // increment: AINC.
+-	OEXTEND // extend: ACWD/ACDQ/ACQO.
+ 	OHMUL   // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
+-	ORROTC  // right rotate-carry: ARCR.
+ 	ORETJMP // return to other function
+-	OPS     // compare parity set (for x86 NaN check)
+-	OPC     // compare parity clear (for x86 NaN check)
+ 	OGETG   // runtime.getg() (read g pointer)
+ 
+ 	OEND

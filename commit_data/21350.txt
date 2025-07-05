@@ -7,6 +7,20 @@ Date:   Tue Dec 23 15:00:04 2014 +1100
     Change-Id: I55419cb580e6d18cf1c17c3e7bb8777ed6d794e7
     Reviewed-on: https://go-review.googlesource.com/1995
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_windows.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index e70944cb39..9497a600fe 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import _ "unsafe"
++
+ type stdFunction *byte
+ 
+ //go:linkname os_sigpipe os.sigpipe

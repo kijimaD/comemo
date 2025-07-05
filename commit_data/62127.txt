@@ -13,8 +13,59 @@ Date:   Wed Feb 5 15:27:29 2025 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/646997
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/alldocs.go                            | 2 +-
  src/cmd/go/internal/test/test.go                 | 3 ++-
  src/cmd/go/testdata/script/test_cache_inputs.txt | 5 +++++
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e28f68df6a..7289b5f4b1 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1890,7 +1890,7 @@
+ // The rule for a match in the cache is that the run involves the same
+ // test binary and the flags on the command line come entirely from a
+ // restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
+-// -list, -parallel, -run, -short, -timeout, -failfast, -fullpath and -v.
++// -list, -parallel, -run, -short, -skip, -timeout, -failfast, -fullpath and -v.
+ // If a run of go test has any test or non-test flags outside this set,
+ // the result is not cached. To disable test caching, use any test flag
+ // or argument other than the cacheable flags. The idiomatic way to disable
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index e3cd50d59c..28ab6a0935 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -127,7 +127,7 @@ elapsed time in the summary line.
+ The rule for a match in the cache is that the run involves the same
+ test binary and the flags on the command line come entirely from a
+ restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
+--list, -parallel, -run, -short, -timeout, -failfast, -fullpath and -v.
++-list, -parallel, -run, -short, -skip, -timeout, -failfast, -fullpath and -v.
+ If a run of go test has any test or non-test flags outside this set,
+ the result is not cached. To disable test caching, use any test flag
+ or argument other than the cacheable flags. The idiomatic way to disable
+@@ -1781,6 +1781,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 			"-test.parallel",
+ 			"-test.run",
+ 			"-test.short",
++			"-test.skip",
+ 			"-test.timeout",
+ 			"-test.failfast",
+ 			"-test.v",
+diff --git a/src/cmd/go/testdata/script/test_cache_inputs.txt b/src/cmd/go/testdata/script/test_cache_inputs.txt
+index 68a700b116..796a5880eb 100644
+--- a/src/cmd/go/testdata/script/test_cache_inputs.txt
++++ b/src/cmd/go/testdata/script/test_cache_inputs.txt
+@@ -128,6 +128,11 @@ go test testcache -run=TestOSArgs -fullpath
+ go test testcache -run=TestOSArgs -fullpath
+ stdout '\(cached\)'
+ 
++# golang.org/issue/70692: that includes the `-skip` flag
++go test testcache -run=TestOdd -skip=TestOddFile
++! stdout '\(cached\)'
++go test testcache -run=TestOdd -skip=TestOddFile
++stdout '\(cached\)'
+ 
+ # Executables within GOROOT and GOPATH should affect caching,
+ # even if the test does not stat them explicitly.

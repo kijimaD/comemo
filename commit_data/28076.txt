@@ -772,3 +772,217 @@ Date:   Wed Apr 27 18:19:16 2016 -0400
  test/prove.go                                      |    4 +
  test/writebarrier.go                               |   29 +
  764 files changed, 48177 insertions(+), 19513 deletions(-)
+
+diff --cc src/runtime/malloc.go
+index 31335dae80,081d1419cb..6fe4656603
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@@ -490,77 -484,6 +487,71 @@@ func (h *mheap) sysAlloc(n uintptr) uns
+  // base address for all 0-byte allocations
+  var zerobase uintptr
+  
+- const (
+- 	// flags to malloc
+- 	_FlagNoScan = 1 << 0 // GC doesn't have to scan object
+- 	_FlagNoZero = 1 << 1 // don't zero memory
+- )
+- 
+ +// nextFreeFast returns the next free object if one is quickly available.
+ +// Otherwise it returns 0.
+ +func (c *mcache) nextFreeFast(sizeclass int8) gclinkptr {
+ +	s := c.alloc[sizeclass]
+ +	ctzIndex := uint8(s.allocCache & 0xff)
+ +	if ctzIndex != 0 {
+ +		theBit := uint64(ctzVals[ctzIndex])
+ +		freeidx := s.freeindex // help the pre ssa compiler out here with cse.
+ +		result := freeidx + uintptr(theBit)
+ +		if result < s.nelems {
+ +			s.allocCache >>= (theBit + 1)
+ +			freeidx = result + 1
+ +			if freeidx%64 == 0 && freeidx != s.nelems {
+ +				// We just incremented s.freeindex so it isn't 0
+ +				// so we are moving to the next aCache.
+ +				whichByte := freeidx / 8
+ +				s.refillAllocCache(whichByte)
+ +			}
+ +			s.freeindex = freeidx
+ +			v := gclinkptr(result*s.elemsize + s.base())
+ +			s.allocCount++
+ +			return v
+ +		}
+ +	}
+ +	return 0
+ +}
+ +
+ +// nextFree returns the next free object from the cached span if one is available.
+ +// Otherwise it refills the cache with a span with an available object and
+ +// returns that object along with a flag indicating that this was a heavy
+ +// weight allocation. If it is a heavy weight allocation the caller must
+ +// determine whether a new GC cycle needs to be started or if the GC is active
+ +// whether this goroutine needs to assist the GC.
+ +func (c *mcache) nextFree(sizeclass int8) (v gclinkptr, shouldhelpgc bool) {
+ +	s := c.alloc[sizeclass]
+ +	shouldhelpgc = false
+ +	freeIndex := s.nextFreeIndex()
+ +	if freeIndex == s.nelems {
+ +		// The span is full.
+ +		if uintptr(s.allocCount) != s.nelems {
+ +			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+ +			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
+ +		}
+ +		systemstack(func() {
+ +			c.refill(int32(sizeclass))
+ +		})
+ +		shouldhelpgc = true
+ +		s = c.alloc[sizeclass]
+ +
+ +		freeIndex = s.nextFreeIndex()
+ +	}
+ +
+ +	if freeIndex >= s.nelems {
+ +		throw("freeIndex is not valid")
+ +	}
+ +
+ +	v = gclinkptr(freeIndex*s.elemsize + s.base())
+ +	s.allocCount++
+ +	if uintptr(s.allocCount) > s.nelems {
+ +		println("s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+ +		throw("s.allocCount > s.nelems")
+ +	}
+ +	return
+ +}
+ +
+  // Allocate an object of size bytes.
+  // Small objects are allocated from the per-P cache's free lists.
+  // Large objects (> 32 kB) are allocated straight from the heap.
+@@@ -619,9 -538,11 +606,10 @@@ func mallocgc(size uintptr, typ *_type
+  	shouldhelpgc := false
+  	dataSize := size
+  	c := gomcache()
+ -	var s *mspan
+  	var x unsafe.Pointer
++ 	noscan := typ == nil || typ.kind&kindNoPointers != 0
+  	if size <= maxSmallSize {
+- 		if flags&flagNoScan != 0 && size < maxTinySize {
++ 		if noscan && size < maxTinySize {
+  			// Tiny allocator.
+  			//
+  			// Tiny allocator combines several tiny allocation requests
+@@@ -693,30 -623,41 +681,31 @@@
+  				sizeclass = size_to_class128[(size-1024+127)>>7]
+  			}
+  			size = uintptr(class_to_size[sizeclass])
+ -			s = c.alloc[sizeclass]
+ -			v := s.freelist
+ -			if v.ptr() == nil {
+ -				systemstack(func() {
+ -					c.refill(int32(sizeclass))
+ -				})
+ -				shouldhelpgc = true
+ -				s = c.alloc[sizeclass]
+ -				v = s.freelist
+ +			var v gclinkptr
+ +			v = c.nextFreeFast(sizeclass)
+ +			if v == 0 {
+ +				v, shouldhelpgc = c.nextFree(sizeclass)
+  			}
+ -			s.freelist = v.ptr().next
+ -			s.ref++
+ -			// prefetchnta offers best performance, see change list message.
+ -			prefetchnta(uintptr(v.ptr().next))
+  			x = unsafe.Pointer(v)
+- 			if flags&flagNoZero == 0 {
++ 			if needzero {
+ -				v.ptr().next = 0
+ -				if size > 2*sys.PtrSize && ((*[2]uintptr)(x))[1] != 0 {
+ -					memclr(unsafe.Pointer(v), size)
+ -				}
+ +				memclr(unsafe.Pointer(v), size)
+ +				// TODO:(rlh) Only clear if object is not known to be zeroed.
+  			}
+  		}
+  	} else {
+  		var s *mspan
+  		shouldhelpgc = true
+  		systemstack(func() {
+- 			s = largeAlloc(size, flags)
++ 			s = largeAlloc(size, needzero)
+  		})
+ -		x = unsafe.Pointer(uintptr(s.start << pageShift))
+ +		s.freeindex = 1
+ +		x = unsafe.Pointer(s.base())
+  		size = s.elemsize
+  	}
+  
+- 	if flags&flagNoScan != 0 {
++ 	var scanSize uintptr
++ 	if noscan {
+ -		// All objects are pre-marked as noscan. Nothing to do.
+ +		heapBitsSetTypeNoScan(uintptr(x), size)
+  	} else {
+  		// If allocating a defer+arg block, now that we've picked a malloc size
+  		// large enough to hold everything, cut the "asked for" size down to
+@@@ -752,29 -694,10 +742,27 @@@
+  	// All slots hold nil so no scanning is needed.
+  	// This may be racing with GC so do it atomically if there can be
+  	// a race marking the bit.
+- 	if gcphase == _GCmarktermination || gcBlackenPromptly {
+- 		systemstack(func() {
+- 			gcmarknewobject_m(uintptr(x), size)
+- 		})
++ 	if gcphase != _GCoff {
++ 		gcmarknewobject(uintptr(x), size, scanSize)
+  	}
+  
+ +	// The object x is about to be reused but tracefree and msanfree
+ +	// need to be informed.
+ +	// TODO:(rlh) It is quite possible that this object is being allocated
+ +	// out of a fresh span and that there is no preceding call to
+ +	// tracealloc with this object. If this is an issue then initialization
+ +	// of the fresh span needs to leave some crumbs around that can be used to
+ +	// avoid these calls. Furthermore these crumbs a likely the same as
+ +	// those needed to determine if the object needs to be zeroed.
+ +	// In the case of msanfree it does not make sense to call msanfree
+ +	// followed by msanmalloc. msanfree indicates that the bytes are not
+ +	// initialized but msanmalloc is about to indicate that they are.
+ +	// It makes no difference whether msanmalloc has been called on these
+ +	// bytes or not.
+ +	if debug.allocfreetrace != 0 {
+ +		tracefree(unsafe.Pointer(x), size)
+ +	}
+ +
+  	if raceenabled {
+  		racemalloc(x, size)
+  	}
+diff --cc src/runtime/mbitmap.go
+index b342de600e,3df697ee5c..af89577703
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@@ -96,9 -95,8 +97,10 @@@ func addb(p *byte, n uintptr) *byte 
+  }
+  
+  // subtractb returns the byte pointer p-n.
+ +// subtractb is typically used when traversing the pointer tables referred to by hbits
+ +// which are arranged in reverse order.
+  //go:nowritebarrier
++ //go:nosplit
+  func subtractb(p *byte, n uintptr) *byte {
+  	// Note: wrote out full expression instead of calling add(p, -n)
+  	// to reduce the number of temporaries generated by the
+diff --cc src/runtime/mgcmark.go
+index d05ad6549f,b5a9ff9b56..3704164527
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@@ -1146,8 -1274,10 +1282,10 @@@ func gcmarknewobject(obj, size, scanSiz
+  	if useCheckmark && !gcBlackenPromptly { // The world should be stopped so this should not happen.
+  		throw("gcmarknewobject called while doing checkmark")
+  	}
+ -	heapBitsForAddr(obj).setMarked()
+ +	markBitsForAddr(obj).setMarked()
+- 	atomic.Xadd64(&work.bytesMarked, int64(size))
++ 	gcw := &getg().m.p.ptr().gcw
++ 	gcw.bytesMarked += uint64(size)
++ 	gcw.scanWork += int64(scanSize)
+  }
+  
+  // Checkmarking

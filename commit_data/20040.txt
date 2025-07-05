@@ -8,8 +8,472 @@ Date:   Tue Aug 12 20:57:45 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/123300043
-
+---
  src/liblink/asm9.c  |  48 +++++++----
  src/liblink/list9.c |   5 +-
  src/liblink/obj9.c  | 236 +++++++++++++++++++++++++++++++++++++++++++++-------
  3 files changed, 243 insertions(+), 46 deletions(-)
+
+diff --git a/src/liblink/asm9.c b/src/liblink/asm9.c
+index 647e6f178e..886edf347d 100644
+--- a/src/liblink/asm9.c
++++ b/src/liblink/asm9.c
+@@ -307,6 +307,7 @@ static Optab	optab[] = {
+ 
+ 	{ ABR,		C_NONE,	C_NONE, C_NONE, 	C_LR,		18, 4, 0 },
+ 	{ ABR,		C_NONE,	C_NONE, C_NONE, 	C_CTR,		18, 4, 0 },
++	{ ABR,		C_REG,	C_NONE, C_NONE, 	C_CTR,		18, 4, 0 },
+ 	{ ABR,		C_NONE,	C_NONE, C_NONE, 	C_ZOREG,		15, 8, 0 },
+ 
+ 	{ ABC,		C_NONE,	C_REG, C_NONE, 	C_LR,		18, 4, 0 },
+@@ -436,6 +437,8 @@ static Optab	optab[] = {
+ 	{ ADUFFZERO,	C_NONE,	C_NONE, C_NONE,	C_LBRA,	11, 4, 0 },  // same as ABR/ABL
+ 	{ ADUFFCOPY,	C_NONE,	C_NONE, C_NONE,	C_LBRA,	11, 4, 0 },  // same as ABR/ABL
+ 
++	{ ANOP,		C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0 },
++
+ 	{ AXXX,		C_NONE,	C_NONE, C_NONE, 	C_NONE,		 0, 4, 0 },
+ };
+ 
+@@ -475,10 +478,10 @@ static char	xcmp[C_NCLASS][C_NCLASS];
+ void
+ span9(Link *ctxt, LSym *cursym)
+ {
+-	Prog *p;
++	Prog *p, *q;
+ 	Optab *o;
+ 	int m, bflag;
+-	vlong c;
++	vlong c, otxt;
+ 	int32 out[6], i, j;
+ 	uchar *bp, *cast;
+ 
+@@ -515,38 +518,39 @@ span9(Link *ctxt, LSym *cursym)
+ 	 * generate extra passes putting branches
+ 	 * around jmps to fix. this is rare.
+ 	 */
++	bflag = 1;
+ 	while(bflag) {
+ 		if(ctxt->debugvlog)
+ 			Bprint(ctxt->bso, "%5.2f span1\n", cputime());
+ 		bflag = 0;
+ 		c = 0;
+-		for(p = cursym->text; p != nil; p = p->link) {
++		for(p = cursym->text->link; p != nil; p = p->link) {
+ 			p->pc = c;
+ 			o = oplook(ctxt, p);
+ 
+-/* very large branches
++			// very large conditional branches
+ 			if((o->type == 16 || o->type == 17) && p->pcond) {
+ 				otxt = p->pcond->pc - c;
+-				if(otxt < -(1L<<16)+10 || otxt >= (1L<<15)-10) {
+-					q = prg();
++				if(otxt < -(1L<<15)+10 || otxt >= (1L<<15)-10) {
++					q = ctxt->arch->prg();
+ 					q->link = p->link;
+ 					p->link = q;
+ 					q->as = ABR;
+ 					q->to.type = D_BRANCH;
+ 					q->pcond = p->pcond;
+ 					p->pcond = q;
+-					q = prg();
++					q = ctxt->arch->prg();
+ 					q->link = p->link;
+ 					p->link = q;
+ 					q->as = ABR;
+ 					q->to.type = D_BRANCH;
+ 					q->pcond = q->link->link;
+-					addnop(p->link);
+-					addnop(p);
++					//addnop(p->link);
++					//addnop(p);
+ 					bflag = 1;
+ 				}
+ 			}
+-*/
++
+ 			m = o->size;
+ 			if(m == 0) {
+ 				if(p->as != ANOP && p->as != AFUNCDATA && p->as != APCDATA)
+@@ -1398,6 +1402,14 @@ loadu32(int r, vlong d)
+ 	return AOP_IRR(OP_ADDIS, r, REGZERO, v);
+ }
+ 
++static uint16
++high16adjusted(int32 d)
++{
++	if(d & 0x8000)
++		return (d>>16) + 1;
++	return d>>16;
++}
++
+ static void
+ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ {
+@@ -1548,7 +1560,11 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 			rel->siz = 4;
+ 			rel->sym = p->to.sym;
+ 			v += p->to.offset;
+-			rel->add = o1 | ((v & 0x03FFFFFC) >> 2);
++			if(v & 03) {
++				ctxt->diag("odd branch target address\n%P", p);
++				v &= ~03;
++			}
++			rel->add = o1 | (v & 0x03FFFFFC);
+ 			rel->type = R_CALLPOWER;
+ 		}
+ 		break;
+@@ -1673,7 +1689,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 			o1 = loadu32(p->to.reg, d);
+ 			o2 = LOP_IRR(OP_ORI, p->to.reg, p->to.reg, (int32)d);
+ 		} else {
+-			o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (d>>16)+(d&0x8000)?1:0);
++			o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, high16adjusted(d));
+ 			o2 = AOP_IRR(OP_ADDI, p->to.reg, REGTMP, d);
+ 			addaddrreloc(ctxt, p->from.sym, &o1, &o2);
+ 		}
+@@ -2199,7 +2215,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 
+ 	case 74:
+ 		v = regoff(ctxt, &p->to);
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (v>>16)+(v&0x8000)?1:0);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, high16adjusted(v));
+ 		o2 = AOP_IRR(opstore(ctxt, p->as), p->from.reg, REGTMP, v);
+ 		addaddrreloc(ctxt, p->to.sym, &o1, &o2);
+ 		//if(dlm) reloc(&p->to, p->pc, 1);
+@@ -2207,7 +2223,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 
+ 	case 75:
+ 		v = regoff(ctxt, &p->from);
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (v>>16)+(v&0x8000)?1:0);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, high16adjusted(v));
+ 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
+ 		addaddrreloc(ctxt, p->from.sym, &o1, &o2);
+ 		//if(dlm) reloc(&p->from, p->pc, 1);
+@@ -2215,7 +2231,7 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 
+ 	case 76:
+ 		v = regoff(ctxt, &p->from);
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (v>>16)+(v&0x8000)?1:0);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, high16adjusted(v));
+ 		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
+ 		addaddrreloc(ctxt, p->from.sym, &o1, &o2);
+ 		o3 = LOP_RRR(OP_EXTSB, p->to.reg, p->to.reg, 0);
+@@ -2589,6 +2605,8 @@ opirr(Link *ctxt, int a)
+ 
+ 	case ABR:	return OPVCC(18,0,0,0);
+ 	case ABL:	return OPVCC(18,0,0,0) | 1;
++	case ADUFFZERO:	return OPVCC(18,0,0,0) | 1;
++	case ADUFFCOPY:	return OPVCC(18,0,0,0) | 1;
+ 	case ABC:	return OPVCC(16,0,0,0);
+ 	case ABCL:	return OPVCC(16,0,0,0) | 1;
+ 
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index 3299d269a3..9700a16849 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -345,7 +345,10 @@ Rconv(Fmt *fp)
+ 	int r;
+ 
+ 	r = va_arg(fp->args, int);
+-	sprint(str, "r%d", r);
++	if(r < NREG)
++		sprint(str, "r%d", r);
++	else
++		sprint(str, "f%d", r-NREG);
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index 63f5b59b01..90145a46f8 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -33,6 +33,7 @@
+ #include <link.h>
+ #include "../cmd/9l/9.out.h"
+ #include "../pkg/runtime/stack.h"
++#include "../pkg/runtime/funcdata.h"
+ 
+ static Prog zprg = {
+ 	.as = AGOK,
+@@ -417,6 +418,9 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 					autosize += 4;
+ 			p->to.offset = (p->to.offset & (0xffffffffull<<32)) | (uint32)(autosize-8);
+ 
++			if(!(p->reg & NOSPLIT))
++				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
++
+ 			q = p;
+ 			if(autosize) {
+ 				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
+@@ -424,7 +428,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 					mov = AMOVDU;
+ 					aoffset = -autosize;
+ 				} else {
+-					q = ctxt->arch->prg();
++					q = appendp(ctxt, p);
+ 					q->as = AADD;
+ 					q->lineno = p->lineno;
+ 					q->from.type = D_CONST;
+@@ -432,9 +436,6 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 					q->to.type = D_REG;
+ 					q->to.reg = REGSP;
+ 					q->spadj = +autosize;
+-
+-					q->link = p->link;
+-					p->link = q;
+ 				}
+ 			} else
+ 			if(!(cursym->text->mark & LEAF)) {
+@@ -451,33 +452,54 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				break;
+ 			}
+ 
+-			if(!(p->reg & NOSPLIT))
+-				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
+-
+-			q1 = ctxt->arch->prg();
+-			q1->as = mov;
+-			q1->lineno = p->lineno;
+-			q1->from.type = D_REG;
+-			q1->from.reg = REGTMP;
+-			q1->to.type = D_OREG;
+-			q1->to.offset = aoffset;
+-			q1->to.reg = REGSP;
+-			if(q1->as == AMOVDU)
+-				q1->spadj = -aoffset;
++			q = appendp(ctxt, q);
++			q->as = AMOVD;
++			q->lineno = p->lineno;
++			q->from.type = D_SPR;
++			q->from.offset = D_LR;
++			q->to.type = D_REG;
++			q->to.reg = REGTMP;
+ 
+-			q1->link = q->link;
+-			q->link = q1;
++			q = appendp(ctxt, q);
++			q->as = mov;
++			q->lineno = p->lineno;
++			q->from.type = D_REG;
++			q->from.reg = REGTMP;
++			q->to.type = D_OREG;
++			q->to.offset = aoffset;
++			q->to.reg = REGSP;
++			if(q->as == AMOVDU)
++				q->spadj = -aoffset;
++
++			if(cursym->text->reg & WRAPPER) {
++				// g->panicwrap += autosize;
++				// MOVWZ panicwrap_offset(g), R3
++				// ADD $autosize, R3
++				// MOVWZ R3, panicwrap_offset(g)
++				p = appendp(ctxt, q);
++				p->as = AMOVWZ;
++				p->from.type = D_OREG;
++				p->from.reg = REGG;
++				p->from.offset = 2*ctxt->arch->ptrsize;
++				p->to.type = D_REG;
++				p->to.reg = 3;
+ 
+-			q1 = ctxt->arch->prg();
+-			q1->as = AMOVD;
+-			q1->lineno = p->lineno;
+-			q1->from.type = D_SPR;
+-			q1->from.offset = D_LR;
+-			q1->to.type = D_REG;
+-			q1->to.reg = REGTMP;
++				p = appendp(ctxt, p);
++				p->as = AADD;
++				p->from.type = D_CONST;
++				p->from.offset = autosize;
++				p->to.type = D_REG;
++				p->to.reg = 3;
++
++				p = appendp(ctxt, p);
++				p->as = AMOVWZ;
++				p->from.type = D_REG;
++				p->from.reg = 3;
++				p->to.type = D_OREG;
++				p->to.reg = REGG;
++				p->to.offset = 2*ctxt->arch->ptrsize;
++			}
+ 
+-			q1->link = q->link;
+-			q->link = q1;
+ 			break;
+ 
+ 		case ARETURN:
+@@ -485,6 +507,11 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				ctxt->diag("using BECOME (%P) is not supported!", p);
+ 				break;
+ 			}
++			if(p->to.sym) { // retjmp
++				p->as = ABR;
++				p->to.type = D_BRANCH;
++				break;
++			}
+ 			if(cursym->text->mark & LEAF) {
+ 				if(!autosize) {
+ 					p->as = ABR;
+@@ -612,8 +639,157 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ static Prog*
+ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ {
+-	// TODO(minux): add stack split prologue
+-	USED(ctxt); USED(p); USED(framesize); USED(noctxt);
++	int32 arg;
++	Prog *q, *q1;
++
++	// MOVD	g_stackguard(g), R3
++	p = appendp(ctxt, p);
++	p->as = AMOVD;
++	p->from.type = D_OREG;
++	p->from.reg = REGG;
++	p->to.type = D_REG;
++	p->to.reg = 3;
++
++	q = nil;
++	if(framesize <= StackSmall) {
++		// small stack: SP < stackguard
++		//	CMP	stackguard, SP
++		p = appendp(ctxt, p);
++		p->as = ACMPU;
++		p->from.type = D_REG;
++		p->from.reg = 3;
++		p->to.type = D_REG;
++		p->to.reg = REGSP;
++	} else if(framesize <= StackBig) {
++		// large stack: SP-framesize < stackguard-StackSmall
++		//	ADD $-framesize, SP, R4
++		//	CMP stackguard, R4
++		p = appendp(ctxt, p);
++		p->as = AADD;
++		p->from.type = D_CONST;
++		p->from.offset = -framesize;
++		p->reg = REGSP;
++		p->to.type = D_REG;
++		p->to.reg = 4;
++
++		p = appendp(ctxt, p);
++		p->as = ACMPU;
++		p->from.type = D_REG;
++		p->from.reg = 3;
++		p->to.type = D_REG;
++		p->to.reg = 4;
++	} else {
++		// Such a large stack we need to protect against wraparound.
++		// If SP is close to zero:
++		//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
++		// The +StackGuard on both sides is required to keep the left side positive:
++		// SP is allowed to be slightly below stackguard. See stack.h.
++		//
++		// Preemption sets stackguard to StackPreempt, a very large value.
++		// That breaks the math above, so we have to check for that explicitly.
++		//	// stackguard is R3
++		//	CMP	R3, $StackPreempt
++		//	BEQ	label-of-call-to-morestack
++		//	ADD	$StackGuard, SP, R4
++		//	SUB	R3, R4
++		//	MOVD	$(framesize+(StackGuard-StackSmall)), R31
++		//	CMP	R4, R31
++		p = appendp(ctxt, p);
++		p->as = ACMP;
++		p->from.type = D_REG;
++		p->from.reg = 3;
++		p->to.type = D_CONST;
++		p->to.offset = StackPreempt;
++
++		q = p = appendp(ctxt, p);
++		p->as = ABEQ;
++		p->to.type = D_BRANCH;
++
++		p = appendp(ctxt, p);
++		p->as = AADD;
++		p->from.type = D_CONST;
++		p->from.offset = StackGuard;
++		p->reg = REGSP;
++		p->to.type = D_REG;
++		p->to.reg = 4;
++
++		p = appendp(ctxt, p);
++		p->as = ASUB;
++		p->from.type = D_REG;
++		p->from.reg = 3;
++		p->to.type = D_REG;
++		p->to.reg = 4;
++
++		p = appendp(ctxt, p);
++		p->as = AMOVD;
++		p->from.type = D_CONST;
++		p->from.offset = framesize + StackGuard - StackSmall;
++		p->to.type = D_REG;
++		p->to.reg = REGTMP;
++
++		p = appendp(ctxt, p);
++		p->as = ACMPU;
++		p->from.type = D_REG;
++		p->from.reg = 4;
++		p->to.type = D_REG;
++		p->to.reg = REGTMP;
++	}
++
++	// q1: BLT	done
++	q1 = p = appendp(ctxt, p);
++	p->as = ABLT;
++	p->to.type = D_BRANCH;
++
++	// MOVD	$framesize, R3
++	p = appendp(ctxt, p);
++	p->as = AMOVD;
++	p->from.type = D_CONST;
++	p->from.offset = framesize;
++	p->to.type = D_REG;
++	p->to.reg = 3;
++	if(q)
++		q->pcond = p;
++
++	// MOVD	$args, R4
++	p = appendp(ctxt, p);
++	p->as = AMOVD;
++	p->from.type = D_CONST;
++	arg = (ctxt->cursym->text->to.offset >> 32) & 0xffffffffull;
++	if(arg == 1) // special marker for known 0
++		arg = 0;
++	else if(arg == ArgsSizeUnknown)
++		ctxt->diag("%s: arg size unknown, but split stack", ctxt->cursym->name);
++	if(arg&3) // ????
++		ctxt->diag("misaligned argument size in stack split: %d", arg);
++	p->from.offset = arg;
++	p->to.type = D_REG;
++	p->to.reg = 4;
++
++	// MOVD	LR, R5
++	p = appendp(ctxt, p);
++	p->as = AMOVD;
++	p->from.type = D_SPR;
++	p->from.offset = D_LR;
++	p->to.type = D_REG;
++	p->to.reg = 5;
++
++	// BL	runtime.morestack(SB)
++	p = appendp(ctxt, p);
++	p->as = ABL;
++	p->to.type = D_BRANCH;
++	p->to.sym = ctxt->symmorestack[noctxt];
++
++	// BR	start
++	p = appendp(ctxt, p);
++	p->as = ABR;
++	p->to.type = D_BRANCH;
++	p->pcond = ctxt->cursym->text->link;
++
++	// placeholder for q1's jump target
++	p = appendp(ctxt, p);
++	p->as = ANOP; // zero-width place holder
++	q1->pcond = p;
++
+ 	return p;
+ }
+ 

@@ -19,7 +19,7 @@ Date:   Fri Aug 11 16:49:01 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/55130
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_bsd.go              |  6 ++++--
  src/syscall/syscall_darwin.go           |  5 +++++
  src/syscall/syscall_dragonfly.go        |  1 +
@@ -64,3 +64,758 @@ Date:   Fri Aug 11 16:49:01 2017 +0200
  src/syscall/ztypes_openbsd_arm.go       |  4 ++++
  src/syscall/ztypes_solaris_amd64.go     |  4 ++++
  43 files changed, 282 insertions(+), 5 deletions(-)
+
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index 9370dd487e..1d0efe37e1 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -507,11 +507,13 @@ func Utimes(path string, tv []Timeval) (err error) {
+ }
+ 
+ func UtimesNano(path string, ts []Timespec) error {
+-	// TODO: The BSDs can do utimensat with SYS_UTIMENSAT but it
+-	// isn't supported by darwin so this uses utimes instead
+ 	if len(ts) != 2 {
+ 		return EINVAL
+ 	}
++	err := utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])))
++	if err != ENOSYS {
++		return err
++	}
+ 	// Not as efficient as it could be because Timespec and
+ 	// Timeval have different types in the different OSes
+ 	tv := [2]Timeval{
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index a1c360d4f4..4d17b157bd 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -186,6 +186,11 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
++func utimensat(dirfd int, path string, times *[2]Timespec) error {
++	// Darwin doesn't support SYS_UTIMENSAT
++	return ENOSYS
++}
++
+ /*
+  * Wrapped
+  */
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 7d4fa4dd5c..27f1f585be 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -211,6 +211,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
++//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 64c881ad8e..ee90e87399 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -222,6 +222,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
++//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index f2e169446f..da80f2b9d6 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -202,6 +202,7 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sys	munmap(addr uintptr, length uintptr) (err error)
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
++//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
+ 
+ /*
+  * Unimplemented
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index bd25fbf87a..f904f37017 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -183,6 +183,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	munmap(addr uintptr, length uintptr) (err error)
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
++//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
+ 
+ /*
+  * Unimplemented
+@@ -278,6 +279,5 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ // thrsleep
+ // thrwakeup
+ // unlinkat
+-// utimensat
+ // vfork
+ // writev
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 636de924cc..9555bf8bc8 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -510,6 +510,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error)
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error) = libsocket.recvfrom
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.__xnet_recvmsg
+ //sys	getexecname() (path unsafe.Pointer, err error) = libc.getexecname
++//sys	utimensat(dirfd int, path string, times *[2]Timespec) (err error)
+ 
+ func Getexecname() (path string, err error) {
+ 	ptr, err := getexecname()
+diff --git a/src/syscall/types_darwin.go b/src/syscall/types_darwin.go
+index a043071f26..d8218d6aea 100644
+--- a/src/syscall/types_darwin.go
++++ b/src/syscall/types_darwin.go
+@@ -238,6 +238,12 @@ type BpfInsn C.struct_bpf_insn
+ 
+ type BpfHdr C.struct_bpf_hdr
+ 
++// Misc
++
++const (
++	_AT_FDCWD = C.AT_FDCWD
++)
++
+ // Terminal handling
+ 
+ type Termios C.struct_termios
+diff --git a/src/syscall/types_dragonfly.go b/src/syscall/types_dragonfly.go
+index fb7fd1bb4f..5728d6762f 100644
+--- a/src/syscall/types_dragonfly.go
++++ b/src/syscall/types_dragonfly.go
+@@ -237,6 +237,12 @@ type BpfInsn C.struct_bpf_insn
+ 
+ type BpfHdr C.struct_bpf_hdr
+ 
++// Misc
++
++const (
++	_AT_FDCWD = C.AT_FDCWD
++)
++
+ // Terminal handling
+ 
+ type Termios C.struct_termios
+diff --git a/src/syscall/types_freebsd.go b/src/syscall/types_freebsd.go
+index 68a69312b2..6f8670a429 100644
+--- a/src/syscall/types_freebsd.go
++++ b/src/syscall/types_freebsd.go
+@@ -337,6 +337,12 @@ type BpfHdr C.struct_bpf_hdr
+ 
+ type BpfZbufHeader C.struct_bpf_zbuf_header
+ 
++// Misc
++
++const (
++	_AT_FDCWD = C.AT_FDCWD
++)
++
+ // Terminal handling
+ 
+ type Termios C.struct_termios
+diff --git a/src/syscall/types_netbsd.go b/src/syscall/types_netbsd.go
+index 04354a32a9..37c5fa9834 100644
+--- a/src/syscall/types_netbsd.go
++++ b/src/syscall/types_netbsd.go
+@@ -223,6 +223,12 @@ type BpfHdr C.struct_bpf_hdr
+ 
+ type BpfTimeval C.struct_bpf_timeval
+ 
++// Misc
++
++const (
++	_AT_FDCWD = C.AT_FDCWD
++)
++
+ // Terminal handling
+ 
+ type Termios C.struct_termios
+diff --git a/src/syscall/types_openbsd.go b/src/syscall/types_openbsd.go
+index e6d1ea7044..29d6feb006 100644
+--- a/src/syscall/types_openbsd.go
++++ b/src/syscall/types_openbsd.go
+@@ -239,6 +239,12 @@ type BpfHdr C.struct_bpf_hdr
+ 
+ type BpfTimeval C.struct_bpf_timeval
+ 
++// Misc
++
++const (
++	_AT_FDCWD = C.AT_FDCWD
++)
++
+ // Terminal handling
+ 
+ type Termios C.struct_termios
+diff --git a/src/syscall/types_solaris.go b/src/syscall/types_solaris.go
+index 7246434223..a219a437d5 100644
+--- a/src/syscall/types_solaris.go
++++ b/src/syscall/types_solaris.go
+@@ -224,6 +224,12 @@ type BpfTimeval C.struct_bpf_timeval
+ 
+ type BpfHdr C.struct_bpf_hdr
+ 
++// Misc
++
++const (
++	_AT_FDCWD = C.AT_FDCWD
++)
++
+ // Terminal handling
+ 
+ type Termios C.struct_termios
+diff --git a/src/syscall/zsyscall_dragonfly_amd64.go b/src/syscall/zsyscall_dragonfly_amd64.go
+index 7a21510407..28bc679c4c 100644
+--- a/src/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/syscall/zsyscall_dragonfly_amd64.go
+@@ -1298,3 +1298,18 @@ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index 63061b2794..55fead990a 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -1308,3 +1308,18 @@ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index 8120980332..edc29f32f8 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -1308,3 +1308,18 @@ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index f6c44c793d..80f520ef48 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -1308,3 +1308,18 @@ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index ec32d9c616..272a44c7d0 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -1224,3 +1224,18 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index 8845202687..4e22cdf769 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -1224,3 +1224,18 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index 70df9b4376..d9d71aa952 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -1,4 +1,4 @@
+-// mksyscall.pl -l32 -arm -tags netbsd,arm syscall_bsd.go syscall_netbsd.go syscall_netbsd_arm.go
++// mksyscall.pl -l32 -netbsd -arm -tags netbsd,arm syscall_bsd.go syscall_netbsd.go syscall_netbsd_arm.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ // +build netbsd,arm
+@@ -1224,3 +1224,18 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index 2a5542fbc1..a31b81491f 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -1262,3 +1262,18 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 9c6a39db52..88e6cca794 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -1262,3 +1262,18 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index 1ddd238368..9e910911c7 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -1262,3 +1262,18 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall(SYS_UTIMENSAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsyscall_solaris_amd64.go b/src/syscall/zsyscall_solaris_amd64.go
+index fbc815db30..9dbec9ce35 100644
+--- a/src/syscall/zsyscall_solaris_amd64.go
++++ b/src/syscall/zsyscall_solaris_amd64.go
+@@ -90,6 +90,7 @@ import "unsafe"
+ //go:cgo_import_dynamic libc_recvfrom recvfrom "libsocket.so"
+ //go:cgo_import_dynamic libc___xnet_recvmsg __xnet_recvmsg "libsocket.so"
+ //go:cgo_import_dynamic libc_getexecname getexecname "libc.so"
++//go:cgo_import_dynamic libc_utimensat utimensat "libc.so"
+ 
+ //go:linkname libc_Getcwd libc_Getcwd
+ //go:linkname libc_getgroups libc_getgroups
+@@ -174,6 +175,7 @@ import "unsafe"
+ //go:linkname libc_recvfrom libc_recvfrom
+ //go:linkname libc___xnet_recvmsg libc___xnet_recvmsg
+ //go:linkname libc_getexecname libc_getexecname
++//go:linkname libc_utimensat libc_utimensat
+ 
+ type libcFunc uintptr
+ 
+@@ -260,7 +262,8 @@ var (
+ 	libc_setsockopt,
+ 	libc_recvfrom,
+ 	libc___xnet_recvmsg,
+-	libc_getexecname libcFunc
++	libc_getexecname,
++	libc_utimensat libcFunc
+ )
+ 
+ func Getcwd(buf []byte) (n int, err error) {
+@@ -1084,3 +1087,16 @@ func getexecname() (path unsafe.Pointer, err error) {
+ 	}
+ 	return
+ }
++
++func utimensat(dirfd int, path string, times *[2]Timespec) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_utimensat)), 3, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), 0, 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/syscall/zsysnum_dragonfly_amd64.go b/src/syscall/zsysnum_dragonfly_amd64.go
+index 3c2e342970..bc535f26bf 100644
+--- a/src/syscall/zsysnum_dragonfly_amd64.go
++++ b/src/syscall/zsysnum_dragonfly_amd64.go
+@@ -301,5 +301,6 @@ const (
+ 	SYS_LPATHCONF              = 533 // { int lpathconf(char *path, int name); }
+ 	SYS_VMM_GUEST_CTL          = 534 // { int vmm_guest_ctl(int op, struct vmm_guest_options *options); }
+ 	SYS_VMM_GUEST_SYNC_ADDR    = 535 // { int vmm_guest_sync_addr(long *dstaddr, long *srcaddr); }
++	SYS_UTIMENSAT              = 539 // { int utimensat(int fd, const char *path, const struct timespec *ts, int flags); }
+ 	SYS_ACCEPT4                = 541 // { int accept4(int s, caddr_t name, int *anamelen, int flags); }
+ )
+diff --git a/src/syscall/zsysnum_freebsd_386.go b/src/syscall/zsysnum_freebsd_386.go
+index 5e47217957..d0e403acea 100644
+--- a/src/syscall/zsysnum_freebsd_386.go
++++ b/src/syscall/zsysnum_freebsd_386.go
+@@ -347,4 +347,5 @@ const (
+ 	SYS_ACCEPT4                  = 541 // { int accept4(int s, \
+ 	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
+ 	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
++	SYS_UTIMENSAT                = 547 // { int utimensat(int fd, \
+ )
+diff --git a/src/syscall/zsysnum_freebsd_amd64.go b/src/syscall/zsysnum_freebsd_amd64.go
+index df8928cc68..2fa4d211d3 100644
+--- a/src/syscall/zsysnum_freebsd_amd64.go
++++ b/src/syscall/zsysnum_freebsd_amd64.go
+@@ -347,4 +347,5 @@ const (
+ 	SYS_ACCEPT4                  = 541 // { int accept4(int s, \
+ 	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
+ 	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
++	SYS_UTIMENSAT                = 547 // { int utimensat(int fd, \
+ )
+diff --git a/src/syscall/zsysnum_freebsd_arm.go b/src/syscall/zsysnum_freebsd_arm.go
+index f670a59179..d2caa8f2ad 100644
+--- a/src/syscall/zsysnum_freebsd_arm.go
++++ b/src/syscall/zsysnum_freebsd_arm.go
+@@ -347,4 +347,5 @@ const (
+ 	SYS_ACCEPT4                  = 541 // { int accept4(int s, \
+ 	SYS_PIPE2                    = 542 // { int pipe2(int *fildes, int flags); }
+ 	SYS_PROCCTL                  = 544 // { int procctl(idtype_t idtype, id_t id, \
++	SYS_UTIMENSAT                = 547 // { int utimensat(int fd, \
+ )
+diff --git a/src/syscall/ztypes_darwin_386.go b/src/syscall/ztypes_darwin_386.go
+index 7298d0243d..e2cf12f17e 100644
+--- a/src/syscall/ztypes_darwin_386.go
++++ b/src/syscall/ztypes_darwin_386.go
+@@ -437,6 +437,10 @@ type BpfHdr struct {
+ 	Pad_cgo_0 [2]byte
+ }
+ 
++const (
++	_AT_FDCWD = -0x2
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_darwin_amd64.go b/src/syscall/ztypes_darwin_amd64.go
+index ec95d51f91..bbd5bec385 100644
+--- a/src/syscall/ztypes_darwin_amd64.go
++++ b/src/syscall/ztypes_darwin_amd64.go
+@@ -446,6 +446,10 @@ type BpfHdr struct {
+ 	Pad_cgo_0 [2]byte
+ }
+ 
++const (
++	_AT_FDCWD = -0x2
++)
++
+ type Termios struct {
+ 	Iflag     uint64
+ 	Oflag     uint64
+diff --git a/src/syscall/ztypes_darwin_arm.go b/src/syscall/ztypes_darwin_arm.go
+index 91c4470e7c..ca774793eb 100644
+--- a/src/syscall/ztypes_darwin_arm.go
++++ b/src/syscall/ztypes_darwin_arm.go
+@@ -438,6 +438,10 @@ type BpfHdr struct {
+ 	Pad_cgo_0 [2]byte
+ }
+ 
++const (
++	_AT_FDCWD = -0x2
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_darwin_arm64.go b/src/syscall/ztypes_darwin_arm64.go
+index 1d65cfde9d..e9c8549fa1 100644
+--- a/src/syscall/ztypes_darwin_arm64.go
++++ b/src/syscall/ztypes_darwin_arm64.go
+@@ -446,6 +446,10 @@ type BpfHdr struct {
+ 	Pad_cgo_0 [2]byte
+ }
+ 
++const (
++	_AT_FDCWD = -0x2
++)
++
+ type Termios struct {
+ 	Iflag     uint64
+ 	Oflag     uint64
+diff --git a/src/syscall/ztypes_dragonfly_amd64.go b/src/syscall/ztypes_dragonfly_amd64.go
+index 00120d0a27..0be4a53ebe 100644
+--- a/src/syscall/ztypes_dragonfly_amd64.go
++++ b/src/syscall/ztypes_dragonfly_amd64.go
+@@ -432,6 +432,10 @@ type BpfHdr struct {
+ 	Pad_cgo_0 [6]byte
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_freebsd_386.go b/src/syscall/ztypes_freebsd_386.go
+index d972fb6bdf..c23bacfe32 100644
+--- a/src/syscall/ztypes_freebsd_386.go
++++ b/src/syscall/ztypes_freebsd_386.go
+@@ -483,6 +483,10 @@ type BpfZbufHeader struct {
+ 	X_bzh_pad  [5]uint32
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_freebsd_amd64.go b/src/syscall/ztypes_freebsd_amd64.go
+index 0a5a10bf7d..1e5822f66a 100644
+--- a/src/syscall/ztypes_freebsd_amd64.go
++++ b/src/syscall/ztypes_freebsd_amd64.go
+@@ -486,6 +486,10 @@ type BpfZbufHeader struct {
+ 	X_bzh_pad  [5]uint32
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_freebsd_arm.go b/src/syscall/ztypes_freebsd_arm.go
+index 5d7acd547b..f65a92916c 100644
+--- a/src/syscall/ztypes_freebsd_arm.go
++++ b/src/syscall/ztypes_freebsd_arm.go
+@@ -486,6 +486,10 @@ type BpfZbufHeader struct {
+ 	X_bzh_pad  [5]uint32
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_netbsd_386.go b/src/syscall/ztypes_netbsd_386.go
+index 1752c6c229..c8afb98ea1 100644
+--- a/src/syscall/ztypes_netbsd_386.go
++++ b/src/syscall/ztypes_netbsd_386.go
+@@ -372,6 +372,10 @@ type BpfTimeval struct {
+ 	Usec int32
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_netbsd_amd64.go b/src/syscall/ztypes_netbsd_amd64.go
+index b8d4b0b02a..9336fc107a 100644
+--- a/src/syscall/ztypes_netbsd_amd64.go
++++ b/src/syscall/ztypes_netbsd_amd64.go
+@@ -379,6 +379,10 @@ type BpfTimeval struct {
+ 	Usec int64
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_netbsd_arm.go b/src/syscall/ztypes_netbsd_arm.go
+index c21d875a93..0e4fe4a812 100644
+--- a/src/syscall/ztypes_netbsd_arm.go
++++ b/src/syscall/ztypes_netbsd_arm.go
+@@ -377,6 +377,10 @@ type BpfTimeval struct {
+ 	Usec int32
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_openbsd_386.go b/src/syscall/ztypes_openbsd_386.go
+index 0376d3acab..05e79d85a4 100644
+--- a/src/syscall/ztypes_openbsd_386.go
++++ b/src/syscall/ztypes_openbsd_386.go
+@@ -430,6 +430,10 @@ type BpfTimeval struct {
+ 	Usec uint32
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_openbsd_amd64.go b/src/syscall/ztypes_openbsd_amd64.go
+index bf23626ff2..8bd169c510 100644
+--- a/src/syscall/ztypes_openbsd_amd64.go
++++ b/src/syscall/ztypes_openbsd_amd64.go
+@@ -437,6 +437,10 @@ type BpfTimeval struct {
+ 	Usec uint32
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_openbsd_arm.go b/src/syscall/ztypes_openbsd_arm.go
+index e1d8938f0e..0c30259f49 100644
+--- a/src/syscall/ztypes_openbsd_arm.go
++++ b/src/syscall/ztypes_openbsd_arm.go
+@@ -423,6 +423,10 @@ type BpfTimeval struct {
+ 	Usec uint32
+ }
+ 
++const (
++	_AT_FDCWD = -0x64
++)
++
+ type Termios struct {
+ 	Iflag  uint32
+ 	Oflag  uint32
+diff --git a/src/syscall/ztypes_solaris_amd64.go b/src/syscall/ztypes_solaris_amd64.go
+index 4cf07ed496..12307abfaa 100644
+--- a/src/syscall/ztypes_solaris_amd64.go
++++ b/src/syscall/ztypes_solaris_amd64.go
+@@ -358,6 +358,10 @@ type BpfHdr struct {
+ 	Pad_cgo_0 [2]byte
+ }
+ 
++const (
++	_AT_FDCWD = 0xffd19553
++)
++
+ type Termios struct {
+ 	Iflag     uint32
+ 	Oflag     uint32

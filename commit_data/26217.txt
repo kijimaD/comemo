@@ -17,7 +17,217 @@ Date:   Wed Dec 23 15:33:55 2015 +1300
     Change-Id: I4fd8d4934279f9a18cc70a13e4ef3e23f6abcb6e
     Reviewed-on: https://go-review.googlesource.com/18114
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go    |  22 +++++++--
  src/cmd/go/pkg_test.go | 119 ++++++++++++++++++++++++++++---------------------
  2 files changed, 87 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index b7cfc87dc7..6c6d551e79 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -520,11 +520,14 @@ func isMetaPackage(name string) bool {
+ // Use arguments for special 'meta' packages:
+ //	std --> libstd.so
+ //	std cmd --> libstd,cmd.so
++// A single non-meta argument with trailing "/..." is special cased:
++//	foo/... --> libfoo.so
++//	(A relative path like "./..."  expands the "." first)
+ // Use import paths for other cases, changing '/' to '-':
+ //	somelib --> libsubdir-somelib.so
+ //	./ or ../ --> libsubdir-somelib.so
+ //	gopkg.in/tomb.v2 -> libgopkg.in-tomb.v2.so
+-//	./... ---> libpkg1,pkg2.so - subset of all import paths
++//	a/... b/... ---> liba/c,b/d.so - all matching import paths
+ // Name parts are joined with ','.
+ func libname(args []string, pkgs []*Package) (string, error) {
+ 	var libname string
+@@ -544,8 +547,21 @@ func libname(args []string, pkgs []*Package) (string, error) {
+ 		}
+ 	}
+ 	if len(libname) == 0 { // non-meta packages only. use import paths
+-		for _, pkg := range pkgs {
+-			appendName(strings.Replace(pkg.ImportPath, "/", "-", -1))
++		if len(args) == 1 && strings.HasSuffix(args[0], "/...") {
++			// Special case of "foo/..." as mentioned above.
++			arg := strings.TrimSuffix(args[0], "/...")
++			if build.IsLocalImport(arg) {
++				cwd, _ := os.Getwd()
++				bp, _ := buildContext.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
++				if bp.ImportPath != "" && bp.ImportPath != "." {
++					arg = bp.ImportPath
++				}
++			}
++			appendName(strings.Replace(arg, "/", "-", -1))
++		} else {
++			for _, pkg := range pkgs {
++				appendName(strings.Replace(pkg.ImportPath, "/", "-", -1))
++			}
+ 		}
+ 	} else if haveNonMeta { // have both meta package and a non-meta one
+ 		return "", errors.New("mixing of meta and non-meta packages is not allowed")
+diff --git a/src/cmd/go/pkg_test.go b/src/cmd/go/pkg_test.go
+index 90a92582e7..1e7ca2c6fe 100644
+--- a/src/cmd/go/pkg_test.go
++++ b/src/cmd/go/pkg_test.go
+@@ -5,6 +5,9 @@
+ package main
+ 
+ import (
++	"io/ioutil"
++	"os"
++	"path/filepath"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -90,85 +93,99 @@ func TestSharedLibName(t *testing.T) {
+ 		pkgs      []*Package
+ 		expected  string
+ 		expectErr bool
++		rootedAt  string
+ 	}{
+ 		{
+-			[]string{"std"},
+-			[]*Package{},
+-			"std",
+-			false,
++			args:     []string{"std"},
++			pkgs:     []*Package{},
++			expected: "std",
+ 		},
+ 		{
+-			[]string{"std", "cmd"},
+-			[]*Package{},
+-			"std,cmd",
+-			false,
++			args:     []string{"std", "cmd"},
++			pkgs:     []*Package{},
++			expected: "std,cmd",
+ 		},
+ 		{
+-			[]string{},
+-			[]*Package{&Package{ImportPath: "gopkg.in/somelib"}},
+-			"gopkg.in-somelib",
+-			false,
++			args:     []string{},
++			pkgs:     []*Package{&Package{ImportPath: "gopkg.in/somelib"}},
++			expected: "gopkg.in-somelib",
+ 		},
+ 		{
+-			[]string{"./..."},
+-			[]*Package{&Package{ImportPath: "somelib"}},
+-			"somelib",
+-			false,
++			args:     []string{"./..."},
++			pkgs:     []*Package{&Package{ImportPath: "somelib"}},
++			expected: "somelib",
++			rootedAt: "somelib",
+ 		},
+ 		{
+-			[]string{"../somelib", "../somelib"},
+-			[]*Package{&Package{ImportPath: "somelib"}},
+-			"somelib",
+-			false,
++			args:     []string{"../somelib", "../somelib"},
++			pkgs:     []*Package{&Package{ImportPath: "somelib"}},
++			expected: "somelib",
+ 		},
+ 		{
+-			[]string{"../lib1", "../lib2"},
+-			[]*Package{&Package{ImportPath: "gopkg.in/lib1"}, &Package{ImportPath: "gopkg.in/lib2"}},
+-			"gopkg.in-lib1,gopkg.in-lib2",
+-			false,
++			args:     []string{"../lib1", "../lib2"},
++			pkgs:     []*Package{&Package{ImportPath: "gopkg.in/lib1"}, &Package{ImportPath: "gopkg.in/lib2"}},
++			expected: "gopkg.in-lib1,gopkg.in-lib2",
+ 		},
+ 		{
+-			[]string{"./..."},
+-			[]*Package{
++			args: []string{"./..."},
++			pkgs: []*Package{
+ 				&Package{ImportPath: "gopkg.in/dir/lib1"},
+ 				&Package{ImportPath: "gopkg.in/lib2"},
+ 				&Package{ImportPath: "gopkg.in/lib3"},
+ 			},
+-			"gopkg.in-dir-lib1,gopkg.in-lib2,gopkg.in-lib3",
+-			false,
++			expected: "gopkg.in",
++			rootedAt: "gopkg.in",
+ 		},
+ 		{
+-			[]string{"std", "../lib2"},
+-			[]*Package{},
+-			"",
+-			true,
++			args:      []string{"std", "../lib2"},
++			pkgs:      []*Package{},
++			expectErr: true,
+ 		},
+ 		{
+-			[]string{"all", "./"},
+-			[]*Package{},
+-			"",
+-			true,
++			args:      []string{"all", "./"},
++			pkgs:      []*Package{},
++			expectErr: true,
+ 		},
+ 		{
+-			[]string{"cmd", "fmt"},
+-			[]*Package{},
+-			"",
+-			true,
++			args:      []string{"cmd", "fmt"},
++			pkgs:      []*Package{},
++			expectErr: true,
+ 		},
+ 	}
+ 	for _, data := range testData {
+-		computed, err := libname(data.args, data.pkgs)
+-		if err != nil {
+-			if !data.expectErr {
+-				t.Errorf("libname returned an error %q, expected a name", err.Error())
++		func() {
++			if data.rootedAt != "" {
++				tmpGopath, err := ioutil.TempDir("", "gopath")
++				if err != nil {
++					t.Fatal(err)
++				}
++				oldGopath := buildContext.GOPATH
++				defer func() {
++					os.RemoveAll(tmpGopath)
++					buildContext.GOPATH = oldGopath
++					os.Chdir(cwd)
++				}()
++				root := filepath.Join(tmpGopath, "src", data.rootedAt)
++				err = os.MkdirAll(root, 0755)
++				if err != nil {
++					t.Fatal(err)
++				}
++				buildContext.GOPATH = tmpGopath
++				os.Chdir(root)
+ 			}
+-		} else if data.expectErr {
+-			t.Errorf("libname returned %q, expected an error", computed)
+-		} else {
+-			expected := prefix + data.expected + suffix
+-			if expected != computed {
+-				t.Errorf("libname returned %q, expected %q", computed, expected)
++			computed, err := libname(data.args, data.pkgs)
++			if err != nil {
++				if !data.expectErr {
++					t.Errorf("libname returned an error %q, expected a name", err.Error())
++				}
++			} else if data.expectErr {
++				t.Errorf("libname returned %q, expected an error", computed)
++			} else {
++				expected := prefix + data.expected + suffix
++				if expected != computed {
++					t.Errorf("libname returned %q, expected %q", computed, expected)
++				}
+ 			}
+-		}
++		}()
+ 	}
+ }

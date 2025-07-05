@@ -23,7 +23,218 @@ Date:   Fri May 28 21:56:50 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm_arm64.s  | 75 ++++++++++++++++++++++++++++++++++++++++++++----
  src/runtime/race_arm64.s | 18 ++++++++++++
  2 files changed, 88 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 3da2b8d315..170e4406fc 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -152,7 +152,13 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return. It should gogo(&g->sched)
+ // to keep running g.
+-TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
++TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R0, R26				// context
++#else
++	MOVD	fn+0(FP), R26			// context
++#endif
++
+ 	// Save caller state in g->sched
+ 	MOVD	RSP, R0
+ 	MOVD	R0, (g_sched+gobuf_sp)(g)
+@@ -168,14 +174,18 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
+ 	CMP	g, R3
+ 	BNE	2(PC)
+ 	B	runtime·badmcall(SB)
+-	MOVD	fn+0(FP), R26			// context
+-	MOVD	0(R26), R4			// code pointer
++
+ 	MOVD	(g_sched+gobuf_sp)(g), R0
+ 	MOVD	R0, RSP	// sp = m->g0->sched.sp
+ 	MOVD	(g_sched+gobuf_bp)(g), R29
+-	MOVD	R3, -8(RSP)
+-	MOVD	$0, -16(RSP)
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R3, R0				// arg = g
++#else
++	MOVD	R3, -8(RSP)			// arg = g
++#endif
++	MOVD	$0, -16(RSP)			// dummy LR
+ 	SUB	$16, RSP
++	MOVD	0(R26), R4			// code pointer
+ 	BL	(R4)
+ 	B	runtime·badmcall2(SB)
+ 
+@@ -1351,20 +1361,40 @@ TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R1, y+8(FP)
+ 	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
+ TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R1, R0
++	MOVD	R2, R1
++#else
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
+ TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R1, R0
++	MOVD	R2, R1
++#else
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
+ TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R1, R0
++	MOVD	R2, R1
++#else
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
+ TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R1, R0
++	MOVD	R2, R1
++#else
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
+ TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+@@ -1375,28 +1405,58 @@ TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R1, y+8(FP)
+ 	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R2, R0
++	MOVD	R3, R1
++#else
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
+ TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R2, R0
++	MOVD	R3, R1
++#else
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R2, R0
++	MOVD	R3, R1
++#else
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
+ TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R2, R0
++	MOVD	R3, R1
++#else
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R1, R0
++	MOVD	R2, R1
++#else
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
+ TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R1, R0
++	MOVD	R2, R1
++#else
+ 	MOVD	R1, x+0(FP)
+ 	MOVD	R2, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R0, x+0(FP)
+@@ -1407,6 +1467,11 @@ TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+ 	MOVD	R1, y+8(FP)
+ 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
+ TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R2, R0
++	MOVD	R3, R1
++#else
+ 	MOVD	R2, x+0(FP)
+ 	MOVD	R3, y+8(FP)
++#endif
+ 	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index bfad08b9fb..2b2413b6b7 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -46,7 +46,11 @@
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+ // which would make caller's PC ineffective.
+ TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R0, R1	// addr
++#else
+ 	MOVD	addr+0(FP), R1
++#endif
+ 	MOVD	LR, R2
+ 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
+ 	MOVD	$__tsan_read(SB), R9
+@@ -71,7 +75,11 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+ // which would make caller's PC ineffective.
+ TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R0, R1	// addr
++#else
+ 	MOVD	addr+0(FP), R1
++#endif
+ 	MOVD	LR, R2
+ 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
+ 	MOVD	$__tsan_write(SB), R9
+@@ -96,8 +104,13 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+ // which would make caller's PC ineffective.
+ TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R1, R2	// size
++	MOVD	R0, R1	// addr
++#else
+ 	MOVD	addr+0(FP), R1
+ 	MOVD	size+8(FP), R2
++#endif
+ 	MOVD	LR, R3
+ 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
+ 	MOVD	$__tsan_read_range(SB), R9
+@@ -123,8 +136,13 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+ // which would make caller's PC ineffective.
+ TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
++#ifdef GOEXPERIMENT_regabiargs
++	MOVD	R1, R2	// size
++	MOVD	R0, R1	// addr
++#else
+ 	MOVD	addr+0(FP), R1
+ 	MOVD	size+8(FP), R2
++#endif
+ 	MOVD	LR, R3
+ 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
+ 	MOVD	$__tsan_write_range(SB), R9

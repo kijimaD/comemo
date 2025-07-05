@@ -7,6 +7,20 @@ Date:   Sat Apr 18 10:44:42 2015 +0900
     Change-Id: Ic965b48bdc0e0ffba9bed5ff6b3d28ff742f8b2d
     Reviewed-on: https://go-review.googlesource.com/9100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/ipsock_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/ipsock_test.go b/src/net/ipsock_test.go
+index 9d68975166..c06f15e846 100644
+--- a/src/net/ipsock_test.go
++++ b/src/net/ipsock_test.go
+@@ -226,7 +226,7 @@ func TestAddrList(t *testing.T) {
+ 		}
+ 		if tt.err != nil {
+ 			if len(addrs) != 0 {
+-				t.Errorf("#%v: got %v; want 0", len(addrs))
++				t.Errorf("#%v: got %v; want 0", i, len(addrs))
+ 			}
+ 			continue
+ 		}

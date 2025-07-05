@@ -14,6 +14,25 @@ Date:   Sat Jun 5 11:04:37 2021 +0530
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Trust: Agniva De Sarker <agniva.quicksilver@gmail.com>
     Trust: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/tls/conn.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 969f357834..300e9a233c 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -151,6 +151,13 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
+ 	return c.conn.SetWriteDeadline(t)
+ }
+ 
++// NetConn returns the underlying connection that is wrapped by c.
++// Note that writing to or reading from this connection directly will corrupt the
++// TLS session.
++func (c *Conn) NetConn() net.Conn {
++	return c.conn
++}
++
+ // A halfConn represents one direction of the record layer
+ // connection, either sending or receiving.
+ type halfConn struct {

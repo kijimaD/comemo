@@ -7,7 +7,40 @@ Date:   Fri Mar 13 12:59:56 2015 -0700
     Change-Id: If335d45ea1ab6c8aeeb47515f97680e2c1d651f3
     Reviewed-on: https://go-review.googlesource.com/7522
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 2 +-
  src/math/big/float_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 778cc20da5..feca6921a0 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -835,7 +835,7 @@ func (x *Float) Int64() (int64, Accuracy) {
+ 			if x.neg {
+ 				i = -i
+ 			}
+-			if x.MinPrec() <= 63 {
++			if x.MinPrec() <= uint(x.exp) {
+ 				return i, Exact
+ 			}
+ 			return i, acc // x truncated
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index dca78a84c5..cc38f68436 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -808,12 +808,14 @@ func TestFloatInt64(t *testing.T) {
+ 		{"-12345.000000000000000000001", -12345, Above},
+ 		{"-12345.0", -12345, Exact},
+ 		{"-1.000000000000000000001", -1, Above},
++		{"-1.5", -1, Above},
+ 		{"-1", -1, Exact},
+ 		{"-1e-1000", 0, Above},
+ 		{"0", 0, Exact},
+ 		{"1e-1000", 0, Below},
+ 		{"1", 1, Exact},
+ 		{"1.000000000000000000001", 1, Below},
++		{"1.5", 1, Below},
+ 		{"12345.0", 12345, Exact},
+ 		{"12345.000000000000000000001", 12345, Below},
+ 		{"9223372036854775807", 9223372036854775807, Exact},

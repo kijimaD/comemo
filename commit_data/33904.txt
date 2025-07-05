@@ -21,9 +21,92 @@ Date:   Tue May 9 06:44:25 2017 +0100
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 32 ++++++++++++++--------------
  src/cmd/internal/obj/x86/a.out.go            |  2 ++
  src/cmd/internal/obj/x86/anames.go           |  2 ++
  src/cmd/internal/obj/x86/asm6.go             |  2 ++
  4 files changed, 22 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index 4b7e95fbb1..cdc5cd115b 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -212,22 +212,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	ADDSS (R11), X11                        // f3450f581b
+ 	ADDSS X2, X11                           // f3440f58da
+ 	ADDSS X11, X11                          // f3450f58db
+-	//TODO: ADDSUBPD (BX), X2               // 660fd013
+-	//TODO: ADDSUBPD (R11), X2              // 66410fd013
+-	//TODO: ADDSUBPD X2, X2                 // 660fd0d2
+-	//TODO: ADDSUBPD X11, X2                // 66410fd0d3
+-	//TODO: ADDSUBPD (BX), X11              // 66440fd01b
+-	//TODO: ADDSUBPD (R11), X11             // 66450fd01b
+-	//TODO: ADDSUBPD X2, X11                // 66440fd0da
+-	//TODO: ADDSUBPD X11, X11               // 66450fd0db
+-	//TODO: ADDSUBPS (BX), X2               // f20fd013
+-	//TODO: ADDSUBPS (R11), X2              // f2410fd013
+-	//TODO: ADDSUBPS X2, X2                 // f20fd0d2
+-	//TODO: ADDSUBPS X11, X2                // f2410fd0d3
+-	//TODO: ADDSUBPS (BX), X11              // f2440fd01b
+-	//TODO: ADDSUBPS (R11), X11             // f2450fd01b
+-	//TODO: ADDSUBPS X2, X11                // f2440fd0da
+-	//TODO: ADDSUBPS X11, X11               // f2450fd0db
++	ADDSUBPD (BX), X2                       // 660fd013
++	ADDSUBPD (R11), X2                      // 66410fd013
++	ADDSUBPD X2, X2                         // 660fd0d2
++	ADDSUBPD X11, X2                        // 66410fd0d3
++	ADDSUBPD (BX), X11                      // 66440fd01b
++	ADDSUBPD (R11), X11                     // 66450fd01b
++	ADDSUBPD X2, X11                        // 66440fd0da
++	ADDSUBPD X11, X11                       // 66450fd0db
++	ADDSUBPS (BX), X2                       // f20fd013
++	ADDSUBPS (R11), X2                      // f2410fd013
++	ADDSUBPS X2, X2                         // f20fd0d2
++	ADDSUBPS X11, X2                        // f2410fd0d3
++	ADDSUBPS (BX), X11                      // f2440fd01b
++	ADDSUBPS (R11), X11                     // f2450fd01b
++	ADDSUBPS X2, X11                        // f2440fd0da
++	ADDSUBPS X11, X11                       // f2450fd0db
+ 	//TODO: ADOXL (BX), DX                  // f30f38f613
+ 	//TODO: ADOXL (R11), DX                 // f3410f38f613
+ 	//TODO: ADOXL DX, DX                    // f30f38f6d2
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 8db5b10708..4b37c39b8b 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -524,6 +524,8 @@ const (
+ 	AADDPS
+ 	AADDSD
+ 	AADDSS
++	AADDSUBPD
++	AADDSUBPS
+ 	AANDNL
+ 	AANDNQ
+ 	AANDNPD
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 27abac28f7..c58f7be4a3 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -467,6 +467,8 @@ var Anames = []string{
+ 	"ADDPS",
+ 	"ADDSD",
+ 	"ADDSS",
++	"ADDSUBPD",
++	"ADDSUBPS",
+ 	"ANDNL",
+ 	"ANDNQ",
+ 	"ANDNPD",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 86c85c1a6f..e2d9d6f61f 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -969,6 +969,8 @@ var optab =
+ 	{AADDQ, yaddl, Pw, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
+ 	{AADDSD, yxm, Pf2, [23]uint8{0x58}},
+ 	{AADDSS, yxm, Pf3, [23]uint8{0x58}},
++	{AADDSUBPD, yxm, Pq, [23]uint8{0xd0}},
++	{AADDSUBPS, yxm, Pf2, [23]uint8{0xd0}},
+ 	{AADDW, yaddl, Pe, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
+ 	{AADJSP, nil, 0, [23]uint8{}},
+ 	{AANDB, yxorb, Pb, [23]uint8{0x24, 0x80, 04, 0x20, 0x22}},

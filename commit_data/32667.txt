@@ -8,6 +8,23 @@ Date:   Sat May 13 15:41:15 2017 +0800
     Reviewed-on: https://go-review.googlesource.com/43472
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/container/heap/heap.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/container/heap/heap.go b/src/container/heap/heap.go
+index af05261c10..b2c64276c8 100644
+--- a/src/container/heap/heap.go
++++ b/src/container/heap/heap.go
+@@ -72,8 +72,9 @@ func Remove(h Interface, i int) interface{} {
+ 	n := h.Len() - 1
+ 	if n != i {
+ 		h.Swap(i, n)
+-		down(h, i, n)
+-		up(h, i)
++		if !down(h, i, n) {
++			up(h, i)
++		}
+ 	}
+ 	return h.Pop()
+ }

@@ -7,8 +7,98 @@ Date:   Tue Jun 29 10:14:32 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1695046
-
+---
  src/pkg/gob/decoder.go | 11 ++++++-----
  src/pkg/gob/encode.go  | 25 +++++++++++++++++++------
  src/pkg/gob/type.go    |  2 +-
  3 files changed, 26 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 5ba2750d27..cf16433eb6 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -55,15 +55,16 @@ func (dec *Decoder) recvType(id typeId) {
+ // Decode reads the next value from the connection and stores
+ // it in the data represented by the empty interface value.
+ // The value underlying e must be the correct type for the next
+-// data item received, which must be a pointer.
++// data item received, and must be a pointer.
+ func (dec *Decoder) Decode(e interface{}) os.Error {
+-	// If e represents a value, the answer won't get back to the
+-	// caller.  Make sure it's a pointer.
+-	if _, ok := reflect.Typeof(e).(*reflect.PtrType); !ok {
++	value := reflect.NewValue(e)
++	// If e represents a value as opposed to a pointer, the answer won't
++	// get back to the caller.  Make sure it's a pointer.
++	if value.Type().Kind() != reflect.Ptr {
+ 		dec.state.err = os.ErrorString("gob: attempt to decode into a non-pointer")
+ 		return dec.state.err
+ 	}
+-	return dec.DecodeValue(reflect.NewValue(e))
++	return dec.DecodeValue(value)
+ }
+ 
+ // DecodeValue reads the next value from the connection and stores
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 57af146c04..00548868bb 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -15,11 +15,10 @@
+ 	recursive values (data with cycles) are problematic.  This may change.
+ 
+ 	To use gobs, create an Encoder and present it with a series of data items as
+-	values or addresses that can be dereferenced to values.  (At the moment, these
+-	items must be structs (struct, *struct, **struct etc.), but this may change.) The
+-	Encoder makes sure all type information is sent before it is needed.  At the
+-	receive side, a Decoder retrieves values from the encoded stream and unpacks them
+-	into local variables.
++	values or addresses that can be dereferenced to values.  The Encoder makes sure
++	all type information is sent before it is needed.  At the receive side, a
++	Decoder retrieves values from the encoded stream and unpacks them into local
++	variables.
+ 
+ 	The source and destination values/types need not correspond exactly.  For structs,
+ 	fields (identified by name) that are in the source but absent from the receiving
+@@ -251,6 +250,20 @@ package gob
+ 	output will be just:
+ 
+ 		07 ff 82 01 2c 01 42 00
++
++	A single non-struct value at top level is transmitted like a field with
++	delta tag 0.  For instance, a signed integer with value 3 presented as
++	the argument to Encode will emit:
++
++		03 04 00 06
++
++	Which represents:
++
++		03 // this value is 3 bytes long
++		04 // the type number, 2, represents an integer
++		00 // tag delta 0
++		06 // value 3
++
+ */
+ 
+ import (
+@@ -810,7 +823,7 @@ func encode(b *bytes.Buffer, value reflect.Value) os.Error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	if _, ok := value.(*reflect.StructValue); ok {
++	if value.Type().Kind() == reflect.Struct {
+ 		return encodeStruct(engine, b, value.Addr())
+ 	}
+ 	return encodeSingle(engine, b, value.Addr())
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 2ad36ae653..0b01b74dc9 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -395,7 +395,7 @@ var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
+ // The reflection type must have all its indirections processed out.
+ // typeLock must be held.
+ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
+-	if _, ok := rt.(*reflect.PtrType); ok {
++	if rt.Kind() == reflect.Ptr {
+ 		panic("pointer type in getTypeInfo: " + rt.String())
+ 	}
+ 	info, ok := typeInfoMap[rt]

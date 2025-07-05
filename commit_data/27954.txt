@@ -18,7 +18,7 @@ Date:   Mon Apr 18 14:02:08 2016 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go         |  15 +---
  src/cmd/compile/internal/gc/align.go       |  38 ++++-----
  src/cmd/compile/internal/gc/bexport.go     |  12 +--
@@ -41,3 +41,1018 @@ Date:   Mon Apr 18 14:02:08 2016 -0700
  src/cmd/compile/internal/gc/universe.go    |   7 +-
  src/cmd/compile/internal/gc/walk.go        |   7 +-
  21 files changed, 168 insertions(+), 251 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 6e85438610..136612d56f 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -127,11 +127,10 @@ func algtype1(t *Type) (AlgKind, *Type) {
+ 		}
+ 		return AINTER, nil
+ 
+-	case TARRAY:
+-		if t.IsSlice() {
+-			return ANOEQ, t
+-		}
++	case TSLICE:
++		return ANOEQ, t
+ 
++	case TARRAY:
+ 		a, bad := algtype1(t.Elem())
+ 		switch a {
+ 		case AMEM:
+@@ -219,10 +218,6 @@ func genhash(sym *Sym, t *Type) {
+ 		Fatalf("genhash %v", t)
+ 
+ 	case TARRAY:
+-		if t.IsSlice() {
+-			Fatalf("genhash %v", t)
+-		}
+-
+ 		// An array of pure memory would be handled by the
+ 		// standard algorithm, so the element type must not be
+ 		// pure memory.
+@@ -399,10 +394,6 @@ func geneq(sym *Sym, t *Type) {
+ 		Fatalf("geneq %v", t)
+ 
+ 	case TARRAY:
+-		if t.IsSlice() {
+-			Fatalf("geneq %v", t)
+-		}
+-
+ 		// An array of pure memory would be handled by the
+ 		// standard memequal, so the element type must not be
+ 		// pure memory. Even if we unrolled the range loop,
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index e43ed7b225..8123041318 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -238,29 +238,31 @@ func dowidth(t *Type) {
+ 		if t.Elem() == nil {
+ 			break
+ 		}
+-		if t.IsArray() {
+-			dowidth(t.Elem())
+-			if t.Elem().Width != 0 {
+-				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+-				if uint64(t.NumElem()) > cap {
+-					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
+-				}
+-			}
+-
+-			w = t.NumElem() * t.Elem().Width
+-			t.Align = t.Elem().Align
+-		} else if t.IsSlice() {
+-			w = int64(sizeof_Array)
+-			checkwidth(t.Elem())
+-			t.Align = uint8(Widthptr)
+-		} else if t.isDDDArray() {
++		if t.isDDDArray() {
+ 			if !t.Broke {
+ 				Yyerror("use of [...] array outside of array literal")
+ 				t.Broke = true
+ 			}
+-		} else {
+-			Fatalf("dowidth %v", t) // probably [...]T
++			break
++		}
++
++		dowidth(t.Elem())
++		if t.Elem().Width != 0 {
++			cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
++			if uint64(t.NumElem()) > cap {
++				Yyerror("type %v larger than address space", Tconv(t, FmtLong))
++			}
+ 		}
++		w = t.NumElem() * t.Elem().Width
++		t.Align = t.Elem().Align
++
++	case TSLICE:
++		if t.Elem() == nil {
++			break
++		}
++		w = int64(sizeof_Array)
++		checkwidth(t.Elem())
++		t.Align = uint8(Widthptr)
+ 
+ 	case TSTRUCT:
+ 		if t.IsFuncArgStruct() {
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 90b4edff18..7aa6c9ce6f 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -629,12 +629,12 @@ func (p *exporter) typ(t *Type) {
+ 		if t.isDDDArray() {
+ 			Fatalf("array bounds should be known at export time: %v", t)
+ 		}
+-		if t.IsArray() {
+-			p.tag(arrayTag)
+-			p.int64(t.NumElem())
+-		} else {
+-			p.tag(sliceTag)
+-		}
++		p.tag(arrayTag)
++		p.int64(t.NumElem())
++		p.typ(t.Elem())
++
++	case TSLICE:
++		p.tag(sliceTag)
+ 		p.typ(t.Elem())
+ 
+ 	case TDDDFIELD:
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 6654345ead..ef89f9ad0a 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -369,18 +369,16 @@ func (p *importer) typ() *Type {
+ 
+ 		dclcontext = savedContext
+ 
+-	case arrayTag, sliceTag:
++	case arrayTag:
+ 		t = p.newtyp(TARRAY)
+-		var bound int64
+-		if i == arrayTag {
+-			bound = p.int64()
+-		}
++		bound := p.int64()
+ 		elem := p.typ()
+-		if i == arrayTag {
+-			t.Extra = &ArrayType{Elem: elem, Bound: bound}
+-		} else {
+-			t.Extra = SliceType{Elem: elem}
+-		}
++		t.Extra = &ArrayType{Elem: elem, Bound: bound}
++
++	case sliceTag:
++		t = p.newtyp(TSLICE)
++		elem := p.typ()
++		t.Extra = SliceType{Elem: elem}
+ 
+ 	case dddTag:
+ 		t = p.newtyp(TDDDFIELD)
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index c7fb4d97e5..c2ed0d31d8 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -284,9 +284,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 			return n
+ 
+ 		case TARRAY:
+-			if !t.IsSlice() {
+-				goto bad
+-			}
++			goto bad
+ 
+ 		case TPTR32,
+ 			TPTR64,
+@@ -294,6 +292,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 			TMAP,
+ 			TCHAN,
+ 			TFUNC,
++			TSLICE,
+ 			TUNSAFEPTR:
+ 			break
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index cfe192f3ba..1dd02aef1f 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -203,7 +203,7 @@ func reexportdep(n *Node) {
+ 		t := n.Type
+ 
+ 		switch t.Etype {
+-		case TARRAY, TCHAN, TPTR32, TPTR64:
++		case TARRAY, TCHAN, TPTR32, TPTR64, TSLICE:
+ 			if t.Sym == nil {
+ 				t = t.Elem()
+ 			}
+@@ -303,7 +303,7 @@ func dumpexporttype(t *Type) {
+ 	case TMAP:
+ 		dumpexporttype(t.Val())
+ 		dumpexporttype(t.Key())
+-	case TARRAY, TCHAN, TPTR32, TPTR64:
++	case TARRAY, TCHAN, TPTR32, TPTR64, TSLICE:
+ 		dumpexporttype(t.Elem())
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 41d696574c..bfb031aac5 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -416,6 +416,7 @@ var etnames = []string{
+ 	TPTR64:      "PTR64",
+ 	TFUNC:       "FUNC",
+ 	TARRAY:      "ARRAY",
++	TSLICE:      "SLICE",
+ 	TSTRUCT:     "STRUCT",
+ 	TCHAN:       "CHAN",
+ 	TMAP:        "MAP",
+@@ -587,12 +588,12 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		return "*" + t.Elem().String()
+ 
+ 	case TARRAY:
+-		if t.IsArray() {
+-			return fmt.Sprintf("[%d]%v", t.NumElem(), t.Elem())
+-		}
+ 		if t.isDDDArray() {
+ 			return "[...]" + t.Elem().String()
+ 		}
++		return fmt.Sprintf("[%d]%v", t.NumElem(), t.Elem())
++
++	case TSLICE:
+ 		return "[]" + t.Elem().String()
+ 
+ 	case TCHAN:
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index cc624cce7a..d16c4fa992 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -1031,7 +1031,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
+ 		// Emit vardef if needed.
+ 		if nl.Op == ONAME {
+ 			switch nl.Type.Etype {
+-			case TARRAY, TSTRING, TINTER, TSTRUCT:
++			case TARRAY, TSLICE, TSTRING, TINTER, TSTRUCT:
+ 				Gvardef(nl)
+ 			}
+ 		}
+@@ -1204,13 +1204,12 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
+ 		return f(Ptrto(Types[TUINT8]), startOffset) &&
+ 			f(Types[Simtype[TUINT]], startOffset+int64(Widthptr))
+ 
+-	case TARRAY:
+-		if t.IsSlice() {
+-			return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
+-				f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
+-				f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
+-		}
++	case TSLICE:
++		return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
++			f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
++			f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
+ 
++	case TARRAY:
+ 		// Short-circuit [1e6]struct{}.
+ 		if t.Elem().Width == 0 {
+ 			return true
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index f1316db8d8..bcfd3439a0 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -277,7 +277,7 @@ func gused(n *Node) {
+ func Isfat(t *Type) bool {
+ 	if t != nil {
+ 		switch t.Etype {
+-		case TSTRUCT, TARRAY, TSTRING,
++		case TSTRUCT, TARRAY, TSLICE, TSTRING,
+ 			TINTER: // maybe remove later
+ 			return true
+ 		}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 3b83e3bcc0..2b9546f4f5 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -731,7 +731,7 @@ func orderstmt(n *Node, order *Order) {
+ 		default:
+ 			Fatalf("orderstmt range %v", n.Type)
+ 
+-		case TARRAY:
++		case TARRAY, TSLICE:
+ 			if n.List.Len() < 2 || isblank(n.List.Second()) {
+ 				// for i := range x will only use x once, to compute len(x).
+ 				// No need to copy it.
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 6e43d3133f..e04c8563b1 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -918,18 +918,17 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 		bvset(bv, int32(*xoffset/int64(Widthptr)+1)) // pointer in second slot
+ 		*xoffset += t.Width
+ 
++	case TSLICE:
++		// struct { byte *array; uintgo len; uintgo cap; }
++		if *xoffset&int64(Widthptr-1) != 0 {
++			Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
++		}
++		bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
++		*xoffset += t.Width
++
+ 	case TARRAY:
+-		if t.IsSlice() {
+-			// struct { byte *array; uintgo len; uintgo cap; }
+-			if *xoffset&int64(Widthptr-1) != 0 {
+-				Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
+-			}
+-			bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
+-			*xoffset += t.Width
+-		} else {
+-			for i := int64(0); i < t.NumElem(); i++ {
+-				onebitwalktype1(t.Elem(), xoffset, bv)
+-			}
++		for i := int64(0); i < t.NumElem(); i++ {
++			onebitwalktype1(t.Elem(), xoffset, bv)
+ 		}
+ 
+ 	case TSTRUCT:
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 96d7a82972..9d3f79cdce 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -49,7 +49,7 @@ func typecheckrange(n *Node) {
+ 		Yyerror("cannot range over %v", Nconv(n.Right, FmtLong))
+ 		goto out
+ 
+-	case TARRAY:
++	case TARRAY, TSLICE:
+ 		t1 = Types[TINT]
+ 		t2 = t.Elem()
+ 
+@@ -164,7 +164,7 @@ func walkrange(n *Node) {
+ 	default:
+ 		Fatalf("walkrange")
+ 
+-	case TARRAY:
++	case TARRAY, TSLICE:
+ 		if memclrrange(n, v1, v2, a) {
+ 			lineno = lno
+ 			return
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 4792f88abe..ac36f912b6 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -623,7 +623,7 @@ func typePkg(t *Type) *Pkg {
+ 	tsym := t.Sym
+ 	if tsym == nil {
+ 		switch t.Etype {
+-		case TARRAY, TPTR32, TPTR64, TCHAN:
++		case TARRAY, TSLICE, TPTR32, TPTR64, TCHAN:
+ 			if t.Elem() != nil {
+ 				tsym = t.Elem().Sym
+ 			}
+@@ -689,6 +689,7 @@ var kinds = []int{
+ 	TCHAN:       obj.KindChan,
+ 	TMAP:        obj.KindMap,
+ 	TARRAY:      obj.KindArray,
++	TSLICE:      obj.KindArray,
+ 	TFUNC:       obj.KindFunc,
+ 	TCOMPLEX64:  obj.KindComplex64,
+ 	TCOMPLEX128: obj.KindComplex128,
+@@ -701,11 +702,10 @@ func haspointers(t *Type) bool {
+ 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
+ 		return false
+ 
+-	case TARRAY:
+-		if t.IsSlice() {
+-			return true
+-		}
++	case TSLICE:
++		return true
+ 
++	case TARRAY:
+ 		at := t.Extra.(*ArrayType)
+ 		if at.Haspointers != 0 {
+ 			return at.Haspointers-1 != 0
+@@ -764,11 +764,11 @@ func typeptrdata(t *Type) int64 {
+ 		// struct { Type *type; void *data; }
+ 		return 2 * int64(Widthptr)
+ 
++	case TSLICE:
++		// struct { byte *array; uintgo len; uintgo cap; }
++		return int64(Widthptr)
++
+ 	case TARRAY:
+-		if t.IsSlice() {
+-			// struct { byte *array; uintgo len; uintgo cap; }
+-			return int64(Widthptr)
+-		}
+ 		// haspointers already eliminated t.NumElem() == 0.
+ 		return (t.NumElem()-1)*t.Elem().Width + typeptrdata(t.Elem())
+ 
+@@ -1007,9 +1007,6 @@ func isreflexive(t *Type) bool {
+ 		return false
+ 
+ 	case TARRAY:
+-		if t.IsSlice() {
+-			Fatalf("slice can't be a map key: %v", t)
+-		}
+ 		return isreflexive(t.Elem())
+ 
+ 	case TSTRUCT:
+@@ -1057,9 +1054,6 @@ func needkeyupdate(t *Type) bool {
+ 		return true
+ 
+ 	case TARRAY:
+-		if t.IsSlice() {
+-			Fatalf("slice can't be a map key: %v", t)
+-		}
+ 		return needkeyupdate(t.Elem())
+ 
+ 	case TSTRUCT:
+@@ -1127,28 +1121,26 @@ ok:
+ 		ot = dextratype(s, ot, t, 0)
+ 
+ 	case TARRAY:
+-		if t.IsArray() {
+-			// ../../../../runtime/type.go:/arrayType
+-			s1 := dtypesym(t.Elem())
+-			t2 := typSlice(t.Elem())
+-			s2 := dtypesym(t2)
+-			ot = dcommontype(s, ot, t)
+-			ot = dsymptr(s, ot, s1, 0)
+-			ot = dsymptr(s, ot, s2, 0)
+-			ot = duintptr(s, ot, uint64(t.NumElem()))
+-		} else {
+-			// ../../../../runtime/type.go:/sliceType
+-			s1 := dtypesym(t.Elem())
++		// ../../../../runtime/type.go:/arrayType
++		s1 := dtypesym(t.Elem())
++		t2 := typSlice(t.Elem())
++		s2 := dtypesym(t2)
++		ot = dcommontype(s, ot, t)
++		ot = dsymptr(s, ot, s1, 0)
++		ot = dsymptr(s, ot, s2, 0)
++		ot = duintptr(s, ot, uint64(t.NumElem()))
++		ot = dextratype(s, ot, t, 0)
+ 
+-			ot = dcommontype(s, ot, t)
+-			ot = dsymptr(s, ot, s1, 0)
+-		}
++	case TSLICE:
++		// ../../../../runtime/type.go:/sliceType
++		s1 := dtypesym(t.Elem())
++		ot = dcommontype(s, ot, t)
++		ot = dsymptr(s, ot, s1, 0)
+ 		ot = dextratype(s, ot, t, 0)
+ 
+-	// ../../../../runtime/type.go:/chanType
+ 	case TCHAN:
++		// ../../../../runtime/type.go:/chanType
+ 		s1 := dtypesym(t.Elem())
+-
+ 		ot = dcommontype(s, ot, t)
+ 		ot = dsymptr(s, ot, s1, 0)
+ 		ot = duintptr(s, ot, uint64(t.ChanDir()))
+@@ -1326,7 +1318,7 @@ ok:
+ 		// functions must return the existing type structure rather
+ 		// than creating a new one.
+ 		switch t.Etype {
+-		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSTRUCT:
++		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRUCT:
+ 			keep = true
+ 		}
+ 	}
+@@ -1654,11 +1646,10 @@ func (p *GCProg) emit(t *Type, offset int64) {
+ 		p.w.Ptr(offset / int64(Widthptr))
+ 		p.w.Ptr(offset/int64(Widthptr) + 1)
+ 
++	case TSLICE:
++		p.w.Ptr(offset / int64(Widthptr))
++
+ 	case TARRAY:
+-		if t.IsSlice() {
+-			p.w.Ptr(offset / int64(Widthptr))
+-			return
+-		}
+ 		if t.NumElem() == 0 {
+ 			// should have been handled by haspointers check above
+ 			Fatalf("GCProg.emit: empty array")
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5a3a4dbe7f..71c06eb0a0 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1103,13 +1103,13 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		structlit(ctxt, 3, n, var_, init)
+ 
+ 	case OARRAYLIT:
+-		if t.Etype != TARRAY {
+-			Fatalf("anylit: not array")
+-		}
+ 		if t.IsSlice() {
+ 			slicelit(ctxt, n, var_, init)
+ 			break
+ 		}
++		if !t.IsArray() {
++			Fatalf("anylit: not array")
++		}
+ 
+ 		if var_.isSimpleName() && n.List.Len() > 4 {
+ 			if ctxt == 0 {
+@@ -1414,7 +1414,7 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
+ 		}
+ 
+ 		// nr is the array being converted to a slice
+-		if nr.Type == nil || nr.Type.Etype != TARRAY || nr.Type.IsSlice() {
++		if nr.Type == nil || !nr.Type.IsArray() {
+ 			return false
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index f2b1461bc8..a01da13883 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -41,7 +41,6 @@ func TestSizeof(t *testing.T) {
+ 		{ChanArgsType{}, 4, 8},
+ 		{PtrType{}, 4, 8},
+ 		{SliceType{}, 4, 8},
+-		{DDDArrayType{}, 4, 8},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4a33a3808e..ad665fbfbc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1138,7 +1138,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OEQ, TINT64}:     ssa.OpEq64,
+ 	opAndType{OEQ, TUINT64}:    ssa.OpEq64,
+ 	opAndType{OEQ, TINTER}:     ssa.OpEqInter,
+-	opAndType{OEQ, TARRAY}:     ssa.OpEqSlice,
++	opAndType{OEQ, TSLICE}:     ssa.OpEqSlice,
+ 	opAndType{OEQ, TFUNC}:      ssa.OpEqPtr,
+ 	opAndType{OEQ, TMAP}:       ssa.OpEqPtr,
+ 	opAndType{OEQ, TCHAN}:      ssa.OpEqPtr,
+@@ -1158,7 +1158,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{ONE, TINT64}:     ssa.OpNeq64,
+ 	opAndType{ONE, TUINT64}:    ssa.OpNeq64,
+ 	opAndType{ONE, TINTER}:     ssa.OpNeqInter,
+-	opAndType{ONE, TARRAY}:     ssa.OpNeqSlice,
++	opAndType{ONE, TSLICE}:     ssa.OpNeqSlice,
+ 	opAndType{ONE, TFUNC}:      ssa.OpNeqPtr,
+ 	opAndType{ONE, TMAP}:       ssa.OpNeqPtr,
+ 	opAndType{ONE, TCHAN}:      ssa.OpNeqPtr,
+@@ -2871,9 +2871,6 @@ func canSSAType(t *Type) bool {
+ 	}
+ 	switch t.Etype {
+ 	case TARRAY:
+-		if t.IsSlice() {
+-			return true
+-		}
+ 		// We can't do arrays because dynamic indexing is
+ 		// not supported on SSA variables.
+ 		// TODO: maybe allow if length is <=1?  All indexes
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 51a78317f2..cb0c86ee81 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -594,6 +594,7 @@ func methtype(t *Type, mustname int) *Type {
+ 
+ 		case TSTRUCT,
+ 			TARRAY,
++			TSLICE,
+ 			TMAP,
+ 			TCHAN,
+ 			TSTRING,
+@@ -641,7 +642,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
+ 	if t1 == t2 {
+ 		return true
+ 	}
+-	if t1 == nil || t2 == nil || t1.Etype != t2.Etype {
++	if t1 == nil || t2 == nil || t1.Etype != t2.Etype || t1.Broke || t2.Broke {
+ 		return false
+ 	}
+ 	if t1.Sym != nil || t2.Sym != nil {
+@@ -836,18 +837,13 @@ func assignop(src *Type, dst *Type, why *string) Op {
+ 	// 5. src is the predeclared identifier nil and dst is a nillable type.
+ 	if src.Etype == TNIL {
+ 		switch dst.Etype {
+-		case TARRAY:
+-			if !dst.IsSlice() {
+-				break
+-			}
+-			fallthrough
+-
+ 		case TPTR32,
+ 			TPTR64,
+ 			TFUNC,
+ 			TMAP,
+ 			TCHAN,
+-			TINTER:
++			TINTER,
++			TSLICE:
+ 			return OCONVNOP
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 16399547c7..baac282c0a 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -44,6 +44,7 @@ const (
+ 	TPTR64
+ 
+ 	TFUNC
++	TSLICE
+ 	TARRAY
+ 	TSTRUCT
+ 	TCHAN
+@@ -70,11 +71,6 @@ const (
+ 	NTYPE
+ )
+ 
+-const (
+-	sliceBound = -1   // slices have Bound=sliceBound
+-	dddBound   = -100 // arrays declared as [...]T start life with Bound=dddBound
+-)
+-
+ // ChanDir is whether a channel can send, receive, or both.
+ type ChanDir uint8
+ 
+@@ -137,7 +133,8 @@ type Type struct {
+ 	// TCHANARGS: ChanArgsType
+ 	// TCHAN: *ChanType
+ 	// TPTR32, TPTR64: PtrType
+-	// TARRAY: *ArrayType, SliceType, or DDDArrayType
++	// TARRAY: *ArrayType
++	// TSLICE: SliceType
+ 	Extra interface{}
+ 
+ 	// Width is the width of this Type in bytes.
+@@ -273,10 +270,10 @@ func (t *Type) ChanType() *ChanType {
+ 	return t.Extra.(*ChanType)
+ }
+ 
+-// ArrayType contains Type fields specific to array types with known lengths.
++// ArrayType contains Type fields specific to array types.
+ type ArrayType struct {
+ 	Elem        *Type // element type
+-	Bound       int64 // number of elements; always >= 0; do not use with sliceBound or dddBound
++	Bound       int64 // number of elements; <0 if unknown yet
+ 	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+ }
+ 
+@@ -285,11 +282,6 @@ type SliceType struct {
+ 	Elem *Type // element type
+ }
+ 
+-// DDDArrayType contains Type fields specific to ddd array types.
+-type DDDArrayType struct {
+-	Elem *Type // element type
+-}
+-
+ // A Field represents a field in a struct or a method in an interface or
+ // associated with a named type.
+ type Field struct {
+@@ -399,6 +391,9 @@ func typ(et EType) *Type {
+ 
+ // typArray returns a new fixed-length array Type.
+ func typArray(elem *Type, bound int64) *Type {
++	if bound < 0 {
++		Fatalf("typArray: invalid bound %v", bound)
++	}
+ 	t := typ(TARRAY)
+ 	t.Extra = &ArrayType{Elem: elem, Bound: bound}
+ 	return t
+@@ -406,7 +401,7 @@ func typArray(elem *Type, bound int64) *Type {
+ 
+ // typSlice returns a new slice Type.
+ func typSlice(elem *Type) *Type {
+-	t := typ(TARRAY)
++	t := typ(TSLICE)
+ 	t.Extra = SliceType{Elem: elem}
+ 	return t
+ }
+@@ -414,7 +409,7 @@ func typSlice(elem *Type) *Type {
+ // typDDDArray returns a new [...]T array Type.
+ func typDDDArray(elem *Type) *Type {
+ 	t := typ(TARRAY)
+-	t.Extra = DDDArrayType{Elem: elem}
++	t.Extra = &ArrayType{Elem: elem, Bound: -1}
+ 	return t
+ }
+ 
+@@ -519,16 +514,14 @@ func substAny(t *Type, types *[]*Type) *Type {
+ 		elem := substAny(t.Elem(), types)
+ 		if elem != t.Elem() {
+ 			t = t.Copy()
+-			switch x := t.Extra.(type) {
+-			case *ArrayType:
+-				x.Elem = elem
+-			case SliceType:
+-				t.Extra = SliceType{Elem: elem}
+-			case DDDArrayType:
+-				t.Extra = DDDArrayType{Elem: elem}
+-			default:
+-				Fatalf("substAny bad array elem type %T %v", x, t)
+-			}
++			t.Extra.(*ArrayType).Elem = elem
++		}
++
++	case TSLICE:
++		elem := substAny(t.Elem(), types)
++		if elem != t.Elem() {
++			t = t.Copy()
++			t.Extra = SliceType{Elem: elem}
+ 		}
+ 
+ 	case TCHAN:
+@@ -616,10 +609,8 @@ func (t *Type) Copy() *Type {
+ 		x := *t.Extra.(*ChanType)
+ 		nt.Extra = &x
+ 	case TARRAY:
+-		if arr, ok := t.Extra.(*ArrayType); ok {
+-			x := *arr
+-			nt.Extra = &x
+-		}
++		x := *t.Extra.(*ArrayType)
++		nt.Extra = &x
+ 	}
+ 	// TODO(mdempsky): Find out why this is necessary and explain.
+ 	if t.Orig == t {
+@@ -735,14 +726,9 @@ func (t *Type) Elem() *Type {
+ 	case TPTR32, TPTR64:
+ 		return t.Extra.(PtrType).Elem
+ 	case TARRAY:
+-		switch t := t.Extra.(type) {
+-		case *ArrayType:
+-			return t.Elem
+-		case SliceType:
+-			return t.Elem
+-		case DDDArrayType:
+-			return t.Elem
+-		}
++		return t.Extra.(*ArrayType).Elem
++	case TSLICE:
++		return t.Extra.(SliceType).Elem
+ 	case TCHAN:
+ 		return t.Extra.(*ChanType).Elem
+ 	}
+@@ -838,8 +824,7 @@ func (t *Type) isDDDArray() bool {
+ 	if t.Etype != TARRAY {
+ 		return false
+ 	}
+-	_, ok := t.Extra.(DDDArrayType)
+-	return ok
++	return t.Extra.(*ArrayType).Bound < 0
+ }
+ 
+ // ArgWidth returns the total aligned argument size for a function.
+@@ -982,8 +967,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 		}
+ 		return t.Val().cmp(x.Val())
+ 
+-	case TPTR32, TPTR64:
+-		// No special cases for these two, they are handled
++	case TPTR32, TPTR64, TSLICE:
++		// No special cases for these, they are handled
+ 		// by the general code after the switch.
+ 
+ 	case TSTRUCT:
+@@ -1068,7 +1053,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 		panic(e)
+ 	}
+ 
+-	// Common element type comparison for TARRAY, TCHAN, TPTR32, and TPTR64.
++	// Common element type comparison for TARRAY, TCHAN, TPTR32, TPTR64, and TSLICE.
+ 	return t.Elem().cmp(x.Elem())
+ }
+ 
+@@ -1138,22 +1123,12 @@ func (t *Type) IsChan() bool {
+ 	return t.Etype == TCHAN
+ }
+ 
+-// TODO: Remove noinline when issue 15084 is resolved.
+-//go:noinline
+ func (t *Type) IsSlice() bool {
+-	if t.Etype != TARRAY {
+-		return false
+-	}
+-	_, ok := t.Extra.(SliceType)
+-	return ok
++	return t.Etype == TSLICE
+ }
+ 
+ func (t *Type) IsArray() bool {
+-	if t.Etype != TARRAY {
+-		return false
+-	}
+-	_, ok := t.Extra.(*ArrayType)
+-	return ok
++	return t.Etype == TARRAY
+ }
+ 
+ func (t *Type) IsStruct() bool {
+@@ -1193,41 +1168,23 @@ func (t *Type) FieldName(i int) string {
+ 
+ func (t *Type) NumElem() int64 {
+ 	t.wantEtype(TARRAY)
+-	switch t := t.Extra.(type) {
+-	case *ArrayType:
+-		return t.Bound
+-	case SliceType:
+-		return sliceBound
+-	case DDDArrayType:
+-		return dddBound
++	at := t.Extra.(*ArrayType)
++	if at.Bound < 0 {
++		Fatalf("NumElem array %v does not have bound yet", t)
+ 	}
+-	Fatalf("NumElem on non-array %T %v", t.Extra, t)
+-	return 0
++	return at.Bound
+ }
+ 
+ // SetNumElem sets the number of elements in an array type.
+-// It should not be used if at all possible.
+-// Create a new array/slice/dddArray with typX instead.
+-// The only allowed uses are:
+-//   * array -> slice as a hack to suppress extra error output
+-//   * ddd array -> array
+-// TODO(josharian): figure out how to get rid of this entirely.
++// The only allowed use is on array types created with typDDDArray.
++// For other uses, create a new array with typArray instead.
+ func (t *Type) SetNumElem(n int64) {
+ 	t.wantEtype(TARRAY)
+-	switch {
+-	case n >= 0:
+-		if !t.isDDDArray() {
+-			Fatalf("SetNumElem non-ddd -> array %v", t)
+-		}
+-		t.Extra = &ArrayType{Elem: t.Elem(), Bound: n}
+-	case n == sliceBound:
+-		if !t.IsArray() {
+-			Fatalf("SetNumElem non-array -> slice %v", t)
+-		}
+-		t.Extra = SliceType{Elem: t.Elem()}
+-	default:
+-		Fatalf("SetNumElem %d %v", n, t)
++	at := t.Extra.(*ArrayType)
++	if at.Bound >= 0 {
++		Fatalf("SetNumElem array %v already has bound %d", t, at.Bound)
+ 	}
++	at.Bound = n
+ }
+ 
+ // ChanDir returns the direction of a channel type t.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e158c87611..7a8c65dc58 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -76,6 +76,7 @@ var _typekind = []string{
+ 	TCHAN:       "chan",
+ 	TMAP:        "map",
+ 	TARRAY:      "array",
++	TSLICE:      "slice",
+ 	TFUNC:       "func",
+ 	TNIL:        "nil",
+ 	TIDEAL:      "untyped number",
+@@ -997,7 +998,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 
+-		case TSTRING, TARRAY:
++		case TSTRING, TARRAY, TSLICE:
+ 			n.Right = indexlit(n.Right)
+ 			if t.IsString() {
+ 				n.Type = bytetype
+@@ -1005,12 +1006,10 @@ OpSwitch:
+ 				n.Type = t.Elem()
+ 			}
+ 			why := "string"
+-			if t.Etype == TARRAY {
+-				if t.IsArray() {
+-					why = "array"
+-				} else {
+-					why = "slice"
+-				}
++			if t.IsArray() {
++				why = "array"
++			} else if t.IsSlice() {
++				why = "slice"
+ 			}
+ 
+ 			if n.Right.Type != nil && !n.Right.Type.IsInteger() {
+@@ -1422,9 +1421,6 @@ OpSwitch:
+ 			}
+ 
+ 		case TARRAY:
+-			if t.IsSlice() {
+-				break
+-			}
+ 			if callrecv(l) { // has call or receive
+ 				break
+ 			}
+@@ -1795,13 +1791,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 
+-		case TARRAY:
+-			if !t.IsSlice() {
+-				Yyerror("cannot make type %v", t)
+-				n.Type = nil
+-				return n
+-			}
+-
++		case TSLICE:
+ 			if i >= len(args) {
+ 				Yyerror("missing len argument to make(%v)", t)
+ 				n.Type = nil
+@@ -2848,19 +2838,19 @@ func indexdup(n *Node, hash map[int64]*Node) {
+ 	hash[v] = n
+ }
+ 
++// iscomptype reports whether type t is a composite literal type
++// or a pointer to one.
+ func iscomptype(t *Type) bool {
++	if t.IsPtr() {
++		t = t.Elem()
++	}
++
+ 	switch t.Etype {
+-	case TARRAY, TSTRUCT, TMAP:
++	case TARRAY, TSLICE, TSTRUCT, TMAP:
+ 		return true
+-
+-	case TPTR32, TPTR64:
+-		switch t.Elem().Etype {
+-		case TARRAY, TSTRUCT, TMAP:
+-			return true
+-		}
++	default:
++		return false
+ 	}
+-
+-	return false
+ }
+ 
+ func pushtype(n *Node, t *Type) {
+@@ -2943,7 +2933,7 @@ func typecheckcomplit(n *Node) *Node {
+ 		Yyerror("invalid type for composite literal: %v", t)
+ 		n.Type = nil
+ 
+-	case TARRAY:
++	case TARRAY, TSLICE:
+ 		// Only allocate hash if there are some key/value pairs.
+ 		var hash map[int64]*Node
+ 		for _, n1 := range n.List.Slice() {
+@@ -2954,6 +2944,7 @@ func typecheckcomplit(n *Node) *Node {
+ 		}
+ 		length := int64(0)
+ 		i := 0
++		checkBounds := t.IsArray() && !t.isDDDArray()
+ 		for i2, n2 := range n.List.Slice() {
+ 			l := n2
+ 			setlineno(l)
+@@ -2979,11 +2970,10 @@ func typecheckcomplit(n *Node) *Node {
+ 			i++
+ 			if int64(i) > length {
+ 				length = int64(i)
+-				if t.IsArray() && length > t.NumElem() {
++				if checkBounds && length > t.NumElem() {
+ 					setlineno(l)
+ 					Yyerror("array index %d out of bounds [0:%d]", length-1, t.NumElem())
+-					// suppress any further errors out of bounds errors for the same type by pretending it is a slice
+-					t.SetNumElem(sliceBound)
++					checkBounds = false
+ 				}
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 3330fbbab2..84df22502f 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -228,6 +228,7 @@ func typeinit() {
+ 
+ 	okforcap[TARRAY] = true
+ 	okforcap[TCHAN] = true
++	okforcap[TSLICE] = true
+ 
+ 	okforconst[TBOOL] = true
+ 	okforconst[TSTRING] = true
+@@ -235,6 +236,7 @@ func typeinit() {
+ 	okforlen[TARRAY] = true
+ 	okforlen[TCHAN] = true
+ 	okforlen[TMAP] = true
++	okforlen[TSLICE] = true
+ 	okforlen[TSTRING] = true
+ 
+ 	okforeq[TPTR32] = true
+@@ -246,8 +248,9 @@ func typeinit() {
+ 	okforeq[TBOOL] = true
+ 	okforeq[TMAP] = true    // nil only; refined in typecheck
+ 	okforeq[TFUNC] = true   // nil only; refined in typecheck
+-	okforeq[TARRAY] = true  // nil slice only; refined in typecheck
+-	okforeq[TSTRUCT] = true // it's complicated; refined in typecheck
++	okforeq[TSLICE] = true  // nil only; refined in typecheck
++	okforeq[TARRAY] = true  // only if element type is comparable; refined in typecheck
++	okforeq[TSTRUCT] = true // only if all struct fields are comparable; refined in typecheck
+ 
+ 	okforcmp[TSTRING] = true
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8cce85de9a..0e74365c76 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3125,12 +3125,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	default:
+ 		return n
+ 
+-	case TARRAY:
+-		if t.IsSlice() {
+-			return n
+-		}
+-
+-	case TSTRUCT:
++	case TARRAY, TSTRUCT:
+ 		break
+ 	}
+ 

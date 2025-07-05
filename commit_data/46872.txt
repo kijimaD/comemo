@@ -13,9 +13,126 @@ Date:   Tue Feb 9 10:36:27 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/worker.go           | 6 +++---
  src/testing/fuzz.go                   | 6 +++---
  src/testing/internal/testdeps/deps.go | 6 +++---
  src/testing/testing.go                | 6 +++---
  4 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 9a92813f8c..f9284db729 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -329,7 +329,7 @@ func (w *worker) stop() error {
+ //
+ // RunFuzzWorker returns an error if it could not communicate with the
+ // coordinator process.
+-func RunFuzzWorker(ctx context.Context, fn func([]byte) error) error {
++func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) error) error {
+ 	comm, err := getWorkerComm()
+ 	if err != nil {
+ 		return err
+@@ -386,7 +386,7 @@ type workerServer struct {
+ 
+ 	// fuzzFn runs the worker's fuzz function on the given input and returns
+ 	// an error if it finds a crasher (the process may also exit or crash).
+-	fuzzFn func([]byte) error
++	fuzzFn func(CorpusEntry) error
+ }
+ 
+ // serve reads serialized RPC messages on fuzzIn. When serve receives a message,
+@@ -463,7 +463,7 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) fuzzResponse {
+ 			b := mem.valueRef()
+ 			ws.m.mutate(&b)
+ 			mem.setValueLen(len(b))
+-			if err := ws.fuzzFn(b); err != nil {
++			if err := ws.fuzzFn(CorpusEntry{Data: b}); err != nil {
+ 				return fuzzResponse{Err: err.Error()}
+ 			}
+ 			// TODO(jayconrod,katiehockman): return early if we find an
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 7ef47872d0..196b4cf7ab 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -142,7 +142,7 @@ func (f *F) Fuzz(ff interface{}) {
+ 	case f.context.runFuzzWorker != nil:
+ 		// Fuzzing is enabled, and this is a worker process. Follow instructions
+ 		// from the coordinator.
+-		err := f.context.runFuzzWorker(func(input []byte) error {
++		err := f.context.runFuzzWorker(func(e corpusEntry) error {
+ 			t := &T{
+ 				common: common{
+ 					signal: make(chan bool),
+@@ -151,7 +151,7 @@ func (f *F) Fuzz(ff interface{}) {
+ 				},
+ 				context: newTestContext(1, nil),
+ 			}
+-			go run(t, input)
++			go run(t, e.Data)
+ 			<-t.signal
+ 			if t.Failed() {
+ 				return errors.New(string(t.output))
+@@ -273,7 +273,7 @@ type fuzzContext struct {
+ 	runMatch          *matcher
+ 	fuzzMatch         *matcher
+ 	coordinateFuzzing func(time.Duration, int, []corpusEntry, string, string) error
+-	runFuzzWorker     func(func([]byte) error) error
++	runFuzzWorker     func(func(corpusEntry) error) error
+ 	readCorpus        func(string) ([]corpusEntry, error)
+ }
+ 
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 1333944d5e..3160cae7a4 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -132,7 +132,7 @@ func (TestDeps) SetPanicOnExit0(v bool) {
+ 	testlog.SetPanicOnExit0(v)
+ }
+ 
+-func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fuzz.CorpusEntry, corpusDir, cacheDir string) error {
++func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fuzz.CorpusEntry, corpusDir, cacheDir string) (err error) {
+ 	// Fuzzing may be interrupted with a timeout or if the user presses ^C.
+ 	// In either case, we'll stop worker processes gracefully and save
+ 	// crashers and interesting values.
+@@ -143,14 +143,14 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fu
+ 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+ 	defer stop()
+ 	defer cancel()
+-	err := fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
++	err = fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
+ 	if err == ctx.Err() {
+ 		return nil
+ 	}
+ 	return err
+ }
+ 
+-func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
++func (TestDeps) RunFuzzWorker(fn func(fuzz.CorpusEntry) error) error {
+ 	// Worker processes may or may not receive a signal when the user presses ^C
+ 	// On POSIX operating systems, a signal sent to a process group is delivered
+ 	// to all processes in that group. This is not the case on Windows.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index e2abec2224..72529956c3 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1364,8 +1364,8 @@ func (f matchStringOnly) SetPanicOnExit0(bool)                        {}
+ func (f matchStringOnly) CoordinateFuzzing(time.Duration, int, []corpusEntry, string, string) error {
+ 	return errMain
+ }
+-func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error   { return errMain }
+-func (f matchStringOnly) ReadCorpus(string) ([]corpusEntry, error) { return nil, errMain }
++func (f matchStringOnly) RunFuzzWorker(func(corpusEntry) error) error { return errMain }
++func (f matchStringOnly) ReadCorpus(string) ([]corpusEntry, error)    { return nil, errMain }
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -1409,7 +1409,7 @@ type testDeps interface {
+ 	StopTestLog() error
+ 	WriteProfileTo(string, io.Writer, int) error
+ 	CoordinateFuzzing(time.Duration, int, []corpusEntry, string, string) error
+-	RunFuzzWorker(func([]byte) error) error
++	RunFuzzWorker(func(corpusEntry) error) error
+ 	ReadCorpus(string) ([]corpusEntry, error)
+ }
+ 

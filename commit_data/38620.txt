@@ -12,7 +12,60 @@ Date:   Fri Nov 9 23:33:40 2018 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/map_test.go | 10 +++++-----
  src/runtime/mheap.go    |  6 +++---
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 4713ce25ec..93b20668fa 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -435,11 +435,11 @@ func TestEmptyKeyAndValue(t *testing.T) {
+ // ("quick keys") as well as long keys.
+ func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
+ 	testMapLookups(t, map[string]string{
+-		"x":    "x1val",
+-		"xx":   "x2val",
+-		"foo":  "fooval",
+-		"bar":  "barval", // same key length as "foo"
+-		"xxxx": "x4val",
++		"x":                      "x1val",
++		"xx":                     "x2val",
++		"foo":                    "fooval",
++		"bar":                    "barval", // same key length as "foo"
++		"xxxx":                   "x4val",
+ 		strings.Repeat("x", 128): "longval1",
+ 		strings.Repeat("y", 128): "longval2",
+ 	})
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 9b121c63a1..97a0448ad3 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -903,7 +903,7 @@ HaveSpan:
+ 		// If s was scavenged, then t may be scavenged.
+ 		start, end := t.physPageBounds()
+ 		if s.scavenged && start < end {
+-			memstats.heap_released += uint64(end-start)
++			memstats.heap_released += uint64(end - start)
+ 			t.scavenged = true
+ 		}
+ 		s.state = mSpanManual // prevent coalescing with s
+@@ -1146,7 +1146,7 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
+ 			//
+ 			// This check also preserves the invariant that spans that have
+ 			// `scavenged` set are only ever in the `scav` treap, and
+-			// those which have it unset are only in the `free` treap. 
++			// those which have it unset are only in the `free` treap.
+ 			return
+ 		}
+ 		prev := t.pred()
+@@ -1175,7 +1175,7 @@ func (h *mheap) scavengeAll(now, limit uint64) uintptr {
+ 	for t != nil {
+ 		s := t.spanKey
+ 		next := t.succ()
+-		if (now-uint64(s.unusedsince)) > limit {
++		if (now - uint64(s.unusedsince)) > limit {
+ 			r := s.scavenge()
+ 			if r != 0 {
+ 				// If we ended up scavenging s, then remove it from unscav

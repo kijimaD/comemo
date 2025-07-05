@@ -22,7 +22,7 @@ Date:   Thu Jan 28 15:23:05 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/reflect/abi.go         |  27 ++-
  src/reflect/abi_test.go    | 559 +++++++++++++++++++++++++++++++++++++++++----
  src/reflect/asm_386.s      |  14 +-
@@ -42,3 +42,1752 @@ Date:   Thu Jan 28 15:23:05 2021 +0000
  src/runtime/stubs_amd64.go |   7 +
  src/runtime/traceback.go   |   2 +-
  18 files changed, 991 insertions(+), 207 deletions(-)
+
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index ab19695edc..8b1aaa56b3 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -355,11 +355,15 @@ type abiDesc struct {
+ 	// passed to reflectcall.
+ 	stackPtrs *bitVector
+ 
+-	// outRegPtrs is a bitmap whose i'th bit indicates
+-	// whether the i'th integer result register contains
+-	// a pointer. Used by reflectcall to make result
+-	// pointers visible to the GC.
+-	outRegPtrs abi.IntArgRegBitmap
++	// inRegPtrs is a bitmap whose i'th bit indicates
++	// whether the i'th integer argument register contains
++	// a pointer. Used by makeFuncStub and methodValueCall
++	// to make result pointers visible to the GC.
++	//
++	// outRegPtrs is the same, but for result values.
++	// Used by reflectcall to make result pointers visible
++	// to the GC.
++	inRegPtrs, outRegPtrs abi.IntArgRegBitmap
+ }
+ 
+ func (a *abiDesc) dump() {
+@@ -387,6 +391,10 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 	// Compute gc program & stack bitmap for stack arguments
+ 	stackPtrs := new(bitVector)
+ 
++	// Compute the stack frame pointer bitmap and register
++	// pointer bitmap for arguments.
++	inRegPtrs := abi.IntArgRegBitmap{}
++
+ 	// Compute abiSeq for input parameters.
+ 	var in abiSeq
+ 	if rcvr != nil {
+@@ -401,13 +409,18 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 			spill += ptrSize
+ 		}
+ 	}
+-	for _, arg := range t.in() {
++	for i, arg := range t.in() {
+ 		stkStep := in.addArg(arg)
+ 		if stkStep != nil {
+ 			addTypeBits(stackPtrs, stkStep.stkOff, arg)
+ 		} else {
+ 			spill = align(spill, uintptr(arg.align))
+ 			spill += arg.size
++			for _, st := range in.stepsForValue(i) {
++				if st.kind == abiStepPointer {
++					inRegPtrs.Set(st.ireg)
++				}
++			}
+ 		}
+ 	}
+ 	spill = align(spill, ptrSize)
+@@ -444,5 +457,5 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 	// Undo the faking from earlier so that stackBytes
+ 	// is accurate.
+ 	out.stackBytes -= retOffset
+-	return abiDesc{in, out, stackCallArgsSize, retOffset, spill, stackPtrs, outRegPtrs}
++	return abiDesc{in, out, stackCallArgsSize, retOffset, spill, stackPtrs, inRegPtrs, outRegPtrs}
+ }
+diff --git a/src/reflect/abi_test.go b/src/reflect/abi_test.go
+index d658a0f6d3..998faee0de 100644
+--- a/src/reflect/abi_test.go
++++ b/src/reflect/abi_test.go
+@@ -16,7 +16,116 @@ import (
+ 	"testing/quick"
+ )
+ 
+-func TestReflectValueCallABI(t *testing.T) {
++type MagicLastTypeNameForTestingRegisterABI struct{}
++
++func TestMethodValueCallABI(t *testing.T) {
++	// Enable register-based reflect.Call and ensure we don't
++	// use potentially incorrect cached versions by clearing
++	// the cache before we start and after we're done.
++	var oldRegs struct {
++		ints, floats int
++		floatSize    uintptr
++	}
++	oldRegs.ints = *reflect.IntArgRegs
++	oldRegs.floats = *reflect.FloatArgRegs
++	oldRegs.floatSize = *reflect.FloatRegSize
++	*reflect.IntArgRegs = abi.IntArgRegs
++	*reflect.FloatArgRegs = abi.FloatArgRegs
++	*reflect.FloatRegSize = uintptr(abi.EffectiveFloatRegSize)
++	reflect.ClearLayoutCache()
++	defer func() {
++		*reflect.IntArgRegs = oldRegs.ints
++		*reflect.FloatArgRegs = oldRegs.floats
++		*reflect.FloatRegSize = oldRegs.floatSize
++		reflect.ClearLayoutCache()
++	}()
++
++	// This test is simple. Calling a method value involves
++	// pretty much just plumbing whatever arguments in whichever
++	// location through to reflectcall. They're already set up
++	// for us, so there isn't a whole lot to do. Let's just
++	// make sure that we can pass register and stack arguments
++	// through. The exact combination is not super important.
++	makeMethodValue := func(method string) (*StructWithMethods, interface{}) {
++		s := new(StructWithMethods)
++		v := reflect.ValueOf(s).MethodByName(method)
++		return s, v.Interface()
++	}
++
++	a0 := StructFewRegs{
++		10, 11, 12, 13,
++		20.0, 21.0, 22.0, 23.0,
++	}
++	a1 := [4]uint64{100, 101, 102, 103}
++	a2 := StructFillRegs{
++		1, 2, 3, 4, 5, 6, 7, 8, 9,
++		1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
++	}
++
++	s, i := makeMethodValue("AllRegsCall")
++	f0 := i.(func(StructFewRegs, MagicLastTypeNameForTestingRegisterABI) StructFewRegs)
++	r0 := f0(a0, MagicLastTypeNameForTestingRegisterABI{})
++	if r0 != a0 {
++		t.Errorf("bad method value call: got %#v, want %#v", r0, a0)
++	}
++	if s.Value != 1 {
++		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 1)
++	}
++
++	s, i = makeMethodValue("RegsAndStackCall")
++	f1 := i.(func(StructFewRegs, [4]uint64, MagicLastTypeNameForTestingRegisterABI) (StructFewRegs, [4]uint64))
++	r0, r1 := f1(a0, a1, MagicLastTypeNameForTestingRegisterABI{})
++	if r0 != a0 {
++		t.Errorf("bad method value call: got %#v, want %#v", r0, a0)
++	}
++	if r1 != a1 {
++		t.Errorf("bad method value call: got %#v, want %#v", r1, a1)
++	}
++	if s.Value != 2 {
++		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 2)
++	}
++
++	s, i = makeMethodValue("SpillStructCall")
++	f2 := i.(func(StructFillRegs, MagicLastTypeNameForTestingRegisterABI) StructFillRegs)
++	r2 := f2(a2, MagicLastTypeNameForTestingRegisterABI{})
++	if r2 != a2 {
++		t.Errorf("bad method value call: got %#v, want %#v", r2, a2)
++	}
++	if s.Value != 3 {
++		t.Errorf("bad method value call: failed to set s.Value: got %d, want %d", s.Value, 1)
++	}
++}
++
++type StructWithMethods struct {
++	Value int
++}
++
++type StructFewRegs struct {
++	a0, a1, a2, a3 int
++	f0, f1, f2, f3 float64
++}
++
++type StructFillRegs struct {
++	a0, a1, a2, a3, a4, a5, a6, a7, a8                              int
++	f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14 float64
++}
++
++func (m *StructWithMethods) AllRegsCall(s StructFewRegs, _ MagicLastTypeNameForTestingRegisterABI) StructFewRegs {
++	m.Value = 1
++	return s
++}
++
++func (m *StructWithMethods) RegsAndStackCall(s StructFewRegs, a [4]uint64, _ MagicLastTypeNameForTestingRegisterABI) (StructFewRegs, [4]uint64) {
++	m.Value = 2
++	return s, a
++}
++
++func (m *StructWithMethods) SpillStructCall(s StructFillRegs, _ MagicLastTypeNameForTestingRegisterABI) StructFillRegs {
++	m.Value = 3
++	return s
++}
++
++func TestReflectCallABI(t *testing.T) {
+ 	// Enable register-based reflect.Call and ensure we don't
+ 	// use potentially incorrect cached versions by clearing
+ 	// the cache before we start and after we're done.
+@@ -43,50 +152,7 @@ func TestReflectValueCallABI(t *testing.T) {
+ 	// to return values. The purpose is to test the call boundary
+ 	// and make sure it works.
+ 	r := rand.New(rand.NewSource(genValueRandSeed))
+-	for _, fn := range []interface{}{
+-		passNone,
+-		passInt,
+-		passInt8,
+-		passInt16,
+-		passInt32,
+-		passInt64,
+-		passUint,
+-		passUint8,
+-		passUint16,
+-		passUint32,
+-		passUint64,
+-		passFloat32,
+-		passFloat64,
+-		passComplex64,
+-		passComplex128,
+-		passManyInt,
+-		passManyFloat64,
+-		passArray1,
+-		passArray,
+-		passArray1Mix,
+-		passString,
+-		// TODO(mknyszek): Test passing interface values.
+-		passSlice,
+-		passPointer,
+-		passStruct1,
+-		passStruct2,
+-		passStruct3,
+-		passStruct4,
+-		passStruct5,
+-		passStruct6,
+-		passStruct7,
+-		passStruct8,
+-		passStruct9,
+-		passStruct10,
+-		// TODO(mknyszek): Test passing unsafe.Pointer values.
+-		// TODO(mknyszek): Test passing chan values.
+-		passStruct11,
+-		passStruct12,
+-		passStruct13,
+-		pass2Struct1,
+-		passEmptyStruct,
+-		passStruct10AndSmall,
+-	} {
++	for _, fn := range abiCallTestCases {
+ 		fn := reflect.ValueOf(fn)
+ 		t.Run(runtime.FuncForPC(fn.Pointer()).Name(), func(t *testing.T) {
+ 			typ := fn.Type()
+@@ -106,13 +172,140 @@ func TestReflectValueCallABI(t *testing.T) {
+ 				if reflect.DeepEqual(x, y) {
+ 					continue
+ 				}
+-				t.Errorf("arg and result %d differ: got %+v, want %+v", i, x, y)
++				t.Errorf("arg and result %d differ: got %+v, want %+v", i, y, x)
+ 			}
+ 		})
+ 	}
+ }
+ 
+-// Functions for testing reflect.Value.Call.
++func TestReflectMakeFuncCallABI(t *testing.T) {
++	// Enable register-based reflect.MakeFunc and ensure we don't
++	// use potentially incorrect cached versions by clearing
++	// the cache before we start and after we're done.
++	var oldRegs struct {
++		ints, floats int
++		floatSize    uintptr
++	}
++	oldRegs.ints = *reflect.IntArgRegs
++	oldRegs.floats = *reflect.FloatArgRegs
++	oldRegs.floatSize = *reflect.FloatRegSize
++	*reflect.IntArgRegs = abi.IntArgRegs
++	*reflect.FloatArgRegs = abi.FloatArgRegs
++	*reflect.FloatRegSize = uintptr(abi.EffectiveFloatRegSize)
++	reflect.ClearLayoutCache()
++	defer func() {
++		*reflect.IntArgRegs = oldRegs.ints
++		*reflect.FloatArgRegs = oldRegs.floats
++		*reflect.FloatRegSize = oldRegs.floatSize
++		reflect.ClearLayoutCache()
++	}()
++
++	// Execute the functions defined below which all have the
++	// same form and perform the same function: pass all arguments
++	// to return values. The purpose is to test the call boundary
++	// and make sure it works.
++	r := rand.New(rand.NewSource(genValueRandSeed))
++	makeFuncHandler := func(args []reflect.Value) []reflect.Value {
++		if len(args) == 0 {
++			return []reflect.Value{}
++		}
++		return args[:len(args)-1] // The last Value is an empty magic value.
++	}
++	for _, callFn := range abiMakeFuncTestCases {
++		fnTyp := reflect.TypeOf(callFn).In(0)
++		fn := reflect.MakeFunc(fnTyp, makeFuncHandler)
++		callFn := reflect.ValueOf(callFn)
++		t.Run(runtime.FuncForPC(callFn.Pointer()).Name(), func(t *testing.T) {
++			args := []reflect.Value{fn}
++			for i := 0; i < fnTyp.NumIn()-1; /* last one is magic type */ i++ {
++				args = append(args, genValue(t, fnTyp.In(i), r))
++			}
++			results := callFn.Call(args)
++			for i := range results {
++				x, y := args[i+1].Interface(), results[i].Interface()
++				if reflect.DeepEqual(x, y) {
++					continue
++				}
++				t.Errorf("arg and result %d differ: got %+v, want %+v", i, y, x)
++			}
++		})
++	}
++	t.Run("OnlyPointerInRegisterGC", func(t *testing.T) {
++		// This test attempts to induce a failure wherein
++		// the last pointer to an object is passed via registers.
++		// If makeFuncStub doesn't successfully store the pointer
++		// to a location visible to the GC, the object should be
++		// freed and then the next GC should notice that an object
++		// was inexplicably revived.
++		var f func(b *uint64, _ MagicLastTypeNameForTestingRegisterABI) *uint64
++		mkfn := reflect.MakeFunc(reflect.TypeOf(f), func(args []reflect.Value) []reflect.Value {
++			*(args[0].Interface().(*uint64)) = 5
++			return args[:1]
++		})
++		fn := mkfn.Interface().(func(*uint64, MagicLastTypeNameForTestingRegisterABI) *uint64)
++
++		// Call the MakeFunc'd function while trying pass the only pointer
++		// to a new heap-allocated uint64.
++		*reflect.CallGC = true
++		x := fn(new(uint64), MagicLastTypeNameForTestingRegisterABI{})
++		*reflect.CallGC = false
++
++		// Check for bad pointers (which should be x if things went wrong).
++		runtime.GC()
++
++		// Sanity check x.
++		if *x != 5 {
++			t.Fatalf("failed to set value in object")
++		}
++	})
++}
++
++var abiCallTestCases = []interface{}{
++	passNone,
++	passInt,
++	passInt8,
++	passInt16,
++	passInt32,
++	passInt64,
++	passUint,
++	passUint8,
++	passUint16,
++	passUint32,
++	passUint64,
++	passFloat32,
++	passFloat64,
++	passComplex64,
++	passComplex128,
++	passManyInt,
++	passManyFloat64,
++	passArray1,
++	passArray,
++	passArray1Mix,
++	passString,
++	// TODO(mknyszek): Test passing interface values.
++	passSlice,
++	passPointer,
++	passStruct1,
++	passStruct2,
++	passStruct3,
++	passStruct4,
++	passStruct5,
++	passStruct6,
++	passStruct7,
++	passStruct8,
++	passStruct9,
++	passStruct10,
++	// TODO(mknyszek): Test passing unsafe.Pointer values.
++	// TODO(mknyszek): Test passing chan values.
++	passStruct11,
++	passStruct12,
++	passStruct13,
++	pass2Struct1,
++	passEmptyStruct,
++	passStruct10AndSmall,
++}
++
++// Functions for testing reflect function call functionality.
+ 
+ //go:registerparams
+ //go:noinline
+@@ -348,6 +541,278 @@ func passStruct10AndSmall(a Struct10, b byte, c uint) (Struct10, byte, uint) {
+ 	return a, b, c
+ }
+ 
++var abiMakeFuncTestCases = []interface{}{
++	callArgsNone,
++	callArgsInt,
++	callArgsInt8,
++	callArgsInt16,
++	callArgsInt32,
++	callArgsInt64,
++	callArgsUint,
++	callArgsUint8,
++	callArgsUint16,
++	callArgsUint32,
++	callArgsUint64,
++	callArgsFloat32,
++	callArgsFloat64,
++	callArgsComplex64,
++	callArgsComplex128,
++	callArgsManyInt,
++	callArgsManyFloat64,
++	callArgsArray1,
++	callArgsArray,
++	callArgsArray1Mix,
++	callArgsString,
++	// TODO(mknyszek): Test callArgsing interface values.
++	callArgsSlice,
++	callArgsPointer,
++	callArgsStruct1,
++	callArgsStruct2,
++	callArgsStruct3,
++	callArgsStruct4,
++	callArgsStruct5,
++	callArgsStruct6,
++	callArgsStruct7,
++	callArgsStruct8,
++	callArgsStruct9,
++	callArgsStruct10,
++	// TODO(mknyszek): Test callArgsing unsafe.Pointer values.
++	// TODO(mknyszek): Test callArgsing chan values.
++	callArgsStruct11,
++	callArgsStruct12,
++	callArgsStruct13,
++	callArgs2Struct1,
++	callArgsEmptyStruct,
++}
++
++//go:registerparams
++//go:noinline
++func callArgsNone(f func(MagicLastTypeNameForTestingRegisterABI)) {
++	f(MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsInt(f func(int, MagicLastTypeNameForTestingRegisterABI) int, a0 int) int {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsInt8(f func(int8, MagicLastTypeNameForTestingRegisterABI) int8, a0 int8) int8 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsInt16(f func(int16, MagicLastTypeNameForTestingRegisterABI) int16, a0 int16) int16 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsInt32(f func(int32, MagicLastTypeNameForTestingRegisterABI) int32, a0 int32) int32 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsInt64(f func(int64, MagicLastTypeNameForTestingRegisterABI) int64, a0 int64) int64 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsUint(f func(uint, MagicLastTypeNameForTestingRegisterABI) uint, a0 uint) uint {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsUint8(f func(uint8, MagicLastTypeNameForTestingRegisterABI) uint8, a0 uint8) uint8 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsUint16(f func(uint16, MagicLastTypeNameForTestingRegisterABI) uint16, a0 uint16) uint16 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsUint32(f func(uint32, MagicLastTypeNameForTestingRegisterABI) uint32, a0 uint32) uint32 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsUint64(f func(uint64, MagicLastTypeNameForTestingRegisterABI) uint64, a0 uint64) uint64 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsFloat32(f func(float32, MagicLastTypeNameForTestingRegisterABI) float32, a0 float32) float32 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsFloat64(f func(float64, MagicLastTypeNameForTestingRegisterABI) float64, a0 float64) float64 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsComplex64(f func(complex64, MagicLastTypeNameForTestingRegisterABI) complex64, a0 complex64) complex64 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsComplex128(f func(complex128, MagicLastTypeNameForTestingRegisterABI) complex128, a0 complex128) complex128 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsArray1(f func([1]uint32, MagicLastTypeNameForTestingRegisterABI) [1]uint32, a0 [1]uint32) [1]uint32 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsArray(f func([2]uintptr, MagicLastTypeNameForTestingRegisterABI) [2]uintptr, a0 [2]uintptr) [2]uintptr {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsArray1Mix(f func(int, [1]uint32, float64, MagicLastTypeNameForTestingRegisterABI) (int, [1]uint32, float64), a0 int, a1 [1]uint32, a2 float64) (int, [1]uint32, float64) {
++	return f(a0, a1, a2, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsString(f func(string, MagicLastTypeNameForTestingRegisterABI) string, a0 string) string {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsSlice(f func([]byte, MagicLastTypeNameForTestingRegisterABI) []byte, a0 []byte) []byte {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsPointer(f func(*byte, MagicLastTypeNameForTestingRegisterABI) *byte, a0 *byte) *byte {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsManyInt(f func(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9 int, x MagicLastTypeNameForTestingRegisterABI) (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9 int), a0, a1, a2, a3, a4, a5, a6, a7, a8, a9 int) (int, int, int, int, int, int, int, int, int, int) {
++	return f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsManyFloat64(f func(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 float64, x MagicLastTypeNameForTestingRegisterABI) (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18 float64), a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 float64) (r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18 float64) {
++	return f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct1(f func(Struct1, MagicLastTypeNameForTestingRegisterABI) Struct1, a0 Struct1) Struct1 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct2(f func(Struct2, MagicLastTypeNameForTestingRegisterABI) Struct2, a0 Struct2) Struct2 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct3(f func(Struct3, MagicLastTypeNameForTestingRegisterABI) Struct3, a0 Struct3) Struct3 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct4(f func(Struct4, MagicLastTypeNameForTestingRegisterABI) Struct4, a0 Struct4) Struct4 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct5(f func(Struct5, MagicLastTypeNameForTestingRegisterABI) Struct5, a0 Struct5) Struct5 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct6(f func(Struct6, MagicLastTypeNameForTestingRegisterABI) Struct6, a0 Struct6) Struct6 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct7(f func(Struct7, MagicLastTypeNameForTestingRegisterABI) Struct7, a0 Struct7) Struct7 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct8(f func(Struct8, MagicLastTypeNameForTestingRegisterABI) Struct8, a0 Struct8) Struct8 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct9(f func(Struct9, MagicLastTypeNameForTestingRegisterABI) Struct9, a0 Struct9) Struct9 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct10(f func(Struct10, MagicLastTypeNameForTestingRegisterABI) Struct10, a0 Struct10) Struct10 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct11(f func(Struct11, MagicLastTypeNameForTestingRegisterABI) Struct11, a0 Struct11) Struct11 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct12(f func(Struct12, MagicLastTypeNameForTestingRegisterABI) Struct12, a0 Struct12) Struct12 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct13(f func(Struct13, MagicLastTypeNameForTestingRegisterABI) Struct13, a0 Struct13) Struct13 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgs2Struct1(f func(Struct1, Struct1, MagicLastTypeNameForTestingRegisterABI) (Struct1, Struct1), a0, a1 Struct1) (r0, r1 Struct1) {
++	return f(a0, a1, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsEmptyStruct(f func(int, struct{}, float64, MagicLastTypeNameForTestingRegisterABI) (int, struct{}, float64), a0 int, a1 struct{}, a2 float64) (int, struct{}, float64) {
++	return f(a0, a1, a2, MagicLastTypeNameForTestingRegisterABI{})
++}
++
+ // Struct1 is a simple integer-only aggregate struct.
+ type Struct1 struct {
+ 	A, B, C uint
+diff --git a/src/reflect/asm_386.s b/src/reflect/asm_386.s
+index e79beb6dc9..5bedea5807 100644
+--- a/src/reflect/asm_386.s
++++ b/src/reflect/asm_386.s
+@@ -9,14 +9,15 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$20
+ 	NO_LOCAL_POINTERS
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
+-	MOVB	$0, 12(SP)
+-	LEAL	12(SP), AX
++	MOVB	$0, 16(SP)
++	LEAL	16(SP), AX
+ 	MOVL	AX, 8(SP)
++	MOVL	$0, 12(SP)
+ 	CALL	·callReflect(SB)
+ 	RET
+ 
+@@ -24,13 +25,14 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$20
+ 	NO_LOCAL_POINTERS
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
+-	MOVB	$0, 12(SP)
+-	LEAL	12(SP), AX
++	MOVB	$0, 16(SP)
++	LEAL	16(SP), AX
+ 	MOVL	AX, 8(SP)
++	MOVL	$0, 12(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_amd64.s b/src/reflect/asm_amd64.s
+index 5c8e56558c..29693042b6 100644
+--- a/src/reflect/asm_amd64.s
++++ b/src/reflect/asm_amd64.s
+@@ -4,6 +4,21 @@
+ 
+ #include "textflag.h"
+ #include "funcdata.h"
++#include "go_asm.h"
++
++// The frames of each of the two functions below contain two locals, at offsets
++// that are known to the runtime.
++//
++// The first local is a bool called retValid with a whole pointer-word reserved
++// for it on the stack. The purpose of this word is so that the runtime knows
++// whether the stack-allocated return space contains valid values for stack
++// scanning.
++//
++// The second local is an abi.RegArgs value whose offset is also known to the
++// runtime, so that a stack map for it can be constructed, since it contains
++// pointers visible to the GC.
++#define LOCAL_RETVALID 32
++#define LOCAL_REGARGS 40
+ 
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+@@ -11,15 +26,26 @@
+ // No arg size here; runtime pulls arg map out of the func value.
+ // makeFuncStub must be ABIInternal because it is placed directly
+ // in function values.
+-TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$32
++// This frame contains two locals. See the comment above LOCAL_RETVALID.
++TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
+ 	NO_LOCAL_POINTERS
++	// NO_LOCAL_POINTERS is a lie. The stack map for the two locals in this
++	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
++	LEAQ	LOCAL_REGARGS(SP), R12
++	CALL	runtime·spillArgs<ABIInternal>(SB)
+ 	MOVQ	DX, 0(SP)
++	MOVQ	R12, 8(SP)
++	CALL	·moveMakeFuncArgPtrs(SB)
+ 	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
+-	MOVB	$0, 24(SP)
+-	LEAQ	24(SP), AX
++	MOVB	$0, LOCAL_RETVALID(SP)
++	LEAQ	LOCAL_RETVALID(SP), AX
+ 	MOVQ	AX, 16(SP)
++	LEAQ	LOCAL_REGARGS(SP), AX
++	MOVQ	AX, 24(SP)
+ 	CALL	·callReflect<ABIInternal>(SB)
++	LEAQ	LOCAL_REGARGS(SP), R12
++	CALL	runtime·unspillArgs<ABIInternal>(SB)
+ 	RET
+ 
+ // methodValueCall is the code half of the function returned by makeMethodValue.
+@@ -28,13 +54,24 @@ TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$32
+ // No arg size here; runtime pulls arg map out of the func value.
+ // methodValueCall must be ABIInternal because it is placed directly
+ // in function values.
+-TEXT ·methodValueCall<ABIInternal>(SB),(NOSPLIT|WRAPPER),$32
++// This frame contains two locals. See the comment above LOCAL_RETVALID.
++TEXT ·methodValueCall<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
+ 	NO_LOCAL_POINTERS
++	// NO_LOCAL_POINTERS is a lie. The stack map for the two locals in this
++	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
++	LEAQ	LOCAL_REGARGS(SP), R12
++	CALL	runtime·spillArgs<ABIInternal>(SB)
+ 	MOVQ	DX, 0(SP)
++	MOVQ	R12, 8(SP)
++	CALL	·moveMakeFuncArgPtrs(SB)
+ 	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
+-	MOVB	$0, 24(SP)
+-	LEAQ	24(SP), AX
++	MOVB	$0, LOCAL_RETVALID(SP)
++	LEAQ	LOCAL_RETVALID(SP), AX
+ 	MOVQ	AX, 16(SP)
++	LEAQ	LOCAL_REGARGS(SP), AX
++	MOVQ	AX, 24(SP)
+ 	CALL	·callMethod<ABIInternal>(SB)
++	LEAQ	LOCAL_REGARGS(SP), R12
++	CALL	runtime·unspillArgs<ABIInternal>(SB)
+ 	RET
+diff --git a/src/reflect/asm_arm.s b/src/reflect/asm_arm.s
+index cd50d33918..057c941f59 100644
+--- a/src/reflect/asm_arm.s
++++ b/src/reflect/asm_arm.s
+@@ -9,15 +9,17 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$20
+ 	NO_LOCAL_POINTERS
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
+ 	MOVW	$0, R1
+-	MOVB	R1, 16(R13)
+-	ADD	$16, R13, R1
++	MOVB	R1, 20(R13)
++	ADD	$20, R13, R1
+ 	MOVW	R1, 12(R13)
++	MOVW	$0, R1
++	MOVW	R1, 16(R13)
+ 	BL	·callReflect(SB)
+ 	RET
+ 
+@@ -25,14 +27,16 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$20
+ 	NO_LOCAL_POINTERS
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
+ 	MOVW	$0, R1
+-	MOVB	R1, 16(R13)
+-	ADD	$16, R13, R1
++	MOVB	R1, 20(R13)
++	ADD	$20, R13, R1
+ 	MOVW	R1, 12(R13)
++	MOVW	$0, R1
++	MOVW	R1, 16(R13)
+ 	BL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_arm64.s b/src/reflect/asm_arm64.s
+index 28bb86c2a4..5fe88e27e4 100644
+--- a/src/reflect/asm_arm64.s
++++ b/src/reflect/asm_arm64.s
+@@ -14,9 +14,10 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
+ 	MOVD	R26, 8(RSP)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(RSP)
+-	MOVB	$0, 32(RSP)
+-	ADD	$32, RSP, R3
++	MOVB	$0, 40(RSP)
++	ADD	$40, RSP, R3
+ 	MOVD	R3, 24(RSP)
++	MOVD	$0, 32(RSP)
+ 	BL	·callReflect(SB)
+ 	RET
+ 
+@@ -29,8 +30,9 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
+ 	MOVD	R26, 8(RSP)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(RSP)
+-	MOVB	$0, 32(RSP)
+-	ADD	$32, RSP, R3
++	MOVB	$0, 40(RSP)
++	ADD	$40, RSP, R3
+ 	MOVD	R3, 24(RSP)
++	MOVD	$0, 32(RSP)
+ 	BL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_mips64x.s b/src/reflect/asm_mips64x.s
+index 6f76685567..0a660a5a60 100644
+--- a/src/reflect/asm_mips64x.s
++++ b/src/reflect/asm_mips64x.s
+@@ -13,14 +13,15 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOVV	REGCTXT, 8(R29)
+ 	MOVV	$argframe+0(FP), R1
+ 	MOVV	R1, 16(R29)
+-	MOVB	R0, 32(R29)
+-	ADDV	$32, R29, R1
++	MOVB	R0, 40(R29)
++	ADDV	$40, R29, R1
+ 	MOVV	R1, 24(R29)
++	MOVV	R0, 32(R29)
+ 	JAL	·callReflect(SB)
+ 	RET
+ 
+@@ -33,8 +34,9 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+ 	MOVV	REGCTXT, 8(R29)
+ 	MOVV	$argframe+0(FP), R1
+ 	MOVV	R1, 16(R29)
+-	MOVB	R0, 32(R29)
+-	ADDV	$32, R29, R1
++	MOVB	R0, 40(R29)
++	ADDV	$40, R29, R1
+ 	MOVV	R1, 24(R29)
++	MOVV	R0, 32(R29)
+ 	JAL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_mipsx.s b/src/reflect/asm_mipsx.s
+index 5a5c53ef9f..47fef844a1 100644
+--- a/src/reflect/asm_mipsx.s
++++ b/src/reflect/asm_mipsx.s
+@@ -13,14 +13,15 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$20
+ 	NO_LOCAL_POINTERS
+ 	MOVW	REGCTXT, 4(R29)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R29)
+-	MOVB	R0, 16(R29)
+-	ADD	$16, R29, R1
++	MOVB	R0, 20(R29)
++	ADD	$20, R29, R1
+ 	MOVW	R1, 12(R29)
++	MOVW	R0, 16(R29)
+ 	JAL	·callReflect(SB)
+ 	RET
+ 
+@@ -28,13 +29,14 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$20
+ 	NO_LOCAL_POINTERS
+ 	MOVW	REGCTXT, 4(R29)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R29)
+-	MOVB	R0, 16(R29)
+-	ADD	$16, R29, R1
++	MOVB	R0, 20(R29)
++	ADD	$20, R29, R1
+ 	MOVW	R1, 12(R29)
++	MOVW	R0, 16(R29)
+ 	JAL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_ppc64x.s b/src/reflect/asm_ppc64x.s
+index 4609f6bb75..010811c31a 100644
+--- a/src/reflect/asm_ppc64x.s
++++ b/src/reflect/asm_ppc64x.s
+@@ -12,14 +12,15 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R11, FIXED_FRAME+0(R1)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, FIXED_FRAME+8(R1)
+-	MOVB	R0, FIXED_FRAME+24(R1)
+-	ADD	$FIXED_FRAME+24, R1, R3
++	MOVB	R0, FIXED_FRAME+32(R1)
++	ADD	$FIXED_FRAME+32, R1, R3
+ 	MOVD	R3, FIXED_FRAME+16(R1)
++	MOVD	R0, FIXED_FRAME+24(R1)
+ 	BL	·callReflect(SB)
+ 	RET
+ 
+@@ -27,13 +28,14 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R11, FIXED_FRAME+0(R1)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, FIXED_FRAME+8(R1)
+-	MOVB	R0, FIXED_FRAME+24(R1)
+-	ADD	$FIXED_FRAME+24, R1, R3
++	MOVB	R0, FIXED_FRAME+32(R1)
++	ADD	$FIXED_FRAME+32, R1, R3
+ 	MOVD	R3, FIXED_FRAME+16(R1)
++	MOVD	R0, FIXED_FRAME+24(R1)
+ 	BL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_riscv64.s b/src/reflect/asm_riscv64.s
+index e6fab39874..e707112277 100644
+--- a/src/reflect/asm_riscv64.s
++++ b/src/reflect/asm_riscv64.s
+@@ -9,14 +9,15 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOV	CTXT, 8(SP)
+ 	MOV	$argframe+0(FP), T0
+ 	MOV	T0, 16(SP)
+-	ADD	$32, SP, T1
++	ADD	$40, SP, T1
+ 	MOV	T1, 24(SP)
+-	MOVB	ZERO, 32(SP)
++	MOV	ZERO, 32(SP)
++	MOVB	ZERO, 40(SP)
+ 	CALL	·callReflect(SB)
+ 	RET
+ 
+@@ -24,13 +25,14 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOV	CTXT, 8(SP)
+ 	MOV	$argframe+0(FP), T0
+ 	MOV	T0, 16(SP)
+-	ADD	$32, SP, T1
++	ADD	$40, SP, T1
+ 	MOV	T1, 24(SP)
+-	MOVB	ZERO, 32(SP)
++	MOV	ZERO, 32(SP)
++	MOVB	ZERO, 40(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_s390x.s b/src/reflect/asm_s390x.s
+index cb7954c900..4bd6613004 100644
+--- a/src/reflect/asm_s390x.s
++++ b/src/reflect/asm_s390x.s
+@@ -9,14 +9,15 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R12, 8(R15)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(R15)
+-	MOVB	$0, 32(R15)
+-	ADD	$32, R15, R3
++	MOVB	$0, 40(R15)
++	ADD	$40, R15, R3
+ 	MOVD	R3, 24(R15)
++	MOVD	$0, 32(R15)
+ 	BL	·callReflect(SB)
+ 	RET
+ 
+@@ -24,13 +25,14 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R12, 8(R15)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(R15)
+-	MOVB	$0, 32(R15)
+-	ADD	$32, R15, R3
++	MOVB	$0, 40(R15)
++	ADD	$40, R15, R3
+ 	MOVD	R3, 24(R15)
++	MOVD	$0, 32(R15)
+ 	BL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_wasm.s b/src/reflect/asm_wasm.s
+index 63b4d94fca..71abe6700e 100644
+--- a/src/reflect/asm_wasm.s
++++ b/src/reflect/asm_wasm.s
+@@ -9,7 +9,7 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 
+ 	MOVD CTXT, 0(SP)
+@@ -21,8 +21,9 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ 	I64Add
+ 	I64Store $8
+ 
+-	MOVB $0, 24(SP)
+-	MOVD $24(SP), 16(SP)
++	MOVB $0, 32(SP)
++	MOVD $32(SP), 16(SP)
++	MOVD $0, 24(SP)
+ 
+ 	CALL ·callReflect(SB)
+ 	RET
+@@ -31,7 +32,7 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 
+ 	MOVD CTXT, 0(SP)
+@@ -43,8 +44,9 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+ 	I64Add
+ 	I64Store $8
+ 
+-	MOVB $0, 24(SP)
+-	MOVD $24(SP), 16(SP)
++	MOVB $0, 32(SP)
++	MOVD $32(SP), 16(SP)
++	MOVD $0, 24(SP)
+ 
+ 	CALL ·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/makefunc.go b/src/reflect/makefunc.go
+index e17d4ea758..d53e68a359 100644
+--- a/src/reflect/makefunc.go
++++ b/src/reflect/makefunc.go
+@@ -7,6 +7,7 @@
+ package reflect
+ 
+ import (
++	"internal/abi"
+ 	"unsafe"
+ )
+ 
+@@ -16,11 +17,9 @@ import (
+ // methodValue and runtime.reflectMethodValue.
+ // Any changes should be reflected in all three.
+ type makeFuncImpl struct {
+-	code   uintptr
+-	stack  *bitVector // ptrmap for both args and results
+-	argLen uintptr    // just args
+-	ftyp   *funcType
+-	fn     func([]Value) []Value
++	makeFuncCtxt
++	ftyp *funcType
++	fn   func([]Value) []Value
+ }
+ 
+ // MakeFunc returns a new function of the given Type
+@@ -62,7 +61,16 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ 	// makeFuncImpl contains a stack map for use by the runtime
+ 	_, _, abi := funcLayout(ftyp, nil)
+ 
+-	impl := &makeFuncImpl{code: code, stack: abi.stackPtrs, argLen: abi.stackCallArgsSize, ftyp: ftyp, fn: fn}
++	impl := &makeFuncImpl{
++		makeFuncCtxt: makeFuncCtxt{
++			fn:      code,
++			stack:   abi.stackPtrs,
++			argLen:  abi.stackCallArgsSize,
++			regPtrs: abi.inRegPtrs,
++		},
++		ftyp: ftyp,
++		fn:   fn,
++	}
+ 
+ 	return Value{t, unsafe.Pointer(impl), flag(Func)}
+ }
+@@ -78,9 +86,7 @@ func makeFuncStub()
+ // makeFuncImpl and runtime.reflectMethodValue.
+ // Any changes should be reflected in all three.
+ type methodValue struct {
+-	fn     uintptr
+-	stack  *bitVector // ptrmap for both args and results
+-	argLen uintptr    // just args
++	makeFuncCtxt
+ 	method int
+ 	rcvr   Value
+ }
+@@ -113,11 +119,13 @@ func makeMethodValue(op string, v Value) Value {
+ 
+ 	// methodValue contains a stack map for use by the runtime
+ 	_, _, abi := funcLayout(ftyp, nil)
+-
+ 	fv := &methodValue{
+-		fn:     code,
+-		stack:  abi.stackPtrs,
+-		argLen: abi.stackCallArgsSize,
++		makeFuncCtxt: makeFuncCtxt{
++			fn:      code,
++			stack:   abi.stackPtrs,
++			argLen:  abi.stackCallArgsSize,
++			regPtrs: abi.inRegPtrs,
++		},
+ 		method: int(v.flag) >> flagMethodShift,
+ 		rcvr:   rcvr,
+ 	}
+@@ -136,3 +144,37 @@ func makeMethodValue(op string, v Value) Value {
+ // where ctxt is the context register and frame is a pointer to the first
+ // word in the passed-in argument frame.
+ func methodValueCall()
++
++// This structure must be kept in sync with runtime.reflectMethodValue.
++// Any changes should be reflected in all both.
++type makeFuncCtxt struct {
++	fn      uintptr
++	stack   *bitVector // ptrmap for both stack args and results
++	argLen  uintptr    // just args
++	regPtrs abi.IntArgRegBitmap
++}
++
++// moveMakeFuncArgPtrs uses ctxt.regPtrs to copy integer pointer arguments
++// in args.Ints to args.Ptrs where the GC can see them.
++//
++// This is similar to what reflectcallmove does in the runtime, except
++// that happens on the return path, whereas this happens on the call path.
++//
++// nosplit because pointers are being held in uintptr slots in args, so
++// having our stack scanned now could lead to accidentally freeing
++// memory.
++//go:nosplit
++func moveMakeFuncArgPtrs(ctxt *makeFuncCtxt, args *abi.RegArgs) {
++	for i, arg := range args.Ints {
++		// Avoid write barriers! Because our write barrier enqueues what
++		// was there before, we might enqueue garbage.
++		if ctxt.regPtrs.Get(i) {
++			*(*uintptr)(unsafe.Pointer(&args.Ptrs[i])) = arg
++		} else {
++			// We *must* zero this space ourselves because it's defined in
++			// assembly code and the GC will scan these pointers. Otherwise,
++			// there will be garbage here.
++			*(*uintptr)(unsafe.Pointer(&args.Ptrs[i])) = 0
++		}
++	}
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 52639d5aad..8afb1cc141 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -647,32 +647,81 @@ func (v Value) call(op string, in []Value) []Value {
+ // frame is a pointer to the arguments to that closure on the stack.
+ // retValid points to a boolean which should be set when the results
+ // section of frame is set.
+-func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
++//
++// regs contains the argument values passed in registers and will contain
++// the values returned from ctxt.fn in registers.
++func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs *abi.RegArgs) {
++	if callGC {
++		// Call GC upon entry during testing.
++		// Getting our stack scanned here is the biggest hazard, because
++		// our caller (makeFuncStub) could have failed to place the last
++		// pointer to a value in regs' pointer space, in which case it
++		// won't be visible to the GC.
++		runtime.GC()
++	}
+ 	ftyp := ctxt.ftyp
+ 	f := ctxt.fn
+ 
+-	// Copy argument frame into Values.
++	_, _, abi := funcLayout(ftyp, nil)
++
++	// Copy arguments into Values.
+ 	ptr := frame
+-	off := uintptr(0)
+ 	in := make([]Value, 0, int(ftyp.inCount))
+-	for _, typ := range ftyp.in() {
+-		off += -off & uintptr(typ.align-1)
++	for i, typ := range ftyp.in() {
++		if typ.Size() == 0 {
++			in = append(in, Zero(typ))
++			continue
++		}
+ 		v := Value{typ, nil, flag(typ.Kind())}
+-		if ifaceIndir(typ) {
+-			// value cannot be inlined in interface data.
+-			// Must make a copy, because f might keep a reference to it,
+-			// and we cannot let f keep a reference to the stack frame
+-			// after this function returns, not even a read-only reference.
+-			v.ptr = unsafe_New(typ)
+-			if typ.size > 0 {
+-				typedmemmove(typ, v.ptr, add(ptr, off, "typ.size > 0"))
++		steps := abi.call.stepsForValue(i)
++		if st := steps[0]; st.kind == abiStepStack {
++			if ifaceIndir(typ) {
++				// value cannot be inlined in interface data.
++				// Must make a copy, because f might keep a reference to it,
++				// and we cannot let f keep a reference to the stack frame
++				// after this function returns, not even a read-only reference.
++				v.ptr = unsafe_New(typ)
++				if typ.size > 0 {
++					typedmemmove(typ, v.ptr, add(ptr, st.stkOff, "typ.size > 0"))
++				}
++				v.flag |= flagIndir
++			} else {
++				v.ptr = *(*unsafe.Pointer)(add(ptr, st.stkOff, "1-ptr"))
+ 			}
+-			v.flag |= flagIndir
+ 		} else {
+-			v.ptr = *(*unsafe.Pointer)(add(ptr, off, "1-ptr"))
++			if ifaceIndir(typ) {
++				// All that's left is values passed in registers that we need to
++				// create space for the values.
++				v.flag |= flagIndir
++				v.ptr = unsafe_New(typ)
++				for _, st := range steps {
++					switch st.kind {
++					case abiStepIntReg:
++						offset := add(v.ptr, st.offset, "precomputed value offset")
++						memmove(offset, unsafe.Pointer(&regs.Ints[st.ireg]), st.size)
++					case abiStepPointer:
++						s := add(v.ptr, st.offset, "precomputed value offset")
++						*((*unsafe.Pointer)(s)) = regs.Ptrs[st.ireg]
++					case abiStepFloatReg:
++						offset := add(v.ptr, st.offset, "precomputed value offset")
++						memmove(offset, unsafe.Pointer(&regs.Floats[st.freg]), st.size)
++					case abiStepStack:
++						panic("register-based return value has stack component")
++					default:
++						panic("unknown ABI part kind")
++					}
++				}
++			} else {
++				// Pointer-valued data gets put directly
++				// into v.ptr.
++				if steps[0].kind != abiStepPointer {
++					print("kind=", steps[0].kind, ", type=", typ.String(), "\n")
++					panic("mismatch between ABI description and types")
++				}
++				v.ptr = regs.Ptrs[steps[0].ireg]
++			}
+ 		}
+ 		in = append(in, v)
+-		off += typ.size
+ 	}
+ 
+ 	// Call underlying function.
+@@ -682,9 +731,8 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
+ 		panic("reflect: wrong return count from function created by MakeFunc")
+ 	}
+ 
+-	// Copy results back into argument frame.
++	// Copy results back into argument frame and register space.
+ 	if numOut > 0 {
+-		off += -off & (ptrSize - 1)
+ 		for i, typ := range ftyp.out() {
+ 			v := out[i]
+ 			if v.typ == nil {
+@@ -695,31 +743,67 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
+ 				panic("reflect: function created by MakeFunc using " + funcName(f) +
+ 					" returned value obtained from unexported field")
+ 			}
+-			off += -off & uintptr(typ.align-1)
+ 			if typ.size == 0 {
+ 				continue
+ 			}
+-			addr := add(ptr, off, "typ.size > 0")
+ 
+ 			// Convert v to type typ if v is assignable to a variable
+ 			// of type t in the language spec.
+ 			// See issue 28761.
+-			if typ.Kind() == Interface {
+-				// We must clear the destination before calling assignTo,
+-				// in case assignTo writes (with memory barriers) to the
+-				// target location used as scratch space. See issue 39541.
+-				*(*uintptr)(addr) = 0
+-				*(*uintptr)(add(addr, ptrSize, "typ.size == 2*ptrSize")) = 0
+-			}
+-			v = v.assignTo("reflect.MakeFunc", typ, addr)
+-
+-			// We are writing to stack. No write barrier.
+-			if v.flag&flagIndir != 0 {
+-				memmove(addr, v.ptr, typ.size)
+-			} else {
+-				*(*uintptr)(addr) = uintptr(v.ptr)
++			//
++			//
++			// TODO(mknyszek): In the switch to the register ABI we lost
++			// the scratch space here for the register cases (and
++			// temporarily for all the cases).
++			//
++			// If/when this happens, take note of the following:
++			//
++			// We must clear the destination before calling assignTo,
++			// in case assignTo writes (with memory barriers) to the
++			// target location used as scratch space. See issue 39541.
++			v = v.assignTo("reflect.MakeFunc", typ, nil)
++		stepsLoop:
++			for _, st := range abi.ret.stepsForValue(i) {
++				switch st.kind {
++				case abiStepStack:
++					// Copy values to the "stack."
++					addr := add(ptr, st.stkOff, "precomputed stack arg offset")
++					// Do not use write barriers. The stack space used
++					// for this call is not adequately zeroed, and we
++					// are careful to keep the arguments alive until we
++					// return to makeFuncStub's caller.
++					if v.flag&flagIndir != 0 {
++						memmove(addr, v.ptr, st.size)
++					} else {
++						// This case must be a pointer type.
++						*(*uintptr)(addr) = uintptr(v.ptr)
++					}
++					// There's only one step for a stack-allocated value.
++					break stepsLoop
++				case abiStepIntReg, abiStepPointer:
++					// Copy values to "integer registers."
++					if v.flag&flagIndir != 0 {
++						offset := add(v.ptr, st.offset, "precomputed value offset")
++						memmove(unsafe.Pointer(&regs.Ints[st.ireg]), offset, st.size)
++					} else {
++						// Only populate the Ints space on the return path.
++						// This is safe because out is kept alive until the
++						// end of this function, and the return path through
++						// makeFuncStub has no preemption, so these pointers
++						// are always visible to the GC.
++						regs.Ints[st.ireg] = uintptr(v.ptr)
++					}
++				case abiStepFloatReg:
++					// Copy values to "float registers."
++					if v.flag&flagIndir == 0 {
++						panic("attempted to copy pointer to FP register")
++					}
++					offset := add(v.ptr, st.offset, "precomputed value offset")
++					memmove(unsafe.Pointer(&regs.Floats[st.freg]), offset, st.size)
++				default:
++					panic("unknown ABI part kind")
++				}
+ 			}
+-			off += typ.size
+ 		}
+ 	}
+ 
+@@ -820,51 +904,147 @@ func align(x, n uintptr) uintptr {
+ // frame is a pointer to the arguments to that closure on the stack.
+ // retValid points to a boolean which should be set when the results
+ // section of frame is set.
+-func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
++//
++// regs contains the argument values passed in registers and will contain
++// the values returned from ctxt.fn in registers.
++func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *abi.RegArgs) {
+ 	rcvr := ctxt.rcvr
+-	rcvrtype, t, fn := methodReceiver("call", rcvr, ctxt.method)
+-	frametype, framePool, abid := funcLayout(t, rcvrtype)
+-	argSize, retOffset := abid.stackCallArgsSize, abid.retOffset
++	rcvrType, valueFuncType, methodFn := methodReceiver("call", rcvr, ctxt.method)
++
++	// There are two ABIs at play here.
++	//
++	// methodValueCall was invoked with the ABI assuming there was no
++	// receiver ("value ABI") and that's what frame and regs are holding.
++	//
++	// Meanwhile, we need to actually call the method with a receiver, which
++	// has its own ABI ("method ABI"). Everything that follows is a translation
++	// between the two.
++	_, _, valueABI := funcLayout(valueFuncType, nil)
++	valueFrame, valueRegs := frame, regs
++	methodFrameType, methodFramePool, methodABI := funcLayout(valueFuncType, rcvrType)
+ 
+ 	// Make a new frame that is one word bigger so we can store the receiver.
+ 	// This space is used for both arguments and return values.
+-	scratch := framePool.Get().(unsafe.Pointer)
+-
+-	// Copy in receiver and rest of args.
+-	storeRcvr(rcvr, scratch)
+-	// Align the first arg. The alignment can't be larger than ptrSize.
+-	argOffset := uintptr(ptrSize)
+-	if len(t.in()) > 0 {
+-		argOffset = align(argOffset, uintptr(t.in()[0].align))
++	methodFrame := methodFramePool.Get().(unsafe.Pointer)
++	var methodRegs abi.RegArgs
++
++	// Deal with the receiver. It's guaranteed to only be one word in size.
++	if st := methodABI.call.steps[0]; st.kind == abiStepStack {
++		// Only copy the reciever to the stack if the ABI says so.
++		// Otherwise, it'll be in a register already.
++		storeRcvr(rcvr, methodFrame)
++	} else {
++		// Put the receiver in a register.
++		storeRcvr(rcvr, unsafe.Pointer(&methodRegs.Ints))
+ 	}
+-	// Avoid constructing out-of-bounds pointers if there are no args.
+-	if argSize-argOffset > 0 {
+-		typedmemmovepartial(frametype, add(scratch, argOffset, "argSize > argOffset"), frame, argOffset, argSize-argOffset)
++
++	// Translate the rest of the arguments.
++	for i, t := range valueFuncType.in() {
++		valueSteps := valueABI.call.stepsForValue(i)
++		methodSteps := methodABI.call.stepsForValue(i + 1)
++
++		// Zero-sized types are trivial: nothing to do.
++		if len(valueSteps) == 0 {
++			if len(methodSteps) != 0 {
++				panic("method ABI and value ABI do not align")
++			}
++			continue
++		}
++
++		// There are three cases to handle in translating each
++		// argument:
++		// 1. Stack -> stack translation.
++		// 2. Registers -> stack translation.
++		// 3. Registers -> registers translation.
++		// The fourth cases can't happen, because a method value
++		// call uses strictly fewer registers than a method call.
++
++		// If the value ABI passes the value on the stack,
++		// then the method ABI does too, because it has strictly
++		// fewer arguments. Simply copy between the two.
++		if vStep := valueSteps[0]; vStep.kind == abiStepStack {
++			mStep := methodSteps[0]
++			if mStep.kind != abiStepStack || vStep.size != mStep.size {
++				panic("method ABI and value ABI do not align")
++			}
++			typedmemmove(t,
++				add(methodFrame, mStep.stkOff, "precomputed stack offset"),
++				add(valueFrame, vStep.stkOff, "precomputed stack offset"))
++			continue
++		}
++		// Handle register -> stack translation.
++		if mStep := methodSteps[0]; mStep.kind == abiStepStack {
++			for _, vStep := range valueSteps {
++				to := add(methodFrame, mStep.stkOff+vStep.offset, "precomputed stack offset")
++				switch vStep.kind {
++				case abiStepPointer:
++					// Do the pointer copy directly so we get a write barrier.
++					*(*unsafe.Pointer)(to) = valueRegs.Ptrs[vStep.ireg]
++				case abiStepIntReg:
++					memmove(to, unsafe.Pointer(&valueRegs.Ints[vStep.ireg]), vStep.size)
++				case abiStepFloatReg:
++					memmove(to, unsafe.Pointer(&valueRegs.Floats[vStep.freg]), vStep.size)
++				default:
++					panic("unexpected value step")
++				}
++			}
++			continue
++		}
++		// Handle register -> register translation.
++		if len(valueSteps) != len(methodSteps) {
++			// Because it's the same type for the value, and it's assigned
++			// to registers both times, it should always take up the same
++			// number of registers for each ABI.
++			panic("method ABI and value ABI don't align")
++		}
++		for i, vStep := range valueSteps {
++			mStep := methodSteps[i]
++			if mStep.kind != vStep.kind {
++				panic("method ABI and value ABI don't align")
++			}
++			switch vStep.kind {
++			case abiStepPointer:
++				// Copy this too, so we get a write barrier.
++				methodRegs.Ptrs[mStep.ireg] = valueRegs.Ptrs[vStep.ireg]
++				fallthrough
++			case abiStepIntReg:
++				methodRegs.Ints[mStep.ireg] = valueRegs.Ints[vStep.ireg]
++			case abiStepFloatReg:
++				methodRegs.Floats[mStep.freg] = valueRegs.Floats[vStep.freg]
++			default:
++				panic("unexpected value step")
++			}
++		}
+ 	}
+ 
+-	frameSize := frametype.size
++	methodFrameSize := methodFrameType.size
+ 	// TODO(mknyszek): Remove this when we no longer have
+ 	// caller reserved spill space.
+-	frameSize = align(frameSize, ptrSize)
+-	frameSize += abid.spill
++	methodFrameSize = align(methodFrameSize, ptrSize)
++	methodFrameSize += methodABI.spill
+ 
+ 	// Call.
+ 	// Call copies the arguments from scratch to the stack, calls fn,
+ 	// and then copies the results back into scratch.
+-	//
+-	// TODO(mknyszek): Have this actually support the register-based ABI.
+-	var regs abi.RegArgs
+-	call(frametype, fn, scratch, uint32(frametype.size), uint32(retOffset), uint32(frameSize), &regs)
++	call(methodFrameType, methodFn, methodFrame, uint32(methodFrameType.size), uint32(methodABI.retOffset), uint32(methodFrameSize), &methodRegs)
+ 
+ 	// Copy return values.
+-	// Ignore any changes to args and just copy return values.
++	//
++	// This is somewhat simpler because both ABIs have an identical
++	// return value ABI (the types are identical). As a result, register
++	// results can simply be copied over. Stack-allocated values are laid
++	// out the same, but are at different offsets from the start of the frame
++	// Ignore any changes to args.
+ 	// Avoid constructing out-of-bounds pointers if there are no return values.
+-	if frametype.size-retOffset > 0 {
+-		callerRetOffset := retOffset - argOffset
++	// because the arguments may be laid out differently.
++	if valueRegs != nil {
++		*valueRegs = methodRegs
++	}
++	if retSize := methodFrameType.size - methodABI.retOffset; retSize > 0 {
++		valueRet := add(valueFrame, valueABI.retOffset, "valueFrame's size > retOffset")
++		methodRet := add(methodFrame, methodABI.retOffset, "methodFrame's size > retOffset")
+ 		// This copies to the stack. Write barriers are not needed.
+-		memmove(add(frame, callerRetOffset, "frametype.size > retOffset"),
+-			add(scratch, retOffset, "frametype.size > retOffset"),
+-			frametype.size-retOffset)
++		memmove(valueRet, methodRet, retSize)
+ 	}
+ 
+ 	// Tell the runtime it can now depend on the return values
+@@ -874,8 +1054,8 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
+ 	// Clear the scratch space and put it back in the pool.
+ 	// This must happen after the statement above, so that the return
+ 	// values will always be scanned by someone.
+-	typedmemclr(frametype, scratch)
+-	framePool.Put(scratch)
++	typedmemclr(methodFrameType, methodFrame)
++	methodFramePool.Put(methodFrame)
+ 
+ 	// See the comment in callReflect.
+ 	runtime.KeepAlive(ctxt)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 193d8f00bb..dbe7f7f381 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -473,7 +473,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ 
+ #ifdef GOEXPERIMENT_REGABI_REFLECT
+ // spillArgs stores return values from registers to a *internal/abi.RegArgs in R12.
+-TEXT spillArgs<>(SB),NOSPLIT,$0-0
++TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+ 	MOVQ AX, 0(R12)
+ 	MOVQ BX, 8(R12)
+ 	MOVQ CX, 16(R12)
+@@ -501,7 +501,7 @@ TEXT spillArgs<>(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ // unspillArgs loads args into registers from a *internal/abi.RegArgs in R12.
+-TEXT unspillArgs<>(SB),NOSPLIT,$0-0
++TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+ 	MOVQ 0(R12), AX
+ 	MOVQ 8(R12), BX
+ 	MOVQ 16(R12), CX
+@@ -529,11 +529,11 @@ TEXT unspillArgs<>(SB),NOSPLIT,$0-0
+ 	RET
+ #else
+ // spillArgs stores return values from registers to a pointer in R12.
+-TEXT spillArgs<>(SB),NOSPLIT,$0-0
++TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ // unspillArgs loads args into registers from a pointer in R12.
+-TEXT unspillArgs<>(SB),NOSPLIT,$0-0
++TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+ 	RET
+ #endif
+ 
+@@ -592,7 +592,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
+ 	REP;MOVSB;				\
+ 	/* set up argument registers */		\
+ 	MOVQ    regArgs+40(FP), R12;		\
+-	CALL    unspillArgs<>(SB);		\
++	CALL    ·unspillArgs<ABIInternal>(SB);		\
+ 	/* call function */			\
+ 	MOVQ	f+8(FP), DX;			\
+ 	PCDATA  $PCDATA_StackMapIndex, $0;	\
+@@ -600,7 +600,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
+ 	CALL	R12;				\
+ 	/* copy register return values back */		\
+ 	MOVQ    regArgs+40(FP), R12;		\
+-	CALL    spillArgs<>(SB);		\
++	CALL    ·spillArgs<ABIInternal>(SB);		\
+ 	MOVLQZX	stackArgsSize+24(FP), CX;		\
+ 	MOVLQZX	stackRetOffset+28(FP), BX;		\
+ 	MOVQ	stackArgs+16(FP), DI;		\
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 5c7fadc2d2..cdccdcc2c5 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/cpu"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+@@ -1312,23 +1313,42 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 	}
+ 
+ 	// stack objects.
+-	p := funcdata(f, _FUNCDATA_StackObjects)
+-	if p != nil {
+-		n := *(*uintptr)(p)
+-		p = add(p, sys.PtrSize)
+-		*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
+-		// Note: the noescape above is needed to keep
+-		// getStackMap from "leaking param content:
+-		// frame".  That leak propagates up to getgcmask, then
+-		// GCMask, then verifyGCInfo, which converts the stack
+-		// gcinfo tests into heap gcinfo tests :(
++	if GOARCH == "amd64" && unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
++		// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
++		// We don't actually use argmap in this case, but we need to fake the stack object
++		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset
++		// on amd64.
++		objs = methodValueCallFrameObjs
++	} else {
++		p := funcdata(f, _FUNCDATA_StackObjects)
++		if p != nil {
++			n := *(*uintptr)(p)
++			p = add(p, sys.PtrSize)
++			*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
++			// Note: the noescape above is needed to keep
++			// getStackMap from "leaking param content:
++			// frame".  That leak propagates up to getgcmask, then
++			// GCMask, then verifyGCInfo, which converts the stack
++			// gcinfo tests into heap gcinfo tests :(
++		}
+ 	}
+ 
+ 	return
+ }
+ 
++var (
++	abiRegArgsEface          interface{} = abi.RegArgs{}
++	abiRegArgsType           *_type      = efaceOf(&abiRegArgsEface)._type
++	methodValueCallFrameObjs             = []stackObjectRecord{
++		{
++			off: -int(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
++			typ: abiRegArgsType,
++		},
++	}
++)
++
+ // A stackObjectRecord is generated by the compiler for each stack object in a stack frame.
+-// This record must match the generator code in cmd/compile/internal/gc/ssa.go:emitStackObjects.
++// This record must match the generator code in cmd/compile/internal/liveness/plive.go:emitStackObjects.
+ type stackObjectRecord struct {
+ 	// offset in frame
+ 	// if negative, offset from varp
+diff --git a/src/runtime/stubs_amd64.go b/src/runtime/stubs_amd64.go
+index bf98493e9d..687a506cdd 100644
+--- a/src/runtime/stubs_amd64.go
++++ b/src/runtime/stubs_amd64.go
+@@ -40,3 +40,10 @@ func retpolineR15()
+ 
+ //go:noescape
+ func asmcgocall_no_g(fn, arg unsafe.Pointer)
++
++// Used by reflectcall and the reflect package.
++//
++// Spills/loads arguments in registers to/from an internal/abi.RegArgs
++// respectively. Does not follow the Go ABI.
++func spillArgs()
++func unspillArgs()
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index f8cda83098..0969af1a21 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -630,7 +630,7 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
+ 				// Figure out whether the return values are valid.
+ 				// Reflect will update this value after it copies
+ 				// in the return values.
+-				retValid = *(*bool)(unsafe.Pointer(arg0 + 3*sys.PtrSize))
++				retValid = *(*bool)(unsafe.Pointer(arg0 + 4*sys.PtrSize))
+ 			}
+ 			if mv.fn != f.entry {
+ 				print("runtime: confused by ", funcname(f), "\n")

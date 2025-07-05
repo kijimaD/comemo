@@ -9,6 +9,23 @@ Date:   Thu Apr 25 13:23:24 2013 +0900
     R=golang-dev, dave, r, alex.brainman
     CC=golang-dev
     https://golang.org/cl/8934043
-
+---
  src/pkg/net/ipraw_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 305a40e77c..12c199d1cf 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -55,9 +55,8 @@ func TestResolveIPAddr(t *testing.T) {
+ 	for _, tt := range resolveIPAddrTests {
+ 		addr, err := ResolveIPAddr(tt.net, tt.litAddr)
+ 		if err != tt.err {
+-			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+-		}
+-		if !reflect.DeepEqual(addr, tt.addr) {
++			condFatalf(t, "ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
++		} else if !reflect.DeepEqual(addr, tt.addr) {
+ 			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
+ 		}
+ 	}

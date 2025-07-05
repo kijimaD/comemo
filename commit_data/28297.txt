@@ -11,8 +11,48 @@ Date:   Wed May 11 16:16:37 2016 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/syscall/windows/registry/syscall.go | 2 +-
  src/internal/syscall/windows/syscall_windows.go  | 2 +-
  src/syscall/mksyscall_windows.go                 | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/syscall/windows/registry/syscall.go b/src/internal/syscall/windows/registry/syscall.go
+index 02d985cec9..5426cae909 100644
+--- a/src/internal/syscall/windows/registry/syscall.go
++++ b/src/internal/syscall/windows/registry/syscall.go
+@@ -8,7 +8,7 @@ package registry
+ 
+ import "syscall"
+ 
+-//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go -systemdll syscall.go
++//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall.go
+ 
+ const (
+ 	_REG_OPTION_NON_VOLATILE = 0
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 2eae5e75f9..7b2bc79ceb 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -6,7 +6,7 @@ package windows
+ 
+ import "syscall"
+ 
+-//go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go -systemdll syscall_windows.go
++//go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go
+ 
+ const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+ 
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index 4ccbb04908..84747962ab 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -68,7 +68,7 @@ import (
+ var (
+ 	filename       = flag.String("output", "", "output file name (standard output if omitted)")
+ 	printTraceFlag = flag.Bool("trace", false, "generate print statement after every syscall")
+-	systemDLL      = flag.Bool("systemdll", false, "whether all DLLs should be loaded from the Windows system directory")
++	systemDLL      = flag.Bool("systemdll", true, "whether all DLLs should be loaded from the Windows system directory")
+ )
+ 
+ func trim(s string) string {

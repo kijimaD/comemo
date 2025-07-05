@@ -14,9 +14,134 @@ Date:   Mon Aug 19 11:22:09 2013 +1000
     R=golang-dev, josharian, adg
     CC=golang-dev
     https://golang.org/cl/13042044
-
+---
  src/pkg/math/big/int.go      |  7 ++++++-
  src/pkg/math/big/int_test.go | 26 ++++++++++++++++++++++++++
  src/pkg/math/big/rat.go      |  7 ++++++-
  src/pkg/math/big/rat_test.go | 26 ++++++++++++++++++++++++++
  4 files changed, 64 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index 09051f82ed..23c8bfeb23 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -952,6 +952,9 @@ const intGobVersion byte = 1
+ 
+ // GobEncode implements the gob.GobEncoder interface.
+ func (x *Int) GobEncode() ([]byte, error) {
++	if x == nil {
++		return nil, nil
++	}
+ 	buf := make([]byte, 1+len(x.abs)*_S) // extra byte for version and sign bit
+ 	i := x.abs.bytes(buf) - 1            // i >= 0
+ 	b := intGobVersion << 1              // make space for sign bit
+@@ -965,7 +968,9 @@ func (x *Int) GobEncode() ([]byte, error) {
+ // GobDecode implements the gob.GobDecoder interface.
+ func (z *Int) GobDecode(buf []byte) error {
+ 	if len(buf) == 0 {
+-		return errors.New("Int.GobDecode: no data")
++		// Other side sent a nil or default value.
++		*z = Int{}
++		return nil
+ 	}
+ 	b := buf[0]
+ 	if b>>1 != intGobVersion {
+diff --git a/src/pkg/math/big/int_test.go b/src/pkg/math/big/int_test.go
+index 6c981e7752..01d5d4e4dc 100644
+--- a/src/pkg/math/big/int_test.go
++++ b/src/pkg/math/big/int_test.go
+@@ -1484,6 +1484,32 @@ func TestIntGobEncoding(t *testing.T) {
+ 	}
+ }
+ 
++// Sending a nil Int pointer (inside a slice) on a round trip through gob should yield a zero.
++// TODO: top-level nils.
++func TestGobEncodingNilIntInSlice(t *testing.T) {
++	buf := new(bytes.Buffer)
++	enc := gob.NewEncoder(buf)
++	dec := gob.NewDecoder(buf)
++
++	var in = make([]*Int, 1)
++	err := enc.Encode(&in)
++	if err != nil {
++		t.Errorf("gob encode failed: %q", err)
++	}
++	var out []*Int
++	err = dec.Decode(&out)
++	if err != nil {
++		t.Fatalf("gob decode failed: %q", err)
++	}
++	if len(out) != 1 {
++		t.Fatalf("wrong len; want 1 got %d", len(out))
++	}
++	var zero Int
++	if out[0].Cmp(&zero) != 0 {
++		t.Errorf("transmission of (*Int)(nill) failed: got %s want 0", out)
++	}
++}
++
+ func TestIntJSONEncoding(t *testing.T) {
+ 	for _, test := range encodingTests {
+ 		var tx Int
+diff --git a/src/pkg/math/big/rat.go b/src/pkg/math/big/rat.go
+index 39791ec6d8..7faee61a46 100644
+--- a/src/pkg/math/big/rat.go
++++ b/src/pkg/math/big/rat.go
+@@ -546,6 +546,9 @@ const ratGobVersion byte = 1
+ 
+ // GobEncode implements the gob.GobEncoder interface.
+ func (x *Rat) GobEncode() ([]byte, error) {
++	if x == nil {
++		return nil, nil
++	}
+ 	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b.abs))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
+ 	i := x.b.abs.bytes(buf)
+ 	j := x.a.abs.bytes(buf[0:i])
+@@ -567,7 +570,9 @@ func (x *Rat) GobEncode() ([]byte, error) {
+ // GobDecode implements the gob.GobDecoder interface.
+ func (z *Rat) GobDecode(buf []byte) error {
+ 	if len(buf) == 0 {
+-		return errors.New("Rat.GobDecode: no data")
++		// Other side sent a nil or default value.
++		*z = Rat{}
++		return nil
+ 	}
+ 	b := buf[0]
+ 	if b>>1 != ratGobVersion {
+diff --git a/src/pkg/math/big/rat_test.go b/src/pkg/math/big/rat_test.go
+index 1c2c642379..0d432637ba 100644
+--- a/src/pkg/math/big/rat_test.go
++++ b/src/pkg/math/big/rat_test.go
+@@ -407,6 +407,32 @@ func TestRatGobEncoding(t *testing.T) {
+ 	}
+ }
+ 
++// Sending a nil Rat pointer (inside a slice) on a round trip through gob should yield a zero.
++// TODO: top-level nils.
++func TestGobEncodingNilRatInSlice(t *testing.T) {
++	buf := new(bytes.Buffer)
++	enc := gob.NewEncoder(buf)
++	dec := gob.NewDecoder(buf)
++
++	var in = make([]*Rat, 1)
++	err := enc.Encode(&in)
++	if err != nil {
++		t.Errorf("gob encode failed: %q", err)
++	}
++	var out []*Rat
++	err = dec.Decode(&out)
++	if err != nil {
++		t.Fatalf("gob decode failed: %q", err)
++	}
++	if len(out) != 1 {
++		t.Fatalf("wrong len; want 1 got %d", len(out))
++	}
++	var zero Rat
++	if out[0].Cmp(&zero) != 0 {
++		t.Errorf("transmission of (*Int)(nill) failed: got %s want 0", out)
++	}
++}
++
+ func TestIssue2379(t *testing.T) {
+ 	// 1) no aliasing
+ 	q := NewRat(3, 2)

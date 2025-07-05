@@ -18,7 +18,85 @@ Date:   Thu Apr 21 13:47:26 2022 -0700
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/crypto/x509/x509.go      | 15 ++++-----------
  src/crypto/x509/x509_test.go | 36 ------------------------------------
  2 files changed, 4 insertions(+), 47 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index ceb04ae20e..582e1b1519 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1478,21 +1478,14 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 		return nil, errors.New("x509: no SerialNumber given")
+ 	}
+ 
+-	// RFC 5280 Section 4.1.2.2: serial number must positive and should not be longer
+-	// than 20 octets.
++	// RFC 5280 Section 4.1.2.2: serial number must positive
+ 	//
+-	// We cannot simply check for len(serialBytes) > 20, because encoding/asn1 may
+-	// pad the slice in order to prevent the integer being mistaken for a negative
+-	// number (DER uses the high bit of the left-most byte to indicate the sign.),
+-	// so we need to double check the composition of the serial if it is exactly
+-	// 20 bytes.
++	// We _should_ also restrict serials to <= 20 octets, but it turns out a lot of people
++	// get this wrong, in part because the encoding can itself alter the length of the
++	// serial. For now we accept these non-conformant serials.
+ 	if template.SerialNumber.Sign() == -1 {
+ 		return nil, errors.New("x509: serial number must be positive")
+ 	}
+-	serialBytes := template.SerialNumber.Bytes()
+-	if len(serialBytes) > 20 || (len(serialBytes) == 20 && serialBytes[0]&0x80 != 0) {
+-		return nil, errors.New("x509: serial number exceeds 20 octets")
+-	}
+ 
+ 	if template.BasicConstraintsValid && !template.IsCA && template.MaxPathLen != -1 && (template.MaxPathLen != 0 || template.MaxPathLenZero) {
+ 		return nil, errors.New("x509: only CAs are allowed to specify MaxPathLen")
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 486d6bf3d2..f68dd0299a 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -3589,42 +3589,6 @@ func TestOmitEmptyExtensions(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCreateCertificateLongSerial(t *testing.T) {
+-	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	serialBytes := make([]byte, 21)
+-	serialBytes[0] = 0x80
+-	serialBytes[20] = 1
+-	tooLong := big.NewInt(0).SetBytes(serialBytes)
+-
+-	tmpl := &Certificate{
+-		SerialNumber: tooLong,
+-		Subject: pkix.Name{
+-			CommonName: ":)",
+-		},
+-		NotAfter:  time.Now().Add(time.Hour),
+-		NotBefore: time.Now().Add(-time.Hour),
+-	}
+-
+-	expectedErr := "x509: serial number exceeds 20 octets"
+-
+-	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+-	if err == nil || err.Error() != expectedErr {
+-		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
+-	}
+-
+-	serialBytes = serialBytes[:20]
+-	tmpl.SerialNumber = big.NewInt(0).SetBytes(serialBytes)
+-
+-	_, err = CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+-	if err == nil || err.Error() != expectedErr {
+-		t.Errorf("CreateCertificate returned unexpected error: want %q, got %q", expectedErr, err)
+-	}
+-}
+-
+ var negativeSerialCert = `-----BEGIN CERTIFICATE-----
+ MIIBBTCBraADAgECAgH/MAoGCCqGSM49BAMCMA0xCzAJBgNVBAMTAjopMB4XDTIy
+ MDQxNDIzNTYwNFoXDTIyMDQxNTAxNTYwNFowDTELMAkGA1UEAxMCOikwWTATBgcq

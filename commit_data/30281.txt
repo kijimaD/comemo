@@ -10,10 +10,301 @@ Date:   Thu Oct 27 11:44:51 2016 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go     | 20 ++++++-------
  src/cmd/compile/internal/gc/dcl.go       |  2 +-
  src/cmd/compile/internal/gc/subr.go      |  9 ++++--
  src/cmd/compile/internal/gc/syntax.go    |  2 +-
  src/cmd/compile/internal/gc/typecheck.go | 50 +++++++++++++++++---------------
  5 files changed, 44 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index d1b9ce6a37..2b255589f9 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -359,11 +359,11 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+ 	return n
+ 
+ bad:
+-	if n.Diag == 0 {
++	if !n.Diag {
+ 		if !t.Broke {
+ 			yyerror("cannot convert %v to type %v", n, t)
+ 		}
+-		n.Diag = 1
++		n.Diag = true
+ 	}
+ 
+ 	if n.Type.IsUntyped() {
+@@ -692,9 +692,9 @@ func evconst(n *Node) {
+ 
+ 		switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
+ 		default:
+-			if n.Diag == 0 {
++			if !n.Diag {
+ 				yyerror("illegal constant expression %v %v", n.Op, nl.Type)
+-				n.Diag = 1
++				n.Diag = true
+ 			}
+ 			return
+ 
+@@ -953,9 +953,9 @@ func evconst(n *Node) {
+ 	// The default case above would print 'ideal % ideal',
+ 	// which is not quite an ideal error.
+ 	case OMOD_ | CTFLT_:
+-		if n.Diag == 0 {
++		if !n.Diag {
+ 			yyerror("illegal constant expression: floating-point %% operation")
+-			n.Diag = 1
++			n.Diag = true
+ 		}
+ 
+ 		return
+@@ -1179,9 +1179,9 @@ setfalse:
+ 	return
+ 
+ illegal:
+-	if n.Diag == 0 {
++	if !n.Diag {
+ 		yyerror("illegal constant expression: %v %v %v", nl.Type, n.Op, nr.Type)
+-		n.Diag = 1
++		n.Diag = true
+ 	}
+ }
+ 
+@@ -1320,9 +1320,9 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
+ 
+ 		if n.Val().Ctype() == CTNIL {
+ 			lineno = lno
+-			if n.Diag == 0 {
++			if !n.Diag {
+ 				yyerror("use of untyped nil")
+-				n.Diag = 1
++				n.Diag = true
+ 			}
+ 
+ 			n.Type = nil
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index d5c8fe071f..3cdd71df0d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -474,7 +474,7 @@ func colasdefn(left []*Node, defn *Node) {
+ 
+ 		if n.Sym.Flags&SymUniq == 0 {
+ 			yyerrorl(defn.Lineno, "%v repeated on left side of :=", n.Sym)
+-			n.Diag++
++			n.Diag = true
+ 			nerr++
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 52e28bff94..b040013292 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -971,9 +971,10 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
+ 	}
+ 
+ 	old := n
+-	old.Diag++ // silence errors about n; we'll issue one below
++	od := old.Diag
++	old.Diag = true // silence errors about n; we'll issue one below
+ 	n = defaultlit(n, t)
+-	old.Diag--
++	old.Diag = od
+ 	if t.Etype == TBLANK {
+ 		return n
+ 	}
+@@ -1490,7 +1491,9 @@ func dotpath(s *Sym, t *Type, save **Field, ignorecase bool) (path []Dlist, ambi
+ // modify the tree with missing type names.
+ func adddot(n *Node) *Node {
+ 	n.Left = typecheck(n.Left, Etype|Erv)
+-	n.Diag |= n.Left.Diag
++	if n.Left.Diag {
++		n.Diag = true
++	}
+ 	t := n.Left.Type
+ 	if t == nil {
+ 		return n
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 5e635dd0cc..09f436b3fd 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -55,7 +55,7 @@ type Node struct {
+ 	Class     Class // PPARAM, PAUTO, PEXTERN, etc
+ 	Embedded  uint8 // ODCLFIELD embedded type
+ 	Colas     bool  // OAS resulting from :=
+-	Diag      uint8 // already printed error about this
++	Diag      bool  // already printed error about this
+ 	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+ 	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
+ 	Typecheck uint8 // tracks state during typechecking; 2 == loop detected
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1a8056a2a4..3726670f77 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -345,8 +345,8 @@ OpSwitch:
+ 			t = typSlice(r.Type)
+ 		} else if n.Left.Op == ODDD {
+ 			if top&Ecomplit == 0 {
+-				if n.Diag == 0 {
+-					n.Diag = 1
++				if !n.Diag {
++					n.Diag = true
+ 					yyerror("use of [...] array outside of array literal")
+ 				}
+ 				n.Type = nil
+@@ -1184,7 +1184,10 @@ OpSwitch:
+ 	// call and call like
+ 	case OCALL:
+ 		n.Left = typecheck(n.Left, Erv|Etype|Ecall)
+-		n.Diag |= n.Left.Diag
++		if n.Left.Diag {
++			n.Diag = true
++		}
++
+ 		l := n.Left
+ 
+ 		if l.Op == ONAME && l.Etype != 0 {
+@@ -1209,7 +1212,7 @@ OpSwitch:
+ 				if !l.Type.Broke {
+ 					yyerror("invalid use of ... in type conversion to %v", l.Type)
+ 				}
+-				n.Diag = 1
++				n.Diag = true
+ 			}
+ 
+ 			// pick off before type-checking arguments
+@@ -1685,9 +1688,9 @@ OpSwitch:
+ 		var why string
+ 		n.Op = convertop(t, n.Type, &why)
+ 		if n.Op == 0 {
+-			if n.Diag == 0 && !n.Type.Broke {
++			if !n.Diag && !n.Type.Broke {
+ 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
+-				n.Diag = 1
++				n.Diag = true
+ 			}
+ 
+ 			n.Op = OCONV
+@@ -1992,7 +1995,7 @@ OpSwitch:
+ 	case ODEFER:
+ 		ok |= Etop
+ 		n.Left = typecheck(n.Left, Etop|Erv)
+-		if n.Left.Diag == 0 {
++		if !n.Left.Diag {
+ 			checkdefergo(n)
+ 		}
+ 		break OpSwitch
+@@ -2142,9 +2145,9 @@ OpSwitch:
+ 	}
+ 
+ 	if (top&Etop != 0) && top&(Ecall|Erv|Etype) == 0 && ok&Etop == 0 {
+-		if n.Diag == 0 {
++		if !n.Diag {
+ 			yyerror("%v evaluated but not used", n)
+-			n.Diag = 1
++			n.Diag = true
+ 		}
+ 
+ 		n.Type = nil
+@@ -2241,11 +2244,10 @@ func checkdefergo(n *Node) {
+ 		return
+ 	}
+ 
+-	if n.Diag == 0 {
++	if !n.Diag {
+ 		// The syntax made sure it was a call, so this must be
+ 		// a conversion.
+-		n.Diag = 1
+-
++		n.Diag = true
+ 		yyerror("%s requires function call, not conversion", what)
+ 	}
+ }
+@@ -2686,7 +2688,7 @@ out:
+ 	return
+ 
+ notenough:
+-	if n == nil || n.Diag == 0 {
++	if n == nil || !n.Diag {
+ 		if call != nil {
+ 			// call is the expression being called, not the overall call.
+ 			// Method expressions have the form T.M, and the compiler has
+@@ -2700,7 +2702,7 @@ notenough:
+ 			yyerror("not enough arguments to %v\n\thave %s\n\twant %v", op, nl.retsigerr(isddd), tstruct)
+ 		}
+ 		if n != nil {
+-			n.Diag = 1
++			n.Diag = true
+ 		}
+ 	}
+ 
+@@ -2938,9 +2940,9 @@ func typecheckcomplit(n *Node) *Node {
+ 				l.Left = typecheck(l.Left, Erv)
+ 				evconst(l.Left)
+ 				i = nonnegintconst(l.Left)
+-				if i < 0 && l.Left.Diag == 0 {
++				if i < 0 && !l.Left.Diag {
+ 					yyerror("index must be non-negative integer constant")
+-					l.Left.Diag = 1
++					l.Left.Diag = true
+ 					i = -(1 << 30) // stay negative for a while
+ 				}
+ 				vp = &l.Right
+@@ -3565,13 +3567,13 @@ func typecheckdeftype(n *Node) {
+ 	n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
+ 	t := n.Name.Param.Ntype.Type
+ 	if t == nil {
+-		n.Diag = 1
++		n.Diag = true
+ 		n.Type = nil
+ 		goto ret
+ 	}
+ 
+ 	if n.Type == nil {
+-		n.Diag = 1
++		n.Diag = true
+ 		goto ret
+ 	}
+ 
+@@ -3625,8 +3627,8 @@ func typecheckdef(n *Node) *Node {
+ 	setlineno(n)
+ 
+ 	if n.Op == ONONAME {
+-		if n.Diag == 0 {
+-			n.Diag = 1
++		if !n.Diag {
++			n.Diag = true
+ 			if n.Lineno != 0 {
+ 				lineno = n.Lineno
+ 			}
+@@ -3674,7 +3676,7 @@ func typecheckdef(n *Node) *Node {
+ 			n.Type = n.Name.Param.Ntype.Type
+ 			n.Name.Param.Ntype = nil
+ 			if n.Type == nil {
+-				n.Diag = 1
++				n.Diag = true
+ 				goto ret
+ 			}
+ 		}
+@@ -3694,9 +3696,9 @@ func typecheckdef(n *Node) *Node {
+ 		}
+ 
+ 		if e.Type != nil && e.Op != OLITERAL || !isgoconst(e) {
+-			if e.Diag == 0 {
++			if !e.Diag {
+ 				yyerror("const initializer %v is not a constant", e)
+-				e.Diag = 1
++				e.Diag = true
+ 			}
+ 
+ 			goto ret
+@@ -3725,7 +3727,7 @@ func typecheckdef(n *Node) *Node {
+ 			n.Name.Param.Ntype = typecheck(n.Name.Param.Ntype, Etype)
+ 			n.Type = n.Name.Param.Ntype.Type
+ 			if n.Type == nil {
+-				n.Diag = 1
++				n.Diag = true
+ 				goto ret
+ 			}
+ 		}

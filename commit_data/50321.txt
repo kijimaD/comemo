@@ -12,10 +12,117 @@ Date:   Mon Oct 18 10:26:18 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go |  8 ++++++++
  src/cmd/compile/internal/typecheck/iimport.go |  5 +++++
  test/typeparam/issue49027.dir/a.go            | 21 +++++++++++++++++++++
  test/typeparam/issue49027.dir/main.go         | 25 +++++++++++++++++++++++++
  test/typeparam/issue49027.go                  |  7 +++++++
  5 files changed, 66 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 3c0b8bc319..e3dd10a56b 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1888,6 +1888,14 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.expr(n.X)
+ 		w.typ(n.Type())
+ 
++	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
++		n := n.(*ir.DynamicTypeAssertExpr)
++		w.op(n.Op())
++		w.pos(n.Pos())
++		w.expr(n.X)
++		w.expr(n.T)
++		w.typ(n.Type())
++
+ 	case ir.OINDEX, ir.OINDEXMAP:
+ 		n := n.(*ir.IndexExpr)
+ 		if go117ExportTypes {
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index df49d74a40..52236ce837 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1457,6 +1457,11 @@ func (r *importReader) node() ir.Node {
+ 		}
+ 		return n
+ 
++	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
++		n := ir.NewDynamicTypeAssertExpr(r.pos(), op, r.expr(), r.expr())
++		n.SetType(r.typ())
++		return n
++
+ 	case ir.OINDEX, ir.OINDEXMAP:
+ 		n := ir.NewIndexExpr(r.pos(), r.expr(), r.expr())
+ 		if go117ExportTypes {
+diff --git a/test/typeparam/issue49027.dir/a.go b/test/typeparam/issue49027.dir/a.go
+new file mode 100644
+index 0000000000..d3ec27deab
+--- /dev/null
++++ b/test/typeparam/issue49027.dir/a.go
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func Conv(v interface{}) string {
++	return conv[string](v)
++}
++
++func conv[T any](v interface{}) T {
++	return v.(T)
++}
++
++func Conv2(v interface{}) (string, bool) {
++	return conv2[string](v)
++}
++func conv2[T any](v interface{}) (T, bool) {
++	x, ok := v.(T)
++	return x, ok
++}
+diff --git a/test/typeparam/issue49027.dir/main.go b/test/typeparam/issue49027.dir/main.go
+new file mode 100644
+index 0000000000..d0dc33d734
+--- /dev/null
++++ b/test/typeparam/issue49027.dir/main.go
+@@ -0,0 +1,25 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++)
++
++func main() {
++	s := "foo"
++	x := a.Conv(s)
++	if x != s {
++		panic(fmt.Sprintf("got %s wanted %s", x, s))
++	}
++	y, ok := a.Conv2(s)
++	if !ok {
++		panic("conversion failed")
++	}
++	if y != s {
++		panic(fmt.Sprintf("got %s wanted %s", y, s))
++	}
++}
+diff --git a/test/typeparam/issue49027.go b/test/typeparam/issue49027.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue49027.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

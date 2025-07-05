@@ -17,6 +17,24 @@ Date:   Mon Jul 27 14:42:06 2020 +0200
     Change-Id: Ie3e13f5a2a71bb1b59e03bc5b3a16d8e2e7c01d4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/244960
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/go/ast/ast.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 81c64589d0..1061f1d3ce 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -285,6 +285,12 @@ type (
+ 	}
+ 
+ 	// A BasicLit node represents a literal of basic type.
++	//
++	// Note that for the CHAR and STRING kinds, the literal is stored
++	// with its quotes. For example, for a double-quoted STRING, the
++	// first and the last rune in the Value field will be ". The
++	// Unquote and UnquoteChar functions in the strconv package can be
++	// used to unquote STRING and CHAR values, respectively.
+ 	BasicLit struct {
+ 		ValuePos token.Pos   // literal position
+ 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING

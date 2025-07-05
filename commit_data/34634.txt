@@ -13,6 +13,35 @@ Date:   Fri Nov 3 19:17:43 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/time.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 0f29b0ff93..46c61371b0 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -98,6 +98,11 @@ import "errors"
+ // change the instant in time being denoted and therefore does not affect the
+ // computations described in earlier paragraphs.
+ //
++// In addition to the required “wall clock” reading, a Time may contain an optional
++// reading of the current process's monotonic clock, to provide additional precision
++// for comparison or subtraction.
++// See the “Monotonic Clocks” section in the package documentation for details.
++//
+ // Note that the Go == operator compares not just the time instant but also the
+ // Location and the monotonic clock reading. Therefore, Time values should not
+ // be used as map or database keys without first guaranteeing that the
+@@ -108,11 +113,6 @@ import "errors"
+ // correctly handles the case when only one of its arguments has a monotonic
+ // clock reading.
+ //
+-// In addition to the required “wall clock” reading, a Time may contain an optional
+-// reading of the current process's monotonic clock, to provide additional precision
+-// for comparison or subtraction.
+-// See the “Monotonic Clocks” section in the package documentation for details.
+-//
+ type Time struct {
+ 	// wall and ext encode the wall time seconds, wall time nanoseconds,
+ 	// and optional monotonic clock reading in nanoseconds.

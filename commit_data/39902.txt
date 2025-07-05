@@ -31,9 +31,74 @@ Date:   Thu Mar 7 13:18:38 2019 +0000
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 3 +++
  src/cmd/internal/obj/s390x/a.out.go       | 3 +++
  src/cmd/internal/obj/s390x/anames.go      | 1 +
  src/cmd/internal/obj/s390x/asmz.go        | 6 ++++++
  4 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 0e50303d70..fbe1203aaa 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -219,6 +219,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	TMLH	R3, $0                 // a7300000
+ 	TMLL	R4, $32768             // a7418000
+ 
++	IPM	R3                     // b2220030
++	IPM	R12                    // b22200c0
++
+ 	BNE	0(PC)                  // a7740000
+ 	BEQ	0(PC)                  // a7840000
+ 	BLT	0(PC)                  // a7440000
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index af321f6131..fb246cbc47 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -366,6 +366,9 @@ const (
+ 	ATMLH
+ 	ATMLL
+ 
++	// insert program mask
++	AIPM
++
+ 	// compare and swap
+ 	ACS
+ 	ACSG
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 9cea9f962d..3a21e90ab1 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -120,6 +120,7 @@ var Anames = []string{
+ 	"TMHL",
+ 	"TMLH",
+ 	"TMLL",
++	"IPM",
+ 	"CS",
+ 	"CSG",
+ 	"SYNC",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 7d49103be6..4c938eadcc 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -260,6 +260,9 @@ var optab = []Optab{
+ 	// test under mask
+ 	Optab{ATMHH, C_REG, C_NONE, C_NONE, C_ANDCON, 91, 0},
+ 
++	// insert program mask
++	Optab{AIPM, C_REG, C_NONE, C_NONE, C_NONE, 92, 0},
++
+ 	// 32-bit access registers
+ 	Optab{AMOVW, C_AREG, C_NONE, C_NONE, C_REG, 68, 0},
+ 	Optab{AMOVWZ, C_AREG, C_NONE, C_NONE, C_REG, 68, 0},
+@@ -3766,6 +3769,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		}
+ 		zRI(opcode, uint32(p.From.Reg), uint32(c.vregoff(&p.To)), asm)
+ 
++	case 92: // insert program mask
++		zRRE(op_IPM, uint32(p.From.Reg), 0, asm)
++
+ 	case 93: // GOT lookup
+ 		v := c.vregoff(&p.To)
+ 		if v != 0 {

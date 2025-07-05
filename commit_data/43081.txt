@@ -31,9 +31,147 @@ Date:   Thu Mar 5 11:11:47 2020 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/test/test.go                   |  8 +++
  .../go/testdata/script/test_json_panic_exit.txt    | 69 ++++++++++++++++++++++
  src/cmd/internal/test2json/test2json.go            |  9 ++-
  src/cmd/internal/test2json/testdata/panic.json     |  2 +-
  4 files changed, 86 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 1c6fb0b97f..dbb899219d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1239,6 +1239,14 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 		if len(out) == 0 {
+ 			fmt.Fprintf(cmd.Stdout, "%s\n", err)
+ 		}
++		// NOTE(golang.org/issue/37555): test2json reports that a test passes
++		// unless "FAIL" is printed at the beginning of a line. The test may not
++		// actually print that if it panics, exits, or terminates abnormally,
++		// so we print it here. We can't always check whether it was printed
++		// because some tests need stdout to be a terminal (golang.org/issue/34791),
++		// not a pipe.
++		// TODO(golang.org/issue/29062): tests that exit with status 0 without
++		// printing a final result should fail.
+ 		fmt.Fprintf(cmd.Stdout, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/test_json_panic_exit.txt b/src/cmd/go/testdata/script/test_json_panic_exit.txt
+new file mode 100644
+index 0000000000..d0a7991fe5
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_json_panic_exit.txt
+@@ -0,0 +1,69 @@
++# Verifies golang.org/issue/37555.
++
++[short] skip
++
++# 'go test -json' should say a test passes if it says it passes.
++go test -json ./pass
++stdout '"Action":"pass".*\n\z'
++! stdout '"Test":.*\n\z'
++
++# 'go test -json' should say a test passes if it exits 0 and prints nothing.
++# TODO(golang.org/issue/29062): this should fail in the future.
++go test -json ./exit0main
++stdout '"Action":"pass".*\n\z'
++! stdout '"Test":.*\n\z'
++
++# 'go test -json' should say a test fails if it exits 1 and prints nothing.
++! go test -json ./exit1main
++stdout '"Action":"fail".*\n\z'
++! stdout '"Test":.*\n\z'
++
++# 'go test -json' should say a test fails if it panics.
++! go test -json ./panic
++stdout '"Action":"fail".*\n\z'
++! stdout '"Test":.*\n\z'
++
++-- go.mod --
++module example.com/test
++
++go 1.14
++
++-- pass/pass_test.go --
++package pass_test
++
++import "testing"
++
++func TestPass(t *testing.T) {}
++
++-- exit0main/exit0main_test.go --
++package exit0_test
++
++import (
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	os.Exit(0)
++}
++
++-- exit1main/exit1main_test.go --
++package exit1_test
++
++import (
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	os.Exit(1)
++}
++
++-- panic/panic_test.go --
++package panic_test
++
++import "testing"
++
++func TestPanic(t *testing.T) {
++	panic("oh no")
++}
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index aa63c8b9a6..098128ef3a 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -128,9 +128,16 @@ func (c *converter) Write(b []byte) (int, error) {
+ }
+ 
+ var (
++	// printed by test on successful run.
+ 	bigPass = []byte("PASS\n")
++
++	// printed by test after a normal test failure.
+ 	bigFail = []byte("FAIL\n")
+ 
++	// printed by 'go test' along with an error if the test binary terminates
++	// with an error.
++	bigFailErrorPrefix = []byte("FAIL\t")
++
+ 	updates = [][]byte{
+ 		[]byte("=== RUN   "),
+ 		[]byte("=== PAUSE "),
+@@ -155,7 +162,7 @@ var (
+ // before or after emitting other events.
+ func (c *converter) handleInputLine(line []byte) {
+ 	// Final PASS or FAIL.
+-	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) {
++	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) || bytes.HasPrefix(line, bigFailErrorPrefix) {
+ 		c.flushReport(0)
+ 		c.output.write(line)
+ 		if bytes.Equal(line, bigPass) {
+diff --git a/src/cmd/internal/test2json/testdata/panic.json b/src/cmd/internal/test2json/testdata/panic.json
+index f99679c2e2..f7738142e6 100644
+--- a/src/cmd/internal/test2json/testdata/panic.json
++++ b/src/cmd/internal/test2json/testdata/panic.json
+@@ -13,7 +13,7 @@
+ {"Action":"output","Test":"TestPanic","Output":"\tgo/src/testing/testing.go:909 +0xc9\n"}
+ {"Action":"output","Test":"TestPanic","Output":"created by testing.(*T).Run\n"}
+ {"Action":"output","Test":"TestPanic","Output":"\tgo/src/testing/testing.go:960 +0x350\n"}
+-{"Action":"output","Test":"TestPanic","Output":"FAIL\tcommand-line-arguments\t0.042s\n"}
+ {"Action":"fail","Test":"TestPanic"}
++{"Action":"output","Output":"FAIL\tcommand-line-arguments\t0.042s\n"}
+ {"Action":"output","Output":"FAIL\n"}
+ {"Action":"fail"}

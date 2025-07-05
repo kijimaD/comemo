@@ -8,8 +8,48 @@ Date:   Tue Dec 18 23:17:39 2012 +0800
     R=jsing, rsc
     CC=golang-dev
     https://golang.org/cl/6938076
-
+---
  src/cmd/5l/asm.c | 2 +-
  src/cmd/6l/asm.c | 2 +-
  src/cmd/8l/asm.c | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index cfcd3a07db..a937650480 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -450,7 +450,7 @@ adddynsym(Sym *s)
+ 
+ 		/* type */
+ 		t = STB_GLOBAL << 4;
+-		if(s->dynexport && s->type == STEXT)
++		if(s->dynexport && (s->type&SMASK) == STEXT)
+ 			t |= STT_FUNC;
+ 		else
+ 			t |= STT_OBJECT;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 4ea8962cc3..89ea86109f 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -455,7 +455,7 @@ adddynsym(Sym *s)
+ 		adduint32(d, addstring(lookup(".dynstr", 0), name));
+ 		/* type */
+ 		t = STB_GLOBAL << 4;
+-		if(s->dynexport && s->type == STEXT)
++		if(s->dynexport && (s->type&SMASK) == STEXT)
+ 			t |= STT_FUNC;
+ 		else
+ 			t |= STT_OBJECT;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index b53a8b1aa7..3d3248f937 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -447,7 +447,7 @@ adddynsym(Sym *s)
+ 	
+ 		/* type */
+ 		t = STB_GLOBAL << 4;
+-		if(s->dynexport && s->type == STEXT)
++		if(s->dynexport && (s->type&SMASK) == STEXT)
+ 			t |= STT_FUNC;
+ 		else
+ 			t |= STT_OBJECT;

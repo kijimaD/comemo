@@ -9,6 +9,20 @@ Date:   Fri Oct 18 15:03:41 2013 +0900
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/14930043
-
+---
  misc/dist/bindist.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 38287a3385..a98f040e62 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -175,7 +175,7 @@ func main() {
+ 			}
+ 			if *includeRace {
+ 				for _, t := range raceAvailable {
+-					if t == targ {
++					if t == targ || strings.HasPrefix(targ, t+"-") {
+ 						b.Race = true
+ 					}
+ 				}

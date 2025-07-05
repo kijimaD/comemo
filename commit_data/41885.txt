@@ -41,6 +41,20 @@ Date:   Thu Apr 11 16:53:11 2019 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/runtime/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index fea5d6871c..db48a932d4 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ // Temporary scaffolding while the new timer code is added.
+-const oldTimers = true
++const oldTimers = false
+ 
+ // Package time knows the layout of this structure.
+ // If this struct changes, adjust ../time/sleep.go:/runtimeTimer.

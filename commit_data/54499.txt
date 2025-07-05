@@ -16,7 +16,7 @@ Date:   Thu Sep 1 08:22:14 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/vcs/vcs.go                    |  25 ++-
  src/cmd/go/internal/vcweb/script.go               |   1 +
  src/cmd/go/internal/vcweb/svn.go                  | 199 ++++++++++++++++++++++
@@ -27,3 +27,760 @@ Date:   Thu Sep 1 08:22:14 2022 -0400
  src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 171 +++++++++++++++++++
  src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 141 +++++++++++++++
  9 files changed, 642 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index eb884faa96..f6dcd180c0 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -1212,9 +1212,6 @@ func interceptVCSTest(repo string, vcs *Cmd, security web.SecurityMode) (repoURL
+ 		// requests will be intercepted at a lower level (in cmd/go/internal/web).
+ 		return "", false
+ 	}
+-	if vcs == vcsSvn {
+-		return "", false // Will be implemented in CL 427914.
+-	}
+ 
+ 	if scheme, path, ok := strings.Cut(repo, "://"); ok {
+ 		if security == web.SecureOnly && !vcs.isSecureScheme(scheme) {
+@@ -1226,7 +1223,27 @@ func interceptVCSTest(repo string, vcs *Cmd, security web.SecurityMode) (repoURL
+ 		if !str.HasPathPrefix(repo, host) {
+ 			continue
+ 		}
+-		return VCSTestRepoURL + strings.TrimPrefix(repo, host), true
++
++		httpURL := VCSTestRepoURL + strings.TrimPrefix(repo, host)
++
++		if vcs == vcsSvn {
++			// Ping the vcweb HTTP server to tell it to initialize the SVN repository
++			// and get the SVN server URL.
++			u, err := urlpkg.Parse(httpURL + "?vcwebsvn=1")
++			if err != nil {
++				panic(fmt.Sprintf("invalid vcs-test repo URL: %v", err))
++			}
++			svnURL, err := web.GetBytes(u)
++			svnURL = bytes.TrimSpace(svnURL)
++			if err == nil && len(svnURL) > 0 {
++				return string(svnURL) + strings.TrimPrefix(repo, host), true
++			}
++
++			// vcs-test doesn't have a svn handler for the given path,
++			// so resolve the repo to HTTPS instead.
++		}
++
++		return httpURL, true
+ 	}
+ 	return "", false
+ }
+diff --git a/src/cmd/go/internal/vcweb/script.go b/src/cmd/go/internal/vcweb/script.go
+index da5e13d006..b0a4087661 100644
+--- a/src/cmd/go/internal/vcweb/script.go
++++ b/src/cmd/go/internal/vcweb/script.go
+@@ -42,6 +42,7 @@ func newScriptEngine() *script.Engine {
+ 	cmds["hg"] = script.Program("hg", interrupt, gracePeriod)
+ 	cmds["handle"] = scriptHandle()
+ 	cmds["modzip"] = scriptModzip()
++	cmds["svnadmin"] = script.Program("svnadmin", interrupt, gracePeriod)
+ 	cmds["svn"] = script.Program("svn", interrupt, gracePeriod)
+ 	cmds["unquote"] = scriptUnquote()
+ 
+diff --git a/src/cmd/go/internal/vcweb/svn.go b/src/cmd/go/internal/vcweb/svn.go
+new file mode 100644
+index 0000000000..60222f1d0a
+--- /dev/null
++++ b/src/cmd/go/internal/vcweb/svn.go
+@@ -0,0 +1,199 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vcweb
++
++import (
++	"io"
++	"log"
++	"net"
++	"net/http"
++	"os/exec"
++	"strings"
++	"sync"
++)
++
++// An svnHandler serves requests for Subversion repos.
++//
++// Unlike the other vcweb handlers, svnHandler does not serve the Subversion
++// protocol directly over the HTTP connection. Instead, it opens a separate port
++// that serves the (non-HTTP) 'svn' protocol. The test binary can retrieve the
++// URL for that port by sending an HTTP request with the query parameter
++// "vcwebsvn=1".
++//
++// We take this approach because the 'svn' protocol is implemented by a
++// lightweight 'svnserve' binary that is usually packaged along with the 'svn'
++// client binary, whereas only known implementation of the Subversion HTTP
++// protocol is the mod_dav_svn apache2 module. Apache2 has a lot of dependencies
++// and also seems to rely on global configuration via well-known file paths, so
++// implementing a hermetic test using apache2 would require the test to run in a
++// complicated container environment, which wouldn't be nearly as
++// straightforward for Go contributors to set up and test against on their local
++// machine.
++type svnHandler struct {
++	svnRoot string // a directory containing all svn repos to be served
++	logger  *log.Logger
++
++	pathOnce     sync.Once
++	svnservePath string // the path to the 'svnserve' executable
++	svnserveErr  error
++
++	listenOnce sync.Once
++	s          chan *svnState // 1-buffered
++}
++
++// An svnState describes the state of a port serving the 'svn://' protocol.
++type svnState struct {
++	listener  net.Listener
++	listenErr error
++	conns     map[net.Conn]struct{}
++	closing   bool
++	done      chan struct{}
++}
++
++func (h *svnHandler) Available() bool {
++	h.pathOnce.Do(func() {
++		h.svnservePath, h.svnserveErr = exec.LookPath("svnserve")
++	})
++	return h.svnserveErr == nil
++}
++
++// Handler returns an http.Handler that checks for the "vcwebsvn" query
++// parameter and then serves the 'svn://' URL for the repository at the
++// requested path.
++// The HTTP client is expected to read that URL and pass it to the 'svn' client.
++func (h *svnHandler) Handler(dir string, env []string, logger *log.Logger) (http.Handler, error) {
++	if !h.Available() {
++		return nil, ServerNotInstalledError{name: "svn"}
++	}
++
++	// Go ahead and start the listener now, so that if it fails (for example, due
++	// to port exhaustion) we can return an error from the Handler method instead
++	// of serving an error for each individual HTTP request.
++	h.listenOnce.Do(func() {
++		h.s = make(chan *svnState, 1)
++		l, err := net.Listen("tcp", "localhost:0")
++		done := make(chan struct{})
++
++		h.s <- &svnState{
++			listener:  l,
++			listenErr: err,
++			conns:     map[net.Conn]struct{}{},
++			done:      done,
++		}
++		if err != nil {
++			close(done)
++			return
++		}
++
++		h.logger.Printf("serving svn on svn://%v", l.Addr())
++
++		go func() {
++			for {
++				c, err := l.Accept()
++
++				s := <-h.s
++				if err != nil {
++					s.listenErr = err
++					if len(s.conns) == 0 {
++						close(s.done)
++					}
++					h.s <- s
++					return
++				}
++				if s.closing {
++					c.Close()
++				} else {
++					s.conns[c] = struct{}{}
++					go h.serve(c)
++				}
++				h.s <- s
++			}
++		}()
++	})
++
++	s := <-h.s
++	addr := ""
++	if s.listener != nil {
++		addr = s.listener.Addr().String()
++	}
++	err := s.listenErr
++	h.s <- s
++	if err != nil {
++		return nil, err
++	}
++
++	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
++		if req.FormValue("vcwebsvn") != "" {
++			w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
++			io.WriteString(w, "svn://"+addr+"\n")
++			return
++		}
++		http.NotFound(w, req)
++	})
++
++	return handler, nil
++}
++
++// serve serves a single 'svn://' connection on c.
++func (h *svnHandler) serve(c net.Conn) {
++	defer func() {
++		c.Close()
++
++		s := <-h.s
++		delete(s.conns, c)
++		if len(s.conns) == 0 && s.listenErr != nil {
++			close(s.done)
++		}
++		h.s <- s
++	}()
++
++	// The "--inetd" flag causes svnserve to speak the 'svn' protocol over its
++	// stdin and stdout streams as if invoked by the Unix "inetd" service.
++	// We aren't using inetd, but we are implementing essentially the same
++	// approach: using a host process to listen for connections and spawn
++	// subprocesses to serve them.
++	cmd := exec.Command(h.svnservePath, "--read-only", "--root="+h.svnRoot, "--inetd")
++	cmd.Stdin = c
++	cmd.Stdout = c
++	stderr := new(strings.Builder)
++	cmd.Stderr = stderr
++	err := cmd.Run()
++
++	var errFrag any = "ok"
++	if err != nil {
++		errFrag = err
++	}
++	stderrFrag := ""
++	if stderr.Len() > 0 {
++		stderrFrag = "\n" + stderr.String()
++	}
++	h.logger.Printf("%v: %s%s", cmd, errFrag, stderrFrag)
++}
++
++// Close stops accepting new svn:// connections and terminates the existing
++// ones, then waits for the 'svnserve' subprocesses to complete.
++func (h *svnHandler) Close() error {
++	h.listenOnce.Do(func() {})
++	if h.s == nil {
++		return nil
++	}
++
++	var err error
++	s := <-h.s
++	s.closing = true
++	if s.listener == nil {
++		err = s.listenErr
++	} else {
++		err = s.listener.Close()
++	}
++	for c := range s.conns {
++		c.Close()
++	}
++	done := s.done
++	h.s <- s
++
++	<-done
++	return err
++}
+diff --git a/src/cmd/go/internal/vcweb/vcstest/vcstest.go b/src/cmd/go/internal/vcweb/vcstest/vcstest.go
+index d68576e263..d460259105 100644
+--- a/src/cmd/go/internal/vcweb/vcstest/vcstest.go
++++ b/src/cmd/go/internal/vcweb/vcstest/vcstest.go
+@@ -30,6 +30,7 @@ var Hosts = []string{
+ }
+ 
+ type Server struct {
++	vcweb   *vcweb.Server
+ 	workDir string
+ 	HTTP    *httptest.Server
+ 	HTTPS   *httptest.Server
+@@ -63,6 +64,11 @@ func NewServer() (srv *Server, err error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	defer func() {
++		if err != nil {
++			handler.Close()
++		}
++	}()
+ 
+ 	srvHTTP := httptest.NewServer(handler)
+ 	httpURL, err := url.Parse(srvHTTP.URL)
+@@ -87,6 +93,7 @@ func NewServer() (srv *Server, err error) {
+ 	}()
+ 
+ 	srv = &Server{
++		vcweb:   handler,
+ 		workDir: workDir,
+ 		HTTP:    srvHTTP,
+ 		HTTPS:   srvHTTPS,
+@@ -118,7 +125,11 @@ func (srv *Server) Close() error {
+ 
+ 	srv.HTTP.Close()
+ 	srv.HTTPS.Close()
+-	return os.RemoveAll(srv.workDir)
++	err := srv.vcweb.Close()
++	if rmErr := os.RemoveAll(srv.workDir); err == nil {
++		err = rmErr
++	}
++	return err
+ }
+ 
+ func (srv *Server) WriteCertificateFile() (string, error) {
+diff --git a/src/cmd/go/internal/vcweb/vcweb.go b/src/cmd/go/internal/vcweb/vcweb.go
+index b7e1be00ca..5d64b1ee6a 100644
+--- a/src/cmd/go/internal/vcweb/vcweb.go
++++ b/src/cmd/go/internal/vcweb/vcweb.go
+@@ -134,6 +134,7 @@ func NewServer(scriptDir, workDir string, logger *log.Logger) (*Server, error) {
+ 			"git":      new(gitHandler),
+ 			"hg":       new(hgHandler),
+ 			"insecure": new(insecureHandler),
++			"svn":      &svnHandler{svnRoot: workDir, logger: logger},
+ 		},
+ 	}
+ 
+@@ -155,6 +156,18 @@ func NewServer(scriptDir, workDir string, logger *log.Logger) (*Server, error) {
+ 	return s, nil
+ }
+ 
++func (s *Server) Close() error {
++	var firstErr error
++	for _, h := range s.vcsHandlers {
++		if c, ok := h.(io.Closer); ok {
++			if closeErr := c.Close(); firstErr == nil {
++				firstErr = closeErr
++			}
++		}
++	}
++	return firstErr
++}
++
+ // gitConfig contains a ~/.gitconfg file that attempts to provide
+ // deterministic, platform-agnostic behavior for the 'git' command.
+ var gitConfig = `
+diff --git a/src/cmd/go/testdata/vcstest/svn/hello.txt b/src/cmd/go/testdata/vcstest/svn/hello.txt
+new file mode 100644
+index 0000000000..b68ce95969
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/svn/hello.txt
+@@ -0,0 +1,79 @@
++handle svn
++
++env TZ='America/New_York'
++
++mkdir db/transactions
++mkdir db/txn-protorevs
++chmod 0755 hooks/pre-revprop-change
++
++env ROOT=$PWD
++cd .checkout
++svn checkout file://$ROOT .
++
++svn add hello.go
++svn commit --file MSG
++svn propset svn:author 'rsc' --revprop -r1
++svn propset svn:date '2017-09-22T01:12:45.861368Z' --revprop -r1
++
++svn update
++svn log
++cmp stdout .svn-log
++
++-- .checkout/MSG --
++hello world
++
++-- .checkout/hello.go --
++package main
++
++func main() {
++	println("hello, world")
++}
++-- .checkout/.svn-log --
++------------------------------------------------------------------------
++r1 | rsc | 2017-09-21 21:12:45 -0400 (Thu, 21 Sep 2017) | 3 lines
++
++hello world
++
++
++------------------------------------------------------------------------
++-- conf/authz --
++-- conf/passwd --
++-- conf/svnserve.conf --
++-- db/current --
++0
++-- db/format --
++6
++layout sharded 1000
++-- db/fs-type --
++fsfs
++-- db/fsfs.conf --
++-- db/min-unpacked-rev --
++0
++-- db/revprops/0/0 --
++K 8
++svn:date
++V 27
++2017-09-22T01:11:53.895835Z
++END
++-- db/revs/0/0 --
++PLAIN
++END
++ENDREP
++id: 0.0.r0/17
++type: dir
++count: 0
++text: 0 0 4 4 2d2977d1c96f487abe4a1e202dd03b4e
++cpath: /
++
++
++17 107
++-- db/txn-current --
++0
++-- db/txn-current-lock --
++-- db/uuid --
++53cccb44-0fca-40a2-b0c5-acaf9e75039a
++-- db/write-lock --
++-- format --
++5
++-- hooks/pre-revprop-change --
++#!/bin/sh
+diff --git a/src/cmd/go/testdata/vcstest/svn/nonexistent.txt b/src/cmd/go/testdata/vcstest/svn/nonexistent.txt
+new file mode 100644
+index 0000000000..a71ecf1238
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/svn/nonexistent.txt
+@@ -0,0 +1,5 @@
++handle svn
++
++# For this path, we turn on the svn handler but don't actually create the repo.
++# svnserve should use the svn protocol to tell the client that the repo doesn't
++# actually exist.
+diff --git a/src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt b/src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt
+new file mode 100644
+index 0000000000..84abbe0ce5
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt
+@@ -0,0 +1,171 @@
++handle svn
++
++# Note: this repo script does not produce a byte-for-byte copy of the original.
++#
++# The 'git init' operation in the nested Git repo creates some sample files
++# whose contents depend on the exact Git version in use, and the steps we take
++# to construct a fake 'git clone' status don't produce some log files that
++# a real 'git clone' leaves behind.
++#
++# However, the repo is probably accurate enough for the tests that need it.
++
++env GIT_AUTHOR_NAME='Russ Cox'
++env GIT_AUTHOR_EMAIL='rsc@golang.org'
++env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
++env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
++env TZ='America/New_York'
++
++mkdir db/transactions
++mkdir db/txn-protorevs
++chmod 0755 hooks/pre-revprop-change
++
++env ROOT=$PWD
++cd .checkout
++svn checkout file://$ROOT .
++
++cd git-README-only
++git init
++git config --add core.ignorecase true
++git config --add core.precomposeunicode true
++
++git branch -m master
++git add README
++at 2017-09-22T11:39:03-04:00
++git commit -a -m 'README'
++
++git rev-parse HEAD
++stdout '^7f800d2ac276dd7042ea0e8d7438527d236fd098$'
++
++	# Fake a clone from an origin repo at this commit.
++git remote add origin https://vcs-test.swtch.com/git/README-only
++mkdir .git/refs/remotes/origin
++echo 'ref: refs/remotes/origin/master'
++cp stdout .git/refs/remotes/origin/HEAD
++unquote '# pack-refs with: peeled fully-peeled \n7f800d2ac276dd7042ea0e8d7438527d236fd098 refs/remotes/origin/master\n'
++cp stdout .git/packed-refs
++git branch --set-upstream-to=origin/master
++
++git add pkg/pkg.go
++at 2017-09-22T11:41:28-04:00
++git commit -a -m 'add pkg'
++
++git log --oneline --decorate=short
++cmp stdout ../.git-log
++
++cd ..
++svn add git-README-only
++svn commit -m 'add modified git-README-only'
++svn propset svn:author rsc --revprop -r1
++svn propset svn:date 2017-09-22T15:41:54.145716Z --revprop -r1
++
++svn add pkg.go
++svn commit -m 'use git-README-only/pkg'
++svn propset svn:author rsc --revprop -r2
++svn propset svn:date 2017-09-22T15:49:11.130406Z --revprop -r2
++
++svn add other
++svn commit -m 'add other'
++svn propset svn:author rsc --revprop -r3
++svn propset svn:date 2017-09-22T16:56:16.665173Z --revprop -r3
++
++svn add tiny
++svn commit -m 'add tiny'
++svn propset svn:author rsc --revprop -r4
++svn propset svn:date 2017-09-27T17:48:18.350817Z --revprop -r4
++
++cd git-README-only
++git remote set-url origin https://vcs-test.golang.org/git/README-only
++cd ..
++replace 'vcs-test.swtch.com' 'vcs-test.golang.org' other/pkg.go
++replace 'vcs-test.swtch.com' 'vcs-test.golang.org' pkg.go
++svn commit -m 'move from vcs-test.swtch.com to vcs-test.golang.org'
++svn propset svn:author rsc --revprop -r5
++svn propset svn:date 2017-10-04T15:08:26.291877Z --revprop -r5
++
++svn update
++svn log
++cmp stdout .svn-log
++
++-- .checkout/git-README-only/pkg/pkg.go --
++package pkg
++const Message = "code not in git-README-only"
++-- .checkout/git-README-only/README --
++README
++-- .checkout/.git-log --
++ab9f66b (HEAD -> master) add pkg
++7f800d2 (origin/master, origin/HEAD) README
++-- .checkout/pkg.go --
++package p
++
++import "vcs-test.swtch.com/go/test1-svn-git/git-README-only/pkg"
++
++const _ = pkg.Message
++-- .checkout/other/pkg.go --
++package other
++
++import _ "vcs-test.swtch.com/go/test1-svn-git/git-README-only/other"
++-- .checkout/tiny/tiny.go --
++package tiny
++-- .checkout/.svn-log --
++------------------------------------------------------------------------
++r5 | rsc | 2017-10-04 11:08:26 -0400 (Wed, 04 Oct 2017) | 1 line
++
++move from vcs-test.swtch.com to vcs-test.golang.org
++------------------------------------------------------------------------
++r4 | rsc | 2017-09-27 13:48:18 -0400 (Wed, 27 Sep 2017) | 1 line
++
++add tiny
++------------------------------------------------------------------------
++r3 | rsc | 2017-09-22 12:56:16 -0400 (Fri, 22 Sep 2017) | 1 line
++
++add other
++------------------------------------------------------------------------
++r2 | rsc | 2017-09-22 11:49:11 -0400 (Fri, 22 Sep 2017) | 1 line
++
++use git-README-only/pkg
++------------------------------------------------------------------------
++r1 | rsc | 2017-09-22 11:41:54 -0400 (Fri, 22 Sep 2017) | 1 line
++
++add modified git-README-only
++------------------------------------------------------------------------
++-- conf/authz --
++-- conf/passwd --
++-- conf/svnserve.conf --
++-- db/current --
++0
++-- db/format --
++6
++layout sharded 1000
++-- db/fs-type --
++fsfs
++-- db/fsfs.conf --
++-- db/min-unpacked-rev --
++0
++-- db/revprops/0/0 --
++K 8
++svn:date
++V 27
++2017-09-22T01:11:53.895835Z
++END
++-- db/revs/0/0 --
++PLAIN
++END
++ENDREP
++id: 0.0.r0/17
++type: dir
++count: 0
++text: 0 0 4 4 2d2977d1c96f487abe4a1e202dd03b4e
++cpath: /
++
++
++17 107
++-- db/txn-current --
++0
++-- db/txn-current-lock --
++-- db/uuid --
++53cccb44-0fca-40a2-b0c5-acaf9e75039a
++-- db/write-lock --
++-- format --
++5
++-- hooks/pre-revprop-change --
++#!/bin/sh
+diff --git a/src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt b/src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt
+new file mode 100644
+index 0000000000..ee173fcc40
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt
+@@ -0,0 +1,141 @@
++handle svn
++
++# Note: this repo script does not produce a byte-for-byte copy of the original.
++#
++# The 'git init' operation in the nested Git repo creates some sample files
++# whose contents depend on the exact Git version in use, and the steps we take
++# to construct a fake 'git clone' status don't produce some log files that
++# a real 'git clone' leaves behind.
++#
++# However, the repo is probably accurate enough for the tests that need it.
++
++env GIT_AUTHOR_NAME='Russ Cox'
++env GIT_AUTHOR_EMAIL='rsc@golang.org'
++env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
++env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
++env TZ='America/New_York'
++
++mkdir db/transactions
++mkdir db/txn-protorevs
++chmod 0755 hooks/pre-revprop-change
++
++env ROOT=$PWD
++cd .checkout
++svn checkout file://$ROOT .
++
++git init
++git config --add core.ignorecase true
++git config --add core.precomposeunicode true
++
++git branch -m master
++git add README
++at 2017-09-22T11:39:03-04:00
++git commit -a -m 'README'
++
++git rev-parse HEAD
++stdout '^7f800d2ac276dd7042ea0e8d7438527d236fd098$'
++
++	# Fake a clone from an origin repo at this commit.
++git remote add origin https://vcs-test.swtch.com/git/README-only
++mkdir .git/refs/remotes/origin
++echo 'ref: refs/remotes/origin/master'
++cp stdout .git/refs/remotes/origin/HEAD
++unquote '# pack-refs with: peeled fully-peeled \n7f800d2ac276dd7042ea0e8d7438527d236fd098 refs/remotes/origin/master\n'
++cp stdout .git/packed-refs
++git branch --set-upstream-to=origin/master
++
++git add pkg/pkg.go
++at 2017-09-22T11:41:28-04:00
++git commit -a -m 'add pkg'
++
++git log --oneline --decorate=short
++cmp stdout .git-log
++
++rm README
++
++svn add .git pkg
++svn commit -m 'git'
++svn propset svn:author rsc --revprop -r1
++svn propset svn:date 2017-09-27T18:00:52.201719Z --revprop -r1
++
++svn add p1
++svn commit -m 'add p1'
++svn propset svn:author rsc --revprop -r2
++svn propset svn:date 2017-09-27T18:16:14.650893Z --revprop -r2
++
++git remote set-url origin https://vcs-test.golang.org/git/README-only
++svn commit -m 'move from vcs-test.swtch.com to vcs-test.golang.org'
++svn propset svn:author rsc --revprop -r3
++svn propset svn:date 2017-10-04T15:09:35.963034Z --revprop -r3
++
++svn update
++svn log
++cmp stdout .svn-log
++
++-- .checkout/.git-log --
++ab9f66b (HEAD -> master) add pkg
++7f800d2 (origin/master, origin/HEAD) README
++-- .checkout/p1/p1.go --
++package p1
++-- .checkout/pkg/pkg.go --
++package pkg
++const Message = "code not in git-README-only"
++-- .checkout/README --
++README
++-- .checkout/p1/p1.go --
++package p1
++-- .checkout/.svn-log --
++------------------------------------------------------------------------
++r3 | rsc | 2017-10-04 11:09:35 -0400 (Wed, 04 Oct 2017) | 1 line
++
++move from vcs-test.swtch.com to vcs-test.golang.org
++------------------------------------------------------------------------
++r2 | rsc | 2017-09-27 14:16:14 -0400 (Wed, 27 Sep 2017) | 1 line
++
++add p1
++------------------------------------------------------------------------
++r1 | rsc | 2017-09-27 14:00:52 -0400 (Wed, 27 Sep 2017) | 1 line
++
++git
++------------------------------------------------------------------------
++-- conf/authz --
++-- conf/passwd --
++-- conf/svnserve.conf --
++-- db/current --
++0
++-- db/format --
++6
++layout sharded 1000
++-- db/fs-type --
++fsfs
++-- db/fsfs.conf --
++-- db/min-unpacked-rev --
++0
++-- db/revprops/0/0 --
++K 8
++svn:date
++V 27
++2017-09-22T01:11:53.895835Z
++END
++-- db/revs/0/0 --
++PLAIN
++END
++ENDREP
++id: 0.0.r0/17
++type: dir
++count: 0
++text: 0 0 4 4 2d2977d1c96f487abe4a1e202dd03b4e
++cpath: /
++
++
++17 107
++-- db/txn-current --
++0
++-- db/txn-current-lock --
++-- db/uuid --
++53cccb44-0fca-40a2-b0c5-acaf9e75039a
++-- db/write-lock --
++-- format --
++5
++-- hooks/pre-revprop-change --
++#!/bin/sh

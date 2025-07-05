@@ -12,6 +12,21 @@ Date:   Thu Feb 18 11:02:39 2016 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 66549be5c4..0a96da61fa 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -233,8 +233,7 @@ func stringsym(s string) (hdr, data *Sym) {
+ 		off = dsname(symdata, off, s[n:n+m])
+ 	}
+ 
+-	off = duint8(symdata, off, 0)                // terminating NUL for runtime
+-	off = (off + Widthptr - 1) &^ (Widthptr - 1) // round to pointer alignment
++	off = duint8(symdata, off, 0) // terminating NUL for runtime
+ 	ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 
+ 	return symhdr, symdata

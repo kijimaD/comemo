@@ -18,6 +18,23 @@ Date:   Mon Oct 3 17:49:08 2022 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/exec/exec.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index e891ddca5a..aa601b6ccc 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -214,8 +214,9 @@ type Cmd struct {
+ 	// Process is the underlying process, once started.
+ 	Process *os.Process
+ 
+-	// ProcessState contains information about an exited process,
+-	// available after a call to Wait or Run.
++	// ProcessState contains information about an exited process.
++	// If the process was started successfully, Wait or Run will
++	// populate its ProcessState when the command completes.
+ 	ProcessState *os.ProcessState
+ 
+ 	ctx context.Context // nil means none

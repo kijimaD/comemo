@@ -9,7 +9,7 @@ Date:   Thu Jan 28 13:46:30 2016 -0800
     Change-Id: Ia5cf0bcd58701fd14018ec77d01f03d5c7d6385b
     Reviewed-on: https://go-review.googlesource.com/19060
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go      |   1 +
  src/cmd/compile/internal/gc/ssa.go       |  13 +-
  src/cmd/compile/internal/ssa/check.go    |  12 +-
@@ -19,3 +19,587 @@ Date:   Thu Jan 28 13:46:30 2016 -0800
  src/cmd/compile/internal/ssa/id.go       |  11 --
  src/cmd/compile/internal/ssa/regalloc.go |   4 +-
  8 files changed, 167 insertions(+), 175 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6e7e10e163..6f5913406e 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -496,6 +496,7 @@ func compile(fn *Node) {
+ 		if Curfn.Func.Endlineno != 0 {
+ 			lineno = Curfn.Func.Endlineno
+ 		}
++		ssafn.Free()
+ 		return
+ 	}
+ 	Genlist(Curfn.Func.Enter)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 203de6421c..ae747324be 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -21,6 +21,9 @@ import (
+ // Smallest possible faulting page at address zero.
+ const minZeroPage = 4096
+ 
++var ssaConfig *ssa.Config
++var ssaExp ssaExport
++
+ func shouldssa(fn *Node) bool {
+ 	if Thearch.Thestring != "amd64" {
+ 		return false
+@@ -119,9 +122,13 @@ func buildssa(fn *Node) *ssa.Func {
+ 
+ 	// TODO(khr): build config just once at the start of the compiler binary
+ 
+-	var e ssaExport
+-	e.log = printssa
+-	s.config = ssa.NewConfig(Thearch.Thestring, &e, Ctxt, Debug['N'] == 0)
++	ssaExp.log = printssa
++	ssaExp.unimplemented = false
++	ssaExp.mustImplement = true
++	if ssaConfig == nil {
++		ssaConfig = ssa.NewConfig(Thearch.Thestring, &ssaExp, Ctxt, Debug['N'] == 0)
++	}
++	s.config = ssaConfig
+ 	s.f = s.config.NewFunc()
+ 	s.f.Name = name
+ 	s.exitCode = fn.Func.Exit
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index b74371008c..e6f8716d5b 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -219,14 +219,14 @@ func checkFunc(f *Func) {
+ 			f.Fatalf("control value for %s is missing: %v", b, b.Control)
+ 		}
+ 	}
+-	for _, id := range f.bid.free {
+-		if blockMark[id] {
+-			f.Fatalf("used block b%d in free list", id)
++	for b := f.freeBlocks; b != nil; b = b.Aux.(*Block) {
++		if blockMark[b.ID] {
++			f.Fatalf("used block b%d in free list", b.ID)
+ 		}
+ 	}
+-	for _, id := range f.vid.free {
+-		if valueMark[id] {
+-			f.Fatalf("used value v%d in free list", id)
++	for v := f.freeValues; v != nil; v = v.argstorage[0] {
++		if valueMark[v.ID] {
++			f.Fatalf("used value v%d in free list", v.ID)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 7325873a15..52e772ce81 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -16,8 +16,13 @@ type Config struct {
+ 	HTML       *HTMLWriter                // html writer, for debugging
+ 	ctxt       *obj.Link                  // Generic arch information
+ 	optimize   bool                       // Do optimization
++	curFunc    *Func
+ 
+ 	// TODO: more stuff.  Compiler flags of interest, ...
++
++	// Storage for low-numbered values and blocks.
++	values [2000]Value
++	blocks [200]Block
+ }
+ 
+ type TypeSource interface {
+@@ -100,15 +105,29 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	c.ctxt = ctxt
+ 	c.optimize = optimize
+ 
++	// Assign IDs to preallocated values/blocks.
++	for i := range c.values {
++		c.values[i].ID = ID(i)
++	}
++	for i := range c.blocks {
++		c.blocks[i].ID = ID(i)
++	}
++
+ 	return c
+ }
+ 
+ func (c *Config) Frontend() Frontend { return c.fe }
+ 
+-// NewFunc returns a new, empty function object
++// NewFunc returns a new, empty function object.
++// Caller must call f.Free() before calling NewFunc again.
+ func (c *Config) NewFunc() *Func {
+ 	// TODO(khr): should this function take name, type, etc. as arguments?
+-	return &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
++	if c.curFunc != nil {
++		c.Fatalf(0, "NewFunc called without previous Free")
++	}
++	f := &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
++	c.curFunc = f
++	return f
+ }
+ 
+ func (c *Config) Logf(msg string, args ...interface{})               { c.fe.Logf(msg, args...) }
+@@ -118,6 +137,3 @@ func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
+ }
+ func (c *Config) Warnl(line int, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
+ func (c *Config) Debug_checknil() bool                            { return c.fe.Debug_checknil() }
+-
+-// TODO(khr): do we really need a separate Config, or can we just
+-// store all its fields inside a Func?
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 429708213f..faf16a3816 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -164,7 +164,7 @@ func deadcode(f *Func) {
+ 	f.Names = f.Names[:i]
+ 
+ 	// Remove dead values from blocks' value list.  Return dead
+-	// value ids to the allocator.
++	// values to the allocator.
+ 	for _, b := range f.Blocks {
+ 		i := 0
+ 		for _, v := range b.Values {
+@@ -172,7 +172,7 @@ func deadcode(f *Func) {
+ 				b.Values[i] = v
+ 				i++
+ 			} else {
+-				f.vid.put(v.ID)
++				f.freeValue(v)
+ 			}
+ 		}
+ 		// aid GC
+@@ -197,7 +197,7 @@ func deadcode(f *Func) {
+ 			b.Succs = nil
+ 			b.Control = nil
+ 			b.Kind = BlockDead
+-			f.bid.put(b.ID)
++			f.freeBlock(b)
+ 		}
+ 	}
+ 	// zero remainder to help GC
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 371dae3b17..26e4283a23 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -4,10 +4,7 @@
+ 
+ package ssa
+ 
+-import (
+-	"math"
+-	"sync"
+-)
++import "math"
+ 
+ // A Func represents a Go func declaration (or function literal) and
+ // its body.  This package compiles each Func independently.
+@@ -31,6 +28,9 @@ type Func struct {
+ 	// Names is a copy of NamedValues.Keys.  We keep a separate list
+ 	// of keys to make iteration order deterministic.
+ 	Names []LocalSlot
++
++	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
++	freeBlocks *Block // free Blocks linked by Aux.(*Block).  All other fields except ID are 0/nil.
+ }
+ 
+ // NumBlocks returns an integer larger than the id of any Block in the Func.
+@@ -43,68 +43,85 @@ func (f *Func) NumValues() int {
+ 	return f.vid.num()
+ }
+ 
+-const (
+-	blockSize = 100
+-)
+-
+-// blockPool provides a contiguous array of Blocks which
+-// improves the speed of traversing dominator trees.
+-type blockPool struct {
+-	blocks []Block
+-	mu     sync.Mutex
++// newValue allocates a new Value with the given fields and places it at the end of b.Values.
++func (f *Func) newValue(op Op, t Type, b *Block, line int32) *Value {
++	var v *Value
++	if f.freeValues != nil {
++		v = f.freeValues
++		f.freeValues = v.argstorage[0]
++		v.argstorage[0] = nil
++	} else {
++		ID := f.vid.get()
++		if int(ID) < len(f.Config.values) {
++			v = &f.Config.values[ID]
++		} else {
++			v = &Value{ID: ID}
++		}
++	}
++	v.Op = op
++	v.Type = t
++	v.Block = b
++	v.Line = line
++	b.Values = append(b.Values, v)
++	return v
+ }
+ 
+-func (bp *blockPool) newBlock() *Block {
+-	bp.mu.Lock()
+-	defer bp.mu.Unlock()
+-
+-	if len(bp.blocks) == 0 {
+-		bp.blocks = make([]Block, blockSize, blockSize)
++// freeValue frees a value.  It must no longer be referenced.
++func (f *Func) freeValue(v *Value) {
++	if v.Type == nil {
++		f.Fatalf("trying to free an already freed value")
+ 	}
+-
+-	res := &bp.blocks[0]
+-	bp.blocks = bp.blocks[1:]
+-	return res
++	// Clear everything but ID (which we reuse).
++	id := v.ID
++	*v = Value{}
++	v.ID = id
++	v.argstorage[0] = f.freeValues
++	f.freeValues = v
+ }
+ 
+-var bp blockPool
+-
+-// NewBlock returns a new block of the given kind and appends it to f.Blocks.
++// newBlock allocates a new Block of the given kind and places it at the end of f.Blocks.
+ func (f *Func) NewBlock(kind BlockKind) *Block {
+-	b := bp.newBlock()
+-	b.ID = f.bid.get()
++	var b *Block
++	if f.freeBlocks != nil {
++		b = f.freeBlocks
++		f.freeBlocks = b.Aux.(*Block)
++		b.Aux = nil
++	} else {
++		ID := f.bid.get()
++		if int(ID) < len(f.Config.blocks) {
++			b = &f.Config.blocks[ID]
++		} else {
++			b = &Block{ID: ID}
++		}
++	}
+ 	b.Kind = kind
+ 	b.Func = f
+ 	f.Blocks = append(f.Blocks, b)
+ 	return b
+ }
+ 
++func (f *Func) freeBlock(b *Block) {
++	// Clear everything but ID (which we reuse).
++	id := b.ID
++	*b = Block{}
++	b.ID = id
++	b.Aux = f.freeBlocks
++	f.freeBlocks = b
++}
++
+ // NewValue0 returns a new value in the block with no arguments and zero aux values.
+ func (b *Block) NewValue0(line int32, op Op, t Type) *Value {
+-	v := &Value{
+-		ID:    b.Func.vid.get(),
+-		Op:    op,
+-		Type:  t,
+-		Block: b,
+-		Line:  line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = 0
+ 	v.Args = v.argstorage[:0]
+-	b.Values = append(b.Values, v)
+ 	return v
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and an auxint value.
+ func (b *Block) NewValue0I(line int32, op Op, t Type, auxint int64) *Value {
+-	v := &Value{
+-		ID:     b.Func.vid.get(),
+-		Op:     op,
+-		Type:   t,
+-		AuxInt: auxint,
+-		Block:  b,
+-		Line:   line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:0]
+-	b.Values = append(b.Values, v)
+ 	return v
+ }
+ 
+@@ -116,158 +133,93 @@ func (b *Block) NewValue0A(line int32, op Op, t Type, aux interface{}) *Value {
+ 		// to prevent errors like using NewValue1A instead of NewValue1I.
+ 		b.Fatalf("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)
+ 	}
+-	v := &Value{
+-		ID:    b.Func.vid.get(),
+-		Op:    op,
+-		Type:  t,
+-		Aux:   aux,
+-		Block: b,
+-		Line:  line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = 0
++	v.Aux = aux
+ 	v.Args = v.argstorage[:0]
+-	b.Values = append(b.Values, v)
+ 	return v
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and both an auxint and aux values.
+ func (b *Block) NewValue0IA(line int32, op Op, t Type, auxint int64, aux interface{}) *Value {
+-	v := &Value{
+-		ID:     b.Func.vid.get(),
+-		Op:     op,
+-		Type:   t,
+-		AuxInt: auxint,
+-		Aux:    aux,
+-		Block:  b,
+-		Line:   line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = auxint
++	v.Aux = aux
+ 	v.Args = v.argstorage[:0]
+-	b.Values = append(b.Values, v)
+ 	return v
+ }
+ 
+ // NewValue1 returns a new value in the block with one argument and zero aux values.
+ func (b *Block) NewValue1(line int32, op Op, t Type, arg *Value) *Value {
+-	v := &Value{
+-		ID:    b.Func.vid.get(),
+-		Op:    op,
+-		Type:  t,
+-		Block: b,
+-		Line:  line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = 0
+ 	v.Args = v.argstorage[:1]
+-	v.Args[0] = arg
+-	b.Values = append(b.Values, v)
++	v.argstorage[0] = arg
+ 	return v
+ }
+ 
+ // NewValue1I returns a new value in the block with one argument and an auxint value.
+ func (b *Block) NewValue1I(line int32, op Op, t Type, auxint int64, arg *Value) *Value {
+-	v := &Value{
+-		ID:     b.Func.vid.get(),
+-		Op:     op,
+-		Type:   t,
+-		AuxInt: auxint,
+-		Block:  b,
+-		Line:   line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:1]
+-	v.Args[0] = arg
+-	b.Values = append(b.Values, v)
++	v.argstorage[0] = arg
+ 	return v
+ }
+ 
+ // NewValue1A returns a new value in the block with one argument and an aux value.
+ func (b *Block) NewValue1A(line int32, op Op, t Type, aux interface{}, arg *Value) *Value {
+-	v := &Value{
+-		ID:    b.Func.vid.get(),
+-		Op:    op,
+-		Type:  t,
+-		Aux:   aux,
+-		Block: b,
+-		Line:  line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = 0
++	v.Aux = aux
+ 	v.Args = v.argstorage[:1]
+-	v.Args[0] = arg
+-	b.Values = append(b.Values, v)
++	v.argstorage[0] = arg
+ 	return v
+ }
+ 
+ // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
+ func (b *Block) NewValue1IA(line int32, op Op, t Type, auxint int64, aux interface{}, arg *Value) *Value {
+-	v := &Value{
+-		ID:     b.Func.vid.get(),
+-		Op:     op,
+-		Type:   t,
+-		AuxInt: auxint,
+-		Aux:    aux,
+-		Block:  b,
+-		Line:   line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = auxint
++	v.Aux = aux
+ 	v.Args = v.argstorage[:1]
+-	v.Args[0] = arg
+-	b.Values = append(b.Values, v)
++	v.argstorage[0] = arg
+ 	return v
+ }
+ 
+ // NewValue2 returns a new value in the block with two arguments and zero aux values.
+ func (b *Block) NewValue2(line int32, op Op, t Type, arg0, arg1 *Value) *Value {
+-	v := &Value{
+-		ID:    b.Func.vid.get(),
+-		Op:    op,
+-		Type:  t,
+-		Block: b,
+-		Line:  line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = 0
+ 	v.Args = v.argstorage[:2]
+-	v.Args[0] = arg0
+-	v.Args[1] = arg1
+-	b.Values = append(b.Values, v)
++	v.argstorage[0] = arg0
++	v.argstorage[1] = arg1
+ 	return v
+ }
+ 
+ // NewValue2I returns a new value in the block with two arguments and an auxint value.
+-func (b *Block) NewValue2I(line int32, op Op, t Type, aux int64, arg0, arg1 *Value) *Value {
+-	v := &Value{
+-		ID:     b.Func.vid.get(),
+-		Op:     op,
+-		Type:   t,
+-		AuxInt: aux,
+-		Block:  b,
+-		Line:   line,
+-	}
++func (b *Block) NewValue2I(line int32, op Op, t Type, auxint int64, arg0, arg1 *Value) *Value {
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:2]
+-	v.Args[0] = arg0
+-	v.Args[1] = arg1
+-	b.Values = append(b.Values, v)
++	v.argstorage[0] = arg0
++	v.argstorage[1] = arg1
+ 	return v
+ }
+ 
+ // NewValue3 returns a new value in the block with three arguments and zero aux values.
+ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *Value {
+-	v := &Value{
+-		ID:    b.Func.vid.get(),
+-		Op:    op,
+-		Type:  t,
+-		Block: b,
+-		Line:  line,
+-	}
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = 0
+ 	v.Args = []*Value{arg0, arg1, arg2}
+-	b.Values = append(b.Values, v)
+ 	return v
+ }
+ 
+ // NewValue3I returns a new value in the block with three arguments and an auxint value.
+-func (b *Block) NewValue3I(line int32, op Op, t Type, aux int64, arg0, arg1, arg2 *Value) *Value {
+-	v := &Value{
+-		ID:     b.Func.vid.get(),
+-		Op:     op,
+-		Type:   t,
+-		AuxInt: aux,
+-		Block:  b,
+-		Line:   line,
+-	}
++func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
++	v := b.Func.newValue(op, t, b, line)
++	v.AuxInt = auxint
+ 	v.Args = []*Value{arg0, arg1, arg2}
+-	b.Values = append(b.Values, v)
+ 	return v
+ }
+ 
+@@ -310,3 +262,32 @@ func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry
+ func (f *Func) Unimplementedf(msg string, args ...interface{}) {
+ 	f.Config.Unimplementedf(f.Entry.Line, msg, args...)
+ }
++
++func (f *Func) Free() {
++	// Clear values.
++	n := f.vid.num()
++	if n > len(f.Config.values) {
++		n = len(f.Config.values)
++	}
++	for i := 1; i < n; i++ {
++		f.Config.values[i] = Value{}
++		f.Config.values[i].ID = ID(i)
++	}
++
++	// Clear blocks.
++	n = f.bid.num()
++	if n > len(f.Config.blocks) {
++		n = len(f.Config.blocks)
++	}
++	for i := 1; i < n; i++ {
++		f.Config.blocks[i] = Block{}
++		f.Config.blocks[i].ID = ID(i)
++	}
++
++	// Unregister from config.
++	if f.Config.curFunc != f {
++		f.Fatalf("free of function which isn't the last one allocated")
++	}
++	f.Config.curFunc = nil
++	*f = Func{} // just in case
++}
+diff --git a/src/cmd/compile/internal/ssa/id.go b/src/cmd/compile/internal/ssa/id.go
+index 3f53e1a434..367e687abf 100644
+--- a/src/cmd/compile/internal/ssa/id.go
++++ b/src/cmd/compile/internal/ssa/id.go
+@@ -9,16 +9,10 @@ type ID int32
+ // idAlloc provides an allocator for unique integers.
+ type idAlloc struct {
+ 	last ID
+-	free []ID
+ }
+ 
+ // get allocates an ID and returns it.
+ func (a *idAlloc) get() ID {
+-	if n := len(a.free); n > 0 {
+-		x := a.free[n-1]
+-		a.free = a.free[:n-1]
+-		return x
+-	}
+ 	x := a.last
+ 	x++
+ 	if x == 1<<31-1 {
+@@ -28,11 +22,6 @@ func (a *idAlloc) get() ID {
+ 	return x
+ }
+ 
+-// put deallocates an ID.
+-func (a *idAlloc) put(x ID) {
+-	a.free = append(a.free, x)
+-}
+-
+ // num returns the maximum ID ever returned + 1.
+ func (a *idAlloc) num() int {
+ 	return int(a.last + 1)
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 9238999074..2a92624319 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -964,9 +964,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			// Constants, SP, SB, ...
+ 			continue
+ 		}
+-		spill.Op = OpInvalid
+-		spill.Type = TypeInvalid
+-		spill.resetArgs()
++		f.freeValue(spill)
+ 	}
+ 	for _, b := range f.Blocks {
+ 		i := 0

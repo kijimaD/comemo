@@ -25,7 +25,7 @@ Date:   Wed Oct 19 15:17:42 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go         |  6 +++++-
  src/cmd/compile/internal/types2/check_test.go  |  1 +
  src/cmd/compile/internal/types2/instantiate.go | 13 ++++++++----
@@ -38,3 +38,275 @@ Date:   Wed Oct 19 15:17:42 2022 -0700
  src/go/types/operand.go                        |  4 ++--
  src/internal/types/testdata/spec/comparable.go | 28 ++++++++++++++++++++++++++
  11 files changed, 70 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 1f19fe0927..f1b8a20456 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -167,6 +167,10 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
++
++	// If AltComparableSemantics is set, ordinary (non-type parameter)
++	// interfaces satisfy the comparable constraint.
++	AltComparableSemantics bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+@@ -480,7 +484,7 @@ func Implements(V Type, T *Interface) bool {
+ 	if V.Underlying() == Typ[Invalid] {
+ 		return false
+ 	}
+-	return (*Checker)(nil).implements(V, T, nil)
++	return (*Checker)(nil).implements(V, T, false, nil)
+ }
+ 
+ // Identical reports whether x and y are identical types.
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 2d7783611d..9a7aef7ac4 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -130,6 +130,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
++	flags.BoolVar(&conf.AltComparableSemantics, "altComparableSemantics", false, "")
+ 	if err := parseFlags(filenames[0], nil, flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 043db9c24a..55ab7a8d25 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -176,7 +176,7 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		// the parameterized type.
+ 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
+ 		var cause string
+-		if !check.implements(targs[i], bound, &cause) {
++		if !check.implements(targs[i], bound, true, &cause) {
+ 			return i, errors.New(cause)
+ 		}
+ 	}
+@@ -184,11 +184,12 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ }
+ 
+ // implements checks if V implements T. The receiver may be nil if implements
+-// is called through an exported API call such as AssignableTo.
++// is called through an exported API call such as AssignableTo. If constraint
++// is set, T is a type constraint.
+ //
+ // If the provided cause is non-nil, it may be set to an error string
+ // explaining why V does not implement T.
+-func (check *Checker) implements(V, T Type, cause *string) bool {
++func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
+@@ -245,7 +246,11 @@ func (check *Checker) implements(V, T Type, cause *string) bool {
+ 	// Only check comparability if we don't have a more specific error.
+ 	checkComparability := func() bool {
+ 		// If T is comparable, V must be comparable.
+-		if Ti.IsComparable() && !comparable(V, false, nil, nil) {
++		// For constraint satisfaction, use dynamic comparability for the
++		// alternative comparable semantics such that ordinary, non-type
++		// parameter interfaces implement comparable.
++		dynamic := constraint && check != nil && check.conf.AltComparableSemantics
++		if Ti.IsComparable() && !comparable(V, dynamic, nil, nil) {
+ 			if cause != nil {
+ 				*cause = check.sprintf("%s does not implement comparable", V)
+ 			}
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 3e04798815..21cad04433 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -472,7 +472,7 @@ func (check *Checker) newAssertableTo(V *Interface, T Type) bool {
+ 	if IsInterface(T) {
+ 		return true
+ 	}
+-	return check.implements(T, V, nil)
++	return check.implements(T, V, false, nil)
+ }
+ 
+ // deref dereferences typ if it is a *Pointer and returns its base and true.
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 7f10b75612..bdbbfc1ecb 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -289,7 +289,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 	// T is an interface type and x implements T and T is not a type parameter.
+ 	// Also handle the case where T is a pointer to an interface.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if !check.implements(V, T, cause) {
++		if !check.implements(V, T, false, cause) {
+ 			return false, InvalidIfaceAssign
+ 		}
+ 		return true, 0
+@@ -297,7 +297,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 
+ 	// If V is an interface, check if a missing type assertion is the problem.
+ 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+-		if check.implements(T, V, nil) {
++		if check.implements(T, V, false, nil) {
+ 			// T implements V, so give hint about type assertion.
+ 			if cause != nil {
+ 				*cause = "need type assertion"
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 31f1bdd98e..06a5cd8c2b 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -167,6 +167,10 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
++
++	// If altComparableSemantics is set, ordinary (non-type parameter)
++	// interfaces satisfy the comparable constraint.
++	altComparableSemantics bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+@@ -463,7 +467,7 @@ func Implements(V Type, T *Interface) bool {
+ 	if V.Underlying() == Typ[Invalid] {
+ 		return false
+ 	}
+-	return (*Checker)(nil).implements(V, T, nil)
++	return (*Checker)(nil).implements(V, T, false, nil)
+ }
+ 
+ // Identical reports whether x and y are identical types.
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 1ca522c079..201cf14f35 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -217,6 +217,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
++	flags.BoolVar(addrAltComparableSemantics(&conf), "altComparableSemantics", false, "")
+ 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -293,6 +294,12 @@ func readCode(err Error) int {
+ 	return int(v.FieldByName("go116code").Int())
+ }
+ 
++// addrAltComparableSemantics(conf) returns &conf.altComparableSemantics (unexported field).
++func addrAltComparableSemantics(conf *Config) *bool {
++	v := reflect.Indirect(reflect.ValueOf(conf))
++	return (*bool)(v.FieldByName("altComparableSemantics").Addr().UnsafePointer())
++}
++
+ // TestManual is for manual testing of a package - either provided
+ // as a list of filenames belonging to the package, or a directory
+ // name containing the package files - after the test arguments
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index df7d35998a..24a9f280b0 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -176,7 +176,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type,
+ 		// the parameterized type.
+ 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
+ 		var cause string
+-		if !check.implements(targs[i], bound, &cause) {
++		if !check.implements(targs[i], bound, true, &cause) {
+ 			return i, errors.New(cause)
+ 		}
+ 	}
+@@ -184,11 +184,12 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type,
+ }
+ 
+ // implements checks if V implements T. The receiver may be nil if implements
+-// is called through an exported API call such as AssignableTo.
++// is called through an exported API call such as AssignableTo. If constraint
++// is set, T is a type constraint.
+ //
+ // If the provided cause is non-nil, it may be set to an error string
+ // explaining why V does not implement T.
+-func (check *Checker) implements(V, T Type, cause *string) bool {
++func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
+@@ -245,7 +246,11 @@ func (check *Checker) implements(V, T Type, cause *string) bool {
+ 	// Only check comparability if we don't have a more specific error.
+ 	checkComparability := func() bool {
+ 		// If T is comparable, V must be comparable.
+-		if Ti.IsComparable() && !comparable(V, false, nil, nil) {
++		// For constraint satisfaction, use dynamic comparability for the
++		// alternative comparable semantics such that ordinary, non-type
++		// parameter interfaces implement comparable.
++		dynamic := constraint && check != nil && check.conf.altComparableSemantics
++		if Ti.IsComparable() && !comparable(V, dynamic, nil, nil) {
+ 			if cause != nil {
+ 				*cause = check.sprintf("%s does not implement comparable", V)
+ 			}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 828c881367..2fac097ccb 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -471,7 +471,7 @@ func (check *Checker) newAssertableTo(V *Interface, T Type) bool {
+ 	if IsInterface(T) {
+ 		return true
+ 	}
+-	return check.implements(T, V, nil)
++	return check.implements(T, V, false, nil)
+ }
+ 
+ // deref dereferences typ if it is a *Pointer and returns its base and true.
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 62be4eee34..e21a51a77b 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -278,7 +278,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 	// T is an interface type and x implements T and T is not a type parameter.
+ 	// Also handle the case where T is a pointer to an interface.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if !check.implements(V, T, cause) {
++		if !check.implements(V, T, false, cause) {
+ 			return false, InvalidIfaceAssign
+ 		}
+ 		return true, 0
+@@ -286,7 +286,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 
+ 	// If V is an interface, check if a missing type assertion is the problem.
+ 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+-		if check.implements(T, V, nil) {
++		if check.implements(T, V, false, nil) {
+ 			// T implements V, so give hint about type assertion.
+ 			if cause != nil {
+ 				*cause = "need type assertion"
+diff --git a/src/internal/types/testdata/spec/comparable.go b/src/internal/types/testdata/spec/comparable.go
+new file mode 100644
+index 0000000000..8dbbb4e337
+--- /dev/null
++++ b/src/internal/types/testdata/spec/comparable.go
+@@ -0,0 +1,28 @@
++// -altComparableSemantics
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f1[_ comparable]()              {}
++func f2[_ interface{ comparable }]() {}
++
++type T interface{ m() }
++
++func _[P comparable, Q ~int, R any]() {
++	_ = f1[int]
++	_ = f1[T /* T does implement comparable */]
++	_ = f1[any /* any does implement comparable */]
++	_ = f1[P]
++	_ = f1[Q]
++	_ = f1[R /* ERROR R does not implement comparable */]
++
++	_ = f2[int]
++	_ = f2[T /* T does implement comparable */]
++	_ = f2[any /* any does implement comparable */]
++	_ = f2[P]
++	_ = f2[Q]
++	_ = f2[R /* ERROR R does not implement comparable */]
++}

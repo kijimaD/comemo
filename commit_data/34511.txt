@@ -15,7 +15,36 @@ Date:   Tue Jul 25 12:47:39 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/51050
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/net/url/url.go      | 2 +-
  src/net/url/url_test.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index c9353ab080..509cec3ba0 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -911,7 +911,7 @@ func resolvePath(base, ref string) string {
+ 		// Add final slash to the joined path.
+ 		dst = append(dst, "")
+ 	}
+-	return "/" + strings.TrimLeft(strings.Join(dst, "/"), "/")
++	return "/" + strings.TrimPrefix(strings.Join(dst, "/"), "/")
+ }
+ 
+ // IsAbs reports whether the URL is absolute.
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 5f03200d94..604b323601 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1032,6 +1032,10 @@ var resolveReferenceTests = []struct {
+ 	{"http://foo.com/bar?a=b", "/baz?", "http://foo.com/baz?"},
+ 	{"http://foo.com/bar?a=b", "/baz?c=d", "http://foo.com/baz?c=d"},
+ 
++	// Multiple slashes
++	{"http://foo.com/bar", "http://foo.com//baz", "http://foo.com//baz"},
++	{"http://foo.com/bar", "http://foo.com///baz/quux", "http://foo.com///baz/quux"},
++
+ 	// Scheme-relative
+ 	{"https://foo.com/bar?a=b", "//bar.com/quux", "https://bar.com/quux"},
+ 

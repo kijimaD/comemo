@@ -18,6 +18,41 @@ Date:   Thu Oct 29 15:50:53 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/266372
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d0b8c668c3..0563f49d17 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -521,6 +521,14 @@ func mallocinit() {
+ 		for i := 0x7f; i >= 0; i-- {
+ 			var p uintptr
+ 			switch {
++			case raceenabled:
++				// The TSAN runtime requires the heap
++				// to be in the range [0x00c000000000,
++				// 0x00e000000000).
++				p = uintptr(i)<<32 | uintptrMask&(0x00c0<<32)
++				if p >= uintptrMask&0x00e000000000 {
++					continue
++				}
+ 			case GOARCH == "arm64" && GOOS == "ios":
+ 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
+ 			case GOARCH == "arm64":
+@@ -532,14 +540,6 @@ func mallocinit() {
+ 					continue
+ 				}
+ 				p = uintptr(i)<<40 | uintptrMask&(0xa0<<52)
+-			case raceenabled:
+-				// The TSAN runtime requires the heap
+-				// to be in the range [0x00c000000000,
+-				// 0x00e000000000).
+-				p = uintptr(i)<<32 | uintptrMask&(0x00c0<<32)
+-				if p >= uintptrMask&0x00e000000000 {
+-					continue
+-				}
+ 			default:
+ 				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
+ 			}

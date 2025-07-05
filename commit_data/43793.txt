@@ -34,6 +34,21 @@ Date:   Thu Apr 23 15:30:19 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 5a77910bde..89407f27df 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -59,6 +59,9 @@ func (h ValHeap) Less(i, j int) bool {
+ 			return c < 0 // smaller args comes later
+ 		}
+ 	}
++	if c := x.Uses - y.Uses; c != 0 {
++		return c < 0 // smaller uses come later
++	}
+ 	return x.ID > y.ID
+ }
+ 

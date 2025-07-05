@@ -10,8 +10,99 @@ Date:   Mon Oct 10 16:44:53 2016 -0400
     Change-Id: Icfa097a6deb1d6682acb7be9f34729215c29eabb
     Reviewed-on: https://go-review.googlesource.com/30707
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/float_test.go   |  9 ++++++---
  src/math/big/rat_test.go     | 10 +++++-----
  src/math/big/ratconv_test.go |  6 +++---
  3 files changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index bea5ac175c..7d4bd312c9 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -5,6 +5,7 @@
+ package big
+ 
+ import (
++	"flag"
+ 	"fmt"
+ 	"math"
+ 	"strconv"
+@@ -1495,12 +1496,14 @@ func TestFloatQuo(t *testing.T) {
+ 	}
+ }
+ 
++var long = flag.Bool("long", false, "run very long tests")
++
+ // TestFloatQuoSmoke tests all divisions x/y for values x, y in the range [-n, +n];
+ // it serves as a smoke test for basic correctness of division.
+ func TestFloatQuoSmoke(t *testing.T) {
+-	n := 1000
+-	if testing.Short() {
+-		n = 10
++	n := 10
++	if *long {
++		n = 1000
+ 	}
+ 
+ 	const dprec = 3         // max. precision variation
+diff --git a/src/math/big/rat_test.go b/src/math/big/rat_test.go
+index 3a06fca3c3..e16ee5ef20 100644
+--- a/src/math/big/rat_test.go
++++ b/src/math/big/rat_test.go
+@@ -382,9 +382,9 @@ func TestFloat32Distribution(t *testing.T) {
+ 		9,
+ 		11,
+ 	}
+-	var winc, einc = uint64(1), 1 // soak test (~1.5s on x86-64)
++	var winc, einc = uint64(5), 15 // quick test (~60ms on x86-64)
+ 	if testing.Short() {
+-		winc, einc = 5, 15 // quick test (~60ms on x86-64)
++		winc, einc = uint64(1), 1 // soak test (~1.5s on x86-64)
+ 	}
+ 
+ 	for _, sign := range "+-" {
+@@ -430,9 +430,9 @@ func TestFloat64Distribution(t *testing.T) {
+ 		9,
+ 		11,
+ 	}
+-	var winc, einc = uint64(1), 1 // soak test (~75s on x86-64)
+-	if testing.Short() {
+-		winc, einc = 10, 500 // quick test (~12ms on x86-64)
++	var winc, einc = uint64(10), 500 // quick test (~12ms on x86-64)
++	if *long {
++		winc, einc = uint64(1), 1 // soak test (~75s on x86-64)
+ 	}
+ 
+ 	for _, sign := range "+-" {
+diff --git a/src/math/big/ratconv_test.go b/src/math/big/ratconv_test.go
+index 3a191a6f53..56ac8d7aa3 100644
+--- a/src/math/big/ratconv_test.go
++++ b/src/math/big/ratconv_test.go
+@@ -144,7 +144,7 @@ func TestFloatString(t *testing.T) {
+ }
+ 
+ // Test inputs to Rat.SetString. The prefix "long:" causes the test
+-// to be skipped in --test.short mode.  (The threshold is about 500us.)
++// to be skipped except in -long mode.  (The threshold is about 500us.)
+ var float64inputs = []string{
+ 	// Constants plundered from strconv/testfp.txt.
+ 
+@@ -350,7 +350,7 @@ func isFinite(f float64) bool {
+ func TestFloat32SpecialCases(t *testing.T) {
+ 	for _, input := range float64inputs {
+ 		if strings.HasPrefix(input, "long:") {
+-			if testing.Short() {
++			if !*long {
+ 				continue
+ 			}
+ 			input = input[len("long:"):]
+@@ -406,7 +406,7 @@ func TestFloat32SpecialCases(t *testing.T) {
+ func TestFloat64SpecialCases(t *testing.T) {
+ 	for _, input := range float64inputs {
+ 		if strings.HasPrefix(input, "long:") {
+-			if testing.Short() {
++			if !*long {
+ 				continue
+ 			}
+ 			input = input[len("long:"):]

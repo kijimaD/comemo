@@ -12,6 +12,20 @@ Date:   Tue Apr 17 16:13:04 2018 -0700
     Change-Id: Ia433387fe189d2daf5095df32085a541458f00a1
     Reviewed-on: https://go-review.googlesource.com/107623
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index a8fc4e0c74..f8e4766a65 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -64,7 +64,7 @@
+ 	laid out like this:
+ 		struct:             {field0 field1 ...}
+ 		array, slice:       [elem0 elem1 ...]
+-		maps:               map[key1:value1 key2:value2]
++		maps:               map[key1:value1 key2:value2 ...]
+ 		pointer to above:   &{}, &[], &map[]
+ 
+ 	Width is specified by an optional decimal number immediately preceding the verb.

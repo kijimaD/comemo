@@ -9,9 +9,456 @@ Date:   Thu Dec 17 13:20:56 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/179062
-
+---
  src/Make.pkg        |  67 +++++++++++++++++++------------
  src/cmd/cgo/ast.go  |   5 +--
  src/cmd/cgo/main.go | 111 ++++++++++++++++++++++++++++++----------------------
  src/cmd/cgo/out.go  | 110 +++++++++++++++++++++++++++++++++++++++------------
  4 files changed, 194 insertions(+), 99 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 87b4e442e1..489aa78c27 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -36,18 +36,21 @@ INSTALLFILES=$(pkgdir)/$(TARG).a
+ 
+ # The rest of the cgo rules are below, but these variable updates
+ # must be done here so they apply to the main rules.
++ifdef CGOFILES
+ GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
+-GOFILES+=$(patsubst %.go,%.cgo2.go,$(CGOFILES))
+-OFILES+=$(patsubst %.go,%.cgo3.$O,$(CGOFILES))
+-INSTALLFILES+=$(patsubst %.go,$(pkgdir)/$(dir)/$(elem)_%.so,$(CGOFILES))
++GOFILES+=_cgo_gotypes.go
++OFILES+=_cgo_defun.$O
++GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
++INSTALLFILES+=$(pkgdir)/$(dir)/$(TARG).so
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
++endif
+ 
+ coverage:
+ 	$(QUOTED_GOBIN)/gotest
+ 	$(QUOTED_GOBIN)/6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+ clean:
+-	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go $(CLEANFILES)
++	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go *.so _obj _test _testmain.go $(CLEANFILES)
+ 
+ test:
+ 	$(QUOTED_GOBIN)/gotest
+@@ -91,32 +94,42 @@ dir:
+ 
+ # To use cgo in a Go package, add a line
+ #
+-#	CGOFILES=x.go
++#	CGOFILES=x.go y.go
+ #
+-# to the main Makefile.  This signals that cgo should process x.go.
++# to the main Makefile.  This signals that cgo should process x.go
++# and y.go when building the package.
+ # There are two optional variables to set, CGO_CFLAGS and CGO_LDFLAGS,
+ # which specify compiler and linker flags to use when compiling
+-# (using gcc) the C support for x.go.
++# (using gcc) the C support for x.go and y.go.
+ 
+-# Cgo translates each x.go file listed in $(CGOFILES) into
++# Cgo translates each x.go file listed in $(CGOFILES) into a basic
++# translation of x.go, called x.cgo1.go. Additionally, three other
++# files are created:
+ #
+-#	x.cgo1.go - basic translation of x.go
+-#	x.cgo2.go - declarations needed for x.cgo1.go; imports "unsafe"
+-#	x.cgo3.c - C trampoline code to be compiled with 6c and linked into the package
+-#	x.cgo4.c - C implementations compiled with gcc to create dynamic library
++#	_cgo_gotypes.go	- declarations needed for all .go files in the package; imports "unsafe"
++#	_cgo_defun.c	- C trampoline code to be compiled with 6c and linked into the package
++#	x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
+ #
+-%.cgo1.go %.cgo2.go %.cgo3.c %.cgo4.c: %.go
+-	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo $(CGO_CFLAGS) $*.go
+ 
+-# The rules above added x.cgo1.go and x.cgo2.go to $(GOFILES),
+-# added x.cgo3.$O to $OFILES, and added the installed copy of
+-# package_x.so (built from x.cgo4.c) to $(INSTALLFILES).
++_cgo_defun.c _cgo_gotypes.go: $(CGOFILES)
++	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo $(CGO_CFLAGS) $(CGOFILES)
++
++# Ugly but necessary
++%.cgo1.go: _cgo_defun.c _cgo_gotypes.go
++	@true
++
++%.cgo2.c: _cgo_defun.c _cgo_gotypes.go
++	@true
++
++%.cgo2.o: %.cgo2.c
++	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo2.c
++
++# The rules above added x.cgo1.go and _cgo_gotypes.go to $(GOFILES),
++# added _cgo_defun.$O to $OFILES, and added the installed copy of
++# package_x.so (built from x.cgo2.c) to $(INSTALLFILES).
+ 
+-# Compile x.cgo3.c with 6c; needs access to the runtime headers.
+ RUNTIME_CFLAGS_amd64=-D_64BIT
+ RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime" $(RUNTIME_CFLAGS_$(GOARCH))
+-%.cgo3.$O: %.cgo3.c
+-	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
+ 
+ # Have to run gcc with the right size argument on hybrid 32/64 machines.
+ _CGO_CFLAGS_386=-m32
+@@ -127,15 +140,17 @@ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
+ 
+ 
+ # Compile x.cgo4.c with gcc to make package_x.so.
+-%.cgo4.o: %.cgo4.c
+-	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
+ 
+-$(elem)_%.so: %.cgo4.o
+-	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $*.cgo4.o $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
++# Compile _cgo_defun.c with 6c; needs access to the runtime headers.
++_cgo_defun.$O: _cgo_defun.c
++	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) _cgo_defun.c
++
++_cgo_.so: $(GCC_OFILES)
++	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+ 
+-$(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
++$(pkgdir)/$(dir)/$(TARG).so: _cgo_.so
+ 	@test -d $(QUOTED_GOROOT/pkg && mkdir -p $(pkgdir)/$(dir)
+-	cp $(elem)_$*.so "$@"
++	cp _cgo_.so "$@"
+ 
+ # Generic build rules.
+ # These come last so that the rules above can override them
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 301516c43a..76ff9ec653 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -38,6 +38,7 @@ type Prog struct {
+ 	Enumdef     map[string]int64
+ 	PtrSize     int64
+ 	GccOptions  []string
++	OutDefs     map[string]bool
+ }
+ 
+ // A Type collects information about a type in both the C and Go worlds.
+@@ -56,8 +57,7 @@ type FuncType struct {
+ 	Go     *ast.FuncType
+ }
+ 
+-func openProg(name string) *Prog {
+-	p := new(Prog)
++func openProg(name string, p *Prog) {
+ 	var err os.Error
+ 	p.AST, err = parser.ParsePkgFile("", name, parser.ParseComments)
+ 	if err != nil {
+@@ -120,7 +120,6 @@ func openProg(name string) *Prog {
+ 	// Accumulate pointers to uses of C.x.
+ 	p.Crefs = make([]*Cref, 0, 8)
+ 	walk(p.AST, p, "prog")
+-	return p
+ }
+ 
+ func walk(x interface{}, p *Prog, context string) {
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 5aa17397bd..c3e319f92c 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -14,9 +14,10 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"os"
++	"strings"
+ )
+ 
+-func usage() { fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n") }
++func usage() { fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go ...\n") }
+ 
+ var ptrSizeMap = map[string]int64{
+ 	"386": 4,
+@@ -40,8 +41,19 @@ func main() {
+ 		usage()
+ 		os.Exit(2)
+ 	}
+-	gccOptions := args[1 : len(args)-1]
+-	input := args[len(args)-1]
++
++	// Find first arg that looks like a go file and assume everything before
++	// that are options to pass to gcc.
++	var i int
++	for i = len(args) - 1; i > 0; i-- {
++		if !strings.HasSuffix(args[i], ".go") {
++			break
++		}
++	}
++
++	i += 1
++
++	gccOptions, goFiles := args[1:i], args[i:]
+ 
+ 	arch := os.Getenv("GOARCH")
+ 	if arch == "" {
+@@ -57,59 +69,66 @@ func main() {
+ 	os.Setenv("LC_ALL", "C")
+ 	os.Setenv("LC_CTYPE", "C")
+ 
+-	p := openProg(input)
+-	for _, cref := range p.Crefs {
+-		// Convert C.ulong to C.unsigned long, etc.
+-		if expand, ok := expandName[cref.Name]; ok {
+-			cref.Name = expand
+-		}
+-	}
++	p := new(Prog)
+ 
+ 	p.PtrSize = ptrSize
+-	p.Preamble = p.Preamble + "\n" + builtinProlog
+ 	p.GccOptions = gccOptions
+-	p.loadDebugInfo()
+ 	p.Vardef = make(map[string]*Type)
+ 	p.Funcdef = make(map[string]*FuncType)
+ 	p.Enumdef = make(map[string]int64)
++	p.OutDefs = make(map[string]bool)
+ 
+-	for _, cref := range p.Crefs {
+-		switch cref.Context {
+-		case "call":
+-			if !cref.TypeName {
+-				// Is an actual function call.
+-				*cref.Expr = &ast.Ident{Value: "_C_" + cref.Name}
+-				p.Funcdef[cref.Name] = cref.FuncType
+-				break
++	for _, input := range goFiles {
++		// Reset p.Preamble so that we don't end up with conflicting headers / defines
++		p.Preamble = builtinProlog
++		openProg(input, p)
++		for _, cref := range p.Crefs {
++			// Convert C.ulong to C.unsigned long, etc.
++			if expand, ok := expandName[cref.Name]; ok {
++				cref.Name = expand
+ 			}
+-			*cref.Expr = cref.Type.Go
+-		case "expr":
+-			if cref.TypeName {
+-				error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name)
+-			}
+-			// If the expression refers to an enumerated value, then
+-			// place the identifier for the value and add it to Enumdef so
+-			// it will be declared as a constant in the later stage.
+-			if cref.Type.EnumValues != nil {
+-				*cref.Expr = &ast.Ident{Value: cref.Name}
+-				p.Enumdef[cref.Name] = cref.Type.EnumValues[cref.Name]
+-				break
+-			}
+-			// Reference to C variable.
+-			// We declare a pointer and arrange to have it filled in.
+-			*cref.Expr = &ast.StarExpr{X: &ast.Ident{Value: "_C_" + cref.Name}}
+-			p.Vardef[cref.Name] = cref.Type
+-		case "type":
+-			if !cref.TypeName {
+-				error((*cref.Expr).Pos(), "expression C.%s used as type", cref.Name)
++		}
++		p.loadDebugInfo()
++		for _, cref := range p.Crefs {
++			switch cref.Context {
++			case "call":
++				if !cref.TypeName {
++					// Is an actual function call.
++					*cref.Expr = &ast.Ident{Value: "_C_" + cref.Name}
++					p.Funcdef[cref.Name] = cref.FuncType
++					break
++				}
++				*cref.Expr = cref.Type.Go
++			case "expr":
++				if cref.TypeName {
++					error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name)
++				}
++				// If the expression refers to an enumerated value, then
++				// place the identifier for the value and add it to Enumdef so
++				// it will be declared as a constant in the later stage.
++				if cref.Type.EnumValues != nil {
++					*cref.Expr = &ast.Ident{Value: cref.Name}
++					p.Enumdef[cref.Name] = cref.Type.EnumValues[cref.Name]
++					break
++				}
++				// Reference to C variable.
++				// We declare a pointer and arrange to have it filled in.
++				*cref.Expr = &ast.StarExpr{X: &ast.Ident{Value: "_C_" + cref.Name}}
++				p.Vardef[cref.Name] = cref.Type
++			case "type":
++				if !cref.TypeName {
++					error((*cref.Expr).Pos(), "expression C.%s used as type", cref.Name)
++				}
++				*cref.Expr = cref.Type.Go
+ 			}
+-			*cref.Expr = cref.Type.Go
+ 		}
+-	}
+-	if nerrors > 0 {
+-		os.Exit(2)
++		if nerrors > 0 {
++			os.Exit(2)
++		}
++
++		p.PackagePath = os.Getenv("CGOPKGPATH") + "/" + p.Package
++		p.writeOutput(input)
+ 	}
+ 
+-	p.PackagePath = os.Getenv("CGOPKGPATH") + "/" + p.Package
+-	p.writeOutput(input)
++	p.writeDefs()
+ }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2b42edbe09..8720d6ff7e 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -20,24 +20,13 @@ func creat(name string) *os.File {
+ 	return f
+ }
+ 
+-// writeOutput creates output files to be compiled by 6g, 6c, and gcc.
++// writeDefs creates output files to be compiled by 6g, 6c, and gcc.
+ // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
+-func (p *Prog) writeOutput(srcfile string) {
++func (p *Prog) writeDefs() {
+ 	pkgroot := os.Getenv("GOROOT") + "/pkg/" + os.Getenv("GOOS") + "_" + os.Getenv("GOARCH")
+ 
+-	base := srcfile
+-	if strings.HasSuffix(base, ".go") {
+-		base = base[0 : len(base)-3]
+-	}
+-	fgo1 := creat(base + ".cgo1.go")
+-	fgo2 := creat(base + ".cgo2.go")
+-	fc := creat(base + ".cgo3.c")
+-	fgcc := creat(base + ".cgo4.c")
+-
+-	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
+-	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n")
+-	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
+-	printer.Fprint(fgo1, p.AST)
++	fgo2 := creat("_cgo_gotypes.go")
++	fc := creat("_cgo_defun.c")
+ 
+ 	// Write second Go output: definitions of _C_xxx.
+ 	// In a separate file so that the import of "unsafe" does not
+@@ -54,15 +43,10 @@ func (p *Prog) writeOutput(srcfile string) {
+ 	}
+ 	fmt.Fprintf(fgo2, "type _C_void [0]byte\n")
+ 
+-	// While we process the vars and funcs, also write 6c and gcc output.
+-	// Gcc output starts with the preamble.
+-	fmt.Fprintf(fgcc, "%s\n", p.Preamble)
+-	fmt.Fprintf(fgcc, "%s\n", gccProlog)
+-
+ 	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot, p.Package, p.Package)
+ 
+ 	for name, def := range p.Vardef {
+-		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s/%s_%s.so\"\n", p.Package, name, name, pkgroot, p.PackagePath, base)
++		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s/%s.so\"\n", p.Package, name, name, pkgroot, p.PackagePath)
+ 		fmt.Fprintf(fgo2, "var _C_%s ", name)
+ 		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go})
+ 		fmt.Fprintf(fgo2, "\n")
+@@ -137,7 +121,7 @@ func (p *Prog) writeOutput(srcfile string) {
+ 
+ 		// C wrapper calls into gcc, passing a pointer to the argument frame.
+ 		// Also emit #pragma to get a pointer to the gcc wrapper.
+-		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s/%s_%s.so\"\n", name, name, pkgroot, p.PackagePath, base)
++		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s/%s.so\"\n", name, name, pkgroot, p.PackagePath)
+ 		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name)
+ 		fmt.Fprintf(fc, "\n")
+ 		fmt.Fprintf(fc, "void\n")
+@@ -146,6 +130,86 @@ func (p *Prog) writeOutput(srcfile string) {
+ 		fmt.Fprintf(fc, "\tcgocall(_cgo_%s, &p);\n", name)
+ 		fmt.Fprintf(fc, "}\n")
+ 		fmt.Fprintf(fc, "\n")
++	}
++
++	fgo2.Close()
++	fc.Close()
++}
++
++// writeOutput creates stubs for a specific source file to be compiled by 6g
++// (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
++func (p *Prog) writeOutput(srcfile string) {
++	base := srcfile
++	if strings.HasSuffix(base, ".go") {
++		base = base[0 : len(base)-3]
++	}
++	fgo1 := creat(base + ".cgo1.go")
++	fgcc := creat(base + ".cgo2.c")
++
++	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
++	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n")
++	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
++	printer.Fprint(fgo1, p.AST)
++
++	// While we process the vars and funcs, also write 6c and gcc output.
++	// Gcc output starts with the preamble.
++	fmt.Fprintf(fgcc, "%s\n", p.Preamble)
++	fmt.Fprintf(fgcc, "%s\n", gccProlog)
++
++	for name, def := range p.Funcdef {
++		_, ok := p.OutDefs[name]
++		if name == "CString" || name == "GoString" || ok {
++			// The builtins are already defined in the C prolog, and we don't
++			// want to duplicate function definitions we've already done.
++			continue
++		}
++		p.OutDefs[name] = true
++
++		// Construct a gcc struct matching the 6c argument frame.
++		// Assumes that in gcc, char is 1 byte, short 2 bytes, int 4 bytes, long long 8 bytes.
++		// These assumptions are checked by the gccProlog.
++		// Also assumes that 6c convention is to word-align the
++		// input and output parameters.
++		structType := "struct {\n"
++		off := int64(0)
++		npad := 0
++		for i, t := range def.Params {
++			if off%t.Align != 0 {
++				pad := t.Align - off%t.Align
++				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
++				off += pad
++				npad++
++			}
++			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i)
++			off += t.Size
++		}
++		if off%p.PtrSize != 0 {
++			pad := p.PtrSize - off%p.PtrSize
++			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
++			off += pad
++			npad++
++		}
++		if t := def.Result; t != nil {
++			if off%t.Align != 0 {
++				pad := t.Align - off%t.Align
++				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
++				off += pad
++				npad++
++			}
++			structType += fmt.Sprintf("\t\t%s r;\n", t.C)
++			off += t.Size
++		}
++		if off%p.PtrSize != 0 {
++			pad := p.PtrSize - off%p.PtrSize
++			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad)
++			off += pad
++			npad++
++		}
++		if len(def.Params) == 0 && def.Result == nil {
++			structType += "\t\tchar unused;\n" // avoid empty struct
++			off++
++		}
++		structType += "\t}"
+ 
+ 		// Gcc wrapper unpacks the C argument struct
+ 		// and calls the actual C function.
+@@ -170,8 +234,6 @@ func (p *Prog) writeOutput(srcfile string) {
+ 	}
+ 
+ 	fgo1.Close()
+-	fgo2.Close()
+-	fc.Close()
+ 	fgcc.Close()
+ }
+ 

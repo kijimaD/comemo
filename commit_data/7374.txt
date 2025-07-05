@@ -13,8 +13,177 @@ Date:   Fri Feb 4 13:14:38 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4131042
-
+---
  src/pkg/fmt/doc.go       |  4 ++++
  src/pkg/fmt/scan.go      | 58 +++++++++++++++++++++++++++++++++++++-----------
  src/pkg/fmt/scan_test.go | 14 +++++++++++-
  3 files changed, 62 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index b717b7f279..b40e265ae9 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -139,6 +139,10 @@
+ 	%e %E %f %F %g %g are all equivalent and scan any floating point or complex value
+ 	%s and %v on strings scan a space-delimited token
+ 
++	The familiar base-setting prefixes 0 (octal) and 0x
++	(hexadecimal) are accepted when scanning integers without a
++	format or with the %v verb.
++
+ 	Width is interpreted in the input text (%5s means at most
+ 	five runes of input will be read to scan a string) but there
+ 	is no syntax for scanning with a precision (no %5.2f, just
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 6cf2cc3105..ec80ec2859 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -388,14 +388,12 @@ func (s *ss) consume(ok string, accept bool) bool {
+ 	if rune == EOF {
+ 		return false
+ 	}
+-	for i := 0; i < len(ok); i++ {
+-		if int(ok[i]) == rune {
+-			if accept {
+-				s.buf.WriteRune(rune)
+-				s.wid++
+-			}
+-			return true
++	if strings.IndexRune(ok, rune) >= 0 {
++		if accept {
++			s.buf.WriteRune(rune)
++			s.wid++
+ 		}
++		return true
+ 	}
+ 	if rune != EOF && accept {
+ 		s.UngetRune()
+@@ -403,6 +401,15 @@ func (s *ss) consume(ok string, accept bool) bool {
+ 	return false
+ }
+ 
++// peek reports whether the next character is in the ok string, without consuming it.
++func (s *ss) peek(ok string) bool {
++	rune := s.getRune()
++	if rune != EOF {
++		s.UngetRune()
++	}
++	return strings.IndexRune(ok, rune) >= 0
++}
++
+ // accept checks the next rune in the input.  If it's a byte (sic) in the string, it puts it in the
+ // buffer and returns true. Otherwise it return false.
+ func (s *ss) accept(ok string) bool {
+@@ -476,8 +483,8 @@ func (s *ss) getBase(verb int) (base int, digits string) {
+ }
+ 
+ // scanNumber returns the numerical string with specified digits starting here.
+-func (s *ss) scanNumber(digits string) string {
+-	if !s.accept(digits) {
++func (s *ss) scanNumber(digits string, haveDigits bool) string {
++	if !haveDigits && !s.accept(digits) {
+ 		s.errorString("expected integer")
+ 	}
+ 	for s.accept(digits) {
+@@ -496,22 +503,44 @@ func (s *ss) scanRune(bitSize int) int64 {
+ 	return rune
+ }
+ 
++// scanBasePrefix reports whether the integer begins with a 0 or 0x,
++// and returns the base, digit string, and whether a zero was found.
++// It is called only if the verb is %v.
++func (s *ss) scanBasePrefix() (base int, digits string, found bool) {
++	if !s.peek("0") {
++		return 10, decimalDigits, false
++	}
++	s.accept("0")
++	found = true // We've put a digit into the token buffer.
++	// Special cases for '0' && '0x'
++	base, digits = 8, octalDigits
++	if s.peek("xX") {
++		s.consume("xX", false)
++		base, digits = 16, hexadecimalDigits
++	}
++	return
++}
++
+ // scanInt returns the value of the integer represented by the next
+ // token, checking for overflow.  Any error is stored in s.err.
+ func (s *ss) scanInt(verb int, bitSize int) int64 {
+ 	if verb == 'c' {
+ 		return s.scanRune(bitSize)
+ 	}
+-	base, digits := s.getBase(verb)
+ 	s.skipSpace(false)
++	base, digits := s.getBase(verb)
++	haveDigits := false
+ 	if verb == 'U' {
+ 		if !s.consume("U", false) || !s.consume("+", false) {
+ 			s.errorString("bad unicode format ")
+ 		}
+ 	} else {
+ 		s.accept(sign) // If there's a sign, it will be left in the token buffer.
++		if verb == 'v' {
++			base, digits, haveDigits = s.scanBasePrefix()
++		}
+ 	}
+-	tok := s.scanNumber(digits)
++	tok := s.scanNumber(digits, haveDigits)
+ 	i, err := strconv.Btoi64(tok, base)
+ 	if err != nil {
+ 		s.error(err)
+@@ -530,14 +559,17 @@ func (s *ss) scanUint(verb int, bitSize int) uint64 {
+ 	if verb == 'c' {
+ 		return uint64(s.scanRune(bitSize))
+ 	}
+-	base, digits := s.getBase(verb)
+ 	s.skipSpace(false)
++	base, digits := s.getBase(verb)
++	haveDigits := false
+ 	if verb == 'U' {
+ 		if !s.consume("U", false) || !s.consume("+", false) {
+ 			s.errorString("bad unicode format ")
+ 		}
++	} else if verb == 'v' {
++		base, digits, haveDigits = s.scanBasePrefix()
+ 	}
+-	tok := s.scanNumber(digits)
++	tok := s.scanNumber(digits, haveDigits)
+ 	i, err := strconv.Btoui64(tok, base)
+ 	if err != nil {
+ 		s.error(err)
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index c647fc7b5d..478b109238 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -129,10 +129,20 @@ func newReader(s string) *myStringReader {
+ }
+ 
+ var scanTests = []ScanTest{
+-	// Numbers
++	// Basic types
+ 	{"T\n", &boolVal, true},  // boolean test vals toggle to be sure they are written
+ 	{"F\n", &boolVal, false}, // restored to zero value
+ 	{"21\n", &intVal, 21},
++	{"0\n", &intVal, 0},
++	{"000\n", &intVal, 0},
++	{"0x10\n", &intVal, 0x10},
++	{"-0x10\n", &intVal, -0x10},
++	{"0377\n", &intVal, 0377},
++	{"-0377\n", &intVal, -0377},
++	{"0\n", &uintVal, uint(0)},
++	{"000\n", &uintVal, uint(0)},
++	{"0x10\n", &uintVal, uint(0x10)},
++	{"0377\n", &uintVal, uint(0377)},
+ 	{"22\n", &int8Val, int8(22)},
+ 	{"23\n", &int16Val, int16(23)},
+ 	{"24\n", &int32Val, int32(24)},
+@@ -201,6 +211,8 @@ var scanfTests = []ScanfTest{
+ 	{"%v", "TRUE\n", &boolVal, true},
+ 	{"%t", "false\n", &boolVal, false},
+ 	{"%v", "-71\n", &intVal, -71},
++	{"%v", "0377\n", &intVal, 0377},
++	{"%v", "0x44\n", &intVal, 0x44},
+ 	{"%d", "72\n", &intVal, 72},
+ 	{"%c", "a\n", &intVal, 'a'},
+ 	{"%c", "\u5072\n", &intVal, 0x5072},

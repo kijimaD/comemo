@@ -16,7 +16,30 @@ Date:   Wed Jun 12 11:51:34 2024 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/6-stdlib/3-iter.md                      | 10 +++++-----
  doc/next/6-stdlib/{3-structs.md => 4-structs.md} |  0
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/next/6-stdlib/3-iter.md b/doc/next/6-stdlib/3-iter.md
+index 50179d949e..bbb3bbbd8f 100644
+--- a/doc/next/6-stdlib/3-iter.md
++++ b/doc/next/6-stdlib/3-iter.md
+@@ -22,8 +22,8 @@ The [slices] package adds several functions that work with iterators:
+   sub-slices of up to n elements of a slice.
+ 
+ The [maps] package adds several functions that work with iterators:
+-- [All](/pkg/maps#All) returns an iterator over key-value pairs from m.
+-- [Keys](/pkg/maps#Keys) returns an iterator over keys in m.
+-- [Values](/pkg/maps#Values) returns an iterator over values in m.
+-- [Insert](/pkg/maps#Insert) adds the key-value pairs from seq to m.
+-- [Collect](/pkg/maps#Collect) collects key-value pairs from seq into a new map and returns it.
++- [All](/pkg/maps#All) returns an iterator over key-value pairs from a map.
++- [Keys](/pkg/maps#Keys) returns an iterator over keys in a map.
++- [Values](/pkg/maps#Values) returns an iterator over values in a map.
++- [Insert](/pkg/maps#Insert) adds the key-value pairs from an iterator to an existing map.
++- [Collect](/pkg/maps#Collect) collects key-value pairs from an iterator into a new map and returns it.
+diff --git a/doc/next/6-stdlib/3-structs.md b/doc/next/6-stdlib/4-structs.md
+similarity index 100%
+rename from doc/next/6-stdlib/3-structs.md
+rename to doc/next/6-stdlib/4-structs.md

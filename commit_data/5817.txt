@@ -10,7 +10,41 @@ Date:   Thu Jul 15 14:15:39 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1853041
-
+---
  src/libcgo/Makefile | 6 +++---
  src/make.bash       | 1 +
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index 0d65af70c7..13374719db 100755
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -26,13 +26,13 @@ LDFLAGS_freebsd=-pthread -shared -lm
+ LDFLAGS_windows=-shared -lm -mthreads
+ 
+ %.o: %.c
+-	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c
++	$(CC) $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c
+ 
+ %.o: %.S
+-	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.S
++	$(CC) $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.S
+ 
+ libcgo.so: $(OFILES)
+-	gcc $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
++	$(CC) $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
+ 
+ $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
+ 	cp libcgo.so $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
+diff --git a/src/make.bash b/src/make.bash
+index b718bb9562..b95635b565 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -12,6 +12,7 @@ unset CDPATH	# in case user has it set
+ 
+ rm -f "$GOBIN"/quietgcc
+ CC=${CC:-gcc}
++export CC
+ sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
+ chmod +x "$GOBIN"/quietgcc
+ 

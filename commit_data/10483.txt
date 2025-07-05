@@ -9,7 +9,40 @@ Date:   Tue Nov 22 12:31:33 2011 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5417059
-
+---
  src/pkg/encoding/xml/xml.go      | 2 +-
  src/pkg/encoding/xml/xml_test.go | 5 ++++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index 216d8889b2..d67a299f5b 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -61,7 +61,7 @@ type StartElement struct {
+ 
+ func (e StartElement) Copy() StartElement {
+ 	attrs := make([]Attr, len(e.Attr))
+-	copy(e.Attr, attrs)
++	copy(attrs, e.Attr)
+ 	e.Attr = attrs
+ 	return e
+ }
+diff --git a/src/pkg/encoding/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+index 828fac53ab..25ffc917dc 100644
+--- a/src/pkg/encoding/xml/xml_test.go
++++ b/src/pkg/encoding/xml/xml_test.go
+@@ -486,10 +486,13 @@ func TestCopyTokenStartElement(t *testing.T) {
+ 	elt := StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en"}}}
+ 	var tok1 Token = elt
+ 	tok2 := CopyToken(tok1)
++	if tok1.(StartElement).Attr[0].Value != "en" {
++		t.Error("CopyToken overwrote Attr[0]")
++	}
+ 	if !reflect.DeepEqual(tok1, tok2) {
+ 		t.Error("CopyToken(StartElement) != StartElement")
+ 	}
+-	elt.Attr[0] = Attr{Name{"", "lang"}, "de"}
++	tok1.(StartElement).Attr[0] = Attr{Name{"", "lang"}, "de"}
+ 	if reflect.DeepEqual(tok1, tok2) {
+ 		t.Error("CopyToken(CharData) uses same buffer.")
+ 	}

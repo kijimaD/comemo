@@ -19,7 +19,7 @@ Date:   Wed Mar 9 19:27:57 2016 -0800
     Change-Id: Iad035c9fd25ef8b7a74dafbd7461cf04833d981f
     Reviewed-on: https://go-review.googlesource.com/20486
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 96 ++++++++++++--------------
  src/cmd/compile/internal/ssa/check.go          | 10 +++
  src/cmd/compile/internal/ssa/flagalloc.go      |  4 ++
@@ -30,3 +30,366 @@ Date:   Wed Mar 9 19:27:57 2016 -0800
  src/cmd/compile/internal/ssa/regalloc.go       |  6 +-
  test/fixedbugs/issue14725.go                   | 57 +++++++++++++++
  9 files changed, 124 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ff6a3f2a41..557564daa4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -177,12 +177,9 @@ func buildssa(fn *Node) *ssa.Func {
+ 
+ 	// fallthrough to exit
+ 	if s.curBlock != nil {
+-		s.stmts(s.exitCode)
+-		m := s.mem()
+-		b := s.endBlock()
+-		b.Line = fn.Func.Endlineno
+-		b.Kind = ssa.BlockRet
+-		b.Control = m
++		s.pushLine(fn.Func.Endlineno)
++		s.exit()
++		s.popLine()
+ 	}
+ 
+ 	// Check that we used all labels
+@@ -904,6 +901,10 @@ func (s *state) stmt(n *Node) {
+ // It returns a BlockRet block that ends the control flow. Its control value
+ // will be set to the final memory state.
+ func (s *state) exit() *ssa.Block {
++	if hasdefer {
++		s.rtcall(Deferreturn, true, nil)
++	}
++
+ 	// Run exit code. Typically, this code copies heap-allocated PPARAMOUT
+ 	// variables back to the stack.
+ 	s.stmts(s.exitCode)
+@@ -2402,6 +2403,15 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	b.Kind = ssa.BlockCall
+ 	b.Control = call
+ 	b.AddEdgeTo(bNext)
++	if k == callDefer {
++		// Add recover edge to exit code.
++		b.Kind = ssa.BlockDefer
++		r := s.f.NewBlock(ssa.BlockPlain)
++		s.startBlock(r)
++		s.exit()
++		b.AddEdgeTo(r)
++		b.Likely = ssa.BranchLikely
++	}
+ 
+ 	// Start exit block, find address of result.
+ 	s.startBlock(bNext)
+@@ -3622,12 +3632,6 @@ type genState struct {
+ 
+ 	// bstart remembers where each block starts (indexed by block ID)
+ 	bstart []*obj.Prog
+-
+-	// deferBranches remembers all the defer branches we've seen.
+-	deferBranches []*obj.Prog
+-
+-	// deferTarget remembers the (last) deferreturn call site.
+-	deferTarget *obj.Prog
+ }
+ 
+ // genssa appends entries to ptxt for each instruction in f.
+@@ -3690,15 +3694,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	for _, br := range s.branches {
+ 		br.p.To.Val = s.bstart[br.b.ID]
+ 	}
+-	if s.deferBranches != nil && s.deferTarget == nil {
+-		// This can happen when the function has a defer but
+-		// no return (because it has an infinite loop).
+-		s.deferReturn()
+-		Prog(obj.ARET)
+-	}
+-	for _, p := range s.deferBranches {
+-		p.To.Val = s.deferTarget
+-	}
+ 
+ 	if logProgs {
+ 		for p := ptxt; p != nil; p = p.Link {
+@@ -4529,6 +4524,17 @@ func (s *genState) genValue(v *ssa.Value) {
+ 			q.To.Reg = r
+ 		}
+ 	case ssa.OpAMD64CALLstatic:
++		if v.Aux.(*Sym) == Deferreturn.Sym {
++			// Deferred calls will appear to be returning to
++			// the CALL deferreturn(SB) that we are about to emit.
++			// However, the stack trace code will show the line
++			// of the instruction byte before the return PC.
++			// To avoid that being an unrelated instruction,
++			// insert an actual hardware NOP that will have the right line number.
++			// This is different from obj.ANOP, which is a virtual no-op
++			// that doesn't make it into the instruction stream.
++			Thearch.Ginsnop()
++		}
+ 		p := Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+@@ -4551,17 +4557,6 @@ func (s *genState) genValue(v *ssa.Value) {
+ 		if Maxarg < v.AuxInt {
+ 			Maxarg = v.AuxInt
+ 		}
+-		// defer returns in rax:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p = Prog(x86.ATESTL)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_AX
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_AX
+-		p = Prog(x86.AJNE)
+-		p.To.Type = obj.TYPE_BRANCH
+-		s.deferBranches = append(s.deferBranches, p)
+ 	case ssa.OpAMD64CALLgo:
+ 		p := Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+@@ -4835,12 +4830,26 @@ func (s *genState) genBlock(b, next *ssa.Block) {
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.branches = append(s.branches, branch{p, b.Succs[0]})
+ 		}
++	case ssa.BlockDefer:
++		// defer returns in rax:
++		// 0 if we should continue executing
++		// 1 if we should jump to deferreturn call
++		p := Prog(x86.ATESTL)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = x86.REG_AX
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = x86.REG_AX
++		p = Prog(x86.AJNE)
++		p.To.Type = obj.TYPE_BRANCH
++		s.branches = append(s.branches, branch{p, b.Succs[1]})
++		if b.Succs[0] != next {
++			p := Prog(obj.AJMP)
++			p.To.Type = obj.TYPE_BRANCH
++			s.branches = append(s.branches, branch{p, b.Succs[0]})
++		}
+ 	case ssa.BlockExit:
+ 		Prog(obj.AUNDEF) // tell plive.go that we never reach here
+ 	case ssa.BlockRet:
+-		if hasdefer {
+-			s.deferReturn()
+-		}
+ 		Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+ 		p := Prog(obj.AJMP)
+@@ -4899,23 +4908,6 @@ func (s *genState) genBlock(b, next *ssa.Block) {
+ 	}
+ }
+ 
+-func (s *genState) deferReturn() {
+-	// Deferred calls will appear to be returning to
+-	// the CALL deferreturn(SB) that we are about to emit.
+-	// However, the stack trace code will show the line
+-	// of the instruction byte before the return PC.
+-	// To avoid that being an unrelated instruction,
+-	// insert an actual hardware NOP that will have the right line number.
+-	// This is different from obj.ANOP, which is a virtual no-op
+-	// that doesn't make it into the instruction stream.
+-	s.deferTarget = Pc
+-	Thearch.Ginsnop()
+-	p := Prog(obj.ACALL)
+-	p.To.Type = obj.TYPE_MEM
+-	p.To.Name = obj.NAME_EXTERN
+-	p.To.Sym = Linksym(Deferreturn.Sym)
+-}
+-
+ // addAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
+ func addAux(a *obj.Addr, v *ssa.Value) {
+ 	addAux2(a, v, v.AuxInt)
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 7243cdc310..83aae3af33 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -125,6 +125,16 @@ func checkFunc(f *Func) {
+ 			if !b.Control.Type.IsMemory() {
+ 				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
++		case BlockDefer:
++			if len(b.Succs) != 2 {
++				f.Fatalf("defer block %s len(Succs)==%d, want 2", b, len(b.Succs))
++			}
++			if b.Control == nil {
++				f.Fatalf("defer block %s has no control value", b)
++			}
++			if !b.Control.Type.IsMemory() {
++				f.Fatalf("defer block %s has non-memory control value %s", b, b.Control.LongString())
++			}
+ 		case BlockCheck:
+ 			if len(b.Succs) != 1 {
+ 				f.Fatalf("check block %s len(Succs)==%d, want 1", b, len(b.Succs))
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index b9a974155e..b3aa62cd5d 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -58,6 +58,10 @@ func flagalloc(f *Func) {
+ 		if v != nil && v.Type.IsFlags() && end[b.ID] != v {
+ 			end[b.ID] = nil
+ 		}
++		if b.Kind == BlockDefer {
++			// Defer blocks internally use/clobber the flags value.
++			end[b.ID] = nil
++		}
+ 	}
+ 
+ 	// Add flag recomputations where they are needed.
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 3b55ebf227..6a49cb7afc 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -401,6 +401,7 @@ var genericBlocks = []blockData{
+ 	{name: "Plain"},  // a single successor
+ 	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
+ 	{name: "Call"},   // 1 successor, control is call op (of memory type)
++	{name: "Defer"},  // 2 successors, Succs[0]=defer queued, Succs[1]=defer recovered. control is call op (of memory type)
+ 	{name: "Check"},  // 1 successor, control is nilcheck op (of void type)
+ 	{name: "Ret"},    // no successors, control value is memory result
+ 	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index b01651971f..93f32c72bf 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -100,7 +100,7 @@ func likelyadjust(f *Func) {
+ 			// Calls. TODO not all calls are equal, names give useful clues.
+ 			// Any name-based heuristics are only relative to other calls,
+ 			// and less influential than inferences from loop structure.
+-		case BlockCall:
++		case BlockCall, BlockDefer:
+ 			local[b.ID] = blCALL
+ 			certain[b.ID] = max8(blCALL, certain[b.Succs[0].ID])
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f1f3f7b04b..3b5e14e6ab 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -29,6 +29,7 @@ const (
+ 	BlockPlain
+ 	BlockIf
+ 	BlockCall
++	BlockDefer
+ 	BlockCheck
+ 	BlockRet
+ 	BlockRetJmp
+@@ -58,6 +59,7 @@ var blockString = [...]string{
+ 	BlockPlain:  "Plain",
+ 	BlockIf:     "If",
+ 	BlockCall:   "Call",
++	BlockDefer:  "Defer",
+ 	BlockCheck:  "Check",
+ 	BlockRet:    "Ret",
+ 	BlockRetJmp: "RetJmp",
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index fb17727242..31870a650a 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -26,14 +26,14 @@ func phiopt(f *Func) {
+ 		}
+ 
+ 		pb0, b0 := b, b.Preds[0]
+-		for b0.Kind != BlockIf && len(b0.Preds) == 1 {
++		for len(b0.Succs) == 1 && len(b0.Preds) == 1 {
+ 			pb0, b0 = b0, b0.Preds[0]
+ 		}
+ 		if b0.Kind != BlockIf {
+ 			continue
+ 		}
+ 		pb1, b1 := b, b.Preds[1]
+-		for b1.Kind != BlockIf && len(b1.Preds) == 1 {
++		for len(b1.Succs) == 1 && len(b1.Preds) == 1 {
+ 			pb1, b1 = b1, b1.Preds[0]
+ 		}
+ 		if b1 != b0 {
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 042617bfac..0063dc1188 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -585,7 +585,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		// Walk backwards through the block doing liveness analysis.
+ 		liveSet.clear()
+ 		d := int32(len(b.Values))
+-		if b.Kind == BlockCall {
++		if b.Kind == BlockCall || b.Kind == BlockDefer {
+ 			d += unlikelyDistance
+ 		}
+ 		for _, e := range s.live[b.ID] {
+@@ -988,7 +988,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					continue
+ 				}
+ 				for {
+-					if p.Kind == BlockCall {
++					if p.Kind == BlockCall || p.Kind == BlockDefer {
+ 						goto badloop
+ 					}
+ 					if p == top {
+@@ -1607,7 +1607,7 @@ func (s *regAllocState) computeLive() {
+ 			// to beginning-of-block distance.
+ 			live.clear()
+ 			d := int32(len(b.Values))
+-			if b.Kind == BlockCall {
++			if b.Kind == BlockCall || b.Kind == BlockDefer {
+ 				// Because we keep no values in registers across a call,
+ 				// make every use past a call very far away.
+ 				d += unlikelyDistance
+diff --git a/test/fixedbugs/issue14725.go b/test/fixedbugs/issue14725.go
+new file mode 100644
+index 0000000000..cbdf5a3dc9
+--- /dev/null
++++ b/test/fixedbugs/issue14725.go
+@@ -0,0 +1,57 @@
++// run
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func f1() (x int) {
++	for {
++		defer func() {
++			recover()
++			x = 1
++		}()
++		panic(nil)
++	}
++}
++
++var sink *int
++
++func f2() (x int) {
++	sink = &x
++	defer func() {
++		recover()
++		x = 1
++	}()
++	panic(nil)
++}
++
++func f3(b bool) (x int) {
++	sink = &x
++	defer func() {
++		recover()
++		x = 1
++	}()
++	if b {
++		panic(nil)
++	}
++	return
++}
++
++func main() {
++	if x := f1(); x != 1 {
++		panic(fmt.Sprintf("f1 returned %d, wanted 1", x))
++	}
++	if x := f2(); x != 1 {
++		panic(fmt.Sprintf("f2 returned %d, wanted 1", x))
++	}
++	if x := f3(true); x != 1 {
++		panic(fmt.Sprintf("f3(true) returned %d, wanted 1", x))
++	}
++	if x := f3(false); x != 1 {
++		panic(fmt.Sprintf("f3(false) returned %d, wanted 1", x))
++	}
++}

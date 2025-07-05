@@ -11,6 +11,33 @@ Date:   Mon Jun 29 16:43:25 2015 +1000
     Change-Id: I05701f62a9e5e724a2d85c6b87ae4111e537146b
     Reviewed-on: https://go-review.googlesource.com/11663
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/gif/reader.go | 15 ++++++++++++---
  1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index cf5af210a6..a1da69780c 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -202,9 +202,18 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
+ 				}
+ 				return errNotEnough
+ 			}
+-			// Both lzwr and br should be exhausted. Reading from them
+-			// should yield (0, io.EOF).
+-			if n, err := lzwr.Read(d.tmp[:1]); n != 0 || err != io.EOF {
++			// Both lzwr and br should be exhausted. Reading from them should
++			// yield (0, io.EOF).
++			//
++			// The spec (Appendix F - Compression), says that "An End of
++			// Information code... must be the last code output by the encoder
++			// for an image". In practice, though, giflib (a widely used C
++			// library) does not enforce this, so we also accept lzwr returning
++			// io.ErrUnexpectedEOF (meaning that the encoded stream hit io.EOF
++			// before the LZW decoder saw an explict end code), provided that
++			// the io.ReadFull call above successfully read len(m.Pix) bytes.
++			// See http://golang.org/issue/9856 for an example GIF.
++			if n, err := lzwr.Read(d.tmp[:1]); n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {
+ 				if err != nil {
+ 					return err
+ 				}

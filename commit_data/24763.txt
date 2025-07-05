@@ -9,7 +9,38 @@ Date:   Thu Aug 27 09:56:26 2015 -0700
     Change-Id: Ifd62e8d93b2d733e67e0186c7185cd6291d3bbc1
     Reviewed-on: https://go-review.googlesource.com/13939
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/gzip/gunzip.go | 3 +++
  src/compress/gzip/gzip.go   | 5 +----
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 72ee55c4fa..dc276535d3 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -43,6 +43,9 @@ var (
+ 
+ // The gzip file stores a header giving metadata about the compressed file.
+ // That header is exposed as the fields of the Writer and Reader structs.
++//
++// Strings must be UTF-8 encoded and may only contain Unicode code points
++// U+0001 through U+00FF, due to limitations of the GZIP file format.
+ type Header struct {
+ 	Comment string    // comment
+ 	Extra   []byte    // "extra data"
+diff --git a/src/compress/gzip/gzip.go b/src/compress/gzip/gzip.go
+index 5131d128e4..8c76144a0c 100644
+--- a/src/compress/gzip/gzip.go
++++ b/src/compress/gzip/gzip.go
+@@ -44,10 +44,7 @@ type Writer struct {
+ // Writes may be buffered and not flushed until Close.
+ //
+ // Callers that wish to set the fields in Writer.Header must do so before
+-// the first call to Write or Close. The Comment and Name header fields are
+-// UTF-8 strings in Go, but the underlying format requires NUL-terminated ISO
+-// 8859-1 (Latin-1). NUL or non-Latin-1 runes in those strings will lead to an
+-// error on Write.
++// the first call to Write, Flush, or Close.
+ func NewWriter(w io.Writer) *Writer {
+ 	z, _ := NewWriterLevel(w, DefaultCompression)
+ 	return z

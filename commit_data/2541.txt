@@ -13,10 +13,210 @@ Date:   Fri Jun 26 22:04:30 2009 -0700
     DELTA=74  (38 added, 28 deleted, 8 changed)
     OCL=30799
     CL=30822
-
+---
  src/cmd/5g/cgen.c  | 38 +++++++++++++-------------------------
  src/cmd/5g/gg.h    |  1 +
  src/cmd/5g/ggen.c  | 10 ----------
  src/cmd/5g/gsubr.c | 21 ++++++++++++++++++++-
  src/cmd/5g/list.c  | 12 ++++++++++++
  5 files changed, 46 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 443c2ca3aa..70b8ccf6a3 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -14,7 +14,7 @@ cgen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr, *r;
+ 	Node n1, n2;
+-	int a, f;
++	int a;
+ 	Prog *p1, *p2, *p3;
+ 	Addr addr;
+ 
+@@ -68,20 +68,9 @@ cgen(Node *n, Node *res)
+ 		if(res->ullman >= UINF)
+ 			goto gen;
+ 
+-		f = 1;	// gen thru register
+-		switch(n->op) {
+-		case OLITERAL:
+-			if(smallintconst(n))
+-				f = 0;
+-			break;
+-		case OREGISTER:
+-			f = 0;
+-			break;
+-		}
+-
+ 		a = optoas(OAS, res->type);
+ 		if(sudoaddable(a, res, &addr)) {
+-			if(f) {
++			if(n->op != OREGISTER) {
+ 				regalloc(&n2, res->type, N);
+ 				cgen(n, &n2);
+ 				p1 = gins(a, &n2, N);
+@@ -224,7 +213,8 @@ cgen(Node *n, Node *res)
+ 			cgen(nl, &n1);
+ 
+ 			nodconst(&n2, types[tptr], 0);
+-			gins(optoas(OCMP, types[tptr]), &n1, &n2);
++			p1 = gins(optoas(OCMP, types[tptr]), &n1, N);
++			raddr(&n2, p1);
+ 			p1 = gbranch(optoas(OEQ, types[tptr]), T);
+ 
+ 			n2 = n1;
+@@ -601,7 +591,7 @@ bgen(Node *n, int true, Prog *to)
+ {
+ 	int et, a;
+ 	Node *nl, *nr, *r;
+-	Node n1, n2, tmp;
++	Node n1, n2, n3, tmp;
+ 	Prog *p1, *p2;
+ 
+ 	if(debug['g']) {
+@@ -635,12 +625,16 @@ bgen(Node *n, int true, Prog *to)
+ 		regalloc(&n1, n->type, N);
+ 		cgen(n, &n1);
+ 		nodconst(&n2, n->type, 0);
+-		gins(optoas(OCMP, n->type), &n1, &n2);
+-		 a = ABNE;
++		regalloc(&n3, n->type, N);
++		cgen(&n2, &n3);
++		p1 = gins(optoas(OCMP, n->type), &n1, N);
++		raddr(&n3, p1);
++		a = ABNE;
+ 		if(!true)
+ 			a = ABEQ;
+ 		patch(gbranch(a, n->type), to);
+ 		regfree(&n1);
++		regfree(&n3);
+ 		goto ret;
+ 
+ 	case OLITERAL:
+@@ -770,17 +764,11 @@ bgen(Node *n, int true, Prog *to)
+ 		regalloc(&n1, nl->type, N);
+ 		cgen(nl, &n1);
+ 
+-		if(smallintconst(nr)) {
+-			gins(optoas(OCMP, nr->type), &n1, nr);
+-			patch(gbranch(a, nr->type), to);
+-			regfree(&n1);
+-			break;
+-		}
+-
+ 		regalloc(&n2, nr->type, N);
+ 		cgen(nr, &n2);
+ 
+-		gins(optoas(OCMP, nr->type), &n1, &n2);
++		p1 = gins(optoas(OCMP, nr->type), &n1, N);
++		raddr(&n2, p1);
+ 		patch(gbranch(a, nr->type), to);
+ 
+ 		regfree(&n1);
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 19084f34f5..14fef3019b 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -100,6 +100,7 @@ void	sgen(Node*, Node*, int32);
+ void	gmove(Node*, Node*);
+ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
++void	raddr(Node *n, Prog *p);
+ void	naddr(Node*, Addr*);
+ void	cgen_aret(Node*, Node*);
+ 
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 0e9d469259..fcef5ebdec 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -370,10 +370,6 @@ cgen_asop(Node *n)
+ 	case OOR:
+ 		a = optoas(n->etype, nl->type);
+ 		if(nl->addable) {
+-			if(smallintconst(nr)) {
+-				gins(a, nr, nl);
+-				goto ret;
+-			}
+ 			regalloc(&n2, nr->type, N);
+ 			cgen(nr, &n2);
+ 			gins(a, &n2, nl);
+@@ -382,12 +378,6 @@ cgen_asop(Node *n)
+ 		}
+ 		if(nr->ullman < UINF)
+ 		if(sudoaddable(a, nl, &addr)) {
+-			if(smallintconst(nr)) {
+-				p1 = gins(a, nr, N);
+-				p1->to = addr;
+-				sudoclean();
+-				goto ret;
+-			}
+ 			regalloc(&n2, nr->type, N);
+ 			cgen(nr, &n2);
+ 			p1 = gins(a, &n2, N);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 48eaa16021..71f5ba0425 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1016,6 +1016,25 @@ gins(int as, Node *f, Node *t)
+ 	return p;
+ }
+ 
++/*
++ * insert n into reg slot of p
++ */
++void
++raddr(Node *n, Prog *p)
++{
++	Addr a;
++
++	naddr(n, &a);
++	if(a.type != D_REG && a.type != D_FREG) {
++		if(n)
++			fatal("bad in raddr: %O", n->op);
++		else
++			fatal("bad in raddr: <null>");
++		p->reg = NREG;
++	} else
++		p->reg = a.reg;
++}
++
+ /*
+  * generate code to compute n;
+  * make a refer to result.
+@@ -1035,7 +1054,7 @@ naddr(Node *n, Addr *a)
+ 		break;
+ 
+ 	case OREGISTER:
+-		a->type = D_OREG;
++		a->type = D_REG;
+ 		if (n->val.u.reg <= REGALLOC_RMAX)
+ 			a->reg = n->val.u.reg;
+ 		else
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index b46188a73f..631015869f 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -39,6 +39,7 @@ listinit(void)
+ 	fmtinstall('P', Pconv);		// Prog*
+ 	fmtinstall('D', Dconv);		// Addr*
+ 	fmtinstall('Y', Yconv);		// sconst
++	fmtinstall('R', Rconv);		// register
+ }
+ 
+ int
+@@ -198,3 +199,14 @@ Yconv(Fmt *fp)
+ 	*p = 0;
+ 	return fmtstrcpy(fp, str);
+ }
++
++int
++Rconv(Fmt *fp)
++{
++	int r;
++	char str[30];
++
++	r = va_arg(fp->args, int);
++	snprint(str, sizeof(str), "R%d", r);
++	return fmtstrcpy(fp, str);
++}

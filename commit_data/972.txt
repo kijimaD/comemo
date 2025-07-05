@@ -7,6 +7,20 @@ Date:   Mon Oct 27 11:08:01 2008 -0700
     R=ken
     OCL=17900
     CL=17900
-
+---
  test/golden.out | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index 6a138952ca..5bdbc7e720 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -126,7 +126,7 @@ BUG: fails incorrectly
+ =========== bugs/bug095.go
+ found 2, expected 1
+ 
+-panic on line 83 PC=xxx
++panic on line 74 PC=xxx
+ BUG wrong result
+ 
+ =========== bugs/bug098.go

@@ -23,7 +23,7 @@ Date:   Fri Feb 23 12:43:51 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go   |   2 +-
  src/cmd/compile/internal/types2/errors.go | 140 ++++++++++++++++++------------
  src/cmd/compile/internal/types2/infer.go  |   2 +-
@@ -34,3 +34,583 @@ Date:   Fri Feb 23 12:43:51 2024 -0800
  src/go/types/initorder.go                 |   8 +-
  src/go/types/mono.go                      |   8 +-
  9 files changed, 180 insertions(+), 120 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 8c3a446ad4..2d8a09f33e 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -686,7 +686,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 		assert(m.name != "_")
+ 		if alt := mset.insert(m); alt != nil {
+ 			if alt.Pos().IsKnown() {
+-				check.errorf(m.pos, DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
++				check.errorf(m.pos, DuplicateMethod, "method %s.%s already declared at %v", obj.Name(), m.name, alt.Pos())
+ 			} else {
+ 				check.errorf(m.pos, DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
+ 			}
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index e0ce087e31..f65c1b5377 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -28,6 +28,12 @@ func assert(p bool) {
+ 	}
+ }
+ 
++// An errorDesc describes part of a type-checking error.
++type errorDesc struct {
++	pos syntax.Pos
++	msg string
++}
++
+ // An error_ represents a type-checking error.
+ // A new error_ is created with Checker.newError.
+ // To report an error_, call error_.report.
+@@ -46,13 +52,6 @@ func (check *Checker) newError(code Code) *error_ {
+ 	return &error_{check: check, code: code}
+ }
+ 
+-// An errorDesc describes part of a type-checking error.
+-type errorDesc struct {
+-	pos    syntax.Pos
+-	format string
+-	args   []interface{}
+-}
+-
+ func (err *error_) empty() bool {
+ 	return err.desc == nil
+ }
+@@ -79,7 +78,7 @@ func (err *error_) msg() string {
+ 				fmt.Fprintf(&buf, "%s: ", p.pos)
+ 			}
+ 		}
+-		buf.WriteString(err.check.sprintf(p.format, p.args...))
++		buf.WriteString(p.msg)
+ 	}
+ 	return buf.String()
+ }
+@@ -91,10 +90,10 @@ func (err *error_) msg() string {
+ // in the error message (types2) or continuation errors identified by a tab-indented error
+ // message (go/types).
+ func (err *error_) addf(at poser, format string, args ...interface{}) {
+-	err.desc = append(err.desc, errorDesc{atPos(at), format, args})
++	err.desc = append(err.desc, errorDesc{atPos(at), err.check.sprintf(format, args...)})
+ }
+ 
+-func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...interface{}) string {
++func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...any) string {
+ 	for i, arg := range args {
+ 		switch a := arg.(type) {
+ 		case nil:
+@@ -196,7 +195,7 @@ func (check *Checker) markImports(pkg *Package) {
+ }
+ 
+ // check may be nil.
+-func (check *Checker) sprintf(format string, args ...interface{}) string {
++func (check *Checker) sprintf(format string, args ...any) string {
+ 	var qf Qualifier
+ 	if check != nil {
+ 		qf = check.qualifier
+@@ -204,7 +203,7 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
+ 	return sprintf(qf, false, format, args...)
+ }
+ 
+-func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{}) {
++func (check *Checker) trace(pos syntax.Pos, format string, args ...any) {
+ 	fmt.Printf("%s:\t%s%s\n",
+ 		pos,
+ 		strings.Repeat(".  ", check.indent),
+@@ -213,65 +212,98 @@ func (check *Checker) trace(pos syntax.Pos, format string, args ...interface{})
+ }
+ 
+ // dump is only needed for debugging
+-func (check *Checker) dump(format string, args ...interface{}) {
++func (check *Checker) dump(format string, args ...any) {
+ 	fmt.Println(sprintf(check.qualifier, true, format, args...))
+ }
+ 
+ // report reports the error err, setting check.firstError if necessary.
+ func (err *error_) report() {
+ 	if err.empty() {
+-		panic("no error to report")
++		panic("no error")
+ 	}
+ 
+-	msg := err.msg()
+-	code := err.code
+-	assert(code != 0)
+-	if code == InvalidSyntaxTree {
+-		msg = "invalid syntax tree: " + msg
+-	}
+-
+-	// If we are encountering an error while evaluating an inherited
+-	// constant initialization expression, pos is the position of in
+-	// the original expression, and not of the currently declared
+-	// constant identifier. Use the provided errpos instead.
+-	// TODO(gri) We may also want to augment the error message and
+-	// refer to the position (pos) in the original expression.
++	// Cheap trick: Don't report errors with messages containing
++	// "invalid operand" or "invalid type" as those tend to be
++	// follow-on errors which don't add useful information. Only
++	// exclude them if these strings are not at the beginning,
++	// and only if we have at least one error already reported.
+ 	check := err.check
+-	pos := err.pos()
+-	if check.errpos.IsKnown() {
+-		assert(check.iota != nil)
+-		pos = check.errpos
++	if check.firstErr != nil {
++		// It is sufficient to look at the first sub-error only.
++		msg := err.desc[0].msg
++		if strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0 {
++			return
++		}
+ 	}
+ 
+ 	if check.conf.Trace {
+-		check.trace(pos, "ERROR: %s", msg)
++		check.trace(err.pos(), "ERROR: %s (code = %d)", err.desc[0].msg, err.code)
+ 	}
+ 
+-	// Cheap trick: Don't report errors with messages containing
+-	// "invalid operand" or "invalid type" as those tend to be
+-	// follow-on errors which don't add useful information. Only
+-	// exclude them if these strings are not at the beginning,
+-	// and only if we have at least one error already reported.
+-	isInvalidErr := strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0
+-	if check.firstErr != nil && isInvalidErr {
+-		return
++	// In go/types, if there is a sub-error with a valid position,
++	// call the typechecker error handler for each sub-error.
++	// Otherwise, call it once, with a single combined message.
++	multiError := false
++	if !isTypes2 {
++		for i := 1; i < len(err.desc); i++ {
++			if err.desc[i].pos.IsKnown() {
++				multiError = true
++				break
++			}
++		}
++	}
++
++	if multiError {
++		for i := range err.desc {
++			p := &err.desc[i]
++			check.handleError(i, p.pos, err.code, p.msg, err.soft)
++		}
++	} else {
++		check.handleError(0, err.pos(), err.code, err.msg(), err.soft)
+ 	}
++}
++
++// handleError should only be called by error_.report.
++func (check *Checker) handleError(index int, pos syntax.Pos, code Code, msg string, soft bool) {
++	assert(code != 0)
++
++	if index == 0 {
++		// If we are encountering an error while evaluating an inherited
++		// constant initialization expression, pos is the position of
++		// the original expression, and not of the currently declared
++		// constant identifier. Use the provided errpos instead.
++		// TODO(gri) We may also want to augment the error message and
++		// refer to the position (pos) in the original expression.
++		if check.errpos.Pos().IsKnown() {
++			assert(check.iota != nil)
++			pos = check.errpos
++		}
+ 
+-	// If we have a URL for error codes, add a link to the first line.
+-	if check.conf.ErrorURL != "" {
+-		u := fmt.Sprintf(check.conf.ErrorURL, code)
+-		if i := strings.Index(msg, "\n"); i >= 0 {
+-			msg = msg[:i] + u + msg[i:]
+-		} else {
+-			msg += u
++		// Report invalid syntax trees explicitly.
++		if code == InvalidSyntaxTree {
++			msg = "invalid syntax tree: " + msg
+ 		}
++
++		// If we have a URL for error codes, add a link to the first line.
++		if check.conf.ErrorURL != "" {
++			url := fmt.Sprintf(check.conf.ErrorURL, code)
++			if i := strings.Index(msg, "\n"); i >= 0 {
++				msg = msg[:i] + url + msg[i:]
++			} else {
++				msg += url
++			}
++		}
++	} else {
++		// Indent sub-error.
++		// Position information is passed explicitly to Error, below.
++		msg = "\t" + msg
+ 	}
+ 
+ 	e := Error{
+ 		Pos:  pos,
+ 		Msg:  stripAnnotations(msg),
+ 		Full: msg,
+-		Soft: err.soft,
++		Soft: soft,
+ 		Code: code,
+ 	}
+ 
+@@ -281,12 +313,8 @@ func (err *error_) report() {
+ 
+ 	f := check.conf.Error
+ 	if f == nil {
+-		panic(bailout{}) // report only first error
++		panic(bailout{}) // record first error and exit
+ 	}
+-
+-	// TODO(gri) If e contains \t-indented sub-errors,
+-	//           for go/types f must be called for each
+-	//           of those sub-errors.
+ 	f(e)
+ }
+ 
+@@ -305,20 +333,20 @@ func (check *Checker) error(at poser, code Code, msg string) {
+ 	err.report()
+ }
+ 
+-func (check *Checker) errorf(at poser, code Code, format string, args ...interface{}) {
++func (check *Checker) errorf(at poser, code Code, format string, args ...any) {
+ 	err := check.newError(code)
+ 	err.addf(at, format, args...)
+ 	err.report()
+ }
+ 
+-func (check *Checker) softErrorf(at poser, code Code, format string, args ...interface{}) {
++func (check *Checker) softErrorf(at poser, code Code, format string, args ...any) {
+ 	err := check.newError(code)
+ 	err.addf(at, format, args...)
+ 	err.soft = true
+ 	err.report()
+ }
+ 
+-func (check *Checker) versionErrorf(at poser, v goVersion, format string, args ...interface{}) {
++func (check *Checker) versionErrorf(at poser, v goVersion, format string, args ...any) {
+ 	msg := check.sprintf(format, args...)
+ 	err := check.newError(UnsupportedFeature)
+ 	err.addf(at, "%s requires %s or later", msg, v)
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 7499135733..b3f0f47c22 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -427,7 +427,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	for i, typ := range inferred {
+ 		if typ == nil || isParameterized(tparams, typ) {
+ 			obj := tparams[i].obj
+-			err.addf(pos, "cannot infer %s (%s)", obj.name, obj.pos)
++			err.addf(pos, "cannot infer %s (%v)", obj.name, obj.pos)
+ 			return nil
+ 		}
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index bed066ac90..21f90ad3da 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -774,7 +774,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 		assert(m.name != "_")
+ 		if alt := mset.insert(m); alt != nil {
+ 			if alt.Pos().IsValid() {
+-				check.errorf(m, DuplicateMethod, "method %s.%s already declared at %s", obj.Name(), m.name, alt.Pos())
++				check.errorf(m, DuplicateMethod, "method %s.%s already declared at %v", obj.Name(), m.name, alt.Pos())
+ 			} else {
+ 				check.errorf(m, DuplicateMethod, "method %s.%s already declared", obj.Name(), m.name)
+ 			}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 433dba30e7..1abceb5ccf 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -29,6 +29,12 @@ func assert(p bool) {
+ 	}
+ }
+ 
++// An errorDesc describes part of a type-checking error.
++type errorDesc struct {
++	posn positioner
++	msg  string
++}
++
+ // An error_ represents a type-checking error.
+ // A new error_ is created with Checker.newError.
+ // To report an error_, call error_.report.
+@@ -47,13 +53,6 @@ func (check *Checker) newError(code Code) *error_ {
+ 	return &error_{check: check, code: code}
+ }
+ 
+-// An errorDesc describes part of a type-checking error.
+-type errorDesc struct {
+-	posn   positioner
+-	format string
+-	args   []interface{}
+-}
+-
+ func (err *error_) empty() bool {
+ 	return err.desc == nil
+ }
+@@ -80,7 +79,7 @@ func (err *error_) msg() string {
+ 				fmt.Fprintf(&buf, "%s: ", err.check.fset.Position(p.posn.Pos()))
+ 			}
+ 		}
+-		buf.WriteString(err.check.sprintf(p.format, p.args...))
++		buf.WriteString(p.msg)
+ 	}
+ 	return buf.String()
+ }
+@@ -92,7 +91,7 @@ func (err *error_) msg() string {
+ // in the error message (types2) or continuation errors identified by a tab-indented error
+ // message (go/types).
+ func (err *error_) addf(at positioner, format string, args ...interface{}) {
+-	err.desc = append(err.desc, errorDesc{at, format, args})
++	err.desc = append(err.desc, errorDesc{at, err.check.sprintf(format, args...)})
+ }
+ 
+ func (check *Checker) qualifier(pkg *Package) string {
+@@ -220,59 +219,92 @@ func (check *Checker) dump(format string, args ...any) {
+ // report reports the error err, setting check.firstError if necessary.
+ func (err *error_) report() {
+ 	if err.empty() {
+-		panic("empty error details")
++		panic("no error")
+ 	}
+ 
+-	msg := err.msg()
+-	code := err.code
+-	assert(code != 0)
+-	if code == InvalidSyntaxTree {
+-		msg = "invalid syntax tree: " + msg
+-	}
+-
+-	// If we are encountering an error while evaluating an inherited
+-	// constant initialization expression, pos is the position of in
+-	// the original expression, and not of the currently declared
+-	// constant identifier. Use the provided errpos instead.
+-	// TODO(gri) We may also want to augment the error message and
+-	// refer to the position (pos) in the original expression.
++	// Cheap trick: Don't report errors with messages containing
++	// "invalid operand" or "invalid type" as those tend to be
++	// follow-on errors which don't add useful information. Only
++	// exclude them if these strings are not at the beginning,
++	// and only if we have at least one error already reported.
+ 	check := err.check
+-	posn := err.posn()
+-	if check.errpos != nil && check.errpos.Pos().IsValid() {
+-		assert(check.iota != nil)
+-		posn = check.errpos
++	if check.firstErr != nil {
++		// It is sufficient to look at the first sub-error only.
++		msg := err.desc[0].msg
++		if strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0 {
++			return
++		}
+ 	}
+ 
+ 	if check.conf._Trace {
+-		check.trace(posn.Pos(), "ERROR: %s", msg)
++		check.trace(err.posn().Pos(), "ERROR: %s (code = %d)", err.desc[0].msg, err.code)
+ 	}
+ 
+-	// Cheap trick: Don't report errors with messages containing
+-	// "invalid operand" or "invalid type" as those tend to be
+-	// follow-on errors which don't add useful information. Only
+-	// exclude them if these strings are not at the beginning,
+-	// and only if we have at least one error already reported.
+-	isInvalidErr := strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0
+-	if check.firstErr != nil && isInvalidErr {
+-		return
++	// In go/types, if there is a sub-error with a valid position,
++	// call the typechecker error handler for each sub-error.
++	// Otherwise, call it once, with a single combined message.
++	multiError := false
++	if !isTypes2 {
++		for i := 1; i < len(err.desc); i++ {
++			if err.desc[i].posn.Pos().IsValid() {
++				multiError = true
++				break
++			}
++		}
++	}
++
++	if multiError {
++		for i := range err.desc {
++			p := &err.desc[i]
++			check.handleError(i, p.posn, err.code, p.msg, err.soft)
++		}
++	} else {
++		check.handleError(0, err.posn(), err.code, err.msg(), err.soft)
+ 	}
++}
++
++// handleError should only be called by error_.report.
++func (check *Checker) handleError(index int, posn positioner, code Code, msg string, soft bool) {
++	assert(code != 0)
++
++	if index == 0 {
++		// If we are encountering an error while evaluating an inherited
++		// constant initialization expression, pos is the position of
++		// the original expression, and not of the currently declared
++		// constant identifier. Use the provided errpos instead.
++		// TODO(gri) We may also want to augment the error message and
++		// refer to the position (pos) in the original expression.
++		if check.errpos != nil && check.errpos.Pos().IsValid() {
++			assert(check.iota != nil)
++			posn = check.errpos
++		}
+ 
+-	// If we have a URL for error codes, add a link to the first line.
+-	if check.conf._ErrorURL != "" {
+-		u := fmt.Sprintf(check.conf._ErrorURL, code)
+-		if i := strings.Index(msg, "\n"); i >= 0 {
+-			msg = msg[:i] + u + msg[i:]
+-		} else {
+-			msg += u
++		// Report invalid syntax trees explicitly.
++		if code == InvalidSyntaxTree {
++			msg = "invalid syntax tree: " + msg
+ 		}
++
++		// If we have a URL for error codes, add a link to the first line.
++		if check.conf._ErrorURL != "" {
++			url := fmt.Sprintf(check.conf._ErrorURL, code)
++			if i := strings.Index(msg, "\n"); i >= 0 {
++				msg = msg[:i] + url + msg[i:]
++			} else {
++				msg += url
++			}
++		}
++	} else {
++		// Indent sub-error.
++		// Position information is passed explicitly to Error, below.
++		msg = "\t" + msg
+ 	}
+ 
+-	span := spanOf(err.desc[0].posn)
++	span := spanOf(posn)
+ 	e := Error{
+ 		Fset:       check.fset,
+ 		Pos:        span.pos,
+ 		Msg:        stripAnnotations(msg),
+-		Soft:       err.soft,
++		Soft:       soft,
+ 		go116code:  code,
+ 		go116start: span.start,
+ 		go116end:   span.end,
+@@ -295,12 +327,8 @@ func (err *error_) report() {
+ 
+ 	f := check.conf.Error
+ 	if f == nil {
+-		panic(bailout{}) // report only first error
++		panic(bailout{}) // record first error and exit
+ 	}
+-
+-	// TODO(gri) If e contains \t-indented sub-errors,
+-	//           for go/types f must be called for each
+-	//           of those sub-errors.
+ 	f(e)
+ }
+ 
+@@ -321,20 +349,20 @@ func (check *Checker) error(at positioner, code Code, msg string) {
+ 	err.report()
+ }
+ 
+-func (check *Checker) errorf(at positioner, code Code, format string, args ...interface{}) {
++func (check *Checker) errorf(at positioner, code Code, format string, args ...any) {
+ 	err := check.newError(code)
+ 	err.addf(at, format, args...)
+ 	err.report()
+ }
+ 
+-func (check *Checker) softErrorf(at positioner, code Code, format string, args ...interface{}) {
++func (check *Checker) softErrorf(at positioner, code Code, format string, args ...any) {
+ 	err := check.newError(code)
+ 	err.addf(at, format, args...)
+ 	err.soft = true
+ 	err.report()
+ }
+ 
+-func (check *Checker) versionErrorf(at positioner, v goVersion, format string, args ...interface{}) {
++func (check *Checker) versionErrorf(at positioner, v goVersion, format string, args ...any) {
+ 	msg := check.sprintf(format, args...)
+ 	err := check.newError(UnsupportedFeature)
+ 	err.addf(at, "%s requires %s or later", msg, v)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 626dd0e775..1706184e60 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1092,7 +1092,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
+ 			x.mode = value
+ 			x.typ = sig
+ 		} else {
+-			check.errorf(e, InvalidSyntaxTree, "invalid function literal %s", e)
++			check.errorf(e, InvalidSyntaxTree, "invalid function literal %v", e)
+ 			goto Error
+ 		}
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 20da145aee..39215d88d5 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -429,7 +429,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	for i, typ := range inferred {
+ 		if typ == nil || isParameterized(tparams, typ) {
+ 			obj := tparams[i].obj
+-			err.addf(posn, "cannot infer %s (%s)", obj.name, obj.pos)
++			err.addf(posn, "cannot infer %s (%v)", obj.name, obj.pos)
+ 			return nil
+ 		}
+ 	}
+diff --git a/src/go/types/initorder.go b/src/go/types/initorder.go
+index 9ee176fbdb..99fc6c7e0b 100644
+--- a/src/go/types/initorder.go
++++ b/src/go/types/initorder.go
+@@ -160,14 +160,16 @@ func (check *Checker) reportCycle(cycle []Object) {
+ 		return
+ 	}
+ 
+-	check.errorf(obj, InvalidInitCycle, "initialization cycle for %s", obj.Name())
++	err := check.newError(InvalidInitCycle)
++	err.addf(obj, "initialization cycle for %s", obj.Name())
+ 	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
+ 	for i := len(cycle) - 1; i >= 0; i-- {
+-		check.errorf(obj, InvalidInitCycle, "\t%s refers to", obj.Name()) // secondary error, \t indented
++		err.addf(obj, "%s refers to", obj.Name())
+ 		obj = cycle[i]
+ 	}
+ 	// print cycle[0] again to close the cycle
+-	check.errorf(obj, InvalidInitCycle, "\t%s", obj.Name())
++	err.addf(obj, "%s", obj.Name())
++	err.report()
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/go/types/mono.go b/src/go/types/mono.go
+index 7411339214..f088e21dcb 100644
+--- a/src/go/types/mono.go
++++ b/src/go/types/mono.go
+@@ -138,8 +138,9 @@ func (check *Checker) reportInstanceLoop(v int) {
+ 
+ 	// TODO(mdempsky): Pivot stack so we report the cycle from the top?
+ 
++	err := check.newError(InvalidInstanceCycle)
+ 	obj0 := check.mono.vertices[v].obj
+-	check.error(obj0, InvalidInstanceCycle, "instantiation cycle:")
++	err.addf(obj0, "instantiation cycle:")
+ 
+ 	qf := RelativeTo(check.pkg)
+ 	for _, v := range stack {
+@@ -150,11 +151,12 @@ func (check *Checker) reportInstanceLoop(v int) {
+ 		default:
+ 			panic("unexpected type")
+ 		case *Named:
+-			check.errorf(atPos(edge.pos), InvalidInstanceCycle, "\t%s implicitly parameterized by %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
++			err.addf(atPos(edge.pos), "%s implicitly parameterized by %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
+ 		case *TypeParam:
+-			check.errorf(atPos(edge.pos), InvalidInstanceCycle, "\t%s instantiated as %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
++			err.addf(atPos(edge.pos), "%s instantiated as %s", obj.Name(), TypeString(edge.typ, qf)) // secondary error, \t indented
+ 		}
+ 	}
++	err.report()
+ }
+ 
+ // recordCanon records that tpar is the canonical type parameter

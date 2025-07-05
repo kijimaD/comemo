@@ -13,7 +13,42 @@ Date:   Sat Mar 26 00:46:17 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go | 8 --------
  src/cmd/compile/internal/ir/func.go | 4 +++-
  2 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 815e369ad8..3b650c0787 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -186,14 +186,6 @@ type ClosureExpr struct {
+ 	IsGoWrap bool // whether this is wrapper closure of a go statement
+ }
+ 
+-// Deprecated: Use NewClosureFunc instead.
+-func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
+-	n := &ClosureExpr{Func: fn}
+-	n.op = OCLOSURE
+-	n.pos = pos
+-	return n
+-}
+-
+ // A CompLitExpr is a composite literal Type{Vals}.
+ // Before type-checking, the type is Ntype.
+ type CompLitExpr struct {
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 894fff23ff..a9a7f19d3f 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -368,7 +368,9 @@ func NewClosureFunc(pos src.XPos, hidden bool) *Func {
+ 	fn.Nname.Func = fn
+ 	fn.Nname.Defn = fn
+ 
+-	fn.OClosure = NewClosureExpr(pos, fn)
++	fn.OClosure = &ClosureExpr{Func: fn}
++	fn.OClosure.op = OCLOSURE
++	fn.OClosure.pos = pos
+ 
+ 	return fn
+ }

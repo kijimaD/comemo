@@ -19,7 +19,7 @@ Date:   Sat Nov 12 06:24:36 2016 -0500
     Change-Id: I4e62c8e1729d322e14b1673bada40fa7a74ea8bc
     Reviewed-on: https://go-review.googlesource.com/33161
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/altpath/src/common/common.go   | 11 +++++++
  .../testplugin/altpath/src/plugin-mismatch/main.go | 17 +++++++++++
  misc/cgo/testplugin/src/host/host.go               |  9 ++++++
@@ -30,3 +30,240 @@ Date:   Sat Nov 12 06:24:36 2016 -0500
  src/runtime/plugin.go                              |  9 ++++--
  src/runtime/symtab.go                              | 12 +++++++-
  9 files changed, 98 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/testplugin/altpath/src/common/common.go b/misc/cgo/testplugin/altpath/src/common/common.go
+new file mode 100644
+index 0000000000..505ba02b1f
+--- /dev/null
++++ b/misc/cgo/testplugin/altpath/src/common/common.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package common
++
++var X int
++
++func init() {
++	X = 4
++}
+diff --git a/misc/cgo/testplugin/altpath/src/plugin-mismatch/main.go b/misc/cgo/testplugin/altpath/src/plugin-mismatch/main.go
+new file mode 100644
+index 0000000000..8aacafc453
+--- /dev/null
++++ b/misc/cgo/testplugin/altpath/src/plugin-mismatch/main.go
+@@ -0,0 +1,17 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// // No C code required.
++import "C"
++
++// The common package imported here does not match the common package
++// imported by plugin1. A program that attempts to load plugin1 and
++// plugin-mismatch should produce an error.
++import "common"
++
++func ReadCommonX() int {
++	return common.X
++}
+diff --git a/misc/cgo/testplugin/src/host/host.go b/misc/cgo/testplugin/src/host/host.go
+index 477a9e63a2..b3b4df3d58 100644
+--- a/misc/cgo/testplugin/src/host/host.go
++++ b/misc/cgo/testplugin/src/host/host.go
+@@ -9,6 +9,7 @@ import (
+ 	"log"
+ 	"path/filepath"
+ 	"plugin"
++	"strings"
+ 
+ 	"common"
+ )
+@@ -104,5 +105,13 @@ func main() {
+ 		log.Fatalf("after loading plugin2, common.X=%d, want %d", got, want)
+ 	}
+ 
++	_, err = plugin.Open("plugin-mismatch.so")
++	if err == nil {
++		log.Fatal(`plugin.Open("plugin-mismatch.so"): should have failed`)
++	}
++	if s := err.Error(); !strings.Contains(s, "different version") {
++		log.Fatalf(`plugin.Open("plugin-mismatch.so"): error does not mention "different version": %v`, s)
++	}
++
+ 	fmt.Println("PASS")
+ }
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index 322d43901d..bba46b51c6 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -24,6 +24,7 @@ mkdir sub
+ 
+ GOPATH=$(pwd) go build -buildmode=plugin plugin1
+ GOPATH=$(pwd) go build -buildmode=plugin plugin2
++GOPATH=$(pwd)/altpath go build -buildmode=plugin plugin-mismatch
+ GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
+ GOPATH=$(pwd) go build host
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 8c2d31c841..e4c34750c7 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -720,7 +720,7 @@ func objfile(ctxt *Link, lib *Library) {
+ 		goto out
+ 	}
+ 
+-	if Buildmode == BuildmodeShared {
++	if Buildmode == BuildmodeShared || Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
+ 		before := f.Offset()
+ 		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
+ 		if _, err := io.ReadFull(f, pkgdefBytes); err != nil {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 323136c6f9..98ce3ad79b 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -530,6 +530,20 @@ func (ctxt *Link) symtab() {
+ 		Addaddr(ctxt, abihashgostr, hashsym)
+ 		adduint(ctxt, abihashgostr, uint64(hashsym.Size))
+ 	}
++	if Buildmode == BuildmodePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
++		for _, l := range ctxt.Library {
++			s := ctxt.Syms.Lookup("go.link.pkghashbytes."+l.Pkg, 0)
++			s.Attr |= AttrReachable
++			s.Type = obj.SRODATA
++			s.Size = int64(len(l.hash))
++			s.P = []byte(l.hash)
++			str := ctxt.Syms.Lookup("go.link.pkghash."+l.Pkg, 0)
++			str.Attr |= AttrReachable
++			str.Type = obj.SRODATA
++			Addaddr(ctxt, str, s)
++			adduint(ctxt, str, uint64(len(l.hash)))
++		}
++	}
+ 
+ 	nsections := textsectionmap(ctxt)
+ 
+@@ -604,7 +618,28 @@ func (ctxt *Link) symtab() {
+ 	}
+ 	if Buildmode == BuildmodePlugin {
+ 		addgostring(ctxt, moduledata, "go.link.thispluginpath", *flagPluginPath)
++
++		pkghashes := ctxt.Syms.Lookup("go.link.pkghashes", 0)
++		pkghashes.Attr |= AttrReachable
++		pkghashes.Attr |= AttrLocal
++		pkghashes.Type = obj.SRODATA
++
++		for i, l := range ctxt.Library {
++			// pkghashes[i].name
++			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
++			// pkghashes[i].linktimehash
++			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.hash))
++			// pkghashes[i].runtimehash
++			hash := ctxt.Syms.ROLookup("go.link.pkghash."+l.Pkg, 0)
++			Addaddr(ctxt, pkghashes, hash)
++		}
++		Addaddr(ctxt, moduledata, pkghashes)
++		adduint(ctxt, moduledata, uint64(len(ctxt.Library)))
++		adduint(ctxt, moduledata, uint64(len(ctxt.Library)))
+ 	} else {
++		adduint(ctxt, moduledata, 0) // pluginpath
++		adduint(ctxt, moduledata, 0)
++		adduint(ctxt, moduledata, 0) // pkghashes slice
+ 		adduint(ctxt, moduledata, 0)
+ 		adduint(ctxt, moduledata, 0)
+ 	}
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index f4addde74c..c5b0a4721c 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -69,7 +69,11 @@ func open(name string) (*Plugin, error) {
+ 		name = name[:len(name)-3]
+ 	}
+ 
+-	pluginpath, syms := lastmoduleinit()
++	pluginpath, syms, mismatchpkg := lastmoduleinit()
++	if mismatchpkg != "" {
++		pluginsMu.Unlock()
++		return nil, errors.New("plugin.Open: plugin was built with a different version of package " + mismatchpkg)
++	}
+ 	if plugins == nil {
+ 		plugins = make(map[string]*Plugin)
+ 	}
+@@ -131,4 +135,4 @@ var (
+ )
+ 
+ // lastmoduleinit is defined in package runtime
+-func lastmoduleinit() (pluginpath string, syms map[string]interface{})
++func lastmoduleinit() (pluginpath string, syms map[string]interface{}, mismatchpkg string)
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 7907936e14..845bf76e92 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -7,7 +7,7 @@ package runtime
+ import "unsafe"
+ 
+ //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
+-func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
++func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatchpkg string) {
+ 	md := firstmoduledata.next
+ 	if md == nil {
+ 		throw("runtime: no plugin module data")
+@@ -41,6 +41,11 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
+ 			throw("plugin: new module data overlaps with previous moduledata")
+ 		}
+ 	}
++	for _, pkghash := range md.pkghashes {
++		if pkghash.linktimehash != *pkghash.runtimehash {
++			return "", nil, pkghash.modulename
++		}
++	}
+ 
+ 	// Initialize the freshly loaded module.
+ 	modulesinit()
+@@ -74,7 +79,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
+ 		}
+ 		syms[name] = val
+ 	}
+-	return md.pluginpath, syms
++	return md.pluginpath, syms, ""
+ }
+ 
+ // inRange reports whether v0 or v1 are in the range [r0, r1].
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index bba3ccfc20..686af08ef0 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -202,7 +202,9 @@ type moduledata struct {
+ 
+ 	ptab []ptabEntry
+ 
+-	pluginpath   string
++	pluginpath string
++	pkghashes  []modulehash
++
+ 	modulename   string
+ 	modulehashes []modulehash
+ 
+@@ -213,10 +215,18 @@ type moduledata struct {
+ 	next *moduledata
+ }
+ 
++// A modulehash is used to compare the ABI of a new module or a
++// package in a new module with the loaded program.
++//
+ // For each shared library a module links against, the linker creates an entry in the
+ // moduledata.modulehashes slice containing the name of the module, the abi hash seen
+ // at link time and a pointer to the runtime abi hash. These are checked in
+ // moduledataverify1 below.
++//
++// For each loaded plugin, the the pkghashes slice has a modulehash of the
++// newly loaded package that can be used to check the plugin's version of
++// a package against any previously loaded version of the package.
++// This is done in plugin.lastmoduleinit.
+ type modulehash struct {
+ 	modulename   string
+ 	linktimehash string

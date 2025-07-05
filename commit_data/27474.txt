@@ -12,7 +12,59 @@ Date:   Mon Mar 28 21:08:15 2016 +0300
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/copylock.go          |  6 +++++-
  src/cmd/vet/testdata/copylock.go | 14 ++++++++++++--
  2 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/vet/copylock.go b/src/cmd/vet/copylock.go
+index ac676f04b1..35b120c558 100644
+--- a/src/cmd/vet/copylock.go
++++ b/src/cmd/vet/copylock.go
+@@ -91,8 +91,12 @@ func checkCopyLocksReturnStmt(f *File, rs *ast.ReturnStmt) {
+ 	}
+ }
+ 
+-// checkCopyLocksCallExpr detects lock copy in function call
++// checkCopyLocksCallExpr detects lock copy in the arguments to a function call
+ func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
++	if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "new" && f.pkg.types[id].IsBuiltin() {
++		// Skip 'new(Type)' for built-in 'new'
++		return
++	}
+ 	for _, x := range ce.Args {
+ 		if path := lockPathRhs(f, x); path != nil {
+ 			f.Badf(x.Pos(), "function call copies lock value: %v", path)
+diff --git a/src/cmd/vet/testdata/copylock.go b/src/cmd/vet/testdata/copylock.go
+index 2b8cec1420..cf56802cdb 100644
+--- a/src/cmd/vet/testdata/copylock.go
++++ b/src/cmd/vet/testdata/copylock.go
+@@ -17,11 +17,17 @@ func OkFunc() {
+ 	}
+ 
+ 	yy := []Tlock{
+-		sync.Tlock{},
+-		sync.Tlock{
++		Tlock{},
++		Tlock{
+ 			once: sync.Once{},
+ 		},
+ 	}
++
++	nl := new(sync.Mutex)
++	mx := make([]sync.Mutex, 10)
++	xx := struct{ L *sync.Mutex }{
++		L: new(sync.Mutex),
++	}
+ }
+ 
+ type Tlock struct {
+@@ -55,4 +61,8 @@ func BadFunc() {
+ 		t,   // ERROR "literal copies lock value from t: testdata.Tlock contains sync.Once contains sync.Mutex"
+ 		*tp, // ERROR "literal copies lock value from \*tp: testdata.Tlock contains sync.Once contains sync.Mutex"
+ 	}
++
++	// override 'new' keyword
++	new := func(interface{}) {}
++	new(t) // ERROR "function call copies lock value: testdata.Tlock contains sync.Once contains sync.Mutex"
+ }

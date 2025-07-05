@@ -5,7 +5,7 @@ Date:   Fri Jun 6 17:02:01 2008 -0700
     - moved some bugs into bugs directory
     
     SVN=121548
-
+---
  test/{ => bugs}/bug032.go | 0
  test/{ => bugs}/bug033.go | 0
  test/{ => bugs}/bug034.go | 0
@@ -16,3 +16,40 @@ Date:   Fri Jun 6 17:02:01 2008 -0700
  test/{ => bugs}/bug039.go | 0
  test/{ => bugs}/bug040.go | 0
  9 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/test/bug032.go b/test/bugs/bug032.go
+similarity index 100%
+rename from test/bug032.go
+rename to test/bugs/bug032.go
+diff --git a/test/bug033.go b/test/bugs/bug033.go
+similarity index 100%
+rename from test/bug033.go
+rename to test/bugs/bug033.go
+diff --git a/test/bug034.go b/test/bugs/bug034.go
+similarity index 100%
+rename from test/bug034.go
+rename to test/bugs/bug034.go
+diff --git a/test/bug035.go b/test/bugs/bug035.go
+similarity index 100%
+rename from test/bug035.go
+rename to test/bugs/bug035.go
+diff --git a/test/bug036.go b/test/bugs/bug036.go
+similarity index 100%
+rename from test/bug036.go
+rename to test/bugs/bug036.go
+diff --git a/test/bug037.go b/test/bugs/bug037.go
+similarity index 100%
+rename from test/bug037.go
+rename to test/bugs/bug037.go
+diff --git a/test/bug038.go b/test/bugs/bug038.go
+similarity index 100%
+rename from test/bug038.go
+rename to test/bugs/bug038.go
+diff --git a/test/bug039.go b/test/bugs/bug039.go
+similarity index 100%
+rename from test/bug039.go
+rename to test/bugs/bug039.go
+diff --git a/test/bug040.go b/test/bugs/bug040.go
+similarity index 100%
+rename from test/bug040.go
+rename to test/bugs/bug040.go

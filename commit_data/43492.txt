@@ -91,7 +91,7 @@ Date:   Thu Nov 21 10:44:23 2019 -0500
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/s390x/ssa.go        |   8 +-
  src/cmd/compile/internal/ssa/gen/S390X.rules |  19 +-
  src/cmd/compile/internal/ssa/gen/S390XOps.go |  34 +--
@@ -99,3 +99,581 @@ Date:   Thu Nov 21 10:44:23 2019 -0500
  src/cmd/compile/internal/ssa/rewriteS390X.go | 312 +++++++++++++++++++--------
  test/codegen/floats.go                       |  12 ++
  6 files changed, 265 insertions(+), 124 deletions(-)
+
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index becc1b6f91..4cf4b70a32 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -234,13 +234,19 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	// 2-address opcode arithmetic
+ 	case ssa.OpS390XMULLD, ssa.OpS390XMULLW,
+ 		ssa.OpS390XMULHD, ssa.OpS390XMULHDU,
+-		ssa.OpS390XFADDS, ssa.OpS390XFADD, ssa.OpS390XFSUBS, ssa.OpS390XFSUB,
+ 		ssa.OpS390XFMULS, ssa.OpS390XFMUL, ssa.OpS390XFDIVS, ssa.OpS390XFDIV:
+ 		r := v.Reg()
+ 		if r != v.Args[0].Reg() {
+ 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+ 		}
+ 		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
++	case ssa.OpS390XFSUBS, ssa.OpS390XFSUB,
++		ssa.OpS390XFADDS, ssa.OpS390XFADD:
++		r := v.Reg0()
++		if r != v.Args[0].Reg() {
++			v.Fatalf("input[0] and output not in same register %s", v.LongString())
++		}
++		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
+ 	case ssa.OpS390XMLGR:
+ 		// MLGR Rx R3 -> R2:R3
+ 		r0 := v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 0ce80142c2..c88919a72a 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -5,13 +5,13 @@
+ // Lowering arithmetic
+ (Add(64|Ptr) ...) -> (ADD ...)
+ (Add(32|16|8) ...) -> (ADDW ...)
+-(Add32F ...) -> (FADDS ...)
+-(Add64F ...) -> (FADD ...)
++(Add32F x y) -> (Select0 (FADDS x y))
++(Add64F x y) -> (Select0 (FADD x y))
+ 
+ (Sub(64|Ptr) ...) -> (SUB ...)
+ (Sub(32|16|8) ...) -> (SUBW ...)
+-(Sub32F ...) -> (FSUBS ...)
+-(Sub64F ...) -> (FSUB ...)
++(Sub32F x y) -> (Select0 (FSUBS x y))
++(Sub64F x y) -> (Select0 (FSUB x y))
+ 
+ (Mul64 ...) -> (MULLD ...)
+ (Mul(32|16|8) ...) -> (MULLW ...)
+@@ -1209,10 +1209,8 @@
+   -> (SUBE x y c)
+ 
+ // fused multiply-add
+-(FADD (FMUL y z) x) -> (FMADD x y z)
+-(FADDS (FMULS y z) x) -> (FMADDS x y z)
+-(FSUB (FMUL y z) x) -> (FMSUB x y z)
+-(FSUBS (FMULS y z) x) -> (FMSUBS x y z)
++(Select0 (F(ADD|SUB) (FMUL y z) x)) -> (FM(ADD|SUB) x y z)
++(Select0 (F(ADDS|SUBS) (FMULS y z) x)) -> (FM(ADDS|SUBS) x y z)
+ 
+ // Convert floating point comparisons against zero into 'load and test' instructions.
+ (FCMP x (FMOVDconst [c])) && auxTo64F(c) == 0 -> (LTDBR x)
+@@ -1220,6 +1218,11 @@
+ (FCMP (FMOVDconst [c]) x) && auxTo64F(c) == 0 -> (InvertFlags (LTDBR <v.Type> x))
+ (FCMPS (FMOVSconst [c]) x) && auxTo32F(c) == 0 -> (InvertFlags (LTEBR <v.Type> x))
+ 
++// FSUB, FSUBS, FADD, FADDS now produce a flag, so when a comparison against zero instruction (e.g: LTDBR) is following
++// one of those instructions, we can use the generated flag and remove the comparison instruction.
++(LTDBR (Select0 x:(F(ADD|SUB) _ _)))  -> (Select1 x)
++(LTEBR (Select0 x:(F(ADDS|SUBS) _ _))) -> (Select1 x)
++
+ // Fold memory operations into operations.
+ // Exclude global data (SB) because these instructions cannot handle relative addresses.
+ // TODO(mundaym): indexed versions of these?
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 65460bf6f7..f6ed7b5314 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -205,23 +205,23 @@ func init() {
+ 
+ 	var S390Xops = []opData{
+ 		// fp ops
+-		{name: "FADDS", argLength: 2, reg: fp21clobber, asm: "FADDS", commutative: true, resultInArg0: true, clobberFlags: true}, // fp32 arg0 + arg1
+-		{name: "FADD", argLength: 2, reg: fp21clobber, asm: "FADD", commutative: true, resultInArg0: true, clobberFlags: true},   // fp64 arg0 + arg1
+-		{name: "FSUBS", argLength: 2, reg: fp21clobber, asm: "FSUBS", resultInArg0: true, clobberFlags: true},                    // fp32 arg0 - arg1
+-		{name: "FSUB", argLength: 2, reg: fp21clobber, asm: "FSUB", resultInArg0: true, clobberFlags: true},                      // fp64 arg0 - arg1
+-		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true, resultInArg0: true},                            // fp32 arg0 * arg1
+-		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true, resultInArg0: true},                              // fp64 arg0 * arg1
+-		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", resultInArg0: true},                                               // fp32 arg0 / arg1
+-		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV", resultInArg0: true},                                                 // fp64 arg0 / arg1
+-		{name: "FNEGS", argLength: 1, reg: fp11clobber, asm: "FNEGS", clobberFlags: true},                                        // fp32 -arg0
+-		{name: "FNEG", argLength: 1, reg: fp11clobber, asm: "FNEG", clobberFlags: true},                                          // fp64 -arg0
+-		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS", resultInArg0: true},                                             // fp32 arg1 * arg2 + arg0
+-		{name: "FMADD", argLength: 3, reg: fp31, asm: "FMADD", resultInArg0: true},                                               // fp64 arg1 * arg2 + arg0
+-		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", resultInArg0: true},                                             // fp32 arg1 * arg2 - arg0
+-		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB", resultInArg0: true},                                               // fp64 arg1 * arg2 - arg0
+-		{name: "LPDFR", argLength: 1, reg: fp11, asm: "LPDFR"},                                                                   // fp64/fp32 set sign bit
+-		{name: "LNDFR", argLength: 1, reg: fp11, asm: "LNDFR"},                                                                   // fp64/fp32 clear sign bit
+-		{name: "CPSDR", argLength: 2, reg: fp21, asm: "CPSDR"},                                                                   // fp64/fp32 copy arg1 sign bit to arg0
++		{name: "FADDS", argLength: 2, reg: fp21clobber, typ: "(Float32,Flags)", asm: "FADDS", commutative: true, resultInArg0: true}, // fp32 arg0 + arg1
++		{name: "FADD", argLength: 2, reg: fp21clobber, typ: "(Float64,Flags)", asm: "FADD", commutative: true, resultInArg0: true},   // fp64 arg0 + arg1
++		{name: "FSUBS", argLength: 2, reg: fp21clobber, typ: "(Float32,Flags)", asm: "FSUBS", resultInArg0: true},                    // fp32 arg0 - arg1
++		{name: "FSUB", argLength: 2, reg: fp21clobber, typ: "(Float64,Flags)", asm: "FSUB", resultInArg0: true},                      // fp64 arg0 - arg1
++		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true, resultInArg0: true},                                // fp32 arg0 * arg1
++		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true, resultInArg0: true},                                  // fp64 arg0 * arg1
++		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", resultInArg0: true},                                                   // fp32 arg0 / arg1
++		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV", resultInArg0: true},                                                     // fp64 arg0 / arg1
++		{name: "FNEGS", argLength: 1, reg: fp11clobber, asm: "FNEGS", clobberFlags: true},                                            // fp32 -arg0
++		{name: "FNEG", argLength: 1, reg: fp11clobber, asm: "FNEG", clobberFlags: true},                                              // fp64 -arg0
++		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS", resultInArg0: true},                                                 // fp32 arg1 * arg2 + arg0
++		{name: "FMADD", argLength: 3, reg: fp31, asm: "FMADD", resultInArg0: true},                                                   // fp64 arg1 * arg2 + arg0
++		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", resultInArg0: true},                                                 // fp32 arg1 * arg2 - arg0
++		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB", resultInArg0: true},                                                   // fp64 arg1 * arg2 - arg0
++		{name: "LPDFR", argLength: 1, reg: fp11, asm: "LPDFR"},                                                                       // fp64/fp32 set sign bit
++		{name: "LNDFR", argLength: 1, reg: fp11, asm: "LNDFR"},                                                                       // fp64/fp32 clear sign bit
++		{name: "CPSDR", argLength: 2, reg: fp21, asm: "CPSDR"},                                                                       // fp64/fp32 copy arg1 sign bit to arg0
+ 
+ 		// Round to integer, float64 only.
+ 		//
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ee5e1bd063..2168d262aa 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -26944,7 +26944,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       2,
+ 		commutative:  true,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          s390x.AFADDS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -26961,7 +26960,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       2,
+ 		commutative:  true,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          s390x.AFADD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -26977,7 +26975,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "FSUBS",
+ 		argLen:       2,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          s390x.AFSUBS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -26993,7 +26990,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "FSUB",
+ 		argLen:       2,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          s390x.AFSUB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 84dae5a734..43fe3d8756 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -15,14 +15,12 @@ func rewriteValueS390X(v *Value) bool {
+ 		v.Op = OpS390XADDW
+ 		return true
+ 	case OpAdd32F:
+-		v.Op = OpS390XFADDS
+-		return true
++		return rewriteValueS390X_OpAdd32F(v)
+ 	case OpAdd64:
+ 		v.Op = OpS390XADD
+ 		return true
+ 	case OpAdd64F:
+-		v.Op = OpS390XFADD
+-		return true
++		return rewriteValueS390X_OpAdd64F(v)
+ 	case OpAdd8:
+ 		v.Op = OpS390XADDW
+ 		return true
+@@ -600,10 +598,6 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpS390XCMPconst(v)
+ 	case OpS390XCPSDR:
+ 		return rewriteValueS390X_OpS390XCPSDR(v)
+-	case OpS390XFADD:
+-		return rewriteValueS390X_OpS390XFADD(v)
+-	case OpS390XFADDS:
+-		return rewriteValueS390X_OpS390XFADDS(v)
+ 	case OpS390XFCMP:
+ 		return rewriteValueS390X_OpS390XFCMP(v)
+ 	case OpS390XFCMPS:
+@@ -628,10 +622,6 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpS390XFNEG(v)
+ 	case OpS390XFNEGS:
+ 		return rewriteValueS390X_OpS390XFNEGS(v)
+-	case OpS390XFSUB:
+-		return rewriteValueS390X_OpS390XFSUB(v)
+-	case OpS390XFSUBS:
+-		return rewriteValueS390X_OpS390XFSUBS(v)
+ 	case OpS390XLDGR:
+ 		return rewriteValueS390X_OpS390XLDGR(v)
+ 	case OpS390XLEDBR:
+@@ -640,6 +630,10 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpS390XLGDR(v)
+ 	case OpS390XLOCGR:
+ 		return rewriteValueS390X_OpS390XLOCGR(v)
++	case OpS390XLTDBR:
++		return rewriteValueS390X_OpS390XLTDBR(v)
++	case OpS390XLTEBR:
++		return rewriteValueS390X_OpS390XLTEBR(v)
+ 	case OpS390XLoweredRound32F:
+ 		return rewriteValueS390X_OpS390XLoweredRound32F(v)
+ 	case OpS390XLoweredRound64F:
+@@ -847,14 +841,12 @@ func rewriteValueS390X(v *Value) bool {
+ 		v.Op = OpS390XSUBW
+ 		return true
+ 	case OpSub32F:
+-		v.Op = OpS390XFSUBS
+-		return true
++		return rewriteValueS390X_OpSub32F(v)
+ 	case OpSub64:
+ 		v.Op = OpS390XSUB
+ 		return true
+ 	case OpSub64F:
+-		v.Op = OpS390XFSUB
+-		return true
++		return rewriteValueS390X_OpSub64F(v)
+ 	case OpSub8:
+ 		v.Op = OpS390XSUBW
+ 		return true
+@@ -919,6 +911,40 @@ func rewriteValueS390X(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpAdd32F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Add32F x y)
++	// result: (Select0 (FADDS x y))
++	for {
++		x := v_0
++		y := v_1
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpS390XFADDS, types.NewTuple(typ.Float32, types.TypeFlags))
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueS390X_OpAdd64F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Add64F x y)
++	// result: (Select0 (FADD x y))
++	for {
++		x := v_0
++		y := v_1
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpS390XFADD, types.NewTuple(typ.Float64, types.TypeFlags))
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueS390X_OpAtomicAdd32(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+@@ -7096,48 +7122,6 @@ func rewriteValueS390X_OpS390XCPSDR(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueS390X_OpS390XFADD(v *Value) bool {
+-	v_1 := v.Args[1]
+-	v_0 := v.Args[0]
+-	// match: (FADD (FMUL y z) x)
+-	// result: (FMADD x y z)
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			if v_0.Op != OpS390XFMUL {
+-				continue
+-			}
+-			z := v_0.Args[1]
+-			y := v_0.Args[0]
+-			x := v_1
+-			v.reset(OpS390XFMADD)
+-			v.AddArg3(x, y, z)
+-			return true
+-		}
+-		break
+-	}
+-	return false
+-}
+-func rewriteValueS390X_OpS390XFADDS(v *Value) bool {
+-	v_1 := v.Args[1]
+-	v_0 := v.Args[0]
+-	// match: (FADDS (FMULS y z) x)
+-	// result: (FMADDS x y z)
+-	for {
+-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+-			if v_0.Op != OpS390XFMULS {
+-				continue
+-			}
+-			z := v_0.Args[1]
+-			y := v_0.Args[0]
+-			x := v_1
+-			v.reset(OpS390XFMADDS)
+-			v.AddArg3(x, y, z)
+-			return true
+-		}
+-		break
+-	}
+-	return false
+-}
+ func rewriteValueS390X_OpS390XFCMP(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -7933,42 +7917,6 @@ func rewriteValueS390X_OpS390XFNEGS(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueS390X_OpS390XFSUB(v *Value) bool {
+-	v_1 := v.Args[1]
+-	v_0 := v.Args[0]
+-	// match: (FSUB (FMUL y z) x)
+-	// result: (FMSUB x y z)
+-	for {
+-		if v_0.Op != OpS390XFMUL {
+-			break
+-		}
+-		z := v_0.Args[1]
+-		y := v_0.Args[0]
+-		x := v_1
+-		v.reset(OpS390XFMSUB)
+-		v.AddArg3(x, y, z)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueS390X_OpS390XFSUBS(v *Value) bool {
+-	v_1 := v.Args[1]
+-	v_0 := v.Args[0]
+-	// match: (FSUBS (FMULS y z) x)
+-	// result: (FMSUBS x y z)
+-	for {
+-		if v_0.Op != OpS390XFMULS {
+-			break
+-		}
+-		z := v_0.Args[1]
+-		y := v_0.Args[0]
+-		x := v_1
+-		v.reset(OpS390XFMSUBS)
+-		v.AddArg3(x, y, z)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueS390X_OpS390XLDGR(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+@@ -8246,6 +8194,70 @@ func rewriteValueS390X_OpS390XLOCGR(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpS390XLTDBR(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (LTDBR (Select0 x:(FADD _ _)))
++	// result: (Select1 x)
++	for {
++		if v_0.Op != OpSelect0 {
++			break
++		}
++		x := v_0.Args[0]
++		if x.Op != OpS390XFADD {
++			break
++		}
++		v.reset(OpSelect1)
++		v.AddArg(x)
++		return true
++	}
++	// match: (LTDBR (Select0 x:(FSUB _ _)))
++	// result: (Select1 x)
++	for {
++		if v_0.Op != OpSelect0 {
++			break
++		}
++		x := v_0.Args[0]
++		if x.Op != OpS390XFSUB {
++			break
++		}
++		v.reset(OpSelect1)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueS390X_OpS390XLTEBR(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (LTEBR (Select0 x:(FADDS _ _)))
++	// result: (Select1 x)
++	for {
++		if v_0.Op != OpSelect0 {
++			break
++		}
++		x := v_0.Args[0]
++		if x.Op != OpS390XFADDS {
++			break
++		}
++		v.reset(OpSelect1)
++		v.AddArg(x)
++		return true
++	}
++	// match: (LTEBR (Select0 x:(FSUBS _ _)))
++	// result: (Select1 x)
++	for {
++		if v_0.Op != OpSelect0 {
++			break
++		}
++		x := v_0.Args[0]
++		if x.Op != OpS390XFSUBS {
++			break
++		}
++		v.reset(OpSelect1)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueS390X_OpS390XLoweredRound32F(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (LoweredRound32F x:(FMOVSconst))
+@@ -18421,6 +18433,84 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
+ 		v.AuxInt = c - d
+ 		return true
+ 	}
++	// match: (Select0 (FADD (FMUL y z) x))
++	// result: (FMADD x y z)
++	for {
++		if v_0.Op != OpS390XFADD {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpS390XFMUL {
++				continue
++			}
++			z := v_0_0.Args[1]
++			y := v_0_0.Args[0]
++			x := v_0_1
++			v.reset(OpS390XFMADD)
++			v.AddArg3(x, y, z)
++			return true
++		}
++		break
++	}
++	// match: (Select0 (FSUB (FMUL y z) x))
++	// result: (FMSUB x y z)
++	for {
++		if v_0.Op != OpS390XFSUB {
++			break
++		}
++		x := v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpS390XFMUL {
++			break
++		}
++		z := v_0_0.Args[1]
++		y := v_0_0.Args[0]
++		v.reset(OpS390XFMSUB)
++		v.AddArg3(x, y, z)
++		return true
++	}
++	// match: (Select0 (FADDS (FMULS y z) x))
++	// result: (FMADDS x y z)
++	for {
++		if v_0.Op != OpS390XFADDS {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpS390XFMULS {
++				continue
++			}
++			z := v_0_0.Args[1]
++			y := v_0_0.Args[0]
++			x := v_0_1
++			v.reset(OpS390XFMADDS)
++			v.AddArg3(x, y, z)
++			return true
++		}
++		break
++	}
++	// match: (Select0 (FSUBS (FMULS y z) x))
++	// result: (FMSUBS x y z)
++	for {
++		if v_0.Op != OpS390XFSUBS {
++			break
++		}
++		x := v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpS390XFMULS {
++			break
++		}
++		z := v_0_0.Args[1]
++		y := v_0_0.Args[0]
++		v.reset(OpS390XFMSUBS)
++		v.AddArg3(x, y, z)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueS390X_OpSelect1(v *Value) bool {
+@@ -18709,6 +18799,40 @@ func rewriteValueS390X_OpStore(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpSub32F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Sub32F x y)
++	// result: (Select0 (FSUBS x y))
++	for {
++		x := v_0
++		y := v_1
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpS390XFSUBS, types.NewTuple(typ.Float32, types.TypeFlags))
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueS390X_OpSub64F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Sub64F x y)
++	// result: (Select0 (FSUB x y))
++	for {
++		x := v_0
++		y := v_1
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpS390XFSUB, types.NewTuple(typ.Float64, types.TypeFlags))
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueS390X_OpTrunc(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Trunc x)
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 127fa005ca..3fae1a327c 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -132,6 +132,18 @@ func CmpZero32(f float32) bool {
+ 	return f <= 0
+ }
+ 
++func CmpWithSub(a float64, b float64) bool {
++	f := a - b
++	// s390x:-"LTDBR"
++	return f <= 0
++}
++
++func CmpWithAdd(a float64, b float64) bool {
++	f := a + b
++	// s390x:-"LTDBR"
++	return f <= 0
++}
++
+ // ---------------- //
+ //    Non-floats    //
+ // ---------------- //

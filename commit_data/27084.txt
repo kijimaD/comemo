@@ -13,10 +13,278 @@ Date:   Thu Mar 10 10:00:29 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go       | 12 ++-----
  src/cmd/compile/internal/gc/pgen_test.go | 16 ----------
  src/cmd/compile/internal/gc/reflect.go   | 18 +++++------
  src/cmd/compile/internal/gc/syntax.go    | 54 --------------------------------
  src/cmd/compile/internal/gc/typecheck.go | 35 +++++++--------------
  5 files changed, 21 insertions(+), 114 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index a8867ff4b5..91c7ec863c 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -43,7 +43,7 @@ import (
+ //			'h' (only in +/debug mode) suppress recursion
+ //			'l' (only in Error mode) print "foo (type Bar)"
+ //
+-//	%H NodeList*	NodeLists
++//	%H Nodes	Nodes
+ //		Flags: those of %N
+ //			','  separate items with ',' instead of ';'
+ //
+@@ -1698,19 +1698,11 @@ func Nconv(n *Node, flag int) string {
+ 	return str
+ }
+ 
+-func (l *NodeList) String() string {
+-	var n Nodes
+-	for ll := l; ll != nil; ll = ll.Next {
+-		n.Append(ll.N)
+-	}
+-	return Hconv(n, 0)
+-}
+-
+ func (n Nodes) String() string {
+ 	return Hconv(n, 0)
+ }
+ 
+-// Fmt '%H': NodeList.
++// Fmt '%H': Nodes.
+ // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
+ func Hconv(l Nodes, flag int) string {
+ 	if l.Len() == 0 && fmtmode == FDbg {
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index 58ed41f923..fcb8bfa0c2 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -119,22 +119,6 @@ func TestCmpstackvar(t *testing.T) {
+ 	}
+ }
+ 
+-func slice2nodelist(s []*Node) *NodeList {
+-	var nl *NodeList
+-	for _, n := range s {
+-		nl = list(nl, n)
+-	}
+-	return nl
+-}
+-
+-func nodelist2slice(nl *NodeList) []*Node {
+-	var s []*Node
+-	for l := nl; l != nil; l = l.Next {
+-		s = append(s, l.N)
+-	}
+-	return s
+-}
+-
+ func TestStackvarSort(t *testing.T) {
+ 	inp := []*Node{
+ 		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index f2ad9e7efc..0679853cec 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ // runtime interface and reflection data structures
+-var signatlist *NodeList
++var signatlist []*Node
+ 
+ // byMethodNameAndPackagePath sorts method signatures by name, then package path.
+ type byMethodNameAndPackagePath []*Sig
+@@ -863,7 +863,7 @@ func typenamesym(t *Type) *Sym {
+ 		n.Typecheck = 1
+ 		s.Def = n
+ 
+-		signatlist = list(signatlist, typenod(t))
++		signatlist = append(signatlist, typenod(t))
+ 	}
+ 
+ 	return s.Def.Sym
+@@ -1235,24 +1235,22 @@ ok:
+ }
+ 
+ func dumptypestructs() {
+-	var n *Node
+-
+ 	// copy types from externdcl list to signatlist
+ 	for _, n := range externdcl {
+ 		if n.Op != OTYPE {
+ 			continue
+ 		}
+-		signatlist = list(signatlist, n)
++		signatlist = append(signatlist, n)
+ 	}
+ 
+-	// process signatlist
+-	var t *Type
+-	for l := signatlist; l != nil; l = l.Next {
+-		n = l.N
++	// Process signatlist.  This can't use range, as entries are
++	// added to the list while it is being processed.
++	for i := 0; i < len(signatlist); i++ {
++		n := signatlist[i]
+ 		if n.Op != OTYPE {
+ 			continue
+ 		}
+-		t = n.Type
++		t := n.Type
+ 		dtypesym(t)
+ 		if t.Sym != nil {
+ 			dtypesym(Ptrto(t))
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 7a31ce9d7a..1c38c43ff7 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -360,60 +360,6 @@ const (
+ 	OEND
+ )
+ 
+-// A NodeList is a linked list of nodes.
+-// TODO(rsc): Some uses of NodeList should be made into slices.
+-// The remaining ones probably just need a simple linked list,
+-// not one with concatenation support.
+-type NodeList struct {
+-	N    *Node
+-	Next *NodeList
+-	End  *NodeList
+-}
+-
+-// concat returns the concatenation of the lists a and b.
+-// The storage taken by both is reused for the result.
+-func concat(a *NodeList, b *NodeList) *NodeList {
+-	if a == nil {
+-		return b
+-	}
+-	if b == nil {
+-		return a
+-	}
+-
+-	a.End.Next = b
+-	a.End = b.End
+-	b.End = nil
+-	return a
+-}
+-
+-// list1 returns a one-element list containing n.
+-func list1(n *Node) *NodeList {
+-	if n == nil {
+-		return nil
+-	}
+-	l := new(NodeList)
+-	l.N = n
+-	l.End = l
+-	return l
+-}
+-
+-// list returns the result of appending n to l.
+-func list(l *NodeList, n *Node) *NodeList {
+-	return concat(l, list1(n))
+-}
+-
+-// count returns the length of the list l.
+-func count(l *NodeList) int {
+-	n := int64(0)
+-	for ; l != nil; l = l.Next {
+-		n++
+-	}
+-	if int64(int(n)) != n { // Overflow.
+-		Yyerror("too many elements in list")
+-	}
+-	return int(n)
+-}
+-
+ // Nodes is a pointer to a slice of *Node.
+ // For fields that are not used in most nodes, this is used instead of
+ // a slice to save space.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 22fd9e4d2b..6d52ece21a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3478,7 +3478,7 @@ func stringtoarraylit(np **Node) {
+ 
+ var ntypecheckdeftype int
+ 
+-var methodqueue *NodeList
++var methodqueue []*Node
+ 
+ func domethod(n *Node) {
+ 	nt := n.Type.Nname
+@@ -3511,7 +3511,7 @@ func domethod(n *Node) {
+ 	checkwidth(n.Type)
+ }
+ 
+-var mapqueue *NodeList
++var mapqueue []*Node
+ 
+ func copytype(n *Node, t *Type) {
+ 	if t.Etype == TFORW {
+@@ -3561,7 +3561,7 @@ func copytype(n *Node, t *Type) {
+ 	// Queue check for map until all the types are done settling.
+ 	if maplineno != 0 {
+ 		t.Maplineno = int32(maplineno)
+-		mapqueue = list(mapqueue, n)
++		mapqueue = append(mapqueue, n)
+ 	}
+ }
+ 
+@@ -3597,21 +3597,20 @@ ret:
+ 	// try to resolve the method types for the interfaces
+ 	// we just read.
+ 	if ntypecheckdeftype == 1 {
+-		var l *NodeList
+ 		for {
+-			l = methodqueue
+-			if l == nil {
++			s := methodqueue
++			if len(s) == 0 {
+ 				break
+ 			}
+ 			methodqueue = nil
+-			for ; l != nil; l = l.Next {
+-				domethod(l.N)
++			for _, n := range s {
++				domethod(n)
+ 			}
+ 		}
+ 
+-		for l := mapqueue; l != nil; l = l.Next {
+-			lineno = l.N.Type.Maplineno
+-			maptype(l.N.Type, Types[TBOOL])
++		for _, n := range mapqueue {
++			lineno = n.Type.Maplineno
++			maptype(n.Type, Types[TBOOL])
+ 		}
+ 
+ 		lineno = lno
+@@ -3626,7 +3625,7 @@ func queuemethod(n *Node) {
+ 		return
+ 	}
+ 
+-	methodqueue = list(methodqueue, n)
++	methodqueue = append(methodqueue, n)
+ }
+ 
+ func typecheckdef(n *Node) *Node {
+@@ -3902,18 +3901,6 @@ func markbreaklist(l Nodes, implicit *Node) {
+ 	}
+ }
+ 
+-// Isterminating returns whether the NodeList l ends with a
+-// terminating statement.
+-func (l *NodeList) isterminating() bool {
+-	if l == nil {
+-		return false
+-	}
+-	for l.Next != nil {
+-		l = l.Next
+-	}
+-	return l.N.isterminating()
+-}
+-
+ // Isterminating whether the Nodes list ends with a terminating
+ // statement.
+ func (l Nodes) isterminating() bool {

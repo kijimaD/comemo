@@ -28,9 +28,193 @@ Date:   Tue Feb 7 13:38:52 2017 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/bytes.go          | 23 ++++++++++----------
  src/bytes/bytes_test.go     | 53 +++++++++++++++++++++++++++++++++++++++++++++
  src/strings/strings.go      | 25 +++++++++++----------
  src/strings/strings_test.go | 18 ++++++++++++---
  4 files changed, 93 insertions(+), 26 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index a273a91911..029609afba 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -215,20 +215,21 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ 	if n < 0 {
+ 		n = Count(s, sep) + 1
+ 	}
+-	c := sep[0]
+-	start := 0
++
+ 	a := make([][]byte, n)
+-	na := 0
+-	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
+-		if s[i] == c && (len(sep) == 1 || Equal(s[i:i+len(sep)], sep)) {
+-			a[na] = s[start : i+sepSave]
+-			na++
+-			start = i + len(sep)
+-			i += len(sep) - 1
++	n--
++	i := 0
++	for i < n {
++		m := Index(s, sep)
++		if m < 0 {
++			break
+ 		}
++		a[i] = s[:m+sepSave]
++		s = s[m+len(sep):]
++		i++
+ 	}
+-	a[na] = s[start:]
+-	return a[0 : na+1]
++	a[i] = s
++	return a[:i+1]
+ }
+ 
+ // SplitN slices s into subslices separated by sep and returns a slice of
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 26eac5e08c..dd8bdf2b04 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -1432,6 +1432,59 @@ func BenchmarkTrimSpace(b *testing.B) {
+ 	}
+ }
+ 
++func makeBenchInputHard() []byte {
++	tokens := [...]string{
++		"<a>", "<p>", "<b>", "<strong>",
++		"</a>", "</p>", "</b>", "</strong>",
++		"hello", "world",
++	}
++	x := make([]byte, 0, 1<<20)
++	for {
++		i := rand.Intn(len(tokens))
++		if len(x)+len(tokens[i]) >= 1<<20 {
++			break
++		}
++		x = append(x, tokens[i]...)
++	}
++	return x
++}
++
++var benchInputHard = makeBenchInputHard()
++
++func BenchmarkSplitEmptySeparator(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Split(benchInputHard, nil)
++	}
++}
++
++func BenchmarkSplitSingleByteSeparator(b *testing.B) {
++	sep := []byte("/")
++	for i := 0; i < b.N; i++ {
++		Split(benchInputHard, sep)
++	}
++}
++
++func BenchmarkSplitMultiByteSeparator(b *testing.B) {
++	sep := []byte("hello")
++	for i := 0; i < b.N; i++ {
++		Split(benchInputHard, sep)
++	}
++}
++
++func BenchmarkSplitNSingleByteSeparator(b *testing.B) {
++	sep := []byte("/")
++	for i := 0; i < b.N; i++ {
++		SplitN(benchInputHard, sep, 10)
++	}
++}
++
++func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
++	sep := []byte("hello")
++	for i := 0; i < b.N; i++ {
++		SplitN(benchInputHard, sep, 10)
++	}
++}
++
+ func BenchmarkRepeat(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Repeat([]byte("-"), 80)
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 2b1fbab5b2..2165e15d8f 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -239,20 +239,21 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ 	if n < 0 {
+ 		n = Count(s, sep) + 1
+ 	}
+-	c := sep[0]
+-	start := 0
++
+ 	a := make([]string, n)
+-	na := 0
+-	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
+-		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
+-			a[na] = s[start : i+sepSave]
+-			na++
+-			start = i + len(sep)
+-			i += len(sep) - 1
+-		}
++	n--
++	i := 0
++	for i < n {
++		m := Index(s, sep)
++		if m < 0 {
++			break
++		}
++		a[i] = s[:m+sepSave]
++		s = s[m+len(sep):]
++		i++
+ 	}
+-	a[na] = s[start:]
+-	return a[0 : na+1]
++	a[i] = s
++	return a[:i+1]
+ }
+ 
+ // SplitN slices s into substrings separated by sep and returns a slice of
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 43979491c1..3378d54fe2 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1476,24 +1476,36 @@ func BenchmarkFieldsFunc(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkSplit1(b *testing.B) {
++func BenchmarkSplitEmptySeparator(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Split(benchInputHard, "")
+ 	}
+ }
+ 
+-func BenchmarkSplit2(b *testing.B) {
++func BenchmarkSplitSingleByteSeparator(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Split(benchInputHard, "/")
+ 	}
+ }
+ 
+-func BenchmarkSplit3(b *testing.B) {
++func BenchmarkSplitMultiByteSeparator(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Split(benchInputHard, "hello")
+ 	}
+ }
+ 
++func BenchmarkSplitNSingleByteSeparator(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		SplitN(benchInputHard, "/", 10)
++	}
++}
++
++func BenchmarkSplitNMultiByteSeparator(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		SplitN(benchInputHard, "hello", 10)
++	}
++}
++
+ func BenchmarkRepeat(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Repeat("-", 80)

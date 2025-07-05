@@ -21,10 +21,283 @@ Date:   Tue Dec 27 16:53:33 2016 -0800
     Change-Id: I23a6d4e3a4c2a5c1ae589513da73fde7cad5f386
     Reviewed-on: https://go-review.googlesource.com/35101
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 37 ++++++----------------------------
  src/cmd/compile/internal/gc/bimport.go |  9 +++++----
  src/go/internal/gcimporter/bimport.go  | 30 ++++++++++++++-------------
  src/go/types/object.go                 | 20 ++++++++----------
  src/go/types/object_test.go            | 29 ++++++++++++++++----------
  5 files changed, 53 insertions(+), 72 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index b7529163b9..4125e83b3a 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -447,30 +447,6 @@ func unidealType(typ *Type, val Val) *Type {
+ }
+ 
+ func (p *exporter) obj(sym *Sym) {
+-	if sym.Flags&SymAlias != 0 {
+-		p.tag(aliasTag)
+-		p.pos(nil) // TODO(gri) fix position information
+-		// Aliases can only be exported from the package that
+-		// declares them (aliases to aliases are resolved to the
+-		// original object, and so are uses of aliases in inlined
+-		// exported function bodies). Thus, we only need the alias
+-		// name without package qualification.
+-		if sym.Pkg != localpkg {
+-			Fatalf("exporter: export of non-local alias: %v", sym)
+-		}
+-		p.string(sym.Name)
+-		orig := sym.Def.Sym
+-		if orig.Flags&SymAlias != 0 {
+-			Fatalf("exporter: original object %v marked as alias", sym)
+-		}
+-		p.qualifiedName(orig)
+-		return
+-	}
+-
+-	if sym != sym.Def.Sym {
+-		Fatalf("exporter: exported object %v is not original %v", sym, sym.Def.Sym)
+-	}
+-
+ 	// Exported objects may be from different packages because they
+ 	// may be re-exported via an exported alias or as dependencies in
+ 	// exported inlined function bodies. Thus, exported object names
+@@ -885,15 +861,15 @@ func (p *exporter) fieldName(t *Field) {
+ 	name := t.Sym.Name
+ 	if t.Embedded != 0 {
+ 		// anonymous field - we distinguish between 3 cases:
+-		// 1) field name matches base type name and name is exported
+-		// 2) field name matches base type name and name is not exported
+-		// 3) field name doesn't match base type name (type name is alias)
++		// 1) field name matches base type name and is exported
++		// 2) field name matches base type name and is not exported
++		// 3) field name doesn't match base type name (alias name)
+ 		bname := basetypeName(t.Type)
+ 		if name == bname {
+ 			if exportname(name) {
+-				name = "" // 1) we don't need to know the name
++				name = "" // 1) we don't need to know the field name or package
+ 			} else {
+-				name = "?" // 2) use unexported name to force package export
++				name = "?" // 2) use unexported name "?" to force package export
+ 			}
+ 		} else {
+ 			// 3) indicate alias and export name as is
+@@ -920,11 +896,10 @@ func basetypeName(t *Type) string {
+ 	if s == nil && t.IsPtr() {
+ 		s = t.Elem().Sym // deref
+ 	}
+-	// s should exist, but be conservative
+ 	if s != nil {
+ 		return s.Name
+ 	}
+-	return ""
++	return "" // unnamed type
+ }
+ 
+ func (p *exporter) paramList(params *Type, numbered bool) {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 853c4bd2a4..6b34770e08 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -582,7 +582,7 @@ func (p *importer) field() *Field {
+ 
+ 	f := newField()
+ 	if sym.Name == "" {
+-		// anonymous field - typ must be T or *T and T must be a type name
++		// anonymous field: typ must be T or *T and T must be a type name
+ 		s := typ.Sym
+ 		if s == nil && typ.IsPtr() {
+ 			s = typ.Elem().Sym // deref
+@@ -590,6 +590,7 @@ func (p *importer) field() *Field {
+ 		sym = sym.Pkg.Lookup(s.Name)
+ 		f.Embedded = 1
+ 	} else if sym.Flags&SymAlias != 0 {
++		// anonymous field: we have an explicit name because it's an alias
+ 		f.Embedded = 1
+ 	}
+ 
+@@ -635,13 +636,13 @@ func (p *importer) fieldName() *Sym {
+ 	var flag SymFlags
+ 	switch name {
+ 	case "":
+-		// field name is exported - nothing to do
++		// 1) field name matches base type name and is exported: nothing to do
+ 	case "?":
+-		// field name is not exported - need package
++		// 2) field name matches base type name and is not exported: need package
+ 		name = ""
+ 		pkg = p.pkg()
+ 	case "@":
+-		// field name doesn't match type name (alias)
++		// 3) field name doesn't match base type name (alias name): need name and possibly package
+ 		name = p.string()
+ 		flag = SymAlias
+ 		fallthrough
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 55019df39d..5badd337d9 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -341,9 +341,7 @@ var (
+ 
+ func (p *importer) qualifiedName() (pkg *types.Package, name string) {
+ 	name = p.string()
+-	if name != "" {
+-		pkg = p.pkg()
+-	}
++	pkg = p.pkg()
+ 	return
+ }
+ 
+@@ -556,7 +554,7 @@ func (p *importer) fieldList(parent *types.Package) (fields []*types.Var, tags [
+ 
+ func (p *importer) field(parent *types.Package) (*types.Var, string) {
+ 	pos := p.pos()
+-	pkg, name := p.fieldName(parent)
++	pkg, name, alias := p.fieldName(parent)
+ 	typ := p.typ(parent)
+ 	tag := p.string()
+ 
+@@ -570,9 +568,12 @@ func (p *importer) field(parent *types.Package) (*types.Var, string) {
+ 		case *types.Named:
+ 			name = typ.Obj().Name()
+ 		default:
+-			errorf("anonymous field expected")
++			errorf("named base type expected")
+ 		}
+ 		anonymous = true
++	} else if alias {
++		// anonymous field: we have an explicit name because it's an alias
++		anonymous = true
+ 	}
+ 
+ 	return types.NewField(pos, pkg, name, typ, anonymous), tag
+@@ -590,41 +591,42 @@ func (p *importer) methodList(parent *types.Package) (methods []*types.Func) {
+ 
+ func (p *importer) method(parent *types.Package) *types.Func {
+ 	pos := p.pos()
+-	pkg, name := p.fieldName(parent)
++	pkg, name, _ := p.fieldName(parent)
+ 	params, isddd := p.paramList()
+ 	result, _ := p.paramList()
+ 	sig := types.NewSignature(nil, params, result, isddd)
+ 	return types.NewFunc(pos, pkg, name, sig)
+ }
+ 
+-func (p *importer) fieldName(parent *types.Package) (*types.Package, string) {
+-	name := p.string()
+-	pkg := parent
++func (p *importer) fieldName(parent *types.Package) (pkg *types.Package, name string, alias bool) {
++	name = p.string()
++	pkg = parent
+ 	if pkg == nil {
+ 		// use the imported package instead
+ 		pkg = p.pkgList[0]
+ 	}
+ 	if p.version == 0 && name == "_" {
+ 		// version 0 didn't export a package for _ fields
+-		return pkg, name
++		return
+ 	}
+ 	switch name {
+ 	case "":
+-		// field name is exported - nothing to do
++		// 1) field name matches base type name and is exported: nothing to do
+ 	case "?":
+-		// field name is not exported - need package
++		// 2) field name matches base type name and is not exported: need package
+ 		name = ""
+ 		pkg = p.pkg()
+ 	case "@":
+-		// field name doesn't match type name (alias)
++		// 3) field name doesn't match type name (alias)
+ 		name = p.string()
++		alias = true
+ 		fallthrough
+ 	default:
+ 		if !exported(name) {
+ 			pkg = p.pkg()
+ 		}
+ 	}
+-	return pkg, name
++	return
+ }
+ 
+ func (p *importer) paramList() (*types.Tuple, bool) {
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index f4f628f876..1668ba396b 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -163,23 +163,19 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
+ 	return &TypeName{object{nil, pos, pkg, name, typ, 0, token.NoPos}}
+ }
+ 
++// IsAlias reports whether obj is an alias name for a type.
+ func (obj *TypeName) IsAlias() bool {
+ 	switch t := obj.typ.(type) {
+ 	case nil:
+ 		return false
+ 	case *Basic:
+-		// It would seem that we should be able to look for different names here;
+-		// but the names of universeByte/Rune are "byte" and "rune", respectively.
+-		// We do this so that we get better error messages. However, general alias
+-		// types don't have that name information and thus behave differently when
+-		// reporting errors (we won't see the alias name, only the original name).
+-		// Maybe we should remove the special handling for the predeclared types
+-		// as well to be consistent (at the cost of slightly less clear error
+-		// messages when byte/rune are involved).
+-		// This also plays out in the implementation of the Identical(Type, Type)
+-		// predicate.
+-		// TODO(gri) consider possible clean up
+-		return t == universeByte || t == universeRune
++		// Any user-defined type name for a basic type is an alias for a
++		// basic type (because basic types are pre-declared in the Universe
++		// scope, outside any package scope), and so is any type name with
++		// a different name than the name of the basic type it refers to.
++		// Additionaly, we need to look for "byte" and "rune" because they
++		// are aliases but have the same names (for better error messages).
++		return obj.pkg != nil || t.name != obj.name || t == universeByte || t == universeRune
+ 	case *Named:
+ 		return obj != t.obj
+ 	default:
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index 70656ae022..16d7d5c723 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -21,16 +21,23 @@ func TestIsAlias(t *testing.T) {
+ 	}
+ 
+ 	// various other types
+-	t0 := NewTypeName(0, nil, "t0", nil)
+-	check(t0, false) // no type yet
+-
+-	t1 := NewTypeName(0, nil, "t1", nil)
++	pkg := NewPackage("p", "p")
++	t1 := NewTypeName(0, pkg, "t1", nil)
+ 	n1 := NewNamed(t1, new(Struct), nil)
+-	check(t1, false) // type name refers to named type and vice versa
+-
+-	t2 := NewTypeName(0, nil, "t2", new(Interface))
+-	check(t2, true) // type name refers to unnamed type
+-
+-	t3 := NewTypeName(0, nil, "t3", n1)
+-	check(t3, true) // type name refers to named type with different type name (true alias)
++	for _, test := range []struct {
++		name  *TypeName
++		alias bool
++	}{
++		{NewTypeName(0, nil, "t0", nil), false}, // no type yet
++		{NewTypeName(0, pkg, "t0", nil), false}, // no type yet
++		{t1, false},                             // type name refers to named type and vice versa
++		{NewTypeName(0, nil, "t2", new(Interface)), true}, // type name refers to unnamed type
++		{NewTypeName(0, pkg, "t3", n1), true},             // type name refers to named type with different type name
++		{NewTypeName(0, nil, "t4", Typ[Int32]), true},     // type name refers to basic type with different name
++		{NewTypeName(0, nil, "int32", Typ[Int32]), false}, // type name refers to basic type with same name
++		{NewTypeName(0, pkg, "int32", Typ[Int32]), true},  // type name is declared in user-defined package (outside Universe)
++		{NewTypeName(0, nil, "rune", Typ[Rune]), true},    // type name refers to basic type rune which is an alias already
++	} {
++		check(test.name, test.alias)
++	}
+ }

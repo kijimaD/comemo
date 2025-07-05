@@ -18,9 +18,99 @@ Date:   Mon Jan 6 20:43:44 2014 -0500
     R=golang-codereviews, r, iant, oleku.konko, dave, gobot, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/15930045
-
+---
  src/cmd/gc/go.h        |  1 +
  src/cmd/gc/obj.c       | 28 ++++++++++++++++++++++++++++
  src/cmd/gc/sinit.c     |  9 +++++++++
  src/cmd/gc/typecheck.c |  3 +++
  4 files changed, 41 insertions(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2e03898cda..a00f5c8ab0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1263,6 +1263,7 @@ int	duintptr(Sym *s, int off, uint64 v);
+ int	dsname(Sym *s, int off, char *dat, int ndat);
+ void	dumpobj(void);
+ Sym*	stringsym(char*, int);
++void	slicebytes(Node*, char*, int);
+ LSym*	linksym(Sym*);
+ 
+ /*
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index c17be5c398..c6ba367647 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -253,3 +253,31 @@ stringsym(char *s, int len)
+ 
+ 	return sym;	
+ }
++
++void
++slicebytes(Node *nam, char *s, int len)
++{
++	int off, n, m;
++	static int gen;
++	Sym *sym;
++
++	snprint(namebuf, sizeof(namebuf), ".gobytes.%d", ++gen);
++	sym = pkglookup(namebuf, localpkg);
++	sym->def = newname(sym);
++
++	off = 0;
++	for(n=0; n<len; n+=m) {
++		m = 8;
++		if(m > len-n)
++			m = len-n;
++		off = dsname(sym, off, s+n, m);
++	}
++	ggloblsym(sym, off, 0, 0);
++	
++	if(nam->op != ONAME)
++		fatal("slicebytes %N", nam);
++	off = nam->xoffset;
++	off = dsymptr(nam->sym, off, sym, 0);
++	off = duintxx(nam->sym, off, len, widthint);
++	duintxx(nam->sym, off, len, widthint);
++}
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 446b1110ac..59c5097e04 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -378,6 +378,7 @@ staticassign(Node *l, Node *r, NodeList **out)
+ 	InitPlan *p;
+ 	InitEntry *e;
+ 	int i;
++	Strlit *sval;
+ 	
+ 	switch(r->op) {
+ 	default:
+@@ -426,6 +427,14 @@ staticassign(Node *l, Node *r, NodeList **out)
+ 		}
+ 		break;
+ 
++	case OSTRARRAYBYTE:
++		if(l->class == PEXTERN && r->left->op == OLITERAL) {
++			sval = r->left->val.u.sval;
++			slicebytes(l, sval->s, sval->len);
++			return 1;
++		}
++		break;
++
+ 	case OARRAYLIT:
+ 		initplan(r);
+ 		if(isslice(r->type)) {
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 6f8b6adbbf..4d0a636bb9 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1406,6 +1406,9 @@ reswitch:
+ 			}
+ 			break;
+ 		case OSTRARRAYBYTE:
++			// do not use stringtoarraylit.
++			// generated code and compiler memory footprint is better without it.
++			break;
+ 		case OSTRARRAYRUNE:
+ 			if(n->left->op == OLITERAL)
+ 				stringtoarraylit(&n);

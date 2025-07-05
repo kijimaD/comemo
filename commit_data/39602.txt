@@ -11,8 +11,50 @@ Date:   Fri Mar 8 11:56:16 2019 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/doc_test.go     | 1 +
  src/cmd/doc/pkg.go          | 3 +++
  src/cmd/doc/testdata/pkg.go | 4 ++++
  3 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 0761c6ddb3..5532cf537d 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -496,6 +496,7 @@ var tests = []test{
+ 			`func ReturnExported\(\) ExportedType`,
+ 			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
+ 			`Comment about exported method.`,
++			`func \(ExportedType\) Uncommented\(a int\) bool\n\n`, // Ensure line gap after method with no comment
+ 		},
+ 		[]string{
+ 			`unexportedType`,
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 7c4e00767d..e3a44c4283 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -808,6 +808,9 @@ func (pkg *Package) typeDoc(typ *doc.Type) {
+ 		for _, fun := range funcs {
+ 			if isExported(fun.Name) {
+ 				pkg.emit(fun.Doc, fun.Decl)
++				if fun.Doc == "" {
++					pkg.newlines(2)
++				}
+ 			}
+ 		}
+ 	} else {
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+index 50105b5fcc..88e8c215d0 100644
+--- a/src/cmd/doc/testdata/pkg.go
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -80,6 +80,10 @@ func (ExportedType) ExportedMethod(a int) bool {
+ 	return true != true
+ }
+ 
++func (ExportedType) Uncommented(a int) bool {
++	return true != true
++}
++
+ // Comment about unexported method.
+ func (ExportedType) unexportedMethod(a int) bool {
+ 	return true

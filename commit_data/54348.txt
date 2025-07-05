@@ -20,8 +20,48 @@ Date:   Thu Oct 6 13:17:53 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/typexpr.go          | 2 +-
  src/go/types/typexpr.go                             | 2 +-
  src/internal/types/testdata/fixedbugs/issue43527.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 7375eed5c5..934336cf49 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -478,7 +478,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
+ 	if name, _ := e.(*syntax.Name); name != nil {
+ 		obj := check.lookup(name.Value)
+ 		if obj == nil {
+-			check.errorf(name, _InvalidArrayLen, "undefined %s for array length", name.Value)
++			check.errorf(name, _InvalidArrayLen, "undefined array length %s or missing type constraint", name.Value)
+ 			return -1
+ 		}
+ 		if _, ok := obj.(*Const); !ok {
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index dcf6302d6f..5d935192d0 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -469,7 +469,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
+ 	if name, _ := e.(*ast.Ident); name != nil {
+ 		obj := check.lookup(name.Name)
+ 		if obj == nil {
+-			check.errorf(name, _InvalidArrayLen, "undefined %s for array length", name.Name)
++			check.errorf(name, _InvalidArrayLen, "undefined array length %s or missing type constraint", name.Name)
+ 			return -1
+ 		}
+ 		if _, ok := obj.(*Const); !ok {
+diff --git a/src/internal/types/testdata/fixedbugs/issue43527.go b/src/internal/types/testdata/fixedbugs/issue43527.go
+index f9ff4b0163..b515100d3d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43527.go
++++ b/src/internal/types/testdata/fixedbugs/issue43527.go
+@@ -8,7 +8,7 @@ const L = 10
+ 
+ type (
+ 	_        [L]struct{}
+-	_        [A /* ERROR undefined A for array length */ ]struct{}
++	_        [A /* ERROR undefined array length A or missing type constraint */ ]struct{}
+ 	_        [B /* ERROR invalid array length B */ ]struct{}
+ 	_[A any] struct{}
+ 

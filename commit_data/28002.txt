@@ -13,7 +13,7 @@ Date:   Sun Apr 24 13:50:26 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/22420
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   |  2 +-
  src/cmd/compile/internal/gc/bimport.go   |  4 ++--
  src/cmd/compile/internal/gc/closure.go   |  2 +-
@@ -28,3 +28,260 @@ Date:   Sun Apr 24 13:50:26 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  src/cmd/compile/internal/gc/walk.go      |  2 +-
  13 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 6b83e70403..f0907b45eb 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -528,7 +528,7 @@ func (p *exporter) pos(n *Node) {
+ }
+ 
+ func isInlineable(n *Node) bool {
+-	if exportInlined && n != nil && n.Func != nil && len(n.Func.Inl.Slice()) != 0 {
++	if exportInlined && n != nil && n.Func != nil && n.Func.Inl.Len() != 0 {
+ 		// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+ 		// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+ 		if Debug['l'] < 2 {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index cbd3fb0e87..1219d8d370 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -271,7 +271,7 @@ func (p *importer) obj(tag int) {
+ 
+ 		if Debug['E'] > 0 {
+ 			fmt.Printf("import [%q] func %v \n", importpkg.Path, n)
+-			if Debug['m'] > 2 && len(n.Func.Inl.Slice()) != 0 {
++			if Debug['m'] > 2 && n.Func.Inl.Len() != 0 {
+ 				fmt.Printf("inl body: %v\n", n.Func.Inl)
+ 			}
+ 		}
+@@ -368,7 +368,7 @@ func (p *importer) typ() *Type {
+ 
+ 			if Debug['E'] > 0 {
+ 				fmt.Printf("import [%q] meth %v \n", importpkg.Path, n)
+-				if Debug['m'] > 2 && len(n.Func.Inl.Slice()) != 0 {
++				if Debug['m'] > 2 && n.Func.Inl.Len() != 0 {
+ 					fmt.Printf("inl body: %v\n", n.Func.Inl)
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index db4eb3f14d..d2cb9ebf1e 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -194,7 +194,7 @@ func makeclosure(func_ *Node) *Node {
+ 	xfunc.Nbody.Set(func_.Nbody.Slice())
+ 	xfunc.Func.Dcl = append(func_.Func.Dcl, xfunc.Func.Dcl...)
+ 	func_.Func.Dcl = nil
+-	if len(xfunc.Nbody.Slice()) == 0 {
++	if xfunc.Nbody.Len() == 0 {
+ 		Fatalf("empty body - won't generate any code")
+ 	}
+ 	xfunc = typecheck(xfunc, Etop)
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index d7a63668a6..2f4e5fb6ef 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -522,7 +522,7 @@ func escfunc(e *EscState, func_ *Node) {
+ 			if ln.Type != nil && !haspointers(ln.Type) {
+ 				break
+ 			}
+-			if len(Curfn.Nbody.Slice()) == 0 && !Curfn.Noescape {
++			if Curfn.Nbody.Len() == 0 && !Curfn.Noescape {
+ 				ln.Esc = EscHeap
+ 			} else {
+ 				ln.Esc = EscNone // prime for escflood later
+@@ -1469,7 +1469,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 
+ 	nE := e.nodeEscState(n)
+ 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
+-		fn.Name.Defn != nil && len(fn.Name.Defn.Nbody.Slice()) != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
++		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+ 		if Debug['m'] > 3 {
+ 			fmt.Printf("%v::esccall:: %v in recursive group\n", linestr(lineno), Nconv(n, FmtShort))
+ 		}
+@@ -1969,7 +1969,7 @@ func esctag(e *EscState, func_ *Node) {
+ 
+ 	// External functions are assumed unsafe,
+ 	// unless //go:noescape is given before the declaration.
+-	if len(func_.Nbody.Slice()) == 0 {
++	if func_.Nbody.Len() == 0 {
+ 		if func_.Noescape {
+ 			for _, t := range func_.Type.Params().Fields().Slice() {
+ 				if haspointers(t.Type) {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 1dd02aef1f..a275377598 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -252,7 +252,7 @@ func dumpexportvar(s *Sym) {
+ 	dumpexporttype(t)
+ 
+ 	if t.Etype == TFUNC && n.Class == PFUNC {
+-		if n.Func != nil && len(n.Func.Inl.Slice()) != 0 {
++		if n.Func != nil && n.Func.Inl.Len() != 0 {
+ 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+ 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+ 			if Debug['l'] < 2 {
+@@ -323,7 +323,7 @@ func dumpexporttype(t *Type) {
+ 		if f.Nointerface {
+ 			exportf("\t//go:nointerface\n")
+ 		}
+-		if f.Type.Nname() != nil && len(f.Type.Nname().Func.Inl.Slice()) != 0 { // nname was set by caninl
++		if f.Type.Nname() != nil && f.Type.Nname().Func.Inl.Len() != 0 { // nname was set by caninl
+ 
+ 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+ 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 9bba709649..12ae915fb2 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1196,7 +1196,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if fmtmode == FErr {
+ 			return "func literal"
+ 		}
+-		if len(n.Nbody.Slice()) != 0 {
++		if n.Nbody.Len() != 0 {
+ 			return fmt.Sprintf("%v { %v }", n.Type, n.Nbody)
+ 		}
+ 		return fmt.Sprintf("%v { %v }", n.Type, n.Name.Param.Closure.Nbody)
+@@ -1577,7 +1577,7 @@ func nodedump(n *Node, flag FmtFlag) string {
+ 			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(n.Op, 0), n.Rlist)
+ 		}
+ 
+-		if len(n.Nbody.Slice()) != 0 {
++		if n.Nbody.Len() != 0 {
+ 			indent(&buf)
+ 			fmt.Fprintf(&buf, "%v-body%v", Oconv(n.Op, 0), n.Nbody)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index f9e425618b..da026e1396 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -100,7 +100,7 @@ func caninl(fn *Node) {
+ 	}
+ 
+ 	// If fn has no body (is defined outside of Go), cannot inline it.
+-	if len(fn.Nbody.Slice()) == 0 {
++	if fn.Nbody.Len() == 0 {
+ 		return
+ 	}
+ 
+@@ -173,12 +173,12 @@ func ishairy(n *Node, budget *int) bool {
+ 	switch n.Op {
+ 	// Call is okay if inlinable and we have the budget for the body.
+ 	case OCALLFUNC:
+-		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 {
++		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 {
+ 			*budget -= int(n.Left.Func.InlCost)
+ 			break
+ 		}
+ 		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
+-			if n.Left.Sym.Def != nil && len(n.Left.Sym.Def.Func.Inl.Slice()) != 0 {
++			if n.Left.Sym.Def != nil && n.Left.Sym.Def.Func.Inl.Len() != 0 {
+ 				*budget -= int(n.Left.Sym.Def.Func.InlCost)
+ 				break
+ 			}
+@@ -195,7 +195,7 @@ func ishairy(n *Node, budget *int) bool {
+ 		if n.Left.Type.Nname() == nil {
+ 			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
+ 		}
+-		if len(n.Left.Type.Nname().Func.Inl.Slice()) != 0 {
++		if n.Left.Type.Nname().Func.Inl.Len() != 0 {
+ 			*budget -= int(n.Left.Type.Nname().Func.InlCost)
+ 			break
+ 		}
+@@ -453,7 +453,7 @@ func inlnode(n *Node) *Node {
+ 		if Debug['m'] > 3 {
+ 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, FmtSign))
+ 		}
+-		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 && !isIntrinsicCall1(n) { // normal case
++		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall1(n) { // normal case
+ 			n = mkinlcall(n, n.Left, n.Isddd)
+ 		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
+ 			if n.Left.Sym.Def != nil {
+@@ -520,7 +520,7 @@ var inlgen int
+ // 	n.Left = mkinlcall1(n.Left, fn, isddd)
+ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 	// For variadic fn.
+-	if len(fn.Func.Inl.Slice()) == 0 {
++	if fn.Func.Inl.Len() == 0 {
+ 		return n
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f6de58462e..c3a0481ffd 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -412,7 +412,7 @@ func Main() {
+ 		// Typecheck imported function bodies if debug['l'] > 1,
+ 		// otherwise lazily when used or re-exported.
+ 		for _, n := range importlist {
+-			if len(n.Func.Inl.Slice()) != 0 {
++			if n.Func.Inl.Len() != 0 {
+ 				saveerrors()
+ 				typecheckinl(n)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 2b9546f4f5..00ba4308cb 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1146,7 +1146,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 		}
+ 
+ 	case OCLOSURE:
+-		if n.Noescape && len(n.Func.Cvars.Slice()) > 0 {
++		if n.Noescape && n.Func.Cvars.Len() > 0 {
+ 			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index ae4b497b7b..766f352d33 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -2906,7 +2906,7 @@ func (p *parser) hidden_import() {
+ 
+ 		if Debug['E'] > 0 {
+ 			fmt.Printf("import [%q] func %v \n", importpkg.Path, s2)
+-			if Debug['m'] > 2 && len(s2.Func.Inl.Slice()) != 0 {
++			if Debug['m'] > 2 && s2.Func.Inl.Len() != 0 {
+ 				fmt.Printf("inl body:%v\n", s2.Func.Inl)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 7b9b91e7b0..bba4ff5e48 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -363,7 +363,7 @@ func compile(fn *Node) {
+ 	Curfn = fn
+ 	dowidth(Curfn.Type)
+ 
+-	if len(fn.Nbody.Slice()) == 0 {
++	if fn.Nbody.Len() == 0 {
+ 		if pure_go || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
+ 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
+ 			return
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 9bf4f58412..49b991c5a5 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3953,7 +3953,7 @@ func (n *Node) isterminating() bool {
+ }
+ 
+ func checkreturn(fn *Node) {
+-	if fn.Type.Results().NumFields() != 0 && len(fn.Nbody.Slice()) != 0 {
++	if fn.Type.Results().NumFields() != 0 && fn.Nbody.Len() != 0 {
+ 		markbreaklist(fn.Nbody, nil)
+ 		if !fn.Nbody.isterminating() {
+ 			yyerrorl(fn.Func.Endlineno, "missing return at end of function")
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7e160bdd94..04ccfad971 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -70,7 +70,7 @@ func walk(fn *Node) {
+ 	}
+ 
+ 	heapmoves()
+-	if Debug['W'] != 0 && len(Curfn.Func.Enter.Slice()) > 0 {
++	if Debug['W'] != 0 && Curfn.Func.Enter.Len() > 0 {
+ 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
+ 		dumplist(s, Curfn.Func.Enter)
+ 	}

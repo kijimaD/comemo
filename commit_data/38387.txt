@@ -10,6 +10,29 @@ Date:   Tue Jul 10 09:23:46 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/c/144111
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/hash/crc64/crc64_test.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/hash/crc64/crc64_test.go b/src/hash/crc64/crc64_test.go
+index 9db05b02fe..9cf602c82f 100644
+--- a/src/hash/crc64/crc64_test.go
++++ b/src/hash/crc64/crc64_test.go
+@@ -62,15 +62,13 @@ func TestGolden(t *testing.T) {
+ 		io.WriteString(c, g.in)
+ 		s := c.Sum64()
+ 		if s != g.outISO {
+-			t.Errorf("ISO crc64(%s) = 0x%x want 0x%x", g.in, s, g.outISO)
+-			t.FailNow()
++			t.Fatalf("ISO crc64(%s) = 0x%x want 0x%x", g.in, s, g.outISO)
+ 		}
+ 		c = New(tabECMA)
+ 		io.WriteString(c, g.in)
+ 		s = c.Sum64()
+ 		if s != g.outECMA {
+-			t.Errorf("ECMA crc64(%s) = 0x%x want 0x%x", g.in, s, g.outECMA)
+-			t.FailNow()
++			t.Fatalf("ECMA crc64(%s) = 0x%x want 0x%x", g.in, s, g.outECMA)
+ 		}
+ 	}
+ }

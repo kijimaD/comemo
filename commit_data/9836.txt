@@ -11,8 +11,76 @@ Date:   Thu Sep 29 18:09:11 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5162043
-
+---
  src/pkg/exp/template/html/escape.go      |  2 +-
  src/pkg/exp/template/html/escape_test.go | 10 ++++++++--
  src/pkg/exp/template/html/url.go         |  9 ++++-----
  3 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index c43a16425f..13a035f348 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -171,7 +171,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 			switch c.state {
+ 			case stateCSSDqStr, stateCSSSqStr:
+ 				s = append(s, "exp_template_html_cssescaper")
+-			case stateCSSDqURL, stateCSSSqURL, stateCSSURL:
++			default:
+ 				s = append(s, "exp_template_html_urlnormalizer")
+ 			}
+ 		case urlPartQueryOrFrag:
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 169cb76267..a4ec25f363 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -155,7 +155,7 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"nonHierURL",
+ 			`<a href={{"mailto:Muhammed \"The Greatest\" Ali <m.ali@example.com>"}}>`,
+-			`<a href=mailto:Muhammed&#32;&#34;The&#32;Greatest&#34;&#32;Ali&#32;&lt;m.ali@example.com&gt;>`,
++			`<a href=mailto:Muhammed%20%22The%20Greatest%22%20Ali%20%3cm.ali@example.com%3e>`,
+ 		},
+ 		{
+ 			"urlPath",
+@@ -352,9 +352,15 @@ func TestEscape(t *testing.T) {
+ 		},
+ 		{
+ 			"styleStrBadProtocolBlocked",
+-			`<a style="background: '{{"javascript:alert(1337)"}}'">`,
++			`<a style="background: '{{"vbscript:alert(1337)"}}'">`,
+ 			`<a style="background: '#ZgotmplZ'">`,
+ 		},
++		{
++			"styleStrEncodedProtocolEncoded",
++			`<a style="background: '{{"javascript\\3a alert(1337)"}}'">`,
++			// The CSS string 'javascript\\3a alert(1337)' does not contains a colon.
++			`<a style="background: 'javascript\\3a alert\28 1337\29 '">`,
++		},
+ 		{
+ 			"styleURLGoodProtocolPassed",
+ 			`<a style="background: url('{{"http://oreilly.com/O'Reilly Animals(1)<2>;{}.html"}}')">`,
+diff --git a/src/pkg/exp/template/html/url.go b/src/pkg/exp/template/html/url.go
+index 8fdc8f77e8..5b19df0840 100644
+--- a/src/pkg/exp/template/html/url.go
++++ b/src/pkg/exp/template/html/url.go
+@@ -10,15 +10,14 @@ import (
+ 	"strings"
+ )
+ 
+-// urlFilter returns the HTML equivalent of its input unless it contains an
+-// unsafe protocol in which case it defangs the entire URL.
++// urlFilter returns its input unless it contains an unsafe protocol in which
++// case it defangs the entire URL.
+ func urlFilter(args ...interface{}) string {
+ 	s, t := stringify(args...)
+ 	if t == contentTypeURL {
+-		return urlProcessor(true, s)
++		return s
+ 	}
+-	i := strings.IndexRune(s, ':')
+-	if i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
++	if i := strings.IndexRune(s, ':'); i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
+ 		protocol := strings.ToLower(s[:i])
+ 		if protocol != "http" && protocol != "https" && protocol != "mailto" {
+ 			return "#" + filterFailsafe

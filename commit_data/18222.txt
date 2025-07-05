@@ -9,6 +9,20 @@ Date:   Sat Jan 11 18:58:03 2014 +0100
     R=golang-codereviews, bradfitz, 0intro
     CC=golang-codereviews, rsc
     https://golang.org/cl/49710050
-
+---
  src/pkg/net/dial_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index c0a8142780..bd89780e8a 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -58,7 +58,7 @@ func TestDialTimeout(t *testing.T) {
+ 				errc <- err
+ 			}()
+ 		}
+-	case "darwin", "windows":
++	case "darwin", "plan9", "windows":
+ 		// At least OS X 10.7 seems to accept any number of
+ 		// connections, ignoring listen's backlog, so resort
+ 		// to connecting to a hopefully-dead 127/8 address.

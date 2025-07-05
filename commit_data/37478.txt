@@ -7,6 +7,20 @@ Date:   Wed Jul 25 16:36:11 2018 -0700
     Change-Id: I2256c850e071882b00c362da03abc8b021c1ec2a
     Reviewed-on: https://go-review.googlesource.com/126015
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 1e7a989089..36179855db 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -540,7 +540,7 @@ type driverStmt struct {
+ 	closeErr    error // return value of previous Close call
+ }
+ 
+-// Close ensures dirver.Stmt is only closed once any always returns the same
++// Close ensures driver.Stmt is only closed once and always returns the same
+ // result.
+ func (ds *driverStmt) Close() error {
+ 	ds.Lock()

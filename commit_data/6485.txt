@@ -7,7 +7,50 @@ Date:   Mon Oct 11 13:14:07 2010 -0400
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/2336044
-
+---
  src/pkg/expvar/expvar.go      | 8 ++++++++
  src/pkg/expvar/expvar_test.go | 5 +++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 9435481dbc..7a52441439 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -6,6 +6,8 @@
+ // such as operation counters in servers. It exposes these variables via
+ // HTTP at /debug/vars in JSON format.
+ //
++// Operations to set or modify these public variables are atomic.
++//
+ // In addition to adding the HTTP handler, this package registers the
+ // following variables:
+ //
+@@ -50,6 +52,12 @@ func (v *Int) Add(delta int64) {
+ 	v.i += delta
+ }
+ 
++func (v *Int) Set(value int64) {
++	v.mu.Lock()
++	defer v.mu.Unlock()
++	v.i = value
++}
++
+ // Map is a string-to-Var map variable, and satisfies the Var interface.
+ type Map struct {
+ 	m  map[string]Var
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index dc173b9a6b..3dfc55af36 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -27,6 +27,11 @@ func TestInt(t *testing.T) {
+ 	if s := reqs.String(); s != "4" {
+ 		t.Errorf("reqs.String() = %q, want \"4\"", s)
+ 	}
++
++	reqs.Set(-2)
++	if reqs.i != -2 {
++		t.Errorf("reqs.i = %v, want -2", reqs.i)
++	}
+ }
+ 
+ func TestString(t *testing.T) {

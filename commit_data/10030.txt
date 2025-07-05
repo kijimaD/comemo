@@ -14,8 +14,87 @@ Date:   Tue Oct 18 12:59:32 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5283045
-
+---
  src/pkg/crypto/tls/conn.go | 20 ++++++++++++++++----
  src/pkg/http/serve_test.go |  4 ----
  src/pkg/http/server.go     |  5 ++++-
  3 files changed, 20 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 148594044a..9bca7d95d9 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -658,7 +658,9 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
+ 		if c.err != nil {
+ 			return nil, c.err
+ 		}
+-		c.readRecord(recordTypeHandshake)
++		if err := c.readRecord(recordTypeHandshake); err != nil {
++			return nil, err
++		}
+ 	}
+ 
+ 	data := c.hand.Bytes()
+@@ -671,7 +673,9 @@ func (c *Conn) readHandshake() (interface{}, os.Error) {
+ 		if c.err != nil {
+ 			return nil, c.err
+ 		}
+-		c.readRecord(recordTypeHandshake)
++		if err := c.readRecord(recordTypeHandshake); err != nil {
++			return nil, err
++		}
+ 	}
+ 	data = c.hand.Next(4 + n)
+ 	var m handshakeMessage
+@@ -762,10 +766,18 @@ func (c *Conn) Read(b []byte) (n int, err os.Error) {
+ 
+ // Close closes the connection.
+ func (c *Conn) Close() os.Error {
+-	if err := c.Handshake(); err != nil {
++	var alertErr os.Error
++
++	c.handshakeMutex.Lock()
++	defer c.handshakeMutex.Unlock()
++	if c.handshakeComplete {
++		alertErr = c.sendAlert(alertCloseNotify)
++	}
++
++	if err := c.conn.Close(); err != nil {
+ 		return err
+ 	}
+-	return c.sendAlert(alertCloseNotify)
++	return alertErr
+ }
+ 
+ // Handshake runs the client or server handshake
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 79fda11bfc..731a3279f0 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -536,10 +536,6 @@ func TestHeadResponses(t *testing.T) {
+ }
+ 
+ func TestTLSHandshakeTimeout(t *testing.T) {
+-	if true {
+-		t.Logf("Skipping broken test; issue 2281")
+-		return
+-	}
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+ 	ts.Config.ReadTimeout = 250e6
+ 	ts.StartTLS()
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 018be8cd3e..9792c60e7b 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -578,7 +578,10 @@ func (c *conn) serve() {
+ 	}()
+ 
+ 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
+-		tlsConn.Handshake()
++		if err := tlsConn.Handshake(); err != nil {
++			c.close()
++			return
++		}
+ 		c.tlsState = new(tls.ConnectionState)
+ 		*c.tlsState = tlsConn.ConnectionState()
+ 	}

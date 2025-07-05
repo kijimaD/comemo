@@ -13,6 +13,36 @@ Date:   Mon Nov 14 16:34:16 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/pprof/pprof_test.go | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/pprof/pprof_test.go b/src/cmd/pprof/pprof_test.go
+index e001975f83..753d2b149f 100644
+--- a/src/cmd/pprof/pprof_test.go
++++ b/src/cmd/pprof/pprof_test.go
+@@ -115,12 +115,22 @@ func TestDisasm(t *testing.T) {
+ 	cmd = exec.Command(pprofExe, "-disasm", "main.main", cpuExe, profile)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("pprof failed: %v\n%s", err, out)
++		t.Errorf("pprof -disasm failed: %v\n%s", err, out)
++
++		// Try to print out profile content for debugging.
++		cmd = exec.Command(pprofExe, "-raw", cpuExe, profile)
++		out, err = cmd.CombinedOutput()
++		if err != nil {
++			t.Logf("pprof -raw failed: %v\n%s", err, out)
++		} else {
++			t.Logf("profile content:\n%s", out)
++		}
++		return
+ 	}
+ 
+ 	sout := string(out)
+ 	want := "ROUTINE ======================== main.main"
+ 	if !strings.Contains(sout, want) {
+-		t.Errorf("pprof disasm got %s want contains %q", sout, want)
++		t.Errorf("pprof -disasm got %s want contains %q", sout, want)
+ 	}
+ }

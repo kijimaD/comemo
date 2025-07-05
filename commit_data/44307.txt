@@ -19,6 +19,19 @@ Date:   Fri Jun 5 22:35:18 2020 -0400
     Change-Id: I67813d7ce455aa9b56a6eace6eddebf48d0f7fa6
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236818
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_convert_dep.txt | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_convert_dep.txt b/src/cmd/go/testdata/script/mod_convert_dep.txt
+index 267c90eb3c..ad22aca5be 100644
+--- a/src/cmd/go/testdata/script/mod_convert_dep.txt
++++ b/src/cmd/go/testdata/script/mod_convert_dep.txt
+@@ -20,7 +20,6 @@ cd $WORK/gopkgdir/x
+ ! go list .
+ stderr 'cannot find main module'
+ ! stderr 'Gopkg.lock'
+-! stderr 'go mod init'
+ 
+ -- $WORK/test/Gopkg.lock --
+ -- $WORK/test/x/x.go --

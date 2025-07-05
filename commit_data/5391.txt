@@ -9,6 +9,23 @@ Date:   Wed Apr 28 19:36:04 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/961046
-
+---
  src/pkg/net/parse.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/net/parse.go b/src/pkg/net/parse.go
+index a7dcb35f0e..ff980f412e 100644
+--- a/src/pkg/net/parse.go
++++ b/src/pkg/net/parse.go
+@@ -35,6 +35,11 @@ func (f *file) getLineFromData() (s string, ok bool) {
+ 			return
+ 		}
+ 	}
++	if len(f.data) > 0 {
++		s = string(data)
++		f.data = nil
++		ok = true
++	}
+ 	return
+ }
+ 

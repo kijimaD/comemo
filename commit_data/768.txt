@@ -9,7 +9,60 @@ Date:   Mon Sep 29 18:17:42 2008 -0700
     DELTA=30  (30 added, 0 deleted, 0 changed)
     OCL=16132
     CL=16152
-
+---
  test/bugs/bug109.go | 24 ++++++++++++++++++++++++
  test/golden.out     | 11 +++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/test/bugs/bug109.go b/test/bugs/bug109.go
+new file mode 100644
+index 0000000000..61ede1b513
+--- /dev/null
++++ b/test/bugs/bug109.go
+@@ -0,0 +1,24 @@
++// $G $D/$F.go || echo BUG: should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++func f(a float) float {
++	e := 1.0;
++	e = e * a;
++	return e;
++}
++
++/*
++6g bugs/bug109.go
++bugs/bug109.go:5: illegal types for operand: MUL
++        (<float64>FLOAT64)
++        (<float32>FLOAT32)
++bugs/bug109.go:5: illegal types for operand: AS
++        (<float64>FLOAT64)
++bugs/bug109.go:6: illegal types for operand: RETURN
++        (<float32>FLOAT32)
++        (<float64>FLOAT64)
++*/
+diff --git a/test/golden.out b/test/golden.out
+index 196d854ac5..4e8ab8e3d8 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -168,6 +168,17 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug107.go
+ bugs/bug108.go:4: stupid shift: 1025
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go
+ 
++=========== bugs/bug109.go
++bugs/bug109.go:5: illegal types for operand: MUL
++	(<float64>FLOAT64)
++	(<float32>FLOAT32)
++bugs/bug109.go:5: illegal types for operand: AS
++	(<float64>FLOAT64)
++bugs/bug109.go:6: illegal types for operand: RETURN
++	(<float32>FLOAT32)
++	(<float64>FLOAT64)
++BUG: should compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
+ 

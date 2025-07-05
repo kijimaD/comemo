@@ -17,7 +17,48 @@ Date:   Wed Aug 9 09:04:37 2023 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/pgen.go |  8 ++++++++
  test/fixedbugs/issue61895.go            | 15 +++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index ca064a16a7..e7a0699641 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -121,6 +121,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 
+ 	// Mark the PAUTO's unused.
+ 	for _, ln := range fn.Dcl {
++		if ln.OpenDeferSlot() {
++			// Open-coded defer slots have indices that were assigned
++			// upfront during SSA construction, but the defer statement can
++			// later get removed during deadcode elimination (#61895). To
++			// keep their relative offsets correct, treat them all as used.
++			continue
++		}
++
+ 		if needAlloc(ln) {
+ 			ln.SetUsed(false)
+ 		}
+diff --git a/test/fixedbugs/issue61895.go b/test/fixedbugs/issue61895.go
+new file mode 100644
+index 0000000000..cda649483d
+--- /dev/null
++++ b/test/fixedbugs/issue61895.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	for {
++	}
++
++	defer func() {}()
++	defer func() {}()
++}

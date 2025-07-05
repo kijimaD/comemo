@@ -19,7 +19,7 @@ Date:   Thu Feb 27 11:35:53 2014 -0800
     R=golang-codereviews, adonovan
     CC=golang-codereviews
     https://golang.org/cl/69260045
-
+---
  src/pkg/go/printer/nodes.go                     | 56 +++++++++++--------------
  src/pkg/go/printer/printer.go                   | 43 +++++++++++++++----
  src/pkg/go/printer/testdata/comments2.golden    |  1 +
@@ -27,3 +27,303 @@ Date:   Thu Feb 27 11:35:53 2014 -0800
  src/pkg/go/printer/testdata/declarations.golden | 15 +++++++
  src/pkg/go/printer/testdata/declarations.input  | 18 ++++++++
  6 files changed, 94 insertions(+), 40 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 3a93177b1b..04b5f1a76a 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -378,10 +378,6 @@ func (p *printer) setLineComment(text string) {
+ 	p.setComment(&ast.CommentGroup{List: []*ast.Comment{{Slash: token.NoPos, Text: text}}})
+ }
+ 
+-func (p *printer) isMultiLine(n ast.Node) bool {
+-	return p.lineFor(n.End())-p.lineFor(n.Pos()) > 0
+-}
+-
+ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) {
+ 	lbrace := fields.Opening
+ 	list := fields.List
+@@ -428,13 +424,14 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 		if len(list) == 1 {
+ 			sep = blank
+ 		}
+-		newSection := false
++		var line int
+ 		for i, f := range list {
+ 			if i > 0 {
+-				p.linebreak(p.lineFor(f.Pos()), 1, ignore, newSection)
++				p.linebreak(p.lineFor(f.Pos()), 1, ignore, p.linesFrom(line) > 0)
+ 			}
+ 			extraTabs := 0
+ 			p.setComment(f.Doc)
++			p.recordLine(&line)
+ 			if len(f.Names) > 0 {
+ 				// named fields
+ 				p.identList(f.Names, false)
+@@ -460,7 +457,6 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 				}
+ 				p.setComment(f.Comment)
+ 			}
+-			newSection = p.isMultiLine(f)
+ 		}
+ 		if isIncomplete {
+ 			if len(list) > 0 {
+@@ -472,12 +468,13 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 
+ 	} else { // interface
+ 
+-		newSection := false
++		var line int
+ 		for i, f := range list {
+ 			if i > 0 {
+-				p.linebreak(p.lineFor(f.Pos()), 1, ignore, newSection)
++				p.linebreak(p.lineFor(f.Pos()), 1, ignore, p.linesFrom(line) > 0)
+ 			}
+ 			p.setComment(f.Doc)
++			p.recordLine(&line)
+ 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
+ 				// method
+ 				p.expr(f.Names[0])
+@@ -487,7 +484,6 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 				p.expr(f.Type)
+ 			}
+ 			p.setComment(f.Comment)
+-			newSection = p.isMultiLine(f)
+ 		}
+ 		if isIncomplete {
+ 			if len(list) > 0 {
+@@ -907,7 +903,7 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
+ 	if nindent > 0 {
+ 		p.print(indent)
+ 	}
+-	multiLine := false
++	var line int
+ 	i := 0
+ 	for _, s := range list {
+ 		// ignore empty statements (was issue 3466)
+@@ -917,14 +913,21 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
+ 			if len(p.output) > 0 {
+ 				// only print line break if we are not at the beginning of the output
+ 				// (i.e., we are not printing only a partial program)
+-				p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || nindent == 0 || multiLine)
++				p.linebreak(p.lineFor(s.Pos()), 1, ignore, i == 0 || nindent == 0 || p.linesFrom(line) > 0)
+ 			}
++			p.recordLine(&line)
+ 			p.stmt(s, nextIsRBrace && i == len(list)-1)
+ 			// labeled statements put labels on a separate line, but here
+-			// we only care about whether the actual statement w/o label
+-			// is a multi-line statement - remove the label first
+-			// (was issue 5623)
+-			multiLine = p.isMultiLine(unlabeledStmt(s))
++			// we only care about the start line of the actual statement
++			// without label - correct line for each label
++			for t := s; ; {
++				lt, _ := t.(*ast.LabeledStmt)
++				if lt == nil {
++					break
++				}
++				line++
++				t = lt.Stmt
++			}
+ 			i++
+ 		}
+ 	}
+@@ -933,15 +936,6 @@ func (p *printer) stmtList(list []ast.Stmt, nindent int, nextIsRBrace bool) {
+ 	}
+ }
+ 
+-// unlabeledStmt returns the statement of a labeled statement s;
+-// otherwise it return s.
+-func unlabeledStmt(s ast.Stmt) ast.Stmt {
+-	if s, _ := s.(*ast.LabeledStmt); s != nil {
+-		return unlabeledStmt(s.Stmt)
+-	}
+-	return s
+-}
+-
+ // block prints an *ast.BlockStmt; it always spans at least two lines.
+ func (p *printer) block(b *ast.BlockStmt, nindent int) {
+ 	p.print(b.Lbrace, token.LBRACE)
+@@ -1394,22 +1388,22 @@ func (p *printer) genDecl(d *ast.GenDecl) {
+ 				// two or more grouped const/var declarations:
+ 				// determine if the type column must be kept
+ 				keepType := keepTypeColumn(d.Specs)
+-				newSection := false
++				var line int
+ 				for i, s := range d.Specs {
+ 					if i > 0 {
+-						p.linebreak(p.lineFor(s.Pos()), 1, ignore, newSection)
++						p.linebreak(p.lineFor(s.Pos()), 1, ignore, p.linesFrom(line) > 0)
+ 					}
++					p.recordLine(&line)
+ 					p.valueSpec(s.(*ast.ValueSpec), keepType[i])
+-					newSection = p.isMultiLine(s)
+ 				}
+ 			} else {
+-				newSection := false
++				var line int
+ 				for i, s := range d.Specs {
+ 					if i > 0 {
+-						p.linebreak(p.lineFor(s.Pos()), 1, ignore, newSection)
++						p.linebreak(p.lineFor(s.Pos()), 1, ignore, p.linesFrom(line) > 0)
+ 					}
++					p.recordLine(&line)
+ 					p.spec(s, n, false)
+-					newSection = p.isMultiLine(s)
+ 				}
+ 			}
+ 			p.print(unindent, formfeed)
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index a86ce8a3f0..280c697a0d 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -70,9 +70,10 @@ type printer struct {
+ 	// white space). If there's a difference and SourcePos is set in
+ 	// ConfigMode, //line comments are used in the output to restore
+ 	// original source positions for a reader.
+-	pos  token.Position // current position in AST (source) space
+-	out  token.Position // current position in output space
+-	last token.Position // value of pos after calling writeString
++	pos     token.Position // current position in AST (source) space
++	out     token.Position // current position in output space
++	last    token.Position // value of pos after calling writeString
++	linePtr *int           // if set, record out.Line for the next token in *linePtr
+ 
+ 	// The list of all source comments, in order of appearance.
+ 	comments        []*ast.CommentGroup // may be nil
+@@ -99,6 +100,14 @@ func (p *printer) init(cfg *Config, fset *token.FileSet, nodeSizes map[ast.Node]
+ 	p.cachedPos = -1
+ }
+ 
++func (p *printer) internalError(msg ...interface{}) {
++	if debug {
++		fmt.Print(p.pos.String() + ": ")
++		fmt.Println(msg...)
++		panic("go/printer")
++	}
++}
++
+ // commentsHaveNewline reports whether a list of comments belonging to
+ // an *ast.CommentGroup contains newlines. Because the position information
+ // may only be partially correct, we also have to read the comment text.
+@@ -162,12 +171,22 @@ func (p *printer) commentSizeBefore(next token.Position) int {
+ 	return size
+ }
+ 
+-func (p *printer) internalError(msg ...interface{}) {
+-	if debug {
+-		fmt.Print(p.pos.String() + ": ")
+-		fmt.Println(msg...)
+-		panic("go/printer")
+-	}
++// recordLine records the output line number for the next non-whitespace
++// token in *linePtr. It is used to compute an accurate line number for a
++// formatted construct, independent of pending (not yet emitted) whitespace
++// or comments.
++//
++func (p *printer) recordLine(linePtr *int) {
++	p.linePtr = linePtr
++}
++
++// linesFrom returns the number of output lines between the current
++// output line and the line argument, ignoring any pending (not yet
++// emitted) whitespace or comments. It is used to compute an accurate
++// size (in number of lines) for a formatted construct.
++//
++func (p *printer) linesFrom(line int) int {
++	return p.out.Line - line
+ }
+ 
+ func (p *printer) posFor(pos token.Pos) token.Position {
+@@ -943,6 +962,12 @@ func (p *printer) print(args ...interface{}) {
+ 			}
+ 		}
+ 
++		// the next token starts now - record its line number if requested
++		if p.linePtr != nil {
++			*p.linePtr = p.out.Line
++			p.linePtr = nil
++		}
++
+ 		p.writeString(next, data, isLit)
+ 		p.impliedSemi = impliedSemi
+ 	}
+diff --git a/src/pkg/go/printer/testdata/comments2.golden b/src/pkg/go/printer/testdata/comments2.golden
+index b30dd37bf7..7676a26c12 100644
+--- a/src/pkg/go/printer/testdata/comments2.golden
++++ b/src/pkg/go/printer/testdata/comments2.golden
+@@ -91,6 +91,7 @@ LLLLLLL:
+ 	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	// comment
+ 
+ LL:
++LLLLL:
+ 	_ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx	/* comment */
+ 	_ = yyyyyyyyyyyyyyyy			/* comment - should be aligned */
+ 
+diff --git a/src/pkg/go/printer/testdata/comments2.input b/src/pkg/go/printer/testdata/comments2.input
+index 8ee29b6859..4a055c8277 100644
+--- a/src/pkg/go/printer/testdata/comments2.input
++++ b/src/pkg/go/printer/testdata/comments2.input
+@@ -91,6 +91,7 @@ LLLLLLL:
+    _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx // comment
+ 
+ LL:
++LLLLL:
+    _ = xxxxxxxxxxxxxxxxxxxxxxxxxxxx /* comment */
+    _ = yyyyyyyyyyyyyyyy /* comment - should be aligned */
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 735e489379..a27f21fc8c 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -397,6 +397,21 @@ func _() {
+ 	}
+ }
+ 
++// use the formatted output rather than the input to decide when to align
++// (was issue 4505)
++const (
++	short		= 2 * (1 + 2)
++	aMuchLongerName	= 3
++)
++
++var (
++	short		= X{}
++	aMuchLongerName	= X{}
++
++	x1	= X{}	// foo
++	x2	= X{}	// foo
++)
++
+ func _() {
+ 	type (
+ 		xxxxxx	int
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index 53f7a2ef73..d9951d3865 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -409,6 +409,24 @@ func _() {
+ 	}
+ }
+ 
++// use the formatted output rather than the input to decide when to align
++// (was issue 4505)
++const (
++	short = 2 * (
++	1 + 2)
++	aMuchLongerName = 3
++)
++
++var (
++	short = X{
++	}
++	aMuchLongerName = X{}
++
++	x1 = X{} // foo
++	x2 = X{
++	} // foo
++)
++
+ func _() {
+ 	type (
+ 		xxxxxx int

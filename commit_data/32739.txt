@@ -15,8 +15,111 @@ Date:   Mon May 22 17:17:39 2017 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/exec_test.go                    | 38 ++++++++++++++++++++---------
  src/os/exec/{exec_posix.go => exec_unix.go} |  2 +-
  src/os/exec/exec_windows.go                 | 23 +++++++++++++++++
  3 files changed, 51 insertions(+), 12 deletions(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 95af597f15..0132906933 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -877,25 +877,41 @@ func TestHelperProcess(*testing.T) {
+ 	}
+ }
+ 
++type delayedInfiniteReader struct{}
++
++func (delayedInfiniteReader) Read(b []byte) (int, error) {
++	time.Sleep(100 * time.Millisecond)
++	for i := range b {
++		b[i] = 'x'
++	}
++	return len(b), nil
++}
++
+ // Issue 9173: ignore stdin pipe writes if the program completes successfully.
+ func TestIgnorePipeErrorOnSuccess(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 
+-	// We really only care about testing this on Unixy things.
+-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++	// We really only care about testing this on Unixy and Windowsy things.
++	if runtime.GOOS == "plan9" {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+-	cmd := helperCommand(t, "echo", "foo")
+-	var out bytes.Buffer
+-	cmd.Stdin = strings.NewReader(strings.Repeat("x", 10<<20))
+-	cmd.Stdout = &out
+-	if err := cmd.Run(); err != nil {
+-		t.Fatal(err)
+-	}
+-	if got, want := out.String(), "foo\n"; got != want {
+-		t.Errorf("output = %q; want %q", got, want)
++	testWith := func(r io.Reader) func(*testing.T) {
++		return func(t *testing.T) {
++			cmd := helperCommand(t, "echo", "foo")
++			var out bytes.Buffer
++			cmd.Stdin = r
++			cmd.Stdout = &out
++			if err := cmd.Run(); err != nil {
++				t.Fatal(err)
++			}
++			if got, want := out.String(), "foo\n"; got != want {
++				t.Errorf("output = %q; want %q", got, want)
++			}
++		}
+ 	}
++	t.Run("10MB", testWith(strings.NewReader(strings.Repeat("x", 10<<20))))
++	t.Run("Infinite", testWith(delayedInfiniteReader{}))
+ }
+ 
+ type badWriter struct{}
+diff --git a/src/os/exec/exec_posix.go b/src/os/exec/exec_unix.go
+similarity index 95%
+rename from src/os/exec/exec_posix.go
+rename to src/os/exec/exec_unix.go
+index 5e1113748c..9c3e17d23a 100644
+--- a/src/os/exec/exec_posix.go
++++ b/src/os/exec/exec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !plan9
++// +build !plan9,!windows
+ 
+ package exec
+ 
+diff --git a/src/os/exec/exec_windows.go b/src/os/exec/exec_windows.go
+new file mode 100644
+index 0000000000..af8cd97218
+--- /dev/null
++++ b/src/os/exec/exec_windows.go
+@@ -0,0 +1,23 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exec
++
++import (
++	"os"
++	"syscall"
++)
++
++func init() {
++	skipStdinCopyError = func(err error) bool {
++		// Ignore ERROR_BROKEN_PIPE and ERROR_NO_DATA errors copying
++		// to stdin if the program completed successfully otherwise.
++		// See Issue 20445.
++		const _ERROR_NO_DATA = syscall.Errno(0xe8)
++		pe, ok := err.(*os.PathError)
++		return ok &&
++			pe.Op == "write" && pe.Path == "|1" &&
++			(pe.Err == syscall.ERROR_BROKEN_PIPE || pe.Err == _ERROR_NO_DATA)
++	}
++}

@@ -22,6 +22,19 @@ Date:   Mon Sep 11 12:15:48 2023 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/base/flag.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 8ffb41b16d..0e44deae71 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -334,6 +334,7 @@ func ParseFlags() {
+ 		// It is not possible to build the runtime with no optimizations,
+ 		// because the compiler cannot eliminate enough write barriers.
+ 		Flag.N = 0
++		Ctxt.Flag_optimize = true
+ 
+ 		// Runtime can't use -d=checkptr, at least not yet.
+ 		Debug.Checkptr = 0

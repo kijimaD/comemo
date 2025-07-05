@@ -18,10 +18,152 @@ Date:   Mon Nov 6 23:02:21 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/76391
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/poll/fd_windows.go                 | 36 ++++++++++++++++++++++--
  src/internal/syscall/windows/syscall_windows.go |  1 +
  src/net/rawconn.go                              |  3 --
  src/net/rawconn_test.go                         |  2 +-
  src/net/rawconn_windows_test.go                 | 37 +++++++++++++++++++++++--
  5 files changed, 71 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 309f0291a1..cd9f88b5f7 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -913,12 +913,44 @@ func (fd *FD) RawControl(f func(uintptr)) error {
+ 
+ // RawRead invokes the user-defined function f for a read operation.
+ func (fd *FD) RawRead(f func(uintptr) bool) error {
+-	return errors.New("not implemented")
++	if err := fd.readLock(); err != nil {
++		return err
++	}
++	defer fd.readUnlock()
++	for {
++		if f(uintptr(fd.Sysfd)) {
++			return nil
++		}
++
++		// Use a zero-byte read as a way to get notified when this
++		// socket is readable. h/t https://stackoverflow.com/a/42019668/332798
++		o := &fd.rop
++		o.InitBuf(nil)
++		if !fd.IsStream {
++			o.flags |= windows.MSG_PEEK
++		}
++		_, err := rsrv.ExecIO(o, func(o *operation) error {
++			return syscall.WSARecv(o.fd.Sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
++		})
++		if err == windows.WSAEMSGSIZE {
++			// expected with a 0-byte peek, ignore.
++		} else if err != nil {
++			return err
++		}
++	}
+ }
+ 
+ // RawWrite invokes the user-defined function f for a write operation.
+ func (fd *FD) RawWrite(f func(uintptr) bool) error {
+-	return errors.New("not implemented")
++	if err := fd.writeLock(); err != nil {
++		return err
++	}
++	defer fd.writeUnlock()
++	for {
++		if f(uintptr(fd.Sysfd)) {
++			return nil
++		}
++	}
+ }
+ 
+ func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index b531f89b62..518af26d72 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -122,6 +122,7 @@ const (
+ 
+ 	WSAEMSGSIZE syscall.Errno = 10040
+ 
++	MSG_PEEK   = 0x2
+ 	MSG_TRUNC  = 0x0100
+ 	MSG_CTRUNC = 0x0200
+ 
+diff --git a/src/net/rawconn.go b/src/net/rawconn.go
+index 2399c9f31d..11f01ffda8 100644
+--- a/src/net/rawconn.go
++++ b/src/net/rawconn.go
+@@ -9,9 +9,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// BUG(mikio): On Windows, the Read and Write methods of
+-// syscall.RawConn are not implemented.
+-
+ // BUG(mikio): On NaCl and Plan 9, the Control, Read and Write methods
+ // of syscall.RawConn are not implemented.
+ 
+diff --git a/src/net/rawconn_test.go b/src/net/rawconn_test.go
+index 287282f117..ebada13e53 100644
+--- a/src/net/rawconn_test.go
++++ b/src/net/rawconn_test.go
+@@ -12,7 +12,7 @@ import (
+ 
+ func TestRawConnReadWrite(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9", "windows":
++	case "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+diff --git a/src/net/rawconn_windows_test.go b/src/net/rawconn_windows_test.go
+index 1b6777bb17..6df101e9de 100644
+--- a/src/net/rawconn_windows_test.go
++++ b/src/net/rawconn_windows_test.go
+@@ -10,11 +10,44 @@ import (
+ )
+ 
+ func readRawConn(c syscall.RawConn, b []byte) (int, error) {
+-	return 0, syscall.EWINDOWS
++	var operr error
++	var n int
++	err := c.Read(func(s uintptr) bool {
++		var read uint32
++		var flags uint32
++		var buf syscall.WSABuf
++		buf.Buf = &b[0]
++		buf.Len = uint32(len(b))
++		operr = syscall.WSARecv(syscall.Handle(s), &buf, 1, &read, &flags, nil, nil)
++		n = int(read)
++		return true
++	})
++	if err != nil {
++		return n, err
++	}
++	if operr != nil {
++		return n, operr
++	}
++	return n, nil
+ }
+ 
+ func writeRawConn(c syscall.RawConn, b []byte) error {
+-	return syscall.EWINDOWS
++	var operr error
++	err := c.Write(func(s uintptr) bool {
++		var written uint32
++		var buf syscall.WSABuf
++		buf.Buf = &b[0]
++		buf.Len = uint32(len(b))
++		operr = syscall.WSASend(syscall.Handle(s), &buf, 1, &written, 0, nil, nil)
++		return true
++	})
++	if err != nil {
++		return err
++	}
++	if operr != nil {
++		return operr
++	}
++	return nil
+ }
+ 
+ func controlRawConn(c syscall.RawConn, addr Addr) error {

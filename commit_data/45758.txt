@@ -44,10 +44,222 @@ Date:   Thu Nov 12 17:25:47 2020 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/chan.go             | 18 ++++------
  src/runtime/race.go             | 17 ++++++++++
  src/runtime/race/output_test.go | 73 +++++++++++++++++++++++++++++++++++++++++
  src/runtime/race0.go            |  2 ++
  src/runtime/select.go           |  6 ++--
  5 files changed, 100 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 859f36c914..254816e369 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -215,8 +215,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 		// Space is available in the channel buffer. Enqueue the element to send.
+ 		qp := chanbuf(c, c.sendx)
+ 		if raceenabled {
+-			raceacquire(qp)
+-			racerelease(qp)
++			racereleaseacquire(qp)
+ 		}
+ 		typedmemmove(c.elemtype, qp, ep)
+ 		c.sendx++
+@@ -299,10 +298,8 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+ 			// we copy directly. Note that we need to increment
+ 			// the head/tail locations only when raceenabled.
+ 			qp := chanbuf(c, c.recvx)
+-			raceacquire(qp)
+-			racerelease(qp)
+-			raceacquireg(sg.g, qp)
+-			racereleaseg(sg.g, qp)
++			racereleaseacquire(qp)
++			racereleaseacquireg(sg.g, qp)
+ 			c.recvx++
+ 			if c.recvx == c.dataqsiz {
+ 				c.recvx = 0
+@@ -535,8 +532,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 		// Receive directly from queue
+ 		qp := chanbuf(c, c.recvx)
+ 		if raceenabled {
+-			raceacquire(qp)
+-			racerelease(qp)
++			racereleaseacquire(qp)
+ 		}
+ 		if ep != nil {
+ 			typedmemmove(c.elemtype, ep, qp)
+@@ -625,10 +621,8 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+ 		// queue is full, those are both the same slot.
+ 		qp := chanbuf(c, c.recvx)
+ 		if raceenabled {
+-			raceacquire(qp)
+-			racerelease(qp)
+-			raceacquireg(sg.g, qp)
+-			racereleaseg(sg.g, qp)
++			racereleaseacquire(qp)
++			racereleaseacquireg(sg.g, qp)
+ 		}
+ 		// copy data from queue to receiver
+ 		if ep != nil {
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 53910f991c..79fd21765d 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -268,6 +268,9 @@ var __tsan_acquire byte
+ //go:linkname __tsan_release __tsan_release
+ var __tsan_release byte
+ 
++//go:linkname __tsan_release_acquire __tsan_release_acquire
++var __tsan_release_acquire byte
++
+ //go:linkname __tsan_release_merge __tsan_release_merge
+ var __tsan_release_merge byte
+ 
+@@ -293,6 +296,7 @@ var __tsan_report_count byte
+ //go:cgo_import_static __tsan_free
+ //go:cgo_import_static __tsan_acquire
+ //go:cgo_import_static __tsan_release
++//go:cgo_import_static __tsan_release_acquire
+ //go:cgo_import_static __tsan_release_merge
+ //go:cgo_import_static __tsan_go_ignore_sync_begin
+ //go:cgo_import_static __tsan_go_ignore_sync_end
+@@ -535,6 +539,19 @@ func racereleaseg(gp *g, addr unsafe.Pointer) {
+ 	racecall(&__tsan_release, gp.racectx, uintptr(addr), 0, 0)
+ }
+ 
++//go:nosplit
++func racereleaseacquire(addr unsafe.Pointer) {
++	racereleaseacquireg(getg(), addr)
++}
++
++//go:nosplit
++func racereleaseacquireg(gp *g, addr unsafe.Pointer) {
++	if getg().raceignore != 0 || !isvalidaddr(addr) {
++		return
++	}
++	racecall(&__tsan_release_acquire, gp.racectx, uintptr(addr), 0, 0)
++}
++
+ //go:nosplit
+ func racereleasemerge(addr unsafe.Pointer) {
+ 	racereleasemergeg(getg(), addr)
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index b4b8936c7c..5d0192f67f 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -338,4 +338,77 @@ func TestPass(t *testing.T) {
+ --- FAIL: TestFail \(0...s\)
+ .*testing.go:.*: race detected during execution of test
+ FAIL`},
++	{"mutex", "run", "", "atexit_sleep_ms=0", `
++package main
++import (
++	"sync"
++	"fmt"
++)
++func main() {
++	c := make(chan bool, 1)
++	threads := 1
++	iterations := 20000
++	data := 0
++	var wg sync.WaitGroup
++	for i := 0; i < threads; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			for i := 0; i < iterations; i++ {
++				c <- true
++				data += 1
++				<- c
++			}
++		}()
++	}
++	for i := 0; i < iterations; i++ {
++		c <- true
++		data += 1
++		<- c
++	}
++	wg.Wait()
++	if (data == iterations*(threads+1)) { fmt.Println("pass") }
++}`, `pass`},
++	// Test for https://github.com/golang/go/issues/37355
++	{"chanmm", "run", "", "atexit_sleep_ms=0", `
++package main
++import (
++	"sync"
++	"time"
++)
++func main() {
++	c := make(chan bool, 1)
++	var data uint64
++	var wg sync.WaitGroup
++	wg.Add(2)
++	c <- true
++	go func() {
++		defer wg.Done()
++		c <- true
++	}()
++	go func() {
++		defer wg.Done()
++		time.Sleep(time.Second)
++		<-c
++		data = 2
++	}()
++	data = 1
++	<-c
++	wg.Wait()
++	_ = data
++}
++`, `==================
++WARNING: DATA RACE
++Write at 0x[0-9,a-f]+ by goroutine [0-9]:
++  main\.main\.func2\(\)
++      .*/main\.go:21 \+0x[0-9,a-f]+
++
++Previous write at 0x[0-9,a-f]+ by main goroutine:
++  main\.main\(\)
++      .*/main\.go:23 \+0x[0-9,a-f]+
++
++Goroutine [0-9] \(running\) created at:
++  main\.main\(\)
++      .*/main.go:[0-9]+ \+0x[0-9,a-f]+
++==================`},
+ }
+diff --git a/src/runtime/race0.go b/src/runtime/race0.go
+index 6f26afa854..180f707b1a 100644
+--- a/src/runtime/race0.go
++++ b/src/runtime/race0.go
+@@ -32,6 +32,8 @@ func raceacquireg(gp *g, addr unsafe.Pointer)                               { th
+ func raceacquirectx(racectx uintptr, addr unsafe.Pointer)                   { throw("race") }
+ func racerelease(addr unsafe.Pointer)                                       { throw("race") }
+ func racereleaseg(gp *g, addr unsafe.Pointer)                               { throw("race") }
++func racereleaseacquire(addr unsafe.Pointer)                                { throw("race") }
++func racereleaseacquireg(gp *g, addr unsafe.Pointer)                        { throw("race") }
+ func racereleasemerge(addr unsafe.Pointer)                                  { throw("race") }
+ func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { throw("race") }
+ func racefingo()                                                            { throw("race") }
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 41e68a3746..f04b130b15 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -415,8 +415,7 @@ bufrecv:
+ 		if cas.elem != nil {
+ 			raceWriteObjectPC(c.elemtype, cas.elem, casePC(casi), chanrecvpc)
+ 		}
+-		raceacquire(chanbuf(c, c.recvx))
+-		racerelease(chanbuf(c, c.recvx))
++		racereleaseacquire(chanbuf(c, c.recvx))
+ 	}
+ 	if msanenabled && cas.elem != nil {
+ 		msanwrite(cas.elem, c.elemtype.size)
+@@ -438,8 +437,7 @@ bufrecv:
+ bufsend:
+ 	// can send to buffer
+ 	if raceenabled {
+-		raceacquire(chanbuf(c, c.sendx))
+-		racerelease(chanbuf(c, c.sendx))
++		racereleaseacquire(chanbuf(c, c.sendx))
+ 		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
+ 	}
+ 	if msanenabled {

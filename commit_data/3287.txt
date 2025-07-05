@@ -8,6 +8,32 @@ Date:   Wed Sep 16 10:43:49 2009 -0700
     DELTA=14  (14 added, 0 deleted, 0 changed)
     OCL=34636
     CL=34687
-
+---
  src/pkg/container/heap/heap.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index d35f4d1335..6e7eccb5f2 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -52,6 +52,20 @@ func Pop(h HeapInterface) interface{} {
+ }
+ 
+ 
++// Remove removes the element at index i from the heap.
++// The complexity is O(log(n)) where n = h.Len().
++//
++func Remove(h HeapInterface, i int) interface{} {
++	n := h.Len()-1;
++	if n != i {
++		h.Swap(n, i);
++		down(h, i, n);
++		up(h, i);
++	}
++	return h.Pop();
++}
++
++
+ func up(h HeapInterface, j int) {
+ 	for {
+ 		i := (j-1)/2;

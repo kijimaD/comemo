@@ -7,6 +7,19 @@ Date:   Mon Mar 8 18:12:25 2010 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/258041
-
+---
  src/pkg/encoding/base64/base64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index d4429094a2..c8e70fccf0 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -324,6 +324,6 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
+ 	return &decoder{enc: enc, r: r}
+ }
+ 
+-// DecodeLen returns the maximum length in bytes of the decoded data
++// DecodedLen returns the maximum length in bytes of the decoded data
+ // corresponding to n bytes of base64-encoded data.
+ func (enc *Encoding) DecodedLen(n int) int { return n / 4 * 3 }

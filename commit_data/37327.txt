@@ -15,6 +15,31 @@ Date:   Wed Jul 18 19:12:14 2018 +0000
     GitHub-Pull-Request: golang/go#26435
     Reviewed-on: https://go-review.googlesource.com/124635
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/filepath/path.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 87f8faf21a..1508137a33 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -341,12 +341,13 @@ var SkipDir = errors.New("skip this directory")
+ //
+ // If there was a problem walking to the file or directory named by path, the
+ // incoming error will describe the problem and the function can decide how
+-// to handle that error (and Walk will not descend into that directory). If
+-// an error is returned, processing stops. The sole exception is when the function
+-// returns the special value SkipDir. If the function returns SkipDir when invoked
+-// on a directory, Walk skips the directory's contents entirely.
+-// If the function returns SkipDir when invoked on a non-directory file,
+-// Walk skips the remaining files in the containing directory.
++// to handle that error (and Walk will not descend into that directory). In the
++// case of an error, the info argument will be nil. If an error is returned,
++// processing stops. The sole exception is when the function returns the special
++// value SkipDir. If the function returns SkipDir when invoked on a directory,
++// Walk skips the directory's contents entirely. If the function returns SkipDir
++// when invoked on a non-directory file, Walk skips the remaining files in the
++// containing directory.
+ type WalkFunc func(path string, info os.FileInfo, err error) error
+ 
+ var lstat = os.Lstat // for testing

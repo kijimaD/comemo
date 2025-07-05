@@ -32,10 +32,315 @@ Date:   Thu Jul 1 15:23:41 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/main.go            |  15 ++++
  src/cmd/compile/internal/noder/reader.go       | 100 ++++++++++++++++---------
  src/cmd/compile/internal/noder/unified.go      |  17 -----
  src/cmd/compile/internal/noder/unified_test.go |   2 +-
  src/cmd/compile/internal/typecheck/dcl.go      |  11 ++-
  5 files changed, 92 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c94f19fd47..68017516df 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -32,6 +32,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"runtime"
++	"sort"
+ )
+ 
+ func hidePanic() {
+@@ -202,6 +203,20 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		typecheck.Export(initTask)
+ 	}
+ 
++	// Stability quirk: sort top-level declarations, so we're not
++	// sensitive to the order that functions are added. In particular,
++	// the order that noder+typecheck add function closures is very
++	// subtle, and not important to reproduce.
++	//
++	// Note: This needs to happen after pkginit.Task, otherwise it risks
++	// changing the order in which top-level variables are initialized.
++	if base.Debug.UnifiedQuirks != 0 {
++		s := typecheck.Target.Decls
++		sort.SliceStable(s, func(i, j int) bool {
++			return s[i].Pos().Before(s[j].Pos())
++		})
++	}
++
+ 	// Eliminate some obviously dead code.
+ 	// Must happen after typechecking.
+ 	for _, n := range typecheck.Target.Decls {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 24977ed7f0..275baead04 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -886,27 +886,25 @@ func (r *reader) funcBody(fn *ir.Func) {
+ 	r.curfn = fn
+ 	r.closureVars = fn.ClosureVars
+ 
+-	// TODO(mdempsky): Get rid of uses of typecheck.NodAddrAt so we
+-	// don't have to set ir.CurFunc.
+-	outerCurFunc := ir.CurFunc
+-	ir.CurFunc = fn
++	ir.WithFunc(fn, func() {
++		r.funcargs(fn)
+ 
+-	r.funcargs(fn)
++		if !r.bool() {
++			return
++		}
+ 
+-	if r.bool() {
+ 		body := r.stmts()
+ 		if body == nil {
+ 			pos := src.NoXPos
+ 			if quirksMode() {
+ 				pos = funcParamsEndPos(fn)
+ 			}
+-			body = []ir.Node{ir.NewBlockStmt(pos, nil)}
++			body = []ir.Node{typecheck.Stmt(ir.NewBlockStmt(pos, nil))}
+ 		}
+ 		fn.Body = body
+ 		fn.Endlineno = r.pos()
+-	}
++	})
+ 
+-	ir.CurFunc = outerCurFunc
+ 	r.marker.WriteTo(fn)
+ }
+ 
+@@ -1045,7 +1043,42 @@ func (r *reader) closeAnotherScope() {
+ 		scopeVars := r.scopeVars[len(r.scopeVars)-1]
+ 		r.scopeVars = r.scopeVars[:len(r.scopeVars)-1]
+ 
+-		if scopeVars == len(r.curfn.Dcl) {
++		// Quirkish: noder decides which scopes to keep before
++		// typechecking, whereas incremental typechecking during IR
++		// construction can result in new autotemps being allocated. To
++		// produce identical output, we ignore autotemps here for the
++		// purpose of deciding whether to retract the scope.
++		//
++		// This is important for net/http/fcgi, because it contains:
++		//
++		//	var body io.ReadCloser
++		//	if len(content) > 0 {
++		//		body, req.pw = io.Pipe()
++		//	} else { … }
++		//
++		// Notably, io.Pipe is inlinable, and inlining it introduces a ~R0
++		// variable at the call site.
++		//
++		// Noder does not preserve the scope where the io.Pipe() call
++		// resides, because it doesn't contain any declared variables in
++		// source. So the ~R0 variable ends up being assigned to the
++		// enclosing scope instead.
++		//
++		// However, typechecking this assignment also introduces
++		// autotemps, because io.Pipe's results need conversion before
++		// they can be assigned to their respective destination variables.
++		//
++		// TODO(mdempsky): We should probably just keep all scopes, and
++		// let dwarfgen take care of pruning them instead.
++		retract := true
++		for _, n := range r.curfn.Dcl[scopeVars:] {
++			if !n.AutoTemp() {
++				retract = false
++				break
++			}
++		}
++
++		if retract {
+ 			// no variables were declared in this scope, so we can retract it.
+ 			r.marker.Unpush()
+ 		} else {
+@@ -1068,6 +1101,7 @@ func (r *reader) stmt() ir.Node {
+ }
+ 
+ func (r *reader) stmts() []ir.Node {
++	assert(ir.CurFunc == r.curfn)
+ 	var res ir.Nodes
+ 
+ 	r.sync(syncStmts)
+@@ -1079,7 +1113,7 @@ func (r *reader) stmts() []ir.Node {
+ 		}
+ 
+ 		if n := r.stmt1(tag, &res); n != nil {
+-			res.Append(n)
++			res.Append(typecheck.Stmt(n))
+ 		}
+ 	}
+ }
+@@ -1108,7 +1142,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
+ 			for _, name := range names {
+ 				as := ir.NewAssignStmt(pos, name, nil)
+ 				as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, name))
+-				out.Append(as)
++				out.Append(typecheck.Stmt(as))
+ 			}
+ 			return nil
+ 		}
+@@ -1488,6 +1522,9 @@ func (r *reader) expr() ir.Node {
+ 
+ 	case exprCall:
+ 		fun := r.expr()
++		if clo, ok := fun.(*ir.ClosureExpr); ok {
++			clo.Func.SetClosureCalled(true)
++		}
+ 		pos := r.pos()
+ 		args := r.exprs()
+ 		dots := r.bool()
+@@ -1574,11 +1611,15 @@ func (r *reader) funcLit() ir.Node {
+ 	}
+ 
+ 	fn := ir.NewClosureFunc(opos, r.curfn != nil)
++	clo := fn.OClosure
++	ir.NameClosure(clo, r.curfn)
+ 
+ 	r.setType(fn.Nname, xtype2)
+ 	if quirksMode() {
+ 		fn.Nname.Ntype = ir.TypeNodeAt(typPos, xtype2)
+ 	}
++	typecheck.Func(fn)
++	r.setType(clo, fn.Type())
+ 
+ 	fn.ClosureVars = make([]*ir.Name, 0, r.len())
+ 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
+@@ -1591,7 +1632,8 @@ func (r *reader) funcLit() ir.Node {
+ 
+ 	r.addBody(fn)
+ 
+-	return fn.OClosure
++	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
++	return ir.UseClosure(clo, typecheck.Target)
+ }
+ 
+ func (r *reader) exprList() []ir.Node {
+@@ -1788,7 +1830,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 	r.setType(tmpfn.Nname, fn.Type())
+ 	r.curfn = tmpfn
+ 
+-	r.inlCaller = ir.CurFunc
++	r.inlCaller = callerfn
+ 	r.inlCall = call
+ 	r.inlFunc = fn
+ 	r.inlTreeIndex = inlIndex
+@@ -1872,17 +1914,13 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 
+ 	nparams := len(r.curfn.Dcl)
+ 
+-	oldcurfn := ir.CurFunc
+-	ir.CurFunc = r.curfn
+-
+-	r.curfn.Body = r.stmts()
+-	r.curfn.Endlineno = r.pos()
++	ir.WithFunc(r.curfn, func() {
++		r.curfn.Body = r.stmts()
++		r.curfn.Endlineno = r.pos()
+ 
+-	typecheck.Stmts(r.curfn.Body)
+-	deadcode.Func(r.curfn)
++		deadcode.Func(r.curfn)
+ 
+-	// Replace any "return" statements within the function body.
+-	{
++		// Replace any "return" statements within the function body.
+ 		var edit func(ir.Node) ir.Node
+ 		edit = func(n ir.Node) ir.Node {
+ 			if ret, ok := n.(*ir.ReturnStmt); ok {
+@@ -1892,9 +1930,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 			return n
+ 		}
+ 		edit(r.curfn)
+-	}
+-
+-	ir.CurFunc = oldcurfn
++	})
+ 
+ 	body := ir.Nodes(r.curfn.Body)
+ 
+@@ -1998,15 +2034,11 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 		r.funarghack = true
+ 
+ 		r.funcBody(tmpfn)
+-	}
+-
+-	oldcurfn := ir.CurFunc
+-	ir.CurFunc = tmpfn
+ 
+-	typecheck.Stmts(tmpfn.Body)
+-	deadcode.Func(tmpfn)
+-
+-	ir.CurFunc = oldcurfn
++		ir.WithFunc(tmpfn, func() {
++			deadcode.Func(tmpfn)
++		})
++	}
+ 
+ 	used := usedLocals(tmpfn.Body)
+ 
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 03bcb2755b..39989778f8 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -138,23 +138,6 @@ func unified(noders []*noder) {
+ 	}
+ 	todoBodies = nil
+ 
+-	// Don't use range--typecheck can add closures to Target.Decls.
+-	for i := 0; i < len(target.Decls); i++ {
+-		if fn, ok := target.Decls[i].(*ir.Func); ok {
+-			if base.Flag.W > 1 {
+-				s := fmt.Sprintf("\nbefore typecheck %v", fn)
+-				ir.Dump(s, fn)
+-			}
+-			ir.WithFunc(fn, func() {
+-				typecheck.Stmts(fn.Body)
+-			})
+-			if base.Flag.W > 1 {
+-				s := fmt.Sprintf("\nafter typecheck %v", fn)
+-				ir.Dump(s, fn)
+-			}
+-		}
+-	}
+-
+ 	if !quirksMode() {
+ 		// TODO(mdempsky): Investigate generating wrappers in quirks mode too.
+ 		r.wrapTypes(target)
+diff --git a/src/cmd/compile/internal/noder/unified_test.go b/src/cmd/compile/internal/noder/unified_test.go
+index ca91b49fbb..26173682fb 100644
+--- a/src/cmd/compile/internal/noder/unified_test.go
++++ b/src/cmd/compile/internal/noder/unified_test.go
+@@ -54,7 +54,7 @@ func TestUnifiedCompare(t *testing.T) {
+ 				t.Parallel()
+ 			}
+ 
+-			pkgs1 := loadPackages(t, goos, goarch, "-d=unified=0 -d=inlfuncswithclosures=0")
++			pkgs1 := loadPackages(t, goos, goarch, "-d=unified=0 -d=inlfuncswithclosures=0 -d=unifiedquirks=1")
+ 			pkgs2 := loadPackages(t, goos, goarch, "-d=unified=1 -d=inlfuncswithclosures=0 -d=unifiedquirks=1")
+ 
+ 			if len(pkgs1) != len(pkgs2) {
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index f3ccbb4ac0..66d755089a 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -450,7 +450,16 @@ func autotmpname(n int) string {
+ 	if s == "" {
+ 		// Give each tmp a different name so that they can be registerized.
+ 		// Add a preceding . to avoid clashing with legal names.
+-		s = fmt.Sprintf(".autotmp_%d", n)
++		prefix := ".autotmp_%d"
++
++		// In quirks mode, pad out the number to stabilize variable
++		// sorting. This ensures autotmps 8 and 9 sort the same way even
++		// if they get renumbered to 9 and 10, respectively.
++		if base.Debug.UnifiedQuirks != 0 {
++			prefix = ".autotmp_%06d"
++		}
++
++		s = fmt.Sprintf(prefix, n)
+ 		autotmpnames[n] = s
+ 	}
+ 	return s

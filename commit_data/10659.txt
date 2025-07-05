@@ -13,9 +13,203 @@ Date:   Wed Dec 7 16:11:17 2011 -0800
     R=golang-dev, remyoudompheng, gri, adg
     CC=golang-dev
     https://golang.org/cl/5454044
-
+---
  doc/go1.html     | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++---
  doc/go1.tmpl     | 51 ++++++++++++++++++++++++++++++++++++++++++++++++---
  doc/progs/go1.go | 22 ++++++++++++++++++++++
  doc/progs/run    |  3 +++
  4 files changed, 123 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 507c96fcd2..3d04545910 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -8,11 +8,24 @@ Here follows a summary.
+ </p>
+ 
+ <p>
+-Go 1 is intended to be a stable language and core library set that will form a reliable foundation for people and organizations that want to make a long-term commitment to developing in the Go programming language. Go will continue to develop, but in a way that guarantees code written to the Go 1 specification will continue to work. For instance, Go 1 will be a supported platform on Google App Engine for the next few years. Incompatible changes to the environment, should they arise, will be done in a distinct version.
++Go 1 is intended to be a stable language and core library set that
++will form a reliable foundation for people and organizations that
++want to make a long-term commitment to developing in the Go programming
++language. Go will continue to develop, but in a way that guarantees
++code written to the Go 1 specification will continue to work. For
++instance, Go 1 will be a supported platform on Google App Engine
++for the next few years. Incompatible changes to the environment,
++should they arise, will be done in a distinct version.
+ </p>
+ 
+ <p>
+-This document describes the changes in the language and libraries in Go 1, relative to the previous release, r60 (at the time of writing, tagged as r60.3). It also explains how to update code at r60 to compile and run under Go 1. Finally, it outlines the new <code>go</code> command for building Go programs and the new binary release process being introduced. Most of these topics have more thorough presentations elsewhere; such documents are linked below.
++This document describes the changes in the language and libraries
++in Go 1, relative to the previous release, r60 (at the time of
++writing, tagged as r60.3). It also explains how to update code at
++r60 to compile and run under Go 1. Finally, it outlines the new
++<code>go</code> command for building Go programs and the new binary
++release process being introduced. Most of these topics have more
++thorough presentations elsewhere; such documents are linked below.
+ 
+ <h2 id="language">Changes to the language</h2>
+ 
+@@ -26,7 +39,41 @@ This document describes the changes in the language and libraries in Go 1, relat
+ 
+ <h3 id="rune">The rune type</h3>
+ 
+-<h3 id="delete">Deleting from maps</h3>
++<h3 id="map_deletion">Deleting from maps</h3>
++
++<p>
++The original syntax for deleting an element in a map was:
++</p>
++
++<pre>
++    m[x] = ignored, false
++</pre>
++
++<p>
++This syntax had a number of minor problems and is being replaced.
++As of Go 1, that syntax is gone and in its place is a new built-in
++function, <code>delete</code>.  The call
++</p>
++
++<pre><!--{{code "progs/go1.go" `/delete\(m, k\)/`}}
++-->    delete(m, k)
++</pre>
++
++<p>
++will delete the map entry retrieved by the expression <code>m[k]</code>.
++There is no return value. Deleting a non-existent entry is a no-op.
++</p>
++
++<p>
++<em>Updating</em>:
++Gofix will convert expressions of the form <code>m[k] = ignored,
++false</code> into <code>delete(m, k)</code> when it is clear that
++the ignored value can be safely discarded from the program and
++<code>false</code> refers to the predefined boolean constant.  Gofix
++will flag other uses of the syntax for inspection by the programmer.
++</p>
++
++<h3 id="map_iteration">Iterating in maps</h3>
+ 
+ <h3 id="multiple_assignment">Multiple assignment</h3>
+ 
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 507c96fcd2..ac4a3239ce 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -8,11 +8,24 @@ Here follows a summary.
+ </p>
+ 
+ <p>
+-Go 1 is intended to be a stable language and core library set that will form a reliable foundation for people and organizations that want to make a long-term commitment to developing in the Go programming language. Go will continue to develop, but in a way that guarantees code written to the Go 1 specification will continue to work. For instance, Go 1 will be a supported platform on Google App Engine for the next few years. Incompatible changes to the environment, should they arise, will be done in a distinct version.
++Go 1 is intended to be a stable language and core library set that
++will form a reliable foundation for people and organizations that
++want to make a long-term commitment to developing in the Go programming
++language. Go will continue to develop, but in a way that guarantees
++code written to the Go 1 specification will continue to work. For
++instance, Go 1 will be a supported platform on Google App Engine
++for the next few years. Incompatible changes to the environment,
++should they arise, will be done in a distinct version.
+ </p>
+ 
+ <p>
+-This document describes the changes in the language and libraries in Go 1, relative to the previous release, r60 (at the time of writing, tagged as r60.3). It also explains how to update code at r60 to compile and run under Go 1. Finally, it outlines the new <code>go</code> command for building Go programs and the new binary release process being introduced. Most of these topics have more thorough presentations elsewhere; such documents are linked below.
++This document describes the changes in the language and libraries
++in Go 1, relative to the previous release, r60 (at the time of
++writing, tagged as r60.3). It also explains how to update code at
++r60 to compile and run under Go 1. Finally, it outlines the new
++<code>go</code> command for building Go programs and the new binary
++release process being introduced. Most of these topics have more
++thorough presentations elsewhere; such documents are linked below.
+ 
+ <h2 id="language">Changes to the language</h2>
+ 
+@@ -26,7 +39,39 @@ This document describes the changes in the language and libraries in Go 1, relat
+ 
+ <h3 id="rune">The rune type</h3>
+ 
+-<h3 id="delete">Deleting from maps</h3>
++<h3 id="map_deletion">Deleting from maps</h3>
++
++<p>
++The original syntax for deleting an element in a map was:
++</p>
++
++<pre>
++    m[x] = ignored, false
++</pre>
++
++<p>
++This syntax had a number of minor problems and is being replaced.
++As of Go 1, that syntax is gone and in its place is a new built-in
++function, <code>delete</code>.  The call
++</p>
++
++{{code "progs/go1.go" `/delete\(m, k\)/`}}
++
++<p>
++will delete the map entry retrieved by the expression <code>m[k]</code>.
++There is no return value. Deleting a non-existent entry is a no-op.
++</p>
++
++<p>
++<em>Updating</em>:
++Gofix will convert expressions of the form <code>m[k] = ignored,
++false</code> into <code>delete(m, k)</code> when it is clear that
++the ignored value can be safely discarded from the program and
++<code>false</code> refers to the predefined boolean constant.  Gofix
++will flag other uses of the syntax for inspection by the programmer.
++</p>
++
++<h3 id="map_iteration">Iterating in maps</h3>
+ 
+ <h3 id="multiple_assignment">Multiple assignment</h3>
+ 
+diff --git a/doc/progs/go1.go b/doc/progs/go1.go
+new file mode 100644
+index 0000000000..0a7416c484
+--- /dev/null
++++ b/doc/progs/go1.go
+@@ -0,0 +1,22 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains examples to embed in the Go 1 release notes document.
++
++package main
++
++import "log"
++
++func main() {
++	mapDelete()
++}
++
++func mapDelete() {
++	m := map[string]int{"7": 7, "23": 23}
++	k := "7"
++	delete(m, k)
++	if m["7"] != 0 || m["23"] != 23 {
++		log.Fatal("mapDelete:", m)
++	}
++}
+diff --git a/doc/progs/run b/doc/progs/run
+index 7a6a603bb8..e90e30781e 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -38,6 +38,7 @@ for i in \
+ 	eff_bytesize.go\
+ 	eff_qr.go \
+ 	eff_sequence.go\
++	go1.go\
+ ; do
+ 	$GC $i
+ done
+@@ -93,4 +94,6 @@ testit server1 "" ""
+ testit eff_bytesize "" "1.00YB 9.09TB"
+ testit eff_sequence "" "[-1 2 6 16 44]"
+ 
++testit go1 "" ""
++
+ rm -f $O.out $O.out.exe *.$O "$TMPFILE"

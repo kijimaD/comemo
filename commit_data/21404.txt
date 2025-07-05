@@ -13,9 +13,163 @@ Date:   Wed Dec 31 10:08:51 2014 +0900
     Reviewed-on: https://go-review.googlesource.com/2203
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/net/fd_posix.go                           | 21 +++++++++++++++++++++
  src/net/{fd_unix_test.go => fd_posix_test.go} | 13 ++++++-------
  src/net/fd_unix.go                            | 13 +++----------
  src/net/fd_windows.go                         |  6 ++----
  4 files changed, 32 insertions(+), 21 deletions(-)
+
+diff --git a/src/net/fd_posix.go b/src/net/fd_posix.go
+new file mode 100644
+index 0000000000..b4b908abac
+--- /dev/null
++++ b/src/net/fd_posix.go
+@@ -0,0 +1,21 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++
++package net
++
++import (
++	"io"
++	"syscall"
++)
++
++// eofError returns io.EOF when fd is available for reading end of
++// file.
++func (fd *netFD) eofError(n int, err error) error {
++	if n == 0 && err == nil && fd.sotype != syscall.SOCK_DGRAM && fd.sotype != syscall.SOCK_RAW {
++		return io.EOF
++	}
++	return err
++}
+diff --git a/src/net/fd_unix_test.go b/src/net/fd_posix_test.go
+similarity index 84%
+rename from src/net/fd_unix_test.go
+rename to src/net/fd_posix_test.go
+index fe8e8ff6a8..85711ef1b7 100644
+--- a/src/net/fd_unix_test.go
++++ b/src/net/fd_posix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+ 
+ package net
+ 
+@@ -12,13 +12,12 @@ import (
+ 	"testing"
+ )
+ 
+-var chkReadErrTests = []struct {
++var eofErrorTests = []struct {
+ 	n        int
+ 	err      error
+ 	fd       *netFD
+ 	expected error
+ }{
+-
+ 	{100, nil, &netFD{sotype: syscall.SOCK_STREAM}, nil},
+ 	{100, io.EOF, &netFD{sotype: syscall.SOCK_STREAM}, io.EOF},
+ 	{100, errClosing, &netFD{sotype: syscall.SOCK_STREAM}, errClosing},
+@@ -48,11 +47,11 @@ var chkReadErrTests = []struct {
+ 	{0, errClosing, &netFD{sotype: syscall.SOCK_RAW}, errClosing},
+ }
+ 
+-func TestChkReadErr(t *testing.T) {
+-	for _, tt := range chkReadErrTests {
+-		actual := chkReadErr(tt.n, tt.err, tt.fd)
++func TestEOFError(t *testing.T) {
++	for _, tt := range eofErrorTests {
++		actual := tt.fd.eofError(tt.n, tt.err)
+ 		if actual != tt.expected {
+-			t.Errorf("chkReadError(%v, %v, %v): expected %v, actual %v", tt.n, tt.err, tt.fd.sotype, tt.expected, actual)
++			t.Errorf("eofError(%v, %v, %v): expected %v, actual %v", tt.n, tt.err, tt.fd.sotype, tt.expected, actual)
+ 		}
+ 	}
+ }
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 7fa43f6ab7..4e3269b6bd 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -244,7 +244,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 				}
+ 			}
+ 		}
+-		err = chkReadErr(n, err, fd)
++		err = fd.eofError(n, err)
+ 		break
+ 	}
+ 	if err != nil && err != io.EOF {
+@@ -271,7 +271,7 @@ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+ 				}
+ 			}
+ 		}
+-		err = chkReadErr(n, err, fd)
++		err = fd.eofError(n, err)
+ 		break
+ 	}
+ 	if err != nil && err != io.EOF {
+@@ -298,7 +298,7 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
+ 				}
+ 			}
+ 		}
+-		err = chkReadErr(n, err, fd)
++		err = fd.eofError(n, err)
+ 		break
+ 	}
+ 	if err != nil && err != io.EOF {
+@@ -307,13 +307,6 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
+ 	return
+ }
+ 
+-func chkReadErr(n int, err error, fd *netFD) error {
+-	if n == 0 && err == nil && fd.sotype != syscall.SOCK_DGRAM && fd.sotype != syscall.SOCK_RAW {
+-		return io.EOF
+-	}
+-	return err
+-}
+-
+ func (fd *netFD) Write(p []byte) (nn int, err error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index f3a534a1de..a185975377 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -6,7 +6,6 @@ package net
+ 
+ import (
+ 	"errors"
+-	"io"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -468,12 +467,10 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	n, err := rsrv.ExecIO(o, "WSARecv", func(o *operation) error {
+ 		return syscall.WSARecv(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
+ 	})
+-	if err == nil && n == 0 {
+-		err = io.EOF
+-	}
+ 	if raceenabled {
+ 		raceAcquire(unsafe.Pointer(&ioSync))
+ 	}
++	err = fd.eofError(n, err)
+ 	return n, err
+ }
+ 
+@@ -494,6 +491,7 @@ func (fd *netFD) readFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
+ 		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+ 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
+ 	})
++	err = fd.eofError(n, err)
+ 	if err != nil {
+ 		return 0, nil, err
+ 	}

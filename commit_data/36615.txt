@@ -14,7 +14,46 @@ Date:   Thu Apr 26 14:23:54 2018 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/xml/xml.go      |  2 +-
  src/encoding/xml/xml_test.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index fb52eec5f4..7d2ff01ee9 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -1140,7 +1140,7 @@ func isInCharacterRange(r rune) (inrange bool) {
+ 	return r == 0x09 ||
+ 		r == 0x0A ||
+ 		r == 0x0D ||
+-		r >= 0x20 && r <= 0xDF77 ||
++		r >= 0x20 && r <= 0xD7FF ||
+ 		r >= 0xE000 && r <= 0xFFFD ||
+ 		r >= 0x10000 && r <= 0x10FFFF
+ }
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index 7a3511d583..ee4ffa2420 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -650,6 +650,20 @@ func TestDisallowedCharacters(t *testing.T) {
+ 	}
+ }
+ 
++func TestIsInCharacterRange(t *testing.T) {
++	invalid := []rune{
++		utf8.MaxRune + 1,
++		0xD800, // surrogate min
++		0xDFFF, // surrogate max
++		-1,
++	}
++	for _, r := range invalid {
++		if isInCharacterRange(r) {
++			t.Errorf("rune %U considered valid", r)
++		}
++	}
++}
++
+ var procInstTests = []struct {
+ 	input  string
+ 	expect [2]string

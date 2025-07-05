@@ -8,7 +8,36 @@ Date:   Thu Nov 20 23:16:31 2008 -0800
     DELTA=4  (0 added, 2 deleted, 2 changed)
     OCL=19757
     CL=19763
-
+---
  src/runtime/runtime.c | 4 +---
  test/golden.out       | 2 +-
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 0a72b146ba..13f9cacef4 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -23,9 +23,7 @@ sys·panicl(int32 lno)
+ {
+ 	uint8 *sp;
+ 
+-	prints("\npanic on line ");
+-	sys·printint(lno);
+-	prints(" ");
++	prints("\npanic ");
+ 	sys·printpc(&lno);
+ 	prints("\n");
+ 	sp = (uint8*)&lno;
+diff --git a/test/golden.out b/test/golden.out
+index 2a870d6f67..957aa86e7f 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -146,7 +146,7 @@ BUG: should compile
+ =========== bugs/bug119.go
+ 3 74256
+ 
+-panic on line 85 PC=xxx
++panic PC=xxx
+ BUG: should not fail
+ 
+ =========== bugs/bug120.go

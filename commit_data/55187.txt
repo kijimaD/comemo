@@ -21,6 +21,49 @@ Date:   Tue Jan 10 15:59:12 2023 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/cmd/go/testdata/script/test_shuffle.txt | 18 ++----------------
  1 file changed, 2 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_shuffle.txt b/src/cmd/go/testdata/script/test_shuffle.txt
+index 3a50605c34..98029f552d 100644
+--- a/src/cmd/go/testdata/script/test_shuffle.txt
++++ b/src/cmd/go/testdata/script/test_shuffle.txt
+@@ -1,5 +1,7 @@
+ # Shuffle order of tests and benchmarks
+ 
++[short] skip 'builds and repeatedly runs a test binary'
++
+ # Run tests
+ go test -v foo_test.go
+ ! stdout '-test.shuffle '
+@@ -13,14 +15,6 @@ go test -v -shuffle=42 foo_test.go
+ stdout '^-test.shuffle 42'
+ stdout '(?s)TestThree(.*)TestOne(.*)TestTwo'
+ 
+-go test -v -shuffle=43 foo_test.go
+-stdout '^-test.shuffle 43'
+-stdout '(?s)TestThree(.*)TestTwo(.*)TestOne'
+-
+-go test -v -shuffle=44 foo_test.go
+-stdout '^-test.shuffle 44'
+-stdout '(?s)TestOne(.*)TestThree(.*)TestTwo'
+-
+ go test -v -shuffle=0 foo_test.go
+ stdout '^-test.shuffle 0'
+ stdout '(?s)TestTwo(.*)TestOne(.*)TestThree'
+@@ -49,14 +43,6 @@ go test -v -bench=. -shuffle=42 foo_test.go
+ stdout '^-test.shuffle 42'
+ stdout '(?s)TestThree(.*)TestOne(.*)TestTwo(.*)BenchmarkThree(.*)BenchmarkOne(.*)BenchmarkTwo'
+ 
+-go test -v -bench=. -shuffle=43 foo_test.go
+-stdout '^-test.shuffle 43'
+-stdout '(?s)TestThree(.*)TestTwo(.*)TestOne(.*)BenchmarkThree(.*)BenchmarkOne(.*)BenchmarkTwo'
+-
+-go test -v -bench=. -shuffle=44 foo_test.go
+-stdout '^-test.shuffle 44'
+-stdout '(?s)TestOne(.*)TestThree(.*)TestTwo(.*)BenchmarkTwo(.*)BenchmarkOne(.*)BenchmarkThree'
+-
+ go test -v -bench=. -shuffle=0 foo_test.go
+ stdout '^-test.shuffle 0'
+ stdout '(?s)TestTwo(.*)TestOne(.*)TestThree(.*)BenchmarkThree(.*)BenchmarkOne(.*)BenchmarkTwo'

@@ -15,7 +15,113 @@ Date:   Fri May 27 15:02:31 2016 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux.go      | 10 +++++--
  src/syscall/exec_linux_test.go | 61 +++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 68 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 4b8199a2e5..39764f7076 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -206,9 +206,15 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// User and groups
+ 	if cred := sys.Credential; cred != nil {
+ 		ngroups := uintptr(len(cred.Groups))
++		groups := uintptr(0)
+ 		if ngroups > 0 {
+-			groups := unsafe.Pointer(&cred.Groups[0])
+-			_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, uintptr(groups), 0)
++			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
++		}
++		// Don't call setgroups in case of user namespace, gid mappings
++		// and disabled setgroups, because otherwise unprivileged user namespace
++		// will fail with any non-empty SysProcAttr.Credential.
++		if !(sys.GidMappings != nil && !sys.GidMappingsEnableSetgroups && ngroups == 0) {
++			_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, groups, 0)
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 395dd99039..1afe88cb1b 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -26,7 +26,7 @@ func isChrooted(t *testing.T) bool {
+ 	return root.Sys().(*syscall.Stat_t).Ino != 2
+ }
+ 
+-func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
++func checkUserNS(t *testing.T) {
+ 	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
+ 		if os.IsNotExist(err) {
+ 			t.Skip("kernel doesn't support user namespaces")
+@@ -56,6 +56,10 @@ func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
+ 	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
+ 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+ 	}
++}
++
++func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
++	checkUserNS(t)
+ 	cmd := exec.Command("whoami")
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		Cloneflags: syscall.CLONE_NEWUSER,
+@@ -161,3 +165,58 @@ func TestUnshare(t *testing.T) {
+ 		t.Fatalf("Expected 3 lines of output, got %d", len(lines))
+ 	}
+ }
++
++func TestGroupCleanup(t *testing.T) {
++	if os.Getuid() != 0 {
++		t.Skip("we need root for credential")
++	}
++	cmd := exec.Command("id")
++	cmd.SysProcAttr = &syscall.SysProcAttr{
++		Credential: &syscall.Credential{
++			Uid: 0,
++			Gid: 0,
++		},
++	}
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
++	}
++	strOut := strings.TrimSpace(string(out))
++	expected := "uid=0(root) gid=0(root) groups=0(root)"
++	if strOut != expected {
++		t.Fatalf("id command output: %s, expected: %s", strOut, expected)
++	}
++}
++
++func TestGroupCleanupUserNamespace(t *testing.T) {
++	if os.Getuid() != 0 {
++		t.Skip("we need root for credential")
++	}
++	checkUserNS(t)
++	cmd := exec.Command("id")
++	uid, gid := os.Getuid(), os.Getgid()
++	cmd.SysProcAttr = &syscall.SysProcAttr{
++		Cloneflags: syscall.CLONE_NEWUSER,
++		Credential: &syscall.Credential{
++			Uid: uint32(uid),
++			Gid: uint32(gid),
++		},
++		UidMappings: []syscall.SysProcIDMap{
++			{ContainerID: 0, HostID: uid, Size: 1},
++		},
++		GidMappings: []syscall.SysProcIDMap{
++			{ContainerID: 0, HostID: gid, Size: 1},
++		},
++	}
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
++	}
++	strOut := strings.TrimSpace(string(out))
++	// there are two possible outs
++	expected1 := "uid=0(root) gid=0(root) groups=0(root)"
++	expected2 := "uid=0(root) gid=0(root) groups=0(root),65534(nobody)"
++	if strOut != expected1 && strOut != expected2 {
++		t.Fatalf("id command output: %s, expected: %s or %s", strOut, expected1, expected2)
++	}
++}

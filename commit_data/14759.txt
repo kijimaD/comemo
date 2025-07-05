@@ -11,7 +11,43 @@ Date:   Sat Dec 29 10:41:39 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev, speter.go1
     https://golang.org/cl/7015051
-
+---
  doc/articles/godoc_documenting_go_code.html | 2 +-
  doc/go1.html                                | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/articles/godoc_documenting_go_code.html b/doc/articles/godoc_documenting_go_code.html
+index 36c9b60d05..7bcca5ad41 100644
+--- a/doc/articles/godoc_documenting_go_code.html
++++ b/doc/articles/godoc_documenting_go_code.html
+@@ -83,7 +83,7 @@ godoc's output, with one notable exception. Top-level comments that begin with
+ the word <code>"BUG(who)"</code> are recognized as known bugs, and included in
+ the "Bugs" section of the package documentation. The "who" part should be the
+ user name of someone who could provide more information. For example, this is a
+-known issue from the <a href="/pkg/bytes/#bugs"><code>bytes</code></a> package:
++known issue from the <a href="/pkg/bytes/#pkg-bugs"><code>bytes</code></a> package:
+ </p>
+ 
+ <pre>
+diff --git a/doc/go1.html b/doc/go1.html
+index f0a804784a..491fd7bf73 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1676,7 +1676,7 @@ instead of a <code>Visitor</code> interface value.
+ The <code>WalkFunc</code> function will be called even for files or directories that could not be opened;
+ in such cases the error argument will describe the failure.
+ If a directory's contents are to be skipped,
+-the function should return the value <a href="/pkg/path/filepath/#variables"><code>filepath.SkipDir</code></a>
++the function should return the value <a href="/pkg/path/filepath/#pkg-variables"><code>filepath.SkipDir</code></a>
+ </p>
+ 
+ {{code "/doc/progs/go1.go" `/STARTWALK/` `/ENDWALK/`}}
+@@ -1865,7 +1865,7 @@ made easier with the new structure of the packages.
+ The imports will be updated by fix tool.
+ Single-template uses will be otherwise be largely unaffected.
+ Code that uses multiple templates in concert will need to be updated by hand.
+-The <a href="/pkg/text/template/#examples">examples</a> in
++The <a href="/pkg/text/template/#pkg-examples">examples</a> in
+ the documentation for <code>text/template</code> can provide guidance.
+ </p>
+ 

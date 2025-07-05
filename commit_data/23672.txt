@@ -15,7 +15,68 @@ Date:   Sun May 10 04:22:11 2015 +0900
     Reviewed-on: https://go-review.googlesource.com/9910
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
     Reviewed-by: roger peppe <rogpeppe@gmail.com>
-
+---
  src/encoding/xml/marshal.go      |  6 ++++++
  src/encoding/xml/marshal_test.go | 18 ++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index d0899c0fa6..63f8e2aa87 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -924,6 +924,9 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 
+ 		switch finfo.flags & fMode {
+ 		case fCharData:
++			if err := s.setParents(&noField, reflect.Value{}); err != nil {
++				return err
++			}
+ 			if vf.CanInterface() && vf.Type().Implements(textMarshalerType) {
+ 				data, err := vf.Interface().(encoding.TextMarshaler).MarshalText()
+ 				if err != nil {
+@@ -967,6 +970,9 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 			continue
+ 
+ 		case fComment:
++			if err := s.setParents(&noField, reflect.Value{}); err != nil {
++				return err
++			}
+ 			k := vf.Kind()
+ 			if !(k == reflect.String || k == reflect.Slice && vf.Type().Elem().Kind() == reflect.Uint8) {
+ 				return fmt.Errorf("xml: bad type for comment field of %s", val.Type())
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 5e9718c20c..394855782e 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -340,6 +340,16 @@ type OuterOuterStruct struct {
+ 	OuterStruct
+ }
+ 
++type NestedAndChardata struct {
++	AB       []string `xml:"A>B"`
++	Chardata string   `xml:",chardata"`
++}
++
++type NestedAndComment struct {
++	AB      []string `xml:"A>B"`
++	Comment string   `xml:",comment"`
++}
++
+ func ifaceptr(x interface{}) interface{} {
+ 	return &x
+ }
+@@ -995,6 +1005,14 @@ var marshalTests = []struct {
+ 		ExpectXML: `<outer xmlns="testns" int="10"></outer>`,
+ 		Value:     &OuterOuterStruct{OuterStruct{IntAttr: 10}},
+ 	},
++	{
++		ExpectXML: `<NestedAndChardata><A><B></B><B></B></A>test</NestedAndChardata>`,
++		Value:     &NestedAndChardata{AB: make([]string, 2), Chardata: "test"},
++	},
++	{
++		ExpectXML: `<NestedAndComment><A><B></B><B></B></A><!--test--></NestedAndComment>`,
++		Value:     &NestedAndComment{AB: make([]string, 2), Comment: "test"},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {

@@ -9,6 +9,20 @@ Date:   Tue Sep 10 12:47:52 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13250047
-
+---
  src/cmd/go/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 5fab64d4eb..5228d0a9c2 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -360,7 +360,7 @@ func exitIfErrors() {
+ 
+ func run(cmdargs ...interface{}) {
+ 	cmdline := stringList(cmdargs...)
+-	if buildN || buildV {
++	if buildN || buildX {
+ 		fmt.Printf("%s\n", strings.Join(cmdline, " "))
+ 		if buildN {
+ 			return

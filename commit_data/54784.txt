@@ -28,7 +28,39 @@ Date:   Tue Nov 15 09:54:39 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/sync/atomic/atomic_test.go | 6 ++++++
  src/sync/atomic/type.go        | 5 +++--
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index 0cc9b06a6c..c3604ef0af 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -2526,3 +2526,9 @@ func TestNilDeref(t *testing.T) {
+ 		}()
+ 	}
+ }
++
++// Test that this compiles.
++// When atomic.Pointer used _ [0]T, it did not.
++type List struct {
++	Next Pointer[List]
++}
+diff --git a/src/sync/atomic/type.go b/src/sync/atomic/type.go
+index 4d466232f1..cc016833d1 100644
+--- a/src/sync/atomic/type.go
++++ b/src/sync/atomic/type.go
+@@ -41,9 +41,10 @@ var _ = &Pointer[int]{}
+ 
+ // A Pointer is an atomic pointer of type *T. The zero value is a nil *T.
+ type Pointer[T any] struct {
+-	// Mention T in a field to disallow conversion between Pointer types.
++	// Mention *T in a field to disallow conversion between Pointer types.
+ 	// See go.dev/issue/56603 for more details.
+-	_ [0]T
++	// Use *T, not T, to avoid spurious recursive type definition errors.
++	_ [0]*T
+ 
+ 	_ noCopy
+ 	v unsafe.Pointer

@@ -13,6 +13,22 @@ Date:   Thu Oct 11 13:21:54 2018 +1100
     Change-Id: I557995f1a1e8e871b21004953923d16f36cb9037
     Reviewed-on: https://go-review.googlesource.com/c/141378
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/text/template/doc.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 4b243067b0..0179dec5c3 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -142,7 +142,9 @@ An argument is a simple value, denoted by one of the following.
+ 
+ 	- A boolean, string, character, integer, floating-point, imaginary
+ 	  or complex constant in Go syntax. These behave like Go's untyped
+-	  constants.
++	  constants. Note that, as in Go, whether a large integer constant
++	  overflows when assigned or passed to a function can depend on whether
++	  the host machine's ints are 32 or 64 bits.
+ 	- The keyword nil, representing an untyped Go nil.
+ 	- The character '.' (period):
+ 		.

@@ -17,8 +17,69 @@ Date:   Thu Mar 10 13:38:00 2022 +0000
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt | 11 -----------
  src/internal/fuzz/coverage.go                                 | 11 +++++++++++
  src/internal/fuzz/worker.go                                   |  3 ++-
  3 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt b/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
+index 5d0de17f6b..a09e85b972 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt
+@@ -127,19 +127,8 @@ func FuzzMinCache(f *testing.F) {
+ 		if bytes.Equal(buf, seed) {
+ 			return
+ 		}
+-		if n := sum(buf); n < 0 {
+-			t.Error("sum cannot be negative")
+-		}
+ 	})
+ }
+-
+-func sum(buf []byte) int {
+-	n := 0
+-	for _, b := range buf {
+-		n += int(b)
+-	}
+-	return n
+-}
+ -- check_testdata/check_testdata.go --
+ //go:build ignore
+ // +build ignore
+diff --git a/src/internal/fuzz/coverage.go b/src/internal/fuzz/coverage.go
+index 3dee73b81c..88f98a16b2 100644
+--- a/src/internal/fuzz/coverage.go
++++ b/src/internal/fuzz/coverage.go
+@@ -66,6 +66,17 @@ func countNewCoverageBits(base, snapshot []byte) int {
+ 	return n
+ }
+ 
++// isCoverageSubset returns true if all the base coverage bits are set in
++// snapshot
++func isCoverageSubset(base, snapshot []byte) bool {
++	for i, v := range base {
++		if v&snapshot[i] != v {
++			return false
++		}
++	}
++	return true
++}
++
+ // hasCoverageBit returns true if snapshot has at least one bit set that is
+ // also set in base.
+ func hasCoverageBit(base, snapshot []byte) bool {
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 83d937ee6d..6e4c4e2d0f 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -894,7 +894,8 @@ func (ws *workerServer) minimizeInput(ctx context.Context, vals []any, mem *shar
+ 			}
+ 			return true
+ 		}
+-		if keepCoverage != nil && hasCoverageBit(keepCoverage, coverageSnapshot) {
++		// Minimization should preserve coverage bits.
++		if keepCoverage != nil && isCoverageSubset(keepCoverage, coverageSnapshot) {
+ 			return true
+ 		}
+ 		vals[args.Index] = prev

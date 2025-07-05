@@ -13,7 +13,54 @@ Date:   Sun May 19 21:48:40 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/time/format.go      | 14 ++++++++++++++
  src/time/format_test.go | 10 ++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 875fb36df8..c823bce4d8 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1242,6 +1242,20 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			if err == nil {
+ 				ss, _, err = getnum(seconds, true)
+ 			}
++
++			// The range test use > rather than >=,
++			// as some people do write offsets of 24 hours
++			// or 60 minutes or 60 seconds.
++			if hr > 24 {
++				rangeErrString = "time zone offset hour"
++			}
++			if mm > 60 {
++				rangeErrString = "time zone offset minute"
++			}
++			if ss > 60 {
++				rangeErrString = "time zone offset second"
++			}
++
+ 			zoneOffset = (hr*60+mm)*60 + ss // offset is in seconds
+ 			switch sign[0] {
+ 			case '+':
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 29b9c280e6..4b598f6bdf 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -661,6 +661,16 @@ var parseErrorTests = []ParseErrorTest{
+ 	{"06-01-02", "a2-10-25", `parsing time "a2-10-25" as "06-01-02": cannot parse "a2-10-25" as "06"`},
+ 	{"03:04PM", "12:03pM", `parsing time "12:03pM" as "03:04PM": cannot parse "pM" as "PM"`},
+ 	{"03:04pm", "12:03pM", `parsing time "12:03pM" as "03:04pm": cannot parse "pM" as "pm"`},
++
++	// issue 67470
++	{"-07", "-25", "time zone offset hour out of range"},
++	{"-07:00", "+25:00", "time zone offset hour out of range"},
++	{"-07:00", "-23:61", "time zone offset minute out of range"},
++	{"-07:00:00", "+23:59:61", "time zone offset second out of range"},
++	{"Z07", "-25", "time zone offset hour out of range"},
++	{"Z07:00", "+25:00", "time zone offset hour out of range"},
++	{"Z07:00", "-23:61", "time zone offset minute out of range"},
++	{"Z07:00:00", "+23:59:61", "time zone offset second out of range"},
+ }
+ 
+ func TestParseErrors(t *testing.T) {

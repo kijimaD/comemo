@@ -17,7 +17,37 @@ Date:   Sun May 29 11:16:13 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go  | 2 +-
  src/cmd/compile/internal/gc/syntax.go | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 4469d71f1c..72c06dde2d 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -866,7 +866,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 	nerr := nerrors
+ 
+ 	a := Nod(OMAKE, nil, nil)
+-	a.List.Set1(typenod(n.Type))
++	a.List.Set2(typenod(n.Type), Nodintconst(int64(len(n.List.Slice()))))
+ 	litas(var_, a, init)
+ 
+ 	// count the initializers
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index df9f838e77..58f95e82c9 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -545,6 +545,11 @@ func (n *Nodes) Set1(node *Node) {
+ 	n.slice = &[]*Node{node}
+ }
+ 
++// Set2 sets n to a slice containing two nodes.
++func (n *Nodes) Set2(n1, n2 *Node) {
++	n.slice = &[]*Node{n1, n2}
++}
++
+ // MoveNodes sets n to the contents of n2, then clears n2.
+ func (n *Nodes) MoveNodes(n2 *Nodes) {
+ 	n.slice = n2.slice

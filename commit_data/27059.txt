@@ -11,7 +11,198 @@ Date:   Wed Mar 9 11:00:58 2016 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  10 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 128 +++++++++++++++++++++++++
  2 files changed, 135 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 8bdb6c0436..d99ea5b66e 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -77,8 +77,12 @@
+ (Rsh8x64   (Const8  [0]) _) -> (Const8  [0])
+ (Rsh8Ux64  (Const8  [0]) _) -> (Const8  [0])
+ 
++(IsInBounds (And32 (Const32 [c]) _) (Const32 [d])) && inBounds32(c, d) -> (ConstBool [1])
++(IsInBounds (And64 (Const64 [c]) _) (Const64 [d])) && inBounds64(c, d) -> (ConstBool [1])
+ (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(inBounds32(c,d))])
+ (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
++(IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && sliceInBounds32(c, d) -> (ConstBool [1])
++(IsSliceInBounds (And64 (Const64 [c]) _) (Const64 [d])) && sliceInBounds64(c, d) -> (ConstBool [1])
+ (IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
+ (IsSliceInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(sliceInBounds64(c,d))])
+ 
+@@ -664,9 +668,9 @@
+ //(Mod64 n (Const64 [1])) -> (Const64 [0])
+ //(Mod64u n (Const64 [1])) -> (Const64 [0])
+ 
+-// Unsigned divide by power of 2.  Currently handled by frontend.
+-//(Div64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Rsh64Ux64 n (Const64 <t> [log2(c)]))
+-//(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
++// Unsigned divide by power of 2.
++(Div64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Rsh64Ux64 n (Const64 <t> [log2(c)]))
++(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
+ 
+ // Signed divide by power of 2.  Currently handled by frontend.
+ // n / c = n >> log(c)       if n >= 0
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index bad4a90a4a..95a2caeb1e 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1577,6 +1577,26 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Div64u <t> n (Const64 [c]))
++	// cond: isPowerOfTwo(c)
++	// result: (Rsh64Ux64 n (Const64 <t> [log2(c)]))
++	for {
++		t := v.Type
++		n := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpRsh64Ux64)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Line, OpConst64, t)
++		v0.AuxInt = log2(c)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Div64u <t> x (Const64 [c]))
+ 	// cond: umagic64ok(c) && !umagic64a(c)
+ 	// result: (Rsh64Ux64     (Hmul64u <t>       (Const64 <t> [umagic64m(c)])       x)     (Const64 <t> [umagic64s(c)]))
+@@ -2467,6 +2487,50 @@ func rewriteValuegeneric_OpITab(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (IsInBounds (And32 (Const32 [c]) _) (Const32 [d]))
++	// cond: inBounds32(c, d)
++	// result: (ConstBool [1])
++	for {
++		if v.Args[0].Op != OpAnd32 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst32 {
++			break
++		}
++		c := v.Args[0].Args[0].AuxInt
++		if v.Args[1].Op != OpConst32 {
++			break
++		}
++		d := v.Args[1].AuxInt
++		if !(inBounds32(c, d)) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds (And64 (Const64 [c]) _) (Const64 [d]))
++	// cond: inBounds64(c, d)
++	// result: (ConstBool [1])
++	for {
++		if v.Args[0].Op != OpAnd64 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst64 {
++			break
++		}
++		c := v.Args[0].Args[0].AuxInt
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		d := v.Args[1].AuxInt
++		if !(inBounds64(c, d)) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	// match: (IsInBounds (Const32 [c]) (Const32 [d]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(inBounds32(c,d))])
+@@ -2504,6 +2568,50 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d]))
++	// cond: sliceInBounds32(c, d)
++	// result: (ConstBool [1])
++	for {
++		if v.Args[0].Op != OpAnd32 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst32 {
++			break
++		}
++		c := v.Args[0].Args[0].AuxInt
++		if v.Args[1].Op != OpConst32 {
++			break
++		}
++		d := v.Args[1].AuxInt
++		if !(sliceInBounds32(c, d)) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsSliceInBounds (And64 (Const64 [c]) _) (Const64 [d]))
++	// cond: sliceInBounds64(c, d)
++	// result: (ConstBool [1])
++	for {
++		if v.Args[0].Op != OpAnd64 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpConst64 {
++			break
++		}
++		c := v.Args[0].Args[0].AuxInt
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		d := v.Args[1].AuxInt
++		if !(sliceInBounds64(c, d)) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	// match: (IsSliceInBounds (Const32 [c]) (Const32 [d]))
+ 	// cond:
+ 	// result: (ConstBool [b2i(sliceInBounds32(c,d))])
+@@ -3875,6 +3983,26 @@ func rewriteValuegeneric_OpMod64(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpMod64u(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Mod64u <t> n (Const64 [c]))
++	// cond: isPowerOfTwo(c)
++	// result: (And64 n (Const64 <t> [c-1]))
++	for {
++		t := v.Type
++		n := v.Args[0]
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c := v.Args[1].AuxInt
++		if !(isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpAnd64)
++		v.AddArg(n)
++		v0 := b.NewValue0(v.Line, OpConst64, t)
++		v0.AuxInt = c - 1
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Mod64u <t> x (Const64 [c]))
+ 	// cond: umagic64ok(c)
+ 	// result: (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))

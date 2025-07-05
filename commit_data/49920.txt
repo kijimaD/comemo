@@ -18,7 +18,7 @@ Date:   Mon Sep 20 16:29:50 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_cache.txt     |  3 +++
  .../go/testdata/script/test_fuzz_seed_corpus.txt   |  3 +++
  src/internal/fuzz/counters_supported.go            | 29 ++++++++++++++++++++++
@@ -26,3 +26,164 @@ Date:   Mon Sep 20 16:29:50 2021 -0700
  src/internal/fuzz/coverage.go                      | 19 --------------
  src/internal/fuzz/worker_test.go                   | 10 ++++++++
  6 files changed, 61 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cache.txt b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+index 10e4c2926f..8bcf2be61e 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cache.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+@@ -1,6 +1,9 @@
+ # TODO(jayconrod): support shared memory on more platforms.
+ [!darwin] [!linux] [!windows] skip
+ 
++# TODO(#48504): fix and re-enable.
++[linux] [386] skip
++
+ [short] skip
+ env GOCACHE=$WORK/cache
+ 
+diff --git a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+index 016b101d72..f810ad48d9 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+@@ -1,6 +1,9 @@
+ # TODO(jayconrod): support shared memory on more platforms.
+ [!darwin] [!linux] [!windows] skip
+ 
++# TODO(#48504): fix and re-enable.
++[linux] [386] skip
++
+ [short] skip
+ env GOCACHE=$WORK/cache
+ 
+diff --git a/src/internal/fuzz/counters_supported.go b/src/internal/fuzz/counters_supported.go
+new file mode 100644
+index 0000000000..7ef553aaf2
+--- /dev/null
++++ b/src/internal/fuzz/counters_supported.go
+@@ -0,0 +1,29 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (darwin || linux || windows || freebsd) && (amd64 || arm64)
++
++package fuzz
++
++import (
++	"internal/unsafeheader"
++	"unsafe"
++)
++
++// coverage returns a []byte containing unique 8-bit counters for each edge of
++// the instrumented source code. This coverage data will only be generated if
++// `-d=libfuzzer` is set at build time. This can be used to understand the code
++// coverage of a test execution.
++func coverage() []byte {
++	addr := unsafe.Pointer(&_counters)
++	size := uintptr(unsafe.Pointer(&_ecounters)) - uintptr(addr)
++
++	var res []byte
++	*(*unsafeheader.Slice)(unsafe.Pointer(&res)) = unsafeheader.Slice{
++		Data: addr,
++		Len:  int(size),
++		Cap:  int(size),
++	}
++	return res
++}
+diff --git a/src/internal/fuzz/counters_unsupported.go b/src/internal/fuzz/counters_unsupported.go
+new file mode 100644
+index 0000000000..743ef45a66
+--- /dev/null
++++ b/src/internal/fuzz/counters_unsupported.go
+@@ -0,0 +1,16 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !((darwin || linux || windows || freebsd) && (amd64 || arm64))
++
++package fuzz
++
++// TODO(#48504): re-enable on platforms where instrumentation works.
++// This was disabled due to an init failure on aix_ppc64.
++
++// coverage returns a []byte containing unique 8-bit counters for each edge of
++// the instrumented source code. This coverage data will only be generated if
++// `-d=libfuzzer` is set at build time. This can be used to understand the code
++// coverage of a test execution.
++func coverage() []byte { return nil }
+diff --git a/src/internal/fuzz/coverage.go b/src/internal/fuzz/coverage.go
+index 71d0132e21..3dee73b81c 100644
+--- a/src/internal/fuzz/coverage.go
++++ b/src/internal/fuzz/coverage.go
+@@ -6,28 +6,9 @@ package fuzz
+ 
+ import (
+ 	"fmt"
+-	"internal/unsafeheader"
+ 	"math/bits"
+-	"unsafe"
+ )
+ 
+-// coverage returns a []byte containing unique 8-bit counters for each edge of
+-// the instrumented source code. This coverage data will only be generated if
+-// `-d=libfuzzer` is set at build time. This can be used to understand the code
+-// coverage of a test execution.
+-func coverage() []byte {
+-	addr := unsafe.Pointer(&_counters)
+-	size := uintptr(unsafe.Pointer(&_ecounters)) - uintptr(addr)
+-
+-	var res []byte
+-	*(*unsafeheader.Slice)(unsafe.Pointer(&res)) = unsafeheader.Slice{
+-		Data: addr,
+-		Len:  int(size),
+-		Cap:  int(size),
+-	}
+-	return res
+-}
+-
+ // ResetCovereage sets all of the counters for each edge of the instrumented
+ // source code to 0.
+ func ResetCoverage() {
+diff --git a/src/internal/fuzz/worker_test.go b/src/internal/fuzz/worker_test.go
+index 2369b4ce3f..e32770b02b 100644
+--- a/src/internal/fuzz/worker_test.go
++++ b/src/internal/fuzz/worker_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"context"
+ 	"flag"
+ 	"fmt"
++	"internal/race"
+ 	"io"
+ 	"os"
+ 	"os/signal"
+@@ -27,6 +28,9 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
++	if race.Enabled {
++		b.Skip("TODO(48504): fix and re-enable")
++	}
+ 	origEnv := os.Getenv("GODEBUG")
+ 	defer func() { os.Setenv("GODEBUG", origEnv) }()
+ 	os.Setenv("GODEBUG", fmt.Sprintf("%s,fuzzseed=123", origEnv))
+@@ -65,6 +69,9 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
+ // BenchmarkWorkerPing acts as the coordinator and measures the time it takes
+ // a worker to respond to N pings. This is a rough measure of our RPC latency.
+ func BenchmarkWorkerPing(b *testing.B) {
++	if race.Enabled {
++		b.Skip("TODO(48504): fix and re-enable")
++	}
+ 	b.SetParallelism(1)
+ 	w := newWorkerForTest(b)
+ 	for i := 0; i < b.N; i++ {
+@@ -77,6 +84,9 @@ func BenchmarkWorkerPing(b *testing.B) {
+ // BenchmarkWorkerFuzz acts as the coordinator and measures the time it takes
+ // a worker to mutate a given input and call a trivial fuzz function N times.
+ func BenchmarkWorkerFuzz(b *testing.B) {
++	if race.Enabled {
++		b.Skip("TODO(48504): fix and re-enable")
++	}
+ 	b.SetParallelism(1)
+ 	w := newWorkerForTest(b)
+ 	entry := CorpusEntry{Values: []interface{}{[]byte(nil)}}

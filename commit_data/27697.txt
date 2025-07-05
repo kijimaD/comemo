@@ -17,10 +17,112 @@ Date:   Fri Apr 8 13:33:43 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/21771
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go       |  3 +++
  src/cmd/compile/internal/gc/racewalk.go  |  8 +++++++-
  src/cmd/compile/internal/gc/ssa.go       |  4 ++++
  src/cmd/compile/internal/ssa/regalloc.go |  4 ++--
  test/fixedbugs/issue15091.go             | 25 +++++++++++++++++++++++++
  5 files changed, 41 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 5c5503619f..19f109055d 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -737,6 +737,9 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 			Fatalf("cannot use TDDDFIELD with old exporter")
+ 		}
+ 		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.DDDField())
++
++	case Txxx:
++		return "Txxx"
+ 	}
+ 
+ 	if fmtmode == FExp {
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 09889a40f3..f6e65146d6 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -164,7 +164,13 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 				var outn Nodes
+ 				outn.Set(out)
+ 				instrumentnode(&ls[i], &outn, 0, 0)
+-				out = append(outn.Slice(), ls[i])
++				if ls[i].Op != OAS || ls[i].Ninit.Len() == 0 {
++					out = append(outn.Slice(), ls[i])
++				} else {
++					// Splice outn onto end of ls[i].Ninit
++					ls[i].Ninit.AppendNodes(&outn)
++					out = append(out, ls[i])
++				}
+ 			}
+ 		}
+ 		n.List.Set(out)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 90c4d4e95e..7c5f906d76 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3699,6 +3699,10 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
+ 	if b == s.f.Entry {
+ 		// Live variable at start of function.
+ 		if s.canSSA(name) {
++			if strings.HasPrefix(name.Sym.Name, "autotmp_") {
++				// It's likely that this is an uninitialized variable in the entry block.
++				s.Fatalf("Treating auto as if it were arg, func %s, node %v, value %v", b.Func.Name, name, v)
++			}
+ 			v.Op = ssa.OpArg
+ 			v.Aux = name
+ 			return
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 22b9d12c19..aec23a1368 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -417,7 +417,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line
+ 		// Load v from its spill location.
+ 		case vi.spill != nil:
+ 			if s.f.pass.debug > logSpills {
+-				s.f.Config.Warnl(vi.spill.Line, "load spill")
++				s.f.Config.Warnl(vi.spill.Line, "load spill for %v from %v", v, vi.spill)
+ 			}
+ 			c = s.curBlock.NewValue1(line, OpLoadReg, v.Type, vi.spill)
+ 			vi.spillUsed = true
+@@ -1078,7 +1078,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		vi := s.values[i]
+ 		if vi.spillUsed {
+ 			if s.f.pass.debug > logSpills {
+-				s.f.Config.Warnl(vi.spill.Line, "spilled value")
++				s.f.Config.Warnl(vi.spill.Line, "spilled value at %v remains", vi.spill)
+ 			}
+ 			continue
+ 		}
+diff --git a/test/fixedbugs/issue15091.go b/test/fixedbugs/issue15091.go
+new file mode 100644
+index 0000000000..346e906171
+--- /dev/null
++++ b/test/fixedbugs/issue15091.go
+@@ -0,0 +1,25 @@
++// errorcheck -0 -race
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sample
++
++type Html struct {
++	headerIDs map[string]int
++}
++
++// We don't want to see:
++//    internal error: (*Html).xyzzy autotmp_3 (type *int) recorded as live on entry, p.Pc=0
++// or (now, with the error caught earlier)
++//    Treating auto as if it were arg, func (*Html).xyzzy, node ...
++// caused by racewalker inserting instrumentation before an OAS where the Ninit
++// of the OAS defines part of its right-hand-side. (I.e., the race instrumentation
++// references a variable before it is defined.)
++func (options *Html) xyzzy(id string) string {
++	for count, found := options.headerIDs[id]; found; count, found = options.headerIDs[id] {
++		_ = count
++	}
++	return ""
++}

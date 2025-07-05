@@ -7,7 +7,43 @@ Date:   Thu Oct 29 12:45:34 2015 +1300
     Change-Id: I20840632771a250fb279df64d394135994482af8
     Reviewed-on: https://go-review.googlesource.com/14186
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 2 +-
  src/cmd/go/build.go                | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 318a538c1b..334b3ea715 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -226,7 +226,7 @@ func Main() {
+ 	if Thearch.Thechar == '6' {
+ 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
+ 	}
+-	if Thearch.Thechar == '6' || Thearch.Thechar == '8' || Thearch.Thechar == '9' {
++	if Thearch.Thechar == '5' || Thearch.Thechar == '6' || Thearch.Thechar == '8' || Thearch.Thechar == '9' {
+ 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
+ 	}
+ 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 966603ec08..30af02e401 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -388,7 +388,7 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/386", "linux/amd64":
++			case "linux/386", "linux/amd64", "linux/arm":
+ 				buildAsmflags = append(buildAsmflags, "-D=shared=1")
+ 			default:
+ 				fatalf("-buildmode=shared not supported on %s\n", platform)
+@@ -407,7 +407,7 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/386", "linux/amd64":
++			case "linux/386", "linux/amd64", "linux/arm":
+ 				buildAsmflags = append(buildAsmflags, "-D=shared=1")
+ 			default:
+ 				fatalf("-buildmode=shared not supported on %s\n", platform)

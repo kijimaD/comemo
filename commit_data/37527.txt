@@ -13,7 +13,7 @@ Date:   Thu Aug 9 17:03:05 2018 -0400
     Change-Id: Ieabed11a5250c2999d73450c10b20f4c645ad445
     Reviewed-on: https://go-review.googlesource.com/128901
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go           |  7 +++++++
  src/cmd/go/internal/modfetch/pseudo.go             |  1 +
  src/cmd/go/internal/module/module.go               |  8 +++++++-
@@ -21,3 +21,139 @@ Date:   Thu Aug 9 17:03:05 2018 -0400
  .../mod/gopkg.in_dummy.v2-unstable_v2.0.0.txt      |  9 +++++++++
  src/cmd/go/testdata/script/mod_gopkg_unstable.txt  | 22 ++++++++++++++++++++++
  6 files changed, 49 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index c45833cbdd..9cf0e91150 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -86,6 +86,13 @@ func (r *codeRepo) ModulePath() string {
+ }
+ 
+ func (r *codeRepo) Versions(prefix string) ([]string, error) {
++	// Special case: gopkg.in/macaroon-bakery.v2-unstable
++	// does not use the v2 tags (those are for macaroon-bakery.v2).
++	// It has no possible tags at all.
++	if strings.HasPrefix(r.modPath, "gopkg.in/") && strings.HasSuffix(r.modPath, "-unstable") {
++		return nil, nil
++	}
++
+ 	p := prefix
+ 	if r.codeDir != "" {
+ 		p = r.codeDir + "/" + p
+diff --git a/src/cmd/go/internal/modfetch/pseudo.go b/src/cmd/go/internal/modfetch/pseudo.go
+index 990fa5419e..32c7bf883b 100644
+--- a/src/cmd/go/internal/modfetch/pseudo.go
++++ b/src/cmd/go/internal/modfetch/pseudo.go
+@@ -49,6 +49,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
+ 	if major == "" {
+ 		major = "v0"
+ 	}
++	major = strings.TrimSuffix(major, "-unstable") // make gopkg.in/macaroon-bakery.v2-unstable use "v2"
+ 	segment := fmt.Sprintf("%s-%s", t.UTC().Format("20060102150405"), rev)
+ 	build := semver.Build(older)
+ 	older = semver.Canonical(older)
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index 03b401164b..1dbb0f5cb7 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -143,7 +143,7 @@ func CheckPath(path string) error {
+ 		}
+ 	}
+ 	if _, _, ok := SplitPathVersion(path); !ok {
+-		return fmt.Errorf("malformed module path %q: invalid version %s", path, path[strings.LastIndex(path, "/")+1:])
++		return fmt.Errorf("malformed module path %q: invalid version", path)
+ 	}
+ 	return nil
+ }
+@@ -300,6 +300,9 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
+ 		return path, "", false
+ 	}
+ 	i := len(path)
++	if strings.HasSuffix(path, "-unstable") {
++		i -= len("-unstable")
++	}
+ 	for i > 0 && ('0' <= path[i-1] && path[i-1] <= '9') {
+ 		i--
+ 	}
+@@ -317,6 +320,9 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
+ // MatchPathMajor reports whether the semantic version v
+ // matches the path major version pathMajor.
+ func MatchPathMajor(v, pathMajor string) bool {
++	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
++		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
++	}
+ 	if strings.HasPrefix(v, "v0.0.0-") && pathMajor == ".v1" {
+ 		// Allow old bug in pseudo-versions that generated v0.0.0- pseudoversion for gopkg .v1.
+ 		// For example, gopkg.in/yaml.v2@v2.2.1's go.mod requires gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405.
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index ca60281262..212e5aa08f 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -81,13 +81,13 @@ func readModList() {
+ 		encPath := strings.Replace(name[:i], "_", "/", -1)
+ 		path, err := module.DecodePath(encPath)
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
++			fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+ 			continue
+ 		}
+ 		encVers := name[i+1:]
+ 		vers, err := module.DecodeVersion(encVers)
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
++			fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+ 			continue
+ 		}
+ 		modList = append(modList, module.Version{Path: path, Version: vers})
+@@ -140,7 +140,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 	encVers, ext := file[:i], file[i+1:]
+ 	vers, err := module.DecodeVersion(encVers)
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
++		fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+ 		http.NotFound(w, r)
+ 		return
+ 	}
+diff --git a/src/cmd/go/testdata/mod/gopkg.in_dummy.v2-unstable_v2.0.0.txt b/src/cmd/go/testdata/mod/gopkg.in_dummy.v2-unstable_v2.0.0.txt
+new file mode 100644
+index 0000000000..f174159fd3
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/gopkg.in_dummy.v2-unstable_v2.0.0.txt
+@@ -0,0 +1,9 @@
++gopkg.in/dummy.v2-unstable v2.0.0
++written by hand
++
++-- .mod --
++module gopkg.in/dummy.v2-unstable
++-- .info --
++{"Version":"v2.0.0"}
++-- dummy.go --
++package dummy
+diff --git a/src/cmd/go/testdata/script/mod_gopkg_unstable.txt b/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
+new file mode 100644
+index 0000000000..d945cf35b4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
+@@ -0,0 +1,22 @@
++env GO111MODULE=on
++
++cp go.mod.empty go.mod
++go get -d gopkg.in/dummy.v2-unstable
++
++cp x.go.txt x.go
++cp go.mod.empty go.mod
++go list
++
++[!net] skip
++
++env GOPROXY=
++go get gopkg.in/macaroon-bakery.v2-unstable/bakery
++go list -m all
++stdout 'gopkg.in/macaroon-bakery.v2-unstable v2.0.0-[0-9]+-[0-9a-f]+$'
++
++-- go.mod.empty --
++module m
++
++-- x.go.txt --
++package x
++import _ "gopkg.in/dummy.v2-unstable"

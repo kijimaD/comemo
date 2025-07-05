@@ -12,6 +12,23 @@ Date:   Thu Sep 1 17:24:32 2011 +1000
     R=golang-dev, r, adg
     CC=golang-dev, mike.rosset
     https://golang.org/cl/4950057
-
+---
  src/sudo.bash | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/sudo.bash b/src/sudo.bash
+index 147e58f152..3322a1856d 100755
+--- a/src/sudo.bash
++++ b/src/sudo.bash
+@@ -13,6 +13,11 @@ Darwin)
+ 	exit 0
+ esac
+ 
++if [[ ! -d /usr/local/bin ]]; then
++	echo 1>&2 'sudo.bash: problem with /usr/local/bin; cannot install tools.'
++	exit 2
++fi
++
+ for i in prof cov
+ do
+ 	sudo cp "$GOROOT"/src/cmd/$i/6$i /usr/local/bin/6$i

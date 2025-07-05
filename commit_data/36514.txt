@@ -14,6 +14,27 @@ Date:   Wed May 2 20:13:14 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 6138878e20..6c5a913bc6 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -403,6 +403,15 @@ func run(appdir, deviceapp string, args []string) error {
+ 		deviceapp,
+ 	)
+ 	lldb.Args = append(lldb.Args, args...)
++	var env []string
++	for _, e := range os.Environ() {
++		// Don't override TMPDIR on the device.
++		if strings.HasPrefix(e, "TMPDIR=") {
++			continue
++		}
++		env = append(env, e)
++	}
++	lldb.Env = env
+ 	lldb.Stdin = strings.NewReader(lldbDriver)
+ 	lldb.Stdout = os.Stdout
+ 	lldb.Stderr = os.Stderr

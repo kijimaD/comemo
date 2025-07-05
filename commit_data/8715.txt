@@ -7,7 +7,34 @@ Date:   Tue Jun 14 11:05:59 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4568077
-
+---
  src/cmd/ld/data.c | 2 +-
  src/cmd/ld/ldpe.c | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 3f3faade0b..cd485072e7 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -249,7 +249,7 @@ dynrelocsym(Sym *s)
+ 			return;
+ 		for(r=s->r; r<s->r+s->nr; r++) {
+ 			targ = r->sym;
+-			if(r->sym->plt == -2) { // make dynimport JMP table for PE object files.
++			if(r->sym->plt == -2 && r->sym->got != -2) { // make dynimport JMP table for PE object files.
+ 				targ->plt = rel->size;
+ 				r->sym = rel;
+ 				r->add = targ->plt;
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index d6aa267c4e..77a8b82e4c 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -403,6 +403,8 @@ readsym(PeObj *obj, int i, PeSym **y)
+ 
+ 	if(s != nil && s->type == 0 && !(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0))
+ 		s->type = SXREF;
++	if(strncmp(sym->name, "__imp__", 6) == 0)
++		s->got = -2; // flag for __imp__
+ 	sym->sym = s;
+ 
+ 	return 0;

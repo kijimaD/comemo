@@ -19,10 +19,155 @@ Date:   Sat Apr 25 18:53:53 2020 +0200
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/lock_futex.go    |  4 ++--
  src/runtime/lock_js.go       | 11 +++++-----
  src/runtime/lock_sema.go     |  4 ++--
  src/runtime/proc.go          | 14 ++++++++++---
  test/fixedbugs/issue38093.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 70 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 29b7be0d8f..91467fdfae 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -238,8 +238,8 @@ func notetsleepg(n *note, ns int64) bool {
+ 	return ok
+ }
+ 
+-func beforeIdle(int64) bool {
+-	return false
++func beforeIdle(int64) (*g, bool) {
++	return nil, false
+ }
+ 
+ func checkTimeouts() {}
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index 429ce63923..14bdc76842 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -173,7 +173,9 @@ var idleID int32
+ // beforeIdle gets called by the scheduler if no goroutine is awake.
+ // If we are not already handling an event, then we pause for an async event.
+ // If an event handler returned, we resume it and it will pause the execution.
+-func beforeIdle(delay int64) bool {
++// beforeIdle either returns the specific goroutine to schedule next or
++// indicates with otherReady that some goroutine became ready.
++func beforeIdle(delay int64) (gp *g, otherReady bool) {
+ 	if delay > 0 {
+ 		clearIdleID()
+ 		if delay < 1e6 {
+@@ -190,15 +192,14 @@ func beforeIdle(delay int64) bool {
+ 
+ 	if len(events) == 0 {
+ 		go handleAsyncEvent()
+-		return true
++		return nil, true
+ 	}
+ 
+ 	e := events[len(events)-1]
+ 	if e.returned {
+-		goready(e.gp, 1)
+-		return true
++		return e.gp, false
+ 	}
+-	return false
++	return nil, false
+ }
+ 
+ func handleAsyncEvent() {
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index bf2584ac92..671e524e45 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -297,8 +297,8 @@ func notetsleepg(n *note, ns int64) bool {
+ 	return ok
+ }
+ 
+-func beforeIdle(int64) bool {
+-	return false
++func beforeIdle(int64) (*g, bool) {
++	return nil, false
+ }
+ 
+ func checkTimeouts() {}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e5823dd804..766784c07e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2286,9 +2286,17 @@ stop:
+ 
+ 	// wasm only:
+ 	// If a callback returned and no other goroutine is awake,
+-	// then pause execution until a callback was triggered.
+-	if beforeIdle(delta) {
+-		// At least one goroutine got woken.
++	// then wake event handler goroutine which pauses execution
++	// until a callback was triggered.
++	gp, otherReady := beforeIdle(delta)
++	if gp != nil {
++		casgstatus(gp, _Gwaiting, _Grunnable)
++		if trace.enabled {
++			traceGoUnpark(gp, 0)
++		}
++		return gp, false
++	}
++	if otherReady {
+ 		goto top
+ 	}
+ 
+diff --git a/test/fixedbugs/issue38093.go b/test/fixedbugs/issue38093.go
+new file mode 100644
+index 0000000000..db92664a49
+--- /dev/null
++++ b/test/fixedbugs/issue38093.go
+@@ -0,0 +1,49 @@
++// +build js
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test race condition between timers and wasm calls that led to memory corruption.
++
++package main
++
++import (
++	"os"
++	"syscall/js"
++	"time"
++)
++
++func main() {
++	ch1 := make(chan struct{})
++
++	go func() {
++		for {
++			time.Sleep(5 * time.Millisecond)
++			ch1 <- struct{}{}
++		}
++	}()
++	go func() {
++		for {
++			time.Sleep(8 * time.Millisecond)
++			ch1 <- struct{}{}
++		}
++	}()
++	go func() {
++		time.Sleep(2 * time.Second)
++		os.Exit(0)
++	}()
++
++	for range ch1 {
++		ch2 := make(chan struct{}, 1)
++		f := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
++			ch2 <- struct{}{}
++			return nil
++		})
++		defer f.Release()
++		fn := js.Global().Get("Function").New("cb", "cb();")
++		fn.Invoke(f)
++		<-ch2
++	}
++}

@@ -14,8 +14,56 @@ Date:   Fri Jun 24 17:13:30 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue52862.dir/a.go |  9 +++++++++
  test/fixedbugs/issue52862.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue52862.go       |  9 +++++++++
  3 files changed, 29 insertions(+)
+
+diff --git a/test/fixedbugs/issue52862.dir/a.go b/test/fixedbugs/issue52862.dir/a.go
+new file mode 100644
+index 0000000000..ef4ce2025c
+--- /dev/null
++++ b/test/fixedbugs/issue52862.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F() complex128 {
++	return 0+0i
++}
+diff --git a/test/fixedbugs/issue52862.dir/b.go b/test/fixedbugs/issue52862.dir/b.go
+new file mode 100644
+index 0000000000..739af663f7
+--- /dev/null
++++ b/test/fixedbugs/issue52862.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func F() complex128 {
++	return a.F()
++}
+diff --git a/test/fixedbugs/issue52862.go b/test/fixedbugs/issue52862.go
+new file mode 100644
+index 0000000000..322d5f6c49
+--- /dev/null
++++ b/test/fixedbugs/issue52862.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gofrontend crash importing a complex zero value.
++
++package ignored

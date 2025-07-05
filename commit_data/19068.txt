@@ -9,7 +9,32 @@ Date:   Tue Apr 8 22:35:15 2014 -0400
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/85820043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6979876c7c..6ec8e117e9 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -72,6 +72,7 @@ Brian Gitonga Marete <marete@toshnix.com>
+ Brian Ketelsen <bketelsen@gmail.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Caleb Spare <cespare@gmail.com>
++Carl Chatfield <carlchatfield@gmail.com>
+ Carlos Castillo <cookieo9@gmail.com>
+ Case Nelson <case.nelson@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 472a254e00..686b517c9e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -116,6 +116,7 @@ Brian Ketelsen <bketelsen@gmail.com>
+ Brian Slesinsky <skybrian@google.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Caleb Spare <cespare@gmail.com>
++Carl Chatfield <carlchatfield@gmail.com>
+ Carl Mastrangelo <notcarl@google.com>
+ Carl Shapiro <cshapiro@google.com> <cshapiro@golang.org>
+ Carlos Castillo <cookieo9@gmail.com>

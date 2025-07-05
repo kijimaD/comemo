@@ -9,6 +9,20 @@ Date:   Tue Jun 23 10:45:36 2020 +0000
     GitHub-Pull-Request: golang/go#39780
     Reviewed-on: https://go-review.googlesource.com/c/go/+/239388
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index e40dde77e8..23a3080c9b 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -515,7 +515,7 @@ when used well, can result in clean error-handling code.
+ See the <a href="/doc/articles/defer_panic_recover.html">Defer, Panic, and Recover</a> article for details.
+ Also, the <a href="https://blog.golang.org/errors-are-values">Errors are values</a> blog post
+ describes one approach to handling errors cleanly in Go by demonstrating that,
+-since errors are just values, the full power of Go can deployed in error handling.
++since errors are just values, the full power of Go can be deployed in error handling.
+ </p>
+ 
+ <h3 id="assertions">

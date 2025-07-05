@@ -7,6 +7,20 @@ Date:   Wed Jul 13 20:04:12 2011 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4695060
-
+---
  src/pkg/mime/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+index 8c43b81b0c..8ecfe9a37b 100644
+--- a/src/pkg/mime/type.go
++++ b/src/pkg/mime/type.go
+@@ -19,7 +19,7 @@ var typeFiles = []string{
+ }
+ 
+ var mimeTypes = map[string]string{
+-	".css":  "text/css",
++	".css":  "text/css; charset=utf-8",
+ 	".gif":  "image/gif",
+ 	".htm":  "text/html; charset=utf-8",
+ 	".html": "text/html; charset=utf-8",

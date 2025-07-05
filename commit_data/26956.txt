@@ -23,6 +23,21 @@ Date:   Tue Mar 1 21:30:26 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 6147454c1e..e9d420f0f0 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1561,7 +1561,8 @@ func gcMark(start_time int64) {
+ 	gcDrain(gcw, gcDrainBlock)
+ 	gcw.dispose()
+ 
+-	gcMarkRootCheck()
++	// TODO: Re-enable once this is cheap.
++	//gcMarkRootCheck()
+ 	if work.full != 0 {
+ 		throw("work.full != 0")
+ 	}

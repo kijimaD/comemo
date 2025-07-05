@@ -15,7 +15,85 @@ Date:   Tue Mar 16 12:03:08 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/302249
     Trust: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go |  6 ++++--
  test/abi/open_defer_1.go               | 36 ++++++++++++++++++++++++++++++++++
  2 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6a3c0d28cb..45e39478fa 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -353,10 +353,12 @@ func (s *state) emitOpenDeferInfo() {
+ 			numArgs++
+ 		}
+ 		off = dvarint(x, off, int64(numArgs))
++		argAdjust := 0 // presence of receiver offsets the parameter count.
+ 		if r.rcvrNode != nil {
+ 			off = dvarint(x, off, -okOffset(r.rcvrNode.FrameOffset()))
+ 			off = dvarint(x, off, s.config.PtrSize)
+ 			off = dvarint(x, off, 0) // This is okay because defer records use ABI0 (for now)
++			argAdjust++
+ 		}
+ 
+ 		// TODO(register args) assume abi0 for this?
+@@ -366,7 +368,7 @@ func (s *state) emitOpenDeferInfo() {
+ 			f := getParam(r.n, j)
+ 			off = dvarint(x, off, -okOffset(arg.FrameOffset()))
+ 			off = dvarint(x, off, f.Type.Size())
+-			off = dvarint(x, off, okOffset(pri.InParam(j).FrameOffset(pri))-ab.LocalsOffset()) // defer does not want the fixed frame adjustment
++			off = dvarint(x, off, okOffset(pri.InParam(j+argAdjust).FrameOffset(pri))-ab.LocalsOffset()) // defer does not want the fixed frame adjustment
+ 		}
+ 	}
+ }
+@@ -4925,7 +4927,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		callABI = s.f.ABI0
+ 	}
+ 
+-	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */ )
++	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */)
+ 	types.CalcSize(fn.Type())
+ 	stksize := params.ArgWidth() // includes receiver, args, and results
+ 
+diff --git a/test/abi/open_defer_1.go b/test/abi/open_defer_1.go
+new file mode 100644
+index 0000000000..0a0ace3905
+--- /dev/null
++++ b/test/abi/open_defer_1.go
+@@ -0,0 +1,36 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// For #45062, miscompilation of open defer of method invocation
++
++package main
++
++func main() {
++	var x, y, z int = -1, -2, -3
++	F(x, y, z)
++}
++
++//go:noinline
++func F(x, y, z int) {
++	defer i.M(x, y, z)
++	defer func() { recover() }()
++	panic("XXX")
++}
++
++type T int
++
++func (t *T) M(x, y, z int) {
++	if x == -1 && y == -2 && z == -3 {
++		return
++	}
++	println("FAIL: Expected -1, -2, -3, but x, y, z =", x, y, z)
++}
++
++var t T = 42
++
++type I interface{ M(x, y, z int) }
++
++var i I = &t

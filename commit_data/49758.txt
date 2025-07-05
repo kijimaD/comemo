@@ -14,6 +14,17 @@ Date:   Thu Sep 9 10:10:54 2021 +0200
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/typeparam/issue48094b.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/typeparam/issue48094b.go b/test/typeparam/issue48094b.go
+index b83fbd7af1..87b4ff46c1 100644
+--- a/test/typeparam/issue48094b.go
++++ b/test/typeparam/issue48094b.go
+@@ -1,4 +1,4 @@
+-// compiledir
++// compiledir -G=3
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

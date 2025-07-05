@@ -14,6 +14,35 @@ Date:   Sat Aug 27 21:38:45 2022 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/reflect/value.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 9c8b82c41e..061545bd4f 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3264,10 +3264,6 @@ func (v Value) Comparable() bool {
+ 		return true
+ 
+ 	case Array:
+-		if v.Type().Len() == 0 {
+-			return v.Type().Comparable()
+-		}
+-
+ 		switch v.Type().Elem().Kind() {
+ 		case Interface, Array, Struct:
+ 			for i := 0; i < v.Type().Len(); i++ {
+@@ -3275,11 +3271,8 @@ func (v Value) Comparable() bool {
+ 					return false
+ 				}
+ 			}
+-		default:
+-			return v.Index(0).Comparable()
+ 		}
+-
+-		return true
++		return v.Type().Comparable()
+ 
+ 	case Func:
+ 		return false

@@ -12,7 +12,7 @@ Date:   Thu Jan 21 13:27:01 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18833
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go      | 15 ++++++++++++-
  src/cmd/compile/internal/ssa/TODO       |  1 -
  src/cmd/compile/internal/ssa/check.go   | 11 ++++++----
@@ -20,3 +20,166 @@ Date:   Thu Jan 21 13:27:01 2016 -0800
  src/cmd/compile/internal/ssa/trim.go    | 37 +++++++++++++++++++++++++++++++++
  test/nilptr3_ssa.go                     |  2 +-
  6 files changed, 63 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b57958a24d..9dd5859735 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4183,23 +4183,36 @@ func (s *genState) genValue(v *ssa.Value) {
+ 	case ssa.OpAMD64LoweredNilCheck:
+ 		// Optimization - if the subsequent block has a load or store
+ 		// at the same address, we don't need to issue this instruction.
++		mem := v.Args[1]
+ 		for _, w := range v.Block.Succs[0].Values {
++			if w.Op == ssa.OpPhi {
++				if w.Type.IsMemory() {
++					mem = w
++				}
++				continue
++			}
+ 			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+ 				// w doesn't use a store - can't be a memory op.
+ 				continue
+ 			}
+-			if w.Args[len(w.Args)-1] != v.Args[1] {
++			if w.Args[len(w.Args)-1] != mem {
+ 				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+ 			}
+ 			switch w.Op {
+ 			case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload,
+ 				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore:
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
++					if Debug_checknil != 0 && int(v.Line) > 1 {
++						Warnl(int(v.Line), "removed nil check")
++					}
+ 					return
+ 				}
+ 			case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+ 				off := ssa.StoreConst(v.AuxInt).Off()
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
++					if Debug_checknil != 0 && int(v.Line) > 1 {
++						Warnl(int(v.Line), "removed nil check")
++					}
+ 					return
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 403f98cf40..2f7973c5a3 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -42,7 +42,6 @@ Optimizations (better compiled code)
+   (all instructions, really)
+ - combine LEAQs
+ - store followed by load to same address
+-- short circuit blocks which are just a jump (undo critical edge processing when no instructions are put in it by regalloc)
+ - (CMPconst [0] (AND x y)) -> (TEST x y)
+ - more (LOAD (ADDQ )) -> LOADIDX
+ - CMPL/SETEQ/TESTB/JEQ -> CMPL/JEQ
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index ca3bbfe494..b74371008c 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -18,10 +18,12 @@ func checkFunc(f *Func) {
+ 			f.Fatalf("%s.Func=%s, want %s", b, b.Func.Name, f.Name)
+ 		}
+ 
+-		for i, c := range b.Succs {
+-			for j, d := range b.Succs {
+-				if i != j && c == d {
+-					f.Fatalf("%s.Succs has duplicate block %s", b, c)
++		if f.RegAlloc == nil {
++			for i, c := range b.Succs {
++				for j, d := range b.Succs {
++					if i != j && c == d {
++						f.Fatalf("%s.Succs has duplicate block %s", b, c)
++					}
+ 				}
+ 			}
+ 		}
+@@ -34,6 +36,7 @@ func checkFunc(f *Func) {
+ 		// all successors are distinct.  They will need to be distinct
+ 		// anyway for register allocation (duplicate successors implies
+ 		// the existence of critical edges).
++		// After regalloc we can allow non-distinct predecessors.
+ 
+ 		for _, p := range b.Preds {
+ 			var found bool
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 64c1412f9d..7a515f898c 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -105,7 +105,8 @@ var passes = [...]pass{
+ 	{"layout", layout},       // schedule blocks
+ 	{"schedule", schedule},   // schedule values
+ 	{"flagalloc", flagalloc}, // allocate flags register
+-	{"regalloc", regalloc},
++	{"regalloc", regalloc},   // allocate int & float registers
++	{"trim", trim},           // remove empty blocks
+ }
+ 
+ // Double-check phase ordering constraints.
+@@ -148,6 +149,8 @@ var passOrder = [...]constraint{
+ 	{"schedule", "flagalloc"},
+ 	// regalloc needs flags to be allocated first.
+ 	{"flagalloc", "regalloc"},
++	// trim needs regalloc to be done first.
++	{"regalloc", "trim"},
+ }
+ 
+ func init() {
+diff --git a/src/cmd/compile/internal/ssa/trim.go b/src/cmd/compile/internal/ssa/trim.go
+new file mode 100644
+index 0000000000..594d2aa372
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/trim.go
+@@ -0,0 +1,37 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// trim removes blocks with no code in them.
++// These blocks were inserted to remove critical edges.
++func trim(f *Func) {
++	i := 0
++	for _, b := range f.Blocks {
++		if b.Kind != BlockPlain || len(b.Values) != 0 || len(b.Preds) != 1 {
++			f.Blocks[i] = b
++			i++
++			continue
++		}
++		// TODO: handle len(b.Preds)>1 case.
++
++		// Splice b out of the graph.
++		pred := b.Preds[0]
++		succ := b.Succs[0]
++		for j, s := range pred.Succs {
++			if s == b {
++				pred.Succs[j] = succ
++			}
++		}
++		for j, p := range succ.Preds {
++			if p == b {
++				succ.Preds[j] = pred
++			}
++		}
++	}
++	for j := i; j < len(f.Blocks); j++ {
++		f.Blocks[j] = nil
++	}
++	f.Blocks = f.Blocks[:i]
++}
+diff --git a/test/nilptr3_ssa.go b/test/nilptr3_ssa.go
+index 9824ce1cc0..d324076114 100644
+--- a/test/nilptr3_ssa.go
++++ b/test/nilptr3_ssa.go
+@@ -156,7 +156,7 @@ func f4(x *[10]int) {
+ 	// and the offset is small enough that if x is nil, the address will still be
+ 	// in the first unmapped page of memory.
+ 
+-	_ = x[9] // ERROR "generated nil check" // bug would like to remove before indirect
++	_ = x[9] // ERROR "removed nil check"
+ 
+ 	for {
+ 		if x[9] != 0 { // ERROR "removed nil check"

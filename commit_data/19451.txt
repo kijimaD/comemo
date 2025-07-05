@@ -15,7 +15,34 @@ Date:   Tue May 27 23:58:36 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/98630046
-
+---
  src/cmd/gc/closure.c | 2 ++
  src/cmd/gc/dcl.c     | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 07cf13bc2f..ad4e5bd02b 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -374,6 +374,8 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
+ 	cv = nod(OCLOSUREVAR, N, N);
+ 	cv->xoffset = widthptr;
+ 	cv->type = rcvrtype;
++	if(cv->type->align > widthptr)
++		cv->xoffset = cv->type->align;
+ 	ptr = nod(ONAME, N, N);
+ 	ptr->sym = lookup("rcvr");
+ 	ptr->class = PAUTO;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index dcdaabec09..73c2581beb 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1438,6 +1438,8 @@ funccompile(Node *n, int isclosure)
+ 	
+ 	// record offset to actual frame pointer.
+ 	// for closure, have to skip over leading pointers and PC slot.
++	// TODO(rsc): this is the old jit closure handling code.
++	// with the new closures, isclosure is always 0; delete this block.
+ 	nodfp->xoffset = 0;
+ 	if(isclosure) {
+ 		NodeList *l;

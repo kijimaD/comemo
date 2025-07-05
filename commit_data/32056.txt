@@ -9,6 +9,20 @@ Date:   Thu Mar 30 19:12:36 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/race/race_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 8cdf52d102..a0b8531b42 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -68,7 +68,7 @@ func TestRace(t *testing.T) {
+ 	}
+ 
+ 	if totalTests == 0 {
+-		t.Fatalf("failed to parse test output")
++		t.Fatalf("failed to parse test output:\n%s", testOutput)
+ 	}
+ 	fmt.Printf("\nPassed %d of %d tests (%.02f%%, %d+, %d-)\n",
+ 		passedTests, totalTests, 100*float64(passedTests)/float64(totalTests), falsePos, falseNeg)

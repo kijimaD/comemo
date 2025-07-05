@@ -51,7 +51,55 @@ Date:   Wed Aug 22 10:58:24 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/format.go      | 6 ++++--
  src/time/format_test.go | 7 ++++++-
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index f9cdbab3b8..2adbbe0770 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1172,13 +1172,15 @@ func parseSignedOffset(value string) int {
+ 		return 0
+ 	}
+ 	x, rem, err := leadingInt(value[1:])
+-	if err != nil {
++
++	// fail if nothing consumed by leadingInt
++	if err != nil || value[1:] == rem {
+ 		return 0
+ 	}
+ 	if sign == '-' {
+ 		x = -x
+ 	}
+-	if x == 0 || x < -23 || 23 < x {
++	if x < -23 || 23 < x {
+ 		return 0
+ 	}
+ 	return len(value) - len(rem)
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index c3552f4161..db9d4f495a 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -416,7 +416,11 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
+ 	{"gmt hi there", 0, false},
+ 	{"GMT hi there", 3, true},
+ 	{"GMT+12 hi there", 6, true},
+-	{"GMT+00 hi there", 3, true}, // 0 or 00 is not a legal offset.
++	{"GMT+00 hi there", 6, true},
++	{"GMT+", 3, true},
++	{"GMT+3", 5, true},
++	{"GMT+a", 3, true},
++	{"GMT+3a", 5, true},
+ 	{"GMT-5 hi there", 5, true},
+ 	{"GMT-51 hi there", 3, true},
+ 	{"ChST hi there", 4, true},
+@@ -431,6 +435,7 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
+ 	{"+03 hi", 3, true},
+ 	{"-04 hi", 3, true},
+ 	// Issue #26032
++	{"+00", 3, true},
+ 	{"-11", 3, true},
+ 	{"-12", 3, true},
+ 	{"-23", 3, true},

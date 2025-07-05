@@ -14,7 +14,57 @@ Date:   Mon Sep 26 20:52:09 2022 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/ehooks_test.go                          | 15 ++++++++-------
  src/runtime/testdata/testexithooks/testexithooks.go |  2 --
  2 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/ehooks_test.go b/src/runtime/ehooks_test.go
+index 021495fdf8..afb17eac08 100644
+--- a/src/runtime/ehooks_test.go
++++ b/src/runtime/ehooks_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"internal/testenv"
+ 	"os/exec"
+ 	"runtime"
+ 	"strings"
+@@ -12,16 +13,16 @@ import (
+ )
+ 
+ func TestExitHooks(t *testing.T) {
+-	bmodes := []string{"", "-race"}
+-	if !testing.Short() {
++	bmodes := []string{""}
++	// Race detector is not supported everywhere -- limit to just
++	// linux/amd64 to keep things simple. Note the HasCGO() test
++	// below; this is to prevent the test running if CGO_ENABLED=0
++	// is in effect.
++	if !testing.Short() && runtime.GOARCH == "amd64" &&
++		runtime.GOOS == "linux" && testenv.HasCGO() {
+ 		bmodes = append(bmodes, "-race")
+ 	}
+ 	for _, bmode := range bmodes {
+-		// Race detector is not supported everywhere -- limit to just
+-		// amd64 to keep things simple.
+-		if bmode == "-race" && runtime.GOARCH != "amd64" {
+-			t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+-		}
+ 		scenarios := []struct {
+ 			mode     string
+ 			expected string
+diff --git a/src/runtime/testdata/testexithooks/testexithooks.go b/src/runtime/testdata/testexithooks/testexithooks.go
+index 57561faf8e..ceb3326c4f 100644
+--- a/src/runtime/testdata/testexithooks/testexithooks.go
++++ b/src/runtime/testdata/testexithooks/testexithooks.go
+@@ -10,8 +10,6 @@ import (
+ 	_ "unsafe"
+ )
+ 
+-import "C"
+-
+ var modeflag = flag.String("mode", "", "mode to run in")
+ 
+ func main() {

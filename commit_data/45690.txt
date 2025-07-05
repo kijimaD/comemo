@@ -29,8 +29,509 @@ Date:   Sat Feb 18 03:03:32 2017 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/runtime/crash_test.go                 | 126 ++++++++++++++++++++++
  src/runtime/testdata/testprog/deadlock.go |  13 +++
  src/runtime/traceback.go                  | 173 ++++++++++++++++++++++--------
  3 files changed, 265 insertions(+), 47 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 5e22b7593e..66822e5cde 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -240,6 +240,132 @@ func TestStackOverflow(t *testing.T) {
+ 	}
+ }
+ 
++func TestStackOverflowTopAndBottomTraces(t *testing.T) {
++	output := runTestProg(t, "testprog", "StackOverflowTopAndBottomTraces")
++
++	// 1. First things first, we expect to traverse from
++	//    runtime: goroutine stack exceeds 10000-byte limit
++	// and down to the very end until we see:
++	//    runtime.goexit()
++	mustHaves := []string{
++		// Top half expectations
++		"\\s*runtime: goroutine stack exceeds 10000-byte limit\n",
++		"\\s*fatal error: stack overflow\n",
++		"\\s*runtime stack:\n",
++		"\\s*runtime.throw[^\n]+\n\t.+:\\d+ [^\n]+",
++		"\\s+runtime\\.newstack[^\n]+\n\t.+:\\d+ [^\n]+",
++		"\\s+runtime.morestack[^\n]+\n\t.+:\\d+ [^\n]+",
++		"\\s+goroutine 1 \\[running\\]:",
++
++		// Bottom half expectations
++		"\\s*main.main\\(\\)\n",
++		"\\s*runtime.main\\(\\)\n",
++		"\\s*runtime.goexit\\(\\)\n",
++	}
++
++	for _, pat := range mustHaves {
++		reg := regexp.MustCompile(pat)
++		match := reg.FindAllString(output, -1)
++		if len(match) == 0 {
++			t.Errorf("Failed to find pattern %q", pat)
++		}
++	}
++
++	// 2. Split top and bottom halves by the "... ({n} stack frames omitted)" message
++	regHalving := regexp.MustCompile("\\.{3} \\(\\d+ stack frames omitted\\)")
++	halverMatches := regHalving.FindAllString(output, -1)
++	if len(halverMatches) != 1 {
++		t.Fatal("Failed to find the `stack frames omitted` pattern")
++	}
++	str := string(output)
++	halver := halverMatches[0]
++	midIndex := strings.Index(str, halver)
++	topHalf, bottomHalf := str[:midIndex], str[midIndex+len(halver):]
++	// 2.1. Sanity check, len(topHalf) >= halver || len(bottomHalf) >= halver
++	if len(topHalf) < len(halver) || len(bottomHalf) < len(halver) {
++		t.Fatalf("Sanity check len(topHalf) = %d len(bottomHalf) = %d; both must be >= len(halver) %d",
++			len(topHalf), len(bottomHalf), len(halver))
++	}
++
++	// 3. In each of the halves, we should have an equal number
++	// of stacktraces before and after the "omitted frames" message.
++	regStackTraces := regexp.MustCompile("\n[^\n]+\n\t.+:\\d+ .+ fp=0x.+ sp=0x.+ pc=0x.+")
++	topHalfStackTraces := regStackTraces.FindAllString(topHalf, -1)
++	bottomHalfStackTraces := regStackTraces.FindAllString(bottomHalf, -1)
++	nTopHalf, nBottomHalf := len(topHalfStackTraces), len(bottomHalfStackTraces)
++	if nTopHalf == 0 || nBottomHalf == 0 {
++		t.Fatal("Both lengths of stack-halves should be non-zero")
++	}
++	// The bottom half will always have the 50 non-runtime frames along with these 3 frames:
++	// * main.main()
++	// * "runtime.main"
++	// * "runtime.goexit"
++	// hence we need to decrement 3 counted lines.
++	if nTopHalf != nBottomHalf-3 {
++		t.Errorf("len(topHalfStackTraces)=%d len(bottomHalfStackTraces)-3=%d yet must be equal\n", nTopHalf, nBottomHalf-3)
++	}
++
++	// 4. Next, prune out the:
++	// func...
++	//    line...
++	// pairs in both of the halves.
++	prunes := []struct {
++		src     *string
++		matches []string
++	}{
++		{src: &topHalf, matches: topHalfStackTraces},
++		{src: &bottomHalf, matches: bottomHalfStackTraces},
++	}
++
++	for _, prune := range prunes {
++		str := *prune.src
++		for _, match := range prune.matches {
++			index := strings.Index(str, match)
++			str = str[:index] + str[index+len(match):]
++		}
++		*prune.src = str
++	}
++
++	// 5. Now match and prune out the remaining patterns in the top and bottom halves.
++	// We aren't touching the bottom stack since its patterns are already matched
++	// by the:
++	//    func...
++	//	 line...
++	// pairs
++	topPartPrunables := []string{
++		"^\\s*runtime: goroutine stack exceeds 10000-byte limit\n",
++		"\\s*fatal error: stack overflow\n",
++		"\\s*runtime stack:\n",
++		"\\s*runtime.throw[^\n]+\n\t.+:\\d+ [^\n]+",
++		"\\s+runtime\\.newstack[^\n]+\n\t.+:\\d+ [^\n]+",
++		"\\s+runtime.morestack[^\n]+\n\t.+:\\d+ [^\n]+",
++		"\\s+goroutine 1 \\[running\\]:",
++	}
++
++	for _, pat := range topPartPrunables {
++		reg := regexp.MustCompile(pat)
++		matches := reg.FindAllString(topHalf, -1)
++		if len(matches) == 0 {
++			t.Errorf("top stack traces do not contain pattern: %q", reg)
++		} else if len(matches) != 1 {
++			t.Errorf("inconsistent state got %d matches want only 1", len(matches))
++		} else {
++			match := matches[0]
++			idx := strings.Index(topHalf, match)
++			topHalf = topHalf[:idx] + topHalf[idx+len(match):]
++		}
++	}
++
++	// 6. At the end we should only be left with
++	// newlines in both the top and bottom halves.
++	topHalf = strings.TrimSpace(topHalf)
++	bottomHalf = strings.TrimSpace(bottomHalf)
++	if topHalf != "" && bottomHalf != "" {
++		t.Fatalf("len(topHalf)=%d len(bottomHalf)=%d\ntopHalf=\n%s\n\nbottomHalf=\n%s",
++			len(topHalf), len(bottomHalf), topHalf, bottomHalf)
++	}
++}
++
+ func TestThreadExhaustion(t *testing.T) {
+ 	output := runTestProg(t, "testprog", "ThreadExhaustion")
+ 	want := "runtime: program exceeds 10-thread limit\nfatal error: thread exhaustion"
+diff --git a/src/runtime/testdata/testprog/deadlock.go b/src/runtime/testdata/testprog/deadlock.go
+index 105d6a5faa..0ee1557b13 100644
+--- a/src/runtime/testdata/testprog/deadlock.go
++++ b/src/runtime/testdata/testprog/deadlock.go
+@@ -20,6 +20,7 @@ func init() {
+ 	register("LockedDeadlock2", LockedDeadlock2)
+ 	register("GoexitDeadlock", GoexitDeadlock)
+ 	register("StackOverflow", StackOverflow)
++	register("StackOverflowTopAndBottomTraces", StackOverflowTopAndBottomTraces)
+ 	register("ThreadExhaustion", ThreadExhaustion)
+ 	register("RecursivePanic", RecursivePanic)
+ 	register("RecursivePanic2", RecursivePanic2)
+@@ -85,6 +86,18 @@ func StackOverflow() {
+ 	f()
+ }
+ 
++func StackOverflowTopAndBottomTraces() {
++	var fi, gi func()
++	fi = func() {
++		gi()
++	}
++	gi = func() {
++		fi()
++	}
++	debug.SetMaxStack(10000)
++	fi()
++}
++
+ func ThreadExhaustion() {
+ 	debug.SetMaxThreads(10)
+ 	c := make(chan int)
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index f3df152535..389ae87185 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -73,17 +73,34 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
+ 
+ const sizeofSkipFunction = 256
+ 
+-// Generic traceback. Handles runtime stack prints (pcbuf == nil),
++// Generic traceback. Handles runtime stack prints (pcbuf == nil && callback == nil),
+ // the runtime.Callers function (pcbuf != nil), as well as the garbage
+ // collector (callback != nil).  A little clunky to merge these, but avoids
+ // duplicating the code and all its subtlety.
+ //
+-// The skip argument is only valid with pcbuf != nil and counts the number
+-// of logical frames to skip rather than physical frames (with inlining, a
+-// PC in pcbuf can represent multiple calls). If a PC is partially skipped
+-// and max > 1, pcbuf[1] will be runtime.skipPleaseUseCallersFrames+N where
+-// N indicates the number of logical frames to skip in pcbuf[0].
++// The skip argument counts the number of logical frames to skip rather
++// than physical frames (with inlining, a PC in pcbuf can represent multiple calls).
+ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
++	var op operation = traversing
++	if pcbuf == nil && callback == nil {
++		op = printing
++	}
++	n, _ := ggentraceback(pc0, sp0, lr0, gp, skip, pcbuf, max, op, callback, v, flags)
++	return n
++}
++
++type operation int8
++
++const (
++	traversing operation = 1 << iota
++	countingframes
++	printing
++)
++
++// n always returns the number of total frames <= max.
++// nregularframes is the count of non-runtime frames.
++// nregularframes is only valid if op == countingframes.
++func ggentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, op operation, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) (ntotalframes, nregularframes int) {
+ 	if skip > 0 && callback != nil {
+ 		throw("gentraceback callback cannot be used with non-zero skip")
+ 	}
+@@ -135,7 +152,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	}
+ 	waspanic := false
+ 	cgoCtxt := gp.cgoCtxt
+-	printing := pcbuf == nil && callback == nil
+ 
+ 	// If the PC is zero, it's likely a nil function call.
+ 	// Start in the caller's frame.
+@@ -149,6 +165,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		}
+ 	}
+ 
++	printing := op == printing
+ 	f := findfunc(frame.pc)
+ 	if !f.valid() {
+ 		if callback != nil || printing {
+@@ -158,15 +175,14 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		if callback != nil {
+ 			throw("unknown pc")
+ 		}
+-		return 0
++		return 0, 0
+ 	}
+ 	frame.fn = f
+ 
+ 	var cache pcvalueCache
+ 
+ 	lastFuncID := funcID_normal
+-	n := 0
+-	for n < max {
++	for ntotalframes < max {
+ 		// Typically:
+ 		//	pc is the PC of the running function.
+ 		//	sp is the stack pointer at that program counter.
+@@ -229,7 +245,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		} else {
+ 			var lrPtr uintptr
+ 			if usesLR {
+-				if n == 0 && frame.sp < frame.fp || frame.lr == 0 {
++				if ntotalframes == 0 && frame.sp < frame.fp || frame.lr == 0 {
+ 					lrPtr = frame.sp
+ 					frame.lr = *(*uintptr)(unsafe.Pointer(lrPtr))
+ 				}
+@@ -320,11 +336,15 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 
+ 		if callback != nil {
+ 			if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
+-				return n
++				return
+ 			}
+ 		}
+ 
+-		if pcbuf != nil {
++		if pcbuf == nil && skip > 0 {
++			// In this case we are printing and we still need to count
++			// the number of frames. See https://golang.org/issues/24628.
++			skip--
++		} else if pcbuf != nil {
+ 			pc := frame.pc
+ 			// backup to CALL instruction to read inlining info (same logic as below)
+ 			tracepc := pc
+@@ -339,7 +359,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			// See issue 34123.
+ 			// The pc can be at function entry when the frame is initialized without
+ 			// actually running code, like runtime.mstart.
+-			if (n == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry {
++			if (ntotalframes == 0 && flags&_TraceTrap != 0) || waspanic || pc == f.entry {
+ 				pc++
+ 			} else {
+ 				tracepc--
+@@ -357,9 +377,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 						// ignore wrappers
+ 					} else if skip > 0 {
+ 						skip--
+-					} else if n < max {
+-						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+-						n++
++					} else if ntotalframes < max {
++						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[ntotalframes] = pc
++						ntotalframes++
+ 					}
+ 					lastFuncID = inltree[ix].funcID
+ 					// Back up to an instruction in the "caller".
+@@ -372,17 +392,15 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				// Ignore wrapper functions (except when they trigger panics).
+ 			} else if skip > 0 {
+ 				skip--
+-			} else if n < max {
+-				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+-				n++
++			} else if ntotalframes < max {
++				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[ntotalframes] = pc
++				ntotalframes++
+ 			}
+ 			lastFuncID = f.funcID
+-			n-- // offset n++ below
++			ntotalframes-- // offset ntotalframes++ below
+ 		}
+ 
+-		if printing {
+-			// assume skip=0 for printing.
+-			//
++		if printing && skip <= 0 {
+ 			// Never elide wrappers if we haven't printed
+ 			// any frames. And don't elide wrappers that
+ 			// called panic rather than the wrapped
+@@ -390,7 +408,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 
+ 			// backup to CALL instruction to read inlining info (same logic as below)
+ 			tracepc := frame.pc
+-			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
++			if (ntotalframes > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+ 				tracepc--
+ 			}
+ 			// If there is inlining info, print the inner frames.
+@@ -448,7 +466,14 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			}
+ 			lastFuncID = f.funcID
+ 		}
+-		n++
++
++		if op == countingframes {
++			name := fullfuncname(f, frame.pc)
++			if len(name) < len("runtime.") || name[:len("runtime.")] != "runtime." {
++				nregularframes++
++			}
++		}
++		ntotalframes++
+ 
+ 		if f.funcID == funcID_cgocallback && len(cgoCtxt) > 0 {
+ 			ctxt := cgoCtxt[len(cgoCtxt)-1]
+@@ -458,7 +483,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			// callback != nil only used when we only care
+ 			// about Go frames.
+ 			if skip == 0 && callback == nil {
+-				n = tracebackCgoContext(pcbuf, printing, ctxt, n, max)
++				ntotalframes = tracebackCgoContext(pcbuf, printing, ctxt, ntotalframes, max)
+ 			}
+ 		}
+ 
+@@ -498,7 +523,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	}
+ 
+ 	if printing {
+-		n = nprint
++		ntotalframes = nprint
+ 	}
+ 
+ 	// Note that panic != nil is okay here: there can be leftover panics,
+@@ -541,13 +566,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	// At other times, such as when gathering a stack for a profiling signal
+ 	// or when printing a traceback during a crash, everything may not be
+ 	// stopped nicely, and the stack walk may not be able to complete.
+-	if callback != nil && n < max && frame.sp != gp.stktopsp {
++	if callback != nil && ntotalframes < max && frame.sp != gp.stktopsp {
+ 		print("runtime: g", gp.goid, ": frame.sp=", hex(frame.sp), " top=", hex(gp.stktopsp), "\n")
+-		print("\tstack=[", hex(gp.stack.lo), "-", hex(gp.stack.hi), "] n=", n, " max=", max, "\n")
++		print("\tstack=[", hex(gp.stack.lo), "-", hex(gp.stack.hi), "] n=", ntotalframes, " max=", max, "\n")
+ 		throw("traceback did not unwind completely")
+ 	}
+ 
+-	return n
++	return
+ }
+ 
+ // reflectMethodValue is a partial duplicate of reflect.makeFuncImpl
+@@ -712,24 +737,15 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
+ 		printCgoTraceback(&cgoCallers)
+ 	}
+ 
+-	var n int
+ 	if readgstatus(gp)&^_Gscan == _Gsyscall {
+ 		// Override registers if blocked in system call.
+ 		pc = gp.syscallpc
+ 		sp = gp.syscallsp
+ 		flags &^= _TraceTrap
+ 	}
+-	// Print traceback. By default, omits runtime frames.
+-	// If that means we print nothing at all, repeat forcing all frames printed.
+-	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags)
+-	if n == 0 && (flags&_TraceRuntimeFrames) == 0 {
+-		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, flags|_TraceRuntimeFrames)
+-	}
+-	if n == _TracebackMaxFrames {
+-		print("...additional frames elided...\n")
+-	}
+-	printcreatedby(gp)
+ 
++	printtraceback(pc, sp, lr, gp, flags)
++	printcreatedby(gp)
+ 	if gp.ancestors == nil {
+ 		return
+ 	}
+@@ -738,6 +754,62 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
+ 	}
+ }
+ 
++// countframes traverses the current stacktrace from the top of pc0 to its bottom, excluding runtime frames.
++// If flags&_TraceRuntimeframes != 0, it'll include the number of runtime frames in the count.
++func countframes(pc0, sp0, lr0 uintptr, gp *g, flags uint) (nframes int) {
++	ntotalframes, nregularframes := ggentraceback(pc0, sp0, lr0, gp, 0, nil, 1<<31-1, countingframes, nil, nil, flags)
++	nframes = nregularframes
++	if flags&_TraceRuntimeFrames != 0 {
++		nframes = ntotalframes
++	}
++	return nframes
++}
++
++func printtraceback(pc, sp, lr uintptr, gp *g, flags uint) {
++	// We'd like to print:
++	//  * top nMaxFramesPerPrint frames
++	//  * bottom nMaxFramesPerPrint frames.
++	// See https://golang.org/issue/7181.
++
++	nMaxFramesPerPrint := _TracebackMaxFrames / 2
++	nTop := gentraceback(pc, sp, lr, gp, 0, nil, nMaxFramesPerPrint, nil, nil, flags)
++	if nTop < nMaxFramesPerPrint {
++		// The common case, in which the traceback has less than nMaxFramesPerPrint.
++		// By default, omits runtime frames.
++		// If nTop == 0, it means we printed nothing at all, so repeat,
++		// and this time force all frames to be printed.
++		if nTop == 0 && (flags&_TraceRuntimeFrames) == 0 {
++			// Try again to print the frames, but this time with _TraceRuntimeFrames.
++			printtraceback(pc, sp, lr, gp, flags|_TraceRuntimeFrames)
++		}
++		return
++	}
++
++	// Figure out the stack size in order to print the bottom max(nMaxFramesPerPrint) frames.
++	//
++	// TODO(odeke-em, iant, khr): perhaps investigate and revise the solution in
++	//  https://go-review.googlesource.com/c/go/+/37222/9/src/runtime/traceback.go
++	// so that we'll always only need 1 stack walk, instead of 2 as in this worst case.
++	nframes := countframes(pc, sp, lr, gp, flags)
++
++	if nframes <= _TracebackMaxFrames {
++		// In this case, we'll just print out from where we left off until the end.
++		gentraceback(pc, sp, lr, gp, nMaxFramesPerPrint /* skip */, nil, 1<<31-1, nil, nil, flags)
++		return
++	}
++
++	// Otherwise, now skip until the bottom last nMaxFramesPerPrint.
++
++	// Calculate the number of stack frames to elide since we
++	// are printing top and bottom each of nMaxFramesPerPrint.
++	if elide := nframes - _TracebackMaxFrames; elide > 0 {
++		print("\n... (")
++		println(elide, "stack frames omitted)\n")
++	}
++	skip := nframes - nMaxFramesPerPrint
++	_ = gentraceback(pc, sp, lr, gp, skip, nil, 1<<31-1 /* max int32 as the biggest frame number */, nil, nil, flags)
++}
++
+ // printAncestorTraceback prints the traceback of the given ancestor.
+ // TODO: Unify this with gentraceback and CallersFrames.
+ func printAncestorTraceback(ancestor ancestorInfo) {
+@@ -758,11 +830,9 @@ func printAncestorTraceback(ancestor ancestorInfo) {
+ 	}
+ }
+ 
+-// printAncestorTraceback prints the given function info at a given pc
+-// within an ancestor traceback. The precision of this info is reduced
+-// due to only have access to the pcs at the time of the caller
+-// goroutine being created.
+-func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
++// fullfuncname retrieves the name for a funcInfo, but if perhaps it was inlined, it'll retrieve
++// unwind and retrieve the original name.
++func fullfuncname(f funcInfo, pc uintptr) string {
+ 	name := funcname(f)
+ 	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
+ 		inltree := (*[1 << 20]inlinedCall)(inldata)
+@@ -771,6 +841,15 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
+ 			name = funcnameFromNameoff(f, inltree[ix].func_)
+ 		}
+ 	}
++	return name
++}
++
++// printAncestorTraceback prints the given function info at a given pc
++// within an ancestor traceback. The precision of this info is reduced
++// due to only have access to the pcs at the time of the caller
++// goroutine being created.
++func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
++	name := fullfuncname(f, pc)
+ 	file, line := funcline(f, pc)
+ 	if name == "runtime.gopanic" {
+ 		name = "panic"

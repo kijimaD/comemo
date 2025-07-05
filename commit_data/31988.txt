@@ -52,7 +52,116 @@ Date:   Wed Mar 29 13:51:00 2017 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/deps.go              |  4 ++--
  src/cmd/go/internal/envcmd/env.go | 46 +++++++++++++++++++++++++++++++++++----
  2 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 8ac5d839c2..a731fb766d 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -6,12 +6,12 @@ var builddeps = map[string][]string{
+ 	"bufio":                             {"bytes", "errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"bytes":                             {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"cmd/go/internal/base":              {"bufio", "bytes", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/bug":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/envcmd", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/bug":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/envcmd", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/web", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/buildid":           {"bufio", "bytes", "cmd/go/internal/cfg", "compress/flate", "compress/zlib", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/cfg":               {"bufio", "bytes", "errors", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/clean":             {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/doc":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/envcmd":            {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/envcmd":            {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/fix":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/fmtcmd":            {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/generate":          {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 2f19d65992..f1bc10b32d 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -6,6 +6,7 @@
+ package envcmd
+ 
+ import (
++	"encoding/json"
+ 	"fmt"
+ 	"os"
+ 	"runtime"
+@@ -18,8 +19,7 @@ import (
+ )
+ 
+ var CmdEnv = &base.Command{
+-	Run:       runEnv,
+-	UsageLine: "env [var ...]",
++	UsageLine: "env [-json] [var ...]",
+ 	Short:     "print Go environment information",
+ 	Long: `
+ Env prints Go environment information.
+@@ -28,9 +28,18 @@ By default env prints information as a shell script
+ (on Windows, a batch file).  If one or more variable
+ names is given as arguments,  env prints the value of
+ each named variable on its own line.
++
++The -json flag prints the environment in JSON format
++instead of as a shell script.
+ 	`,
+ }
+ 
++func init() {
++	CmdEnv.Run = runEnv // break init cycle
++}
++
++var envJson = CmdEnv.Flag.Bool("json", false, "")
++
+ func MkEnv() []cfg.EnvVar {
+ 	var b work.Builder
+ 	b.Init()
+@@ -107,12 +116,26 @@ func runEnv(cmd *base.Command, args []string) {
+ 	env := cfg.CmdEnv
+ 	env = append(env, ExtraEnvVars()...)
+ 	if len(args) > 0 {
+-		for _, name := range args {
+-			fmt.Printf("%s\n", findEnv(env, name))
++		if *envJson {
++			var es []cfg.EnvVar
++			for _, name := range args {
++				e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
++				es = append(es, e)
++			}
++			printEnvAsJSON(es)
++		} else {
++			for _, name := range args {
++				fmt.Printf("%s\n", findEnv(env, name))
++			}
+ 		}
+ 		return
+ 	}
+ 
++	if *envJson {
++		printEnvAsJSON(env)
++		return
++	}
++
+ 	for _, e := range env {
+ 		if e.Name != "TERM" {
+ 			switch runtime.GOOS {
+@@ -138,3 +161,18 @@ func runEnv(cmd *base.Command, args []string) {
+ 		}
+ 	}
+ }
++
++func printEnvAsJSON(env []cfg.EnvVar) {
++	m := make(map[string]string)
++	for _, e := range env {
++		if e.Name == "TERM" {
++			continue
++		}
++		m[e.Name] = e.Value
++	}
++	enc := json.NewEncoder(os.Stdout)
++	enc.SetIndent("", "\t")
++	if err := enc.Encode(m); err != nil {
++		base.Fatalf("%s", err)
++	}
++}

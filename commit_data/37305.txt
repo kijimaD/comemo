@@ -12,8 +12,106 @@ Date:   Fri Jul 6 15:22:56 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go            | 20 ++++++++++++++++++++
  src/cmd/go/internal/load/pkg.go  | 38 +++++++++++++++++++++++++++++++++++++-
  src/cmd/go/internal/test/test.go |  2 +-
  3 files changed, 58 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 4bf179207e..6df70a238d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6210,3 +6210,23 @@ func TestGoBuildDashODevNull(t *testing.T) {
+ 	tg.mustNotExist("hello")
+ 	tg.mustNotExist("hello.exe")
+ }
++
++// Issue 25093.
++func TestCoverpkgTestOnly(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("src/a/a.go", `package a
++		func F(i int) int {
++			return i*i
++		}`)
++	tg.tempFile("src/atest/a_test.go", `
++		package a_test
++		import ( "a"; "testing" )
++		func TestF(t *testing.T) { a.F(2) }
++	`)
++	tg.setenv("GOPATH", tg.path("."))
++	tg.run("test", "-coverpkg=a", "atest")
++	tg.grepStderrNot("no packages being tested depend on matches", "bad match message")
++	tg.grepStdout("coverage: 100", "no coverage")
++}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 198fef3b57..50cd01f8c4 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1596,7 +1596,7 @@ func (p *Package) UsesCgo() bool {
+ 	return len(p.CgoFiles) > 0
+ }
+ 
+-// packageList returns the list of packages in the dag rooted at roots
++// PackageList returns the list of packages in the dag rooted at roots
+ // as visited in a depth-first post-order traversal.
+ func PackageList(roots []*Package) []*Package {
+ 	seen := map[*Package]bool{}
+@@ -1618,6 +1618,42 @@ func PackageList(roots []*Package) []*Package {
+ 	return all
+ }
+ 
++// TestPackageList returns the list of packages in the dag rooted at roots
++// as visited in a depth-first post-order traversal, including the test
++// imports of the roots. This ignores errors in test packages.
++func TestPackageList(roots []*Package) []*Package {
++	seen := map[*Package]bool{}
++	all := []*Package{}
++	var walk func(*Package)
++	walk = func(p *Package) {
++		if seen[p] {
++			return
++		}
++		seen[p] = true
++		for _, p1 := range p.Internal.Imports {
++			walk(p1)
++		}
++		all = append(all, p)
++	}
++	walkTest := func(root *Package, path string) {
++		var stk ImportStack
++		p1 := LoadImport(path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
++		if p1.Error == nil {
++			walk(p1)
++		}
++	}
++	for _, root := range roots {
++		walk(root)
++		for _, path := range root.TestImports {
++			walkTest(root, path)
++		}
++		for _, path := range root.XTestImports {
++			walkTest(root, path)
++		}
++	}
++	return all
++}
++
+ var cmdCache = map[string]*Package{}
+ 
+ func ClearCmdCache() {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 7c5c779619..80c99b7576 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -650,7 +650,7 @@ func runTest(cmd *base.Command, args []string) {
+ 		}
+ 
+ 		// Select for coverage all dependencies matching the testCoverPaths patterns.
+-		for _, p := range load.PackageList(pkgs) {
++		for _, p := range load.TestPackageList(pkgs) {
+ 			haveMatch := false
+ 			for i := range testCoverPaths {
+ 				if match[i](p) {

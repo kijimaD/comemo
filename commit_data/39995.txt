@@ -19,8 +19,67 @@ Date:   Sun Apr 7 15:02:31 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/gc.go     | 9 ++++++++-
  src/cmd/internal/sys/supported.go  | 8 ++++++++
  src/cmd/link/internal/ld/config.go | 4 ++--
  3 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index cdd0989a93..1721ecbc4e 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -21,6 +21,7 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/objabi"
++	"cmd/internal/sys"
+ 	"crypto/sha1"
+ )
+ 
+@@ -525,7 +526,13 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 	// Store BuildID inside toolchain binaries as a unique identifier of the
+ 	// tool being run, for use by content-based staleness determination.
+ 	if root.Package.Goroot && strings.HasPrefix(root.Package.ImportPath, "cmd/") {
+-		ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
++		// When buildmode=pie, external linking will include our build
++		// id in the external linker's build id, which will cause our
++		// build id to not match the next time the tool is built.
++		// Rely on the external build id instead.
++		if ldBuildmode != "pie" || !sys.PIEDefaultsToExternalLink(cfg.Goos, cfg.Goarch) {
++			ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
++		}
+ 	}
+ 
+ 	// If the user has not specified the -extld option, then specify the
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index a53da6ed2c..c963971f59 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -27,3 +27,11 @@ func MSanSupported(goos, goarch string) bool {
+ 		return false
+ 	}
+ }
++
++// PIEDefaultsToExternalLink reports whether goos/goarch defaults
++// to external linking for buildmode=pie.
++func PIEDefaultsToExternalLink(goos, goarch string) bool {
++	// Currently all systems external link PIE binaries.
++	// See https://golang.org/issue/18968.
++	return true
++}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 85842f2fa2..b404f1897d 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -256,8 +256,8 @@ func determineLinkMode(ctxt *Link) {
+ 				ctxt.LinkMode = LinkExternal
+ 			} else if iscgo && externalobj {
+ 				ctxt.LinkMode = LinkExternal
+-			} else if ctxt.BuildMode == BuildModePIE {
+-				ctxt.LinkMode = LinkExternal // https://golang.org/issue/18968
++			} else if ctxt.BuildMode == BuildModePIE && sys.PIEDefaultsToExternalLink(objabi.GOOS, objabi.GOARCH) {
++				ctxt.LinkMode = LinkExternal
+ 			} else {
+ 				ctxt.LinkMode = LinkInternal
+ 			}

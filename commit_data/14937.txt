@@ -9,7 +9,34 @@ Date:   Sat Jan 19 20:23:25 2013 +1100
     R=golang-dev, bradfitz, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/7096049
-
+---
  src/cmd/6l/obj.c | 2 --
  src/cmd/8l/obj.c | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 3d90cb38f2..433044e22c 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -485,8 +485,6 @@ loop:
+ 	p->line = Bget4(f);
+ 	p->back = 2;
+ 	p->mode = mode;
+-	p->ft = 0;
+-	p->tt = 0;
+ 	zaddr(pn, f, &p->from, h);
+ 	fromgotype = adrgotype;
+ 	zaddr(pn, f, &p->to, h);
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index a7c7464f2e..3336764af7 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -504,8 +504,6 @@ loop:
+ 	p->as = o;
+ 	p->line = Bget4(f);
+ 	p->back = 2;
+-	p->ft = 0;
+-	p->tt = 0;
+ 	zaddr(pn, f, &p->from, h);
+ 	fromgotype = adrgotype;
+ 	zaddr(pn, f, &p->to, h);

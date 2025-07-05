@@ -14,7 +14,58 @@ Date:   Sat Feb 15 19:23:07 2020 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/race/testdata/slice_test.go | 16 ++++++++++++++++
  src/runtime/slice.go                    |  4 ++--
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/testdata/slice_test.go b/src/runtime/race/testdata/slice_test.go
+index 1ec52438ec..9009a9a4ea 100644
+--- a/src/runtime/race/testdata/slice_test.go
++++ b/src/runtime/race/testdata/slice_test.go
+@@ -5,6 +5,7 @@
+ package race_test
+ 
+ import (
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -590,3 +591,18 @@ func TestRaceSlice3(t *testing.T) {
+ 	_ = x[:1:i]
+ 	<-done
+ }
++
++var saved string
++
++func TestRaceSlice4(t *testing.T) {
++	// See issue 36794.
++	data := []byte("hello there")
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		_ = string(data)
++		wg.Done()
++	}()
++	copy(data, data[2:])
++	wg.Wait()
++}
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 16937a2a01..9ad814a555 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -211,12 +211,12 @@ func slicecopy(to, fm slice, width uintptr) int {
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+ 		pc := funcPC(slicecopy)
+-		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
+ 		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
++		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
+ 	}
+ 	if msanenabled {
+-		msanwrite(to.array, uintptr(n*int(width)))
+ 		msanread(fm.array, uintptr(n*int(width)))
++		msanwrite(to.array, uintptr(n*int(width)))
+ 	}
+ 
+ 	size := uintptr(n) * width

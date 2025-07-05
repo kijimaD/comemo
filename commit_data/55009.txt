@@ -17,6 +17,21 @@ Date:   Tue Nov 29 13:19:27 2022 -0800
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
-
+---
  doc/go1.20.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 077ecda76d..177b27eaeb 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -638,7 +638,8 @@ proxyHandler := &httputil.ReverseProxy{
+       The new <a href="/pkg/crypto/x509/#SetFallbackRoots"><code>SetFallbackRoots</code></a>
+       function allows a program to define a set of fallback root certificates in case the
+       operating system verifier or standard platform root bundle is unavailable at runtime.
+-      It will most commonly be used with the new TODO LINK TO x/crypto PACKAGE ONCE IT EXISTS.
++      It will most commonly be used with a new package, <a href="/pkg/golang.org/x/crypto/x509roots/fallback">golang.org/x/crypto/x509roots/fallback</a>,
++      which will provide an up to date root bundle.
+     </p>
+   </dd>
+ </dl><!-- crypto/x509 -->

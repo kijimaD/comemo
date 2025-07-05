@@ -112,10 +112,361 @@ Date:   Wed Feb 7 12:24:41 2018 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |   2 +
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  10 ++
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  18 ++-
  src/cmd/compile/internal/ssa/opGen.go        |  32 ++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 222 +++++++++++++++++++++++++++
  5 files changed, 276 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index ffb37ba705..80dbfe113b 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -171,6 +171,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64FSUBD,
+ 		ssa.OpARM64FMULS,
+ 		ssa.OpARM64FMULD,
++		ssa.OpARM64FNMULS,
++		ssa.OpARM64FNMULD,
+ 		ssa.OpARM64FDIVS,
+ 		ssa.OpARM64FDIVD:
+ 		r := v.Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index ba994479c7..888f5f8556 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1373,3 +1373,13 @@
+ 	&& clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3)
+ 	&& clobber(o4) && clobber(o5) && clobber(s0)
+ 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (REV <t> (MOVDload <t> {s} (OffPtr <p.Type> [i0] p) mem))
++
++// FP simplification
++(FNEGS (FMULS x y)) -> (FNMULS x y)
++(FNEGD (FMULD x y)) -> (FNMULD x y)
++(FMULS (FNEGS x) y) -> (FNMULS x y)
++(FMULD (FNEGD x) y) -> (FNMULD x y)
++(FNEGS (FNMULS x y)) -> (FMULS x y)
++(FNEGD (FNMULD x y)) -> (FMULD x y)
++(FNMULS (FNEGS x) y) -> (FMULS x y)
++(FNMULD (FNEGD x) y) -> (FMULD x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 5764d6bb37..583599186c 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -178,14 +178,16 @@ func init() {
+ 		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                      // arg0 % arg1, signed, 32 bit
+ 		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW"},                    // arg0 % arg1, unsigned, 32 bit
+ 
+-		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true}, // arg0 + arg1
+-		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true}, // arg0 + arg1
+-		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0 - arg1
+-		{name: "FSUBD", argLength: 2, reg: fp21, asm: "FSUBD"},                    // arg0 - arg1
+-		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true}, // arg0 * arg1
+-		{name: "FMULD", argLength: 2, reg: fp21, asm: "FMULD", commutative: true}, // arg0 * arg1
+-		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"},                    // arg0 / arg1
+-		{name: "FDIVD", argLength: 2, reg: fp21, asm: "FDIVD"},                    // arg0 / arg1
++		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},   // arg0 + arg1
++		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true},   // arg0 + arg1
++		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                      // arg0 - arg1
++		{name: "FSUBD", argLength: 2, reg: fp21, asm: "FSUBD"},                      // arg0 - arg1
++		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true},   // arg0 * arg1
++		{name: "FMULD", argLength: 2, reg: fp21, asm: "FMULD", commutative: true},   // arg0 * arg1
++		{name: "FNMULS", argLength: 2, reg: fp21, asm: "FNMULS", commutative: true}, // -(arg0 * arg1)
++		{name: "FNMULD", argLength: 2, reg: fp21, asm: "FNMULD", commutative: true}, // -(arg0 * arg1)
++		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"},                      // arg0 / arg1
++		{name: "FDIVD", argLength: 2, reg: fp21, asm: "FDIVD"},                      // arg0 / arg1
+ 
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
+ 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64"}, // arg0 & auxInt
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 5075c1cc23..0c2b8f61c6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -975,6 +975,8 @@ const (
+ 	OpARM64FSUBD
+ 	OpARM64FMULS
+ 	OpARM64FMULD
++	OpARM64FNMULS
++	OpARM64FNMULD
+ 	OpARM64FDIVS
+ 	OpARM64FDIVD
+ 	OpARM64AND
+@@ -12359,6 +12361,36 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "FNMULS",
++		argLen:      2,
++		commutative: true,
++		asm:         arm64.AFNMULS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:        "FNMULD",
++		argLen:      2,
++		commutative: true,
++		asm:         arm64.AFNMULD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "FDIVS",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 67b6d2fd20..05974dab4c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -77,6 +77,18 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64FMOVSload_0(v)
+ 	case OpARM64FMOVSstore:
+ 		return rewriteValueARM64_OpARM64FMOVSstore_0(v)
++	case OpARM64FMULD:
++		return rewriteValueARM64_OpARM64FMULD_0(v)
++	case OpARM64FMULS:
++		return rewriteValueARM64_OpARM64FMULS_0(v)
++	case OpARM64FNEGD:
++		return rewriteValueARM64_OpARM64FNEGD_0(v)
++	case OpARM64FNEGS:
++		return rewriteValueARM64_OpARM64FNEGS_0(v)
++	case OpARM64FNMULD:
++		return rewriteValueARM64_OpARM64FNMULD_0(v)
++	case OpARM64FNMULS:
++		return rewriteValueARM64_OpARM64FNMULS_0(v)
+ 	case OpARM64GreaterEqual:
+ 		return rewriteValueARM64_OpARM64GreaterEqual_0(v)
+ 	case OpARM64GreaterEqualU:
+@@ -3028,6 +3040,216 @@ func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64FMULD_0(v *Value) bool {
++	// match: (FMULD (FNEGD x) y)
++	// cond:
++	// result: (FNMULD x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FNEGD {
++			break
++		}
++		x := v_0.Args[0]
++		y := v.Args[1]
++		v.reset(OpARM64FNMULD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (FMULD y (FNEGD x))
++	// cond:
++	// result: (FNMULD x y)
++	for {
++		_ = v.Args[1]
++		y := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FNEGD {
++			break
++		}
++		x := v_1.Args[0]
++		v.reset(OpARM64FNMULD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64FMULS_0(v *Value) bool {
++	// match: (FMULS (FNEGS x) y)
++	// cond:
++	// result: (FNMULS x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FNEGS {
++			break
++		}
++		x := v_0.Args[0]
++		y := v.Args[1]
++		v.reset(OpARM64FNMULS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (FMULS y (FNEGS x))
++	// cond:
++	// result: (FNMULS x y)
++	for {
++		_ = v.Args[1]
++		y := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FNEGS {
++			break
++		}
++		x := v_1.Args[0]
++		v.reset(OpARM64FNMULS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64FNEGD_0(v *Value) bool {
++	// match: (FNEGD (FMULD x y))
++	// cond:
++	// result: (FNMULD x y)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FMULD {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpARM64FNMULD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (FNEGD (FNMULD x y))
++	// cond:
++	// result: (FMULD x y)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FNMULD {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpARM64FMULD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64FNEGS_0(v *Value) bool {
++	// match: (FNEGS (FMULS x y))
++	// cond:
++	// result: (FNMULS x y)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FMULS {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpARM64FNMULS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (FNEGS (FNMULS x y))
++	// cond:
++	// result: (FMULS x y)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FNMULS {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpARM64FMULS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64FNMULD_0(v *Value) bool {
++	// match: (FNMULD (FNEGD x) y)
++	// cond:
++	// result: (FMULD x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FNEGD {
++			break
++		}
++		x := v_0.Args[0]
++		y := v.Args[1]
++		v.reset(OpARM64FMULD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (FNMULD y (FNEGD x))
++	// cond:
++	// result: (FMULD x y)
++	for {
++		_ = v.Args[1]
++		y := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FNEGD {
++			break
++		}
++		x := v_1.Args[0]
++		v.reset(OpARM64FMULD)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64FNMULS_0(v *Value) bool {
++	// match: (FNMULS (FNEGS x) y)
++	// cond:
++	// result: (FMULS x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64FNEGS {
++			break
++		}
++		x := v_0.Args[0]
++		y := v.Args[1]
++		v.reset(OpARM64FMULS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (FNMULS y (FNEGS x))
++	// cond:
++	// result: (FMULS x y)
++	for {
++		_ = v.Args[1]
++		y := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARM64FNEGS {
++			break
++		}
++		x := v_1.Args[0]
++		v.reset(OpARM64FMULS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64GreaterEqual_0(v *Value) bool {
+ 	// match: (GreaterEqual (FlagEQ))
+ 	// cond:

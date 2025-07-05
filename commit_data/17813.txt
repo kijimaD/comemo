@@ -9,6 +9,20 @@ Date:   Thu Oct 17 11:57:48 2013 -0700
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/14793043
-
+---
  src/pkg/runtime/proc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d5fc2dcac5..eb3263fc91 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2382,7 +2382,7 @@ sysmon(void)
+ 		// poll network if not polled for more than 10ms
+ 		lastpoll = runtime·atomicload64(&runtime·sched.lastpoll);
+ 		now = runtime·nanotime();
+-		if(lastpoll != 0 && lastpoll + 10*1000*1000 > now) {
++		if(lastpoll != 0 && lastpoll + 10*1000*1000 < now) {
+ 			runtime·cas64(&runtime·sched.lastpoll, lastpoll, now);
+ 			gp = runtime·netpoll(false);  // non-blocking
+ 			if(gp) {

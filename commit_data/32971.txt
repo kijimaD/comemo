@@ -12,6 +12,34 @@ Date:   Sat Jun 17 01:21:48 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/46005
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go_faq.html | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 3006b3d3d4..f8322efcd3 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1140,7 +1140,7 @@ program is one tool to help automate this process.
+ </p>
+ 
+ <p>
+-The Go 1.5 release includes an experimental facility to the
++The Go 1.5 release added a facility to the
+ <a href="https://golang.org/cmd/go">go</a> command
+ that makes it easier to manage external dependencies by "vendoring"
+ them into a special directory near the package that depends upon them.
+@@ -1148,6 +1148,13 @@ See the <a href="https://golang.org/s/go15vendor">design
+ document</a> for details.
+ </p>
+ 
++<p>
++Work is underway on an experimental package management tool,
++<a href="https://github.com/golang/dep"><code>dep</code></a>, to learn
++more about how tooling can help package management. More information can be found in
++<a href="https://github.com/golang/dep/blob/master/FAQ.md">the <code>dep</code> FAQ</a>.
++</p>
++
+ <h2 id="Pointers">Pointers and Allocation</h2>
+ 
+ <h3 id="pass_by_value">

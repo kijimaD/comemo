@@ -8,7 +8,132 @@ Date:   Sat Aug 14 07:37:03 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1961042
-
+---
  src/pkg/fmt/fmt_test.go | 25 ++++++++++++++++++++-----
  src/pkg/fmt/print.go    | 29 +++++++++++++----------------
  2 files changed, 33 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 6bb3e388eb..57fef2197c 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -95,6 +95,15 @@ type S struct {
+ 	g G // a struct field that GoStrings
+ }
+ 
++// A type with a String method with pointer receiver for testing %p
++type P int
++
++var pValue P
++
++func (p *P) String() string {
++	return "String(p)"
++}
++
+ var b byte
+ 
+ var fmttests = []fmtTest{
+@@ -294,11 +303,6 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%x", I(23), `3c32333e`},
+ 	fmtTest{"%d", I(23), `%d(string=<23>)`},
+ 
+-	// %p on non-pointers
+-	fmtTest{"%p", make(chan int), "PTR"},
+-	fmtTest{"%p", make(map[int]int), "PTR"},
+-	fmtTest{"%p", make([]int, 1), "PTR"},
+-
+ 	// go syntax
+ 	fmtTest{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
+ 	fmtTest{"%#v", &b, "(*uint8)(PTR)"},
+@@ -354,6 +358,17 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%T", intVal, "int"},
+ 	fmtTest{"%6T", &intVal, "  *int"},
+ 
++	// %p
++	fmtTest{"p0=%p", new(int), "p0=PTR"},
++	fmtTest{"p1=%s", &pValue, "p1=String(p)"}, // String method...
++	fmtTest{"p2=%p", &pValue, "p2=PTR"},       // ... not called with %p
++
++	// %p on non-pointers
++	fmtTest{"%p", make(chan int), "PTR"},
++	fmtTest{"%p", make(map[int]int), "PTR"},
++	fmtTest{"%p", make([]int, 1), "PTR"},
++	fmtTest{"%p", 27, "%p(int=27)"}, // not a pointer at all
++
+ 	// erroneous things
+ 	fmtTest{"%d", "hello", "%d(string=hello)"},
+ 	fmtTest{"no args", "hello", "no args?(extra string=hello)"},
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 302c02f59f..bf13a7c9c1 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -462,13 +462,14 @@ func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interf
+ 	}
+ }
+ 
+-func (p *pp) fmtUintptrGetter(field interface{}, value reflect.Value, verb int, sharp bool) bool {
++func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSyntax bool) {
+ 	v, ok := value.(uintptrGetter)
+-	if !ok {
+-		return false
++	if !ok { // reflect.PtrValue is a uintptrGetter, so failure means it's not a pointer at all.
++		p.badVerb(verb, field)
++		return
+ 	}
+ 	u := v.Get()
+-	if sharp {
++	if goSyntax {
+ 		p.add('(')
+ 		p.buf.WriteString(reflect.Typeof(field).String())
+ 		p.add(')')
+@@ -482,7 +483,6 @@ func (p *pp) fmtUintptrGetter(field interface{}, value reflect.Value, verb int,
+ 	} else {
+ 		p.fmt0x64(uint64(u))
+ 	}
+-	return true
+ }
+ 
+ var (
+@@ -503,10 +503,14 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth
+ 	}
+ 
+ 	// Special processing considerations.
+-	// %T (the value's type) is special; we always do it first.
+-	if verb == 'T' {
++	// %T (the value's type) and %p (its address) are special; we always do them first.
++	switch verb {
++	case 'T':
+ 		p.printField(reflect.Typeof(field).String(), 's', false, false, 0)
+ 		return false
++	case 'p':
++		p.fmtPointer(field, reflect.NewValue(field), verb, goSyntax)
++		return false
+ 	}
+ 	// Is it a Formatter?
+ 	if formatter, ok := field.(Formatter); ok {
+@@ -606,12 +610,8 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth
+ 		return verb == 's'
+ 	}
+ 
+-	value := reflect.NewValue(field)
+ 	// Need to use reflection
+-	// Special case for reflection values that know how to print with %p.
+-	if verb == 'p' && p.fmtUintptrGetter(field, value, verb, goSyntax) { // TODO: is this goSyntax right?
+-		return false
+-	}
++	value := reflect.NewValue(field)
+ 
+ BigSwitch:
+ 	switch f := value.(type) {
+@@ -753,10 +753,7 @@ BigSwitch:
+ 		}
+ 		p.fmt0x64(uint64(v))
+ 	case uintptrGetter:
+-		if p.fmtUintptrGetter(field, value, verb, goSyntax) {
+-			break
+-		}
+-		p.unknownType(f)
++		p.fmtPointer(field, value, verb, goSyntax)
+ 	default:
+ 		p.unknownType(f)
+ 	}

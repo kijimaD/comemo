@@ -25,7 +25,7 @@ Date:   Fri Apr 2 13:24:35 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/staticdata/data.go |  9 ++--
  src/cmd/compile/internal/walk/expr.go       | 37 ++++++++++++++
  src/cmd/compile/internal/walk/order.go      | 23 +++++++++
@@ -38,3 +38,365 @@ Date:   Fri Apr 2 13:24:35 2021 -0400
  src/runtime/asm_amd64.s                     |  7 +--
  src/runtime/proc.go                         |  5 +-
  11 files changed, 239 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index b5206c2442..abb0bba646 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -287,10 +287,11 @@ func NeedFuncSym(fn *ir.Func) {
+ 		return
+ 	}
+ 	s := fn.Nname.Sym()
+-	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") {
+-		// runtime.getg(), getclosureptr(), getcallerpc(), and
+-		// getcallersp() are not real functions and so do not
+-		// get funcsyms.
++	if base.Flag.CompilingRuntime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc" || s.Name == "getcallersp") ||
++		(base.Ctxt.Pkgpath == "internal/abi" && (s.Name == "FuncPCABI0" || s.Name == "FuncPCABIInternal")) {
++		// runtime.getg(), getclosureptr(), getcallerpc(), getcallersp(),
++		// and internal/abi.FuncPCABIxxx() are not real functions and so
++		// do not get funcsyms.
+ 		return
+ 	}
+ 	funcsyms = append(funcsyms, fn.Nname)
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index a50473db52..5a1a2441bf 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -497,6 +497,43 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		directClosureCall(n)
+ 	}
+ 
++	if isFuncPCIntrinsic(n) {
++		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function, rewrite
++		// it to the address of the function of the ABI fn is defined.
++		name := n.X.(*ir.Name).Sym().Name
++		arg := n.Args[0]
++		var wantABI obj.ABI
++		switch name {
++		case "FuncPCABI0":
++			wantABI = obj.ABI0
++		case "FuncPCABIInternal":
++			wantABI = obj.ABIInternal
++		}
++		if isIfaceOfFunc(arg) {
++			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
++			abi := fn.Func.ABI
++			if abi != wantABI {
++				base.ErrorfAt(n.Pos(), "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
++			}
++			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
++			e = ir.NewAddrExpr(n.Pos(), e)
++			e.SetType(types.Types[types.TUINTPTR].PtrTo())
++			e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, n.Type(), e)
++			return e
++		}
++		// fn is not a defined function. It must be ABIInternal.
++		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
++		if wantABI != obj.ABIInternal {
++			base.ErrorfAt(n.Pos(), "internal/abi.%s does not accept func expression, which is ABIInternal", name)
++		}
++		arg = walkExpr(arg, init)
++		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)
++		e.SetType(n.Type().PtrTo())
++		e = ir.NewStarExpr(n.Pos(), e)
++		e.SetType(n.Type())
++		return e
++	}
++
+ 	walkCall1(n, init)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 99a166119a..b733d3a29f 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -544,6 +544,14 @@ func (o *orderState) call(nn ir.Node) {
+ 
+ 	n := nn.(*ir.CallExpr)
+ 	typecheck.FixVariadicCall(n)
++
++	if isFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
++		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,
++		// do not introduce temporaries here, so it is easier to rewrite it
++		// to symbol address reference later in walk.
++		return
++	}
++
+ 	n.X = o.expr(n.X, nil)
+ 	o.exprList(n.Args)
+ 
+@@ -1796,3 +1804,18 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 	// Finally, point the defer statement at the newly generated call.
+ 	n.Call = topcall
+ }
++
++// isFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
++func isFuncPCIntrinsic(n *ir.CallExpr) bool {
++	if n.Op() != ir.OCALLFUNC || n.X.Op() != ir.ONAME {
++		return false
++	}
++	fn := n.X.(*ir.Name).Sym()
++	return (fn.Name == "FuncPCABI0" || fn.Name == "FuncPCABIInternal") &&
++		(fn.Pkg.Path == "internal/abi" || fn.Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "internal/abi")
++}
++
++// isIfaceOfFunc returns whether n is an interface conversion from a direct reference of a func.
++func isIfaceOfFunc(n ir.Node) bool {
++	return n.Op() == ir.OCONVIFACE && n.(*ir.ConvExpr).X.Op() == ir.ONAME && n.(*ir.ConvExpr).X.(*ir.Name).Class == ir.PFUNC
++}
+diff --git a/src/internal/abi/abi.go b/src/internal/abi/abi.go
+index 6700facc04..aaff9cece3 100644
+--- a/src/internal/abi/abi.go
++++ b/src/internal/abi/abi.go
+@@ -51,3 +51,27 @@ func (b *IntArgRegBitmap) Set(i int) {
+ func (b *IntArgRegBitmap) Get(i int) bool {
+ 	return b[i/8]&(uint8(1)<<(i%8)) != 0
+ }
++
++// FuncPC* intrinsics.
++//
++// CAREFUL: In programs with plugins, FuncPC* can return different values
++// for the same function (because there are actually multiple copies of
++// the same function in the address space). To be safe, don't use the
++// results of this function in any == expression. It is only safe to
++// use the result as an address at which to start executing code.
++
++// FuncPCABI0 returns the entry PC of the function f, which must be a
++// direct reference of a function defined as ABI0. Otherwise it is a
++// compile-time error.
++//
++// Implemented as a compile intrinsic.
++func FuncPCABI0(f interface{}) uintptr
++
++// FuncPCABIInternal returns the entry PC of the function f. If f is a
++// direct reference of a function, it must be defined as ABIInternal.
++// Otherwise it is a compile-time error. If f is not a direct reference
++// of a defined function, it assumes that f is a func value. Otherwise
++// the behavior is undefined.
++//
++// Implemented as a compile intrinsic.
++func FuncPCABIInternal(f interface{}) uintptr
+diff --git a/src/internal/abi/abi_test.go b/src/internal/abi/abi_test.go
+new file mode 100644
+index 0000000000..5a3b6b616d
+--- /dev/null
++++ b/src/internal/abi/abi_test.go
+@@ -0,0 +1,76 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi_test
++
++import (
++	"internal/abi"
++	"internal/testenv"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func TestFuncPC(t *testing.T) {
++	// Test that FuncPC* can get correct function PC.
++	pcFromAsm := abi.FuncPCTestFnAddr
++
++	// Test FuncPC for locally defined function
++	pcFromGo := abi.FuncPCTest()
++	if pcFromGo != pcFromAsm {
++		t.Errorf("FuncPC returns wrong PC, want %x, got %x", pcFromAsm, pcFromGo)
++	}
++
++	// Test FuncPC for imported function
++	pcFromGo = abi.FuncPCABI0(abi.FuncPCTestFn)
++	if pcFromGo != pcFromAsm {
++		t.Errorf("FuncPC returns wrong PC, want %x, got %x", pcFromAsm, pcFromGo)
++	}
++}
++
++func TestFuncPCCompileError(t *testing.T) {
++	// Test that FuncPC* on a function of a mismatched ABI is rejected.
++	testenv.MustHaveGoBuild(t)
++
++	// We want to test internal package, which we cannot normally import.
++	// Run the assembler and compiler manually.
++	tmpdir := t.TempDir()
++	asmSrc := filepath.Join("testdata", "x.s")
++	goSrc := filepath.Join("testdata", "x.go")
++	symabi := filepath.Join(tmpdir, "symabi")
++	obj := filepath.Join(tmpdir, "x.o")
++
++	// parse assembly code for symabi.
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-gensymabis", "-o", symabi, asmSrc)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("go tool asm -gensymabis failed: %v\n%s", err, out)
++	}
++
++	// compile go code.
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-symabis", symabi, "-o", obj, goSrc)
++	out, err = cmd.CombinedOutput()
++	if err == nil {
++		t.Fatalf("go tool compile did not fail")
++	}
++
++	// Expect errors in line 17, 18, 20, no errors on other lines.
++	want := []string{"x.go:17", "x.go:18", "x.go:20"}
++	got := strings.Split(string(out), "\n")
++	if got[len(got)-1] == "" {
++		got = got[:len(got)-1] // remove last empty line
++	}
++	for i, s := range got {
++		if !strings.Contains(s, want[i]) {
++			t.Errorf("did not error on line %s", want[i])
++		}
++	}
++	if len(got) != len(want) {
++		t.Errorf("unexpected number of errors, want %d, got %d", len(want), len(got))
++	}
++	if t.Failed() {
++		t.Logf("output:\n%s", string(out))
++	}
++}
+diff --git a/src/internal/abi/abi_test.s b/src/internal/abi/abi_test.s
+new file mode 100644
+index 0000000000..93ace3ef48
+--- /dev/null
++++ b/src/internal/abi/abi_test.s
+@@ -0,0 +1,27 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++#ifdef GOARCH_386
++#define PTRSIZE 4
++#endif
++#ifdef GOARCH_arm
++#define PTRSIZE 4
++#endif
++#ifdef GOARCH_mips
++#define PTRSIZE 4
++#endif
++#ifdef GOARCH_mipsle
++#define PTRSIZE 4
++#endif
++#ifndef PTRSIZE
++#define PTRSIZE 8
++#endif
++
++TEXT	internal∕abi·FuncPCTestFn(SB),NOSPLIT,$0-0
++	RET
++
++GLOBL	internal∕abi·FuncPCTestFnAddr(SB), NOPTR, $PTRSIZE
++DATA	internal∕abi·FuncPCTestFnAddr(SB)/PTRSIZE, $internal∕abi·FuncPCTestFn(SB)
+diff --git a/src/internal/abi/export_test.go b/src/internal/abi/export_test.go
+new file mode 100644
+index 0000000000..2a87e9de7f
+--- /dev/null
++++ b/src/internal/abi/export_test.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi
++
++func FuncPCTestFn()
++
++var FuncPCTestFnAddr uintptr // address of FuncPCTestFn, directly retrieved from assembly
++
++//go:noinline
++func FuncPCTest() uintptr {
++	return FuncPCABI0(FuncPCTestFn)
++}
+diff --git a/src/internal/abi/testdata/x.go b/src/internal/abi/testdata/x.go
+new file mode 100644
+index 0000000000..cae103d78b
+--- /dev/null
++++ b/src/internal/abi/testdata/x.go
+@@ -0,0 +1,22 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x
++
++import "internal/abi"
++
++func Fn0() // defined in assembly
++
++func Fn1() {}
++
++var FnExpr func()
++
++func test() {
++	_ = abi.FuncPCABI0(Fn0)           // line 16, no error
++	_ = abi.FuncPCABIInternal(Fn0)    // line 17, error
++	_ = abi.FuncPCABI0(Fn1)           // line 18, error
++	_ = abi.FuncPCABIInternal(Fn1)    // line 19, no error
++	_ = abi.FuncPCABI0(FnExpr)        // line 20, error
++	_ = abi.FuncPCABIInternal(FnExpr) // line 21, no error
++}
+diff --git a/src/internal/abi/testdata/x.s b/src/internal/abi/testdata/x.s
+new file mode 100644
+index 0000000000..63c1385998
+--- /dev/null
++++ b/src/internal/abi/testdata/x.s
+@@ -0,0 +1,6 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT	·Fn0(SB), 0, $0-0
++	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 789e159c76..14f29e1964 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1576,11 +1576,8 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+ 	RET
+ 
+ // The top-most function running on a goroutine
+-// returns to goexit+PCQuantum. Defined as ABIInternal
+-// so as to make it identifiable to traceback (this
+-// function it used as a sentinel; traceback wants to
+-// see the func PC, not a wrapper PC).
+-TEXT runtime·goexit<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0-0
++// returns to goexit+PCQuantum.
++TEXT runtime·goexit(SB),NOSPLIT|TOPFRAME,$0-0
+ 	BYTE	$0x90	// NOP
+ 	CALL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2f9818d9f1..1b1b5769ff 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/cpu"
+ 	"internal/goexperiment"
+ 	"runtime/internal/atomic"
+@@ -2022,7 +2023,7 @@ func oneNewExtraM() {
+ 	// the goroutine stack ends.
+ 	mp := allocm(nil, nil, -1)
+ 	gp := malg(4096)
+-	gp.sched.pc = funcPC(goexit) + sys.PCQuantum
++	gp.sched.pc = abi.FuncPCABI0(goexit) + sys.PCQuantum
+ 	gp.sched.sp = gp.stack.hi
+ 	gp.sched.sp -= 4 * sys.PtrSize // extra space in case of reads slightly beyond frame
+ 	gp.sched.lr = 0
+@@ -4310,7 +4311,7 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
+ 	memclrNoHeapPointers(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
+ 	newg.sched.sp = sp
+ 	newg.stktopsp = sp
+-	newg.sched.pc = funcPC(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
++	newg.sched.pc = abi.FuncPCABI0(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
+ 	newg.sched.g = guintptr(unsafe.Pointer(newg))
+ 	gostartcallfn(&newg.sched, fn)
+ 	newg.gopc = callerpc

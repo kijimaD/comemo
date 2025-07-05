@@ -24,10 +24,273 @@ Date:   Tue May 2 16:46:20 2023 -0400
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/pcln.go | 26 ++---------------
  src/runtime/error.go             |  2 +-
  src/runtime/symtab.go            |  8 ++---
  src/runtime/traceback.go         | 52 ++++++++++++++++++++++++++-------
  src/runtime/traceback_test.go    | 63 ++++++++++++++++++++++++++++++++++++++++
  5 files changed, 112 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 77806d824a..aaf8ddef51 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -15,7 +15,6 @@ import (
+ 	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+-	"strings"
+ )
+ 
+ const funcSize = 11 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
+@@ -289,31 +288,11 @@ func walkFuncs(ctxt *Link, funcs []loader.Sym, f func(loader.Sym)) {
+ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[loader.Sym]uint32 {
+ 	nameOffsets := make(map[loader.Sym]uint32, state.nfunc)
+ 
+-	// The name used by the runtime is the concatenation of the 3 returned strings.
+-	// For regular functions, only one returned string is nonempty.
+-	// For generic functions, we use three parts so that we can print everything
+-	// within the outermost "[]" as "...".
+-	nameParts := func(name string) (string, string, string) {
+-		i := strings.IndexByte(name, '[')
+-		if i < 0 {
+-			return name, "", ""
+-		}
+-		j := strings.LastIndexByte(name, ']')
+-		if j <= i {
+-			return name, "", ""
+-		}
+-		return name[:i], "[...]", name[j+1:]
+-	}
+-
+ 	// Write the null terminated strings.
+ 	writeFuncNameTab := func(ctxt *Link, s loader.Sym) {
+ 		symtab := ctxt.loader.MakeSymbolUpdater(s)
+ 		for s, off := range nameOffsets {
+-			a, b, c := nameParts(ctxt.loader.SymName(s))
+-			o := int64(off)
+-			o = symtab.AddStringAt(o, a)
+-			o = symtab.AddStringAt(o, b)
+-			_ = symtab.AddCStringAt(o, c)
++			symtab.AddCStringAt(int64(off), ctxt.loader.SymName(s))
+ 		}
+ 	}
+ 
+@@ -321,8 +300,7 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[lo
+ 	var size int64
+ 	walkFuncs(ctxt, funcs, func(s loader.Sym) {
+ 		nameOffsets[s] = uint32(size)
+-		a, b, c := nameParts(ctxt.loader.SymName(s))
+-		size += int64(len(a) + len(b) + len(c) + 1) // NULL terminate
++		size += int64(len(ctxt.loader.SymName(s)) + 1) // NULL terminate
+ 	})
+ 
+ 	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, writeFuncNameTab)
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 933c3cbec3..9bad50d90b 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -304,7 +304,7 @@ func printanycustomtype(i any) {
+ // It is called from the generated wrapper code.
+ func panicwrap() {
+ 	pc := getcallerpc()
+-	name := funcname(findfunc(pc))
++	name := funcNameForPrint(funcname(findfunc(pc)))
+ 	// name is something like "main.(*T).F".
+ 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").
+ 	// Do it by finding the parens.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index b11854c943..15e5e1d4d6 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -129,7 +129,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 		ci.frames = append(ci.frames, Frame{
+ 			PC:        pc,
+ 			Func:      f,
+-			Function:  sf.name(),
++			Function:  funcNameForPrint(sf.name()),
+ 			Entry:     entry,
+ 			startLine: int(sf.startLine),
+ 			funcInfo:  funcInfo,
+@@ -669,9 +669,9 @@ func (f *Func) Name() string {
+ 	fn := f.raw()
+ 	if fn.isInlined() { // inlined version
+ 		fi := (*funcinl)(unsafe.Pointer(fn))
+-		return fi.name
++		return funcNameForPrint(fi.name)
+ 	}
+-	return funcname(f.funcInfo())
++	return funcNameForPrint(funcname(f.funcInfo()))
+ }
+ 
+ // Entry returns the entry address of the function.
+@@ -929,7 +929,7 @@ func funcname(f funcInfo) string {
+ }
+ 
+ func funcpkgpath(f funcInfo) string {
+-	name := funcname(f)
++	name := funcNameForPrint(funcname(f))
+ 	i := len(name) - 1
+ 	for ; i > 0; i-- {
+ 		if name[i] == '/' {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index d55c6d7aa5..d6f89210a4 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -745,6 +745,42 @@ printloop:
+ 	}
+ }
+ 
++// funcNamePiecesForPrint returns the function name for printing to the user.
++// It returns three pieces so it doesn't need an allocation for string
++// concatenation.
++func funcNamePiecesForPrint(name string) (string, string, string) {
++	// Replace the shape name in generic function with "...".
++	i := bytealg.IndexByteString(name, '[')
++	if i < 0 {
++		return name, "", ""
++	}
++	j := len(name) - 1
++	for name[j] != ']' {
++		j--
++	}
++	if j <= i {
++		return name, "", ""
++	}
++	return name[:i], "[...]", name[j+1:]
++}
++
++// funcNameForPrint returns the function name for printing to the user.
++func funcNameForPrint(name string) string {
++	a, b, c := funcNamePiecesForPrint(name)
++	return a + b + c
++}
++
++// printFuncName prints a function name. name is the function name in
++// the binary's func data table.
++func printFuncName(name string) {
++	if name == "runtime.gopanic" {
++		print("panic")
++		return
++	}
++	a, b, c := funcNamePiecesForPrint(name)
++	print(a, b, c)
++}
++
+ func printcreatedby(gp *g) {
+ 	// Show what created goroutine, except main goroutine (goid 1).
+ 	pc := gp.gopc
+@@ -755,7 +791,8 @@ func printcreatedby(gp *g) {
+ }
+ 
+ func printcreatedby1(f funcInfo, pc uintptr, goid uint64) {
+-	print("created by ", funcname(f))
++	print("created by ")
++	printFuncName(funcname(f))
+ 	if goid != 0 {
+ 		print(" in goroutine ", goid)
+ 	}
+@@ -956,14 +993,12 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
+ 
+ 			name := sf.name()
+ 			file, line := iu.fileLine(uf)
+-			if name == "runtime.gopanic" {
+-				name = "panic"
+-			}
+ 			// Print during crash.
+ 			//	main(0x1, 0x2, 0x3)
+ 			//		/home/rsc/go/src/runtime/x.go:23 +0xf
+ 			//
+-			print(name, "(")
++			printFuncName(name)
++			print("(")
+ 			if iu.isInlined(uf) {
+ 				print("...")
+ 			} else {
+@@ -1044,12 +1079,9 @@ func printAncestorTraceback(ancestor ancestorInfo) {
+ // goroutine being created.
+ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
+ 	u, uf := newInlineUnwinder(f, pc, nil)
+-	name := u.srcFunc(uf).name()
+ 	file, line := u.fileLine(uf)
+-	if name == "runtime.gopanic" {
+-		name = "panic"
+-	}
+-	print(name, "(...)\n")
++	printFuncName(u.srcFunc(uf).name())
++	print("(...)\n")
+ 	print("\t", file, ":", line)
+ 	if pc > f.entry() {
+ 		print(" +", hex(pc-f.entry()))
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index 4dd1d4bae9..1617612418 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -773,3 +773,66 @@ func parseTraceback1(t *testing.T, tb string) *traceback {
+ 	}
+ 	return tbs[0]
+ }
++
++//go:noinline
++func testTracebackGenericFn[T any](buf []byte) int {
++	return runtime.Stack(buf[:], false)
++}
++
++func testTracebackGenericFnInlined[T any](buf []byte) int {
++	return runtime.Stack(buf[:], false)
++}
++
++type testTracebackGenericTyp[P any] struct{ x P }
++
++//go:noinline
++func (t testTracebackGenericTyp[P]) M(buf []byte) int {
++	return runtime.Stack(buf[:], false)
++}
++
++func (t testTracebackGenericTyp[P]) Inlined(buf []byte) int {
++	return runtime.Stack(buf[:], false)
++}
++
++func TestTracebackGeneric(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++	var x testTracebackGenericTyp[int]
++	tests := []struct {
++		fn     func([]byte) int
++		expect string
++	}{
++		// function, not inlined
++		{
++			testTracebackGenericFn[int],
++			"testTracebackGenericFn[...](",
++		},
++		// function, inlined
++		{
++			func(buf []byte) int { return testTracebackGenericFnInlined[int](buf) },
++			"testTracebackGenericFnInlined[...](",
++		},
++		// method, not inlined
++		{
++			x.M,
++			"testTracebackGenericTyp[...].M(",
++		},
++		// method, inlined
++		{
++			func(buf []byte) int { return x.Inlined(buf) },
++			"testTracebackGenericTyp[...].Inlined(",
++		},
++	}
++	var buf [1000]byte
++	for _, test := range tests {
++		n := test.fn(buf[:])
++		got := buf[:n]
++		if !bytes.Contains(got, []byte(test.expect)) {
++			t.Errorf("traceback does not contain expected string: want %q, got\n%s", test.expect, got)
++		}
++		if bytes.Contains(got, []byte("shape")) { // should not contain shape name
++			t.Errorf("traceback contains shape name: got\n%s", got)
++		}
++	}
++}

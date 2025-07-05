@@ -7,7 +7,83 @@ Date:   Tue Sep 23 11:17:44 2008 -0700
     R=r
     OCL=15693
     CL=15695
-
+---
  usr/gri/pretty/Makefile.iant | 56 ++++++++++++++++++++++++++++++++++++++++++++
  usr/gri/pretty/ast.go        |  2 +-
  2 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/Makefile.iant b/usr/gri/pretty/Makefile.iant
+new file mode 100644
+index 0000000000..2f8f8c3c4f
+--- /dev/null
++++ b/usr/gri/pretty/Makefile.iant
+@@ -0,0 +1,56 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# -*- Makefile -*-
++
++GO = /home/iant/go/bin/gccgo
++
++LDFLAGS = -Wl,-R,/home/iant/go/lib
++
++
++test: pretty
++	pretty -s *.go
++	pretty -s ../gosrc/*.go
++	pretty -s $(GOROOT)/test/sieve.go
++	pretty -s $(GOROOT)/src/pkg/*.go
++	pretty -s $(GOROOT)/src/lib/flag.go
++	pretty -s $(GOROOT)/src/lib/fmt.go
++	pretty -s $(GOROOT)/src/lib/rand.go
++	pretty -s $(GOROOT)/src/lib/math/*.go
++	pretty -s $(GOROOT)/src/lib/container/*.go
++	pretty -s $(GOROOT)/src/syscall/*.go
++	echo "DONE"
++
++install: pretty
++	cp pretty $(HOME)/bin/pretty
++
++clean:
++	rm -f pretty *.o  *~
++
++pretty.o:	parser.o printer.o platform.o scanner.o
++
++parser.o:	ast.o scanner.o utils.o printer.o
++
++scanner.o:	utils.o platform.o
++
++.SUFFIXES:
++.SUFFIXES: .go .o
++
++.go.o:
++	$(GO) -O2 -c -g $<
++
++
++PRETTY_OBJS = \
++	ast.o \
++	pretty.o \
++	parser.o \
++	platform.o \
++	printer.o \
++	scanner.o \
++	utils.o \
++
++
++pretty: $(PRETTY_OBJS)
++	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
++
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 601b9ecc4c..f314faa434 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package AST;
++package AST
+ 
+ // ----------------------------------------------------------------------------
+ // Lists

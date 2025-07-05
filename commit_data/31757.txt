@@ -14,7 +14,36 @@ Date:   Tue Mar 14 09:29:23 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38152
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go | 3 +++
  src/cmd/compile/internal/gc/pgen.go  | 3 ---
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index df17b6ec21..80edeee710 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -321,6 +321,9 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 	if f.Noescape() && len(body) != 0 {
+ 		yyerror("can only use //go:noescape with external func implementations")
+ 	}
++	if pragma&Systemstack != 0 && pragma&Nosplit != 0 {
++		yyerror("go:nosplit and go:systemstack cannot be combined")
++	}
+ 	f.Func.Pragma = pragma
+ 	lineno = makePos(fun.Pos().Base(), fun.EndLine, 0)
+ 	f.Func.Endlineno = lineno
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 4596086c7f..9d4003f35a 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -393,9 +393,6 @@ func compile(fn *Node) {
+ 	}
+ 	if fn.Func.Pragma&Systemstack != 0 {
+ 		ptxt.From.Sym.Set(obj.AttrCFunc, true)
+-		if fn.Func.Pragma&Nosplit != 0 {
+-			yyerror("go:nosplit and go:systemstack cannot be combined")
+-		}
+ 	}
+ 
+ 	// Clumsy but important.

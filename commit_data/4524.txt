@@ -9,8 +9,55 @@ Date:   Tue Jan 5 09:21:15 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/181059
-
+---
  src/pkg/syscall/syscall_freebsd.go        | 1 +
  src/pkg/syscall/zsyscall_freebsd_386.go   | 6 ++++++
  src/pkg/syscall/zsyscall_freebsd_amd64.go | 6 ++++++
  3 files changed, 13 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 9b4ecd320f..4a187dd89d 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -520,6 +520,7 @@ func SysctlUint32(name string) (value uint32, errno int) {
+ //sys	Mkdir(path string, mode int) (errno int)
+ //sys	Mkfifo(path string, mode int) (errno int)
+ //sys	Mknod(path string, mode int, dev int) (errno int)
++//sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
+ //sys	Open(path string, mode int, perm int) (fd int, errno int)
+ //sys	Pathconf(path string, name int) (val int, errno int)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, errno int)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 99f23d0fc4..8216dc7600 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -425,6 +425,12 @@ func Mknod(path string, mode int, dev int) (errno int) {
+ 	return
+ }
+ 
++func Nanosleep(time *Timespec, leftover *Timespec) (errno int) {
++	_, _, e1 := Syscall(SYS_NANOSLEEP, uintptr(unsafe.Pointer(time)), uintptr(unsafe.Pointer(leftover)), 0)
++	errno = int(e1)
++	return
++}
++
+ func Open(path string, mode int, perm int) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index a670ce1492..ccae89b3bc 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -425,6 +425,12 @@ func Mknod(path string, mode int, dev int) (errno int) {
+ 	return
+ }
+ 
++func Nanosleep(time *Timespec, leftover *Timespec) (errno int) {
++	_, _, e1 := Syscall(SYS_NANOSLEEP, uintptr(unsafe.Pointer(time)), uintptr(unsafe.Pointer(leftover)), 0)
++	errno = int(e1)
++	return
++}
++
+ func Open(path string, mode int, perm int) (fd int, errno int) {
+ 	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
+ 	fd = int(r0)

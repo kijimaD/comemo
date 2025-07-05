@@ -10,6 +10,23 @@ Date:   Thu Jan 19 09:34:37 2012 +1100
     R=nigeltao, david.crawshaw
     CC=golang-dev
     https://golang.org/cl/5536057
-
+---
  src/pkg/image/color/ycbcr.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/image/color/ycbcr.go b/src/pkg/image/color/ycbcr.go
+index c6b9ba08db..4c2f29ea02 100644
+--- a/src/pkg/image/color/ycbcr.go
++++ b/src/pkg/image/color/ycbcr.go
+@@ -87,9 +87,9 @@ func (c YCbCr) RGBA() (uint32, uint32, uint32, uint32) {
+ }
+ 
+ // YCbCrModel is the Model for Y'CbCr colors.
+-var YCbCrModel Model = ModelFunc(modelYCbCr)
++var YCbCrModel Model = ModelFunc(yCbCrModel)
+ 
+-func modelYCbCr(c Color) Color {
++func yCbCrModel(c Color) Color {
+ 	if _, ok := c.(YCbCr); ok {
+ 		return c
+ 	}

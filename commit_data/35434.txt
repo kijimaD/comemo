@@ -17,10 +17,123 @@ Date:   Thu Jan 25 11:46:06 2018 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/mips.s   |  2 ++
  src/cmd/asm/internal/asm/testdata/mips64.s |  3 +++
  src/cmd/internal/obj/mips/a.out.go         |  1 +
  src/cmd/internal/obj/mips/anames.go        |  1 +
  src/cmd/internal/obj/mips/asm0.go          | 15 +++++++++++----
  5 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/mips.s b/src/cmd/asm/internal/asm/testdata/mips.s
+index 0f0226de0c..6d62c43242 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips.s
++++ b/src/cmd/asm/internal/asm/testdata/mips.s
+@@ -423,6 +423,8 @@ label4:
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
+ 
++	NEGW	R1, R2 // 00011023
++
+ 	// END
+ 	//
+ 	//	LEND	comma // asm doesn't support the trailing comma.
+diff --git a/src/cmd/asm/internal/asm/testdata/mips64.s b/src/cmd/asm/internal/asm/testdata/mips64.s
+index 50a2694576..a945e590ab 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips64.s
++++ b/src/cmd/asm/internal/asm/testdata/mips64.s
+@@ -403,6 +403,9 @@ label4:
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
+ 
++	NEGW	R1, R2 // 00011023
++	NEGV	R1, R2 // 0001102f
++
+ // END
+ //
+ //	LEND	comma // asm doesn't support the trailing comma.
+diff --git a/src/cmd/internal/obj/mips/a.out.go b/src/cmd/internal/obj/mips/a.out.go
+index 46329a8d03..49ceac1028 100644
+--- a/src/cmd/internal/obj/mips/a.out.go
++++ b/src/cmd/internal/obj/mips/a.out.go
+@@ -324,6 +324,7 @@ const (
+ 	ANEGD
+ 	ANEGF
+ 	ANEGW
++	ANEGV
+ 	ANOOP // hardware nop
+ 	ANOR
+ 	AOR
+diff --git a/src/cmd/internal/obj/mips/anames.go b/src/cmd/internal/obj/mips/anames.go
+index ed2143a8d5..cb0d56847e 100644
+--- a/src/cmd/internal/obj/mips/anames.go
++++ b/src/cmd/internal/obj/mips/anames.go
+@@ -70,6 +70,7 @@ var Anames = []string{
+ 	"NEGD",
+ 	"NEGF",
+ 	"NEGW",
++	"NEGV",
+ 	"NOOP",
+ 	"NOR",
+ 	"OR",
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 2dcfa97bf7..94296f9351 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -92,6 +92,8 @@ var optab = []Optab{
+ 	{AADDV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.MIPS64},
+ 	{AAND, C_REG, C_NONE, C_REG, 2, 4, 0, 0},
+ 	{ACMOVN, C_REG, C_REG, C_REG, 2, 4, 0, 0},
++	{ANEGW, C_REG, C_NONE, C_REG, 2, 4, 0, 0},
++	{ANEGV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.MIPS64},
+ 
+ 	{ASLL, C_REG, C_NONE, C_REG, 9, 4, 0, 0},
+ 	{ASLL, C_REG, C_REG, C_REG, 9, 4, 0, 0},
+@@ -740,7 +742,8 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
+ 	if ops == nil {
+ 		ops = optab
+ 	}
+-	return &ops[0]
++	// Turn illegal instruction into an UNDEF, avoid crashing in asmout.
++	return &Optab{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0}
+ }
+ 
+ func cmp(a int, b int) bool {
+@@ -1021,6 +1024,8 @@ func buildop(ctxt *obj.Link) {
+ 			ALLV,
+ 			ASC,
+ 			ASCV,
++			ANEGW,
++			ANEGV,
+ 			AWORD,
+ 			obj.ANOP,
+ 			obj.ATEXT,
+@@ -1126,7 +1131,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 2: /* add/sub r1,[r2],r3 */
+ 		r := int(p.Reg)
+-
++		if p.As == ANEGW || p.As == ANEGV {
++			r = REGZERO
++		}
+ 		if r == 0 {
+ 			r = int(p.To.Reg)
+ 		}
+@@ -1626,7 +1633,7 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return OP(4, 6)
+ 	case ASUB:
+ 		return OP(4, 2)
+-	case ASUBU:
++	case ASUBU, ANEGW:
+ 		return OP(4, 3)
+ 	case ANOR:
+ 		return OP(4, 7)
+@@ -1648,7 +1655,7 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return OP(5, 5)
+ 	case ASUBV:
+ 		return OP(5, 6)
+-	case ASUBVU:
++	case ASUBVU, ANEGV:
+ 		return OP(5, 7)
+ 	case AREM,
+ 		ADIV:

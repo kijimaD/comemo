@@ -7,6 +7,19 @@ Date:   Wed May 25 10:58:58 2011 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4536082
-
+---
  doc/go_spec.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d71da28dec..0c08e1464b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1180,7 +1180,6 @@ maps grow to accommodate the number of items
+ stored in them, with the exception of <code>nil</code> maps.
+ A <code>nil</code> map is equivalent to an empty map except that no elements
+ may be added.
+-</code>
+ 
+ <h3 id="Channel_types">Channel types</h3>
+ 

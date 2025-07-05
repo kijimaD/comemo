@@ -17,7 +17,45 @@ Date:   Wed Feb 8 01:57:25 2023 -0800
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/hex/hex.go      |  3 ---
  src/encoding/hex/hex_test.go | 12 ------------
  2 files changed, 15 deletions(-)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index f69abb2f7f..375f583170 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -88,9 +88,6 @@ func Decode(dst, src []byte) (int, error) {
+ 		if b > 0x0f {
+ 			return i, InvalidByteError(q)
+ 		}
+-		if i >= len(dst) {
+-			return i, errors.New("encoding/hex: output buffer too small")
+-		}
+ 		dst[i] = (a << 4) | b
+ 		i++
+ 	}
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index 8d1ae70774..a820fe7a15 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -55,18 +55,6 @@ func TestDecode(t *testing.T) {
+ 	}
+ }
+ 
+-func TestDecodeDstTooSmall(t *testing.T) {
+-	dst := make([]byte, 1)
+-	src := []byte{'0', '1', '2', '3'}
+-	n, err := Decode(dst, src)
+-	if err == nil {
+-		t.Errorf("expected Decode to return an error, but it returned none")
+-	}
+-	if !bytes.Equal(dst[:n], []byte{0x01}) {
+-		t.Errorf("output mismatch: got %x, want 01", dst[:n])
+-	}
+-}
+-
+ func TestEncodeToString(t *testing.T) {
+ 	for i, test := range encDecTests {
+ 		s := EncodeToString(test.dec)

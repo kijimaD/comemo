@@ -7,6 +7,20 @@ Date:   Wed Jan 9 15:22:48 2013 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/7065067
-
+---
  src/pkg/container/list/list.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 69818c3b75..562a5badbd 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -108,6 +108,8 @@ func (l *List) insertValue(v interface{}, at *Element) *Element {
+ func (l *List) remove(e *Element) *Element {
+ 	e.prev.next = e.next
+ 	e.next.prev = e.prev
++	e.next = nil // avoid memory leaks
++	e.prev = nil // avoid memory leaks
+ 	e.list = nil
+ 	l.len--
+ 	return e

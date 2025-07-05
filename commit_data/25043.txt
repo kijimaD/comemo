@@ -10,10 +10,164 @@ Date:   Thu Sep 17 11:06:27 2015 -0700
     Change-Id: I625d5c2e51a543450ad091f97cec538023ddb1dd
     Reviewed-on: https://go-review.googlesource.com/14692
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/assignments.go      | 13 ++-----------
  src/go/types/call.go             | 25 ++++++++++++-------------
  src/go/types/expr.go             |  7 ++++---
  src/go/types/testdata/expr3.src  |  2 +-
  src/go/types/testdata/issues.src | 16 ++++++++--------
  5 files changed, 27 insertions(+), 36 deletions(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 240cea24db..a906252fdb 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -19,6 +19,8 @@ import (
+ // If the result is false and a non-nil reason is provided, it may be set
+ // to a more detailed explanation of the failure (result != "").
+ func (check *Checker) assignment(x *operand, T Type, reason *string) bool {
++	check.singleValue(x)
++
+ 	switch x.mode {
+ 	case invalid:
+ 		return true // error reported before
+@@ -28,17 +30,6 @@ func (check *Checker) assignment(x *operand, T Type, reason *string) bool {
+ 		unreachable()
+ 	}
+ 
+-	// x must be a single value
+-	// (tuple types are never named - no need for underlying type)
+-	// TODO(gri) We may be able to get rid of this check now that
+-	// we check for single-valued expressions more rigorously.
+-	if t, _ := x.typ.(*Tuple); t != nil {
+-		assert(t.Len() > 1)
+-		check.errorf(x.pos(), "%d-valued expression %s used as single value", t.Len(), x)
+-		x.mode = invalid
+-		return false
+-	}
+-
+ 	if isUntyped(x.typ) {
+ 		target := T
+ 		// spec: "If an untyped constant is assigned to a variable of interface
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 14c94de210..4ce0a6bd62 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -181,14 +181,14 @@ func unpack(get getter, n int, allowCommaOk bool) (getter, int, bool) {
+ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, arg getter, n int) {
+ 	if call.Ellipsis.IsValid() {
+ 		// last argument is of the form x...
+-		if len(call.Args) == 1 && n > 1 {
+-			// f()... is not permitted if f() is multi-valued
+-			check.errorf(call.Ellipsis, "cannot use ... with %d-valued expression %s", n, call.Args[0])
++		if !sig.variadic {
++			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
+ 			check.useGetter(arg, n)
+ 			return
+ 		}
+-		if !sig.variadic {
+-			check.errorf(call.Ellipsis, "cannot use ... in call to non-variadic %s", call.Fun)
++		if len(call.Args) == 1 && n > 1 {
++			// f()... is not permitted if f() is multi-valued
++			check.errorf(call.Ellipsis, "cannot use ... with %d-valued %s", n, call.Args[0])
+ 			check.useGetter(arg, n)
+ 			return
+ 		}
+@@ -221,6 +221,11 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature,
+ // argument checks passing of argument x to the i'th parameter of the given signature.
+ // If ellipsis is valid, the argument is followed by ... at that position in the call.
+ func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token.Pos) {
++	check.singleValue(x)
++	if x.mode == invalid {
++		return
++	}
++
+ 	n := sig.params.Len()
+ 
+ 	// determine parameter type
+@@ -241,18 +246,12 @@ func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token
+ 	}
+ 
+ 	if ellipsis.IsValid() {
+-		// argument is of the form x...
++		// argument is of the form x... and x is single-valued
+ 		if i != n-1 {
+ 			check.errorf(ellipsis, "can only use ... with matching parameter")
+ 			return
+ 		}
+-		switch t := x.typ.Underlying().(type) {
+-		case *Slice:
+-			// ok
+-		case *Tuple:
+-			check.errorf(ellipsis, "cannot use ... with %d-valued expression %s", t.Len(), x)
+-			return
+-		default:
++		if _, ok := x.typ.Underlying().(*Slice); !ok {
+ 			check.errorf(x.pos(), "cannot use %s as parameter of type %s", x, typ)
+ 			return
+ 		}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index bbdaf9b3ce..0f5712b1a5 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1455,9 +1455,10 @@ func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface,
+ 
+ func (check *Checker) singleValue(x *operand) {
+ 	if x.mode == value {
+-		// tuple types are never named - no need for Underlying() below
+-		if t, ok := x.typ.(*Tuple); ok && t.Len() != 1 {
+-			check.errorf(x.pos(), "%d-valued %s in single-value context", t.Len(), x)
++		// tuple types are never named - no need for underlying type below
++		if t, ok := x.typ.(*Tuple); ok {
++			assert(t.Len() != 1)
++			check.errorf(x.pos(), "%d-valued %s where single value is expected", t.Len(), x)
+ 			x.mode = invalid
+ 		}
+ 	}
+diff --git a/src/go/types/testdata/expr3.src b/src/go/types/testdata/expr3.src
+index 57720954bd..1b02c9a997 100644
+--- a/src/go/types/testdata/expr3.src
++++ b/src/go/types/testdata/expr3.src
+@@ -524,7 +524,7 @@ func _calls() {
+ 	fi(1, 2.0, x, 3.14, "foo")
+ 	fi(g2())
+ 	fi(0, g2)
+-	fi(0, g2 /* ERROR "2-valued expression" */ ())
++	fi(0, g2 /* ERROR "2-valued g2" */ ())
+ }
+ 
+ func issue6344() {
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index b108a2c158..a2db9d7b01 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -54,10 +54,10 @@ func issue9473(a []int, b ...int) {
+ 	_ = append(f1())
+ 	_ = append(f2 /* ERROR cannot pass argument */ ())
+ 	_ = append(f2()... /* ERROR cannot use ... */ )
+-	_ = append(f0(), f1 /* ERROR 2-valued expression */ ())
+-	_ = append(f0(), f2 /* ERROR 2-valued expression */ ())
+-	_ = append(f0(), f1()... /* ERROR cannot use ... */ )
+-	_ = append(f0(), f2()... /* ERROR cannot use ... */ )
++	_ = append(f0(), f1 /* ERROR 2-valued f1 */ ())
++	_ = append(f0(), f2 /* ERROR 2-valued f2 */ ())
++	_ = append(f0(), f1 /* ERROR 2-valued f1 */ ()...)
++	_ = append(f0(), f2 /* ERROR 2-valued f2 */ ()...)
+ 
+ 	// variadic user-defined function
+ 	append_(f0())
+@@ -65,10 +65,10 @@ func issue9473(a []int, b ...int) {
+ 	append_(f1())
+ 	append_(f2 /* ERROR cannot pass argument */ ())
+ 	append_(f2()... /* ERROR cannot use ... */ )
+-	append_(f0(), f1 /* ERROR 2-valued expression */ ())
+-	append_(f0(), f2 /* ERROR 2-valued expression */ ())
+-	append_(f0(), f1()... /* ERROR cannot use */ )
+-	append_(f0(), f2()... /* ERROR cannot use */ )
++	append_(f0(), f1 /* ERROR 2-valued f1 */ ())
++	append_(f0(), f2 /* ERROR 2-valued f2 */ ())
++	append_(f0(), f1 /* ERROR 2-valued f1 */ ()...)
++	append_(f0(), f2 /* ERROR 2-valued f2 */ ()...)
+ }
+ 
+ // Check that embedding a non-interface type in an interface results in a good error message.

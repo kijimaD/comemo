@@ -10,7 +10,34 @@ Date:   Fri Aug 28 12:09:13 2015 +1200
     Reviewed-on: https://go-review.googlesource.com/14000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  src/cmd/go/build.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5b4ead4bad..f378f2d729 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -592,7 +592,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		return false
+ 	case "shared":
+ 		switch pair {
+-		case "linux-amd64", "linux-arm", "linux-ppc64le":
++		case "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 5cd92c23fa..c110c7cc56 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -375,7 +375,7 @@ func buildModeInit() {
+ 			fatalf("-buildmode=pie not supported by gccgo")
+ 		} else {
+ 			switch platform {
+-			case "linux/arm", "android/arm", "linux/amd64", "android/amd64", "linux/ppc64le":
++			case "linux/arm", "android/arm", "linux/amd64", "android/amd64", "linux/arm64", "linux/ppc64le":
+ 				codegenArg = "-shared"
+ 			default:
+ 				fatalf("-buildmode=pie not supported on %s\n", platform)

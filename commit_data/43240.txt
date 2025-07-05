@@ -13,7 +13,82 @@ Date:   Mon Mar 16 15:24:48 2020 -0400
     Change-Id: I898c1f398213c8d9d777dd3c40524a013b25e348
     Reviewed-on: https://go-review.googlesource.com/c/go/+/223668
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/objfile2.go |  2 +-
  src/cmd/internal/obj/sym.go      | 24 +++++++++++++++++++-----
  2 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 359e82e138..d3e4bd4bea 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -454,7 +454,7 @@ func debugAsmEmit(ctxt *Link) {
+ 			fn := func(par *LSym, aux *LSym) {
+ 				writeAuxSymDebug(ctxt, par, aux)
+ 			}
+-			ctxt.traverseAuxSyms(fn)
++			ctxt.traverseAuxSyms(traverseAux, fn)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 9cd1786f67..ff5526ed45 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -297,15 +297,20 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+ 					f := func(parent *LSym, aux *LSym) {
+ 						fn(aux)
+ 					}
+-					ctxt.traverseFuncAux(s, f)
++					ctxt.traverseFuncAux(flag, s, f)
+ 				}
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func (ctxt *Link) traverseFuncAux(fsym *LSym, fn func(parent *LSym, aux *LSym)) {
++func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent *LSym, aux *LSym)) {
+ 	pc := &fsym.Func.Pcln
++	if flag&traverseAux == 0 {
++		// NB: should it become necessary to walk aux sym reloc references
++		// without walking the aux syms themselves, this can be changed.
++		panic("should not be here")
++	}
+ 	for _, d := range pc.Funcdata {
+ 		if d != nil {
+ 			fn(fsym, d)
+@@ -331,21 +336,30 @@ func (ctxt *Link) traverseFuncAux(fsym *LSym, fn func(parent *LSym, aux *LSym))
+ 			continue
+ 		}
+ 		fn(fsym, dws)
++		if flag&traverseRefs != 0 {
++			for _, r := range dws.R {
++				if r.Sym != nil {
++					fn(dws, r.Sym)
++				}
++			}
++		}
+ 	}
+ }
+ 
+ // Traverse aux symbols, calling fn for each sym/aux pair.
+-func (ctxt *Link) traverseAuxSyms(fn func(parent *LSym, aux *LSym)) {
++func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *LSym)) {
+ 	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
+ 	for _, list := range lists {
+ 		for _, s := range list {
+ 			if s.Gotype != nil {
+-				fn(s, s.Gotype)
++				if flag&traverseDefs != 0 {
++					fn(s, s.Gotype)
++				}
+ 			}
+ 			if s.Type != objabi.STEXT {
+ 				continue
+ 			}
+-			ctxt.traverseFuncAux(s, fn)
++			ctxt.traverseFuncAux(flag, s, fn)
+ 		}
+ 	}
+ }

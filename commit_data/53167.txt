@@ -15,7 +15,34 @@ Date:   Wed Jul 20 14:20:41 2022 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go/alldocs.go            | 2 +-
  src/cmd/go/internal/test/test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index db6372642a..a3c1fecb91 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1708,7 +1708,7 @@
+ // the package's source root (usually $GOPATH) or that consult environment
+ // variables only match future runs in which the files and environment
+ // variables are unchanged. A cached test result is treated as executing
+-// in no time at all,so a successful package test result will be cached and
++// in no time at all, so a successful package test result will be cached and
+ // reused regardless of -timeout setting.
+ //
+ // In addition to the build flags, the flags handled by 'go test' itself are:
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 058906d9b8..aa5e41e004 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -132,7 +132,7 @@ test caching explicitly is to use -count=1. Tests that open files within
+ the package's source root (usually $GOPATH) or that consult environment
+ variables only match future runs in which the files and environment
+ variables are unchanged. A cached test result is treated as executing
+-in no time at all,so a successful package test result will be cached and
++in no time at all, so a successful package test result will be cached and
+ reused regardless of -timeout setting.
+ 
+ In addition to the build flags, the flags handled by 'go test' itself are:

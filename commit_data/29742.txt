@@ -15,8 +15,72 @@ Date:   Tue Sep 13 13:21:23 2016 -0700
     Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/build.go                    | 11 ++++++++---
  src/go/build/build_test.go               | 11 +++++++++++
  src/go/build/testdata/ignored/ignored.go |  3 +++
  3 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 5a14d1ac33..5d87d9fb9e 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -410,11 +410,16 @@ func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
+ // containing no buildable Go source files. (It may still contain
+ // test files, files hidden by build tags, and so on.)
+ type NoGoError struct {
+-	Dir string
++	Dir     string
++	Ignored bool // whether any Go files were ignored due to build tags
+ }
+ 
+ func (e *NoGoError) Error() string {
+-	return "no buildable Go source files in " + e.Dir
++	msg := "no buildable Go source files in " + e.Dir
++	if e.Ignored {
++		msg += " (.go files ignored due to build tags)"
++	}
++	return msg
+ }
+ 
+ // MultiplePackageError describes a directory containing
+@@ -846,7 +851,7 @@ Found:
+ 		return p, badGoError
+ 	}
+ 	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+-		return p, &NoGoError{p.Dir}
++		return p, &NoGoError{Dir: p.Dir, Ignored: len(p.IgnoredGoFiles) > 0}
+ 	}
+ 
+ 	for tag := range allTags {
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 198a649b15..0a20af01bd 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -93,6 +93,17 @@ func TestEmptyFolderImport(t *testing.T) {
+ 	}
+ }
+ 
++func TestIgnoredGoFilesImport(t *testing.T) {
++	_, err := Import(".", "testdata/ignored", 0)
++	e, ok := err.(*NoGoError)
++	if !ok {
++		t.Fatal(`Import("testdata/ignored") did not return NoGoError.`)
++	}
++	if !e.Ignored {
++		t.Fatal(`Import("testdata/ignored") should have ignored Go files.`)
++	}
++}
++
+ func TestMultiplePackageImport(t *testing.T) {
+ 	_, err := Import(".", "testdata/multi", 0)
+ 	mpe, ok := err.(*MultiplePackageError)
+diff --git a/src/go/build/testdata/ignored/ignored.go b/src/go/build/testdata/ignored/ignored.go
+new file mode 100644
+index 0000000000..48a2ae88f4
+--- /dev/null
++++ b/src/go/build/testdata/ignored/ignored.go
+@@ -0,0 +1,3 @@
++// +build alwaysignore
++
++package ignored

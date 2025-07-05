@@ -14,8 +14,72 @@ Date:   Sun Jun 4 12:11:19 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue20129.go | 33 +++++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go          |  2 +-
  3 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index f248381b14..f7cf6f613c 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -79,5 +79,6 @@ func Test18126(t *testing.T)                 { test18126(t) }
+ func Test20369(t *testing.T)                 { test20369(t) }
+ func Test18720(t *testing.T)                 { test18720(t) }
+ func Test20266(t *testing.T)                 { test20266(t) }
++func Test20129(t *testing.T)                 { test20129(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue20129.go b/misc/cgo/test/issue20129.go
+new file mode 100644
+index 0000000000..e69e0e16ef
+--- /dev/null
++++ b/misc/cgo/test/issue20129.go
+@@ -0,0 +1,33 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++int issue20129 = 0;
++typedef void issue20129Void;
++issue20129Void issue20129Foo() {
++	issue20129 = 1;
++}
++typedef issue20129Void issue20129Void2;
++issue20129Void2 issue20129Bar() {
++	issue20129 = 2;
++}
++*/
++import "C"
++import "testing"
++
++func test20129(t *testing.T) {
++	if C.issue20129 != 0 {
++		t.Fatal("test is broken")
++	}
++	C.issue20129Foo()
++	if C.issue20129 != 1 {
++		t.Errorf("got %v but expected %v", C.issue20129, 1)
++	}
++	C.issue20129Bar()
++	if C.issue20129 != 2 {
++		t.Errorf("got %v but expected %v", C.issue20129, 2)
++	}
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 766d87da7c..ff8b81354b 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2286,7 +2286,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
+ 	}
+ 	var r *Type
+ 	var gr []*ast.Field
+-	if _, ok := dtype.ReturnType.(*dwarf.VoidType); ok {
++	if _, ok := base(dtype.ReturnType).(*dwarf.VoidType); ok {
+ 		gr = []*ast.Field{{Type: c.goVoid}}
+ 	} else if dtype.ReturnType != nil {
+ 		r = c.Type(unqual(dtype.ReturnType), pos)

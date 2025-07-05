@@ -14,6 +14,50 @@ Date:   Tue Oct 27 17:08:57 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 11 +++--------
  1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 9c4dcd739c..212fcc022d 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -375,11 +375,6 @@ func readonlystaticname(t *types.Type) *Node {
+ 	return n
+ }
+ 
+-func isLiteral(n *Node) bool {
+-	// Treat nils as zeros rather than literals.
+-	return n.Op == OLITERAL && n.Val().Ctype() != CTNIL
+-}
+-
+ func (n *Node) isSimpleName() bool {
+ 	return n.Op == ONAME && n.Class() != PAUTOHEAP && n.Class() != PEXTERN
+ }
+@@ -404,7 +399,7 @@ const (
+ func getdyn(n *Node, top bool) initGenType {
+ 	switch n.Op {
+ 	default:
+-		if isLiteral(n) {
++		if n.isGoConst() {
+ 			return initConst
+ 		}
+ 		return initDynamic
+@@ -559,7 +554,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 			continue
+ 		}
+ 
+-		islit := isLiteral(value)
++		islit := value.isGoConst()
+ 		if (kind == initKindStatic && !islit) || (kind == initKindDynamic && islit) {
+ 			continue
+ 		}
+@@ -732,7 +727,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 			continue
+ 		}
+ 
+-		if vstat != nil && isLiteral(value) { // already set by copy from static value
++		if vstat != nil && value.isGoConst() { // already set by copy from static value
+ 			continue
+ 		}
+ 

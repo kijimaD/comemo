@@ -11,6 +11,20 @@ Date:   Wed Feb 24 16:20:59 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 562b2b9001..71ed8d6841 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -1873,7 +1873,7 @@ redo:
+ 		// The string conversion here makes a copy for passing
+ 		// to fmt.Printf, so that buf itself does not escape and
+ 		// can be allocated on the stack.
+-		Yyerror("illegal UTF-8 sequence % x", string(buf[:i+1]))
++		Yyerror("illegal UTF-8 sequence % x", string(buf[:i]))
+ 	}
+ 
+ 	if r == BOM {

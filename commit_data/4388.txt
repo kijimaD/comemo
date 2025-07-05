@@ -6,10 +6,326 @@ Date:   Fri Dec 11 12:41:51 2009 -0800
     
     R=golang-dev, rsc
     https://golang.org/cl/157168
-
+---
  src/pkg/Makefile              |   1 +
  src/pkg/log/log.go            |  10 ++-
  src/pkg/syslog/Makefile       |  11 ++++
  src/pkg/syslog/syslog.go      | 144 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/syslog/syslog_test.go |  95 ++++++++++++++++++++++++++++
  5 files changed, 258 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index dee9ad992e..4e11b30d45 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -93,6 +93,7 @@ DIRS=\
+ 	strings\
+ 	sync\
+ 	syscall\
++	syslog\
+ 	tabwriter\
+ 	template\
+ 	testing\
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index a49fbc0415..2beb99c3d8 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -125,16 +125,19 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
+ // Output writes the output for a logging event.  The string s contains the text to print after
+ // the time stamp;  calldepth is used to recover the PC.  It is provided for generality, although
+ // at the moment on all pre-defined paths it will be 2.
+-func (l *Logger) Output(calldepth int, s string) {
++func (l *Logger) Output(calldepth int, s string) os.Error {
+ 	now := time.Nanoseconds();	// get this early.
+ 	newline := "\n";
+ 	if len(s) > 0 && s[len(s)-1] == '\n' {
+ 		newline = ""
+ 	}
+ 	s = l.formatHeader(now, calldepth+1) + s + newline;
+-	io.WriteString(l.out0, s);
++	_, err := io.WriteString(l.out0, s);
+ 	if l.out1 != nil {
+-		io.WriteString(l.out1, s)
++		_, err1 := io.WriteString(l.out1, s);
++		if err == nil && err1 != nil {
++			err = err1
++		}
+ 	}
+ 	switch l.flag & ^lAllBits {
+ 	case Lcrash:
+@@ -142,6 +145,7 @@ func (l *Logger) Output(calldepth int, s string) {
+ 	case Lexit:
+ 		os.Exit(1)
+ 	}
++	return err;
+ }
+ 
+ // Logf is analogous to Printf() for a Logger.
+diff --git a/src/pkg/syslog/Makefile b/src/pkg/syslog/Makefile
+new file mode 100644
+index 0000000000..f05d4aef46
+--- /dev/null
++++ b/src/pkg/syslog/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.$(GOARCH)
++
++TARG=syslog
++GOFILES=\
++	syslog.go\
++
++include ../../Make.pkg
+diff --git a/src/pkg/syslog/syslog.go b/src/pkg/syslog/syslog.go
+new file mode 100644
+index 0000000000..ef17e68628
+--- /dev/null
++++ b/src/pkg/syslog/syslog.go
+@@ -0,0 +1,144 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The syslog package provides a simple interface to
++// the system log service. It can send messages to the
++// syslog daemon using UNIX domain sockets, UDP, or
++// TCP connections.
++package syslog
++
++import (
++	"fmt";
++	"log";
++	"net";
++	"os";
++)
++
++type Priority int
++
++const (
++	// From /usr/include/sys/syslog.h.
++	// These are the same on Linux, BSD, and OS X.
++	LOG_EMERG	Priority	= iota;
++	LOG_ALERT;
++	LOG_CRIT;
++	LOG_ERR;
++	LOG_WARNING;
++	LOG_NOTICE;
++	LOG_INFO;
++	LOG_DEBUG;
++)
++
++// A Writer is a connection to a syslog server.
++type Writer struct {
++	priority	Priority;
++	prefix		string;
++	conn		net.Conn;
++}
++
++// New establishes a new connection to the system log daemon.
++// Each write to the returned writer sends a log message with
++// the given priority and prefix.
++func New(priority Priority, prefix string) (w *Writer, err os.Error) {
++	return Dial("", "", priority, prefix)
++}
++
++// Dial establishes a connection to a log daemon by connecting
++// to address raddr on the network net.
++// Each write to the returned writer sends a log message with
++// the given priority and prefix.
++func Dial(network, raddr string, priority Priority, prefix string) (w *Writer, err os.Error) {
++	if prefix == "" {
++		prefix = os.Args[0]
++	}
++	var conn net.Conn;
++	if network == "" {
++		conn, err = unixSyslog()
++	} else {
++		conn, err = net.Dial(network, "", raddr)
++	}
++	return &Writer{priority, prefix, conn}, err;
++}
++
++func unixSyslog() (conn net.Conn, err os.Error) {
++	logTypes := []string{"unixgram", "unix"};
++	logPaths := []string{"/dev/log", "/var/run/syslog"};
++	var raddr string;
++	for _, network := range logTypes {
++		for _, path := range logPaths {
++			raddr = path;
++			conn, err := net.Dial(network, "", raddr);
++			if err != nil {
++				continue
++			} else {
++				return conn, nil
++			}
++		}
++	}
++	return nil, os.ErrorString("Unix syslog delivery error");
++}
++
++// Write sends a log message to the syslog daemon.
++func (w *Writer) Write(b []byte) (int, os.Error) {
++	if w.priority > LOG_DEBUG || w.priority < LOG_EMERG {
++		return 0, os.EINVAL
++	}
++	return fmt.Fprintf(w.conn, "<%d>%s: %s\n", w.priority, w.prefix, b);
++}
++
++func (w *Writer) writeString(p Priority, s string) (int, os.Error) {
++	return fmt.Fprintf(w.conn, "<%d>%s: %s\n", p, w.prefix, s)
++}
++
++func (w *Writer) Close() os.Error	{ return w.conn.Close() }
++
++// Emerg logs a message using the LOG_EMERG priority.
++func (w *Writer) Emerg(m string) (err os.Error) {
++	_, err = w.writeString(LOG_EMERG, m);
++	return err;
++}
++// Crit logs a message using the LOG_CRIT priority.
++func (w *Writer) Crit(m string) (err os.Error) {
++	_, err = w.writeString(LOG_CRIT, m);
++	return err;
++}
++// ERR logs a message using the LOG_ERR priority.
++func (w *Writer) Err(m string) (err os.Error) {
++	_, err = w.writeString(LOG_ERR, m);
++	return err;
++}
++
++// Warning logs a message using the LOG_WARNING priority.
++func (w *Writer) Warning(m string) (err os.Error) {
++	_, err = w.writeString(LOG_WARNING, m);
++	return err;
++}
++
++// Notice logs a message using the LOG_NOTICE priority.
++func (w *Writer) Notice(m string) (err os.Error) {
++	_, err = w.writeString(LOG_NOTICE, m);
++	return err;
++}
++// Info logs a message using the LOG_INFO priority.
++func (w *Writer) Info(m string) (err os.Error) {
++	_, err = w.writeString(LOG_INFO, m);
++	return err;
++}
++// Debug logs a message using the LOG_DEBUG priority.
++func (w *Writer) Debug(m string) (err os.Error) {
++	_, err = w.writeString(LOG_DEBUG, m);
++	return err;
++}
++
++// NewLogger provides an object that implements the full log.Logger interface,
++// but sends messages to Syslog instead; flag is passed as is to Logger;
++// priority will be used for all messages sent using this interface.
++// All messages are logged with priority p.
++func NewLogger(p Priority, flag int) *log.Logger {
++	s, err := New(p, "");
++	if err != nil {
++		return nil
++	}
++	return log.New(s, nil, "", flag);
++}
+diff --git a/src/pkg/syslog/syslog_test.go b/src/pkg/syslog/syslog_test.go
+new file mode 100644
+index 0000000000..7ecb289b5e
+--- /dev/null
++++ b/src/pkg/syslog/syslog_test.go
+@@ -0,0 +1,95 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package syslog
++
++import (
++	"io";
++	"log";
++	"net";
++	"testing";
++)
++
++var serverAddr string
++
++func runSyslog(c net.PacketConn, done chan<- string) {
++	var buf [4096]byte;
++	var rcvd string = "";
++	for {
++		n, _, err := c.ReadFrom(&buf);
++		if err != nil || n == 0 {
++			break
++		}
++		rcvd += string(buf[0:n]);
++	}
++	done <- rcvd;
++}
++
++func startServer(done chan<- string) {
++	c, e := net.ListenPacket("udp", ":0");
++	if e != nil {
++		log.Exitf("net.ListenPacket failed udp :0 %v", e)
++	}
++	serverAddr = c.LocalAddr().String();
++	c.SetReadTimeout(10e6);	// 10ms
++	go runSyslog(c, done);
++}
++
++func TestNew(t *testing.T) {
++	s, err := New(LOG_INFO, "");
++	if err != nil {
++		t.Fatalf("New() failed: %s", err)
++	}
++	// Don't send any messages.
++	s.Close();
++}
++
++func TestNewLogger(t *testing.T) {
++	f := NewLogger(LOG_INFO, 0);
++	if f == nil {
++		t.Errorf("NewLogger() failed\n")
++	}
++}
++
++func TestDial(t *testing.T) {
++	l, err := Dial("", "", LOG_ERR, "syslog_test");
++	if err != nil {
++		t.Fatalf("Dial() failed: %s", err)
++	}
++	l.Close();
++}
++
++func TestUDPDial(t *testing.T) {
++	done := make(chan string);
++	startServer(done);
++	l, err := Dial("udp", serverAddr, LOG_INFO, "syslog_test");
++	if err != nil {
++		t.Fatalf("syslog.Dial() failed: %s", err)
++	}
++	msg := "udp test";
++	l.Info(msg);
++	expected := "<6>syslog_test: udp test\n";
++	rcvd := <-done;
++	if rcvd != expected {
++		t.Fatalf("s.Info() = '%q', but wanted '%q'", rcvd, expected)
++	}
++}
++
++func TestWrite(t *testing.T) {
++	done := make(chan string);
++	startServer(done);
++	l, err := Dial("udp", serverAddr, LOG_ERR, "syslog_test");
++	if err != nil {
++		t.Fatalf("syslog.Dial() failed: %s", err)
++	}
++	msg := "write test";
++	_, err = io.WriteString(l, msg);
++	if err != nil {
++		t.Fatalf("WriteString() failed: %s", err)
++	}
++	expected := "<3>syslog_test: write test\n";
++	rcvd := <-done;
++	if rcvd != expected {
++		t.Fatalf("s.Info() = '%q', but wanted '%q'", rcvd, expected)
++	}
++}

@@ -34,10 +34,214 @@ Date:   Sun Mar 29 01:19:50 2020 +0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  1 +
  src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
  src/cmd/compile/internal/gc/walk.go            | 18 +++++++--
  test/escape_slice.go                           | 22 +++++++----
  test/fixedbugs/issue37975.go                   | 54 ++++++++++++++++++++++++++
  5 files changed, 86 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index b6b47440ce..deefed7f19 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -13,6 +13,7 @@ var runtimeDecls = [...]struct {
+ 	{"panicdivide", funcTag, 5},
+ 	{"panicshift", funcTag, 5},
+ 	{"panicmakeslicelen", funcTag, 5},
++	{"panicmakeslicecap", funcTag, 5},
+ 	{"throwinit", funcTag, 5},
+ 	{"panicwrap", funcTag, 5},
+ 	{"gopanic", funcTag, 7},
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index afeae3e794..9bcb3688b4 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -18,6 +18,7 @@ func newobject(typ *byte) *any
+ func panicdivide()
+ func panicshift()
+ func panicmakeslicelen()
++func panicmakeslicecap()
+ func throwinit()
+ func panicwrap()
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 289a75b59c..dfc9d9aa22 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -354,14 +354,13 @@ func isSmallMakeSlice(n *Node) bool {
+ 	if n.Op != OMAKESLICE {
+ 		return false
+ 	}
+-	l := n.Left
+ 	r := n.Right
+ 	if r == nil {
+-		r = l
++		r = n.Left
+ 	}
+ 	t := n.Type
+ 
+-	return smallintconst(l) && smallintconst(r) && (t.Elem().Width == 0 || r.Int64() < maxImplicitStackVarSize/t.Elem().Width)
++	return smallintconst(r) && (t.Elem().Width == 0 || r.Int64() < maxImplicitStackVarSize/t.Elem().Width)
+ }
+ 
+ // walk the whole tree of the body of an
+@@ -1338,6 +1337,19 @@ opswitch:
+ 			if i < 0 {
+ 				Fatalf("walkexpr: invalid index %v", r)
+ 			}
++
++			// if len < 0 { panicmakeslicelen }
++			nif := nod(OIF, nod(OLT, l, nodintconst(0)), nil)
++			nif.Nbody.Set1(mkcall("panicmakeslicelen", nil, init))
++			nif = typecheck(nif, ctxStmt)
++			init.Append(nif)
++
++			// if len > cap { panicmakeslicecap }
++			nif = nod(OIF, nod(OGT, conv(l, types.Types[TUINT64]), nodintconst(i)), nil)
++			nif.Nbody.Set1(mkcall("panicmakeslicecap", nil, init))
++			nif = typecheck(nif, ctxStmt)
++			init.Append(nif)
++
+ 			t = types.NewArray(t.Elem(), i) // [r]T
+ 			var_ := temp(t)
+ 			a := nod(OAS, var_, nil) // zero temp
+diff --git a/test/escape_slice.go b/test/escape_slice.go
+index 03053cf326..d2cdaa6a01 100644
+--- a/test/escape_slice.go
++++ b/test/escape_slice.go
+@@ -18,28 +18,28 @@ var sink interface{}
+ func slice0() {
+ 	var s []*int
+ 	// BAD: i should not escape
+-	i := 0            // ERROR "moved to heap: i"
++	i := 0 // ERROR "moved to heap: i"
+ 	s = append(s, &i)
+ 	_ = s
+ }
+ 
+ func slice1() *int {
+ 	var s []*int
+-	i := 0            // ERROR "moved to heap: i"
++	i := 0 // ERROR "moved to heap: i"
+ 	s = append(s, &i)
+ 	return s[0]
+ }
+ 
+ func slice2() []*int {
+ 	var s []*int
+-	i := 0            // ERROR "moved to heap: i"
++	i := 0 // ERROR "moved to heap: i"
+ 	s = append(s, &i)
+ 	return s
+ }
+ 
+ func slice3() *int {
+ 	var s []*int
+-	i := 0            // ERROR "moved to heap: i"
++	i := 0 // ERROR "moved to heap: i"
+ 	s = append(s, &i)
+ 	for _, p := range s {
+ 		return p
+@@ -48,7 +48,7 @@ func slice3() *int {
+ }
+ 
+ func slice4(s []*int) { // ERROR "s does not escape"
+-	i := 0    // ERROR "moved to heap: i"
++	i := 0 // ERROR "moved to heap: i"
+ 	s[0] = &i
+ }
+ 
+@@ -56,14 +56,14 @@ func slice5(s []*int) { // ERROR "s does not escape"
+ 	if s != nil {
+ 		s = make([]*int, 10) // ERROR "make\(\[\]\*int, 10\) does not escape"
+ 	}
+-	i := 0    // ERROR "moved to heap: i"
++	i := 0 // ERROR "moved to heap: i"
+ 	s[0] = &i
+ }
+ 
+ func slice6() {
+ 	s := make([]*int, 10) // ERROR "make\(\[\]\*int, 10\) does not escape"
+ 	// BAD: i should not escape
+-	i := 0    // ERROR "moved to heap: i"
++	i := 0 // ERROR "moved to heap: i"
+ 	s[0] = &i
+ 	_ = s
+ }
+@@ -93,6 +93,14 @@ func slice10() []*int {
+ 	return s
+ }
+ 
++func slice11() {
++	i := 2
++	s := make([]int, 2, 3) // ERROR "make\(\[\]int, 2, 3\) does not escape"
++	s = make([]int, i, 3)  // ERROR "make\(\[\]int, i, 3\) does not escape"
++	s = make([]int, i, 1)  // ERROR "make\(\[\]int, i, 1\) does not escape"
++	_ = s
++}
++
+ func envForDir(dir string) []string { // ERROR "dir does not escape"
+ 	env := os.Environ()
+ 	return mergeEnvLists([]string{"PWD=" + dir}, env) // ERROR ".PWD=. \+ dir escapes to heap" "\[\]string literal does not escape"
+diff --git a/test/fixedbugs/issue37975.go b/test/fixedbugs/issue37975.go
+new file mode 100644
+index 0000000000..a4e8f1f14a
+--- /dev/null
++++ b/test/fixedbugs/issue37975.go
+@@ -0,0 +1,54 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure runtime.panicmakeslice* are called.
++
++package main
++
++import "strings"
++
++func main() {
++	// Test typechecking passes if len is valid
++	// but cap is out of range for len's type.
++	var x byte
++	_ = make([]int, x, 300)
++
++	capOutOfRange := func() {
++		i := 2
++		s := make([]int, i, 1)
++		s[0] = 1
++	}
++	lenOutOfRange := func() {
++		i := -1
++		s := make([]int, i, 3)
++		s[0] = 1
++	}
++
++	tests := []struct {
++		f        func()
++		panicStr string
++	}{
++		{capOutOfRange, "cap out of range"},
++		{lenOutOfRange, "len out of range"},
++	}
++
++	for _, tc := range tests {
++		shouldPanic(tc.panicStr, tc.f)
++	}
++
++}
++
++func shouldPanic(str string, f func()) {
++	defer func() {
++		err := recover()
++		runtimeErr := err.(error).Error()
++		if !strings.Contains(runtimeErr, str) {
++			panic("got panic " + runtimeErr + ", want " + str)
++		}
++	}()
++
++	f()
++}

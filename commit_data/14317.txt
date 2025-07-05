@@ -15,6 +15,35 @@ Date:   Tue Nov 6 20:11:16 2012 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6820098
-
+---
  src/pkg/runtime/parfor_test.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/parfor_test.go b/src/pkg/runtime/parfor_test.go
+index 7644354ab3..b382b76a7b 100644
+--- a/src/pkg/runtime/parfor_test.go
++++ b/src/pkg/runtime/parfor_test.go
+@@ -109,14 +109,21 @@ func TestParForParallel(t *testing.T) {
+ 		data[i] = i
+ 	}
+ 	P := GOMAXPROCS(-1)
++	c := make(chan bool, P)
+ 	desc := NewParFor(uint32(P))
+-	ParForSetup(desc, uint32(P), uint32(N), nil, true, func(desc *ParFor, i uint32) {
++	ParForSetup(desc, uint32(P), uint32(N), nil, false, func(desc *ParFor, i uint32) {
+ 		data[i] = data[i]*data[i] + 1
+ 	})
+ 	for p := 1; p < P; p++ {
+-		go ParForDo(desc)
++		go func() {
++			ParForDo(desc)
++			c <- true
++		}()
+ 	}
+ 	ParForDo(desc)
++	for p := 1; p < P; p++ {
++		<-c
++	}
+ 	for i := uint64(0); i < N; i++ {
+ 		if data[i] != i*i+1 {
+ 			t.Fatalf("Wrong element %d: %d", i, data[i])

@@ -29,7 +29,70 @@ Date:   Thu Aug 18 04:56:10 2022 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  .../compile/internal/devirtualize/devirtualize.go  | 19 ++++++++++++++++
  test/typeparam/mdempsky/21.go                      | 26 ++++++++++++++++++++++
  2 files changed, 45 insertions(+)
+
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index f64ebc87d0..b620470b0e 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -74,6 +74,25 @@ func Call(call *ir.CallExpr) {
+ 			}
+ 			return
+ 		}
++
++		// Further, if sel.X's type has a shape type, then it's a shaped
++		// interface type. In this case, the (non-dynamic) TypeAssertExpr
++		// we construct below would attempt to create an itab
++		// corresponding to this shaped interface type; but the actual
++		// itab pointer in the interface value will correspond to the
++		// original (non-shaped) interface type instead. These are
++		// functionally equivalent, but they have distinct pointer
++		// identities, which leads to the type assertion failing.
++		//
++		// TODO(mdempsky): We know the type assertion here is safe, so we
++		// could instead set a flag so that walk skips the itab check. For
++		// now, punting is easy and safe.
++		if sel.X.Type().HasShape() {
++			if base.Flag.LowerM != 0 {
++				base.WarnfAt(call.Pos(), "cannot devirtualize %v: shaped interface %v", call, sel.X.Type())
++			}
++			return
++		}
+ 	}
+ 
+ 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
+diff --git a/test/typeparam/mdempsky/21.go b/test/typeparam/mdempsky/21.go
+new file mode 100644
+index 0000000000..da10ae3ea3
+--- /dev/null
++++ b/test/typeparam/mdempsky/21.go
+@@ -0,0 +1,26 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that devirtualization doesn't introduce spurious type
++// assertion failures due to shaped and non-shaped interfaces having
++// distinct itabs.
++
++package main
++
++func main() {
++	F[int]()
++}
++
++func F[T any]() {
++	var i I[T] = X(0)
++	i.M()
++}
++
++type I[T any] interface{ M() }
++
++type X int
++
++func (X) M() {}

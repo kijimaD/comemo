@@ -11,6 +11,22 @@ Date:   Thu Apr 5 13:27:44 2018 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 084af32a6b..ad3222d3a1 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -227,8 +227,8 @@ var (
+ 	ServerContextKey = &contextKey{"http-server"}
+ 
+ 	// LocalAddrContextKey is a context key. It can be used in
+-	// HTTP handlers with context.WithValue to access the address
+-	// the local address the connection arrived on.
++	// HTTP handlers with context.WithValue to access the local
++	// address the connection arrived on.
+ 	// The associated value will be of type net.Addr.
+ 	LocalAddrContextKey = &contextKey{"local-addr"}
+ )

@@ -10,6 +10,32 @@ Date:   Thu Jan 30 19:10:53 2020 -0800
     Change-Id: Ic3ae18d31eddb9df01241cbddcc3b7b750cfaa44
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217130
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.14.html | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index f66582f180..e072bc675e 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -540,6 +540,20 @@ TODO
+       can be used to fetch all values associated with a
+       canonicalized key.
+     </p>
++
++    <p><!-- CL 61291 -->
++      The
++      new <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
++      field <a href="/pkg/net/http/#Transport.DialTLSContext"><code>DialTLSContext</code></a>
++      can be used to specify an optional dial function for creating
++      TLS connections for non-proxied HTTPS requests.
++      This new field can be used instead
++      of <a href="/pkg/net/http/#Transport.DialTLS"><code>DialTLS</code></a>,
++      which is now considered deprecated; <code>DialTLS</code> will
++      continue to work, but new code should
++      use <code>DialTLSContext</code>, which allows the transport to
++      cancel dials as soon as they are no longer needed.
++    </p>
+   </dd>
+ </dl><!-- net/http -->
+ 

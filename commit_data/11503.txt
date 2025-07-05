@@ -13,6 +13,58 @@ Date:   Tue Jan 31 22:09:06 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5574062
-
+---
  src/pkg/os/exec/exec_test.go | 19 ++++++++++++++++++-
  1 file changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index c68498047f..d456dfb53d 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++	"syscall"
+ 	"testing"
+ )
+ 
+@@ -150,6 +151,15 @@ func TestExtraFiles(t *testing.T) {
+ 		return
+ 	}
+ 
++	// Ensure that file descriptors have not already been leaked into
++	// our environment.
++	for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
++		err := syscall.Close(fd)
++		if err == nil {
++			t.Logf("Something already leaked - closed fd %d", fd)
++		}
++	}
++
+ 	// Force network usage, to verify the epoll (or whatever) fd
+ 	// doesn't leak to the child,
+ 	ln, err := net.Listen("tcp", "127.0.0.1:0")
+@@ -202,6 +212,13 @@ func TestHelperProcess(*testing.T) {
+ 	}
+ 	defer os.Exit(0)
+ 
++	// Determine which command to use to display open files.
++	ofcmd := "lsof"
++	switch runtime.GOOS {
++	case "freebsd", "netbsd", "openbsd":
++		ofcmd = "fstat"
++	}
++
+ 	args := os.Args
+ 	for len(args) > 0 {
+ 		if args[0] == "--" {
+@@ -282,7 +299,7 @@ func TestHelperProcess(*testing.T) {
+ 				}
+ 				if got := f.Fd(); got != wantfd {
+ 					fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
+-					out, _ := Command("lsof", "-p", fmt.Sprint(os.Getpid())).CombinedOutput()
++					out, _ := Command(ofcmd, "-p", fmt.Sprint(os.Getpid())).CombinedOutput()
+ 					fmt.Print(string(out))
+ 					os.Exit(1)
+ 				}

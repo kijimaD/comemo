@@ -7,7 +7,79 @@ Date:   Thu Feb 16 10:26:01 2012 +1100
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5673048
-
+---
  src/all.bat  |  7 +++----
  src/make.bat | 15 ++++++++++-----
  2 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/src/all.bat b/src/all.bat
+index 7792cf1746..980f937efc 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -3,20 +3,19 @@
+ :: license that can be found in the LICENSE file.
+ @echo off
+ 
++setlocal
++
+ if exist make.bat goto ok
+ echo all.bat must be run from go\src
+ :: cannot exit: would kill parent command interpreter
+ goto end
+ :ok
+ 
+-set GOOLDPATH=%PATH%
+-
+-call make.bat --no-banner
++call make.bat --no-banner --no-local
+ if %GOBUILDFAIL%==1 goto end
+ call run.bat --no-rebuild
+ if %GOBUILDFAIL%==1 goto end
+ go tool dist banner
+ 
+ :end
+-set PATH=%GOOLDPATH%
+ if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
+diff --git a/src/make.bat b/src/make.bat
+index 6618bc4ed9..e6921aa791 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -3,6 +3,13 @@
+ :: license that can be found in the LICENSE file.
+ @echo off
+ 
++:: Keep environment variables within this script
++:: unless invoked with --no-local.
++if x%1==x--no-local goto nolocal
++if x%2==x--no-local goto nolocal
++setlocal
++:nolocal
++
+ set GOBUILDFAIL=0
+ 
+ if exist make.bat goto ok
+@@ -48,13 +55,11 @@ goto mainbuild
+ 
+ :localbuild
+ echo # Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
+-set oldGOOS=%GOOS%
+-set oldGOARCH=%GOARCH%
++setlocal
+ set GOOS=%GOHOSTOS%
+ set GOARCH=%GOHOSTARCH%
+ %GOTOOLDIR%\go_bootstrap install -v std
+-set GOOS=%oldGOOS%
+-set GOARCH=%oldGOARCH%
++endlocal
+ if errorlevel 1 goto fail
+ echo .
+ 
+@@ -65,7 +70,7 @@ if errorlevel 1 goto fail
+ del %GOTOOLDIR%\go_bootstrap.exe
+ echo .
+ 
+-if "x%1"=="x--no-banner" goto nobanner
++if x%1==x--no-banner goto nobanner
+ %GOTOOLDIR%\dist banner
+ :nobanner
+ 

@@ -15,7 +15,7 @@ Date:   Tue Oct 18 14:17:05 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go        |   4 -
  src/cmd/compile/internal/gc/builtin/unsafe.go |  18 ----
  src/cmd/compile/internal/gc/const.go          |  15 +--
@@ -28,3 +28,471 @@ Date:   Tue Oct 18 14:17:05 2016 -0700
  src/cmd/compile/internal/gc/unsafe.go         | 127 ++++++++------------------
  test/fixedbugs/bug376.go                      |   3 +-
  11 files changed, 95 insertions(+), 162 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 824f1db642..c016bedc8a 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -103,7 +103,3 @@ const runtimeimport = "" +
+ 	"r·1\x00^\x16\rsize·2\x00^\x00\t\x1bracewriterange\x00\x04\x16\x90\x03\x00" +
+ 	"^\x16\x92\x03\x00^\x00\t\x0fmsanread\x00\x04\x16\x90\x03\x00^\x16\x92\x03\x00^\x00\t\x11msanwrit" +
+ 	"e\x00\x04\x16\x90\x03\x00^\x16\x92\x03\x00^\x00\v\xf6\x01\v\x00\x01\x00\n$$\n"
+-
+-const unsafeimport = "" +
+-	"version 2\n\n\x00\x00\x01\vunsafe\x00\t\x0fOffsetof\x00\x01:\x00\x01\x16\x00\t" +
+-	"\vSizeof\x00\x01:\x00\x01\x16\x00\t\rAlignof\x00\x01:\x00\x01\x16\x00\v\x06\v\x00\x01\x00\n$$\n"
+diff --git a/src/cmd/compile/internal/gc/builtin/unsafe.go b/src/cmd/compile/internal/gc/builtin/unsafe.go
+deleted file mode 100644
+index 2417e7e158..0000000000
+--- a/src/cmd/compile/internal/gc/builtin/unsafe.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// NOTE: If you change this file you must run "go generate"
+-// to update builtin.go. This is not done automatically
+-// to avoid depending on having a working compiler binary.
+-
+-// +build ignore
+-
+-package unsafe
+-
+-// Type Pointer is constructed directly in typeinit.
+-
+-// return types here are ignored; see unsafe.go
+-func Offsetof(any) uintptr
+-func Sizeof(any) uintptr
+-func Alignof(any) uintptr
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index a867b25f43..d1b9ce6a37 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1657,19 +1657,8 @@ func isgoconst(n *Node) bool {
+ 			return true
+ 		}
+ 
+-		// Only constant calls are unsafe.Alignof, Offsetof, and Sizeof.
+-	case OCALL:
+-		l := n.Left
+-
+-		for l.Op == OPAREN {
+-			l = l.Left
+-		}
+-		if l.Op != ONAME || l.Sym.Pkg != unsafepkg {
+-			break
+-		}
+-		if l.Sym.Name == "Alignof" || l.Sym.Name == "Offsetof" || l.Sym.Name == "Sizeof" {
+-			return true
+-		}
++	case OALIGNOF, OOFFSETOF, OSIZEOF:
++		return true
+ 	}
+ 
+ 	//dump("nonconst", n);
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 02882c882c..22c96f1e5a 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -148,6 +148,7 @@ var goopnames = []string{
+ 	OADDR:     "&",
+ 	OADD:      "+",
+ 	OADDSTR:   "+",
++	OALIGNOF:  "unsafe.Alignof",
+ 	OANDAND:   "&&",
+ 	OANDNOT:   "&^",
+ 	OAND:      "&",
+@@ -188,6 +189,7 @@ var goopnames = []string{
+ 	ONEW:      "new",
+ 	ONE:       "!=",
+ 	ONOT:      "!",
++	OOFFSETOF: "unsafe.Offsetof",
+ 	OOROR:     "||",
+ 	OOR:       "|",
+ 	OPANIC:    "panic",
+@@ -202,6 +204,7 @@ var goopnames = []string{
+ 	ORSH:      ">>",
+ 	OSELECT:   "select",
+ 	OSEND:     "<-",
++	OSIZEOF:   "unsafe.Sizeof",
+ 	OSUB:      "-",
+ 	OSWITCH:   "switch",
+ 	OXOR:      "^",
+@@ -991,6 +994,7 @@ func (n *Node) stmtfmt(s fmt.State) {
+ }
+ 
+ var opprec = []int{
++	OALIGNOF:      8,
+ 	OAPPEND:       8,
+ 	OARRAYBYTESTR: 8,
+ 	OARRAYLIT:     8,
+@@ -1016,12 +1020,14 @@ var opprec = []int{
+ 	ONAME:         8,
+ 	ONEW:          8,
+ 	ONONAME:       8,
++	OOFFSETOF:     8,
+ 	OPACK:         8,
+ 	OPANIC:        8,
+ 	OPAREN:        8,
+ 	OPRINTN:       8,
+ 	OPRINT:        8,
+ 	ORUNESTR:      8,
++	OSIZEOF:       8,
+ 	OSTRARRAYBYTE: 8,
+ 	OSTRARRAYRUNE: 8,
+ 	OSTRUCTLIT:    8,
+@@ -1354,6 +1360,9 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
+ 		ONEW,
+ 		OPANIC,
+ 		ORECOVER,
++		OALIGNOF,
++		OOFFSETOF,
++		OSIZEOF,
+ 		OPRINT,
+ 		OPRINTN:
+ 		if n.Left != nil {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 321f34776a..d66b5ee2d6 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -686,8 +686,6 @@ func loadsys() {
+ 
+ 	importpkg = Runtimepkg
+ 	Import(bufio.NewReader(strings.NewReader(runtimeimport)))
+-	importpkg = unsafepkg
+-	Import(bufio.NewReader(strings.NewReader(unsafeimport)))
+ 	importpkg = nil
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/mkbuiltin.go b/src/cmd/compile/internal/gc/mkbuiltin.go
+index abcc5efdb4..0a54b837e4 100644
+--- a/src/cmd/compile/internal/gc/mkbuiltin.go
++++ b/src/cmd/compile/internal/gc/mkbuiltin.go
+@@ -4,8 +4,8 @@
+ 
+ // +build ignore
+ 
+-// Generate builtin.go from builtin/runtime.go and builtin/unsafe.go.
+-// Run this after changing builtin/runtime.go and builtin/unsafe.go
++// Generate builtin.go from builtin/runtime.go.
++// Run this after changing builtin/runtime.go
+ // or after changing the export metadata format in the compiler.
+ // Either way, you need to have a working compiler binary first.
+ // See bexport.go for how to make an export metadata format change.
+@@ -33,7 +33,6 @@ func main() {
+ 	fmt.Fprintln(&b, "package gc")
+ 
+ 	mkbuiltin(&b, "runtime")
+-	mkbuiltin(&b, "unsafe")
+ 
+ 	var err error
+ 	if *stdout {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index ec47eb0828..da8671eac2 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -427,6 +427,9 @@ const (
+ 	OREAL      // real(Left)
+ 	OIMAG      // imag(Left)
+ 	OCOMPLEX   // complex(Left, Right)
++	OALIGNOF   // unsafe.Alignof(Left)
++	OOFFSETOF  // unsafe.Offsetof(Left)
++	OSIZEOF    // unsafe.Sizeof(Left)
+ 
+ 	// statements
+ 	OBLOCK    // { List } (block of code)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 33ed7fd9a7..ea9ef6c654 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -313,12 +313,6 @@ OpSwitch:
+ 			n.Used = true
+ 		}
+ 
+-		if top&Ecall == 0 && isunsafebuiltin(n) {
+-			yyerror("%v is not an expression, must be called", n)
+-			n.Type = nil
+-			return n
+-		}
+-
+ 		ok |= Erv
+ 		break OpSwitch
+ 
+@@ -1190,31 +1184,19 @@ OpSwitch:
+ 		n.Diag |= n.Left.Diag
+ 		l := n.Left
+ 
+-		if l.Op == ONAME {
+-			if r := unsafenmagic(n); r != nil {
+-				if n.Isddd {
+-					yyerror("invalid use of ... with builtin %v", l)
+-				}
+-				n = r
+-				n = typecheck1(n, top)
+-				return n
++		if l.Op == ONAME && l.Etype != 0 {
++			// TODO(marvin): Fix Node.EType type union.
++			if n.Isddd && Op(l.Etype) != OAPPEND {
++				yyerror("invalid use of ... with builtin %v", l)
+ 			}
+ 
+-			if l.Etype != 0 {
+-				// TODO(marvin): Fix Node.EType type union.
+-				if n.Isddd && Op(l.Etype) != OAPPEND {
+-					yyerror("invalid use of ... with builtin %v", l)
+-				}
+-
+-				// builtin: OLEN, OCAP, etc.
+-				// TODO(marvin): Fix Node.EType type union.
+-				n.Op = Op(l.Etype)
+-
+-				n.Left = n.Right
+-				n.Right = nil
+-				n = typecheck1(n, top)
+-				return n
+-			}
++			// builtin: OLEN, OCAP, etc.
++			// TODO(marvin): Fix Node.EType type union.
++			n.Op = Op(l.Etype)
++			n.Left = n.Right
++			n.Right = nil
++			n = typecheck1(n, top)
++			return n
+ 		}
+ 
+ 		n.Left = defaultlit(n.Left, nil)
+@@ -1313,6 +1295,21 @@ OpSwitch:
+ 
+ 		break OpSwitch
+ 
++	case OALIGNOF, OOFFSETOF, OSIZEOF:
++		ok |= Erv
++		if !onearg(n, "%v", n.Op) {
++			n.Type = nil
++			return n
++		}
++
++		// any side effects disappear; ignore init
++		var r Node
++		Nodconst(&r, Types[TUINTPTR], evalunsafe(n))
++		r.Orig = n
++		n = &r
++
++		break OpSwitch
++
+ 	case OCAP, OLEN, OREAL, OIMAG:
+ 		ok |= Erv
+ 		if !onearg(n, "%v", n.Op) {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 81de373ad3..5ac29d305c 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -63,6 +63,15 @@ var builtinFuncs = [...]struct {
+ 	{"recover", ORECOVER},
+ }
+ 
++var unsafeFuncs = [...]struct {
++	name string
++	op   Op
++}{
++	{"Alignof", OALIGNOF},
++	{"Offsetof", OOFFSETOF},
++	{"Sizeof", OSIZEOF},
++}
++
+ // initUniverse initializes the universe block.
+ func initUniverse() {
+ 	lexinit()
+@@ -99,6 +108,13 @@ func lexinit() {
+ 		s2.Def.Etype = EType(s.op)
+ 	}
+ 
++	for _, s := range unsafeFuncs {
++		s2 := Pkglookup(s.name, unsafepkg)
++		s2.Def = nod(ONAME, nil, nil)
++		s2.Def.Sym = s2
++		s2.Def.Etype = EType(s.op)
++	}
++
+ 	idealstring = typ(TSTRING)
+ 	idealbool = typ(TBOOL)
+ 
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index 6c8d62f158..0ae97b454c 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -4,126 +4,71 @@
+ 
+ package gc
+ 
+-// unsafenmagic rewrites calls to package unsafe's functions into constants.
+-func unsafenmagic(nn *Node) *Node {
+-	fn := nn.Left
+-	args := nn.List
+-
+-	if safemode || fn == nil || fn.Op != ONAME {
+-		return nil
+-	}
+-	s := fn.Sym
+-	if s == nil {
+-		return nil
+-	}
+-	if s.Pkg != unsafepkg {
+-		return nil
+-	}
+-
+-	if args.Len() == 0 {
+-		yyerror("missing argument for %v", s)
+-		return nil
+-	}
+-
+-	r := args.First()
+-
+-	var v int64
+-	switch s.Name {
+-	case "Alignof", "Sizeof":
+-		r = typecheck(r, Erv)
+-		r = defaultlit(r, nil)
+-		tr := r.Type
++// evalunsafe evaluates a package unsafe operation and returns the result.
++func evalunsafe(n *Node) int64 {
++	switch n.Op {
++	case OALIGNOF, OSIZEOF:
++		n.Left = typecheck(n.Left, Erv)
++		n.Left = defaultlit(n.Left, nil)
++		tr := n.Left.Type
+ 		if tr == nil {
+-			goto bad
++			yyerror("invalid expression %v", n)
++			return 0
+ 		}
+ 		dowidth(tr)
+-		if s.Name == "Alignof" {
+-			v = int64(tr.Align)
+-		} else {
+-			v = tr.Width
++		if n.Op == OALIGNOF {
++			return int64(tr.Align)
+ 		}
++		return tr.Width
+ 
+-	case "Offsetof":
++	case OOFFSETOF:
+ 		// must be a selector.
+-		if r.Op != OXDOT {
+-			goto bad
++		if n.Left.Op != OXDOT {
++			yyerror("invalid expression %v", n)
++			return 0
+ 		}
+ 
+ 		// Remember base of selector to find it back after dot insertion.
+ 		// Since r->left may be mutated by typechecking, check it explicitly
+ 		// first to track it correctly.
+-		r.Left = typecheck(r.Left, Erv)
+-		base := r.Left
++		n.Left.Left = typecheck(n.Left.Left, Erv)
++		base := n.Left.Left
+ 
+-		r = typecheck(r, Erv)
+-		switch r.Op {
++		n.Left = typecheck(n.Left, Erv)
++		switch n.Left.Op {
+ 		case ODOT, ODOTPTR:
+ 			break
+ 		case OCALLPART:
+-			yyerror("invalid expression %v: argument is a method value", nn)
+-			goto ret
++			yyerror("invalid expression %v: argument is a method value", n)
++			return 0
+ 		default:
+-			goto bad
++			yyerror("invalid expression %v", n)
++			return 0
+ 		}
+ 
+ 		// Sum offsets for dots until we reach base.
+-		for r1 := r; r1 != base; r1 = r1.Left {
+-			switch r1.Op {
++		var v int64
++		for r := n.Left; r != base; r = r.Left {
++			switch r.Op {
+ 			case ODOTPTR:
+ 				// For Offsetof(s.f), s may itself be a pointer,
+ 				// but accessing f must not otherwise involve
+ 				// indirection via embedded pointer types.
+-				if r1.Left != base {
+-					yyerror("invalid expression %v: selector implies indirection of embedded %v", nn, r1.Left)
+-					goto ret
++				if r.Left != base {
++					yyerror("invalid expression %v: selector implies indirection of embedded %v", n, r.Left)
++					return 0
+ 				}
+ 				fallthrough
+ 			case ODOT:
+-				v += r1.Xoffset
++				v += r.Xoffset
+ 			default:
+-				Dump("unsafenmagic", r)
+-				Fatalf("impossible %#v node after dot insertion", r1.Op)
+-				goto bad
++				Dump("unsafenmagic", n.Left)
++				Fatalf("impossible %#v node after dot insertion", r.Op)
+ 			}
+ 		}
+-
+-	default:
+-		return nil
++		return v
+ 	}
+ 
+-	if args.Len() > 1 {
+-		yyerror("extra arguments for %v", s)
+-	}
+-	goto ret
+-
+-bad:
+-	yyerror("invalid expression %v", nn)
+-
+-ret:
+-	// any side effects disappear; ignore init
+-	var val Val
+-	val.U = new(Mpint)
+-	val.U.(*Mpint).SetInt64(v)
+-	n := nod(OLITERAL, nil, nil)
+-	n.Orig = nn
+-	n.SetVal(val)
+-	n.Type = Types[TUINTPTR]
+-	nn.Type = Types[TUINTPTR]
+-	return n
+-}
+-
+-func isunsafebuiltin(n *Node) bool {
+-	if n == nil || n.Op != ONAME || n.Sym == nil || n.Sym.Pkg != unsafepkg {
+-		return false
+-	}
+-	if n.Sym.Name == "Sizeof" {
+-		return true
+-	}
+-	if n.Sym.Name == "Offsetof" {
+-		return true
+-	}
+-	if n.Sym.Name == "Alignof" {
+-		return true
+-	}
+-	return false
++	Fatalf("unexpected op %v", n.Op)
++	return 0
+ }
+diff --git a/test/fixedbugs/bug376.go b/test/fixedbugs/bug376.go
+index 7bef58bbd1..cd700124fe 100644
+--- a/test/fixedbugs/bug376.go
++++ b/test/fixedbugs/bug376.go
+@@ -7,5 +7,4 @@
+ // issue 1951
+ package foo
+ import "unsafe"
+-var v = unsafe.Sizeof  // ERROR "must be called"
+-
++var v = unsafe.Sizeof  // ERROR "not in function call|must be called"

@@ -13,7 +13,48 @@ Date:   Thu Jul 25 09:42:05 2013 -0400
     R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/11107044
-
+---
  src/cmd/gc/walk.c           |  7 +++++++
  test/fixedbugs/issue5841.go | 16 ++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c5a5874a19..892d73bc6f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1379,6 +1379,13 @@ walkexpr(Node **np, NodeList **init)
+ 	fatal("missing switch %O", n->op);
+ 
+ ret:
++	// Expressions that are constant at run time but not
++	// considered const by the language spec are not turned into
++	// constants until walk. For example, if n is y%1 == 0, the
++	// walk of y%1 may have replaced it by 0.
++	// Check whether n with its updated args is itself now a constant.
++	evconst(n);
++
+ 	ullmancalc(n);
+ 
+ 	if(debug['w'] && n != N)
+diff --git a/test/fixedbugs/issue5841.go b/test/fixedbugs/issue5841.go
+new file mode 100644
+index 0000000000..cfc4a504c5
+--- /dev/null
++++ b/test/fixedbugs/issue5841.go
+@@ -0,0 +1,16 @@
++// build
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5841: 8g produces invalid CMPL $0, $0.
++// Similar to issue 5002, used to fail at link time.
++
++package main
++
++func main() {
++	var y int
++	if y%1 == 0 {
++	}
++}

@@ -15,6 +15,36 @@ Date:   Fri Apr 21 02:21:41 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/build_test.go | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index 3f811ddc82..d68711432b 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -195,8 +195,13 @@ func TestRespectGroupSticky(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(stickydir)
+ 
+-	// Change stickydir's permissions to include group sticky bit.
+-	if err := os.Chmod(stickydir, 0755|os.ModeSetgid); err != nil {
++	testdir, err := ioutil.TempDir(stickydir, "testdir")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Change testdir's permissions to include group sticky bit.
++	if err := os.Chmod(testdir, 0755|os.ModeSetgid); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -207,7 +212,7 @@ func TestRespectGroupSticky(t *testing.T) {
+ 	defer os.Remove(pkgfile.Name())
+ 	defer pkgfile.Close()
+ 
+-	stickyFile := filepath.Join(stickydir, "sticky")
++	stickyFile := filepath.Join(testdir, "sticky")
+ 	if err := b.moveOrCopyFile(nil, stickyFile, pkgfile.Name(), 0666, true); err != nil {
+ 		t.Fatalf("moveOrCopyFile: %v", err)
+ 	}

@@ -21,7 +21,59 @@ Date:   Tue Jun 25 17:13:21 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/proxy.go          |  4 +++-
  src/cmd/go/testdata/script/mod_query_empty.txt | 21 +++++++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 6049ccfd30..569ef3a57a 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -345,7 +345,9 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
+ func (p *proxyRepo) Latest() (*RevInfo, error) {
+ 	data, err := p.getBytes("@latest")
+ 	if err != nil {
+-		// TODO return err if not 404
++		if !errors.Is(err, os.ErrNotExist) {
++			return nil, p.versionError("", err)
++		}
+ 		return p.latest()
+ 	}
+ 	info := new(RevInfo)
+diff --git a/src/cmd/go/testdata/script/mod_query_empty.txt b/src/cmd/go/testdata/script/mod_query_empty.txt
+index 4e27c1ee5c..4d8259b40f 100644
+--- a/src/cmd/go/testdata/script/mod_query_empty.txt
++++ b/src/cmd/go/testdata/script/mod_query_empty.txt
+@@ -28,6 +28,20 @@ go list -m example.com/join/...
+ ! stdout 'example.com/join/subpkg'
+ stdout 'example.com/join v1.1.0'
+ 
++# If the proxy provides an empty @v/list but rejects @latest with
++# some other explicit error (for example, a "permission denied" error),
++# that error should be reported to the user (and override a successful
++# result for other possible module paths).
++#
++# Depending on how the specific platform enforces permissions, the 'go get' may
++# fail either due to the intended permission error or due to a parse error.
++# We accept either failure message.
++env GOPROXY=file:///$WORK/gatekeeper
++chmod 0000 $WORK/gatekeeper/example.com/join/subpkg/@latest
++cp go.mod.orig go.mod
++! go get -d example.com/join/subpkg
++stderr 'go get example.com/join/subpkg: module example.com/join/subpkg: (invalid character .+|reading file://.*/gatekeeper/example.com/join/subpkg/@latest: .+)'
++
+ -- go.mod.orig --
+ module example.com/othermodule
+ go 1.13
+@@ -50,3 +64,10 @@ v1.0.0-does-not-exist
+ v1.1.0
+ -- $WORK/notfound/example.com/join/@v/v1.1.0.info --
+ {"Version": "v1.1.0"}
++-- $WORK/gatekeeper/example.com/join/subpkg/@v/list --
++-- $WORK/gatekeeper/example.com/join/subpkg/@latest --
++ERROR: Latest version is forbidden.
++-- $WORK/gatekeeper/example.com/join/@v/list --
++v1.1.0
++-- $WORK/gatekeeper/example.com/join/@v/v1.1.0.info --
++{"Version": "v1.1.0"}

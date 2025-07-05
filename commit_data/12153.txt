@@ -7,6 +7,21 @@ Date:   Thu Feb 23 12:07:59 2012 +1100
     R=golang-dev, r, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5689076
-
+---
  src/pkg/time/tick_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/time/tick_test.go b/src/pkg/time/tick_test.go
+index 9b5ecf6926..914f02c861 100644
+--- a/src/pkg/time/tick_test.go
++++ b/src/pkg/time/tick_test.go
+@@ -12,9 +12,6 @@ import (
+ func TestTicker(t *testing.T) {
+ 	const Count = 10
+ 	Delta := 100 * Millisecond
+-	if testing.Short() {
+-		Delta = 20 * Millisecond
+-	}
+ 	ticker := NewTicker(Delta)
+ 	t0 := Now()
+ 	for i := 0; i < Count; i++ {

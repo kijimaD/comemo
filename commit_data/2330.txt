@@ -7,8 +7,47 @@ Date:   Wed May 27 18:37:02 2009 -0700
     R=r
     OCL=29479
     CL=29479
-
+---
  src/cmd/gc/walk.c                  | 7 ++++++-
  test/{bugs => fixedbugs}/bug153.go | 0
  test/golden.out                    | 4 ----
  3 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 96cd400541..60d5a9d022 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1945,8 +1945,13 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
+ 	st = typ(TSTRUCT);	// generated structure
+ 	ft = T;			// last field
+ 	while(r != N) {
++		if(r->op == OLITERAL && r->val.ctype == CTNIL) {
++			if(r->type == T || r->type->etype == TNIL) {
++				yyerror("inappropriate use of nil in ... argument");
++				return N;
++			}
++		}
+ 		defaultlit(r, T);
+-
+ 		if(r->type == T)	// type check failed
+ 			return N;
+ 
+diff --git a/test/bugs/bug153.go b/test/fixedbugs/bug153.go
+similarity index 100%
+rename from test/bugs/bug153.go
+rename to test/fixedbugs/bug153.go
+diff --git a/test/golden.out b/test/golden.out
+index 6a7756babb..6bc8837d49 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -108,10 +108,6 @@ BUG: should crash
+ bugs/bug149.go:14: cannot convert []uint8 constant to string
+ BUG: should compile
+ 
+-=========== bugs/bug153.go
+-BUG: errchk: bugs/bug153.go:9: error message does not match 'nil'
+-bugs/bug153.go:9: fatal error: dowidth: unknown type: E-34
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

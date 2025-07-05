@@ -9,6 +9,20 @@ Date:   Thu Dec 7 14:05:08 2017 +0300
     Change-Id: I469f1ab2dee9151334b38e0d3a22eb9840c8807b
     Reviewed-on: https://go-review.googlesource.com/82495
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index a46823c704..3fa6660164 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2778,7 +2778,7 @@ func (srv *Server) Serve(l net.Listener) error {
+ // server's certificate, any intermediates, and the CA's certificate.
+ //
+ // For HTTP/2 support, srv.TLSConfig should be initialized to the
+-// provided listener's TLS Config before calling Serve. If
++// provided listener's TLS Config before calling ServeTLS. If
+ // srv.TLSConfig is non-nil and doesn't include the string "h2" in
+ // Config.NextProtos, HTTP/2 support is not enabled.
+ //

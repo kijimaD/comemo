@@ -9,6 +9,20 @@ Date:   Wed Feb 20 15:38:35 2013 +1100
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/7366043
-
+---
  src/pkg/syscall/security_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/security_windows.go b/src/pkg/syscall/security_windows.go
+index 71aef2fcaf..017b270146 100644
+--- a/src/pkg/syscall/security_windows.go
++++ b/src/pkg/syscall/security_windows.go
+@@ -70,7 +70,7 @@ type UserInfo10 struct {
+ 
+ const (
+ 	// do not reorder
+-	SidTypeUser = 1 << iota
++	SidTypeUser = 1 + iota
+ 	SidTypeGroup
+ 	SidTypeDomain
+ 	SidTypeAlias

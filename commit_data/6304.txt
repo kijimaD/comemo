@@ -8,7 +8,42 @@ Date:   Sat Sep 18 11:43:10 2010 +1000
     R=brainman, alex.brainman
     CC=golang-dev
     https://golang.org/cl/2244041
-
+---
  src/pkg/Makefile                | 1 -
  src/pkg/netchan/netchan_test.go | 4 ++--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 910dd41889..da44167c34 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -189,7 +189,6 @@ endif
+ # Disable tests that windows cannot run yet.
+ ifeq ($(GOOS),windows)
+ NOTEST+=exec         # no pipe
+-NOTEST+=netchan      # net.Dial("tcp", "", "0.0.0.0:80") doesn't work on windows
+ NOTEST+=os           # many things unimplemented
+ NOTEST+=os/signal    # no signals
+ NOTEST+=path         # tree walking does not work
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/netchan/netchan_test.go
+index 1e4703d9d6..1626c367d3 100644
+--- a/src/pkg/netchan/netchan_test.go
++++ b/src/pkg/netchan/netchan_test.go
+@@ -151,7 +151,7 @@ type value struct {
+ 
+ // This test cross-connects a pair of exporter/importer pairs.
+ func TestCrossConnect(t *testing.T) {
+-	e1, err := NewExporter("tcp", ":0")
++	e1, err := NewExporter("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatal("new exporter:", err)
+ 	}
+@@ -160,7 +160,7 @@ func TestCrossConnect(t *testing.T) {
+ 		t.Fatal("new importer:", err)
+ 	}
+ 
+-	e2, err := NewExporter("tcp", ":0")
++	e2, err := NewExporter("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatal("new exporter:", err)
+ 	}

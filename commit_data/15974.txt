@@ -9,8 +9,48 @@ Date:   Wed Mar 27 15:00:11 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8059043
-
+---
  src/cmd/8l/span.c | 2 +-
  src/cmd/ld/data.c | 2 +-
  src/cmd/ld/elf.c  | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index c9e1c28bb2..980186b163 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -689,7 +689,7 @@ putrelv:
+ 		r = addrel(cursym);
+ 		*r = rel;
+ 		r->off = curp->pc + andptr - and;
+-	} else if(iself && linkmode == LinkExternal && istls(a)) {
++	} else if(iself && linkmode == LinkExternal && istls(a) && HEADTYPE != Hopenbsd) {
+ 		Reloc *r;
+ 		Sym *s;
+ 
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 9f7ae0c409..9851a390a4 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -1206,7 +1206,7 @@ dodata(void)
+ 	sect->len = datsize - sect->vaddr;
+ 	lookup("end", 0)->sect = sect;
+ 	
+-	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS) {
++	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && HEADTYPE != Hopenbsd) {
+ 		sect = addsection(&segdata, ".tbss", 06);
+ 		sect->align = PtrSize;
+ 		sect->vaddr = 0;
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 7e1ef7dc6d..22bc64f8f0 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -887,7 +887,7 @@ doelf(void)
+ 	addstring(shstrtab, ".data");
+ 	addstring(shstrtab, ".bss");
+ 	addstring(shstrtab, ".noptrbss");
+-	if(linkmode == LinkExternal)
++	if(linkmode == LinkExternal && HEADTYPE != Hopenbsd)
+ 		addstring(shstrtab, ".tbss");
+ 	if(HEADTYPE == Hnetbsd)
+ 		addstring(shstrtab, ".note.netbsd.ident");

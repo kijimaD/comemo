@@ -7,6 +7,22 @@ Date:   Mon Nov 9 12:35:56 2009 -0800
     
     R=go-dev, rsc
     http://go/go-review/1025030
-
+---
  doc/go_spec.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 5860eec7f0..376046b77d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1890,8 +1890,9 @@ LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
+                 SliceType | MapType | TypeName | "(" LiteralType ")" .
+ ElementList   = Element { "," Element } [ "," ] .
+ Element       = [ Key ":" ] Value .
+-Key           = FieldName | Index .
++Key           = FieldName | ElementIndex .
+ FieldName     = identifier .
++ElementIndex  = Expression .
+ Value         = Expression .
+ </pre>
+ 

@@ -9,6 +9,21 @@ Date:   Tue Sep 18 17:40:53 2012 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6498133
-
+---
  src/cmd/gc/walk.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 935fa6d65d..c6b7e4278f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1194,6 +1194,9 @@ walkexpr(Node **np, NodeList **init)
+ 			fn = syslook("efaceeq", 1);
+ 		else
+ 			fn = syslook("ifaceeq", 1);
++
++		n->right = cheapexpr(n->right, init);
++		n->left = cheapexpr(n->left, init);
+ 		argtype(fn, n->right->type);
+ 		argtype(fn, n->left->type);
+ 		r = mkcall1(fn, n->type, init, n->left, n->right);

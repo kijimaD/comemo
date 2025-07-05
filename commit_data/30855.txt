@@ -22,7 +22,7 @@ Date:   Thu Dec 8 00:22:09 2016 +1100
     Change-Id: I525ed9b57c66c0c6f438dfa32feb29c7eefc72b0
     Reviewed-on: https://go-review.googlesource.com/34093
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  api/except.txt                       | 4 ++++
  src/runtime/sys_openbsd_386.s        | 9 +++++----
  src/runtime/sys_openbsd_amd64.s      | 7 ++++---
@@ -31,3 +31,160 @@ Date:   Thu Dec 8 00:22:09 2016 +1100
  src/syscall/zsysnum_openbsd_amd64.go | 2 +-
  src/syscall/zsysnum_openbsd_arm.go   | 2 +-
  7 files changed, 20 insertions(+), 13 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 2062cbf0da..857ebb5d7d 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -338,3 +338,7 @@ pkg unicode, const Version = "6.2.0"
+ pkg unicode, const Version = "6.3.0"
+ pkg unicode, const Version = "7.0.0"
+ pkg unicode, const Version = "8.0.0"
++pkg syscall (openbsd-386), const SYS_KILL = 37
++pkg syscall (openbsd-386-cgo), const SYS_KILL = 37
++pkg syscall (openbsd-amd64), const SYS_KILL = 37
++pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 37
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index e969395088..997c07fe17 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -79,14 +79,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$24
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·raise(SB),NOSPLIT,$12
++TEXT runtime·raise(SB),NOSPLIT,$16
+ 	MOVL	$299, AX		// sys_getthrid
+ 	INT	$0x80
+ 	MOVL	$0, 0(SP)
+-	MOVL	AX, 4(SP)		// arg 1 - pid
++	MOVL	AX, 4(SP)		// arg 1 - tid
+ 	MOVL	sig+0(FP), AX
+ 	MOVL	AX, 8(SP)		// arg 2 - signum
+-	MOVL	$37, AX			// sys_kill
++	MOVL	$0, 12(SP)		// arg 3 - tcb
++	MOVL	$119, AX		// sys_thrkill
+ 	INT	$0x80
+ 	RET
+ 
+@@ -97,7 +98,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
+ 	MOVL	AX, 4(SP)		// arg 1 - pid
+ 	MOVL	sig+0(FP), AX
+ 	MOVL	AX, 8(SP)		// arg 2 - signum
+-	MOVL	$37, AX			// sys_kill
++	MOVL	$122, AX		// sys_kill
+ 	INT	$0x80
+ 	RET
+ 
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 01d6bd8e85..6ca5a81d2a 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -156,9 +156,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
+ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	MOVL	$299, AX		// sys_getthrid
+ 	SYSCALL
+-	MOVQ	AX, DI			// arg 1 - pid
++	MOVQ	AX, DI			// arg 1 - tid
+ 	MOVL	sig+0(FP), SI		// arg 2 - signum
+-	MOVL	$37, AX			// sys_kill
++	MOVQ	$0, DX			// arg 3 - tcb
++	MOVL	$119, AX		// sys_thrkill
+ 	SYSCALL
+ 	RET
+ 
+@@ -167,7 +168,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
+ 	SYSCALL
+ 	MOVQ	AX, DI			// arg 1 - pid
+ 	MOVL	sig+0(FP), SI		// arg 2 - signum
+-	MOVL	$37, AX			// sys_kill
++	MOVL	$122, AX		// sys_kill
+ 	SYSCALL
+ 	RET
+ 
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index e0f775d0eb..f573a028a0 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -87,9 +87,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
+ TEXT runtime·raise(SB),NOSPLIT,$12
+ 	MOVW	$0x12B, R12
+ 	SWI	$0			// sys_getthrid
+-					// arg 1 - pid, already in R0
++					// arg 1 - tid, already in R0
+ 	MOVW	sig+0(FP), R1		// arg 2 - signum
+-	MOVW	$37, R12		// sys_kill
++	MOVW	$0, R2			// arg 3 - tcb
++	MOVW	$119, R12		// sys_thrkill
+ 	SWI	$0
+ 	RET
+ 
+@@ -98,7 +99,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
+ 	SWI	$0			// sys_getpid
+ 					// arg 1 - pid, already in R0
+ 	MOVW	sig+0(FP), R1		// arg 2 - signum
+-	MOVW	$37, R12		// sys_kill
++	MOVW	$122, R12		// sys_kill
+ 	SWI	$0
+ 	RET
+ 
+diff --git a/src/syscall/zsysnum_openbsd_386.go b/src/syscall/zsysnum_openbsd_386.go
+index c19f6de649..c172534aeb 100644
+--- a/src/syscall/zsysnum_openbsd_386.go
++++ b/src/syscall/zsysnum_openbsd_386.go
+@@ -41,7 +41,6 @@ const (
+ 	SYS_CHFLAGS        = 34  // { int sys_chflags(const char *path, u_int flags); }
+ 	SYS_FCHFLAGS       = 35  // { int sys_fchflags(int fd, u_int flags); }
+ 	SYS_SYNC           = 36  // { void sys_sync(void); }
+-	SYS_KILL           = 37  // { int sys_kill(int pid, int signum); }
+ 	SYS_STAT           = 38  // { int sys_stat(const char *path, struct stat *ub); }
+ 	SYS_GETPPID        = 39  // { pid_t sys_getppid(void); }
+ 	SYS_LSTAT          = 40  // { int sys_lstat(const char *path, struct stat *ub); }
+@@ -113,6 +112,7 @@ const (
+ 	SYS_READV          = 120 // { ssize_t sys_readv(int fd, \
+ 	SYS_WRITEV         = 121 // { ssize_t sys_writev(int fd, \
+ 	SYS_FCHOWN         = 123 // { int sys_fchown(int fd, uid_t uid, gid_t gid); }
++	SYS_KILL           = 122 // { int sys_kill(int pid, int signum); }
+ 	SYS_FCHMOD         = 124 // { int sys_fchmod(int fd, mode_t mode); }
+ 	SYS_SETREUID       = 126 // { int sys_setreuid(uid_t ruid, uid_t euid); }
+ 	SYS_SETREGID       = 127 // { int sys_setregid(gid_t rgid, gid_t egid); }
+diff --git a/src/syscall/zsysnum_openbsd_amd64.go b/src/syscall/zsysnum_openbsd_amd64.go
+index 86e04cd47e..356c187375 100644
+--- a/src/syscall/zsysnum_openbsd_amd64.go
++++ b/src/syscall/zsysnum_openbsd_amd64.go
+@@ -41,7 +41,6 @@ const (
+ 	SYS_CHFLAGS        = 34  // { int sys_chflags(const char *path, u_int flags); }
+ 	SYS_FCHFLAGS       = 35  // { int sys_fchflags(int fd, u_int flags); }
+ 	SYS_SYNC           = 36  // { void sys_sync(void); }
+-	SYS_KILL           = 37  // { int sys_kill(int pid, int signum); }
+ 	SYS_STAT           = 38  // { int sys_stat(const char *path, struct stat *ub); }
+ 	SYS_GETPPID        = 39  // { pid_t sys_getppid(void); }
+ 	SYS_LSTAT          = 40  // { int sys_lstat(const char *path, struct stat *ub); }
+@@ -112,6 +111,7 @@ const (
+ 	SYS_GETSOCKOPT     = 118 // { int sys_getsockopt(int s, int level, int name, \
+ 	SYS_READV          = 120 // { ssize_t sys_readv(int fd, \
+ 	SYS_WRITEV         = 121 // { ssize_t sys_writev(int fd, \
++	SYS_KILL           = 122 // { int sys_kill(int pid, int signum); }
+ 	SYS_FCHOWN         = 123 // { int sys_fchown(int fd, uid_t uid, gid_t gid); }
+ 	SYS_FCHMOD         = 124 // { int sys_fchmod(int fd, mode_t mode); }
+ 	SYS_SETREUID       = 126 // { int sys_setreuid(uid_t ruid, uid_t euid); }
+diff --git a/src/syscall/zsysnum_openbsd_arm.go b/src/syscall/zsysnum_openbsd_arm.go
+index 38b43caba6..3e6b984a85 100644
+--- a/src/syscall/zsysnum_openbsd_arm.go
++++ b/src/syscall/zsysnum_openbsd_arm.go
+@@ -42,7 +42,6 @@ const (
+ 	SYS_CHFLAGS        = 34  // { int sys_chflags(const char *path, u_int flags); }
+ 	SYS_FCHFLAGS       = 35  // { int sys_fchflags(int fd, u_int flags); }
+ 	SYS_SYNC           = 36  // { void sys_sync(void); }
+-	SYS_KILL           = 37  // { int sys_kill(int pid, int signum); }
+ 	SYS_STAT           = 38  // { int sys_stat(const char *path, struct stat *ub); }
+ 	SYS_GETPPID        = 39  // { pid_t sys_getppid(void); }
+ 	SYS_LSTAT          = 40  // { int sys_lstat(const char *path, struct stat *ub); }
+@@ -118,6 +117,7 @@ const (
+ 	SYS_GETSOCKOPT     = 118 // { int sys_getsockopt(int s, int level, int name, \
+ 	SYS_READV          = 120 // { ssize_t sys_readv(int fd, \
+ 	SYS_WRITEV         = 121 // { ssize_t sys_writev(int fd, \
++	SYS_KILL           = 122 // { int sys_kill(int pid, int signum); }
+ 	SYS_FCHOWN         = 123 // { int sys_fchown(int fd, uid_t uid, gid_t gid); }
+ 	SYS_FCHMOD         = 124 // { int sys_fchmod(int fd, mode_t mode); }
+ 	SYS_SETREUID       = 126 // { int sys_setreuid(uid_t ruid, uid_t euid); }

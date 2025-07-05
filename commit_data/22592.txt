@@ -29,8 +29,108 @@ Date:   Tue Mar 24 09:37:10 2015 +0000
     Change-Id: Ib3944b8c410d0e12135c2ba9459bfe131df48edd
     Reviewed-on: https://go-review.googlesource.com/8010
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/bytes/compare_test.go |  3 +++
  src/runtime/asm_arm.s     | 51 +++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/noasm.go      |  4 ++--
  3 files changed, 56 insertions(+), 2 deletions(-)
+
+diff --git a/src/bytes/compare_test.go b/src/bytes/compare_test.go
+index 63522374ee..f2d81d5310 100644
+--- a/src/bytes/compare_test.go
++++ b/src/bytes/compare_test.go
+@@ -17,6 +17,8 @@ var compareTests = []struct {
+ 	{[]byte("a"), []byte(""), 1},
+ 	{[]byte(""), []byte("a"), -1},
+ 	{[]byte("abc"), []byte("abc"), 0},
++	{[]byte("abd"), []byte("abc"), 1},
++	{[]byte("abc"), []byte("abd"), -1},
+ 	{[]byte("ab"), []byte("abc"), -1},
+ 	{[]byte("abc"), []byte("ab"), 1},
+ 	{[]byte("x"), []byte("ab"), 1},
+@@ -27,6 +29,7 @@ var compareTests = []struct {
+ 	{[]byte("abcdefgh"), []byte("abcdefgh"), 0},
+ 	{[]byte("abcdefghi"), []byte("abcdefghi"), 0},
+ 	{[]byte("abcdefghi"), []byte("abcdefghj"), -1},
++	{[]byte("abcdefghj"), []byte("abcdefghi"), 1},
+ 	// nil tests
+ 	{nil, nil, 0},
+ 	{[]byte(""), nil, 0},
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index cf1c9d1302..4074e503cc 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -782,6 +782,57 @@ eq:
+ 	MOVB	R0, ret+8(FP)
+ 	RET
+ 
++TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
++	MOVW	s1_base+0(FP), R2
++	MOVW	s1_len+4(FP), R0
++	MOVW	s2_base+8(FP), R3
++	MOVW	s2_len+12(FP), R1
++	BL	runtime·cmpbody(SB)
++	MOVW	R8, ret+16(FP)
++	RET
++
++TEXT bytes·Compare(SB),NOSPLIT,$0-28
++	MOVW	s1+0(FP), R2
++	MOVW	s1+4(FP), R0
++	MOVW	s2+12(FP), R3
++	MOVW	s2+16(FP), R1
++	BL	runtime·cmpbody(SB)
++	MOVW	R8, ret+24(FP)
++	RET
++
++// On entry:
++// R0 is the length of s1
++// R1 is the length of s2
++// R2 points to the start of s1
++// R3 points to the start of s2
++//
++// On exit:
++// R8 is -1/0/+1
++// R5, R4, and R6 are clobbered
++TEXT runtime·cmpbody(SB),NOSPLIT,$-4-0
++	CMP 	R0, R1
++	MOVW 	R0, R6
++	MOVW.LT	R1, R6	// R6 is min(R0, R1)
++
++	ADD	R2, R6	// R2 is current byte in s1, R6 is last byte in s1 to compare
++loop:
++	CMP	R2, R6
++	BEQ	samebytes // all compared bytes were the same; compare lengths
++	MOVBU.P	1(R2), R4
++	MOVBU.P	1(R3), R5
++	CMP	R4, R5
++	BEQ	loop
++	// bytes differed
++	MOVW.LT	$1, R8
++	MOVW.GT	$-1, R8
++	RET
++samebytes:
++	CMP	R0, R1
++	MOVW.LT	$1, R8
++	MOVW.GT	$-1, R8
++	MOVW.EQ	$0, R8
++	RET
++
+ // eqstring tests whether two strings are equal.
+ // The compiler guarantees that strings passed
+ // to eqstring have equal length.
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index 4b3c577a21..ab9c744789 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Routines that are implemented in assembly in asm_{amd64,386}.s
++// Routines that are implemented in assembly in asm_{amd64,386,arm}.s
+ 
+-// +build arm arm64 ppc64 ppc64le
++// +build arm64 ppc64 ppc64le
+ 
+ package runtime
+ 

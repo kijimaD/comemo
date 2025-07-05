@@ -15,7 +15,34 @@ Date:   Sun Mar 28 23:04:33 2021 +0700
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/modload/help.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b15b77fac8..3fece365e8 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1952,7 +1952,7 @@
+ // The go.mod file format is described in detail at
+ // https://golang.org/ref/mod#go-mod-file.
+ //
+-// To create a new go.mod file, use 'go help init'. For details see
++// To create a new go.mod file, use 'go mod init'. For details see
+ // 'go help mod init' or https://golang.org/ref/mod#go-mod-init.
+ //
+ // To add missing module requirements or remove unneeded requirements,
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index fd39ddd94e..886ad62bd9 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -46,7 +46,7 @@ marking the root of the main (current) module.
+ The go.mod file format is described in detail at
+ https://golang.org/ref/mod#go-mod-file.
+ 
+-To create a new go.mod file, use 'go help init'. For details see
++To create a new go.mod file, use 'go mod init'. For details see
+ 'go help mod init' or https://golang.org/ref/mod#go-mod-init.
+ 
+ To add missing module requirements or remove unneeded requirements,

@@ -8,7 +8,42 @@ Date:   Mon Apr 13 20:37:24 2009 -0700
     DELTA=6  (0 added, 0 deleted, 6 changed)
     OCL=27404
     CL=27404
-
+---
  src/lib/template/template.go      |  2 +-
  src/lib/template/template_test.go | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index 274d9bf886..1881b5abb5 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -141,7 +141,7 @@ Loop:
+ 				if trim_white && only_white {
+ 					start = i;
+ 				}
+-			} else if i > t.p+1 {  // have some text accumulated so stop before '{'
++			} else if i > t.p {  // have some text accumulated so stop before '{'
+ 				break Loop;
+ 			}
+ 			brace = true;
+diff --git a/src/lib/template/template_test.go b/src/lib/template/template_test.go
+index 0280fa9241..324b08de1b 100644
+--- a/src/lib/template/template_test.go
++++ b/src/lib/template/template_test.go
+@@ -158,11 +158,11 @@ var tests = []*Test {
+ 	},
+ 	
+ 	// Bugs
+-//	&Test{
+-//		"{.section data}{.end} {header}\n",
+-//		
+-//		" 77\n"
+-//	},
++	&Test{
++		"{.section data}{.end} {integer}\n",
++
++		" 77\n"
++	},
+ }
+ 
+ func TestAll(t *testing.T) {

@@ -12,8 +12,152 @@ Date:   Thu Jul 23 15:15:26 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/pcln.go              | 37 +++++++++++++++++++++------
  src/cmd/link/internal/sym/compilation_unit.go | 13 +++++++---
  src/runtime/runtime2.go                       |  6 ++---
  3 files changed, 42 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index c6174e378c..3b6f9d4bff 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -14,6 +14,7 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"log"
++	"math"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -96,8 +97,9 @@ func makeOldPclnState(ctxt *Link) *oldPclnState {
+ 	return state
+ }
+ 
+-// makePclntab makes a pclntab object.
+-func makePclntab(ctxt *Link, container loader.Bitmap) *pclntab {
++// makePclntab makes a pclntab object, and assembles all the compilation units
++// we'll need to write pclntab.
++func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.CompilationUnit) {
+ 	ldr := ctxt.loader
+ 
+ 	state := &pclntab{
+@@ -105,7 +107,10 @@ func makePclntab(ctxt *Link, container loader.Bitmap) *pclntab {
+ 	}
+ 
+ 	// Gather some basic stats and info.
++	seenCUs := make(map[*sym.CompilationUnit]struct{})
+ 	prevSect := ldr.SymSect(ctxt.Textp[0])
++	compUnits := []*sym.CompilationUnit{}
++
+ 	for _, s := range ctxt.Textp {
+ 		if !emitPcln(ctxt, s, container) {
+ 			continue
+@@ -125,8 +130,17 @@ func makePclntab(ctxt *Link, container loader.Bitmap) *pclntab {
+ 			state.nfunc++
+ 			prevSect = ss
+ 		}
++
++		// We need to keep track of all compilation units we see. Some symbols
++		// (eg, go.buildid, _cgoexp_, etc) won't have a compilation unit.
++		cu := ldr.SymUnit(s)
++		if _, ok := seenCUs[cu]; cu != nil && !ok {
++			seenCUs[cu] = struct{}{}
++			cu.PclnIndex = len(compUnits)
++			compUnits = append(compUnits, cu)
++		}
+ 	}
+-	return state
++	return state, compUnits
+ }
+ 
+ func ftabaddstring(ftab *loader.SymbolBuilder, s string) int32 {
+@@ -425,7 +439,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 	//        filetable
+ 
+ 	oldState := makeOldPclnState(ctxt)
+-	state := makePclntab(ctxt, container)
++	state, _ := makePclntab(ctxt, container)
+ 
+ 	ldr := ctxt.loader
+ 	state.carrier = ldr.LookupOrCreateSym("runtime.pclntab", 0)
+@@ -434,7 +448,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 
+ 	// runtime.pclntab_old is just a placeholder,and will eventually be deleted.
+ 	// It contains the pieces of runtime.pclntab that haven't moved to a more
+-	// ration form.
++	// rational form.
+ 	state.pclntab = ldr.LookupOrCreateSym("runtime.pclntab_old", 0)
+ 	state.generatePCHeader(ctxt)
+ 	state.generateFuncnametab(ctxt, container)
+@@ -616,6 +630,16 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 		off = writepctab(off, pcline.P)
+ 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcdata))))
+ 
++		// Store the compilation unit index.
++		cuIdx := ^uint16(0)
++		if cu := ldr.SymUnit(s); cu != nil {
++			if cu.PclnIndex > math.MaxUint16 {
++				panic("cu limit reached.")
++			}
++			cuIdx = uint16(cu.PclnIndex)
++		}
++		off = int32(ftab.SetUint16(ctxt.Arch, int64(off), cuIdx))
++
+ 		// funcID uint8
+ 		var funcID objabi.FuncID
+ 		if fi.Valid() {
+@@ -623,9 +647,6 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ 		}
+ 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
+ 
+-		// unused
+-		off += 2
+-
+ 		// nfuncdata must be the final entry.
+ 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(len(funcdata))))
+ 		for i := range pcdata {
+diff --git a/src/cmd/link/internal/sym/compilation_unit.go b/src/cmd/link/internal/sym/compilation_unit.go
+index d9bfc84936..dc37a36cba 100644
+--- a/src/cmd/link/internal/sym/compilation_unit.go
++++ b/src/cmd/link/internal/sym/compilation_unit.go
+@@ -10,12 +10,19 @@ import "cmd/internal/dwarf"
+ // type from the sym package since loader imports sym.
+ type LoaderSym int
+ 
+-// CompilationUnit is an abstraction used by DWARF to represent a chunk of
+-// debug-related data. We create a CompilationUnit per Object file in a
+-// library (so, one for all the Go code, one for each assembly file, etc.).
++// A CompilationUnit represents a set of source files that are compiled
++// together. Since all Go sources in a Go package are compiled together,
++// there's one CompilationUnit per package that represents all Go sources in
++// that package, plus one for each assembly file.
++//
++// Equivalently, there's one CompilationUnit per object file in each Library
++// loaded by the linker.
++//
++// These are used for both DWARF and pclntab generation.
+ type CompilationUnit struct {
+ 	Pkg            string        // The package name, eg ("fmt", or "runtime")
+ 	Lib            *Library      // Our library
++	PclnIndex      int           // Index of this CU in pclntab
+ 	PCs            []dwarf.Range // PC ranges, relative to Textp[0]
+ 	DWInfo         *dwarf.DWDie  // CU root DIE
+ 	DWARFFileTable []string      // The file table used to generate the .debug_lines
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index cffdb0bf27..0bddcaa789 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -804,9 +804,9 @@ type _func struct {
+ 	pcfile    int32
+ 	pcln      int32
+ 	npcdata   int32
+-	funcID    funcID  // set for certain special runtime functions
+-	_         [2]int8 // unused
+-	nfuncdata uint8   // must be last
++	cuIndex   uint16 // TODO(jfaller): 16 bits is never enough, make this larger.
++	funcID    funcID // set for certain special runtime functions
++	nfuncdata uint8  // must be last
+ }
+ 
+ // Pseudo-Func that is returned for PCs that occur in inlined code.

@@ -9,8 +9,142 @@ Date:   Thu Dec 20 10:48:33 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6973048
-
+---
  src/cmd/go/doc.go          | 30 ++++++++++++++++++++++++++----
  src/cmd/go/test.go         |  4 ++--
  src/pkg/testing/example.go | 12 ++++++------
  3 files changed, 34 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index ab3189c6bf..29bfc68b90 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -76,7 +76,13 @@ The build flags are shared by the build, install, run, and test commands:
+ 		do not delete it when exiting.
+ 	-x
+ 		print the commands.
++	-race
++		enable data race detection.
++		Currently supported only on linux/amd64,
++		darwin/amd64 and windows/amd64.
+ 
++	-ccflags 'arg list'
++		arguments to pass on each 5c, 6c, or 8c compiler invocation
+ 	-compiler name
+ 		name of compiler to use, as in runtime.Compiler (gccgo or gc)
+ 	-gccgoflags 'arg list'
+@@ -121,6 +127,7 @@ source directories corresponding to the import paths:
+ 	DIR(.exe)        from go build
+ 	DIR.test(.exe)   from go test -c
+ 	MAINFILE(.exe)   from go build MAINFILE.go
++	*.so             from SWIG
+ 
+ In the list, DIR represents the final path element of the
+ directory, and MAINFILE is the base name of any Go source
+@@ -276,10 +283,10 @@ The default output shows the package import path:
+     code.google.com/p/goauth2/oauth
+     code.google.com/p/sqlite
+ 
+-The -f flag specifies an alternate format for the list,
+-using the syntax of package template.  The default output
+-is equivalent to -f '{{.ImportPath}}'.  The struct
+-being passed to the template is:
++The -f flag specifies an alternate format for the list, using the
++syntax of package template.  The default output is equivalent to -f
++'{{.ImportPath}}'.  One extra template function is available, "join",
++which calls strings.Join. The struct being passed to the template is:
+ 
+     type Package struct {
+         Dir        string // directory containing package sources
+@@ -679,6 +686,9 @@ directory containing the package sources, has its own flags:
+ 	    Run benchmarks matching the regular expression.
+ 	    By default, no benchmarks run.
+ 
++	-test.benchmem
++	    Print memory allocation statistics for benchmarks.
++
+ 	-test.cpuprofile cpu.out
+ 	    Write a CPU profile to the specified file before exiting.
+ 
+@@ -694,6 +704,18 @@ directory containing the package sources, has its own flags:
+ 	    garbage collector, provided the test can run in the available
+ 	    memory without garbage collection.
+ 
++	-test.blockprofile block.out
++	    Write a goroutine blocking profile to the specified file
++	    when all tests are complete.
++
++	-test.blockprofilerate n
++	    Control the detail provided in goroutine blocking profiles by setting
++	    runtime.BlockProfileRate to n.  See 'godoc runtime BlockProfileRate'.
++	    The profiler aims to sample, on average, one blocking event every
++	    n nanoseconds the program spends blocked.  By default,
++	    if -test.blockprofile is set without this flag, all blocking events
++	    are recorded, equivalent to -test.blockprofilerate=1.
++
+ 	-test.parallel n
+ 	    Allow parallel execution of test functions that call t.Parallel.
+ 	    The value of this flag is the maximum number of tests to run
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 555c6f50ed..87ae571bd3 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -175,8 +175,8 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
+ 
+ 	func BenchmarkXXX(b *testing.B) { ... }
+ 
+-An example function is similar to a test function but, instead of using *testing.T
+-to report success or failure, prints output to os.Stdout and os.Stderr.
++An example function is similar to a test function but, instead of using
++*testing.T to report success or failure, prints output to os.Stdout.
+ That output is compared against the function's "Output:" comment, which
+ must be the last comment in the function body (see example below). An
+ example with no such comment, or with no text after "Output:" is compiled
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index 671c798760..dc97255965 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -24,7 +24,7 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 
+ 	var eg InternalExample
+ 
+-	stdout, stderr := os.Stdout, os.Stderr
++	stdout := os.Stdout
+ 
+ 	for _, eg = range examples {
+ 		matched, err := matchString(*match, eg.Name)
+@@ -39,19 +39,19 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 			fmt.Printf("=== RUN: %s\n", eg.Name)
+ 		}
+ 
+-		// capture stdout and stderr
++		// capture stdout
+ 		r, w, err := os.Pipe()
+ 		if err != nil {
+ 			fmt.Fprintln(os.Stderr, err)
+ 			os.Exit(1)
+ 		}
+-		os.Stdout, os.Stderr = w, w
++		os.Stdout = w
+ 		outC := make(chan string)
+ 		go func() {
+ 			buf := new(bytes.Buffer)
+ 			_, err := io.Copy(buf, r)
+ 			if err != nil {
+-				fmt.Fprintf(stderr, "testing: copying pipe: %v\n", err)
++				fmt.Fprintf(os.Stderr, "testing: copying pipe: %v\n", err)
+ 				os.Exit(1)
+ 			}
+ 			outC <- buf.String()
+@@ -62,9 +62,9 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 		eg.F()
+ 		dt := time.Now().Sub(t0)
+ 
+-		// close pipe, restore stdout/stderr, get output
++		// close pipe, restore stdout, get output
+ 		w.Close()
+-		os.Stdout, os.Stderr = stdout, stderr
++		os.Stdout = stdout
+ 		out := <-outC
+ 
+ 		// report any errors

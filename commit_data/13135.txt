@@ -15,8 +15,166 @@ Date:   Tue May 22 17:20:37 2012 -0700
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6211079
-
+---
  src/pkg/math/big/int.go      | 16 ++++++++++++
  src/pkg/math/big/int_test.go | 60 ++++++++++++++++++++++++++++----------------
  src/pkg/math/big/rat_test.go | 37 ++++++++++-----------------
  3 files changed, 67 insertions(+), 46 deletions(-)
+
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index cd2cd0e2da..ce308bd24f 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -894,3 +894,19 @@ func (z *Int) GobDecode(buf []byte) error {
+ 	z.abs = z.abs.setBytes(buf[1:])
+ 	return nil
+ }
++
++// MarshalJSON implements the json.Marshaler interface.
++func (x *Int) MarshalJSON() ([]byte, error) {
++	// TODO(gri): get rid of the []byte/string conversions
++	return []byte(x.String()), nil
++}
++
++// UnmarshalJSON implements the json.Unmarshaler interface.
++func (z *Int) UnmarshalJSON(x []byte) error {
++	// TODO(gri): get rid of the []byte/string conversions
++	_, ok := z.SetString(string(x), 0)
++	if !ok {
++		return fmt.Errorf("math/big: cannot unmarshal %s into a *big.Int", x)
++	}
++	return nil
++}
+diff --git a/src/pkg/math/big/int_test.go b/src/pkg/math/big/int_test.go
+index 9700a9b5a7..30e55916b5 100644
+--- a/src/pkg/math/big/int_test.go
++++ b/src/pkg/math/big/int_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/gob"
+ 	"encoding/hex"
++	"encoding/json"
+ 	"fmt"
+ 	"math/rand"
+ 	"testing"
+@@ -1368,8 +1369,12 @@ func TestModInverse(t *testing.T) {
+ 	}
+ }
+ 
+-// used by TestIntGobEncoding and TestRatGobEncoding
+-var gobEncodingTests = []string{
++var encodingTests = []string{
++	"-539345864568634858364538753846587364875430589374589",
++	"-678645873",
++	"-100",
++	"-2",
++	"-1",
+ 	"0",
+ 	"1",
+ 	"2",
+@@ -1383,26 +1388,37 @@ func TestIntGobEncoding(t *testing.T) {
+ 	var medium bytes.Buffer
+ 	enc := gob.NewEncoder(&medium)
+ 	dec := gob.NewDecoder(&medium)
+-	for i, test := range gobEncodingTests {
+-		for j := 0; j < 2; j++ {
+-			medium.Reset() // empty buffer for each test case (in case of failures)
+-			stest := test
+-			if j != 0 {
+-				// negative numbers
+-				stest = "-" + test
+-			}
+-			var tx Int
+-			tx.SetString(stest, 10)
+-			if err := enc.Encode(&tx); err != nil {
+-				t.Errorf("#%d%c: encoding failed: %s", i, 'a'+j, err)
+-			}
+-			var rx Int
+-			if err := dec.Decode(&rx); err != nil {
+-				t.Errorf("#%d%c: decoding failed: %s", i, 'a'+j, err)
+-			}
+-			if rx.Cmp(&tx) != 0 {
+-				t.Errorf("#%d%c: transmission failed: got %s want %s", i, 'a'+j, &rx, &tx)
+-			}
++	for _, test := range encodingTests {
++		medium.Reset() // empty buffer for each test case (in case of failures)
++		var tx Int
++		tx.SetString(test, 10)
++		if err := enc.Encode(&tx); err != nil {
++			t.Errorf("encoding of %s failed: %s", &tx, err)
++		}
++		var rx Int
++		if err := dec.Decode(&rx); err != nil {
++			t.Errorf("decoding of %s failed: %s", &tx, err)
++		}
++		if rx.Cmp(&tx) != 0 {
++			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
++		}
++	}
++}
++
++func TestIntJSONEncoding(t *testing.T) {
++	for _, test := range encodingTests {
++		var tx Int
++		tx.SetString(test, 10)
++		b, err := json.Marshal(&tx)
++		if err != nil {
++			t.Errorf("marshaling of %s failed: %s", &tx, err)
++		}
++		var rx Int
++		if err := json.Unmarshal(b, &rx); err != nil {
++			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
++		}
++		if rx.Cmp(&tx) != 0 {
++			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/math/big/rat_test.go b/src/pkg/math/big/rat_test.go
+index f7f31ae1a2..fbeb596007 100644
+--- a/src/pkg/math/big/rat_test.go
++++ b/src/pkg/math/big/rat_test.go
+@@ -387,30 +387,19 @@ func TestRatGobEncoding(t *testing.T) {
+ 	var medium bytes.Buffer
+ 	enc := gob.NewEncoder(&medium)
+ 	dec := gob.NewDecoder(&medium)
+-	for i, test := range gobEncodingTests {
+-		for j := 0; j < 4; j++ {
+-			medium.Reset() // empty buffer for each test case (in case of failures)
+-			stest := test
+-			if j&1 != 0 {
+-				// negative numbers
+-				stest = "-" + test
+-			}
+-			if j%2 != 0 {
+-				// fractions
+-				stest = stest + "." + test
+-			}
+-			var tx Rat
+-			tx.SetString(stest)
+-			if err := enc.Encode(&tx); err != nil {
+-				t.Errorf("#%d%c: encoding failed: %s", i, 'a'+j, err)
+-			}
+-			var rx Rat
+-			if err := dec.Decode(&rx); err != nil {
+-				t.Errorf("#%d%c: decoding failed: %s", i, 'a'+j, err)
+-			}
+-			if rx.Cmp(&tx) != 0 {
+-				t.Errorf("#%d%c: transmission failed: got %s want %s", i, 'a'+j, &rx, &tx)
+-			}
++	for _, test := range encodingTests {
++		medium.Reset() // empty buffer for each test case (in case of failures)
++		var tx Rat
++		tx.SetString(test + ".14159265")
++		if err := enc.Encode(&tx); err != nil {
++			t.Errorf("encoding of %s failed: %s", &tx, err)
++		}
++		var rx Rat
++		if err := dec.Decode(&rx); err != nil {
++			t.Errorf("decoding of %s failed: %s", &tx, err)
++		}
++		if rx.Cmp(&tx) != 0 {
++			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
+ 		}
+ 	}
+ }

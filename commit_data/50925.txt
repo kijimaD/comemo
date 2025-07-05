@@ -14,7 +14,63 @@ Date:   Wed Nov 17 09:38:16 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/unify.go | 15 +++++++--------
  src/go/types/unify.go                    | 10 ++++++++--
  2 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 651bba1a6b..f663beec38 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -9,7 +9,6 @@ package types2
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"internal/buildcfg"
+ )
+ 
+ // The unifier maintains two separate sets of type parameters x and y
+@@ -162,13 +161,13 @@ func (d *tparamsList) index(typ Type) int {
+ // If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+ // Otherwise, the result is < 0. tpar must not be nil.
+ func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+-	// Temporary work-around for getting around a crash
+-	// with unified build.
+-	// TODO(gri) investigate and implement proper fix
+-	if buildcfg.Experiment.Unified && tpar.index < 0 {
+-		return -1
+-	}
+-	if i := tpar.index; i < len(list) && list[i] == tpar {
++	// Once a type parameter is bound its index is >= 0. However, there are some
++	// code paths (namely tracing and type hashing) by which it is possible to
++	// arrive here with a type parameter that has not been bound, hence the check
++	// for 0 <= i below.
++	// TODO(rfindley): investigate a better approach for guarding against using
++	// unbound type parameters.
++	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
+ 		return i
+ 	}
+ 	return -1
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index d3b86008ef..6cd653aee1 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -159,9 +159,15 @@ func (d *tparamsList) index(typ Type) int {
+ }
+ 
+ // If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+-// Otherwise, the result is < 0. tpar must not be nil.
++// Otherwise, the result is < 0. tpar must not be nil.j
+ func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+-	if i := tpar.index; i < len(list) && list[i] == tpar {
++	// Once a type parameter is bound its index is >= 0. However, there are some
++	// code paths (namely tracing and type hashing) by which it is possible to
++	// arrive here with a type parameter that has not been bound, hence the check
++	// for 0 <= i below.
++	// TODO(rfindley): investigate a better approach for guarding against using
++	// unbound type parameters.
++	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
+ 		return i
+ 	}
+ 	return -1

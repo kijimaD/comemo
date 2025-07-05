@@ -9,6 +9,31 @@ Date:   Mon May 20 21:53:16 2013 +0400
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/9573043
-
+---
  test/fixedbugs/issue5493.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/test/fixedbugs/issue5493.go b/test/fixedbugs/issue5493.go
+index fe571bc085..827281bdca 100644
+--- a/test/fixedbugs/issue5493.go
++++ b/test/fixedbugs/issue5493.go
+@@ -31,6 +31,11 @@ func run() error {
+ }
+ 
+ func main() {
++	// Does not work on 32-bits due to partially conservative GC.
++	// Try to enable when we have fully precise GC.
++	if runtime.GOARCH != "amd64" {
++		return
++	}
+ 	count = N
+ 	var wg sync.WaitGroup
+ 	wg.Add(N)
+@@ -46,6 +51,7 @@ func main() {
+ 		runtime.GC()
+ 	}
+ 	if count != 0 {
++		println(count, "out of", N, "finalizer are called")
+ 		panic("not all finalizers are called")
+ 	}
+ }

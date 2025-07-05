@@ -12,9 +12,67 @@ Date:   Tue May 16 16:56:13 2023 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/cover_build_cmdline_pkgs.txt | 1 +
  src/cmd/go/testdata/script/cover_main_import_path.txt   | 1 +
  src/cmd/go/testdata/script/cover_sync_atomic_import.txt | 1 +
  src/cmd/internal/cov/read_test.go                       | 4 ++++
  4 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/cover_build_cmdline_pkgs.txt b/src/cmd/go/testdata/script/cover_build_cmdline_pkgs.txt
+index ba382639e9..e14a0784f2 100644
+--- a/src/cmd/go/testdata/script/cover_build_cmdline_pkgs.txt
++++ b/src/cmd/go/testdata/script/cover_build_cmdline_pkgs.txt
+@@ -5,6 +5,7 @@
+ # inside and outside the standard library.
+ 
+ [short] skip
++[!GOEXPERIMENT:coverageredesign] skip
+ 
+ # Compile an object.
+ go tool compile -p tiny tiny/tiny.go tiny/tiny2.go
+diff --git a/src/cmd/go/testdata/script/cover_main_import_path.txt b/src/cmd/go/testdata/script/cover_main_import_path.txt
+index 3a2f3c3ee2..e8696e27e2 100644
+--- a/src/cmd/go/testdata/script/cover_main_import_path.txt
++++ b/src/cmd/go/testdata/script/cover_main_import_path.txt
+@@ -4,6 +4,7 @@
+ # the "main" package is handled. See issue 57169 for details.
+ 
+ [short] skip
++[!GOEXPERIMENT:coverageredesign] skip
+ 
+ # Build this program with -cover and run to collect a profile.
+ 
+diff --git a/src/cmd/go/testdata/script/cover_sync_atomic_import.txt b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+index b933cdb4c6..283db3e1a6 100644
+--- a/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
++++ b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+@@ -1,5 +1,6 @@
+ [short] skip
+ [compiler:gccgo] skip # gccgo has no cover tool
++[!GOEXPERIMENT:coverageredesign] skip
+ 
+ go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
+ 
+diff --git a/src/cmd/internal/cov/read_test.go b/src/cmd/internal/cov/read_test.go
+index cef03fa323..fa2151a09e 100644
+--- a/src/cmd/internal/cov/read_test.go
++++ b/src/cmd/internal/cov/read_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/coverage/decodecounter"
+ 	"internal/coverage/decodemeta"
+ 	"internal/coverage/pods"
++	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+@@ -44,6 +45,9 @@ func (v *visitor) Finish()
+ 
+ func TestIssue58411(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	if !goexperiment.CoverageRedesign {
++		t.Skipf("skipping since this test requires 'go build -cover'")
++	}
+ 
+ 	// Build a tiny test program with -cover. Smallness is important;
+ 	// it is one of the factors that triggers issue 58411.

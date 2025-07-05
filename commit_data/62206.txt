@@ -17,7 +17,7 @@ Date:   Mon Jan 27 21:42:34 2025 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/trace/pprof.go                    | 11 ++---
  src/cmd/trace/viewer.go                   | 14 ++----
  src/internal/trace/fakep.go               | 15 ++++++
@@ -25,3 +25,229 @@ Date:   Mon Jan 27 21:42:34 2025 +0000
  src/internal/trace/traceviewer/emitter.go |  6 +--
  src/internal/trace/traceviewer/pprof.go   | 10 ++--
  6 files changed, 30 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index d27dfa7aa3..a66419aedf 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -306,18 +306,15 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
+ 	prof := make([]traceviewer.ProfileRecord, 0, len(m.stacks))
+ 	for stack, record := range m.stacks {
+ 		rec := *record
+-		for i, frame := range slices.Collect(stack.Frames()) {
+-			rec.Stack = append(rec.Stack, &trace.Frame{
+-				PC:   frame.PC,
+-				Fn:   frame.Func,
+-				File: frame.File,
+-				Line: int(frame.Line),
+-			})
++		var i int
++		for frame := range stack.Frames() {
++			rec.Stack = append(rec.Stack, frame)
+ 			// Cut this off at pprofMaxStack because that's as far
+ 			// as our deduplication goes.
+ 			if i >= pprofMaxStack {
+ 				break
+ 			}
++			i++
+ 		}
+ 		prof = append(prof, rec)
+ 	}
+diff --git a/src/cmd/trace/viewer.go b/src/cmd/trace/viewer.go
+index 6ce74b75b8..da83e81ab9 100644
+--- a/src/cmd/trace/viewer.go
++++ b/src/cmd/trace/viewer.go
+@@ -8,22 +8,14 @@ import (
+ 	"fmt"
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
++	"slices"
+ 	"time"
+ )
+ 
+ // viewerFrames returns the frames of the stack of ev. The given frame slice is
+ // used to store the frames to reduce allocations.
+-func viewerFrames(stk trace.Stack) []*trace.Frame {
+-	var frames []*trace.Frame
+-	for f := range stk.Frames() {
+-		frames = append(frames, &trace.Frame{
+-			PC:   f.PC,
+-			Fn:   f.Func,
+-			File: f.File,
+-			Line: int(f.Line),
+-		})
+-	}
+-	return frames
++func viewerFrames(stk trace.Stack) []trace.StackFrame {
++	return slices.Collect(stk.Frames())
+ }
+ 
+ func viewerGState(state trace.GoState, inMarkAssist bool) traceviewer.GState {
+diff --git a/src/internal/trace/fakep.go b/src/internal/trace/fakep.go
+new file mode 100644
+index 0000000000..8d580c3a3a
+--- /dev/null
++++ b/src/internal/trace/fakep.go
+@@ -0,0 +1,15 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package trace
++
++const (
++	// Special P identifiers:
++	FakeP    = 1000000 + iota
++	TimerP   // depicts timer unblocks
++	NetpollP // depicts network unblocks
++	SyscallP // depicts returns from syscalls
++	GCP      // depicts GC state
++	ProfileP // depicts recording of CPU profile samples
++)
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+deleted file mode 100644
+index d6fff84d55..0000000000
+--- a/src/internal/trace/parser.go
++++ /dev/null
+@@ -1,79 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package trace
+-
+-// Frame is a frame in stack traces.
+-type Frame struct {
+-	PC   uint64
+-	Fn   string
+-	File string
+-	Line int
+-}
+-
+-const (
+-	// Special P identifiers:
+-	FakeP    = 1000000 + iota
+-	TimerP   // depicts timer unblocks
+-	NetpollP // depicts network unblocks
+-	SyscallP // depicts returns from syscalls
+-	GCP      // depicts GC state
+-	ProfileP // depicts recording of CPU profile samples
+-)
+-
+-// Event types in the trace.
+-// Verbatim copy from src/runtime/trace.go with the "trace" prefix removed.
+-const (
+-	EvNone              = 0  // unused
+-	EvBatch             = 1  // start of per-P batch of events [pid, timestamp]
+-	EvFrequency         = 2  // contains tracer timer frequency [frequency (ticks per second)]
+-	EvStack             = 3  // stack [stack id, number of PCs, array of {PC, func string ID, file string ID, line}]
+-	EvGomaxprocs        = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
+-	EvProcStart         = 5  // start of P [timestamp, thread id]
+-	EvProcStop          = 6  // stop of P [timestamp]
+-	EvGCStart           = 7  // GC start [timestamp, seq, stack id]
+-	EvGCDone            = 8  // GC done [timestamp]
+-	EvSTWStart          = 9  // GC mark termination start [timestamp, kind]
+-	EvSTWDone           = 10 // GC mark termination done [timestamp]
+-	EvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
+-	EvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
+-	EvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+-	EvGoStart           = 14 // goroutine starts running [timestamp, goroutine id, seq]
+-	EvGoEnd             = 15 // goroutine ends [timestamp]
+-	EvGoStop            = 16 // goroutine stops (like in select{}) [timestamp, stack]
+-	EvGoSched           = 17 // goroutine calls Gosched [timestamp, stack]
+-	EvGoPreempt         = 18 // goroutine is preempted [timestamp, stack]
+-	EvGoSleep           = 19 // goroutine calls Sleep [timestamp, stack]
+-	EvGoBlock           = 20 // goroutine blocks [timestamp, stack]
+-	EvGoUnblock         = 21 // goroutine is unblocked [timestamp, goroutine id, seq, stack]
+-	EvGoBlockSend       = 22 // goroutine blocks on chan send [timestamp, stack]
+-	EvGoBlockRecv       = 23 // goroutine blocks on chan recv [timestamp, stack]
+-	EvGoBlockSelect     = 24 // goroutine blocks on select [timestamp, stack]
+-	EvGoBlockSync       = 25 // goroutine blocks on Mutex/RWMutex [timestamp, stack]
+-	EvGoBlockCond       = 26 // goroutine blocks on Cond [timestamp, stack]
+-	EvGoBlockNet        = 27 // goroutine blocks on network [timestamp, stack]
+-	EvGoSysCall         = 28 // syscall enter [timestamp, stack]
+-	EvGoSysExit         = 29 // syscall exit [timestamp, goroutine id, seq, real timestamp]
+-	EvGoSysBlock        = 30 // syscall blocks [timestamp]
+-	EvGoWaiting         = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
+-	EvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
+-	EvHeapAlloc         = 33 // gcController.heapLive change [timestamp, heap live bytes]
+-	EvHeapGoal          = 34 // gcController.heapGoal change [timestamp, heap goal bytes]
+-	EvTimerGoroutine    = 35 // denotes timer goroutine [timer goroutine id]
+-	EvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+-	EvString            = 37 // string dictionary entry [ID, length, string]
+-	EvGoStartLocal      = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
+-	EvGoUnblockLocal    = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
+-	EvGoSysExitLocal    = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
+-	EvGoStartLabel      = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
+-	EvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
+-	EvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
+-	EvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
+-	EvUserTaskCreate    = 45 // trace.NewTask [timestamp, internal task id, internal parent id, name string, stack]
+-	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
+-	EvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), name string, stack]
+-	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
+-	EvCPUSample         = 49 // CPU profiling sample [timestamp, real timestamp, real P id (-1 when absent), goroutine id, stack]
+-	EvCount             = 50
+-)
+diff --git a/src/internal/trace/traceviewer/emitter.go b/src/internal/trace/traceviewer/emitter.go
+index c74f1c2ecf..d2227d681e 100644
+--- a/src/internal/trace/traceviewer/emitter.go
++++ b/src/internal/trace/traceviewer/emitter.go
+@@ -683,12 +683,12 @@ func (e *Emitter) processMeta(sectionID uint64, name string, priority int) {
+ 
+ // Stack emits the given frames and returns a unique id for the stack. No
+ // pointers to the given data are being retained beyond the call to Stack.
+-func (e *Emitter) Stack(stk []*trace.Frame) int {
++func (e *Emitter) Stack(stk []trace.StackFrame) int {
+ 	return e.buildBranch(e.frameTree, stk)
+ }
+ 
+ // buildBranch builds one branch in the prefix tree rooted at ctx.frameTree.
+-func (e *Emitter) buildBranch(parent frameNode, stk []*trace.Frame) int {
++func (e *Emitter) buildBranch(parent frameNode, stk []trace.StackFrame) int {
+ 	if len(stk) == 0 {
+ 		return parent.id
+ 	}
+@@ -702,7 +702,7 @@ func (e *Emitter) buildBranch(parent frameNode, stk []*trace.Frame) int {
+ 		node.id = e.frameSeq
+ 		node.children = make(map[uint64]frameNode)
+ 		parent.children[frame.PC] = node
+-		e.c.ConsumeViewerFrame(strconv.Itoa(node.id), format.Frame{Name: fmt.Sprintf("%v:%v", frame.Fn, frame.Line), Parent: parent.id})
++		e.c.ConsumeViewerFrame(strconv.Itoa(node.id), format.Frame{Name: fmt.Sprintf("%v:%v", frame.Func, frame.Line), Parent: parent.id})
+ 	}
+ 	return e.buildBranch(node, stk)
+ }
+diff --git a/src/internal/trace/traceviewer/pprof.go b/src/internal/trace/traceviewer/pprof.go
+index 1377b3c614..141b2687b7 100644
+--- a/src/internal/trace/traceviewer/pprof.go
++++ b/src/internal/trace/traceviewer/pprof.go
+@@ -82,7 +82,7 @@ func SVGProfileHandlerFunc(f ProfileFunc) http.HandlerFunc {
+ }
+ 
+ type ProfileRecord struct {
+-	Stack []*trace.Frame
++	Stack []trace.StackFrame
+ 	Count uint64
+ 	Time  time.Duration
+ }
+@@ -103,16 +103,16 @@ func BuildProfile(prof []ProfileRecord) *profile.Profile {
+ 		for _, frame := range rec.Stack {
+ 			loc := locs[frame.PC]
+ 			if loc == nil {
+-				fn := funcs[frame.File+frame.Fn]
++				fn := funcs[frame.File+frame.Func]
+ 				if fn == nil {
+ 					fn = &profile.Function{
+ 						ID:         uint64(len(p.Function) + 1),
+-						Name:       frame.Fn,
+-						SystemName: frame.Fn,
++						Name:       frame.Func,
++						SystemName: frame.Func,
+ 						Filename:   frame.File,
+ 					}
+ 					p.Function = append(p.Function, fn)
+-					funcs[frame.File+frame.Fn] = fn
++					funcs[frame.File+frame.Func] = fn
+ 				}
+ 				loc = &profile.Location{
+ 					ID:      uint64(len(p.Location) + 1),

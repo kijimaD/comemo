@@ -17,6 +17,20 @@ Date:   Thu May 19 12:10:38 2022 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 817ea4a7c5..677be336ac 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1181,7 +1181,7 @@ func (t *tester) runHostTest(dir, pkg string) error {
+ 	if err := cmd.Run(); err != nil {
+ 		return err
+ 	}
+-	return t.dirCmd(dir, f.Name(), "-test.short="+short()).Run()
++	return t.dirCmd(dir, f.Name(), "-test.short="+short(), "-test.timeout="+t.timeoutDuration(300).String()).Run()
+ }
+ 
+ func (t *tester) cgoTest(dt *distTest) error {

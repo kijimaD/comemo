@@ -16,10 +16,84 @@ Date:   Fri Nov 18 07:59:03 2022 +0000
     Reviewed-by: Julie Qiu <julieqiu@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  api/next/48152.txt                 |  5 +++++
  src/crypto/tls/common.go           | 15 +++++++++++++++
  src/crypto/tls/handshake_client.go |  2 +-
  src/crypto/tls/handshake_server.go |  2 +-
  src/net/http/transport_test.go     |  2 +-
  5 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/api/next/48152.txt b/api/next/48152.txt
+new file mode 100644
+index 0000000000..9ff5f995cf
+--- /dev/null
++++ b/api/next/48152.txt
+@@ -0,0 +1,5 @@
++pkg crypto/tls, type CertificateVerificationError struct #48152
++pkg crypto/tls, type CertificateVerificationError struct, UnverifiedCertificates []*x509.Certificate #48152
++pkg crypto/tls, type CertificateVerificationError struct, Err error #48152
++pkg crypto/tls, method (*CertificateVerificationError) Error() string #48152
++pkg crypto/tls, method (*CertificateVerificationError) Unwrap() error #48152
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 62324de513..007f0f47b2 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -1493,3 +1493,18 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
+ 	}
+ 	return false
+ }
++
++// CertificateVerificationError is returned when certificate verification fails during the handshake.
++type CertificateVerificationError struct {
++	// UnverifiedCertificates and its contents should not be modified.
++	UnverifiedCertificates []*x509.Certificate
++	Err                    error
++}
++
++func (e *CertificateVerificationError) Error() string {
++	return fmt.Sprintf("tls: failed to verify certificate: %s", e.Err)
++}
++
++func (e *CertificateVerificationError) Unwrap() error {
++	return e.Err
++}
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 2e3b693199..7cf906c91d 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -876,7 +876,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 		c.verifiedChains, err = certs[0].Verify(opts)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+-			return err
++			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+ 		}
+ 	}
+ 
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index fc0a7ac13d..682cfc2061 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -831,7 +831,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
+ 		chains, err := certs[0].Verify(opts)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+-			return errors.New("tls: failed to verify client certificate: " + err.Error())
++			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+ 		}
+ 
+ 		c.verifiedChains = chains
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index b637e40cb4..c0cabccab8 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4818,7 +4818,7 @@ func testTransportEventTraceTLSVerify(t *testing.T, mode testMode) {
+ 
+ 	wantOnce("TLSHandshakeStart")
+ 	wantOnce("TLSHandshakeDone")
+-	wantOnce("err = x509: certificate is valid for example.com")
++	wantOnce("err = tls: failed to verify certificate: x509: certificate is valid for example.com")
+ 
+ 	if t.Failed() {
+ 		t.Errorf("Output:\n%s", got)

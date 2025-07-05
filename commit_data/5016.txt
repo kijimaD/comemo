@@ -7,6 +7,30 @@ Date:   Mon Mar 8 17:00:14 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/302042
-
+---
  src/cmd/gc/lex.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index ccde1c4dac..c3a430665b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -290,7 +290,7 @@ importfile(Val *f, int line)
+ 	int32 c;
+ 	int len;
+ 	Strlit *path;
+-	char cleanbuf[1024];
++	char *cleanbuf;
+ 
+ 	// TODO(rsc): don't bother reloading imports more than once?
+ 
+@@ -310,7 +310,8 @@ importfile(Val *f, int line)
+ 
+ 	path = f->u.sval;
+ 	if(islocalname(path)) {
+-		snprint(cleanbuf, sizeof cleanbuf, "%s/%s", pathname, path->s);
++		cleanbuf = mal(strlen(pathname) + strlen(path->s) + 2);
++		sprint(cleanbuf, "%s/%s", pathname, path->s);
+ 		cleanname(cleanbuf);
+ 		path = strlit(cleanbuf);
+ 	}

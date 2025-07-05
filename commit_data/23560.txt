@@ -10,6 +10,20 @@ Date:   Tue May 26 13:49:59 2015 -0700
     Change-Id: Ic17656529cb0fe189a37f15e670350ab13bb5276
     Reviewed-on: https://go-review.googlesource.com/10385
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/link/internal/amd64/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index e489bb75a9..bb65067e87 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -90,7 +90,7 @@ func archinit() {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCShared || ld.DynlinkingGo() {
++	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ld.DynlinkingGo() {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 

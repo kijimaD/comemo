@@ -9,6 +9,15 @@ Date:   Mon Jul 24 10:28:28 2017 -0700
     Run-TryBot: Chris Broadfoot <cbro@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  VERSION | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/VERSION b/VERSION
+new file mode 100644
+index 0000000000..e71f69452b
+--- /dev/null
++++ b/VERSION
+@@ -0,0 +1 @@
++go1.9rc1
+\ No newline at end of file

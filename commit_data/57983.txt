@@ -26,7 +26,39 @@ Date:   Wed Sep 13 22:26:19 2023 +0000
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/log/slog/logger_test.go | 2 +-
  src/log/slog/record.go      | 3 +--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index 17bdff2ba5..26e6f68f49 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -276,7 +276,7 @@ func TestAlloc(t *testing.T) {
+ 		s := "abc"
+ 		i := 2000
+ 		d := time.Second
+-		wantAllocs(t, 11, func() {
++		wantAllocs(t, 10, func() {
+ 			dl.Info("hello",
+ 				"n", i, "s", s, "d", d,
+ 				"n", i, "s", s, "d", d,
+diff --git a/src/log/slog/record.go b/src/log/slog/record.go
+index 82acc7ac7b..ea57c81c50 100644
+--- a/src/log/slog/record.go
++++ b/src/log/slog/record.go
+@@ -138,12 +138,11 @@ func (r *Record) Add(args ...any) {
+ 			r.nFront++
+ 		} else {
+ 			if r.back == nil {
+-				r.back = make([]Attr, 0, countAttrs(args))
++				r.back = make([]Attr, 0, countAttrs(args)+1)
+ 			}
+ 			r.back = append(r.back, a)
+ 		}
+ 	}
+-
+ }
+ 
+ // countAttrs returns the number of Attrs that would be created from args.

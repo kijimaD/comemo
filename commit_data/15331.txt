@@ -9,6 +9,20 @@ Date:   Wed Feb 20 12:28:12 2013 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/7376045
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 5a29033b49..ea1dd74cc9 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -959,7 +959,7 @@ func collectExamples(pkg *ast.Package, testfiles map[string]*ast.File) []*doc.Ex
+ 		if name == "" || globals[name] {
+ 			examples = append(examples, e)
+ 		} else {
+-			log.Printf("skipping example Example%s: refers to unknown function or type", e.Name)
++			log.Printf("skipping example 'Example%s' because '%s' is not a known function or type", e.Name, e.Name)
+ 		}
+ 	}
+ 

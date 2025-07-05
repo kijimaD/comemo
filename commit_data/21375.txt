@@ -10,6 +10,19 @@ Date:   Sat Dec 27 11:53:09 2014 +0100
     Change-Id: I11320c4de56ced5ff098b7e37f1be08e456573e2
     Reviewed-on: https://go-review.googlesource.com/2108
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strconv/itoa_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/strconv/itoa_test.go b/src/strconv/itoa_test.go
+index e0213ae9af..48dc03e839 100644
+--- a/src/strconv/itoa_test.go
++++ b/src/strconv/itoa_test.go
+@@ -51,6 +51,7 @@ var itob64tests = []itob64Test{
+ 	{-0x123456789abcdef, 16, "-123456789abcdef"},
+ 	{1<<63 - 1, 16, "7fffffffffffffff"},
+ 	{1<<63 - 1, 2, "111111111111111111111111111111111111111111111111111111111111111"},
++	{-1 << 63, 2, "-1000000000000000000000000000000000000000000000000000000000000000"},
+ 
+ 	{16, 17, "g"},
+ 	{25, 25, "10"},

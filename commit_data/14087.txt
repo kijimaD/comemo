@@ -9,7 +9,80 @@ Date:   Tue Oct 9 08:56:34 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6615061
-
+---
  src/pkg/encoding/base32/example_test.go | 30 ++++++++++++++++++++++++++++++
  src/pkg/encoding/base64/example_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 60 insertions(+)
+
+diff --git a/src/pkg/encoding/base32/example_test.go b/src/pkg/encoding/base32/example_test.go
+new file mode 100644
+index 0000000000..bd16ca1c79
+--- /dev/null
++++ b/src/pkg/encoding/base32/example_test.go
+@@ -0,0 +1,30 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package base32_test
++
++import (
++	"encoding/base32"
++	"fmt"
++)
++
++func ExampleEncoding_EncodeToString() {
++	data := []byte("any + old & data")
++	str := base32.StdEncoding.EncodeToString(data)
++	fmt.Println(str)
++	// Output:
++	// MFXHSIBLEBXWYZBAEYQGIYLUME======
++}
++
++func ExampleEncoding_DecodeString() {
++	str := "ONXW2ZJAMRQXIYJAO5UXI2BAAAQGC3TEEDX3XPY="
++	data, err := base32.StdEncoding.DecodeString(str)
++	if err != nil {
++		fmt.Println("error:", err)
++		return
++	}
++	fmt.Printf("%q\n", data)
++	// Output:
++	// "some data with \x00 and \ufeff"
++}
+diff --git a/src/pkg/encoding/base64/example_test.go b/src/pkg/encoding/base64/example_test.go
+new file mode 100644
+index 0000000000..40b5438771
+--- /dev/null
++++ b/src/pkg/encoding/base64/example_test.go
+@@ -0,0 +1,30 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package base64_test
++
++import (
++	"encoding/base64"
++	"fmt"
++)
++
++func ExampleEncoding_EncodeToString() {
++	data := []byte("any + old & data")
++	str := base64.StdEncoding.EncodeToString(data)
++	fmt.Println(str)
++	// Output:
++	// YW55ICsgb2xkICYgZGF0YQ==
++}
++
++func ExampleEncoding_DecodeString() {
++	str := "c29tZSBkYXRhIHdpdGggACBhbmQg77u/"
++	data, err := base64.StdEncoding.DecodeString(str)
++	if err != nil {
++		fmt.Println("error:", err)
++		return
++	}
++	fmt.Printf("%q\n", data)
++	// Output:
++	// "some data with \x00 and \ufeff"
++}

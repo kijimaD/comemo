@@ -16,6 +16,25 @@ Date:   Fri Mar 17 23:03:34 2017 +0000
     Change-Id: Ibbc5fbb143ea6d0f8b6cfdca4b385ef4c8960b3d
     Reviewed-on: https://go-review.googlesource.com/38633
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fs_test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index e12350efd7..b682e779a4 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1096,7 +1096,12 @@ func TestLinuxSendfile(t *testing.T) {
+ 		// and will error out if we specify that with `-e trace='.
+ 		syscalls = "sendfile"
+ 	case "mips64":
+-		t.Skip("TODO: update this test to be robust against various versions of strace on mips64. See golang.org/issue/33430")
++		t.Skip("TODO: update this test to be robust against various versions of strace on mips64. See golang.org/issue/18008")
++	}
++
++	// Attempt to run strace, and skip on failure - this test requires SYS_PTRACE.
++	if err := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=^$").Run(); err != nil {
++		t.Skipf("skipping; failed to run strace: %v", err)
+ 	}
+ 
+ 	var buf bytes.Buffer

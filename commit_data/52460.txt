@@ -20,7 +20,46 @@ Date:   Thu May 5 01:00:38 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/walk/compare.go |  5 ++---
  test/fixedbugs/issue52701.go             | 16 ++++++++++++++++
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/compare.go b/src/cmd/compile/internal/walk/compare.go
+index fef2d710c0..d271698c51 100644
+--- a/src/cmd/compile/internal/walk/compare.go
++++ b/src/cmd/compile/internal/walk/compare.go
+@@ -268,9 +268,8 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		expr = ir.NewBool(n.Op() == ir.OEQ)
+ 		// We still need to use cmpl and cmpr, in case they contain
+ 		// an expression which might panic. See issue 23837.
+-		t := typecheck.Temp(cmpl.Type())
+-		a1 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, t, cmpl))
+-		a2 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, t, cmpr))
++		a1 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.BlankNode, cmpl))
++		a2 := typecheck.Stmt(ir.NewAssignStmt(base.Pos, ir.BlankNode, cmpr))
+ 		init.Append(a1, a2)
+ 	}
+ 	return finishCompare(n, expr, init)
+diff --git a/test/fixedbugs/issue52701.go b/test/fixedbugs/issue52701.go
+new file mode 100644
+index 0000000000..f1de16c972
+--- /dev/null
++++ b/test/fixedbugs/issue52701.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T1 struct{}
++type T2 struct{}
++
++func f() {
++	switch (T1{}) {
++	case T1(T2{}):
++	}
++}

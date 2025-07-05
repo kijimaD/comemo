@@ -27,6 +27,24 @@ Date:   Tue Apr 20 20:33:43 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 46c2388e7b..48e40bb00a 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1378,9 +1378,11 @@ func expandCalls(f *Func) {
+ 		// Leaf types may have debug locations
+ 		if !x.isAlreadyExpandedAggregateType(v.Type) {
+ 			for _, l := range locs {
++				if _, ok := f.NamedValues[l]; !ok {
++					f.Names = append(f.Names, l)
++				}
+ 				f.NamedValues[l] = append(f.NamedValues[l], v)
+ 			}
+-			f.Names = append(f.Names, locs...)
+ 			continue
+ 		}
+ 		// Not-leaf types that had debug locations need to lose them.

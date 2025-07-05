@@ -15,7 +15,7 @@ Date:   Wed Nov 2 21:15:41 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                            | 15 ++++++++++-----
  src/cmd/go/test.go                               |  2 +-
  src/cmd/go/testdata/{ => src}/cgocover/p.go      |  0
@@ -29,3 +29,188 @@ Date:   Wed Nov 2 21:15:41 2016 -0400
  src/cmd/go/testdata/src/cgocover4/p.go           | 19 +++++++++++++++++++
  src/cmd/go/testdata/src/cgocover4/x_test.go      | 10 ++++++++++
  12 files changed, 100 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 15cd534c77..e94b9a5bd8 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2106,11 +2106,16 @@ func TestCoverageWithCgo(t *testing.T) {
+ 		t.Skip("skipping because cgo not enabled")
+ 	}
+ 
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-short", "-cover", "./testdata/cgocover")
+-	data := tg.getStdout() + tg.getStderr()
+-	checkCoverage(tg, data)
++	for _, dir := range []string{"cgocover", "cgocover2", "cgocover3", "cgocover4"} {
++		t.Run(dir, func(t *testing.T) {
++			tg := testgo(t)
++			defer tg.cleanup()
++			tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++			tg.run("test", "-short", "-cover", dir)
++			data := tg.getStdout() + tg.getStderr()
++			checkCoverage(tg, data)
++		})
++	}
+ }
+ 
+ func TestCgoDependsOnSyscall(t *testing.T) {
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 387a522714..95914d5f58 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -867,7 +867,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	if err != nil {
+ 		return nil, nil, nil, err
+ 	}
+-	if len(ptest.GoFiles) > 0 {
++	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
+ 		pmain.imports = append(pmain.imports, ptest)
+ 		t.ImportTest = true
+ 	}
+diff --git a/src/cmd/go/testdata/cgocover/p.go b/src/cmd/go/testdata/src/cgocover/p.go
+similarity index 100%
+rename from src/cmd/go/testdata/cgocover/p.go
+rename to src/cmd/go/testdata/src/cgocover/p.go
+diff --git a/src/cmd/go/testdata/cgocover/p_test.go b/src/cmd/go/testdata/src/cgocover/p_test.go
+similarity index 100%
+rename from src/cmd/go/testdata/cgocover/p_test.go
+rename to src/cmd/go/testdata/src/cgocover/p_test.go
+diff --git a/src/cmd/go/testdata/src/cgocover2/p.go b/src/cmd/go/testdata/src/cgocover2/p.go
+new file mode 100644
+index 0000000000..a6a3891cd4
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgocover2/p.go
+@@ -0,0 +1,19 @@
++package p
++
++/*
++void
++f(void)
++{
++}
++*/
++import "C"
++
++var b bool
++
++func F() {
++	if b {
++		for {
++		}
++	}
++	C.f()
++}
+diff --git a/src/cmd/go/testdata/src/cgocover2/x_test.go b/src/cmd/go/testdata/src/cgocover2/x_test.go
+new file mode 100644
+index 0000000000..f4790d2367
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgocover2/x_test.go
+@@ -0,0 +1,10 @@
++package p_test
++
++import (
++	. "cgocover2"
++	"testing"
++)
++
++func TestF(t *testing.T) {
++	F()
++}
+diff --git a/src/cmd/go/testdata/src/cgocover3/p.go b/src/cmd/go/testdata/src/cgocover3/p.go
+new file mode 100644
+index 0000000000..a6a3891cd4
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgocover3/p.go
+@@ -0,0 +1,19 @@
++package p
++
++/*
++void
++f(void)
++{
++}
++*/
++import "C"
++
++var b bool
++
++func F() {
++	if b {
++		for {
++		}
++	}
++	C.f()
++}
+diff --git a/src/cmd/go/testdata/src/cgocover3/p_test.go b/src/cmd/go/testdata/src/cgocover3/p_test.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgocover3/p_test.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/cgocover3/x_test.go b/src/cmd/go/testdata/src/cgocover3/x_test.go
+new file mode 100644
+index 0000000000..97d0e0f098
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgocover3/x_test.go
+@@ -0,0 +1,10 @@
++package p_test
++
++import (
++	. "cgocover3"
++	"testing"
++)
++
++func TestF(t *testing.T) {
++	F()
++}
+diff --git a/src/cmd/go/testdata/src/cgocover4/notcgo.go b/src/cmd/go/testdata/src/cgocover4/notcgo.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgocover4/notcgo.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/cgocover4/p.go b/src/cmd/go/testdata/src/cgocover4/p.go
+new file mode 100644
+index 0000000000..a6a3891cd4
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgocover4/p.go
+@@ -0,0 +1,19 @@
++package p
++
++/*
++void
++f(void)
++{
++}
++*/
++import "C"
++
++var b bool
++
++func F() {
++	if b {
++		for {
++		}
++	}
++	C.f()
++}
+diff --git a/src/cmd/go/testdata/src/cgocover4/x_test.go b/src/cmd/go/testdata/src/cgocover4/x_test.go
+new file mode 100644
+index 0000000000..fd9bae743c
+--- /dev/null
++++ b/src/cmd/go/testdata/src/cgocover4/x_test.go
+@@ -0,0 +1,10 @@
++package p_test
++
++import (
++	. "cgocover4"
++	"testing"
++)
++
++func TestF(t *testing.T) {
++	F()
++}

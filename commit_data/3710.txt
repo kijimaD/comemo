@@ -10,7 +10,7 @@ Date:   Sun Nov 1 21:04:16 2009 -0800
     R=ken@golang.org
     CC=iant
     http://go/go-review/1016022
-
+---
  src/cmd/6g/cgen.c  | 14 +++++++++++++-
  src/cmd/6g/ggen.c  | 20 ++++++++++----------
  src/cmd/8g/cgen.c  | 25 ++++++++++++++++++++++++-
@@ -18,3 +18,274 @@ Date:   Sun Nov 1 21:04:16 2009 -0800
  src/cmd/8g/gsubr.c | 49 +++++++++++++++++++++++++++++++++++++++++--------
  test/golden.out    |  2 +-
  6 files changed, 92 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 1986e56065..2ee7934908 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -403,7 +403,7 @@ void
+ agen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr;
+-	Node n1, n2, n3, tmp;
++	Node n1, n2, n3, tmp, n4;
+ 	Prog *p1;
+ 	uint32 w;
+ 	uint64 v;
+@@ -484,6 +484,18 @@ agen(Node *n, Node *res)
+ 		// i is in &n1 (if not constant)
+ 		// w is width
+ 
++		// explicit check for nil if array is large enough
++		// that we might derive too big a pointer.
++		if(!isslice(nl->type) && nl->type->width >= unmappedzero) {
++			regalloc(&n4, types[tptr], &n3);
++			gmove(&n3, &n4);
++			n4.op = OINDREG;
++			n4.type = types[TUINT8];
++			n4.xoffset = 0;
++			gins(ATESTB, nodintconst(0), &n4);
++			regfree(&n4);
++		}
++
+ 		if(w == 0)
+ 			fatal("index is zero width");
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index a920ae9f08..5c0a22114f 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1194,6 +1194,16 @@ slicearray:
+ 		regfree(&n1);
+ 	}
+ 
++	// if slice could be too big, dereference to
++	// catch nil array pointer.
++	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
++		n2 = nodes[0];
++		n2.xoffset = 0;
++		n2.op = OINDREG;
++		n2.type = types[TUINT8];
++		gins(ATESTB, nodintconst(0), &n2);
++	}
++
+ 	// ary = old[0] + (lb[2] * width[4]) (destroys old)
+ 	n2 = *res;
+ 	n2.xoffset += Array_array;
+@@ -1215,16 +1225,6 @@ slicearray:
+ 	}
+ 	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
+ 
+-	// if slice could be too big, dereference to
+-	// catch nil array pointer.
+-	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
+-		n2 = nodes[0];
+-		n2.xoffset = 0;
+-		n2.op = OINDREG;
+-		n2.type = types[TUINT8];
+-		gins(ATESTB, nodintconst(0), &n2);
+-	}
+-
+ 	for(i=0; i<5; i++) {
+ 		if(nodes[i].op == OREGISTER)
+ 			regfree(&nodes[i]);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index a3e877621d..bf0b263b61 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -430,7 +430,7 @@ void
+ agen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr;
+-	Node n1, n2, n3, tmp;
++	Node n1, n2, n3, n4, tmp;
+ 	Type *t;
+ 	uint32 w;
+ 	uint64 v;
+@@ -516,6 +516,18 @@ agen(Node *n, Node *res)
+ 		// i is in &n1 (if not constant)
+ 		// w is width
+ 
++		// explicit check for nil if array is large enough
++		// that we might derive too big a pointer.
++		if(!isslice(nl->type) && nl->type->width >= unmappedzero) {
++			regalloc(&n4, types[tptr], &n3);
++			gmove(&n3, &n4);
++			n4.op = OINDREG;
++			n4.type = types[TUINT8];
++			n4.xoffset = 0;
++			gins(ATESTB, nodintconst(0), &n4);
++			regfree(&n4);
++		}
++
+ 		if(w == 0)
+ 			fatal("index is zero width");
+ 
+@@ -648,6 +660,17 @@ agen(Node *n, Node *res)
+ 			fatal("agen: not ptr %N", n);
+ 		cgen(nl, res);
+ 		if(n->xoffset != 0) {
++			// explicit check for nil if struct is large enough
++			// that we might derive too big a pointer.
++			if(nl->type->type->width >= unmappedzero) {
++				regalloc(&n1, types[tptr], res);
++				gmove(res, &n1);
++				n1.op = OINDREG;
++				n1.type = types[TUINT8];
++				n1.xoffset = 0;
++				gins(ATESTB, nodintconst(0), &n1);
++				regfree(&n1);
++			}
+ 			nodconst(&n1, types[tptr], n->xoffset);
+ 			gins(optoas(OADD, types[tptr]), &n1, res);
+ 		}
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index a3f0900098..447162c7bc 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -66,6 +66,8 @@ EXTERN	Node*	deferreturn;
+ EXTERN	Node*	throwindex;
+ EXTERN	Node*	throwreturn;
+ EXTERN	int	maxstksize;
++extern	uint32	unmappedzero;
++
+ 
+ /*
+  * ggen.c
+@@ -101,7 +103,7 @@ void	sgen(Node*, Node*, int32);
+ void	gmove(Node*, Node*);
+ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
+-void	naddr(Node*, Addr*);
++void	naddr(Node*, Addr*, int);
+ void	cgen_aret(Node*, Node*);
+ Node*	ncon(uint32);
+ 
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index f051596641..953b755c1a 100755
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -30,6 +30,10 @@
+ 
+ #include "gg.h"
+ 
++// TODO(rsc): Can make this bigger if we move
++// the text segment up higher in 8l for all GOOS.
++uint32 unmappedzero = 4096;
++
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+ 
+ void
+@@ -1629,6 +1633,7 @@ Prog*
+ gins(int as, Node *f, Node *t)
+ {
+ 	Prog *p;
++	Addr af, at;
+ 
+ 	if(as == AFMOVF && f && f->op == OREGISTER && t && t->op == OREGISTER)
+ 		fatal("gins MOVF reg, reg");
+@@ -1641,22 +1646,46 @@ gins(int as, Node *f, Node *t)
+ 			return nil;
+ 	}
+ 
++	memset(&af, 0, sizeof af);
++	memset(&at, 0, sizeof at);
++	if(f != N)
++		naddr(f, &af, 1);
++	if(t != N)
++		naddr(t, &at, 1);
+ 	p = prog(as);
+ 	if(f != N)
+-		naddr(f, &p->from);
++		p->from = af;
+ 	if(t != N)
+-		naddr(t, &p->to);
++		p->to = at;
+ 	if(debug['g'])
+ 		print("%P\n", p);
+ 	return p;
+ }
+ 
++static void
++checkoffset(Addr *a, int canemitcode)
++{
++	Prog *p;
++
++	if(a->offset < unmappedzero)
++		return;
++	if(!canemitcode)
++		fatal("checkoffset %#llx, cannot emit code", a->offset);
++
++	// cannot rely on unmapped nil page at 0 to catch
++	// reference with large offset.  instead, emit explicit
++	// test of 0(reg).
++	p = gins(ATESTB, nodintconst(0), N);
++	p->to = *a;
++	p->to.offset = 0;
++}
++
+ /*
+  * generate code to compute n;
+  * make a refer to result.
+  */
+ void
+-naddr(Node *n, Addr *a)
++naddr(Node *n, Addr *a, int canemitcode)
+ {
+ 	a->scale = 0;
+ 	a->index = D_NONE;
+@@ -1758,7 +1787,7 @@ naddr(Node *n, Addr *a)
+ 		break;
+ 
+ 	case OADDR:
+-		naddr(n->left, a);
++		naddr(n->left, a, canemitcode);
+ 		if(a->type >= D_INDIR) {
+ 			a->type -= D_INDIR;
+ 			break;
+@@ -1774,24 +1803,28 @@ naddr(Node *n, Addr *a)
+ 
+ 	case OLEN:
+ 		// len of string or slice
+-		naddr(n->left, a);
++		naddr(n->left, a, canemitcode);
+ 		a->offset += Array_nel;
++		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
++			checkoffset(a, canemitcode);
+ 		break;
+ 
+ 	case OCAP:
+ 		// cap of string or slice
+-		naddr(n->left, a);
++		naddr(n->left, a, canemitcode);
+ 		a->offset += Array_cap;
++		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
++			checkoffset(a, canemitcode);
+ 		break;
+ 
+ //	case OADD:
+ //		if(n->right->op == OLITERAL) {
+ //			v = n->right->vconst;
+-//			naddr(n->left, a);
++//			naddr(n->left, a, canemitcode);
+ //		} else
+ //		if(n->left->op == OLITERAL) {
+ //			v = n->left->vconst;
+-//			naddr(n->right, a);
++//			naddr(n->right, a, canemitcode);
+ //		} else
+ //			goto bad;
+ //		a->offset += v;
+diff --git a/test/golden.out b/test/golden.out
+index 8ace9fdfa0..d23369b6ef 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -126,7 +126,7 @@ pc: xxx
+ 
+ =========== nilptr/slicearray.go
+ SIGSEGV: segmentation violation
+-Faulting address: 0xa
++Faulting address: 0x0
+ pc: xxx
+ 
+ 

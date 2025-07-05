@@ -10,7 +10,98 @@ Date:   Fri Oct 24 15:49:17 2014 -0200
     R=rsc, gustavo
     CC=golang-codereviews
     https://golang.org/cl/147240043
-
+---
  src/cmd/go/get.go | 11 +++++++++--
  src/cmd/go/vcs.go | 50 +++++++++++++++++++++++++++++++++++++++++++++++---
  2 files changed, 56 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 2640339414..b8eac5c1ef 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -272,8 +272,15 @@ func downloadPackage(p *Package) error {
+ 			dir := filepath.Join(p.build.SrcRoot, rootPath)
+ 			if remote, err := vcs.remoteRepo(vcs, dir); err == nil {
+ 				if rr, err := repoRootForImportPath(p.ImportPath); err == nil {
+-					if remote != rr.repo {
+-						return fmt.Errorf("%s is from %s, should be from %s", dir, remote, rr.repo)
++					repo := rr.repo
++					if rr.vcs.resolveRepo != nil {
++						resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
++						if err == nil {
++							repo = resolved
++						}
++					}
++					if remote != repo {
++						return fmt.Errorf("%s is from %s, should be from %s", dir, remote, repo)
+ 					}
+ 				}
+ 			}
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 0834a7d192..1cac613388 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -34,7 +34,8 @@ type vcsCmd struct {
+ 	scheme  []string
+ 	pingCmd string
+ 
+-	remoteRepo func(v *vcsCmd, rootDir string) (remoteRepo string, err error)
++	remoteRepo  func(v *vcsCmd, rootDir string) (remoteRepo string, err error)
++	resolveRepo func(v *vcsCmd, rootDir, remoteRepo string) (realRepo string, err error)
+ }
+ 
+ // A tagCmd describes a command to list available tags
+@@ -164,8 +165,51 @@ var vcsBzr = &vcsCmd{
+ 	tagSyncCmd:     "update -r {tag}",
+ 	tagSyncDefault: "update -r revno:-1",
+ 
+-	scheme:  []string{"https", "http", "bzr", "bzr+ssh"},
+-	pingCmd: "info {scheme}://{repo}",
++	scheme:      []string{"https", "http", "bzr", "bzr+ssh"},
++	pingCmd:     "info {scheme}://{repo}",
++	remoteRepo:  bzrRemoteRepo,
++	resolveRepo: bzrResolveRepo,
++}
++
++func bzrRemoteRepo(vcsBzr *vcsCmd, rootDir string) (remoteRepo string, err error) {
++	outb, err := vcsBzr.runOutput(rootDir, "config parent_location")
++	if err != nil {
++		return "", err
++	}
++	return strings.TrimSpace(string(outb)), nil
++}
++
++func bzrResolveRepo(vcsBzr *vcsCmd, rootDir, remoteRepo string) (realRepo string, err error) {
++	outb, err := vcsBzr.runOutput(rootDir, "info "+remoteRepo)
++	if err != nil {
++		return "", err
++	}
++	out := string(outb)
++
++	// Expect:
++	// ...
++	//   (branch root|repository branch): <URL>
++	// ...
++
++	found := false
++	for _, prefix := range []string{"\n  branch root: ", "\n  repository branch: "} {
++		i := strings.Index(out, prefix)
++		if i >= 0 {
++			out = out[i+len(prefix):]
++			found = true
++			break
++		}
++	}
++	if !found {
++		return "", fmt.Errorf("unable to parse output of bzr info")
++	}
++
++	i := strings.Index(out, "\n")
++	if i < 0 {
++		return "", fmt.Errorf("unable to parse output of bzr info")
++	}
++	out = out[:i]
++	return strings.TrimSpace(string(out)), nil
+ }
+ 
+ // vcsSvn describes how to use Subversion.

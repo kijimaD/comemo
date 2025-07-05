@@ -9,6 +9,38 @@ Date:   Mon Dec 19 09:48:07 2016 -0500
     Change-Id: Iad1439b2dd56b113c8829699eda467d1367b0e15
     Reviewed-on: https://go-review.googlesource.com/34610
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/os_linux.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 320c1281c2..213b951a6b 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -208,6 +208,26 @@ func sysargs(argc int32, argv **byte) {
+ 		// Fall back to /proc/self/auxv.
+ 		fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
+ 		if fd < 0 {
++			// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
++			// try using mincore to detect the physical page size.
++			// mincore should return EINVAL when address is not a multiple of system page size.
++			const size = 256 << 10 // size of memory region to allocate
++			p := mmap(nil, size, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++			if uintptr(p) < 4096 {
++				return
++			}
++			var n uintptr
++			for n = 4 << 10; n < size; n <<= 1 {
++				err := mincore(unsafe.Pointer(uintptr(p)+n), 1, &addrspace_vec[0])
++				if err == 0 {
++					physPageSize = n
++					break
++				}
++			}
++			if physPageSize == 0 {
++				physPageSize = size
++			}
++			munmap(p, size)
+ 			return
+ 		}
+ 		var buf [128]uintptr

@@ -15,6 +15,29 @@ Date:   Mon Jun 6 11:48:29 2022 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.19.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 6d49cedfd4..06bd7bcff1 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -268,6 +268,17 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- go/parser -->
+ 
++<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
++  <dd>
++    <p><!-- CL 395535 -->
++      TODO: <a href="https://go.dev/cl/395535">https://go.dev/cl/395535</a>: add Var.Origin and Func.Origin
++    </p>
++    <p><!-- CL 404885 -->
++      TODO: <a href="https://go.dev/cl/404885">https://go.dev/cl/404885</a>: a finite number of types are reachable via Named.Underlying, Named.Method
++    </p>
++  </dd>
++</dl><!-- go/types -->
++
+ <dl id="image/draw"><dt><a href="/pkg/image/draw/">image/draw</a></dt>
+   <dd>
+     <p><!-- CL 396795 -->

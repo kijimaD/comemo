@@ -9,7 +9,62 @@ Date:   Mon Sep 14 16:59:15 2015 -0700
     Change-Id: I2e39f61e12953147b0cd6a11d29179c500c94964
     Reviewed-on: https://go-review.googlesource.com/14566
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/go/parser/parser.go     | 19 ++++++++++++++-----
  src/go/parser/short_test.go |  2 +-
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 521bdce1dd..73edaa0ab3 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1910,14 +1910,23 @@ func isTypeSwitchAssert(x ast.Expr) bool {
+ 	return ok && a.Type == nil
+ }
+ 
+-func isTypeSwitchGuard(s ast.Stmt) bool {
++func (p *parser) isTypeSwitchGuard(s ast.Stmt) bool {
+ 	switch t := s.(type) {
+ 	case *ast.ExprStmt:
+-		// x.(nil)
++		// x.(type)
+ 		return isTypeSwitchAssert(t.X)
+ 	case *ast.AssignStmt:
+-		// v := x.(nil)
+-		return len(t.Lhs) == 1 && t.Tok == token.DEFINE && len(t.Rhs) == 1 && isTypeSwitchAssert(t.Rhs[0])
++		// v := x.(type)
++		if len(t.Lhs) == 1 && len(t.Rhs) == 1 && isTypeSwitchAssert(t.Rhs[0]) {
++			switch t.Tok {
++			case token.ASSIGN:
++				// permit v = x.(type) but complain
++				p.error(t.TokPos, "expected ':=', found '='")
++				fallthrough
++			case token.DEFINE:
++				return true
++			}
++		}
+ 	}
+ 	return false
+ }
+@@ -1963,7 +1972,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
+ 		p.exprLev = prevLev
+ 	}
+ 
+-	typeSwitch := isTypeSwitchGuard(s2)
++	typeSwitch := p.isTypeSwitchGuard(s2)
+ 	lbrace := p.expect(token.LBRACE)
+ 	var list []ast.Stmt
+ 	for p.tok == token.CASE || p.tok == token.DEFAULT {
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 6ef3b07255..e05ae8e9e9 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -64,7 +64,7 @@ var invalids = []string{
+ 	`package p; func f() { for _ = range x ; /* ERROR "expected '{'" */ ; {} };`,
+ 	`package p; func f() { for ; ; _ = range /* ERROR "expected operand" */ x {} };`,
+ 	`package p; func f() { for ; _ /* ERROR "expected boolean or range expression" */ = range x ; {} };`,
+-	`package p; func f() { switch t /* ERROR "expected switch expression" */ = t.(type) {} };`,
++	`package p; func f() { switch t = /* ERROR "expected ':=', found '='" */ t.(type) {} };`,
+ 	`package p; func f() { switch t /* ERROR "expected switch expression" */ , t = t.(type) {} };`,
+ 	`package p; func f() { switch t /* ERROR "expected switch expression" */ = t.(type), t {} };`,
+ 	`package p; var a = [ /* ERROR "expected expression" */ 1]int;`,

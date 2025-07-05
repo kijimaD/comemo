@@ -10,6 +10,28 @@ Date:   Fri Oct 9 16:44:40 2009 -0700
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=35542
     CL=35560
-
+---
  test/errchk | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/errchk b/test/errchk
+index 0625dbca10..3aafddb82d 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -30,7 +30,7 @@ close(SRC);
+ 
+ # Run command
+ $cmd = join(' ', @ARGV);
+-open(CMD, "$cmd </dev/null 2>&1 |") || die "BUG: errchk: run $cmd: $!";
++open(CMD, "exec $cmd </dev/null 2>&1 |") || die "BUG: errchk: run $cmd: $!";
+ @out = grep { !/^	/ } <CMD>;
+ close CMD;
+ 
+@@ -42,6 +42,7 @@ if($? == 0) {
+ 
+ if(!WIFEXITED($?)) {
+ 	print STDERR "BUG: errchk: compiler crashed\n";
++	print STDERR @out, "\n";
+ 	exit 0;
+ }
+ 

@@ -11,6 +11,43 @@ Date:   Mon May 11 12:03:30 2015 -0400
     Change-Id: I57851a5bbb2e7cc339712f004f99bb6c0cce0ca5
     Reviewed-on: https://go-review.googlesource.com/9889
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mheap.go | 18 +++++++++---------
  1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 48e391648b..a610da2e47 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -28,6 +28,15 @@ type mheap struct {
+ 	spans        **mspan
+ 	spans_mapped uintptr
+ 
++	// Proportional sweep
++	pagesSwept        uint64  // pages swept this cycle; updated atomically
++	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
++
++	// Malloc stats.
++	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
++	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
++	nsmallfree [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
++
+ 	// range of addresses we might see in the heap
+ 	bitmap         uintptr
+ 	bitmap_mapped  uintptr
+@@ -50,15 +59,6 @@ type mheap struct {
+ 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
+ 	specialprofilealloc   fixalloc // allocator for specialprofile*
+ 	speciallock           mutex    // lock for sepcial record allocators.
+-
+-	// Proportional sweep
+-	pagesSwept        uint64  // pages swept this cycle; updated atomically
+-	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
+-
+-	// Malloc stats.
+-	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
+-	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
+-	nsmallfree [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
+ }
+ 
+ var mheap_ mheap

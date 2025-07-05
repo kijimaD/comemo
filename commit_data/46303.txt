@@ -21,7 +21,7 @@ Date:   Wed Dec 9 15:14:59 2020 -0500
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/defs_freebsd_386.go   | 9 +++++----
  src/runtime/defs_freebsd_amd64.go | 9 +++++----
  src/runtime/defs_freebsd_arm.go   | 9 +++++----
@@ -32,3 +32,218 @@ Date:   Wed Dec 9 15:14:59 2020 -0500
  src/runtime/sys_freebsd_arm.s     | 3 +++
  src/runtime/sys_freebsd_arm64.s   | 6 ++++++
  9 files changed, 42 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+index 767755425c..f822934d58 100644
+--- a/src/runtime/defs_freebsd_386.go
++++ b/src/runtime/defs_freebsd_386.go
+@@ -13,10 +13,11 @@ const (
+ )
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ENOSYS    = 0x4e
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x100000
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+index 5a833426fd..0b696cf227 100644
+--- a/src/runtime/defs_freebsd_amd64.go
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -13,10 +13,11 @@ const (
+ )
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ENOSYS    = 0x4e
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x100000
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+index b55dfd88cf..b6f3e790cf 100644
+--- a/src/runtime/defs_freebsd_arm.go
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -13,10 +13,11 @@ const (
+ )
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ENOSYS    = 0x4e
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x100000
+diff --git a/src/runtime/defs_freebsd_arm64.go b/src/runtime/defs_freebsd_arm64.go
+index 5b9d504ba6..0759a1238f 100644
+--- a/src/runtime/defs_freebsd_arm64.go
++++ b/src/runtime/defs_freebsd_arm64.go
+@@ -13,10 +13,11 @@ const (
+ )
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
+-	_ENOSYS = 0x4e
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ENOSYS    = 0x4e
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_NONBLOCK = 0x4
+ 	_O_CLOEXEC  = 0x100000
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 730973a202..1c60ee2a57 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -166,7 +166,7 @@ func futexsleep1(addr *uint32, val uint32, ns int64) {
+ 		utp = &ut
+ 	}
+ 	ret := sys_umtx_op(addr, _UMTX_OP_WAIT_UINT_PRIVATE, val, unsafe.Sizeof(*utp), utp)
+-	if ret >= 0 || ret == -_EINTR {
++	if ret >= 0 || ret == -_EINTR || ret == -_ETIMEDOUT {
+ 		return
+ 	}
+ 	print("umtx_wait addr=", addr, " val=", val, " ret=", ret, "\n")
+@@ -208,7 +208,6 @@ func newosproc(mp *m) {
+ 
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	// TODO: Check for error.
+ 	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if ret < 0 {
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index c346e719e1..97e6d9ab36 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -13,12 +13,16 @@
+ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
+ 	MOVL	$454, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
+ 	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+ TEXT runtime·thr_new(SB),NOSPLIT,$-4
+ 	MOVL	$455, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+@@ -120,6 +124,8 @@ TEXT runtime·pipe2(SB),NOSPLIT,$12-16
+ 	MOVL	flags+0(FP), BX
+ 	MOVL	BX, 8(SP)
+ 	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
+ 	MOVL	AX, errno+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 010b2ec4d4..07734b0d7d 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -18,6 +18,8 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+ 	MOVQ ut+24(FP), R8
+ 	MOVL $454, AX
+ 	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
+ 	MOVL	AX, ret+32(FP)
+ 	RET
+ 
+@@ -26,6 +28,8 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
+ 	MOVL size+8(FP), SI
+ 	MOVL $455, AX
+ 	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+@@ -118,6 +122,8 @@ TEXT runtime·pipe2(SB),NOSPLIT,$0-20
+ 	MOVL	flags+0(FP), SI
+ 	MOVL	$542, AX
+ 	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
+ 	MOVL	AX, errno+16(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 1e12f9cfcb..b12e47c576 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -51,6 +51,7 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+ 	ADD $20, R13 // arg 5 is passed on stack
+ 	MOVW $SYS__umtx_op, R7
+ 	SWI $0
++	RSB.CS $0, R0
+ 	SUB $20, R13
+ 	// BCS error
+ 	MOVW	R0, ret+20(FP)
+@@ -61,6 +62,7 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
+ 	MOVW size+4(FP), R1
+ 	MOVW $SYS_thr_new, R7
+ 	SWI $0
++	RSB.CS $0, R0
+ 	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+@@ -144,6 +146,7 @@ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+ 	MOVW	flags+0(FP), R1
+ 	MOVW	$SYS_pipe2, R7
+ 	SWI	$0
++	RSB.CS $0, R0
+ 	MOVW	R0, errno+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+index 8a4f9b7fa1..1aa09e87ca 100644
+--- a/src/runtime/sys_freebsd_arm64.s
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -60,6 +60,9 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+ 	MOVD	ut+24(FP), R4
+ 	MOVD	$SYS__umtx_op, R8
+ 	SVC
++	BCC	ok
++	NEG	R0, R0
++ok:
+ 	MOVW	R0, ret+32(FP)
+ 	RET
+ 
+@@ -69,6 +72,9 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
+ 	MOVW	size+8(FP), R1
+ 	MOVD	$SYS_thr_new, R8
+ 	SVC
++	BCC	ok
++	NEG	R0, R0
++ok:
+ 	MOVW	R0, ret+16(FP)
+ 	RET
+ 

@@ -9,6 +9,24 @@ Date:   Wed Jul 13 09:38:41 2016 -0700
     Change-Id: If5444b8de8678eeb9be10b62a929e2e101d1dd91
     Reviewed-on: https://go-review.googlesource.com/24900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.7.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index d209a5ab0e..2dfa64da61 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -74,6 +74,12 @@ This change has no effect on the correctness of existing programs.
+ 
+ <h2 id="ports">Ports</h2>
+ 
++<p>
++Go 1.7 adds support for macOS 10.12 Sierra.
++Binaries built with previous versions of Go will not work correctly on
++Sierra.
++</p>
++
+ <p>
+ Go 1.7 adds an experimental port to <a href="https://en.wikipedia.org/wiki/Linux_on_z_Systems">Linux on z Systems</a> (<code>linux/s390x</code>)
+ and the beginning of a port to Plan 9 on ARM (<code>plan9/arm</code>).

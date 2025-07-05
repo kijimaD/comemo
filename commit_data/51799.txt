@@ -10,7 +10,40 @@ Date:   Tue Mar 15 13:36:10 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/393015
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go | 9 +++++++++
  src/reflect/type.go     | 4 ++--
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5364166eab..06026232ee 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7807,3 +7807,12 @@ func TestIssue50208(t *testing.T) {
+ 		t.Errorf("name of type parameter mismatched, want:%s, got:%s", want2, got)
+ 	}
+ }
++
++func TestNegativeKindString(t *testing.T) {
++	x := -1
++	s := Kind(x).String()
++	want := "kind-1"
++	if s != want {
++		t.Fatalf("Kind(-1).String() = %q, want %q", s, want)
++	}
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 8ba63bcad0..83047062bd 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -632,8 +632,8 @@ const (
+ 
+ // String returns the name of k.
+ func (k Kind) String() string {
+-	if int(k) < len(kindNames) {
+-		return kindNames[k]
++	if uint(k) < uint(len(kindNames)) {
++		return kindNames[uint(k)]
+ 	}
+ 	return "kind" + strconv.Itoa(int(k))
+ }

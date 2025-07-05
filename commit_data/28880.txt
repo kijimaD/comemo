@@ -15,7 +15,112 @@ Date:   Tue Aug 16 05:05:00 2016 +0000
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/transport.go               | 14 +++----
  src/net/http/transport_internal_test.go | 67 +++++++++++++++++++++++++++++++++
  2 files changed, 72 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 3046de5a8e..4604b90ec0 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -421,19 +421,15 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
+ 		// our request (as opposed to sending an error).
+ 		return false
+ 	}
++	if _, ok := err.(nothingWrittenError); ok {
++		// We never wrote anything, so it's safe to retry.
++		return true
++	}
+ 	if !req.isReplayable() {
+ 		// Don't retry non-idempotent requests.
+-
+-		// TODO: swap the nothingWrittenError and isReplayable checks,
+-		// putting the "if nothingWrittenError => return true" case
+-		// first, per golang.org/issue/15723
+ 		return false
+ 	}
+-	switch err.(type) {
+-	case nothingWrittenError:
+-		// We never wrote anything, so it's safe to retry.
+-		return true
+-	case transportReadFromServerError:
++	if _, ok := err.(transportReadFromServerError); ok {
+ 		// We got some non-EOF net.Conn.Read failure reading
+ 		// the 1st response byte from the server.
+ 		return true
+diff --git a/src/net/http/transport_internal_test.go b/src/net/http/transport_internal_test.go
+index a05ca6ed0d..3d24fc127d 100644
+--- a/src/net/http/transport_internal_test.go
++++ b/src/net/http/transport_internal_test.go
+@@ -72,3 +72,70 @@ func newLocalListener(t *testing.T) net.Listener {
+ 	}
+ 	return ln
+ }
++
++func dummyRequest(method string) *Request {
++	req, err := NewRequest(method, "http://fake.tld/", nil)
++	if err != nil {
++		panic(err)
++	}
++	return req
++}
++
++func TestTransportShouldRetryRequest(t *testing.T) {
++	tests := []struct {
++		pc  *persistConn
++		req *Request
++
++		err  error
++		want bool
++	}{
++		0: {
++			pc:   &persistConn{reused: false},
++			req:  dummyRequest("POST"),
++			err:  nothingWrittenError{},
++			want: false,
++		},
++		1: {
++			pc:   &persistConn{reused: true},
++			req:  dummyRequest("POST"),
++			err:  nothingWrittenError{},
++			want: true,
++		},
++		2: {
++			pc:   &persistConn{reused: true},
++			req:  dummyRequest("POST"),
++			err:  http2ErrNoCachedConn,
++			want: true,
++		},
++		3: {
++			pc:   &persistConn{reused: true},
++			req:  dummyRequest("POST"),
++			err:  errMissingHost,
++			want: false,
++		},
++		4: {
++			pc:   &persistConn{reused: true},
++			req:  dummyRequest("POST"),
++			err:  transportReadFromServerError{},
++			want: false,
++		},
++		5: {
++			pc:   &persistConn{reused: true},
++			req:  dummyRequest("GET"),
++			err:  transportReadFromServerError{},
++			want: true,
++		},
++		6: {
++			pc:   &persistConn{reused: true},
++			req:  dummyRequest("GET"),
++			err:  errServerClosedIdle,
++			want: true,
++		},
++	}
++	for i, tt := range tests {
++		got := tt.pc.shouldRetryRequest(tt.req, tt.err)
++		if got != tt.want {
++			t.Errorf("%d. shouldRetryRequest = %v; want %v", i, got, tt.want)
++		}
++	}
++}

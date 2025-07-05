@@ -14,7 +14,34 @@ Date:   Mon Sep 18 11:49:47 2017 +0200
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/constant/value.go | 2 +-
  src/go/types/api.go      | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 5474e73e24..513151a38f 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -10,7 +10,7 @@
+ // values produce unknown values unless specified
+ // otherwise.
+ //
+-package constant // import "go/constant"
++package constant
+ 
+ import (
+ 	"fmt"
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 81b83da221..9908f5c973 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -24,7 +24,7 @@
+ //
+ // For a tutorial, see https://golang.org/s/types-tutorial.
+ //
+-package types // import "go/types"
++package types
+ 
+ import (
+ 	"bytes"

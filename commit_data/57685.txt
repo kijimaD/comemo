@@ -14,8 +14,61 @@ Date:   Sun Aug 20 18:33:50 2023 +0800
     Run-TryBot: shuang cui <imcusg@gmail.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/bytes/example_test.go                        | 6 +++---
  src/crypto/rsa/example_test.go                   | 4 ++--
  src/runtime/testdata/testprogcgo/numgoroutine.go | 2 +-
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 41a5e2e5bf..20faf3e1f5 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -81,9 +81,9 @@ func ExampleBuffer_Next() {
+ 	var b bytes.Buffer
+ 	b.Grow(64)
+ 	b.Write([]byte("abcde"))
+-	fmt.Printf("%s\n", string(b.Next(2)))
+-	fmt.Printf("%s\n", string(b.Next(2)))
+-	fmt.Printf("%s", string(b.Next(2)))
++	fmt.Printf("%s\n", b.Next(2))
++	fmt.Printf("%s\n", b.Next(2))
++	fmt.Printf("%s", b.Next(2))
+ 	// Output:
+ 	// ab
+ 	// cd
+diff --git a/src/crypto/rsa/example_test.go b/src/crypto/rsa/example_test.go
+index d07ee7d18b..d176743f2f 100644
+--- a/src/crypto/rsa/example_test.go
++++ b/src/crypto/rsa/example_test.go
+@@ -78,7 +78,7 @@ func ExampleDecryptPKCS1v15SessionKey() {
+ 		return
+ 	}
+ 
+-	fmt.Printf("Plaintext: %s\n", string(plaintext))
++	fmt.Printf("Plaintext: %s\n", plaintext)
+ }
+ 
+ func ExampleSignPKCS1v15() {
+@@ -149,7 +149,7 @@ func ExampleDecryptOAEP() {
+ 		return
+ 	}
+ 
+-	fmt.Printf("Plaintext: %s\n", string(plaintext))
++	fmt.Printf("Plaintext: %s\n", plaintext)
+ 
+ 	// Remember that encryption only provides confidentiality. The
+ 	// ciphertext should be signed before authenticity is assumed and, even
+diff --git a/src/runtime/testdata/testprogcgo/numgoroutine.go b/src/runtime/testdata/testprogcgo/numgoroutine.go
+index 1b9f202f46..9cbb4e4b0d 100644
+--- a/src/runtime/testdata/testprogcgo/numgoroutine.go
++++ b/src/runtime/testdata/testprogcgo/numgoroutine.go
+@@ -70,7 +70,7 @@ func checkNumGoroutine(label string, want int) (string, bool) {
+ 	sbuf = sbuf[:runtime.Stack(sbuf, true)]
+ 	n = strings.Count(string(sbuf), "goroutine ")
+ 	if n != want {
+-		fmt.Printf("%s Stack: want %d; got %d:\n%s\n", label, want, n, string(sbuf))
++		fmt.Printf("%s Stack: want %d; got %d:\n%s\n", label, want, n, sbuf)
+ 		return "", false
+ 	}
+ 	return string(sbuf), true

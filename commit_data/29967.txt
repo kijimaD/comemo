@@ -17,10 +17,247 @@ Date:   Sun Oct 16 13:25:53 2016 +0900
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/syscall/windows/syscall_windows.go  | 16 ++++
  src/internal/syscall/windows/zsyscall_windows.go | 19 +++++
  src/os/os_windows_test.go                        | 97 +++++++++++++++++++++++-
  src/syscall/syscall_windows.go                   | 24 +++++-
  src/syscall/ztypes_windows.go                    |  1 +
  5 files changed, 153 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 4a30afbbfc..dd2df92ff6 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -148,3 +148,19 @@ const MB_ERR_INVALID_CHARS = 8
+ //sys	GetConsoleCP() (ccp uint32) = kernel32.GetConsoleCP
+ //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
+ //sys	GetCurrentThread() (pseudoHandle syscall.Handle, err error) = kernel32.GetCurrentThread
++
++const STYPE_DISKTREE = 0x00
++
++type SHARE_INFO_2 struct {
++	Netname     *uint16
++	Type        uint32
++	Remark      *uint16
++	Permissions uint32
++	MaxUses     uint32
++	CurrentUses uint32
++	Path        *uint16
++	Passwd      *uint16
++}
++
++//sys  NetShareAdd(serverName *uint16, level uint32, buf *byte, parmErr *uint16) (neterr error) = netapi32.NetShareAdd
++//sys  NetShareDel(serverName *uint16, netName *uint16, reserved uint32) (neterr error) = netapi32.NetShareDel
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index f6a8954072..55af05d3e9 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -38,6 +38,7 @@ func errnoErr(e syscall.Errno) error {
+ var (
+ 	modiphlpapi = syscall.NewLazyDLL(sysdll.Add("iphlpapi.dll"))
+ 	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
++	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
+ 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
+ 
+ 	procGetAdaptersAddresses  = modiphlpapi.NewProc("GetAdaptersAddresses")
+@@ -47,6 +48,8 @@ var (
+ 	procGetConsoleCP          = modkernel32.NewProc("GetConsoleCP")
+ 	procMultiByteToWideChar   = modkernel32.NewProc("MultiByteToWideChar")
+ 	procGetCurrentThread      = modkernel32.NewProc("GetCurrentThread")
++	procNetShareAdd           = modnetapi32.NewProc("NetShareAdd")
++	procNetShareDel           = modnetapi32.NewProc("NetShareDel")
+ 	procImpersonateSelf       = modadvapi32.NewProc("ImpersonateSelf")
+ 	procRevertToSelf          = modadvapi32.NewProc("RevertToSelf")
+ 	procOpenThreadToken       = modadvapi32.NewProc("OpenThreadToken")
+@@ -124,6 +127,22 @@ func GetCurrentThread() (pseudoHandle syscall.Handle, err error) {
+ 	return
+ }
+ 
++func NetShareAdd(serverName *uint16, level uint32, buf *byte, parmErr *uint16) (neterr error) {
++	r0, _, _ := syscall.Syscall6(procNetShareAdd.Addr(), 4, uintptr(unsafe.Pointer(serverName)), uintptr(level), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(parmErr)), 0, 0)
++	if r0 != 0 {
++		neterr = syscall.Errno(r0)
++	}
++	return
++}
++
++func NetShareDel(serverName *uint16, netName *uint16, reserved uint32) (neterr error) {
++	r0, _, _ := syscall.Syscall(procNetShareDel.Addr(), 3, uintptr(unsafe.Pointer(serverName)), uintptr(unsafe.Pointer(netName)), uintptr(reserved))
++	if r0 != 0 {
++		neterr = syscall.Errno(r0)
++	}
++	return
++}
++
+ func ImpersonateSelf(impersonationlevel uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procImpersonateSelf.Addr(), 1, uintptr(impersonationlevel), 0, 0)
+ 	if r1 == 0 {
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 1a7946ae9f..72af075e5b 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -263,7 +263,6 @@ func TestDirectoryJunction(t *testing.T) {
+ 				t.addPrintName("")
+ 				return createMountPoint(link, &t)
+ 			},
+-			issueNo: 16145,
+ 		},
+ 	}
+ 	output, _ := osexec.Command("cmd", "/c", "mklink", "/?").Output()
+@@ -396,12 +395,106 @@ func TestDirectorySymbolicLink(t *testing.T) {
+ 				t.addPrintNameNoNUL(filepath.Base(target))
+ 				return createSymbolicLink(link, &t, true)
+ 			},
+-			issueNo: 15978,
+ 		},
+ 	)
+ 	testDirLinks(t, tests)
+ }
+ 
++func TestNetworkSymbolicLink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	dir, err := ioutil.TempDir("", "TestNetworkSymbolicLink")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	oldwd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = os.Chdir(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.Chdir(oldwd)
++
++	shareName := "GoSymbolicLinkTestShare" // hope no conflictions
++	sharePath := filepath.Join(dir, shareName)
++	testDir := "TestDir"
++
++	err = os.MkdirAll(filepath.Join(sharePath, testDir), 0777)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	wShareName, err := syscall.UTF16PtrFromString(shareName)
++	if err != nil {
++		t.Fatal(err)
++	}
++	wSharePath, err := syscall.UTF16PtrFromString(sharePath)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	p := windows.SHARE_INFO_2{
++		Netname:     wShareName,
++		Type:        windows.STYPE_DISKTREE,
++		Remark:      nil,
++		Permissions: 0,
++		MaxUses:     1,
++		CurrentUses: 0,
++		Path:        wSharePath,
++		Passwd:      nil,
++	}
++
++	err = windows.NetShareAdd(nil, 2, (*byte)(unsafe.Pointer(&p)), nil)
++	if err != nil {
++		if err == syscall.ERROR_ACCESS_DENIED {
++			t.Skip("you don't have enough privileges to add network share")
++		}
++		t.Fatal(err)
++	}
++	defer func() {
++		err := windows.NetShareDel(nil, wShareName, 0)
++		if err != nil {
++			t.Fatal(err)
++		}
++	}()
++
++	UNCPath := `\\localhost\` + shareName + `\`
++
++	fi1, err := os.Stat(sharePath)
++	if err != nil {
++		t.Fatal(err)
++	}
++	fi2, err := os.Stat(UNCPath)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !os.SameFile(fi1, fi2) {
++		t.Fatalf("%q and %q should be the same directory, but not", sharePath, UNCPath)
++	}
++
++	target := filepath.Join(UNCPath, testDir)
++	link := "link"
++
++	err = os.Symlink(target, link)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.Remove(link)
++
++	got, err := os.Readlink(link)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if got != target {
++		t.Errorf(`os.Readlink("%s"): got %v, want %v`, link, got, target)
++	}
++}
++
+ func TestStartProcessAttr(t *testing.T) {
+ 	p, err := os.StartProcess(os.Getenv("COMSPEC"), []string{"/c", "cd"}, new(os.ProcAttr))
+ 	if err != nil {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index e13d6e2dd5..f4f8f3ad09 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -1024,11 +1024,31 @@ func Readlink(path string, buf []byte) (n int, err error) {
+ 	case IO_REPARSE_TAG_SYMLINK:
+ 		data := (*symbolicLinkReparseBuffer)(unsafe.Pointer(&rdb.reparseBuffer))
+ 		p := (*[0xffff]uint16)(unsafe.Pointer(&data.PathBuffer[0]))
+-		s = UTF16ToString(p[data.PrintNameOffset/2 : (data.PrintNameLength-data.PrintNameOffset)/2])
++		s = UTF16ToString(p[data.SubstituteNameOffset/2 : (data.SubstituteNameOffset+data.SubstituteNameLength)/2])
++		if data.Flags&_SYMLINK_FLAG_RELATIVE == 0 {
++			if len(s) >= 4 && s[:4] == `\??\` {
++				s = s[4:]
++				switch {
++				case len(s) >= 2 && s[1] == ':': // \??\C:\foo\bar
++					// do nothing
++				case len(s) >= 4 && s[:4] == `UNC\`: // \??\UNC\foo\bar
++					s = `\\` + s[4:]
++				default:
++					// unexpected; do nothing
++				}
++			} else {
++				// unexpected; do nothing
++			}
++		}
+ 	case _IO_REPARSE_TAG_MOUNT_POINT:
+ 		data := (*mountPointReparseBuffer)(unsafe.Pointer(&rdb.reparseBuffer))
+ 		p := (*[0xffff]uint16)(unsafe.Pointer(&data.PathBuffer[0]))
+-		s = UTF16ToString(p[data.PrintNameOffset/2 : (data.PrintNameLength-data.PrintNameOffset)/2])
++		s = UTF16ToString(p[data.SubstituteNameOffset/2 : (data.SubstituteNameOffset+data.SubstituteNameLength)/2])
++		if len(s) >= 4 && s[:4] == `\??\` { // \??\C:\foo\bar
++			s = s[4:]
++		} else {
++			// unexpected; do nothing
++		}
+ 	default:
+ 		// the path is not a symlink or junction but another type of reparse
+ 		// point
+diff --git a/src/syscall/ztypes_windows.go b/src/syscall/ztypes_windows.go
+index 8c2e19653a..1fb6f5c29f 100644
+--- a/src/syscall/ztypes_windows.go
++++ b/src/syscall/ztypes_windows.go
+@@ -1116,4 +1116,5 @@ const (
+ 	_IO_REPARSE_TAG_MOUNT_POINT      = 0xA0000003
+ 	IO_REPARSE_TAG_SYMLINK           = 0xA000000C
+ 	SYMBOLIC_LINK_FLAG_DIRECTORY     = 0x1
++	_SYMLINK_FLAG_RELATIVE           = 1
+ )

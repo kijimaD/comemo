@@ -16,7 +16,92 @@ Date:   Thu Oct 17 16:28:38 2019 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/types/decl.go        | 21 ++++++++++++++-------
  src/go/types/issues_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 44 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index a4fb2b81cc..83d40939a8 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -489,27 +489,34 @@ func (check *Checker) underlying(typ Type) Type {
+ 	}
+ 
+ 	// Otherwise, follow the forward chain.
+-	seen := map[*Named]int{n0: 0, n: 1}
+-	path := []Object{n0.obj, n.obj}
++	seen := map[*Named]int{n0: 0}
++	path := []Object{n0.obj}
+ 	for {
+ 		typ = n.underlying
+-		n, _ = typ.(*Named)
+-		if n == nil {
++		n1, _ := typ.(*Named)
++		if n1 == nil {
+ 			break // end of chain
+ 		}
+ 
++		seen[n] = len(seen)
++		path = append(path, n.obj)
++		n = n1
++
+ 		if i, ok := seen[n]; ok {
+ 			// cycle
+ 			check.cycleError(path[i:])
+ 			typ = Typ[Invalid]
+ 			break
+ 		}
+-
+-		seen[n] = len(seen)
+-		path = append(path, n.obj)
+ 	}
+ 
+ 	for n := range seen {
++		// We should never have to update the underlying type of an imported type;
++		// those underlying types should have been resolved during the import.
++		// Also, doing so would lead to a race condition (was issue #31749).
++		if n.obj.pkg != check.pkg {
++			panic("internal error: imported type with unresolved underlying type")
++		}
+ 		n.underlying = typ
+ 	}
+ 
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 1d0c0cb08a..f59f905397 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -493,3 +493,33 @@ func (h importHelper) Import(path string) (*Package, error) {
+ 	}
+ 	return h.pkg, nil
+ }
++
++// TestIssue34921 verifies that we don't update an imported type's underlying
++// type when resolving an underlying type. Specifically, when determining the
++// underlying type of b.T (which is the underlying type of a.T, which is int)
++// we must not set the underlying type of a.T again since that would lead to
++// a race condition if package b is imported elsewhere, in a package that is
++// concurrently type-checked.
++func TestIssue34921(t *testing.T) {
++	defer func() {
++		if r := recover(); r != nil {
++			t.Error(r)
++		}
++	}()
++
++	var sources = []string{
++		`package a; type T int`,
++		`package b; import "a"; type T a.T`,
++	}
++
++	var pkg *Package
++	for _, src := range sources {
++		f := mustParse(t, src)
++		conf := Config{Importer: importHelper{pkg}}
++		res, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
++		if err != nil {
++			t.Errorf("%q failed to typecheck: %v", src, err)
++		}
++		pkg = res // res is imported by the next package in this test
++	}
++}

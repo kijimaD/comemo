@@ -11,6 +11,20 @@ Date:   Fri Apr 15 16:29:43 2016 +1000
     Reviewed-on: https://go-review.googlesource.com/22110
     Reviewed-by: Klaus Post <klauspost@gmail.com>
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/compress/flate/writer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/compress/flate/writer_test.go b/src/compress/flate/writer_test.go
+index e4c5c8cc72..7967cd739c 100644
+--- a/src/compress/flate/writer_test.go
++++ b/src/compress/flate/writer_test.go
+@@ -91,7 +91,7 @@ func TestWriteError(t *testing.T) {
+ 		n *= 4
+ 	}
+ 	for i := 0; i < n; i++ {
+-		buf.WriteString(fmt.Sprintf("asdasfasf%d%dfghfgujyut%dyutyu\n", i, i, i))
++		fmt.Fprintf(buf, "asdasfasf%d%dfghfgujyut%dyutyu\n", i, i, i)
+ 	}
+ 	in := buf.Bytes()
+ 	// We create our own buffer to control number of writes.

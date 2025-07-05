@@ -11,6 +11,21 @@ Date:   Thu May 26 15:02:55 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/23482
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 69a13ddf9d..1a1f7d961b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -688,8 +688,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		switch pair {
+ 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64",
+ 			"darwin-amd64", "darwin-386",
+-			"android-arm", "android-arm64", "android-386",
+-			"linux-ppc64le":
++			"android-arm", "android-arm64", "android-386":
+ 			return true
+ 		}
+ 		return false

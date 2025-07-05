@@ -16,6 +16,33 @@ Date:   Fri May 6 10:15:49 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt b/src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt
+index 571bf752d0..1279f6e9ac 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt
+@@ -10,8 +10,8 @@
+ [!fuzz-instrumented] skip
+ 
+ env GOCACHE=$WORK/gocache
+-go test -fuzz=FuzzCovMin -fuzztime=25s -test.fuzzcachedir=$GOCACHE/fuzz
+-go run check_file/main.go $GOCACHE/fuzz/FuzzCovMin abcd
++go test -fuzz=FuzzCovMin -fuzztime=500000x -test.fuzzcachedir=$GOCACHE/fuzz
++go run check_file/main.go $GOCACHE/fuzz/FuzzCovMin ab
+ 
+ -- go.mod --
+ module test
+@@ -22,8 +22,9 @@ package covmin
+ import "testing"
+ 
+ func FuzzCovMin(f *testing.F) {
++	f.Add([]byte("aa"))
+ 	f.Fuzz(func(t *testing.T, data []byte) {
+-		if len(data) >= 4 && data[0] == 'a' && data[1] == 'b' && data[2] == 'c' && data[3] == 'd' {
++		if len(data) == 2 && data[0] == 'a' && data[1] == 'b' {
+ 			return
+ 		}
+ 	})

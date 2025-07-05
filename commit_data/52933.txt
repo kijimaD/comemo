@@ -14,6 +14,40 @@ Date:   Wed Jun 15 15:42:47 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  test/fixedbugs/issue52870.go | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/test/fixedbugs/issue52870.go b/test/fixedbugs/issue52870.go
+new file mode 100644
+index 0000000000..a1c441a77d
+--- /dev/null
++++ b/test/fixedbugs/issue52870.go
+@@ -0,0 +1,27 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 52870: gofrontend gave incorrect error when incorrectly
++// compiling ambiguous promoted method.
++
++package p
++
++type S1 struct {
++	*S2
++}
++
++type S2 struct {
++	T3
++	T4
++}
++
++type T3 int32
++
++func (T3) M() {}
++
++type T4 int32
++
++func (T4) M() {}

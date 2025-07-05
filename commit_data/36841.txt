@@ -12,8 +12,67 @@ Date:   Wed May 30 18:13:27 2018 -0700
     Change-Id: Ib7b272c6ac8efacccbbbe24650ef500c5a9ddcf5
     Reviewed-on: https://go-review.googlesource.com/115457
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/check.go      | 12 ++++++++++++
  src/go/types/decl.go       |  4 ++--
  src/go/types/interfaces.go |  2 +-
  3 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 1d75ab1fc7..286b1f36a9 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -160,6 +160,18 @@ func (check *Checker) pop() Object {
+ 	return obj
+ }
+ 
++// pathString returns a string of the form a->b-> ... ->g for an object path [a, b, ... g].
++func (check *Checker) pathString() string {
++	var s string
++	for i, p := range check.objPath {
++		if i > 0 {
++			s += "->"
++		}
++		s += p.Name()
++	}
++	return s
++}
++
+ // NewChecker returns a new Checker instance for a given package.
+ // Package files may be added incrementally via checker.Files.
+ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index b1543e8a11..9a27fbbed6 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -158,7 +158,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 	}
+ 
+ 	if trace {
+-		check.trace(obj.Pos(), "-- checking %s (path = %s)", obj, pathString(path))
++		check.trace(obj.Pos(), "-- checking %s (path = %s, objPath = %s)", obj, pathString(path), check.pathString())
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+@@ -208,7 +208,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ // to the next. For instance, for "type p *p" the object path contains
+ // p followed by indir, indicating that there's an indirection *p.
+ // Indirections are used to break type cycles.
+-var indir = new(TypeName)
++var indir = NewTypeName(token.NoPos, nil, "*", nil)
+ 
+ // typeCycle checks if the cycle starting with obj is valid and
+ // reports an error if it is not.
+diff --git a/src/go/types/interfaces.go b/src/go/types/interfaces.go
+index b4efebae5d..e4b42dc5a3 100644
+--- a/src/go/types/interfaces.go
++++ b/src/go/types/interfaces.go
+@@ -144,7 +144,7 @@ func (check *Checker) infoFromTypeLit(scope *Scope, iface *ast.InterfaceType, tn
+ 	}
+ 
+ 	if trace {
+-		check.trace(iface.Pos(), "-- collect methods for %v (path = %s)", iface, pathString(path))
++		check.trace(iface.Pos(), "-- collect methods for %v (path = %s, objPath = %s)", iface, pathString(path), check.pathString())
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--

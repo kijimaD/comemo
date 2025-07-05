@@ -7,6 +7,21 @@ Date:   Wed Jul 20 11:22:56 2011 +1000
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/4806041
-
+---
  misc/dashboard/godashboard/static/style.css | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/dashboard/godashboard/static/style.css b/misc/dashboard/godashboard/static/style.css
+index a7e61dda50..d6d23b536c 100644
+--- a/misc/dashboard/godashboard/static/style.css
++++ b/misc/dashboard/godashboard/static/style.css
+@@ -54,6 +54,9 @@ table.alternate tr td:last-child {
+ table.alternate tr:nth-child(2n) {
+ 	background-color: #f0f0f0;
+ }
++td.result {
++	text-align: center;
++}
+ span.hash {
+ 	font-family: monospace;
+ 	font-size: small;

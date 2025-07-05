@@ -13,6 +13,22 @@ Date:   Thu Nov 5 08:27:55 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/267837
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/runtime/map.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 5ac3a9958b..0beff57a1a 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -162,8 +162,8 @@ type bmap struct {
+ // If you modify hiter, also change cmd/compile/internal/gc/reflect.go to indicate
+ // the layout of this structure.
+ type hiter struct {
+-	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/internal/gc/range.go).
+-	elem        unsafe.Pointer // Must be in second position (see cmd/internal/gc/range.go).
++	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/compile/internal/gc/range.go).
++	elem        unsafe.Pointer // Must be in second position (see cmd/compile/internal/gc/range.go).
+ 	t           *maptype
+ 	h           *hmap
+ 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time

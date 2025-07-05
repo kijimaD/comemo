@@ -11,7 +11,128 @@ Date:   Wed Feb 8 19:47:23 2017 -0800
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/time.go      | 39 ++++++++++++++++++++++++++++++++++
  src/time/time_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 98 insertions(+)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index bbe650a9b4..48aa1eb8f2 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -783,6 +783,45 @@ func (d Duration) Hours() float64 {
+ 	return float64(hour) + float64(nsec)/(60*60*1e9)
+ }
+ 
++// Truncate returns the result of rounding d toward zero to a multiple of m.
++// If m <= 0, Truncate returns d unchanged.
++func (d Duration) Truncate(m Duration) Duration {
++	if m <= 0 {
++		return d
++	}
++	return d - d%m
++}
++
++// Round returns the result of rounding d to the nearest multiple of m.
++// The rounding behavior for halfway values is to round away from zero.
++// If the result exceeds the maximum (or minimum)
++// value that can be stored in a Duration,
++// Round returns the maximum (or minimum) duration.
++// If m <= 0, Round returns d unchanged.
++func (d Duration) Round(m Duration) Duration {
++	if m <= 0 {
++		return d
++	}
++	r := d % m
++	if d < 0 {
++		r = -r
++		if r+r < m {
++			return d + r
++		}
++		if d1 := d - m + r; d1 < d {
++			return d1
++		}
++		return minDuration // overflow
++	}
++	if r+r < m {
++		return d - r
++	}
++	if d1 := d + m - r; d1 > d {
++		return d1
++	}
++	return maxDuration // overflow
++}
++
+ // Add returns the time t+d.
+ func (t Time) Add(d Duration) Time {
+ 	dsec := int64(d / 1e9)
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 90e2abf03e..ebe28e61f4 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1058,6 +1058,65 @@ func TestDurationHours(t *testing.T) {
+ 	}
+ }
+ 
++var durationTruncateTests = []struct {
++	d    Duration
++	m    Duration
++	want Duration
++}{
++	{0, Second, 0},
++	{Minute, -7 * Second, Minute},
++	{Minute, 0, Minute},
++	{Minute, 1, Minute},
++	{Minute + 10*Second, 10 * Second, Minute + 10*Second},
++	{2*Minute + 10*Second, Minute, 2 * Minute},
++	{10*Minute + 10*Second, 3 * Minute, 9 * Minute},
++	{Minute + 10*Second, Minute + 10*Second + 1, 0},
++	{Minute + 10*Second, Hour, 0},
++	{-Minute, Second, -Minute},
++	{-10 * Minute, 3 * Minute, -9 * Minute},
++	{-10 * Minute, Hour, 0},
++}
++
++func TestDurationTruncate(t *testing.T) {
++	for _, tt := range durationTruncateTests {
++		if got := tt.d.Truncate(tt.m); got != tt.want {
++			t.Errorf("Duration(%s).Truncate(%s) = %s; want: %s", tt.d, tt.m, got, tt.want)
++		}
++	}
++}
++
++var durationRoundTests = []struct {
++	d    Duration
++	m    Duration
++	want Duration
++}{
++	{0, Second, 0},
++	{Minute, -11 * Second, Minute},
++	{Minute, 0, Minute},
++	{Minute, 1, Minute},
++	{2 * Minute, Minute, 2 * Minute},
++	{2*Minute + 10*Second, Minute, 2 * Minute},
++	{2*Minute + 30*Second, Minute, 3 * Minute},
++	{2*Minute + 50*Second, Minute, 3 * Minute},
++	{-Minute, 1, -Minute},
++	{-2 * Minute, Minute, -2 * Minute},
++	{-2*Minute - 10*Second, Minute, -2 * Minute},
++	{-2*Minute - 30*Second, Minute, -3 * Minute},
++	{-2*Minute - 50*Second, Minute, -3 * Minute},
++	{8e18, 3e18, 9e18},
++	{9e18, 5e18, 1<<63 - 1},
++	{-8e18, 3e18, -9e18},
++	{-9e18, 5e18, -1 << 63},
++}
++
++func TestDurationRound(t *testing.T) {
++	for _, tt := range durationRoundTests {
++		if got := tt.d.Round(tt.m); got != tt.want {
++			t.Errorf("Duration(%s).Round(%s) = %s; want: %s", tt.d, tt.m, got, tt.want)
++		}
++	}
++}
++
+ var defaultLocTests = []struct {
+ 	name string
+ 	f    func(t1, t2 Time) bool

@@ -11,7 +11,7 @@ Date:   Mon Mar 16 15:54:44 2015 -0400
     Change-Id: I0d7b0981513c2a3c94c9ac76bb4f8816485b5a3c
     Reviewed-on: https://go-review.googlesource.com/7744
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/5g/ggen.go                 |  2 +-
  src/cmd/6g/ggen.go                 |  4 ++--
  src/cmd/6g/peep.go                 |  2 +-
@@ -46,3 +46,1364 @@ Date:   Mon Mar 16 15:54:44 2015 -0400
  src/cmd/old9a/a.y                  | 14 ++++++-------
  src/cmd/old9a/y.go                 | 14 ++++++-------
  33 files changed, 164 insertions(+), 164 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/5g/ggen.go
+index 52fe20bdc8..353817779a 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/5g/ggen.go
+@@ -16,7 +16,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.U.Argsize = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+diff --git a/src/cmd/6g/ggen.go b/src/cmd/6g/ggen.go
+index efbbded1d3..f980593948 100644
+--- a/src/cmd/6g/ggen.go
++++ b/src/cmd/6g/ggen.go
+@@ -16,7 +16,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.U.Argsize = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+@@ -1095,7 +1095,7 @@ func expandchecks(firstp *obj.Prog) {
+ 		p1.From.Type = obj.TYPE_CONST
+ 		p1.From.Offset = 1 // likely
+ 		p1.To.Type = obj.TYPE_BRANCH
+-		p1.To.U.Branch = p2.Link
++		p1.To.Val = p2.Link
+ 
+ 		// crash by write to memory address 0.
+ 		// if possible, since we know arg is 0, use 0(arg),
+diff --git a/src/cmd/6g/peep.go b/src/cmd/6g/peep.go
+index df780d4a36..849eab768f 100644
+--- a/src/cmd/6g/peep.go
++++ b/src/cmd/6g/peep.go
+@@ -1017,7 +1017,7 @@ loop:
+ 					if p.From.Node == p0.From.Node {
+ 						if p.From.Offset == p0.From.Offset {
+ 							if p.From.Scale == p0.From.Scale {
+-								if p.From.Type == obj.TYPE_FCONST && p.From.U.Dval == p0.From.U.Dval {
++								if p.From.Type == obj.TYPE_FCONST && p.From.Val.(float64) == p0.From.Val.(float64) {
+ 									if p.From.Index == p0.From.Index {
+ 										excise(r)
+ 										goto loop
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/7g/ggen.go
+index fe04bdf7c3..7eb913f22b 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/7g/ggen.go
+@@ -17,7 +17,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.U.Argsize = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+@@ -840,7 +840,7 @@ func expandchecks(firstp *obj.Prog) {
+ 		//p1->from.offset = 1; // likely
+ 		p1.To.Type = obj.TYPE_BRANCH
+ 
+-		p1.To.U.Branch = p2.Link
++		p1.To.Val = p2.Link
+ 
+ 		// crash by write to memory address 0.
+ 		p2.As = arm64.AMOVD
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index c153c9380b..077b6579bb 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -16,7 +16,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.U.Argsize = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+@@ -1212,7 +1212,7 @@ func expandchecks(firstp *obj.Prog) {
+ 		p1.From.Type = obj.TYPE_CONST
+ 		p1.From.Offset = 1 // likely
+ 		p1.To.Type = obj.TYPE_BRANCH
+-		p1.To.U.Branch = p2.Link
++		p1.To.Val = p2.Link
+ 
+ 		// crash by write to memory address 0.
+ 		// if possible, since we know arg is 0, use 0(arg),
+diff --git a/src/cmd/8g/peep.go b/src/cmd/8g/peep.go
+index 1967d5f736..2c9da4527c 100644
+--- a/src/cmd/8g/peep.go
++++ b/src/cmd/8g/peep.go
+@@ -797,7 +797,7 @@ loop:
+ 					if p.From.Node == p0.From.Node {
+ 						if p.From.Offset == p0.From.Offset {
+ 							if p.From.Scale == p0.From.Scale {
+-								if p.From.Type == obj.TYPE_FCONST && p.From.U.Dval == p0.From.U.Dval {
++								if p.From.Type == obj.TYPE_FCONST && p.From.Val.(float64) == p0.From.Val.(float64) {
+ 									if p.From.Index == p0.From.Index {
+ 										excise(r)
+ 										goto loop
+diff --git a/src/cmd/9g/ggen.go b/src/cmd/9g/ggen.go
+index 6127619999..5919a79113 100644
+--- a/src/cmd/9g/ggen.go
++++ b/src/cmd/9g/ggen.go
+@@ -17,7 +17,7 @@ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 
+-	ptxt.To.U.Argsize = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
++	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+ 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
+ 	ptxt.To.Offset = int64(frame)
+ 
+@@ -870,7 +870,7 @@ func expandchecks(firstp *obj.Prog) {
+ 		//p1->from.offset = 1; // likely
+ 		p1.To.Type = obj.TYPE_BRANCH
+ 
+-		p1.To.U.Branch = p2.Link
++		p1.To.Val = p2.Link
+ 
+ 		// crash by write to memory address 0.
+ 		p2.As = ppc64.AMOVD
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 883044c64c..811853b31a 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -161,7 +161,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 			// Argsize set below.
+ 		},
+ 	}
+-	prog.To.U.Argsize = int32(argSize)
++	prog.To.Val = int32(argSize)
+ 
+ 	p.append(prog, "", true)
+ }
+@@ -406,7 +406,7 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
+ 		Type:  obj.TYPE_BRANCH,
+ 		Index: 0,
+ 	}
+-	jmp.To.U.Branch = target
++	jmp.To.Val = target
+ }
+ 
+ // asmInstruction assembles an instruction.
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 2b6b97de50..81d7cccd0e 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -343,7 +343,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 				p.errorf("floating-point constant must be an immediate")
+ 			}
+ 			a.Type = obj.TYPE_FCONST
+-			a.U.Dval = p.floatExpr()
++			a.Val = p.floatExpr()
+ 			// fmt.Printf("FCONST %s\n", obj.Dconv(&emptyProg, 0, a))
+ 			p.expect(scanner.EOF)
+ 			return true
+@@ -357,7 +357,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 				p.errorf("string parse error: %s", err)
+ 			}
+ 			a.Type = obj.TYPE_SCONST
+-			a.U.Sval = str
++			a.Val = str
+ 			// fmt.Printf("SCONST %s\n", obj.Dconv(&emptyProg, 0, a))
+ 			p.expect(scanner.EOF)
+ 			return true
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 626a16b2ba..f5d76219a6 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -79,7 +79,7 @@ func Samereg(a *Node, b *Node) bool {
+ func Gbranch(as int, t *Type, likely int) *obj.Prog {
+ 	p := Prog(as)
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.To.U.Branch = nil
++	p.To.Val = nil
+ 	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(bool2int(likely > 0))
+@@ -400,7 +400,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 
+ 		case CTFLT:
+ 			a.Type = obj.TYPE_FCONST
+-			a.U.Dval = mpgetflt(n.Val.U.Fval)
++			a.Val = mpgetflt(n.Val.U.Fval)
+ 
+ 		case CTINT,
+ 			CTRUNE:
+@@ -585,7 +585,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
+ 	if p.To.Type != obj.TYPE_BRANCH {
+ 		Fatal("patch: not a branch")
+ 	}
+-	p.To.U.Branch = to
++	p.To.Val = to
+ 	p.To.Offset = to.Pc
+ }
+ 
+@@ -593,8 +593,8 @@ func unpatch(p *obj.Prog) *obj.Prog {
+ 	if p.To.Type != obj.TYPE_BRANCH {
+ 		Fatal("unpatch: not a branch")
+ 	}
+-	q := p.To.U.Branch
+-	p.To.U.Branch = nil
++	q, _ := p.To.Val.(*obj.Prog)
++	p.To.Val = nil
+ 	p.To.Offset = 0
+ 	return q
+ }
+diff --git a/src/cmd/internal/gc/obj.go b/src/cmd/internal/gc/obj.go
+index 787aaae28d..619f0ae905 100644
+--- a/src/cmd/internal/gc/obj.go
++++ b/src/cmd/internal/gc/obj.go
+@@ -355,7 +355,7 @@ func dsname(s *Sym, off int, t string) int {
+ 	p.From3.Offset = int64(len(t))
+ 
+ 	p.To.Type = obj.TYPE_SCONST
+-	p.To.U.Sval = t
++	p.To.Val = t
+ 	return off + len(t)
+ }
+ 
+@@ -404,14 +404,14 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(w)
+ 	p.To.Type = obj.TYPE_FCONST
+-	p.To.U.Dval = mpgetflt(&cval.Real)
++	p.To.Val = mpgetflt(&cval.Real)
+ 
+ 	p = Thearch.Gins(obj.ADATA, nam, nil)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(w)
+ 	p.From.Offset += int64(w)
+ 	p.To.Type = obj.TYPE_FCONST
+-	p.To.U.Dval = mpgetflt(&cval.Imag)
++	p.To.Val = mpgetflt(&cval.Imag)
+ }
+ 
+ func gdatastring(nam *Node, sval string) {
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index 6735c7df42..ab55911aab 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -114,8 +114,8 @@ func removevardef(firstp *obj.Prog) {
+ 			p.Link = p.Link.Link
+ 		}
+ 		if p.To.Type == obj.TYPE_BRANCH {
+-			for p.To.U.Branch != nil && (p.To.U.Branch.As == obj.AVARDEF || p.To.U.Branch.As == obj.AVARKILL) {
+-				p.To.U.Branch = p.To.U.Branch.Link
++			for p.To.Val.(*obj.Prog) != nil && (p.To.Val.(*obj.Prog).As == obj.AVARDEF || p.To.Val.(*obj.Prog).As == obj.AVARKILL) {
++				p.To.Val = p.To.Val.(*obj.Prog).Link
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index 5e5ae3090e..e0f85f9bba 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -423,12 +423,12 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 	cfg = append(cfg, bb)
+ 	for p := firstp; p != nil; p = p.Link {
+ 		if p.To.Type == obj.TYPE_BRANCH {
+-			if p.To.U.Branch == nil {
++			if p.To.Val == nil {
+ 				Fatal("prog branch to nil")
+ 			}
+-			if p.To.U.Branch.Opt == nil {
+-				p.To.U.Branch.Opt = newblock(p.To.U.Branch)
+-				cfg = append(cfg, p.To.U.Branch.Opt.(*BasicBlock))
++			if p.To.Val.(*obj.Prog).Opt == nil {
++				p.To.Val.(*obj.Prog).Opt = newblock(p.To.Val.(*obj.Prog))
++				cfg = append(cfg, p.To.Val.(*obj.Prog).Opt.(*BasicBlock))
+ 			}
+ 
+ 			if p.As != obj.AJMP && p.Link != nil && p.Link.Opt == nil {
+@@ -467,7 +467,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 		}
+ 
+ 		if bb.last.To.Type == obj.TYPE_BRANCH {
+-			addedge(bb, bb.last.To.U.Branch.Opt.(*BasicBlock))
++			addedge(bb, bb.last.To.Val.(*obj.Prog).Opt.(*BasicBlock))
+ 		}
+ 		if bb.last.Link != nil {
+ 			// Add a fall-through when the instruction is
+diff --git a/src/cmd/internal/gc/popt.go b/src/cmd/internal/gc/popt.go
+index d4cb4b676a..9070007dab 100644
+--- a/src/cmd/internal/gc/popt.go
++++ b/src/cmd/internal/gc/popt.go
+@@ -214,7 +214,7 @@ func chasejmp(p *obj.Prog, jmploop *int) *obj.Prog {
+ 			break
+ 		}
+ 
+-		p = p.To.U.Branch
++		p = p.To.Val.(*obj.Prog)
+ 	}
+ 
+ 	return p
+@@ -234,8 +234,8 @@ func mark(firstp *obj.Prog) {
+ 			break
+ 		}
+ 		p.Opt = alive
+-		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.U.Branch != nil {
+-			mark(p.To.U.Branch)
++		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.Val.(*obj.Prog) != nil {
++			mark(p.To.Val.(*obj.Prog))
+ 		}
+ 		if p.As == obj.AJMP || p.As == obj.ARET || p.As == obj.AUNDEF {
+ 			break
+@@ -255,8 +255,8 @@ func fixjmp(firstp *obj.Prog) {
+ 		if Debug['R'] != 0 && Debug['v'] != 0 {
+ 			fmt.Printf("%v\n", p)
+ 		}
+-		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.U.Branch != nil && p.To.U.Branch.As == obj.AJMP {
+-			p.To.U.Branch = chasejmp(p.To.U.Branch, &jmploop)
++		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.Val.(*obj.Prog) != nil && p.To.Val.(*obj.Prog).As == obj.AJMP {
++			p.To.Val = chasejmp(p.To.Val.(*obj.Prog), &jmploop)
+ 			if Debug['R'] != 0 && Debug['v'] != 0 {
+ 				fmt.Printf("->%v\n", p)
+ 			}
+@@ -307,7 +307,7 @@ func fixjmp(firstp *obj.Prog) {
+ 	if jmploop == 0 {
+ 		var last *obj.Prog
+ 		for p := firstp; p != nil; p = p.Link {
+-			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.U.Branch == p.Link {
++			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.Val == p.Link {
+ 				if Debug['R'] != 0 && Debug['v'] != 0 {
+ 					fmt.Printf("del %v\n", p)
+ 				}
+@@ -417,12 +417,12 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 		}
+ 
+ 		if p.To.Type == obj.TYPE_BRANCH {
+-			if p.To.U.Branch == nil {
++			if p.To.Val == nil {
+ 				Fatal("pnil %v", p)
+ 			}
+-			f1 = p.To.U.Branch.Opt.(*Flow)
++			f1 = p.To.Val.(*obj.Prog).Opt.(*Flow)
+ 			if f1 == nil {
+-				Fatal("fnil %v / %v", p, p.To.U.Branch)
++				Fatal("fnil %v / %v", p, p.To.Val.(*obj.Prog))
+ 			}
+ 			if f1 == f {
+ 				//fatal("self loop %P", p);
+diff --git a/src/cmd/internal/gc/reg.go b/src/cmd/internal/gc/reg.go
+index 1dd0ba75ce..d613bd1e00 100644
+--- a/src/cmd/internal/gc/reg.go
++++ b/src/cmd/internal/gc/reg.go
+@@ -1313,8 +1313,8 @@ brk:
+ 			p.Link = p.Link.Link
+ 		}
+ 		if p.To.Type == obj.TYPE_BRANCH {
+-			for p.To.U.Branch != nil && p.To.U.Branch.As == obj.ANOP {
+-				p.To.U.Branch = p.To.U.Branch.Link
++			for p.To.Val.(*obj.Prog) != nil && p.To.Val.(*obj.Prog).As == obj.ANOP {
++				p.To.Val = p.To.Val.(*obj.Prog).Link
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 96074c70f5..942fc70ff7 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1116,10 +1116,10 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 		return C_GOK
+ 
+ 	case obj.TYPE_FCONST:
+-		if chipzero5(ctxt, a.U.Dval) >= 0 {
++		if chipzero5(ctxt, a.Val.(float64)) >= 0 {
+ 			return C_ZFCON
+ 		}
+-		if chipfloat5(ctxt, a.U.Dval) >= 0 {
++		if chipfloat5(ctxt, a.Val.(float64)) >= 0 {
+ 			return C_SFCON
+ 		}
+ 		return C_LFCON
+@@ -2259,7 +2259,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
+ 		o1 |= (uint32(p.To.Reg) & 15) << 12
+-		v := int32(chipfloat5(ctxt, p.From.U.Dval))
++		v := int32(chipfloat5(ctxt, p.From.Val.(float64)))
+ 		o1 |= (uint32(v) & 0xf) << 0
+ 		o1 |= (uint32(v) & 0xf0) << 12
+ 
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 1f59c621c5..6b6e46b6a6 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -107,8 +107,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	// Rewrite float constants to values stored in memory.
+ 	switch p.As {
+ 	case AMOVF:
+-		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.U.Dval) < 0 && (chipzero5(ctxt, p.From.U.Dval) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
+-			f32 := float32(p.From.U.Dval)
++		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
++			f32 := float32(p.From.Val.(float64))
+ 			i32 := math.Float32bits(f32)
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+@@ -125,8 +125,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 		}
+ 
+ 	case AMOVD:
+-		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.U.Dval) < 0 && (chipzero5(ctxt, p.From.U.Dval) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
+-			i64 := math.Float64bits(p.From.U.Dval)
++		if p.From.Type == obj.TYPE_FCONST && chipfloat5(ctxt, p.From.Val.(float64)) < 0 && (chipzero5(ctxt, p.From.Val.(float64)) < 0 || p.Scond&C_SCOND != C_SCOND_NONE) {
++			i64 := math.Float64bits(p.From.Val.(float64))
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+ 			if s.Type == 0 {
+@@ -201,7 +201,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		autoffset = 0
+ 	}
+ 	cursym.Locals = autoffset
+-	cursym.Args = p.To.U.Argsize
++	cursym.Args = p.To.Val.(int32)
+ 
+ 	if ctxt.Debugzerostack != 0 {
+ 		if autoffset != 0 && p.From3.Offset&obj.NOSPLIT == 0 {
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index ba56f82df0..d8f39fe405 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2625,7 +2625,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 		var rf int
+ 		if p.From.Type == obj.TYPE_CONST {
+-			rf = chipfloat7(ctxt, p.From.U.Dval)
++			rf = chipfloat7(ctxt, p.From.Val.(float64))
+ 			if rf < 0 || true {
+ 				ctxt.Diag("invalid floating-point immediate\n%v", p)
+ 				rf = 0
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 0b92cfcaf1..dfba86ccb9 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -240,7 +240,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	switch p.As {
+ 	case AFMOVS:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			f32 := float32(p.From.U.Dval)
++			f32 := float32(p.From.Val.(float64))
+ 			i32 := math.Float32bits(f32)
+ 			literal := fmt.Sprintf("$f32.%08x", uint32(i32))
+ 			s := obj.Linklookup(ctxt, literal, 0)
+@@ -253,7 +253,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 	case AFMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			i64 := math.Float64bits(p.From.U.Dval)
++			i64 := math.Float64bits(p.From.Val.(float64))
+ 			literal := fmt.Sprintf("$f64.%016x", uint64(i64))
+ 			s := obj.Linklookup(ctxt, literal, 0)
+ 			s.Size = 8
+@@ -480,7 +480,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	textstksiz := p.To.Offset
+ 	aoffset := int32(textstksiz)
+ 
+-	cursym.Args = p.To.U.Argsize
++	cursym.Args = p.To.Val.(int32)
+ 	cursym.Locals = int32(textstksiz)
+ 
+ 	/*
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 6321ca4f2a..ab3e2096d0 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -75,16 +75,16 @@ func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
+ 			ctxt.Diag("unexpected %d-byte floating point constant", siz)
+ 
+ 		case 4:
+-			flt := math.Float32bits(float32(p.To.U.Dval))
++			flt := math.Float32bits(float32(p.To.Val.(float64)))
+ 			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], flt)
+ 
+ 		case 8:
+-			flt := math.Float64bits(p.To.U.Dval)
++			flt := math.Float64bits(p.To.Val.(float64))
+ 			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], flt)
+ 		}
+ 
+ 	case TYPE_SCONST:
+-		copy(s.P[off:off+siz], p.To.U.Sval)
++		copy(s.P[off:off+siz], p.To.Val.(string))
+ 
+ 	case TYPE_CONST, TYPE_ADDR:
+ 		if p.To.Sym != nil || int(p.To.Type) == TYPE_ADDR {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 76dd72aa61..3b286af493 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -76,13 +76,13 @@ import "encoding/binary"
+ //		Floating point constant value.
+ //		Encoding:
+ //			type = TYPE_FCONST
+-//			u.dval = floating point value
++//			val = floating point value
+ //
+ //	$<string literal, up to 8 chars>
+ //		String literal value (raw bytes used for DATA instruction).
+ //		Encoding:
+ //			type = TYPE_SCONST
+-//			u.sval = string
++//			val = string
+ //
+ //	<register name>
+ //		Any register: integer, floating point, control, segment, and so on.
+@@ -94,7 +94,7 @@ import "encoding/binary"
+ //	x(PC)
+ //		Encoding:
+ //			type = TYPE_BRANCH
+-//			u.branch = Prog* reference OR ELSE offset = target pc (branch takes priority)
++//			val = Prog* reference OR ELSE offset = target pc (branch takes priority)
+ //
+ //	$±x-±y
+ //		Final argument to TEXT, specifying local frame size x and argument size y.
+@@ -106,7 +106,7 @@ import "encoding/binary"
+ //		Encoding:
+ //			type = TYPE_TEXTSIZE
+ //			offset = x
+-//			u.argsize = y
++//			val = int32(y)
+ //
+ //	reg<<shift, reg>>shift, reg->shift, reg@>shift
+ //		Shifted register value, for ARM.
+@@ -150,20 +150,21 @@ type Addr struct {
+ 	Index  int16
+ 	Scale  int16 // Sometimes holds a register.
+ 	Name   int8
+-	Offset int64
+-	Sym    *LSym
+-	U      struct {
+-		Sval    string
+-		Dval    float64
+-		Branch  *Prog
+-		Argsize int32
+-		Bits    uint64
+-	}
+-	Gotype *LSym
+ 	Class  int8
+ 	Etype  uint8
+-	Node   interface{}
++	Offset int64
+ 	Width  int64
++	Sym    *LSym
++	Gotype *LSym
++
++	// argument value:
++	//	for TYPE_SCONST, a string
++	//	for TYPE_FCONST, a float64
++	//	for TYPE_BRANCH, a *Prog (optional)
++	//	for TYPE_TEXTSIZE, an int32 (optional)
++	Val interface{}
++
++	Node interface{} // for use by compiler
+ }
+ 
+ const (
+@@ -198,13 +199,8 @@ const (
+ // TODO(rsc): Describe TEXT/GLOBL flag in from3, DATA width in from3.
+ type Prog struct {
+ 	Ctxt     *Link
+-	Pc       int64
+-	Lineno   int32
+ 	Link     *Prog
+-	As       int16
+-	Scond    uint8
+ 	From     Addr
+-	Reg      int16
+ 	From3    Addr
+ 	To       Addr
+ 	To2      Addr
+@@ -213,9 +209,14 @@ type Prog struct {
+ 	Pcond    *Prog
+ 	Comefrom *Prog
+ 	Pcrel    *Prog
++	Pc       int64
++	Lineno   int32
+ 	Spadj    int32
++	As       int16
++	Reg      int16
+ 	Mark     uint16
+ 	Optab    uint16
++	Scond    uint8
+ 	Back     uint8
+ 	Ft       uint8
+ 	F3t      uint8
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index 50d21e9e00..50dda94c8c 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -90,7 +90,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
+ 			return
+ 		}
+ 
+-		if a.Reg != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
++		if a.Reg != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
+ 			break
+ 		}
+ 		return
+@@ -111,7 +111,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
+ 		return
+ 
+ 	case TYPE_ADDR:
+-		if a.U.Bits != 0 {
++		if a.Val != nil {
+ 			break
+ 		}
+ 		if a.Reg == 0 && a.Index == 0 && a.Scale == 0 && a.Name == 0 && a.Sym == nil {
+@@ -120,13 +120,13 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
+ 		return
+ 
+ 	case TYPE_SHIFT:
+-		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
++		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
+ 			break
+ 		}
+ 		return
+ 
+ 	case TYPE_REGREG:
+-		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
++		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
+ 			break
+ 		}
+ 		return
+@@ -140,7 +140,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
+ 	// Expect sym and name to be set, nothing else.
+ 	// Technically more is allowed, but this is only used for *name(SB).
+ 	case TYPE_INDIR:
+-		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.U.Bits != 0 {
++		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.Val != nil {
+ 			break
+ 		}
+ 		return
+@@ -167,10 +167,9 @@ func linkpatch(ctxt *Link, sym *LSym) {
+ 		if p.To.Type != TYPE_BRANCH {
+ 			continue
+ 		}
+-		if p.To.U.Branch != nil {
+-			// TODO: Remove to.u.branch in favor of p->pcond.
+-			p.Pcond = p.To.U.Branch
+-
++		if p.To.Val != nil {
++			// TODO: Remove To.Val.(*Prog) in favor of p->pcond.
++			p.Pcond = p.To.Val.(*Prog)
+ 			continue
+ 		}
+ 
+@@ -198,7 +197,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
+ 			p.To.Type = TYPE_NONE
+ 		}
+ 
+-		p.To.U.Branch = q
++		p.To.Val = q
+ 		p.Pcond = q
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index f47d81d77e..90fa725239 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -56,7 +56,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	switch p.As {
+ 	case AFMOVS:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			f32 := float32(p.From.U.Dval)
++			f32 := float32(p.From.Val.(float64))
+ 			i32 := math.Float32bits(f32)
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+@@ -69,7 +69,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 	case AFMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			i64 := math.Float64bits(p.From.U.Dval)
++			i64 := math.Float64bits(p.From.Val.(float64))
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+ 			s.Size = 8
+@@ -130,7 +130,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	p := cursym.Text
+ 	textstksiz := p.To.Offset
+ 
+-	cursym.Args = p.To.U.Argsize
++	cursym.Args = p.To.Val.(int32)
+ 	cursym.Locals = int32(textstksiz)
+ 
+ 	/*
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index a2f3c1f8f1..b0d10b5fd5 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -389,8 +389,8 @@ func Dconv(p *Prog, a *Addr) string {
+ 			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
+ 		} else if p != nil && p.Pcond != nil {
+ 			str = fmt.Sprintf("%d", p.Pcond.Pc)
+-		} else if a.U.Branch != nil {
+-			str = fmt.Sprintf("%d", a.U.Branch.Pc)
++		} else if a.Val != nil {
++			str = fmt.Sprintf("%d", a.Val.(*Prog).Pc)
+ 		} else {
+ 			str = fmt.Sprintf("%d(PC)", a.Offset)
+ 		}
+@@ -412,14 +412,14 @@ func Dconv(p *Prog, a *Addr) string {
+ 		}
+ 
+ 	case TYPE_TEXTSIZE:
+-		if a.U.Argsize == ArgsSizeUnknown {
++		if a.Val.(int32) == ArgsSizeUnknown {
+ 			str = fmt.Sprintf("$%d", a.Offset)
+ 		} else {
+-			str = fmt.Sprintf("$%d-%d", a.Offset, a.U.Argsize)
++			str = fmt.Sprintf("$%d-%d", a.Offset, a.Val.(int32))
+ 		}
+ 
+ 	case TYPE_FCONST:
+-		str = fmt.Sprintf("%.17g", a.U.Dval)
++		str = fmt.Sprintf("%.17g", a.Val.(float64))
+ 		// Make sure 1 prints as 1.0
+ 		if !strings.ContainsAny(str, ".e") {
+ 			str += ".0"
+@@ -427,7 +427,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 		str = fmt.Sprintf("$(%s)", str)
+ 
+ 	case TYPE_SCONST:
+-		str = fmt.Sprintf("$%q", a.U.Sval)
++		str = fmt.Sprintf("$%q", a.Val.(string))
+ 
+ 	case TYPE_ADDR:
+ 		str = fmt.Sprintf("$%s", Mconv(a))
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index cf226d8672..6a0baa66a3 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -201,7 +201,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
+ 	case AMOVSS:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			if p.From.U.Dval == 0 {
++			if p.From.Val.(float64) == 0 {
+ 				if p.To.Type == obj.TYPE_REG && REG_X0 <= p.To.Reg && p.To.Reg <= REG_X15 {
+ 					p.As = AXORPS
+ 					p.From = p.To
+@@ -227,7 +227,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 		ACOMISS,
+ 		AUCOMISS:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			f32 := float32(p.From.U.Dval)
++			f32 := float32(p.From.Val.(float64))
+ 			i32 := math.Float32bits(f32)
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+@@ -246,7 +246,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	case AMOVSD:
+ 		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			if p.From.U.Dval == 0 {
++			if p.From.Val.(float64) == 0 {
+ 				if p.To.Type == obj.TYPE_REG && REG_X0 <= p.To.Reg && p.To.Reg <= REG_X15 {
+ 					p.As = AXORPS
+ 					p.From = p.To
+@@ -272,7 +272,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 		ACOMISD,
+ 		AUCOMISD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			i64 := math.Float64bits(p.From.U.Dval)
++			i64 := math.Float64bits(p.From.Val.(float64))
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+ 			if s.Type == 0 {
+@@ -361,7 +361,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		bpsize = 0
+ 	}
+ 
+-	textarg := int64(p.To.U.Argsize)
++	textarg := int64(p.To.Val.(int32))
+ 	cursym.Args = int32(textarg)
+ 	cursym.Locals = int32(p.To.Offset)
+ 
+diff --git a/src/cmd/old5a/a.y b/src/cmd/old5a/a.y
+index c1ca3beaa8..0ef8ae904c 100644
+--- a/src/cmd/old5a/a.y
++++ b/src/cmd/old5a/a.y
+@@ -376,28 +376,28 @@ textsize:
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = int64($1)
+-		$$.U.Argsize = obj.ArgsSizeUnknown;
++		$$.Val = int32(obj.ArgsSizeUnknown)
+ 	}
+ |	'-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = -int64($2)
+-		$$.U.Argsize = obj.ArgsSizeUnknown;
++		$$.Val = int32(obj.ArgsSizeUnknown)
+ 	}
+ |	LCONST '-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = int64($1)
+-		$$.U.Argsize = int32($3);
++		$$.Val = int32($3);
+ 	}
+ |	'-' LCONST '-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = -int64($2)
+-		$$.U.Argsize = int32($4);
++		$$.Val = int32($4);
+ 	}
+ 
+ cond:
+@@ -449,7 +449,7 @@ ximm:	'$' con
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_SCONST;
+-		$$.U.Sval = $2
++		$$.Val = $2
+ 	}
+ |	fcon
+ 
+@@ -458,13 +458,13 @@ fcon:
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = $2;
++		$$.Val = $2;
+ 	}
+ |	'$' '-' LFCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = -$3;
++		$$.Val = -$3;
+ 	}
+ 
+ reglist:
+diff --git a/src/cmd/old5a/y.go b/src/cmd/old5a/y.go
+index a79f61d316..9f5988f8d7 100644
+--- a/src/cmd/old5a/y.go
++++ b/src/cmd/old5a/y.go
+@@ -981,7 +981,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = int64(yyDollar[1].lval)
+-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
++			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
+ 		}
+ 	case 47:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -990,7 +990,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -int64(yyDollar[2].lval)
+-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
++			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
+ 		}
+ 	case 48:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -999,7 +999,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = int64(yyDollar[1].lval)
+-			yyVAL.addr.U.Argsize = int32(yyDollar[3].lval)
++			yyVAL.addr.Val = int32(yyDollar[3].lval)
+ 		}
+ 	case 49:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+@@ -1008,7 +1008,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -int64(yyDollar[2].lval)
+-			yyVAL.addr.U.Argsize = int32(yyDollar[4].lval)
++			yyVAL.addr.Val = int32(yyDollar[4].lval)
+ 		}
+ 	case 50:
+ 		yyDollar = yyS[yypt-0 : yypt+1]
+@@ -1069,7 +1069,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SCONST
+-			yyVAL.addr.U.Sval = yyDollar[2].sval
++			yyVAL.addr.Val = yyDollar[2].sval
+ 		}
+ 	case 60:
+ 		yyVAL.addr = yyS[yypt-0].addr
+@@ -1079,7 +1079,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = yyDollar[2].dval
++			yyVAL.addr.Val = yyDollar[2].dval
+ 		}
+ 	case 62:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -1087,7 +1087,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = -yyDollar[3].dval
++			yyVAL.addr.Val = -yyDollar[3].dval
+ 		}
+ 	case 63:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+diff --git a/src/cmd/old6a/a.y b/src/cmd/old6a/a.y
+index 376c040a55..46da420c96 100644
+--- a/src/cmd/old6a/a.y
++++ b/src/cmd/old6a/a.y
+@@ -454,31 +454,31 @@ imm:
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_SCONST;
+-		$$.U.Sval = ($2+"\x00\x00\x00\x00\x00\x00\x00\x00")[:8]
++		$$.Val = ($2+"\x00\x00\x00\x00\x00\x00\x00\x00")[:8]
+ 	}
+ |	'$' LFCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = $2;
++		$$.Val = $2;
+ 	}
+ |	'$' '(' LFCONST ')'
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = $3;
++		$$.Val = $3;
+ 	}
+ |	'$' '(' '-' LFCONST ')'
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = -$4;
++		$$.Val = -$4;
+ 	}
+ |	'$' '-' LFCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = -$3;
++		$$.Val = -$3;
+ 	}
+ 
+ mem:
+@@ -653,28 +653,28 @@ textsize:
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = $1;
+-		$$.U.Argsize = obj.ArgsSizeUnknown;
++		$$.Val = int32(obj.ArgsSizeUnknown);
+ 	}
+ |	'-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = -$2;
+-		$$.U.Argsize = obj.ArgsSizeUnknown;
++		$$.Val = int32(obj.ArgsSizeUnknown);
+ 	}
+ |	LCONST '-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = $1;
+-		$$.U.Argsize = int32($3);
++		$$.Val = int32($3);
+ 	}
+ |	'-' LCONST '-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = -$2;
+-		$$.U.Argsize = int32($4);
++		$$.Val = int32($4);
+ 	}
+ 
+ expr:
+diff --git a/src/cmd/old6a/y.go b/src/cmd/old6a/y.go
+index 74fbcc765d..5738c5666b 100644
+--- a/src/cmd/old6a/y.go
++++ b/src/cmd/old6a/y.go
+@@ -1126,7 +1126,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SCONST
+-			yyVAL.addr.U.Sval = (yyDollar[2].sval + "\x00\x00\x00\x00\x00\x00\x00\x00")[:8]
++			yyVAL.addr.Val = (yyDollar[2].sval + "\x00\x00\x00\x00\x00\x00\x00\x00")[:8]
+ 		}
+ 	case 85:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -1134,7 +1134,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = yyDollar[2].dval
++			yyVAL.addr.Val = yyDollar[2].dval
+ 		}
+ 	case 86:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+@@ -1142,7 +1142,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = yyDollar[3].dval
++			yyVAL.addr.Val = yyDollar[3].dval
+ 		}
+ 	case 87:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+@@ -1150,7 +1150,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = -yyDollar[4].dval
++			yyVAL.addr.Val = -yyDollar[4].dval
+ 		}
+ 	case 88:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -1158,7 +1158,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = -yyDollar[3].dval
++			yyVAL.addr.Val = -yyDollar[3].dval
+ 		}
+ 	case 89:
+ 		yyVAL.addr = yyS[yypt-0].addr
+@@ -1373,7 +1373,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = yyDollar[1].lval
+-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
++			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
+ 		}
+ 	case 119:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -1382,7 +1382,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -yyDollar[2].lval
+-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
++			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
+ 		}
+ 	case 120:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -1391,7 +1391,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = yyDollar[1].lval
+-			yyVAL.addr.U.Argsize = int32(yyDollar[3].lval)
++			yyVAL.addr.Val = int32(yyDollar[3].lval)
+ 		}
+ 	case 121:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+@@ -1400,7 +1400,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -yyDollar[2].lval
+-			yyVAL.addr.U.Argsize = int32(yyDollar[4].lval)
++			yyVAL.addr.Val = int32(yyDollar[4].lval)
+ 		}
+ 	case 122:
+ 		yyVAL.lval = yyS[yypt-0].lval
+diff --git a/src/cmd/old8a/a.y b/src/cmd/old8a/a.y
+index 07d9f4445b..fc12580e62 100644
+--- a/src/cmd/old8a/a.y
++++ b/src/cmd/old8a/a.y
+@@ -445,31 +445,31 @@ imm:
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_SCONST;
+-		$$.U.Sval = $2
++		$$.Val = $2
+ 	}
+ |	'$' LFCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = $2;
++		$$.Val = $2;
+ 	}
+ |	'$' '(' LFCONST ')'
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = $3;
++		$$.Val = $3;
+ 	}
+ |	'$' '(' '-' LFCONST ')'
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = -$4;
++		$$.Val = -$4;
+ 	}
+ |	'$' '-' LFCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = -$3;
++		$$.Val = -$3;
+ 	}
+ 
+ textsize:
+@@ -478,28 +478,28 @@ textsize:
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = $1;
+-		$$.U.Argsize = obj.ArgsSizeUnknown;
++		$$.Val = int32(obj.ArgsSizeUnknown);
+ 	}
+ |	'-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = -$2;
+-		$$.U.Argsize = obj.ArgsSizeUnknown;
++		$$.Val = int32(obj.ArgsSizeUnknown);
+ 	}
+ |	LCONST '-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = $1;
+-		$$.U.Argsize = int32($3);
++		$$.Val = int32($3);
+ 	}
+ |	'-' LCONST '-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = -$2;
+-		$$.U.Argsize = int32($4);
++		$$.Val = int32($4);
+ 	}
+ 
+ 
+diff --git a/src/cmd/old8a/y.go b/src/cmd/old8a/y.go
+index 407d22bde3..c727aca45a 100644
+--- a/src/cmd/old8a/y.go
++++ b/src/cmd/old8a/y.go
+@@ -1107,7 +1107,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SCONST
+-			yyVAL.addr.U.Sval = yyDollar[2].sval
++			yyVAL.addr.Val = yyDollar[2].sval
+ 		}
+ 	case 83:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -1115,7 +1115,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = yyDollar[2].dval
++			yyVAL.addr.Val = yyDollar[2].dval
+ 		}
+ 	case 84:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+@@ -1123,7 +1123,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = yyDollar[3].dval
++			yyVAL.addr.Val = yyDollar[3].dval
+ 		}
+ 	case 85:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+@@ -1131,7 +1131,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = -yyDollar[4].dval
++			yyVAL.addr.Val = -yyDollar[4].dval
+ 		}
+ 	case 86:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -1139,7 +1139,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = -yyDollar[3].dval
++			yyVAL.addr.Val = -yyDollar[3].dval
+ 		}
+ 	case 87:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+@@ -1148,7 +1148,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = yyDollar[1].lval
+-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
++			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
+ 		}
+ 	case 88:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -1157,7 +1157,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -yyDollar[2].lval
+-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
++			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
+ 		}
+ 	case 89:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -1166,7 +1166,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = yyDollar[1].lval
+-			yyVAL.addr.U.Argsize = int32(yyDollar[3].lval)
++			yyVAL.addr.Val = int32(yyDollar[3].lval)
+ 		}
+ 	case 90:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+@@ -1175,7 +1175,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -yyDollar[2].lval
+-			yyVAL.addr.U.Argsize = int32(yyDollar[4].lval)
++			yyVAL.addr.Val = int32(yyDollar[4].lval)
+ 		}
+ 	case 91:
+ 		yyVAL.addr = yyS[yypt-0].addr
+diff --git a/src/cmd/old9a/a.y b/src/cmd/old9a/a.y
+index a6785df300..bdcd84d54d 100644
+--- a/src/cmd/old9a/a.y
++++ b/src/cmd/old9a/a.y
+@@ -846,28 +846,28 @@ textsize:
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = int64($1)
+-		$$.U.Argsize = obj.ArgsSizeUnknown;
++		$$.Val = int32(obj.ArgsSizeUnknown);
+ 	}
+ |	'-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = -int64($2)
+-		$$.U.Argsize = obj.ArgsSizeUnknown;
++		$$.Val = int32(obj.ArgsSizeUnknown);
+ 	}
+ |	LCONST '-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = int64($1)
+-		$$.U.Argsize = int32($3);
++		$$.Val = int32($3);
+ 	}
+ |	'-' LCONST '-' LCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_TEXTSIZE;
+ 		$$.Offset = -int64($2)
+-		$$.U.Argsize = int32($4);
++		$$.Val = int32($4);
+ 	}
+ 
+ ximm:
+@@ -880,7 +880,7 @@ ximm:
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_SCONST;
+-		$$.U.Sval = $2
++		$$.Val = $2
+ 	}
+ 
+ fimm:
+@@ -888,13 +888,13 @@ fimm:
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = $2;
++		$$.Val = $2;
+ 	}
+ |	'$' '-' LFCONST
+ 	{
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_FCONST;
+-		$$.U.Dval = -$3;
++		$$.Val = -$3;
+ 	}
+ 
+ imm:	'$' con
+diff --git a/src/cmd/old9a/y.go b/src/cmd/old9a/y.go
+index ecc9b9c7ac..65f612611f 100644
+--- a/src/cmd/old9a/y.go
++++ b/src/cmd/old9a/y.go
+@@ -1691,7 +1691,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = int64(yyDollar[1].lval)
+-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
++			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
+ 		}
+ 	case 145:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -1700,7 +1700,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -int64(yyDollar[2].lval)
+-			yyVAL.addr.U.Argsize = obj.ArgsSizeUnknown
++			yyVAL.addr.Val = int32(obj.ArgsSizeUnknown)
+ 		}
+ 	case 146:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -1709,7 +1709,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = int64(yyDollar[1].lval)
+-			yyVAL.addr.U.Argsize = int32(yyDollar[3].lval)
++			yyVAL.addr.Val = int32(yyDollar[3].lval)
+ 		}
+ 	case 147:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+@@ -1718,7 +1718,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -int64(yyDollar[2].lval)
+-			yyVAL.addr.U.Argsize = int32(yyDollar[4].lval)
++			yyVAL.addr.Val = int32(yyDollar[4].lval)
+ 		}
+ 	case 148:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -1733,7 +1733,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SCONST
+-			yyVAL.addr.U.Sval = yyDollar[2].sval
++			yyVAL.addr.Val = yyDollar[2].sval
+ 		}
+ 	case 150:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -1741,7 +1741,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = yyDollar[2].dval
++			yyVAL.addr.Val = yyDollar[2].dval
+ 		}
+ 	case 151:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -1749,7 +1749,7 @@ yydefault:
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+-			yyVAL.addr.U.Dval = -yyDollar[3].dval
++			yyVAL.addr.Val = -yyDollar[3].dval
+ 		}
+ 	case 152:
+ 		yyDollar = yyS[yypt-2 : yypt+1]

@@ -15,7 +15,39 @@ Date:   Sat Sep 22 22:49:45 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go |  2 +-
  src/net/http/header.go | 10 ----------
  2 files changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index a15b3ba276..ea6c071911 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -238,7 +238,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
+ 		username := u.Username()
+ 		password, _ := u.Password()
+ 		forkReq()
+-		req.Header = cloneHeader(ireq.Header)
++		req.Header = ireq.Header.clone()
+ 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
+ 	}
+ 
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index b28144d8c1..2aa9d6254b 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -229,13 +229,3 @@ func hasToken(v, token string) bool {
+ func isTokenBoundary(b byte) bool {
+ 	return b == ' ' || b == ',' || b == '\t'
+ }
+-
+-func cloneHeader(h Header) Header {
+-	h2 := make(Header, len(h))
+-	for k, vv := range h {
+-		vv2 := make([]string, len(vv))
+-		copy(vv2, vv)
+-		h2[k] = vv2
+-	}
+-	return h2
+-}

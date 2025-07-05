@@ -11,7 +11,71 @@ Date:   Wed Jun 15 15:17:45 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/24154
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go | 12 ++++--------
  src/cmd/compile/internal/gc/ssa.go  | 17 +++++++++--------
  2 files changed, 13 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 9092afd2f2..a84385e2ce 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -381,8 +381,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpARMMOVWaddr:
+ 		if v.Aux == nil {
+ 			// MOVW $off(SP), R
+-			reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
+-			if reg.Name() != "SP" {
++			if reg := gc.SSAReg(v.Args[0]); reg.Name() != "SP" {
+ 				v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
+ 			}
+ 			p := gc.Prog(arm.AMOVW)
+@@ -402,14 +401,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		default:
+ 			v.Fatalf("aux is of unknown type %T", v.Aux)
+ 		case *ssa.ExternSymbol:
+-			reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
+-			if reg.Name() != "SB" {
++			if reg := gc.SSAReg(v.Args[0]); reg.Name() != "SB" {
+ 				v.Fatalf("extern symbol with non-SB base register %s", reg.Name())
+ 			}
+-		case *ssa.ArgSymbol,
+-			*ssa.AutoSymbol:
+-			reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
+-			if reg.Name() != "SP" {
++		case *ssa.ArgSymbol, *ssa.AutoSymbol:
++			if reg := gc.SSAReg(v.Args[0]); reg.Name() != "SP" {
+ 				v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f479900939..00c6b42fc7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4231,17 +4231,18 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *Node) *ssa.Value {
+ 	return s.newValue1(op, Types[TINT], v)
+ }
+ 
+-// SSARegNum returns the register (in cmd/internal/obj numbering) to
+-// which v has been allocated. Panics if v is not assigned to a
+-// register.
+-// TODO: Make this panic again once it stops happening routinely.
+-func SSARegNum(v *ssa.Value) int16 {
++// SSAReg returns the register to which v has been allocated.
++func SSAReg(v *ssa.Value) *ssa.Register {
+ 	reg := v.Block.Func.RegAlloc[v.ID]
+ 	if reg == nil {
+-		v.Unimplementedf("nil regnum for value: %s\n%s\n", v.LongString(), v.Block.Func)
+-		return 0
++		v.Fatalf("nil register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+ 	}
+-	return Thearch.SSARegToReg[reg.(*ssa.Register).Num]
++	return reg.(*ssa.Register)
++}
++
++// SSARegNum returns the register number (in cmd/internal/obj numbering) to which v has been allocated.
++func SSARegNum(v *ssa.Value) int16 {
++	return Thearch.SSARegToReg[SSAReg(v).Num]
+ }
+ 
+ // AutoVar returns a *Node and int64 representing the auto variable and offset within it

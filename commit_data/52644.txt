@@ -14,8 +14,109 @@ Date:   Wed May 11 22:42:00 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  api/next/43401.txt              |  1 +
  src/encoding/csv/reader.go      | 18 +++++++++++++++---
  src/encoding/csv/reader_test.go | 15 +++++++++++----
  3 files changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/api/next/43401.txt b/api/next/43401.txt
+new file mode 100644
+index 0000000000..832e60173b
+--- /dev/null
++++ b/api/next/43401.txt
+@@ -0,0 +1 @@
++pkg encoding/csv, method (*Reader) InputOffset() int64 #43401
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index f860f4f25f..90a37e6074 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -149,6 +149,9 @@ type Reader struct {
+ 	// numLine is the current line being read in the CSV file.
+ 	numLine int
+ 
++	// offset is the input stream byte offset of the current reader position.
++	offset int64
++
+ 	// rawBuffer is a line buffer only used by the readLine method.
+ 	rawBuffer []byte
+ 
+@@ -210,6 +213,13 @@ func (r *Reader) FieldPos(field int) (line, column int) {
+ 	return p.line, p.col
+ }
+ 
++// InputOffset returns the input stream byte offset of the current reader
++// position. The offset gives the location of the end of the most recently
++// read row and the beginning of the next row.
++func (r *Reader) InputOffset() int64 {
++	return r.offset
++}
++
+ // pos holds the position of a field in the current line.
+ type position struct {
+ 	line, col int
+@@ -247,14 +257,16 @@ func (r *Reader) readLine() ([]byte, error) {
+ 		}
+ 		line = r.rawBuffer
+ 	}
+-	if len(line) > 0 && err == io.EOF {
++	readSize := len(line)
++	if readSize > 0 && err == io.EOF {
+ 		err = nil
+ 		// For backwards compatibility, drop trailing \r before EOF.
+-		if line[len(line)-1] == '\r' {
+-			line = line[:len(line)-1]
++		if line[readSize-1] == '\r' {
++			line = line[:readSize-1]
+ 		}
+ 	}
+ 	r.numLine++
++	r.offset += int64(readSize)
+ 	// Normalize \r\n to \n on all input lines.
+ 	if n := len(line); n >= 2 && line[n-2] == '\r' && line[n-1] == '\n' {
+ 		line[n-2] = '\n'
+diff --git a/src/encoding/csv/reader_test.go b/src/encoding/csv/reader_test.go
+index abe3fdfb39..2e5d62330c 100644
+--- a/src/encoding/csv/reader_test.go
++++ b/src/encoding/csv/reader_test.go
+@@ -404,7 +404,7 @@ field"`,
+ }}
+ 
+ func TestRead(t *testing.T) {
+-	newReader := func(tt readTest) (*Reader, [][][2]int, map[int][2]int) {
++	newReader := func(tt readTest) (*Reader, [][][2]int, map[int][2]int, string) {
+ 		positions, errPositions, input := makePositions(tt.Input)
+ 		r := NewReader(strings.NewReader(input))
+ 
+@@ -420,12 +420,12 @@ func TestRead(t *testing.T) {
+ 		r.LazyQuotes = tt.LazyQuotes
+ 		r.TrimLeadingSpace = tt.TrimLeadingSpace
+ 		r.ReuseRecord = tt.ReuseRecord
+-		return r, positions, errPositions
++		return r, positions, errPositions, input
+ 	}
+ 
+ 	for _, tt := range readTests {
+ 		t.Run(tt.Name, func(t *testing.T) {
+-			r, positions, errPositions := newReader(tt)
++			r, positions, errPositions, input := newReader(tt)
+ 			out, err := r.ReadAll()
+ 			if wantErr := firstError(tt.Errors, positions, errPositions); wantErr != nil {
+ 				if !reflect.DeepEqual(err, wantErr) {
+@@ -443,8 +443,15 @@ func TestRead(t *testing.T) {
+ 				}
+ 			}
+ 
++			// Check input offset after call ReadAll()
++			inputByteSize := len(input)
++			inputOffset := r.InputOffset()
++			if err == nil && int64(inputByteSize) != inputOffset {
++				t.Errorf("wrong input offset after call ReadAll():\ngot:  %d\nwant: %d\ninput: %s", inputOffset, inputByteSize, input)
++			}
++
+ 			// Check field and error positions.
+-			r, _, _ = newReader(tt)
++			r, _, _, _ = newReader(tt)
+ 			for recNum := 0; ; recNum++ {
+ 				rec, err := r.Read()
+ 				var wantErr error

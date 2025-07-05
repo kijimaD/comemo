@@ -18,7 +18,403 @@ Date:   Sun Apr 3 08:00:55 2022 -0400
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/doc/comment/old_test.go |  80 +++++++++++
  src/go/doc/comment/parse.go    | 294 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 374 insertions(+)
+
+diff --git a/src/go/doc/comment/old_test.go b/src/go/doc/comment/old_test.go
+new file mode 100644
+index 0000000000..944f94d16d
+--- /dev/null
++++ b/src/go/doc/comment/old_test.go
+@@ -0,0 +1,80 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// These tests are carried forward from the old go/doc implementation.
++
++package comment
++
++import "testing"
++
++var oldHeadingTests = []struct {
++	line string
++	ok   bool
++}{
++	{"Section", true},
++	{"A typical usage", true},
++	{"ΔΛΞ is Greek", true},
++	{"Foo 42", true},
++	{"", false},
++	{"section", false},
++	{"A typical usage:", false},
++	{"This code:", false},
++	{"δ is Greek", false},
++	{"Foo §", false},
++	{"Fermat's Last Sentence", true},
++	{"Fermat's", true},
++	{"'sX", false},
++	{"Ted 'Too' Bar", false},
++	{"Use n+m", false},
++	{"Scanning:", false},
++	{"N:M", false},
++}
++
++func TestIsOldHeading(t *testing.T) {
++	for _, tt := range oldHeadingTests {
++		if isOldHeading(tt.line, []string{"Text.", "", tt.line, "", "Text."}, 2) != tt.ok {
++			t.Errorf("isOldHeading(%q) = %v, want %v", tt.line, !tt.ok, tt.ok)
++		}
++	}
++}
++
++var autoURLTests = []struct {
++	in, out string
++}{
++	{"", ""},
++	{"http://[::1]:8080/foo.txt", "http://[::1]:8080/foo.txt"},
++	{"https://www.google.com) after", "https://www.google.com"},
++	{"https://www.google.com:30/x/y/z:b::c. After", "https://www.google.com:30/x/y/z:b::c"},
++	{"http://www.google.com/path/:;!-/?query=%34b#093124", "http://www.google.com/path/:;!-/?query=%34b#093124"},
++	{"http://www.google.com/path/:;!-/?query=%34bar#093124", "http://www.google.com/path/:;!-/?query=%34bar#093124"},
++	{"http://www.google.com/index.html! After", "http://www.google.com/index.html"},
++	{"http://www.google.com/", "http://www.google.com/"},
++	{"https://www.google.com/", "https://www.google.com/"},
++	{"http://www.google.com/path.", "http://www.google.com/path"},
++	{"http://en.wikipedia.org/wiki/Camellia_(cipher)", "http://en.wikipedia.org/wiki/Camellia_(cipher)"},
++	{"http://www.google.com/)", "http://www.google.com/"},
++	{"http://gmail.com)", "http://gmail.com"},
++	{"http://gmail.com))", "http://gmail.com"},
++	{"http://gmail.com ((http://gmail.com)) ()", "http://gmail.com"},
++	{"http://example.com/ quux!", "http://example.com/"},
++	{"http://example.com/%2f/ /world.", "http://example.com/%2f/"},
++	{"http: ipsum //host/path", ""},
++	{"javascript://is/not/linked", ""},
++	{"http://foo", "http://foo"},
++	{"https://www.example.com/person/][Person Name]]", "https://www.example.com/person/"},
++	{"http://golang.org/)", "http://golang.org/"},
++	{"http://golang.org/hello())", "http://golang.org/hello()"},
++	{"http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD", "http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD"},
++	{"https://foo.bar/bal/x(])", "https://foo.bar/bal/x"}, // inner ] causes (]) to be cut off from URL
++	{"http://bar(])", "http://bar"},                       // same
++}
++
++func TestAutoURL(t *testing.T) {
++	for _, tt := range autoURLTests {
++		url, ok := autoURL(tt.in)
++		if url != tt.out || ok != (tt.out != "") {
++			t.Errorf("autoURL(%q) = %q, %v, want %q, %v", tt.in, url, ok, tt.out, tt.out != "")
++		}
++	}
++}
+diff --git a/src/go/doc/comment/parse.go b/src/go/doc/comment/parse.go
+index 672b115bf8..12b6679413 100644
+--- a/src/go/doc/comment/parse.go
++++ b/src/go/doc/comment/parse.go
+@@ -4,6 +4,12 @@
+ 
+ package comment
+ 
++import (
++	"strings"
++	"unicode"
++	"unicode/utf8"
++)
++
+ // A Doc is a parsed Go doc comment.
+ type Doc struct {
+ 	// Content is the sequence of content blocks in the comment.
+@@ -167,3 +173,291 @@ type DocLink struct {
+ }
+ 
+ func (*DocLink) text() {}
++
++// leadingSpace returns the longest prefix of s consisting of spaces and tabs.
++func leadingSpace(s string) string {
++	i := 0
++	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
++		i++
++	}
++	return s[:i]
++}
++
++// isOldHeading reports whether line is an old-style section heading.
++// line is all[off].
++func isOldHeading(line string, all []string, off int) bool {
++	if off <= 0 || all[off-1] != "" || off+2 >= len(all) || all[off+1] != "" || leadingSpace(all[off+2]) != "" {
++		return false
++	}
++
++	line = strings.TrimSpace(line)
++
++	// a heading must start with an uppercase letter
++	r, _ := utf8.DecodeRuneInString(line)
++	if !unicode.IsLetter(r) || !unicode.IsUpper(r) {
++		return false
++	}
++
++	// it must end in a letter or digit:
++	r, _ = utf8.DecodeLastRuneInString(line)
++	if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
++		return false
++	}
++
++	// exclude lines with illegal characters. we allow "(),"
++	if strings.ContainsAny(line, ";:!?+*/=[]{}_^°&§~%#@<\">\\") {
++		return false
++	}
++
++	// allow "'" for possessive "'s" only
++	for b := line; ; {
++		var ok bool
++		if _, b, ok = strings.Cut(b, "'"); !ok {
++			break
++		}
++		if b != "s" && !strings.HasPrefix(b, "s ") {
++			return false // ' not followed by s and then end-of-word
++		}
++	}
++
++	// allow "." when followed by non-space
++	for b := line; ; {
++		var ok bool
++		if _, b, ok = strings.Cut(b, "."); !ok {
++			break
++		}
++		if b == "" || strings.HasPrefix(b, " ") {
++			return false // not followed by non-space
++		}
++	}
++
++	return true
++}
++
++// autoURL checks whether s begins with a URL that should be hyperlinked.
++// If so, it returns the URL, which is a prefix of s, and ok == true.
++// Otherwise it returns "", false.
++// The caller should skip over the first len(url) bytes of s
++// before further processing.
++func autoURL(s string) (url string, ok bool) {
++	// Find the ://. Fast path to pick off non-URL,
++	// since we call this at every position in the string.
++	// The shortest possible URL is ftp://x, 7 bytes.
++	var i int
++	switch {
++	case len(s) < 7:
++		return "", false
++	case s[3] == ':':
++		i = 3
++	case s[4] == ':':
++		i = 4
++	case s[5] == ':':
++		i = 5
++	case s[6] == ':':
++		i = 6
++	default:
++		return "", false
++	}
++	if i+3 > len(s) || s[i:i+3] != "://" {
++		return "", false
++	}
++
++	// Check valid scheme.
++	if !isScheme(s[:i]) {
++		return "", false
++	}
++
++	// Scan host part. Must have at least one byte,
++	// and must start and end in non-punctuation.
++	i += 3
++	if i >= len(s) || !isHost(s[i]) || isPunct(s[i]) {
++		return "", false
++	}
++	i++
++	end := i
++	for i < len(s) && isHost(s[i]) {
++		if !isPunct(s[i]) {
++			end = i + 1
++		}
++		i++
++	}
++	i = end
++
++	// At this point we are definitely returning a URL (scheme://host).
++	// We just have to find the longest path we can add to it.
++	// Heuristics abound.
++	// We allow parens, braces, and brackets,
++	// but only if they match (#5043, #22285).
++	// We allow .,:;?! in the path but not at the end,
++	// to avoid end-of-sentence punctuation (#18139, #16565).
++	stk := []byte{}
++	end = i
++Path:
++	for ; i < len(s); i++ {
++		if isPunct(s[i]) {
++			continue
++		}
++		if !isPath(s[i]) {
++			break
++		}
++		switch s[i] {
++		case '(':
++			stk = append(stk, ')')
++		case '{':
++			stk = append(stk, '}')
++		case '[':
++			stk = append(stk, ']')
++		case ')', '}', ']':
++			if len(stk) == 0 || stk[len(stk)-1] != s[i] {
++				break Path
++			}
++			stk = stk[:len(stk)-1]
++		}
++		if len(stk) == 0 {
++			end = i + 1
++		}
++	}
++
++	return s[:end], true
++}
++
++// isScheme reports whether s is a recognized URL scheme.
++// Note that if strings of new length (beyond 3-7)
++// are added here, the fast path at the top of autoURL will need updating.
++func isScheme(s string) bool {
++	switch s {
++	case "file",
++		"ftp",
++		"gopher",
++		"http",
++		"https",
++		"mailto",
++		"nntp":
++		return true
++	}
++	return false
++}
++
++// isHost reports whether c is a byte that can appear in a URL host,
++// like www.example.com or user@[::1]:8080
++func isHost(c byte) bool {
++	// mask is a 128-bit bitmap with 1s for allowed bytes,
++	// so that the byte c can be tested with a shift and an and.
++	// If c > 128, then 1<<c and 1<<(c-64) will both be zero,
++	// and this function will return false.
++	const mask = 0 |
++		(1<<26-1)<<'A' |
++		(1<<26-1)<<'a' |
++		(1<<10-1)<<'0' |
++		1<<'_' |
++		1<<'@' |
++		1<<'-' |
++		1<<'.' |
++		1<<'[' |
++		1<<']' |
++		1<<':'
++
++	return ((uint64(1)<<c)&(mask&(1<<64-1)) |
++		(uint64(1)<<(c-64))&(mask>>64)) != 0
++}
++
++// isPunct reports whether c is a punctuation byte that can appear
++// inside a path but not at the end.
++func isPunct(c byte) bool {
++	// mask is a 128-bit bitmap with 1s for allowed bytes,
++	// so that the byte c can be tested with a shift and an and.
++	// If c > 128, then 1<<c and 1<<(c-64) will both be zero,
++	// and this function will return false.
++	const mask = 0 |
++		1<<'.' |
++		1<<',' |
++		1<<':' |
++		1<<';' |
++		1<<'?' |
++		1<<'!'
++
++	return ((uint64(1)<<c)&(mask&(1<<64-1)) |
++		(uint64(1)<<(c-64))&(mask>>64)) != 0
++}
++
++// isPath reports whether c is a (non-punctuation) path byte.
++func isPath(c byte) bool {
++	// mask is a 128-bit bitmap with 1s for allowed bytes,
++	// so that the byte c can be tested with a shift and an and.
++	// If c > 128, then 1<<c and 1<<(c-64) will both be zero,
++	// and this function will return false.
++	const mask = 0 |
++		(1<<26-1)<<'A' |
++		(1<<26-1)<<'a' |
++		(1<<10-1)<<'0' |
++		1<<'$' |
++		1<<'\'' |
++		1<<'(' |
++		1<<')' |
++		1<<'*' |
++		1<<'+' |
++		1<<'&' |
++		1<<'#' |
++		1<<'=' |
++		1<<'@' |
++		1<<'~' |
++		1<<'_' |
++		1<<'/' |
++		1<<'-' |
++		1<<'[' |
++		1<<']' |
++		1<<'{' |
++		1<<'}' |
++		1<<'%'
++
++	return ((uint64(1)<<c)&(mask&(1<<64-1)) |
++		(uint64(1)<<(c-64))&(mask>>64)) != 0
++}
++
++// isName reports whether s is a capitalized Go identifier (like Name).
++func isName(s string) bool {
++	t, ok := ident(s)
++	if !ok || t != s {
++		return false
++	}
++	r, _ := utf8.DecodeRuneInString(s)
++	return unicode.IsUpper(r)
++}
++
++// ident checks whether s begins with a Go identifier.
++// If so, it returns the identifier, which is a prefix of s, and ok == true.
++// Otherwise it returns "", false.
++// The caller should skip over the first len(id) bytes of s
++// before further processing.
++func ident(s string) (id string, ok bool) {
++	// Scan [\pL_][\pL_0-9]*
++	n := 0
++	for n < len(s) {
++		if c := s[n]; c < utf8.RuneSelf {
++			if isIdentASCII(c) && (n > 0 || c < '0' || c > '9') {
++				n++
++				continue
++			}
++			break
++		}
++		r, nr := utf8.DecodeRuneInString(s)
++		if unicode.IsLetter(r) {
++			n += nr
++			continue
++		}
++		break
++	}
++	return s[:n], n > 0
++}
++
++// isIdentASCII reports whether c is an ASCII identifier byte.
++func isIdentASCII(c byte) bool {
++	const mask = 0 |
++		(1<<26-1)<<'A' |
++		(1<<26-1)<<'a' |
++		(1<<10-1)<<'0' |
++		1<<'_'
++
++	return ((uint64(1)<<c)&(mask&(1<<64-1)) |
++		(uint64(1)<<(c-64))&(mask>>64)) != 0
++}

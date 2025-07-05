@@ -11,8 +11,62 @@ Date:   Tue Apr 15 08:48:40 2014 -0700
     R=golang-codereviews, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/86300043
-
+---
  src/pkg/html/template/template.go | 2 ++
  src/pkg/text/template/doc.go      | 2 +-
  src/pkg/text/template/exec.go     | 2 ++
  3 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index 11cc34a50a..744f139ba4 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -62,6 +62,7 @@ func (t *Template) escape() error {
+ 
+ // Execute applies a parsed template to the specified data object,
+ // writing the output to wr.
++// A template may be executed safely in parallel.
+ func (t *Template) Execute(wr io.Writer, data interface{}) error {
+ 	if err := t.escape(); err != nil {
+ 		return err
+@@ -71,6 +72,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) error {
+ 
+ // ExecuteTemplate applies the template associated with t that has the given
+ // name to the specified data object and writes the output to wr.
++// A template may be executed safely in parallel.
+ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
+ 	tmpl, err := t.lookupAndEscapeTemplate(name)
+ 	if err != nil {
+diff --git a/src/pkg/text/template/doc.go b/src/pkg/text/template/doc.go
+index f622ac7dce..7c6efd59cd 100644
+--- a/src/pkg/text/template/doc.go
++++ b/src/pkg/text/template/doc.go
+@@ -20,7 +20,7 @@ The input text for a template is UTF-8-encoded text in any format.
+ "{{" and "}}"; all text outside actions is copied to the output unchanged.
+ Actions may not span newlines, although comments can.
+ 
+-Once constructed, a template may be executed safely in parallel.
++Once parsed, a template may be executed safely in parallel.
+ 
+ Here is a trivial example that prints "17 items are made of wool".
+ 
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index 6de37a1996..505509a085 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -108,6 +108,7 @@ func errRecover(errp *error) {
+ 
+ // ExecuteTemplate applies the template associated with t that has the given name
+ // to the specified data object and writes the output to wr.
++// A template may be executed safely in parallel.
+ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
+ 	tmpl := t.tmpl[name]
+ 	if tmpl == nil {
+@@ -118,6 +119,7 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{})
+ 
+ // Execute applies a parsed template to the specified data object,
+ // and writes the output to wr.
++// A template may be executed safely in parallel.
+ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+ 	defer errRecover(&err)
+ 	value := reflect.ValueOf(data)

@@ -15,7 +15,7 @@ Date:   Fri May 20 12:48:17 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/internal/pkgbits/codes.go       | 21 +++++++++-
  src/internal/pkgbits/decoder.go     | 48 +++++++++++++++++++++--
  src/internal/pkgbits/encoder.go     | 77 ++++++++++++++++++++++++++++++-------
@@ -23,3 +23,459 @@ Date:   Fri May 20 12:48:17 2022 -0700
  src/internal/pkgbits/reloc.go       |  2 -
  src/internal/pkgbits/sync.go        |  3 --
  6 files changed, 130 insertions(+), 24 deletions(-)
+
+diff --git a/src/internal/pkgbits/codes.go b/src/internal/pkgbits/codes.go
+index 8438ab3216..f0cabde96e 100644
+--- a/src/internal/pkgbits/codes.go
++++ b/src/internal/pkgbits/codes.go
+@@ -1,21 +1,30 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package pkgbits
+ 
++// A Code is an enum value that can be encoded into bitstreams.
++//
++// Code types are preferable for enum types, because they allow
++// Decoder to detect desyncs.
+ type Code interface {
++	// Marker returns the SyncMarker for the Code's dynamic type.
+ 	Marker() SyncMarker
++
++	// Value returns the Code's ordinal value.
+ 	Value() int
+ }
+ 
++// A CodeVal distinguishes among go/constant.Value encodings.
+ type CodeVal int
+ 
+ func (c CodeVal) Marker() SyncMarker { return SyncVal }
+ func (c CodeVal) Value() int         { return int(c) }
+ 
++// Note: These values are public and cannot be changed without
++// updating the go/types importers.
++
+ const (
+ 	ValBool CodeVal = iota
+ 	ValString
+@@ -25,11 +34,15 @@ const (
+ 	ValBigFloat
+ )
+ 
++// A CodeType distinguishes among go/types.Type encodings.
+ type CodeType int
+ 
+ func (c CodeType) Marker() SyncMarker { return SyncType }
+ func (c CodeType) Value() int         { return int(c) }
+ 
++// Note: These values are public and cannot be changed without
++// updating the go/types importers.
++
+ const (
+ 	TypeBasic CodeType = iota
+ 	TypeNamed
+@@ -45,11 +58,15 @@ const (
+ 	TypeTypeParam
+ )
+ 
++// A CodeObj distinguishes among go/types.Object encodings.
+ type CodeObj int
+ 
+ func (c CodeObj) Marker() SyncMarker { return SyncCodeObj }
+ func (c CodeObj) Value() int         { return int(c) }
+ 
++// Note: These values are public and cannot be changed without
++// updating the go/types importers.
++
+ const (
+ 	ObjAlias CodeObj = iota
+ 	ObjConst
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 85bf218d91..a2367b7e99 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -49,8 +47,16 @@ type PkgDecoder struct {
+ 	elemEndsEnds [numRelocs]uint32
+ }
+ 
++// PkgPath returns the package path for the package
++//
++// TODO(mdempsky): Remove; unneeded since CL 391014.
+ func (pr *PkgDecoder) PkgPath() string { return pr.pkgPath }
+ 
++// NewPkgDecoder returns a PkgDecoder initialized to read the Unified
++// IR export data from input. pkgPath is the package path for the
++// compilation unit that produced the export data.
++//
++// TODO(mdempsky): Remove pkgPath parameter; unneeded since CL 391014.
+ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 	pr := PkgDecoder{
+ 		pkgPath: pkgPath,
+@@ -127,16 +133,22 @@ func (pr *PkgDecoder) DataIdx(k RelocKind, idx int) string {
+ 	return pr.elemData[start:end]
+ }
+ 
++// StringIdx returns the string value for the given string index.
+ func (pr *PkgDecoder) StringIdx(idx int) string {
+ 	return pr.DataIdx(RelocString, idx)
+ }
+ 
++// NewDecoder returns a Decoder for the given (section, index) pair,
++// and decodes the given SyncMarker from the element bitstream.
+ func (pr *PkgDecoder) NewDecoder(k RelocKind, idx int, marker SyncMarker) Decoder {
+ 	r := pr.NewDecoderRaw(k, idx)
+ 	r.Sync(marker)
+ 	return r
+ }
+ 
++// NewDecoderRaw returns a Decoder for the given (section, index) pair.
++//
++// Most callers should use NewDecoder instead.
+ func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx int) Decoder {
+ 	r := Decoder{
+ 		common: pr,
+@@ -198,6 +210,10 @@ func (r *Decoder) rawReloc(k RelocKind, idx int) int {
+ 	return e.Idx
+ }
+ 
++// Sync decodes a sync marker from the element bitstream and asserts
++// that it matches the expected marker.
++//
++// If EnableSync is false, then Sync is a no-op.
+ func (r *Decoder) Sync(mWant SyncMarker) {
+ 	if !EnableSync {
+ 		return
+@@ -253,6 +269,7 @@ func (r *Decoder) Sync(mWant SyncMarker) {
+ 	os.Exit(1)
+ }
+ 
++// Bool decodes and returns a bool value from the element bitstream.
+ func (r *Decoder) Bool() bool {
+ 	r.Sync(SyncBool)
+ 	x, err := r.Data.ReadByte()
+@@ -261,20 +278,31 @@ func (r *Decoder) Bool() bool {
+ 	return x != 0
+ }
+ 
++// Int64 decodes and returns an int64 value from the element bitstream.
+ func (r *Decoder) Int64() int64 {
+ 	r.Sync(SyncInt64)
+ 	return r.rawVarint()
+ }
+ 
++// Int64 decodes and returns a uint64 value from the element bitstream.
+ func (r *Decoder) Uint64() uint64 {
+ 	r.Sync(SyncUint64)
+ 	return r.rawUvarint()
+ }
+ 
+-func (r *Decoder) Len() int   { x := r.Uint64(); v := int(x); assert(uint64(v) == x); return v }
+-func (r *Decoder) Int() int   { x := r.Int64(); v := int(x); assert(int64(v) == x); return v }
++// Len decodes and returns a non-negative int value from the element bitstream.
++func (r *Decoder) Len() int { x := r.Uint64(); v := int(x); assert(uint64(v) == x); return v }
++
++// Int decodes and returns an int value from the element bitstream.
++func (r *Decoder) Int() int { x := r.Int64(); v := int(x); assert(int64(v) == x); return v }
++
++// Uint decodes and returns a uint value from the element bitstream.
+ func (r *Decoder) Uint() uint { x := r.Uint64(); v := uint(x); assert(uint64(v) == x); return v }
+ 
++// Code decodes a Code value from the element bitstream and returns
++// its ordinal value. It's the caller's responsibility to convert the
++// result to an appropriate Code type.
++//
+ // TODO(mdempsky): Ideally this method would have signature "Code[T
+ // Code] T" instead, but we don't allow generic methods and the
+ // compiler can't depend on generics yet anyway.
+@@ -283,16 +311,22 @@ func (r *Decoder) Code(mark SyncMarker) int {
+ 	return r.Len()
+ }
+ 
++// Reloc decodes a relocation of expected section k from the element
++// bitstream and returns an index to the referenced element.
+ func (r *Decoder) Reloc(k RelocKind) int {
+ 	r.Sync(SyncUseReloc)
+ 	return r.rawReloc(k, r.Len())
+ }
+ 
++// String decodes and returns a string value from the element
++// bitstream.
+ func (r *Decoder) String() string {
+ 	r.Sync(SyncString)
+ 	return r.common.StringIdx(r.Reloc(RelocString))
+ }
+ 
++// Strings decodes and returns a variable-length slice of strings from
++// the element bitstream.
+ func (r *Decoder) Strings() []string {
+ 	res := make([]string, r.Len())
+ 	for i := range res {
+@@ -301,6 +335,8 @@ func (r *Decoder) Strings() []string {
+ 	return res
+ }
+ 
++// Value decodes and returns a constant.Value from the element
++// bitstream.
+ func (r *Decoder) Value() constant.Value {
+ 	r.Sync(SyncValue)
+ 	isComplex := r.Bool()
+@@ -352,6 +388,8 @@ func (r *Decoder) bigFloat() *big.Float {
+ // TODO(mdempsky): These should probably be removed. I think they're a
+ // smell that the export data format is not yet quite right.
+ 
++// PeekPkgPath returns the package path for the specified package
++// index.
+ func (pr *PkgDecoder) PeekPkgPath(idx int) string {
+ 	r := pr.NewDecoder(RelocPkg, idx, SyncPkgDef)
+ 	path := r.String()
+@@ -361,6 +399,8 @@ func (pr *PkgDecoder) PeekPkgPath(idx int) string {
+ 	return path
+ }
+ 
++// PeekObj returns the package path, object name, and CodeObj for the
++// specified object index.
+ func (pr *PkgDecoder) PeekObj(idx int) (string, string, CodeObj) {
+ 	r := pr.NewDecoder(RelocName, idx, SyncObject1)
+ 	r.Sync(SyncSym)
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index f274e2a676..9fddb58237 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -23,12 +21,19 @@ type PkgEncoder struct {
+ 	elems [numRelocs][]string
+ 
+ 	// stringsIdx maps previously encoded strings to their index within
+-	// the RelocString section, to allow deduplication.
++	// the RelocString section, to allow deduplication. That is,
++	// elems[RelocString][stringsIdx[s]] == s (if present).
+ 	stringsIdx map[string]int
+ 
+ 	syncFrames int
+ }
+ 
++// NewPkgEncoder returns an initialized PkgEncoder.
++//
++// syncFrames is the number of caller frames that should be serialized
++// at Sync points. Serializing additional frames results in larger
++// export data files, but can help diagnosing desync errors in
++// higher-level Unified IR reader/writer code.
+ func NewPkgEncoder(syncFrames int) PkgEncoder {
+ 	return PkgEncoder{
+ 		stringsIdx: make(map[string]int),
+@@ -80,6 +85,8 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
+ 	return
+ }
+ 
++// StringIdx adds a string value to the strings section, if not
++// already present, and returns its index.
+ func (pw *PkgEncoder) StringIdx(s string) int {
+ 	if idx, ok := pw.stringsIdx[s]; ok {
+ 		assert(pw.elems[RelocString][idx] == s)
+@@ -92,12 +99,19 @@ func (pw *PkgEncoder) StringIdx(s string) int {
+ 	return idx
+ }
+ 
++// NewEncoder returns an Encoder for a new element within the given
++// section, and encodes the given SyncMarker as the start of the
++// element bitstream.
+ func (pw *PkgEncoder) NewEncoder(k RelocKind, marker SyncMarker) Encoder {
+ 	e := pw.NewEncoderRaw(k)
+ 	e.Sync(marker)
+ 	return e
+ }
+ 
++// NewEncoderRaw returns an Encoder for a new element within the given
++// section.
++//
++// Most callers should use NewEncoder instead.
+ func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
+ 	idx := len(pw.elems[k])
+ 	pw.elems[k] = append(pw.elems[k], "") // placeholder
+@@ -115,12 +129,12 @@ type Encoder struct {
+ 	p *PkgEncoder
+ 
+ 	Relocs []RelocEnt
+-	Data   bytes.Buffer
++	Data   bytes.Buffer // accumulated element bitstream data
+ 
+ 	encodingRelocHeader bool
+ 
+ 	k   RelocKind
+-	Idx int
++	Idx int // index within relocation section
+ }
+ 
+ // Flush finalizes the element's bitstream and returns its Index.
+@@ -140,10 +154,10 @@ func (w *Encoder) Flush() int {
+ 	w.encodingRelocHeader = true
+ 	w.Sync(SyncRelocs)
+ 	w.Len(len(w.Relocs))
+-	for _, rent := range w.Relocs {
++	for _, rEnt := range w.Relocs {
+ 		w.Sync(SyncReloc)
+-		w.Len(int(rent.Kind))
+-		w.Len(rent.Idx)
++		w.Len(int(rEnt.Kind))
++		w.Len(rEnt.Idx)
+ 	}
+ 
+ 	io.Copy(&sb, &w.Data)
+@@ -177,9 +191,9 @@ func (w *Encoder) rawVarint(x int64) {
+ }
+ 
+ func (w *Encoder) rawReloc(r RelocKind, idx int) int {
+-	// TODO(mdempsky): Use map for lookup.
+-	for i, rent := range w.Relocs {
+-		if rent.Kind == r && rent.Idx == idx {
++	// TODO(mdempsky): Use map for lookup; this takes quadratic time.
++	for i, rEnt := range w.Relocs {
++		if rEnt.Kind == r && rEnt.Idx == idx {
+ 			return i
+ 		}
+ 	}
+@@ -214,6 +228,19 @@ func (w *Encoder) Sync(m SyncMarker) {
+ 	}
+ }
+ 
++// Bool encodes and writes a bool value into the element bitstream,
++// and then returns the bool value.
++//
++// For simple, 2-alternative encodings, the idiomatic way to call Bool
++// is something like:
++//
++//	if w.Bool(x != 0) {
++//		// alternative #1
++//	} else {
++//		// alternative #2
++//	}
++//
++// For multi-alternative encodings, use Code instead.
+ func (w *Encoder) Bool(b bool) bool {
+ 	w.Sync(SyncBool)
+ 	var x byte
+@@ -225,35 +252,57 @@ func (w *Encoder) Bool(b bool) bool {
+ 	return b
+ }
+ 
++// Int64 encodes and writes an int64 value into the element bitstream.
+ func (w *Encoder) Int64(x int64) {
+ 	w.Sync(SyncInt64)
+ 	w.rawVarint(x)
+ }
+ 
++// Uint64 encodes and writes a uint64 value into the element bitstream.
+ func (w *Encoder) Uint64(x uint64) {
+ 	w.Sync(SyncUint64)
+ 	w.rawUvarint(x)
+ }
+ 
+-func (w *Encoder) Len(x int)   { assert(x >= 0); w.Uint64(uint64(x)) }
+-func (w *Encoder) Int(x int)   { w.Int64(int64(x)) }
++// Len encodes and writes a non-negative int value into the element bitstream.
++func (w *Encoder) Len(x int) { assert(x >= 0); w.Uint64(uint64(x)) }
++
++// Int encodes and writes an int value into the element bitstream.
++func (w *Encoder) Int(x int) { w.Int64(int64(x)) }
++
++// Len encodes and writes a uint value into the element bitstream.
+ func (w *Encoder) Uint(x uint) { w.Uint64(uint64(x)) }
+ 
++// Reloc encodes and writes a relocation for the given (section,
++// index) pair into the element bitstream.
++//
++// Note: Only the index is formally written into the element
++// bitstream, so bitstream decoders must know from context which
++// section an encoded relocation refers to.
+ func (w *Encoder) Reloc(r RelocKind, idx int) {
+ 	w.Sync(SyncUseReloc)
+ 	w.Len(w.rawReloc(r, idx))
+ }
+ 
++// Code encodes and writes a Code value into the element bitstream.
+ func (w *Encoder) Code(c Code) {
+ 	w.Sync(c.Marker())
+ 	w.Len(c.Value())
+ }
+ 
++// String encodes and writes a string value into the element
++// bitstream.
++//
++// Internally, strings are deduplicated by adding them to the strings
++// section (if not already present), and then writing a relocation
++// into the element bitstream.
+ func (w *Encoder) String(s string) {
+ 	w.Sync(SyncString)
+ 	w.Reloc(RelocString, w.p.StringIdx(s))
+ }
+ 
++// Strings encodes and writes a variable-length slice of strings into
++// the element bitstream.
+ func (w *Encoder) Strings(ss []string) {
+ 	w.Len(len(ss))
+ 	for _, s := range ss {
+@@ -261,6 +310,8 @@ func (w *Encoder) Strings(ss []string) {
+ 	}
+ }
+ 
++// Value encodes and writes a constant.Value into the element
++// bitstream.
+ func (w *Encoder) Value(val constant.Value) {
+ 	w.Sync(SyncValue)
+ 	if w.Bool(val.Kind() == constant.Complex) {
+diff --git a/src/internal/pkgbits/frames_go17.go b/src/internal/pkgbits/frames_go17.go
+index 5235d46afc..2324ae7adf 100644
+--- a/src/internal/pkgbits/frames_go17.go
++++ b/src/internal/pkgbits/frames_go17.go
+@@ -9,6 +9,9 @@ package pkgbits
+ 
+ import "runtime"
+ 
++// walkFrames calls visit for each call frame represented by pcs.
++//
++// pcs should be a slice of PCs, as returned by runtime.Callers.
+ func walkFrames(pcs []uintptr, visit frameVisitor) {
+ 	if len(pcs) == 0 {
+ 		return
+diff --git a/src/internal/pkgbits/reloc.go b/src/internal/pkgbits/reloc.go
+index efe662ddf2..84cf03ef98 100644
+--- a/src/internal/pkgbits/reloc.go
++++ b/src/internal/pkgbits/reloc.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/internal/pkgbits/sync.go b/src/internal/pkgbits/sync.go
+index 6eae306b22..4b9ea4863f 100644
+--- a/src/internal/pkgbits/sync.go
++++ b/src/internal/pkgbits/sync.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -49,7 +47,6 @@ const (
+ 	// Public markers (known to go/types importers).
+ 
+ 	// Low-level coding markers.
+-
+ 	SyncEOF
+ 	SyncBool
+ 	SyncInt64

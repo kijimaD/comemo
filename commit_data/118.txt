@@ -5,7 +5,51 @@ Date:   Fri Jun 6 17:35:08 2008 -0700
     - forward decl bug
     
     SVN=121561
-
+---
  test/bugs/bug043.go | 21 +++++++++++++++++++++
  test/golden.out     |  5 +++++
  2 files changed, 26 insertions(+)
+
+diff --git a/test/bugs/bug043.go b/test/bugs/bug043.go
+new file mode 100644
+index 0000000000..fee8ebe0b1
+--- /dev/null
++++ b/test/bugs/bug043.go
+@@ -0,0 +1,21 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go || echo BUG: compilation should succeed
++
++// Forward declarations
++
++package main
++
++func f (x int) ;  // this works
++func f (x int) {}
++
++func i (x, y int) ;  // this works
++func i (x, y int) {}
++
++func g (x int) float ;  // BUG this doesn't
++func g (x int) float {}
++
++func h (x int) (u int, v int) ;  // BUG this doesn't
++func h (x int) (u int, v int) {}
+diff --git a/test/golden.out b/test/golden.out
+index ca0323b756..6cb8a09695 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -269,6 +269,11 @@ BUG: compilation succeeds incorrectly
+ bugs/bug042.go:6: syntax error
+ BUG: compilation should succeed
+ 
++=========== bugs/bug043.go
++bugs/bug043.go:14: error in shape across assignment
++bugs/bug043.go:17: error in shape across assignment
++BUG: compilation should succeed
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug005.go

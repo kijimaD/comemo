@@ -11,7 +11,34 @@ Date:   Tue Apr 27 08:30:25 2021 +0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/poset.go | 2 +-
  src/math/bits/bits.go                 | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index 1e04b48ba4..d2719eb8a1 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -12,7 +12,7 @@ import (
+ // If true, check poset integrity after every mutation
+ var debugPoset = false
+ 
+-const uintSize = 32 << (^uint(0) >> 32 & 1) // 32 or 64
++const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
+ 
+ // bitset is a bit array for dense indexes.
+ type bitset []uint
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index 879ef2da54..65452feda2 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -8,7 +8,7 @@
+ // functions for the predeclared unsigned integer types.
+ package bits
+ 
+-const uintSize = 32 << (^uint(0) >> 32 & 1) // 32 or 64
++const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
+ 
+ // UintSize is the size of a uint in bits.
+ const UintSize = uintSize

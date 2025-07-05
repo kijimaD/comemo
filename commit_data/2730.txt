@@ -26,7 +26,7 @@ Date:   Thu Jul 16 17:11:18 2009 -0700
     DELTA=634  (369 added, 153 deleted, 112 changed)
     OCL=31743
     CL=31748
-
+---
  src/cmd/gobuild/util.go            |   7 +-
  src/cmd/godoc/godoc.go             |  20 +--
  src/cmd/gofmt/gofmt.go             |  84 ++++++++++---
@@ -42,3 +42,1306 @@ Date:   Thu Jul 16 17:11:18 2009 -0700
  src/pkg/go/printer/printer.go      |  20 +--
  src/pkg/go/printer/printer_test.go |   9 +-
  14 files changed, 468 insertions(+), 251 deletions(-)
+
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index 10920d1528..3f38cc6986 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -220,12 +220,7 @@ func LitString(p []*ast.StringLit) (string, os.Error) {
+ }
+ 
+ func PackageImports(file string) (pkg string, imports []string, err1 os.Error) {
+-	f, err := os.Open(file, os.O_RDONLY, 0);
+-	if err != nil {
+-		return "", nil, err
+-	}
+-
+-	prog, err := parser.Parse(file, f, parser.ImportsOnly);
++	prog, err := parser.ParseFile(file, nil, parser.ImportsOnly);
+ 	if err != nil {
+ 		return "", nil, err;
+ 	}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index d2150d29e4..bb3913233f 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -159,7 +159,7 @@ type parseErrors struct {
+ // Parses a file (path) and returns the corresponding AST and
+ // a sorted list (by file position) of errors, if any.
+ //
+-func parse(path string, mode uint) (*ast.Program, *parseErrors) {
++func parse(path string, mode uint) (*ast.File, *parseErrors) {
+ 	src, err := io.ReadFile(path);
+ 	if err != nil {
+ 		log.Stderrf("ReadFile %s: %v", path, err);
+@@ -167,7 +167,7 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
+ 		return nil, &parseErrors{path, errs, nil};
+ 	}
+ 
+-	prog, err := parser.Parse(path, src, mode);
++	prog, err := parser.ParseFile(path, src, mode);
+ 	if err != nil {
+ 		var errs []parseError;
+ 		if errors, ok := err.(scanner.ErrorList); ok {
+@@ -208,7 +208,7 @@ func nodeText(node interface{}) []byte {
+ 	var buf bytes.Buffer;
+ 	tw := makeTabwriter(&buf);
+ 	mode := uint(0);
+-	if _, isProgram := node.(*ast.Program); isProgram {
++	if _, isProgram := node.(*ast.File); isProgram {
+ 		mode = printer.DocComments;
+ 	}
+ 	printer.Fprint(tw, node, mode);
+@@ -436,7 +436,7 @@ func findPackage(path string) (canonical string, pd *pakDesc, dirs dirList) {
+ 		return;
+ 	}
+ 
+-	// the package name is is the directory name within its parent
++	// the package name is the directory name within its parent
+ 	_, pakname := pathutil.Split(dirname);
+ 
+ 	// collect all files belonging to the package and count the
+@@ -489,20 +489,21 @@ func (p *pakDesc) doc() (*doc.PackageDoc, *parseErrors) {
+ 	}
+ 
+ 	// compute documentation
++	// TODO(gri) change doc to work on entire ast.Package at once
+ 	var r doc.DocReader;
+ 	i := 0;
+ 	for filename := range p.filenames {
+-		prog, err := parse(p.dirname + "/" + filename, parser.ParseComments);
++		src, err := parse(p.dirname + "/" + filename, parser.ParseComments);
+ 		if err != nil {
+ 			return nil, err;
+ 		}
+ 		if i == 0 {
+ 			// first file - initialize doc
+-			r.Init(prog.Name.Value, p.importpath);
++			r.Init(src.Name.Value, p.importpath);
+ 		}
+ 		i++;
+-		ast.FilterExports(prog);  // we only care about exports
+-		r.AddProgram(prog);
++		ast.FilterExports(src);  // we only care about exports
++		r.AddFile(src);
+ 	}
+ 
+ 	return r.Doc(), nil;
+@@ -625,11 +626,12 @@ func usage() {
+ 		"	godoc -http=:6060\n"
+ 	);
+ 	flag.PrintDefaults();
+-	os.Exit(1);
++	os.Exit(2);
+ }
+ 
+ 
+ func main() {
++	flag.Usage = usage;
+ 	flag.Parse();
+ 
+ 	// Check usage first; get usage message out early.
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 57c07d93e7..5ece0d70dc 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -13,13 +13,21 @@ import (
+ 	"go/scanner";
+ 	"io";
+ 	"os";
++	pathutil "path";
+ 	"sort";
++	"strings";
+ 	"tabwriter";
+ )
+ 
+ 
++const pkgDir = "src/pkg";  // relative to $GOROOT
++
++
+ var (
++	goroot = flag.String("goroot", os.Getenv("GOROOT"), "Go root directory");
++
+ 	// operation modes
++	allgo = flag.Bool("a", false, "include all .go files for package");
+ 	silent = flag.Bool("s", false, "silent mode: parsing only");
+ 	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
+ 	exports = flag.Bool("x", false, "show exports only");
+@@ -33,9 +41,9 @@ var (
+ 
+ 
+ func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [file.go]\n");
++	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [file.go | pkgpath]\n");
+ 	flag.PrintDefaults();
+-	os.Exit(1);
++	os.Exit(2);
+ }
+ 
+ 
+@@ -48,6 +56,48 @@ func parserMode() uint {
+ }
+ 
+ 
++func isPkgFile(filename string) bool {
++	// ignore non-Go files
++	if strings.HasPrefix(filename, ".") || !strings.HasSuffix(filename, ".go") {
++		return false;
++	}
++
++	// ignore test files unless explicitly included
++	return *allgo || !strings.HasSuffix(filename, "_test.go");
++}
++
++
++func getPackage(path string) (*ast.Package, os.Error) {
++	if len(path) == 0 {
++		return nil, os.NewError("no path specified");
++	}
++
++	if strings.HasSuffix(path, ".go") || path == "/dev/stdin" {
++		// single go file
++		src, err := parser.ParseFile(path, nil, parserMode());
++		if err != nil {
++			return nil, err;
++		}
++		dirname, filename := pathutil.Split(path);
++		return &ast.Package{src.Name.Value, dirname, map[string]*ast.File{filename: src}}, nil;
++	}
++
++	// len(path) > 0
++	switch ch := path[0]; {
++	case ch == '.':
++		// cwd-relative path
++		if cwd, err := os.Getwd(); err == nil {
++			path = pathutil.Join(cwd, path);
++		}
++	case ch != '/':
++		// goroot/pkgDir-relative path
++		path = pathutil.Join(pathutil.Join(*goroot, pkgDir), path);
++	}
++
++	return parser.ParsePackage(path, isPkgFile, parserMode());
++}
++
++
+ func printerMode() uint {
+ 	mode := printer.DocComments;
+ 	if *optcommas {
+@@ -70,33 +120,35 @@ func makeTabwriter(writer io.Writer) *tabwriter.Writer {
+ 
+ 
+ func main() {
++	flag.Usage = usage;
+ 	flag.Parse();
+ 
+-	var filename string;
++	path := "";
+ 	switch flag.NArg() {
+-	case 0: filename = "/dev/stdin";
+-	case 1: filename = flag.Arg(0);
+-	default: usage();
++	case 0:
++		path = "/dev/stdin";
++	case 1:
++		path = flag.Arg(0);
++	default:
++		usage();
+ 	}
+ 
+-	src, err := io.ReadFile(filename);
+-	if err != nil {
+-		fmt.Fprintf(os.Stderr, "%v\n", err);
+-		os.Exit(1);
+-	}
+-
+-	prog, err := parser.Parse(filename, src, parserMode());
++	pkg, err := getPackage(path);
+ 	if err != nil {
+ 		scanner.PrintError(os.Stderr, err);
+ 		os.Exit(1);
+ 	}
+ 
+ 	if !*silent {
++		w := makeTabwriter(os.Stdout);
+ 		if *exports {
+-			ast.FilterExports(prog);  // ignore result
++			src := ast.PackageInterface(pkg);
++			printer.Fprint(w, src, printerMode());  // ignore errors
++		} else {
++			for _, src := range pkg.Files {
++				printer.Fprint(w, src, printerMode());  // ignore errors
++			}
+ 		}
+-		w := makeTabwriter(os.Stdout);
+-		printer.Fprint(w, prog, printerMode());  // ignore errors
+ 		w.Flush();
+ 	}
+ }
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 1241bb4797..ad5d2e4caf 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -20,7 +20,7 @@ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+ go/ast.install: go/token.install unicode.install utf8.install
+ go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+-go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install strings.install
++go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
+ go/printer.install: fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install
+ go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
+ go/token.install: strconv.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index c29c0aea7d..6fe77af352 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -92,6 +92,7 @@ TEST=\
+ 	flag\
+ 	fmt\
+ 	go/parser\
++	go/printer\
+ 	go/scanner\
+ 	gob\
+ 	hash/adler32\
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 4681e5dafc..781ba266a5 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // The AST package declares the types used to represent
+-// syntax trees for Go source files.
++// syntax trees for Go packages.
+ //
+ package ast
+ 
+@@ -764,15 +764,24 @@ func (d *FuncDecl) Visit(v DeclVisitor) { v.DoFuncDecl(d); }
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Programs
++// Files and packages
+ 
+-// A Program node represents the root node of an AST
+-// for an entire source file.
++// A File node represents a Go source file.
+ //
+-type Program struct {
++type File struct {
+ 	Doc *CommentGroup;  // associated documentation; or nil
+ 	token.Position;  // position of "package" keyword
+ 	Name *Ident;  // package name
+ 	Decls []Decl;  // top-level declarations
+ 	Comments []*CommentGroup;  // list of unassociated comments
+ }
++
++
++// A Package node represents a set of source files
++// collectively building a Go package.
++//
++type Package struct {
++	Name string;  // package name
++	Path string;  // package path
++	Files map[string]*File;  // path-relative filenames
++}
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 8ecda9f9cf..1858db8f52 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -177,14 +177,53 @@ func filterDecl(decl Decl) bool {
+ // FilterExports returns true if there is an exported declaration; it returns
+ // false otherwise.
+ //
+-func FilterExports(prog *Program) bool {
++func FilterExports(src *File) bool {
+ 	j := 0;
+-	for _, d := range prog.Decls {
++	for _, d := range src.Decls {
+ 		if filterDecl(d) {
+-			prog.Decls[j] = d;
++			src.Decls[j] = d;
+ 			j++;
+ 		}
+ 	}
+-	prog.Decls = prog.Decls[0 : j];
++	src.Decls = src.Decls[0 : j];
+ 	return j > 0;
+ }
++
++
++// PackageInterface returns an AST containing only the exported declarations
++// of the package pkg. The pkg AST is modified by PackageInterface.
++//
++func PackageInterface(pkg *Package) *File {
++	// filter each package file
++	for filename, s := range pkg.Files {
++		if !FilterExports(s) {
++			pkg.Files[filename] = nil, false;
++		}
++	}
++
++	// compute total number of top-level declarations in all source files
++	var doc *CommentGroup;
++	n := 0;
++	for _, src := range pkg.Files {
++		if doc == nil && src.Doc != nil {
++			// TODO(gri) what to do with multiple package comments?
++			doc = src.Doc;
++		}
++		n += len(src.Decls);
++	}
++
++	// collect top-level declarations of all source files
++	decls := make([]Decl, n);
++	i := 0;
++	for _, src := range pkg.Files {
++		for _, d := range src.Decls {
++			decls[i] = d;
++			i++;
++		}
++	}
++
++	// TODO(gri) should also collect comments so that this function
++	//           can be used by godoc.
++	var noPos token.Position;
++	return &File{doc, noPos, &Ident{noPos, pkg.Name}, decls, nil};
++}
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 0e09a4d5d7..860d6d54c0 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -181,32 +181,32 @@ var (
+ )
+ 
+ 
+-// AddProgram adds the AST for a source file to the DocReader.
++// AddFile adds the AST for a source file to the DocReader.
+ // Adding the same AST multiple times is a no-op.
+ //
+-func (doc *DocReader) AddProgram(prog *ast.Program) {
++func (doc *DocReader) AddFile(src *ast.File) {
+ 	if bug_markers == nil {
+ 		bug_markers = makeRex("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");  // BUG(uid):
+ 		bug_content = makeRex("[^ \n\r\t]+");  // at least one non-whitespace char
+ 	}
+ 
+-	if doc.name != prog.Name.Value {
++	if doc.name != src.Name.Value {
+ 		panic("package names don't match");
+ 	}
+ 
+ 	// add package documentation
+ 	// TODO(gri) what to do if there are multiple files?
+-	if prog.Doc != nil {
+-		doc.doc = prog.Doc
++	if src.Doc != nil {
++		doc.doc = src.Doc
+ 	}
+ 
+ 	// add all declarations
+-	for _, decl := range prog.Decls {
++	for _, decl := range src.Decls {
+ 		doc.addDecl(decl);
+ 	}
+ 
+ 	// collect BUG(...) comments
+-	for _, c := range prog.Comments {
++	for _, c := range src.Comments {
+ 		text := c.List[0].Text;
+ 		cstr := string(text);
+ 		if m := bug_markers.Execute(cstr); len(m) > 0 {
+diff --git a/src/pkg/go/parser/Makefile b/src/pkg/go/parser/Makefile
+index 08d83646f9..5e5c51a5af 100644
+--- a/src/pkg/go/parser/Makefile
++++ b/src/pkg/go/parser/Makefile
+@@ -2,8 +2,9 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++
+ # DO NOT EDIT.  Automatically generated by gobuild.
+-# gobuild -m >Makefile
++# gobuild -m parser.go interface.go >Makefile
+ 
+ D=/go/
+ 
+@@ -20,7 +21,7 @@ test: packages
+ 
+ coverage: packages
+ 	gotest
+-	6cov -g `pwd` | grep -v '_test\.go:'
++	6cov -g $$(pwd) | grep -v '_test\.go:'
+ 
+ %.$O: %.go
+ 	$(GC) -I_obj $*.go
+@@ -34,14 +35,21 @@ coverage: packages
+ O1=\
+ 	parser.$O\
+ 
++O2=\
++	interface.$O\
++
+ 
+-phases: a1
++phases: a1 a2
+ _obj$D/parser.a: phases
+ 
+ a1: $(O1)
+ 	$(AR) grc _obj$D/parser.a parser.$O
+ 	rm -f $(O1)
+ 
++a2: $(O2)
++	$(AR) grc _obj$D/parser.a interface.$O
++	rm -f $(O2)
++
+ 
+ newpkg: clean
+ 	mkdir -p _obj$D
+@@ -49,6 +57,7 @@ newpkg: clean
+ 
+ $(O1): newpkg
+ $(O2): a1
++$(O3): a2
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/parser.a
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+new file mode 100644
+index 0000000000..f3a46da40f
+--- /dev/null
++++ b/src/pkg/go/parser/interface.go
+@@ -0,0 +1,186 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains the exported entry points for invoking the parser.
++
++package parser
++
++import (
++	"bytes";
++	"fmt";
++	"go/ast";
++	"go/parser";
++	"go/scanner";
++	"io";
++	"os";
++	pathutil "path";
++	"strings";
++)
++
++
++// If src != nil, readSource converts src to a []byte if possible;
++// otherwise it returns an error. If src == nil, readSource returns
++// the result of reading the file specified by filename.
++//
++func readSource(filename string, src interface{}) ([]byte, os.Error) {
++	if src != nil {
++		switch s := src.(type) {
++		case string:
++			return strings.Bytes(s), nil;
++		case []byte:
++			return s, nil;
++		case *bytes.Buffer:
++			// is io.Reader, but src is already available in []byte form
++			if s != nil {
++				return s.Data(), nil;
++			}
++		case io.Reader:
++			var buf bytes.Buffer;
++			n, err := io.Copy(s, &buf);
++			if err != nil {
++				return nil, err;
++			}
++			return buf.Data(), nil;
++		default:
++			return nil, os.ErrorString("invalid source");
++		}
++	}
++
++	return io.ReadFile(filename);
++}
++
++
++// ParseExpr parses a Go expression and returns the corresponding
++// AST node. The filename and src arguments have the same interpretation
++// as for ParseFile. If there is an error, the result expression
++// may be nil or contain a partial AST.
++//
++func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
++	data, err := readSource(filename, src);
++	if err != nil {
++		return nil, err;
++	}
++
++	var p parser;
++	p.init(filename, data, 0);
++	x := p.parseExpr();  // TODO 6g bug - function call order in expr lists
++	return x, p.GetError(scanner.Sorted);
++}
++
++
++// ParseStmtList parses a list of Go statements and returns the list
++// of corresponding AST nodes. The filename and src arguments have the same
++// interpretation as for ParseFile. If there is an error, the node
++// list may be nil or contain partial ASTs.
++//
++func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
++	data, err := readSource(filename, src);
++	if err != nil {
++		return nil, err;
++	}
++
++	var p parser;
++	p.init(filename, data, 0);
++	list := p.parseStmtList();  // TODO 6g bug - function call order in expr lists
++	return list, p.GetError(scanner.Sorted);
++}
++
++
++// ParseFile parses a Go source file and returns a File node.
++//
++// If src != nil, ParseFile parses the file source from src. src may
++// be provided in a variety of formats. At the moment the following types
++// are supported: string, []byte, and io.Reader. In this case, filename is
++// only used for source position information and error messages.
++//
++// If src == nil, ParseFile parses the file specified by filename.
++//
++// The mode parameter controls the amount of source text parsed and other
++// optional parser functionality.
++//
++// If the source couldn't be read, the returned AST is nil and the error
++// indicates the specific failure. If the source was read but syntax
++// errors were found, the result is a partial AST (with ast.BadX nodes
++// representing the fragments of erroneous source code). Multiple errors
++// are returned via a scanner.ErrorList which is sorted by file position.
++//
++func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error) {
++	data, err := readSource(filename, src);
++	if err != nil {
++		return nil, err;
++	}
++
++	var p parser;
++	p.init(filename, data, mode);
++	prog := p.parseFile();  // TODO 6g bug - function call order in expr lists
++	return prog, p.GetError(scanner.NoMultiples);
++}
++
++
++// ParsePkgFile parses the file specified by filename and returns the
++// corresponding AST. If the file cannot be read, has syntax errors, or
++// does not belong to the package (i.e., pkgname != "" and the package
++// name in the file doesn't match pkkname), an error is returned. Mode
++// flags that control the amount of source text parsed are ignored.
++//
++func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
++	src, err := io.ReadFile(filename);
++	if err != nil {
++		return nil, err;
++	}
++
++	if pkgname != "" {
++		prog, err := ParseFile(filename, src, PackageClauseOnly);
++		if err != nil {
++			return nil, err;
++		}
++		if prog.Name.Value != pkgname {
++			return nil, os.NewError(fmt.Sprintf("multiple packages found: %s, %s", prog.Name.Value, pkgname));
++		}
++	}
++
++	// ignore flags that control partial parsing
++	return ParseFile(filename, src, mode &^ (PackageClauseOnly | ImportsOnly));
++}
++
++
++// ParsePackage parses all files in the directory specified by path and
++// returns an AST representing the package found. The set of files may be
++// restricted by providing a non-nil filter function; only the files with
++// (path-local) filenames passing through the filter are considered. If
++// zero or more then one package is found, an error is returned. Mode
++// flags that control the amount of source text parsed are ignored.
++//
++func ParsePackage(path string, filter func(string) bool, mode uint) (*ast.Package, os.Error) {
++	fd, err := os.Open(path, os.O_RDONLY, 0);
++	if err != nil {
++		return nil, err;
++	}
++
++	list, err := fd.Readdirnames(-1);
++	if err != nil {
++		return nil, err;
++	}
++
++	name := "";
++	files := make(map[string]*ast.File);
++	for _, filename := range list {
++		if filter == nil || filter(filename) {
++			src, err := ParsePkgFile(name, pathutil.Join(path, filename), mode);
++			if err != nil {
++				return nil, err;
++			}
++			files[filename] = src;
++			if name == "" {
++				name = src.Name.Value;
++			}
++		}
++	}
++
++	if len(files) == 0 {
++		return nil, os.NewError(path + ": no package found");
++	}
++
++	return &ast.Package{name, path, files}, nil;
++}
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index b39e98cbdd..0f5582da93 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A parser for Go source text. The input is a stream of lexical tokens
+-// provided via the Scanner interface. The output is an abstract syntax
+-// tree (AST) representing the Go source. The parser is invoked by calling
+-// Parse.
++// A parser for Go source files. Input may be provided in a variety of
++// forms (see the various Parse* functions); the output is an abstract
++// syntax tree (AST) representing the Go source. The parser is invoked
++// through one of the Parse* functions.
+ //
+ package parser
+ 
+@@ -33,6 +33,22 @@ const (
+ var noIndex = [2]int{-1, -1};
+ 
+ 
++// noPos is used when there is no corresponding source position for a token.
++var noPos token.Position;
++
++
++// The mode parameter to the Parse* functions is a set of flags (or 0).
++// They control the amount of source code parsed and other optional
++// parser functionality.
++//
++const (
++	PackageClauseOnly uint = 1 << iota;  // parsing stops after package clause
++	ImportsOnly;  // parsing stops after import declarations
++	ParseComments;  // parse comments and add them to AST
++	Trace;  // print a trace of parsed productions
++)
++
++
+ // The parser structure holds the parser's internal state.
+ type parser struct {
+ 	scanner.ErrorVector;
+@@ -58,8 +74,26 @@ type parser struct {
+ };
+ 
+ 
+-// noPos is used when there is no corresponding source position for a token
+-var noPos token.Position;
++// scannerMode returns the scanner mode bits given the parser's mode bits.
++func scannerMode(mode uint) uint {
++	if mode & ParseComments != 0 {
++		return scanner.ScanComments;
++	}
++	return 0;
++}
++
++
++func (p *parser) next()
++
++func (p *parser) init(filename string, src []byte, mode uint) {
++	p.ErrorVector.Init();
++	p.scanner.Init(filename, src, p, scannerMode(mode));
++	p.mode = mode;
++	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
++	p.comments.Init(0);
++	p.commentsIndex = noIndex;
++	p.next();
++}
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -253,9 +287,9 @@ func (p *parser) expect(tok token.Token) token.Position {
+ 
+ func (p *parser) tryType() ast.Expr
+ func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit
+-func (p *parser) parseExpression() ast.Expr
+-func (p *parser) parseStatement() ast.Stmt
+-func (p *parser) parseDeclaration(getSemi bool) (decl ast.Decl, gotSemi bool)
++func (p *parser) parseExpr() ast.Expr
++func (p *parser) parseStmt() ast.Stmt
++func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool)
+ 
+ 
+ func (p *parser) parseIdent() *ast.Ident {
+@@ -294,16 +328,16 @@ func (p *parser) parseIdentList(x ast.Expr) []*ast.Ident {
+ }
+ 
+ 
+-func (p *parser) parseExpressionList() []ast.Expr {
++func (p *parser) parseExprList() []ast.Expr {
+ 	if p.trace {
+ 		defer un(trace(p, "ExpressionList"));
+ 	}
+ 
+ 	list := vector.New(0);
+-	list.Push(p.parseExpression());
++	list.Push(p.parseExpr());
+ 	for p.tok == token.COMMA {
+ 		p.next();
+-		list.Push(p.parseExpression());
++		list.Push(p.parseExpr());
+ 	}
+ 
+ 	// convert list
+@@ -372,7 +406,7 @@ func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
+ 		len = &ast.Ellipsis{p.pos};
+ 		p.next();
+ 	} else if p.tok != token.RBRACK {
+-		len = p.parseExpression();
++		len = p.parseExpr();
+ 	}
+ 	p.expect(token.RBRACK);
+ 	elt := p.parseType();
+@@ -777,7 +811,7 @@ func makeStmtList(list *vector.Vector) []ast.Stmt {
+ }
+ 
+ 
+-func (p *parser) parseStatementList() []ast.Stmt {
++func (p *parser) parseStmtList() []ast.Stmt {
+ 	if p.trace {
+ 		defer un(trace(p, "StatementList"));
+ 	}
+@@ -789,7 +823,7 @@ func (p *parser) parseStatementList() []ast.Stmt {
+ 			p.expect(token.SEMICOLON);
+ 			expectSemi = false;
+ 		}
+-		list.Push(p.parseStatement());
++		list.Push(p.parseStmt());
+ 		if p.tok == token.SEMICOLON {
+ 			p.next();
+ 		} else if p.optSemi {
+@@ -809,7 +843,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
+ 	}
+ 
+ 	lbrace := p.expect(token.LBRACE);
+-	list := p.parseStatementList();
++	list := p.parseStmtList();
+ 	rbrace := p.expect(token.RBRACE);
+ 	p.optSemi = true;
+ 
+@@ -899,7 +933,7 @@ func (p *parser) parseOperand() ast.Expr {
+ 		lparen := p.pos;
+ 		p.next();
+ 		p.exprLev++;
+-		x := p.parseExpression();
++		x := p.parseExpr();
+ 		p.exprLev--;
+ 		rparen := p.expect(token.RPAREN);
+ 		return &ast.ParenExpr{lparen, x, rparen};
+@@ -955,11 +989,11 @@ func (p *parser) parseIndex(x ast.Expr) ast.Expr {
+ 
+ 	p.expect(token.LBRACK);
+ 	p.exprLev++;
+-	begin := p.parseExpression();
++	begin := p.parseExpr();
+ 	var end ast.Expr;
+ 	if p.tok == token.COLON {
+ 		p.next();
+-		end = p.parseExpression();
++		end = p.parseExpr();
+ 	}
+ 	p.exprLev--;
+ 	p.expect(token.RBRACK);
+@@ -976,7 +1010,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ 	lparen := p.expect(token.LPAREN);
+ 	var args []ast.Expr;
+ 	if p.tok != token.RPAREN {
+-		args = p.parseExpressionList();
++		args = p.parseExprList();
+ 	}
+ 	rparen := p.expect(token.RPAREN);
+ 
+@@ -989,11 +1023,11 @@ func (p *parser) parseElement() ast.Expr {
+ 		defer un(trace(p, "Element"));
+ 	}
+ 
+-	x := p.parseExpression();
++	x := p.parseExpr();
+ 	if p.tok == token.COLON {
+ 		colon := p.pos;
+ 		p.next();
+-		x = &ast.KeyValueExpr{x, colon, p.parseExpression()};
++		x = &ast.KeyValueExpr{x, colon, p.parseExpr()};
+ 	}
+ 
+ 	return x;
+@@ -1204,7 +1238,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
+ }
+ 
+ 
+-func (p *parser) parseExpression() ast.Expr {
++func (p *parser) parseExpr() ast.Expr {
+ 	if p.trace {
+ 		defer un(trace(p, "Expression"));
+ 	}
+@@ -1222,7 +1256,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 		defer un(trace(p, "SimpleStmt"));
+ 	}
+ 
+-	x := p.parseExpressionList();
++	x := p.parseExprList();
+ 
+ 	switch p.tok {
+ 	case token.COLON:
+@@ -1230,7 +1264,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 		p.next();
+ 		if labelOk && len(x) == 1 {
+ 			if label, isIdent := x[0].(*ast.Ident); isIdent {
+-				return &ast.LabeledStmt{label, p.parseStatement()};
++				return &ast.LabeledStmt{label, p.parseStmt()};
+ 			}
+ 		}
+ 		p.Error(x[0].Pos(), "illegal label declaration");
+@@ -1244,7 +1278,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 		// assignment statement
+ 		pos, tok := p.pos, p.tok;
+ 		p.next();
+-		y := p.parseExpressionList();
++		y := p.parseExprList();
+ 		if len(x) > 1 && len(y) > 1 && len(x) != len(y) {
+ 			p.Error(x[0].Pos(), "arity of lhs doesn't match rhs");
+ 		}
+@@ -1269,7 +1303,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 
+ 
+ func (p *parser) parseCallExpr() *ast.CallExpr {
+-	x := p.parseExpression();
++	x := p.parseExpr();
+ 	if call, isCall := x.(*ast.CallExpr); isCall {
+ 		return call;
+ 	}
+@@ -1315,7 +1349,7 @@ func (p *parser) parseReturnStmt() *ast.ReturnStmt {
+ 	p.expect(token.RETURN);
+ 	var x []ast.Expr;
+ 	if p.tok != token.SEMICOLON && p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE {
+-		x = p.parseExpressionList();
++		x = p.parseExprList();
+ 	}
+ 
+ 	return &ast.ReturnStmt{pos, x};
+@@ -1400,7 +1434,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
+ 	var else_ ast.Stmt;
+ 	if p.tok == token.ELSE {
+ 		p.next();
+-		else_ = p.parseStatement();
++		else_ = p.parseStmt();
+ 	}
+ 
+ 	return &ast.IfStmt{pos, s1, p.makeExpr(s2), body, else_};
+@@ -1417,13 +1451,13 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
+ 	var x []ast.Expr;
+ 	if p.tok == token.CASE {
+ 		p.next();
+-		x = p.parseExpressionList();
++		x = p.parseExprList();
+ 	} else {
+ 		p.expect(token.DEFAULT);
+ 	}
+ 
+ 	colon := p.expect(token.COLON);
+-	body := p.parseStatementList();
++	body := p.parseStmtList();
+ 
+ 	return &ast.CaseClause{pos, x, colon, body};
+ }
+@@ -1445,7 +1479,7 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
+ 	}
+ 
+ 	colon := p.expect(token.COLON);
+-	body := p.parseStatementList();
++	body := p.parseStmtList();
+ 
+ 	return &ast.TypeCaseClause{pos, typ, colon, body};
+ }
+@@ -1499,17 +1533,17 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 		p.next();
+ 		if p.tok == token.ARROW {
+ 			// RecvExpr without assignment
+-			rhs = p.parseExpression();
++			rhs = p.parseExpr();
+ 		} else {
+ 			// SendExpr or RecvExpr
+-			rhs = p.parseExpression();
++			rhs = p.parseExpr();
+ 			if p.tok == token.ASSIGN || p.tok == token.DEFINE {
+ 				// RecvExpr with assignment
+ 				tok = p.tok;
+ 				p.next();
+ 				lhs = rhs;
+ 				if p.tok == token.ARROW {
+-					rhs = p.parseExpression();
++					rhs = p.parseExpr();
+ 				} else {
+ 					p.expect(token.ARROW);  // use expect() error handling
+ 				}
+@@ -1521,7 +1555,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 	}
+ 
+ 	colon := p.expect(token.COLON);
+-	body := p.parseStatementList();
++	body := p.parseStmtList();
+ 
+ 	return &ast.CommClause{pos, tok, lhs, rhs, colon, body};
+ }
+@@ -1595,14 +1629,14 @@ func (p *parser) parseForStmt() ast.Stmt {
+ }
+ 
+ 
+-func (p *parser) parseStatement() ast.Stmt {
++func (p *parser) parseStmt() ast.Stmt {
+ 	if p.trace {
+ 		defer un(trace(p, "Statement"));
+ 	}
+ 
+ 	switch p.tok {
+ 	case token.CONST, token.TYPE, token.VAR:
+-		decl, _ := p.parseDeclaration(false);  // do not consume trailing semicolon
++		decl, _ := p.parseDecl(false);  // do not consume trailing semicolon
+ 		return &ast.DeclStmt{decl};
+ 	case
+ 		// tokens that may start a top-level expression
+@@ -1694,7 +1728,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Sp
+ 	var values []ast.Expr;
+ 	if typ != nil || p.tok == token.ASSIGN {
+ 		p.expect(token.ASSIGN);
+-		values = p.parseExpressionList();
++		values = p.parseExprList();
+ 	}
+ 	comment, gotSemi := p.parseComment(getSemi);
+ 
+@@ -1725,7 +1759,7 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec
+ 	var values []ast.Expr;
+ 	if typ == nil || p.tok == token.ASSIGN {
+ 		p.expect(token.ASSIGN);
+-		values = p.parseExpressionList();
++		values = p.parseExprList();
+ 	}
+ 	comment, gotSemi := p.parseComment(getSemi);
+ 
+@@ -1831,7 +1865,7 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
+ }
+ 
+ 
+-func (p *parser) parseDeclaration(getSemi bool) (decl ast.Decl, gotSemi bool) {
++func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
+ 	if p.trace {
+ 		defer un(trace(p, "Declaration"));
+ 	}
+@@ -1873,23 +1907,11 @@ func (p *parser) parseDeclaration(getSemi bool) (decl ast.Decl, gotSemi bool) {
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Packages
++// Source files
+ 
+-// The mode parameter to the Parse function is a set of flags (or 0).
+-// They control the amount of source code parsed and other optional
+-// parser functionality.
+-//
+-const (
+-	PackageClauseOnly uint = 1 << iota;  // parsing stops after package clause
+-	ImportsOnly;  // parsing stops after import declarations
+-	ParseComments;  // parse comments and add them to AST
+-	Trace;  // print a trace of parsed productions
+-)
+-
+-
+-func (p *parser) parsePackage() *ast.Program {
++func (p *parser) parseFile() *ast.File {
+ 	if p.trace {
+-		defer un(trace(p, "Program"));
++		defer un(trace(p, "File"));
+ 	}
+ 
+ 	// package clause
+@@ -1912,7 +1934,7 @@ func (p *parser) parsePackage() *ast.Program {
+ 		if p.mode & ImportsOnly == 0 {
+ 			// rest of package body
+ 			for p.tok != token.EOF {
+-				decl, _ := p.parseDeclaration(true);  // consume optional semicolon
++				decl, _ := p.parseDecl(true);  // consume optional semicolon
+ 				list.Push(decl);
+ 			}
+ 		}
+@@ -1941,119 +1963,5 @@ func (p *parser) parsePackage() *ast.Program {
+ 		}
+ 	}
+ 
+-	return &ast.Program{comment, pos, ident, decls, comments};
+-}
+-
+-
+-// ----------------------------------------------------------------------------
+-// Parser entry points.
+-
+-func readSource(src interface{}) ([]byte, os.Error) {
+-	if src != nil {
+-		switch s := src.(type) {
+-		case string:
+-			return strings.Bytes(s), nil;
+-		case []byte:
+-			return s, nil;
+-		case *bytes.Buffer:
+-			// is io.Reader, but src is already available in []byte form
+-			if s != nil {
+-				return s.Data(), nil;
+-			}
+-		case io.Reader:
+-			var buf bytes.Buffer;
+-			n, err := io.Copy(s, &buf);
+-			if err != nil {
+-				return nil, err;
+-			}
+-			return buf.Data(), nil;
+-		}
+-	}
+-	return nil, os.ErrorString("invalid source");
+-}
+-
+-
+-// scannerMode returns the scanner mode bits given the parser's mode bits.
+-func scannerMode(mode uint) uint {
+-	if mode & ParseComments != 0 {
+-		return scanner.ScanComments;
+-	}
+-	return 0;
+-}
+-
+-
+-func (p *parser) init(filename string, src interface{}, mode uint) os.Error {
+-	data, err := readSource(src);
+-	if err != nil {
+-		return err;
+-	}
+-
+-	// initialize parser state
+-	p.ErrorVector.Init();
+-	p.scanner.Init(filename, data, p, scannerMode(mode));
+-	p.mode = mode;
+-	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
+-	p.comments.Init(0);
+-	p.commentsIndex = noIndex;
+-	p.next();
+-
+-	return nil;
+-}
+-
+-
+-// Parse parses a Go program.
+-//
+-// The filename is only used in AST position information and error messages
+-// and may be empty. The program source src may be provided in a variety of
+-// formats. At the moment the following types are supported: string, []byte,
+-// and io.Reader. The mode parameter controls the amount of source text parsed
+-// and other optional parser functionality.
+-//
+-// Parse returns a complete AST if no error occured. Otherwise, if the
+-// source couldn't be read, the returned program is nil and the error
+-// indicates the specific failure. If the source was read but syntax
+-// errors were found, the result is a partial AST (with ast.BadX nodes
+-// representing the fragments of erroneous source code). Multiple errors
+-// are returned via a scanner.ErrorList which is sorted by file position.
+-//
+-func Parse(filename string, src interface{}, mode uint) (*ast.Program, os.Error) {
+-	var p parser;
+-	if err := p.init(filename, src, mode); err != nil {
+-		return nil, err;
+-	}
+-
+-	prog := p.parsePackage();  // TODO 6g bug - function call order in expr lists
+-	return prog, p.GetError(scanner.NoMultiples);
+-}
+-
+-
+-// ParseStmts parses a list of Go statements and returns the list of
+-// corresponding AST nodes. The filename and src arguments have the
+-// same interpretation as for Parse. If there is an error, the node
+-// list may be nil or contain partial ASTs.
+-//
+-func ParseStmts(filename string, src interface{}) ([]ast.Stmt, os.Error) {
+-	var p parser;
+-	if err := p.init(filename, src, 0); err != nil {
+-		return nil, err;
+-	}
+-
+-	list := p.parseStatementList();  // TODO 6g bug - function call order in expr lists
+-	return list, p.GetError(scanner.Sorted);
+-}
+-
+-
+-// ParseExpr parses a single Go expression and returns the corresponding
+-// AST node. The filename and src arguments have the same interpretation
+-// as for Parse. If there is an error, the result expression may be nil
+-// or contain a partial AST.
+-//
+-func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
+-	var p parser;
+-	if err := p.init(filename, src, 0); err != nil {
+-		return nil, err;
+-	}
+-
+-	x := p.parseExpression();  // TODO 6g bug - function call order in expr lists
+-	return x, p.GetError(scanner.Sorted);
++	return &ast.File{comment, pos, ident, decls, comments};
+ }
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index f8501b3b57..3b02c50345 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -22,9 +22,9 @@ var illegalInputs = []interface{} {
+ 
+ func TestParseIllegalInputs(t *testing.T) {
+ 	for _, src := range illegalInputs {
+-		prog, err := Parse("", src, 0);
++		prog, err := ParseFile("", src, 0);
+ 		if err == nil {
+-			t.Errorf("Parse(%v) should have failed", src);
++			t.Errorf("ParseFile(%v) should have failed", src);
+ 		}
+ 	}
+ }
+@@ -38,9 +38,9 @@ var validPrograms = []interface{} {
+ 
+ func TestParseValidPrograms(t *testing.T) {
+ 	for _, src := range validPrograms {
+-		prog, err := Parse("", src, 0);
++		prog, err := ParseFile("", src, 0);
+ 		if err != nil {
+-			t.Errorf("Parse(%q) failed: %v", src, err);
++			t.Errorf("ParseFile(%q): %v", src, err);
+ 		}
+ 	}
+ }
+@@ -54,15 +54,38 @@ var validFiles = []string {
+ 
+ func TestParse3(t *testing.T) {
+ 	for _, filename := range validFiles {
+-		src, err := os.Open(filename, os.O_RDONLY, 0);
+-		defer src.Close();
++		prog, err := ParseFile(filename, nil, 0);
+ 		if err != nil {
+-			t.Fatal(err);
++			t.Errorf("ParseFile(%s): %v", filename, err);
+ 		}
++	}
++}
+ 
+-		prog, err := Parse(filename, src, 0);
+-		if err != nil {
+-			t.Errorf("Parse(%s): %v", filename, err);
++
++func filter(filename string) bool {
++	switch filename {
++	case "parser.go":
++	case "interface.go":
++	case "parser_test.go":
++	default:
++		return false;
++	}
++	return true;
++}
++
++
++func TestParse4(t *testing.T) {
++	path := ".";
++	pkg, err := ParsePackage(path, filter, 0);
++	if err != nil {
++		t.Errorf("ParsePackage(%s): %v", path, err);
++	}
++	if pkg.Name != "parser" {
++		t.Errorf("incorrect package name: %s", pkg.Name);
++	}
++	for filename, _ := range pkg.Files {
++		if !filter(filename) {
++			t.Errorf("unexpected package file: %s", filename);
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 4196eb8d8c..4b2d8f7ae0 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -891,16 +891,16 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Programs
++// Files
+ 
+-func (p *printer) program(prog *ast.Program) {
+-	p.setComments(prog.Comments);  // unassociated comments
++func (p *printer) file(src *ast.File) {
++	p.setComments(src.Comments);  // unassociated comments
+ 
+-	p.leadingComment(prog.Doc);
+-	p.print(prog.Pos(), token.PACKAGE, blank);
+-	p.expr(prog.Name);
++	p.leadingComment(src.Doc);
++	p.print(src.Pos(), token.PACKAGE, blank);
++	p.expr(src.Name);
+ 
+-	for _, d := range prog.Decls {
++	for _, d := range src.Decls {
+ 		p.print(newline, newline);
+ 		comment, _ := p.decl(d);
+ 		if p.optSemis() {
+@@ -917,7 +917,7 @@ func (p *printer) program(prog *ast.Program) {
+ // Public interface
+ 
+ // Fprint "pretty-prints" an AST node to output and returns the number of
+-// bytes written, and an error, if any. The node type must be *ast.Program,
++// bytes written, and an error, if any. The node type must be *ast.File,
+ // or assignment-compatible to ast.Expr, ast.Decl, or ast.Stmt. Printing is
+ // controlled by the mode parameter. For best results, the output should be
+ // a tabwriter.Writer.
+@@ -935,8 +935,8 @@ func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
+ 		case ast.Decl:
+ 			comment, _ := p.decl(n);
+ 			p.trailingComment(comment);  // no newline at end
+-		case *ast.Program:
+-			p.program(n);
++		case *ast.File:
++			p.file(n);
+ 		default:
+ 			p.errors <- os.NewError("unsupported node type");
+ 		}
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index dc42098e5e..bc21109f9a 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -39,15 +39,8 @@ func lineString(text []byte, i int) string {
+ 
+ 
+ func check(t *testing.T, source, golden string, exports bool) {
+-	// get source
+-	src, err := io.ReadFile(source);
+-	if err != nil {
+-		t.Error(err);
+-		return;
+-	}
+-
+ 	// parse source
+-	prog, err := parser.Parse(src, parser.ParseComments);
++	prog, err := parser.ParseFile(source, nil, parser.ParseComments);
+ 	if err != nil {
+ 		t.Error(err);
+ 		return;

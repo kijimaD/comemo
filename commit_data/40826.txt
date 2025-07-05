@@ -15,7 +15,58 @@ Date:   Tue Jul 16 12:51:34 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go              |  2 +-
  src/cmd/go/testdata/script/mod_load_badchain.txt | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index c6a7c419fb..9a5d4f231c 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1138,7 +1138,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
+ 		return nil, module.VersionError(mod, fmt.Errorf(`parsing go.mod:
+ 	module declares its path as: %s
+-	          but was loaded as: %s`, mod.Path, mpath))
++	        but was required as: %s`, mod.Path, mpath))
+ 	}
+ 	if f.Go != nil {
+ 		r.versions.LoadOrStore(mod, f.Go.Version)
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index 1e0b472468..559f411593 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -59,27 +59,27 @@ func Test(t *testing.T) {}
+ go get: example.com/badchain/c@v1.0.0 updating to
+ 	example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: example.com/badchain/c
+-	          but was loaded as: example.com/badchain/wrong
++	        but was required as: example.com/badchain/wrong
+ -- update-a-expected --
+ go get: example.com/badchain/a@v1.1.0 requires
+ 	example.com/badchain/b@v1.1.0 requires
+ 	example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: example.com/badchain/c
+-	          but was loaded as: example.com/badchain/wrong
++	        but was required as: example.com/badchain/wrong
+ -- list-expected --
+ go: example.com/badchain/a@v1.1.0 requires
+ 	example.com/badchain/b@v1.1.0 requires
+ 	example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: example.com/badchain/c
+-	          but was loaded as: example.com/badchain/wrong
++	        but was required as: example.com/badchain/wrong
+ -- list-missing-expected --
+ go: m/use imports
+ 	example.com/badchain/c: example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: example.com/badchain/c
+-	          but was loaded as: example.com/badchain/wrong
++	        but was required as: example.com/badchain/wrong
+ -- list-missing-test-expected --
+ go: m/testuse tested by
+ 	m/testuse.test imports
+ 	example.com/badchain/c: example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: example.com/badchain/c
+-	          but was loaded as: example.com/badchain/wrong
++	        but was required as: example.com/badchain/wrong

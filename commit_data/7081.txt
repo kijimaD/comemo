@@ -10,6 +10,24 @@ Date:   Tue Jan 11 11:22:47 2011 -0800
     TBR=rsc
     CC=golang-dev
     https://golang.org/cl/3912043
-
+---
  src/cmd/ld/ldmacho.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index f6095fb334..7e38db0e44 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -630,8 +630,10 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			s->size = (sym+1)->value - sym->value;
+ 		else
+ 			s->size = sect->addr + sect->size - sym->value;
+-		s->dynimplib = nil;	// satisfy dynimport
+-		s->dynimpname = nil;	// satisfy dynimport
++		if(!s->dynexport) {
++			s->dynimplib = nil;	// satisfy dynimport
++			s->dynimpname = nil;	// satisfy dynimport
++		}
+ 		if(outer->type == STEXT) {
+ 			Prog *p;
+ 

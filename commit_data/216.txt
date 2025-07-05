@@ -5,7 +5,7 @@ Date:   Tue Jun 24 14:11:20 2008 -0700
     string nil same as string ""
     
     SVN=124381
-
+---
  src/cmd/6g/cgen.c     |   9 ++++
  src/cmd/6g/gen.c      |   5 --
  src/cmd/6g/gsubr.c    |   7 ++-
@@ -13,3 +13,441 @@ Date:   Tue Jun 24 14:11:20 2008 -0700
  src/runtime/runtime.c |  32 +++++++++---
  src/runtime/runtime.h |   2 +-
  6 files changed, 129 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 9f3fa92e57..6b820c5234 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -155,6 +155,15 @@ cgen(Node *n, Node *res)
+ 			regfree(&n1);
+ 			break;
+ 		}
++		if(isptrto(nl->type, TMAP)) {
++			regalloc(&n1, types[tptr], res);
++			cgen(nl, &n1);
++			n1.op = OINDREG;
++			n1.type = types[TINT32];
++			gmove(&n1, res);
++			regfree(&n1);
++			break;
++		}
+ 		fatal("cgen: OLEN: unknown type %lT", nl->type);
+ 		break;
+ 
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 923c3a721b..cbd2dd651b 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -825,11 +825,6 @@ cgen_as(Node *nl, Node *nr, int op)
+ 
+ 		case TPTR32:
+ 		case TPTR64:
+-			if(isptrto(nl->type, TSTRING)) {
+-				nr->val.ctype = CTSTR;
+-				nr->val.sval = &emptystring;
+-				break;
+-			}
+ 			nr->val.ctype = CTNIL;
+ 			nr->val.vval = 0;
+ 			break;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 956d357be3..a35c786a8b 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1687,8 +1687,11 @@ stringpool(Node *n)
+ 	Pool *p;
+ 	int w;
+ 
+-	if(n->op != OLITERAL || n->val.ctype != CTSTR)
+-		fatal("stringpool: not string");
++	if(n->op != OLITERAL || n->val.ctype != CTSTR) {
++		if(n->val.ctype == CTNIL)
++			return;
++		fatal("stringpool: not string %N", n);
++	}
+ 
+ 	p = mal(sizeof(*p));
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 86fe1439d6..6b3860d283 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -239,31 +239,53 @@ loop:
+ 			goto ret;
+ 		}
+ 
+-		if(cr != 1) {
+-			yyerror("bad shape across assignment");
+-			goto ret;
+-		}
+-
+ 		switch(r->op) {
+ 		case OCALLMETH:
+ 		case OCALLINTER:
+ 		case OCALL:
+-			walktype(r, Erv);
+-			l = ascompatet(n->op, &n->left, &r->type, 0);
+-			if(l != N) {
+-				*n = *nod(OLIST, r, reorder2(l));
++			if(cr == 1) {
++				// a,b,... = fn()
++				walktype(r, Erv);
++				l = ascompatet(n->op, &n->left, &r->type, 0);
++				if(l != N) {
++					*n = *nod(OLIST, r, reorder2(l));
++				}
++				goto ret;
+ 			}
+ 			break;
+ 
+ 		case OINDEX:
+ 		case OINDEXPTR:
+-			if(!isptrto(r->left->type, TMAP))
+-				goto badt;
+-			if(cl != 2)
+-				goto badt;
+-			*n = *mapop(n, top);
++			if(cl == 2 && cr == 1) {
++				// a,b = map[] - mapaccess2
++				if(!isptrto(r->left->type, TMAP))
++					break;
++				l = mapop(n, top);
++				if(l == N)
++					break;
++				*n = *l;
++				goto ret;
++			}
++			break;
++		}
++
++		switch(l->op) {
++		case OINDEX:
++		case OINDEXPTR:
++			if(cl == 1 && cr == 2) {
++				// map[] = a,b - mapassign2
++				if(!isptrto(l->left->type, TMAP))
++					break;
++				l = mapop(n, top);
++				if(l == N)
++					break;
++				*n = *l;
++				goto ret;
++			}
+ 			break;
+ 		}
++
++		yyerror("bad shape across assignment - cr=%d cl=%d\n", cr, cl);
+ 		goto ret;
+ 
+ 	case OBREAK:
+@@ -455,6 +477,8 @@ loop:
+ 			goto badt;
+ 		case TSTRING:
+ 			break;
++		case TMAP:
++			break;
+ 		}
+ 		n->type = types[TINT32];
+ 		goto ret;
+@@ -1348,7 +1372,7 @@ mapop(Node *n, int top)
+ 	Node *r, *a;
+ 	Type *t;
+ 	Node *on;
+-	int alg1, alg2;
++	int alg1, alg2, cl, cr;
+ 
+ 	lno = dynlineno;
+ 	dynlineno = n->lineno;
+@@ -1433,53 +1457,66 @@ mapop(Node *n, int top)
+ 		r->type = t->type;
+ 		break;
+ 
+-	access2:
+-		// mapaccess2(hmap *map[any-1]any-2, key any-3) (val-4 any, pres bool);
++	case OAS:
++		cl = listcount(n->left);
++		cr = listcount(n->right);
+ 
+-		t = fixmap(n->right->left->type);
++		if(cl == 1 && cr == 2)
++			goto assign2;
++		if(cl == 2 && cr == 1)
++			goto access2;
++		if(cl != 1 || cr != 1)
++			goto shape;
++
++		// mapassign1(hmap *map[any-1]any-2, key any-3, val any-4);
++
++//dump("assign1", n);
++		if(n->left->op != OINDEX)
++			goto shape;
++
++		t = fixmap(n->left->left->type);
+ 		if(t == T)
+ 			break;
+ 
+-		a = n->right->right;			// key
++		a = n->right;				// val
+ 		r = a;
+-		a = n->right->left;			// map
++		a = n->left->right;			// key
++		r = nod(OLIST, a, r);
++		a = n->left->left;			// map
+ 		r = nod(OLIST, a, r);
+ 
+-		on = syslook("mapaccess2", 1);
++		on = syslook("mapassign1", 1);
+ 
+ 		argtype(on, t->down);	// any-1
+ 		argtype(on, t->type);	// any-2
+ 		argtype(on, t->down);	// any-3
+ 		argtype(on, t->type);	// any-4
+ 
+-		n->right = nod(OCALL, on, r);
+-		walktype(n, Etop);
+-		r = n;
++		r = nod(OCALL, on, r);
++		walktype(r, Erv);
+ 		break;
+ 
+-	case OAS:
+-		if(top != Elv) {
+-			if(top == Etop)
+-				goto access2;
+-			goto nottop;
+-		}
+-		if(n->left->op != OINDEX)
+-			fatal("mapos: AS left not OINDEX");
++	assign2:
++		// mapassign2(hmap *map[any]any, key any, val any, pres bool);
+ 
+-		// mapassign1(hmap *map[any-1]any-2, key any-3, val any-4);
++//dump("assign2", n);
++		if(n->left->op != OINDEX)
++			goto shape;
+ 
+ 		t = fixmap(n->left->left->type);
+ 		if(t == T)
+ 			break;
+ 
+-		a = n->right;				// val
++		a = n->right->right;			// pres
+ 		r = a;
++		a = n->right->left;			// val
++		r =nod(OLIST, a, r);
+ 		a = n->left->right;			// key
+ 		r = nod(OLIST, a, r);
+ 		a = n->left->left;			// map
+ 		r = nod(OLIST, a, r);
+ 
+-		on = syslook("mapassign1", 1);
++		on = syslook("mapassign2", 1);
+ 
+ 		argtype(on, t->down);	// any-1
+ 		argtype(on, t->type);	// any-2
+@@ -1490,42 +1527,43 @@ mapop(Node *n, int top)
+ 		walktype(r, Erv);
+ 		break;
+ 
+-/* BOTCH get 2nd version attached */
+-		if(top != Elv)
+-			goto nottop;
+-		if(n->left->op != OINDEX)
+-			fatal("mapos: AS left not OINDEX");
++	access2:
++		// mapaccess2(hmap *map[any-1]any-2, key any-3) (val-4 any, pres bool);
+ 
+-		// mapassign2(hmap *map[any]any, key any, val any, pres bool);
++//dump("access2", n);
++		if(n->right->op != OINDEX)
++			goto shape;
+ 
+-		t = fixmap(n->left->left->type);
++		t = fixmap(n->right->left->type);
+ 		if(t == T)
+ 			break;
+ 
+-		a = n->right;				// pres
++		a = n->right->right;			// key
+ 		r = a;
+-		a = n->right;				// val
+-		r =nod(OLIST, a, r);
+-		a = n->left->right;			// key
+-		r = nod(OLIST, a, r);
+-		a = n->left->left;			// map
++		a = n->right->left;			// map
+ 		r = nod(OLIST, a, r);
+ 
+-		on = syslook("mapassign2", 1);
++		on = syslook("mapaccess2", 1);
+ 
+ 		argtype(on, t->down);	// any-1
+ 		argtype(on, t->type);	// any-2
+ 		argtype(on, t->down);	// any-3
+ 		argtype(on, t->type);	// any-4
+ 
+-		r = nod(OCALL, on, r);
+-		walktype(r, Erv);
++		n->right = nod(OCALL, on, r);
++		walktype(n, Etop);
++		r = n;
+ 		break;
+ 
+ 	}
+ 	dynlineno = lno;
+ 	return r;
+ 
++shape:
++	dump("shape", n);
++	fatal("mapop: cl=%d cr=%d, %O", top, n->op);
++	return N;
++
+ nottop:
+ 	dump("bad top", n);
+ 	fatal("mapop: top=%d %O", top, n->op);
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 5b8d0489eb..9c668633b4 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -6,6 +6,9 @@
+ 
+ int32	debug	= 0;
+ 
++static	int32	empty		= 0;
++static	string	emptystring	= (string)&empty;
++
+ void
+ sys_printbool(bool v)
+ {
+@@ -73,11 +76,12 @@ sys_printpointer(void *p)
+ void
+ sys_printstring(string v)
+ {
+-	sys_write(1, v->str, v->len);
++	if(v != nil)
++		sys_write(1, v->str, v->len);
+ }
+ 
+ int32
+-strlen(int8 *s)
++findnull(int8 *s)
+ {
+ 	int32 l;
+ 
+@@ -89,7 +93,7 @@ strlen(int8 *s)
+ void
+ prints(int8 *s)
+ {
+-	sys_write(1, s, strlen(s));
++	sys_write(1, s, findnull(s));
+ }
+ 
+ void
+@@ -220,6 +224,11 @@ cmpstring(string s1, string s2)
+ 	uint32 i, l;
+ 	byte c1, c2;
+ 
++	if(s1 == nil)
++		s1 = emptystring;
++	if(s2 == nil)
++		s2 = emptystring;
++
+ 	l = s1->len;
+ 	if(s2->len < l)
+ 		l = s2->len;
+@@ -250,11 +259,11 @@ sys_catstring(string s1, string s2, string s3)
+ {
+ 	uint32 l;
+ 
+-	if(s1->len == 0) {
++	if(s1 == nil || s1->len == 0) {
+ 		s3 = s2;
+ 		goto out;
+ 	}
+-	if(s2->len == 0) {
++	if(s2 == nil || s2->len == 0) {
+ 		s3 = s1;
+ 		goto out;
+ 	}
+@@ -317,6 +326,9 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
+ 	string s, str;
+ 	int32 l;
+ 
++	if(si == nil)
++		si = emptystring;
++
+ 	if(lindex < 0 || lindex > si->len ||
+ 	   hindex < lindex || hindex > si->len) {
+ 		sys_printpc(&si);
+@@ -334,6 +346,9 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
+ void
+ sys_indexstring(string s, int32 i, byte b)
+ {
++	if(s == nil)
++		s = emptystring;
++
+ 	if(i < 0 || i >= s->len) {
+ 		sys_printpc(&s);
+ 		prints(" ");
+@@ -785,6 +800,7 @@ struct	Link
+ 
+ struct	Hmap
+ {
++	uint32	len;		// must be first
+ 	uint32	keysize;
+ 	uint32	valsize;
+ 	uint32	hint;
+@@ -881,7 +897,7 @@ static void
+ stringcopy(uint32 s, string *a, string *b)
+ {
+ 	if(b == nil) {
+-		*b = nil;
++		*a = nil;
+ 		return;
+ 	}
+ 	*a = *b;
+@@ -932,6 +948,7 @@ sys_newmap(uint32 keysize, uint32 valsize,
+ 
+ 	m = mal(sizeof(*m));
+ 
++	m->len = 0;
+ 	m->keysize = keysize;
+ 	m->valsize = valsize;
+ 	m->keyalg = &algarray[keyalg];
+@@ -1053,6 +1070,7 @@ sys_mapassign(Hmap *m, byte *ak, byte *av)
+ 	l->link = m->link;
+ 	m->link = l;
+ 	m->keyalg->copy(m->keysize, l->data, ak);
++	m->len++;
+ 
+ out:
+ 	m->valalg->copy(m->valsize, l->data+m->valoffset, av);
+@@ -1088,7 +1106,6 @@ sys_mapassign2(Hmap *m, ...)
+ 	Link **ll;
+ 	byte *ak, *av, *ap;
+ 
+-
+ 	ak = (byte*)&m + m->ko;
+ 	av = (byte*)&m + m->vo;
+ 	ap = (byte*)&m + m->po;
+@@ -1104,6 +1121,7 @@ sys_mapassign2(Hmap *m, ...)
+ 		if(m->keyalg->equal(m->keysize, ak, (*ll)->data)) {
+ 			m->valalg->copy(m->valsize, (*ll)->data+m->valoffset, nil);
+ 			(*ll) = (*ll)->link;
++			m->len--;
+ 			if(debug) {
+ 				prints("mapdelete (found): map=");
+ 				sys_printpointer(m);
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index fa9395f1be..15b33a070e 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -103,7 +103,7 @@ void	sys_write(int32, void*, int32);
+ void	sys_breakpoint(void);
+ uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
+ void	sys_memclr(byte*, uint32);
+-void* sys_getcallerpc(void*);
++void*	sys_getcallerpc(void*);
+ void	sys_sigaction(int64, void*, void*);
+ void	sys_rt_sigaction(int64, void*, void*, uint64);
+ 

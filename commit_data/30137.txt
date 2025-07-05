@@ -18,7 +18,765 @@ Date:   Fri Oct 21 08:39:39 2016 -0400
     Change-Id: I1c6dee31ece00fc3c5fdf6a24f1abbc91dd2db2a
     Reviewed-on: https://go-review.googlesource.com/31754
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/S390X.rules |  51 ++-
  src/cmd/compile/internal/ssa/rewriteS390X.go | 466 +++++++++++----------------
  2 files changed, 214 insertions(+), 303 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 2dfc21e8a5..99d041c55e 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -88,7 +88,7 @@
+ (Com32 x) -> (NOTW x)
+ (Com16 x) -> (NOTW x)
+ (Com8  x) -> (NOTW x)
+-(NOT x) && true -> (XORconst [-1] x)
++(NOT x) && true -> (XOR (MOVDconst [-1]) x)
+ (NOTW x) && true -> (XORWconst [-1] x)
+ 
+ // Lowering boolean ops
+@@ -480,21 +480,25 @@
+ (MULLW x (MOVDconst [c])) -> (MULLWconst [c] x)
+ (MULLW (MOVDconst [c]) x) -> (MULLWconst [c] x)
+ 
+-(AND x (MOVDconst [c])) && is32Bit(c) -> (ANDconst [c] x)
+-(AND (MOVDconst [c]) x) && is32Bit(c) -> (ANDconst [c] x)
++// NILF instructions leave the high 32 bits unchanged which is
++// equivalent to the leftmost 32 bits being set.
++// TODO(mundaym): modify the assembler to accept 64-bit values
++// and use isU32Bit(^c).
++(AND x (MOVDconst [c])) && is32Bit(c) && c < 0 -> (ANDconst [c] x)
++(AND (MOVDconst [c]) x) && is32Bit(c) && c < 0 -> (ANDconst [c] x)
+ (ANDW x (MOVDconst [c])) -> (ANDWconst [c] x)
+ (ANDW (MOVDconst [c]) x) -> (ANDWconst [c] x)
+ 
+ (ANDWconst [c] (ANDWconst [d] x)) -> (ANDWconst [c & d] x)
+ (ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c & d] x)
+ 
+-(OR x (MOVDconst [c])) && is32Bit(c) -> (ORconst [c] x)
+-(OR (MOVDconst [c]) x) && is32Bit(c) -> (ORconst [c] x)
++(OR x (MOVDconst [c])) && isU32Bit(c) -> (ORconst [c] x)
++(OR (MOVDconst [c]) x) && isU32Bit(c) -> (ORconst [c] x)
+ (ORW x (MOVDconst [c])) -> (ORWconst [c] x)
+ (ORW (MOVDconst [c]) x) -> (ORWconst [c] x)
+ 
+-(XOR x (MOVDconst [c])) && is32Bit(c) -> (XORconst [c] x)
+-(XOR (MOVDconst [c]) x) && is32Bit(c) -> (XORconst [c] x)
++(XOR x (MOVDconst [c])) && isU32Bit(c) -> (XORconst [c] x)
++(XOR (MOVDconst [c]) x) && isU32Bit(c) -> (XORconst [c] x)
+ (XORW x (MOVDconst [c])) -> (XORWconst [c] x)
+ (XORW (MOVDconst [c]) x) -> (XORWconst [c] x)
+ 
+@@ -521,10 +525,15 @@
+ (CMPWU x (MOVDconst [c])) -> (CMPWUconst x [int64(uint32(c))])
+ (CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(uint32(c))]))
+ 
+-// Using MOVBZreg instead of AND is cheaper.
+-(ANDconst [0xFF] x) -> (MOVBZreg x)
+-(ANDconst [0xFFFF] x) -> (MOVHZreg x)
+-(ANDconst [0xFFFFFFFF] x) -> (MOVWZreg x)
++// Using MOV{W,H,B}Zreg instead of AND is cheaper.
++(AND (MOVDconst [0xFF]) x) -> (MOVBZreg x)
++(AND x (MOVDconst [0xFF])) -> (MOVBZreg x)
++(AND (MOVDconst [0xFFFF]) x) -> (MOVHZreg x)
++(AND x (MOVDconst [0xFFFF])) -> (MOVHZreg x)
++(AND (MOVDconst [0xFFFFFFFF]) x) -> (MOVWZreg x)
++(AND x (MOVDconst [0xFFFFFFFF])) -> (MOVWZreg x)
++(ANDWconst [0xFF] x) -> (MOVBZreg x)
++(ANDWconst [0xFFFF] x) -> (MOVHZreg x)
+ 
+ // strength reduction
+ (MULLDconst [-1] x) -> (NEG x)
+@@ -638,21 +647,6 @@
+ (MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ (MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ 
+-// Fold extensions and ANDs together.
+-(MOVBZreg (ANDWconst [c] x)) -> (ANDconst [c & 0xff] x)
+-(MOVHZreg (ANDWconst [c] x)) -> (ANDconst [c & 0xffff] x)
+-(MOVWZreg (ANDWconst [c] x)) -> (ANDconst [c & 0xffffffff] x)
+-(MOVBreg (ANDWconst [c] x)) && c & 0x80 == 0 -> (ANDconst [c & 0x7f] x)
+-(MOVHreg (ANDWconst [c] x)) && c & 0x8000 == 0 -> (ANDconst [c & 0x7fff] x)
+-(MOVWreg (ANDWconst [c] x)) && c & 0x80000000 == 0 -> (ANDconst [c & 0x7fffffff] x)
+-
+-(MOVBZreg (ANDconst [c] x)) -> (ANDconst [c & 0xff] x)
+-(MOVHZreg (ANDconst [c] x)) -> (ANDconst [c & 0xffff] x)
+-(MOVWZreg (ANDconst [c] x)) -> (ANDconst [c & 0xffffffff] x)
+-(MOVBreg (ANDconst [c] x)) && c & 0x80 == 0 -> (ANDconst [c & 0x7f] x)
+-(MOVHreg (ANDconst [c] x)) && c & 0x8000 == 0 -> (ANDconst [c & 0x7fff] x)
+-(MOVWreg (ANDconst [c] x)) && c & 0x80000000 == 0 -> (ANDconst [c & 0x7fffffff] x)
+-
+ // Don't extend before storing
+ (MOVWstore [off] {sym} ptr (MOVWreg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
+ (MOVHstore [off] {sym} ptr (MOVHreg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
+@@ -951,14 +945,15 @@
+ (NEGW (MOVDconst [c])) -> (MOVDconst [int64(int32(-c))])
+ (MULLDconst [c] (MOVDconst [d])) -> (MOVDconst [c*d])
+ (MULLWconst [c] (MOVDconst [d])) -> (MOVDconst [int64(int32(c*d))])
++(AND (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c&d])
+ (ANDconst [c] (MOVDconst [d])) -> (MOVDconst [c&d])
+ (ANDWconst [c] (MOVDconst [d])) -> (MOVDconst [c&d])
++(OR (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c|d])
+ (ORconst [c] (MOVDconst [d])) -> (MOVDconst [c|d])
+ (ORWconst [c] (MOVDconst [d])) -> (MOVDconst [c|d])
++(XOR (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c^d])
+ (XORconst [c] (MOVDconst [d])) -> (MOVDconst [c^d])
+ (XORWconst [c] (MOVDconst [d])) -> (MOVDconst [c^d])
+-(NOT (MOVDconst [c])) -> (MOVDconst [^c])
+-(NOTW (MOVDconst [c])) -> (MOVDconst [^c])
+ 
+ // generic simplifications
+ // TODO: more of this
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 4027fa7bcf..0c14b43e1d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -6173,7 +6173,7 @@ func rewriteValueS390X_OpS390XAND(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (AND x (MOVDconst [c]))
+-	// cond: is32Bit(c)
++	// cond: is32Bit(c) && c < 0
+ 	// result: (ANDconst [c] x)
+ 	for {
+ 		x := v.Args[0]
+@@ -6182,7 +6182,7 @@ func rewriteValueS390X_OpS390XAND(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		if !(is32Bit(c)) {
++		if !(is32Bit(c) && c < 0) {
+ 			break
+ 		}
+ 		v.reset(OpS390XANDconst)
+@@ -6191,7 +6191,7 @@ func rewriteValueS390X_OpS390XAND(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (AND (MOVDconst [c]) x)
+-	// cond: is32Bit(c)
++	// cond: is32Bit(c) && c < 0
+ 	// result: (ANDconst [c] x)
+ 	for {
+ 		v_0 := v.Args[0]
+@@ -6200,7 +6200,7 @@ func rewriteValueS390X_OpS390XAND(v *Value, config *Config) bool {
+ 		}
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+-		if !(is32Bit(c)) {
++		if !(is32Bit(c) && c < 0) {
+ 			break
+ 		}
+ 		v.reset(OpS390XANDconst)
+@@ -6208,6 +6208,120 @@ func rewriteValueS390X_OpS390XAND(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (AND (MOVDconst [0xFF]) x)
++	// cond:
++	// result: (MOVBZreg x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_0.AuxInt != 0xFF {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpS390XMOVBZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (AND x (MOVDconst [0xFF]))
++	// cond:
++	// result: (MOVBZreg x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_1.AuxInt != 0xFF {
++			break
++		}
++		v.reset(OpS390XMOVBZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (AND (MOVDconst [0xFFFF]) x)
++	// cond:
++	// result: (MOVHZreg x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_0.AuxInt != 0xFFFF {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpS390XMOVHZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (AND x (MOVDconst [0xFFFF]))
++	// cond:
++	// result: (MOVHZreg x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_1.AuxInt != 0xFFFF {
++			break
++		}
++		v.reset(OpS390XMOVHZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (AND (MOVDconst [0xFFFFFFFF]) x)
++	// cond:
++	// result: (MOVWZreg x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_0.AuxInt != 0xFFFFFFFF {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpS390XMOVWZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (AND x (MOVDconst [0xFFFFFFFF]))
++	// cond:
++	// result: (MOVWZreg x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_1.AuxInt != 0xFFFFFFFF {
++			break
++		}
++		v.reset(OpS390XMOVWZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (AND (MOVDconst [c]) (MOVDconst [d]))
++	// cond:
++	// result: (MOVDconst [c&d])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = c & d
++		return true
++	}
+ 	// match: (AND x x)
+ 	// cond:
+ 	// result: x
+@@ -6446,6 +6560,30 @@ func rewriteValueS390X_OpS390XANDWconst(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ANDWconst [0xFF] x)
++	// cond:
++	// result: (MOVBZreg x)
++	for {
++		if v.AuxInt != 0xFF {
++			break
++		}
++		x := v.Args[0]
++		v.reset(OpS390XMOVBZreg)
++		v.AddArg(x)
++		return true
++	}
++	// match: (ANDWconst [0xFFFF] x)
++	// cond:
++	// result: (MOVHZreg x)
++	for {
++		if v.AuxInt != 0xFFFF {
++			break
++		}
++		x := v.Args[0]
++		v.reset(OpS390XMOVHZreg)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ANDWconst [c] _)
+ 	// cond: int32(c)==0
+ 	// result: (MOVDconst [0])
+@@ -6507,42 +6645,6 @@ func rewriteValueS390X_OpS390XANDconst(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (ANDconst [0xFF] x)
+-	// cond:
+-	// result: (MOVBZreg x)
+-	for {
+-		if v.AuxInt != 0xFF {
+-			break
+-		}
+-		x := v.Args[0]
+-		v.reset(OpS390XMOVBZreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (ANDconst [0xFFFF] x)
+-	// cond:
+-	// result: (MOVHZreg x)
+-	for {
+-		if v.AuxInt != 0xFFFF {
+-			break
+-		}
+-		x := v.Args[0]
+-		v.reset(OpS390XMOVHZreg)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (ANDconst [0xFFFFFFFF] x)
+-	// cond:
+-	// result: (MOVWZreg x)
+-	for {
+-		if v.AuxInt != 0xFFFFFFFF {
+-			break
+-		}
+-		x := v.Args[0]
+-		v.reset(OpS390XMOVWZreg)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (ANDconst [0] _)
+ 	// cond:
+ 	// result: (MOVDconst [0])
+@@ -8185,36 +8287,6 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVBZreg (ANDWconst [c] x))
+-	// cond:
+-	// result: (ANDconst [c & 0xff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDWconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0xff
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBZreg (ANDconst [c] x))
+-	// cond:
+-	// result: (ANDconst [c & 0xff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0xff
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVBload(v *Value, config *Config) bool {
+@@ -8330,42 +8402,6 @@ func rewriteValueS390X_OpS390XMOVBreg(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVBreg (ANDWconst [c] x))
+-	// cond: c & 0x80 == 0
+-	// result: (ANDconst [c & 0x7f] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDWconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		if !(c&0x80 == 0) {
+-			break
+-		}
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0x7f
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVBreg (ANDconst [c] x))
+-	// cond: c & 0x80 == 0
+-	// result: (ANDconst [c & 0x7f] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		if !(c&0x80 == 0) {
+-			break
+-		}
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0x7f
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVBstore(v *Value, config *Config) bool {
+@@ -11271,36 +11307,6 @@ func rewriteValueS390X_OpS390XMOVHZreg(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVHZreg (ANDWconst [c] x))
+-	// cond:
+-	// result: (ANDconst [c & 0xffff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDWconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0xffff
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHZreg (ANDconst [c] x))
+-	// cond:
+-	// result: (ANDconst [c & 0xffff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0xffff
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVHload(v *Value, config *Config) bool {
+@@ -11468,42 +11474,6 @@ func rewriteValueS390X_OpS390XMOVHreg(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVHreg (ANDWconst [c] x))
+-	// cond: c & 0x8000 == 0
+-	// result: (ANDconst [c & 0x7fff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDWconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		if !(c&0x8000 == 0) {
+-			break
+-		}
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0x7fff
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVHreg (ANDconst [c] x))
+-	// cond: c & 0x8000 == 0
+-	// result: (ANDconst [c & 0x7fff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		if !(c&0x8000 == 0) {
+-			break
+-		}
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0x7fff
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVHstore(v *Value, config *Config) bool {
+@@ -12738,36 +12708,6 @@ func rewriteValueS390X_OpS390XMOVWZreg(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVWZreg (ANDWconst [c] x))
+-	// cond:
+-	// result: (ANDconst [c & 0xffffffff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDWconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0xffffffff
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWZreg (ANDconst [c] x))
+-	// cond:
+-	// result: (ANDconst [c & 0xffffffff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0xffffffff
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVWload(v *Value, config *Config) bool {
+@@ -12987,42 +12927,6 @@ func rewriteValueS390X_OpS390XMOVWreg(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVWreg (ANDWconst [c] x))
+-	// cond: c & 0x80000000 == 0
+-	// result: (ANDconst [c & 0x7fffffff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDWconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		if !(c&0x80000000 == 0) {
+-			break
+-		}
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0x7fffffff
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (MOVWreg (ANDconst [c] x))
+-	// cond: c & 0x80000000 == 0
+-	// result: (ANDconst [c & 0x7fffffff] x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XANDconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		x := v_0.Args[0]
+-		if !(c&0x80000000 == 0) {
+-			break
+-		}
+-		v.reset(OpS390XANDconst)
+-		v.AuxInt = c & 0x7fffffff
+-		v.AddArg(x)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XMOVWstore(v *Value, config *Config) bool {
+@@ -14119,30 +14023,19 @@ func rewriteValueS390X_OpS390XNOT(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (NOT x)
+ 	// cond: true
+-	// result: (XORconst [-1] x)
++	// result: (XOR (MOVDconst [-1]) x)
+ 	for {
+ 		x := v.Args[0]
+ 		if !(true) {
+ 			break
+ 		}
+-		v.reset(OpS390XXORconst)
+-		v.AuxInt = -1
++		v.reset(OpS390XXOR)
++		v0 := b.NewValue0(v.Line, OpS390XMOVDconst, config.fe.TypeUInt64())
++		v0.AuxInt = -1
++		v.AddArg(v0)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (NOT (MOVDconst [c]))
+-	// cond:
+-	// result: (MOVDconst [^c])
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XMOVDconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		v.reset(OpS390XMOVDconst)
+-		v.AuxInt = ^c
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XNOTW(v *Value, config *Config) bool {
+@@ -14161,26 +14054,13 @@ func rewriteValueS390X_OpS390XNOTW(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (NOTW (MOVDconst [c]))
+-	// cond:
+-	// result: (MOVDconst [^c])
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpS390XMOVDconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		v.reset(OpS390XMOVDconst)
+-		v.AuxInt = ^c
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValueS390X_OpS390XOR(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (OR x (MOVDconst [c]))
+-	// cond: is32Bit(c)
++	// cond: isU32Bit(c)
+ 	// result: (ORconst [c] x)
+ 	for {
+ 		x := v.Args[0]
+@@ -14189,7 +14069,7 @@ func rewriteValueS390X_OpS390XOR(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		if !(is32Bit(c)) {
++		if !(isU32Bit(c)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XORconst)
+@@ -14198,7 +14078,7 @@ func rewriteValueS390X_OpS390XOR(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (OR (MOVDconst [c]) x)
+-	// cond: is32Bit(c)
++	// cond: isU32Bit(c)
+ 	// result: (ORconst [c] x)
+ 	for {
+ 		v_0 := v.Args[0]
+@@ -14207,7 +14087,7 @@ func rewriteValueS390X_OpS390XOR(v *Value, config *Config) bool {
+ 		}
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+-		if !(is32Bit(c)) {
++		if !(isU32Bit(c)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XORconst)
+@@ -14215,6 +14095,24 @@ func rewriteValueS390X_OpS390XOR(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (OR (MOVDconst [c]) (MOVDconst [d]))
++	// cond:
++	// result: (MOVDconst [c|d])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = c | d
++		return true
++	}
+ 	// match: (OR x x)
+ 	// cond:
+ 	// result: x
+@@ -16683,7 +16581,7 @@ func rewriteValueS390X_OpS390XXOR(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (XOR x (MOVDconst [c]))
+-	// cond: is32Bit(c)
++	// cond: isU32Bit(c)
+ 	// result: (XORconst [c] x)
+ 	for {
+ 		x := v.Args[0]
+@@ -16692,7 +16590,7 @@ func rewriteValueS390X_OpS390XXOR(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		if !(is32Bit(c)) {
++		if !(isU32Bit(c)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XXORconst)
+@@ -16701,7 +16599,7 @@ func rewriteValueS390X_OpS390XXOR(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (XOR (MOVDconst [c]) x)
+-	// cond: is32Bit(c)
++	// cond: isU32Bit(c)
+ 	// result: (XORconst [c] x)
+ 	for {
+ 		v_0 := v.Args[0]
+@@ -16710,7 +16608,7 @@ func rewriteValueS390X_OpS390XXOR(v *Value, config *Config) bool {
+ 		}
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+-		if !(is32Bit(c)) {
++		if !(isU32Bit(c)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XXORconst)
+@@ -16718,6 +16616,24 @@ func rewriteValueS390X_OpS390XXOR(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (XOR (MOVDconst [c]) (MOVDconst [d]))
++	// cond:
++	// result: (MOVDconst [c^d])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = c ^ d
++		return true
++	}
+ 	// match: (XOR x x)
+ 	// cond:
+ 	// result: (MOVDconst [0])

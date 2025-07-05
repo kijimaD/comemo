@@ -7,6 +7,20 @@ Date:   Wed Feb 8 15:31:33 2017 -0800
     Change-Id: I09fdcebb939417f18af09ed57f24460724cab64f
     Reviewed-on: https://go-review.googlesource.com/36632
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 57d4782c89..ce8bb7c928 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2084,7 +2084,7 @@ type Rows struct {
+ 	lasterr error // non-nil only if closed is true
+ 
+ 	// lastcols is only used in Scan, Next, and NextResultSet which are expected
+-	// not not be called concurrently.
++	// not to be called concurrently.
+ 	lastcols []driver.Value
+ }
+ 

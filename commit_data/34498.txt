@@ -18,7 +18,7 @@ Date:   Fri Oct 27 15:20:21 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/74050
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/asm_386.s      |  7 ++++---
  src/runtime/asm_amd64.s    |  7 ++++---
  src/runtime/asm_amd64p32.s |  5 +++--
@@ -31,3 +31,239 @@ Date:   Fri Oct 27 15:20:21 2017 -0400
  src/runtime/export_test.go | 13 +++++++++++++
  src/runtime/stack_test.go  | 33 +++++++++++++++++++++++++++++++++
  11 files changed, 83 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 15d9ce9fdf..80a145187c 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -474,11 +474,12 @@ switch:
+ 	RET
+ 
+ noswitch:
+-	// already on system stack, just call directly
++	// already on system stack; tail call the function
++	// Using a tail call here cleans up tracebacks since we won't stop
++	// at an intermediate systemstack.
+ 	MOVL	DI, DX
+ 	MOVL	0(DI), DI
+-	CALL	DI
+-	RET
++	JMP	DI
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 2ac879c31d..01a1710046 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -419,11 +419,12 @@ switch:
+ 	RET
+ 
+ noswitch:
+-	// already on m stack, just call directly
++	// already on m stack; tail call the function
++	// Using a tail call here cleans up tracebacks since we won't stop
++	// at an intermediate systemstack.
+ 	MOVQ	DI, DX
+ 	MOVQ	0(DI), DI
+-	CALL	DI
+-	RET
++	JMP	DI
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index b7fcf2376e..7fee79aefb 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -306,10 +306,11 @@ switch:
+ 
+ noswitch:
+ 	// already on m stack, just call directly
++	// Using a tail call here cleans up tracebacks since we won't stop
++	// at an intermediate systemstack.
+ 	MOVL	DI, DX
+ 	MOVL	0(DI), DI
+-	CALL	DI
+-	RET
++	JMP	DI
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index caa96cc4b3..306984e8f7 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -358,10 +358,12 @@ switch:
+ 	RET
+ 
+ noswitch:
++	// Using a tail call here cleans up tracebacks since we won't stop
++	// at an intermediate systemstack.
+ 	MOVW	R0, R7
+ 	MOVW	0(R0), R0
+-	BL	(R0)
+-	RET
++	MOVW.P	4(R13), R14	// restore LR
++	B	(R0)
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index b2aff1aab7..5e202e7a87 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -239,9 +239,11 @@ switch:
+ 
+ noswitch:
+ 	// already on m stack, just call directly
++	// Using a tail call here cleans up tracebacks since we won't stop
++	// at an intermediate systemstack.
+ 	MOVD	0(R26), R3	// code pointer
+-	BL	(R3)
+-	RET
++	MOVD.P	16(RSP), R30	// restore LR
++	B	(R3)
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 3510853804..12cea00adc 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -214,9 +214,12 @@ switch:
+ 
+ noswitch:
+ 	// already on m stack, just call directly
++	// Using a tail call here cleans up tracebacks since we won't stop
++	// at an intermediate systemstack.
+ 	MOVV	0(REGCTXT), R4	// code pointer
+-	JAL	(R4)
+-	RET
++	MOVV	0(R29), R31	// restore LR
++	ADDV	$8, R29
++	JMP	(R4)
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 334f259186..bba6a9501d 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -215,9 +215,12 @@ switch:
+ 
+ noswitch:
+ 	// already on m stack, just call directly
++	// Using a tail call here cleans up tracebacks since we won't stop
++	// at an intermediate systemstack.
+ 	MOVW	0(REGCTXT), R4	// code pointer
+-	JAL	(R4)
+-	RET
++	MOVW	0(R29), R31	// restore LR
++	ADD	$4, R29
++	JMP	(R4)
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 2f2a4a7b04..487187f4d8 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -265,6 +265,9 @@ switch:
+ 
+ noswitch:
+ 	// already on m stack, just call directly
++	// On other arches we do a tail call here, but it appears to be
++	// impossible to tail call a function pointer in shared mode on
++	// ppc64 because the caller is responsible for restoring the TOC.
+ 	MOVD	0(R11), R12	// code pointer
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 524b866b21..42b9326607 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -224,9 +224,12 @@ switch:
+ 
+ noswitch:
+ 	// already on m stack, just call directly
++	// Using a tail call here cleans up tracebacks since we won't stop
++	// at an intermediate systemstack.
+ 	MOVD	0(R12), R3	// code pointer
+-	BL	(R3)
+-	RET
++	MOVD	0(R15), LR	// restore LR
++	ADD	$8, R15
++	BR	(R3)
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 9b269d9659..599ac2d84a 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -395,3 +395,16 @@ func LockOSCounts() (external, internal uint32) {
+ 	}
+ 	return g.m.lockedExt, g.m.lockedInt
+ }
++
++//go:noinline
++func TracebackSystemstack(stk []uintptr, i int) int {
++	if i == 0 {
++		pc, sp := getcallerpc(), getcallersp(unsafe.Pointer(&stk))
++		return gentraceback(pc, sp, 0, getg(), 0, &stk[0], len(stk), nil, nil, _TraceJumpStack)
++	}
++	n := 0
++	systemstack(func() {
++		n = TracebackSystemstack(stk, i-1)
++	})
++	return n
++}
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index c9b84be066..8e7c7d47a8 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	. "runtime"
+ 	"strings"
+@@ -685,3 +686,35 @@ func TestStackWrapperStack(t *testing.T) {
+ 		t.Fatalf("<autogenerated> appears in stack trace:\n%s", stk)
+ 	}
+ }
++
++func TestTracebackSystemstack(t *testing.T) {
++	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
++		t.Skip("systemstack tail call not implemented on ppc64x")
++	}
++
++	// Test that profiles correctly jump over systemstack,
++	// including nested systemstack calls.
++	pcs := make([]uintptr, 20)
++	pcs = pcs[:TracebackSystemstack(pcs, 5)]
++	// Check that runtime.TracebackSystemstack appears five times
++	// and that we see TestTracebackSystemstack.
++	countIn, countOut := 0, 0
++	frames := CallersFrames(pcs)
++	var tb bytes.Buffer
++	for {
++		frame, more := frames.Next()
++		fmt.Fprintf(&tb, "\n%s+0x%x %s:%d", frame.Function, frame.PC-frame.Entry, frame.File, frame.Line)
++		switch frame.Function {
++		case "runtime.TracebackSystemstack":
++			countIn++
++		case "runtime_test.TestTracebackSystemstack":
++			countOut++
++		}
++		if !more {
++			break
++		}
++	}
++	if countIn != 5 || countOut != 1 {
++		t.Fatalf("expected 5 calls to TracebackSystemstack and 1 call to TestTracebackSystemstack, got:%s", tb.String())
++	}
++}

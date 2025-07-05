@@ -23,7 +23,7 @@ Date:   Thu Jan 19 22:26:15 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  misc/cgo/testshared/shared_test.go                   | 2 +-
  src/cmd/compile/internal/inline/inl.go               | 2 +-
  src/cmd/compile/internal/ir/func.go                  | 2 +-
@@ -47,3 +47,326 @@ Date:   Thu Jan 19 22:26:15 2023 +0000
  src/runtime/metrics.go                               | 4 ++--
  src/runtime/print.go                                 | 2 +-
  22 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index b14fb1cb3a..0b589d023b 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -1100,7 +1100,7 @@ func TestIssue44031(t *testing.T) {
+ 
+ // Test that we use a variable from shared libraries (which implement an
+ // interface in shared libraries.). A weak reference is used in the itab
+-// in main process. It can cause unreacheble panic. See issue 47873.
++// in main process. It can cause unreachable panic. See issue 47873.
+ func TestIssue47873(t *testing.T) {
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
+ 	goCmd(t, "run", "-linkshared", "./issue47837/main")
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 84e61f34a2..8620db2adb 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1442,7 +1442,7 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
+ 	return m
+ }
+ 
+-// closure does the necessary substitions for a ClosureExpr n and returns the new
++// closure does the necessary substitutions for a ClosureExpr n and returns the new
+ // closure node.
+ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
+ 	// Prior to the subst edit, set a flag in the inlsubst to indicate
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index b0b8da5d18..8f56c6f2f6 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -386,7 +386,7 @@ func NameClosure(clo *ClosureExpr, outerfn *Func) {
+ 	MarkFunc(name)
+ }
+ 
+-// UseClosure checks that the ginen function literal has been setup
++// UseClosure checks that the given function literal has been setup
+ // correctly, and then returns it as an expression.
+ // It must be called after clo.Func.ClosureVars has been set.
+ func UseClosure(clo *ClosureExpr, pkg *Package) Node {
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index f391339c36..79b4b0b33c 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -167,7 +167,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 	}
+ }
+ 
+-// substType does a normal type substition, but tparams is in the form of a field
++// substType does a normal type substitution, but tparams is in the form of a field
+ // list, and targs is in terms of a slice of type nodes. substType records any newly
+ // instantiated types into g.instTypeList.
+ func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Ntype) *types.Type {
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index bf11e365f1..8177cf855e 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -53,7 +53,7 @@ import (
+ 	"os"
+ )
+ 
+-// IRGraph is the key datastrcture that is built from profile. It is
++// IRGraph is the key data structure that is built from profile. It is
+ // essentially a call graph with nodes pointing to IRs of functions and edges
+ // carrying weights and callsite information. The graph is bidirectional that
+ // helps in removing nodes efficiently.
+@@ -223,7 +223,7 @@ func (p *Profile) processprofileGraph(g *Graph) bool {
+ 	return true
+ }
+ 
+-// initializeIRGraph builds the IRGraph by visting all the ir.Func in decl list
++// initializeIRGraph builds the IRGraph by visiting all the ir.Func in decl list
+ // of a package.
+ func (p *Profile) initializeIRGraph() {
+ 	// Bottomup walk over the function to create IRGraph.
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 769f225850..423564caf9 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -328,7 +328,7 @@ commas. For example:
+ 		switch flag {
+ 		case "on":
+ 			checkEnabled = val != 0
+-			debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
++			debugPoset = checkEnabled // also turn on advanced self-checking in prove's data structure
+ 			return ""
+ 		case "off":
+ 			checkEnabled = val == 0
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 584aaef3bf..0cd006b21c 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -803,7 +803,7 @@ func (state *debugState) liveness() []*BlockDebug {
+ // the first call, subsequent calls can only shrink startState.
+ //
+ // Passing forLocationLists=true enables additional side-effects that
+-// are necessary for building location lists but superflous while still
++// are necessary for building location lists but superfluous while still
+ // iterating to an answer.
+ //
+ // If previousBlock is non-nil, it registers changes vs. that block's
+diff --git a/src/cmd/compile/internal/test/testdata/arith_test.go b/src/cmd/compile/internal/test/testdata/arith_test.go
+index 253142a0fb..2b8cd9fad3 100644
+--- a/src/cmd/compile/internal/test/testdata/arith_test.go
++++ b/src/cmd/compile/internal/test/testdata/arith_test.go
+@@ -223,7 +223,7 @@ func testArithConstShift(t *testing.T) {
+ 	}
+ }
+ 
+-// overflowConstShift_ssa verifes that constant folding for shift
++// overflowConstShift_ssa verifies that constant folding for shift
+ // doesn't wrap (i.e. x << MAX_INT << 1 doesn't get folded to x << 0).
+ //
+ //go:noinline
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 9760e366b5..29d992f324 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1524,7 +1524,7 @@ func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
+ 		// have these other shape types embedded in them. This may lead to
+ 		// generating extra shape instantiations, and a mismatch between the
+ 		// instantiations that we used in generating dictionaries and the
+-		// instantations that are actually called. (#51303).
++		// instantiations that are actually called. (#51303).
+ 		list := []*types.Type{}
+ 		getShapes(t, &list)
+ 		list2 := make([]*types.Type, len(list))
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 2d40201408..54567bee41 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -128,7 +128,7 @@ var (
+ 
+ // GetPackage returns the IndexPackage for the package at the given path.
+ // It will return ErrNotIndexed if the directory should be read without
+-// using the index, for instance because the index is disabled, or the packgae
++// using the index, for instance because the index is disabled, or the package
+ // is not in a module.
+ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
+ 	mi, err := GetModule(modroot)
+@@ -146,7 +146,7 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
+ 
+ // GetModule returns the Module for the given modroot.
+ // It will return ErrNotIndexed if the directory should be read without
+-// using the index, for instance because the index is disabled, or the packgae
++// using the index, for instance because the index is disabled, or the package
+ // is not in a module.
+ func GetModule(modroot string) (*Module, error) {
+ 	if !enabled || cache.DefaultDir() == "off" {
+diff --git a/src/cmd/go/internal/script/state.go b/src/cmd/go/internal/script/state.go
+index f40c4426da..a51c504ba5 100644
+--- a/src/cmd/go/internal/script/state.go
++++ b/src/cmd/go/internal/script/state.go
+@@ -194,7 +194,7 @@ func (s *State) LookupEnv(key string) (string, bool) {
+ 	return v, ok
+ }
+ 
+-// Path returns the absolute path in the host operaating system for a
++// Path returns the absolute path in the host operating system for a
+ // script-based (generally slash-separated and relative) path.
+ func (s *State) Path(path string) string {
+ 	if filepath.IsAbs(path) {
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index cd99a33a21..93c068c528 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -86,7 +86,7 @@ func BuildInit() {
+ 	}
+ }
+ 
+-// fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
++// fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumentation
+ // on supported platforms.
+ //
+ // On unsupported platforms, fuzzInstrumentFlags returns nil, meaning no
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index be90989ddd..a306498d58 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -186,7 +186,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ // pathRel returns the absolute and canonical forms of dir for use in a
+ // go.work file located in directory workDir.
+ //
+-// If dir is relative, it is intepreted relative to base.Cwd()
++// If dir is relative, it is interpreted relative to base.Cwd()
+ // and its canonical form is relative to workDir if possible.
+ // If dir is absolute or cannot be made relative to workDir,
+ // its canonical form is absolute.
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index ae215dfef5..7b985fae53 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -134,7 +134,7 @@ import (
+ // - If PkgIdx is PkgIdxHashed, SymIdx is the index of the symbol in the
+ //   HashedDefs array.
+ // - If PkgIdx is PkgIdxNone, SymIdx is the index of the symbol in the
+-//   NonPkgDefs array (could natually overflow to NonPkgRefs array).
++//   NonPkgDefs array (could naturally overflow to NonPkgRefs array).
+ // - Otherwise, SymIdx is the index of the symbol in some other package's
+ //   SymbolDefs array.
+ //
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index db18bc8e0a..b01ebb0928 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1012,7 +1012,7 @@ var sysInstFields = map[SpecialOperand]struct {
+ 	SPOP_CVADP:   {3, 7, 13, 1, true},
+ }
+ 
+-// Used for padinng NOOP instruction
++// Used for padding NOOP instruction
+ const OP_NOOP = 0xd503201f
+ 
+ // align code to a certain length by padding bytes.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index ff0968ecf4..85e49e248c 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -353,7 +353,7 @@ func (w *writer) Sym(s *LSym) {
+ 		align = uint32(fn.Align)
+ 	}
+ 	if s.ContentAddressable() && s.Size != 0 {
+-		// We generally assume data symbols are natually aligned
++		// We generally assume data symbols are naturally aligned
+ 		// (e.g. integer constants), except for strings and a few
+ 		// compiler-emitted funcdata. If we dedup a string symbol and
+ 		// a non-string symbol with the same content, we should keep
+@@ -421,7 +421,7 @@ func (w *writer) Hash(s *LSym) {
+ // contentHashSection only distinguishes between sets of sections for which this matters.
+ // Allowing flexibility increases the effectiveness of content-addressibility.
+ // But in some cases, such as doing addressing based on a base symbol,
+-// we need to ensure that a symbol is always in a prticular section.
++// we need to ensure that a symbol is always in a particular section.
+ // Some of these conditions are duplicated in cmd/link/internal/ld.(*Link).symtab.
+ // TODO: instead of duplicating them, have the compiler decide where symbols go.
+ func contentHashSection(s *LSym) byte {
+diff --git a/src/crypto/internal/alias/alias.go b/src/crypto/internal/alias/alias.go
+index 936cc253e3..daf3ebcc4d 100644
+--- a/src/crypto/internal/alias/alias.go
++++ b/src/crypto/internal/alias/alias.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package alias implements memory alaising tests.
++// Package alias implements memory aliasing tests.
+ // This code also exists as golang.org/x/crypto/internal/alias.
+ package alias
+ 
+diff --git a/src/debug/pe/symbol.go b/src/debug/pe/symbol.go
+index b1654f8726..c33a4fc875 100644
+--- a/src/debug/pe/symbol.go
++++ b/src/debug/pe/symbol.go
+@@ -180,7 +180,7 @@ const (
+ 	IMAGE_COMDAT_SELECT_LARGEST      = 6
+ )
+ 
+-// COFFSymbolReadSectionDefAux returns a blob of axiliary information
++// COFFSymbolReadSectionDefAux returns a blob of auxiliary information
+ // (including COMDAT info) for a section definition symbol. Here 'idx'
+ // is the index of a section symbol in the main COFFSymbol array for
+ // the File. Return value is a pointer to the appropriate aux symbol
+diff --git a/src/internal/types/testdata/check/typeinst0.go b/src/internal/types/testdata/check/typeinst0.go
+index 0f62283f02..bbcdaec04a 100644
+--- a/src/internal/types/testdata/check/typeinst0.go
++++ b/src/internal/types/testdata/check/typeinst0.go
+@@ -19,7 +19,7 @@ type T2[P any] struct {
+ type List[P any] []P
+ 
+ // Alias type declarations cannot have type parameters.
+-// Issue #46477 proposses to change that.
++// Issue #46477 proposes to change that.
+ type A1[P any] = /* ERROR "cannot be alias" */ struct{}
+ 
+ // Pending clarification of #46477 we disallow aliases
+diff --git a/src/internal/types/testdata/check/typeparams.go b/src/internal/types/testdata/check/typeparams.go
+index 9a570e7e66..9f06b0888d 100644
+--- a/src/internal/types/testdata/check/typeparams.go
++++ b/src/internal/types/testdata/check/typeparams.go
+@@ -354,7 +354,7 @@ func _[P any]() {
+ }
+ 
+ // corner case for type inference
+-// (was bug: after instanting f11, the type-checker didn't mark f11 as non-generic)
++// (was bug: after instantiating f11, the type-checker didn't mark f11 as non-generic)
+ 
+ func f11[T any]() {}
+ 
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index d4f7196f9f..d0c0b831e5 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -485,7 +485,7 @@ func makeStatDepSet(deps ...statDep) statDepSet {
+ 	return s
+ }
+ 
+-// differennce returns set difference of s from b as a new set.
++// difference returns set difference of s from b as a new set.
+ func (s statDepSet) difference(b statDepSet) statDepSet {
+ 	var c statDepSet
+ 	for i := range s {
+@@ -633,7 +633,7 @@ func nsToSec(ns int64) float64 {
+ // statAggregate is the main driver of the metrics implementation.
+ //
+ // It contains multiple aggregates of runtime statistics, as well
+-// as a set of these aggregates that it has populated. The aggergates
++// as a set of these aggregates that it has populated. The aggregates
+ // are populated lazily by its ensure method.
+ type statAggregate struct {
+ 	ensured   statDepSet
+diff --git a/src/runtime/print.go b/src/runtime/print.go
+index a1e0b8e134..0b05aedad3 100644
+--- a/src/runtime/print.go
++++ b/src/runtime/print.go
+@@ -35,7 +35,7 @@ var (
+ //
+ // The text written during a process crash (following "panic" or "fatal
+ // error") is not saved, since the goroutine stacks will generally be readable
+-// from the runtime datastructures in the core file.
++// from the runtime data structures in the core file.
+ func recordForPanic(b []byte) {
+ 	printlock()
+ 

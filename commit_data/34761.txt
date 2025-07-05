@@ -17,10 +17,99 @@ Date:   Sat Jun 24 14:23:17 2017 +0800
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fs_test.go    | 11 ++++-------
  src/net/http/h2_bundle.go  |  2 +-
  src/net/http/serve_test.go |  3 ---
  src/net/http/server.go     |  2 +-
  src/net/http/sniff_test.go |  1 -
  5 files changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 798cb30b29..e766dc69f4 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -948,8 +948,7 @@ func TestServeContent(t *testing.T) {
+ 			reqHeader: map[string]string{
+ 				"If-Match": `"B"`,
+ 			},
+-			wantStatus:      412,
+-			wantContentType: "text/plain; charset=utf-8",
++			wantStatus: 412,
+ 		},
+ 		"ifmatch_fails_on_weak_etag": {
+ 			file:      "testdata/style.css",
+@@ -957,8 +956,7 @@ func TestServeContent(t *testing.T) {
+ 			reqHeader: map[string]string{
+ 				"If-Match": `W/"A"`,
+ 			},
+-			wantStatus:      412,
+-			wantContentType: "text/plain; charset=utf-8",
++			wantStatus: 412,
+ 		},
+ 		"if_unmodified_since_true": {
+ 			file:    "testdata/style.css",
+@@ -976,9 +974,8 @@ func TestServeContent(t *testing.T) {
+ 			reqHeader: map[string]string{
+ 				"If-Unmodified-Since": htmlModTime.Add(-2 * time.Second).UTC().Format(TimeFormat),
+ 			},
+-			wantStatus:      412,
+-			wantContentType: "text/plain; charset=utf-8",
+-			wantLastMod:     htmlModTime.UTC().Format(TimeFormat),
++			wantStatus:  412,
++			wantLastMod: htmlModTime.UTC().Format(TimeFormat),
+ 		},
+ 	}
+ 	for testName, tt := range tests {
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 1faddbff48..95b3305061 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -6011,7 +6011,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 			clen = strconv.Itoa(len(p))
+ 		}
+ 		_, hasContentType := rws.snapHeader["Content-Type"]
+-		if !hasContentType && http2bodyAllowedForStatus(rws.status) {
++		if !hasContentType && http2bodyAllowedForStatus(rws.status) && len(p) > 0 {
+ 			ctype = DetectContentType(p)
+ 		}
+ 		var date string
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index b000bf0e61..174f6845aa 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3439,9 +3439,6 @@ func TestHeaderToWire(t *testing.T) {
+ 			handler: func(rw ResponseWriter, r *Request) {
+ 			},
+ 			check: func(got string) error {
+-				if !strings.Contains(got, "Content-Type: text/plain") {
+-					return errors.New("wrong content-type; want text/plain")
+-				}
+ 				if !strings.Contains(got, "Content-Length: 0") {
+ 					return errors.New("want 0 content-length")
+ 				}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 453024f4db..7a4ff88baf 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1311,7 +1311,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	if bodyAllowedForStatus(code) {
+ 		// If no content type, apply sniffing algorithm to body.
+ 		_, haveType := header["Content-Type"]
+-		if !haveType && !hasTE {
++		if !haveType && !hasTE && len(p) > 0 {
+ 			setHeader.contentType = DetectContentType(p)
+ 		}
+ 	} else {
+diff --git a/src/net/http/sniff_test.go b/src/net/http/sniff_test.go
+index 24f1298e5d..c7622531df 100644
+--- a/src/net/http/sniff_test.go
++++ b/src/net/http/sniff_test.go
+@@ -23,7 +23,6 @@ var sniffTests = []struct {
+ 	contentType string
+ }{
+ 	// Some nonsense.
+-	{"Empty", []byte{}, "text/plain; charset=utf-8"},
+ 	{"Binary", []byte{1, 2, 3}, "application/octet-stream"},
+ 
+ 	{"HTML document #1", []byte(`<HtMl><bOdY>blah blah blah</body></html>`), "text/html; charset=utf-8"},

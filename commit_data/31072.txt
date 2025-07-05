@@ -11,6 +11,21 @@ Date:   Tue Jan 24 09:56:57 2017 -0800
     Change-Id: Ie6672a4e4abde0150c1ae57cabb1222de2c78716
     Reviewed-on: https://go-review.googlesource.com/35632
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/install-source.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 4bf0ba35fb..efe864cb1a 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -147,6 +147,9 @@ either the git branch <code>release-branch.go1.4</code> or
+ which contains the Go 1.4 source code plus accumulated fixes
+ to keep the tools running on newer operating systems.
+ (Go 1.4 was the last distribution in which the tool chain was written in C.)
++After unpacking the Go 1.4 source, <code>cd</code> to
++the <code>src</code> subdirectory and run <code>make.bash</code> (or,
++on Windows, <code>make.bat</code>).
+ </p>
+ 
+ <p>

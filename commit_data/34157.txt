@@ -9,7 +9,78 @@ Date:   Thu Oct 5 10:11:17 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/smtp/smtp.go      |  1 +
  src/net/smtp/smtp_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/src/net/smtp/smtp.go b/src/net/smtp/smtp.go
+index ab457d3f95..bf574aece1 100644
+--- a/src/net/smtp/smtp.go
++++ b/src/net/smtp/smtp.go
+@@ -67,6 +67,7 @@ func NewClient(conn net.Conn, host string) (*Client, error) {
+ 		return nil, err
+ 	}
+ 	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
++	_, c.tls = conn.(*tls.Conn)
+ 	return c, nil
+ }
+ 
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index e4549d251e..9e7ed78f36 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -373,6 +373,53 @@ HELO localhost
+ QUIT
+ `
+ 
++func TestNewClientWithTLS(t *testing.T) {
++	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
++	if err != nil {
++		t.Fatalf("loadcert: %v", err)
++	}
++
++	config := tls.Config{Certificates: []tls.Certificate{cert}}
++
++	ln, err := tls.Listen("tcp", "127.0.0.1:0", &config)
++	if err != nil {
++		ln, err = tls.Listen("tcp", "[::1]:0", &config)
++		if err != nil {
++			t.Fatalf("server: listen: %s", err)
++		}
++	}
++
++	go func() {
++		conn, err := ln.Accept()
++		if err != nil {
++			t.Fatalf("server: accept: %s", err)
++			return
++		}
++		defer conn.Close()
++
++		_, err = conn.Write([]byte("220 SIGNS\r\n"))
++		if err != nil {
++			t.Fatalf("server: write: %s", err)
++			return
++		}
++	}()
++
++	config.InsecureSkipVerify = true
++	conn, err := tls.Dial("tcp", ln.Addr().String(), &config)
++	if err != nil {
++		t.Fatalf("client: dial: %s", err)
++	}
++	defer conn.Close()
++
++	client, err := NewClient(conn, ln.Addr().String())
++	if err != nil {
++		t.Fatalf("smtp: newclient: %s", err)
++	}
++	if !client.tls {
++		t.Errorf("client.tls Got: %t Expected: %t", client.tls, true)
++	}
++}
++
+ func TestHello(t *testing.T) {
+ 
+ 	if len(helloServer) != len(helloClient) {

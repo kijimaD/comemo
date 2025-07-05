@@ -7,9 +7,119 @@ Date:   Thu Feb 12 10:18:31 2015 +0300
     Change-Id: I7c41cc6a5ab9fb3b0cc3812cf7e9776884658778
     Reviewed-on: https://go-review.googlesource.com/4671
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_plan9.go |  5 +++++
  src/runtime/proc.go     |  4 +++-
  src/runtime/proc1.go    | 14 +++++---------
  src/runtime/stubs3.go   | 12 ------------
  4 files changed, 13 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 679bf34519..870404b948 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -6,6 +6,11 @@ package runtime
+ 
+ import "unsafe"
+ 
++func close(fd int32) int32
++
++//go:noescape
++func open(name *byte, mode, perm int32) int32
++
+ //go:noescape
+ func pread(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 0411d965a4..027416a9ec 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -32,7 +32,9 @@ func main() {
+ 		maxstacksize = 250000000
+ 	}
+ 
+-	systemstack(newsysmon)
++	systemstack(func() {
++		newm(sysmon, nil)
++	})
+ 
+ 	// Lock the main goroutine onto this, the main OS thread,
+ 	// during initialization.  Most programs won't care, but a few
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 1f3ae500fc..471ffc83a3 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -81,10 +81,6 @@ func schedinit() {
+ 	}
+ }
+ 
+-func newsysmon() {
+-	_newm(sysmon, nil)
+-}
+-
+ func dumpgstatus(gp *g) {
+ 	_g_ := getg()
+ 	print("runtime: gp: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
+@@ -638,7 +634,7 @@ func starttheworld() {
+ 			notewakeup(&mp.park)
+ 		} else {
+ 			// Start M to run P.  Do not start another M below.
+-			_newm(nil, p)
++			newm(nil, p)
+ 			add = false
+ 		}
+ 	}
+@@ -658,7 +654,7 @@ func starttheworld() {
+ 		// coordinate.  This lazy approach works out in practice:
+ 		// we don't mind if the first couple gc rounds don't have quite
+ 		// the maximum number of procs.
+-		_newm(mhelpgc, nil)
++		newm(mhelpgc, nil)
+ 	}
+ 	_g_.m.locks--
+ 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+@@ -960,7 +956,7 @@ func unlockextra(mp *m) {
+ }
+ 
+ // Create a new m.  It will start off with a call to fn, or else the scheduler.
+-func _newm(fn func(), _p_ *p) {
++func newm(fn func(), _p_ *p) {
+ 	mp := allocm(_p_)
+ 	mp.nextp = _p_
+ 	mp.mstartfn = *(*unsafe.Pointer)(unsafe.Pointer(&fn))
+@@ -1037,7 +1033,7 @@ func startm(_p_ *p, spinning bool) {
+ 		if spinning {
+ 			fn = mspinning
+ 		}
+-		_newm(fn, _p_)
++		newm(fn, _p_)
+ 		return
+ 	}
+ 	if mp.spinning {
+@@ -2667,7 +2663,7 @@ func checkdead() {
+ 		}
+ 		mp := mget()
+ 		if mp == nil {
+-			_newm(nil, _p_)
++			newm(nil, _p_)
+ 		} else {
+ 			mp.nextp = _p_
+ 			notewakeup(&mp.park)
+diff --git a/src/runtime/stubs3.go b/src/runtime/stubs3.go
+deleted file mode 100644
+index ffaa28775d..0000000000
+--- a/src/runtime/stubs3.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build plan9
+-
+-package runtime
+-
+-func close(fd int32) int32
+-
+-//go:noescape
+-func open(name *byte, mode, perm int32) int32

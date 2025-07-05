@@ -45,6 +45,20 @@ Date:   Wed Jul 13 09:22:48 2016 -0600
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ed6a755439..088018f6c0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3013,7 +3013,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ 	if !returns {
+ 		b.Kind = ssa.BlockExit
+ 		b.SetControl(call)
+-		call.AuxInt = off
++		call.AuxInt = off - Ctxt.FixedFrameSize()
+ 		if len(results) > 0 {
+ 			Fatalf("panic call can't have results")
+ 		}

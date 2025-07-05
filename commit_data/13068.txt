@@ -10,10 +10,251 @@ Date:   Tue May 15 19:10:16 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6200064
-
+---
  src/pkg/runtime/malloc.h  |  3 ++-
  src/pkg/runtime/mgc0.c    | 35 +++++++++++---------------
  src/pkg/runtime/mprof.goc |  4 +--
  src/pkg/runtime/proc.c    | 63 +++++++++++++++++++++++++++++------------------
  src/pkg/runtime/runtime.h |  2 +-
  5 files changed, 58 insertions(+), 49 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index c9ac7c00c9..bc186981cd 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -414,7 +414,8 @@ enum
+ void	runtime·MProf_Malloc(void*, uintptr);
+ void	runtime·MProf_Free(void*, uintptr);
+ void	runtime·MProf_GC(void);
+-int32	runtime·helpgc(bool*);
++int32	runtime·gcprocs(void);
++void	runtime·helpgc(int32 nproc);
+ void	runtime·gchelper(void);
+ 
+ bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 3c0d4e80d6..9ceeeea05d 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -366,7 +366,6 @@ debug_scanblock(byte *b, int64 n)
+ 		if(s == nil)
+ 			continue;
+ 
+-
+ 		p =  (byte*)((uintptr)s->start<<PageShift);
+ 		if(s->sizeclass == 0) {
+ 			obj = p;
+@@ -692,7 +691,7 @@ handlespecial(byte *p, uintptr size)
+ 	int32 nret;
+ 	FinBlock *block;
+ 	Finalizer *f;
+-	
++
+ 	if(!runtime·getfinalizer(p, true, &fn, &nret)) {
+ 		runtime·setblockspecial(p, false);
+ 		runtime·MProf_Free(p, size);
+@@ -717,7 +716,7 @@ handlespecial(byte *p, uintptr size)
+ 	f->fn = fn;
+ 	f->nret = nret;
+ 	f->arg = p;
+-	runtime·unlock(&finlock); 
++	runtime·unlock(&finlock);
+ 	return true;
+ }
+ 
+@@ -925,7 +924,6 @@ runtime·gc(int32 force)
+ 	int64 t0, t1, t2, t3;
+ 	uint64 heap0, heap1, obj0, obj1;
+ 	byte *p;
+-	bool extra;
+ 	GCStats stats;
+ 
+ 	// The gc is turned off (via enablegc) until
+@@ -966,18 +964,21 @@ runtime·gc(int32 force)
+ 	m->gcing = 1;
+ 	runtime·stoptheworld();
+ 
+-	cachestats(nil);
+-	heap0 = mstats.heap_alloc;
+-	obj0 = mstats.nmalloc - mstats.nfree;
++	heap0 = 0;
++	obj0 = 0;
++	if(gctrace) {
++		cachestats(nil);
++		heap0 = mstats.heap_alloc;
++		obj0 = mstats.nmalloc - mstats.nfree;
++	}
+ 
+ 	runtime·lock(&work.markgate);
+ 	runtime·lock(&work.sweepgate);
+ 
+-	extra = false;
+-	work.nproc = 1;
+-	if(runtime·gomaxprocs > 1 && runtime·ncpu > 1) {
++	work.nproc = runtime·gcprocs();
++	if(work.nproc > 1) {
+ 		runtime·noteclear(&work.alldone);
+-		work.nproc += runtime·helpgc(&extra);
++		runtime·helpgc(work.nproc);
+ 	}
+ 	work.nwait = 0;
+ 	work.ndone = 0;
+@@ -1036,15 +1037,7 @@ runtime·gc(int32 force)
+ 	
+ 	runtime·MProf_GC();
+ 	runtime·semrelease(&runtime·worldsema);
+-
+-	// If we could have used another helper proc, start one now,
+-	// in the hope that it will be available next time.
+-	// It would have been even better to start it before the collection,
+-	// but doing so requires allocating memory, so it's tricky to
+-	// coordinate.  This lazy approach works out in practice:
+-	// we don't mind if the first couple gc rounds don't have quite
+-	// the maximum number of procs.
+-	runtime·starttheworld(extra);
++	runtime·starttheworld();
+ 
+ 	// give the queued finalizers, if any, a chance to run	
+ 	if(finq != nil)	
+@@ -1068,7 +1061,7 @@ runtime·ReadMemStats(MStats *stats)
+ 	*stats = mstats;
+ 	m->gcing = 0;
+ 	runtime·semrelease(&runtime·worldsema);
+-	runtime·starttheworld(false);
++	runtime·starttheworld();
+ }
+ 
+ static void
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 0bbce85836..dac897e3bb 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -355,7 +355,7 @@ func Stack(b Slice, all bool) (n int32) {
+ 	if(all) {
+ 		m->gcing = 0;
+ 		runtime·semrelease(&runtime·worldsema);
+-		runtime·starttheworld(false);
++		runtime·starttheworld();
+ 	}
+ }
+ 
+@@ -398,7 +398,7 @@ func GoroutineProfile(b Slice) (n int32, ok bool) {
+ 	
+ 		m->gcing = 0;
+ 		runtime·semrelease(&runtime·worldsema);
+-		runtime·starttheworld(false);
++		runtime·starttheworld();
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 12dc910f04..81decd6bf8 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -646,35 +646,38 @@ top:
+ }
+ 
+ int32
+-runtime·helpgc(bool *extra)
++runtime·gcprocs(void)
+ {
+-	M *mp;
+-	int32 n, max;
+-
+-	// Figure out how many CPUs to use.
++	int32 n;
++	
++	// Figure out how many CPUs to use during GC.
+ 	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.
+-	max = runtime·gomaxprocs;
+-	if(max > runtime·ncpu)
+-		max = runtime·ncpu;
+-	if(max > MaxGcproc)
+-		max = MaxGcproc;
++	n = runtime·gomaxprocs;
++	if(n > runtime·ncpu)
++		n = runtime·ncpu;
++	if(n > MaxGcproc)
++		n = MaxGcproc;
++	if(n > runtime·sched.mwait+1) // one M is currently running
++		n = runtime·sched.mwait+1;
++	return n;
++}
+ 
+-	// We're going to use one CPU no matter what.
+-	// Figure out the max number of additional CPUs.
+-	max--;
++void
++runtime·helpgc(int32 nproc)
++{
++	M *mp;
++	int32 n;
+ 
+ 	runtime·lock(&runtime·sched);
+-	n = 0;
+-	while(n < max && (mp = mget(nil)) != nil) {
+-		n++;
++	for(n = 1; n < nproc; n++) { // one M is currently running
++		mp = mget(nil);
++		if(mp == nil)
++			runtime·throw("runtime·gcprocs inconsistency");
+ 		mp->helpgc = 1;
+ 		mp->waitnextg = 0;
+ 		runtime·notewakeup(&mp->havenextg);
+ 	}
+ 	runtime·unlock(&runtime·sched);
+-	if(extra)
+-		*extra = n != max;
+-	return n;
+ }
+ 
+ void
+@@ -714,18 +717,30 @@ runtime·stoptheworld(void)
+ }
+ 
+ void
+-runtime·starttheworld(bool extra)
++runtime·starttheworld(void)
+ {
+ 	M *m;
++	int32 max;
++	
++	// Figure out how many CPUs GC could possibly use.
++	max = runtime·gomaxprocs;
++	if(max > runtime·ncpu)
++		max = runtime·ncpu;
++	if(max > MaxGcproc)
++		max = MaxGcproc;
+ 
+ 	schedlock();
+ 	runtime·gcwaiting = 0;
+ 	setmcpumax(runtime·gomaxprocs);
+ 	matchmg();
+-	if(extra && canaddmcpu()) {
+-		// Start a new m that will (we hope) be idle
+-		// and so available to help when the next
+-		// garbage collection happens.
++	if(runtime·gcprocs() < max && canaddmcpu()) {
++		// If GC could have used another helper proc, start one now,
++		// in the hope that it will be available next time.
++		// It would have been even better to start it before the collection,
++		// but doing so requires allocating memory, so it's tricky to
++		// coordinate.  This lazy approach works out in practice:
++		// we don't mind if the first couple gc rounds don't have quite
++		// the maximum number of procs.
+ 		// canaddmcpu above did mcpu++
+ 		// (necessary, because m will be doing various
+ 		// initialization work so is definitely running),
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 15f5fa31c8..1f7819197a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -636,7 +636,7 @@ int64	runtime·cputicks(void);
+ #pragma	varargck	type	"S"	String
+ 
+ void	runtime·stoptheworld(void);
+-void	runtime·starttheworld(bool);
++void	runtime·starttheworld(void);
+ extern uint32 runtime·worldsema;
+ 
+ /*

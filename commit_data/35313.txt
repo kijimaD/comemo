@@ -9,6 +9,20 @@ Date:   Fri Feb 9 01:14:31 2018 +0000
     GitHub-Pull-Request: golang/go#23754
     Reviewed-on: https://go-review.googlesource.com/92996
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/diagnostics.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/diagnostics.html b/doc/diagnostics.html
+index 0ed0e81b92..35aae156e8 100644
+--- a/doc/diagnostics.html
++++ b/doc/diagnostics.html
+@@ -222,7 +222,7 @@ an execution tracer to trace the runtime events within an interval.
+ <p>Tracing enables us to:</p>
+ 
+ <ul>
+-<li>Instrument and profile application latency in a Go process.</li>
++<li>Instrument and analyze application latency in a Go process.</li>
+ <li>Measure the cost of specific calls in a long chain of calls.</li>
+ <li>Figure out the utilization and performance improvements.
+ Bottlenecks are not always obvious without tracing data.</li>

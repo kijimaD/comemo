@@ -18,7 +18,7 @@ Date:   Fri Feb 22 14:30:44 2013 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/7378057
-
+---
  src/pkg/exp/ssa/blockopt.go                 |  2 +-
  src/pkg/exp/ssa/builder.go                  | 33 ++++++++++------------
  src/pkg/exp/ssa/doc.go                      |  9 +++---
@@ -33,3 +33,461 @@ Date:   Fri Feb 22 14:30:44 2013 -0500
  src/pkg/exp/ssa/promote.go                  | 18 ++++++++----
  src/pkg/exp/ssa/ssa.go                      | 15 +++++-----
  13 files changed, 100 insertions(+), 57 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/blockopt.go b/src/pkg/exp/ssa/blockopt.go
+index 863bef2baa..f39635d0c3 100644
+--- a/src/pkg/exp/ssa/blockopt.go
++++ b/src/pkg/exp/ssa/blockopt.go
+@@ -2,7 +2,7 @@ package ssa
+ 
+ // Simple block optimizations to simplify the control flow graph.
+ 
+-// TODO(adonovan): instead of creating several "unreachable" blocks
++// TODO(adonovan): opt: instead of creating several "unreachable" blocks
+ // per function in the Builder, reuse a single one (e.g. at Blocks[1])
+ // to reduce garbage.
+ 
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index 0538b3e6d0..3d71a7a8de 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -237,7 +237,7 @@ func (b *Builder) isType(e ast.Expr) bool {
+ func (b *Builder) lookup(obj types.Object) (v Value, ok bool) {
+ 	v, ok = b.globals[obj]
+ 	if ok {
+-		// TODO(adonovan): the build phase should only
++		// TODO(adonovan): opt: the build phase should only
+ 		// propagate to v if it's in the same package as the
+ 		// caller of lookup if we want to make this
+ 		// concurrent.
+@@ -532,7 +532,7 @@ func (b *Builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
+ // expr() for rvalues.
+ // It does require mutation of Builder.types though; if we want to
+ // make the Builder concurrent we'll have to avoid that.
+-// TODO(adonovan): emit code directly rather than desugaring the AST.
++// TODO(adonovan): opt: emit code directly rather than desugaring the AST.
+ //
+ func (b *Builder) demoteSelector(sel *ast.SelectorExpr, pkg *Package) (sel2 *ast.SelectorExpr, index int) {
+ 	id := makeId(sel.Sel.Name, pkg.Types)
+@@ -563,7 +563,7 @@ func (b *Builder) demoteSelector(sel *ast.SelectorExpr, pkg *Package) (sel2 *ast
+ 			X:   x,
+ 			Sel: &ast.Ident{Name: path.field.Name},
+ 		}
+-		b.types[sel] = path.field.Type // TODO(adonovan): fix: not thread-safe
++		b.types[sel] = path.field.Type // TODO(adonovan): opt: not thread-safe
+ 		return sel
+ 	}
+ 
+@@ -572,7 +572,7 @@ func (b *Builder) demoteSelector(sel *ast.SelectorExpr, pkg *Package) (sel2 *ast
+ 		X:   makeSelector(b, sel.X, path),
+ 		Sel: sel.Sel,
+ 	}
+-	b.types[sel2] = b.exprType(sel) // TODO(adonovan): fix: not thread-safe
++	b.types[sel2] = b.exprType(sel) // TODO(adonovan): opt: not thread-safe
+ 	return
+ }
+ 
+@@ -980,7 +980,7 @@ func (b *Builder) setCallFunc(fn *Function, e *ast.CallExpr, c *CallCommon) {
+ 	// Case 2a: X.f() or (*X).f(): a statically dipatched call to
+ 	// the method f in the method-set of X or *X.  X may be
+ 	// an interface.  Treat like case 0.
+-	// TODO(adonovan): inline expr() here, to make the call static
++	// TODO(adonovan): opt: inline expr() here, to make the call static
+ 	// and to avoid generation of a stub for an interface method.
+ 	if b.isType(sel.X) {
+ 		c.Func = b.expr(fn, e.Fun)
+@@ -1060,7 +1060,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
+ 	// 3. Ellipsis call f(a, b, rest...) to variadic function.
+ 	//    'rest' is already a slice; all args treated in the usual manner.
+ 	// 4. f(g()) where g has >1 return parameters.  f may also be variadic.
+-	//    TODO(adonovan): implement.
++	//    TODO(adonovan): fix: implement.
+ 
+ 	var args, varargs []ast.Expr = e.Args, nil
+ 	c.HasEllipsis = e.Ellipsis != 0
+@@ -1400,7 +1400,6 @@ func (b *Builder) localValueSpec(fn *Function, spec *ast.ValueSpec) {
+ // isDef is true if this is a short variable declaration (:=).
+ //
+ // Note the similarity with localValueSpec.
+-// TODO(adonovan): explain differences.
+ //
+ func (b *Builder) assignStmt(fn *Function, lhss, rhss []ast.Expr, isDef bool) {
+ 	// Side effects of all LHSs and RHSs must occur in left-to-right order.
+@@ -1769,7 +1768,7 @@ func (b *Builder) typeSwitchStmt(fn *Function, s *ast.TypeSwitchStmt, label *lbl
+ func (b *Builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
+ 	// A blocking select of a single case degenerates to a
+ 	// simple send or receive.
+-	// TODO(adonovan): is this optimization worth its weight?
++	// TODO(adonovan): opt: is this optimization worth its weight?
+ 	if len(s.Body.List) == 1 {
+ 		clause := s.Body.List[0].(*ast.CommClause)
+ 		if clause.Comm != nil {
+@@ -1834,8 +1833,6 @@ func (b *Builder) selectStmt(fn *Function, s *ast.SelectStmt, label *lblock) {
+ 	// } else {
+ 	//     ...default...
+ 	// }
+-	//
+-	// TODO(adonovan): opt: define and use a multiway dispatch instr.
+ 	pair := &Select{
+ 		States:   states,
+ 		Blocking: blocking,
+@@ -2572,17 +2569,17 @@ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, fil
+ 	// The typechecker sets types.Package.Path only for GcImported
+ 	// packages, since it doesn't know import path until after typechecking is done.
+ 	// Here we ensure it is always set, since we know the correct path.
+-	// TODO(adonovan): eliminate redundant ssa.Package.ImportPath field.
+ 	if typkg.Path == "" {
+ 		typkg.Path = importPath
++	} else if typkg.Path != importPath {
++		panic(fmt.Sprintf("%s != %s", typkg.Path, importPath))
+ 	}
+ 
+ 	p := &Package{
+-		Prog:       b.Prog,
+-		Types:      typkg,
+-		ImportPath: importPath,
+-		Members:    make(map[string]Member),
+-		files:      files,
++		Prog:    b.Prog,
++		Types:   typkg,
++		Members: make(map[string]Member),
++		files:   files,
+ 	}
+ 
+ 	b.packages[typkg] = p
+@@ -2714,7 +2711,7 @@ func (b *Builder) BuildPackage(p *Package) {
+ 		return // already done (or nothing to do)
+ 	}
+ 	if b.mode&LogSource != 0 {
+-		fmt.Fprintln(os.Stderr, "build package", p.ImportPath)
++		fmt.Fprintln(os.Stderr, "build package", p.Types.Path)
+ 	}
+ 	init := p.Init
+ 	init.start(b.idents)
+@@ -2765,7 +2762,7 @@ func (b *Builder) BuildPackage(p *Package) {
+ 	// order.  This causes init() code to be generated in
+ 	// topological order.  We visit them transitively through
+ 	// functions of the same package, but we don't treat functions
+-	// as roots.  TODO(adonovan): fix: don't visit through other
++	// as roots.  TODO(adonovan): opt: don't visit through other
+ 	// packages.
+ 	//
+ 	// We also ensure all functions and methods are built, even if
+diff --git a/src/pkg/exp/ssa/doc.go b/src/pkg/exp/ssa/doc.go
+index 221c7971d3..b8a1a57bd7 100644
+--- a/src/pkg/exp/ssa/doc.go
++++ b/src/pkg/exp/ssa/doc.go
+@@ -94,6 +94,11 @@
+ //              t4 = fmt.Println(t3)                                                    (n int, err error)
+ //              ret
+ //
++//
++// The ssadump utility is an example of an application that loads and
++// dumps the SSA form of a Go program, whether a single package or a
++// whole program.
++//
+ // TODO(adonovan): demonstrate more features in the example:
+ // parameters and control flow at the least.
+ //
+@@ -101,10 +106,6 @@
+ // should be made available generally.  Currently it is only present in
+ // Package, Function and CallCommon.
+ //
+-// TODO(adonovan): Provide an example skeleton application that loads
+-// and dumps the SSA form of a program.  Accommodate package-at-a-time
+-// vs. whole-program operation.
+-//
+ // TODO(adonovan): Consider the exceptional control-flow implications
+ // of defer and recover().
+ //
+diff --git a/src/pkg/exp/ssa/emit.go b/src/pkg/exp/ssa/emit.go
+index 7070c18b42..f095438b3b 100644
+--- a/src/pkg/exp/ssa/emit.go
++++ b/src/pkg/exp/ssa/emit.go
+@@ -67,7 +67,7 @@ func emitCompare(f *Function, op token.Token, x, y Value) Value {
+ 	//   switch true { case e: ... }
+ 	//   if e==true { ... }
+ 	// even in the case when e's type is an interface.
+-	// TODO(adonovan): generalise to x==true, false!=y, etc.
++	// TODO(adonovan): opt: generalise to x==true, false!=y, etc.
+ 	if x == vTrue && op == token.EQL {
+ 		if yt, ok := yt.(*types.Basic); ok && yt.Info&types.IsBoolean != 0 {
+ 			return y
+diff --git a/src/pkg/exp/ssa/func.go b/src/pkg/exp/ssa/func.go
+index 0a6a94b3ed..423ae65984 100644
+--- a/src/pkg/exp/ssa/func.go
++++ b/src/pkg/exp/ssa/func.go
+@@ -461,7 +461,7 @@ func (f *Function) fullName(from *Package) string {
+ 	// Package-level function.
+ 	// Prefix with package name for cross-package references only.
+ 	if from != f.Pkg {
+-		return fmt.Sprintf("%s.%s", f.Pkg.ImportPath, f.Name_)
++		return fmt.Sprintf("%s.%s", f.Pkg.Types.Path, f.Name_)
+ 	}
+ 	return f.Name_
+ }
+@@ -491,8 +491,10 @@ func writeSignature(w io.Writer, name string, sig *types.Signature, params []*Pa
+ 		io.WriteString(w, " ")
+ 		if sig.IsVariadic && i == len(params)-1 {
+ 			io.WriteString(w, "...")
++			io.WriteString(w, underlyingType(v.Type()).(*types.Slice).Elt.String())
++		} else {
++			io.WriteString(w, v.Type().String())
+ 		}
+-		io.WriteString(w, v.Type().String())
+ 	}
+ 	io.WriteString(w, ")")
+ 	if res := sig.Results; res != nil {
+diff --git a/src/pkg/exp/ssa/interp/reflect.go b/src/pkg/exp/ssa/interp/reflect.go
+index b1a514a120..97b31118c7 100644
+--- a/src/pkg/exp/ssa/interp/reflect.go
++++ b/src/pkg/exp/ssa/interp/reflect.go
+@@ -393,10 +393,9 @@ func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function
+ 
+ func initReflect(i *interpreter) {
+ 	i.reflectPackage = &ssa.Package{
+-		Prog:       i.prog,
+-		Types:      reflectTypesPackage,
+-		ImportPath: "reflect",
+-		Members:    make(map[string]ssa.Member),
++		Prog:    i.prog,
++		Types:   reflectTypesPackage,
++		Members: make(map[string]ssa.Member),
+ 	}
+ 
+ 	i.rtypeMethods = ssa.MethodSet{
+diff --git a/src/pkg/exp/ssa/interp/testdata/coverage.go b/src/pkg/exp/ssa/interp/testdata/coverage.go
+index 1ef82e9cf8..a07549b824 100644
+--- a/src/pkg/exp/ssa/interp/testdata/coverage.go
++++ b/src/pkg/exp/ssa/interp/testdata/coverage.go
+@@ -3,6 +3,7 @@
+ // TODO(adonovan): more.
+ //
+ // Validate this file with 'go run' after editing.
++// TODO(adonovan): break this into small files organized by theme.
+ 
+ package main
+ 
+@@ -320,3 +321,45 @@ func init() {
+ 		panic(m)
+ 	}
+ }
++
++//////////////////////////////////////////////////////////////////////
++// Variadic bridge methods and interface thunks.
++
++type VT int
++
++var vcount = 0
++
++func (VT) f(x int, y ...string) {
++	vcount++
++	if x != 1 {
++		panic(x)
++	}
++	if len(y) != 2 || y[0] != "foo" || y[1] != "bar" {
++		panic(y)
++	}
++}
++
++type VS struct {
++	VT
++}
++
++type VI interface {
++	f(x int, y ...string)
++}
++
++func init() {
++	foobar := []string{"foo", "bar"}
++	var s VS
++	s.f(1, "foo", "bar")
++	s.f(1, foobar...)
++	if vcount != 2 {
++		panic("s.f not called twice")
++	}
++
++	fn := VI.f
++	fn(s, 1, "foo", "bar")
++	fn(s, 1, foobar...)
++	if vcount != 4 {
++		panic("I.f not called twice")
++	}
++}
+diff --git a/src/pkg/exp/ssa/lift.go b/src/pkg/exp/ssa/lift.go
+index dbfd895496..dba3ceb3c9 100644
+--- a/src/pkg/exp/ssa/lift.go
++++ b/src/pkg/exp/ssa/lift.go
+@@ -18,7 +18,7 @@ package ssa
+ // http://lists.cs.uiuc.edu/pipermail/llvmdev/2012-January/046638.html
+ // (Be sure to expand the whole thread.)
+ 
+-// TODO(adonovan): there are many optimizations worth evaluating, and
++// TODO(adonovan): opt: there are many optimizations worth evaluating, and
+ // the conventional wisdom for SSA construction is that a simple
+ // algorithm well engineered often beats those of better asymptotic
+ // complexity on all but the most egregious inputs.
+@@ -254,8 +254,6 @@ func (s *blockSet) add(b *BasicBlock) bool {
+ 
+ // take removes an arbitrary element from a set s and
+ // returns its index, or returns -1 if empty.
+-//
+-// TODO(adonovan): add this method (optimized) to big.Int.
+ func (s *blockSet) take() int {
+ 	l := s.BitLen()
+ 	for i := 0; i < l; i++ {
+diff --git a/src/pkg/exp/ssa/literal.go b/src/pkg/exp/ssa/literal.go
+index ee909efa7a..6fb2cebe74 100644
+--- a/src/pkg/exp/ssa/literal.go
++++ b/src/pkg/exp/ssa/literal.go
+@@ -115,9 +115,8 @@ func (l *Literal) Int64() int64 {
+ 	case *big.Int:
+ 		return x.Int64()
+ 	case *big.Rat:
+-		// TODO(adonovan): fix: is this the right rounding mode?
+ 		var q big.Int
+-		return q.Quo(x.Num(), x.Denom()).Int64()
++		return q.Quo(x.Num(), x.Denom()).Int64() // truncate
+ 	}
+ 	panic(fmt.Sprintf("unexpected literal value: %T", l.Value))
+ }
+@@ -135,9 +134,8 @@ func (l *Literal) Uint64() uint64 {
+ 	case *big.Int:
+ 		return x.Uint64()
+ 	case *big.Rat:
+-		// TODO(adonovan): fix: is this right?
+ 		var q big.Int
+-		return q.Quo(x.Num(), x.Denom()).Uint64()
++		return q.Quo(x.Num(), x.Denom()).Uint64() // truncate
+ 	}
+ 	panic(fmt.Sprintf("unexpected literal value: %T", l.Value))
+ }
+diff --git a/src/pkg/exp/ssa/lvalue.go b/src/pkg/exp/ssa/lvalue.go
+index 9ca9f68e31..e475a3a957 100644
+--- a/src/pkg/exp/ssa/lvalue.go
++++ b/src/pkg/exp/ssa/lvalue.go
+@@ -79,8 +79,8 @@ func (bl blank) store(fn *Function, v Value) {
+ }
+ 
+ func (bl blank) typ() types.Type {
+-	// TODO(adonovan): this should be the type of the blank Ident;
+-	// the typechecker doesn't provide this yet, but fortunately,
+-	// we don't need it yet either.
++	// This should be the type of the blank Ident; the typechecker
++	// doesn't provide this yet, but fortunately, we don't need it
++	// yet either.
+ 	panic("blank.typ is unimplemented")
+ }
+diff --git a/src/pkg/exp/ssa/print.go b/src/pkg/exp/ssa/print.go
+index 21303c168e..2a4dd7e041 100644
+--- a/src/pkg/exp/ssa/print.go
++++ b/src/pkg/exp/ssa/print.go
+@@ -68,7 +68,7 @@ func (r *Function) String() string {
+ 
+ // FullName returns g's package-qualified name.
+ func (g *Global) FullName() string {
+-	return fmt.Sprintf("%s.%s", g.Pkg.ImportPath, g.Name_)
++	return fmt.Sprintf("%s.%s", g.Pkg.Types.Path, g.Name_)
+ }
+ 
+ // Instruction.String()
+@@ -339,11 +339,11 @@ func (s *MapUpdate) String() string {
+ }
+ 
+ func (p *Package) String() string {
+-	return "Package " + p.ImportPath
++	return "Package " + p.Types.Path
+ }
+ 
+ func (p *Package) DumpTo(w io.Writer) {
+-	fmt.Fprintf(w, "Package %s at %s:\n", p.ImportPath, p.Prog.Files.File(p.Pos).Name())
++	fmt.Fprintf(w, "Package %s at %s:\n", p.Types.Path, p.Prog.Files.File(p.Pos).Name())
+ 
+ 	var names []string
+ 	maxname := 0
+diff --git a/src/pkg/exp/ssa/promote.go b/src/pkg/exp/ssa/promote.go
+index 163b0b6825..acaf8921f5 100644
+--- a/src/pkg/exp/ssa/promote.go
++++ b/src/pkg/exp/ssa/promote.go
+@@ -94,7 +94,7 @@ func (c candidate) ptrRecv() bool {
+ // building bridge methods as needed for promoted methods.
+ // A nil result indicates an empty set.
+ //
+-// Thread-safe.  TODO(adonovan): explain concurrency invariants in detail.
++// Thread-safe.
+ func (p *Program) MethodSet(typ types.Type) MethodSet {
+ 	if !canHaveConcreteMethods(typ, true) {
+ 		return nil
+@@ -121,7 +121,6 @@ func (p *Program) MethodSet(typ types.Type) MethodSet {
+ //
+ func buildMethodSet(prog *Program, typ types.Type) MethodSet {
+ 	if prog.mode&LogSource != 0 {
+-		// TODO(adonovan): this isn't quite appropriate for LogSource
+ 		fmt.Fprintf(os.Stderr, "buildMethodSet %s %T\n", typ, typ)
+ 	}
+ 
+@@ -274,9 +273,12 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function
+ 	}
+ 	fn.start(nil)
+ 	fn.addSpilledParam(sig.Recv)
+-	// TODO(adonovan): fix: test variadic case---careful with types.
++	var last *Parameter
+ 	for _, p := range fn.Signature.Params {
+-		fn.addParam(p.Name, p.Type)
++		last = fn.addParam(p.Name, p.Type)
++	}
++	if fn.Signature.IsVariadic {
++		last.Type_ = &types.Slice{Elt: last.Type_}
+ 	}
+ 
+ 	// Each bridge method performs a sequence of selections,
+@@ -372,10 +374,14 @@ func makeImethodThunk(prog *Program, typ types.Type, id Id) *Function {
+ 	// TODO(adonovan): set fn.Pos to location of interface method ast.Field.
+ 	fn.start(nil)
+ 	fn.addParam("recv", typ)
+-	// TODO(adonovan): fix: test variadic case---careful with types.
++	var last *Parameter
+ 	for _, p := range fn.Signature.Params {
+-		fn.addParam(p.Name, p.Type)
++		last = fn.addParam(p.Name, p.Type)
++	}
++	if fn.Signature.IsVariadic {
++		last.Type_ = &types.Slice{Elt: last.Type_}
+ 	}
++
+ 	var c Call
+ 	c.Method = index
+ 	c.Recv = fn.Params[0]
+diff --git a/src/pkg/exp/ssa/ssa.go b/src/pkg/exp/ssa/ssa.go
+index 3bf047eee8..a071535750 100644
+--- a/src/pkg/exp/ssa/ssa.go
++++ b/src/pkg/exp/ssa/ssa.go
+@@ -36,13 +36,12 @@ type Program struct {
+ // type-specific accessor methods Func, Type, Var and Const.
+ //
+ type Package struct {
+-	Prog       *Program          // the owning program
+-	Types      *types.Package    // the type checker's package object for this package.
+-	ImportPath string            // e.g. "sync/atomic"
+-	Pos        token.Pos         // position of an arbitrary file in the package
+-	Members    map[string]Member // all exported and unexported members of the package
+-	AnonFuncs  []*Function       // all anonymous functions in this package
+-	Init       *Function         // the package's (concatenated) init function
++	Prog      *Program          // the owning program
++	Types     *types.Package    // the type checker's package object for this package.
++	Pos       token.Pos         // position of an arbitrary file in the package
++	Members   map[string]Member // all exported and unexported members of the package
++	AnonFuncs []*Function       // all anonymous functions in this package
++	Init      *Function         // the package's (concatenated) init function
+ 
+ 	// The following fields are set transiently during building,
+ 	// then cleared.
+@@ -1004,7 +1003,7 @@ type CallCommon struct {
+ 	Method      int       // index of interface method within Recv.Type().(*types.Interface).Methods
+ 	Func        Value     // target of call, iff function call
+ 	Args        []Value   // actual parameters, including receiver in invoke mode
+-	HasEllipsis bool      // true iff last Args is a slice  (needed?)
++	HasEllipsis bool      // true iff last Args is a slice of '...' args (needed?)
+ 	Pos         token.Pos // position of call expression
+ }
+ 

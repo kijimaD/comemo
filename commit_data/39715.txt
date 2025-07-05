@@ -7,6 +7,26 @@ Date:   Thu Mar 14 13:58:47 2019 -0400
     Change-Id: I99832fa4f2c3ec28e2dad46cf7607f3766948031
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167698
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 3b6131b331..7255bd9811 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -80,6 +80,14 @@ the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.5">Go
+ 1.11.5 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.11.6 (released 2019/03/14) includes fixes to cgo, the compiler, linker,
++runtime, go command, and the <code>crypto/x509</code>, <code>encoding/json</code>,
++<code>net</code>, and <code>net/url</code> packages. See the
++<a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.6">Go
++1.11.6 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>
+ 
+ <p>

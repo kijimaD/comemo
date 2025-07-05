@@ -12,7 +12,38 @@ Date:   Thu Nov 21 21:03:29 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/tool/tool.go            | 2 +-
  src/cmd/go/testdata/script/tool_exename.txt | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 36bf983872..9fd917e0cb 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -305,7 +305,7 @@ func runBuiltTool(b *work.Builder, ctx context.Context, a *work.Action) error {
+ 
+ 	toolCmd := &exec.Cmd{
+ 		Path:   cmdline[0],
+-		Args:   cmdline[1:],
++		Args:   cmdline,
+ 		Stdin:  os.Stdin,
+ 		Stdout: os.Stdout,
+ 		Stderr: os.Stderr,
+diff --git a/src/cmd/go/testdata/script/tool_exename.txt b/src/cmd/go/testdata/script/tool_exename.txt
+index dc289b4764..012a107388 100644
+--- a/src/cmd/go/testdata/script/tool_exename.txt
++++ b/src/cmd/go/testdata/script/tool_exename.txt
+@@ -12,6 +12,12 @@ go tool bar
+ stdout 'my name is: bar'$GOEXE
+ ! stdout 'a.out'
+ 
++# Third run: with arguments
++# https://go.dev/issue/70509
++go tool bar --baz
++stdout 'my name is: bar'$GOEXE
++! stdout 'a.out'
++
+ -- go.mod --
+ module example.com/foo
+ 

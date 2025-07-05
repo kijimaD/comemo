@@ -17,6 +17,26 @@ Date:   Wed Nov 29 16:23:18 2023 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/debug/elf/file.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index fcbe76b195..7228447c21 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -1656,6 +1656,14 @@ func (f *File) DynValue(tag DynTag) ([]uint64, error) {
+ 		return nil, err
+ 	}
+ 
++	dynSize := 8
++	if f.Class == ELFCLASS64 {
++		dynSize = 16
++	}
++	if len(d)%dynSize != 0 {
++		return nil, errors.New("length of dynamic section is not a multiple of dynamic entry size")
++	}
++
+ 	// Parse the .dynamic section as a string of bytes.
+ 	var vals []uint64
+ 	for len(d) > 0 {

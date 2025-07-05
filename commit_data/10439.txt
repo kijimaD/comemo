@@ -10,6 +10,18 @@ Date:   Fri Nov 18 13:24:17 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5415045
-
+---
  src/pkg/mime/type_windows.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/mime/type_windows.go b/src/pkg/mime/type_windows.go
+index 1ac3c4a55d..7cf2d3984b 100644
+--- a/src/pkg/mime/type_windows.go
++++ b/src/pkg/mime/type_windows.go
+@@ -57,6 +57,5 @@ func initMimeForTests() map[string]string {
+ 	return map[string]string{
+ 		".bmp": "image/bmp",
+ 		".png": "image/png",
+-		".wav": "audio/wav",
+ 	}
+ }

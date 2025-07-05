@@ -14,6 +14,25 @@ Date:   Wed Apr 15 17:00:05 2015 -0700
     Change-Id: I186e34e91953d082b507390c1cd2042e5419c4c9
     Reviewed-on: https://go-review.googlesource.com/8943
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 6305beab70..f4baa13cca 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -618,11 +618,11 @@ func entitlementsPlist() string {
+ <plist version="1.0">
+ <dict>
+ 	<key>keychain-access-groups</key>
+-	<array><string>` + teamID + `.golang.gotest</string></array>
++	<array><string>` + appID + `.golang.gotest</string></array>
+ 	<key>get-task-allow</key>
+ 	<true/>
+ 	<key>application-identifier</key>
+-	<string>` + teamID + `.golang.gotest</string>
++	<string>` + appID + `.golang.gotest</string>
+ 	<key>com.apple.developer.team-identifier</key>
+ 	<string>` + teamID + `</string>
+ </dict>

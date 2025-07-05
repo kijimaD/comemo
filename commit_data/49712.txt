@@ -12,7 +12,63 @@ Date:   Tue Sep 7 15:13:51 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/abi_test.go | 25 +++++++++++++++++++++++++
  src/reflect/all_test.go |  3 ++-
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/abi_test.go b/src/reflect/abi_test.go
+index 2b247d1d79..873febbad2 100644
+--- a/src/reflect/abi_test.go
++++ b/src/reflect/abi_test.go
+@@ -9,6 +9,7 @@ package reflect_test
+ 
+ import (
+ 	"internal/abi"
++	"math"
+ 	"math/rand"
+ 	"reflect"
+ 	"runtime"
+@@ -962,3 +963,27 @@ func genValue(t *testing.T, typ reflect.Type, r *rand.Rand) reflect.Value {
+ 	}
+ 	return v
+ }
++
++func TestSignalingNaNArgument(t *testing.T) {
++	v := reflect.ValueOf(func(x float32) {
++		// make sure x is a signaling NaN.
++		u := math.Float32bits(x)
++		if u != snan {
++			t.Fatalf("signaling NaN not correct: %x\n", u)
++		}
++	})
++	v.Call([]reflect.Value{reflect.ValueOf(math.Float32frombits(snan))})
++}
++
++func TestSignalingNaNReturn(t *testing.T) {
++	v := reflect.ValueOf(func() float32 {
++		return math.Float32frombits(snan)
++	})
++	var x float32
++	reflect.ValueOf(&x).Elem().Set(v.Call(nil)[0])
++	// make sure x is a signaling NaN.
++	u := math.Float32bits(x)
++	if u != snan {
++		t.Fatalf("signaling NaN not correct: %x\n", u)
++	}
++}
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 01ce8b0c43..eb3ddcb3e4 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4428,8 +4428,9 @@ func TestConvertPanic(t *testing.T) {
+ 
+ var gFloat32 float32
+ 
++const snan uint32 = 0x7f800001
++
+ func TestConvertNaNs(t *testing.T) {
+-	const snan uint32 = 0x7f800001
+ 	type myFloat32 float32
+ 	x := V(myFloat32(math.Float32frombits(snan)))
+ 	y := x.Convert(TypeOf(float32(0)))

@@ -16,7 +16,50 @@ Date:   Thu Feb 28 16:40:11 2019 +0800
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cache/default.go         | 7 ++++++-
  src/cmd/go/testdata/script/build_nocache.txt | 5 +++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index f545c14700..7d389c3c1a 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -37,7 +37,7 @@ See golang.org to learn more about Go.
+ // the first time Default is called.
+ func initDefaultCache() {
+ 	dir := DefaultDir()
+-	if dir == "off" || dir == "" {
++	if dir == "off" {
+ 		if defaultDirErr != nil {
+ 			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
+ 		}
+@@ -74,7 +74,12 @@ func DefaultDir() string {
+ 
+ 	defaultDirOnce.Do(func() {
+ 		defaultDir = os.Getenv("GOCACHE")
++		if filepath.IsAbs(defaultDir) || defaultDir == "off" {
++			return
++		}
+ 		if defaultDir != "" {
++			defaultDir = "off"
++			defaultDirErr = fmt.Errorf("GOCACHE is not an absolute path")
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/go/testdata/script/build_nocache.txt b/src/cmd/go/testdata/script/build_nocache.txt
+index 46e95fa89d..1059cad45c 100644
+--- a/src/cmd/go/testdata/script/build_nocache.txt
++++ b/src/cmd/go/testdata/script/build_nocache.txt
+@@ -12,6 +12,11 @@ env HOME=
+ ! go build -o triv triv.go
+ stderr 'build cache is required, but could not be located: GOCACHE is not defined and .*'
+ 
++# If GOCACHE is set but is not an absolute path, and we cannot build.
++env GOCACHE=test
++! go build -o triv triv.go
++stderr 'build cache is required, but could not be located: GOCACHE is not an absolute path'
++
+ # An explicit GOCACHE=off also disables builds.
+ env GOCACHE=off
+ ! go build -o triv triv.go

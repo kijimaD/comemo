@@ -21,7 +21,120 @@ Date:   Fri Apr 15 09:38:36 2016 +0200
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
-
+---
  src/image/color/ycbcr.go      | 43 ++++++++++++++++++++++++++++---------------
  src/image/color/ycbcr_test.go | 29 +++++++++++++++++++++++++----
  2 files changed, 53 insertions(+), 19 deletions(-)
+
+diff --git a/src/image/color/ycbcr.go b/src/image/color/ycbcr.go
+index 55549c3fce..3df5d3675d 100644
+--- a/src/image/color/ycbcr.go
++++ b/src/image/color/ycbcr.go
+@@ -15,24 +15,37 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
+ 	r1 := int32(r)
+ 	g1 := int32(g)
+ 	b1 := int32(b)
++
++	// yy is in range [0,0xff].
+ 	yy := (19595*r1 + 38470*g1 + 7471*b1 + 1<<15) >> 16
+-	cb := (-11056*r1 - 21712*g1 + 32768*b1 + 257<<15) >> 16
+-	cr := (32768*r1 - 27440*g1 - 5328*b1 + 257<<15) >> 16
+-	if yy < 0 {
+-		yy = 0
+-	} else if yy > 0xff {
+-		yy = 0xff
+-	}
+-	if cb < 0 {
+-		cb = 0
+-	} else if cb > 0xff {
+-		cb = 0xff
++
++	// The bit twiddling below is equivalent to
++	//
++	// cb := (-11056*r1 - 21712*g1 + 32768*b1 + 257<<15) >> 16
++	// if cb < 0 {
++	//     cb = 0
++	// } else if cb > 0xff {
++	//     cb = ^int32(0)
++	// }
++	//
++	// but uses fewer branches and is faster.
++	// Note that the uint8 type conversion in the return
++	// statement will convert ^int32(0) to 0xff.
++	// The code below to compute cr uses a similar pattern.
++	cb := -11056*r1 - 21712*g1 + 32768*b1 + 257<<15
++	if uint32(cb)&0xff000000 == 0 {
++		cb >>= 16
++	} else {
++		cb = ^(cb >> 31)
+ 	}
+-	if cr < 0 {
+-		cr = 0
+-	} else if cr > 0xff {
+-		cr = 0xff
++
++	cr := 32768*r1 - 27440*g1 - 5328*b1 + 257<<15
++	if uint32(cr)&0xff000000 == 0 {
++		cr >>= 16
++	} else {
++		cr = ^(cr >> 31)
+ 	}
++
+ 	return uint8(yy), uint8(cb), uint8(cr)
+ }
+ 
+diff --git a/src/image/color/ycbcr_test.go b/src/image/color/ycbcr_test.go
+index 1b110691a2..561699f4e0 100644
+--- a/src/image/color/ycbcr_test.go
++++ b/src/image/color/ycbcr_test.go
+@@ -172,7 +172,7 @@ func TestPalette(t *testing.T) {
+ 	}
+ }
+ 
+-var sinkr, sinkg, sinkb uint8
++var sink uint8
+ 
+ func BenchmarkYCbCrToRGB(b *testing.B) {
+ 	// YCbCrToRGB does saturating arithmetic.
+@@ -180,17 +180,38 @@ func BenchmarkYCbCrToRGB(b *testing.B) {
+ 	// different paths through the generated code.
+ 	b.Run("0", func(b *testing.B) {
+ 		for i := 0; i < b.N; i++ {
+-			sinkr, sinkg, sinkb = YCbCrToRGB(0, 0, 0)
++			sink, sink, sink = YCbCrToRGB(0, 0, 0)
+ 		}
+ 	})
+ 	b.Run("128", func(b *testing.B) {
+ 		for i := 0; i < b.N; i++ {
+-			sinkr, sinkg, sinkb = YCbCrToRGB(128, 128, 128)
++			sink, sink, sink = YCbCrToRGB(128, 128, 128)
+ 		}
+ 	})
+ 	b.Run("255", func(b *testing.B) {
+ 		for i := 0; i < b.N; i++ {
+-			sinkr, sinkg, sinkb = YCbCrToRGB(255, 255, 255)
++			sink, sink, sink = YCbCrToRGB(255, 255, 255)
++		}
++	})
++}
++
++func BenchmarkRGBToYCbCr(b *testing.B) {
++	// RGBToYCbCr does saturating arithmetic.
++	// Different values can take different paths
++	// through the generated code.
++	b.Run("0", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			sink, sink, sink = RGBToYCbCr(0, 0, 0)
++		}
++	})
++	b.Run("Cb", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			sink, sink, sink = RGBToYCbCr(0, 0, 255)
++		}
++	})
++	b.Run("Cr", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			sink, sink, sink = RGBToYCbCr(255, 0, 0)
+ 		}
+ 	})
+ }

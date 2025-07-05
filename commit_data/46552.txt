@@ -15,7 +15,46 @@ Date:   Wed Dec 23 17:33:18 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/279995
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/objfile/xcoff.go | 4 +---
  src/cmd/objdump/objdump_test.go   | 5 -----
  2 files changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/xcoff.go b/src/cmd/internal/objfile/xcoff.go
+index d438c80226..d6df4db8f0 100644
+--- a/src/cmd/internal/objfile/xcoff.go
++++ b/src/cmd/internal/objfile/xcoff.go
+@@ -94,9 +94,7 @@ func (f *xcoffFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
+ 	if pclntab, err = loadXCOFFTable(f.xcoff, "runtime.pclntab", "runtime.epclntab"); err != nil {
+ 		return 0, nil, nil, err
+ 	}
+-	if symtab, err = loadXCOFFTable(f.xcoff, "runtime.symtab", "runtime.esymtab"); err != nil {
+-		return 0, nil, nil, err
+-	}
++	symtab, _ = loadXCOFFTable(f.xcoff, "runtime.symtab", "runtime.esymtab") // ignore error, this symbol is not useful anyway
+ 	return textStart, symtab, pclntab, nil
+ }
+ 
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index edaca774f7..1748e13a53 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -237,9 +237,6 @@ func testGoAndCgoDisasm(t *testing.T, printCode bool, printGnuAsm bool) {
+ 	t.Parallel()
+ 	testDisasm(t, "fmthello.go", printCode, printGnuAsm)
+ 	if build.Default.CgoEnabled {
+-		if runtime.GOOS == "aix" {
+-			return // issue 40972
+-		}
+ 		testDisasm(t, "fmthellocgo.go", printCode, printGnuAsm)
+ 	}
+ }
+@@ -261,8 +258,6 @@ func TestDisasmExtld(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+-	case "aix":
+-		t.Skipf("skipping on AIX, see issue 40972")
+ 	}
+ 	t.Parallel()
+ 	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")

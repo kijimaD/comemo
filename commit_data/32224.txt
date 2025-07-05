@@ -13,7 +13,71 @@ Date:   Thu Apr 13 05:57:59 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/internal/obj/objfile.go | 21 +++++++++++++--------
  src/cmd/internal/obj/plist.go   |  8 +++++++-
  2 files changed, 20 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 6858143674..a4a9091bb9 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -555,19 +555,24 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
+ 	r.Type = R_DWARFREF
+ }
+ 
+-// makeFuncDebugEntry makes a DWARF Debugging Information Entry
+-// for TEXT symbol s.
+-func makeFuncDebugEntry(ctxt *Link, curfn interface{}, s *LSym) {
+-	dsym := ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
++// dwarfSym returns the DWARF symbol for TEXT symbol.
++func (ctxt *Link) dwarfSym(s *LSym) *LSym {
++	if s.Type != STEXT {
++		ctxt.Diag("dwarfSym of non-TEXT %v", s)
++	}
++	return ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
++}
++
++// populateDWARF fills in the DWARF Debugging Information Entry for TEXT symbol s.
++// The DWARF symbol must already have been initialized in InitTextSym.
++func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
++	dsym := ctxt.dwarfSym(s)
+ 	if dsym.Size != 0 {
+-		return
++		ctxt.Diag("makeFuncDebugEntry double process %v", s)
+ 	}
+-	dsym.Type = SDWARFINFO
+-	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+ 	var vars []*dwarf.Var
+ 	if ctxt.DebugInfo != nil {
+ 		vars = ctxt.DebugInfo(s, curfn)
+ 	}
+ 	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, s.Version == 0, s, s.Size, vars)
+-	ctxt.Data = append(ctxt.Data, dsym)
+ }
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index ebfd361021..7dc5b485b1 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -105,7 +105,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+ 		ctxt.Arch.Preprocess(ctxt, s, newprog)
+ 		ctxt.Arch.Assemble(ctxt, s, newprog)
+ 		linkpcln(ctxt, s)
+-		makeFuncDebugEntry(ctxt, plist.Curfn, s)
++		ctxt.populateDWARF(plist.Curfn, s)
+ 	}
+ }
+ 
+@@ -133,6 +133,12 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+ 	s.Type = STEXT
+ 	ctxt.Text = append(ctxt.Text, s)
++
++	// Set up DWARF entry for s.
++	dsym := ctxt.dwarfSym(s)
++	dsym.Type = SDWARFINFO
++	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
++	ctxt.Data = append(ctxt.Data, dsym)
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

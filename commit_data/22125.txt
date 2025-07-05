@@ -14,7 +14,69 @@ Date:   Sat Feb 21 18:18:33 2015 +0100
     Change-Id: I874d02a029f2ac9afc5ab666afb65760ec2c3177
     Reviewed-on: https://go-review.googlesource.com/5522
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/runtime-gdb.py      |  2 +-
  src/runtime/runtime-gdb_test.go | 19 +++++++++++++++++--
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 47a28f5ee6..9f2ba9f934 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -114,7 +114,7 @@ class MapTypePrinter:
+ 		return str(self.val.type)
+ 
+ 	def children(self):
+-		B = self.val['b']
++		B = self.val['B']
+ 		buckets = self.val['buckets']
+ 		oldbuckets = self.val['oldbuckets']
+ 		flags = self.val['flags']
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 36a0dc9e3c..1668f8b1bb 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -27,9 +27,15 @@ func checkGdbPython(t *testing.T) {
+ const helloSource = `
+ package main
+ import "fmt"
+-func main() {
++func finish() {
+ 	fmt.Println("hi")
+ }
++func main() {
++	mapvar := make(map[string]string,5)
++	mapvar["abc"] = "def"
++	mapvar["ghi"] = "jkl"
++	finish()
++}
+ `
+ 
+ func TestGdbPython(t *testing.T) {
+@@ -60,11 +66,15 @@ func TestGdbPython(t *testing.T) {
+ 
+ 	got, _ := exec.Command("gdb", "-nx", "-q", "--batch", "-iex",
+ 		fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
+-		"-ex", "br 'main.main'",
++		"-ex", "br 'main.finish'",
+ 		"-ex", "run",
++		"-ex", "up",
+ 		"-ex", "echo BEGIN info goroutines\n",
+ 		"-ex", "info goroutines",
+ 		"-ex", "echo END\n",
++		"-ex", "echo BEGIN print mapvar\n",
++		"-ex", "print mapvar",
++		"-ex", "echo END\n",
+ 		filepath.Join(dir, "a.exe")).CombinedOutput()
+ 
+ 	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
+@@ -83,4 +93,9 @@ func TestGdbPython(t *testing.T) {
+ 	if bl := blocks["info goroutines"]; !infoGoroutinesRe.MatchString(bl) {
+ 		t.Fatalf("info goroutines failed: %s", bl)
+ 	}
++
++	printMapvarRe := regexp.MustCompile(`\Q = map[string]string = {["abc"] = "def", ["ghi"] = "jkl"}\E$`)
++	if bl := blocks["print mapvar"]; !printMapvarRe.MatchString(bl) {
++		t.Fatalf("print mapvar failed: %s", bl)
++	}
+ }

@@ -12,9 +12,119 @@ Date:   Tue Jan 28 00:26:56 2014 +0400
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/54570045
-
+---
  src/pkg/runtime/malloc.goc | 16 +++++++---------
  src/pkg/runtime/malloc.h   |  4 ++++
  src/pkg/runtime/mgc0.c     |  8 ++++++--
  src/pkg/runtime/runtime.h  |  5 -----
  4 files changed, 17 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 280a0a2a8f..4e554a1f92 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -42,7 +42,6 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	MCacheList *l;
+ 	MLink *v;
+ 	byte *tiny;
+-	P *p;
+ 
+ 	if(size == 0) {
+ 		// All 0-length allocations use this pointer.
+@@ -93,10 +92,9 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 			// the allocator reduces number of allocations by ~12% and
+ 			// reduces heap size by ~20%.
+ 
+-			p = m->p;
+-			tinysize = p->tinysize;
++			tinysize = c->tinysize;
+ 			if(size <= tinysize) {
+-				tiny = p->tiny;
++				tiny = c->tiny;
+ 				// Align tiny pointer for required (conservative) alignment.
+ 				if((size&7) == 0)
+ 					tiny = (byte*)ROUND((uintptr)tiny, 8);
+@@ -104,12 +102,12 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 					tiny = (byte*)ROUND((uintptr)tiny, 4);
+ 				else if((size&1) == 0)
+ 					tiny = (byte*)ROUND((uintptr)tiny, 2);
+-				size1 = size + (tiny - p->tiny);
++				size1 = size + (tiny - c->tiny);
+ 				if(size1 <= tinysize) {
+ 					// The object fits into existing tiny block.
+ 					v = (MLink*)tiny;
+-					p->tiny += size1;
+-					p->tinysize -= size1;
++					c->tiny += size1;
++					c->tinysize -= size1;
+ 					m->mallocing = 0;
+ 					m->locks--;
+ 					if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+@@ -129,8 +127,8 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 			// See if we need to replace the existing tiny block with the new one
+ 			// based on amount of remaining free space.
+ 			if(TinySize-size > tinysize) {
+-				p->tiny = (byte*)v + size;
+-				p->tinysize = TinySize - size;
++				c->tiny = (byte*)v + size;
++				c->tinysize = TinySize - size;
+ 			}
+ 			size = TinySize;
+ 			goto done;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 4146299223..52a23e391c 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -296,6 +296,10 @@ struct MCache
+ 	// so they are grouped here for better caching.
+ 	int32 next_sample;		// trigger heap sample after allocating this many bytes
+ 	intptr local_cachealloc;	// bytes allocated (or freed) from cache since last lock of heap
++	// Allocator cache for tiny objects w/o pointers.
++	// See "Tiny allocator" comment in malloc.goc.
++	byte*	tiny;
++	uintptr	tinysize;
+ 	// The rest is not accessed on every malloc.
+ 	MCacheList list[NumSizeClasses];
+ 	// Local allocator stats, flushed during GC.
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 609dbfece1..e21ad286da 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -68,6 +68,7 @@ clearpools(void)
+ {
+ 	void **pool, **next;
+ 	P *p, **pp;
++	MCache *c;
+ 	uintptr off;
+ 	int32 i;
+ 
+@@ -86,8 +87,11 @@ clearpools(void)
+ 
+ 	for(pp=runtime·allp; p=*pp; pp++) {
+ 		// clear tinyalloc pool
+-		p->tiny = nil;
+-		p->tinysize = 0;
++		c = p->mcache;
++		if(c != nil) {
++			c->tiny = nil;
++			c->tinysize = 0;
++		}
+ 		// clear defer pools
+ 		for(i=0; i<nelem(p->deferpool); i++)
+ 			p->deferpool[i] = nil;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 499983fd78..13fb554547 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -385,11 +385,6 @@ struct P
+ 	MCache*	mcache;
+ 	Defer*	deferpool[5];	// pool of available Defer structs of different sizes (see panic.c)
+ 
+-	// Allocator cache for tiny objects w/o pointers.
+-	// See "Tiny allocator" comment in malloc.goc.
+-	byte*	tiny;
+-	uintptr	tinysize;
+-
+ 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
+ 	uint64	goidcache;
+ 	uint64	goidcacheend;

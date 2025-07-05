@@ -8,7 +8,185 @@ Date:   Mon Dec 30 12:03:56 2013 -0800
     R=dvyukov, khr
     CC=golang-codereviews
     https://golang.org/cl/43490044
-
+---
  src/pkg/runtime/hashmap.c                 | 48 +++++++++++++++++++-----
  src/pkg/runtime/race/testdata/map_test.go | 61 +++++++++++++++++++++++++++++++
  2 files changed, 99 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 5d625c15a8..410ce53c73 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -7,6 +7,7 @@
+ #include "malloc.h"
+ #include "type.h"
+ #include "race.h"
++#include "typekind.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+ // This file contains the implementation of Go's map type.
+@@ -997,7 +998,10 @@ runtime·mapaccess1(MapType *t, Hmap *h, byte *ak, byte *av)
+ {
+ 	if(raceenabled && h != nil) {
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
+-		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess1);
++		if(t->key->kind == KindArray || t->key->kind == KindStruct)
++			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapaccess1);
++		else
++			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess1);
+ 	}
+ 	if(h == nil || h->count == 0) {
+ 		av = t->elem->zero;
+@@ -1028,7 +1032,10 @@ runtime·mapaccess2(MapType *t, Hmap *h, byte *ak, byte *av, bool pres)
+ {
+ 	if(raceenabled && h != nil) {
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
+-		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess2);
++		if(t->key->kind == KindArray || t->key->kind == KindStruct)
++			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapaccess2);
++		else
++			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess2);
+ 	}
+ 
+ 	if(h == nil || h->count == 0) {
+@@ -1066,7 +1073,10 @@ reflect·mapaccess(MapType *t, Hmap *h, byte *key, byte *val)
+ {
+ 	if(raceenabled && h != nil) {
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
+-		runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapaccess);
++		if(t->key->kind == KindArray || t->key->kind == KindStruct)
++			runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapaccess);
++		else
++			runtime·racereadpc(key, runtime·getcallerpc(&t), reflect·mapaccess);
+ 	}
+ 	val = hash_lookup(t, h, &key);
+ 	FLUSH(&val);
+@@ -1082,8 +1092,14 @@ runtime·mapassign1(MapType *t, Hmap *h, byte *ak, byte *av)
+ 
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
+-		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapassign1);
+-		runtime·racereadpc(av, runtime·getcallerpc(&t), runtime·mapassign1);
++		if(t->key->kind == KindArray || t->key->kind == KindStruct)
++			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapassign1);
++		else
++			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapassign1);
++		if(t->elem->kind == KindArray || t->elem->kind == KindStruct)
++			runtime·racereadrangepc(av, t->elem->size, runtime·getcallerpc(&t), runtime·mapassign1);
++		else
++			runtime·racereadpc(av, runtime·getcallerpc(&t), runtime·mapassign1);
+ 	}
+ 
+ 	hash_insert(t, h, ak, av);
+@@ -1109,7 +1125,10 @@ runtime·mapdelete(MapType *t, Hmap *h, byte *ak)
+ 
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
+-		runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapdelete);
++		if(t->key->kind == KindArray || t->key->kind == KindStruct)
++			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapdelete);
++		else
++			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapdelete);
+ 	}
+ 
+ 	hash_remove(t, h, ak);
+@@ -1132,8 +1151,14 @@ reflect·mapassign(MapType *t, Hmap *h, byte *key, byte *val)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
+-		runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapassign);
+-		runtime·racereadrangepc(val, t->elem->size, runtime·getcallerpc(&t), reflect·mapassign);
++		if(t->key->kind == KindArray || t->key->kind == KindStruct)
++			runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapassign);
++		else
++			runtime·racereadpc(key, runtime·getcallerpc(&t), reflect·mapassign);
++		if(t->elem->kind == KindArray || t->elem->kind == KindStruct)
++			runtime·racereadrangepc(val, t->elem->size, runtime·getcallerpc(&t), reflect·mapassign);
++		else
++			runtime·racereadpc(val, runtime·getcallerpc(&t), reflect·mapassign);
+ 	}
+ 
+ 	hash_insert(t, h, key, val);
+@@ -1157,8 +1182,11 @@ reflect·mapdelete(MapType *t, Hmap *h, byte *key)
+ 	if(h == nil)
+ 		runtime·panicstring("delete from nil map");
+ 	if(raceenabled) {
+-		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
+-		runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapassign);
++		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapdelete);
++		if(t->key->kind == KindArray || t->key->kind == KindStruct)
++			runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapdelete);
++		else
++			runtime·racereadpc(key, runtime·getcallerpc(&t), reflect·mapdelete);
+ 	}
+ 	hash_remove(t, h, key);
+ 
+diff --git a/src/pkg/runtime/race/testdata/map_test.go b/src/pkg/runtime/race/testdata/map_test.go
+index 35db8db69b..9ba74b1419 100644
+--- a/src/pkg/runtime/race/testdata/map_test.go
++++ b/src/pkg/runtime/race/testdata/map_test.go
+@@ -159,3 +159,64 @@ func TestRaceMapVariable3(t *testing.T) {
+ 	m = make(map[int]int)
+ 	<-ch
+ }
++
++type Big struct {
++	x [17]int32
++}
++
++func TestRaceMapLookupPartKey(t *testing.T) {
++	k := &Big{}
++	m := make(map[Big]bool)
++	ch := make(chan bool, 1)
++	go func() {
++		k.x[8] = 1
++		ch <- true
++	}()
++	_ = m[*k]
++	<-ch
++}
++
++func TestRaceMapLookupPartKey2(t *testing.T) {
++	k := &Big{}
++	m := make(map[Big]bool)
++	ch := make(chan bool, 1)
++	go func() {
++		k.x[8] = 1
++		ch <- true
++	}()
++	_, _ = m[*k]
++	<-ch
++}
++func TestRaceMapDeletePartKey(t *testing.T) {
++	k := &Big{}
++	m := make(map[Big]bool)
++	ch := make(chan bool, 1)
++	go func() {
++		k.x[8] = 1
++		ch <- true
++	}()
++	delete(m, *k)
++	<-ch
++}
++func TestRaceMapInsertPartKey(t *testing.T) {
++	k := &Big{}
++	m := make(map[Big]bool)
++	ch := make(chan bool, 1)
++	go func() {
++		k.x[8] = 1
++		ch <- true
++	}()
++	m[*k] = true
++	<-ch
++}
++func TestRaceMapInsertPartVal(t *testing.T) {
++	v := &Big{}
++	m := make(map[int]Big)
++	ch := make(chan bool, 1)
++	go func() {
++		v.x[8] = 1
++		ch <- true
++	}()
++	m[1] = *v
++	<-ch
++}

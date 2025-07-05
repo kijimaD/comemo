@@ -14,8 +14,133 @@ Date:   Wed Apr 28 16:32:38 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/expr.go                           |  3 +-
  src/go/types/index.go                          | 42 +++++++++++++++++++++++---
  src/go/types/testdata/fixedbugs/issue45635.go2 | 10 +++---
  3 files changed, 44 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 9bfe23a815..5c65fad447 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1410,7 +1410,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 
+ 	default:
+ 		if typeparams.IsListExpr(e) {
+-			check.errorf(e, _Todo, "invalid multi-index expression")
++			// catch-all for unexpected expression lists
++			check.errorf(e, _Todo, "unexpected list of expressions")
+ 		} else {
+ 			panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
+ 		}
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index f51c3f6acf..2ba3475f89 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -77,8 +77,13 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 		x.typ = typ.elem
+ 
+ 	case *Map:
++		index := check.singleIndex(e)
++		if index == nil {
++			x.mode = invalid
++			return
++		}
+ 		var key operand
+-		check.expr(&key, e.Index)
++		check.expr(&key, index)
+ 		check.assignment(&key, typ.key, "map index")
+ 		// ok to continue even if indexing failed - map element type is known
+ 		x.mode = mapindex
+@@ -132,8 +137,13 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 			// If there are maps, the index expression must be assignable
+ 			// to the map key type (as for simple map index expressions).
+ 			if nmaps > 0 {
++				index := check.singleIndex(e)
++				if index == nil {
++					x.mode = invalid
++					return
++				}
+ 				var key operand
+-				check.expr(&key, e.Index)
++				check.expr(&key, index)
+ 				check.assignment(&key, tkey, "map index")
+ 				// ok to continue even if indexing failed - map element type is known
+ 
+@@ -170,8 +180,8 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 		return
+ 	}
+ 
+-	if e.Index == nil {
+-		check.invalidAST(e, "missing index for %s", x)
++	index := check.singleIndex(e)
++	if index == nil {
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -183,7 +193,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 		x.typ = Typ[Invalid]
+ 	}
+ 
+-	check.index(e.Index, length)
++	check.index(index, length)
+ 	return false
+ }
+ 
+@@ -298,6 +308,28 @@ L:
+ 	}
+ }
+ 
++// singleIndex returns the (single) index from the index expression e.
++// If the index is missing, or if there are multiple indices, an error
++// is reported and the result is nil.
++func (check *Checker) singleIndex(e *ast.IndexExpr) ast.Expr {
++	index := e.Index
++	if index == nil {
++		check.invalidAST(e, "missing index for %s", e)
++		return nil
++	}
++
++	indexes := typeparams.UnpackExpr(index)
++	if len(indexes) == 0 {
++		check.invalidAST(index, "index expression %v with 0 indices", index)
++		return nil
++	}
++	if len(indexes) > 1 {
++		// TODO(rFindley) should this get a distinct error code?
++		check.invalidOp(indexes[1], _InvalidIndex, "more than one index")
++	}
++	return indexes[0]
++}
++
+ // index checks an index expression for validity.
+ // If max >= 0, it is the upper bound for index.
+ // If the result typ is != Typ[Invalid], index is valid and typ is its (possibly named) integer type.
+diff --git a/src/go/types/testdata/fixedbugs/issue45635.go2 b/src/go/types/testdata/fixedbugs/issue45635.go2
+index ec5cf3c5ff..3e2cceca2d 100644
+--- a/src/go/types/testdata/fixedbugs/issue45635.go2
++++ b/src/go/types/testdata/fixedbugs/issue45635.go2
+@@ -16,17 +16,17 @@ type I interface {
+ 	type map[int]int, []int
+ }
+ 
+-func _[T I]() {
++func _[T I](i, j int) {
+ 	var m map[int]int
+-	_ = m[1 /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
++	_ = m[i, j /* ERROR "more than one index" */ ]
+ 
+ 	var a [3]int
+-	_ = a[1 /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
++	_ = a[i, j /* ERROR "more than one index" */ ]
+ 
+ 	var s []int
+-	_ = s[1 /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
++	_ = s[i, j /* ERROR "more than one index" */ ]
+ 
+ 	var t T
+ 	// TODO(rFindley) Fix the duplicate error below.
+-	_ = t[1 /* ERROR "multi-index expression" */ /* ERROR "multi-index expression" */, 2 /* ERROR "expected type" */ ]
++	_ = t[i, j /* ERROR "more than one index" */ /* ERROR "more than one index" */ ]
+ }

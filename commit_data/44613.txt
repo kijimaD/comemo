@@ -17,7 +17,45 @@ Date:   Mon Jul 20 07:57:06 2020 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 8 ++++----
  src/fmt/print.go    | 6 +-----
  2 files changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 6004061020..87fb323809 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -290,11 +290,11 @@ var fmtTests = []struct {
+ 	{"%q", '\U00000e00', `'\u0e00'`},
+ 	{"%q", '\U0010ffff', `'\U0010ffff'`},
+ 	// Runes that are not valid.
+-	{"%q", int32(-1), "%!q(int32=-1)"},
++	{"%q", int32(-1), `'�'`},
+ 	{"%q", 0xDC80, `'�'`},
+-	{"%q", rune(0x110000), "%!q(int32=1114112)"},
+-	{"%q", int64(0xFFFFFFFFF), "%!q(int64=68719476735)"},
+-	{"%q", uint64(0xFFFFFFFFF), "%!q(uint64=68719476735)"},
++	{"%q", rune(0x110000), `'�'`},
++	{"%q", int64(0xFFFFFFFFF), `'�'`},
++	{"%q", uint64(0xFFFFFFFFF), `'�'`},
+ 
+ 	// width
+ 	{"%5s", "abc", "  abc"},
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 595869140a..778b5b0938 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -388,11 +388,7 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
+ 	case 'c':
+ 		p.fmt.fmtC(v)
+ 	case 'q':
+-		if v <= utf8.MaxRune {
+-			p.fmt.fmtQc(v)
+-		} else {
+-			p.badVerb(verb)
+-		}
++		p.fmt.fmtQc(v)
+ 	case 'U':
+ 		p.fmt.fmtUnicode(v)
+ 	default:

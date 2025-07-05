@@ -37,7 +37,146 @@ Date:   Thu Dec 3 13:20:58 2015 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/global_test.go | 64 ++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/sinit.go       | 24 ++++++-----
  2 files changed, 77 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/global_test.go b/src/cmd/compile/internal/gc/global_test.go
+new file mode 100644
+index 0000000000..6c388aff7c
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/global_test.go
+@@ -0,0 +1,64 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"bytes"
++	"internal/testenv"
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path"
++	"testing"
++)
++
++// Make sure "hello world" does not link in all the
++// fmt.scanf routines.  See issue 6853.
++func TestScanfRemoval(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	// Make a directory to work in.
++	dir, err := ioutil.TempDir("", "issue6853a-")
++	if err != nil {
++		log.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	// Create source.
++	src := path.Join(dir, "test.go")
++	f, err := os.Create(src)
++	if err != nil {
++		log.Fatalf("could not create source file: %v", err)
++	}
++	f.Write([]byte(`
++package main
++import "fmt"
++func main() {
++	fmt.Println("hello world")
++}
++`))
++	f.Close()
++
++	// Name of destination.
++	dst := path.Join(dir, "test")
++
++	// Compile source.
++	cmd := exec.Command("go", "build", "-o", dst, src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		log.Fatalf("could not build target: %v", err)
++	}
++
++	// Check destination to see if scanf code was included.
++	cmd = exec.Command("go", "tool", "nm", dst)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		log.Fatalf("could not read target: %v", err)
++	}
++	if bytes.Index(out, []byte("scanInt")) != -1 {
++		log.Fatalf("scanf code not removed from helloworld")
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index bfce8e95d0..6d88e45ea0 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -378,10 +378,6 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 	}
+ 
+ 	switch r.Op {
+-	//dump("not static", r);
+-	default:
+-		break
+-
+ 	case ONAME:
+ 		return staticcopy(l, r, out)
+ 
+@@ -404,12 +400,8 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 
+ 	case OPTRLIT:
+ 		switch r.Left.Op {
+-		//dump("not static ptrlit", r);
+-		default:
+-			break
+-
+-			// Init pointer.
+ 		case OARRAYLIT, OMAPLIT, OSTRUCTLIT:
++			// Init pointer.
+ 			a := staticname(r.Left.Type, 1)
+ 
+ 			inittemps[r] = a
+@@ -421,6 +413,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 			}
+ 			return true
+ 		}
++		//dump("not static ptrlit", r);
+ 
+ 	case OSTRARRAYBYTE:
+ 		if l.Class == PEXTERN && r.Left.Op == OLITERAL {
+@@ -452,7 +445,6 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 		}
+ 		fallthrough
+ 
+-		// fall through
+ 	case OSTRUCTLIT:
+ 		initplan(r)
+ 
+@@ -477,11 +469,21 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 
+ 		return true
+ 
+-		// TODO: Table-driven map insert.
+ 	case OMAPLIT:
++		// TODO: Table-driven map insert.
+ 		break
++
++	case OCLOSURE:
++		if r.Func.Cvars == nil {
++			// Closures with no captured variables are globals,
++			// so the assignment can be done at link time.
++			n := *l
++			gdata(&n, r.Func.Closure.Func.Nname, Widthptr)
++			return true
++		}
+ 	}
+ 
++	//dump("not static", r);
+ 	return false
+ }
+ 

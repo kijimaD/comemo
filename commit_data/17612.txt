@@ -9,8 +9,77 @@ Date:   Mon Sep 16 16:29:04 2013 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/13395047
-
+---
  src/pkg/net/rpc/client.go | 6 ++++--
  src/pkg/net/rpc/debug.go  | 3 +++
  src/pkg/net/rpc/server.go | 5 +++--
  3 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index 608894fb0d..c524d0a0a2 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -161,7 +161,7 @@ func (client *Client) input() {
+ 	}
+ 	client.mutex.Unlock()
+ 	client.sending.Unlock()
+-	if err != io.EOF && !closing {
++	if debugLog && err != io.EOF && !closing {
+ 		log.Println("rpc: client protocol error:", err)
+ 	}
+ }
+@@ -173,7 +173,9 @@ func (call *Call) done() {
+ 	default:
+ 		// We don't want to block here.  It is the caller's responsibility to make
+ 		// sure the channel has enough buffer space. See comment in Go().
+-		log.Println("rpc: discarding Call reply due to insufficient Done chan capacity")
++		if debugLog {
++			log.Println("rpc: discarding Call reply due to insufficient Done chan capacity")
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/net/rpc/debug.go b/src/pkg/net/rpc/debug.go
+index 663663fe94..926466d625 100644
+--- a/src/pkg/net/rpc/debug.go
++++ b/src/pkg/net/rpc/debug.go
+@@ -38,6 +38,9 @@ const debugText = `<html>
+ 
+ var debug = template.Must(template.New("RPC debug").Parse(debugText))
+ 
++// If set, print log statements for internal and I/O errors.
++var debugLog = false
++
+ type debugMethod struct {
+ 	Type *methodType
+ 	Name string
+diff --git a/src/pkg/net/rpc/server.go b/src/pkg/net/rpc/server.go
+index 9ccd703b12..7eb2dcf5a9 100644
+--- a/src/pkg/net/rpc/server.go
++++ b/src/pkg/net/rpc/server.go
+@@ -266,6 +266,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) erro
+ 
+ 	if len(s.method) == 0 {
+ 		str := ""
++
+ 		// To help the user, see if a pointer receiver would work.
+ 		method := suitableMethods(reflect.PtrTo(s.typ), false)
+ 		if len(method) != 0 {
+@@ -357,7 +358,7 @@ func (server *Server) sendResponse(sending *sync.Mutex, req *Request, reply inte
+ 	resp.Seq = req.Seq
+ 	sending.Lock()
+ 	err := codec.WriteResponse(resp, reply)
+-	if err != nil {
++	if debugLog && err != nil {
+ 		log.Println("rpc: writing response:", err)
+ 	}
+ 	sending.Unlock()
+@@ -435,7 +436,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
+ 	for {
+ 		service, mtype, req, argv, replyv, keepReading, err := server.readRequest(codec)
+ 		if err != nil {
+-			if err != io.EOF {
++			if debugLog && err != io.EOF {
+ 				log.Println("rpc:", err)
+ 			}
+ 			if !keepReading {

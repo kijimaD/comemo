@@ -13,7 +13,7 @@ Date:   Thu Oct 20 14:20:41 2022 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/errors/ptr_test.go                    | 62 ++++++++++++++++++--------
  src/cmd/compile/internal/ir/symtab.go          |  2 +
  src/cmd/compile/internal/ssa/writebarrier.go   | 22 ++++++++-
@@ -33,3 +33,728 @@ Date:   Thu Oct 20 14:20:41 2022 -0700
  src/runtime/proc.go                            | 11 -----
  src/runtime/runtime1.go                        |  4 ++
  18 files changed, 168 insertions(+), 90 deletions(-)
+
+diff --git a/misc/cgo/errors/ptr_test.go b/misc/cgo/errors/ptr_test.go
+index 0f39dc8e54..24851cbf35 100644
+--- a/misc/cgo/errors/ptr_test.go
++++ b/misc/cgo/errors/ptr_test.go
+@@ -434,7 +434,22 @@ var ptrTests = []ptrTest{
+ }
+ 
+ func TestPointerChecks(t *testing.T) {
+-	dir, exe := buildPtrTests(t)
++	var gopath string
++	var dir string
++	if *tmp != "" {
++		gopath = *tmp
++		dir = ""
++	} else {
++		d, err := os.MkdirTemp("", filepath.Base(t.Name()))
++		if err != nil {
++			t.Fatal(err)
++		}
++		dir = d
++		gopath = d
++	}
++
++	exe := buildPtrTests(t, gopath, false)
++	exe2 := buildPtrTests(t, gopath, true)
+ 
+ 	// We (TestPointerChecks) return before the parallel subtest functions do,
+ 	// so we can't just defer os.RemoveAll(dir). Instead we have to wait for
+@@ -451,24 +466,12 @@ func TestPointerChecks(t *testing.T) {
+ 					os.RemoveAll(dir)
+ 				}
+ 			}()
+-			testOne(t, pt, exe)
++			testOne(t, pt, exe, exe2)
+ 		})
+ 	}
+ }
+ 
+-func buildPtrTests(t *testing.T) (dir, exe string) {
+-	var gopath string
+-	if *tmp != "" {
+-		gopath = *tmp
+-		dir = ""
+-	} else {
+-		d, err := os.MkdirTemp("", filepath.Base(t.Name()))
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		dir = d
+-		gopath = d
+-	}
++func buildPtrTests(t *testing.T, gopath string, cgocheck2 bool) (exe string) {
+ 
+ 	src := filepath.Join(gopath, "src", "ptrtest")
+ 	if err := os.MkdirAll(src, 0777); err != nil {
+@@ -541,15 +544,31 @@ func buildPtrTests(t *testing.T) (dir, exe string) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-o", "ptrtest.exe")
++	exeName := "ptrtest.exe"
++	if cgocheck2 {
++		exeName = "ptrtest2.exe"
++	}
++	cmd := exec.Command("go", "build", "-o", exeName)
+ 	cmd.Dir = src
+ 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
++	if cgocheck2 {
++		found := false
++		for i, e := range cmd.Env {
++			if strings.HasPrefix(e, "GOEXPERIMENT=") {
++				cmd.Env[i] = e + ",cgocheck2"
++				found = true
++			}
++		}
++		if !found {
++			cmd.Env = append(cmd.Env, "GOEXPERIMENT=cgocheck2")
++		}
++	}
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go build: %v\n%s", err, out)
+ 	}
+ 
+-	return dir, filepath.Join(src, "ptrtest.exe")
++	return filepath.Join(src, exeName)
+ }
+ 
+ const ptrTestMain = `
+@@ -566,7 +585,7 @@ func main() {
+ 
+ var csem = make(chan bool, 16)
+ 
+-func testOne(t *testing.T, pt ptrTest, exe string) {
++func testOne(t *testing.T, pt ptrTest, exe, exe2 string) {
+ 	t.Parallel()
+ 
+ 	// Run the tests in parallel, but don't run too many
+@@ -574,7 +593,12 @@ func testOne(t *testing.T, pt ptrTest, exe string) {
+ 	runcmd := func(cgocheck string) ([]byte, error) {
+ 		csem <- true
+ 		defer func() { <-csem }()
+-		cmd := exec.Command(exe, pt.name)
++		x := exe
++		if cgocheck == "2" {
++			x = exe2
++			cgocheck = "1"
++		}
++		cmd := exec.Command(x, pt.name)
+ 		cmd.Env = append(os.Environ(), "GODEBUG=cgocheck="+cgocheck)
+ 		return cmd.CombinedOutput()
+ 	}
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index bde7a4cfe4..d8759d169e 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -17,6 +17,8 @@ var Syms struct {
+ 	AssertI2I2        *obj.LSym
+ 	Asanread          *obj.LSym
+ 	Asanwrite         *obj.LSym
++	CgoCheckMemmove   *obj.LSym
++	CgoCheckPtrWrite  *obj.LSym
+ 	CheckPtrAlignment *obj.LSym
+ 	Deferproc         *obj.LSym
+ 	DeferprocStack    *obj.LSym
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index d2e10cab62..861c09b96b 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"internal/buildcfg"
+ )
+ 
+ // A ZeroRegion records parts of an object which are known to be zero.
+@@ -131,7 +132,7 @@ func writebarrier(f *Func) {
+ 	}
+ 
+ 	var sb, sp, wbaddr, const0 *Value
+-	var typedmemmove, typedmemclr, gcWriteBarrier *obj.LSym
++	var typedmemmove, typedmemclr, gcWriteBarrier, cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
+ 	var stores, after []*Value
+ 	var sset *sparseSet
+ 	var storeNumber []int32
+@@ -186,6 +187,10 @@ func writebarrier(f *Func) {
+ 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
+ 			typedmemmove = f.fe.Syslook("typedmemmove")
+ 			typedmemclr = f.fe.Syslook("typedmemclr")
++			if buildcfg.Experiment.CgoCheck2 {
++				cgoCheckPtrWrite = f.fe.Syslook("cgoCheckPtrWrite")
++				cgoCheckMemmove = f.fe.Syslook("cgoCheckMemmove")
++			}
+ 			const0 = f.ConstInt32(f.Config.Types.UInt32, 0)
+ 
+ 			// allocate auxiliary data structures for computing store order
+@@ -337,6 +342,11 @@ func writebarrier(f *Func) {
+ 			switch w.Op {
+ 			case OpStoreWB, OpMoveWB, OpZeroWB:
+ 				if w.Op == OpStoreWB {
++					if buildcfg.Experiment.CgoCheck2 {
++						// Issue cgo checking code.
++						memThen = wbcall(pos, bThen, cgoCheckPtrWrite, nil, ptr, val, memThen, sp, sb)
++					}
++
+ 					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
+ 				} else {
+ 					srcval := val
+@@ -359,8 +369,16 @@ func writebarrier(f *Func) {
+ 			// else block: normal store
+ 			switch w.Op {
+ 			case OpStoreWB:
++				if buildcfg.Experiment.CgoCheck2 {
++					// Issue cgo checking code.
++					memElse = wbcall(pos, bElse, cgoCheckPtrWrite, nil, ptr, val, memElse, sp, sb)
++				}
+ 				memElse = bElse.NewValue3A(pos, OpStore, types.TypeMem, w.Aux, ptr, val, memElse)
+ 			case OpMoveWB:
++				if buildcfg.Experiment.CgoCheck2 {
++					// Issue cgo checking code.
++					memElse = wbcall(pos, bElse, cgoCheckMemmove, reflectdata.TypeLinksym(w.Aux.(*types.Type)), ptr, val, memElse, sp, sb)
++				}
+ 				memElse = bElse.NewValue3I(pos, OpMove, types.TypeMem, w.AuxInt, ptr, val, memElse)
+ 				memElse.Aux = w.Aux
+ 			case OpZeroWB:
+@@ -528,7 +546,7 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	off := config.ctxt.Arch.FixedFrameSize
+ 
+ 	var argTypes []*types.Type
+-	if typ != nil { // for typedmemmove
++	if typ != nil { // for typedmemmove/cgoCheckMemmove
+ 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+ 		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
+ 		off = round(off, taddr.Type.Alignment())
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index d83f65455a..b374c3af3d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -96,6 +96,8 @@ func InitConfig() {
+ 	ir.Syms.AssertE2I2 = typecheck.LookupRuntimeFunc("assertE2I2")
+ 	ir.Syms.AssertI2I = typecheck.LookupRuntimeFunc("assertI2I")
+ 	ir.Syms.AssertI2I2 = typecheck.LookupRuntimeFunc("assertI2I2")
++	ir.Syms.CgoCheckMemmove = typecheck.LookupRuntimeFunc("cgoCheckMemmove")
++	ir.Syms.CgoCheckPtrWrite = typecheck.LookupRuntimeFunc("cgoCheckPtrWrite")
+ 	ir.Syms.CheckPtrAlignment = typecheck.LookupRuntimeFunc("checkptrAlignment")
+ 	ir.Syms.Deferproc = typecheck.LookupRuntimeFunc("deferproc")
+ 	ir.Syms.DeferprocStack = typecheck.LookupRuntimeFunc("deferprocStack")
+@@ -7917,6 +7919,10 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ 		return ir.Syms.Typedmemmove
+ 	case "typedmemclr":
+ 		return ir.Syms.Typedmemclr
++	case "cgoCheckMemmove":
++		return ir.Syms.CgoCheckMemmove
++	case "cgoCheckPtrWrite":
++		return ir.Syms.CgoCheckPtrWrite
+ 	}
+ 	e.Fatalf(src.NoXPos, "unknown Syslook func %v", name)
+ 	return nil
+diff --git a/src/internal/goexperiment/exp_cgocheck2_off.go b/src/internal/goexperiment/exp_cgocheck2_off.go
+new file mode 100644
+index 0000000000..77aa538309
+--- /dev/null
++++ b/src/internal/goexperiment/exp_cgocheck2_off.go
+@@ -0,0 +1,9 @@
++// Code generated by mkconsts.go. DO NOT EDIT.
++
++//go:build !goexperiment.cgocheck2
++// +build !goexperiment.cgocheck2
++
++package goexperiment
++
++const CgoCheck2 = false
++const CgoCheck2Int = 0
+diff --git a/src/internal/goexperiment/exp_cgocheck2_on.go b/src/internal/goexperiment/exp_cgocheck2_on.go
+new file mode 100644
+index 0000000000..6201249ca5
+--- /dev/null
++++ b/src/internal/goexperiment/exp_cgocheck2_on.go
+@@ -0,0 +1,9 @@
++// Code generated by mkconsts.go. DO NOT EDIT.
++
++//go:build goexperiment.cgocheck2
++// +build goexperiment.cgocheck2
++
++package goexperiment
++
++const CgoCheck2 = true
++const CgoCheck2Int = 1
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index 8292f97b71..07481bcd50 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -96,4 +96,9 @@ type Flags struct {
+ 	// this compels the Go runtime to write to some arbitrary file, which
+ 	// may be exploited.
+ 	PageTrace bool
++
++	// CgoCheck2 enables an expensive cgo rule checker.
++	// When this experiment is enabled, cgo rule checks occur regardless
++	// of the GODEBUG=cgocheck setting provided at runtime.
++	CgoCheck2 bool
+ }
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index 25e0e651b4..26dfbfc2cc 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/goexperiment"
+ 	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+@@ -21,7 +22,7 @@ import (
+ func atomicwb(ptr *unsafe.Pointer, new unsafe.Pointer) {
+ 	slot := (*uintptr)(unsafe.Pointer(ptr))
+ 	if !getg().m.p.ptr().wbBuf.putFast(*slot, uintptr(new)) {
+-		wbBufFlush(slot, uintptr(new))
++		wbBufFlush()
+ 	}
+ }
+ 
+@@ -32,6 +33,9 @@ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
+ 	if writeBarrier.enabled {
+ 		atomicwb((*unsafe.Pointer)(ptr), new)
+ 	}
++	if goexperiment.CgoCheck2 {
++		cgoCheckPtrWrite((*unsafe.Pointer)(ptr), new)
++	}
+ 	atomic.StorepNoWB(noescape(ptr), new)
+ }
+ 
+@@ -53,6 +57,9 @@ func atomic_casPointer(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
+ 	if writeBarrier.enabled {
+ 		atomicwb(ptr, new)
+ 	}
++	if goexperiment.CgoCheck2 {
++		cgoCheckPtrWrite(ptr, new)
++	}
+ 	return atomic.Casp1(ptr, old, new)
+ }
+ 
+@@ -69,6 +76,9 @@ func sync_atomic_StorePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
+ 	if writeBarrier.enabled {
+ 		atomicwb(ptr, new)
+ 	}
++	if goexperiment.CgoCheck2 {
++		cgoCheckPtrWrite(ptr, new)
++	}
+ 	sync_atomic_StoreUintptr((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
+ }
+ 
+@@ -81,6 +91,9 @@ func sync_atomic_SwapPointer(ptr *unsafe.Pointer, new unsafe.Pointer) unsafe.Poi
+ 	if writeBarrier.enabled {
+ 		atomicwb(ptr, new)
+ 	}
++	if goexperiment.CgoCheck2 {
++		cgoCheckPtrWrite(ptr, new)
++	}
+ 	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(unsafe.Pointer(ptr))), uintptr(new)))
+ 	return old
+ }
+@@ -94,5 +107,8 @@ func sync_atomic_CompareAndSwapPointer(ptr *unsafe.Pointer, old, new unsafe.Poin
+ 	if writeBarrier.enabled {
+ 		atomicwb(ptr, new)
+ 	}
++	if goexperiment.CgoCheck2 {
++		cgoCheckPtrWrite(ptr, new)
++	}
+ 	return sync_atomic_CompareAndSwapUintptr((*uintptr)(noescape(unsafe.Pointer(ptr))), uintptr(old), uintptr(new))
+ }
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 9c75280d62..f9d79eca4b 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -86,6 +86,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
++	"internal/goexperiment"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -391,7 +392,7 @@ var racecgosync uint64 // represents possible synchronization in C code
+ // cgoCheckPointer checks if the argument contains a Go pointer that
+ // points to a Go pointer, and panics if it does.
+ func cgoCheckPointer(ptr any, arg any) {
+-	if debug.cgocheck == 0 {
++	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
+ 		return
+ 	}
+ 
+@@ -631,7 +632,7 @@ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
+ // exported Go function. It panics if the result is or contains a Go
+ // pointer.
+ func cgoCheckResult(val any) {
+-	if debug.cgocheck == 0 {
++	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 84e7516758..af75b5c0b4 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Code to check that pointer writes follow the cgo rules.
+-// These functions are invoked via the write barrier when debug.cgocheck > 1.
++// These functions are invoked when GOEXPERIMENT=cgocheck2 is enabled.
+ 
+ package runtime
+ 
+@@ -14,16 +14,21 @@ import (
+ 
+ const cgoWriteBarrierFail = "Go pointer stored into non-Go memory"
+ 
+-// cgoCheckWriteBarrier is called whenever a pointer is stored into memory.
++// cgoCheckPtrWrite is called whenever a pointer is stored into memory.
+ // It throws if the program is storing a Go pointer into non-Go memory.
+ //
+-// This is called from the write barrier, so its entire call tree must
+-// be nosplit.
++// This is called from generated code when GOEXPERIMENT=cgocheck2 is enabled.
+ //
+ //go:nosplit
+ //go:nowritebarrier
+-func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
+-	if !cgoIsGoPointer(unsafe.Pointer(src)) {
++func cgoCheckPtrWrite(dst *unsafe.Pointer, src unsafe.Pointer) {
++	if !mainStarted {
++		// Something early in startup hates this function.
++		// Don't start doing any actual checking until the
++		// runtime has set itself up.
++		return
++	}
++	if !cgoIsGoPointer(src) {
+ 		return
+ 	}
+ 	if cgoIsGoPointer(unsafe.Pointer(dst)) {
+@@ -51,20 +56,31 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
+ 	}
+ 
+ 	systemstack(func() {
+-		println("write of Go pointer", hex(src), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
++		println("write of Go pointer", hex(uintptr(src)), "to non-Go memory", hex(uintptr(unsafe.Pointer(dst))))
+ 		throw(cgoWriteBarrierFail)
+ 	})
+ }
+ 
+ // cgoCheckMemmove is called when moving a block of memory.
++// It throws if the program is copying a block that contains a Go pointer
++// into non-Go memory.
++//
++// This is called from generated code when GOEXPERIMENT=cgocheck2 is enabled.
++//
++//go:nosplit
++//go:nowritebarrier
++func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
++	cgoCheckMemmove2(typ, dst, src, 0, typ.size)
++}
++
++// cgoCheckMemmove2 is called when moving a block of memory.
+ // dst and src point off bytes into the value to copy.
+ // size is the number of bytes to copy.
+ // It throws if the program is copying a block that contains a Go pointer
+ // into non-Go memory.
+-//
+ //go:nosplit
+ //go:nowritebarrier
+-func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
++func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ 	if typ.ptrdata == 0 {
+ 		return
+ 	}
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 6c41c62694..55dfbff7c4 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -51,9 +51,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	cgocheck: setting cgocheck=0 disables all checks for packages
+ 	using cgo to incorrectly pass Go pointers to non-Go code.
+ 	Setting cgocheck=1 (the default) enables relatively cheap
+-	checks that may miss some errors.  Setting cgocheck=2 enables
+-	expensive checks that should not miss any errors, but will
+-	cause your program to run slower.
++	checks that may miss some errors. A more complete, but slow,
++	cgocheck mode can be enabled using GOEXPERIMENT (which
++	requires a rebuild), see https://pkg.go.dev/internal/goexperiment for details.
+ 
+ 	efence: setting efence=1 causes the allocator to run in a mode
+ 	where each object is allocated on a unique page and addresses are
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index dbcd4db868..0e49794854 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -16,6 +16,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/goexperiment"
+ 	"unsafe"
+ )
+ 
+@@ -169,8 +170,8 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	// barrier, so at worst we've unnecessarily greyed the old
+ 	// pointer that was in src.
+ 	memmove(dst, src, typ.size)
+-	if writeBarrier.cgo {
+-		cgoCheckMemmove(typ, dst, src, 0, typ.size)
++	if goexperiment.CgoCheck2 {
++		cgoCheckMemmove2(typ, dst, src, 0, typ.size)
+ 	}
+ }
+ 
+@@ -214,8 +215,8 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size
+ 	}
+ 
+ 	memmove(dst, src, size)
+-	if writeBarrier.cgo {
+-		cgoCheckMemmove(typ, dst, src, off, size)
++	if goexperiment.CgoCheck2 {
++		cgoCheckMemmove2(typ, dst, src, off, size)
+ 	}
+ }
+ 
+@@ -272,7 +273,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ 		asanread(srcPtr, uintptr(n)*typ.size)
+ 	}
+ 
+-	if writeBarrier.cgo {
++	if goexperiment.CgoCheck2 {
+ 		cgoCheckSliceCopy(typ, dstPtr, srcPtr, n)
+ 	}
+ 
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 088b566729..a3a8b2e70a 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -528,7 +528,7 @@ func (h heapBits) nextFast() (heapBits, uintptr) {
+ // make sure the underlying allocation contains pointers, usually
+ // by checking typ.ptrdata.
+ //
+-// Callers must perform cgo checks if writeBarrier.cgo.
++// Callers must perform cgo checks if goexperiment.CgoCheck2.
+ //
+ //go:nosplit
+ func bulkBarrierPreWrite(dst, src, size uintptr) {
+@@ -574,7 +574,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 			}
+ 			dstx := (*uintptr)(unsafe.Pointer(addr))
+ 			if !buf.putFast(*dstx, 0) {
+-				wbBufFlush(nil, 0)
++				wbBufFlush()
+ 			}
+ 		}
+ 	} else {
+@@ -586,7 +586,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 			dstx := (*uintptr)(unsafe.Pointer(addr))
+ 			srcx := (*uintptr)(unsafe.Pointer(src + (addr - dst)))
+ 			if !buf.putFast(*dstx, *srcx) {
+-				wbBufFlush(nil, 0)
++				wbBufFlush()
+ 			}
+ 		}
+ 	}
+@@ -618,7 +618,7 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+ 		}
+ 		srcx := (*uintptr)(unsafe.Pointer(addr - dst + src))
+ 		if !buf.putFast(0, *srcx) {
+-			wbBufFlush(nil, 0)
++			wbBufFlush()
+ 		}
+ 	}
+ }
+@@ -651,12 +651,12 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
+ 			dstx := (*uintptr)(unsafe.Pointer(dst + i))
+ 			if src == 0 {
+ 				if !buf.putFast(*dstx, 0) {
+-					wbBufFlush(nil, 0)
++					wbBufFlush()
+ 				}
+ 			} else {
+ 				srcx := (*uintptr)(unsafe.Pointer(src + i))
+ 				if !buf.putFast(*dstx, *srcx) {
+-					wbBufFlush(nil, 0)
++					wbBufFlush()
+ 				}
+ 			}
+ 		}
+@@ -678,7 +678,7 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
+ // Must not be preempted because it typically runs right before memmove,
+ // and the GC must observe them as an atomic action.
+ //
+-// Callers must perform cgo checks if writeBarrier.cgo.
++// Callers must perform cgo checks if goexperiment.CgoCheck2.
+ //
+ //go:nosplit
+ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
+@@ -710,7 +710,7 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
+ 			dstx := (*uintptr)(unsafe.Pointer(dst + i))
+ 			srcx := (*uintptr)(unsafe.Pointer(src + i))
+ 			if !buf.putFast(*dstx, *srcx) {
+-				wbBufFlush(nil, 0)
++				wbBufFlush()
+ 			}
+ 		}
+ 	}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 169999460a..f630577914 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -193,8 +193,7 @@ var gcphase uint32
+ var writeBarrier struct {
+ 	enabled bool    // compiler emits a check of this before calling write barrier
+ 	pad     [3]byte // compiler uses 32-bit load for "enabled" field
+-	needed  bool    // whether we need a write barrier for current GC phase
+-	cgo     bool    // whether we need a write barrier for a cgo check
++	needed  bool    // identical to enabled, for now (TODO: dedup)
+ 	alignme uint64  // guarantee alignment so that compiler can use a 32 or 64-bit load
+ }
+ 
+@@ -213,7 +212,7 @@ const (
+ func setGCPhase(x uint32) {
+ 	atomic.Store(&gcphase, x)
+ 	writeBarrier.needed = gcphase == _GCmark || gcphase == _GCmarktermination
+-	writeBarrier.enabled = writeBarrier.needed || writeBarrier.cgo
++	writeBarrier.enabled = writeBarrier.needed
+ }
+ 
+ // gcMarkWorkerMode represents the mode that a concurrent mark worker
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index fa8c81d8ef..bbb1ca2f6b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1092,7 +1092,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 				// Flush the write barrier
+ 				// buffer; this may create
+ 				// more work.
+-				wbBufFlush(nil, 0)
++				wbBufFlush()
+ 				b = gcw.tryGet()
+ 			}
+ 		}
+@@ -1171,7 +1171,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+ 			if b == 0 {
+ 				// Flush the write barrier buffer;
+ 				// this may create more work.
+-				wbBufFlush(nil, 0)
++				wbBufFlush()
+ 				b = gcw.tryGet()
+ 			}
+ 		}
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 3b7cbf8f1f..9b92c92675 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -80,11 +80,7 @@ const (
+ func (b *wbBuf) reset() {
+ 	start := uintptr(unsafe.Pointer(&b.buf[0]))
+ 	b.next = start
+-	if writeBarrier.cgo {
+-		// Effectively disable the buffer by forcing a flush
+-		// on every barrier.
+-		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
+-	} else if testSmallBuf {
++	if testSmallBuf {
+ 		// For testing, allow two barriers in the buffer. If
+ 		// we only did one, then barriers of non-heap pointers
+ 		// would be no-ops. This lets us combine a buffered
+@@ -118,15 +114,10 @@ func (b *wbBuf) empty() bool {
+ //
+ //	buf := &getg().m.p.ptr().wbBuf
+ //	if !buf.putFast(old, new) {
+-//	    wbBufFlush(...)
++//	    wbBufFlush()
+ //	}
+ //	... actual memory write ...
+ //
+-// The arguments to wbBufFlush depend on whether the caller is doing
+-// its own cgo pointer checks. If it is, then this can be
+-// wbBufFlush(nil, 0). Otherwise, it must pass the slot address and
+-// new.
+-//
+ // The caller must ensure there are no preemption points during the
+ // above sequence. There must be no preemption points while buf is in
+ // use because it is a per-P resource. There must be no preemption
+@@ -150,8 +141,7 @@ func (b *wbBuf) putFast(old, new uintptr) bool {
+ }
+ 
+ // wbBufFlush flushes the current P's write barrier buffer to the GC
+-// workbufs. It is passed the slot and value of the write barrier that
+-// caused the flush so that it can implement cgocheck.
++// workbufs.
+ //
+ // This must not have write barriers because it is part of the write
+ // barrier implementation.
+@@ -165,7 +155,7 @@ func (b *wbBuf) putFast(old, new uintptr) bool {
+ //
+ //go:nowritebarrierrec
+ //go:nosplit
+-func wbBufFlush(dst *uintptr, src uintptr) {
++func wbBufFlush() {
+ 	// Note: Every possible return from this function must reset
+ 	// the buffer's next pointer to prevent buffer overflow.
+ 
+@@ -184,17 +174,6 @@ func wbBufFlush(dst *uintptr, src uintptr) {
+ 		return
+ 	}
+ 
+-	if writeBarrier.cgo && dst != nil {
+-		// This must be called from the stack that did the
+-		// write. It's nosplit all the way down.
+-		cgoCheckWriteBarrier(dst, src)
+-		if !writeBarrier.needed {
+-			// We were only called for cgocheck.
+-			getg().m.p.ptr().wbBuf.discard()
+-			return
+-		}
+-	}
+-
+ 	// Switch to the system stack so we don't have to worry about
+ 	// the untyped stack slots or safe points.
+ 	systemstack(func() {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d100d6c8c0..d57a31ce45 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -751,17 +751,6 @@ func schedinit() {
+ 	// World is effectively started now, as P's can run.
+ 	worldStarted()
+ 
+-	// For cgocheck > 1, we turn on the write barrier at all times
+-	// and check all pointer writes. We can't do this until after
+-	// procresize because the write barrier needs a P.
+-	if debug.cgocheck > 1 {
+-		writeBarrier.cgo = true
+-		writeBarrier.enabled = true
+-		for _, pp := range allp {
+-			pp.wbBuf.reset()
+-		}
+-	}
+-
+ 	if buildVersion == "" {
+ 		// Condition should never trigger. This code just serves
+ 		// to ensure runtime·buildVersion is kept in the resulting binary.
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index f5d74b7aed..991b92a0af 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -489,6 +489,10 @@ func parsegodebug(godebug string, seen map[string]bool) {
+ 			}
+ 		}
+ 	}
++
++	if debug.cgocheck > 1 {
++		throw("cgocheck > 1 mode is no longer supported at runtime. Use GOEXPERIMENT=cgocheck2 at build time instead.")
++	}
+ }
+ 
+ //go:linkname setTraceback runtime/debug.SetTraceback

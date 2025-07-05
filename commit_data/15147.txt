@@ -7,7 +7,52 @@ Date:   Wed Feb 6 01:18:37 2013 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7289047
-
+---
  src/pkg/runtime/signal_linux_arm.c | 16 +++++++++++-----
  src/pkg/runtime/traceback_arm.c    |  6 ++++++
  2 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+index 31444a7243..c425696d56 100644
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -68,11 +68,17 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		gp->sigcode1 = r->fault_address;
+ 		gp->sigpc = r->arm_pc;
+ 
+-		// If this is a leaf function, we do smash LR,
+-		// but we're not going back there anyway.
+-		// Don't bother smashing if r->arm_pc is 0,
+-		// which is probably a call to a nil func: the
+-		// old link register is more useful in the stack trace.
++		// We arrange lr, and pc to pretend the panicking
++		// function calls sigpanic directly.
++		// Always save LR to stack so that panics in leaf
++		// functions are correctly handled. This smashes
++		// the stack frame but we're not going back there
++		// anyway.
++		r->arm_sp -= 4;
++		*(uint32 *)r->arm_sp = r->arm_lr;
++		// Don't bother saving PC if it's zero, which is
++		// probably a call to a nil func: the old link register
++		// is more useful in the stack trace.
+ 		if(r->arm_pc != 0)
+ 			r->arm_lr = r->arm_pc;
+ 		// In case we are panicking from external C code
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index fd60490ae4..39dc6fd22c 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -182,6 +182,12 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 		// If this was deferproc or newproc, the caller had an extra 12.
+ 		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
+ 			sp += 12;
++
++		// sighandler saves the lr on stack before fake a call to sigpanic
++		if(waspanic) {
++			pc = *(uintptr *)sp;
++			sp += 4;
++		}
+ 	}
+ 	
+ 	if(pcbuf == nil && (pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil

@@ -8,7 +8,38 @@ Date:   Wed Dec 2 11:02:04 2015 +0800
     Reviewed-on: https://go-review.googlesource.com/17321
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go      | 2 +-
  src/net/dnsclient_unix_test.go | 6 +++++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 5e963d27cc..319011f5f6 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -476,7 +476,7 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
+ 		if order == hostLookupDNSFiles {
+ 			addrs = goLookupIPFiles(name)
+ 		}
+-		if lastErr != nil {
++		if len(addrs) == 0 && lastErr != nil {
+ 			return nil, lastErr
+ 		}
+ 	}
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index a54f7b898d..66ca4cf8ab 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -413,7 +413,11 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+ 			t.Errorf("%s: expected to successfully lookup host entry", name)
+ 			continue
+ 		}
+-		if got, want := addrs, []IPAddr{IPAddr{IP: IP{127, 0, 0, 1}}}; !reflect.DeepEqual(got, want) {
++		if len(addrs) != 1 {
++			t.Errorf("%s: expected exactly one result, but got %v", name, addrs)
++			continue
++		}
++		if got, want := addrs[0].String(), "127.1.1.1"; got != want {
+ 			t.Errorf("%s: address doesn't match expectation. got %v, want %v", name, got, want)
+ 		}
+ 	}

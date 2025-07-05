@@ -19,7 +19,7 @@ Date:   Fri Dec 1 15:23:30 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 15 +++++++++------
  src/cmd/internal/obj/link.go        |  3 +++
  src/cmd/internal/obj/objfile.go     |  2 ++
@@ -30,3 +30,170 @@ Date:   Fri Dec 1 15:23:30 2017 -0500
  test/fixedbugs/issue22962.dir/b.go  |  9 +++++++++
  test/fixedbugs/issue22962.go        |  7 +++++++
  9 files changed, 52 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 3d099ad6c0..cf99931bb5 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -322,7 +322,11 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCall
+ 		switch n.Class() {
+ 		case PAUTO:
+ 			if !n.Name.Used() {
+-				Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
++				// Text == nil -> generating abstract function
++				if fnsym.Func.Text != nil {
++					Fatalf("debuginfo unused node (AllocFrame should truncate fn.Func.Dcl)")
++				}
++				continue
+ 			}
+ 			name = obj.NAME_AUTO
+ 		case PPARAM, PPARAMOUT:
+@@ -558,15 +562,14 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
+ 			InlIndex:      int32(inlIndex),
+ 			ChildIndex:    -1,
+ 		})
+-		// Note: the auto that we're appending here is simply to insure
+-		// that the DWARF type in question is picked up by the linker --
+-		// there isn't a real auto variable with this name. This is
+-		// to fix issue 22941.
++		// Append a "deleted auto" entry to the autom list so as to
++		// insure that the type in question is picked up by the linker.
++		// See issue 22941.
+ 		gotype := ngotype(n).Linksym()
+ 		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
+ 			Asym:    Ctxt.Lookup(n.Sym.Name),
+ 			Aoffset: int32(-1),
+-			Name:    obj.NAME_AUTO,
++			Name:    obj.NAME_DELETED_AUTO,
+ 			Gotype:  gotype,
+ 		})
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 090b1c604b..27c74f6a77 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -208,6 +208,9 @@ const (
+ 	// A reference to name@GOT(SB) is a reference to the entry in the global offset
+ 	// table for 'name'.
+ 	NAME_GOTREF
++	// Indicates auto that was optimized away, but whose type
++	// we want to preserve in the DWARF debug info.
++	NAME_DELETED_AUTO
+ )
+ 
+ type AddrType uint8
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 1a21bcdeb3..2501bba663 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -351,6 +351,8 @@ func (w *objWriter) writeSym(s *LSym) {
+ 			w.writeInt(objabi.A_AUTO)
+ 		} else if a.Name == NAME_PARAM {
+ 			w.writeInt(objabi.A_PARAM)
++		} else if a.Name == NAME_DELETED_AUTO {
++			w.writeInt(objabi.A_DELETED_AUTO)
+ 		} else {
+ 			log.Fatalf("%s: invalid local variable type %d", s.Name, a.Name)
+ 		}
+diff --git a/src/cmd/internal/objabi/autotype.go b/src/cmd/internal/objabi/autotype.go
+index 17c4293131..1b46b0ffec 100644
+--- a/src/cmd/internal/objabi/autotype.go
++++ b/src/cmd/internal/objabi/autotype.go
+@@ -34,4 +34,5 @@ package objabi
+ const (
+ 	A_AUTO = 1 + iota
+ 	A_PARAM
++	A_DELETED_AUTO
+ )
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index b2cd1f1b6a..4642bdbe7a 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -857,7 +857,7 @@ func defdwsymb(ctxt *Link, s *sym.Symbol, str string, t SymbolType, v int64, got
+ 		}
+ 		fallthrough
+ 
+-	case AutoSym, ParamSym:
++	case AutoSym, ParamSym, DeletedAutoSym:
+ 		dt = defgotype(ctxt, gotype)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index cd8b45cd2e..6dcaf64122 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1964,6 +1964,7 @@ func doversion() {
+ type SymbolType int8
+ 
+ const (
++	// see also http://9p.io/magic/man2html/1/nm
+ 	TextSym      SymbolType = 'T'
+ 	DataSym                 = 'D'
+ 	BSSSym                  = 'B'
+@@ -1972,6 +1973,9 @@ const (
+ 	FrameSym                = 'm'
+ 	ParamSym                = 'p'
+ 	AutoSym                 = 'a'
++
++	// Deleted auto (not a real sym, just placeholder for type)
++	DeletedAutoSym = 'x'
+ )
+ 
+ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int64, *sym.Symbol)) {
+@@ -2096,6 +2100,11 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 			continue
+ 		}
+ 		for _, a := range s.FuncInfo.Autom {
++			if a.Name == objabi.A_DELETED_AUTO {
++				put(ctxt, nil, "", DeletedAutoSym, 0, a.Gotype)
++				continue
++			}
++
+ 			// Emit a or p according to actual offset, even if label is wrong.
+ 			// This avoids negative offsets, which cannot be encoded.
+ 			if a.Name != objabi.A_AUTO && a.Name != objabi.A_PARAM {
+diff --git a/test/fixedbugs/issue22962.dir/a.go b/test/fixedbugs/issue22962.dir/a.go
+new file mode 100644
+index 0000000000..7257d7dfab
+--- /dev/null
++++ b/test/fixedbugs/issue22962.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F() {
++	if x := 0; false {
++		_ = x
++	}
++}
+diff --git a/test/fixedbugs/issue22962.dir/b.go b/test/fixedbugs/issue22962.dir/b.go
+new file mode 100644
+index 0000000000..e1568c8fe9
+--- /dev/null
++++ b/test/fixedbugs/issue22962.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++var V = func() { a.F() }
+diff --git a/test/fixedbugs/issue22962.go b/test/fixedbugs/issue22962.go
+new file mode 100644
+index 0000000000..8000a5224f
+--- /dev/null
++++ b/test/fixedbugs/issue22962.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

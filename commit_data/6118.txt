@@ -8,8 +8,181 @@ Date:   Thu Aug 26 22:08:02 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1958047
-
+---
  src/pkg/go/printer/nodes.go                     |  8 ++--
  src/pkg/go/printer/testdata/declarations.golden | 52 +++++++++++++++++--------
  src/pkg/go/printer/testdata/declarations.input  | 20 ++++++++++
  3 files changed, 60 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 434154f699..9e5665089e 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -1192,25 +1192,25 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-// The parameter n is the number of specs in the group. If indent is set,
++// The parameter n is the number of specs in the group. If doIndent is set,
+ // multi-line identifier lists in the spec are indented when the first
+ // linebreak is encountered.
+ // Sets multiLine to true if the spec spans multiple lines.
+ //
+-func (p *printer) spec(spec ast.Spec, n int, indent bool, multiLine *bool) {
++func (p *printer) spec(spec ast.Spec, n int, doIndent bool, multiLine *bool) {
+ 	switch s := spec.(type) {
+ 	case *ast.ImportSpec:
+ 		p.setComment(s.Doc)
+ 		if s.Name != nil {
+ 			p.expr(s.Name, multiLine)
+-			p.print(blank)
++			p.print(vtab)
+ 		}
+ 		p.expr(s.Path, multiLine)
+ 		p.setComment(s.Comment)
+ 
+ 	case *ast.ValueSpec:
+ 		p.setComment(s.Doc)
+-		p.identList(s.Names, indent, multiLine) // always present
++		p.identList(s.Names, doIndent, multiLine) // always present
+ 		if n == 1 {
+ 			if s.Type != nil {
+ 				p.print(blank)
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 56b99e19b4..394460c9d5 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -7,10 +7,10 @@ package imports
+ import "io"
+ 
+ import (
+-	_ "io"
++	_	"io"
+ )
+ 
+-import _ "io"
++import _	"io"
+ 
+ import (
+ 	"io"
+@@ -20,40 +20,60 @@ import (
+ 
+ import (
+ 	"io"
+-	aLongRename "io"
++	aLongRename	"io"
+ 
+-	b "io"
++	b	"io"
++)
++
++import (
++	"unrenamed"
++	renamed	"renameMe"
++	.	"io"
++	_	"io"
++	"io"
++	.	"os"
+ )
+ 
+ // no newlines between consecutive single imports, but
+ // respect extra line breaks in the source (at most one empty line)
+-import _ "io"
+-import _ "io"
+-import _ "io"
++import _	"io"
++import _	"io"
++import _	"io"
+ 
+-import _ "os"
+-import _ "os"
+-import _ "os"
++import _	"os"
++import _	"os"
++import _	"os"
+ 
+ 
+-import _ "fmt"
+-import _ "fmt"
+-import _ "fmt"
++import _	"fmt"
++import _	"fmt"
++import _	"fmt"
+ 
+ import "foo"	// a comment
+ import "bar"	// a comment
+ 
+ import (
+-	_ "foo"
++	_	"foo"
+ 	// a comment
+ 	"bar"
+ 	"foo"	// a comment
+ 	"bar"	// a comment
+ )
+ 
++// comments + renames
++import (
++	"unrenamed"	// a comment
++	renamed		"renameMe"
++	.		"io"		/* a comment */
++	_		"io/ioutil"	// a comment
++	"io"		// testing alignment
++	.		"os"
++	// a comment
++)
++
+ // a case that caused problems in the past (comment placement)
+ import (
+-	. "fmt"
++	.	"fmt"
+ 	"io"
+ 	"malloc"	// for the malloc count test only
+ 	"math"
+@@ -63,7 +83,7 @@ import (
+ 
+ 
+ // at least one empty line between declarations of different kind
+-import _ "io"
++import _	"io"
+ 
+ var _ int
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index eb1baae043..94e659daba 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -25,6 +25,15 @@ import (
+ 	b "io"
+ )
+ 
++import (
++       "unrenamed"
++       renamed "renameMe"
++       . "io"
++       _ "io"
++       "io"
++       . "os"
++)
++
+ // no newlines between consecutive single imports, but
+ // respect extra line breaks in the source (at most one empty line)
+ import _ "io"
+@@ -51,6 +60,17 @@ import (
+ 	"bar"  // a comment
+ )
+ 
++// comments + renames
++import (
++       "unrenamed" // a comment
++       renamed "renameMe"
++       . "io" /* a comment */
++       _ "io/ioutil" // a comment
++       "io" // testing alignment
++       . "os"
++       // a comment
++)
++
+ // a case that caused problems in the past (comment placement)
+ import (
+ 	. "fmt"

@@ -40,7 +40,7 @@ Date:   Fri Jan 24 22:35:11 2014 +0400
     R=golang-codereviews, dave, iant, rsc, bradfitz
     CC=golang-codereviews, khr
     https://golang.org/cl/38750047
-
+---
  src/pkg/runtime/env_posix.c |  15 ++++-
  src/pkg/runtime/malloc.goc  | 141 +++++++++++++++++++++++++++++++++++++-------
  src/pkg/runtime/malloc.h    |   4 ++
@@ -53,3 +53,511 @@ Date:   Fri Jan 24 22:35:11 2014 +0400
  test/fixedbugs/issue4667.go |   4 +-
  test/tinyfin.go             |  62 +++++++++++++++++++
  11 files changed, 230 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/runtime/env_posix.c b/src/pkg/runtime/env_posix.c
+index 5847f8c8a8..746c7ee3fd 100644
+--- a/src/pkg/runtime/env_posix.c
++++ b/src/pkg/runtime/env_posix.c
+@@ -5,6 +5,8 @@
+ // +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+ 
+ #include "runtime.h"
++#include "arch_GOARCH.h"
++#include "malloc.h"
+ 
+ Slice syscall·envs;
+ 
+@@ -44,15 +46,24 @@ void
+ syscall·setenv_c(String k, String v)
+ {
+ 	byte *arg[2];
++	uintptr len;
+ 
+ 	if(_cgo_setenv == nil)
+ 		return;
+ 
+-	arg[0] = runtime·malloc(k.len + 1);
++	// Objects that are explicitly freed must be at least 16 bytes in size,
++	// so that they are not allocated using tiny alloc.
++	len = k.len + 1;
++	if(len < TinySize)
++		len = TinySize;
++	arg[0] = runtime·malloc(len);
+ 	runtime·memmove(arg[0], k.str, k.len);
+ 	arg[0][k.len] = 0;
+ 
+-	arg[1] = runtime·malloc(v.len + 1);
++	len = v.len + 1;
++	if(len < TinySize)
++		len = TinySize;
++	arg[1] = runtime·malloc(len);
+ 	runtime·memmove(arg[1], v.str, v.len);
+ 	arg[1][v.len] = 0;
+ 
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 739c61e4f4..0a0420d415 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -26,6 +26,8 @@ extern MStats mstats;	// defined in zruntime_def_$GOOS_$GOARCH.go
+ 
+ extern volatile intgo runtime·MemProfileRate;
+ 
++static void* largealloc(uint32, uintptr*);
++
+ // Allocate an object of at least size bytes.
+ // Small objects are allocated from the per-thread cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
+@@ -34,12 +36,13 @@ void*
+ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ {
+ 	int32 sizeclass;
++	uintptr tinysize, size1;
+ 	intgo rate;
+ 	MCache *c;
+ 	MCacheList *l;
+-	uintptr npages;
+-	MSpan *s;
+ 	MLink *v;
++	byte *tiny;
++	P *p;
+ 
+ 	if(size == 0) {
+ 		// All 0-length allocations use this pointer.
+@@ -59,6 +62,79 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 
+ 	c = m->mcache;
+ 	if(!runtime·debug.efence && size <= MaxSmallSize) {
++		if((flag&(FlagNoScan|FlagNoGC)) == FlagNoScan && size < TinySize) {
++			// Tiny allocator.
++			//
++			// Tiny allocator combines several tiny allocation requests
++			// into a single memory block. The resulting memory block
++			// is freed when all subobjects are unreachable. The subobjects
++			// must be FlagNoScan (don't have pointers), this ensures that
++			// the amount of potentially wasted memory is bounded.
++			//
++			// Size of the memory block used for combining (TinySize) is tunable.
++			// Current setting is 16 bytes, which relates to 2x worst case memory
++			// wastage (when all but one subobjects are unreachable).
++			// 8 bytes would result in no wastage at all, but provides less
++			// opportunities for combining.
++			// 32 bytes provides more opportunities for combining,
++			// but can lead to 4x worst case wastage.
++			// The best case winning is 8x regardless of block size.
++			//
++			// Objects obtained from tiny allocator must not be freed explicitly.
++			// So when an object will be freed explicitly, we ensure that
++			// its size >= TinySize.
++			//
++			// SetFinalizer has a special case for objects potentially coming
++			// from tiny allocator, it such case it allows to set finalizers
++			// for an inner byte of a memory block.
++			//
++			// The main targets of tiny allocator are small strings and
++			// standalone escaping variables. On a json benchmark
++			// the allocator reduces number of allocations by ~12% and
++			// reduces heap size by ~20%.
++
++			p = m->p;
++			tinysize = p->tinysize;
++			if(size <= tinysize) {
++				tiny = p->tiny;
++				// Align tiny pointer for required (conservative) alignment.
++				if((size&7) == 0)
++					tiny = (byte*)ROUND((uintptr)tiny, 8);
++				else if((size&3) == 0)
++					tiny = (byte*)ROUND((uintptr)tiny, 4);
++				else if((size&1) == 0)
++					tiny = (byte*)ROUND((uintptr)tiny, 2);
++				size1 = size + (tiny - p->tiny);
++				if(size1 <= tinysize) {
++					// The object fits into existing tiny block.
++					v = (MLink*)tiny;
++					p->tiny += size1;
++					p->tinysize -= size1;
++					m->mallocing = 0;
++					m->locks--;
++					if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
++						g->stackguard0 = StackPreempt;
++					return v;
++				}
++			}
++			// Allocate a new TinySize block.
++			l = &c->list[TinySizeClass];
++			if(l->list == nil)
++				runtime·MCache_Refill(c, TinySizeClass);
++			v = l->list;
++			l->list = v->next;
++			l->nlist--;
++			((uint64*)v)[0] = 0;
++			((uint64*)v)[1] = 0;
++			// See if we need to replace the existing tiny block with the new one
++			// based on amount of remaining free space.
++			if(TinySize-size > tinysize) {
++				p->tiny = (byte*)v + size;
++				p->tinysize = TinySize - size;
++			}
++			size = TinySize;
++			goto done;
++		}
+ 		// Allocate from mcache free lists.
+ 		// Inlined version of SizeToClass().
+ 		if(size <= 1024-8)
+@@ -78,23 +154,11 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 			if(size > 2*sizeof(uintptr) && ((uintptr*)v)[1] != 0)
+ 				runtime·memclr((byte*)v, size);
+ 		}
++	done:
+ 		c->local_cachealloc += size;
+ 	} else {
+-		// TODO(rsc): Report tracebacks for very large allocations.
+-
+ 		// Allocate directly from heap.
+-		npages = size >> PageShift;
+-		if((size & PageMask) != 0)
+-			npages++;
+-		s = runtime·MHeap_Alloc(&runtime·mheap, npages, 0, 1, !(flag & FlagNoZero));
+-		if(s == nil)
+-			runtime·throw("out of memory");
+-		s->limit = (byte*)(s->start<<PageShift) + size;
+-		size = npages<<PageShift;
+-		v = (void*)(s->start << PageShift);
+-
+-		// setup for mark sweep
+-		runtime·markspan(v, 0, 0, true);
++		v = largealloc(flag, &size);
+ 	}
+ 
+ 	if(flag & FlagNoGC)
+@@ -151,6 +215,29 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	return v;
+ }
+ 
++static void*
++largealloc(uint32 flag, uintptr *sizep)
++{
++	uintptr npages, size;
++	MSpan *s;
++	void *v;
++
++	// Allocate directly from heap.
++	size = *sizep;
++	npages = size >> PageShift;
++	if((size & PageMask) != 0)
++		npages++;
++	s = runtime·MHeap_Alloc(&runtime·mheap, npages, 0, 1, !(flag & FlagNoZero));
++	if(s == nil)
++		runtime·throw("out of memory");
++	s->limit = (byte*)(s->start<<PageShift) + size;
++	*sizep = npages<<PageShift;
++	v = (void*)(s->start << PageShift);
++	// setup for mark sweep
++	runtime·markspan(v, 0, 0, true);
++	return v;
++}
++
+ void*
+ runtime·malloc(uintptr size)
+ {
+@@ -182,6 +269,10 @@ runtime·free(void *v)
+ 	}
+ 	size = s->elemsize;
+ 	sizeclass = s->sizeclass;
++	// Objects that are smaller than TinySize can be allocated using tiny alloc,
++	// if then such object is combined with an object with finalizer, we will crash.
++	if(size < TinySize)
++		runtime·throw("freeing too small block");
+ 
+ 	if(raceenabled)
+ 		runtime·racefree(v);
+@@ -347,6 +438,9 @@ runtime·mallocinit(void)
+ 
+ 	runtime·InitSizes();
+ 
++	if(runtime·class_to_size[TinySizeClass] != TinySize)
++		runtime·throw("bad TinySizeClass");
++
+ 	// limit = runtime·memlimit();
+ 	// See https://code.google.com/p/go/issues/detail?id=5049
+ 	// TODO(rsc): Fix after 1.1.
+@@ -450,7 +544,7 @@ runtime·mallocinit(void)
+ 	m->mcache = runtime·allocmcache();
+ 
+ 	// See if it works.
+-	runtime·free(runtime·malloc(1));
++	runtime·free(runtime·malloc(TinySize));
+ }
+ 
+ void*
+@@ -760,12 +854,17 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 		goto throw;
+ 	}
+ 	ot = (PtrType*)obj.type;
+-	if(ot->elem != nil && ot->elem->size == 0) {
++	// As an implementation detail we do not run finalizers for zero-sized objects,
++	// because we use &runtime·zerobase for all such allocations.
++	if(ot->elem != nil && ot->elem->size == 0)
+ 		return;
+-	}
+ 	if(!runtime·mlookup(obj.data, &base, &size, nil) || obj.data != base) {
+-		runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
+-		goto throw;
++		// As an implementation detail we allow to set finalizers for an inner byte
++		// of an object if it could come from tiny alloc (see mallocgc for details).
++		if(ot->elem == nil || (ot->elem->kind&KindNoPointers) == 0 || ot->elem->size >= TinySize) {
++			runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
++			goto throw;
++		}
+ 	}
+ 	if(finalizer.type != nil) {
+ 		if(finalizer.type->kind != KindFunc)
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 9f34b55461..8122b4b0b8 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -108,6 +108,10 @@ enum
+ 	// Tunable constants.
+ 	MaxSmallSize = 32<<10,
+ 
++	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.goc.
++	TinySize = 16,
++	TinySizeClass = 2,
++
+ 	FixAllocChunk = 16<<10,		// Chunk size for FixAlloc
+ 	MaxMHeapList = 1<<(20 - PageShift),	// Maximum page length for fixed-size list in MHeap.
+ 	HeapAllocChunk = 1<<20,		// Chunk size for heap growth
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 8b6eeab105..609dbfece1 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -84,8 +84,11 @@ clearpools(void)
+ 	}
+ 	pools.head = nil;
+ 
+-	// clear defer pools
+ 	for(pp=runtime·allp; p=*pp; pp++) {
++		// clear tinyalloc pool
++		p->tiny = nil;
++		p->tinysize = 0;
++		// clear defer pools
+ 		for(i=0; i<nelem(p->deferpool); i++)
+ 			p->deferpool[i] = nil;
+ 	}
+@@ -1202,6 +1205,7 @@ markroot(ParFor *desc, uint32 i)
+ 	MSpan **allspans, *s;
+ 	uint32 spanidx;
+ 	G *gp;
++	void *p;
+ 
+ 	USED(&desc);
+ 	wbuf = getempty(nil);
+@@ -1241,7 +1245,9 @@ markroot(ParFor *desc, uint32 i)
+ 				// don't mark finalized object, but scan it so we
+ 				// retain everything it points to.
+ 				spf = (SpecialFinalizer*)sp;
+-				enqueue1(&wbuf, (Obj){(void*)((s->start << PageShift) + spf->offset), s->elemsize, 0});
++				// A finalizer can be set for an inner byte of an object, find object beginning.
++				p = (void*)((s->start << PageShift) + spf->offset/s->elemsize*s->elemsize);
++				enqueue1(&wbuf, (Obj){p, s->elemsize, 0});
+ 				enqueue1(&wbuf, (Obj){(void*)&spf->fn, PtrSize, 0});
+ 				enqueue1(&wbuf, (Obj){(void*)&spf->fint, PtrSize, 0});
+ 				enqueue1(&wbuf, (Obj){(void*)&spf->ot, PtrSize, 0});
+@@ -1663,12 +1669,16 @@ sweepspan(ParFor *desc, uint32 idx)
+ 	specialp = &s->specials;
+ 	special = *specialp;
+ 	while(special != nil) {
+-		p = (byte*)(s->start << PageShift) + special->offset;
++		// A finalizer can be set for an inner byte of an object, find object beginning.
++		p = (byte*)(s->start << PageShift) + special->offset/size*size;
+ 		off = (uintptr*)p - (uintptr*)arena_start;
+ 		bitp = (uintptr*)arena_start - off/wordsPerBitmapWord - 1;
+ 		shift = off % wordsPerBitmapWord;
+ 		bits = *bitp>>shift;
+ 		if((bits & (bitAllocated|bitMarked)) == bitAllocated) {
++			// Find the exact byte for which the special was setup
++			// (as opposed to object beginning).
++			p = (byte*)(s->start << PageShift) + special->offset;
+ 			// about to free object: splice out special record
+ 			y = special;
+ 			special = special->next;
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 920d653682..ddbcc5f72f 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -605,6 +605,8 @@ removespecial(void *p, byte kind)
+ 	runtime·lock(&span->specialLock);
+ 	t = &span->specials;
+ 	while((s = *t) != nil) {
++		// This function is used for finalizers only, so we don't check for
++		// "interior" specials (p must be exactly equal to s->offset).
+ 		if(offset == s->offset && kind == s->kind) {
+ 			*t = s->next;
+ 			runtime·unlock(&span->specialLock);
+@@ -713,9 +715,9 @@ runtime·freeallspecials(MSpan *span, void *p, uintptr size)
+ 	runtime·lock(&span->specialLock);
+ 	t = &span->specials;
+ 	while((s = *t) != nil) {
+-		if(offset < s->offset)
++		if(offset + size <= s->offset)
+ 			break;
+-		if(offset == s->offset) {
++		if(offset <= s->offset) {
+ 			*t = s->next;
+ 			s->next = list;
+ 			list = s;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 13fb554547..499983fd78 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -385,6 +385,11 @@ struct P
+ 	MCache*	mcache;
+ 	Defer*	deferpool[5];	// pool of available Defer structs of different sizes (see panic.c)
+ 
++	// Allocator cache for tiny objects w/o pointers.
++	// See "Tiny allocator" comment in malloc.goc.
++	byte*	tiny;
++	uintptr	tinysize;
++
+ 	// Cache of goroutine ids, amortizes accesses to runtime·sched.goidgen.
+ 	uint64	goidcache;
+ 	uint64	goidcacheend;
+diff --git a/src/pkg/sync/pool_test.go b/src/pkg/sync/pool_test.go
+index 3bf5131ea0..accf524a9f 100644
+--- a/src/pkg/sync/pool_test.go
++++ b/src/pkg/sync/pool_test.go
+@@ -73,8 +73,8 @@ func TestPoolGC(t *testing.T) {
+ 	var fin uint32
+ 	const N = 100
+ 	for i := 0; i < N; i++ {
+-		v := new(int)
+-		runtime.SetFinalizer(v, func(vv *int) {
++		v := new(string)
++		runtime.SetFinalizer(v, func(vv *string) {
+ 			atomic.AddUint32(&fin, 1)
+ 		})
+ 		p.Put(v)
+diff --git a/test/deferfin.go b/test/deferfin.go
+index fa5a93354d..80372916d2 100644
+--- a/test/deferfin.go
++++ b/test/deferfin.go
+@@ -34,17 +34,17 @@ func main() {
+ 	for i := 0; i < N; i++ {
+ 		go func() {
+ 			defer wg.Done()
+-			v := new(int)
++			v := new(string)
+ 			f := func() {
+-				if *v != 0 {
++				if *v != "" {
+ 					panic("oops")
+ 				}
+ 			}
+-			if *v != 0 {
++			if *v != "" {
+ 				// let the compiler think f escapes
+ 				sink = f
+ 			}
+-			runtime.SetFinalizer(v, func(p *int) {
++			runtime.SetFinalizer(v, func(p *string) {
+ 				atomic.AddInt32(&count, -1)
+ 			})
+ 			defer f()
+diff --git a/test/fixedbugs/issue4618.go b/test/fixedbugs/issue4618.go
+index ff91ae7067..fe875b3501 100644
+--- a/test/fixedbugs/issue4618.go
++++ b/test/fixedbugs/issue4618.go
+@@ -30,7 +30,7 @@ func G() {
+ func main() {
+ 	nf := testing.AllocsPerRun(100, F)
+ 	ng := testing.AllocsPerRun(100, G)
+-	if int(nf) != 1 {
++	if int(nf) > 1 {
+ 		fmt.Printf("AllocsPerRun(100, F) = %v, want 1\n", nf)
+ 		os.Exit(1)
+ 	}
+diff --git a/test/fixedbugs/issue4667.go b/test/fixedbugs/issue4667.go
+index 3a00a31952..18d773c2cf 100644
+--- a/test/fixedbugs/issue4667.go
++++ b/test/fixedbugs/issue4667.go
+@@ -26,11 +26,11 @@ func F() {
+ func main() {
+ 	nf := testing.AllocsPerRun(100, F)
+ 	ng := testing.AllocsPerRun(100, G)
+-	if int(nf) != 1 {
++	if int(nf) > 1 {
+ 		fmt.Printf("AllocsPerRun(100, F) = %v, want 1\n", nf)
+ 		os.Exit(1)
+ 	}
+-	if int(ng) != 1 {
++	if int(ng) > 1 {
+ 		fmt.Printf("AllocsPerRun(100, G) = %v, want 1\n", ng)
+ 		os.Exit(1)
+ 	}
+diff --git a/test/tinyfin.go b/test/tinyfin.go
+new file mode 100644
+index 0000000000..8fb109fc06
+--- /dev/null
++++ b/test/tinyfin.go
+@@ -0,0 +1,62 @@
++// run
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test finalizers work for tiny (combined) allocations.
++
++package main
++
++import (
++	"runtime"
++	"sync/atomic"
++	"time"
++)
++
++func main() {
++	// Does not work on 32-bits due to partially conservative GC.
++	// Try to enable when we have fully precise GC.
++	if runtime.GOARCH != "amd64" {
++		return
++	}
++	// Likewise for gccgo.
++	if runtime.Compiler == "gccgo" {
++		return
++	}
++	N := int32(100)
++	count := N
++	done := make([]bool, N)
++	for i := int32(0); i < N; i++ {
++		x := i // subject to tiny alloc
++		// the closure must be big enough to be combined
++		runtime.SetFinalizer(&x, func(p *int32) {
++			// Check that p points to the correct subobject of the tiny allocation.
++			// It's a bit tricky, because we can't capture another variable
++			// with the expected value (it would be combined as well).
++			if *p < 0 || *p >= N {
++				println("got", *p)
++				panic("corrupted")
++			}
++			if done[*p] {
++				println("got", *p)
++				panic("already finalized")
++			}
++			done[*p] = true
++			atomic.AddInt32(&count, -1)
++		})
++	}
++	for i := 0; i < 4; i++ {
++		runtime.GC()
++		time.Sleep(10 * time.Millisecond)
++	}
++	// Some of the finalizers may not be executed,
++	// if the outermost allocations are combined with something persistent.
++	// Currently 4 int32's are combined into a 16-byte block,
++	// ensure that most of them are finalized.
++	if count >= N/4 {
++		println(count, "out of", N, "finalizer are not called")
++		panic("not all finalizers are called")
++	}
++}
++

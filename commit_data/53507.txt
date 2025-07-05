@@ -24,9 +24,83 @@ Date:   Wed Aug 17 16:48:07 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go               | 17 ++++++++---------
  .../internal/types2/testdata/examples/functions.go      |  2 +-
  .../internal/types2/testdata/fixedbugs/issue39634.go    |  2 +-
  src/go/types/testdata/fixedbugs/issue39634.go           |  3 ---
  4 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 22b1816307..3bf9a5cb3b 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1111,20 +1111,19 @@ loop:
+ 		case _Lbrack:
+ 			p.next()
+ 
+-			if p.tok == _Rbrack {
+-				// invalid empty instance, slice or index expression; accept but complain
+-				p.syntaxError("expecting operand")
+-				p.next()
+-				break
+-			}
+-
+ 			var i Expr
+ 			if p.tok != _Colon {
+ 				var comma bool
+-				i, comma = p.typeList()
++				if p.tok == _Rbrack {
++					// invalid empty instance, slice or index expression; accept but complain
++					p.syntaxError("expecting operand")
++					i = p.badExpr()
++				} else {
++					i, comma = p.typeList()
++				}
+ 				if comma || p.tok == _Rbrack {
+ 					p.want(_Rbrack)
+-					// x[i,] or x[i, j, ...]
++					// x[], x[i,] or x[i, j, ...]
+ 					t := new(IndexExpr)
+ 					t.pos = pos
+ 					t.X = x
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/functions.go b/src/cmd/compile/internal/types2/testdata/examples/functions.go
+index d50f79d11f..0a30893628 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/functions.go
++++ b/src/cmd/compile/internal/types2/testdata/examples/functions.go
+@@ -211,7 +211,7 @@ func _() {
+ func h[] /* ERROR empty type parameter list */ () {}
+ 
+ func _() {
+-	h[] /* ERROR operand */ ()
++	h[ /* ERROR cannot index */ ] /* ERROR operand */ ()
+ }
+ 
+ // Parameterized functions must have a function body.
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go
+index b7d99f96c2..5ae647c596 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go
+@@ -83,7 +83,7 @@ var x T25 /* ERROR without instantiation */ .m1
+ 
+ // crash 26
+ type T26 = interface{ F26[ /* ERROR interface method must have no type parameters */ Z any]() }
+-func F26[Z any]() T26 { return F26 /* ERROR without instantiation */ [] /* ERROR operand */ }
++func F26[Z any]() T26 { return F26[] /* ERROR operand */ }
+ 
+ // crash 27
+ func e27[T any]() interface{ x27 /* ERROR not a type */ } { panic(0) }
+diff --git a/src/go/types/testdata/fixedbugs/issue39634.go b/src/go/types/testdata/fixedbugs/issue39634.go
+index ce84299a61..9df72f990e 100644
+--- a/src/go/types/testdata/fixedbugs/issue39634.go
++++ b/src/go/types/testdata/fixedbugs/issue39634.go
+@@ -83,9 +83,6 @@ var x T25 /* ERROR without instantiation */ .m1
+ 
+ // crash 26
+ type T26 = interface{ F26[ /* ERROR interface method must have no type parameters */ Z any]() }
+-// The error messages on the line below differ from types2 because for backward
+-// compatibility go/parser must produce an IndexExpr with BadExpr index for the
+-// expression F26[].
+ func F26[Z any]() T26 { return F26[] /* ERROR operand */ }
+ 
+ // crash 27

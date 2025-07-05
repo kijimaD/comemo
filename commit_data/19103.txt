@@ -15,8 +15,332 @@ Date:   Thu Apr 10 17:01:21 2014 -0700
     R=golang-codereviews, adg
     CC=dsymonds, golang-codereviews, rsc
     https://golang.org/cl/86660043
-
+---
  src/pkg/net/http/client_test.go | 92 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/http/request.go     | 51 ++++++++---------------
  src/pkg/net/http/transfer.go    | 66 +++++++++++++++++------------
  3 files changed, 150 insertions(+), 59 deletions(-)
+
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 7f1c4b1392..7548eef65f 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -20,6 +20,8 @@ import (
+ 	. "net/http"
+ 	"net/http/httptest"
+ 	"net/url"
++	"reflect"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -944,3 +946,93 @@ func TestClientRedirectEatsBody(t *testing.T) {
+ 		t.Fatal("server saw different client ports before & after the redirect")
+ 	}
+ }
++
++// eofReaderFunc is an io.Reader that runs itself, and then returns io.EOF.
++type eofReaderFunc func()
++
++func (f eofReaderFunc) Read(p []byte) (n int, err error) {
++	f()
++	return 0, io.EOF
++}
++
++func TestClientTrailers(t *testing.T) {
++	defer afterTest(t)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Connection", "close")
++		w.Header().Set("Trailer", "Server-Trailer-A, Server-Trailer-B")
++		w.Header().Add("Trailer", "Server-Trailer-C")
++
++		var decl []string
++		for k := range r.Trailer {
++			decl = append(decl, k)
++		}
++		sort.Strings(decl)
++
++		slurp, err := ioutil.ReadAll(r.Body)
++		if err != nil {
++			t.Errorf("Server reading request body: %v", err)
++		}
++		if string(slurp) != "foo" {
++			t.Errorf("Server read request body %q; want foo", slurp)
++		}
++		if r.Trailer == nil {
++			io.WriteString(w, "nil Trailer")
++		} else {
++			fmt.Fprintf(w, "decl: %v, vals: %s, %s",
++				decl,
++				r.Trailer.Get("Client-Trailer-A"),
++				r.Trailer.Get("Client-Trailer-B"))
++		}
++
++		// TODO: golang.org/issue/7759: there's no way yet for
++		// the server to set trailers without hijacking, so do
++		// that for now, just to test the client.  Later, in
++		// Go 1.4, it should be be implicit that any mutations
++		// to w.Header() after the initial write are the
++		// trailers to be sent, if and only if they were
++		// previously declared with w.Header().Set("Trailer",
++		// ..keys..)
++		w.(Flusher).Flush()
++		conn, buf, _ := w.(Hijacker).Hijack()
++		t := Header{}
++		t.Set("Server-Trailer-A", "valuea")
++		t.Set("Server-Trailer-C", "valuec") // skipping B
++		buf.WriteString("0\r\n")            // eof
++		t.Write(buf)
++		buf.WriteString("\r\n") // end of trailers
++		buf.Flush()
++		conn.Close()
++	}))
++	defer ts.Close()
++
++	var req *Request
++	req, _ = NewRequest("POST", ts.URL, io.MultiReader(
++		eofReaderFunc(func() {
++			req.Trailer["Client-Trailer-A"] = []string{"valuea"}
++		}),
++		strings.NewReader("foo"),
++		eofReaderFunc(func() {
++			req.Trailer["Client-Trailer-B"] = []string{"valueb"}
++		}),
++	))
++	req.Trailer = Header{
++		"Client-Trailer-A": nil, //  to be set later
++		"Client-Trailer-B": nil, //  to be set later
++	}
++	req.ContentLength = -1
++	res, err := DefaultClient.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := wantBody(res, err, "decl: [Client-Trailer-A Client-Trailer-B], vals: valuea, valueb"); err != nil {
++		t.Error(err)
++	}
++	want := Header{
++		"Server-Trailer-A": []string{"valuea"},
++		"Server-Trailer-B": nil,
++		"Server-Trailer-C": []string{"valuec"},
++	}
++	if !reflect.DeepEqual(res.Trailer, want) {
++		t.Errorf("Response trailers = %#v; want %#v", res.Trailer, want)
++	}
++}
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index dd6303136e..120ff85749 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -182,12 +182,24 @@ type Request struct {
+ 	// The HTTP client ignores MultipartForm and uses Body instead.
+ 	MultipartForm *multipart.Form
+ 
+-	// Trailer maps trailer keys to values.  Like for Header, if the
+-	// response has multiple trailer lines with the same key, they will be
+-	// concatenated, delimited by commas.
+-	// For server requests Trailer is only populated after Body has been
+-	// closed or fully consumed.
+-	// Trailer support is only partially complete.
++	// Trailer specifies additional headers that are sent after the request
++	// body.
++	//
++	// For server requests the Trailer map initially contains only the
++	// trailer keys, with nil values. (The client declares which trailers it
++	// will later send.)  While the handler is reading from Body, it must
++	// not reference Trailer. After reading from Body returns EOF, Trailer
++	// can be read again and will contain non-nil values, if they were sent
++	// by the client.
++	//
++	// For client requests Trailer must be initialized to a map containing
++	// the trailer keys to later send. The values may be nil or their final
++	// values. The ContentLength must be 0 or -1, to send a chunked request.
++	// After the HTTP request is sent the map values can be updated while
++	// the request body is read. Once the body returns EOF, the caller must
++	// not mutate Trailer.
++	//
++	// Few HTTP clients, servers, or proxies support HTTP trailers.
+ 	Trailer Header
+ 
+ 	// RemoteAddr allows HTTP servers and other software to record
+@@ -405,7 +417,6 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
+ 		return err
+ 	}
+ 
+-	// TODO: split long values?  (If so, should share code with Conn.Write)
+ 	err = req.Header.WriteSubset(w, reqWriteExcludeHeader)
+ 	if err != nil {
+ 		return err
+@@ -607,32 +618,6 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 
+ 	fixPragmaCacheControl(req.Header)
+ 
+-	// TODO: Parse specific header values:
+-	//	Accept
+-	//	Accept-Encoding
+-	//	Accept-Language
+-	//	Authorization
+-	//	Cache-Control
+-	//	Connection
+-	//	Date
+-	//	Expect
+-	//	From
+-	//	If-Match
+-	//	If-Modified-Since
+-	//	If-None-Match
+-	//	If-Range
+-	//	If-Unmodified-Since
+-	//	Max-Forwards
+-	//	Proxy-Authorization
+-	//	Referer [sic]
+-	//	TE (transfer-codings)
+-	//	Trailer
+-	//	Transfer-Encoding
+-	//	Upgrade
+-	//	User-Agent
+-	//	Via
+-	//	Warning
+-
+ 	err = readTransfer(req, b)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index d509e14419..4c3050fed6 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"net/textproto"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -143,11 +144,10 @@ func (t *transferWriter) shouldSendContentLength() bool {
+ 	return false
+ }
+ 
+-func (t *transferWriter) WriteHeader(w io.Writer) (err error) {
++func (t *transferWriter) WriteHeader(w io.Writer) error {
+ 	if t.Close {
+-		_, err = io.WriteString(w, "Connection: close\r\n")
+-		if err != nil {
+-			return
++		if _, err := io.WriteString(w, "Connection: close\r\n"); err != nil {
++			return err
+ 		}
+ 	}
+ 
+@@ -156,42 +156,41 @@ func (t *transferWriter) WriteHeader(w io.Writer) (err error) {
+ 	// TransferEncoding)
+ 	if t.shouldSendContentLength() {
+ 		io.WriteString(w, "Content-Length: ")
+-		_, err = io.WriteString(w, strconv.FormatInt(t.ContentLength, 10)+"\r\n")
+-		if err != nil {
+-			return
++		if _, err := io.WriteString(w, strconv.FormatInt(t.ContentLength, 10)+"\r\n"); err != nil {
++			return err
+ 		}
+ 	} else if chunked(t.TransferEncoding) {
+-		_, err = io.WriteString(w, "Transfer-Encoding: chunked\r\n")
+-		if err != nil {
+-			return
++		if _, err := io.WriteString(w, "Transfer-Encoding: chunked\r\n"); err != nil {
++			return err
+ 		}
+ 	}
+ 
+ 	// Write Trailer header
+ 	if t.Trailer != nil {
+-		// TODO: At some point, there should be a generic mechanism for
+-		// writing long headers, using HTTP line splitting
+-		io.WriteString(w, "Trailer: ")
+-		needComma := false
++		keys := make([]string, 0, len(t.Trailer))
+ 		for k := range t.Trailer {
+ 			k = CanonicalHeaderKey(k)
+ 			switch k {
+ 			case "Transfer-Encoding", "Trailer", "Content-Length":
+ 				return &badStringError{"invalid Trailer key", k}
+ 			}
+-			if needComma {
+-				io.WriteString(w, ",")
++			keys = append(keys, k)
++		}
++		if len(keys) > 0 {
++			sort.Strings(keys)
++			// TODO: could do better allocation-wise here, but trailers are rare,
++			// so being lazy for now.
++			if _, err := io.WriteString(w, "Trailer: "+strings.Join(keys, ",")+"\r\n"); err != nil {
++				return err
+ 			}
+-			io.WriteString(w, k)
+-			needComma = true
+ 		}
+-		_, err = io.WriteString(w, "\r\n")
+ 	}
+ 
+-	return
++	return nil
+ }
+ 
+-func (t *transferWriter) WriteBody(w io.Writer) (err error) {
++func (t *transferWriter) WriteBody(w io.Writer) error {
++	var err error
+ 	var ncopy int64
+ 
+ 	// Write body
+@@ -228,11 +227,16 @@ func (t *transferWriter) WriteBody(w io.Writer) (err error) {
+ 
+ 	// TODO(petar): Place trailer writer code here.
+ 	if chunked(t.TransferEncoding) {
++		// Write Trailer header
++		if t.Trailer != nil {
++			if err := t.Trailer.Write(w); err != nil {
++				return err
++			}
++		}
+ 		// Last chunk, empty trailer
+ 		_, err = io.WriteString(w, "\r\n")
+ 	}
+-
+-	return
++	return err
+ }
+ 
+ type transferReader struct {
+@@ -510,7 +514,7 @@ func fixTrailer(header Header, te []string) (Header, error) {
+ 		case "Transfer-Encoding", "Trailer", "Content-Length":
+ 			return nil, &badStringError{"bad trailer key", key}
+ 		}
+-		trailer.Del(key)
++		trailer[key] = nil
+ 	}
+ 	if len(trailer) == 0 {
+ 		return nil, nil
+@@ -642,13 +646,23 @@ func (b *body) readTrailer() error {
+ 	}
+ 	switch rr := b.hdr.(type) {
+ 	case *Request:
+-		rr.Trailer = Header(hdr)
++		mergeSetHeader(&rr.Trailer, Header(hdr))
+ 	case *Response:
+-		rr.Trailer = Header(hdr)
++		mergeSetHeader(&rr.Trailer, Header(hdr))
+ 	}
+ 	return nil
+ }
+ 
++func mergeSetHeader(dst *Header, src Header) {
++	if *dst == nil {
++		*dst = src
++		return
++	}
++	for k, vv := range src {
++		(*dst)[k] = vv
++	}
++}
++
+ func (b *body) Close() error {
+ 	b.mu.Lock()
+ 	defer b.mu.Unlock()

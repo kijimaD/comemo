@@ -15,9 +15,101 @@ Date:   Tue Aug 1 12:37:15 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/database/sql/convert.go      |  2 +-
  src/database/sql/driver/types.go |  2 +-
  src/database/sql/fakedb_test.go  | 28 ++++++++++++++--------------
  src/database/sql/sql.go          |  2 +-
  4 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index ffc4e497b4..d1a8981e5e 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -529,7 +529,7 @@ func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
+ 	return
+ }
+ 
+-var valuerReflectType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
++var valuerReflectType = reflect.TypeFor[driver.Valuer]()
+ 
+ // callValuerValue returns vr.Value(), with one exception:
+ // If vr.Value is an auto-generated method on a pointer type and the
+diff --git a/src/database/sql/driver/types.go b/src/database/sql/driver/types.go
+index fa98df7acd..c4a253b3e5 100644
+--- a/src/database/sql/driver/types.go
++++ b/src/database/sql/driver/types.go
+@@ -211,7 +211,7 @@ type defaultConverter struct{}
+ 
+ var _ ValueConverter = defaultConverter{}
+ 
+-var valuerReflectType = reflect.TypeOf((*Valuer)(nil)).Elem()
++var valuerReflectType = reflect.TypeFor[Valuer]()
+ 
+ // callValuerValue returns vr.Value(), with one exception:
+ // If vr.Value is an auto-generated method on a pointer type and the
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index cfeb3b3437..c6c3172b5c 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -1251,33 +1251,33 @@ func converterForType(typ string) driver.ValueConverter {
+ func colTypeToReflectType(typ string) reflect.Type {
+ 	switch typ {
+ 	case "bool":
+-		return reflect.TypeOf(false)
++		return reflect.TypeFor[bool]()
+ 	case "nullbool":
+-		return reflect.TypeOf(NullBool{})
++		return reflect.TypeFor[NullBool]()
+ 	case "int16":
+-		return reflect.TypeOf(int16(0))
++		return reflect.TypeFor[int16]()
+ 	case "nullint16":
+-		return reflect.TypeOf(NullInt16{})
++		return reflect.TypeFor[NullInt16]()
+ 	case "int32":
+-		return reflect.TypeOf(int32(0))
++		return reflect.TypeFor[int32]()
+ 	case "nullint32":
+-		return reflect.TypeOf(NullInt32{})
++		return reflect.TypeFor[NullInt32]()
+ 	case "string":
+-		return reflect.TypeOf("")
++		return reflect.TypeFor[string]()
+ 	case "nullstring":
+-		return reflect.TypeOf(NullString{})
++		return reflect.TypeFor[NullString]()
+ 	case "int64":
+-		return reflect.TypeOf(int64(0))
++		return reflect.TypeFor[int64]()
+ 	case "nullint64":
+-		return reflect.TypeOf(NullInt64{})
++		return reflect.TypeFor[NullInt64]()
+ 	case "float64":
+-		return reflect.TypeOf(float64(0))
++		return reflect.TypeFor[float64]()
+ 	case "nullfloat64":
+-		return reflect.TypeOf(NullFloat64{})
++		return reflect.TypeFor[NullFloat64]()
+ 	case "datetime":
+-		return reflect.TypeOf(time.Time{})
++		return reflect.TypeFor[time.Time]()
+ 	case "any":
+-		return reflect.TypeOf(new(any)).Elem()
++		return reflect.TypeFor[any]()
+ 	}
+ 	panic("invalid fakedb column type of " + typ)
+ }
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 7a57c7de36..7592bad1d3 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -3244,7 +3244,7 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
+ 		if prop, ok := rowsi.(driver.RowsColumnTypeScanType); ok {
+ 			ci.scanType = prop.ColumnTypeScanType(i)
+ 		} else {
+-			ci.scanType = reflect.TypeOf(new(any)).Elem()
++			ci.scanType = reflect.TypeFor[any]()
+ 		}
+ 		if prop, ok := rowsi.(driver.RowsColumnTypeDatabaseTypeName); ok {
+ 			ci.databaseType = prop.ColumnTypeDatabaseTypeName(i)

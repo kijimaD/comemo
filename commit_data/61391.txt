@@ -13,6 +13,20 @@ Date:   Wed Oct 23 21:33:00 2024 +0800
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 6be3872012..426427cd76 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -250,7 +250,7 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
+ 			ev.Changed = ev.Value != ""
+ 		case "PKG_CONFIG":
+ 			ev.Changed = ev.Value != cfg.DefaultPkgConfig
+-		case "CGO_CXXFLAGS", "CGO_CFLAGS", "CGO_FFLAGS", "GGO_LDFLAGS":
++		case "CGO_CXXFLAGS", "CGO_CFLAGS", "CGO_FFLAGS", "CGO_LDFLAGS":
+ 			ev.Changed = ev.Value != work.DefaultCFlags
+ 		}
+ 	}

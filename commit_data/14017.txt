@@ -9,6 +9,20 @@ Date:   Thu Oct 4 11:49:33 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6591074
-
+---
  src/run.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bat b/src/run.bat
+index ea87d3d806..67762e1df0 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -97,7 +97,7 @@ echo.
+ if %FAIL%==1 goto fail
+ 
+ echo # Checking API compatibility.
+-go tool api -c ..\api\go1.txt -next ..\api\next.txt
++go tool api -c ..\api\go1.txt -next ..\api\next.txt -except ..\api\except.txt
+ if errorlevel 1 goto fail
+ echo.
+ 

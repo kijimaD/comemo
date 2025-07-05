@@ -18,8 +18,141 @@ Date:   Sun Feb 23 13:36:46 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/types/builtins.go      | 10 ++++++----
  src/go/types/builtins_test.go | 13 ++++++-------
  src/go/types/expr.go          | 42 ++++++++++++++++++++++++------------------
  3 files changed, 36 insertions(+), 29 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index cc50f677c7..a445ebf1c6 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -441,10 +441,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			check.errorf(call.Pos(), "%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
+ 			return
+ 		}
++		types := []Type{T}
+ 		var sizes []int64 // constant integer arguments, if any
+ 		for _, arg := range call.Args[1:] {
+-			if s, ok := check.index(arg, -1); ok && s >= 0 {
+-				sizes = append(sizes, s)
++			typ, size := check.index(arg, -1) // ok to continue with typ == Typ[Invalid]
++			types = append(types, typ)
++			if size >= 0 {
++				sizes = append(sizes, size)
+ 			}
+ 		}
+ 		if len(sizes) == 2 && sizes[0] > sizes[1] {
+@@ -454,8 +457,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		x.mode = value
+ 		x.typ = T
+ 		if check.Types != nil {
+-			params := [...]Type{T, Typ[Int], Typ[Int]}
+-			check.recordBuiltinType(call.Fun, makeSig(x.typ, params[:nargs]...))
++			check.recordBuiltinType(call.Fun, makeSig(x.typ, types...))
+ 		}
+ 
+ 	case _New:
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index ac0145ea87..cfd19d5e28 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -79,14 +79,13 @@ var builtinCalls = []struct {
+ 	{"make", `var    c int; _ = make([]int, 0, c)`, `func([]int, int, int) []int`},
+ 	{"make", `var l, c int; _ = make([]int, l, c)`, `func([]int, int, int) []int`},
+ 
+-	// TODO(gri) enable once the issue is fixed
+ 	// issue #37393
+-	// {"make", `                _ = make([]int       , 0   )`, `func([]int, int) []int`},
+-	// {"make", `var l    byte ; _ = make([]int8      , l   )`, `func([]int8, byte) []int8`},
+-	// {"make", `                _ = make([]int16     , 0, 0)`, `func([]int16, int, int) []int16`},
+-	// {"make", `var l    int16; _ = make([]string    , l, 0)`, `func([]string, int16, int) []string`},
+-	// {"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
+-	// {"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
++	{"make", `                _ = make([]int       , 0   )`, `func([]int, int) []int`},
++	{"make", `var l    byte ; _ = make([]int8      , l   )`, `func([]int8, byte) []int8`},
++	{"make", `                _ = make([]int16     , 0, 0)`, `func([]int16, int, int) []int16`},
++	{"make", `var l    int16; _ = make([]string    , l, 0)`, `func([]string, int16, int) []string`},
++	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
++	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
+ 
+ 	{"new", `_ = new(int)`, `func(int) *int`},
+ 	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index d49ccdf67e..165778c2f7 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -868,8 +868,12 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
+ 
+ // index checks an index expression for validity.
+ // If max >= 0, it is the upper bound for index.
+-// If index is valid and the result i >= 0, then i is the constant value of index.
+-func (check *Checker) index(index ast.Expr, max int64) (i int64, valid bool) {
++// If the result typ is != Typ[Invalid], index is valid and typ is its (possibly named) integer type.
++// If the result val >= 0, index is valid and val is its constant int value.
++func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
++	typ = Typ[Invalid]
++	val = -1
++
+ 	var x operand
+ 	check.expr(&x, index)
+ 	if x.mode == invalid {
+@@ -888,22 +892,24 @@ func (check *Checker) index(index ast.Expr, max int64) (i int64, valid bool) {
+ 		return
+ 	}
+ 
++	if x.mode != constant_ {
++		return x.typ, -1
++	}
++
+ 	// a constant index i must be in bounds
+-	if x.mode == constant_ {
+-		if constant.Sign(x.val) < 0 {
+-			check.invalidArg(x.pos(), "index %s must not be negative", &x)
+-			return
+-		}
+-		i, valid = constant.Int64Val(constant.ToInt(x.val))
+-		if !valid || max >= 0 && i >= max {
+-			check.errorf(x.pos(), "index %s is out of bounds", &x)
+-			return i, false
+-		}
+-		// 0 <= i [ && i < max ]
+-		return i, true
++	if constant.Sign(x.val) < 0 {
++		check.invalidArg(x.pos(), "index %s must not be negative", &x)
++		return
++	}
++
++	v, valid := constant.Int64Val(constant.ToInt(x.val))
++	if !valid || max >= 0 && v >= max {
++		check.errorf(x.pos(), "index %s is out of bounds", &x)
++		return
+ 	}
+ 
+-	return -1, true
++	// 0 <= v [ && v < max ]
++	return Typ[Int], v
+ }
+ 
+ // indexElts checks the elements (elts) of an array or slice composite literal
+@@ -919,7 +925,7 @@ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
+ 		validIndex := false
+ 		eval := e
+ 		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+-			if i, ok := check.index(kv.Key, length); ok {
++			if typ, i := check.index(kv.Key, length); typ != Typ[Invalid] {
+ 				if i >= 0 {
+ 					index = i
+ 					validIndex = true
+@@ -1411,8 +1417,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 				if length >= 0 {
+ 					max = length + 1
+ 				}
+-				if t, ok := check.index(expr, max); ok && t >= 0 {
+-					x = t
++				if _, v := check.index(expr, max); v >= 0 {
++					x = v
+ 				}
+ 			case i == 0:
+ 				// default is 0 for the first index

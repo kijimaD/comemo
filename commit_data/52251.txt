@@ -17,6 +17,23 @@ Date:   Mon Apr 18 11:02:26 2022 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/sniff.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/net/http/sniff.go b/src/net/http/sniff.go
+index 67a7151b0c..ac18ab979d 100644
+--- a/src/net/http/sniff.go
++++ b/src/net/http/sniff.go
+@@ -128,11 +128,6 @@ var sniffSignatures = []sniffSig{
+ 	// Audio and Video types
+ 	// Enforce the pattern match ordering as prescribed in
+ 	// https://mimesniff.spec.whatwg.org/#matching-an-audio-or-video-type-pattern
+-	&maskedSig{
+-		mask: []byte("\xFF\xFF\xFF\xFF"),
+-		pat:  []byte(".snd"),
+-		ct:   "audio/basic",
+-	},
+ 	&maskedSig{
+ 		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
+ 		pat:  []byte("FORM\x00\x00\x00\x00AIFF"),

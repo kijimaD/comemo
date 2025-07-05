@@ -7,7 +7,34 @@ Date:   Sat Dec 10 13:02:23 2011 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5476055
-
+---
  src/pkg/net/http/server.go | 2 +-
  src/pkg/testing/testing.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index c100e4d5c6..6df00ddaea 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -261,7 +261,7 @@ func (w *response) Header() Header {
+ }
+ 
+ // maxPostHandlerReadBytes is the max number of Request.Body bytes not
+-// consumed by a handler that the server will read from the a client
++// consumed by a handler that the server will read from the client
+ // in order to keep a connection alive.  If there are more bytes than
+ // this then the server to be paranoid instead sends a "Connection:
+ // close" response.
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index b12882d606..ca2fced3fb 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -75,7 +75,7 @@ func Short() bool {
+ 	return *short
+ }
+ 
+-// decorate inserts the a final newline if needed and indentation tabs for formatting.
++// decorate inserts the final newline if needed and indentation tabs for formatting.
+ // If addFileLine is true, it also prefixes the string with the file and line of the call site.
+ func decorate(s string, addFileLine bool) string {
+ 	if addFileLine {

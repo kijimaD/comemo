@@ -9,6 +9,20 @@ Date:   Fri Mar 25 13:31:30 2011 -0700
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/4312055
-
+---
  test/fixedbugs/bug016.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug016.go b/test/fixedbugs/bug016.go
+index 1cdd8df084..4fbfd48fd9 100644
+--- a/test/fixedbugs/bug016.go
++++ b/test/fixedbugs/bug016.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func main() {
+ 	var i int = 100
+-	i = i << -3 // ERROR "overflows"
++	i = i << -3 // ERROR "overflows|negative"
+ }
+ 
+ /*

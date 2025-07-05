@@ -29,7 +29,56 @@ Date:   Wed Jun 11 14:21:06 2014 -0400
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/108870044
-
+---
  src/cmd/gc/esc.c | 13 +++++++++++--
  test/escape2.go  | 12 ++++++++++++
  2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 9d7dc1149c..78624d7cbf 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -673,12 +673,21 @@ esc(EscState *e, Node *n, Node *up)
+ 		// for &x, use loop depth of x if known.
+ 		// it should always be known, but if not, be conservative
+ 		// and keep the current loop depth.
+-		if(n->left->op == ONAME && (n->left->escloopdepth != 0 || n->left->class == PPARAMOUT)) {
++		if(n->left->op == ONAME) {
+ 			switch(n->left->class) {
+ 			case PAUTO:
++				if(n->left->escloopdepth != 0)
++					n->escloopdepth = n->left->escloopdepth;
++				break;
+ 			case PPARAM:
+ 			case PPARAMOUT:
+-				n->escloopdepth = n->left->escloopdepth;
++				// PPARAM is loop depth 1 always.
++				// PPARAMOUT is loop depth 0 for writes
++				// but considered loop depth 1 for address-of,
++				// so that writing the address of one result
++				// to another (or the same) result makes the
++				// first result move to the heap.
++				n->escloopdepth = 1;
+ 				break;
+ 			}
+ 		}
+diff --git a/test/escape2.go b/test/escape2.go
+index f00741dc2f..28251aa98b 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1478,3 +1478,15 @@ func foo153(v interface{}) *int { // ERROR "leaking param: v"
+ 	}
+ 	panic(0)
+ }
++
++// issue 8185 - &result escaping into result
++
++func f() (x int, y *int) { // ERROR "moved to heap: x"
++	y = &x // ERROR "&x escapes to heap"
++	return
++}
++
++func g() (x interface{}) { // ERROR "moved to heap: x"
++	x = &x // ERROR "&x escapes to heap"
++	return
++}

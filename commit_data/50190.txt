@@ -18,7 +18,61 @@ Date:   Thu Oct 7 20:14:22 2021 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  4 ++--
  test/typeparam/issue48838.go              | 31 +++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 2bc1756b8d..62d6a45819 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1298,9 +1298,9 @@ func (g *irgen) dictPass(info *instInfo) {
+ 							// Type switch from nonempty interface. We need a *runtime.itab
+ 							// for the dynamic type.
+ 							ix := -1
+-							for i, ic := range info.dictInfo.itabConvs {
++							for j, ic := range info.dictInfo.itabConvs {
+ 								if ic == m.List[i] {
+-									ix = info.dictInfo.startItabConv + i
++									ix = info.dictInfo.startItabConv + j
+ 									break
+ 								}
+ 							}
+diff --git a/test/typeparam/issue48838.go b/test/typeparam/issue48838.go
+new file mode 100644
+index 0000000000..ef2150d6a2
+--- /dev/null
++++ b/test/typeparam/issue48838.go
+@@ -0,0 +1,31 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	check[string]()
++}
++
++func check[T any]() {
++	var result setter[T]
++	switch result.(type) {
++	case fooA[T]:
++	case fooB[T]:
++	}
++}
++
++type setter[T any] interface {
++	Set(T)
++}
++
++type fooA[T any] struct{}
++
++func (fooA[T]) Set(T) {}
++
++type fooB[T any] struct{}
++
++func (fooB[T]) Set(T) {}

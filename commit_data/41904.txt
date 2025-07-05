@@ -13,7 +13,104 @@ Date:   Thu Oct 31 23:24:26 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file_unix.go |  8 +++++--
  src/os/os_test.go   | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 042c2997db..31c43eb61e 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -27,13 +27,17 @@ func rename(oldname, newname string) error {
+ 		// At this point we've determined the newname is bad.
+ 		// But just in case oldname is also bad, prioritize returning
+ 		// the oldname error because that's what we did historically.
+-		if _, err := Lstat(oldname); err != nil {
++		// However, if the old name and new name are not the same, yet
++		// they refer to the same file, it implies a case-only
++		// rename on a case-insensitive filesystem, which is ok.
++		if ofi, err := Lstat(oldname); err != nil {
+ 			if pe, ok := err.(*PathError); ok {
+ 				err = pe.Err
+ 			}
+ 			return &LinkError{"rename", oldname, newname, err}
++		} else if newname == oldname || !SameFile(fi, ofi) {
++			return &LinkError{"rename", oldname, newname, syscall.EEXIST}
+ 		}
+-		return &LinkError{"rename", oldname, newname, syscall.EEXIST}
+ 	}
+ 	err = syscall.Rename(oldname, newname)
+ 	if err != nil {
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 93ac7adfa1..02c80f3d81 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -973,6 +973,67 @@ func TestRenameToDirFailed(t *testing.T) {
+ 	}
+ }
+ 
++func TestRenameCaseDifference(pt *testing.T) {
++	from, to := "renameFROM", "RENAMEfrom"
++	tests := []struct {
++		name   string
++		create func() error
++	}{
++		{"dir", func() error {
++			return Mkdir(from, 0777)
++		}},
++		{"file", func() error {
++			fd, err := Create(from)
++			if err != nil {
++				return err
++			}
++			return fd.Close()
++		}},
++	}
++
++	for _, test := range tests {
++		pt.Run(test.name, func(t *testing.T) {
++			defer chtmpdir(t)()
++
++			if err := test.create(); err != nil {
++				t.Fatalf("failed to create test file: %s", err)
++			}
++
++			if _, err := Stat(to); err != nil {
++				// Sanity check that the underlying filesystem is not case sensitive.
++				if IsNotExist(err) {
++					t.Skipf("case sensitive filesystem")
++				}
++				t.Fatalf("stat %q, got: %q", to, err)
++			}
++
++			if err := Rename(from, to); err != nil {
++				t.Fatalf("unexpected error when renaming from %q to %q: %s", from, to, err)
++			}
++
++			fd, err := Open(".")
++			if err != nil {
++				t.Fatalf("Open .: %s", err)
++			}
++
++			// Stat does not return the real case of the file (it returns what the called asked for)
++			// So we have to use readdir to get the real name of the file.
++			dirNames, err := fd.Readdirnames(-1)
++			if err != nil {
++				t.Fatalf("readdirnames: %s", err)
++			}
++
++			if dirNamesLen := len(dirNames); dirNamesLen != 1 {
++				t.Fatalf("unexpected dirNames len, got %q, want %q", dirNamesLen, 1)
++			}
++
++			if dirNames[0] != to {
++				t.Errorf("unexpected name, got %q, want %q", dirNames[0], to)
++			}
++		})
++	}
++}
++
+ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
+ 	r, w, err := Pipe()
+ 	if err != nil {

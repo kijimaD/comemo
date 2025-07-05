@@ -42,6 +42,21 @@ Date:   Fri Jan 27 14:04:23 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/util.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index 790a1ae255..50f636e9d1 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -67,6 +67,9 @@ func startProfile() {
+ 				Fatalf("%v", err)
+ 			}
+ 		})
++	} else {
++		// Not doing memory profiling; disable it entirely.
++		runtime.MemProfileRate = 0
+ 	}
+ 	if traceprofile != "" && traceHandler != nil {
+ 		traceHandler(traceprofile)

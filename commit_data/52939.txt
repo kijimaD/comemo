@@ -21,6 +21,19 @@ Date:   Thu Jun 16 15:43:57 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/script_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 04bc8d581a..3ad0608725 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -170,6 +170,7 @@ func (ts *testScript) setup() {
+ 		"GOCACHE=" + testGOCACHE,
+ 		"GODEBUG=" + os.Getenv("GODEBUG"),
+ 		"GOEXE=" + cfg.ExeSuffix,
++		"GOEXPERIMENT=" + os.Getenv("GOEXPERIMENT"),
+ 		"GOOS=" + runtime.GOOS,
+ 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
+ 		"GOPROXY=" + proxyURL,

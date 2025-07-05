@@ -22,7 +22,7 @@ Date:   Mon Sep 23 10:46:41 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go  | 26 ++++++++++++++++++--------
  src/cmd/compile/internal/types2/object.go      |  2 +-
  src/cmd/compile/internal/types2/object_test.go |  6 +++++-
@@ -32,3 +32,208 @@ Date:   Mon Sep 23 10:46:41 2024 -0700
  src/go/types/object_test.go                    |  4 +++-
  src/go/types/typestring.go                     |  3 +++
  8 files changed, 52 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 8b7b5316f0..8f537f9120 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -181,15 +181,9 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uin
+ 		t.Fatal(err)
+ 	}
+ 
+-	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
+-	if err != nil {
+-		t.Fatal(err)
++	if goexperiment != "" {
++		defer setGOEXPERIMENT(goexperiment)()
+ 	}
+-	old := buildcfg.Experiment
+-	defer func() {
+-		buildcfg.Experiment = old
+-	}()
+-	buildcfg.Experiment = *exp
+ 
+ 	// By default, gotypesalias is not set.
+ 	if gotypesalias != "" {
+@@ -324,6 +318,22 @@ func boolFieldAddr(conf *Config, name string) *bool {
+ 	return (*bool)(v.FieldByName(name).Addr().UnsafePointer())
+ }
+ 
++// setGOEXPERIMENT overwrites the existing buildcfg.Experiment with a new one
++// based on the provided goexperiment string. Calling the result function
++// (typically via defer), reverts buildcfg.Experiment to the prior value.
++// For testing use, only.
++func setGOEXPERIMENT(goexperiment string) func() {
++	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
++	if err != nil {
++		panic(err)
++	}
++	old := buildcfg.Experiment
++	buildcfg.Experiment = *exp
++	return func() {
++		buildcfg.Experiment = old
++	}
++}
++
+ // TestManual is for manual testing of a package - either provided
+ // as a list of filenames belonging to the package, or a directory
+ // name containing the package files - after the test arguments
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index d29c9a3df6..627b8b3074 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -566,7 +566,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 			// Don't print anything more for basic types since there's
+ 			// no more information.
+ 			return
+-		case *Named:
++		case genericType:
+ 			if t.TypeParams().Len() > 0 {
+ 				newTypeWriter(buf, qf).tParamList(t.TypeParams().list())
+ 			}
+diff --git a/src/cmd/compile/internal/types2/object_test.go b/src/cmd/compile/internal/types2/object_test.go
+index 7e84d52966..429f463bf7 100644
+--- a/src/cmd/compile/internal/types2/object_test.go
++++ b/src/cmd/compile/internal/types2/object_test.go
+@@ -83,7 +83,7 @@ var testObjects = []struct {
+ 	src   string
+ 	obj   string
+ 	want  string
+-	alias bool // needs materialized aliases
++	alias bool // needs materialized (and possibly generic) aliases
+ }{
+ 	{"import \"io\"; var r io.Reader", "r", "var p.r io.Reader", false},
+ 
+@@ -99,6 +99,7 @@ var testObjects = []struct {
+ 	{"type t = struct{f int}", "t", "type p.t = struct{f int}", false},
+ 	{"type t = func(int)", "t", "type p.t = func(int)", false},
+ 	{"type A = B; type B = int", "A", "type p.A = p.B", true},
++	{"type A[P ~int] = struct{}", "A", "type p.A[P ~int] = struct{}", true}, // requires GOEXPERIMENT=aliastypeparams
+ 
+ 	{"var v int", "v", "var p.v int", false},
+ 
+@@ -113,6 +114,9 @@ func TestObjectString(t *testing.T) {
+ 
+ 	for i, test := range testObjects {
+ 		t.Run(fmt.Sprint(i), func(t *testing.T) {
++			if test.alias {
++				defer setGOEXPERIMENT("aliastypeparams")()
++			}
+ 			src := "package p; " + test.src
+ 			conf := Config{Error: func(error) {}, Importer: defaultImporter(), EnableAlias: test.alias}
+ 			pkg, err := typecheck(src, &conf, nil)
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 7db86a70f1..36f90b6735 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -338,6 +338,9 @@ func (w *typeWriter) typ(typ Type) {
+ 		if list := t.targs.list(); len(list) != 0 {
+ 			// instantiated type
+ 			w.typeList(list)
++		} else if w.ctxt == nil && t.TypeParams().Len() != 0 { // For type hashing, don't need to format the TypeParams
++			// parameterized type
++			w.tParamList(t.TypeParams().list())
+ 		}
+ 		if w.ctxt != nil {
+ 			// TODO(gri) do we need to print the alias type name, too?
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 6c523b5d9c..be55616974 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -196,15 +196,9 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
+ 		t.Fatal(err)
+ 	}
+ 
+-	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
+-	if err != nil {
+-		t.Fatal(err)
++	if goexperiment != "" {
++		defer setGOEXPERIMENT(goexperiment)()
+ 	}
+-	old := buildcfg.Experiment
+-	defer func() {
+-		buildcfg.Experiment = old
+-	}()
+-	buildcfg.Experiment = *exp
+ 
+ 	// By default, gotypesalias is not set.
+ 	if gotypesalias != "" {
+@@ -352,6 +346,22 @@ func stringFieldAddr(conf *Config, name string) *string {
+ 	return (*string)(v.FieldByName(name).Addr().UnsafePointer())
+ }
+ 
++// setGOEXPERIMENT overwrites the existing buildcfg.Experiment with a new one
++// based on the provided goexperiment string. Calling the result function
++// (typically via defer), reverts buildcfg.Experiment to the prior value.
++// For testing use, only.
++func setGOEXPERIMENT(goexperiment string) func() {
++	exp, err := buildcfg.ParseGOEXPERIMENT(runtime.GOOS, runtime.GOARCH, goexperiment)
++	if err != nil {
++		panic(err)
++	}
++	old := buildcfg.Experiment
++	buildcfg.Experiment = *exp
++	return func() {
++		buildcfg.Experiment = old
++	}
++}
++
+ // TestManual is for manual testing of a package - either provided
+ // as a list of filenames belonging to the package, or a directory
+ // name containing the package files - after the test arguments
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 06d5fbe511..9cd18e3015 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -569,7 +569,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 			// Don't print anything more for basic types since there's
+ 			// no more information.
+ 			return
+-		case *Named:
++		case genericType:
+ 			if t.TypeParams().Len() > 0 {
+ 				newTypeWriter(buf, qf).tParamList(t.TypeParams().list())
+ 			}
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index 43ff5b35e5..1a3f223e09 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -83,7 +83,7 @@ var testObjects = []struct {
+ 	src   string
+ 	obj   string
+ 	want  string
+-	alias bool // needs materialized aliases
++	alias bool // needs materialized (and possibly generic) aliases
+ }{
+ 	{"import \"io\"; var r io.Reader", "r", "var p.r io.Reader", false},
+ 
+@@ -99,6 +99,7 @@ var testObjects = []struct {
+ 	{"type t = struct{f int}", "t", "type p.t = struct{f int}", false},
+ 	{"type t = func(int)", "t", "type p.t = func(int)", false},
+ 	{"type A = B; type B = int", "A", "type p.A = p.B", true},
++	{"type A[P ~int] = struct{}", "A", "type p.A[P ~int] = struct{}", true}, // requires GOEXPERIMENT=aliastypeparams
+ 
+ 	{"var v int", "v", "var p.v int", false},
+ 
+@@ -114,6 +115,7 @@ func TestObjectString(t *testing.T) {
+ 	for i, test := range testObjects {
+ 		t.Run(fmt.Sprint(i), func(t *testing.T) {
+ 			if test.alias {
++				defer setGOEXPERIMENT("aliastypeparams")()
+ 				t.Setenv("GODEBUG", "gotypesalias=1")
+ 			}
+ 
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 54f06138ad..3d6768db99 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -341,6 +341,9 @@ func (w *typeWriter) typ(typ Type) {
+ 		if list := t.targs.list(); len(list) != 0 {
+ 			// instantiated type
+ 			w.typeList(list)
++		} else if w.ctxt == nil && t.TypeParams().Len() != 0 { // For type hashing, don't need to format the TypeParams
++			// parameterized type
++			w.tParamList(t.TypeParams().list())
+ 		}
+ 		if w.ctxt != nil {
+ 			// TODO(gri) do we need to print the alias type name, too?

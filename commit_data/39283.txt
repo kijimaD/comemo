@@ -14,6 +14,19 @@ Date:   Wed Jan 23 20:47:44 2019 -0800
     Change-Id: If9b6b83505d2bd2b426fcefa225986d73658a229
     Reviewed-on: https://go-review.googlesource.com/c/159319
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/go/types/stdlib_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index b254b29bdf..84908fd190 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -167,7 +167,6 @@ func TestStdFixed(t *testing.T) {
+ 	}
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
+-		"bug073.go",                           // checks for unsigned integer shift - disabled for now
+ 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+ 		"issue6889.go",   // gc-specific test
+ 		"issue7746.go",   // large constants - consumes too much memory

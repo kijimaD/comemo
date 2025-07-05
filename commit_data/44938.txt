@@ -20,7 +20,7 @@ Date:   Tue Sep 15 12:59:05 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/build.go               |  4 +-
  .../go/testdata/script/build_cache_arch_mode.txt   | 10 ++--
  .../go/testdata/script/build_cache_disabled.txt    |  8 ++-
@@ -128,3 +128,2554 @@ Date:   Tue Sep 15 12:59:05 2020 -0400
  .../go/testdata/script/vendor_test_issue14613.txt  |  1 +
  src/cmd/go/testdata/script/vet.txt                 | 18 ++++---
  106 files changed, 596 insertions(+), 242 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 9ca6230500..2c7cfb732d 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -355,13 +355,13 @@ func ModInfoProg(info string, isgccgo bool) []byte {
+ import _ "unsafe"
+ //go:linkname __debug_modinfo__ runtime.modinfo
+ var __debug_modinfo__ = %q
+-	`, string(infoStart)+info+string(infoEnd)))
++`, string(infoStart)+info+string(infoEnd)))
+ 	} else {
+ 		return []byte(fmt.Sprintf(`package main
+ import _ "unsafe"
+ //go:linkname __set_debug_modinfo__ runtime.setmodinfo
+ func __set_debug_modinfo__(string)
+ func init() { __set_debug_modinfo__(%q) }
+-	`, string(infoStart)+info+string(infoEnd)))
++`, string(infoStart)+info+string(infoEnd)))
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/script/build_cache_arch_mode.txt b/src/cmd/go/testdata/script/build_cache_arch_mode.txt
+index 7e751d02b9..68e662555f 100644
+--- a/src/cmd/go/testdata/script/build_cache_arch_mode.txt
++++ b/src/cmd/go/testdata/script/build_cache_arch_mode.txt
+@@ -3,7 +3,6 @@
+ [short] skip
+ 
+ # 386
+-cd $GOPATH/src/mycmd
+ env GOOS=linux
+ env GOARCH=386
+ env GO386=387
+@@ -12,7 +11,6 @@ env GO386=sse2
+ stale mycmd
+ 
+ # arm
+-cd $GOPATH/src/mycmd
+ env GOOS=linux
+ env GOARCH=arm
+ env GOARM=5
+@@ -21,7 +19,11 @@ env GOARM=7
+ stale mycmd
+ 
+ 
+--- mycmd/x.go --
++-- go.mod --
++module mycmd
++
++go 1.16
++-- x.go --
+ package main
+ 
+-func main() {}
+\ No newline at end of file
++func main() {}
+diff --git a/src/cmd/go/testdata/script/build_cache_disabled.txt b/src/cmd/go/testdata/script/build_cache_disabled.txt
+index 2e1327880b..8b005c857f 100644
+--- a/src/cmd/go/testdata/script/build_cache_disabled.txt
++++ b/src/cmd/go/testdata/script/build_cache_disabled.txt
+@@ -18,8 +18,6 @@ env GOCACHE=off
+ go doc fmt
+ stdout Printf
+ 
+-go fmt .
+-
+ ! go tool compile -h
+ stderr usage:
+ 
+@@ -40,6 +38,12 @@ stdout rsc.io/quote
+ 
+ go mod verify
+ 
++
++# Commands that load but don't build packages should work.
++go fmt .
++
++go doc .
++
+ -- main.go --
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/build_cd_gopath_different.txt b/src/cmd/go/testdata/script/build_cd_gopath_different.txt
+index 698b3d70f4..a7a4bf412d 100644
+--- a/src/cmd/go/testdata/script/build_cd_gopath_different.txt
++++ b/src/cmd/go/testdata/script/build_cd_gopath_different.txt
+@@ -1,4 +1,5 @@
+ [gccgo] skip 'gccgo does not support -ldflags -X'
++env GO111MODULE=off
+ go build run_go.go
+ 
+ # Apply identity function to GOPATH
+diff --git a/src/cmd/go/testdata/script/build_cgo_consistent_results.txt b/src/cmd/go/testdata/script/build_cgo_consistent_results.txt
+index 42f1cc1a74..88a24de814 100644
+--- a/src/cmd/go/testdata/script/build_cgo_consistent_results.txt
++++ b/src/cmd/go/testdata/script/build_cgo_consistent_results.txt
+@@ -11,7 +11,11 @@ go build -x -o $WORK/exe2$GOEXE cgotest
+ 
+ cmp $WORK/exe1$GOEXE $WORK/exe2$GOEXE
+ 
+--- cgotest/m.go --
++-- go.mod --
++module cgotest
++
++go 1.16
++-- m.go --
+ package cgotest
+ 
+ import "C"
+diff --git a/src/cmd/go/testdata/script/build_dash_x.txt b/src/cmd/go/testdata/script/build_dash_x.txt
+index 3082095c5c..6fd5bbe182 100644
+--- a/src/cmd/go/testdata/script/build_dash_x.txt
++++ b/src/cmd/go/testdata/script/build_dash_x.txt
+@@ -46,4 +46,4 @@ func main() {
+ -- header.txt --
+ set -e
+ -- hello.txt --
+-hello
+\ No newline at end of file
++hello
+diff --git a/src/cmd/go/testdata/script/build_exe.txt b/src/cmd/go/testdata/script/build_exe.txt
+index fd13259fcc..a994d17088 100644
+--- a/src/cmd/go/testdata/script/build_exe.txt
++++ b/src/cmd/go/testdata/script/build_exe.txt
+@@ -1,12 +1,16 @@
+-# go build with -o and -buildmode=exe should on a non-main package should throw an error
++# go build with -o and -buildmode=exe should report an error on a non-main package.
+ 
+-! go build -buildmode=exe -o out$GOEXE not_main
++! go build -buildmode=exe -o out$GOEXE ./not_main
+ stderr '-buildmode=exe requires exactly one main package'
+ ! exists out$GOEXE
+-! go build -buildmode=exe -o out$GOEXE main_one main_two
++! go build -buildmode=exe -o out$GOEXE ./main_one ./main_two
+ stderr '-buildmode=exe requires exactly one main package'
+ ! exists out$GOEXE
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- not_main/not_main.go --
+ package not_main
+ 
+@@ -18,4 +22,4 @@ func main() {}
+ -- main_two/main_two.go --
+ package main
+ 
+-func main() {}
+\ No newline at end of file
++func main() {}
+diff --git a/src/cmd/go/testdata/script/build_gopath_order.txt b/src/cmd/go/testdata/script/build_gopath_order.txt
+index ac26c28a9f..caf25022e4 100644
+--- a/src/cmd/go/testdata/script/build_gopath_order.txt
++++ b/src/cmd/go/testdata/script/build_gopath_order.txt
+@@ -3,6 +3,7 @@
+ # -I arguments to compiler could end up not in GOPATH order,
+ # leading to unexpected import resolution in the compiler.
+ 
++env GO111MODULE=off
+ env GOPATH=$WORK/p1${:}$WORK/p2
+ mkdir $WORK/p1/src/foo $WORK/p2/src/baz
+ mkdir $WORK/p2/pkg/${GOOS}_${GOARCH} $WORK/p1/src/bar
+@@ -32,4 +33,4 @@ bad
+ -- bar.go --
+ package bar
+ import _ "baz"
+-import _ "foo"
+\ No newline at end of file
++import _ "foo"
+diff --git a/src/cmd/go/testdata/script/build_import_comment.txt b/src/cmd/go/testdata/script/build_import_comment.txt
+index 0ab643914d..b500340bfb 100644
+--- a/src/cmd/go/testdata/script/build_import_comment.txt
++++ b/src/cmd/go/testdata/script/build_import_comment.txt
+@@ -1,6 +1,6 @@
+-# TODO: add a go.mod file and test with GO111MODULE explicitly on and off.
+-# We only report the 'expects import' error when modules are disabled.
+-# Do we report comment parse errors or conflicts in module mode? We shouldn't.
++# Test in GOPATH mode first.
++env GO111MODULE=off
++cd m
+ 
+ # Import comment matches
+ go build -n works.go
+@@ -17,31 +17,52 @@ stderr 'cannot parse import comment'
+ ! go build -n conflict.go
+ stderr 'found import comments'
+ 
+--- bad.go --
++
++# Test in module mode.
++# We ignore import comments, so these commands should succeed.
++env GO111MODULE=on
++
++# Import comment matches
++go build -n works.go
++
++# Import comment mismatch
++go build -n wrongplace.go
++
++# Import comment syntax error
++go build -n bad.go
++
++# Import comment conflict
++go build -n conflict.go
++
++-- m/go.mod --
++module m
++
++go 1.16
++-- m/bad.go --
+ package p
+ 
+-import "bad"
+--- conflict.go --
++import "m/bad"
++-- m/conflict.go --
+ package p
+ 
+-import "conflict"
+--- works.go --
++import "m/conflict"
++-- m/works.go --
+ package p
+ 
+-import _ "works/x"
+--- wrongplace.go --
++import _ "m/works/x"
++-- m/wrongplace.go --
+ package p
+ 
+-import "wrongplace"
+--- bad/bad.go --
++import "m/wrongplace"
++-- m/bad/bad.go --
+ package bad // import
+--- conflict/a.go --
++-- m/conflict/a.go --
+ package conflict // import "a"
+--- conflict/b.go --
++-- m/conflict/b.go --
+ package conflict /* import "b" */
+--- works/x/x.go --
+-package x // import "works/x"
+--- works/x/x1.go --
++-- m/works/x/x.go --
++package x // import "m/works/x"
++-- m/works/x/x1.go --
+ package x // important! not an import comment
+--- wrongplace/x.go --
++-- m/wrongplace/x.go --
+ package x // import "my/x"
+diff --git a/src/cmd/go/testdata/script/build_import_cycle.txt b/src/cmd/go/testdata/script/build_import_cycle.txt
+index 0154305c27..16e4e87dae 100644
+--- a/src/cmd/go/testdata/script/build_import_cycle.txt
++++ b/src/cmd/go/testdata/script/build_import_cycle.txt
+@@ -1,3 +1,6 @@
++# mod_import_cycle covers this error in module mode.
++env GO111MODULE=off
++
+ ! go build selfimport
+ stderr -count=1 'import cycle not allowed'
+ 
+diff --git a/src/cmd/go/testdata/script/build_internal.txt b/src/cmd/go/testdata/script/build_internal.txt
+index 6fcc4e02aa..25aa18cfcb 100644
+--- a/src/cmd/go/testdata/script/build_internal.txt
++++ b/src/cmd/go/testdata/script/build_internal.txt
+@@ -1,44 +1,63 @@
+ # Test internal package errors are handled
+-go list ./testinternal3
++cd testinternal3
++go list .
+ stdout 'testinternal3'
+ 
+ # Test internal cache
+-env GOPATH=$WORK/gopath/src/testinternal4
+-! go build p
++cd ../testinternal4
++! go build testinternal4/p
+ stderr 'internal'
+ 
+ # Test internal packages outside GOROOT are respected
+-! go build -v  ./testinternal2
+-stderr 'testinternal2(\/|\\)p\.go\:3\:8\: use of internal package .*internal/w not allowed'
++cd ../testinternal2
++! go build -v .
++stderr 'p\.go:3:8: use of internal package .*internal/w not allowed'
+ 
+ [gccgo] skip # gccgo does not have GOROOT
+-! go build -v ./testinternal
+-stderr 'testinternal(\/|\\)p\.go\:3\:8\: use of internal package net/http/internal not allowed'
++cd ../testinternal
++! go build -v .
++stderr 'p\.go:3:8: use of internal package net/http/internal not allowed'
+ 
++-- testinternal/go.mod --
++module testinternal
++
++go 1.16
+ -- testinternal/p.go --
+ package p
+ 
+ import _ "net/http/internal"
++-- testinternal2/go.mod --
++module testinternal2
++
++go 1.16
+ -- testinternal2/p.go --
+ package p
+ 
+ import _ "./x/y/z/internal/w"
+ -- testinternal2/x/y/z/internal/w/w.go --
+ package w
++-- testinternal3/go.mod --
++module testinternal3
++
++go 1.16
+ -- testinternal3/t.go --
+ package t
+ 
+ import _ "internal/does-not-exist"
+--- testinternal4/src/p/p.go --
++-- testinternal4/go.mod --
++module testinternal4
++
++go 1.16
++-- testinternal4/p/p.go --
+ package p
+ 
+ import (
+-	_ "q/internal/x"
+-	_ "q/j"
++	_ "testinternal4/q/internal/x"
++	_ "testinternal4/q/j"
+ )
+--- testinternal4/src/q/internal/x/x.go --
++-- testinternal4/q/internal/x/x.go --
+ package x
+--- testinternal4/src/q/j/j.go --
++-- testinternal4/q/j/j.go --
+ package j
+ 
+-import _ "q/internal/x"
++import _ "testinternal4/q/internal/x"
+diff --git a/src/cmd/go/testdata/script/build_issue6480.txt b/src/cmd/go/testdata/script/build_issue6480.txt
+index 857f364e81..ae99c60d99 100644
+--- a/src/cmd/go/testdata/script/build_issue6480.txt
++++ b/src/cmd/go/testdata/script/build_issue6480.txt
+@@ -8,7 +8,7 @@
+ 
+ # Install some commands to compare mtimes
+ env GOBIN=$WORK/tmp/bin
+-go install now mtime before
++go install m/now m/mtime m/before
+ 
+ # Initial builds
+ go test -c -test.bench=XXX errors
+@@ -34,6 +34,10 @@ exec $GOBIN/mtime errors2.test
+ cp stdout errors2_mod_time.txt
+ exec $GOBIN/before start_time.txt errors2_mod_time.txt
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- now/now.go --
+ // Writes time.Now() to a file
+ package main
+@@ -122,4 +126,4 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "time in %v (%v) is not before time in %v (%v)", os.Args[1], t1, os.Args[2], t2)
+ 		os.Exit(1)
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt b/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt
+index daa544d3f0..f1de1e4c71 100644
+--- a/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt
++++ b/src/cmd/go/testdata/script/build_link_x_import_path_escape.txt
+@@ -4,7 +4,11 @@ go build -o linkx$GOEXE -ldflags -X=my.pkg.Text=linkXworked my.pkg/main
+ exec ./linkx$GOEXE
+ stderr '^linkXworked$'
+ 
+--- my.pkg/main/main.go --
++-- go.mod --
++module my.pkg
++
++go 1.16
++-- main/main.go --
+ package main
+ 
+ import "my.pkg"
+@@ -12,7 +16,7 @@ import "my.pkg"
+ func main() {
+ 	println(pkg.Text)
+ }
+--- my.pkg/pkg.go --
++-- pkg.go --
+ package pkg
+ 
+ var Text = "unset"
+diff --git a/src/cmd/go/testdata/script/build_n_cgo.txt b/src/cmd/go/testdata/script/build_n_cgo.txt
+index 200d13760e..7aa77aea42 100644
+--- a/src/cmd/go/testdata/script/build_n_cgo.txt
++++ b/src/cmd/go/testdata/script/build_n_cgo.txt
+@@ -5,6 +5,10 @@
+ go build -n
+ ! stderr '[/\\]\$WORK'
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- main.go --
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/build_no_go.txt b/src/cmd/go/testdata/script/build_no_go.txt
+index 3fd7739fbb..b61d752274 100644
+--- a/src/cmd/go/testdata/script/build_no_go.txt
++++ b/src/cmd/go/testdata/script/build_no_go.txt
+@@ -16,6 +16,10 @@ stderr 'no Go files in '
+ ! go build ./exclude/empty
+ stderr 'no Go files in '
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- empty/test/test_test.go --
+ package p
+ -- empty/testxtest/test_test.go --
+diff --git a/src/cmd/go/testdata/script/build_output.txt b/src/cmd/go/testdata/script/build_output.txt
+index e5a4852346..ced7cf82a6 100644
+--- a/src/cmd/go/testdata/script/build_output.txt
++++ b/src/cmd/go/testdata/script/build_output.txt
+@@ -5,7 +5,7 @@
+ [windows] env NONEXE=''
+ 
+ env GOBIN=$WORK/tmp/bin
+-go install isarchive &
++go install m/isarchive &
+ 
+ go build x.go
+ exists -exec x$GOEXE
+@@ -55,6 +55,10 @@ exec $GOBIN/isarchive myatomic.a
+ ! go build -o whatever cmd/gofmt sync/atomic
+ stderr 'multiple packages'
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- x.go --
+ package main
+ 
+@@ -84,4 +88,4 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "file %s exists but is not an archive\n", os.Args[1])
+ 		os.Exit(1)
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/build_patterns_outside_gopath.txt b/src/cmd/go/testdata/script/build_patterns_outside_gopath.txt
+index f36e90fea6..6a600cfb0a 100644
+--- a/src/cmd/go/testdata/script/build_patterns_outside_gopath.txt
++++ b/src/cmd/go/testdata/script/build_patterns_outside_gopath.txt
+@@ -1,6 +1,9 @@
+ # Tests issue #18778
++[short] skip
+ 
+ cd pkgs
++
++env GO111MODULE=off
+ go build ./...
+ ! stdout .
+ go test ./...
+@@ -9,6 +12,10 @@ go list ./...
+ stdout 'pkgs$'
+ stdout 'pkgs/a'
+ 
++-- pkgs/go.mod --
++module pkgs
++
++go 1.16
+ -- pkgs/a.go --
+ package x
+ -- pkgs/a_test.go --
+@@ -26,4 +33,4 @@ package a_test
+ import "testing"
+ 
+ func TestA(t *testing.T) {
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/build_plugin_non_main.txt b/src/cmd/go/testdata/script/build_plugin_non_main.txt
+index 996d87d961..dba80c29ad 100644
+--- a/src/cmd/go/testdata/script/build_plugin_non_main.txt
++++ b/src/cmd/go/testdata/script/build_plugin_non_main.txt
+@@ -2,16 +2,13 @@
+ [!linux] [!darwin] skip
+ [!cgo] skip
+ 
+-go build -n testdep/p2
+-! go build -buildmode=plugin testdep/p2
++go build -n testdep
++! go build -buildmode=plugin testdep
+ stderr '-buildmode=plugin requires exactly one main package'
+ 
+--- testdep/p1/p1.go --
+-package p1
+--- testdep/p1/p1_test.go --
+-package p1
+-
+-import _ "testdep/p2"
+--- testdep/p2/p2.go --
+-package p2
++-- go.mod --
++module testdep
+ 
++go 1.16
++-- testdep.go --
++package p
+diff --git a/src/cmd/go/testdata/script/build_test_only.txt b/src/cmd/go/testdata/script/build_test_only.txt
+index 54dd59772a..8693a80a08 100644
+--- a/src/cmd/go/testdata/script/build_test_only.txt
++++ b/src/cmd/go/testdata/script/build_test_only.txt
+@@ -1,14 +1,18 @@
+ # Named explicitly, test-only packages should be reported as
+ # unbuildable/uninstallable, even if there is a wildcard also matching.
+-! go build testonly testonly...
++! go build m/testonly m/testonly...
+ stderr 'no non-test Go files in'
+ ! go install ./testonly
+ stderr 'no non-test Go files in'
+ 
+ # Named through a wildcard, the test-only packages should be silently ignored.
+-go build testonly...
++go build m/testonly...
+ go install ./testonly...
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- testonly/t_test.go --
+ package testonly
+ -- testonly2/t.go --
+diff --git a/src/cmd/go/testdata/script/build_vendor.txt b/src/cmd/go/testdata/script/build_vendor.txt
+index 726ecd75b9..f430ff2c3e 100644
+--- a/src/cmd/go/testdata/script/build_vendor.txt
++++ b/src/cmd/go/testdata/script/build_vendor.txt
+@@ -1,4 +1,5 @@
+ # Build
++env GO111MODULE=off
+ go build vend/x
+ ! stdout .
+ ! stderr .
+diff --git a/src/cmd/go/testdata/script/cgo_asm_error.txt b/src/cmd/go/testdata/script/cgo_asm_error.txt
+index e656106940..7aaa713e24 100644
+--- a/src/cmd/go/testdata/script/cgo_asm_error.txt
++++ b/src/cmd/go/testdata/script/cgo_asm_error.txt
+@@ -6,7 +6,11 @@
+ ! go build cgoasm
+ stderr 'package using cgo has Go assembly file'
+ 
+--- cgoasm/p.go --
++-- go.mod --
++module cgoasm
++
++go 1.16
++-- p.go --
+ package p
+ 
+ /*
+@@ -15,7 +19,7 @@ package p
+ import "C"
+ 
+ func F() {}
+--- cgoasm/p.s --
++-- p.s --
+ TEXT asm(SB),$0
+ 	RET
+ 
+diff --git a/src/cmd/go/testdata/script/cgo_bad_directives.txt b/src/cmd/go/testdata/script/cgo_bad_directives.txt
+index 358284ffec..6bf3beb8e4 100644
+--- a/src/cmd/go/testdata/script/cgo_bad_directives.txt
++++ b/src/cmd/go/testdata/script/cgo_bad_directives.txt
+@@ -1,58 +1,57 @@
+ [!cgo] skip
+ [short] skip
+ 
+-mkdir x
+-cp x.go.txt x/x.go
++cp x.go.txt x.go
+ 
+ # Only allow //go:cgo_ldflag .* in cgo-generated code
+-[gc] cp x_gc.go.txt x/x.go
++[gc] cp x_gc.go.txt x.go
+ [gc] ! go build x
+ [gc] stderr '//go:cgo_ldflag .* only allowed in cgo-generated code'
+ 
+ # Ignore _* files
+-rm x/x.go
+-! go build x
++rm x.go
++! go build .
+ stderr 'no Go files'
+-cp cgo_yy.go.txt x/_cgo_yy.go
+-! go build x
++cp cgo_yy.go.txt _cgo_yy.go
++! go build .
+ stderr 'no Go files' #_* files are ignored...
+ 
+-[gc] ! go build x/_cgo_yy.go # ... but if forced, the comment is rejected
++[gc] ! go build _cgo_yy.go # ... but if forced, the comment is rejected
+ # Actually, today there is a separate issue that _ files named
+ # on the command line are ignored. Once that is fixed,
+ # we want to see the cgo_ldflag error.
+ [gc] stderr '//go:cgo_ldflag only allowed in cgo-generated code|no Go files'
+ 
+-rm x/_cgo_yy.go
++rm _cgo_yy.go
+ 
+ # Reject #cgo CFLAGS: -fplugin=foo.so
+-cp x.go.txt x/x.go
+-cp y_fplugin.go.txt x/y.go
++cp x.go.txt x.go
++cp y_fplugin.go.txt y.go
+ ! go build x
+ stderr 'invalid flag in #cgo CFLAGS: -fplugin=foo.so'
+ 
+ # Reject #cgo CFLAGS: -lbar -fplugin=foo.so
+-cp y_lbar_fplugin.go.txt x/y.go
++cp y_lbar_fplugin.go.txt y.go
+ ! go build x
+ stderr 'invalid flag in #cgo CFLAGS: -fplugin=foo.so'
+ 
+ # Reject #cgo pkg-config: -foo
+-cp y_pkgconfig_dash_foo.txt x/y.go
++cp y_pkgconfig_dash_foo.txt y.go
+ ! go build x
+ stderr 'invalid pkg-config package name: -foo'
+ 
+ # Reject #cgo pkg-config: @foo
+-cp y_pkgconfig_at_foo.txt x/y.go
++cp y_pkgconfig_at_foo.txt y.go
+ ! go build x
+ stderr 'invalid pkg-config package name: @foo'
+ 
+ # Reject #cgo CFLAGS: @foo
+-cp y_cflags_at_foo.txt x/y.go
++cp y_cflags_at_foo.txt y.go
+ ! go build x
+ stderr 'invalid flag in #cgo CFLAGS: @foo'
+ 
+ # Reject #cgo CFLAGS: -D
+-cp y_cflags_dash_d.txt x/y.go
++cp y_cflags_dash_d.txt y.go
+ ! go build x
+ stderr 'invalid flag in #cgo CFLAGS: -D without argument'
+ 
+@@ -60,21 +59,25 @@ stderr 'invalid flag in #cgo CFLAGS: -D without argument'
+ # before the check is applied. There's no such rewrite for -D.
+ 
+ # Reject #cgo CFLAGS: -D @foo
+-cp y_cflags_dash_d_space_at_foo.txt x/y.go
++cp y_cflags_dash_d_space_at_foo.txt y.go
+ ! go build x
+ stderr 'invalid flag in #cgo CFLAGS: -D @foo'
+ 
+ # Reject #cgo CFLAGS -D@foo
+-cp y_cflags_dash_d_at_foo.txt x/y.go
++cp y_cflags_dash_d_at_foo.txt y.go
+ ! go build x
+ stderr 'invalid flag in #cgo CFLAGS: -D@foo'
+ 
+ # Check for CFLAGS in commands
+ env CGO_CFLAGS=-D@foo
+-cp y_no_cflags.txt x/y.go
++cp y_no_cflags.txt y.go
+ go build -n x
+ stderr '-D@foo'
+ 
++-- go.mod --
++module x
++
++go 1.16
+ -- x_gc.go.txt --
+ package x
+ 
+@@ -123,4 +126,4 @@ package x
+ import "C"
+ -- y_no_cflags.txt --
+ package x
+-import "C"
+\ No newline at end of file
++import "C"
+diff --git a/src/cmd/go/testdata/script/cgo_depends_on_syscall.txt b/src/cmd/go/testdata/script/cgo_depends_on_syscall.txt
+index e5fa84fdbb..bd4777c821 100644
+--- a/src/cmd/go/testdata/script/cgo_depends_on_syscall.txt
++++ b/src/cmd/go/testdata/script/cgo_depends_on_syscall.txt
+@@ -4,7 +4,11 @@
+ go list -race -deps foo
+ stdout syscall
+ 
+--- foo/foo.go --
++-- go.mod --
++module foo
++
++go 1.16
++-- foo.go --
+ package foo
+ 
+ // #include <stdio.h>
+diff --git a/src/cmd/go/testdata/script/cover_asm.txt b/src/cmd/go/testdata/script/cover_asm.txt
+index 5241c7f0df..57f76d6c02 100644
+--- a/src/cmd/go/testdata/script/cover_asm.txt
++++ b/src/cmd/go/testdata/script/cover_asm.txt
+@@ -8,7 +8,11 @@ go tool cover -func=$WORK/cover.out
+ stdout '\tg\t*100.0%' # Check g is 100% covered.
+ ! stdout '\tf\t*[0-9]' # Check for no coverage on the assembly function
+ 
+--- coverasm/p.go --
++-- go.mod --
++module coverasm
++
++go 1.16
++-- p.go --
+ package p
+ 
+ func f()
+@@ -16,10 +20,10 @@ func f()
+ func g() {
+ 	println("g")
+ }
+--- coverasm/p.s --
++-- p.s --
+ // empty asm file,
+ // so go test doesn't complain about declaration of f in p.go.
+--- coverasm/p_test.go --
++-- p_test.go --
+ package p
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/cover_blank_func_decl.txt b/src/cmd/go/testdata/script/cover_blank_func_decl.txt
+index 6fac4f87ea..e7d5250468 100644
+--- a/src/cmd/go/testdata/script/cover_blank_func_decl.txt
++++ b/src/cmd/go/testdata/script/cover_blank_func_decl.txt
+@@ -1,9 +1,13 @@
+ [short] skip
+-go test -cover ./coverblank
++go test -cover coverblank
+ stdout 'coverage: 100.0% of statements'
+ 
+ 
+--- coverblank/a.go --
++-- go.mod --
++module coverblank
++
++go 1.16
++-- a.go --
+ package coverblank
+ 
+ func _() {
+@@ -20,7 +24,7 @@ func (x X) _() {
+ 	println("unreachable")
+ }
+ 
+--- coverblank/a_test.go --
++-- a_test.go --
+ package coverblank
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/cover_cgo.txt b/src/cmd/go/testdata/script/cover_cgo.txt
+index fdd0191ee0..9cf78f71e9 100644
+--- a/src/cmd/go/testdata/script/cover_cgo.txt
++++ b/src/cmd/go/testdata/script/cover_cgo.txt
+@@ -8,7 +8,11 @@ go test -short -cover cgocover
+ stdout  'coverage:.*[1-9][0-9.]+%'
+ ! stderr '[^0-9]0\.0%'
+ 
+--- cgocover/p.go --
++-- go.mod --
++module cgocover
++
++go 1.16
++-- p.go --
+ package p
+ 
+ /*
+@@ -28,7 +32,7 @@ func F() {
+ 	}
+ 	C.f()
+ }
+--- cgocover/p_test.go --
++-- p_test.go --
+ package p
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/cover_cgo_extra_file.txt b/src/cmd/go/testdata/script/cover_cgo_extra_file.txt
+index 483813bd6a..c53b979f9f 100644
+--- a/src/cmd/go/testdata/script/cover_cgo_extra_file.txt
++++ b/src/cmd/go/testdata/script/cover_cgo_extra_file.txt
+@@ -9,9 +9,13 @@ go test -short -cover cgocover4
+ stdout  'coverage:.*[1-9][0-9.]+%'
+ ! stderr '[^0-9]0\.0%'
+ 
+--- cgocover4/notcgo.go --
++-- go.mod --
++module cgocover4
++
++go 1.16
++-- notcgo.go --
+ package p
+--- cgocover4/p.go --
++-- p.go --
+ package p
+ 
+ /*
+@@ -31,7 +35,7 @@ func F() {
+ 	}
+ 	C.f()
+ }
+--- cgocover4/x_test.go --
++-- x_test.go --
+ package p_test
+ 
+ import (
+@@ -41,4 +45,4 @@ import (
+ 
+ func TestF(t *testing.T) {
+ 	F()
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/cover_cgo_extra_test.txt b/src/cmd/go/testdata/script/cover_cgo_extra_test.txt
+index 92fc1ebdda..b501ab02a5 100644
+--- a/src/cmd/go/testdata/script/cover_cgo_extra_test.txt
++++ b/src/cmd/go/testdata/script/cover_cgo_extra_test.txt
+@@ -10,7 +10,11 @@ go test -short -cover cgocover3
+ stdout  'coverage:.*[1-9][0-9.]+%'
+ ! stderr '[^0-9]0\.0%'
+ 
+--- cgocover3/p.go --
++-- go.mod --
++module cgocover3
++
++go 1.16
++-- p.go --
+ package p
+ 
+ /*
+@@ -30,9 +34,9 @@ func F() {
+ 	}
+ 	C.f()
+ }
+--- cgocover3/p_test.go --
++-- p_test.go --
+ package p
+--- cgocover3/x_test.go --
++-- x_test.go --
+ package p_test
+ 
+ import (
+@@ -42,4 +46,4 @@ import (
+ 
+ func TestF(t *testing.T) {
+ 	F()
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/cover_cgo_xtest.txt b/src/cmd/go/testdata/script/cover_cgo_xtest.txt
+index edf8112728..79cc08c481 100644
+--- a/src/cmd/go/testdata/script/cover_cgo_xtest.txt
++++ b/src/cmd/go/testdata/script/cover_cgo_xtest.txt
+@@ -8,7 +8,11 @@ go test -short -cover cgocover2
+ stdout  'coverage:.*[1-9][0-9.]+%'
+ ! stderr '[^0-9]0\.0%'
+ 
+--- cgocover2/p.go --
++-- go.mod --
++module cgocover2
++
++go 1.16
++-- p.go --
+ package p
+ 
+ /*
+@@ -28,7 +32,7 @@ func F() {
+ 	}
+ 	C.f()
+ }
+--- cgocover2/x_test.go --
++-- x_test.go --
+ package p_test
+ 
+ import (
+@@ -38,4 +42,4 @@ import (
+ 
+ func TestF(t *testing.T) {
+ 	F()
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/cover_dash_c.txt b/src/cmd/go/testdata/script/cover_dash_c.txt
+index 61793cec49..8950f8d088 100644
+--- a/src/cmd/go/testdata/script/cover_dash_c.txt
++++ b/src/cmd/go/testdata/script/cover_dash_c.txt
+@@ -6,18 +6,22 @@
+ go test -c -o $WORK/coverdep -coverprofile=$WORK/no/such/dir/cover.out coverdep
+ exists -exec $WORK/coverdep
+ 
+--- coverdep/p.go --
++-- go.mod --
++module coverdep
++
++go 1.16
++-- p.go --
+ package p
+ 
+ import _ "coverdep/p1"
+ 
+ func F() {
+ }
+--- coverdep/p1/p1.go --
++-- p1/p1.go --
+ package p1
+ 
+ import _ "errors"
+--- coverdep/p_test.go --
++-- p_test.go --
+ package p
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/cover_dep_loop.txt b/src/cmd/go/testdata/script/cover_dep_loop.txt
+index 20b0c15d18..36ea6e00b3 100644
+--- a/src/cmd/go/testdata/script/cover_dep_loop.txt
++++ b/src/cmd/go/testdata/script/cover_dep_loop.txt
+@@ -7,11 +7,15 @@
+ go test -short -cover coverdep2/p1
+ stdout 'coverage: 100.0% of statements' # expect 100.0% coverage
+ 
+--- coverdep2/p1/p.go --
++-- go.mod --
++module coverdep2
++
++go 1.16
++-- p1/p.go --
+ package p1
+ 
+ func F() int { return 1 }
+--- coverdep2/p1/p_test.go --
++-- p1/p_test.go --
+ package p1_test
+ 
+ import (
+@@ -22,7 +26,7 @@ import (
+ func Test(t *testing.T) {
+ 	p2.F()
+ }
+--- coverdep2/p2/p2.go --
++-- p2/p2.go --
+ package p2
+ 
+ import "coverdep2/p1"
+diff --git a/src/cmd/go/testdata/script/cover_dot_import.txt b/src/cmd/go/testdata/script/cover_dot_import.txt
+index e07be22d6c..d492e42e2a 100644
+--- a/src/cmd/go/testdata/script/cover_dot_import.txt
++++ b/src/cmd/go/testdata/script/cover_dot_import.txt
+@@ -1,22 +1,26 @@
+ [short] skip
+ [gccgo] skip # gccgo has no cover tool
+ 
+-go test -coverpkg=coverdot1,coverdot2 coverdot2
++go test -coverpkg=coverdot/a,coverdot/b coverdot/b
+ ! stderr '[^0-9]0\.0%'
+ ! stdout '[^0-9]0\.0%'
+ 
+--- coverdot1/p.go --
+-package coverdot1
++-- go.mod --
++module coverdot
++
++go 1.16
++-- a/a.go --
++package a
+ 
+ func F() {}
+--- coverdot2/p.go --
+-package coverdot2
++-- b/b.go --
++package b
+ 
+-import . "coverdot1"
++import . "coverdot/a"
+ 
+ func G() { F() }
+--- coverdot2/p_test.go --
+-package coverdot2
++-- b/b_test.go --
++package b
+ 
+ import "testing"
+ 
+diff --git a/src/cmd/go/testdata/script/cover_error.txt b/src/cmd/go/testdata/script/cover_error.txt
+index 6ba0f08a2b..4abdf1137a 100644
+--- a/src/cmd/go/testdata/script/cover_error.txt
++++ b/src/cmd/go/testdata/script/cover_error.txt
+@@ -5,8 +5,8 @@
+ 
+ # Get errors from a go test into stderr.txt
+ ! go test coverbad
+-stderr 'coverbad[\\/]p\.go:4' # look for error at coverbad/p.go:4
+-[cgo] stderr 'coverbad[\\/]p1\.go:6' # look for error at coverbad/p.go:6
++stderr 'p\.go:4' # look for error at coverbad/p.go:4
++[cgo] stderr 'p1\.go:6' # look for error at coverbad/p.go:6
+ ! stderr $WORK # make sure temporary directory isn't in error
+ 
+ cp stderr $WORK/stderr.txt
+@@ -24,13 +24,17 @@ wait # for go run above
+ 
+ cmp $WORK/stderr.txt $WORK/stderr2.txt
+ 
+--- coverbad/p.go --
++-- go.mod --
++module coverbad
++
++go 1.16
++-- p.go --
+ package p
+ 
+ func f() {
+ 	g()
+ }
+--- coverbad/p1.go --
++-- p1.go --
+ package p
+ 
+ import "C"
+@@ -38,13 +42,15 @@ import "C"
+ func h() {
+ 	j()
+ }
+--- coverbad/p_test.go --
++-- p_test.go --
+ package p
+ 
+ import "testing"
+ 
+ func Test(t *testing.T) {}
+ -- clean_charpos.go --
++// +build ignore
++
+ package main
+ 
+ import (
+@@ -66,4 +72,4 @@ func main() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/cover_import_main_loop.txt b/src/cmd/go/testdata/script/cover_import_main_loop.txt
+index 83eef0c8a8..eb6de6778a 100644
+--- a/src/cmd/go/testdata/script/cover_import_main_loop.txt
++++ b/src/cmd/go/testdata/script/cover_import_main_loop.txt
+@@ -5,15 +5,19 @@ stderr 'not an importable package' # check that import main was detected
+ ! go test -n -cover importmain/test
+ stderr 'not an importable package' # check that import main was detected
+ 
+--- importmain/ismain/main.go --
++-- go.mod --
++module importmain
++
++go 1.16
++-- ismain/main.go --
+ package main
+ 
+ import _ "importmain/test"
+ 
+ func main() {}
+--- importmain/test/test.go --
++-- test/test.go --
+ package test
+--- importmain/test/test_test.go --
++-- test/test_test.go --
+ package test_test
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/cover_pattern.txt b/src/cmd/go/testdata/script/cover_pattern.txt
+index 0b7f2d70a2..ec0850c003 100644
+--- a/src/cmd/go/testdata/script/cover_pattern.txt
++++ b/src/cmd/go/testdata/script/cover_pattern.txt
+@@ -1,12 +1,16 @@
+ [gccgo] skip
+ 
+-# If coverpkg=sleepy... expands by package loading
++# If coverpkg=m/sleepy... expands by package loading
+ # (as opposed to pattern matching on deps)
+ # then it will try to load sleepybad, which does not compile,
+ # and the test command will fail.
+-! go list sleepy...
+-go test -c -n -coverprofile=$TMPDIR/cover.out -coverpkg=sleepy... -run=^$ sleepy1
++! go list m/sleepy...
++go test -c -n -coverprofile=$TMPDIR/cover.out -coverpkg=m/sleepy... -run=^$ m/sleepy1
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- sleepy1/p_test.go --
+ package p
+ 
+diff --git a/src/cmd/go/testdata/script/cover_statements.txt b/src/cmd/go/testdata/script/cover_statements.txt
+index 314ea6bead..4f3c9ca2f2 100644
+--- a/src/cmd/go/testdata/script/cover_statements.txt
++++ b/src/cmd/go/testdata/script/cover_statements.txt
+@@ -5,6 +5,10 @@ stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
+ stdout 'pkg3	\S+	coverage: 100.0% of statements'
+ stdout 'pkg4	\S+	coverage: \[no statements\]'
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- pkg1/a.go --
+ package pkg1
+ 
+diff --git a/src/cmd/go/testdata/script/cover_sync_atomic_import.txt b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+index 769c03ea83..433af9ab73 100644
+--- a/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
++++ b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+@@ -3,22 +3,26 @@
+ 
+ go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
+ 
+--- coverdep/p.go --
++-- go.mod --
++module coverdep
++
++go 1.16
++-- p.go --
+ package p
+ 
+ import _ "coverdep/p1"
+ 
+ func F() {
+ }
+--- coverdep/p1/p1.go --
++-- p1/p1.go --
+ package p1
+ 
+ import _ "errors"
+--- coverdep/p_test.go --
++-- p_test.go --
+ package p
+ 
+ import "testing"
+ 
+ func Test(t *testing.T) {
+ 	F()
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/generate_bad_imports.txt b/src/cmd/go/testdata/script/generate_bad_imports.txt
+index 59a2f5786b..4d31573d56 100644
+--- a/src/cmd/go/testdata/script/generate_bad_imports.txt
++++ b/src/cmd/go/testdata/script/generate_bad_imports.txt
+@@ -3,7 +3,11 @@
+ go generate gencycle
+ stdout 'hello world' # check go generate gencycle ran the generator
+ 
+--- gencycle/gencycle.go --
++-- go.mod --
++module gencycle
++
++go 1.16
++-- gencycle.go --
+ //go:generate echo hello world
+ 
+ package gencycle
+diff --git a/src/cmd/go/testdata/script/generate_invalid.txt b/src/cmd/go/testdata/script/generate_invalid.txt
+index 62aa9dd9ba..e18e62ccf3 100644
+--- a/src/cmd/go/testdata/script/generate_invalid.txt
++++ b/src/cmd/go/testdata/script/generate_invalid.txt
+@@ -54,6 +54,10 @@ func main() {
+ 	fmt.Println()
+ }
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- nogo/foo.txt --
+ Text file in a directory without go files.
+ Go generate should ignore this directory.
+@@ -196,4 +200,4 @@ import "bar"
+ 
+ package importerr
+ import "moo"
+-//go:generate echo Success c
+\ No newline at end of file
++//go:generate echo Success c
+diff --git a/src/cmd/go/testdata/script/get_custom_domain_wildcard.txt b/src/cmd/go/testdata/script/get_custom_domain_wildcard.txt
+index 743fbb3ea4..cda25e12b0 100644
+--- a/src/cmd/go/testdata/script/get_custom_domain_wildcard.txt
++++ b/src/cmd/go/testdata/script/get_custom_domain_wildcard.txt
+@@ -1,5 +1,6 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ go get -u rsc.io/pdf/...
+-exists $GOPATH/bin/pdfpasswd$GOEXE
+\ No newline at end of file
++exists $GOPATH/bin/pdfpasswd$GOEXE
+diff --git a/src/cmd/go/testdata/script/get_dash_t.txt b/src/cmd/go/testdata/script/get_dash_t.txt
+index be5c8dd5ca..baac916868 100644
+--- a/src/cmd/go/testdata/script/get_dash_t.txt
++++ b/src/cmd/go/testdata/script/get_dash_t.txt
+@@ -2,7 +2,8 @@
+ 
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ go get -v -t github.com/rsc/go-get-issue-8181/a github.com/rsc/go-get-issue-8181/b
+ go list ...
+-stdout 'x/build/gerrit'
+\ No newline at end of file
++stdout 'x/build/gerrit'
+diff --git a/src/cmd/go/testdata/script/get_domain_root.txt b/src/cmd/go/testdata/script/get_domain_root.txt
+index c2e9db35ec..918784869b 100644
+--- a/src/cmd/go/testdata/script/get_domain_root.txt
++++ b/src/cmd/go/testdata/script/get_domain_root.txt
+@@ -3,6 +3,7 @@
+ 
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ # go-get-issue-9357.appspot.com is running
+ # the code at github.com/rsc/go-get-issue-9357,
+@@ -16,4 +17,4 @@ rm $GOPATH/src/go-get-issue-9357.appspot.com
+ go get go-get-issue-9357.appspot.com
+ 
+ rm $GOPATH/src/go-get-issue-9357.appspot.com
+-go get -u go-get-issue-9357.appspot.com
+\ No newline at end of file
++go get -u go-get-issue-9357.appspot.com
+diff --git a/src/cmd/go/testdata/script/get_dot_slash_download.txt b/src/cmd/go/testdata/script/get_dot_slash_download.txt
+index 0396e1b278..dbaf46ced3 100644
+--- a/src/cmd/go/testdata/script/get_dot_slash_download.txt
++++ b/src/cmd/go/testdata/script/get_dot_slash_download.txt
+@@ -1,9 +1,10 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ # Tests Issues #9797 and #19769
+ 
+ mkdir $WORK/tmp/src/rsc.io
+ env GOPATH=$WORK/tmp
+ cd $WORK/tmp/src/rsc.io
+-go get ./pprof_mac_fix
+\ No newline at end of file
++go get ./pprof_mac_fix
+diff --git a/src/cmd/go/testdata/script/get_goroot.txt b/src/cmd/go/testdata/script/get_goroot.txt
+index 49f1a174d0..929435ad70 100644
+--- a/src/cmd/go/testdata/script/get_goroot.txt
++++ b/src/cmd/go/testdata/script/get_goroot.txt
+@@ -1,4 +1,5 @@
+ [!net] skip
++env GO111MODULE=off
+ 
+ # Issue 4186. go get cannot be used to download packages to $GOROOT.
+ # Test that without GOPATH set, go get should fail.
+@@ -49,4 +50,4 @@ stderr '\$GOPATH not set'
+ env GOPATH=
+ env GOROOT=$WORK/home/go/
+ ! go get -d github.com/golang/example/hello
+-stderr '\$GOPATH not set'
+\ No newline at end of file
++stderr '\$GOPATH not set'
+diff --git a/src/cmd/go/testdata/script/get_insecure_custom_domain.txt b/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
+index c0439fb037..a4a6fd428f 100644
+--- a/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
++++ b/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
+@@ -1,5 +1,6 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ ! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
+-go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
+\ No newline at end of file
++go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
+diff --git a/src/cmd/go/testdata/script/get_insecure_update.txt b/src/cmd/go/testdata/script/get_insecure_update.txt
+index 792c868151..4511c98c56 100644
+--- a/src/cmd/go/testdata/script/get_insecure_update.txt
++++ b/src/cmd/go/testdata/script/get_insecure_update.txt
+@@ -1,5 +1,6 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ # Clone the repo via HTTP manually.
+ exec git clone -q http://github.com/golang/example github.com/golang/example
+@@ -8,4 +9,4 @@ exec git clone -q http://github.com/golang/example github.com/golang/example
+ # Update with -insecure should succeed.
+ # We need -f to ignore import comments.
+ ! go get -d -u -f github.com/golang/example/hello
+-go get -d -u -f -insecure github.com/golang/example/hello
+\ No newline at end of file
++go get -d -u -f -insecure github.com/golang/example/hello
+diff --git a/src/cmd/go/testdata/script/get_internal_wildcard.txt b/src/cmd/go/testdata/script/get_internal_wildcard.txt
+index 82bb0d5ba5..ff20d4ba04 100644
+--- a/src/cmd/go/testdata/script/get_internal_wildcard.txt
++++ b/src/cmd/go/testdata/script/get_internal_wildcard.txt
+@@ -1,5 +1,6 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ # This used to fail with errors about internal packages
+-go get github.com/rsc/go-get-issue-11960/...
+\ No newline at end of file
++go get github.com/rsc/go-get-issue-11960/...
+diff --git a/src/cmd/go/testdata/script/get_issue11307.txt b/src/cmd/go/testdata/script/get_issue11307.txt
+index da7704dee5..9d6b7dde01 100644
+--- a/src/cmd/go/testdata/script/get_issue11307.txt
++++ b/src/cmd/go/testdata/script/get_issue11307.txt
+@@ -2,7 +2,8 @@
+ 
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ env GOPATH=$WORK/tmp/gopath
+ go get github.com/rsc/go-get-issue-11307
+-go get -u github.com/rsc/go-get-issue-11307 # was failing
+\ No newline at end of file
++go get -u github.com/rsc/go-get-issue-11307 # was failing
+diff --git a/src/cmd/go/testdata/script/mod_get_legacy.txt b/src/cmd/go/testdata/script/get_legacy.txt
+similarity index 97%
+rename from src/cmd/go/testdata/script/mod_get_legacy.txt
+rename to src/cmd/go/testdata/script/get_legacy.txt
+index 28a820e97b..938d42868a 100644
+--- a/src/cmd/go/testdata/script/mod_get_legacy.txt
++++ b/src/cmd/go/testdata/script/get_legacy.txt
+@@ -5,6 +5,7 @@
+ 
+ [short] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ env GOPATH=$WORK/tmp/d1
+ go get vcs-test.golang.org/git/modlegacy1-old.git/p1
+@@ -54,4 +55,4 @@ rm $GOPATH
+ go get github.com/rsc/vgotest5 github.com/myitcv/vgo_example_compat github.com/rsc/vgotest4
+ 
+ rm $GOPATH
+-go get github.com/rsc/vgotest5 github.com/rsc/vgotest4 github.com/myitcv/vgo_example_compat
+\ No newline at end of file
++go get github.com/rsc/vgotest5 github.com/rsc/vgotest4 github.com/myitcv/vgo_example_compat
+diff --git a/src/cmd/go/testdata/script/get_race.txt b/src/cmd/go/testdata/script/get_race.txt
+index 8b34c9596c..16a560afca 100644
+--- a/src/cmd/go/testdata/script/get_race.txt
++++ b/src/cmd/go/testdata/script/get_race.txt
+@@ -3,5 +3,6 @@
+ [!net] skip
+ [!exec:git] skip
+ [!race] skip
++env GO111MODULE=off
+ 
+-go get -race github.com/rsc/go-get-issue-9224-cmd
+\ No newline at end of file
++go get -race github.com/rsc/go-get-issue-9224-cmd
+diff --git a/src/cmd/go/testdata/script/get_test_only.txt b/src/cmd/go/testdata/script/get_test_only.txt
+index 7437c30e77..a3f38ddbab 100644
+--- a/src/cmd/go/testdata/script/get_test_only.txt
++++ b/src/cmd/go/testdata/script/get_test_only.txt
+@@ -1,5 +1,6 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ go get golang.org/x/tour/content...
+-go get -t golang.org/x/tour/content...
+\ No newline at end of file
++go get -t golang.org/x/tour/content...
+diff --git a/src/cmd/go/testdata/script/get_update.txt b/src/cmd/go/testdata/script/get_update.txt
+index df889c49b0..9afce6a443 100644
+--- a/src/cmd/go/testdata/script/get_update.txt
++++ b/src/cmd/go/testdata/script/get_update.txt
+@@ -4,6 +4,7 @@
+ 
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ # Rewind
+ go get github.com/rsc/go-get-issue-9224-cmd
+@@ -21,4 +22,4 @@ exec git reset --hard HEAD~
+ cd $GOPATH/src
+ 
+ # (Again with -d -u) Run get
+-go get -d -u 'github.com/rsc/go-get-issue-9224-cmd'
+\ No newline at end of file
++go get -d -u 'github.com/rsc/go-get-issue-9224-cmd'
+diff --git a/src/cmd/go/testdata/script/get_update_unknown_protocol.txt b/src/cmd/go/testdata/script/get_update_unknown_protocol.txt
+index 85c2e24bc8..b00adea70b 100644
+--- a/src/cmd/go/testdata/script/get_update_unknown_protocol.txt
++++ b/src/cmd/go/testdata/script/get_update_unknown_protocol.txt
+@@ -1,5 +1,6 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ # Clone the repo via HTTPS manually.
+ exec git clone -q https://github.com/golang/example github.com/golang/example
+@@ -10,4 +11,4 @@ cd github.com/golang/example
+ exec git remote set-url origin xyz://github.com/golang/example
+ exec git config --local url.https://github.com/.insteadOf xyz://github.com/
+ 
+-go get -d -u -f github.com/golang/example/hello
+\ No newline at end of file
++go get -d -u -f github.com/golang/example/hello
+diff --git a/src/cmd/go/testdata/script/get_update_wildcard.txt b/src/cmd/go/testdata/script/get_update_wildcard.txt
+index bfa47a2a4c..4e66004014 100644
+--- a/src/cmd/go/testdata/script/get_update_wildcard.txt
++++ b/src/cmd/go/testdata/script/get_update_wildcard.txt
+@@ -2,6 +2,7 @@
+ 
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ go get github.com/tmwh/go-get-issue-14450/a
+ ! go get -u .../
+@@ -12,4 +13,4 @@ exists github.com/tmwh/go-get-issue-14450/b
+ exists github.com/tmwh/go-get-issue-14450-b-dependency/c
+ exists github.com/tmwh/go-get-issue-14450-b-dependency/d
+ 
+-! exists github.com/tmwh/go-get-issue-14450-c-dependency/e
+\ No newline at end of file
++! exists github.com/tmwh/go-get-issue-14450-c-dependency/e
+diff --git a/src/cmd/go/testdata/script/get_vcs_error_message.txt b/src/cmd/go/testdata/script/get_vcs_error_message.txt
+index e2404cc8d9..8dc84fc727 100644
+--- a/src/cmd/go/testdata/script/get_vcs_error_message.txt
++++ b/src/cmd/go/testdata/script/get_vcs_error_message.txt
+@@ -1,4 +1,5 @@
+ # Test that the Version Control error message includes the correct directory
++env GO111MODULE=off
+ ! go get -u foo
+ stderr gopath(\\\\|/)src(\\\\|/)foo
+ 
+diff --git a/src/cmd/go/testdata/script/get_vendor.txt b/src/cmd/go/testdata/script/get_vendor.txt
+index a6f0a70c48..4ebb8a26b6 100644
+--- a/src/cmd/go/testdata/script/get_vendor.txt
++++ b/src/cmd/go/testdata/script/get_vendor.txt
+@@ -1,4 +1,5 @@
+ [short] skip
++env GO111MODULE=off
+ 
+ cd $GOPATH/src/v
+ go run m.go
+@@ -91,4 +92,4 @@ func TestNothing(t *testing.T) {
+ }
+ -- v/vendor/vendor.org/p/p.go --
+ package p
+-const C = 1
+\ No newline at end of file
++const C = 1
+diff --git a/src/cmd/go/testdata/script/gopath_vendor_dup_err.txt b/src/cmd/go/testdata/script/gopath_vendor_dup_err.txt
+index 5096195c70..22e6048e96 100644
+--- a/src/cmd/go/testdata/script/gopath_vendor_dup_err.txt
++++ b/src/cmd/go/testdata/script/gopath_vendor_dup_err.txt
+@@ -1,4 +1,5 @@
+ [!net] skip
++env GO111MODULE=off
+ 
+ # Issue 17119: Test more duplicate load errors.
+ ! go build dupload
+diff --git a/src/cmd/go/testdata/script/install_cgo_excluded.txt b/src/cmd/go/testdata/script/install_cgo_excluded.txt
+index fa1fcd67a4..5a2b46030f 100644
+--- a/src/cmd/go/testdata/script/install_cgo_excluded.txt
++++ b/src/cmd/go/testdata/script/install_cgo_excluded.txt
+@@ -3,7 +3,11 @@ env CGO_ENABLED=0
+ ! go install cgotest
+ stderr 'build constraints exclude all Go files'
+ 
+--- cgotest/m.go --
++-- go.mod --
++module cgotest
++
++go 1.16
++-- m.go --
+ package cgotest
+ 
+ import "C"
+diff --git a/src/cmd/go/testdata/script/install_relative_gobin_fail.txt b/src/cmd/go/testdata/script/install_relative_gobin_fail.txt
+index e1e9ec7bdf..aa145249c5 100644
+--- a/src/cmd/go/testdata/script/install_relative_gobin_fail.txt
++++ b/src/cmd/go/testdata/script/install_relative_gobin_fail.txt
+@@ -2,7 +2,11 @@ env GOBIN=.
+ ! go install
+ stderr 'cannot install, GOBIN must be an absolute path'
+ 
++-- go.mod --
++module triv
++
++go 1.16
+ -- triv.go --
+ package main
+ 
+-func main() {}
+\ No newline at end of file
++func main() {}
+diff --git a/src/cmd/go/testdata/script/install_shadow_gopath.txt b/src/cmd/go/testdata/script/install_shadow_gopath.txt
+index 995162172e..2039d9e7f2 100644
+--- a/src/cmd/go/testdata/script/install_shadow_gopath.txt
++++ b/src/cmd/go/testdata/script/install_shadow_gopath.txt
+@@ -3,6 +3,7 @@
+ 
+ [!net] skip
+ 
++env GO111MODULE=off
+ env GOPATH=$WORK/gopath1${:}$WORK/gopath2
+ 
+ mkdir $WORK/gopath1/src/test
+@@ -16,4 +17,4 @@ stderr 'no install location for.*gopath2.src.test: hidden by .*gopath1.src.test'
+ -- main.go --
+ package main
+ 
+-func main() {}
+\ No newline at end of file
++func main() {}
+diff --git a/src/cmd/go/testdata/script/link_syso_issue33139.txt b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+index 46b0ef4200..d4f0b87537 100644
+--- a/src/cmd/go/testdata/script/link_syso_issue33139.txt
++++ b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+@@ -15,6 +15,10 @@
+ cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
+ go build -ldflags='-linkmode=external' ./cmd/main.go
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- syso/objTest.s --
+ #include "textflag.h"
+ 
+@@ -36,7 +40,7 @@ void objTestImpl() { /* Empty */ }
+ -- cmd/main.go --
+ package main
+ 
+-import "syso"
++import "m/syso"
+ 
+ func main() {
+ 	syso.ObjTest()
+diff --git a/src/cmd/go/testdata/script/list_case_collision.txt b/src/cmd/go/testdata/script/list_case_collision.txt
+index 73f44b63a0..181a202989 100644
+--- a/src/cmd/go/testdata/script/list_case_collision.txt
++++ b/src/cmd/go/testdata/script/list_case_collision.txt
+@@ -8,30 +8,34 @@ stderr 'case-insensitive import collision'
+ 
+ # List files explicitly on command line, to encounter case-checking
+ # logic even on case-insensitive filesystems.
+-cp example/b/file.go example/b/FILE.go  # no-op on case-insensitive filesystems
+-! go list example/b/file.go example/b/FILE.go
++cp b/file.go b/FILE.go  # no-op on case-insensitive filesystems
++! go list b/file.go b/FILE.go
+ stderr 'case-insensitive file name collision'
+ 
+-mkdir example/a/Pkg  # no-op on case-insensitive filesystems
+-cp example/a/pkg/pkg.go example/a/Pkg/pkg.go  # no-op on case-insensitive filesystems
++mkdir a/Pkg  # no-op on case-insensitive filesystems
++cp a/pkg/pkg.go a/Pkg/pkg.go  # no-op on case-insensitive filesystems
+ ! go list example/a/pkg example/a/Pkg
+ 
+ # Test that the path reported with an indirect import is correct.
+-cp example/b/file.go example/b/FILE.go
++cp b/file.go b/FILE.go
+ [case-sensitive] ! go build example/c
+ [case-sensitive] stderr '^package example/c\n\timports example/b: case-insensitive file name collision: "FILE.go" and "file.go"$'
+ 
+--- example/a/a.go --
++-- go.mod --
++module example
++
++go 1.16
++-- a/a.go --
+ package p
+ import (
+ 	_ "example/a/pkg"
+ 	_ "example/a/Pkg"
+ )
+--- example/a/pkg/pkg.go --
++-- a/pkg/pkg.go --
+ package pkg
+--- example/b/file.go --
++-- b/file.go --
+ package b
+--- example/c/c.go --
++-- c/c.go --
+ package c
+ 
+ import _ "example/b"
+diff --git a/src/cmd/go/testdata/script/list_dedup_packages.txt b/src/cmd/go/testdata/script/list_dedup_packages.txt
+index ebd497b7e5..30c68dd77f 100644
+--- a/src/cmd/go/testdata/script/list_dedup_packages.txt
++++ b/src/cmd/go/testdata/script/list_dedup_packages.txt
+@@ -1,4 +1,5 @@
+ # Setup
++env GO111MODULE=off
+ mkdir $WORK/tmp/testdata/src/xtestonly
+ cp f.go $WORK/tmp/testdata/src/xtestonly/f.go
+ cp f_test.go $WORK/tmp/testdata/src/xtestonly/f_test.go
+diff --git a/src/cmd/go/testdata/script/list_symlink.txt b/src/cmd/go/testdata/script/list_symlink.txt
+index 20c85b6453..f74ca86f37 100644
+--- a/src/cmd/go/testdata/script/list_symlink.txt
++++ b/src/cmd/go/testdata/script/list_symlink.txt
+@@ -1,4 +1,5 @@
+ [!symlink] skip
++env GO111MODULE=off
+ 
+ mkdir $WORK/tmp/src
+ symlink $WORK/tmp/src/dir1 -> $WORK/tmp
+diff --git a/src/cmd/go/testdata/script/list_symlink_internal.txt b/src/cmd/go/testdata/script/list_symlink_internal.txt
+index e538072b33..f756a56a3f 100644
+--- a/src/cmd/go/testdata/script/list_symlink_internal.txt
++++ b/src/cmd/go/testdata/script/list_symlink_internal.txt
+@@ -1,4 +1,5 @@
+ [!symlink] skip
++env GO111MODULE=off
+ 
+ mkdir $WORK/tmp/gopath/src/dir1/internal/v
+ cp p.go $WORK/tmp/gopath/src/dir1/p.go
+@@ -23,4 +24,4 @@ import _ `dir1/internal/v`
+ 
+ func main() {}
+ -- v.go --
+-package v
+\ No newline at end of file
++package v
+diff --git a/src/cmd/go/testdata/script/list_symlink_vendor_issue14054.txt b/src/cmd/go/testdata/script/list_symlink_vendor_issue14054.txt
+index 68b7fd948b..8e63a5a259 100644
+--- a/src/cmd/go/testdata/script/list_symlink_vendor_issue14054.txt
++++ b/src/cmd/go/testdata/script/list_symlink_vendor_issue14054.txt
+@@ -1,4 +1,5 @@
+ [!symlink] skip
++env GO111MODULE=off
+ 
+ mkdir $WORK/tmp/gopath/src/dir1/vendor/v
+ cp p.go $WORK/tmp/gopath/src/dir1/p.go
+@@ -24,4 +25,4 @@ import _ `v`
+ 
+ func main () {}
+ -- v.go --
+-package v
+\ No newline at end of file
++package v
+diff --git a/src/cmd/go/testdata/script/list_symlink_vendor_issue15201.txt b/src/cmd/go/testdata/script/list_symlink_vendor_issue15201.txt
+index 98921614a9..19f2138250 100644
+--- a/src/cmd/go/testdata/script/list_symlink_vendor_issue15201.txt
++++ b/src/cmd/go/testdata/script/list_symlink_vendor_issue15201.txt
+@@ -1,4 +1,5 @@
+ [!symlink] skip
++env GO111MODULE=off
+ 
+ mkdir $WORK/tmp/gopath/src/x/y/_vendor/src/x
+ symlink $WORK/tmp/gopath/src/x/y/_vendor/src/x/y -> ../../..
+@@ -17,4 +18,4 @@ package w
+ 
+ import "x/y/z"
+ -- z.go --
+-package z
+\ No newline at end of file
++package z
+diff --git a/src/cmd/go/testdata/script/list_test_simple.txt b/src/cmd/go/testdata/script/list_test_simple.txt
+index 862b7a8fbb..954897c663 100644
+--- a/src/cmd/go/testdata/script/list_test_simple.txt
++++ b/src/cmd/go/testdata/script/list_test_simple.txt
+@@ -1,21 +1,23 @@
+ [short] skip
+ 
+-cd $WORK
+-
+ # Test
+-go test './gopath/src/testlist/...' -list=Test
++go test -list=Test
+ stdout TestSimple
+ 
+ # Benchmark
+-go test './gopath/src/testlist/...' -list=Benchmark
++go test -list=Benchmark
+ stdout BenchmarkSimple
+ 
+ # Examples
+-go test './gopath/src/testlist/...' -list=Example
++go test -list=Example
+ stdout ExampleSimple
+ stdout ExampleWithEmptyOutput
+ 
+--- testlist/bench_test.go --
++-- go.mod --
++module m
++
++go 1.16
++-- bench_test.go --
+ package testlist
+ 
+ import (
+@@ -30,7 +32,7 @@ func BenchmarkSimplefunc(b *testing.B) {
+ 		_ = fmt.Sprint("Test for bench")
+ 	}
+ }
+--- testlist/example_test.go --
++-- example_test.go --
+ package testlist
+ 
+ import (
+@@ -52,7 +54,7 @@ func ExampleWithEmptyOutput() {
+ func ExampleNoOutput() {
+ 	_ = fmt.Sprint("Test with no output")
+ }
+--- testlist/test_test.go --
++-- test_test.go --
+ package testlist
+ 
+ import (
+@@ -62,4 +64,4 @@ import (
+ 
+ func TestSimple(t *testing.T) {
+ 	_ = fmt.Sprint("Test simple")
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt b/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt
+index 74ca315a72..02b1088297 100644
+--- a/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt
++++ b/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt
+@@ -1,13 +1,17 @@
+ # Test that wildcards don't look in useless directories.
+ 
+ # First make sure that badpkg fails the list of '...'.
+-! go list ...
++! go list ./...
+ stderr badpkg
+ 
+-# Check that the list of 'm...' succeeds. That implies badpkg was skipped.
+-go list m...
++# Check that the list of './goodpkg...' succeeds. That implies badpkg was skipped.
++go list ./goodpkg...
+ 
+--- m/x.go --
+-package m
++-- go.mod --
++module m
++
++go 1.16
++-- goodpkg/x.go --
++package goodpkg
+ -- badpkg/x.go --
+-pkg badpkg
+\ No newline at end of file
++pkg badpkg
+diff --git a/src/cmd/go/testdata/script/load_test_pkg_err.txt b/src/cmd/go/testdata/script/load_test_pkg_err.txt
+index b3065490de..d088ee40f3 100644
+--- a/src/cmd/go/testdata/script/load_test_pkg_err.txt
++++ b/src/cmd/go/testdata/script/load_test_pkg_err.txt
+@@ -10,17 +10,21 @@ stdout golang.org/fake/d
+ d
+ d.test
+ d_test [d.test]
+--- d/d.go --
++-- go.mod --
++module d
++
++go 1.16
++-- d.go --
+ package d
+ 
+ import "net/http"
+ 
+ const d = http.MethodGet
+ func Get() string { return d; }
+--- d/d2.go --
+--- d/d_test.go --
++-- d2.go --
++-- d_test.go --
+ package d_test
+ 
+ import "testing"
+ import "golang.org/fake/d"
+-func TestD(t *testing.T) { d.Get(); }
+\ No newline at end of file
++func TestD(t *testing.T) { d.Get(); }
+diff --git a/src/cmd/go/testdata/script/run_hello_pkg.txt b/src/cmd/go/testdata/script/run_hello_pkg.txt
+index 03fba13c77..ea2b4d7cde 100644
+--- a/src/cmd/go/testdata/script/run_hello_pkg.txt
++++ b/src/cmd/go/testdata/script/run_hello_pkg.txt
+@@ -1,11 +1,14 @@
+-cd $GOPATH
+-go run hello
++go run m/hello
+ stderr 'hello, world'
+ 
+-cd src/hello
++cd hello
+ go run .
+ stderr 'hello, world'
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- hello/hello.go --
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/run_vendor.txt b/src/cmd/go/testdata/script/run_vendor.txt
+index 8544281db9..46cac06bf4 100644
+--- a/src/cmd/go/testdata/script/run_vendor.txt
++++ b/src/cmd/go/testdata/script/run_vendor.txt
+@@ -1,4 +1,5 @@
+ # Run
++env GO111MODULE=off
+ cd vend/hello
+ go run hello.go
+ stdout 'hello, world'
+diff --git a/src/cmd/go/testdata/script/test_benchmark_fatal.txt b/src/cmd/go/testdata/script/test_benchmark_fatal.txt
+index 1e20c4eb61..e281379ebd 100644
+--- a/src/cmd/go/testdata/script/test_benchmark_fatal.txt
++++ b/src/cmd/go/testdata/script/test_benchmark_fatal.txt
+@@ -5,7 +5,11 @@
+ ! stderr ^ok
+ stdout FAIL.*benchfatal
+ 
+--- benchfatal/x_test.go --
++-- go.mod --
++module benchfatal
++
++go 1.16
++-- x_test.go --
+ package benchfatal
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/test_benchmark_labels.txt b/src/cmd/go/testdata/script/test_benchmark_labels.txt
+index affab6b806..6b424c1bd8 100644
+--- a/src/cmd/go/testdata/script/test_benchmark_labels.txt
++++ b/src/cmd/go/testdata/script/test_benchmark_labels.txt
+@@ -10,7 +10,11 @@ stdout '^pkg: bench'
+ ! stdout 'pkg:.*pkg: '
+ ! stderr 'pkg:.*pkg:'
+ 
+--- bench/x_test.go --
++-- go.mod --
++module bench
++
++go 1.16
++-- x_test.go --
+ package bench
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/test_build_failure.txt b/src/cmd/go/testdata/script/test_build_failure.txt
+index 2ae448a566..8d13634c8c 100644
+--- a/src/cmd/go/testdata/script/test_build_failure.txt
++++ b/src/cmd/go/testdata/script/test_build_failure.txt
+@@ -5,13 +5,17 @@
+ stderr 'undefined: g'
+ stderr 'undefined: j'
+ 
+--- coverbad/p.go --
++-- go.mod --
++module coverbad
++
++go 1.16
++-- p.go --
+ package p
+ 
+ func f() {
+ 	g()
+ }
+--- coverbad/p1.go --
++-- p1.go --
+ package p
+ 
+ import "C"
+@@ -19,7 +23,7 @@ import "C"
+ func h() {
+ 	j()
+ }
+--- coverbad/p_test.go --
++-- p_test.go --
+ package p
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/test_deadline.txt b/src/cmd/go/testdata/script/test_deadline.txt
+index 5a19f6590f..06ae16ffd2 100644
+--- a/src/cmd/go/testdata/script/test_deadline.txt
++++ b/src/cmd/go/testdata/script/test_deadline.txt
+@@ -4,6 +4,10 @@ go test -timeout=0 -run=TestNoDeadline
+ go test -timeout=1m -run=TestDeadlineWithinMinute
+ go test -timeout=1m -run=TestSubtestDeadlineWithinMinute
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- deadline_test.go --
+ package testing_test
+ 
+diff --git a/src/cmd/go/testdata/script/test_empty.txt b/src/cmd/go/testdata/script/test_empty.txt
+index f2c512e791..5ebbecd53d 100644
+--- a/src/cmd/go/testdata/script/test_empty.txt
++++ b/src/cmd/go/testdata/script/test_empty.txt
+@@ -23,6 +23,10 @@ go test -cover -coverpkg=. -race
+ cd $GOPATH/src/empty/testxtest
+ go test -cover -coverpkg=. -race
+ 
++-- empty/go.mod --
++module empty
++
++go 1.16
+ -- empty/pkg/pkg.go --
+ package p
+ -- empty/pkgtest/pkg.go --
+diff --git a/src/cmd/go/testdata/script/test_example_goexit.txt b/src/cmd/go/testdata/script/test_example_goexit.txt
+index 59219e3366..984f4349f5 100644
+--- a/src/cmd/go/testdata/script/test_example_goexit.txt
++++ b/src/cmd/go/testdata/script/test_example_goexit.txt
+@@ -5,7 +5,11 @@
+ stdout '(?s)--- PASS.*--- FAIL.*'
+ stdout 'panic: test executed panic\(nil\) or runtime\.Goexit'
+ 
+--- examplegoexit/example_test.go --
++-- go.mod --
++module examplegoexit
++
++go 1.16
++-- example_test.go --
+ package main
+ 
+ import (
+diff --git a/src/cmd/go/testdata/script/test_import_error_stack.txt b/src/cmd/go/testdata/script/test_import_error_stack.txt
+index c66c1213a4..6c60f3d2ab 100644
+--- a/src/cmd/go/testdata/script/test_import_error_stack.txt
++++ b/src/cmd/go/testdata/script/test_import_error_stack.txt
+@@ -1,9 +1,20 @@
++env GO111MODULE=off
+ ! go test testdep/p1
+ stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
++! go vet testdep/p1
++stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
+ 
++env GO111MODULE=on
++cd testdep
++! go test testdep/p1
++stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
+ ! go vet testdep/p1
+ stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
+ 
++-- testdep/go.mod --
++module testdep
++
++go 1.16
+ -- testdep/p1/p1.go --
+ package p1
+ -- testdep/p1/p1_test.go --
+diff --git a/src/cmd/go/testdata/script/test_json.txt b/src/cmd/go/testdata/script/test_json.txt
+index 1bd530514c..cd5b0b9d7a 100644
+--- a/src/cmd/go/testdata/script/test_json.txt
++++ b/src/cmd/go/testdata/script/test_json.txt
+@@ -3,23 +3,23 @@
+ 
+ env GOCACHE=$WORK/tmp
+ 
+-# Run go test -json on errors empty/pkg and skipper
++# Run go test -json on errors m/empty/pkg and m/skipper
+ # It would be nice to test that the output is interlaced
+ # but it seems to be impossible to do that in a short test
+ # that isn't also flaky. Just check that we get JSON output.
+-go test -json -short -v errors empty/pkg skipper
++go test -json -short -v errors m/empty/pkg m/skipper
+ 
+ # Check errors for run action
+ stdout '"Package":"errors"'
+ stdout '"Action":"run","Package":"errors"'
+ 
+-# Check empty/pkg for output and skip actions
+-stdout '"Action":"output","Package":"empty/pkg","Output":".*no test files'
+-stdout '"Action":"skip","Package":"empty/pkg"'
++# Check m/empty/pkg for output and skip actions
++stdout '"Action":"output","Package":"m/empty/pkg","Output":".*no test files'
++stdout '"Action":"skip","Package":"m/empty/pkg"'
+ 
+ # Check skipper for output and skip actions
+-stdout '"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:'
+-stdout '"Action":"skip","Package":"skipper","Test":"Test"'
++stdout '"Action":"output","Package":"m/skipper","Test":"Test","Output":"--- SKIP:'
++stdout '"Action":"skip","Package":"m/skipper","Test":"Test"'
+ 
+ # Run go test -json on errors and check it's cached
+ go test -json -short -v errors
+@@ -36,6 +36,10 @@ stdout '"Package":"errors"'
+ stdout '"Action":"run"'
+ stdout '\{"Action":"pass","Package":"errors"\}'
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- skipper/skip_test.go --
+ package skipper
+ 
+diff --git a/src/cmd/go/testdata/script/test_main_twice.txt b/src/cmd/go/testdata/script/test_main_twice.txt
+index 1e68dabec0..f32d4fc3b5 100644
+--- a/src/cmd/go/testdata/script/test_main_twice.txt
++++ b/src/cmd/go/testdata/script/test_main_twice.txt
+@@ -4,7 +4,11 @@ env GOCACHE=$WORK/tmp
+ go test -v multimain
+ stdout -count=2 notwithstanding # check tests ran twice
+ 
+--- multimain/multimain_test.go --
++-- go.mod --
++module multimain
++
++go 1.16
++-- multimain_test.go --
+ package multimain_test
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/test_match_no_tests_build_failure.txt b/src/cmd/go/testdata/script/test_match_no_tests_build_failure.txt
+index 92cb690dcc..e1c96438c8 100644
+--- a/src/cmd/go/testdata/script/test_match_no_tests_build_failure.txt
++++ b/src/cmd/go/testdata/script/test_match_no_tests_build_failure.txt
+@@ -6,9 +6,13 @@
+ ! stderr '(?m)^ok.*\[no tests to run\]'
+ stdout 'FAIL'
+ 
+--- syntaxerror/x.go --
++-- go.mod --
++module syntaxerror
++
++go 1.16
++-- x.go --
+ package p
+--- syntaxerror/x_test.go --
++-- x_test.go --
+ package p
+ 
+ func f() (x.y, z int) {
+diff --git a/src/cmd/go/testdata/script/test_no_run_example.txt b/src/cmd/go/testdata/script/test_no_run_example.txt
+index 66daa310fa..53ac755902 100644
+--- a/src/cmd/go/testdata/script/test_no_run_example.txt
++++ b/src/cmd/go/testdata/script/test_no_run_example.txt
+@@ -1,7 +1,11 @@
+ go test -v norunexample
+ stdout 'File with non-runnable example was built.'
+ 
+--- norunexample/example_test.go --
++-- go.mod --
++module norunexample
++
++go 1.16
++-- example_test.go --
+ package pkg_test
+ 
+ import "os"
+@@ -13,7 +17,7 @@ func init() {
+ func Example_test() {
+ 	// This test will not be run, it has no "Output:" comment.
+ }
+--- norunexample/test_test.go --
++-- test_test.go --
+ package pkg
+ 
+ import (
+diff --git a/src/cmd/go/testdata/script/test_no_tests.txt b/src/cmd/go/testdata/script/test_no_tests.txt
+index d75bcff934..2d624d1da6 100644
+--- a/src/cmd/go/testdata/script/test_no_tests.txt
++++ b/src/cmd/go/testdata/script/test_no_tests.txt
+@@ -3,7 +3,11 @@
+ go test testnorun
+ stdout 'testnorun\t\[no test files\]'
+ 
+--- testnorun/p.go --
++-- go.mod --
++module testnorun
++
++go 1.16
++-- p.go --
+ package p
+ 
+ func init() {
+diff --git a/src/cmd/go/testdata/script/test_race.txt b/src/cmd/go/testdata/script/test_race.txt
+index 5d15189e19..2ffea46092 100644
+--- a/src/cmd/go/testdata/script/test_race.txt
++++ b/src/cmd/go/testdata/script/test_race.txt
+@@ -13,7 +13,11 @@ stdout 'FAIL: BenchmarkRace'
+ ! stdout 'PASS'
+ ! stderr 'PASS'
+ 
+--- testrace/race_test.go --
++-- go.mod --
++module testrace
++
++go 1.16
++-- race_test.go --
+ package testrace
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/test_race_cover_mode_issue20435.txt b/src/cmd/go/testdata/script/test_race_cover_mode_issue20435.txt
+index bff9502ac7..eacc882091 100644
+--- a/src/cmd/go/testdata/script/test_race_cover_mode_issue20435.txt
++++ b/src/cmd/go/testdata/script/test_race_cover_mode_issue20435.txt
+@@ -10,7 +10,11 @@ stderr '-covermode must be "atomic", not "set", when -race is enabled'
+ ! stdout PASS
+ ! stderr PASS
+ 
+--- testrace/race_test.go --
++-- go.mod --
++module testrace
++
++go 1.16
++-- race_test.go --
+ package testrace
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/test_race_install.txt b/src/cmd/go/testdata/script/test_race_install.txt
+index 66dc19ebb6..d28809bfdc 100644
+--- a/src/cmd/go/testdata/script/test_race_install.txt
++++ b/src/cmd/go/testdata/script/test_race_install.txt
+@@ -8,6 +8,10 @@ go install -race -pkgdir=$WORKDIR/tmp/pkg std
+ go test -race -pkgdir=$WORKDIR/tmp/pkg -i -v empty/pkg
+ ! stderr .
+ 
+--- empty/pkg/pkg.go --
++-- go.mod --
++module empty
++
++go 1.16
++-- pkg/pkg.go --
+ package p
+ 
+diff --git a/src/cmd/go/testdata/script/test_race_install_cgo.txt b/src/cmd/go/testdata/script/test_race_install_cgo.txt
+index feddc8f922..82f00f2086 100644
+--- a/src/cmd/go/testdata/script/test_race_install_cgo.txt
++++ b/src/cmd/go/testdata/script/test_race_install_cgo.txt
+@@ -5,7 +5,7 @@
+ [!darwin] ! stale cmd/cgo  # The darwin builders are spuriously stale; see #33598.
+ 
+ env GOBIN=$WORK/bin
+-go install mtime sametime
++go install m/mtime m/sametime
+ 
+ go tool -n cgo
+ cp stdout cgopath.txt
+@@ -21,6 +21,10 @@ exec $GOBIN/mtime cgopath.txt # get the mtime of the file whose name is in cgopa
+ cp stdout cgotime_after.txt
+ exec $GOBIN/sametime cgotime_before.txt cgotime_after.txt
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- mtime/mtime.go --
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/test_regexps.txt b/src/cmd/go/testdata/script/test_regexps.txt
+index a616195cab..2f33080a00 100644
+--- a/src/cmd/go/testdata/script/test_regexps.txt
++++ b/src/cmd/go/testdata/script/test_regexps.txt
+@@ -35,7 +35,11 @@ stdout -count=1 '^    z_test.go:18: LOG: XX running N=1$'
+ # a large number, and the last iteration count prints right before the results.
+ stdout -count=2 '^    x_test.go:15: LOG: Y running N=[1-9]\d{4,}\nBenchmarkX/Y\s+\d+'
+ 
+--- testregexp/x_test.go --
++-- go.mod --
++module testregexp
++
++go 1.16
++-- x_test.go --
+ package x
+ 
+ import "testing"
+@@ -53,7 +57,7 @@ func BenchmarkX(b *testing.B) {
+ 		b.Logf("LOG: Y running N=%d", b.N)
+ 	})
+ }
+--- testregexp/z_test.go --
++-- z_test.go --
+ package x
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/test_relative_import.txt b/src/cmd/go/testdata/script/test_relative_import.txt
+index 0d212b4924..938a875b55 100644
+--- a/src/cmd/go/testdata/script/test_relative_import.txt
++++ b/src/cmd/go/testdata/script/test_relative_import.txt
+@@ -1,4 +1,5 @@
+ # Relative imports in go test
++env GO111MODULE=off # relative import not supported in module mode
+ 
+ # Run tests outside GOPATH.
+ env GOPATH=$WORK/tmp
+@@ -27,4 +28,4 @@ func TestF(t *testing.T) {
+ 	if F() != p1.F() {
+ 		t.Fatal(F())
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/test_relative_import_dash_i.txt b/src/cmd/go/testdata/script/test_relative_import_dash_i.txt
+index dafa04ef02..b2716d8403 100644
+--- a/src/cmd/go/testdata/script/test_relative_import_dash_i.txt
++++ b/src/cmd/go/testdata/script/test_relative_import_dash_i.txt
+@@ -1,4 +1,5 @@
+ # Relative imports in go test -i
++env GO111MODULE=off # relative import not supported in module mode
+ 
+ # Run tests outside GOPATH.
+ env GOPATH=$WORK/tmp
+@@ -28,4 +29,4 @@ func TestF(t *testing.T) {
+ 	if F() != p1.F() {
+ 		t.Fatal(F())
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/test_syntax_error_says_fail.txt b/src/cmd/go/testdata/script/test_syntax_error_says_fail.txt
+index 29fa805b43..44ff6e2b39 100644
+--- a/src/cmd/go/testdata/script/test_syntax_error_says_fail.txt
++++ b/src/cmd/go/testdata/script/test_syntax_error_says_fail.txt
+@@ -1,10 +1,21 @@
+ # Test that the error message for a syntax error in a test go file
+ # says FAIL.
+ 
++env GO111MODULE=off
+ ! go test syntaxerror
+ stderr 'x_test.go:' # check that the error is diagnosed
+ stdout 'FAIL' # check that go test says FAIL
+ 
++env GO111MODULE=on
++cd syntaxerror
++! go test syntaxerror
++stderr 'x_test.go:' # check that the error is diagnosed
++stdout 'FAIL' # check that go test says FAIL
++
++-- syntaxerror/go.mod --
++module syntaxerror
++
++go 1.16
+ -- syntaxerror/x.go --
+ package p
+ -- syntaxerror/x_test.go --
+diff --git a/src/cmd/go/testdata/script/test_vendor.txt b/src/cmd/go/testdata/script/test_vendor.txt
+index d72d672827..c6a88b6fed 100644
+--- a/src/cmd/go/testdata/script/test_vendor.txt
++++ b/src/cmd/go/testdata/script/test_vendor.txt
+@@ -1,9 +1,19 @@
+-# Test
++# In GOPATH mode, vendored packages can replace std packages.
++env GO111MODULE=off
+ cd vend/hello
+ go test -v
+ stdout TestMsgInternal
+ stdout TestMsgExternal
+ 
++# In module mode, they cannot.
++env GO111MODULE=on
++! go test -mod=vendor
++stderr 'undefined: strings.Msg'
++
++-- vend/hello/go.mod --
++module vend/hello
++
++go 1.16
+ -- vend/hello/hello.go --
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/test_vet.txt b/src/cmd/go/testdata/script/test_vet.txt
+index af26b4de79..5af26b54f9 100644
+--- a/src/cmd/go/testdata/script/test_vet.txt
++++ b/src/cmd/go/testdata/script/test_vet.txt
+@@ -17,20 +17,24 @@ go test -vet=off p1.go
+ stdout '\[no test files\]'
+ 
+ # Test issue #22890
+-go test vetcycle
+-stdout 'vetcycle.*\[no test files\]'
++go test m/vetcycle
++stdout 'm/vetcycle.*\[no test files\]'
+ 
+ # Test with ...
+-! go test vetfail/...
++! go test ./vetfail/...
+ stderr 'Printf format %d'
+-stdout 'ok\s+vetfail/p2'
++stdout 'ok\s+m/vetfail/p2'
+ 
+ # Check there's no diagnosis of a bad build constraint in vetxonly mode.
+ # Use -a so that we need to recompute the vet-specific export data for
+ # vetfail/p1.
+-go test -a vetfail/p2
++go test -a m/vetfail/p2
+ ! stderr 'invalid.*constraint'
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- p1_test.go --
+ package p
+ 
+@@ -74,7 +78,7 @@ func F() {
+ -- vetfail/p2/p2.go --
+ package p2
+ 
+-import _ "vetfail/p1"
++import _ "m/vetfail/p1"
+ 
+ func F() {
+ }
+diff --git a/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt b/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt
+index a6cb934709..08e67a429e 100644
+--- a/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt
++++ b/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt
+@@ -2,13 +2,16 @@
+ 
+ [short] skip
+ 
+-cd profiling
+ ! go test -cpuprofile cpu.pprof -memprofile mem.pprof -timeout 1ms
+ grep . cpu.pprof
+ grep . mem.pprof
+ 
+--- profiling/timeout_test.go --
++-- go.mod --
++module profiling
++
++go 1.16
++-- timeout_test.go --
+ package timeouttest_test
+ import "testing"
+ import "time"
+-func TestSleep(t *testing.T) { time.Sleep(time.Second) }
+\ No newline at end of file
++func TestSleep(t *testing.T) { time.Sleep(time.Second) }
+diff --git a/src/cmd/go/testdata/script/test_xtestonly_works.txt b/src/cmd/go/testdata/script/test_xtestonly_works.txt
+index 01bafb733b..8e150dbfc2 100644
+--- a/src/cmd/go/testdata/script/test_xtestonly_works.txt
++++ b/src/cmd/go/testdata/script/test_xtestonly_works.txt
+@@ -4,11 +4,15 @@ go test xtestonly
+ ! stdout '^ok.*\[no tests to run\]'
+ stdout '^ok'
+ 
+--- xtestonly/f.go --
++-- go.mod --
++module xtestonly
++
++go 1.16
++-- f.go --
+ package xtestonly
+ 
+ func F() int { return 42 }
+--- xtestonly/f_test.go --
++-- f_test.go --
+ package xtestonly_test
+ 
+ import (
+diff --git a/src/cmd/go/testdata/script/testing_issue40908.txt b/src/cmd/go/testdata/script/testing_issue40908.txt
+index 4939de080c..839320e4e8 100644
+--- a/src/cmd/go/testdata/script/testing_issue40908.txt
++++ b/src/cmd/go/testdata/script/testing_issue40908.txt
+@@ -3,7 +3,11 @@
+ 
+ go test -race testrace
+ 
+--- testrace/race_test.go --
++-- go.mod --
++module testrace
++
++go 1.16
++-- race_test.go --
+ package testrace
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/vendor_gopath_issue11409.txt b/src/cmd/go/testdata/script/vendor_gopath_issue11409.txt
+index 746a34a744..da52f9acf2 100644
+--- a/src/cmd/go/testdata/script/vendor_gopath_issue11409.txt
++++ b/src/cmd/go/testdata/script/vendor_gopath_issue11409.txt
+@@ -1,4 +1,5 @@
+ [!windows] [short] stop 'this test only applies to Windows'
++env GO111MODULE=off
+ 
+ go build run_go.go
+ exec ./run_go$GOEXE $GOPATH $GOPATH/src/vend/hello
+diff --git a/src/cmd/go/testdata/script/vendor_import.txt b/src/cmd/go/testdata/script/vendor_import.txt
+index 35419f36f1..df4c27df81 100644
+--- a/src/cmd/go/testdata/script/vendor_import.txt
++++ b/src/cmd/go/testdata/script/vendor_import.txt
+@@ -1,4 +1,5 @@
+ # Imports
++env GO111MODULE=off
+ go list -f  '{{.ImportPath}} {{.Imports}}' 'vend/...' 'vend/vendor/...' 'vend/x/vendor/...'
+ cmp stdout want_vendor_imports.txt
+ 
+diff --git a/src/cmd/go/testdata/script/vendor_import_wrong.txt b/src/cmd/go/testdata/script/vendor_import_wrong.txt
+index aba6269784..73bf595640 100644
+--- a/src/cmd/go/testdata/script/vendor_import_wrong.txt
++++ b/src/cmd/go/testdata/script/vendor_import_wrong.txt
+@@ -1,7 +1,18 @@
+ # Wrong import path
++env GO111MODULE=off
+ ! go build vend/x/invalid
+ stderr 'must be imported as foo'
+ 
++env GO111MODULE=
++cd vend/x/invalid
++! go build vend/x/invalid
++stderr 'must be imported as foo'
++
++-- vend/x/invalid/go.mod --
++module vend/x/invalid
++
++go 1.16
++
+ -- vend/x/invalid/invalid.go --
+ package invalid
+ 
+diff --git a/src/cmd/go/testdata/script/vendor_issue12156.txt b/src/cmd/go/testdata/script/vendor_issue12156.txt
+index 49eb235ba5..ac95c6d3da 100644
+--- a/src/cmd/go/testdata/script/vendor_issue12156.txt
++++ b/src/cmd/go/testdata/script/vendor_issue12156.txt
+@@ -1,5 +1,6 @@
+ # Tests issue #12156, a former index out of range panic.
+ 
++env GO111MODULE=off
+ env GOPATH=$WORK/gopath/src/testvendor2 # vendor/x is directly in $GOPATH, not in $GOPATH/src
+ cd $WORK/gopath/src/testvendor2/src/p
+ 
+diff --git a/src/cmd/go/testdata/script/vendor_list_issue11977.txt b/src/cmd/go/testdata/script/vendor_list_issue11977.txt
+index d97c6518b4..cdab33c089 100644
+--- a/src/cmd/go/testdata/script/vendor_list_issue11977.txt
++++ b/src/cmd/go/testdata/script/vendor_list_issue11977.txt
+@@ -1,5 +1,6 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ go get github.com/rsc/go-get-issue-11864
+ 
+@@ -13,4 +14,4 @@ go list -f '{{join .XTestImports "\n"}}' github.com/rsc/go-get-issue-11864/vendo
+ stdout 'go-get-issue-11864/vendor/vendor.org/tx2'
+ 
+ go list -f '{{join .XTestImports "\n"}}' github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3
+-stdout 'go-get-issue-11864/vendor/vendor.org/tx3'
+\ No newline at end of file
++stdout 'go-get-issue-11864/vendor/vendor.org/tx3'
+diff --git a/src/cmd/go/testdata/script/vendor_resolve.txt b/src/cmd/go/testdata/script/vendor_resolve.txt
+index 220b92f80b..bc8cf0ab38 100644
+--- a/src/cmd/go/testdata/script/vendor_resolve.txt
++++ b/src/cmd/go/testdata/script/vendor_resolve.txt
+@@ -1,3 +1,4 @@
++env GO111MODULE=off
+ ! go build p
+ stderr 'must be imported as x'
+ 
+diff --git a/src/cmd/go/testdata/script/vendor_test_issue11864.txt b/src/cmd/go/testdata/script/vendor_test_issue11864.txt
+index f11d790e6f..cfb43bf343 100644
+--- a/src/cmd/go/testdata/script/vendor_test_issue11864.txt
++++ b/src/cmd/go/testdata/script/vendor_test_issue11864.txt
+@@ -1,5 +1,6 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ go get github.com/rsc/go-get-issue-11864
+ 
+@@ -16,4 +17,4 @@ go test github.com/rsc/go-get-issue-11864
+ go test github.com/rsc/go-get-issue-11864/t
+ 
+ # external tests should observe internal test exports (golang.org/issue/11977)
+-go test github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2
+\ No newline at end of file
++go test github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2
+diff --git a/src/cmd/go/testdata/script/vendor_test_issue14613.txt b/src/cmd/go/testdata/script/vendor_test_issue14613.txt
+index 4e5e066d6b..7801e6944d 100644
+--- a/src/cmd/go/testdata/script/vendor_test_issue14613.txt
++++ b/src/cmd/go/testdata/script/vendor_test_issue14613.txt
+@@ -1,5 +1,6 @@
+ [!net] skip
+ [!exec:git] skip
++env GO111MODULE=off
+ 
+ cd $GOPATH
+ 
+diff --git a/src/cmd/go/testdata/script/vet.txt b/src/cmd/go/testdata/script/vet.txt
+index 73fe2958fc..6573ae3ebd 100644
+--- a/src/cmd/go/testdata/script/vet.txt
++++ b/src/cmd/go/testdata/script/vet.txt
+@@ -1,29 +1,33 @@
+ # Package with external tests
+-! go vet vetpkg
++! go vet m/vetpkg
+ stderr 'Printf'
+ 
+ # With tags
+-! go vet -tags tagtest vetpkg
++! go vet -tags tagtest m/vetpkg
+ stderr 'c\.go.*Printf'
+ 
+ # With flags on
+-! go vet -printf vetpkg
++! go vet -printf m/vetpkg
+ stderr 'Printf'
+ 
+ # With flags off
+-go vet -printf=false vetpkg
++go vet -printf=false m/vetpkg
+ ! stderr .
+ 
+ # With only test files (tests issue #23395)
+-go vet onlytest
++go vet m/onlytest
+ ! stderr .
+ 
+ # With only cgo files (tests issue #24193)
+ [!cgo] skip
+ [short] skip
+-go vet onlycgo
++go vet m/onlycgo
+ ! stderr .
+ 
++-- go.mod --
++module m
++
++go 1.16
+ -- vetpkg/a_test.go --
+ package p_test
+ -- vetpkg/b.go --
+@@ -55,4 +59,4 @@ package p
+ 
+ import "C"
+ 
+-func F() {}
+\ No newline at end of file
++func F() {}

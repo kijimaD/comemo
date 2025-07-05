@@ -8,7 +8,40 @@ Date:   Wed Mar 19 17:18:25 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/78030043
-
+---
  src/cmd/6g/galign.c | 2 --
  src/cmd/6g/gg.h     | 1 -
  2 files changed, 3 deletions(-)
+
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index d0727fe57c..1d32c5a61e 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -22,7 +22,6 @@ vlong MAXWIDTH = 1LL<<50;
+ int	addptr = AADDQ;
+ int	movptr = AMOVQ;
+ int	leaptr = ALEAQ;
+-int	stosptr = ASTOSQ;
+ int	cmpptr = ACMPQ;
+ 
+ /*
+@@ -49,7 +48,6 @@ betypeinit(void)
+ 		addptr = AADDL;
+ 		movptr = AMOVL;
+ 		leaptr = ALEAL;
+-		stosptr = ASTOSL;
+ 		cmpptr = ACMPL;
+ 		typedefs[0].sameas = TINT32;
+ 		typedefs[1].sameas = TUINT32;
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 0bc8885cf3..a5da17d61f 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -28,7 +28,6 @@ extern	int	addptr;
+ extern	int	cmpptr;
+ extern	int	movptr;
+ extern	int	leaptr;
+-extern	int	stosptr;
+ 
+ /*
+  * ggen.c

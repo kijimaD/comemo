@@ -9,6 +9,20 @@ Date:   Thu Feb 23 12:52:33 2017 -0800
     Change-Id: I6327192eca11fa24f1078c016c9669e4ba4bdb4e
     Reviewed-on: https://go-review.googlesource.com/37399
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/types/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 01adee8a3e..a0a1238395 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -394,7 +394,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	return typ
+ }
+ 
+-// TypeName returns the type name for the named type t.
++// Obj returns the type name for the named type t.
+ func (t *Named) Obj() *TypeName { return t.obj }
+ 
+ // NumMethods returns the number of explicit methods whose receiver is named type t.

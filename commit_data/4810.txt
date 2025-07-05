@@ -7,7 +7,212 @@ Date:   Sun Feb 7 15:22:36 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/203043
-
+---
  src/pkg/encoding/pem/pem.go      | 98 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/encoding/pem/pem_test.go | 72 ++++++++++++++++++++++++++++-
  2 files changed, 168 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/pem/pem.go b/src/pkg/encoding/pem/pem.go
+index 168a47168d..6ef8f86612 100644
+--- a/src/pkg/encoding/pem/pem.go
++++ b/src/pkg/encoding/pem/pem.go
+@@ -10,6 +10,8 @@ package pem
+ import (
+ 	"bytes"
+ 	"encoding/base64"
++	"io"
++	"os"
+ 	"strings"
+ )
+ 
+@@ -159,3 +161,99 @@ Error:
+ 	}
+ 	return
+ }
++
++const pemLineLength = 64
++
++type lineBreaker struct {
++	line [pemLineLength]byte
++	used int
++	out  io.Writer
++}
++
++func (l *lineBreaker) Write(b []byte) (n int, err os.Error) {
++	if l.used+len(b) < pemLineLength {
++		copy(l.line[l.used:], b)
++		l.used += len(b)
++		return len(b), nil
++	}
++
++	n, err = l.out.Write(l.line[0:l.used])
++	if err != nil {
++		return
++	}
++	excess := pemLineLength - l.used
++	l.used = 0
++
++	n, err = l.out.Write(b[0:excess])
++	if err != nil {
++		return
++	}
++
++	n, err = l.out.Write([]byte{'\n'})
++	if err != nil {
++		return
++	}
++
++	return l.Write(b[excess:])
++}
++
++func (l *lineBreaker) Close() (err os.Error) {
++	if l.used > 0 {
++		_, err = l.out.Write(l.line[0:l.used])
++		if err != nil {
++			return
++		}
++		_, err = l.out.Write([]byte{'\n'})
++	}
++
++	return
++}
++
++func Encode(out io.Writer, b *Block) (err os.Error) {
++	_, err = out.Write(pemStart[1:])
++	if err != nil {
++		return
++	}
++	_, err = out.Write(strings.Bytes(b.Type + "-----\n"))
++	if err != nil {
++		return
++	}
++
++	for k, v := range b.Headers {
++		_, err = out.Write(strings.Bytes(k + ": " + v + "\n"))
++		if err != nil {
++			return
++		}
++	}
++
++	if len(b.Headers) > 1 {
++		_, err = out.Write([]byte{'\n'})
++		if err != nil {
++			return
++		}
++	}
++
++	var breaker lineBreaker
++	breaker.out = out
++
++	b64 := base64.NewEncoder(base64.StdEncoding, &breaker)
++	_, err = b64.Write(b.Bytes)
++	if err != nil {
++		return
++	}
++	b64.Close()
++	breaker.Close()
++
++	_, err = out.Write(pemEnd[1:])
++	if err != nil {
++		return
++	}
++	_, err = out.Write(strings.Bytes(b.Type + "-----\n"))
++	return
++}
++
++func EncodeToMemory(b *Block) []byte {
++	buf := bytes.NewBuffer(nil)
++	Encode(buf, b)
++	return buf.Bytes()
++}
+diff --git a/src/pkg/encoding/pem/pem_test.go b/src/pkg/encoding/pem/pem_test.go
+index 47b96e97f4..c3afbd2fd2 100644
+--- a/src/pkg/encoding/pem/pem_test.go
++++ b/src/pkg/encoding/pem/pem_test.go
+@@ -5,9 +5,10 @@
+ package pem
+ 
+ import (
+-	"testing"
+-	"strings"
++	"bytes"
+ 	"reflect"
++	"strings"
++	"testing"
+ )
+ 
+ type GetLineTest struct {
+@@ -49,6 +50,73 @@ func TestDecode(t *testing.T) {
+ 	}
+ }
+ 
++func TestEncode(t *testing.T) {
++	r := EncodeToMemory(privateKey2)
++	if string(r) != pemPrivateKey {
++		t.Errorf("got:%s want:%s", r, pemPrivateKey)
++	}
++}
++
++type lineBreakerTest struct {
++	in, out string
++}
++
++const sixtyFourCharString = "0123456789012345678901234567890123456789012345678901234567890123"
++
++var lineBreakerTests = []lineBreakerTest{
++	lineBreakerTest{"", ""},
++	lineBreakerTest{"a", "a\n"},
++	lineBreakerTest{"ab", "ab\n"},
++	lineBreakerTest{sixtyFourCharString, sixtyFourCharString + "\n"},
++	lineBreakerTest{sixtyFourCharString + "X", sixtyFourCharString + "\nX\n"},
++	lineBreakerTest{sixtyFourCharString + sixtyFourCharString, sixtyFourCharString + "\n" + sixtyFourCharString + "\n"},
++}
++
++func TestLineBreaker(t *testing.T) {
++	for i, test := range lineBreakerTests {
++		buf := bytes.NewBuffer(nil)
++		var breaker lineBreaker
++		breaker.out = buf
++		_, err := breaker.Write(strings.Bytes(test.in))
++		if err != nil {
++			t.Errorf("#%d: error from Write: %s", i, err)
++			continue
++		}
++		err = breaker.Close()
++		if err != nil {
++			t.Errorf("#%d: error from Close: %s", i, err)
++			continue
++		}
++
++		if string(buf.Bytes()) != test.out {
++			t.Errorf("#%d: got:%s want:%s", i, string(buf.Bytes()), test.out)
++		}
++	}
++
++	for i, test := range lineBreakerTests {
++		buf := bytes.NewBuffer(nil)
++		var breaker lineBreaker
++		breaker.out = buf
++
++		for i := 0; i < len(test.in); i++ {
++			_, err := breaker.Write(strings.Bytes(test.in[i : i+1]))
++			if err != nil {
++				t.Errorf("#%d: error from Write (byte by byte): %s", i, err)
++				continue
++			}
++		}
++		err := breaker.Close()
++		if err != nil {
++			t.Errorf("#%d: error from Close (byte by byte): %s", i, err)
++			continue
++		}
++
++		if string(buf.Bytes()) != test.out {
++			t.Errorf("#%d: (byte by byte) got:%s want:%s", i, string(buf.Bytes()), test.out)
++		}
++	}
++}
++
+ var pemData = `verify return:0
+ -----BEGIN CERTIFICATE-----
+ sdlfkjskldfj

@@ -19,7 +19,48 @@ Date:   Tue Jul 22 10:08:23 2014 +1000
     R=agl, minux, hanwen
     CC=golang-codereviews
     https://golang.org/cl/118750043
-
+---
  src/pkg/crypto/subtle/constant_time.go      | 5 ++---
  src/pkg/crypto/subtle/constant_time_test.go | 2 ++
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/subtle/constant_time.go b/src/pkg/crypto/subtle/constant_time.go
+index 9c4b14a65f..6f80e7c58d 100644
+--- a/src/pkg/crypto/subtle/constant_time.go
++++ b/src/pkg/crypto/subtle/constant_time.go
+@@ -6,12 +6,12 @@
+ // code but require careful thought to use correctly.
+ package subtle
+ 
+-// ConstantTimeCompare returns 1 iff the two equal length slices, x
++// ConstantTimeCompare returns 1 iff the two slices, x
+ // and y, have equal contents. The time taken is a function of the length of
+ // the slices and is independent of the contents.
+ func ConstantTimeCompare(x, y []byte) int {
+ 	if len(x) != len(y) {
+-		panic("subtle: slices have different lengths")
++		return 0
+ 	}
+ 
+ 	var v byte
+@@ -62,7 +62,6 @@ func ConstantTimeCopy(v int, x, y []byte) {
+ 	for i := 0; i < len(x); i++ {
+ 		x[i] = x[i]&xmask | y[i]&ymask
+ 	}
+-	return
+ }
+ 
+ // ConstantTimeLessOrEq returns 1 if x <= y and 0 otherwise.
+diff --git a/src/pkg/crypto/subtle/constant_time_test.go b/src/pkg/crypto/subtle/constant_time_test.go
+index d8e321ec04..619a454441 100644
+--- a/src/pkg/crypto/subtle/constant_time_test.go
++++ b/src/pkg/crypto/subtle/constant_time_test.go
+@@ -18,6 +18,8 @@ var testConstantTimeCompareData = []TestConstantTimeCompareStruct{
+ 	{[]byte{}, []byte{}, 1},
+ 	{[]byte{0x11}, []byte{0x11}, 1},
+ 	{[]byte{0x12}, []byte{0x11}, 0},
++	{[]byte{0x11}, []byte{0x11, 0x12}, 0},
++	{[]byte{0x11, 0x12}, []byte{0x11}, 0},
+ }
+ 
+ func TestConstantTimeCompare(t *testing.T) {

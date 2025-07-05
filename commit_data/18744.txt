@@ -8,7 +8,43 @@ Date:   Tue Mar 4 13:41:05 2014 -0800
     R=adg
     CC=golang-codereviews
     https://golang.org/cl/70930043
-
+---
  src/pkg/net/http/client.go      | 11 +++++------
  src/pkg/net/http/client_test.go |  2 +-
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index ee0753d35e..91d8fc8934 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -56,12 +56,11 @@ type Client struct {
+ 	// in responses.
+ 	Jar CookieJar
+ 
+-	// Timeout specifies the end-to-end timeout for requests made
+-	// via this Client. The timeout includes connection time, any
+-	// redirects, and reading the response body. The timeout
+-	// remains running once Get, Head, Post, or Do returns and
+-	// will interrupt the read of the Response.Body if EOF hasn't
+-	// been reached.
++	// Timeout specifies a time limit for requests made by this
++	// Client. The timeout includes connection time, any
++	// redirects, and reading the response body. The timer remains
++	// running after Get, Head, Post, or Do return and will
++	// interrupt reading of the Response.Body.
+ 	//
+ 	// A Timeout of zero means no timeout.
+ 	//
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 9bc5d57c92..af92a9fe6a 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -874,7 +874,7 @@ func TestClientTimeout(t *testing.T) {
+ 		if err == nil {
+ 			t.Error("expected error from ReadAll")
+ 		}
+-		t.Logf("Got expected ReadAll error of %v after reading body %q", err, all)
++		// Expected error.
+ 	case <-time.After(failTime):
+ 		t.Errorf("timeout after %v waiting for timeout of %v", failTime, timeout)
+ 	}

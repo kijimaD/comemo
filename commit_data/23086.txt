@@ -9,7 +9,49 @@ Date:   Wed Apr 22 11:44:46 2015 -0700
     Change-Id: I7b5b282f61b11aab587402c2d302697e76666376
     Reviewed-on: https://go-review.googlesource.com/9222
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/norace_linux_test.go | 8 ++++++--
  src/runtime/rt0_linux_amd64.s    | 2 +-
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/norace_linux_test.go b/src/runtime/norace_linux_test.go
+index fba3b05ffd..c355ccc0f8 100644
+--- a/src/runtime/norace_linux_test.go
++++ b/src/runtime/norace_linux_test.go
+@@ -21,6 +21,8 @@ func newOSProcCreated() {
+ 	newOSProcDone = true
+ }
+ 
++// Can't be run with -race because it inserts calls into newOSProcCreated()
++// that require a valid G/M.
+ func TestNewOSProc0(t *testing.T) {
+ 	if runtime.GOOS == "android" && runtime.GOARCH == "arm" {
+ 		// newosproc0 does not work for android/arm.
+@@ -28,10 +30,12 @@ func TestNewOSProc0(t *testing.T) {
+ 		t.Skipf("skipping on %v", runtime.GOOS)
+ 	}
+ 	runtime.NewOSProc0(0x800000, unsafe.Pointer(runtime.FuncPC(newOSProcCreated)))
+-	check, end := time.Tick(1*time.Second), time.Tick(5*time.Second)
++	check := time.NewTicker(1 * time.Second)
++	defer check.Stop()
++	end := time.After(5 * time.Second)
+ 	for {
+ 		select {
+-		case <-check:
++		case <-check.C:
+ 			if newOSProcDone {
+ 				return
+ 			}
+diff --git a/src/runtime/rt0_linux_amd64.s b/src/runtime/rt0_linux_amd64.s
+index cd7c55e6f5..726b550d35 100644
+--- a/src/runtime/rt0_linux_amd64.s
++++ b/src/runtime/rt0_linux_amd64.s
+@@ -12,7 +12,7 @@ TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
+ 
+ // When building with -buildmode=c-shared, this symbol is called when the shared
+ // library is loaded.
+-TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0x40
++TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0x48
+ 	MOVQ	BX, 0x10(SP)
+ 	MOVQ	BP, 0x18(SP)
+ 	MOVQ	R12, 0x20(SP)

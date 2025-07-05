@@ -9,6 +9,23 @@ Date:   Wed Jan 13 19:36:51 2016 +0000
     Change-Id: I7cd0625fad841eb0e3f364629f9bc225aa2fdce9
     Reviewed-on: https://go-review.googlesource.com/18575
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/server.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index bbaf5d2cc6..8d50ffc599 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2016,6 +2016,11 @@ const (
+ 	// and doesn't fire again until the request has been
+ 	// handled. After the request is handled, the state
+ 	// transitions to StateClosed, StateHijacked, or StateIdle.
++	// For HTTP/2, StateActive fires on the transition from zero
++	// to one active request, and only transitions away once all
++	// active requests are complete. That means that ConnState
++	// can not be used to do per-request work; ConnState only notes
++	// the overall state of the connection.
+ 	StateActive
+ 
+ 	// StateIdle represents a connection that has finished

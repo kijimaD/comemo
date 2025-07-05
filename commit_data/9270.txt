@@ -7,6 +7,34 @@ Date:   Mon Aug 1 11:12:50 2011 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev, rsc
     https://golang.org/cl/4839041
-
+---
  src/cmd/ld/pe.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 6608a97dce..2bf9aa468e 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -101,7 +101,7 @@ static void
+ chksectoff(IMAGE_SECTION_HEADER *h, vlong off)
+ {
+ 	if(off != h->PointerToRawData) {
+-		diag("%s.PointerToRawData = %#llux, want %#llux", h->Name, (vlong)h->PointerToRawData, off);
++		diag("%s.PointerToRawData = %#llux, want %#llux", (char *)h->Name, (vlong)h->PointerToRawData, off);
+ 		errorexit();
+ 	}
+ }
+@@ -110,11 +110,11 @@ static void
+ chksectseg(IMAGE_SECTION_HEADER *h, Segment *s)
+ {
+ 	if(s->vaddr-PEBASE != h->VirtualAddress) {
+-		diag("%s.VirtualAddress = %#llux, want %#llux", h->Name, (vlong)h->VirtualAddress, (vlong)(s->vaddr-PEBASE));
++		diag("%s.VirtualAddress = %#llux, want %#llux", (char *)h->Name, (vlong)h->VirtualAddress, (vlong)(s->vaddr-PEBASE));
+ 		errorexit();
+ 	}
+ 	if(s->fileoff != h->PointerToRawData) {
+-		diag("%s.PointerToRawData = %#llux, want %#llux", h->Name, (vlong)h->PointerToRawData, (vlong)(s->fileoff));
++		diag("%s.PointerToRawData = %#llux, want %#llux", (char *)h->Name, (vlong)h->PointerToRawData, (vlong)(s->fileoff));
+ 		errorexit();
+ 	}
+ }

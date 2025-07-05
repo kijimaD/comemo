@@ -21,9 +21,284 @@ Date:   Mon Apr 14 10:58:49 2014 -0400
     R=golang-codereviews, minux.ma
     CC=golang-codereviews, iant, r
     https://golang.org/cl/87580043
-
+---
  src/cmd/dist/build.c    |   2 -
  src/cmd/go/pkg.go       |   1 +
  src/cmd/objdump/main.c  |  68 --------------------
  src/cmd/objdump/main.go | 162 ++++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 163 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index be05b82f19..3ef9f6592c 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1332,7 +1332,6 @@ static char *buildorder[] = {
+ 
+ 	"misc/pprof",
+ 
+-	"cmd/objdump",
+ 	"cmd/prof",
+ 
+ 	"cmd/cc",  // must be before c
+@@ -1409,7 +1408,6 @@ static char *cleantab[] = {
+ 	"cmd/cc",
+ 	"cmd/gc",
+ 	"cmd/go",	
+-	"cmd/objdump",
+ 	"cmd/prof",
+ 	"lib9",
+ 	"libbio",
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 0964008dd8..59c5d357e3 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -313,6 +313,7 @@ var goTools = map[string]targetDir{
+ 	"cmd/fix":                              toTool,
+ 	"cmd/link":                             toTool,
+ 	"cmd/nm":                               toTool,
++	"cmd/objdump":                          toTool,
+ 	"cmd/pack":                             toTool,
+ 	"cmd/yacc":                             toTool,
+ 	"code.google.com/p/go.tools/cmd/cover": toTool,
+diff --git a/src/cmd/objdump/main.c b/src/cmd/objdump/main.c
+deleted file mode 100644
+index b684be7fbe..0000000000
+--- a/src/cmd/objdump/main.c
++++ /dev/null
+@@ -1,68 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+- * objdump simulation - only enough to make pprof work on Macs
+- */
+-
+-#include <u.h>
+-#include <libc.h>
+-#include <bio.h>
+-#include <mach.h>
+-
+-void
+-usage(void)
+-{
+-	fprint(2, "usage: objdump binary start stop\n");
+-	fprint(2, "Disassembles binary from PC start up to stop.\n");
+-	exits("usage");
+-}
+-
+-void
+-main(int argc, char **argv)
+-{
+-	int fd, n;
+-	uvlong pc, start, stop;
+-	Fhdr fhdr;
+-	Biobuf bout;
+-	char buf[1024];
+-	Map *text;
+-
+-	ARGBEGIN{
+-	default:
+-		usage();
+-	}ARGEND
+-
+-	if(argc != 3)
+-		usage();
+-	start = strtoull(argv[1], 0, 16);
+-	stop = strtoull(argv[2], 0, 16);
+-
+-	fd = open(argv[0], OREAD);
+-	if(fd < 0)
+-		sysfatal("open %s: %r", argv[0]);
+-	if(crackhdr(fd, &fhdr) <= 0)
+-		sysfatal("crackhdr: %r");
+-	machbytype(fhdr.type);
+-	if(syminit(fd, &fhdr) <= 0)
+-		sysfatal("syminit: %r");
+-	text = loadmap(nil, fd, &fhdr);
+-	if(text == nil)
+-		sysfatal("loadmap: %r");
+-
+-	Binit(&bout, 1, OWRITE);
+-	for(pc=start; pc<stop; ) {
+-		if(fileline(buf, sizeof buf, pc))
+-			Bprint(&bout, "%s\n", buf);
+-		buf[0] = '\0';
+-		machdata->das(text, pc, 0, buf, sizeof buf);
+-		Bprint(&bout, " %llx: %s\n", pc, buf);
+-		n = machdata->instsize(text, pc);
+-		if(n <= 0)
+-			break;
+-		pc += n;
+-	}
+-	Bflush(&bout);
+-	exits(0);
+-}
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+new file mode 100644
+index 0000000000..222ee32f35
+--- /dev/null
++++ b/src/cmd/objdump/main.go
+@@ -0,0 +1,162 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// objdump simulation - only enough to make pprof work on Macs
++
++package main
++
++import (
++	"bufio"
++	"debug/elf"
++	"debug/gosym"
++	"debug/macho"
++	"debug/pe"
++	"flag"
++	"fmt"
++	"log"
++	"os"
++	"strconv"
++)
++
++func printUsage(w *os.File) {
++	fmt.Fprintf(w, "usage: objdump binary start end\n")
++	fmt.Fprintf(w, "disassembles binary from start PC to end PC.\n")
++}
++
++func usage() {
++	printUsage(os.Stderr)
++	os.Exit(2)
++}
++
++func main() {
++	log.SetFlags(0)
++	log.SetPrefix("objdump: ")
++
++	flag.Usage = usage
++	flag.Parse()
++	if flag.NArg() != 3 {
++		usage()
++	}
++
++	f, err := os.Open(flag.Arg(0))
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	textStart, textData, symtab, pclntab, err := loadTables(f)
++	if err != nil {
++		log.Fatalf("reading %s: %v", flag.Arg(0), err)
++	}
++
++	pcln := gosym.NewLineTable(pclntab, textStart)
++	tab, err := gosym.NewTable(symtab, pcln)
++	if err != nil {
++		log.Fatalf("reading %s: %v", flag.Arg(0), err)
++	}
++
++	start, err := strconv.ParseUint(flag.Arg(1), 0, 64)
++	if err != nil {
++		log.Fatalf("invalid start PC: %v", err)
++	}
++	end, err := strconv.ParseUint(flag.Arg(2), 0, 64)
++	if err != nil {
++		log.Fatalf("invalid end PC: %v", err)
++	}
++
++	stdout := bufio.NewWriter(os.Stdout)
++
++	// For now, find spans of same PC/line/fn and
++	// emit them as having dummy instructions.
++	var (
++		spanPC   uint64
++		spanFile string
++		spanLine int
++		spanFn   *gosym.Func
++	)
++
++	flush := func(endPC uint64) {
++		if spanPC == 0 {
++			return
++		}
++		fmt.Fprintf(stdout, "%s:%d\n", spanFile, spanLine)
++		for pc := spanPC; pc < endPC; pc++ {
++			// TODO(rsc): Disassemble instructions here.
++			if textStart <= pc && pc-textStart < uint64(len(textData)) {
++				fmt.Fprintf(stdout, " %x: byte %#x\n", pc, textData[pc-textStart])
++			} else {
++				fmt.Fprintf(stdout, " %x: ?\n", pc)
++			}
++		}
++		spanPC = 0
++	}
++
++	for pc := start; pc < end; pc++ {
++		file, line, fn := tab.PCToLine(pc)
++		if file != spanFile || line != spanLine || fn != spanFn {
++			flush(pc)
++			spanPC, spanFile, spanLine, spanFn = pc, file, line, fn
++		}
++	}
++	flush(end)
++
++	stdout.Flush()
++}
++
++func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte, err error) {
++	if obj, err := elf.NewFile(f); err == nil {
++		if sect := obj.Section(".text"); sect != nil {
++			textStart = sect.Addr
++			textData, _ = sect.Data()
++		}
++		if sect := obj.Section(".gosymtab"); sect != nil {
++			if symtab, err = sect.Data(); err != nil {
++				return 0, nil, nil, nil, err
++			}
++		}
++		if sect := obj.Section(".gopclntab"); sect != nil {
++			if pclntab, err = sect.Data(); err != nil {
++				return 0, nil, nil, nil, err
++			}
++		}
++		return textStart, textData, symtab, pclntab, nil
++	}
++
++	if obj, err := macho.NewFile(f); err == nil {
++		if sect := obj.Section("__text"); sect != nil {
++			textStart = sect.Addr
++			textData, _ = sect.Data()
++		}
++		if sect := obj.Section("__gosymtab"); sect != nil {
++			if symtab, err = sect.Data(); err != nil {
++				return 0, nil, nil, nil, err
++			}
++		}
++		if sect := obj.Section("__gopclntab"); sect != nil {
++			if pclntab, err = sect.Data(); err != nil {
++				return 0, nil, nil, nil, err
++			}
++		}
++		return textStart, textData, symtab, pclntab, nil
++	}
++
++	if obj, err := pe.NewFile(f); err == nil {
++		if sect := obj.Section(".text"); sect != nil {
++			textStart = uint64(sect.VirtualAddress)
++			textData, _ = sect.Data()
++		}
++		if sect := obj.Section(".gosymtab"); sect != nil {
++			if symtab, err = sect.Data(); err != nil {
++				return 0, nil, nil, nil, err
++			}
++		}
++		if sect := obj.Section(".gopclntab"); sect != nil {
++			if pclntab, err = sect.Data(); err != nil {
++				return 0, nil, nil, nil, err
++			}
++		}
++		return textStart, textData, symtab, pclntab, nil
++	}
++
++	return 0, nil, nil, nil, fmt.Errorf("unrecognized binary format")
++}

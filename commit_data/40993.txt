@@ -18,9 +18,132 @@ Date:   Wed Aug 28 12:10:16 2019 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client_test.go      | 16 ++++++++--------
  src/net/http/readrequest_test.go |  4 ++--
  src/net/url/url.go               |  2 +-
  src/net/url/url_test.go          |  6 ++++++
  4 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index de490bc607..ebcd6c9147 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -221,27 +221,27 @@ func TestClientRedirects(t *testing.T) {
+ 
+ 	c := ts.Client()
+ 	_, err := c.Get(ts.URL)
+-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
++	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
+ 		t.Errorf("with default client Get, expected error %q, got %q", e, g)
+ 	}
+ 
+ 	// HEAD request should also have the ability to follow redirects.
+ 	_, err = c.Head(ts.URL)
+-	if e, g := "Head /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
++	if e, g := `Head "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
+ 		t.Errorf("with default client Head, expected error %q, got %q", e, g)
+ 	}
+ 
+ 	// Do should also follow redirects.
+ 	greq, _ := NewRequest("GET", ts.URL, nil)
+ 	_, err = c.Do(greq)
+-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
++	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
+ 		t.Errorf("with default client Do, expected error %q, got %q", e, g)
+ 	}
+ 
+ 	// Requests with an empty Method should also redirect (Issue 12705)
+ 	greq.Method = ""
+ 	_, err = c.Do(greq)
+-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
++	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
+ 		t.Errorf("with default client Do and empty Method, expected error %q, got %q", e, g)
+ 	}
+ 
+@@ -1172,22 +1172,22 @@ func TestStripPasswordFromError(t *testing.T) {
+ 		{
+ 			desc: "Strip password from error message",
+ 			in:   "http://user:password@dummy.faketld/",
+-			out:  "Get http://user:***@dummy.faketld/: dummy impl",
++			out:  `Get "http://user:***@dummy.faketld/": dummy impl`,
+ 		},
+ 		{
+ 			desc: "Don't Strip password from domain name",
+ 			in:   "http://user:password@password.faketld/",
+-			out:  "Get http://user:***@password.faketld/: dummy impl",
++			out:  `Get "http://user:***@password.faketld/": dummy impl`,
+ 		},
+ 		{
+ 			desc: "Don't Strip password from path",
+ 			in:   "http://user:password@dummy.faketld/password",
+-			out:  "Get http://user:***@dummy.faketld/password: dummy impl",
++			out:  `Get "http://user:***@dummy.faketld/password": dummy impl`,
+ 		},
+ 		{
+ 			desc: "Strip escaped password",
+ 			in:   "http://user:pa%2Fssword@dummy.faketld/",
+-			out:  "Get http://user:***@dummy.faketld/: dummy impl",
++			out:  `Get "http://user:***@dummy.faketld/": dummy impl`,
+ 		},
+ 	}
+ 	for _, tC := range testCases {
+diff --git a/src/net/http/readrequest_test.go b/src/net/http/readrequest_test.go
+index 517a8189e1..b227bb6d38 100644
+--- a/src/net/http/readrequest_test.go
++++ b/src/net/http/readrequest_test.go
+@@ -133,7 +133,7 @@ var reqTests = []reqTest{
+ 		nil,
+ 		noBodyStr,
+ 		noTrailer,
+-		"parse ../../../../etc/passwd: invalid URI for request",
++		`parse "../../../../etc/passwd": invalid URI for request`,
+ 	},
+ 
+ 	// Tests missing URL:
+@@ -143,7 +143,7 @@ var reqTests = []reqTest{
+ 		nil,
+ 		noBodyStr,
+ 		noTrailer,
+-		"parse : empty url",
++		`parse "": empty url`,
+ 	},
+ 
+ 	// Tests chunked body with trailer:
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 504f5533ce..f29e658af9 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -26,7 +26,7 @@ type Error struct {
+ }
+ 
+ func (e *Error) Unwrap() error { return e.Err }
+-func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
++func (e *Error) Error() string { return fmt.Sprintf("%s %q: %s", e.Op, e.URL, e.Err) }
+ 
+ func (e *Error) Timeout() bool {
+ 	t, ok := e.Err.(interface {
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index b2f9746c53..79fd3d5c79 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -668,6 +668,7 @@ var parseRequestURLTests = []struct {
+ 
+ 	{"foo.html", false},
+ 	{"../dir/", false},
++	{" http://foo.com", false},
+ 	{"http://192.168.0.%31/", false},
+ 	{"http://192.168.0.%31:8080/", false},
+ 	{"http://[fe80::%31]/", false},
+@@ -1440,6 +1441,11 @@ func TestParseErrors(t *testing.T) {
+ 		{"mysql://x@y(z:123)/foo", true}, // not well-formed per RFC 3986, golang.org/issue/33646
+ 		{"mysql://x@y(1.2.3.4:123)/foo", true},
+ 
++		{" http://foo.com", true},  // invalid character in schema
++		{"ht tp://foo.com", true},  // invalid character in schema
++		{"ahttp://foo.com", false}, // valid schema characters
++		{"1http://foo.com", true},  // invalid character in schema
++
+ 		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
+ 		{"http://a b.com/", true},    // no space in host name please
+ 		{"cache_object://foo", true}, // scheme cannot have _, relative path cannot have : in first segment

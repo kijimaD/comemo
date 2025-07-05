@@ -13,7 +13,7 @@ Date:   Sat Mar 29 09:28:40 2014 +0900
     R=iant, aram, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/81210043
-
+---
  src/pkg/syscall/syscall_bsd.go              | 18 +++++++++++++-----
  src/pkg/syscall/syscall_linux.go            | 16 ++++++++++++----
  src/pkg/syscall/syscall_linux_386.go        |  4 ++--
@@ -36,3 +36,411 @@ Date:   Sat Mar 29 09:28:40 2014 +0900
  src/pkg/syscall/zsyscall_openbsd_amd64.go   |  5 +++--
  src/pkg/syscall/zsyscall_solaris_amd64.go   |  5 +++--
  21 files changed, 88 insertions(+), 46 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 05cd1eec66..b042841a5b 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -389,15 +389,20 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 	return
+ }
+ 
+-//sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
++//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ 
+ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
++	_, err = SendmsgN(fd, p, oob, to, flags)
++	return
++}
++
++func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+ 	var ptr unsafe.Pointer
+ 	var salen _Socklen
+ 	if to != nil {
+ 		ptr, salen, err = to.sockaddr()
+ 		if err != nil {
+-			return
++			return 0, err
+ 		}
+ 	}
+ 	var msg Msghdr
+@@ -420,10 +425,13 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+ 	}
+ 	msg.Iov = &iov
+ 	msg.Iovlen = 1
+-	if err = sendmsg(fd, &msg, flags); err != nil {
+-		return
++	if n, err = sendmsg(fd, &msg, flags); err != nil {
++		return 0, err
+ 	}
+-	return
++	if len(oob) > 0 && len(p) == 0 {
++		n = 0
++	}
++	return n, nil
+ }
+ 
+ //sys	kevent(kq int, change unsafe.Pointer, nchange int, event unsafe.Pointer, nevent int, timeout *Timespec) (n int, err error)
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 704c4ffa6c..fa0d7ea3c7 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -527,13 +527,18 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ }
+ 
+ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
++	_, err = SendmsgN(fd, p, oob, to, flags)
++	return
++}
++
++func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+ 	var ptr unsafe.Pointer
+ 	var salen _Socklen
+ 	if to != nil {
+ 		var err error
+ 		ptr, salen, err = to.sockaddr()
+ 		if err != nil {
+-			return err
++			return 0, err
+ 		}
+ 	}
+ 	var msg Msghdr
+@@ -556,10 +561,13 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+ 	}
+ 	msg.Iov = &iov
+ 	msg.Iovlen = 1
+-	if err = sendmsg(fd, &msg, flags); err != nil {
+-		return
++	if n, err = sendmsg(fd, &msg, flags); err != nil {
++		return 0, err
+ 	}
+-	return
++	if len(oob) > 0 && len(p) == 0 {
++		n = 0
++	}
++	return n, nil
+ }
+ 
+ // BindToDevice binds the socket associated with fd to device.
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 9279d58c80..e8943944d5 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -284,8 +284,8 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 	return
+ }
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, e := socketcall(_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	n, e := socketcall(_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
+ 	if e != 0 {
+ 		err = e
+ 	}
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 55595909d7..9e8663d014 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -53,7 +53,7 @@ package syscall
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
+ //sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
+-//sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
++//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
+ 
+ func Getpagesize() int { return 4096 }
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 1e1ddba830..68c796b448 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -42,7 +42,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
+ //sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	socketpair(domain int, typ int, flags int, fd *[2]int32) (err error)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
+-//sys	sendmsg(s int, msg *Msghdr, flags int) (err error)
++//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ 
+ // 64-bit file system and 32-bit uid calls
+ // (16-bit uid calls are not always supported in newer kernels)
+diff --git a/src/pkg/syscall/syscall_solaris.go b/src/pkg/syscall/syscall_solaris.go
+index 947874ee1f..bf7ffd7ede 100644
+--- a/src/pkg/syscall/syscall_solaris.go
++++ b/src/pkg/syscall/syscall_solaris.go
+@@ -380,14 +380,19 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 	return
+ }
+ 
+-//sys	sendmsg(s int, msg *Msghdr, flags int) (err error) = libsocket.sendmsg
+ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
++	_, err = SendmsgN(fd, p, oob, to, flags)
++	return
++}
++
++//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.sendmsg
++func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+ 	var ptr unsafe.Pointer
+ 	var salen _Socklen
+ 	if to != nil {
+ 		ptr, salen, err = to.sockaddr()
+ 		if err != nil {
+-			return err
++			return 0, err
+ 		}
+ 	}
+ 	var msg Msghdr
+@@ -409,7 +414,13 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+ 	}
+ 	msg.Iov = &iov
+ 	msg.Iovlen = 1
+-	return sendmsg(fd, &msg, flags)
++	if n, err = sendmsg(fd, &msg, flags); err != nil {
++		return 0, err
++	}
++	if len(oob) > 0 && len(p) == 0 {
++		n = 0
++	}
++	return n, nil
+ }
+ 
+ /*
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 63bc5221a9..76988c8a1a 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index 33103ff2e9..8224f5b7b4 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_dragonfly_386.go b/src/pkg/syscall/zsyscall_dragonfly_386.go
+index 96d03d4534..08668cff16 100644
+--- a/src/pkg/syscall/zsyscall_dragonfly_386.go
++++ b/src/pkg/syscall/zsyscall_dragonfly_386.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_dragonfly_amd64.go b/src/pkg/syscall/zsyscall_dragonfly_amd64.go
+index 89148abb46..cceda4572e 100644
+--- a/src/pkg/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/pkg/syscall/zsyscall_dragonfly_amd64.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index bb6bc599f5..3c247a283a 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index 2cbad10e7d..f23381bab1 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_freebsd_arm.go b/src/pkg/syscall/zsyscall_freebsd_arm.go
+index f4f6358540..481b832cfe 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_arm.go
++++ b/src/pkg/syscall/zsyscall_freebsd_arm.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 0b392ea192..c65448e21f 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -1909,8 +1909,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index eb8819645c..a970ce6dc3 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -1529,8 +1529,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_netbsd_386.go b/src/pkg/syscall/zsyscall_netbsd_386.go
+index 10423b95bc..281208f411 100644
+--- a/src/pkg/syscall/zsyscall_netbsd_386.go
++++ b/src/pkg/syscall/zsyscall_netbsd_386.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_netbsd_amd64.go b/src/pkg/syscall/zsyscall_netbsd_amd64.go
+index c605013d5d..ed9a87df6c 100644
+--- a/src/pkg/syscall/zsyscall_netbsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_netbsd_amd64.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_netbsd_arm.go b/src/pkg/syscall/zsyscall_netbsd_arm.go
+index f8ce2110f2..c5c9a9f2c6 100644
+--- a/src/pkg/syscall/zsyscall_netbsd_arm.go
++++ b/src/pkg/syscall/zsyscall_netbsd_arm.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_openbsd_386.go b/src/pkg/syscall/zsyscall_openbsd_386.go
+index cc8b367cd1..5082ad3279 100644
+--- a/src/pkg/syscall/zsyscall_openbsd_386.go
++++ b/src/pkg/syscall/zsyscall_openbsd_386.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_openbsd_amd64.go b/src/pkg/syscall/zsyscall_openbsd_amd64.go
+index 2d0eb7271a..79a6971926 100644
+--- a/src/pkg/syscall/zsyscall_openbsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_openbsd_amd64.go
+@@ -185,8 +185,9 @@ func recvmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_solaris_amd64.go b/src/pkg/syscall/zsyscall_solaris_amd64.go
+index 7a0b71eeef..8847cad012 100644
+--- a/src/pkg/syscall/zsyscall_solaris_amd64.go
++++ b/src/pkg/syscall/zsyscall_solaris_amd64.go
+@@ -126,8 +126,9 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) {
+ 	return
+ }
+ 
+-func sendmsg(s int, msg *Msghdr, flags int) (err error) {
+-	_, _, e1 := sysvicall6(procsendmsg.Addr(), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
++func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
++	r0, _, e1 := sysvicall6(procsendmsg.Addr(), 3, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
++	n = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}

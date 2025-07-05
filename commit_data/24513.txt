@@ -38,6 +38,33 @@ Date:   Mon Aug 3 11:51:21 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/13070
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/transport.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index b0773f1639..09434f1234 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -953,6 +953,13 @@ func (pc *persistConn) readLoop() {
+ 				}
+ 				return err
+ 			}
++		} else {
++			// Before send on rc.ch, as client might re-use the
++			// same *Request pointer, and we don't want to set this
++			// on t from this persistConn while the Transport
++			// potentially spins up a different persistConn for the
++			// caller's subsequent request.
++			pc.t.setReqCanceler(rc.req, nil)
+ 		}
+ 
+ 		pc.lk.Lock()
+@@ -991,7 +998,6 @@ func (pc *persistConn) readLoop() {
+ 				alive = false
+ 			}
+ 		} else {
+-			pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool
+ 			alive = alive &&
+ 				!pc.sawEOF &&
+ 				pc.wroteRequest() &&

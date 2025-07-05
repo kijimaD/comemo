@@ -9,7 +9,43 @@ Date:   Mon Sep 19 11:50:53 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5044047
-
+---
  src/cmd/gc/cplx.c |  3 +++
  test/ken/cplx2.go | 12 ++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index 5bc8d64aa2..52038e71c3 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -133,6 +133,9 @@ complexgen(Node *n, Node *res)
+ 		dump("\ncomplexgen-n", n);
+ 		dump("complexgen-res", res);
+ 	}
++	
++	while(n->op == OCONVNOP)
++		n = n->left;
+ 
+ 	// pick off float/complex opcodes
+ 	switch(n->op) {
+diff --git a/test/ken/cplx2.go b/test/ken/cplx2.go
+index b36e93ecd6..89f4a04181 100644
+--- a/test/ken/cplx2.go
++++ b/test/ken/cplx2.go
+@@ -105,4 +105,16 @@ func main() {
+ 		println("opcode x", ce, Ce)
+ 		panic("fail")
+ 	}
++	
++	r32 := real(complex64(ce))
++	if r32 != float32(real(Ce)) {
++		println("real(complex64(ce))", r32, real(Ce))
++		panic("fail")
++	}
++	
++	r64 := real(complex128(ce))
++	if r64 != real(Ce) {
++		println("real(complex128(ce))", r64, real(Ce))
++		panic("fail")
++	}
+ }

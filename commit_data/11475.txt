@@ -7,6 +7,68 @@ Date:   Mon Jan 30 13:41:38 2012 -0500
     R=iant, r
     CC=golang-dev
     https://golang.org/cl/5576071
-
+---
  test/map.go | 32 ++++++++++++++++++++++++++++++--
  1 file changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/test/map.go b/test/map.go
+index 1c66986299..821f02ee0a 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"math"
+ 	"strconv"
++	"time"
+ )
+ 
+ const count = 100
+@@ -27,6 +28,12 @@ func P(a []string) string {
+ }
+ 
+ func main() {
++	testbasic()
++	testfloat()
++	testnan()
++}
++
++func testbasic() {
+ 	// Test a map literal.
+ 	mlit := map[string]int{"0": 0, "1": 1, "2": 2, "3": 3, "4": 4}
+ 	for i := 0; i < len(mlit); i++ {
+@@ -489,8 +496,6 @@ func main() {
+ 	for _, _ = range mnil {
+ 		panic("range mnil")
+ 	}
+-
+-	testfloat()
+ }
+ 
+ func testfloat() {
+@@ -646,3 +651,26 @@ func testfloat() {
+ 		}
+ 	}
+ }
++
++func testnan() {
++	// Test that NaNs in maps don't go quadratic.
++	t := func(n int) time.Duration {
++		t0 := time.Now()
++		m := map[float64]int{}
++		nan := math.NaN()
++		for i := 0; i < n; i++ {
++			m[nan] = 1
++		}
++		if len(m) != n {
++			panic("wrong size map after nan insertion")
++		}
++		return time.Since(t0)
++	}
++
++	n := 30000 // 0.02 seconds on a MacBook Air
++	t1 := t(n)
++	t2 := t(2 * n)
++	if t2 > 3*t1 { // should be 2x (linear); allow up to 3x
++		fmt.Printf("too slow: %d inserts: %v; %d inserts: %v\n", n, t1, 2*n, t2)
++	}
++}

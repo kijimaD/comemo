@@ -9,7 +9,42 @@ Date:   Thu Aug 8 10:00:24 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12657044
-
+---
  src/pkg/net/mail/message.go      |  2 +-
  src/pkg/net/mail/message_test.go | 10 ++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/mail/message.go b/src/pkg/net/mail/message.go
+index 96c796e780..7cec302965 100644
+--- a/src/pkg/net/mail/message.go
++++ b/src/pkg/net/mail/message.go
+@@ -342,7 +342,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 			word, err = p.consumeQuotedString()
+ 		} else {
+ 			// atom
+-			word, err = p.consumeAtom(false)
++			word, err = p.consumeAtom(true)
+ 		}
+ 
+ 		// RFC 2047 encoded-word starts with =?, ends with ?=, and has two other ?s.
+diff --git a/src/pkg/net/mail/message_test.go b/src/pkg/net/mail/message_test.go
+index 2e746f4a72..3c037f3838 100644
+--- a/src/pkg/net/mail/message_test.go
++++ b/src/pkg/net/mail/message_test.go
+@@ -225,6 +225,16 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// Custom example with "." in name. For issue 4938
++		{
++			`Asem H. <noreply@example.com>`,
++			[]*Address{
++				{
++					Name:    `Asem H.`,
++					Address: "noreply@example.com",
++				},
++			},
++		},
+ 	}
+ 	for _, test := range tests {
+ 		if len(test.exp) == 1 {

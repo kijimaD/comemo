@@ -15,7 +15,7 @@ Date:   Tue Jan 26 23:13:22 2010 -0800
     R=ken2, r, ken3
     CC=golang-dev
     https://golang.org/cl/194085
-
+---
  src/cmd/gc/Makefile      |  14 ++++--
  src/cmd/gc/bisonerrors   | 124 +++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gc/go.errors     |  46 ++++++++++++++++++
@@ -36,3 +36,680 @@ Date:   Tue Jan 26 23:13:22 2010 -0800
  test/syntax/semi7.go     |  14 ++++++
  test/syntax/slice.go     |   9 ++++
  19 files changed, 455 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 99dbd51622..16bfc66398 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -41,7 +41,7 @@ OFILES=\
+ 	typecheck.$O\
+ 	unsafe.$O\
+ 	walk.$O\
+-	y.tab.$O\
++	y1.tab.$O\
+ 
+ $(LIB): $(OFILES)
+ 	ar rsc $(LIB) $(OFILES)
+@@ -49,11 +49,19 @@ $(LIB): $(OFILES)
+ $(OFILES): $(HFILES)
+ 
+ y.tab.h: $(YFILES)
+-	bison -y $(YFLAGS) $(YFILES)
++	bison -v -y $(YFLAGS) $(YFILES)
+ 
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
++y1.tab.c: y.tab.c	# make yystate global, yytname mutable
++	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/' >y1.tab.c
++
++yerr.h: bisonerrors go.errors y.tab.h	# y.tab.h rule generates y.output too
++	awk -f bisonerrors y.output go.errors >yerr.h
++
++subr.$O: yerr.h
++
+ builtin.c: builtin.c.boot
+ 	cp builtin.c.boot builtin.c
+ 
+@@ -63,6 +71,6 @@ opnames.h:	mkopnames go.h
+ 	./mkopnames go.h >opnames.h
+ 
+ clean:
+-	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c opnames.h
++	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c y1.tab.c y.output yerr.h $(LIB) mkbuiltin1 builtin.c _builtin.c opnames.h
+ 
+ install: $(LIB)
+diff --git a/src/cmd/gc/bisonerrors b/src/cmd/gc/bisonerrors
+new file mode 100755
+index 0000000000..5110f5350c
+--- /dev/null
++++ b/src/cmd/gc/bisonerrors
+@@ -0,0 +1,124 @@
++#!/usr/bin/awk -f
++# Copyright 2010 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This program implements the core idea from
++#
++#	Clinton L. Jeffery, Generating LR syntax error messages from examples,
++#	ACM TOPLAS 25(5) (September 2003).  http://doi.acm.org/10.1145/937563.937566
++# 
++# It reads Bison's summary of a grammar followed by a file
++# like go.errors, replacing lines beginning with % by the 
++# yystate and yychar that will be active when an error happens
++# while parsing that line.  
++#
++# Unlike the system described in the paper, the lines in go.errors
++# give grammar symbol name lists, not actual program fragments.
++# This is a little less programmer-friendly but doesn't require being
++# able to run the text through lex.c.
++
++BEGIN{
++	bison = 1
++	grammar = 0
++	states = 0
++}
++
++# In Grammar section of y.output,
++# record lhs and length of rhs for each rule.
++bison && /^Grammar/ { grammar = 1 }
++bison && /^(Terminals|state 0)/ { grammar = 0 }
++grammar && NF>0 {
++	if($2 != "|") {
++		r = $2
++		sub(/:$/, "", r)
++	}
++	rulelhs[$1] = r
++	rulesize[$1] = NF-2
++	if(rulesize[$1] == 3 && $3 $4 $5 == "/*empty*/") {
++		rulesize[$1] = 0
++	}
++}
++
++# In state dumps, record shift/reduce actions.
++bison && /^state 0/ { grammar = 0; states = 1 }
++
++states && /^state / { state = $2 }
++states { statetext[state] = statetext[state] $0 "\n" }
++
++states && / shift, and go to state/ {
++	n = nshift[state]++
++	shift[state,n] = $7
++	shifttoken[state,n] = $1
++	next
++}
++states && / go to state/ {
++	n = nshift[state]++
++	shift[state,n] = $5
++	shifttoken[state,n] = $1
++	next
++}
++states && / reduce using rule/ {
++	n = nreduce[state]++
++	reduce[state,n] = $5
++	reducetoken[state,n] = $1
++	next
++}	
++
++# First // comment marks the beginning of the pattern file.
++/^\/\// { bison = 0; grammar = 0; state = 0 }
++bison { next }
++
++# Treat % as first field on line as introducing a pattern (token sequence).
++# Run it through the LR machine and print the induced "yystate, yychar,"
++# at the point where the error happens.
++$1 == "%" {
++	nstack = 0
++	state = 0
++	f = 2
++	tok = ""
++	for(;;) {
++		if(tok == "" && f <= NF) {
++			tok = $f
++			f++
++		}
++		found = 0
++		for(j=0; j<nshift[state]; j++) {
++			if(shifttoken[state,j] == tok) {
++				# print "SHIFT " tok " " state " -> " shift[state,j]
++				stack[nstack++] = state
++				state = shift[state,j]
++				found = 1
++				tok = ""
++				break
++			}
++		}
++		if(found)
++			continue
++		for(j=0; j<nreduce[state]; j++) {
++			if(reducetoken[state,j] == tok || reducetoken[state,j] == "$default") {
++				stack[nstack++] = state
++				rule = reduce[state,j]
++				nstack -= rulesize[rule]
++				state = stack[--nstack]
++				lhs = rulelhs[rule]
++				if(tok != "")
++					--f
++				tok = rulelhs[rule]
++				# print "REDUCE " nstack " " state " " tok " rule " rule " size " rulesize[rule]
++				found = 1
++				break
++			}
++		}
++		if(found)
++			continue
++
++		# No shift or reduce applied - found the error.
++		printf("\t%s, %s,\n", state, tok);
++		break
++	}
++	next
++}
++
++# Print other lines verbatim.
++{print}
+diff --git a/src/cmd/gc/go.errors b/src/cmd/gc/go.errors
+new file mode 100644
+index 0000000000..215f28c5a2
+--- /dev/null
++++ b/src/cmd/gc/go.errors
+@@ -0,0 +1,46 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Example-based syntax error messages.
++// See bisonerrors, Makefile, go.y.
++
++static struct {
++	int yystate;
++	int yychar;
++	char *msg;
++} yymsg[] = {
++	// Each line of the form % token list
++	// is converted by bisonerrors into the yystate and yychar caused
++	// by that token list.
++	
++	% loadsys package LIMPORT '(' LLITERAL import_package import_there ','
++	"unexpected , during import block",
++	
++	% loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header ';'
++	"unexpected ; or newline before {",
++	
++	% loadsys package imports LFUNC LNAME '(' ')' '{' LSWITCH if_header ';'
++	"unexpected ; or newline before {",
++	
++	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR for_header ';'
++	"unexpected ; or newline before {",
++	
++	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR ';' LBODY
++	"unexpected ; or newline before {",
++	
++	% loadsys package imports LFUNC LNAME '(' ')' ';' '{'
++	"unexpected ; or newline before {",
++	
++	% loadsys package imports LTYPE LNAME ';'
++	"unexpected ; or newline in type declaration",
++	
++	% loadsys package imports LFUNC LNAME '(' ')' '{' if_stmt ';' LELSE
++	"unexpected ; or newline before else",
++	
++	% loadsys package imports LTYPE LNAME LINTERFACE '{' LNAME ',' LNAME
++	"name list not allowed in interface type",
++	
++	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR LVAR LNAME '=' LNAME
++	"var declaration not allowed in for initializer",
++};
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index db9b0db5b8..c309d0d017 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -36,13 +36,12 @@
+ %token	<lint>	LASOP
+ %token	<sym>	LBREAK LCASE LCHAN LCOLAS LCONST LCONTINUE LDDD
+ %token	<sym>	LDEFAULT LDEFER LELSE LFALL LFOR LFUNC LGO LGOTO
+-%token	<sym>	LIF LIMPORT LINTERFACE LMAKE LMAP LNAME LNEW
++%token	<sym>	LIF LIMPORT LINTERFACE LMAP LNAME
+ %token	<sym>	LPACKAGE LRANGE LRETURN LSELECT LSTRUCT LSWITCH
+ %token	<sym>	LTYPE LVAR
+ 
+ %token		LANDAND LANDNOT LBODY LCOMM LDEC LEQ LGE LGT
+ %token		LIGNORE LINC LLE LLSH LLT LNE LOROR LRSH
+-%token		LSEMIBRACE
+ 
+ %type	<lint>	lbrace import_here
+ %type	<sym>	sym packname
+@@ -112,6 +111,8 @@
+ %left		')'
+ %left		PreferToRightParen
+ 
++%error-verbose
++
+ %%
+ file:
+ 	loadsys
+@@ -800,12 +801,12 @@ pexpr:
+ 	{
+ 		$$ = nod(OINDEX, $1, $3);
+ 	}
+-|	pexpr '[' expr ':' ']'
+-	{
+-		$$ = nod(OSLICE, $1, nod(OKEY, $3, N));
+-	}
+-|	pexpr '[' expr ':' expr ']'
++|	pexpr '[' oexpr ':' oexpr ']'
+ 	{
++		if($3 == N) {
++			yyerror("missing lower bound in slice expression");
++			$3 = nodintconst(0);
++		}
+ 		$$ = nod(OSLICE, $1, nod(OKEY, $3, $5));
+ 	}
+ |	pseudocall
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 8d67b8b2d9..4d74bb9631 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -9,6 +9,8 @@
+ 
+ extern int yychar;
+ void lexfini(void);
++void yytinit(void);
++
+ static char *goos, *goarch, *goroot;
+ 
+ #define	DBG	if(!debug['x']);else print
+@@ -92,6 +94,7 @@ main(int argc, char *argv[])
+ 
+ 	lexinit();
+ 	typeinit();
++	yytinit();
+ 
+ 	blockgen = 1;
+ 	dclcontext = PEXTERN;
+@@ -1469,6 +1472,87 @@ lexname(int lex)
+ 	return buf;
+ }
+ 
++struct
++{
++	char *have;
++	char *want;
++} yytfix[] =
++{
++	"$end",	"EOF",
++	"LLITERAL",	"literal",
++	"LASOP",	"op=",
++	"LBREAK",	"break",
++	"LCASE",	"case",
++	"LCOLAS",	":=",
++	"LCONST",	"const",
++	"LCONTINUE",	"continue",
++	"LDDD",	"...",
++	"LDEFAULT",	"default",
++	"LDEFER",	"defer",
++	"LELSE",	"else",
++	"LFALL",	"fallthrough",
++	"LFOR",	"for",
++	"LFUNC",	"func",
++	"LGO",	"go",
++	"LGOTO",	"goto",
++	"LIF",	"if",
++	"LIMPORT",	"import",
++	"LINTERFACE",	"interface",
++	"LMAP",	"map",
++	"LNAME",	"name",
++	"LPACKAGE",	"package",
++	"LRANGE",	"range",
++	"LRETURN",	"return",
++	"LSELECT",	"select",
++	"LSTRUCT",	"struct",
++	"LSWITCH",	"switch",
++	"LTYPE",	"type",
++	"LVAR",	"var",
++	"LANDAND",	"&&",
++	"LANDNOT",	"&^",
++	"LBODY",	"{",
++	"LCOMM",	"<-",
++	"LDEC",	"--",
++	"LINC",	"++",
++	"LEQ",	"==",
++	"LGE",	">=",
++	"LGT",	">",
++	"LLE",	"<=",
++	"LLT",	"<",
++	"LLSH",	"<<",
++	"LRSH",	">>",
++	"LOROR",	"||",
++	"LNE",	"!=",
++};
++
++void
++yytinit(void)
++{
++	int i, j;
++	extern char *yytname[];
++	char *s, *t;
++
++	for(i=0; yytname[i] != nil; i++) {
++		s = yytname[i];
++		
++		// turn 'x' into x.
++		if(s[0] == '\'') {
++			t = strdup(s+1);
++			t[strlen(t)-1] = '\0';
++			yytname[i] = t;
++			continue;
++		}
++		
++		// apply yytfix to the rest
++		for(j=0; j<nelem(yytfix); j++) {
++			if(strcmp(s, yytfix[j].have) == 0) {
++				yytname[i] = yytfix[j].want;
++				break;
++			}
++		}
++	}		
++}
++
+ void
+ mkpackage(char* pkgname)
+ {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 74ca4cc2cf..9d0c84ac41 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -6,6 +6,7 @@
+ #include	"md5.h"
+ #include	"y.tab.h"
+ #include	"opnames.h"
++#include	"yerr.h"
+ 
+ typedef struct Error Error;
+ struct Error
+@@ -120,14 +121,47 @@ yyerrorl(int line, char *fmt, ...)
+ 		fatal("too many errors");
+ }
+ 
++extern int yystate, yychar;
++
+ void
+ yyerror(char *fmt, ...)
+ {
++	int i;
++	static int lastsyntax;
+ 	va_list arg;
+ 
+-	if(strcmp(fmt, "syntax error") == 0) {
+-		yyerrorl(lexlineno, "syntax error near %s", lexbuf);
++	if(strncmp(fmt, "syntax error", 12) == 0) {
+ 		nsyntaxerrors++;
++		
++		if(debug['x'])	
++			print("yyerror: yystate=%d yychar=%d\n", yystate, yychar);
++
++		// only one syntax error per line
++		if(lastsyntax == lexlineno)
++			return;
++		lastsyntax = lexlineno;
++		
++		// look for parse state-specific errors in list (see go.errors).
++		for(i=0; i<nelem(yymsg); i++) {
++			if(yymsg[i].yystate == yystate && yymsg[i].yychar == yychar) {
++				yyerrorl(lexlineno, "syntax error: %s", yymsg[i].msg);
++				return;
++			}
++		}
++		
++		// plain "syntax error" gets "near foo" added
++		if(strcmp(fmt, "syntax error") == 0) {
++			yyerrorl(lexlineno, "syntax error near %s", lexbuf);
++			return;
++		}
++		
++		// if bison says "syntax error, more info"; print "syntax error: more info".
++		if(fmt[12] == ',') {
++			yyerrorl(lexlineno, "syntax error:%s", fmt+13);
++			return;
++		}
++
++		yyerrorl(lexlineno, "%s", fmt);
+ 		return;
+ 	}
+ 
+diff --git a/test/golden.out b/test/golden.out
+index d87842e4ff..59a83e7a88 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -97,6 +97,8 @@ panic PC=xxx
+ 
+ == nilptr/
+ 
++== syntax/
++
+ == fixedbugs/
+ 
+ =========== fixedbugs/bug016.go
+diff --git a/test/run b/test/run
+index b9bc5da0f2..6d9a71fcab 100755
+--- a/test/run
++++ b/test/run
+@@ -48,7 +48,7 @@ ulimit -c 0
+ 
+ true >pass.out >times.out
+ 
+-for dir in . ken chan interface nilptr fixedbugs bugs
++for dir in . ken chan interface nilptr syntax fixedbugs bugs
+ do
+ 	echo
+ 	echo '==' $dir'/'
+diff --git a/test/syntax/forvar.go b/test/syntax/forvar.go
+new file mode 100644
+index 0000000000..f12ce55cae
+--- /dev/null
++++ b/test/syntax/forvar.go
+@@ -0,0 +1,10 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	for var x = 0; x < 10; x++ {	// ERROR "var declaration not allowed in for initializer"
+diff --git a/test/syntax/import.go b/test/syntax/import.go
+new file mode 100644
+index 0000000000..90e7df007e
+--- /dev/null
++++ b/test/syntax/import.go
+@@ -0,0 +1,14 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"io",	// ERROR "unexpected ,"
++	"os"
++)
++
++
+diff --git a/test/syntax/interface.go b/test/syntax/interface.go
+new file mode 100644
+index 0000000000..a7f43533a2
+--- /dev/null
++++ b/test/syntax/interface.go
+@@ -0,0 +1,14 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T interface {
++	f, g ()	// ERROR "name list not allowed in interface type"
++}
++
++
++
+diff --git a/test/syntax/semi1.go b/test/syntax/semi1.go
+new file mode 100644
+index 0000000000..c805bb0064
+--- /dev/null
++++ b/test/syntax/semi1.go
+@@ -0,0 +1,14 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	if x; y	// ERROR "unexpected ; or newline before {"
++	{
++		z
++
++
+diff --git a/test/syntax/semi2.go b/test/syntax/semi2.go
+new file mode 100644
+index 0000000000..237fac8f3b
+--- /dev/null
++++ b/test/syntax/semi2.go
+@@ -0,0 +1,14 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	switch x; y	// ERROR "unexpected ; or newline before {"
++	{
++		z
++
++
+diff --git a/test/syntax/semi3.go b/test/syntax/semi3.go
+new file mode 100644
+index 0000000000..2dbcb59843
+--- /dev/null
++++ b/test/syntax/semi3.go
+@@ -0,0 +1,14 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	for x; y; z	// ERROR "unexpected ; or newline before {"
++	{
++		z
++
++
+diff --git a/test/syntax/semi4.go b/test/syntax/semi4.go
+new file mode 100644
+index 0000000000..2268cf75af
+--- /dev/null
++++ b/test/syntax/semi4.go
+@@ -0,0 +1,14 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	for x
++	{	// ERROR "unexpected ; or newline before {"
++		z
++
++
+diff --git a/test/syntax/semi5.go b/test/syntax/semi5.go
+new file mode 100644
+index 0000000000..7f907fb8f8
+--- /dev/null
++++ b/test/syntax/semi5.go
+@@ -0,0 +1,13 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main()
++{	// ERROR "unexpected ; or newline before {"
++
++
++
+diff --git a/test/syntax/semi6.go b/test/syntax/semi6.go
+new file mode 100644
+index 0000000000..75de3e0a15
+--- /dev/null
++++ b/test/syntax/semi6.go
+@@ -0,0 +1,13 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T	// ERROR "unexpected ; or newline in type declaration"
++{
++
++
++
+diff --git a/test/syntax/semi7.go b/test/syntax/semi7.go
+new file mode 100644
+index 0000000000..4589043575
+--- /dev/null
++++ b/test/syntax/semi7.go
+@@ -0,0 +1,14 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	if x { }
++	else { }	// ERROR "unexpected ; or newline before else"
++}
++
++
+diff --git a/test/syntax/slice.go b/test/syntax/slice.go
+new file mode 100644
+index 0000000000..4bc5d4d8d2
+--- /dev/null
++++ b/test/syntax/slice.go
+@@ -0,0 +1,9 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var x = y[:z]	// ERROR "missing lower bound in slice expression"

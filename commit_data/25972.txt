@@ -9,9 +9,90 @@ Date:   Thu Dec 3 15:51:03 2015 -0800
     Change-Id: I232ad1729343d020254e313cfff182695ad6fc54
     Reviewed-on: https://go-review.googlesource.com/17401
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go    |  9 +++++++--
  src/cmd/compile/internal/gc/mparith2.go |  6 ++++++
  src/go/types/stdlib_test.go             |  1 +
  test/fixedbugs/issue13471.go            | 25 +++++++++++++++++++++++++
  4 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index bb42468713..0a00825b85 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -379,8 +379,13 @@ func toint(v Val) Val {
+ 
+ 	case CTFLT:
+ 		i := new(Mpint)
+-		if mpmovefltfix(i, v.U.(*Mpflt)) < 0 {
+-			Yyerror("constant %v truncated to integer", Fconv(v.U.(*Mpflt), obj.FmtSharp))
++		if f := v.U.(*Mpflt); mpmovefltfix(i, f) < 0 {
++			msg := "constant %v truncated to integer"
++			// provide better error message if mpmovefltfix failed because f was too large
++			if f.Val.IsInt() {
++				msg = "constant %v overflows integer"
++			}
++			Yyerror(msg, Fconv(f, obj.FmtSharp))
+ 		}
+ 		v.U = i
+ 
+diff --git a/src/cmd/compile/internal/gc/mparith2.go b/src/cmd/compile/internal/gc/mparith2.go
+index f70e342a96..28c3a00825 100644
+--- a/src/cmd/compile/internal/gc/mparith2.go
++++ b/src/cmd/compile/internal/gc/mparith2.go
+@@ -31,6 +31,12 @@ func mpmovefixfix(a, b *Mpint) {
+ }
+ 
+ func mpmovefltfix(a *Mpint, b *Mpflt) int {
++	// avoid converting huge floating-point numbers to integers
++	// (2*Mpprec is large enough to permit all tests to pass)
++	if b.Val.MantExp(nil) > 2*Mpprec {
++		return -1
++	}
++
+ 	if _, acc := b.Val.Int(&a.Val); acc == big.Exact {
+ 		return 0
+ 	}
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 8fc2ee1451..6ff9004243 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -151,6 +151,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue11326.go",  // large constants
+ 		"issue11326b.go", // large constants
+ 		"issue11362.go",  // canonical import path check
++		"issue13471.go",  // large constants - remove once issue 11327 is fixed
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue13471.go b/test/fixedbugs/issue13471.go
+new file mode 100644
+index 0000000000..cda668a1a5
+--- /dev/null
++++ b/test/fixedbugs/issue13471.go
+@@ -0,0 +1,25 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests for golang.org/issue/13471
++
++package main
++
++func main() {
++	const _ int64 = 1e646456992 // ERROR "1.00000e\+646456992 overflows integer"
++	const _ int32 = 1e64645699  // ERROR "1.00000e\+64645699 overflows integer"
++	const _ int16 = 1e6464569   // ERROR "1.00000e\+6464569 overflows integer"
++	const _ int8 = 1e646456     // ERROR "1.00000e\+646456 overflows integer"
++	const _ int = 1e64645       // ERROR "1.00000e\+64645 overflows integer"
++
++	const _ uint64 = 1e646456992 // ERROR "1.00000e\+646456992 overflows integer"
++	const _ uint32 = 1e64645699  // ERROR "1.00000e\+64645699 overflows integer"
++	const _ uint16 = 1e6464569   // ERROR "1.00000e\+6464569 overflows integer"
++	const _ uint8 = 1e646456     // ERROR "1.00000e\+646456 overflows integer"
++	const _ uint = 1e64645       // ERROR "1.00000e\+64645 overflows integer"
++
++	const _ rune = 1e64645 // ERROR "1.00000e\+64645 overflows integer"
++}

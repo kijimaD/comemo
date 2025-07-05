@@ -11,7 +11,55 @@ Date:   Thu Jul 30 13:57:43 2015 -0400
     Change-Id: I8b712d21a5523eccbae1f33ccea417844c27073e
     Reviewed-on: https://go-review.googlesource.com/12869
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go                |  2 --
  src/cmd/compile/internal/gc/testdata/arith_ssa.go | 16 +++++++++++++++-
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 32844093d2..430adc31fd 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1765,8 +1765,6 @@ func genValue(v *ssa.Value) {
+ 		p.From.Reg = y
+ 		if neg {
+ 			p := Prog(x86.ANEGQ) // TODO: use correct size?  This is mostly a hack until regalloc does 2-address correctly
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = r
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = r
+ 		}
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index 2731337dbf..3fd2fad457 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -75,6 +75,20 @@ func testBitwiseOr_ssa(a, b uint32) uint32 {
+ 	return a | b
+ }
+ 
++// testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
++func testSubqToNegq(a, b, c, d, e, f, g, h, i, j, k int64) {
++	want := a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
++	if got := testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k); want != got {
++		println("testSubqToNegq failed, wanted", want, "got", got)
++		failed = true
++	}
++}
++func testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k int64) int64 {
++	switch { // prevent inlining
++	}
++	return a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
++}
++
+ var failed = false
+ 
+ func main() {
+@@ -82,7 +96,7 @@ func main() {
+ 	test64BitConstMult(1, 2)
+ 	test64BitConstAdd(1, 2)
+ 	testRegallocCVSpill(1, 2, 3, 4)
+-
++	testSubqToNegq(1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2)
+ 	if failed {
+ 		panic("failed")
+ 	}

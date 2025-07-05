@@ -12,6 +12,20 @@ Date:   Sat Jul 9 17:09:35 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27124
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transfer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index c653467098..851469ccbc 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -214,7 +214,7 @@ func (t *transferWriter) WriteBody(w io.Writer) error {
+ 	if t.Body != nil {
+ 		if chunked(t.TransferEncoding) {
+ 			if bw, ok := w.(*bufio.Writer); ok && !t.IsResponse {
+-				w = &internal.FlushAfterChunkWriter{bw}
++				w = &internal.FlushAfterChunkWriter{Writer: bw}
+ 			}
+ 			cw := internal.NewChunkedWriter(w)
+ 			_, err = io.Copy(cw, t.Body)

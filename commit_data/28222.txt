@@ -15,6 +15,23 @@ Date:   Wed Jan 6 12:45:23 2016 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/traceback.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 7771426ef9..0e96a28945 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -241,6 +241,11 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		//	stk is the stack containing sp.
+ 		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
+ 		f = frame.fn
++		if f.pcsp == 0 {
++			// No frame information, must be external function, like race support.
++			// See golang.org/issue/13568.
++			break
++		}
+ 
+ 		// Found an actual function.
+ 		// Derive frame pointer and link register.

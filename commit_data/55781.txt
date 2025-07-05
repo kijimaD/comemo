@@ -22,7 +22,47 @@ Date:   Fri Mar 10 16:28:57 2023 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 2 +-
  src/cmd/compile/internal/ssa/tighten.go | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 423564caf9..54de1746b7 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -496,7 +496,7 @@ var passes = [...]pass{
+ 	{name: "checkLower", fn: checkLower, required: true},
+ 	{name: "late phielim", fn: phielim},
+ 	{name: "late copyelim", fn: copyelim},
+-	{name: "tighten", fn: tighten}, // move values closer to their uses
++	{name: "tighten", fn: tighten, required: true}, // move values closer to their uses
+ 	{name: "late deadcode", fn: deadcode},
+ 	{name: "critical", fn: critical, required: true}, // remove critical edges
+ 	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index edae6a1cb7..048532a4ca 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -4,12 +4,21 @@
+ 
+ package ssa
+ 
++import "cmd/compile/internal/base"
++
+ // tighten moves Values closer to the Blocks in which they are used.
+ // This can reduce the amount of register spilling required,
+ // if it doesn't also create more live values.
+ // A Value can be moved to any block that
+ // dominates all blocks in which it is used.
+ func tighten(f *Func) {
++	if base.Flag.N != 0 && len(f.Blocks) < 10000 {
++		// Skip the optimization in -N mode, except for huge functions.
++		// Too many values live across blocks can cause pathological
++		// behavior in the register allocator (see issue 52180).
++		return
++	}
++
+ 	canMove := f.Cache.allocBoolSlice(f.NumValues())
+ 	defer f.Cache.freeBoolSlice(canMove)
+ 	for _, b := range f.Blocks {

@@ -18,7 +18,156 @@ Date:   Mon Sep 30 09:27:38 2019 +0000
     GitHub-Pull-Request: golang/go#31803
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174959
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/binary/binary.go      | 36 +++++++++++++++++++
  src/encoding/binary/binary_test.go | 72 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 108 insertions(+)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 33066fc77a..a99ca01994 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -185,6 +185,10 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 			*data = int64(order.Uint64(bs))
+ 		case *uint64:
+ 			*data = order.Uint64(bs)
++		case *float32:
++			*data = math.Float32frombits(order.Uint32(bs))
++		case *float64:
++			*data = math.Float64frombits(order.Uint64(bs))
+ 		case []bool:
+ 			for i, x := range bs { // Easier to loop over the input for 8-bit values.
+ 				data[i] = x != 0
+@@ -219,6 +223,14 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 			for i := range data {
+ 				data[i] = order.Uint64(bs[8*i:])
+ 			}
++		case []float32:
++			for i := range data {
++				data[i] = math.Float32frombits(order.Uint32(bs[4*i:]))
++			}
++		case []float64:
++			for i := range data {
++				data[i] = math.Float64frombits(order.Uint64(bs[8*i:]))
++			}
+ 		default:
+ 			n = 0 // fast path doesn't apply
+ 		}
+@@ -343,6 +355,22 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 			for i, x := range v {
+ 				order.PutUint64(bs[8*i:], x)
+ 			}
++		case *float32:
++			order.PutUint32(bs, math.Float32bits(*v))
++		case float32:
++			order.PutUint32(bs, math.Float32bits(v))
++		case []float32:
++			for i, x := range v {
++				order.PutUint32(bs[4*i:], math.Float32bits(x))
++			}
++		case *float64:
++			order.PutUint64(bs, math.Float64bits(*v))
++		case float64:
++			order.PutUint64(bs, math.Float64bits(v))
++		case []float64:
++			for i, x := range v {
++				order.PutUint64(bs[8*i:], math.Float64bits(x))
++			}
+ 		}
+ 		_, err := w.Write(bs)
+ 		return err
+@@ -696,6 +724,14 @@ func intDataSize(data interface{}) int {
+ 		return 8 * len(data)
+ 	case []uint64:
+ 		return 8 * len(data)
++	case float32, *float32:
++		return 4
++	case float64, *float64:
++		return 8
++	case []float32:
++		return 4 * len(data)
++	case []float64:
++		return 8 * len(data)
+ 	}
+ 	return 0
+ }
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index 778de6908c..aeb4212ec2 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -634,3 +634,75 @@ func BenchmarkLittleEndianPutUint64(b *testing.B) {
+ 		LittleEndian.PutUint64(putbuf[:], uint64(i))
+ 	}
+ }
++
++func BenchmarkReadFloats(b *testing.B) {
++	var ls Struct
++	bsr := &byteSliceReader{}
++	var r io.Reader = bsr
++	b.SetBytes(4 + 8)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		bsr.remain = big[30:]
++		Read(r, BigEndian, &ls.Float32)
++		Read(r, BigEndian, &ls.Float64)
++	}
++	b.StopTimer()
++	want := s
++	want.Int8 = 0
++	want.Int16 = 0
++	want.Int32 = 0
++	want.Int64 = 0
++	want.Uint8 = 0
++	want.Uint16 = 0
++	want.Uint32 = 0
++	want.Uint64 = 0
++	want.Complex64 = 0
++	want.Complex128 = 0
++	want.Array = [4]uint8{0, 0, 0, 0}
++	want.Bool = false
++	want.BoolArray = [4]bool{false, false, false, false}
++	if b.N > 0 && !reflect.DeepEqual(ls, want) {
++		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
++	}
++}
++
++func BenchmarkWriteFloats(b *testing.B) {
++	buf := new(bytes.Buffer)
++	var w io.Writer = buf
++	b.SetBytes(4 + 8)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		Write(w, BigEndian, s.Float32)
++		Write(w, BigEndian, s.Float64)
++	}
++	b.StopTimer()
++	if b.N > 0 && !bytes.Equal(buf.Bytes(), big[30:30+4+8]) {
++		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[30:30+4+8])
++	}
++}
++
++func BenchmarkReadSlice1000Float32s(b *testing.B) {
++	bsr := &byteSliceReader{}
++	slice := make([]float32, 1000)
++	buf := make([]byte, len(slice)*4)
++	b.SetBytes(int64(len(buf)))
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		bsr.remain = buf
++		Read(bsr, BigEndian, slice)
++	}
++}
++
++func BenchmarkWriteSlice1000Float32s(b *testing.B) {
++	slice := make([]float32, 1000)
++	buf := new(bytes.Buffer)
++	var w io.Writer = buf
++	b.SetBytes(4 * 1000)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		Write(w, BigEndian, slice)
++	}
++	b.StopTimer()
++}

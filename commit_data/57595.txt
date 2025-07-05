@@ -19,7 +19,170 @@ Date:   Thu Jun 22 11:44:55 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/encoding/base32/base32.go | 38 ++++++++++++++++++++++++--------------
  src/encoding/base64/base64.go | 38 ++++++++++++++++++++------------------
  2 files changed, 44 insertions(+), 32 deletions(-)
+
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index 6e2360790a..de95df0043 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -20,8 +20,8 @@ import (
+ // introduced for SASL GSSAPI and standardized in RFC 4648.
+ // The alternate "base32hex" encoding is used in DNSSEC.
+ type Encoding struct {
+-	encode    [32]byte
+-	decodeMap [256]byte
++	encode    [32]byte   // mapping of symbol index to symbol byte value
++	decodeMap [256]uint8 // mapping of symbol byte value to symbol index
+ 	padChar   rune
+ }
+ 
+@@ -45,14 +45,19 @@ const (
+ 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+ 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+ 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
++	invalidIndex = '\xff'
+ )
+ 
+ const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+ const encodeHex = "0123456789ABCDEFGHIJKLMNOPQRSTUV"
+ 
+-// NewEncoding returns a new Encoding defined by the given alphabet,
+-// which must be a 32-byte string. The alphabet is treated as sequence
+-// of byte values without any special treatment for multi-byte UTF-8.
++// NewEncoding returns a new padded Encoding defined by the given alphabet,
++// which must be a 32-byte string that contains unique byte values and
++// does not contain the padding character or CR / LF ('\r', '\n').
++// The alphabet is treated as a sequence of byte values
++// without any special treatment for multi-byte UTF-8.
++// The resulting Encoding uses the default padding character ('='),
++// which may be changed or disabled via WithPadding.
+ func NewEncoding(encoder string) *Encoding {
+ 	if len(encoder) != 32 {
+ 		panic("encoding alphabet is not 32-bytes long")
+@@ -64,7 +69,16 @@ func NewEncoding(encoder string) *Encoding {
+ 	copy(e.decodeMap[:], decodeMapInitialize)
+ 
+ 	for i := 0; i < len(encoder); i++ {
+-		e.decodeMap[encoder[i]] = byte(i)
++		// Note: While we document that the alphabet cannot contain
++		// the padding character, we do not enforce it since we do not know
++		// if the caller intends to switch the padding from StdPadding later.
++		switch {
++		case encoder[i] == '\n' || encoder[i] == '\r':
++			panic("encoding alphabet contains newline character")
++		case e.decodeMap[encoder[i]] != invalidIndex:
++			panic("encoding alphabet includes duplicate symbols")
++		}
++		e.decodeMap[encoder[i]] = uint8(i)
+ 	}
+ 	return e
+ }
+@@ -85,16 +99,12 @@ var HexEncoding = NewEncoding(encodeHex)
+ // Padding characters above '\x7f' are encoded as their exact byte value
+ // rather than using the UTF-8 representation of the codepoint.
+ func (enc Encoding) WithPadding(padding rune) *Encoding {
+-	if padding < NoPadding || padding == '\r' || padding == '\n' || padding > 0xff {
++	switch {
++	case padding < NoPadding || padding == '\r' || padding == '\n' || padding > 0xff:
+ 		panic("invalid padding")
++	case padding != NoPadding && enc.decodeMap[byte(padding)] != invalidIndex:
++		panic("padding contained in alphabet")
+ 	}
+-
+-	for i := 0; i < len(enc.encode); i++ {
+-		if rune(enc.encode[i]) == padding {
+-			panic("padding contained in alphabet")
+-		}
+-	}
+-
+ 	enc.padChar = padding
+ 	return &enc
+ }
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 28ed7a0123..802ef14c38 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -22,8 +22,8 @@ import (
+ // (RFC 1421).  RFC 4648 also defines an alternate encoding, which is
+ // the standard encoding with - and _ substituted for + and /.
+ type Encoding struct {
+-	encode    [64]byte
+-	decodeMap [256]byte
++	encode    [64]byte   // mapping of symbol index to symbol byte value
++	decodeMap [256]uint8 // mapping of symbol byte value to symbol index
+ 	padChar   rune
+ 	strict    bool
+ }
+@@ -48,14 +48,16 @@ const (
+ 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+ 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+ 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
++	invalidIndex = '\xff'
+ )
+ 
+ const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+ const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+ 
+ // NewEncoding returns a new padded Encoding defined by the given alphabet,
+-// which must be a 64-byte string that does not contain the padding character
+-// or CR / LF ('\r', '\n'). The alphabet is treated as sequence of byte values
++// which must be a 64-byte string that contains unique byte values and
++// does not contain the padding character or CR / LF ('\r', '\n').
++// The alphabet is treated as a sequence of byte values
+ // without any special treatment for multi-byte UTF-8.
+ // The resulting Encoding uses the default padding character ('='),
+ // which may be changed or disabled via WithPadding.
+@@ -63,11 +65,6 @@ func NewEncoding(encoder string) *Encoding {
+ 	if len(encoder) != 64 {
+ 		panic("encoding alphabet is not 64-bytes long")
+ 	}
+-	for i := 0; i < len(encoder); i++ {
+-		if encoder[i] == '\n' || encoder[i] == '\r' {
+-			panic("encoding alphabet contains newline character")
+-		}
+-	}
+ 
+ 	e := new(Encoding)
+ 	e.padChar = StdPadding
+@@ -75,7 +72,16 @@ func NewEncoding(encoder string) *Encoding {
+ 	copy(e.decodeMap[:], decodeMapInitialize)
+ 
+ 	for i := 0; i < len(encoder); i++ {
+-		e.decodeMap[encoder[i]] = byte(i)
++		// Note: While we document that the alphabet cannot contain
++		// the padding character, we do not enforce it since we do not know
++		// if the caller intends to switch the padding from StdPadding later.
++		switch {
++		case encoder[i] == '\n' || encoder[i] == '\r':
++			panic("encoding alphabet contains newline character")
++		case e.decodeMap[encoder[i]] != invalidIndex:
++			panic("encoding alphabet includes duplicate symbols")
++		}
++		e.decodeMap[encoder[i]] = uint8(i)
+ 	}
+ 	return e
+ }
+@@ -88,16 +94,12 @@ func NewEncoding(encoder string) *Encoding {
+ // Padding characters above '\x7f' are encoded as their exact byte value
+ // rather than using the UTF-8 representation of the codepoint.
+ func (enc Encoding) WithPadding(padding rune) *Encoding {
+-	if padding < NoPadding || padding == '\r' || padding == '\n' || padding > 0xff {
++	switch {
++	case padding < NoPadding || padding == '\r' || padding == '\n' || padding > 0xff:
+ 		panic("invalid padding")
++	case padding != NoPadding && enc.decodeMap[byte(padding)] != invalidIndex:
++		panic("padding contained in alphabet")
+ 	}
+-
+-	for i := 0; i < len(enc.encode); i++ {
+-		if rune(enc.encode[i]) == padding {
+-			panic("padding contained in alphabet")
+-		}
+-	}
+-
+ 	enc.padChar = padding
+ 	return &enc
+ }

@@ -12,6 +12,49 @@ Date:   Wed Jun 14 17:39:03 2017 -0700
     Change-Id: Ic71e5e475d043276d916298ab5acb5c9b9ad063e
     Reviewed-on: https://go-review.googlesource.com/45812
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/pprof/pprof.go | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 24bec07d97..2f3268cbc4 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -13,11 +13,13 @@ import (
+ 	"crypto/tls"
+ 	"debug/dwarf"
+ 	"fmt"
++	"io/ioutil"
+ 	"net/http"
+ 	"net/url"
+ 	"os"
+ 	"regexp"
+ 	"strconv"
++	"strings"
+ 	"sync"
+ 	"time"
+ 
+@@ -82,11 +84,22 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error)
+ 		return nil, err
+ 	}
+ 	if resp.StatusCode != http.StatusOK {
+-		return nil, fmt.Errorf("server response: %s", resp.Status)
++		defer resp.Body.Close()
++		return nil, statusCodeError(resp)
+ 	}
+ 	return profile.Parse(resp.Body)
+ }
+ 
++func statusCodeError(resp *http.Response) error {
++	if resp.Header.Get("X-Go-Pprof") != "" && strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
++		// error is from pprof endpoint
++		if body, err := ioutil.ReadAll(resp.Body); err == nil {
++			return fmt.Errorf("server response: %s - %s", resp.Status, body)
++		}
++	}
++	return fmt.Errorf("server response: %s", resp.Status)
++}
++
+ // cpuProfileHandler is the Go pprof CPU profile handler URL.
+ const cpuProfileHandler = "/debug/pprof/profile"
+ 

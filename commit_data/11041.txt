@@ -7,6 +7,20 @@ Date:   Thu Jan 5 18:40:17 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5521052
-
+---
  src/pkg/sort/sort.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 4aa4ca6d7d..31da3c83d0 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -191,7 +191,7 @@ func Sort(data Interface) {
+ 		maxDepth++
+ 	}
+ 	maxDepth *= 2
+-	quickSort(data, 0, data.Len(), maxDepth)
++	quickSort(data, 0, n, maxDepth)
+ }
+ 
+ func IsSorted(data Interface) bool {

@@ -8,7 +8,43 @@ Date:   Sat Oct 10 12:29:06 2009 -0700
     DELTA=7  (2 added, 0 deleted, 5 changed)
     OCL=35569
     CL=35569
-
+---
  src/cmd/ld/lib.c | 7 ++++---
  src/cmd/ld/lib.h | 5 +++--
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 208a55b441..99a76558d3 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -153,9 +153,10 @@ addlib(char *src, char *obj)
+ 	for(i=0; i<libraryp; i++)
+ 		if(strcmp(name, library[i]) == 0)
+ 			return;
+-	if(libraryp == nelem(library)){
+-		diag("too many autolibs; skipping %s", name);
+-		return;
++	if(libraryp == nlibrary){
++		nlibrary = 50 + 2*libraryp;
++		library = realloc(library, sizeof library[0] * nlibrary);
++		libraryobj = realloc(libraryobj, sizeof libraryobj[0] * nlibrary);
+ 	}
+ 
+ 	p = mal(strlen(name) + 1);
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 1d455979ff..0ae4106b8a 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -36,9 +36,10 @@ extern	int	cout;
+ EXTERN	char*	INITENTRY;
+ EXTERN	char	thechar;
+ EXTERN	char*	thestring;
+-EXTERN	char*	library[50];
+-EXTERN	char*	libraryobj[50];
++EXTERN	char**	library;
++EXTERN	char**	libraryobj;
+ EXTERN	int	libraryp;
++EXTERN	int	nlibrary;
+ EXTERN	Sym*	hash[NHASH];
+ EXTERN	Sym*	histfrog[MAXHIST];
+ EXTERN	uchar	fnuxi8[8];

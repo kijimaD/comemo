@@ -14,6 +14,24 @@ Date:   Fri Jul 6 22:57:35 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/122576
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/testdata/testprog/gc.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprog/gc.go b/src/runtime/testdata/testprog/gc.go
+index 744b6108e2..3ca74ba5fe 100644
+--- a/src/runtime/testdata/testprog/gc.go
++++ b/src/runtime/testdata/testprog/gc.go
+@@ -48,8 +48,11 @@ func GCSys() {
+ 	fmt.Printf("OK\n")
+ }
+ 
++var sink []byte
++
+ func workthegc() []byte {
+-	return make([]byte, 1029)
++	sink = make([]byte, 1029)
++	return sink
+ }
+ 
+ func GCFairness() {

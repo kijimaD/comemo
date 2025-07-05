@@ -23,6 +23,29 @@ Date:   Mon Jun 15 16:20:53 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_unix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 5aedbf7778..ba3e21ae2e 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -432,6 +432,8 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 		return
+ 	}
+ 
++	setg(g.m.gsignal)
++
+ 	// If some non-Go code called sigaltstack, adjust.
+ 	var gsignalStack gsignalStack
+ 	setStack := adjustSignalStack(sig, g.m, &gsignalStack)
+@@ -439,8 +441,6 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 		g.m.gsignal.stktopsp = getcallersp()
+ 	}
+ 
+-	setg(g.m.gsignal)
+-
+ 	if g.stackguard0 == stackFork {
+ 		signalDuringFork(sig)
+ 	}

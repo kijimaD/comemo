@@ -15,10 +15,195 @@ Date:   Wed Apr 21 03:29:18 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/builtins.go      | 39 +++++++++++++++++++++++++++++++++++++++
  src/go/types/builtins_test.go |  7 +++++++
  src/go/types/check.go         | 10 +++++-----
  src/go/types/errorcodes.go    | 39 +++++++++++++++++++++++++++++++++++++++
  src/go/types/universe.go      |  4 ++++
  5 files changed, 94 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 3df82fffda..9c5a0b5842 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -586,6 +586,25 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ))
+ 		}
+ 
++	case _Add:
++		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
++		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
++		if x.mode == invalid {
++			return
++		}
++
++		var y operand
++		arg(&y, 1)
++		if !check.isValidIndex(&y, _InvalidUnsafeAdd, "length", true) {
++			return
++		}
++
++		x.mode = value
++		x.typ = Typ[UnsafePointer]
++		if check.Types != nil {
++			check.recordBuiltinType(call.Fun, makeSig(x.typ, x.typ, y.typ))
++		}
++
+ 	case _Alignof:
+ 		// unsafe.Alignof(x T) uintptr
+ 		if asTypeParam(x.typ) != nil {
+@@ -663,6 +682,26 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		x.typ = Typ[Uintptr]
+ 		// result is constant - no need to record signature
+ 
++	case _Slice:
++		// unsafe.Slice(ptr *T, len IntegerType) []T
++		typ := asPointer(x.typ)
++		if typ == nil {
++			check.invalidArg(x, _InvalidUnsafeSlice, "%s is not a pointer", x)
++			return
++		}
++
++		var y operand
++		arg(&y, 1)
++		if !check.isValidIndex(&y, _InvalidUnsafeSlice, "length", false) {
++			return
++		}
++
++		x.mode = value
++		x.typ = NewSlice(typ.base)
++		if check.Types != nil {
++			check.recordBuiltinType(call.Fun, makeSig(x.typ, typ, y.typ))
++		}
++
+ 	case _Assert:
+ 		// assert(pred) causes a typechecker error if pred is false.
+ 		// The result of assert is the value of pred if there is no error.
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index e9ffd28508..11de9a1ac1 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -107,6 +107,10 @@ var builtinCalls = []struct {
+ 	{"recover", `recover()`, `func() interface{}`},
+ 	{"recover", `_ = recover()`, `func() interface{}`},
+ 
++	{"Add", `var p unsafe.Pointer; _ = unsafe.Add(p, -1.0)`, `func(unsafe.Pointer, int) unsafe.Pointer`},
++	{"Add", `var p unsafe.Pointer; var n uintptr; _ = unsafe.Add(p, n)`, `func(unsafe.Pointer, uintptr) unsafe.Pointer`},
++	{"Add", `_ = unsafe.Add(nil, 0)`, `func(unsafe.Pointer, int) unsafe.Pointer`},
++
+ 	{"Alignof", `_ = unsafe.Alignof(0)`, `invalid type`},                 // constant
+ 	{"Alignof", `var x struct{}; _ = unsafe.Alignof(x)`, `invalid type`}, // constant
+ 
+@@ -116,6 +120,9 @@ var builtinCalls = []struct {
+ 	{"Sizeof", `_ = unsafe.Sizeof(0)`, `invalid type`},                 // constant
+ 	{"Sizeof", `var x struct{}; _ = unsafe.Sizeof(x)`, `invalid type`}, // constant
+ 
++	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
++	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
++
+ 	{"assert", `assert(true)`, `invalid type`},                                    // constant
+ 	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant
+ 
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index b28481d7bd..2c8f683ad5 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -329,14 +329,14 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
+ }
+ 
+ func (check *Checker) recordBuiltinType(f ast.Expr, sig *Signature) {
+-	// f must be a (possibly parenthesized) identifier denoting a built-in
+-	// (built-ins in package unsafe always produce a constant result and
+-	// we don't record their signatures, so we don't see qualified idents
+-	// here): record the signature for f and possible children.
++	// f must be a (possibly parenthesized, possibly qualified)
++	// identifier denoting a built-in (including unsafe's non-constant
++	// functions Add and Slice): record the signature for f and possible
++	// children.
+ 	for {
+ 		check.recordTypeAndValue(f, builtin, sig, nil)
+ 		switch p := f.(type) {
+-		case *ast.Ident:
++		case *ast.Ident, *ast.SelectorExpr:
+ 			return // we're done
+ 		case *ast.ParenExpr:
+ 			f = p.X
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index 257fc4eff4..1106cd986f 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -883,6 +883,45 @@ const (
+ 	//  var _ = real(int(1))
+ 	_InvalidReal
+ 
++	// _InvalidUnsafeAdd occurs when unsafe.Add is called with a
++	// length argument that is not of integer type.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var p unsafe.Pointer
++	//  var _ = unsafe.Add(p, float64(1))
++	_InvalidUnsafeAdd
++
++	// _InvalidUnsafeSlice occurs when unsafe.Slice is called with a
++	// pointer argument that is not of pointer type or a length argument
++	// that is not of integer type, negative, or out of bounds.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(x, 1)
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(&x, float64(1))
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(&x, -1)
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(&x, uint64(1) << 63)
++	_InvalidUnsafeSlice
++
+ 	/* exprs > assertion */
+ 
+ 	// _InvalidAssert occurs when a type assertion is applied to a
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 4ced018f8e..7c211fa6f7 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -137,9 +137,11 @@ const (
+ 	_Recover
+ 
+ 	// package unsafe
++	_Add
+ 	_Alignof
+ 	_Offsetof
+ 	_Sizeof
++	_Slice
+ 
+ 	// testing support
+ 	_Assert
+@@ -168,9 +170,11 @@ var predeclaredFuncs = [...]struct {
+ 	_Real:    {"real", 1, false, expression},
+ 	_Recover: {"recover", 0, false, statement},
+ 
++	_Add:      {"Add", 2, false, expression},
+ 	_Alignof:  {"Alignof", 1, false, expression},
+ 	_Offsetof: {"Offsetof", 1, false, expression},
+ 	_Sizeof:   {"Sizeof", 1, false, expression},
++	_Slice:    {"Slice", 2, false, expression},
+ 
+ 	_Assert: {"assert", 1, false, statement},
+ 	_Trace:  {"trace", 0, true, statement},

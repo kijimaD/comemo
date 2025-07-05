@@ -7,7 +7,7 @@ Date:   Mon Jan 31 18:52:16 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4126043
-
+---
  src/cmd/gc/builtin.c.boot |  2 --
  src/cmd/gc/go.h           |  4 ++--
  src/cmd/gc/go.y           |  1 +
@@ -18,3 +18,241 @@ Date:   Mon Jan 31 18:52:16 2011 -0500
  src/pkg/runtime/chan.c    | 41 -----------------------------------------
  test/syntax/chan1.go      | 17 +++++++++++++++++
  9 files changed, 21 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 421ce19552..48f45293fc 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -66,10 +66,8 @@ char *runtimeimport =
+ 	"func \"\".mapiter2 (hiter *any) (key any, val any)\n"
+ 	"func \"\".makechan (elem *uint8, hint int64) chan any\n"
+ 	"func \"\".chanrecv1 (hchan <-chan any) any\n"
+-	"func \"\".chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
+ 	"func \"\".chanrecv3 (hchan <-chan any) (elem any, closed bool)\n"
+ 	"func \"\".chansend1 (hchan chan<- any, elem any)\n"
+-	"func \"\".chansend2 (hchan chan<- any, elem any) bool\n"
+ 	"func \"\".closechan (hchan any)\n"
+ 	"func \"\".closedchan (hchan any) bool\n"
+ 	"func \"\".selectnbsend (hchan chan<- any, elem any) bool\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b2d025b787..bf84c12a13 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -356,7 +356,7 @@ enum
+ 	OARRAY,
+ 	OARRAYBYTESTR, OARRAYRUNESTR,
+ 	OSTRARRAYBYTE, OSTRARRAYRUNE,
+-	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2RECVCLOSED, OAS2MAPR, OAS2DOTTYPE, OASOP,
++	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECVCLOSED, OAS2MAPR, OAS2DOTTYPE, OASOP,
+ 	OBAD,
+ 	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
+ 	OCAP,
+@@ -383,7 +383,7 @@ enum
+ 	ONOT, OCOM, OPLUS, OMINUS,
+ 	OOROR,
+ 	OPANIC, OPRINT, OPRINTN,
+-	OSEND, OSENDNB,
++	OSEND,
+ 	OSLICE, OSLICEARR, OSLICESTR,
+ 	ORECOVER,
+ 	ORECV,
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 917265758b..1060fdd2bf 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -764,6 +764,7 @@ expr:
+ 	{
+ 		$$ = nod(ORSH, $1, $3);
+ 	}
++	/* not an expression anymore, but left in so we can give a good error */
+ |	expr LCOMM expr
+ 	{
+ 		$$ = nod(OSEND, $1, $3);
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index d7ab17f1ce..bf7d045c04 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -92,10 +92,8 @@ func mapiter2(hiter *any) (key any, val any)
+ // *byte is really *runtime.Type
+ func makechan(elem *byte, hint int64) (hchan chan any)
+ func chanrecv1(hchan <-chan any) (elem any)
+-func chanrecv2(hchan <-chan any) (elem any, pres bool)
+ func chanrecv3(hchan <-chan any) (elem any, closed bool)
+ func chansend1(hchan chan<- any, elem any)
+-func chansend2(hchan chan<- any, elem any) (pres bool)
+ func closechan(hchan any)
+ func closedchan(hchan any) bool
+ 
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 44e33dae90..31781646d1 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -94,7 +94,6 @@ init1(Node *n, NodeList **out)
+ 		case OAS2FUNC:
+ 		case OAS2MAPR:
+ 		case OAS2DOTTYPE:
+-		case OAS2RECV:
+ 		case OAS2RECVCLOSED:
+ 			if(n->defn->initorder)
+ 				break;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 8e8f8da29c..931d0327a4 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -668,10 +668,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OSEND:
+-		if(0 && top == Erv) {
+-			// can happen because grammar for if header accepts
+-			// simple_stmt for condition.  Falling through would give
+-			// an error "c <- v used as value" but we can do better.
++		if(top & Erv) {
+ 			yyerror("send statement %#N used as value; use select for non-blocking send", n);
+ 			goto error;
+ 		}
+@@ -698,10 +695,6 @@ reswitch:
+ 		// TODO: more aggressive
+ 		n->etype = 0;
+ 		n->type = T;
+-		if(top & Erv) {
+-			n->op = OSENDNB;
+-			n->type = types[TBOOL];
+-		}
+ 		goto ret;
+ 
+ 	case OSLICE:
+@@ -2383,8 +2376,6 @@ typecheckas2(Node *n)
+ 			n->op = OAS2MAPR;
+ 			goto common;
+ 		case ORECV:
+-			n->op = OAS2RECV;
+-			goto common;
+ 			yyerror("cannot use multiple-value assignment for non-blocking receive; use select");
+ 			goto out;
+ 		case ODOTTYPE:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 8b89d9ee49..b32b6fff5c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -403,7 +403,6 @@ walkstmt(Node **np)
+ 	case OAS:
+ 	case OAS2:
+ 	case OAS2DOTTYPE:
+-	case OAS2RECV:
+ 	case OAS2RECVCLOSED:
+ 	case OAS2FUNC:
+ 	case OAS2MAPW:
+@@ -823,19 +822,6 @@ walkexpr(Node **np, NodeList **init)
+ 		n = liststmt(concat(concat(list1(r), ll), lpost));
+ 		goto ret;
+ 
+-	case OAS2RECV:
+-		// a,b = <-c
+-		*init = concat(*init, n->ninit);
+-		n->ninit = nil;
+-		r = n->rlist->n;
+-		walkexprlistsafe(n->list, init);
+-		walkexpr(&r->left, init);
+-		fn = chanfn("chanrecv2", 2, r->left->type);
+-		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
+-		n->rlist->n = r;
+-		n->op = OAS2FUNC;
+-		goto as2func;
+-
+ 	case OAS2RECVCLOSED:
+ 		// a = <-c; b = closed(c) but atomic
+ 		*init = concat(*init, n->ninit);
+@@ -1421,10 +1407,6 @@ walkexpr(Node **np, NodeList **init)
+ 		n = mkcall1(chanfn("chansend1", 2, n->left->type), T, init, n->left, n->right);
+ 		goto ret;
+ 
+-	case OSENDNB:
+-		n = mkcall1(chanfn("chansend2", 2, n->left->type), n->type, init, n->left, n->right);
+-		goto ret;
+-
+ 	case OCLOSURE:
+ 		n = walkclosure(n, init);
+ 		goto ret;
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index f3b804df44..8d3ac2ca4f 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -402,25 +402,6 @@ runtime·chansend1(Hchan* c, ...)
+ 	runtime·chansend(c, ae, nil);
+ }
+ 
+-// chansend2(hchan *chan any, elem any) (pres bool);
+-#pragma textflag 7
+-void
+-runtime·chansend2(Hchan* c, ...)
+-{
+-	int32 o;
+-	byte *ae, *ap;
+-
+-	if(c == nil)
+-		runtime·panicstring("send to nil channel");
+-
+-	o = runtime·rnd(sizeof(c), c->elemalign);
+-	ae = (byte*)&c + o;
+-	o = runtime·rnd(o+c->elemsize, Structrnd);
+-	ap = (byte*)&c + o;
+-
+-	runtime·chansend(c, ae, ap);
+-}
+-
+ // chanrecv1(hchan *chan any) (elem any);
+ #pragma textflag 7
+ void
+@@ -435,28 +416,6 @@ runtime·chanrecv1(Hchan* c, ...)
+ 	runtime·chanrecv(c, ae, nil, nil);
+ }
+ 
+-// chanrecv2(hchan *chan any) (elem any, pres bool);
+-#pragma textflag 7
+-void
+-runtime·chanrecv2(Hchan* c, ...)
+-{
+-	int32 o;
+-	byte *ae, *ap;
+-
+-	if(c == nil)
+-		runtime·panicstring("receive from nil channel");
+-
+-	o = runtime·rnd(sizeof(c), Structrnd);
+-	ae = (byte*)&c + o;
+-	o = runtime·rnd(o+c->elemsize, 1);
+-	ap = (byte*)&c + o;
+-
+-	runtime·chanrecv(c, ae, ap, nil);
+-	
+-	if(!*ap)
+-		c->elemalg->copy(c->elemsize, ae, nil);
+-}
+-
+ // chanrecv3(hchan *chan any) (elem any, closed bool);
+ #pragma textflag 7
+ void
+diff --git a/test/syntax/chan1.go b/test/syntax/chan1.go
+new file mode 100644
+index 0000000000..9c12e5e6fe
+--- /dev/null
++++ b/test/syntax/chan1.go
+@@ -0,0 +1,17 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var c chan int
++var v int
++
++func main() {
++	if c <- v { // ERROR "send statement.*value.*select"
++	}
++}
++
++var _ = c <- v // ERROR "send statement.*value.*select"

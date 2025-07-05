@@ -11,9 +11,152 @@ Date:   Sun Mar 8 20:56:15 2015 -0400
     Change-Id: I34ca95e77d7e67130e30822e5a4aff6772b1a1c5
     Reviewed-on: https://go-review.googlesource.com/7740
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go   | 39 ++++++++++++++++++++++++++++++++-------
  src/runtime/mfinal.go   |  5 +++++
  src/runtime/runtime1.go |  2 ++
  src/runtime/runtime2.go |  2 ++
  4 files changed, 41 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 0b7b89a404..11d6f94e54 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -483,16 +483,23 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	if gcphase == _GCmarktermination {
+ 		throw("mallocgc called with gcphase == _GCmarktermination")
+ 	}
+-	shouldhelpgc := false
++
+ 	if size == 0 {
+ 		return unsafe.Pointer(&zerobase)
+ 	}
+-	dataSize := size
+ 
+ 	if flags&flagNoScan == 0 && typ == nil {
+ 		throw("malloc missing type")
+ 	}
+ 
++	if debug.sbrk != 0 {
++		align := uintptr(16)
++		if typ != nil {
++			align = uintptr(typ.align)
++		}
++		return persistentalloc(size, align, &memstats.other_sys)
++	}
++
+ 	// Set mp.mallocing to keep from being preempted by GC.
+ 	mp := acquirem()
+ 	if mp.mallocing != 0 {
+@@ -500,6 +507,8 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	}
+ 	mp.mallocing = 1
+ 
++	shouldhelpgc := false
++	dataSize := size
+ 	c := gomcache()
+ 	var s *mspan
+ 	var x unsafe.Pointer
+@@ -761,12 +770,16 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ 	mProf_Malloc(x, size)
+ }
+ 
+-var persistent struct {
+-	lock mutex
++type persistentAlloc struct {
+ 	base unsafe.Pointer
+ 	off  uintptr
+ }
+ 
++var globalAlloc struct {
++	mutex
++	persistentAlloc
++}
++
+ // Wrapper around sysAlloc that can allocate small chunks.
+ // There is no associated free operation.
+ // Intended for things like function/type/debug-related persistent data.
+@@ -795,19 +808,31 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
+ 		return sysAlloc(size, stat)
+ 	}
+ 
+-	lock(&persistent.lock)
++	mp := acquirem()
++	var persistent *persistentAlloc
++	if mp != nil && mp.p != nil {
++		persistent = &mp.p.palloc
++	} else {
++		lock(&globalAlloc.mutex)
++		persistent = &globalAlloc.persistentAlloc
++	}
+ 	persistent.off = round(persistent.off, align)
+ 	if persistent.off+size > chunk || persistent.base == nil {
+ 		persistent.base = sysAlloc(chunk, &memstats.other_sys)
+ 		if persistent.base == nil {
+-			unlock(&persistent.lock)
++			if persistent == &globalAlloc.persistentAlloc {
++				unlock(&globalAlloc.mutex)
++			}
+ 			throw("runtime: cannot allocate memory")
+ 		}
+ 		persistent.off = 0
+ 	}
+ 	p := add(persistent.base, persistent.off)
+ 	persistent.off += size
+-	unlock(&persistent.lock)
++	releasem(mp)
++	if persistent == &globalAlloc.persistentAlloc {
++		unlock(&globalAlloc.mutex)
++	}
+ 
+ 	if stat != &memstats.other_sys {
+ 		xadd64(stat, int64(size))
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index deaea441e3..55ba06d4b0 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -254,6 +254,11 @@ func runfinq() {
+ // If a finalizer must run for a long time, it should do so by starting
+ // a new goroutine.
+ func SetFinalizer(obj interface{}, finalizer interface{}) {
++	if debug.sbrk != 0 {
++		// debug.sbrk never frees memory, so no finalizers run
++		// (and we don't have the data structures to record them).
++		return
++	}
+ 	e := (*eface)(unsafe.Pointer(&obj))
+ 	etyp := e._type
+ 	if etyp == nil {
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 21b9b1a2b6..ac9042c792 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -316,6 +316,7 @@ var debug struct {
+ 	schedtrace     int32
+ 	wbshadow       int32
+ 	gccheckmark    int32
++	sbrk           int32
+ }
+ 
+ var dbgvars = []dbgVar{
+@@ -329,6 +330,7 @@ var dbgvars = []dbgVar{
+ 	{"schedtrace", &debug.schedtrace},
+ 	{"wbshadow", &debug.wbshadow},
+ 	{"gccheckmark", &debug.gccheckmark},
++	{"sbrk", &debug.sbrk},
+ }
+ 
+ func parsedebugvars() {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 6604b9920c..9ea3fd197f 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -369,6 +369,8 @@ type p struct {
+ 
+ 	tracebuf *traceBuf
+ 
++	palloc persistentAlloc // per-P to avoid mutex
++
+ 	pad [64]byte
+ }
+ 

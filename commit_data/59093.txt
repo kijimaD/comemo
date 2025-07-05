@@ -19,6 +19,20 @@ Date:   Wed Jan 17 11:19:53 2024 +1100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/fmt/format.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 617f78f15e..b497ad0f1b 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -53,6 +53,8 @@ type fmt struct {
+ 
+ func (f *fmt) clearflags() {
+ 	f.fmtFlags = fmtFlags{}
++	f.wid = 0
++	f.prec = 0
+ }
+ 
+ func (f *fmt) init(buf *buffer) {

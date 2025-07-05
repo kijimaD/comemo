@@ -7,6 +7,35 @@ Date:   Wed Jul 18 13:30:25 2018 -0700
     Change-Id: Ie4e81b88cc8035fddf9c074363a1b35bcae3d470
     Reviewed-on: https://go-review.googlesource.com/124778
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.11.html | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 87c687cb64..41853ec3a6 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -453,8 +453,9 @@ for k := range m {
+ <dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+   <dd>
+     <p><!-- CL 112115 -->
+-      More <code>ELFOSABI</code> and <code>EM</code> constants have
+-      been added.
++      More <a href="/pkg/debug/elf/#ELFOSABI_NONE"><code>ELFOSABI</code></a>
++      and <a href="/pkg/debug/elf/#EM_NONE"><code>EM</code></a>
++      constants have been added.
+     </p>
+ 
+ </dl><!-- debug/elf -->
+@@ -482,8 +483,9 @@ for k := range m {
+   <dd>
+     <p><!-- CL 99696 -->
+       The <code>Reader</code> now rejects attempts to set
+-      the <code>Comma</code> field to a double-quote character, as
+-      double-quote characters already have a special meaning in CSV.
++      the <a href="/pkg/encoding/csv/#Reader.Comma"><code>Comma</code></a>
++      field to a double-quote character, as double-quote characters
++      already have a special meaning in CSV.
+     </p>
+ 
+ </dl><!-- encoding/csv -->

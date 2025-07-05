@@ -16,6 +16,20 @@ Date:   Sun Feb 22 01:14:36 2015 +0000
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 43b3f6b1d8..584a361558 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -331,7 +331,7 @@ type Config struct {
+ 	ClientSessionCache ClientSessionCache
+ 
+ 	// MinVersion contains the minimum SSL/TLS version that is acceptable.
+-	// If zero, then SSLv3 is taken as the minimum.
++	// If zero, then TLS 1.0 is taken as the minimum.
+ 	MinVersion uint16
+ 
+ 	// MaxVersion contains the maximum SSL/TLS version that is acceptable.

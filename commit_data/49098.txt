@@ -13,9 +13,108 @@ Date:   Fri Jul 16 19:01:16 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go  |  8 +++++---
  src/go/types/decl.go      |  2 +-
  src/go/types/type.go      | 12 +++++++-----
  src/go/types/typeparam.go | 19 +++++++++----------
  4 files changed, 22 insertions(+), 19 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 9b2a75458c..2573bac69e 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -783,9 +783,11 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 			return nil
+ 		}
+ 
+-		// construct a suitable new type parameter
+-		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
+-		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
++		// Construct a suitable new type parameter for the sum type. The
++		// type param is placed in the current package so export/import
++		// works as expected.
++		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
++		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+ 		tsum := newUnion(rtypes, tildes)
+ 		ptyp.bound = &Interface{complete: true, tset: &TypeSet{types: tsum}}
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 921530595a..d68070d049 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -758,7 +758,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) []*TypeName {
+ func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
+ 	for _, name := range names {
+ 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+-		check.newTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
++		check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+ 		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+ 		tparams = append(tparams, tpar)
+ 	}
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 0a6fff0dca..e0498fece2 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -41,11 +41,13 @@ func under(t Type) Type {
+ 	return t
+ }
+ 
+-// optype returns a type's operational type. Except for type parameters,
+-// the operational type is the same as the underlying type (as returned
+-// by under). For Type parameters, the operational type is determined
+-// by the corresponding type constraint. The result may be the top type,
+-// but it is never the incoming type parameter.
++// optype returns a type's operational type. Except for
++// type parameters, the operational type is the same
++// as the underlying type (as returned by under). For
++// Type parameters, the operational type is determined
++// by the corresponding type bound's type list. The
++// result may be the bottom or top type, but it is never
++// the incoming type parameter.
+ func optype(typ Type) Type {
+ 	if t := asTypeParam(typ); t != nil {
+ 		// If the optype is typ, return the top type as we have
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 89ac3ecf38..e42c24f8cb 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -27,22 +27,14 @@ type TypeParam struct {
+ 	bound Type      // *Named or *Interface; underlying type is always *Interface
+ }
+ 
+-// NewTypeParam returns a new TypeParam.
+-func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+-	return (*Checker)(nil).newTypeParam(obj, index, bound)
+-}
+-
+-// TODO(rfindley): this is factored slightly differently in types2.
+-func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+-	assert(bound != nil)
+-
++// NewTypeParam returns a new TypeParam.  bound can be nil (and set later).
++func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+ 	// Always increment lastID, even if it is not used.
+ 	id := nextID()
+ 	if check != nil {
+ 		check.nextID++
+ 		id = check.nextID
+ 	}
+-
+ 	typ := &TypeParam{check: check, id: id, obj: obj, index: index, bound: bound}
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+@@ -79,6 +71,13 @@ func (t *TypeParam) Bound() *Interface {
+ 	return iface
+ }
+ 
++func (t *TypeParam) _SetBound(bound Type) {
++	if bound == nil {
++		panic("internal error: bound must not be nil")
++	}
++	t.bound = bound
++}
++
+ func (t *TypeParam) Underlying() Type { return t }
+ func (t *TypeParam) String() string   { return TypeString(t, nil) }
+ 

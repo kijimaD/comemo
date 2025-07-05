@@ -198,7 +198,7 @@ Date:   Thu Dec 15 23:51:04 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5495055
-
+---
  src/cmd/go/Makefile    |   1 +
  src/cmd/go/build.go    |  57 ++++---
  src/cmd/go/main.go     |  14 +-
@@ -206,3 +206,807 @@ Date:   Thu Dec 15 23:51:04 2011 -0500
  src/cmd/go/test.go     | 411 ++++++++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/go/testflag.go | 168 ++++++++++++++++++++
  6 files changed, 622 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/go/Makefile b/src/cmd/go/Makefile
+index ba372fe9e9..cef0ac2ccd 100644
+--- a/src/cmd/go/Makefile
++++ b/src/cmd/go/Makefile
+@@ -16,6 +16,7 @@ GOFILES=\
+ 	pkg.go\
+ 	run.go\
+ 	test.go\
++	testflag.go\
+ 	version.go\
+ 	vet.go\
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 4d4b0363d6..ba9aa672b6 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -105,6 +105,7 @@ type builder struct {
+ 	nflag       bool                 // the -n flag
+ 	vflag       bool                 // the -v flag
+ 	arch        string               // e.g., "6"
++	goroot      string               // the $GOROOT
+ 	actionCache map[cacheKey]*action // a cache of already-constructed actions
+ }
+ 
+@@ -112,10 +113,12 @@ type builder struct {
+ type action struct {
+ 	f func(*builder, *action) error // the action itself
+ 
+-	p      *Package  // the package this action works on
+-	deps   []*action // actions that must happen before this one
+-	done   bool      // whether the action is done (might have failed)
+-	failed bool      // whether the action failed
++	p          *Package  // the package this action works on
++	deps       []*action // actions that must happen before this one
++	done       bool      // whether the action is done (might have failed)
++	failed     bool      // whether the action failed
++	pkgdir     string    // the -I or -L argument to use when importing this package
++	ignoreFail bool      // whether to run f even if dependencies fail
+ 
+ 	// Results left for communication with other code.
+ 	pkgobj string // the built .a file
+@@ -143,6 +146,7 @@ func (b *builder) init(aflag, nflag, vflag bool) {
+ 	b.nflag = nflag
+ 	b.vflag = vflag
+ 	b.actionCache = make(map[cacheKey]*action)
++	b.goroot = runtime.GOROOT()
+ 
+ 	b.arch, err = build.ArchChar(build.DefaultContext.GOARCH)
+ 	if err != nil {
+@@ -209,12 +213,24 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		return a
+ 	}
+ 
+-	a = &action{p: p}
++	a = &action{p: p, pkgdir: p.t.PkgDir()}
++	if p.pkgdir != "" { // overrides p.t
++		a.pkgdir = p.pkgdir
++	}
++
+ 	b.actionCache[key] = a
+ 
+ 	switch mode {
+ 	case modeBuild, modeInstall:
++		for _, p1 := range p.imports {
++			a.deps = append(a.deps, b.action(depMode, depMode, p1))
++		}
++
+ 		if !needInstall(p) && !b.aflag {
++			// TODO: This is not right if the deps above
++			// are not all no-ops too.  If fmt is up to date
++			// wrt its own source files,  but strconv has
++			// changed, then fmt is not up to date.
+ 			a.f = (*builder).nop
+ 			return a
+ 		}
+@@ -238,9 +254,6 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		}
+ 
+ 		a.f = (*builder).build
+-		for _, p1 := range p.imports {
+-			a.deps = append(a.deps, b.action(depMode, depMode, p1))
+-		}
+ 	}
+ 
+ 	return a
+@@ -288,8 +301,10 @@ func (b *builder) do(a *action) {
+ 		b.do(a1)
+ 		if a1.failed {
+ 			a.failed = true
+-			a.done = true
+-			return
++			if !a.ignoreFail {
++				a.done = true
++				return
++			}
+ 		}
+ 	}
+ 	if err := a.f(b, a); err != nil {
+@@ -303,10 +318,12 @@ func (b *builder) nop(a *action) error {
+ 	return nil
+ }
+ 
+-// build is the action for building a single package.
++// build is the action for building a single package or command.
+ func (b *builder) build(a *action) error {
+ 	obj := filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+"/_obj")) + string(filepath.Separator)
+-	a.pkgobj = filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+".a"))
++	if a.pkgobj == "" {
++		a.pkgobj = filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+".a"))
++	}
+ 
+ 	// make build directory
+ 	if err := b.mkdir(obj); err != nil {
+@@ -332,11 +349,10 @@ func (b *builder) build(a *action) error {
+ 	inc = append(inc, "-I", b.work)
+ 	incMap := map[string]bool{}
+ 	for _, a1 := range a.deps {
+-		p1 := a1.p
+-		if p1.t.Goroot {
++		pkgdir := a1.pkgdir
++		if pkgdir == build.Path[0].PkgDir() || pkgdir == "" {
+ 			continue
+ 		}
+-		pkgdir := p1.t.PkgDir()
+ 		if !incMap[pkgdir] {
+ 			incMap[pkgdir] = true
+ 			inc = append(inc, "-I", pkgdir)
+@@ -386,17 +402,14 @@ func (b *builder) build(a *action) error {
+ 
+ // install is the action for installing a single package.
+ func (b *builder) install(a *action) error {
+-	if err := b.build(a); err != nil {
+-		return err
+-	}
+-
++	a1 := a.deps[0]
+ 	var src string
+ 	var perm uint32
+-	if a.pkgbin != "" {
+-		src = a.pkgbin
++	if a1.pkgbin != "" {
++		src = a1.pkgbin
+ 		perm = 0777
+ 	} else {
+-		src = a.pkgobj
++		src = a1.pkgobj
+ 		perm = 0666
+ 	}
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index c5941133b6..97db5abce8 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -36,6 +36,10 @@ type Command struct {
+ 
+ 	// Flag is a set of flags specific to this command.
+ 	Flag flag.FlagSet
++
++	// CustomFlags indicates that the command will do its own
++	// flag parsing.
++	CustomFlags bool
+ }
+ 
+ // Name returns the command's name: the first word in the usage line.
+@@ -96,8 +100,12 @@ func main() {
+ 	for _, cmd := range commands {
+ 		if cmd.Name() == args[0] && cmd.Run != nil {
+ 			cmd.Flag.Usage = func() { cmd.Usage() }
+-			cmd.Flag.Parse(args[1:])
+-			args = cmd.Flag.Args()
++			if cmd.CustomFlags {
++				args = args[1:]
++			} else {
++				cmd.Flag.Parse(args[1:])
++				args = cmd.Flag.Args()
++			}
+ 			cmd.Run(cmd, args)
+ 			exit()
+ 			return
+@@ -209,6 +217,8 @@ func errorf(format string, args ...interface{}) {
+ 	exitStatus = 1
+ }
+ 
++var logf = log.Printf
++
+ func exitIfErrors() {
+ 	if exitStatus != 0 {
+ 		exit()
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index cc21842e5a..e9fb3bf3c0 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -38,6 +38,7 @@ type Package struct {
+ 
+ 	// Unexported fields are not part of the public API.
+ 	t       *build.Tree
++	pkgdir  string
+ 	info    *build.DirInfo
+ 	imports []*Package
+ 	gofiles []string // GoFiles+CgoFiles
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 1b5ded1e48..2f02c0ce1d 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -4,10 +4,32 @@
+ 
+ package main
+ 
++import (
++	"bytes"
++	"fmt"
++	"go/ast"
++	"go/build"
++	"go/doc"
++	"go/parser"
++	"go/token"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"text/template"
++	"unicode"
++	"unicode/utf8"
++)
++
++// Break init loop.
++func init() {
++	cmdTest.Run = runTest
++}
++
+ var cmdTest = &Command{
+-	Run:       runTest,
+-	UsageLine: "test [importpath...] [-file a.go -file b.go ...] [-c] [-x] [flags for test binary]",
+-	Short:     "test packages",
++	CustomFlags: true,
++	UsageLine:   "test [importpath...] [-file a.go -file b.go ...] [-c] [-x] [flags for test binary]",
++	Short:       "test packages",
+ 	Long: `
+ 'Go test' automates testing the packages named by the import paths.
+ It prints a summary of the test results in the format:
+@@ -158,8 +180,385 @@ See the documentation of the testing package for more information.
+ 		`,
+ }
+ 
++// TODO(rsc): Rethink the flag handling.
++// It might be better to do
++//	go test [go-test-flags] [importpaths] [flags for test binary]
++// If there are no import paths then the two flag sections
++// run together, but we can deal with that.  Right now, 
++//	go test -x  (ok)
++//	go test -x math (NOT OK)
++//	go test math -x (ok)
++// which is weird, because the -x really does apply to go test, not to math.
++// It is also possible that -file can go away.
++// For now just use the gotest code.
++
++var (
++	testC     bool     // -c flag
++	testX     bool     // -x flag
++	testFiles []string // -file flag(s)  TODO: not respected
++	testArgs  []string
++)
++
+ func runTest(cmd *Command, args []string) {
+-	args = importPaths(args)
+-	_ = args
+-	panic("test not implemented")
++	// Determine which are the import paths
++	// (leading arguments not starting with -).
++	i := 0
++	for i < len(args) && !strings.HasPrefix(args[i], "-") {
++		i++
++	}
++	pkgs := packages(args[:i])
++	if len(pkgs) == 0 {
++		fatalf("no packages to test")
++	}
++
++	testArgs = testFlags(args[i:])
++	if testC && len(pkgs) != 1 {
++		fatalf("cannot use -c flag with multiple packages")
++	}
++
++	var b builder
++	b.init(false, false, testX)
++
++	var builds, runs []*action
++
++	// Prepare build + run actions for all packages being tested.
++	for _, p := range pkgs {
++		buildTest, runTest, err := b.test(p)
++		if err != nil {
++			errorf("%s: %s", p, err)
++			continue
++		}
++		if buildTest == nil {
++			// no test at all
++			continue
++		}
++		builds = append(builds, buildTest)
++		runs = append(runs, runTest)
++	}
++
++	// Build+run the tests one at a time in the order
++	// specified on the command line.
++	// May want to revisit when we parallelize things,
++	// although probably not for benchmark runs.
++	for i, a := range builds {
++		if i > 0 {
++			// Make build of test i depend on
++			// completing the run of test i-1.
++			a.deps = append(a.deps, runs[i-1])
++		}
++	}
++
++	allRuns := &action{f: (*builder).nop, deps: runs}
++	b.do(allRuns)
++}
++
++func (b *builder) test(p *Package) (buildAction, runAction *action, err error) {
++	if len(p.info.TestGoFiles)+len(p.info.XTestGoFiles) == 0 {
++		return &action{f: (*builder).nop, p: p}, &action{f: (*builder).notest, p: p}, nil
++	}
++
++	// Build Package structs describing:
++	//	ptest - package + test files
++	//	pxtest - package of external test files
++	//	pmain - test.out binary
++	var ptest, pxtest, pmain *Package
++
++	// go/build does not distinguish the dependencies used
++	// by the TestGoFiles from the dependencies used by the
++	// XTestGoFiles, so we build one list and use it for both
++	// ptest and pxtest.  No harm done.
++	var imports []*Package
++	for _, path := range p.info.TestImports {
++		p1, err := loadPackage(path)
++		if err != nil {
++			return nil, nil, err
++		}
++		imports = append(imports, p1)
++	}
++
++	// The ptest package needs to be importable under the
++	// same import path that p has, but we cannot put it in
++	// the usual place in the temporary tree, because then
++	// other tests will see it as the real package.
++	// Instead we make a _test directory under the import path
++	// and then repeat the import path there.  We tell the
++	// compiler and linker to look in that _test directory first.
++	//
++	// That is, if the package under test is unicode/utf8,
++	// then the normal place to write the package archive is
++	// $WORK/unicode/utf8.a, but we write the test package archive to
++	// $WORK/unicode/utf8/_test/unicode/utf8.a.
++	// We write the external test package archive to
++	// $WORK/unicode/utf8/_test/unicode/utf8_test.a.
++	testDir := filepath.Join(b.work, filepath.FromSlash(p.ImportPath+"/_test"))
++	ptestObj := filepath.Join(testDir, filepath.FromSlash(p.ImportPath+".a"))
++
++	// Create the directory for the .a files.
++	ptestDir, _ := filepath.Split(ptestObj)
++	if err := b.mkdir(ptestDir); err != nil {
++		return nil, nil, err
++	}
++	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), p); err != nil {
++		return nil, nil, err
++	}
++
++	// Test package.
++	if len(p.info.TestGoFiles) > 0 {
++		ptest = new(Package)
++		*ptest = *p
++		ptest.GoFiles = nil
++		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
++		ptest.GoFiles = append(ptest.GoFiles, p.info.TestGoFiles...)
++		ptest.targ = "" // must rebuild
++		ptest.Imports = p.info.TestImports
++		ptest.imports = imports
++		ptest.pkgdir = testDir
++	} else {
++		ptest = p
++	}
++
++	// External test package.
++	if len(p.info.XTestGoFiles) > 0 {
++		pxtest = &Package{
++			Name:       p.Name + "_test",
++			ImportPath: p.ImportPath + "_test",
++			Dir:        p.Dir,
++			GoFiles:    p.info.XTestGoFiles,
++			Imports:    p.info.TestImports,
++			t:          p.t,
++			info:       &build.DirInfo{},
++			imports:    imports,
++			pkgdir:     testDir,
++		}
++	}
++
++	// Action for building test.out.
++	pmain = &Package{
++		Name:    "main",
++		Dir:     testDir,
++		GoFiles: []string{"_testmain.go"},
++		t:       p.t,
++		info:    &build.DirInfo{},
++		imports: []*Package{ptest},
++	}
++	if pxtest != nil {
++		pmain.imports = append(pmain.imports, pxtest)
++	}
++	pmainAction := b.action(modeBuild, modeBuild, pmain)
++	pmainAction.pkgbin = filepath.Join(testDir, "test.out")
++
++	if testC {
++		// -c flag: create action to copy binary to ./test.out.
++		pmain.targ = "test.out"
++		runAction = &action{
++			f:    (*builder).install,
++			deps: []*action{pmainAction},
++			p:    pmain,
++		}
++	} else {
++		// run test
++		runAction = &action{
++			f:          (*builder).runTest,
++			deps:       []*action{pmainAction},
++			p:          p,
++			ignoreFail: true,
++		}
++	}
++
++	return pmainAction, runAction, nil
++}
++
++var pass = []byte("\nPASS\n")
++
++// runTest is the action for running a test binary.
++func (b *builder) runTest(a *action) error {
++	if b.nflag || b.vflag {
++		b.showcmd("%s", strings.Join(append([]string{a.deps[0].pkgbin}, testArgs...), " "))
++		if b.nflag {
++			return nil
++		}
++	}
++
++	if a.failed {
++		// We were unable to build the binary.
++		a.failed = false
++		fmt.Printf("FAIL\t%s [build failed]\n", a.p.ImportPath)
++		exitStatus = 1
++		return nil
++	}
++
++	cmd := exec.Command(a.deps[0].pkgbin, testArgs...)
++	cmd.Dir = a.p.Dir
++	out, err := cmd.CombinedOutput()
++	if err == nil && (bytes.Equal(out, pass[1:]) || bytes.HasSuffix(out, pass)) {
++		fmt.Printf("ok  \t%s\n", a.p.ImportPath)
++		return nil
++	}
++
++	fmt.Printf("FAIL\t%s\n", a.p.ImportPath)
++	exitStatus = 1
++	if len(out) > 0 {
++		os.Stdout.Write(out)
++		// assume printing the test binary's exit status is superfluous
++	} else {
++		fmt.Printf("%s\n", err)
++	}
++	return nil
++}
++
++// notest is the action for testing a package with no test files.
++func (b *builder) notest(a *action) error {
++	fmt.Printf("?   \t%s [no test files]\n", a.p.ImportPath)
++	return nil
++}
++
++// isTest tells whether name looks like a test (or benchmark, according to prefix).
++// It is a Test (say) if there is a character after Test that is not a lower-case letter.
++// We don't want TesticularCancer.
++func isTest(name, prefix string) bool {
++	if !strings.HasPrefix(name, prefix) {
++		return false
++	}
++	if len(name) == len(prefix) { // "Test" is ok
++		return true
++	}
++	rune, _ := utf8.DecodeRuneInString(name[len(prefix):])
++	return !unicode.IsLower(rune)
++}
++
++// writeTestmain writes the _testmain.go file for package p to
++// the file named out.
++func writeTestmain(out string, p *Package) error {
++	t := &testFuncs{
++		Package: p,
++		Info:    p.info,
++	}
++	for _, file := range p.info.TestGoFiles {
++		if err := t.load(filepath.Join(p.Dir, file), "_test", &t.NeedTest); err != nil {
++			return err
++		}
++	}
++	for _, file := range p.info.XTestGoFiles {
++		if err := t.load(filepath.Join(p.Dir, file), "_xtest", &t.NeedXtest); err != nil {
++			return err
++		}
++	}
++
++	f, err := os.Create(out)
++	if err != nil {
++		return err
++	}
++	defer f.Close()
++
++	if err := testmainTmpl.Execute(f, t); err != nil {
++		return err
++	}
++
++	return nil
++}
++
++type testFuncs struct {
++	Tests      []testFunc
++	Benchmarks []testFunc
++	Examples   []testFunc
++	Package    *Package
++	Info       *build.DirInfo
++	NeedTest   bool
++	NeedXtest  bool
++}
++
++type testFunc struct {
++	Package string // imported package name (_test or _xtest)
++	Name    string // function name
++	Output  string // output, for examples
++}
++
++var testFileSet = token.NewFileSet()
++
++func (t *testFuncs) load(filename, pkg string, seen *bool) error {
++	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
++	if err != nil {
++		return err
++	}
++	for _, d := range f.Decls {
++		n, ok := d.(*ast.FuncDecl)
++		if !ok {
++			continue
++		}
++		if n.Recv != nil {
++			continue
++		}
++		name := n.Name.String()
++		switch {
++		case isTest(name, "Test"):
++			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
++			*seen = true
++		case isTest(name, "Benchmark"):
++			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
++			*seen = true
++		case isTest(name, "Example"):
++			output := doc.CommentText(n.Doc)
++			if output == "" {
++				// Don't run examples with no output.
++				continue
++			}
++			t.Examples = append(t.Examples, testFunc{pkg, name, output})
++			*seen = true
++		}
++	}
++
++	return nil
++}
++
++var testmainTmpl = template.Must(template.New("main").Parse(`
++package main
++
++import (
++	"regexp"
++	"testing"
++
++{{if .NeedTest}}
++	_test {{.Package.ImportPath | printf "%q"}}
++{{end}}
++{{if .NeedXtest}}
++	_xtest {{.Package.ImportPath | printf "%s_test" | printf "%q"}}
++{{end}}
++)
++
++var tests = []testing.InternalTest{
++{{range .Tests}}
++	{"{{.Name}}", {{.Package}}.{{.Name}}},
++{{end}}
++}
++
++var benchmarks = []testing.InternalBenchmark{
++{{range .Benchmarks}}
++	{"{{.Name}}", {{.Package}}.{{.Name}}},
++{{end}}
++}
++
++var examples = []testing.InternalExample{
++{{range .Examples}}
++	{"{{.Name}}", {{.Package}}.{{.Name}}, {{.Output | printf "%q"}}},
++{{end}}
++}
++
++var matchPat string
++var matchRe *regexp.Regexp
++
++func matchString(pat, str string) (result bool, err error) {
++	if matchRe == nil || matchPat != pat {
++		matchPat = pat
++		matchRe, err = regexp.Compile(matchPat)
++		if err != nil {
++			return
++		}
++	}
++	return matchRe.MatchString(str), nil
+ }
++
++func main() {
++	testing.Main(matchString, tests, benchmarks, examples)
++}
++
++`))
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+new file mode 100644
+index 0000000000..c4aa8c6bd2
+--- /dev/null
++++ b/src/cmd/go/testflag.go
+@@ -0,0 +1,168 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"strconv"
++	"strings"
++)
++
++// The flag handling part of go test is large and distracting.
++// We can't use the flag package because some of the flags from
++// our command line are for us, and some are for 6.out, and
++// some are for both.
++
++var usageMessage = `Usage of go test:
++  -c=false: compile but do not run the test binary
++  -file=file_test.go: specify file to use for tests;
++      use multiple times for multiple files
++  -x=false: print command lines as they are executed
++
++  // These flags can be passed with or without a "test." prefix: -v or -test.v.
++  -bench="": passes -test.bench to test
++  -benchtime=1: passes -test.benchtime to test
++  -cpu="": passes -test.cpu to test
++  -cpuprofile="": passes -test.cpuprofile to test
++  -memprofile="": passes -test.memprofile to test
++  -memprofilerate=0: passes -test.memprofilerate to test
++  -parallel=0: passes -test.parallel to test
++  -run="": passes -test.run to test
++  -short=false: passes -test.short to test
++  -timeout=0: passes -test.timeout to test
++  -v=false: passes -test.v to test
++`
++
++// usage prints a usage message and exits.
++func testUsage() {
++	fmt.Fprint(os.Stderr, usageMessage)
++	exitStatus = 2
++	exit()
++}
++
++// testFlagSpec defines a flag we know about.
++type testFlagSpec struct {
++	name       string
++	isBool     bool
++	passToTest bool // pass to Test
++	multiOK    bool // OK to have multiple instances
++	present    bool // flag has been seen
++}
++
++// testFlagDefn is the set of flags we process.
++var testFlagDefn = []*testFlagSpec{
++	// local.
++	{name: "c", isBool: true},
++	{name: "file", multiOK: true},
++	{name: "x", isBool: true},
++
++	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
++	{name: "bench", passToTest: true},
++	{name: "benchtime", passToTest: true},
++	{name: "cpu", passToTest: true},
++	{name: "cpuprofile", passToTest: true},
++	{name: "memprofile", passToTest: true},
++	{name: "memprofilerate", passToTest: true},
++	{name: "parallel", passToTest: true},
++	{name: "run", passToTest: true},
++	{name: "short", isBool: true, passToTest: true},
++	{name: "timeout", passToTest: true},
++	{name: "v", isBool: true, passToTest: true},
++}
++
++// testFlags processes the command line, grabbing -x and -c, rewriting known flags
++// to have "test" before them, and reading the command line for the 6.out.
++// Unfortunately for us, we need to do our own flag processing because go test
++// grabs some flags but otherwise its command line is just a holding place for
++// test.out's arguments.
++func testFlags(args []string) (passToTest []string) {
++	for i := 0; i < len(args); i++ {
++		arg := args[i]
++		f, value, extraWord := testFlag(args, i)
++		if f == nil {
++			args = append(args, arg)
++			continue
++		}
++		switch f.name {
++		case "c":
++			setBoolFlag(&testC, value)
++		case "x":
++			setBoolFlag(&testX, value)
++		case "file":
++			testFiles = append(testFiles, value)
++		}
++		if extraWord {
++			i++
++		}
++		if f.passToTest {
++			passToTest = append(passToTest, "-test."+f.name+"="+value)
++		}
++	}
++	return
++}
++
++// testFlag sees if argument i is a known flag and returns its definition, value, and whether it consumed an extra word.
++func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) {
++	arg := args[i]
++	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
++		arg = arg[1:]
++	}
++	switch arg {
++	case "-?", "-h", "-help":
++		usage()
++	}
++	if arg == "" || arg[0] != '-' {
++		return
++	}
++	name := arg[1:]
++	// If there's already "test.", drop it for now.
++	if strings.HasPrefix(name, "test.") {
++		name = name[5:]
++	}
++	equals := strings.Index(name, "=")
++	if equals >= 0 {
++		value = name[equals+1:]
++		name = name[:equals]
++	}
++	for _, f = range testFlagDefn {
++		if name == f.name {
++			// Booleans are special because they have modes -x, -x=true, -x=false.
++			if f.isBool {
++				if equals < 0 { // otherwise, it's been set and will be verified in setBoolFlag
++					value = "true"
++				} else {
++					// verify it parses
++					setBoolFlag(new(bool), value)
++				}
++			} else { // Non-booleans must have a value.
++				extra = equals < 0
++				if extra {
++					if i+1 >= len(args) {
++						usage()
++					}
++					value = args[i+1]
++				}
++			}
++			if f.present && !f.multiOK {
++				usage()
++			}
++			f.present = true
++			return
++		}
++	}
++	f = nil
++	return
++}
++
++// setBoolFlag sets the addressed boolean to the value.
++func setBoolFlag(flag *bool, value string) {
++	x, err := strconv.ParseBool(value)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "go test: illegal bool flag value %s\n", value)
++		usage()
++	}
++	*flag = x
++}

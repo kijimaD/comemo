@@ -7,6 +7,33 @@ Date:   Tue Oct 14 18:47:24 2008 -0700
     R=ken
     OCL=17164
     CL=17164
-
+---
  src/cmd/gc/go.y | 12 ++----------
  1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 25df8d3050..f08421b5d4 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1607,19 +1607,11 @@ braced_keyexpr_list:
+ 	{
+ 		$$ = N;
+ 	}
+-|	keyval_list_r
++|	keyval_list_r ocomma
+ 	{
+ 		$$ = rev($1);
+ 	}
+-|	keyval_list_r ','
+-	{
+-		$$ = rev($1);
+-	}
+-|	expr_list_r
+-	{
+-		$$ = rev($1);
+-	}
+-|	expr_list_r ','
++|	expr_list_r ocomma
+ 	{
+ 		$$ = rev($1);
+ 	}

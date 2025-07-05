@@ -25,6 +25,32 @@ Date:   Tue Dec 15 20:24:33 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue11656.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+index 451ae6348f..62b36cf790 100644
+--- a/test/fixedbugs/issue11656.go
++++ b/test/fixedbugs/issue11656.go
+@@ -12,6 +12,11 @@
+ // wasm does not work, because the linear memory is not executable.
+ // +build !wasm
+ 
++// This test doesn't work on gccgo/GoLLVM, because they will not find
++// any unwind information for the artificial function, and will not be
++// able to unwind past that point.
++// +build !gccgo
++
+ package main
+ 
+ import (
+@@ -75,6 +80,7 @@ func f(n int) {
+ 	}
+ 
+ 	f.x = uintptr(unsafe.Pointer(&ill[0]))
+-	fn := *(*func())(unsafe.Pointer(&f))
++	p := &f
++	fn := *(*func())(unsafe.Pointer(&p))
+ 	fn()
+ }

@@ -17,7 +17,48 @@ Date:   Wed Apr 29 16:59:38 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9496
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/responsewrite_test.go | 15 +++++++++++++++
  src/net/http/transfer.go           |  3 +++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/net/http/responsewrite_test.go b/src/net/http/responsewrite_test.go
+index 585b13b850..5b8d47ab58 100644
+--- a/src/net/http/responsewrite_test.go
++++ b/src/net/http/responsewrite_test.go
+@@ -207,6 +207,21 @@ func TestResponseWrite(t *testing.T) {
+ 			},
+ 			"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+ 		},
++
++		// When a response to a POST has Content-Length: -1, make sure we don't
++		// write the Content-Length as -1.
++		{
++			Response{
++				StatusCode:    StatusOK,
++				ProtoMajor:    1,
++				ProtoMinor:    1,
++				Request:       &Request{Method: "POST"},
++				Header:        Header{},
++				ContentLength: -1,
++				Body:          ioutil.NopCloser(strings.NewReader("abcdef")),
++			},
++			"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nabcdef",
++		},
+ 	}
+ 
+ 	for i := range respWriteTests {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index c39d6cff67..7372d7537e 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -138,6 +138,9 @@ func (t *transferWriter) shouldSendContentLength() bool {
+ 	if t.ContentLength > 0 {
+ 		return true
+ 	}
++	if t.ContentLength < 0 {
++		return false
++	}
+ 	// Many servers expect a Content-Length for these methods
+ 	if t.Method == "POST" || t.Method == "PUT" {
+ 		return true

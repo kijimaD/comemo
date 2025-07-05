@@ -12,6 +12,30 @@ Date:   Thu Apr 21 12:47:24 2016 -0700
     Change-Id: Ia757dc93b0a69b8408559885ece7f3685a37daaa
     Reviewed-on: https://go-review.googlesource.com/22353
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index c6187b0787..e9f6476a89 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of April 19, 2016",
++	"Subtitle": "Version of April 21, 2016",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3326,8 +3326,8 @@ var s uint = 33
+ var i = 1&lt;&lt;s           // 1 has type int
+ var j int32 = 1&lt;&lt;s     // 1 has type int32; j == 0
+ var k = uint64(1&lt;&lt;s)   // 1 has type uint64; k == 1&lt;&lt;33
+-var m int = 1.0&lt;&lt;s     // 1.0 has type int
+-var n = 1.0&lt;&lt;s != i    // 1.0 has type int; n == false if ints are 32bits in size
++var m int = 1.0&lt;&lt;s     // 1.0 has type int; m == 0 if ints are 32bits in size
++var n = 1.0&lt;&lt;s == j    // 1.0 has type int32; n == true
+ var o = 1&lt;&lt;s == 2&lt;&lt;s   // 1 and 2 have type int; o == true if ints are 32bits in size
+ var p = 1&lt;&lt;s == 1&lt;&lt;33  // illegal if ints are 32bits in size: 1 has type int, but 1&lt;&lt;33 overflows int
+ var u = 1.0&lt;&lt;s         // illegal: 1.0 has type float64, cannot shift

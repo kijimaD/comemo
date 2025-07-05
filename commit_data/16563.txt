@@ -10,9 +10,90 @@ Date:   Thu Jun 13 14:32:05 2013 +0400
     R=golang-dev, iant, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/10082043
-
+---
  src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 146952 -> 176596 bytes
  src/pkg/runtime/race/race_linux_amd64.syso   | Bin 142848 -> 178904 bytes
  src/pkg/runtime/race/race_windows_amd64.syso | Bin 121376 -> 153779 bytes
  src/pkg/runtime/race/testdata/mop_test.go    |  42 +++++++++++++++++++++++++--
  4 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/race/race_darwin_amd64.syso b/src/pkg/runtime/race/race_darwin_amd64.syso
+index 24a00497c0..ff47534d71 100644
+Binary files a/src/pkg/runtime/race/race_darwin_amd64.syso and b/src/pkg/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+index b15091ba81..41e12093fb 100644
+Binary files a/src/pkg/runtime/race/race_linux_amd64.syso and b/src/pkg/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_windows_amd64.syso b/src/pkg/runtime/race/race_windows_amd64.syso
+index 0a3a583547..9e669f94fd 100644
+Binary files a/src/pkg/runtime/race/race_windows_amd64.syso and b/src/pkg/runtime/race/race_windows_amd64.syso differ
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index de2576cf6f..d221f444e3 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -5,6 +5,7 @@
+ package race_test
+ 
+ import (
++	"bytes"
+ 	"crypto/sha1"
+ 	"errors"
+ 	"fmt"
+@@ -1477,8 +1478,7 @@ func TestRaceSliceString(t *testing.T) {
+ 	<-c
+ }
+ 
+-// http://golang.org/issue/4453
+-func TestRaceFailingSliceStruct(t *testing.T) {
++func TestRaceSliceStruct(t *testing.T) {
+ 	type X struct {
+ 		x, y int
+ 	}
+@@ -1493,7 +1493,7 @@ func TestRaceFailingSliceStruct(t *testing.T) {
+ 	<-c
+ }
+ 
+-func TestRaceFailingAppendSliceStruct(t *testing.T) {
++func TestRaceAppendSliceStruct(t *testing.T) {
+ 	type X struct {
+ 		x, y int
+ 	}
+@@ -1670,3 +1670,39 @@ func TestRaceIssue5567(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func TestRaceIssue5654(t *testing.T) {
++	text := `Friends, Romans, countrymen, lend me your ears;
++I come to bury Caesar, not to praise him.
++The evil that men do lives after them;
++The good is oft interred with their bones;
++So let it be with Caesar. The noble Brutus
++Hath told you Caesar was ambitious:
++If it were so, it was a grievous fault,
++And grievously hath Caesar answer'd it.
++Here, under leave of Brutus and the rest -
++For Brutus is an honourable man;
++So are they all, all honourable men -
++Come I to speak in Caesar's funeral.
++He was my friend, faithful and just to me:
++But Brutus says he was ambitious;
++And Brutus is an honourable man.`
++
++	data := bytes.NewBufferString(text)
++	in := make(chan []byte)
++
++	go func() {
++		buf := make([]byte, 16)
++		var n int
++		var err error
++		for ; err == nil; n, err = data.Read(buf) {
++			in <- buf[:n]
++		}
++		close(in)
++	}()
++	res := ""
++	for s := range in {
++		res += string(s)
++	}
++	_ = res
++}

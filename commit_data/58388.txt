@@ -14,7 +14,70 @@ Date:   Wed Nov 1 18:08:23 2023 +0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modcmd/edit.go      |  7 ++++---
  src/cmd/go/testdata/script/mod_edit.txt | 19 +++++++++++++++++++
  2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 96bd608c01..db131b0881 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -315,6 +315,9 @@ func parsePath(flag, arg string) (path string) {
+ // parsePathVersionOptional parses path[@version], using adj to
+ // describe any errors.
+ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version string, err error) {
++	if allowDirPath && modfile.IsDirectoryPath(arg) {
++		return arg, "", nil
++	}
+ 	before, after, found := strings.Cut(arg, "@")
+ 	if !found {
+ 		path = arg
+@@ -322,9 +325,7 @@ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version
+ 		path, version = strings.TrimSpace(before), strings.TrimSpace(after)
+ 	}
+ 	if err := module.CheckImportPath(path); err != nil {
+-		if !allowDirPath || !modfile.IsDirectoryPath(path) {
+-			return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
+-		}
++		return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
+ 	}
+ 	if path != arg && !allowedVersionArg(version) {
+ 		return path, version, fmt.Errorf("invalid %s version: %q", adj, version)
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index ebc032a73c..2d09b06c61 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -61,6 +61,10 @@ go mod edit -replace=x.1=y.1/v2@v2.3.6
+ cmpenv go.mod $WORK/go.mod.edit4
+ go mod edit -dropreplace=x.1
+ cmpenv go.mod $WORK/go.mod.edit5
++go mod edit -replace=x.1=../y.1/@v2
++cmpenv go.mod $WORK/go.mod.edit6
++! go mod edit -replace=x.1=y.1/@v2
++stderr '^go: -replace=x.1=y.1/@v2: invalid new path: malformed import path "y.1/": trailing slash$'
+ 
+ # go mod edit -fmt
+ cp $WORK/go.mod.badfmt go.mod
+@@ -218,6 +222,21 @@ retract (
+ )
+ 
+ require x.3 v1.99.0
++-- $WORK/go.mod.edit6 --
++module x.x/y/z
++
++go $goversion
++
++exclude x.1 v1.2.0
++
++retract (
++	v1.6.0
++	[v1.3.0, v1.4.0]
++)
++
++require x.3 v1.99.0
++
++replace x.1 => ../y.1/@v2
+ -- $WORK/local/go.mod.edit --
+ module local-only
+ 

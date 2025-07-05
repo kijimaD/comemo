@@ -11,6 +11,24 @@ Date:   Tue Jun 7 11:53:47 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4591041
-
+---
  src/cmd/gofix/main.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index ba2061a000..1b091c18aa 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -248,5 +248,11 @@ func diff(b1, b2 []byte) (data []byte, err os.Error) {
+ 	f1.Write(b1)
+ 	f2.Write(b2)
+ 
+-	return exec.Command("diff", f1.Name(), f2.Name()).CombinedOutput()
++	data, err = exec.Command("diff", "-u", f1.Name(), f2.Name()).CombinedOutput()
++	if len(data) > 0 {
++		// diff exits with a non-zero status when the files don't match.
++		// Ignore that failure as long as we get output.
++		err = nil
++	}
++	return
+ }

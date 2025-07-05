@@ -13,7 +13,7 @@ Date:   Fri Nov 30 10:29:41 2012 +0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6851125
-
+---
  src/pkg/runtime/chan.c    |  4 ++--
  src/pkg/runtime/hashmap.c | 18 +++++++++---------
  src/pkg/runtime/race.c    | 38 +++++++++++++++++++++++++++-----------
@@ -21,3 +21,283 @@ Date:   Fri Nov 30 10:29:41 2012 +0400
  src/pkg/runtime/race0.c   |  6 ++++--
  src/pkg/runtime/slice.c   | 18 +++++++++---------
  6 files changed, 53 insertions(+), 35 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 0aa0b43c56..9b915cef01 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -188,7 +188,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
+ 	runtime·lock(c);
+ 	// TODO(dvyukov): add similar instrumentation to select.
+ 	if(raceenabled)
+-		runtime·racereadpc(c, pc);
++		runtime·racereadpc(c, pc, runtime·chansend);
+ 	if(c->closed)
+ 		goto closed;
+ 
+@@ -1193,7 +1193,7 @@ runtime·closechan(Hchan *c)
+ 	}
+ 
+ 	if(raceenabled) {
+-		runtime·racewritepc(c, runtime·getcallerpc(&c));
++		runtime·racewritepc(c, runtime·getcallerpc(&c), runtime·closechan);
+ 		runtime·racerelease(c);
+ 	}
+ 
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 4869669b6e..60c592184e 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -842,7 +842,7 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
+ 	bool pres;
+ 
+ 	if(raceenabled && h != nil)
+-		runtime·racereadpc(h, runtime·getcallerpc(&t));
++		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
+ 
+ 	ak = (byte*)(&h + 1);
+ 	av = ak + ROUND(t->key->size, Structrnd);
+@@ -870,7 +870,7 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
+ 	byte *ak, *av, *ap;
+ 
+ 	if(raceenabled && h != nil)
+-		runtime·racereadpc(h, runtime·getcallerpc(&t));
++		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
+ 
+ 	ak = (byte*)(&h + 1);
+ 	av = ak + ROUND(t->key->size, Structrnd);
+@@ -901,7 +901,7 @@ reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+ 	byte *ak, *av;
+ 
+ 	if(raceenabled && h != nil)
+-		runtime·racereadpc(h, runtime·getcallerpc(&t));
++		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
+ 
+ 	if(t->key->size <= sizeof(key))
+ 		ak = (byte*)&key;
+@@ -974,7 +974,7 @@ runtime·mapassign1(MapType *t, Hmap *h, ...)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 
+ 	if(raceenabled)
+-		runtime·racewritepc(h, runtime·getcallerpc(&t));
++		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
+ 	ak = (byte*)(&h + 1);
+ 	av = ak + ROUND(t->key->size, t->elem->align);
+ 
+@@ -992,7 +992,7 @@ runtime·mapdelete(MapType *t, Hmap *h, ...)
+ 		runtime·panicstring("deletion of entry in nil map");
+ 
+ 	if(raceenabled)
+-		runtime·racewritepc(h, runtime·getcallerpc(&t));
++		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
+ 	ak = (byte*)(&h + 1);
+ 	runtime·mapassign(t, h, ak, nil);
+ 
+@@ -1017,7 +1017,7 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+ 	if(h == nil)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 	if(raceenabled)
+-		runtime·racewritepc(h, runtime·getcallerpc(&t));
++		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
+ 	if(t->key->size <= sizeof(key))
+ 		ak = (byte*)&key;
+ 	else
+@@ -1040,7 +1040,7 @@ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ 		return;
+ 	}
+ 	if(raceenabled)
+-		runtime·racereadpc(h, runtime·getcallerpc(&t));
++		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapiterinit);
+ 	hash_iter_init(t, h, it);
+ 	it->data = hash_next(it);
+ 	if(debug) {
+@@ -1085,7 +1085,7 @@ void
+ runtime·mapiternext(struct hash_iter *it)
+ {
+ 	if(raceenabled)
+-		runtime·racereadpc(it->h, runtime·getcallerpc(&it));
++		runtime·racereadpc(it->h, runtime·getcallerpc(&it), runtime·mapiternext);
+ 	if(runtime·gcwaiting)
+ 		runtime·gosched();
+ 
+@@ -1190,7 +1190,7 @@ reflect·maplen(Hmap *h, intgo len)
+ 	else {
+ 		len = h->count;
+ 		if(raceenabled)
+-			runtime·racereadpc(h, runtime·getcallerpc(&h));
++			runtime·racereadpc(h, runtime·getcallerpc(&h), reflect·maplen);
+ 	}
+ 	FLUSH(&len);
+ }
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index aae43852a3..3cff49d7f9 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -152,24 +152,40 @@ runtime·racegoend(int32 goid)
+ 	m->racecall = false;
+ }
+ 
+-void
+-runtime·racewritepc(void *addr, void *pc)
++static void
++memoryaccess(void *addr, uintptr callpc, uintptr pc, bool write)
+ {
++	int64 goid;
++
+ 	if(!onstack((uintptr)addr)) {
+ 		m->racecall = true;
+-		runtime∕race·Write(g->goid-1, addr, pc);
++		goid = g->goid-1;
++		if(callpc) {
++			if(callpc == (uintptr)runtime·lessstack ||
++				(callpc >= (uintptr)runtime·mheap.arena_start && callpc < (uintptr)runtime·mheap.arena_used))
++				runtime·callers(3, &callpc, 1);
++			runtime∕race·FuncEnter(goid, (void*)callpc);
++		}
++		if(write)
++			runtime∕race·Write(goid, addr, (void*)pc);
++		else
++			runtime∕race·Read(goid, addr, (void*)pc);
++		if(callpc)
++			runtime∕race·FuncExit(goid);
+ 		m->racecall = false;
+ 	}
+ }
+ 
+ void
+-runtime·racereadpc(void *addr, void *pc)
++runtime·racewritepc(void *addr, void *callpc, void *pc)
+ {
+-	if(!onstack((uintptr)addr)) {
+-		m->racecall = true;
+-		runtime∕race·Read(g->goid-1, addr, pc);
+-		m->racecall = false;
+-	}
++	memoryaccess(addr, (uintptr)callpc, (uintptr)pc, true);
++}
++
++void
++runtime·racereadpc(void *addr, void *callpc, void *pc)
++{
++	memoryaccess(addr, (uintptr)callpc, (uintptr)pc, false);
+ }
+ 
+ void
+@@ -266,7 +282,7 @@ void runtime·RaceSemrelease(uint32 *s)
+ void
+ runtime·RaceRead(void *addr)
+ {
+-	runtime·racereadpc(addr, runtime·getcallerpc(&addr));
++	memoryaccess(addr, 0, (uintptr)runtime·getcallerpc(&addr), false);
+ }
+ 
+ // func RaceWrite(addr unsafe.Pointer)
+@@ -274,7 +290,7 @@ runtime·RaceRead(void *addr)
+ void
+ runtime·RaceWrite(void *addr)
+ {
+-	runtime·racewritepc(addr, runtime·getcallerpc(&addr));
++	memoryaccess(addr, 0, (uintptr)runtime·getcallerpc(&addr), true);
+ }
+ 
+ // func RaceDisable()
+diff --git a/src/pkg/runtime/race.h b/src/pkg/runtime/race.h
+index 9ebb9d3738..6ae9629411 100644
+--- a/src/pkg/runtime/race.h
++++ b/src/pkg/runtime/race.h
+@@ -20,8 +20,8 @@ void	runtime·racemalloc(void *p, uintptr sz, void *pc);
+ void	runtime·racefree(void *p);
+ void	runtime·racegostart(int32 goid, void *pc);
+ void	runtime·racegoend(int32 goid);
+-void	runtime·racewritepc(void *addr, void *pc);
+-void	runtime·racereadpc(void *addr, void *pc);
++void	runtime·racewritepc(void *addr, void *callpc, void *pc);
++void	runtime·racereadpc(void *addr, void *callpc, void *pc);
+ void	runtime·racefingo(void);
+ void	runtime·raceacquire(void *addr);
+ void	runtime·raceacquireg(G *gp, void *addr);
+diff --git a/src/pkg/runtime/race0.c b/src/pkg/runtime/race0.c
+index 82ebba8229..0553e17093 100644
+--- a/src/pkg/runtime/race0.c
++++ b/src/pkg/runtime/race0.c
+@@ -26,16 +26,18 @@ runtime·racemapshadow(void *addr, uintptr size)
+ }
+ 
+ void
+-runtime·racewritepc(void *addr, void *pc)
++runtime·racewritepc(void *addr, void *callpc, void *pc)
+ {
+ 	USED(addr);
++	USED(callpc);
+ 	USED(pc);
+ }
+ 
+ void
+-runtime·racereadpc(void *addr, void *pc)
++runtime·racereadpc(void *addr, void *callpc, void *pc)
+ {
+ 	USED(addr);
++	USED(callpc);
+ 	USED(pc);
+ }
+ 
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 2f62c4c02d..e2c76eb8e7 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -83,11 +83,11 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&t);
+ 		for(i=0; i<x.len; i++)
+-			runtime·racereadpc(x.array + i*t->elem->size, pc);
++			runtime·racereadpc(x.array + i*t->elem->size, pc, runtime·appendslice);
+ 		for(i=x.len; i<x.cap; i++)
+-			runtime·racewritepc(x.array + i*t->elem->size, pc);
++			runtime·racewritepc(x.array + i*t->elem->size, pc, runtime·appendslice);
+ 		for(i=0; i<y.len; i++)
+-			runtime·racereadpc(y.array + i*t->elem->size, pc);
++			runtime·racereadpc(y.array + i*t->elem->size, pc, runtime·appendslice);
+ 	}
+ 
+ 	if(m > x.cap)
+@@ -118,9 +118,9 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&t);
+ 		for(i=0; i<x.len; i++)
+-			runtime·racereadpc(x.array + i*t->elem->size, pc);
++			runtime·racereadpc(x.array + i*t->elem->size, pc, runtime·appendstr);
+ 		for(i=x.len; i<x.cap; i++)
+-			runtime·racewritepc(x.array + i*t->elem->size, pc);
++			runtime·racewritepc(x.array + i*t->elem->size, pc, runtime·appendstr);
+ 	}
+ 
+ 	if(m > x.cap)
+@@ -153,7 +153,7 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&t);
+ 		for(i=0; i<old.len; i++)
+-			runtime·racewritepc(old.array + i*t->elem->size, pc);
++			runtime·racewritepc(old.array + i*t->elem->size, pc, runtime·growslice);
+ 	}
+ 
+ 	growslice1(t, old, cap, &ret);
+@@ -213,8 +213,8 @@ runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&to);
+ 		for(i=0; i<ret; i++) {
+-			runtime·racewritepc(to.array + i*width, pc);
+-			runtime·racereadpc(fm.array + i*width, pc);
++			runtime·racewritepc(to.array + i*width, pc, runtime·copy);
++			runtime·racereadpc(fm.array + i*width, pc, runtime·copy);
+ 		}
+ 	}
+ 
+@@ -259,7 +259,7 @@ runtime·slicestringcopy(Slice to, String fm, intgo ret)
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&to);
+ 		for(i=0; i<ret; i++) {
+-			runtime·racewritepc(to.array + i, pc);
++			runtime·racewritepc(to.array + i, pc, runtime·slicestringcopy);
+ 		}
+ 	}
+ 

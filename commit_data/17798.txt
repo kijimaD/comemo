@@ -7,6 +7,19 @@ Date:   Tue Oct 15 13:46:57 2013 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/14454063
-
+---
  misc/cgo/test/issue6506.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/cgo/test/issue6506.go b/misc/cgo/test/issue6506.go
+index e2a733206e..5c1d2a864b 100644
+--- a/misc/cgo/test/issue6506.go
++++ b/misc/cgo/test/issue6506.go
+@@ -16,6 +16,7 @@ package cgotest
+ // One of the great things about this bug is that even with these prototypes
+ // clang still generates the wrong debug information.
+ 
++void *alloca(size_t);
+ void bzero(void*, size_t);
+ int bcmp(const void*, const void*, size_t);
+ int strncasecmp(const char*, const char*, size_t n);

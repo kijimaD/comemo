@@ -18,8 +18,230 @@ Date:   Thu Dec 19 13:43:24 2019 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go                  |  33 +++++
  src/cmd/go/internal/work/gc.go                    |   4 +
  src/cmd/go/testdata/script/build_trimpath_cgo.txt | 156 ++++++++++++++++++++++
  3 files changed, 193 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 1261cf4e6c..6ab3498c3e 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2169,6 +2169,39 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ 	desc := p.ImportPath
+ 	outfile = mkAbs(p.Dir, outfile)
+ 
++	// Elide source directory paths if -trimpath or GOROOT_FINAL is set.
++	// This is needed for source files (e.g., a .c file in a package directory).
++	// TODO(golang.org/issue/36072): cgo also generates files with #line
++	// directives pointing to the source directory. It should not generate those
++	// when -trimpath is enabled.
++	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
++		if cfg.BuildTrimpath {
++			// Keep in sync with Action.trimpath.
++			// The trimmed paths are a little different, but we need to trim in the
++			// same situations.
++			var from, toPath string
++			if m := p.Module; m != nil {
++				from = m.Dir
++				toPath = m.Path + "@" + m.Version
++			} else {
++				from = p.Dir
++				toPath = p.ImportPath
++			}
++			// -fdebug-prefix-map requires an absolute "to" path (or it joins the path
++			// with the working directory). Pick something that makes sense for the
++			// target platform.
++			var to string
++			if cfg.BuildContext.GOOS == "windows" {
++				to = filepath.Join(`\\_\_`, toPath)
++			} else {
++				to = filepath.Join("/_", toPath)
++			}
++			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+from+"="+to)
++		} else if p.Goroot && cfg.GOROOT_FINAL != cfg.GOROOT {
++			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+cfg.GOROOT+"="+cfg.GOROOT_FINAL)
++		}
++	}
++
+ 	output, err := b.runOut(a, filepath.Dir(file), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(file))
+ 	if len(output) > 0 {
+ 		// On FreeBSD 11, when we pass -g to clang 3.8 it
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 78db845ae7..318d688d2e 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -223,6 +223,10 @@ CheckFlags:
+ // trimpath returns the -trimpath argument to use
+ // when compiling the action.
+ func (a *Action) trimpath() string {
++	// Keep in sync with Builder.ccompile
++	// The trimmed paths are a little different, but we need to trim in the
++	// same situations.
++
+ 	// Strip the object directory entirely.
+ 	objdir := a.Objdir
+ 	if len(objdir) > 1 && objdir[len(objdir)-1] == filepath.Separator {
+diff --git a/src/cmd/go/testdata/script/build_trimpath_cgo.txt b/src/cmd/go/testdata/script/build_trimpath_cgo.txt
+new file mode 100644
+index 0000000000..4608d9ac6b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_trimpath_cgo.txt
+@@ -0,0 +1,156 @@
++# This test builds a cgo binary and verifies the source directory path
++# does not appear in the binary, either literally or in compressed DWARF.
++# TODO(golang.org/issue/36072): ideally we should build a binary from identical
++# sources in different directories and verify the binary and all intermediate
++# files are identical.
++
++[short] skip
++[!cgo] skip
++
++# Check that the source path appears when -trimpath is not used.
++go build -o hello.exe .
++grep -q gopath[/\\]src hello.exe
++go run ./list-dwarf hello.exe
++stdout gopath[/\\]src
++
++# Check that the source path does not appear when -trimpath is used.
++[aix] stop # can't inspect XCOFF binaries
++go build -trimpath -o hello.exe .
++! grep -q gopath[/\\]src hello.exe
++go run ./list-dwarf hello.exe
++! stdout gopath/src
++
++-- go.mod --
++module m
++
++go 1.14
++-- hello.c --
++#include <stdio.h>
++
++void say_hello() { puts("Hello, world!\n"); }
++
++-- hello.go --
++package main
++
++// void say_hello();
++import "C"
++
++func main() {
++	C.say_hello()
++}
++
++-- list-dwarf/list-dwarf.go --
++package main
++
++import (
++	"debug/dwarf"
++	"fmt"
++	"io"
++	"log"
++	"os"
++	"sort"
++)
++
++func main() {
++	files, err := run(os.Args[1])
++	if err != nil {
++		log.Fatal(err)
++	}
++	for _, file := range files {
++		fmt.Println(file)
++	}
++}
++
++func run(exePath string) ([]string, error) {
++	dwarfData, err := readDWARF(exePath)
++	if err != nil {
++		return nil, err
++	}
++
++	dwarfReader := dwarfData.Reader()
++	files := make(map[string]bool)
++	for {
++		e, err := dwarfReader.Next()
++		if err != nil {
++			return nil, err
++		}
++		if e == nil {
++			break
++		}
++		lr, err := dwarfData.LineReader(e)
++		if err != nil {
++			return nil, err
++		}
++		if lr == nil {
++			continue
++		}
++
++		var le dwarf.LineEntry
++		for {
++			if err := lr.Next(&le); err != nil {
++				if err == io.EOF {
++					break
++				}
++				return nil, err
++			}
++			files[le.File.Name] = true
++		}
++	}
++
++	sortedFiles := make([]string, 0, len(files))
++	for file := range files {
++		sortedFiles = append(sortedFiles, file)
++	}
++	sort.Strings(sortedFiles)
++	return sortedFiles, nil
++}
++-- list-dwarf/read_darwin.go --
++package main
++
++import (
++	"debug/dwarf"
++	"debug/macho"
++)
++
++func readDWARF(exePath string) (*dwarf.Data, error) {
++	machoFile, err := macho.Open(exePath)
++	if err != nil {
++		return nil, err
++	}
++	defer machoFile.Close()
++	return machoFile.DWARF()
++}
++-- list-dwarf/read_elf.go --
++// +build android dragonfly freebsd illumos linux netbsd openbsd solaris
++
++package main
++
++import (
++	"debug/dwarf"
++	"debug/elf"
++)
++
++func readDWARF(exePath string) (*dwarf.Data, error) {
++	elfFile, err := elf.Open(exePath)
++	if err != nil {
++		return nil, err
++	}
++	defer elfFile.Close()
++	return elfFile.DWARF()
++}
++-- list-dwarf/read_windows.go --
++package main
++
++import (
++	"debug/dwarf"
++	"debug/pe"
++)
++
++func readDWARF(exePath string) (*dwarf.Data, error) {
++	peFile, err := pe.Open(exePath)
++	if err != nil {
++		return nil, err
++	}
++	defer peFile.Close()
++	return peFile.DWARF()
++}

@@ -17,7 +17,7 @@ Date:   Sun Oct 9 19:06:23 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/liveness/plive.go      | 170 +++++++++++++++---------
  src/cmd/compile/internal/ssa/_gen/genericOps.go |   1 +
  src/cmd/compile/internal/ssa/deadcode.go        |  14 --
@@ -27,3 +27,364 @@ Date:   Sun Oct 9 19:06:23 2022 -0700
  src/cmd/compile/internal/ssa/writebarrier.go    |  35 ++---
  src/cmd/compile/internal/ssagen/ssa.go          |   2 +-
  8 files changed, 124 insertions(+), 112 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index e828a6ebb6..9d20199a40 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -469,81 +469,123 @@ func (lv *liveness) markUnsafePoints() {
+ 		}
+ 	}
+ 
+-	// Mark write barrier unsafe points.
+-	for _, wbBlock := range lv.f.WBLoads {
+-		if wbBlock.Kind == ssa.BlockPlain && len(wbBlock.Values) == 0 {
+-			// The write barrier block was optimized away
+-			// but we haven't done dead block elimination.
+-			// (This can happen in -N mode.)
+-			continue
+-		}
+-		// Check that we have the expected diamond shape.
+-		if len(wbBlock.Succs) != 2 {
+-			lv.f.Fatalf("expected branch at write barrier block %v", wbBlock)
+-		}
+-		s0, s1 := wbBlock.Succs[0].Block(), wbBlock.Succs[1].Block()
+-		if s0 == s1 {
+-			// There's no difference between write barrier on and off.
+-			// Thus there's no unsafe locations. See issue 26024.
+-			continue
+-		}
+-		if s0.Kind != ssa.BlockPlain || s1.Kind != ssa.BlockPlain {
+-			lv.f.Fatalf("expected successors of write barrier block %v to be plain", wbBlock)
+-		}
+-		if s0.Succs[0].Block() != s1.Succs[0].Block() {
+-			lv.f.Fatalf("expected successors of write barrier block %v to converge", wbBlock)
+-		}
+-
+-		// Flow backwards from the control value to find the
+-		// flag load. We don't know what lowered ops we're
+-		// looking for, but all current arches produce a
+-		// single op that does the memory load from the flag
+-		// address, so we look for that.
+-		var load *ssa.Value
+-		v := wbBlock.Controls[0]
+-		for {
+-			if sym, ok := v.Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
+-				load = v
+-				break
++	for _, b := range lv.f.Blocks {
++		for _, v := range b.Values {
++			if v.Op != ssa.OpWBend {
++				continue
++			}
++			// WBend appears at the start of a block, like this:
++			//    ...
++			//    if wbEnabled: goto C else D
++			// C:
++			//    ... some write barrier enabled code ...
++			//    goto B
++			// D:
++			//    ... some write barrier disabled code ...
++			//    goto B
++			// B:
++			//    m1 = Phi mem_C mem_D
++			//    m2 = store operation ... m1
++			//    m3 = store operation ... m2
++			//    m4 = WBend m3
++			//
++			// (For now m2 and m3 won't be present.)
++
++			// Find first memory op in the block, which should be a Phi.
++			m := v
++			for {
++				m = m.MemoryArg()
++				if m.Block != b {
++					lv.f.Fatalf("can't find Phi before write barrier end mark %v", v)
++				}
++				if m.Op == ssa.OpPhi {
++					break
++				}
++			}
++			// Find the two predecessor blocks (write barrier on and write barrier off)
++			if len(m.Args) != 2 {
++				lv.f.Fatalf("phi before write barrier end mark has %d args, want 2", len(m.Args))
+ 			}
+-			switch v.Op {
+-			case ssa.Op386TESTL:
+-				// 386 lowers Neq32 to (TESTL cond cond),
+-				if v.Args[0] == v.Args[1] {
++			c := b.Preds[0].Block()
++			d := b.Preds[1].Block()
++
++			// Find their common predecessor block (the one that branches based on wb on/off).
++			// It might be a diamond pattern, or one of the blocks in the diamond pattern might
++			// be missing.
++			var decisionBlock *ssa.Block
++			if len(c.Preds) == 1 && c.Preds[0].Block() == d {
++				decisionBlock = d
++			} else if len(d.Preds) == 1 && d.Preds[0].Block() == c {
++				decisionBlock = c
++			} else if len(c.Preds) == 1 && len(d.Preds) == 1 && c.Preds[0].Block() == d.Preds[0].Block() {
++				decisionBlock = c.Preds[0].Block()
++			} else {
++				lv.f.Fatalf("can't find write barrier pattern %v", v)
++			}
++			if len(decisionBlock.Succs) != 2 {
++				lv.f.Fatalf("common predecessor block the wrong type %s", decisionBlock.Kind)
++			}
++
++			// Flow backwards from the control value to find the
++			// flag load. We don't know what lowered ops we're
++			// looking for, but all current arches produce a
++			// single op that does the memory load from the flag
++			// address, so we look for that.
++			var load *ssa.Value
++			v := decisionBlock.Controls[0]
++			for {
++				if sym, ok := v.Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
++					load = v
++					break
++				}
++				switch v.Op {
++				case ssa.Op386TESTL:
++					// 386 lowers Neq32 to (TESTL cond cond),
++					if v.Args[0] == v.Args[1] {
++						v = v.Args[0]
++						continue
++					}
++				case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpPPC64MOVWZload, ssa.OpWasmI64Load32U:
++					// Args[0] is the address of the write
++					// barrier control. Ignore Args[1],
++					// which is the mem operand.
++					// TODO: Just ignore mem operands?
+ 					v = v.Args[0]
+ 					continue
+ 				}
+-			case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpPPC64MOVWZload, ssa.OpWasmI64Load32U:
+-				// Args[0] is the address of the write
+-				// barrier control. Ignore Args[1],
+-				// which is the mem operand.
+-				// TODO: Just ignore mem operands?
++				// Common case: just flow backwards.
++				if len(v.Args) != 1 {
++					v.Fatalf("write barrier control value has more than one argument: %s", v.LongString())
++				}
+ 				v = v.Args[0]
+-				continue
+ 			}
+-			// Common case: just flow backwards.
+-			if len(v.Args) != 1 {
+-				v.Fatalf("write barrier control value has more than one argument: %s", v.LongString())
++
++			// Mark everything after the load unsafe.
++			found := false
++			for _, v := range decisionBlock.Values {
++				found = found || v == load
++				if found {
++					lv.unsafePoints.Set(int32(v.ID))
++				}
+ 			}
+-			v = v.Args[0]
+-		}
+ 
+-		// Mark everything after the load unsafe.
+-		found := false
+-		for _, v := range wbBlock.Values {
+-			found = found || v == load
+-			if found {
+-				lv.unsafePoints.Set(int32(v.ID))
++			// Mark the write barrier on/off blocks as unsafe.
++			for _, e := range decisionBlock.Succs {
++				x := e.Block()
++				if x == b {
++					continue
++				}
++				for _, v := range x.Values {
++					lv.unsafePoints.Set(int32(v.ID))
++				}
+ 			}
+-		}
+ 
+-		// Mark the two successor blocks unsafe. These come
+-		// back together immediately after the direct write in
+-		// one successor and the last write barrier call in
+-		// the other, so there's no need to be more precise.
+-		for _, succ := range wbBlock.Succs {
+-			for _, v := range succ.Block().Values {
++			// Mark from the join point up to the WBend as unsafe.
++			for _, v := range b.Values {
+ 				lv.unsafePoints.Set(int32(v.ID))
++				if v.Op == ssa.OpWBend {
++					break
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 6ecccc3e92..deb2cb8bd5 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -379,6 +379,7 @@ var genericOps = []opData{
+ 	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Typ"},    // Store arg1 to arg0. arg2=memory, aux=type.  Returns memory.
+ 	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
+ 	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
++	{name: "WBend", argLength: 1, typ: "Mem"},                  // Write barrier code is done, interrupting is now allowed.
+ 
+ 	// WB invokes runtime.gcWriteBarrier. This is not a normal
+ 	// call: it takes arguments in registers, doesn't clobber
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index cfadda82b0..bd4282ecdb 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -290,20 +290,6 @@ func deadcode(f *Func) {
+ 		b.truncateValues(i)
+ 	}
+ 
+-	// Remove dead blocks from WBLoads list.
+-	i = 0
+-	for _, b := range f.WBLoads {
+-		if reachable[b.ID] {
+-			f.WBLoads[i] = b
+-			i++
+-		}
+-	}
+-	clearWBLoads := f.WBLoads[i:]
+-	for j := range clearWBLoads {
+-		clearWBLoads[j] = nil
+-	}
+-	f.WBLoads = f.WBLoads[:i]
+-
+ 	// Remove unreachable blocks. Return dead blocks to allocator.
+ 	i = 0
+ 	for _, b := range f.Blocks {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index b10911aa92..ba3d1e589e 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -64,12 +64,6 @@ type Func struct {
+ 	// AuxCall describing parameters and results for this function.
+ 	OwnAux *AuxCall
+ 
+-	// WBLoads is a list of Blocks that branch on the write
+-	// barrier flag. Safe-points are disabled from the OpLoad that
+-	// reads the write-barrier flag until the control flow rejoins
+-	// below the two successors of this block.
+-	WBLoads []*Block
+-
+ 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+ 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
+ 
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index 88eb6748e8..e4aac47cee 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -29,7 +29,7 @@ func checkLower(f *Func) {
+ 				continue // lowered
+ 			}
+ 			switch v.Op {
+-			case OpSP, OpSPanchored, OpSB, OpInitMem, OpArg, OpArgIntReg, OpArgFloatReg, OpPhi, OpVarDef, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark:
++			case OpSP, OpSPanchored, OpSB, OpInitMem, OpArg, OpArgIntReg, OpArgFloatReg, OpPhi, OpVarDef, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark, OpWBend:
+ 				continue // ok not to lower
+ 			case OpMakeResult:
+ 				if b.Controls[0] == v {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index baf0d7ba32..76ca9e059d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -3022,6 +3022,7 @@ const (
+ 	OpStoreWB
+ 	OpMoveWB
+ 	OpZeroWB
++	OpWBend
+ 	OpWB
+ 	OpHasCPUFeature
+ 	OpPanicBounds
+@@ -38928,6 +38929,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "WBend",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:      "WB",
+ 		auxType:   auxSym,
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 02f5649d59..d2e10cab62 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -197,8 +197,6 @@ func writebarrier(f *Func) {
+ 
+ 		// order values in store order
+ 		b.Values = storeOrder(b.Values, sset, storeNumber)
+-
+-		firstSplit := true
+ 	again:
+ 		// find the start and end of the last contiguous WB store sequence.
+ 		// a branch will be inserted there. values after it will be moved
+@@ -374,17 +372,19 @@ func writebarrier(f *Func) {
+ 		}
+ 
+ 		// merge memory
+-		// Splice memory Phi into the last memory of the original sequence,
+-		// which may be used in subsequent blocks. Other memories in the
+-		// sequence must be dead after this block since there can be only
+-		// one memory live.
++		mem = bEnd.NewValue2(pos, OpPhi, types.TypeMem, memThen, memElse)
++		// The last store becomes the WBend marker. This marker is used by the liveness
++		// pass to determine what parts of the code are preemption-unsafe.
++		// All subsequent memory operations use this memory, so we have to sacrifice the
++		// previous last memory op to become this new value.
+ 		bEnd.Values = append(bEnd.Values, last)
+ 		last.Block = bEnd
+-		last.reset(OpPhi)
++		last.reset(OpWBend)
+ 		last.Pos = last.Pos.WithNotStmt()
+ 		last.Type = types.TypeMem
+-		last.AddArg(memThen)
+-		last.AddArg(memElse)
++		last.AddArg(mem)
++
++		// Free all the old stores, except last which became the WBend marker.
+ 		for _, w := range stores {
+ 			if w != last {
+ 				w.resetArgs()
+@@ -402,23 +402,6 @@ func writebarrier(f *Func) {
+ 			w.Block = bEnd
+ 		}
+ 
+-		// Preemption is unsafe between loading the write
+-		// barrier-enabled flag and performing the write
+-		// because that would allow a GC phase transition,
+-		// which would invalidate the flag. Remember the
+-		// conditional block so liveness analysis can disable
+-		// safe-points. This is somewhat subtle because we're
+-		// splitting b bottom-up.
+-		if firstSplit {
+-			// Add b itself.
+-			b.Func.WBLoads = append(b.Func.WBLoads, b)
+-			firstSplit = false
+-		} else {
+-			// We've already split b, so we just pushed a
+-			// write barrier test into bEnd.
+-			b.Func.WBLoads = append(b.Func.WBLoads, bEnd)
+-		}
+-
+ 		// if we have more stores in this block, do this block again
+ 		if nWBops > 0 {
+ 			goto again
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 2e2a6b411b..d83f65455a 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7005,7 +7005,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 			case ssa.OpGetG:
+ 				// nothing to do when there's a g register,
+ 				// and checkLower complains if there's not
+-			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
++			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive, ssa.OpWBend:
+ 				// nothing to do; already used by liveness
+ 			case ssa.OpPhi:
+ 				CheckLoweredPhi(v)

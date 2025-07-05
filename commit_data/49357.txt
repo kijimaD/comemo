@@ -19,7 +19,7 @@ Date:   Tue Jul 20 17:29:15 2021 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/asm_386.s     | 16 ++++++++--------
  src/runtime/asm_amd64.s   | 17 ++++++++---------
  src/runtime/asm_arm.s     |  3 ++-
@@ -30,3 +30,186 @@ Date:   Tue Jul 20 17:29:15 2021 +1000
  src/runtime/asm_riscv64.s |  5 ++++-
  src/runtime/asm_s390x.s   | 11 +++++++----
  9 files changed, 39 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 11c60309f4..571aa28a9e 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -633,18 +633,18 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+ 	// We get called to create new OS threads too, and those
+-	// come in on the m->g0 stack already.
++	// come in on the m->g0 stack already. Or we might already
++	// be on the m->gsignal stack.
+ 	get_tls(CX)
+-	MOVL	g(CX), BP
+-	CMPL	BP, $0
+-	JEQ	nosave	// Don't even have a G yet.
+-	MOVL	g_m(BP), BP
+-	MOVL	m_g0(BP), SI
+ 	MOVL	g(CX), DI
+-	CMPL	SI, DI
+-	JEQ	noswitch
++	CMPL	DI, $0
++	JEQ	nosave	// Don't even have a G yet.
++	MOVL	g_m(DI), BP
+ 	CMPL	DI, m_gsignal(BP)
+ 	JEQ	noswitch
++	MOVL	m_g0(BP), SI
++	CMPL	DI, SI
++	JEQ	noswitch
+ 	CALL	gosave_systemstack_switch<>(SB)
+ 	get_tls(CX)
+ 	MOVL	SI, g(CX)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 2083ecb53e..a6b321aa42 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -667,22 +667,21 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+ 	// We get called to create new OS threads too, and those
+-	// come in on the m->g0 stack already.
++	// come in on the m->g0 stack already. Or we might already
++	// be on the m->gsignal stack.
+ 	get_tls(CX)
+-	MOVQ	g(CX), R8
+-	CMPQ	R8, $0
+-	JEQ	nosave
+-	MOVQ	g_m(R8), R8
+-	MOVQ	m_g0(R8), SI
+ 	MOVQ	g(CX), DI
+-	CMPQ	SI, DI
++	CMPQ	DI, $0
+ 	JEQ	nosave
++	MOVQ	g_m(DI), R8
+ 	MOVQ	m_gsignal(R8), SI
+-	CMPQ	SI, DI
++	CMPQ	DI, SI
++	JEQ	nosave
++	MOVQ	m_g0(R8), SI
++	CMPQ	DI, SI
+ 	JEQ	nosave
+ 
+ 	// Switch to system stack.
+-	MOVQ	m_g0(R8), SI
+ 	CALL	gosave_systemstack_switch<>(SB)
+ 	MOVQ	SI, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(SI), SP
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index a1164781d2..b47184e36b 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -556,7 +556,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+ 	// We get called to create new OS threads too, and those
+-	// come in on the m->g0 stack already.
++	// come in on the m->g0 stack already. Or we might already
++	// be on the m->gsignal stack.
+ 	MOVW	g_m(g), R8
+ 	MOVW	m_gsignal(R8), R3
+ 	CMP	R3, g
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index e51ce2f831..8cbd17fa75 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1027,7 +1027,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+ 	// We get called to create new OS threads too, and those
+-	// come in on the m->g0 stack already.
++	// come in on the m->g0 stack already. Or we might already
++	// be on the m->gsignal stack.
+ 	MOVD	g_m(g), R8
+ 	MOVD	m_gsignal(R8), R3
+ 	CMP	R3, g
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 940a38a0d6..e0e5cbb704 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -424,7 +424,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+ 	// We get called to create new OS threads too, and those
+-	// come in on the m->g0 stack already.
++	// come in on the m->g0 stack already. Or we might already
++	// be on the m->gsignal stack.
+ 	MOVV	g_m(g), R5
+ 	MOVV	m_gsignal(R5), R6
+ 	BEQ	R6, g, g0
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 87a1344e8f..1b550719d1 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -413,8 +413,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+ 	// We get called to create new OS threads too, and those
+-	// come in on the m->g0 stack already.
++	// come in on the m->g0 stack already. Or we might already
++	// be on the m->gsignal stack.
+ 	MOVW	g_m(g), R5
++	MOVW	m_gsignal(R5), R6
++	BEQ	R6, g, g0
+ 	MOVW	m_g0(R5), R6
+ 	BEQ	R6, g, g0
+ 
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 5dc96c5947..7270abbdee 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -541,9 +541,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+ 	// We get called to create new OS threads too, and those
+-	// come in on the m->g0 stack already.
+-	// Moreover, if it's called inside the signal handler, it must not switch
+-	// to g0 as it can be in use by another syscall.
++	// come in on the m->g0 stack already. Or we might already
++	// be on the m->gsignal stack.
+ 	MOVD	g_m(g), R8
+ 	MOVD	m_gsignal(R8), R6
+ 	CMP	R6, g
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 9927a817f7..d7ab90d1ab 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -310,8 +310,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+ 	// We get called to create new OS threads too, and those
+-	// come in on the m->g0 stack already.
++	// come in on the m->g0 stack already. Or we might already
++	// be on the m->gsignal stack.
+ 	MOV	g_m(g), X6
++	MOV	m_gsignal(X6), X7
++	BEQ	X7, g, g0
+ 	MOV	m_g0(X6), X7
+ 	BEQ	X7, g, g0
+ 
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index d4110d563f..5894fe5783 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -513,12 +513,15 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+ 	// We get called to create new OS threads too, and those
+-	// come in on the m->g0 stack already.
++	// come in on the m->g0 stack already. Or we might already
++	// be on the m->gsignal stack.
+ 	MOVD	g_m(g), R6
+-	MOVD	m_g0(R6), R6
+-	CMPBEQ	R6, g, g0
++	MOVD	m_gsignal(R6), R7
++	CMPBEQ	R7, g, g0
++	MOVD	m_g0(R6), R7
++	CMPBEQ	R7, g, g0
+ 	BL	gosave_systemstack_switch<>(SB)
+-	MOVD	R6, g
++	MOVD	R7, g
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R15
+ 

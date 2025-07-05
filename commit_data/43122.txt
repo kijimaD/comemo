@@ -9,7 +9,7 @@ Date:   Wed Mar 4 15:27:47 2020 -0500
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go   | 6 +++---
  src/cmd/link/internal/arm/asm.go     | 6 +++---
  src/cmd/link/internal/arm64/asm.go   | 6 +++---
@@ -23,3 +23,326 @@ Date:   Wed Mar 4 15:27:47 2020 -0500
  src/cmd/link/internal/s390x/asm.go   | 6 +++---
  src/cmd/link/internal/x86/asm.go     | 6 +++---
  12 files changed, 32 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index de5a96507f..34eb6f1001 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -106,7 +106,7 @@ func makeWritable(s *sym.Symbol) {
+ 	}
+ }
+ 
+-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 
+ 	switch r.Type {
+@@ -572,7 +572,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
+ 	return t
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link) {
++func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
+ 	plt := ctxt.Syms.Lookup(".plt", 0)
+ 	got := ctxt.Syms.Lookup(".got.plt", 0)
+ 	if plt.Size == 0 {
+@@ -611,7 +611,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		got := ctxt.Syms.Lookup(".got.plt", 0)
+ 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+ 		if plt.Size == 0 {
+-			elfsetupplt(ctxt)
++			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+ 		}
+ 
+ 		// jmpq *got+size(IP)
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 2333834324..56c0a5c664 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -115,7 +115,7 @@ func braddoff(a int32, b int32) int32 {
+ 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
+ }
+ 
+-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 
+ 	switch r.Type {
+@@ -300,7 +300,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link) {
++func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
+ 	plt := ctxt.Syms.Lookup(".plt", 0)
+ 	got := ctxt.Syms.Lookup(".got.plt", 0)
+ 	if plt.Size == 0 {
+@@ -697,7 +697,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		got := ctxt.Syms.Lookup(".got.plt", 0)
+ 		rel := ctxt.Syms.Lookup(".rel.plt", 0)
+ 		if plt.Size == 0 {
+-			elfsetupplt(ctxt)
++			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+ 		}
+ 
+ 		// .got entry
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 33a1c851b6..0e5da99b97 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -91,7 +91,7 @@ func gentext(ctxt *ld.Link) {
+ 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
+ }
+ 
+-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 
+ 	switch r.Type {
+@@ -711,7 +711,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
+ 	return -1
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link) {
++func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
+ 	plt := ctxt.Syms.Lookup(".plt", 0)
+ 	gotplt := ctxt.Syms.Lookup(".got.plt", 0)
+ 	if plt.Size == 0 {
+@@ -767,7 +767,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		gotplt := ctxt.Syms.Lookup(".got.plt", 0)
+ 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+ 		if plt.Size == 0 {
+-			elfsetupplt(ctxt)
++			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+ 		}
+ 
+ 		// adrp    x16, &got.plt[0]
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 4b1975dcd9..39ec054ab3 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -665,13 +665,15 @@ func (ctxt *Link) windynrelocsyms() {
+ }
+ 
+ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
++	target := &ctxt.Target
++	syms := &ctxt.ArchSyms
+ 	for ri := range s.R {
+ 		r := &s.R[ri]
+ 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
+ 			// It's expected that some relocations will be done
+ 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
+ 			// don't worry if Adddynrel returns false.
+-			thearch.Adddynrel(ctxt, s, r)
++			thearch.Adddynrel(ctxt, target, syms, s, r)
+ 			continue
+ 		}
+ 
+@@ -679,7 +681,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+ 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
+ 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
+ 			}
+-			if !thearch.Adddynrel(ctxt, s, r) {
++			if !thearch.Adddynrel(ctxt, target, syms, s, r) {
+ 				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index d7db1b816c..6146bed284 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1599,7 +1599,7 @@ func (ctxt *Link) doelf() {
+ 			s.Type = sym.SELFRXSECT
+ 		}
+ 
+-		thearch.Elfsetupplt(ctxt)
++		thearch.Elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+ 
+ 		s = ctxt.Syms.Lookup(elfRelType+".plt", 0)
+ 		s.Attr |= sym.AttrReachable
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e1948ecfc5..bf8f240b00 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -141,7 +141,7 @@ type Arch struct {
+ 	Openbsddynld   string
+ 	Dragonflydynld string
+ 	Solarisdynld   string
+-	Adddynrel      func(*Link, *sym.Symbol, *sym.Reloc) bool
++	Adddynrel      func(*Link, *Target, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
+ 	Archinit       func(*Link)
+ 	// Archreloc is an arch-specific hook that assists in
+ 	// relocation processing (invoked by 'relocsym'); it handles
+@@ -174,7 +174,7 @@ type Arch struct {
+ 	Asmb2 func(*Link)
+ 
+ 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
+-	Elfsetupplt func(*Link)
++	Elfsetupplt func(*Link, *Target, *ArchSyms)
+ 	Gentext     func(*Link)
+ 	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+ 	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 7531d3f78d..aceed34301 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -44,7 +44,7 @@ func gentext(ctxt *ld.Link) {
+ 	return
+ }
+ 
+-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	log.Fatalf("adddynrel not implemented")
+ 	return false
+ }
+@@ -74,7 +74,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link) {
++func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
+ 	return
+ }
+ 
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 03caa2c6bc..d62ff8ec36 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -42,7 +42,7 @@ import (
+ 
+ func gentext(ctxt *ld.Link) {}
+ 
+-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	log.Fatalf("adddynrel not implemented")
+ 	return false
+ }
+@@ -91,7 +91,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link) {
++func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
+ 	return
+ }
+ 
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index b0a85f3a43..21c9ad3e48 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -262,7 +262,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
+ 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
+ }
+ 
+-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	if ctxt.IsELF {
+ 		return addelfdynrel(ctxt, s, r)
+ 	} else if ctxt.HeadType == objabi.Haix {
+@@ -498,7 +498,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link) {
++func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
+ 	plt := ctxt.Syms.Lookup(".plt", 0)
+ 	if plt.Size == 0 {
+ 		// The dynamic linker stores the address of the
+@@ -949,7 +949,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		plt := ctxt.Syms.Lookup(".plt", 0)
+ 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+ 		if plt.Size == 0 {
+-			elfsetupplt(ctxt)
++			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+ 		}
+ 
+ 		// Create the glink resolver if necessary
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index fce0daf56a..704435ffd0 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -17,11 +17,11 @@ import (
+ func gentext(ctxt *ld.Link) {
+ }
+ 
+-func adddynrela(ctxt *ld.Link, rel *sym.Symbol, s *sym.Symbol, r *sym.Reloc) {
++func adddynrela(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, rel *sym.Symbol, s *sym.Symbol, r *sym.Reloc) {
+ 	log.Fatalf("adddynrela not implemented")
+ }
+ 
+-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	log.Fatalf("adddynrel not implemented")
+ 	return false
+ }
+@@ -31,7 +31,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	return false
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link) {
++func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
+ 	log.Fatalf("elfsetuplt")
+ }
+ 
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 0d7199a16f..9bf3c5bde6 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -104,7 +104,7 @@ func gentext(ctxt *ld.Link) {
+ 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
+ }
+ 
+-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 	r.InitExt()
+ 
+@@ -333,7 +333,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link) {
++func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
+ 	plt := ctxt.Syms.Lookup(".plt", 0)
+ 	got := ctxt.Syms.Lookup(".got", 0)
+ 	if plt.Size == 0 {
+@@ -431,7 +431,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		got := ctxt.Syms.Lookup(".got", 0)
+ 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+ 		if plt.Size == 0 {
+-			elfsetupplt(ctxt)
++			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+ 		}
+ 		// larl    %r1,_GLOBAL_OFFSET_TABLE_+index
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index a246be2b57..267e048b40 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -167,7 +167,7 @@ func gentext(ctxt *ld.Link) {
+ 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
+ }
+ 
+-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
++func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+ 	targ := r.Sym
+ 
+ 	switch r.Type {
+@@ -511,7 +511,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
+ 	return t
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link) {
++func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
+ 	plt := ctxt.Syms.Lookup(".plt", 0)
+ 	got := ctxt.Syms.Lookup(".got.plt", 0)
+ 	if plt.Size == 0 {
+@@ -550,7 +550,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		got := ctxt.Syms.Lookup(".got.plt", 0)
+ 		rel := ctxt.Syms.Lookup(".rel.plt", 0)
+ 		if plt.Size == 0 {
+-			elfsetupplt(ctxt)
++			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+ 		}
+ 
+ 		// jmpq *got+size

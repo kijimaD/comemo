@@ -11,9 +11,226 @@ Date:   Thu Jun 4 14:41:02 2015 -0400
     Change-Id: Ia2d8b47c99c99d171c014b7cfd23c1c7ada5231c
     Reviewed-on: https://go-review.googlesource.com/10707
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go     |  3 +++
  src/cmd/go/note.go      | 50 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/go/note_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/go/pkg.go       | 33 +++++++++++++++++++++++++-------
  4 files changed, 124 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 861043c055..8f9a7b87ed 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2372,6 +2372,9 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 	}
+ 	ldflags = setextld(ldflags, compiler)
+ 	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
++	if p.buildID != "" {
++		ldflags = append(ldflags, "-buildid="+p.buildID)
++	}
+ 	ldflags = append(ldflags, buildLdflags...)
+ 	return b.run(".", p.ImportPath, nil, buildToolExec, tool("link"), "-o", out, importArgs, ldflags, mainpkg)
+ }
+diff --git a/src/cmd/go/note.go b/src/cmd/go/note.go
+index 9eb7b18a12..97e18651e4 100644
+--- a/src/cmd/go/note.go
++++ b/src/cmd/go/note.go
+@@ -5,10 +5,12 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"debug/elf"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
++	"os"
+ )
+ 
+ func readAligned4(r io.Reader, sz int32) ([]byte, error) {
+@@ -64,3 +66,51 @@ func readELFNote(filename, name string, typ int32) ([]byte, error) {
+ 	}
+ 	return nil, nil
+ }
++
++var elfGoNote = []byte("Go\x00\x00")
++
++// readELFGoBuildID the Go build ID string from an ELF binary.
++// The Go build ID is stored in a note described by an ELF PT_NOTE prog header.
++// The caller has already opened filename, to get f, and read the first 4 kB out, in data.
++func readELFGoBuildID(filename string, f *os.File, data []byte) (buildid string, err error) {
++	// Assume the note content is in the first 4 kB, already read.
++	// Rewrite the ELF header to set shnum to 0, so that we can pass
++	// the data to elf.NewFile and it will decode the Prog list but not
++	// try to read the section headers and the string table from disk.
++	// That's a waste of I/O when all we care about is the Prog list
++	// and the one ELF note.
++	switch elf.Class(data[elf.EI_CLASS]) {
++	case elf.ELFCLASS32:
++		data[48] = 0
++		data[49] = 0
++	case elf.ELFCLASS64:
++		data[60] = 0
++		data[61] = 0
++	}
++
++	const elfGoBuildIDTag = 4
++
++	ef, err := elf.NewFile(bytes.NewReader(data))
++	if err != nil {
++		return "", &os.PathError{Path: filename, Op: "parse", Err: err}
++	}
++	for _, p := range ef.Progs {
++		if p.Type != elf.PT_NOTE || p.Off >= uint64(len(data)) || p.Off+p.Filesz >= uint64(len(data)) || p.Filesz < 16 {
++			continue
++		}
++
++		note := data[p.Off : p.Off+p.Filesz]
++		nameSize := ef.ByteOrder.Uint32(note)
++		valSize := ef.ByteOrder.Uint32(note[4:])
++		tag := ef.ByteOrder.Uint32(note[8:])
++		name := note[12:16]
++		if nameSize != 4 || 16+valSize > uint32(len(note)) || tag != elfGoBuildIDTag || !bytes.Equal(name, elfGoNote) {
++			continue
++		}
++
++		return string(note[16 : 16+valSize]), nil
++	}
++
++	// No note. Treat as successful but build ID empty.
++	return "", nil
++}
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+new file mode 100644
+index 0000000000..c2a7e678c4
+--- /dev/null
++++ b/src/cmd/go/note_test.go
+@@ -0,0 +1,45 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"io/ioutil"
++	"os/exec"
++	"runtime"
++	"testing"
++)
++
++func TestNoteReading(t *testing.T) {
++	// TODO: Enable on non-ELF systems.
++	switch runtime.GOOS {
++	case "darwin", "windows", "plan9", "nacl":
++		t.Skipf("skipping on %q", runtime.GOOS)
++	}
++
++	// TODO: Replace with new test scaffolding by iant.
++	d, err := ioutil.TempDir("", "go-test-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	out, err := exec.Command("go", "build", "-o", d+"/go.exe", "cmd/go").CombinedOutput()
++	if err != nil {
++		t.Fatalf("go build cmd/go: %v\n%s", err, out)
++	}
++
++	const buildID = "TestNoteReading-Build-ID"
++	out, err = exec.Command(d+"/go.exe", "build", "-ldflags", "-buildid="+buildID, "-o", d+"/hello.exe", "../../../test/helloworld.go").CombinedOutput()
++	if err != nil {
++		t.Fatalf("go build hello: %v\n%s", err, out)
++	}
++
++	id, err := readBuildIDFromBinary(d + "/hello.exe")
++	if err != nil {
++		t.Fatalf("reading build ID from hello binary: %v", err)
++	}
++
++	if id != buildID {
++		t.Fatalf("buildID in hello binary = %q, want %q", id, buildID)
++	}
++}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 12bae2650e..7befaa43bc 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -1091,7 +1091,7 @@ func readBuildID(p *Package) (id string, err error) {
+ 
+ 	// For commands, read build ID directly from binary.
+ 	if p.Name == "main" {
+-		return readBuildIDFromBinary(p)
++		return readBuildIDFromBinary(p.Target)
+ 	}
+ 
+ 	// Otherwise, we expect to have an archive (.a) file,
+@@ -1166,9 +1166,15 @@ var (
+ 	goBinary          = []byte("\x00\n\ngo binary\n")
+ 	endGoBinary       = []byte("\nend go binary\n")
+ 	newlineAndBuildid = []byte("\nbuild id ")
++
++	elfPrefix = []byte("ELF\x7F")
+ )
+ 
+ // readBuildIDFromBinary reads the build ID from a binary.
++//
++// The location of the build ID differs by object file type.
++// ELF uses a proper PT_NOTE section.
++//
+ // Instead of trying to be good citizens and store the build ID in a
+ // custom section of the binary, which would be different for each
+ // of the four binary types we support (ELF, Mach-O, Plan 9, PE),
+@@ -1182,17 +1188,30 @@ var (
+ //	build id "XXX"
+ //	end go binary
+ //
+-func readBuildIDFromBinary(p *Package) (id string, err error) {
+-	if p.Target == "" {
+-		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDUnknown}
++func readBuildIDFromBinary(filename string) (id string, err error) {
++	if filename == "" {
++		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDUnknown}
+ 	}
+ 
+-	f, err := os.Open(p.Target)
++	f, err := os.Open(filename)
+ 	if err != nil {
+ 		return "", err
+ 	}
+ 	defer f.Close()
+ 
++	data := make([]byte, 4096)
++	_, err = io.ReadFull(f, data)
++	if err == io.ErrUnexpectedEOF {
++		err = nil
++	}
++	if err != nil {
++		return "", err
++	}
++
++	if bytes.HasPrefix(data, elfPrefix) {
++		return readELFGoBuildID(filename, f, data)
++	}
++
+ 	off, err := f.Seek(0, 2)
+ 	if err != nil {
+ 		return "", err
+@@ -1204,7 +1223,7 @@ func readBuildIDFromBinary(p *Package) (id string, err error) {
+ 	if _, err := f.Seek(off-int64(n), 0); err != nil {
+ 		return "", err
+ 	}
+-	data := make([]byte, n)
++	data = make([]byte, n)
+ 	if _, err := io.ReadFull(f, data); err != nil {
+ 		return "", err
+ 	}
+@@ -1229,7 +1248,7 @@ func readBuildIDFromBinary(p *Package) (id string, err error) {
+ 	j := bytes.IndexByte(line, '\n') // must succeed - endGoBinary is at end and has newlines
+ 	id, err = strconv.Unquote(string(line[:j]))
+ 	if err != nil {
+-		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDMalformed}
++		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDMalformed}
+ 	}
+ 	return id, nil
+ }

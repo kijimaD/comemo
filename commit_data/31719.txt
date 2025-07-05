@@ -11,7 +11,48 @@ Date:   Thu Mar 9 14:28:32 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index e921a1110b..53f0490c4c 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -98,6 +98,7 @@
+         (Const32F [f2i(float64(i2f32(c) + i2f32(d)))]) // ensure we combine the operands with 32 bit precision
+ (Add64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) + i2f(d))])
+ (AddPtr <t> x (Const64 [c])) -> (OffPtr <t> x [c])
++(AddPtr <t> x (Const32 [c])) -> (OffPtr <t> x [c])
+ 
+ (Sub8   (Const8 [c]) (Const8 [d]))     -> (Const8 [int64(int8(c-d))])
+ (Sub16  (Const16 [c]) (Const16 [d]))   -> (Const16 [int64(int16(c-d))])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index c72d7c685d..10a4a4383c 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1823,6 +1823,23 @@ func rewriteValuegeneric_OpAddPtr(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (AddPtr <t> x (Const32 [c]))
++	// cond:
++	// result: (OffPtr <t> x [c])
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpOffPtr)
++		v.Type = t
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpAnd16(v *Value, config *Config) bool {

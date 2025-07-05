@@ -7,6 +7,25 @@ Date:   Mon Jul 28 12:08:06 2008 -0700
     R=r
     OCL=13520
     CL=13520
-
+---
  test/bugs/bug079.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/test/bugs/bug079.go b/test/bugs/bug079.go
+new file mode 100644
+index 0000000000..d26b07114b
+--- /dev/null
++++ b/test/bugs/bug079.go
+@@ -0,0 +1,12 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go && echo BUG: succeeds incorrectly
++
++package main
++
++func f(int);  // parameter must be named
++func g(int, int);  // parameter must be named
++
++/* We had this discussion before and agreed that all parameters must be named. */

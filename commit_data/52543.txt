@@ -22,7 +22,52 @@ Date:   Thu Aug 12 15:51:26 2021 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/gccgo.go           |  6 +++++-
  src/cmd/go/testdata/script/gccgo_link_c.txt | 10 ++++++----
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index cfd9bcc0c2..d37b8df07b 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -605,7 +605,11 @@ var gccgoToSymbolFunc func(string) string
+ 
+ func (tools gccgoToolchain) gccgoCleanPkgpath(b *Builder, p *load.Package) string {
+ 	gccgoToSymbolFuncOnce.Do(func() {
+-		fn, err := pkgpath.ToSymbolFunc(tools.compiler(), b.WorkDir)
++		tmpdir := b.WorkDir
++		if cfg.BuildN {
++			tmpdir = os.TempDir()
++		}
++		fn, err := pkgpath.ToSymbolFunc(tools.compiler(), tmpdir)
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
+ 			base.SetExitStatus(2)
+diff --git a/src/cmd/go/testdata/script/gccgo_link_c.txt b/src/cmd/go/testdata/script/gccgo_link_c.txt
+index 422adea93d..b9a4c70b7e 100644
+--- a/src/cmd/go/testdata/script/gccgo_link_c.txt
++++ b/src/cmd/go/testdata/script/gccgo_link_c.txt
+@@ -2,15 +2,17 @@
+ # cmd/cgo: undefined reference when linking a C-library using gccgo
+ 
+ [!cgo] skip
+-[!gccgo] skip
++[!exec:gccgo] skip
+ 
+-go build -r -compiler gccgo cgoref
++go build -n -compiler gccgo
+ stderr 'gccgo.*\-L [^ ]*alibpath \-lalib' # make sure that Go-inline "#cgo LDFLAGS:" ("-L alibpath -lalib") passed to gccgo linking stage
+ 
+--- cgoref/cgoref.go --
++-- go.mod --
++module m
++-- cgoref.go --
+ package main
+ // #cgo LDFLAGS: -L alibpath -lalib
+ // void f(void) {}
+ import "C"
+ 
+-func main() { C.f() }
+\ No newline at end of file
++func main() { C.f() }

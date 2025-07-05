@@ -7,8 +7,215 @@ Date:   Sat Dec 13 13:16:14 2008 -0800
     R=r
     OCL=21144
     CL=21144
-
+---
  src/cmd/6g/cgen.c  |  25 +++++++++++
  src/cmd/6g/gg.h    |   1 +
  src/cmd/6g/gsubr.c | 129 +++++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 155 insertions(+)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 5e3d9ed189..fa31c5af2f 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -11,6 +11,7 @@ cgen(Node *n, Node *res)
+ 	Node n1, n2;
+ 	int a;
+ 	Prog *p1, *p2, *p3;
++	Addr addr;
+ 
+ 	if(debug['g']) {
+ 		dump("\ncgen-res", res);
+@@ -70,6 +71,21 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 	}
+ 
++	if(sudoaddable(n, res->type, &addr)) {
++		a = optoas(OAS, n->type);
++		if(res->op == OREGISTER) {
++			p1 = gins(a, N, res);
++			p1->from = addr;
++		} else {
++			regalloc(&n1, n->type, N);
++			p1 = gins(a, N, &n1);
++			p1->from = addr;
++			gins(a, &n1, res);
++			regfree(&n1);
++		}
++		return;
++	}
++
+ 	switch(n->op) {
+ 	default:
+ 		dump("cgen", n);
+@@ -269,6 +285,15 @@ abop:	// asymmetric binary
+ 	if(nl->ullman >= nr->ullman) {
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
++
++if(sudoaddable(nr, nl->type, &addr)) {
++	p1 = gins(a, N, &n1);
++	p1->from = addr;
++	gmove(&n1, res);
++	regfree(&n1);
++	goto ret;
++}
++
+ 		regalloc(&n2, nr->type, N);
+ 		cgen(nr, &n2);
+ 	} else {
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 0e5982994d..82d3d455fa 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -199,6 +199,7 @@ void	tempname(Node*, Type*);
+ Plist*	newplist(void);
+ int	isfat(Type*);
+ void	setmaxarg(Type*);
++int	sudoaddable(Node*, Type*, Addr*);
+ 
+ /*
+  * list.c
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 273e10f873..8313b4e008 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1175,6 +1175,37 @@ optoas(int op, Type *t)
+ 		a = AUCOMISD;
+ 		break;
+ 
++	case CASE(OAS, TBOOL):
++	case CASE(OAS, TINT8):
++	case CASE(OAS, TUINT8):
++		a = AMOVB;
++		break;
++
++	case CASE(OAS, TINT16):
++	case CASE(OAS, TUINT16):
++		a = AMOVW;
++		break;
++
++	case CASE(OAS, TINT32):
++	case CASE(OAS, TUINT32):
++	case CASE(OAS, TPTR32):
++		a = AMOVL;
++		break;
++
++	case CASE(OAS, TINT64):
++	case CASE(OAS, TUINT64):
++	case CASE(OAS, TPTR64):
++		a = AMOVQ;
++		break;
++
++	case CASE(OAS, TFLOAT32):
++		a = AMOVSS;
++		break;
++
++	case CASE(OAS, TFLOAT64):
++		a = AMOVSD;
++		break;
++
+ 	case CASE(OADD, TINT8):
+ 	case CASE(OADD, TUINT8):
+ 		a = AADDB;
+@@ -1728,3 +1759,101 @@ setmaxarg(Type *t)
+ 	if(w > maxarg)
+ 		maxarg = w;
+ }
++
++/*
++ * gather series of offsets
++ * >=0 is direct addressed field
++ * <0 is pointer to next field (+1)
++ */
++int
++dotoffset(Node *n, int *oary, Node **nn)
++{
++	int i;
++
++	switch(n->op) {
++	case ODOT:
++		i = dotoffset(n->left, oary, nn);
++		if(i > 0) {
++			if(oary[i-1] >= 0)
++				oary[i-1] += n->xoffset;
++			else
++				oary[i-1] -= n->xoffset;
++			break;
++		}
++		if(i < 10)
++			oary[i++] = n->xoffset;
++		break;
++
++	case ODOTPTR:
++		i = dotoffset(n->left, oary, nn);
++		if(i < 10)
++			oary[i++] = -(n->xoffset+1);
++		break;
++
++	default:
++		*nn = n;
++		return 0;
++	}
++	if(i >= 10)
++		*nn = N;
++	return i;
++}
++
++int
++sudoaddable(Node *n, Type *t, Addr *a)
++{
++	int et, o, i;
++	int oary[10];
++	Node n1, n2, *nn;
++
++	if(n->type == T || t == T)
++		return 0;
++	et = simtype[n->type->etype];
++	if(et != simtype[t->etype])
++		return 0;
++
++	switch(n->op) {
++	default:
++		return 0;
++
++	case ODOT:
++	case ODOTPTR:
++		o = dotoffset(n, oary, &nn);
++		if(nn == N)
++			return 0;
++
++		if(0) {
++			dump("\nXX", n);
++			dump("YY", nn);
++			for(i=0; i<o; i++)
++				print(" %d", oary[i]);
++			print("\n");
++			return 0;
++		}
++
++		regalloc(&n1, types[tptr], N);
++		n2 = n1;
++		n2.op = OINDREG;
++		if(oary[0] >= 0) {
++			agen(nn, &n1);
++			n2.xoffset = oary[0];
++		} else {
++			cgen(nn, &n1);
++			n2.xoffset = -(oary[0]+1);
++		}
++
++		for(i=1; i<o; i++) {
++			if(oary[i] >= 0)
++				fatal("cant happen");
++			gins(AMOVQ, &n2, &n1);
++			n2.xoffset = -(oary[i]+1);
++		}
++
++		a->type = D_NONE;
++		a->index = D_NONE;
++		naddr(&n2, a);
++		regfree(&n1);
++		break;
++	}
++	return 1;
++}

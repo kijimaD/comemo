@@ -14,6 +14,32 @@ Date:   Thu Apr 13 06:11:36 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/40509
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7cdc56d05c..954433c447 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -502,6 +502,8 @@ opswitch:
+ 	case OTYPE, ONAME, OLITERAL:
+ 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
+ 		// Perhaps refactor to use Node.mayBeShared for these instead.
++		// If these return early, make sure to still call
++		// stringsym for constant strings.
+ 
+ 	case ONOT, OMINUS, OPLUS, OCOM, OREAL, OIMAG, ODOTMETH, ODOTINTER,
+ 		OIND, OSPTR, OITAB, OIDATA, OADDR:
+@@ -1653,6 +1655,11 @@ opswitch:
+ 	}
+ 	if n.Op == OLITERAL {
+ 		n = typecheck(n, Erv)
++		// Emit string symbol now to avoid emitting
++		// any concurrently during the backend.
++		if s, ok := n.Val().U.(string); ok {
++			_ = stringsym(s)
++		}
+ 	}
+ 
+ 	updateHasCall(n)

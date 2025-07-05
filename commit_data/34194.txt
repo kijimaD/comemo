@@ -22,10 +22,90 @@ Date:   Sun Oct 8 15:23:10 2017 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/vet/all/whitelist/darwin_arm64.txt | 6 ------
  src/runtime/cgo/gcc_signal2_darwin_armx.c  | 2 +-
  src/runtime/cgo/signal_darwin_arm.s        | 6 +++---
  src/runtime/cgo/signal_darwin_arm64.s      | 6 +++---
  src/runtime/cgo/signal_darwin_armx.go      | 4 ++--
  5 files changed, 9 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/darwin_arm64.txt b/src/cmd/vet/all/whitelist/darwin_arm64.txt
+index 080a4caafa..793cccf8dd 100644
+--- a/src/cmd/vet/all/whitelist/darwin_arm64.txt
++++ b/src/cmd/vet/all/whitelist/darwin_arm64.txt
+@@ -5,10 +5,4 @@ runtime/sys_darwin_arm64.s: [arm64] sigtramp: 24(RSP) should be infostyle+8(FP)
+ runtime/sys_darwin_arm64.s: [arm64] bsdthread_create: RET without writing to 4-byte ret+24(FP)
+ runtime/sys_darwin_arm64.s: [arm64] bsdthread_start: function bsdthread_start missing Go declaration
+ runtime/sys_darwin_arm64.s: [arm64] bsdthread_register: RET without writing to 4-byte ret+0(FP)
+-runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 8(RSP) points beyond argument frame
+-runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 8(RSP) points beyond argument frame
+-runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
+-runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 8(RSP) points beyond argument frame
+-runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
+-runtime/cgo/signal_darwin_arm64.s: [arm64] panicmem: use of 16(RSP) points beyond argument frame
+ runtime/asm_arm64.s: [arm64] sigreturn: function sigreturn missing Go declaration
+diff --git a/src/runtime/cgo/gcc_signal2_darwin_armx.c b/src/runtime/cgo/gcc_signal2_darwin_armx.c
+index 6da623b3b1..54b7e32658 100644
+--- a/src/runtime/cgo/gcc_signal2_darwin_armx.c
++++ b/src/runtime/cgo/gcc_signal2_darwin_armx.c
+@@ -10,4 +10,4 @@
+ // We hope that for real binaries the definition provided by Go will take precedence
+ // and the linker will drop this .o file altogether, which is why this definition
+ // is all by itself in its own file.
+-void xx_cgo_panicmem(void) {}
++void __attribute__((weak)) xx_cgo_panicmem(void) {}
+diff --git a/src/runtime/cgo/signal_darwin_arm.s b/src/runtime/cgo/signal_darwin_arm.s
+index ee5c3d3476..f886e4bc06 100644
+--- a/src/runtime/cgo/signal_darwin_arm.s
++++ b/src/runtime/cgo/signal_darwin_arm.s
+@@ -4,13 +4,13 @@
+ 
+ #include "textflag.h"
+ 
+-// panicmem is the entrypoint for SIGSEGV as intercepted via a
++// xx_cgo_panicmem is the entrypoint for SIGSEGV as intercepted via a
+ // mach thread port as EXC_BAD_ACCESS. As the segfault may have happened
+-// in C code, we first need to load_g then call panicmem.
++// in C code, we first need to load_g then call xx_cgo_panicmem.
+ //
+ //	R1 - LR at moment of fault
+ //	R2 - PC at moment of fault
+-TEXT ·panicmem(SB),NOSPLIT,$-4
++TEXT xx_cgo_panicmem(SB),NOSPLIT,$-4
+ 	// If in external C code, we need to load the g register.
+ 	BL  runtime·load_g(SB)
+ 	CMP $0, g
+diff --git a/src/runtime/cgo/signal_darwin_arm64.s b/src/runtime/cgo/signal_darwin_arm64.s
+index 75aefd4b95..17781cf496 100644
+--- a/src/runtime/cgo/signal_darwin_arm64.s
++++ b/src/runtime/cgo/signal_darwin_arm64.s
+@@ -4,13 +4,13 @@
+ 
+ #include "textflag.h"
+ 
+-// panicmem is the entrypoint for SIGSEGV as intercepted via a
++// xx_cgo_panicmem is the entrypoint for SIGSEGV as intercepted via a
+ // mach thread port as EXC_BAD_ACCESS. As the segfault may have happened
+-// in C code, we first need to load_g then call panicmem.
++// in C code, we first need to load_g then call xx_cgo_panicmem.
+ //
+ //	R1 - LR at moment of fault
+ //	R2 - PC at moment of fault
+-TEXT ·panicmem(SB),NOSPLIT,$-8
++TEXT xx_cgo_panicmem(SB),NOSPLIT,$-8
+ 	// If in external C code, we need to load the g register.
+ 	BL  runtime·load_g(SB)
+ 	CMP $0, g
+diff --git a/src/runtime/cgo/signal_darwin_armx.go b/src/runtime/cgo/signal_darwin_armx.go
+index e1d9e54c46..9f4b462415 100644
+--- a/src/runtime/cgo/signal_darwin_armx.go
++++ b/src/runtime/cgo/signal_darwin_armx.go
+@@ -9,5 +9,5 @@ package cgo
+ 
+ import _ "unsafe"
+ 
+-//go:cgo_export_static panicmem xx_cgo_panicmem
+-func panicmem()
++//go:cgo_export_static xx_cgo_panicmem xx_cgo_panicmem
++func xx_cgo_panicmem()

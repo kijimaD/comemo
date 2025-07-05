@@ -9,7 +9,7 @@ Date:   Wed Nov 19 09:40:54 2008 -0800
     DELTA=10  (0 added, 0 deleted, 10 changed)
     OCL=19542
     CL=19581
-
+---
  src/cmd/gobuild/gobuild.c | 2 +-
  src/cmd/gotest/gotest     | 2 +-
  src/lib/fmt/Makefile      | 2 +-
@@ -21,3 +21,134 @@ Date:   Wed Nov 19 09:40:54 2008 -0800
  src/lib/strconv/Makefile  | 2 +-
  src/lib/syscall/Makefile  | 2 +-
  10 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gobuild/gobuild.c b/src/cmd/gobuild/gobuild.c
+index 6605b05265..f0ba6f6719 100644
+--- a/src/cmd/gobuild/gobuild.c
++++ b/src/cmd/gobuild/gobuild.c
+@@ -280,7 +280,7 @@ char preamble[] =
+ 	"default: packages\n"
+ 	"\n"
+ 	"clean:\n"
+-	"\trm -f *.$O *.a\n"
++	"\trm -f *.$O *.a $O.out\n"
+ 	"\n"
+ 	"test: packages\n"
+ 	"\tgotest\n"
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 1980dc6850..85699547be 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -41,7 +41,7 @@ done
+ set -e
+ 
+ # They all compile; now generate the code to call them.
+-trap "rm -f _testmain.go _testmain.6 6.out" 0 1 2 3 14 15
++trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ {
+ 	# package spec
+ 	echo 'package main'
+diff --git a/src/lib/fmt/Makefile b/src/lib/fmt/Makefile
+index 03fdff84c0..bdef02d698 100644
+--- a/src/lib/fmt/Makefile
++++ b/src/lib/fmt/Makefile
+@@ -13,7 +13,7 @@ AR=$(O)ar
+ default: packages
+ 
+ clean:
+-	rm -f *.$O *.a
++	rm -f *.$O *.a $O.out
+ 
+ test: packages
+ 	gotest
+diff --git a/src/lib/http/Makefile b/src/lib/http/Makefile
+index 75ab68d7de..0827008f97 100644
+--- a/src/lib/http/Makefile
++++ b/src/lib/http/Makefile
+@@ -13,7 +13,7 @@ AR=$(O)ar
+ default: packages
+ 
+ clean:
+-	rm -f *.$O *.a
++	rm -f *.$O *.a $O.out
+ 
+ test: packages
+ 	gotest
+diff --git a/src/lib/math/Makefile b/src/lib/math/Makefile
+index 56cd9d0466..d5318a60a5 100644
+--- a/src/lib/math/Makefile
++++ b/src/lib/math/Makefile
+@@ -13,7 +13,7 @@ AR=$(O)ar
+ default: packages
+ 
+ clean:
+-	rm -f *.$O *.a
++	rm -f *.$O *.a $O.out
+ 
+ test: packages
+ 	gotest
+diff --git a/src/lib/net/Makefile b/src/lib/net/Makefile
+index 52ff320e47..1670e5ac30 100644
+--- a/src/lib/net/Makefile
++++ b/src/lib/net/Makefile
+@@ -13,7 +13,7 @@ AR=$(O)ar
+ default: packages
+ 
+ clean:
+-	rm -f *.$O *.a
++	rm -f *.$O *.a $O.out
+ 
+ test: packages
+ 	gotest
+diff --git a/src/lib/os/Makefile b/src/lib/os/Makefile
+index ed4a36bbbb..d359b232e0 100644
+--- a/src/lib/os/Makefile
++++ b/src/lib/os/Makefile
+@@ -13,7 +13,7 @@ AR=$(O)ar
+ default: packages
+ 
+ clean:
+-	rm -f *.$O *.a
++	rm -f *.$O *.a $O.out
+ 
+ test: packages
+ 	gotest
+diff --git a/src/lib/reflect/Makefile b/src/lib/reflect/Makefile
+index 729a819864..90aadda42f 100644
+--- a/src/lib/reflect/Makefile
++++ b/src/lib/reflect/Makefile
+@@ -13,7 +13,7 @@ AR=$(O)ar
+ default: packages
+ 
+ clean:
+-	rm -f *.$O *.a
++	rm -f *.$O *.a $O.out
+ 
+ test: packages
+ 	gotest
+diff --git a/src/lib/strconv/Makefile b/src/lib/strconv/Makefile
+index e5c4d1d1d9..6718dc3f59 100644
+--- a/src/lib/strconv/Makefile
++++ b/src/lib/strconv/Makefile
+@@ -13,7 +13,7 @@ AR=$(O)ar
+ default: packages
+ 
+ clean:
+-	rm -f *.$O *.a
++	rm -f *.$O *.a $O.out
+ 
+ test: packages
+ 	gotest
+diff --git a/src/lib/syscall/Makefile b/src/lib/syscall/Makefile
+index 58d483a9d5..a35be213a3 100644
+--- a/src/lib/syscall/Makefile
++++ b/src/lib/syscall/Makefile
+@@ -15,7 +15,7 @@ AR=$(O)ar
+ default: packages
+ 
+ clean:
+-	rm -f *.$O *.a
++	rm -f *.$O *.a $O.out
+ 
+ test: packages
+ 	gotest

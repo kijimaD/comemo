@@ -13,7 +13,68 @@ Date:   Thu Mar 31 13:21:39 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Trust: Matt Layher <mdlayher@gmail.com>
-
+---
  src/net/url/url.go      |  9 ++++++++-
  src/net/url/url_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index bff6513b85..f85bdb1580 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -1189,11 +1189,18 @@ func (u *URL) UnmarshalBinary(text []byte) error {
+ 
+ // JoinPath returns a new URL with the provided path elements joined to
+ // any existing path and the resulting path cleaned of any ./ or ../ elements.
++// Any sequences of multiple / characters will be reduced to a single /.
+ func (u *URL) JoinPath(elem ...string) *URL {
+ 	url := *u
+ 	if len(elem) > 0 {
+ 		elem = append([]string{u.Path}, elem...)
+-		url.setPath(path.Join(elem...))
++		p := path.Join(elem...)
++		// path.Join will remove any trailing slashes.
++		// Preserve at least one.
++		if strings.HasSuffix(elem[len(elem)-1], "/") && !strings.HasSuffix(p, "/") {
++			p += "/"
++		}
++		url.setPath(p)
+ 	}
+ 	return &url
+ }
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 18aa5f8a1c..478cc34872 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -2099,6 +2099,31 @@ func TestJoinPath(t *testing.T) {
+ 			base: "http://[fe80::1%en0]:8080/",
+ 			elem: []string{"/go"},
+ 		},
++		{
++			base: "https://go.googlesource.com",
++			elem: []string{"go/"},
++			out:  "https://go.googlesource.com/go/",
++		},
++		{
++			base: "https://go.googlesource.com",
++			elem: []string{"go//"},
++			out:  "https://go.googlesource.com/go/",
++		},
++		{
++			base: "https://go.googlesource.com",
++			elem: nil,
++			out:  "https://go.googlesource.com",
++		},
++		{
++			base: "https://go.googlesource.com/",
++			elem: nil,
++			out:  "https://go.googlesource.com/",
++		},
++		{
++			base: "/",
++			elem: nil,
++			out:  "/",
++		},
+ 	}
+ 	for _, tt := range tests {
+ 		wantErr := "nil"

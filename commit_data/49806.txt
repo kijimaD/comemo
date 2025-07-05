@@ -15,6 +15,20 @@ Date:   Mon Sep 13 19:16:28 2021 +0000
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/work_prune.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/work_prune.txt b/src/cmd/go/testdata/script/work_prune.txt
+index 7347b312ee..f0fb073c4b 100644
+--- a/src/cmd/go/testdata/script/work_prune.txt
++++ b/src/cmd/go/testdata/script/work_prune.txt
+@@ -59,7 +59,7 @@ package b
+ import "example.com/q"
+ 
+ func TestB() {
+-	q.PrintVersion
++	q.PrintVersion()
+ }
+ -- p/go.mod --
+ module example.com/p

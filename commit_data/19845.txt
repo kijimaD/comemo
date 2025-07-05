@@ -21,7 +21,7 @@ Date:   Wed Jul 30 10:01:32 2014 +0900
     R=r
     CC=golang-codereviews
     https://golang.org/cl/113660043
-
+---
  src/pkg/syscall/mkerrors.sh              |  2 +-
  src/pkg/syscall/syscall_freebsd.go       | 34 ++++++--------------------------
  src/pkg/syscall/types_freebsd.go         |  9 ---------
@@ -32,3 +32,319 @@ Date:   Wed Jul 30 10:01:32 2014 +0900
  src/pkg/syscall/ztypes_freebsd_amd64.go  | 24 ----------------------
  src/pkg/syscall/ztypes_freebsd_arm.go    | 24 ----------------------
  9 files changed, 7 insertions(+), 135 deletions(-)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index e86ec1107a..cf0afe0bdd 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -266,7 +266,7 @@ ccflags="$@"
+ 		$2 ~ /^O[CNPFP][A-Z]+[^_][A-Z]+$/ ||
+ 		$2 ~ /^IN_/ ||
+ 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|ICMP6|TCP|EVFILT|NOTE|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV|PR|MCAST)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|ICMP6|TCP|EVFILT|NOTE|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV|PR)_/ ||
+ 		$2 == "ICMPV6_FILTER" ||
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 685ed2bf41..959d46b4d4 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -93,36 +93,14 @@ func Pipe(p []int) (err error) {
+ }
+ 
+ func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
+-	var v IPMreqn
+-	l := _Socklen(SizeofIPMreqn)
+-	err := getsockopt(fd, level, opt, unsafe.Pointer(&v), &l)
+-	return &v, err
++	var value IPMreqn
++	vallen := _Socklen(SizeofIPMreqn)
++	errno := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
++	return &value, errno
+ }
+ 
+-func GetsockoptGroupReq(fd, level, opt int) (*GroupReq, error) {
+-	var v GroupReq
+-	l := _Socklen(SizeofGroupReq)
+-	err := getsockopt(fd, level, opt, unsafe.Pointer(&v), &l)
+-	return &v, err
+-}
+-
+-func GetsockoptGroupSourceReq(fd, level, opt int) (*GroupSourceReq, error) {
+-	var v GroupSourceReq
+-	l := _Socklen(SizeofGroupSourceReq)
+-	err := getsockopt(fd, level, opt, unsafe.Pointer(&v), &l)
+-	return &v, err
+-}
+-
+-func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) error {
+-	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), SizeofIPMreqn)
+-}
+-
+-func SetsockoptGroupReq(fd, level, opt int, greq *GroupReq) error {
+-	return setsockopt(fd, level, opt, unsafe.Pointer(greq), SizeofGroupReq)
+-}
+-
+-func SetsockoptGroupSourceReq(fd, level, opt int, gsreq *GroupSourceReq) error {
+-	return setsockopt(fd, level, opt, unsafe.Pointer(gsreq), SizeofGroupSourceReq)
++func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
++	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
+ }
+ 
+ func Accept4(fd, flags int) (nfd int, sa Sockaddr, err error) {
+diff --git a/src/pkg/syscall/types_freebsd.go b/src/pkg/syscall/types_freebsd.go
+index 31d9633234..68a69312b2 100644
+--- a/src/pkg/syscall/types_freebsd.go
++++ b/src/pkg/syscall/types_freebsd.go
+@@ -224,8 +224,6 @@ type RawSockaddr C.struct_sockaddr
+ 
+ type RawSockaddrAny C.struct_sockaddr_any
+ 
+-type RawSockaddrStorage C.struct_sockaddr_storage
+-
+ type _Socklen C.socklen_t
+ 
+ type Linger C.struct_linger
+@@ -238,10 +236,6 @@ type IPMreqn C.struct_ip_mreqn
+ 
+ type IPv6Mreq C.struct_ipv6_mreq
+ 
+-type GroupReq C.struct_group_req
+-
+-type GroupSourceReq C.struct_group_source_req
+-
+ type Msghdr C.struct_msghdr
+ 
+ type Cmsghdr C.struct_cmsghdr
+@@ -258,13 +252,10 @@ const (
+ 	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
+ 	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
+ 	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+-	SizeofSockaddrStorage  = C.sizeof_struct_sockaddr_storage
+ 	SizeofLinger           = C.sizeof_struct_linger
+ 	SizeofIPMreq           = C.sizeof_struct_ip_mreq
+ 	SizeofIPMreqn          = C.sizeof_struct_ip_mreqn
+ 	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
+-	SizeofGroupReq         = C.sizeof_struct_group_req
+-	SizeofGroupSourceReq   = C.sizeof_struct_group_source_req
+ 	SizeofMsghdr           = C.sizeof_struct_msghdr
+ 	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+ 	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+index cdaaf5937d..cd3aa80a9c 100644
+--- a/src/pkg/syscall/zerrors_freebsd_386.go
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -1022,15 +1022,6 @@ const (
+ 	MAP_RESERVED0100                  = 0x100
+ 	MAP_SHARED                        = 0x1
+ 	MAP_STACK                         = 0x400
+-	MCAST_BLOCK_SOURCE                = 0x54
+-	MCAST_EXCLUDE                     = 0x2
+-	MCAST_INCLUDE                     = 0x1
+-	MCAST_JOIN_GROUP                  = 0x50
+-	MCAST_JOIN_SOURCE_GROUP           = 0x52
+-	MCAST_LEAVE_GROUP                 = 0x51
+-	MCAST_LEAVE_SOURCE_GROUP          = 0x53
+-	MCAST_UNBLOCK_SOURCE              = 0x55
+-	MCAST_UNDEFINED                   = 0x0
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
+ 	MSG_CMSG_CLOEXEC                  = 0x40000
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+index 02c167732e..9edce6e2fa 100644
+--- a/src/pkg/syscall/zerrors_freebsd_amd64.go
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -1023,15 +1023,6 @@ const (
+ 	MAP_RESERVED0100                  = 0x100
+ 	MAP_SHARED                        = 0x1
+ 	MAP_STACK                         = 0x400
+-	MCAST_BLOCK_SOURCE                = 0x54
+-	MCAST_EXCLUDE                     = 0x2
+-	MCAST_INCLUDE                     = 0x1
+-	MCAST_JOIN_GROUP                  = 0x50
+-	MCAST_JOIN_SOURCE_GROUP           = 0x52
+-	MCAST_LEAVE_GROUP                 = 0x51
+-	MCAST_LEAVE_SOURCE_GROUP          = 0x53
+-	MCAST_UNBLOCK_SOURCE              = 0x55
+-	MCAST_UNDEFINED                   = 0x0
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
+ 	MSG_CMSG_CLOEXEC                  = 0x40000
+diff --git a/src/pkg/syscall/zerrors_freebsd_arm.go b/src/pkg/syscall/zerrors_freebsd_arm.go
+index 4706c70d36..f29dd057b6 100644
+--- a/src/pkg/syscall/zerrors_freebsd_arm.go
++++ b/src/pkg/syscall/zerrors_freebsd_arm.go
+@@ -1022,15 +1022,6 @@ const (
+ 	MAP_RESERVED0100                  = 0x100
+ 	MAP_SHARED                        = 0x1
+ 	MAP_STACK                         = 0x400
+-	MCAST_BLOCK_SOURCE                = 0x54
+-	MCAST_EXCLUDE                     = 0x2
+-	MCAST_INCLUDE                     = 0x1
+-	MCAST_JOIN_GROUP                  = 0x50
+-	MCAST_JOIN_SOURCE_GROUP           = 0x52
+-	MCAST_LEAVE_GROUP                 = 0x51
+-	MCAST_LEAVE_SOURCE_GROUP          = 0x53
+-	MCAST_UNBLOCK_SOURCE              = 0x55
+-	MCAST_UNDEFINED                   = 0x0
+ 	MCL_CURRENT                       = 0x1
+ 	MCL_FUTURE                        = 0x2
+ 	MSG_CMSG_CLOEXEC                  = 0x40000
+diff --git a/src/pkg/syscall/ztypes_freebsd_386.go b/src/pkg/syscall/ztypes_freebsd_386.go
+index 07f52bfb2b..b809eea37a 100644
+--- a/src/pkg/syscall/ztypes_freebsd_386.go
++++ b/src/pkg/syscall/ztypes_freebsd_386.go
+@@ -183,14 +183,6 @@ type RawSockaddrAny struct {
+ 	Pad  [92]int8
+ }
+ 
+-type RawSockaddrStorage struct {
+-	Len         uint8
+-	Family      uint8
+-	X__ss_pad1  [6]int8
+-	X__ss_align int64
+-	X__ss_pad2  [112]int8
+-}
+-
+ type _Socklen uint32
+ 
+ type Linger struct {
+@@ -219,17 +211,6 @@ type IPv6Mreq struct {
+ 	Interface uint32
+ }
+ 
+-type GroupReq struct {
+-	Interface uint32
+-	Group     RawSockaddrStorage
+-}
+-
+-type GroupSourceReq struct {
+-	Interface uint32
+-	Group     RawSockaddrStorage
+-	Source    RawSockaddrStorage
+-}
+-
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32
+@@ -266,13 +247,10 @@ const (
+ 	SizeofSockaddrAny      = 0x6c
+ 	SizeofSockaddrUnix     = 0x6a
+ 	SizeofSockaddrDatalink = 0x36
+-	SizeofSockaddrStorage  = 0x80
+ 	SizeofLinger           = 0x8
+ 	SizeofIPMreq           = 0x8
+ 	SizeofIPMreqn          = 0xc
+ 	SizeofIPv6Mreq         = 0x14
+-	SizeofGroupReq         = 0x84
+-	SizeofGroupSourceReq   = 0x104
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
+diff --git a/src/pkg/syscall/ztypes_freebsd_amd64.go b/src/pkg/syscall/ztypes_freebsd_amd64.go
+index 798f874452..a05908aed1 100644
+--- a/src/pkg/syscall/ztypes_freebsd_amd64.go
++++ b/src/pkg/syscall/ztypes_freebsd_amd64.go
+@@ -183,14 +183,6 @@ type RawSockaddrAny struct {
+ 	Pad  [92]int8
+ }
+ 
+-type RawSockaddrStorage struct {
+-	Len         uint8
+-	Family      uint8
+-	X__ss_pad1  [6]int8
+-	X__ss_align int64
+-	X__ss_pad2  [112]int8
+-}
+-
+ type _Socklen uint32
+ 
+ type Linger struct {
+@@ -219,19 +211,6 @@ type IPv6Mreq struct {
+ 	Interface uint32
+ }
+ 
+-type GroupReq struct {
+-	Interface uint32
+-	Pad_cgo_0 [4]byte
+-	Group     RawSockaddrStorage
+-}
+-
+-type GroupSourceReq struct {
+-	Interface uint32
+-	Pad_cgo_0 [4]byte
+-	Group     RawSockaddrStorage
+-	Source    RawSockaddrStorage
+-}
+-
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32
+@@ -270,13 +249,10 @@ const (
+ 	SizeofSockaddrAny      = 0x6c
+ 	SizeofSockaddrUnix     = 0x6a
+ 	SizeofSockaddrDatalink = 0x36
+-	SizeofSockaddrStorage  = 0x80
+ 	SizeofLinger           = 0x8
+ 	SizeofIPMreq           = 0x8
+ 	SizeofIPMreqn          = 0xc
+ 	SizeofIPv6Mreq         = 0x14
+-	SizeofGroupReq         = 0x88
+-	SizeofGroupSourceReq   = 0x108
+ 	SizeofMsghdr           = 0x30
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14
+diff --git a/src/pkg/syscall/ztypes_freebsd_arm.go b/src/pkg/syscall/ztypes_freebsd_arm.go
+index a3eb38b1ba..9303816f91 100644
+--- a/src/pkg/syscall/ztypes_freebsd_arm.go
++++ b/src/pkg/syscall/ztypes_freebsd_arm.go
+@@ -185,14 +185,6 @@ type RawSockaddrAny struct {
+ 	Pad  [92]int8
+ }
+ 
+-type RawSockaddrStorage struct {
+-	Len         uint8
+-	Family      uint8
+-	X__ss_pad1  [6]int8
+-	X__ss_align int64
+-	X__ss_pad2  [112]int8
+-}
+-
+ type _Socklen uint32
+ 
+ type Linger struct {
+@@ -221,19 +213,6 @@ type IPv6Mreq struct {
+ 	Interface uint32
+ }
+ 
+-type GroupReq struct {
+-	Interface uint32
+-	Pad_cgo_0 [4]byte
+-	Group     RawSockaddrStorage
+-}
+-
+-type GroupSourceReq struct {
+-	Interface uint32
+-	Pad_cgo_0 [4]byte
+-	Group     RawSockaddrStorage
+-	Source    RawSockaddrStorage
+-}
+-
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32
+@@ -270,13 +249,10 @@ const (
+ 	SizeofSockaddrAny      = 0x6c
+ 	SizeofSockaddrUnix     = 0x6a
+ 	SizeofSockaddrDatalink = 0x36
+-	SizeofSockaddrStorage  = 0x80
+ 	SizeofLinger           = 0x8
+ 	SizeofIPMreq           = 0x8
+ 	SizeofIPMreqn          = 0xc
+ 	SizeofIPv6Mreq         = 0x14
+-	SizeofGroupReq         = 0x88
+-	SizeofGroupSourceReq   = 0x108
+ 	SizeofMsghdr           = 0x1c
+ 	SizeofCmsghdr          = 0xc
+ 	SizeofInet6Pktinfo     = 0x14

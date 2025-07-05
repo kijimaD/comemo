@@ -38,9 +38,223 @@ Date:   Tue Mar 7 11:54:29 2017 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go           | 43 ++++++++++++++++--
  src/cmd/compile/internal/gc/mpfloat.go         |  7 +++
  src/cmd/compile/internal/gc/truncconst_test.go | 63 ++++++++++++++++++++++++++
  test/fixedbugs/issue11674.go                   | 40 ++++++++++++++++
  4 files changed, 149 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 9747f13de3..853a0569e6 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -160,6 +160,37 @@ func truncfltlit(oldv *Mpflt, t *types.Type) *Mpflt {
+ 	return fv
+ }
+ 
++// truncate Real and Imag parts of Mpcplx to 32-bit or 64-bit
++// precision, according to type; return truncated value. In case of
++// overflow, calls yyerror but does not truncate the input value.
++func trunccmplxlit(oldv *Mpcplx, t *types.Type) *Mpcplx {
++	if t == nil {
++		return oldv
++	}
++
++	if overflow(Val{oldv}, t) {
++		// Avoid setting to Inf if there was an overflow. It's never
++		// useful, and it'll cause spourious and confusing 'constant Inf
++		// overflows float32' errors down the road.
++		return oldv
++	}
++
++	cv := newMpcmplx()
++
++	switch t.Etype {
++	case TCOMPLEX64:
++		cv.Real.SetFloat64(oldv.Real.Float32())
++		cv.Imag.SetFloat64(oldv.Imag.Float32())
++	case TCOMPLEX128:
++		cv.Real.SetFloat64(oldv.Real.Float64())
++		cv.Imag.SetFloat64(oldv.Imag.Float64())
++	default:
++		Fatalf("trunccplxlit: unexpected Etype %v", t.Etype)
++	}
++
++	return cv
++}
++
+ // canReuseNode indicates whether it is known to be safe
+ // to reuse a Node.
+ type canReuseNode bool
+@@ -361,7 +392,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 				fallthrough
+ 
+ 			case CTCPLX:
+-				overflow(n.Val(), t)
++				n.SetVal(Val{trunccmplxlit(n.Val().U.(*Mpcplx), t)})
+ 			}
+ 		} else if et == types.TSTRING && (ct == CTINT || ct == CTRUNE) && explicit {
+ 			n.SetVal(tostr(n.Val()))
+@@ -519,21 +550,25 @@ func doesoverflow(v Val, t *types.Type) bool {
+ 	return false
+ }
+ 
+-func overflow(v Val, t *types.Type) {
++func overflow(v Val, t *types.Type) bool {
+ 	// v has already been converted
+ 	// to appropriate form for t.
+ 	if t == nil || t.Etype == TIDEAL {
+-		return
++		return false
+ 	}
+ 
+ 	// Only uintptrs may be converted to unsafe.Pointer, which cannot overflow.
+ 	if t.Etype == TUNSAFEPTR {
+-		return
++		return false
+ 	}
+ 
+ 	if doesoverflow(v, t) {
+ 		yyerror("constant %v overflows %v", v, t)
++		return true
+ 	}
++
++	return false
++
+ }
+ 
+ func tostr(v Val) Val {
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index a8a5335d36..a3785a045c 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -37,6 +37,13 @@ func newMpflt() *Mpflt {
+ 	return &a
+ }
+ 
++func newMpcmplx() *Mpcplx {
++	var a Mpcplx
++	a.Real = *newMpflt()
++	a.Imag = *newMpflt()
++	return &a
++}
++
+ func (a *Mpflt) SetInt(b *Mpint) {
+ 	if b.checkOverflow(0) {
+ 		// sign doesn't really matter but copy anyway
+diff --git a/src/cmd/compile/internal/gc/truncconst_test.go b/src/cmd/compile/internal/gc/truncconst_test.go
+new file mode 100644
+index 0000000000..d153818064
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/truncconst_test.go
+@@ -0,0 +1,63 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import "testing"
++
++var f52want float64 = 1.0 / (1 << 52)
++var f53want float64 = 1.0 / (1 << 53)
++
++func TestTruncFlt(t *testing.T) {
++	const f52 = 1 + 1.0/(1<<52)
++	const f53 = 1 + 1.0/(1<<53)
++
++	if got := f52 - 1; got != f52want {
++		t.Errorf("f52-1 = %g, want %g", got, f52want)
++	}
++	if got := float64(f52) - 1; got != f52want {
++		t.Errorf("float64(f52)-1 = %g, want %g", got, f52want)
++	}
++	if got := f53 - 1; got != f53want {
++		t.Errorf("f53-1 = %g, want %g", got, f53want)
++	}
++	if got := float64(f53) - 1; got != 0 {
++		t.Errorf("float64(f53)-1 = %g, want 0", got)
++	}
++}
++
++func TestTruncCmplx(t *testing.T) {
++	const r52 = complex(1+1.0/(1<<52), 0)
++	const r53 = complex(1+1.0/(1<<53), 0)
++
++	if got := real(r52 - 1); got != f52want {
++		t.Errorf("real(r52-1) = %g, want %g", got, f52want)
++	}
++	if got := real(complex128(r52) - 1); got != f52want {
++		t.Errorf("real(complex128(r52)-1) = %g, want %g", got, f52want)
++	}
++	if got := real(r53 - 1); got != f53want {
++		t.Errorf("real(r53-1) = %g, want %g", got, f53want)
++	}
++	if got := real(complex128(r53) - 1); got != 0 {
++		t.Errorf("real(complex128(r53)-1) = %g, want 0", got)
++	}
++
++	const i52 = complex(0, 1+1.0/(1<<52))
++	const i53 = complex(0, 1+1.0/(1<<53))
++
++	if got := imag(i52 - 1i); got != f52want {
++		t.Errorf("imag(i52-1i) = %g, want %g", got, f52want)
++	}
++	if got := imag(complex128(i52) - 1i); got != f52want {
++		t.Errorf("imag(complex128(i52)-1i) = %g, want %g", got, f52want)
++	}
++	if got := imag(i53 - 1i); got != f53want {
++		t.Errorf("imag(i53-1i) = %g, want %g", got, f53want)
++	}
++	if got := imag(complex128(i53) - 1i); got != 0 {
++		t.Errorf("imag(complex128(i53)-1i) = %g, want 0", got)
++	}
++
++}
+diff --git a/test/fixedbugs/issue11674.go b/test/fixedbugs/issue11674.go
+new file mode 100644
+index 0000000000..e7d0bf298b
+--- /dev/null
++++ b/test/fixedbugs/issue11674.go
+@@ -0,0 +1,40 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 11674: cmd/compile: does not diagnose constant division by
++// zero
++
++package p
++
++const x complex64 = 0
++const y complex128 = 0
++
++var _ = x / 1e-20
++var _ = x / 1e-50   // ERROR "complex division by zero"
++var _ = x / 1e-1000 // ERROR "complex division by zero"
++var _ = x / 1e-20i
++var _ = x / 1e-50i   // ERROR "complex division by zero"
++var _ = x / 1e-1000i // ERROR "complex division by zero"
++
++var _ = x / 1e-45 // smallest positive float32
++
++var _ = x / (1e-20 + 1e-20i)
++var _ = x / (1e-50 + 1e-20i)
++var _ = x / (1e-20 + 1e-50i)
++var _ = x / (1e-50 + 1e-50i)     // ERROR "complex division by zero"
++var _ = x / (1e-1000 + 1e-1000i) // ERROR "complex division by zero"
++
++var _ = y / 1e-50
++var _ = y / 1e-1000 // ERROR "complex division by zero"
++var _ = y / 1e-50i
++var _ = y / 1e-1000i // ERROR "complex division by zero"
++
++var _ = y / 5e-324 // smallest positive float64
++
++var _ = y / (1e-50 + 1e-50)
++var _ = y / (1e-1000 + 1e-50i)
++var _ = y / (1e-50 + 1e-1000i)
++var _ = y / (1e-1000 + 1e-1000i) // ERROR "complex division by zero"

@@ -20,10 +20,114 @@ Date:   Tue May 24 00:41:13 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go |  9 +++++++++
  test/fixedbugs/issue52128.dir/a.go       | 21 +++++++++++++++++++++
  test/fixedbugs/issue52128.dir/b.go       | 17 +++++++++++++++++
  test/fixedbugs/issue52128.dir/p.go       | 14 ++++++++++++++
  test/fixedbugs/issue52128.go             |  7 +++++++
  5 files changed, 68 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 0440d324cc..635f02630f 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2468,6 +2468,15 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
+ 	// so we're responsible for applying inlining ourselves here.
+ 	inline.InlineCalls(fn)
+ 
++	// The body of wrapper function after inlining may reveal new ir.OMETHVALUE node,
++	// we don't know whether wrapper function has been generated for it or not, so
++	// generate one immediately here.
++	ir.VisitList(fn.Body, func(n ir.Node) {
++		if n, ok := n.(*ir.SelectorExpr); ok && n.Op() == ir.OMETHVALUE {
++			wrapMethodValue(n.X.Type(), n.Selection, target, true)
++		}
++	})
++
+ 	target.Decls = append(target.Decls, fn)
+ }
+ 
+diff --git a/test/fixedbugs/issue52128.dir/a.go b/test/fixedbugs/issue52128.dir/a.go
+new file mode 100644
+index 0000000000..0abf831c6f
+--- /dev/null
++++ b/test/fixedbugs/issue52128.dir/a.go
+@@ -0,0 +1,21 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I interface{}
++
++type F func()
++
++type s struct {
++	f F
++}
++
++func NewWithF(f F) *s {
++	return &s{f: f}
++}
++
++func NewWithFuncI(func() I) *s {
++	return &s{}
++}
+diff --git a/test/fixedbugs/issue52128.dir/b.go b/test/fixedbugs/issue52128.dir/b.go
+new file mode 100644
+index 0000000000..86f6ed7e05
+--- /dev/null
++++ b/test/fixedbugs/issue52128.dir/b.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import (
++	"./a"
++)
++
++type S struct{}
++
++func (s *S) M1() a.I {
++	return a.NewWithF(s.M2)
++}
++
++func (s *S) M2() {}
+diff --git a/test/fixedbugs/issue52128.dir/p.go b/test/fixedbugs/issue52128.dir/p.go
+new file mode 100644
+index 0000000000..d3f3dbbfb9
+--- /dev/null
++++ b/test/fixedbugs/issue52128.dir/p.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"./a"
++	"./b"
++)
++
++func f() {
++	a.NewWithFuncI((&b.S{}).M1)
++}
+diff --git a/test/fixedbugs/issue52128.go b/test/fixedbugs/issue52128.go
+new file mode 100644
+index 0000000000..8bb5c3e213
+--- /dev/null
++++ b/test/fixedbugs/issue52128.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

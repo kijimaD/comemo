@@ -10,6 +10,26 @@ Date:   Mon Oct 7 09:21:33 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/14469043
-
+---
  src/pkg/os/user/lookup_unix.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index e709f7e521..5459268fa0 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -50,10 +50,10 @@ func lookupUnix(uid int, username string, lookupByName bool) (*User, error) {
+ 	var result *C.struct_passwd
+ 
+ 	var bufSize C.long
+-	if runtime.GOOS == "freebsd" {
+-		// FreeBSD doesn't have _SC_GETPW_R_SIZE_MAX
+-		// and just returns -1.  So just use the same
+-		// size that Linux returns
++	if runtime.GOOS == "dragonfly" || runtime.GOOS == "freebsd" {
++		// DragonFly and FreeBSD do not have _SC_GETPW_R_SIZE_MAX
++		// and just return -1.  So just use the same
++		// size that Linux returns.
+ 		bufSize = 1024
+ 	} else {
+ 		bufSize = C.sysconf(C._SC_GETPW_R_SIZE_MAX)

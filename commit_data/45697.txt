@@ -13,6 +13,23 @@ Date:   Sat Nov 7 12:03:36 2020 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/outbuf_windows.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/outbuf_windows.go b/src/cmd/link/internal/ld/outbuf_windows.go
+index 60dc1ab92d..915c72bef3 100644
+--- a/src/cmd/link/internal/ld/outbuf_windows.go
++++ b/src/cmd/link/internal/ld/outbuf_windows.go
+@@ -35,7 +35,10 @@ func (out *OutBuf) Mmap(filesize uint64) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	*(*reflect.SliceHeader)(unsafe.Pointer(&out.buf)) = reflect.SliceHeader{Data: ptr, Len: int(filesize), Cap: int(filesize)}
++	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&out.buf))
++	bufHdr.Data = ptr
++	bufHdr.Len = int(filesize)
++	bufHdr.Cap = int(filesize)
+ 
+ 	// copy heap to new mapping
+ 	if uint64(oldlen+len(out.heap)) > filesize {

@@ -9,7 +9,7 @@ Date:   Thu Sep 30 14:59:41 2010 -0400
     R=gri, iant, ken2, r, r2
     CC=golang-dev
     https://golang.org/cl/2289041
-
+---
  doc/go_spec.html         | 23 +++++++---------
  src/cmd/gc/dcl.c         |  5 +++-
  src/cmd/gc/reflect.c     |  9 -------
@@ -20,3 +20,326 @@ Date:   Thu Sep 30 14:59:41 2010 -0400
  test/method.go           |  5 ----
  test/method2.go          |  5 ++++
  9 files changed, 97 insertions(+), 57 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 8e1b45ab96..2373490c24 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -879,9 +879,10 @@ struct {
+ </pre>
+ 
+ <p>
+-A field declared with a type but no explicit field name is an <i>anonymous field</i>.
++A field declared with a type but no explicit field name is an <i>anonymous field</i>
++(colloquially called an embedded field).
+ Such a field type must be specified as
+-a type name <code>T</code> or as a pointer to a type name <code>*T</code>,
++a type name <code>T</code> or as a pointer to a non-interface type name <code>*T</code>,
+ and <code>T</code> itself may not be
+ a pointer type. The unqualified type name acts as the field name.
+ </p>
+@@ -2214,8 +2215,7 @@ x.f
+ 
+ <p>
+ denotes the field or method <code>f</code> of the value denoted by <code>x</code>
+-(or of <code>*x</code> if
+-<code>x</code> is of pointer type). The identifier <code>f</code>
++(or sometimes <code>*x</code>; see below). The identifier <code>f</code>
+ is called the (field or method)
+ <i>selector</i>; it must not be the <a href="#Blank_identifier">blank identifier</a>.
+ The type of the expression is the type of <code>f</code>.
+@@ -2258,16 +2258,13 @@ In all other cases, <code>x.f</code> is illegal.
+ </li>
+ </ol>
+ <p>
+-Selectors automatically dereference pointers.
+-If <code>x</code> is of pointer type, <code>x.y</code>
+-is shorthand for <code>(*x).y</code>; if <code>y</code>
+-is also of pointer type, <code>x.y.z</code> is shorthand
++Selectors automatically dereference pointers to structs.
++If <code>x</code> is a pointer to a struct, <code>x.y</code>
++is shorthand for <code>(*x).y</code>; if the field <code>y</code>
++is also a pointer to a struct, <code>x.y.z</code> is shorthand
+ for <code>(*(*x).y).z</code>, and so on.
+-If <code>*x</code> is of pointer type, dereferencing
+-must be explicit;
+-only one level of automatic dereferencing is provided.
+-For an <code>x</code> of type <code>T</code> containing an
+-anonymous field declared as <code>*A</code>,
++If <code>x</code> contains an anonymous field of type <code>*A</code>,
++where <code>A</code> is also a struct type,
+ <code>x.f</code> is a shortcut for <code>(*x.A).f</code>.
+ </p>
+ <p>
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 05eff966f7..a9a17b236d 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -729,8 +729,11 @@ stotype(NodeList *l, int et, Type **t)
+ 				n->right = N;
+ 				if(n->embedded && n->type != T) {
+ 					t1 = n->type;
+-					if(t1->sym == S && isptr[t1->etype])
++					if(t1->sym == S && isptr[t1->etype]) {
+ 						t1 = t1->type;
++						if(t1->etype == TINTER)
++							yyerror("embedded type cannot be a pointer to interface");
++					}
+ 					if(isptr[t1->etype])
+ 						yyerror("embedded type cannot be a pointer");
+ 					else if(t1->etype == TFORW && t1->embedlineno == 0)
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 18b2a4fc65..9a24e7b2a0 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -286,15 +286,6 @@ imethods(Type *t)
+ 				oldlist = pc;
+ 			genwrapper(t, f, isym, 0);
+ 		}
+-		
+-		// Generate wrapper for pointer to interface type.
+-		isym = methodsym(method, ptrto(t), 0);
+-		if(!(isym->flags & SymSiggen)) {
+-			isym->flags |= SymSiggen;
+-			if(oldlist == nil)
+-				oldlist = pc;
+-			genwrapper(ptrto(t), f, isym, 0);
+-		}
+ 	}
+ 
+ 	if(oldlist) {
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 821d540fa1..83c5ff72b9 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -520,7 +520,7 @@ reswitch:
+ 			ok = Erv;
+ 			goto ret;
+ 		}
+-		if(isptr[t->etype]) {
++		if(isptr[t->etype] && t->type->etype != TINTER) {
+ 			t = t->type;
+ 			if(t == T)
+ 				goto error;
+diff --git a/test/hashmap.go b/test/hashmap.go
+index 096ece0a53..0a4d7ab61e 100755
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -21,7 +21,7 @@ func ASSERT(p bool) {
+ 
+ type KeyType interface {
+ 	Hash() uint32
+-	Match(other *KeyType) bool
++	Match(other KeyType) bool
+ }
+ 
+ 
+@@ -31,8 +31,8 @@ type ValueType interface {
+ 
+ 
+ type Entry struct {
+-	key *KeyType
+-	value *ValueType
++	key KeyType
++	value ValueType
+ }
+ 
+ 
+@@ -68,7 +68,7 @@ func (m *HashMap) Initialize (initial_log2_capacity uint32) {
+ }
+ 
+ 
+-func (m *HashMap) Probe (key *KeyType) *Entry {
++func (m *HashMap) Probe (key KeyType) *Entry {
+ 	ASSERT(key != nil)
+ 
+ 	var i uint32 = key.Hash() % m.capacity()
+@@ -86,7 +86,7 @@ func (m *HashMap) Probe (key *KeyType) *Entry {
+ }
+ 
+ 
+-func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
++func (m *HashMap) Lookup (key KeyType, insert bool) *Entry {
+ 	// Find a matching entry.
+ 	var p *Entry = m.Probe(key)
+ 		if p.key != nil {
+@@ -145,7 +145,7 @@ func (n *Number) Hash() uint32 {
+ }
+ 
+ 
+-func (n *Number) Match(other *KeyType) bool {
++func (n *Number) Match(other KeyType) bool {
+ 	// var y *Number = other
+ 	// return n.x == y.x
+ 	return false
+diff --git a/test/interface/embed.go b/test/interface/embed.go
+index 4a702398c6..2fddee1905 100644
+--- a/test/interface/embed.go
++++ b/test/interface/embed.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check methods derived from embedded interface and *interface values.
++// Check methods derived from embedded interface values.
+ 
+ package main
+ 
+@@ -19,18 +19,12 @@ func (t T) M() int64 { return int64(t) }
+ var t = T(Value)
+ var pt = &t
+ var ti Inter = t
+-var pti = &ti
+ 
+ type S struct { Inter }
+ var s = S{ ti }
+ var ps = &s
+ 
+-type SP struct { *Inter }
+-var sp = SP{ &ti }
+-var psp = &sp
+-
+ var i Inter
+-var pi = &i
+ 
+ var ok = true
+ 
+@@ -45,35 +39,20 @@ func main() {
+ 	check("t.M()", t.M())
+ 	check("pt.M()", pt.M())
+ 	check("ti.M()", ti.M())
+-	check("pti.M()", pti.M())
+ 	check("s.M()", s.M())
+ 	check("ps.M()", ps.M())
+-	check("sp.M()", sp.M())
+-	check("psp.M()", psp.M())
+ 
+ 	i = t
+ 	check("i = t; i.M()", i.M())
+-	check("i = t; pi.M()", pi.M())
+ 
+ 	i = pt
+ 	check("i = pt; i.M()", i.M())
+-	check("i = pt; pi.M()", pi.M())
+ 
+ 	i = s
+ 	check("i = s; i.M()", i.M())
+-	check("i = s; pi.M()", pi.M())
+ 
+ 	i = ps
+ 	check("i = ps; i.M()", i.M())
+-	check("i = ps; pi.M()", pi.M())
+-
+-	i = sp
+-	check("i = sp; i.M()", i.M())
+-	check("i = sp; pi.M()", pi.M())
+-
+-	i = psp
+-	check("i = psp; i.M()", i.M())
+-	check("i = psp; pi.M()", pi.M())
+ 
+ 	if !ok {
+ 		println("BUG: interface10")
+diff --git a/test/interface/embed2.go b/test/interface/embed2.go
+new file mode 100644
+index 0000000000..c18a1fecec
+--- /dev/null
++++ b/test/interface/embed2.go
+@@ -0,0 +1,70 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check methods derived from embedded interface and *interface values.
++
++package main
++
++import "os"
++
++const Value = 1e12
++
++type Inter interface { M() int64 }
++
++type T int64
++func (t T) M() int64 { return int64(t) }
++var t = T(Value)
++var pt = &t
++var ti Inter = t
++var pti = &ti
++
++type S struct { Inter }
++var s = S{ ti }
++var ps = &s
++
++type SP struct { *Inter }	// ERROR "interface"
++
++var i Inter
++var pi = &i
++
++var ok = true
++
++func check(s string, v int64) {
++	if v != Value {
++		println(s, v)
++		ok = false
++	}
++}
++
++func main() {
++	check("t.M()", t.M())
++	check("pt.M()", pt.M())
++	check("ti.M()", ti.M())
++	check("pti.M()", pti.M())	// ERROR "method"
++	check("s.M()", s.M())
++	check("ps.M()", ps.M())
++
++	i = t
++	check("i = t; i.M()", i.M())
++	check("i = t; pi.M()", pi.M())	// ERROR "method"
++
++	i = pt
++	check("i = pt; i.M()", i.M())
++	check("i = pt; pi.M()", pi.M())	// ERROR "method"
++
++	i = s
++	check("i = s; i.M()", i.M())
++	check("i = s; pi.M()", pi.M())	// ERROR "method"
++
++	i = ps
++	check("i = ps; i.M()", i.M())
++	check("i = ps; pi.M()", pi.M())	// ERROR "method"
++
++	if !ok {
++		println("BUG: interface10")
++		os.Exit(1)
++	}
++}
+diff --git a/test/method.go b/test/method.go
+index b52d97894c..b5a02c6873 100644
+--- a/test/method.go
++++ b/test/method.go
+@@ -124,9 +124,4 @@ func main() {
+ 		println("Val.val(v):", Val.val(v))
+ 		panic("fail")
+ 	}
+-	pv := &v
+-	if pv.val() != 3 {
+-		println("pv.val():", pv.val())
+-		panic("fail")
+-	}
+ }
+diff --git a/test/method2.go b/test/method2.go
+index cda6d9aadf..a72536e7b3 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -20,3 +20,8 @@ type Val interface {
+ }
+ 
+ var _ = (*Val).val // ERROR "method"
++
++var v Val
++var pv = &v
++
++var _ = pv.val()	// ERROR "method"

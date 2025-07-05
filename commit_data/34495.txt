@@ -22,6 +22,20 @@ Date:   Fri Oct 27 10:06:40 2017 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index df7b367c5d..cad2b2ac22 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -330,7 +330,7 @@ func TestCgoPprof(t *testing.T) {
+ }
+ 
+ func TestCgoPprofPIE(t *testing.T) {
+-	testCgoPprof(t, "-ldflags=-extldflags=-pie", "CgoPprof")
++	testCgoPprof(t, "-buildmode=pie", "CgoPprof")
+ }
+ 
+ func TestCgoPprofThread(t *testing.T) {

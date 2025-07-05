@@ -11,6 +11,10 @@ Date:   Wed Sep 24 16:50:18 2014 -0400
     R=rlh
     CC=golang-codereviews
     https://golang.org/cl/140670043
-
+---
  dev.garbage | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/dev.garbage b/dev.garbage
+deleted file mode 100644
+index e69de29bb2..0000000000

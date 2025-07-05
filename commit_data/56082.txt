@@ -22,6 +22,25 @@ Date:   Thu Apr 6 20:26:55 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/objfile/elf.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index c64c2540f4..f25e4a65d6 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -134,7 +134,12 @@ func (f *elfFile) goarch() string {
+ func (f *elfFile) loadAddress() (uint64, error) {
+ 	for _, p := range f.elf.Progs {
+ 		if p.Type == elf.PT_LOAD && p.Flags&elf.PF_X != 0 {
+-			return p.Vaddr, nil
++			// The memory mapping that contains the segment
++			// starts at an aligned address. Apparently this
++			// is what pprof expects, as it uses this and the
++			// start address of the mapping to compute PC
++			// delta.
++			return p.Vaddr - p.Vaddr%p.Align, nil
+ 		}
+ 	}
+ 	return 0, fmt.Errorf("unknown load address")

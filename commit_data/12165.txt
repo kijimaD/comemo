@@ -7,6 +7,22 @@ Date:   Wed Feb 22 23:40:28 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5695046
-
+---
  src/pkg/exp/types/types.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/types/types.go b/src/pkg/exp/types/types.go
+index 3aa896892e..85d244cf04 100644
+--- a/src/pkg/exp/types/types.go
++++ b/src/pkg/exp/types/types.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// PACKAGE UNDER CONSTRUCTION. ANY AND ALL PARTS MAY CHANGE.
+-// Package types declares the types used to represent Go types.
++// Package types declares the types used to represent Go types
++// (UNDER CONSTRUCTION). ANY AND ALL PARTS MAY CHANGE.
+ //
+ package types
+ 

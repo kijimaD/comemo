@@ -8,6 +8,20 @@ Date:   Mon Aug 4 20:30:26 2014 -0700
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/120570043
-
+---
  src/pkg/syscall/syscall_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index b28891568d..f18dfca5e6 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -56,7 +56,7 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
+ 		cap  int
+ 	}{addr, length, length}
+ 
+-	// Use unsafeto turn sl into a []byte.
++	// Use unsafe to turn sl into a []byte.
+ 	b := *(*[]byte)(unsafe.Pointer(&sl))
+ 
+ 	// Register mapping in m and return it.

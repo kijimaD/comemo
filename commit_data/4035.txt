@@ -6,6 +6,20 @@ Date:   Fri Nov 13 16:00:55 2009 -0800
     
     R=rsc
     https://golang.org/cl/152128
-
+---
  doc/go_tutorial.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index b8e18dab8d..1e876d5ca0 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -426,7 +426,7 @@ declaration on line 31; it declares "r" and "e" to hold the two values,
+ both of type "int" (although you'd have to look at the "syscall" package
+ to see that).  Finally, line 35 returns two values: a pointer to the new "File"
+ and the error.  If "syscall.Open" fails, the file descriptor "r" will
+-be negative and "NewFile" will return "nil".
++be negative and "newFile" will return "nil".
+ 
+ About those errors:  The "os" library includes a general notion of an error.
+ It's a good idea to use its facility in your own interfaces, as we do here, for

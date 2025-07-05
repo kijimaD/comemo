@@ -11,6 +11,22 @@ Date:   Thu May 20 17:42:06 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/worker.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 91ae2de1b1..c2cacf986b 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -320,10 +320,6 @@ func (w *worker) start() (err error) {
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
+ 
+-	// TODO(jayconrod): set up shared memory between the coordinator and worker to
+-	// transfer values and coverage data. If the worker crashes, we need to be
+-	// able to find the value that caused the crash.
+-
+ 	// Create the "fuzz_in" and "fuzz_out" pipes so we can communicate with
+ 	// the worker. We don't use stdin and stdout, since the test binary may
+ 	// do something else with those.

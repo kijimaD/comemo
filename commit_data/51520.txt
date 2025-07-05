@@ -14,6 +14,37 @@ Date:   Sun Jan 30 19:11:32 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/os/example_test.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index e8554b0b12..53e3c5227b 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -241,3 +241,25 @@ func ExampleWriteFile() {
+ 		log.Fatal(err)
+ 	}
+ }
++
++func ExampleMkdir() {
++	err := os.Mkdir("testdir", 0750)
++	if err != nil && !os.IsExist(err) {
++		log.Fatal(err)
++	}
++	err = os.WriteFile("testdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
++	if err != nil {
++		log.Fatal(err)
++	}
++}
++
++func ExampleMkdirAll() {
++	err := os.MkdirAll("test/subdir", 0750)
++	if err != nil && !os.IsExist(err) {
++		log.Fatal(err)
++	}
++	err = os.WriteFile("test/subdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
++	if err != nil {
++		log.Fatal(err)
++	}
++}

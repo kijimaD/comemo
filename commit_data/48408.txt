@@ -31,7 +31,7 @@ Date:   Mon May 17 11:40:02 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go          | 8 +-------
  src/cmd/compile/internal/noder/import.go        | 2 +-
  src/cmd/compile/internal/noder/object.go        | 1 +
@@ -39,3 +39,89 @@ Date:   Mon May 17 11:40:02 2021 -0700
  src/cmd/compile/internal/typecheck/typecheck.go | 5 -----
  src/cmd/compile/internal/types/pkg.go           | 4 ----
  6 files changed, 4 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 4ca2eb4740..3e55437afa 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -104,13 +104,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+ 	if decl.Alias {
+ 		name, _ := g.def(decl.Name)
+ 		g.pragmaFlags(decl.Pragma, 0)
+-
+-		// TODO(mdempsky): This matches how typecheckdef marks aliases for
+-		// export, but this won't generalize to exporting function-scoped
+-		// type aliases. We should maybe just use n.Alias() instead.
+-		if ir.CurFunc == nil {
+-			name.Sym().Def = ir.TypeNode(name.Type())
+-		}
++		assert(name.Alias()) // should be set by irgen.obj
+ 
+ 		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLTYPE, name))
+ 		return
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 701e9001c8..c4a57806eb 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -431,7 +431,7 @@ func clearImports() {
+ 			s.Def = nil
+ 			continue
+ 		}
+-		if types.IsDotAlias(s) {
++		if s.Def != nil && s.Def.Sym() != s {
+ 			// throw away top-level name left over
+ 			// from previous import . "x"
+ 			// We'll report errors after type checking in CheckDotImports.
+diff --git a/src/cmd/compile/internal/noder/object.go b/src/cmd/compile/internal/noder/object.go
+index 82cce1ace0..7af2fe6715 100644
+--- a/src/cmd/compile/internal/noder/object.go
++++ b/src/cmd/compile/internal/noder/object.go
+@@ -101,6 +101,7 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
+ 	case *types2.TypeName:
+ 		if obj.IsAlias() {
+ 			name = g.objCommon(pos, ir.OTYPE, g.sym(obj), class, g.typ(obj.Type()))
++			name.SetAlias(true)
+ 		} else {
+ 			name = ir.NewDeclNameAt(pos, ir.OTYPE, g.sym(obj))
+ 			g.objFinish(name, class, types.NewNamed(name))
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 64d68ef625..3538c4d5a6 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -479,7 +479,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 		w.constExt(n)
+ 
+ 	case ir.OTYPE:
+-		if types.IsDotAlias(n.Sym()) {
++		if n.Alias() {
+ 			// Alias.
+ 			w.tag('A')
+ 			w.pos(n.Pos())
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 95f7b50259..9868c2d9a9 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1889,11 +1889,6 @@ func typecheckdef(n *ir.Name) {
+ 					n.SetDiag(true)
+ 					goto ret
+ 				}
+-				// For package-level type aliases, set n.Sym.Def so we can identify
+-				// it as a type alias during export. See also #31959.
+-				if n.Curfn == nil {
+-					n.Sym().Def = n.Ntype
+-				}
+ 			}
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index a6d2e2007b..f63a357f0d 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -137,7 +137,3 @@ func CleanroomDo(f func()) {
+ 	f()
+ 	pkgMap = saved
+ }
+-
+-func IsDotAlias(sym *Sym) bool {
+-	return sym.Def != nil && sym.Def.Sym() != sym
+-}

@@ -8,7 +8,7 @@ Date:   Wed Dec 10 15:55:59 2008 -0800
     DELTA=209  (109 added, 79 deleted, 21 changed)
     OCL=20930
     CL=20934
-
+---
  src/lib/bufio.go              |   4 +-
  src/lib/fmt/print.go          |   2 +-
  src/lib/http/url.go           |  16 ++++--
@@ -18,3 +18,401 @@ Date:   Wed Dec 10 15:55:59 2008 -0800
  src/lib/strconv/quote.go      |   3 ++
  src/lib/strconv/quote_test.go |   1 +
  8 files changed, 128 insertions(+), 98 deletions(-)
+
+diff --git a/src/lib/bufio.go b/src/lib/bufio.go
+index 11813d6c64..77563be9d4 100644
+--- a/src/lib/bufio.go
++++ b/src/lib/bufio.go
+@@ -210,7 +210,9 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
+ 			return nil, b.err
+ 		}
+ 		if b.Buffered() == n {	// no data added; end of file
+-			return nil, EndOfFile
++			line := b.buf[b.r:b.w];
++			b.r = b.w;
++			return line, EndOfFile
+ 		}
+ 
+ 		// Search new part of buffer
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 12da7d69dd..c05067eb35 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -275,7 +275,7 @@ func getFloat64(v reflect.Value) (val float64, ok bool) {
+ func getPtr(v reflect.Value) (val uintptr, ok bool) {
+ 	switch v.Kind() {
+ 	case reflect.PtrKind:
+-		return uintptr(v.(reflect.PtrValue)), true;
++		return uintptr(v.(reflect.PtrValue).Get()), true;
+ 	}
+ 	return 0, false;
+ }
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index 741ee0b136..8df18eb305 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -3,11 +3,13 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Parse URLs (actually URIs, but that seems overly pedantic).
++// TODO(rsc): Add tests.
+ 
+ package http
+ 
+ import (
+-	"os"
++	"os";
++	"strings"
+ )
+ 
+ export var (
+@@ -150,13 +152,19 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ 
+ 	// Maybe path is //authority/path
+ 	if len(path) > 2 && path[0:2] == "//" {
+-		url.authority, path = Split(path[2:len(path)], '/', false)
++		url.authority, path = Split(path[2:len(path)], '/', false);
++	}
++
++	// If there's no @, Split's default is wrong.  Check explicitly.
++	if strings.index(url.authority, "@") < 0 {
++		url.host = url.authority;
++	} else {
++		url.userinfo, url.host = Split(url.authority, '@', true);
+ 	}
+-	url.userinfo, url.host = Split(url.authority, '@', true);
+ 
+ 	// What's left is the path.
+ 	// TODO: Canonicalize (remove . and ..)?
+-	if url.path, err = URLUnescape(url.path); err != nil {
++	if url.path, err = URLUnescape(path); err != nil {
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index 5db59091ea..79d648847b 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -359,72 +359,20 @@ ra = nil;
+ // TCP connections.
+ 
+ export type ConnTCP struct {
+-	base ConnBase
++	ConnBase
+ }
+ 
+-// New TCP methods
+ func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
+ 	if c == nil {
+ 		return os.EINVAL
+ 	}
+-	return setsockopt_int((&c.base).FD(), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(nodelay))
+-}
+-
+-// Wrappers
+-func (c *ConnTCP) Read(b *[]byte) (n int, err *os.Error) {
+-	n, err = (&c.base).Read(b);
+-	return n, err
+-}
+-func (c *ConnTCP) Write(b *[]byte) (n int, err *os.Error) {
+-	n, err = (&c.base).Write(b);
+-	return n, err
+-}
+-func (c *ConnTCP) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
+-	n, raddr, err = (&c.base).ReadFrom(b);
+-	return n, raddr, err
+-}
+-func (c *ConnTCP) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
+-	n, err = (&c.base).WriteTo(raddr, b);
+-	return n, err
+-}
+-func (c *ConnTCP) Close() *os.Error {
+-	return (&c.base).Close()
+-}
+-func (c *ConnTCP) SetReadBuffer(bytes int) *os.Error {
+-	return (&c.base).SetReadBuffer(bytes)
+-}
+-func (c *ConnTCP) SetWriteBuffer(bytes int) *os.Error {
+-	return (&c.base).SetWriteBuffer(bytes)
+-}
+-func (c *ConnTCP) SetTimeout(nsec int64) *os.Error {
+-	return (&c.base).SetTimeout(nsec)
+-}
+-func (c *ConnTCP) SetReadTimeout(nsec int64) *os.Error {
+-	return (&c.base).SetReadTimeout(nsec)
+-}
+-func (c *ConnTCP) SetWriteTimeout(nsec int64) *os.Error {
+-	return (&c.base).SetWriteTimeout(nsec)
+-}
+-func (c *ConnTCP) SetLinger(sec int) *os.Error {
+-	return (&c.base).SetLinger(sec)
+-}
+-func (c *ConnTCP) SetReuseAddr(reuseaddr bool) *os.Error {
+-	return (&c.base).SetReuseAddr(reuseaddr)
+-}
+-func (c *ConnTCP) BindToDevice(dev string) *os.Error {
+-	return (&c.base).BindToDevice(dev)
+-}
+-func (c *ConnTCP) SetDontRoute(dontroute bool) *os.Error {
+-	return (&c.base).SetDontRoute(dontroute)
+-}
+-func (c *ConnTCP) SetKeepAlive(keepalive bool) *os.Error {
+-	return (&c.base).SetKeepAlive(keepalive)
++	return setsockopt_int(c.FD(), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(nodelay))
+ }
+ 
+ func NewConnTCP(fd *FD, raddr string) *ConnTCP {
+ 	c := new(ConnTCP);
+-	c.base.fd = fd;
+-	c.base.raddr = raddr;
++	c.fd = fd;
++	c.raddr = raddr;
+ 	c.SetNoDelay(true);
+ 	return c
+ }
+@@ -441,7 +389,31 @@ export func DialTCP(net, laddr, raddr string) (c *ConnTCP, err *os.Error) {
+ }
+ 
+ 
+-// TODO: UDP connections
++// UDP connections.
++
++// TODO(rsc): UDP headers mode
++
++export type ConnUDP struct {
++	ConnBase
++}
++
++func NewConnUDP(fd *FD, raddr string) *ConnUDP {
++	c := new(ConnUDP);
++	c.fd = fd;
++	c.raddr = raddr;
++	return c
++}
++
++export func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
++	if raddr == "" {
++		return nil, MissingAddress
++	}
++	fd, e := InternetSocket(net, laddr, raddr, syscall.SOCK_DGRAM);
++	if e != nil {
++		return nil, e
++	}
++	return NewConnUDP(fd, raddr), nil
++}
+ 
+ 
+ // TODO: raw IP connections
+@@ -468,24 +440,6 @@ export type Conn interface {
+ 	BindToDevice(dev string) *os.Error;
+ }
+ 
+-type NoConn struct { unused int }
+-func (c *NoConn) Read(b *[]byte) (n int, err *os.Error) { return -1, os.EINVAL }
+-func (c *NoConn) Write(b *[]byte) (n int, err *os.Error) { return -1, os.EINVAL }
+-func (c *NoConn) ReadFrom(b *[]byte) (n int, addr string, err *os.Error) { return -1, "", os.EINVAL }
+-func (c *NoConn) WriteTo(addr string, b *[]byte) (n int, err *os.Error) { return -1, os.EINVAL }
+-func (c *NoConn) Close() *os.Error { return nil }
+-func (c *NoConn) SetReadBuffer(bytes int) *os.Error { return os.EINVAL }
+-func (c *NoConn) SetWriteBuffer(bytes int) *os.Error { return os.EINVAL }
+-func (c *NoConn) SetTimeout(nsec int64) *os.Error { return os.EINVAL }
+-func (c *NoConn) SetReadTimeout(nsec int64) *os.Error { return os.EINVAL }
+-func (c *NoConn) SetWriteTimeout(nsec int64) *os.Error { return os.EINVAL }
+-func (c *NoConn) SetLinger(sec int) *os.Error { return os.EINVAL }
+-func (c *NoConn) SetReuseAddr(reuseaddr bool) *os.Error { return os.EINVAL }
+-func (c *NoConn) SetDontRoute(dontroute bool) *os.Error { return os.EINVAL }
+-func (c *NoConn) SetKeepAlive(keepalive bool) *os.Error { return os.EINVAL }
+-func (c *NoConn) BindToDevice(dev string) *os.Error { return os.EINVAL }
+-
+-var noconn NoConn
+ 
+ // Dial's arguments are the network, local address, and remote address.
+ // Examples:
+@@ -501,13 +455,13 @@ export func Dial(net, laddr, raddr string) (c Conn, err *os.Error) {
+ 	case "tcp", "tcp4", "tcp6":
+ 		c, err := DialTCP(net, laddr, raddr);
+ 		if err != nil {
+-			return &noconn, err
++			return nil, err
+ 		}
+ 		return c, nil;
+-/*
+ 	case "udp", "udp4", "upd6":
+ 		c, err := DialUDP(net, laddr, raddr);
+ 		return c, err;
++/*
+ 	case "ether":
+ 		c, err := DialEther(net, laddr, raddr);
+ 		return c, err;
+@@ -528,14 +482,6 @@ export type Listener interface {
+ 	Close() *os.Error;
+ }
+ 
+-type NoListener struct { unused int }
+-func (l *NoListener) Accept() (c Conn, raddr string, err *os.Error) {
+-	return &noconn, "", os.EINVAL
+-}
+-func (l *NoListener) Close() *os.Error { return os.EINVAL }
+-
+-var nolistener NoListener
+-
+ export type ListenerTCP struct {
+ 	fd *FD;
+ 	laddr string
+@@ -576,7 +522,7 @@ func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err *os.Error) {
+ func (l *ListenerTCP) Accept() (c Conn, raddr string, err *os.Error) {
+ 	c1, r1, e1 := l.AcceptTCP();
+ 	if e1 != nil {
+-		return &noconn, "", e1
++		return nil, "", e1
+ 	}
+ 	return c1, r1, nil
+ }
+@@ -593,7 +539,7 @@ export func Listen(net, laddr string) (l Listener, err *os.Error) {
+ 	case "tcp", "tcp4", "tcp6":
+ 		l, err := ListenTCP(net, laddr);
+ 		if err != nil {
+-			return &nolistener, err
++			return nil, err
+ 		}
+ 		return l, nil
+ /*
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index a6ac1a7c79..bb851d49e6 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -294,3 +294,36 @@ export func TestInterfaceGet(t *testing.T) {
+ 	v3 := reflect.NewValue(i2);
+ 	assert(v3.Type().String(), "float");
+ }
++
++export func TestCopyArray(t *testing.T) {
++	a := &[]int{ 1, 2, 3, 4, 10, 9, 8, 7 };
++	b := &[]int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
++	c := &[]int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
++	va := NewValue(a);
++	vb := NewValue(b);
++	for i := 0; i < len(b); i++ {
++		if b[i] != c[i] {
++			t.Fatalf("b != c before test");
++		}
++	}
++	for tocopy := 5; tocopy <= 6; tocopy++ {
++		CopyArray(vb.(PtrValue).Sub(), va.(PtrValue).Sub(), tocopy);
++		for i := 0; i < tocopy; i++ {
++			if a[i] != b[i] {
++				t.Errorf("tocopy=%d a[%d]=%d, b[%d]=%d",
++					tocopy, i, a[i], i, b[i]);
++			}
++		}
++		for i := tocopy; i < len(b); i++ {
++			if b[i] != c[i] {
++				if i < len(a) {
++					t.Errorf("tocopy=%d a[%d]=%d, b[%d]=%d, c[%d]=%d",
++						tocopy, i, a[i], i, b[i], i, c[i]);
++				} else {
++					t.Errorf("tocopy=%d b[%d]=%d, c[%d]=%d",
++						tocopy, i, b[i], i, c[i]);
++				}
++			}
++		}
++	}
++}
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 04570803cf..1b6ec31463 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -14,6 +14,10 @@ import (
+ 
+ type Addr unsafe.pointer	// TODO: where are ptrint/intptr etc?
+ 
++func EqualType(a, b Type) bool {
++	return a.String() == b.String()
++}
++
+ export type Value interface {
+ 	Kind()	int;
+ 	Type()	Type;
+@@ -490,11 +494,12 @@ func (v *PtrValueStruct) Sub() Value {
+ 	return NewValueAddr(v.typ.(PtrType).Sub(), v.Get());
+ }
+ 
+-func (v *PtrValueStruct) SetSub(subv Value)  {
+-	a := v.typ.(PtrType).Sub().String();
+-	b := subv.Type().String();
+-	if a != b {
+-		panicln("reflect: incompatible types in PtrValue.SetSub:", a, b);
++func (v *PtrValueStruct) SetSub(subv Value) {
++	a := v.typ.(PtrType).Sub();
++	b := subv.Type();
++	if !EqualType(a, b) {
++		panicln("reflect: incompatible types in PtrValue.SetSub:",
++			a.String(), b.String());
+ 	}
+ 	*v.addr.(*Addr) = subv.Addr();
+ }
+@@ -806,6 +811,38 @@ export func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
+ 	return NewValueAddr(typ, Addr(array));
+ }
+ 
++export func CopyArray(dst ArrayValue, src ArrayValue, n int) {
++	if n == 0 {
++		return
++	}
++	dt := dst.Type().(ArrayType).Elem();
++	st := src.Type().(ArrayType).Elem();
++	if !EqualType(dt, st) {
++		panicln("reflect: incompatible types in CopyArray:",
++			dt.String(), st.String());
++	}
++	if n < 0 || n > dst.Len() || n > src.Len() {
++		panicln("reflect: CopyArray: invalid count", n);
++	}
++	dstp := uintptr(dst.Elem(0).Addr());
++	srcp := uintptr(src.Elem(0).Addr());
++	end := uintptr(n)*uintptr(dt.Size());
++	if dst.Type().Size() % 8 == 0 {
++		for i := uintptr(0); i < end; i += 8{
++			di := Addr(dstp + i);
++			si := Addr(srcp + i);
++			*di.(*uint64) = *si.(*uint64);
++		}
++	} else {
++		for i := uintptr(0); i < end; i++ {
++			di := Addr(dstp + i);
++			si := Addr(srcp + i);
++			*di.(*byte) = *si.(*byte);
++		}
++	}
++}
++
++
+ export func NewValue(e interface {}) Value {
+ 	value, typestring  := sys.reflect(e);
+ 	p, ok := typecache[typestring];
+diff --git a/src/lib/strconv/quote.go b/src/lib/strconv/quote.go
+index 122af92d72..36fa195104 100644
+--- a/src/lib/strconv/quote.go
++++ b/src/lib/strconv/quote.go
+@@ -36,6 +36,9 @@ export func Quote(s string) string {
+ 		case s[i] == '\v':
+ 			t += `\v`;
+ 
++		case s[i] < utf8.RuneSelf:
++			t += `\x` + string(ldigits[s[i]>>4]) + string(ldigits[s[i]&0xF]);
++
+ 		case utf8.FullRuneInString(s, i):
+ 			r, size := utf8.DecodeRuneInString(s, i);
+ 			if r == utf8.RuneError && size == 1 {
+diff --git a/src/lib/strconv/quote_test.go b/src/lib/strconv/quote_test.go
+index 2c0e98ed52..a5df94be04 100644
+--- a/src/lib/strconv/quote_test.go
++++ b/src/lib/strconv/quote_test.go
+@@ -20,6 +20,7 @@ var quotetests = []QuoteTest {
+ 	QuoteTest{ "abc\xffdef", `"abc\xffdef"` },
+ 	QuoteTest{ "\u263a", `"\u263a"` },
+ 	QuoteTest{ "\U0010ffff", `"\U0010ffff"` },
++	QuoteTest{ "\x04", `"\x04"` },
+ }
+ 
+ export func TestQuote(t *testing.T) {

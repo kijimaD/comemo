@@ -8,6 +8,20 @@ Date:   Fri May 8 16:38:42 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=28583
     CL=28590
-
+---
  src/cmd/gobuild/util.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index ac0cd03c1a..43d7aed798 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -100,7 +100,7 @@ func Build(cmd []string, file string, display bool) (ok bool) {
+ 	if display {
+ 		fmt.Fprint(os.Stderr, "$ ");
+ 		for i, s := range cmd {
+-			fmt.Fprint(os.Stderr, s[i], " ");
++			fmt.Fprint(os.Stderr, s, " ");
+ 		}
+ 		fmt.Fprint(os.Stderr, file, "\n");
+ 	}

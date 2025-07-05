@@ -13,7 +13,111 @@ Date:   Tue Feb 23 11:15:56 2016 -0800
     Change-Id: If72607385752e221eaa2518238b11f48fbcb8a90
     Reviewed-on: https://go-review.googlesource.com/19855
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/text/tabwriter/example_test.go | 35 +++++++++++++++++++++++++++++++++
  src/text/tabwriter/tabwriter.go    | 40 +++++++++++++++++++++++++-------------
  2 files changed, 62 insertions(+), 13 deletions(-)
+
+diff --git a/src/text/tabwriter/example_test.go b/src/text/tabwriter/example_test.go
+index 20443cb1ff..422ec117ad 100644
+--- a/src/text/tabwriter/example_test.go
++++ b/src/text/tabwriter/example_test.go
+@@ -36,3 +36,38 @@ func ExampleWriter_Init() {
+ 	//     a     b       c         d.
+ 	//   123 12345 1234567 123456789.
+ }
++
++func Example_elastic() {
++	// Observe how the b's and the d's, despite appearing in the
++	// second cell of each line, belong to different columns.
++	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, '.', tabwriter.AlignRight|tabwriter.Debug)
++	fmt.Fprintln(w, "a\tb\tc")
++	fmt.Fprintln(w, "aa\tbb\tcc")
++	fmt.Fprintln(w, "aaa\t") // trailing tab
++	fmt.Fprintln(w, "aaaa\tdddd\teeee")
++	w.Flush()
++
++	// output:
++	// ....a|..b|c
++	// ...aa|.bb|cc
++	// ..aaa|
++	// .aaaa|.dddd|eeee
++}
++
++func Example_trailingTab() {
++	// Observe that the third line has no trailing tab,
++	// so its final cell is not part of an aligned column.
++	const padding = 3
++	w := tabwriter.NewWriter(os.Stdout, 0, 0, padding, '-', tabwriter.AlignRight|tabwriter.Debug)
++	fmt.Fprintln(w, "a\tb\taligned\t")
++	fmt.Fprintln(w, "aa\tbb\taligned\t")
++	fmt.Fprintln(w, "aaa\tbbb\tunaligned") // no trailing tab
++	fmt.Fprintln(w, "aaaa\tbbbb\taligned\t")
++	w.Flush()
++
++	// output:
++	// ------a|------b|---aligned|
++	// -----aa|-----bb|---aligned|
++	// ----aaa|----bbb|unaligned
++	// ---aaaa|---bbbb|---aligned|
++}
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index c0c32d5dec..4cafdba2b2 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -33,18 +33,32 @@ type cell struct {
+ // A Writer is a filter that inserts padding around tab-delimited
+ // columns in its input to align them in the output.
+ //
+-// The Writer treats incoming bytes as UTF-8 encoded text consisting
+-// of cells terminated by (horizontal or vertical) tabs or line
+-// breaks (newline or formfeed characters). Cells in adjacent lines
+-// constitute a column. The Writer inserts padding as needed to
+-// make all cells in a column have the same width, effectively
+-// aligning the columns. It assumes that all characters have the
+-// same width except for tabs for which a tabwidth must be specified.
+-// Note that cells are tab-terminated, not tab-separated: trailing
+-// non-tab text at the end of a line does not form a column cell.
++// The Writer treats incoming bytes as UTF-8-encoded text consisting
++// of cells terminated by horizontal ('\t') or vertical ('\v') tabs,
++// and newline ('\n') or formfeed ('\f') characters; both newline and
++// formfeed act as line breaks.
++//
++// Tab-terminated cells in contiguous lines constitute a column. The
++// Writer inserts padding as needed to make all cells in a column have
++// the same width, effectively aligning the columns. It assumes that
++// all characters have the same width, except for tabs for which a
++// tabwidth must be specified. Column cells must be tab-terminated, not
++// tab-separated: non-tab terminated trailing text at the end of a line
++// forms a cell but that cell is not part of an aligned column.
++// For instance, in this example (where | stands for a horizontal tab):
++//
++//	aaaa|bbb|d
++//	aa  |b  |dd
++//	a   |
++//	aa  |cccc|eee
++//
++// the b and c are in distinct columns (the b column is not contiguous
++// all the way). The d and e are not in a column at all (there's no
++// terminating tab, nor would the column be contiguous).
+ //
+ // The Writer assumes that all Unicode code points have the same width;
+-// this may not be true in some fonts.
++// this may not be true in some fonts or if the string contains combining
++// characters.
+ //
+ // If DiscardEmptyColumns is set, empty columns that are terminated
+ // entirely by vertical (or "soft") tabs are discarded. Columns
+@@ -64,9 +78,9 @@ type cell struct {
+ // width of the escaped text is always computed excluding the Escape
+ // characters.
+ //
+-// The formfeed character ('\f') acts like a newline but it also
+-// terminates all columns in the current line (effectively calling
+-// Flush). Cells in the next line start new columns. Unless found
++// The formfeed character acts like a newline but it also terminates
++// all columns in the current line (effectively calling Flush). Tab-
++// terminated cells in the next line start new columns. Unless found
+ // inside an HTML tag or inside an escaped text segment, formfeed
+ // characters appear as newlines in the output.
+ //

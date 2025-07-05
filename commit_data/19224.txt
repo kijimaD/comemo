@@ -11,6 +11,20 @@ Date:   Mon Apr 21 17:00:27 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/90110043
-
+---
  src/pkg/strings/strings_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 8347818d59..95a42019a3 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -652,7 +652,7 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
+ 	e1 := Split(s1, "")
+ 	e2 := Split(s2, "")
+ 	for i, c1 := range e1 {
+-		if i > len(e2) {
++		if i >= len(e2) {
+ 			break
+ 		}
+ 		r1, _ := utf8.DecodeRuneInString(c1)

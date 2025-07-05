@@ -16,7 +16,65 @@ Date:   Thu May 4 11:25:29 2023 +0100
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/syscall_windows.go      | 10 +++++++---
  src/syscall/syscall_windows_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index c34f0199ea..8687d1cc21 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -42,9 +42,13 @@ func UTF16FromString(s string) ([]uint16, error) {
+ 	if bytealg.IndexByteString(s, 0) != -1 {
+ 		return nil, EINVAL
+ 	}
+-	// In the worst case all characters require two uint16.
+-	// Also account for the terminating NULL character.
+-	buf := make([]uint16, 0, len(s)*2+1)
++	// Valid UTF-8 characters between 1 and 3 bytes require one uint16.
++	// Valid UTF-8 characters of 4 bytes require two uint16.
++	// Bytes with invalid UTF-8 encoding require maximum one uint16 per byte.
++	// So the number of UTF-8 code units (len(s)) is always greater or
++	// equal than the number of UTF-16 code units.
++	// Also account for the terminating NUL character.
++	buf := make([]uint16, 0, len(s)+1)
+ 	for _, r := range s {
+ 		buf = utf16.AppendRune(buf, r)
+ 	}
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 3b567218e2..23041ee09a 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -169,3 +169,31 @@ int main(int argc, char *argv[])
+ 		t.Fatalf("c program output is wrong: got %q, want %q", have, want)
+ 	}
+ }
++
++func FuzzUTF16FromString(f *testing.F) {
++	f.Add("hi")           // ASCII
++	f.Add("â")            // latin1
++	f.Add("ねこ")           // plane 0
++	f.Add("😃")            // extra Plane 0
++	f.Add("\x90")         // invalid byte
++	f.Add("\xe3\x81")     // truncated
++	f.Add("\xe3\xc1\x81") // invalid middle byte
++
++	f.Fuzz(func(t *testing.T, tst string) {
++		res, err := syscall.UTF16FromString(tst)
++		if err != nil {
++			if strings.Contains(tst, "\x00") {
++				t.Skipf("input %q contains a NUL byte", tst)
++			}
++			t.Fatalf("UTF16FromString(%q): %v", tst, err)
++		}
++		t.Logf("UTF16FromString(%q) = %04x", tst, res)
++
++		if len(res) < 1 || res[len(res)-1] != 0 {
++			t.Fatalf("missing NUL terminator")
++		}
++		if len(res) > len(tst)+1 {
++			t.Fatalf("len(%04x) > len(%q)+1", res, tst)
++		}
++	})
++}

@@ -14,8 +14,66 @@ Date:   Mon Mar 11 15:05:10 2019 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue30659.dir/a.go | 19 +++++++++++++++++++
  test/fixedbugs/issue30659.dir/b.go | 13 +++++++++++++
  test/fixedbugs/issue30659.go       |  7 +++++++
  3 files changed, 39 insertions(+)
+
+diff --git a/test/fixedbugs/issue30659.dir/a.go b/test/fixedbugs/issue30659.dir/a.go
+new file mode 100644
+index 0000000000..3837e021c4
+--- /dev/null
++++ b/test/fixedbugs/issue30659.dir/a.go
+@@ -0,0 +1,19 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I interface {
++	I2
++}
++type I2 interface {
++	M()
++}
++type S struct{}
++
++func (*S) M() {}
++
++func New() I {
++	return &S{}
++}
+diff --git a/test/fixedbugs/issue30659.dir/b.go b/test/fixedbugs/issue30659.dir/b.go
+new file mode 100644
+index 0000000000..272e520582
+--- /dev/null
++++ b/test/fixedbugs/issue30659.dir/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import (
++	"./a"
++)
++
++func B(p1 a.I, p2 a.I2) int {
++	return 42
++}
+diff --git a/test/fixedbugs/issue30659.go b/test/fixedbugs/issue30659.go
+new file mode 100644
+index 0000000000..973ae1dcef
+--- /dev/null
++++ b/test/fixedbugs/issue30659.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

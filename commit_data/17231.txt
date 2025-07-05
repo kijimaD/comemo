@@ -9,8 +9,75 @@ Date:   Wed Aug 14 12:57:05 2013 -0400
     TBR=elias.naur
     CC=golang-dev
     https://golang.org/cl/12741044
-
+---
  src/cmd/dist/buildruntime.c | 13 ++++++-------
  src/cmd/ld/data.c           |  2 +-
  src/cmd/ld/lib.c            |  7 ++++---
  3 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 287ec86f58..62ec8b60e5 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -166,17 +166,16 @@ static struct {
+ 	// If the linker is not outputting a shared library, it will reduce
+ 	// the TLS accessors to the local exec model, effectively removing
+ 	// get_tls().
+-	{"amd64", "",
+-		"// The offsets 0 and 8 are known to:\n"
+-		"//	../../cmd/6l/pass.c:/D_GS\n"
+-		"//	cgo/gcc_linux_amd64.c:/^threadentry\n"
+-		"//	cgo/gcc_darwin_amd64.c:/^threadentry\n"
+-		"//\n"
++	{"amd64", "linux",
+ 		"#define	get_tls(r) MOVQ runtime·tlsgm(SB), r\n"
+ 		"#define	g(r) 0(r)(GS*1)\n"
+ 		"#define	m(r) 8(r)(GS*1)\n"
+ 	},
+-	
++	{"amd64", "",
++		"#define get_tls(r)\n"
++		"#define g(r) 0(GS)\n"
++		"#define m(r) 8(GS)\n"
++	},	
+ 	{"arm", "",
+ 	"#define	LR	R14\n"
+ 	},
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index db2ac0f460..a1c31128aa 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -1212,7 +1212,7 @@ dodata(void)
+ 		diag("data or bss segment too large");
+ 	}
+ 	
+-	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && HEADTYPE != Hopenbsd) {
++	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && iself && HEADTYPE != Hopenbsd) {
+ 		sect = addsection(&segdata, ".tbss", 06);
+ 		sect->align = PtrSize;
+ 		sect->vaddr = 0;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 5eab2c70f8..3e8d49adaf 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -360,16 +360,17 @@ loadlib(void)
+ 				} else
+ 					s->type = 0;
+ 			}
+-	} 
++	}
++	
+ 	gmsym = lookup("runtime.tlsgm", 0);
+ 	gmsym->type = STLSBSS;
+ 	gmsym->size = 2*PtrSize;
+ 	gmsym->hide = 1;
+-	if(linkmode == LinkExternal)
++	if(linkmode == LinkExternal && iself && HEADTYPE != Hopenbsd)
+ 		gmsym->reachable = 1;
+ 	else
+ 		gmsym->reachable = 0;
+-	
++
+ 	// Now that we know the link mode, trim the dynexp list.
+ 	x = CgoExportDynamic;
+ 	if(linkmode == LinkExternal)

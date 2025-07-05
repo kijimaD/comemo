@@ -31,6 +31,31 @@ Date:   Mon Oct 28 22:21:26 2013 -0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/18850043
-
+---
  src/cmd/cgo/gcc.go | 13 ++++++-------
  1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d31fc47f1a..60d420b21f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -742,13 +742,12 @@ func gccTmp() string {
+ // the input.
+ func (p *Package) gccCmd() []string {
+ 	c := append(p.gccBaseCmd(),
+-		"-w",                                // no warnings
+-		"-Wno-error",                        // warnings are not errors
+-		"-o"+gccTmp(),                       // write object to tmp
+-		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
+-		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
+-		"-c",  // do not link
+-		"-xc", // input language is C
++		"-w",          // no warnings
++		"-Wno-error",  // warnings are not errors
++		"-o"+gccTmp(), // write object to tmp
++		"-gdwarf-2",   // generate DWARF v2 debugging symbols
++		"-c",          // do not link
++		"-xc",         // input language is C
+ 	)
+ 	if strings.Contains(c[0], "clang") {
+ 		c = append(c,

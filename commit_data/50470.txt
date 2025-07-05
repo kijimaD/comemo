@@ -20,7 +20,7 @@ Date:   Wed Oct 27 13:55:15 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go        |  14 ---
  src/cmd/compile/internal/types2/decl.go            |   9 +-
  .../internal/types2/testdata/check/linalg.go2      |  61 ++++++------
@@ -42,3 +42,890 @@ Date:   Wed Oct 27 13:55:15 2021 -0700
  test/typeparam/issue47740.go                       |  23 +++--
  test/typeparam/issue47740.out                      |   2 -
  20 files changed, 297 insertions(+), 309 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index ecb5a29830..26652f3e74 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -622,13 +622,6 @@ func TestDefsInfo(t *testing.T) {
+ 		{`package p3; type x int`, `x`, `type p3.x int`},
+ 		{`package p4; func f()`, `f`, `func p4.f()`},
+ 		{`package p5; func f() int { x, _ := 1, 2; return x }`, `_`, `var _ int`},
+-
+-		// generic types must be sanitized
+-		// (need to use sufficiently nested types to provoke unexpanded types)
+-		{genericPkg + `g0; type t[P any] P; const x = t[int](42)`, `x`, `const generic_g0.x generic_g0.t[int]`},
+-		{genericPkg + `g1; type t[P any] P; var x = t[int](42)`, `x`, `var generic_g1.x generic_g1.t[int]`},
+-		{genericPkg + `g2; type t[P any] P; type x struct{ f t[int] }`, `x`, `type generic_g2.x struct{f generic_g2.t[int]}`},
+-		{genericPkg + `g3; type t[P any] P; func f(x struct{ f t[string] }); var g = f`, `g`, `var generic_g3.g func(x struct{f generic_g3.t[string]})`},
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -667,13 +660,6 @@ func TestUsesInfo(t *testing.T) {
+ 		{`package p2; func _() { _ = x }; var x int`, `x`, `var p2.x int`},
+ 		{`package p3; func _() { type _ x }; type x int`, `x`, `type p3.x int`},
+ 		{`package p4; func _() { _ = f }; func f()`, `f`, `func p4.f()`},
+-
+-		// generic types must be sanitized
+-		// (need to use sufficiently nested types to provoke unexpanded types)
+-		{genericPkg + `g0; func _() { _ = x }; type t[P any] P; const x = t[int](42)`, `x`, `const generic_g0.x generic_g0.t[int]`},
+-		{genericPkg + `g1; func _() { _ = x }; type t[P any] P; var x = t[int](42)`, `x`, `var generic_g1.x generic_g1.t[int]`},
+-		{genericPkg + `g2; func _() { type _ x }; type t[P any] P; type x struct{ f t[int] }`, `x`, `type generic_g2.x struct{f generic_g2.t[int]}`},
+-		{genericPkg + `g3; func _() { _ = f }; type t[P any] P; func f(x struct{ f t[string] })`, `f`, `func generic_g3.f(x struct{f generic_g3.t[string]})`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 63be4b3223..5d2a6c531b 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -604,9 +604,12 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 		named.underlying = Typ[Invalid]
+ 	}
+ 
+-	// If the RHS is a type parameter, it must be from this type declaration.
+-	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.TypeParams().list(), tpar) < 0 {
+-		check.errorf(tdecl.Type, "cannot use function type parameter %s as RHS in type declaration", tpar)
++	// Disallow a lone type parameter as the RHS of a type declaration (issue #45639).
++	// We can look directly at named.underlying because even if it is still a *Named
++	// type (underlying not fully resolved yet) it cannot become a type parameter due
++	// to this very restriction.
++	if tpar, _ := named.underlying.(*TypeParam); tpar != nil {
++		check.error(tdecl.Type, "cannot use a type parameter as RHS in type declaration")
+ 		named.underlying = Typ[Invalid]
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/check/linalg.go2 b/src/cmd/compile/internal/types2/testdata/check/linalg.go2
+index efc090a1d1..f02e773dbe 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/linalg.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/linalg.go2
+@@ -4,8 +4,6 @@
+ 
+ package linalg
+ 
+-import "math"
+-
+ // Numeric is type bound that matches any numeric type.
+ // It would likely be in a constraints package in the standard library.
+ type Numeric interface {
+@@ -52,32 +50,33 @@ type Complex interface {
+ 	~complex64 | ~complex128
+ }
+ 
+-// OrderedAbs is a helper type that defines an Abs method for
+-// ordered numeric types.
+-type OrderedAbs[T OrderedNumeric] T
+-
+-func (a OrderedAbs[T]) Abs() OrderedAbs[T] {
+-	if a < 0 {
+-		return -a
+-	}
+-	return a
+-}
+-
+-// ComplexAbs is a helper type that defines an Abs method for
+-// complex types.
+-type ComplexAbs[T Complex] T
+-
+-func (a ComplexAbs[T]) Abs() ComplexAbs[T] {
+-	r := float64(real(a))
+-	i := float64(imag(a))
+-	d := math.Sqrt(r * r + i * i)
+-	return ComplexAbs[T](complex(d, 0))
+-}
+-
+-func OrderedAbsDifference[T OrderedNumeric](a, b T) T {
+-	return T(AbsDifference(OrderedAbs[T](a), OrderedAbs[T](b)))
+-}
+-
+-func ComplexAbsDifference[T Complex](a, b T) T {
+-	return T(AbsDifference(ComplexAbs[T](a), ComplexAbs[T](b)))
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// // OrderedAbs is a helper type that defines an Abs method for
++// // ordered numeric types.
++// type OrderedAbs[T OrderedNumeric] T
++// 
++// func (a OrderedAbs[T]) Abs() OrderedAbs[T] {
++// 	if a < 0 {
++// 		return -a
++// 	}
++// 	return a
++// }
++// 
++// // ComplexAbs is a helper type that defines an Abs method for
++// // complex types.
++// type ComplexAbs[T Complex] T
++// 
++// func (a ComplexAbs[T]) Abs() ComplexAbs[T] {
++// 	r := float64(real(a))
++// 	i := float64(imag(a))
++// 	d := math.Sqrt(r * r + i * i)
++// 	return ComplexAbs[T](complex(d, 0))
++// }
++// 
++// func OrderedAbsDifference[T OrderedNumeric](a, b T) T {
++// 	return T(AbsDifference(OrderedAbs[T](a), OrderedAbs[T](b)))
++// }
++// 
++// func ComplexAbsDifference[T Complex](a, b T) T {
++// 	return T(AbsDifference(ComplexAbs[T](a), ComplexAbs[T](b)))
++// }
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinst.go2
+index 14f1b07ee2..a3d1b5e28f 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst.go2
+@@ -8,7 +8,8 @@ type myInt int
+ 
+ // Parameterized type declarations
+ 
+-type T1[P any] P
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++type T1[P any] P // ERROR cannot use a type parameter as RHS in type declaration
+ 
+ type T2[P any] struct {
+         f P
+@@ -19,7 +20,7 @@ type List[P any] []P
+ 
+ // Alias type declarations cannot have type parameters.
+ // Issue #46477 proposses to change that.
+-type A1[P any] = /* ERROR cannot be alias */ P
++type A1[P any] = /* ERROR cannot be alias */ struct{}
+ 
+ // Pending clarification of #46477 we disallow aliases
+ // of generic types.
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+index 783ff346c9..5529bd093d 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+@@ -87,25 +87,27 @@ type NumericAbs[T any] interface {
+ 
+ func AbsDifference[T NumericAbs[T]](x T) { panic(0) }
+ 
+-type OrderedAbs[T any] T
+-
+-func (a OrderedAbs[T]) Abs() OrderedAbs[T]
+-
+-func OrderedAbsDifference[T any](x T) {
+-	AbsDifference(OrderedAbs[T](x))
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// type OrderedAbs[T any] T
++// 
++// func (a OrderedAbs[T]) Abs() OrderedAbs[T]
++// 
++// func OrderedAbsDifference[T any](x T) {
++// 	AbsDifference(OrderedAbs[T](x))
++// }
+ 
+ // same code, reduced to essence
+ 
+ func g[P interface{ m() P }](x P) { panic(0) }
+ 
+-type T4[P any] P
+-
+-func (_ T4[P]) m() T4[P]
+-
+-func _[Q any](x Q) {
+-	g(T4[Q](x))
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// type T4[P any] P
++// 
++// func (_ T4[P]) m() T4[P]
++// 
++// func _[Q any](x Q) {
++// 	g(T4[Q](x))
++// }
+ 
+ // Another test case that caused  problems in the past
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index 1200a6e874..11adb21d95 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -353,15 +353,16 @@ func _() {
+ 
+ // the previous example was extracted from
+ 
+-func f12[T interface{m() T}]() {}
+-
+-type A[T any] T
+-
+-func (a A[T]) m() A[T]
+-
+-func _[T any]() {
+-	f12[A[T]]()
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// func f12[T interface{m() T}]() {}
++// 
++// type A[T any] T
++// 
++// func (a A[T]) m() A[T]
++// 
++// func _[T any]() {
++// 	f12[A[T]]()
++// }
+ 
+ // method expressions
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/methods.go2 b/src/cmd/compile/internal/types2/testdata/examples/methods.go2
+index 4e87041e54..1d76d553dc 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/methods.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/methods.go2
+@@ -6,8 +6,6 @@
+ 
+ package p
+ 
+-import "unsafe"
+-
+ // Parameterized types may have methods.
+ type T1[A any] struct{ a A }
+ 
+@@ -97,17 +95,18 @@ type T0 struct{}
+ func (T0) _() {}
+ func (T1[A]) _() {}
+ 
+-// A generic receiver type may constrain its type parameter such
+-// that it must be a pointer type. Such receiver types are not
+-// permitted.
+-type T3a[P interface{ ~int | ~string | ~float64 }] P
+-
+-func (T3a[_]) m() {} // this is ok
+-
+-type T3b[P interface{ ~unsafe.Pointer }] P
+-
+-func (T3b /* ERROR invalid receiver */ [_]) m() {}
+-
+-type T3c[P interface{ *int | *string }] P
+-
+-func (T3c /* ERROR invalid receiver */ [_]) m() {}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// // A generic receiver type may constrain its type parameter such
++// // that it must be a pointer type. Such receiver types are not
++// // permitted.
++// type T3a[P interface{ ~int | ~string | ~float64 }] P
++// 
++// func (T3a[_]) m() {} // this is ok
++// 
++// type T3b[P interface{ ~unsafe.Pointer }] P
++// 
++// func (T3b /* ERROR invalid receiver */ [_]) m() {}
++// 
++// type T3c[P interface{ *int | *string }] P
++// 
++// func (T3c /* ERROR invalid receiver */ [_]) m() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/types.go2 b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+index f177c78d06..72b74cee01 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/types.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+@@ -185,12 +185,13 @@ type _ struct {
+ // 	_ = y < 0
+ // }
+ 
+-// It is not permitted to declare a local type whose underlying
+-// type is a type parameter not declared by that type declaration.
+-func _[T any]() {
+-	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
+-	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// // It is not permitted to declare a local type whose underlying
++// // type is a type parameter not declared by that type declaration.
++// func _[T any]() {
++// 	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
++// 	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
++// }
+ 
+ // As a special case, an explicit type argument may be omitted
+ // from a type parameter bound if the type bound expects exactly
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+index 200484b6d9..9a98f7f955 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+@@ -74,9 +74,10 @@ func F20[t Z20]() { F20(t /* ERROR invalid composite literal type */ {}) }
+ type Z21 /* ERROR illegal cycle */ interface{ Z21 }
+ func F21[T Z21]() { ( /* ERROR not used */ F21[Z21]) }
+ 
+-// crash 24
+-type T24[P any] P
+-func (r T24[P]) m() { T24 /* ERROR without instantiation */ .m() }
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// // crash 24
++// type T24[P any] P
++// func (r T24[P]) m() { T24 /* ERROR without instantiation */ .m() }
+ 
+ // crash 25
+ type T25[A any] int
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go2
+index fb522733e0..696d9d9bee 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39768.go2
+@@ -4,14 +4,15 @@
+ 
+ package p
+ 
+-type T[P any] P
+-type A = T  // ERROR cannot use generic type
+-var x A[int]
+-var _ A
+-
+-type B = T[int]
+-var y B = x
+-var _ B /* ERROR not a generic type */ [int]
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// type T[P any] P
++// type A = T  // ERROR cannot use generic type
++// var x A[int]
++// var _ A
++//
++// type B = T[int]
++// var y B = x
++// var _ B /* ERROR not a generic type */ [int]
+ 
+ // test case from issue
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2
+index 31bec5fb01..114646786d 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2
+@@ -8,7 +8,7 @@
+ 
+ package p
+ 
+-type E0[P any] P
++type E0[P any] []P
+ type E1[P any] *P
+ type E2[P any] struct{ _ P }
+ type E3[P any] struct{ _ *P }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45639.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45639.go2
+index 441fb4cb34..80148fe481 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45639.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45639.go2
+@@ -4,9 +4,10 @@
+ 
+ package P
+ 
+-// It is not permitted to declare a local type whose underlying
+-// type is a type parameters not declared by that type declaration.
+-func _[T any]() {
+-	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
+-	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// // It is not permitted to declare a local type whose underlying
++// // type is a type parameters not declared by that type declaration.
++// func _[T any]() {
++// 	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
++// 	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
++// }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47747.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47747.go2
+index af52056bef..6a2e787bf9 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47747.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47747.go2
+@@ -4,15 +4,16 @@
+ 
+ package p
+ 
+-type T1[P any] P
+-
+-func (T1[_]) m() {}
+-
+-func _[P any](x *T1[P]) {
+-        // x.m exists because x is of type *T1 where T1 is a defined type
+-        // (even though under(T1) is a type parameter)
+-        x.m()
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// type T1[P any] P
++// 
++// func (T1[_]) m() {}
++// 
++// func _[P any](x *T1[P]) {
++//         // x.m exists because x is of type *T1 where T1 is a defined type
++//         // (even though under(T1) is a type parameter)
++//         x.m()
++// }
+ 
+ 
+ func _[P interface{ m() }](x P) {
+@@ -40,29 +41,31 @@ type Barer[t any] interface {
+ 	Bar(t)
+ }
+ 
+-type Foo1[t any] t
+-type Bar[t any] t
+-
+-func (l Foo1[t]) Foo(v Barer[t]) { v.Bar(t(l)) }
+-func (b *Bar[t]) Bar(l t)        { *b = Bar[t](l) }
+-
+-func _[t any](f Fooer1[t]) t {
+-	var b Bar[t]
+-	f.Foo(&b)
+-	return t(b)
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// type Foo1[t any] t
++// type Bar[t any] t
++// 
++// func (l Foo1[t]) Foo(v Barer[t]) { v.Bar(t(l)) }
++// func (b *Bar[t]) Bar(l t)        { *b = Bar[t](l) }
++// 
++// func _[t any](f Fooer1[t]) t {
++// 	var b Bar[t]
++// 	f.Foo(&b)
++// 	return t(b)
++// }
+ 
+ // Test case 2 from issue
+ 
+-type Fooer2[t any] interface {
+-	Foo()
+-}
+-
+-type Foo2[t any] t
+-
+-func (f *Foo2[t]) Foo() {}
+-
+-func _[t any](v t) {
+-	var f = Foo2[t](v)
+-	_ = Fooer2[t](&f)
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// type Fooer2[t any] interface {
++// 	Foo()
++// }
++// 
++// type Foo2[t any] t
++// 
++// func (f *Foo2[t]) Foo() {}
++// 
++// func _[t any](v t) {
++// 	var f = Foo2[t](v)
++// 	_ = Fooer2[t](&f)
++// }
+diff --git a/test/typeparam/absdiff.go b/test/typeparam/absdiff.go
+index cad6e84c4e..f1822831b2 100644
+--- a/test/typeparam/absdiff.go
++++ b/test/typeparam/absdiff.go
+@@ -6,11 +6,6 @@
+ 
+ package main
+ 
+-import (
+-	"fmt"
+-	"math"
+-)
+-
+ type Numeric interface {
+ 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+ 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+@@ -43,55 +38,57 @@ type Complex interface {
+ 	~complex64 | ~complex128
+ }
+ 
+-// orderedAbs is a helper type that defines an Abs method for
+-// ordered numeric types.
+-type orderedAbs[T orderedNumeric] T
+-
+-func (a orderedAbs[T]) Abs() orderedAbs[T] {
+-	if a < 0 {
+-		return -a
+-	}
+-	return a
+-}
+-
+-// complexAbs is a helper type that defines an Abs method for
+-// complex types.
+-type complexAbs[T Complex] T
+-
+-func (a complexAbs[T]) Abs() complexAbs[T] {
+-	r := float64(real(a))
+-	i := float64(imag(a))
+-	d := math.Sqrt(r*r + i*i)
+-	return complexAbs[T](complex(d, 0))
+-}
+-
+-// OrderedAbsDifference returns the absolute value of the difference
+-// between a and b, where a and b are of an ordered type.
+-func orderedAbsDifference[T orderedNumeric](a, b T) T {
+-	return T(absDifference(orderedAbs[T](a), orderedAbs[T](b)))
+-}
+-
+-// ComplexAbsDifference returns the absolute value of the difference
+-// between a and b, where a and b are of a complex type.
+-func complexAbsDifference[T Complex](a, b T) T {
+-	return T(absDifference(complexAbs[T](a), complexAbs[T](b)))
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// // orderedAbs is a helper type that defines an Abs method for
++// // ordered numeric types.
++// type orderedAbs[T orderedNumeric] T
++//
++// func (a orderedAbs[T]) Abs() orderedAbs[T] {
++// 	if a < 0 {
++// 		return -a
++// 	}
++// 	return a
++// }
++//
++// // complexAbs is a helper type that defines an Abs method for
++// // complex types.
++// type complexAbs[T Complex] T
++//
++// func (a complexAbs[T]) Abs() complexAbs[T] {
++// 	r := float64(real(a))
++// 	i := float64(imag(a))
++// 	d := math.Sqrt(r*r + i*i)
++// 	return complexAbs[T](complex(d, 0))
++// }
++//
++// // OrderedAbsDifference returns the absolute value of the difference
++// // between a and b, where a and b are of an ordered type.
++// func orderedAbsDifference[T orderedNumeric](a, b T) T {
++// 	return T(absDifference(orderedAbs[T](a), orderedAbs[T](b)))
++// }
++//
++// // ComplexAbsDifference returns the absolute value of the difference
++// // between a and b, where a and b are of a complex type.
++// func complexAbsDifference[T Complex](a, b T) T {
++// 	return T(absDifference(complexAbs[T](a), complexAbs[T](b)))
++// }
+ 
+ func main() {
+-	if got, want := orderedAbsDifference(1.0, -2.0), 3.0; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
+-	if got, want := orderedAbsDifference(-1.0, 2.0), 3.0; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
+-	if got, want := orderedAbsDifference(-20, 15), 35; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
+-
+-	if got, want := complexAbsDifference(5.0+2.0i, 2.0-2.0i), 5+0i; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
+-	if got, want := complexAbsDifference(2.0-2.0i, 5.0+2.0i), 5+0i; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
++	// // For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++	// if got, want := orderedAbsDifference(1.0, -2.0), 3.0; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
++	// if got, want := orderedAbsDifference(-1.0, 2.0), 3.0; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
++	// if got, want := orderedAbsDifference(-20, 15), 35; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
++	//
++	// if got, want := complexAbsDifference(5.0+2.0i, 2.0-2.0i), 5+0i; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
++	// if got, want := complexAbsDifference(2.0-2.0i, 5.0+2.0i), 5+0i; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
+ }
+diff --git a/test/typeparam/absdiffimp.dir/a.go b/test/typeparam/absdiffimp.dir/a.go
+index 7b5bfbe2ac..60822fdb8b 100644
+--- a/test/typeparam/absdiffimp.dir/a.go
++++ b/test/typeparam/absdiffimp.dir/a.go
+@@ -4,10 +4,6 @@
+ 
+ package a
+ 
+-import (
+-	"math"
+-)
+-
+ type Numeric interface {
+ 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+ 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+@@ -40,36 +36,37 @@ type Complex interface {
+ 	~complex64 | ~complex128
+ }
+ 
+-// orderedAbs is a helper type that defines an Abs method for
+-// ordered numeric types.
+-type orderedAbs[T orderedNumeric] T
+-
+-func (a orderedAbs[T]) Abs() orderedAbs[T] {
+-	if a < 0 {
+-		return -a
+-	}
+-	return a
+-}
+-
+-// complexAbs is a helper type that defines an Abs method for
+-// complex types.
+-type complexAbs[T Complex] T
+-
+-func (a complexAbs[T]) Abs() complexAbs[T] {
+-	r := float64(real(a))
+-	i := float64(imag(a))
+-	d := math.Sqrt(r*r + i*i)
+-	return complexAbs[T](complex(d, 0))
+-}
+-
+-// OrderedAbsDifference returns the absolute value of the difference
+-// between a and b, where a and b are of an ordered type.
+-func OrderedAbsDifference[T orderedNumeric](a, b T) T {
+-	return T(absDifference(orderedAbs[T](a), orderedAbs[T](b)))
+-}
+-
+-// ComplexAbsDifference returns the absolute value of the difference
+-// between a and b, where a and b are of a complex type.
+-func ComplexAbsDifference[T Complex](a, b T) T {
+-	return T(absDifference(complexAbs[T](a), complexAbs[T](b)))
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// // orderedAbs is a helper type that defines an Abs method for
++// // ordered numeric types.
++// type orderedAbs[T orderedNumeric] T
++//
++// func (a orderedAbs[T]) Abs() orderedAbs[T] {
++// 	if a < 0 {
++// 		return -a
++// 	}
++// 	return a
++// }
++//
++// // complexAbs is a helper type that defines an Abs method for
++// // complex types.
++// type complexAbs[T Complex] T
++//
++// func (a complexAbs[T]) Abs() complexAbs[T] {
++// 	r := float64(real(a))
++// 	i := float64(imag(a))
++// 	d := math.Sqrt(r*r + i*i)
++// 	return complexAbs[T](complex(d, 0))
++// }
++//
++// // OrderedAbsDifference returns the absolute value of the difference
++// // between a and b, where a and b are of an ordered type.
++// func OrderedAbsDifference[T orderedNumeric](a, b T) T {
++// 	return T(absDifference(orderedAbs[T](a), orderedAbs[T](b)))
++// }
++//
++// // ComplexAbsDifference returns the absolute value of the difference
++// // between a and b, where a and b are of a complex type.
++// func ComplexAbsDifference[T Complex](a, b T) T {
++// 	return T(absDifference(complexAbs[T](a), complexAbs[T](b)))
++// }
+diff --git a/test/typeparam/absdiffimp.dir/main.go b/test/typeparam/absdiffimp.dir/main.go
+index 8eefdbdf38..c648013327 100644
+--- a/test/typeparam/absdiffimp.dir/main.go
++++ b/test/typeparam/absdiffimp.dir/main.go
+@@ -4,26 +4,22 @@
+ 
+ package main
+ 
+-import (
+-	"a"
+-	"fmt"
+-)
+-
+ func main() {
+-	if got, want := a.OrderedAbsDifference(1.0, -2.0), 3.0; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
+-	if got, want := a.OrderedAbsDifference(-1.0, 2.0), 3.0; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
+-	if got, want := a.OrderedAbsDifference(-20, 15), 35; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
+-
+-	if got, want := a.ComplexAbsDifference(5.0+2.0i, 2.0-2.0i), 5+0i; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
+-	if got, want := a.ComplexAbsDifference(2.0-2.0i, 5.0+2.0i), 5+0i; got != want {
+-		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+-	}
++	// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++	// if got, want := a.OrderedAbsDifference(1.0, -2.0), 3.0; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
++	// if got, want := a.OrderedAbsDifference(-1.0, 2.0), 3.0; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
++	// if got, want := a.OrderedAbsDifference(-20, 15), 35; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
++	//
++	// if got, want := a.ComplexAbsDifference(5.0+2.0i, 2.0-2.0i), 5+0i; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
++	// if got, want := a.ComplexAbsDifference(2.0-2.0i, 5.0+2.0i), 5+0i; got != want {
++	// 	panic(fmt.Sprintf("got = %v, want = %v", got, want))
++	// }
+ }
+diff --git a/test/typeparam/boundmethod.go b/test/typeparam/boundmethod.go
+index 22f416422d..a14eb544ce 100644
+--- a/test/typeparam/boundmethod.go
++++ b/test/typeparam/boundmethod.go
+@@ -59,12 +59,13 @@ type Ints interface {
+ 	~int32 | ~int
+ }
+ 
+-type StringInt[T Ints] T
+-
+-//go:noinline
+-func (m StringInt[T]) String() string {
+-	return strconv.Itoa(int(m))
+-}
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// type StringInt[T Ints] T
++//
++// //go:noinline
++// func (m StringInt[T]) String() string {
++// 	return strconv.Itoa(int(m))
++// }
+ 
+ type StringStruct[T Ints] struct {
+ 	f T
+@@ -84,22 +85,23 @@ func main() {
+ 		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ 
+-	x2 := []StringInt[myint]{StringInt[myint](5), StringInt[myint](7), StringInt[myint](6)}
+-
+-	// stringify on an instantiated type, whose bound method is associated with
+-	// the generic type StringInt[T], which maps directly to T.
+-	got2 := stringify(x2)
+-	want2 := []string{ "5", "7", "6" }
+-	if !reflect.DeepEqual(got2, want2) {
+-		panic(fmt.Sprintf("got %s, want %s", got2, want2))
+-	}
++	// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++	// x2 := []StringInt[myint]{StringInt[myint](5), StringInt[myint](7), StringInt[myint](6)}
++	//
++	// // stringify on an instantiated type, whose bound method is associated with
++	// // the generic type StringInt[T], which maps directly to T.
++	// got2 := stringify(x2)
++	// want2 := []string{"5", "7", "6"}
++	// if !reflect.DeepEqual(got2, want2) {
++	// 	panic(fmt.Sprintf("got %s, want %s", got2, want2))
++	// }
+ 
+ 	// stringify on an instantiated type, whose bound method is associated with
+ 	// the generic type StringStruct[T], which maps to a struct containing T.
+ 	x3 := []StringStruct[myint]{StringStruct[myint]{f: 11}, StringStruct[myint]{f: 10}, StringStruct[myint]{f: 9}}
+ 
+ 	got3 := stringify(x3)
+-	want3 := []string{ "11", "10", "9" }
++	want3 := []string{"11", "10", "9"}
+ 	if !reflect.DeepEqual(got3, want3) {
+ 		panic(fmt.Sprintf("got %s, want %s", got3, want3))
+ 	}
+diff --git a/test/typeparam/issue47708.go b/test/typeparam/issue47708.go
+index 261d6efb61..35d57c8a64 100644
+--- a/test/typeparam/issue47708.go
++++ b/test/typeparam/issue47708.go
+@@ -6,35 +6,32 @@
+ 
+ package main
+ 
+-import (
+-	"fmt"
+-)
+-
+ type FooType[T any] interface {
+-	Foo(BarType[T])string
++	Foo(BarType[T]) string
+ }
+ type BarType[T any] interface {
+-	Bar(FooType[T])string
+-}
+-
+-type Baz[T any] T
+-func (l Baz[T]) Foo(v BarType[T]) string {
+-	return v.Bar(l)
+-}
+-type Bob[T any] T
+-func (l Bob[T]) Bar(v FooType[T]) string {
+-	if v,ok := v.(Baz[T]);ok{
+-		return fmt.Sprintf("%v%v",v,l)
+-	}
+-	return ""
++	Bar(FooType[T]) string
+ }
+ 
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// type Baz[T any] T
++// func (l Baz[T]) Foo(v BarType[T]) string {
++// 	return v.Bar(l)
++// }
++// type Bob[T any] T
++// func (l Bob[T]) Bar(v FooType[T]) string {
++// 	if v,ok := v.(Baz[T]);ok{
++// 		return fmt.Sprintf("%v%v",v,l)
++// 	}
++// 	return ""
++// }
+ 
+ func main() {
+-	var baz Baz[int] = 123
+-	var bob Bob[int] = 456
+-
+-	if got, want := baz.Foo(bob), "123456"; got != want {
+-		panic(fmt.Sprintf("got %s want %s", got, want))
+-	}
++	// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++	// var baz Baz[int] = 123
++	// var bob Bob[int] = 456
++	//
++	// if got, want := baz.Foo(bob), "123456"; got != want {
++	// 	panic(fmt.Sprintf("got %s want %s", got, want))
++	// }
+ }
+diff --git a/test/typeparam/issue47740.go b/test/typeparam/issue47740.go
+index a8c6839de3..ea1168f4e6 100644
+--- a/test/typeparam/issue47740.go
++++ b/test/typeparam/issue47740.go
+@@ -12,10 +12,11 @@ type Exp[Ty any] interface {
+ 	Eval() Ty
+ }
+ 
+-type Lit[Ty any] Ty
+-
+-func (lit Lit[Ty]) Eval() Ty       { return Ty(lit) }
+-func (lit Lit[Ty]) String() string { return fmt.Sprintf("(lit %v)", Ty(lit)) }
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// type Lit[Ty any] Ty
++//
++// func (lit Lit[Ty]) Eval() Ty       { return Ty(lit) }
++// func (lit Lit[Ty]) String() string { return fmt.Sprintf("(lit %v)", Ty(lit)) }
+ 
+ type Eq[Ty any] struct {
+ 	a Exp[Ty]
+@@ -26,12 +27,14 @@ func (e Eq[Ty]) String() string {
+ 	return fmt.Sprintf("(eq %v %v)", e.a, e.b)
+ }
+ 
+-var (
+-	e0 = Eq[int]{Lit[int](128), Lit[int](64)}
+-	e1 = Eq[bool]{Lit[bool](true), Lit[bool](true)}
+-)
++// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++// var (
++// 	e0 = Eq[int]{Lit[int](128), Lit[int](64)}
++// 	e1 = Eq[bool]{Lit[bool](true), Lit[bool](true)}
++// )
+ 
+ func main() {
+-	fmt.Printf("%v\n", e0)
+-	fmt.Printf("%v\n", e1)
++	// For now, a lone type parameter is not permitted as RHS in a type declaration (issue #45639).
++	// fmt.Printf("%v\n", e0)
++	// fmt.Printf("%v\n", e1)
+ }
+diff --git a/test/typeparam/issue47740.out b/test/typeparam/issue47740.out
+index f23c310f66..e69de29bb2 100644
+--- a/test/typeparam/issue47740.out
++++ b/test/typeparam/issue47740.out
+@@ -1,2 +0,0 @@
+-(eq (lit 128) (lit 64))
+-(eq (lit true) (lit true))

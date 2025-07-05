@@ -14,7 +14,44 @@ Date:   Sun Mar 27 22:06:22 2022 +0900
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 2 ++
  src/cmd/go/internal/list/list.go | 5 +++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 6b91b53347..0f8433efca 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -925,6 +925,8 @@
+ //
+ // The -find flag causes list to identify the named packages but not
+ // resolve their dependencies: the Imports and Deps lists will be empty.
++// With the -find flag, the -deps, -test and -export commands cannot be
++// used.
+ //
+ // The -test flag causes list to report not only the named packages
+ // but also their test binaries (for packages with tests), to convey to
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 7f3090872b..259fa2c857 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -193,6 +193,8 @@ and the BuildID field to the build ID of the compiled package.
+ 
+ The -find flag causes list to identify the named packages but not
+ resolve their dependencies: the Imports and Deps lists will be empty.
++With the -find flag, the -deps, -test and -export commands cannot be
++used.
+ 
+ The -test flag causes list to report not only the named packages
+ but also their test binaries (for packages with tests), to convey to
+@@ -592,6 +594,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 	if *listFind && *listTest {
+ 		base.Fatalf("go list -test cannot be used with -find")
+ 	}
++	if *listFind && *listExport {
++		base.Fatalf("go list -export cannot be used with -find")
++	}
+ 
+ 	pkgOpts := load.PackageOpts{
+ 		IgnoreImports:   *listFind,

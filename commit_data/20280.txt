@@ -27,6 +27,37 @@ Date:   Thu Aug 28 19:08:09 2014 -0700
     R=golang-codereviews, bradfitz, rsc
     CC=golang-codereviews
     https://golang.org/cl/137790043
-
+---
  src/pkg/runtime/funcdata.h | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/funcdata.h b/src/pkg/runtime/funcdata.h
+index 1f624b529b..85e82838b7 100644
+--- a/src/pkg/runtime/funcdata.h
++++ b/src/pkg/runtime/funcdata.h
+@@ -10,9 +10,9 @@
+ #define PCDATA_ArgSize 0 /* argument size at CALL instruction */
+ #define PCDATA_StackMapIndex 1
+ 
+-#define FUNCDATA_ArgsPointerMaps 2 /* garbage collector blocks */
+-#define FUNCDATA_LocalsPointerMaps 3
+-#define FUNCDATA_DeadValueMaps 4
++#define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
++#define FUNCDATA_LocalsPointerMaps 1
++#define FUNCDATA_DeadValueMaps 2
+ 
+ // To be used in assembly.
+ #define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n
+@@ -27,9 +27,9 @@
+ enum {
+ 	PCDATA_ArgSize = 0,
+ 	PCDATA_StackMapIndex = 1,
+-	FUNCDATA_ArgsPointerMaps = 2,
+-	FUNCDATA_LocalsPointerMaps = 3,
+-	FUNCDATA_DeadValueMaps = 4,
++	FUNCDATA_ArgsPointerMaps = 0,
++	FUNCDATA_LocalsPointerMaps = 1,
++	FUNCDATA_DeadValueMaps = 2,
+ 	ArgsSizeUnknown = 0x80000000,
+ };
+ */

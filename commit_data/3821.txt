@@ -7,7 +7,7 @@ Date:   Thu Nov 5 15:35:02 2009 -0800
     
     R=rsc
     http://go/go-review/1019001
-
+---
  src/pkg/debug/dwarf/const.go           |   2 +-
  src/pkg/debug/dwarf/type_test.go       |   8 +-
  src/pkg/debug/elf/elf.go               |  96 ++++++++++-----------
@@ -16,3 +16,546 @@ Date:   Thu Nov 5 15:35:02 2009 -0800
  src/pkg/debug/proc/regs_linux_amd64.go | 150 ++++++++++++++++++++++-----------
  src/pkg/debug/proc/regs_linux_arm.go   |  19 ++---
  7 files changed, 194 insertions(+), 147 deletions(-)
+
+diff --git a/src/pkg/debug/dwarf/const.go b/src/pkg/debug/dwarf/const.go
+index b476b29b6c..0b626c4b56 100644
+--- a/src/pkg/debug/dwarf/const.go
++++ b/src/pkg/debug/dwarf/const.go
+@@ -416,7 +416,7 @@ const (
+ 	opCall2		= 0x98;	/* 2-byte offset of DIE */
+ 	opCall4		= 0x99;	/* 4-byte offset of DIE */
+ 	opCallRef	= 0x9A;	/* 4- or 8- byte offset of DIE */
+-/* 0xE0-0xFF reserved for user-specific */
++	/* 0xE0-0xFF reserved for user-specific */
+ )
+ 
+ // Basic type encodings -- the value for AttrEncoding in a TagBaseType Entry.
+diff --git a/src/pkg/debug/dwarf/type_test.go b/src/pkg/debug/dwarf/type_test.go
+index 22a00c21c5..98e444eaf2 100644
+--- a/src/pkg/debug/dwarf/type_test.go
++++ b/src/pkg/debug/dwarf/type_test.go
+@@ -5,10 +5,10 @@
+ package dwarf_test
+ 
+ import (
+-	.	"debug/dwarf";
+-		"debug/elf";
+-		"debug/macho";
+-		"testing";
++	. "debug/dwarf";
++	"debug/elf";
++	"debug/macho";
++	"testing";
+ )
+ 
+ var typedefTests = map[string]string{
+diff --git a/src/pkg/debug/elf/elf.go b/src/pkg/debug/elf/elf.go
+index 96e4a3f462..c6db5a96d3 100644
+--- a/src/pkg/debug/elf/elf.go
++++ b/src/pkg/debug/elf/elf.go
+@@ -522,42 +522,42 @@ func (i ProgFlag) GoString() string {
+ type DynTag int
+ 
+ const (
+-	DT_NULL			DynTag	= 0;		/* Terminating entry. */
+-	DT_NEEDED		DynTag	= 1;		/* String table offset of a needed shared library. */
+-	DT_PLTRELSZ		DynTag	= 2;		/* Total size in bytes of PLT relocations. */
+-	DT_PLTGOT		DynTag	= 3;		/* Processor-dependent address. */
+-	DT_HASH			DynTag	= 4;		/* Address of symbol hash table. */
+-	DT_STRTAB		DynTag	= 5;		/* Address of string table. */
+-	DT_SYMTAB		DynTag	= 6;		/* Address of symbol table. */
+-	DT_RELA			DynTag	= 7;		/* Address of ElfNN_Rela relocations. */
+-	DT_RELASZ		DynTag	= 8;		/* Total size of ElfNN_Rela relocations. */
+-	DT_RELAENT		DynTag	= 9;		/* Size of each ElfNN_Rela relocation entry. */
+-	DT_STRSZ		DynTag	= 10;		/* Size of string table. */
+-	DT_SYMENT		DynTag	= 11;		/* Size of each symbol table entry. */
+-	DT_INIT			DynTag	= 12;		/* Address of initialization function. */
+-	DT_FINI			DynTag	= 13;		/* Address of finalization function. */
+-	DT_SONAME		DynTag	= 14;		/* String table offset of shared object name. */
+-	DT_RPATH		DynTag	= 15;		/* String table offset of library path. [sup] */
+-	DT_SYMBOLIC		DynTag	= 16;		/* Indicates "symbolic" linking. [sup] */
+-	DT_REL			DynTag	= 17;		/* Address of ElfNN_Rel relocations. */
+-	DT_RELSZ		DynTag	= 18;		/* Total size of ElfNN_Rel relocations. */
+-	DT_RELENT		DynTag	= 19;		/* Size of each ElfNN_Rel relocation. */
+-	DT_PLTREL		DynTag	= 20;		/* Type of relocation used for PLT. */
+-	DT_DEBUG		DynTag	= 21;		/* Reserved (not used). */
+-	DT_TEXTREL		DynTag	= 22;		/* Indicates there may be relocations in non-writable segments. [sup] */
+-	DT_JMPREL		DynTag	= 23;		/* Address of PLT relocations. */
+-	DT_BIND_NOW		DynTag	= 24;		/* [sup] */
+-	DT_INIT_ARRAY		DynTag	= 25;		/* Address of the array of pointers to initialization functions */
+-	DT_FINI_ARRAY		DynTag	= 26;		/* Address of the array of pointers to termination functions */
+-	DT_INIT_ARRAYSZ		DynTag	= 27;		/* Size in bytes of the array of initialization functions. */
+-	DT_FINI_ARRAYSZ		DynTag	= 28;		/* Size in bytes of the array of terminationfunctions. */
+-	DT_RUNPATH		DynTag	= 29;		/* String table offset of a null-terminated library search path string. */
+-	DT_FLAGS		DynTag	= 30;		/* Object specific flag values. */
+-	DT_ENCODING		DynTag	= 32;		/* Values greater than or equal to DT_ENCODING
+-								   and less than DT_LOOS follow the rules for
+-								   the interpretation of the d_un union
+-								   as follows: even == 'd_ptr', even == 'd_val'
+-								   or none */
++	DT_NULL		DynTag	= 0;	/* Terminating entry. */
++	DT_NEEDED	DynTag	= 1;	/* String table offset of a needed shared library. */
++	DT_PLTRELSZ	DynTag	= 2;	/* Total size in bytes of PLT relocations. */
++	DT_PLTGOT	DynTag	= 3;	/* Processor-dependent address. */
++	DT_HASH		DynTag	= 4;	/* Address of symbol hash table. */
++	DT_STRTAB	DynTag	= 5;	/* Address of string table. */
++	DT_SYMTAB	DynTag	= 6;	/* Address of symbol table. */
++	DT_RELA		DynTag	= 7;	/* Address of ElfNN_Rela relocations. */
++	DT_RELASZ	DynTag	= 8;	/* Total size of ElfNN_Rela relocations. */
++	DT_RELAENT	DynTag	= 9;	/* Size of each ElfNN_Rela relocation entry. */
++	DT_STRSZ	DynTag	= 10;	/* Size of string table. */
++	DT_SYMENT	DynTag	= 11;	/* Size of each symbol table entry. */
++	DT_INIT		DynTag	= 12;	/* Address of initialization function. */
++	DT_FINI		DynTag	= 13;	/* Address of finalization function. */
++	DT_SONAME	DynTag	= 14;	/* String table offset of shared object name. */
++	DT_RPATH	DynTag	= 15;	/* String table offset of library path. [sup] */
++	DT_SYMBOLIC	DynTag	= 16;	/* Indicates "symbolic" linking. [sup] */
++	DT_REL		DynTag	= 17;	/* Address of ElfNN_Rel relocations. */
++	DT_RELSZ	DynTag	= 18;	/* Total size of ElfNN_Rel relocations. */
++	DT_RELENT	DynTag	= 19;	/* Size of each ElfNN_Rel relocation. */
++	DT_PLTREL	DynTag	= 20;	/* Type of relocation used for PLT. */
++	DT_DEBUG	DynTag	= 21;	/* Reserved (not used). */
++	DT_TEXTREL	DynTag	= 22;	/* Indicates there may be relocations in non-writable segments. [sup] */
++	DT_JMPREL	DynTag	= 23;	/* Address of PLT relocations. */
++	DT_BIND_NOW	DynTag	= 24;	/* [sup] */
++	DT_INIT_ARRAY	DynTag	= 25;	/* Address of the array of pointers to initialization functions */
++	DT_FINI_ARRAY	DynTag	= 26;	/* Address of the array of pointers to termination functions */
++	DT_INIT_ARRAYSZ	DynTag	= 27;	/* Size in bytes of the array of initialization functions. */
++	DT_FINI_ARRAYSZ	DynTag	= 28;	/* Size in bytes of the array of terminationfunctions. */
++	DT_RUNPATH	DynTag	= 29;	/* String table offset of a null-terminated library search path string. */
++	DT_FLAGS	DynTag	= 30;	/* Object specific flag values. */
++	DT_ENCODING	DynTag	= 32;	/* Values greater than or equal to DT_ENCODING
++	   and less than DT_LOOS follow the rules for
++	   the interpretation of the d_un union
++	   as follows: even == 'd_ptr', even == 'd_val'
++	   or none */
+ 	DT_PREINIT_ARRAY	DynTag	= 32;		/* Address of the array of pointers to pre-initialization functions. */
+ 	DT_PREINIT_ARRAYSZ	DynTag	= 33;		/* Size in bytes of the array of pre-initialization functions. */
+ 	DT_LOOS			DynTag	= 0x6000000d;	/* First OS-specific */
+@@ -619,18 +619,18 @@ type DynFlag int
+ 
+ const (
+ 	DF_ORIGIN	DynFlag	= 0x0001;	/* Indicates that the object being loaded may
+-							   make reference to the $ORIGIN substitution
+-							   string */
++	   make reference to the $ORIGIN substitution
++	   string */
+ 	DF_SYMBOLIC	DynFlag	= 0x0002;	/* Indicates "symbolic" linking. */
+ 	DF_TEXTREL	DynFlag	= 0x0004;	/* Indicates there may be relocations in
+-							   non-writable segments. */
++								   non-writable segments. */
+ 	DF_BIND_NOW	DynFlag	= 0x0008;	/* Indicates that the dynamic linker should
+-							   process all relocations for the object
+-							   containing this entry before transferring
+-							   control to the program. */
++	   process all relocations for the object
++	   containing this entry before transferring
++	   control to the program. */
+ 	DF_STATIC_TLS	DynFlag	= 0x0010;	/* Indicates that the shared object or
+-						   executable contains code using a static
+-						   thread-local storage scheme. */
++	   executable contains code using a static
++	   thread-local storage scheme. */
+ )
+ 
+ var dflagStrings = []intName{
+@@ -1393,8 +1393,8 @@ type Header32 struct {
+  * ELF32 Section header.
+  */
+ type Section32 struct {
+-	Name		uint32;	/* Section name (index into the
+-							   section header string table). */
++	Name	uint32;	/* Section name (index into the
++								   section header string table). */
+ 	Type		uint32;	/* Section type. */
+ 	Flags		uint32;	/* Section flags. */
+ 	Addr		uint32;	/* Address in memory image. */
+@@ -1507,8 +1507,8 @@ type Header64 struct {
+  */
+ 
+ type Section64 struct {
+-	Name		uint32;	/* Section name (index into the
+-							   section header string table). */
++	Name	uint32;	/* Section name (index into the
++								   section header string table). */
+ 	Type		uint32;	/* Section type. */
+ 	Flags		uint64;	/* Section flags. */
+ 	Addr		uint64;	/* Address in memory image. */
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index 67af39be5f..3561e03fde 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -20,38 +20,38 @@ import (
+ // A File represents an open Mach-O file.
+ type File struct {
+ 	FileHeader;
+-	ByteOrder binary.ByteOrder;
+-	Loads []Load;
+-	Sections []*Section;
++	ByteOrder	binary.ByteOrder;
++	Loads		[]Load;
++	Sections	[]*Section;
+ 
+-	closer io.Closer;
++	closer	io.Closer;
+ }
+ 
+ // A Load represents any Mach-O load command.
+ type Load interface {
+-	Raw() []byte
++	Raw() []byte;
+ }
+ 
+ // A LoadBytes is the uninterpreted bytes of a Mach-O load command.
+ type LoadBytes []byte
+ 
+ func (b LoadBytes) Raw() []byte {
+-	return b
++	return b;
+ }
+ 
+ // A SegmentHeader is the header for a Mach-O 32-bit or 64-bit load segment command.
+ type SegmentHeader struct {
+-	Cmd LoadCmd;
+-	Len uint32;
+-	Name string;
+-	Addr uint64;
+-	Memsz uint64;
+-	Offset uint64;
+-	Filesz uint64;
+-	Maxprot uint32;
+-	Prot uint32;
+-	Nsect uint32;
+-	Flag uint32;
++	Cmd	LoadCmd;
++	Len	uint32;
++	Name	string;
++	Addr	uint64;
++	Memsz	uint64;
++	Offset	uint64;
++	Filesz	uint64;
++	Maxprot	uint32;
++	Prot	uint32;
++	Nsect	uint32;
++	Flag	uint32;
+ }
+ 
+ // A Segment represents a Mach-O 32-bit or 64-bit load segment command.
+@@ -66,7 +66,7 @@ type Segment struct {
+ 	// Open() to avoid fighting over the seek offset
+ 	// with other clients.
+ 	io.ReaderAt;
+-	sr *io.SectionReader;
++	sr	*io.SectionReader;
+ }
+ 
+ // Data reads and returns the contents of the segment.
+@@ -103,7 +103,7 @@ type Section struct {
+ 	// Open() to avoid fighting over the seek offset
+ 	// with other clients.
+ 	io.ReaderAt;
+-	sr *io.SectionReader;
++	sr	*io.SectionReader;
+ }
+ 
+ // Data reads and returns the contents of the Mach-O section.
+@@ -124,9 +124,9 @@ func (s *Section) Open() io.ReadSeeker {
+  */
+ 
+ type FormatError struct {
+-	off int64;
+-	msg string;
+-	val interface{};
++	off	int64;
++	msg	string;
++	val	interface{};
+ }
+ 
+ func (e *FormatError) String() string {
+@@ -315,7 +315,7 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) {
+ 		}
+ 		f.Sections = new;
+ 	}
+-	f.Sections = f.Sections[0:n+1];
++	f.Sections = f.Sections[0 : n+1];
+ 	f.Sections[n] = sh;
+ 	sh.sr = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size));
+ 	sh.ReaderAt = sh.sr;
+@@ -323,7 +323,7 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) {
+ 
+ func cstring(b []byte) string {
+ 	var i int;
+-	for i=0; i<len(b) && b[i] != 0; i++ {
++	for i = 0; i < len(b) && b[i] != 0; i++ {
+ 	}
+ 	return string(b[0:i]);
+ }
+diff --git a/src/pkg/debug/proc/proc.go b/src/pkg/debug/proc/proc.go
+index fc56914b1c..084228b24e 100644
+--- a/src/pkg/debug/proc/proc.go
++++ b/src/pkg/debug/proc/proc.go
+@@ -13,15 +13,15 @@ package proc
+ // and proc_darwin.go do, because deps.bash only looks at
+ // this file.
+ import (
+-	_	"container/vector";
+-	_	"fmt";
+-	_	"io";
+-		"os";
+-	_	"runtime";
+-		"strconv";
+-	_	"strings";
+-	_	"sync";
+-	_	"syscall";
++	_ "container/vector";
++	_ "fmt";
++	_ "io";
++	"os";
++	_ "runtime";
++	"strconv";
++	_ "strings";
++	_ "sync";
++	_ "syscall";
+ )
+ 
+ type Word uint64
+diff --git a/src/pkg/debug/proc/regs_linux_amd64.go b/src/pkg/debug/proc/regs_linux_amd64.go
+index ef2a0050e5..068add85d8 100644
+--- a/src/pkg/debug/proc/regs_linux_amd64.go
++++ b/src/pkg/debug/proc/regs_linux_amd64.go
+@@ -12,10 +12,10 @@ import (
+ 
+ type amd64Regs struct {
+ 	syscall.PtraceRegs;
+-	setter func (*syscall.PtraceRegs) os.Error;
++	setter	func(*syscall.PtraceRegs) os.Error;
+ }
+ 
+-var names = [...]string {
++var names = [...]string{
+ 	"rax",
+ 	"rbx",
+ 	"rcx",
+@@ -81,67 +81,115 @@ func (r *amd64Regs) Names() []string {
+ 
+ func (r *amd64Regs) Get(i int) Word {
+ 	switch i {
+-	case 0: return Word(r.Rax);
+-	case 1: return Word(r.Rbx);
+-	case 2: return Word(r.Rcx);
+-	case 3: return Word(r.Rdx);
+-	case 4: return Word(r.Rsi);
+-	case 5: return Word(r.Rdi);
+-	case 6: return Word(r.Rbp);
+-	case 7: return Word(r.Rsp);
+-	case 8: return Word(r.R8);
+-	case 9: return Word(r.R9);
+-	case 10: return Word(r.R10);
+-	case 11: return Word(r.R11);
+-	case 12: return Word(r.R12);
+-	case 13: return Word(r.R13);
+-	case 14: return Word(r.R14);
+-	case 15: return Word(r.R15);
+-	case 16: return Word(r.Rip);
+-	case 17: return Word(r.Eflags);
+-	case 18: return Word(r.Cs);
+-	case 19: return Word(r.Ss);
+-	case 20: return Word(r.Ds);
+-	case 21: return Word(r.Es);
+-	case 22: return Word(r.Fs);
+-	case 23: return Word(r.Gs);
++	case 0:
++		return Word(r.Rax);
++	case 1:
++		return Word(r.Rbx);
++	case 2:
++		return Word(r.Rcx);
++	case 3:
++		return Word(r.Rdx);
++	case 4:
++		return Word(r.Rsi);
++	case 5:
++		return Word(r.Rdi);
++	case 6:
++		return Word(r.Rbp);
++	case 7:
++		return Word(r.Rsp);
++	case 8:
++		return Word(r.R8);
++	case 9:
++		return Word(r.R9);
++	case 10:
++		return Word(r.R10);
++	case 11:
++		return Word(r.R11);
++	case 12:
++		return Word(r.R12);
++	case 13:
++		return Word(r.R13);
++	case 14:
++		return Word(r.R14);
++	case 15:
++		return Word(r.R15);
++	case 16:
++		return Word(r.Rip);
++	case 17:
++		return Word(r.Eflags);
++	case 18:
++		return Word(r.Cs);
++	case 19:
++		return Word(r.Ss);
++	case 20:
++		return Word(r.Ds);
++	case 21:
++		return Word(r.Es);
++	case 22:
++		return Word(r.Fs);
++	case 23:
++		return Word(r.Gs);
+ 	}
+ 	panic("invalid register index ", strconv.Itoa(i));
+ }
+ 
+ func (r *amd64Regs) Set(i int, val Word) os.Error {
+ 	switch i {
+-	case 0: r.Rax = uint64(val);
+-	case 1: r.Rbx = uint64(val);
+-	case 2: r.Rcx = uint64(val);
+-	case 3: r.Rdx = uint64(val);
+-	case 4: r.Rsi = uint64(val);
+-	case 5: r.Rdi = uint64(val);
+-	case 6: r.Rbp = uint64(val);
+-	case 7: r.Rsp = uint64(val);
+-	case 8: r.R8 = uint64(val);
+-	case 9: r.R9 = uint64(val);
+-	case 10: r.R10 = uint64(val);
+-	case 11: r.R11 = uint64(val);
+-	case 12: r.R12 = uint64(val);
+-	case 13: r.R13 = uint64(val);
+-	case 14: r.R14 = uint64(val);
+-	case 15: r.R15 = uint64(val);
+-	case 16: r.Rip = uint64(val);
+-	case 17: r.Eflags = uint64(val);
+-	case 18: r.Cs = uint64(val);
+-	case 19: r.Ss = uint64(val);
+-	case 20: r.Ds = uint64(val);
+-	case 21: r.Es = uint64(val);
+-	case 22: r.Fs = uint64(val);
+-	case 23: r.Gs = uint64(val);
++	case 0:
++		r.Rax = uint64(val);
++	case 1:
++		r.Rbx = uint64(val);
++	case 2:
++		r.Rcx = uint64(val);
++	case 3:
++		r.Rdx = uint64(val);
++	case 4:
++		r.Rsi = uint64(val);
++	case 5:
++		r.Rdi = uint64(val);
++	case 6:
++		r.Rbp = uint64(val);
++	case 7:
++		r.Rsp = uint64(val);
++	case 8:
++		r.R8 = uint64(val);
++	case 9:
++		r.R9 = uint64(val);
++	case 10:
++		r.R10 = uint64(val);
++	case 11:
++		r.R11 = uint64(val);
++	case 12:
++		r.R12 = uint64(val);
++	case 13:
++		r.R13 = uint64(val);
++	case 14:
++		r.R14 = uint64(val);
++	case 15:
++		r.R15 = uint64(val);
++	case 16:
++		r.Rip = uint64(val);
++	case 17:
++		r.Eflags = uint64(val);
++	case 18:
++		r.Cs = uint64(val);
++	case 19:
++		r.Ss = uint64(val);
++	case 20:
++		r.Ds = uint64(val);
++	case 21:
++		r.Es = uint64(val);
++	case 22:
++		r.Fs = uint64(val);
++	case 23:
++		r.Gs = uint64(val);
+ 	default:
+ 		panic("invalid register index ", strconv.Itoa(i));
+ 	}
+ 	return r.setter(&r.PtraceRegs);
+ }
+ 
+-func newRegs(regs *syscall.PtraceRegs, setter func (*syscall.PtraceRegs) os.Error) Regs {
++func newRegs(regs *syscall.PtraceRegs, setter func(*syscall.PtraceRegs) os.Error) Regs {
+ 	res := amd64Regs{};
+ 	res.PtraceRegs = *regs;
+ 	res.setter = setter;
+diff --git a/src/pkg/debug/proc/regs_linux_arm.go b/src/pkg/debug/proc/regs_linux_arm.go
+index 2b0de5e138..ac4bfb4f0b 100644
+--- a/src/pkg/debug/proc/regs_linux_arm.go
++++ b/src/pkg/debug/proc/regs_linux_arm.go
+@@ -11,8 +11,7 @@ import (
+ 
+ // TODO(kaib): add support
+ 
+-type armRegs struct {
+-}
++type armRegs struct{}
+ 
+ func (r *armRegs) PC() Word {
+ 	return Word(0);
+@@ -22,35 +21,35 @@ func (r *armRegs) SetPC(val Word) os.Error {
+ 	return nil;
+ }
+ 
+-func (r * armRegs) Link() Word {
++func (r *armRegs) Link() Word {
+ 	return Word(0);
+ }
+ 
+-func (r* armRegs) SetLink(val Word) (os.Error) {
++func (r *armRegs) SetLink(val Word) os.Error {
+ 	return nil;
+ }
+ 
+-func (r* armRegs) SP() Word {
++func (r *armRegs) SP() Word {
+ 	return Word(0);
+ }
+ 
+-func (r* armRegs) SetSP(val Word) os.Error {
++func (r *armRegs) SetSP(val Word) os.Error {
+ 	return nil;
+ }
+ 
+-func (r* armRegs) Names() []string {
++func (r *armRegs) Names() []string {
+ 	return nil;
+ }
+ 
+-func (r* armRegs) Get(i int) Word {
++func (r *armRegs) Get(i int) Word {
+ 	return Word(0);
+ }
+ 
+-func (r* armRegs) Set(i int, val Word) os.Error {
++func (r *armRegs) Set(i int, val Word) os.Error {
+ 	return nil;
+ }
+ 
+-func newRegs(regs *syscall.PtraceRegs, setter func (*syscall.PtraceRegs) os.Error) Regs {
++func newRegs(regs *syscall.PtraceRegs, setter func(*syscall.PtraceRegs) os.Error) Regs {
+ 	res := armRegs{};
+ 	return &res;
+ }

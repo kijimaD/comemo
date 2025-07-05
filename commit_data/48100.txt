@@ -23,7 +23,88 @@ Date:   Mon Apr 26 17:52:53 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  8 +++++++-
  test/typeparam/issue45722.go              | 34 +++++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 53ac617d12..d60f0af548 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -52,6 +52,8 @@ func (g *irgen) stencil() {
+ 				// Skip any generic functions
+ 				continue
+ 			}
++			// transformCall() below depends on CurFunc being set.
++			ir.CurFunc = decl.(*ir.Func)
+ 
+ 		case ir.OAS, ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV, ir.OASOP:
+ 			// These are all the various kinds of global assignments,
+@@ -127,6 +129,7 @@ func (g *irgen) stencil() {
+ 		if base.Flag.W > 1 && modified {
+ 			ir.Dump(fmt.Sprintf("\nmodified %v", decl), decl)
+ 		}
++		ir.CurFunc = nil
+ 		// We may have seen new fully-instantiated generic types while
+ 		// instantiating any needed functions/methods in the above
+ 		// function. If so, instantiate all the methods of those types
+@@ -275,6 +278,9 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
+ 	newf.Nname.Func = newf
+ 	newf.Nname.Defn = newf
+ 	newsym.Def = newf.Nname
++	savef := ir.CurFunc
++	// transformCall/transformReturn (called during stenciling of the body)
++	// depend on ir.CurFunc being set.
+ 	ir.CurFunc = newf
+ 
+ 	assert(len(tparams) == len(targs))
+@@ -310,7 +316,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
+ 
+ 	// Make sure name/type of newf is set before substituting the body.
+ 	newf.Body = subst.list(gf.Body)
+-	ir.CurFunc = nil
++	ir.CurFunc = savef
+ 
+ 	return newf
+ }
+diff --git a/test/typeparam/issue45722.go b/test/typeparam/issue45722.go
+new file mode 100644
+index 0000000000..0d7c20c264
+--- /dev/null
++++ b/test/typeparam/issue45722.go
+@@ -0,0 +1,34 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"log"
++)
++
++func try[T any](v T, err error) T {
++	if err != nil {
++		panic(err)
++	}
++	return v
++}
++
++func handle(handle func(error)) {
++	if issue := recover(); issue != nil {
++		if e, ok := issue.(error); ok && e != nil {
++			handle(e)
++		} else {
++			handle(fmt.Errorf("%v", e))
++		}
++	}
++}
++
++func main() {
++	defer handle(func(e error) { log.Fatalln(e) })
++	_ = try(fmt.Print(""))
++}

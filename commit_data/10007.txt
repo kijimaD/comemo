@@ -9,6 +9,39 @@ Date:   Mon Oct 17 12:54:18 2011 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/5267048
-
+---
  doc/go_spec.html | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 4c1ecef353..7a3161c3ee 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of October 13, 2011 -->
++<!-- subtitle Version of October 17, 2011 -->
+ 
+ <!--
+ TODO
+@@ -1784,15 +1784,17 @@ of the expression list.
+ <p>
+ If the type is absent and the corresponding expression evaluates to an
+ untyped <a href="#Constants">constant</a>, the type of the declared variable
+-is <code>bool</code>, <code>int</code>, <code>float64</code>, or <code>string</code>
+-respectively, depending on whether the value is a boolean, integer,
+-floating-point, or string constant:
++is <code>bool</code>, <code>int</code>, <code>float64</code>,
++<code>complex128</code>, or <code>string</code> respectively, depending on
++whether the value is a boolean, integer, floating-point, complex, or string
++constant:
+ </p>
+ 
+ <pre>
+ var b = true    // t has type bool
+ var i = 0       // i has type int
+ var f = 3.0     // f has type float64
++var c = 1i      // c has type complex128
+ var s = "OMDB"  // s has type string
+ </pre>
+ 

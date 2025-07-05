@@ -22,7 +22,226 @@ Date:   Mon Mar 13 07:43:16 2017 +0530
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 63 +++++++++++++++++++++++++++++++
  src/net/http/server.go     | 92 ++++++++++++++++++++++++++++++++--------------
  2 files changed, 127 insertions(+), 28 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index d862bed5a8..5ed7895093 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1357,6 +1357,69 @@ func TestTLSServer(t *testing.T) {
+ 	})
+ }
+ 
++func TestServeTLS(t *testing.T) {
++	// Not parallel: uses global test hooks.
++	defer afterTest(t)
++	defer SetTestHookServerServe(nil)
++	var ok bool
++	const maxTries = 5
++	var ln net.Listener
++	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++	tlsConf := &tls.Config{
++		Certificates: []tls.Certificate{cert},
++	}
++
++Try:
++	for try := 0; try < maxTries; try++ {
++		ln = newLocalListener(t)
++		addr := ln.Addr().String()
++		t.Logf("Got %v", addr)
++		lnc := make(chan net.Listener, 1)
++		SetTestHookServerServe(func(s *Server, ln net.Listener) {
++			lnc <- ln
++		})
++		handler := HandlerFunc(func(w ResponseWriter, r *Request) {
++		})
++		s := &Server{
++			Addr:      addr,
++			TLSConfig: tlsConf,
++			Handler:   handler,
++		}
++		errc := make(chan error, 1)
++		go func() { errc <- s.ServeTLS(ln, "", "") }()
++		select {
++		case err := <-errc:
++			t.Logf("On try #%v: %v", try+1, err)
++			continue
++		case ln = <-lnc:
++			ok = true
++			t.Logf("Listening on %v", ln.Addr().String())
++			break Try
++		}
++	}
++	if !ok {
++		t.Fatalf("Failed to start up after %d tries", maxTries)
++	}
++	defer ln.Close()
++	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
++		InsecureSkipVerify: true,
++		NextProtos:         []string{"h2", "http/1.1"},
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++	if got, want := c.ConnectionState().NegotiatedProtocol, "h2"; got != want {
++		t.Errorf("NegotiatedProtocol = %q; want %q", got, want)
++	}
++	if got, want := c.ConnectionState().NegotiatedProtocolIsMutual, true; got != want {
++		t.Errorf("NegotiatedProtocolIsMutual = %v; want %v", got, want)
++	}
++}
++
+ // Issue 15908
+ func TestAutomaticHTTP2_Serve_NoTLSConfig(t *testing.T) {
+ 	testAutomaticHTTP2_Serve(t, nil, true)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index add05c24ed..c1b98daabf 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2314,12 +2314,27 @@ func Serve(l net.Listener, handler Handler) error {
+ 	return srv.Serve(l)
+ }
+ 
++// Serve accepts incoming HTTPS connections on the listener l,
++// creating a new service goroutine for each. The service goroutines
++// read requests and then call handler to reply to them.
++//
++// Handler is typically nil, in which case the DefaultServeMux is used.
++//
++// Additionally, files containing a certificate and matching private key
++// for the server must be provided. If the certificate is signed by a
++// certificate authority, the certFile should be the concatenation
++// of the server's certificate, any intermediates, and the CA's certificate.
++func ServeTLS(l net.Listener, handler Handler, certFile, keyFile string) error {
++	srv := &Server{Handler: handler}
++	return srv.ServeTLS(l, certFile, keyFile)
++}
++
+ // A Server defines parameters for running an HTTP server.
+ // The zero value for Server is a valid configuration.
+ type Server struct {
+ 	Addr      string      // TCP address to listen on, ":http" if empty
+ 	Handler   Handler     // handler to invoke, http.DefaultServeMux if nil
+-	TLSConfig *tls.Config // optional TLS config, used by ListenAndServeTLS
++	TLSConfig *tls.Config // optional TLS config, used by ServeTLS and ListenAndServeTLS
+ 
+ 	// ReadTimeout is the maximum duration for reading the entire
+ 	// request, including the body.
+@@ -2636,7 +2651,7 @@ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
+ 	return strSliceContains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
+ }
+ 
+-// ErrServerClosed is returned by the Server's Serve, ListenAndServe,
++// ErrServerClosed is returned by the Server's Serve, ServeTLS, ListenAndServe,
+ // and ListenAndServeTLS methods after a call to Shutdown or Close.
+ var ErrServerClosed = errors.New("http: Server closed")
+ 
+@@ -2697,6 +2712,49 @@ func (srv *Server) Serve(l net.Listener) error {
+ 	}
+ }
+ 
++// ServeTLS accepts incoming connections on the Listener l, creating a
++// new service goroutine for each. The service goroutines read requests and
++// then call srv.Handler to reply to them.
++//
++// Additionally, files containing a certificate and matching private key for
++// the server must be provided if neither the Server's TLSConfig.Certificates
++// nor TLSConfig.GetCertificate are populated.. If the certificate is signed by
++// a certificate authority, the certFile should be the concatenation of the
++// server's certificate, any intermediates, and the CA's certificate.
++//
++// For HTTP/2 support, srv.TLSConfig should be initialized to the
++// provided listener's TLS Config before calling Serve. If
++// srv.TLSConfig is non-nil and doesn't include the string "h2" in
++// Config.NextProtos, HTTP/2 support is not enabled.
++//
++// ServeTLS always returns a non-nil error. After Shutdown or Close, the
++// returned error is ErrServerClosed.
++func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
++	// Setup HTTP/2 before srv.Serve, to initialize srv.TLSConfig
++	// before we clone it and create the TLS Listener.
++	if err := srv.setupHTTP2_ServeTLS(); err != nil {
++		return err
++	}
++
++	config := cloneTLSConfig(srv.TLSConfig)
++	if !strSliceContains(config.NextProtos, "http/1.1") {
++		config.NextProtos = append(config.NextProtos, "http/1.1")
++	}
++
++	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil
++	if !configHasCert || certFile != "" || keyFile != "" {
++		var err error
++		config.Certificates = make([]tls.Certificate, 1)
++		config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
++		if err != nil {
++			return err
++		}
++	}
++
++	tlsListener := tls.NewListener(l, config)
++	return srv.Serve(tlsListener)
++}
++
+ func (s *Server) trackListener(ln net.Listener, add bool) {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+@@ -2868,47 +2926,25 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 		addr = ":https"
+ 	}
+ 
+-	// Setup HTTP/2 before srv.Serve, to initialize srv.TLSConfig
+-	// before we clone it and create the TLS Listener.
+-	if err := srv.setupHTTP2_ListenAndServeTLS(); err != nil {
+-		return err
+-	}
+-
+-	config := cloneTLSConfig(srv.TLSConfig)
+-	if !strSliceContains(config.NextProtos, "http/1.1") {
+-		config.NextProtos = append(config.NextProtos, "http/1.1")
+-	}
+-
+-	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil
+-	if !configHasCert || certFile != "" || keyFile != "" {
+-		var err error
+-		config.Certificates = make([]tls.Certificate, 1)
+-		config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
+-		if err != nil {
+-			return err
+-		}
+-	}
+-
+ 	ln, err := net.Listen("tcp", addr)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+-	tlsListener := tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, config)
+-	return srv.Serve(tlsListener)
++	return srv.ServeTLS(tcpKeepAliveListener{ln.(*net.TCPListener)}, certFile, keyFile)
+ }
+ 
+-// setupHTTP2_ListenAndServeTLS conditionally configures HTTP/2 on
++// setupHTTP2_ServeTLS conditionally configures HTTP/2 on
+ // srv and returns whether there was an error setting it up. If it is
+ // not configured for policy reasons, nil is returned.
+-func (srv *Server) setupHTTP2_ListenAndServeTLS() error {
++func (srv *Server) setupHTTP2_ServeTLS() error {
+ 	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults)
+ 	return srv.nextProtoErr
+ }
+ 
+ // setupHTTP2_Serve is called from (*Server).Serve and conditionally
+ // configures HTTP/2 on srv using a more conservative policy than
+-// setupHTTP2_ListenAndServeTLS because Serve may be called
++// setupHTTP2_ServeTLS because Serve may be called
+ // concurrently.
+ //
+ // The tests named TestTransportAutomaticHTTP2* and

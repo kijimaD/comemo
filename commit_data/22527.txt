@@ -13,7 +13,39 @@ Date:   Thu Mar 19 14:37:30 2015 -0400
     Change-Id: Ib07b3753cc4e2b54533ab3081a359cbd1c3c08fb
     Reviewed-on: https://go-review.googlesource.com/7736
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 6 ++++++
  src/runtime/mgcmark.go | 3 +++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b82569bb3e..8eba5a8bc2 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -333,6 +333,12 @@ func gc(mode int) {
+ 		var gcw gcWork
+ 		gcDrain(&gcw)
+ 		gcw.dispose()
++		// Despite the barrier in gcDrain, gcDrainNs may still
++		// be doing work at this point. This is okay because
++		// 1) the gcDrainNs happen on the system stack, so
++		// they will flush their work to the global queues
++		// before we can stop the world, and 2) it's fine if
++		// we go into mark termination with some work queued.
+ 
+ 		// Begin mark termination.
+ 		gctimer.cycle.markterm = nanotime()
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 197b6a808d..8e0a88f0a3 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -366,6 +366,9 @@ func gcDrain(gcw *gcWork) {
+ }
+ 
+ // gcDrainN scans n objects, blackening grey objects.
++//
++// This MUST be run on the system stack to prevent a stop-the-world
++// while this locally holds GC work buffers.
+ //go:nowritebarrier
+ func gcDrainN(gcw *gcWork, n int) {
+ 	checknocurrentwbuf()

@@ -10,7 +10,84 @@ Date:   Fri Mar 4 11:41:57 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4239056
-
+---
  src/pkg/http/client.go    | 10 +++++-----
  src/pkg/http/transport.go | 23 ++++++++++++-----------
  2 files changed, 17 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index b1fe5ec678..82fff78001 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -20,15 +20,15 @@ import (
+ // that uses DefaultTransport.
+ // Client is not yet very configurable.
+ type Client struct {
+-	Transport ClientTransport // if nil, DefaultTransport is used
++	Transport Transport // if nil, DefaultTransport is used
+ }
+ 
+ // DefaultClient is the default Client and is used by Get, Head, and Post.
+ var DefaultClient = &Client{}
+ 
+-// ClientTransport is an interface representing the ability to execute a
++// Transport is an interface representing the ability to execute a
+ // single HTTP transaction, obtaining the Response for a given Request.
+-type ClientTransport interface {
++type Transport interface {
+ 	// Do executes a single HTTP transaction, returning the Response for the
+ 	// request req.  Do should not attempt to interpret the response.
+ 	// In particular, Do must return err == nil if it obtained a response,
+@@ -104,7 +104,7 @@ func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
+ // TODO: support persistent connections (multiple requests on a single connection).
+ // send() method is nonpublic because, when we refactor the code for persistent
+ // connections, it may no longer make sense to have a method with this signature.
+-func send(req *Request, t ClientTransport) (resp *Response, err os.Error) {
++func send(req *Request, t Transport) (resp *Response, err os.Error) {
+ 	if t == nil {
+ 		t = DefaultTransport
+ 		if t == nil {
+@@ -115,7 +115,7 @@ func send(req *Request, t ClientTransport) (resp *Response, err os.Error) {
+ 
+ 	// Most the callers of send (Get, Post, et al) don't need
+ 	// Headers, leaving it uninitialized.  We guarantee to the
+-	// ClientTransport that this has been initialized, though.
++	// Transport that this has been initialized, though.
+ 	if req.Header == nil {
+ 		req.Header = Header(make(map[string][]string))
+ 	}
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 41d639c7e2..d68e347647 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -15,18 +15,19 @@ import (
+ 	"sync"
+ )
+ 
+-// DefaultTransport is the default implementation of ClientTransport
+-// and is used by DefaultClient.  It establishes a new network connection for
+-// each call to Do and uses HTTP proxies as directed by the $HTTP_PROXY and
+-// $NO_PROXY (or $http_proxy and $no_proxy) environment variables.
+-var DefaultTransport ClientTransport = &transport{}
++// DefaultTransport is the default implementation of Transport and is
++// used by DefaultClient.  It establishes a new network connection for
++// each call to Do and uses HTTP proxies as directed by the
++// $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy)
++// environment variables.
++var DefaultTransport Transport = &transport{}
+ 
+-// transport implements http.ClientTranport for the default case,
+-// using TCP connections to either the host or a proxy, serving
+-// http or https schemes.  In the future this may become public
+-// and support options on keep-alive connection duration, pipelining
+-// controls, etc.  For now this is simply a port of the old Go code
+-// client code to the http.ClientTransport interface.
++// transport implements Tranport for the default case, using TCP
++// connections to either the host or a proxy, serving http or https
++// schemes.  In the future this may become public and support options
++// on keep-alive connection duration, pipelining controls, etc.  For
++// now this is simply a port of the old Go code client code to the
++// Transport interface.
+ type transport struct {
+ 	// TODO: keep-alives, pipelining, etc using a map from
+ 	// scheme/host to a connection.  Something like:

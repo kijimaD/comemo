@@ -7,7 +7,42 @@ Date:   Fri May 15 15:37:40 2015 +1000
     Change-Id: I2784f831453d929df64c66febb4982cdf1f08e06
     Reviewed-on: https://go-review.googlesource.com/10133
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/go/alldocs.go | 3 ++-
  src/cmd/go/help.go    | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e0d4a6c0fe..2b1cbf98ec 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -503,6 +503,7 @@ syntax of package template.  The default output is equivalent to -f
+         Name          string // package name
+         Doc           string // package documentation string
+         Target        string // install path
++        Shlib         string // the shared library that contains this package (only set when -linkshared)
+         Goroot        bool   // is this package in the Go root?
+         Standard      bool   // is this package part of the standard Go library?
+         Stale         bool   // would 'go install' do anything for this package?
+@@ -1053,7 +1054,7 @@ environment variable (see 'go help gopath').
+ If no import paths are given, the action applies to the
+ package in the current directory.
+ 
+-There are three reserved names for paths that should not be used
++There are four reserved names for paths that should not be used
+ for packages to be built with the go tool:
+ 
+ - "main" denotes the top-level package in a stand-alone executable.
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 56e8493e1a..2062f0c4ee 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -47,7 +47,7 @@ environment variable (see 'go help gopath').
+ If no import paths are given, the action applies to the
+ package in the current directory.
+ 
+-There are three reserved names for paths that should not be used
++There are four reserved names for paths that should not be used
+ for packages to be built with the go tool:
+ 
+ - "main" denotes the top-level package in a stand-alone executable.

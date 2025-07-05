@@ -17,6 +17,21 @@ Date:   Wed Jun 2 19:43:28 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm_arm64.s | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 4babcc7fcb..be4313d35d 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1196,7 +1196,8 @@ havem:
+ 	MOVD	R1, 8(RSP)
+ 	MOVD	R2, 16(RSP)
+ 	MOVD	R3, 24(RSP)
+-	BL	runtime·cgocallbackg(SB)
++	MOVD	$runtime·cgocallbackg(SB), R0
++	CALL	(R0) // indirect call to bypass nosplit check. We're on a different stack now.
+ 
+ 	// Restore g->sched (== m->curg->sched) from saved values.
+ 	MOVD	0(RSP), R5

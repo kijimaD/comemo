@@ -11,8 +11,90 @@ Date:   Fri May 16 15:39:59 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/92400047
-
+---
  src/pkg/net/http/serve_test.go | 15 +++++++++++++++
  src/pkg/net/http/server.go     | 12 +++++-------
  src/pkg/net/http/transfer.go   | 16 ++++++++++++++++
  3 files changed, 36 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index b3850a590d..9e4d226bfe 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -2154,6 +2154,21 @@ func TestCodesPreventingContentTypeAndBody(t *testing.T) {
+ 	}
+ }
+ 
++func TestContentTypeOkayOn204(t *testing.T) {
++	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Content-Length", "123") // suppressed
++		w.Header().Set("Content-Type", "foo/bar")
++		w.WriteHeader(204)
++	}))
++	got := ht.rawResponse("GET / HTTP/1.1")
++	if !strings.Contains(got, "Content-Type: foo/bar") {
++		t.Errorf("Response = %q; want Content-Type: foo/bar", got)
++	}
++	if strings.Contains(got, "Content-Length: 123") {
++		t.Errorf("Response = %q; don't want a Content-Length", got)
++	}
++}
++
+ // Issue 6995
+ // A server Handler can receive a Request, and then turn around and
+ // give a copy of that Request.Body out to the Transport (e.g. any
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 9c5f3ffaba..eae097eb8e 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -799,18 +799,16 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	}
+ 
+ 	code := w.status
+-	if !bodyAllowedForStatus(code) {
+-		// Must not have body.
+-		// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
+-		for _, k := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
+-			delHeader(k)
+-		}
+-	} else {
++	if bodyAllowedForStatus(code) {
+ 		// If no content type, apply sniffing algorithm to body.
+ 		_, haveType := header["Content-Type"]
+ 		if !haveType {
+ 			setHeader.contentType = DetectContentType(p)
+ 		}
++	} else {
++		for _, k := range suppressedHeaders(code) {
++			delHeader(k)
++		}
+ 	}
+ 
+ 	if _, ok := header["Date"]; !ok {
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 4c3050fed6..0f2b7854f5 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -268,6 +268,22 @@ func bodyAllowedForStatus(status int) bool {
+ 	return true
+ }
+ 
++var (
++	suppressedHeaders304    = []string{"Content-Type", "Content-Length", "Transfer-Encoding"}
++	suppressedHeadersNoBody = []string{"Content-Length", "Transfer-Encoding"}
++)
++
++func suppressedHeaders(status int) []string {
++	switch {
++	case status == 304:
++		// RFC 2616 section 10.3.5: "the response MUST NOT include other entity-headers"
++		return suppressedHeaders304
++	case !bodyAllowedForStatus(status):
++		return suppressedHeadersNoBody
++	}
++	return nil
++}
++
+ // msg is *Request or *Response.
+ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 	t := &transferReader{RequestMethod: "GET"}

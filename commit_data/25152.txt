@@ -11,6 +11,25 @@ Date:   Thu Oct 1 03:08:18 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/15177
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/reader.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index e9a6aa350a..67db71540c 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -763,9 +763,13 @@ func (tr *Reader) numBytes() int64 {
+ // It returns 0, io.EOF when it reaches the end of that entry,
+ // until Next is called to advance to the next entry.
+ func (tr *Reader) Read(b []byte) (n int, err error) {
++	if tr.err != nil {
++		return 0, tr.err
++	}
+ 	if tr.curr == nil {
+ 		return 0, io.EOF
+ 	}
++
+ 	n, err = tr.curr.Read(b)
+ 	if err != nil && err != io.EOF {
+ 		tr.err = err

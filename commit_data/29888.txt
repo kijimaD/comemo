@@ -9,6 +9,27 @@ Date:   Sun Oct 16 11:28:45 2016 -0700
     Change-Id: I9635db295be4d356d427adadd309084e16c4582f
     Reviewed-on: https://go-review.googlesource.com/31255
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index e2350ebc06..0646108c66 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -476,10 +476,11 @@ func (c *common) log(s string) {
+ // printed to avoid having performance depend on the value of the -test.v flag.
+ func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
+ 
+-// Logf formats its arguments according to the format, analogous to Printf,
+-// and records the text in the error log. For tests, the text will be printed only if
+-// the test fails or the -test.v flag is set. For benchmarks, the text is always
+-// printed to avoid having performance depend on the value of the -test.v flag.
++// Logf formats its arguments according to the format, analogous to Printf, and
++// records the text in the error log. A final newline is added if not provided. For
++// tests, the text will be printed only if the test fails or the -test.v flag is
++// set. For benchmarks, the text is always printed to avoid having performance
++// depend on the value of the -test.v flag.
+ func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
+ 
+ // Error is equivalent to Log followed by Fail.

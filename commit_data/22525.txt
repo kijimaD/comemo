@@ -9,6 +9,22 @@ Date:   Fri Mar 20 00:59:37 2015 -0400
     Change-Id: I4867de494bc4076b7c2b3bf4fd74aa984e3ea0c8
     Reviewed-on: https://go-review.googlesource.com/7854
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/atomic_arm.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/atomic_arm.go b/src/runtime/atomic_arm.go
+index 00cc1837fd..75206ab94a 100644
+--- a/src/runtime/atomic_arm.go
++++ b/src/runtime/atomic_arm.go
+@@ -159,8 +159,8 @@ func atomicand8(addr *uint8, v uint8) {
+ 	// Align down to 4 bytes and use 32-bit CAS.
+ 	uaddr := uintptr(unsafe.Pointer(addr))
+ 	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
+-	mask := 0xFF << ((uaddr & 3) * 8)      // little endian
+-	word := uint32(v) << ((uaddr & 3) * 8) // little endian
++	word := uint32(v) << ((uaddr & 3) * 8)    // little endian
++	mask := uint32(0xFF) << ((uaddr & 3) * 8) // little endian
+ 	word |= ^mask
+ 	for {
+ 		old := *addr32

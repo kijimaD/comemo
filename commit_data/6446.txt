@@ -11,7 +11,7 @@ Date:   Sun Oct 3 11:50:44 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2344042
-
+---
  src/cmd/gc/go.h          |  1 -
  src/cmd/gc/go.y          |  2 ++
  src/cmd/gc/print.c       |  5 +++++
@@ -19,3 +19,167 @@ Date:   Sun Oct 3 11:50:44 2010 -0400
  test/fixedbugs/bug309.go | 19 +++++++++++++++++++
  test/fixedbugs/bug310.go | 20 ++++++++++++++++++++
  6 files changed, 59 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index acbfde4ff7..5dd9356ef4 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -403,7 +403,6 @@ enum
+ 	ORETURN,
+ 	OSELECT,
+ 	OSWITCH,
+-	OTYPECASE,
+ 	OTYPESW,	// l = r.(type)
+ 
+ 	// types
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index b6774c1dd0..8a98d24017 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -673,11 +673,13 @@ select_stmt:
+ 	LSELECT
+ 	{
+ 		markdcl();
++		typesw = nod(OXXX, typesw, N);
+ 	}
+ 	switch_body
+ 	{
+ 		$$ = nod(OSELECT, N, N);
+ 		$$->list = $3;
++		typesw = typesw->left;
+ 		popdcl();
+ 	}
+ 
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index cbe85ce9e5..ca013fabb3 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -106,6 +106,11 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OOROR:
+ 		nprec = 1;
+ 		break;
++	
++	case OTYPE:
++		if(n->sym != S)
++			nprec = 7;
++		break;
+ 	}
+ 
+ 	if(prec > nprec)
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 10cab14a17..bb4571d9ff 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1186,11 +1186,6 @@ reswitch:
+ 		typecheckrange(n);
+ 		goto ret;
+ 
+-	case OTYPECASE:
+-		ok |= Etop | Erv;
+-		typecheck(&n->left, Erv);
+-		goto ret;
+-
+ 	case OTYPESW:
+ 		yyerror("use of .(type) outside type switch");
+ 		goto error;
+@@ -1415,6 +1410,8 @@ looktypedot(Node *n, Type *t, int dostrcmp)
+ 
+ 	expandmeth(f2->sym, f2);
+ 	f2 = lookdot1(s, f2, f2->xmethod, dostrcmp);
++	if(f2 == T)
++		return 0;
+ 
+ 	// disallow T.m if m requires *T receiver
+ 	if(isptr[getthisx(f2->type)->type->type->etype]
+@@ -1531,13 +1528,16 @@ typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
+ 		tn = n->type->type;
+ 		for(tl=tstruct->type; tl; tl=tl->down) {
+ 			if(tl->isddd) {
+-				for(; tn; tn=tn->down)
++				for(; tn; tn=tn->down) {
++					exportassignok(tn->type, desc);
+ 					if(assignop(tn->type, tl->type->type, &why) == 0)
+ 						yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
++				}
+ 				goto out;
+ 			}
+ 			if(tn == T)
+ 				goto notenough;
++			exportassignok(tn->type, desc);
+ 			if(assignop(tn->type, tl->type, &why) == 0)
+ 				yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
+ 			tn = tn->down;
+@@ -1560,15 +1560,17 @@ typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
+ 					goto notenough;
+ 				if(nl->next != nil)
+ 					goto toomany;
+-				if(assignop(nl->n->type, t, &why) == 0)
+-					yyerror("ddd cannot use %+N as type %T in %s%s", nl->n, t, desc, why);
++				n = nl->n;
++				setlineno(n);
++				if(n->type != T)
++					nl->n = assignconv(n, t, desc);
+ 				goto out;
+ 			}
+ 			for(; nl; nl=nl->next) {
++				n = nl->n;
+ 				setlineno(nl->n);
+-				defaultlit(&nl->n, t->type);
+-				if(assignop(nl->n->type, t->type, &why) == 0)
+-					yyerror("cannot use %+N as type %T in %s%s", nl->n, t->type, desc, why);
++				if(n->type != T)
++					nl->n = assignconv(n, t->type, desc);
+ 			}
+ 			goto out;
+ 		}
+diff --git a/test/fixedbugs/bug309.go b/test/fixedbugs/bug309.go
+new file mode 100644
+index 0000000000..07bebae74c
+--- /dev/null
++++ b/test/fixedbugs/bug309.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 1016
++
++package main
++
++func foo(t interface{}, c chan int) {
++	switch v := t.(type) {
++	case int:
++		select {
++		case <-c:
++			// bug was: internal compiler error: var without type, init: v
++		}
++	}
++}
+diff --git a/test/fixedbugs/bug310.go b/test/fixedbugs/bug310.go
+new file mode 100644
+index 0000000000..191f3ed2b4
+--- /dev/null
++++ b/test/fixedbugs/bug310.go
+@@ -0,0 +1,20 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"bytes"
++	"fmt"
++)
++
++type t int
++
++func main() {
++	_ = t.bar	// ERROR "no method"
++	var b bytes.Buffer
++	fmt.Print(b)	// ERROR "implicit assignment"
++}

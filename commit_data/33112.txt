@@ -20,9 +20,160 @@ Date:   Thu Jul 13 15:07:07 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/fd_poll_nacl.go    |  2 ++
  src/internal/poll/fd_poll_runtime.go |  4 ++++
  src/internal/poll/fd_unix.go         | 20 +++++++++++---------
  src/os/pipe_test.go                  | 34 ++++++++++++++++++++++++++++++++++
  4 files changed, 51 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/poll/fd_poll_nacl.go b/src/internal/poll/fd_poll_nacl.go
+index 8fa75c5a26..2df30030b1 100644
+--- a/src/internal/poll/fd_poll_nacl.go
++++ b/src/internal/poll/fd_poll_nacl.go
+@@ -49,6 +49,8 @@ func (pd *pollDesc) waitWrite(isFile bool) error { return pd.wait('w', isFile) }
+ 
+ func (pd *pollDesc) waitCanceled(mode int) {}
+ 
++func (pd *pollDesc) pollable() bool { return true }
++
+ // SetDeadline sets the read and write deadlines associated with fd.
+ func (fd *FD) SetDeadline(t time.Time) error {
+ 	return setDeadlineImpl(fd, t, 'r'+'w')
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index 08b40c2720..bfbe3c7de4 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -101,6 +101,10 @@ func (pd *pollDesc) waitCanceled(mode int) {
+ 	runtime_pollWaitCanceled(pd.runtimeCtx, mode)
+ }
+ 
++func (pd *pollDesc) pollable() bool {
++	return pd.runtimeCtx != 0
++}
++
+ func convertErr(res int, isFile bool) error {
+ 	switch res {
+ 	case 0:
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 3ca6e157c5..c40c701f59 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -121,7 +121,7 @@ func (fd *FD) Read(p []byte) (int, error) {
+ 		n, err := syscall.Read(fd.Sysfd, p)
+ 		if err != nil {
+ 			n = 0
+-			if err == syscall.EAGAIN {
++			if err == syscall.EAGAIN && fd.pd.pollable() {
+ 				if err = fd.pd.waitRead(fd.isFile); err == nil {
+ 					continue
+ 				}
+@@ -165,7 +165,7 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
+ 		n, sa, err := syscall.Recvfrom(fd.Sysfd, p, 0)
+ 		if err != nil {
+ 			n = 0
+-			if err == syscall.EAGAIN {
++			if err == syscall.EAGAIN && fd.pd.pollable() {
+ 				if err = fd.pd.waitRead(fd.isFile); err == nil {
+ 					continue
+ 				}
+@@ -189,7 +189,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
+ 		n, oobn, flags, sa, err := syscall.Recvmsg(fd.Sysfd, p, oob, 0)
+ 		if err != nil {
+ 			// TODO(dfc) should n and oobn be set to 0
+-			if err == syscall.EAGAIN {
++			if err == syscall.EAGAIN && fd.pd.pollable() {
+ 				if err = fd.pd.waitRead(fd.isFile); err == nil {
+ 					continue
+ 				}
+@@ -222,7 +222,7 @@ func (fd *FD) Write(p []byte) (int, error) {
+ 		if nn == len(p) {
+ 			return nn, err
+ 		}
+-		if err == syscall.EAGAIN {
++		if err == syscall.EAGAIN && fd.pd.pollable() {
+ 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 				continue
+ 			}
+@@ -278,7 +278,7 @@ func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (int, error) {
+ 	}
+ 	for {
+ 		err := syscall.Sendto(fd.Sysfd, p, 0, sa)
+-		if err == syscall.EAGAIN {
++		if err == syscall.EAGAIN && fd.pd.pollable() {
+ 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 				continue
+ 			}
+@@ -301,7 +301,7 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
+ 	}
+ 	for {
+ 		n, err := syscall.SendmsgN(fd.Sysfd, p, oob, sa, 0)
+-		if err == syscall.EAGAIN {
++		if err == syscall.EAGAIN && fd.pd.pollable() {
+ 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 				continue
+ 			}
+@@ -330,8 +330,10 @@ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
+ 		}
+ 		switch err {
+ 		case syscall.EAGAIN:
+-			if err = fd.pd.waitRead(fd.isFile); err == nil {
+-				continue
++			if fd.pd.pollable() {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
++					continue
++				}
+ 			}
+ 		case syscall.ECONNABORTED:
+ 			// This means that a socket on the listen
+@@ -364,7 +366,7 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
+ 		n, err := syscall.ReadDirent(fd.Sysfd, buf)
+ 		if err != nil {
+ 			n = 0
+-			if err == syscall.EAGAIN {
++			if err == syscall.EAGAIN && fd.pd.pollable() {
+ 				if err = fd.pd.waitRead(fd.isFile); err == nil {
+ 					continue
+ 				}
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 7c4cbb17ae..9d79d84575 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -186,3 +186,37 @@ func TestClosedPipeRaceRead(t *testing.T) {
+ func TestClosedPipeRaceWrite(t *testing.T) {
+ 	testClosedPipeRace(t, false)
+ }
++
++// Issue 20915: Reading on nonblocking fd should not return "waiting
++// for unsupported file type." Currently it returns EAGAIN; it is
++// possible that in the future it will simply wait for data.
++func TestReadNonblockingFd(t *testing.T) {
++	if os.Getenv("GO_WANT_READ_NONBLOCKING_FD") == "1" {
++		fd := int(os.Stdin.Fd())
++		syscall.SetNonblock(fd, true)
++		defer syscall.SetNonblock(fd, false)
++		_, err := os.Stdin.Read(make([]byte, 1))
++		if err != nil {
++			if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.EAGAIN {
++				t.Fatalf("read on nonblocking stdin got %q, should have gotten EAGAIN", err)
++			}
++		}
++		os.Exit(0)
++	}
++
++	testenv.MustHaveExec(t)
++	r, w, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r.Close()
++	defer w.Close()
++	cmd := osexec.Command(os.Args[0], "-test.run="+t.Name())
++	cmd.Env = append(os.Environ(), "GO_WANT_READ_NONBLOCKING_FD=1")
++	cmd.Stdin = r
++	output, err := cmd.CombinedOutput()
++	t.Logf("%s", output)
++	if err != nil {
++		t.Errorf("child process failed: %v", err)
++	}
++}

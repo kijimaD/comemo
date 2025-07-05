@@ -39,6 +39,28 @@ Date:   Wed Jun 23 00:50:43 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/stdlib_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 503d0a6f44..d86a77a110 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -26,9 +26,15 @@ import (
+ 	. "go/types"
+ )
+ 
++// The cmd/*/internal packages may have been deleted as part of a binary
++// release. Import from source instead.
++//
++// (See https://golang.org/issue/43232 and
++// https://github.com/golang/build/blob/df58bbac082bc87c4a3cdfe336d1ffe60bbaa916/cmd/release/release.go#L533-L545.)
++//
+ // Use the same importer for all std lib tests to
+ // avoid repeated importing of the same packages.
+-var stdLibImporter = importer.Default()
++var stdLibImporter = importer.ForCompiler(token.NewFileSet(), "source", nil)
+ 
+ func TestStdlib(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)

@@ -9,7 +9,117 @@ Date:   Tue Mar 6 12:55:41 2018 +0100
     Change-Id: I3efac5fea529bb0efa2dae32124530482ba5058e
     Reviewed-on: https://go-review.googlesource.com/98815
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 52 ---------------------------------
  test/codegen/mathbits.go                | 28 ++++++++++++++++++
  2 files changed, 28 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index deafdf5894..faee6d7c93 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -547,34 +547,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tROLW\t\\$8,"},
+ 	},
+-	{
+-		fn: `
+-		func pop1(x uint64) int {
+-			return bits.OnesCount64(x)
+-		}`,
+-		pos: []string{"\tPOPCNTQ\t", "support_popcnt"},
+-	},
+-	{
+-		fn: `
+-		func pop2(x uint32) int {
+-			return bits.OnesCount32(x)
+-		}`,
+-		pos: []string{"\tPOPCNTL\t", "support_popcnt"},
+-	},
+-	{
+-		fn: `
+-		func pop3(x uint16) int {
+-			return bits.OnesCount16(x)
+-		}`,
+-		pos: []string{"\tPOPCNTL\t", "support_popcnt"},
+-	},
+-	{
+-		fn: `
+-		func pop4(x uint) int {
+-			return bits.OnesCount(x)
+-		}`,
+-		pos: []string{"\tPOPCNTQ\t", "support_popcnt"},
+-	},
+ 	// multiplication merging tests
+ 	{
+ 		fn: `
+@@ -1492,30 +1464,6 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"TBZ"},
+ 	},
+-	{
+-		fn: `
+-		func $(x uint64) int {
+-			return bits.OnesCount64(x)
+-		}
+-		`,
+-		pos: []string{"\tVCNT\t", "\tVUADDLV\t"},
+-	},
+-	{
+-		fn: `
+-		func $(x uint32) int {
+-			return bits.OnesCount32(x)
+-		}
+-		`,
+-		pos: []string{"\tVCNT\t", "\tVUADDLV\t"},
+-	},
+-	{
+-		fn: `
+-		func $(x uint16) int {
+-			return bits.OnesCount16(x)
+-		}
+-		`,
+-		pos: []string{"\tVCNT\t", "\tVUADDLV\t"},
+-	},
+ 	// Load-combining tests.
+ 	{
+ 		fn: `
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index f930046a3b..a95c13caa9 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -96,6 +96,34 @@ func Len8(n uint8) int {
+ 	return bits.Len8(n)
+ }
+ 
++// -------------------- //
++//    bits.OnesCount    //
++// -------------------- //
++
++func OnesCount(n uint) int {
++	//amd64:"POPCNTQ",".*support_popcnt"
++	//arm64:"VCNT","VUADDLV"
++	return bits.OnesCount(n)
++}
++
++func OnesCount64(n uint64) int {
++	//amd64:"POPCNTQ",".*support_popcnt"
++	//arm64:"VCNT","VUADDLV"
++	return bits.OnesCount64(n)
++}
++
++func OnesCount32(n uint32) int {
++	//amd64:"POPCNTL",".*support_popcnt"
++	//arm64:"VCNT","VUADDLV"
++	return bits.OnesCount32(n)
++}
++
++func OnesCount16(n uint16) int {
++	//amd64:"POPCNTL",".*support_popcnt"
++	//arm64:"VCNT","VUADDLV"
++	return bits.OnesCount16(n)
++}
++
+ // ------------------------ //
+ //    bits.TrailingZeros    //
+ // ------------------------ //

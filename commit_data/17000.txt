@@ -10,7 +10,7 @@ Date:   Fri Aug 2 14:58:27 2013 -0400
     R=golang-dev, bradfitz, khr
     CC=golang-dev
     https://golang.org/cl/12350044
-
+---
  src/cmd/cgo/gcc.go   | 28 ++++++++++++++--------------
  src/cmd/cgo/out.go   |  2 +-
  src/cmd/dist/a.h     |  5 +++++
@@ -19,3 +19,266 @@ Date:   Fri Aug 2 14:58:27 2013 -0400
  src/cmd/go/build.go  |  5 +++--
  src/run.bash         |  5 ++++-
  7 files changed, 64 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 8ca680abc9..ab625c4e7e 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -646,19 +646,20 @@ func (p *Package) rewriteRef(f *File) {
+ 	}
+ }
+ 
+-// gccName returns the name of the compiler to run.  Use $CC if set in
+-// the environment, otherwise just "gcc".
+-
+-func (p *Package) gccName() string {
++// gccBaseCmd returns the start of the compiler command line.
++// It uses $CC if set, or else $GCC, or else the compiler recorded
++// during the initial build as defaultCC.
++// defaultCC is defined in zdefaultcc.go, written by cmd/dist.
++func (p *Package) gccBaseCmd() []string {
+ 	// Use $CC if set, since that's what the build uses.
+-	if ret := os.Getenv("CC"); ret != "" {
++	if ret := strings.Fields(os.Getenv("CC")); len(ret) > 0 {
+ 		return ret
+ 	}
+-	// Fall back to $GCC if set, since that's what we used to use.
+-	if ret := os.Getenv("GCC"); ret != "" {
++	// Try $GCC if set, since that's what we used to use.
++	if ret := strings.Fields(os.Getenv("GCC")); len(ret) > 0 {
+ 		return ret
+ 	}
+-	return "gcc"
++	return strings.Fields(defaultCC)
+ }
+ 
+ // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
+@@ -681,17 +682,16 @@ func gccTmp() string {
+ // gccCmd returns the gcc command line to use for compiling
+ // the input.
+ func (p *Package) gccCmd() []string {
+-	c := []string{
+-		p.gccName(),
++	c := append(p.gccBaseCmd(),
+ 		"-Wall",                             // many warnings
+ 		"-Werror",                           // warnings are errors
+-		"-o" + gccTmp(),                     // write object to tmp
++		"-o"+gccTmp(),                       // write object to tmp
+ 		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
+ 		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
+ 		"-c",  // do not link
+ 		"-xc", // input language is C
+-	}
+-	if strings.Contains(p.gccName(), "clang") {
++	)
++	if strings.Contains(c[0], "clang") {
+ 		c = append(c,
+ 			"-ferror-limit=0",
+ 			// Apple clang version 1.7 (tags/Apple/clang-77) (based on LLVM 2.9svn)
+@@ -800,7 +800,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
+ // #defines that gcc encountered while processing the input
+ // and its included files.
+ func (p *Package) gccDefines(stdin []byte) string {
+-	base := []string{p.gccName(), "-E", "-dM", "-xc"}
++	base := append(p.gccBaseCmd(), "-E", "-dM", "-xc")
+ 	base = append(base, p.gccMachine()...)
+ 	stdout, _ := runGcc(stdin, append(append(base, p.GccOptions...), "-"))
+ 	return stdout
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index fa4e5806b5..fcb4277ced 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -498,7 +498,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	// Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
+ 	// and http://golang.org/issue/5603.
+ 	extraAttr := ""
+-	if !strings.Contains(p.gccName(), "clang") && (goarch == "amd64" || goarch == "386") {
++	if !strings.Contains(p.gccBaseCmd()[0], "clang") && (goarch == "amd64" || goarch == "386") {
+ 		extraAttr = ", __gcc_struct__"
+ 	}
+ 	fmt.Fprintf(fgcc, "\t%s __attribute__((__packed__%v)) *a = v;\n", ctype, extraAttr)
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index d8a13f92a0..4a3ec80360 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -74,10 +74,12 @@ extern char *goroot;
+ extern char *goroot_final;
+ extern char *goextlinkenabled;
+ extern char *goversion;
++extern char *defaultcc;
+ extern char *workdir;
+ extern char *tooldir;
+ extern char *slash;
+ extern bool rebuildall;
++extern bool defaultclang;
+ 
+ int	find(char*, char**, int);
+ void	init(void);
+@@ -100,6 +102,9 @@ void	mkzgoos(char*, char*);
+ void	mkzruntimedefs(char*, char*);
+ void	mkzversion(char*, char*);
+ 
++// buildgo.c
++void	mkzdefaultcc(char*, char*);
++
+ // goc2c.c
+ void	goc2c(char*, char*);
+ 
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index f99aaa3c93..af665c5480 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -26,8 +26,9 @@ char *tooldir;
+ char *gochar;
+ char *goversion;
+ char *slash;	// / for unix, \ for windows
+-
+-bool	rebuildall = 0;
++char *defaultcc;
++bool	rebuildall;
++bool defaultclang;
+ 
+ static bool shouldbuild(char*, char*);
+ static void copy(char*, char*, int);
+@@ -146,6 +147,20 @@ init(void)
+ 		if(!streq(goextlinkenabled, "0") && !streq(goextlinkenabled, "1"))
+ 			fatal("unknown $GO_EXTLINK_ENABLED %s", goextlinkenabled);
+ 	}
++	
++	xgetenv(&b, "CC");
++	if(b.len == 0) {
++		// Use clang on OS X, because gcc is deprecated there.
++		// Xcode for OS X 10.9 Mavericks will ship a fake "gcc" binary that
++		// actually runs clang. We prepare different command
++		// lines for the two binaries, so it matters what we call it.
++		// See golang.org/issue/5822.
++		if(defaultclang)
++			bprintf(&b, "clang");
++		else
++			bprintf(&b, "gcc");
++	}
++	defaultcc = btake(&b);
+ 
+ 	xsetenv("GOROOT", goroot);
+ 	xsetenv("GOARCH", goarch);
+@@ -525,6 +540,9 @@ static struct {
+ 		"../ld/*",
+ 		"enam.c",
+ 	}},
++	{"cmd/go", {
++		"zdefaultcc.go",
++	}},
+ 	{"cmd/", {
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libmach.a",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libbio.a",
+@@ -557,6 +575,7 @@ static struct {
+ 	{"opnames.h", gcopnames},
+ 	{"enam.c", mkenam},
+ 	{"zasm_", mkzasm},
++	{"zdefaultcc.go", mkzdefaultcc},
+ 	{"zsys_", mkzsys},
+ 	{"zgoarch_", mkzgoarch},
+ 	{"zgoos_", mkzgoos},
+@@ -616,10 +635,7 @@ install(char *dir)
+ 
+ 	// set up gcc command line on first run.
+ 	if(gccargs.len == 0) {
+-		xgetenv(&b, "CC");
+-		if(b.len == 0)
+-			bprintf(&b, "gcc");
+-		clang = contains(bstr(&b), "clang");
++		bprintf(&b, "%s", defaultcc);
+ 		splitfields(&gccargs, bstr(&b));
+ 		for(i=0; i<nelem(proto_gccargs); i++)
+ 			vadd(&gccargs, proto_gccargs[i]);
+@@ -1443,6 +1459,7 @@ cmdenv(int argc, char **argv)
+ 	if(argc > 0)
+ 		usage();
+ 
++	xprintf(format, "CC", defaultcc);
+ 	xprintf(format, "GOROOT", goroot);
+ 	xprintf(format, "GOBIN", gobin);
+ 	xprintf(format, "GOARCH", goarch);
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index fbb3a70ccd..41ae19498e 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -651,6 +651,7 @@ int
+ main(int argc, char **argv)
+ {
+ 	Buf b;
++	int osx;
+ 	struct utsname u;
+ 
+ 	setvbuf(stdout, nil, _IOLBF, 0);
+@@ -700,17 +701,23 @@ main(int argc, char **argv)
+ 	if(strcmp(gohostarch, "arm") == 0)
+ 		maxnbg = 1;
+ 
+-	// The OS X 10.6 linker does not support external
+-	// linking mode; see
+-	// https://code.google.com/p/go/issues/detail?id=5130 .
+-	// The mapping from the uname release field to the OS X
+-	// version number is complicated, but basically 10 or under is
+-	// OS X 10.6 or earlier.
++	// The OS X 10.6 linker does not support external linking mode.
++	// See golang.org/issue/5130.
++	//
++	// OS X 10.6 does not work with clang either, but OS X 10.9 requires it.
++	// It seems to work with OS X 10.8, so we default to clang for 10.8 and later.
++	// See golang.org/issue/5822.
++	//
++	// Roughly, OS X 10.N shows up as uname release (N+4),
++	// so OS X 10.6 is uname version 10 and OS X 10.8 is uname version 12.
+ 	if(strcmp(gohostos, "darwin") == 0) {
+ 		if(uname(&u) < 0)
+ 			fatal("uname: %s", strerror(errno));
+-		if(u.release[1] == '.' || hasprefix(u.release, "10"))
++		osx = atoi(u.release) - 4;
++		if(osx <= 6)
+ 			goextlinkenabled = "0";
++		if(osx >= 8)
++			defaultclang = 1;
+ 	}
+ 
+ 	init();
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index f43063290a..c4b4f6ca55 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1772,8 +1772,9 @@ func (b *builder) gccld(p *Package, out string, flags []string, obj []string) er
+ }
+ 
+ // gccCmd returns a gcc command line prefix
++// defaultCC is defined in zdefaultcc.go, written by cmd/dist.
+ func (b *builder) gccCmd(objdir string) []string {
+-	return b.ccompilerCmd("CC", "gcc", objdir)
++	return b.ccompilerCmd("CC", defaultCC, objdir)
+ }
+ 
+ // gxxCmd returns a g++ command line prefix
+@@ -1789,7 +1790,7 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ 
+ 	compiler := strings.Fields(os.Getenv(envvar))
+ 	if len(compiler) == 0 {
+-		compiler = append(compiler, defcmd)
++		compiler = strings.Fields(defcmd)
+ 	}
+ 	a := []string{compiler[0], "-I", objdir, "-g", "-O2"}
+ 	a = append(a, compiler[1:]...)
+diff --git a/src/run.bash b/src/run.bash
+index e5f2c384bb..8f416f6018 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -124,7 +124,10 @@ freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd6
+ esac
+ ) || exit $?
+ 
+-[ "$CGO_ENABLED" != 1 ] ||
++# This tests cgo -godefs. That mode is not supported,
++# so it's okay if it doesn't work on some systems.
++# In particular, it works badly with clang on OS X.
++[ "$CGO_ENABLED" != 1 ] || [ "$GOOS" == darwin ] ||
+ (xcd ../misc/cgo/testcdefs
+ ./test.bash || exit 1
+ ) || exit $?

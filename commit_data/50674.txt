@@ -17,7 +17,69 @@ Date:   Fri Nov 5 20:30:38 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go |  4 ++--
  test/fixedbugs/issue49378.go                 | 25 +++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 91ff9f87f9..a3cea855f2 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -954,11 +954,11 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 		elt := t.Elem()
+ 		if source.Type != t && t.NumElem() == 1 && elt.Size() == t.Size() && t.Size() == x.regSize {
+ 			t = removeTrivialWrapperTypes(t)
+-			source.Type = t
+ 			// it could be a leaf type, but the "leaf" could be complex64 (for example)
+ 			return x.storeArgOrLoad(pos, b, source, mem, t, storeOffset, loadRegOffset, storeRc)
+ 		}
+ 		eltRO := x.regWidth(elt)
++		source.Type = t
+ 		for i := int64(0); i < t.NumElem(); i++ {
+ 			sel := source.Block.NewValue1I(pos, OpArraySelect, elt, i, source)
+ 			mem = x.storeArgOrLoad(pos, b, sel, mem, elt, storeOffset+i*elt.Size(), loadRegOffset, storeRc.at(t, 0))
+@@ -988,11 +988,11 @@ func (x *expandState) storeArgOrLoad(pos src.XPos, b *Block, source, mem *Value,
+ 			// v139 is later stored as an intVal == struct{val *big.Int} which naively requires the fields of
+ 			// of a *uint8, which does not succeed.
+ 			t = removeTrivialWrapperTypes(t)
+-			source.Type = t
+ 			// it could be a leaf type, but the "leaf" could be complex64 (for example)
+ 			return x.storeArgOrLoad(pos, b, source, mem, t, storeOffset, loadRegOffset, storeRc)
+ 		}
+ 
++		source.Type = t
+ 		for i := 0; i < t.NumFields(); i++ {
+ 			fld := t.Field(i)
+ 			sel := source.Block.NewValue1I(pos, OpStructSelect, fld.Type, int64(i), source)
+diff --git a/test/fixedbugs/issue49378.go b/test/fixedbugs/issue49378.go
+new file mode 100644
+index 0000000000..70f466c929
+--- /dev/null
++++ b/test/fixedbugs/issue49378.go
+@@ -0,0 +1,25 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(i int) {
++	var s1 struct {
++		s struct{ s struct{ i int } }
++	}
++	var s2, s3 struct {
++		a struct{ i int }
++		b int
++	}
++	func() {
++		i = 1 + 2*i + s3.a.i + func() int {
++			s2.a, s2.b = s3.a, s3.b
++			return 0
++		}() + func(*int) int {
++			return s1.s.s.i
++		}(new(int))
++	}()
++}

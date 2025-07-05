@@ -12,6 +12,47 @@ Date:   Mon Jul 29 16:26:40 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ssa/stmtlines_test.go | 21 +++++++++++++++++----
  1 file changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index b8a9388b61..f5ff3a5927 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"runtime"
++	"sort"
+ 	"testing"
+ )
+ 
+@@ -109,11 +110,23 @@ func TestStmtLines(t *testing.T) {
+ 		}
+ 	}
+ 
+-	if runtime.GOARCH == "amd64" && len(nonStmtLines)*100 > len(lines) { // > 99% obtained on amd64, no backsliding
+-		t.Errorf("Saw too many (amd64, > 1%%) lines without statement marks, total=%d, nostmt=%d\n", len(lines), len(nonStmtLines))
++	if runtime.GOARCH == "amd64" {
++		if len(nonStmtLines)*100 > len(lines) { // > 99% obtained on amd64, no backsliding
++			t.Errorf("Saw too many (amd64, > 1%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
++		}
++	} else if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
++		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
+ 	}
+-	if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
+-		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d\n", len(lines), len(nonStmtLines))
++	if testing.Verbose() {
++		sort.Slice(nonStmtLines, func(i, j int) bool {
++			if nonStmtLines[i].File != nonStmtLines[j].File {
++				return nonStmtLines[i].File < nonStmtLines[j].File
++			}
++			return nonStmtLines[i].Line < nonStmtLines[j].Line
++		})
++		for _, l := range nonStmtLines {
++			t.Logf("%s:%d has no DWARF is_stmt mark\n", l.File, l.Line)
++		}
+ 	}
+ 	t.Logf("total=%d, nostmt=%d\n", len(lines), len(nonStmtLines))
+ }

@@ -9,8 +9,58 @@ Date:   Thu Aug 7 17:36:50 2008 -0700
     R=gri
     OCL=13988
     CL=13988
-
+---
  src/clean.bash    | 2 +-
  src/lib/make.bash | 7 +++++--
  src/make.bash     | 9 +++++++++
  3 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 4d417eb242..dd727ac608 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in lib9 libbio libmach_amd64
++for i in lib9 libbio libmach_amd64 syscall
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+index 3f52950273..be62e0a5cb 100755
+--- a/src/lib/make.bash
++++ b/src/lib/make.bash
+@@ -4,9 +4,12 @@
+ 
+ #!/bin/bash
+ 
++echo; echo; echo %%%% making lib %%%%; echo
++
+ rm -f *.6
+ for i in fmt.go flag.go container/vector.go
+ do
+-	6g $i
++	base=$(basename $i .go)
++	echo 6g -o $GOROOT/pkg/$base.6 $i
++	6g -o $GOROOT/pkg/$base.6 $i
+ done
+-mv *.6 $GOROOT/pkg
+diff --git a/src/make.bash b/src/make.bash
+index 2d17e798f2..f2543b553d 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -18,3 +18,12 @@ do
+ 	bash make.bash
+ 	cd ..
+ done
++
++# do these after go compiler and runtime are built
++for i in syscall
++do
++	echo; echo; echo %%%% making $i %%%%; echo
++	cd $i
++	make install
++	cd ..
++done

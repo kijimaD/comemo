@@ -20,7 +20,94 @@ Date:   Tue Mar 30 13:42:14 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 15 ++++++++++-----
  test/typeparam/typelist.go                | 10 +++++-----
  2 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 78e701eaf8..1dff4e294c 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -862,11 +862,9 @@ func (subst *subster) typ(t *types.Type) *types.Type {
+ // on the corresponding in/out parameters in dcl. It depends on the in and out
+ // parameters being in order in dcl.
+ func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir.Name) []*types.Field {
+-	newfields := make([]*types.Field, len(oldfields))
+-	var i int
+-
+ 	// Find the starting index in dcl of declarations of the class (either
+ 	// PPARAM or PPARAMOUT).
++	var i int
+ 	for i = range dcl {
+ 		if dcl[i].Class == class {
+ 			break
+@@ -876,11 +874,18 @@ func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir
+ 	// Create newfields nodes that are copies of the oldfields nodes, but
+ 	// with substitution for any type params, and with Nname set to be the node in
+ 	// Dcl for the corresponding PPARAM or PPARAMOUT.
++	newfields := make([]*types.Field, len(oldfields))
+ 	for j := range oldfields {
+ 		newfields[j] = oldfields[j].Copy()
+ 		newfields[j].Type = subst.typ(oldfields[j].Type)
+-		newfields[j].Nname = dcl[i]
+-		i++
++		// A param field will be missing from dcl if its name is
++		// unspecified or specified as "_". So, we compare the dcl sym
++		// with the field sym. If they don't match, this dcl (if there is
++		// one left) must apply to a later field.
++		if i < len(dcl) && dcl[i].Sym() == oldfields[j].Sym {
++			newfields[j].Nname = dcl[i]
++			i++
++		}
+ 	}
+ 	return newfields
+ }
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+index dd674cc889..bd90d86fcf 100644
+--- a/test/typeparam/typelist.go
++++ b/test/typeparam/typelist.go
+@@ -67,14 +67,14 @@ func _[V any, T interface { type map[string]V }](p T) V {
+ // Testing partial and full type inference, including the case where the types can
+ // be inferred without needing the types of the function arguments.
+ 
+-func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](a A, b B, c C, d D)
++func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](A, B, C, D)
+ func _() {
+         f := f0[string]
+         f("a", "b", "c", "d")
+         f0("a", "b", "c", "d")
+ }
+ 
+-func f1[A any, B interface{type A}](a A, b B)
++func f1[A any, B interface{type A}](A, B)
+ func _() {
+         f := f1[int]
+         f(int(0), int(0))
+@@ -83,7 +83,7 @@ func _() {
+         f1(0, 0)
+ }
+ 
+-func f2[A any, B interface{type []A}](a A, b B)
++func f2[A any, B interface{type []A}](_ A, _ B)
+ func _() {
+ 	f := f2[byte]
+ 	f(byte(0), []byte{})
+@@ -92,7 +92,7 @@ func _() {
+ 	// f2(0, []byte{}) - this one doesn't work
+ }
+ 
+-func f3[A any, B interface{type C}, C interface{type *A}](a A, b B, c C)
++func f3[A any, B interface{type C}, C interface{type *A}](a A, _ B, c C)
+ func _() {
+ 	f := f3[int]
+ 	var x int
+@@ -100,7 +100,7 @@ func _() {
+ 	f3(x, &x, &x)
+ }
+ 
+-func f4[A any, B interface{type []C}, C interface{type *A}](a A, b B, c C)
++func f4[A any, B interface{type []C}, C interface{type *A}](_ A, _ B, c C)
+ func _() {
+ 	f := f4[int]
+ 	var x int

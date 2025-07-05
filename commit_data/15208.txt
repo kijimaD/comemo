@@ -11,7 +11,7 @@ Date:   Tue Feb 12 15:59:55 2013 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7213044
-
+---
  src/pkg/exp/locale/collate/build/builder.go        |  38 +--
  src/pkg/exp/locale/collate/build/colelem.go        | 108 ++-----
  src/pkg/exp/locale/collate/build/colelem_test.go   |  32 +-
@@ -35,3 +35,2003 @@ Date:   Tue Feb 12 15:59:55 2013 +0100
  src/pkg/exp/locale/collate/table_test.go           |  31 +-
  src/pkg/exp/locale/collate/tables.go               |   2 +
  22 files changed, 471 insertions(+), 540 deletions(-)
+
+diff --git a/src/pkg/exp/locale/collate/build/builder.go b/src/pkg/exp/locale/collate/build/builder.go
+index 4c28bd6b86..46fcc83515 100644
+--- a/src/pkg/exp/locale/collate/build/builder.go
++++ b/src/pkg/exp/locale/collate/build/builder.go
+@@ -5,7 +5,7 @@
+ package build
+ 
+ import (
+-	"exp/locale/collate"
++	"exp/locale/collate/colltab"
+ 	"exp/norm"
+ 	"fmt"
+ 	"io"
+@@ -225,25 +225,25 @@ func (t *Tailoring) SetAnchorBefore(anchor string) error {
+ // at the primary sorting level:
+ //      t := b.Tailoring("se")
+ // 		t.SetAnchor("z")
+-// 		t.Insert(collate.Primary, "ä", "")
++// 		t.Insert(colltab.Primary, "ä", "")
+ // Order "ü" after "ue" at the secondary sorting level:
+ //		t.SetAnchor("ue")
+-//		t.Insert(collate.Secondary, "ü","")
++//		t.Insert(colltab.Secondary, "ü","")
+ // or
+ //		t.SetAnchor("u")
+-//		t.Insert(collate.Secondary, "ü", "e")
++//		t.Insert(colltab.Secondary, "ü", "e")
+ // Order "q" afer "ab" at the secondary level and "Q" after "q"
+ // at the tertiary level:
+ // 		t.SetAnchor("ab")
+-// 		t.Insert(collate.Secondary, "q", "")
+-// 		t.Insert(collate.Tertiary, "Q", "")
++// 		t.Insert(colltab.Secondary, "q", "")
++// 		t.Insert(colltab.Tertiary, "Q", "")
+ // Order "b" before "a":
+ //      t.SetAnchorBefore("a")
+-//      t.Insert(collate.Primary, "b", "")
++//      t.Insert(colltab.Primary, "b", "")
+ // Order "0" after the last primary ignorable:
+ //      t.SetAnchor("<last_primary_ignorable/>")
+-//      t.Insert(collate.Primary, "0", "")
+-func (t *Tailoring) Insert(level collate.Level, str, extend string) error {
++//      t.Insert(colltab.Primary, "0", "")
++func (t *Tailoring) Insert(level colltab.Level, str, extend string) error {
+ 	if t.anchor == nil {
+ 		return fmt.Errorf("%s:Insert: no anchor point set for tailoring of %s", t.id, str)
+ 	}
+@@ -301,13 +301,13 @@ func (o *ordering) getWeight(e *entry) []rawCE {
+ 				e.elems = append(e.elems, o.getWeight(o.find(string(r)))...)
+ 			}
+ 		} else if e.before {
+-			count := [collate.Identity + 1]int{}
++			count := [colltab.Identity + 1]int{}
+ 			a := e
+ 			for ; a.elems == nil && !a.implicit; a = a.next {
+ 				count[a.level]++
+ 			}
+ 			e.elems = []rawCE{makeRawCE(a.elems[0].w, a.elems[0].ccc)}
+-			for i := collate.Primary; i < collate.Quaternary; i++ {
++			for i := colltab.Primary; i < colltab.Quaternary; i++ {
+ 				if count[i] != 0 {
+ 					e.elems[0].w[i] -= count[i]
+ 					break
+@@ -336,11 +336,11 @@ func (o *ordering) addExtension(e *entry) {
+ 	e.extend = ""
+ }
+ 
+-func (o *ordering) verifyWeights(a, b *entry, level collate.Level) error {
+-	if level == collate.Identity || b == nil || b.elems == nil || a.elems == nil {
++func (o *ordering) verifyWeights(a, b *entry, level colltab.Level) error {
++	if level == colltab.Identity || b == nil || b.elems == nil || a.elems == nil {
+ 		return nil
+ 	}
+-	for i := collate.Primary; i < level; i++ {
++	for i := colltab.Primary; i < level; i++ {
+ 		if a.elems[0].w[i] < b.elems[0].w[i] {
+ 			return nil
+ 		}
+@@ -462,20 +462,21 @@ func (b *Builder) build() (*table, error) {
+ }
+ 
+ // Build builds the root Collator.
+-func (b *Builder) Build() (*collate.Collator, error) {
++// TODO: return Weigher instead
++func (b *Builder) Build() (colltab.Weigher, error) {
+ 	t, err := b.build()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	table := collate.Init(t)
++	table := colltab.Init(t)
+ 	if table == nil {
+ 		panic("generated table of incompatible type")
+ 	}
+-	return collate.NewFromTable(table), nil
++	return table, nil
+ }
+ 
+ // Build builds a Collator for Tailoring t.
+-func (t *Tailoring) Build() (*collate.Collator, error) {
++func (t *Tailoring) Build() (colltab.Weigher, error) {
+ 	// TODO: implement.
+ 	return nil, nil
+ }
+@@ -498,6 +499,7 @@ func (b *Builder) Print(w io.Writer) (n int, err error) {
+ 		p(fmt.Fprintf(w, "%q, ", loc.id))
+ 	}
+ 	p(fmt.Fprintln(w, "}\n"))
++	p(fmt.Fprintf(w, "const varTop = 0x%x\n\n", b.varTop))
+ 	p(fmt.Fprintln(w, "var locales = map[string]tableIndex{"))
+ 	for _, loc := range b.locale {
+ 		p(fmt.Fprintf(w, "\t%q: ", loc.id))
+diff --git a/src/pkg/exp/locale/collate/build/colelem.go b/src/pkg/exp/locale/collate/build/colelem.go
+index 1a8356d72b..683489e9a1 100644
+--- a/src/pkg/exp/locale/collate/build/colelem.go
++++ b/src/pkg/exp/locale/collate/build/colelem.go
+@@ -5,7 +5,7 @@
+ package build
+ 
+ import (
+-	"exp/locale/collate"
++	"exp/locale/collate/colltab"
+ 	"fmt"
+ 	"unicode"
+ )
+@@ -34,87 +34,15 @@ func makeRawCE(w []int, ccc uint8) rawCE {
+ // form to represent such m to n mappings.  Such special collation elements
+ // have a value >= 0x80000000.
+ 
+-// For normal collation elements, we assume that a collation element either has
+-// a primary or non-default secondary value, not both.
+-// Collation elements with a primary value are of the form
+-// 01pppppp pppppppp ppppppp0 ssssssss
+-//   - p* is primary collation value
+-//   - s* is the secondary collation value
+-// 00pppppp pppppppp ppppppps sssttttt, where
+-//   - p* is primary collation value
+-//   - s* offset of secondary from default value.
+-//   - t* is the tertiary collation value
+-// 100ttttt cccccccc pppppppp pppppppp
+-//   - t* is the tertiar collation value
+-//   - c* is the cannonical combining class
+-//   - p* is the primary collation value
+-// Collation elements with a secondary value are of the form
+-// 1010cccc ccccssss ssssssss tttttttt, where
+-//   - c* is the canonical combining class
+-//   - s* is the secondary collation value
+-//   - t* is the tertiary collation value
+ const (
+-	maxPrimaryBits          = 21
+-	maxPrimaryCompactBits   = 16
+-	maxSecondaryBits        = 12
+-	maxSecondaryCompactBits = 8
+-	maxCCCBits              = 8
+-	maxSecondaryDiffBits    = 4
+-	maxTertiaryBits         = 8
+-	maxTertiaryCompactBits  = 5
+-
+-	isPrimary    = 0x40000000
+-	isPrimaryCCC = 0x80000000
+-	isSecondary  = 0xA0000000
++	maxPrimaryBits   = 21
++	maxSecondaryBits = 12
++	maxTertiaryBits  = 8
+ )
+ 
+-func makeCE(rce rawCE) (uint32, error) {
+-	weights := rce.w
+-	if w := weights[0]; w >= 1<<maxPrimaryBits || w < 0 {
+-		return 0, fmt.Errorf("makeCE: primary weight out of bounds: %x >= %x", w, 1<<maxPrimaryBits)
+-	}
+-	if w := weights[1]; w >= 1<<maxSecondaryBits || w < 0 {
+-		return 0, fmt.Errorf("makeCE: secondary weight out of bounds: %x >= %x", w, 1<<maxSecondaryBits)
+-	}
+-	if w := weights[2]; w >= 1<<maxTertiaryBits || w < 0 {
+-		return 0, fmt.Errorf("makeCE: tertiary weight out of bounds: %x >= %x", w, 1<<maxTertiaryBits)
+-	}
+-	ce := uint32(0)
+-	if weights[0] != 0 {
+-		if rce.ccc != 0 {
+-			if weights[0] >= 1<<maxPrimaryCompactBits {
+-				return 0, fmt.Errorf("makeCE: primary weight with non-zero CCC out of bounds: %x >= %x", weights[0], 1<<maxPrimaryCompactBits)
+-			}
+-			if weights[1] != defaultSecondary {
+-				return 0, fmt.Errorf("makeCE: cannot combine non-default secondary value (%x) with non-zero CCC (%x)", weights[1], rce.ccc)
+-			}
+-			ce = uint32(weights[2] << (maxPrimaryCompactBits + maxCCCBits))
+-			ce |= uint32(rce.ccc) << maxPrimaryCompactBits
+-			ce |= uint32(weights[0])
+-			ce |= isPrimaryCCC
+-		} else if weights[2] == defaultTertiary {
+-			if weights[1] >= 1<<maxSecondaryCompactBits {
+-				return 0, fmt.Errorf("makeCE: secondary weight with non-zero primary out of bounds: %x >= %x", weights[1], 1<<maxSecondaryCompactBits)
+-			}
+-			ce = uint32(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
+-			ce |= isPrimary
+-		} else {
+-			d := weights[1] - defaultSecondary + maxSecondaryDiffBits
+-			if d >= 1<<maxSecondaryDiffBits || d < 0 {
+-				return 0, fmt.Errorf("makeCE: secondary weight diff out of bounds: %x < 0 || %x > %x", d, d, 1<<maxSecondaryDiffBits)
+-			}
+-			if weights[2] >= 1<<maxTertiaryCompactBits {
+-				return 0, fmt.Errorf("makeCE: tertiary weight with non-zero primary out of bounds: %x > %x (%X)", weights[2], 1<<maxTertiaryCompactBits, weights)
+-			}
+-			ce = uint32(weights[0]<<maxSecondaryDiffBits + d)
+-			ce = ce<<maxTertiaryCompactBits + uint32(weights[2])
+-		}
+-	} else {
+-		ce = uint32(weights[1]<<maxTertiaryBits + weights[2])
+-		ce += uint32(rce.ccc) << (maxSecondaryBits + maxTertiaryBits)
+-		ce |= isSecondary
+-	}
+-	return ce, nil
++func makeCE(ce rawCE) (uint32, error) {
++	v, e := colltab.MakeElem(ce.w[0], ce.w[1], ce.w[2], ce.ccc)
++	return uint32(v), e
+ }
+ 
+ // For contractions, collation elements are of the form
+@@ -287,24 +215,24 @@ func convertLargeWeights(elems []rawCE) (res []rawCE, err error) {
+ 
+ // nextWeight computes the first possible collation weights following elems
+ // for the given level.
+-func nextWeight(level collate.Level, elems []rawCE) []rawCE {
+-	if level == collate.Identity {
++func nextWeight(level colltab.Level, elems []rawCE) []rawCE {
++	if level == colltab.Identity {
+ 		next := make([]rawCE, len(elems))
+ 		copy(next, elems)
+ 		return next
+ 	}
+ 	next := []rawCE{makeRawCE(elems[0].w, elems[0].ccc)}
+ 	next[0].w[level]++
+-	if level < collate.Secondary {
+-		next[0].w[collate.Secondary] = defaultSecondary
++	if level < colltab.Secondary {
++		next[0].w[colltab.Secondary] = defaultSecondary
+ 	}
+-	if level < collate.Tertiary {
+-		next[0].w[collate.Tertiary] = defaultTertiary
++	if level < colltab.Tertiary {
++		next[0].w[colltab.Tertiary] = defaultTertiary
+ 	}
+ 	// Filter entries that cannot influence ordering.
+ 	for _, ce := range elems[1:] {
+ 		skip := true
+-		for i := collate.Primary; i < level; i++ {
++		for i := colltab.Primary; i < level; i++ {
+ 			skip = skip && ce.w[i] == 0
+ 		}
+ 		if !skip {
+@@ -314,7 +242,7 @@ func nextWeight(level collate.Level, elems []rawCE) []rawCE {
+ 	return next
+ }
+ 
+-func nextVal(elems []rawCE, i int, level collate.Level) (index, value int) {
++func nextVal(elems []rawCE, i int, level colltab.Level) (index, value int) {
+ 	for ; i < len(elems) && elems[i].w[level] == 0; i++ {
+ 	}
+ 	if i < len(elems) {
+@@ -325,8 +253,8 @@ func nextVal(elems []rawCE, i int, level collate.Level) (index, value int) {
+ 
+ // compareWeights returns -1 if a < b, 1 if a > b, or 0 otherwise.
+ // It also returns the collation level at which the difference is found.
+-func compareWeights(a, b []rawCE) (result int, level collate.Level) {
+-	for level := collate.Primary; level < collate.Identity; level++ {
++func compareWeights(a, b []rawCE) (result int, level colltab.Level) {
++	for level := colltab.Primary; level < colltab.Identity; level++ {
+ 		var va, vb int
+ 		for ia, ib := 0, 0; ia < len(a) || ib < len(b); ia, ib = ia+1, ib+1 {
+ 			ia, va = nextVal(a, ia, level)
+@@ -340,7 +268,7 @@ func compareWeights(a, b []rawCE) (result int, level collate.Level) {
+ 			}
+ 		}
+ 	}
+-	return 0, collate.Identity
++	return 0, colltab.Identity
+ }
+ 
+ func equalCE(a, b rawCE) bool {
+diff --git a/src/pkg/exp/locale/collate/build/colelem_test.go b/src/pkg/exp/locale/collate/build/colelem_test.go
+index b3be0336d2..e40877e79d 100644
+--- a/src/pkg/exp/locale/collate/build/colelem_test.go
++++ b/src/pkg/exp/locale/collate/build/colelem_test.go
+@@ -5,7 +5,7 @@
+ package build
+ 
+ import (
+-	"exp/locale/collate"
++	"exp/locale/collate/colltab"
+ 	"testing"
+ )
+ 
+@@ -98,7 +98,7 @@ func mkRawCES(in [][]int) []rawCE {
+ 
+ type weightsTest struct {
+ 	a, b   [][]int
+-	level  collate.Level
++	level  colltab.Level
+ 	result int
+ }
+ 
+@@ -106,22 +106,22 @@ var nextWeightTests = []weightsTest{
+ 	{
+ 		a:     [][]int{{100, 20, 5, 0}},
+ 		b:     [][]int{{101, defaultSecondary, defaultTertiary, 0}},
+-		level: collate.Primary,
++		level: colltab.Primary,
+ 	},
+ 	{
+ 		a:     [][]int{{100, 20, 5, 0}},
+ 		b:     [][]int{{100, 21, defaultTertiary, 0}},
+-		level: collate.Secondary,
++		level: colltab.Secondary,
+ 	},
+ 	{
+ 		a:     [][]int{{100, 20, 5, 0}},
+ 		b:     [][]int{{100, 20, 6, 0}},
+-		level: collate.Tertiary,
++		level: colltab.Tertiary,
+ 	},
+ 	{
+ 		a:     [][]int{{100, 20, 5, 0}},
+ 		b:     [][]int{{100, 20, 5, 0}},
+-		level: collate.Identity,
++		level: colltab.Identity,
+ 	},
+ }
+ 
+@@ -129,14 +129,14 @@ var extra = [][]int{{200, 32, 8, 0}, {0, 32, 8, 0}, {0, 0, 8, 0}, {0, 0, 0, 0}}
+ 
+ func TestNextWeight(t *testing.T) {
+ 	for i, tt := range nextWeightTests {
+-		test := func(l collate.Level, tt weightsTest, a, gold [][]int) {
++		test := func(l colltab.Level, tt weightsTest, a, gold [][]int) {
+ 			res := nextWeight(tt.level, mkRawCES(a))
+ 			if !equalCEArrays(mkRawCES(gold), res) {
+ 				t.Errorf("%d:%d: expected weights %d; found %d", i, l, gold, res)
+ 			}
+ 		}
+ 		test(-1, tt, tt.a, tt.b)
+-		for l := collate.Primary; l <= collate.Tertiary; l++ {
++		for l := colltab.Primary; l <= colltab.Tertiary; l++ {
+ 			if tt.level <= l {
+ 				test(l, tt, append(tt.a, extra[l]), tt.b)
+ 			} else {
+@@ -150,49 +150,49 @@ var compareTests = []weightsTest{
+ 	{
+ 		[][]int{{100, 20, 5, 0}},
+ 		[][]int{{100, 20, 5, 0}},
+-		collate.Identity,
++		colltab.Identity,
+ 		0,
+ 	},
+ 	{
+ 		[][]int{{100, 20, 5, 0}, extra[0]},
+ 		[][]int{{100, 20, 5, 1}},
+-		collate.Primary,
++		colltab.Primary,
+ 		1,
+ 	},
+ 	{
+ 		[][]int{{100, 20, 5, 0}},
+ 		[][]int{{101, 20, 5, 0}},
+-		collate.Primary,
++		colltab.Primary,
+ 		-1,
+ 	},
+ 	{
+ 		[][]int{{101, 20, 5, 0}},
+ 		[][]int{{100, 20, 5, 0}},
+-		collate.Primary,
++		colltab.Primary,
+ 		1,
+ 	},
+ 	{
+ 		[][]int{{100, 0, 0, 0}, {0, 20, 5, 0}},
+ 		[][]int{{0, 20, 5, 0}, {100, 0, 0, 0}},
+-		collate.Identity,
++		colltab.Identity,
+ 		0,
+ 	},
+ 	{
+ 		[][]int{{100, 20, 5, 0}},
+ 		[][]int{{100, 21, 5, 0}},
+-		collate.Secondary,
++		colltab.Secondary,
+ 		-1,
+ 	},
+ 	{
+ 		[][]int{{100, 20, 5, 0}},
+ 		[][]int{{100, 20, 2, 0}},
+-		collate.Tertiary,
++		colltab.Tertiary,
+ 		1,
+ 	},
+ 	{
+ 		[][]int{{100, 20, 5, 1}},
+ 		[][]int{{100, 20, 5, 2}},
+-		collate.Quaternary,
++		colltab.Quaternary,
+ 		-1,
+ 	},
+ }
+diff --git a/src/pkg/exp/locale/collate/build/order.go b/src/pkg/exp/locale/collate/build/order.go
+index b22a382e94..26d720ee07 100644
+--- a/src/pkg/exp/locale/collate/build/order.go
++++ b/src/pkg/exp/locale/collate/build/order.go
+@@ -5,7 +5,7 @@
+ package build
+ 
+ import (
+-	"exp/locale/collate"
++	"exp/locale/collate/colltab"
+ 	"exp/norm"
+ 	"fmt"
+ 	"log"
+@@ -36,7 +36,7 @@ type entry struct {
+ 
+ 	// prev, next, and level are used to keep track of tailorings.
+ 	prev, next *entry
+-	level      collate.Level // next differs at this level
++	level      colltab.Level // next differs at this level
+ 	skipRemove bool          // do not unlink when removed
+ 
+ 	decompose bool // can use NFKD decomposition to generate elems
+@@ -76,7 +76,7 @@ func (e *entry) contractionStarter() bool {
+ // from the current entry.
+ // Entries that can be explicitly derived and logical reset positions are
+ // examples of entries that will not be indexed.
+-func (e *entry) nextIndexed() (*entry, collate.Level) {
++func (e *entry) nextIndexed() (*entry, colltab.Level) {
+ 	level := e.level
+ 	for e = e.next; e != nil && (e.exclude || len(e.elems) == 0); e = e.next {
+ 		if e.level < level {
+diff --git a/src/pkg/exp/locale/collate/build/order_test.go b/src/pkg/exp/locale/collate/build/order_test.go
+index 9577d918cf..dc3ecff5bf 100644
+--- a/src/pkg/exp/locale/collate/build/order_test.go
++++ b/src/pkg/exp/locale/collate/build/order_test.go
+@@ -5,7 +5,7 @@
+ package build
+ 
+ import (
+-	"exp/locale/collate"
++	"exp/locale/collate/colltab"
+ 	"strconv"
+ 	"testing"
+ )
+@@ -27,7 +27,7 @@ func makeList(n int) []*entry {
+ 			runes: runes,
+ 			elems: weights,
+ 		}
+-		weights = nextWeight(collate.Primary, weights)
++		weights = nextWeight(colltab.Primary, weights)
+ 	}
+ 	for i := 1; i < len(es); i++ {
+ 		es[i-1].next = es[i]
+diff --git a/src/pkg/exp/locale/collate/collate.go b/src/pkg/exp/locale/collate/collate.go
+index 2cb29f24b7..23a8c8fdc2 100644
+--- a/src/pkg/exp/locale/collate/collate.go
++++ b/src/pkg/exp/locale/collate/collate.go
+@@ -9,6 +9,7 @@ package collate
+ 
+ import (
+ 	"bytes"
++	"exp/locale/collate/colltab"
+ 	"exp/norm"
+ )
+ 
+@@ -46,7 +47,7 @@ type Collator struct {
+ 	// diacritical marks to be ignored but not case without having to fiddle with levels).
+ 
+ 	// Strength sets the maximum level to use in comparison.
+-	Strength Level
++	Strength colltab.Level
+ 
+ 	// Alternate specifies an alternative handling of variables.
+ 	Alternate AlternateHandling
+@@ -75,7 +76,7 @@ type Collator struct {
+ 
+ 	f norm.Form
+ 
+-	t Weigher
++	t colltab.Weigher
+ 
+ 	sorter sorter
+ 
+@@ -125,17 +126,18 @@ func New(loc string) *Collator {
+ 			t = locales["root"]
+ 		}
+ 	}
+-	return NewFromTable(Init(t))
++	return NewFromTable(colltab.Init(t))
+ }
+ 
+-func NewFromTable(t Weigher) *Collator {
++func NewFromTable(t colltab.Weigher) *Collator {
+ 	c := &Collator{
+-		Strength: Tertiary,
++		Strength: colltab.Tertiary,
+ 		f:        norm.NFD,
+ 		t:        t,
+ 	}
+ 	c._iter[0].init(c)
+ 	c._iter[1].init(c)
++	c.variableTop = t.Top()
+ 	return c
+ }
+ 
+@@ -166,7 +168,7 @@ func (c *Collator) Compare(a, b []byte) int {
+ 	if res := c.compare(); res != 0 {
+ 		return res
+ 	}
+-	if Identity == c.Strength {
++	if colltab.Identity == c.Strength {
+ 		return bytes.Compare(a, b)
+ 	}
+ 	return 0
+@@ -182,7 +184,7 @@ func (c *Collator) CompareString(a, b string) int {
+ 	if res := c.compare(); res != 0 {
+ 		return res
+ 	}
+-	if Identity == c.Strength {
++	if colltab.Identity == c.Strength {
+ 		if a < b {
+ 			return -1
+ 		} else if a > b {
+@@ -222,7 +224,7 @@ func (c *Collator) compare() int {
+ 	} else {
+ 		// TODO: handle shifted
+ 	}
+-	if Secondary <= c.Strength {
++	if colltab.Secondary <= c.Strength {
+ 		f := (*iter).nextSecondary
+ 		if c.Backwards {
+ 			f = (*iter).prevSecondary
+@@ -232,12 +234,12 @@ func (c *Collator) compare() int {
+ 		}
+ 	}
+ 	// TODO: special case handling (Danish?)
+-	if Tertiary <= c.Strength || c.CaseLevel {
++	if colltab.Tertiary <= c.Strength || c.CaseLevel {
+ 		if res := compareLevel((*iter).nextTertiary, ia, ib); res != 0 {
+ 			return res
+ 		}
+ 		// TODO: Not needed for the default value of AltNonIgnorable?
+-		if Quaternary <= c.Strength {
++		if colltab.Quaternary <= c.Strength {
+ 			if res := compareLevel((*iter).nextQuaternary, ia, ib); res != 0 {
+ 				return res
+ 			}
+@@ -266,14 +268,14 @@ func (c *Collator) KeyFromString(buf *Buffer, str string) []byte {
+ 	return c.key(buf, c.getColElemsString(str))
+ }
+ 
+-func (c *Collator) key(buf *Buffer, w []Elem) []byte {
+-	processWeights(c.Alternate, c.variableTop, w)
++func (c *Collator) key(buf *Buffer, w []colltab.Elem) []byte {
++	processWeights(c.Alternate, c.t.Top(), w)
+ 	kn := len(buf.key)
+ 	c.keyFromElems(buf, w)
+ 	return buf.key[kn:]
+ }
+ 
+-func (c *Collator) getColElems(str []byte) []Elem {
++func (c *Collator) getColElems(str []byte) []colltab.Elem {
+ 	i := c.iter(0)
+ 	i.setInput(str)
+ 	for i.next() {
+@@ -281,7 +283,7 @@ func (c *Collator) getColElems(str []byte) []Elem {
+ 	return i.ce
+ }
+ 
+-func (c *Collator) getColElemsString(str string) []Elem {
++func (c *Collator) getColElemsString(str string) []colltab.Elem {
+ 	i := c.iter(0)
+ 	i.setInputString(str)
+ 	for i.next() {
+@@ -293,15 +295,15 @@ type iter struct {
+ 	bytes []byte
+ 	str   string
+ 
+-	wa  [512]Elem
+-	ce  []Elem
++	wa  [512]colltab.Elem
++	ce  []colltab.Elem
+ 	pce int
+ 	nce int // nce <= len(nce)
+ 
+ 	prevCCC  uint8
+ 	pStarter int
+ 
+-	t Weigher
++	t colltab.Weigher
+ }
+ 
+ func (i *iter) init(c *Collator) {
+@@ -493,13 +495,13 @@ func appendPrimary(key []byte, p int) []byte {
+ 
+ // keyFromElems converts the weights ws to a compact sequence of bytes.
+ // The result will be appended to the byte buffer in buf.
+-func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
++func (c *Collator) keyFromElems(buf *Buffer, ws []colltab.Elem) {
+ 	for _, v := range ws {
+ 		if w := v.Primary(); w > 0 {
+ 			buf.key = appendPrimary(buf.key, w)
+ 		}
+ 	}
+-	if Secondary <= c.Strength {
++	if colltab.Secondary <= c.Strength {
+ 		buf.key = append(buf.key, 0, 0)
+ 		// TODO: we can use one 0 if we can guarantee that all non-zero weights are > 0xFF.
+ 		if !c.Backwards {
+@@ -518,7 +520,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
+ 	} else if c.CaseLevel {
+ 		buf.key = append(buf.key, 0, 0)
+ 	}
+-	if Tertiary <= c.Strength || c.CaseLevel {
++	if colltab.Tertiary <= c.Strength || c.CaseLevel {
+ 		buf.key = append(buf.key, 0, 0)
+ 		for _, v := range ws {
+ 			if w := v.Tertiary(); w > 0 {
+@@ -529,12 +531,12 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
+ 		// Note that we represent MaxQuaternary as 0xFF. The first byte of the
+ 		// representation of a primary weight is always smaller than 0xFF,
+ 		// so using this single byte value will compare correctly.
+-		if Quaternary <= c.Strength && c.Alternate >= AltShifted {
++		if colltab.Quaternary <= c.Strength && c.Alternate >= AltShifted {
+ 			if c.Alternate == AltShiftTrimmed {
+ 				lastNonFFFF := len(buf.key)
+ 				buf.key = append(buf.key, 0)
+ 				for _, v := range ws {
+-					if w := v.Quaternary(); w == MaxQuaternary {
++					if w := v.Quaternary(); w == colltab.MaxQuaternary {
+ 						buf.key = append(buf.key, 0xFF)
+ 					} else if w > 0 {
+ 						buf.key = appendPrimary(buf.key, w)
+@@ -545,7 +547,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
+ 			} else {
+ 				buf.key = append(buf.key, 0)
+ 				for _, v := range ws {
+-					if w := v.Quaternary(); w == MaxQuaternary {
++					if w := v.Quaternary(); w == colltab.MaxQuaternary {
+ 						buf.key = append(buf.key, 0xFF)
+ 					} else if w > 0 {
+ 						buf.key = appendPrimary(buf.key, w)
+@@ -556,18 +558,18 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []Elem) {
+ 	}
+ }
+ 
+-func processWeights(vw AlternateHandling, top uint32, wa []Elem) {
++func processWeights(vw AlternateHandling, top uint32, wa []colltab.Elem) {
+ 	ignore := false
+ 	vtop := int(top)
+ 	switch vw {
+ 	case AltShifted, AltShiftTrimmed:
+ 		for i := range wa {
+ 			if p := wa[i].Primary(); p <= vtop && p != 0 {
+-				wa[i] = MakeQuaternary(p)
++				wa[i] = colltab.MakeQuaternary(p)
+ 				ignore = true
+ 			} else if p == 0 {
+ 				if ignore {
+-					wa[i] = ceIgnore
++					wa[i] = colltab.Ignore
+ 				}
+ 			} else {
+ 				ignore = false
+@@ -576,7 +578,7 @@ func processWeights(vw AlternateHandling, top uint32, wa []Elem) {
+ 	case AltBlanked:
+ 		for i := range wa {
+ 			if p := wa[i].Primary(); p <= vtop && (ignore || p != 0) {
+-				wa[i] = ceIgnore
++				wa[i] = colltab.Ignore
+ 				ignore = true
+ 			} else {
+ 				ignore = false
+diff --git a/src/pkg/exp/locale/collate/collate_test.go b/src/pkg/exp/locale/collate/collate_test.go
+index 0b470b07b2..f4d62ab76c 100644
+--- a/src/pkg/exp/locale/collate/collate_test.go
++++ b/src/pkg/exp/locale/collate/collate_test.go
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate_test
++package collate
+ 
+ import (
+ 	"bytes"
+-	"exp/locale/collate"
++	"exp/locale/collate/colltab"
+ 	"testing"
+ )
+ 
+@@ -17,28 +17,36 @@ type weightsTest struct {
+ 
+ type opts struct {
+ 	lev int
+-	alt collate.AlternateHandling
++	alt AlternateHandling
+ 	top int
+ 
+ 	backwards bool
+ 	caseLevel bool
+ }
+ 
+-func (o opts) level() collate.Level {
++func (o opts) level() colltab.Level {
+ 	if o.lev == 0 {
+-		return collate.Quaternary
++		return colltab.Quaternary
+ 	}
+-	return collate.Level(o.lev - 1)
++	return colltab.Level(o.lev - 1)
+ }
+ 
+-func (o opts) collator() *collate.Collator {
+-	c := &collate.Collator{
+-		Strength:  o.level(),
+-		Alternate: o.alt,
+-		Backwards: o.backwards,
+-		CaseLevel: o.caseLevel,
++func makeCE(w []int) colltab.Elem {
++	ce, err := colltab.MakeElem(w[0], w[1], w[2], uint8(w[3]))
++	if err != nil {
++		panic(err)
++	}
++	return ce
++}
++
++func (o opts) collator() *Collator {
++	c := &Collator{
++		Strength:    o.level(),
++		Alternate:   o.alt,
++		Backwards:   o.backwards,
++		CaseLevel:   o.caseLevel,
++		variableTop: uint32(o.top),
+ 	}
+-	collate.SetTop(c, o.top)
+ 	return c
+ }
+ 
+@@ -46,165 +54,163 @@ const (
+ 	maxQ = 0x1FFFFF
+ )
+ 
+-func wpq(p, q int) collate.Weights {
+-	return collate.W(p, defaults.Secondary, defaults.Tertiary, q)
++func wpq(p, q int) Weights {
++	return W(p, defaults.Secondary, defaults.Tertiary, q)
+ }
+ 
+-func wsq(s, q int) collate.Weights {
+-	return collate.W(0, s, defaults.Tertiary, q)
++func wsq(s, q int) Weights {
++	return W(0, s, defaults.Tertiary, q)
+ }
+ 
+-func wq(q int) collate.Weights {
+-	return collate.W(0, 0, 0, q)
++func wq(q int) Weights {
++	return W(0, 0, 0, q)
+ }
+ 
+-var zero = w(0, 0, 0, 0)
++var zero = W(0, 0, 0, 0)
+ 
+ var processTests = []weightsTest{
+ 	// Shifted
+ 	{ // simple sequence of non-variables
+-		opt: opts{alt: collate.AltShifted, top: 100},
+-		in:  ColElems{w(200), w(300), w(400)},
++		opt: opts{alt: AltShifted, top: 100},
++		in:  ColElems{W(200), W(300), W(400)},
+ 		out: ColElems{wpq(200, maxQ), wpq(300, maxQ), wpq(400, maxQ)},
+ 	},
+ 	{ // first is a variable
+-		opt: opts{alt: collate.AltShifted, top: 250},
+-		in:  ColElems{w(200), w(300), w(400)},
++		opt: opts{alt: AltShifted, top: 250},
++		in:  ColElems{W(200), W(300), W(400)},
+ 		out: ColElems{wq(200), wpq(300, maxQ), wpq(400, maxQ)},
+ 	},
+ 	{ // all but first are variable
+-		opt: opts{alt: collate.AltShifted, top: 999},
+-		in:  ColElems{w(1000), w(200), w(300), w(400)},
++		opt: opts{alt: AltShifted, top: 999},
++		in:  ColElems{W(1000), W(200), W(300), W(400)},
+ 		out: ColElems{wpq(1000, maxQ), wq(200), wq(300), wq(400)},
+ 	},
+ 	{ // first is a modifier
+-		opt: opts{alt: collate.AltShifted, top: 999},
+-		in:  ColElems{w(0, 10), w(1000)},
++		opt: opts{alt: AltShifted, top: 999},
++		in:  ColElems{W(0, 10), W(1000)},
+ 		out: ColElems{wsq(10, maxQ), wpq(1000, maxQ)},
+ 	},
+ 	{ // primary ignorables
+-		opt: opts{alt: collate.AltShifted, top: 250},
+-		in:  ColElems{w(200), w(0, 10), w(300), w(0, 15), w(400)},
++		opt: opts{alt: AltShifted, top: 250},
++		in:  ColElems{W(200), W(0, 10), W(300), W(0, 15), W(400)},
+ 		out: ColElems{wq(200), zero, wpq(300, maxQ), wsq(15, maxQ), wpq(400, maxQ)},
+ 	},
+ 	{ // secondary ignorables
+-		opt: opts{alt: collate.AltShifted, top: 250},
+-		in:  ColElems{w(200), w(0, 0, 10), w(300), w(0, 0, 15), w(400)},
+-		out: ColElems{wq(200), zero, wpq(300, maxQ), w(0, 0, 15, maxQ), wpq(400, maxQ)},
++		opt: opts{alt: AltShifted, top: 250},
++		in:  ColElems{W(200), W(0, 0, 10), W(300), W(0, 0, 15), W(400)},
++		out: ColElems{wq(200), zero, wpq(300, maxQ), W(0, 0, 15, maxQ), wpq(400, maxQ)},
+ 	},
+ 	{ // tertiary ignorables, no change
+-		opt: opts{alt: collate.AltShifted, top: 250},
+-		in:  ColElems{w(200), zero, w(300), zero, w(400)},
++		opt: opts{alt: AltShifted, top: 250},
++		in:  ColElems{W(200), zero, W(300), zero, W(400)},
+ 		out: ColElems{wq(200), zero, wpq(300, maxQ), zero, wpq(400, maxQ)},
+ 	},
+ 
+ 	// ShiftTrimmed (same as Shifted)
+ 	{ // simple sequence of non-variables
+-		opt: opts{alt: collate.AltShiftTrimmed, top: 100},
+-		in:  ColElems{w(200), w(300), w(400)},
++		opt: opts{alt: AltShiftTrimmed, top: 100},
++		in:  ColElems{W(200), W(300), W(400)},
+ 		out: ColElems{wpq(200, maxQ), wpq(300, maxQ), wpq(400, maxQ)},
+ 	},
+ 	{ // first is a variable
+-		opt: opts{alt: collate.AltShiftTrimmed, top: 250},
+-		in:  ColElems{w(200), w(300), w(400)},
++		opt: opts{alt: AltShiftTrimmed, top: 250},
++		in:  ColElems{W(200), W(300), W(400)},
+ 		out: ColElems{wq(200), wpq(300, maxQ), wpq(400, maxQ)},
+ 	},
+ 	{ // all but first are variable
+-		opt: opts{alt: collate.AltShiftTrimmed, top: 999},
+-		in:  ColElems{w(1000), w(200), w(300), w(400)},
++		opt: opts{alt: AltShiftTrimmed, top: 999},
++		in:  ColElems{W(1000), W(200), W(300), W(400)},
+ 		out: ColElems{wpq(1000, maxQ), wq(200), wq(300), wq(400)},
+ 	},
+ 	{ // first is a modifier
+-		opt: opts{alt: collate.AltShiftTrimmed, top: 999},
+-		in:  ColElems{w(0, 10), w(1000)},
++		opt: opts{alt: AltShiftTrimmed, top: 999},
++		in:  ColElems{W(0, 10), W(1000)},
+ 		out: ColElems{wsq(10, maxQ), wpq(1000, maxQ)},
+ 	},
+ 	{ // primary ignorables
+-		opt: opts{alt: collate.AltShiftTrimmed, top: 250},
+-		in:  ColElems{w(200), w(0, 10), w(300), w(0, 15), w(400)},
++		opt: opts{alt: AltShiftTrimmed, top: 250},
++		in:  ColElems{W(200), W(0, 10), W(300), W(0, 15), W(400)},
+ 		out: ColElems{wq(200), zero, wpq(300, maxQ), wsq(15, maxQ), wpq(400, maxQ)},
+ 	},
+ 	{ // secondary ignorables
+-		opt: opts{alt: collate.AltShiftTrimmed, top: 250},
+-		in:  ColElems{w(200), w(0, 0, 10), w(300), w(0, 0, 15), w(400)},
+-		out: ColElems{wq(200), zero, wpq(300, maxQ), w(0, 0, 15, maxQ), wpq(400, maxQ)},
++		opt: opts{alt: AltShiftTrimmed, top: 250},
++		in:  ColElems{W(200), W(0, 0, 10), W(300), W(0, 0, 15), W(400)},
++		out: ColElems{wq(200), zero, wpq(300, maxQ), W(0, 0, 15, maxQ), wpq(400, maxQ)},
+ 	},
+ 	{ // tertiary ignorables, no change
+-		opt: opts{alt: collate.AltShiftTrimmed, top: 250},
+-		in:  ColElems{w(200), zero, w(300), zero, w(400)},
++		opt: opts{alt: AltShiftTrimmed, top: 250},
++		in:  ColElems{W(200), zero, W(300), zero, W(400)},
+ 		out: ColElems{wq(200), zero, wpq(300, maxQ), zero, wpq(400, maxQ)},
+ 	},
+ 
+ 	// Blanked
+ 	{ // simple sequence of non-variables
+-		opt: opts{alt: collate.AltBlanked, top: 100},
+-		in:  ColElems{w(200), w(300), w(400)},
+-		out: ColElems{w(200), w(300), w(400)},
++		opt: opts{alt: AltBlanked, top: 100},
++		in:  ColElems{W(200), W(300), W(400)},
++		out: ColElems{W(200), W(300), W(400)},
+ 	},
+ 	{ // first is a variable
+-		opt: opts{alt: collate.AltBlanked, top: 250},
+-		in:  ColElems{w(200), w(300), w(400)},
+-		out: ColElems{zero, w(300), w(400)},
++		opt: opts{alt: AltBlanked, top: 250},
++		in:  ColElems{W(200), W(300), W(400)},
++		out: ColElems{zero, W(300), W(400)},
+ 	},
+ 	{ // all but first are variable
+-		opt: opts{alt: collate.AltBlanked, top: 999},
+-		in:  ColElems{w(1000), w(200), w(300), w(400)},
+-		out: ColElems{w(1000), zero, zero, zero},
++		opt: opts{alt: AltBlanked, top: 999},
++		in:  ColElems{W(1000), W(200), W(300), W(400)},
++		out: ColElems{W(1000), zero, zero, zero},
+ 	},
+ 	{ // first is a modifier
+-		opt: opts{alt: collate.AltBlanked, top: 999},
+-		in:  ColElems{w(0, 10), w(1000)},
+-		out: ColElems{w(0, 10), w(1000)},
++		opt: opts{alt: AltBlanked, top: 999},
++		in:  ColElems{W(0, 10), W(1000)},
++		out: ColElems{W(0, 10), W(1000)},
+ 	},
+ 	{ // primary ignorables
+-		opt: opts{alt: collate.AltBlanked, top: 250},
+-		in:  ColElems{w(200), w(0, 10), w(300), w(0, 15), w(400)},
+-		out: ColElems{zero, zero, w(300), w(0, 15), w(400)},
++		opt: opts{alt: AltBlanked, top: 250},
++		in:  ColElems{W(200), W(0, 10), W(300), W(0, 15), W(400)},
++		out: ColElems{zero, zero, W(300), W(0, 15), W(400)},
+ 	},
+ 	{ // secondary ignorables
+-		opt: opts{alt: collate.AltBlanked, top: 250},
+-		in:  ColElems{w(200), w(0, 0, 10), w(300), w(0, 0, 15), w(400)},
+-		out: ColElems{zero, zero, w(300), w(0, 0, 15), w(400)},
++		opt: opts{alt: AltBlanked, top: 250},
++		in:  ColElems{W(200), W(0, 0, 10), W(300), W(0, 0, 15), W(400)},
++		out: ColElems{zero, zero, W(300), W(0, 0, 15), W(400)},
+ 	},
+ 	{ // tertiary ignorables, no change
+-		opt: opts{alt: collate.AltBlanked, top: 250},
+-		in:  ColElems{w(200), zero, w(300), zero, w(400)},
+-		out: ColElems{zero, zero, w(300), zero, w(400)},
++		opt: opts{alt: AltBlanked, top: 250},
++		in:  ColElems{W(200), zero, W(300), zero, W(400)},
++		out: ColElems{zero, zero, W(300), zero, W(400)},
+ 	},
+ 
+ 	// Non-ignorable: input is always equal to output.
+ 	{ // all but first are variable
+-		opt: opts{alt: collate.AltNonIgnorable, top: 999},
+-		in:  ColElems{w(1000), w(200), w(300), w(400)},
+-		out: ColElems{w(1000), w(200), w(300), w(400)},
++		opt: opts{alt: AltNonIgnorable, top: 999},
++		in:  ColElems{W(1000), W(200), W(300), W(400)},
++		out: ColElems{W(1000), W(200), W(300), W(400)},
+ 	},
+ 	{ // primary ignorables
+-		opt: opts{alt: collate.AltNonIgnorable, top: 250},
+-		in:  ColElems{w(200), w(0, 10), w(300), w(0, 15), w(400)},
+-		out: ColElems{w(200), w(0, 10), w(300), w(0, 15), w(400)},
++		opt: opts{alt: AltNonIgnorable, top: 250},
++		in:  ColElems{W(200), W(0, 10), W(300), W(0, 15), W(400)},
++		out: ColElems{W(200), W(0, 10), W(300), W(0, 15), W(400)},
+ 	},
+ 	{ // secondary ignorables
+-		opt: opts{alt: collate.AltNonIgnorable, top: 250},
+-		in:  ColElems{w(200), w(0, 0, 10), w(300), w(0, 0, 15), w(400)},
+-		out: ColElems{w(200), w(0, 0, 10), w(300), w(0, 0, 15), w(400)},
++		opt: opts{alt: AltNonIgnorable, top: 250},
++		in:  ColElems{W(200), W(0, 0, 10), W(300), W(0, 0, 15), W(400)},
++		out: ColElems{W(200), W(0, 0, 10), W(300), W(0, 0, 15), W(400)},
+ 	},
+ 	{ // tertiary ignorables, no change
+-		opt: opts{alt: collate.AltNonIgnorable, top: 250},
+-		in:  ColElems{w(200), zero, w(300), zero, w(400)},
+-		out: ColElems{w(200), zero, w(300), zero, w(400)},
++		opt: opts{alt: AltNonIgnorable, top: 250},
++		in:  ColElems{W(200), zero, W(300), zero, W(400)},
++		out: ColElems{W(200), zero, W(300), zero, W(400)},
+ 	},
+ }
+ 
+ func TestProcessWeights(t *testing.T) {
+ 	for i, tt := range processTests {
+-		res := collate.ProcessWeights(tt.opt.alt, tt.opt.top, tt.in)
+-		if len(res) != len(tt.out) {
+-			t.Errorf("%d: len(ws) was %d; want %d (%v should be %v)", i, len(res), len(tt.out), res, tt.out)
+-			continue
+-		}
+-		for j, w := range res {
+-			if w != tt.out[j] {
+-				t.Errorf("%d: Weights %d was %v; want %v", i, j, w, tt.out[j])
++		in := convertFromWeights(tt.in)
++		out := convertFromWeights(tt.out)
++		processWeights(tt.opt.alt, uint32(tt.opt.top), in)
++		for j, w := range in {
++			if w != out[j] {
++				t.Errorf("%d: Weights %d was %v; want %v %X %X", i, j, w, out[j])
+ 			}
+ 		}
+ 	}
+@@ -223,8 +229,8 @@ const sep = 0 // separator byte
+ 
+ var keyFromElemTests = []keyFromElemTest{
+ 	{ // simple primary and secondary weights.
+-		opts{alt: collate.AltShifted},
+-		ColElems{w(0x200), w(0x7FFF), w(0, 0x30), w(0x100)},
++		opts{alt: AltShifted},
++		ColElems{W(0x200), W(0x7FFF), W(0, 0x30), W(0x100)},
+ 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
+ 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
+ 			sep, sep, defT, defT, defT, defT, // tertiary
+@@ -232,8 +238,8 @@ var keyFromElemTests = []keyFromElemTest{
+ 		},
+ 	},
+ 	{ // same as first, but with zero element that need to be removed
+-		opts{alt: collate.AltShifted},
+-		ColElems{w(0x200), zero, w(0x7FFF), w(0, 0x30), zero, w(0x100)},
++		opts{alt: AltShifted},
++		ColElems{W(0x200), zero, W(0x7FFF), W(0, 0x30), zero, W(0x100)},
+ 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
+ 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
+ 			sep, sep, defT, defT, defT, defT, // tertiary
+@@ -241,8 +247,8 @@ var keyFromElemTests = []keyFromElemTest{
+ 		},
+ 	},
+ 	{ // same as first, with large primary values
+-		opts{alt: collate.AltShifted},
+-		ColElems{w(0x200), w(0x8000), w(0, 0x30), w(0x12345)},
++		opts{alt: AltShifted},
++		ColElems{W(0x200), W(0x8000), W(0, 0x30), W(0x12345)},
+ 		[]byte{0x2, 0, 0x80, 0x80, 0x00, 0x81, 0x23, 0x45, // primary
+ 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
+ 			sep, sep, defT, defT, defT, defT, // tertiary
+@@ -250,8 +256,8 @@ var keyFromElemTests = []keyFromElemTest{
+ 		},
+ 	},
+ 	{ // same as first, but with the secondary level backwards
+-		opts{alt: collate.AltShifted, backwards: true},
+-		ColElems{w(0x200), w(0x7FFF), w(0, 0x30), w(0x100)},
++		opts{alt: AltShifted, backwards: true},
++		ColElems{W(0x200), W(0x7FFF), W(0, 0x30), W(0x100)},
+ 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
+ 			sep, sep, 0, defS, 0, 0x30, 0, defS, 0, defS, // secondary
+ 			sep, sep, defT, defT, defT, defT, // tertiary
+@@ -259,28 +265,28 @@ var keyFromElemTests = []keyFromElemTest{
+ 		},
+ 	},
+ 	{ // same as first, ignoring quaternary level
+-		opts{alt: collate.AltShifted, lev: 3},
+-		ColElems{w(0x200), zero, w(0x7FFF), w(0, 0x30), zero, w(0x100)},
++		opts{alt: AltShifted, lev: 3},
++		ColElems{W(0x200), zero, W(0x7FFF), W(0, 0x30), zero, W(0x100)},
+ 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
+ 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
+ 			sep, sep, defT, defT, defT, defT, // tertiary
+ 		},
+ 	},
+ 	{ // same as first, ignoring tertiary level
+-		opts{alt: collate.AltShifted, lev: 2},
+-		ColElems{w(0x200), zero, w(0x7FFF), w(0, 0x30), zero, w(0x100)},
++		opts{alt: AltShifted, lev: 2},
++		ColElems{W(0x200), zero, W(0x7FFF), W(0, 0x30), zero, W(0x100)},
+ 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
+ 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
+ 		},
+ 	},
+ 	{ // same as first, ignoring secondary level
+-		opts{alt: collate.AltShifted, lev: 1},
+-		ColElems{w(0x200), zero, w(0x7FFF), w(0, 0x30), zero, w(0x100)},
++		opts{alt: AltShifted, lev: 1},
++		ColElems{W(0x200), zero, W(0x7FFF), W(0, 0x30), zero, W(0x100)},
+ 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00},
+ 	},
+ 	{ // simple primary and secondary weights.
+-		opts{alt: collate.AltShiftTrimmed, top: 0x250},
+-		ColElems{w(0x300), w(0x200), w(0x7FFF), w(0, 0x30), w(0x800)},
++		opts{alt: AltShiftTrimmed, top: 0x250},
++		ColElems{W(0x300), W(0x200), W(0x7FFF), W(0, 0x30), W(0x800)},
+ 		[]byte{0x3, 0, 0x7F, 0xFF, 0x8, 0x00, // primary
+ 			sep, sep, 0, defS, 0, defS, 0, 0x30, 0, defS, // secondary
+ 			sep, sep, defT, defT, defT, defT, // tertiary
+@@ -288,8 +294,8 @@ var keyFromElemTests = []keyFromElemTest{
+ 		},
+ 	},
+ 	{ // as first, primary with case level enabled
+-		opts{alt: collate.AltShifted, lev: 1, caseLevel: true},
+-		ColElems{w(0x200), w(0x7FFF), w(0, 0x30), w(0x100)},
++		opts{alt: AltShifted, lev: 1, caseLevel: true},
++		ColElems{W(0x200), W(0x7FFF), W(0, 0x30), W(0x100)},
+ 		[]byte{0x2, 0, 0x7F, 0xFF, 0x1, 0x00, // primary
+ 			sep, sep, // secondary
+ 			sep, sep, defT, defT, defT, defT, // tertiary
+@@ -298,11 +304,13 @@ var keyFromElemTests = []keyFromElemTest{
+ }
+ 
+ func TestKeyFromElems(t *testing.T) {
+-	buf := collate.Buffer{}
++	buf := Buffer{}
+ 	for i, tt := range keyFromElemTests {
+ 		buf.Reset()
+-		ws := collate.ProcessWeights(tt.opt.alt, tt.opt.top, tt.in)
+-		res := collate.KeyFromElems(tt.opt.collator(), &buf, ws)
++		in := convertFromWeights(tt.in)
++		processWeights(tt.opt.alt, uint32(tt.opt.top), in)
++		tt.opt.collator().keyFromElems(&buf, in)
++		res := buf.key
+ 		if len(res) != len(tt.out) {
+ 			t.Errorf("%d: len(ws) was %d; want %d (%X should be %X)", i, len(res), len(tt.out), res, tt.out)
+ 		}
+@@ -335,15 +343,17 @@ func TestGetColElems(t *testing.T) {
+ 			}
+ 		}
+ 		for j, chk := range append(tt.chk, check{string(str), len(str), out}) {
+-			ws := collate.GetColElems(c, []byte(chk.in)[:chk.n])
+-			if len(ws) != len(chk.out) {
+-				t.Errorf("%d:%d: len(ws) was %d; want %d", i, j, len(ws), len(chk.out))
++			out := convertFromWeights(chk.out)
++			ce := c.getColElems([]byte(chk.in)[:chk.n])
++			if len(ce) != len(out) {
++				t.Errorf("%d:%d: len(ws) was %d; want %d", i, j, len(ce), len(out))
+ 				continue
+ 			}
+ 			cnt := 0
+-			for k, w := range ws {
+-				if w != chk.out[k] {
+-					t.Errorf("%d:%d: Weights %d was %v; want %v", i, j, k, w, chk.out[k])
++			for k, w := range ce {
++				w, _ = colltab.MakeElem(w.Primary(), w.Secondary(), int(w.Tertiary()), 0)
++				if w != out[k] {
++					t.Errorf("%d:%d: Weights %d was %X; want %X", i, j, k, w, out[k])
+ 					cnt++
+ 				}
+ 				if cnt > 10 {
+@@ -377,9 +387,9 @@ var keyTests = []keyTest{
+ 
+ func TestKey(t *testing.T) {
+ 	c, _ := makeTable(appendNextTests[4].in)
+-	c.Alternate = collate.AltShifted
+-	c.Strength = collate.Quaternary
+-	buf := collate.Buffer{}
++	c.Alternate = AltShifted
++	c.Strength = colltab.Quaternary
++	buf := Buffer{}
+ 	keys1 := [][]byte{}
+ 	keys2 := [][]byte{}
+ 	for _, tt := range keyTests {
+@@ -429,3 +439,77 @@ func TestCompare(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDoNorm(t *testing.T) {
++	const div = -1 // The insertion point of the next block.
++	tests := []struct {
++		in, out []int
++	}{
++		{in: []int{4, div, 3},
++			out: []int{3, 4},
++		},
++		{in: []int{4, div, 3, 3, 3},
++			out: []int{3, 3, 3, 4},
++		},
++		{in: []int{0, 4, div, 3},
++			out: []int{0, 3, 4},
++		},
++		{in: []int{0, 0, 4, 5, div, 3, 3},
++			out: []int{0, 0, 3, 3, 4, 5},
++		},
++		{in: []int{0, 0, 1, 4, 5, div, 3, 3},
++			out: []int{0, 0, 1, 3, 3, 4, 5},
++		},
++		{in: []int{0, 0, 1, 4, 5, div, 4, 4},
++			out: []int{0, 0, 1, 4, 4, 4, 5},
++		},
++	}
++	for j, tt := range tests {
++		i := iter{}
++		var w, p, s int
++		for k, cc := range tt.in {
++			if cc == 0 {
++				s = 0
++			}
++			if cc == div {
++				w = 100
++				p = k
++				i.pStarter = s
++				continue
++			}
++			i.ce = append(i.ce, makeCE([]int{w, defaultSecondary, 2, cc}))
++		}
++		i.prevCCC = i.ce[p-1].CCC()
++		i.doNorm(p, i.ce[p].CCC())
++		if len(i.ce) != len(tt.out) {
++			t.Errorf("%d: length was %d; want %d", j, len(i.ce), len(tt.out))
++		}
++		prevCCC := uint8(0)
++		for k, ce := range i.ce {
++			if int(ce.CCC()) != tt.out[k] {
++				t.Errorf("%d:%d: unexpected CCC. Was %d; want %d", j, k, ce.CCC(), tt.out[k])
++			}
++			if k > 0 && ce.CCC() == prevCCC && i.ce[k-1].Primary() > ce.Primary() {
++				t.Errorf("%d:%d: normalization crossed across CCC boundary.", j, k)
++			}
++		}
++	}
++	// test cutoff of large sequence of combining characters.
++	result := []uint8{8, 8, 8, 5, 5}
++	for o := -2; o <= 2; o++ {
++		i := iter{pStarter: 2, prevCCC: 8}
++		n := maxCombiningCharacters + 1 + o
++		for j := 1; j < n+i.pStarter; j++ {
++			i.ce = append(i.ce, makeCE([]int{100, defaultSecondary, 2, 8}))
++		}
++		p := len(i.ce)
++		i.ce = append(i.ce, makeCE([]int{0, defaultSecondary, 2, 5}))
++		i.doNorm(p, 5)
++		if i.prevCCC != result[o+2] {
++			t.Errorf("%d: i.prevCCC was %d; want %d", n, i.prevCCC, result[o+2])
++		}
++		if result[o+2] == 5 && i.pStarter != p {
++			t.Errorf("%d: i.pStarter was %d; want %d", n, i.pStarter, p)
++		}
++	}
++}
+diff --git a/src/pkg/exp/locale/collate/colelem.go b/src/pkg/exp/locale/collate/colltab/colelem.go
+similarity index 74%
+rename from src/pkg/exp/locale/collate/colelem.go
+rename to src/pkg/exp/locale/collate/colltab/colelem.go
+index 7633ddc0e7..974466bef2 100644
+--- a/src/pkg/exp/locale/collate/colelem.go
++++ b/src/pkg/exp/locale/collate/colltab/colelem.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate
++package colltab
+ 
+ import (
++	"fmt"
+ 	"unicode"
+ )
+ 
+@@ -94,23 +95,31 @@ func (ce Elem) ctype() ceType {
+ // 11qqqqqq qqqqqqqq qqqqqqq0 00000000
+ //   - q* quaternary value
+ const (
+-	ceTypeMask            = 0xC0000000
+-	ceTypeMaskExt         = 0xE0000000
+-	ceType1               = 0x40000000
+-	ceType2               = 0x00000000
+-	ceType3or4            = 0x80000000
+-	ceType4               = 0xA0000000
+-	ceTypeQ               = 0xC0000000
+-	ceIgnore              = ceType4
+-	firstNonPrimary       = 0x80000000
+-	lastSpecialPrimary    = 0xA0000000
+-	secondaryMask         = 0x80000000
+-	hasTertiaryMask       = 0x40000000
+-	primaryValueMask      = 0x3FFFFE00
+-	primaryShift          = 9
+-	compactPrimaryBits    = 16
+-	compactSecondaryShift = 5
+-	minCompactSecondary   = defaultSecondary - 4
++	ceTypeMask              = 0xC0000000
++	ceTypeMaskExt           = 0xE0000000
++	ceIgnoreMask            = 0xF00FFFFF
++	ceType1                 = 0x40000000
++	ceType2                 = 0x00000000
++	ceType3or4              = 0x80000000
++	ceType4                 = 0xA0000000
++	ceTypeQ                 = 0xC0000000
++	Ignore                  = ceType4
++	firstNonPrimary         = 0x80000000
++	lastSpecialPrimary      = 0xA0000000
++	secondaryMask           = 0x80000000
++	hasTertiaryMask         = 0x40000000
++	primaryValueMask        = 0x3FFFFE00
++	maxPrimaryBits          = 21
++	compactPrimaryBits      = 16
++	maxSecondaryBits        = 12
++	maxTertiaryBits         = 8
++	maxCCCBits              = 8
++	maxSecondaryCompactBits = 8
++	maxSecondaryDiffBits    = 4
++	maxTertiaryCompactBits  = 5
++	primaryShift            = 9
++	compactSecondaryShift   = 5
++	minCompactSecondary     = defaultSecondary - 4
+ )
+ 
+ func makeImplicitCE(primary int) Elem {
+@@ -120,8 +129,51 @@ func makeImplicitCE(primary int) Elem {
+ // MakeElem returns an Elem for the given values.  It will return an error
+ // if the given combination of values is invalid.
+ func MakeElem(primary, secondary, tertiary int, ccc uint8) (Elem, error) {
+-	// TODO: implement
+-	return 0, nil
++	if w := primary; w >= 1<<maxPrimaryBits || w < 0 {
++		return 0, fmt.Errorf("makeCE: primary weight out of bounds: %x >= %x", w, 1<<maxPrimaryBits)
++	}
++	if w := secondary; w >= 1<<maxSecondaryBits || w < 0 {
++		return 0, fmt.Errorf("makeCE: secondary weight out of bounds: %x >= %x", w, 1<<maxSecondaryBits)
++	}
++	if w := tertiary; w >= 1<<maxTertiaryBits || w < 0 {
++		return 0, fmt.Errorf("makeCE: tertiary weight out of bounds: %x >= %x", w, 1<<maxTertiaryBits)
++	}
++	ce := Elem(0)
++	if primary != 0 {
++		if ccc != 0 {
++			if primary >= 1<<compactPrimaryBits {
++				return 0, fmt.Errorf("makeCE: primary weight with non-zero CCC out of bounds: %x >= %x", primary, 1<<compactPrimaryBits)
++			}
++			if secondary != defaultSecondary {
++				return 0, fmt.Errorf("makeCE: cannot combine non-default secondary value (%x) with non-zero CCC (%x)", secondary, ccc)
++			}
++			ce = Elem(tertiary << (compactPrimaryBits + maxCCCBits))
++			ce |= Elem(ccc) << compactPrimaryBits
++			ce |= Elem(primary)
++			ce |= ceType3or4
++		} else if tertiary == defaultTertiary {
++			if secondary >= 1<<maxSecondaryCompactBits {
++				return 0, fmt.Errorf("makeCE: secondary weight with non-zero primary out of bounds: %x >= %x", secondary, 1<<maxSecondaryCompactBits)
++			}
++			ce = Elem(primary<<(maxSecondaryCompactBits+1) + secondary)
++			ce |= ceType1
++		} else {
++			d := secondary - defaultSecondary + maxSecondaryDiffBits
++			if d >= 1<<maxSecondaryDiffBits || d < 0 {
++				return 0, fmt.Errorf("makeCE: secondary weight diff out of bounds: %x < 0 || %x > %x", d, d, 1<<maxSecondaryDiffBits)
++			}
++			if tertiary >= 1<<maxTertiaryCompactBits {
++				return 0, fmt.Errorf("makeCE: tertiary weight with non-zero primary out of bounds: %x > %x", tertiary, 1<<maxTertiaryCompactBits)
++			}
++			ce = Elem(primary<<maxSecondaryDiffBits + d)
++			ce = ce<<maxTertiaryCompactBits + Elem(tertiary)
++		}
++	} else {
++		ce = Elem(secondary<<maxTertiaryBits + tertiary)
++		ce += Elem(ccc) << (maxSecondaryBits + maxTertiaryBits)
++		ce |= ceType4
++	}
++	return ce, nil
+ }
+ 
+ // MakeQuaternary returns an Elem with the given quaternary value.
+@@ -211,12 +263,12 @@ func (ce Elem) updateTertiary(t uint8) Elem {
+ }
+ 
+ // Quaternary returns the quaternary value if explicitly specified,
+-// 0 if ce == ceIgnore, or MaxQuaternary otherwise.
++// 0 if ce == Ignore, or MaxQuaternary otherwise.
+ // Quaternary values are used only for shifted variants.
+ func (ce Elem) Quaternary() int {
+ 	if ce&ceTypeMask == ceTypeQ {
+ 		return int(ce&primaryValueMask) >> primaryShift
+-	} else if ce == ceIgnore {
++	} else if ce&ceIgnoreMask == Ignore {
+ 		return 0
+ 	}
+ 	return MaxQuaternary
+diff --git a/src/pkg/exp/locale/collate/colelem_test.go b/src/pkg/exp/locale/collate/colltab/colelem_test.go
+similarity index 56%
+rename from src/pkg/exp/locale/collate/colelem_test.go
+rename to src/pkg/exp/locale/collate/colltab/colelem_test.go
+index 374c448797..7ef0cea20a 100644
+--- a/src/pkg/exp/locale/collate/colelem_test.go
++++ b/src/pkg/exp/locale/collate/colltab/colelem_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate
++package colltab
+ 
+ import (
+ 	"testing"
+@@ -14,40 +14,8 @@ type ceTest struct {
+ 	arg []int
+ }
+ 
+-// The make* funcs are simplified versions of the functions in build/colelem.go
+ func makeCE(weights []int) Elem {
+-	const (
+-		maxPrimaryBits          = 21
+-		maxSecondaryBits        = 12
+-		maxSecondaryCompactBits = 8
+-		maxSecondaryDiffBits    = 4
+-		maxTertiaryBits         = 8
+-		maxTertiaryCompactBits  = 5
+-		isPrimary               = 0x40000000
+-		isPrimaryCCC            = 0x80000000
+-		isSecondary             = 0xA0000000
+-	)
+-	var ce Elem
+-	ccc := weights[3]
+-	if weights[0] != 0 {
+-		if ccc != 0 {
+-			ce = Elem(weights[2] << 24)
+-			ce |= Elem(ccc) << 16
+-			ce |= Elem(weights[0])
+-			ce |= isPrimaryCCC
+-		} else if weights[2] == defaultTertiary {
+-			ce = Elem(weights[0]<<(maxSecondaryCompactBits+1) + weights[1])
+-			ce |= isPrimary
+-		} else {
+-			d := weights[1] - defaultSecondary + 4
+-			ce = Elem(weights[0]<<maxSecondaryDiffBits + d)
+-			ce = ce<<maxTertiaryCompactBits + Elem(weights[2])
+-		}
+-	} else {
+-		ce = Elem(weights[1]<<maxTertiaryBits + weights[2])
+-		ce += Elem(ccc) << 20
+-		ce |= isSecondary
+-	}
++	ce, _ := MakeElem(weights[0], weights[1], weights[2], uint8(weights[3]))
+ 	return ce
+ }
+ 
+@@ -104,12 +72,6 @@ func decompCE(inout []int) (ce Elem, t ceType) {
+ 	return ce, ceDecompose
+ }
+ 
+-const (
+-	maxPrimaryBits   = 21
+-	maxSecondaryBits = 16
+-	maxTertiaryBits  = 8
+-)
+-
+ var ceTests = []ceTest{
+ 	{normalCE, []int{0, 0, 0, 0}},
+ 	{normalCE, []int{0, 30, 3, 0}},
+@@ -198,77 +160,3 @@ func TestUpdateTertiary(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func TestDoNorm(t *testing.T) {
+-	const div = -1 // The insertion point of the next block.
+-	tests := []struct {
+-		in, out []int
+-	}{
+-		{in: []int{4, div, 3},
+-			out: []int{3, 4},
+-		},
+-		{in: []int{4, div, 3, 3, 3},
+-			out: []int{3, 3, 3, 4},
+-		},
+-		{in: []int{0, 4, div, 3},
+-			out: []int{0, 3, 4},
+-		},
+-		{in: []int{0, 0, 4, 5, div, 3, 3},
+-			out: []int{0, 0, 3, 3, 4, 5},
+-		},
+-		{in: []int{0, 0, 1, 4, 5, div, 3, 3},
+-			out: []int{0, 0, 1, 3, 3, 4, 5},
+-		},
+-		{in: []int{0, 0, 1, 4, 5, div, 4, 4},
+-			out: []int{0, 0, 1, 4, 4, 4, 5},
+-		},
+-	}
+-	for j, tt := range tests {
+-		i := iter{}
+-		var w, p, s int
+-		for k, cc := range tt.in {
+-			if cc == 0 {
+-				s = 0
+-			}
+-			if cc == div {
+-				w = 100
+-				p = k
+-				i.pStarter = s
+-				continue
+-			}
+-			i.ce = append(i.ce, makeCE([]int{w, 20, 2, cc}))
+-		}
+-		i.prevCCC = i.ce[p-1].CCC()
+-		i.doNorm(p, i.ce[p].CCC())
+-		if len(i.ce) != len(tt.out) {
+-			t.Errorf("%d: length was %d; want %d", j, len(i.ce), len(tt.out))
+-		}
+-		prevCCC := uint8(0)
+-		for k, ce := range i.ce {
+-			if int(ce.CCC()) != tt.out[k] {
+-				t.Errorf("%d:%d: unexpected CCC. Was %d; want %d", j, k, ce.CCC(), tt.out[k])
+-			}
+-			if k > 0 && ce.CCC() == prevCCC && i.ce[k-1].Primary() > ce.Primary() {
+-				t.Errorf("%d:%d: normalization crossed across CCC boundary.", j, k)
+-			}
+-		}
+-	}
+-	// test cutoff of large sequence of combining characters.
+-	result := []uint8{8, 8, 8, 5, 5}
+-	for o := -2; o <= 2; o++ {
+-		i := iter{pStarter: 2, prevCCC: 8}
+-		n := maxCombiningCharacters + 1 + o
+-		for j := 1; j < n+i.pStarter; j++ {
+-			i.ce = append(i.ce, makeCE([]int{100, 20, 2, 8}))
+-		}
+-		p := len(i.ce)
+-		i.ce = append(i.ce, makeCE([]int{0, 20, 2, 5}))
+-		i.doNorm(p, 5)
+-		if i.prevCCC != result[o+2] {
+-			t.Errorf("%d: i.prevCCC was %d; want %d", n, i.prevCCC, result[o+2])
+-		}
+-		if result[o+2] == 5 && i.pStarter != p {
+-			t.Errorf("%d: i.pStarter was %d; want %d", n, i.pStarter, p)
+-		}
+-	}
+-}
+diff --git a/src/pkg/exp/locale/collate/colltab.go b/src/pkg/exp/locale/collate/colltab/colltab.go
+similarity index 93%
+rename from src/pkg/exp/locale/collate/colltab.go
+rename to src/pkg/exp/locale/collate/colltab/colltab.go
+index cdb213ffe4..60d54fe125 100644
+--- a/src/pkg/exp/locale/collate/colltab.go
++++ b/src/pkg/exp/locale/collate/colltab/colltab.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate
++package colltab
+ 
+ // A Weigher can be used as a source for Collator and Searcher.
+ type Weigher interface {
+@@ -25,4 +25,7 @@ type Weigher interface {
+ 	// Domain returns a slice of all single characters and contractions for which
+ 	// collation elements are defined in this table.
+ 	Domain() []string
++
++	// Top returns the highest variable primary value.
++	Top() uint32
+ }
+diff --git a/src/pkg/exp/locale/collate/contract.go b/src/pkg/exp/locale/collate/colltab/contract.go
+similarity index 99%
+rename from src/pkg/exp/locale/collate/contract.go
+rename to src/pkg/exp/locale/collate/colltab/contract.go
+index 7ce6b1f20e..86158d0026 100644
+--- a/src/pkg/exp/locale/collate/contract.go
++++ b/src/pkg/exp/locale/collate/colltab/contract.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate
++package colltab
+ 
+ import "unicode/utf8"
+ 
+diff --git a/src/pkg/exp/locale/collate/contract_test.go b/src/pkg/exp/locale/collate/colltab/contract_test.go
+similarity index 99%
+rename from src/pkg/exp/locale/collate/contract_test.go
+rename to src/pkg/exp/locale/collate/colltab/contract_test.go
+index f3710a183a..a8da4e013e 100644
+--- a/src/pkg/exp/locale/collate/contract_test.go
++++ b/src/pkg/exp/locale/collate/colltab/contract_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate
++package colltab
+ 
+ import (
+ 	"testing"
+diff --git a/src/pkg/exp/locale/collate/export.go b/src/pkg/exp/locale/collate/colltab/export.go
+similarity index 98%
+rename from src/pkg/exp/locale/collate/export.go
+rename to src/pkg/exp/locale/collate/colltab/export.go
+index 8145dee25a..83cfb634c6 100644
+--- a/src/pkg/exp/locale/collate/export.go
++++ b/src/pkg/exp/locale/collate/colltab/export.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate
++package colltab
+ 
+ // Init is for internal use only.
+ func Init(data interface{}) Weigher {
+diff --git a/src/pkg/exp/locale/collate/table.go b/src/pkg/exp/locale/collate/colltab/table.go
+similarity index 86%
+rename from src/pkg/exp/locale/collate/table.go
+rename to src/pkg/exp/locale/collate/colltab/table.go
+index a03e9e2158..5dad0ce46b 100644
+--- a/src/pkg/exp/locale/collate/table.go
++++ b/src/pkg/exp/locale/collate/colltab/table.go
+@@ -2,20 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate
++package colltab
+ 
+ import (
+ 	"exp/norm"
+ 	"unicode/utf8"
+ )
+ 
+-// tableIndex holds information for constructing a table
+-// for a certain locale based on the main table.
+-type tableIndex struct {
+-	lookupOffset uint32
+-	valuesOffset uint32
+-}
+-
+ // table holds all collation data for a given collation ordering.
+ type table struct {
+ 	index trie // main trie
+@@ -30,13 +23,6 @@ type table struct {
+ 	variableTop    uint32
+ }
+ 
+-func (t *table) indexedTable(idx tableIndex) *table {
+-	nt := *t
+-	nt.index.index0 = t.index.index[idx.lookupOffset*blockSize:]
+-	nt.index.values0 = t.index.values[idx.valuesOffset*blockSize:]
+-	return &nt
+-}
+-
+ func (t *table) AppendNext(w []Elem, b []byte) (res []Elem, n int) {
+ 	return t.appendNext(w, source{bytes: b})
+ }
+@@ -60,6 +46,10 @@ func (t *table) Domain() []string {
+ 	panic("not implemented")
+ }
+ 
++func (t *table) Top() uint32 {
++	return t.variableTop
++}
++
+ type source struct {
+ 	str   string
+ 	bytes []byte
+@@ -282,36 +272,3 @@ func (t *table) matchContractionString(w []Elem, ce Elem, suffix string) ([]Elem
+ 	}
+ 	return w, n
+ }
+-
+-// TODO: this should stay after the rest of this file is moved to colltab
+-func (t tableIndex) TrieIndex() []uint16 {
+-	return mainLookup[:]
+-}
+-
+-func (t tableIndex) TrieValues() []uint32 {
+-	return mainValues[:]
+-}
+-
+-func (t tableIndex) FirstBlockOffsets() (lookup, value uint16) {
+-	return uint16(t.lookupOffset), uint16(t.valuesOffset)
+-}
+-
+-func (t tableIndex) ExpandElems() []uint32 {
+-	return mainExpandElem[:]
+-}
+-
+-func (t tableIndex) ContractTries() []struct{ l, h, n, i uint8 } {
+-	return mainCTEntries[:]
+-}
+-
+-func (t tableIndex) ContractElems() []uint32 {
+-	return mainContractElem[:]
+-}
+-
+-func (t tableIndex) MaxContractLen() int {
+-	return 18
+-}
+-
+-func (t tableIndex) VariableTop() uint32 {
+-	return 0x30E
+-}
+diff --git a/src/pkg/exp/locale/collate/trie.go b/src/pkg/exp/locale/collate/colltab/trie.go
+similarity index 99%
+rename from src/pkg/exp/locale/collate/trie.go
+rename to src/pkg/exp/locale/collate/colltab/trie.go
+index 616dc09236..32006a93c1 100644
+--- a/src/pkg/exp/locale/collate/trie.go
++++ b/src/pkg/exp/locale/collate/colltab/trie.go
+@@ -9,7 +9,7 @@
+ // The last byte is used to index into a table of collation elements.
+ // For a full description, see exp/locale/collate/build/trie.go.
+ 
+-package collate
++package colltab
+ 
+ const blockSize = 64
+ 
+diff --git a/src/pkg/exp/locale/collate/trie_test.go b/src/pkg/exp/locale/collate/colltab/trie_test.go
+similarity index 99%
+rename from src/pkg/exp/locale/collate/trie_test.go
+rename to src/pkg/exp/locale/collate/colltab/trie_test.go
+index 778e85614a..85e24220d6 100644
+--- a/src/pkg/exp/locale/collate/trie_test.go
++++ b/src/pkg/exp/locale/collate/colltab/trie_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate
++package colltab
+ 
+ import (
+ 	"testing"
+diff --git a/src/pkg/exp/locale/collate/export_test.go b/src/pkg/exp/locale/collate/export_test.go
+index 3782144d83..6ab44bd349 100644
+--- a/src/pkg/exp/locale/collate/export_test.go
++++ b/src/pkg/exp/locale/collate/export_test.go
+@@ -5,11 +5,18 @@
+ package collate
+ 
+ // Export for testing.
++// TODO: no longer necessary. Remove at some point.
+ 
+ import (
++	"exp/locale/collate/colltab"
+ 	"fmt"
+ )
+ 
++const (
++	defaultSecondary = 0x20
++	defaultTertiary  = 0x2
++)
++
+ type Weights struct {
+ 	Primary, Secondary, Tertiary, Quaternary int
+ }
+@@ -24,8 +31,6 @@ func W(ce ...int) Weights {
+ 	}
+ 	if len(ce) > 3 {
+ 		w.Quaternary = ce[3]
+-	} else if w.Tertiary != 0 {
+-		w.Quaternary = MaxQuaternary
+ 	}
+ 	return w
+ }
+@@ -33,58 +38,13 @@ func (w Weights) String() string {
+ 	return fmt.Sprintf("[%X.%X.%X.%X]", w.Primary, w.Secondary, w.Tertiary, w.Quaternary)
+ }
+ 
+-type Table struct {
+-	t Weigher
+-}
+-
+-func GetTable(c *Collator) *Table {
+-	return &Table{c.t}
+-}
+-
+-func convertToWeights(ws []Elem) []Weights {
+-	out := make([]Weights, len(ws))
+-	for i, w := range ws {
+-		out[i] = Weights{int(w.Primary()), int(w.Secondary()), int(w.Tertiary()), int(w.Quaternary())}
+-	}
+-	return out
+-}
+-
+-func convertFromWeights(ws []Weights) []Elem {
+-	out := make([]Elem, len(ws))
++func convertFromWeights(ws []Weights) []colltab.Elem {
++	out := make([]colltab.Elem, len(ws))
+ 	for i, w := range ws {
+-		out[i] = makeCE([]int{w.Primary, w.Secondary, w.Tertiary, 0})
+-		if out[i] == ceIgnore && w.Quaternary > 0 {
+-			out[i] = MakeQuaternary(w.Quaternary)
++		out[i], _ = colltab.MakeElem(w.Primary, w.Secondary, w.Tertiary, 0)
++		if out[i] == colltab.Ignore && w.Quaternary > 0 {
++			out[i] = colltab.MakeQuaternary(w.Quaternary)
+ 		}
+ 	}
+ 	return out
+ }
+-
+-func (t *Table) AppendNext(s []byte) ([]Weights, int) {
+-	w, n := t.t.AppendNext(nil, s)
+-	return convertToWeights(w), n
+-}
+-
+-func SetTop(c *Collator, top int) {
+-	if c.t == nil {
+-		c.t = &table{}
+-	}
+-	c.variableTop = uint32(top)
+-}
+-
+-func GetColElems(c *Collator, str []byte) []Weights {
+-	ce := c.getColElems(str)
+-	return convertToWeights(ce)
+-}
+-
+-func ProcessWeights(h AlternateHandling, top int, w []Weights) []Weights {
+-	in := convertFromWeights(w)
+-	processWeights(h, uint32(top), in)
+-	return convertToWeights(in)
+-}
+-
+-func KeyFromElems(c *Collator, buf *Buffer, w []Weights) []byte {
+-	k := len(buf.key)
+-	c.keyFromElems(buf, convertFromWeights(w))
+-	return buf.key[k:]
+-}
+diff --git a/src/pkg/exp/locale/collate/index.go b/src/pkg/exp/locale/collate/index.go
+new file mode 100644
+index 0000000000..1c3191b05c
+--- /dev/null
++++ b/src/pkg/exp/locale/collate/index.go
+@@ -0,0 +1,44 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package collate
++
++// tableIndex holds information for constructing a table
++// for a certain locale based on the main table.
++type tableIndex struct {
++	lookupOffset uint32
++	valuesOffset uint32
++}
++
++func (t tableIndex) TrieIndex() []uint16 {
++	return mainLookup[:]
++}
++
++func (t tableIndex) TrieValues() []uint32 {
++	return mainValues[:]
++}
++
++func (t tableIndex) FirstBlockOffsets() (lookup, value uint16) {
++	return uint16(t.lookupOffset), uint16(t.valuesOffset)
++}
++
++func (t tableIndex) ExpandElems() []uint32 {
++	return mainExpandElem[:]
++}
++
++func (t tableIndex) ContractTries() []struct{ l, h, n, i uint8 } {
++	return mainCTEntries[:]
++}
++
++func (t tableIndex) ContractElems() []uint32 {
++	return mainContractElem[:]
++}
++
++func (t tableIndex) MaxContractLen() int {
++	return 18 // TODO: generate
++}
++
++func (t tableIndex) VariableTop() uint32 {
++	return varTop
++}
+diff --git a/src/pkg/exp/locale/collate/maketables.go b/src/pkg/exp/locale/collate/maketables.go
+index 42df613e60..19f176e9ef 100644
+--- a/src/pkg/exp/locale/collate/maketables.go
++++ b/src/pkg/exp/locale/collate/maketables.go
+@@ -16,6 +16,7 @@ import (
+ 	"encoding/xml"
+ 	"exp/locale/collate"
+ 	"exp/locale/collate/build"
++	"exp/locale/collate/colltab"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+@@ -587,11 +588,11 @@ func parseCollation(b *build.Builder) {
+ 	}
+ }
+ 
+-var lmap = map[byte]collate.Level{
+-	'p': collate.Primary,
+-	's': collate.Secondary,
+-	't': collate.Tertiary,
+-	'i': collate.Identity,
++var lmap = map[byte]colltab.Level{
++	'p': colltab.Primary,
++	's': colltab.Secondary,
++	't': colltab.Tertiary,
++	'i': colltab.Identity,
+ }
+ 
+ // cldrIndex is a Unicode-reserved sentinel value used.
+@@ -699,7 +700,7 @@ func main() {
+ 	failOnError(err)
+ 
+ 	if *test {
+-		testCollator(c)
++		testCollator(collate.NewFromTable(c))
+ 	} else {
+ 		fmt.Println("// Generated by running")
+ 		fmt.Printf("//  maketables -root=%s -cldr=%s\n", *root, *cldr)
+diff --git a/src/pkg/exp/locale/collate/regtest.go b/src/pkg/exp/locale/collate/regtest.go
+index e30915ed89..fd4fc6eb34 100644
+--- a/src/pkg/exp/locale/collate/regtest.go
++++ b/src/pkg/exp/locale/collate/regtest.go
+@@ -12,6 +12,7 @@ import (
+ 	"bytes"
+ 	"exp/locale/collate"
+ 	"exp/locale/collate/build"
++	"exp/locale/collate/colltab"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+@@ -228,12 +229,14 @@ func runes(b []byte) []rune {
+ func doTest(t Test) {
+ 	bld := build.NewBuilder()
+ 	parseUCA(bld)
+-	c, err := bld.Build()
++	w, err := bld.Build()
+ 	Error(err)
+-	c.Strength = collate.Tertiary
++	c := collate.NewFromTable(w)
++	c.Strength = colltab.Quaternary
+ 	c.Alternate = collate.AltShifted
+ 	b := &collate.Buffer{}
+ 	if strings.Contains(t.name, "NON_IGNOR") {
++		c.Strength = colltab.Tertiary
+ 		c.Alternate = collate.AltNonIgnorable
+ 	}
+ 	prev := t.str[0]
+diff --git a/src/pkg/exp/locale/collate/table_test.go b/src/pkg/exp/locale/collate/table_test.go
+index 77939fdaea..669b911b47 100644
+--- a/src/pkg/exp/locale/collate/table_test.go
++++ b/src/pkg/exp/locale/collate/table_test.go
+@@ -2,16 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package collate_test
++package collate
+ 
+ import (
+-	"exp/locale/collate"
+ 	"exp/locale/collate/build"
++	"exp/locale/collate/colltab"
+ 	"exp/norm"
+ 	"testing"
+ )
+ 
+-type ColElems []collate.Weights
++type ColElems []Weights
+ 
+ type input struct {
+ 	str string
+@@ -29,8 +29,8 @@ type tableTest struct {
+ 	chk []check
+ }
+ 
+-func w(ce ...int) collate.Weights {
+-	return collate.W(ce...)
++func w(ce ...int) Weights {
++	return W(ce...)
+ }
+ 
+ var defaults = w(0)
+@@ -39,14 +39,18 @@ func pt(p, t int) []int {
+ 	return []int{p, defaults.Secondary, t}
+ }
+ 
+-func makeTable(in []input) (*collate.Collator, error) {
++func makeTable(in []input) (*Collator, error) {
+ 	b := build.NewBuilder()
+ 	for _, r := range in {
+ 		if e := b.Add([]rune(r.str), r.ces, nil); e != nil {
+ 			panic(e)
+ 		}
+ 	}
+-	return b.Build()
++	t, err := b.Build()
++	if err != nil {
++		return nil, err
++	}
++	return NewFromTable(t), nil
+ }
+ 
+ // modSeq holds a seqeunce of modifiers in increasing order of CCC long enough
+@@ -265,19 +269,20 @@ func TestAppendNext(t *testing.T) {
+ 			t.Errorf("%d: error creating table: %v", i, err)
+ 			continue
+ 		}
+-		ct := collate.GetTable(c)
+ 		for j, chk := range tt.chk {
+-			ws, n := ct.AppendNext([]byte(chk.in))
++			ws, n := c.t.AppendNext(nil, []byte(chk.in))
+ 			if n != chk.n {
+ 				t.Errorf("%d:%d: bytes consumed was %d; want %d", i, j, n, chk.n)
+ 			}
+-			if len(ws) != len(chk.out) {
+-				t.Errorf("%d:%d: len(ws) was %d; want %d (%v vs %v)\n%X", i, j, len(ws), len(chk.out), ws, chk.out, chk.in)
++			out := convertFromWeights(chk.out)
++			if len(ws) != len(out) {
++				t.Errorf("%d:%d: len(ws) was %d; want %d (%X vs %X)\n%X", i, j, len(ws), len(out), ws, out, chk.in)
+ 				continue
+ 			}
+ 			for k, w := range ws {
+-				if w != chk.out[k] {
+-					t.Errorf("%d:%d: Weights %d was %v; want %v", i, j, k, w, chk.out[k])
++				w, _ = colltab.MakeElem(w.Primary(), w.Secondary(), int(w.Tertiary()), 0)
++				if w != out[k] {
++					t.Errorf("%d:%d: Weights %d was %X; want %X", i, j, k, w, out[k])
+ 				}
+ 			}
+ 		}
+diff --git a/src/pkg/exp/locale/collate/tables.go b/src/pkg/exp/locale/collate/tables.go
+index 464514cf4b..b59b2ee61a 100644
+--- a/src/pkg/exp/locale/collate/tables.go
++++ b/src/pkg/exp/locale/collate/tables.go
+@@ -7,6 +7,8 @@ package collate
+ 
+ var availableLocales = []string{"af", "ar", "as", "az", "be", "bg", "bn", "ca", "cs", "cy", "da", "de", "dz", "ee", "el", "en_US_POSIX", "eo", "es", "et", "fa", "fi", "fil", "fo", "fr_CA", "gu", "ha", "haw", "he", "hi", "hr", "hu", "hy", "ig", "is", "ja", "kk", "kl", "km", "kn", "ko", "kok", "ln", "lt", "lv", "mk", "ml", "mr", "mt", "my", "nb", "nn", "nso", "om", "or", "pa", "pl", "ps", "ro", "root", "ru", "se", "si", "sk", "sl", "sq", "sr", "sv", "ta", "te", "th", "tn", "to", "tr", "uk", "ur", "vi", "wae", "yo", "zh"}
+ 
++const varTop = 0x30e
++
+ var locales = map[string]tableIndex{
+ 	"af": {
+ 		lookupOffset: 0x16,

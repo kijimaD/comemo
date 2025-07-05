@@ -14,6 +14,26 @@ Date:   Mon Oct 16 07:25:14 2017 +0100
     Run-TryBot: Filippo Valsorda <hi@filippo.io>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/prf.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 27a22f1e3a..d07be11cdd 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -35,12 +35,8 @@ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
+ 		h.Write(a)
+ 		h.Write(seed)
+ 		b := h.Sum(nil)
+-		todo := len(b)
+-		if j+todo > len(result) {
+-			todo = len(result) - j
+-		}
+-		copy(result[j:j+todo], b)
+-		j += todo
++		copy(result[j:], b)
++		j += len(b)
+ 
+ 		h.Reset()
+ 		h.Write(a)

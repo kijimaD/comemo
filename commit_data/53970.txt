@@ -48,9 +48,193 @@ Date:   Wed Sep 7 13:23:10 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/debuglog.go | 14 ++++++--------
  src/runtime/heapdump.go | 15 ++++++---------
  src/runtime/string.go   | 26 +++++++-------------------
  src/runtime/type.go     | 14 ++++----------
  4 files changed, 23 insertions(+), 46 deletions(-)
+
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 83d5a3e9e6..1fc7dd5555 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -292,21 +292,19 @@ func (l *dlogger) s(x string) *dlogger {
+ 	if !dlogEnabled {
+ 		return l
+ 	}
+-	str := stringStructOf(&x)
++
++	strData := unsafe.StringData(x)
+ 	datap := &firstmoduledata
+-	if len(x) > 4 && datap.etext <= uintptr(str.str) && uintptr(str.str) < datap.end {
++	if len(x) > 4 && datap.etext <= uintptr(unsafe.Pointer(strData)) && uintptr(unsafe.Pointer(strData)) < datap.end {
+ 		// String constants are in the rodata section, which
+ 		// isn't recorded in moduledata. But it has to be
+ 		// somewhere between etext and end.
+ 		l.w.byte(debugLogConstString)
+-		l.w.uvarint(uint64(str.len))
+-		l.w.uvarint(uint64(uintptr(str.str) - datap.etext))
++		l.w.uvarint(uint64(len(x)))
++		l.w.uvarint(uint64(uintptr(unsafe.Pointer(strData)) - datap.etext))
+ 	} else {
+ 		l.w.byte(debugLogString)
+-		var b []byte
+-		bb := (*slice)(unsafe.Pointer(&b))
+-		bb.array = str.str
+-		bb.len, bb.cap = str.len, str.len
++		b := unsafe.Slice(strData, len(x))
+ 		if len(b) > debugLogStringLimit {
+ 			b = b[:debugLogStringLimit]
+ 		}
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 0268e25595..322838ab88 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -156,8 +156,7 @@ func dumpslice(b []byte) {
+ }
+ 
+ func dumpstr(s string) {
+-	sp := stringStructOf(&s)
+-	dumpmemrange(sp.str, uintptr(sp.len))
++	dumpmemrange(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
+ }
+ 
+ // dump information for a type
+@@ -197,14 +196,12 @@ func dumptype(t *_type) {
+ 	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
+ 		dumpstr(t.string())
+ 	} else {
+-		pkgpathstr := t.nameOff(x.pkgpath).name()
+-		pkgpath := stringStructOf(&pkgpathstr)
+-		namestr := t.name()
+-		name := stringStructOf(&namestr)
+-		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
+-		dwrite(pkgpath.str, uintptr(pkgpath.len))
++		pkgpath := t.nameOff(x.pkgpath).name()
++		name := t.name()
++		dumpint(uint64(uintptr(len(pkgpath)) + 1 + uintptr(len(name))))
++		dwrite(unsafe.Pointer(unsafe.StringData(pkgpath)), uintptr(len(pkgpath)))
+ 		dwritebyte('.')
+-		dwrite(name.str, uintptr(name.len))
++		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
+ 	}
+ 	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
+ }
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 359a5658c5..eaade640c4 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -78,7 +78,7 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
+ // n is the length of the slice.
+ // Buf is a fixed-size buffer for the result,
+ // it is not nil if the result does not escape.
+-func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
++func slicebytetostring(buf *tmpBuf, ptr *byte, n int) string {
+ 	if n == 0 {
+ 		// Turns out to be a relatively common case.
+ 		// Consider that you want to parse out data between parens in "foo()bar",
+@@ -102,9 +102,7 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
+ 		if goarch.BigEndian {
+ 			p = add(p, 7)
+ 		}
+-		stringStructOf(&str).str = p
+-		stringStructOf(&str).len = 1
+-		return
++		return unsafe.String((*byte)(p), 1)
+ 	}
+ 
+ 	var p unsafe.Pointer
+@@ -113,16 +111,14 @@ func slicebytetostring(buf *tmpBuf, ptr *byte, n int) (str string) {
+ 	} else {
+ 		p = mallocgc(uintptr(n), nil, false)
+ 	}
+-	stringStructOf(&str).str = p
+-	stringStructOf(&str).len = n
+ 	memmove(p, unsafe.Pointer(ptr), uintptr(n))
+-	return
++	return unsafe.String((*byte)(p), n)
+ }
+ 
+ // stringDataOnStack reports whether the string's data is
+ // stored on the current goroutine's stack.
+ func stringDataOnStack(s string) bool {
+-	ptr := uintptr(stringStructOf(&s).str)
++	ptr := uintptr(unsafe.Pointer(unsafe.StringData(s)))
+ 	stk := getg().stack
+ 	return stk.lo <= ptr && ptr < stk.hi
+ }
+@@ -151,7 +147,7 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
+ //     where k is []byte, T1 to Tn is a nesting of struct and array literals.
+ //   - Used for "<"+string(b)+">" concatenation where b is []byte.
+ //   - Used for string(b)=="foo" comparison where b is []byte.
+-func slicebytetostringtmp(ptr *byte, n int) (str string) {
++func slicebytetostringtmp(ptr *byte, n int) string {
+ 	if raceenabled && n > 0 {
+ 		racereadrangepc(unsafe.Pointer(ptr),
+ 			uintptr(n),
+@@ -164,9 +160,7 @@ func slicebytetostringtmp(ptr *byte, n int) (str string) {
+ 	if asanenabled && n > 0 {
+ 		asanread(unsafe.Pointer(ptr), uintptr(n))
+ 	}
+-	stringStructOf(&str).str = unsafe.Pointer(ptr)
+-	stringStructOf(&str).len = n
+-	return
++	return unsafe.String(ptr, n)
+ }
+ 
+ func stringtoslicebyte(buf *tmpBuf, s string) []byte {
+@@ -271,13 +265,7 @@ func intstring(buf *[4]byte, v int64) (s string) {
+ // b to set the string contents and then drop b.
+ func rawstring(size int) (s string, b []byte) {
+ 	p := mallocgc(uintptr(size), nil, false)
+-
+-	stringStructOf(&s).str = p
+-	stringStructOf(&s).len = size
+-
+-	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, size}
+-
+-	return
++	return unsafe.String((*byte)(p), size), unsafe.Slice((*byte)(p), size)
+ }
+ 
+ // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index e8e7819ecf..1c6103e6ed 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -454,7 +454,7 @@ func (n name) readvarint(off int) (int, int) {
+ 	}
+ }
+ 
+-func (n name) name() (s string) {
++func (n name) name() string {
+ 	if n.bytes == nil {
+ 		return ""
+ 	}
+@@ -462,22 +462,16 @@ func (n name) name() (s string) {
+ 	if l == 0 {
+ 		return ""
+ 	}
+-	hdr := (*stringStruct)(unsafe.Pointer(&s))
+-	hdr.str = unsafe.Pointer(n.data(1 + i))
+-	hdr.len = l
+-	return
++	return unsafe.String(n.data(1+i), l)
+ }
+ 
+-func (n name) tag() (s string) {
++func (n name) tag() string {
+ 	if *n.data(0)&(1<<1) == 0 {
+ 		return ""
+ 	}
+ 	i, l := n.readvarint(1)
+ 	i2, l2 := n.readvarint(1 + i + l)
+-	hdr := (*stringStruct)(unsafe.Pointer(&s))
+-	hdr.str = unsafe.Pointer(n.data(1 + i + l + i2))
+-	hdr.len = l2
+-	return
++	return unsafe.String(n.data(1+i+l+i2), l2)
+ }
+ 
+ func (n name) pkgPath() string {

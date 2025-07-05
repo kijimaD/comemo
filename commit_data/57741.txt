@@ -13,6 +13,20 @@ Date:   Sat Aug 26 11:56:38 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/stmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index de50f1f4a4..01d218ecc4 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -285,7 +285,7 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
+ //
+ // Note that a JumpTableStmt is more like a multiway-goto than
+ // a multiway-if. In particular, the case bodies are just
+-// labels to jump to, not not full Nodes lists.
++// labels to jump to, not full Nodes lists.
+ type JumpTableStmt struct {
+ 	miniStmt
+ 

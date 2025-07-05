@@ -10,6 +10,20 @@ Date:   Fri Oct 17 11:03:55 2014 -0400
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/155490043
-
+---
  src/runtime/malloc.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 876a2ddaa7..9b4264f2b3 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -40,8 +40,6 @@ type pageID uintptr
+ // base address for all 0-byte allocations
+ var zerobase uintptr
+ 
+-//go:nowritebarrier
+-
+ // Allocate an object of size bytes.
+ // Small objects are allocated from the per-P cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.

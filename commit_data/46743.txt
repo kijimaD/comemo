@@ -30,10 +30,194 @@ Date:   Sun Jan 24 23:39:16 2021 -0800
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/noder.go       |  8 -----
  src/cmd/compile/internal/typecheck/iexport.go | 51 +++++++++++++++++++++++++--
  src/cmd/compile/internal/typecheck/iimport.go | 27 ++++++++++++--
  test/fixedbugs/issue7740.go                   |  2 +-
  test/float_lit3.go                            |  5 ++-
  5 files changed, 76 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 6aab18549a..5b5b09cb2d 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1455,14 +1455,6 @@ func (p *noder) basicLit(lit *syntax.BasicLit) constant.Value {
+ 		p.errorAt(lit.Pos(), "malformed constant: %s", lit.Value)
+ 	}
+ 
+-	// go/constant uses big.Rat by default, which is more precise, but
+-	// causes toolstash -cmp and some tests to fail. For now, convert
+-	// to big.Float to match cmd/compile's historical precision.
+-	// TODO(mdempsky): Remove.
+-	if v.Kind() == constant.Float {
+-		v = constant.Make(ir.BigFloat(v))
+-	}
+-
+ 	return v
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index be4a689836..6fab74e61f 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -462,12 +462,16 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 		}
+ 
+ 	case ir.OLITERAL:
++		// TODO(mdempsky): Extend check to all declarations.
++		if n.Typecheck() == 0 {
++			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
++		}
++
+ 		// Constant.
+-		// TODO(mdempsky): Do we still need this typecheck? If so, why?
+-		n = Expr(n).(*ir.Name)
+ 		w.tag('C')
+ 		w.pos(n.Pos())
+ 		w.value(n.Type(), n.Val())
++		w.constExt(n)
+ 
+ 	case ir.OTYPE:
+ 		if types.IsDotAlias(n.Sym()) {
+@@ -956,6 +960,17 @@ func (w *exportWriter) mpfloat(v constant.Value, typ *types.Type) {
+ 	}
+ }
+ 
++func (w *exportWriter) mprat(v constant.Value) {
++	r, ok := constant.Val(v).(*big.Rat)
++	if !w.bool(ok) {
++		return
++	}
++	// TODO(mdempsky): Come up with a more efficient binary
++	// encoding before bumping iexportVersion to expose to
++	// gcimporter.
++	w.string(r.String())
++}
++
+ func (w *exportWriter) bool(b bool) bool {
+ 	var x uint64
+ 	if b {
+@@ -971,7 +986,37 @@ func (w *exportWriter) string(s string) { w.uint64(w.p.stringOff(s)) }
+ 
+ // Compiler-specific extensions.
+ 
+-func (w *exportWriter) varExt(n ir.Node) {
++func (w *exportWriter) constExt(n *ir.Name) {
++	// Internally, we now represent untyped float and complex
++	// constants with infinite-precision rational numbers using
++	// go/constant, but the "public" export data format known to
++	// gcimporter only supports 512-bit floating point constants.
++	// In case rationals turn out to be a bad idea and we want to
++	// switch back to fixed-precision constants, for now we
++	// continue writing out the 512-bit truncation in the public
++	// data section, and write the exact, rational constant in the
++	// compiler's extension data. Also, we only need to worry
++	// about exporting rationals for declared constants, because
++	// constants that appear in an expression will already have
++	// been coerced to a concrete, fixed-precision type.
++	//
++	// Eventually, assuming we stick with using rationals, we
++	// should bump iexportVersion to support rationals, and do the
++	// whole gcimporter update song-and-dance.
++	//
++	// TODO(mdempsky): Prepare vocals for that.
++
++	switch n.Type() {
++	case types.UntypedFloat:
++		w.mprat(n.Val())
++	case types.UntypedComplex:
++		v := n.Val()
++		w.mprat(constant.Real(v))
++		w.mprat(constant.Imag(v))
++	}
++}
++
++func (w *exportWriter) varExt(n *ir.Name) {
+ 	w.linkname(n.Sym())
+ 	w.symIdx(n.Sym())
+ }
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index f2682257f3..b73ef5176b 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -303,7 +303,9 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		typ := r.typ()
+ 		val := r.value(typ)
+ 
+-		return importconst(r.p.ipkg, pos, sym, typ, val)
++		n := importconst(r.p.ipkg, pos, sym, typ, val)
++		r.constExt(n)
++		return n
+ 
+ 	case 'F':
+ 		typ := r.signature(nil)
+@@ -440,6 +442,15 @@ func (p *importReader) float(typ *types.Type) constant.Value {
+ 	return constant.Make(&f)
+ }
+ 
++func (p *importReader) mprat(orig constant.Value) constant.Value {
++	if !p.bool() {
++		return orig
++	}
++	var rat big.Rat
++	rat.SetString(p.string())
++	return constant.Make(&rat)
++}
++
+ func (r *importReader) ident(selector bool) *types.Sym {
+ 	name := r.string()
+ 	if name == "" {
+@@ -641,7 +652,19 @@ func (r *importReader) byte() byte {
+ 
+ // Compiler-specific extensions.
+ 
+-func (r *importReader) varExt(n ir.Node) {
++func (r *importReader) constExt(n *ir.Name) {
++	switch n.Type() {
++	case types.UntypedFloat:
++		n.SetVal(r.mprat(n.Val()))
++	case types.UntypedComplex:
++		v := n.Val()
++		re := r.mprat(constant.Real(v))
++		im := r.mprat(constant.Imag(v))
++		n.SetVal(makeComplex(re, im))
++	}
++}
++
++func (r *importReader) varExt(n *ir.Name) {
+ 	r.linkname(n.Sym())
+ 	r.symIdx(n.Sym())
+ }
+diff --git a/test/fixedbugs/issue7740.go b/test/fixedbugs/issue7740.go
+index 8f1afe86da..6bc6249d7e 100644
+--- a/test/fixedbugs/issue7740.go
++++ b/test/fixedbugs/issue7740.go
+@@ -21,7 +21,7 @@ func main() {
+ 	var prec float64
+ 	switch runtime.Compiler {
+ 	case "gc":
+-		prec = 512
++		prec = math.Inf(1) // exact precision using rational arithmetic
+ 	case "gccgo":
+ 		prec = 256
+ 	default:
+diff --git a/test/float_lit3.go b/test/float_lit3.go
+index c4d1aa567c..850d02c9c7 100644
+--- a/test/float_lit3.go
++++ b/test/float_lit3.go
+@@ -37,12 +37,11 @@ var x = []interface{}{
+ 
+ 	// If the compiler's internal floating point representation
+ 	// is shorter than 1024 bits, it cannot distinguish max64+ulp64/2-1 and max64+ulp64/2.
+-	// gc uses fewer than 1024 bits, so allow it to print the overflow error for the -1 case.
+ 	float64(max64 + ulp64/2 - two1024/two256), // ok
+-	float64(max64 + ulp64/2 - 1),              // GC_ERROR "constant 1\.79769e\+308 overflows float64"
++	float64(max64 + ulp64/2 - 1),              // ok
+ 	float64(max64 + ulp64/2),                  // ERROR "constant 1\.79769e\+308 overflows float64"
+ 
+ 	float64(-max64 - ulp64/2 + two1024/two256), // ok
+-	float64(-max64 - ulp64/2 + 1),              // GC_ERROR "constant -1\.79769e\+308 overflows float64"
++	float64(-max64 - ulp64/2 + 1),              // ok
+ 	float64(-max64 - ulp64/2),                  // ERROR "constant -1\.79769e\+308 overflows float64"
+ }

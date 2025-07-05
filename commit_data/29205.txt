@@ -14,6 +14,29 @@ Date:   Thu Aug 25 16:39:07 2016 +0300
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 5d6a9d8c5a..e9d84650f2 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -857,6 +857,8 @@ var yvex_ri3 = []ytab{
+ var yvex_xyi3 = []ytab{
+ 	{Yu8, Yxm, Yxr, Zvex_i_rm_r, 2},
+ 	{Yu8, Yym, Yyr, Zvex_i_rm_r, 2},
++	{Yi8, Yxm, Yxr, Zvex_i_rm_r, 2},
++	{Yi8, Yym, Yyr, Zvex_i_rm_r, 2},
+ }
+ 
+ var yvex_yyi4 = []ytab{ //TODO don't hide 4 op, some version have xmm version
+@@ -1712,7 +1714,7 @@ var optab =
+ 	{AVPBROADCASTB, yvex_vpbroadcast, Pvex, [23]uint8{VEX_128_66_0F38_W0, 0x78, VEX_256_66_0F38_W0, 0x78}},
+ 	{AVPTEST, yvex_xy2, Pvex, [23]uint8{VEX_128_66_0F38_WIG, 0x17, VEX_256_66_0F38_WIG, 0x17}},
+ 	{AVPSHUFB, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F38_WIG, 0x00, VEX_256_66_0F38_WIG, 0x00}},
+-	{AVPSHUFD, yvex_xyi3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x70, VEX_256_66_0F_WIG, 0x70}},
++	{AVPSHUFD, yvex_xyi3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x70, VEX_256_66_0F_WIG, 0x70, VEX_128_66_0F_WIG, 0x70, VEX_256_66_0F_WIG, 0x70}},
+ 	{AVPOR, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xeb, VEX_256_66_0F_WIG, 0xeb}},
+ 	{AVPADDQ, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xd4, VEX_256_66_0F_WIG, 0xd4}},
+ 	{AVPADDD, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xfe, VEX_256_66_0F_WIG, 0xfe}},

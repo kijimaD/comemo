@@ -14,9 +14,111 @@ Date:   Mon Nov 21 10:37:37 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 16 ++++++++--------
  src/go/types/issues_test.go                    | 17 +++++++++--------
  src/go/types/object.go                         |  7 -------
  src/go/types/typestring.go                     |  2 +-
  4 files changed, 18 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 4d0dcfd672..52784207d7 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -806,18 +806,18 @@ func (S) M5(struct {S;t}) {}
+ .*want M5[(]struct{b[.]S; t}[)]`},
+ 	}
+ 
+-	test := func(main, imported, want string) {
++	test := func(main, b, want string) {
+ 		re := regexp.MustCompile(want)
+-		a := mustTypecheck("b", imported, nil)
+-		bast := mustParse("", main)
+-		conf := Config{Importer: importHelper{pkg: a}}
+-		_, err := conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
++		bpkg := mustTypecheck("b", b, nil)
++		mast := mustParse("main.go", main)
++		conf := Config{Importer: importHelper{pkg: bpkg}}
++		_, err := conf.Check(mast.PkgName.Value, []*syntax.File{mast}, nil)
+ 		if err == nil {
+-			t.Errorf("Expected failure, but it did not")
++			t.Error("Expected failure, but it did not")
+ 		} else if got := err.Error(); !re.MatchString(got) {
+-			t.Errorf("Wanted match for\n%s\n but got \n%s", want, got)
++			t.Errorf("Wanted match for\n\t%s\n but got\n\t%s", want, got)
+ 		} else if testing.Verbose() {
+-			t.Logf("Saw expected\n%s", err.Error())
++			t.Logf("Saw expected\n\t%s", err.Error())
+ 		}
+ 	}
+ 	for _, t := range tests {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index debe3216d4..b4845b1def 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -833,18 +833,19 @@ func (S) M5(struct {S;t}) {}
+ .*want M5[(]struct{b[.]S; t}[)]`},
+ 	}
+ 
+-	test := func(main, imported, want string) {
++	fset := token.NewFileSet()
++	test := func(main, b, want string) {
+ 		re := regexp.MustCompile(want)
+-		a := mustTypecheck("b", imported, nil)
+-		bast := mustParse(fset, "", main)
+-		conf := Config{Importer: importHelper{pkg: a}}
+-		_, err := conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
++		bpkg := mustTypecheck("b", b, nil)
++		mast := mustParse(fset, "main.go", main)
++		conf := Config{Importer: importHelper{pkg: bpkg}}
++		_, err := conf.Check(mast.Name.Name, fset, []*ast.File{mast}, nil)
+ 		if err == nil {
+-			t.Errorf("Expected failure, but it did not")
++			t.Error("Expected failure, but it did not")
+ 		} else if got := err.Error(); !re.MatchString(got) {
+-			t.Errorf("Wanted match for\n%s\n but got \n%s", want, got)
++			t.Errorf("Wanted match for\n\t%s\n but got\n\t%s", want, got)
+ 		} else if testing.Verbose() {
+-			t.Logf("Saw expected\n%s", err.Error())
++			t.Logf("Saw expected\n\t%s", err.Error())
+ 		}
+ 	}
+ 	for _, t := range tests {
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index f5f4859999..6e63948680 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -9,8 +9,6 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
+-	"unicode"
+-	"unicode/utf8"
+ )
+ 
+ // An Object describes a named language entity such as a package,
+@@ -59,11 +57,6 @@ type Object interface {
+ 	setScopePos(pos token.Pos)
+ }
+ 
+-func isExported(name string) bool {
+-	ch, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(ch)
+-}
+-
+ // Id returns name if it is exported, otherwise it
+ // returns the name qualified with the package path.
+ func Id(pkg *Package, name string) string {
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 33251d779c..cfeb7eb404 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -153,7 +153,7 @@ func (w *typeWriter) typ(typ Type) {
+ 			// If disambiguating one struct for another, look for the first unexported field.
+ 			// Do this first in case of nested structs; tag the first-outermost field.
+ 			pkgAnnotate := false
+-			if w.qf == nil && w.pkgInfo && !isExported(f.name) {
++			if w.qf == nil && w.pkgInfo && !token.IsExported(f.name) {
+ 				// note for embedded types, type name is field name, and "string" etc are lower case hence unexported.
+ 				pkgAnnotate = true
+ 				w.pkgInfo = false // only tag once

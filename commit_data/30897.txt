@@ -9,6 +9,44 @@ Date:   Thu Dec 15 17:22:30 2016 +0100
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/cgo/test/issue9400/asm_mipsx.s | 31 +++++++++++++++++++++++++++++++
  1 file changed, 31 insertions(+)
+
+diff --git a/misc/cgo/test/issue9400/asm_mipsx.s b/misc/cgo/test/issue9400/asm_mipsx.s
+new file mode 100644
+index 0000000000..ddf33e9f8e
+--- /dev/null
++++ b/misc/cgo/test/issue9400/asm_mipsx.s
+@@ -0,0 +1,31 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips mipsle
++// +build !gccgo
++
++#include "textflag.h"
++
++TEXT ·RewindAndSetgid(SB),NOSPLIT,$-4-0
++	// Rewind stack pointer so anything that happens on the stack
++	// will clobber the test pattern created by the caller
++	ADDU	$(1024*8), R29
++
++	// Ask signaller to setgid
++	MOVW	$1, R1
++	SYNC
++	MOVW	R1, ·Baton(SB)
++	SYNC
++
++	// Wait for setgid completion
++loop:
++	SYNC
++	MOVW	·Baton(SB), R1
++	OR	R2, R2, R2	// hint that we're in a spin loop
++	BNE	R1, loop
++	SYNC
++
++	// Restore stack
++	ADDU	$(-1024*8), R29
++	RET

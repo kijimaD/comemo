@@ -7,7 +7,65 @@ Date:   Thu Oct 16 15:28:36 2008 -0700
     R=r
     OCL=17319
     CL=17319
-
+---
  usr/gri/pretty/Makefile.iant | 29 +++++++++++++----------------
  usr/gri/pretty/scanner.go    |  2 +-
  2 files changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile.iant b/usr/gri/pretty/Makefile.iant
+index 0fdc0e6976..603261a11d 100644
+--- a/usr/gri/pretty/Makefile.iant
++++ b/usr/gri/pretty/Makefile.iant
+@@ -8,6 +8,19 @@ GO = /home/iant/go/bin/gccgo
+ 
+ LDFLAGS = -Wl,-R,/home/iant/go/lib
+ 
++PRETTY_OBJS = \
++	node.o \
++	pretty.o \
++	parser.o \
++	platform.o \
++	printer.o \
++	scanner.o \
++	utils.o \
++	flag.o \
++	fmt.o \
++
++pretty: $(PRETTY_OBJS)
++	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
+ 
+ test: pretty
+ 	pretty -s *.go
+@@ -47,19 +60,3 @@ fmt.o:
+ 
+ .go.o:
+ 	$(GO) -O2 -c -g $<
+-
+-
+-PRETTY_OBJS = \
+-	node.o \
+-	pretty.o \
+-	parser.o \
+-	platform.o \
+-	printer.o \
+-	scanner.o \
+-	utils.o \
+-	flag.o \
+-	fmt.o \
+-
+-pretty: $(PRETTY_OBJS)
+-	$(GO) $(LDFLAGS) -o $@ $(PRETTY_OBJS)
+-
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 9212927207..01b3cd2045 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -201,7 +201,7 @@ export func TokenString(tok int) string {
+ 	case VAR: return "var";
+ 	}
+ 	
+-	panic("UNREACHABLE");
++	return "token(" + Utils.IntToString(tok, 10) + ")";
+ }
+ 
+ 

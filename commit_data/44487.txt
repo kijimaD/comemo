@@ -15,10 +15,140 @@ Date:   Wed Jul 15 20:01:32 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go |  3 +--
  src/cmd/compile/internal/gc/sinit.go | 28 +++++++++++++++++-----------
  src/cmd/compile/internal/gc/walk.go  |  3 +--
  src/cmd/internal/obj/objfile2.go     |  4 ++--
  src/cmd/internal/obj/sym.go          |  2 +-
  5 files changed, 22 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 6b6107290a..50d1a2a1b0 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -206,8 +206,7 @@ func (o *Order) addrTemp(n *Node) *Node {
+ 		// TODO: expand this to all static composite literal nodes?
+ 		n = defaultlit(n, nil)
+ 		dowidth(n.Type)
+-		vstat := staticname(n.Type)
+-		vstat.MarkReadonly()
++		vstat := readonlystaticname(n.Type)
+ 		var s InitSchedule
+ 		s.staticassign(vstat, n)
+ 		if s.out != nil {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 83274bf6a3..4a2edc7d21 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -356,14 +356,22 @@ func (c initContext) String() string {
+ 
+ var statuniqgen int // name generator for static temps
+ 
+-// staticname returns a name backed by a static data symbol.
+-// Callers should call n.MarkReadonly on the
+-// returned node for readonly nodes.
++// staticname returns a name backed by a (writable) static data symbol.
++// Use readonlystaticname for read-only node.
+ func staticname(t *types.Type) *Node {
+ 	// Don't use lookupN; it interns the resulting string, but these are all unique.
+ 	n := newname(lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
+ 	statuniqgen++
+ 	addvar(n, t, PEXTERN)
++	n.Sym.Linksym().Set(obj.AttrLocal, true)
++	return n
++}
++
++// readonlystaticname returns a name backed by a (writable) static data symbol.
++func readonlystaticname(t *types.Type) *Node {
++	n := staticname(t)
++	n.MarkReadonly()
++	n.Sym.Linksym().Set(obj.AttrContentAddressable, true)
+ 	return n
+ }
+ 
+@@ -627,9 +635,10 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 
+ 	mode := getdyn(n, true)
+ 	if mode&initConst != 0 && !isSmallSliceLit(n) {
+-		vstat = staticname(t)
+ 		if ctxt == inInitFunction {
+-			vstat.MarkReadonly()
++			vstat = readonlystaticname(t)
++		} else {
++			vstat = staticname(t)
+ 		}
+ 		fixedlit(ctxt, initKindStatic, n, vstat, init)
+ 	}
+@@ -773,10 +782,8 @@ func maplit(n *Node, m *Node, init *Nodes) {
+ 		dowidth(te)
+ 
+ 		// make and initialize static arrays
+-		vstatk := staticname(tk)
+-		vstatk.MarkReadonly()
+-		vstate := staticname(te)
+-		vstate.MarkReadonly()
++		vstatk := readonlystaticname(tk)
++		vstate := readonlystaticname(te)
+ 
+ 		datak := nod(OARRAYLIT, nil, nil)
+ 		datae := nod(OARRAYLIT, nil, nil)
+@@ -897,8 +904,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
+ 
+ 		if var_.isSimpleName() && n.List.Len() > 4 {
+ 			// lay out static data
+-			vstat := staticname(t)
+-			vstat.MarkReadonly()
++			vstat := readonlystaticname(t)
+ 
+ 			ctxt := inInitFunction
+ 			if n.Op == OARRAYLIT {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 19c185d735..8ae3d9a5c7 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1556,8 +1556,7 @@ opswitch:
+ 		if isStaticCompositeLiteral(n) && !canSSAType(n.Type) {
+ 			// n can be directly represented in the read-only data section.
+ 			// Make direct reference to the static data. See issue 12841.
+-			vstat := staticname(n.Type)
+-			vstat.MarkReadonly()
++			vstat := readonlystaticname(n.Type)
+ 			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
+ 			n = vstat
+ 			n = typecheck(n, ctxExpr)
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 858899f3a9..6ac23bc418 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -333,7 +333,7 @@ func (w *writer) Sym(s *LSym) {
+ }
+ 
+ func (w *writer) Hash64(s *LSym) {
+-	if !s.ContentAddressable() {
++	if !s.ContentAddressable() || len(s.R) != 0 {
+ 		panic("Hash of non-content-addresable symbol")
+ 	}
+ 	var b goobj2.Hash64Type
+@@ -342,7 +342,7 @@ func (w *writer) Hash64(s *LSym) {
+ }
+ 
+ func (w *writer) Hash(s *LSym) {
+-	if !s.ContentAddressable() {
++	if !s.ContentAddressable() || len(s.R) != 0 { // TODO: currently we don't support content-addressable symbols with relocations
+ 		panic("Hash of non-content-addresable symbol")
+ 	}
+ 	b := goobj2.HashType(sha1.Sum(s.P))
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 4f84fc7d98..6285486c66 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -202,7 +202,7 @@ func (ctxt *Link) NumberSyms() {
+ 
+ 	var idx, hashedidx, hashed64idx, nonpkgidx int32
+ 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
+-		if s.ContentAddressable() {
++		if s.ContentAddressable() && len(s.R) == 0 { // TODO: currently we don't support content-addressable symbols with relocations
+ 			if len(s.P) <= 8 {
+ 				s.PkgIdx = goobj2.PkgIdxHashed64
+ 				s.SymIdx = hashed64idx

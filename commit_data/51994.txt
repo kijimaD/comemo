@@ -18,7 +18,7 @@ Date:   Tue Mar 29 17:30:58 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/396634
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/noder/noder.go            |   2 +-
  src/cmd/compile/internal/syntax/dumper_test.go     |   2 +-
  src/cmd/compile/internal/syntax/error_test.go      |   6 +-
@@ -39,3 +39,794 @@ Date:   Tue Mar 29 17:30:58 2022 -0700
  src/cmd/compile/internal/types2/typeset_test.go    |   2 +-
  src/go/types/testdata/check/typeparams.go          |  25 ---
  19 files changed, 109 insertions(+), 307 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index f8f802936b..77ca642183 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -27,7 +27,7 @@ import (
+ func LoadPackage(filenames []string) {
+ 	base.Timer.Start("fe", "parse")
+ 
+-	mode := syntax.CheckBranches | syntax.AllowGenerics
++	mode := syntax.CheckBranches
+ 
+ 	// Limit the number of simultaneously open files.
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+diff --git a/src/cmd/compile/internal/syntax/dumper_test.go b/src/cmd/compile/internal/syntax/dumper_test.go
+index 033283a352..1ba85cc8d9 100644
+--- a/src/cmd/compile/internal/syntax/dumper_test.go
++++ b/src/cmd/compile/internal/syntax/dumper_test.go
+@@ -13,7 +13,7 @@ func TestDump(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, CheckBranches|AllowGenerics)
++	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, CheckBranches)
+ 
+ 	if ast != nil {
+ 		Fdump(testOut(), ast)
+diff --git a/src/cmd/compile/internal/syntax/error_test.go b/src/cmd/compile/internal/syntax/error_test.go
+index 0900bec6ec..724ca0eb98 100644
+--- a/src/cmd/compile/internal/syntax/error_test.go
++++ b/src/cmd/compile/internal/syntax/error_test.go
+@@ -128,10 +128,6 @@ func testSyntaxErrors(t *testing.T, filename string) {
+ 	}
+ 	defer f.Close()
+ 
+-	var mode Mode
+-	if !strings.HasSuffix(filename, ".go117") {
+-		mode = AllowGenerics
+-	}
+ 	ParseFile(filename, func(err error) {
+ 		e, ok := err.(Error)
+ 		if !ok {
+@@ -166,7 +162,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
+ 		} else {
+ 			t.Errorf("%s:%s: unexpected error: %s", filename, orig, e.Msg)
+ 		}
+-	}, nil, mode)
++	}, nil, 0)
+ 
+ 	if *print {
+ 		fmt.Println()
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index a75a3b1a2e..2c53a40b2f 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -87,8 +87,6 @@ func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh Pragm
+ 	p.indent = nil
+ }
+ 
+-func (p *parser) allowGenerics() bool { return p.mode&AllowGenerics != 0 }
+-
+ // takePragma returns the current parsed pragmas
+ // and clears them from the parser state.
+ func (p *parser) takePragma() Pragma {
+@@ -586,7 +584,7 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 	d.Pragma = p.takePragma()
+ 
+ 	d.Name = p.name()
+-	if p.allowGenerics() && p.tok == _Lbrack {
++	if p.tok == _Lbrack {
+ 		// d.Name "[" ...
+ 		// array/slice type or type parameter list
+ 		pos := p.pos()
+@@ -762,7 +760,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
+ 	f.Name = p.name()
+ 
+ 	context := ""
+-	if f.Recv != nil && p.mode&AllowMethodTypeParams == 0 {
++	if f.Recv != nil {
+ 		context = "method" // don't permit (method) type parameters in funcType
+ 	}
+ 	f.TParamList, f.Type = p.funcType(context)
+@@ -1098,45 +1096,25 @@ loop:
+ 
+ 			var i Expr
+ 			if p.tok != _Colon {
+-				if p.mode&AllowGenerics == 0 {
+-					p.xnest++
+-					i = p.expr()
+-					p.xnest--
+-					if p.got(_Rbrack) {
+-						// x[i]
+-						t := new(IndexExpr)
+-						t.pos = pos
+-						t.X = x
+-						t.Index = i
+-						x = t
+-						break
+-					}
+-				} else {
+-					var comma bool
+-					i, comma = p.typeList()
+-					if comma || p.tok == _Rbrack {
+-						p.want(_Rbrack)
+-						// x[i,] or x[i, j, ...]
+-						t := new(IndexExpr)
+-						t.pos = pos
+-						t.X = x
+-						t.Index = i
+-						x = t
+-						break
+-					}
++				var comma bool
++				i, comma = p.typeList()
++				if comma || p.tok == _Rbrack {
++					p.want(_Rbrack)
++					// x[i,] or x[i, j, ...]
++					t := new(IndexExpr)
++					t.pos = pos
++					t.X = x
++					t.Index = i
++					x = t
++					break
+ 				}
+ 			}
+ 
+ 			// x[i:...
+ 			// For better error message, don't simply use p.want(_Colon) here (issue #47704).
+ 			if !p.got(_Colon) {
+-				if p.mode&AllowGenerics == 0 {
+-					p.syntaxError("expecting : or ]")
+-					p.advance(_Colon, _Rbrack)
+-				} else {
+-					p.syntaxError("expecting comma, : or ]")
+-					p.advance(_Comma, _Colon, _Rbrack)
+-				}
++				p.syntaxError("expecting comma, : or ]")
++				p.advance(_Comma, _Colon, _Rbrack)
+ 			}
+ 			p.xnest++
+ 			t := new(SliceExpr)
+@@ -1418,7 +1396,7 @@ func (p *parser) funcType(context string) ([]*Field, *FuncType) {
+ 	typ.pos = p.pos()
+ 
+ 	var tparamList []*Field
+-	if p.allowGenerics() && p.got(_Lbrack) {
++	if p.got(_Lbrack) {
+ 		if context != "" {
+ 			// accept but complain
+ 			p.syntaxErrorAt(typ.pos, context+" must have no type parameters")
+@@ -1509,7 +1487,6 @@ func (p *parser) structType() *StructType {
+ 
+ // InterfaceType = "interface" "{" { ( MethodDecl | EmbeddedElem | TypeList ) ";" } "}" .
+ // TypeList      = "type" Type { "," Type } .
+-// TODO(gri) remove TypeList syntax if we accept #45346
+ func (p *parser) interfaceType() *InterfaceType {
+ 	if trace {
+ 		defer p.trace("interfaceType")()
+@@ -1524,14 +1501,13 @@ func (p *parser) interfaceType() *InterfaceType {
+ 		switch p.tok {
+ 		case _Name:
+ 			f := p.methodDecl()
+-			if f.Name == nil && p.allowGenerics() {
++			if f.Name == nil {
+ 				f = p.embeddedElem(f)
+ 			}
+ 			typ.MethodList = append(typ.MethodList, f)
+ 			return false
+ 
+ 		case _Lparen:
+-			// TODO(gri) Need to decide how to adjust this restriction.
+ 			p.syntaxError("cannot parenthesize embedded type")
+ 			f := new(Field)
+ 			f.pos = p.pos()
+@@ -1542,31 +1518,23 @@ func (p *parser) interfaceType() *InterfaceType {
+ 			return false
+ 
+ 		case _Operator:
+-			if p.op == Tilde && p.allowGenerics() {
++			if p.op == Tilde {
+ 				typ.MethodList = append(typ.MethodList, p.embeddedElem(nil))
+ 				return false
+ 			}
+ 
+ 		default:
+-			if p.allowGenerics() {
+-				pos := p.pos()
+-				if t := p.typeOrNil(); t != nil {
+-					f := new(Field)
+-					f.pos = pos
+-					f.Type = t
+-					typ.MethodList = append(typ.MethodList, p.embeddedElem(f))
+-					return false
+-				}
++			pos := p.pos()
++			if t := p.typeOrNil(); t != nil {
++				f := new(Field)
++				f.pos = pos
++				f.Type = t
++				typ.MethodList = append(typ.MethodList, p.embeddedElem(f))
++				return false
+ 			}
+ 		}
+ 
+-		if p.allowGenerics() {
+-			p.syntaxError("expecting method or embedded element")
+-			p.advance(_Semi, _Rbrace)
+-			return false
+-		}
+-
+-		p.syntaxError("expecting method or interface name")
++		p.syntaxError("expecting method or embedded element")
+ 		p.advance(_Semi, _Rbrace)
+ 		return false
+ 	})
+@@ -1640,7 +1608,7 @@ func (p *parser) fieldDecl(styp *StructType) {
+ 
+ 		// Careful dance: We don't know if we have an embedded instantiated
+ 		// type T[P1, P2, ...] or a field T of array/slice type [P]E or []E.
+-		if p.allowGenerics() && len(names) == 1 && p.tok == _Lbrack {
++		if len(names) == 1 && p.tok == _Lbrack {
+ 			typ = p.arrayOrTArgs()
+ 			if typ, ok := typ.(*IndexExpr); ok {
+ 				// embedded type T[P1, P2, ...]
+@@ -1780,79 +1748,72 @@ func (p *parser) methodDecl() *Field {
+ 		_, f.Type = p.funcType(context)
+ 
+ 	case _Lbrack:
+-		if p.allowGenerics() {
+-			// Careful dance: We don't know if we have a generic method m[T C](x T)
+-			// or an embedded instantiated type T[P1, P2] (we accept generic methods
+-			// for generality and robustness of parsing).
++		// Careful dance: We don't know if we have a generic method m[T C](x T)
++		// or an embedded instantiated type T[P1, P2] (we accept generic methods
++		// for generality and robustness of parsing but complain with an error).
++		pos := p.pos()
++		p.next()
++
++		// Empty type parameter or argument lists are not permitted.
++		// Treat as if [] were absent.
++		if p.tok == _Rbrack {
++			// name[]
+ 			pos := p.pos()
+ 			p.next()
+-
+-			// Empty type parameter or argument lists are not permitted.
+-			// Treat as if [] were absent.
+-			if p.tok == _Rbrack {
+-				// name[]
+-				pos := p.pos()
+-				p.next()
+-				if p.tok == _Lparen {
+-					// name[](
+-					p.errorAt(pos, "empty type parameter list")
+-					f.Name = name
+-					_, f.Type = p.funcType(context)
+-				} else {
+-					p.errorAt(pos, "empty type argument list")
+-					f.Type = name
+-				}
+-				break
+-			}
+-
+-			// A type argument list looks like a parameter list with only
+-			// types. Parse a parameter list and decide afterwards.
+-			list := p.paramList(nil, nil, _Rbrack, false)
+-			if len(list) == 0 {
+-				// The type parameter list is not [] but we got nothing
+-				// due to other errors (reported by paramList). Treat
+-				// as if [] were absent.
+-				if p.tok == _Lparen {
+-					f.Name = name
+-					_, f.Type = p.funcType(context)
+-				} else {
+-					f.Type = name
+-				}
+-				break
+-			}
+-
+-			// len(list) > 0
+-			if list[0].Name != nil {
+-				// generic method
++			if p.tok == _Lparen {
++				// name[](
++				p.errorAt(pos, "empty type parameter list")
+ 				f.Name = name
+ 				_, f.Type = p.funcType(context)
+-				// TODO(gri) Record list as type parameter list with f.Type
+-				//           if we want to type-check the generic method.
+-				//           For now, report an error so this is not a silent event.
+-				p.errorAt(pos, "interface method must have no type parameters")
+-				break
++			} else {
++				p.errorAt(pos, "empty type argument list")
++				f.Type = name
+ 			}
++			break
++		}
+ 
+-			// embedded instantiated type
+-			t := new(IndexExpr)
+-			t.pos = pos
+-			t.X = name
+-			if len(list) == 1 {
+-				t.Index = list[0].Type
++		// A type argument list looks like a parameter list with only
++		// types. Parse a parameter list and decide afterwards.
++		list := p.paramList(nil, nil, _Rbrack, false)
++		if len(list) == 0 {
++			// The type parameter list is not [] but we got nothing
++			// due to other errors (reported by paramList). Treat
++			// as if [] were absent.
++			if p.tok == _Lparen {
++				f.Name = name
++				_, f.Type = p.funcType(context)
+ 			} else {
+-				// len(list) > 1
+-				l := new(ListExpr)
+-				l.pos = list[0].Pos()
+-				l.ElemList = make([]Expr, len(list))
+-				for i := range list {
+-					l.ElemList[i] = list[i].Type
+-				}
+-				t.Index = l
++				f.Type = name
+ 			}
+-			f.Type = t
+ 			break
+ 		}
+-		fallthrough
++
++		// len(list) > 0
++		if list[0].Name != nil {
++			// generic method
++			f.Name = name
++			_, f.Type = p.funcType(context)
++			p.errorAt(pos, "interface method must have no type parameters")
++			break
++		}
++
++		// embedded instantiated type
++		t := new(IndexExpr)
++		t.pos = pos
++		t.X = name
++		if len(list) == 1 {
++			t.Index = list[0].Type
++		} else {
++			// len(list) > 1
++			l := new(ListExpr)
++			l.pos = list[0].Pos()
++			l.ElemList = make([]Expr, len(list))
++			for i := range list {
++				l.ElemList[i] = list[i].Type
++			}
++			t.Index = l
++		}
++		f.Type = t
+ 
+ 	default:
+ 		// embedded type
+@@ -1938,7 +1899,7 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
+ 			name = p.name()
+ 		}
+ 
+-		if p.allowGenerics() && p.tok == _Lbrack {
++		if p.tok == _Lbrack {
+ 			// name "[" ...
+ 			f.Type = p.arrayOrTArgs()
+ 			if typ, ok := f.Type.(*IndexExpr); ok {
+@@ -2787,7 +2748,7 @@ func (p *parser) qualifiedName(name *Name) Expr {
+ 		x = s
+ 	}
+ 
+-	if p.allowGenerics() && p.tok == _Lbrack {
++	if p.tok == _Lbrack {
+ 		x = p.typeInstance(x)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index ddddedc5ec..b3d4573935 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -27,11 +27,11 @@ var (
+ )
+ 
+ func TestParse(t *testing.T) {
+-	ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
++	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
+ }
+ 
+ func TestVerify(t *testing.T) {
+-	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
++	ast, err := ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
+ 	if err != nil {
+ 		return // error already reported
+ 	}
+@@ -80,7 +80,7 @@ func TestStdLib(t *testing.T) {
+ 				if debug {
+ 					fmt.Printf("parsing %s\n", filename)
+ 				}
+-				ast, err := ParseFile(filename, nil, nil, AllowGenerics)
++				ast, err := ParseFile(filename, nil, nil, 0)
+ 				if err != nil {
+ 					t.Error(err)
+ 					return
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index 941af0aeb4..3eca2316a7 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -18,7 +18,7 @@ func TestPrint(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, AllowGenerics)
++	ast, _ := ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
+ 
+ 	if ast != nil {
+ 		Fprint(testOut(), ast, LineForm)
+@@ -117,7 +117,7 @@ var stringTests = [][2]string{
+ 
+ func TestPrintString(t *testing.T) {
+ 	for _, test := range stringTests {
+-		ast, err := Parse(nil, strings.NewReader(test[0]), nil, nil, AllowGenerics)
++		ast, err := Parse(nil, strings.NewReader(test[0]), nil, nil, 0)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+@@ -237,7 +237,7 @@ var exprTests = [][2]string{
+ func TestShortString(t *testing.T) {
+ 	for _, test := range exprTests {
+ 		src := "package p; var _ = " + test[0]
+-		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics)
++		ast, err := Parse(nil, strings.NewReader(src), nil, nil, 0)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", test[0], err)
+ 			continue
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index 25c8116206..e51b5538b3 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -16,8 +16,6 @@ type Mode uint
+ // Modes supported by the parser.
+ const (
+ 	CheckBranches Mode = 1 << iota // check correct use of labels, break, continue, and goto statements
+-	AllowGenerics
+-	AllowMethodTypeParams // does not support interface methods yet; ignored if AllowGenerics is not set
+ )
+ 
+ // Error describes a syntax error. Error implements the error interface.
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue47704.go b/src/cmd/compile/internal/syntax/testdata/issue47704.go
+index 4e65857f3b..2f2e29b693 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue47704.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue47704.go
+@@ -4,7 +4,6 @@
+ 
+ package p
+ 
+-// error messages for parser in generic mode
+ func _() {
+ 	_ = m[] // ERROR expecting operand
+ 	_ = m[x,]
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue47704.go117 b/src/cmd/compile/internal/syntax/testdata/issue47704.go117
+deleted file mode 100644
+index 0156af7d8d..0000000000
+--- a/src/cmd/compile/internal/syntax/testdata/issue47704.go117
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package p
+-
+-// error messages for parser in non-generic mode
+-func _() {
+-	_ = m[]   // ERROR expecting operand
+-	_ = m[x,] // ERROR unexpected comma, expecting \: or \]
+-	_ = m[x /* ERROR unexpected a */ a b c d]
+-}
+-
+-// test case from the issue
+-func f(m map[int]int) int {
+-	return m[0 // ERROR expecting \: or \]
+-		]
+-}
+diff --git a/src/cmd/compile/internal/syntax/testdata/smoketest.go b/src/cmd/compile/internal/syntax/testdata/smoketest.go
+index 1eb04e3ff7..6b3593ac7a 100644
+--- a/src/cmd/compile/internal/syntax/testdata/smoketest.go
++++ b/src/cmd/compile/internal/syntax/testdata/smoketest.go
+@@ -38,18 +38,18 @@ var _ = T[int]{}
+ type _ struct{ T[int] }
+ 
+ // interfaces
+-type _ interface{
++type _ interface {
+ 	m()
+ 	~int
+ }
+ 
+-type _ interface{
++type _ interface {
+ 	~int | ~float | ~string
+ 	~complex128
+ 	underlying(underlying underlying) underlying
+ }
+ 
+-type _ interface{
++type _ interface {
+ 	T
+ 	T[int]
+ }
+@@ -58,20 +58,16 @@ type _ interface{
+ func _(T[P], T[P1, P2])
+ func _(a [N]T)
+ 
+-type _ struct{
++type _ struct {
+ 	T[P]
+ 	T[P1, P2]
+-	f [N]
++	f[N]
+ }
+-type _ interface{
++type _ interface {
+ 	m()
+ 
+-	// generic methods - disabled for now
+-	// m[] /* ERROR empty type parameter list */ ()
+-	// m[ /* ERROR cannot have type parameters */ P any](P)
+-
+ 	// instantiated types
+-	// T[] /* ERROR empty type argument list */ 
++	T[ /* ERROR empty type argument list */ ]
+ 	T[P]
+ 	T[P1, P2]
+ }
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index d8f7fb5eda..528beaacea 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -26,7 +26,7 @@ const brokenPkg = "package broken_"
+ 
+ func parseSrc(path, src string) (*syntax.File, error) {
+ 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
+-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics|syntax.AllowMethodTypeParams)
++	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
+ }
+ 
+ func pkgFor(path, source string, info *Info) (*Package, error) {
+@@ -436,36 +436,6 @@ type T[P any] []P
+ 		{`package p4; func f[A, B any](A, *B, ...[]B) {}; func _() { f(1.2, new(byte)) }`,
+ 			[]testInst{{`f`, []string{`float64`, `byte`}, `func(float64, *byte, ...[]byte)`}},
+ 		},
+-		// we don't know how to translate these but we can type-check them
+-		{`package q0; type T struct{}; func (T) m[P any](P) {}; func _(x T) { x.m(42) }`,
+-			[]testInst{{`m`, []string{`int`}, `func(int)`}},
+-		},
+-		{`package q1; type T struct{}; func (T) m[P any](P) P { panic(0) }; func _(x T) { x.m(42) }`,
+-			[]testInst{{`m`, []string{`int`}, `func(int) int`}},
+-		},
+-		{`package q2; type T struct{}; func (T) m[P any](...P) P { panic(0) }; func _(x T) { x.m(42) }`,
+-			[]testInst{{`m`, []string{`int`}, `func(...int) int`}},
+-		},
+-		{`package q3; type T struct{}; func (T) m[A, B, C any](A, *B, []C) {}; func _(x T) { x.m(1.2, new(string), []byte{}) }`,
+-			[]testInst{{`m`, []string{`float64`, `string`, `byte`}, `func(float64, *string, []byte)`}},
+-		},
+-		{`package q4; type T struct{}; func (T) m[A, B any](A, *B, ...[]B) {}; func _(x T) { x.m(1.2, new(byte)) }`,
+-			[]testInst{{`m`, []string{`float64`, `byte`}, `func(float64, *byte, ...[]byte)`}},
+-		},
+-
+-		{`package r0; type T[P1 any] struct{}; func (_ T[P2]) m[Q any](Q) {}; func _[P3 any](x T[P3]) { x.m(42) }`,
+-			[]testInst{
+-				{`T`, []string{`P2`}, `struct{}`},
+-				{`T`, []string{`P3`}, `struct{}`},
+-				{`m`, []string{`int`}, `func(int)`},
+-			},
+-		},
+-		// TODO(gri) record method type parameters in syntax.FuncType so we can check this
+-		// {`package r1; type T interface{ m[P any](P) }; func _(x T) { x.m(4.2) }`,
+-		// 	`x.m`,
+-		// 	[]string{`float64`},
+-		// 	`func(float64)`,
+-		// },
+ 
+ 		{`package s1; func f[T any, P interface{*T}](x T) {}; func _(x string) { f(x) }`,
+ 			[]testInst{{`f`, []string{`string`, `*string`}, `func(x string)`}},
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index e07a7794f6..ad8873a7d4 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -159,7 +159,7 @@ func TestBuiltinSignatures(t *testing.T) {
+ 
+ func parseGenericSrc(path, src string) (*syntax.File, error) {
+ 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
+-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, syntax.AllowGenerics)
++	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
+ }
+ 
+ func testBuiltinSignature(t *testing.T, name, src0, want string) {
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index cdf440f9be..ec242c5e22 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -135,7 +135,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	files, errlist := parseFiles(t, filenames, syntax.AllowGenerics|syntax.AllowMethodTypeParams)
++	files, errlist := parseFiles(t, filenames, 0)
+ 
+ 	pkgName := "<no package>"
+ 	if len(files) > 0 {
+diff --git a/src/cmd/compile/internal/types2/mono_test.go b/src/cmd/compile/internal/types2/mono_test.go
+index 19d0e95637..4511110691 100644
+--- a/src/cmd/compile/internal/types2/mono_test.go
++++ b/src/cmd/compile/internal/types2/mono_test.go
+@@ -16,7 +16,7 @@ import (
+ 
+ func checkMono(t *testing.T, body string) error {
+ 	src := "package x; import `unsafe`; var _ unsafe.Pointer;\n" + body
+-	file, err := syntax.Parse(syntax.NewFileBase("x.go"), strings.NewReader(src), nil, nil, syntax.AllowGenerics)
++	file, err := syntax.Parse(syntax.NewFileBase("x.go"), strings.NewReader(src), nil, nil, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index fda78e20d1..4e54056e74 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -220,7 +220,7 @@ func typecheck(t *testing.T, path string, filenames []string) {
+ 	var files []*syntax.File
+ 	for _, filename := range filenames {
+ 		errh := func(err error) { t.Error(err) }
+-		file, err := syntax.ParseFile(filename, errh, nil, syntax.AllowGenerics)
++		file, err := syntax.ParseFile(filename, errh, nil, 0)
+ 		if err != nil {
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/mtypeparams.go b/src/cmd/compile/internal/types2/testdata/check/mtypeparams.go
+deleted file mode 100644
+index 1b406593f8..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/check/mtypeparams.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// If types2.Config.AcceptMethodTypeParams is set,
+-// the type checker accepts methods that have their
+-// own type parameter list.
+-
+-package p
+-
+-type S struct{}
+-
+-func (S) m[T any](v T) {}
+-
+-// TODO(gri) Once we collect interface method type parameters
+-//           in the parser, we can enable these tests again.
+-/*
+-type I interface {
+-   m[T any](v T)
+-}
+-
+-type J interface {
+-   m[T any](v T)
+-}
+-
+-var _ I = S{}
+-var _ I = J(nil)
+-
+-type C interface{ n() }
+-
+-type Sc struct{}
+-
+-func (Sc) m[T C](v T)
+-
+-type Ic interface {
+-   m[T C](v T)
+-}
+-
+-type Jc interface {
+-   m[T C](v T)
+-}
+-
+-var _ Ic = Sc{}
+-var _ Ic = Jc(nil)
+-
+-// TODO(gri) These should fail because the constraints don't match.
+-var _ I = Sc{}
+-var _ I = Jc(nil)
+-
+-var _ Ic = S{}
+-var _ Ic = J(nil)
+-*/
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go b/src/cmd/compile/internal/types2/testdata/check/typeparams.go
+index 68b1f0f5c5..498d6f2d26 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go
+@@ -329,9 +329,8 @@ func init[P /* ERROR func init must have no type parameters */ any]() {}
+ type T struct {}
+ 
+ func (T) m1() {}
+-// The type checker accepts method type parameters if configured accordingly.
+-func (T) m2[_ any]() {}
+-func (T) m3[P any]() {}
++func (T) m2[ /* ERROR method must have no type parameters */ _ any]() {}
++func (T) m3[ /* ERROR method must have no type parameters */ P any]() {}
+ 
+ // type inference across parameterized types
+ 
+@@ -390,28 +389,6 @@ func _[T any] (x T) {
+         m(S1[T]{x})
+ }
+ 
+-// type parameters in methods (generalization)
+-
+-type R0 struct{}
+-
+-func (R0) _[T any](x T) {}
+-func (R0 /* ERROR invalid receiver */ ) _[R0 any]() {} // scope of type parameters starts at "func"
+-
+-type R1[A, B any] struct{}
+-
+-func (_ R1[A, B]) m0(A, B)
+-func (_ R1[A, B]) m1[T any](A, B, T) T { panic(0) }
+-func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
+-func (_ R1[A, B]) _[A /* ERROR redeclared */ any](B) {}
+-
+-func _() {
+-        var r R1[int, string]
+-        r.m1[rune](42, "foo", 'a')
+-        r.m1[rune](42, "foo", 1.2 /* ERROR cannot use .* as rune .* \(truncated\) */)
+-        r.m1(42, "foo", 1.2) // using type inference
+-        var _ float64 = r.m1(42, "foo", 1.2)
+-}
+-
+ type I1[A any] interface {
+         m1(A)
+ }
+diff --git a/src/cmd/compile/internal/types2/typeset_test.go b/src/cmd/compile/internal/types2/typeset_test.go
+index 68e5d8ad62..69eaff741f 100644
+--- a/src/cmd/compile/internal/types2/typeset_test.go
++++ b/src/cmd/compile/internal/types2/typeset_test.go
+@@ -47,7 +47,7 @@ func TestTypeSetString(t *testing.T) {
+ 		// parse
+ 		errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
+ 		src := "package p; type T interface" + body
+-		file, err := syntax.Parse(nil, strings.NewReader(src), errh, nil, syntax.AllowGenerics)
++		file, err := syntax.Parse(nil, strings.NewReader(src), errh, nil, 0)
+ 		if err != nil {
+ 			t.Fatalf("%s: %v (invalid test case)", body, err)
+ 		}
+diff --git a/src/go/types/testdata/check/typeparams.go b/src/go/types/testdata/check/typeparams.go
+index 29a3b16cd6..199828f55f 100644
+--- a/src/go/types/testdata/check/typeparams.go
++++ b/src/go/types/testdata/check/typeparams.go
+@@ -389,31 +389,6 @@ func _[T any] (x T) {
+         m(S1[T]{x})
+ }
+ 
+-// type parameters in methods (generalization)
+-
+-// Type Parameter lists are not allowed on methods, and are not produced by
+-// go/parser. The test cases below are preserved for consistency with types2,
+-// which produces an error but stores type parameters.
+-// type R0 struct{}
+-
+-// func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T) {}
+-// func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() {} // scope of type parameters starts at "func"
+-
+-// type R1[A, B any] struct{}
+-
+-// func (_ R1[A, B]) m0(A, B)
+-// func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T  { panic(0) }
+-// func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
+-// func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B) {}
+-
+-// func _() {
+-//         var r R1[int, string]
+-//         r.m1[rune](42, "foo", 'a')
+-//         r.m1[rune](42, "foo", 1.2 /* ERROR cannot use .* as rune .* \(truncated\) */)
+-//         r.m1(42, "foo", 1.2) // using type inference
+-//         var _ float64 = r.m1(42, "foo", 1.2)
+-// }
+-
+ type I1[A any] interface {
+         m1(A)
+ }

@@ -7,7 +7,43 @@ Date:   Fri Jun 4 17:30:39 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1548042
-
+---
  src/pkg/exp/draw/draw.go      |  2 +-
  src/pkg/exp/draw/draw_test.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/draw/draw.go b/src/pkg/exp/draw/draw.go
+index 7d9b43ade8..6c50faa84c 100644
+--- a/src/pkg/exp/draw/draw.go
++++ b/src/pkg/exp/draw/draw.go
+@@ -182,7 +182,7 @@ func drawCopyOver(dst *image.RGBA, r Rectangle, src *image.RGBA, sp Point) {
+ 	y0, y1 := r.Min.Y, r.Max.Y
+ 	for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
+ 		dpix := dst.Pixel[y]
+-		spix := src.Pixel[y]
++		spix := src.Pixel[sy]
+ 		for x, sx := x0, sp.X; x != x1; x, sx = x+1, sx+1 {
+ 			// For unknown reasons, even though both dpix[x] and spix[sx] are
+ 			// image.RGBAColors, on an x86 CPU it seems fastest to call RGBA
+diff --git a/src/pkg/exp/draw/draw_test.go b/src/pkg/exp/draw/draw_test.go
+index 5303f2b3d8..e9fde25357 100644
+--- a/src/pkg/exp/draw/draw_test.go
++++ b/src/pkg/exp/draw/draw_test.go
+@@ -149,3 +149,17 @@ loop:
+ 		}
+ 	}
+ }
++
++// TestIssue836 verifies http://code.google.com/p/go/issues/detail?id=836.
++func TestIssue836(t *testing.T) {
++	a := image.NewRGBA(1, 1)
++	b := image.NewRGBA(2, 2)
++	b.Set(0, 0, image.RGBAColor{0, 0, 0, 5})
++	b.Set(1, 0, image.RGBAColor{0, 0, 5, 5})
++	b.Set(0, 1, image.RGBAColor{0, 5, 0, 5})
++	b.Set(1, 1, image.RGBAColor{5, 0, 0, 5})
++	Draw(a, Rect(0, 0, 1, 1), b, Pt(1, 1))
++	if !eq(image.RGBAColor{5, 0, 0, 5}, a.At(0, 0)) {
++		t.Errorf("Issue 836: want %v got %v", image.RGBAColor{5, 0, 0, 5}, a.At(0, 0))
++	}
++}

@@ -7,7 +7,32 @@ Date:   Mon Jan 25 18:50:46 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/194064
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 1e20fe88c2..704a09bda2 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -49,6 +49,7 @@ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
++Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
+ Tor Andersson <tor.andersson@gmail.com>
+ William Josephson <wjosephson@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9702ef73b7..f3b419066a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -92,6 +92,7 @@ Scott Schwartz <scotts@golang.org>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ Stephen Ma <stephenm@golang.org>
++Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
+ Tom Szymanski <tgs@google.com>
+ Tor Andersson <tor.andersson@gmail.com>

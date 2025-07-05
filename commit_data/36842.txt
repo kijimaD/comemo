@@ -12,6 +12,37 @@ Date:   Thu May 31 12:30:19 2018 -0700
     Change-Id: Iba7003f55fb0a37aafcbeee59a30492c0f68aa4e
     Reviewed-on: https://go-review.googlesource.com/115615
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/hex/hex.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index 4cb26b6673..aee5aecb1a 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -50,8 +50,8 @@ func DecodedLen(x int) int { return x / 2 }
+ // Decode decodes src into DecodedLen(len(src)) bytes,
+ // returning the actual number of bytes written to dst.
+ //
+-// Decode expects that src contain only hexadecimal
+-// characters and that src should have an even length.
++// Decode expects that src contains only hexadecimal
++// characters and that src has even length.
+ // If the input is malformed, Decode returns the number
+ // of bytes decoded before the error.
+ func Decode(dst, src []byte) (int, error) {
+@@ -101,10 +101,10 @@ func EncodeToString(src []byte) string {
+ 
+ // DecodeString returns the bytes represented by the hexadecimal string s.
+ //
+-// DecodeString expects that src contain only hexadecimal
+-// characters and that src should have an even length.
+-// If the input is malformed, DecodeString returns a string
+-// containing the bytes decoded before the error.
++// DecodeString expects that src contains only hexadecimal
++// characters and that src has even length.
++// If the input is malformed, DecodeString returns
++// the bytes decoded before the error.
+ func DecodeString(s string) ([]byte, error) {
+ 	src := []byte(s)
+ 	// We can use the source slice itself as the destination

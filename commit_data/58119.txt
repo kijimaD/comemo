@@ -12,6 +12,29 @@ Date:   Tue Oct 3 14:22:16 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/regexp/syntax/parse.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 6b360b8700..6a11b53fb1 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -382,14 +382,12 @@ func minFoldRune(r rune) rune {
+ 	if r < minFold || r > maxFold {
+ 		return r
+ 	}
+-	min := r
++	m := r
+ 	r0 := r
+ 	for r = unicode.SimpleFold(r); r != r0; r = unicode.SimpleFold(r) {
+-		if min > r {
+-			min = r
+-		}
++		m = min(m, r)
+ 	}
+-	return min
++	return m
+ }
+ 
+ // op pushes a regexp with the given op onto the stack

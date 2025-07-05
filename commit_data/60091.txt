@@ -16,6 +16,23 @@ Date:   Tue May 14 15:03:30 2024 +0000
     TryBot-Bypass: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/build_plugin_reproducible.txt | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_plugin_reproducible.txt b/src/cmd/go/testdata/script/build_plugin_reproducible.txt
+index 9336bc21a8..3379a6be5f 100644
+--- a/src/cmd/go/testdata/script/build_plugin_reproducible.txt
++++ b/src/cmd/go/testdata/script/build_plugin_reproducible.txt
+@@ -2,11 +2,6 @@
+ [short] skip
+ [!cgo] skip '-buildmode=plugin requires external linking'
+ 
+-# This test has problems when run on darwin, when using a more
+-# contemporary Xcode version that is unfriendly to reproducible builds
+-# (see issue #64947 for the gory details).
+-[GOOS:darwin] skip
+-
+ go build -trimpath -buildvcs=false -buildmode=plugin -o a.so main.go
+ go build -trimpath -buildvcs=false -buildmode=plugin -o b.so main.go
+ cmp -q a.so b.so

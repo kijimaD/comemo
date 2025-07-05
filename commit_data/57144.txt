@@ -29,8 +29,65 @@ Date:   Wed Jun 21 15:27:20 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/dist/buildtool.go        |  5 +++++
  src/internal/abi/funcpc.go       |  2 ++
  src/internal/abi/funcpc_gccgo.go | 21 +++++++++++++++++++++
  3 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index e638d51af7..a528d7aa76 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -70,6 +70,11 @@ var bootstrapDirs = []string{
+ 	"internal/goexperiment",
+ 	"internal/goroot",
+ 	"internal/goversion",
++	// internal/lazyregexp is provided by Go 1.17, which permits it to
++	// be imported by other packages in this list, but is not provided
++	// by the Go 1.17 version of gccgo. It's on this list only to
++	// support gccgo, and can be removed if we require gccgo 14 or later.
++	"internal/lazyregexp",
+ 	"internal/pkgbits",
+ 	"internal/platform",
+ 	"internal/profile",
+diff --git a/src/internal/abi/funcpc.go b/src/internal/abi/funcpc.go
+index 4db848ee15..e038d36584 100644
+--- a/src/internal/abi/funcpc.go
++++ b/src/internal/abi/funcpc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !gccgo
++
+ package abi
+ 
+ // FuncPC* intrinsics.
+diff --git a/src/internal/abi/funcpc_gccgo.go b/src/internal/abi/funcpc_gccgo.go
+new file mode 100644
+index 0000000000..ad5fa52c54
+--- /dev/null
++++ b/src/internal/abi/funcpc_gccgo.go
+@@ -0,0 +1,21 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// For bootstrapping with gccgo.
++
++//go:build gccgo
++
++package abi
++
++import "unsafe"
++
++func FuncPCABI0(f interface{}) uintptr {
++	words := (*[2]unsafe.Pointer)(unsafe.Pointer(&f))
++	return *(*uintptr)(unsafe.Pointer(words[1]))
++}
++
++func FuncPCABIInternal(f interface{}) uintptr {
++	words := (*[2]unsafe.Pointer)(unsafe.Pointer(&f))
++	return *(*uintptr)(unsafe.Pointer(words[1]))
++}

@@ -15,7 +15,7 @@ Date:   Thu Feb 4 12:59:06 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm_386.s     | 19 -------------------
  src/runtime/asm_amd64.s   | 20 --------------------
  src/runtime/asm_arm.s     | 17 -----------------
@@ -27,3 +27,265 @@ Date:   Thu Feb 4 12:59:06 2021 -0500
  src/runtime/asm_s390x.s   | 15 ---------------
  src/runtime/stubs.go      |  1 -
  10 files changed, 151 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index fa3b1be339..429f3fef82 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -273,25 +273,6 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+  *  go-routine
+  */
+ 
+-// void gosave(Gobuf*)
+-// save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB), NOSPLIT, $0-4
+-	MOVL	buf+0(FP), AX		// gobuf
+-	LEAL	buf+0(FP), BX		// caller's SP
+-	MOVL	BX, gobuf_sp(AX)
+-	MOVL	0(SP), BX		// caller's PC
+-	MOVL	BX, gobuf_pc(AX)
+-	MOVL	$0, gobuf_ret(AX)
+-	// Assert ctxt is zero. See func save.
+-	MOVL	gobuf_ctxt(AX), BX
+-	TESTL	BX, BX
+-	JZ	2(PC)
+-	CALL	runtime·badctxt(SB)
+-	get_tls(CX)
+-	MOVL	g(CX), BX
+-	MOVL	BX, gobuf_g(AX)
+-	RET
+-
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $8-4
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index aece84bde8..a9456dc9ff 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -254,26 +254,6 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+  *  go-routine
+  */
+ 
+-// func gosave(buf *gobuf)
+-// save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB), NOSPLIT, $0-8
+-	MOVQ	buf+0(FP), AX		// gobuf
+-	LEAQ	buf+0(FP), BX		// caller's SP
+-	MOVQ	BX, gobuf_sp(AX)
+-	MOVQ	0(SP), BX		// caller's PC
+-	MOVQ	BX, gobuf_pc(AX)
+-	MOVQ	$0, gobuf_ret(AX)
+-	MOVQ	BP, gobuf_bp(AX)
+-	// Assert ctxt is zero. See func save.
+-	MOVQ	gobuf_ctxt(AX), BX
+-	TESTQ	BX, BX
+-	JZ	2(PC)
+-	CALL	runtime·badctxt(SB)
+-	get_tls(CX)
+-	MOVQ	g(CX), BX
+-	MOVQ	BX, gobuf_g(AX)
+-	RET
+-
+ // func gogo(buf *gobuf)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index c54b4eb006..8eec84d3f2 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -206,23 +206,6 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+  *  go-routine
+  */
+ 
+-// void gosave(Gobuf*)
+-// save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	buf+0(FP), R0
+-	MOVW	R13, gobuf_sp(R0)
+-	MOVW	LR, gobuf_pc(R0)
+-	MOVW	g, gobuf_g(R0)
+-	MOVW	$0, R11
+-	MOVW	R11, gobuf_lr(R0)
+-	MOVW	R11, gobuf_ret(R0)
+-	// Assert ctxt is zero. See func save.
+-	MOVW	gobuf_ctxt(R0), R0
+-	CMP	R0, R11
+-	B.EQ	2(PC)
+-	CALL	runtime·badctxt(SB)
+-	RET
+-
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB),NOSPLIT,$8-4
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index a09172f0c9..8e4a1f74f9 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -113,23 +113,6 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
+  *  go-routine
+  */
+ 
+-// void gosave(Gobuf*)
+-// save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
+-	MOVD	buf+0(FP), R3
+-	MOVD	RSP, R0
+-	MOVD	R0, gobuf_sp(R3)
+-	MOVD	R29, gobuf_bp(R3)
+-	MOVD	LR, gobuf_pc(R3)
+-	MOVD	g, gobuf_g(R3)
+-	MOVD	ZR, gobuf_lr(R3)
+-	MOVD	ZR, gobuf_ret(R3)
+-	// Assert ctxt is zero. See func save.
+-	MOVD	gobuf_ctxt(R3), R0
+-	CBZ	R0, 2(PC)
+-	CALL	runtime·badctxt(SB)
+-	RET
+-
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $24-8
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 19781f7885..054a89dc37 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -89,21 +89,6 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
+  *  go-routine
+  */
+ 
+-// void gosave(Gobuf*)
+-// save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
+-	MOVV	buf+0(FP), R1
+-	MOVV	R29, gobuf_sp(R1)
+-	MOVV	R31, gobuf_pc(R1)
+-	MOVV	g, gobuf_g(R1)
+-	MOVV	R0, gobuf_lr(R1)
+-	MOVV	R0, gobuf_ret(R1)
+-	// Assert ctxt is zero. See func save.
+-	MOVV	gobuf_ctxt(R1), R1
+-	BEQ	R1, 2(PC)
+-	JAL	runtime·badctxt(SB)
+-	RET
+-
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index ee87d81436..f57437d590 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -90,21 +90,6 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+  *  go-routine
+  */
+ 
+-// void gosave(Gobuf*)
+-// save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	buf+0(FP), R1
+-	MOVW	R29, gobuf_sp(R1)
+-	MOVW	R31, gobuf_pc(R1)
+-	MOVW	g, gobuf_g(R1)
+-	MOVW	R0, gobuf_lr(R1)
+-	MOVW	R0, gobuf_ret(R1)
+-	// Assert ctxt is zero. See func save.
+-	MOVW	gobuf_ctxt(R1), R1
+-	BEQ	R1, 2(PC)
+-	JAL	runtime·badctxt(SB)
+-	RET
+-
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB),NOSPLIT,$8-4
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index dc34c0e4c8..763a92adf1 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -128,23 +128,6 @@ TEXT runtime·reginit(SB),NOSPLIT|NOFRAME,$0-0
+  *  go-routine
+  */
+ 
+-// void gosave(Gobuf*)
+-// save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
+-	MOVD	buf+0(FP), R3
+-	MOVD	R1, gobuf_sp(R3)
+-	MOVD	LR, R31
+-	MOVD	R31, gobuf_pc(R3)
+-	MOVD	g, gobuf_g(R3)
+-	MOVD	R0, gobuf_lr(R3)
+-	MOVD	R0, gobuf_ret(R3)
+-	// Assert ctxt is zero. See func save.
+-	MOVD	gobuf_ctxt(R3), R3
+-	CMP	R0, R3
+-	BEQ	2(PC)
+-	BL	runtime·badctxt(SB)
+-	RET
+-
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 01b42dc3de..cf460d1586 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -297,21 +297,6 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
+ 	JALR	RA, T1
+ 	JMP	runtime·badmcall2(SB)
+ 
+-// func gosave(buf *gobuf)
+-// save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
+-	MOV	buf+0(FP), T1
+-	MOV	X2, gobuf_sp(T1)
+-	MOV	RA, gobuf_pc(T1)
+-	MOV	g, gobuf_g(T1)
+-	MOV	ZERO, gobuf_lr(T1)
+-	MOV	ZERO, gobuf_ret(T1)
+-	// Assert ctxt is zero. See func save.
+-	MOV	gobuf_ctxt(T1), T1
+-	BEQ	T1, ZERO, 2(PC)
+-	CALL	runtime·badctxt(SB)
+-	RET
+-
+ // Save state of caller into g->sched. Smashes X31.
+ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOV	X1, (g_sched+gobuf_pc)(g)
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 7baef37324..1cd5eca06f 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -174,21 +174,6 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
+  *  go-routine
+  */
+ 
+-// void gosave(Gobuf*)
+-// save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+-	MOVD	buf+0(FP), R3
+-	MOVD	R15, gobuf_sp(R3)
+-	MOVD	LR, gobuf_pc(R3)
+-	MOVD	g, gobuf_g(R3)
+-	MOVD	$0, gobuf_lr(R3)
+-	MOVD	$0, gobuf_ret(R3)
+-	// Assert ctxt is zero. See func save.
+-	MOVD	gobuf_ctxt(R3), R3
+-	CMPBEQ	R3, $0, 2(PC)
+-	BL	runtime·badctxt(SB)
+-	RET
+-
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 2ee2c74dfe..36bbc8991a 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -167,7 +167,6 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ // pointer-declared arguments.
+ func cgocallback(fn, frame, ctxt uintptr)
+ func gogo(buf *gobuf)
+-func gosave(buf *gobuf)
+ 
+ //go:noescape
+ func jmpdefer(fv *funcval, argp uintptr)

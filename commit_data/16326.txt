@@ -13,6 +13,33 @@ Date:   Thu May 16 10:42:39 2013 -0700
     R=golang-dev, bradfitz, iant, dvyukov
     CC=golang-dev
     https://golang.org/cl/9440043
-
+---
  src/pkg/runtime/mgc0.c | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 2f26e31c3f..1124877253 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1454,11 +1454,18 @@ addstackroots(G *gp)
+ 			// be scanned.  No other live values should be on the
+ 			// stack.
+ 			f = runtime·findfunc((uintptr)gp->fnstart->fn);
+-			if(f->args > 0) {
++			if(f->args != 0) {
+ 				if(thechar == '5')
+ 					sp += sizeof(uintptr);
+-				addroot((Obj){sp, f->args, 0});
+-			}
++				// If the size of the arguments is known
++				// scan just the incoming arguments.
++				// Otherwise, scan everything between the
++				// top and the bottom of the stack.
++				if(f->args > 0)
++					addroot((Obj){sp, f->args, 0});
++				else
++					addroot((Obj){sp, (byte*)stk - sp, 0}); 
++			} 
+ 			return;
+ 		}
+ 	}

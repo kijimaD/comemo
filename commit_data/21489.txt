@@ -7,6 +7,20 @@ Date:   Thu Jan 8 10:35:44 2015 -0800
     Change-Id: Ie31f957f6b60b0a9405147c7a0af789df01a4b02
     Reviewed-on: https://go-review.googlesource.com/2550
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  README.md | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/README.md b/README.md
+index 53d42c5b52..4b79b5b902 100644
+--- a/README.md
++++ b/README.md
+@@ -19,6 +19,8 @@ Go is the work of hundreds of contributors. We appreciate your help!
+ To contribute, please read the contribution guidelines:
+ 	https://golang.org/doc/contribute.html
+ 
++##### Please note that we do not use pull requests.
++
+ Unless otherwise noted, the Go source files are distributed
+ under the BSD-style license found in the LICENSE file.
+ 

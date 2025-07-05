@@ -9,6 +9,20 @@ Date:   Mon Dec 21 20:42:40 2015 -0500
     Change-Id: If81a5cc31c1f28664960bad124cc596f5cab1222
     Reviewed-on: https://go-review.googlesource.com/18203
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index cb99b0e358..eb99103f7f 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -196,7 +196,7 @@ func (t *tester) run() {
+ 		}
+ 		dt := dt // dt used in background after this iteration
+ 		if err := dt.fn(&dt); err != nil {
+-			t.runPending(dt) // in case that hasn't been done yet
++			t.runPending(&dt) // in case that hasn't been done yet
+ 			t.failed = true
+ 			if t.keepGoing {
+ 				log.Printf("Failed: %v", err)

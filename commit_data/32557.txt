@@ -13,10 +13,141 @@ Date:   Fri Apr 28 12:22:50 2017 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go  |  6 +++---
  src/cmd/link/internal/ld/go.go     |  2 +-
  src/cmd/link/internal/ld/lib.go    |  2 +-
  src/cmd/link/internal/ld/link.go   |  6 +++---
  src/cmd/link/internal/ld/symtab.go | 12 ++++++------
  5 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index c1d7f62a53..205b39512e 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -147,7 +147,7 @@ func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version in
+ 	if name != "" && (abbrev <= dwarf.DW_ABRV_VARIABLE || abbrev >= dwarf.DW_ABRV_NULLTYPE) {
+ 		if abbrev != dwarf.DW_ABRV_VARIABLE || version == 0 {
+ 			sym := ctxt.Syms.Lookup(dwarf.InfoPrefix+name, version)
+-			sym.Attr |= AttrHidden
++			sym.Attr |= AttrNotInSymbolTable
+ 			sym.Type = SDWARFINFO
+ 			die.Sym = sym
+ 		}
+@@ -339,7 +339,7 @@ func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) {
+ 	}
+ 
+ 	sym := ctxt.Syms.Lookup(dtolsym(def.Sym).Name+"..def", 0)
+-	sym.Attr |= AttrHidden
++	sym.Attr |= AttrNotInSymbolTable
+ 	sym.Type = SDWARFINFO
+ 	def.Sym = sym
+ 
+@@ -1081,7 +1081,7 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 		epcs = s
+ 
+ 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+-		dsym.Attr |= AttrHidden | AttrReachable
++		dsym.Attr |= AttrNotInSymbolTable | AttrReachable
+ 		dsym.Type = SDWARFINFO
+ 		for _, r := range dsym.R {
+ 			if r.Type == objabi.R_DWARFREF && r.Sym.Size == 0 {
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 99054c17cb..8c72dd74cc 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -337,7 +337,7 @@ func fieldtrack(ctxt *Link) {
+ 	for _, s := range ctxt.Syms.Allsym {
+ 		if strings.HasPrefix(s.Name, "go.track.") {
+ 			s.Attr |= AttrSpecial // do not lay out in data segment
+-			s.Attr |= AttrHidden
++			s.Attr |= AttrNotInSymbolTable
+ 			if s.Attr.Reachable() {
+ 				buf.WriteString(s.Name[9:])
+ 				for p := s.Reachparent; p != nil; p = p.Reachparent {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 334b75908c..0297eb5b60 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1903,7 +1903,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 	}
+ 
+ 	for _, s := range ctxt.Syms.Allsym {
+-		if s.Attr.Hidden() {
++		if s.Attr.NotInSymbolTable() {
+ 			continue
+ 		}
+ 		if (s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC." {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index f90af6f05f..089b4d3d3c 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -118,8 +118,8 @@ const (
+ 	// AttrStackCheck is used by dostkcheck to only check each NoSplit
+ 	// function's stack usage once.
+ 	AttrStackCheck
+-	// AttrHidden marks symbols that are not written to the symbol table.
+-	AttrHidden
++	// AttrNotInSymbolTable marks symbols that are not written to the symbol table.
++	AttrNotInSymbolTable
+ 	// AttrOnList marks symbols that are on some list (such as the list of
+ 	// all text symbols, or one of the lists of data symbols) and is
+ 	// consulted to avoid bugs where a symbol is put on a list twice.
+@@ -145,7 +145,7 @@ func (a Attribute) CgoExportDynamic() bool { return a&AttrCgoExportDynamic != 0
+ func (a Attribute) CgoExportStatic() bool  { return a&AttrCgoExportStatic != 0 }
+ func (a Attribute) Special() bool          { return a&AttrSpecial != 0 }
+ func (a Attribute) StackCheck() bool       { return a&AttrStackCheck != 0 }
+-func (a Attribute) Hidden() bool           { return a&AttrHidden != 0 }
++func (a Attribute) NotInSymbolTable() bool { return a&AttrNotInSymbolTable != 0 }
+ func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
+ func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
+ func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 4216a9daa9..a35ece13ad 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -470,7 +470,7 @@ func (ctxt *Link) symtab() {
+ 		switch {
+ 		case strings.HasPrefix(s.Name, "type."):
+ 			if !ctxt.DynlinkingGo() {
+-				s.Attr |= AttrHidden
++				s.Attr |= AttrNotInSymbolTable
+ 			}
+ 			if UseRelro() {
+ 				s.Type = STYPERELRO
+@@ -488,22 +488,22 @@ func (ctxt *Link) symtab() {
+ 		case strings.HasPrefix(s.Name, "go.itablink."):
+ 			nitablinks++
+ 			s.Type = SITABLINK
+-			s.Attr |= AttrHidden
++			s.Attr |= AttrNotInSymbolTable
+ 			s.Outer = symitablink
+ 
+ 		case strings.HasPrefix(s.Name, "go.string."):
+ 			s.Type = SGOSTRING
+-			s.Attr |= AttrHidden
++			s.Attr |= AttrNotInSymbolTable
+ 			s.Outer = symgostring
+ 
+ 		case strings.HasPrefix(s.Name, "runtime.gcbits."):
+ 			s.Type = SGCBITS
+-			s.Attr |= AttrHidden
++			s.Attr |= AttrNotInSymbolTable
+ 			s.Outer = symgcbits
+ 
+ 		case strings.HasSuffix(s.Name, "·f"):
+ 			if !ctxt.DynlinkingGo() {
+-				s.Attr |= AttrHidden
++				s.Attr |= AttrNotInSymbolTable
+ 			}
+ 			if UseRelro() {
+ 				s.Type = SGOFUNCRELRO
+@@ -518,7 +518,7 @@ func (ctxt *Link) symtab() {
+ 			strings.HasPrefix(s.Name, "gclocals·"),
+ 			strings.HasPrefix(s.Name, "inltree."):
+ 			s.Type = SGOFUNC
+-			s.Attr |= AttrHidden
++			s.Attr |= AttrNotInSymbolTable
+ 			s.Outer = symgofunc
+ 			s.Align = 4
+ 			liveness += (s.Size + int64(s.Align) - 1) &^ (int64(s.Align) - 1)

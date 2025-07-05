@@ -12,7 +12,151 @@ Date:   Mon Nov 18 15:07:37 2024 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/cipher/gcm_test.go                  | 73 ++++++++++++++++++++++++++
  src/crypto/internal/fips/aes/gcm/gcm_nonces.go | 54 +++++++++++++++++++
  2 files changed, 127 insertions(+)
+
+diff --git a/src/crypto/cipher/gcm_test.go b/src/crypto/cipher/gcm_test.go
+index a1deff3d9b..14bf54c582 100644
+--- a/src/crypto/cipher/gcm_test.go
++++ b/src/crypto/cipher/gcm_test.go
+@@ -795,3 +795,76 @@ func TestFIPSServiceIndicator(t *testing.T) {
+ 	// Wrap with overflow.
+ 	expectPanic(t, g, []byte{1, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0})
+ }
++
++func TestGCMForSSH(t *testing.T) {
++	// incIV from x/crypto/ssh/cipher.go.
++	incIV := func(iv []byte) {
++		for i := 4 + 7; i >= 4; i-- {
++			iv[i]++
++			if iv[i] != 0 {
++				break
++			}
++		}
++	}
++
++	expectOK := func(aead cipher.AEAD, iv []byte) {
++		aead.Seal(nil, iv, []byte("hello, world"), nil)
++	}
++
++	expectPanic := func(aead cipher.AEAD, iv []byte) {
++		defer func() {
++			if recover() == nil {
++				t.Errorf("expected panic")
++			}
++		}()
++		aead.Seal(nil, iv, []byte("hello, world"), nil)
++	}
++
++	key := make([]byte, 16)
++	block, _ := fipsaes.New(key)
++	aead, err := gcm.NewGCMForSSH(block)
++	if err != nil {
++		t.Fatal(err)
++	}
++	iv := decodeHex(t, "11223344"+"0000000000000000")
++	expectOK(aead, iv)
++	incIV(iv)
++	expectOK(aead, iv)
++	iv = decodeHex(t, "11223344"+"fffffffffffffffe")
++	expectOK(aead, iv)
++	incIV(iv)
++	expectPanic(aead, iv)
++
++	aead, _ = gcm.NewGCMForSSH(block)
++	iv = decodeHex(t, "11223344"+"fffffffffffffffe")
++	expectOK(aead, iv)
++	incIV(iv)
++	expectOK(aead, iv)
++	incIV(iv)
++	expectOK(aead, iv)
++	incIV(iv)
++	expectOK(aead, iv)
++
++	aead, _ = gcm.NewGCMForSSH(block)
++	iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaaa")
++	expectOK(aead, iv)
++	iv = decodeHex(t, "11223344"+"ffffffffffffffff")
++	expectOK(aead, iv)
++	incIV(iv)
++	expectOK(aead, iv)
++	iv = decodeHex(t, "11223344"+"aaaaaaaaaaaaaaa8")
++	expectOK(aead, iv)
++	incIV(iv)
++	expectPanic(aead, iv)
++	iv = decodeHex(t, "11223344"+"bbbbbbbbbbbbbbbb")
++	expectPanic(aead, iv)
++}
++
++func decodeHex(t *testing.T, s string) []byte {
++	t.Helper()
++	b, err := hex.DecodeString(s)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return b
++}
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_nonces.go b/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
+index 9bee05fe35..f38814c8db 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
+@@ -201,3 +201,57 @@ func (g *GCMForTLS13) Open(dst, nonce, ciphertext, data []byte) ([]byte, error)
+ 	fips.RecordApproved()
+ 	return g.g.Open(dst, nonce, ciphertext, data)
+ }
++
++// NewGCMForSSH returns a new AEAD that works like GCM, but enforces the
++// construction of nonces as specified in RFC 5647.
++//
++// This complies with FIPS 140-3 IG C.H Scenario 1.d.
++func NewGCMForSSH(cipher *aes.Block) (*GCMForSSH, error) {
++	g, err := newGCM(&GCM{}, cipher, gcmStandardNonceSize, gcmTagSize)
++	if err != nil {
++		return nil, err
++	}
++	return &GCMForSSH{g: *g}, nil
++}
++
++type GCMForSSH struct {
++	g     GCM
++	ready bool
++	start uint64
++	next  uint64
++}
++
++func (g *GCMForSSH) NonceSize() int { return gcmStandardNonceSize }
++
++func (g *GCMForSSH) Overhead() int { return gcmTagSize }
++
++func (g *GCMForSSH) Seal(dst, nonce, plaintext, data []byte) []byte {
++	if len(nonce) != gcmStandardNonceSize {
++		panic("crypto/cipher: incorrect nonce length given to GCM")
++	}
++
++	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
++	if !g.ready {
++		// In the first call we learn the start value.
++		g.ready = true
++		g.start = counter
++	}
++	counter -= g.start
++
++	// Ensure the counter is monotonically increasing.
++	if counter == math.MaxUint64 {
++		panic("crypto/cipher: counter wrapped")
++	}
++	if counter < g.next {
++		panic("crypto/cipher: counter decreased")
++	}
++	g.next = counter + 1
++
++	fips.RecordApproved()
++	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
++}
++
++func (g *GCMForSSH) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++	fips.RecordApproved()
++	return g.g.Open(dst, nonce, ciphertext, data)
++}

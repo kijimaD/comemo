@@ -12,7 +12,228 @@ Date:   Mon Nov 18 15:40:42 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                      |  89 ----------------------
  src/cmd/go/testdata/script/import_main.txt | 114 +++++++++++++++++++++++++++++
  2 files changed, 114 insertions(+), 89 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a7d58409b9..14e26bfe31 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3201,95 +3201,6 @@ func TestGoGetDotSlashDownload(t *testing.T) {
+ 	tg.run("get", "./pprof_mac_fix")
+ }
+ 
+-// Test that you cannot import a main package.
+-// See golang.org/issue/4210 and golang.org/issue/17475.
+-func TestImportMain(t *testing.T) {
+-	tooSlow(t)
+-
+-	tg := testgo(t)
+-	tg.parallel()
+-	defer tg.cleanup()
+-
+-	// Importing package main from that package main's test should work.
+-	tg.tempFile("src/x/main.go", `package main
+-		var X int
+-		func main() {}`)
+-	tg.tempFile("src/x/main_test.go", `package main_test
+-		import xmain "x"
+-		import "testing"
+-		var _ = xmain.X
+-		func TestFoo(t *testing.T) {}
+-	`)
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.creatingTemp("x" + exeSuffix)
+-	tg.run("build", "x")
+-	tg.run("test", "x")
+-
+-	// Importing package main from another package should fail.
+-	tg.tempFile("src/p1/p.go", `package p1
+-		import xmain "x"
+-		var _ = xmain.X
+-	`)
+-	tg.runFail("build", "p1")
+-	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
+-
+-	// ... even in that package's test.
+-	tg.tempFile("src/p2/p.go", `package p2
+-	`)
+-	tg.tempFile("src/p2/p_test.go", `package p2
+-		import xmain "x"
+-		import "testing"
+-		var _ = xmain.X
+-		func TestFoo(t *testing.T) {}
+-	`)
+-	tg.run("build", "p2")
+-	tg.runFail("test", "p2")
+-	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
+-
+-	// ... even if that package's test is an xtest.
+-	tg.tempFile("src/p3/p.go", `package p
+-	`)
+-	tg.tempFile("src/p3/p_test.go", `package p_test
+-		import xmain "x"
+-		import "testing"
+-		var _ = xmain.X
+-		func TestFoo(t *testing.T) {}
+-	`)
+-	tg.run("build", "p3")
+-	tg.runFail("test", "p3")
+-	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
+-
+-	// ... even if that package is a package main
+-	tg.tempFile("src/p4/p.go", `package main
+-	func main() {}
+-	`)
+-	tg.tempFile("src/p4/p_test.go", `package main
+-		import xmain "x"
+-		import "testing"
+-		var _ = xmain.X
+-		func TestFoo(t *testing.T) {}
+-	`)
+-	tg.creatingTemp("p4" + exeSuffix)
+-	tg.run("build", "p4")
+-	tg.runFail("test", "p4")
+-	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
+-
+-	// ... even if that package is a package main using an xtest.
+-	tg.tempFile("src/p5/p.go", `package main
+-	func main() {}
+-	`)
+-	tg.tempFile("src/p5/p_test.go", `package main_test
+-		import xmain "x"
+-		import "testing"
+-		var _ = xmain.X
+-		func TestFoo(t *testing.T) {}
+-	`)
+-	tg.creatingTemp("p5" + exeSuffix)
+-	tg.run("build", "p5")
+-	tg.runFail("test", "p5")
+-	tg.grepStderr("import \"x\" is a program, not an importable package", "did not diagnose package main")
+-}
+-
+ // Test that you cannot use a local import in a package
+ // accessed by a non-local import (found in a GOPATH/GOROOT).
+ // See golang.org/issue/17475.
+diff --git a/src/cmd/go/testdata/script/import_main.txt b/src/cmd/go/testdata/script/import_main.txt
+new file mode 100644
+index 0000000000..bc2cc4d337
+--- /dev/null
++++ b/src/cmd/go/testdata/script/import_main.txt
+@@ -0,0 +1,114 @@
++env GO111MODULE=off
++
++# Test that you cannot import a main package.
++# See golang.org/issue/4210 and golang.org/issue/17475.
++
++[short] skip
++cd $WORK
++
++# Importing package main from that package main's test should work.
++go build x
++go test -c x
++
++# Importing package main from another package should fail.
++! go build p1
++stderr 'import "x" is a program, not an importable package'
++
++# ... even in that package's test.
++go build p2
++! go test -c p2
++stderr 'import "x" is a program, not an importable package'
++
++# ... even if that package's test is an xtest.
++go build p3
++! go test p3
++stderr 'import "x" is a program, not an importable package'
++
++# ... even if that package is a package main
++go build p4
++! go test -c p4
++stderr 'import "x" is a program, not an importable package'
++
++# ... even if that package is a package main using an xtest.
++go build p5
++! go test -c p5
++stderr 'import "x" is a program, not an importable package'
++
++-- x/main.go --
++package main
++
++var X int
++
++func main() {}
++-- x/main_test.go --
++package main_test
++
++import (
++	"testing"
++	xmain "x"
++)
++
++var _ = xmain.X
++
++func TestFoo(t *testing.T) {}
++-- p1/p.go --
++package p1
++
++import xmain "x"
++
++var _ = xmain.X
++-- p2/p.go --
++package p2
++-- p2/p_test.go --
++package p2
++
++import (
++	"testing"
++	xmain "x"
++)
++
++var _ = xmain.X
++
++func TestFoo(t *testing.T) {}
++-- p3/p.go --
++package p
++-- p3/p_test.go --
++package p_test
++
++import (
++	"testing"
++	xmain "x"
++)
++
++var _ = xmain.X
++
++func TestFoo(t *testing.T) {}
++-- p4/p.go --
++package main
++
++func main() {}
++-- p4/p_test.go --
++package main
++
++import (
++	"testing"
++	xmain "x"
++)
++
++var _ = xmain.X
++
++func TestFoo(t *testing.T) {}
++-- p5/p.go --
++package main
++func main() {}
++-- p5/p_test.go --
++package main_test
++
++import (
++	"testing"
++	xmain "x"
++)
++
++var _ = xmain.X
++
++func TestFoo(t *testing.T) {}

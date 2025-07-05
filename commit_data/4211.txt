@@ -7,6 +7,22 @@ Date:   Tue Nov 24 13:36:54 2009 -0800
     R=rsc
     CC=r
     https://golang.org/cl/160056
-
+---
  doc/contribute.html | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index d2bf660290..ef08493ee7 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -334,6 +334,10 @@ The <code>Reviewer</code> line lists the reviewers assigned
+ to this change, and the <code>CC</code> line lists people to
+ notify about the change.
+ These can be code review nicknames or arbitrary email addresses.
++If you don't know who is best to review the change, set the
++reviewer field to the
++<a href="http://groups.google.com/group/golang-dev">golang-dev@googlegroups.com</a>
++mailing list.
+ </p>
+ 
+ <p>

@@ -32,7 +32,67 @@ Date:   Wed Apr 12 12:41:45 2023 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/noder/linker.go        |  2 +-
  src/cmd/go/testdata/script/build_issue59571.txt | 40 +++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 44de017ae5..0efe6b630b 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -199,7 +199,7 @@ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+ 			l.exportBody(obj, local)
+ 		}
+ 
+-		if obj.Op() == ir.OTYPE {
++		if obj.Op() == ir.OTYPE && !obj.Alias() {
+ 			if typ := obj.Type(); !typ.IsInterface() {
+ 				for _, method := range typ.Methods().Slice() {
+ 					l.exportBody(method.Nname.(*ir.Name), local)
+diff --git a/src/cmd/go/testdata/script/build_issue59571.txt b/src/cmd/go/testdata/script/build_issue59571.txt
+new file mode 100644
+index 0000000000..2cf32594bf
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_issue59571.txt
+@@ -0,0 +1,40 @@
++# Regression test for https://go.dev/issue/59571
++# Build should be reproducible, even with aliased generic types.
++
++go build -a -o 1.a
++go build -a -o 2.a
++cmp -q 1.a 2.a
++
++-- go.mod --
++module m
++
++go 1.20
++-- m.go --
++package m
++
++type (
++	SliceFlag[T any] struct{}
++
++	Alias1  = SliceFlag[[1]int]
++	Alias2  = SliceFlag[[2]int]
++	Alias3  = SliceFlag[[3]int]
++	Alias4  = SliceFlag[[4]int]
++	Alias5  = SliceFlag[[5]int]
++	Alias6  = SliceFlag[[6]int]
++	Alias7  = SliceFlag[[7]int]
++	Alias8  = SliceFlag[[8]int]
++	Alias9  = SliceFlag[[9]int]
++	Alias10 = SliceFlag[[10]int]
++	Alias11 = SliceFlag[[11]int]
++	Alias12 = SliceFlag[[12]int]
++	Alias13 = SliceFlag[[13]int]
++	Alias14 = SliceFlag[[14]int]
++	Alias15 = SliceFlag[[15]int]
++	Alias16 = SliceFlag[[16]int]
++	Alias17 = SliceFlag[[17]int]
++	Alias18 = SliceFlag[[18]int]
++	Alias19 = SliceFlag[[19]int]
++	Alias20 = SliceFlag[[20]int]
++)
++
++func (x *SliceFlag[T]) String() string { return "zzz" }

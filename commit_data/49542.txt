@@ -29,7 +29,7 @@ Date:   Thu Aug 26 13:17:56 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go             |   2 +-
  src/cmd/compile/internal/ir/symtab.go           |   1 -
  src/cmd/compile/internal/noder/import.go        |   4 +-
@@ -45,3 +45,559 @@ Date:   Thu Aug 26 13:17:56 2021 -0700
  src/cmd/compile/internal/types/type.go          |   4 +
  src/cmd/compile/internal/types/universe.go      | 144 ++++++++++++++++++++++++
  14 files changed, 171 insertions(+), 160 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 9660ef9dd5..8a365f8f6a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -84,7 +84,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
+ 
+ 	// pseudo-package, accessed by import "unsafe"
+-	ir.Pkgs.Unsafe = types.NewPkg("unsafe", "unsafe")
++	types.UnsafePkg = types.NewPkg("unsafe", "unsafe")
+ 
+ 	// Pseudo-package that contains the compiler's builtin
+ 	// declarations for package runtime. These are declared in a
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 61727fb1c4..1e8261810f 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -68,5 +68,4 @@ var Pkgs struct {
+ 	Go      *types.Pkg
+ 	Itab    *types.Pkg
+ 	Runtime *types.Pkg
+-	Unsafe  *types.Pkg
+ }
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 48f0e48028..c26340c960 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -198,7 +198,7 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
+ 		return nil
+ 	}
+ 
+-	if pkg != ir.Pkgs.Unsafe && pkg.Height >= myheight {
++	if pkg != types.UnsafePkg && pkg.Height >= myheight {
+ 		myheight = pkg.Height + 1
+ 	}
+ 	return pkg
+@@ -231,7 +231,7 @@ func readImportFile(path string, target *ir.Package, check *types2.Checker, pack
+ 	}
+ 
+ 	if path == "unsafe" {
+-		pkg1, pkg2 = ir.Pkgs.Unsafe, types2.Unsafe
++		pkg1, pkg2 = types.UnsafePkg, types2.Unsafe
+ 
+ 		// TODO(mdempsky): Investigate if this actually matters. Why would
+ 		// the linker or runtime care whether a package imported unsafe?
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index e1b485b2b3..61a7f8aad4 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -384,7 +384,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 		return
+ 	}
+ 
+-	if ipkg == ir.Pkgs.Unsafe {
++	if ipkg == types.UnsafePkg {
+ 		p.importedUnsafe = true
+ 	}
+ 	if ipkg.Path == "embed" {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 985453a1bb..e7a9d9655b 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -428,7 +428,7 @@ func (r *reader) interfaceType() *types.Type {
+ 		pos := r.pos()
+ 		pkg, sym := r.selector()
+ 		tpkg = pkg
+-		mtyp := r.signature(pkg, typecheck.FakeRecv())
++		mtyp := r.signature(pkg, types.FakeRecv())
+ 		methods[i] = types.NewField(pos, sym, mtyp)
+ 	}
+ 	for i := range embeddeds {
+@@ -540,7 +540,7 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 	if tag == objStub {
+ 		assert(!sym.IsBlank())
+ 		switch sym.Pkg {
+-		case types.BuiltinPkg, ir.Pkgs.Unsafe:
++		case types.BuiltinPkg, types.UnsafePkg:
+ 			return sym.Def.(ir.Node)
+ 		}
+ 		if pri, ok := objReader[sym]; ok {
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index a5a90aacaa..f5d91097f2 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -22,7 +22,7 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
+ 	case g.self:
+ 		return types.LocalPkg
+ 	case types2.Unsafe:
+-		return ir.Pkgs.Unsafe
++		return types.UnsafePkg
+ 	}
+ 	return types.NewPkg(pkg.Path(), pkg.Name())
+ }
+@@ -206,7 +206,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 		methods := make([]*types.Field, typ.NumExplicitMethods())
+ 		for i := range methods {
+ 			m := typ.ExplicitMethod(i)
+-			mtyp := g.signature(typecheck.FakeRecv(), m.Type().(*types2.Signature))
++			mtyp := g.signature(types.FakeRecv(), m.Type().(*types2.Signature))
+ 			methods[i] = types.NewField(g.pos(m), g.selector(m), mtyp)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 9b9efe04a2..deb806beac 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1726,7 +1726,7 @@ func NeedEmit(typ *types.Type) bool {
+ 		// Local defined type; our responsibility.
+ 		return true
+ 
+-	case base.Ctxt.Pkgpath == "runtime" && (sym.Pkg == types.BuiltinPkg || sym.Pkg == ir.Pkgs.Unsafe):
++	case base.Ctxt.Pkgpath == "runtime" && (sym.Pkg == types.BuiltinPkg || sym.Pkg == types.UnsafePkg):
+ 		// Package runtime is responsible for including code for builtin
+ 		// types (predeclared and package unsafe).
+ 		return true
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 472d8d2b8a..76fc6de621 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -314,13 +314,6 @@ func checkembeddedtype(t *types.Type) {
+ 	}
+ }
+ 
+-// TODO(mdempsky): Move to package types.
+-func FakeRecv() *types.Field {
+-	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
+-}
+-
+-var fakeRecvField = FakeRecv
+-
+ var funcStack []funcStackEnt // stack of previous values of ir.CurFunc/DeclContext
+ 
+ type funcStackEnt struct {
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 75d6115783..82006c3245 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -430,7 +430,7 @@ func (p *iexporter) pushDecl(n *ir.Name) {
+ 	}
+ 
+ 	// Don't export predeclared declarations.
+-	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == ir.Pkgs.Unsafe {
++	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == types.UnsafePkg {
+ 		return
+ 	}
+ 
+@@ -905,7 +905,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 	// type orderedAbs[T any] T
+ 	if t.IsTypeParam() && t.Underlying() == t {
+ 		assert(base.Flag.G > 0)
+-		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
++		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
+ 			base.Fatalf("builtin type missing from typIndex: %v", t)
+ 		}
+ 		// Write out the first use of a type param as a qualified ident.
+@@ -916,7 +916,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 	}
+ 
+ 	if s != nil {
+-		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
++		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
+ 			base.Fatalf("builtin type missing from typIndex: %v", t)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index a1a3ac3e8a..87ad5d1c54 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -607,7 +607,7 @@ func (r *importReader) exoticType() *types.Type {
+ 	case exoticTypeRecv:
+ 		var rcvr *types.Field
+ 		if r.bool() { // isFakeRecv
+-			rcvr = fakeRecvField()
++			rcvr = types.FakeRecv()
+ 		} else {
+ 			rcvr = r.exoticParam()
+ 		}
+@@ -793,7 +793,7 @@ func (r *importReader) typ1() *types.Type {
+ 		for i := range methods {
+ 			pos := r.pos()
+ 			sym := r.selector()
+-			typ := r.signature(fakeRecvField(), nil)
++			typ := r.signature(types.FakeRecv(), nil)
+ 
+ 			methods[i] = types.NewField(pos, sym, typ)
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index a7c84dc8d8..ebe338e2aa 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -29,37 +29,6 @@ var (
+ 	okforarith [types.NTYPE]bool
+ )
+ 
+-var basicTypes = [...]struct {
+-	name  string
+-	etype types.Kind
+-}{
+-	{"int8", types.TINT8},
+-	{"int16", types.TINT16},
+-	{"int32", types.TINT32},
+-	{"int64", types.TINT64},
+-	{"uint8", types.TUINT8},
+-	{"uint16", types.TUINT16},
+-	{"uint32", types.TUINT32},
+-	{"uint64", types.TUINT64},
+-	{"float32", types.TFLOAT32},
+-	{"float64", types.TFLOAT64},
+-	{"complex64", types.TCOMPLEX64},
+-	{"complex128", types.TCOMPLEX128},
+-	{"bool", types.TBOOL},
+-	{"string", types.TSTRING},
+-}
+-
+-var typedefs = [...]struct {
+-	name     string
+-	etype    types.Kind
+-	sameas32 types.Kind
+-	sameas64 types.Kind
+-}{
+-	{"int", types.TINT, types.TINT32, types.TINT64},
+-	{"uint", types.TUINT, types.TUINT32, types.TUINT64},
+-	{"uintptr", types.TUINTPTR, types.TUINT32, types.TUINT64},
+-}
+-
+ var builtinFuncs = [...]struct {
+ 	name string
+ 	op   ir.Op
+@@ -94,86 +63,12 @@ var unsafeFuncs = [...]struct {
+ 
+ // InitUniverse initializes the universe block.
+ func InitUniverse() {
+-	if types.PtrSize == 0 {
+-		base.Fatalf("typeinit before betypeinit")
+-	}
+-
+-	types.SlicePtrOffset = 0
+-	types.SliceLenOffset = types.Rnd(types.SlicePtrOffset+int64(types.PtrSize), int64(types.PtrSize))
+-	types.SliceCapOffset = types.Rnd(types.SliceLenOffset+int64(types.PtrSize), int64(types.PtrSize))
+-	types.SliceSize = types.Rnd(types.SliceCapOffset+int64(types.PtrSize), int64(types.PtrSize))
+-
+-	// string is same as slice wo the cap
+-	types.StringSize = types.Rnd(types.SliceLenOffset+int64(types.PtrSize), int64(types.PtrSize))
+-
+-	for et := types.Kind(0); et < types.NTYPE; et++ {
+-		types.SimType[et] = et
+-	}
+-
+-	types.Types[types.TANY] = types.New(types.TANY)
+-	types.Types[types.TINTER] = types.NewInterface(types.LocalPkg, nil)
+-
+-	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
+-		sym := pkg.Lookup(name)
++	types.InitTypes(func(sym *types.Sym, typ *types.Type) types.Object {
+ 		n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, sym)
+-		t := types.NewBasic(kind, n)
+-		n.SetType(t)
++		n.SetType(typ)
+ 		sym.Def = n
+-		if kind != types.TANY {
+-			types.CalcSize(t)
+-		}
+-		return t
+-	}
+-
+-	for _, s := range &basicTypes {
+-		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
+-	}
+-
+-	for _, s := range &typedefs {
+-		sameas := s.sameas32
+-		if types.PtrSize == 8 {
+-			sameas = s.sameas64
+-		}
+-		types.SimType[s.etype] = sameas
+-
+-		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
+-	}
+-
+-	// We create separate byte and rune types for better error messages
+-	// rather than just creating type alias *types.Sym's for the uint8 and
+-	// int32 types. Hence, (bytetype|runtype).Sym.isAlias() is false.
+-	// TODO(gri) Should we get rid of this special case (at the cost
+-	// of less informative error messages involving bytes and runes)?
+-	// (Alternatively, we could introduce an OTALIAS node representing
+-	// type aliases, albeit at the cost of having to deal with it everywhere).
+-	types.ByteType = defBasic(types.TUINT8, types.BuiltinPkg, "byte")
+-	types.RuneType = defBasic(types.TINT32, types.BuiltinPkg, "rune")
+-
+-	// error type
+-	s := types.BuiltinPkg.Lookup("error")
+-	n := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, s)
+-	types.ErrorType = types.NewNamed(n)
+-	types.ErrorType.SetUnderlying(makeErrorInterface())
+-	n.SetType(types.ErrorType)
+-	s.Def = n
+-	types.CalcSize(types.ErrorType)
+-
+-	// comparable type (interface)
+-	s = types.BuiltinPkg.Lookup("comparable")
+-	n = ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, s)
+-	types.ComparableType = types.NewNamed(n)
+-	types.ComparableType.SetUnderlying(makeComparableInterface())
+-	n.SetType(types.ComparableType)
+-	s.Def = n
+-	types.CalcSize(types.ComparableType)
+-
+-	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, ir.Pkgs.Unsafe, "Pointer")
+-
+-	// simple aliases
+-	types.SimType[types.TMAP] = types.TPTR
+-	types.SimType[types.TCHAN] = types.TPTR
+-	types.SimType[types.TFUNC] = types.TPTR
+-	types.SimType[types.TUNSAFEPTR] = types.TPTR
++		return n
++	})
+ 
+ 	for _, s := range &builtinFuncs {
+ 		s2 := types.BuiltinPkg.Lookup(s.name)
+@@ -183,13 +78,13 @@ func InitUniverse() {
+ 	}
+ 
+ 	for _, s := range &unsafeFuncs {
+-		s2 := ir.Pkgs.Unsafe.Lookup(s.name)
++		s2 := types.UnsafePkg.Lookup(s.name)
+ 		def := NewName(s2)
+ 		def.BuiltinOp = s.op
+ 		s2.Def = def
+ 	}
+ 
+-	s = types.BuiltinPkg.Lookup("true")
++	s := types.BuiltinPkg.Lookup("true")
+ 	s.Def = ir.NewConstAt(src.NoXPos, s, types.UntypedBool, constant.MakeBool(true))
+ 
+ 	s = types.BuiltinPkg.Lookup("false")
+@@ -219,19 +114,6 @@ func InitUniverse() {
+ 	s = types.BuiltinPkg.Lookup("iota")
+ 	s.Def = ir.NewIota(base.Pos, s)
+ 
+-	for et := types.TINT8; et <= types.TUINT64; et++ {
+-		types.IsInt[et] = true
+-	}
+-	types.IsInt[types.TINT] = true
+-	types.IsInt[types.TUINT] = true
+-	types.IsInt[types.TUINTPTR] = true
+-
+-	types.IsFloat[types.TFLOAT32] = true
+-	types.IsFloat[types.TFLOAT64] = true
+-
+-	types.IsComplex[types.TCOMPLEX64] = true
+-	types.IsComplex[types.TCOMPLEX128] = true
+-
+ 	// initialize okfor
+ 	for et := types.Kind(0); et < types.NTYPE; et++ {
+ 		if types.IsInt[et] || et == types.TIDEAL {
+@@ -331,20 +213,6 @@ func InitUniverse() {
+ 	okfor[ir.OLEN] = okforlen[:]
+ }
+ 
+-func makeErrorInterface() *types.Type {
+-	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, nil, []*types.Field{
+-		types.NewField(src.NoXPos, nil, types.Types[types.TSTRING]),
+-	})
+-	method := types.NewField(src.NoXPos, Lookup("Error"), sig)
+-	return types.NewInterface(types.NoPkg, []*types.Field{method})
+-}
+-
+-func makeComparableInterface() *types.Type {
+-	sig := types.NewSignature(types.NoPkg, fakeRecvField(), nil, nil, nil)
+-	method := types.NewField(src.NoXPos, Lookup("=="), sig)
+-	return types.NewInterface(types.NoPkg, []*types.Field{method})
+-}
+-
+ // DeclareUniverse makes the universe block visible within the current package.
+ func DeclareUniverse() {
+ 	// Operationally, this is similar to a dot import of builtinpkg, except
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 74ebfad5bb..2f81c7b2e1 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -23,6 +23,9 @@ var BuiltinPkg *Pkg
+ // LocalPkg is the package being compiled.
+ var LocalPkg *Pkg
+ 
++// UnsafePkg is package unsafe.
++var UnsafePkg *Pkg
++
+ // BlankSym is the blank (_) symbol.
+ var BlankSym *Sym
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 06348c5094..e84e89fd15 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1738,6 +1738,10 @@ func FakeRecvType() *Type {
+ 	return recvType
+ }
+ 
++func FakeRecv() *Field {
++	return NewField(src.NoXPos, nil, FakeRecvType())
++}
++
+ var (
+ 	// TSSA types. HasPointers assumes these are pointer-free.
+ 	TypeInvalid   = newSSA("invalid")
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+new file mode 100644
+index 0000000000..abceecd15d
+--- /dev/null
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -0,0 +1,144 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/internal/src"
++)
++
++var basicTypes = [...]struct {
++	name  string
++	etype Kind
++}{
++	{"int8", TINT8},
++	{"int16", TINT16},
++	{"int32", TINT32},
++	{"int64", TINT64},
++	{"uint8", TUINT8},
++	{"uint16", TUINT16},
++	{"uint32", TUINT32},
++	{"uint64", TUINT64},
++	{"float32", TFLOAT32},
++	{"float64", TFLOAT64},
++	{"complex64", TCOMPLEX64},
++	{"complex128", TCOMPLEX128},
++	{"bool", TBOOL},
++	{"string", TSTRING},
++}
++
++var typedefs = [...]struct {
++	name     string
++	etype    Kind
++	sameas32 Kind
++	sameas64 Kind
++}{
++	{"int", TINT, TINT32, TINT64},
++	{"uint", TUINT, TUINT32, TUINT64},
++	{"uintptr", TUINTPTR, TUINT32, TUINT64},
++}
++
++func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
++	if PtrSize == 0 {
++		base.Fatalf("typeinit before betypeinit")
++	}
++
++	SlicePtrOffset = 0
++	SliceLenOffset = Rnd(SlicePtrOffset+int64(PtrSize), int64(PtrSize))
++	SliceCapOffset = Rnd(SliceLenOffset+int64(PtrSize), int64(PtrSize))
++	SliceSize = Rnd(SliceCapOffset+int64(PtrSize), int64(PtrSize))
++
++	// string is same as slice wo the cap
++	StringSize = Rnd(SliceLenOffset+int64(PtrSize), int64(PtrSize))
++
++	for et := Kind(0); et < NTYPE; et++ {
++		SimType[et] = et
++	}
++
++	Types[TANY] = New(TANY)
++	Types[TINTER] = NewInterface(LocalPkg, nil)
++
++	defBasic := func(kind Kind, pkg *Pkg, name string) *Type {
++		typ := New(kind)
++		obj := defTypeName(pkg.Lookup(name), typ)
++		typ.sym = obj.Sym()
++		typ.nod = obj
++		if kind != TANY {
++			CheckSize(typ)
++		}
++		return typ
++	}
++
++	for _, s := range &basicTypes {
++		Types[s.etype] = defBasic(s.etype, BuiltinPkg, s.name)
++	}
++
++	for _, s := range &typedefs {
++		sameas := s.sameas32
++		if PtrSize == 8 {
++			sameas = s.sameas64
++		}
++		SimType[s.etype] = sameas
++
++		Types[s.etype] = defBasic(s.etype, BuiltinPkg, s.name)
++	}
++
++	// We create separate byte and rune types for better error messages
++	// rather than just creating type alias *Sym's for the uint8 and
++	// int32  Hence, (bytetype|runtype).Sym.isAlias() is false.
++	// TODO(gri) Should we get rid of this special case (at the cost
++	// of less informative error messages involving bytes and runes)?
++	// (Alternatively, we could introduce an OTALIAS node representing
++	// type aliases, albeit at the cost of having to deal with it everywhere).
++	ByteType = defBasic(TUINT8, BuiltinPkg, "byte")
++	RuneType = defBasic(TINT32, BuiltinPkg, "rune")
++
++	// error type
++	DeferCheckSize()
++	ErrorType = defBasic(TFORW, BuiltinPkg, "error")
++	ErrorType.SetUnderlying(makeErrorInterface())
++	ResumeCheckSize()
++
++	// comparable type (interface)
++	DeferCheckSize()
++	ComparableType = defBasic(TFORW, BuiltinPkg, "comparable")
++	ComparableType.SetUnderlying(makeComparableInterface())
++	ResumeCheckSize()
++
++	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
++
++	// simple aliases
++	SimType[TMAP] = TPTR
++	SimType[TCHAN] = TPTR
++	SimType[TFUNC] = TPTR
++	SimType[TUNSAFEPTR] = TPTR
++
++	for et := TINT8; et <= TUINT64; et++ {
++		IsInt[et] = true
++	}
++	IsInt[TINT] = true
++	IsInt[TUINT] = true
++	IsInt[TUINTPTR] = true
++
++	IsFloat[TFLOAT32] = true
++	IsFloat[TFLOAT64] = true
++
++	IsComplex[TCOMPLEX64] = true
++	IsComplex[TCOMPLEX128] = true
++}
++
++func makeErrorInterface() *Type {
++	sig := NewSignature(NoPkg, FakeRecv(), nil, nil, []*Field{
++		NewField(src.NoXPos, nil, Types[TSTRING]),
++	})
++	method := NewField(src.NoXPos, LocalPkg.Lookup("Error"), sig)
++	return NewInterface(NoPkg, []*Field{method})
++}
++
++func makeComparableInterface() *Type {
++	sig := NewSignature(NoPkg, FakeRecv(), nil, nil, nil)
++	method := NewField(src.NoXPos, LocalPkg.Lookup("=="), sig)
++	return NewInterface(NoPkg, []*Field{method})
++}

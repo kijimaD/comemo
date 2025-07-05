@@ -7,6 +7,29 @@ Date:   Mon Dec 13 22:19:41 2010 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/3580042
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e7c5d13636..1b1deaba2c 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -596,7 +596,7 @@ which composes a new type from previously declared types.
+ 
+ <pre class="ebnf">
+ Type      = TypeName | TypeLit | "(" Type ")" .
+-TypeName  = QualifiedIdent.
++TypeName  = QualifiedIdent .
+ TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+ 	    SliceType | MapType | ChannelType .
+ </pre>
+@@ -1831,7 +1831,7 @@ A function declaration binds an identifier to a function (§<a href="#Function_t
+ 
+ <pre class="ebnf">
+ FunctionDecl = "func" identifier Signature [ Body ] .
+-Body         = Block.
++Body         = Block .
+ </pre>
+ 
+ <p>

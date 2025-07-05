@@ -53,7 +53,7 @@ Date:   Tue Oct 10 15:28:32 2023 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/debug.go                |   4 +-
  src/runtime/export_debuglog_test.go |   4 +-
  src/runtime/export_test.go          |  16 ++--
@@ -72,3 +72,1113 @@ Date:   Tue Oct 10 15:28:32 2023 -0400
  src/runtime/trace.go                |  12 +--
  src/runtime/trace2.go               |   4 +-
  17 files changed, 425 insertions(+), 100 deletions(-)
+
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 1cd9189ed5..0e61692f3d 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -25,12 +25,12 @@ func GOMAXPROCS(n int) int {
+ 		return ret
+ 	}
+ 
+-	stopTheWorldGC(stwGOMAXPROCS)
++	stw := stopTheWorldGC(stwGOMAXPROCS)
+ 
+ 	// newprocs will be processed by startTheWorld
+ 	newprocs = int32(n)
+ 
+-	startTheWorldGC()
++	startTheWorldGC(stw)
+ 	return ret
+ }
+ 
+diff --git a/src/runtime/export_debuglog_test.go b/src/runtime/export_debuglog_test.go
+index f12aab00de..04ac79f357 100644
+--- a/src/runtime/export_debuglog_test.go
++++ b/src/runtime/export_debuglog_test.go
+@@ -35,12 +35,12 @@ func DumpDebugLog() string {
+ }
+ 
+ func ResetDebugLog() {
+-	stopTheWorld(stwForTestResetDebugLog)
++	stw := stopTheWorld(stwForTestResetDebugLog)
+ 	for l := allDloggers; l != nil; l = l.allLink {
+ 		l.w.write = 0
+ 		l.w.tick, l.w.nano = 0, 0
+ 		l.w.r.begin, l.w.r.end = 0, 0
+ 		l.w.r.tick, l.w.r.nano = 0, 0
+ 	}
+-	startTheWorld()
++	startTheWorld(stw)
+ }
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index f889c44b64..d2f3563956 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -383,7 +383,7 @@ var ReadUnaligned32 = readUnaligned32
+ var ReadUnaligned64 = readUnaligned64
+ 
+ func CountPagesInUse() (pagesInUse, counted uintptr) {
+-	stopTheWorld(stwForTestCountPagesInUse)
++	stw := stopTheWorld(stwForTestCountPagesInUse)
+ 
+ 	pagesInUse = mheap_.pagesInUse.Load()
+ 
+@@ -393,7 +393,7 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
+ 		}
+ 	}
+ 
+-	startTheWorld()
++	startTheWorld(stw)
+ 
+ 	return
+ }
+@@ -426,7 +426,7 @@ func (p *ProfBuf) Close() {
+ }
+ 
+ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
+-	stopTheWorld(stwForTestReadMetricsSlow)
++	stw := stopTheWorld(stwForTestReadMetricsSlow)
+ 
+ 	// Initialize the metrics beforehand because this could
+ 	// allocate and skew the stats.
+@@ -461,13 +461,13 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int)
+ 	})
+ 	metricsUnlock()
+ 
+-	startTheWorld()
++	startTheWorld(stw)
+ }
+ 
+ // ReadMemStatsSlow returns both the runtime-computed MemStats and
+ // MemStats accumulated by scanning the heap.
+ func ReadMemStatsSlow() (base, slow MemStats) {
+-	stopTheWorld(stwForTestReadMemStatsSlow)
++	stw := stopTheWorld(stwForTestReadMemStatsSlow)
+ 
+ 	// Run on the system stack to avoid stack growth allocation.
+ 	systemstack(func() {
+@@ -544,7 +544,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 		getg().m.mallocing--
+ 	})
+ 
+-	startTheWorld()
++	startTheWorld(stw)
+ 	return
+ }
+ 
+@@ -1324,7 +1324,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
+ }
+ 
+ func PageCachePagesLeaked() (leaked uintptr) {
+-	stopTheWorld(stwForTestPageCachePagesLeaked)
++	stw := stopTheWorld(stwForTestPageCachePagesLeaked)
+ 
+ 	// Walk over destroyed Ps and look for unflushed caches.
+ 	deadp := allp[len(allp):cap(allp)]
+@@ -1336,7 +1336,7 @@ func PageCachePagesLeaked() (leaked uintptr) {
+ 		}
+ 	}
+ 
+-	startTheWorld()
++	startTheWorld(stw)
+ 	return
+ }
+ 
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index da9b8093ad..276c5bfaf6 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -20,7 +20,7 @@ import (
+ 
+ //go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
+ func runtime_debug_WriteHeapDump(fd uintptr) {
+-	stopTheWorld(stwWriteHeapDump)
++	stw := stopTheWorld(stwWriteHeapDump)
+ 
+ 	// Keep m on this G's stack instead of the system stack.
+ 	// Both readmemstats_m and writeheapdump_m have pretty large
+@@ -37,7 +37,7 @@ func runtime_debug_WriteHeapDump(fd uintptr) {
+ 		writeheapdump_m(fd, &m)
+ 	})
+ 
+-	startTheWorld()
++	startTheWorld(stw)
+ }
+ 
+ const (
+diff --git a/src/runtime/histogram.go b/src/runtime/histogram.go
+index 43dfe61901..f243667b55 100644
+--- a/src/runtime/histogram.go
++++ b/src/runtime/histogram.go
+@@ -134,6 +134,19 @@ func (h *timeHistogram) record(duration int64) {
+ 	h.counts[bucket*timeHistNumSubBuckets+subBucket].Add(1)
+ }
+ 
++// write dumps the histogram to the passed metricValue as a float64 histogram.
++func (h *timeHistogram) write(out *metricValue) {
++	hist := out.float64HistOrInit(timeHistBuckets)
++	// The bottom-most bucket, containing negative values, is tracked
++	// separately as underflow, so fill that in manually and then iterate
++	// over the rest.
++	hist.counts[0] = h.underflow.Load()
++	for i := range h.counts {
++		hist.counts[i+1] = h.counts[i].Load()
++	}
++	hist.counts[len(hist.counts)-1] = h.overflow.Load()
++}
++
+ const (
+ 	fInf    = 0x7FF0000000000000
+ 	fNegInf = 0xFFF0000000000000
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 58acf32caf..4bd167135d 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -317,15 +317,8 @@ func initMetrics() {
+ 		},
+ 		"/gc/pauses:seconds": {
+ 			compute: func(_ *statAggregate, out *metricValue) {
+-				hist := out.float64HistOrInit(timeHistBuckets)
+-				// The bottom-most bucket, containing negative values, is tracked
+-				// as a separately as underflow, so fill that in manually and then
+-				// iterate over the rest.
+-				hist.counts[0] = memstats.gcPauseDist.underflow.Load()
+-				for i := range memstats.gcPauseDist.counts {
+-					hist.counts[i+1] = memstats.gcPauseDist.counts[i].Load()
+-				}
+-				hist.counts[len(hist.counts)-1] = memstats.gcPauseDist.overflow.Load()
++				// N.B. this is identical to /sched/pauses/total/gc:seconds.
++				sched.stwTotalTimeGC.write(out)
+ 			},
+ 		},
+ 		"/gc/stack/starting-size:bytes": {
+@@ -451,12 +444,27 @@ func initMetrics() {
+ 		},
+ 		"/sched/latencies:seconds": {
+ 			compute: func(_ *statAggregate, out *metricValue) {
+-				hist := out.float64HistOrInit(timeHistBuckets)
+-				hist.counts[0] = sched.timeToRun.underflow.Load()
+-				for i := range sched.timeToRun.counts {
+-					hist.counts[i+1] = sched.timeToRun.counts[i].Load()
+-				}
+-				hist.counts[len(hist.counts)-1] = sched.timeToRun.overflow.Load()
++				sched.timeToRun.write(out)
++			},
++		},
++		"/sched/pauses/stopping/gc:seconds": {
++			compute: func(_ *statAggregate, out *metricValue) {
++				sched.stwStoppingTimeGC.write(out)
++			},
++		},
++		"/sched/pauses/stopping/other:seconds": {
++			compute: func(_ *statAggregate, out *metricValue) {
++				sched.stwStoppingTimeOther.write(out)
++			},
++		},
++		"/sched/pauses/total/gc:seconds": {
++			compute: func(_ *statAggregate, out *metricValue) {
++				sched.stwTotalTimeGC.write(out)
++			},
++		},
++		"/sched/pauses/total/other:seconds": {
++			compute: func(_ *statAggregate, out *metricValue) {
++				sched.stwTotalTimeOther.write(out)
+ 			},
+ 		},
+ 		"/sync/mutex/wait/total:seconds": {
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 745691b24f..abe7440f10 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -96,11 +96,11 @@ var allDesc = []Description{
+ 		Description: "Estimated total CPU time spent with the application paused by " +
+ 			"the GC. Even if only one thread is running during the pause, this is " +
+ 			"computed as GOMAXPROCS times the pause latency because nothing else " +
+-			"can be executing. This is the exact sum of samples in /gc/pause:seconds " +
+-			"if each sample is multiplied by GOMAXPROCS at the time it is taken. " +
+-			"This metric is an overestimate, and not directly comparable to " +
+-			"system CPU time measurements. Compare only with other /cpu/classes " +
+-			"metrics.",
++			"can be executing. This is the exact sum of samples in " +
++			"/sched/pauses/total/gc:seconds if each sample is multiplied by " +
++			"GOMAXPROCS at the time it is taken. This metric is an overestimate, " +
++			"and not directly comparable to system CPU time measurements. Compare " +
++			"only with other /cpu/classes metrics.",
+ 		Kind:       KindFloat64,
+ 		Cumulative: true,
+ 	},
+@@ -289,7 +289,7 @@ var allDesc = []Description{
+ 	},
+ 	{
+ 		Name:        "/gc/pauses:seconds",
+-		Description: "Distribution of individual GC-related stop-the-world pause latencies. Bucket counts increase monotonically.",
++		Description: "Deprecated. Prefer the identical /sched/pauses/total/gc:seconds.",
+ 		Kind:        KindFloat64Histogram,
+ 		Cumulative:  true,
+ 	},
+@@ -415,6 +415,30 @@ var allDesc = []Description{
+ 		Kind:        KindFloat64Histogram,
+ 		Cumulative:  true,
+ 	},
++	{
++		Name:        "/sched/pauses/stopping/gc:seconds",
++		Description: "Distribution of individual GC-related stop-the-world stopping latencies. This is the time it takes from deciding to stop the world until all Ps are stopped. This is a subset of the total GC-related stop-the-world time (/sched/pauses/total/gc:seconds). During this time, some threads may be executing. Bucket counts increase monotonically.",
++		Kind:        KindFloat64Histogram,
++		Cumulative:  true,
++	},
++	{
++		Name:        "/sched/pauses/stopping/other:seconds",
++		Description: "Distribution of individual non-GC-related stop-the-world stopping latencies. This is the time it takes from deciding to stop the world until all Ps are stopped. This is a subset of the total non-GC-related stop-the-world time (/sched/pauses/total/other:seconds). During this time, some threads may be executing. Bucket counts increase monotonically.",
++		Kind:        KindFloat64Histogram,
++		Cumulative:  true,
++	},
++	{
++		Name:        "/sched/pauses/total/gc:seconds",
++		Description: "Distribution of individual GC-related stop-the-world pause latencies. This is the time from deciding to stop the world until the world is started again. Some of this time is spent getting all threads to stop (this is measured directly in /sched/pauses/stopping/gc:seconds), during which some threads may still be running. Bucket counts increase monotonically.",
++		Kind:        KindFloat64Histogram,
++		Cumulative:  true,
++	},
++	{
++		Name:        "/sched/pauses/total/other:seconds",
++		Description: "Distribution of individual non-GC-related stop-the-world pause latencies. This is the time from deciding to stop the world until the world is started again. Some of this time is spent getting all threads to stop (measured directly in /sched/pauses/stopping/other:seconds). Bucket counts increase monotonically.",
++		Kind:        KindFloat64Histogram,
++		Cumulative:  true,
++	},
+ 	{
+ 		Name:        "/sync/mutex/wait/total:seconds",
+ 		Description: "Approximate cumulative time goroutines have spent blocked on a sync.Mutex or sync.RWMutex. This metric is useful for identifying global changes in lock contention. Collect a mutex or block profile using the runtime/pprof package for more detailed contention data.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 78b2e6c3bc..5be6c32bfa 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -83,10 +83,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		the GC. Even if only one thread is running during the pause,
+ 		this is computed as GOMAXPROCS times the pause latency because
+ 		nothing else can be executing. This is the exact sum of samples
+-		in /gc/pause:seconds if each sample is multiplied by GOMAXPROCS
+-		at the time it is taken. This metric is an overestimate,
+-		and not directly comparable to system CPU time measurements.
+-		Compare only with other /cpu/classes metrics.
++		in /sched/pauses/total/gc:seconds if each sample is multiplied
++		by GOMAXPROCS at the time it is taken. This metric is an
++		overestimate, and not directly comparable to system CPU time
++		measurements. Compare only with other /cpu/classes metrics.
+ 
+ 	/cpu/classes/gc/total:cpu-seconds
+ 		Estimated total CPU time spent performing GC tasks. This metric
+@@ -211,8 +211,7 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		1, so a value of 0 indicates that it was never enabled.
+ 
+ 	/gc/pauses:seconds
+-		Distribution of individual GC-related stop-the-world pause
+-		latencies. Bucket counts increase monotonically.
++		Deprecated. Prefer the identical /sched/pauses/total/gc:seconds.
+ 
+ 	/gc/scan/globals:bytes
+ 		The total amount of global variable space that is scannable.
+@@ -411,6 +410,38 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		in a runnable state before actually running. Bucket counts
+ 		increase monotonically.
+ 
++	/sched/pauses/stopping/gc:seconds
++		Distribution of individual GC-related stop-the-world stopping
++		latencies. This is the time it takes from deciding to stop the
++		world until all Ps are stopped. This is a subset of the total
++		GC-related stop-the-world time (/sched/pauses/total/gc:seconds).
++		During this time, some threads may be executing. Bucket counts
++		increase monotonically.
++
++	/sched/pauses/stopping/other:seconds
++		Distribution of individual non-GC-related stop-the-world
++		stopping latencies. This is the time it takes from deciding
++		to stop the world until all Ps are stopped. This is a
++		subset of the total non-GC-related stop-the-world time
++		(/sched/pauses/total/other:seconds). During this time, some
++		threads may be executing. Bucket counts increase monotonically.
++
++	/sched/pauses/total/gc:seconds
++		Distribution of individual GC-related stop-the-world pause
++		latencies. This is the time from deciding to stop the world
++		until the world is started again. Some of this time is spent
++		getting all threads to stop (this is measured directly in
++		/sched/pauses/stopping/gc:seconds), during which some threads
++		may still be running. Bucket counts increase monotonically.
++
++	/sched/pauses/total/other:seconds
++		Distribution of individual non-GC-related stop-the-world
++		pause latencies. This is the time from deciding to stop the
++		world until the world is started again. Some of this time
++		is spent getting all threads to stop (measured directly in
++		/sched/pauses/stopping/other:seconds). Bucket counts increase
++		monotonically.
++
+ 	/sync/mutex/wait/total:seconds
+ 		Approximate cumulative time goroutines have spent blocked
+ 		on a sync.Mutex or sync.RWMutex. This metric is useful for
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index cfb09a3929..d7f21f1825 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -5,10 +5,13 @@
+ package runtime_test
+ 
+ import (
++	"bytes"
++	"os"
+ 	"reflect"
+ 	"runtime"
+ 	"runtime/debug"
+ 	"runtime/metrics"
++	"runtime/trace"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -56,7 +59,7 @@ func TestReadMetrics(t *testing.T) {
+ 	}
+ 
+ 	// Check to make sure the values we read line up with other values we read.
+-	var allocsBySize *metrics.Float64Histogram
++	var allocsBySize, gcPauses, schedPausesTotalGC *metrics.Float64Histogram
+ 	var tinyAllocs uint64
+ 	var mallocs, frees uint64
+ 	for i := range samples {
+@@ -171,6 +174,10 @@ func TestReadMetrics(t *testing.T) {
+ 			checkUint64(t, name, samples[i].Value.Uint64(), uint64(mstats.NumForcedGC))
+ 		case "/gc/cycles/total:gc-cycles":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), uint64(mstats.NumGC))
++		case "/gc/pauses:seconds":
++			gcPauses = samples[i].Value.Float64Histogram()
++		case "/sched/pauses/total/gc:seconds":
++			schedPausesTotalGC = samples[i].Value.Float64Histogram()
+ 		}
+ 	}
+ 
+@@ -184,6 +191,14 @@ func TestReadMetrics(t *testing.T) {
+ 	// Check allocation and free counts.
+ 	checkUint64(t, "/gc/heap/allocs:objects", mallocs, mstats.Mallocs-tinyAllocs)
+ 	checkUint64(t, "/gc/heap/frees:objects", frees, mstats.Frees-tinyAllocs)
++
++	// Verify that /gc/pauses:seconds is a copy of /sched/pauses/total/gc:seconds
++	if !reflect.DeepEqual(gcPauses.Buckets, schedPausesTotalGC.Buckets) {
++		t.Errorf("/gc/pauses:seconds buckets %v do not match /sched/pauses/total/gc:seconds buckets %v", gcPauses.Buckets, schedPausesTotalGC.Counts)
++	}
++	if !reflect.DeepEqual(gcPauses.Counts, schedPausesTotalGC.Counts) {
++		t.Errorf("/gc/pauses:seconds counts %v do not match /sched/pauses/total/gc:seconds counts %v", gcPauses.Counts, schedPausesTotalGC.Counts)
++	}
+ }
+ 
+ func TestReadMetricsConsistency(t *testing.T) {
+@@ -761,3 +776,159 @@ func TestCPUMetricsSleep(t *testing.T) {
+ 	}
+ 	t.Errorf(`time.Sleep did not contribute enough to "idle" class: minimum idle time = %.5fs`, minIdleCPUSeconds)
+ }
++
++// Call f() and verify that the correct STW metrics increment. If isGC is true,
++// fn triggers a GC STW. Otherwise, fn triggers an other STW.
++func testSchedPauseMetrics(t *testing.T, fn func(t *testing.T), isGC bool) {
++	t.Helper()
++
++	m := []metrics.Sample{
++		{Name: "/sched/pauses/stopping/gc:seconds"},
++		{Name: "/sched/pauses/stopping/other:seconds"},
++		{Name: "/sched/pauses/total/gc:seconds"},
++		{Name: "/sched/pauses/total/other:seconds"},
++	}
++
++	stoppingGC := &m[0]
++	stoppingOther := &m[1]
++	totalGC := &m[2]
++	totalOther := &m[3]
++
++	sampleCount := func(s *metrics.Sample) uint64 {
++		h := s.Value.Float64Histogram()
++
++		var n uint64
++		for _, c := range h.Counts {
++			n += c
++		}
++		return n
++	}
++
++	// Read baseline.
++	metrics.Read(m)
++
++	baselineStartGC := sampleCount(stoppingGC)
++	baselineStartOther := sampleCount(stoppingOther)
++	baselineTotalGC := sampleCount(totalGC)
++	baselineTotalOther := sampleCount(totalOther)
++
++	fn(t)
++
++	metrics.Read(m)
++
++	if isGC {
++		if got := sampleCount(stoppingGC); got <= baselineStartGC {
++			t.Errorf("/sched/pauses/stopping/gc:seconds sample count %d did not increase from baseline of %d", got, baselineStartGC)
++		}
++		if got := sampleCount(totalGC); got <= baselineTotalGC {
++			t.Errorf("/sched/pauses/total/gc:seconds sample count %d did not increase from baseline of %d", got, baselineTotalGC)
++		}
++
++		if got := sampleCount(stoppingOther); got != baselineStartOther {
++			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d changed from baseline of %d", got, baselineStartOther)
++		}
++		if got := sampleCount(totalOther); got != baselineTotalOther {
++			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d changed from baseline of %d", got, baselineTotalOther)
++		}
++	} else {
++		if got := sampleCount(stoppingGC); got != baselineStartGC {
++			t.Errorf("/sched/pauses/stopping/gc:seconds sample count %d changed from baseline of %d", got, baselineStartGC)
++		}
++		if got := sampleCount(totalGC); got != baselineTotalGC {
++			t.Errorf("/sched/pauses/total/gc:seconds sample count %d changed from baseline of %d", got, baselineTotalGC)
++		}
++
++		if got := sampleCount(stoppingOther); got <= baselineStartOther {
++			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d did not increase from baseline of %d", got, baselineStartOther)
++		}
++		if got := sampleCount(totalOther); got <= baselineTotalOther {
++			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d did not increase from baseline of %d", got, baselineTotalOther)
++		}
++	}
++}
++
++func TestSchedPauseMetrics(t *testing.T) {
++	tests := []struct{
++		name string
++		isGC bool
++		fn   func(t *testing.T)
++	}{
++		{
++			name: "runtime.GC",
++			isGC: true,
++			fn:   func(t *testing.T) {
++				runtime.GC()
++			},
++		},
++		{
++			name: "runtime.GOMAXPROCS",
++			fn:   func(t *testing.T) {
++				if runtime.GOARCH == "wasm" {
++					t.Skip("GOMAXPROCS >1 not supported on wasm")
++				}
++
++				n := runtime.GOMAXPROCS(0)
++				defer runtime.GOMAXPROCS(n)
++
++				runtime.GOMAXPROCS(n+1)
++			},
++		},
++		{
++			name: "runtime.GoroutineProfile",
++			fn:   func(t *testing.T) {
++				var s [1]runtime.StackRecord
++				runtime.GoroutineProfile(s[:])
++			},
++		},
++		{
++			name: "runtime.ReadMemStats",
++			fn:   func(t *testing.T) {
++				var mstats runtime.MemStats
++				runtime.ReadMemStats(&mstats)
++			},
++		},
++		{
++			name: "runtime.Stack",
++			fn:   func(t *testing.T) {
++				var b [64]byte
++				runtime.Stack(b[:], true)
++			},
++		},
++		{
++			name: "runtime/debug.WriteHeapDump",
++			fn:   func(t *testing.T) {
++				if runtime.GOOS == "js" {
++					t.Skip("WriteHeapDump not supported on js")
++				}
++
++				f, err := os.CreateTemp(t.TempDir(), "heapdumptest")
++				if err != nil {
++					t.Fatalf("os.CreateTemp failed: %v", err)
++				}
++				defer os.Remove(f.Name())
++				defer f.Close()
++				debug.WriteHeapDump(f.Fd())
++			},
++		},
++		{
++			name: "runtime/trace.Start",
++			fn:   func(t *testing.T) {
++				if trace.IsEnabled() {
++					t.Skip("tracing already enabled")
++				}
++
++				var buf bytes.Buffer
++				if err := trace.Start(&buf); err != nil {
++					t.Errorf("trace.Start err got %v want nil", err)
++				}
++				trace.Stop()
++			},
++		},
++	}
++
++	for _, tc := range tests {
++		t.Run(tc.name, func(t *testing.T) {
++			testSchedPauseMetrics(t, tc.fn, tc.isGC)
++		})
++	}
++}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index e9130a7820..5d39697649 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -676,8 +676,10 @@ func gcStart(trigger gcTrigger) {
+ 
+ 	now := nanotime()
+ 	work.tSweepTerm = now
+-	pauseStart := now
+-	systemstack(func() { stopTheWorldWithSema(stwGCSweepTerm) })
++	var stw worldStop
++	systemstack(func() {
++		stw = stopTheWorldWithSema(stwGCSweepTerm)
++	})
+ 	// Finish sweep before we start concurrent scan.
+ 	systemstack(func() {
+ 		finishsweep_m()
+@@ -742,10 +744,9 @@ func gcStart(trigger gcTrigger) {
+ 
+ 	// Concurrent mark.
+ 	systemstack(func() {
+-		now = startTheWorldWithSema()
+-		work.pauseNS += now - pauseStart
++		now = startTheWorldWithSema(0, stw)
++		work.pauseNS += now - stw.start
+ 		work.tMark = now
+-		memstats.gcPauseDist.record(now - pauseStart)
+ 
+ 		sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
+ 		work.cpuStats.gcPauseTime += sweepTermCpu
+@@ -857,9 +858,11 @@ top:
+ 	// shaded. Transition to mark termination.
+ 	now := nanotime()
+ 	work.tMarkTerm = now
+-	pauseStart := now
+ 	getg().m.preemptoff = "gcing"
+-	systemstack(func() { stopTheWorldWithSema(stwGCMarkTerm) })
++	var stw worldStop
++	systemstack(func() {
++		stw = stopTheWorldWithSema(stwGCMarkTerm)
++	})
+ 	// The gcphase is _GCmark, it will transition to _GCmarktermination
+ 	// below. The important thing is that the wb remains active until
+ 	// all marking is complete. This includes writes made by the GC.
+@@ -886,9 +889,8 @@ top:
+ 	if restart {
+ 		getg().m.preemptoff = ""
+ 		systemstack(func() {
+-			now := startTheWorldWithSema()
+-			work.pauseNS += now - pauseStart
+-			memstats.gcPauseDist.record(now - pauseStart)
++			now := startTheWorldWithSema(0, stw)
++			work.pauseNS += now - stw.start
+ 		})
+ 		semrelease(&worldsema)
+ 		goto top
+@@ -922,12 +924,12 @@ top:
+ 	gcController.endCycle(now, int(gomaxprocs), work.userForced)
+ 
+ 	// Perform mark termination. This will restart the world.
+-	gcMarkTermination(pauseStart)
++	gcMarkTermination(stw)
+ }
+ 
+ // World must be stopped and mark assists and background workers must be
+ // disabled.
+-func gcMarkTermination(pauseStart int64) {
++func gcMarkTermination(stw worldStop) {
+ 	// Start marktermination (write barrier remains enabled for now).
+ 	setGCPhase(_GCmarktermination)
+ 
+@@ -1008,9 +1010,8 @@ func gcMarkTermination(pauseStart int64) {
+ 	now := nanotime()
+ 	sec, nsec, _ := time_now()
+ 	unixNow := sec*1e9 + int64(nsec)
+-	work.pauseNS += now - pauseStart
++	work.pauseNS += now - stw.start
+ 	work.tEnd = now
+-	memstats.gcPauseDist.record(now - pauseStart)
+ 	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
+ 	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
+ 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(work.pauseNS)
+@@ -1083,7 +1084,18 @@ func gcMarkTermination(pauseStart int64) {
+ 		throw("non-concurrent sweep failed to drain all sweep queues")
+ 	}
+ 
+-	systemstack(func() { startTheWorldWithSema() })
++	systemstack(func() {
++		// The memstats updated above must be updated with the world
++		// stopped to ensure consistency of some values, such as
++		// sched.idleTime and sched.totaltime. memstats also include
++		// the pause time (work,pauseNS), forcing computation of the
++		// total pause time before the pause actually ends.
++		//
++		// Here we reuse the same now for start the world so that the
++		// time added to /sched/pauses/total/gc:seconds will be
++		// consistent with the value in memstats.
++		startTheWorldWithSema(now, stw)
++	})
+ 
+ 	// Flush the heap profile so we can start a new cycle next GC.
+ 	// This is relatively expensive, so we don't do it with the
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index ef485a3cfc..af461eef1a 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -902,7 +902,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
+ 
+ 	ourg := getg()
+ 
+-	stopTheWorld(stwGoroutineProfile)
++	stw := stopTheWorld(stwGoroutineProfile)
+ 	// Using gcount while the world is stopped should give us a consistent view
+ 	// of the number of live goroutines, minus the number of goroutines that are
+ 	// alive and permanently marked as "system". But to make this count agree
+@@ -919,7 +919,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
+ 		// There's not enough space in p to store the whole profile, so (per the
+ 		// contract of runtime.GoroutineProfile) we're not allowed to write to p
+ 		// at all and must return n, false.
+-		startTheWorld()
++		startTheWorld(stw)
+ 		semrelease(&goroutineProfile.sema)
+ 		return n, false
+ 	}
+@@ -953,7 +953,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
+ 			doRecordGoroutineProfile(fing)
+ 		}
+ 	}
+-	startTheWorld()
++	startTheWorld(stw)
+ 
+ 	// Visit each goroutine that existed as of the startTheWorld call above.
+ 	//
+@@ -970,12 +970,12 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
+ 		tryRecordGoroutineProfile(gp1, Gosched)
+ 	})
+ 
+-	stopTheWorld(stwGoroutineProfileCleanup)
++	stw = stopTheWorld(stwGoroutineProfileCleanup)
+ 	endOffset := goroutineProfile.offset.Swap(0)
+ 	goroutineProfile.active = false
+ 	goroutineProfile.records = nil
+ 	goroutineProfile.labels = nil
+-	startTheWorld()
++	startTheWorld(stw)
+ 
+ 	// Restore the invariant that every goroutine struct in allgs has its
+ 	// goroutineProfiled field cleared.
+@@ -1105,7 +1105,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
+ 		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
+ 	}
+ 
+-	stopTheWorld(stwGoroutineProfile)
++	stw := stopTheWorld(stwGoroutineProfile)
+ 
+ 	// World is stopped, no locking required.
+ 	n = 1
+@@ -1161,7 +1161,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
+ 		raceacquire(unsafe.Pointer(&labelSync))
+ 	}
+ 
+-	startTheWorld()
++	startTheWorld(stw)
+ 	return n, ok
+ }
+ 
+@@ -1190,8 +1190,9 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
+ // If all is true, Stack formats stack traces of all other goroutines
+ // into buf after the trace for the current goroutine.
+ func Stack(buf []byte, all bool) int {
++	var stw worldStop
+ 	if all {
+-		stopTheWorld(stwAllGoroutinesStack)
++		stw = stopTheWorld(stwAllGoroutinesStack)
+ 	}
+ 
+ 	n := 0
+@@ -1218,7 +1219,7 @@ func Stack(buf []byte, all bool) int {
+ 	}
+ 
+ 	if all {
+-		startTheWorld()
++		startTheWorld(stw)
+ 	}
+ 	return n
+ }
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 9cdc565137..874b08ae3a 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -31,7 +31,7 @@ type mstats struct {
+ 
+ 	// Statistics about the garbage collector.
+ 
+-	// Protected by mheap or stopping the world during GC.
++	// Protected by mheap or worldsema during GC.
+ 	last_gc_unix    uint64 // last gc (in unix time)
+ 	pause_total_ns  uint64
+ 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
+@@ -44,12 +44,6 @@ type mstats struct {
+ 	lastHeapInUse    uint64 // heapInUse at mark termination of the previous GC
+ 
+ 	enablegc bool
+-
+-	// gcPauseDist represents the distribution of all GC-related
+-	// application pauses in the runtime.
+-	//
+-	// Each individual pause is counted separately, unlike pause_ns.
+-	gcPauseDist timeHistogram
+ }
+ 
+ var memstats mstats
+@@ -358,13 +352,13 @@ func init() {
+ // collection cycle.
+ func ReadMemStats(m *MemStats) {
+ 	_ = m.Alloc // nil check test before we switch stacks, see issue 61158
+-	stopTheWorld(stwReadMemStats)
++	stw := stopTheWorld(stwReadMemStats)
+ 
+ 	systemstack(func() {
+ 		readmemstats_m(m)
+ 	})
+ 
+-	startTheWorld()
++	startTheWorld(stw)
+ }
+ 
+ // readmemstats_m populates stats for internal runtime values.
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 4319a99c7d..6386b82a85 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -726,7 +726,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
+ 	// N.B. Internally, this function does not depend on STW to
+ 	// successfully change every thread. It is only needed for user
+ 	// expectations, per above.
+-	stopTheWorld(stwAllThreadsSyscall)
++	stw := stopTheWorld(stwAllThreadsSyscall)
+ 
+ 	// This function depends on several properties:
+ 	//
+@@ -770,7 +770,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
+ 	if errno != 0 {
+ 		releasem(getg().m)
+ 		allocmLock.unlock()
+-		startTheWorld()
++		startTheWorld(stw)
+ 		return r1, r2, errno
+ 	}
+ 
+@@ -855,7 +855,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
+ 
+ 	releasem(getg().m)
+ 	allocmLock.unlock()
+-	startTheWorld()
++	startTheWorld(stw)
+ 
+ 	return r1, r2, errno
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4f6e3a3ced..824b0fa009 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1293,6 +1293,10 @@ func (r stwReason) String() string {
+ 	return stwReasonStrings[r]
+ }
+ 
++func (r stwReason) isGC() bool {
++	return r == stwGCMarkTerm || r == stwGCSweepTerm
++}
++
+ // If you add to this list, also add it to src/internal/trace/parser.go.
+ // If you change the values of any of the stw* constants, bump the trace
+ // version number and make a copy of this.
+@@ -1316,6 +1320,18 @@ var stwReasonStrings = [...]string{
+ 	stwForTestResetDebugLog:        "ResetDebugLog (test)",
+ }
+ 
++// worldStop provides context from the stop-the-world required by the
++// start-the-world.
++type worldStop struct {
++	reason stwReason
++	start  int64
++}
++
++// Temporary variable for stopTheWorld, when it can't write to the stack.
++//
++// Protected by worldsema.
++var stopTheWorldContext worldStop
++
+ // stopTheWorld stops all P's from executing goroutines, interrupting
+ // all goroutines at GC safe points and records reason as the reason
+ // for the stop. On return, only the current goroutine's P is running.
+@@ -1330,7 +1346,10 @@ var stwReasonStrings = [...]string{
+ // This is also used by routines that do stack dumps. If the system is
+ // in panic or being exited, this may not reliably stop all
+ // goroutines.
+-func stopTheWorld(reason stwReason) {
++//
++// Returns the STW context. When starting the world, this context must be
++// passed to startTheWorld.
++func stopTheWorld(reason stwReason) worldStop {
+ 	semacquire(&worldsema)
+ 	gp := getg()
+ 	gp.m.preemptoff = reason.String()
+@@ -1350,14 +1369,17 @@ func stopTheWorld(reason stwReason) {
+ 		// transition and handles it specially based on the
+ 		// wait reason.
+ 		casGToWaiting(gp, _Grunning, waitReasonStoppingTheWorld)
+-		stopTheWorldWithSema(reason)
++		stopTheWorldContext = stopTheWorldWithSema(reason) // avoid write to stack
+ 		casgstatus(gp, _Gwaiting, _Grunning)
+ 	})
++	return stopTheWorldContext
+ }
+ 
+ // startTheWorld undoes the effects of stopTheWorld.
+-func startTheWorld() {
+-	systemstack(func() { startTheWorldWithSema() })
++//
++// w must be the worldStop returned by stopTheWorld.
++func startTheWorld(w worldStop) {
++	systemstack(func() { startTheWorldWithSema(0, w) })
+ 
+ 	// worldsema must be held over startTheWorldWithSema to ensure
+ 	// gomaxprocs cannot change while worldsema is held.
+@@ -1383,14 +1405,16 @@ func startTheWorld() {
+ // stopTheWorldGC has the same effect as stopTheWorld, but blocks
+ // until the GC is not running. It also blocks a GC from starting
+ // until startTheWorldGC is called.
+-func stopTheWorldGC(reason stwReason) {
++func stopTheWorldGC(reason stwReason) worldStop {
+ 	semacquire(&gcsema)
+-	stopTheWorld(reason)
++	return stopTheWorld(reason)
+ }
+ 
+ // startTheWorldGC undoes the effects of stopTheWorldGC.
+-func startTheWorldGC() {
+-	startTheWorld()
++//
++// w must be the worldStop returned by stopTheWorld.
++func startTheWorldGC(w worldStop) {
++	startTheWorld(w)
+ 	semrelease(&gcsema)
+ }
+ 
+@@ -1412,13 +1436,18 @@ var gcsema uint32 = 1
+ //
+ //	semacquire(&worldsema, 0)
+ //	m.preemptoff = "reason"
+-//	systemstack(stopTheWorldWithSema)
++//	var stw worldStop
++//	systemstack(func() {
++//		stw = stopTheWorldWithSema(reason)
++//	})
+ //
+ // When finished, the caller must either call startTheWorld or undo
+ // these three operations separately:
+ //
+ //	m.preemptoff = ""
+-//	systemstack(startTheWorldWithSema)
++//	systemstack(func() {
++//		now = startTheWorldWithSema(stw)
++//	})
+ //	semrelease(&worldsema)
+ //
+ // It is allowed to acquire worldsema once and then execute multiple
+@@ -1427,7 +1456,10 @@ var gcsema uint32 = 1
+ // startTheWorldWithSema and stopTheWorldWithSema.
+ // Holding worldsema causes any other goroutines invoking
+ // stopTheWorld to block.
+-func stopTheWorldWithSema(reason stwReason) {
++//
++// Returns the STW context. When starting the world, this context must be
++// passed to startTheWorldWithSema.
++func stopTheWorldWithSema(reason stwReason) worldStop {
+ 	trace := traceAcquire()
+ 	if trace.ok() {
+ 		trace.STWStart(reason)
+@@ -1442,6 +1474,7 @@ func stopTheWorldWithSema(reason stwReason) {
+ 	}
+ 
+ 	lock(&sched.lock)
++	start := nanotime() // exclude time waiting for sched.lock from start and total time metrics.
+ 	sched.stopwait = gomaxprocs
+ 	sched.gcwaiting.Store(true)
+ 	preemptall()
+@@ -1490,6 +1523,13 @@ func stopTheWorldWithSema(reason stwReason) {
+ 		}
+ 	}
+ 
++	startTime := nanotime() - start
++	if reason.isGC() {
++		sched.stwStoppingTimeGC.record(startTime)
++	} else {
++		sched.stwStoppingTimeOther.record(startTime)
++	}
++
+ 	// sanity checks
+ 	bad := ""
+ 	if sched.stopwait != 0 {
+@@ -1514,9 +1554,17 @@ func stopTheWorldWithSema(reason stwReason) {
+ 	}
+ 
+ 	worldStopped()
++
++	return worldStop{reason: reason, start: start}
+ }
+ 
+-func startTheWorldWithSema() int64 {
++// reason is the same STW reason passed to stopTheWorld. start is the start
++// time returned by stopTheWorld.
++//
++// now is the current time; prefer to pass 0 to capture a fresh timestamp.
++//
++// stattTheWorldWithSema returns now.
++func startTheWorldWithSema(now int64, w worldStop) int64 {
+ 	assertWorldStopped()
+ 
+ 	mp := acquirem() // disable preemption because it can be holding p in a local var
+@@ -1560,7 +1608,15 @@ func startTheWorldWithSema() int64 {
+ 	}
+ 
+ 	// Capture start-the-world time before doing clean-up tasks.
+-	startTime := nanotime()
++	if now == 0 {
++		now = nanotime()
++	}
++	totalTime := now - w.start
++	if w.reason.isGC() {
++		sched.stwTotalTimeGC.record(totalTime)
++	} else {
++		sched.stwTotalTimeOther.record(totalTime)
++	}
+ 	trace := traceAcquire()
+ 	if trace.ok() {
+ 		trace.STWDone()
+@@ -1574,7 +1630,7 @@ func startTheWorldWithSema() int64 {
+ 
+ 	releasem(mp)
+ 
+-	return startTime
++	return now
+ }
+ 
+ // usesLibcall indicates whether this runtime performs system calls
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 60942dcdb1..e64c3c5695 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -885,6 +885,21 @@ type schedt struct {
+ 	// totalMutexWaitTime is the sum of time goroutines have spent in _Gwaiting
+ 	// with a waitreason of the form waitReasonSync{RW,}Mutex{R,}Lock.
+ 	totalMutexWaitTime atomic.Int64
++
++	// stwStoppingTimeGC/Other are distributions of stop-the-world stopping
++	// latencies, defined as the time taken by stopTheWorldWithSema to get
++	// all Ps to stop. stwStoppingTimeGC covers all GC-related STWs,
++	// stwStoppingTimeOther covers the others.
++	stwStoppingTimeGC    timeHistogram
++	stwStoppingTimeOther timeHistogram
++
++	// stwTotalTimeGC/Other are distributions of stop-the-world total
++	// latencies, defined as the total time from stopTheWorldWithSema to
++	// startTheWorldWithSema. This is a superset of
++	// stwStoppingTimeGC/Other. stwTotalTimeGC covers all GC-related STWs,
++	// stwTotalTimeOther covers the others.
++	stwTotalTimeGC    timeHistogram
++	stwTotalTimeOther timeHistogram
+ }
+ 
+ // Values for the flags field of a sigTabT.
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 48e939e38f..b4ad9a638c 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -334,7 +334,7 @@ func StartTrace() error {
+ 	// Do not stop the world during GC so we ensure we always see
+ 	// a consistent view of GC-related events (e.g. a start is always
+ 	// paired with an end).
+-	stopTheWorldGC(stwStartTrace)
++	stw := stopTheWorldGC(stwStartTrace)
+ 
+ 	// Prevent sysmon from running any code that could generate events.
+ 	lock(&sched.sysmonlock)
+@@ -349,7 +349,7 @@ func StartTrace() error {
+ 	if trace.enabled || trace.shutdown {
+ 		unlock(&trace.bufLock)
+ 		unlock(&sched.sysmonlock)
+-		startTheWorldGC()
++		startTheWorldGC(stw)
+ 		return errorString("tracing is already enabled")
+ 	}
+ 
+@@ -461,7 +461,7 @@ func StartTrace() error {
+ 	// the world, and we can safely trace from here.
+ 	tl.HeapGoal()
+ 
+-	startTheWorldGC()
++	startTheWorldGC(stw)
+ 	return nil
+ }
+ 
+@@ -470,7 +470,7 @@ func StartTrace() error {
+ func StopTrace() {
+ 	// Stop the world so that we can collect the trace buffers from all p's below,
+ 	// and also to avoid races with traceEvent.
+-	stopTheWorldGC(stwStopTrace)
++	stw := stopTheWorldGC(stwStopTrace)
+ 
+ 	// See the comment in StartTrace.
+ 	lock(&sched.sysmonlock)
+@@ -481,7 +481,7 @@ func StopTrace() {
+ 	if !trace.enabled {
+ 		unlock(&trace.bufLock)
+ 		unlock(&sched.sysmonlock)
+-		startTheWorldGC()
++		startTheWorldGC(stw)
+ 		return
+ 	}
+ 
+@@ -540,7 +540,7 @@ func StopTrace() {
+ 
+ 	unlock(&sched.sysmonlock)
+ 
+-	startTheWorldGC()
++	startTheWorldGC(stw)
+ 
+ 	// The world is started but we've set trace.shutdown, so new tracing can't start.
+ 	// Wait for the trace reader to flush pending buffers and stop.
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index b0842d99ec..1a58015989 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -198,7 +198,7 @@ func StartTrace() error {
+ 	// Note also that stopping the world is necessary to make sure sweep-related events are
+ 	// coherent. Since the world is stopped and sweeps are non-preemptible, we can never start
+ 	// the world and see an unpaired sweep 'end' event. Other parts of the tracer rely on this.
+-	stopTheWorld(stwStartTrace)
++	stw := stopTheWorld(stwStartTrace)
+ 
+ 	// Prevent sysmon from running any code that could generate events.
+ 	lock(&sched.sysmonlock)
+@@ -252,7 +252,7 @@ func StartTrace() error {
+ 	traceRelease(tl)
+ 
+ 	unlock(&sched.sysmonlock)
+-	startTheWorld()
++	startTheWorld(stw)
+ 
+ 	traceStartReadCPU()
+ 	traceAdvancer.start()

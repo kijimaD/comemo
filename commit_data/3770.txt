@@ -9,9 +9,190 @@ Date:   Wed Nov 4 15:19:30 2009 -0800
     
     R=r
     http://go/go-review/1018042
-
+---
  src/pkg/bytes/bytes.go          | 24 +++++++++++++++++++-----
  src/pkg/bytes/bytes_test.go     | 31 +++++++++++++++++++++++++++++++
  src/pkg/strings/strings.go      | 23 ++++++++++++++++++-----
  src/pkg/strings/strings_test.go | 30 ++++++++++++++++++++++++++++++
  4 files changed, 98 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 6a36829e17..cb543991c9 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -127,10 +127,9 @@ func LastIndex(s, sep []byte) int {
+ 	return -1;
+ }
+ 
+-// Split splits the array s around each instance of sep, returning an array of subarrays of s.
+-// If sep is empty, Split splits s after each UTF-8 sequence.
+-// If n > 0, split Splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
+-func Split(s, sep []byte, n int) [][]byte {
++// Generic split: splits after each instance of sep,
++// including sepSave bytes of sep in the subarrays.
++func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+ 	if len(sep) == 0 {
+ 		return explode(s, n);
+ 	}
+@@ -143,7 +142,7 @@ func Split(s, sep []byte, n int) [][]byte {
+ 	na := 0;
+ 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
+ 		if s[i] == c && (len(sep) == 1 || Equal(s[i : i+len(sep)], sep)) {
+-			a[na] = s[start:i];
++			a[na] = s[start:i+sepSave];
+ 			na++;
+ 			start = i+len(sep);
+ 			i += len(sep)-1;
+@@ -153,6 +152,21 @@ func Split(s, sep []byte, n int) [][]byte {
+ 	return a[0 : na+1];
+ }
+ 
++// Split splits the array s around each instance of sep, returning an array of subarrays of s.
++// If sep is empty, Split splits s after each UTF-8 sequence.
++// If n > 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
++func Split(s, sep []byte, n int) [][]byte {
++	return genSplit(s, sep, 0, n);
++}
++
++// SplitAfter splits the array s after each instance of sep, returning an array of subarrays of s.
++// If sep is empty, SplitAfter splits s after each UTF-8 sequence.
++// If n > 0, SplitAfter splits s into at most n subarrays; the last subarray will contain an
++// unsplit remainder.
++func SplitAfter(s, sep []byte, n int) [][]byte {
++	return genSplit(s, sep, len(sep), n);
++}
++
+ // Join concatenates the elements of a to create a single byte array.   The separator
+ // sep is placed between elements in the resulting array.
+ func Join(a [][]byte, sep []byte) []byte {
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 24ee4bf4d2..ee727f0cd5 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -141,6 +141,37 @@ func TestSplit(t *testing.T) {
+ 	}
+ }
+ 
++var splitaftertests = []SplitTest{
++	SplitTest{abcd, "a", 0, []string{"a", "bcd"}},
++	SplitTest{abcd, "z", 0, []string{"abcd"}},
++	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
++	SplitTest{commas, ",", 0, []string{"1,", "2,", "3,", "4"}},
++	SplitTest{dots, "...", 0, []string{"1...", ".2...", ".3...", ".4"}},
++	SplitTest{faces, "☹", 0, []string{"☺☻☹", ""}},
++	SplitTest{faces, "~", 0, []string{faces}},
++	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
++	SplitTest{"1 2 3 4", " ", 3, []string{"1 ", "2 ", "3 4"}},
++	SplitTest{"1 2 3", " ", 3, []string{"1 ", "2 ", "3"}},
++	SplitTest{"1 2", " ", 3, []string{"1 ", "2"}},
++	SplitTest{"123", "", 2, []string{"1", "23"}},
++	SplitTest{"123", "", 17, []string{"1", "2", "3"}},
++}
++
++func TestSplitAfter(t *testing.T) {
++	for _, tt := range splitaftertests {
++		a := SplitAfter(strings.Bytes(tt.s), strings.Bytes(tt.sep), tt.n);
++		result := arrayOfString(a);
++		if !eq(result, tt.a) {
++			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a);
++			continue;
++		}
++		s := Join(a, nil);
++		if string(s) != tt.s {
++			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s);
++		}
++	}
++}
++
+ type CopyTest struct {
+ 	a	string;
+ 	b	string;
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index f4b969b42b..ecfb088cd9 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -79,10 +79,9 @@ func LastIndex(s, sep string) int {
+ 	return -1
+ }
+ 
+-// Split splits the string s around each instance of sep, returning an array of substrings of s.
+-// If sep is empty, Split splits s after each UTF-8 sequence.
+-// If n > 0, split Splits s into at most n substrings; the last subarray will contain an unsplit remainder string.
+-func Split(s, sep string, n int) []string {
++// Generic split: splits after each instance of sep,
++// including sepSave bytes of sep in the subarrays.
++func genSplit(s, sep string, sepSave, n int) []string {
+ 	if sep == "" {
+ 		return explode(s, n)
+ 	}
+@@ -95,7 +94,7 @@ func Split(s, sep string, n int) []string {
+ 	na := 0;
+ 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
+ 		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
+-			a[na] = s[start:i];
++			a[na] = s[start:i+sepSave];
+ 			na++;
+ 			start = i+len(sep);
+ 			i += len(sep)-1;
+@@ -105,6 +104,20 @@ func Split(s, sep string, n int) []string {
+ 	return a[0:na+1]
+ }
+ 
++// Split splits the string s around each instance of sep, returning an array of substrings of s.
++// If sep is empty, Split splits s after each UTF-8 sequence.
++// If n > 0, split Splits s into at most n substrings; the last substring will be the unsplit remainder.
++func Split(s, sep string, n int) []string {
++	return genSplit(s, sep, 0, n);
++}
++
++// SplitAfter splits the string s after each instance of sep, returning an array of substrings of s.
++// If sep is empty, SplitAfter splits s after each UTF-8 sequence.
++// If n > 0, SplitAfter splits s into at most n substrings; the last substring will be the unsplit remainder.
++func SplitAfter(s, sep string, n int) []string {
++	return genSplit(s, sep, len(sep), n);
++}
++
+ // Join concatenates the elements of a to create a single string.   The separator string
+ // sep is placed between elements in the resulting string.
+ func Join(a []string, sep string) string {
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index bdc7f9f081..0db3c97416 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -145,6 +145,36 @@ func TestSplit(t *testing.T) {
+ 	}
+ }
+ 
++var splitaftertests = []SplitTest{
++	SplitTest{abcd, "a", 0, []string{"a", "bcd"}},
++	SplitTest{abcd, "z", 0, []string{"abcd"}},
++	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
++	SplitTest{commas, ",", 0, []string{"1,", "2,", "3,", "4"}},
++	SplitTest{dots, "...", 0, []string{"1...", ".2...", ".3...", ".4"}},
++	SplitTest{faces, "☹", 0, []string{"☺☻☹", ""}},
++	SplitTest{faces, "~", 0, []string{faces}},
++	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
++	SplitTest{"1 2 3 4", " ", 3, []string{"1 ", "2 ", "3 4"}},
++	SplitTest{"1 2 3", " ", 3, []string{"1 ", "2 ", "3"}},
++	SplitTest{"1 2", " ", 3, []string{"1 ", "2"}},
++	SplitTest{"123", "", 2, []string{"1", "23"}},
++	SplitTest{"123", "", 17, []string{"1", "2", "3"}},
++}
++
++func TestSplitAfter(t *testing.T) {
++	for _, tt := range splitaftertests {
++		a := SplitAfter(tt.s, tt.sep, tt.n);
++		if !eq(a, tt.a) {
++			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a);
++			continue;
++		}
++		s := Join(a, "");
++		if s != tt.s {
++			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s);
++		}
++	}
++}
++
+ // Test case for any function which accepts and returns a single string.
+ type StringTest struct {
+ 	in, out string;

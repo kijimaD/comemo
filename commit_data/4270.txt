@@ -7,6 +7,20 @@ Date:   Tue Dec 1 21:42:35 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/164069
-
+---
  src/cmd/8g/cgen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index cc93cf3e50..84cb4bcbe3 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1047,7 +1047,7 @@ stkof(Node *n)
+  *	memmove(&res, &n, w);
+  */
+ void
+-sgen(Node *n, Node *res, int w)
++sgen(Node *n, Node *res, int32 w)
+ {
+ 	Node dst, src, tdst, tsrc;
+ 	int32 c, q, odst, osrc;

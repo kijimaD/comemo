@@ -16,7 +16,7 @@ Date:   Thu Nov 19 16:35:34 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/154173
-
+---
  src/cmd/gotest/doc.go          |  13 +++-
  src/cmd/gotest/gotest          |  14 +++-
  src/pkg/testing/Makefile       |   1 +
@@ -24,3 +24,319 @@ Date:   Thu Nov 19 16:35:34 2009 -0800
  src/pkg/testing/regexp_test.go |  30 +++++++++
  src/pkg/testing/testing.go     |  27 ++++++++
  6 files changed, 231 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index e1a87c43cd..40c40fc1fe 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -19,6 +19,12 @@ They should have signature
+ 
+ 	func TestXXX(t *testing.T) { ... }
+ 
++Benchmark functions can be written as well; they will be run only
++when the -benchmarks flag is provided.  Benchmarks should have
++signature
++
++	func BenchmarkXXX(b *testing.B) { ... }
++
+ See the documentation of the testing package for more information.
+ 
+ By default, gotest needs no arguments.  It compiles all the .go files
+@@ -36,14 +42,15 @@ The resulting binary, called (for amd64) 6.out, has a couple of
+ arguments.
+ 
+ Usage:
+-	6.out [-v] [-match pattern]
++	6.out [-v] [-match pattern] [-benchmarks pattern]
+ 
+-The -v flag causes the tests to be logged as they run.  The --match
++The -v flag causes the tests to be logged as they run.  The -match
+ flag causes only those tests whose names match the regular expression
+ pattern to be run. By default all tests are run silently.  If all
+ the specified test pass, 6.out prints PASS and exits with a 0 exit
+ code.  If any tests fail, it prints FAIL and exits with a non-zero
+-code.
++code.  The -benchmarks flag is analogous to the -match flag, but
++applies to benchmarks.  No benchmarks run by default.
+ 
+ */
+ package documentation
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 584578e91f..5f87b4791d 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -118,6 +118,9 @@ importpath=$(gomake -s importpath)
+ 		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
+ 		exit 2
+ 	fi
++	# benchmarks are named BenchmarkFoo.
++	pattern='Benchmark([^a-z].*)?'
++	benchmarks=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+ 
+ 	# package spec
+ 	echo 'package main'
+@@ -140,10 +143,19 @@ importpath=$(gomake -s importpath)
+ 		echo '	testing.Test{ "'$i'", '$i' },'
+ 	done
+ 	echo '}'
++	# benchmark array
++	echo 'var benchmarks = []testing.Benchmark {'
++	for i in $benchmarks
++	do
++		echo '	testing.Benchmark{ "'$i'", '$i' },'
++	done
++	echo '}'
++
+ 	# body
+ 	echo
+ 	echo 'func main() {'
+-	echo '	testing.Main(tests)'
++	echo '	testing.Main(tests);'
++	echo '	testing.RunBenchmarks(benchmarks)'
+ 	echo '}'
+ }>_testmain.go
+ 
+diff --git a/src/pkg/testing/Makefile b/src/pkg/testing/Makefile
+index 809bb56427..ffbd11111c 100644
+--- a/src/pkg/testing/Makefile
++++ b/src/pkg/testing/Makefile
+@@ -6,6 +6,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=testing
+ GOFILES=\
++        benchmark.go\
+ 	regexp.go\
+ 	testing.go\
+ 
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+new file mode 100644
+index 0000000000..b6e100686d
+--- /dev/null
++++ b/src/pkg/testing/benchmark.go
+@@ -0,0 +1,150 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++import (
++	"flag";
++	"fmt";
++	"os";
++	"time";
++)
++
++var matchBenchmarks = flag.String("benchmarks", "", "regular expression to select benchmarks to run")
++
++// An internal type but exported because it is cross-package; part of the implementation
++// of gotest.
++type Benchmark struct {
++	Name	string;
++	F	func(b *B);
++}
++
++// B is a type passed to Benchmark functions to manage benchmark
++// timing and to specify the number of iterations to run.
++type B struct {
++	N		int;
++	benchmark	Benchmark;
++	ns		int64;
++	start		int64;
++}
++
++// StartTimer starts timing a test.  This function is called automatically
++// before a benchmark starts, but it can also used to resume timing after
++// a call to StopTimer.
++func (b *B) StartTimer()	{ b.start = time.Nanoseconds() }
++
++// StopTimer stops timing a test.  This can be used to pause the timer
++// while performing complex initialization that you don't
++// want to measure.
++func (b *B) StopTimer() {
++	if b.start > 0 {
++		b.ns += time.Nanoseconds() - b.start
++	}
++	b.start = 0;
++}
++
++// ResetTimer stops the timer and sets the elapsed benchmark time to zero.
++func (b *B) ResetTimer() {
++	b.start = 0;
++	b.ns = 0;
++}
++
++func (b *B) nsPerOp() int64 {
++	if b.N <= 0 {
++		return 0
++	}
++	return b.ns / int64(b.N);
++}
++
++// runN runs a single benchmark for the specified number of iterations.
++func (b *B) runN(n int) {
++	b.N = n;
++	b.ResetTimer();
++	b.StartTimer();
++	b.benchmark.F(b);
++	b.StopTimer();
++}
++
++func min(x, y int) int {
++	if x > y {
++		return y
++	}
++	return x;
++}
++
++// roundDown10 rounds a number down to the nearest power of 10.
++func roundDown10(n int) int {
++	var tens = 0;
++	// tens = floor(log_10(n))
++	for n > 10 {
++		n = n / 10;
++		tens++;
++	}
++	// result = 10^tens
++	result := 1;
++	for i := 0; i < tens; i++ {
++		result *= 10
++	}
++	return result;
++}
++
++// roundUp rounds x up to a number of the form [1eX, 2eX, 5eX].
++func roundUp(n int) int {
++	base := roundDown10(n);
++	if n < (2 * base) {
++		return 2 * base
++	}
++	if n < (5 * base) {
++		return 5 * base
++	}
++	return 10 * base;
++}
++
++// run times the benchmark function.  It gradually increases the number
++// of benchmark iterations until the benchmark runs for a second in order
++// to get a reasonable measurement.  It prints timing information in this form
++//		testing.BenchmarkHello	100000		19 ns/op
++func (b *B) run() {
++	// Run the benchmark for a single iteration in case it's expensive.
++	n := 1;
++	b.runN(n);
++	// Run the benchmark for at least a second.
++	for b.ns < 1e9 && n < 1e9 {
++		last := n;
++		// Predict iterations/sec.
++		if b.nsPerOp() == 0 {
++			n = 1e9
++		} else {
++			n = 1e9 / int(b.nsPerOp())
++		}
++		// Run more iterations than we think we'll need for a second (1.5x).
++		// Don't grow too fast in case we had timing errors previously.
++		n = min(int(1.5*float(n)), 100*last);
++		// Round up to something easy to read.
++		n = roundUp(n);
++		b.runN(n);
++	}
++	fmt.Printf("%s\t%d\t%10d ns/op\n", b.benchmark.Name, b.N, b.nsPerOp());
++}
++
++// An internal function but exported because it is cross-package; part of the implementation
++// of gotest.
++func RunBenchmarks(benchmarks []Benchmark) {
++	// If no flag was specified, don't run benchmarks.
++	if len(*matchBenchmarks) == 0 {
++		return
++	}
++	re, err := CompileRegexp(*matchBenchmarks);
++	if err != "" {
++		println("invalid regexp for -benchmarks:", err);
++		os.Exit(1);
++	}
++	for _, Benchmark := range benchmarks {
++		if !re.MatchString(Benchmark.Name) {
++			continue
++		}
++		b := &B{benchmark: Benchmark};
++		b.run();
++	}
++}
+diff --git a/src/pkg/testing/regexp_test.go b/src/pkg/testing/regexp_test.go
+index 8f6b20c673..66139ea1e3 100644
+--- a/src/pkg/testing/regexp_test.go
++++ b/src/pkg/testing/regexp_test.go
+@@ -279,3 +279,33 @@ func TestMatchFunction(t *T) {
+ 		matchFunctionTest(t, test.re, test.text, test.match);
+ 	}
+ }
++
++func BenchmarkSimpleMatch(b *B) {
++	b.StopTimer();
++	re, _ := CompileRegexp("a");
++	b.StartTimer();
++
++	for i := 0; i < b.N; i++ {
++		re.MatchString("a")
++	}
++}
++
++func BenchmarkUngroupedMatch(b *B) {
++	b.StopTimer();
++	re, _ := CompileRegexp("[a-z]+ [0-9]+ [a-z]+");
++	b.StartTimer();
++
++	for i := 0; i < b.N; i++ {
++		re.MatchString("word 123 other")
++	}
++}
++
++func BenchmarkGroupedMatch(b *B) {
++	b.StopTimer();
++	re, _ := CompileRegexp("([a-z]+) ([0-9]+) ([a-z]+)");
++	b.StartTimer();
++
++	for i := 0; i < b.N; i++ {
++		re.MatchString("word 123 other")
++	}
++}
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 1fbc4f4a90..654d344c0c 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -9,6 +9,33 @@
+ // where Xxx can by any alphanumeric string (but the first letter must not be in
+ // [a-z]) and serves to identify the test routine.
+ // These TestXxx routines should be declared within the package they are testing.
++//
++// Functions of the form
++//     func BenchmarkXxx(*testing.B)
++// are considered benchmarks, and are executed by gotest when the -benchmarks
++// flag is provided.
++//
++// A sample benchmark function looks like this:
++//     func BenchmarkHello(b *testing.B) {
++//         for i := 0; i < b.N; i++ {
++//             fmt.Sprintf("hello")
++//         }
++//     }
++// The benchmark package will vary b.N until the benchmark function lasts
++// long enough to be timed reliably.  The output
++//     testing.BenchmarkHello	500000	      4076 ns/op
++// means that the loop ran 500000 times at a speed of 4076 ns per loop.
++//
++// If a benchmark needs some expensive setup before running, the timer
++// may be stopped:
++//     func BenchmarkBigLen(b *testing.B) {
++//         b.StopTimer();
++//         big := NewBig();
++//         b.StartTimer();
++//         for i := 0; i < b.N; i++ {
++//             big.Len();
++//         }
++//     }
+ package testing
+ 
+ import (

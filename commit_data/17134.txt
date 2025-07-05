@@ -11,6 +11,23 @@ Date:   Fri Aug 9 14:16:43 2013 -0700
     R=golang-dev, bradfitz
     CC=ality, golang-dev, r, rsc
     https://golang.org/cl/12708043
-
+---
  src/pkg/net/lookup_plan9.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+index 3a7b9acb94..f1204a99f7 100644
+--- a/src/pkg/net/lookup_plan9.go
++++ b/src/pkg/net/lookup_plan9.go
+@@ -186,9 +186,9 @@ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
+ 		if len(f) < 6 {
+ 			continue
+ 		}
+-		port, _, portOk := dtoi(f[2], 0)
++		port, _, portOk := dtoi(f[4], 0)
+ 		priority, _, priorityOk := dtoi(f[3], 0)
+-		weight, _, weightOk := dtoi(f[4], 0)
++		weight, _, weightOk := dtoi(f[2], 0)
+ 		if !(portOk && priorityOk && weightOk) {
+ 			continue
+ 		}

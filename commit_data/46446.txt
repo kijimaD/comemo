@@ -8,6 +8,24 @@ Date:   Tue Dec 29 10:07:38 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/280651
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/node.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 0d56b5aeb8..9536503085 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -218,10 +218,10 @@ const (
+ 	OPAREN       // (Left)
+ 	OSEND        // Left <- Right
+ 	OSLICE       // Left[List[0] : List[1]] (Left is untypechecked or slice)
+-	OSLICEARR    // Left[List[0] : List[1]] (Left is array)
++	OSLICEARR    // Left[List[0] : List[1]] (Left is pointer to array)
+ 	OSLICESTR    // Left[List[0] : List[1]] (Left is string)
+ 	OSLICE3      // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
+-	OSLICE3ARR   // Left[List[0] : List[1] : List[2]] (Left is array)
++	OSLICE3ARR   // Left[List[0] : List[1] : List[2]] (Left is pointer to array)
+ 	OSLICEHEADER // sliceheader{Left, List[0], List[1]} (Left is unsafe.Pointer, List[0] is length, List[1] is capacity)
+ 	ORECOVER     // recover()
+ 	ORECV        // <-Left

@@ -20,9 +20,194 @@ Date:   Thu Aug 5 15:18:42 2021 -0700
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/buildlist.go           | 19 +++++++++++
  src/cmd/go/internal/modload/init.go                | 39 ++++++++++------------
  src/cmd/go/testdata/script/mod_tidy_lazy_self.txt  | 17 ++++------
  .../script/mod_vendor_redundant_requirement.txt    | 29 ++++++++++++++++
  4 files changed, 72 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 604a57b437..bf69567316 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -191,6 +191,19 @@ func (rs *Requirements) rootSelected(path string) (version string, ok bool) {
+ 	return "", false
+ }
+ 
++// hasRedundantRoot returns true if the root list contains multiple requirements
++// of the same module or a requirement on any version of the main module.
++// Redundant requirements should be pruned, but they may influence version
++// selection.
++func (rs *Requirements) hasRedundantRoot() bool {
++	for i, m := range rs.rootModules {
++		if m.Path == Target.Path || (i > 0 && m.Path == rs.rootModules[i-1].Path) {
++			return true
++		}
++	}
++	return false
++}
++
+ // Graph returns the graph of module requirements loaded from the current
+ // root modules (as reported by RootModules).
+ //
+@@ -882,6 +895,12 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
+ 		// and (trivially) version.
+ 
+ 		if !rootsUpgraded {
++			if cfg.BuildMod != "mod" {
++				// The only changes to the root set (if any) were to remove duplicates.
++				// The requirements are consistent (if perhaps redundant), so keep the
++				// original rs to preserve its ModuleGraph.
++				return rs, nil
++			}
+ 			// The root set has converged: every root going into this iteration was
+ 			// already at its selected version, although we have have removed other
+ 			// (redundant) roots for the same path.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a8cbd9fe16..45f724d5e3 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -449,13 +449,22 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 	}
+ 
+ 	setDefaultBuildMod() // possibly enable automatic vendoring
+-	rs = requirementsFromModFile(ctx)
+-
++	rs = requirementsFromModFile()
+ 	if cfg.BuildMod == "vendor" {
+ 		readVendorList()
+ 		checkVendorConsistency()
+ 		rs.initVendor(vendorList)
+ 	}
++	if rs.hasRedundantRoot() {
++		// If any module path appears more than once in the roots, we know that the
++		// go.mod file needs to be updated even though we have not yet loaded any
++		// transitive dependencies.
++		rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
++		if err != nil {
++			base.Fatalf("go: %v", err)
++		}
++	}
++
+ 	if index.goVersionV == "" {
+ 		// TODO(#45551): Do something more principled instead of checking
+ 		// cfg.CmdName directly here.
+@@ -530,7 +539,12 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	commitRequirements(ctx, modFileGoVersion(), requirementsFromModFile(ctx))
++	rs := requirementsFromModFile()
++	rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
++	if err != nil {
++		base.Fatalf("go: %v", err)
++	}
++	commitRequirements(ctx, modFileGoVersion(), rs)
+ 
+ 	// Suggest running 'go mod tidy' unless the project is empty. Even if we
+ 	// imported all the correct requirements above, we're probably missing
+@@ -641,9 +655,8 @@ func initTarget(m module.Version) {
+ 
+ // requirementsFromModFile returns the set of non-excluded requirements from
+ // the global modFile.
+-func requirementsFromModFile(ctx context.Context) *Requirements {
++func requirementsFromModFile() *Requirements {
+ 	roots := make([]module.Version, 0, len(modFile.Require))
+-	mPathCount := map[string]int{Target.Path: 1}
+ 	direct := map[string]bool{}
+ 	for _, r := range modFile.Require {
+ 		if index != nil && index.exclude[r.Mod] {
+@@ -656,28 +669,12 @@ func requirementsFromModFile(ctx context.Context) *Requirements {
+ 		}
+ 
+ 		roots = append(roots, r.Mod)
+-		mPathCount[r.Mod.Path]++
+ 		if !r.Indirect {
+ 			direct[r.Mod.Path] = true
+ 		}
+ 	}
+ 	module.Sort(roots)
+ 	rs := newRequirements(modDepthFromGoVersion(modFileGoVersion()), roots, direct)
+-
+-	// If any module path appears more than once in the roots, we know that the
+-	// go.mod file needs to be updated even though we have not yet loaded any
+-	// transitive dependencies.
+-	for _, n := range mPathCount {
+-		if n > 1 {
+-			var err error
+-			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+-			if err != nil {
+-				base.Fatalf("go: %v", err)
+-			}
+-			break
+-		}
+-	}
+-
+ 	return rs
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_lazy_self.txt b/src/cmd/go/testdata/script/mod_tidy_lazy_self.txt
+index ffcea18603..9abbabd2eb 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_lazy_self.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_lazy_self.txt
+@@ -2,18 +2,13 @@
+ # 'go mod tidy' should not panic if the main module initially
+ # requires an older version of itself.
+ 
++# A module may require an older version of itself without error. This is
++# inconsistent (the required version is never selected), but we still get
++# a reproducible build list.
++go list -m all
++stdout '^golang.org/issue/46078$'
+ 
+-# A module that explicitly requires an older version of itself should be
+-# rejected as inconsistent: we enforce that every explicit requirement is the
+-# selected version of its module path, but the selected version of the main
+-# module is always itself — not some explicit version.
+-
+-! go list -m all
+-stderr '^go: updates to go\.mod needed; to update it:\n\tgo mod tidy$'
+-
+-
+-# The suggested 'go mod tidy' command should succeed (not crash).
+-
++# 'go mod tidy' should fix this (and not crash).
+ go mod tidy
+ 
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor_redundant_requirement.txt b/src/cmd/go/testdata/script/mod_vendor_redundant_requirement.txt
+new file mode 100644
+index 0000000000..3f6f5c5276
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_redundant_requirement.txt
+@@ -0,0 +1,29 @@
++# 'go list -mod=vendor' should succeed even when go.mod contains redundant
++# requirements. Verifies #47565.
++go list -mod=vendor
++
++-- go.mod --
++module m
++
++go 1.17
++
++require example.com/m v0.0.0
++require example.com/m v0.0.0
++
++replace example.com/m v0.0.0 => ./m
++-- m/go.mod --
++module example.com/m
++
++go 1.17
++-- m/m.go --
++package m
++-- use.go --
++package use
++
++import _ "example.com/m"
++-- vendor/example.com/m/m.go --
++package m
++-- vendor/modules.txt --
++# example.com/m v0.0.0 => ./m
++## explicit; go 1.17
++example.com/m

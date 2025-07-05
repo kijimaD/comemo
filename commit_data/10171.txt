@@ -9,7 +9,65 @@ Date:   Tue Nov 1 10:31:29 2011 -0700
     R=golang-dev, ality, bradfitz
     CC=golang-dev
     https://golang.org/cl/5272049
-
+---
  src/pkg/net/textproto/reader.go      | 18 ++++++++++++++++--
  src/pkg/net/textproto/reader_test.go | 17 +++++++++++++++++
  2 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index ece9a99ffb..98b39276b8 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -50,8 +50,22 @@ func (r *Reader) ReadLineBytes() ([]byte, os.Error) {
+ 
+ func (r *Reader) readLineSlice() ([]byte, os.Error) {
+ 	r.closeDot()
+-	line, _, err := r.R.ReadLine()
+-	return line, err
++	var line []byte
++	for {
++		l, more, err := r.R.ReadLine()
++		if err != nil {
++			return nil, err
++		}
++		// Avoid the copy if the first call produced a full line.
++		if line == nil && !more {
++			return l, nil
++		}
++		line = append(line, l...)
++		if !more {
++			break
++		}
++	}
++	return line, nil
+ }
+ 
+ // ReadContinuedLine reads a possibly continued line from r,
+diff --git a/src/pkg/net/textproto/reader_test.go b/src/pkg/net/textproto/reader_test.go
+index 23ebc3f61e..a087e29d91 100644
+--- a/src/pkg/net/textproto/reader_test.go
++++ b/src/pkg/net/textproto/reader_test.go
+@@ -139,6 +139,23 @@ func TestReadMIMEHeader(t *testing.T) {
+ 	}
+ }
+ 
++func TestLargeReadMIMEHeader(t *testing.T) {
++	data := make([]byte, 16*1024)
++	for i := 0; i < len(data); i++ {
++		data[i] = 'x'
++	}
++	sdata := string(data)
++	r := reader("Cookie: " + sdata + "\r\n\n")
++	m, err := r.ReadMIMEHeader()
++	if err != nil {
++		t.Fatalf("ReadMIMEHeader: %v", err)
++	}
++	cookie := m.Get("Cookie")
++	if cookie != sdata {
++		t.Fatalf("ReadMIMEHeader: %v bytes, want %v bytes", len(cookie), len(sdata))
++	}
++}
++
+ type readResponseTest struct {
+ 	in       string
+ 	inCode   int

@@ -21,7 +21,7 @@ Date:   Mon Nov 6 16:28:25 2023 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/unified.go          |  45 +++++++++++++++++++--
  src/cmd/compile/internal/pgo/irgraph.go            |  12 +++---
  .../compile/internal/test/pgo_devirtualize_test.go |  26 ++++++------
@@ -29,3 +29,260 @@ Date:   Mon Nov 6 16:28:25 2023 -0500
  .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 1411 -> 1345 bytes
  .../testdata/pgo/devirtualize/mult.pkg/mult.go     |  12 ++++++
  6 files changed, 73 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 5948cac58c..a803e53502 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -30,8 +30,8 @@ var localPkgReader *pkgReader
+ // LookupMethodFunc returns the ir.Func for an arbitrary full symbol name if
+ // that function exists in the set of available export data.
+ //
+-// This allows lookup of arbitrary methods that aren't otherwise referenced by
+-// the local package and thus haven't been read yet.
++// This allows lookup of arbitrary functions and methods that aren't otherwise
++// referenced by the local package and thus haven't been read yet.
+ //
+ // TODO(prattmic): Does not handle instantiation of generic types. Currently
+ // profiles don't contain the original type arguments, so we won't be able to
+@@ -40,7 +40,7 @@ var localPkgReader *pkgReader
+ // TODO(prattmic): Hit rate of this function is usually fairly low, and errors
+ // are only used when debug logging is enabled. Consider constructing cheaper
+ // errors by default.
+-func LookupMethodFunc(fullName string) (*ir.Func, error) {
++func LookupFunc(fullName string) (*ir.Func, error) {
+ 	pkgPath, symName, err := ir.ParseLinkFuncName(fullName)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("error parsing symbol name %q: %v", fullName, err)
+@@ -51,6 +51,43 @@ func LookupMethodFunc(fullName string) (*ir.Func, error) {
+ 		return nil, fmt.Errorf("pkg %s doesn't exist in %v", pkgPath, types.PkgMap())
+ 	}
+ 
++	// Symbol naming is ambiguous. We can't necessarily distinguish between
++	// a method and a closure. e.g., is foo.Bar.func1 a closure defined in
++	// function Bar, or a method on type Bar? Thus we must simply attempt
++	// to lookup both.
++
++	fn, err := lookupFunction(pkg, symName)
++	if err == nil {
++		return fn, nil
++	}
++
++	fn, mErr := lookupMethod(pkg, symName)
++	if mErr == nil {
++		return fn, nil
++	}
++
++	return nil, fmt.Errorf("%s is not a function (%v) or method (%v)", fullName, err, mErr)
++}
++
++func lookupFunction(pkg *types.Pkg, symName string) (*ir.Func, error) {
++	sym := pkg.Lookup(symName)
++
++	// TODO(prattmic): Enclosed functions (e.g., foo.Bar.func1) are not
++	// present in objReader, only as OCLOSURE nodes in the enclosing
++	// function.
++	pri, ok := objReader[sym]
++	if !ok {
++		return nil, fmt.Errorf("func sym %v missing objReader", sym)
++	}
++
++	name := pri.pr.objIdx(pri.idx, nil, nil, false).(*ir.Name)
++	if name.Op() != ir.ONAME || name.Class != ir.PFUNC {
++		return nil, fmt.Errorf("func sym %v refers to non-function name: %v", sym, name)
++	}
++	return name.Func, nil
++}
++
++func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
+ 	// N.B. readPackage creates a Sym for every object in the package to
+ 	// initialize objReader and importBodyReader, even if the object isn't
+ 	// read.
+@@ -130,7 +167,7 @@ func LookupMethodFunc(fullName string) (*ir.Func, error) {
+ func unified(m posMap, noders []*noder) {
+ 	inline.InlineCall = unifiedInlineCall
+ 	typecheck.HaveInlineBody = unifiedHaveInlineBody
+-	pgo.LookupMethodFunc = LookupMethodFunc
++	pgo.LookupFunc = LookupFunc
+ 
+ 	data := writePkgStub(m, noders)
+ 
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index be802dabc8..7a7cd20f2b 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -366,9 +366,9 @@ func addIREdge(callerNode *IRNode, callerName string, call ir.Node, callee *ir.F
+ 	callerNode.OutEdges[namedEdge] = edge
+ }
+ 
+-// LookupMethodFunc looks up a method in export data. It is expected to be
+-// overridden by package noder, to break a dependency cycle.
+-var LookupMethodFunc = func(fullName string) (*ir.Func, error) {
++// LookupFunc looks up a function or method in export data. It is expected to
++// be overridden by package noder, to break a dependency cycle.
++var LookupFunc = func(fullName string) (*ir.Func, error) {
+ 	base.Fatalf("pgo.LookupMethodFunc not overridden")
+ 	panic("unreachable")
+ }
+@@ -425,9 +425,7 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap NamedEdgeMap) {
+ 			// function may still be available from export data of
+ 			// a transitive dependency.
+ 			//
+-			// TODO(prattmic): Currently we only attempt to lookup
+-			// methods because we can only devirtualize interface
+-			// calls, not any function pointer. Generic types are
++			// TODO(prattmic): Parameterized types/functions are
+ 			// not supported.
+ 			//
+ 			// TODO(prattmic): This eager lookup during graph load
+@@ -437,7 +435,7 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap NamedEdgeMap) {
+ 			// devirtualization. Instantiation of generic functions
+ 			// will likely need to be done at the devirtualization
+ 			// site, if at all.
+-			fn, err := LookupMethodFunc(key.CalleeName)
++			fn, err := LookupFunc(key.CalleeName)
+ 			if err == nil {
+ 				if base.Debug.PGODebug >= 3 {
+ 					fmt.Printf("addIndirectEdges: %s found in export data\n", key.CalleeName)
+diff --git a/src/cmd/compile/internal/test/pgo_devirtualize_test.go b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+index 3e264a3f41..c457478a1f 100644
+--- a/src/cmd/compile/internal/test/pgo_devirtualize_test.go
++++ b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+@@ -77,32 +77,30 @@ go 1.19
+ 		},
+ 		// ExerciseFuncConcrete
+ 		{
+-			pos:    "./devirt.go:178:18",
++			pos:    "./devirt.go:173:36",
+ 			callee: "AddFn",
+ 		},
+-		// TODO(prattmic): Export data lookup for function value callees not implemented.
+-		//{
+-		//	pos:    "./devirt.go:179:15",
+-		//	callee: "mult.MultFn",
+-		//},
++		{
++			pos:    "./devirt.go:173:15",
++			callee: "mult.MultFn",
++		},
+ 		// ExerciseFuncField
+ 		{
+-			pos:    "./devirt.go:218:13",
++			pos:    "./devirt.go:207:35",
+ 			callee: "AddFn",
+ 		},
+-		// TODO(prattmic): Export data lookup for function value callees not implemented.
+-		//{
+-		//	pos:    "./devirt.go:219:19",
+-		//	callee: "mult.MultFn",
+-		//},
++		{
++			pos:    "./devirt.go:207:19",
++			callee: "mult.MultFn",
++		},
+ 		// ExerciseFuncClosure
+ 		// TODO(prattmic): Closure callees not implemented.
+ 		//{
+-		//	pos:    "./devirt.go:266:9",
++		//	pos:    "./devirt.go:249:27",
+ 		//	callee: "AddClosure.func1",
+ 		//},
+ 		//{
+-		//	pos:    "./devirt.go:267:15",
++		//	pos:    "./devirt.go:249:15",
+ 		//	callee: "mult.MultClosure.func1",
+ 		//},
+ 	}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+index 63de3d3c3f..ac238f6dea 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+@@ -170,13 +170,7 @@ func ExerciseFuncConcrete(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
+ 		// If they were not mutually exclusive (for example, two
+ 		// AddFunc calls), then we could not definitively select the
+ 		// correct callee.
+-		//
+-		// TODO(prattmic): Export data lookup for function value
+-		// callees not implemented, meaning the type is unavailable.
+-		//sink += int(m(42, int64(a(1, 2))))
+-
+-		v := selectA(i)(one(i), 2)
+-		val += int(m(42, int64(v)))
++		val += int(m(42, int64(selectA(i)(one(i), 2))))
+ 	}
+ 	return val
+ }
+@@ -210,13 +204,7 @@ func ExerciseFuncField(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
+ 		// If they were not mutually exclusive (for example, two
+ 		// AddFunc calls), then we could not definitively select the
+ 		// correct callee.
+-		//
+-		// TODO(prattmic): Export data lookup for function value
+-		// callees not implemented, meaning the type is unavailable.
+-		//sink += int(ops.m(42, int64(ops.a(1, 2))))
+-
+-		v := ops.a(1, 2)
+-		val += int(ops.m(42, int64(v)))
++		val += int(ops.m(42, int64(ops.a(1, 2))))
+ 	}
+ 	return val
+ }
+@@ -258,13 +246,7 @@ func ExerciseFuncClosure(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
+ 		// If they were not mutually exclusive (for example, two
+ 		// AddFunc calls), then we could not definitively select the
+ 		// correct callee.
+-		//
+-		// TODO(prattmic): Export data lookup for function value
+-		// callees not implemented, meaning the type is unavailable.
+-		//sink += int(m(42, int64(a(1, 2))))
+-
+-		v := a(1, 2)
+-		val += int(m(42, int64(v)))
++		val += int(m(42, int64(a(1, 2))))
+ 	}
+ 	return val
+ }
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof
+index de064582ff..2a27f1bb50 100644
+Binary files a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof and b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof differ
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go
+index 64f405ff9e..113a5e1a7e 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go
+@@ -35,10 +35,16 @@ func (NegMult) Multiply(a, b int) int {
+ type MultFunc func(int64, int64) int64
+ 
+ func MultFn(a, b int64) int64 {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
+ 	return a * b
+ }
+ 
+ func NegMultFn(a, b int64) int64 {
++	for i := 0; i < 1000; i++ {
++		sink++
++	}
+ 	return -1 * a * b
+ }
+ 
+@@ -47,6 +53,9 @@ func MultClosure() MultFunc {
+ 	// Explicit closure to differentiate from AddClosure.
+ 	c := 1
+ 	return func(a, b int64) int64 {
++		for i := 0; i < 1000; i++ {
++			sink++
++		}
+ 		return a * b * int64(c)
+ 	}
+ }
+@@ -55,6 +64,9 @@ func MultClosure() MultFunc {
+ func NegMultClosure() MultFunc {
+ 	c := 1
+ 	return func(a, b int64) int64 {
++		for i := 0; i < 1000; i++ {
++			sink++
++		}
+ 		return -1 * a * b * int64(c)
+ 	}
+ }

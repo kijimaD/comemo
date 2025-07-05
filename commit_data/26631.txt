@@ -9,6 +9,19 @@ Date:   Fri Feb 19 19:35:46 2016 +0530
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 7d38915176..ae426088ea 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1726,7 +1726,6 @@ func TestSymlinksVendor(t *testing.T) {
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+-	tg.setenv("GO15VENDOREXPERIMENT", "1")
+ 	tg.tempDir("gopath/src/dir1/vendor/v")
+ 	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `v`\nfunc main(){}")
+ 	tg.tempFile("gopath/src/dir1/vendor/v/v.go", "package v")

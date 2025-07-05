@@ -10,6 +10,48 @@ Date:   Thu Aug 21 10:16:34 2014 -0700
     R=golang-codereviews, dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/132750043
-
+---
  src/pkg/net/http/httputil/reverseproxy.go | 16 +++++++++++++++-
  1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/httputil/reverseproxy.go b/src/pkg/net/http/httputil/reverseproxy.go
+index 48ada5f5fd..ab46370180 100644
+--- a/src/pkg/net/http/httputil/reverseproxy.go
++++ b/src/pkg/net/http/httputil/reverseproxy.go
+@@ -40,6 +40,12 @@ type ReverseProxy struct {
+ 	// response body.
+ 	// If zero, no periodic flushing is done.
+ 	FlushInterval time.Duration
++
++	// ErrorLog specifies an optional logger for errors
++	// that occur when attempting to proxy the request.
++	// If nil, logging goes to os.Stderr via the log package's
++	// standard logger.
++	ErrorLog *log.Logger
+ }
+ 
+ func singleJoiningSlash(a, b string) string {
+@@ -138,7 +144,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 
+ 	res, err := transport.RoundTrip(outreq)
+ 	if err != nil {
+-		log.Printf("http: proxy error: %v", err)
++		p.logf("http: proxy error: %v", err)
+ 		rw.WriteHeader(http.StatusInternalServerError)
+ 		return
+ 	}
+@@ -171,6 +177,14 @@ func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {
+ 	io.Copy(dst, src)
+ }
+ 
++func (p *ReverseProxy) logf(format string, args ...interface{}) {
++	if p.ErrorLog != nil {
++		p.ErrorLog.Printf(format, args...)
++	} else {
++		log.Printf(format, args...)
++	}
++}
++
+ type writeFlusher interface {
+ 	io.Writer
+ 	http.Flusher

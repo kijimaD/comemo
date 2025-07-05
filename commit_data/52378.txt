@@ -22,7 +22,88 @@ Date:   Sat Apr 16 22:45:06 2022 +0930
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/all_test.go | 12 ++++++++++++
  src/reflect/value.go    |  6 ++++--
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 9eb01bde35..a625a1d2f1 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1504,6 +1504,10 @@ func TestMap(t *testing.T) {
+ 	if m != nil {
+ 		t.Errorf("mv.Set(nil) failed")
+ 	}
++
++	type S string
++	shouldPanic("not assignable", func() { mv.MapIndex(ValueOf(S("key"))) })
++	shouldPanic("not assignable", func() { mv.SetMapIndex(ValueOf(S("key")), ValueOf(0)) })
+ }
+ 
+ func TestNilMap(t *testing.T) {
+@@ -7265,11 +7269,14 @@ func BenchmarkNew(b *testing.B) {
+ 
+ func BenchmarkMap(b *testing.B) {
+ 	type V *int
++	type S string
+ 	value := ValueOf((V)(nil))
+ 	stringKeys := []string{}
+ 	mapOfStrings := map[string]V{}
+ 	uint64Keys := []uint64{}
+ 	mapOfUint64s := map[uint64]V{}
++	userStringKeys := []S{}
++	mapOfUserStrings := map[S]V{}
+ 	for i := 0; i < 100; i++ {
+ 		stringKey := fmt.Sprintf("key%d", i)
+ 		stringKeys = append(stringKeys, stringKey)
+@@ -7278,6 +7285,10 @@ func BenchmarkMap(b *testing.B) {
+ 		uint64Key := uint64(i)
+ 		uint64Keys = append(uint64Keys, uint64Key)
+ 		mapOfUint64s[uint64Key] = nil
++
++		userStringKey := S(fmt.Sprintf("key%d", i))
++		userStringKeys = append(userStringKeys, userStringKey)
++		mapOfUserStrings[userStringKey] = nil
+ 	}
+ 
+ 	tests := []struct {
+@@ -7286,6 +7297,7 @@ func BenchmarkMap(b *testing.B) {
+ 	}{
+ 		{"StringKeys", ValueOf(mapOfStrings), ValueOf(stringKeys), value},
+ 		{"Uint64Keys", ValueOf(mapOfUint64s), ValueOf(uint64Keys), value},
++		{"UserStringKeys", ValueOf(mapOfUserStrings), ValueOf(userStringKeys), value},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index f92fa16fe6..76ae5f8c81 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1635,6 +1635,8 @@ func (v Value) lenNonSlice() int {
+ 	panic(&ValueError{"reflect.Value.Len", v.kind()})
+ }
+ 
++var stringType = TypeOf("").(*rtype)
++
+ // MapIndex returns the value associated with key in the map v.
+ // It panics if v's Kind is not Map.
+ // It returns the zero Value if key is not found in the map or if v represents a nil map.
+@@ -1652,7 +1654,7 @@ func (v Value) MapIndex(key Value) Value {
+ 	// of unexported fields.
+ 
+ 	var e unsafe.Pointer
+-	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
++	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.size <= maxValSize {
+ 		k := *(*string)(key.ptr)
+ 		e = mapaccess_faststr(v.typ, v.pointer(), k)
+ 	} else {
+@@ -2278,7 +2280,7 @@ func (v Value) SetMapIndex(key, elem Value) {
+ 	key.mustBeExported()
+ 	tt := (*mapType)(unsafe.Pointer(v.typ))
+ 
+-	if key.kind() == String && tt.key.Kind() == String && tt.elem.size <= maxValSize {
++	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.size <= maxValSize {
+ 		k := *(*string)(key.ptr)
+ 		if elem.typ == nil {
+ 			mapdelete_faststr(v.typ, v.pointer(), k)

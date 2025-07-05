@@ -18,7 +18,7 @@ Date:   Wed Dec 18 20:20:46 2013 +0100
     R=golang-dev, gobot, rsc
     CC=golang-dev
     https://golang.org/cl/36740045
-
+---
  src/cmd/6g/reg.c     | 2 +-
  src/cmd/gc/pgen.c    | 1 +
  src/cmd/gc/plive.c   | 2 +-
@@ -28,3 +28,123 @@ Date:   Wed Dec 18 20:20:46 2013 +0100
  src/cmd/ld/elf.c     | 2 +-
  src/cmd/ld/ldmacho.c | 1 +
  8 files changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index f5600f6827..320600b357 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -668,7 +668,7 @@ mkvar(Reg *r, Adr *a)
+ 	v->node = node;
+ 
+ 	if(debug['R'])
+-		print("bit=%2d et=%2E w=%d+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
++		print("bit=%2d et=%2E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+ 
+ 	ostats.nvar++;
+ 
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 87225a4f88..2a8a779750 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -232,6 +232,7 @@ compile(Node *fn)
+ 
+ 	if(0)
+ 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
++	USED(oldstksize);
+ 
+ 	setlineno(curfn);
+ 	if((int64)stksize+maxarg > (1ULL<<31)) {
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 25d6e89b98..fd2888e4d2 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -874,7 +874,7 @@ checkauto(Node *fn, Prog *p, Node *n, char *where)
+ 	print("D_AUTO '%s' not found: name is '%s' function is '%s' class is %d\n", where, nname, fnname, n->class);
+ 	print("Here '%P'\nlooking for node %p\n", p, n);
+ 	for(ll = fn->dcl; ll != nil; ll = ll->next)
+-		print("node=%lx, node->class=%d\n", (uintptr)ll->n, ll->n->class);
++		print("node=%p, node->class=%d\n", (uintptr)ll->n, ll->n->class);
+ 	yyerror("checkauto: invariant lost");
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index d28495d0b7..e1a909ce69 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2886,17 +2886,13 @@ sliceany(Node* n, NodeList **init)
+ 
+ 	if(isconst(cb, CTINT)) {
+ 		cbv = mpgetfix(cb->val.u.xval);
+-		if(cbv < 0 || cbv > bv) {
++		if(cbv < 0 || cbv > bv)
+ 			yyerror("slice index out of bounds");
+-			cbv = -1;
+-		}
+ 	}
+ 	if(isconst(hb, CTINT)) {
+ 		hbv = mpgetfix(hb->val.u.xval);
+-		if(hbv < 0 || hbv > bv) {
++		if(hbv < 0 || hbv > bv)
+ 			yyerror("slice index out of bounds");
+-			hbv = -1;
+-		}
+ 	}
+ 	if(isconst(lb, CTINT)) {
+ 		lbv = mpgetfix(lb->val.u.xval);
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index db01463930..0e3854fb57 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -195,7 +195,7 @@ relocsym(LSym *s)
+ 					if(rs->type != SHOSTOBJ)
+ 						o += symaddr(rs);
+ 				} else {
+-					diag("unhandled pcrel relocation for %s", headtype);
++					diag("unhandled pcrel relocation for %s", headstring);
+ 				}
+ 				break;
+ 			}
+@@ -227,7 +227,7 @@ relocsym(LSym *s)
+ 						o += symaddr(rs) - rs->sect->vaddr;
+ 					o -= r->off; // WTF?
+ 				} else {
+-					diag("unhandled pcrel relocation for %s", headtype);
++					diag("unhandled pcrel relocation for %s", headstring);
+ 				}
+ 				break;
+ 			}
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index c4f6b9d016..dd8a3d7606 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1514,7 +1514,6 @@ writelines(void)
+ 
+ 	unitstart = -1;
+ 	headerend = -1;
+-	pc = 0;
+ 	epc = 0;
+ 	epcs = S;
+ 	lineo = cpos();
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 8c7ca86097..3b8bfb0057 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -1504,5 +1504,5 @@ elfobj:
+ 			a += elfwritebuildinfo();
+ 	}
+ 	if(a > ELFRESERVE)	
+-		diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
++		diag("ELFRESERVE too small: %lld > %d", a, ELFRESERVE);
+ }
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 7318381e35..14db811277 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -507,6 +507,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	c = nil;
+ 	symtab = nil;
+ 	dsymtab = nil;
++	USED(dsymtab);
+ 	for(i=0; i<ncmd; i++){
+ 		ty = e->e32(cmdp);
+ 		sz = e->e32(cmdp+4);

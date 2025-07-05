@@ -14,9 +14,414 @@ Date:   Sun Dec 9 03:59:33 2012 -0500
     R=golang-dev, bradfitz, iant, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/6903050
-
+---
  doc/go1.1.html               |  14 ++++
  src/pkg/time/example_test.go |  55 +++++++++++++
  src/pkg/time/time.go         | 113 +++++++++++++++++++++++++++
  src/pkg/time/time_test.go    | 179 +++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 361 insertions(+)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 3e0bd4f009..c70be57fad 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -72,4 +72,18 @@ calls the debug/elf functions Symbols or ImportedSymbols may need to be
+ adjusted to account for the additional symbol and the change in symbol offsets.
+ </p>
+ 
++<h3 id="time">time</h3>
++<p>
++On Linux, previous versions of the time package returned times with
++microsecond precision. The Go 1.1 implementation of time on Linux now returns times with
++nanosecond precision. Code may exist that expects to be able to store
++such a time in an external format with only microsecond precision,
++read it back, and recover exactly the same time instant.
++In Go 1.1 the same time will not be recovered, since the external storage
++will have discarded nanoseconds.
++To address this case, there are two new methods of time.Time, Round and Truncate,
++that can be used to remove precision from a time before passing it to
++external storage.
++</p>
++
+ TODO
+diff --git a/src/pkg/time/example_test.go b/src/pkg/time/example_test.go
+index 944cc789c3..ea26710d8d 100644
+--- a/src/pkg/time/example_test.go
++++ b/src/pkg/time/example_test.go
+@@ -56,3 +56,58 @@ func ExampleDate() {
+ 	fmt.Printf("Go launched at %s\n", t.Local())
+ 	// Output: Go launched at 2009-11-10 15:00:00 -0800 PST
+ }
++
++func ExampleTime_Round() {
++	t := time.Date(0, 0, 0, 12, 15, 30, 918273645, time.UTC)
++	round := []time.Duration{
++		time.Nanosecond,
++		time.Microsecond,
++		time.Millisecond,
++		time.Second,
++		2 * time.Second,
++		time.Minute,
++		10 * time.Minute,
++		time.Hour,
++	}
++
++	for _, d := range round {
++		fmt.Printf("t.Round(%6s) = %s\n", d, t.Round(d).Format("15:04:05.999999999"))
++	}
++	// Output:
++	// t.Round(   1ns) = 12:15:30.918273645
++	// t.Round(   1us) = 12:15:30.918274
++	// t.Round(   1ms) = 12:15:30.918
++	// t.Round(    1s) = 12:15:31
++	// t.Round(    2s) = 12:15:30
++	// t.Round(  1m0s) = 12:16:00
++	// t.Round( 10m0s) = 12:20:00
++	// t.Round(1h0m0s) = 12:00:00
++}
++
++func ExampleTime_Truncate() {
++	t, _ := time.Parse("2006 Jan 02 15:04:05", "2012 Dec 07 12:15:30.918273645")
++	trunc := []time.Duration{
++		time.Nanosecond,
++		time.Microsecond,
++		time.Millisecond,
++		time.Second,
++		2 * time.Second,
++		time.Minute,
++		10 * time.Minute,
++		time.Hour,
++	}
++
++	for _, d := range trunc {
++		fmt.Printf("t.Truncate(%6s) = %s\n", d, t.Truncate(d).Format("15:04:05.999999999"))
++	}
++
++	// Output:
++	// t.Truncate(   1ns) = 12:15:30.918273645
++	// t.Truncate(   1us) = 12:15:30.918273
++	// t.Truncate(   1ms) = 12:15:30.918
++	// t.Truncate(    1s) = 12:15:30
++	// t.Truncate(    2s) = 12:15:30
++	// t.Truncate(  1m0s) = 12:15:00
++	// t.Truncate( 10m0s) = 12:10:00
++	// t.Truncate(1h0m0s) = 12:00:00
++}
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 011a1e31e3..190cc37ddb 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -1033,3 +1033,116 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
+ 
+ 	return Time{unix + unixToInternal, int32(nsec), loc}
+ }
++
++// Truncate returns the result of rounding t down to a multiple of d (since the zero time).
++// If d <= 0, Truncate returns t unchanged.
++func (t Time) Truncate(d Duration) Time {
++	if d <= 0 {
++		return t
++	}
++	_, r := div(t, d)
++	return t.Add(-r)
++}
++
++// Round returns the result of rounding t to the nearest multiple of d (since the zero time).
++// The rounding behavior for halfway values is to round up.
++// If d <= 0, Round returns t unchanged.
++func (t Time) Round(d Duration) Time {
++	if d <= 0 {
++		return t
++	}
++	_, r := div(t, d)
++	if r+r < d {
++		return t.Add(-r)
++	}
++	return t.Add(d - r)
++}
++
++// div divides t by d and returns the quotient parity and remainder.
++// We don't use the quotient parity anymore (round half up instead of round to even)
++// but it's still here in case we change our minds.
++func div(t Time, d Duration) (qmod2 int, r Duration) {
++	neg := false
++	if t.sec < 0 {
++		// Operate on absolute value.
++		neg = true
++		t.sec = -t.sec
++		t.nsec = -t.nsec
++		if t.nsec < 0 {
++			t.nsec += 1e9
++			t.sec-- // t.sec >= 1 before the -- so safe
++		}
++	}
++
++	switch {
++	// Special case: 2d divides 1 second.
++	case d < Second && Second%(d+d) == 0:
++		qmod2 = int(t.nsec/int32(d)) & 1
++		r = Duration(t.nsec % int32(d))
++
++	// Special case: d is a multiple of 1 second.
++	case d%Second == 0:
++		d1 := int64(d / Second)
++		qmod2 = int(t.sec/d1) & 1
++		r = Duration(t.sec%d1)*Second + Duration(t.nsec)
++
++	// General case.
++	// This could be faster if more cleverness were applied,
++	// but it's really only here to avoid special case restrictions in the API.
++	// No one will care about these cases.
++	default:
++		// Compute nanoseconds as 128-bit number.
++		sec := uint64(t.sec)
++		tmp := (sec >> 32) * 1e9
++		u1 := tmp >> 32
++		u0 := tmp << 32
++		tmp = uint64(sec&0xFFFFFFFF) * 1e9
++		u0x, u0 := u0, u0+tmp
++		if u0 < u0x {
++			u1++
++		}
++		u0x, u0 = u0, u0+uint64(t.nsec)
++		if u0 < u0x {
++			u1++
++		}
++
++		// Compute remainder by subtracting r<<k for decreasing k.
++		// Quotient parity is whether we subtract on last round.
++		d1 := uint64(d)
++		for d1>>63 != 1 {
++			d1 <<= 1
++		}
++		d0 := uint64(0)
++		for {
++			qmod2 = 0
++			if u1 > d1 || u1 == d1 && u0 >= d0 {
++				// subtract
++				qmod2 = 1
++				u0x, u0 = u0, u0-d0
++				if u0 > u0x {
++					u1--
++				}
++				u1 -= d1
++			}
++			if d1 == 0 && d0 == uint64(d) {
++				break
++			}
++			d0 >>= 1
++			d0 |= (d1 & 1) << 63
++			d1 >>= 1
++		}
++		r = Duration(u0)
++	}
++
++	if neg && r != 0 {
++		// If input was negative and not an exact multiple of d, we computed q, r such that
++		//	q*d + r = -t
++		// But the right answers are given by -(q-1), d-r:
++		//	q*d + r = -t
++		//	-q*d - r = t
++		//	-(q-1)*d + (d - r) = t
++		qmod2 ^= 1
++		r = d - r
++	}
++	return
++}
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 8602fcef8b..1fd575b095 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/gob"
+ 	"encoding/json"
+ 	"fmt"
++	"math/big"
+ 	"math/rand"
+ 	"runtime"
+ 	"strconv"
+@@ -193,6 +194,184 @@ func TestNanosecondsToUTCAndBack(t *testing.T) {
+ 	}
+ }
+ 
++// The time routines provide no way to get absolute time
++// (seconds since zero), but we need it to compute the right
++// answer for bizarre roundings like "to the nearest 3 ns".
++// Compute as t - year1 = (t - 1970) + (1970 - 2001) + (2001 - 1).
++// t - 1970 is returned by Unix and Nanosecond.
++// 1970 - 2001 is -(31*365+8)*86400 = -978307200 seconds.
++// 2001 - 1 is 2000*365.2425*86400 = 63113904000 seconds.
++const unixToZero = -978307200 + 63113904000
++
++// abs returns the absolute time stored in t, as seconds and nanoseconds.
++func abs(t Time) (sec, nsec int64) {
++	unix := t.Unix()
++	nano := t.Nanosecond()
++	return unix + unixToZero, int64(nano)
++}
++
++// absString returns abs as a decimal string.
++func absString(t Time) string {
++	sec, nsec := abs(t)
++	if sec < 0 {
++		sec = -sec
++		nsec = -nsec
++		if nsec < 0 {
++			nsec += 1e9
++			sec--
++		}
++		return fmt.Sprintf("-%d%09d", sec, nsec)
++	}
++	return fmt.Sprintf("%d%09d", sec, nsec)
++}
++
++var truncateRoundTests = []struct {
++	t Time
++	d Duration
++}{
++	{Date(-1, January, 1, 12, 15, 30, 5e8, UTC), 3},
++	{Date(-1, January, 1, 12, 15, 31, 5e8, UTC), 3},
++	{Date(2012, January, 1, 12, 15, 30, 5e8, UTC), Second},
++	{Date(2012, January, 1, 12, 15, 31, 5e8, UTC), Second},
++}
++
++func TestTruncateRound(t *testing.T) {
++	var (
++		bsec  = new(big.Int)
++		bnsec = new(big.Int)
++		bd    = new(big.Int)
++		bt    = new(big.Int)
++		br    = new(big.Int)
++		bq    = new(big.Int)
++		b1e9  = new(big.Int)
++	)
++
++	b1e9.SetInt64(1e9)
++
++	testOne := func(ti, tns, di int64) bool {
++		t0 := Unix(ti, int64(tns)).UTC()
++		d := Duration(di)
++		if d < 0 {
++			d = -d
++		}
++		if d <= 0 {
++			d = 1
++		}
++
++		// Compute bt = absolute nanoseconds.
++		sec, nsec := abs(t0)
++		bsec.SetInt64(sec)
++		bnsec.SetInt64(nsec)
++		bt.Mul(bsec, b1e9)
++		bt.Add(bt, bnsec)
++
++		// Compute quotient and remainder mod d.
++		bd.SetInt64(int64(d))
++		bq.DivMod(bt, bd, br)
++
++		// To truncate, subtract remainder.
++		// br is < d, so it fits in an int64.
++		r := br.Int64()
++		t1 := t0.Add(-Duration(r))
++
++		// Check that time.Truncate works.
++		if trunc := t0.Truncate(d); trunc != t1 {
++			t.Errorf("Time.Truncate(%s, %s) = %s, want %s\n"+
++				"%v trunc %v =\n%v want\n%v",
++				t0.Format(RFC3339Nano), d, trunc, t1.Format(RFC3339Nano),
++				absString(t0), int64(d), absString(trunc), absString(t1))
++			return false
++		}
++
++		// To round, add d back if remainder r > d/2 or r == exactly d/2.
++		// The commented out code would round half to even instead of up,
++		// but that makes it time-zone dependent, which is a bit strange.
++		if r > int64(d)/2 || r+r == int64(d) /*&& bq.Bit(0) == 1*/ {
++			t1 = t1.Add(Duration(d))
++		}
++
++		// Check that time.Round works.
++		if rnd := t0.Round(d); rnd != t1 {
++			t.Errorf("Time.Round(%s, %s) = %s, want %s\n"+
++				"%v round %v =\n%v want\n%v",
++				t0.Format(RFC3339Nano), d, rnd, t1.Format(RFC3339Nano),
++				absString(t0), int64(d), absString(rnd), absString(t1))
++			return false
++		}
++		return true
++	}
++
++	// manual test cases
++	for _, tt := range truncateRoundTests {
++		testOne(tt.t.Unix(), int64(tt.t.Nanosecond()), int64(tt.d))
++	}
++
++	// exhaustive near 0
++	for i := 0; i < 100; i++ {
++		for j := 1; j < 100; j++ {
++			testOne(unixToZero, int64(i), int64(j))
++			testOne(unixToZero, -int64(i), int64(j))
++			if t.Failed() {
++				return
++			}
++		}
++	}
++
++	if t.Failed() {
++		return
++	}
++
++	// randomly generated test cases
++	cfg := &quick.Config{MaxCount: 100000}
++	if testing.Short() {
++		cfg.MaxCount = 1000
++	}
++
++	// divisors of Second
++	f1 := func(ti int64, tns int32, logdi int32) bool {
++		d := Duration(1)
++		a, b := uint(logdi%9), (logdi>>16)%9
++		d <<= a
++		for i := 0; i < int(b); i++ {
++			d *= 5
++		}
++		return testOne(ti, int64(tns), int64(d))
++	}
++	quick.Check(f1, cfg)
++
++	// multiples of Second
++	f2 := func(ti int64, tns int32, di int32) bool {
++		d := Duration(di) * Second
++		if d < 0 {
++			d = -d
++		}
++		return testOne(ti, int64(tns), int64(d))
++	}
++	quick.Check(f2, cfg)
++
++	// halfway cases
++	f3 := func(tns, di int64) bool {
++		di &= 0xfffffffe
++		if di == 0 {
++			di = 2
++		}
++		tns -= tns % di
++		if tns < 0 {
++			tns += di / 2
++		} else {
++			tns -= di / 2
++		}
++		return testOne(0, tns, di)
++	}
++	quick.Check(f3, cfg)
++
++	// full generality
++	f4 := func(ti int64, tns int32, di int64) bool {
++		return testOne(ti, int64(tns), di)
++	}
++	quick.Check(f4, cfg)
++}
++
+ type TimeFormatTest struct {
+ 	time           Time
+ 	formattedValue string

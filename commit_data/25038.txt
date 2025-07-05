@@ -10,6 +10,19 @@ Date:   Fri Sep 11 00:26:50 2015 -0400
     Change-Id: If6438831ab0715ba8e236d64bb2c7c1bde1470aa
     Reviewed-on: https://go-review.googlesource.com/14476
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/tool.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 937ca1f306..9ff0dcfb12 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -98,6 +98,7 @@ func runTool(cmd *Command, args []string) {
+ 		fmt.Printf("%s\n", cmd)
+ 		return
+ 	}
++	args[0] = toolPath // in case the tool wants to re-exec itself, e.g. cmd/dist
+ 	toolCmd := &exec.Cmd{
+ 		Path:   toolPath,
+ 		Args:   args,

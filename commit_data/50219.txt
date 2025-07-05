@@ -17,7 +17,38 @@ Date:   Fri Oct 8 11:23:38 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/ast_go1.go   | 4 ++--
  src/cmd/cgo/ast_go118.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cgo/ast_go1.go b/src/cmd/cgo/ast_go1.go
+index cf6d99f64a..f52bf00d7c 100644
+--- a/src/cmd/cgo/ast_go1.go
++++ b/src/cmd/cgo/ast_go1.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !go1.18
+-// +build !go1.18
++//go:build compiler_bootstrap
++// +build compiler_bootstrap
+ 
+ package main
+ 
+diff --git a/src/cmd/cgo/ast_go118.go b/src/cmd/cgo/ast_go118.go
+index 2e3ce27521..db0108ed72 100644
+--- a/src/cmd/cgo/ast_go118.go
++++ b/src/cmd/cgo/ast_go118.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build go1.18
+-// +build go1.18
++//go:build !compiler_bootstrap
++// +build !compiler_bootstrap
+ 
+ package main
+ 

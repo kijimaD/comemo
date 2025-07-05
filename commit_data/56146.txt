@@ -18,7 +18,121 @@ Date:   Tue Apr 11 23:25:07 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/embed/embed.go                         | 16 +++++++--
  src/embed/internal/embedtest/embed_test.go | 57 ++++++++++++++++++++++++++++++
  2 files changed, 71 insertions(+), 2 deletions(-)
+
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index c54b961d15..66934a8974 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -297,7 +297,7 @@ func (f FS) readDir(dir string) []file {
+ 
+ // Open opens the named file for reading and returns it as an fs.File.
+ //
+-// The returned file implements io.Seeker when the file is not a directory.
++// The returned file implements io.Seeker and io.ReaderAt when the file is not a directory.
+ func (f FS) Open(name string) (fs.File, error) {
+ 	file := f.lookup(name)
+ 	if file == nil {
+@@ -346,7 +346,8 @@ type openFile struct {
+ }
+ 
+ var (
+-	_ io.Seeker = (*openFile)(nil)
++	_ io.Seeker   = (*openFile)(nil)
++	_ io.ReaderAt = (*openFile)(nil)
+ )
+ 
+ func (f *openFile) Close() error               { return nil }
+@@ -380,6 +381,17 @@ func (f *openFile) Seek(offset int64, whence int) (int64, error) {
+ 	return offset, nil
+ }
+ 
++func (f *openFile) ReadAt(b []byte, offset int64) (int, error) {
++	if offset < 0 || offset > int64(len(f.f.data)) {
++		return 0, &fs.PathError{Op: "read", Path: f.f.name, Err: fs.ErrInvalid}
++	}
++	n := copy(b, f.f.data[offset:])
++	if n < len(b) {
++		return n, io.EOF
++	}
++	return n, nil
++}
++
+ // An openDir is a directory open for reading.
+ type openDir struct {
+ 	f      *file  // the directory file itself
+diff --git a/src/embed/internal/embedtest/embed_test.go b/src/embed/internal/embedtest/embed_test.go
+index cbd58ee846..c925942191 100644
+--- a/src/embed/internal/embedtest/embed_test.go
++++ b/src/embed/internal/embedtest/embed_test.go
+@@ -6,6 +6,7 @@ package embedtest
+ 
+ import (
+ 	"embed"
++	"io"
+ 	"reflect"
+ 	"testing"
+ 	"testing/fstest"
+@@ -176,3 +177,59 @@ func TestAliases(t *testing.T) {
+ 	check(helloBytes)
+ 	check(helloString)
+ }
++
++func TestOffset(t *testing.T) {
++	file, err := testDirAll.Open("testdata/hello.txt")
++	if err != nil {
++		t.Fatal("Open:", err)
++	}
++
++	const want = "hello, world\n"
++
++	// Read the entire file.
++	got := make([]byte, len(want))
++	n, err := file.Read(got)
++	if err != nil {
++		t.Fatal("Read:", err)
++	}
++	if n != len(want) {
++		t.Fatal("Read:", n)
++	}
++	if string(got) != want {
++		t.Fatalf("Read: %q", got)
++	}
++
++	// Try to read one byte; confirm we're at the EOF.
++	var buf [1]byte
++	n, err = file.Read(buf[:])
++	if err != io.EOF {
++		t.Fatal("Read:", err)
++	}
++	if n != 0 {
++		t.Fatal("Read:", n)
++	}
++
++	// Use seek to get the offset at the EOF.
++	seeker := file.(io.Seeker)
++	off, err := seeker.Seek(0, io.SeekCurrent)
++	if err != nil {
++		t.Fatal("Seek:", err)
++	}
++	if off != int64(len(want)) {
++		t.Fatal("Seek:", off)
++	}
++
++	// Use ReadAt to read the entire file, ignoring the offset.
++	at := file.(io.ReaderAt)
++	got = make([]byte, len(want))
++	n, err = at.ReadAt(got, 0)
++	if err != nil {
++		t.Fatal("ReadAt:", err)
++	}
++	if n != len(want) {
++		t.Fatal("ReadAt:", n)
++	}
++	if string(got) != want {
++		t.Fatalf("ReadAt: %q", got)
++	}
++}

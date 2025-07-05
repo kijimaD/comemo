@@ -47,9 +47,79 @@ Date:   Tue Aug 6 07:51:37 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12440044
-
+---
  src/pkg/runtime/append_test.go | 8 ++++++++
  src/pkg/runtime/arch_386.h     | 2 +-
  src/pkg/runtime/arch_amd64.h   | 2 +-
  src/pkg/runtime/slice.c        | 4 ++--
  4 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/append_test.go b/src/pkg/runtime/append_test.go
+index 36390181e8..8a4e4a383d 100644
+--- a/src/pkg/runtime/append_test.go
++++ b/src/pkg/runtime/append_test.go
+@@ -38,10 +38,18 @@ func BenchmarkAppend4Bytes(b *testing.B) {
+ 	benchmarkAppendBytes(b, 4)
+ }
+ 
++func BenchmarkAppend7Bytes(b *testing.B) {
++	benchmarkAppendBytes(b, 7)
++}
++
+ func BenchmarkAppend8Bytes(b *testing.B) {
+ 	benchmarkAppendBytes(b, 8)
+ }
+ 
++func BenchmarkAppend15Bytes(b *testing.B) {
++	benchmarkAppendBytes(b, 15)
++}
++
+ func BenchmarkAppend16Bytes(b *testing.B) {
+ 	benchmarkAppendBytes(b, 16)
+ }
+diff --git a/src/pkg/runtime/arch_386.h b/src/pkg/runtime/arch_386.h
+index 7e74d8f923..6c8550d61d 100644
+--- a/src/pkg/runtime/arch_386.h
++++ b/src/pkg/runtime/arch_386.h
+@@ -6,6 +6,6 @@ enum {
+ 	thechar = '8',
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+-	appendCrossover = 16,
++	appendCrossover = 0,
+ 	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index 21144111b2..761183a9d3 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -6,6 +6,6 @@ enum {
+ 	thechar = '6',
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+-	appendCrossover = 16,
++	appendCrossover = 0,
+ 	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 3adbe51837..58086b61c7 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -95,7 +95,7 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ 	p = ret.array+ret.len*w;
+ 	q = y.array;
+ 	w *= y.len;
+-	if(w <= appendCrossover) {
++	if(appendCrossover > 0 && w <= appendCrossover) {
+ 		if(p <= q || w <= p-q) // No overlap.
+ 			while(w-- > 0)
+ 				*p++ = *q++;
+@@ -148,7 +148,7 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+ 	w = y.len;
+ 	p = ret.array+ret.len;
+ 	q = y.str;
+-	if(w <= appendCrossover) {
++	if(appendCrossover > 0 && w <= appendCrossover) {
+ 		while(w-- > 0)
+ 			*p++ = *q++;
+ 	} else {

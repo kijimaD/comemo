@@ -20,6 +20,26 @@ Date:   Wed Apr 13 13:31:24 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/math/copysign.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/math/copysign.go b/src/math/copysign.go
+index 719c64b9eb..3a30afb413 100644
+--- a/src/math/copysign.go
++++ b/src/math/copysign.go
+@@ -4,9 +4,9 @@
+ 
+ package math
+ 
+-// Copysign returns a value with the magnitude
+-// of x and the sign of y.
+-func Copysign(x, y float64) float64 {
+-	const sign = 1 << 63
+-	return Float64frombits(Float64bits(x)&^sign | Float64bits(y)&sign)
++// Copysign returns a value with the magnitude of f
++// and the sign of sign.
++func Copysign(f, sign float64) float64 {
++	const signBit = 1 << 63
++	return Float64frombits(Float64bits(f)&^signBit | Float64bits(sign)&signBit)
+ }

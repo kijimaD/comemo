@@ -9,6 +9,23 @@ Date:   Fri Feb 17 17:13:16 2012 -0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5656089
-
+---
  src/pkg/runtime/mheap.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index a40a14512b..761246a47f 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -346,7 +346,10 @@ runtime·MHeap_Scavenger(void)
+ 	// we hand it back to the operating system.
+ 	limit = 5*60*1e9;
+ 	// Make wake-up period small enough for the sampling to be correct.
+-	tick = forcegc < limit ? forcegc/2 : limit/2;
++	if(forcegc < limit)
++		tick = forcegc/2;
++	else
++		tick = limit/2;
+ 
+ 	trace = false;
+ 	env = runtime·getenv("GOGCTRACE");

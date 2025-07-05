@@ -34,9 +34,193 @@ Date:   Sat May 29 19:11:37 2021 -0700
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/bytes/bytes.go          | 28 +++++++++++++++++++++++-----
  src/bytes/bytes_test.go     |  9 +++++++++
  src/strings/strings.go      | 28 +++++++++++++++++++++++-----
  src/strings/strings_test.go |  9 +++++++++
  4 files changed, 64 insertions(+), 10 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index ce52649f13..cd859d086d 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -888,11 +888,6 @@ func (as *asciiSet) contains(c byte) bool {
+ }
+ 
+ func makeCutsetFunc(cutset string) func(r rune) bool {
+-	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+-		return func(r rune) bool {
+-			return r == rune(cutset[0])
+-		}
+-	}
+ 	if as, isASCII := makeASCIISet(cutset); isASCII {
+ 		return func(r rune) bool {
+ 			return r < utf8.RuneSelf && as.contains(byte(r))
+@@ -911,21 +906,44 @@ func makeCutsetFunc(cutset string) func(r rune) bool {
+ // Trim returns a subslice of s by slicing off all leading and
+ // trailing UTF-8-encoded code points contained in cutset.
+ func Trim(s []byte, cutset string) []byte {
++	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
++		return trimLeftByte(trimRightByte(s, cutset[0]), cutset[0])
++	}
+ 	return TrimFunc(s, makeCutsetFunc(cutset))
+ }
+ 
+ // TrimLeft returns a subslice of s by slicing off all leading
+ // UTF-8-encoded code points contained in cutset.
+ func TrimLeft(s []byte, cutset string) []byte {
++	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
++		return trimLeftByte(s, cutset[0])
++	}
+ 	return TrimLeftFunc(s, makeCutsetFunc(cutset))
+ }
+ 
++func trimLeftByte(s []byte, c byte) []byte {
++	for len(s) > 0 && s[0] == c {
++		s = s[1:]
++	}
++	return s
++}
++
+ // TrimRight returns a subslice of s by slicing off all trailing
+ // UTF-8-encoded code points that are contained in cutset.
+ func TrimRight(s []byte, cutset string) []byte {
++	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
++		return trimRightByte(s, cutset[0])
++	}
+ 	return TrimRightFunc(s, makeCutsetFunc(cutset))
+ }
+ 
++func trimRightByte(s []byte, c byte) []byte {
++	for len(s) > 0 && s[len(s)-1] == c {
++		s = s[:len(s)-1]
++	}
++	return s
++}
++
+ // TrimSpace returns a subslice of s by slicing off all leading and
+ // trailing white space, as defined by Unicode.
+ func TrimSpace(s []byte) []byte {
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 544ee46f90..850b2ed061 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -1251,7 +1251,9 @@ var trimTests = []TrimTest{
+ 	{"TrimLeft", "abba", "ab", ""},
+ 	{"TrimRight", "abba", "ab", ""},
+ 	{"TrimLeft", "abba", "a", "bba"},
++	{"TrimLeft", "abba", "b", "abba"},
+ 	{"TrimRight", "abba", "a", "abb"},
++	{"TrimRight", "abba", "b", "abba"},
+ 	{"Trim", "<tag>", "<>", "tag"},
+ 	{"Trim", "* listitem", " *", "listitem"},
+ 	{"Trim", `"quote"`, `"`, "quote"},
+@@ -1963,6 +1965,13 @@ func BenchmarkTrimASCII(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkTrimByte(b *testing.B) {
++	x := []byte("  the quick brown fox   ")
++	for i := 0; i < b.N; i++ {
++		Trim(x, " ")
++	}
++}
++
+ func BenchmarkIndexPeriodic(b *testing.B) {
+ 	key := []byte{1, 1}
+ 	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index b429735fea..0df8d2eb28 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -818,11 +818,6 @@ func (as *asciiSet) contains(c byte) bool {
+ }
+ 
+ func makeCutsetFunc(cutset string) func(rune) bool {
+-	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
+-		return func(r rune) bool {
+-			return r == rune(cutset[0])
+-		}
+-	}
+ 	if as, isASCII := makeASCIISet(cutset); isASCII {
+ 		return func(r rune) bool {
+ 			return r < utf8.RuneSelf && as.contains(byte(r))
+@@ -837,6 +832,9 @@ func Trim(s, cutset string) string {
+ 	if s == "" || cutset == "" {
+ 		return s
+ 	}
++	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
++		return trimLeftByte(trimRightByte(s, cutset[0]), cutset[0])
++	}
+ 	return TrimFunc(s, makeCutsetFunc(cutset))
+ }
+ 
+@@ -848,9 +846,19 @@ func TrimLeft(s, cutset string) string {
+ 	if s == "" || cutset == "" {
+ 		return s
+ 	}
++	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
++		return trimLeftByte(s, cutset[0])
++	}
+ 	return TrimLeftFunc(s, makeCutsetFunc(cutset))
+ }
+ 
++func trimLeftByte(s string, c byte) string {
++	for len(s) > 0 && s[0] == c {
++		s = s[1:]
++	}
++	return s
++}
++
+ // TrimRight returns a slice of the string s, with all trailing
+ // Unicode code points contained in cutset removed.
+ //
+@@ -859,9 +867,19 @@ func TrimRight(s, cutset string) string {
+ 	if s == "" || cutset == "" {
+ 		return s
+ 	}
++	if len(cutset) == 1 && cutset[0] < utf8.RuneSelf {
++		return trimRightByte(s, cutset[0])
++	}
+ 	return TrimRightFunc(s, makeCutsetFunc(cutset))
+ }
+ 
++func trimRightByte(s string, c byte) string {
++	for len(s) > 0 && s[len(s)-1] == c {
++		s = s[:len(s)-1]
++	}
++	return s
++}
++
+ // TrimSpace returns a slice of the string s, with all leading
+ // and trailing white space removed, as defined by Unicode.
+ func TrimSpace(s string) string {
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 09e5b27cc3..edc6c20590 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -808,7 +808,9 @@ var trimTests = []struct {
+ 	{"TrimLeft", "abba", "ab", ""},
+ 	{"TrimRight", "abba", "ab", ""},
+ 	{"TrimLeft", "abba", "a", "bba"},
++	{"TrimLeft", "abba", "b", "abba"},
+ 	{"TrimRight", "abba", "a", "abb"},
++	{"TrimRight", "abba", "b", "abba"},
+ 	{"Trim", "<tag>", "<>", "tag"},
+ 	{"Trim", "* listitem", " *", "listitem"},
+ 	{"Trim", `"quote"`, `"`, "quote"},
+@@ -1860,6 +1862,13 @@ func BenchmarkTrimASCII(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkTrimByte(b *testing.B) {
++	x := "  the quick brown fox   "
++	for i := 0; i < b.N; i++ {
++		Trim(x, " ")
++	}
++}
++
+ func BenchmarkIndexPeriodic(b *testing.B) {
+ 	key := "aa"
+ 	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {

@@ -12,6 +12,21 @@ Date:   Tue Feb 8 22:34:13 2022 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/383998
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/net/smtp/auth.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/net/smtp/auth.go b/src/net/smtp/auth.go
+index fd1a472f93..7a32ef6a2e 100644
+--- a/src/net/smtp/auth.go
++++ b/src/net/smtp/auth.go
+@@ -16,8 +16,7 @@ type Auth interface {
+ 	// Start begins an authentication with a server.
+ 	// It returns the name of the authentication protocol
+ 	// and optionally data to include in the initial AUTH message
+-	// sent to the server. It can return proto == "" to indicate
+-	// that the authentication should be skipped.
++	// sent to the server.
+ 	// If it returns a non-nil error, the SMTP client aborts
+ 	// the authentication attempt and closes the connection.
+ 	Start(server *ServerInfo) (proto string, toServer []byte, err error)

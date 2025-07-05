@@ -7,9 +7,110 @@ Date:   Fri Aug 26 08:51:58 2016 -0400
     Change-Id: I0c8a04457db28c55c35c9a186b63c40f40730e39
     Reviewed-on: https://go-review.googlesource.com/27824
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go |  4 ++++
  src/cmd/go/build.go   | 19 +++++++++++++++++--
  src/cmd/go/help.go    |  4 ++++
  src/cmd/go/pkg.go     |  6 +++---
  4 files changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 1ff04f8206..522f791473 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -866,6 +866,10 @@
+ // 		position independent executables (PIE). Packages not named
+ // 		main are ignored.
+ //
++// 	-buildmode=plugin
++// 		Build the listed main packages, plus all packages that they
++// 		import, into a Go plugin. Packages not named main are ignored.
++//
+ //
+ // File types
+ //
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e2b018abba..f656d70872 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -406,6 +406,21 @@ func buildModeInit() {
+ 			fatalf("-buildmode=shared and -o not supported together")
+ 		}
+ 		ldBuildmode = "shared"
++	case "plugin":
++		pkgsFilter = pkgsMain
++		if gccgo {
++			codegenArg = "-fPIC"
++		} else {
++			switch platform {
++			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
++				"android/amd64", "android/arm", "android/arm64", "android/386":
++			default:
++				fatalf("-buildmode=plugin not supported on %s\n", platform)
++			}
++			codegenArg = "-dynlink"
++		}
++		exeSuffix = ".so"
++		ldBuildmode = "plugin"
+ 	default:
+ 		fatalf("buildmode=%s not supported", buildBuildmode)
+ 	}
+@@ -1665,7 +1680,7 @@ func (b *builder) install(a *action) (err error) {
+ 	perm := os.FileMode(0666)
+ 	if a1.link {
+ 		switch buildBuildmode {
+-		case "c-archive", "c-shared":
++		case "c-archive", "c-shared", "plugin":
+ 		default:
+ 			perm = 0777
+ 		}
+@@ -2959,7 +2974,7 @@ func (tools gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile stri
+ // maybePIC adds -fPIC to the list of arguments if needed.
+ func (tools gccgoToolchain) maybePIC(args []string) []string {
+ 	switch buildBuildmode {
+-	case "c-shared", "shared":
++	case "c-shared", "shared", "plugin":
+ 		args = append(args, "-fPIC")
+ 	}
+ 	return args
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index d2b8444d8e..8ad85e3b1f 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -577,5 +577,9 @@ are:
+ 		Build the listed main packages and everything they import into
+ 		position independent executables (PIE). Packages not named
+ 		main are ignored.
++
++	-buildmode=plugin
++		Build the listed main packages, plus all packages that they
++		import, into a Go plugin. Packages not named main are ignored.
+ `,
+ }
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index a352b601a7..69367eefb1 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -775,7 +775,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	useBindir := p.Name == "main"
+ 	if !p.Standard {
+ 		switch buildBuildmode {
+-		case "c-archive", "c-shared":
++		case "c-archive", "c-shared", "plugin":
+ 			useBindir = false
+ 		}
+ 	}
+@@ -846,11 +846,11 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		importPaths = append(importPaths, "syscall")
+ 	}
+ 
+-	// Currently build modes c-shared, pie, and -linkshared force
++	// Currently build modes c-shared, pie, plugin, and -linkshared force
+ 	// external linking mode, and external linking mode forces an
+ 	// import of runtime/cgo.
+ 	pieCgo := buildBuildmode == "pie" && (buildContext.GOOS != "linux" || buildContext.GOARCH != "amd64")
+-	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || pieCgo || buildLinkshared) {
++	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildBuildmode == "plugin" || pieCgo || buildLinkshared) {
+ 		importPaths = append(importPaths, "runtime/cgo")
+ 	}
+ 

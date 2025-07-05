@@ -16,10 +16,289 @@ Date:   Mon Sep 19 14:13:07 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/config.go |   6 +++
  src/cmd/link/internal/ld/data.go   | 100 ++++++++++++++++++++++++++++++++++---
  src/cmd/link/internal/ld/dwarf.go  |   3 ++
  src/cmd/link/internal/ld/lib.go    |  18 ++++++-
  src/cmd/link/internal/ld/macho.go  |  15 ++++--
  5 files changed, 127 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index ff6ec10d77..f740e4811f 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -88,6 +88,12 @@ func (mode *BuildMode) Set(s string) error {
+ 			default:
+ 				return badmode()
+ 			}
++		case "darwin":
++			switch obj.GOARCH {
++			case "amd64":
++			default:
++				return badmode()
++			}
+ 		default:
+ 			return badmode()
+ 		}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a3d0b70048..8825554c1b 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1148,6 +1148,13 @@ func (p *GCProg) AddSym(s *Symbol) {
+ 	// Things without pointers should be in SNOPTRDATA or SNOPTRBSS;
+ 	// everything we see should have pointers and should therefore have a type.
+ 	if typ == nil {
++		switch s.Name {
++		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss":
++			// Ignore special symbols that are sometimes laid out
++			// as real symbols. See comment about dyld on darwin in
++			// the address function.
++			return
++		}
+ 		Errorf(s, "missing Go type information for global symbol: size %d", s.Size)
+ 		return
+ 	}
+@@ -1213,6 +1220,46 @@ func (ctxt *Link) dodata() {
+ 		ctxt.Logf("%5.2f dodata\n", obj.Cputime())
+ 	}
+ 
++	if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin {
++		// The values in moduledata are filled out by relocations
++		// pointing to the addresses of these special symbols.
++		// Typically these symbols have no size and are not laid
++		// out with their matching section.
++		//
++		// However on darwin, dyld will find the special symbol
++		// in the first loaded module, even though it is local.
++		//
++		// (An hypothesis, formed without looking in the dyld sources:
++		// these special symbols have no size, so their address
++		// matches a real symbol. The dynamic linker assumes we
++		// want the normal symbol with the same address and finds
++		// it in the other module.)
++		//
++		// To work around this we lay out the symbls whose
++		// addresses are vital for multi-module programs to work
++		// as normal symbols, and give them a little size.
++		bss := ctxt.Syms.Lookup("runtime.bss", 0)
++		bss.Size = 8
++		bss.Attr.Set(AttrSpecial, false)
++
++		ctxt.Syms.Lookup("runtime.ebss", 0).Attr.Set(AttrSpecial, false)
++
++		data := ctxt.Syms.Lookup("runtime.data", 0)
++		data.Size = 8
++		data.Attr.Set(AttrSpecial, false)
++
++		ctxt.Syms.Lookup("runtime.edata", 0).Attr.Set(AttrSpecial, false)
++
++		types := ctxt.Syms.Lookup("runtime.types", 0)
++		types.Type = obj.STYPE
++		types.Size = 8
++		types.Attr.Set(AttrSpecial, false)
++
++		etypes := ctxt.Syms.Lookup("runtime.etypes", 0)
++		etypes.Type = obj.SFUNCTAB
++		etypes.Attr.Set(AttrSpecial, false)
++	}
++
+ 	// Collect data symbols by type into data.
+ 	var data [obj.SXREF][]*Symbol
+ 	for _, s := range ctxt.Syms.Allsym {
+@@ -1779,8 +1826,9 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
+ 		syms = newSyms
+ 	}
+ 
+-	symsSort := make([]dataSortKey, len(syms))
+-	for i, s := range syms {
++	var head, tail *Symbol
++	symsSort := make([]dataSortKey, 0, len(syms))
++	for _, s := range syms {
+ 		if s.Attr.OnList() {
+ 			log.Fatalf("symbol %s listed multiple times", s.Name)
+ 		}
+@@ -1794,7 +1842,21 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
+ 			Errorf(s, "symbol too large (%d bytes)", s.Size)
+ 		}
+ 
+-		symsSort[i] = dataSortKey{
++		// If the usually-special section-marker symbols are being laid
++		// out as regular symbols, put them either at the beginning or
++		// end of their section.
++		if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin {
++			switch s.Name {
++			case "runtime.text", "runtime.bss", "runtime.data", "runtime.types":
++				head = s
++				continue
++			case "runtime.etext", "runtime.ebss", "runtime.edata", "runtime.etypes":
++				tail = s
++				continue
++			}
++		}
++
++		key := dataSortKey{
+ 			size: s.Size,
+ 			name: s.Name,
+ 			sym:  s,
+@@ -1806,23 +1868,33 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
+ 			// from input files. Both are type SELFGOT, so in that case
+ 			// we skip size comparison and fall through to the name
+ 			// comparison (conveniently, .got sorts before .toc).
+-			symsSort[i].size = 0
++			key.size = 0
+ 		case obj.STYPELINK:
+ 			// Sort typelinks by the rtype.string field so the reflect
+ 			// package can binary search type links.
+-			symsSort[i].name = string(decodetypeStr(s.R[0].Sym))
++			key.name = string(decodetypeStr(s.R[0].Sym))
+ 		}
++
++		symsSort = append(symsSort, key)
+ 	}
+ 
+ 	sort.Sort(bySizeAndName(symsSort))
+ 
++	off := 0
++	if head != nil {
++		syms[0] = head
++		off++
++	}
+ 	for i, symSort := range symsSort {
+-		syms[i] = symSort.sym
++		syms[i+off] = symSort.sym
+ 		align := symalign(symSort.sym)
+ 		if maxAlign < align {
+ 			maxAlign = align
+ 		}
+ 	}
++	if tail != nil {
++		syms[len(syms)-1] = tail
++	}
+ 
+ 	if Iself && symn == obj.SELFROSECT {
+ 		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
+@@ -1859,7 +1931,7 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
+ // at the very beginning of the text segment.
+ // This ``header'' is read by cmd/go.
+ func (ctxt *Link) textbuildid() {
+-	if Iself || *flagBuildid == "" {
++	if Iself || Buildmode == BuildmodePlugin || *flagBuildid == "" {
+ 		return
+ 	}
+ 
+@@ -1887,7 +1959,19 @@ func (ctxt *Link) textaddress() {
+ 	sect := Segtext.Sect
+ 
+ 	sect.Align = int32(Funcalign)
+-	ctxt.Syms.Lookup("runtime.text", 0).Sect = sect
++
++	text := ctxt.Syms.Lookup("runtime.text", 0)
++	text.Sect = sect
++
++	if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin {
++		etext := ctxt.Syms.Lookup("runtime.etext", 0)
++		etext.Sect = sect
++
++		ctxt.Textp = append(ctxt.Textp, etext, nil)
++		copy(ctxt.Textp[1:], ctxt.Textp)
++		ctxt.Textp[0] = text
++	}
++
+ 	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
+ 		ctxt.Syms.Lookup(".text", 0).Sect = sect
+ 	}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 13d3827e7c..0f8cf11b05 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -940,6 +940,9 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 	lang := dwarf.DW_LANG_Go
+ 
+ 	s := ctxt.Textp[0]
++	if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin {
++		s = ctxt.Textp[1] // skip runtime.text
++	}
+ 
+ 	dwinfo = newdie(ctxt, &dwroot, dwarf.DW_ABRV_COMPUNIT, "go", 0)
+ 	newattr(dwinfo, dwarf.DW_AT_language, dwarf.DW_CLS_CONSTANT, int64(lang), 0)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 42a379ad07..0c0b1ec2b6 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -954,7 +954,12 @@ func (l *Link) hostlink() {
+ 
+ 	switch Headtype {
+ 	case obj.Hdarwin:
+-		argv = append(argv, "-Wl,-no_pie,-headerpad,1144")
++		argv = append(argv, "-Wl,-headerpad,1144")
++		if l.DynlinkingGo() {
++			argv = append(argv, "-Wl,-flat_namespace")
++		} else {
++			argv = append(argv, "-Wl,-no_pie")
++		}
+ 	case obj.Hopenbsd:
+ 		argv = append(argv, "-Wl,-nopie")
+ 	case obj.Hwindows:
+@@ -986,11 +991,20 @@ func (l *Link) hostlink() {
+ 			// non-closeable: a dlclose will do nothing.
+ 			argv = append(argv, "-shared", "-Wl,-z,nodelete")
+ 		}
+-	case BuildmodeShared, BuildmodePlugin:
++	case BuildmodeShared:
+ 		if UseRelro() {
+ 			argv = append(argv, "-Wl,-z,relro")
+ 		}
+ 		argv = append(argv, "-shared")
++	case BuildmodePlugin:
++		if Headtype == obj.Hdarwin {
++			argv = append(argv, "-dynamiclib")
++		} else {
++			if UseRelro() {
++				argv = append(argv, "-Wl,-z,relro")
++			}
++			argv = append(argv, "-shared")
++		}
+ 	}
+ 
+ 	if Iself && l.DynlinkingGo() {
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 35fe3e47d4..c88af64a3a 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -352,8 +352,8 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
+ 
+ 	var msect *MachoSect
+ 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (SysArch.Family == sys.ARM64 ||
+-		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive)) ||
+-		(SysArch.Family == sys.ARM && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive))) {
++		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive || Buildmode == BuildmodePlugin)) ||
++		(SysArch.Family == sys.ARM && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive || Buildmode == BuildmodePlugin))) {
+ 		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
+ 		// complains about absolute relocs in __TEXT, so if the section is not
+ 		// executable, put it in __DATA segment.
+@@ -692,8 +692,13 @@ func machosymtab(ctxt *Link) {
+ 		s := sortsym[i]
+ 		Adduint32(ctxt, symtab, uint32(symstr.Size))
+ 
+-		// Only add _ to C symbols. Go symbols have dot in the name.
+-		if !strings.Contains(s.Extname, ".") {
++		// In normal buildmodes, only add _ to C symbols, as
++		// Go symbols have dot in the name.
++		//
++		// When dynamically linking, prefix all non-local
++		// symbols with _ as dlsym on darwin requires it to
++		// resolve any symbol.
++		if !strings.Contains(s.Extname, ".") || (ctxt.DynlinkingGo() && !s.Attr.Local()) {
+ 			Adduint8(ctxt, symstr, '_')
+ 		}
+ 
+@@ -706,7 +711,7 @@ func machosymtab(ctxt *Link) {
+ 			Adduint16(ctxt, symtab, 0)                  // desc
+ 			adduintxx(ctxt, symtab, 0, SysArch.PtrSize) // no value
+ 		} else {
+-			if s.Attr.CgoExport() {
++			if s.Attr.CgoExport() || (ctxt.DynlinkingGo() && !s.Attr.Local()) {
+ 				Adduint8(ctxt, symtab, 0x0f)
+ 			} else {
+ 				Adduint8(ctxt, symtab, 0x0e)

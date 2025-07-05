@@ -16,7 +16,70 @@ Date:   Sun May 22 02:14:46 2022 +0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go | 8 ++------
  src/cmd/compile/internal/noder/writer.go | 6 +++---
  2 files changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 635f02630f..7c35172f12 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1224,10 +1224,8 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
+ 	case stmtAssign:
+ 		pos := r.pos()
+ 
+-		// TODO(mdempsky): After quirks mode is gone, swap these
+-		// statements so we visit LHS before RHS again.
+-		rhs := r.exprList()
+ 		names, lhs := r.assignList()
++		rhs := r.exprList()
+ 
+ 		if len(rhs) == 0 {
+ 			for _, name := range names {
+@@ -1368,10 +1366,8 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
+ 	if r.Bool() {
+ 		pos := r.pos()
+ 
+-		// TODO(mdempsky): After quirks mode is gone, swap these
+-		// statements so we read LHS before X again.
+-		x := r.expr()
+ 		names, lhs := r.assignList()
++		x := r.expr()
+ 
+ 		body := r.blockStmt()
+ 		r.closeAnotherScope()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 2fb1583437..c3955c2cb6 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -954,8 +954,8 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
+ 		default:
+ 			w.Code(stmtAssign)
+ 			w.pos(stmt)
+-			w.exprList(stmt.Rhs)
+ 			w.assignList(stmt.Lhs)
++			w.exprList(stmt.Rhs)
+ 		}
+ 
+ 	case *syntax.BlockStmt:
+@@ -1065,8 +1065,8 @@ func (w *writer) declStmt(decl syntax.Decl) {
+ 	case *syntax.VarDecl:
+ 		w.Code(stmtAssign)
+ 		w.pos(decl)
+-		w.exprList(decl.Values)
+ 		w.assignList(namesAsExpr(decl.NameList))
++		w.exprList(decl.Values)
+ 	}
+ }
+ 
+@@ -1083,8 +1083,8 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
+ 
+ 	if rang, ok := stmt.Init.(*syntax.RangeClause); w.Bool(ok) {
+ 		w.pos(rang)
+-		w.expr(rang.X)
+ 		w.assignList(rang.Lhs)
++		w.expr(rang.X)
+ 	} else {
+ 		w.pos(stmt)
+ 		w.stmt(stmt.Init)

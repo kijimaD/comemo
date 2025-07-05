@@ -11,7 +11,7 @@ Date:   Tue Oct 6 16:39:38 2009 -0700
     DELTA=203  (189 added, 3 deleted, 11 changed)
     OCL=35412
     CL=35414
-
+---
  src/cmd/5g/cgen64.c                    |  33 +++++++--
  src/cmd/5g/gg.h                        |   1 +
  src/make-arm.bash                      |   2 +-
@@ -22,3 +22,346 @@ Date:   Tue Oct 6 16:39:38 2009 -0700
  src/pkg/syscall/zsyscall_linux_arm.go  | 132 +++++++++++++++++++++++++++++++++
  test/arm-pass.txt                      |   1 +
  9 files changed, 198 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index 6b41bb0517..a5f0a5974a 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -29,14 +29,31 @@ cgen64(Node *n, Node *res)
+ 	default:
+ 		fatal("cgen64 %O", n->op);
+ 
+-//	case OMINUS:
+-//		cgen(n->left, res);
+-//		split64(res, &lo1, &hi1);
+-//		gins(ANEGL, N, &lo1);
+-//		gins(AADCL, ncon(0), &hi1);
+-//		gins(ANEGL, N, &hi1);
+-//		splitclean();
+-//		return;
++	case OMINUS:
++		split64(n->left, &lo1, &hi1);
++		split64(res, &lo2, &hi2);
++
++		regalloc(&t1, lo1.type, N);
++		regalloc(&al, lo1.type, N);
++		regalloc(&ah, hi1.type, N);
++
++		gins(AMOVW, &lo1, &al);
++		gins(AMOVW, &hi1, &ah);
++
++		gmove(ncon(0), &t1);
++
++		gins(ASUB, &t1, &al);
++		gins(ASBC, &t1, &ah);
++
++		gins(AMOVW, &al, &lo2);
++		gins(AMOVW, &ah, &hi2);
++
++		regfree(&t1);
++		regfree(&al);
++		regfree(&ah);
++		splitclean();
++		splitclean();
++		return;
+ 
+ //	case OCOM:
+ //		cgen(n->left, res);
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index fb457d6d15..c681b59dd1 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -141,6 +141,7 @@ void	afunclit(Addr*);
+ void	datagostring(Strlit*, Addr*);
+ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
++Node*	ncon(uint32 i);
+ 
+ /*
+  * obj.c
+diff --git a/src/make-arm.bash b/src/make-arm.bash
+index cd441fe897..9db1ca3f74 100755
+--- a/src/make-arm.bash
++++ b/src/make-arm.bash
+@@ -21,7 +21,7 @@ chmod +x $GOBIN/quietgcc
+ 
+ # TODO(kaib): converge with normal build
+ #for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
+-for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/syscall
++for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/syscall pkg/os pkg/unicode pkg/utf8 pkg/bytes pkg/strings pkg/io
+ #for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/malloc pkg/sort pkg/unicode
+ # pkg/hash
+ # pkg/math
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 5526d0c742..ada2084721 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -573,8 +573,6 @@ func PtraceDetach(pid int) (errno int) {
+ //sys	Getrusage(who int, rusage *Rusage) (errno int)
+ //sys	Gettid() (tid int)
+ //sys	Gettimeofday(tv *Timeval) (errno int)
+-//sys	Ioperm(from int, num int, on int) (errno int)
+-//sys	Iopl(level int) (errno int)
+ //sys	Kill(pid int, sig int) (errno int)
+ //sys	Klogctl(typ int, buf []byte) (n int, errno int) = SYS_SYSLOG
+ //sys	Link(oldpath string, newpath string) (errno int)
+@@ -604,7 +602,6 @@ func PtraceDetach(pid int) (errno int) {
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int)
+ //sys	Symlink(oldpath string, newpath string) (errno int)
+ //sys	Sync()
+-//sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
+ //sys	Sysinfo(info *Sysinfo_t) (errno int)
+ //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, errno int)
+ //sys	Tgkill(tgid int, tid int, sig int) (errno int)
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 46ed428da5..1f9a499e19 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -41,6 +41,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Geteuid() (euid int) = SYS_GETEUID32
+ //sys	Getgid() (gid int) = SYS_GETGID32
+ //sys	Getuid() (uid int) = SYS_GETUID32
++//sys	Ioperm(from int, num int, on int) (errno int)
++//sys	Iopl(level int) (errno int)
+ //sys	Lchown(path string, uid int, gid int) (errno int) = SYS_LCHOWN32
+ //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
+ //sys	Setfsgid(gid int) (errno int) = SYS_SETFSGID32
+@@ -52,6 +54,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
+ //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
+ //sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
++//sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
+ //sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+ //sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+ 
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index cfb4285efd..5827d3600b 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -12,6 +12,8 @@ package syscall
+ //sys	Geteuid() (euid int)
+ //sys	Getgid() (gid int)
+ //sys	Getuid() (uid int)
++//sys	Ioperm(from int, num int, on int) (errno int)
++//sys	Iopl(level int) (errno int)
+ //sys	Lchown(path string, uid int, gid int) (errno int)
+ //sys	Listen(s int, n int) (errno int)
+ //sys	Lstat(path string, stat *Stat_t) (errno int)
+@@ -27,6 +29,7 @@ package syscall
+ //sys	Shutdown(fd int, how int) (errno int)
+ //sys	Stat(path string, stat *Stat_t) (errno int)
+ //sys	Statfs(path string, buf *Statfs_t) (errno int)
++//sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
+ //sys	bind(s int, addr uintptr, addrlen _Socklen) (errno int)
+ //sys	connect(s int, addr uintptr, addrlen _Socklen) (errno int)
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 173bfd6024..91153f51c1 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -4,6 +4,14 @@
+ 
+ package syscall
+ 
++func Getpagesize() int {
++	return 4096
++}
++
++func TimespecToNsec(ts Timespec) int64 {
++	return int64(ts.Sec)*1e9 + int64(ts.Nsec);
++}
++
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+ 	ts.Sec = int32(nsec / 1e9);
+ 	ts.Nsec = int32(nsec % 1e9);
+@@ -27,5 +35,29 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ 
++//sys	Chown(path string, uid int, gid int) (errno int)
++//sys	Fchown(fd int, uid int, gid int) (errno int)
++//sys	Fstat(fd int, stat *Stat_t) (errno int)
++//sys	Fstatfs(fd int, buf *Statfs_t) (errno int)
++//sys	Getegid() (egid int)
++//sys	Geteuid() (euid int)
++//sys	Getgid() (gid int)
++//sys	Getuid() (uid int)
++//sys	Lchown(path string, uid int, gid int) (errno int)
++//sys	Listen(s int, n int) (errno int)
++//sys	Lstat(path string, stat *Stat_t) (errno int)
++//sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
++//sys	Setfsgid(gid int) (errno int)
++//sys	Setfsuid(uid int) (errno int)
++//sys	Setgid(gid int) (errno int)
++//sys	Setregid(rgid int, egid int) (errno int)
++//sys	Setresgid(rgid int, egid int, sgid int) (errno int)
++//sys	Setresuid(ruid int, euid int, suid int) (errno int)
++//sys	Setreuid(ruid int, euid int) (errno int)
++//sys	Shutdown(fd int, how int) (errno int)
++//sys	Stat(path string, stat *Stat_t) (errno int)
++//sys	Statfs(path string, buf *Statfs_t) (errno int)
++
++
+ 
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 83f4fcb0cd..f687af5b2c 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -615,6 +615,78 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	return;
+ }
+ 
++func Chown(path string, uid int, gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Fchown(fd int, uid int, gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Fstat(fd int, stat *Stat_t) (errno int) {
++	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fstatfs(fd int, buf *Statfs_t) (errno int) {
++	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Getegid() (egid int) {
++	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0);
++	egid = int(r0);
++	return;
++}
++
++func Geteuid() (euid int) {
++	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0);
++	euid = int(r0);
++	return;
++}
++
++func Getgid() (gid int) {
++	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0);
++	gid = int(r0);
++	return;
++}
++
++func Getuid() (uid int) {
++	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0);
++	uid = int(r0);
++	return;
++}
++
++func Lchown(path string, uid int, gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_LCHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Listen(s int, n int) (errno int) {
++	_, _, e1 := Syscall(SYS_LISTEN, uintptr(s), uintptr(n), 0);
++	errno = int(e1);
++	return;
++}
++
++func Lstat(path string, stat *Stat_t) (errno int) {
++	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Seek(fd int, offset int64, whence int) (off int64, errno int) {
++	r0, r1, _ := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset >> 32), uintptr(whence), 0, 0);
++	off = int64(int64(r1)<<32 | int64(r0));
++	return;
++}
++
+ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS__NEWSELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
+ 	n = int(r0);
+@@ -622,5 +694,65 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 	return;
+ }
+ 
++func Setfsgid(gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETFSGID, uintptr(gid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setfsuid(uid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETFSUID, uintptr(uid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setgid(gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setregid(rgid int, egid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setresgid(rgid int, egid int, sgid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid));
++	errno = int(e1);
++	return;
++}
++
++func Setresuid(ruid int, euid int, suid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid));
++	errno = int(e1);
++	return;
++}
++
++func Setreuid(ruid int, euid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Shutdown(fd int, how int) (errno int) {
++	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0);
++	errno = int(e1);
++	return;
++}
++
++func Stat(path string, stat *Stat_t) (errno int) {
++	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Statfs(path string, buf *Statfs_t) (errno int) {
++	_, _, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
++	errno = int(e1);
++	return;
++}
++
+ 
+ 
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index c25b3d03d3..de9683b70c 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -202,6 +202,7 @@ gc1.go
+ hashmap.go
+ helloworld.go
+ if.go
++import.go
+ import1.go
+ indirect.go
+ indirect1.go

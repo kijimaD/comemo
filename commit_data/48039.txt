@@ -12,6 +12,20 @@ Date:   Fri Apr 23 08:41:07 2021 +0300
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/os/executable_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+index f682105fa6..9ff6327149 100644
+--- a/src/os/executable_test.go
++++ b/src/os/executable_test.go
+@@ -92,7 +92,7 @@ func TestExecutableDeleted(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "windows":
+ 		t.Skip("windows does not support deleting running binary")
+-	case "openbsd", "freebsd":
++	case "openbsd", "freebsd", "aix":
+ 		t.Skipf("%v does not support reading deleted binary name", runtime.GOOS)
+ 	}
+ 

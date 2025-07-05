@@ -10,6 +10,22 @@ Date:   Tue Sep 17 15:24:40 2013 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/13242058
-
+---
  src/pkg/encoding/xml/xml_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+index 52477d3429..7723ab1c9f 100644
+--- a/src/pkg/encoding/xml/xml_test.go
++++ b/src/pkg/encoding/xml/xml_test.go
+@@ -247,10 +247,8 @@ func (d *downCaser) Read(p []byte) (int, error) {
+ }
+ 
+ func TestRawTokenAltEncoding(t *testing.T) {
+-	sawEncoding := ""
+ 	d := NewDecoder(strings.NewReader(testInputAltEncoding))
+ 	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+-		sawEncoding = charset
+ 		if charset != "x-testing-uppercase" {
+ 			t.Fatalf("unexpected charset %q", charset)
+ 		}

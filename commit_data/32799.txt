@@ -13,6 +13,41 @@ Date:   Thu Jun 1 17:49:55 2017 -0700
     Change-Id: I64f37fd94c01f22ead88470b6d9bfe8a151ddb1c
     Reviewed-on: https://go-review.googlesource.com/44650
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/cmd/go/go_test.go | 23 -----------------------
  1 file changed, 23 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 097b61990b..4b9a4eece8 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2204,29 +2204,6 @@ func TestCoverageUsesAtomicModeForRace(t *testing.T) {
+ 	checkCoverage(tg, data)
+ }
+ 
+-func TestCoverageUsesActualSettingToOverrideEvenForRace(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("don't build libraries for coverage in short mode")
+-	}
+-	if !canRace {
+-		t.Skip("skipping because race detector not supported")
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.creatingTemp("testdata/cover.out")
+-	tg.run("test", "-short", "-race", "-cover", "encoding/binary", "-covermode=count", "-coverprofile=testdata/cover.out")
+-	data := tg.getStdout() + tg.getStderr()
+-	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
+-		t.Error(err)
+-	} else {
+-		if !bytes.Contains(out, []byte("mode: count")) {
+-			t.Error("missing mode: count")
+-		}
+-	}
+-	checkCoverage(tg, data)
+-}
+-
+ func TestCoverageImportMainLoop(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

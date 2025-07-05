@@ -10,6 +10,26 @@ Date:   Wed Jul 16 17:16:12 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/114880043
-
+---
  src/pkg/runtime/asm_amd64p32.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 71207f0698..7facd10b38 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -730,12 +730,12 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-12
+ 	MOVL	count+8(FP), BX
+ 	JMP	runtime·memeqbody(SB)
+ 
+-TEXT runtime·gomemeq(SB),NOSPLIT,$0-13
++TEXT runtime·gomemeq(SB),NOSPLIT,$0-17
+ 	MOVL	a+0(FP), SI
+ 	MOVL	b+4(FP), DI
+ 	MOVL	size+8(FP), BX
+ 	CALL	runtime·memeqbody(SB)
+-	MOVB	AX, ret+12(FP)
++	MOVB	AX, ret+16(FP)
+ 	RET
+ 
+ // eqstring tests whether two strings are equal.

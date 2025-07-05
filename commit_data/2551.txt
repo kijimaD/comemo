@@ -9,7 +9,44 @@ Date:   Mon Jun 29 17:21:33 2009 -0700
     DELTA=15  (0 added, 15 deleted, 0 changed)
     OCL=30873
     CL=30880
-
+---
  test/fixedbugs/bug041.go | 16 ----------------
  test/golden.out          |  3 ---
  2 files changed, 19 deletions(-)
+
+diff --git a/test/fixedbugs/bug041.go b/test/fixedbugs/bug041.go
+deleted file mode 100644
+index da708ab980..0000000000
+--- a/test/fixedbugs/bug041.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// ! $G $D/$F.go || echo BUG: compilation succeeds incorrectly
+-
+-package main
+-
+-type t struct
+-type s struct {
+-  p *t  // BUG t never declared
+-}
+-
+-func main() {
+-  var s1 s;
+-}
+diff --git a/test/golden.out b/test/golden.out
+index 2bf920c25e..d83fd0cf88 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -144,9 +144,6 @@ fixedbugs/bug037.go:6: s: undefined
+ fixedbugs/bug039.go:6: variable x redeclared in this block
+ 	previous declaration at fixedbugs/bug039.go:5
+ 
+-=========== fixedbugs/bug041.go
+-fixedbugs/bug041.go:5: export of incomplete type t
+-
+ =========== fixedbugs/bug049.go
+ fixedbugs/bug049.go:6: illegal types for operand: EQ
+ 	string

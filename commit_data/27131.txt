@@ -12,10 +12,192 @@ Date:   Fri Mar 11 17:12:31 2016 -0800
     Change-Id: I7e5e006f9046d84f9a3959616f073798fda36c97
     Reviewed-on: https://go-review.googlesource.com/20606
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go   |  9 +--------
  src/cmd/compile/internal/gc/dcl.go       | 29 +++++++++++++++--------------
  src/cmd/compile/internal/gc/go.go        |  2 --
  src/cmd/compile/internal/gc/parser.go    | 14 +++++++-------
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  5 files changed, 24 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index a68281f5a7..d099741694 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -195,7 +195,6 @@ func (p *importer) localname() *Sym {
+ 	if name == "" {
+ 		Fatalf("importer: unexpected anonymous name")
+ 	}
+-	structpkg = importpkg // parser.go:hidden_pkg_importsym
+ 	return importpkg.Lookup(name)
+ }
+ 
+@@ -252,13 +251,7 @@ func (p *importer) typ() *Type {
+ 			n := methodname1(newname(sym), recv[0].Right)
+ 			n.Type = functype(recv[0], params, result)
+ 			checkwidth(n.Type)
+-			// addmethod uses the global variable structpkg to verify consistency
+-			{
+-				saved := structpkg
+-				structpkg = tsym.Pkg
+-				addmethod(sym, n.Type, false, false)
+-				structpkg = saved
+-			}
++			addmethod(sym, n.Type, tsym.Pkg, false, false)
+ 			funchdr(n)
+ 
+ 			// (comment from parser.go)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 528771627c..8e6ff3938b 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1284,11 +1284,13 @@ func methodname1(n *Node, t *Node) *Node {
+ 	return n
+ }
+ 
+-// add a method, declared as a function,
+-// n is fieldname, pa is base type, t is function type
+-func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
++// Add a method, declared as a function.
++// - msym is the method symbol
++// - t is function type (with receiver)
++// - tpkg is the package of the type declaring the method during import, or nil (ignored) --- for verification only
++func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+ 	// get field sym
+-	if sf == nil {
++	if msym == nil {
+ 		Fatalf("no method symbol")
+ 	}
+ 
+@@ -1299,7 +1301,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 		return
+ 	}
+ 
+-	pa = pa.Type
++	pa = pa.Type // base type
+ 	f := methtype(pa, 1)
+ 	if f == nil {
+ 		t = pa
+@@ -1348,20 +1350,20 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 		return
+ 	}
+ 
+-	if isblanksym(sf) {
++	if isblanksym(msym) {
+ 		return
+ 	}
+ 
+ 	if pa.Etype == TSTRUCT {
+ 		for f, it := IterFields(pa); f != nil; f = it.Next() {
+-			if f.Sym == sf {
+-				Yyerror("type %v has both field and method named %v", pa, sf)
++			if f.Sym == msym {
++				Yyerror("type %v has both field and method named %v", pa, msym)
+ 				return
+ 			}
+ 		}
+ 	}
+ 
+-	n := Nod(ODCLFIELD, newname(sf), nil)
++	n := Nod(ODCLFIELD, newname(msym), nil)
+ 	n.Type = t
+ 
+ 	var d *Type // last found
+@@ -1370,11 +1372,11 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 		if f.Etype != TFIELD {
+ 			Fatalf("addmethod: not TFIELD: %v", Tconv(f, obj.FmtLong))
+ 		}
+-		if sf.Name != f.Sym.Name {
++		if msym.Name != f.Sym.Name {
+ 			continue
+ 		}
+ 		if !Eqtype(t, f.Type) {
+-			Yyerror("method redeclared: %v.%v\n\t%v\n\t%v", pa, sf, f.Type, t)
++			Yyerror("method redeclared: %v.%v\n\t%v\n\t%v", pa, msym, f.Type, t)
+ 		}
+ 		return
+ 	}
+@@ -1383,8 +1385,8 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	f.Nointerface = nointerface
+ 
+ 	// during import unexported method names should be in the type's package
+-	if importpkg != nil && f.Sym != nil && !exportname(f.Sym.Name) && f.Sym.Pkg != structpkg {
+-		Fatalf("imported method name %v in wrong package %s\n", Sconv(f.Sym, obj.FmtSign), structpkg.Name)
++	if tpkg != nil && f.Sym != nil && !exportname(f.Sym.Name) && f.Sym.Pkg != tpkg {
++		Fatalf("imported method name %v in wrong package %s\n", Sconv(f.Sym, obj.FmtSign), tpkg.Name)
+ 	}
+ 
+ 	if d == nil {
+@@ -1392,7 +1394,6 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	} else {
+ 		d.Down = f
+ 	}
+-	return
+ }
+ 
+ func funccompile(n *Node) {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 90c662b6dd..90be6a58a4 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -248,8 +248,6 @@ var localpkg *Pkg // package being compiled
+ 
+ var importpkg *Pkg // package being imported
+ 
+-var structpkg *Pkg // package that declared struct, during import
+-
+ var gostringpkg *Pkg // fake pkg for Go strings
+ 
+ var itabpkg *Pkg // fake pkg for itab cache
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index b2584c80d6..3d5e0b6d18 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -36,6 +36,9 @@ type parser struct {
+ 	fnest  int    // function nesting level (for error handling)
+ 	xnest  int    // expression nesting level (for complit ambiguity resolution)
+ 	indent []byte // tracing support
++
++	// TODO(gri) remove this once we switch to binary export format
++	structpkg *Pkg // for verification in addmethod only
+ }
+ 
+ // newparser returns a new parser ready to parse from src.
+@@ -2008,7 +2011,7 @@ func (p *parser) hidden_fndcl() *Node {
+ 		ss.Type = functype(s2[0], s6, s8)
+ 
+ 		checkwidth(ss.Type)
+-		addmethod(s4, ss.Type, false, false)
++		addmethod(s4, ss.Type, p.structpkg, false, false)
+ 		funchdr(ss)
+ 
+ 		// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
+@@ -2863,12 +2866,9 @@ func (p *parser) hidden_pkg_importsym() *Sym {
+ 		defer p.trace("hidden_pkg_importsym")()
+ 	}
+ 
+-	s1 := p.hidden_importsym()
+-
+-	ss := s1
+-	structpkg = ss.Pkg
+-
+-	return ss
++	s := p.hidden_importsym()
++	p.structpkg = s.Pkg
++	return s
+ }
+ 
+ func (p *parser) hidden_pkgtype() *Type {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7840878da1..c49ece0f31 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3438,7 +3438,7 @@ func typecheckfunc(n *Node) {
+ 	t.Nname = n.Func.Nname
+ 	rcvr := t.Recv()
+ 	if rcvr != nil && n.Func.Shortname != nil {
+-		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
++		addmethod(n.Func.Shortname.Sym, t, nil, true, n.Func.Nname.Nointerface)
+ 	}
+ 
+ 	for _, ln := range n.Func.Dcl {

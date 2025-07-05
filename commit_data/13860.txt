@@ -7,6 +7,24 @@ Date:   Tue Sep 18 14:23:11 2012 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6527043
-
+---
  src/pkg/reflect/value.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 9b016465cd..1c3dc9ae9a 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -490,9 +490,9 @@ func (v Value) call(method string, in []Value) []Value {
+ 	// TODO(rsc): revisit when reference counting happens.
+ 	// The values are holding up the in references for us,
+ 	// but something must be done for the out references.
+-	// For now make everything look like a pointer by pretending
+-	// to allocate a []*int.
+-	args := make([]*int, size/ptrSize)
++	// For now make everything look like a pointer by allocating
++	// a []unsafe.Pointer.
++	args := make([]unsafe.Pointer, size/ptrSize)
+ 	ptr := uintptr(unsafe.Pointer(&args[0]))
+ 	off := uintptr(0)
+ 	if v.flag&flagMethod != 0 {

@@ -8,6 +8,24 @@ Date:   Sat Jul 5 08:48:46 2014 +0400
     R=golang-codereviews, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/109470044
-
+---
  src/pkg/debug/elf/file_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/elf/file_test.go b/src/pkg/debug/elf/file_test.go
+index 7f88a54bcd..5e4ad5c100 100644
+--- a/src/pkg/debug/elf/file_test.go
++++ b/src/pkg/debug/elf/file_test.go
+@@ -166,11 +166,11 @@ func TestOpen(t *testing.T) {
+ 		} else {
+ 			f, err = Open(tt.file)
+ 		}
+-		defer f.Close()
+ 		if err != nil {
+ 			t.Errorf("cannot open file %s: %v", tt.file, err)
+ 			continue
+ 		}
++		defer f.Close()
+ 		if !reflect.DeepEqual(f.FileHeader, tt.hdr) {
+ 			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr)
+ 			continue

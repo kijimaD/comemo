@@ -9,6 +9,20 @@ Date:   Fri Apr 3 17:45:54 2015 -0700
     Change-Id: I4290105435d4f1fd10c7014f913a3147ddeb3c2b
     Reviewed-on: https://go-review.googlesource.com/8469
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bytes/buffer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 7f9139bca8..4db93867d9 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -57,7 +57,7 @@ func (b *Buffer) String() string {
+ func (b *Buffer) Len() int { return len(b.buf) - b.off }
+ 
+ // Cap returns the capacity of the buffer's underlying byte slice, that is, the
+-// total space allocated for the the buffer's data.
++// total space allocated for the buffer's data.
+ func (b *Buffer) Cap() int { return cap(b.buf) }
+ 
+ // Truncate discards all but the first n unread bytes from the buffer.

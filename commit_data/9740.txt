@@ -7,7 +7,86 @@ Date:   Mon Sep 19 11:50:59 2011 -0400
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/4978061
-
+---
  src/cmd/cgo/gcc.go  |  9 ++++-----
  src/cmd/cgo/main.go | 17 ++++++++++++-----
  2 files changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 7ec4d8ccf9..04d95f0b9b 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -20,7 +20,6 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"os"
+-	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -91,9 +90,9 @@ NextLine:
+ 		case 2:
+ 			k = kf[1]
+ 			switch kf[0] {
+-			case runtime.GOOS:
+-			case runtime.GOARCH:
+-			case runtime.GOOS + "/" + runtime.GOARCH:
++			case goos:
++			case goarch:
++			case goos + "/" + goarch:
+ 			default:
+ 				continue NextLine
+ 			}
+@@ -688,7 +687,7 @@ func (p *Package) gccName() (ret string) {
+ 
+ // gccMachine returns the gcc -m flag to use, either "-m32" or "-m64".
+ func (p *Package) gccMachine() []string {
+-	switch runtime.GOARCH {
++	switch goarch {
+ 	case "amd64":
+ 		return []string{"-m64"}
+ 	case "386":
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index be9c2bc4fb..1066981145 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -20,6 +20,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
++	"runtime"
+ 	"strings"
+ )
+ 
+@@ -122,6 +123,8 @@ var fset = token.NewFileSet()
+ 
+ var dynobj = flag.String("dynimport", "", "if non-empty, print dynamic import data for that file")
+ 
++var goarch, goos string
++
+ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+@@ -162,13 +165,17 @@ func main() {
+ 
+ 	goFiles := args[i:]
+ 
+-	arch := os.Getenv("GOARCH")
+-	if arch == "" {
+-		fatalf("$GOARCH is not set")
++	goarch = runtime.GOARCH
++	if s := os.Getenv("GOARCH"); s != "" {
++		goarch = s
++	}
++	goos = runtime.GOOS
++	if s := os.Getenv("GOOS"); s != "" {
++		goos = s
+ 	}
+-	ptrSize := ptrSizeMap[arch]
++	ptrSize := ptrSizeMap[goarch]
+ 	if ptrSize == 0 {
+-		fatalf("unknown $GOARCH %q", arch)
++		fatalf("unknown $GOARCH %q", goarch)
+ 	}
+ 
+ 	// Clear locale variables so gcc emits English errors [sic].

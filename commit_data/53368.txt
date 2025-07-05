@@ -12,7 +12,70 @@ Date:   Thu Jul 14 16:58:25 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/proc.go        | 6 +++---
  src/runtime/signal_unix.go | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 32782b3c65..cea7f37d13 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1547,7 +1547,7 @@ found:
+ 		// Make sure pendingPreemptSignals is correct when an M exits.
+ 		// For #41702.
+ 		if atomic.Load(&mp.signalPending) != 0 {
+-			atomic.Xadd(&pendingPreemptSignals, -1)
++			pendingPreemptSignals.Add(-1)
+ 		}
+ 	}
+ 
+@@ -4036,7 +4036,7 @@ func syscall_runtime_AfterForkInChild() {
+ // pendingPreemptSignals is the number of preemption signals
+ // that have been sent but not received. This is only used on Darwin.
+ // For #41702.
+-var pendingPreemptSignals uint32
++var pendingPreemptSignals atomic.Int32
+ 
+ // Called from syscall package before Exec.
+ //
+@@ -4048,7 +4048,7 @@ func syscall_runtime_BeforeExec() {
+ 	// On Darwin, wait for all pending preemption signals to
+ 	// be received. See issue #41702.
+ 	if GOOS == "darwin" || GOOS == "ios" {
+-		for int32(atomic.Load(&pendingPreemptSignals)) > 0 {
++		for pendingPreemptSignals.Load() > 0 {
+ 			osyield()
+ 		}
+ 	}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index f241df69f1..545fe6abce 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -353,7 +353,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
+ 	atomic.Store(&gp.m.signalPending, 0)
+ 
+ 	if GOOS == "darwin" || GOOS == "ios" {
+-		atomic.Xadd(&pendingPreemptSignals, -1)
++		pendingPreemptSignals.Add(-1)
+ 	}
+ }
+ 
+@@ -374,7 +374,7 @@ func preemptM(mp *m) {
+ 
+ 	if atomic.Cas(&mp.signalPending, 0, 1) {
+ 		if GOOS == "darwin" || GOOS == "ios" {
+-			atomic.Xadd(&pendingPreemptSignals, 1)
++			pendingPreemptSignals.Add(1)
+ 		}
+ 
+ 		// If multiple threads are preempting the same M, it may send many
+@@ -453,7 +453,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 			// The default behavior for sigPreempt is to ignore
+ 			// the signal, so badsignal will be a no-op anyway.
+ 			if GOOS == "darwin" || GOOS == "ios" {
+-				atomic.Xadd(&pendingPreemptSignals, -1)
++				pendingPreemptSignals.Add(-1)
+ 			}
+ 			return
+ 		}

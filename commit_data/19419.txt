@@ -8,6 +8,20 @@ Date:   Tue May 20 11:57:58 2014 -0700
     R=gri
     CC=golang-codereviews
     https://golang.org/cl/99420045
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 536d370640..eef4921d3e 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4014,7 +4014,7 @@ precision.
+ <h3 id="Order_of_evaluation">Order of evaluation</h3>
+ 
+ <p>
+-At package level, <a href="#Program_execution"</a>initialization dependencies</a>
++At package level, <a href="#Program_execution">initialization dependencies</a>
+ determine the evaluation order of individual initialization expressions in
+ <a href="#Variable_declarations">variable declarations</a>.
+ Otherwise, when evaluating the <a href="#Operands">operands</a> of an

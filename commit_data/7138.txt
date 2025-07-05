@@ -7,7 +7,51 @@ Date:   Tue Jan 18 11:01:47 2011 -0800
     R=brainman
     CC=golang-dev
     https://golang.org/cl/4042042
-
+---
  doc/go_tutorial.html | 8 ++++----
  doc/progs/file.go    | 6 +++---
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 11e9b4ad77..e3d966b874 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -538,9 +538,9 @@ We can use the factory to construct some familiar, exported variables of type <c
+ <p>
+ <pre> <!-- progs/file.go /var/ /^.$/ -->
+ 24    var (
+-25        Stdin  = newFile(0, &quot;/dev/stdin&quot;)
+-26        Stdout = newFile(1, &quot;/dev/stdout&quot;)
+-27        Stderr = newFile(2, &quot;/dev/stderr&quot;)
++25        Stdin  = newFile(syscall.Stdin, &quot;/dev/stdin&quot;)
++26        Stdout = newFile(syscall.Stdout, &quot;/dev/stdout&quot;)
++27        Stderr = newFile(syscall.Stderr, &quot;/dev/stderr&quot;)
+ 28    )
+ </pre>
+ <p>
+@@ -663,7 +663,7 @@ something from the directory of installed packages.
+ (Also, ''<code>file.go</code>'' must be compiled before we can import the
+ package.)
+ <p>
+-Now we can compile and run the program:
++Now we can compile and run the program. On Unix, this would be the result:
+ <p>
+ <pre>
+     $ 6g file.go                       # compile file package
+diff --git a/doc/progs/file.go b/doc/progs/file.go
+index d3fb5ae9e8..df3a3cf71c 100644
+--- a/doc/progs/file.go
++++ b/doc/progs/file.go
+@@ -22,9 +22,9 @@ func newFile(fd int, name string) *File {
+ }
+ 
+ var (
+-	Stdin  = newFile(0, "/dev/stdin")
+-	Stdout = newFile(1, "/dev/stdout")
+-	Stderr = newFile(2, "/dev/stderr")
++	Stdin  = newFile(syscall.Stdin, "/dev/stdin")
++	Stdout = newFile(syscall.Stdout, "/dev/stdout")
++	Stderr = newFile(syscall.Stderr, "/dev/stderr")
+ )
+ 
+ func Open(name string, mode int, perm uint32) (file *File, err os.Error) {

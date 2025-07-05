@@ -12,7 +12,35 @@ Date:   Fri Jun 3 11:27:33 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 4 ++++
  src/reflect/type.go     | 1 +
  2 files changed, 5 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index f7cf46daec..97086b1852 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3934,6 +3934,10 @@ func TestStructOf(t *testing.T) {
+ 	if s != want {
+ 		t.Errorf("constructed struct = %s, want %s", s, want)
+ 	}
++	const stStr = `struct { S string "s"; X uint8 "x"; Y uint64; Z [3]uint16 }`
++	if got, want := st.String(), stStr; got != want {
++		t.Errorf("StructOf(fields).String()=%q, want %q", got, want)
++	}
+ 
+ 	// check the size, alignment and field offsets
+ 	stt := TypeOf(struct {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index c9e14707fa..b70887fbba 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2640,6 +2640,7 @@ func StructOf(fields []StructField) Type {
+ 	}
+ 
+ 	typ.str = resolveReflectName(newName(str, "", "", false))
++	typ.tflag = 0
+ 	typ.hash = hash
+ 	typ.size = size
+ 	typ.align = typalign

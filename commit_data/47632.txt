@@ -12,6 +12,20 @@ Date:   Fri Apr 2 19:06:33 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/asm_mips64x.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/asm_mips64x.s b/src/reflect/asm_mips64x.s
+index 0a660a5a60..ae661262cb 100644
+--- a/src/reflect/asm_mips64x.s
++++ b/src/reflect/asm_mips64x.s
+@@ -29,7 +29,7 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOVV	REGCTXT, 8(R29)
+ 	MOVV	$argframe+0(FP), R1

@@ -12,6 +12,26 @@ Date:   Wed Jan 18 16:49:59 2012 -0800
     R=golang-dev, gri, iant
     CC=golang-dev
     https://golang.org/cl/5536060
-
+---
  src/pkg/net/fd_windows.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 9e799bde9f..637510b732 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -179,11 +179,11 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (n int, err error) {
+ 		if dt < 1 {
+ 			dt = 1
+ 		}
+-		ticker := time.NewTicker(time.Duration(dt) * time.Nanosecond)
+-		defer ticker.Stop()
++		timer := time.NewTimer(time.Duration(dt) * time.Nanosecond)
++		defer timer.Stop()
+ 		select {
+ 		case r = <-o.resultc:
+-		case <-ticker.C:
++		case <-timer.C:
+ 			s.canchan <- oi
+ 			<-o.errnoc
+ 			r = <-o.resultc

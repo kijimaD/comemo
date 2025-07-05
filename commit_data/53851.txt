@@ -16,6 +16,27 @@ Date:   Wed Aug 31 21:59:29 2022 +0800
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/error.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/os/error.go b/src/os/error.go
+index fe8f2a8446..9827446e65 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -5,7 +5,6 @@
+ package os
+ 
+ import (
+-	"internal/oserror"
+ 	"internal/poll"
+ 	"io/fs"
+ )
+@@ -28,7 +27,6 @@ var (
+ 	ErrDeadlineExceeded = errDeadlineExceeded() // "i/o timeout"
+ )
+ 
+-func errClosed() error     { return oserror.ErrClosed }
+ func errNoDeadline() error { return poll.ErrNoDeadline }
+ 
+ // errDeadlineExceeded returns the value for os.ErrDeadlineExceeded.

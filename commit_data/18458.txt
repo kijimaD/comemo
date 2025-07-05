@@ -9,8 +9,107 @@ Date:   Tue Feb 11 18:43:05 2014 -0500
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/61330043
-
+---
  src/cmd/6l/asm.c    | 18 +++++++++++++++---
  src/cmd/ld/data.c   |  8 ++++----
  src/cmd/ld/symtab.c |  9 +++++++--
  3 files changed, 26 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 813bdc8485..08209c4e0b 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -207,6 +207,15 @@ adddynrel(LSym *s, Reloc *r)
+ 		return;
+ 	
+ 	case D_ADDR:
++		if(s->type == STEXT && iself) {
++			// The code is asking for the address of an external
++			// function.  We provide it with the address of the
++			// correspondent GOT symbol.
++			addgotsym(targ);
++			r->sym = linklookup(ctxt, ".got", 0);
++			r->add += targ->got;
++			return;
++		}
+ 		if(s->type != SDATA)
+ 			break;
+ 		if(iself) {
+@@ -273,9 +282,12 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 		break;
+ 
+ 	case D_PCREL:
+-		if(r->siz == 4)
+-			VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
+-		else
++		if(r->siz == 4) {
++			if(r->xsym->type == SDYNIMPORT)
++				VPUT(R_X86_64_GOTPCREL | (uint64)elfsym<<32);
++			else
++				VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
++		} else
+ 			return -1;
+ 		break;
+ 	
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 640fd6d6ef..8acb72331c 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -154,9 +154,9 @@ relocsym(LSym *s)
+ 		if(r->type >= 256)
+ 			continue;
+ 
+-		if(r->sym != S && r->sym->type == SDYNIMPORT)
++		// Solaris needs the ability to reference dynimport symbols.
++		if(HEADTYPE != Hsolaris && r->sym != S && r->sym->type == SDYNIMPORT)
+ 			diag("unhandled relocation for %s (type %d rtype %d)", r->sym->name, r->sym->type, r->type);
+-
+ 		if(r->sym != S && r->sym->type != STLSBSS && !r->sym->reachable)
+ 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
+ 
+@@ -194,7 +194,7 @@ relocsym(LSym *s)
+ 					r->xadd += symaddr(rs) - symaddr(rs->outer);
+ 					rs = rs->outer;
+ 				}
+-				if(rs->type != SHOSTOBJ && rs->sect == nil)
++				if(rs->type != SHOSTOBJ && rs->type != SDYNIMPORT && rs->sect == nil)
+ 					diag("missing section for %s", rs->name);
+ 				r->xsym = rs;
+ 
+@@ -225,7 +225,7 @@ relocsym(LSym *s)
+ 					rs = rs->outer;
+ 				}
+ 				r->xadd -= r->siz; // relative to address after the relocated chunk
+-				if(rs->type != SHOSTOBJ && rs->sect == nil)
++				if(rs->type != SHOSTOBJ && rs->type != SDYNIMPORT && rs->sect == nil)
+ 					diag("missing section for %s", rs->name);
+ 				r->xsym = rs;
+ 
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 54e6041483..0789c8a3eb 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -171,6 +171,7 @@ void
+ asmelfsym(void)
+ {
+ 	LSym *s;
++	char *name;
+ 
+ 	// the first symbol entry is reserved
+ 	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0, 0);
+@@ -196,9 +197,13 @@ asmelfsym(void)
+ 	genasmsym(putelfsym);
+ 	
+ 	for(s=ctxt->allsym; s!=S; s=s->allsym) {
+-		if(s->type != SHOSTOBJ)
++		if(s->type != SHOSTOBJ && s->type != SDYNIMPORT)
+ 			continue;
+-		putelfsyment(putelfstr(s->name), 0, 0, (STB_GLOBAL<<4)|STT_NOTYPE, 0, 0);
++		if(s->type == SDYNIMPORT)
++			name = s->extname;
++		else
++			name = s->name;
++		putelfsyment(putelfstr(name), 0, 0, (STB_GLOBAL<<4)|STT_NOTYPE, 0, 0);
+ 		s->elfsym = numelfsym++;
+ 	}
+ }

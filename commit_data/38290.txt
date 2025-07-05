@@ -11,6 +11,19 @@ Date:   Tue Oct 16 21:37:44 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/run.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/run.go b/test/run.go
+index 0974e9fdb8..b6421d5e41 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -78,6 +78,7 @@ func main() {
+ 	// Disable parallelism if printing or if using a simulator.
+ 	if *verbose || len(findExecCmd()) > 0 {
+ 		*numParallel = 1
++		*runoutputLimit = 1
+ 	}
+ 
+ 	ratec = make(chan bool, *numParallel)

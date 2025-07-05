@@ -9,7 +9,7 @@ Date:   Tue Jun 2 17:18:27 2009 -0700
     DELTA=3580  (1810 added, 1763 deleted, 7 changed)
     OCL=29770
     CL=29774
-
+---
  src/lib/Make.deps                                  |   4 +-
  src/lib/Makefile                                   |   4 +-
  src/lib/{format => datafmt}/Makefile               |  16 +--
@@ -21,3 +21,672 @@ Date:   Tue Jun 2 17:18:27 2009 -0700
  usr/gri/pretty/pretty.go                           | 112 +++----------------
  usr/gri/pretty/test.sh                             |   2 +-
  10 files changed, 188 insertions(+), 140 deletions(-)
+
+diff --git a/src/lib/Make.deps b/src/lib/Make.deps
+index 4a1805f4cd..12f086291b 100644
+--- a/src/lib/Make.deps
++++ b/src/lib/Make.deps
+@@ -6,12 +6,12 @@ crypto/block.install: fmt.install io.install os.install
+ crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
+ crypto/md5.install: hash.install os.install
+ crypto/sha1.install: hash.install os.install
++datafmt.install: container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+ exec.install: os.install strings.install
+ exvar.install: fmt.install http.install io.install log.install strconv.install sync.install
+ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+-format.install: container/vector.install flag.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+-go/ast.install: go/token.install unicode.install utf8.install
++go/ast.install: datafmt.install go/token.install io.install os.install unicode.install utf8.install
+ go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+ go/parser.install: container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install
+ go/scanner.install: go/token.install strconv.install unicode.install utf8.install
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index d0658605e3..3bce7d6392 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -22,11 +22,11 @@ DIRS=\
+ 	crypto/hmac\
+ 	crypto/md5\
+ 	crypto/sha1\
++	datafmt\
+ 	exec\
+ 	exvar\
+ 	flag\
+ 	fmt\
+-	format\
+ 	go/ast\
+ 	go/doc\
+ 	go/parser\
+@@ -70,11 +70,11 @@ TEST=\
+ 	crypto/block\
+ 	crypto/md5\
+ 	crypto/sha1\
++	datafmt\
+ 	exec\
+ 	exvar\
+ 	flag\
+ 	fmt\
+-	format\
+ 	go/parser\
+ 	go/scanner\
+ 	hash/adler32\
+diff --git a/src/lib/format/Makefile b/src/lib/datafmt/Makefile
+similarity index 76%
+rename from src/lib/format/Makefile
+rename to src/lib/datafmt/Makefile
+index 5979332412..494b11ef91 100644
+--- a/src/lib/format/Makefile
++++ b/src/lib/datafmt/Makefile
+@@ -40,37 +40,37 @@ coverage: packages
+ 	$(AS) $*.s
+ 
+ O1=\
+-	format.$O\
++	datafmt.$O\
+ 
+ O2=\
+ 	parser.$O\
+ 
+ 
+ phases: a1 a2
+-_obj$D/format.a: phases
++_obj$D/datafmt.a: phases
+ 
+ a1: $(O1)
+-	$(AR) grc _obj$D/format.a format.$O
++	$(AR) grc _obj$D/datafmt.a datafmt.$O
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/format.a parser.$O
++	$(AR) grc _obj$D/datafmt.a parser.$O
+ 	rm -f $(O2)
+ 
+ 
+ newpkg: clean
+ 	mkdir -p _obj$D
+-	$(AR) grc _obj$D/format.a
++	$(AR) grc _obj$D/datafmt.a
+ 
+ $(O1): newpkg
+ $(O2): a1
+ $(O3): a2
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg$D/format.a
++	rm -f $(GOROOT)/pkg$D/datafmt.a
+ 
+-packages: _obj$D/format.a
++packages: _obj$D/datafmt.a
+ 
+ install: packages
+ 	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D
+-	cp _obj$D/format.a $(GOROOT)/pkg$D/format.a
++	cp _obj$D/datafmt.a $(GOROOT)/pkg$D/datafmt.a
+diff --git a/src/lib/format/format.go b/src/lib/datafmt/datafmt.go
+similarity index 99%
+rename from src/lib/format/format.go
+rename to src/lib/datafmt/datafmt.go
+index 392a9d0f07..baeb3ac411 100644
+--- a/src/lib/format/format.go
++++ b/src/lib/datafmt/datafmt.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-/*	The format package implements syntax-directed, type-driven formatting
++/*	The datafmt package implements syntax-directed, type-driven formatting
+ 	of arbitrary data structures. Formatting a data structure consists of
+ 	two phases: first, a parser reads a format specification and builds a
+ 	"compiled" format. Then, the format can be applied repeatedly to
+@@ -200,7 +200,7 @@
+ 	will format an argument list by printing each one in its default format,
+ 	separated by a comma and a space.
+ */
+-package format
++package datafmt
+ 
+ import (
+ 	"container/vector";
+diff --git a/src/lib/format/format_test.go b/src/lib/datafmt/datafmt_test.go
+similarity index 88%
+rename from src/lib/format/format_test.go
+rename to src/lib/datafmt/datafmt_test.go
+index 92e0d0ea5e..fcacc80f16 100644
+--- a/src/lib/format/format_test.go
++++ b/src/lib/datafmt/datafmt_test.go
+@@ -2,28 +2,28 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package format
++package datafmt
+ 
+ import (
+ 	"fmt";
+-	"format";
++	"datafmt";
+ 	"io";
+ 	"os";
+ 	"testing";
+ )
+ 
+ 
+-func parse(t *testing.T, form string, fmap format.FormatterMap) format.Format {
+-	f, err := format.Parse(io.StringBytes(form), fmap);
++func parse(t *testing.T, form string, fmap FormatterMap) Format {
++	f, err := Parse(io.StringBytes(form), fmap);
+ 	if err != nil {
+-		t.Errorf("Parse(%s): %v", err);
++		t.Errorf("Parse(%s): %v", form, err);
+ 		return nil;
+ 	}
+ 	return f;
+ }
+ 
+ 
+-func verify(t *testing.T, f format.Format, expected string, args ...) {
++func verify(t *testing.T, f Format, expected string, args ...) {
+ 	if f == nil {
+ 		return;  // allow other tests to run
+ 	}
+@@ -37,7 +37,7 @@ func verify(t *testing.T, f format.Format, expected string, args ...) {
+ }
+ 
+ 
+-func formatter(s *format.State, value interface{}, rule_name string) bool {
++func formatter(s *State, value interface{}, rule_name string) bool {
+ 	switch rule_name {
+ 	case "/":
+ 		fmt.Fprintf(s, "%d %d %d", s.Pos().Line, s.LinePos().Column, s.Pos().Column);
+@@ -61,8 +61,8 @@ func formatter(s *format.State, value interface{}, rule_name string) bool {
+ 
+ 
+ func TestCustomFormatters(t *testing.T) {
+-	fmap0 := format.FormatterMap{ "/": formatter };
+-	fmap1 := format.FormatterMap{ "int": formatter, "blank": formatter, "nil": formatter };
++	fmap0 := FormatterMap{ "/": formatter };
++	fmap1 := FormatterMap{ "int": formatter, "blank": formatter, "nil": formatter };
+ 
+ 	f := parse(t, `int=`, fmap0);
+ 	verify(t, f, ``, 1, 2, 3);
+@@ -91,6 +91,9 @@ func TestCustomFormatters(t *testing.T) {
+ 
+ func check(t *testing.T, form, expected string, args ...) {
+ 	f := parse(t, form, nil);
++	if f == nil {
++		return;  // allow other tests to run
++	}
+ 	result := f.Sprint(args);
+ 	if result != expected {
+ 		t.Errorf(
+@@ -227,9 +230,9 @@ type T1 struct {
+ }
+ 
+ const F1 =
+-	`format "format";`
++	`datafmt "datafmt";`
+ 	`int = "%d";`
+-	`format.T1 = "<" a ">";`
++	`datafmt.T1 = "<" a ">";`
+ 
+ func TestStruct1(t *testing.T) {
+ 	check(t, F1, "<42>", T1{42});
+@@ -248,13 +251,13 @@ const F2a =
+ 	F1 +
+ 	`string = "%s";`
+ 	`ptr = *;`
+-	`format.T2 = s ["-" p "-"];`
++	`datafmt.T2 = s ["-" p "-"];`
+ 	
+ const F2b =
+ 	F1 +
+ 	`string = "%s";`
+ 	`ptr = *;`
+-	`format.T2 = s ("-" p "-" | "empty");`;
++	`datafmt.T2 = s ("-" p "-" | "empty");`;
+ 	
+ func TestStruct2(t *testing.T) {
+ 	check(t, F2a, "foo", T2{"foo", nil});
+@@ -272,19 +275,19 @@ type T3 struct {
+ }
+ 
+ const F3a =
+-	`format "format";`
++	`datafmt "datafmt";`
+ 	`default = "%v";`
+ 	`array = *;`
+-	`format.T3 = s  {" " a a / ","};`
++	`datafmt.T3 = s  {" " a a / ","};`
+ 
+ const F3b =
+-	`format "format";`
++	`datafmt "datafmt";`
+ 	`int = "%d";`
+ 	`string = "%s";`
+ 	`array = *;`
+ 	`nil = ;`
+ 	`empty = *:nil;`
+-	`format.T3 = s [a:empty ": " {a / "-"}]`
++	`datafmt.T3 = s [a:empty ": " {a / "-"}]`
+ 
+ func TestStruct3(t *testing.T) {
+ 	check(t, F3a, "foo", T3{"foo", nil});
+@@ -303,22 +306,22 @@ type T4 struct {
+ }
+ 
+ const F4a =
+-	`format "format";`
++	`datafmt "datafmt";`
+ 	`int = "%d";`
+ 	`ptr = *;`
+ 	`array = *;`
+ 	`nil = ;`
+ 	`empty = *:nil;`
+-	`format.T4 = "<" (x:empty x | "-") ">" `
++	`datafmt.T4 = "<" (x:empty x | "-") ">" `
+ 
+ const F4b =
+-	`format "format";`
++	`datafmt "datafmt";`
+ 	`int = "%d";`
+ 	`ptr = *;`
+ 	`array = *;`
+ 	`nil = ;`
+ 	`empty = *:nil;`
+-	`format.T4 = "<" (a:empty {a / ", "} | "-") ">" `
++	`datafmt.T4 = "<" (a:empty {a / ", "} | "-") ">" `
+ 
+ func TestStruct4(t *testing.T) {
+ 	x := 7;
+@@ -338,11 +341,11 @@ type Point struct {
+ }
+ 
+ const FPoint =
+-	`format "format";`
++	`datafmt "datafmt";`
+ 	`int = "%d";`
+ 	`hexInt = "0x%x";`
+ 	`string = "---%s---";`
+-	`format.Point = name "{" x ", " y:hexInt "}";`
++	`datafmt.Point = name "{" x ", " y:hexInt "}";`
+ 
+ func TestStructPoint(t *testing.T) {
+ 	p := Point{"foo", 3, 15};
+diff --git a/src/lib/format/parser.go b/src/lib/datafmt/parser.go
+similarity index 99%
+rename from src/lib/format/parser.go
+rename to src/lib/datafmt/parser.go
+index a6e6e5e8e8..89fc3cdec7 100644
+--- a/src/lib/format/parser.go
++++ b/src/lib/datafmt/parser.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package format
++package datafmt
+ 
+ import (
+ 	"container/vector";
++	"datafmt";
+ 	"fmt";
+-	"format";
+ 	"go/scanner";
+ 	"go/token";
+ 	"io";
+diff --git a/src/lib/go/ast/Makefile b/src/lib/go/ast/Makefile
+index e21b05d16f..5518580c55 100644
+--- a/src/lib/go/ast/Makefile
++++ b/src/lib/go/ast/Makefile
+@@ -42,14 +42,21 @@ coverage: packages
+ O1=\
+ 	ast.$O\
+ 
++O2=\
++	format.$O\
+ 
+-phases: a1
++
++phases: a1 a2
+ _obj$D/ast.a: phases
+ 
+ a1: $(O1)
+ 	$(AR) grc _obj$D/ast.a ast.$O
+ 	rm -f $(O1)
+ 
++a2: $(O2)
++	$(AR) grc _obj$D/ast.a format.$O
++	rm -f $(O2)
++
+ 
+ newpkg: clean
+ 	mkdir -p _obj$D
+@@ -57,6 +64,7 @@ newpkg: clean
+ 
+ $(O1): newpkg
+ $(O2): a1
++$(O3): a2
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg$D/ast.a
+diff --git a/src/lib/go/ast/format.go b/src/lib/go/ast/format.go
+new file mode 100644
+index 0000000000..db7be71cec
+--- /dev/null
++++ b/src/lib/go/ast/format.go
+@@ -0,0 +1,123 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ast
++
++import (
++	"datafmt";
++	"go/ast";
++	"go/token";
++	"io";
++	"os";
++)
++
++
++// Format is a customized datafmt.Format for printing of ASTs.
++type Format datafmt.Format;
++
++
++// ----------------------------------------------------------------------------
++// Custom formatters
++
++// The AST-specific formatting state is maintained by a state variable.
++type state struct {
++	// for now we have very little state
++	// TODO maintain list of unassociated comments
++	optSemi *bool
++}
++
++
++func (s *state) Copy() datafmt.Environment {
++	optSemi := *s.optSemi;
++	return &state{&optSemi};
++}
++
++
++func isValidPos(s *datafmt.State, value interface{}, ruleName string) bool {
++	pos := value.(token.Position);
++	return pos.IsValid();
++}
++
++
++func isSend(s *datafmt.State, value interface{}, ruleName string) bool {
++	return value.(ast.ChanDir) & ast.SEND != 0;
++}
++
++
++func isRecv(s *datafmt.State, value interface{}, ruleName string) bool {
++	return value.(ast.ChanDir) & ast.RECV != 0;
++}
++
++
++func isMultiLineComment(s *datafmt.State, value interface{}, ruleName string) bool {
++	return value.([]byte)[1] == '*';
++}
++
++
++func clearOptSemi(s *datafmt.State, value interface{}, ruleName string) bool {
++	*s.Env().(*state).optSemi = false;
++	return true;
++}
++
++
++func setOptSemi(s *datafmt.State, value interface{}, ruleName string) bool {
++	*s.Env().(*state).optSemi = true;
++	return true;
++}
++
++
++func optSemi(s *datafmt.State, value interface{}, ruleName string) bool {
++	if !*s.Env().(*state).optSemi {
++		s.Write([]byte{';'});
++	}
++	return true;
++}
++
++
++var fmap = datafmt.FormatterMap {
++	"isValidPos": isValidPos,
++	"isSend": isSend,
++	"isRecv": isRecv,
++	"isMultiLineComment": isMultiLineComment,
++	"/": clearOptSemi,
++	"clearOptSemi": clearOptSemi,
++	"setOptSemi": setOptSemi,
++	"optSemi": optSemi,
++}
++
++
++// ----------------------------------------------------------------------------
++// Printing
++
++// NewFormat parses a datafmt format specification from a file
++// and adds AST-specific custom formatter rules. The result is
++// the customized format or an os.Error, if any.
++//
++func NewFormat(filename string) (Format, os.Error) {
++	src, err := io.ReadFile(filename);
++	if err != nil {
++		return nil, err;
++	}
++	f, err := datafmt.Parse(src, fmap);
++	return Format(f), err;
++}
++
++
++// Fprint formats each AST node provided as argument according to the
++// format f and writes to standard output. The result is the total number
++// of bytes written and an os.Error, if any.
++//
++func (f Format) Fprint(w io.Writer, nodes ...) (int, os.Error) {
++	s := state{new(bool)};
++	return datafmt.Format(f).Fprint(w, &s, nodes);
++}
++
++
++// Fprint formats each AST node provided as argument according to the
++// format f and writes to w. The result is the total number of bytes
++// written and an os.Error, if any.
++//
++func (f Format) Print(nodes ...) (int, os.Error) {
++	return f.Fprint(os.Stdout, nodes);
++}
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 9916f5babb..82fc16b3c2 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -5,10 +5,9 @@
+ package main
+ 
+ import (
+-	"astprinter";
++	"astprinter";  // TODO remove once go/printer is fully functional
+ 	"flag";
+ 	"fmt";
+-	"format";
+ 	"go/ast";
+ 	"go/parser";
+ 	"go/token";
+@@ -22,13 +21,14 @@ import (
+ var (
+ 	// operation modes
+ 	columns bool;
++	// TODO remove silent flag eventually, can achieve same by proving no format file
+ 	silent = flag.Bool("s", false, "silent mode: no pretty print output");
+ 	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
+ 
+ 	// layout control
++	format = flag.String("format", "", "format file");
+ 	tabwidth = flag.Int("tabwidth", 4, "tab width");
+ 	usetabs = flag.Bool("tabs", false, "align with tabs instead of blanks");
+-	formatter = flag.Bool("formatter", false, "use formatter");  // TODO remove eventually
+ )
+ 
+ 
+@@ -45,21 +45,6 @@ func usage() {
+ }
+ 
+ 
+-// TODO(gri) use library function for this once it exists
+-func readFile(filename string) ([]byte, os.Error) {
+-	f, err := os.Open(filename, os.O_RDONLY, 0);
+-	if err != nil {
+-		return nil, err;
+-	}
+-	defer f.Close();
+-	var b io.ByteBuffer;
+-	if n, err := io.Copy(f, &b); err != nil {
+-		return nil, err;
+-	}
+-	return b.Data(), nil;
+-}
+-
+-
+ // TODO(gri) move this function into tabwriter.go? (also used in godoc)
+ func makeTabwriter(writer io.Writer) *tabwriter.Writer {
+ 	padchar := byte(' ');
+@@ -70,70 +55,6 @@ func makeTabwriter(writer io.Writer) *tabwriter.Writer {
+ }
+ 
+ 
+-func isValidPos(state *format.State, value interface{}, rule_name string) bool {
+-	pos := value.(token.Position);
+-	return pos.IsValid();
+-}
+-
+-
+-func isSend(state *format.State, value interface{}, rule_name string) bool {
+-	return value.(ast.ChanDir) & ast.SEND != 0;
+-}
+-
+-
+-func isRecv(state *format.State, value interface{}, rule_name string) bool {
+-	return value.(ast.ChanDir) & ast.RECV != 0;
+-}
+-
+-
+-func isMultiLineComment(state *format.State, value interface{}, rule_name string) bool {
+-	return value.([]byte)[1] == '*';
+-}
+-
+-
+-type environment struct {
+-	optSemi *bool;
+-}
+-
+-
+-func (e environment) Copy() format.Environment {
+-	optSemi := *e.optSemi;
+-	return environment{&optSemi};
+-}
+-
+-
+-func clearOptSemi(state *format.State, value interface{}, rule_name string) bool {
+-	*state.Env().(environment).optSemi = false;
+-	return true;
+-}
+-
+-
+-func setOptSemi(state *format.State, value interface{}, rule_name string) bool {
+-	*state.Env().(environment).optSemi = true;
+-	return true;
+-}
+-
+-
+-func optSemi(state *format.State, value interface{}, rule_name string) bool {
+-	if !*state.Env().(environment).optSemi {
+-		state.Write([]byte{';'});
+-	}
+-	return true;
+-}
+-
+-
+-var fmap = format.FormatterMap {
+-	"isValidPos": isValidPos,
+-	"isSend": isSend,
+-	"isRecv": isRecv,
+-	"isMultiLineComment": isMultiLineComment,
+-	"/": clearOptSemi,
+-	"clearOptSemi": clearOptSemi,
+-	"setOptSemi": setOptSemi,
+-	"optSemi": optSemi,
+-}
+-
+-
+ func main() {
+ 	// handle flags
+ 	flag.Parse();
+@@ -141,31 +62,25 @@ func main() {
+ 		usage();
+ 	}
+ 
++	// initialize astFormat
++	astFormat, err := ast.NewFormat(*format);
++	if *format != "" && err != nil {  // ignore error if no format file given
++		fmt.Fprintf(os.Stderr, "ast.NewFormat(%s): %v\n", *format, err);
++		os.Exit(1);
++	}
++
+ 	// determine parsing mode
+ 	mode := parser.ParseComments;
+ 	if *verbose {
+ 		mode |= parser.Trace;
+ 	}
+ 
+-	// get ast format
+-	const ast_txt = "ast.txt";
+-	src, err := readFile(ast_txt);
+-	if err != nil {
+-		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
+-		os.Exit(1);
+-	}
+-	ast_format, err := format.Parse(src, fmap);
+-	if err != nil {
+-		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
+-		os.Exit(1);
+-	}
+-
+ 	// process files
+ 	exitcode := 0;
+ 	for i := 0; i < flag.NArg(); i++ {
+ 		filename := flag.Arg(i);
+ 
+-		src, err := readFile(filename);
++		src, err := io.ReadFile(filename);
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
+ 			exitcode = 1;
+@@ -188,9 +103,8 @@ func main() {
+ 
+ 		if !*silent {
+ 			tw := makeTabwriter(os.Stdout);
+-			if *formatter {
+-				env := environment{new(bool)};
+-				_, err := ast_format.Fprint(tw, env, prog);
++			if *format != "" {
++				_, err := astFormat.Fprint(tw, prog);
+ 				if err != nil {
+ 					fmt.Fprintf(os.Stderr, "format error: %v\n", err);
+ 					exitcode = 1;
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index f0d2ac8397..ffc3fc091a 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -4,7 +4,7 @@
+ 
+ #!/bin/bash
+ 
+-CMD="./pretty -formatter"
++CMD="./pretty -format=ast.txt"
+ TMP1=test_tmp1.go
+ TMP2=test_tmp2.go
+ TMP3=test_tmp3.go

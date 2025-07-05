@@ -11,7 +11,7 @@ Date:   Sat Oct 28 17:35:27 2017 +0100
     Reviewed-on: https://go-review.googlesource.com/74190
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 19 +++++++++----------
  src/cmd/link/internal/ld/data.go       |  9 ++++-----
  src/mime/mediatype.go                  | 18 +++++++++---------
@@ -19,3 +19,178 @@ Date:   Sat Oct 28 17:35:27 2017 +0100
  src/regexp/exec.go                     | 13 ++++++-------
  src/text/tabwriter/tabwriter.go        | 23 +++++++++++------------
  6 files changed, 45 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 8b1f8a1b80..032fe73a9e 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1056,18 +1056,17 @@ func parName(f *types.Field, numbered bool) string {
+ 	// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
+ 	// ~r%d is a (formerly) unnamed result.
+ 	if asNode(f.Nname) != nil {
+-		if asNode(f.Nname).Orig != nil {
+-			s = asNode(f.Nname).Orig.Sym
+-			if s != nil && s.Name[0] == '~' {
+-				if s.Name[1] == 'r' { // originally an unnamed result
+-					return "" // s = nil
+-				} else if s.Name[1] == 'b' { // originally the blank identifier _
+-					return "_" // belongs to localpkg
+-				}
+-			}
+-		} else {
++		if asNode(f.Nname).Orig == nil {
+ 			return "" // s = nil
+ 		}
++		s = asNode(f.Nname).Orig.Sym
++		if s != nil && s.Name[0] == '~' {
++			if s.Name[1] == 'r' { // originally an unnamed result
++				return "" // s = nil
++			} else if s.Name[1] == 'b' { // originally the blank identifier _
++				return "_" // belongs to localpkg
++			}
++		}
+ 	}
+ 
+ 	if s == nil {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 92ca33972a..d3884f3515 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2049,13 +2049,12 @@ func (ctxt *Link) address() {
+ 	// their section Vaddr, using n for index
+ 	n := 1
+ 	for _, sect := range Segtext.Sections[1:] {
+-		if sect.Name == ".text" {
+-			symname := fmt.Sprintf("runtime.text.%d", n)
+-			ctxt.xdefine(symname, sym.STEXT, int64(sect.Vaddr))
+-			n++
+-		} else {
++		if sect.Name != ".text" {
+ 			break
+ 		}
++		symname := fmt.Sprintf("runtime.text.%d", n)
++		ctxt.xdefine(symname, sym.STEXT, int64(sect.Vaddr))
++		n++
+ 	}
+ 
+ 	ctxt.xdefine("runtime.rodata", sym.SRODATA, int64(rodata.Vaddr))
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index b8a83d6f79..426d417da2 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -187,18 +187,18 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
+ 				continue
+ 			}
+ 			encodedPart := simplePart + "*"
+-			if v, ok := pieceMap[encodedPart]; ok {
+-				valid = true
+-				if n == 0 {
+-					if decv, ok := decode2231Enc(v); ok {
+-						buf.WriteString(decv)
+-					}
+-				} else {
+-					decv, _ := percentHexUnescape(v)
++			v, ok := pieceMap[encodedPart]
++			if !ok {
++				break
++			}
++			valid = true
++			if n == 0 {
++				if decv, ok := decode2231Enc(v); ok {
+ 					buf.WriteString(decv)
+ 				}
+ 			} else {
+-				break
++				decv, _ := percentHexUnescape(v)
++				buf.WriteString(decv)
+ 			}
+ 		}
+ 		if valid {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index d3b03e9b02..0184e6820e 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1074,15 +1074,14 @@ func (v Value) MapIndex(key Value) Value {
+ 	typ := tt.elem
+ 	fl := (v.flag | key.flag).ro()
+ 	fl |= flag(typ.Kind())
+-	if ifaceIndir(typ) {
+-		// Copy result so future changes to the map
+-		// won't change the underlying value.
+-		c := unsafe_New(typ)
+-		typedmemmove(typ, c, e)
+-		return Value{typ, c, fl | flagIndir}
+-	} else {
++	if !ifaceIndir(typ) {
+ 		return Value{typ, *(*unsafe.Pointer)(e), fl}
+ 	}
++	// Copy result so future changes to the map
++	// won't change the underlying value.
++	c := unsafe_New(typ)
++	typedmemmove(typ, c, e)
++	return Value{typ, c, fl | flagIndir}
+ }
+ 
+ // MapKeys returns a slice containing all the keys present in the map,
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index ea5b1361cb..84cb3e6fa5 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -338,15 +338,14 @@ func (m *machine) onepass(i input, pos, ncap int) bool {
+ 	if pos == 0 && syntax.EmptyOp(inst.Arg)&^flag == 0 &&
+ 		len(m.re.prefix) > 0 && i.canCheckPrefix() {
+ 		// Match requires literal prefix; fast search for it.
+-		if i.hasPrefix(m.re) {
+-			pos += len(m.re.prefix)
+-			r, width = i.step(pos)
+-			r1, width1 = i.step(pos + width)
+-			flag = i.context(pos)
+-			pc = int(m.re.prefixEnd)
+-		} else {
++		if !i.hasPrefix(m.re) {
+ 			return m.matched
+ 		}
++		pos += len(m.re.prefix)
++		r, width = i.step(pos)
++		r1, width1 = i.step(pos + width)
++		flag = i.context(pos)
++		pc = int(m.re.prefixEnd)
+ 	}
+ 	for {
+ 		inst = m.op.Inst[pc]
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index c17cef8bd9..ae6c7a2949 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -352,20 +352,19 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int) {
+ 		discardable := true // true if all cells in this column are empty and "soft"
+ 		for ; this < line1; this++ {
+ 			line = b.lines[this]
+-			if column < len(line)-1 {
+-				// cell exists in this column
+-				c := line[column]
+-				// update width
+-				if w := c.width + b.padding; w > width {
+-					width = w
+-				}
+-				// update discardable
+-				if c.width > 0 || c.htab {
+-					discardable = false
+-				}
+-			} else {
++			if column >= len(line)-1 {
+ 				break
+ 			}
++			// cell exists in this column
++			c := line[column]
++			// update width
++			if w := c.width + b.padding; w > width {
++				width = w
++			}
++			// update discardable
++			if c.width > 0 || c.htab {
++				discardable = false
++			}
+ 		}
+ 		// column block end
+ 

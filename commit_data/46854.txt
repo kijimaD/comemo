@@ -13,8 +13,61 @@ Date:   Sun Feb 7 15:25:39 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/metrics/doc.go    | 7 ++++---
  src/runtime/metrics/sample.go | 6 +++---
  src/runtime/metrics/value.go  | 2 +-
  3 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 021a0bddca..5da050f973 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -16,13 +16,14 @@ Interface
+ Metrics are designated by a string key, rather than, for example, a field name in
+ a struct. The full list of supported metrics is always available in the slice of
+ Descriptions returned by All. Each Description also includes useful information
+-about the metric, such as how to display it (e.g. gauge vs. counter) and how difficult
+-or disruptive it is to obtain it (e.g. do you need to stop the world?).
++about the metric, such as how to display it (for example, gauge vs. counter)
++and how difficult or disruptive it is to obtain it (for example, do you need to
++stop the world?).
+ 
+ Thus, users of this API are encouraged to sample supported metrics defined by the
+ slice returned by All to remain compatible across Go versions. Of course, situations
+ arise where reading specific metrics is critical. For these cases, users are
+-encouranged to use build tags, and although metrics may be deprecated and removed,
++encouraged to use build tags, and although metrics may be deprecated and removed,
+ users should consider this to be an exceptional and rare event, coinciding with a
+ very large change in a particular Go implementation.
+ 
+diff --git a/src/runtime/metrics/sample.go b/src/runtime/metrics/sample.go
+index 35534dd70d..b3933e266e 100644
+--- a/src/runtime/metrics/sample.go
++++ b/src/runtime/metrics/sample.go
+@@ -32,9 +32,9 @@ func runtime_readMetrics(unsafe.Pointer, int, int)
+ //
+ // Note that re-use has some caveats. Notably, Values should not be read or
+ // manipulated while a Read with that value is outstanding; that is a data race.
+-// This property includes pointer-typed Values (e.g. Float64Histogram) whose
+-// underlying storage will be reused by Read when possible. To safely use such
+-// values in a concurrent setting, all data must be deep-copied.
++// This property includes pointer-typed Values (for example, Float64Histogram)
++// whose underlying storage will be reused by Read when possible. To safely use
++// such values in a concurrent setting, all data must be deep-copied.
+ //
+ // It is safe to execute multiple Read calls concurrently, but their arguments
+ // must share no underlying memory. When in doubt, create a new []Sample from
+diff --git a/src/runtime/metrics/value.go b/src/runtime/metrics/value.go
+index 61e8a192a3..ed9a33d87c 100644
+--- a/src/runtime/metrics/value.go
++++ b/src/runtime/metrics/value.go
+@@ -33,7 +33,7 @@ type Value struct {
+ 	pointer unsafe.Pointer // contains non-scalar values.
+ }
+ 
+-// Kind returns the a tag representing the kind of value this is.
++// Kind returns the tag representing the kind of value this is.
+ func (v Value) Kind() ValueKind {
+ 	return v.kind
+ }

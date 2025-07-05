@@ -13,8 +13,68 @@ Date:   Wed Jan 8 14:55:08 2020 -0500
     Change-Id: I5dc403726f4960482ed7c267d1a333bbcc260087
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213828
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                                 |  8 --------
  src/cmd/go/testdata/script/test_benchmark_timeout.txt | 18 ++++++++++++++++++
  src/cmd/go/testdata/timeoutbench_test.go              | 10 ----------
  3 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f34a5c80a7..5cebddea52 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3173,14 +3173,6 @@ const (
+ 	okPattern        = `(?m)^ok`
+ )
+ 
+-// Issue 18845
+-func TestBenchTimeout(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-bench", ".", "-timeout", "750ms", "testdata/timeoutbench_test.go")
+-}
+-
+ // Issue 19394
+ func TestWriteProfilesOnTimeout(t *testing.T) {
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/test_benchmark_timeout.txt b/src/cmd/go/testdata/script/test_benchmark_timeout.txt
+new file mode 100644
+index 0000000000..4bae7e7e7d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_benchmark_timeout.txt
+@@ -0,0 +1,18 @@
++# Tests issue #18845
++[short] skip
++
++go test -bench . -timeout=750ms timeoutbench_test.go
++stdout ok
++stdout PASS
++
++-- timeoutbench_test.go --
++package timeoutbench_test
++
++import (
++	"testing"
++	"time"
++)
++
++func BenchmarkSleep1s(b *testing.B) {
++	time.Sleep(1 * time.Second)
++}
+diff --git a/src/cmd/go/testdata/timeoutbench_test.go b/src/cmd/go/testdata/timeoutbench_test.go
+deleted file mode 100644
+index 57a8888299..0000000000
+--- a/src/cmd/go/testdata/timeoutbench_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package timeoutbench_test
+-
+-import (
+-	"testing"
+-	"time"
+-)
+-
+-func BenchmarkSleep1s(b *testing.B) {
+-	time.Sleep(1 * time.Second)
+-}

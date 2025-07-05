@@ -14,6 +14,34 @@ Date:   Wed Aug 9 16:24:14 2017 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/stmt.go | 16 +++++++---------
  1 file changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 4e423bd686..f4feabefdd 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -236,15 +236,13 @@ L:
+ 		}
+ 		// look for duplicate values
+ 		if val := goVal(v.val); val != nil {
+-			if list := seen[val]; list != nil {
+-				// look for duplicate types for a given value
+-				// (quadratic algorithm, but these lists tend to be very short)
+-				for _, vt := range list {
+-					if Identical(v.typ, vt.typ) {
+-						check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
+-						check.error(vt.pos, "\tprevious case") // secondary error, \t indented
+-						continue L
+-					}
++			// look for duplicate types for a given value
++			// (quadratic algorithm, but these lists tend to be very short)
++			for _, vt := range seen[val] {
++				if Identical(v.typ, vt.typ) {
++					check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
++					check.error(vt.pos, "\tprevious case") // secondary error, \t indented
++					continue L
+ 				}
+ 			}
+ 			seen[val] = append(seen[val], valueType{v.pos(), v.typ})

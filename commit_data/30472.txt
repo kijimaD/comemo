@@ -10,7 +10,46 @@ Date:   Sun Nov 1 04:16:52 2015 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_darwin.go | 18 ++++++++++++++++++
  src/runtime/vdso_none.go |  1 +
  2 files changed, 19 insertions(+)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 0dfe8778db..15281674ae 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -551,3 +551,21 @@ func sigaddset(mask *sigset, i int) {
+ func sigdelset(mask *sigset, i int) {
+ 	*mask &^= 1 << (uint32(i) - 1)
+ }
++
++//go:linkname executablePath os.executablePath
++var executablePath string
++
++func sysargs(argc int32, argv **byte) {
++	// skip over argv, envv and the first string will be the path
++	n := argc + 1
++	for argv_index(argv, n) != nil {
++		n++
++	}
++	executablePath = gostringnocopy(argv_index(argv, n+1))
++
++	// strip "executable_path=" prefix if available, it's added after OS X 10.11.
++	const prefix = "executable_path="
++	if len(executablePath) > len(prefix) && executablePath[:len(prefix)] == prefix {
++		executablePath = executablePath[len(prefix):]
++	}
++}
+diff --git a/src/runtime/vdso_none.go b/src/runtime/vdso_none.go
+index efae23f6ee..fc2124040f 100644
+--- a/src/runtime/vdso_none.go
++++ b/src/runtime/vdso_none.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !linux
++// +build !darwin
+ 
+ package runtime
+ 

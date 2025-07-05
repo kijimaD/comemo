@@ -16,7 +16,7 @@ Date:   Wed Sep 22 10:46:32 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/errors/errors_test.go                     |  9 ++--
  misc/cgo/testcshared/cshared_test.go               |  4 +-
  misc/cgo/testsanitizers/cc_test.go                 |  2 +-
@@ -96,3 +96,2455 @@ Date:   Wed Sep 22 10:46:32 2021 -0400
  test/run.go                                        | 44 +++++++---------
  test/zerodivide.go                                 |  2 +-
  78 files changed, 356 insertions(+), 577 deletions(-)
+
+diff --git a/misc/cgo/errors/errors_test.go b/misc/cgo/errors/errors_test.go
+index 68a30a44fe..e90ed1e058 100644
+--- a/misc/cgo/errors/errors_test.go
++++ b/misc/cgo/errors/errors_test.go
+@@ -36,14 +36,13 @@ func check(t *testing.T, file string) {
+ 				continue
+ 			}
+ 
+-			frags := bytes.SplitAfterN(line, []byte("ERROR HERE: "), 2)
+-			if len(frags) == 1 {
++			_, frag, ok := bytes.Cut(line, []byte("ERROR HERE: "))
++			if !ok {
+ 				continue
+ 			}
+-			frag := fmt.Sprintf(":%d:.*%s", i+1, frags[1])
+-			re, err := regexp.Compile(frag)
++			re, err := regexp.Compile(fmt.Sprintf(":%d:.*%s", i+1, frag))
+ 			if err != nil {
+-				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frags[1])
++				t.Errorf("Invalid regexp after `ERROR HERE: `: %#q", frag)
+ 				continue
+ 			}
+ 			errors = append(errors, re)
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index 19ad8c76a8..84b92d502f 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -200,7 +200,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
+ 	args := append(adbCmd(), "exec-out")
+ 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
+ 	for _, e := range env {
+-		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
++		if strings.Contains(e, "LD_LIBRARY_PATH=") {
+ 			adbargs = append([]string{e}, adbargs...)
+ 			break
+ 		}
+@@ -326,7 +326,7 @@ func createHeaders() error {
+ 			base, name := filepath.Split(args[0])
+ 			args[0] = filepath.Join(base, "llvm-dlltool")
+ 			var machine string
+-			switch strings.SplitN(name, "-", 2)[0] {
++			switch prefix, _, _ := strings.Cut(name, "-"); prefix {
+ 			case "i686":
+ 				machine = "i386"
+ 			case "x86_64":
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index 384b6250e1..7af30ab557 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -344,7 +344,7 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
+ 		if os.IsNotExist(err) {
+ 			return true, fmt.Errorf("%#q failed to produce executable: %v", strings.Join(cmd.Args, " "), err)
+ 		}
+-		snippet := bytes.SplitN(out, []byte{'\n'}, 2)[0]
++		snippet, _, _ := bytes.Cut(out, []byte("\n"))
+ 		return true, fmt.Errorf("%#q generated broken executable: %v\n%s", strings.Join(cmd.Args, " "), err, snippet)
+ 	}
+ 
+diff --git a/misc/ios/go_ios_exec.go b/misc/ios/go_ios_exec.go
+index 9e63717d92..34a734cda7 100644
+--- a/misc/ios/go_ios_exec.go
++++ b/misc/ios/go_ios_exec.go
+@@ -148,9 +148,8 @@ func runOnDevice(appdir string) error {
+ 	// Device IDs as listed with ios-deploy -c.
+ 	deviceID = os.Getenv("GOIOS_DEVICE_ID")
+ 
+-	parts := strings.SplitN(appID, ".", 2)
+-	if len(parts) == 2 {
+-		bundleID = parts[1]
++	if _, id, ok := strings.Cut(appID, "."); ok {
++		bundleID = id
+ 	}
+ 
+ 	if err := signApp(appdir); err != nil {
+@@ -291,11 +290,10 @@ func findDevImage() (string, error) {
+ 	var iosVer, buildVer string
+ 	lines := bytes.Split(out, []byte("\n"))
+ 	for _, line := range lines {
+-		spl := bytes.SplitN(line, []byte(": "), 2)
+-		if len(spl) != 2 {
++		key, val, ok := strings.Cut(string(line), ": ")
++		if !ok {
+ 			continue
+ 		}
+-		key, val := string(spl[0]), string(spl[1])
+ 		switch key {
+ 		case "ProductVersion":
+ 			iosVer = val
+diff --git a/misc/linkcheck/linkcheck.go b/misc/linkcheck/linkcheck.go
+index 570b430da4..efe400965b 100644
+--- a/misc/linkcheck/linkcheck.go
++++ b/misc/linkcheck/linkcheck.go
+@@ -81,10 +81,8 @@ func crawl(url string, sourceURL string) {
+ 	}
+ 	mu.Lock()
+ 	defer mu.Unlock()
+-	var frag string
+-	if i := strings.Index(url, "#"); i >= 0 {
+-		frag = url[i+1:]
+-		url = url[:i]
++	if u, frag, ok := strings.Cut(url, "#"); ok {
++		url = u
+ 		if frag != "" {
+ 			uf := urlFrag{url, frag}
+ 			neededFrags[uf] = append(neededFrags[uf], sourceURL)
+diff --git a/src/archive/tar/strconv.go b/src/archive/tar/strconv.go
+index f0b61e6dba..275db6f026 100644
+--- a/src/archive/tar/strconv.go
++++ b/src/archive/tar/strconv.go
+@@ -14,7 +14,7 @@ import (
+ 
+ // hasNUL reports whether the NUL character exists within s.
+ func hasNUL(s string) bool {
+-	return strings.IndexByte(s, 0) >= 0
++	return strings.Contains(s, "\x00")
+ }
+ 
+ // isASCII reports whether the input is an ASCII C-style string.
+@@ -201,10 +201,7 @@ func parsePAXTime(s string) (time.Time, error) {
+ 	const maxNanoSecondDigits = 9
+ 
+ 	// Split string into seconds and sub-seconds parts.
+-	ss, sn := s, ""
+-	if pos := strings.IndexByte(s, '.'); pos >= 0 {
+-		ss, sn = s[:pos], s[pos+1:]
+-	}
++	ss, sn, _ := strings.Cut(s, ".")
+ 
+ 	// Parse the seconds.
+ 	secs, err := strconv.ParseInt(ss, 10, 64)
+@@ -254,48 +251,32 @@ func formatPAXTime(ts time.Time) (s string) {
+ // return the remainder as r.
+ func parsePAXRecord(s string) (k, v, r string, err error) {
+ 	// The size field ends at the first space.
+-	sp := strings.IndexByte(s, ' ')
+-	if sp == -1 {
++	nStr, rest, ok := strings.Cut(s, " ")
++	if !ok {
+ 		return "", "", s, ErrHeader
+ 	}
+ 
+ 	// Parse the first token as a decimal integer.
+-	n, perr := strconv.ParseInt(s[:sp], 10, 0) // Intentionally parse as native int
+-	if perr != nil || n < 5 || int64(len(s)) < n {
++	n, perr := strconv.ParseInt(nStr, 10, 0) // Intentionally parse as native int
++	if perr != nil || n < 5 || n > int64(len(s)) {
+ 		return "", "", s, ErrHeader
+ 	}
+-
+-	afterSpace := int64(sp + 1)
+-	beforeLastNewLine := n - 1
+-	// In some cases, "length" was perhaps padded/malformed, and
+-	// trying to index past where the space supposedly is goes past
+-	// the end of the actual record.
+-	// For example:
+-	//    "0000000000000000000000000000000030 mtime=1432668921.098285006\n30 ctime=2147483649.15163319"
+-	//                                  ^     ^
+-	//                                  |     |
+-	//                                  |  afterSpace=35
+-	//                                  |
+-	//                          beforeLastNewLine=29
+-	// yet indexOf(firstSpace) MUST BE before endOfRecord.
+-	//
+-	// See https://golang.org/issues/40196.
+-	if afterSpace >= beforeLastNewLine {
++	n -= int64(len(nStr) + 1) // convert from index in s to index in rest
++	if n <= 0 {
+ 		return "", "", s, ErrHeader
+ 	}
+ 
+ 	// Extract everything between the space and the final newline.
+-	rec, nl, rem := s[afterSpace:beforeLastNewLine], s[beforeLastNewLine:n], s[n:]
++	rec, nl, rem := rest[:n-1], rest[n-1:n], rest[n:]
+ 	if nl != "\n" {
+ 		return "", "", s, ErrHeader
+ 	}
+ 
+ 	// The first equals separates the key from the value.
+-	eq := strings.IndexByte(rec, '=')
+-	if eq == -1 {
++	k, v, ok = strings.Cut(rec, "=")
++	if !ok {
+ 		return "", "", s, ErrHeader
+ 	}
+-	k, v = rec[:eq], rec[eq+1:]
+ 
+ 	if !validPAXRecord(k, v) {
+ 		return "", "", s, ErrHeader
+@@ -333,7 +314,7 @@ func formatPAXRecord(k, v string) (string, error) {
+ // for the PAX version of the USTAR string fields.
+ // The key must not contain an '=' character.
+ func validPAXRecord(k, v string) bool {
+-	if k == "" || strings.IndexByte(k, '=') >= 0 {
++	if k == "" || strings.Contains(k, "=") {
+ 		return false
+ 	}
+ 	switch k {
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 43f2f5976c..95ce99a3ed 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -988,9 +988,7 @@ func TestIssue12594(t *testing.T) {
+ 		var blk block
+ 		copy(blk[:], b.Bytes())
+ 		prefix := string(blk.toUSTAR().prefix())
+-		if i := strings.IndexByte(prefix, 0); i >= 0 {
+-			prefix = prefix[:i] // Truncate at the NUL terminator
+-		}
++		prefix, _, _ = strings.Cut(prefix, "\x00") // Truncate at the NUL terminator
+ 		if blk.getFormat() == FormatGNU && len(prefix) > 0 && strings.HasPrefix(name, prefix) {
+ 			t.Errorf("test %d, found prefix in GNU format: %s", i, prefix)
+ 		}
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 97c6c52979..2b73eca814 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -362,7 +362,7 @@ func TestWriterDirAttributes(t *testing.T) {
+ 	}
+ 
+ 	binary.LittleEndian.PutUint32(sig[:], uint32(dataDescriptorSignature))
+-	if bytes.Index(b, sig[:]) != -1 {
++	if bytes.Contains(b, sig[:]) {
+ 		t.Error("there should be no data descriptor")
+ 	}
+ }
+diff --git a/src/cmd/doc/dirs.go b/src/cmd/doc/dirs.go
+index 661624cfe4..f27af1d27b 100644
+--- a/src/cmd/doc/dirs.go
++++ b/src/cmd/doc/dirs.go
+@@ -221,11 +221,7 @@ func findCodeRoots() []Dir {
+ 	cmd.Stderr = os.Stderr
+ 	out, _ := cmd.Output()
+ 	for _, line := range strings.Split(string(out), "\n") {
+-		i := strings.Index(line, "\t")
+-		if i < 0 {
+-			continue
+-		}
+-		path, dir := line[:i], line[i+1:]
++		path, dir, _ := strings.Cut(line, "\t")
+ 		if dir != "" {
+ 			list = append(list, Dir{importPath: path, dir: dir, inModule: true})
+ 		}
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 587f0bdc14..822c9e16f8 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -315,9 +315,7 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
+ 			recv = "(" + recv + ") "
+ 		}
+ 		fnc := pkg.oneLineNodeDepth(n.Type, depth)
+-		if strings.Index(fnc, "func") == 0 {
+-			fnc = fnc[4:]
+-		}
++		fnc = strings.TrimPrefix(fnc, "func")
+ 		return fmt.Sprintf("func %s%s%s", recv, name, fnc)
+ 
+ 	case *ast.TypeSpec:
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index 39a53785b7..8c4beb4b65 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -544,8 +544,8 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
+ 			if strings.HasPrefix(t, "[") || strings.HasPrefix(t, "map[") {
+ 				// Lazy: assume there are no nested [] in the array
+ 				// length or map key type.
+-				if i := strings.Index(t, "]"); i >= 0 {
+-					typeof[n] = t[i+1:]
++				if _, elem, ok := strings.Cut(t, "]"); ok {
++					typeof[n] = elem
+ 				}
+ 			}
+ 
+@@ -575,8 +575,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
+ 			t := expand(typeof[n])
+ 			if strings.HasPrefix(t, "[") { // array or slice
+ 				// Lazy: assume there are no nested [] in the array length.
+-				if i := strings.Index(t, "]"); i >= 0 {
+-					et := t[i+1:]
++				if _, et, ok := strings.Cut(t, "]"); ok {
+ 					for _, e := range n.Elts {
+ 						if kv, ok := e.(*ast.KeyValueExpr); ok {
+ 							e = kv.Value
+@@ -589,8 +588,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
+ 			}
+ 			if strings.HasPrefix(t, "map[") { // map
+ 				// Lazy: assume there are no nested [] in the map key type.
+-				if i := strings.Index(t, "]"); i >= 0 {
+-					kt, vt := t[4:i], t[i+1:]
++				if kt, vt, ok := strings.Cut(t[len("map["):], "]"); ok {
+ 					for _, e := range n.Elts {
+ 						if kv, ok := e.(*ast.KeyValueExpr); ok {
+ 							if typeof[kv.Key] == "" {
+@@ -629,12 +627,10 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
+ 				key, value = "int", "rune"
+ 			} else if strings.HasPrefix(t, "[") {
+ 				key = "int"
+-				if i := strings.Index(t, "]"); i >= 0 {
+-					value = t[i+1:]
+-				}
++				_, value, _ = strings.Cut(t, "]")
+ 			} else if strings.HasPrefix(t, "map[") {
+-				if i := strings.Index(t, "]"); i >= 0 {
+-					key, value = t[4:i], t[i+1:]
++				if k, v, ok := strings.Cut(t[len("map["):], "]"); ok {
++					key, value = k, v
+ 				}
+ 			}
+ 			changed := false
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 50dd0735fa..714ee320ae 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -241,8 +241,8 @@ func errorCheck(outStr string, wantAuto bool, fullshort ...string) (err error) {
+ 			// Assume errmsg says "file:line: foo".
+ 			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
+ 			text := errmsg
+-			if i := strings.Index(text, " "); i >= 0 {
+-				text = text[i+1:]
++			if _, suffix, ok := strings.Cut(text, " "); ok {
++				text = suffix
+ 			}
+ 			if we.re.MatchString(text) {
+ 				matched = true
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 556818acf4..c8390b2cc9 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -219,9 +219,9 @@ func TestVectors(t *testing.T) {
+ 
+ 		if line[0] == '[' {
+ 			line = line[1 : len(line)-1]
+-			parts := strings.SplitN(line, ",", 2)
++			curve, hash, _ := strings.Cut(line, ",")
+ 
+-			switch parts[0] {
++			switch curve {
+ 			case "P-224":
+ 				pub.Curve = elliptic.P224()
+ 			case "P-256":
+@@ -234,7 +234,7 @@ func TestVectors(t *testing.T) {
+ 				pub.Curve = nil
+ 			}
+ 
+-			switch parts[1] {
++			switch hash {
+ 			case "SHA-1":
+ 				h = sha1.New()
+ 			case "SHA-224":
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index b6eb488a4d..2158f3247b 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -97,18 +97,18 @@ func (o *opensslOutputSink) Write(data []byte) (n int, err error) {
+ 	o.all = append(o.all, data...)
+ 
+ 	for {
+-		i := bytes.IndexByte(o.line, '\n')
+-		if i < 0 {
++		line, next, ok := bytes.Cut(o.line, []byte("\n"))
++		if !ok {
+ 			break
+ 		}
+ 
+-		if bytes.Equal([]byte(opensslEndOfHandshake), o.line[:i]) {
++		if bytes.Equal([]byte(opensslEndOfHandshake), line) {
+ 			o.handshakeComplete <- struct{}{}
+ 		}
+-		if bytes.Equal([]byte(opensslReadKeyUpdate), o.line[:i]) {
++		if bytes.Equal([]byte(opensslReadKeyUpdate), line) {
+ 			o.readKeyUpdate <- struct{}{}
+ 		}
+-		o.line = o.line[i+1:]
++		o.line = next
+ 	}
+ 
+ 	return len(data), nil
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index 9bfb1177f2..90ac9bd11e 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -191,18 +191,17 @@ func parseTestData(r io.Reader) (flows [][]byte, err error) {
+ 		// Otherwise the line is a line of hex dump that looks like:
+ 		// 00000170  fc f5 06 bf (...)  |.....X{&?......!|
+ 		// (Some bytes have been omitted from the middle section.)
+-
+-		if i := strings.IndexByte(line, ' '); i >= 0 {
+-			line = line[i:]
+-		} else {
++		_, after, ok := strings.Cut(line, " ")
++		if !ok {
+ 			return nil, errors.New("invalid test data")
+ 		}
++		line = after
+ 
+-		if i := strings.IndexByte(line, '|'); i >= 0 {
+-			line = line[:i]
+-		} else {
++		before, _, ok := strings.Cut(line, "|")
++		if !ok {
+ 			return nil, errors.New("invalid test data")
+ 		}
++		line = before
+ 
+ 		hexBytes := strings.Fields(line)
+ 		for _, hexByte := range hexBytes {
+diff --git a/src/crypto/x509/pem_decrypt.go b/src/crypto/x509/pem_decrypt.go
+index 781cb3de83..682923ac53 100644
+--- a/src/crypto/x509/pem_decrypt.go
++++ b/src/crypto/x509/pem_decrypt.go
+@@ -127,12 +127,11 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
+ 		return nil, errors.New("x509: no DEK-Info header in block")
+ 	}
+ 
+-	idx := strings.Index(dek, ",")
+-	if idx == -1 {
++	mode, hexIV, ok := strings.Cut(dek, ",")
++	if !ok {
+ 		return nil, errors.New("x509: malformed DEK-Info header")
+ 	}
+ 
+-	mode, hexIV := dek[:idx], dek[idx+1:]
+ 	ciph := cipherByName(mode)
+ 	if ciph == nil {
+ 		return nil, errors.New("x509: unknown encryption mode")
+diff --git a/src/encoding/asn1/common.go b/src/encoding/asn1/common.go
+index 1c712e1eff..40115df8b4 100644
+--- a/src/encoding/asn1/common.go
++++ b/src/encoding/asn1/common.go
+@@ -94,14 +94,7 @@ type fieldParameters struct {
+ func parseFieldParameters(str string) (ret fieldParameters) {
+ 	var part string
+ 	for len(str) > 0 {
+-		// This loop uses IndexByte and explicit slicing
+-		// instead of strings.Split(str, ",") to reduce allocations.
+-		i := strings.IndexByte(str, ',')
+-		if i < 0 {
+-			part, str = str, ""
+-		} else {
+-			part, str = str[:i], str[i+1:]
+-		}
++		part, str, _ = strings.Cut(str, ",")
+ 		switch {
+ 		case part == "optional":
+ 			ret.optional = true
+diff --git a/src/encoding/json/tags.go b/src/encoding/json/tags.go
+index c38fd5102f..b490328f4c 100644
+--- a/src/encoding/json/tags.go
++++ b/src/encoding/json/tags.go
+@@ -15,10 +15,8 @@ type tagOptions string
+ // parseTag splits a struct field's json tag into its name and
+ // comma-separated options.
+ func parseTag(tag string) (string, tagOptions) {
+-	if idx := strings.Index(tag, ","); idx != -1 {
+-		return tag[:idx], tagOptions(tag[idx+1:])
+-	}
+-	return tag, tagOptions("")
++	tag, opt, _ := strings.Cut(tag, ",")
++	return tag, tagOptions(opt)
+ }
+ 
+ // Contains reports whether a comma-separated list of options
+@@ -30,15 +28,11 @@ func (o tagOptions) Contains(optionName string) bool {
+ 	}
+ 	s := string(o)
+ 	for s != "" {
+-		var next string
+-		i := strings.Index(s, ",")
+-		if i >= 0 {
+-			s, next = s[:i], s[i+1:]
+-		}
+-		if s == optionName {
++		var name string
++		name, s, _ = strings.Cut(s, ",")
++		if name == optionName {
+ 			return true
+ 		}
+-		s = next
+ 	}
+ 	return false
+ }
+diff --git a/src/encoding/pem/pem.go b/src/encoding/pem/pem.go
+index a7272da5ad..e7adf88382 100644
+--- a/src/encoding/pem/pem.go
++++ b/src/encoding/pem/pem.go
+@@ -78,6 +78,7 @@ func removeSpacesAndTabs(data []byte) []byte {
+ var pemStart = []byte("\n-----BEGIN ")
+ var pemEnd = []byte("\n-----END ")
+ var pemEndOfLine = []byte("-----")
++var colon = []byte(":")
+ 
+ // Decode will find the next PEM formatted block (certificate, private key
+ // etc) in the input. It returns that block and the remainder of the input. If
+@@ -89,8 +90,8 @@ func Decode(data []byte) (p *Block, rest []byte) {
+ 	rest = data
+ 	if bytes.HasPrefix(data, pemStart[1:]) {
+ 		rest = rest[len(pemStart)-1 : len(data)]
+-	} else if i := bytes.Index(data, pemStart); i >= 0 {
+-		rest = rest[i+len(pemStart) : len(data)]
++	} else if _, after, ok := bytes.Cut(data, pemStart); ok {
++		rest = after
+ 	} else {
+ 		return nil, data
+ 	}
+@@ -114,13 +115,12 @@ func Decode(data []byte) (p *Block, rest []byte) {
+ 		}
+ 		line, next := getLine(rest)
+ 
+-		i := bytes.IndexByte(line, ':')
+-		if i == -1 {
++		key, val, ok := bytes.Cut(line, colon)
++		if !ok {
+ 			break
+ 		}
+ 
+ 		// TODO(agl): need to cope with values that spread across lines.
+-		key, val := line[:i], line[i+1:]
+ 		key = bytes.TrimSpace(key)
+ 		val = bytes.TrimSpace(val)
+ 		p.Headers[string(key)] = string(val)
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index 162724ef1a..51e976cf01 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -115,8 +115,8 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 
+ 	// Split the tag from the xml namespace if necessary.
+ 	tag := f.Tag.Get("xml")
+-	if i := strings.Index(tag, " "); i >= 0 {
+-		finfo.xmlns, tag = tag[:i], tag[i+1:]
++	if ns, t, ok := strings.Cut(tag, " "); ok {
++		finfo.xmlns, tag = ns, t
+ 	}
+ 
+ 	// Parse flags.
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index c14954df15..33d0b417b9 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -1164,11 +1164,11 @@ func (d *Decoder) nsname() (name Name, ok bool) {
+ 	}
+ 	if strings.Count(s, ":") > 1 {
+ 		name.Local = s
+-	} else if i := strings.Index(s, ":"); i < 1 || i > len(s)-2 {
++	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
+ 		name.Local = s
+ 	} else {
+-		name.Space = s[0:i]
+-		name.Local = s[i+1:]
++		name.Space = space
++		name.Local = local
+ 	}
+ 	return name, true
+ }
+@@ -2012,25 +2012,26 @@ func emitCDATA(w io.Writer, s []byte) error {
+ 	if _, err := w.Write(cdataStart); err != nil {
+ 		return err
+ 	}
++
+ 	for {
+-		i := bytes.Index(s, cdataEnd)
+-		if i >= 0 && i+len(cdataEnd) <= len(s) {
+-			// Found a nested CDATA directive end.
+-			if _, err := w.Write(s[:i]); err != nil {
+-				return err
+-			}
+-			if _, err := w.Write(cdataEscape); err != nil {
+-				return err
+-			}
+-			i += len(cdataEnd)
+-		} else {
+-			if _, err := w.Write(s); err != nil {
+-				return err
+-			}
++		before, after, ok := bytes.Cut(s, cdataEnd)
++		if !ok {
+ 			break
+ 		}
+-		s = s[i:]
++		// Found a nested CDATA directive end.
++		if _, err := w.Write(before); err != nil {
++			return err
++		}
++		if _, err := w.Write(cdataEscape); err != nil {
++			return err
++		}
++		s = after
++	}
++
++	if _, err := w.Write(s); err != nil {
++		return err
+ 	}
++
+ 	_, err := w.Write(cdataEnd)
+ 	return err
+ }
+@@ -2041,20 +2042,16 @@ func procInst(param, s string) string {
+ 	// TODO: this parsing is somewhat lame and not exact.
+ 	// It works for all actual cases, though.
+ 	param = param + "="
+-	idx := strings.Index(s, param)
+-	if idx == -1 {
+-		return ""
+-	}
+-	v := s[idx+len(param):]
++	_, v, _ := strings.Cut(s, param)
+ 	if v == "" {
+ 		return ""
+ 	}
+ 	if v[0] != '\'' && v[0] != '"' {
+ 		return ""
+ 	}
+-	idx = strings.IndexRune(v[1:], rune(v[0]))
+-	if idx == -1 {
++	unquote, _, ok := strings.Cut(v[1:], v[:1])
++	if !ok {
+ 		return ""
+ 	}
+-	return v[1 : idx+1]
++	return unquote
+ }
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 8afa9d5240..eb47ffe285 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1258,19 +1258,14 @@ func findImportComment(data []byte) (s string, line int) {
+ 	var comment []byte
+ 	switch {
+ 	case bytes.HasPrefix(data, slashSlash):
+-		i := bytes.Index(data, newline)
+-		if i < 0 {
+-			i = len(data)
+-		}
+-		comment = data[2:i]
++		comment, _, _ = bytes.Cut(data[2:], newline)
+ 	case bytes.HasPrefix(data, slashStar):
+-		data = data[2:]
+-		i := bytes.Index(data, starSlash)
+-		if i < 0 {
++		var ok bool
++		comment, _, ok = bytes.Cut(data[2:], starSlash)
++		if !ok {
+ 			// malformed comment
+ 			return "", 0
+ 		}
+-		comment = data[:i]
+ 		if bytes.Contains(comment, newline) {
+ 			return "", 0
+ 		}
+@@ -1654,12 +1649,10 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
+ 		}
+ 
+ 		// Split at colon.
+-		line = strings.TrimSpace(line[4:])
+-		i := strings.Index(line, ":")
+-		if i < 0 {
++		line, argstr, ok := strings.Cut(strings.TrimSpace(line[4:]), ":")
++		if !ok {
+ 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
+ 		}
+-		line, argstr := line[:i], line[i+1:]
+ 
+ 		// Parse GOOS/GOARCH stuff.
+ 		f := strings.Fields(line)
+@@ -1685,7 +1678,6 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
+ 		if err != nil {
+ 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
+ 		}
+-		var ok bool
+ 		for i, arg := range args {
+ 			if arg, ok = expandSrcDir(arg, di.Dir); !ok {
+ 				return fmt.Errorf("%s: malformed #cgo argument: %s", filename, arg)
+@@ -1944,9 +1936,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
+ // if GOOS=illumos, then files with GOOS=solaris are also matched.
+ // if GOOS=ios, then files with GOOS=darwin are also matched.
+ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
+-	if dot := strings.Index(name, "."); dot != -1 {
+-		name = name[:dot]
+-	}
++	name, _, _ = strings.Cut(name, ".")
+ 
+ 	// Before Go 1.4, a file called "linux.go" would be equivalent to having a
+ 	// build tag "linux" in that file. For Go 1.4 and beyond, we require this
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 80f930f3c2..cfe9c5e4bb 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -712,7 +712,7 @@ func TestMissingImportErrorRepetition(t *testing.T) {
+ 	// Also don't count instances in suggested "go get" or similar commands
+ 	// (see https://golang.org/issue/41576). The suggested command typically
+ 	// follows a semicolon.
+-	errStr = strings.SplitN(errStr, ";", 2)[0]
++	errStr, _, _ = strings.Cut(errStr, ";")
+ 
+ 	if n := strings.Count(errStr, pkgPath); n != 1 {
+ 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
+diff --git a/src/go/build/read.go b/src/go/build/read.go
+index b98c7938a8..6115ef810c 100644
+--- a/src/go/build/read.go
++++ b/src/go/build/read.go
+@@ -516,12 +516,12 @@ func parseGoEmbed(args string, pos token.Position) ([]fileEmbed, error) {
+ 			trimBytes(i)
+ 
+ 		case '`':
+-			i := strings.Index(args[1:], "`")
+-			if i < 0 {
++			var ok bool
++			path, _, ok = strings.Cut(args[1:], "`")
++			if !ok {
+ 				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
+ 			}
+-			path = args[1 : 1+i]
+-			trimBytes(1 + i + 1)
++			trimBytes(1 + len(path) + 1)
+ 
+ 		case '"':
+ 			i := 1
+diff --git a/src/go/build/read_test.go b/src/go/build/read_test.go
+index 1e5e1c2de2..6851e6b6d6 100644
+--- a/src/go/build/read_test.go
++++ b/src/go/build/read_test.go
+@@ -119,20 +119,15 @@ var readCommentsTests = []readTest{
+ 
+ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, error)) {
+ 	for i, tt := range tests {
+-		var in, testOut string
+-		j := strings.Index(tt.in, "ℙ")
+-		if j < 0 {
+-			in = tt.in
+-			testOut = tt.in
+-		} else {
+-			in = tt.in[:j] + tt.in[j+len("ℙ"):]
+-			testOut = tt.in[:j]
+-		}
+-		d := strings.Index(tt.in, "𝔻")
+-		if d >= 0 {
+-			in = in[:d] + in[d+len("𝔻"):]
+-			testOut = testOut[d+len("𝔻"):]
++		beforeP, afterP, _ := strings.Cut(tt.in, "ℙ")
++		in := beforeP + afterP
++		testOut := beforeP
++
++		if beforeD, afterD, ok := strings.Cut(beforeP, "𝔻"); ok {
++			in = beforeD + afterD + afterP
++			testOut = afterD
+ 		}
++
+ 		r := strings.NewReader(in)
+ 		buf, err := read(r)
+ 		if err != nil {
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index 91ad0b0c2b..ac179b3d8c 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -143,9 +143,9 @@ func testNumbers(t *testing.T, kind token.Token, tests []string) {
+ 		if a[1] == "?" {
+ 			y = MakeUnknown()
+ 		} else {
+-			if i := strings.Index(a[1], "/"); i >= 0 && kind == token.FLOAT {
+-				n := MakeFromLiteral(a[1][:i], token.INT, 0)
+-				d := MakeFromLiteral(a[1][i+1:], token.INT, 0)
++			if ns, ds, ok := strings.Cut(a[1], "/"); ok && kind == token.FLOAT {
++				n := MakeFromLiteral(ns, token.INT, 0)
++				d := MakeFromLiteral(ds, token.INT, 0)
+ 				y = BinaryOp(n, token.QUO, d)
+ 			} else {
+ 				y = MakeFromLiteral(a[1], kind, 0)
+@@ -454,10 +454,10 @@ func val(lit string) Value {
+ 		return MakeBool(false)
+ 	}
+ 
+-	if i := strings.IndexByte(lit, '/'); i >= 0 {
++	if as, bs, ok := strings.Cut(lit, "/"); ok {
+ 		// assume fraction
+-		a := MakeFromLiteral(lit[:i], token.INT, 0)
+-		b := MakeFromLiteral(lit[i+1:], token.INT, 0)
++		a := MakeFromLiteral(as, token.INT, 0)
++		b := MakeFromLiteral(bs, token.INT, 0)
+ 		return BinaryOp(a, token.QUO, b)
+ 	}
+ 
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index 92131a3b83..a93c05fbb7 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -236,26 +236,24 @@ func heading(line string) string {
+ 
+ 	// allow "'" for possessive "'s" only
+ 	for b := line; ; {
+-		i := strings.IndexRune(b, '\'')
+-		if i < 0 {
++		var ok bool
++		if _, b, ok = strings.Cut(b, "'"); !ok {
+ 			break
+ 		}
+-		if i+1 >= len(b) || b[i+1] != 's' || (i+2 < len(b) && b[i+2] != ' ') {
+-			return "" // not followed by "s "
++		if b != "s" && !strings.HasPrefix(b, "s ") {
++			return "" // ' not followed by s and then end-of-word
+ 		}
+-		b = b[i+2:]
+ 	}
+ 
+ 	// allow "." when followed by non-space
+ 	for b := line; ; {
+-		i := strings.IndexRune(b, '.')
+-		if i < 0 {
++		var ok bool
++		if _, b, ok = strings.Cut(b, "."); !ok {
+ 			break
+ 		}
+-		if i+1 >= len(b) || b[i+1] == ' ' {
++		if b == "" || strings.HasPrefix(b, " ") {
+ 			return "" // not followed by non-space
+ 		}
+-		b = b[i+1:]
+ 	}
+ 
+ 	return line
+diff --git a/src/go/doc/headscan.go b/src/go/doc/headscan.go
+index 28cb84f91d..df54b4bd61 100644
+--- a/src/go/doc/headscan.go
++++ b/src/go/doc/headscan.go
+@@ -23,10 +23,10 @@ import (
+ 	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+-	"internal/lazyregexp"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
++	"regexp"
+ 	"runtime"
+ 	"strings"
+ )
+@@ -37,7 +37,7 @@ var (
+ )
+ 
+ // ToHTML in comment.go assigns a (possibly blank) ID to each heading
+-var html_h = lazyregexp.New(`<h3 id="[^"]*">`)
++var html_h = regexp.MustCompile(`<h3 id="[^"]*">`)
+ 
+ const html_endh = "</h3>\n"
+ 
+@@ -49,19 +49,14 @@ func isGoFile(fi fs.FileInfo) bool {
+ func appendHeadings(list []string, comment string) []string {
+ 	var buf bytes.Buffer
+ 	doc.ToHTML(&buf, comment, nil)
+-	for s := buf.String(); ; {
++	for s := buf.String(); s != ""; {
+ 		loc := html_h.FindStringIndex(s)
+ 		if len(loc) == 0 {
+ 			break
+ 		}
+-		i := loc[1]
+-		j := strings.Index(s, html_endh)
+-		if j < 0 {
+-			list = append(list, s[i:]) // incorrect HTML
+-			break
+-		}
+-		list = append(list, s[i:j])
+-		s = s[j+len(html_endh):]
++		var inner string
++		inner, s, _ = strings.Cut(s[loc[1]:], html_endh)
++		list = append(list, inner)
+ 	}
+ 	return list
+ }
+diff --git a/src/go/importer/importer_test.go b/src/go/importer/importer_test.go
+index 0f5121d802..27c4aa7871 100644
+--- a/src/go/importer/importer_test.go
++++ b/src/go/importer/importer_test.go
+@@ -24,8 +24,7 @@ func TestForCompiler(t *testing.T) {
+ 		t.Fatalf("go list %s: %v\n%s", thePackage, err, out)
+ 	}
+ 	target := strings.TrimSpace(string(out))
+-	i := strings.Index(target, ":")
+-	compiler, target := target[:i], target[i+1:]
++	compiler, target, _ := strings.Cut(target, ":")
+ 	if !strings.HasSuffix(target, ".a") {
+ 		t.Fatalf("unexpected package %s target %q (not *.a)", thePackage, target)
+ 	}
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 053a8ef174..567b2339b4 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -1049,7 +1049,7 @@ func normalizedNumber(lit *ast.BasicLit) *ast.BasicLit {
+ 			break
+ 		}
+ 		// remove leading 0's from integer (but not floating-point) imaginary literals
+-		if x[len(x)-1] == 'i' && strings.IndexByte(x, '.') < 0 && strings.IndexByte(x, 'e') < 0 {
++		if x[len(x)-1] == 'i' && !strings.ContainsAny(x, ".e") {
+ 			x = strings.TrimLeft(x, "0_")
+ 			if x == "i" {
+ 				x = "0i"
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index ba61f78226..2f41e7bf72 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -559,12 +559,9 @@ func stripCommonPrefix(lines []string) {
+ 	 * Check for vertical "line of stars" and correct prefix accordingly.
+ 	 */
+ 	lineOfStars := false
+-	if i := strings.Index(prefix, "*"); i >= 0 {
+-		// Line of stars present.
+-		if i > 0 && prefix[i-1] == ' ' {
+-			i-- // remove trailing blank from prefix so stars remain aligned
+-		}
+-		prefix = prefix[0:i]
++	if p, _, ok := strings.Cut(prefix, "*"); ok {
++		// remove trailing blank from prefix so stars remain aligned
++		prefix = strings.TrimSuffix(p, " ")
+ 		lineOfStars = true
+ 	} else {
+ 		// No line of stars present.
+@@ -616,8 +613,8 @@ func stripCommonPrefix(lines []string) {
+ 	// lines.
+ 	last := lines[len(lines)-1]
+ 	closing := "*/"
+-	i := strings.Index(last, closing) // i >= 0 (closing is always present)
+-	if isBlank(last[0:i]) {
++	before, _, _ := strings.Cut(last, closing) // closing always present
++	if isBlank(before) {
+ 		// last line only contains closing */
+ 		if lineOfStars {
+ 			closing = " */" // add blank to align final star
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 41d3a61b89..345bd14305 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -195,10 +195,10 @@ func TestEvalPos(t *testing.T) {
+ 	}
+ }
+ 
+-// split splits string s at the first occurrence of s.
++// split splits string s at the first occurrence of s, trimming spaces.
+ func split(s, sep string) (string, string) {
+-	i := strings.Index(s, sep)
+-	return strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+len(sep):])
++	before, after, _ := strings.Cut(s, sep)
++	return strings.TrimSpace(before), strings.TrimSpace(after)
+ }
+ 
+ func TestCheckExpr(t *testing.T) {
+diff --git a/src/html/template/attr.go b/src/html/template/attr.go
+index 22922e6038..6c52211fed 100644
+--- a/src/html/template/attr.go
++++ b/src/html/template/attr.go
+@@ -143,12 +143,12 @@ func attrType(name string) contentType {
+ 		// widely applied.
+ 		// Treat data-action as URL below.
+ 		name = name[5:]
+-	} else if colon := strings.IndexRune(name, ':'); colon != -1 {
+-		if name[:colon] == "xmlns" {
++	} else if prefix, short, ok := strings.Cut(name, ":"); ok {
++		if prefix == "xmlns" {
+ 			return contentTypeURL
+ 		}
+ 		// Treat svg:href and xlink:href as href below.
+-		name = name[colon+1:]
++		name = short
+ 	}
+ 	if t, ok := attrTypeMap[name]; ok {
+ 		return t
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index ea9c18346b..32a4fbd30a 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -398,9 +398,7 @@ func isJSType(mimeType string) bool {
+ 	//   https://tools.ietf.org/html/rfc4329#section-3
+ 	//   https://www.ietf.org/rfc/rfc4627.txt
+ 	// discard parameters
+-	if i := strings.Index(mimeType, ";"); i >= 0 {
+-		mimeType = mimeType[:i]
+-	}
++	mimeType, _, _ = strings.Cut(mimeType, ";")
+ 	mimeType = strings.ToLower(mimeType)
+ 	mimeType = strings.TrimSpace(mimeType)
+ 	switch mimeType {
+diff --git a/src/html/template/url.go b/src/html/template/url.go
+index 6f8185a4e9..4b39fddf07 100644
+--- a/src/html/template/url.go
++++ b/src/html/template/url.go
+@@ -46,9 +46,7 @@ func urlFilter(args ...interface{}) string {
+ // isSafeURL is true if s is a relative URL or if URL has a protocol in
+ // (http, https, mailto).
+ func isSafeURL(s string) bool {
+-	if i := strings.IndexRune(s, ':'); i >= 0 && !strings.ContainsRune(s[:i], '/') {
+-
+-		protocol := s[:i]
++	if protocol, _, ok := strings.Cut(s, ":"); ok && !strings.Contains(protocol, "/") {
+ 		if !strings.EqualFold(protocol, "http") && !strings.EqualFold(protocol, "https") && !strings.EqualFold(protocol, "mailto") {
+ 			return false
+ 		}
+diff --git a/src/internal/profile/legacy_profile.go b/src/internal/profile/legacy_profile.go
+index d69f8deee7..377a43d585 100644
+--- a/src/internal/profile/legacy_profile.go
++++ b/src/internal/profile/legacy_profile.go
+@@ -750,11 +750,11 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
+ 			break
+ 		}
+ 
+-		attr := strings.SplitN(l, delimiter, 2)
+-		if len(attr) != 2 {
++		key, val, ok := strings.Cut(l, delimiter)
++		if !ok {
+ 			break
+ 		}
+-		key, val := strings.TrimSpace(attr[0]), strings.TrimSpace(attr[1])
++		key, val = strings.TrimSpace(key), strings.TrimSpace(val)
+ 		var err error
+ 		switch key {
+ 		case "cycles/second":
+@@ -1050,8 +1050,8 @@ func (p *Profile) ParseMemoryMap(rd io.Reader) error {
+ 			if err == errUnrecognized {
+ 				// Recognize assignments of the form: attr=value, and replace
+ 				// $attr with value on subsequent mappings.
+-				if attr := strings.SplitN(l, delimiter, 2); len(attr) == 2 {
+-					attrs = append(attrs, "$"+strings.TrimSpace(attr[0]), strings.TrimSpace(attr[1]))
++				if attr, value, ok := strings.Cut(l, delimiter); ok {
++					attrs = append(attrs, "$"+strings.TrimSpace(attr), strings.TrimSpace(value))
+ 					r = strings.NewReplacer(attrs...)
+ 				}
+ 				// Ignore any unrecognized entries
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+index 58f60daec4..e6b470b1fb 100644
+--- a/src/mime/encodedword.go
++++ b/src/mime/encodedword.go
+@@ -203,35 +203,25 @@ func (d *WordDecoder) Decode(word string) (string, error) {
+ 	}
+ 	word = word[2 : len(word)-2]
+ 
+-	// split delimits the first 2 fields
+-	split := strings.IndexByte(word, '?')
+-
+-	// split word "UTF-8?q?ascii" into "UTF-8", 'q', and "ascii"
+-	charset := word[:split]
+-	if len(charset) == 0 {
+-		return "", errInvalidWord
+-	}
+-	if len(word) < split+3 {
++	// split word "UTF-8?q?text" into "UTF-8", 'q', and "text"
++	charset, text, _ := strings.Cut(word, "?")
++	if charset == "" {
+ 		return "", errInvalidWord
+ 	}
+-	encoding := word[split+1]
+-	// the field after split must only be one byte
+-	if word[split+2] != '?' {
++	encoding, text, _ := strings.Cut(text, "?")
++	if len(encoding) != 1 {
+ 		return "", errInvalidWord
+ 	}
+-	text := word[split+3:]
+ 
+-	content, err := decode(encoding, text)
++	content, err := decode(encoding[0], text)
+ 	if err != nil {
+ 		return "", err
+ 	}
+ 
+ 	var buf strings.Builder
+-
+ 	if err := d.convert(&buf, charset, content); err != nil {
+ 		return "", err
+ 	}
+-
+ 	return buf.String(), nil
+ }
+ 
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 56ceb48853..9456570cf1 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -19,13 +19,12 @@ import (
+ // FormatMediaType returns the empty string.
+ func FormatMediaType(t string, param map[string]string) string {
+ 	var b strings.Builder
+-	if slash := strings.IndexByte(t, '/'); slash == -1 {
++	if major, sub, ok := strings.Cut(t, "/"); !ok {
+ 		if !isToken(t) {
+ 			return ""
+ 		}
+ 		b.WriteString(strings.ToLower(t))
+ 	} else {
+-		major, sub := t[:slash], t[slash+1:]
+ 		if !isToken(major) || !isToken(sub) {
+ 			return ""
+ 		}
+@@ -138,11 +137,8 @@ var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
+ // The returned map, params, maps from the lowercase
+ // attribute to the attribute value with its case preserved.
+ func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {
+-	i := strings.Index(v, ";")
+-	if i == -1 {
+-		i = len(v)
+-	}
+-	mediatype = strings.TrimSpace(strings.ToLower(v[0:i]))
++	base, _, _ := strings.Cut(v, ";")
++	mediatype = strings.TrimSpace(strings.ToLower(base))
+ 
+ 	err = checkMediaTypeDisposition(mediatype)
+ 	if err != nil {
+@@ -156,7 +152,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
+ 	// Lazily initialized.
+ 	var continuation map[string]map[string]string
+ 
+-	v = v[i:]
++	v = v[len(base):]
+ 	for len(v) > 0 {
+ 		v = strings.TrimLeftFunc(v, unicode.IsSpace)
+ 		if len(v) == 0 {
+@@ -174,8 +170,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
+ 		}
+ 
+ 		pmap := params
+-		if idx := strings.Index(key, "*"); idx != -1 {
+-			baseName := key[:idx]
++		if baseName, _, ok := strings.Cut(key, "*"); ok {
+ 			if continuation == nil {
+ 				continuation = make(map[string]map[string]string)
+ 			}
+diff --git a/src/net/http/cgi/child.go b/src/net/http/cgi/child.go
+index 0114da377b..bdb35a64e5 100644
+--- a/src/net/http/cgi/child.go
++++ b/src/net/http/cgi/child.go
+@@ -39,8 +39,8 @@ func Request() (*http.Request, error) {
+ func envMap(env []string) map[string]string {
+ 	m := make(map[string]string)
+ 	for _, kv := range env {
+-		if idx := strings.Index(kv, "="); idx != -1 {
+-			m[kv[:idx]] = kv[idx+1:]
++		if k, v, ok := strings.Cut(kv, "="); ok {
++			m[k] = v
+ 		}
+ 	}
+ 	return m
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index eff67caf4e..e7124a2ab0 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -273,12 +273,11 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 			break
+ 		}
+ 		headerLines++
+-		parts := strings.SplitN(string(line), ":", 2)
+-		if len(parts) < 2 {
++		header, val, ok := strings.Cut(string(line), ":")
++		if !ok {
+ 			h.printf("cgi: bogus header line: %s", string(line))
+ 			continue
+ 		}
+-		header, val := parts[0], parts[1]
+ 		if !httpguts.ValidHeaderFieldName(header) {
+ 			h.printf("cgi: invalid header name: %q", header)
+ 			continue
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index fb869a6728..f8abc88c89 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -62,12 +62,12 @@ readlines:
+ 		}
+ 		linesRead++
+ 		trimmedLine := strings.TrimRight(line, "\r\n")
+-		split := strings.SplitN(trimmedLine, "=", 2)
+-		if len(split) != 2 {
+-			t.Fatalf("Unexpected %d parts from invalid line number %v: %q; existing map=%v",
+-				len(split), linesRead, line, m)
++		k, v, ok := strings.Cut(trimmedLine, "=")
++		if !ok {
++			t.Fatalf("Unexpected response from invalid line number %v: %q; existing map=%v",
++				linesRead, line, m)
+ 		}
+-		m[split[0]] = split[1]
++		m[k] = v
+ 	}
+ 
+ 	for key, expected := range expectedMap {
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 05ed2268b5..e741c3746f 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -431,11 +431,10 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
+ 		if v := urlQuery.Get("code"); v != "" {
+ 			location := ts.URL
+ 			if final := urlQuery.Get("next"); final != "" {
+-				splits := strings.Split(final, ",")
+-				first, rest := splits[0], splits[1:]
++				first, rest, _ := strings.Cut(final, ",")
+ 				location = fmt.Sprintf("%s?code=%s", location, first)
+-				if len(rest) > 0 {
+-					location = fmt.Sprintf("%s&next=%s", location, strings.Join(rest, ","))
++				if rest != "" {
++					location = fmt.Sprintf("%s&next=%s", location, rest)
+ 				}
+ 			}
+ 			code, _ := strconv.Atoi(v)
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index ca2c1c2506..02b40315de 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -67,15 +67,14 @@ func readSetCookies(h Header) []*Cookie {
+ 			continue
+ 		}
+ 		parts[0] = textproto.TrimString(parts[0])
+-		j := strings.Index(parts[0], "=")
+-		if j < 0 {
++		name, value, ok := strings.Cut(parts[0], "=")
++		if !ok {
+ 			continue
+ 		}
+-		name, value := parts[0][:j], parts[0][j+1:]
+ 		if !isCookieNameValid(name) {
+ 			continue
+ 		}
+-		value, ok := parseCookieValue(value, true)
++		value, ok = parseCookieValue(value, true)
+ 		if !ok {
+ 			continue
+ 		}
+@@ -90,10 +89,7 @@ func readSetCookies(h Header) []*Cookie {
+ 				continue
+ 			}
+ 
+-			attr, val := parts[i], ""
+-			if j := strings.Index(attr, "="); j >= 0 {
+-				attr, val = attr[:j], attr[j+1:]
+-			}
++			attr, val, _ := strings.Cut(parts[i], "=")
+ 			lowerAttr, isASCII := ascii.ToLower(attr)
+ 			if !isASCII {
+ 				continue
+@@ -256,19 +252,12 @@ func readCookies(h Header, filter string) []*Cookie {
+ 
+ 		var part string
+ 		for len(line) > 0 { // continue since we have rest
+-			if splitIndex := strings.Index(line, ";"); splitIndex > 0 {
+-				part, line = line[:splitIndex], line[splitIndex+1:]
+-			} else {
+-				part, line = line, ""
+-			}
++			part, line, _ = strings.Cut(line, ";")
+ 			part = textproto.TrimString(part)
+-			if len(part) == 0 {
++			if part == "" {
+ 				continue
+ 			}
+-			name, val := part, ""
+-			if j := strings.Index(part, "="); j >= 0 {
+-				name, val = name[:j], name[j+1:]
+-			}
++			name, val, _ := strings.Cut(part, "=")
+ 			if !isCookieNameValid(name) {
+ 				continue
+ 			}
+@@ -379,7 +368,7 @@ func sanitizeCookieValue(v string) string {
+ 	if len(v) == 0 {
+ 		return v
+ 	}
+-	if strings.IndexByte(v, ' ') >= 0 || strings.IndexByte(v, ',') >= 0 {
++	if strings.ContainsAny(v, " ,") {
+ 		return `"` + v + `"`
+ 	}
+ 	return v
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 57e731e481..19b2894bf2 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -881,11 +881,11 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 		if ra == "" {
+ 			continue
+ 		}
+-		i := strings.Index(ra, "-")
+-		if i < 0 {
++		start, end, ok := strings.Cut(ra, "-")
++		if !ok {
+ 			return nil, errors.New("invalid range")
+ 		}
+-		start, end := textproto.TrimString(ra[:i]), textproto.TrimString(ra[i+1:])
++		start, end = textproto.TrimString(start), textproto.TrimString(end)
+ 		var r httpRange
+ 		if start == "" {
+ 			// If no start is specified, end specifies the
+diff --git a/src/net/http/internal/chunked.go b/src/net/http/internal/chunked.go
+index f06e5725f3..923e6a6d2c 100644
+--- a/src/net/http/internal/chunked.go
++++ b/src/net/http/internal/chunked.go
+@@ -152,6 +152,8 @@ func isASCIISpace(b byte) bool {
+ 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+ }
+ 
++var semi = []byte(";")
++
+ // removeChunkExtension removes any chunk-extension from p.
+ // For example,
+ //     "0" => "0"
+@@ -159,14 +161,11 @@ func isASCIISpace(b byte) bool {
+ //     "0;token=val" => "0"
+ //     `0;token="quoted string"` => "0"
+ func removeChunkExtension(p []byte) ([]byte, error) {
+-	semi := bytes.IndexByte(p, ';')
+-	if semi == -1 {
+-		return p, nil
+-	}
++	p, _, _ = bytes.Cut(p, semi)
+ 	// TODO: care about exact syntax of chunk extensions? We're
+ 	// ignoring and stripping them anyway. For now just never
+ 	// return an error.
+-	return p[:semi], nil
++	return p, nil
+ }
+ 
+ // NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 6564627998..632a308a5c 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -31,11 +31,8 @@ func interestingGoroutines() (gs []string) {
+ 	buf := make([]byte, 2<<20)
+ 	buf = buf[:runtime.Stack(buf, true)]
+ 	for _, g := range strings.Split(string(buf), "\n\n") {
+-		sl := strings.SplitN(g, "\n", 2)
+-		if len(sl) != 2 {
+-			continue
+-		}
+-		stack := strings.TrimSpace(sl[1])
++		_, stack, _ := strings.Cut(g, "\n")
++		stack = strings.TrimSpace(stack)
+ 		if stack == "" ||
+ 			strings.Contains(stack, "testing.(*M).before.func1") ||
+ 			strings.Contains(stack, "os/signal.signal_recv") ||
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 0eb7042d7b..76c2317d28 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -940,7 +940,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
+ func (r *Request) BasicAuth() (username, password string, ok bool) {
+ 	auth := r.Header.Get("Authorization")
+ 	if auth == "" {
+-		return
++		return "", "", false
+ 	}
+ 	return parseBasicAuth(auth)
+ }
+@@ -951,18 +951,18 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
+ 	const prefix = "Basic "
+ 	// Case insensitive prefix match. See Issue 22736.
+ 	if len(auth) < len(prefix) || !ascii.EqualFold(auth[:len(prefix)], prefix) {
+-		return
++		return "", "", false
+ 	}
+ 	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
+ 	if err != nil {
+-		return
++		return "", "", false
+ 	}
+ 	cs := string(c)
+-	s := strings.IndexByte(cs, ':')
+-	if s < 0 {
+-		return
++	username, password, ok = strings.Cut(cs, ":")
++	if !ok {
++		return "", "", false
+ 	}
+-	return cs[:s], cs[s+1:], true
++	return username, password, true
+ }
+ 
+ // SetBasicAuth sets the request's Authorization header to use HTTP
+@@ -980,13 +980,12 @@ func (r *Request) SetBasicAuth(username, password string) {
+ 
+ // parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.
+ func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
+-	s1 := strings.Index(line, " ")
+-	s2 := strings.Index(line[s1+1:], " ")
+-	if s1 < 0 || s2 < 0 {
+-		return
++	method, rest, ok1 := strings.Cut(line, " ")
++	requestURI, proto, ok2 := strings.Cut(rest, " ")
++	if !ok1 || !ok2 {
++		return "", "", "", false
+ 	}
+-	s2 += s1 + 1
+-	return line[:s1], line[s1+1 : s2], line[s2+1:], true
++	return method, requestURI, proto, true
+ }
+ 
+ var textprotoReaderPool sync.Pool
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index b8985da3c8..297394eabe 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -165,16 +165,14 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+ 		}
+ 		return nil, err
+ 	}
+-	if i := strings.IndexByte(line, ' '); i == -1 {
++	proto, status, ok := strings.Cut(line, " ")
++	if !ok {
+ 		return nil, badStringError("malformed HTTP response", line)
+-	} else {
+-		resp.Proto = line[:i]
+-		resp.Status = strings.TrimLeft(line[i+1:], " ")
+-	}
+-	statusCode := resp.Status
+-	if i := strings.IndexByte(resp.Status, ' '); i != -1 {
+-		statusCode = resp.Status[:i]
+ 	}
++	resp.Proto = proto
++	resp.Status = strings.TrimLeft(status, " ")
++
++	statusCode, _, _ := strings.Cut(resp.Status, " ")
+ 	if len(statusCode) != 3 {
+ 		return nil, badStringError("malformed HTTP status code", statusCode)
+ 	}
+@@ -182,7 +180,6 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+ 	if err != nil || resp.StatusCode < 0 {
+ 		return nil, badStringError("malformed HTTP status code", statusCode)
+ 	}
+-	var ok bool
+ 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
+ 		return nil, badStringError("malformed HTTP version", resp.Proto)
+ 	}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 4d0ce5619f..55fd4ae22f 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2282,7 +2282,7 @@ func cleanPath(p string) string {
+ // stripHostPort returns h without any trailing ":<port>".
+ func stripHostPort(h string) string {
+ 	// If no port on host, return unchanged
+-	if strings.IndexByte(h, ':') == -1 {
++	if !strings.Contains(h, ":") {
+ 		return h
+ 	}
+ 	host, _, err := net.SplitHostPort(h)
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 309194e8e5..17f0047b59 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1715,12 +1715,12 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
+ 			return nil, err
+ 		}
+ 		if resp.StatusCode != 200 {
+-			f := strings.SplitN(resp.Status, " ", 2)
++			_, text, ok := strings.Cut(resp.Status, " ")
+ 			conn.Close()
+-			if len(f) < 2 {
++			if !ok {
+ 				return nil, errors.New("unknown status code")
+ 			}
+-			return nil, errors.New(f[1])
++			return nil, errors.New(text)
+ 		}
+ 	}
+ 
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 47bbf6ca97..c120316730 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -100,7 +100,7 @@ func ParseDate(date string) (time.Time, error) {
+ 	dateLayoutsBuildOnce.Do(buildDateLayouts)
+ 	// CR and LF must match and are tolerated anywhere in the date field.
+ 	date = strings.ReplaceAll(date, "\r\n", "")
+-	if strings.Index(date, "\r") != -1 {
++	if strings.Contains(date, "\r") {
+ 		return time.Time{}, errors.New("mail: header has a CR without LF")
+ 	}
+ 	// Re-using some addrParser methods which support obsolete text, i.e. non-printable ASCII
+diff --git a/src/net/main_posix_test.go b/src/net/main_posix_test.go
+index c9ab25a4ad..c804c4e755 100644
+--- a/src/net/main_posix_test.go
++++ b/src/net/main_posix_test.go
+@@ -18,9 +18,9 @@ func enableSocketConnect() {
+ }
+ 
+ func disableSocketConnect(network string) {
+-	ss := strings.Split(network, ":")
++	net, _, _ := strings.Cut(network, ":")
+ 	sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
+-		switch ss[0] {
++		switch net {
+ 		case "tcp4":
+ 			if so.Cookie.Family() == syscall.AF_INET && so.Cookie.Type() == syscall.SOCK_STREAM {
+ 				return nil, syscall.EHOSTUNREACH
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index dc17d3fbb8..4f004071f0 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -174,11 +174,8 @@ func runningGoroutines() []string {
+ 	b := make([]byte, 2<<20)
+ 	b = b[:runtime.Stack(b, true)]
+ 	for _, s := range strings.Split(string(b), "\n\n") {
+-		ss := strings.SplitN(s, "\n", 2)
+-		if len(ss) != 2 {
+-			continue
+-		}
+-		stack := strings.TrimSpace(ss[1])
++		_, stack, _ := strings.Cut(s, "\n")
++		stack = strings.TrimSpace(stack)
+ 		if !strings.Contains(stack, "created by net") {
+ 			continue
+ 		}
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 2da23dedce..7d92a0de5d 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -34,8 +34,8 @@ func init() {
+ // testableNetwork reports whether network is testable on the current
+ // platform configuration.
+ func testableNetwork(network string) bool {
+-	ss := strings.Split(network, ":")
+-	switch ss[0] {
++	net, _, _ := strings.Cut(network, ":")
++	switch net {
+ 	case "ip+nopriv":
+ 	case "ip", "ip4", "ip6":
+ 		switch runtime.GOOS {
+@@ -68,7 +68,7 @@ func testableNetwork(network string) bool {
+ 			}
+ 		}
+ 	}
+-	switch ss[0] {
++	switch net {
+ 	case "tcp4", "udp4", "ip4":
+ 		if !supportsIPv4() {
+ 			return false
+@@ -88,7 +88,7 @@ func iOS() bool {
+ // testableAddress reports whether address of network is testable on
+ // the current platform configuration.
+ func testableAddress(network, address string) bool {
+-	switch ss := strings.Split(network, ":"); ss[0] {
++	switch net, _, _ := strings.Cut(network, ":"); net {
+ 	case "unix", "unixgram", "unixpacket":
+ 		// Abstract unix domain sockets, a Linux-ism.
+ 		if address[0] == '@' && runtime.GOOS != "linux" {
+@@ -107,7 +107,7 @@ func testableListenArgs(network, address, client string) bool {
+ 
+ 	var err error
+ 	var addr Addr
+-	switch ss := strings.Split(network, ":"); ss[0] {
++	switch net, _, _ := strings.Cut(network, ":"); net {
+ 	case "tcp", "tcp4", "tcp6":
+ 		addr, err = ResolveTCPAddr("tcp", address)
+ 	case "udp", "udp4", "udp6":
+diff --git a/src/net/smtp/smtp.go b/src/net/smtp/smtp.go
+index 1a6864a0f2..bcccaa2597 100644
+--- a/src/net/smtp/smtp.go
++++ b/src/net/smtp/smtp.go
+@@ -136,12 +136,8 @@ func (c *Client) ehlo() error {
+ 	if len(extList) > 1 {
+ 		extList = extList[1:]
+ 		for _, line := range extList {
+-			args := strings.SplitN(line, " ", 2)
+-			if len(args) > 1 {
+-				ext[args[0]] = args[1]
+-			} else {
+-				ext[args[0]] = ""
+-			}
++			k, v, _ := strings.Cut(line, " ")
++			ext[k] = v
+ 		}
+ 	}
+ 	if mechs, ok := ext["AUTH"]; ok {
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index 5c3084f8a7..157c59b17a 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -460,6 +460,8 @@ func (r *Reader) ReadDotLines() ([]string, error) {
+ 	return v, err
+ }
+ 
++var colon = []byte(":")
++
+ // ReadMIMEHeader reads a MIME-style header from r.
+ // The header is a sequence of possibly continued Key: Value lines
+ // ending in a blank line.
+@@ -508,11 +510,11 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ 		}
+ 
+ 		// Key ends at first colon.
+-		i := bytes.IndexByte(kv, ':')
+-		if i < 0 {
++		k, v, ok := bytes.Cut(kv, colon)
++		if !ok {
+ 			return m, ProtocolError("malformed MIME header line: " + string(kv))
+ 		}
+-		key := canonicalMIMEHeaderKey(kv[:i])
++		key := canonicalMIMEHeaderKey(k)
+ 
+ 		// As per RFC 7230 field-name is a token, tokens consist of one or more chars.
+ 		// We could return a ProtocolError here, but better to be liberal in what we
+@@ -522,11 +524,7 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ 		}
+ 
+ 		// Skip initial spaces in value.
+-		i++ // skip colon
+-		for i < len(kv) && (kv[i] == ' ' || kv[i] == '\t') {
+-			i++
+-		}
+-		value := string(kv[i:])
++		value := strings.TrimLeft(string(v), " \t")
+ 
+ 		vv := m[key]
+ 		if vv == nil && len(strs) > 0 {
+@@ -561,6 +559,8 @@ func mustHaveFieldNameColon(line []byte) error {
+ 	return nil
+ }
+ 
++var nl = []byte("\n")
++
+ // upcomingHeaderNewlines returns an approximation of the number of newlines
+ // that will be in this header. If it gets confused, it returns 0.
+ func (r *Reader) upcomingHeaderNewlines() (n int) {
+@@ -571,17 +571,7 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
+ 		return
+ 	}
+ 	peek, _ := r.R.Peek(s)
+-	for len(peek) > 0 {
+-		i := bytes.IndexByte(peek, '\n')
+-		if i < 3 {
+-			// Not present (-1) or found within the next few bytes,
+-			// implying we're at the end ("\r\n\r\n" or "\n\n")
+-			return
+-		}
+-		n++
+-		peek = peek[i+1:]
+-	}
+-	return
++	return bytes.Count(peek, nl)
+ }
+ 
+ // CanonicalMIMEHeaderKey returns the canonical format of the
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 20de0f6f51..d571ab2fc4 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -452,20 +452,6 @@ func getScheme(rawURL string) (scheme, path string, err error) {
+ 	return "", rawURL, nil
+ }
+ 
+-// split slices s into two substrings separated by the first occurrence of
+-// sep. If cutc is true then sep is excluded from the second substring.
+-// If sep does not occur in s then s and the empty string is returned.
+-func split(s string, sep byte, cutc bool) (string, string) {
+-	i := strings.IndexByte(s, sep)
+-	if i < 0 {
+-		return s, ""
+-	}
+-	if cutc {
+-		return s[:i], s[i+1:]
+-	}
+-	return s[:i], s[i:]
+-}
+-
+ // Parse parses a raw url into a URL structure.
+ //
+ // The url may be relative (a path, without a host) or absolute
+@@ -474,7 +460,7 @@ func split(s string, sep byte, cutc bool) (string, string) {
+ // error, due to parsing ambiguities.
+ func Parse(rawURL string) (*URL, error) {
+ 	// Cut off #frag
+-	u, frag := split(rawURL, '#', true)
++	u, frag, _ := strings.Cut(rawURL, "#")
+ 	url, err := parse(u, false)
+ 	if err != nil {
+ 		return nil, &Error{"parse", u, err}
+@@ -534,7 +520,7 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
+ 		url.ForceQuery = true
+ 		rest = rest[:len(rest)-1]
+ 	} else {
+-		rest, url.RawQuery = split(rest, '?', true)
++		rest, url.RawQuery, _ = strings.Cut(rest, "?")
+ 	}
+ 
+ 	if !strings.HasPrefix(rest, "/") {
+@@ -553,9 +539,7 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
+ 		// RFC 3986, §3.3:
+ 		// In addition, a URI reference (Section 4.1) may be a relative-path reference,
+ 		// in which case the first path segment cannot contain a colon (":") character.
+-		colon := strings.Index(rest, ":")
+-		slash := strings.Index(rest, "/")
+-		if colon >= 0 && (slash < 0 || colon < slash) {
++		if segment, _, _ := strings.Cut(rest, "/"); strings.Contains(segment, ":") {
+ 			// First path segment has colon. Not allowed in relative URL.
+ 			return nil, errors.New("first path segment in URL cannot contain colon")
+ 		}
+@@ -563,7 +547,10 @@ func parse(rawURL string, viaRequest bool) (*URL, error) {
+ 
+ 	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
+ 		var authority string
+-		authority, rest = split(rest[2:], '/', false)
++		authority, rest = rest[2:], ""
++		if i := strings.Index(authority, "/"); i >= 0 {
++			authority, rest = authority[:i], authority[i:]
++		}
+ 		url.User, url.Host, err = parseAuthority(authority)
+ 		if err != nil {
+ 			return nil, err
+@@ -602,7 +589,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+ 		}
+ 		user = User(userinfo)
+ 	} else {
+-		username, password := split(userinfo, ':', true)
++		username, password, _ := strings.Cut(userinfo, ":")
+ 		if username, err = unescape(username, encodeUserPassword); err != nil {
+ 			return nil, "", err
+ 		}
+@@ -840,7 +827,7 @@ func (u *URL) String() string {
+ 			// it would be mistaken for a scheme name. Such a segment must be
+ 			// preceded by a dot-segment (e.g., "./this:that") to make a relative-
+ 			// path reference.
+-			if i := strings.IndexByte(path, ':'); i > -1 && strings.IndexByte(path[:i], '/') == -1 {
++			if segment, _, _ := strings.Cut(path, "/"); strings.Contains(segment, ":") {
+ 				buf.WriteString("./")
+ 			}
+ 		}
+@@ -933,12 +920,8 @@ func ParseQuery(query string) (Values, error) {
+ 
+ func parseQuery(m Values, query string) (err error) {
+ 	for query != "" {
+-		key := query
+-		if i := strings.IndexAny(key, "&"); i >= 0 {
+-			key, query = key[:i], key[i+1:]
+-		} else {
+-			query = ""
+-		}
++		var key string
++		key, query, _ = strings.Cut(query, "&")
+ 		if strings.Contains(key, ";") {
+ 			err = fmt.Errorf("invalid semicolon separator in query")
+ 			continue
+@@ -946,10 +929,7 @@ func parseQuery(m Values, query string) (err error) {
+ 		if key == "" {
+ 			continue
+ 		}
+-		value := ""
+-		if i := strings.Index(key, "="); i >= 0 {
+-			key, value = key[:i], key[i+1:]
+-		}
++		key, value, _ := strings.Cut(key, "=")
+ 		key, err1 := QueryUnescape(key)
+ 		if err1 != nil {
+ 			if err == nil {
+@@ -1013,22 +993,16 @@ func resolvePath(base, ref string) string {
+ 	}
+ 
+ 	var (
+-		last string
+ 		elem string
+-		i    int
+ 		dst  strings.Builder
+ 	)
+ 	first := true
+ 	remaining := full
+ 	// We want to return a leading '/', so write it now.
+ 	dst.WriteByte('/')
+-	for i >= 0 {
+-		i = strings.IndexByte(remaining, '/')
+-		if i < 0 {
+-			last, elem, remaining = remaining, remaining, ""
+-		} else {
+-			elem, remaining = remaining[:i], remaining[i+1:]
+-		}
++	found := true
++	for found {
++		elem, remaining, found = strings.Cut(remaining, "/")
+ 		if elem == "." {
+ 			first = false
+ 			// drop
+@@ -1056,7 +1030,7 @@ func resolvePath(base, ref string) string {
+ 		}
+ 	}
+ 
+-	if last == "." || last == ".." {
++	if elem == "." || elem == ".." {
+ 		dst.WriteByte('/')
+ 	}
+ 
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 63c8e695af..5059d34bf1 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -2059,12 +2059,3 @@ func BenchmarkPathUnescape(b *testing.B) {
+ 		})
+ 	}
+ }
+-
+-var sink string
+-
+-func BenchmarkSplit(b *testing.B) {
+-	url := "http://www.google.com/?q=go+language#foo%26bar"
+-	for i := 0; i < b.N; i++ {
+-		sink, sink = split(url, '#', true)
+-	}
+-}
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 0c49575511..9551c22d6e 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -748,12 +748,11 @@ func dedupEnvCase(caseInsensitive bool, env []string) []string {
+ 	out := make([]string, 0, len(env))
+ 	saw := make(map[string]int, len(env)) // key => index into out
+ 	for _, kv := range env {
+-		eq := strings.Index(kv, "=")
+-		if eq < 0 {
++		k, _, ok := strings.Cut(kv, "=")
++		if !ok {
+ 			out = append(out, kv)
+ 			continue
+ 		}
+-		k := kv[:eq]
+ 		if caseInsensitive {
+ 			k = strings.ToLower(k)
+ 		}
+@@ -775,11 +774,10 @@ func addCriticalEnv(env []string) []string {
+ 		return env
+ 	}
+ 	for _, kv := range env {
+-		eq := strings.Index(kv, "=")
+-		if eq < 0 {
++		k, _, ok := strings.Cut(kv, "=")
++		if !ok {
+ 			continue
+ 		}
+-		k := kv[:eq]
+ 		if strings.EqualFold(k, "SYSTEMROOT") {
+ 			// We already have it.
+ 			return env
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index d854e0de84..459ba39dff 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -166,12 +166,10 @@ func TestCatGoodAndBadFile(t *testing.T) {
+ 	if _, ok := err.(*exec.ExitError); !ok {
+ 		t.Errorf("expected *exec.ExitError from cat combined; got %T: %v", err, err)
+ 	}
+-	s := string(bs)
+-	sp := strings.SplitN(s, "\n", 2)
+-	if len(sp) != 2 {
+-		t.Fatalf("expected two lines from cat; got %q", s)
++	errLine, body, ok := strings.Cut(string(bs), "\n")
++	if !ok {
++		t.Fatalf("expected two lines from cat; got %q", bs)
+ 	}
+-	errLine, body := sp[0], sp[1]
+ 	if !strings.HasPrefix(errLine, "Error: open /bogus/file.foo") {
+ 		t.Errorf("expected stderr to complain about file; got %q", errLine)
+ 	}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 506f1fb0ee..62173d9bf4 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1761,8 +1761,8 @@ func TestHostname(t *testing.T) {
+ 	// and the /bin/hostname only returns the first component
+ 	want := runBinHostname(t)
+ 	if hostname != want {
+-		i := strings.Index(hostname, ".")
+-		if i < 0 || hostname[0:i] != want {
++		host, _, ok := strings.Cut(hostname, ".")
++		if !ok || host != want {
+ 			t.Errorf("Hostname() = %q, want %q", hostname, want)
+ 		}
+ 	}
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index abc9e9ce6d..5c972e77cf 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -125,9 +125,7 @@ func buildUser(pwd *C.struct_passwd) *User {
+ 	// say: "It is expected to be a comma separated list of
+ 	// personal data where the first item is the full name of the
+ 	// user."
+-	if i := strings.Index(u.Name, ","); i >= 0 {
+-		u.Name = u.Name[:i]
+-	}
++	u.Name, _, _ = strings.Cut(u.Name, ",")
+ 	return u
+ }
+ 
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index ac4f1502af..1cabdb5b71 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -174,9 +174,7 @@ func matchUserIndexValue(value string, idx int) lineFunc {
+ 		// say: "It is expected to be a comma separated list of
+ 		// personal data where the first item is the full name of the
+ 		// user."
+-		if i := strings.Index(u.Name, ","); i >= 0 {
+-			u.Name = u.Name[:i]
+-		}
++		u.Name, _, _ = strings.Cut(u.Name, ",")
+ 		return u, nil
+ 	}
+ }
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 1f9a7a96e0..5f8442668c 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -294,12 +294,9 @@ func parseResult(t *testing.T, file string, lineno int, res string) []int {
+ 				out[n] = -1
+ 				out[n+1] = -1
+ 			} else {
+-				k := strings.Index(pair, "-")
+-				if k < 0 {
+-					t.Fatalf("%s:%d: invalid pair %s", file, lineno, pair)
+-				}
+-				lo, err1 := strconv.Atoi(pair[:k])
+-				hi, err2 := strconv.Atoi(pair[k+1:])
++				loStr, hiStr, _ := strings.Cut(pair, "-")
++				lo, err1 := strconv.Atoi(loStr)
++				hi, err2 := strconv.Atoi(hiStr)
+ 				if err1 != nil || err2 != nil || lo > hi {
+ 					t.Fatalf("%s:%d: invalid pair %s", file, lineno, pair)
+ 				}
+@@ -457,12 +454,11 @@ Reading:
+ 				continue Reading
+ 			}
+ 		case ':':
+-			i := strings.Index(flag[1:], ":")
+-			if i < 0 {
++			var ok bool
++			if _, flag, ok = strings.Cut(flag[1:], ":"); !ok {
+ 				t.Logf("skip: %s", line)
+ 				continue Reading
+ 			}
+-			flag = flag[1+i+1:]
+ 		case 'C', 'N', 'T', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+ 			t.Logf("skip: %s", line)
+ 			continue Reading
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index b547a2ab97..bfcf7910cf 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -922,23 +922,22 @@ func (re *Regexp) ExpandString(dst []byte, template string, src string, match []
+ 
+ func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, match []int) []byte {
+ 	for len(template) > 0 {
+-		i := strings.Index(template, "$")
+-		if i < 0 {
++		before, after, ok := strings.Cut(template, "$")
++		if !ok {
+ 			break
+ 		}
+-		dst = append(dst, template[:i]...)
+-		template = template[i:]
+-		if len(template) > 1 && template[1] == '$' {
++		dst = append(dst, before...)
++		template = after
++		if template != "" && template[0] == '$' {
+ 			// Treat $$ as $.
+ 			dst = append(dst, '$')
+-			template = template[2:]
++			template = template[1:]
+ 			continue
+ 		}
+ 		name, num, rest, ok := extract(template)
+ 		if !ok {
+ 			// Malformed; treat $ as raw text.
+ 			dst = append(dst, '$')
+-			template = template[1:]
+ 			continue
+ 		}
+ 		template = rest
+@@ -967,17 +966,16 @@ func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, m
+ 	return dst
+ }
+ 
+-// extract returns the name from a leading "$name" or "${name}" in str.
++// extract returns the name from a leading "name" or "{name}" in str.
++// (The $ has already been removed by the caller.)
+ // If it is a number, extract returns num set to that number; otherwise num = -1.
+ func extract(str string) (name string, num int, rest string, ok bool) {
+-	if len(str) < 2 || str[0] != '$' {
++	if str == "" {
+ 		return
+ 	}
+ 	brace := false
+-	if str[1] == '{' {
++	if str[0] == '{' {
+ 		brace = true
+-		str = str[2:]
+-	} else {
+ 		str = str[1:]
+ 	}
+ 	i := 0
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 7b4030935a..06a92fb3d7 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -824,13 +824,7 @@ func Parse(s string, flags Flags) (*Regexp, error) {
+ 				case 'Q':
+ 					// \Q ... \E: the ... is always literals
+ 					var lit string
+-					if i := strings.Index(t, `\E`); i < 0 {
+-						lit = t[2:]
+-						t = ""
+-					} else {
+-						lit = t[2:i]
+-						t = t[i+2:]
+-					}
++					lit, t, _ = strings.Cut(t[2:], `\E`)
+ 					for lit != "" {
+ 						c, rest, err := nextRune(lit)
+ 						if err != nil {
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index 0381bdcc53..05cad61155 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -70,11 +70,10 @@ func readBuildInfo(data string) (*BuildInfo, bool) {
+ 	)
+ 	// Reverse of cmd/go/internal/modload.PackageBuildInfo
+ 	for len(data) > 0 {
+-		i := strings.IndexByte(data, '\n')
+-		if i < 0 {
++		line, data, ok = strings.Cut(data, "\n")
++		if !ok {
+ 			break
+ 		}
+-		line, data = data[:i], data[i+1:]
+ 		switch {
+ 		case strings.HasPrefix(line, pathLine):
+ 			elem := line[len(pathLine):]
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index f39d65c0b5..03ff55b541 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1234,11 +1234,10 @@ func TestGoroutineCounts(t *testing.T) {
+ 
+ func containsInOrder(s string, all ...string) bool {
+ 	for _, t := range all {
+-		i := strings.Index(s, t)
+-		if i < 0 {
++		var ok bool
++		if _, s, ok = strings.Cut(s, t); !ok {
+ 			return false
+ 		}
+-		s = s[i+len(t):]
+ 	}
+ 	return true
+ }
+@@ -1318,18 +1317,18 @@ func TestEmptyCallStack(t *testing.T) {
+ // stackContainsLabeled takes a spec like funcname;key=value and matches if the stack has that key
+ // and value and has funcname somewhere in the stack.
+ func stackContainsLabeled(spec string, count uintptr, stk []*profile.Location, labels map[string][]string) bool {
+-	semi := strings.Index(spec, ";")
+-	if semi == -1 {
++	base, kv, ok := strings.Cut(spec, ";")
++	if !ok {
+ 		panic("no semicolon in key/value spec")
+ 	}
+-	kv := strings.SplitN(spec[semi+1:], "=", 2)
+-	if len(kv) != 2 {
++	k, v, ok := strings.Cut(kv, "=")
++	if !ok {
+ 		panic("missing = in key/value spec")
+ 	}
+-	if !contains(labels[kv[0]], kv[1]) {
++	if !contains(labels[k], v) {
+ 		return false
+ 	}
+-	return stackContains(spec[:semi], count, stk, labels)
++	return stackContains(base, count, stk, labels)
+ }
+ 
+ func TestCPUProfileLabel(t *testing.T) {
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 6862513956..54e7a80183 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"strconv"
++	"strings"
+ 	"time"
+ 	"unsafe"
+ )
+@@ -581,6 +582,9 @@ func (b *profileBuilder) readMapping() {
+ 	}
+ }
+ 
++var space = []byte(" ")
++var newline = []byte("\n")
++
+ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file, buildID string)) {
+ 	// $ cat /proc/self/maps
+ 	// 00400000-0040b000 r-xp 00000000 fc:01 787766                             /bin/cat
+@@ -607,37 +611,24 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
+ 	// next removes and returns the next field in the line.
+ 	// It also removes from line any spaces following the field.
+ 	next := func() []byte {
+-		j := bytes.IndexByte(line, ' ')
+-		if j < 0 {
+-			f := line
+-			line = nil
+-			return f
+-		}
+-		f := line[:j]
+-		line = line[j+1:]
+-		for len(line) > 0 && line[0] == ' ' {
+-			line = line[1:]
+-		}
++		var f []byte
++		f, line, _ = bytes.Cut(line, space)
++		line = bytes.TrimLeft(line, " ")
+ 		return f
+ 	}
+ 
+ 	for len(data) > 0 {
+-		i := bytes.IndexByte(data, '\n')
+-		if i < 0 {
+-			line, data = data, nil
+-		} else {
+-			line, data = data[:i], data[i+1:]
+-		}
++		line, data, _ = bytes.Cut(data, newline)
+ 		addr := next()
+-		i = bytes.IndexByte(addr, '-')
+-		if i < 0 {
++		loStr, hiStr, ok := strings.Cut(string(addr), "-")
++		if !ok {
+ 			continue
+ 		}
+-		lo, err := strconv.ParseUint(string(addr[:i]), 16, 64)
++		lo, err := strconv.ParseUint(loStr, 16, 64)
+ 		if err != nil {
+ 			continue
+ 		}
+-		hi, err := strconv.ParseUint(string(addr[i+1:]), 16, 64)
++		hi, err := strconv.ParseUint(hiStr, 16, 64)
+ 		if err != nil {
+ 			continue
+ 		}
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index d052b9fa42..4a9749a83f 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -274,11 +274,10 @@ func TestProcSelfMaps(t *testing.T) {
+ 
+ 	f := func(t *testing.T, input string) {
+ 		for tx, tt := range strings.Split(input, "\n\n") {
+-			i := strings.Index(tt, "->\n")
+-			if i < 0 {
++			in, out, ok := strings.Cut(tt, "->\n")
++			if !ok {
+ 				t.Fatal("malformed test case")
+ 			}
+-			in, out := tt[:i], tt[i+len("->\n"):]
+ 			if len(out) > 0 && out[len(out)-1] != '\n' {
+ 				out += "\n"
+ 			}
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 8c76a9123c..4a0f489c2f 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -267,7 +267,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		t.Fatalf("gdb exited with error: %v", err)
+ 	}
+ 
+-	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
++	firstLine, _, _ := bytes.Cut(got, []byte("\n"))
+ 	if string(firstLine) != "Loading Go Runtime support." {
+ 		// This can happen when using all.bash with
+ 		// GOROOT_FINAL set, because the tests are run before
+diff --git a/src/runtime/testdata/testprog/numcpu_freebsd.go b/src/runtime/testdata/testprog/numcpu_freebsd.go
+index aff36ec702..7209f67959 100644
+--- a/src/runtime/testdata/testprog/numcpu_freebsd.go
++++ b/src/runtime/testdata/testprog/numcpu_freebsd.go
+@@ -85,19 +85,18 @@ func getList() ([]string, error) {
+ 	if err != nil {
+ 		return nil, fmt.Errorf("fail to execute '%s': %s", cmdline, err)
+ 	}
+-	pos := bytes.IndexRune(output, '\n')
+-	if pos == -1 {
++	output, _, ok := bytes.Cut(output, []byte("\n"))
++	if !ok {
+ 		return nil, fmt.Errorf("invalid output from '%s', '\\n' not found: %s", cmdline, output)
+ 	}
+-	output = output[0:pos]
+ 
+-	pos = bytes.IndexRune(output, ':')
+-	if pos == -1 {
++	_, cpus, ok := bytes.Cut(output, []byte(":"))
++	if !ok {
+ 		return nil, fmt.Errorf("invalid output from '%s', ':' not found: %s", cmdline, output)
+ 	}
+ 
+ 	var list []string
+-	for _, val := range bytes.Split(output[pos+1:], []byte(",")) {
++	for _, val := range bytes.Split(cpus, []byte(",")) {
+ 		index := string(bytes.TrimSpace(val))
+ 		if len(index) == 0 {
+ 			continue
+diff --git a/src/runtime/testdata/testprog/traceback_ancestors.go b/src/runtime/testdata/testprog/traceback_ancestors.go
+index 0ee402c4bd..1d0d00bab7 100644
+--- a/src/runtime/testdata/testprog/traceback_ancestors.go
++++ b/src/runtime/testdata/testprog/traceback_ancestors.go
+@@ -33,30 +33,27 @@ func printStack() {
+ 	for {
+ 		n := runtime.Stack(buf, true)
+ 		if n < len(buf) {
+-			tb := string(buf[:n])
++			all := string(buf[:n])
++			var saved string
+ 
+ 			// Delete any ignored goroutines, if present.
+-			pos := 0
+-			for pos < len(tb) {
+-				next := pos + strings.Index(tb[pos:], "\n\n")
+-				if next < pos {
+-					next = len(tb)
+-				} else {
+-					next += len("\n\n")
+-				}
++			for all != "" {
++				var g string
++				g, all, _ = strings.Cut(all, "\n\n")
+ 
+-				if strings.HasPrefix(tb[pos:], "goroutine ") {
+-					id := tb[pos+len("goroutine "):]
+-					id = id[:strings.IndexByte(id, ' ')]
++				if strings.HasPrefix(g, "goroutine ") {
++					id, _, _ := strings.Cut(strings.TrimPrefix(g, "goroutine "), " ")
+ 					if ignoreGoroutines[id] {
+-						tb = tb[:pos] + tb[next:]
+-						next = pos
++						continue
+ 					}
+ 				}
+-				pos = next
++				if saved != "" {
++					saved += "\n\n"
++				}
++				saved += g
+ 			}
+ 
+-			fmt.Print(tb)
++			fmt.Print(saved)
+ 			return
+ 		}
+ 		buf = make([]byte, 2*len(buf))
+@@ -89,11 +86,10 @@ func recurseThenCallGo(w chan struct{}, frames int, goroutines int, main bool) {
+ func goroutineID() string {
+ 	buf := make([]byte, 128)
+ 	runtime.Stack(buf, false)
+-	const prefix = "goroutine "
+-	if !bytes.HasPrefix(buf, []byte(prefix)) {
++	prefix := []byte("goroutine ")
++	if !bytes.HasPrefix(buf, prefix) {
+ 		panic(fmt.Sprintf("expected %q at beginning of traceback:\n%s", prefix, buf))
+ 	}
+-	buf = buf[len(prefix):]
+-	n := bytes.IndexByte(buf, ' ')
+-	return string(buf[:n])
++	id, _, _ := bytes.Cut(bytes.TrimPrefix(buf, prefix), []byte(" "))
++	return string(id)
+ }
+diff --git a/src/strconv/fp_test.go b/src/strconv/fp_test.go
+index 39dd9c4a58..fd73958c97 100644
+--- a/src/strconv/fp_test.go
++++ b/src/strconv/fp_test.go
+@@ -28,15 +28,14 @@ func pow2(i int) float64 {
+ // Wrapper around strconv.ParseFloat(x, 64).  Handles dddddp+ddd (binary exponent)
+ // itself, passes the rest on to strconv.ParseFloat.
+ func myatof64(s string) (f float64, ok bool) {
+-	a := strings.SplitN(s, "p", 2)
+-	if len(a) == 2 {
+-		n, err := strconv.ParseInt(a[0], 10, 64)
++	if mant, exp, ok := strings.Cut(s, "p"); ok {
++		n, err := strconv.ParseInt(mant, 10, 64)
+ 		if err != nil {
+ 			return 0, false
+ 		}
+-		e, err1 := strconv.Atoi(a[1])
++		e, err1 := strconv.Atoi(exp)
+ 		if err1 != nil {
+-			println("bad e", a[1])
++			println("bad e", exp)
+ 			return 0, false
+ 		}
+ 		v := float64(n)
+@@ -72,16 +71,15 @@ func myatof64(s string) (f float64, ok bool) {
+ // Wrapper around strconv.ParseFloat(x, 32).  Handles dddddp+ddd (binary exponent)
+ // itself, passes the rest on to strconv.ParseFloat.
+ func myatof32(s string) (f float32, ok bool) {
+-	a := strings.SplitN(s, "p", 2)
+-	if len(a) == 2 {
+-		n, err := strconv.Atoi(a[0])
++	if mant, exp, ok := strings.Cut(s, "p"); ok {
++		n, err := strconv.Atoi(mant)
+ 		if err != nil {
+-			println("bad n", a[0])
++			println("bad n", mant)
+ 			return 0, false
+ 		}
+-		e, err1 := strconv.Atoi(a[1])
++		e, err1 := strconv.Atoi(exp)
+ 		if err1 != nil {
+-			println("bad p", a[1])
++			println("bad p", exp)
+ 			return 0, false
+ 		}
+ 		return float32(float64(n) * pow2(e)), true
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 1555318eda..79b2633aca 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -510,9 +510,7 @@ func mustSupportAmbientCaps(t *testing.T) {
+ 		buf[i] = byte(b)
+ 	}
+ 	ver := string(buf[:])
+-	if i := strings.Index(ver, "\x00"); i != -1 {
+-		ver = ver[:i]
+-	}
++	ver, _, _ = strings.Cut(ver, "\x00")
+ 	if strings.HasPrefix(ver, "2.") ||
+ 		strings.HasPrefix(ver, "3.") ||
+ 		strings.HasPrefix(ver, "4.1.") ||
+diff --git a/src/text/template/option.go b/src/text/template/option.go
+index addce2d890..1035afad72 100644
+--- a/src/text/template/option.go
++++ b/src/text/template/option.go
+@@ -51,13 +51,11 @@ func (t *Template) setOption(opt string) {
+ 	if opt == "" {
+ 		panic("empty option string")
+ 	}
+-	elems := strings.Split(opt, "=")
+-	switch len(elems) {
+-	case 2:
+-		// key=value
+-		switch elems[0] {
++	// key=value
++	if key, value, ok := strings.Cut(opt, "="); ok {
++		switch key {
+ 		case "missingkey":
+-			switch elems[1] {
++			switch value {
+ 			case "invalid", "default":
+ 				t.option.missingKey = mapInvalid
+ 				return
+diff --git a/test/run.go b/test/run.go
+index 0c9c8c5cb8..0c5da1af78 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -535,9 +535,9 @@ func (ctxt *context) match(name string) bool {
+ 	if name == "" {
+ 		return false
+ 	}
+-	if i := strings.Index(name, ","); i >= 0 {
++	if first, rest, ok := strings.Cut(name, ","); ok {
+ 		// comma-separated list
+-		return ctxt.match(name[:i]) && ctxt.match(name[i+1:])
++		return ctxt.match(first) && ctxt.match(rest)
+ 	}
+ 	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
+ 		return false
+@@ -622,24 +622,23 @@ func (t *test) run() {
+ 	}
+ 
+ 	// Execution recipe stops at first blank line.
+-	pos := strings.Index(t.src, "\n\n")
+-	if pos == -1 {
++	action, _, ok := strings.Cut(t.src, "\n\n")
++	if !ok {
+ 		t.err = fmt.Errorf("double newline ending execution recipe not found in %s", t.goFileName())
+ 		return
+ 	}
+-	action := t.src[:pos]
+-	if nl := strings.Index(action, "\n"); nl >= 0 && strings.Contains(action[:nl], "+build") {
++	if firstLine, rest, ok := strings.Cut(action, "\n"); ok && strings.Contains(firstLine, "+build") {
+ 		// skip first line
+-		action = action[nl+1:]
++		action = rest
+ 	}
+ 	action = strings.TrimPrefix(action, "//")
+ 
+ 	// Check for build constraints only up to the actual code.
+-	pkgPos := strings.Index(t.src, "\npackage")
+-	if pkgPos == -1 {
+-		pkgPos = pos // some files are intentionally malformed
++	header, _, ok := strings.Cut(t.src, "\npackage")
++	if !ok {
++		header = action // some files are intentionally malformed
+ 	}
+-	if ok, why := shouldTest(t.src[:pkgPos], goos, goarch); !ok {
++	if ok, why := shouldTest(header, goos, goarch); !ok {
+ 		if *showSkips {
+ 			fmt.Printf("%-20s %-20s: %s\n", "skip", t.goFileName(), why)
+ 		}
+@@ -1516,8 +1515,8 @@ func (t *test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (er
+ 			// Assume errmsg says "file:line: foo".
+ 			// Cut leading "file:line: " to avoid accidental matching of file name instead of message.
+ 			text := errmsg
+-			if i := strings.Index(text, " "); i >= 0 {
+-				text = text[i+1:]
++			if _, suffix, ok := strings.Cut(text, " "); ok {
++				text = suffix
+ 			}
+ 			if we.re.MatchString(text) {
+ 				matched = true
+@@ -1562,31 +1561,26 @@ func (t *test) updateErrors(out, file string) {
+ 	}
+ 	lines := strings.Split(string(src), "\n")
+ 	// Remove old errors.
+-	for i, ln := range lines {
+-		pos := strings.Index(ln, " // ERROR ")
+-		if pos >= 0 {
+-			lines[i] = ln[:pos]
+-		}
++	for i := range lines {
++		lines[i], _, _ = strings.Cut(lines[i], " // ERROR ")
+ 	}
+ 	// Parse new errors.
+ 	errors := make(map[int]map[string]bool)
+ 	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
+ 	for _, errStr := range splitOutput(out, false) {
+-		colon1 := strings.Index(errStr, ":")
+-		if colon1 < 0 || errStr[:colon1] != file {
++		errFile, rest, ok := strings.Cut(errStr, ":")
++		if !ok || errFile != file {
+ 			continue
+ 		}
+-		colon2 := strings.Index(errStr[colon1+1:], ":")
+-		if colon2 < 0 {
++		lineStr, msg, ok := strings.Cut(rest, ":")
++		if !ok {
+ 			continue
+ 		}
+-		colon2 += colon1 + 1
+-		line, err := strconv.Atoi(errStr[colon1+1 : colon2])
++		line, err := strconv.Atoi(lineStr)
+ 		line--
+ 		if err != nil || line < 0 || line >= len(lines) {
+ 			continue
+ 		}
+-		msg := errStr[colon2+2:]
+ 		msg = strings.Replace(msg, file, base, -1) // normalize file mentions in error itself
+ 		msg = strings.TrimLeft(msg, " \t")
+ 		for _, r := range []string{`\`, `*`, `+`, `?`, `[`, `]`, `(`, `)`} {
+diff --git a/test/zerodivide.go b/test/zerodivide.go
+index 214d481164..fd36d67d1a 100644
+--- a/test/zerodivide.go
++++ b/test/zerodivide.go
+@@ -218,7 +218,7 @@ func main() {
+ 			}
+ 			fmt.Printf("%s: expected no error; got %q\n", t.name, err)
+ 		case t.err != "" && err != "":
+-			if strings.Index(err, t.err) < 0 {
++			if !strings.Contains(err, t.err) {
+ 				if !bad {
+ 					bad = true
+ 					fmt.Printf("BUG\n")

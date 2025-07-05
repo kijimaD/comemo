@@ -7,6 +7,18 @@ Date:   Tue Oct 25 12:49:51 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5310055
-
+---
  src/pkg/syscall/syscall.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index 9f777f59e1..5fef440a95 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -26,5 +26,5 @@ func StringByteSlice(s string) []byte {
+ func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
+ 
+ // Single-word zero for use when we need a valid pointer to 0 bytes.
+-// See mksyscall.sh.
++// See mksyscall.pl.
+ var _zero uintptr

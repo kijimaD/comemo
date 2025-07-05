@@ -10,7 +10,7 @@ Date:   Wed Oct 8 09:21:57 2008 -0700
     DELTA=85  (80 added, 0 deleted, 5 changed)
     OCL=16658
     CL=16722
-
+---
  src/cmd/6g/obj.c    |  8 ++++++--
  src/cmd/gc/subr.c   |  4 ++++
  src/runtime/iface.c | 13 +++++++++----
@@ -18,3 +18,203 @@ Date:   Wed Oct 8 09:21:57 2008 -0700
  test/interface1.go  | 37 +++++++++++++++++++++++++++++++++++++
  test/interface2.go  | 23 +++++++++++++++++++++++
  6 files changed, 94 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 28eb6b1c51..b4f44bbc3f 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -466,6 +466,7 @@ dumpsignatures(void)
+ 	Addr at, ao, ac, ad;
+ 	Prog *p;
+ 	char *sp;
++	char buf[NSYMB];
+ 
+ 	// copy externdcl list to signatlist
+ 	for(d=externdcl; d!=D; d=d->forw) {
+@@ -583,7 +584,7 @@ dumpsignatures(void)
+ 			sp = strchr(s1->name, '_');
+ 			if(sp != nil)
+ 				a->name = sp+1;
+-			
++
+ 			a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
+ 			a->perm = o;
+ 			snprint(namebuf, sizeof(namebuf), "%s_%s",
+@@ -608,7 +609,9 @@ dumpsignatures(void)
+ 		p->to.offset = stringo;
+ 		ot += widthptr;
+ 
+-		datastring("", 1);
++		// save type name for runtime error message
++		snprint(buf, sizeof buf, "%T", t);
++		datastring(buf, strlen(buf)+1);
+ 
+ 		if(et == TINTER) {
+ 			// first field of an interface signature
+@@ -733,6 +736,7 @@ dumpsignatures(void)
+ 				ot += widthptr;
+ 			}
+ 			datastring(b->name, strlen(b->name)+1);
++
+ 		}
+ 
+ 		// nil field name at end
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c15039e36f..ddce14e6f3 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1406,6 +1406,10 @@ ismethod(Type *t)
+ 	if(t == T)
+ 		return T;
+ 
++	// no interfaces
++	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
++		return T;
++
+ 	a = algtype(t);
+ 
+ 	// direct receiver
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index e8c4cd6939..089975b923 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -40,7 +40,7 @@ static	Map*	hash[1009];
+ static void
+ printsigi(Sigi *si)
+ {
+-	int32 i, n;
++	int32 i;
+ 	byte *name;
+ 
+ 	sys·printpointer(si);
+@@ -125,7 +125,7 @@ hashmap(Sigi *si, Sigt *st)
+ 	m->sigi = si;
+ 	m->sigt = st;
+ 
+-	nt = 0;
++	nt = 1;
+ 	for(ni=1; (iname=si[ni].name) != nil; ni++) {	// ni=1: skip first word
+ 		// pick up next name from
+ 		// interface signature
+@@ -136,9 +136,14 @@ hashmap(Sigi *si, Sigt *st)
+ 			// from structure signature
+ 			sname = st[nt].name;
+ 			if(sname == nil) {
++				prints("cannot convert type ");
++				prints((int8*)st[0].name);
++				prints(" to interface ");
++				prints((int8*)si[0].name);
++				prints(": missing method ");
+ 				prints((int8*)iname);
+-				prints(": ");
+-				throw("hashmap: failed to find method");
++				prints("\n");
++				throw("interface conversion");
+ 				m->bad = 1;
+ 				m->link = hash[h];
+ 				hash[h] = m;
+diff --git a/test/golden.out b/test/golden.out
+index 9e8cbcf2ed..5fcde59824 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -2,6 +2,20 @@
+ =========== ./helloworld.go
+ hello, world
+ 
++=========== ./interface1.go
++./interface1.go:5: syntax error near package
++./interface1.go:31: illegal types for operand: AS
++	interface { Next () (*Inst) }
++	*Inst
++
++=========== ./interface2.go
++cannot convert type S to interface I: missing method Foo
++throw: interface conversion
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
+ =========== ./peano.go
+ 0! = 1
+ 1! = 1
+@@ -64,6 +78,7 @@ BUG: compilation should succeed
+ 
+ =========== bugs/bug074.go
+ bugs/bug074.go:6: syntax error near string
++bugs/bug074.go:6: syntax error near string
+ bugs/bug074.go:7: x: undefined
+ BUG: compiler crashes - Bus error
+ 
+diff --git a/test/interface1.go b/test/interface1.go
+new file mode 100644
+index 0000000000..a6430cd1b6
+--- /dev/null
++++ b/test/interface1.go
+@@ -0,0 +1,37 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++package main
++
++type Inst interface {
++	Next()	*Inst;
++}
++
++type Regexp struct {
++	code *[]Inst;
++	start	Inst;
++}
++
++type Start struct {
++	foo	*Inst;
++}
++
++func (start *Start) Next() *Inst { return nil }
++
++
++func AddInst(Inst) *Inst {
++	print("ok in addinst\n");
++	return nil
++}
++
++func main() {
++	re := new(Regexp);
++	print("call addinst\n");
++	var x Inst = AddInst(new(Start));
++	print("return from  addinst\n");
++}
+diff --git a/test/interface2.go b/test/interface2.go
+new file mode 100644
+index 0000000000..8dfc9d8ff5
+--- /dev/null
++++ b/test/interface2.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ! ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S struct
++
++type I interface {
++	Foo()
++}
++
++func main() {
++	var s *S;
++	var i I;
++	i = s;
++}
++
++// hide S down here to avoid static warning
++type S struct {
++}

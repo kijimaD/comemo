@@ -7,8 +7,243 @@ Date:   Thu Mar 8 08:53:31 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5782044
-
+---
  src/pkg/go/parser/error_test.go  | 11 ++++--
  src/pkg/go/parser/parser_test.go | 83 +++-------------------------------------
  src/pkg/go/parser/short_test.go  | 75 ++++++++++++++++++++++++++++++++++++
  3 files changed, 87 insertions(+), 82 deletions(-)
+
+diff --git a/src/pkg/go/parser/error_test.go b/src/pkg/go/parser/error_test.go
+index 0bfa38a9ec..377c8b80cb 100644
+--- a/src/pkg/go/parser/error_test.go
++++ b/src/pkg/go/parser/error_test.go
+@@ -34,11 +34,14 @@ import (
+ 
+ const testdata = "testdata"
+ 
++// getFile assumes that each filename occurs at most once
+ func getFile(filename string) (file *token.File) {
+ 	fset.Iterate(func(f *token.File) bool {
+ 		if f.Name() == filename {
++			if file != nil {
++				panic(filename + " used multiple times")
++			}
+ 			file = f
+-			return false // end iteration
+ 		}
+ 		return true
+ 	})
+@@ -127,8 +130,8 @@ func compareErrors(t *testing.T, expected map[token.Pos]string, found scanner.Er
+ 	}
+ }
+ 
+-func checkErrors(t *testing.T, filename string) {
+-	src, err := ioutil.ReadFile(filename)
++func checkErrors(t *testing.T, filename string, input interface{}) {
++	src, err := readSource(filename, input)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+@@ -157,7 +160,7 @@ func TestErrors(t *testing.T) {
+ 	for _, fi := range list {
+ 		name := fi.Name()
+ 		if !fi.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
+-			checkErrors(t, filepath.Join(testdata, name))
++			checkErrors(t, filepath.Join(testdata, name), nil)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 93ca3d6aa3..5e45acd007 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -14,87 +14,14 @@ import (
+ 
+ var fset = token.NewFileSet()
+ 
+-var illegalInputs = []interface{}{
+-	nil,
+-	3.14,
+-	[]byte(nil),
+-	"foo!",
+-	`package p; func f() { if /* should have condition */ {} };`,
+-	`package p; func f() { if ; /* should have condition */ {} };`,
+-	`package p; func f() { if f(); /* should have condition */ {} };`,
+-	`package p; const c; /* should have constant value */`,
+-	`package p; func f() { if _ = range x; true {} };`,
+-	`package p; func f() { switch _ = range x; true {} };`,
+-	`package p; func f() { for _ = range x ; ; {} };`,
+-	`package p; func f() { for ; ; _ = range x {} };`,
+-	`package p; func f() { for ; _ = range x ; {} };`,
+-	`package p; func f() { switch t = t.(type) {} };`,
+-	`package p; func f() { switch t, t = t.(type) {} };`,
+-	`package p; func f() { switch t = t.(type), t {} };`,
+-	`package p; var a = [1]int; /* illegal expression */`,
+-	`package p; var a = [...]int; /* illegal expression */`,
+-	`package p; var a = struct{} /* illegal expression */`,
+-	`package p; var a = func(); /* illegal expression */`,
+-	`package p; var a = interface{} /* illegal expression */`,
+-	`package p; var a = []int /* illegal expression */`,
+-	`package p; var a = map[int]int /* illegal expression */`,
+-	`package p; var a = chan int; /* illegal expression */`,
+-	`package p; var a = []int{[]int}; /* illegal expression */`,
+-	`package p; var a = ([]int); /* illegal expression */`,
+-	`package p; var a = a[[]int:[]int]; /* illegal expression */`,
+-	`package p; var a = <- chan int; /* illegal expression */`,
+-	`package p; func f() { select { case _ <- chan int: } };`,
+-}
+-
+-func TestParseIllegalInputs(t *testing.T) {
+-	for _, src := range illegalInputs {
+-		_, err := ParseFile(fset, "", src, 0)
+-		if err == nil {
+-			t.Errorf("ParseFile(%v) should have failed", src)
+-		}
+-	}
+-}
+-
+-var validPrograms = []string{
+-	"package p\n",
+-	`package p;`,
+-	`package p; import "fmt"; func f() { fmt.Println("Hello, World!") };`,
+-	`package p; func f() { if f(T{}) {} };`,
+-	`package p; func f() { _ = (<-chan int)(x) };`,
+-	`package p; func f() { _ = (<-chan <-chan int)(x) };`,
+-	`package p; func f(func() func() func());`,
+-	`package p; func f(...T);`,
+-	`package p; func f(float, ...int);`,
+-	`package p; func f(x int, a ...int) { f(0, a...); f(1, a...,) };`,
+-	`package p; func f(int,) {};`,
+-	`package p; func f(...int,) {};`,
+-	`package p; func f(x ...int,) {};`,
+-	`package p; type T []int; var a []bool; func f() { if a[T{42}[0]] {} };`,
+-	`package p; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} };`,
+-	`package p; type T []int; func f() { for _ = range []int{T{42}[0]} {} };`,
+-	`package p; var a = T{{1, 2}, {3, 4}}`,
+-	`package p; func f() { select { case <- c: case c <- d: case c <- <- d: case <-c <- d: } };`,
+-	`package p; func f() { select { case x := (<-c): } };`,
+-	`package p; func f() { if ; true {} };`,
+-	`package p; func f() { switch ; {} };`,
+-	`package p; func f() { for _ = range "foo" + "bar" {} };`,
+-}
+-
+-func TestParseValidPrograms(t *testing.T) {
+-	for _, src := range validPrograms {
+-		_, err := ParseFile(fset, "", src, SpuriousErrors)
+-		if err != nil {
+-			t.Errorf("ParseFile(%q): %v", src, err)
+-		}
+-	}
+-}
+-
+ var validFiles = []string{
+ 	"parser.go",
+ 	"parser_test.go",
++	"error_test.go",
++	"short_test.go",
+ }
+ 
+-func TestParse3(t *testing.T) {
++func TestParse(t *testing.T) {
+ 	for _, filename := range validFiles {
+ 		_, err := ParseFile(fset, filename, nil, DeclarationErrors)
+ 		if err != nil {
+@@ -116,7 +43,7 @@ func nameFilter(filename string) bool {
+ 
+ func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
+ 
+-func TestParse4(t *testing.T) {
++func TestParseDir(t *testing.T) {
+ 	path := "."
+ 	pkgs, err := ParseDir(fset, path, dirFilter, 0)
+ 	if err != nil {
+@@ -158,7 +85,7 @@ func TestParseExpr(t *testing.T) {
+ 	}
+ 
+ 	// it must not crash
+-	for _, src := range validPrograms {
++	for _, src := range valids {
+ 		ParseExpr(src)
+ 	}
+ }
+diff --git a/src/pkg/go/parser/short_test.go b/src/pkg/go/parser/short_test.go
+new file mode 100644
+index 0000000000..238492bf3f
+--- /dev/null
++++ b/src/pkg/go/parser/short_test.go
+@@ -0,0 +1,75 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains test cases for short valid and invalid programs.
++
++package parser
++
++import "testing"
++
++var valids = []string{
++	"package p\n",
++	`package p;`,
++	`package p; import "fmt"; func f() { fmt.Println("Hello, World!") };`,
++	`package p; func f() { if f(T{}) {} };`,
++	`package p; func f() { _ = (<-chan int)(x) };`,
++	`package p; func f() { _ = (<-chan <-chan int)(x) };`,
++	`package p; func f(func() func() func());`,
++	`package p; func f(...T);`,
++	`package p; func f(float, ...int);`,
++	`package p; func f(x int, a ...int) { f(0, a...); f(1, a...,) };`,
++	`package p; func f(int,) {};`,
++	`package p; func f(...int,) {};`,
++	`package p; func f(x ...int,) {};`,
++	`package p; type T []int; var a []bool; func f() { if a[T{42}[0]] {} };`,
++	`package p; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} };`,
++	`package p; type T []int; func f() { for _ = range []int{T{42}[0]} {} };`,
++	`package p; var a = T{{1, 2}, {3, 4}}`,
++	`package p; func f() { select { case <- c: case c <- d: case c <- <- d: case <-c <- d: } };`,
++	`package p; func f() { select { case x := (<-c): } };`,
++	`package p; func f() { if ; true {} };`,
++	`package p; func f() { switch ; {} };`,
++	`package p; func f() { for _ = range "foo" + "bar" {} };`,
++}
++
++func TestValid(t *testing.T) {
++	for _, src := range valids {
++		checkErrors(t, src, src)
++	}
++}
++
++var invalids = []string{
++	`foo /* ERROR "expected 'package'" */ !`,
++	`package p; func f() { if { /* ERROR "expected operand" */ } };`,
++	`package p; func f() { if ; { /* ERROR "expected operand" */ } };`,
++	`package p; func f() { if f(); { /* ERROR "expected operand" */ } };`,
++	`package p; const c; /* ERROR "expected '='" */`,
++	`package p; func f() { if _ /* ERROR "expected condition" */ = range x; true {} };`,
++	`package p; func f() { switch _ /* ERROR "expected condition" */ = range x; true {} };`,
++	`package p; func f() { for _ = range x ; /* ERROR "expected '{'" */ ; {} };`,
++	`package p; func f() { for ; ; _ = range /* ERROR "expected operand" */ x {} };`,
++	`package p; func f() { for ; _ /* ERROR "expected condition" */ = range x ; {} };`,
++	`package p; func f() { switch t /* ERROR "expected condition" */ = t.(type) {} };`,
++	`package p; func f() { switch t /* ERROR "expected condition" */ , t = t.(type) {} };`,
++	`package p; func f() { switch t /* ERROR "expected condition" */ = t.(type), t {} };`,
++	`package p; var a = [ /* ERROR "expected expression" */ 1]int;`,
++	`package p; var a = [ /* ERROR "expected expression" */ ...]int;`,
++	`package p; var a = struct /* ERROR "expected expression" */ {}`,
++	`package p; var a = func /* ERROR "expected expression" */ ();`,
++	`package p; var a = interface /* ERROR "expected expression" */ {}`,
++	`package p; var a = [ /* ERROR "expected expression" */ ]int`,
++	`package p; var a = map /* ERROR "expected expression" */ [int]int`,
++	`package p; var a = chan /* ERROR "expected expression" */ int;`,
++	`package p; var a = []int{[ /* ERROR "expected expression" */ ]int};`,
++	`package p; var a = ( /* ERROR "expected expression" */ []int);`,
++	`package p; var a = a[[ /* ERROR "expected expression" */ ]int:[]int];`,
++	`package p; var a = <-  /* ERROR "expected expression" */ chan int;`,
++	`package p; func f() { select { case _ <- chan  /* ERROR "expected expression" */ int: } };`,
++}
++
++func TestInvalid(t *testing.T) {
++	for _, src := range invalids {
++		checkErrors(t, src, src)
++	}
++}

@@ -28,7 +28,7 @@ Date:   Thu May 11 21:09:10 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/trace/annotations.go                       |   2 +-
  src/cmd/trace/trace.go                             |   4 +-
  src/internal/trace/gc.go                           |   5 +-
@@ -49,3 +49,665 @@ Date:   Thu May 11 21:09:10 2023 +0000
  src/runtime/proc.go                                |  74 ++++++++++++++++++---
  src/runtime/trace.go                               |  32 ++++++---
  19 files changed, 177 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 9ffce1b187..0addc240be 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -494,7 +494,7 @@ func (region *regionDesc) duration() time.Duration {
+ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping time.Duration) {
+ 	for _, ev := range evs {
+ 		// make sure we only consider the global GC events.
+-		if typ := ev.Type; typ != trace.EvGCStart && typ != trace.EvGCSTWStart {
++		if typ := ev.Type; typ != trace.EvGCStart {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 895129998f..618df42033 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -764,12 +764,12 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 		case trace.EvGCStart:
+ 			ctx.emitSlice(ev, "GC")
+ 		case trace.EvGCDone:
+-		case trace.EvGCSTWStart:
++		case trace.EvSTWStart:
+ 			if ctx.mode&modeGoroutineOriented != 0 {
+ 				continue
+ 			}
+ 			ctx.emitSlice(ev, fmt.Sprintf("STW (%s)", ev.SArgs[0]))
+-		case trace.EvGCSTWDone:
++		case trace.EvSTWDone:
+ 		case trace.EvGCMarkAssistStart:
+ 			// Mark assists can continue past preemptions, so truncate to the
+ 			// whichever comes first. We'll synthesize another slice if
+diff --git a/src/internal/trace/gc.go b/src/internal/trace/gc.go
+index c1bc862340..3bd284e200 100644
+--- a/src/internal/trace/gc.go
++++ b/src/internal/trace/gc.go
+@@ -27,6 +27,7 @@ type UtilFlags int
+ 
+ const (
+ 	// UtilSTW means utilization should account for STW events.
++	// This includes non-GC STW events, which are typically user-requested.
+ 	UtilSTW UtilFlags = 1 << iota
+ 	// UtilBackground means utilization should account for
+ 	// background mark workers.
+@@ -93,11 +94,11 @@ func MutatorUtilization(events []*Event, flags UtilFlags) [][]MutatorUtil {
+ 				}
+ 				ps = append(ps, perP{series: series})
+ 			}
+-		case EvGCSTWStart:
++		case EvSTWStart:
+ 			if flags&UtilSTW != 0 {
+ 				stw++
+ 			}
+-		case EvGCSTWDone:
++		case EvSTWDone:
+ 			if flags&UtilSTW != 0 {
+ 				stw--
+ 			}
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 0376e914b1..67fa60b8fb 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -151,7 +151,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 		return
+ 	}
+ 	switch ver {
+-	case 1005, 1007, 1008, 1009, 1010, 1011, 1019:
++	case 1005, 1007, 1008, 1009, 1010, 1011, 1019, 1021:
+ 		// Note: When adding a new version, confirm that canned traces from the
+ 		// old version are part of the test suite. Add them using mkcanned.bash.
+ 		break
+@@ -420,18 +420,29 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 				if raw.typ == EvGoStartLabel {
+ 					e.SArgs = []string{strings[e.Args[2]]}
+ 				}
+-			case EvGCSTWStart:
++			case EvSTWStart:
+ 				e.G = 0
+-				switch e.Args[0] {
+-				case 0:
+-					e.SArgs = []string{"mark termination"}
+-				case 1:
+-					e.SArgs = []string{"sweep termination"}
+-				default:
+-					err = fmt.Errorf("unknown STW kind %d", e.Args[0])
+-					return
++				if ver < 1021 {
++					switch e.Args[0] {
++					case 0:
++						e.SArgs = []string{"mark termination"}
++					case 1:
++						e.SArgs = []string{"sweep termination"}
++					default:
++						err = fmt.Errorf("unknown STW kind %d", e.Args[0])
++						return
++					}
++				} else if ver == 1021 {
++					if kind := e.Args[0]; kind < uint64(len(stwReasonStringsGo121)) {
++						e.SArgs = []string{stwReasonStringsGo121[kind]}
++					} else {
++						e.SArgs = []string{"unknown"}
++					}
++				} else {
++					// Can't make any assumptions.
++					e.SArgs = []string{"unknown"}
+ 				}
+-			case EvGCStart, EvGCDone, EvGCSTWDone:
++			case EvGCStart, EvGCDone, EvSTWDone:
+ 				e.G = 0
+ 			case EvGoEnd, EvGoStop, EvGoSched, EvGoPreempt,
+ 				EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
+@@ -653,20 +664,20 @@ func postProcessTrace(ver int, events []*Event) error {
+ 			}
+ 			evGC.Link = ev
+ 			evGC = nil
+-		case EvGCSTWStart:
++		case EvSTWStart:
+ 			evp := &evSTW
+ 			if ver < 1010 {
+-				// Before 1.10, EvGCSTWStart was per-P.
++				// Before 1.10, EvSTWStart was per-P.
+ 				evp = &p.evSTW
+ 			}
+ 			if *evp != nil {
+ 				return fmt.Errorf("previous STW is not ended before a new one (offset %v, time %v)", ev.Off, ev.Ts)
+ 			}
+ 			*evp = ev
+-		case EvGCSTWDone:
++		case EvSTWDone:
+ 			evp := &evSTW
+ 			if ver < 1010 {
+-				// Before 1.10, EvGCSTWDone was per-P.
++				// Before 1.10, EvSTWDone was per-P.
+ 				evp = &p.evSTW
+ 			}
+ 			if *evp == nil {
+@@ -1015,7 +1026,7 @@ func argNum(raw rawEvent, ver int) int {
+ 		if ver < 1007 {
+ 			narg-- // 1.7 added an additional seq arg
+ 		}
+-	case EvGCSTWStart:
++	case EvSTWStart:
+ 		if ver < 1010 {
+ 			narg-- // 1.10 added an argument
+ 		}
+@@ -1038,8 +1049,8 @@ const (
+ 	EvProcStop          = 6  // stop of P [timestamp]
+ 	EvGCStart           = 7  // GC start [timestamp, seq, stack id]
+ 	EvGCDone            = 8  // GC done [timestamp]
+-	EvGCSTWStart        = 9  // GC mark termination start [timestamp, kind]
+-	EvGCSTWDone         = 10 // GC mark termination done [timestamp]
++	EvSTWStart          = 9  // GC mark termination start [timestamp, kind]
++	EvSTWDone           = 10 // GC mark termination done [timestamp]
+ 	EvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
+ 	EvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
+ 	EvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+@@ -1098,8 +1109,8 @@ var EventDescriptions = [EvCount]struct {
+ 	EvProcStop:          {"ProcStop", 1005, false, []string{}, nil},
+ 	EvGCStart:           {"GCStart", 1005, true, []string{"seq"}, nil}, // in 1.5 format it was {}
+ 	EvGCDone:            {"GCDone", 1005, false, []string{}, nil},
+-	EvGCSTWStart:        {"GCSTWStart", 1005, false, []string{"kindid"}, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
+-	EvGCSTWDone:         {"GCSTWDone", 1005, false, []string{}, nil},
++	EvSTWStart:          {"STWStart", 1005, false, []string{"kindid"}, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
++	EvSTWDone:           {"STWDone", 1005, false, []string{}, nil},
+ 	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}, nil},
+ 	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}, nil}, // before 1.9, format was {}
+ 	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}, nil},
+@@ -1140,3 +1151,24 @@ var EventDescriptions = [EvCount]struct {
+ 	EvUserLog:           {"UserLog", 1011, true, []string{"id", "keyid"}, []string{"category", "message"}},
+ 	EvCPUSample:         {"CPUSample", 1019, true, []string{"ts", "p", "g"}, nil},
+ }
++
++// Copied from src/runtime/proc.go:stwReasonStrings in Go 1.21.
++var stwReasonStringsGo121 = [...]string{
++	"unknown",
++	"GC mark termination",
++	"GC sweep termination",
++	"write heap dump",
++	"goroutine profile",
++	"goroutine profile cleanup",
++	"all goroutines stack trace",
++	"read mem stats",
++	"AllThreadsSyscall",
++	"GOMAXPROCS",
++	"start trace",
++	"stop trace",
++	"CountPagesInUse (test)",
++	"ReadMetricsSlow (test)",
++	"ReadMemStatsSlow (test)",
++	"PageCachePagesLeaked (test)",
++	"ResetDebugLog (test)",
++}
+diff --git a/src/internal/trace/parser_test.go b/src/internal/trace/parser_test.go
+index cdab95a59e..fce660c289 100644
+--- a/src/internal/trace/parser_test.go
++++ b/src/internal/trace/parser_test.go
+@@ -52,12 +52,13 @@ func TestParseCanned(t *testing.T) {
+ 		}
+ 		// Instead of Parse that requires a proper binary name for old traces,
+ 		// we use 'parse' that omits symbol lookup if an empty string is given.
+-		_, _, err = parse(bytes.NewReader(data), "")
++		ver, res, err := parse(bytes.NewReader(data), "")
+ 		switch {
+ 		case strings.HasSuffix(f.Name(), "_good"):
+ 			if err != nil {
+ 				t.Errorf("failed to parse good trace %v: %v", f.Name(), err)
+ 			}
++			checkTrace(t, ver, res)
+ 		case strings.HasSuffix(f.Name(), "_unordered"):
+ 			if err != ErrTimeOrder {
+ 				t.Errorf("unordered trace is not detected %v: %v", f.Name(), err)
+@@ -68,6 +69,18 @@ func TestParseCanned(t *testing.T) {
+ 	}
+ }
+ 
++// checkTrace walks over a good trace and makes a bunch of additional checks
++// that may not cause the parser to outright fail.
++func checkTrace(t *testing.T, ver int, res ParseResult) {
++	for _, ev := range res.Events {
++		if ver >= 1021 {
++			if ev.Type == EvSTWStart && ev.SArgs[0] == "unknown" {
++				t.Errorf("found unknown STW event; update stwReasonStrings?")
++			}
++		}
++	}
++}
++
+ func TestParseVersion(t *testing.T) {
+ 	tests := map[string]int{
+ 		"go 1.5 trace\x00\x00\x00\x00": 1005,
+diff --git a/src/internal/trace/testdata/http_1_21_good b/src/internal/trace/testdata/http_1_21_good
+new file mode 100644
+index 0000000000..b3295f9e5d
+Binary files /dev/null and b/src/internal/trace/testdata/http_1_21_good differ
+diff --git a/src/internal/trace/testdata/stress_1_21_good b/src/internal/trace/testdata/stress_1_21_good
+new file mode 100644
+index 0000000000..1ade5e0eb6
+Binary files /dev/null and b/src/internal/trace/testdata/stress_1_21_good differ
+diff --git a/src/internal/trace/testdata/stress_start_stop_1_21_good b/src/internal/trace/testdata/stress_start_stop_1_21_good
+new file mode 100644
+index 0000000000..fff46a9a07
+Binary files /dev/null and b/src/internal/trace/testdata/stress_start_stop_1_21_good differ
+diff --git a/src/internal/trace/testdata/user_task_region_1_21_good b/src/internal/trace/testdata/user_task_region_1_21_good
+new file mode 100644
+index 0000000000..5c01a6405d
+Binary files /dev/null and b/src/internal/trace/testdata/user_task_region_1_21_good differ
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 669c36f0d5..9a92b45ff3 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -25,7 +25,7 @@ func GOMAXPROCS(n int) int {
+ 		return ret
+ 	}
+ 
+-	stopTheWorldGC("GOMAXPROCS")
++	stopTheWorldGC(stwGOMAXPROCS)
+ 
+ 	// newprocs will be processed by startTheWorld
+ 	newprocs = int32(n)
+diff --git a/src/runtime/export_debuglog_test.go b/src/runtime/export_debuglog_test.go
+index c9dfdcb393..f12aab00de 100644
+--- a/src/runtime/export_debuglog_test.go
++++ b/src/runtime/export_debuglog_test.go
+@@ -35,7 +35,7 @@ func DumpDebugLog() string {
+ }
+ 
+ func ResetDebugLog() {
+-	stopTheWorld("ResetDebugLog")
++	stopTheWorld(stwForTestResetDebugLog)
+ 	for l := allDloggers; l != nil; l = l.allLink {
+ 		l.w.write = 0
+ 		l.w.tick, l.w.nano = 0, 0
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index c04b76ee44..db91bc650d 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -276,7 +276,7 @@ var ReadUnaligned32 = readUnaligned32
+ var ReadUnaligned64 = readUnaligned64
+ 
+ func CountPagesInUse() (pagesInUse, counted uintptr) {
+-	stopTheWorld("CountPagesInUse")
++	stopTheWorld(stwForTestCountPagesInUse)
+ 
+ 	pagesInUse = uintptr(mheap_.pagesInUse.Load())
+ 
+@@ -319,7 +319,7 @@ func (p *ProfBuf) Close() {
+ }
+ 
+ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
+-	stopTheWorld("ReadMetricsSlow")
++	stopTheWorld(stwForTestReadMetricsSlow)
+ 
+ 	// Initialize the metrics beforehand because this could
+ 	// allocate and skew the stats.
+@@ -347,7 +347,7 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int)
+ // ReadMemStatsSlow returns both the runtime-computed MemStats and
+ // MemStats accumulated by scanning the heap.
+ func ReadMemStatsSlow() (base, slow MemStats) {
+-	stopTheWorld("ReadMemStatsSlow")
++	stopTheWorld(stwForTestReadMemStatsSlow)
+ 
+ 	// Run on the system stack to avoid stack growth allocation.
+ 	systemstack(func() {
+@@ -1193,7 +1193,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
+ }
+ 
+ func PageCachePagesLeaked() (leaked uintptr) {
+-	stopTheWorld("PageCachePagesLeaked")
++	stopTheWorld(stwForTestPageCachePagesLeaked)
+ 
+ 	// Walk over destroyed Ps and look for unflushed caches.
+ 	deadp := allp[len(allp):cap(allp)]
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index e3f801129e..8ddec8b2d5 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -19,7 +19,7 @@ import (
+ 
+ //go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
+ func runtime_debug_WriteHeapDump(fd uintptr) {
+-	stopTheWorld("write heap dump")
++	stopTheWorld(stwWriteHeapDump)
+ 
+ 	// Keep m on this G's stack instead of the system stack.
+ 	// Both readmemstats_m and writeheapdump_m have pretty large
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index bb60a3c447..599f688e6f 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -658,10 +658,7 @@ func gcStart(trigger gcTrigger) {
+ 	now := nanotime()
+ 	work.tSweepTerm = now
+ 	work.pauseStart = now
+-	if traceEnabled() {
+-		traceGCSTWStart(1)
+-	}
+-	systemstack(stopTheWorldWithSema)
++	systemstack(func() { stopTheWorldWithSema(stwGCSweepTerm) })
+ 	// Finish sweep before we start concurrent scan.
+ 	systemstack(func() {
+ 		finishsweep_m()
+@@ -726,7 +723,7 @@ func gcStart(trigger gcTrigger) {
+ 
+ 	// Concurrent mark.
+ 	systemstack(func() {
+-		now = startTheWorldWithSema(traceEnabled())
++		now = startTheWorldWithSema()
+ 		work.pauseNS += now - work.pauseStart
+ 		work.tMark = now
+ 		memstats.gcPauseDist.record(now - work.pauseStart)
+@@ -848,10 +845,7 @@ top:
+ 	work.tMarkTerm = now
+ 	work.pauseStart = now
+ 	getg().m.preemptoff = "gcing"
+-	if traceEnabled() {
+-		traceGCSTWStart(0)
+-	}
+-	systemstack(stopTheWorldWithSema)
++	systemstack(func() { stopTheWorldWithSema(stwGCMarkTerm) })
+ 	// The gcphase is _GCmark, it will transition to _GCmarktermination
+ 	// below. The important thing is that the wb remains active until
+ 	// all marking is complete. This includes writes made by the GC.
+@@ -878,7 +872,7 @@ top:
+ 	if restart {
+ 		getg().m.preemptoff = ""
+ 		systemstack(func() {
+-			now := startTheWorldWithSema(traceEnabled())
++			now := startTheWorldWithSema()
+ 			work.pauseNS += now - work.pauseStart
+ 			memstats.gcPauseDist.record(now - work.pauseStart)
+ 		})
+@@ -1092,7 +1086,7 @@ func gcMarkTermination() {
+ 		throw("failed to set sweep barrier")
+ 	}
+ 
+-	systemstack(func() { startTheWorldWithSema(traceEnabled()) })
++	systemstack(func() { startTheWorldWithSema() })
+ 
+ 	// Flush the heap profile so we can start a new cycle next GC.
+ 	// This is relatively expensive, so we don't do it with the
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 174ceb0a1f..308ebaebe6 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -901,7 +901,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
+ 
+ 	ourg := getg()
+ 
+-	stopTheWorld("profile")
++	stopTheWorld(stwGoroutineProfile)
+ 	// Using gcount while the world is stopped should give us a consistent view
+ 	// of the number of live goroutines, minus the number of goroutines that are
+ 	// alive and permanently marked as "system". But to make this count agree
+@@ -966,7 +966,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
+ 		tryRecordGoroutineProfile(gp1, Gosched)
+ 	})
+ 
+-	stopTheWorld("profile cleanup")
++	stopTheWorld(stwGoroutineProfileCleanup)
+ 	endOffset := goroutineProfile.offset.Swap(0)
+ 	goroutineProfile.active = false
+ 	goroutineProfile.records = nil
+@@ -1101,7 +1101,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
+ 		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
+ 	}
+ 
+-	stopTheWorld("profile")
++	stopTheWorld(stwGoroutineProfile)
+ 
+ 	// World is stopped, no locking required.
+ 	n = 1
+@@ -1187,7 +1187,7 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
+ // into buf after the trace for the current goroutine.
+ func Stack(buf []byte, all bool) int {
+ 	if all {
+-		stopTheWorld("stack trace")
++		stopTheWorld(stwAllGoroutinesStack)
+ 	}
+ 
+ 	n := 0
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 3a5273f361..3c17c0b29e 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -347,7 +347,7 @@ func init() {
+ // which is a snapshot as of the most recently completed garbage
+ // collection cycle.
+ func ReadMemStats(m *MemStats) {
+-	stopTheWorld("read mem stats")
++	stopTheWorld(stwReadMemStats)
+ 
+ 	systemstack(func() {
+ 		readmemstats_m(m)
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index b0246e5c9f..f407e6a707 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -739,7 +739,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
+ 	// N.B. Internally, this function does not depend on STW to
+ 	// successfully change every thread. It is only needed for user
+ 	// expectations, per above.
+-	stopTheWorld("doAllThreadsSyscall")
++	stopTheWorld(stwAllThreadsSyscall)
+ 
+ 	// This function depends on several properties:
+ 	//
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 35aeb2d1ac..845e25da6e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1157,6 +1157,59 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
+ 	return gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting)
+ }
+ 
++// stwReason is an enumeration of reasons the world is stopping.
++type stwReason uint8
++
++// Reasons to stop-the-world.
++//
++// Avoid reusing reasons and add new ones instead.
++const (
++	stwUnknown                     stwReason = iota // "unknown"
++	stwGCMarkTerm                                   // "GC mark termination"
++	stwGCSweepTerm                                  // "GC sweep termination"
++	stwWriteHeapDump                                // "write heap dump"
++	stwGoroutineProfile                             // "goroutine profile"
++	stwGoroutineProfileCleanup                      // "goroutine profile cleanup"
++	stwAllGoroutinesStack                           // "all goroutines stack trace"
++	stwReadMemStats                                 // "read mem stats"
++	stwAllThreadsSyscall                            // "AllThreadsSyscall"
++	stwGOMAXPROCS                                   // "GOMAXPROCS"
++	stwStartTrace                                   // "start trace"
++	stwStopTrace                                    // "stop trace"
++	stwForTestCountPagesInUse                       // "CountPagesInUse (test)"
++	stwForTestReadMetricsSlow                       // "ReadMetricsSlow (test)"
++	stwForTestReadMemStatsSlow                      // "ReadMemStatsSlow (test)"
++	stwForTestPageCachePagesLeaked                  // "PageCachePagesLeaked (test)"
++	stwForTestResetDebugLog                         // "ResetDebugLog (test)"
++)
++
++func (r stwReason) String() string {
++	return stwReasonStrings[r]
++}
++
++// If you add to this list, also add it to src/internal/trace/parser.go.
++// If you change the values of any of the stw* constants, bump the trace
++// version number and make a copy of this.
++var stwReasonStrings = [...]string{
++	stwUnknown:                     "unknown",
++	stwGCMarkTerm:                  "GC mark termination",
++	stwGCSweepTerm:                 "GC sweep termination",
++	stwWriteHeapDump:               "write heap dump",
++	stwGoroutineProfile:            "goroutine profile",
++	stwGoroutineProfileCleanup:     "goroutine profile cleanup",
++	stwAllGoroutinesStack:          "all goroutines stack trace",
++	stwReadMemStats:                "read mem stats",
++	stwAllThreadsSyscall:           "AllThreadsSyscall",
++	stwGOMAXPROCS:                  "GOMAXPROCS",
++	stwStartTrace:                  "start trace",
++	stwStopTrace:                   "stop trace",
++	stwForTestCountPagesInUse:      "CountPagesInUse (test)",
++	stwForTestReadMetricsSlow:      "ReadMetricsSlow (test)",
++	stwForTestReadMemStatsSlow:     "ReadMemStatsSlow (test)",
++	stwForTestPageCachePagesLeaked: "PageCachePagesLeaked (test)",
++	stwForTestResetDebugLog:        "ResetDebugLog (test)",
++}
++
+ // stopTheWorld stops all P's from executing goroutines, interrupting
+ // all goroutines at GC safe points and records reason as the reason
+ // for the stop. On return, only the current goroutine's P is running.
+@@ -1171,10 +1224,10 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
+ // This is also used by routines that do stack dumps. If the system is
+ // in panic or being exited, this may not reliably stop all
+ // goroutines.
+-func stopTheWorld(reason string) {
++func stopTheWorld(reason stwReason) {
+ 	semacquire(&worldsema)
+ 	gp := getg()
+-	gp.m.preemptoff = reason
++	gp.m.preemptoff = reason.String()
+ 	systemstack(func() {
+ 		// Mark the goroutine which called stopTheWorld preemptible so its
+ 		// stack may be scanned.
+@@ -1188,14 +1241,14 @@ func stopTheWorld(reason string) {
+ 		// have already completed by the time we exit.
+ 		// Don't provide a wait reason because we're still executing.
+ 		casGToWaiting(gp, _Grunning, waitReasonStoppingTheWorld)
+-		stopTheWorldWithSema()
++		stopTheWorldWithSema(reason)
+ 		casgstatus(gp, _Gwaiting, _Grunning)
+ 	})
+ }
+ 
+ // startTheWorld undoes the effects of stopTheWorld.
+ func startTheWorld() {
+-	systemstack(func() { startTheWorldWithSema(false) })
++	systemstack(func() { startTheWorldWithSema() })
+ 
+ 	// worldsema must be held over startTheWorldWithSema to ensure
+ 	// gomaxprocs cannot change while worldsema is held.
+@@ -1221,7 +1274,7 @@ func startTheWorld() {
+ // stopTheWorldGC has the same effect as stopTheWorld, but blocks
+ // until the GC is not running. It also blocks a GC from starting
+ // until startTheWorldGC is called.
+-func stopTheWorldGC(reason string) {
++func stopTheWorldGC(reason stwReason) {
+ 	semacquire(&gcsema)
+ 	stopTheWorld(reason)
+ }
+@@ -1265,7 +1318,10 @@ var gcsema uint32 = 1
+ // startTheWorldWithSema and stopTheWorldWithSema.
+ // Holding worldsema causes any other goroutines invoking
+ // stopTheWorld to block.
+-func stopTheWorldWithSema() {
++func stopTheWorldWithSema(reason stwReason) {
++	if traceEnabled() {
++		traceSTWStart(reason)
++	}
+ 	gp := getg()
+ 
+ 	// If we hold a lock, then we won't be able to stop another M
+@@ -1344,7 +1400,7 @@ func stopTheWorldWithSema() {
+ 	worldStopped()
+ }
+ 
+-func startTheWorldWithSema(emitTraceEvent bool) int64 {
++func startTheWorldWithSema() int64 {
+ 	assertWorldStopped()
+ 
+ 	mp := acquirem() // disable preemption because it can be holding p in a local var
+@@ -1388,8 +1444,8 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
+ 
+ 	// Capture start-the-world time before doing clean-up tasks.
+ 	startTime := nanotime()
+-	if emitTraceEvent {
+-		traceGCSTWDone()
++	if traceEnabled() {
++		traceSTWDone()
+ 	}
+ 
+ 	// Wakeup an additional proc in case we have excessive runnable goroutines
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 45a066e7a2..2fe6d2d13f 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -31,8 +31,8 @@ const (
+ 	traceEvProcStop          = 6  // stop of P [timestamp]
+ 	traceEvGCStart           = 7  // GC start [timestamp, seq, stack id]
+ 	traceEvGCDone            = 8  // GC done [timestamp]
+-	traceEvGCSTWStart        = 9  // GC STW start [timestamp, kind]
+-	traceEvGCSTWDone         = 10 // GC STW done [timestamp]
++	traceEvSTWStart          = 9  // STW start [timestamp, kind]
++	traceEvSTWDone           = 10 // STW done [timestamp]
+ 	traceEvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
+ 	traceEvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
+ 	traceEvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+@@ -171,7 +171,8 @@ type gTraceState struct {
+ 
+ // mTraceState is per-M state for the tracer.
+ type mTraceState struct {
+-	startingTrace bool // this M is in TraceStart, potentially before traceEnabled is true
++	startingTrace  bool // this M is in TraceStart, potentially before traceEnabled is true
++	tracedSTWStart bool // this M traced a STW start, so it should trace an end
+ }
+ 
+ // pTraceState is per-P state for the tracer.
+@@ -247,7 +248,7 @@ func StartTrace() error {
+ 	// Do not stop the world during GC so we ensure we always see
+ 	// a consistent view of GC-related events (e.g. a start is always
+ 	// paired with an end).
+-	stopTheWorldGC("start tracing")
++	stopTheWorldGC(stwStartTrace)
+ 
+ 	// Prevent sysmon from running any code that could generate events.
+ 	lock(&sched.sysmonlock)
+@@ -377,7 +378,7 @@ func StartTrace() error {
+ func StopTrace() {
+ 	// Stop the world so that we can collect the trace buffers from all p's below,
+ 	// and also to avoid races with traceEvent.
+-	stopTheWorldGC("stop tracing")
++	stopTheWorldGC(stwStopTrace)
+ 
+ 	// See the comment in StartTrace.
+ 	lock(&sched.sysmonlock)
+@@ -560,7 +561,7 @@ func readTrace0() (buf []byte, park bool) {
+ 		trace.headerWritten = true
+ 		trace.lockOwner = nil
+ 		unlock(&trace.lock)
+-		return []byte("go 1.19 trace\x00\x00\x00"), false
++		return []byte("go 1.21 trace\x00\x00\x00"), false
+ 	}
+ 	// Optimistically look for CPU profile samples. This may write new stack
+ 	// records, and may write new tracing buffers.
+@@ -1485,12 +1486,23 @@ func traceGCDone() {
+ 	traceEvent(traceEvGCDone, -1)
+ }
+ 
+-func traceGCSTWStart(kind int) {
+-	traceEvent(traceEvGCSTWStart, -1, uint64(kind))
++func traceSTWStart(reason stwReason) {
++	// Don't trace if this STW is for trace start/stop, since traceEnabled
++	// switches during a STW.
++	if reason == stwStartTrace || reason == stwStopTrace {
++		return
++	}
++	getg().m.trace.tracedSTWStart = true
++	traceEvent(traceEvSTWStart, -1, uint64(reason))
+ }
+ 
+-func traceGCSTWDone() {
+-	traceEvent(traceEvGCSTWDone, -1)
++func traceSTWDone() {
++	mp := getg().m
++	if !mp.trace.tracedSTWStart {
++		return
++	}
++	mp.trace.tracedSTWStart = false
++	traceEvent(traceEvSTWDone, -1)
+ }
+ 
+ // traceGCSweepStart prepares to trace a sweep loop. This does not

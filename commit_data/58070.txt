@@ -19,7 +19,56 @@ Date:   Mon Sep 25 09:22:48 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/handler.go      |  7 ++++---
  src/log/slog/handler_test.go | 12 ++++++++++++
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 16044f44c6..c9183997fa 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -438,16 +438,17 @@ func (s *handleState) closeGroup(name string) {
+ // It handles replacement and checking for an empty key.
+ // after replacement).
+ func (s *handleState) appendAttr(a Attr) {
++	a.Value = a.Value.Resolve()
+ 	if rep := s.h.opts.ReplaceAttr; rep != nil && a.Value.Kind() != KindGroup {
+ 		var gs []string
+ 		if s.groups != nil {
+ 			gs = *s.groups
+ 		}
+-		// Resolve before calling ReplaceAttr, so the user doesn't have to.
+-		a.Value = a.Value.Resolve()
++		// a.Value is resolved before calling ReplaceAttr, so the user doesn't have to.
+ 		a = rep(gs, a)
++		// The ReplaceAttr function may return an unresolved Attr.
++		a.Value = a.Value.Resolve()
+ 	}
+-	a.Value = a.Value.Resolve()
+ 	// Elide empty Attrs.
+ 	if a.isEmpty() {
+ 		return
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 4ffd74a495..ec200d4b85 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -491,6 +491,18 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantText: "g.x=0 g.n=4 g.h.b=2",
+ 			wantJSON: `{"g":{"x":0,"n":4,"h":{"b":2,"i":{}}}}`,
+ 		},
++		{
++			name: "replace resolved group",
++			replace: func(groups []string, a Attr) Attr {
++				if a.Value.Kind() == KindGroup {
++					return Attr{"bad", IntValue(1)}
++				}
++				return removeKeys(TimeKey, LevelKey, MessageKey)(groups, a)
++			},
++			attrs:    []Attr{Any("name", logValueName{"Perry", "Platypus"})},
++			wantText: "name.first=Perry name.last=Platypus",
++			wantJSON: `{"name":{"first":"Perry","last":"Platypus"}}`,
++		},
+ 	} {
+ 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
+ 		line := strconv.Itoa(r.source().Line)

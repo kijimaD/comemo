@@ -26,6 +26,25 @@ Date:   Mon May 22 12:56:28 2023 -0400
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/dist/testjson.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/testjson.go b/src/cmd/dist/testjson.go
+index 0f7e5be289..7408f95d12 100644
+--- a/src/cmd/dist/testjson.go
++++ b/src/cmd/dist/testjson.go
+@@ -100,11 +100,10 @@ func (f *testJSONFilter) process(line []byte) {
+ 					// Should never happen.
+ 					panic(fmt.Sprintf("failed to round-trip JSON %q: %s", string(line), err))
+ 				}
++				f.w.Write(data)
+ 				// Copy any trailing text. We expect at most a "\n" here, but
+ 				// there could be other text and we want to feed that through.
+-				extra, _ := io.ReadAll(dec.Buffered())
+-				data = append(data, extra...)
+-				f.w.Write(data)
++				io.Copy(f.w, dec.Buffered())
+ 				return
+ 			}
+ 		}

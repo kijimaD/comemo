@@ -11,8 +11,142 @@ Date:   Wed Sep 6 14:33:36 2017 -0500
     Change-Id: Ifa138e54d3d2b2f4ad71e4ef4b9368ea79eb30f4
     Reviewed-on: https://go-review.googlesource.com/62010
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/sha1/sha1block_amd64.s     |  4 +---
  src/crypto/sha256/sha256block_amd64.s | 20 +++++---------------
  src/crypto/sha512/sha512block_amd64.s | 16 +++++-----------
  3 files changed, 11 insertions(+), 29 deletions(-)
+
+diff --git a/src/crypto/sha1/sha1block_amd64.s b/src/crypto/sha1/sha1block_amd64.s
+index 3adb6d2c32..a0032c4544 100644
+--- a/src/crypto/sha1/sha1block_amd64.s
++++ b/src/crypto/sha1/sha1block_amd64.s
+@@ -1451,9 +1451,7 @@ TEXT ·blockAVX2(SB),$1408-32
+ 	CMPQ	R13, R11
+ 	CMOVQCC	R8, R13
+ 
+-	MOVQ    $BSWAP_SHUFB_CTL<>(SB), R8
+-	VMOVDQU (R8), Y10
+-	MOVQ	$K_XMM_AR<>(SB), R8 //restore R8
++	VMOVDQU	BSWAP_SHUFB_CTL<>(SB), Y10
+ 
+ 	CALC // RET is inside macros
+ 
+diff --git a/src/crypto/sha256/sha256block_amd64.s b/src/crypto/sha256/sha256block_amd64.s
+index d7ac1e53b3..f30f4829a6 100644
+--- a/src/crypto/sha256/sha256block_amd64.s
++++ b/src/crypto/sha256/sha256block_amd64.s
+@@ -213,13 +213,11 @@
+ #define XFER_SIZE 2*64*4
+ #define INP_END_SIZE 8
+ #define INP_SIZE 8
+-#define TMP_SIZE 4
+ 
+ #define _XFER 0
+ #define _INP_END _XFER + XFER_SIZE
+ #define _INP _INP_END + INP_END_SIZE
+-#define _TMP _INP + INP_SIZE
+-#define STACK_SIZE _TMP + TMP_SIZE
++#define STACK_SIZE _INP + INP_SIZE
+ 
+ #define ROUND_AND_SCHED_N_0(disp, a, b, c, d, e, f, g, h, XDWORD0, XDWORD1, XDWORD2, XDWORD3) \
+ 	;                                     \ // #############################  RND N + 0 ############################//
+@@ -341,10 +339,7 @@
+ 	VPXOR   XTMP2, XTMP4, XTMP4;         \ // XTMP4 = s1 {xBxA}
+ 	XORL    g, y2;                       \ // y2 = CH = ((f^g)&e)^g			// CH
+ 	;                                    \
+-	MOVL    f, _TMP(SP);                 \
+-	MOVQ    $shuff_00BA<>(SB), f;        \ // f is used to keep SHUF_00BA
+-	VPSHUFB (f), XTMP4, XTMP4;           \ // XTMP4 = s1 {00BA}
+-	MOVL    _TMP(SP), f;                 \ // f is restored
++	VPSHUFB shuff_00BA<>(SB), XTMP4, XTMP4;\ // XTMP4 = s1 {00BA}
+ 	;                                    \
+ 	XORL    T1, y1;                      \ // y1 = (a>>22) ^ (a>>13)		// S0
+ 	RORXL   $2, a, T1;                   \ // T1 = (a >> 2)				// S0
+@@ -398,10 +393,7 @@
+ 	;                                    \
+ 	RORXL   $2, a, T1;                   \ // T1 = (a >> 2)				// S0
+ 	;                                    \
+-	MOVL    f, _TMP(SP);                 \ // Save f
+-	MOVQ    $shuff_DC00<>(SB), f;        \ // SHUF_00DC
+-	VPSHUFB (f), XTMP5, XTMP5;           \ // XTMP5 = s1 {DC00}
+-	MOVL    _TMP(SP), f;                 \ // Restore f
++	VPSHUFB shuff_DC00<>(SB), XTMP5, XTMP5;\ // XTMP5 = s1 {DC00}
+ 	;                                    \
+ 	VPADDD  XTMP0, XTMP5, XDWORD0;       \ // XDWORD0 = {W[3], W[2], W[1], W[0]}
+ 	XORL    T1, y1;                      \ // y1 = (a>>22) ^ (a>>13) ^ (a>>2)	// S0
+@@ -704,8 +696,7 @@ avx2_loop0: // at each iteration works with one block (512 bit)
+ 	VMOVDQU (2*32)(INP), XTMP2
+ 	VMOVDQU (3*32)(INP), XTMP3
+ 
+-	MOVQ    $flip_mask<>(SB), BP // BYTE_FLIP_MASK
+-	VMOVDQU (BP), BYTE_FLIP_MASK
++	VMOVDQU flip_mask<>(SB), BYTE_FLIP_MASK
+ 
+ 	// Apply Byte Flip Mask: LE -> BE
+ 	VPSHUFB BYTE_FLIP_MASK, XTMP0, XTMP0
+@@ -843,8 +834,7 @@ avx2_do_last_block:
+ 	VMOVDQU 32(INP), XWORD2
+ 	VMOVDQU 48(INP), XWORD3
+ 
+-	MOVQ    $flip_mask<>(SB), BP
+-	VMOVDQU (BP), X_BYTE_FLIP_MASK
++	VMOVDQU flip_mask<>(SB), BYTE_FLIP_MASK
+ 
+ 	VPSHUFB X_BYTE_FLIP_MASK, XWORD0, XWORD0
+ 	VPSHUFB X_BYTE_FLIP_MASK, XWORD1, XWORD1
+diff --git a/src/crypto/sha512/sha512block_amd64.s b/src/crypto/sha512/sha512block_amd64.s
+index 5b42420615..a02356607e 100644
+--- a/src/crypto/sha512/sha512block_amd64.s
++++ b/src/crypto/sha512/sha512block_amd64.s
+@@ -340,8 +340,7 @@ TEXT ·blockAVX2(SB), NOSPLIT, $56-32
+ 	MOVQ (6*8)(SI), R10
+ 	MOVQ (7*8)(SI), R11
+ 
+-	MOVQ    $PSHUFFLE_BYTE_FLIP_MASK<>(SB), R12
+-	VMOVDQU (R12), Y9
++	VMOVDQU PSHUFFLE_BYTE_FLIP_MASK<>(SB), Y9
+ 
+ loop0:
+ 	MOVQ ·_K+0(SB), BP
+@@ -419,9 +418,7 @@ loop1:
+ 
+ 	VPERM2F128 $0x0, Y0, Y0, Y4
+ 
+-	MOVQ $MASK_YMM_LO<>(SB), R13
+-
+-	VPAND (R13), Y0, Y0
++	VPAND MASK_YMM_LO<>(SB), Y0, Y0
+ 
+ 	VPERM2F128 $0x11, Y7, Y7, Y2
+ 	VPSRLQ     $6, Y2, Y8
+@@ -620,8 +617,7 @@ loop1:
+ 
+ 	VPERM2F128 $0x0, Y0, Y0, Y5
+ 
+-	MOVQ  $MASK_YMM_LO<>(SB), R13
+-	VPAND (R13), Y0, Y0
++	VPAND MASK_YMM_LO<>(SB), Y0, Y0
+ 
+ 	VPERM2F128 $0x11, Y4, Y4, Y2
+ 	VPSRLQ     $6, Y2, Y8
+@@ -820,8 +816,7 @@ loop1:
+ 
+ 	VPERM2F128 $0x0, Y0, Y0, Y6
+ 
+-	MOVQ  $MASK_YMM_LO<>(SB), R13
+-	VPAND (R13), Y0, Y0
++	VPAND MASK_YMM_LO<>(SB), Y0, Y0
+ 
+ 	VPERM2F128 $0x11, Y5, Y5, Y2
+ 	VPSRLQ     $6, Y2, Y8
+@@ -1021,8 +1016,7 @@ loop1:
+ 
+ 	VPERM2F128 $0x0, Y0, Y0, Y7
+ 
+-	MOVQ  $MASK_YMM_LO<>(SB), R13
+-	VPAND (R13), Y0, Y0
++	VPAND MASK_YMM_LO<>(SB), Y0, Y0
+ 
+ 	VPERM2F128 $0x11, Y6, Y6, Y2
+ 	VPSRLQ     $6, Y2, Y8

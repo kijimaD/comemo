@@ -15,7 +15,39 @@ Date:   Tue Sep 10 18:43:15 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/strconv/atoi.go      | 2 ++
  src/strconv/atoi_test.go | 7 +++++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index 131b088e31..a4a8a37fb4 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -31,6 +31,8 @@ func (e *NumError) Error() string {
+ 	return "strconv." + e.Func + ": " + "parsing " + Quote(e.Num) + ": " + e.Err.Error()
+ }
+ 
++func (e *NumError) Unwrap() error { return e.Err }
++
+ func syntaxError(fn, str string) *NumError {
+ 	return &NumError{fn, str, ErrSyntax}
+ }
+diff --git a/src/strconv/atoi_test.go b/src/strconv/atoi_test.go
+index b167c96833..178fb01ea7 100644
+--- a/src/strconv/atoi_test.go
++++ b/src/strconv/atoi_test.go
+@@ -592,6 +592,13 @@ func TestNumError(t *testing.T) {
+ 	}
+ }
+ 
++func TestNumErrorUnwrap(t *testing.T) {
++	err := &NumError{Err: ErrSyntax}
++	if !errors.Is(err, ErrSyntax) {
++		t.Error("errors.Is failed, wanted success")
++	}
++}
++
+ func BenchmarkParseInt(b *testing.B) {
+ 	b.Run("Pos", func(b *testing.B) {
+ 		benchmarkParseInt(b, 1)

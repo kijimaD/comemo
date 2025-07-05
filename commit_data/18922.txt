@@ -8,6 +8,20 @@ Date:   Sat Mar 22 17:40:17 2014 -0700
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/79120043
-
+---
  src/pkg/bufio/bufio_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index e48f5f89d9..3dd5ceb61d 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -1056,7 +1056,7 @@ func TestWriterReadFromWhileFull(t *testing.T) {
+ 	// Use ReadFrom to read in some data.
+ 	n2, err := w.ReadFrom(strings.NewReader("abcdef"))
+ 	if n2 != 6 || err != nil {
+-		t.Fatalf("ReadFrom returned (%v, %v), want (6, nil)", n, err)
++		t.Fatalf("ReadFrom returned (%v, %v), want (6, nil)", n2, err)
+ 	}
+ }
+ 

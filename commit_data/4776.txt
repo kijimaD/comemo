@@ -7,6 +7,17 @@ Date:   Wed Feb 3 20:12:39 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/198102
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index eba2a7fcf9..63dc755b22 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -1,4 +1,5 @@
+ syntax:glob
++.DS_Store
+ .git
+ *.[568ao]
+ *.ao

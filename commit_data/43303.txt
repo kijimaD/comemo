@@ -16,7 +16,59 @@ Date:   Fri Mar 13 23:24:38 2020 -0600
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/all_test.go   |  4 ++++
  src/math/atan2_s390x.s | 11 +++++++----
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 1ac9d71a25..3aae0373c7 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -827,6 +827,8 @@ var vfatan2SC = [][2]float64{
+ 	{+Pi, Inf(-1)},
+ 	{+Pi, 0},
+ 	{+Pi, Inf(1)},
++	{1.0, Inf(1)},
++	{-1.0, Inf(1)},
+ 	{+Pi, NaN()},
+ 	{Inf(1), Inf(-1)},
+ 	{Inf(1), -Pi},
+@@ -864,6 +866,8 @@ var atan2SC = []float64{
+ 	Pi,              // atan2(+Pi, -Inf)
+ 	Pi / 2,          // atan2(+Pi, +0)
+ 	0,               // atan2(+Pi, +Inf)
++	0,               // atan2(+1, +Inf)
++	Copysign(0, -1), // atan2(-1, +Inf)
+ 	NaN(),           // atan2(+Pi, NaN)
+ 	3 * Pi / 4,      // atan2(+Inf, -Inf)
+ 	Pi / 2,          // atan2(+Inf, -Pi)
+diff --git a/src/math/atan2_s390x.s b/src/math/atan2_s390x.s
+index 6b9af252e2..587b89e9b5 100644
+--- a/src/math/atan2_s390x.s
++++ b/src/math/atan2_s390x.s
+@@ -134,9 +134,9 @@ yIsPosInf:
+ 	MOVD	$NegInf, R3
+ 	CMPUBEQ	R3, R1, negInfPosInf
+ 
+-	//special case Atan2(-Pi, +Inf) = Pi
+-	MOVD	$NegPi, R3
+-	CMPUBEQ	R3, R1, negPiPosInf
++	//special case Atan2(x, +Inf) = Copysign(0, x)
++	CMPBLT	R1, $0, returnNegZero
++	BR returnPosZero
+ 
+ Normal:
+ 	FMOVD	x+0(FP), F0
+@@ -288,7 +288,10 @@ negInfPosInf:
+ 	MOVD	$NegPiDiv4, R1
+ 	MOVD	R1, ret+16(FP)
+ 	RET
+-negPiPosInf:
++returnNegZero:
+ 	MOVD	$NegZero, R1
+ 	MOVD	R1, ret+16(FP)
+ 	RET
++returnPosZero:
++	MOVD	$0, ret+16(FP)
++	RET

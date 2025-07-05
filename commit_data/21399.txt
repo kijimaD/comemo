@@ -12,6 +12,20 @@ Date:   Tue Dec 30 19:48:26 2014 -0500
     Change-Id: I4c9386be6baf421393b92d9401a264b4692986d0
     Reviewed-on: https://go-review.googlesource.com/2231
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/gc/typecheck.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 828ca34df5..bc4214e37d 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2537,7 +2537,7 @@ pushtype(Node *n, Type *t)
+ 	else if(debug['s']) {
+ 		typecheck(&n->right, Etype);
+ 		if(n->right->type != T && eqtype(n->right->type, t))
+-			print("%lL: redundant type: %T\n", n->lineno, t);
++			print("%L: redundant type: %T\n", n->lineno, t);
+ 	}
+ }
+ 

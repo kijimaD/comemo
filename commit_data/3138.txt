@@ -9,7 +9,52 @@ Date:   Sat Aug 29 21:13:32 2009 -0700
     DELTA=13  (11 added, 0 deleted, 2 changed)
     OCL=34081
     CL=34081
-
+---
  src/pkg/template/template.go      |  4 ++--
  src/pkg/template/template_test.go | 11 +++++++++++
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 5667aba2d6..0df31755ac 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -738,7 +738,7 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 
+ 			// .alternates between elements
+ 			if !first && r.altstart >= 0 {
+-				for i := r.altstart; i < r.altend; i++ {
++				for i := r.altstart; i < r.altend; {
+ 					i = t.executeElement(i, newst)
+ 				}
+ 			}
+@@ -758,7 +758,7 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 
+ 			// .alternates between elements
+ 			if !first && r.altstart >= 0 {
+-				for i := r.altstart; i < r.altend; i++ {
++				for i := r.altstart; i < r.altend; {
+ 					i = t.executeElement(i, newst)
+ 				}
+ 			}
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 74db28a268..74418699ff 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -187,6 +187,17 @@ var tests = []*Test {
+ 
+ 		out: "this should appear: empty field\n"
+ 	},
++	&Test{
++		in: "{.repeated section pdata }\n"
++		"{item}\n"
++		"{.alternates with}\n"
++		"is\nover\nmultiple\nlines\n"
++		"{.end}\n",
++
++		out: "ItemNumber1\n"
++		"is\nover\nmultiple\nlines\n"
++		"ItemNumber2\n"
++	},
+ 	&Test{
+ 		in: "{.section pdata }\n"
+ 		"{.repeated section @ }\n"

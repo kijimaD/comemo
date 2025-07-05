@@ -16,10 +16,296 @@ Date:   Fri Sep 8 01:31:13 2017 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go        |  59 ++++++++++++-
  src/cmd/compile/internal/ssa/check.go          |   9 +-
  src/cmd/compile/internal/ssa/gen/generic.rules |   6 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 113 ++++++++++++++++++++++++-
  src/cmd/internal/obj/arm/asm5.go               |   2 +-
  5 files changed, 181 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index ff048173b2..6d58715a2a 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -236,7 +236,7 @@ var allAsmTests = []*asmTests{
+ 	{
+ 		arch:    "s390x",
+ 		os:      "linux",
+-		imports: []string{"encoding/binary", "math/bits"},
++		imports: []string{"encoding/binary", "math", "math/bits"},
+ 		tests:   linuxS390XTests,
+ 	},
+ 	{
+@@ -263,9 +263,10 @@ var allAsmTests = []*asmTests{
+ 		tests: linuxMIPS64Tests,
+ 	},
+ 	{
+-		arch:  "ppc64le",
+-		os:    "linux",
+-		tests: linuxPPC64LETests,
++		arch:    "ppc64le",
++		os:      "linux",
++		imports: []string{"math"},
++		tests:   linuxPPC64LETests,
+ 	},
+ 	{
+ 		arch:  "amd64",
+@@ -1466,6 +1467,31 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		pos: []string{"TEXT\t.*, [$]0-8"},
+ 	},
++	// Constant propagation through raw bits conversions.
++	{
++		// uint32 constant converted to float32 constant
++		fn: `
++		func $(x float32) float32 {
++			if x > math.Float32frombits(0x3f800000) {
++				return -x
++			}
++			return x
++		}
++		`,
++		pos: []string{"\tFMOVS\t[$]f32.3f800000\\(SB\\)"},
++	},
++	{
++		// float32 constant converted to uint32 constant
++		fn: `
++		func $(x uint32) uint32 {
++			if x > math.Float32bits(1) {
++				return -x
++			}
++			return x
++		}
++		`,
++		neg: []string{"\tFMOVS\t"},
++	},
+ }
+ 
+ var linuxARMTests = []*asmTest{
+@@ -1988,6 +2014,31 @@ var linuxPPC64LETests = []*asmTest{
+ 		`,
+ 		pos: []string{"TEXT\t.*, [$]0-8"},
+ 	},
++	// Constant propagation through raw bits conversions.
++	{
++		// uint32 constant converted to float32 constant
++		fn: `
++		func $(x float32) float32 {
++			if x > math.Float32frombits(0x3f800000) {
++				return -x
++			}
++			return x
++		}
++		`,
++		pos: []string{"\tFMOVS\t[$]f32.3f800000\\(SB\\)"},
++	},
++	{
++		// float32 constant converted to uint32 constant
++		fn: `
++		func $(x uint32) uint32 {
++			if x > math.Float32bits(1) {
++				return -x
++			}
++			return x
++		}
++		`,
++		neg: []string{"\tFMOVS\t"},
++	},
+ }
+ 
+ var plan9AMD64Tests = []*asmTest{
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 17f683fb10..e8a16aec70 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -4,6 +4,10 @@
+ 
+ package ssa
+ 
++import (
++	"math"
++)
++
+ // checkFunc checks invariants of f.
+ func checkFunc(f *Func) {
+ 	blockMark := make([]bool, f.NumBlocks())
+@@ -471,7 +475,8 @@ func domCheck(f *Func, sdom SparseTree, x, y *Block) bool {
+ 	return sdom.isAncestorEq(x, y)
+ }
+ 
+-// isExactFloat32 reoprts whether v has an AuxInt that can be exactly represented as a float32.
++// isExactFloat32 reports whether v has an AuxInt that can be exactly represented as a float32.
+ func isExactFloat32(v *Value) bool {
+-	return v.AuxFloat() == float64(float32(v.AuxFloat()))
++	x := v.AuxFloat()
++	return math.Float64bits(x) == math.Float64bits(float64(float32(x)))
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index dd4018abe2..92b5b04962 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -714,6 +714,12 @@
+ // Load of store of same address, with compatibly typed value and same size
+ (Load <t1> p1 (Store {t2} p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.(*types.Type).Size() -> x
+ 
++// Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
++(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitFloat(t1) -> (Const64F [x])
++(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitFloat(t1) -> (Const32F [f2i(float64(math.Float32frombits(uint32(x))))])
++(Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitInt(t1)   -> (Const64  [x])
++(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitInt(t1)   -> (Const32  [int64(int32(math.Float32bits(float32(i2f(x)))))])
++
+ // Eliminate stores of values that have just been loaded from the same location.
+ // We also handle the common case where there are some intermediate stores to non-overlapping struct fields.
+ (Store {t1} p1 (Load <t2> p2 mem) mem) &&
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 8310844287..5350c47cb0 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -172,7 +172,7 @@ func rewriteValuegeneric(v *Value) bool {
+ 	case OpLess8U:
+ 		return rewriteValuegeneric_OpLess8U_0(v)
+ 	case OpLoad:
+-		return rewriteValuegeneric_OpLoad_0(v)
++		return rewriteValuegeneric_OpLoad_0(v) || rewriteValuegeneric_OpLoad_10(v)
+ 	case OpLsh16x16:
+ 		return rewriteValuegeneric_OpLsh16x16_0(v)
+ 	case OpLsh16x32:
+@@ -11663,6 +11663,110 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (Load <t1> p1 (Store {t2} p2 (Const64 [x]) _))
++	// cond: isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitFloat(t1)
++	// result: (Const64F [x])
++	for {
++		t1 := v.Type
++		_ = v.Args[1]
++		p1 := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpStore {
++			break
++		}
++		t2 := v_1.Aux
++		_ = v_1.Args[2]
++		p2 := v_1.Args[0]
++		v_1_1 := v_1.Args[1]
++		if v_1_1.Op != OpConst64 {
++			break
++		}
++		x := v_1_1.AuxInt
++		if !(isSamePtr(p1, p2) && t2.(*types.Type).Size() == 8 && is64BitFloat(t1)) {
++			break
++		}
++		v.reset(OpConst64F)
++		v.AuxInt = x
++		return true
++	}
++	// match: (Load <t1> p1 (Store {t2} p2 (Const32 [x]) _))
++	// cond: isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitFloat(t1)
++	// result: (Const32F [f2i(float64(math.Float32frombits(uint32(x))))])
++	for {
++		t1 := v.Type
++		_ = v.Args[1]
++		p1 := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpStore {
++			break
++		}
++		t2 := v_1.Aux
++		_ = v_1.Args[2]
++		p2 := v_1.Args[0]
++		v_1_1 := v_1.Args[1]
++		if v_1_1.Op != OpConst32 {
++			break
++		}
++		x := v_1_1.AuxInt
++		if !(isSamePtr(p1, p2) && t2.(*types.Type).Size() == 4 && is32BitFloat(t1)) {
++			break
++		}
++		v.reset(OpConst32F)
++		v.AuxInt = f2i(float64(math.Float32frombits(uint32(x))))
++		return true
++	}
++	// match: (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _))
++	// cond: isSamePtr(p1,p2) && t2.(*types.Type).Size() == 8 && is64BitInt(t1)
++	// result: (Const64  [x])
++	for {
++		t1 := v.Type
++		_ = v.Args[1]
++		p1 := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpStore {
++			break
++		}
++		t2 := v_1.Aux
++		_ = v_1.Args[2]
++		p2 := v_1.Args[0]
++		v_1_1 := v_1.Args[1]
++		if v_1_1.Op != OpConst64F {
++			break
++		}
++		x := v_1_1.AuxInt
++		if !(isSamePtr(p1, p2) && t2.(*types.Type).Size() == 8 && is64BitInt(t1)) {
++			break
++		}
++		v.reset(OpConst64)
++		v.AuxInt = x
++		return true
++	}
++	// match: (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _))
++	// cond: isSamePtr(p1,p2) && t2.(*types.Type).Size() == 4 && is32BitInt(t1)
++	// result: (Const32  [int64(int32(math.Float32bits(float32(i2f(x)))))])
++	for {
++		t1 := v.Type
++		_ = v.Args[1]
++		p1 := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpStore {
++			break
++		}
++		t2 := v_1.Aux
++		_ = v_1.Args[2]
++		p2 := v_1.Args[0]
++		v_1_1 := v_1.Args[1]
++		if v_1_1.Op != OpConst32F {
++			break
++		}
++		x := v_1_1.AuxInt
++		if !(isSamePtr(p1, p2) && t2.(*types.Type).Size() == 4 && is32BitInt(t1)) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = int64(int32(math.Float32bits(float32(i2f(x)))))
++		return true
++	}
+ 	// match: (Load <t> _ _)
+ 	// cond: t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)
+ 	// result: (StructMake0)
+@@ -11801,6 +11905,13 @@ func rewriteValuegeneric_OpLoad_0(v *Value) bool {
+ 		v.AddArg(v6)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpLoad_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	fe := b.Func.fe
++	_ = fe
+ 	// match: (Load <t> _ _)
+ 	// cond: t.IsArray() && t.NumElem() == 0
+ 	// result: (ArrayMake0)
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 7cbf0a4414..687ac2f37d 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -3240,7 +3240,7 @@ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 
+ func (c *ctxt5) chipzero5(e float64) int {
+ 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+-	if objabi.GOARM < 7 || e != 0 {
++	if objabi.GOARM < 7 || math.Float64bits(e) != 0 {
+ 		return -1
+ 	}
+ 	return 0

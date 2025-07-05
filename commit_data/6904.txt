@@ -9,6 +9,59 @@ Date:   Thu Dec 9 10:11:57 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3527042
-
+---
  src/cmd/gofmt/simplify.go | 26 ++++++++++++++++++--------
  1 file changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gofmt/simplify.go b/src/cmd/gofmt/simplify.go
+index de135f3f68..b166f04d8e 100644
+--- a/src/cmd/gofmt/simplify.go
++++ b/src/cmd/gofmt/simplify.go
+@@ -10,11 +10,13 @@ import (
+ )
+ 
+ 
+-type compositeLitFinder struct{}
++type simplifier struct{}
+ 
+-func (f *compositeLitFinder) Visit(node interface{}) ast.Visitor {
+-	if outer, ok := node.(*ast.CompositeLit); ok {
++func (s *simplifier) Visit(node interface{}) ast.Visitor {
++	switch n := node.(type) {
++	case *ast.CompositeLit:
+ 		// array, slice, and map composite literals may be simplified
++		outer := n
+ 		var eltType ast.Expr
+ 		switch typ := outer.Type.(type) {
+ 		case *ast.ArrayType:
+@@ -41,17 +43,25 @@ func (f *compositeLitFinder) Visit(node interface{}) ast.Visitor {
+ 				}
+ 			}
+ 
+-			// node was simplified - stop walk
++			// node was simplified - stop walk (there are no subnodes to simplify)
+ 			return nil
+ 		}
++
++	case *ast.RangeStmt:
++		// range of the form: for x, _ = range v {...}
++		// can be simplified to: for x = range v {...}
++		if n.Value != nil {
++			if ident, ok := n.Value.(*ast.Ident); ok && ident.Name == "_" {
++				n.Value = nil
++			}
++		}
+ 	}
+ 
+-	// not a composite literal or not simplified - continue walk
+-	return f
++	return s
+ }
+ 
+ 
+ func simplify(node interface{}) {
+-	var f compositeLitFinder
+-	ast.Walk(&f, node)
++	var s simplifier
++	ast.Walk(&s, node)
+ }

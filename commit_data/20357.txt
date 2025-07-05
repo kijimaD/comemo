@@ -11,7 +11,7 @@ Date:   Wed Sep 3 11:35:22 2014 -0400
     R=golang-codereviews, dave, iant
     CC=dvyukov, golang-codereviews, khr, r
     https://golang.org/cl/137970044
-
+---
  src/pkg/runtime/asm_386.s      | 10 ++++++--
  src/pkg/runtime/asm_amd64.s    | 10 ++++++--
  src/pkg/runtime/asm_amd64p32.s | 10 ++++++--
@@ -31,3 +31,790 @@ Date:   Wed Sep 3 11:35:22 2014 -0400
  src/pkg/runtime/sigqueue.go    | 14 +++++------
  src/pkg/runtime/stubs.go       | 57 ++++++++++++++++++++----------------------
  18 files changed, 141 insertions(+), 92 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index e99c114ad7..07158ef0fd 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -162,7 +162,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-4
+ 	MOVL	gobuf_pc(BX), BX
+ 	JMP	BX
+ 
+-// void mcall(void (*fn)(G*))
++// func mcall(fn func(*g))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+ // to keep running g.
+@@ -188,6 +188,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ 	MOVL	SI, g(CX)	// g = m->g0
+ 	MOVL	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
+ 	PUSHL	AX
++	MOVL	DI, DX
++	MOVL	0(DI), DI
+ 	CALL	DI
+ 	POPL	AX
+ 	MOVL	$runtime·badmcall2(SB), AX
+@@ -202,7 +204,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+ 	RET
+ 
+-// void onM(void (*fn)())
++// func onM(fn func())
+ // calls fn() on the M stack.
+ // switches to the M stack if not already on it, and
+ // switches back when fn() returns.
+@@ -227,6 +229,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 
+ 	// call target function
+ 	ARGSIZE(0)
++	MOVL	DI, DX
++	MOVL	0(DI), DI
+ 	CALL	DI
+ 
+ 	// switch back to g
+@@ -241,6 +245,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 
+ onm:
+ 	// already on m stack, just call directly
++	MOVL	DI, DX
++	MOVL	0(DI), DI
+ 	CALL	DI
+ 	RET
+ 
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 0933fa92c7..1d98fc2652 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -153,7 +153,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
+ 	MOVQ	gobuf_pc(BX), BX
+ 	JMP	BX
+ 
+-// void mcall(void (*fn)(G*))
++// func mcall(fn func(*g))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+ // to keep running g.
+@@ -180,6 +180,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ 	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
+ 	PUSHQ	AX
+ 	ARGSIZE(8)
++	MOVQ	DI, DX
++	MOVQ	0(DI), DI
+ 	CALL	DI
+ 	POPQ	AX
+ 	MOVQ	$runtime·badmcall2(SB), AX
+@@ -194,7 +196,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ TEXT runtime·switchtoM(SB), NOSPLIT, $0-8
+ 	RET
+ 
+-// void onM(void (*fn)())
++// func onM(fn func())
+ // calls fn() on the M stack.
+ // switches to the M stack if not already on it, and
+ // switches back when fn() returns.
+@@ -220,6 +222,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-8
+ 
+ 	// call target function
+ 	ARGSIZE(0)
++	MOVQ	DI, DX
++	MOVQ	0(DI), DI
+ 	CALL	DI
+ 
+ 	// switch back to g
+@@ -234,6 +238,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-8
+ 
+ onm:
+ 	// already on m stack, just call directly
++	MOVQ	DI, DX
++	MOVQ	0(DI), DI
+ 	CALL	DI
+ 	RET
+ 
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 4a391033d1..20069a6c7e 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -131,7 +131,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-4
+ 	MOVL	gobuf_pc(BX), BX
+ 	JMP	BX
+ 
+-// void mcall(void (*fn)(G*))
++// func mcall(fn func(*g))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+ // to keep running g.
+@@ -158,6 +158,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ 	MOVL	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->sched.sp
+ 	PUSHQ	AX
+ 	ARGSIZE(8)
++	MOVL	DI, DX
++	MOVL	0(DI), DI
+ 	CALL	DI
+ 	POPQ	AX
+ 	MOVL	$runtime·badmcall2(SB), AX
+@@ -172,7 +174,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+ 	RET
+ 
+-// void onM(void (*fn)())
++// func onM(fn func())
+ // calls fn() on the M stack.
+ // switches to the M stack if not already on it, and
+ // switches back when fn() returns.
+@@ -198,6 +200,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 
+ 	// call target function
+ 	ARGSIZE(0)
++	MOVL	DI, DX
++	MOVL	0(DI), DI
+ 	CALL	DI
+ 
+ 	// switch back to g
+@@ -212,6 +216,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 
+ onm:
+ 	// already on m stack, just call directly
++	MOVL	DI, DX
++	MOVL	0(DI), DI
+ 	CALL	DI
+ 	RET
+ 
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 6954bb7c05..6e12cf60f3 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -147,7 +147,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
+ 	MOVW	gobuf_pc(R1), R11
+ 	B	(R11)
+ 
+-// void mcall(void (*fn)(G*))
++// func mcall(fn func(*g))
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+ // to keep running g.
+@@ -173,6 +173,8 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
+ 	MOVW	(g_sched+gobuf_sp)(g), SP
+ 	SUB	$8, SP
+ 	MOVW	R1, 4(SP)
++	MOVW	R0, R7
++	MOVW	0(R0), R0
+ 	BL	(R0)
+ 	B	runtime·badmcall2(SB)
+ 	RET
+@@ -187,7 +189,7 @@ TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+ 	BL	(R0) // clobber lr to ensure push {lr} is kept
+ 	RET
+ 
+-// void onM(void (*fn)())
++// func onM(fn func())
+ // calls fn() on the M stack.
+ // switches to the M stack if not already on it, and
+ // switches back when fn() returns.
+@@ -213,6 +215,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 
+ 	// call target function
+ 	ARGSIZE(0)
++	MOVW	R0, R7
++	MOVW	0(R0), R0
+ 	BL	(R0)
+ 
+ 	// switch back to g
+@@ -224,6 +228,8 @@ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 	RET
+ 
+ onm:
++	MOVW	R0, R7
++	MOVW	0(R0), R0
+ 	BL	(R0)
+ 	RET
+ 
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index cce9afbef9..35a4130ee1 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -31,23 +31,21 @@ type LFNode struct {
+ 	Pushcnt uintptr
+ }
+ 
+-var (
+-	lfstackpush_m,
+-	lfstackpop_m mFunction
+-)
++func lfstackpush_m()
++func lfstackpop_m()
+ 
+ func LFStackPush(head *uint64, node *LFNode) {
+ 	mp := acquirem()
+ 	mp.ptrarg[0] = unsafe.Pointer(head)
+ 	mp.ptrarg[1] = unsafe.Pointer(node)
+-	onM(&lfstackpush_m)
++	onM(lfstackpush_m)
+ 	releasem(mp)
+ }
+ 
+ func LFStackPop(head *uint64) *LFNode {
+ 	mp := acquirem()
+ 	mp.ptrarg[0] = unsafe.Pointer(head)
+-	onM(&lfstackpop_m)
++	onM(lfstackpop_m)
+ 	node := (*LFNode)(unsafe.Pointer(mp.ptrarg[0]))
+ 	mp.ptrarg[0] = nil
+ 	releasem(mp)
+@@ -65,17 +63,15 @@ type ParFor struct {
+ 	wait    bool
+ }
+ 
+-var (
+-	newparfor_m,
+-	parforsetup_m,
+-	parfordo_m,
+-	parforiters_m mFunction
+-)
++func newparfor_m()
++func parforsetup_m()
++func parfordo_m()
++func parforiters_m()
+ 
+ func NewParFor(nthrmax uint32) *ParFor {
+ 	mp := acquirem()
+ 	mp.scalararg[0] = uintptr(nthrmax)
+-	onM(&newparfor_m)
++	onM(newparfor_m)
+ 	desc := (*ParFor)(mp.ptrarg[0])
+ 	mp.ptrarg[0] = nil
+ 	releasem(mp)
+@@ -93,14 +89,14 @@ func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*
+ 	if wait {
+ 		mp.scalararg[2] = 1
+ 	}
+-	onM(&parforsetup_m)
++	onM(parforsetup_m)
+ 	releasem(mp)
+ }
+ 
+ func ParForDo(desc *ParFor) {
+ 	mp := acquirem()
+ 	mp.ptrarg[0] = unsafe.Pointer(desc)
+-	onM(&parfordo_m)
++	onM(parfordo_m)
+ 	releasem(mp)
+ }
+ 
+@@ -108,7 +104,7 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
+ 	mp := acquirem()
+ 	mp.ptrarg[0] = unsafe.Pointer(desc)
+ 	mp.scalararg[0] = uintptr(tid)
+-	onM(&parforiters_m)
++	onM(parforiters_m)
+ 	begin := uint32(mp.scalararg[0])
+ 	end := uint32(mp.scalararg[1])
+ 	releasem(mp)
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index 63ffe68066..83c2be2ac7 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -746,6 +746,8 @@ mdump(G *gp)
+ void
+ runtime∕debug·WriteHeapDump(uintptr fd)
+ {
++	void (*fn)(G*);
++
+ 	// Stop the world.
+ 	runtime·semacquire(&runtime·worldsema, false);
+ 	g->m->gcing = 1;
+@@ -762,7 +764,8 @@ runtime∕debug·WriteHeapDump(uintptr fd)
+ 	// Call dump routine on M stack.
+ 	runtime·casgstatus(g, Grunning, Gwaiting);
+ 	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
+-	runtime·mcall(mdump);
++	fn = mdump;
++	runtime·mcall(&fn);
+ 
+ 	// Reset dump file.
+ 	dumpfd = 0;
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index 84587a36d6..dbe37c8108 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -144,7 +144,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 			if v == nil {
+ 				mp := acquirem()
+ 				mp.scalararg[0] = tinySizeClass
+-				onM(&mcacheRefill_m)
++				onM(mcacheRefill_m)
+ 				releasem(mp)
+ 				s = c.alloc[tinySizeClass]
+ 				v = s.freelist
+@@ -175,7 +175,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 			if v == nil {
+ 				mp := acquirem()
+ 				mp.scalararg[0] = uintptr(sizeclass)
+-				onM(&mcacheRefill_m)
++				onM(mcacheRefill_m)
+ 				releasem(mp)
+ 				s = c.alloc[sizeclass]
+ 				v = s.freelist
+@@ -196,7 +196,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 		mp := acquirem()
+ 		mp.scalararg[0] = uintptr(size)
+ 		mp.scalararg[1] = uintptr(flags)
+-		onM(&largeAlloc_m)
++		onM(largeAlloc_m)
+ 		s = (*mspan)(mp.ptrarg[0])
+ 		mp.ptrarg[0] = nil
+ 		releasem(mp)
+@@ -246,7 +246,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 				mp.ptrarg[1] = unsafe.Pointer(typ)
+ 				mp.scalararg[0] = uintptr(size)
+ 				mp.scalararg[1] = uintptr(size0)
+-				onM(&unrollgcproginplace_m)
++				onM(unrollgcproginplace_m)
+ 				releasem(mp)
+ 				goto marked
+ 			}
+@@ -255,7 +255,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 			if uintptr(atomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
+ 				mp := acquirem()
+ 				mp.ptrarg[0] = unsafe.Pointer(typ)
+-				onM(&unrollgcprog_m)
++				onM(unrollgcprog_m)
+ 				releasem(mp)
+ 			}
+ 			ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
+@@ -459,7 +459,7 @@ func gogc(force int32) {
+ 		} else {
+ 			mp.scalararg[2] = 0
+ 		}
+-		onM(&gc_m)
++		onM(gc_m)
+ 	}
+ 
+ 	// all done
+@@ -571,7 +571,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		// switch to M stack and remove finalizer
+ 		mp := acquirem()
+ 		mp.ptrarg[0] = e.data
+-		onM(&removeFinalizer_m)
++		onM(removeFinalizer_m)
+ 		releasem(mp)
+ 		return
+ 	}
+@@ -624,7 +624,7 @@ okarg:
+ 	mp.scalararg[0] = nret
+ 	mp.ptrarg[2] = unsafe.Pointer(fint)
+ 	mp.ptrarg[3] = unsafe.Pointer(ot)
+-	onM(&setFinalizer_m)
++	onM(setFinalizer_m)
+ 	if mp.scalararg[0] != 1 {
+ 		gothrow("runtime.SetFinalizer: finalizer already set")
+ 	}
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index e17bd2144f..8e98890e8e 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -65,8 +65,11 @@ freemcache_m(G *gp)
+ void
+ runtime·freemcache(MCache *c)
+ {
++	void (*fn)(G*);
++
+ 	g->m->ptrarg[0] = c;
+-	runtime·mcall(freemcache_m);
++	fn = freemcache_m;
++	runtime·mcall(&fn);
+ }
+ 
+ // Gets a span that has a free object in it and assigns it
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 3e22acc524..2ae23e8bf0 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1141,6 +1141,7 @@ runtime·updatememstats(GCStats *stats)
+ 	int32 i;
+ 	uint64 smallfree;
+ 	uint64 *src, *dst;
++	void (*fn)(G*);
+ 
+ 	if(stats)
+ 		runtime·memclr((byte*)stats, sizeof(*stats));
+@@ -1177,8 +1178,10 @@ runtime·updatememstats(GCStats *stats)
+ 	// Flush MCache's to MCentral.
+ 	if(g == g->m->g0)
+ 		flushallmcaches();
+-	else
+-		runtime·mcall(flushallmcaches_m);
++	else {
++		fn = flushallmcaches_m;
++		runtime·mcall(&fn);
++	}
+ 
+ 	// Aggregate local stats.
+ 	cachestats();
+diff --git a/src/pkg/runtime/mgc0.go b/src/pkg/runtime/mgc0.go
+index 93af63e63e..2d9d76a474 100644
+--- a/src/pkg/runtime/mgc0.go
++++ b/src/pkg/runtime/mgc0.go
+@@ -37,7 +37,7 @@ func gc_unixnanotime(now *int64) {
+ 
+ func freeOSMemory() {
+ 	gogc(2) // force GC and do eager sweep
+-	onM(&scavenge_m)
++	onM(scavenge_m)
+ }
+ 
+ var poolcleanup func()
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 93f33f21cf..0050e96556 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -229,6 +229,7 @@ MSpan*
+ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool needzero)
+ {
+ 	MSpan *s;
++	void (*fn)(G*);
+ 
+ 	// Don't do any operations that lock the heap on the G stack.
+ 	// It might trigger stack growth, and the stack growth code needs
+@@ -240,7 +241,8 @@ runtime·MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large, bool
+ 		g->m->scalararg[0] = npage;
+ 		g->m->scalararg[1] = sizeclass;
+ 		g->m->scalararg[2] = large;
+-		runtime·mcall(mheap_alloc_m);
++		fn = mheap_alloc_m;
++		runtime·mcall(&fn);
+ 		s = g->m->ptrarg[0];
+ 		g->m->ptrarg[0] = nil;
+ 	}
+@@ -488,13 +490,16 @@ mheap_free_m(G *gp)
+ void
+ runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct)
+ {
++	void (*fn)(G*);
++
+ 	if(g == g->m->g0) {
+ 		mheap_free(h, s, acct);
+ 	} else {
+ 		g->m->ptrarg[0] = h;
+ 		g->m->ptrarg[1] = s;
+ 		g->m->scalararg[0] = acct;
+-		runtime·mcall(mheap_free_m);
++		fn = mheap_free_m;
++		runtime·mcall(&fn);
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index ecf4111337..4b6829e011 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -214,6 +214,7 @@ runtime·panic(Eface e)
+ 	Defer *d, dabort;
+ 	Panic p;
+ 	uintptr pc, argp;
++	void (*fn)(G*);
+ 
+ 	runtime·memclr((byte*)&p, sizeof p);
+ 	p.arg = e;
+@@ -266,7 +267,8 @@ runtime·panic(Eface e)
+ 			// Pass information about recovering frame to recovery.
+ 			g->sigcode0 = (uintptr)argp;
+ 			g->sigcode1 = (uintptr)pc;
+-			runtime·mcall(recovery);
++			fn = recovery;
++			runtime·mcall(&fn);
+ 			runtime·throw("recovery failed"); // mcall should not return
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index b85baca14d..bc15d822cb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1439,10 +1439,13 @@ dropg(void)
+ void
+ runtime·park(bool(*unlockf)(G*, void*), void *lock, String reason)
+ {
++	void (*fn)(G*);
++
+ 	g->m->waitlock = lock;
+ 	g->m->waitunlockf = unlockf;
+ 	g->waitreason = reason;
+-	runtime·mcall(runtime·park_m);
++	fn = runtime·park_m;
++	runtime·mcall(&fn);
+ }
+ 
+ bool
+@@ -1487,7 +1490,10 @@ runtime·park_m(G *gp)
+ void
+ runtime·gosched(void)
+ {
+-	runtime·mcall(runtime·gosched_m);
++	void (*fn)(G*);
++	
++	fn = runtime·gosched_m;
++	runtime·mcall(&fn);
+ }
+ 
+ // runtime·gosched continuation on g0.
+@@ -1518,9 +1524,12 @@ runtime·gosched_m(G *gp)
+ void
+ runtime·goexit(void)
+ {
++	void (*fn)(G*);
++
+ 	if(raceenabled)
+ 		runtime·racegoend();
+-	runtime·mcall(goexit0);
++	fn = goexit0;
++	runtime·mcall(&fn);
+ }
+ 
+ // runtime·goexit continuation on g0.
+@@ -1689,6 +1698,8 @@ runtime·entersyscallblock_m(void)
+ void
+ runtime·exitsyscall(void)
+ {
++	void (*fn)(G*);
++
+ 	g->m->locks++;  // see comment in entersyscall
+ 
+ 	g->waitsince = 0;
+@@ -1716,7 +1727,8 @@ runtime·exitsyscall(void)
+ 	g->m->locks--;
+ 
+ 	// Call the scheduler.
+-	runtime·mcall(exitsyscall0);
++	fn = exitsyscall0;
++	runtime·mcall(&fn);
+ 
+ 	// Scheduler returned, so we're allowed to run now.
+ 	// Delete the gcstack information that we left for
+@@ -1858,6 +1870,7 @@ runtime·malg(int32 stacksize)
+ {
+ 	G *newg;
+ 	byte *stk;
++	void (*fn)(G*);
+ 
+ 	if(StackTop < sizeof(Stktop)) {
+ 		runtime·printf("runtime: SizeofStktop=%d, should be >=%d\n", (int32)StackTop, (int32)sizeof(Stktop));
+@@ -1874,7 +1887,8 @@ runtime·malg(int32 stacksize)
+ 			// have to call stackalloc on scheduler stack.
+ 			newg->stacksize = stacksize;
+ 			g->param = newg;
+-			runtime·mcall(mstackalloc);
++			fn = mstackalloc;
++			runtime·mcall(&fn);
+ 			stk = g->param;
+ 			g->param = nil;
+ 		}
+@@ -1915,6 +1929,7 @@ void
+ runtime·newproc(int32 siz, FuncVal* fn, ...)
+ {
+ 	byte *argp;
++	void (*mfn)(void);
+ 
+ 	if(thechar == '5')
+ 		argp = (byte*)(&fn+2);  // skip caller's saved LR
+@@ -1926,7 +1941,8 @@ runtime·newproc(int32 siz, FuncVal* fn, ...)
+ 	g->m->scalararg[1] = (uintptr)runtime·getcallerpc(&siz);
+ 	g->m->ptrarg[0] = argp;
+ 	g->m->ptrarg[1] = fn;
+-	runtime·onM(newproc_m);
++	mfn = newproc_m;
++	runtime·onM(&mfn);
+ 	g->m->locks--;
+ }
+ 
+@@ -2090,6 +2106,7 @@ gfget(P *p)
+ {
+ 	G *gp;
+ 	byte *stk;
++	void (*fn)(G*);
+ 
+ retry:
+ 	gp = p->gfree;
+@@ -2117,7 +2134,8 @@ retry:
+ 			} else {
+ 				gp->stacksize = FixedStack;
+ 				g->param = gp;
+-				runtime·mcall(mstackalloc);
++				fn = mstackalloc;
++				runtime·mcall(&fn);
+ 				stk = g->param;
+ 				g->param = nil;
+ 			}
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index a36b931b88..f060640a26 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -55,7 +55,7 @@ func forcegchelper() {
+ // Gosched yields the processor, allowing other goroutines to run.  It does not
+ // suspend the current goroutine, so execution resumes automatically.
+ func Gosched() {
+-	mcall(&gosched_m)
++	mcall(gosched_m)
+ }
+ 
+ func readgStatus(gp *g) uint32 {
+@@ -77,7 +77,7 @@ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
+ 	gp.waitreason = reason
+ 	releasem(mp)
+ 	// can't do anything that might move the G between Ms here.
+-	mcall(&park_m)
++	mcall(park_m)
+ }
+ 
+ // Puts the current goroutine into a waiting state and unlocks the lock.
+@@ -89,7 +89,7 @@ func goparkunlock(lock *mutex, reason string) {
+ func goready(gp *g) {
+ 	mp := acquirem()
+ 	mp.ptrarg[0] = unsafe.Pointer(gp)
+-	onM(&ready_m)
++	onM(ready_m)
+ 	releasem(mp)
+ }
+ 
+diff --git a/src/pkg/runtime/rdebug.go b/src/pkg/runtime/rdebug.go
+index eef0f281fd..e5e691122c 100644
+--- a/src/pkg/runtime/rdebug.go
++++ b/src/pkg/runtime/rdebug.go
+@@ -13,7 +13,7 @@ func setMaxStack(in int) (out int) {
+ func setGCPercent(in int32) (out int32) {
+ 	mp := acquirem()
+ 	mp.scalararg[0] = uintptr(int(in))
+-	onM(&setgcpercent_m)
++	onM(setgcpercent_m)
+ 	out = int32(int(mp.scalararg[0]))
+ 	releasem(mp)
+ 	return out
+@@ -30,7 +30,7 @@ func setPanicOnFault(new bool) (old bool) {
+ func setMaxThreads(in int) (out int) {
+ 	mp := acquirem()
+ 	mp.scalararg[0] = uintptr(in)
+-	onM(&setmaxthreads_m)
++	onM(setmaxthreads_m)
+ 	out = int(mp.scalararg[0])
+ 	releasem(mp)
+ 	return out
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3cc6f9a81e..d67d7a0076 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -809,8 +809,8 @@ void	runtime·runpanic(Panic*);
+ uintptr	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
+ int32	runtime·gcount(void);
+-void	runtime·mcall(void(*)(G*));
+-void	runtime·onM(void(*)(void));
++void	runtime·mcall(void(**)(G*));
++void	runtime·onM(void(**)(void));
+ uint32	runtime·fastrand1(void);
+ void	runtime·rewindmorestack(Gobuf*);
+ int32	runtime·timediv(int64, int32, int32*);
+diff --git a/src/pkg/runtime/sigqueue.go b/src/pkg/runtime/sigqueue.go
+index c51ede0265..4643559705 100644
+--- a/src/pkg/runtime/sigqueue.go
++++ b/src/pkg/runtime/sigqueue.go
+@@ -9,7 +9,7 @@ package runtime
+ func signal_recv() (m uint32) {
+ 	for {
+ 		mp := acquirem()
+-		onM(&signal_recv_m)
++		onM(signal_recv_m)
+ 		ok := mp.scalararg[0] != 0
+ 		m = uint32(mp.scalararg[1])
+ 		releasem(mp)
+@@ -24,19 +24,17 @@ func signal_recv() (m uint32) {
+ func signal_enable(s uint32) {
+ 	mp := acquirem()
+ 	mp.scalararg[0] = uintptr(s)
+-	onM(&signal_enable_m)
++	onM(signal_enable_m)
+ 	releasem(mp)
+ }
+ 
+ func signal_disable(s uint32) {
+ 	mp := acquirem()
+ 	mp.scalararg[0] = uintptr(s)
+-	onM(&signal_disable_m)
++	onM(signal_disable_m)
+ 	releasem(mp)
+ }
+ 
+-var (
+-	signal_recv_m,
+-	signal_enable_m,
+-	signal_disable_m mFunction
+-)
++func signal_recv_m()
++func signal_enable_m()
++func signal_disable_m()
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 86dc47f4ab..b002da98b4 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -57,37 +57,34 @@ func acquirem() *m
+ func releasem(mp *m)
+ func gomcache() *mcache
+ 
+-// An mFunction represents a C function that runs on the M stack.  It
+-// can be called from Go using mcall or onM.  Through the magic of
+-// linking, an mFunction variable and the corresponding C code entry
+-// point live at the same address.
+-type mFunction byte
+-
+ // in asm_*.s
+-func mcall(fn *mFunction)
+-func onM(fn *mFunction)
+-
+-// C functions that run on the M stack.  Call these like
+-//   mcall(&mcacheRefill_m)
+-// Arguments should be passed in m->scalararg[x] and
+-// m->ptrarg[x].  Return values can be passed in those
+-// same slots.
+-var (
+-	mcacheRefill_m,
+-	largeAlloc_m,
+-	gc_m,
+-	scavenge_m,
+-	setFinalizer_m,
+-	removeFinalizer_m,
+-	markallocated_m,
+-	unrollgcprog_m,
+-	unrollgcproginplace_m,
+-	gosched_m,
+-	setgcpercent_m,
+-	setmaxthreads_m,
+-	ready_m,
+-	park_m mFunction
+-)
++func mcall(func(*g))
++func onM(fn func())
++
++// C functions that run on the M stack.
++// Call using mcall.
++// These functions need to be written to arrange explicitly
++// for the goroutine to continue execution.
++func gosched_m(*g)
++func park_m(*g)
++
++// More C functions that run on the M stack.
++// Call using onM.
++// Arguments should be passed in m->scalararg[x] and m->ptrarg[x].
++// Return values can be passed in those same slots.
++// These functions return to the goroutine when they return.
++func mcacheRefill_m()
++func largeAlloc_m()
++func gc_m()
++func scavenge_m()
++func setFinalizer_m()
++func removeFinalizer_m()
++func markallocated_m()
++func unrollgcprog_m()
++func unrollgcproginplace_m()
++func setgcpercent_m()
++func setmaxthreads_m()
++func ready_m()
+ 
+ // memclr clears n bytes starting at ptr.
+ // in memclr_*.s

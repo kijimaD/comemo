@@ -9,6 +9,24 @@ Date:   Fri Nov 17 10:03:55 2017 -0500
     Change-Id: I96978b3afd51324b7b4f8035cf4417fb2eac4ebc
     Reviewed-on: https://go-review.googlesource.com/79015
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index d46a42239e..7ef07961de 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -173,12 +173,6 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ // then the value can stay on the stack. If the value new(T) does
+ // not escape, then new(T) can be rewritten into a stack allocation.
+ // The same is true of slice literals.
+-//
+-// If optimizations are disabled (-N), this code is not used.
+-// Instead, the compiler assumes that any value whose address
+-// is taken without being immediately dereferenced
+-// needs to be moved to the heap, and new(T) and slice
+-// literals are always real allocations.
+ 
+ func escapes(all []*Node) {
+ 	visitBottomUp(all, escAnalyze)

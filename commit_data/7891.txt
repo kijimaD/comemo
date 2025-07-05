@@ -10,6 +10,22 @@ Date:   Sun Mar 27 20:38:28 2011 -0700
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4280072
-
+---
  test/fixedbugs/bug323.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug323.go b/test/fixedbugs/bug323.go
+index bfb528318a..23e2be6603 100644
+--- a/test/fixedbugs/bug323.go
++++ b/test/fixedbugs/bug323.go
+@@ -15,6 +15,6 @@ func (t T) Meth2() {}
+ func main() {
+ 	t := &T{}
+ 	p := P(t)
+-	p.Meth()  // ERROR "undefined \(type P"
+-	p.Meth2() // ERROR "undefined \(type P"
+-}
+\ No newline at end of file
++	p.Meth()  // ERROR "undefined"
++	p.Meth2() // ERROR "undefined"
++}

@@ -14,7 +14,7 @@ Date:   Sat Mar 13 16:52:16 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/go/build/deps_test.go          |  1 +
  src/internal/itoa/itoa.go          | 33 +++++++++++++++++++++++++++++++
  src/internal/itoa/itoa_test.go     | 40 ++++++++++++++++++++++++++++++++++++++
@@ -48,3 +48,877 @@ Date:   Sat Mar 13 16:52:16 2021 -0800
  src/syscall/syscall_unix.go        |  5 +++--
  src/syscall/syscall_windows.go     |  5 +++--
  32 files changed, 143 insertions(+), 181 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e05d0aac2e..63ef2428b1 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -83,6 +83,7 @@ var depsRules = `
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+ 	internal/abi, internal/cpu, unsafe
+ 	< internal/bytealg
++	< internal/itoa
+ 	< internal/unsafeheader
+ 	< runtime/internal/sys
+ 	< runtime/internal/atomic
+diff --git a/src/internal/itoa/itoa.go b/src/internal/itoa/itoa.go
+new file mode 100644
+index 0000000000..c6062d9fe1
+--- /dev/null
++++ b/src/internal/itoa/itoa.go
+@@ -0,0 +1,33 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Simple conversions to avoid depending on strconv.
++
++package itoa
++
++// Itoa converts val to a decimal string.
++func Itoa(val int) string {
++	if val < 0 {
++		return "-" + Uitoa(uint(-val))
++	}
++	return Uitoa(uint(val))
++}
++
++// Uitoa converts val to a decimal string.
++func Uitoa(val uint) string {
++	if val == 0 { // avoid string allocation
++		return "0"
++	}
++	var buf [20]byte // big enough for 64bit value base 10
++	i := len(buf) - 1
++	for val >= 10 {
++		q := val / 10
++		buf[i] = byte('0' + val - q*10)
++		i--
++		val = q
++	}
++	// val < 10
++	buf[i] = byte('0' + val)
++	return string(buf[i:])
++}
+diff --git a/src/internal/itoa/itoa_test.go b/src/internal/itoa/itoa_test.go
+new file mode 100644
+index 0000000000..71931c1e3a
+--- /dev/null
++++ b/src/internal/itoa/itoa_test.go
+@@ -0,0 +1,40 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package itoa_test
++
++import (
++	"fmt"
++	"internal/itoa"
++	"math"
++	"testing"
++)
++
++var (
++	minInt64  int64  = math.MinInt64
++	maxInt64  int64  = math.MaxInt64
++	maxUint64 uint64 = math.MaxUint64
++)
++
++func TestItoa(t *testing.T) {
++	tests := []int{int(minInt64), math.MinInt32, -999, -100, -1, 0, 1, 100, 999, math.MaxInt32, int(maxInt64)}
++	for _, tt := range tests {
++		got := itoa.Itoa(tt)
++		want := fmt.Sprint(tt)
++		if want != got {
++			t.Fatalf("Itoa(%d) = %s, want %s", tt, got, want)
++		}
++	}
++}
++
++func TestUitoa(t *testing.T) {
++	tests := []uint{0, 1, 100, 999, math.MaxUint32, uint(maxUint64)}
++	for _, tt := range tests {
++		got := itoa.Uitoa(tt)
++		want := fmt.Sprint(tt)
++		if want != got {
++			t.Fatalf("Uitoa(%d) = %s, want %s", tt, got, want)
++		}
++	}
++}
+diff --git a/src/internal/poll/fd_io_plan9.go b/src/internal/poll/fd_io_plan9.go
+index 287d11bd8c..3205ac8513 100644
+--- a/src/internal/poll/fd_io_plan9.go
++++ b/src/internal/poll/fd_io_plan9.go
+@@ -5,6 +5,7 @@
+ package poll
+ 
+ import (
++	"internal/itoa"
+ 	"runtime"
+ 	"sync"
+ 	"syscall"
+@@ -71,7 +72,7 @@ func (aio *asyncIO) Cancel() {
+ 	if aio.pid == -1 {
+ 		return
+ 	}
+-	f, e := syscall.Open("/proc/"+itoa(aio.pid)+"/note", syscall.O_WRONLY)
++	f, e := syscall.Open("/proc/"+itoa.Itoa(aio.pid)+"/note", syscall.O_WRONLY)
+ 	if e != nil {
+ 		return
+ 	}
+diff --git a/src/internal/poll/strconv.go b/src/internal/poll/strconv.go
+index fd5e20f1f4..c98332d3da 100644
+--- a/src/internal/poll/strconv.go
++++ b/src/internal/poll/strconv.go
+@@ -5,36 +5,8 @@
+ //go:build plan9
+ // +build plan9
+ 
+-// Simple conversions to avoid depending on strconv.
+-
+ package poll
+ 
+-// Convert integer to decimal string
+-func itoa(val int) string {
+-	if val < 0 {
+-		return "-" + uitoa(uint(-val))
+-	}
+-	return uitoa(uint(val))
+-}
+-
+-// Convert unsigned integer to decimal string
+-func uitoa(val uint) string {
+-	if val == 0 { // avoid string allocation
+-		return "0"
+-	}
+-	var buf [20]byte // big enough for 64bit value base 10
+-	i := len(buf) - 1
+-	for val >= 10 {
+-		q := val / 10
+-		buf[i] = byte('0' + val - q*10)
+-		i--
+-		val = q
+-	}
+-	// val < 10
+-	buf[i] = byte('0' + val)
+-	return string(buf[i:])
+-}
+-
+ // stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
+ // suffix.
+ func stringsHasSuffix(s, suffix string) bool {
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index e9c73845d7..1bbe39650b 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"internal/itoa"
+ 	"sort"
+ 
+ 	"golang.org/x/net/dns/dnsmessage"
+@@ -33,7 +34,7 @@ func reverseaddr(addr string) (arpa string, err error) {
+ 		return "", &DNSError{Err: "unrecognized address", Name: addr}
+ 	}
+ 	if ip.To4() != nil {
+-		return uitoa(uint(ip[15])) + "." + uitoa(uint(ip[14])) + "." + uitoa(uint(ip[13])) + "." + uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
++		return itoa.Uitoa(uint(ip[15])) + "." + itoa.Uitoa(uint(ip[14])) + "." + itoa.Uitoa(uint(ip[13])) + "." + itoa.Uitoa(uint(ip[12])) + ".in-addr.arpa.", nil
+ 	}
+ 	// Must be IPv6
+ 	buf := make([]byte, 0, len(ip)*4+len("ip6.arpa."))
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index a3242ff3b2..86f64335ea 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -18,6 +18,7 @@ package net
+ import (
+ 	"context"
+ 	"errors"
++	"internal/itoa"
+ 	"io"
+ 	"os"
+ 	"sync"
+@@ -510,7 +511,7 @@ func (o hostLookupOrder) String() string {
+ 	if s, ok := lookupOrderName[o]; ok {
+ 		return s
+ 	}
+-	return "hostLookupOrder=" + itoa(int(o)) + "??"
++	return "hostLookupOrder=" + itoa.Itoa(int(o)) + "??"
+ }
+ 
+ // goLookupHost is the native Go implementation of LookupHost.
+diff --git a/src/net/interface.go b/src/net/interface.go
+index 914aaa010f..0e5d3202c9 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"errors"
++	"internal/itoa"
+ 	"sync"
+ 	"time"
+ )
+@@ -230,7 +231,7 @@ func (zc *ipv6ZoneCache) name(index int) string {
+ 		zoneCache.RUnlock()
+ 	}
+ 	if !ok { // last resort
+-		name = uitoa(uint(index))
++		name = itoa.Uitoa(uint(index))
+ 	}
+ 	return name
+ }
+diff --git a/src/net/interface_plan9.go b/src/net/interface_plan9.go
+index 31bbaca467..957975c265 100644
+--- a/src/net/interface_plan9.go
++++ b/src/net/interface_plan9.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"errors"
++	"internal/itoa"
+ 	"os"
+ )
+ 
+@@ -38,8 +39,8 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 
+ func readInterface(i int) (*Interface, error) {
+ 	ifc := &Interface{
+-		Index: i + 1,                        // Offset the index by one to suit the contract
+-		Name:  netdir + "/ipifc/" + itoa(i), // Name is the full path to the interface path in plan9
++		Index: i + 1,                             // Offset the index by one to suit the contract
++		Name:  netdir + "/ipifc/" + itoa.Itoa(i), // Name is the full path to the interface path in plan9
+ 	}
+ 
+ 	ifcstat := ifc.Name + "/status"
+diff --git a/src/net/ip.go b/src/net/ip.go
+index c00fe8ed3c..18e3f3a2f5 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -12,7 +12,10 @@
+ 
+ package net
+ 
+-import "internal/bytealg"
++import (
++	"internal/bytealg"
++	"internal/itoa"
++)
+ 
+ // IP address lengths (bytes).
+ const (
+@@ -531,7 +534,7 @@ func (n *IPNet) String() string {
+ 	if l == -1 {
+ 		return nn.String() + "/" + m.String()
+ 	}
+-	return nn.String() + "/" + uitoa(uint(l))
++	return nn.String() + "/" + itoa.Uitoa(uint(l))
+ }
+ 
+ // Parse IPv4 address (d.d.d.d).
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 7a4b7a6041..8e984d5e5f 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"context"
+ 	"internal/bytealg"
++	"internal/itoa"
+ 	"io/fs"
+ 	"os"
+ 	"syscall"
+@@ -336,9 +337,9 @@ func plan9LocalAddr(addr Addr) string {
+ 		if port == 0 {
+ 			return ""
+ 		}
+-		return itoa(port)
++		return itoa.Itoa(port)
+ 	}
+-	return ip.String() + "!" + itoa(port)
++	return ip.String() + "!" + itoa.Itoa(port)
+ }
+ 
+ func hangupCtlWrite(ctx context.Context, proto string, ctl *os.File, msg string) error {
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 5fc23f098b..75c18b33ac 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -8,6 +8,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"internal/bytealg"
++	"internal/itoa"
+ 	"io"
+ 	"os"
+ )
+@@ -84,7 +85,7 @@ func queryCS1(ctx context.Context, net string, ip IP, port int) (clone, dest str
+ 	if len(ip) != 0 && !ip.IsUnspecified() {
+ 		ips = ip.String()
+ 	}
+-	lines, err := queryCS(ctx, net, ips, itoa(port))
++	lines, err := queryCS(ctx, net, ips, itoa.Itoa(port))
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/net/parse.go b/src/net/parse.go
+index cdb35bb826..6c230ab63f 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -172,32 +172,6 @@ func xtoi2(s string, e byte) (byte, bool) {
+ 	return byte(n), ok && ei == 2
+ }
+ 
+-// Convert integer to decimal string.
+-func itoa(val int) string {
+-	if val < 0 {
+-		return "-" + uitoa(uint(-val))
+-	}
+-	return uitoa(uint(val))
+-}
+-
+-// Convert unsigned integer to decimal string.
+-func uitoa(val uint) string {
+-	if val == 0 { // avoid string allocation
+-		return "0"
+-	}
+-	var buf [20]byte // big enough for 64bit value base 10
+-	i := len(buf) - 1
+-	for val >= 10 {
+-		q := val / 10
+-		buf[i] = byte('0' + val - q*10)
+-		i--
+-		val = q
+-	}
+-	// val < 10
+-	buf[i] = byte('0' + val)
+-	return string(buf[i:])
+-}
+-
+ // Convert i to a hexadecimal string. Leading zeros are not printed.
+ func appendHex(dst []byte, i uint32) []byte {
+ 	if i == 0 {
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 9a9b03a1e8..19a90143f3 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"context"
++	"internal/itoa"
+ 	"io"
+ 	"os"
+ 	"syscall"
+@@ -31,9 +32,9 @@ func (a *TCPAddr) String() string {
+ 	}
+ 	ip := ipEmptyString(a.IP)
+ 	if a.Zone != "" {
+-		return JoinHostPort(ip+"%"+a.Zone, itoa(a.Port))
++		return JoinHostPort(ip+"%"+a.Zone, itoa.Itoa(a.Port))
+ 	}
+-	return JoinHostPort(ip, itoa(a.Port))
++	return JoinHostPort(ip, itoa.Itoa(a.Port))
+ }
+ 
+ func (a *TCPAddr) isWildcard() bool {
+diff --git a/src/net/tcpsockopt_plan9.go b/src/net/tcpsockopt_plan9.go
+index fb56871857..264359dcf3 100644
+--- a/src/net/tcpsockopt_plan9.go
++++ b/src/net/tcpsockopt_plan9.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"internal/itoa"
+ 	"syscall"
+ 	"time"
+ )
+@@ -17,7 +18,7 @@ func setNoDelay(fd *netFD, noDelay bool) error {
+ 
+ // Set keep alive period.
+ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+-	cmd := "keepalive " + itoa(int(d/time.Millisecond))
++	cmd := "keepalive " + itoa.Itoa(int(d/time.Millisecond))
+ 	_, e := fd.ctl.WriteAt([]byte(cmd), 0)
+ 	return e
+ }
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 571e099abd..bcd0e2763e 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"context"
++	"internal/itoa"
+ 	"syscall"
+ )
+ 
+@@ -34,9 +35,9 @@ func (a *UDPAddr) String() string {
+ 	}
+ 	ip := ipEmptyString(a.IP)
+ 	if a.Zone != "" {
+-		return JoinHostPort(ip+"%"+a.Zone, itoa(a.Port))
++		return JoinHostPort(ip+"%"+a.Zone, itoa.Itoa(a.Port))
+ 	}
+-	return JoinHostPort(ip, itoa(a.Port))
++	return JoinHostPort(ip, itoa.Itoa(a.Port))
+ }
+ 
+ func (a *UDPAddr) isWildcard() bool {
+diff --git a/src/os/exec_plan9.go b/src/os/exec_plan9.go
+index 8580153911..cc84f97669 100644
+--- a/src/os/exec_plan9.go
++++ b/src/os/exec_plan9.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/itoa"
+ 	"runtime"
+ 	"syscall"
+ 	"time"
+@@ -40,7 +41,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ }
+ 
+ func (p *Process) writeProcFile(file string, data string) error {
+-	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/"+file, O_WRONLY, 0)
++	f, e := OpenFile("/proc/"+itoa.Itoa(p.Pid)+"/"+file, O_WRONLY, 0)
+ 	if e != nil {
+ 		return e
+ 	}
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index 443d4e0218..e8736f7c54 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -8,6 +8,7 @@
+ package os
+ 
+ import (
++	"internal/itoa"
+ 	"internal/syscall/execenv"
+ 	"runtime"
+ 	"syscall"
+@@ -107,14 +108,14 @@ func (p *ProcessState) String() string {
+ 		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
+ 			res = "exit status " + uitox(uint(code))
+ 		} else { // unix systems use small decimal integers
+-			res = "exit status " + itoa(code) // unix
++			res = "exit status " + itoa.Itoa(code) // unix
+ 		}
+ 	case status.Signaled():
+ 		res = "signal: " + status.Signal().String()
+ 	case status.Stopped():
+ 		res = "stop signal: " + status.StopSignal().String()
+ 		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
+-			res += " (trap " + itoa(status.TrapCause()) + ")"
++			res += " (trap " + itoa.Itoa(status.TrapCause()) + ")"
+ 		}
+ 	case status.Continued():
+ 		res = "continued"
+diff --git a/src/os/executable_plan9.go b/src/os/executable_plan9.go
+index 105c03f0c1..ad7a4410dc 100644
+--- a/src/os/executable_plan9.go
++++ b/src/os/executable_plan9.go
+@@ -7,10 +7,13 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"internal/itoa"
++	"syscall"
++)
+ 
+ func executable() (string, error) {
+-	fn := "/proc/" + itoa(Getpid()) + "/text"
++	fn := "/proc/" + itoa.Itoa(Getpid()) + "/text"
+ 	f, err := Open(fn)
+ 	if err != nil {
+ 		return "", err
+diff --git a/src/os/signal/signal_plan9_test.go b/src/os/signal/signal_plan9_test.go
+index 10bfdc3ff1..8357199aa4 100644
+--- a/src/os/signal/signal_plan9_test.go
++++ b/src/os/signal/signal_plan9_test.go
+@@ -5,6 +5,7 @@
+ package signal
+ 
+ import (
++	"internal/itoa"
+ 	"os"
+ 	"runtime"
+ 	"syscall"
+@@ -155,23 +156,8 @@ func TestStop(t *testing.T) {
+ 	}
+ }
+ 
+-func itoa(val int) string {
+-	if val < 0 {
+-		return "-" + itoa(-val)
+-	}
+-	var buf [32]byte // big enough for int64
+-	i := len(buf) - 1
+-	for val >= 10 {
+-		buf[i] = byte(val%10 + '0')
+-		i--
+-		val /= 10
+-	}
+-	buf[i] = byte(val + '0')
+-	return string(buf[i:])
+-}
+-
+ func postNote(pid int, note string) error {
+-	f, err := os.OpenFile("/proc/"+itoa(pid)+"/note", os.O_WRONLY, 0)
++	f, err := os.OpenFile("/proc/"+itoa.Itoa(pid)+"/note", os.O_WRONLY, 0)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/os/str.go b/src/os/str.go
+index 9bfcc15aa8..35643e0d2f 100644
+--- a/src/os/str.go
++++ b/src/os/str.go
+@@ -6,32 +6,6 @@
+ 
+ package os
+ 
+-// itoa converts val (an int) to a decimal string.
+-func itoa(val int) string {
+-	if val < 0 {
+-		return "-" + uitoa(uint(-val))
+-	}
+-	return uitoa(uint(val))
+-}
+-
+-// uitoa converts val (a uint) to a decimal string.
+-func uitoa(val uint) string {
+-	if val == 0 { // avoid string allocation
+-		return "0"
+-	}
+-	var buf [20]byte // big enough for 64bit value base 10
+-	i := len(buf) - 1
+-	for val >= 10 {
+-		q := val / 10
+-		buf[i] = byte('0' + val - q*10)
+-		i--
+-		val = q
+-	}
+-	// val < 10
+-	buf[i] = byte('0' + val)
+-	return string(buf[i:])
+-}
+-
+ // itox converts val (an int) to a hexdecimal string.
+ func itox(val int) string {
+ 	if val < 0 {
+diff --git a/src/os/tempfile.go b/src/os/tempfile.go
+index 1ad44f1163..5b681fcebf 100644
+--- a/src/os/tempfile.go
++++ b/src/os/tempfile.go
+@@ -4,7 +4,10 @@
+ 
+ package os
+ 
+-import "errors"
++import (
++	"errors"
++	"internal/itoa"
++)
+ 
+ // fastrand provided by runtime.
+ // We generate random temporary file names so that there's a good
+@@ -13,7 +16,7 @@ import "errors"
+ func fastrand() uint32
+ 
+ func nextRandom() string {
+-	return uitoa(uint(fastrand()))
++	return itoa.Uitoa(uint(fastrand()))
+ }
+ 
+ // CreateTemp creates a new temporary file in the directory dir,
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index d99da00089..16210ca5b5 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -5,6 +5,7 @@
+ package syscall
+ 
+ import (
++	"internal/itoa"
+ 	"internal/syscall/windows/sysdll"
+ 	"sync"
+ 	"sync/atomic"
+@@ -215,7 +216,7 @@ func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
+ 	case 18:
+ 		return Syscall18(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15], a[16], a[17])
+ 	default:
+-		panic("Call " + p.Name + " with too many arguments " + itoa(len(a)) + ".")
++		panic("Call " + p.Name + " with too many arguments " + itoa.Itoa(len(a)) + ".")
+ 	}
+ }
+ 
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 6353da4048..deb8aa38b7 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -8,6 +8,7 @@
+ package syscall
+ 
+ import (
++	"internal/itoa"
+ 	"runtime"
+ 	"unsafe"
+ )
+@@ -568,7 +569,7 @@ func forkExecPipe(p []int) (err error) {
+ func formatIDMappings(idMap []SysProcIDMap) []byte {
+ 	var data []byte
+ 	for _, im := range idMap {
+-		data = append(data, []byte(itoa(im.ContainerID)+" "+itoa(im.HostID)+" "+itoa(im.Size)+"\n")...)
++		data = append(data, []byte(itoa.Itoa(im.ContainerID)+" "+itoa.Itoa(im.HostID)+" "+itoa.Itoa(im.Size)+"\n")...)
+ 	}
+ 	return data
+ }
+@@ -597,7 +598,7 @@ func writeIDMappings(path string, idMap []SysProcIDMap) error {
+ // This is needed since kernel 3.19, because you can't write gid_map without
+ // disabling setgroups() system call.
+ func writeSetgroups(pid int, enable bool) error {
+-	sgf := "/proc/" + itoa(pid) + "/setgroups"
++	sgf := "/proc/" + itoa.Itoa(pid) + "/setgroups"
+ 	fd, err := Open(sgf, O_RDWR, 0)
+ 	if err != nil {
+ 		return err
+@@ -622,7 +623,7 @@ func writeSetgroups(pid int, enable bool) error {
+ // for a process and it is called from the parent process.
+ func writeUidGidMappings(pid int, sys *SysProcAttr) error {
+ 	if sys.UidMappings != nil {
+-		uidf := "/proc/" + itoa(pid) + "/uid_map"
++		uidf := "/proc/" + itoa.Itoa(pid) + "/uid_map"
+ 		if err := writeIDMappings(uidf, sys.UidMappings); err != nil {
+ 			return err
+ 		}
+@@ -633,7 +634,7 @@ func writeUidGidMappings(pid int, sys *SysProcAttr) error {
+ 		if err := writeSetgroups(pid, sys.GidMappingsEnableSetgroups); err != nil && err != ENOENT {
+ 			return err
+ 		}
+-		gidf := "/proc/" + itoa(pid) + "/gid_map"
++		gidf := "/proc/" + itoa.Itoa(pid) + "/gid_map"
+ 		if err := writeIDMappings(gidf, sys.GidMappings); err != nil {
+ 			return err
+ 		}
+diff --git a/src/syscall/exec_plan9.go b/src/syscall/exec_plan9.go
+index 12c4237f69..c469fe1812 100644
+--- a/src/syscall/exec_plan9.go
++++ b/src/syscall/exec_plan9.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"internal/itoa"
+ 	"runtime"
+ 	"sync"
+ 	"unsafe"
+@@ -320,7 +321,7 @@ func cexecPipe(p []int) error {
+ 		return e
+ 	}
+ 
+-	fd, e := Open("#d/"+itoa(p[1]), O_RDWR|O_CLOEXEC)
++	fd, e := Open("#d/"+itoa.Itoa(p[1]), O_RDWR|O_CLOEXEC)
+ 	if e != nil {
+ 		Close(p[0])
+ 		Close(p[1])
+diff --git a/src/syscall/export_test.go b/src/syscall/export_test.go
+deleted file mode 100644
+index 55c09e667e..0000000000
+--- a/src/syscall/export_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-var Itoa = itoa
+diff --git a/src/syscall/str.go b/src/syscall/str.go
+deleted file mode 100644
+index 2ddf04b227..0000000000
+--- a/src/syscall/str.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-func itoa(val int) string { // do it here rather than with fmt to avoid dependency
+-	if val < 0 {
+-		return "-" + uitoa(uint(-val))
+-	}
+-	return uitoa(uint(val))
+-}
+-
+-func uitoa(val uint) string {
+-	var buf [32]byte // big enough for int64
+-	i := len(buf) - 1
+-	for val >= 10 {
+-		buf[i] = byte(val%10 + '0')
+-		i--
+-		val /= 10
+-	}
+-	buf[i] = byte(val + '0')
+-	return string(buf[i:])
+-}
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index c17c6fcdcf..ed70d62284 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -8,6 +8,7 @@
+ package syscall
+ 
+ import (
++	"internal/itoa"
+ 	"internal/oserror"
+ 	"sync"
+ 	"unsafe"
+@@ -60,7 +61,7 @@ func (e Errno) Error() string {
+ 			return s
+ 		}
+ 	}
+-	return "errno " + itoa(int(e))
++	return "errno " + itoa.Itoa(int(e))
+ }
+ 
+ func (e Errno) Is(target error) bool {
+@@ -106,7 +107,7 @@ func (s Signal) String() string {
+ 			return str
+ 		}
+ 	}
+-	return "signal " + itoa(int(s))
++	return "signal " + itoa.Itoa(int(s))
+ }
+ 
+ var signals = [...]string{}
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 3041f6f8fc..24e051dcbd 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -11,7 +11,10 @@
+ 
+ package syscall
+ 
+-import "unsafe"
++import (
++	"internal/itoa"
++	"unsafe"
++)
+ 
+ func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
+ 
+@@ -225,7 +228,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
+ func Futimes(fd int, tv []Timeval) (err error) {
+ 	// Believe it or not, this is the best we can do on Linux
+ 	// (and is what glibc does).
+-	return Utimes("/proc/self/fd/"+itoa(fd), tv)
++	return Utimes("/proc/self/fd/"+itoa.Itoa(fd), tv)
+ }
+ 
+ const ImplementsGetwd = true
+diff --git a/src/syscall/syscall_test.go b/src/syscall/syscall_test.go
+index 5390f8aace..b2b9463b0f 100644
+--- a/src/syscall/syscall_test.go
++++ b/src/syscall/syscall_test.go
+@@ -5,7 +5,6 @@
+ package syscall_test
+ 
+ import (
+-	"fmt"
+ 	"internal/testenv"
+ 	"os"
+ 	"runtime"
+@@ -33,22 +32,6 @@ func TestEnv(t *testing.T) {
+ 	testSetGetenv(t, "TESTENV", "")
+ }
+ 
+-func TestItoa(t *testing.T) {
+-	// Make most negative integer: 0x8000...
+-	i := 1
+-	for i<<1 != 0 {
+-		i <<= 1
+-	}
+-	if i >= 0 {
+-		t.Fatal("bad math")
+-	}
+-	s := syscall.Itoa(i)
+-	f := fmt.Sprint(i)
+-	if s != f {
+-		t.Fatalf("itoa(%d) = %s, want %s", i, s, f)
+-	}
+-}
+-
+ // Check that permuting child process fds doesn't interfere with
+ // reporting of fork/exec status. See Issue 14979.
+ func TestExecErrPermutedFds(t *testing.T) {
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 40fc8b8a30..5b405b99b4 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -8,6 +8,7 @@
+ package syscall
+ 
+ import (
++	"internal/itoa"
+ 	"internal/oserror"
+ 	"internal/race"
+ 	"internal/unsafeheader"
+@@ -121,7 +122,7 @@ func (e Errno) Error() string {
+ 			return s
+ 		}
+ 	}
+-	return "errno " + itoa(int(e))
++	return "errno " + itoa.Itoa(int(e))
+ }
+ 
+ func (e Errno) Is(target error) bool {
+@@ -181,7 +182,7 @@ func (s Signal) String() string {
+ 			return str
+ 		}
+ 	}
+-	return "signal " + itoa(int(s))
++	return "signal " + itoa.Itoa(int(s))
+ }
+ 
+ func Read(fd int, p []byte) (n int, err error) {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 65af6637ae..f9f78bd2b3 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -8,6 +8,7 @@ package syscall
+ 
+ import (
+ 	errorspkg "errors"
++	"internal/itoa"
+ 	"internal/oserror"
+ 	"internal/race"
+ 	"internal/unsafeheader"
+@@ -132,7 +133,7 @@ func (e Errno) Error() string {
+ 	if err != nil {
+ 		n, err = formatMessage(flags, 0, uint32(e), 0, b, nil)
+ 		if err != nil {
+-			return "winapi error #" + itoa(int(e))
++			return "winapi error #" + itoa.Itoa(int(e))
+ 		}
+ 	}
+ 	// trim terminating \r and \n
+@@ -1152,7 +1153,7 @@ func (s Signal) String() string {
+ 			return str
+ 		}
+ 	}
+-	return "signal " + itoa(int(s))
++	return "signal " + itoa.Itoa(int(s))
+ }
+ 
+ func LoadCreateSymbolicLink() error {

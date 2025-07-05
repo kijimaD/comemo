@@ -60,6 +60,31 @@ Date:   Wed Apr 17 10:46:01 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 38f12abf18..8f9c26d065 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -414,9 +414,9 @@ var passes = [...]pass{
+ 	{name: "late phielim", fn: phielim},
+ 	{name: "late copyelim", fn: copyelim},
+ 	{name: "tighten", fn: tighten}, // move values closer to their uses
+-	{name: "phi tighten", fn: phiTighten},
+ 	{name: "late deadcode", fn: deadcode},
+ 	{name: "critical", fn: critical, required: true}, // remove critical edges
++	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
+ 	{name: "likelyadjust", fn: likelyadjust},
+ 	{name: "layout", fn: layout, required: true},     // schedule blocks
+ 	{name: "schedule", fn: schedule, required: true}, // schedule values
+@@ -467,6 +467,8 @@ var passOrder = [...]constraint{
+ 	{"decompose builtin", "late opt"},
+ 	// decompose builtin is the last pass that may introduce new float ops, so run softfloat after it
+ 	{"decompose builtin", "softfloat"},
++	// remove critical edges before phi tighten, so that phi args get better placement
++	{"critical", "phi tighten"},
+ 	// don't layout blocks until critical edges have been removed
+ 	{"critical", "layout"},
+ 	// regalloc requires the removal of all critical edges

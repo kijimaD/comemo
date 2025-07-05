@@ -17,10 +17,301 @@ Date:   Sun Jul 12 17:57:11 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/internal/obj/link.go                |  6 +++
  src/cmd/internal/obj/objfile2.go            | 19 ++++++++
  src/cmd/internal/obj/sym.go                 | 20 ++++++++
  src/cmd/link/internal/loader/loader.go      | 75 +++++++++++------------------
  src/cmd/link/internal/loader/loader_test.go |  3 +-
  5 files changed, 74 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index fd0bc26f32..7575a29efa 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -704,6 +704,12 @@ type Link struct {
+ 	// actually diverge.
+ 	ABIAliases []*LSym
+ 
++	// Constant symbols (e.g. $i64.*) are data symbols created late
++	// in the concurrent phase. To ensure a deterministic order, we
++	// add them to a separate list, sort at the end, and append it
++	// to Data.
++	constSyms []*LSym
++
+ 	// pkgIdx maps package path to index. The index is used for
+ 	// symbol reference in the object file.
+ 	pkgIdx map[string]int32
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 694ab98a98..5e7f36cbea 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -292,6 +292,25 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.Func != nil {
+ 		align = uint32(s.Func.Align)
+ 	}
++	if s.ContentAddressable() {
++		// We generally assume data symbols are natually aligned,
++		// except for strings. If we dedup a string symbol and a
++		// non-string symbol with the same content, we should keep
++		// the largest alignment.
++		// TODO: maybe the compiler could set the alignment for all
++		// data symbols more carefully.
++		if s.Size != 0 && !strings.HasPrefix(s.Name, "go.string.") {
++			switch {
++			case w.ctxt.Arch.PtrSize == 8 && s.Size%8 == 0:
++				align = 8
++			case s.Size%4 == 0:
++				align = 4
++			case s.Size%2 == 0:
++				align = 2
++			}
++			// don't bother setting align to 1.
++		}
++	}
+ 	var o goobj2.Sym
+ 	o.SetName(name, w.Writer)
+ 	o.SetABI(abi)
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 7c9ee854ea..4122d8478f 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -139,7 +139,11 @@ func (ctxt *Link) Float32Sym(f float32) *LSym {
+ 	name := fmt.Sprintf("$f32.%08x", i)
+ 	return ctxt.LookupInit(name, func(s *LSym) {
+ 		s.Size = 4
++		s.WriteFloat32(ctxt, 0, f)
++		s.Type = objabi.SRODATA
+ 		s.Set(AttrLocal, true)
++		s.Set(AttrContentAddressable, true)
++		ctxt.constSyms = append(ctxt.constSyms, s)
+ 	})
+ }
+ 
+@@ -148,7 +152,11 @@ func (ctxt *Link) Float64Sym(f float64) *LSym {
+ 	name := fmt.Sprintf("$f64.%016x", i)
+ 	return ctxt.LookupInit(name, func(s *LSym) {
+ 		s.Size = 8
++		s.WriteFloat64(ctxt, 0, f)
++		s.Type = objabi.SRODATA
+ 		s.Set(AttrLocal, true)
++		s.Set(AttrContentAddressable, true)
++		ctxt.constSyms = append(ctxt.constSyms, s)
+ 	})
+ }
+ 
+@@ -156,7 +164,11 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
+ 	name := fmt.Sprintf("$i64.%016x", uint64(i))
+ 	return ctxt.LookupInit(name, func(s *LSym) {
+ 		s.Size = 8
++		s.WriteInt(ctxt, 0, 8, i)
++		s.Type = objabi.SRODATA
+ 		s.Set(AttrLocal, true)
++		s.Set(AttrContentAddressable, true)
++		ctxt.constSyms = append(ctxt.constSyms, s)
+ 	})
+ }
+ 
+@@ -174,6 +186,14 @@ func (ctxt *Link) NumberSyms() {
+ 		})
+ 	}
+ 
++	// Constant symbols are created late in the concurrent phase. Sort them
++	// to ensure a deterministic order.
++	sort.Slice(ctxt.constSyms, func(i, j int) bool {
++		return ctxt.constSyms[i].Name < ctxt.constSyms[j].Name
++	})
++	ctxt.Data = append(ctxt.Data, ctxt.constSyms...)
++	ctxt.constSyms = nil
++
+ 	ctxt.pkgIdx = make(map[string]int32)
+ 	ctxt.defs = []*LSym{}
+ 	ctxt.hasheddefs = []*LSym{}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 0e7fbe1859..257ebd8be4 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -18,7 +18,6 @@ import (
+ 	"math/bits"
+ 	"os"
+ 	"sort"
+-	"strconv"
+ 	"strings"
+ )
+ 
+@@ -190,6 +189,12 @@ func growBitmap(reqLen int, b Bitmap) Bitmap {
+ 	return b
+ }
+ 
++type symSizeAlign struct {
++	sym   Sym
++	size  uint32
++	align uint32
++}
++
+ // A Loader loads new object files and resolves indexed symbol references.
+ //
+ // Notes on the layout of global symbol index space:
+@@ -217,9 +222,9 @@ type Loader struct {
+ 
+ 	objSyms []objSym // global index mapping to local index
+ 
+-	hashedSyms    map[goobj2.HashType]Sym // hashed (content-addressable) symbols, keyed by content hash
+-	symsByName    [2]map[string]Sym       // map symbol name to index, two maps are for ABI0 and ABIInternal
+-	extStaticSyms map[nameVer]Sym         // externally defined static symbols, keyed by name
++	hashedSyms    map[goobj2.HashType]symSizeAlign // hashed (content-addressable) symbols, keyed by content hash
++	symsByName    [2]map[string]Sym                // map symbol name to index, two maps are for ABI0 and ABIInternal
++	extStaticSyms map[nameVer]Sym                  // externally defined static symbols, keyed by name
+ 
+ 	extReader    *oReader // a dummy oReader, for external symbols
+ 	payloadBatch []extSymPayload
+@@ -344,7 +349,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
+ 		objs:                 []objIdx{{}, {extReader, 0}}, // reserve index 0 for nil symbol, 1 for external symbols
+ 		objSyms:              make([]objSym, 1, 100000),    // reserve index 0 for nil symbol
+ 		extReader:            extReader,
+-		hashedSyms:           make(map[goobj2.HashType]Sym, 20000),                                        // TODO: adjust preallocation sizes
++		hashedSyms:           make(map[goobj2.HashType]symSizeAlign, 20000),                               // TODO: adjust preallocation sizes
+ 		symsByName:           [2]map[string]Sym{make(map[string]Sym, 80000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
+ 		objByPkg:             make(map[string]*oReader),
+ 		outer:                make(map[Sym]Sym),
+@@ -396,9 +401,9 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
+ 
+ // Add a symbol from an object file, return the global index and whether it is added.
+ // If the symbol already exist, it returns the index of that symbol.
+-func (l *Loader) AddSym(name string, ver int, r *oReader, li uint32, kind int, dupok bool, typ sym.SymKind) (Sym, bool) {
++func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, osym *goobj2.Sym) (Sym, bool) {
+ 	if l.extStart != 0 {
+-		panic("AddSym called after external symbol is created")
++		panic("addSym called after external symbol is created")
+ 	}
+ 	i := Sym(len(l.objSyms))
+ 	addToGlobal := func() {
+@@ -431,14 +436,21 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li uint32, kind int, d
+ 		// referenced by name. Also no need to do overwriting
+ 		// check, as same hash indicates same content.
+ 		hash := r.Hash(li - uint32(r.ndef))
+-		if oldi, existed := l.hashedSyms[*hash]; existed {
+-			// TODO: check symbol size for extra safety against collision?
++		if s, existed := l.hashedSyms[*hash]; existed {
++			if s.size != osym.Siz() {
++				fmt.Printf("hash collision: %v (size %d) and %v (size %d), hash %x\n", l.SymName(s.sym), s.size, osym.Name(r.Reader), osym.Siz(), *hash)
++				panic("hash collision")
++			}
+ 			if l.flags&FlagStrictDups != 0 {
+-				l.checkdup(name, r, li, oldi)
++				l.checkdup(name, r, li, s.sym)
+ 			}
+-			return oldi, false
++			if a := osym.Align(); a > s.align { // we need to use the biggest alignment
++				l.SetSymAlign(s.sym, int32(a))
++				l.hashedSyms[*hash] = symSizeAlign{s.sym, s.size, a}
++			}
++			return s.sym, false
+ 		}
+-		l.hashedSyms[*hash] = i
++		l.hashedSyms[*hash] = symSizeAlign{i, osym.Siz(), osym.Align()}
+ 		addToGlobal()
+ 		return i, true
+ 	}
+@@ -451,7 +463,7 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li uint32, kind int, d
+ 		return i, true
+ 	}
+ 	// symbol already exists
+-	if dupok {
++	if osym.Dupok() {
+ 		if l.flags&FlagStrictDups != 0 {
+ 			l.checkdup(name, r, li, oldi)
+ 		}
+@@ -472,6 +484,7 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li uint32, kind int, d
+ 		l.objSyms[oldi] = objSym{r.objidx, li}
+ 	} else {
+ 		// old symbol overwrites new symbol.
++		typ := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
+ 		if !typ.IsData() { // only allow overwriting data symbol
+ 			log.Fatalf("duplicated definition of symbol " + name)
+ 		}
+@@ -2104,20 +2117,14 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
+ 		osym := r.Sym(i)
+ 		var name string
+ 		var v int
+-		var dupok bool
+-		var typ sym.SymKind
+ 		if kind != hashedDef { // we don't need the name, etc. for hashed symbols
+ 			name = osym.Name(r.Reader)
+ 			if needNameExpansion {
+ 				name = strings.Replace(name, "\"\".", r.pkgprefix, -1)
+ 			}
+ 			v = abiToVer(osym.ABI(), r.version)
+-			if kind == nonPkgDef {
+-				dupok = osym.Dupok()
+-				typ = sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
+-			}
+ 		}
+-		gi, added := l.AddSym(name, v, r, i, kind, dupok, typ)
++		gi, added := l.addSym(name, v, r, i, kind, osym)
+ 		r.syms[i] = gi
+ 		if !added {
+ 			continue
+@@ -2179,7 +2186,6 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
+ 		if osym.UsedInIface() {
+ 			l.SetAttrUsedInIface(gi, true)
+ 		}
+-		l.preprocess(arch, gi, name)
+ 	}
+ }
+ 
+@@ -2197,33 +2203,6 @@ func abiToVer(abi uint16, localSymVersion int) int {
+ 	return v
+ }
+ 
+-// preprocess looks for integer/floating point constant symbols whose
+-// content is encoded into the symbol name, and promotes them into
+-// real symbols with RODATA type and a payload that matches the
+-// encoded content.
+-func (l *Loader) preprocess(arch *sys.Arch, s Sym, name string) {
+-	if name != "" && name[0] == '$' && len(name) > 5 && l.SymType(s) == 0 && len(l.Data(s)) == 0 {
+-		x, err := strconv.ParseUint(name[5:], 16, 64)
+-		if err != nil {
+-			log.Panicf("failed to parse $-symbol %s: %v", name, err)
+-		}
+-		su := l.MakeSymbolUpdater(s)
+-		su.SetType(sym.SRODATA)
+-		su.SetLocal(true)
+-		switch name[:5] {
+-		case "$f32.":
+-			if uint64(uint32(x)) != x {
+-				log.Panicf("$-symbol %s too large: %d", name, x)
+-			}
+-			su.AddUint32(arch, uint32(x))
+-		case "$f64.", "$i64.":
+-			su.AddUint64(arch, x)
+-		default:
+-			log.Panicf("unrecognized $-symbol: %s", name)
+-		}
+-	}
+-}
+-
+ // ResolveABIAlias given a symbol returns the ABI alias target of that
+ // symbol. If the sym in question is not an alias, the sym itself is
+ // returned.
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index 0367bc4536..82c46f6417 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -6,6 +6,7 @@ package loader
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
+@@ -20,7 +21,7 @@ import (
+ // data or relocations).
+ func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
+ 	idx := uint32(len(ldr.objSyms))
+-	s, ok := ldr.AddSym(name, 0, or, idx, nonPkgDef, false, sym.SRODATA)
++	s, ok := ldr.addSym(name, 0, or, idx, nonPkgDef, &goobj2.Sym{})
+ 	if !ok {
+ 		t.Errorf("AddrSym failed for '" + name + "'")
+ 	}

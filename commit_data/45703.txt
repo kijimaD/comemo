@@ -13,7 +13,38 @@ Date:   Fri Nov 6 15:15:44 2020 -0500
     Reviewed-by: Dan Peterson <dpiddy@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go             | 4 ++--
  src/cmd/go/internal/modget/get.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ada85b1324..583ae9e92e 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -617,8 +617,8 @@
+ // dependency should be removed entirely, downgrading or removing modules
+ // depending on it as needed.
+ //
+-// The version suffix @latest explicitly requests the latest minor release ofthe
+-// module named by the given path. The suffix @upgrade is like @latest but
++// The version suffix @latest explicitly requests the latest minor release of
++// the module named by the given path. The suffix @upgrade is like @latest but
+ // will not downgrade a module if it is already required at a revision or
+ // pre-release version newer than the latest released version. The suffix
+ // @patch requests the latest patch release: the latest released version
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index bb59191c73..f759888436 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -89,8 +89,8 @@ downgrades the dependency. The version suffix @none indicates that the
+ dependency should be removed entirely, downgrading or removing modules
+ depending on it as needed.
+ 
+-The version suffix @latest explicitly requests the latest minor release ofthe
+-module named by the given path. The suffix @upgrade is like @latest but
++The version suffix @latest explicitly requests the latest minor release of
++the module named by the given path. The suffix @upgrade is like @latest but
+ will not downgrade a module if it is already required at a revision or
+ pre-release version newer than the latest released version. The suffix
+ @patch requests the latest patch release: the latest released version

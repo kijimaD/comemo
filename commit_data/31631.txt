@@ -17,9 +17,459 @@ Date:   Wed Mar 1 10:31:57 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/user/lookup_stubs.go     |   9 ---
  src/os/user/lookup_unix.go      | 162 ++++++++++++++++++++++++++++++++--------
  src/os/user/lookup_unix_test.go | 159 +++++++++++++++++++++++++++++++++++++++
  src/os/user/user_test.go        |   3 +
  4 files changed, 292 insertions(+), 41 deletions(-)
+
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index 9b6c4c1266..f203c349be 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -15,7 +15,6 @@ import (
+ )
+ 
+ func init() {
+-	userImplemented = false
+ 	groupImplemented = false
+ }
+ 
+@@ -46,14 +45,6 @@ func current() (*User, error) {
+ 	return u, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+ }
+ 
+-func lookupUser(username string) (*User, error) {
+-	return nil, errors.New("user: Lookup requires cgo")
+-}
+-
+-func lookupUserId(uid string) (*User, error) {
+-	return nil, errors.New("user: LookupId requires cgo")
+-}
+-
+ func listGroups(*User) ([]string, error) {
+ 	return nil, errors.New("user: GroupIds requires cgo")
+ }
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index 8d00c68216..5f34ba8611 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -10,12 +10,15 @@ package user
+ import (
+ 	"bufio"
+ 	"bytes"
++	"errors"
+ 	"io"
+ 	"os"
++	"strconv"
+ 	"strings"
+ )
+ 
+ const groupFile = "/etc/group"
++const userFile = "/etc/passwd"
+ 
+ var colon = []byte{':'}
+ 
+@@ -23,52 +26,138 @@ func init() {
+ 	groupImplemented = false
+ }
+ 
+-func findGroupId(id string, r io.Reader) (*Group, error) {
++// lineFunc returns a value, an error, or (nil, nil) to skip the row.
++type lineFunc func(line []byte) (v interface{}, err error)
++
++// readColonFile parses r as an /etc/group or /etc/passwd style file, running
++// fn for each row. readColonFile returns a value, an error, or (nil, nil) if
++// the end of the file is reached without a match.
++func readColonFile(r io.Reader, fn lineFunc) (v interface{}, err error) {
+ 	bs := bufio.NewScanner(r)
+-	substr := []byte(":" + id)
+ 	for bs.Scan() {
+-		lineBytes := bs.Bytes()
+-		if !bytes.Contains(lineBytes, substr) || bytes.Count(lineBytes, colon) < 3 {
++		line := bs.Bytes()
++		// There's no spec for /etc/passwd or /etc/group, but we try to follow
++		// the same rules as the glibc parser, which allows comments and blank
++		// space at the beginning of a line.
++		line = bytes.TrimSpace(line)
++		if len(line) == 0 || line[0] == '#' {
+ 			continue
+ 		}
+-		text := strings.TrimSpace(removeComment(string(lineBytes)))
++		v, err = fn(line)
++		if v != nil || err != nil {
++			return
++		}
++	}
++	return nil, bs.Err()
++}
++
++func matchGroupIndexValue(value string, idx int) lineFunc {
++	var leadColon string
++	if idx > 0 {
++		leadColon = ":"
++	}
++	substr := []byte(leadColon + value + ":")
++	return func(line []byte) (v interface{}, err error) {
++		if !bytes.Contains(line, substr) || bytes.Count(line, colon) < 3 {
++			return
++		}
+ 		// wheel:*:0:root
+-		parts := strings.SplitN(text, ":", 4)
+-		if len(parts) < 4 {
+-			continue
++		parts := strings.SplitN(string(line), ":", 4)
++		if len(parts) < 4 || parts[0] == "" || parts[idx] != value ||
++			// If the file contains +foo and you search for "foo", glibc
++			// returns an "invalid argument" error. Similarly, if you search
++			// for a gid for a row where the group name starts with "+" or "-",
++			// glibc fails to find the record.
++			parts[0][0] == '+' || parts[0][0] == '-' {
++			return
+ 		}
+-		if parts[2] == id {
+-			return &Group{Name: parts[0], Gid: parts[2]}, nil
++		if _, err := strconv.Atoi(parts[2]); err != nil {
++			return nil, nil
+ 		}
++		return &Group{Name: parts[0], Gid: parts[2]}, nil
+ 	}
+-	if err := bs.Err(); err != nil {
++}
++
++func findGroupId(id string, r io.Reader) (*Group, error) {
++	if v, err := readColonFile(r, matchGroupIndexValue(id, 2)); err != nil {
+ 		return nil, err
++	} else if v != nil {
++		return v.(*Group), nil
+ 	}
+ 	return nil, UnknownGroupIdError(id)
+ }
+ 
+ func findGroupName(name string, r io.Reader) (*Group, error) {
+-	bs := bufio.NewScanner(r)
+-	substr := []byte(name + ":")
+-	for bs.Scan() {
+-		lineBytes := bs.Bytes()
+-		if !bytes.Contains(lineBytes, substr) || bytes.Count(lineBytes, colon) < 3 {
+-			continue
++	if v, err := readColonFile(r, matchGroupIndexValue(name, 0)); err != nil {
++		return nil, err
++	} else if v != nil {
++		return v.(*Group), nil
++	}
++	return nil, UnknownGroupError(name)
++}
++
++// returns a *User for a row if that row's has the given value at the
++// given index.
++func matchUserIndexValue(value string, idx int) lineFunc {
++	var leadColon string
++	if idx > 0 {
++		leadColon = ":"
++	}
++	substr := []byte(leadColon + value + ":")
++	return func(line []byte) (v interface{}, err error) {
++		if !bytes.Contains(line, substr) || bytes.Count(line, colon) < 6 {
++			return
+ 		}
+-		text := strings.TrimSpace(removeComment(string(lineBytes)))
+-		// wheel:*:0:root
+-		parts := strings.SplitN(text, ":", 4)
+-		if len(parts) < 4 {
+-			continue
++		// kevin:x:1005:1006::/home/kevin:/usr/bin/zsh
++		parts := strings.SplitN(string(line), ":", 7)
++		if len(parts) < 6 || parts[idx] != value || parts[0] == "" ||
++			parts[0][0] == '+' || parts[0][0] == '-' {
++			return
++		}
++		if _, err := strconv.Atoi(parts[2]); err != nil {
++			return nil, nil
++		}
++		if _, err := strconv.Atoi(parts[3]); err != nil {
++			return nil, nil
+ 		}
+-		if parts[0] == name && parts[2] != "" {
+-			return &Group{Name: parts[0], Gid: parts[2]}, nil
++		u := &User{
++			Username: parts[0],
++			Uid:      parts[2],
++			Gid:      parts[3],
++			Name:     parts[4],
++			HomeDir:  parts[5],
+ 		}
++		// The pw_gecos field isn't quite standardized. Some docs
++		// say: "It is expected to be a comma separated list of
++		// personal data where the first item is the full name of the
++		// user."
++		if i := strings.Index(u.Name, ","); i >= 0 {
++			u.Name = u.Name[:i]
++		}
++		return u, nil
+ 	}
+-	if err := bs.Err(); err != nil {
++}
++
++func findUserId(uid string, r io.Reader) (*User, error) {
++	i, e := strconv.Atoi(uid)
++	if e != nil {
++		return nil, errors.New("user: invalid userid " + uid)
++	}
++	if v, err := readColonFile(r, matchUserIndexValue(uid, 2)); err != nil {
+ 		return nil, err
++	} else if v != nil {
++		return v.(*User), nil
+ 	}
+-	return nil, UnknownGroupError(name)
++	return nil, UnknownUserIdError(i)
++}
++
++func findUsername(name string, r io.Reader) (*User, error) {
++	if v, err := readColonFile(r, matchUserIndexValue(name, 0)); err != nil {
++		return nil, err
++	} else if v != nil {
++		return v.(*User), nil
++	}
++	return nil, UnknownUserError(name)
+ }
+ 
+ func lookupGroup(groupname string) (*Group, error) {
+@@ -89,11 +178,20 @@ func lookupGroupId(id string) (*Group, error) {
+ 	return findGroupId(id, f)
+ }
+ 
+-// removeComment returns line, removing any '#' byte and any following
+-// bytes.
+-func removeComment(line string) string {
+-	if i := strings.Index(line, "#"); i != -1 {
+-		return line[:i]
++func lookupUser(username string) (*User, error) {
++	f, err := os.Open(userFile)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	return findUsername(username, f)
++}
++
++func lookupUserId(uid string) (*User, error) {
++	f, err := os.Open(userFile)
++	if err != nil {
++		return nil, err
+ 	}
+-	return line
++	defer f.Close()
++	return findUserId(uid, f)
+ }
+diff --git a/src/os/user/lookup_unix_test.go b/src/os/user/lookup_unix_test.go
+index 443dd3b14f..02c88ab875 100644
+--- a/src/os/user/lookup_unix_test.go
++++ b/src/os/user/lookup_unix_test.go
+@@ -8,6 +8,7 @@
+ package user
+ 
+ import (
++	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+@@ -19,6 +20,9 @@ nobody:*:-2:
+ nogroup:*:-1:
+ wheel:*:0:root
+ emptyid:*::root
++invalidgid:*:notanumber:root
+++plussign:*:20:root
++-minussign:*:21:root
+       
+ daemon:*:1:root
+     indented:*:7:
+@@ -36,7 +40,12 @@ var groupTests = []struct {
+ 	{testGroupFile, "kmem", "2"},
+ 	{testGroupFile, "notinthefile", ""},
+ 	{testGroupFile, "comment", ""},
++	{testGroupFile, "plussign", ""},
++	{testGroupFile, "+plussign", ""},
++	{testGroupFile, "-minussign", ""},
++	{testGroupFile, "minussign", ""},
+ 	{testGroupFile, "emptyid", ""},
++	{testGroupFile, "invalidgid", ""},
+ 	{testGroupFile, "indented", "7"},
+ 	{testGroupFile, "# comment", ""},
+ 	{"", "emptyfile", ""},
+@@ -83,6 +92,8 @@ var groupIdTests = []struct {
+ 	{testGroupFile, "comment", ""},
+ 	{testGroupFile, "7", "indented"},
+ 	{testGroupFile, "4", ""},
++	{testGroupFile, "20", ""}, // row starts with a plus
++	{testGroupFile, "21", ""}, // row starts with a minus
+ 	{"", "emptyfile", ""},
+ }
+ 
+@@ -115,3 +126,151 @@ func TestFindGroupId(t *testing.T) {
+ 		}
+ 	}
+ }
++
++const testUserFile = `   # Example user file
++root:x:0:0:root:/root:/bin/bash
++daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
++bin:x:2:3:bin:/bin:/usr/sbin/nologin
++     indented:x:3:3:indented:/dev:/usr/sbin/nologin
++sync:x:4:65534:sync:/bin:/bin/sync
++negative:x:-5:60:games:/usr/games:/usr/sbin/nologin
++man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
++allfields:x:6:12:mansplit,man2,man3,man4:/home/allfields:/usr/sbin/nologin
+++plussign:x:8:10:man:/var/cache/man:/usr/sbin/nologin
++-minussign:x:9:10:man:/var/cache/man:/usr/sbin/nologin
++
++malformed:x:27:12 # more:colons:after:comment
++
++struid:x:notanumber:12 # more:colons:after:comment
++
++# commented:x:28:12:commented:/var/cache/man:/usr/sbin/nologin
++      # commentindented:x:29:12:commentindented:/var/cache/man:/usr/sbin/nologin
++
++struid2:x:30:badgid:struid2name:/home/struid:/usr/sbin/nologin
++`
++
++var userIdTests = []struct {
++	in   string
++	uid  string
++	name string
++}{
++	{testUserFile, "-5", "negative"},
++	{testUserFile, "2", "bin"},
++	{testUserFile, "100", ""}, // not in the file
++	{testUserFile, "8", ""},   // plus sign, glibc doesn't find it
++	{testUserFile, "9", ""},   // minus sign, glibc doesn't find it
++	{testUserFile, "27", ""},  // malformed
++	{testUserFile, "28", ""},  // commented out
++	{testUserFile, "29", ""},  // commented out, indented
++	{testUserFile, "3", "indented"},
++	{testUserFile, "30", ""}, // the Gid is not valid, shouldn't match
++	{"", "1", ""},
++}
++
++func TestInvalidUserId(t *testing.T) {
++	_, err := findUserId("notanumber", strings.NewReader(""))
++	if err == nil {
++		t.Fatalf("findUserId('notanumber'): got nil error")
++	}
++	if want := "user: invalid userid notanumber"; err.Error() != want {
++		t.Errorf("findUserId('notanumber'): got %v, want %s", err, want)
++	}
++}
++
++func TestLookupUserId(t *testing.T) {
++	for _, tt := range userIdTests {
++		got, err := findUserId(tt.uid, strings.NewReader(tt.in))
++		if tt.name == "" {
++			if err == nil {
++				t.Errorf("findUserId(%s): got nil error, expected err", tt.uid)
++				continue
++			}
++			switch terr := err.(type) {
++			case UnknownUserIdError:
++				if want := "user: unknown userid " + tt.uid; terr.Error() != want {
++					t.Errorf("findUserId(%s): got %v, want %v", tt.name, terr, want)
++				}
++			default:
++				t.Errorf("findUserId(%s): got unexpected error %v", tt.name, terr)
++			}
++		} else {
++			if err != nil {
++				t.Fatalf("findUserId(%s): got unexpected error %v", tt.name, err)
++			}
++			if got.Uid != tt.uid {
++				t.Errorf("findUserId(%s): got uid %v, want %s", tt.name, got.Uid, tt.uid)
++			}
++			if got.Username != tt.name {
++				t.Errorf("findUserId(%s): got name %s, want %s", tt.name, got.Username, tt.name)
++			}
++		}
++	}
++}
++
++func TestLookupUserPopulatesAllFields(t *testing.T) {
++	u, err := findUsername("allfields", strings.NewReader(testUserFile))
++	if err != nil {
++		t.Fatal(err)
++	}
++	want := &User{
++		Username: "allfields",
++		Uid:      "6",
++		Gid:      "12",
++		Name:     "mansplit",
++		HomeDir:  "/home/allfields",
++	}
++	if !reflect.DeepEqual(u, want) {
++		t.Errorf("findUsername: got %#v, want %#v", u, want)
++	}
++}
++
++var userTests = []struct {
++	in   string
++	name string
++	uid  string
++}{
++	{testUserFile, "negative", "-5"},
++	{testUserFile, "bin", "2"},
++	{testUserFile, "notinthefile", ""},
++	{testUserFile, "indented", "3"},
++	{testUserFile, "plussign", ""},
++	{testUserFile, "+plussign", ""},
++	{testUserFile, "minussign", ""},
++	{testUserFile, "-minussign", ""},
++	{testUserFile, "   indented", ""},
++	{testUserFile, "commented", ""},
++	{testUserFile, "commentindented", ""},
++	{testUserFile, "malformed", ""},
++	{testUserFile, "# commented", ""},
++	{"", "emptyfile", ""},
++}
++
++func TestLookupUser(t *testing.T) {
++	for _, tt := range userTests {
++		got, err := findUsername(tt.name, strings.NewReader(tt.in))
++		if tt.uid == "" {
++			if err == nil {
++				t.Errorf("lookupUser(%s): got nil error, expected err", tt.uid)
++				continue
++			}
++			switch terr := err.(type) {
++			case UnknownUserError:
++				if want := "user: unknown user " + tt.name; terr.Error() != want {
++					t.Errorf("lookupUser(%s): got %v, want %v", tt.name, terr, want)
++				}
++			default:
++				t.Errorf("lookupUser(%s): got unexpected error %v", tt.name, terr)
++			}
++		} else {
++			if err != nil {
++				t.Fatalf("lookupUser(%s): got unexpected error %v", tt.name, err)
++			}
++			if got.Uid != tt.uid {
++				t.Errorf("lookupUser(%s): got uid %v, want %s", tt.name, got.Uid, tt.uid)
++			}
++			if got.Username != tt.name {
++				t.Errorf("lookupUser(%s): got name %s, want %s", tt.name, got.Username, tt.name)
++			}
++		}
++	}
++}
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 73e8ed8de7..8a12d62273 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -70,6 +70,9 @@ func TestLookup(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Current: %v", err)
+ 	}
++	// TODO: Lookup() has a fast path that calls Current() and returns if the
++	// usernames match, so this test does not exercise very much. It would be
++	// good to try and test finding a different user than the current user.
+ 	got, err := Lookup(want.Username)
+ 	if err != nil {
+ 		t.Fatalf("Lookup: %v", err)

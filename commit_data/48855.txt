@@ -16,7 +16,34 @@ Date:   Mon Jun 21 12:52:17 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/scanner/scanner.go      | 2 +-
  src/go/scanner/scanner_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 29cbf39721..f08e28cdd6 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -373,7 +373,7 @@ func (s *Scanner) scanIdentifier() string {
+ 			continue
+ 		}
+ 		s.rdOffset += rdOffset
+-		if b < utf8.RuneSelf {
++		if 0 < b && b < utf8.RuneSelf {
+ 			// Optimization: we've encountered an ASCII character that's not a letter
+ 			// or number. Avoid the call into s.next() and corresponding set up.
+ 			//
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index ac8d257716..db123c32e0 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -812,6 +812,8 @@ var errors = []struct {
+ 	{"//\ufeff", token.COMMENT, 2, "//\ufeff", "illegal byte order mark"},                                // only first BOM is ignored
+ 	{"'\ufeff" + `'`, token.CHAR, 1, "'\ufeff" + `'`, "illegal byte order mark"},                         // only first BOM is ignored
+ 	{`"` + "abc\ufeffdef" + `"`, token.STRING, 4, `"` + "abc\ufeffdef" + `"`, "illegal byte order mark"}, // only first BOM is ignored
++	{"abc\x00def", token.IDENT, 3, "abc", "illegal character NUL"},
++	{"abc\x00", token.IDENT, 3, "abc", "illegal character NUL"},
+ }
+ 
+ func TestScanErrors(t *testing.T) {

@@ -14,8 +14,67 @@ Date:   Wed Sep 27 09:03:11 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/syscall/unix/at_sysnum_freebsd.go |  2 ++
  src/internal/syscall/unix/eaccess_freebsd.go   | 26 ++++++++++++++++++++++++++
  src/internal/syscall/unix/eaccess_other.go     |  2 +-
  3 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/at_sysnum_freebsd.go b/src/internal/syscall/unix/at_sysnum_freebsd.go
+index 9cd5da6ce3..f74961d508 100644
+--- a/src/internal/syscall/unix/at_sysnum_freebsd.go
++++ b/src/internal/syscall/unix/at_sysnum_freebsd.go
+@@ -7,6 +7,8 @@ package unix
+ import "syscall"
+ 
+ const (
++	AT_EACCESS          = 0x100
++	AT_FDCWD            = -0x64
+ 	AT_REMOVEDIR        = 0x800
+ 	AT_SYMLINK_NOFOLLOW = 0x200
+ 
+diff --git a/src/internal/syscall/unix/eaccess_freebsd.go b/src/internal/syscall/unix/eaccess_freebsd.go
+new file mode 100644
+index 0000000000..f2514c0a84
+--- /dev/null
++++ b/src/internal/syscall/unix/eaccess_freebsd.go
+@@ -0,0 +1,26 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func faccessat(dirfd int, path string, mode uint32, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall.Syscall6(syscall.SYS_FACCESSAT, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(flags), 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return err
++}
++
++func Eaccess(path string, mode uint32) error {
++	return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
++}
+diff --git a/src/internal/syscall/unix/eaccess_other.go b/src/internal/syscall/unix/eaccess_other.go
+index 23be118297..4fa2265900 100644
+--- a/src/internal/syscall/unix/eaccess_other.go
++++ b/src/internal/syscall/unix/eaccess_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix && !linux
++//go:build unix && !freebsd && !linux
+ 
+ package unix
+ 

@@ -14,7 +14,53 @@ Date:   Thu Feb 7 03:38:21 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/161558
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go |  5 +++--
  test/fixedbugs/issue30085.go       | 12 ++++++++++++
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 9f25e5e15b..12875e798e 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -166,11 +166,12 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 		return append(init, as2)
+ 	}
+ 
++	nel := len(el)
+ 	for _, v := range vl {
+ 		var e *Node
+ 		if doexpr {
+ 			if len(el) == 0 {
+-				yyerror("missing expression in var declaration")
++				yyerror("assignment mismatch: %d variables but %d values", len(vl), nel)
+ 				break
+ 			}
+ 			e = el[0]
+@@ -194,7 +195,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 	}
+ 
+ 	if len(el) != 0 {
+-		yyerror("extra expression in var declaration")
++		yyerror("assignment mismatch: %d variables but %d values", len(vl), nel)
+ 	}
+ 	return init
+ }
+diff --git a/test/fixedbugs/issue30085.go b/test/fixedbugs/issue30085.go
+new file mode 100644
+index 0000000000..8223c855cd
+--- /dev/null
++++ b/test/fixedbugs/issue30085.go
+@@ -0,0 +1,12 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values"
++	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values"
++}

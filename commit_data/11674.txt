@@ -7,6 +7,19 @@ Date:   Tue Feb 7 17:50:04 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5639046
-
+---
  src/pkg/flag/flag.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 1719af89a1..c28d0e7207 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -49,6 +49,7 @@
+ 
+ 	Integer flags accept 1234, 0664, 0x1234 and may be negative.
+ 	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
++	Duration flags accept any input valid for time.ParseDuration.
+ 
+ 	The default set of command-line flags is controlled by
+ 	top-level functions.  The FlagSet type allows one to define

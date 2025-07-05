@@ -9,9 +9,64 @@ Date:   Fri Jun 20 20:20:56 2014 -0400
     R=golang-codereviews, iant, dave
     CC=golang-codereviews
     https://golang.org/cl/107270043
-
+---
  src/cmd/go/build.go                          |   6 +++---
  src/cmd/go/doc.go                            |   2 +-
  src/pkg/runtime/race/race.go                 |   2 +-
  src/pkg/runtime/race/race_freebsd_amd64.syso | Bin 0 -> 261096 bytes
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 3645f1c2d5..1dc13cf068 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -64,7 +64,7 @@ and test commands:
+ 		The default is the number of CPUs available.
+ 	-race
+ 		enable data race detection.
+-		Supported only on linux/amd64, darwin/amd64 and windows/amd64.
++		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+ 	-v
+ 		print the names of packages as they are compiled.
+ 	-work
+@@ -2556,8 +2556,8 @@ func raceInit() {
+ 	if !buildRace {
+ 		return
+ 	}
+-	if goarch != "amd64" || goos != "linux" && goos != "darwin" && goos != "windows" {
+-		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
++	if goarch != "amd64" || goos != "linux" && goos != "freebsd" && goos != "darwin" && goos != "windows" {
++		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+ 		os.Exit(2)
+ 	}
+ 	buildGcflags = append(buildGcflags, "-race")
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 9840804ce7..52737f9f8b 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -82,7 +82,7 @@ and test commands:
+ 		The default is the number of CPUs available.
+ 	-race
+ 		enable data race detection.
+-		Supported only on linux/amd64, darwin/amd64 and windows/amd64.
++		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+ 	-v
+ 		print the names of packages as they are compiled.
+ 	-work
+diff --git a/src/pkg/runtime/race/race.go b/src/pkg/runtime/race/race.go
+index e53cacf4a0..3c297e84b2 100644
+--- a/src/pkg/runtime/race/race.go
++++ b/src/pkg/runtime/race/race.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build race,linux,amd64 race,darwin,amd64 race,windows,amd64
++// +build race,linux,amd64 race,freebsd,amd64 race,darwin,amd64 race,windows,amd64
+ 
+ package race
+ 
+diff --git a/src/pkg/runtime/race/race_freebsd_amd64.syso b/src/pkg/runtime/race/race_freebsd_amd64.syso
+new file mode 100644
+index 0000000000..b25d868f48
+Binary files /dev/null and b/src/pkg/runtime/race/race_freebsd_amd64.syso differ

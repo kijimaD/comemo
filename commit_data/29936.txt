@@ -11,7 +11,57 @@ Date:   Mon Oct 17 22:50:44 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/example_test.go | 19 +++++++++++++++++++
  src/net/url/url.go          |  4 ++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index 645de2e909..4ae772426c 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -5,6 +5,7 @@
+ package url_test
+ 
+ import (
++	"encoding/json"
+ 	"fmt"
+ 	"log"
+ 	"net/http"
+@@ -98,3 +99,21 @@ func ExampleURL_ResolveReference() {
+ 	// Output:
+ 	// http://example.com/search?q=dotnet
+ }
++
++func ExampleParseQuery() {
++	m, err := url.ParseQuery(`x=1&y=2&y=3;z`)
++	if err != nil {
++		log.Fatal(err)
++	}
++	fmt.Println(toJSON(m))
++	// Output:
++	// {"x":["1"], "y":["2", "3"], "z":[""]}
++}
++
++func toJSON(m interface{}) string {
++	js, err := json.Marshal(m)
++	if err != nil {
++		log.Fatal(err)
++	}
++	return strings.Replace(string(js), ",", ", ", -1)
++}
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 8824c99ddc..2991d3e18e 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -777,6 +777,10 @@ func (v Values) Del(key string) {
+ // ParseQuery always returns a non-nil map containing all the
+ // valid query parameters found; err describes the first decoding error
+ // encountered, if any.
++//
++// Query is expected to be a list of key=value settings separated by
++// ampersands or semicolons. A setting without an equals sign is
++// interpreted as a key set to an empty value.
+ func ParseQuery(query string) (Values, error) {
+ 	m := make(Values)
+ 	err := parseQuery(m, query)

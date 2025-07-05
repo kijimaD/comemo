@@ -17,7 +17,102 @@ Date:   Tue Aug 16 13:33:29 2016 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/nodes.go  | 26 +++++++++++++++++++-------
  src/cmd/compile/internal/syntax/parser.go |  4 ++++
  2 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 4e264c1e82..e56b1235fe 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -8,6 +8,7 @@ package syntax
+ // Nodes
+ 
+ type Node interface {
++	Line() uint32
+ 	aNode()
+ }
+ 
+@@ -19,6 +20,10 @@ type node struct {
+ 
+ func (*node) aNode() {}
+ 
++func (n *node) Line() uint32 {
++	return n.line
++}
++
+ func (n *node) init(p *parser) {
+ 	n.pos = uint32(p.pos)
+ 	n.line = uint32(p.line)
+@@ -80,11 +85,12 @@ type (
+ 	}
+ 
+ 	FuncDecl struct {
+-		Attr map[string]bool // go:attr map
+-		Recv *Field          // nil means regular function
+-		Name *Name
+-		Type *FuncType
+-		Body []Stmt // nil means no body (forward declaration)
++		Attr    map[string]bool // go:attr map
++		Recv    *Field          // nil means regular function
++		Name    *Name
++		Type    *FuncType
++		Body    []Stmt // nil means no body (forward declaration)
++		EndLine uint32 // TODO(mdempsky): Cleaner solution.
+ 		decl
+ 	}
+ )
+@@ -136,8 +142,9 @@ type (
+ 
+ 	// func Type { Body }
+ 	FuncLit struct {
+-		Type *FuncType
+-		Body []Stmt
++		Type    *FuncType
++		Body    []Stmt
++		EndLine uint32 // TODO(mdempsky): Cleaner solution.
+ 		expr
+ 	}
+ 
+@@ -165,6 +172,11 @@ type (
+ 	SliceExpr struct {
+ 		X     Expr
+ 		Index [3]Expr
++		// Full indicates whether this is a simple or full slice expression.
++		// In a valid AST, this is equivalent to Index[2] != nil.
++		// TODO(mdempsky): This is only needed to report the "3-index
++		// slice of string" error when Index[2] is missing.
++		Full bool
+ 		expr
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index f267d4b2c9..40253224f0 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -422,6 +422,8 @@ func (p *parser) funcDecl() *FuncDecl {
+ 	f.Type = p.funcType()
+ 	f.Body = p.funcBody()
+ 
++	f.EndLine = uint32(p.line)
++
+ 	// TODO(gri) deal with function properties
+ 	// if noescape && body != nil {
+ 	// 	p.error("can only use //go:noescape with external func implementations")
+@@ -624,6 +626,7 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 			f.init(p)
+ 			f.Type = t
+ 			f.Body = p.funcBody()
++			f.EndLine = uint32(p.line)
+ 			p.xnest--
+ 			p.fnest--
+ 			return f
+@@ -739,6 +742,7 @@ loop:
+ 				t.Index[1] = p.expr()
+ 			}
+ 			if p.got(_Colon) {
++				t.Full = true
+ 				// x[i:j:...]
+ 				if t.Index[1] == nil {
+ 					p.error("middle index required in 3-index slice")

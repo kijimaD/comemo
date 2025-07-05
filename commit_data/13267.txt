@@ -12,7 +12,105 @@ Date:   Mon Jun 4 07:18:06 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6286043
-
+---
  src/pkg/net/textproto/reader.go      | 31 ++++++++++++++++++-------------
  src/pkg/net/textproto/reader_test.go | 17 +++++++++++++++++
  2 files changed, 35 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index 125feb3e88..3777424534 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -452,16 +452,18 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ 			return m, err
+ 		}
+ 
+-		// Key ends at first colon; must not have spaces.
++		// Key ends at first colon; should not have spaces but
++		// they appear in the wild, violating specs, so we
++		// remove them if present.
+ 		i := bytes.IndexByte(kv, ':')
+ 		if i < 0 {
+ 			return m, ProtocolError("malformed MIME header line: " + string(kv))
+ 		}
+-		key := string(kv[0:i])
+-		if strings.Index(key, " ") >= 0 {
+-			key = strings.TrimRight(key, " ")
++		endKey := i
++		for endKey > 0 && kv[endKey-1] == ' ' {
++			endKey--
+ 		}
+-		key = CanonicalMIMEHeaderKey(key)
++		key := canonicalMIMEHeaderKey(kv[:endKey])
+ 
+ 		// Skip initial spaces in value.
+ 		i++ // skip colon
+@@ -486,25 +488,28 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ // canonical key for "accept-encoding" is "Accept-Encoding".
+ func CanonicalMIMEHeaderKey(s string) string {
+ 	// Quick check for canonical encoding.
+-	needUpper := true
++	upper := true
+ 	for i := 0; i < len(s); i++ {
+ 		c := s[i]
+-		if needUpper && 'a' <= c && c <= 'z' {
+-			goto MustRewrite
++		if upper && 'a' <= c && c <= 'z' {
++			return canonicalMIMEHeaderKey([]byte(s))
+ 		}
+-		if !needUpper && 'A' <= c && c <= 'Z' {
+-			goto MustRewrite
++		if !upper && 'A' <= c && c <= 'Z' {
++			return canonicalMIMEHeaderKey([]byte(s))
+ 		}
+-		needUpper = c == '-'
++		upper = c == '-'
+ 	}
+ 	return s
++}
+ 
+-MustRewrite:
++// canonicalMIMEHeaderKey is like CanonicalMIMEHeaderKey but is
++// allowed to mutate the provided byte slice before returning the
++// string.
++func canonicalMIMEHeaderKey(a []byte) string {
+ 	// Canonicalize: first letter upper case
+ 	// and upper case after each dash.
+ 	// (Host, User-Agent, If-Modified-Since).
+ 	// MIME headers are ASCII only, so no Unicode issues.
+-	a := []byte(s)
+ 	upper := true
+ 	for i, v := range a {
+ 		if v == ' ' {
+diff --git a/src/pkg/net/textproto/reader_test.go b/src/pkg/net/textproto/reader_test.go
+index 7c5d16227f..9b6c76a0d0 100644
+--- a/src/pkg/net/textproto/reader_test.go
++++ b/src/pkg/net/textproto/reader_test.go
+@@ -6,6 +6,7 @@ package textproto
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"io"
+ 	"reflect"
+ 	"strings"
+@@ -239,3 +240,19 @@ func TestRFC959Lines(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkReadMIMEHeader(b *testing.B) {
++	var buf bytes.Buffer
++	br := bufio.NewReader(&buf)
++	r := NewReader(br)
++	for i := 0; i < b.N; i++ {
++		buf.WriteString("User-Agent: not mozilla\r\nContent-Length: 23452\r\nContent-Type: text/html; charset-utf8\r\nFoo-Bar: foobar\r\nfoo-bar: some more string\r\n\r\n")
++		h, err := r.ReadMIMEHeader()
++		if err != nil {
++			b.Fatal(err)
++		}
++		if len(h) != 4 {
++			b.Fatalf("want 4")
++		}
++	}
++}

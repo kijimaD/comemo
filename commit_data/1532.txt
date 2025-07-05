@@ -9,6 +9,41 @@ Date:   Wed Jan 21 11:56:47 2009 -0800
     DELTA=24  (0 added, 24 deleted, 0 changed)
     OCL=23205
     CL=23220
-
+---
  test/readfile.go | 28 ----------------------------
  1 file changed, 28 deletions(-)
+
+diff --git a/test/readfile.go b/test/readfile.go
+deleted file mode 100644
+index 4853fd20e2..0000000000
+--- a/test/readfile.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// # $G $F.go && $L $F.$A && ./$A.out readfile.go
+-// # This is some data we can recognize
+-
+-package main
+-
+-func main() {
+-	var s string;
+-	var ok bool;
+-
+-	s, ok = sys.readfile("readfile.go");
+-	if !ok {
+-		print("couldn't readfile\n");
+-		sys.Exit(1)
+-	}
+-	start_of_file :=
+-		"// $G $F.go && $L $F.$A && ./$A.out readfile.go\n" +
+-		"// # This is some data we can recognize\n" +
+-		"\n" +
+-		"package main\n";
+-	if s[0:102] != start_of_file {
+-		print("wrong data\n");
+-		sys.Exit(1)
+-	}
+-}

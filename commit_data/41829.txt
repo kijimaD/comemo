@@ -11,6 +11,31 @@ Date:   Sun Oct 27 12:22:02 2019 -0500
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 1edf8cf407..a6fa14cc74 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1294,6 +1294,19 @@ func (ctxt *Link) hostlink() {
+ 		}
+ 	}
+ 
++	if ctxt.Arch.Family == sys.ARM64 && objabi.GOOS == "freebsd" {
++		// Switch to ld.bfd on freebsd/arm64.
++		argv = append(argv, "-fuse-ld=bfd")
++
++		// Provide a useful error if ld.bfd is missing.
++		cmd := exec.Command(*flagExtld, "-fuse-ld=bfd", "-Wl,--version")
++		if out, err := cmd.CombinedOutput(); err == nil {
++			if !bytes.Contains(out, []byte("GNU ld")) {
++				log.Fatalf("ARM64 external linker must be ld.bfd (issue #35197), please install devel/binutils")
++			}
++		}
++	}
++
+ 	if ctxt.IsELF && len(buildinfo) > 0 {
+ 		argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
+ 	}

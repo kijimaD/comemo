@@ -16,7 +16,67 @@ Date:   Wed Sep 4 12:43:50 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/web/http.go         |  8 ++++----
  src/cmd/go/testdata/script/mod_getx.txt | 13 +++++++++++++
  2 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index b790fe9916..757bcc8778 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -111,7 +111,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		fetched, res, err = fetch(secure)
+ 		if err != nil {
+ 			if cfg.BuildX {
+-				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(url), err)
++				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(secure), err)
+ 			}
+ 			if security != Insecure || url.Scheme == "https" {
+ 				// HTTPS failed, and we can't fall back to plain HTTP.
+@@ -146,7 +146,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		insecure.Scheme = "http"
+ 		if insecure.User != nil && security != Insecure {
+ 			if cfg.BuildX {
+-				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", Redacted(url))
++				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", Redacted(insecure))
+ 			}
+ 			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", Redacted(insecure))
+ 		}
+@@ -154,7 +154,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		fetched, res, err = fetch(insecure)
+ 		if err != nil {
+ 			if cfg.BuildX {
+-				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(url), err)
++				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(insecure), err)
+ 			}
+ 			// HTTP failed, and we already tried HTTPS if applicable.
+ 			// Report the error from the HTTP attempt.
+@@ -165,7 +165,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 	// Note: accepting a non-200 OK here, so people can serve a
+ 	// meta import in their http 404 page.
+ 	if cfg.BuildX {
+-		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(url), res.Status, time.Since(start).Seconds())
++		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(fetched), res.Status, time.Since(start).Seconds())
+ 	}
+ 	r := &Response{
+ 		URL:        Redacted(fetched),
+diff --git a/src/cmd/go/testdata/script/mod_getx.txt b/src/cmd/go/testdata/script/mod_getx.txt
+new file mode 100644
+index 0000000000..36f33426df
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_getx.txt
+@@ -0,0 +1,13 @@
++[short] skip
++[!net] skip
++
++env GO111MODULE=on
++env GOPROXY=direct
++env GOSUMDB=off
++
++# 'go get -x' should log URLs with an HTTP or HTTPS scheme.
++# A bug had caused us to log schemeless URLs instead.
++go get -x -d golang.org/x/text@v0.1.0
++stderr '^# get https://golang.org/x/text\?go-get=1$'
++stderr '^# get https://golang.org/x/text\?go-get=1: 200 OK \([0-9.]+s\)$'
++! stderr '^# get //.*'

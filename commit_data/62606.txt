@@ -25,9 +25,130 @@ Date:   Wed Mar 12 16:00:26 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/synctest/synctest_test.go | 21 +++++++++++++++++++++
  src/runtime/time.go                    | 13 ++++++++++++-
  src/time/time.go                       |  7 +++++--
  src/time/time_test.go                  | 14 ++++++++++++++
  4 files changed, 52 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/synctest/synctest_test.go b/src/internal/synctest/synctest_test.go
+index 450d5f5416..62acb42359 100644
+--- a/src/internal/synctest/synctest_test.go
++++ b/src/internal/synctest/synctest_test.go
+@@ -37,6 +37,27 @@ func TestNow(t *testing.T) {
+ 	})
+ }
+ 
++// TestMonotonicClock exercises comparing times from within a bubble
++// with ones from outside the bubble.
++func TestMonotonicClock(t *testing.T) {
++	start := time.Now()
++	synctest.Run(func() {
++		time.Sleep(time.Until(start.Round(0)))
++		if got, want := time.Now().In(time.UTC), start.In(time.UTC); !got.Equal(want) {
++			t.Fatalf("time.Now() = %v, want %v", got, want)
++		}
++
++		wait := 1 * time.Second
++		time.Sleep(wait)
++		if got := time.Since(start); got != wait {
++			t.Fatalf("time.Since(start) = %v, want %v", got, wait)
++		}
++		if got := time.Now().Sub(start); got != wait {
++			t.Fatalf("time.Now().Sub(start) = %v, want %v", got, wait)
++		}
++	})
++}
++
+ func TestRunEmpty(t *testing.T) {
+ 	synctest.Run(func() {
+ 	})
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index c22d39c089..3ece161cf4 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -18,7 +18,13 @@ func time_runtimeNow() (sec int64, nsec int32, mono int64) {
+ 	if sg := getg().syncGroup; sg != nil {
+ 		sec = sg.now / (1000 * 1000 * 1000)
+ 		nsec = int32(sg.now % (1000 * 1000 * 1000))
+-		return sec, nsec, sg.now
++		// Don't return a monotonic time inside a synctest bubble.
++		// If we return a monotonic time based on the fake clock,
++		// arithmetic on times created inside/outside bubbles is confusing.
++		// If we return a monotonic time based on the real monotonic clock,
++		// arithmetic on times created in the same bubble is confusing.
++		// Simplest is to omit the monotonic time within a bubble.
++		return sec, nsec, 0
+ 	}
+ 	return time_now()
+ }
+@@ -32,6 +38,11 @@ func time_runtimeNano() int64 {
+ 	return nanotime()
+ }
+ 
++//go:linkname time_runtimeIsBubbled time.runtimeIsBubbled
++func time_runtimeIsBubbled() bool {
++	return getg().syncGroup != nil
++}
++
+ // A timer is a potentially repeating trigger for calling t.f(t.arg, t.seq).
+ // Timers are allocated by client code, often as part of other data structures.
+ // Each P has a heap of pointers to timers that it manages.
+diff --git a/src/time/time.go b/src/time/time.go
+index 14e79672ca..bcaeee407e 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1221,7 +1221,7 @@ func subMono(t, u int64) Duration {
+ // Since returns the time elapsed since t.
+ // It is shorthand for time.Now().Sub(t).
+ func Since(t Time) Duration {
+-	if t.wall&hasMonotonic != 0 {
++	if t.wall&hasMonotonic != 0 && !runtimeIsBubbled() {
+ 		// Common case optimization: if t has monotonic time, then Sub will use only it.
+ 		return subMono(runtimeNano()-startNano, t.ext)
+ 	}
+@@ -1231,7 +1231,7 @@ func Since(t Time) Duration {
+ // Until returns the duration until t.
+ // It is shorthand for t.Sub(time.Now()).
+ func Until(t Time) Duration {
+-	if t.wall&hasMonotonic != 0 {
++	if t.wall&hasMonotonic != 0 && !runtimeIsBubbled() {
+ 		// Common case optimization: if t has monotonic time, then Sub will use only it.
+ 		return subMono(t.ext, runtimeNano()-startNano)
+ 	}
+@@ -1325,6 +1325,9 @@ func runtimeNow() (sec int64, nsec int32, mono int64)
+ //go:linkname runtimeNano
+ func runtimeNano() int64
+ 
++//go:linkname runtimeIsBubbled
++func runtimeIsBubbled() bool
++
+ // Monotonic times are reported as offsets from startNano.
+ // We initialize startNano to runtimeNano() - 1 so that on systems where
+ // monotonic time resolution is fairly low (e.g. Windows 2008
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index ff253be46b..dcb477b658 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1497,6 +1497,20 @@ func BenchmarkNowUnixMicro(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkSince(b *testing.B) {
++	start := Now()
++	for b.Loop() {
++		u = int64(Since(start))
++	}
++}
++
++func BenchmarkUntil(b *testing.B) {
++	end := Now().Add(1 * Hour)
++	for b.Loop() {
++		u = int64(Until(end))
++	}
++}
++
+ func BenchmarkFormat(b *testing.B) {
+ 	t := Unix(1265346057, 0)
+ 	for i := 0; i < b.N; i++ {

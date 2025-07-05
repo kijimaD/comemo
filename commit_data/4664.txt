@@ -10,7 +10,7 @@ Date:   Sun Jan 24 23:33:59 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/193080
-
+---
  src/cmd/gc/go.h             |  6 ++++-
  src/cmd/gc/go.y             |  3 ++-
  src/cmd/gc/lex.c            |  3 +++
@@ -19,3 +19,217 @@ Date:   Sun Jan 24 23:33:59 2010 -0800
  src/pkg/reflect/all_test.go |  7 ++++++
  src/pkg/runtime/Makefile    |  3 +++
  7 files changed, 67 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ac9e5c6f3f..d7b716cd6c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -308,7 +308,8 @@ struct	Pkg
+ 	Strlit*	path;
+ 	char*	prefix;
+ 	Pkg*	link;
+-	int	exported;
++	char	exported;	// import line written in export data
++	char	direct;	// imported directly
+ };
+ 
+ typedef	struct	Iter	Iter;
+@@ -659,6 +660,7 @@ EXTERN	Pkg*	runtimepkg;	// package runtime
+ EXTERN	Pkg*	stringpkg;	// fake package for C strings
+ EXTERN	Pkg*	typepkg;	// fake package for runtime type info
+ EXTERN	Pkg*	unsafepkg;	// package unsafe
++EXTERN	Pkg*	phash[128];
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	runtimeimport;
+ extern	char*	unsafeimport;
+@@ -732,6 +734,8 @@ EXTERN	int	funcdepth;
+ EXTERN	int	typecheckok;
+ EXTERN	int	packagequotes;
+ 
++EXTERN	int	compiling_runtime;
++
+ /*
+  *	y.tab.c
+  */
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 8882f7f2e5..4f7c5db34e 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -235,6 +235,7 @@ import_package:
+ 	LPACKAGE sym ';'
+ 	{
+ 		importpkg->name = $2->name;
++		importpkg->direct = 1;
+ 
+ 		// PGNS: fixme
+ 		if(strcmp($2->name, "main") == 0)
+@@ -242,7 +243,7 @@ import_package:
+ 
+ 		// PGNS: This should go away once we get
+ 		// rid of the global package name space.
+-		if(localpkg->name && strcmp($2->name, localpkg->name) == 0 && strcmp($2->name, "runtime") != 0)
++		if(localpkg->name && strcmp($2->name, localpkg->name) == 0 && !compiling_runtime)
+ 			yyerror("package cannot import itself");
+ 	}
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 03f5b473c4..bf86df5b82 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -68,6 +68,9 @@ main(int argc, char *argv[])
+ 	if(argc < 1)
+ 		goto usage;
+ 
++	// special flag to detect compilation of package runtime
++	compiling_runtime = debug['+'];
++
+ 	pathname = mal(1000);
+ 	if(getwd(pathname, 999) == 0)
+ 		strcpy(pathname, "/???");
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 0e9ece92f5..97217af7c4 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -267,12 +267,42 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
+ 	if(pkg == nil)
+ 		return dgostringptr(s, ot, nil);
+ 
+-	// PGNS: This needs to be import path instead of pkg->name,
+-	// but we need to figure out how to fill it in during 6l when
+-	// trying to refer to localpkg.
++	// Emit reference to go.importpath.""., which 6l will
++	// rewrite using the correct import path.  Every package
++	// that imports this one directly defines the symbol.
++	if(pkg == localpkg) {
++		static Sym *ns;
++		
++		if(ns == nil)
++			ns = pkglookup("importpath.\"\".", mkpkg(strlit("go")));
++		return dsymptr(s, ot, ns, 0);
++	}
++
+ 	return dgostringptr(s, ot, pkg->name);
+ }
+ 
++static void
++dimportpath(Pkg *p)
++{
++	static Pkg *gopkg;
++	char *nam;
++	Node *n;
++	
++	if(gopkg == nil) {
++		gopkg = mkpkg(strlit("go"));
++		gopkg->name = "go";
++	}
++	nam = smprint("importpath.%s.", p->prefix);
++
++	n = nod(ONAME, N, N);
++	n->sym = pkglookup(nam, gopkg);
++	free(nam);
++	n->class = PEXTERN;
++	n->xoffset = 0;
++	
++	gdatastring(n, p->path);
++	ggloblsym(n->sym, types[TSTRING]->width, 1);
++}
+ 
+ /*
+  * uncommonType
+@@ -626,8 +656,7 @@ dtypesym(Type *t)
+ 	else
+ 		tsym = t->sym;
+ 
+-	// PGNS: Fixme
+-	if(strcmp(localpkg->name, "runtime") == 0) {
++	if(compiling_runtime) {
+ 		if(t == types[t->etype])
+ 			goto ok;
+ 		if(t1 && t1 == types[t1->etype])
+@@ -784,6 +813,7 @@ dumptypestructs(void)
+ 	NodeList *l;
+ 	Node *n;
+ 	Type *t;
++	Pkg *p;
+ 
+ 	// copy types from externdcl list to signatlist
+ 	for(l=externdcl; l; l=l->next) {
+@@ -804,17 +834,27 @@ dumptypestructs(void)
+ 			dtypesym(ptrto(t));
+ 	}
+ 
++	// generate import strings for imported packages
++	for(i=0; i<nelem(phash); i++)
++		for(p=phash[i]; p; p=p->link)
++			if(p->direct)
++				dimportpath(p);
++
+ 	// do basic types if compiling package runtime.
+ 	// they have to be in at least one package,
+-	// and reflect is always loaded implicitly,
++	// and runtime is always loaded implicitly,
+ 	// so this is as good as any.
+ 	// another possible choice would be package main,
+ 	// but using runtime means fewer copies in .6 files.
+-	if(strcmp(localpkg->name, "runtime") == 0) {	// PGNS: fixme
++	if(compiling_runtime) {
+ 		for(i=1; i<=TBOOL; i++)
+ 			dtypesym(ptrto(types[i]));
+ 		dtypesym(ptrto(types[TSTRING]));
+ 		dtypesym(typ(TDDD));
+ 		dtypesym(ptrto(pkglookup("Pointer", unsafepkg)->def->type));
++		
++		// add paths for runtime and main, which 6l imports implicitly.
++		dimportpath(runtimepkg);
++		dimportpath(mkpkg(strlit("main")));
+ 	}
+ }
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c15bdd0ffd..ad9c926865 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3413,8 +3413,6 @@ pathtoprefix(char *s)
+ 	return p;
+ }
+ 
+-static Pkg *phash[128];
+-
+ Pkg*
+ mkpkg(Strlit *path)
+ {
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 974cca8c36..f9721f6b4a 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -5,6 +5,7 @@
+ package reflect_test
+ 
+ import (
++	"container/vector"
+ 	"io"
+ 	"os"
+ 	. "reflect"
+@@ -1188,3 +1189,9 @@ func TestFieldByName(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestImportPath(t *testing.T) {
++	if path := Typeof(vector.Vector{}).PkgPath(); path != "container/vector" {
++		t.Errorf("Typeof(vector.Vector{}).PkgPath() = %q, want \"container/vector\"", path)
++	}
++}
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 91154764af..d65fea5435 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -91,6 +91,9 @@ HFILES=\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
++# special, out of the way compiler flag that means "add runtime metadata to output"
++GC+= -+
++
+ include ../../Make.pkg
+ 
+ clean: clean-local

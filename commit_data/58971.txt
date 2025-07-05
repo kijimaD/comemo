@@ -12,7 +12,39 @@ Date:   Thu Jan 25 20:29:32 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/api/main_test.go                   | 10 ++++++++++
  src/cmd/api/testdata/src/pkg/p4/golden.txt |  2 +-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/main_test.go b/src/cmd/api/main_test.go
+index 7985055b5c..0a3d44ddd0 100644
+--- a/src/cmd/api/main_test.go
++++ b/src/cmd/api/main_test.go
+@@ -851,6 +851,16 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
+ 			buf.WriteByte('.')
+ 		}
+ 		buf.WriteString(typ.Obj().Name())
++		if targs := typ.TypeArgs(); targs.Len() > 0 {
++			buf.WriteByte('[')
++			for i := 0; i < targs.Len(); i++ {
++				if i > 0 {
++					buf.WriteString(", ")
++				}
++				w.writeType(buf, targs.At(i))
++			}
++			buf.WriteByte(']')
++		}
+ 
+ 	case *types.TypeParam:
+ 		// Type parameter names may change, so use a placeholder instead.
+diff --git a/src/cmd/api/testdata/src/pkg/p4/golden.txt b/src/cmd/api/testdata/src/pkg/p4/golden.txt
+index eec0598dcd..1ceae17386 100644
+--- a/src/cmd/api/testdata/src/pkg/p4/golden.txt
++++ b/src/cmd/api/testdata/src/pkg/p4/golden.txt
+@@ -1,4 +1,4 @@
+-pkg p4, func NewPair[$0 interface{ M }, $1 interface{ ~int }]($0, $1) Pair
++pkg p4, func NewPair[$0 interface{ M }, $1 interface{ ~int }]($0, $1) Pair[$0, $1]
+ pkg p4, method (Pair[$0, $1]) Second() $1
+ pkg p4, method (Pair[$0, $1]) First() $0
+ pkg p4, type Pair[$0 interface{ M }, $1 interface{ ~int }] struct

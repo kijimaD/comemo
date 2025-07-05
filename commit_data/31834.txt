@@ -39,7 +39,7 @@ Date:   Mon Mar 13 14:39:17 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/38095
     Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go      |  41 +++++++++
  src/cmd/compile/internal/ppc64/prog.go       |   4 +
  src/cmd/compile/internal/ppc64/ssa.go        |  19 ++++
@@ -49,3 +49,495 @@ Date:   Mon Mar 13 14:39:17 2017 -0400
  src/cmd/compile/internal/ssa/rewritePPC64.go | 132 +++++++++++++++++++++++++--
  src/cmd/internal/obj/ppc64/asm9.go           |   2 +-
  8 files changed, 302 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 7db3908c0f..259c743360 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -196,6 +196,11 @@ var allAsmTests = []*asmTests{
+ 		imports: []string{"math/bits"},
+ 		tests:   linuxMIPSTests,
+ 	},
++	{
++		arch:  "ppc64le",
++		os:    "linux",
++		tests: linuxPPC64LETests,
++	},
+ }
+ 
+ var linuxAMD64Tests = []*asmTest{
+@@ -1329,6 +1334,42 @@ var linuxMIPSTests = []*asmTest{
+ 	},
+ }
+ 
++var linuxPPC64LETests = []*asmTest{
++	// Fused multiply-add/sub instructions.
++	{
++		`
++		func f0(x, y, z float64) float64 {
++			return x * y + z
++		}
++		`,
++		[]string{"\tFMADD\t"},
++	},
++	{
++		`
++		func f1(x, y, z float64) float64 {
++			return x * y - z
++		}
++		`,
++		[]string{"\tFMSUB\t"},
++	},
++	{
++		`
++		func f2(x, y, z float32) float32 {
++			return x * y + z
++		}
++		`,
++		[]string{"\tFMADDS\t"},
++	},
++	{
++		`
++		func f3(x, y, z float32) float32 {
++			return x * y - z
++		}
++		`,
++		[]string{"\tFMSUBS\t"},
++	},
++}
++
+ // TestLineNumber checks to make sure the generated assembly has line numbers
+ // see issue #16214
+ func TestLineNumber(t *testing.T) {
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index dc824ffda2..6f29f49867 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -81,6 +81,10 @@ var progtable = [ppc64.ALAST & obj.AMask]gc.ProgInfo{
+ 	ppc64.AFMULS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFDIV & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFDIVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFMADD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFMADDS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFMSUB & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AFMSUBS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCTIDZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCTIWZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AFCFID & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index c6ca810b16..eba99f8720 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -458,6 +458,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		// Closure pointer is R11 (already)
+ 		gc.CheckLoweredGetClosurePtr(v)
+ 
++	case ssa.OpPPC64LoweredRound32F, ssa.OpPPC64LoweredRound64F:
++		// input is already rounded
++
+ 	case ssa.OpLoadReg:
+ 		loadOp := loadByType(v.Type)
+ 		p := gc.Prog(loadOp)
+@@ -565,6 +568,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
++	case ssa.OpPPC64FMADD, ssa.OpPPC64FMADDS, ssa.OpPPC64FMSUB, ssa.OpPPC64FMSUBS:
++		r := v.Reg()
++		r1 := v.Args[0].Reg()
++		r2 := v.Args[1].Reg()
++		r3 := v.Args[2].Reg()
++		// r = r1*r2 ± r3
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r1
++		p.Reg = r3
++		p.From3 = new(obj.Addr)
++		p.From3.Type = obj.TYPE_REG
++		p.From3.Reg = r2
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++
+ 	case ssa.OpPPC64MaskIfNotCarry:
+ 		r := v.Reg()
+ 		p := gc.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 7f56fc33af..48d7de569b 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -70,8 +70,8 @@
+ (Cvt32Fto64F x) -> x // Note x will have the wrong type for patterns dependent on Float32/Float64
+ (Cvt64Fto32F x) -> (FRSP x)
+ 
+-(Round32F x) -> x
+-(Round64F x) -> x
++(Round32F x) -> (LoweredRound32F x)
++(Round64F x) -> (LoweredRound64F x)
+ 
+ (Sqrt x) -> (FSQRT x)
+ 
+@@ -849,3 +849,11 @@
+ // A particular pattern seen in cgo code:
+ (AND (MOVDconst [c]) x:(MOVBZload _ _)) -> (ANDconst [c&0xFF] x)
+ (AND x:(MOVBZload _ _) (MOVDconst [c])) -> (ANDconst [c&0xFF] x)
++
++// floating-point fused multiply-add/sub
++(FADD z (FMUL x y)) -> (FMADD x y z)
++(FADD (FMUL x y) z) -> (FMADD x y z)
++(FSUB (FMUL x y) z) -> (FMSUB x y z)
++(FADDS z (FMULS x y)) -> (FMADDS x y z)
++(FADDS (FMULS x y) z) -> (FMADDS x y z)
++(FSUBS (FMULS x y) z) -> (FMSUBS x y z)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 855798552b..1001045909 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -147,6 +147,7 @@ func init() {
+ 		fpgp        = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+ 		gpfp        = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+ 		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
++		fp31        = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
+ 		fp2cr       = regInfo{inputs: []regMask{fp, fp}}
+ 		fpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
+ 		fpstore     = regInfo{inputs: []regMask{gp | sp | sb, fp}}
+@@ -172,6 +173,11 @@ func init() {
+ 		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true},   // arg0*arg1
+ 		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true}, // arg0*arg1
+ 
++		{name: "FMADD", argLength: 3, reg: fp31, asm: "FMADD"},   // arg0*arg1 + arg2
++		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS"}, // arg0*arg1 + arg2
++		{name: "FMSUB", argLength: 3, reg: fp31, asm: "FMSUB"},   // arg0*arg1 - arg2
++		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS"}, // arg0*arg1 - arg2
++
+ 		{name: "SRAD", argLength: 2, reg: gp21, asm: "SRAD"}, // arg0 >>a arg1, 64 bits (all sign if arg1 & 64 != 0)
+ 		{name: "SRAW", argLength: 2, reg: gp21, asm: "SRAW"}, // arg0 >>a arg1, 32 bits (all sign if arg1 & 32 != 0)
+ 		{name: "SRD", argLength: 2, reg: gp21, asm: "SRD"},   // arg0 >> arg1, 64 bits  (0 if arg1 & 64 != 0)
+@@ -293,6 +299,9 @@ func init() {
+ 
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
++		// Round ops to block fused-multiply-add extraction.
++		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
++		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
+ 
+ 		// Convert pointer to integer, takes a memory operand for ordering.
+ 		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f5729243ba..4361b2fa45 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1263,6 +1263,10 @@ const (
+ 	OpPPC64MULHWU
+ 	OpPPC64FMUL
+ 	OpPPC64FMULS
++	OpPPC64FMADD
++	OpPPC64FMADDS
++	OpPPC64FMSUB
++	OpPPC64FMSUBS
+ 	OpPPC64SRAD
+ 	OpPPC64SRAW
+ 	OpPPC64SRD
+@@ -1353,6 +1357,8 @@ const (
+ 	OpPPC64FGreaterEqual
+ 	OpPPC64LoweredGetClosurePtr
+ 	OpPPC64LoweredNilCheck
++	OpPPC64LoweredRound32F
++	OpPPC64LoweredRound64F
+ 	OpPPC64MOVDconvert
+ 	OpPPC64CALLstatic
+ 	OpPPC64CALLclosure
+@@ -16059,6 +16065,66 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FMADD",
++		argLen: 3,
++		asm:    ppc64.AFMADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{2, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FMADDS",
++		argLen: 3,
++		asm:    ppc64.AFMADDS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{2, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FMSUB",
++		argLen: 3,
++		asm:    ppc64.AFMSUB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{2, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:   "FMSUBS",
++		argLen: 3,
++		asm:    ppc64.AFMSUBS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{2, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
+ 	{
+ 		name:   "SRAD",
+ 		argLen: 2,
+@@ -17222,6 +17288,32 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 2147483648, // R31
+ 		},
+ 	},
++	{
++		name:         "LoweredRound32F",
++		argLen:       1,
++		resultInArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
++	{
++		name:         "LoweredRound64F",
++		argLen:       1,
++		resultInArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
+ 	{
+ 		name:   "MOVDconvert",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 4f330c0b24..0943dfa18b 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -378,6 +378,10 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64CMPconst(v)
+ 	case OpPPC64Equal:
+ 		return rewriteValuePPC64_OpPPC64Equal(v)
++	case OpPPC64FADD:
++		return rewriteValuePPC64_OpPPC64FADD(v)
++	case OpPPC64FADDS:
++		return rewriteValuePPC64_OpPPC64FADDS(v)
+ 	case OpPPC64FMOVDload:
+ 		return rewriteValuePPC64_OpPPC64FMOVDload(v)
+ 	case OpPPC64FMOVDstore:
+@@ -386,6 +390,10 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64FMOVSload(v)
+ 	case OpPPC64FMOVSstore:
+ 		return rewriteValuePPC64_OpPPC64FMOVSstore(v)
++	case OpPPC64FSUB:
++		return rewriteValuePPC64_OpPPC64FSUB(v)
++	case OpPPC64FSUBS:
++		return rewriteValuePPC64_OpPPC64FSUBS(v)
+ 	case OpPPC64GreaterEqual:
+ 		return rewriteValuePPC64_OpPPC64GreaterEqual(v)
+ 	case OpPPC64GreaterThan:
+@@ -5298,6 +5306,80 @@ func rewriteValuePPC64_OpPPC64Equal(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64FADD(v *Value) bool {
++	// match: (FADD z (FMUL x y))
++	// cond:
++	// result: (FMADD x y z)
++	for {
++		z := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64FMUL {
++			break
++		}
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		v.reset(OpPPC64FMADD)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(z)
++		return true
++	}
++	// match: (FADD (FMUL x y) z)
++	// cond:
++	// result: (FMADD x y z)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64FMUL {
++			break
++		}
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		z := v.Args[1]
++		v.reset(OpPPC64FMADD)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(z)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpPPC64FADDS(v *Value) bool {
++	// match: (FADDS z (FMULS x y))
++	// cond:
++	// result: (FMADDS x y z)
++	for {
++		z := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64FMULS {
++			break
++		}
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		v.reset(OpPPC64FMADDS)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(z)
++		return true
++	}
++	// match: (FADDS (FMULS x y) z)
++	// cond:
++	// result: (FMADDS x y z)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64FMULS {
++			break
++		}
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		z := v.Args[1]
++		v.reset(OpPPC64FMADDS)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(z)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64FMOVDload(v *Value) bool {
+ 	// match: (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+@@ -5506,6 +5588,46 @@ func rewriteValuePPC64_OpPPC64FMOVSstore(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64FSUB(v *Value) bool {
++	// match: (FSUB (FMUL x y) z)
++	// cond:
++	// result: (FMSUB x y z)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64FMUL {
++			break
++		}
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		z := v.Args[1]
++		v.reset(OpPPC64FMSUB)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(z)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpPPC64FSUBS(v *Value) bool {
++	// match: (FSUBS (FMULS x y) z)
++	// cond:
++	// result: (FMSUBS x y z)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64FMULS {
++			break
++		}
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		z := v.Args[1]
++		v.reset(OpPPC64FMSUBS)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(z)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64GreaterEqual(v *Value) bool {
+ 	// match: (GreaterEqual (FlagEQ))
+ 	// cond:
+@@ -7444,11 +7566,10 @@ func rewriteValuePPC64_OpPPC64XORconst(v *Value) bool {
+ func rewriteValuePPC64_OpRound32F(v *Value) bool {
+ 	// match: (Round32F x)
+ 	// cond:
+-	// result: x
++	// result: (LoweredRound32F x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpPPC64LoweredRound32F)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -7456,11 +7577,10 @@ func rewriteValuePPC64_OpRound32F(v *Value) bool {
+ func rewriteValuePPC64_OpRound64F(v *Value) bool {
+ 	// match: (Round64F x)
+ 	// cond:
+-	// result: x
++	// result: (LoweredRound64F x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpPPC64LoweredRound64F)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 90b796dd67..0fdce94b7c 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -2765,7 +2765,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = AOP_RRR(oprrr(ctxt, p.As), uint32(p.To.Reg), 0, uint32(r))
+ 
+-	case 34: /* FMADDx fra,frb,frc,frd (d=a*b+c); FSELx a<0? (d=b): (d=c) */
++	case 34: /* FMADDx fra,frb,frc,frt (t=a*c±b) */
+ 		o1 = AOP_RRR(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg)) | (uint32(p.From3.Reg)&31)<<6
+ 
+ 	case 35: /* mov r,lext/lauto/loreg ==> cau $(v>>16),sb,r'; store o(r') */

@@ -13,7 +13,36 @@ Date:   Fri Dec 28 20:02:13 2018 +0000
     GitHub-Pull-Request: golang/go#29417
     Reviewed-on: https://go-review.googlesource.com/c/155742
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/gob/decoder.go | 3 ++-
  src/encoding/gob/encoder.go | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index f4f740ef42..b52aabe54b 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -18,7 +18,8 @@ import (
+ const tooBig = (1 << 30) << (^uint(0) >> 62)
+ 
+ // A Decoder manages the receipt of type and data information read from the
+-// remote side of a connection.
++// remote side of a connection.  It is safe for concurrent use by multiple
++// goroutines.
+ //
+ // The Decoder does only basic sanity checking on decoded input sizes,
+ // and its limits are not configurable. Take caution when decoding gob data
+diff --git a/src/encoding/gob/encoder.go b/src/encoding/gob/encoder.go
+index 40ec81b6e6..53e2cace16 100644
+--- a/src/encoding/gob/encoder.go
++++ b/src/encoding/gob/encoder.go
+@@ -12,7 +12,8 @@ import (
+ )
+ 
+ // An Encoder manages the transmission of type and data information to the
+-// other side of a connection.
++// other side of a connection.  It is safe for concurrent use by multiple
++// goroutines.
+ type Encoder struct {
+ 	mutex      sync.Mutex              // each item must be sent atomically
+ 	w          []io.Writer             // where to send the data

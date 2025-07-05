@@ -26,8 +26,104 @@ Date:   Thu Aug 24 15:23:27 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 10 ++++------
  src/cmd/compile/internal/ssa/rewritegeneric.go | 22 ++++++++++++----------
  test/nilptr3.go                                |  7 +++++++
  3 files changed, 23 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index ea04b61b73..1faf6b3857 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1377,15 +1377,13 @@
+ 	-> mem
+ // nil checks just need to rewrite to something useless.
+ // they will be deadcode eliminated soon afterwards.
+-(NilCheck (Load (OffPtr [c] (SP)) mem) mem)
+-	&& mem.Op == OpStaticCall
+-	&& isSameSym(mem.Aux, "runtime.newobject")
++(NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
++	&& isSameSym(sym, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+ 	-> (Invalid)
+-(NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
+-	&& mem.Op == OpStaticCall
+-	&& isSameSym(mem.Aux, "runtime.newobject")
++(NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
++	&& isSameSym(sym, "runtime.newobject")
+ 	&& c == config.ctxt.FixedFrameSize() + config.RegSize // offset of return value
+ 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+ 	-> (Invalid)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index bc78fdb6fb..fdd4c1e167 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -16833,8 +16833,8 @@ func rewriteValuegeneric_OpNilCheck_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (NilCheck (Load (OffPtr [c] (SP)) mem) mem)
+-	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
++	// match: (NilCheck (Load (OffPtr [c] (SP)) (StaticCall {sym} _)) _)
++	// cond: isSameSym(sym, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+ 	// result: (Invalid)
+ 	for {
+ 		_ = v.Args[1]
+@@ -16852,18 +16852,19 @@ func rewriteValuegeneric_OpNilCheck_0(v *Value) bool {
+ 		if v_0_0_0.Op != OpSP {
+ 			break
+ 		}
+-		mem := v_0.Args[1]
+-		if mem != v.Args[1] {
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpStaticCall {
+ 			break
+ 		}
+-		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")) {
++		sym := v_0_1.Aux
++		if !(isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")) {
+ 			break
+ 		}
+ 		v.reset(OpInvalid)
+ 		return true
+ 	}
+-	// match: (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
+-	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
++	// match: (NilCheck (OffPtr (Load (OffPtr [c] (SP)) (StaticCall {sym} _))) _)
++	// cond: isSameSym(sym, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.RegSize 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+ 	// result: (Invalid)
+ 	for {
+ 		_ = v.Args[1]
+@@ -16885,11 +16886,12 @@ func rewriteValuegeneric_OpNilCheck_0(v *Value) bool {
+ 		if v_0_0_0_0.Op != OpSP {
+ 			break
+ 		}
+-		mem := v_0_0.Args[1]
+-		if mem != v.Args[1] {
++		v_0_0_1 := v_0_0.Args[1]
++		if v_0_0_1.Op != OpStaticCall {
+ 			break
+ 		}
+-		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")) {
++		sym := v_0_0_1.Aux
++		if !(isSameSym(sym, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.RegSize && warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")) {
+ 			break
+ 		}
+ 		v.reset(OpInvalid)
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 195c8ca043..9a96bb5386 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -259,3 +259,10 @@ func f7() (*Struct, float64) {
+ func f8(t *[8]int) [8]int {
+ 	return *t // ERROR "removed nil check"
+ }
++
++func f9() []int {
++	x := new([1]int)
++	x[0] = 1  // ERROR "removed nil check"
++	y := x[:] // ERROR "removed nil check"
++	return y
++}

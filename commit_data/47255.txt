@@ -23,7 +23,7 @@ Date:   Sun Nov 8 11:27:53 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj/objfile.go             | 34 ++++++++---------
  src/cmd/internal/goobj/objfile_test.go        |  4 +-
  src/cmd/internal/obj/objfile.go               |  2 +-
@@ -31,3 +31,267 @@ Date:   Sun Nov 8 11:27:53 2020 -0500
  src/cmd/link/internal/loader/loader_test.go   |  3 +-
  src/cmd/link/internal/loader/symbolbuilder.go |  8 +---
  6 files changed, 40 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 247cc695f0..e2858bd57d 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -33,7 +33,7 @@ import (
+ // New object file format.
+ //
+ //    Header struct {
+-//       Magic       [...]byte   // "\x00go116ld"
++//       Magic       [...]byte   // "\x00go117ld"
+ //       Fingerprint [8]byte
+ //       Flags       uint32
+ //       Offsets     [...]uint32 // byte offset of each block below
+@@ -89,7 +89,7 @@ import (
+ //    Relocs [...]struct {
+ //       Off  int32
+ //       Size uint8
+-//       Type uint8
++//       Type uint16
+ //       Add  int64
+ //       Sym  symRef
+ //    }
+@@ -219,7 +219,7 @@ type Header struct {
+ 	Offsets     [NBlk]uint32
+ }
+ 
+-const Magic = "\x00go116ld"
++const Magic = "\x00go117ld"
+ 
+ func (h *Header) Write(w *Writer) {
+ 	w.RawString(h.Magic)
+@@ -373,32 +373,32 @@ const HashSize = sha1.Size
+ // Reloc struct {
+ //    Off  int32
+ //    Siz  uint8
+-//    Type uint8
++//    Type uint16
+ //    Add  int64
+ //    Sym  SymRef
+ // }
+ type Reloc [RelocSize]byte
+ 
+-const RelocSize = 4 + 1 + 1 + 8 + 8
++const RelocSize = 4 + 1 + 2 + 8 + 8
+ 
+-func (r *Reloc) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
+-func (r *Reloc) Siz() uint8  { return r[4] }
+-func (r *Reloc) Type() uint8 { return r[5] }
+-func (r *Reloc) Add() int64  { return int64(binary.LittleEndian.Uint64(r[6:])) }
++func (r *Reloc) Off() int32   { return int32(binary.LittleEndian.Uint32(r[:])) }
++func (r *Reloc) Siz() uint8   { return r[4] }
++func (r *Reloc) Type() uint16 { return binary.LittleEndian.Uint16(r[5:]) }
++func (r *Reloc) Add() int64   { return int64(binary.LittleEndian.Uint64(r[7:])) }
+ func (r *Reloc) Sym() SymRef {
+-	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
++	return SymRef{binary.LittleEndian.Uint32(r[15:]), binary.LittleEndian.Uint32(r[19:])}
+ }
+ 
+-func (r *Reloc) SetOff(x int32)  { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
+-func (r *Reloc) SetSiz(x uint8)  { r[4] = x }
+-func (r *Reloc) SetType(x uint8) { r[5] = x }
+-func (r *Reloc) SetAdd(x int64)  { binary.LittleEndian.PutUint64(r[6:], uint64(x)) }
++func (r *Reloc) SetOff(x int32)   { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
++func (r *Reloc) SetSiz(x uint8)   { r[4] = x }
++func (r *Reloc) SetType(x uint16) { binary.LittleEndian.PutUint16(r[5:], x) }
++func (r *Reloc) SetAdd(x int64)   { binary.LittleEndian.PutUint64(r[7:], uint64(x)) }
+ func (r *Reloc) SetSym(x SymRef) {
+-	binary.LittleEndian.PutUint32(r[14:], x.PkgIdx)
+-	binary.LittleEndian.PutUint32(r[18:], x.SymIdx)
++	binary.LittleEndian.PutUint32(r[15:], x.PkgIdx)
++	binary.LittleEndian.PutUint32(r[19:], x.SymIdx)
+ }
+ 
+-func (r *Reloc) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
++func (r *Reloc) Set(off int32, size uint8, typ uint16, add int64, sym SymRef) {
+ 	r.SetOff(off)
+ 	r.SetSiz(size)
+ 	r.SetType(typ)
+diff --git a/src/cmd/internal/goobj/objfile_test.go b/src/cmd/internal/goobj/objfile_test.go
+index 99d02a1bf1..ad80ede0f3 100644
+--- a/src/cmd/internal/goobj/objfile_test.go
++++ b/src/cmd/internal/goobj/objfile_test.go
+@@ -40,7 +40,7 @@ func TestReadWrite(t *testing.T) {
+ 	var r Reloc
+ 	r.SetOff(12)
+ 	r.SetSiz(4)
+-	r.SetType(uint8(objabi.R_ADDR))
++	r.SetType(uint16(objabi.R_ADDR))
+ 	r.SetAdd(54321)
+ 	r.SetSym(SymRef{11, 22})
+ 	r.Write(w)
+@@ -63,7 +63,7 @@ func TestReadWrite(t *testing.T) {
+ 	b = b[SymSize:]
+ 	var r2 Reloc
+ 	r2.fromBytes(b)
+-	if r2.Off() != 12 || r2.Siz() != 4 || r2.Type() != uint8(objabi.R_ADDR) || r2.Add() != 54321 || r2.Sym() != (SymRef{11, 22}) {
++	if r2.Off() != 12 || r2.Siz() != 4 || r2.Type() != uint16(objabi.R_ADDR) || r2.Add() != 54321 || r2.Sym() != (SymRef{11, 22}) {
+ 		t.Errorf("read Reloc2 mismatch: got %v %v %v %v %v", r2.Off(), r2.Siz(), r2.Type(), r2.Add(), r2.Sym())
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index b031afbc36..24fb5a19de 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -498,7 +498,7 @@ func (w *writer) Reloc(r *Reloc) {
+ 	var o goobj.Reloc
+ 	o.SetOff(r.Off)
+ 	o.SetSiz(r.Siz)
+-	o.SetType(uint8(r.Type))
++	o.SetType(uint16(r.Type))
+ 	o.SetAdd(r.Add)
+ 	o.SetSym(makeSymRef(r.Sym))
+ 	o.Write(w.Writer)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index c05309a141..6d2e7dcabc 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -51,30 +51,13 @@ type Reloc struct {
+ 	*goobj.Reloc
+ 	r *oReader
+ 	l *Loader
+-
+-	// External reloc types may not fit into a uint8 which the Go object file uses.
+-	// Store it here, instead of in the byte of goobj.Reloc.
+-	// For Go symbols this will always be zero.
+-	// goobj.Reloc.Type() + typ is always the right type, for both Go and external
+-	// symbols.
+-	typ objabi.RelocType
+ }
+ 
+-func (rel Reloc) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
+-func (rel Reloc) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
+-func (rel Reloc) SetSym(s Sym)           { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+-func (rel Reloc) IsMarker() bool         { return rel.Siz() == 0 }
+-
+-func (rel Reloc) SetType(t objabi.RelocType) {
+-	if t != objabi.RelocType(uint8(t)) {
+-		panic("SetType: type doesn't fit into Reloc")
+-	}
+-	rel.Reloc.SetType(uint8(t))
+-	if rel.typ != 0 {
+-		// should use SymbolBuilder.SetRelocType
+-		panic("wrong method to set reloc type")
+-	}
+-}
++func (rel Reloc) Type() objabi.RelocType     { return objabi.RelocType(rel.Reloc.Type()) }
++func (rel Reloc) SetType(t objabi.RelocType) { rel.Reloc.SetType(uint16(t)) }
++func (rel Reloc) Sym() Sym                   { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
++func (rel Reloc) SetSym(s Sym)               { rel.Reloc.SetSym(goobj.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
++func (rel Reloc) IsMarker() bool             { return rel.Siz() == 0 }
+ 
+ // Aux holds a "handle" to access an aux symbol record from an
+ // object file.
+@@ -307,15 +290,14 @@ type elfsetstringFunc func(str string, off int)
+ // extSymPayload holds the payload (data + relocations) for linker-synthesized
+ // external symbols (note that symbol value is stored in a separate slice).
+ type extSymPayload struct {
+-	name     string // TODO: would this be better as offset into str table?
+-	size     int64
+-	ver      int
+-	kind     sym.SymKind
+-	objidx   uint32 // index of original object if sym made by cloneToExternal
+-	relocs   []goobj.Reloc
+-	reltypes []objabi.RelocType // relocation types
+-	data     []byte
+-	auxs     []goobj.Aux
++	name   string // TODO: would this be better as offset into str table?
++	size   int64
++	ver    int
++	kind   sym.SymKind
++	objidx uint32 // index of original object if sym made by cloneToExternal
++	relocs []goobj.Reloc
++	data   []byte
++	auxs   []goobj.Aux
+ }
+ 
+ const (
+@@ -1833,10 +1815,9 @@ func (relocs *Relocs) Count() int { return len(relocs.rs) }
+ // At returns the j-th reloc for a global symbol.
+ func (relocs *Relocs) At(j int) Reloc {
+ 	if relocs.l.isExtReader(relocs.r) {
+-		pp := relocs.l.payloads[relocs.li]
+-		return Reloc{&relocs.rs[j], relocs.r, relocs.l, pp.reltypes[j]}
++		return Reloc{&relocs.rs[j], relocs.r, relocs.l}
+ 	}
+-	return Reloc{&relocs.rs[j], relocs.r, relocs.l, 0}
++	return Reloc{&relocs.rs[j], relocs.r, relocs.l}
+ }
+ 
+ // Relocs returns a Relocs object for the given global sym.
+@@ -2337,13 +2318,11 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
+ 		// Copy relocations
+ 		relocs := l.Relocs(symIdx)
+ 		pp.relocs = make([]goobj.Reloc, relocs.Count())
+-		pp.reltypes = make([]objabi.RelocType, relocs.Count())
+ 		for i := range pp.relocs {
+ 			// Copy the relocs slice.
+ 			// Convert local reference to global reference.
+ 			rel := relocs.At(i)
+-			pp.relocs[i].Set(rel.Off(), rel.Siz(), 0, rel.Add(), goobj.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
+-			pp.reltypes[i] = rel.Type()
++			pp.relocs[i].Set(rel.Off(), rel.Siz(), uint16(rel.Type()), rel.Add(), goobj.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
+ 		}
+ 
+ 		// Copy data
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index 1371c2a541..15ae830dc9 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -237,7 +237,8 @@ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
+ type addFunc func(l *Loader, s Sym, s2 Sym) Sym
+ 
+ func mkReloc(l *Loader, typ objabi.RelocType, off int32, siz uint8, add int64, sym Sym) Reloc {
+-	r := Reloc{&goobj.Reloc{}, l.extReader, l, typ}
++	r := Reloc{&goobj.Reloc{}, l.extReader, l}
++	r.SetType(typ)
+ 	r.SetOff(off)
+ 	r.SetSiz(siz)
+ 	r.SetAdd(add)
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 5d37da8ac6..204d04412d 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -121,13 +121,11 @@ func (sb *SymbolBuilder) Relocs() Relocs {
+ // ResetRelocs removes all relocations on this symbol.
+ func (sb *SymbolBuilder) ResetRelocs() {
+ 	sb.relocs = sb.relocs[:0]
+-	sb.reltypes = sb.reltypes[:0]
+ }
+ 
+ // SetRelocType sets the type of the 'i'-th relocation on this sym to 't'
+ func (sb *SymbolBuilder) SetRelocType(i int, t objabi.RelocType) {
+-	sb.relocs[i].SetType(0)
+-	sb.reltypes[i] = t
++	sb.relocs[i].SetType(uint16(t))
+ }
+ 
+ // SetRelocSym sets the target sym of the 'i'-th relocation on this sym to 's'
+@@ -143,7 +141,6 @@ func (sb *SymbolBuilder) SetRelocAdd(i int, a int64) {
+ // Add n relocations, return a handle to the relocations.
+ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
+ 	sb.relocs = append(sb.relocs, make([]goobj.Reloc, n)...)
+-	sb.reltypes = append(sb.reltypes, make([]objabi.RelocType, n)...)
+ 	return sb.l.Relocs(sb.symIdx)
+ }
+ 
+@@ -152,7 +149,7 @@ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
+ func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc, int) {
+ 	j := len(sb.relocs)
+ 	sb.relocs = append(sb.relocs, goobj.Reloc{})
+-	sb.reltypes = append(sb.reltypes, typ)
++	sb.relocs[j].SetType(uint16(typ))
+ 	relocs := sb.Relocs()
+ 	return relocs.At(j), j
+ }
+@@ -169,7 +166,6 @@ func (p *relocsByOff) Len() int           { return len(p.relocs) }
+ func (p *relocsByOff) Less(i, j int) bool { return p.relocs[i].Off() < p.relocs[j].Off() }
+ func (p *relocsByOff) Swap(i, j int) {
+ 	p.relocs[i], p.relocs[j] = p.relocs[j], p.relocs[i]
+-	p.reltypes[i], p.reltypes[j] = p.reltypes[j], p.reltypes[i]
+ }
+ 
+ func (sb *SymbolBuilder) Reachable() bool {

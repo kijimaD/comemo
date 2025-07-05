@@ -7,6 +7,20 @@ Date:   Tue May 25 18:24:07 2010 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/1303041
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d56efcc2bc..aad1f34dd6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3771,7 +3771,7 @@ ExprSwitchCase = "case" ExpressionList | "default" .
+ <p>
+ In a case or default clause,
+ the last statement only may be a "fallthrough" statement
+-(§<a href="#Fallthrough_statement">Fallthrough statement</a>) to
++(§<a href="#Fallthrough_statements">Fallthrough statement</a>) to
+ indicate that control should flow from the end of this clause to
+ the first statement of the next clause.
+ Otherwise control flows to the end of the "switch" statement.

@@ -7,7 +7,7 @@ Date:   Thu Jan 13 15:34:52 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/4000041
-
+---
  src/cmd/5g/cgen.c   |  87 +++++++++++++++--------
  src/cmd/5g/cgen64.c |  12 ++--
  src/cmd/5g/ggen.c   |   3 +-
@@ -17,3 +17,563 @@ Date:   Thu Jan 13 15:34:52 2011 -0800
  src/cmd/5l/optab.c  |   4 +-
  src/cmd/5l/span.c   |   2 +-
  8 files changed, 175 insertions(+), 140 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 1328f4be64..587b500a9e 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -671,7 +671,8 @@ agen(Node *n, Node *res)
+ 			p1 = gins(AMOVW, N, &n3);
+ 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
+ 			p1->from.type = D_CONST;
+-		} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
++		} else
++		if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 			n1 = n3;
+ 			n1.op = OINDREG;
+ 			n1.type = types[tptr];
+@@ -813,6 +814,28 @@ agenr(Node *n, Node *a, Node *res)
+ 	agen(n, a);
+ }
+ 
++void
++gencmp0(Node *n, Type *t, int o, Prog *to)
++{
++	Node n1, n2, n3;
++	int a;
++
++	regalloc(&n1, t, N);
++	cgen(n, &n1);
++	a = optoas(OCMP, t);
++	if(a != ACMP) {
++		nodconst(&n2, t, 0);
++		regalloc(&n3, t, N);
++		gmove(&n2, &n3);
++		gcmp(a, &n1, &n3);
++		regfree(&n3);
++	} else
++		gins(ATST, &n1, N);
++	a = optoas(o, t);
++	patch(gbranch(optoas(o, t), t), to);
++	regfree(&n1);
++}
++
+ /*
+  * generate:
+  *	if(n == true) goto to;
+@@ -856,18 +879,10 @@ bgen(Node *n, int true, Prog *to)
+ 	switch(n->op) {
+ 	default:
+ 	def:
+-		regalloc(&n1, n->type, N);
+-		cgen(n, &n1);
+-		nodconst(&n2, n->type, 0);
+-		regalloc(&n3, n->type, N);
+-		gmove(&n2, &n3);
+-		gcmp(optoas(OCMP, n->type), &n1, &n3);
+-		a = ABNE;
++		a = ONE;
+ 		if(!true)
+-			a = ABEQ;
+-		patch(gbranch(a, n->type), to);
+-		regfree(&n1);
+-		regfree(&n3);
++			a = OEQ;
++		gencmp0(n, n->type, a, to);
+ 		goto ret;
+ 
+ 	case OLITERAL:
+@@ -876,23 +891,6 @@ bgen(Node *n, int true, Prog *to)
+ 			patch(gbranch(AB, T), to);
+ 		goto ret;
+ 
+-	case ONAME:
+-		if(n->addable == 0)
+-			goto def;
+-		nodconst(&n1, n->type, 0);
+-		regalloc(&n2, n->type, N);
+-		regalloc(&n3, n->type, N);
+-		gmove(&n1, &n2);
+-		cgen(n, &n3);
+-		gcmp(optoas(OCMP, n->type), &n2, &n3);
+-		a = ABNE;
+-		if(!true)
+-			a = ABEQ;
+-		patch(gbranch(a, n->type), to);
+-		regfree(&n2);
+-		regfree(&n3);
+-		goto ret;
+-
+ 	case OANDAND:
+ 		if(!true)
+ 			goto caseor;
+@@ -975,6 +973,16 @@ bgen(Node *n, int true, Prog *to)
+ 				yyerror("illegal array comparison");
+ 				break;
+ 			}
++
++			regalloc(&n1, types[tptr], N);
++			agen(nl, &n1);
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.xoffset = Array_array;
++			gencmp0(&n2, types[tptr], a, to);
++			regfree(&n1);
++			break;
++
+ 			a = optoas(a, types[tptr]);
+ 			regalloc(&n1, types[tptr], N);
+ 			regalloc(&n3, types[tptr], N);
+@@ -1000,6 +1008,16 @@ bgen(Node *n, int true, Prog *to)
+ 				yyerror("illegal interface comparison");
+ 				break;
+ 			}
++
++			regalloc(&n1, types[tptr], N);
++			agen(nl, &n1);
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.xoffset = 0;
++			gencmp0(&n2, types[tptr], a, to);
++			regfree(&n1);
++			break;
++
+ 			a = optoas(a, types[tptr]);
+ 			regalloc(&n1, types[tptr], N);
+ 			regalloc(&n3, types[tptr], N);
+@@ -1039,6 +1057,17 @@ bgen(Node *n, int true, Prog *to)
+ 			break;
+ 		}
+ 
++		if(nr->op == OLITERAL) {
++			if(nr->val.ctype == CTINT &&  mpgetfix(nr->val.u.xval) == 0) {
++				gencmp0(nl, nl->type, a, to);
++				break;
++			}
++			if(nr->val.ctype == CTNIL) {
++				gencmp0(nl, nl->type, a, to);
++				break;
++			}
++		}
++
+ 		a = optoas(a, nr->type);
+ 
+ 		if(nr->ullman >= UINF) {
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index 716ec5ed5b..78f2f4aeb4 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -233,8 +233,7 @@ cgen64(Node *n, Node *res)
+ 			// shift is >= 1<<32
+ 			split64(r, &cl, &ch);
+ 			gmove(&ch, &s);
+-			p1 = gins(AMOVW, &s, &s);
+-			p1->scond |= C_SBIT;
++			p1 = gins(ATST, &s, N);
+ 			p6 = gbranch(ABNE, T);
+ 			gmove(&cl, &s);
+ 			splitclean();
+@@ -242,8 +241,7 @@ cgen64(Node *n, Node *res)
+ 			gmove(r, &s);
+ 			p6 = P;
+ 		}
+-		p1 = gins(AMOVW, &s, &s);
+-		p1->scond |= C_SBIT;
++		p1 = gins(ATST, &s, N);
+ 
+ 		// shift == 0
+ 		p1 = gins(AMOVW, &bl, &al);
+@@ -390,8 +388,7 @@ olsh_break:
+ 			// shift is >= 1<<32
+ 			split64(r, &cl, &ch);
+ 			gmove(&ch, &s);
+-			p1 = gins(AMOVW, &s, &s);
+-			p1->scond |= C_SBIT;
++			p1 = gins(ATST, &s, N);
+ 			p6 = gbranch(ABNE, T);
+ 			gmove(&cl, &s);
+ 			splitclean();
+@@ -399,8 +396,7 @@ olsh_break:
+ 			gmove(r, &s);
+ 			p6 = P;
+ 		}
+-		p1 = gins(AMOVW, &s, &s);
+-		p1->scond |= C_SBIT;
++		p1 = gins(ATST, &s, N);
+ 
+ 		// shift == 0
+ 		p1 = gins(AMOVW, &bl, &al);
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 42a89415d3..932b4877c0 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -595,8 +595,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	}
+ 
+ 	// test for shift being 0
+-	p1 = gins(AMOVW, &n1, &n1);
+-	p1->scond |= C_SBIT;
++	p1 = gins(ATST, &n1, N);
+ 	p3 = gbranch(ABEQ, T);
+ 
+ 	// test and fix up large shifts
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 32333e8a9f..b60d6befa5 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -89,11 +89,11 @@ loop1:
+ 			/*
+ 			 * elide shift into D_SHIFT operand of subsequent instruction
+ 			 */
+-			if(shiftprop(r)) {
+-				excise(r);
+-				t++;
+-				break;
+-			}
++//			if(shiftprop(r)) {
++//				excise(r);
++//				t++;
++//				break;
++//			}
+ 			break;
+ 
+ 		case AMOVW:
+@@ -101,10 +101,10 @@ loop1:
+ 		case AMOVD:
+ 			if(!regtyp(&p->to))
+ 				break;
+-			if(isdconst(&p->from)) {
+-				constprop(&p->from, &p->to, r->s1);
+-				break;
+-			}
++//			if(isdconst(&p->from)) {
++//				constprop(&p->from, &p->to, r->s1);
++//				break;
++//			}
+ 			if(!regtyp(&p->from))
+ 				break;
+ 			if(p->from.type != p->to.type)
+@@ -166,87 +166,89 @@ loop1:
+ 		excise(r1);
+ 	}
+ 
+-	for(r=firstr; r!=R; r=r->link) {
+-		p = r->prog;
+-		switch(p->as) {
+-		case AMOVW:
+-		case AMOVB:
+-		case AMOVBU:
+-			if(p->from.type == D_OREG && p->from.offset == 0)
+-				xtramodes(r, &p->from);
+-			else if(p->to.type == D_OREG && p->to.offset == 0)
+-				xtramodes(r, &p->to);
+-			else
+-				continue;
+-			break;
+-		case ACMP:
+-			/*
+-			 * elide CMP $0,x if calculation of x can set condition codes
+-			 */
+-			if(isdconst(&p->from) || p->from.offset != 0)
+-				continue;
+-			r2 = r->s1;
+-			if(r2 == R)
+-				continue;
+-			t = r2->prog->as;
+-			switch(t) {
+-			default:
+-				continue;
+-			case ABEQ:
+-			case ABNE:
+-			case ABMI:
+-			case ABPL:
+-				break;
+-			case ABGE:
+-				t = ABPL;
+-				break;
+-			case ABLT:
+-				t = ABMI;
+-				break;
+-			case ABHI:
+-				t = ABNE;
+-				break;
+-			case ABLS:
+-				t = ABEQ;
+-				break;
+-			}
+-			r1 = r;
+-			do
+-				r1 = uniqp(r1);
+-			while (r1 != R && r1->prog->as == ANOP);
+-			if(r1 == R)
+-				continue;
+-			p1 = r1->prog;
+-			if(p1->to.type != D_REG)
+-				continue;
+-			if(p1->to.reg != p->reg)
+-			if(!(p1->as == AMOVW && p1->from.type == D_REG && p1->from.reg == p->reg))
+-				continue;
+-			switch(p1->as) {
+-			default:
+-				continue;
+-			case AMOVW:
+-				if(p1->from.type != D_REG)
+-					continue;
+-			case AAND:
+-			case AEOR:
+-			case AORR:
+-			case ABIC:
+-			case AMVN:
+-			case ASUB:
+-			case ARSB:
+-			case AADD:
+-			case AADC:
+-			case ASBC:
+-			case ARSC:
+-				break;
+-			}
+-			p1->scond |= C_SBIT;
+-			r2->prog->as = t;
+-			excise(r);
+-			continue;
+-		}
+-	}
++//	for(r=firstr; r!=R; r=r->link) {
++//		p = r->prog;
++//		switch(p->as) {
++//		case AMOVW:
++//		case AMOVB:
++//		case AMOVBU:
++//			if(p->from.type == D_OREG && p->from.offset == 0)
++//				xtramodes(r, &p->from);
++//			else
++//			if(p->to.type == D_OREG && p->to.offset == 0)
++//				xtramodes(r, &p->to);
++//			else
++//				continue;
++//			break;
++//		case ACMP:
++//			/*
++//			 * elide CMP $0,x if calculation of x can set condition codes
++//			 */
++//			if(isdconst(&p->from) || p->from.offset != 0)
++//				continue;
++//			r2 = r->s1;
++//			if(r2 == R)
++//				continue;
++//			t = r2->prog->as;
++//			switch(t) {
++//			default:
++//				continue;
++//			case ABEQ:
++//			case ABNE:
++//			case ABMI:
++//			case ABPL:
++//				break;
++//			case ABGE:
++//				t = ABPL;
++//				break;
++//			case ABLT:
++//				t = ABMI;
++//				break;
++//			case ABHI:
++//				t = ABNE;
++//				break;
++//			case ABLS:
++//				t = ABEQ;
++//				break;
++//			}
++//			r1 = r;
++//			do
++//				r1 = uniqp(r1);
++//			while (r1 != R && r1->prog->as == ANOP);
++//			if(r1 == R)
++//				continue;
++//			p1 = r1->prog;
++//			if(p1->to.type != D_REG)
++//				continue;
++//			if(p1->to.reg != p->reg)
++//			if(!(p1->as == AMOVW && p1->from.type == D_REG && p1->from.reg == p->reg))
++//				continue;
++//
++//			switch(p1->as) {
++//			default:
++//				continue;
++//			case AMOVW:
++//				if(p1->from.type != D_REG)
++//					continue;
++//			case AAND:
++//			case AEOR:
++//			case AORR:
++//			case ABIC:
++//			case AMVN:
++//			case ASUB:
++//			case ARSB:
++//			case AADD:
++//			case AADC:
++//			case ASBC:
++//			case ARSC:
++//				break;
++//			}
++//			p1->scond |= C_SBIT;
++//			r2->prog->as = t;
++//			excise(r);
++//			continue;
++//		}
++//	}
+ 
+ 	predicate();
+ }
+@@ -331,7 +333,6 @@ subprop(Reg *r0)
+ 		case ABL:
+ 			return 0;
+ 
+-		case ACMP:
+ 		case ACMN:
+ 		case AADD:
+ 		case ASUB:
+@@ -346,8 +347,6 @@ subprop(Reg *r0)
+ 		case ADIV:
+ 		case ADIVU:
+ 
+-		case ACMPF:
+-		case ACMPD:
+ 		case AADDD:
+ 		case AADDF:
+ 		case ASUBD:
+@@ -648,6 +647,7 @@ shiftprop(Reg *r)
+ 				print("\t=>%P", p1);
+ 		}
+ 	case ABIC:
++	case ATST:
+ 	case ACMP:
+ 	case ACMN:
+ 		if(p1->reg == n)
+@@ -922,8 +922,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	switch(p->as) {
+ 
+ 	default:
+-		if(debug['P'])
+-			print(" (?)");
++		print("copyu: cant find %A\n", p->as);
+ 		return 2;
+ 
+ 	case AMOVM:
+@@ -1028,6 +1027,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case ACMPF:
+ 	case ACMPD:
++	case ATST:
+ 	case ACMP:
+ 	case ACMN:
+ 	case ACASE:
+@@ -1138,6 +1138,7 @@ a2type(Prog *p)
+ 
+ 	switch(p->as) {
+ 
++	case ATST:
+ 	case ACMP:
+ 	case ACMN:
+ 
+@@ -1369,9 +1370,9 @@ int
+ modifiescpsr(Prog *p)
+ {
+ 	switch(p->as) {
+-	case ATST:
+ 	case ATEQ:
+ 	case ACMN:
++	case ATST:
+ 	case ACMP:
+ 	case AMULU:
+ 	case ADIVU:
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 5011e75ccc..c71bade0e6 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -137,7 +137,8 @@ regopt(Prog *firstp)
+ 	uint32 vreg;
+ 	Bits bit;
+ 
+-return; // disabled for the moment
++return;
++
+ 	if(first == 0) {
+ 		fmtinstall('Q', Qconv);
+ 	}
+@@ -479,7 +480,7 @@ brk:
+ 	 * peep-hole on basic block
+ 	 */
+ 	if(!debug['R'] || debug['P']) {
+-//		peep();
++		peep();
+ 	}
+ 
+ 	/*
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 7ceea59b67..b48a7a88b5 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -793,7 +793,8 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
+ 			rt = 0;
+ 		if(p->as == AMOVW || p->as == AMVN)
+ 			r = 0;
+-		else if(r == NREG)
++		else
++		if(r == NREG)
+ 			r = rt;
+ 		o1 |= rf | (r<<16) | (rt<<12);
+ 		break;
+@@ -1558,6 +1559,12 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
+ 		o1 |= (p->from.reg<<16);
+ 		o1 |= (p->to.reg<<12);
+ 		break;
++
++	case 90:	/* tst reg  */
++		o1 = oprrr(AMOVW, p->scond);
++		o1 |= p->from.reg | (p->from.reg<<12);
++		o1 |= 1 << 20;	// SBIT
++		break;
+ 	}
+ 	
+ 	out[0] = o1;
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index 96b2168371..9ad0193acd 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -64,7 +64,7 @@ Optab	optab[] =
+ 	{ AB,		C_NONE,	C_NONE,	C_ROREG,	 6, 4, 0,	LPOOL },
+ 	{ ABL,		C_NONE,	C_NONE,	C_ROREG,	 7, 8, 0 },
+ 	{ ABX,		C_NONE,	C_NONE,	C_ROREG,	 75, 12, 0 },
+-	{ ABXRET,		C_NONE,	C_NONE,	C_ROREG,	 76, 4, 0 },
++	{ ABXRET,	C_NONE,	C_NONE,	C_ROREG,	 76, 4, 0 },
+ 
+ 	{ ASLL,		C_RCON,	C_REG,	C_REG,		 8, 4, 0 },
+ 	{ ASLL,		C_RCON,	C_NONE,	C_REG,		 8, 4, 0 },
+@@ -251,5 +251,7 @@ Optab	optab[] =
+ 	{ AMOVW,	C_REG,	C_NONE,	C_FREG,		88, 4, 0 },
+ 	{ AMOVW,	C_FREG,	C_NONE,	C_REG,		89, 4, 0 },
+ 
++	{ ATST,		C_REG,	C_NONE,	C_NONE,		90, 4, 0 },
++
+ 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
+ };
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index be0f5e8b30..220140f433 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -962,7 +962,6 @@ buildop(void)
+ 			oprange[ABIC] = oprange[r];
+ 			break;
+ 		case ACMP:
+-			oprange[ATST] = oprange[r];
+ 			oprange[ATEQ] = oprange[r];
+ 			oprange[ACMN] = oprange[r];
+ 			break;
+@@ -1055,6 +1054,7 @@ buildop(void)
+ 
+ 		case ALDREX:
+ 		case ASTREX:
++		case ATST:
+ 			break;
+ 		}
+ 	}

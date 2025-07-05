@@ -22,7 +22,7 @@ Date:   Tue Aug 24 15:41:11 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 64 +++++++++++++++++++++++--------
  test/typeparam/eface.go                   | 10 ++---
  test/typeparam/issue47925.go              | 20 ++++++++++
@@ -30,3 +30,309 @@ Date:   Tue Aug 24 15:41:11 2021 -0700
  test/typeparam/issue47925c.go             | 36 +++++++++++++++++
  test/typeparam/issue47925d.go             | 47 +++++++++++++++++++++++
  6 files changed, 187 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 0c6bb5100c..7b85a88830 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -737,7 +737,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*typ
+ 				return
+ 			}
+ 			c := n.(*ir.ConvExpr)
+-			if c.X.Type().HasShape() {
++			if c.X.Type().HasShape() && !c.X.Type().IsInterface() {
+ 				ir.Dump("BAD FUNCTION", newf)
+ 				ir.Dump("BAD CONVERSION", c)
+ 				base.Fatalf("converting shape type to interface")
+@@ -1135,7 +1135,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			x := x.(*ir.ConvExpr)
+ 			// Note: x's argument is still typed as a type parameter.
+ 			// m's argument now has an instantiated type.
+-			if x.X.Type().HasTParam() {
++			if x.X.Type().HasTParam() || (x.X.Type().IsInterface() && x.Type().HasTParam()) {
+ 				m = convertUsingDictionary(subst.info, subst.info.dictParam, m.Pos(), m.(*ir.ConvExpr).X, x, m.Type(), x.X.Type())
+ 			}
+ 		case ir.ODOTTYPE, ir.ODOTTYPE2:
+@@ -1231,9 +1231,52 @@ func findDictType(info *instInfo, t *types.Type) int {
+ // CONVIFACE node or XDOT node (for a bound method call) that is causing the
+ // conversion.
+ func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v ir.Node, gn ir.Node, dst, src *types.Type) ir.Node {
+-	assert(src.HasTParam())
++	assert(src.HasTParam() || src.IsInterface() && gn.Type().HasTParam())
+ 	assert(dst.IsInterface())
+ 
++	if v.Type().IsInterface() {
++		// Converting from an interface. The shape-ness of the source doesn't really matter, as
++		// we'll be using the concrete type from the first interface word.
++		if dst.IsEmptyInterface() {
++			// Converting I2E. OCONVIFACE does that for us, and doesn't depend
++			// on what the empty interface was instantiated with. No dictionary entry needed.
++			v = ir.NewConvExpr(pos, ir.OCONVIFACE, dst, v)
++			v.SetTypecheck(1)
++			return v
++		}
++		gdst := gn.Type() // pre-stenciled destination type
++		if !gdst.HasTParam() {
++			// Regular OCONVIFACE works if the destination isn't parameterized.
++			v = ir.NewConvExpr(pos, ir.OCONVIFACE, dst, v)
++			v.SetTypecheck(1)
++			return v
++		}
++
++		// We get the destination interface type from the dictionary and the concrete
++		// type from the argument's itab. Call runtime.convI2I to get the new itab.
++		tmp := typecheck.Temp(v.Type())
++		as := ir.NewAssignStmt(pos, tmp, v)
++		as.SetTypecheck(1)
++		itab := ir.NewUnaryExpr(pos, ir.OITAB, tmp)
++		typed(types.Types[types.TUINTPTR].PtrTo(), itab)
++		idata := ir.NewUnaryExpr(pos, ir.OIDATA, tmp)
++		typed(types.Types[types.TUNSAFEPTR], idata)
++
++		fn := typecheck.LookupRuntime("convI2I")
++		fn.SetTypecheck(1)
++		types.CalcSize(fn.Type())
++		call := ir.NewCallExpr(pos, ir.OCALLFUNC, fn, nil)
++		typed(types.Types[types.TUINT8].PtrTo(), call)
++		ix := findDictType(info, gdst)
++		assert(ix >= 0)
++		inter := getDictionaryType(info, dictParam, pos, ix)
++		call.Args = []ir.Node{inter, itab}
++		i := ir.NewBinaryExpr(pos, ir.OEFACE, call, idata)
++		typed(dst, i)
++		i.PtrInit().Append(as)
++		return i
++	}
++
+ 	var rt ir.Node
+ 	if !dst.IsEmptyInterface() {
+ 		// We should have an itab entry in the dictionary. Using this itab
+@@ -1248,11 +1291,6 @@ func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v
+ 		}
+ 		assert(ix >= 0)
+ 		rt = getDictionaryEntry(pos, dictParam, ix, info.dictLen)
+-	} else if v.Type().IsInterface() {
+-		ta := ir.NewTypeAssertExpr(pos, v, nil)
+-		ta.SetType(dst)
+-		ta.SetTypecheck(1)
+-		return ta
+ 	} else {
+ 		ix := findDictType(info, src)
+ 		assert(ix >= 0)
+@@ -1261,19 +1299,13 @@ func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v
+ 	}
+ 
+ 	// Figure out what the data field of the interface will be.
+-	var data ir.Node
+-	if v.Type().IsInterface() {
+-		data = ir.NewUnaryExpr(pos, ir.OIDATA, v)
+-	} else {
+-		data = ir.NewConvExpr(pos, ir.OCONVIDATA, nil, v)
+-	}
++	data := ir.NewConvExpr(pos, ir.OCONVIDATA, nil, v)
+ 	typed(types.Types[types.TUNSAFEPTR], data)
+ 
+ 	// Build an interface from the type and data parts.
+ 	var i ir.Node = ir.NewBinaryExpr(pos, ir.OEFACE, rt, data)
+ 	typed(dst, i)
+ 	return i
+-
+ }
+ 
+ func (subst *subster) namelist(l []*ir.Name) []*ir.Name {
+@@ -1557,7 +1589,7 @@ func (g *irgen) finalizeSyms() {
+ 			default:
+ 				base.Fatalf("itab entry with unknown op %s", n.Op())
+ 			}
+-			if srctype.IsInterface() {
++			if srctype.IsInterface() || dsttype.IsEmptyInterface() {
+ 				// No itab is wanted if src type is an interface. We
+ 				// will use a type assert instead.
+ 				d.off = objw.Uintptr(lsym, d.off, 0)
+diff --git a/test/typeparam/eface.go b/test/typeparam/eface.go
+index e8147ef081..1421b7f49a 100644
+--- a/test/typeparam/eface.go
++++ b/test/typeparam/eface.go
+@@ -53,19 +53,15 @@ func main() {
+ 		println("test 4 failed")
+ 	}
+ 	if h[int](myint(5)) != myint(5) {
+-		// TODO: disabled
+-		//println("test 5 failed")
++		println("test 5 failed")
+ 	}
+ 	if h[int](myint(6)) != interface{ foo() }(myint(6)) {
+-		// TODO: disabled
+-		//println("test 6 failed")
++		println("test 6 failed")
+ 	}
+ 	if i[int](myint(7)) != myint(7) {
+-		// TODO: This happens to work, but not for the right reasons.
+ 		println("test 7 failed")
+ 	}
+ 	if i[int](myint(8)) != I[int](myint(8)) {
+-		// TODO: disabled
+-		//println("test 8 failed")
++		println("test 8 failed")
+ 	}
+ }
+diff --git a/test/typeparam/issue47925.go b/test/typeparam/issue47925.go
+new file mode 100644
+index 0000000000..1b0719338d
+--- /dev/null
++++ b/test/typeparam/issue47925.go
+@@ -0,0 +1,20 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type myifacer[T any] interface{ do(T) error }
++
++type stuff[T any] struct{}
++
++func (s stuff[T]) run() interface{} {
++	var i myifacer[T]
++	return i
++}
++
++func main() {
++	stuff[int]{}.run()
++}
+diff --git a/test/typeparam/issue47925b.go b/test/typeparam/issue47925b.go
+new file mode 100644
+index 0000000000..f4a99ecdaa
+--- /dev/null
++++ b/test/typeparam/issue47925b.go
+@@ -0,0 +1,33 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type I[T any] interface {
++	foo()
++}
++
++type E[T any] interface {
++}
++
++//go:noinline
++func f[T I[T]](x T) E[T] {
++	// contains a cast from nonempty to empty interface
++	return E[T](I[T](x))
++}
++
++type S struct {
++	x int
++}
++
++func (s *S) foo() {}
++
++func main() {
++	i := f(&S{x: 7})
++	if i.(*S).x != 7 {
++		panic("bad")
++	}
++}
+diff --git a/test/typeparam/issue47925c.go b/test/typeparam/issue47925c.go
+new file mode 100644
+index 0000000000..0ba23e6245
+--- /dev/null
++++ b/test/typeparam/issue47925c.go
+@@ -0,0 +1,36 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type I[T any] interface {
++	foo()
++}
++
++type J[T any] interface {
++	foo()
++	bar()
++}
++
++//go:noinline
++func f[T J[T]](x T) I[T] {
++	// contains a cast between two nonempty interfaces
++	return I[T](J[T](x))
++}
++
++type S struct {
++	x int
++}
++
++func (s *S) foo() {}
++func (s *S) bar() {}
++
++func main() {
++	i := f(&S{x: 7})
++	if i.(*S).x != 7 {
++		panic("bad")
++	}
++}
+diff --git a/test/typeparam/issue47925d.go b/test/typeparam/issue47925d.go
+new file mode 100644
+index 0000000000..231961bd13
+--- /dev/null
++++ b/test/typeparam/issue47925d.go
+@@ -0,0 +1,47 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type I[T any] interface {
++	foo()
++}
++
++type J[T any] interface {
++	foo()
++	bar()
++}
++
++//go:noinline
++func f[T J[T]](x T, g func(T) T) I[T] {
++	// contains a cast between two nonempty interfaces
++	// Also make sure we don't evaluate g(x) twice.
++	return I[T](J[T](g(x)))
++}
++
++type S struct {
++	x int
++}
++
++func (s *S) foo() {}
++func (s *S) bar() {}
++
++var cnt int
++
++func inc(s *S) *S {
++	cnt++
++	return s
++}
++
++func main() {
++	i := f(&S{x: 7}, inc)
++	if i.(*S).x != 7 {
++		panic("bad")
++	}
++	if cnt != 1 {
++		panic("multiple calls")
++	}
++}

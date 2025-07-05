@@ -7,6 +7,20 @@ Date:   Fri Nov 4 15:05:32 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5340046
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 64a7f24567..a15b6cf68a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -129,7 +129,7 @@ Jamie Gennis <jgennis@google.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jan Newmarch <jan.newmarch@gmail.com>
+-Jani Monoses <jani.monoses@ubuntu.com>
++Jani Monoses <jani.monoses@ubuntu.com> <jani.monoses@gmail.com>
+ Jaroslavas Počepko <jp@webmaster.ms>
+ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>

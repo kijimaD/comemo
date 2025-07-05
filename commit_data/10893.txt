@@ -7,6 +7,20 @@ Date:   Mon Dec 19 20:57:59 2011 -0800
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/5495098
-
+---
  src/pkg/syscall/mksyscall.pl | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/mksyscall.pl b/src/pkg/syscall/mksyscall.pl
+index 89cdf0d8f9..963599c3ab 100755
+--- a/src/pkg/syscall/mksyscall.pl
++++ b/src/pkg/syscall/mksyscall.pl
+@@ -232,7 +232,7 @@ while(<>) {
+ 		$text .= "\t}\n";
+ 	} elsif ($do_errno) {
+ 		$text .= "\tif e1 != 0 {\n";
+-		$text .= "\t\terr = e1;\n";
++		$text .= "\t\terr = e1\n";
+ 		$text .= "\t}\n";
+ 	}
+ 	$text .= "\treturn\n";

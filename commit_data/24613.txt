@@ -12,6 +12,27 @@ Date:   Wed Aug 12 12:54:47 2015 -0700
     Change-Id: Id72e5526c56e5e070b933d3b28dc503a5a2978dc
     Reviewed-on: https://go-review.googlesource.com/13586
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 75e12ee8f2..81f9c8f6ce 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1311,6 +1311,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		}
+ 		dowidth(left.Type)
+ 		call.AuxInt = left.Type.Argwid // call operations carry the argsize of the callee along with them
++		s.vars[&memvar] = call
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockCall
+ 		b.Control = call
+@@ -1319,7 +1320,6 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 		// read result from stack at the start of the fallthrough block
+ 		s.startBlock(bNext)
+-		s.vars[&memvar] = call
+ 		var titer Iter
+ 		fp := Structfirst(&titer, Getoutarg(left.Type))
+ 		if fp == nil {

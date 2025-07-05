@@ -17,7 +17,7 @@ Date:   Tue Nov 11 17:05:55 2014 -0500
     R=r
     CC=austin, dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/168500044
-
+---
  src/runtime/signal.c               |  25 ------
  src/runtime/signal.go              |  15 ++++
  src/runtime/signal1_unix.go        | 111 +++++++++++++++++++++++++
@@ -46,3 +46,1904 @@ Date:   Tue Nov 11 17:05:55 2014 -0500
  src/runtime/sigpanic_unix.go       |   9 +-
  src/runtime/sigqueue.go            |   5 +-
  27 files changed, 882 insertions(+), 829 deletions(-)
+
+diff --git a/src/runtime/signal.c b/src/runtime/signal.c
+deleted file mode 100644
+index 0674bfb22d..0000000000
+--- a/src/runtime/signal.c
++++ /dev/null
+@@ -1,25 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-
+-void
+-runtime·sigenable_m(void)
+-{
+-	uint32 s;
+-	
+-	s = g->m->scalararg[0];
+-	g->m->scalararg[0] = 0;
+-	runtime·sigenable(s);
+-}
+-
+-void
+-runtime·sigdisable_m(void)
+-{
+-	uint32 s;
+-	
+-	s = g->m->scalararg[0];
+-	g->m->scalararg[0] = 0;
+-	runtime·sigdisable(s);
+-}
+diff --git a/src/runtime/signal.go b/src/runtime/signal.go
+new file mode 100644
+index 0000000000..8bfd82c2ad
+--- /dev/null
++++ b/src/runtime/signal.go
+@@ -0,0 +1,15 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++func sigenable_m() {
++	_g_ := getg()
++	sigenable(uint32(_g_.m.scalararg[0]))
++}
++
++func sigdisable_m() {
++	_g_ := getg()
++	sigdisable(uint32(_g_.m.scalararg[0]))
++}
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+new file mode 100644
+index 0000000000..25f01e056e
+--- /dev/null
++++ b/src/runtime/signal1_unix.go
+@@ -0,0 +1,111 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package runtime
++
++const (
++	_SIG_DFL uintptr = 0
++	_SIG_IGN uintptr = 1
++)
++
++func initsig() {
++	// _NSIG is the number of signals on this operating system.
++	// sigtable should describe what to do for all the possible signals.
++	if len(sigtable) != _NSIG {
++		print("runtime: len(sigtable)=", len(sigtable), " _NSIG=", _NSIG, "\n")
++		gothrow("initsig")
++	}
++
++	// First call: basic setup.
++	for i := int32(0); i < _NSIG; i++ {
++		t := &sigtable[i]
++		if t.flags == 0 || t.flags&_SigDefault != 0 {
++			continue
++		}
++
++		// For some signals, we respect an inherited SIG_IGN handler
++		// rather than insist on installing our own default handler.
++		// Even these signals can be fetched using the os/signal package.
++		switch i {
++		case _SIGHUP, _SIGINT:
++			if getsig(i) == _SIG_IGN {
++				t.flags = _SigNotify | _SigIgnored
++				continue
++			}
++		}
++
++		t.flags |= _SigHandling
++		setsig(i, funcPC(sighandler), true)
++	}
++}
++
++func sigenable(sig uint32) {
++	if sig >= uint32(len(sigtable)) {
++		return
++	}
++
++	t := &sigtable[sig]
++	if t.flags&_SigNotify != 0 && t.flags&_SigHandling == 0 {
++		t.flags |= _SigHandling
++		if getsig(int32(sig)) == _SIG_IGN {
++			t.flags |= _SigIgnored
++		}
++		setsig(int32(sig), funcPC(sighandler), true)
++	}
++}
++
++func sigdisable(sig uint32) {
++	if sig >= uint32(len(sigtable)) {
++		return
++	}
++
++	t := &sigtable[sig]
++	if t.flags&_SigNotify != 0 && t.flags&_SigHandling != 0 {
++		t.flags &^= _SigHandling
++		if t.flags&_SigIgnored != 0 {
++			setsig(int32(sig), _SIG_IGN, true)
++		} else {
++			setsig(int32(sig), _SIG_DFL, true)
++		}
++	}
++}
++
++func resetcpuprofiler(hz int32) {
++	var it itimerval
++	if hz == 0 {
++		setitimer(_ITIMER_PROF, &it, nil)
++	} else {
++		it.it_interval.tv_sec = 0
++		it.it_interval.set_usec(1000000 / hz)
++		it.it_value = it.it_interval
++		setitimer(_ITIMER_PROF, &it, nil)
++	}
++	_g_ := getg()
++	_g_.m.profilehz = hz
++}
++
++func sigpipe() {
++	setsig(_SIGPIPE, _SIG_DFL, false)
++	raise(_SIGPIPE)
++}
++
++func crash() {
++	if GOOS == "darwin" {
++		// OS X core dumps are linear dumps of the mapped memory,
++		// from the first virtual byte to the last, with zeros in the gaps.
++		// Because of the way we arrange the address space on 64-bit systems,
++		// this means the OS X core file will be >128 GB and even on a zippy
++		// workstation can take OS X well over an hour to write (uninterruptible).
++		// Save users from making that mistake.
++		if ptrSize == 8 {
++			return
++		}
++	}
++
++	unblocksignals()
++	setsig(_SIGABRT, _SIG_DFL, false)
++	raise(_SIGABRT)
++}
+diff --git a/src/runtime/signal_386.c b/src/runtime/signal_386.c
+deleted file mode 100644
+index 30a7488bd7..0000000000
+--- a/src/runtime/signal_386.c
++++ /dev/null
+@@ -1,122 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signal_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-
+-void
+-runtime·dumpregs(Siginfo *info, void *ctxt)
+-{
+-	USED(info);
+-	USED(ctxt);
+-	
+-	runtime·printf("eax     %x\n", SIG_EAX(info, ctxt));
+-	runtime·printf("ebx     %x\n", SIG_EBX(info, ctxt));
+-	runtime·printf("ecx     %x\n", SIG_ECX(info, ctxt));
+-	runtime·printf("edx     %x\n", SIG_EDX(info, ctxt));
+-	runtime·printf("edi     %x\n", SIG_EDI(info, ctxt));
+-	runtime·printf("esi     %x\n", SIG_ESI(info, ctxt));
+-	runtime·printf("ebp     %x\n", SIG_EBP(info, ctxt));
+-	runtime·printf("esp     %x\n", SIG_ESP(info, ctxt));
+-	runtime·printf("eip     %x\n", SIG_EIP(info, ctxt));
+-	runtime·printf("eflags  %x\n", SIG_EFLAGS(info, ctxt));
+-	runtime·printf("cs      %x\n", SIG_CS(info, ctxt));
+-	runtime·printf("fs      %x\n", SIG_FS(info, ctxt));
+-	runtime·printf("gs      %x\n", SIG_GS(info, ctxt));
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+-{
+-	uintptr *sp;
+-	SigTab *t;
+-	bool crash;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((byte*)SIG_EIP(info, ctxt), (byte*)SIG_ESP(info, ctxt), nil, gp, g->m);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = SIG_CODE0(info, ctxt);
+-		gp->sigcode1 = SIG_CODE1(info, ctxt);
+-		gp->sigpc = SIG_EIP(info, ctxt);
+-
+-#ifdef GOOS_darwin
+-		// Work around Leopard bug that doesn't set FPE_INTDIV.
+-		// Look at instruction to see if it is a divide.
+-		// Not necessary in Snow Leopard (si_code will be != 0).
+-		if(sig == SIGFPE && gp->sigcode0 == 0) {
+-			byte *pc;
+-			pc = (byte*)gp->sigpc;
+-			if(pc[0] == 0x66)	// 16-bit instruction prefix
+-				pc++;
+-			if(pc[0] == 0xF6 || pc[0] == 0xF7)
+-				gp->sigcode0 = FPE_INTDIV;
+-		}
+-#endif
+-
+-		// Only push runtime·sigpanic if eip != 0.
+-		// If eip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(SIG_EIP(info, ctxt) != 0) {
+-			sp = (uintptr*)SIG_ESP(info, ctxt);
+-			*--sp = SIG_EIP(info, ctxt);
+-			SIG_ESP(info, ctxt) = (uintptr)sp;
+-		}
+-		SIG_EIP(info, ctxt) = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(SIG_CODE0(info, ctxt) == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-	g->m->throwing = 1;
+-	g->m->caughtsig = gp;
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%x\n", SIG_EIP(info, ctxt));
+-	if(g->m->lockedg != nil && g->m->ncgo > 0 && gp == g->m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = g->m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback(&crash)){
+-		runtime·goroutineheader(gp);
+-		runtime·tracebacktrap(SIG_EIP(info, ctxt), SIG_ESP(info, ctxt), 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·printf("\n");
+-		runtime·dumpregs(info, ctxt);
+-	}
+-	
+-	if(crash)
+-		runtime·crash();
+-
+-	runtime·exit(2);
+-}
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+new file mode 100644
+index 0000000000..5336a4330a
+--- /dev/null
++++ b/src/runtime/signal_386.go
+@@ -0,0 +1,131 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd
++
++package runtime
++
++import "unsafe"
++
++func dumpregs(c *sigctxt) {
++	print("eax    ", hex(c.eax()), "\n")
++	print("ebx    ", hex(c.ebx()), "\n")
++	print("ecx    ", hex(c.ecx()), "\n")
++	print("edx    ", hex(c.edx()), "\n")
++	print("edi    ", hex(c.edi()), "\n")
++	print("esi    ", hex(c.esi()), "\n")
++	print("ebp    ", hex(c.ebp()), "\n")
++	print("esp    ", hex(c.esp()), "\n")
++	print("eip    ", hex(c.eip()), "\n")
++	print("eflags ", hex(c.eflags()), "\n")
++	print("cs     ", hex(c.cs()), "\n")
++	print("fs     ", hex(c.fs()), "\n")
++	print("gs     ", hex(c.gs()), "\n")
++}
++
++func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
++	_g_ := getg()
++	c := &sigctxt{info, ctxt}
++
++	if sig == _SIGPROF {
++		sigprof((*byte)(unsafe.Pointer(uintptr(c.eip()))), (*byte)(unsafe.Pointer(uintptr(c.esp()))), nil, gp, _g_.m)
++		return
++	}
++
++	flags := int32(_SigThrow)
++	if sig < uint32(len(sigtable)) {
++		flags = sigtable[sig].flags
++	}
++	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp.sig = sig
++		gp.sigcode0 = uintptr(c.sigcode())
++		gp.sigcode1 = uintptr(c.sigaddr())
++		gp.sigpc = uintptr(c.eip())
++
++		if GOOS == "darwin" {
++			// Work around Leopard bug that doesn't set FPE_INTDIV.
++			// Look at instruction to see if it is a divide.
++			// Not necessary in Snow Leopard (si_code will be != 0).
++			if sig == _SIGFPE && gp.sigcode0 == 0 {
++				pc := (*[4]byte)(unsafe.Pointer(gp.sigpc))
++				i := 0
++				if pc[i] == 0x66 { // 16-bit instruction prefix
++					i++
++				}
++				if pc[i] == 0xF6 || pc[i] == 0xF7 {
++					gp.sigcode0 = _FPE_INTDIV
++				}
++			}
++		}
++
++		// Only push runtime.sigpanic if rip != 0.
++		// If rip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime.sigpanic instead.
++		// (Otherwise the trace will end at runtime.sigpanic and we
++		// won't get to see who faulted.)
++		if c.eip() != 0 {
++			sp := c.esp()
++			if regSize > ptrSize {
++				sp -= ptrSize
++				*(*uintptr)(unsafe.Pointer(uintptr(sp))) = 0
++			}
++			sp -= ptrSize
++			*(*uintptr)(unsafe.Pointer(uintptr(sp))) = uintptr(c.eip())
++			c.set_esp(sp)
++		}
++		c.set_eip(uint32(funcPC(sigpanic)))
++		return
++	}
++
++	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
++		if sigsend(sig) {
++			return
++		}
++	}
++
++	if flags&_SigKill != 0 {
++		exit(2)
++	}
++
++	if flags&_SigThrow == 0 {
++		return
++	}
++
++	_g_.m.throwing = 1
++	_g_.m.caughtsig = gp
++	startpanic()
++
++	if sig < uint32(len(sigtable)) {
++		print(sigtable[sig].name, "\n")
++	} else {
++		print("Signal ", sig, "\n")
++	}
++
++	print("PC=", hex(c.eip()), "\n")
++	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
++		print("signal arrived during cgo execution\n")
++		gp = _g_.m.lockedg
++	}
++	print("\n")
++
++	var docrash bool
++	if gotraceback(&docrash) > 0 {
++		goroutineheader(gp)
++		tracebacktrap(uintptr(c.eip()), uintptr(c.esp()), 0, gp)
++		tracebackothers(gp)
++		print("\n")
++		dumpregs(c)
++	}
++
++	if docrash {
++		crash()
++	}
++
++	exit(2)
++}
+diff --git a/src/runtime/signal_amd64x.c b/src/runtime/signal_amd64x.c
+deleted file mode 100644
+index feb4afcce3..0000000000
+--- a/src/runtime/signal_amd64x.c
++++ /dev/null
+@@ -1,156 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build amd64 amd64p32
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signal_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-
+-void
+-runtime·dumpregs(Siginfo *info, void *ctxt)
+-{
+-	USED(info);
+-	USED(ctxt);
+-	
+-	runtime·printf("rax     %X\n", SIG_RAX(info, ctxt));
+-	runtime·printf("rbx     %X\n", SIG_RBX(info, ctxt));
+-	runtime·printf("rcx     %X\n", SIG_RCX(info, ctxt));
+-	runtime·printf("rdx     %X\n", SIG_RDX(info, ctxt));
+-	runtime·printf("rdi     %X\n", SIG_RDI(info, ctxt));
+-	runtime·printf("rsi     %X\n", SIG_RSI(info, ctxt));
+-	runtime·printf("rbp     %X\n", SIG_RBP(info, ctxt));
+-	runtime·printf("rsp     %X\n", SIG_RSP(info, ctxt));
+-	runtime·printf("r8      %X\n", SIG_R8(info, ctxt) );
+-	runtime·printf("r9      %X\n", SIG_R9(info, ctxt) );
+-	runtime·printf("r10     %X\n", SIG_R10(info, ctxt));
+-	runtime·printf("r11     %X\n", SIG_R11(info, ctxt));
+-	runtime·printf("r12     %X\n", SIG_R12(info, ctxt));
+-	runtime·printf("r13     %X\n", SIG_R13(info, ctxt));
+-	runtime·printf("r14     %X\n", SIG_R14(info, ctxt));
+-	runtime·printf("r15     %X\n", SIG_R15(info, ctxt));
+-	runtime·printf("rip     %X\n", SIG_RIP(info, ctxt));
+-	runtime·printf("rflags  %X\n", SIG_RFLAGS(info, ctxt));
+-	runtime·printf("cs      %X\n", SIG_CS(info, ctxt));
+-	runtime·printf("fs      %X\n", SIG_FS(info, ctxt));
+-	runtime·printf("gs      %X\n", SIG_GS(info, ctxt));
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+-{
+-	uintptr *sp;
+-	SigTab *t;
+-	bool crash;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((byte*)SIG_RIP(info, ctxt), (byte*)SIG_RSP(info, ctxt), nil, gp, g->m);
+-		return;
+-	}
+-
+-#ifdef GOOS_darwin
+-	// x86-64 has 48-bit virtual addresses. The top 16 bits must echo bit 47.
+-	// The hardware delivers a different kind of fault for a malformed address
+-	// than it does for an attempt to access a valid but unmapped address.
+-	// OS X 10.9.2 mishandles the malformed address case, making it look like
+-	// a user-generated signal (like someone ran kill -SEGV ourpid).
+-	// We pass user-generated signals to os/signal, or else ignore them.
+-	// Doing that here - and returning to the faulting code - results in an
+-	// infinite loop. It appears the best we can do is rewrite what the kernel
+-	// delivers into something more like the truth. The address used below
+-	// has very little chance of being the one that caused the fault, but it is
+-	// malformed, it is clearly not a real pointer, and if it does get printed
+-	// in real life, people will probably search for it and find this code.
+-	// There are no Google hits for b01dfacedebac1e or 0xb01dfacedebac1e
+-	// as I type this comment.
+-	if(sig == SIGSEGV && SIG_CODE0(info, ctxt) == SI_USER) {
+-		SIG_CODE0(info, ctxt) = SI_USER+1;
+-		info->si_addr = (void*)(uintptr)0xb01dfacedebac1eULL;
+-	}
+-#endif
+-
+-	t = &runtime·sigtab[sig];
+-	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = SIG_CODE0(info, ctxt);
+-		gp->sigcode1 = SIG_CODE1(info, ctxt);
+-		gp->sigpc = SIG_RIP(info, ctxt);
+-
+-#ifdef GOOS_darwin
+-		// Work around Leopard bug that doesn't set FPE_INTDIV.
+-		// Look at instruction to see if it is a divide.
+-		// Not necessary in Snow Leopard (si_code will be != 0).
+-		if(sig == SIGFPE && gp->sigcode0 == 0) {
+-			byte *pc;
+-			pc = (byte*)gp->sigpc;
+-			if((pc[0]&0xF0) == 0x40)	// 64-bit REX prefix
+-				pc++;
+-			else if(pc[0] == 0x66)	// 16-bit instruction prefix
+-				pc++;
+-			if(pc[0] == 0xF6 || pc[0] == 0xF7)
+-				gp->sigcode0 = FPE_INTDIV;
+-		}
+-#endif
+-
+-		// Only push runtime·sigpanic if rip != 0.
+-		// If rip == 0, probably panicked because of a
+-		// call to a nil func.  Not pushing that onto sp will
+-		// make the trace look like a call to runtime·sigpanic instead.
+-		// (Otherwise the trace will end at runtime·sigpanic and we
+-		// won't get to see who faulted.)
+-		if(SIG_RIP(info, ctxt) != 0) {
+-			sp = (uintptr*)SIG_RSP(info, ctxt);
+-			if(sizeof(uintreg) > sizeof(uintptr))
+-				*--sp = 0;
+-			*--sp = SIG_RIP(info, ctxt);
+-			SIG_RSP(info, ctxt) = (uintptr)sp;
+-		}
+-		SIG_RIP(info, ctxt) = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(SIG_CODE0(info, ctxt) == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-	g->m->throwing = 1;
+-	g->m->caughtsig = gp;
+-	runtime·startpanic();
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%X\n", SIG_RIP(info, ctxt));
+-	if(g->m->lockedg != nil && g->m->ncgo > 0 && gp == g->m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = g->m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback(&crash)){
+-		runtime·goroutineheader(gp);
+-		runtime·tracebacktrap(SIG_RIP(info, ctxt), SIG_RSP(info, ctxt), 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·printf("\n");
+-		runtime·dumpregs(info, ctxt);
+-	}
+-	
+-	if(crash)
+-		runtime·crash();
+-
+-	runtime·exit(2);
+-}
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+new file mode 100644
+index 0000000000..de88d93a5e
+--- /dev/null
++++ b/src/runtime/signal_amd64x.go
+@@ -0,0 +1,163 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build amd64 amd64p32
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++
++package runtime
++
++import "unsafe"
++
++func dumpregs(c *sigctxt) {
++	print("rax    ", hex(c.rax()), "\n")
++	print("rbx    ", hex(c.rbx()), "\n")
++	print("rcx    ", hex(c.rcx()), "\n")
++	print("rdx    ", hex(c.rdx()), "\n")
++	print("rdi    ", hex(c.rdi()), "\n")
++	print("rsi    ", hex(c.rsi()), "\n")
++	print("rbp    ", hex(c.rbp()), "\n")
++	print("rsp    ", hex(c.rsp()), "\n")
++	print("r8     ", hex(c.r8()), "\n")
++	print("r9     ", hex(c.r9()), "\n")
++	print("r10    ", hex(c.r10()), "\n")
++	print("r11    ", hex(c.r11()), "\n")
++	print("r12    ", hex(c.r12()), "\n")
++	print("r13    ", hex(c.r13()), "\n")
++	print("r14    ", hex(c.r14()), "\n")
++	print("r15    ", hex(c.r15()), "\n")
++	print("rip    ", hex(c.rip()), "\n")
++	print("rflags ", hex(c.rflags()), "\n")
++	print("cs     ", hex(c.cs()), "\n")
++	print("fs     ", hex(c.fs()), "\n")
++	print("gs     ", hex(c.gs()), "\n")
++}
++
++func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
++	_g_ := getg()
++	c := &sigctxt{info, ctxt}
++
++	if sig == _SIGPROF {
++		sigprof((*byte)(unsafe.Pointer(uintptr(c.rip()))), (*byte)(unsafe.Pointer(uintptr(c.rsp()))), nil, gp, _g_.m)
++		return
++	}
++
++	if GOOS == "darwin" {
++		// x86-64 has 48-bit virtual addresses. The top 16 bits must echo bit 47.
++		// The hardware delivers a different kind of fault for a malformed address
++		// than it does for an attempt to access a valid but unmapped address.
++		// OS X 10.9.2 mishandles the malformed address case, making it look like
++		// a user-generated signal (like someone ran kill -SEGV ourpid).
++		// We pass user-generated signals to os/signal, or else ignore them.
++		// Doing that here - and returning to the faulting code - results in an
++		// infinite loop. It appears the best we can do is rewrite what the kernel
++		// delivers into something more like the truth. The address used below
++		// has very little chance of being the one that caused the fault, but it is
++		// malformed, it is clearly not a real pointer, and if it does get printed
++		// in real life, people will probably search for it and find this code.
++		// There are no Google hits for b01dfacedebac1e or 0xb01dfacedebac1e
++		// as I type this comment.
++		if sig == _SIGSEGV && c.sigcode() == _SI_USER {
++			c.set_sigcode(_SI_USER + 1)
++			c.set_sigaddr(0xb01dfacedebac1e)
++		}
++	}
++
++	flags := int32(_SigThrow)
++	if sig < uint32(len(sigtable)) {
++		flags = sigtable[sig].flags
++	}
++	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp.sig = sig
++		gp.sigcode0 = uintptr(c.sigcode())
++		gp.sigcode1 = uintptr(c.sigaddr())
++		gp.sigpc = uintptr(c.rip())
++
++		if GOOS == "darwin" {
++			// Work around Leopard bug that doesn't set FPE_INTDIV.
++			// Look at instruction to see if it is a divide.
++			// Not necessary in Snow Leopard (si_code will be != 0).
++			if sig == _SIGFPE && gp.sigcode0 == 0 {
++				pc := (*[4]byte)(unsafe.Pointer(gp.sigpc))
++				i := 0
++				if pc[i]&0xF0 == 0x40 { // 64-bit REX prefix
++					i++
++				} else if pc[i] == 0x66 { // 16-bit instruction prefix
++					i++
++				}
++				if pc[i] == 0xF6 || pc[i] == 0xF7 {
++					gp.sigcode0 = _FPE_INTDIV
++				}
++			}
++		}
++
++		// Only push runtime.sigpanic if rip != 0.
++		// If rip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to runtime.sigpanic instead.
++		// (Otherwise the trace will end at runtime.sigpanic and we
++		// won't get to see who faulted.)
++		if c.rip() != 0 {
++			sp := c.rsp()
++			if regSize > ptrSize {
++				sp -= ptrSize
++				*(*uintptr)(unsafe.Pointer(uintptr(sp))) = 0
++			}
++			sp -= ptrSize
++			*(*uintptr)(unsafe.Pointer(uintptr(sp))) = uintptr(c.rip())
++			c.set_rsp(sp)
++		}
++		c.set_rip(uint64(funcPC(sigpanic)))
++		return
++	}
++
++	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
++		if sigsend(sig) {
++			return
++		}
++	}
++
++	if flags&_SigKill != 0 {
++		exit(2)
++	}
++
++	if flags&_SigThrow == 0 {
++		return
++	}
++
++	_g_.m.throwing = 1
++	_g_.m.caughtsig = gp
++	startpanic()
++
++	if sig < uint32(len(sigtable)) {
++		print(sigtable[sig].name, "\n")
++	} else {
++		print("Signal ", sig, "\n")
++	}
++
++	print("PC=", hex(c.rip()), "\n")
++	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
++		print("signal arrived during cgo execution\n")
++		gp = _g_.m.lockedg
++	}
++	print("\n")
++
++	var docrash bool
++	if gotraceback(&docrash) > 0 {
++		goroutineheader(gp)
++		tracebacktrap(uintptr(c.rip()), uintptr(c.rsp()), 0, gp)
++		tracebackothers(gp)
++		print("\n")
++		dumpregs(c)
++	}
++
++	if docrash {
++		crash()
++	}
++
++	exit(2)
++}
+diff --git a/src/runtime/signal_arm.c b/src/runtime/signal_arm.c
+deleted file mode 100644
+index afad5e7d16..0000000000
+--- a/src/runtime/signal_arm.c
++++ /dev/null
+@@ -1,121 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signal_GOOS_GOARCH.h"
+-#include "signals_GOOS.h"
+-
+-void
+-runtime·dumpregs(Siginfo *info, void *ctxt)
+-{
+-	USED(info);
+-	USED(ctxt);
+-
+-	runtime·printf("trap    %x\n", SIG_TRAP(info, ctxt));
+-	runtime·printf("error   %x\n", SIG_ERROR(info, ctxt));
+-	runtime·printf("oldmask %x\n", SIG_OLDMASK(info, ctxt));
+-	runtime·printf("r0      %x\n", SIG_R0(info, ctxt));
+-	runtime·printf("r1      %x\n", SIG_R1(info, ctxt));
+-	runtime·printf("r2      %x\n", SIG_R2(info, ctxt));
+-	runtime·printf("r3      %x\n", SIG_R3(info, ctxt));
+-	runtime·printf("r4      %x\n", SIG_R4(info, ctxt));
+-	runtime·printf("r5      %x\n", SIG_R5(info, ctxt));
+-	runtime·printf("r6      %x\n", SIG_R6(info, ctxt));
+-	runtime·printf("r7      %x\n", SIG_R7(info, ctxt));
+-	runtime·printf("r8      %x\n", SIG_R8(info, ctxt));
+-	runtime·printf("r9      %x\n", SIG_R9(info, ctxt));
+-	runtime·printf("r10     %x\n", SIG_R10(info, ctxt));
+-	runtime·printf("fp      %x\n", SIG_FP(info, ctxt));
+-	runtime·printf("ip      %x\n", SIG_IP(info, ctxt));
+-	runtime·printf("sp      %x\n", SIG_SP(info, ctxt));
+-	runtime·printf("lr      %x\n", SIG_LR(info, ctxt));
+-	runtime·printf("pc      %x\n", SIG_PC(info, ctxt));
+-	runtime·printf("cpsr    %x\n", SIG_CPSR(info, ctxt));
+-	runtime·printf("fault   %x\n", SIG_FAULT(info, ctxt));
+-}
+-
+-void
+-runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+-{
+-	SigTab *t;
+-	bool crash;
+-
+-	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp, g->m);
+-		return;
+-	}
+-
+-	t = &runtime·sigtab[sig];
+-	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+-		// Make it look like a call to the signal func.
+-		// Have to pass arguments out of band since
+-		// augmenting the stack frame would break
+-		// the unwinding code.
+-		gp->sig = sig;
+-		gp->sigcode0 = SIG_CODE0(info, ctxt);
+-		gp->sigcode1 = SIG_FAULT(info, ctxt);
+-		gp->sigpc = SIG_PC(info, ctxt);
+-
+-		// We arrange lr, and pc to pretend the panicking
+-		// function calls sigpanic directly.
+-		// Always save LR to stack so that panics in leaf
+-		// functions are correctly handled. This smashes
+-		// the stack frame but we're not going back there
+-		// anyway.
+-		SIG_SP(info, ctxt) -= 4;
+-		*(uint32*)SIG_SP(info, ctxt) = SIG_LR(info, ctxt);
+-		// Don't bother saving PC if it's zero, which is
+-		// probably a call to a nil func: the old link register
+-		// is more useful in the stack trace.
+-		if(gp->sigpc != 0)
+-			SIG_LR(info, ctxt) = gp->sigpc;
+-		// In case we are panicking from external C code
+-		SIG_R10(info, ctxt) = (uintptr)gp;
+-		SIG_PC(info, ctxt) = (uintptr)runtime·sigpanic;
+-		return;
+-	}
+-
+-	if(SIG_CODE0(info, ctxt) == SI_USER || (t->flags & SigNotify))
+-		if(runtime·sigsend(sig))
+-			return;
+-	if(t->flags & SigKill)
+-		runtime·exit(2);
+-	if(!(t->flags & SigThrow))
+-		return;
+-
+-	g->m->throwing = 1;
+-	g->m->caughtsig = gp;
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
+-
+-	if(sig < 0 || sig >= NSIG)
+-		runtime·printf("Signal %d\n", sig);
+-	else
+-		runtime·printf("%s\n", runtime·sigtab[sig].name);
+-
+-	runtime·printf("PC=%x\n", SIG_PC(info, ctxt));
+-	if(g->m->lockedg != nil && g->m->ncgo > 0 && gp == g->m->g0) {
+-		runtime·printf("signal arrived during cgo execution\n");
+-		gp = g->m->lockedg;
+-	}
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback(&crash)){
+-		runtime·goroutineheader(gp);
+-		runtime·tracebacktrap(SIG_PC(info, ctxt), SIG_SP(info, ctxt), SIG_LR(info, ctxt), gp);
+-		runtime·tracebackothers(gp);
+-		runtime·printf("\n");
+-		runtime·dumpregs(info, ctxt);
+-	}
+-	
+-	if(crash)
+-		runtime·crash();
+-
+-	runtime·exit(2);
+-}
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+new file mode 100644
+index 0000000000..d224ce6459
+--- /dev/null
++++ b/src/runtime/signal_arm.go
+@@ -0,0 +1,126 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd
++
++package runtime
++
++import "unsafe"
++
++func dumpregs(c *sigctxt) {
++	print("trap    ", hex(c.trap()), "\n")
++	print("error   ", hex(c.error()), "\n")
++	print("oldmask ", hex(c.oldmask()), "\n")
++	print("r0      ", hex(c.r0()), "\n")
++	print("r1      ", hex(c.r1()), "\n")
++	print("r2      ", hex(c.r2()), "\n")
++	print("r3      ", hex(c.r3()), "\n")
++	print("r4      ", hex(c.r4()), "\n")
++	print("r5      ", hex(c.r5()), "\n")
++	print("r6      ", hex(c.r6()), "\n")
++	print("r7      ", hex(c.r7()), "\n")
++	print("r8      ", hex(c.r8()), "\n")
++	print("r9      ", hex(c.r9()), "\n")
++	print("r10     ", hex(c.r10()), "\n")
++	print("fp      ", hex(c.fp()), "\n")
++	print("ip      ", hex(c.ip()), "\n")
++	print("sp      ", hex(c.sp()), "\n")
++	print("lr      ", hex(c.lr()), "\n")
++	print("pc      ", hex(c.pc()), "\n")
++	print("cpsr    ", hex(c.cpsr()), "\n")
++	print("fault   ", hex(c.fault()), "\n")
++}
++
++func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
++	_g_ := getg()
++	c := &sigctxt{info, ctxt}
++
++	if sig == _SIGPROF {
++		sigprof((*byte)(unsafe.Pointer(uintptr(c.pc()))), (*byte)(unsafe.Pointer(uintptr(c.sp()))), (*byte)(unsafe.Pointer(uintptr(c.lr()))), gp, _g_.m)
++		return
++	}
++
++	flags := int32(_SigThrow)
++	if sig < uint32(len(sigtable)) {
++		flags = sigtable[sig].flags
++	}
++	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
++		// Make it look like a call to the signal func.
++		// Have to pass arguments out of band since
++		// augmenting the stack frame would break
++		// the unwinding code.
++		gp.sig = sig
++		gp.sigcode0 = uintptr(c.sigcode())
++		gp.sigcode1 = uintptr(c.fault())
++		gp.sigpc = uintptr(c.pc())
++
++		// We arrange lr, and pc to pretend the panicking
++		// function calls sigpanic directly.
++		// Always save LR to stack so that panics in leaf
++		// functions are correctly handled. This smashes
++		// the stack frame but we're not going back there
++		// anyway.
++		sp := c.sp() - 4
++		c.set_sp(sp)
++		*(*uint32)(unsafe.Pointer(uintptr(sp))) = c.lr()
++
++		// Don't bother saving PC if it's zero, which is
++		// probably a call to a nil func: the old link register
++		// is more useful in the stack trace.
++		if gp.sigpc != 0 {
++			c.set_lr(uint32(gp.sigpc))
++		}
++
++		// In case we are panicking from external C code
++		c.set_r10(uint32(uintptr(unsafe.Pointer(gp))))
++		c.set_pc(uint32(funcPC(sigpanic)))
++		return
++	}
++
++	if c.sigcode() == _SI_USER || flags&_SigNotify != 0 {
++		if sigsend(sig) {
++			return
++		}
++	}
++
++	if flags&_SigKill != 0 {
++		exit(2)
++	}
++
++	if flags&_SigThrow == 0 {
++		return
++	}
++
++	_g_.m.throwing = 1
++	_g_.m.caughtsig = gp
++	startpanic()
++
++	if sig < uint32(len(sigtable)) {
++		print(sigtable[sig].name, "\n")
++	} else {
++		print("Signal ", sig, "\n")
++	}
++
++	print("PC=", hex(c.pc()), "\n")
++	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
++		print("signal arrived during cgo execution\n")
++		gp = _g_.m.lockedg
++	}
++	print("\n")
++
++	var docrash bool
++	if gotraceback(&docrash) > 0 {
++		goroutineheader(gp)
++		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.lr()), gp)
++		tracebackothers(gp)
++		print("\n")
++		dumpregs(c)
++	}
++
++	if docrash {
++		crash()
++	}
++
++	exit(2)
++}
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+new file mode 100644
+index 0000000000..122648bc33
+--- /dev/null
++++ b/src/runtime/signal_darwin.go
+@@ -0,0 +1,45 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++type sigTabT struct {
++	flags int32
++	name  string
++}
++
++var sigtable = [...]sigTabT{
++	/* 0 */ {0, "SIGNONE: no trap"},
++	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
++	/* 2 */ {_SigNotify + _SigKill, "SIGINT: interrupt"},
++	/* 3 */ {_SigNotify + _SigThrow, "SIGQUIT: quit"},
++	/* 4 */ {_SigThrow, "SIGILL: illegal instruction"},
++	/* 5 */ {_SigThrow, "SIGTRAP: trace trap"},
++	/* 6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
++	/* 7 */ {_SigThrow, "SIGEMT: emulate instruction executed"},
++	/* 8 */ {_SigPanic, "SIGFPE: floating-point exception"},
++	/* 9 */ {0, "SIGKILL: kill"},
++	/* 10 */ {_SigPanic, "SIGBUS: bus error"},
++	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
++	/* 12 */ {_SigThrow, "SIGSYS: bad system call"},
++	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
++	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
++	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
++	/* 16 */ {_SigNotify, "SIGURG: urgent condition on socket"},
++	/* 17 */ {0, "SIGSTOP: stop"},
++	/* 18 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
++	/* 19 */ {0, "SIGCONT: continue after stop"},
++	/* 20 */ {_SigNotify, "SIGCHLD: child status has changed"},
++	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
++	/* 22 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
++	/* 23 */ {_SigNotify, "SIGIO: i/o now possible"},
++	/* 24 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
++	/* 25 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
++	/* 26 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
++	/* 27 */ {_SigNotify, "SIGPROF: profiling alarm clock"},
++	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
++	/* 29 */ {_SigNotify, "SIGINFO: status request from keyboard"},
++	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
++	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
++}
+diff --git a/src/runtime/signal_darwin_386.go b/src/runtime/signal_darwin_386.go
+new file mode 100644
+index 0000000000..ccf30ef316
+--- /dev/null
++++ b/src/runtime/signal_darwin_386.go
+@@ -0,0 +1,34 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *regs32   { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
++func (c *sigctxt) eax() uint32     { return c.regs().eax }
++func (c *sigctxt) ebx() uint32     { return c.regs().ebx }
++func (c *sigctxt) ecx() uint32     { return c.regs().ecx }
++func (c *sigctxt) edx() uint32     { return c.regs().edx }
++func (c *sigctxt) edi() uint32     { return c.regs().edi }
++func (c *sigctxt) esi() uint32     { return c.regs().esi }
++func (c *sigctxt) ebp() uint32     { return c.regs().ebp }
++func (c *sigctxt) esp() uint32     { return c.regs().esp }
++func (c *sigctxt) eip() uint32     { return c.regs().eip }
++func (c *sigctxt) eflags() uint32  { return c.regs().eflags }
++func (c *sigctxt) cs() uint32      { return c.regs().cs }
++func (c *sigctxt) fs() uint32      { return c.regs().fs }
++func (c *sigctxt) gs() uint32      { return c.regs().gs }
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint32 { return uint32(uintptr(unsafe.Pointer(c.info.si_addr))) }
++
++func (c *sigctxt) set_eip(x uint32)     { c.regs().eip = x }
++func (c *sigctxt) set_esp(x uint32)     { c.regs().esp = x }
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint32) { c.info.si_addr = (*byte)(unsafe.Pointer(uintptr(x))) }
+diff --git a/src/runtime/signal_darwin_386.h b/src/runtime/signal_darwin_386.h
+deleted file mode 100644
+index 5459e10a10..0000000000
+--- a/src/runtime/signal_darwin_386.h
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext->ss)
+-
+-#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).eax)
+-#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).ebx)
+-#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).ecx)
+-#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).edx)
+-#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).edi)
+-#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).esi)
+-#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).ebp)
+-#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).esp)
+-#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).eip)
+-#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).eflags)
+-
+-#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).cs)
+-#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).fs)
+-#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).gs)
+-
+-#define SIG_CODE0(info, ctxt) ((info)->si_code)
+-#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/runtime/signal_darwin_amd64.go b/src/runtime/signal_darwin_amd64.go
+new file mode 100644
+index 0000000000..409bc6d575
+--- /dev/null
++++ b/src/runtime/signal_darwin_amd64.go
+@@ -0,0 +1,42 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *regs64   { return &(*ucontext)(c.ctxt).uc_mcontext.ss }
++func (c *sigctxt) rax() uint64     { return c.regs().rax }
++func (c *sigctxt) rbx() uint64     { return c.regs().rbx }
++func (c *sigctxt) rcx() uint64     { return c.regs().rcx }
++func (c *sigctxt) rdx() uint64     { return c.regs().rdx }
++func (c *sigctxt) rdi() uint64     { return c.regs().rdi }
++func (c *sigctxt) rsi() uint64     { return c.regs().rsi }
++func (c *sigctxt) rbp() uint64     { return c.regs().rbp }
++func (c *sigctxt) rsp() uint64     { return c.regs().rsp }
++func (c *sigctxt) r8() uint64      { return c.regs().r8 }
++func (c *sigctxt) r9() uint64      { return c.regs().r9 }
++func (c *sigctxt) r10() uint64     { return c.regs().r10 }
++func (c *sigctxt) r11() uint64     { return c.regs().r11 }
++func (c *sigctxt) r12() uint64     { return c.regs().r12 }
++func (c *sigctxt) r13() uint64     { return c.regs().r13 }
++func (c *sigctxt) r14() uint64     { return c.regs().r14 }
++func (c *sigctxt) r15() uint64     { return c.regs().r15 }
++func (c *sigctxt) rip() uint64     { return c.regs().rip }
++func (c *sigctxt) rflags() uint64  { return c.regs().rflags }
++func (c *sigctxt) cs() uint64      { return c.regs().cs }
++func (c *sigctxt) fs() uint64      { return c.regs().fs }
++func (c *sigctxt) gs() uint64      { return c.regs().gs }
++func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
++
++func (c *sigctxt) set_rip(x uint64)     { c.regs().rip = x }
++func (c *sigctxt) set_rsp(x uint64)     { c.regs().rsp = x }
++func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint64) { c.info.si_addr = (*byte)(unsafe.Pointer(uintptr(x))) }
+diff --git a/src/runtime/signal_darwin_amd64.h b/src/runtime/signal_darwin_amd64.h
+deleted file mode 100644
+index e3da6de3a0..0000000000
+--- a/src/runtime/signal_darwin_amd64.h
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((Ucontext*)(ctxt))->uc_mcontext->ss)
+-
+-#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).rax)
+-#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).rbx)
+-#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).rcx)
+-#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).rdx)
+-#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).rdi)
+-#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).rsi)
+-#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).rbp)
+-#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).rsp)
+-#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).r8)
+-#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).r9)
+-#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).r10)
+-#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).r11)
+-#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).r12)
+-#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).r13)
+-#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).r14)
+-#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).r15)
+-#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).rip)
+-#define SIG_RFLAGS(info, ctxt) (SIG_REGS(ctxt).rflags)
+-
+-#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).cs)
+-#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).fs)
+-#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).gs)
+-
+-#define SIG_CODE0(info, ctxt) ((info)->si_code)
+-#define SIG_CODE1(info, ctxt) ((uintptr)(info)->si_addr)
+diff --git a/src/runtime/signal_linux.go b/src/runtime/signal_linux.go
+new file mode 100644
+index 0000000000..1c3d6872b3
+--- /dev/null
++++ b/src/runtime/signal_linux.go
+@@ -0,0 +1,78 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++type sigTabT struct {
++	flags int32
++	name  string
++}
++
++var sigtable = [...]sigTabT{
++	/* 0 */ {0, "SIGNONE: no trap"},
++	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
++	/* 2 */ {_SigNotify + _SigKill, "SIGINT: interrupt"},
++	/* 3 */ {_SigNotify + _SigThrow, "SIGQUIT: quit"},
++	/* 4 */ {_SigThrow, "SIGILL: illegal instruction"},
++	/* 5 */ {_SigThrow, "SIGTRAP: trace trap"},
++	/* 6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
++	/* 7 */ {_SigPanic, "SIGBUS: bus error"},
++	/* 8 */ {_SigPanic, "SIGFPE: floating-point exception"},
++	/* 9 */ {0, "SIGKILL: kill"},
++	/* 10 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
++	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
++	/* 12 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
++	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
++	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
++	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
++	/* 16 */ {_SigThrow, "SIGSTKFLT: stack fault"},
++	/* 17 */ {_SigNotify, "SIGCHLD: child status has changed"},
++	/* 18 */ {0, "SIGCONT: continue"},
++	/* 19 */ {0, "SIGSTOP: stop, unblockable"},
++	/* 20 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
++	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
++	/* 22 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
++	/* 23 */ {_SigNotify, "SIGURG: urgent condition on socket"},
++	/* 24 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
++	/* 25 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
++	/* 26 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
++	/* 27 */ {_SigNotify, "SIGPROF: profiling alarm clock"},
++	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
++	/* 29 */ {_SigNotify, "SIGIO: i/o now possible"},
++	/* 30 */ {_SigNotify, "SIGPWR: power failure restart"},
++	/* 31 */ {_SigNotify, "SIGSYS: bad system call"},
++	/* 32 */ {0, "signal 32"}, /* SIGCANCEL; see issue 6997 */
++	/* 33 */ {0, "signal 33"}, /* SIGSETXID; see issue 3871 */
++	/* 34 */ {_SigNotify, "signal 34"},
++	/* 35 */ {_SigNotify, "signal 35"},
++	/* 36 */ {_SigNotify, "signal 36"},
++	/* 37 */ {_SigNotify, "signal 37"},
++	/* 38 */ {_SigNotify, "signal 38"},
++	/* 39 */ {_SigNotify, "signal 39"},
++	/* 40 */ {_SigNotify, "signal 40"},
++	/* 41 */ {_SigNotify, "signal 41"},
++	/* 42 */ {_SigNotify, "signal 42"},
++	/* 43 */ {_SigNotify, "signal 43"},
++	/* 44 */ {_SigNotify, "signal 44"},
++	/* 45 */ {_SigNotify, "signal 45"},
++	/* 46 */ {_SigNotify, "signal 46"},
++	/* 47 */ {_SigNotify, "signal 47"},
++	/* 48 */ {_SigNotify, "signal 48"},
++	/* 49 */ {_SigNotify, "signal 49"},
++	/* 50 */ {_SigNotify, "signal 50"},
++	/* 51 */ {_SigNotify, "signal 51"},
++	/* 52 */ {_SigNotify, "signal 52"},
++	/* 53 */ {_SigNotify, "signal 53"},
++	/* 54 */ {_SigNotify, "signal 54"},
++	/* 55 */ {_SigNotify, "signal 55"},
++	/* 56 */ {_SigNotify, "signal 56"},
++	/* 57 */ {_SigNotify, "signal 57"},
++	/* 58 */ {_SigNotify, "signal 58"},
++	/* 59 */ {_SigNotify, "signal 59"},
++	/* 60 */ {_SigNotify, "signal 60"},
++	/* 61 */ {_SigNotify, "signal 61"},
++	/* 62 */ {_SigNotify, "signal 62"},
++	/* 63 */ {_SigNotify, "signal 63"},
++	/* 64 */ {_SigNotify, "signal 64"},
++}
+diff --git a/src/runtime/signal_linux_386.go b/src/runtime/signal_linux_386.go
+new file mode 100644
+index 0000000000..41eae80ea2
+--- /dev/null
++++ b/src/runtime/signal_linux_386.go
+@@ -0,0 +1,36 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *sigcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
++func (c *sigctxt) eax() uint32       { return c.regs().eax }
++func (c *sigctxt) ebx() uint32       { return c.regs().ebx }
++func (c *sigctxt) ecx() uint32       { return c.regs().ecx }
++func (c *sigctxt) edx() uint32       { return c.regs().edx }
++func (c *sigctxt) edi() uint32       { return c.regs().edi }
++func (c *sigctxt) esi() uint32       { return c.regs().esi }
++func (c *sigctxt) ebp() uint32       { return c.regs().ebp }
++func (c *sigctxt) esp() uint32       { return c.regs().esp }
++func (c *sigctxt) eip() uint32       { return c.regs().eip }
++func (c *sigctxt) eflags() uint32    { return c.regs().eflags }
++func (c *sigctxt) cs() uint32        { return uint32(c.regs().cs) }
++func (c *sigctxt) fs() uint32        { return uint32(c.regs().fs) }
++func (c *sigctxt) gs() uint32        { return uint32(c.regs().gs) }
++func (c *sigctxt) sigcode() uint32   { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint32   { return uint32(*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize))) }
++
++func (c *sigctxt) set_eip(x uint32)     { c.regs().eip = x }
++func (c *sigctxt) set_esp(x uint32)     { c.regs().esp = x }
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint32) {
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize)) = uintptr(x)
++}
+diff --git a/src/runtime/signal_linux_386.h b/src/runtime/signal_linux_386.h
+deleted file mode 100644
+index f77f1c9d51..0000000000
+--- a/src/runtime/signal_linux_386.h
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
+-
+-#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).eax)
+-#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).ebx)
+-#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).ecx)
+-#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).edx)
+-#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).edi)
+-#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).esi)
+-#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).ebp)
+-#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).esp)
+-#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).eip)
+-#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).eflags)
+-
+-#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).cs)
+-#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).fs)
+-#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).gs)
+-
+-#define SIG_CODE0(info, ctxt) ((info)->si_code)
+-#define SIG_CODE1(info, ctxt) (((uintptr*)(info))[2])
+-
+diff --git a/src/runtime/signal_linux_amd64.go b/src/runtime/signal_linux_amd64.go
+new file mode 100644
+index 0000000000..d94b191024
+--- /dev/null
++++ b/src/runtime/signal_linux_amd64.go
+@@ -0,0 +1,46 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *sigcontext {
++	return (*sigcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
++}
++func (c *sigctxt) rax() uint64     { return c.regs().rax }
++func (c *sigctxt) rbx() uint64     { return c.regs().rbx }
++func (c *sigctxt) rcx() uint64     { return c.regs().rcx }
++func (c *sigctxt) rdx() uint64     { return c.regs().rdx }
++func (c *sigctxt) rdi() uint64     { return c.regs().rdi }
++func (c *sigctxt) rsi() uint64     { return c.regs().rsi }
++func (c *sigctxt) rbp() uint64     { return c.regs().rbp }
++func (c *sigctxt) rsp() uint64     { return c.regs().rsp }
++func (c *sigctxt) r8() uint64      { return c.regs().r8 }
++func (c *sigctxt) r9() uint64      { return c.regs().r9 }
++func (c *sigctxt) r10() uint64     { return c.regs().r10 }
++func (c *sigctxt) r11() uint64     { return c.regs().r11 }
++func (c *sigctxt) r12() uint64     { return c.regs().r12 }
++func (c *sigctxt) r13() uint64     { return c.regs().r13 }
++func (c *sigctxt) r14() uint64     { return c.regs().r14 }
++func (c *sigctxt) r15() uint64     { return c.regs().r15 }
++func (c *sigctxt) rip() uint64     { return c.regs().rip }
++func (c *sigctxt) rflags() uint64  { return c.regs().eflags }
++func (c *sigctxt) cs() uint64      { return uint64(c.regs().cs) }
++func (c *sigctxt) fs() uint64      { return uint64(c.regs().fs) }
++func (c *sigctxt) gs() uint64      { return uint64(c.regs().gs) }
++func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint64 { return uint64(*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize))) }
++
++func (c *sigctxt) set_rip(x uint64)     { c.regs().rip = x }
++func (c *sigctxt) set_rsp(x uint64)     { c.regs().rsp = x }
++func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint64) {
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize)) = uintptr(x)
++}
+diff --git a/src/runtime/signal_linux_amd64.h b/src/runtime/signal_linux_amd64.h
+deleted file mode 100644
+index 5a9a3e5da4..0000000000
+--- a/src/runtime/signal_linux_amd64.h
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
+-
+-#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).rax)
+-#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).rbx)
+-#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).rcx)
+-#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).rdx)
+-#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).rdi)
+-#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).rsi)
+-#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).rbp)
+-#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).rsp)
+-#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).r8)
+-#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).r9)
+-#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).r10)
+-#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).r11)
+-#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).r12)
+-#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).r13)
+-#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).r14)
+-#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).r15)
+-#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).rip)
+-#define SIG_RFLAGS(info, ctxt) ((uint64)SIG_REGS(ctxt).eflags)
+-
+-#define SIG_CS(info, ctxt) ((uint64)SIG_REGS(ctxt).cs)
+-#define SIG_FS(info, ctxt) ((uint64)SIG_REGS(ctxt).fs)
+-#define SIG_GS(info, ctxt) ((uint64)SIG_REGS(ctxt).gs)
+-
+-#define SIG_CODE0(info, ctxt) ((info)->si_code)
+-#define SIG_CODE1(info, ctxt) (((uintptr*)(info))[2])
+-
+diff --git a/src/runtime/signal_linux_arm.go b/src/runtime/signal_linux_arm.go
+new file mode 100644
+index 0000000000..4a5670e740
+--- /dev/null
++++ b/src/runtime/signal_linux_arm.go
+@@ -0,0 +1,48 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *sigcontext { return &(*ucontext)(c.ctxt).uc_mcontext }
++func (c *sigctxt) r0() uint32        { return c.regs().r0 }
++func (c *sigctxt) r1() uint32        { return c.regs().r1 }
++func (c *sigctxt) r2() uint32        { return c.regs().r2 }
++func (c *sigctxt) r3() uint32        { return c.regs().r3 }
++func (c *sigctxt) r4() uint32        { return c.regs().r4 }
++func (c *sigctxt) r5() uint32        { return c.regs().r5 }
++func (c *sigctxt) r6() uint32        { return c.regs().r6 }
++func (c *sigctxt) r7() uint32        { return c.regs().r7 }
++func (c *sigctxt) r8() uint32        { return c.regs().r8 }
++func (c *sigctxt) r9() uint32        { return c.regs().r9 }
++func (c *sigctxt) r10() uint32       { return c.regs().r10 }
++func (c *sigctxt) fp() uint32        { return c.regs().fp }
++func (c *sigctxt) ip() uint32        { return c.regs().ip }
++func (c *sigctxt) sp() uint32        { return c.regs().sp }
++func (c *sigctxt) lr() uint32        { return c.regs().lr }
++func (c *sigctxt) pc() uint32        { return c.regs().pc }
++func (c *sigctxt) cpsr() uint32      { return c.regs().cpsr }
++func (c *sigctxt) fault() uint32     { return c.regs().fault_address }
++func (c *sigctxt) trap() uint32      { return c.regs().trap_no }
++func (c *sigctxt) error() uint32     { return c.regs().error_code }
++func (c *sigctxt) oldmask() uint32   { return c.regs().oldmask }
++
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint32 { return uint32(*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize))) }
++
++func (c *sigctxt) set_pc(x uint32)  { c.regs().pc = x }
++func (c *sigctxt) set_sp(x uint32)  { c.regs().sp = x }
++func (c *sigctxt) set_lr(x uint32)  { c.regs().lr = x }
++func (c *sigctxt) set_r10(x uint32) { c.regs().r10 = x }
++
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint32) {
++	*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize)) = uintptr(x)
++}
+diff --git a/src/runtime/signal_linux_arm.h b/src/runtime/signal_linux_arm.h
+deleted file mode 100644
+index a674c0d573..0000000000
+--- a/src/runtime/signal_linux_arm.h
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (*((Sigcontext*)&((Ucontext*)(ctxt))->uc_mcontext))
+-
+-#define SIG_R0(info, ctxt) (SIG_REGS(ctxt).arm_r0)
+-#define SIG_R1(info, ctxt) (SIG_REGS(ctxt).arm_r1)
+-#define SIG_R2(info, ctxt) (SIG_REGS(ctxt).arm_r2)
+-#define SIG_R3(info, ctxt) (SIG_REGS(ctxt).arm_r3)
+-#define SIG_R4(info, ctxt) (SIG_REGS(ctxt).arm_r4)
+-#define SIG_R5(info, ctxt) (SIG_REGS(ctxt).arm_r5)
+-#define SIG_R6(info, ctxt) (SIG_REGS(ctxt).arm_r6)
+-#define SIG_R7(info, ctxt) (SIG_REGS(ctxt).arm_r7)
+-#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).arm_r8)
+-#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).arm_r9)
+-#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).arm_r10)
+-#define SIG_FP(info, ctxt) (SIG_REGS(ctxt).arm_fp)
+-#define SIG_IP(info, ctxt) (SIG_REGS(ctxt).arm_ip)
+-#define SIG_SP(info, ctxt) (SIG_REGS(ctxt).arm_sp)
+-#define SIG_LR(info, ctxt) (SIG_REGS(ctxt).arm_lr)
+-#define SIG_PC(info, ctxt) (SIG_REGS(ctxt).arm_pc)
+-#define SIG_CPSR(info, ctxt) (SIG_REGS(ctxt).arm_cpsr)
+-#define SIG_FAULT(info, ctxt) (SIG_REGS(ctxt).fault_address)
+-#define SIG_TRAP(info, ctxt) (SIG_REGS(ctxt).trap_no)
+-#define SIG_ERROR(info, ctxt) (SIG_REGS(ctxt).error_code)
+-#define SIG_OLDMASK(info, ctxt) (SIG_REGS(ctxt).oldmask)
+-#define SIG_CODE0(info, ctxt) ((uintptr)(info)->si_code)
+diff --git a/src/runtime/signal_unix.c b/src/runtime/signal_unix.c
+deleted file mode 100644
+index 0e33ece494..0000000000
+--- a/src/runtime/signal_unix.c
++++ /dev/null
+@@ -1,119 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signal_unix.h"
+-
+-extern SigTab runtime·sigtab[];
+-
+-void
+-runtime·initsig(void)
+-{
+-	int32 i;
+-	SigTab *t;
+-
+-	// First call: basic setup.
+-	for(i = 0; i<NSIG; i++) {
+-		t = &runtime·sigtab[i];
+-		if((t->flags == 0) || (t->flags & SigDefault))
+-			continue;
+-
+-		// For some signals, we respect an inherited SIG_IGN handler
+-		// rather than insist on installing our own default handler.
+-		// Even these signals can be fetched using the os/signal package.
+-		switch(i) {
+-		case SIGHUP:
+-		case SIGINT:
+-			if(runtime·getsig(i) == SIG_IGN) {
+-				t->flags = SigNotify | SigIgnored;
+-				continue;
+-			}
+-		}
+-
+-		t->flags |= SigHandling;
+-		runtime·setsig(i, runtime·sighandler, true);
+-	}
+-}
+-
+-void
+-runtime·sigenable(uint32 sig)
+-{
+-	SigTab *t;
+-
+-	if(sig >= NSIG)
+-		return;
+-
+-	t = &runtime·sigtab[sig];
+-	if((t->flags & SigNotify) && !(t->flags & SigHandling)) {
+-		t->flags |= SigHandling;
+-		if(runtime·getsig(sig) == SIG_IGN)
+-			t->flags |= SigIgnored;
+-		runtime·setsig(sig, runtime·sighandler, true);
+-	}
+-}
+-
+-void
+-runtime·sigdisable(uint32 sig)
+-{
+-	SigTab *t;
+-
+-	if(sig >= NSIG)
+-		return;
+-
+-	t = &runtime·sigtab[sig];
+-	if((t->flags & SigNotify) && (t->flags & SigHandling)) {
+-		t->flags &= ~SigHandling;
+-		if(t->flags & SigIgnored)
+-			runtime·setsig(sig, SIG_IGN, true);
+-		else
+-			runtime·setsig(sig, SIG_DFL, true);
+-	}
+-}
+-
+-void
+-runtime·resetcpuprofiler(int32 hz)
+-{
+-	Itimerval it;
+-
+-	runtime·memclr((byte*)&it, sizeof it);
+-	if(hz == 0) {
+-		runtime·setitimer(ITIMER_PROF, &it, nil);
+-	} else {
+-		it.it_interval.tv_sec = 0;
+-		it.it_interval.tv_usec = 1000000 / hz;
+-		it.it_value = it.it_interval;
+-		runtime·setitimer(ITIMER_PROF, &it, nil);
+-	}
+-	g->m->profilehz = hz;
+-}
+-
+-void
+-runtime·sigpipe(void)
+-{
+-	runtime·setsig(SIGPIPE, SIG_DFL, false);
+-	runtime·raise(SIGPIPE);
+-}
+-
+-void
+-runtime·crash(void)
+-{
+-#ifdef GOOS_darwin
+-	// OS X core dumps are linear dumps of the mapped memory,
+-	// from the first virtual byte to the last, with zeros in the gaps.
+-	// Because of the way we arrange the address space on 64-bit systems,
+-	// this means the OS X core file will be >128 GB and even on a zippy
+-	// workstation can take OS X well over an hour to write (uninterruptible).
+-	// Save users from making that mistake.
+-	if(sizeof(void*) == 8)
+-		return;
+-#endif
+-
+-	runtime·unblocksignals();
+-	runtime·setsig(SIGABRT, SIG_DFL, false);
+-	runtime·raise(SIGABRT);
+-}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index ba77b6e7be..ee2ee2e752 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -6,8 +6,6 @@
+ 
+ package runtime
+ 
+-func sigpipe()
+-
+ func os_sigpipe() {
+ 	onM(sigpipe)
+ }
+diff --git a/src/runtime/signals_darwin.h b/src/runtime/signals_darwin.h
+deleted file mode 100644
+index 8761e1bd94..0000000000
+--- a/src/runtime/signals_darwin.h
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-#define N SigNotify
+-#define K SigKill
+-#define T SigThrow
+-#define P SigPanic
+-#define D SigDefault
+-
+-#pragma dataflag NOPTR
+-SigTab runtime·sigtab[] = {
+-	/* 0 */	0, "SIGNONE: no trap",
+-	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+-	/* 2 */	N+K, "SIGINT: interrupt",
+-	/* 3 */	N+T, "SIGQUIT: quit",
+-	/* 4 */	T, "SIGILL: illegal instruction",
+-	/* 5 */	T, "SIGTRAP: trace trap",
+-	/* 6 */	N+T, "SIGABRT: abort",
+-	/* 7 */	T, "SIGEMT: emulate instruction executed",
+-	/* 8 */	P, "SIGFPE: floating-point exception",
+-	/* 9 */	0, "SIGKILL: kill",
+-	/* 10 */	P, "SIGBUS: bus error",
+-	/* 11 */	P, "SIGSEGV: segmentation violation",
+-	/* 12 */	T, "SIGSYS: bad system call",
+-	/* 13 */	N, "SIGPIPE: write to broken pipe",
+-	/* 14 */	N, "SIGALRM: alarm clock",
+-	/* 15 */	N+K, "SIGTERM: termination",
+-	/* 16 */	N, "SIGURG: urgent condition on socket",
+-	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	N+D, "SIGTSTP: keyboard stop",
+-	/* 19 */	0, "SIGCONT: continue after stop",
+-	/* 20 */	N, "SIGCHLD: child status has changed",
+-	/* 21 */	N+D, "SIGTTIN: background read from tty",
+-	/* 22 */	N+D, "SIGTTOU: background write to tty",
+-	/* 23 */	N, "SIGIO: i/o now possible",
+-	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	N, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	N, "SIGPROF: profiling alarm clock",
+-	/* 28 */	N, "SIGWINCH: window size change",
+-	/* 29 */	N, "SIGINFO: status request from keyboard",
+-	/* 30 */	N, "SIGUSR1: user-defined signal 1",
+-	/* 31 */	N, "SIGUSR2: user-defined signal 2",
+-};
+-
+-#undef N
+-#undef K
+-#undef T
+-#undef P
+-#undef D
+diff --git a/src/runtime/signals_linux.h b/src/runtime/signals_linux.h
+deleted file mode 100644
+index 374107609f..0000000000
+--- a/src/runtime/signals_linux.h
++++ /dev/null
+@@ -1,86 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-#define N SigNotify
+-#define K SigKill
+-#define T SigThrow
+-#define P SigPanic
+-#define D SigDefault
+-
+-#pragma dataflag NOPTR
+-SigTab runtime·sigtab[] = {
+-	/* 0 */	0, "SIGNONE: no trap",
+-	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+-	/* 2 */	N+K, "SIGINT: interrupt",
+-	/* 3 */	N+T, "SIGQUIT: quit",
+-	/* 4 */	T, "SIGILL: illegal instruction",
+-	/* 5 */	T, "SIGTRAP: trace trap",
+-	/* 6 */	N+T, "SIGABRT: abort",
+-	/* 7 */	P, "SIGBUS: bus error",
+-	/* 8 */	P, "SIGFPE: floating-point exception",
+-	/* 9 */	0, "SIGKILL: kill",
+-	/* 10 */	N, "SIGUSR1: user-defined signal 1",
+-	/* 11 */	P, "SIGSEGV: segmentation violation",
+-	/* 12 */	N, "SIGUSR2: user-defined signal 2",
+-	/* 13 */	N, "SIGPIPE: write to broken pipe",
+-	/* 14 */	N, "SIGALRM: alarm clock",
+-	/* 15 */	N+K, "SIGTERM: termination",
+-	/* 16 */	T, "SIGSTKFLT: stack fault",
+-	/* 17 */	N, "SIGCHLD: child status has changed",
+-	/* 18 */	0, "SIGCONT: continue",
+-	/* 19 */	0, "SIGSTOP: stop, unblockable",
+-	/* 20 */	N+D, "SIGTSTP: keyboard stop",
+-	/* 21 */	N+D, "SIGTTIN: background read from tty",
+-	/* 22 */	N+D, "SIGTTOU: background write to tty",
+-	/* 23 */	N, "SIGURG: urgent condition on socket",
+-	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	N, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	N, "SIGPROF: profiling alarm clock",
+-	/* 28 */	N, "SIGWINCH: window size change",
+-	/* 29 */	N, "SIGIO: i/o now possible",
+-	/* 30 */	N, "SIGPWR: power failure restart",
+-	/* 31 */	N, "SIGSYS: bad system call",
+-	/* 32 */	0, "signal 32", /* SIGCANCEL; see issue 6997 */
+-	/* 33 */	0, "signal 33", /* SIGSETXID; see issue 3871 */
+-	/* 34 */	N, "signal 34",
+-	/* 35 */	N, "signal 35",
+-	/* 36 */	N, "signal 36",
+-	/* 37 */	N, "signal 37",
+-	/* 38 */	N, "signal 38",
+-	/* 39 */	N, "signal 39",
+-	/* 40 */	N, "signal 40",
+-	/* 41 */	N, "signal 41",
+-	/* 42 */	N, "signal 42",
+-	/* 43 */	N, "signal 43",
+-	/* 44 */	N, "signal 44",
+-	/* 45 */	N, "signal 45",
+-	/* 46 */	N, "signal 46",
+-	/* 47 */	N, "signal 47",
+-	/* 48 */	N, "signal 48",
+-	/* 49 */	N, "signal 49",
+-	/* 50 */	N, "signal 50",
+-	/* 51 */	N, "signal 51",
+-	/* 52 */	N, "signal 52",
+-	/* 53 */	N, "signal 53",
+-	/* 54 */	N, "signal 54",
+-	/* 55 */	N, "signal 55",
+-	/* 56 */	N, "signal 56",
+-	/* 57 */	N, "signal 57",
+-	/* 58 */	N, "signal 58",
+-	/* 59 */	N, "signal 59",
+-	/* 60 */	N, "signal 60",
+-	/* 61 */	N, "signal 61",
+-	/* 62 */	N, "signal 62",
+-	/* 63 */	N, "signal 63",
+-	/* 64 */	N, "signal 64",
+-};
+-
+-#undef N
+-#undef K
+-#undef T
+-#undef P
+-#undef D
+diff --git a/src/runtime/sigpanic_unix.go b/src/runtime/sigpanic_unix.go
+index 68079859b0..7bf2c15409 100644
+--- a/src/runtime/sigpanic_unix.go
++++ b/src/runtime/sigpanic_unix.go
+@@ -6,8 +6,6 @@
+ 
+ package runtime
+ 
+-func signame(int32) *byte
+-
+ func sigpanic() {
+ 	g := getg()
+ 	if !canpanic(g) {
+@@ -36,5 +34,10 @@ func sigpanic() {
+ 		}
+ 		panicfloat()
+ 	}
+-	panic(errorString(gostringnocopy(signame(g.sig))))
++
++	if g.sig >= uint32(len(sigtable)) {
++		// can't happen: we looked up g.sig in sigtable to decide to call sigpanic
++		gothrow("unexpected signal value")
++	}
++	panic(errorString(sigtable[g.sig].name))
+ }
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 2d9c24d2d2..b2155ce86e 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -45,7 +45,7 @@ const (
+ 
+ // Called from sighandler to send a signal back out of the signal handling thread.
+ // Reports whether the signal was sent. If not, the caller typically crashes the program.
+-func sigsend(s int32) bool {
++func sigsend(s uint32) bool {
+ 	bit := uint32(1) << uint(s&31)
+ 	if !sig.inuse || s < 0 || int(s) >= 32*len(sig.wanted) || sig.wanted[s/32]&bit == 0 {
+ 		return false
+@@ -157,9 +157,6 @@ func badsignal(sig uintptr) {
+ 	cgocallback(unsafe.Pointer(funcPC(sigsend)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
+ }
+ 
+-func sigenable_m()
+-func sigdisable_m()
+-
+ func sigenable_go(s uint32) {
+ 	g := getg()
+ 	g.m.scalararg[0] = uintptr(s)

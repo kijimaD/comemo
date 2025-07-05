@@ -22,8 +22,146 @@ Date:   Mon Feb 12 19:23:31 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/image/gif/reader.go      | 13 ++++++--
  src/image/gif/reader_test.go | 71 ++++++++++++++++++++++++++++++++++----------
  src/image/gif/writer.go      |  5 +---
  3 files changed, 66 insertions(+), 23 deletions(-)
+
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index c1c9562067..763146ecc4 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -224,6 +224,8 @@ func (d *decoder) decode(r io.Reader, configOnly, keepAllFrames bool) error {
+ 		d.r = bufio.NewReader(r)
+ 	}
+ 
++	d.loopCount = -1
++
+ 	err := d.readHeaderAndScreenDescriptor()
+ 	if err != nil {
+ 		return err
+@@ -566,9 +568,14 @@ func Decode(r io.Reader) (image.Image, error) {
+ 
+ // GIF represents the possibly multiple images stored in a GIF file.
+ type GIF struct {
+-	Image     []*image.Paletted // The successive images.
+-	Delay     []int             // The successive delay times, one per frame, in 100ths of a second.
+-	LoopCount int               // The loop count.
++	Image []*image.Paletted // The successive images.
++	Delay []int             // The successive delay times, one per frame, in 100ths of a second.
++	// LoopCount controls the number of times an animation will be
++	// restarted during display.
++	// A LoopCount of 0 means to loop forever.
++	// A LoopCount of -1 means to show each frame only once.
++	// Otherwise, the animation is looped LoopCount+1 times.
++	LoopCount int
+ 	// Disposal is the successive disposal methods, one per frame. For
+ 	// backwards compatibility, a nil Disposal is valid to pass to EncodeAll,
+ 	// and implies that each frame's disposal method is 0 (no disposal
+diff --git a/src/image/gif/reader_test.go b/src/image/gif/reader_test.go
+index 220e8f52d4..29f47b6c08 100644
+--- a/src/image/gif/reader_test.go
++++ b/src/image/gif/reader_test.go
+@@ -318,23 +318,62 @@ func TestTransparentPixelOutsidePaletteRange(t *testing.T) {
+ }
+ 
+ func TestLoopCount(t *testing.T) {
+-	data := []byte("GIF89a000\x00000,0\x00\x00\x00\n\x00" +
+-		"\n\x00\x80000000\x02\b\xf01u\xb9\xfdal\x05\x00;")
+-	img, err := DecodeAll(bytes.NewReader(data))
+-	if err != nil {
+-		t.Fatal("DecodeAll:", err)
+-	}
+-	w := new(bytes.Buffer)
+-	err = EncodeAll(w, img)
+-	if err != nil {
+-		t.Fatal("EncodeAll:", err)
+-	}
+-	img1, err := DecodeAll(w)
+-	if err != nil {
+-		t.Fatal("DecodeAll:", err)
++	testCases := []struct {
++		name      string
++		data      []byte
++		loopCount int
++	}{
++		{
++			"loopcount-missing",
++			[]byte("GIF89a000\x00000" +
++				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 0 descriptor & color table
++				"\x02\b\xf01u\xb9\xfdal\x05\x00;"), // image 0 image data & trailer
++			-1,
++		},
++		{
++			"loopcount-0",
++			[]byte("GIF89a000\x00000" +
++				"!\xff\vNETSCAPE2.0\x03\x01\x00\x00\x00" + // loop count = 0
++				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 0 descriptor & color table
++				"\x02\b\xf01u\xb9\xfdal\x05\x00" + // image 0 image data
++				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 1 descriptor & color table
++				"\x02\b\xf01u\xb9\xfdal\x05\x00;"), // image 1 image data & trailer
++			0,
++		},
++		{
++			"loopcount-1",
++			[]byte("GIF89a000\x00000" +
++				"!\xff\vNETSCAPE2.0\x03\x01\x01\x00\x00" + // loop count = 1
++				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 0 descriptor & color table
++				"\x02\b\xf01u\xb9\xfdal\x05\x00" + // image 0 image data
++				",0\x00\x00\x00\n\x00\n\x00\x80000000" + // image 1 descriptor & color table
++				"\x02\b\xf01u\xb9\xfdal\x05\x00;"), // image 1 image data & trailer
++			1,
++		},
+ 	}
+-	if img.LoopCount != img1.LoopCount {
+-		t.Errorf("loop count mismatch: %d vs %d", img.LoopCount, img1.LoopCount)
++
++	for _, tc := range testCases {
++		t.Run(tc.name, func(t *testing.T) {
++			img, err := DecodeAll(bytes.NewReader(tc.data))
++			if err != nil {
++				t.Fatal("DecodeAll:", err)
++			}
++			w := new(bytes.Buffer)
++			err = EncodeAll(w, img)
++			if err != nil {
++				t.Fatal("EncodeAll:", err)
++			}
++			img1, err := DecodeAll(w)
++			if err != nil {
++				t.Fatal("DecodeAll:", err)
++			}
++			if img.LoopCount != tc.loopCount {
++				t.Errorf("loop count mismatch: %d vs %d", img.LoopCount, tc.loopCount)
++			}
++			if img.LoopCount != img1.LoopCount {
++				t.Errorf("loop count failed round-trip: %d vs %d", img.LoopCount, img1.LoopCount)
++			}
++		})
+ 	}
+ }
+ 
+diff --git a/src/image/gif/writer.go b/src/image/gif/writer.go
+index f26af8be47..5e80feb33f 100644
+--- a/src/image/gif/writer.go
++++ b/src/image/gif/writer.go
+@@ -178,7 +178,7 @@ func (e *encoder) writeHeader() {
+ 	}
+ 
+ 	// Add animation info if necessary.
+-	if len(e.g.Image) > 1 {
++	if len(e.g.Image) > 1 && e.g.LoopCount >= 0 {
+ 		e.buf[0] = 0x21 // Extension Introducer.
+ 		e.buf[1] = 0xff // Application Label.
+ 		e.buf[2] = 0x0b // Block Size.
+@@ -377,9 +377,6 @@ func EncodeAll(w io.Writer, g *GIF) error {
+ 	if len(g.Image) != len(g.Delay) {
+ 		return errors.New("gif: mismatched image and delay lengths")
+ 	}
+-	if g.LoopCount < 0 {
+-		g.LoopCount = 0
+-	}
+ 
+ 	e := encoder{g: *g}
+ 	// The GIF.Disposal, GIF.Config and GIF.BackgroundIndex fields were added

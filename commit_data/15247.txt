@@ -9,6 +9,29 @@ Date:   Thu Feb 14 14:46:03 2013 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7312100
-
+---
  src/pkg/go/types/gcimporter.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index 7e93dc9779..0991bade14 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -108,10 +108,14 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
+ 		return Unsafe, nil
+ 	}
+ 
+-	srcDir, err := os.Getwd()
+-	if err != nil {
+-		return
++	srcDir := "."
++	if build.IsLocalImport(path) {
++		srcDir, err = os.Getwd()
++		if err != nil {
++			return
++		}
+ 	}
++
+ 	filename, id := FindPkg(path, srcDir)
+ 	if filename == "" {
+ 		err = errors.New("can't find import: " + id)

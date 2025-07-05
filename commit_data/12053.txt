@@ -9,7 +9,7 @@ Date:   Sun Feb 19 03:16:20 2012 -0500
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5676100
-
+---
  lib/time/README                  |   3 +-
  lib/time/update.bash             |  19 ++++--
  lib/time/zoneinfo.zip            | Bin 0 -> 370359 bytes
@@ -21,3 +21,486 @@ Date:   Sun Feb 19 03:16:20 2012 -0500
  src/pkg/time/zoneinfo_unix.go    |   6 +-
  src/pkg/time/zoneinfo_windows.go |   3 +-
  10 files changed, 300 insertions(+), 19 deletions(-)
+
+diff --git a/lib/time/README b/lib/time/README
+index be519febf7..d83e0addf4 100644
+--- a/lib/time/README
++++ b/lib/time/README
+@@ -1,4 +1,4 @@
+-The zoneinfo directory contains time zone files compiled using
++The zoneinfo.zip archive contains time zone files compiled using
+ the code and data maintained as part of the IANA Time Zone Database.
+ The IANA asserts that the database is in the public domain.
+ 
+@@ -7,3 +7,4 @@ http://www.iana.org/time-zones
+ ftp://ftp.iana.org/tz/code/tz-link.htm
+ http://tools.ietf.org/html/draft-lear-iana-timezone-database-05
+ 
++To rebuild the archive, read and run update.bash.
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index 30ca2c7011..ef7fdc79be 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -11,9 +11,10 @@ CODE=2011i
+ DATA=2011n
+ 
+ set -e
+-rm -rf zoneinfo work
+-mkdir zoneinfo work
++rm -rf work
++mkdir work
+ cd work
++mkdir zoneinfo
+ curl -O http://www.iana.org/time-zones/repository/releases/tzcode$CODE.tar.gz
+ curl -O http://www.iana.org/time-zones/repository/releases/tzdata$DATA.tar.gz
+ tar xzf tzcode$CODE.tar.gz
+@@ -23,23 +24,27 @@ tar xzf tzdata$DATA.tar.gz
+ # We don't need those until 2037.
+ perl -p -i -e 's/pass <= 2/pass <= 1/' zic.c
+ 
+-make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=../zoneinfo posix_only
++make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo posix_only
+ 
+ # America/Los_Angeles should not be bigger than 1100 bytes.
+ # If it is, we probably failed to disable the 64-bit output, which
+ # triples the size of the files.
+-size=$(ls -l ../zoneinfo/America/Los_Angeles | awk '{print $5}')
++size=$(ls -l zoneinfo/America/Los_Angeles | awk '{print $5}')
+ if [ $size -gt 1200 ]; then
+ 	echo 'zone file too large; 64-bit edit failed?' >&2
+ 	exit 2
+ fi
+ 
+-cd ..
+-hg addremove zoneinfo
++cd zoneinfo
++rm -f ../../zoneinfo.zip
++zip -0 -r ../../zoneinfo.zip *
++cd ../..
++
+ echo
+ if [ "$1" == "-work" ]; then 
+ 	echo Left workspace behind in work/.
+ else
+ 	rm -rf work
+ fi
+-echo New time zone files in zoneinfo/.
++echo New time zone files in zoneinfo.zip.
++
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+new file mode 100644
+index 0000000000..b542132392
+Binary files /dev/null and b/lib/time/zoneinfo.zip differ
+diff --git a/src/pkg/time/sys_plan9.go b/src/pkg/time/sys_plan9.go
+index c7cfa792a2..e2f91bccb5 100644
+--- a/src/pkg/time/sys_plan9.go
++++ b/src/pkg/time/sys_plan9.go
+@@ -6,7 +6,10 @@
+ 
+ package time
+ 
+-import "syscall"
++import (
++	"errors"
++	"syscall"
++)
+ 
+ // for testing: whatever interrupts a sleep
+ func interrupt() {
+@@ -38,3 +41,35 @@ func readFile(name string) ([]byte, error) {
+ 	}
+ 	return ret, err
+ }
++
++func open(name string) (uintptr, error) {
++	fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
++	if err != nil {
++		return 0, err
++	}
++	return uintptr(fd), nil
++}
++
++func closefd(fd uintptr) {
++	syscall.Close(int(fd))
++}
++
++func preadn(fd uintptr, buf []byte, off int) error {
++	whence := 0
++	if off < 0 {
++		whence = 2
++	}
++	if _, err := syscall.Seek(int(fd), int64(off), whence); err != nil {
++		return err
++	}
++	for len(buf) > 0 {
++		m, err := syscall.Read(int(fd), buf)
++		if m <= 0 {
++			if err == nil {
++				return errors.New("short read")
++			}
++			return err
++		}
++		buf = buf[m:]
++	}
++}
+diff --git a/src/pkg/time/sys_unix.go b/src/pkg/time/sys_unix.go
+index 56a7414e0c..7f69b492c9 100644
+--- a/src/pkg/time/sys_unix.go
++++ b/src/pkg/time/sys_unix.go
+@@ -6,7 +6,10 @@
+ 
+ package time
+ 
+-import "syscall"
++import (
++	"errors"
++	"syscall"
++)
+ 
+ // for testing: whatever interrupts a sleep
+ func interrupt() {
+@@ -38,3 +41,36 @@ func readFile(name string) ([]byte, error) {
+ 	}
+ 	return ret, err
+ }
++
++func open(name string) (uintptr, error) {
++	fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
++	if err != nil {
++		return 0, err
++	}
++	return uintptr(fd), nil
++}
++
++func closefd(fd uintptr) {
++	syscall.Close(int(fd))
++}
++
++func preadn(fd uintptr, buf []byte, off int) error {
++	whence := 0
++	if off < 0 {
++		whence = 2
++	}
++	if _, err := syscall.Seek(int(fd), int64(off), whence); err != nil {
++		return err
++	}
++	for len(buf) > 0 {
++		m, err := syscall.Read(int(fd), buf)
++		if m <= 0 {
++			if err == nil {
++				return errors.New("short read")
++			}
++			return err
++		}
++		buf = buf[m:]
++	}
++	return nil
++}
+diff --git a/src/pkg/time/sys_windows.go b/src/pkg/time/sys_windows.go
+index 8c7242f427..de63b4bf4b 100644
+--- a/src/pkg/time/sys_windows.go
++++ b/src/pkg/time/sys_windows.go
+@@ -4,6 +4,70 @@
+ 
+ package time
+ 
++import (
++	"errors"
++	"syscall"
++)
++
+ // for testing: whatever interrupts a sleep
+ func interrupt() {
+ }
++
++// readFile reads and returns the content of the named file.
++// It is a trivial implementation of ioutil.ReadFile, reimplemented
++// here to avoid depending on io/ioutil or os.
++func readFile(name string) ([]byte, error) {
++	f, err := syscall.Open(name, syscall.O_RDONLY, 0)
++	if err != nil {
++		return nil, err
++	}
++	defer syscall.Close(f)
++	var (
++		buf [4096]byte
++		ret []byte
++		n   int
++	)
++	for {
++		n, err = syscall.Read(f, buf[:])
++		if n > 0 {
++			ret = append(ret, buf[:n]...)
++		}
++		if n == 0 || err != nil {
++			break
++		}
++	}
++	return ret, err
++}
++
++func open(name string) (uintptr, error) {
++	fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
++	if err != nil {
++		return 0, err
++	}
++	return uintptr(fd), nil
++}
++
++func closefd(fd uintptr) {
++	syscall.Close(syscall.Handle(fd))
++}
++
++func preadn(fd uintptr, buf []byte, off int) error {
++	whence := 0
++	if off < 0 {
++		whence = 2
++	}
++	if _, err := syscall.Seek(syscall.Handle(fd), int64(off), whence); err != nil {
++		return err
++	}
++	for len(buf) > 0 {
++		m, err := syscall.Read(syscall.Handle(fd), buf)
++		if m <= 0 {
++			if err == nil {
++				return errors.New("short read")
++			}
++			return err
++		}
++		buf = buf[m:]
++	}
++	return nil
++}
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index fa03f3225e..3c57744043 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -183,9 +183,10 @@ var zoneinfo, _ = syscall.Getenv("ZONEINFO")
+ //
+ // The time zone database needed by LoadLocation may not be
+ // present on all systems, especially non-Unix systems.
+-// LoadLocation looks in the directory named by the ZONEINFO environment
+-// variable, if any, then looks in known installation locations on Unix systems,
+-// and finally looks in $GOROOT/lib/time/zoneinfo.
++// LoadLocation looks in the directory or uncompressed zip file
++// named by the ZONEINFO environment variable, if any, then looks in
++// known installation locations on Unix systems,
++// and finally looks in $GOROOT/lib/time/zoneinfo.zip.
+ func LoadLocation(name string) (*Location, error) {
+ 	if name == "" || name == "UTC" {
+ 		return UTC, nil
+@@ -194,7 +195,7 @@ func LoadLocation(name string) (*Location, error) {
+ 		return Local, nil
+ 	}
+ 	if zoneinfo != "" {
+-		if z, err := loadZoneFile(zoneinfo + "/" + name); err == nil {
++		if z, err := loadZoneFile(zoneinfo, name); err == nil {
+ 			z.name = name
+ 			return z, nil
+ 		}
+diff --git a/src/pkg/time/zoneinfo_read.go b/src/pkg/time/zoneinfo_read.go
+index 57eebe7aca..ebb4205a98 100644
+--- a/src/pkg/time/zoneinfo_read.go
++++ b/src/pkg/time/zoneinfo_read.go
+@@ -194,10 +194,148 @@ func loadZoneData(bytes []byte) (l *Location, err error) {
+ 	return l, nil
+ }
+ 
+-func loadZoneFile(name string) (l *Location, err error) {
++func loadZoneFile(dir, name string) (l *Location, err error) {
++	if len(dir) > 4 && dir[len(dir)-4:] == ".zip" {
++		return loadZoneZip(dir, name)
++	}
++	if dir != "" {
++		name = dir + "/" + name
++	}
+ 	buf, err := readFile(name)
+ 	if err != nil {
+ 		return
+ 	}
+ 	return loadZoneData(buf)
+ }
++
++// There are 500+ zoneinfo files.  Rather than distribute them all
++// individually, we ship them in an uncompressed zip file.
++// Used this way, the zip file format serves as a commonly readable
++// container for the individual small files.  We choose zip over tar
++// because zip files have a contiguous table of contents, making
++// individual file lookups faster, and because the per-file overhead
++// in a zip file is considerably less than tar's 512 bytes.
++
++// get4 returns the little-endian 32-bit value in b.
++func get4(b []byte) int {
++	if len(b) < 4 {
++		return 0
++	}
++	return int(b[0]) | int(b[1])<<8 | int(b[2])<<16 | int(b[3])<<24
++}
++
++// get2 returns the little-endian 16-bit value in b.
++func get2(b []byte) int {
++	if len(b) < 2 {
++		return 0
++	}
++	return int(b[0]) | int(b[1])<<8
++}
++
++func loadZoneZip(zipfile, name string) (l *Location, err error) {
++	fd, err := open(zipfile)
++	if err != nil {
++		return nil, errors.New("open " + zipfile + ": " + err.Error())
++	}
++	defer closefd(fd)
++
++	const (
++		zecheader = 0x06054b50
++		zcheader  = 0x02014b50
++		ztailsize = 22
++
++		zheadersize = 30
++		zheader     = 0x04034b50
++	)
++
++	buf := make([]byte, ztailsize)
++	if err := preadn(fd, buf, -ztailsize); err != nil || get4(buf) != zecheader {
++		return nil, errors.New("corrupt zip file " + zipfile)
++	}
++	n := get2(buf[10:])
++	size := get4(buf[12:])
++	off := get4(buf[16:])
++
++	buf = make([]byte, size)
++	if err := preadn(fd, buf, off); err != nil {
++		return nil, errors.New("corrupt zip file " + zipfile)
++	}
++
++	for i := 0; i < n; i++ {
++		// zip entry layout:
++		//	0	magic[4]
++		//	4	madevers[1]
++		//	5	madeos[1]
++		//	6	extvers[1]
++		//	7	extos[1]
++		//	8	flags[2]
++		//	10	meth[2]
++		//	12	modtime[2]
++		//	14	moddate[2]
++		//	16	crc[4]
++		//	20	csize[4]
++		//	24	uncsize[4]
++		//	28	namelen[2]
++		//	30	xlen[2]
++		//	32	fclen[2]
++		//	34	disknum[2]
++		//	36	iattr[2]
++		//	38	eattr[4]
++		//	42	off[4]
++		//	46	name[namelen]
++		//	46+namelen+xlen+fclen - next header
++		//		
++		if get4(buf) != zcheader {
++			break
++		}
++		meth := get2(buf[10:])
++		size := get4(buf[24:])
++		namelen := get2(buf[28:])
++		xlen := get2(buf[30:])
++		fclen := get2(buf[32:])
++		off := get4(buf[42:])
++		zname := buf[46 : 46+namelen]
++		buf = buf[46+namelen+xlen+fclen:]
++		if string(zname) != name {
++			continue
++		}
++		if meth != 0 {
++			return nil, errors.New("unsupported compression for " + name + " in " + zipfile)
++		}
++
++		// zip per-file header layout:
++		//	0	magic[4]
++		//	4	extvers[1]
++		//	5	extos[1]
++		//	6	flags[2]
++		//	8	meth[2]
++		//	10	modtime[2]
++		//	12	moddate[2]
++		//	14	crc[4]
++		//	18	csize[4]
++		//	22	uncsize[4]
++		//	26	namelen[2]
++		//	28	xlen[2]
++		//	30	name[namelen]
++		//	30+namelen+xlen - file data
++		//
++		buf = make([]byte, zheadersize+namelen)
++		if err := preadn(fd, buf, off); err != nil ||
++			get4(buf) != zheader ||
++			get2(buf[8:]) != meth ||
++			get2(buf[26:]) != namelen ||
++			string(buf[30:30+namelen]) != name {
++			return nil, errors.New("corrupt zip file " + zipfile)
++		}
++		xlen = get2(buf[28:])
++
++		buf = make([]byte, size)
++		if err := preadn(fd, buf, off+30+namelen+xlen); err != nil {
++			return nil, errors.New("corrupt zip file " + zipfile)
++		}
++
++		return loadZoneData(buf)
++	}
++
++	return nil, errors.New("cannot find " + name + " in zip file " + zipfile)
++}
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index 8d0f1133a0..2c951a9834 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ func initTestingZone() {
+-	z, err := loadZoneFile(runtime.GOROOT() + "/lib/time/zoneinfo/" + "America/Los_Angeles")
++	z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", "America/Los_Angeles")
+ 	if err != nil {
+ 		panic("cannot load America/Los_Angeles for testing: " + err.Error())
+ 	}
+@@ -44,7 +44,7 @@ func initLocal() {
+ 	tz, ok := syscall.Getenv("TZ")
+ 	switch {
+ 	case !ok:
+-		z, err := loadZoneFile("/etc/localtime")
++		z, err := loadZoneFile("", "/etc/localtime")
+ 		if err == nil {
+ 			localLoc = *z
+ 			localLoc.name = "Local"
+@@ -63,7 +63,7 @@ func initLocal() {
+ 
+ func loadLocation(name string) (*Location, error) {
+ 	for _, zoneDir := range zoneDirs {
+-		if z, err := loadZoneFile(zoneDir + name); err == nil {
++		if z, err := loadZoneFile(zoneDir, name); err == nil {
+ 			z.name = name
+ 			return z, nil
+ 		}
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index b1a0c22062..754e392dec 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -6,6 +6,7 @@ package time
+ 
+ import (
+ 	"errors"
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -152,7 +153,7 @@ func initLocal() {
+ }
+ 
+ func loadLocation(name string) (*Location, error) {
+-	if z, err := loadZoneFile(runtime.GOROOT() + `\lib\time\zoneinfo\` + name); err == nil {
++	if z, err := loadZoneFile(runtime.GOROOT()+`\lib\time\zoneinfo.zip`, name); err == nil {
+ 		z.name = name
+ 		return z, nil
+ 	}

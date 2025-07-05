@@ -19,9 +19,166 @@ Date:   Tue Jan 31 17:40:36 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5605045
-
+---
  src/cmd/go/build.go | 17 +++++++++++++----
  src/cmd/go/get.go   |  6 +-----
  src/cmd/go/main.go  |  6 +++---
  src/cmd/go/vcs.go   | 25 ++++++++++++++-----------
  4 files changed, 31 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 00c5354581..f928afef39 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1131,6 +1131,10 @@ func (b *builder) gccCmd(objdir string) []string {
+ 	return a
+ }
+ 
++func envList(key string) []string {
++	return strings.Fields(os.Getenv(key))
++}
++
+ var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
+ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo, outObj []string, err error) {
+@@ -1140,19 +1144,24 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 
+ 	outObj = append(outObj, "") // for importObj, at end of function
+ 
+-	cgoCFLAGS := stringList(p.info.CgoCFLAGS)
+-	cgoLDFLAGS := stringList(p.info.CgoLDFLAGS)
++	cgoCFLAGS := stringList(envList("CGO_CFLAGS"), p.info.CgoCFLAGS)
++	cgoLDFLAGS := stringList(envList("CGO_LDFLAGS"), p.info.CgoLDFLAGS)
++
+ 	if pkgs := p.info.CgoPkgConfig; len(pkgs) > 0 {
+ 		out, err := b.runOut(p.Dir, p.ImportPath, "pkg-config", "--cflags", pkgs)
+ 		if err != nil {
+-			return nil, nil, err
++			b.showOutput(p.Dir, "pkg-config --cflags "+strings.Join(pkgs, " "), string(out))
++			b.print(err.Error() + "\n")
++			return nil, nil, errPrintedOutput
+ 		}
+ 		if len(out) > 0 {
+ 			cgoCFLAGS = append(cgoCFLAGS, strings.Fields(string(out))...)
+ 		}
+ 		out, err = b.runOut(p.Dir, p.ImportPath, "pkg-config", "--libs", pkgs)
+ 		if err != nil {
+-			return nil, nil, err
++			b.showOutput(p.Dir, "pkg-config --libs "+strings.Join(pkgs, " "), string(out))
++			b.print(err.Error() + "\n")
++			return nil, nil, errPrintedOutput
+ 		}
+ 		if len(out) > 0 {
+ 			cgoLDFLAGS = append(cgoLDFLAGS, strings.Fields(string(out))...)
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index ab53a33362..f9f8542393 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -215,11 +215,7 @@ func downloadPackage(p *Package) error {
+ 	if i := strings.Index(vers, " "); i >= 0 {
+ 		vers = vers[:i]
+ 	}
+-	tag := selectTag(vers, tags)
+-	if tag == "" {
+-		tag = vcs.tagDefault
+-	}
+-	if err := vcs.tagSync(root, tag); err != nil {
++	if err := vcs.tagSync(root, selectTag(vers, tags)); err != nil {
+ 		return err
+ 	}
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index af9d6be48e..68ab582df1 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -347,7 +347,7 @@ func allPackages(pattern string) []string {
+ 	goroot := build.Path[0].Path
+ 	cmd := filepath.Join(goroot, "src/cmd") + string(filepath.Separator)
+ 	filepath.Walk(cmd, func(path string, fi os.FileInfo, err error) error {
+-		if err != nil || !fi.IsDir() {
++		if err != nil || !fi.IsDir() || path == cmd {
+ 			return nil
+ 		}
+ 		name := path[len(cmd):]
+@@ -378,7 +378,7 @@ func allPackages(pattern string) []string {
+ 		}
+ 		src := t.SrcDir() + string(filepath.Separator)
+ 		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
+-			if err != nil || !fi.IsDir() {
++			if err != nil || !fi.IsDir() || path == src {
+ 				return nil
+ 			}
+ 
+@@ -445,7 +445,7 @@ func allPackagesInFS(pattern string) []string {
+ 
+ 	var pkgs []string
+ 	filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+-		if err != nil || !fi.IsDir() {
++		if err != nil || !fi.IsDir() || path == dir {
+ 			return nil
+ 		}
+ 
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 8927fe8056..d26c6bc7a1 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -23,9 +23,9 @@ type vcsCmd struct {
+ 	createCmd   string // command to download a fresh copy of a repository
+ 	downloadCmd string // command to download updates into an existing repository
+ 
+-	tagCmd     []tagCmd // commands to list tags
+-	tagDefault string   // default tag to use
+-	tagSyncCmd string   // command to sync to specific tag
++	tagCmd         []tagCmd // commands to list tags
++	tagSyncCmd     string   // command to sync to specific tag
++	tagSyncDefault string   // command to sync to default tag
+ }
+ 
+ // A tagCmd describes a command to list available tags
+@@ -71,8 +71,8 @@ var vcsHg = &vcsCmd{
+ 		{"tags", `^(\S+)`},
+ 		{"branches", `^(\S+)`},
+ 	},
+-	tagDefault: "default",
+-	tagSyncCmd: "update -r {tag}",
++	tagSyncCmd:     "update -r {tag}",
++	tagSyncDefault: "update default",
+ }
+ 
+ // vcsGit describes how to use Git.
+@@ -83,9 +83,9 @@ var vcsGit = &vcsCmd{
+ 	createCmd:   "clone {repo} {dir}",
+ 	downloadCmd: "fetch",
+ 
+-	tagCmd:     []tagCmd{{"tag", `^(\S+)$`}},
+-	tagDefault: "master",
+-	tagSyncCmd: "checkout {tag}",
++	tagCmd:         []tagCmd{{"tag", `^(\S+)$`}},
++	tagSyncCmd:     "checkout {tag}",
++	tagSyncDefault: "checkout origin/master",
+ }
+ 
+ // vcsBzr describes how to use Bazaar.
+@@ -99,9 +99,9 @@ var vcsBzr = &vcsCmd{
+ 	// Replace by --overwrite-tags after http://pad.lv/681792 goes in.
+ 	downloadCmd: "pull --overwrite",
+ 
+-	tagCmd:     []tagCmd{{"tags", `^(\S+)`}},
+-	tagDefault: "revno:-1",
+-	tagSyncCmd: "update -r {tag}",
++	tagCmd:         []tagCmd{{"tags", `^(\S+)`}},
++	tagSyncCmd:     "update -r {tag}",
++	tagSyncDefault: "update -r revno:-1",
+ }
+ 
+ // vcsSvn describes how to use Subversion.
+@@ -198,6 +198,9 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
+ 	if v.tagSyncCmd == "" {
+ 		return nil
+ 	}
++	if tag == "" && v.tagSyncDefault != "" {
++		return v.run(dir, v.tagSyncDefault)
++	}
+ 	return v.run(dir, v.tagSyncCmd, "tag", tag)
+ }
+ 

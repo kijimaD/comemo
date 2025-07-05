@@ -7,6 +7,20 @@ Date:   Sun Aug 22 14:44:00 2010 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/2004044
-
+---
  src/pkg/http/request.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index b5d6ac1061..590b9cbe8f 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -71,7 +71,7 @@ type Request struct {
+ 	ProtoMajor int    // 1
+ 	ProtoMinor int    // 0
+ 
+-	// A header mapping request lines to their values.
++	// A header is a mapping of request lines to their values.
+ 	// If the header says
+ 	//
+ 	//	accept-encoding: gzip, deflate

@@ -30,7 +30,57 @@ Date:   Thu Jul 29 18:13:41 2010 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/1913041
-
+---
  doc/go_spec.html  | 9 +++++----
  test/parentype.go | 4 +---
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 84ed9f4804..3d4123c438 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of July 14, 2010 -->
++<!-- subtitle Version of July 29, 2010 -->
+ 
+ <!--
+ TODO
+@@ -1974,7 +1974,7 @@ a single expression or a key-value pair.
+ <pre class="ebnf">
+ CompositeLit  = LiteralType "{" [ ElementList [ "," ] ] "}" .
+ LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
+-                SliceType | MapType | TypeName | "(" LiteralType ")" .
++                SliceType | MapType | TypeName .
+ ElementList   = Element { "," Element } .
+ Element       = [ Key ":" ] Value .
+ Key           = FieldName | ElementIndex .
+@@ -2096,10 +2096,11 @@ and is a shortcut for a slice operation applied to an array literal:
+ 
+ <p>
+ A parsing ambiguity arises when a composite literal using the
+-TypeName form of the LiteralType appears in the condition of an
++TypeName form of the LiteralType appears between the
++<a href="#Keywords">keyword</a> and the opening brace of the block of an
+ "if", "for", or "switch" statement, because the braces surrounding
+ the expressions in the literal are confused with those introducing
+-a block of statements. To resolve the ambiguity in this rare case,
++the block of statements. To resolve the ambiguity in this rare case,
+ the composite literal must appear within
+ parentheses.
+ </p>
+diff --git a/test/parentype.go b/test/parentype.go
+index d5729f820d..efab5a97de 100644
+--- a/test/parentype.go
++++ b/test/parentype.go
+@@ -11,9 +11,7 @@ func g() {}
+ func main() {
+ 	f(map[string]string{"a":"b","c":"d"});
+ 	f([...]int{1,2,3});
+-	f(([...]int){1,2,3});
+-	f((map[string]string){"a":"b","c":"d"});
+-	f((map[string]func()){"a":g,"c":g});
++	f(map[string]func(){"a":g,"c":g});
+ 	f(make(chan(<-chan int)));
+ 	f(make(chan<-(chan int)));
+ }

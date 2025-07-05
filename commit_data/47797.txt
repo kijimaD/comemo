@@ -21,7 +21,7 @@ Date:   Sat Dec 26 02:25:13 2020 +0900
     Trust: Hajime Hoshi <hajimehoshi@gmail.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    |  2 +
  src/cmd/go/internal/load/test.go                   | 25 ++++++-----
  src/cmd/go/internal/work/gc.go                     |  5 ++-
@@ -29,3 +29,239 @@ Date:   Sat Dec 26 02:25:13 2020 +0900
  src/cmd/go/testdata/script/test_trimpath_main.txt  | 38 ++++++++++++++++
  .../testdata/script/test_trimpath_test_suffix.txt  | 40 +++++++++++++++++
  6 files changed, 148 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a6d730d0d8..00c50bf38f 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -207,6 +207,7 @@ type PackageInternal struct {
+ 	BuildInfo         string               // add this info to package main
+ 	TestmainGo        *[]byte              // content for _testmain.go
+ 	Embed             map[string][]string  // //go:embed comment mapping
++	OrigImportPath    string               // original import path before adding '_test' suffix
+ 
+ 	Asmflags   []string // -asmflags for this package
+ 	Gcflags    []string // -gcflags for this package
+@@ -402,6 +403,7 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.EmbedPatterns = pp.EmbedPatterns
+ 	p.TestEmbedPatterns = pp.TestEmbedPatterns
+ 	p.XTestEmbedPatterns = pp.XTestEmbedPatterns
++	p.Internal.OrigImportPath = pp.ImportPath
+ }
+ 
+ // A PackageError describes an error loading information about a package.
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index fc89bd0250..9385f41182 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -204,6 +204,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 		}
+ 		ptest.Internal.Embed = testEmbed
+ 		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
++		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath
+ 		ptest.collectDeps()
+ 	} else {
+ 		ptest = p
+@@ -233,11 +234,12 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 				Imports:    ximports,
+ 				RawImports: rawXTestImports,
+ 
+-				Asmflags:   p.Internal.Asmflags,
+-				Gcflags:    p.Internal.Gcflags,
+-				Ldflags:    p.Internal.Ldflags,
+-				Gccgoflags: p.Internal.Gccgoflags,
+-				Embed:      xtestEmbed,
++				Asmflags:       p.Internal.Asmflags,
++				Gcflags:        p.Internal.Gcflags,
++				Ldflags:        p.Internal.Ldflags,
++				Gccgoflags:     p.Internal.Gccgoflags,
++				Embed:          xtestEmbed,
++				OrigImportPath: p.Internal.OrigImportPath,
+ 			},
+ 		}
+ 		if pxtestNeedsPtest {
+@@ -258,12 +260,13 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 			Module:     p.Module,
+ 		},
+ 		Internal: PackageInternal{
+-			Build:      &build.Package{Name: "main"},
+-			BuildInfo:  p.Internal.BuildInfo,
+-			Asmflags:   p.Internal.Asmflags,
+-			Gcflags:    p.Internal.Gcflags,
+-			Ldflags:    p.Internal.Ldflags,
+-			Gccgoflags: p.Internal.Gccgoflags,
++			Build:          &build.Package{Name: "main"},
++			BuildInfo:      p.Internal.BuildInfo,
++			Asmflags:       p.Internal.Asmflags,
++			Gcflags:        p.Internal.Gcflags,
++			Ldflags:        p.Internal.Ldflags,
++			Gccgoflags:     p.Internal.Gccgoflags,
++			OrigImportPath: p.Internal.OrigImportPath,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 7ccba4a561..60d0b29a21 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -290,10 +290,11 @@ func (a *Action) trimpath() string {
+ 
+ 	rewriteDir := a.Package.Dir
+ 	if cfg.BuildTrimpath {
++		importPath := a.Package.Internal.OrigImportPath
+ 		if m := a.Package.Module; m != nil && m.Version != "" {
+-			rewriteDir = m.Path + "@" + m.Version + strings.TrimPrefix(a.Package.ImportPath, m.Path)
++			rewriteDir = m.Path + "@" + m.Version + strings.TrimPrefix(importPath, m.Path)
+ 		} else {
+-			rewriteDir = a.Package.ImportPath
++			rewriteDir = importPath
+ 		}
+ 		rewrite += a.Package.Dir + "=>" + rewriteDir + ";"
+ 	}
+diff --git a/src/cmd/go/testdata/script/test_trimpath.txt b/src/cmd/go/testdata/script/test_trimpath.txt
+new file mode 100644
+index 0000000000..065f9ce4d1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_trimpath.txt
+@@ -0,0 +1,51 @@
++[short] skip
++
++go test -trimpath -v .
++! stdout '[/\\]pkg_test[/\\]'
++stdout -count=3 '[/\\]pkg[/\\]'
++
++-- go.mod --
++module example.com/pkg
++
++go 1.17
++
++-- pkg.go --
++package pkg
++
++import "runtime"
++
++func PrintFile() {
++	_, file, _, _ := runtime.Caller(0)
++	println(file)
++}
++
++-- pkg_test.go --
++package pkg
++
++import "runtime"
++
++func PrintFileForTest() {
++	_, file, _, _ := runtime.Caller(0)
++	println(file)
++}
++
++-- pkg_x_test.go --
++package pkg_test
++
++import (
++	"runtime"
++	"testing"
++
++	"example.com/pkg"
++)
++
++func TestMain(m *testing.M) {
++	pkg.PrintFile()
++	pkg.PrintFileForTest()
++	PrintFileInXTest()
++}
++
++func PrintFileInXTest() {
++	_, file, _, _ := runtime.Caller(0)
++	println(file)
++}
+diff --git a/src/cmd/go/testdata/script/test_trimpath_main.txt b/src/cmd/go/testdata/script/test_trimpath_main.txt
+new file mode 100644
+index 0000000000..c07621245f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_trimpath_main.txt
+@@ -0,0 +1,38 @@
++[short] skip
++
++go test -trimpath -v .
++! stdout '[/\\]pkg_test[/\\]'
++stdout -count=2 '[/\\]pkg[/\\]'
++
++-- go.mod --
++module example.com/pkg
++
++go 1.17
++
++-- main.go --
++package main
++
++import "runtime"
++
++func PrintFile() {
++	_, file, _, _ := runtime.Caller(0)
++	println(file)
++}
++
++-- main_test.go --
++package main
++
++import (
++	"runtime"
++	"testing"
++)
++
++func PrintFileForTest() {
++	_, file, _, _ := runtime.Caller(0)
++	println(file)
++}
++
++func TestMain(m *testing.M) {
++	PrintFile()
++	PrintFileForTest()
++}
+diff --git a/src/cmd/go/testdata/script/test_trimpath_test_suffix.txt b/src/cmd/go/testdata/script/test_trimpath_test_suffix.txt
+new file mode 100644
+index 0000000000..6cbad83bc7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_trimpath_test_suffix.txt
+@@ -0,0 +1,40 @@
++[short] skip
++
++go test -trimpath -v .
++! stdout '[/\\]pkg_test_test[/\\]'
++stdout -count=2 '[/\\]pkg_test[/\\]'
++
++-- go.mod --
++module example.com/pkg_test
++
++go 1.17
++
++-- pkg.go --
++package pkg_test
++
++import "runtime"
++
++func PrintFile() {
++	_, file, _, _ := runtime.Caller(0)
++	println(file)
++}
++
++-- pkg_x_test.go --
++package pkg_test_test
++
++import (
++	"runtime"
++	"testing"
++
++	"example.com/pkg_test"
++)
++
++func PrintFileForTest() {
++	_, file, _, _ := runtime.Caller(0)
++	println(file)
++}
++
++func TestMain(m *testing.M) {
++	pkg_test.PrintFile()
++	PrintFileForTest()
++}

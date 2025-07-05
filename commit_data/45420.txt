@@ -18,9 +18,288 @@ Date:   Fri Oct 16 14:02:16 2020 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/pseudo.go             | 12 ++++
  src/cmd/go/internal/modload/import.go              | 72 ++++++++++----------
  src/cmd/go/testdata/script/mod_get_replaced.txt    |  2 +-
  .../go/testdata/script/mod_replace_readonly.txt    | 76 +++++++++++++++-------
  4 files changed, 99 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/pseudo.go b/src/cmd/go/internal/modfetch/pseudo.go
+index 20c0b060ab..93eb0fad96 100644
+--- a/src/cmd/go/internal/modfetch/pseudo.go
++++ b/src/cmd/go/internal/modfetch/pseudo.go
+@@ -76,6 +76,12 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
+ 	return v + incDecimal(patch) + "-0." + segment + build
+ }
+ 
++// ZeroPseudoVersion returns a pseudo-version with a zero timestamp and
++// revision, which may be used as a placeholder.
++func ZeroPseudoVersion(major string) string {
++	return PseudoVersion(major, "", time.Time{}, "000000000000")
++}
++
+ // incDecimal returns the decimal string incremented by 1.
+ func incDecimal(decimal string) string {
+ 	// Scan right to left turning 9s to 0s until you find a digit to increment.
+@@ -120,6 +126,12 @@ func IsPseudoVersion(v string) bool {
+ 	return strings.Count(v, "-") >= 2 && semver.IsValid(v) && pseudoVersionRE.MatchString(v)
+ }
+ 
++// IsZeroPseudoVersion returns whether v is a pseudo-version with a zero base,
++// timestamp, and revision, as returned by ZeroPseudoVersion.
++func IsZeroPseudoVersion(v string) bool {
++	return v == ZeroPseudoVersion(semver.Major(v))
++}
++
+ // PseudoVersionTime returns the time stamp of the pseudo-version v.
+ // It returns an error if v is not a pseudo-version or if the time stamp
+ // embedded in the pseudo-version is not a valid time.
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index ffe8733af6..e959347020 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -15,7 +15,6 @@ import (
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+-	"time"
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+@@ -42,6 +41,10 @@ type ImportMissingError struct {
+ 	// modules.
+ 	isStd bool
+ 
++	// replaced the highest replaced version of the module where the replacement
++	// contains the package. replaced is only set if the replacement is unused.
++	replaced module.Version
++
+ 	// newMissingVersion is set to a newer version of Module if one is present
+ 	// in the build list. When set, we can't automatically upgrade.
+ 	newMissingVersion string
+@@ -59,6 +62,14 @@ func (e *ImportMissingError) Error() string {
+ 			return "cannot find module providing package " + e.Path
+ 		}
+ 
++		if e.replaced.Path != "" {
++			suggestArg := e.replaced.Path
++			if !modfetch.IsZeroPseudoVersion(e.replaced.Version) {
++				suggestArg = e.replaced.String()
++			}
++			return fmt.Sprintf("module %s provides package %s and is replaced but not required; try 'go get -d %s' to add it", e.replaced.Path, e.Path, suggestArg)
++		}
++
+ 		suggestion := ""
+ 		if !HasModRoot() {
+ 			suggestion = ": working directory is not part of a module"
+@@ -284,37 +295,6 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
+ // Unlike QueryPattern, queryImport prefers to add a replaced version of a
+ // module *before* checking the proxies for a version to add.
+ func queryImport(ctx context.Context, path string) (module.Version, error) {
+-	pathIsStd := search.IsStandardImportPath(path)
+-
+-	if cfg.BuildMod == "readonly" {
+-		if pathIsStd {
+-			// If the package would be in the standard library and none of the
+-			// available replacement modules could concievably provide it, report it
+-			// as a missing standard-library package instead of complaining that
+-			// module lookups are disabled.
+-			maybeReplaced := false
+-			if index != nil {
+-				for p := range index.highestReplaced {
+-					if maybeInModule(path, p) {
+-						maybeReplaced = true
+-						break
+-					}
+-				}
+-			}
+-			if !maybeReplaced {
+-				return module.Version{}, &ImportMissingError{Path: path, isStd: true}
+-			}
+-		}
+-
+-		var queryErr error
+-		if cfg.BuildModExplicit {
+-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+-		} else if cfg.BuildModReason != "" {
+-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+-		}
+-		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
+-	}
+-
+ 	// To avoid spurious remote fetches, try the latest replacement for each
+ 	// module (golang.org/issue/26241).
+ 	if index != nil {
+@@ -330,9 +310,9 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 				// used from within some other module, the user will be able to upgrade
+ 				// the requirement to any real version they choose.
+ 				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
+-					mv = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
++					mv = modfetch.ZeroPseudoVersion(pathMajor[1:])
+ 				} else {
+-					mv = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
++					mv = modfetch.ZeroPseudoVersion("v0")
+ 				}
+ 			}
+ 			mods = append(mods, module.Version{Path: mp, Version: mv})
+@@ -347,18 +327,23 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 			needSum := true
+ 			root, isLocal, err := fetch(ctx, m, needSum)
+ 			if err != nil {
+-				// Report fetch error as above.
++				if sumErr := (*sumMissingError)(nil); errors.As(err, &sumErr) {
++					return module.Version{}, &ImportMissingSumError{importPath: path}
++				}
+ 				return module.Version{}, err
+ 			}
+ 			if _, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
+ 				return m, err
+ 			} else if ok {
++				if cfg.BuildMod == "readonly" {
++					return module.Version{}, &ImportMissingError{Path: path, replaced: m}
++				}
+ 				return m, nil
+ 			}
+ 		}
+ 		if len(mods) > 0 && module.CheckPath(path) != nil {
+ 			// The package path is not valid to fetch remotely,
+-			// so it can only exist if in a replaced module,
++			// so it can only exist in a replaced module,
+ 			// and we know from the above loop that it is not.
+ 			return module.Version{}, &PackageNotInModuleError{
+ 				Mod:         mods[0],
+@@ -369,7 +354,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 		}
+ 	}
+ 
+-	if pathIsStd {
++	if search.IsStandardImportPath(path) {
+ 		// This package isn't in the standard library, isn't in any module already
+ 		// in the build list, and isn't in any other module that the user has
+ 		// shimmed in via a "replace" directive.
+@@ -380,6 +365,19 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
+ 	}
+ 
++	if cfg.BuildMod == "readonly" {
++		// In readonly mode, we can't write go.mod, so we shouldn't try to look up
++		// the module. If readonly mode was enabled explicitly, include that in
++		// the error message.
++		var queryErr error
++		if cfg.BuildModExplicit {
++			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
++		} else if cfg.BuildModReason != "" {
++			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
++		}
++		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
++	}
++
+ 	// Look up module containing the package, for addition to the build list.
+ 	// Goal is to determine the module, download it to dir,
+ 	// and return m, dir, ImpportMissingError.
+diff --git a/src/cmd/go/testdata/script/mod_get_replaced.txt b/src/cmd/go/testdata/script/mod_get_replaced.txt
+index 2e2dc51ca7..ea4c603795 100644
+--- a/src/cmd/go/testdata/script/mod_get_replaced.txt
++++ b/src/cmd/go/testdata/script/mod_get_replaced.txt
+@@ -87,7 +87,7 @@ stderr '^go get example: package example is not in GOROOT \(.*\)$'
+ go mod edit -replace example@v0.1.0=./example
+ 
+ ! go list example
+-stderr '^no required module provides package example; try ''go get -d example'' to add it$'
++stderr '^module example provides package example and is replaced but not required; try ''go get -d example@v0.1.0'' to add it$'
+ 
+ go get -d example
+ go list -m example
+diff --git a/src/cmd/go/testdata/script/mod_replace_readonly.txt b/src/cmd/go/testdata/script/mod_replace_readonly.txt
+index e7e5d61d8f..882c755337 100644
+--- a/src/cmd/go/testdata/script/mod_replace_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_replace_readonly.txt
+@@ -1,36 +1,62 @@
+-# Regression test for https://golang.org/issue/41577:
+-# 'go list -mod=readonly' should not resolve missing packages from
+-# available replacements.
++# Check that with -mod=readonly, when we load a package in a module that is
++# replaced but not required, we emit an error with the command to add the
++# requirement.
++# Verifies golang.org/issue/41416, golang.org/issue/41577.
++cp go.mod go.mod.orig
++
++# Replace all versions of a module without requiring it.
++# With -mod=mod, we'd add a requirement for a "zero" pseudo-version, but we
++# can't in readonly mode, since its go.mod may alter the build list.
++go mod edit -replace rsc.io/quote=./quote
++! go list rsc.io/quote
++stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote'' to add it$'
++go get -d rsc.io/quote
++cmp go.mod go.mod.latest
++go list rsc.io/quote
++cp go.mod.orig go.mod
++
++# Same test with a specific version.
++go mod edit -replace rsc.io/quote@v1.0.0-doesnotexist=./quote
++! go list rsc.io/quote
++stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote@v1.0.0-doesnotexist'' to add it$'
++go get -d rsc.io/quote@v1.0.0-doesnotexist
++cmp go.mod go.mod.specific
++go list rsc.io/quote
++cp go.mod.orig go.mod
++
++# If there are multiple versions, the highest is suggested.
++go mod edit -replace rsc.io/quote@v1.0.0-doesnotexist=./quote
++go mod edit -replace rsc.io/quote@v1.1.0-doesnotexist=./quote
++! go list rsc.io/quote
++stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote@v1.1.0-doesnotexist'' to add it$'
+ 
+-# Control case: when there is no replacement, 'go list' of a missing package
+-# fails due to defaulting to '-mod=readonly'.
++-- go.mod --
++module m
+ 
+-! go list example.com/x
+-stderr '^no required module provides package example.com/x; try ''go get -d example.com/x'' to add it$'
++go 1.16
++-- go.mod.latest --
++module m
+ 
+-# When an unused replacement is added, 'go list' should still fail in the same way.
+-# (Previously, it would resolve the missing import despite -mod=readonly.)
++go 1.16
+ 
+-go mod edit -replace=example.com/x@v0.1.0=./x
+-go mod edit -replace=example.com/x@v0.2.0=./x
+-! go list example.com/x
+-stderr '^no required module provides package example.com/x; try ''go get -d example.com/x'' to add it$'
++replace rsc.io/quote => ./quote
+ 
+-# The command suggested by 'go list' should successfully resolve using the replacement.
++require rsc.io/quote v1.5.2 // indirect
++-- go.mod.specific --
++module m
+ 
+-go get -d example.com/x
+-go list example.com/x
+-go list -m example.com/x
+-stdout '^example.com/x v0.2.0 '
++go 1.16
+ 
++replace rsc.io/quote v1.0.0-doesnotexist => ./quote
+ 
+--- go.mod --
+-module example.com
++require rsc.io/quote v1.0.0-doesnotexist // indirect
++-- use.go --
++package use
+ 
+-go 1.16
+--- x/go.mod --
+-module example.com/x
++import _ "rsc.io/quote"
++-- quote/go.mod --
++module rsc.io/quote
+ 
+ go 1.16
+--- x/x.go --
+-package x
++-- quote/quote.go --
++package quote

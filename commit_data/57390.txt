@@ -20,7 +20,7 @@ Date:   Fri Sep 16 02:29:12 2022 +1000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go   |  5 +++
  src/cmd/asm/internal/asm/testdata/riscv64.s | 10 +++++
  src/cmd/internal/obj/riscv/obj.go           | 63 +++++++++++++++++++++++++++--
@@ -29,3 +29,304 @@ Date:   Fri Sep 16 02:29:12 2022 +1000
  src/cmd/link/internal/riscv64/asm.go        | 22 ++++++----
  src/runtime/tls_riscv64.s                   | 11 ++---
  7 files changed, 103 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 778d17dbd2..1ec9ebd5b5 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -68,6 +68,11 @@ Diff:
+ 			continue
+ 		}
+ 
++		// Ignore GLOBL.
++		if strings.HasPrefix(line, "GLOBL ") {
++			continue
++		}
++
+ 		// The general form of a test input line is:
+ 		//	// comment
+ 		//	INST args [// printed form] [// hex encoding]
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 53538320f0..9899ec9e7b 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -354,6 +354,14 @@ start:
+ 	MOVD	F0, 4(X5)				// 27b20200
+ 	MOVD	F0, F1					// d3000022
+ 
++	// TLS load with local-exec (LUI + ADDIW + ADD of TP + load)
++	MOV	tls(SB), X5				// b70f00009b8f0f00b38f4f0083b20f00
++	MOVB	tls(SB), X5				// b70f00009b8f0f00b38f4f0083820f00
++
++	// TLS store with local-exec (LUI + ADDIW + ADD of TP + store)
++	MOV	X5, tls(SB)				// b70f00009b8f0f00b38f4f0023b05f00
++	MOVB	X5, tls(SB)				// b70f00009b8f0f00b38f4f0023805f00
++
+ 	// NOT pseudo-instruction
+ 	NOT	X5					// 93c2f2ff
+ 	NOT	X5, X6					// 13c3f2ff
+@@ -407,3 +415,5 @@ start:
+ 	FLTD	F0, F1, X5				// d39200a2
+ 	FLED	F0, F1, X5				// d38200a2
+ 	FEQD	F0, F1, X5				// d3a200a2
++
++GLOBL tls(SB), TLSBSS, $8
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 43fa7351bf..2e55fac812 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1827,6 +1827,53 @@ func instructionsForStore(p *obj.Prog, as obj.As, rd int16) []*instruction {
+ 	return []*instruction{insLUI, insADD, ins}
+ }
+ 
++func instructionsForTLS(p *obj.Prog, ins *instruction) []*instruction {
++	insAddTP := &instruction{as: AADD, rd: REG_TMP, rs1: REG_TMP, rs2: REG_TP}
++
++	var inss []*instruction
++	if p.Ctxt.Flag_shared {
++		// TLS initial-exec mode - load TLS offset from GOT, add the thread pointer
++		// register, then load from or store to the resulting memory location.
++		insAUIPC := &instruction{as: AAUIPC, rd: REG_TMP}
++		insLoadTLSOffset := &instruction{as: ALD, rd: REG_TMP, rs1: REG_TMP}
++		inss = []*instruction{insAUIPC, insLoadTLSOffset, insAddTP, ins}
++	} else {
++		// TLS local-exec mode - load upper TLS offset, add the lower TLS offset,
++		// add the thread pointer register, then load from or store to the resulting
++		// memory location. Note that this differs from the suggested three
++		// instruction sequence, as the Go linker does not currently have an
++		// easy way to handle relocation across 12 bytes of machine code.
++		insLUI := &instruction{as: ALUI, rd: REG_TMP}
++		insADDIW := &instruction{as: AADDIW, rd: REG_TMP, rs1: REG_TMP}
++		inss = []*instruction{insLUI, insADDIW, insAddTP, ins}
++	}
++	return inss
++}
++
++func instructionsForTLSLoad(p *obj.Prog) []*instruction {
++	if p.From.Sym.Type != objabi.STLSBSS {
++		p.Ctxt.Diag("%v: %v is not a TLS symbol", p, p.From.Sym)
++		return nil
++	}
++
++	ins := instructionForProg(p)
++	ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), REG_TMP, obj.REG_NONE, 0
++
++	return instructionsForTLS(p, ins)
++}
++
++func instructionsForTLSStore(p *obj.Prog) []*instruction {
++	if p.To.Sym.Type != objabi.STLSBSS {
++		p.Ctxt.Diag("%v: %v is not a TLS symbol", p, p.To.Sym)
++		return nil
++	}
++
++	ins := instructionForProg(p)
++	ins.as, ins.rd, ins.rs1, ins.rs2, ins.imm = movToStore(p.As), REG_TMP, uint32(p.From.Reg), obj.REG_NONE, 0
++
++	return instructionsForTLS(p, ins)
++}
++
+ // instructionsForMOV returns the machine instructions for an *obj.Prog that
+ // uses a MOV pseudo-instruction.
+ func instructionsForMOV(p *obj.Prog) []*instruction {
+@@ -1939,6 +1986,10 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 			inss = instructionsForLoad(p, movToLoad(p.As), addrToReg(p.From))
+ 
+ 		case obj.NAME_EXTERN, obj.NAME_STATIC:
++			if p.From.Sym.Type == objabi.STLSBSS {
++				return instructionsForTLSLoad(p)
++			}
++
+ 			// Note that the values for $off_hi and $off_lo are currently
+ 			// zero and will be assigned during relocation.
+ 			//
+@@ -1966,6 +2017,10 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 			inss = instructionsForStore(p, movToStore(p.As), addrToReg(p.To))
+ 
+ 		case obj.NAME_EXTERN, obj.NAME_STATIC:
++			if p.To.Sym.Type == objabi.STLSBSS {
++				return instructionsForTLSStore(p)
++			}
++
+ 			// Note that the values for $off_hi and $off_lo are currently
+ 			// zero and will be assigned during relocation.
+ 			//
+@@ -2244,10 +2299,10 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				break
+ 			}
+ 			if addr.Sym.Type == objabi.STLSBSS {
+-				if rt == objabi.R_RISCV_PCREL_ITYPE {
+-					rt = objabi.R_RISCV_TLS_IE_ITYPE
+-				} else if rt == objabi.R_RISCV_PCREL_STYPE {
+-					rt = objabi.R_RISCV_TLS_IE_STYPE
++				if ctxt.Flag_shared {
++					rt = objabi.R_RISCV_TLS_IE
++				} else {
++					rt = objabi.R_RISCV_TLS_LE
+ 				}
+ 			}
+ 
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 996c300d95..3eaa5824e6 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -269,21 +269,21 @@ const (
+ 	// only used by the linker and are not emitted by the compiler or assembler.
+ 	R_RISCV_CALL_TRAMP
+ 
+-	// R_RISCV_PCREL_ITYPE resolves a 32-bit PC-relative address using an
++	// R_RISCV_PCREL_ITYPE resolves a 32 bit PC-relative address using an
+ 	// AUIPC + I-type instruction pair.
+ 	R_RISCV_PCREL_ITYPE
+ 
+-	// R_RISCV_PCREL_STYPE resolves a 32-bit PC-relative address using an
++	// R_RISCV_PCREL_STYPE resolves a 32 bit PC-relative address using an
+ 	// AUIPC + S-type instruction pair.
+ 	R_RISCV_PCREL_STYPE
+ 
+-	// R_RISCV_TLS_IE_ITYPE resolves a 32-bit TLS initial-exec TOC offset
+-	// address using an AUIPC + I-type instruction pair.
+-	R_RISCV_TLS_IE_ITYPE
++	// R_RISCV_TLS_IE resolves a 32 bit TLS initial-exec address using an
++	// AUIPC + I-type instruction pair.
++	R_RISCV_TLS_IE
+ 
+-	// R_RISCV_TLS_IE_STYPE resolves a 32-bit TLS initial-exec TOC offset
+-	// address using an AUIPC + S-type instruction pair.
+-	R_RISCV_TLS_IE_STYPE
++	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address using an
++	// LUI + I-type instruction sequence.
++	R_RISCV_TLS_LE
+ 
+ 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
+ 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index c7441efa28..bc8fb6b73c 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -71,8 +71,8 @@ func _() {
+ 	_ = x[R_RISCV_CALL_TRAMP-61]
+ 	_ = x[R_RISCV_PCREL_ITYPE-62]
+ 	_ = x[R_RISCV_PCREL_STYPE-63]
+-	_ = x[R_RISCV_TLS_IE_ITYPE-64]
+-	_ = x[R_RISCV_TLS_IE_STYPE-65]
++	_ = x[R_RISCV_TLS_IE-64]
++	_ = x[R_RISCV_TLS_LE-65]
+ 	_ = x[R_PCRELDBL-66]
+ 	_ = x[R_ADDRLOONG64-67]
+ 	_ = x[R_ADDRLOONG64U-68]
+@@ -91,9 +91,9 @@ func _() {
+ 	_ = x[R_INITORDER-81]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_LOONG64_TLS_IE_PCREL_HIR_LOONG64_TLS_IE_LOR_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREFR_PEIMAGEOFFR_INITORDER"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IER_RISCV_TLS_LER_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_LOONG64_TLS_IE_PCREL_HIR_LOONG64_TLS_IE_LOR_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREFR_PEIMAGEOFFR_INITORDER"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 394, 414, 434, 454, 467, 481, 495, 509, 524, 538, 552, 563, 585, 607, 621, 636, 659, 676, 694, 715, 730, 749, 761, 779, 798, 817, 837, 857, 867, 880, 894, 910, 927, 940, 965, 984, 996, 1007, 1020, 1031, 1043, 1053, 1065, 1076}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 394, 414, 434, 454, 467, 481, 495, 509, 524, 538, 552, 563, 585, 607, 621, 636, 659, 676, 694, 715, 730, 749, 761, 779, 798, 817, 831, 845, 855, 868, 882, 898, 915, 928, 953, 972, 984, 995, 1008, 1019, 1031, 1041, 1053, 1064}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index 6b5c0cbe5a..f3186398eb 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -39,7 +39,7 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
+ 		for ri := 0; ri < relocs.Count(); ri++ {
+ 			r := relocs.At(ri)
+ 			if r.Type() != objabi.R_RISCV_PCREL_ITYPE && r.Type() != objabi.R_RISCV_PCREL_STYPE &&
+-				r.Type() != objabi.R_RISCV_TLS_IE_ITYPE && r.Type() != objabi.R_RISCV_TLS_IE_STYPE {
++				r.Type() != objabi.R_RISCV_TLS_IE {
+ 				continue
+ 			}
+ 			if r.Off() == 0 && ldr.SymType(s) == sym.STEXT {
+@@ -101,7 +101,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		out.Write64(uint64(elf.R_RISCV_JAL) | uint64(elfsym)<<32)
+ 		out.Write64(uint64(r.Xadd))
+ 
+-	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
++	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE:
+ 		// Find the text symbol for the AUIPC instruction targeted
+ 		// by this relocation.
+ 		relocs := ldr.Relocs(s)
+@@ -127,10 +127,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_I
+ 		case objabi.R_RISCV_PCREL_STYPE:
+ 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_S
+-		case objabi.R_RISCV_TLS_IE_ITYPE:
++		case objabi.R_RISCV_TLS_IE:
+ 			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
+-		case objabi.R_RISCV_TLS_IE_STYPE:
+-			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_S
+ 		}
+ 		out.Write64(uint64(sectoff))
+ 		out.Write64(uint64(hiRel) | uint64(elfsym)<<32)
+@@ -139,6 +137,14 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		out.Write64(uint64(loRel) | uint64(hi20ElfSym)<<32)
+ 		out.Write64(uint64(0))
+ 
++	case objabi.R_RISCV_TLS_LE:
++		out.Write64(uint64(sectoff))
++		out.Write64(uint64(elf.R_RISCV_TPREL_HI20) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++		out.Write64(uint64(sectoff + 4))
++		out.Write64(uint64(elf.R_RISCV_TPREL_LO12_I) | uint64(elfsym)<<32)
++		out.Write64(uint64(r.Xadd))
++
+ 	default:
+ 		return false
+ 	}
+@@ -189,7 +195,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+ 			return val, 1, true
+ 
+-		case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
++		case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+ 			return val, 2, true
+ 		}
+ 
+@@ -211,7 +217,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 
+ 		return val, 0, true
+ 
+-	case objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
++	case objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+ 		// TLS relocations are not currently handled for internal linking.
+ 		// For now, TLS is only used when cgo is in use and cgo currently
+ 		// requires external linking. However, we need to accept these
+@@ -273,7 +279,7 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
+ 	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+ 		return ld.ExtrelocSimple(ldr, r), true
+ 
+-	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE_ITYPE, objabi.R_RISCV_TLS_IE_STYPE:
++	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+ 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
+ 	}
+ 	return loader.ExtReloc{}, false
+diff --git a/src/runtime/tls_riscv64.s b/src/runtime/tls_riscv64.s
+index 397919aeba..a0a58ea4a0 100644
+--- a/src/runtime/tls_riscv64.s
++++ b/src/runtime/tls_riscv64.s
+@@ -12,19 +12,14 @@
+ // NOTE: mcall() assumes this clobbers only X31 (REG_TMP).
+ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVB	runtime·iscgo(SB), X31
+-	BEQ	X0, X31, nocgo
+-
+-	MOV	runtime·tls_g(SB), X31
+-	ADD	TP, X31		// add offset to thread pointer (X4)
+-	MOV	g, (X31)
++	BEQZ	X31, nocgo
+ 
++	MOV	g, runtime·tls_g(SB)
+ nocgo:
+ 	RET
+ 
+ TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
+-	MOV	runtime·tls_g(SB), X31
+-	ADD	TP, X31		// add offset to thread pointer (X4)
+-	MOV	(X31), g
++	MOV	runtime·tls_g(SB), g
+ 	RET
+ 
+ GLOBL runtime·tls_g(SB), TLSBSS, $8

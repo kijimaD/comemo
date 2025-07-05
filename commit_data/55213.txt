@@ -25,9 +25,82 @@ Date:   Sun Jan 8 22:56:40 2023 +0000
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types/goversion.go | 4 ++--
  src/cmd/compile/internal/types2/version.go  | 4 ++--
  src/go/build/deps_test.go                   | 2 +-
  src/go/types/version.go                     | 4 ++--
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/goversion.go b/src/cmd/compile/internal/types/goversion.go
+index 3ece95bf0a..c57493a5cb 100644
+--- a/src/cmd/compile/internal/types/goversion.go
++++ b/src/cmd/compile/internal/types/goversion.go
+@@ -7,8 +7,8 @@ package types
+ import (
+ 	"fmt"
+ 	"internal/goversion"
++	"internal/lazyregexp"
+ 	"log"
+-	"regexp"
+ 	"strconv"
+ 
+ 	"cmd/compile/internal/base"
+@@ -81,4 +81,4 @@ func currentLang() string {
+ 
+ // goVersionRE is a regular expression that matches the valid
+ // arguments to the -lang flag.
+-var goVersionRE = regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)
++var goVersionRE = lazyregexp.New(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)
+diff --git a/src/cmd/compile/internal/types2/version.go b/src/cmd/compile/internal/types2/version.go
+index b649f09c3a..8fd76a381d 100644
+--- a/src/cmd/compile/internal/types2/version.go
++++ b/src/cmd/compile/internal/types2/version.go
+@@ -7,7 +7,7 @@ package types2
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+-	"regexp"
++	"internal/lazyregexp"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -78,4 +78,4 @@ func parseGoVersion(s string) (v version, err error) {
+ }
+ 
+ // goVersionRx matches a Go version string, e.g. "go1.12".
+-var goVersionRx = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
++var goVersionRx = lazyregexp.New(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 23e0dee1d2..c269d6b6e4 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -278,7 +278,7 @@ var depsRules = `
+ 	math/big, go/token
+ 	< go/constant;
+ 
+-	container/heap, go/constant, go/parser, internal/types/errors, regexp
++	container/heap, go/constant, go/parser, internal/types/errors, internal/lazyregexp
+ 	< go/types;
+ 
+ 	FMT, internal/goexperiment
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 3958ec922c..256c3ec05d 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -8,8 +8,8 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
++	"internal/lazyregexp"
+ 	. "internal/types/errors"
+-	"regexp"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -80,4 +80,4 @@ func parseGoVersion(s string) (v version, err error) {
+ }
+ 
+ // goVersionRx matches a Go version string, e.g. "go1.12".
+-var goVersionRx = regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)
++var goVersionRx = lazyregexp.New(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)

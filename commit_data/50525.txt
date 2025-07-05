@@ -16,8 +16,100 @@ Date:   Wed Oct 27 19:16:27 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go |  2 +-
  test/run.go                            |  1 +
  test/typeparam/issue48538.go           | 60 ++++++++++++++++++++++++++++++++++
  3 files changed, 62 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 65568f2307..d19513a1ac 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -344,7 +344,7 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+ 		return typed(g.typ(typ), n)
+ 	}
+ 
+-	_, isStruct := typ.Underlying().(*types2.Struct)
++	_, isStruct := types2.Structure(typ).(*types2.Struct)
+ 
+ 	exprs := make([]ir.Node, len(lit.ElemList))
+ 	for i, elem := range lit.ElemList {
+diff --git a/test/run.go b/test/run.go
+index 0c5da1af78..942fd032f2 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2188,6 +2188,7 @@ var unifiedFailures = setOf(
+ 
+ 	"fixedbugs/issue42284.go", // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
+ 	"fixedbugs/issue7921.go",  // prints "… escapes to heap", but test expects "string(…) escapes to heap"
++	"typeparam/issue48538.go", // assertion failure, interprets struct key as closure variable
+ )
+ 
+ func setOf(keys ...string) map[string]bool {
+diff --git a/test/typeparam/issue48538.go b/test/typeparam/issue48538.go
+new file mode 100644
+index 0000000000..fed9b5e9a6
+--- /dev/null
++++ b/test/typeparam/issue48538.go
+@@ -0,0 +1,60 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Testing composite literal for a type param constrained to be a struct or a map.
++
++package p
++
++type C interface {
++	~struct{ b1, b2 string }
++}
++
++func f[T C]() T {
++	return T{
++		b1: "a",
++		b2: "b",
++	}
++}
++
++func f2[T ~struct{ b1, b2 string }]() T {
++	return T{
++		b1: "a",
++		b2: "b",
++	}
++}
++
++type D interface {
++	map[string]string | S
++}
++
++type S map[string]string
++
++func g[T D]() T {
++	b1 := "foo"
++	b2 := "bar"
++	return T{
++		b1: "a",
++		b2: "b",
++	}
++}
++
++func g2[T map[string]string]() T {
++	b1 := "foo"
++	b2 := "bar"
++	return T{
++		b1: "a",
++		b2: "b",
++	}
++}
++
++func g3[T S]() T {
++	b1 := "foo"
++	b2 := "bar"
++	return T{
++		b1: "a",
++		b2: "b",
++	}
++}

@@ -14,6 +14,42 @@ Date:   Thu Sep 13 13:16:46 2018 +0100
     Change-Id: I03d88e31f14c86fa682fcea4b6d1fba18968aee8
     Reviewed-on: https://go-review.googlesource.com/135195
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/float_test.go | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/float_test.go b/src/cmd/compile/internal/gc/float_test.go
+index c0a8cfc89e..c5c604003a 100644
+--- a/src/cmd/compile/internal/gc/float_test.go
++++ b/src/cmd/compile/internal/gc/float_test.go
+@@ -6,6 +6,8 @@ package gc
+ 
+ import (
+ 	"math"
++	"os"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -364,11 +366,19 @@ func TestFloatConvertFolded(t *testing.T) {
+ 
+ func TestFloat32StoreToLoadConstantFold(t *testing.T) {
+ 	// Test that math.Float32{,from}bits constant fold correctly.
+-	// In particular we need to be careful that signalling NaN (sNaN) values
++	// In particular we need to be careful that signaling NaN (sNaN) values
+ 	// are not converted to quiet NaN (qNaN) values during compilation.
+ 	// See issue #27193 for more information.
+ 
+-	// signalling NaNs
++	// TODO: this method for detecting 387 won't work if the compiler has been
++	// built using GOARCH=386 GO386=387 and either the target is a different
++	// architecture or the GO386=387 environment variable is not set when the
++	// test is run.
++	if runtime.GOARCH == "386" && os.Getenv("GO386") == "387" {
++		t.Skip("signaling NaNs are not propagated on 387 (issue #27516)")
++	}
++
++	// signaling NaNs
+ 	{
+ 		const nan = uint32(0x7f800001) // sNaN
+ 		if x := math.Float32bits(math.Float32frombits(nan)); x != nan {

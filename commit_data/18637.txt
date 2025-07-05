@@ -11,7 +11,7 @@ Date:   Tue Feb 25 21:12:10 2014 +1100
     R=golang-codereviews, dave, jsing, gobot, minux.ma, rsc, iant, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/36000043
-
+---
  src/pkg/syscall/asm_solaris_amd64.s      |   7 +
  src/pkg/syscall/env_unix.go              |   2 +-
  src/pkg/syscall/exec_solaris.go          | 243 ++++++++++++++
@@ -27,3 +27,1789 @@ Date:   Tue Feb 25 21:12:10 2014 +1100
  src/pkg/syscall/syscall_unix_test.go     |   8 +-
  src/pkg/syscall/types_solaris.go         | 222 +++++++++++++
  14 files changed, 1620 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/syscall/asm_solaris_amd64.s b/src/pkg/syscall/asm_solaris_amd64.s
+new file mode 100644
+index 0000000000..3735890fa9
+--- /dev/null
++++ b/src/pkg/syscall/asm_solaris_amd64.s
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls for amd64, Solaris are implemented in ../runtime/syscall_solaris.goc
++//
+diff --git a/src/pkg/syscall/env_unix.go b/src/pkg/syscall/env_unix.go
+index 5970df8fc8..76663c6c41 100644
+--- a/src/pkg/syscall/env_unix.go
++++ b/src/pkg/syscall/env_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Unix environment variables.
+ 
+diff --git a/src/pkg/syscall/exec_solaris.go b/src/pkg/syscall/exec_solaris.go
+new file mode 100644
+index 0000000000..97de6ca003
+--- /dev/null
++++ b/src/pkg/syscall/exec_solaris.go
+@@ -0,0 +1,243 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++type SysProcAttr struct {
++	Chroot     string      // Chroot.
++	Credential *Credential // Credential.
++	Setsid     bool        // Create session.
++	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
++	Setctty    bool        // Set controlling terminal to fd 0
++	Noctty     bool        // Detach fd 0 from controlling terminal
++}
++
++// Implemented in runtime package.
++func runtime_BeforeFork()
++func runtime_AfterFork()
++
++func chdir(path uintptr) (err Errno)
++func chroot1(path uintptr) (err Errno)
++func close(fd uintptr) (err Errno)
++func execve(path uintptr, argv uintptr, envp uintptr) (err Errno)
++func exit(code uintptr)
++func fcntl1(fd uintptr, cmd uintptr, arg uintptr) (val uintptr, err Errno)
++func forkx(flags uintptr) (pid uintptr, err Errno)
++func ioctl(fd uintptr, req uintptr, arg uintptr) (err Errno)
++func setgid(gid uintptr) (err Errno)
++func setgroups1(ngid uintptr, gid uintptr) (err Errno)
++func setsid() (pid uintptr, err Errno)
++func setuid(uid uintptr) (err Errno)
++func setpgid(pid uintptr, pgid uintptr) (err Errno)
++func write1(fd uintptr, buf uintptr, nbyte uintptr) (n uintptr, err Errno)
++
++// Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
++// If a dup or exec fails, write the errno error to pipe.
++// (Pipe is close-on-exec so if exec succeeds, it will be closed.)
++// In the child, this function must not acquire any locks, because
++// they might have been locked at the time of the fork.  This means
++// no rescheduling, no malloc calls, and no new stack segments.
++//
++// We call hand-crafted syscalls, implemented in
++// ../runtime/syscall_solaris.goc, rather than generated libc wrappers
++// because we need to avoid lazy-loading the functions (might malloc,
++// split the stack, or acquire mutexes). We can't call RawSyscall
++// because it's not safe even for BSD-subsystem calls.
++func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
++	// Declare all variables at top in case any
++	// declarations require heap allocation (e.g., err1).
++	var (
++		r1     uintptr
++		err1   Errno
++		nextfd int
++		i      int
++	)
++
++	// guard against side effects of shuffling fds below.
++	// Make sure that nextfd is beyond any currently open files so
++	// that we can't run the risk of overwriting any of them.
++	fd := make([]int, len(attr.Files))
++	nextfd = len(attr.Files)
++	for i, ufd := range attr.Files {
++		if nextfd < int(ufd) {
++			nextfd = int(ufd)
++		}
++		fd[i] = int(ufd)
++	}
++	nextfd++
++
++	// About to call fork.
++	// No more allocation or calls of non-assembly functions.
++	runtime_BeforeFork()
++	r1, err1 = forkx(0x1) // FORK_NOSIGCHLD
++	if err1 != 0 {
++		runtime_AfterFork()
++		return 0, err1
++	}
++
++	if r1 != 0 {
++		// parent; return PID
++		runtime_AfterFork()
++		return int(r1), 0
++	}
++
++	// Fork succeeded, now in child.
++
++	// Session ID
++	if sys.Setsid {
++		_, err1 = setsid()
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Set process group
++	if sys.Setpgid {
++		err1 = setpgid(0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Chroot
++	if chroot != nil {
++		err1 = chroot1(uintptr(unsafe.Pointer(chroot)))
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// User and groups
++	if cred := sys.Credential; cred != nil {
++		ngroups := uintptr(len(cred.Groups))
++		groups := uintptr(0)
++		if ngroups > 0 {
++			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
++		}
++		err1 = setgroups1(ngroups, groups)
++		if err1 != 0 {
++			goto childerror
++		}
++		err1 = setgid(uintptr(cred.Gid))
++		if err1 != 0 {
++			goto childerror
++		}
++		err1 = setuid(uintptr(cred.Uid))
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Chdir
++	if dir != nil {
++		err1 = chdir(uintptr(unsafe.Pointer(dir)))
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Pass 1: look for fd[i] < i and move those up above len(fd)
++	// so that pass 2 won't stomp on an fd it needs later.
++	if pipe < nextfd {
++		_, err1 = fcntl1(uintptr(pipe), F_DUP2FD, uintptr(nextfd))
++		if err1 != 0 {
++			goto childerror
++		}
++		fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++		pipe = nextfd
++		nextfd++
++	}
++	for i = 0; i < len(fd); i++ {
++		if fd[i] >= 0 && fd[i] < int(i) {
++			_, err1 = fcntl1(uintptr(fd[i]), F_DUP2FD, uintptr(nextfd))
++			if err1 != 0 {
++				goto childerror
++			}
++			fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++			fd[i] = nextfd
++			nextfd++
++			if nextfd == pipe { // don't stomp on pipe
++				nextfd++
++			}
++		}
++	}
++
++	// Pass 2: dup fd[i] down onto i.
++	for i = 0; i < len(fd); i++ {
++		if fd[i] == -1 {
++			close(uintptr(i))
++			continue
++		}
++		if fd[i] == int(i) {
++			// dup2(i, i) won't clear close-on-exec flag on Linux,
++			// probably not elsewhere either.
++			_, err1 = fcntl1(uintptr(fd[i]), F_SETFD, 0)
++			if err1 != 0 {
++				goto childerror
++			}
++			continue
++		}
++		// The new fd is created NOT close-on-exec,
++		// which is exactly what we want.
++		_, err1 = fcntl1(uintptr(fd[i]), F_DUP2FD, uintptr(i))
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// By convention, we don't close-on-exec the fds we are
++	// started with, so if len(fd) < 3, close 0, 1, 2 as needed.
++	// Programs that know they inherit fds >= 3 will need
++	// to set them close-on-exec.
++	for i = len(fd); i < 3; i++ {
++		close(uintptr(i))
++	}
++
++	// Detach fd 0 from tty
++	if sys.Noctty {
++		err1 = ioctl(0, uintptr(TIOCNOTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Make fd 0 the tty
++	if sys.Setctty {
++		err1 = ioctl(0, uintptr(TIOCSCTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Time to exec.
++	err1 = execve(
++		uintptr(unsafe.Pointer(argv0)),
++		uintptr(unsafe.Pointer(&argv[0])),
++		uintptr(unsafe.Pointer(&envv[0])))
++
++childerror:
++	// send error code on pipe
++	write1(uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
++	for {
++		exit(253)
++	}
++}
++
++// Try to open a pipe with O_CLOEXEC set on both file descriptors.
++func forkExecPipe(p []int) error {
++	err := Pipe(p)
++	if err != nil {
++		return err
++	}
++	_, err = fcntl(p[0], F_SETFD, FD_CLOEXEC)
++	if err != nil {
++		return err
++	}
++	_, err = fcntl(p[1], F_SETFD, FD_CLOEXEC)
++	return err
++}
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index b82e39701e..93670daeed 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Fork, exec, wait, etc.
+ 
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 63abc869a7..79a3bc889e 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -208,6 +208,12 @@ plan9_386)
+ 	mksysnum="./mksysnum_plan9.sh /n/sources/plan9/sys/src/libc/9syscall/sys.h"
+ 	mktypes="XXX"
+ 	;;
++solaris_amd64)
++	mksyscall="./mksyscall_solaris.pl"
++	mkerrors="$mkerrors -m64"
++	mksysnum=
++	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
++	;;
+ windows_386)
+ 	mksyscall="./mksyscall_windows.pl -l32"
+ 	mksysnum=
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 35f195413e..172d0e0875 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -162,6 +162,24 @@ includes_OpenBSD='
+ #include <net/if_bridge.h>
+ '
+ 
++includes_SunOS='
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <sys/sockio.h>
++#include <sys/mman.h>
++#include <sys/wait.h>
++#include <sys/ioctl.h>
++#include <net/bpf.h>
++#include <net/if.h>
++#include <net/if_arp.h>
++#include <net/if_types.h>
++#include <net/route.h>
++#include <netinet/in.h>
++#include <termios.h>
++#include <netinet/ip.h>
++#include <netinet/ip_mroute.h>
++'
++
+ includes='
+ #include <sys/types.h>
+ #include <sys/file.h>
+@@ -304,7 +322,7 @@ echo ')'
+ 
+ # Run C program to print error and syscall strings.
+ (
+-	/bin/echo "
++	echo -E "
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <errno.h>
+@@ -320,22 +338,21 @@ int errors[] = {
+ "
+ 	for i in $errors
+ 	do
+-		/bin/echo '	'$i,
++		echo -E '	'$i,
+ 	done
+ 
+-	/bin/echo "
++	echo -E "
+ };
+ 
+ int signals[] = {
+ "
+ 	for i in $signals
+ 	do
+-		/bin/echo '	'$i,
++		echo -E '	'$i,
+ 	done
+ 
+-	# Use /bin/echo to avoid builtin echo,
+-	# which interprets \n itself
+-	/bin/echo '
++	# Use -E because on some systems bash builtin interprets \n itself.
++	echo -E '
+ };
+ 
+ static int
+diff --git a/src/pkg/syscall/mksyscall_solaris.pl b/src/pkg/syscall/mksyscall_solaris.pl
+new file mode 100755
+index 0000000000..130d043d96
+--- /dev/null
++++ b/src/pkg/syscall/mksyscall_solaris.pl
+@@ -0,0 +1,279 @@
++#!/usr/bin/env perl
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This program reads a file containing function prototypes
++# (like syscall_solaris.go) and generates system call bodies.
++# The prototypes are marked by lines beginning with "//sys"
++# and read like func declarations if //sys is replaced by func, but:
++#	* The parameter lists must give a name for each argument.
++#	  This includes return parameters.
++#	* The parameter lists must give a type for each argument:
++#	  the (x, y, z int) shorthand is not allowed.
++#	* If the return parameter is an error number, it must be named err.
++#	* If go func name needs to be different than its libc name, 
++#	* or the function is not in libc, name could be specified
++#	* at the end, after "=" sign, like
++#	  //sys getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) = libsocket.getsockopt
++
++use strict;
++
++my $cmdline = "mksyscall_solaris.pl " . join(' ', @ARGV);
++my $errors = 0;
++my $_32bit = "";
++
++binmode STDOUT;
++
++if($ARGV[0] eq "-b32") {
++	$_32bit = "big-endian";
++	shift;
++} elsif($ARGV[0] eq "-l32") {
++	$_32bit = "little-endian";
++	shift;
++}
++
++if($ARGV[0] =~ /^-/) {
++	print STDERR "usage: mksyscall_solaris.pl [-b32 | -l32] [file ...]\n";
++	exit 1;
++}
++
++sub parseparamlist($) {
++	my ($list) = @_;
++	$list =~ s/^\s*//;
++	$list =~ s/\s*$//;
++	if($list eq "") {
++		return ();
++	}
++	return split(/\s*,\s*/, $list);
++}
++
++sub parseparam($) {
++	my ($p) = @_;
++	if($p !~ /^(\S*) (\S*)$/) {
++		print STDERR "$ARGV:$.: malformed parameter: $p\n";
++		$errors = 1;
++		return ("xx", "int");
++	}
++	return ($1, $2);
++}
++
++my $package = "";
++my $text = "";
++my $vars = "";
++my $mods = "";
++my $modnames = "";
++while(<>) {
++	chomp;
++	s/\s+/ /g;
++	s/^\s+//;
++	s/\s+$//;
++	$package = $1 if !$package && /^package (\S+)$/;
++	my $nonblock = /^\/\/sysnb /;
++	next if !/^\/\/sys / && !$nonblock;
++
++	my $syscalldot = "";
++	$syscalldot = "syscall." if $package ne "syscall";
++
++	# Line must be of the form
++	#	func Open(path string, mode int, perm int) (fd int, err error)
++	# Split into name, in params, out params.
++	if(!/^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$/) {
++		print STDERR "$ARGV:$.: malformed //sys declaration\n";
++		$errors = 1;
++		next;
++	}
++	my ($nb, $func, $in, $out, $modname, $sysname) = ($1, $2, $3, $4, $5, $6);
++
++	# Split argument lists on comma.
++	my @in = parseparamlist($in);
++	my @out = parseparamlist($out);
++
++	# So file name.
++	if($modname eq "") {
++		$modname = "libc";
++	}
++	my $modvname = "mod$modname";
++	if($modnames !~ /$modname/) {
++		$modnames .= ".$modname";
++		$mods .= "\t$modvname = ${syscalldot}newLazySO(\"$modname.so\")\n";
++	}
++
++	# System call name.
++	if($sysname eq "") {
++		$sysname = "$func";
++	}
++
++	# System call pointer variable name.
++	my $sysvarname = "proc$sysname";
++
++	my $strconvfunc = "BytePtrFromString";
++	my $strconvtype = "*byte";
++
++	# Library proc address variable.
++	$sysname =~ y/A-Z/a-z/; # All libc functions are lowercase.
++	$vars .= "\t$sysvarname = $modvname.NewProc(\"$sysname\")\n";
++
++	# Go function header.
++	$out = join(', ', @out);
++	if($out ne "") {
++		$out = " ($out)";
++	}
++	if($text ne "") {
++		$text .= "\n"
++	}
++	$text .= sprintf "func %s(%s)%s {\n", $func, join(', ', @in), $out;
++
++	# Check if err return available
++	my $errvar = "";
++	foreach my $p (@out) {
++		my ($name, $type) = parseparam($p);
++		if($type eq "error") {
++			$errvar = $name;
++			last;
++		}
++	}
++
++	# Prepare arguments to Syscall.
++	my @args = ();
++	my $n = 0;
++	my @pin= ();
++	foreach my $p (@in) {
++		my ($name, $type) = parseparam($p);
++		if($type =~ /^\*/) {
++			push @args, "uintptr(unsafe.Pointer($name))";
++		} elsif($type eq "string" && $errvar ne "") {
++			$text .= "\tvar _p$n $strconvtype\n";
++			$text .= "\t_p$n, $errvar = $strconvfunc($name)\n";
++			$text .= "\tif $errvar != nil {\n\t\treturn\n\t}\n";
++			push @args, "uintptr(unsafe.Pointer(_p$n))";
++			$n++;
++		} elsif($type eq "string") {
++			print STDERR "$ARGV:$.: $func uses string arguments, but has no error return\n";
++			$text .= "\tvar _p$n $strconvtype\n";
++			$text .= "\t_p$n, _ = $strconvfunc($name)\n";
++			push @args, "uintptr(unsafe.Pointer(_p$n))";
++			$n++;
++		} elsif($type =~ /^\[\](.*)/) {
++			# Convert slice into pointer, length.
++			# Have to be careful not to take address of &a[0] if len == 0:
++			# pass nil in that case.
++			$text .= "\tvar _p$n *$1\n";
++			$text .= "\tif len($name) > 0 {\n\t\t_p$n = \&$name\[0]\n\t}\n";
++			push @args, "uintptr(unsafe.Pointer(_p$n))", "uintptr(len($name))";
++			$n++;
++		} elsif($type eq "int64" && $_32bit ne "") {
++			if($_32bit eq "big-endian") {
++				push @args, "uintptr($name >> 32)", "uintptr($name)";
++			} else {
++				push @args, "uintptr($name)", "uintptr($name >> 32)";
++			}
++		} elsif($type eq "bool") {
++ 			$text .= "\tvar _p$n uint32\n";
++			$text .= "\tif $name {\n\t\t_p$n = 1\n\t} else {\n\t\t_p$n = 0\n\t}\n";
++			push @args, "uintptr(_p$n)";
++			$n++;
++		} else {
++			push @args, "uintptr($name)";
++		}
++		push @pin, sprintf "\"%s=\", %s, ", $name, $name;
++	}
++	my $nargs = @args;
++
++	# Determine which form to use; pad args with zeros.
++	my $asm = "${syscalldot}sysvicall6";
++	if ($nonblock) {
++		$asm = "${syscalldot}rawSysvicall6";
++	}
++	if(@args <= 6) {
++		while(@args < 6) {
++			push @args, "0";
++		}
++	} else {
++		print STDERR "$ARGV:$.: too many arguments to system call\n";
++	}
++
++	# Actual call.
++	my $args = join(', ', @args);
++	my $call = "$asm($sysvarname.Addr(), $nargs, $args)";
++
++	# Assign return values.
++	my $body = "";
++	my $failexpr = "";
++	my @ret = ("_", "_", "_");
++	my @pout= ();
++	my $do_errno = 0;
++	for(my $i=0; $i<@out; $i++) {
++		my $p = $out[$i];
++		my ($name, $type) = parseparam($p);
++		my $reg = "";
++		if($name eq "err") {
++			$reg = "e1";
++			$ret[2] = $reg;
++			$do_errno = 1;
++		} else {
++			$reg = sprintf("r%d", $i);
++			$ret[$i] = $reg;
++		}
++		if($type eq "bool") {
++			$reg = "$reg != 0";
++		}
++		if($type eq "int64" && $_32bit ne "") {
++			# 64-bit number in r1:r0 or r0:r1.
++			if($i+2 > @out) {
++				print STDERR "$ARGV:$.: not enough registers for int64 return\n";
++			}
++			if($_32bit eq "big-endian") {
++				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i, $i+1);
++			} else {
++				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i+1, $i);
++			}
++			$ret[$i] = sprintf("r%d", $i);
++			$ret[$i+1] = sprintf("r%d", $i+1);
++		}
++		if($reg ne "e1") {
++			$body .= "\t$name = $type($reg)\n";
++		}
++	}
++	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
++		$text .= "\t$call\n";
++	} else {
++		$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
++	}
++	$text .= $body;
++
++	if ($do_errno) {
++		$text .= "\tif e1 != 0 {\n";
++		$text .= "\t\terr = e1\n";
++		$text .= "\t}\n";
++	}
++	$text .= "\treturn\n";
++	$text .= "}\n";
++}
++
++if($errors) {
++	exit 1;
++}
++
++print <<EOF;
++// $cmdline
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++package $package
++
++import "unsafe"
++EOF
++
++print "import \"syscall\"\n" if $package ne "syscall";
++
++print <<EOF;
++
++var (
++$mods
++$vars
++)
++
++$text
++
++EOF
++exit 0;
+diff --git a/src/pkg/syscall/so_solaris.go b/src/pkg/syscall/so_solaris.go
+new file mode 100644
+index 0000000000..659cd67c16
+--- /dev/null
++++ b/src/pkg/syscall/so_solaris.go
+@@ -0,0 +1,260 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import (
++	"sync"
++	"sync/atomic"
++	"unsafe"
++)
++
++// soError describes reasons for shared library load failures.
++type soError struct {
++	Err     error
++	ObjName string
++	Msg     string
++}
++
++func (e *soError) Error() string { return e.Msg }
++
++// Implemented in ../runtime/syscall_solaris.goc.
++func rawSysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func dlclose(handle uintptr) (err Errno)
++func dlopen(name *uint8, mode uintptr) (handle uintptr, err Errno)
++func dlsym(handle uintptr, name *uint8) (proc uintptr, err Errno)
++
++// A so implements access to a single shared library object.
++type so struct {
++	Name   string
++	Handle uintptr
++}
++
++// loadSO loads shared library file into memory.
++func loadSO(name string) (*so, error) {
++	namep, err := BytePtrFromString(name)
++	if err != nil {
++		return nil, err
++	}
++	h, e := dlopen(namep, 1) // RTLD_LAZY
++	if e != 0 {
++		return nil, &soError{
++			Err:     e,
++			ObjName: name,
++			Msg:     "Failed to load " + name + ": " + e.Error(),
++		}
++	}
++	d := &so{
++		Name:   name,
++		Handle: uintptr(h),
++	}
++	return d, nil
++}
++
++// mustLoadSO is like loadSO but panics if load operation fails.
++func mustLoadSO(name string) *so {
++	d, e := loadSO(name)
++	if e != nil {
++		panic(e)
++	}
++	return d
++}
++
++// FindProc searches shared library d for procedure named name and returns
++// *proc if found. It returns an error if the search fails.
++func (d *so) FindProc(name string) (*proc, error) {
++	namep, err := BytePtrFromString(name)
++	if err != nil {
++		return nil, err
++	}
++	a, _ := dlsym(uintptr(d.Handle), namep)
++	if a == 0 {
++		return nil, &soError{
++			Err:     ENOSYS,
++			ObjName: name,
++			Msg:     "Failed to find " + name + " procedure in " + d.Name,
++		}
++	}
++	p := &proc{
++		SO:   d,
++		Name: name,
++		addr: a,
++	}
++	return p, nil
++}
++
++// MustFindProc is like FindProc but panics if search fails.
++func (d *so) MustFindProc(name string) *proc {
++	p, e := d.FindProc(name)
++	if e != nil {
++		panic(e)
++	}
++	return p
++}
++
++// Release unloads shared library d from memory.
++func (d *so) Release() (err error) {
++	return dlclose(d.Handle)
++}
++
++// A proc implements access to a procedure inside a shared library.
++type proc struct {
++	SO   *so
++	Name string
++	addr uintptr
++}
++
++// Addr returns the address of the procedure represented by p.
++// The return value can be passed to Syscall to run the procedure.
++func (p *proc) Addr() uintptr {
++	return p.addr
++}
++
++// Call executes procedure p with arguments a. It will panic, if more then
++// 6 arguments are supplied.
++//
++// The returned error is always non-nil, constructed from the result of
++// GetLastError.  Callers must inspect the primary return value to decide
++// whether an error occurred (according to the semantics of the specific
++// function being called) before consulting the error. The error will be
++// guaranteed to contain syscall.Errno.
++func (p *proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
++	switch len(a) {
++	case 0:
++		return sysvicall6(p.Addr(), uintptr(len(a)), 0, 0, 0, 0, 0, 0)
++	case 1:
++		return sysvicall6(p.Addr(), uintptr(len(a)), a[0], 0, 0, 0, 0, 0)
++	case 2:
++		return sysvicall6(p.Addr(), uintptr(len(a)), a[0], a[1], 0, 0, 0, 0)
++	case 3:
++		return sysvicall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], 0, 0, 0)
++	case 4:
++		return sysvicall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], 0, 0)
++	case 5:
++		return sysvicall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], 0)
++	case 6:
++		return sysvicall6(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5])
++	default:
++		panic("Call " + p.Name + " with too many arguments " + itoa(len(a)) + ".")
++	}
++	return
++}
++
++// A lazySO implements access to a single shared library.  It will delay
++// the load of the shared library until the first call to its Handle method
++// or to one of its lazyProc's Addr method.
++type lazySO struct {
++	mu   sync.Mutex
++	so   *so // non nil once SO is loaded
++	Name string
++}
++
++// Load loads single shared file d.Name into memory. It returns an error if
++// fails.  Load will not try to load SO, if it is already loaded into memory.
++func (d *lazySO) Load() error {
++	// Non-racy version of:
++	// if d.so == nil {
++	if atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&d.so))) == nil {
++		d.mu.Lock()
++		defer d.mu.Unlock()
++		if d.so == nil {
++			so, e := loadSO(d.Name)
++			if e != nil {
++				return e
++			}
++			// Non-racy version of:
++			// d.so = so
++			atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&d.so)), unsafe.Pointer(so))
++		}
++	}
++	return nil
++}
++
++// mustLoad is like Load but panics if search fails.
++func (d *lazySO) mustLoad() {
++	e := d.Load()
++	if e != nil {
++		panic(e)
++	}
++}
++
++// Handle returns d's module handle.
++func (d *lazySO) Handle() uintptr {
++	d.mustLoad()
++	return uintptr(d.so.Handle)
++}
++
++// NewProc returns a lazyProc for accessing the named procedure in the SO d.
++func (d *lazySO) NewProc(name string) *lazyProc {
++	return &lazyProc{l: d, Name: name}
++}
++
++// newLazySO creates new lazySO associated with SO file.
++func newLazySO(name string) *lazySO {
++	return &lazySO{Name: name}
++}
++
++// A lazyProc implements access to a procedure inside a lazySO.
++// It delays the lookup until the Addr method is called.
++type lazyProc struct {
++	mu   sync.Mutex
++	Name string
++	l    *lazySO
++	proc *proc
++}
++
++// Find searches the shared library for procedure named p.Name. It returns an
++// error if search fails. Find will not search procedure, if it is already
++// found and loaded into memory.
++func (p *lazyProc) Find() error {
++	// Non-racy version of:
++	// if p.proc == nil {
++	if atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&p.proc))) == nil {
++		p.mu.Lock()
++		defer p.mu.Unlock()
++		if p.proc == nil {
++			e := p.l.Load()
++			if e != nil {
++				return e
++			}
++			proc, e := p.l.so.FindProc(p.Name)
++			if e != nil {
++				return e
++			}
++			// Non-racy version of:
++			// p.proc = proc
++			atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&p.proc)), unsafe.Pointer(proc))
++		}
++	}
++	return nil
++}
++
++// mustFind is like Find but panics if search fails.
++func (p *lazyProc) mustFind() {
++	e := p.Find()
++	if e != nil {
++		panic(e)
++	}
++}
++
++// Addr returns the address of the procedure represented by p.
++// The return value can be passed to Syscall to run the procedure.
++func (p *lazyProc) Addr() uintptr {
++	p.mustFind()
++	return p.proc.Addr()
++}
++
++// Call executes procedure p with arguments a. It will panic, if more then
++// 6 arguments are supplied.
++//
++// The returned error is always non-nil, constructed from the result of
++// GetLastError.  Callers must inspect the primary return value to decide
++// whether an error occurred (according to the semantics of the specific
++// function being called) before consulting the error. The error will be
++// guaranteed to contain syscall.Errno.
++func (p *lazyProc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
++	p.mustFind()
++	return p.proc.Call(a...)
++}
+diff --git a/src/pkg/syscall/sockcmsg_unix.go b/src/pkg/syscall/sockcmsg_unix.go
+index a2d234f217..2cdc28ee35 100644
+--- a/src/pkg/syscall/sockcmsg_unix.go
++++ b/src/pkg/syscall/sockcmsg_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ // Socket control messages
+ 
+diff --git a/src/pkg/syscall/syscall_solaris.go b/src/pkg/syscall/syscall_solaris.go
+new file mode 100644
+index 0000000000..2e3f8bac2b
+--- /dev/null
++++ b/src/pkg/syscall/syscall_solaris.go
+@@ -0,0 +1,532 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Solaris system calls.
++// This file is compiled as ordinary Go code,
++// but it is also input to mksyscall,
++// which parses the //sys lines and generates system call stubs.
++// Note that sometimes we use a lowercase //sys name and wrap
++// it in our own nicer implementation, either here or in
++// syscall_solaris.go or syscall_unix.go.
++
++package syscall
++
++import "unsafe"
++
++type SockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [46]int8
++	raw    RawSockaddrDatalink
++}
++
++func clen(n []byte) int {
++	for i := 0; i < len(n); i++ {
++		if n[i] == 0 {
++			return i
++		}
++	}
++	return len(n)
++}
++
++// ParseDirent parses up to max directory entries in buf,
++// appending the names to names.  It returns the number
++// bytes consumed from buf, the number of entries added
++// to names, and the new names slice.
++func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
++	origlen := len(buf)
++	for max != 0 && len(buf) > 0 {
++		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
++		if dirent.Reclen == 0 {
++			buf = nil
++			break
++		}
++		buf = buf[dirent.Reclen:]
++		if dirent.Ino == 0 { // File absent in directory.
++			continue
++		}
++		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
++		var name = string(bytes[0:clen(bytes[:])])
++		if name == "." || name == ".." { // Useless names
++			continue
++		}
++		max--
++		count++
++		names = append(names, name)
++	}
++	return origlen - len(buf), count, names
++}
++
++func pipe() (r uintptr, w uintptr, err uintptr)
++
++func Pipe(p []int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	r0, w0, e1 := pipe()
++	if e1 != 0 {
++		err = Errno(e1)
++	}
++	p[0], p[1] = int(r0), int(w0)
++	return
++}
++
++type IPMreqn struct {
++	Multiaddr [4]byte /* in_addr */
++	Address   [4]byte /* in_addr */
++	Ifindex   int32
++}
++
++func (sa *SockaddrInet4) sockaddr() (unsafe.Pointer, _Socklen, error) {
++	if sa.Port < 0 || sa.Port > 0xFFFF {
++		return nil, 0, EINVAL
++	}
++	sa.raw.Family = AF_INET
++	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
++	p[0] = byte(sa.Port >> 8)
++	p[1] = byte(sa.Port)
++	for i := 0; i < len(sa.Addr); i++ {
++		sa.raw.Addr[i] = sa.Addr[i]
++	}
++	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet4, nil
++}
++
++func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, _Socklen, error) {
++	if sa.Port < 0 || sa.Port > 0xFFFF {
++		return nil, 0, EINVAL
++	}
++	sa.raw.Family = AF_INET6
++	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
++	p[0] = byte(sa.Port >> 8)
++	p[1] = byte(sa.Port)
++	sa.raw.Scope_id = sa.ZoneId
++	for i := 0; i < len(sa.Addr); i++ {
++		sa.raw.Addr[i] = sa.Addr[i]
++	}
++	return unsafe.Pointer(&sa.raw), SizeofSockaddrInet6, nil
++}
++
++func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
++	name := sa.Name
++	n := len(name)
++	if n >= len(sa.raw.Path) {
++		return nil, 0, EINVAL
++	}
++	sa.raw.Family = AF_UNIX
++	for i := 0; i < n; i++ {
++		sa.raw.Path[i] = int8(name[i])
++	}
++	// length is family (uint16), name, NUL.
++	sl := _Socklen(2)
++	if n > 0 {
++		sl += _Socklen(n) + 1
++	}
++	if sa.raw.Path[0] == '@' {
++		sa.raw.Path[0] = 0
++		// Don't count trailing NUL for abstract address.
++		sl--
++	}
++
++	return unsafe.Pointer(&sa.raw), sl, nil
++}
++
++func Getsockname(fd int) (sa Sockaddr, err error) {
++	var rsa RawSockaddrAny
++	var len _Socklen = SizeofSockaddrAny
++	if err = getsockname(fd, &rsa, &len); err != nil {
++		return
++	}
++	return anyToSockaddr(&rsa)
++}
++
++func GetsockoptInet4Addr(fd, level, opt int) (value [4]byte, err error) {
++	vallen := _Socklen(4)
++	err = getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
++	return value, err
++}
++
++func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
++	// TODO(dfc)
++	return nil, EINVAL
++}
++
++func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
++	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
++}
++
++// The const provides a compile-time constant so clients
++// can adjust to whether there is a working Getwd and avoid
++// even linking this function into the binary.  See ../os/getwd.go.
++const ImplementsGetwd = false
++
++func Getwd() (string, error) { return "", ENOTSUP }
++
++/*
++ * Wrapped
++ */
++
++//sysnb	getgroups(ngid int, gid *_Gid_t) (n int, err error)
++//sysnb	setgroups(ngid int, gid *_Gid_t) (err error)
++
++func Getgroups() (gids []int, err error) {
++	n, err := getgroups(0, nil)
++	if err != nil {
++		return nil, err
++	}
++	if n == 0 {
++		return nil, nil
++	}
++
++	// Sanity check group count.  Max is 16 on BSD.
++	if n < 0 || n > 1000 {
++		return nil, EINVAL
++	}
++
++	a := make([]_Gid_t, n)
++	n, err = getgroups(n, &a[0])
++	if err != nil {
++		return nil, err
++	}
++	gids = make([]int, n)
++	for i, v := range a[0:n] {
++		gids[i] = int(v)
++	}
++	return
++}
++
++func Setgroups(gids []int) (err error) {
++	if len(gids) == 0 {
++		return setgroups(0, nil)
++	}
++
++	a := make([]_Gid_t, len(gids))
++	for i, v := range gids {
++		a[i] = _Gid_t(v)
++	}
++	return setgroups(len(a), &a[0])
++}
++
++func ReadDirent(fd int, buf []byte) (n int, err error) {
++	// Final argument is (basep *uintptr) and the syscall doesn't take nil.
++	// TODO(rsc): Can we use a single global basep for all calls?
++	return Getdents(fd, buf, new(uintptr))
++}
++
++// Wait status is 7 bits at bottom, either 0 (exited),
++// 0x7F (stopped), or a signal number that caused an exit.
++// The 0x80 bit is whether there was a core dump.
++// An extra number (exit code, signal causing a stop)
++// is in the high bits.
++
++type WaitStatus uint32
++
++const (
++	mask  = 0x7F
++	core  = 0x80
++	shift = 8
++
++	exited  = 0
++	stopped = 0x7F
++)
++
++func (w WaitStatus) Exited() bool { return w&mask == exited }
++
++func (w WaitStatus) ExitStatus() int {
++	if w&mask != exited {
++		return -1
++	}
++	return int(w >> shift)
++}
++
++func (w WaitStatus) Signaled() bool { return w&mask != stopped && w&mask != 0 }
++
++func (w WaitStatus) Signal() Signal {
++	sig := Signal(w & mask)
++	if sig == stopped || sig == 0 {
++		return -1
++	}
++	return sig
++}
++
++func (w WaitStatus) CoreDump() bool { return w.Signaled() && w&core != 0 }
++
++func (w WaitStatus) Stopped() bool { return w&mask == stopped && Signal(w>>shift) != SIGSTOP }
++
++func (w WaitStatus) Continued() bool { return w&mask == stopped && Signal(w>>shift) == SIGSTOP }
++
++func (w WaitStatus) StopSignal() Signal {
++	if !w.Stopped() {
++		return -1
++	}
++	return Signal(w>>shift) & 0xFF
++}
++
++func (w WaitStatus) TrapCause() int { return -1 }
++
++func wait4(pid uintptr, wstatus *WaitStatus, options uintptr, rusage *Rusage) (wpid uintptr, err uintptr)
++
++func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, err error) {
++	r0, e1 := wait4(uintptr(pid), wstatus, uintptr(options), rusage)
++	if e1 != 0 {
++		err = Errno(e1)
++	}
++	return int(r0), err
++}
++
++func gethostname() (name string, err uintptr)
++
++func Gethostname() (name string, err error) {
++	name, e1 := gethostname()
++	if e1 != 0 {
++		err = Errno(e1)
++	}
++	return name, err
++}
++
++func UtimesNano(path string, ts []Timespec) (err error) {
++	if len(ts) != 2 {
++		return EINVAL
++	}
++	var tv [2]Timeval
++	for i := 0; i < 2; i++ {
++		tv[i].Sec = ts[i].Sec
++		tv[i].Usec = ts[i].Nsec / 1000
++	}
++	return Utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
++}
++
++//sys	fcntl(fd int, cmd int, arg int) (val int, err error)
++
++// FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
++func FcntlFlock(fd uintptr, cmd int, lk *Flock_t) error {
++	_, _, e1 := sysvicall6(procfcntl.Addr(), 3, uintptr(fd), uintptr(cmd), uintptr(unsafe.Pointer(lk)), 0, 0, 0)
++	if e1 != 0 {
++		return e1
++	}
++	return nil
++}
++
++func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
++	switch rsa.Addr.Family {
++	case AF_UNIX:
++		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
++		sa := new(SockaddrUnix)
++		// Assume path ends at NUL.
++		// This is not technically the Solaris semantics for
++		// abstract Unix domain sockets -- they are supposed
++		// to be uninterpreted fixed-size binary blobs -- but
++		// everyone uses this convention.
++		n := 0
++		for n < len(pp.Path) && pp.Path[n] != 0 {
++			n++
++		}
++		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
++		sa.Name = string(bytes)
++		return sa, nil
++
++	case AF_INET:
++		pp := (*RawSockaddrInet4)(unsafe.Pointer(rsa))
++		sa := new(SockaddrInet4)
++		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
++		sa.Port = int(p[0])<<8 + int(p[1])
++		for i := 0; i < len(sa.Addr); i++ {
++			sa.Addr[i] = pp.Addr[i]
++		}
++		return sa, nil
++
++	case AF_INET6:
++		pp := (*RawSockaddrInet6)(unsafe.Pointer(rsa))
++		sa := new(SockaddrInet6)
++		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
++		sa.Port = int(p[0])<<8 + int(p[1])
++		sa.ZoneId = pp.Scope_id
++		for i := 0; i < len(sa.Addr); i++ {
++			sa.Addr[i] = pp.Addr[i]
++		}
++		return sa, nil
++	}
++	return nil, EAFNOSUPPORT
++}
++
++//sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error) = libsocket.accept
++func Accept(fd int) (nfd int, sa Sockaddr, err error) {
++	var rsa RawSockaddrAny
++	var len _Socklen = SizeofSockaddrAny
++	nfd, err = accept(fd, &rsa, &len)
++	if err != nil {
++		return
++	}
++	sa, err = anyToSockaddr(&rsa)
++	if err != nil {
++		Close(nfd)
++		nfd = 0
++	}
++	return
++}
++
++func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
++	var msg Msghdr
++	var rsa RawSockaddrAny
++	msg.Name = (*byte)(unsafe.Pointer(&rsa))
++	msg.Namelen = uint32(SizeofSockaddrAny)
++	var iov Iovec
++	if len(p) > 0 {
++		iov.Base = (*int8)(unsafe.Pointer(&p[0]))
++		iov.SetLen(len(p))
++	}
++	var dummy int8
++	if len(oob) > 0 {
++		// receive at least one normal byte
++		if len(p) == 0 {
++			iov.Base = &dummy
++			iov.SetLen(1)
++		}
++		msg.Accrights = (*int8)(unsafe.Pointer(&oob[0]))
++	}
++	msg.Iov = &iov
++	msg.Iovlen = 1
++	if n, err = recvmsg(fd, &msg, flags); err != nil {
++		return
++	}
++	oobn = int(msg.Accrightslen)
++	// source address is only specified if the socket is unconnected
++	if rsa.Addr.Family != AF_UNSPEC {
++		from, err = anyToSockaddr(&rsa)
++	}
++	return
++}
++
++//sys	sendmsg(s int, msg *Msghdr, flags int) (err error) = libsocket.sendmsg
++func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
++	var ptr unsafe.Pointer
++	var salen _Socklen
++	if to != nil {
++		ptr, salen, err = to.sockaddr()
++		if err != nil {
++			return err
++		}
++	}
++	var msg Msghdr
++	msg.Name = (*byte)(unsafe.Pointer(ptr))
++	msg.Namelen = uint32(salen)
++	var iov Iovec
++	if len(p) > 0 {
++		iov.Base = (*int8)(unsafe.Pointer(&p[0]))
++		iov.SetLen(len(p))
++	}
++	var dummy int8
++	if len(oob) > 0 {
++		// send at least one normal byte
++		if len(p) == 0 {
++			iov.Base = &dummy
++			iov.SetLen(1)
++		}
++		msg.Accrights = (*int8)(unsafe.Pointer(&oob[0]))
++	}
++	msg.Iov = &iov
++	msg.Iovlen = 1
++	return sendmsg(fd, &msg, flags)
++}
++
++/*
++ * Exposed directly
++ */
++//sys	Access(path string, mode uint32) (err error)
++//sys	Adjtime(delta *Timeval, olddelta *Timeval) (err error)
++//sys	Chdir(path string) (err error)
++//sys	Chmod(path string, mode uint32) (err error)
++//sys	Chown(path string, uid int, gid int) (err error)
++//sys	Chroot(path string) (err error)
++//sys	Close(fd int) (err error)
++//sys	Dup(fd int) (nfd int, err error)
++//sys	Exit(code int)
++//sys	Fchdir(fd int) (err error)
++//sys	Fchmod(fd int, mode uint32) (err error)
++//sys	Fchown(fd int, uid int, gid int) (err error)
++//sys	Fpathconf(fd int, name int) (val int, err error)
++//sys	Fstat(fd int, stat *Stat_t) (err error)
++//sys	Getdents(fd int, buf []byte, basep *uintptr) (n int, err error)
++//sysnb	Getgid() (gid int)
++//sysnb	Getpid() (pid int)
++//sys	Geteuid() (euid int)
++//sys	Getegid() (egid int)
++//sys	Getppid() (ppid int)
++//sys	Getpriority(which int, who int) (n int, err error)
++//sysnb	Getrlimit(which int, lim *Rlimit) (err error)
++//sysnb	Gettimeofday(tv *Timeval) (err error)
++//sysnb	Getuid() (uid int)
++//sys	Kill(pid int, signum Signal) (err error)
++//sys	Lchown(path string, uid int, gid int) (err error)
++//sys	Link(path string, link string) (err error)
++//sys	Listen(s int, backlog int) (err error) = libsocket.listen
++//sys	Lstat(path string, stat *Stat_t) (err error)
++//sys	Mkdir(path string, mode uint32) (err error)
++//sys	Mknod(path string, mode uint32, dev int) (err error)
++//sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
++//sys	Open(path string, mode int, perm uint32) (fd int, err error)
++//sys	Pathconf(path string, name int) (val int, err error)
++//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
++//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
++//sys	read(fd int, p []byte) (n int, err error)
++//sys	Readlink(path string, buf []byte) (n int, err error)
++//sys	Rename(from string, to string) (err error)
++//sys	Rmdir(path string) (err error)
++//sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = lseek
++//sysnb	Setegid(egid int) (err error)
++//sysnb	Seteuid(euid int) (err error)
++//sysnb	Setgid(gid int) (err error)
++//sysnb	Setpgid(pid int, pgid int) (err error)
++//sys	Setpriority(which int, who int, prio int) (err error)
++//sysnb	Setregid(rgid int, egid int) (err error)
++//sysnb	Setreuid(ruid int, euid int) (err error)
++//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
++//sysnb	Setsid() (pid int, err error)
++//sysnb	Setuid(uid int) (err error)
++//sys	Shutdown(s int, how int) (err error) = libsocket.shutdown
++//sys	Stat(path string, stat *Stat_t) (err error)
++//sys	Symlink(path string, link string) (err error)
++//sys	Sync() (err error)
++//sys	Truncate(path string, length int64) (err error)
++//sys	Fsync(fd int) (err error)
++//sys	Ftruncate(fd int, length int64) (err error)
++//sys	Umask(newmask int) (oldmask int)
++//sys	Unlink(path string) (err error)
++//sys	Utimes(path string, times *[2]Timeval) (err error)
++//sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) = libsocket.bind
++//sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error) = libsocket.connect
++//sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
++//sys	munmap(addr uintptr, length uintptr) (err error)
++//sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error) = libsocket.sendto
++//sys	socket(domain int, typ int, proto int) (fd int, err error) = libsocket.socket
++//sysnb	socketpair(domain int, typ int, proto int, fd *[2]int32) (err error) = libsocket.socketpair
++//sys	write(fd int, p []byte) (n int, err error)
++//sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) = libsocket.getsockopt
++//sysnb	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error) = libsocket.getpeername
++//sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error) = libsocket.getsockname
++//sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) = libsocket.setsockopt
++//sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error) = libsocket.recvfrom
++//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.recvmsg
++
++func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
++	r0, _, e1 := sysvicall6(procread.Addr(), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
++	r0, _, e1 := sysvicall6(procwrite.Addr(), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
+diff --git a/src/pkg/syscall/syscall_solaris_amd64.go b/src/pkg/syscall/syscall_solaris_amd64.go
+new file mode 100644
+index 0000000000..37cf06d706
+--- /dev/null
++++ b/src/pkg/syscall/syscall_solaris_amd64.go
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++func Getpagesize() int { return 4096 }
++
++func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
++
++func NsecToTimespec(nsec int64) (ts Timespec) {
++	ts.Sec = nsec / 1e9
++	ts.Nsec = nsec % 1e9
++	return
++}
++
++func TimevalToNsec(tv Timeval) int64 { return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	nsec += 999 // round up to microsecond
++	tv.Usec = nsec % 1e9 / 1e3
++	tv.Sec = int64(nsec / 1e9)
++	return
++}
++
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint64(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint32(length)
++}
++
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++	// TODO(aram): implement this, see issue 5847.
++	panic("unimplemented")
++}
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index e363dc5bbf..de5ff95cf1 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package syscall
+ 
+diff --git a/src/pkg/syscall/syscall_unix_test.go b/src/pkg/syscall/syscall_unix_test.go
+index cff44de6a1..0292d3b37f 100644
+--- a/src/pkg/syscall/syscall_unix_test.go
++++ b/src/pkg/syscall/syscall_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd dragonfly darwin linux netbsd openbsd
++// +build freebsd dragonfly darwin linux netbsd openbsd solaris
+ 
+ package syscall_test
+ 
+@@ -85,9 +85,13 @@ func TestFcntlFlock(t *testing.T) {
+ // "-test.run=^TestPassFD$" and an environment variable used to signal
+ // that the test should become the child process instead.
+ func TestPassFD(t *testing.T) {
+-	if runtime.GOOS == "dragonfly" {
++	switch runtime.GOOS {
++	case "dragonfly":
+ 		// TODO(jsing): Figure out why sendmsg is returning EINVAL.
+ 		t.Skip("skipping test on dragonfly")
++	case "solaris":
++		// TODO(aram): Figure out why ReadMsgUnix is returning empty message.
++		t.Skip("skipping test on solaris, see issue 7402")
+ 	}
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+ 		passFDChild()
+diff --git a/src/pkg/syscall/types_solaris.go b/src/pkg/syscall/types_solaris.go
+new file mode 100644
+index 0000000000..53fa35068f
+--- /dev/null
++++ b/src/pkg/syscall/types_solaris.go
+@@ -0,0 +1,222 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++/*
++Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
++*/
++
++// +godefs map struct_in_addr [4]byte /* in_addr */
++// +godefs map struct_in6_addr [16]byte /* in6_addr */
++
++package syscall
++
++/*
++#define KERNEL
++#include <dirent.h>
++#include <fcntl.h>
++#include <signal.h>
++#include <termios.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <sys/mman.h>
++#include <sys/mount.h>
++#include <sys/param.h>
++#include <sys/resource.h>
++#include <sys/select.h>
++#include <sys/signal.h>
++#include <sys/socket.h>
++#include <sys/stat.h>
++#include <sys/time.h>
++#include <sys/types.h>
++#include <sys/un.h>
++#include <sys/wait.h>
++#include <net/bpf.h>
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/route.h>
++#include <netinet/in.h>
++#include <netinet/icmp6.h>
++#include <netinet/tcp.h>
++
++enum {
++	sizeofPtr = sizeof(void*),
++};
++
++union sockaddr_all {
++	struct sockaddr s1;	// this one gets used for fields
++	struct sockaddr_in s2;	// these pad it out
++	struct sockaddr_in6 s3;
++	struct sockaddr_un s4;
++	struct sockaddr_dl s5;
++};
++
++struct sockaddr_any {
++	struct sockaddr addr;
++	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
++};
++
++*/
++import "C"
++
++// Machine characteristics; for internal use.
++
++const (
++	sizeofPtr      = C.sizeofPtr
++	sizeofShort    = C.sizeof_short
++	sizeofInt      = C.sizeof_int
++	sizeofLong     = C.sizeof_long
++	sizeofLongLong = C.sizeof_longlong
++)
++
++// Basic types
++
++type (
++	_C_short     C.short
++	_C_int       C.int
++	_C_long      C.long
++	_C_long_long C.longlong
++)
++
++// Time
++
++type Timespec C.struct_timespec
++
++type Timeval C.struct_timeval
++
++type Timeval32 C.struct_timeval32
++
++// Processes
++
++type Rusage C.struct_rusage
++
++type Rlimit C.struct_rlimit
++
++type _Gid_t C.gid_t
++
++// Files
++
++const ( // Directory mode bits
++	S_IFMT   = C.S_IFMT
++	S_IFIFO  = C.S_IFIFO
++	S_IFCHR  = C.S_IFCHR
++	S_IFDIR  = C.S_IFDIR
++	S_IFBLK  = C.S_IFBLK
++	S_IFREG  = C.S_IFREG
++	S_IFLNK  = C.S_IFLNK
++	S_IFSOCK = C.S_IFSOCK
++	S_ISUID  = C.S_ISUID
++	S_ISGID  = C.S_ISGID
++	S_ISVTX  = C.S_ISVTX
++	S_IRUSR  = C.S_IRUSR
++	S_IWUSR  = C.S_IWUSR
++	S_IXUSR  = C.S_IXUSR
++)
++
++type Stat_t C.struct_stat
++
++type Flock_t C.struct_flock
++
++type Dirent C.struct_dirent
++
++// Sockets
++
++type RawSockaddrInet4 C.struct_sockaddr_in
++
++type RawSockaddrInet6 C.struct_sockaddr_in6
++
++type RawSockaddrUnix C.struct_sockaddr_un
++
++type RawSockaddrDatalink C.struct_sockaddr_dl
++
++type RawSockaddr C.struct_sockaddr
++
++type RawSockaddrAny C.struct_sockaddr_any
++
++type _Socklen C.socklen_t
++
++type Linger C.struct_linger
++
++type Iovec C.struct_iovec
++
++type IPMreq C.struct_ip_mreq
++
++type IPv6Mreq C.struct_ipv6_mreq
++
++type Msghdr C.struct_msghdr
++
++type Cmsghdr C.struct_cmsghdr
++
++type Inet6Pktinfo C.struct_in6_pktinfo
++
++type IPv6MTUInfo C.struct_ip6_mtuinfo
++
++type ICMPv6Filter C.struct_icmp6_filter
++
++const (
++	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
++	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
++	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
++	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
++	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
++	SizeofLinger           = C.sizeof_struct_linger
++	SizeofIPMreq           = C.sizeof_struct_ip_mreq
++	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
++	SizeofMsghdr           = C.sizeof_struct_msghdr
++	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
++	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
++	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
++	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
++)
++
++// Select
++
++type FdSet C.fd_set
++
++// Routing and interface messages
++
++const (
++	SizeofIfMsghdr  = C.sizeof_struct_if_msghdr
++	SizeofIfData    = C.sizeof_struct_if_data
++	SizeofIfaMsghdr = C.sizeof_struct_ifa_msghdr
++	SizeofRtMsghdr  = C.sizeof_struct_rt_msghdr
++	SizeofRtMetrics = C.sizeof_struct_rt_metrics
++)
++
++type IfMsghdr C.struct_if_msghdr
++
++type IfData C.struct_if_data
++
++type IfaMsghdr C.struct_ifa_msghdr
++
++type RtMsghdr C.struct_rt_msghdr
++
++type RtMetrics C.struct_rt_metrics
++
++// Berkeley packet filter
++
++const (
++	SizeofBpfVersion = C.sizeof_struct_bpf_version
++	SizeofBpfStat    = C.sizeof_struct_bpf_stat
++	SizeofBpfProgram = C.sizeof_struct_bpf_program
++	SizeofBpfInsn    = C.sizeof_struct_bpf_insn
++	SizeofBpfHdr     = C.sizeof_struct_bpf_hdr
++)
++
++type BpfVersion C.struct_bpf_version
++
++type BpfStat C.struct_bpf_stat
++
++type BpfProgram C.struct_bpf_program
++
++type BpfInsn C.struct_bpf_insn
++
++type BpfTimeval C.struct_bpf_timeval
++
++type BpfHdr C.struct_bpf_hdr
++
++// Terminal handling
++
++type Termios C.struct_termios

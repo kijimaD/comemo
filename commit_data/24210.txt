@@ -9,6 +9,21 @@ Date:   Wed Jul 15 13:27:30 2015 -0700
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mbarrier.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index b83955b112..0dbe1ffc9d 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -83,7 +83,8 @@ import "unsafe"
+ // into to the stack. Don't do it! Mark termination only re-scans
+ // frames that have potentially been active since the concurrent scan,
+ // so it depends on write barriers to track changes to pointers in
+-// stack frames that have not been active. go:nowritebarrier
++// stack frames that have not been active.
++//go:nowritebarrier
+ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ 	if writeBarrierEnabled {
+ 		if ptr != 0 && inheap(ptr) {

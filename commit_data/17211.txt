@@ -13,7 +13,46 @@ Date:   Tue Aug 13 14:48:08 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12894043
-
+---
  src/pkg/archive/zip/reader.go   | 3 +--
  src/pkg/archive/zip/zip_test.go | 8 ++++----
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 4221a826c0..499215328f 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -179,9 +179,8 @@ func (r *checksumReader) Close() error { return r.rc.Close() }
+ // findBodyOffset does the minimum work to verify the file has a header
+ // and returns the file body offset.
+ func (f *File) findBodyOffset() (int64, error) {
+-	r := io.NewSectionReader(f.zipr, f.headerOffset, f.zipsize-f.headerOffset)
+ 	var buf [fileHeaderLen]byte
+-	if _, err := io.ReadFull(r, buf[:]); err != nil {
++	if _, err := f.zipr.ReadAt(buf[:], f.headerOffset); err != nil {
+ 		return 0, err
+ 	}
+ 	b := readBuf(buf[:])
+diff --git a/src/pkg/archive/zip/zip_test.go b/src/pkg/archive/zip/zip_test.go
+index a8af206a88..870f043144 100644
+--- a/src/pkg/archive/zip/zip_test.go
++++ b/src/pkg/archive/zip/zip_test.go
+@@ -17,14 +17,14 @@ import (
+ )
+ 
+ func TestOver65kFiles(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("slow test; skipping")
+-	}
+ 	buf := new(bytes.Buffer)
+ 	w := NewWriter(buf)
+ 	const nFiles = (1 << 16) + 42
+ 	for i := 0; i < nFiles; i++ {
+-		_, err := w.Create(fmt.Sprintf("%d.dat", i))
++		_, err := w.CreateHeader(&FileHeader{
++			Name:   fmt.Sprintf("%d.dat", i),
++			Method: Store, // avoid Issue 6136 and Issue 6138
++		})
+ 		if err != nil {
+ 			t.Fatalf("creating file %d: %v", i, err)
+ 		}

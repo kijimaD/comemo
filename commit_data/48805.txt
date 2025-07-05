@@ -17,7 +17,102 @@ Date:   Tue Jun 8 15:33:54 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go      | 34 ++++++++++++++++++++++------------
  src/testing/testing_test.go | 10 +++++++++-
  2 files changed, 31 insertions(+), 13 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 85a7fec65f..fdf57a3953 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -252,6 +252,8 @@ import (
+ 	"sync"
+ 	"sync/atomic"
+ 	"time"
++	"unicode"
++	"unicode/utf8"
+ )
+ 
+ var initRan bool
+@@ -908,11 +910,6 @@ func (c *common) Cleanup(f func()) {
+ 	c.cleanups = append(c.cleanups, fn)
+ }
+ 
+-var tempDirReplacer struct {
+-	sync.Once
+-	r *strings.Replacer
+-}
+-
+ // TempDir returns a temporary directory for the test to use.
+ // The directory is automatically removed by Cleanup when the test and
+ // all its subtests complete.
+@@ -936,13 +933,26 @@ func (c *common) TempDir() string {
+ 	if nonExistent {
+ 		c.Helper()
+ 
+-		// os.MkdirTemp doesn't like path separators in its pattern,
+-		// so mangle the name to accommodate subtests.
+-		tempDirReplacer.Do(func() {
+-			tempDirReplacer.r = strings.NewReplacer("/", "_", "\\", "_", ":", "_")
+-		})
+-		pattern := tempDirReplacer.r.Replace(c.Name())
+-
++		// Drop unusual characters (such as path separators or
++		// characters interacting with globs) from the directory name to
++		// avoid surprising os.MkdirTemp behavior.
++		mapper := func(r rune) rune {
++			if r < utf8.RuneSelf {
++				const allowed = "!#$%&()+,-.=@^_{}~ "
++				if '0' <= r && r <= '9' ||
++					'a' <= r && r <= 'z' ||
++					'A' <= r && r <= 'Z' {
++					return r
++				}
++				if strings.ContainsRune(allowed, r) {
++					return r
++				}
++			} else if unicode.IsLetter(r) || unicode.IsNumber(r) {
++				return r
++			}
++			return -1
++		}
++		pattern := strings.Map(mapper, c.Name())
+ 		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
+ 		if c.tempDirErr == nil {
+ 			c.Cleanup(func() {
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 55a4df4739..08ae23991f 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -58,6 +58,9 @@ func TestTempDir(t *testing.T) {
+ 	t.Run("test:subtest", testTempDir)
+ 	t.Run("test/..", testTempDir)
+ 	t.Run("../test", testTempDir)
++	t.Run("test[]", testTempDir)
++	t.Run("test*", testTempDir)
++	t.Run("äöüéè", testTempDir)
+ }
+ 
+ func testTempDir(t *testing.T) {
+@@ -74,7 +77,7 @@ func testTempDir(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			t.Errorf("directory %q stil exists: %v, isDir=%v", dir, fi, fi.IsDir())
++			t.Errorf("directory %q still exists: %v, isDir=%v", dir, fi, fi.IsDir())
+ 		default:
+ 			if !t.Failed() {
+ 				t.Fatal("never received dir channel")
+@@ -108,6 +111,11 @@ func testTempDir(t *testing.T) {
+ 	if len(files) > 0 {
+ 		t.Errorf("unexpected %d files in TempDir: %v", len(files), files)
+ 	}
++
++	glob := filepath.Join(dir, "*.txt")
++	if _, err := filepath.Glob(glob); err != nil {
++		t.Error(err)
++	}
+ }
+ 
+ func TestSetenv(t *testing.T) {

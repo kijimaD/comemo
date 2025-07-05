@@ -7,6 +7,20 @@ Date:   Thu May 5 10:16:59 2011 -0700
     R=nigeltao, r
     CC=golang-dev
     https://golang.org/cl/4471045
-
+---
  src/pkg/image/image.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index 222d21adef..4350acc820 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -280,7 +280,7 @@ func (p *Alpha) At(x, y int) Color {
+ 	return p.Pix[y*p.Stride+x]
+ }
+ 
+-func (p *Alpha) Set(x, y int, c AlphaColor) {
++func (p *Alpha) Set(x, y int, c Color) {
+ 	if !p.Rect.Contains(Point{x, y}) {
+ 		return
+ 	}

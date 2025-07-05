@@ -11,6 +11,19 @@ Date:   Thu Mar 21 04:03:26 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/main.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 4e23d7b3da..9fa9fbea5a 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -261,6 +261,7 @@ func invoke(cmd *base.Command, args []string) {
+ 		}
+ 		defer func() {
+ 			rtrace.Stop()
++			f.Close()
+ 		}()
+ 	}
+ 

@@ -7,7 +7,34 @@ Date:   Wed Dec 8 14:36:45 2010 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/3448043
-
+---
  src/clean.bash | 2 +-
  src/make.bash  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 8f34310545..d96eb52df0 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -19,7 +19,7 @@ if [ "$1" != "--nopkg" ]; then
+ 	rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
+ fi
+ rm -f "$GOROOT"/lib/*.a
+-for i in lib9 libbio libcgo libmach cmd pkg \
++for i in lib9 libbio libmach cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
+ 	../test/bench ../test/garbage
+ do(
+diff --git a/src/make.bash b/src/make.bash
+index 11fa99ba4c..2bfc048530 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -62,7 +62,7 @@ bash "$GOROOT"/src/clean.bash
+ for i in lib9 libbio libmach cmd pkg
+ do
+ 	case "$i-$GOOS-$GOARCH" in
+-	libcgo-nacl-* | cmd/*-nacl-* | libcgo-linux-arm)
++	cmd/*-nacl-*)
+ 		;;
+ 	*)
+ 		# The ( ) here are to preserve the current directory

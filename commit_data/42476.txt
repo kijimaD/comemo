@@ -18,7 +18,7 @@ Date:   Mon Dec 30 19:45:29 2019 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                                  | 14 --------------
  src/cmd/go/testdata/script/test_import_error_stack.txt | 17 +++++++++++++++++
  src/cmd/go/testdata/src/testdep/p1/p1.go               |  1 -
@@ -26,3 +26,86 @@ Date:   Mon Dec 30 19:45:29 2019 -0500
  src/cmd/go/testdata/src/testdep/p2/p2.go               |  3 ---
  src/cmd/go/testdata/src/testdep/p3/p3.go               |  3 ---
  6 files changed, 17 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c842559b6e..45d9ab6a89 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3220,20 +3220,6 @@ func TestGoTestRaceFailures(t *testing.T) {
+ 	tg.grepBothNot("PASS", "something passed")
+ }
+ 
+-func TestGoTestImportErrorStack(t *testing.T) {
+-	const out = `package testdep/p1 (test)
+-	imports testdep/p2
+-	imports testdep/p3: build constraints exclude all Go files `
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("test", "testdep/p1")
+-	if !strings.Contains(tg.stderr.String(), out) {
+-		t.Fatalf("did not give full import stack:\n\n%s", tg.stderr.String())
+-	}
+-}
+-
+ func TestGoGetUpdate(t *testing.T) {
+ 	// golang.org/issue/9224.
+ 	// The recursive updating was trying to walk to
+diff --git a/src/cmd/go/testdata/script/test_import_error_stack.txt b/src/cmd/go/testdata/script/test_import_error_stack.txt
+new file mode 100644
+index 0000000000..3b796053f7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_import_error_stack.txt
+@@ -0,0 +1,17 @@
++! go test testdep/p1
++stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
++
++-- testdep/p1/p1.go --
++package p1
++-- testdep/p1/p1_test.go --
++package p1
++
++import _ "testdep/p2"
++-- testdep/p2/p2.go --
++package p2
++
++import _ "testdep/p3"
++-- testdep/p3/p3.go --
++// +build ignore
++
++package ignored
+diff --git a/src/cmd/go/testdata/src/testdep/p1/p1.go b/src/cmd/go/testdata/src/testdep/p1/p1.go
+deleted file mode 100644
+index a457035a43..0000000000
+--- a/src/cmd/go/testdata/src/testdep/p1/p1.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package p1
+diff --git a/src/cmd/go/testdata/src/testdep/p1/p1_test.go b/src/cmd/go/testdata/src/testdep/p1/p1_test.go
+deleted file mode 100644
+index 8be7533442..0000000000
+--- a/src/cmd/go/testdata/src/testdep/p1/p1_test.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p1
+-
+-import _ "testdep/p2"
+diff --git a/src/cmd/go/testdata/src/testdep/p2/p2.go b/src/cmd/go/testdata/src/testdep/p2/p2.go
+deleted file mode 100644
+index 15ba2eacea..0000000000
+--- a/src/cmd/go/testdata/src/testdep/p2/p2.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p2
+-
+-import _ "testdep/p3"
+diff --git a/src/cmd/go/testdata/src/testdep/p3/p3.go b/src/cmd/go/testdata/src/testdep/p3/p3.go
+deleted file mode 100644
+index 0219e7fae5..0000000000
+--- a/src/cmd/go/testdata/src/testdep/p3/p3.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// +build ignore
+-
+-package ignored

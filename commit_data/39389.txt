@@ -13,6 +13,28 @@ Date:   Fri Feb 22 02:11:55 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/147359
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/example_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/ast/example_test.go b/src/go/ast/example_test.go
+index 52a77981b8..e3013f64be 100644
+--- a/src/go/ast/example_test.go
++++ b/src/go/ast/example_test.go
+@@ -151,7 +151,7 @@ package main
+ const hello = "Hello, World!" // line comment 1
+ 
+ // This comment is associated with the foo variable.
+-var foo = hello // line comment 2 
++var foo = hello // line comment 2
+ 
+ // This comment is associated with the main function.
+ func main() {
+@@ -176,6 +176,7 @@ func main() {
+ 		if gen, ok := decl.(*ast.GenDecl); ok && gen.Tok == token.VAR {
+ 			copy(f.Decls[i:], f.Decls[i+1:])
+ 			f.Decls = f.Decls[:len(f.Decls)-1]
++			break
+ 		}
+ 	}
+ 

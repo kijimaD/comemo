@@ -14,6 +14,28 @@ Date:   Wed Jul 19 00:09:35 2017 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_unix.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 539b165ba1..d9a18caa6f 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -8,7 +8,6 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -474,7 +473,7 @@ func crash() {
+ 		// this means the OS X core file will be >128 GB and even on a zippy
+ 		// workstation can take OS X well over an hour to write (uninterruptible).
+ 		// Save users from making that mistake.
+-		if sys.PtrSize == 8 {
++		if GOARCH == "amd64" {
+ 			return
+ 		}
+ 	}

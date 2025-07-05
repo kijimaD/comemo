@@ -27,7 +27,7 @@ Date:   Fri Oct 26 13:53:02 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/goobj/read.go           | 29 +++++++++++++++++++++--------
  src/cmd/internal/obj/link.go             | 31 ++++++++++++++++++++++++++++++-
  src/cmd/internal/obj/objfile.go          | 19 +++++++++++++++----
@@ -35,3 +35,312 @@ Date:   Fri Oct 26 13:53:02 2018 -0400
  src/cmd/link/internal/objfile/objfile.go | 20 ++++++++++++--------
  src/cmd/link/internal/sym/symbol.go      | 15 ++++++++++++++-
  6 files changed, 96 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 2d618eefa5..2081098ca8 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -288,18 +288,31 @@ func (r *objReader) readSymID() SymID {
+ }
+ 
+ func (r *objReader) readRef() {
+-	name, vers := r.readString(), r.readInt()
++	name, abiOrStatic := r.readString(), r.readInt()
+ 
+ 	// In a symbol name in an object file, "". denotes the
+ 	// prefix for the package in which the object file has been found.
+ 	// Expand it.
+ 	name = strings.ReplaceAll(name, `"".`, r.pkgprefix)
+ 
+-	// An individual object file only records version 0 (extern) or 1 (static).
+-	// To make static symbols unique across all files being read, we
+-	// replace version 1 with the version corresponding to the current
+-	// file number. The number is incremented on each call to parseObject.
+-	if vers != 0 {
++	// The ABI field records either the ABI or -1 for static symbols.
++	//
++	// To distinguish different static symbols with the same name,
++	// we use the symbol "version". Version 0 corresponds to
++	// global symbols, and each file has a unique version > 0 for
++	// all of its static symbols. The version is incremented on
++	// each call to parseObject.
++	//
++	// For global symbols, we currently ignore the ABI.
++	//
++	// TODO(austin): Record the ABI in SymID. Since this is a
++	// public API, we'll have to keep Version as 0 and record the
++	// ABI in a new field (which differs from how the linker does
++	// this, but that's okay). Show the ABI in things like
++	// objdump.
++	var vers int64
++	if abiOrStatic == -1 {
++		// Static symbol
+ 		vers = r.p.MaxVersion
+ 	}
+ 	r.p.SymRefs = append(r.p.SymRefs, SymID{name, vers})
+@@ -487,7 +500,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	// TODO: extract OS + build ID if/when we need it
+ 
+ 	r.readFull(r.tmp[:8])
+-	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go19ld")) {
++	if !bytes.Equal(r.tmp[:8], []byte("\x00go112ld")) {
+ 		return r.error(errCorruptObject)
+ 	}
+ 
+@@ -602,7 +615,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	}
+ 
+ 	r.readFull(r.tmp[:7])
+-	if !bytes.Equal(r.tmp[:7], []byte("\xffgo19ld")) {
++	if !bytes.Equal(r.tmp[:7], []byte("go112ld")) {
+ 		return r.error(errCorruptObject)
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index d3721dd023..2989831a0a 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -432,7 +432,7 @@ const (
+ )
+ 
+ // Attribute is a set of symbol attributes.
+-type Attribute int16
++type Attribute uint16
+ 
+ const (
+ 	AttrDuplicateOK Attribute = 1 << iota
+@@ -468,6 +468,13 @@ const (
+ 	// For function symbols; indicates that the specified function was the
+ 	// target of an inline during compilation
+ 	AttrWasInlined
++
++	// attrABIBase is the value at which the ABI is encoded in
++	// Attribute. This must be last; all bits after this are
++	// assumed to be an ABI value.
++	//
++	// MUST BE LAST since all bits above this comprise the ABI.
++	attrABIBase
+ )
+ 
+ func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
+@@ -493,6 +500,12 @@ func (a *Attribute) Set(flag Attribute, value bool) {
+ 	}
+ }
+ 
++func (a Attribute) ABI() ABI { return ABI(a / attrABIBase) }
++func (a *Attribute) SetABI(abi ABI) {
++	const mask = 1 // Only one ABI bit for now.
++	*a = (*a &^ (mask * attrABIBase)) | Attribute(abi)*attrABIBase
++}
++
+ var textAttrStrings = [...]struct {
+ 	bit Attribute
+ 	s   string
+@@ -524,6 +537,12 @@ func (a Attribute) TextAttrString() string {
+ 			a &^= x.bit
+ 		}
+ 	}
++	switch a.ABI() {
++	case ABI0:
++	case ABIInternal:
++		s += "ABIInternal|"
++		a.SetABI(0) // Clear ABI so we don't print below.
++	}
+ 	if a != 0 {
+ 		s += fmt.Sprintf("UnknownAttribute(%d)|", a)
+ 	}
+@@ -606,6 +625,16 @@ type Link struct {
+ 	// state for writing objects
+ 	Text []*LSym
+ 	Data []*LSym
++
++	// ABIAliases are text symbols that should be aliased to all
++	// ABIs. These symbols may only be referenced and not defined
++	// by this object, since the need for an alias may appear in a
++	// different object than the definition. Hence, this
++	// information can't be carried in the symbol definition.
++	//
++	// TODO(austin): Replace this with ABI wrappers once the ABIs
++	// actually diverge.
++	ABIAliases []*LSym
+ }
+ 
+ func (ctxt *Link) Diag(format string, args ...interface{}) {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 3c72f543cc..94334d8361 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -82,7 +82,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 	w := newObjWriter(ctxt, b)
+ 
+ 	// Magic header
+-	w.wr.WriteString("\x00\x00go19ld")
++	w.wr.WriteString("\x00go112ld")
+ 
+ 	// Version
+ 	w.wr.WriteByte(1)
+@@ -102,6 +102,10 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 		w.writeRefs(s)
+ 		w.addLengths(s)
+ 	}
++	for _, s := range ctxt.ABIAliases {
++		w.writeRefs(s)
++		w.addLengths(s)
++	}
+ 	// End symbol references
+ 	w.wr.WriteByte(0xff)
+ 
+@@ -137,9 +141,12 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 	for _, s := range ctxt.Data {
+ 		w.writeSym(s)
+ 	}
++	for _, s := range ctxt.ABIAliases {
++		w.writeSym(s)
++	}
+ 
+ 	// Magic footer
+-	w.wr.WriteString("\xff\xffgo19ld")
++	w.wr.WriteString("\xffgo112ld")
+ }
+ 
+ // Symbols are prefixed so their content doesn't get confused with the magic footer.
+@@ -155,8 +162,12 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
+ 	} else {
+ 		w.writeString(s.Name)
+ 	}
+-	// Write "version".
+-	w.writeBool(s.Static())
++	// Write ABI/static information.
++	abi := int64(s.ABI())
++	if s.Static() {
++		abi = -1
++	}
++	w.writeInt(abi)
+ 	w.nRefs++
+ 	s.RefIdx = w.nRefs
+ }
+diff --git a/src/cmd/internal/objabi/doc.go b/src/cmd/internal/objabi/doc.go
+index 7bd5ff63e5..03dc9fb88b 100644
+--- a/src/cmd/internal/objabi/doc.go
++++ b/src/cmd/internal/objabi/doc.go
+@@ -22,7 +22,7 @@
+ //
+ // The file format is:
+ //
+-//	- magic header: "\x00\x00go19ld"
++//	- magic header: "\x00go112ld"
+ //	- byte 1 - version number
+ //	- sequence of strings giving dependencies (imported packages)
+ //	- empty string (marks end of sequence)
+@@ -38,7 +38,7 @@
+ //	- data, the content of the defined symbols
+ //	- sequence of defined symbols
+ //	- byte 0xff (marks end of sequence)
+-//	- magic footer: "\xff\xffgo19ld"
++//	- magic footer: "\xffgo112ld"
+ //
+ // All integers are stored in a zigzag varint format.
+ // See golang.org/s/go12symtab for a definition.
+@@ -46,7 +46,7 @@
+ // Data blocks and strings are both stored as an integer
+ // followed by that many bytes.
+ //
+-// A symbol reference is a string name followed by a version.
++// A symbol reference is a string name followed by an ABI or -1 for static.
+ //
+ // A symbol points to other symbols using an index into the symbol
+ // reference sequence. Index 0 corresponds to a nil symbol pointer.
+@@ -57,7 +57,7 @@
+ //
+ //	- byte 0xfe (sanity check for synchronization)
+ //	- type [byte]
+-//	- name & version [symref index]
++//	- name & ABI [symref index]
+ //	- flags [int]
+ //		1<<0 dupok
+ //		1<<1 local
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+index 3a8923b073..77c3a7f914 100644
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -13,6 +13,7 @@ import (
+ 	"bytes"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/dwarf"
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
+@@ -23,8 +24,8 @@ import (
+ )
+ 
+ const (
+-	startmagic = "\x00\x00go19ld"
+-	endmagic   = "\xff\xffgo19ld"
++	startmagic = "\x00go112ld"
++	endmagic   = "\xffgo112ld"
+ )
+ 
+ var emptyPkg = []byte(`"".`)
+@@ -382,17 +383,20 @@ func (r *objReader) readRef() {
+ 		log.Fatalf("readSym out of sync")
+ 	}
+ 	name := r.readSymName()
+-	v := r.readInt()
+-	if v != 0 && v != 1 {
+-		log.Fatalf("invalid symbol version for %q: %d", name, v)
+-	}
+-	if v == 1 {
++	var v int
++	if abi := r.readInt(); abi == -1 {
++		// Static
+ 		v = r.localSymVersion
++	} else if abiver := sym.ABIToVersion(obj.ABI(abi)); abiver != -1 {
++		// Note that data symbols are "ABI0", which maps to version 0.
++		v = abiver
++	} else {
++		log.Fatalf("invalid symbol ABI for %q: %d", name, abi)
+ 	}
+ 	s := r.syms.Lookup(name, v)
+ 	r.refs = append(r.refs, s)
+ 
+-	if s == nil || v != 0 {
++	if s == nil || v == r.localSymVersion {
+ 		return
+ 	}
+ 	if s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 && len(s.P) == 0 {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 4faa991463..5e5fca467d 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -5,6 +5,7 @@
+ package sym
+ 
+ import (
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"debug/elf"
+@@ -52,9 +53,21 @@ type AuxSymbol struct {
+ }
+ 
+ const (
+-	SymVerStatic = 10 // Minimum version used by static (file-local) syms
++	SymVerABI0        = 0
++	SymVerABIInternal = 1
++	SymVerStatic      = 10 // Minimum version used by static (file-local) syms
+ )
+ 
++func ABIToVersion(abi obj.ABI) int {
++	switch abi {
++	case obj.ABI0:
++		return SymVerABI0
++	case obj.ABIInternal:
++		return SymVerABIInternal
++	}
++	return -1
++}
++
+ func (s *Symbol) String() string {
+ 	if s.Version == 0 {
+ 		return s.Name

@@ -21,7 +21,7 @@ Date:   Thu May 25 09:54:11 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/unify.go           | 52 ++++--------
  src/go/types/unify.go                              | 52 ++++--------
  .../types/testdata/fixedbugs/issue49541.go         |  2 +-
@@ -29,3 +29,285 @@ Date:   Thu May 25 09:54:11 2023 -0700
  test/fixedbugs/issue53309.go                       |  2 +-
  test/typeparam/issue53762.go                       |  2 +-
  6 files changed, 127 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 7b7d7dc9e9..fa41ae0798 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -613,45 +613,23 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		}
+ 
+ 	case *Named:
+-		// Two named types unify if their type names originate
+-		// in the same type declaration. If they are instantiated,
+-		// their type argument lists must unify.
++		// Two named non-interface types unify if their type names originate
++		// in the same type declaration. If they are instantiated, their type
++		// argument lists must unify.
++		// If one or both named types are interfaces, the types unify if the
++		// respective methods unify (per the rules for interface unification).
+ 		if y, ok := y.(*Named); ok {
+-			sameOrig := indenticalOrigin(x, y)
+ 			if enableInterfaceInference {
+-				xu := x.under()
+-				yu := y.under()
+-				xi, _ := xu.(*Interface)
+-				yi, _ := yu.(*Interface)
+-				// If one or both defined types are interfaces, use interface unification,
+-				// unless they originated in the same type declaration.
+-				if xi != nil && yi != nil {
+-					// If both interfaces originate in the same declaration,
+-					// their methods unify if the type parameters unify.
+-					// Unify the type parameters rather than the methods in
+-					// case the type parameters are not used in the methods
+-					// (and to preserve existing behavior in this case).
+-					if sameOrig {
+-						xargs := x.TypeArgs().list()
+-						yargs := y.TypeArgs().list()
+-						assert(len(xargs) == len(yargs))
+-						for i, xarg := range xargs {
+-							if !u.nify(xarg, yargs[i], p) {
+-								return false
+-							}
+-						}
+-						return true
+-					}
+-					return u.nify(xu, yu, p)
+-				}
+-				// We don't have two interfaces. If we have one, make sure it's in xi.
+-				if yi != nil {
+-					xi = yi
+-					y = x
+-				}
+-				// If xi is an interface, use interface unification.
+-				if xi != nil {
++				xi, _ := x.under().(*Interface)
++				yi, _ := y.under().(*Interface)
++				// If one or both of x and y are interfaces, use interface unification.
++				switch {
++				case xi != nil && yi != nil:
++					return u.nify(xi, yi, p)
++				case xi != nil:
+ 					return u.nify(xi, y, p)
++				case yi != nil:
++					return u.nify(x, yi, p)
+ 				}
+ 				// In all other cases, the type arguments and origins must match.
+ 			}
+@@ -669,7 +647,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 					return false
+ 				}
+ 			}
+-			return sameOrig
++			return indenticalOrigin(x, y)
+ 		}
+ 
+ 	case *TypeParam:
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index d5757defd6..0c00329747 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -615,45 +615,23 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		}
+ 
+ 	case *Named:
+-		// Two named types unify if their type names originate
+-		// in the same type declaration. If they are instantiated,
+-		// their type argument lists must unify.
++		// Two named non-interface types unify if their type names originate
++		// in the same type declaration. If they are instantiated, their type
++		// argument lists must unify.
++		// If one or both named types are interfaces, the types unify if the
++		// respective methods unify (per the rules for interface unification).
+ 		if y, ok := y.(*Named); ok {
+-			sameOrig := indenticalOrigin(x, y)
+ 			if enableInterfaceInference {
+-				xu := x.under()
+-				yu := y.under()
+-				xi, _ := xu.(*Interface)
+-				yi, _ := yu.(*Interface)
+-				// If one or both defined types are interfaces, use interface unification,
+-				// unless they originated in the same type declaration.
+-				if xi != nil && yi != nil {
+-					// If both interfaces originate in the same declaration,
+-					// their methods unify if the type parameters unify.
+-					// Unify the type parameters rather than the methods in
+-					// case the type parameters are not used in the methods
+-					// (and to preserve existing behavior in this case).
+-					if sameOrig {
+-						xargs := x.TypeArgs().list()
+-						yargs := y.TypeArgs().list()
+-						assert(len(xargs) == len(yargs))
+-						for i, xarg := range xargs {
+-							if !u.nify(xarg, yargs[i], p) {
+-								return false
+-							}
+-						}
+-						return true
+-					}
+-					return u.nify(xu, yu, p)
+-				}
+-				// We don't have two interfaces. If we have one, make sure it's in xi.
+-				if yi != nil {
+-					xi = yi
+-					y = x
+-				}
+-				// If xi is an interface, use interface unification.
+-				if xi != nil {
++				xi, _ := x.under().(*Interface)
++				yi, _ := y.under().(*Interface)
++				// If one or both of x and y are interfaces, use interface unification.
++				switch {
++				case xi != nil && yi != nil:
++					return u.nify(xi, yi, p)
++				case xi != nil:
+ 					return u.nify(xi, y, p)
++				case yi != nil:
++					return u.nify(x, yi, p)
+ 				}
+ 				// In all other cases, the type arguments and origins must match.
+ 			}
+@@ -671,7 +649,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 					return false
+ 				}
+ 			}
+-			return sameOrig
++			return indenticalOrigin(x, y)
+ 		}
+ 
+ 	case *TypeParam:
+diff --git a/src/internal/types/testdata/fixedbugs/issue49541.go b/src/internal/types/testdata/fixedbugs/issue49541.go
+index d309abf058..da3731195b 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49541.go
++++ b/src/internal/types/testdata/fixedbugs/issue49541.go
+@@ -22,7 +22,7 @@ func _[A any](s S /* ERROR "got 1 arguments but 2 type parameters" */ [A]) {
+ // another test case from the issue
+ 
+ func _() {
+-	X(Interface[*F /* ERROR "got 1 arguments but 2 type parameters" */ [string]](Impl{}))
++	X /* ERROR "cannot infer Q" */ (Interface[*F /* ERROR "got 1 arguments but 2 type parameters" */ [string]](Impl{}))
+ }
+ 
+ func X[Q Qer](fs Interface[Q]) {
+diff --git a/src/internal/types/testdata/fixedbugs/issue60377.go b/src/internal/types/testdata/fixedbugs/issue60377.go
+new file mode 100644
+index 0000000000..be37c516d3
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue60377.go
+@@ -0,0 +1,94 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// The type parameter P is not used in interface T1.
++// T1 is a defined parameterized interface type which
++// can be assigned to any other interface with the same
++// methods. We cannot infer a type argument in this case
++// because any type would do.
++
++type T1[P any] interface{ m() }
++
++func g[P any](T1[P]) {}
++
++func _() {
++	var x T1[int]
++	g /* ERROR "cannot infer P" */ (x)
++	g[int](x)    // int is ok for P
++	g[string](x) // string is also ok for P!
++}
++
++// This is analogous to the above example,
++// but uses two interface types of the same structure.
++
++type T2[P any] interface{ m() }
++
++func _() {
++	var x T2[int]
++	g /* ERROR "cannot infer P" */ (x)
++	g[int](x)    // int is ok for P
++	g[string](x) // string is also ok for P!
++}
++
++// Analogous to the T2 example but using an unparameterized interface T3.
++
++type T3 interface{ m() }
++
++func _() {
++	var x T3
++	g /* ERROR "cannot infer P" */ (x)
++	g[int](x)    // int is ok for P
++	g[string](x) // string is also ok for P!
++}
++
++// The type parameter P is not used in struct S.
++// S is a defined parameterized (non-interface) type which can only
++// be assigned to another type S with the same type argument.
++// Therefore we can infer a type argument in this case.
++
++type S[P any] struct{}
++
++func g4[P any](S[P]) {}
++
++func _() {
++	var x S[int]
++	g4(x)      // we can infer int for P
++	g4[int](x) // int is the correct type argument
++	g4[string](x /* ERROR "cannot use x (variable of type S[int]) as S[string] value in argument to g4[string]" */)
++}
++
++// This is similar to the first example but here T1 is a component
++// of a func type. In this case we should be able to infer a type
++// argument for P because component types must be identical even
++// in the case of interfaces.
++// This is a short-coming of type inference at the moment, but it
++// is better to not be able to infer a type here (we can always
++// supply one), than to infer the wrong type in other cases (see
++// below). Finally, if we decide to accept go.dev/issues/8082,
++// the behavior here is correct.
++
++func g5[P any](func(T1[P])) {}
++
++func _() {
++	var f func(T1[int])
++	g5 /* ERROR "cannot infer P" */ (f)
++	g5[int](f)
++	g5[string](f /* ERROR "cannot use f (variable of type func(T1[int])) as func(T1[string]) value in argument to g5[string]" */)
++}
++
++// This example would fail if we were to infer the type argument int for P
++// exactly because any type argument would be ok for the first argument.
++// Choosing the wrong type would cause the second argument to not match.
++
++type T[P any] interface{}
++
++func g6[P any](T[P], P) {}
++
++func _() {
++	var x T[int]
++	g6(x, 1.2)
++	g6(x, "")
++}
+diff --git a/test/fixedbugs/issue53309.go b/test/fixedbugs/issue53309.go
+index 2b752fe161..4ad88d4753 100644
+--- a/test/fixedbugs/issue53309.go
++++ b/test/fixedbugs/issue53309.go
+@@ -38,5 +38,5 @@ func use[T any](v Value[T]) {
+ 
+ func main() {
+ 	tr := &taskResult{&taskDefinition{}}
+-	use(Value[string](tr))
++	use[string](Value[string](tr))
+ }
+diff --git a/test/typeparam/issue53762.go b/test/typeparam/issue53762.go
+index 4d95988854..e6d7f0f9f3 100644
+--- a/test/typeparam/issue53762.go
++++ b/test/typeparam/issue53762.go
+@@ -14,5 +14,5 @@ func use[T any](v Value[T]) {
+ }
+ 
+ func main() {
+-	use(Value[int](1))
++	use[int](Value[int](1))
+ }

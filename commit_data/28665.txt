@@ -17,8 +17,95 @@ Date:   Tue Jun 14 11:18:39 2016 -0400
     Change-Id: Ia9e8c734b9cc3bc9fca4a2750041eef9cdfac5a5
     Reviewed-on: https://go-review.googlesource.com/24137
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/cse.go     | 23 +++++++++++++++++++++++
  src/cmd/compile/internal/ssa/op.go      | 18 ++++++++++++++++++
  src/cmd/compile/internal/ssa/tighten.go |  7 +++++--
  3 files changed, 46 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index ad4e416159..dcb6eb86dd 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -163,6 +163,29 @@ func cse(f *Func) {
+ 		}
+ 	}
+ 
++	// if we rewrite a tuple generator to a new one in a different block,
++	// copy its selectors to the new generator's block, so tuple generator
++	// and selectors stay together.
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			if rewrite[v.ID] != nil {
++				continue
++			}
++			if !v.Op.isTupleSelector() {
++				continue
++			}
++			if !v.Args[0].Op.isTupleGenerator() {
++				f.Fatalf("arg of tuple selector %s is not a tuple: %s", v.String(), v.Args[0].LongString())
++			}
++			t := rewrite[v.Args[0].ID]
++			if t != nil && t.Block != b {
++				// v.Args[0] is tuple generator, CSE'd into a different block as t, v is left behind
++				c := v.copyInto(t.Block)
++				rewrite[v.ID] = c
++			}
++		}
++	}
++
+ 	rewrites := int64(0)
+ 
+ 	// Apply substitutions
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index cadbc7cd7a..788a8397b3 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -124,3 +124,21 @@ func (x ValAndOff) add(off int64) int64 {
+ 	}
+ 	return makeValAndOff(x.Val(), x.Off()+off)
+ }
++
++func (op Op) isTupleGenerator() bool {
++	switch op {
++	case OpAdd32carry, OpSub32carry, OpMul32uhilo,
++		OpARMADDS, OpARMSUBS, OpARMMULLU:
++		return true
++	}
++	return false
++}
++
++func (op Op) isTupleSelector() bool {
++	switch op {
++	case OpSelect0, OpSelect1,
++		OpARMLoweredSelect0, OpARMLoweredSelect1, OpARMCarry:
++		return true
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index 7f800655b0..56857b4a26 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -55,16 +55,19 @@ func tighten(f *Func) {
+ 			for i := 0; i < len(b.Values); i++ {
+ 				v := b.Values[i]
+ 				switch v.Op {
+-				case OpPhi, OpGetClosurePtr, OpConvert, OpArg, OpSelect0, OpSelect1:
++				case OpPhi, OpGetClosurePtr, OpConvert, OpArg:
+ 					// GetClosurePtr & Arg must stay in entry block.
+ 					// OpConvert must not float over call sites.
+-					// Select{0,1} reads a tuple, it must stay with the tuple-generating op.
+ 					// TODO do we instead need a dependence edge of some sort for OpConvert?
+ 					// Would memory do the trick, or do we need something else that relates
+ 					// to safe point operations?
+ 					continue
+ 				default:
+ 				}
++				if v.Op.isTupleSelector() {
++					// tuple selector must stay with tuple generator
++					continue
++				}
+ 				if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {
+ 					// We can't move values which have a memory arg - it might
+ 					// make two memory values live across a block boundary.

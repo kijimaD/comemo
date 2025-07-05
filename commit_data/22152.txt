@@ -7,7 +7,75 @@ Date:   Wed Feb 25 10:20:28 2015 -0800
     Change-Id: Ie8310acc783659497e50dfe629f06d655b51d647
     Reviewed-on: https://go-review.googlesource.com/5990
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go    |  4 ++--
  src/math/big/int_test.go | 20 +++++++++-----------
  2 files changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 29dbc0d8c2..adb914d30e 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -292,7 +292,7 @@ func validate(x *Float) {
+ 	if m == 0 {
+ 		// 0.0 or Inf
+ 		if x.exp != 0 && x.exp != infExp {
+-			panic(fmt.Sprintf("%empty matissa with invalid exponent %d", x.exp))
++			panic(fmt.Sprintf("empty matissa with invalid exponent %d", x.exp))
+ 		}
+ 		return
+ 	}
+@@ -842,7 +842,7 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
+ 	return z, acc
+ }
+ 
+-// Rat returns the result of converting x into a quotient;
++// Rat returns the rational number corresponding to x;
+ // or nil if x is an infinity.
+ // If a non-nil *Rat argument z is provided, Rat stores
+ // the result in z instead of allocating a new Rat.
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index cb8c76bed1..dff8057cf9 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -290,15 +290,6 @@ func TestDivisionSigns(t *testing.T) {
+ 	}
+ }
+ 
+-var bitsTests = []nat{
+-	nil,
+-	{0},
+-	{1},
+-	{0, 1, 2, 3, 4},
+-	{4, 3, 2, 1, 0},
+-	{4, 3, 2, 1, 0, 0, 0, 0},
+-}
+-
+ func norm(x nat) nat {
+ 	i := len(x)
+ 	for i > 0 && x[i-1] == 0 {
+@@ -308,7 +299,14 @@ func norm(x nat) nat {
+ }
+ 
+ func TestBits(t *testing.T) {
+-	for _, test := range bitsTests {
++	for _, test := range []nat{
++		nil,
++		{0},
++		{1},
++		{0, 1, 2, 3, 4},
++		{4, 3, 2, 1, 0},
++		{4, 3, 2, 1, 0, 0, 0, 0},
++	} {
+ 		var z Int
+ 		z.neg = true
+ 		got := z.SetBits(test)
+@@ -318,7 +316,7 @@ func TestBits(t *testing.T) {
+ 		}
+ 
+ 		if got.neg {
+-			t.Errorf("SetBits(%v): got negative result")
++			t.Errorf("SetBits(%v): got negative result", test)
+ 		}
+ 
+ 		bits := nat(z.Bits())

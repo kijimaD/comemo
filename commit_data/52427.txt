@@ -14,6 +14,25 @@ Date:   Sun May 1 00:11:13 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: guangyuan zhou <zhouguangyuan@golangcn.org>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index a9f87baee2..d6e6b115a4 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1199,10 +1199,10 @@ func writeType(t *types.Type) *obj.LSym {
+ 
+ 	// Note: DUPOK is required to ensure that we don't end up with more
+ 	// than one type descriptor for a given type, if the type descriptor
+-	// can be defined in multiple packages, that is, unnamed types and
+-	// instantiated types.
++	// can be defined in multiple packages, that is, unnamed types,
++	// instantiated types and shape types.
+ 	dupok := 0
+-	if tbase.Sym() == nil || tbase.IsFullyInstantiated() {
++	if tbase.Sym() == nil || tbase.IsFullyInstantiated() || tbase.HasShape() {
+ 		dupok = obj.DUPOK
+ 	}
+ 

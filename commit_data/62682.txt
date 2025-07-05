@@ -16,7 +16,88 @@ Date:   Tue Mar 25 14:10:31 2025 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/660675
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/internal/modload/init.go                | 38 ++++++++++++++--------
  .../script/work_no_mod_root_issue54419.txt         | 13 ++++++++
  2 files changed, 37 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 1ffe5052fb..41b3b9df1b 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -610,7 +610,7 @@ func inWorkspaceMode() bool {
+ 	return workFilePath != ""
+ }
+ 
+-// HasModRoot reports whether a main module is present.
++// HasModRoot reports whether a main module or main modules are present.
+ // HasModRoot may return false even if Enabled returns true: for example, 'get'
+ // does not require a main module.
+ func HasModRoot() bool {
+@@ -646,24 +646,34 @@ func die() {
+ 	if cfg.Getenv("GO111MODULE") == "off" {
+ 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
+ 	}
+-	if inWorkspaceMode() {
+-		base.Fatalf("go: no modules were found in the current workspace; see 'go help work'")
+-	}
+-	if dir, name := findAltConfig(base.Cwd()); dir != "" {
+-		rel, err := filepath.Rel(base.Cwd(), dir)
+-		if err != nil {
+-			rel = dir
+-		}
+-		cdCmd := ""
+-		if rel != "." {
+-			cdCmd = fmt.Sprintf("cd %s && ", rel)
++	if !inWorkspaceMode() {
++		if dir, name := findAltConfig(base.Cwd()); dir != "" {
++			rel, err := filepath.Rel(base.Cwd(), dir)
++			if err != nil {
++				rel = dir
++			}
++			cdCmd := ""
++			if rel != "." {
++				cdCmd = fmt.Sprintf("cd %s && ", rel)
++			}
++			base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
+ 		}
+-		base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
+ 	}
+ 	base.Fatal(ErrNoModRoot)
+ }
+ 
+-var ErrNoModRoot = errors.New("go.mod file not found in current directory or any parent directory; see 'go help modules'")
++// noMainModulesError returns the appropriate error if there is no main module or
++// main modules depending on whether the go command is in workspace mode.
++type noMainModulesError struct{}
++
++func (e noMainModulesError) Error() string {
++	if inWorkspaceMode() {
++		return "no modules were found in the current workspace; see 'go help work'"
++	}
++	return "go.mod file not found in current directory or any parent directory; see 'go help modules'"
++}
++
++var ErrNoModRoot noMainModulesError
+ 
+ type goModDirtyError struct{}
+ 
+diff --git a/src/cmd/go/testdata/script/work_no_mod_root_issue54419.txt b/src/cmd/go/testdata/script/work_no_mod_root_issue54419.txt
+new file mode 100644
+index 0000000000..385044d863
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_no_mod_root_issue54419.txt
+@@ -0,0 +1,13 @@
++cd m
++! go mod download
++stderr 'no modules were found in the current workspace'
++
++! go list -m all
++stderr 'no modules were found in the current workspace'
++
++-- go.work --
++go 1.25
++-- m/go.mod --
++module example.com/m
++
++go 1.25

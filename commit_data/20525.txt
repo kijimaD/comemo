@@ -17,7 +17,7 @@ Date:   Tue Sep 16 11:03:11 2014 -0400
     R=khr, dvyukov, iant
     CC=golang-codereviews, rlh
     https://golang.org/cl/139610043
-
+---
  misc/cgo/test/callback.go        |  5 ++++
  misc/cgo/test/callback_c_gc.c    | 49 ++++++++++++++++++++++++++++++++++++++++
  misc/cgo/test/callback_c_gccgo.c | 46 +++++++++++++++++++++++++++++++++++++
@@ -31,3 +31,321 @@ Date:   Tue Sep 16 11:03:11 2014 -0400
  src/runtime/parfor.c             | 13 -----------
  src/runtime/runtime.go           |  8 +++++++
  12 files changed, 117 insertions(+), 32 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 281e79494e..a7f1a3ecd6 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -9,6 +9,7 @@ void callback(void *f);
+ void callGoFoo(void);
+ void callGoStackCheck(void);
+ void callPanic(void);
++void callCgoAllocate(void);
+ */
+ import "C"
+ 
+@@ -207,6 +208,10 @@ func testPanicFromC(t *testing.T) {
+ 	C.callPanic()
+ }
+ 
++func testAllocateFromC(t *testing.T) {
++	C.callCgoAllocate() // crashes or exits on failure
++}
++
+ func testCallbackStack(t *testing.T) {
+ 	// Make cgo call and callback with different amount of stack stack available.
+ 	// We do not do any explicit checks, just ensure that it does not crash.
+diff --git a/misc/cgo/test/callback_c_gc.c b/misc/cgo/test/callback_c_gc.c
+index 8953b74a67..32bfed0c02 100644
+--- a/misc/cgo/test/callback_c_gc.c
++++ b/misc/cgo/test/callback_c_gc.c
+@@ -5,11 +5,15 @@
+ // +build gc
+ 
+ #include "_cgo_export.h"
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
+ 
+ /* Test calling panic from C.  This is what SWIG does.  */
+ 
+ extern void crosscall2(void (*fn)(void *, int), void *, int);
+ extern void _cgo_panic(void *, int);
++extern void _cgo_allocate(void *, int);
+ 
+ void
+ callPanic(void)
+@@ -19,3 +23,48 @@ callPanic(void)
+ 	crosscall2(_cgo_panic, &a, sizeof a);
+ 	*(int*)1 = 1;
+ }
++
++/* Test calling cgo_allocate from C. This is what SWIG does. */
++
++typedef struct List List;
++struct List
++{
++	List *next;
++	int x;
++};
++
++void
++callCgoAllocate(void)
++{
++	int i;
++	struct { size_t n; void *ret; } a;
++	List *l, *head, **tail;
++	
++	head = 0;
++	tail = &head;
++	for(i=0; i<100; i++) {
++		a.n = sizeof *l;
++		crosscall2(_cgo_allocate, &a, sizeof a);
++		l = a.ret;
++		l->x = i;
++		l->next = 0;
++		*tail = l;
++		tail = &l->next;
++	}
++	
++	gc();
++	
++	l = head;
++	for(i=0; i<100; i++) {
++		if(l->x != i) {
++			fprintf(stderr, "callCgoAllocate: lost memory\n");
++			exit(2);
++		}
++		l = l->next;
++	}
++	if(l != 0) {
++		fprintf(stderr, "callCgoAllocate: lost memory\n");
++		exit(2);
++	}
++}
++
+diff --git a/misc/cgo/test/callback_c_gccgo.c b/misc/cgo/test/callback_c_gccgo.c
+index 0ea7296c62..d92dca0093 100644
+--- a/misc/cgo/test/callback_c_gccgo.c
++++ b/misc/cgo/test/callback_c_gccgo.c
+@@ -5,13 +5,59 @@
+ // +build gccgo
+ 
+ #include "_cgo_export.h"
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
+ 
+ /* Test calling panic from C.  This is what SWIG does.  */
+ 
+ extern void _cgo_panic(const char *);
++extern void *_cgo_allocate(size_t);
+ 
+ void
+ callPanic(void)
+ {
+ 	_cgo_panic("panic from C");
+ }
++
++/* Test calling cgo_allocate from C. This is what SWIG does. */
++
++typedef struct List List;
++struct List
++{
++	List *next;
++	int x;
++};
++
++void
++callCgoAllocate(void)
++{
++	int i;
++	List *l, *head, **tail;
++	
++	head = 0;
++	tail = &head;
++	for(i=0; i<100; i++) {
++		l = _cgo_allocate(sizeof *l);
++		l->x = i;
++		l->next = 0;
++		*tail = l;
++		tail = &l->next;
++	}
++	
++	gc();
++	
++	l = head;
++	for(i=0; i<100; i++) {
++		if(l->x != i) {
++			fprintf(stderr, "callCgoAllocate: lost memory\n");
++			exit(2);
++		}
++		l = l->next;
++	}
++	if(l != 0) {
++		fprintf(stderr, "callCgoAllocate: lost memory\n");
++		exit(2);
++	}
++}
++
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 3cc83060fc..3783af061c 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -23,6 +23,7 @@ func TestCallbackPanic(t *testing.T)       { testCallbackPanic(t) }
+ func TestCallbackPanicLoop(t *testing.T)   { testCallbackPanicLoop(t) }
+ func TestCallbackPanicLocked(t *testing.T) { testCallbackPanicLocked(t) }
+ func TestPanicFromC(t *testing.T)          { testPanicFromC(t) }
++func TestAllocateFromC(t *testing.T)       { testAllocateFromC(t) }
+ func TestZeroArgCallback(t *testing.T)     { testZeroArgCallback(t) }
+ func TestBlocking(t *testing.T)            { testBlocking(t) }
+ func Test1328(t *testing.T)                { test1328(t) }
+diff --git a/misc/cgo/test/exports.go b/misc/cgo/test/exports.go
+index f96c60b004..4fe1703a60 100644
+--- a/misc/cgo/test/exports.go
++++ b/misc/cgo/test/exports.go
+@@ -5,8 +5,14 @@
+ package cgotest
+ 
+ import "C"
++import "runtime"
+ 
+ //export ReturnIntLong
+ func ReturnIntLong() (int, C.long) {
+ 	return 1, 2
+ }
++
++//export gc
++func gc() {
++	runtime.GC()
++}
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 78b7d6edf1..5a8c876033 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -404,6 +404,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" mutex struct{};" +
+ 			" note struct{};" +
+ 			" p struct{};" +
++			" parfor struct{};" +
+ 			" slicetype struct{};" +
+ 			" stkframe struct{};" +
+ 			" sudog struct{};" +
+diff --git a/src/runtime/cgocallback.go b/src/runtime/cgocallback.go
+index b3edfb672a..1e1b576072 100644
+--- a/src/runtime/cgocallback.go
++++ b/src/runtime/cgocallback.go
+@@ -21,7 +21,7 @@ import "unsafe"
+ // Either we need to add types or we need to stop using it.
+ 
+ func _cgo_allocate_internal(len uintptr) unsafe.Pointer {
+-	ret := mallocgc(len, conservative, 0)
++	ret := unsafe.Pointer(&make([]unsafe.Pointer, (len+ptrSize-1)/ptrSize)[0])
+ 	c := new(cgomal)
+ 	c.alloc = ret
+ 	gp := getg()
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index e5c7e09592..cfb698ac21 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -21,10 +21,6 @@ MHeap runtime·mheap;
+ #pragma dataflag NOPTR
+ MStats runtime·memstats;
+ 
+-Type* runtime·conservative;
+-
+-void runtime·gc_notype_ptr(Eface*);
+-
+ int32
+ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ {
+@@ -115,7 +111,6 @@ runtime·mallocinit(void)
+ 	uintptr limit;
+ 	uint64 i;
+ 	bool reserved;
+-	Eface notype_eface;
+ 
+ 	p = nil;
+ 	p_size = 0;
+@@ -243,9 +238,6 @@ runtime·mallocinit(void)
+ 	// Initialize the rest of the allocator.	
+ 	runtime·MHeap_Init(&runtime·mheap);
+ 	g->m->mcache = runtime·allocmcache();
+-
+-	runtime·gc_notype_ptr(&notype_eface);
+-	runtime·conservative = notype_eface.type;
+ }
+ 
+ void*
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+index 60b87da78c..c496cc70e3 100644
+--- a/src/runtime/malloc.h
++++ b/src/runtime/malloc.h
+@@ -528,7 +528,6 @@ void*	runtime·cnewarray(Type*, intgo);
+ void	runtime·tracealloc(void*, uintptr, Type*);
+ void	runtime·tracefree(void*, uintptr);
+ void	runtime·tracegc(void);
+-extern Type*	runtime·conservative;
+ 
+ int32	runtime·gcpercent;
+ int32	runtime·readgogc(void);
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index bd5ebab46e..0e17599c2a 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -21,15 +21,6 @@ func gc_itab_ptr(ret *interface{}) {
+ 	*ret = (*itab)(nil)
+ }
+ 
+-// Type used for "conservative" allocations in C code.
+-type notype [8]*byte
+-
+-// Called from C. Returns the Go type used for C allocations w/o type.
+-func gc_notype_ptr(ret *interface{}) {
+-	var x notype
+-	*ret = x
+-}
+-
+ func gc_unixnanotime(now *int64) {
+ 	sec, nsec := timenow()
+ 	*now = sec*1e9 + int64(nsec)
+diff --git a/src/runtime/parfor.c b/src/runtime/parfor.c
+index ba17303b23..e449568400 100644
+--- a/src/runtime/parfor.c
++++ b/src/runtime/parfor.c
+@@ -21,19 +21,6 @@ struct ParForThread
+ 	byte pad[CacheLineSize];
+ };
+ 
+-ParFor*
+-runtime·parforalloc(uint32 nthrmax)
+-{
+-	ParFor *desc;
+-
+-	// The ParFor object is followed by CacheLineSize padding
+-	// and then nthrmax ParForThread.
+-	desc = (ParFor*)runtime·mallocgc(sizeof(ParFor) + CacheLineSize + nthrmax * sizeof(ParForThread), runtime·conservative, 0);
+-	desc->thr = (ParForThread*)((byte*)(desc+1) + CacheLineSize);
+-	desc->nthrmax = nthrmax;
+-	return desc;
+-}
+-
+ void
+ runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void (*body)(ParFor*, uint32))
+ {
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index d4f7c64a52..dbaea45a66 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -39,3 +39,11 @@ func tickspersecond() int64 {
+ func makeStringSlice(n int) []string {
+ 	return make([]string, n)
+ }
++
++// TODO: Move to parfor.go when parfor.c becomes parfor.go.
++func parforalloc(nthrmax uint32) *parfor {
++	return &parfor{
++		thr:     &make([]parforthread, nthrmax)[0],
++		nthrmax: nthrmax,
++	}
++}

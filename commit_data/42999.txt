@@ -12,9 +12,208 @@ Date:   Thu Dec 12 16:03:04 2019 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/runtime/os_windows.go                      |  6 +-
  src/runtime/signal_windows_test.go             | 87 ++++++++++++++++++++++++++
  src/runtime/testdata/testwinlibsignal/dummy.go | 10 +++
  src/runtime/testdata/testwinlibsignal/main.c   | 50 +++++++++++++++
  4 files changed, 152 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index bddc25729a..7576565599 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -1031,7 +1031,11 @@ func ctrlhandler1(_type uint32) uint32 {
+ 	if sigsend(s) {
+ 		return 1
+ 	}
+-	exit(2) // SIGINT, SIGTERM, etc
++	if !islibrary && !isarchive {
++		// Only exit the program if we don't have a DLL.
++		// See https://golang.org/issues/35965.
++		exit(2) // SIGINT, SIGTERM, etc
++	}
+ 	return 0
+ }
+ 
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index 9748403412..423516df65 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -3,6 +3,8 @@
+ package runtime_test
+ 
+ import (
++	"bufio"
++	"bytes"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -10,6 +12,7 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
++	"syscall"
+ 	"testing"
+ )
+ 
+@@ -59,3 +62,87 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
+ 		t.Errorf("expected output %q, got %q", expectedOutput, cleanedOut)
+ 	}
+ }
++
++func sendCtrlBreak(t *testing.T, pid int) {
++	kernel32, err := syscall.LoadDLL("kernel32.dll")
++	if err != nil {
++		t.Fatalf("LoadDLL: %v\n", err)
++	}
++	generateEvent, err := kernel32.FindProc("GenerateConsoleCtrlEvent")
++	if err != nil {
++		t.Fatalf("FindProc: %v\n", err)
++	}
++	result, _, err := generateEvent.Call(syscall.CTRL_BREAK_EVENT, uintptr(pid))
++	if result == 0 {
++		t.Fatalf("GenerateConsoleCtrlEvent: %v\n", err)
++	}
++}
++
++// TestLibraryCtrlHandler tests that Go DLL allows calling program to handle console control events.
++// See https://golang.org/issues/35965.
++func TestLibraryCtrlHandler(t *testing.T) {
++	if *flagQuick {
++		t.Skip("-quick")
++	}
++	if runtime.GOARCH != "amd64" {
++		t.Skip("this test can only run on windows/amd64")
++	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveExecPath(t, "gcc")
++	testprog.Lock()
++	defer testprog.Unlock()
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatalf("failed to create temp directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	// build go dll
++	dll := filepath.Join(dir, "dummy.dll")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dll, "--buildmode", "c-shared", "testdata/testwinlibsignal/dummy.go")
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build go library: %s\n%s", err, out)
++	}
++
++	// build c program
++	exe := filepath.Join(dir, "test.exe")
++	cmd = exec.Command("gcc", "-o", exe, "testdata/testwinlibsignal/main.c")
++	out, err = testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to build c exe: %s\n%s", err, out)
++	}
++
++	// run test program
++	cmd = exec.Command(exe)
++	var stderr bytes.Buffer
++	cmd.Stderr = &stderr
++	outPipe, err := cmd.StdoutPipe()
++	if err != nil {
++		t.Fatalf("Failed to create stdout pipe: %v", err)
++	}
++	outReader := bufio.NewReader(outPipe)
++
++	cmd.SysProcAttr = &syscall.SysProcAttr{
++		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
++	}
++	if err := cmd.Start(); err != nil {
++		t.Fatalf("Start failed: %v", err)
++	}
++
++	sentCtrl := make(chan bool)
++	go func() {
++		defer close(sentCtrl)
++		if line, err := outReader.ReadString('\n'); err != nil {
++			t.Fatalf("Could not read stdout: %v", err)
++		} else if strings.TrimSpace(line) != "ready" {
++			t.Fatalf("Unexpected message: %v", line)
++		}
++		sendCtrlBreak(t, cmd.Process.Pid)
++	}()
++
++	<-sentCtrl
++	if err := cmd.Wait(); err != nil {
++		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
++	}
++}
+diff --git a/src/runtime/testdata/testwinlibsignal/dummy.go b/src/runtime/testdata/testwinlibsignal/dummy.go
+new file mode 100644
+index 0000000000..82dfd91c93
+--- /dev/null
++++ b/src/runtime/testdata/testwinlibsignal/dummy.go
+@@ -0,0 +1,10 @@
++// +build windows
++
++package main
++
++//export Dummy
++func Dummy() int {
++	return 42
++}
++
++func main() {}
+diff --git a/src/runtime/testdata/testwinlibsignal/main.c b/src/runtime/testdata/testwinlibsignal/main.c
+new file mode 100644
+index 0000000000..1787fef3b9
+--- /dev/null
++++ b/src/runtime/testdata/testwinlibsignal/main.c
+@@ -0,0 +1,50 @@
++#include <windows.h>
++#include <stdio.h>
++
++HANDLE waitForCtrlBreakEvent;
++
++BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
++{
++    switch (fdwCtrlType)
++    {
++    case CTRL_BREAK_EVENT:
++        SetEvent(waitForCtrlBreakEvent);
++        return TRUE;
++    default:
++        return FALSE;
++    }
++}
++
++int main(void)
++{
++    waitForCtrlBreakEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
++    if (!waitForCtrlBreakEvent) {
++        fprintf(stderr, "ERROR: Could not create event");
++        return 1;
++    }
++
++    if (!SetConsoleCtrlHandler(CtrlHandler, TRUE))
++    {
++        fprintf(stderr, "ERROR: Could not set control handler");
++        return 1;
++    }
++
++    // The library must be loaded after the SetConsoleCtrlHandler call
++    // so that the library handler registers after the main program.
++    // This way the library handler gets called first.
++    HMODULE dummyDll = LoadLibrary("dummy.dll");
++    if (!dummyDll) {
++        fprintf(stderr, "ERROR: Could not load dummy.dll");
++        return 1;
++    }
++
++    printf("ready\n");
++    fflush(stdout);
++
++    if (WaitForSingleObject(waitForCtrlBreakEvent, 5000) != WAIT_OBJECT_0) {
++        fprintf(stderr, "FAILURE: No signal received");
++        return 1;
++    }
++
++    return 0;
++}

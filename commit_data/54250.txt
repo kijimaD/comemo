@@ -14,6 +14,29 @@ Date:   Sun Sep 18 17:39:37 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/riscv64/obj.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index 557e8932c9..8e4e41fff9 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -41,7 +41,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 
+ 		Linuxdynld: "/lib/ld.so.1",
+ 
+-		Freebsddynld:   "XXX",
++		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+ 		Netbsddynld:    "XXX",
+ 		Openbsddynld:   "XXX",
+ 		Dragonflydynld: "XXX",
+@@ -53,7 +53,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 
+ func archinit(ctxt *ld.Link) {
+ 	switch ctxt.HeadType {
+-	case objabi.Hlinux:
++	case objabi.Hlinux, objabi.Hfreebsd:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+ 		if *ld.FlagTextAddr == -1 {

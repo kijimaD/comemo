@@ -10,6 +10,20 @@ Date:   Thu Feb 2 09:28:11 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5607059
-
+---
  src/pkg/go/printer/testdata/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/testdata/parser.go b/src/pkg/go/printer/testdata/parser.go
+index 89e341c5f9..c85297f583 100644
+--- a/src/pkg/go/printer/testdata/parser.go
++++ b/src/pkg/go/printer/testdata/parser.go
+@@ -6,7 +6,7 @@
+ // provided in a variety of forms (see the various Parse* functions); the
+ // output is an abstract syntax tree (AST) representing the Go source. The
+ // parser is invoked through one of the Parse* functions.
+-//
++
+ package parser
+ 
+ import (

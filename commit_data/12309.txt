@@ -39,7 +39,7 @@ Date:   Thu Mar 1 12:12:22 2012 -0500
     R=golang-dev, dsymonds, r, rogpeppe
     CC=golang-dev
     https://golang.org/cl/5708054
-
+---
  src/cmd/go/build.go                          | 442 ++++++++++++--------
  src/cmd/go/clean.go                          |   4 +-
  src/cmd/go/doc.go                            | 173 ++++----
@@ -65,3 +65,3004 @@ Date:   Thu Mar 1 12:12:22 2012 -0500
  src/cmd/go/vet.go                            |   4 +-
  src/make.bash                                |  27 +-
  24 files changed, 1043 insertions(+), 594 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index caffa1f05d..945dbfb7f7 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -23,7 +23,7 @@ import (
+ )
+ 
+ var cmdBuild = &Command{
+-	UsageLine: "build [-a] [-n] [-o output] [-p n] [-v] [-x] [-work] [importpath... | gofiles...]",
++	UsageLine: "build [-o output] [build flags] [packages]",
+ 	Short:     "compile packages and dependencies",
+ 	Long: `
+ Build compiles the packages named by the import paths,
+@@ -33,25 +33,43 @@ If the arguments are a list of .go files, build treats them as a list
+ of source files specifying a single package.
+ 
+ When the command line specifies a single main package,
+-build writes the resulting executable to output (default a.out).
++build writes the resulting executable to output.
+ Otherwise build compiles the packages but discards the results,
+ serving only as a check that the packages can be built.
+ 
+-The -a flag forces rebuilding of packages that are already up-to-date.
+-The -n flag prints the commands but does not run them.
+-The -v flag prints the names of packages as they are compiled.
+-The -x flag prints the commands.
+-
+-The -o flag specifies the output file name.
+-It is an error to use -o when the command line specifies multiple packages.
+-
+-The -p flag specifies the number of builds that can be run in parallel.
+-The default is the number of CPUs available.
+-
+-The -work flag causes build to print the name of the temporary work
+-directory and not delete it when exiting.
+-
+-For more about import paths, see 'go help importpath'.
++The -o flag specifies the output file name.  If not specified, the
++name is packagename.a (for a non-main package) or the base
++name of the first source file (for a main package).
++
++The build flags are shared by the build, install, run, and test commands:
++
++	-a
++		force rebuilding of packages that are already up-to-date.
++	-n
++		print the commands but does not run them.
++	-p n
++		the number of builds that can be run in parallel.
++		The default is the number of CPUs available.
++	-v
++		print the names of packages as they are compiled.
++	-work
++		print the name of the temporary work directory and
++		do not delete it when exiting.
++	-x
++		print the commands.
++
++	-gccgoflags 'arg list'
++		arguments to pass on each gccgo compiler/linker invocation
++	-gcflags 'arg list'
++		arguments to pass on each 5g, 6g, or 8g compiler invocation
++	-ldflags 'flag list'
++		arguments to pass on each 5l, 6l, or 8l linker invocation
++	-tags 'tag list'
++		a list of build tags to consider satisfied during the build.
++		See the documentation for the go/build package for
++		more information about build tags.
++
++For more about specifying packages, see 'go help packages'.
+ 
+ See also: go install, go get, go clean.
+ 	`,
+@@ -73,9 +91,12 @@ var buildP = runtime.NumCPU() // -p flag
+ var buildV bool               // -v flag
+ var buildX bool               // -x flag
+ var buildO = cmdBuild.Flag.String("o", "", "output file")
+-var buildWork bool // -work flag
++var buildWork bool           // -work flag
++var buildGcflags []string    // -gcflags flag
++var buildLdflags []string    // -ldflags flag
++var buildGccgoflags []string // -gccgoflags flag
+ 
+-var buildContext = build.DefaultContext
++var buildContext = build.Default
+ 
+ // addBuildFlags adds the flags common to the build and install commands.
+ func addBuildFlags(cmd *Command) {
+@@ -85,20 +106,16 @@ func addBuildFlags(cmd *Command) {
+ 	cmd.Flag.BoolVar(&buildV, "v", false, "")
+ 	cmd.Flag.BoolVar(&buildX, "x", false, "")
+ 	cmd.Flag.BoolVar(&buildWork, "work", false, "")
+-
+-	// TODO(rsc): This -t flag is used by buildscript.sh but
+-	// not documented.  Should be documented but the
+-	// usage lines are getting too long.  Probably need to say
+-	// that these flags are applicable to every command and
+-	// document them in one help message instead of on every
+-	// command's help message.
+-	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "t", "")
++	cmd.Flag.Var((*stringsFlag)(&buildGcflags), "gcflags", "")
++	cmd.Flag.Var((*stringsFlag)(&buildLdflags), "ldflags", "")
++	cmd.Flag.Var((*stringsFlag)(&buildGccgoflags), "gccgoflags", "")
++	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
+ }
+ 
+ type stringsFlag []string
+ 
+ func (v *stringsFlag) Set(s string) error {
+-	*v = append(*v, s)
++	*v = strings.Fields(s)
+ 	return nil
+ }
+ 
+@@ -110,17 +127,11 @@ func runBuild(cmd *Command, args []string) {
+ 	var b builder
+ 	b.init()
+ 
+-	var pkgs []*Package
+-	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
+-		pkg := goFilesPackage(args, "")
+-		pkgs = append(pkgs, pkg)
+-	} else {
+-		pkgs = packagesForBuild(args)
+-	}
++	pkgs := packagesForBuild(args)
+ 
+ 	if len(pkgs) == 1 && pkgs[0].Name == "main" && *buildO == "" {
+ 		_, *buildO = path.Split(pkgs[0].ImportPath)
+-		if b.goos == "windows" {
++		if goos == "windows" {
+ 			*buildO += ".exe"
+ 		}
+ 	}
+@@ -145,24 +156,14 @@ func runBuild(cmd *Command, args []string) {
+ }
+ 
+ var cmdInstall = &Command{
+-	UsageLine: "install [-a] [-n] [-p n] [-v] [-x] [-work] [importpath...]",
++	UsageLine: "install [build flags] [packages]",
+ 	Short:     "compile and install packages and dependencies",
+ 	Long: `
+ Install compiles and installs the packages named by the import paths,
+ along with their dependencies.
+ 
+-The -a flag forces reinstallation of packages that are already up-to-date.
+-The -n flag prints the commands but does not run them.
+-The -v flag prints the names of packages as they are compiled.
+-The -x flag prints the commands.
+-
+-The -p flag specifies the number of builds that can be run in parallel.
+-The default is the number of CPUs available.
+-
+-The -work flag causes build to print the name of the temporary work
+-directory and not delete it when exiting.
+-
+-For more about import paths, see 'go help importpath'.
++For more about the build flags, see 'go help build'.
++For more about specifying packages, see 'go help packages'.
+ 
+ See also: go build, go get, go clean.
+ 	`,
+@@ -171,6 +172,13 @@ See also: go build, go get, go clean.
+ func runInstall(cmd *Command, args []string) {
+ 	pkgs := packagesForBuild(args)
+ 
++	for _, p := range pkgs {
++		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
++			errorf("go install: no install location for %s", p.ImportPath)
++		}
++	}
++	exitIfErrors()
++
+ 	var b builder
+ 	b.init()
+ 	a := &action{}
+@@ -180,16 +188,32 @@ func runInstall(cmd *Command, args []string) {
+ 	b.do(a)
+ }
+ 
++// Global build parameters (used during package load)
++var (
++	goarch    string
++	goos      string
++	archChar  string
++	exeSuffix string
++)
++
++func init() {
++	goarch = buildContext.GOARCH
++	goos = buildContext.GOOS
++	if goos == "windows" {
++		exeSuffix = ".exe"
++	}
++	var err error
++	archChar, err = build.ArchChar(goarch)
++	if err != nil {
++		fatalf("%s", err)
++	}
++}
++
+ // A builder holds global state about a build.
+-// It does not hold per-package state, because eventually we will
+-// build packages in parallel, and the builder will be shared.
++// It does not hold per-package state, because we
++// build packages in parallel, and the builder is shared.
+ type builder struct {
+ 	work        string               // the temporary work directory (ends in filepath.Separator)
+-	arch        string               // e.g., "6"
+-	goarch      string               // the $GOARCH
+-	goos        string               // the $GOOS
+-	exe         string               // the executable suffix - "" or ".exe"
+-	gcflags     []string             // additional flags for Go compiler
+ 	actionCache map[cacheKey]*action // a cache of already-constructed actions
+ 	mkdirCache  map[string]bool      // a cache of created directories
+ 	print       func(args ...interface{}) (int, error)
+@@ -243,26 +267,25 @@ const (
+ )
+ 
+ var (
+-	gobin  = build.Path[0].BinDir()
+-	goroot = build.Path[0].Path
++	goroot       = filepath.Clean(runtime.GOROOT())
++	gobin        = defaultGobin()
++	gorootSrcPkg = filepath.Join(goroot, "src/pkg")
++	gorootPkg    = filepath.Join(goroot, "pkg")
++	gorootSrc    = filepath.Join(goroot, "src")
+ )
+ 
++func defaultGobin() string {
++	if s := os.Getenv("GOBIN"); s != "" {
++		return s
++	}
++	return filepath.Join(goroot, "bin")
++}
++
+ func (b *builder) init() {
+ 	var err error
+ 	b.print = fmt.Print
+ 	b.actionCache = make(map[cacheKey]*action)
+ 	b.mkdirCache = make(map[string]bool)
+-	b.goarch = buildContext.GOARCH
+-	b.goos = buildContext.GOOS
+-	if b.goos == "windows" {
+-		b.exe = ".exe"
+-	}
+-	b.gcflags = strings.Fields(os.Getenv("GCFLAGS"))
+-
+-	b.arch, err = build.ArchChar(b.goarch)
+-	if err != nil {
+-		fatalf("%s", err)
+-	}
+ 
+ 	if buildN {
+ 		b.work = "$WORK"
+@@ -281,21 +304,26 @@ func (b *builder) init() {
+ }
+ 
+ // goFilesPackage creates a package for building a collection of Go files
+-// (typically named on the command line).  If target is given, the package
+-// target is target.  Otherwise, the target is named p.a for
++// (typically named on the command line).  The target is named p.a for
+ // package p or named after the first Go file for package main.
+-func goFilesPackage(gofiles []string, target string) *Package {
++func goFilesPackage(gofiles []string) *Package {
+ 	// TODO: Remove this restriction.
+ 	for _, f := range gofiles {
+-		if !strings.HasSuffix(f, ".go") || strings.Contains(f, "/") || strings.Contains(f, string(filepath.Separator)) {
+-			fatalf("named files must be in current directory and .go files")
++		if !strings.HasSuffix(f, ".go") {
++			fatalf("named files must be .go files")
+ 		}
+ 	}
+ 
+-	// Synthesize fake "directory" that only shows those two files,
++	var stk importStack
++	ctxt := buildContext
++	ctxt.UseAllFiles = true
++
++	// Synthesize fake "directory" that only shows the named files,
+ 	// to make it look like this is a standard package or
+-	// command directory.
+-	var dir []os.FileInfo
++	// command directory.  So that local imports resolve
++	// consistently, the files must all be in the same directory.
++	var dirent []os.FileInfo
++	var dir string
+ 	for _, file := range gofiles {
+ 		fi, err := os.Stat(file)
+ 		if err != nil {
+@@ -304,36 +332,38 @@ func goFilesPackage(gofiles []string, target string) *Package {
+ 		if fi.IsDir() {
+ 			fatalf("%s is a directory, should be a Go file", file)
+ 		}
+-		dir = append(dir, fi)
+-	}
+-	ctxt := buildContext
+-	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dir, nil }
+-	pwd, _ := os.Getwd()
+-	var stk importStack
+-	pkg := scanPackage(&ctxt, &build.Tree{Path: "."}, "<command line>", "<command line>", pwd+"/.", &stk, true)
+-	if pkg.Error != nil {
+-		fatalf("%s", pkg.Error)
+-	}
+-	printed := map[error]bool{}
+-	for _, err := range pkg.DepsErrors {
+-		// Since these are errors in dependencies,
+-		// the same error might show up multiple times,
+-		// once in each package that depends on it.
+-		// Only print each once.
+-		if !printed[err] {
+-			printed[err] = true
+-			errorf("%s", err)
++		dir1, _ := filepath.Split(file)
++		if dir == "" {
++			dir = dir1
++		} else if dir != dir1 {
++			fatalf("named files must all be in one directory; have %s and %s", dir, dir1)
+ 		}
++		dirent = append(dirent, fi)
+ 	}
+-	if target != "" {
+-		pkg.target = target
+-	} else if pkg.Name == "main" {
+-		pkg.target = gofiles[0][:len(gofiles[0])-len(".go")]
+-	} else {
+-		pkg.target = pkg.Name + ".a"
++	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dirent, nil }
++
++	if !filepath.IsAbs(dir) {
++		dir = filepath.Join(cwd, dir)
+ 	}
+-	pkg.ImportPath = "_/" + pkg.target
+-	exitIfErrors()
++
++	bp, err := ctxt.ImportDir(dir, 0)
++	pkg := new(Package)
++	pkg.load(&stk, bp, err)
++
++	pkg.ImportPath = "command-line arguments"
++	if *buildO == "" {
++		if pkg.Name == "main" {
++			_, elem := filepath.Split(gofiles[0])
++			*buildO = elem[:len(elem)-len(".go")]
++		} else {
++			*buildO = pkg.Name + ".a"
++		}
++	}
++	pkg.target = ""
++	pkg.Target = ""
++	pkg.Stale = true
++
++	computeStale([]*Package{pkg})
+ 	return pkg
+ }
+ 
+@@ -346,7 +376,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		return a
+ 	}
+ 
+-	a = &action{p: p, pkgdir: p.t.PkgDir()}
++	a = &action{p: p, pkgdir: p.build.PkgRoot}
+ 	if p.pkgdir != "" { // overrides p.t
+ 		a.pkgdir = p.pkgdir
+ 	}
+@@ -362,7 +392,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 	// using cgo, to make sure we do not overwrite the binary while
+ 	// a package is using it.  If this is a cross-build, then the cgo we
+ 	// are writing is not the cgo we need to use.
+-	if b.goos == runtime.GOOS && b.goarch == runtime.GOARCH {
++	if goos == runtime.GOOS && goarch == runtime.GOARCH {
+ 		if len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo" {
+ 			var stk importStack
+ 			p1 := loadPackage("cmd/cgo", &stk)
+@@ -388,15 +418,21 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		}
+ 	}
+ 
+-	if !p.Stale && !buildA && p.target != "" {
++	if !p.Stale && p.target != "" {
+ 		// p.Stale==false implies that p.target is up-to-date.
+ 		// Record target name for use by actions depending on this one.
+ 		a.target = p.target
+ 		return a
+ 	}
+ 
+-	a.objdir = filepath.Join(b.work, filepath.FromSlash(a.p.ImportPath+"/_obj")) + string(filepath.Separator)
+-	a.objpkg = buildToolchain.pkgpath(b.work, a.p)
++	prefix := "obj"
++	if p.target == "" && p.Dir == p.ImportPath {
++		// Imported via local path.  No permanent target.
++		mode = modeBuild
++		prefix = "local"
++	}
++	a.objdir = filepath.Join(b.work, prefix, a.p.ImportPath, "_obj") + string(filepath.Separator)
++	a.objpkg = buildToolchain.pkgpath(b.work+"/"+prefix, a.p, false)
+ 	a.link = p.Name == "main"
+ 
+ 	switch mode {
+@@ -410,7 +446,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		if a.link {
+ 			// An executable file.
+ 			// (This is the name of a temporary file.)
+-			a.target = a.objdir + "a.out" + b.exe
++			a.target = a.objdir + "a.out" + exeSuffix
+ 		}
+ 	}
+ 
+@@ -560,7 +596,7 @@ func (b *builder) build(a *action) error {
+ 
+ 	// Run cgo.
+ 	if len(a.p.CgoFiles) > 0 {
+-		// In a package using cgo, cgo compiles the C and assembly files with gcc.  
++		// In a package using cgo, cgo compiles the C and assembly files with gcc.
+ 		// There is one exception: runtime/cgo's job is to bridge the
+ 		// cgo and non-cgo worlds, so it necessarily has files in both.
+ 		// In that case gcc only gets the gcc_* files.
+@@ -599,9 +635,32 @@ func (b *builder) build(a *action) error {
+ 	// Prepare Go import path list.
+ 	inc := b.includeArgs("-I", a.deps)
+ 
++	// In what directory shall we run the Go compiler?
++	// We only pass absolute paths, so most of the time it doesn't matter.
++	// Default to the root directory.
++	// However, if the package contains local imports (./ or ../)
++	// then we need to run the compiler in a directory in the parallel
++	// tree of local package objects, so that those imports resolve to the
++	// compiled package objects.
++	gcdir := filepath.Clean("/")
++	for _, imp := range a.p.Imports {
++		if build.IsLocalImport(imp) {
++			dir := a.p.Dir
++			if filepath.Separator == '\\' {
++				// Avoid use of : on Windows.
++				dir = strings.Replace(dir, ":", "_", -1)
++			}
++			gcdir = filepath.Join(b.work, "local", dir)
++			if err := b.mkdir(gcdir); err != nil {
++				return err
++			}
++			break
++		}
++	}
++
+ 	// Compile Go.
+ 	if len(gofiles) > 0 {
+-		if out, err := buildToolchain.gc(b, a.p, obj, inc, gofiles); err != nil {
++		if out, err := buildToolchain.gc(b, a.p, obj, gcdir, inc, gofiles); err != nil {
+ 			return err
+ 		} else {
+ 			objects = append(objects, out)
+@@ -611,31 +670,31 @@ func (b *builder) build(a *action) error {
+ 	// Copy .h files named for goos or goarch or goos_goarch
+ 	// to names using GOOS and GOARCH.
+ 	// For example, defs_linux_amd64.h becomes defs_GOOS_GOARCH.h.
+-	_goos_goarch := "_" + b.goos + "_" + b.goarch + ".h"
+-	_goos := "_" + b.goos + ".h"
+-	_goarch := "_" + b.goarch + ".h"
++	_goos_goarch := "_" + goos + "_" + goarch + ".h"
++	_goos := "_" + goos + ".h"
++	_goarch := "_" + goarch + ".h"
+ 	for _, file := range a.p.HFiles {
+ 		switch {
+ 		case strings.HasSuffix(file, _goos_goarch):
+ 			targ := file[:len(file)-len(_goos_goarch)] + "_GOOS_GOARCH.h"
+-			if err := b.copyFile(obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
++			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
+ 				return err
+ 			}
+ 		case strings.HasSuffix(file, _goarch):
+ 			targ := file[:len(file)-len(_goarch)] + "_GOARCH.h"
+-			if err := b.copyFile(obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
++			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
+ 				return err
+ 			}
+ 		case strings.HasSuffix(file, _goos):
+ 			targ := file[:len(file)-len(_goos)] + "_GOOS.h"
+-			if err := b.copyFile(obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
++			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
+ 				return err
+ 			}
+ 		}
+ 	}
+ 
+ 	for _, file := range cfiles {
+-		out := file[:len(file)-len(".c")] + "." + b.arch
++		out := file[:len(file)-len(".c")] + "." + archChar
+ 		if err := buildToolchain.cc(b, a.p, obj, obj+out, file); err != nil {
+ 			return err
+ 		}
+@@ -644,7 +703,7 @@ func (b *builder) build(a *action) error {
+ 
+ 	// Assemble .s files.
+ 	for _, file := range sfiles {
+-		out := file[:len(file)-len(".s")] + "." + b.arch
++		out := file[:len(file)-len(".s")] + "." + archChar
+ 		if err := buildToolchain.asm(b, a.p, obj, obj+out, file); err != nil {
+ 			return err
+ 		}
+@@ -701,7 +760,7 @@ func (b *builder) install(a *action) error {
+ 		defer os.Remove(a1.target)
+ 	}
+ 
+-	return b.copyFile(a.target, a1.target, perm)
++	return b.copyFile(a, a.target, a1.target, perm)
+ }
+ 
+ // includeArgs returns the -I or -L directory list for access
+@@ -709,16 +768,16 @@ func (b *builder) install(a *action) error {
+ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 	inc := []string{}
+ 	incMap := map[string]bool{
+-		b.work:                 true, // handled later
+-		build.Path[0].PkgDir(): true, // goroot
+-		"":                     true, // ignore empty strings
++		b.work + "/obj": true, // handled later
++		gorootPkg:       true,
++		"":              true, // ignore empty strings
+ 	}
+ 
+ 	// Look in the temporary space for results of test-specific actions.
+ 	// This is the $WORK/my/package/_test directory for the
+ 	// package being built, so there are few of these.
+ 	for _, a1 := range all {
+-		if dir := a1.pkgdir; dir != a1.p.t.PkgDir() && !incMap[dir] {
++		if dir := a1.pkgdir; dir != a1.p.build.PkgRoot && !incMap[dir] {
+ 			incMap[dir] = true
+ 			inc = append(inc, flag, dir)
+ 		}
+@@ -726,11 +785,11 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 
+ 	// Also look in $WORK for any non-test packages that have
+ 	// been built but not installed.
+-	inc = append(inc, flag, b.work)
++	inc = append(inc, flag, b.work+"/obj")
+ 
+ 	// Finally, look in the installed package directories for each action.
+ 	for _, a1 := range all {
+-		if dir := a1.pkgdir; dir == a1.p.t.PkgDir() && !incMap[dir] {
++		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
+ 			if _, ok := buildToolchain.(gccgoToolchain); ok {
+ 				dir = filepath.Join(filepath.Dir(dir), "gccgo", filepath.Base(dir))
+ 			}
+@@ -743,7 +802,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ }
+ 
+ // copyFile is like 'cp src dst'.
+-func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
++func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
+ 	if buildN || buildX {
+ 		b.showcmd("", "cp %s %s", src, dst)
+ 		if buildN {
+@@ -889,8 +948,7 @@ func (b *builder) showcmd(dir string, format string, args ...interface{}) {
+ func (b *builder) showOutput(dir, desc, out string) {
+ 	prefix := "# " + desc
+ 	suffix := "\n" + out
+-	pwd, _ := os.Getwd()
+-	if reldir, err := filepath.Rel(pwd, dir); err == nil && len(reldir) < len(dir) {
++	if reldir := shortPath(dir); reldir != dir {
+ 		suffix = strings.Replace(suffix, " "+dir, " "+reldir, -1)
+ 		suffix = strings.Replace(suffix, "\n"+dir, "\n"+reldir, -1)
+ 	}
+@@ -901,6 +959,14 @@ func (b *builder) showOutput(dir, desc, out string) {
+ 	b.print(prefix, suffix)
+ }
+ 
++// shortPath returns an absolute or relative name for path, whatever is shorter.
++func shortPath(path string) string {
++	if rel, err := filepath.Rel(cwd, path); err == nil && len(rel) < len(path) {
++		return rel
++	}
++	return path
++}
++
+ // relPaths returns a copy of paths with absolute paths
+ // made relative to the current directory if they would be shorter.
+ func relPaths(paths []string) []string {
+@@ -926,7 +992,7 @@ var errPrintedOutput = errors.New("already printed output - no need to show erro
+ // run runs the command given by cmdline in the directory dir.
+ // If the commnd fails, run prints information about the failure
+ // and returns a non-nil error.
+-func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
++func (b *builder) run(dir, shortenDir string, desc string, cmdargs ...interface{}) error {
+ 	out, err := b.runOut(dir, desc, cmdargs...)
+ 	if len(out) > 0 {
+ 		if out[len(out)-1] != '\n' {
+@@ -935,7 +1001,7 @@ func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
+ 		if desc == "" {
+ 			desc = b.fmtcmd(dir, "%s", strings.Join(stringList(cmdargs...), " "))
+ 		}
+-		b.showOutput(dir, desc, string(out))
++		b.showOutput(shortenDir, desc, string(out))
+ 		if err != nil {
+ 			err = errPrintedOutput
+ 		}
+@@ -1006,22 +1072,26 @@ func mkAbs(dir, f string) string {
+ 
+ type toolchain interface {
+ 	// gc runs the compiler in a specific directory on a set of files
+-	// and returns the name of the generated output file. 
+-	gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error)
++	// and returns the name of the generated output file.
++	// The compiler runs in the directory dir.
++	gc(b *builder, p *Package, obj, dir string, importArgs []string, gofiles []string) (ofile string, err error)
+ 	// cc runs the toolchain's C compiler in a directory on a C file
+ 	// to produce an output file.
+ 	cc(b *builder, p *Package, objdir, ofile, cfile string) error
+ 	// asm runs the assembler in a specific directory on a specific file
+-	// to generate the named output file. 
++	// to generate the named output file.
+ 	asm(b *builder, p *Package, obj, ofile, sfile string) error
+ 	// pkgpath creates the appropriate destination path for a package file.
+-	pkgpath(basedir string, p *Package) string
++	pkgpath(basedir string, p *Package, install bool) string
+ 	// pack runs the archive packer in a specific directory to create
+ 	// an archive from a set of object files.
+ 	// typically it is run in the object directory.
+ 	pack(b *builder, p *Package, objDir, afile string, ofiles []string) error
+ 	// ld runs the linker to create a package starting at mainpkg.
+ 	ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error
++
++	compiler() string
++	linker() string
+ }
+ 
+ type goToolchain struct{}
+@@ -1030,6 +1100,7 @@ type gccgoToolchain struct{}
+ var buildToolchain toolchain
+ 
+ func init() {
++	// TODO(rsc): Decide how to trigger gccgo.  Issue 3157.
+ 	if os.Getenv("GC") == "gccgo" {
+ 		buildToolchain = gccgoToolchain{}
+ 	} else {
+@@ -1039,8 +1110,16 @@ func init() {
+ 
+ // The Go toolchain.
+ 
+-func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
+-	out := "_go_." + b.arch
++func (goToolchain) compiler() string {
++	return tool(archChar + "g")
++}
++
++func (goToolchain) linker() string {
++	return tool(archChar + "l")
++}
++
++func (goToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []string, gofiles []string) (ofile string, err error) {
++	out := "_go_." + archChar
+ 	ofile = obj + out
+ 	gcargs := []string{"-p", p.ImportPath}
+ 	if p.Standard && p.ImportPath == "runtime" {
+@@ -1049,20 +1128,24 @@ func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
+ 		gcargs = append(gcargs, "-+")
+ 	}
+ 
+-	args := stringList(tool(b.arch+"g"), "-o", ofile, b.gcflags, gcargs, importArgs)
++	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, importArgs)
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))
+ 	}
+-	return ofile, b.run(p.Dir, p.ImportPath, args)
++	return ofile, b.run(dir, p.Dir, p.ImportPath, args)
+ }
+ 
+ func (goToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+-	return b.run(p.Dir, p.ImportPath, tool(b.arch+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
++	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
+ }
+ 
+-func (goToolchain) pkgpath(basedir string, p *Package) string {
+-	return filepath.Join(basedir, filepath.FromSlash(p.ImportPath+".a"))
++func (goToolchain) pkgpath(basedir string, p *Package, install bool) string {
++	end := filepath.FromSlash(p.ImportPath + ".a")
++	if install {
++		return filepath.Join(basedir, buildContext.GOOS+"_"+buildContext.GOARCH, end)
++	}
++	return filepath.Join(basedir, end)
+ }
+ 
+ func (goToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []string) error {
+@@ -1070,25 +1153,35 @@ func (goToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	return b.run(p.Dir, p.ImportPath, tool("pack"), "grc", mkAbs(objDir, afile), absOfiles)
++	return b.run(p.Dir, p.Dir, p.ImportPath, tool("pack"), "grc", mkAbs(objDir, afile), absOfiles)
+ }
+ 
+ func (goToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+ 	importArgs := b.includeArgs("-L", allactions)
+-	return b.run(p.Dir, p.ImportPath, tool(b.arch+"l"), "-o", out, importArgs, mainpkg)
++	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"l"), "-o", out, importArgs, buildLdflags, mainpkg)
+ }
+ 
+ func (goToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+-	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
++	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+-	return b.run(p.Dir, p.ImportPath, tool(b.arch+"c"), "-FVw",
++	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"c"), "-FVw",
+ 		"-I", objdir, "-I", inc, "-o", ofile,
+-		"-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
++		"-DGOOS_"+goos, "-DGOARCH_"+goarch, cfile)
+ }
+ 
+ // The Gccgo toolchain.
+ 
+-func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
++var gccgoBin, _ = exec.LookPath("gccgo")
++
++func (gccgoToolchain) compiler() string {
++	return gccgoBin
++}
++
++func (gccgoToolchain) linker() string {
++	return gccgoBin
++}
++
++func (gccgoToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []string, gofiles []string) (ofile string, err error) {
+ 	out := p.Name + ".o"
+ 	ofile = obj + out
+ 	gcargs := []string{"-g"}
+@@ -1099,21 +1192,23 @@ func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string
+ 			gcargs = append(gcargs, "-fgo-prefix=go_"+p.ImportPath)
+ 		}
+ 	}
+-	args := stringList("gccgo", importArgs, "-c", b.gcflags, gcargs, "-o", ofile)
++	args := stringList("gccgo", importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))
+ 	}
+-	return ofile, b.run(p.Dir, p.ImportPath, args)
++	return ofile, b.run(dir, p.Dir, p.ImportPath, args)
+ }
+ 
+ func (gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+-	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
++	return b.run(p.Dir, p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
+ }
+ 
+-func (gccgoToolchain) pkgpath(basedir string, p *Package) string {
+-	afile := filepath.Join(basedir, filepath.FromSlash(p.ImportPath+".a"))
+-	// prepend "lib" to the basename
++func (gccgoToolchain) pkgpath(basedir string, p *Package, install bool) string {
++	// NOTE: Apparently gccgo does not distinguish different trees
++	// using goos_goarch, so install is ignored here.
++	afile := filepath.Join(basedir, "gccgo", filepath.FromSlash(p.ImportPath+".a"))
++	// add "lib" to the final element
+ 	return filepath.Join(filepath.Dir(afile), "lib"+filepath.Base(afile))
+ }
+ 
+@@ -1122,7 +1217,7 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	return b.run(p.Dir, p.ImportPath, "ar", "cru", mkAbs(objDir, afile), absOfiles)
++	return b.run(p.Dir, p.Dir, p.ImportPath, "ar", "cru", mkAbs(objDir, afile), absOfiles)
+ }
+ 
+ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+@@ -1140,26 +1235,27 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
+ 			ldflags = append(ldflags, a.p.CgoLDFLAGS...)
+ 		}
+ 	}
+-	return b.run(p.Dir, p.ImportPath, "gccgo", "-o", out, ofiles, "-Wl,-(", afiles, ldflags, "-Wl,-)")
++
++	return b.run(p.Dir, p.Dir, p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", afiles, ldflags, "-Wl,-)")
+ }
+ 
+ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+-	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", b.goos, b.goarch))
++	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+-	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
++	return b.run(p.Dir, p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
+ 		"-I", objdir, "-I", inc, "-o", ofile,
+-		"-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, "-c", cfile)
++		"-DGOOS_"+goos, "-DGOARCH_"+goarch, "-c", cfile)
+ }
+ 
+ // gcc runs the gcc C compiler to create an object from a single C file.
+ func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
+ 	cfile = mkAbs(p.Dir, cfile)
+-	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
++	return b.run(p.Dir, p.Dir, p.ImportPath, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
+ }
+ 
+ // gccld runs the gcc linker to create an executable from a set of object files
+ func (b *builder) gccld(p *Package, out string, flags []string, obj []string) error {
+-	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", out, obj, flags)
++	return b.run(p.Dir, p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", out, obj, flags)
+ }
+ 
+ // gccCmd returns a gcc command line prefix
+@@ -1169,10 +1265,10 @@ func (b *builder) gccCmd(objdir string) []string {
+ 
+ 	// Definitely want -fPIC but on Windows gcc complains
+ 	// "-fPIC ignored for target (all code is position independent)"
+-	if b.goos != "windows" {
++	if goos != "windows" {
+ 		a = append(a, "-fPIC")
+ 	}
+-	switch b.arch {
++	switch archChar {
+ 	case "8":
+ 		a = append(a, "-m32")
+ 	case "6":
+@@ -1181,7 +1277,7 @@ func (b *builder) gccCmd(objdir string) []string {
+ 	// gcc-4.5 and beyond require explicit "-pthread" flag
+ 	// for multithreading with pthread library.
+ 	if buildContext.CgoEnabled {
+-		switch b.goos {
++		switch goos {
+ 		case "windows":
+ 			a = append(a, "-mthreads")
+ 		default:
+@@ -1198,14 +1294,14 @@ func envList(key string) []string {
+ var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
+ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo, outObj []string, err error) {
+-	if b.goos != toolGOOS {
++	if goos != toolGOOS {
+ 		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
+ 	}
+ 
+-	cgoCFLAGS := stringList(envList("CGO_CFLAGS"), p.info.CgoCFLAGS)
+-	cgoLDFLAGS := stringList(envList("CGO_LDFLAGS"), p.info.CgoLDFLAGS)
++	cgoCFLAGS := stringList(envList("CGO_CFLAGS"), p.CgoCFLAGS)
++	cgoLDFLAGS := stringList(envList("CGO_LDFLAGS"), p.CgoLDFLAGS)
+ 
+-	if pkgs := p.info.CgoPkgConfig; len(pkgs) > 0 {
++	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
+ 		out, err := b.runOut(p.Dir, p.ImportPath, "pkg-config", "--cflags", pkgs)
+ 		if err != nil {
+ 			b.showOutput(p.Dir, "pkg-config --cflags "+strings.Join(pkgs, " "), string(out))
+@@ -1249,13 +1345,13 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 	if _, ok := buildToolchain.(gccgoToolchain); ok {
+ 		cgoflags = append(cgoflags, "-gccgo")
+ 	}
+-	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
++	if err := b.run(p.Dir, p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
+ 		return nil, nil, err
+ 	}
+ 	outGo = append(outGo, gofiles...)
+ 
+ 	// cc _cgo_defun.c
+-	defunObj := obj + "_cgo_defun." + b.arch
++	defunObj := obj + "_cgo_defun." + archChar
+ 	if err := buildToolchain.cc(b, p, obj, defunObj, defunC); err != nil {
+ 		return nil, nil, err
+ 	}
+@@ -1293,12 +1389,12 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 
+ 	// cgo -dynimport
+ 	importC := obj + "_cgo_import.c"
+-	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
++	if err := b.run(p.Dir, p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
+ 		return nil, nil, err
+ 	}
+ 
+ 	// cc _cgo_import.ARCH
+-	importObj := obj + "_cgo_import." + b.arch
++	importObj := obj + "_cgo_import." + archChar
+ 	if err := buildToolchain.cc(b, p, obj, importObj, importC); err != nil {
+ 		return nil, nil, err
+ 	}
+diff --git a/src/cmd/go/clean.go b/src/cmd/go/clean.go
+index 1ea12b9624..809e0f0e42 100644
+--- a/src/cmd/go/clean.go
++++ b/src/cmd/go/clean.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ var cmdClean = &Command{
+-	UsageLine: "clean [-i] [-r] [-n] [-x] [importpath...]",
++	UsageLine: "clean [-i] [-r] [-n] [-x] [packages]",
+ 	Short:     "remove object files",
+ 	Long: `
+ Clean removes object files from package source directories.
+@@ -50,6 +50,8 @@ The -r flag causes clean to be applied recursively to all the
+ dependencies of the packages named by the import paths.
+ 
+ The -x flag causes clean to print remove commands as it executes them.
++
++For more about specifying packages, see 'go help packages'.
+ 	`,
+ }
+ 
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 2df7a0498d..633b117024 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -28,7 +28,7 @@ Use "go help [command]" for more information about a command.
+ Additional help topics:
+ 
+     gopath      GOPATH environment variable
+-    importpath  description of import paths
++    packages    description of package lists
+     remote      remote import path syntax
+     testflag    description of testing flags
+     testfunc    description of testing functions
+@@ -40,7 +40,7 @@ Compile packages and dependencies
+ 
+ Usage:
+ 
+-	go build [-a] [-n] [-o output] [-p n] [-v] [-x] [importpath... | gofiles...]
++	go build [-o output] [build flags] [packages]
+ 
+ Build compiles the packages named by the import paths,
+ along with their dependencies, but it does not install the results.
+@@ -53,18 +53,37 @@ build writes the resulting executable to output (default a.out).
+ Otherwise build compiles the packages but discards the results,
+ serving only as a check that the packages can be built.
+ 
+-The -a flag forces rebuilding of packages that are already up-to-date.
+-The -n flag prints the commands but does not run them.
+-The -v flag prints the names of packages as they are compiled.
+-The -x flag prints the commands.
+-
+ The -o flag specifies the output file name.
+-It is an error to use -o when the command line specifies multiple packages.
+ 
+-The -p flag specifies the number of builds that can be run in parallel.
+-The default is the number of CPUs available.
++The build flags are shared by the build, install, run, and test commands:
+ 
+-For more about import paths, see 'go help importpath'.
++	-a
++		force rebuilding of packages that are already up-to-date.
++	-n
++		print the commands but does not run them.
++	-p n
++		the number of builds that can be run in parallel.
++		The default is the number of CPUs available.
++	-v
++		print the names of packages as they are compiled.
++	-work
++		print the name of the temporary work directory and
++		do not delete it when exiting.
++	-x
++		print the commands.
++
++	-gccgoflags 'arg list'
++		arguments to pass on each gccgo compiler/linker invocation
++	-gcflags 'arg list'
++		arguments to pass on each 5g, 6g, or 8g compiler invocation
++	-ldflags 'flag list'
++		arguments to pass on each 5l, 6l, or 8l linker invocation
++	-tags 'tag list'
++		a list of build tags to consider satisfied during the build.
++		See the documentation for the go/build package for
++		more information about build tags.
++
++For more about specifying packages, see 'go help packages'.
+ 
+ See also: go install, go get, go clean.
+ 
+@@ -73,7 +92,7 @@ Remove object files
+ 
+ Usage:
+ 
+-	go clean [-i] [-r] [-n] [-x] [importpath...]
++	go clean [-i] [-r] [-n] [-x] [packages]
+ 
+ Clean removes object files from package source directories.
+ The go command builds most objects in a temporary directory,
+@@ -110,18 +129,20 @@ dependencies of the packages named by the import paths.
+ 
+ The -x flag causes clean to print remove commands as it executes them.
+ 
++For more about specifying packages, see 'go help packages'.
++
+ 
+ Run godoc on package sources
+ 
+ Usage:
+ 
+-	go doc [importpath...]
++	go doc [packages]
+ 
+ Doc runs the godoc command on the packages named by the
+ import paths.
+ 
+ For more about godoc, see 'godoc godoc'.
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ To run godoc with specific options, run godoc itself.
+ 
+@@ -132,12 +153,12 @@ Run go tool fix on packages
+ 
+ Usage:
+ 
+-	go fix [importpath...]
++	go fix [packages]
+ 
+ Fix runs the Go fix command on the packages named by the import paths.
+ 
+ For more about fix, see 'godoc fix'.
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ To run fix with specific options, run 'go tool fix'.
+ 
+@@ -148,13 +169,13 @@ Run gofmt on package sources
+ 
+ Usage:
+ 
+-	go fmt [importpath...]
++	go fmt [packages]
+ 
+ Fmt runs the command 'gofmt -l -w' on the packages named
+ by the import paths.  It prints the names of the files that are modified.
+ 
+ For more about gofmt, see 'godoc gofmt'.
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ To run gofmt with specific options, run gofmt itself.
+ 
+@@ -165,7 +186,7 @@ Download and install packages and dependencies
+ 
+ Usage:
+ 
+-	go get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [importpath...]
++	go get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [packages]
+ 
+ Get downloads and installs the packages named by the import paths,
+ along with their dependencies.
+@@ -180,12 +201,12 @@ The -fix flag instructs get to run the fix tool on the downloaded packages
+ before resolving dependencies or building the code.
+ 
+ The -u flag instructs get to use the network to update the named packages
+-and their dependencies.  By default, get uses the network to check out 
++and their dependencies.  By default, get uses the network to check out
+ missing packages but does not use it to look for updates to existing packages.
+ 
+ TODO: Explain versions better.
+ 
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ For more about how 'go get' finds source code to
+ download, see 'go help remote'.
+@@ -197,20 +218,13 @@ Compile and install packages and dependencies
+ 
+ Usage:
+ 
+-	go install [-a] [-n] [-p n] [-v] [-x] [importpath...]
++	go install [build flags] [packages]
+ 
+ Install compiles and installs the packages named by the import paths,
+ along with their dependencies.
+ 
+-The -a flag forces reinstallation of packages that are already up-to-date.
+-The -n flag prints the commands but does not run them.
+-The -v flag prints the names of packages as they are compiled.
+-The -x flag prints the commands.
+-
+-The -p flag specifies the number of builds that can be run in parallel.
+-The default is the number of CPUs available.
+-
+-For more about import paths, see 'go help importpath'.
++For more about the build flags, see 'go help build'.
++For more about specifying packages, see 'go help packages'.
+ 
+ See also: go build, go get, go clean.
+ 
+@@ -219,7 +233,7 @@ List packages
+ 
+ Usage:
+ 
+-	go list [-e] [-f format] [-json] [importpath...]
++	go list [-e] [-f format] [-json] [packages]
+ 
+ List lists the packages named by the import paths, one per line.
+ 
+@@ -274,20 +288,18 @@ printing.  Erroneous packages will have a non-empty ImportPath and
+ a non-nil Error field; other information may or may not be missing
+ (zeroed).
+ 
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ 
+ Compile and run Go program
+ 
+ Usage:
+ 
+-	go run [-a] [-n] [-x] gofiles... [arguments...]
++	go run [build flags] gofiles... [arguments...]
+ 
+ Run compiles and runs the main package comprising the named Go source files.
+ 
+-The -a flag forces reinstallation of packages that are already up-to-date.
+-The -n flag prints the commands but does not run them.
+-The -x flag prints the commands.
++For more about build flags, see 'go help build'.
+ 
+ See also: go build.
+ 
+@@ -296,7 +308,7 @@ Test packages
+ 
+ Usage:
+ 
+-	go test [-c] [-file a.go -file b.go ...] [-i] [-p n] [-x] [importpath...] [flags for test binary]
++	go test [-c] [-i] [build flags] [packages] [flags for test binary]
+ 
+ 'Go test' automates testing the packages named by the import paths.
+ It prints a summary of the test results in the format:
+@@ -314,17 +326,23 @@ benchmark functions, and example functions.  See 'go help testfunc' for more.
+ 
+ By default, go test needs no arguments.  It compiles and tests the package
+ with source in the current directory, including tests, and runs the tests.
+-If file names are given (with flag -file=test.go, one per extra test source file),
+-only those test files are added to the package.  (The non-test files are always
+-compiled.)
+ 
+ The package is built in a temporary directory so it does not interfere with the
+ non-test installation.
+ 
+-See 'go help testflag' for details about flags handled by 'go test'
+-and the test binary.
++In addition to the build flags, the flags handled by 'go test' itself are:
+ 
+-See 'go help importpath' for more about import paths.
++	-c  Compile the test binary to pkg.test but do not run it.
++
++	-i
++	    Install packages that are dependencies of the test.
++	    Do not run the test.
++
++The test binary also accepts flags that control execution of the test; these
++flags are also accessible by 'go test'.  See 'go help testflag' for details.
++
++For more about build flags, see 'go help build'.
++For more about specifying packages, see 'go help packages'.
+ 
+ See also: go build, go vet.
+ 
+@@ -333,11 +351,14 @@ Run specified go tool
+ 
+ Usage:
+ 
+-	go tool command [args...]
++	go tool [-n] command [args...]
+ 
+ Tool runs the go tool command identified by the arguments.
+ With no arguments it prints the list of known tools.
+ 
++The -n flag causes tool to print the command that would be
++executed but not execute it.
++
+ For more about each tool command, see 'go tool command -h'.
+ 
+ 
+@@ -354,12 +375,12 @@ Run go tool vet on packages
+ 
+ Usage:
+ 
+-	go vet [importpath...]
++	go vet [packages]
+ 
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+ For more about vet, see 'godoc vet'.
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ To run the vet tool with specific options, run 'go tool vet'.
+ 
+@@ -421,11 +442,13 @@ but new packages are always downloaded into the first directory
+ in the list.
+ 
+ 
+-Description of import paths
++Description of package lists
++
++Many commands apply to a set of packages:
+ 
+-Many commands apply to a set of packages named by import paths:
++	go action [packages]
+ 
+-	go action [importpath...]
++Usually, [packages] is a list of import paths.
+ 
+ An import path that is a rooted path or that begins with
+ a . or .. element is interpreted as a file system path and
+@@ -449,8 +472,9 @@ An import path is a pattern if it includes one or more "..." wildcards,
+ each of which can match any string, including the empty string and
+ strings containing slashes.  Such a pattern expands to all package
+ directories found in the GOPATH trees with names matching the
+-patterns.  For example, encoding/... expands to all packages
+-in the encoding tree.
++patterns.  For example, encoding/... expands to all package
++in subdirectories of the encoding tree, while net... expands to
++net and all its subdirectories.
+ 
+ An import path can also name a package to be downloaded from
+ a remote repository.  Run 'go help remote' for details.
+@@ -462,6 +486,11 @@ internally at Google all begin with 'google', and paths
+ denoting remote repositories begin with the path to the code,
+ such as 'code.google.com/p/project'.
+ 
++As a special case, if the package list is a list of .go files from a
++single directory, the command is applied to a single synthesized
++package made up of exactly those files, ignoring any build constraints
++in those files and ignoring any other files in the directory.
++
+ 
+ Remote import path syntax
+ 
+@@ -541,24 +570,7 @@ Description of testing flags
+ The 'go test' command takes both flags that apply to 'go test' itself
+ and flags that apply to the resulting test binary.
+ 
+-The flags handled by 'go test' are:
+-
+-	-c  Compile the test binary to pkg.test but do not run it.
+-
+-	-file a.go
+-	    Use only the tests in the source file a.go.
+-	    Multiple -file flags may be provided.
+-
+-	-i
+-	    Install packages that are dependencies of the test.
+-
+-	-p n
+-	    Compile and test up to n packages in parallel.
+-	    The default value is the number of CPUs available.
+-
+-	-x  Print each subcommand go test executes.
+-
+-The resulting test binary, called pkg.test, where pkg is the name of the
++The test binary, called pkg.test, where pkg is the name of the
+ directory containing the package sources, has its own flags:
+ 
+ 	-test.v
+@@ -606,7 +618,7 @@ directory containing the package sources, has its own flags:
+ 		The default is 1 second.
+ 
+ 	-test.cpu 1,2,4
+-	    Specify a list of GOMAXPROCS values for which the tests or 
++	    Specify a list of GOMAXPROCS values for which the tests or
+ 	    benchmarks should be executed.  The default is the current value
+ 	    of GOMAXPROCS.
+ 
+@@ -614,9 +626,9 @@ For convenience, each of these -test.X flags of the test binary is
+ also available as the flag -X in 'go test' itself.  Flags not listed
+ here are passed through unaltered.  For instance, the command
+ 
+-	go test -x -v -cpuprofile=prof.out -dir=testdata -update -file x_test.go
++	go test -x -v -cpuprofile=prof.out -dir=testdata -update
+ 
+-will compile the test binary using x_test.go and then run it as
++will compile the test binary and then run it as
+ 
+ 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
+ 
+@@ -637,8 +649,10 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
+ 
+ An example function is similar to a test function but, instead of using *testing.T
+ to report success or failure, prints output to os.Stdout and os.Stderr.
+-That output is compared against the function's doc comment.
+-An example without a doc comment is compiled but not executed.
++That output is compared against the function's "Output:" comment, which
++must be the last comment in the function body (see example below). An
++example with no such comment, or with no text after "Output:" is compiled
++but not executed.
+ 
+ Godoc displays the body of ExampleXXX to demonstrate the use
+ of the function, constant, or variable XXX.  An example of a method M with
+@@ -648,11 +662,16 @@ where xxx is a suffix not beginning with an upper case letter.
+ 
+ Here is an example of an example:
+ 
+-	// The output of this example function.
+ 	func ExamplePrintln() {
+-		Println("The output of this example function.")
++		Println("The output of\nthis example.")
++		// Output: The output of
++		// this example.
+ 	}
+ 
++The entire test file is presented as the example when it contains a single
++example function, at least one other function, type, variable, or constant
++declaration, and no test or benchmark functions.
++
+ See the documentation of the testing package for more information.
+ 
+ 
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index 6a0ad0774c..ef02b5739f 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -6,13 +6,13 @@ package main
+ 
+ var cmdFix = &Command{
+ 	Run:       runFix,
+-	UsageLine: "fix [importpath...]",
++	UsageLine: "fix [packages]",
+ 	Short:     "run go tool fix on packages",
+ 	Long: `
+ Fix runs the Go fix command on the packages named by the import paths.
+ 
+ For more about fix, see 'godoc fix'.
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ To run fix with specific options, run 'go tool fix'.
+ 
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index 4a47e2ea2f..cea9b0a512 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -6,14 +6,14 @@ package main
+ 
+ var cmdFmt = &Command{
+ 	Run:       runFmt,
+-	UsageLine: "fmt [importpath...]",
++	UsageLine: "fmt [packages]",
+ 	Short:     "run gofmt on package sources",
+ 	Long: `
+ Fmt runs the command 'gofmt -l -w' on the packages named
+ by the import paths.  It prints the names of the files that are modified.
+ 
+ For more about gofmt, see 'godoc gofmt'.
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ To run gofmt with specific options, run gofmt itself.
+ 
+@@ -32,14 +32,14 @@ func runFmt(cmd *Command, args []string) {
+ 
+ var cmdDoc = &Command{
+ 	Run:       runDoc,
+-	UsageLine: "doc [importpath...]",
++	UsageLine: "doc [packages]",
+ 	Short:     "run godoc on package sources",
+ 	Long: `
+ Doc runs the godoc command on the packages named by the
+ import paths.
+ 
+ For more about godoc, see 'godoc godoc'.
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ To run godoc with specific options, run godoc itself.
+ 
+@@ -49,6 +49,10 @@ See also: go fix, go fmt, go vet.
+ 
+ func runDoc(cmd *Command, args []string) {
+ 	for _, pkg := range packages(args) {
++		if pkg.ImportPath == "command-line arguments" {
++			errorf("go doc: cannot use package file list")
++			continue
++		}
+ 		run("godoc", pkg.Dir)
+ 	}
+ }
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index e66810cb3f..0ad22adb0d 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -8,7 +8,6 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"go/build"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -17,7 +16,7 @@ import (
+ )
+ 
+ var cmdGet = &Command{
+-	UsageLine: "get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [importpath...]",
++	UsageLine: "get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+ Get downloads and installs the packages named by the import paths,
+@@ -33,12 +32,12 @@ The -fix flag instructs get to run the fix tool on the downloaded packages
+ before resolving dependencies or building the code.
+ 
+ The -u flag instructs get to use the network to update the named packages
+-and their dependencies.  By default, get uses the network to check out 
++and their dependencies.  By default, get uses the network to check out
+ missing packages but does not use it to look for updates to existing packages.
+ 
+ TODO: Explain versions better.
+ 
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ For more about how 'go get' finds source code to
+ download, see 'go help remote'.
+@@ -151,22 +150,35 @@ func download(arg string, stk *importStack) {
+ // downloadPackage runs the create or download command
+ // to make the first copy of or update a copy of the given package.
+ func downloadPackage(p *Package) error {
+-	// Analyze the import path to determine the version control system,
+-	// repository, and the import path for the root of the repository.
+-	vcs, repo, rootPath, err := vcsForImportPath(p.ImportPath)
++	var (
++		vcs            *vcsCmd
++		repo, rootPath string
++		err            error
++	)
++	if p.build.SrcRoot != "" {
++		// Directory exists.  Look for checkout along path to src.
++		vcs, rootPath, err = vcsForDir(p)
++		repo = "<local>" // should be unused; make distinctive
++	} else {
++		// Analyze the import path to determine the version control system,
++		// repository, and the import path for the root of the repository.
++		vcs, repo, rootPath, err = vcsForImportPath(p.ImportPath)
++	}
+ 	if err != nil {
+ 		return err
+ 	}
+-	if p.t == nil {
++
++	if p.build.SrcRoot == "" {
+ 		// Package not found.  Put in first directory of $GOPATH or else $GOROOT.
+-		p.t = build.Path[0] // $GOROOT
+-		if len(build.Path) > 1 {
+-			p.t = build.Path[1] // first in $GOPATH
++		if list := filepath.SplitList(buildContext.GOPATH); len(list) > 0 {
++			p.build.SrcRoot = filepath.Join(list[0], "src")
++			p.build.PkgRoot = filepath.Join(list[0], "pkg")
++		} else {
++			p.build.SrcRoot = filepath.Join(goroot, "src", "pkg")
++			p.build.PkgRoot = filepath.Join(goroot, "pkg")
+ 		}
+-		p.Dir = filepath.Join(p.t.SrcDir(), p.ImportPath)
+ 	}
+-	root := filepath.Join(p.t.SrcDir(), rootPath)
+-
++	root := filepath.Join(p.build.SrcRoot, rootPath)
+ 	// If we've considered this repository already, don't do it again.
+ 	if downloadRootCache[root] {
+ 		return nil
+@@ -206,6 +218,14 @@ func downloadPackage(p *Package) error {
+ 		}
+ 	}
+ 
++	if buildN {
++		// Do not show tag sync in -n; it's noise more than anything,
++		// and since we're not running commands, no tag will be found.
++		// But avoid printing nothing.
++		fmt.Fprintf(os.Stderr, "# cd %s; %s sync/update\n", root, vcs.cmd)
++		return nil
++	}
++
+ 	// Select and sync to appropriate version of the repository.
+ 	tags, err := vcs.tags(root)
+ 	if err != nil {
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 125eb2b78c..459ba610c8 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -4,13 +4,15 @@
+ 
+ package main
+ 
+-var helpImportpath = &Command{
+-	UsageLine: "importpath",
+-	Short:     "description of import paths",
++var helpPackages = &Command{
++	UsageLine: "packages",
++	Short:     "description of package lists",
+ 	Long: `
+-Many commands apply to a set of packages named by import paths:
++Many commands apply to a set of packages:
+ 
+-	go action [importpath...]
++	go action [packages]
++
++Usually, [packages] is a list of import paths.
+ 
+ An import path that is a rooted path or that begins with
+ a . or .. element is interpreted as a file system path and
+@@ -34,7 +36,7 @@ An import path is a pattern if it includes one or more "..." wildcards,
+ each of which can match any string, including the empty string and
+ strings containing slashes.  Such a pattern expands to all package
+ directories found in the GOPATH trees with names matching the
+-patterns.  For example, encoding/... expands to all package
++patterns.  For example, encoding/... expands to all packages
+ in subdirectories of the encoding tree, while net... expands to
+ net and all its subdirectories.
+ 
+@@ -47,6 +49,11 @@ unique prefix that belongs to you.  For example, paths used
+ internally at Google all begin with 'google', and paths
+ denoting remote repositories begin with the path to the code,
+ such as 'code.google.com/p/project'.
++
++As a special case, if the package list is a list of .go files from a
++single directory, the command is applied to a single synthesized
++package made up of exactly those files, ignoring any build constraints
++in those files and ignoring any other files in the directory.
+ 	`,
+ }
+ 
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 45b0a614eb..fa3f5d330b 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ var cmdList = &Command{
+-	UsageLine: "list [-e] [-f format] [-json] [importpath...]",
++	UsageLine: "list [-e] [-f format] [-json] [packages]",
+ 	Short:     "list packages",
+ 	Long: `
+ List lists the packages named by the import paths, one per line.
+@@ -69,7 +69,7 @@ printing.  Erroneous packages will have a non-empty ImportPath and
+ a non-nil Error field; other information may or may not be missing
+ (zeroed).
+ 
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 	`,
+ }
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index b07d720e86..a56910eb1a 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -88,7 +88,7 @@ var commands = []*Command{
+ 	cmdVet,
+ 
+ 	helpGopath,
+-	helpImportpath,
++	helpPackages,
+ 	helpRemote,
+ 	helpTestflag,
+ 	helpTestfunc,
+@@ -251,7 +251,24 @@ func importPaths(args []string) []string {
+ 	}
+ 	var out []string
+ 	for _, a := range args {
+-		if isLocalPath(a) && strings.Contains(a, "...") {
++		// Arguments are supposed to be import paths, but
++		// as a courtesy to Windows developers, rewrite \ to /
++		// in command-line arguments.  Handles .\... and so on.
++		if filepath.Separator == '\\' {
++			a = strings.Replace(a, `\`, `/`, -1)
++		}
++
++		// Put argument in canonical form, but preserve leading ./.
++		if strings.HasPrefix(a, "./") {
++			a = "./" + path.Clean(a)
++			if a == "./." {
++				a = "."
++			}
++		} else {
++			a = path.Clean(a)
++		}
++
++		if build.IsLocalImport(a) && strings.Contains(a, "...") {
+ 			out = append(out, allPackagesInFS(a)...)
+ 			continue
+ 		}
+@@ -350,7 +367,6 @@ func allPackages(pattern string) []string {
+ 	var pkgs []string
+ 
+ 	// Commands
+-	goroot := build.Path[0].Path
+ 	cmd := filepath.Join(goroot, "src/cmd") + string(filepath.Separator)
+ 	filepath.Walk(cmd, func(path string, fi os.FileInfo, err error) error {
+ 		if err != nil || !fi.IsDir() || path == cmd {
+@@ -362,7 +378,7 @@ func allPackages(pattern string) []string {
+ 			return filepath.SkipDir
+ 		}
+ 
+-		_, err = build.ScanDir(path)
++		_, err = build.ImportDir(path, 0)
+ 		if err != nil {
+ 			return nil
+ 		}
+@@ -378,11 +394,11 @@ func allPackages(pattern string) []string {
+ 		return nil
+ 	})
+ 
+-	for _, t := range build.Path {
+-		if pattern == "std" && !t.Goroot {
++	for _, src := range buildContext.SrcDirs() {
++		if pattern == "std" && src != gorootSrcPkg {
+ 			continue
+ 		}
+-		src := t.SrcDir() + string(filepath.Separator)
++		src = filepath.Clean(src) + string(filepath.Separator)
+ 		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
+ 			if err != nil || !fi.IsDir() || path == src {
+ 				return nil
+@@ -403,21 +419,13 @@ func allPackages(pattern string) []string {
+ 			}
+ 			have[name] = true
+ 
+-			_, err = build.ScanDir(path)
++			_, err = build.ImportDir(path, 0)
+ 			if err != nil && strings.Contains(err.Error(), "no Go source files") {
+ 				return nil
+ 			}
+-
+ 			if match(name) {
+ 				pkgs = append(pkgs, name)
+ 			}
+-
+-			// Avoid go/build test data.
+-			// TODO: Move it into a testdata directory.
+-			if path == filepath.Join(build.Path[0].SrcDir(), "go/build") {
+-				return filepath.SkipDir
+-			}
+-
+ 			return nil
+ 		})
+ 	}
+@@ -465,7 +473,7 @@ func allPackagesInFS(pattern string) []string {
+ 		if !match(name) {
+ 			return nil
+ 		}
+-		if _, err = build.ScanDir(path); err != nil {
++		if _, err = build.ImportDir(path, 0); err != nil {
+ 			return nil
+ 		}
+ 		pkgs = append(pkgs, name)
+@@ -494,10 +502,3 @@ func stringList(args ...interface{}) []string {
+ 	}
+ 	return x
+ }
+-
+-// isLocalPath returns true if arg is an import path denoting
+-// a local file system directory.  That is, it returns true if the
+-// path begins with ./ or ../ .
+-func isLocalPath(arg string) bool {
+-	return arg == "." || arg == ".." || strings.HasPrefix(arg, "./") || strings.HasPrefix(arg, "../")
+-}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 718b9fea03..27b55006fb 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -6,10 +6,11 @@ package main
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"go/build"
+-	"go/doc"
+ 	"go/scanner"
++	"go/token"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+@@ -22,42 +23,78 @@ type Package struct {
+ 	// Note: These fields are part of the go command's public API.
+ 	// See list.go.  It is okay to add fields, but not to change or
+ 	// remove existing ones.  Keep in sync with list.go
+-	ImportPath string        // import path of package in dir
++	Dir        string        `json:",omitempty"` // directory containing package sources
++	ImportPath string        `json:",omitempty"` // import path of package in dir
+ 	Name       string        `json:",omitempty"` // package name
+ 	Doc        string        `json:",omitempty"` // package documentation string
+-	Dir        string        `json:",omitempty"` // directory containing package sources
+ 	Target     string        `json:",omitempty"` // install path
+-	Version    string        `json:",omitempty"` // version of installed package (TODO)
++	Goroot     bool          `json:",omitempty"` // is this package found in the Go root?
+ 	Standard   bool          `json:",omitempty"` // is this package part of the standard Go library?
+ 	Stale      bool          `json:",omitempty"` // would 'go install' do anything for this package?
+ 	Incomplete bool          `json:",omitempty"` // was there an error loading this package or dependencies?
+ 	Error      *PackageError `json:",omitempty"` // error loading this package (not dependencies)
+ 
++	Root string `json:",omitempty"` // root dir of tree this package belongs to
++
+ 	// Source files
+-	GoFiles      []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles and XTestGoFiles)
+-	TestGoFiles  []string `json:",omitempty"` // _test.go source files internal to the package they are testing
+-	XTestGoFiles []string `json:",omitempty"` //_test.go source files external to the package they are testing
+-	CFiles       []string `json:",omitempty"` // .c source files
+-	HFiles       []string `json:",omitempty"` // .h source files
+-	SFiles       []string `json:",omitempty"` // .s source files
+-	CgoFiles     []string `json:",omitempty"` // .go sources files that import "C"
++	GoFiles  []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles XTestGoFiles)
++	CgoFiles []string `json:",omitempty"` // .go sources files that import "C"
++	CFiles   []string `json:",omitempty"` // .c source files
++	HFiles   []string `json:",omitempty"` // .h source files
++	SFiles   []string `json:",omitempty"` // .s source files
++
++	// Cgo directives
+ 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
+ 	CgoLDFLAGS   []string `json:",omitempty"` // cgo: flags for linker
++	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
+ 
+ 	// Dependency information
+ 	Imports    []string        `json:",omitempty"` // import paths used by this package
+ 	Deps       []string        `json:",omitempty"` // all (recursively) imported dependencies
+ 	DepsErrors []*PackageError `json:",omitempty"` // errors loading dependencies
+ 
++	// Test information
++	TestGoFiles  []string `json:",omitempty"` // _test.go files in package
++	TestImports  []string `json:",omitempty"` // imports from TestGoFiles
++	XTestGoFiles []string `json:",omitempty"` // _test.go files outside package
++	XTestImports []string `json:",omitempty"` // imports from XTestGoFiles
++
+ 	// Unexported fields are not part of the public API.
+-	t       *build.Tree
+-	pkgdir  string
+-	info    *build.DirInfo
+-	imports []*Package
+-	deps    []*Package
+-	gofiles []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+-	target  string   // installed file for this package (may be executable)
+-	fake    bool     // synthesized package
++	build      *build.Package
++	pkgdir     string // overrides build.PkgDir
++	imports    []*Package
++	deps       []*Package
++	gofiles    []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
++	target     string   // installed file for this package (may be executable)
++	fake       bool     // synthesized package
++	forceBuild bool     // this package must be rebuilt
++	local      bool     // imported via local path (./ or ../)
++}
++
++func (p *Package) copyBuild(pp *build.Package) {
++	p.build = pp
++
++	p.Dir = pp.Dir
++	p.ImportPath = pp.ImportPath
++	p.Name = pp.Name
++	p.Doc = pp.Doc
++	p.Root = pp.Root
++	// TODO? Target
++	p.Goroot = pp.Goroot
++	p.Standard = p.Goroot && p.ImportPath != "" && !strings.Contains(p.ImportPath, ".")
++	p.GoFiles = pp.GoFiles
++	p.CgoFiles = pp.CgoFiles
++	p.CFiles = pp.CFiles
++	p.HFiles = pp.HFiles
++	p.SFiles = pp.SFiles
++	p.CgoCFLAGS = pp.CgoCFLAGS
++	p.CgoLDFLAGS = pp.CgoLDFLAGS
++	p.CgoPkgConfig = pp.CgoPkgConfig
++	p.Imports = pp.Imports
++	p.TestGoFiles = pp.TestGoFiles
++	p.TestImports = pp.TestImports
++	p.XTestGoFiles = pp.XTestGoFiles
++	p.XTestImports = pp.XTestImports
+ }
+ 
+ // A PackageError describes an error loading information about a package.
+@@ -69,9 +106,11 @@ type PackageError struct {
+ 
+ func (p *PackageError) Error() string {
+ 	if p.Pos != "" {
+-		return strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Pos + ": " + p.Err
++		// Omit import stack.  The full path to the file where the error
++		// is the most important thing.
++		return p.Pos + ": " + p.Err
+ 	}
+-	return strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Err
++	return "package " + strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Err
+ }
+ 
+ // An importStack is a stack of import paths.
+@@ -122,86 +161,46 @@ func reloadPackage(arg string, stk *importStack) *Package {
+ 	return loadPackage(arg, stk)
+ }
+ 
+-// loadPackage scans directory named by arg,
+-// which is either an import path or a file system path
+-// (if the latter, must be rooted or begin with . or ..),
+-// and returns a *Package describing the package
+-// found in that directory.
+-func loadPackage(arg string, stk *importStack) *Package {
+-	stk.push(arg)
++// loadImport scans the directory named by path, which must be an import path,
++// but possibly a local import path (an absolute file system path or one beginning
++// with ./ or ../).  A local relative path is interpreted relative to srcDir.
++// It returns a *Package describing the package found in that directory.
++func loadImport(path string, srcDir string, stk *importStack, importPos []token.Position) *Package {
++	stk.push(path)
+ 	defer stk.pop()
+ 
+-	// Check package cache.
+-	if p := packageCache[arg]; p != nil {
+-		return reusePackage(p, stk)
+-	}
+-
+-	// Find basic information about package path.
+-	isCmd := false
+-	t, importPath, err := build.FindTree(arg)
+-	dir := ""
+-	// Maybe it is a standard command.
+-	if err != nil && strings.HasPrefix(arg, "cmd/") {
+-		goroot := build.Path[0]
+-		p := filepath.Join(goroot.Path, "src", arg)
+-		if st, err1 := os.Stat(p); err1 == nil && st.IsDir() {
+-			t = goroot
+-			importPath = arg
+-			dir = p
+-			err = nil
+-			isCmd = true
+-		}
+-	}
+-	// Maybe it is a path to a standard command.
+-	if err != nil && (filepath.IsAbs(arg) || isLocalPath(arg)) {
+-		arg, _ := filepath.Abs(arg)
+-		goroot := build.Path[0]
+-		cmd := filepath.Join(goroot.Path, "src", "cmd") + string(filepath.Separator)
+-		if st, err1 := os.Stat(arg); err1 == nil && st.IsDir() && strings.HasPrefix(arg, cmd) {
+-			t = goroot
+-			importPath = filepath.FromSlash(arg[len(cmd):])
+-			dir = arg
+-			err = nil
+-			isCmd = true
+-		}
++	// Determine canonical identifier for this package.
++	// For a local path (./ or ../) the identifier is the full
++	// directory name.  Otherwise it is the import path.
++	pkgid := path
++	isLocal := build.IsLocalImport(path)
++	if isLocal {
++		pkgid = filepath.Join(srcDir, path)
+ 	}
+-	if err != nil {
+-		p := &Package{
+-			ImportPath: arg,
+-			Error: &PackageError{
+-				ImportStack: stk.copy(),
+-				Err:         err.Error(),
+-			},
+-			Incomplete: true,
+-		}
+-		packageCache[arg] = p
+-		return p
++	if p := packageCache[pkgid]; p != nil {
++		return reusePackage(p, stk)
+ 	}
+ 
+-	if dir == "" {
+-		dir = filepath.Join(t.SrcDir(), filepath.FromSlash(importPath))
+-	}
++	p := new(Package)
++	packageCache[pkgid] = p
+ 
+-	// Maybe we know the package by its directory.
+-	p := packageCache[dir]
+-	if p != nil {
+-		packageCache[importPath] = p
+-		p = reusePackage(p, stk)
+-	} else {
+-		p = scanPackage(&buildContext, t, arg, importPath, dir, stk, false)
++	// Load package.
++	// Import always returns bp != nil, even if an error occurs,
++	// in order to return partial information.
++	bp, err := buildContext.Import(path, srcDir, build.AllowBinary)
++	p.load(stk, bp, err)
++	if p.Error != nil && len(importPos) > 0 {
++		pos := importPos[0]
++		pos.Filename = shortPath(pos.Filename)
++		p.Error.Pos = pos.String()
+ 	}
+ 
+-	// If we loaded the files from the Go root's cmd/ tree,
+-	// it must be a command (package main).
+-	if isCmd && p.Error == nil && p.Name != "main" {
+-		p.Error = &PackageError{
+-			ImportStack: stk.copy(),
+-			Err:         fmt.Sprintf("expected package main in %q; found package %s", dir, p.Name),
+-		}
+-	}
+ 	return p
+ }
+ 
++// reusePackage reuses package p to satisfy the import at the top
++// of the import stack stk.  If this use causes an import loop,
++// reusePackage updates p's error information to record the loop.
+ func reusePackage(p *Package, stk *importStack) *Package {
+ 	// We use p.imports==nil to detect a package that
+ 	// is in the midst of its own loadPackage call
+@@ -212,6 +211,7 @@ func reusePackage(p *Package, stk *importStack) *Package {
+ 				ImportStack: stk.copy(),
+ 				Err:         "import loop",
+ 			}
++			panic("loop")
+ 		}
+ 		p.Incomplete = true
+ 	}
+@@ -222,7 +222,7 @@ func reusePackage(p *Package, stk *importStack) *Package {
+ }
+ 
+ // isGoTool is the list of directories for Go programs that are installed in
+-// $GOROOT/bin/tool.
++// $GOROOT/pkg/tool.
+ var isGoTool = map[string]bool{
+ 	"cmd/api":      true,
+ 	"cmd/cgo":      true,
+@@ -233,126 +233,75 @@ var isGoTool = map[string]bool{
+ 	"exp/ebnflint": true,
+ }
+ 
+-func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack, useAllFiles bool) *Package {
+-	// Read the files in the directory to learn the structure
+-	// of the package.
+-	p := &Package{
+-		ImportPath: importPath,
+-		Dir:        dir,
+-		Standard:   t.Goroot && !strings.Contains(importPath, "."),
+-		t:          t,
+-	}
+-	packageCache[dir] = p
+-	packageCache[importPath] = p
+-
+-	ctxt.UseAllFiles = useAllFiles
+-	info, err := ctxt.ScanDir(dir)
+-	useAllFiles = false // flag does not apply to dependencies
++// expandScanner expands a scanner.List error into all the errors in the list.
++// The default Error method only shows the first error.
++func expandScanner(err error) error {
++	// Look for parser errors.
++	if err, ok := err.(scanner.ErrorList); ok {
++		// Prepare error with \n before each message.
++		// When printed in something like context: %v
++		// this will put the leading file positions each on
++		// its own line.  It will also show all the errors
++		// instead of just the first, as err.Error does.
++		var buf bytes.Buffer
++		for _, e := range err {
++			e.Pos.Filename = shortPath(e.Pos.Filename)
++			buf.WriteString("\n")
++			buf.WriteString(e.Error())
++		}
++		return errors.New(buf.String())
++	}
++	return err
++}
++
++// load populates p using information from bp, err, which should
++// be the result of calling build.Context.Import.
++func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package {
++	p.copyBuild(bp)
++	p.local = build.IsLocalImport(p.ImportPath)
++	if p.local {
++		// The correct import for this package depends on which
++		// directory you are in.  Instead, record the full directory path.
++		// That can't be used as an import path at all, but at least
++		// it uniquely identifies the package.
++		p.ImportPath = p.Dir
++	}
+ 	if err != nil {
++		p.Incomplete = true
++		err = expandScanner(err)
+ 		p.Error = &PackageError{
+ 			ImportStack: stk.copy(),
+ 			Err:         err.Error(),
+ 		}
+-		// Look for parser errors.
+-		if err, ok := err.(scanner.ErrorList); ok {
+-			// Prepare error with \n before each message.
+-			// When printed in something like context: %v
+-			// this will put the leading file positions each on
+-			// its own line.  It will also show all the errors
+-			// instead of just the first, as err.Error does.
+-			var buf bytes.Buffer
+-			for _, e := range err {
+-				buf.WriteString("\n")
+-				buf.WriteString(e.Error())
+-			}
+-			p.Error.Err = buf.String()
+-		}
+-		p.Incomplete = true
+ 		return p
+ 	}
+ 
+-	p.info = info
+-	p.Name = info.Package
+-	p.Doc = doc.Synopsis(info.PackageComment.Text())
+-	p.Imports = info.Imports
+-	p.GoFiles = info.GoFiles
+-	p.TestGoFiles = info.TestGoFiles
+-	p.XTestGoFiles = info.XTestGoFiles
+-	p.CFiles = info.CFiles
+-	p.HFiles = info.HFiles
+-	p.SFiles = info.SFiles
+-	p.CgoFiles = info.CgoFiles
+-	p.CgoCFLAGS = info.CgoCFLAGS
+-	p.CgoLDFLAGS = info.CgoLDFLAGS
+-
+-	if info.Package == "main" {
+-		_, elem := filepath.Split(importPath)
+-		full := ctxt.GOOS + "_" + ctxt.GOARCH + "/" + elem
+-		if t.Goroot && isGoTool[p.ImportPath] {
+-			p.target = filepath.Join(t.Path, "pkg/tool", full)
+-		} else {
+-			if ctxt.GOOS != toolGOOS || ctxt.GOARCH != toolGOARCH {
+-				// Install cross-compiled binaries to subdirectories of bin.
+-				elem = full
+-			}
+-			p.target = filepath.Join(t.BinDir(), elem)
++	if p.Name == "main" {
++		_, elem := filepath.Split(p.Dir)
++		full := buildContext.GOOS + "_" + buildContext.GOARCH + "/" + elem
++		if buildContext.GOOS != toolGOOS || buildContext.GOARCH != toolGOARCH {
++			// Install cross-compiled binaries to subdirectories of bin.
++			elem = full
++		}
++		p.target = filepath.Join(p.build.BinDir, elem)
++		if p.Goroot && isGoTool[p.ImportPath] {
++			p.target = filepath.Join(gorootPkg, "tool", full)
+ 		}
+-		if ctxt.GOOS == "windows" {
++		if buildContext.GOOS == "windows" {
+ 			p.target += ".exe"
+ 		}
++	} else if p.local {
++		// Local import turned into absolute path.
++		// No permanent install target.
++		p.target = ""
+ 	} else {
+-		dir := t.PkgDir()
+-		// For gccgo, rewrite p.target with the expected library name.
+-		if _, ok := buildToolchain.(gccgoToolchain); ok {
+-			dir = filepath.Join(filepath.Dir(dir), "gccgo", filepath.Base(dir))
+-		}
+-		p.target = buildToolchain.pkgpath(dir, p)
+-	}
+-
+-	var built time.Time
+-	if fi, err := os.Stat(p.target); err == nil {
+-		built = fi.ModTime()
+-	}
+-
+-	// Build list of full paths to all Go files in the package,
+-	// for use by commands like go fmt.
+-	for _, f := range info.GoFiles {
+-		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
+-	}
+-	for _, f := range info.CgoFiles {
+-		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
+-	}
+-	for _, f := range info.TestGoFiles {
+-		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
+-	}
+-	for _, f := range info.XTestGoFiles {
+-		p.gofiles = append(p.gofiles, filepath.Join(dir, f))
+-	}
+-
+-	sort.Strings(p.gofiles)
+-
+-	srcss := [][]string{
+-		p.GoFiles,
+-		p.CFiles,
+-		p.HFiles,
+-		p.SFiles,
+-		p.CgoFiles,
+-	}
+-Stale:
+-	for _, srcs := range srcss {
+-		for _, src := range srcs {
+-			if fi, err := os.Stat(filepath.Join(p.Dir, src)); err != nil || fi.ModTime().After(built) {
+-				//println("STALE", p.ImportPath, "needs", src, err)
+-				p.Stale = true
+-				break Stale
+-			}
+-		}
++		p.target = buildToolchain.pkgpath(p.build.PkgRoot, p, true)
+ 	}
+ 
+ 	importPaths := p.Imports
+ 	// Packages that use cgo import runtime/cgo implicitly,
+ 	// except runtime/cgo itself.
+-	if len(info.CgoFiles) > 0 && (!p.Standard || p.ImportPath != "runtime/cgo") {
++	if len(p.CgoFiles) > 0 && (!p.Standard || p.ImportPath != "runtime/cgo") {
+ 		importPaths = append(importPaths, "runtime/cgo")
+ 	}
+ 	// Everything depends on runtime, except runtime and unsafe.
+@@ -360,45 +309,34 @@ Stale:
+ 		importPaths = append(importPaths, "runtime")
+ 	}
+ 
+-	// Record package under both import path and full directory name.
+-	packageCache[dir] = p
+-	packageCache[importPath] = p
++	// Build list of full paths to all Go files in the package,
++	// for use by commands like go fmt.
++	p.gofiles = stringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)
++	for i := range p.gofiles {
++		p.gofiles[i] = filepath.Join(p.Dir, p.gofiles[i])
++	}
++	sort.Strings(p.gofiles)
+ 
+ 	// Build list of imported packages and full dependency list.
+ 	imports := make([]*Package, 0, len(p.Imports))
+ 	deps := make(map[string]bool)
+-	for _, path := range importPaths {
++	for i, path := range importPaths {
+ 		if path == "C" {
+ 			continue
+ 		}
+-		deps[path] = true
+-		p1 := loadPackage(path, stk)
+-		if p1.Error != nil {
+-			if info.ImportPos != nil && len(info.ImportPos[path]) > 0 {
+-				pos := info.ImportPos[path][0]
+-				p1.Error.Pos = pos.String()
+-			}
++		p1 := loadImport(path, p.Dir, stk, p.build.ImportPos[path])
++		if p1.local {
++			path = p1.Dir
++			importPaths[i] = path
+ 		}
++		deps[path] = true
+ 		imports = append(imports, p1)
+ 		for _, dep := range p1.Deps {
+ 			deps[dep] = true
+ 		}
+-		if p1.Stale {
+-			p.Stale = true
+-		}
+ 		if p1.Incomplete {
+ 			p.Incomplete = true
+ 		}
+-		// p1.target can be empty only if p1 is not a real package,
+-		// such as package unsafe or the temporary packages
+-		// created during go test.
+-		if !p.Stale && p1.target != "" {
+-			if fi, err := os.Stat(p1.target); err != nil || fi.ModTime().After(built) {
+-				//println("STALE", p.ImportPath, "needs", p1.target, err)
+-				//println("BUILT", built.String(), "VS", fi.ModTime().String())
+-				p.Stale = true
+-			}
+-		}
+ 	}
+ 	p.imports = imports
+ 
+@@ -418,17 +356,193 @@ Stale:
+ 		}
+ 	}
+ 
+-	// unsafe is a fake package and is never out-of-date.
++	// unsafe is a fake package.
+ 	if p.Standard && p.ImportPath == "unsafe" {
+-		p.Stale = false
+ 		p.target = ""
+ 	}
+ 
+ 	p.Target = p.target
+-
+ 	return p
+ }
+ 
++// packageList returns the list of packages in the dag rooted at roots
++// as visited in a depth-first post-order traversal.
++func packageList(roots []*Package) []*Package {
++	seen := map[*Package]bool{}
++	all := []*Package{}
++	var walk func(*Package)
++	walk = func(p *Package) {
++		if seen[p] {
++			return
++		}
++		seen[p] = true
++		for _, p1 := range p.deps {
++			walk(p1)
++		}
++		all = append(all, p)
++	}
++	for _, root := range roots {
++		walk(root)
++	}
++	return all
++}
++
++// computeStale computes the Stale flag in the package dag that starts
++// at the named pkgs (command-line arguments).
++func computeStale(pkgs []*Package) {
++	topRoot := map[string]bool{}
++	for _, p := range pkgs {
++		topRoot[p.Root] = true
++	}
++
++	for _, p := range packageList(pkgs) {
++		p.Stale = isStale(p, topRoot)
++	}
++}
++
++// isStale reports whether package p needs to be rebuilt.
++func isStale(p *Package, topRoot map[string]bool) bool {
++	if p.Standard && p.ImportPath == "unsafe" {
++		// fake, builtin package
++		return false
++	}
++	if p.Error != nil {
++		return true
++	}
++
++	// A package without Go sources means we only found
++	// the installed .a file.  Since we don't know how to rebuild
++	// it, it can't be stale, even if -a is set.  This enables binary-only
++	// distributions of Go packages, although such binaries are
++	// only useful with the specific version of the toolchain that
++	// created them.
++	if len(p.gofiles) == 0 {
++		return false
++	}
++
++	if buildA || p.target == "" || p.Stale {
++		return true
++	}
++
++	// Package is stale if completely unbuilt.
++	var built time.Time
++	if fi, err := os.Stat(p.target); err == nil {
++		built = fi.ModTime()
++	}
++	if built.IsZero() {
++		return true
++	}
++
++	olderThan := func(file string) bool {
++		fi, err := os.Stat(file)
++		return err != nil || fi.ModTime().After(built)
++	}
++
++	// Package is stale if a dependency is, or if a dependency is newer.
++	for _, p1 := range p.deps {
++		if p1.Stale || p1.target != "" && olderThan(p1.target) {
++			return true
++		}
++	}
++
++	// As a courtesy to developers installing new versions of the compiler
++	// frequently, define that packages are stale if they are
++	// older than the compiler, and commands if they are older than
++	// the linker.  This heuristic will not work if the binaries are back-dated,
++	// as some binary distributions may do, but it does handle a very
++	// common case.  See issue 3036.
++	if olderThan(buildToolchain.compiler()) {
++		return true
++	}
++	if p.build.IsCommand() && olderThan(buildToolchain.linker()) {
++		return true
++	}
++
++	// Have installed copy, probably built using current compilers,
++	// and built after its imported packages.  The only reason now
++	// that we'd have to rebuild it is if the sources were newer than
++	// the package.   If a package p is not in the same tree as any
++	// package named on the command-line, assume it is up-to-date
++	// no matter what the modification times on the source files indicate.
++	// This avoids rebuilding $GOROOT packages when people are
++	// working outside the Go root, and it effectively makes each tree
++	// listed in $GOPATH a separate compilation world.
++	// See issue 3149.
++	if p.Root != "" && !topRoot[p.Root] {
++		return false
++	}
++
++	srcs := stringList(p.GoFiles, p.CFiles, p.HFiles, p.SFiles, p.CgoFiles)
++	for _, src := range srcs {
++		if olderThan(filepath.Join(p.Dir, src)) {
++			return true
++		}
++	}
++
++	return false
++}
++
++var cwd, _ = os.Getwd()
++
++var cmdCache = map[string]*Package{}
++
++// loadPackage is like loadImport but is used for command-line arguments,
++// not for paths found in import statements.  In addition to ordinary import paths,
++// loadPackage accepts pseudo-paths beginning with cmd/ to denote commands
++// in the Go command directory, as well as paths to those directories.
++func loadPackage(arg string, stk *importStack) *Package {
++	if build.IsLocalImport(arg) {
++		dir := arg
++		if !filepath.IsAbs(dir) {
++			if abs, err := filepath.Abs(dir); err == nil {
++				// interpret relative to current directory
++				dir = abs
++			}
++		}
++		if sub, ok := hasSubdir(gorootSrc, dir); ok && strings.HasPrefix(sub, "cmd/") && !strings.Contains(sub[4:], "/") {
++			arg = sub
++		}
++	}
++	if strings.HasPrefix(arg, "cmd/") && !strings.Contains(arg[4:], "/") {
++		if p := cmdCache[arg]; p != nil {
++			return p
++		}
++		stk.push(arg)
++		defer stk.pop()
++		bp, err := build.ImportDir(filepath.Join(gorootSrc, arg), 0)
++		bp.ImportPath = arg
++		bp.Goroot = true
++		bp.BinDir = gobin
++		bp.Root = goroot
++		bp.SrcRoot = gorootSrc
++		p := new(Package)
++		cmdCache[arg] = p
++		p.load(stk, bp, err)
++		if p.Error == nil && p.Name != "main" {
++			p.Error = &PackageError{
++				ImportStack: stk.copy(),
++				Err:         fmt.Sprintf("expected package main but found package %s in %s", p.Name, p.Dir),
++			}
++		}
++		return p
++	}
++
++	// Wasn't a command; must be a package.
++	// If it is a local import path but names a standard package,
++	// we treat it as if the user specified the standard package.
++	// This lets you run go test ./ioutil in package io and be
++	// referring to io/ioutil rather than a hypothetical import of
++	// "./ioutil".
++	if build.IsLocalImport(arg) {
++		bp, _ := build.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
++		if bp.ImportPath != "" && bp.ImportPath != "." {
++			arg = bp.ImportPath
++		}
++	}
++
++	return loadImport(arg, cwd, stk, nil)
++}
++
+ // packages returns the packages named by the
+ // command line arguments 'args'.  If a named package
+ // cannot be loaded at all (for example, if the directory does not exist),
+@@ -438,11 +552,8 @@ Stale:
+ // package is still returned, with p.Incomplete = true
+ // and details in p.DepsErrors.
+ func packages(args []string) []*Package {
+-	args = importPaths(args)
+ 	var pkgs []*Package
+-	var stk importStack
+-	for _, arg := range args {
+-		pkg := loadPackage(arg, &stk)
++	for _, pkg := range packagesAndErrors(args) {
+ 		if pkg.Error != nil {
+ 			errorf("can't load package: %s", pkg.Error)
+ 			continue
+@@ -452,17 +563,24 @@ func packages(args []string) []*Package {
+ 	return pkgs
+ }
+ 
+-// packagesAndErrors is like 'packages' but returns a 
++// packagesAndErrors is like 'packages' but returns a
+ // *Package for every argument, even the ones that
+ // cannot be loaded at all.
+ // The packages that fail to load will have p.Error != nil.
+ func packagesAndErrors(args []string) []*Package {
++	if len(args) > 0 && strings.HasSuffix(args[0], ".go") {
++		return []*Package{goFilesPackage(args)}
++	}
++
+ 	args = importPaths(args)
+ 	var pkgs []*Package
+ 	var stk importStack
+ 	for _, arg := range args {
+ 		pkgs = append(pkgs, loadPackage(arg, &stk))
+ 	}
++
++	computeStale(pkgs)
++
+ 	return pkgs
+ }
+ 
+@@ -490,3 +608,26 @@ func packagesForBuild(args []string) []*Package {
+ 	exitIfErrors()
+ 	return pkgs
+ }
++
++// hasSubdir reports whether dir is a subdirectory of
++// (possibly multiple levels below) root.
++// If so, it sets rel to the path fragment that must be
++// appended to root to reach dir.
++func hasSubdir(root, dir string) (rel string, ok bool) {
++	if p, err := filepath.EvalSymlinks(root); err == nil {
++		root = p
++	}
++	if p, err := filepath.EvalSymlinks(dir); err == nil {
++		dir = p
++	}
++	const sep = string(filepath.Separator)
++	root = filepath.Clean(root)
++	if !strings.HasSuffix(root, sep) {
++		root += sep
++	}
++	dir = filepath.Clean(dir)
++	if !strings.HasPrefix(dir, root) {
++		return "", false
++	}
++	return filepath.ToSlash(dir[len(root):]), true
++}
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index f317620e72..522baabb23 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -12,14 +12,12 @@ import (
+ )
+ 
+ var cmdRun = &Command{
+-	UsageLine: "run [-a] [-n] [-x] gofiles... [arguments...]",
++	UsageLine: "run [build flags] gofiles... [arguments...]",
+ 	Short:     "compile and run Go program",
+ 	Long: `
+ Run compiles and runs the main package comprising the named Go source files.
+ 
+-The -a flag forces reinstallation of packages that are already up-to-date.
+-The -n flag prints the commands but does not run them.
+-The -x flag prints the commands.
++For more about build flags, see 'go help build'.
+ 
+ See also: go build.
+ 	`,
+@@ -46,7 +44,7 @@ func runRun(cmd *Command, args []string) {
+ 		i++
+ 	}
+ 	files, cmdArgs := args[:i], args[i:]
+-	p := goFilesPackage(files, "")
++	p := goFilesPackage(files)
+ 	p.target = "" // must build - not up to date
+ 	a1 := b.action(modeBuild, modeBuild, p)
+ 	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+new file mode 100755
+index 0000000000..b8da82513b
+--- /dev/null
++++ b/src/cmd/go/test.bash
+@@ -0,0 +1,54 @@
++#!/bin/bash
++# Copyright 2012 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++go build -o testgo
++
++ok=true
++
++# Test that error messages have file:line information
++# at beginning of line.
++for i in testdata/errmsg/*.go
++do
++	# TODO: |cat should not be necessary here but is.
++	./testgo test $i 2>&1 | cat >err.out || true
++	if ! grep -q "^$i:" err.out; then
++		echo "$i: missing file:line in error message"
++		cat err.out
++		ok=false
++	fi
++done
++
++# Test local (./) imports.
++./testgo build -o hello testdata/local/easy.go
++./hello >hello.out
++if ! grep -q '^easysub\.Hello' hello.out; then
++	echo "testdata/local/easy.go did not generate expected output"
++	cat hello.out
++	ok=false
++fi
++
++./testgo build -o hello testdata/local/hard.go
++./hello >hello.out
++if ! grep -q '^sub\.Hello' hello.out || ! grep -q '^subsub\.Hello' hello.out ; then
++	echo "testdata/local/hard.go did not generate expected output"
++	cat hello.out
++	ok=false
++fi
++
++rm -f err.out hello.out hello
++
++# Test that go install x.go fails.
++if ./testgo install testdata/local/easy.go >/dev/null 2>&1; then
++	echo "go install testdata/local/easy.go succeeded"
++	ok=false
++fi
++
++if $ok; then
++	echo PASS
++else
++	echo FAIL
++	exit 1
++fi
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 3b33c4fe22..83f4d151a8 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -11,7 +11,6 @@ import (
+ 	"go/build"
+ 	"go/doc"
+ 	"go/parser"
+-	"go/scanner"
+ 	"go/token"
+ 	"os"
+ 	"os/exec"
+@@ -33,7 +32,7 @@ func init() {
+ 
+ var cmdTest = &Command{
+ 	CustomFlags: true,
+-	UsageLine:   "test [-c] [-i] [-p n] [-x] [importpath...] [flags for test binary]",
++	UsageLine:   "test [-c] [-i] [build flags] [packages] [flags for test binary]",
+ 	Short:       "test packages",
+ 	Long: `
+ 'Go test' automates testing the packages named by the import paths.
+@@ -56,7 +55,7 @@ with source in the current directory, including tests, and runs the tests.
+ The package is built in a temporary directory so it does not interfere with the
+ non-test installation.
+ 
+-The flags handled by 'go test' itself are:
++In addition to the build flags, the flags handled by 'go test' itself are:
+ 
+ 	-c  Compile the test binary to pkg.test but do not run it.
+ 
+@@ -64,16 +63,11 @@ The flags handled by 'go test' itself are:
+ 	    Install packages that are dependencies of the test.
+ 	    Do not run the test.
+ 
+-	-p n
+-	    Compile and test up to n packages in parallel.
+-	    The default value is the number of CPUs available.
+-
+-	-x  Print each subcommand go test executes.
+-
+ The test binary also accepts flags that control execution of the test; these
+ flags are also accessible by 'go test'.  See 'go help testflag' for details.
+ 
+-See 'go help importpath' for more about import paths.
++For more about build flags, see 'go help build'.
++For more about specifying packages, see 'go help packages'.
+ 
+ See also: go build, go vet.
+ `,
+@@ -134,7 +128,7 @@ directory containing the package sources, has its own flags:
+ 		The default is 1 second.
+ 
+ 	-test.cpu 1,2,4
+-	    Specify a list of GOMAXPROCS values for which the tests or 
++	    Specify a list of GOMAXPROCS values for which the tests or
+ 	    benchmarks should be executed.  The default is the current value
+ 	    of GOMAXPROCS.
+ 
+@@ -265,10 +259,10 @@ func runTest(cmd *Command, args []string) {
+ 		}
+ 		for _, p := range pkgs {
+ 			// Dependencies for each test.
+-			for _, path := range p.info.Imports {
++			for _, path := range p.Imports {
+ 				deps[path] = true
+ 			}
+-			for _, path := range p.info.TestImports {
++			for _, path := range p.TestImports {
+ 				deps[path] = true
+ 			}
+ 		}
+@@ -307,17 +301,15 @@ func runTest(cmd *Command, args []string) {
+ 	for _, p := range pkgs {
+ 		buildTest, runTest, printTest, err := b.test(p)
+ 		if err != nil {
+-			if list, ok := err.(scanner.ErrorList); ok {
+-				const n = 10
+-				if len(list) > n {
+-					list = list[:n]
+-				}
+-				for _, err := range list {
+-					errorf("%s", err)
+-				}
+-				continue
++			str := err.Error()
++			if strings.HasPrefix(str, "\n") {
++				str = str[1:]
++			}
++			if p.ImportPath != "" {
++				errorf("# %s\n%s", p.ImportPath, str)
++			} else {
++				errorf("%s", str)
+ 			}
+-			errorf("%s", err)
+ 			continue
+ 		}
+ 		builds = append(builds, buildTest)
+@@ -380,7 +372,7 @@ func runTest(cmd *Command, args []string) {
+ }
+ 
+ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
+-	if len(p.info.TestGoFiles)+len(p.info.XTestGoFiles) == 0 {
++	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+ 		build := &action{p: p}
+ 		run := &action{p: p}
+ 		print := &action{f: (*builder).notest, p: p, deps: []*action{build}}
+@@ -393,20 +385,23 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	//	pmain - pkg.test binary
+ 	var ptest, pxtest, pmain *Package
+ 
+-	// go/build does not distinguish the dependencies used
+-	// by the TestGoFiles from the dependencies used by the
+-	// XTestGoFiles, so we build one list and use it for both
+-	// ptest and pxtest.  No harm done.
+-	var imports []*Package
++	var imports, ximports []*Package
+ 	var stk importStack
+ 	stk.push(p.ImportPath + "_test")
+-	for _, path := range p.info.TestImports {
+-		p1 := loadPackage(path, &stk)
++	for _, path := range p.TestImports {
++		p1 := loadImport(path, p.Dir, &stk, p.build.TestImportPos[path])
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+ 		}
+ 		imports = append(imports, p1)
+ 	}
++	for _, path := range p.XTestImports {
++		p1 := loadImport(path, p.Dir, &stk, p.build.XTestImportPos[path])
++		if p1.Error != nil {
++			return nil, nil, nil, p1.Error
++		}
++		ximports = append(ximports, p1)
++	}
+ 	stk.pop()
+ 
+ 	// Use last element of import path, not package name.
+@@ -429,7 +424,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	// We write the external test package archive to
+ 	// $WORK/unicode/utf8/_test/unicode/utf8_test.a.
+ 	testDir := filepath.Join(b.work, filepath.FromSlash(p.ImportPath+"/_test"))
+-	ptestObj := buildToolchain.pkgpath(testDir, p)
++	ptestObj := buildToolchain.pkgpath(testDir, p, false)
+ 
+ 	// Create the directory for the .a files.
+ 	ptestDir, _ := filepath.Split(ptestObj)
+@@ -441,17 +436,27 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	}
+ 
+ 	// Test package.
+-	if len(p.info.TestGoFiles) > 0 {
++	if len(p.TestGoFiles) > 0 {
+ 		ptest = new(Package)
+ 		*ptest = *p
+ 		ptest.GoFiles = nil
+ 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
+-		ptest.GoFiles = append(ptest.GoFiles, p.info.TestGoFiles...)
++		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
+ 		ptest.target = ""
+-		ptest.Imports = stringList(p.info.Imports, p.info.TestImports)
++		ptest.Imports = stringList(p.Imports, p.TestImports)
+ 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
+ 		ptest.pkgdir = testDir
+ 		ptest.fake = true
++		ptest.build = new(build.Package)
++		*ptest.build = *p.build
++		m := map[string][]token.Position{}
++		for k, v := range p.build.ImportPos {
++			m[k] = append(m[k], v...)
++		}
++		for k, v := range p.build.TestImportPos {
++			m[k] = append(m[k], v...)
++		}
++		ptest.build.ImportPos = m
+ 		a := b.action(modeBuild, modeBuild, ptest)
+ 		a.objdir = testDir + string(filepath.Separator)
+ 		a.objpkg = ptestObj
+@@ -462,23 +467,23 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	}
+ 
+ 	// External test package.
+-	if len(p.info.XTestGoFiles) > 0 {
++	if len(p.XTestGoFiles) > 0 {
+ 		pxtest = &Package{
+ 			Name:       p.Name + "_test",
+ 			ImportPath: p.ImportPath + "_test",
+ 			Dir:        p.Dir,
+-			GoFiles:    p.info.XTestGoFiles,
+-			Imports:    p.info.TestImports,
+-			t:          p.t,
+-			info:       &build.DirInfo{},
+-			imports:    imports,
+-			pkgdir:     testDir,
+-			fake:       true,
++			GoFiles:    p.XTestGoFiles,
++			Imports:    p.XTestImports,
++			build: &build.Package{
++				ImportPos: p.build.XTestImportPos,
++			},
++			imports: append(ximports, ptest),
++			pkgdir:  testDir,
++			fake:    true,
+ 		}
+-		pxtest.imports = append(pxtest.imports, ptest)
+ 		a := b.action(modeBuild, modeBuild, pxtest)
+ 		a.objdir = testDir + string(filepath.Separator)
+-		a.objpkg = buildToolchain.pkgpath(testDir, pxtest)
++		a.objpkg = buildToolchain.pkgpath(testDir, pxtest, false)
+ 		a.target = a.objpkg
+ 	}
+ 
+@@ -487,9 +492,8 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		Name:    "main",
+ 		Dir:     testDir,
+ 		GoFiles: []string{"_testmain.go"},
+-		t:       p.t,
+-		info:    &build.DirInfo{},
+ 		imports: []*Package{ptest},
++		build:   &build.Package{},
+ 		fake:    true,
+ 	}
+ 	if pxtest != nil {
+@@ -498,11 +502,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 
+ 	// The generated main also imports testing and regexp.
+ 	stk.push("testmain")
+-	ptesting := loadPackage("testing", &stk)
++	ptesting := loadImport("testing", "", &stk, nil)
+ 	if ptesting.Error != nil {
+ 		return nil, nil, nil, ptesting.Error
+ 	}
+-	pregexp := loadPackage("regexp", &stk)
++	pregexp := loadImport("regexp", "", &stk, nil)
+ 	if pregexp.Error != nil {
+ 		return nil, nil, nil, pregexp.Error
+ 	}
+@@ -511,7 +515,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	a := b.action(modeBuild, modeBuild, pmain)
+ 	a.objdir = testDir + string(filepath.Separator)
+ 	a.objpkg = filepath.Join(testDir, "main.a")
+-	a.target = filepath.Join(testDir, testBinary) + b.exe
++	a.target = filepath.Join(testDir, testBinary) + exeSuffix
+ 	pmainAction := a
+ 
+ 	if testC {
+@@ -520,7 +524,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 			f:      (*builder).install,
+ 			deps:   []*action{pmainAction},
+ 			p:      pmain,
+-			target: testBinary + b.exe,
++			target: testBinary + exeSuffix,
+ 		}
+ 		printAction = &action{p: p, deps: []*action{runAction}} // nop
+ 	} else {
+@@ -664,14 +668,13 @@ func isTest(name, prefix string) bool {
+ func writeTestmain(out string, p *Package) error {
+ 	t := &testFuncs{
+ 		Package: p,
+-		Info:    p.info,
+ 	}
+-	for _, file := range p.info.TestGoFiles {
++	for _, file := range p.TestGoFiles {
+ 		if err := t.load(filepath.Join(p.Dir, file), "_test", &t.NeedTest); err != nil {
+ 			return err
+ 		}
+ 	}
+-	for _, file := range p.info.XTestGoFiles {
++	for _, file := range p.XTestGoFiles {
+ 		if err := t.load(filepath.Join(p.Dir, file), "_xtest", &t.NeedXtest); err != nil {
+ 			return err
+ 		}
+@@ -695,7 +698,6 @@ type testFuncs struct {
+ 	Benchmarks []testFunc
+ 	Examples   []testFunc
+ 	Package    *Package
+-	Info       *build.DirInfo
+ 	NeedTest   bool
+ 	NeedXtest  bool
+ }
+@@ -711,7 +713,7 @@ var testFileSet = token.NewFileSet()
+ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
+ 	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
+ 	if err != nil {
+-		return err
++		return expandScanner(err)
+ 	}
+ 	for _, d := range f.Decls {
+ 		n, ok := d.(*ast.FuncDecl)
+diff --git a/src/cmd/go/testdata/errmsg/x.go b/src/cmd/go/testdata/errmsg/x.go
+new file mode 100644
+index 0000000000..60f5b6e98d
+--- /dev/null
++++ b/src/cmd/go/testdata/errmsg/x.go
+@@ -0,0 +1,3 @@
++package foo
++
++import "bar"
+diff --git a/src/cmd/go/testdata/errmsg/x1_test.go b/src/cmd/go/testdata/errmsg/x1_test.go
+new file mode 100644
+index 0000000000..eb1a6798c4
+--- /dev/null
++++ b/src/cmd/go/testdata/errmsg/x1_test.go
+@@ -0,0 +1,3 @@
++package foo_test
++
++import "bar"
+diff --git a/src/cmd/go/testdata/errmsg/x_test.go b/src/cmd/go/testdata/errmsg/x_test.go
+new file mode 100644
+index 0000000000..60f5b6e98d
+--- /dev/null
++++ b/src/cmd/go/testdata/errmsg/x_test.go
+@@ -0,0 +1,3 @@
++package foo
++
++import "bar"
+diff --git a/src/cmd/go/testdata/local/easy.go b/src/cmd/go/testdata/local/easy.go
+new file mode 100644
+index 0000000000..4eeb517da1
+--- /dev/null
++++ b/src/cmd/go/testdata/local/easy.go
+@@ -0,0 +1,7 @@
++package main
++
++import "./easysub"
++
++func main() {
++	easysub.Hello()
++}
+diff --git a/src/cmd/go/testdata/local/easysub/easysub.go b/src/cmd/go/testdata/local/easysub/easysub.go
+new file mode 100644
+index 0000000000..07040daee5
+--- /dev/null
++++ b/src/cmd/go/testdata/local/easysub/easysub.go
+@@ -0,0 +1,7 @@
++package easysub
++
++import "fmt"
++
++func Hello() {
++	fmt.Println("easysub.Hello")
++}
+diff --git a/src/cmd/go/testdata/local/hard.go b/src/cmd/go/testdata/local/hard.go
+new file mode 100644
+index 0000000000..2ffac3fd73
+--- /dev/null
++++ b/src/cmd/go/testdata/local/hard.go
+@@ -0,0 +1,7 @@
++package main
++
++import "./sub"
++
++func main() {
++	sub.Hello()
++}
+diff --git a/src/cmd/go/testdata/local/sub/sub.go b/src/cmd/go/testdata/local/sub/sub.go
+new file mode 100644
+index 0000000000..d5dbf6d5fa
+--- /dev/null
++++ b/src/cmd/go/testdata/local/sub/sub.go
+@@ -0,0 +1,12 @@
++package sub
++
++import (
++	"fmt"
++
++	subsub "./sub"
++)
++
++func Hello() {
++	fmt.Println("sub.Hello")
++	subsub.Hello()
++}
+diff --git a/src/cmd/go/testdata/local/sub/sub/subsub.go b/src/cmd/go/testdata/local/sub/sub/subsub.go
+new file mode 100644
+index 0000000000..4cc72233e1
+--- /dev/null
++++ b/src/cmd/go/testdata/local/sub/sub/subsub.go
+@@ -0,0 +1,7 @@
++package subsub
++
++import "fmt"
++
++func Hello() {
++	fmt.Println("subsub.Hello")
++}
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 2a7bdd0340..cf3410242f 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
++	"path/filepath"
+ 	"regexp"
+ 	"strings"
+ )
+@@ -269,6 +270,38 @@ type vcsPath struct {
+ 	regexp *regexp.Regexp // cached compiled form of re
+ }
+ 
++// vcsForDir inspects dir and its parents to determine the
++// version control system and code repository to use.
++// On return, root is the import path
++// corresponding to the root of the repository
++// (thus root is a prefix of importPath).
++func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
++	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
++	dir := filepath.Clean(p.Dir)
++	srcRoot := filepath.Clean(p.build.SrcRoot)
++	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
++		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
++	}
++
++	for len(dir) > len(srcRoot) {
++		for _, vcs := range vcsList {
++			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil && fi.IsDir() {
++				return vcs, dir[len(srcRoot)+1:], nil
++			}
++		}
++
++		// Move to parent.
++		ndir := filepath.Dir(dir)
++		if len(ndir) >= len(dir) {
++			// Shouldn't happen, but just in case, stop.
++			break
++		}
++		dir = ndir
++	}
++
++	return nil, "", fmt.Errorf("directory %q is not using a known version control system", dir)
++}
++
+ // vcsForImportPath analyzes importPath to determine the
+ // version control system, and code repository to use.
+ // On return, repo is the repository URL and root is the
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index 51dcec2bef..a672b99108 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -6,13 +6,13 @@ package main
+ 
+ var cmdVet = &Command{
+ 	Run:       runVet,
+-	UsageLine: "vet [importpath...]",
++	UsageLine: "vet [packages]",
+ 	Short:     "run go tool vet on packages",
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+ For more about vet, see 'godoc vet'.
+-For more about import paths, see 'go help importpath'.
++For more about specifying packages, see 'go help packages'.
+ 
+ To run the vet tool with specific options, run 'go tool vet'.
+ 
+diff --git a/src/make.bash b/src/make.bash
+index cb7051bab3..8b249ca3b6 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -3,6 +3,29 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++# Environment variables that control make.bash:
++#
++# GOROOT_FINAL: The expected final Go root, baked into binaries.
++# The default is the location of the Go tree during the build.
++#
++# GOHOSTARCH: The architecture for host tools (compilers and
++# binaries).  Binaries of this type must be executable on the current
++# system, so the only common reason to set this is to set
++# GOHOSTARCH=386 on an amd64 machine.
++#
++# GOARCH: The target architecture for installed packages and tools.
++#
++# GOOS: The target operating system for installed packages and tools.
++#
++# GCFLAGS: Additional 5g/6g/8g arguments to use when
++# building the packages and commands.
++#
++# LDFLAGS: Additional 5l/6l/8l arguments to use when
++# building the packages and commands.
++#
++# CGO_ENABLED: Setting this to 0 disables the use of cgo
++# in the built and installed packages and tools.
++
+ set -e
+ if [ ! -f run.bash ]; then
+ 	echo 'make.bash must be run from $GOROOT/src' 1>&2
+@@ -88,12 +111,12 @@ echo
+ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+ 	echo "# Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
+ 	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+-		$GOTOOLDIR/go_bootstrap install -v std
++		$GOTOOLDIR/go_bootstrap install -gcflags "$GCFLAGS" -ldflags "$LDFLAGS" -v std
+ 	echo
+ fi
+ 
+ echo "# Building packages and commands for $GOOS/$GOARCH."
+-$GOTOOLDIR/go_bootstrap install -v std
++$GOTOOLDIR/go_bootstrap install -gcflags "$GCFLAGS" -ldflags "$LDFLAGS" -v std
+ echo
+ 
+ rm -f $GOTOOLDIR/go_bootstrap

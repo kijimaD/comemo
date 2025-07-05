@@ -14,7 +14,7 @@ Date:   Fri Feb 22 10:17:22 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/callback.go                          |  4 +
  misc/cgo/test/cgo_linux_test.go                    |  1 -
  misc/cgo/test/cgo_test.go                          | 96 ++++++++++------------
@@ -73,3 +73,705 @@ Date:   Fri Feb 22 10:17:22 2019 -0500
  misc/cgo/test/{ => testdata}/issue9510b/b.go       |  0
  misc/cgo/test/{ => testdata}/test26213.go          |  2 +-
  57 files changed, 233 insertions(+), 70 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 4fc6b39ffa..d48aeaabd9 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -209,6 +209,10 @@ func testCallbackCallers(t *testing.T) {
+ 		if strings.HasPrefix(fname, "_") {
+ 			fname = path.Base(f.Name()[1:])
+ 		}
++		// In module mode, this package has a fully-qualified import path.
++		// Remove it if present.
++		fname = strings.TrimPrefix(fname, "misc/cgo/")
++
+ 		namei := ""
+ 		if i < len(name) {
+ 			namei = name[i]
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index 9c15f69e40..c2e96b5387 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -9,4 +9,3 @@ import "testing"
+ func TestSetgid(t *testing.T)  { testSetgid(t) }
+ func Test6997(t *testing.T)    { test6997(t) }
+ func TestBuildID(t *testing.T) { testBuildID(t) }
+-func Test9400(t *testing.T)    { test9400(t) }
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 2cb93d9c2e..2d6d269608 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -10,91 +10,85 @@ import "testing"
+ // so that they can use cgo (import "C").
+ // These wrappers are here for gotest to find.
+ 
+-func TestAlign(t *testing.T)                 { testAlign(t) }
+-func TestConst(t *testing.T)                 { testConst(t) }
+-func TestEnum(t *testing.T)                  { testEnum(t) }
+-func TestAtol(t *testing.T)                  { testAtol(t) }
+-func TestErrno(t *testing.T)                 { testErrno(t) }
+-func TestMultipleAssign(t *testing.T)        { testMultipleAssign(t) }
+-func TestUnsignedInt(t *testing.T)           { testUnsignedInt(t) }
+-func TestCallback(t *testing.T)              { testCallback(t) }
+-func TestCallbackGC(t *testing.T)            { testCallbackGC(t) }
+-func TestCallbackPanic(t *testing.T)         { testCallbackPanic(t) }
+-func TestCallbackPanicLoop(t *testing.T)     { testCallbackPanicLoop(t) }
+-func TestCallbackPanicLocked(t *testing.T)   { testCallbackPanicLocked(t) }
+-func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
+-func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
+-func TestBlocking(t *testing.T)              { testBlocking(t) }
+ func Test1328(t *testing.T)                  { test1328(t) }
+-func TestParallelSleep(t *testing.T)         { testParallelSleep(t) }
+-func TestSetEnv(t *testing.T)                { testSetEnv(t) }
+-func TestHelpers(t *testing.T)               { testHelpers(t) }
+-func TestLibgcc(t *testing.T)                { testLibgcc(t) }
+ func Test1635(t *testing.T)                  { test1635(t) }
+-func TestPrintf(t *testing.T)                { testPrintf(t) }
+-func Test4029(t *testing.T)                  { test4029(t) }
+-func TestBoolAlign(t *testing.T)             { testBoolAlign(t) }
++func Test3250(t *testing.T)                  { test3250(t) }
+ func Test3729(t *testing.T)                  { test3729(t) }
+ func Test3775(t *testing.T)                  { test3775(t) }
+-func TestCthread(t *testing.T)               { testCthread(t) }
+-func TestCallbackCallers(t *testing.T)       { testCallbackCallers(t) }
++func Test4029(t *testing.T)                  { test4029(t) }
++func Test4339(t *testing.T)                  { test4339(t) }
+ func Test5227(t *testing.T)                  { test5227(t) }
+-func TestCflags(t *testing.T)                { testCflags(t) }
++func Test5242(t *testing.T)                  { test5242(t) }
+ func Test5337(t *testing.T)                  { test5337(t) }
+ func Test5548(t *testing.T)                  { test5548(t) }
+ func Test5603(t *testing.T)                  { test5603(t) }
+-func Test6833(t *testing.T)                  { test6833(t) }
+-func Test3250(t *testing.T)                  { test3250(t) }
+-func TestCallbackStack(t *testing.T)         { testCallbackStack(t) }
+-func TestFpVar(t *testing.T)                 { testFpVar(t) }
+-func Test4339(t *testing.T)                  { test4339(t) }
+-func Test6390(t *testing.T)                  { test6390(t) }
+ func Test5986(t *testing.T)                  { test5986(t) }
+-func Test7665(t *testing.T)                  { test7665(t) }
+-func TestNaming(t *testing.T)                { testNaming(t) }
++func Test6390(t *testing.T)                  { test6390(t) }
++func Test6833(t *testing.T)                  { test6833(t) }
++func Test6907(t *testing.T)                  { test6907(t) }
++func Test6907Go(t *testing.T)                { test6907Go(t) }
+ func Test7560(t *testing.T)                  { test7560(t) }
+-func Test5242(t *testing.T)                  { test5242(t) }
+-func Test8092(t *testing.T)                  { test8092(t) }
++func Test7665(t *testing.T)                  { test7665(t) }
+ func Test7978(t *testing.T)                  { test7978(t) }
+-func Test8694(t *testing.T)                  { test8694(t) }
++func Test8092(t *testing.T)                  { test8092(t) }
+ func Test8517(t *testing.T)                  { test8517(t) }
++func Test8694(t *testing.T)                  { test8694(t) }
+ func Test8811(t *testing.T)                  { test8811(t) }
+-func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
+-func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
+-func Test9026(t *testing.T)                  { test9026(t) }
+-func Test9510(t *testing.T)                  { test9510(t) }
+ func Test9557(t *testing.T)                  { test9557(t) }
+ func Test10303(t *testing.T)                 { test10303(t, 10) }
+ func Test11925(t *testing.T)                 { test11925(t) }
+ func Test12030(t *testing.T)                 { test12030(t) }
+-func TestGCC68255(t *testing.T)              { testGCC68255(t) }
+-func TestCallGoWithString(t *testing.T)      { testCallGoWithString(t) }
+ func Test14838(t *testing.T)                 { test14838(t) }
+-func Test8756(t *testing.T)                  { test8756(t) }
+ func Test17065(t *testing.T)                 { test17065(t) }
+-func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
+-func TestCheckConst(t *testing.T)            { testCheckConst(t) }
+ func Test17537(t *testing.T)                 { test17537(t) }
+ func Test18126(t *testing.T)                 { test18126(t) }
+-func Test20369(t *testing.T)                 { test20369(t) }
+ func Test18720(t *testing.T)                 { test18720(t) }
+-func Test20266(t *testing.T)                 { test20266(t) }
+ func Test20129(t *testing.T)                 { test20129(t) }
++func Test20369(t *testing.T)                 { test20369(t) }
+ func Test20910(t *testing.T)                 { test20910(t) }
+ func Test21708(t *testing.T)                 { test21708(t) }
+ func Test21809(t *testing.T)                 { test21809(t) }
+-func Test6907(t *testing.T)                  { test6907(t) }
+-func Test6907Go(t *testing.T)                { test6907Go(t) }
+ func Test21897(t *testing.T)                 { test21897(t) }
+ func Test22906(t *testing.T)                 { test22906(t) }
++func Test23356(t *testing.T)                 { test23356(t) }
+ func Test24206(t *testing.T)                 { test24206(t) }
+ func Test25143(t *testing.T)                 { test25143(t) }
+-func Test23356(t *testing.T)                 { test23356(t) }
+ func Test26066(t *testing.T)                 { test26066(t) }
+-func Test26213(t *testing.T)                 { test26213(t) }
+ func Test27660(t *testing.T)                 { test27660(t) }
+ func Test28896(t *testing.T)                 { test28896(t) }
+ func Test30065(t *testing.T)                 { test30065(t) }
++func TestAlign(t *testing.T)                 { testAlign(t) }
++func TestAtol(t *testing.T)                  { testAtol(t) }
++func TestBlocking(t *testing.T)              { testBlocking(t) }
++func TestBoolAlign(t *testing.T)             { testBoolAlign(t) }
++func TestCallGoWithString(t *testing.T)      { testCallGoWithString(t) }
++func TestCallback(t *testing.T)              { testCallback(t) }
++func TestCallbackCallers(t *testing.T)       { testCallbackCallers(t) }
++func TestCallbackGC(t *testing.T)            { testCallbackGC(t) }
++func TestCallbackPanic(t *testing.T)         { testCallbackPanic(t) }
++func TestCallbackPanicLocked(t *testing.T)   { testCallbackPanicLocked(t) }
++func TestCallbackPanicLoop(t *testing.T)     { testCallbackPanicLoop(t) }
++func TestCallbackStack(t *testing.T)         { testCallbackStack(t) }
++func TestCflags(t *testing.T)                { testCflags(t) }
++func TestCheckConst(t *testing.T)            { testCheckConst(t) }
++func TestConst(t *testing.T)                 { testConst(t) }
++func TestCthread(t *testing.T)               { testCthread(t) }
++func TestEnum(t *testing.T)                  { testEnum(t) }
++func TestErrno(t *testing.T)                 { testErrno(t) }
++func TestFpVar(t *testing.T)                 { testFpVar(t) }
++func TestHelpers(t *testing.T)               { testHelpers(t) }
++func TestLibgcc(t *testing.T)                { testLibgcc(t) }
++func TestMultipleAssign(t *testing.T)        { testMultipleAssign(t) }
++func TestNaming(t *testing.T)                { testNaming(t) }
++func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
++func TestParallelSleep(t *testing.T)         { testParallelSleep(t) }
++func TestPrintf(t *testing.T)                { testPrintf(t) }
++func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
++func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
++func TestSetEnv(t *testing.T)                { testSetEnv(t) }
++func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
++func TestUnsignedInt(t *testing.T)           { testUnsignedInt(t) }
++func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B)  { benchCgoCall(b) }
+ func BenchmarkGoString(b *testing.B) { benchGoString(b) }
+diff --git a/misc/cgo/test/overlaydir_test.go b/misc/cgo/test/overlaydir_test.go
+new file mode 100644
+index 0000000000..1b5c67de70
+--- /dev/null
++++ b/misc/cgo/test/overlaydir_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import (
++	"io"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
++//
++// TODO: Once we no longer need to support the misc module in GOPATH mode,
++// factor this function out into a package to reduce duplication.
++func overlayDir(dstRoot, srcRoot string) error {
++	dstRoot = filepath.Clean(dstRoot)
++	if err := os.MkdirAll(dstRoot, 0777); err != nil {
++		return err
++	}
++
++	symBase, err := filepath.Rel(srcRoot, dstRoot)
++	if err != nil {
++		symBase, err = filepath.Abs(srcRoot)
++		if err != nil {
++			return err
++		}
++	}
++
++	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
++		if err != nil || srcPath == srcRoot {
++			return err
++		}
++
++		suffix := strings.TrimPrefix(srcPath, srcRoot)
++		for len(suffix) > 0 && suffix[0] == filepath.Separator {
++			suffix = suffix[1:]
++		}
++		dstPath := filepath.Join(dstRoot, suffix)
++
++		perm := info.Mode() & os.ModePerm
++		if info.Mode()&os.ModeSymlink != 0 {
++			info, err = os.Stat(srcPath)
++			if err != nil {
++				return err
++			}
++			perm = info.Mode() & os.ModePerm
++		}
++
++		// Always copy directories (don't symlink them).
++		// If we add a file in the overlay, we don't want to add it in the original.
++		if info.IsDir() {
++			return os.Mkdir(dstPath, perm)
++		}
++
++		// If the OS supports symlinks, use them instead of copying bytes.
++		if err := os.Symlink(filepath.Join(symBase, suffix), dstPath); err == nil {
++			return nil
++		}
++
++		// Otherwise, copy the bytes.
++		src, err := os.Open(srcPath)
++		if err != nil {
++			return err
++		}
++		defer src.Close()
++
++		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
++		if err != nil {
++			return err
++		}
++
++		_, err = io.Copy(dst, src)
++		if closeErr := dst.Close(); err == nil {
++			err = closeErr
++		}
++		return err
++	})
++}
+diff --git a/misc/cgo/test/pkg_test.go b/misc/cgo/test/pkg_test.go
+new file mode 100644
+index 0000000000..9c8a61e871
+--- /dev/null
++++ b/misc/cgo/test/pkg_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import (
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++// TestCrossPackageTests compiles and runs tests that depend on imports of other
++// local packages, using source code stored in the testdata directory.
++//
++// The tests in the misc directory tree do not have a valid import path in
++// GOPATH mode, so they previously used relative imports. However, relative
++// imports do not work in module mode. In order to make the test work in both
++// modes, we synthesize a GOPATH in which the module paths are equivalent, and
++// run the tests as a subprocess.
++//
++// If and when we no longer support these tests in GOPATH mode, we can remove
++// this shim and move the tests currently located in testdata back into the
++// parent directory.
++func TestCrossPackageTests(t *testing.T) {
++	GOPATH, err := ioutil.TempDir("", "cgotest")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(GOPATH)
++
++	modRoot := filepath.Join(GOPATH, "src", "cgotest")
++	if err := overlayDir(modRoot, "testdata"); err != nil {
++		t.Fatal(err)
++	}
++	if err := ioutil.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgotest\n"), 0666); err != nil {
++		t.Fatal(err)
++	}
++
++	cmd := exec.Command("go", "test")
++	if testing.Verbose() {
++		cmd.Args = append(cmd.Args, "-v")
++	}
++	if testing.Short() {
++		cmd.Args = append(cmd.Args, "-short")
++	}
++	cmd.Dir = modRoot
++	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++	} else {
++		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++}
+diff --git a/misc/cgo/test/testdata/cgo_linux_test.go b/misc/cgo/test/testdata/cgo_linux_test.go
+new file mode 100644
+index 0000000000..5cef09fbe7
+--- /dev/null
++++ b/misc/cgo/test/testdata/cgo_linux_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "testing"
++
++func Test9400(t *testing.T) { test9400(t) }
+diff --git a/misc/cgo/test/testdata/cgo_test.go b/misc/cgo/test/testdata/cgo_test.go
+new file mode 100644
+index 0000000000..ffa076f4ee
+--- /dev/null
++++ b/misc/cgo/test/testdata/cgo_test.go
+@@ -0,0 +1,18 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "testing"
++
++// The actual test functions are in non-_test.go files
++// so that they can use cgo (import "C").
++// These wrappers are here for gotest to find.
++
++func Test8756(t *testing.T)     { test8756(t) }
++func Test9026(t *testing.T)     { test9026(t) }
++func Test9510(t *testing.T)     { test9510(t) }
++func Test20266(t *testing.T)    { test20266(t) }
++func Test26213(t *testing.T)    { test26213(t) }
++func TestGCC68255(t *testing.T) { testGCC68255(t) }
+diff --git a/misc/cgo/test/gcc68255.go b/misc/cgo/test/testdata/gcc68255.go
+similarity index 93%
+rename from misc/cgo/test/gcc68255.go
+rename to misc/cgo/test/testdata/gcc68255.go
+index 23e103dc10..b431462349 100644
+--- a/misc/cgo/test/gcc68255.go
++++ b/misc/cgo/test/testdata/gcc68255.go
+@@ -7,7 +7,7 @@ package cgotest
+ import (
+ 	"testing"
+ 
+-	"./gcc68255"
++	"cgotest/gcc68255"
+ )
+ 
+ func testGCC68255(t *testing.T) {
+diff --git a/misc/cgo/test/gcc68255/a.go b/misc/cgo/test/testdata/gcc68255/a.go
+similarity index 100%
+rename from misc/cgo/test/gcc68255/a.go
+rename to misc/cgo/test/testdata/gcc68255/a.go
+diff --git a/misc/cgo/test/gcc68255/c.c b/misc/cgo/test/testdata/gcc68255/c.c
+similarity index 100%
+rename from misc/cgo/test/gcc68255/c.c
+rename to misc/cgo/test/testdata/gcc68255/c.c
+diff --git a/misc/cgo/test/gcc68255/c.h b/misc/cgo/test/testdata/gcc68255/c.h
+similarity index 100%
+rename from misc/cgo/test/gcc68255/c.h
+rename to misc/cgo/test/testdata/gcc68255/c.h
+diff --git a/misc/cgo/test/issue20266.go b/misc/cgo/test/testdata/issue20266.go
+similarity index 100%
+rename from misc/cgo/test/issue20266.go
+rename to misc/cgo/test/testdata/issue20266.go
+diff --git a/misc/cgo/test/issue20266/issue20266.h b/misc/cgo/test/testdata/issue20266/issue20266.h
+similarity index 100%
+rename from misc/cgo/test/issue20266/issue20266.h
+rename to misc/cgo/test/testdata/issue20266/issue20266.h
+diff --git a/misc/cgo/test/issue23555.go b/misc/cgo/test/testdata/issue23555.go
+similarity index 82%
+rename from misc/cgo/test/issue23555.go
+rename to misc/cgo/test/testdata/issue23555.go
+index 5fa44e6355..4e944b5acd 100644
+--- a/misc/cgo/test/issue23555.go
++++ b/misc/cgo/test/testdata/issue23555.go
+@@ -7,5 +7,5 @@
+ 
+ package cgotest
+ 
+-import _ "./issue23555a"
+-import _ "./issue23555b"
++import _ "cgotest/issue23555a"
++import _ "cgotest/issue23555b"
+diff --git a/misc/cgo/test/issue23555a/a.go b/misc/cgo/test/testdata/issue23555a/a.go
+similarity index 100%
+rename from misc/cgo/test/issue23555a/a.go
+rename to misc/cgo/test/testdata/issue23555a/a.go
+diff --git a/misc/cgo/test/issue23555b/a.go b/misc/cgo/test/testdata/issue23555b/a.go
+similarity index 100%
+rename from misc/cgo/test/issue23555b/a.go
+rename to misc/cgo/test/testdata/issue23555b/a.go
+diff --git a/misc/cgo/test/issue24161_darwin_test.go b/misc/cgo/test/testdata/issue24161_darwin_test.go
+similarity index 85%
+rename from misc/cgo/test/issue24161_darwin_test.go
+rename to misc/cgo/test/testdata/issue24161_darwin_test.go
+index 48072ff121..64f4442856 100644
+--- a/misc/cgo/test/issue24161_darwin_test.go
++++ b/misc/cgo/test/testdata/issue24161_darwin_test.go
+@@ -15,11 +15,11 @@ package cgotest
+ import (
+ 	"testing"
+ 
+-	"./issue24161arg"
+-	"./issue24161e0"
+-	"./issue24161e1"
+-	"./issue24161e2"
+-	"./issue24161res"
++	"cgotest/issue24161arg"
++	"cgotest/issue24161e0"
++	"cgotest/issue24161e1"
++	"cgotest/issue24161e2"
++	"cgotest/issue24161res"
+ )
+ 
+ func Test24161Arg(t *testing.T) {
+diff --git a/misc/cgo/test/issue24161arg/def.go b/misc/cgo/test/testdata/issue24161arg/def.go
+similarity index 100%
+rename from misc/cgo/test/issue24161arg/def.go
+rename to misc/cgo/test/testdata/issue24161arg/def.go
+diff --git a/misc/cgo/test/issue24161arg/use.go b/misc/cgo/test/testdata/issue24161arg/use.go
+similarity index 100%
+rename from misc/cgo/test/issue24161arg/use.go
+rename to misc/cgo/test/testdata/issue24161arg/use.go
+diff --git a/misc/cgo/test/issue24161e0/main.go b/misc/cgo/test/testdata/issue24161e0/main.go
+similarity index 100%
+rename from misc/cgo/test/issue24161e0/main.go
+rename to misc/cgo/test/testdata/issue24161e0/main.go
+diff --git a/misc/cgo/test/issue24161e1/main.go b/misc/cgo/test/testdata/issue24161e1/main.go
+similarity index 100%
+rename from misc/cgo/test/issue24161e1/main.go
+rename to misc/cgo/test/testdata/issue24161e1/main.go
+diff --git a/misc/cgo/test/issue24161e2/main.go b/misc/cgo/test/testdata/issue24161e2/main.go
+similarity index 100%
+rename from misc/cgo/test/issue24161e2/main.go
+rename to misc/cgo/test/testdata/issue24161e2/main.go
+diff --git a/misc/cgo/test/issue24161res/restype.go b/misc/cgo/test/testdata/issue24161res/restype.go
+similarity index 100%
+rename from misc/cgo/test/issue24161res/restype.go
+rename to misc/cgo/test/testdata/issue24161res/restype.go
+diff --git a/misc/cgo/test/issue26213/jni.h b/misc/cgo/test/testdata/issue26213/jni.h
+similarity index 100%
+rename from misc/cgo/test/issue26213/jni.h
+rename to misc/cgo/test/testdata/issue26213/jni.h
+diff --git a/misc/cgo/test/issue26213/test26213.go b/misc/cgo/test/testdata/issue26213/test26213.go
+similarity index 100%
+rename from misc/cgo/test/issue26213/test26213.go
+rename to misc/cgo/test/testdata/issue26213/test26213.go
+diff --git a/misc/cgo/test/issue26430.go b/misc/cgo/test/testdata/issue26430.go
+similarity index 90%
+rename from misc/cgo/test/issue26430.go
+rename to misc/cgo/test/testdata/issue26430.go
+index 3ad5420989..14c7a7c307 100644
+--- a/misc/cgo/test/issue26430.go
++++ b/misc/cgo/test/testdata/issue26430.go
+@@ -7,4 +7,4 @@
+ 
+ package cgotest
+ 
+-import _ "./issue26430"
++import _ "cgotest/issue26430"
+diff --git a/misc/cgo/test/issue26430/a.go b/misc/cgo/test/testdata/issue26430/a.go
+similarity index 100%
+rename from misc/cgo/test/issue26430/a.go
+rename to misc/cgo/test/testdata/issue26430/a.go
+diff --git a/misc/cgo/test/issue26430/b.go b/misc/cgo/test/testdata/issue26430/b.go
+similarity index 100%
+rename from misc/cgo/test/issue26430/b.go
+rename to misc/cgo/test/testdata/issue26430/b.go
+diff --git a/misc/cgo/test/issue26743.go b/misc/cgo/test/testdata/issue26743.go
+similarity index 90%
+rename from misc/cgo/test/issue26743.go
+rename to misc/cgo/test/testdata/issue26743.go
+index 35c8473a61..000fb2bfdf 100644
+--- a/misc/cgo/test/issue26743.go
++++ b/misc/cgo/test/testdata/issue26743.go
+@@ -7,4 +7,4 @@
+ 
+ package cgotest
+ 
+-import _ "./issue26743"
++import _ "cgotest/issue26743"
+diff --git a/misc/cgo/test/issue26743/a.go b/misc/cgo/test/testdata/issue26743/a.go
+similarity index 100%
+rename from misc/cgo/test/issue26743/a.go
+rename to misc/cgo/test/testdata/issue26743/a.go
+diff --git a/misc/cgo/test/issue26743/b.go b/misc/cgo/test/testdata/issue26743/b.go
+similarity index 100%
+rename from misc/cgo/test/issue26743/b.go
+rename to misc/cgo/test/testdata/issue26743/b.go
+diff --git a/misc/cgo/test/issue27054/egl.h b/misc/cgo/test/testdata/issue27054/egl.h
+similarity index 100%
+rename from misc/cgo/test/issue27054/egl.h
+rename to misc/cgo/test/testdata/issue27054/egl.h
+diff --git a/misc/cgo/test/issue27054/test27054.go b/misc/cgo/test/testdata/issue27054/test27054.go
+similarity index 100%
+rename from misc/cgo/test/issue27054/test27054.go
+rename to misc/cgo/test/testdata/issue27054/test27054.go
+diff --git a/misc/cgo/test/issue27340.go b/misc/cgo/test/testdata/issue27340.go
+similarity index 91%
+rename from misc/cgo/test/issue27340.go
+rename to misc/cgo/test/testdata/issue27340.go
+index f8c8a87f20..337550f608 100644
+--- a/misc/cgo/test/issue27340.go
++++ b/misc/cgo/test/testdata/issue27340.go
+@@ -7,6 +7,6 @@
+ 
+ package cgotest
+ 
+-import "./issue27340"
++import "cgotest/issue27340"
+ 
+ var issue27340Var = issue27340.Issue27340GoFunc
+diff --git a/misc/cgo/test/issue27340/a.go b/misc/cgo/test/testdata/issue27340/a.go
+similarity index 100%
+rename from misc/cgo/test/issue27340/a.go
+rename to misc/cgo/test/testdata/issue27340/a.go
+diff --git a/misc/cgo/test/issue8756.go b/misc/cgo/test/testdata/issue8756.go
+similarity index 88%
+rename from misc/cgo/test/issue8756.go
+rename to misc/cgo/test/testdata/issue8756.go
+index d8ee3b8213..406c64c0f3 100644
+--- a/misc/cgo/test/issue8756.go
++++ b/misc/cgo/test/testdata/issue8756.go
+@@ -8,7 +8,7 @@ import "C"
+ import (
+ 	"testing"
+ 
+-	"./issue8756"
++	"cgotest/issue8756"
+ )
+ 
+ func test8756(t *testing.T) {
+diff --git a/misc/cgo/test/issue8756/issue8756.go b/misc/cgo/test/testdata/issue8756/issue8756.go
+similarity index 100%
+rename from misc/cgo/test/issue8756/issue8756.go
+rename to misc/cgo/test/testdata/issue8756/issue8756.go
+diff --git a/misc/cgo/test/issue8828.go b/misc/cgo/test/testdata/issue8828.go
+similarity index 92%
+rename from misc/cgo/test/issue8828.go
+rename to misc/cgo/test/testdata/issue8828.go
+index 304797c929..0bca0f25cf 100644
+--- a/misc/cgo/test/issue8828.go
++++ b/misc/cgo/test/testdata/issue8828.go
+@@ -9,7 +9,7 @@
+ 
+ package cgotest
+ 
+-import "./issue8828"
++import "cgotest/issue8828"
+ 
+ func p() {
+ 	issue8828.Bar()
+diff --git a/misc/cgo/test/issue8828/issue8828.c b/misc/cgo/test/testdata/issue8828/issue8828.c
+similarity index 100%
+rename from misc/cgo/test/issue8828/issue8828.c
+rename to misc/cgo/test/testdata/issue8828/issue8828.c
+diff --git a/misc/cgo/test/issue8828/trivial.go b/misc/cgo/test/testdata/issue8828/trivial.go
+similarity index 100%
+rename from misc/cgo/test/issue8828/trivial.go
+rename to misc/cgo/test/testdata/issue8828/trivial.go
+diff --git a/misc/cgo/test/issue9026.go b/misc/cgo/test/testdata/issue9026.go
+similarity index 81%
+rename from misc/cgo/test/issue9026.go
+rename to misc/cgo/test/testdata/issue9026.go
+index 8848d0e811..3f48881655 100644
+--- a/misc/cgo/test/issue9026.go
++++ b/misc/cgo/test/testdata/issue9026.go
+@@ -3,7 +3,7 @@ package cgotest
+ import (
+ 	"testing"
+ 
+-	"./issue9026"
++	"cgotest/issue9026"
+ )
+ 
+ func test9026(t *testing.T) { issue9026.Test(t) }
+diff --git a/misc/cgo/test/issue9026/issue9026.go b/misc/cgo/test/testdata/issue9026/issue9026.go
+similarity index 100%
+rename from misc/cgo/test/issue9026/issue9026.go
+rename to misc/cgo/test/testdata/issue9026/issue9026.go
+diff --git a/misc/cgo/test/issue9400/asm_386.s b/misc/cgo/test/testdata/issue9400/asm_386.s
+similarity index 100%
+rename from misc/cgo/test/issue9400/asm_386.s
+rename to misc/cgo/test/testdata/issue9400/asm_386.s
+diff --git a/misc/cgo/test/issue9400/asm_amd64x.s b/misc/cgo/test/testdata/issue9400/asm_amd64x.s
+similarity index 100%
+rename from misc/cgo/test/issue9400/asm_amd64x.s
+rename to misc/cgo/test/testdata/issue9400/asm_amd64x.s
+diff --git a/misc/cgo/test/issue9400/asm_arm.s b/misc/cgo/test/testdata/issue9400/asm_arm.s
+similarity index 100%
+rename from misc/cgo/test/issue9400/asm_arm.s
+rename to misc/cgo/test/testdata/issue9400/asm_arm.s
+diff --git a/misc/cgo/test/issue9400/asm_arm64.s b/misc/cgo/test/testdata/issue9400/asm_arm64.s
+similarity index 100%
+rename from misc/cgo/test/issue9400/asm_arm64.s
+rename to misc/cgo/test/testdata/issue9400/asm_arm64.s
+diff --git a/misc/cgo/test/issue9400/asm_mips64x.s b/misc/cgo/test/testdata/issue9400/asm_mips64x.s
+similarity index 100%
+rename from misc/cgo/test/issue9400/asm_mips64x.s
+rename to misc/cgo/test/testdata/issue9400/asm_mips64x.s
+diff --git a/misc/cgo/test/issue9400/asm_mipsx.s b/misc/cgo/test/testdata/issue9400/asm_mipsx.s
+similarity index 100%
+rename from misc/cgo/test/issue9400/asm_mipsx.s
+rename to misc/cgo/test/testdata/issue9400/asm_mipsx.s
+diff --git a/misc/cgo/test/issue9400/asm_ppc64x.s b/misc/cgo/test/testdata/issue9400/asm_ppc64x.s
+similarity index 100%
+rename from misc/cgo/test/issue9400/asm_ppc64x.s
+rename to misc/cgo/test/testdata/issue9400/asm_ppc64x.s
+diff --git a/misc/cgo/test/issue9400/asm_s390x.s b/misc/cgo/test/testdata/issue9400/asm_s390x.s
+similarity index 100%
+rename from misc/cgo/test/issue9400/asm_s390x.s
+rename to misc/cgo/test/testdata/issue9400/asm_s390x.s
+diff --git a/misc/cgo/test/issue9400/gccgo.go b/misc/cgo/test/testdata/issue9400/gccgo.go
+similarity index 100%
+rename from misc/cgo/test/issue9400/gccgo.go
+rename to misc/cgo/test/testdata/issue9400/gccgo.go
+diff --git a/misc/cgo/test/issue9400/stubs.go b/misc/cgo/test/testdata/issue9400/stubs.go
+similarity index 100%
+rename from misc/cgo/test/issue9400/stubs.go
+rename to misc/cgo/test/testdata/issue9400/stubs.go
+diff --git a/misc/cgo/test/issue9400_linux.go b/misc/cgo/test/testdata/issue9400_linux.go
+similarity index 98%
+rename from misc/cgo/test/issue9400_linux.go
+rename to misc/cgo/test/testdata/issue9400_linux.go
+index 7719535d25..e94a9bb45f 100644
+--- a/misc/cgo/test/issue9400_linux.go
++++ b/misc/cgo/test/testdata/issue9400_linux.go
+@@ -18,7 +18,7 @@ import (
+ 	"sync/atomic"
+ 	"testing"
+ 
+-	"./issue9400"
++	"cgotest/issue9400"
+ )
+ 
+ func test9400(t *testing.T) {
+diff --git a/misc/cgo/test/issue9510.go b/misc/cgo/test/testdata/issue9510.go
+similarity index 91%
+rename from misc/cgo/test/issue9510.go
+rename to misc/cgo/test/testdata/issue9510.go
+index efd3f770b6..2c79fab97f 100644
+--- a/misc/cgo/test/issue9510.go
++++ b/misc/cgo/test/testdata/issue9510.go
+@@ -11,8 +11,8 @@ import (
+ 	"runtime"
+ 	"testing"
+ 
+-	"./issue9510a"
+-	"./issue9510b"
++	"cgotest/issue9510a"
++	"cgotest/issue9510b"
+ )
+ 
+ func test9510(t *testing.T) {
+diff --git a/misc/cgo/test/issue9510a/a.go b/misc/cgo/test/testdata/issue9510a/a.go
+similarity index 100%
+rename from misc/cgo/test/issue9510a/a.go
+rename to misc/cgo/test/testdata/issue9510a/a.go
+diff --git a/misc/cgo/test/issue9510b/b.go b/misc/cgo/test/testdata/issue9510b/b.go
+similarity index 100%
+rename from misc/cgo/test/issue9510b/b.go
+rename to misc/cgo/test/testdata/issue9510b/b.go
+diff --git a/misc/cgo/test/test26213.go b/misc/cgo/test/testdata/test26213.go
+similarity index 92%
+rename from misc/cgo/test/test26213.go
+rename to misc/cgo/test/testdata/test26213.go
+index 176a7ece9c..c80032cb3b 100644
+--- a/misc/cgo/test/test26213.go
++++ b/misc/cgo/test/testdata/test26213.go
+@@ -7,7 +7,7 @@ package cgotest
+ import (
+ 	"testing"
+ 
+-	"./issue26213"
++	"cgotest/issue26213"
+ )
+ 
+ func test26213(t *testing.T) {

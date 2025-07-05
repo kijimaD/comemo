@@ -8,7 +8,7 @@ Date:   Mon Feb 20 15:36:08 2012 +1100
     R=golang-dev, dsymonds, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5688046
-
+---
  doc/go1.html               | 17 +++++++++++---
  doc/go1.tmpl               | 17 +++++++++++---
  src/cmd/cgo/util.go        |  2 +-
@@ -22,3 +22,389 @@ Date:   Mon Feb 20 15:36:08 2012 +1100
  src/pkg/os/exec_windows.go |  2 +-
  src/pkg/os/os_test.go      |  4 ++--
  12 files changed, 137 insertions(+), 67 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 04726069cd..f7a33c4038 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -8,7 +8,7 @@
+ 
+ 
+ <!-- Center the tables, and disable the 1995-era 3D borders -->
+-<style>
++<style type="text/css">
+ table { margin-left: auto; margin-right: auto; border-style: none; }
+ hr { border-style: none; border-top: 1px solid black; }
+ </style>
+@@ -1460,9 +1460,20 @@ use <a href="/pkg/os/#Environ"><code>os.Environ</code></a> or
+ <a href="/pkg/syscall/#Getenv"><code>syscall.Getenv</code></a>.
+ </p>
+ 
++
++<p>
++The <a href="/pkg/os/#Process.Wait"><code>Process.Wait</code></a> method has
++dropped its option argument and the associated constants are gone
++from the package.
++Also, the function <code>Wait</code> is gone; only the method of
++the <code>Process</code> type persists.
++</p>
++
+ <p>
+ <em>Updating</em>:
+-Affected code will be caught by the compiler and must be updated by hand.
++Gofix will rewrite calls to <code>os.Wait</code> with an explicit zero
++argument, dropping the argument.
++All other changes will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h4 id="os_fileinfo">The os.FileInfo type</h4>
+@@ -1915,7 +1926,7 @@ so that exported function definitions can use types defined there.
+ This has the effect of compiling the preamble multiple times, so a
+ package using <code>//export</code> must not put function definitions
+ or variable initializations in the C preamble.
+-</p
++</p>
+ 
+ <h2 id="releases">Packaged releases</h2>
+ 
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 57957beaba..f974412325 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -4,7 +4,7 @@
+ {{donotedit}}
+ 
+ <!-- Center the tables, and disable the 1995-era 3D borders -->
+-<style>
++<style type="text/css">
+ table { margin-left: auto; margin-right: auto; border-style: none; }
+ hr { border-style: none; border-top: 1px solid black; }
+ </style>
+@@ -1363,9 +1363,20 @@ use <a href="/pkg/os/#Environ"><code>os.Environ</code></a> or
+ <a href="/pkg/syscall/#Getenv"><code>syscall.Getenv</code></a>.
+ </p>
+ 
++
++<p>
++The <a href="/pkg/os/#Process.Wait"><code>Process.Wait</code></a> method has
++dropped its option argument and the associated constants are gone
++from the package.
++Also, the function <code>Wait</code> is gone; only the method of
++the <code>Process</code> type persists.
++</p>
++
+ <p>
+ <em>Updating</em>:
+-Affected code will be caught by the compiler and must be updated by hand.
++Gofix will rewrite calls to <code>os.Wait</code> with an explicit zero
++argument, dropping the argument.
++All other changes will be caught by the compiler and must be updated by hand.
+ </p>
+ 
+ <h4 id="os_fileinfo">The os.FileInfo type</h4>
+@@ -1787,7 +1798,7 @@ so that exported function definitions can use types defined there.
+ This has the effect of compiling the preamble multiple times, so a
+ package using <code>//export</code> must not put function definitions
+ or variable initializations in the C preamble.
+-</p
++</p>
+ 
+ <h2 id="releases">Packaged releases</h2>
+ 
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index d6b6a7abb6..155c65904f 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -56,7 +56,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 	<-c
+ 	<-c
+ 
+-	w, err := p.Wait(0)
++	w, err := p.Wait()
+ 	if err != nil {
+ 		fatalf("%s", err)
+ 	}
+diff --git a/src/cmd/fix/oswait.go b/src/cmd/fix/oswait.go
+new file mode 100644
+index 0000000000..fdc23f8537
+--- /dev/null
++++ b/src/cmd/fix/oswait.go
+@@ -0,0 +1,56 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++func init() {
++	register(oswaitFix)
++}
++
++var oswaitFix = fix{
++	"oswait",
++	"2012-02-20",
++	oswait,
++	`Delete options from os.Wait. If the option is the literal 0, rewrite the call.
++
++http://codereview.appspot.com/5688046
++`,
++}
++
++func oswait(f *ast.File) bool {
++	if !imports(f, "os") {
++		return false
++	}
++
++	fixed := false
++
++	walk(f, func(n interface{}) {
++		call, ok := n.(*ast.CallExpr)
++		if !ok {
++			return
++		}
++		if !isPkgDot(call.Fun, "os", "Wait") {
++			return
++		}
++		args := call.Args
++		const warning = "call to Process.Wait must be fixed manually"
++		if len(args) != 1 {
++			// Shouldn't happen, but check.
++			warn(call.Pos(), warning)
++			return
++		}
++		if basicLit, ok := args[0].(*ast.BasicLit); !ok || basicLit.Value != "0" {
++			warn(call.Pos(), warning)
++			return
++		}
++		call.Args = nil
++		fixed = true
++	})
++
++	return fixed
++}
+diff --git a/src/cmd/fix/oswait_test.go b/src/cmd/fix/oswait_test.go
+new file mode 100644
+index 0000000000..baff017487
+--- /dev/null
++++ b/src/cmd/fix/oswait_test.go
+@@ -0,0 +1,41 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(oswaitTests, oswait)
++}
++
++var oswaitTests = []testCase{
++	{
++		Name: "oswait.0",
++		In: `package main
++
++import (
++	"os"
++)
++
++func f() {
++	os.Wait()
++	os.Wait(0)
++	os.Wait(1)
++	os.Wait(A | B)
++}
++`,
++		Out: `package main
++
++import (
++	"os"
++)
++
++func f() {
++	os.Wait()
++	os.Wait()
++	os.Wait(1)
++	os.Wait(A | B)
++}
++`,
++	},
++}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 96b729978f..80cf618778 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -103,7 +103,7 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
+ 
+ 	var buf bytes.Buffer
+ 	io.Copy(&buf, r)
+-	wait, err := p.Wait(0)
++	wait, err := p.Wait()
+ 	if err != nil {
+ 		os.Stderr.Write(buf.Bytes())
+ 		log.Printf("os.Wait(%d, 0): %v", p.Pid, err)
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index fe25467216..248d97d458 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -291,7 +291,7 @@ func (c *Cmd) Wait() error {
+ 		return errors.New("exec: Wait was already called")
+ 	}
+ 	c.finished = true
+-	msg, err := c.Process.Wait(0)
++	msg, err := c.Process.Wait()
+ 	c.Waitmsg = msg
+ 
+ 	var copyError error
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index c57c4dc6d6..92126c1dd8 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -70,9 +70,8 @@ type Waitmsg struct {
+ }
+ 
+ // Wait waits for the Process to exit or stop, and then returns a
+-// Waitmsg describing its status and an error, if any. The options
+-// (WNOHANG etc.) affect the behavior of the Wait call.
+-func (p *Process) Wait(options int) (w *Waitmsg, err error) {
++// Waitmsg describing its status and an error, if any.
++func (p *Process) Wait() (w *Waitmsg, err error) {
+ 	var waitmsg syscall.Waitmsg
+ 
+ 	if p.Pid == -1 {
+@@ -95,20 +94,6 @@ func (p *Process) Wait(options int) (w *Waitmsg, err error) {
+ 	return &Waitmsg{waitmsg}, nil
+ }
+ 
+-// Wait waits for process pid to exit or stop, and then returns a
+-// Waitmsg describing its status and an error, if any. The options
+-// (WNOHANG etc.) affect the behavior of the Wait call.
+-// Wait is equivalent to calling FindProcess and then Wait
+-// and Release on the result.
+-func Wait(pid int, options int) (w *Waitmsg, err error) {
+-	p, e := FindProcess(pid)
+-	if e != nil {
+-		return nil, e
+-	}
+-	defer p.Release()
+-	return p.Wait(options)
+-}
+-
+ // Release releases any resources associated with the Process.
+ func (p *Process) Release() error {
+ 	// NOOP for Plan 9.
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 33a689eb04..03c7f0e82f 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -56,20 +56,6 @@ type Waitmsg struct {
+ 	Rusage             *syscall.Rusage // System-dependent resource usage info.
+ }
+ 
+-// Wait waits for process pid to exit or stop, and then returns a
+-// Waitmsg describing its status and an error, if any. The options
+-// (WNOHANG etc.) affect the behavior of the Wait call.
+-// Wait is equivalent to calling FindProcess and then Wait
+-// and Release on the result.
+-func Wait(pid int, options int) (w *Waitmsg, err error) {
+-	p, e := FindProcess(pid)
+-	if e != nil {
+-		return nil, e
+-	}
+-	defer p.Release()
+-	return p.Wait(options)
+-}
+-
+ // Convert i to decimal string.
+ func itod(i int) string {
+ 	if i == 0 {
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index a5c22812a2..b9880ff796 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -12,43 +12,23 @@ import (
+ 	"syscall"
+ )
+ 
+-// Options for Wait.
+-const (
+-	WNOHANG   = syscall.WNOHANG   // Don't wait if no process has exited.
+-	WSTOPPED  = syscall.WSTOPPED  // If set, status of stopped subprocesses is also reported.
+-	WUNTRACED = syscall.WUNTRACED // Usually an alias for WSTOPPED.
+-	WRUSAGE   = 1 << 20           // Record resource usage.
+-)
+-
+-// WRUSAGE must not be too high a bit, to avoid clashing with Linux's
+-// WCLONE, WALL, and WNOTHREAD flags, which sit in the top few bits of
+-// the options
+-
+ // Wait waits for the Process to exit or stop, and then returns a
+-// Waitmsg describing its status and an error, if any. The options
+-// (WNOHANG etc.) affect the behavior of the Wait call.
+-func (p *Process) Wait(options int) (w *Waitmsg, err error) {
++// Waitmsg describing its status and an error, if any.
++func (p *Process) Wait() (w *Waitmsg, err error) {
+ 	if p.Pid == -1 {
+ 		return nil, syscall.EINVAL
+ 	}
+ 	var status syscall.WaitStatus
+-	var rusage *syscall.Rusage
+-	if options&WRUSAGE != 0 {
+-		rusage = new(syscall.Rusage)
+-		options ^= WRUSAGE
+-	}
+-	pid1, e := syscall.Wait4(p.Pid, &status, options, rusage)
++	pid1, e := syscall.Wait4(p.Pid, &status, 0, nil)
+ 	if e != nil {
+ 		return nil, NewSyscallError("wait", e)
+ 	}
+-	// With WNOHANG pid is 0 if child has not exited.
+-	if pid1 != 0 && options&WSTOPPED == 0 {
++	if pid1 != 0 {
+ 		p.done = true
+ 	}
+ 	w = new(Waitmsg)
+ 	w.Pid = pid1
+ 	w.WaitStatus = status
+-	w.Rusage = rusage
+ 	return w, nil
+ }
+ 
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index 2a7affa284..7d46c89d83 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -13,7 +13,7 @@ import (
+ 
+ // Wait waits for the Process to exit or stop, and then returns a
+ // Waitmsg describing its status and an error, if any.
+-func (p *Process) Wait(options int) (w *Waitmsg, err error) {
++func (p *Process) Wait() (w *Waitmsg, err error) {
+ 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
+ 	switch s {
+ 	case syscall.WAIT_OBJECT_0:
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index e02d7a43a3..976d64bdd6 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -541,7 +541,7 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
+ 		t.Errorf("exec %q returned %q wanted %q",
+ 			strings.Join(append([]string{cmd}, args...), " "), output, expect)
+ 	}
+-	p.Wait(0)
++	p.Wait()
+ }
+ 
+ func TestStartProcess(t *testing.T) {
+@@ -853,7 +853,7 @@ func run(t *testing.T, cmd []string) string {
+ 
+ 	var b bytes.Buffer
+ 	io.Copy(&b, r)
+-	_, err = p.Wait(0)
++	_, err = p.Wait()
+ 	if err != nil {
+ 		t.Fatalf("run hostname Wait: %v", err)
+ 	}

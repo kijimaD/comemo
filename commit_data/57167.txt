@@ -17,7 +17,59 @@ Date:   Wed Jul 5 12:12:35 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go |  8 ++++++++
  src/cmd/go/internal/work/gc.go   | 14 +-------------
  2 files changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d38a051b2b..13d2a78a97 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1115,6 +1115,7 @@ type vetConfig struct {
+ 	PackageVetx map[string]string // map package path to vetx data from earlier vet run
+ 	VetxOnly    bool              // only compute vetx data; don't report detected problems
+ 	VetxOutput  string            // write vetx data to this output file
++	GoVersion   string            // Go version for package
+ 
+ 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
+ }
+@@ -1149,6 +1150,13 @@ func buildVetConfig(a *Action, srcfiles []string) {
+ 		PackageFile:  make(map[string]string),
+ 		Standard:     make(map[string]bool),
+ 	}
++	if a.Package.Module != nil {
++		v := a.Package.Module.GoVersion
++		if v == "" {
++			v = gover.DefaultGoModVersion
++		}
++		vcfg.GoVersion = "go" + v
++	}
+ 	a.vetCfg = vcfg
+ 	for i, raw := range a.Package.Internal.RawImports {
+ 		final := a.Package.Imports[i]
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 6043ad5353..26b4e0f490 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -85,19 +85,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	if p.Module != nil {
+ 		v := p.Module.GoVersion
+ 		if v == "" {
+-			// We started adding a 'go' directive to the go.mod file unconditionally
+-			// as of Go 1.12, so any module that still lacks such a directive must
+-			// either have been authored before then, or have a hand-edited go.mod
+-			// file that hasn't been updated by cmd/go since that edit.
+-			//
+-			// Unfortunately, through at least Go 1.16 we didn't add versions to
+-			// vendor/modules.txt. So this could also be a vendored 1.16 dependency.
+-			//
+-			// Fortunately, there were no breaking changes to the language between Go
+-			// 1.11 and 1.16, so if we assume Go 1.16 semantics we will not introduce
+-			// any spurious errors — we will only mask errors, and not particularly
+-			// important ones at that.
+-			v = "1.16"
++			v = gover.DefaultGoModVersion
+ 		}
+ 		if allowedVersion(v) {
+ 			defaultGcFlags = append(defaultGcFlags, "-lang=go"+gover.Lang(v))

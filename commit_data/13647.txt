@@ -11,7 +11,84 @@ Date:   Fri Aug 17 16:12:25 2012 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6441152
-
+---
  src/pkg/fmt/fmt_test.go | 21 +++++++++++++++++++--
  src/pkg/fmt/print.go    | 12 ++++++++++--
  2 files changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index bce859581f..720db63a00 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -442,6 +442,11 @@ var fmttests = []struct {
+ 	{"%v", (*int)(nil), "<nil>"},
+ 	{"%v", new(int), "0xPTR"},
+ 
++	// %d etc. pointers use specified base.
++	{"%d", new(int), "PTR_d"},
++	{"%o", new(int), "PTR_o"},
++	{"%x", new(int), "PTR_x"},
++
+ 	// %d on Stringer should give integer if possible
+ 	{"%s", time.Time{}.Month(), "January"},
+ 	{"%d", time.Time{}.Month(), "1"},
+@@ -471,14 +476,26 @@ func TestSprintf(t *testing.T) {
+ 	for _, tt := range fmttests {
+ 		s := Sprintf(tt.fmt, tt.val)
+ 		if i := strings.Index(tt.out, "PTR"); i >= 0 {
++			pattern := "PTR"
++			chars := "0123456789abcdefABCDEF"
++			switch {
++			case strings.HasPrefix(tt.out[i:], "PTR_d"):
++				pattern = "PTR_d"
++				chars = chars[:10]
++			case strings.HasPrefix(tt.out[i:], "PTR_o"):
++				pattern = "PTR_o"
++				chars = chars[:8]
++			case strings.HasPrefix(tt.out[i:], "PTR_x"):
++				pattern = "PTR_x"
++			}
+ 			j := i
+ 			for ; j < len(s); j++ {
+ 				c := s[j]
+-				if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
++				if !strings.ContainsRune(chars, rune(c)) {
+ 					break
+ 				}
+ 			}
+-			s = s[0:i] + "PTR" + s[j:]
++			s = s[0:i] + pattern + s[j:]
+ 		}
+ 		if s != tt.out {
+ 			if _, ok := tt.val.(string); ok {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 8691004eca..c42e516d55 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -585,8 +585,12 @@ func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, depth int) {
+ }
+ 
+ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
++	use0x64 := true
+ 	switch verb {
+-	case 'p', 'v', 'b', 'd', 'o', 'x', 'X':
++	case 'p', 'v':
++		// ok
++	case 'b', 'd', 'o', 'x', 'X':
++		use0x64 = false
+ 		// ok
+ 	default:
+ 		p.badVerb(verb)
+@@ -616,7 +620,11 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune, goSyntax bool) {
+ 	} else if verb == 'v' && u == 0 {
+ 		p.buf.Write(nilAngleBytes)
+ 	} else {
+-		p.fmt0x64(uint64(u), !p.fmt.sharp)
++		if use0x64 {
++			p.fmt0x64(uint64(u), !p.fmt.sharp)
++		} else {
++			p.fmtUint64(uint64(u), verb, false)
++		}
+ 	}
+ }
+ 

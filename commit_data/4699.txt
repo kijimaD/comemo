@@ -10,7 +10,7 @@ Date:   Wed Jan 27 09:44:28 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194098
-
+---
  src/cmd/cgo/ast.go                 |  2 +-
  src/cmd/cgo/gcc.go                 |  2 +-
  src/cmd/godoc/godoc.go             |  6 ++--
@@ -25,3 +25,512 @@ Date:   Wed Jan 27 09:44:28 2010 -0800
  src/pkg/go/parser/parser_test.go   |  7 +++--
  src/pkg/go/printer/printer_test.go |  2 +-
  13 files changed, 103 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 26a59faf82..f6142d135d 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -60,7 +60,7 @@ type FuncType struct {
+ 
+ func openProg(name string, p *Prog) {
+ 	var err os.Error
+-	p.AST, err = parser.ParseFile(name, nil, parser.ParseComments)
++	p.AST, err = parser.ParseFile(name, nil, nil, parser.ParseComments)
+ 	if err != nil {
+ 		if list, ok := err.(scanner.ErrorList); ok {
+ 			// If err is a scanner.ErrorList, its String will print just
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 07002a4c72..7b5c7906f0 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -62,7 +62,7 @@ func (p *Prog) loadDebugInfo() {
+ 	for _, c := range p.Crefs {
+ 		// If we've already found this name as a define, it is not a Cref.
+ 		if val, ok := defines[c.Name]; ok {
+-			_, err := parser.ParseExpr("", val)
++			_, err := parser.ParseExpr("", val, nil)
+ 			if err != nil {
+ 				fmt.Fprintf(os.Stderr, "The value in C.%s does not parse as a Go expression; cannot use.\n", c.Name)
+ 				os.Exit(2)
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 627c4027d7..812d23824e 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -122,7 +122,7 @@ func isPkgDir(dir *os.Dir) bool {
+ 
+ 
+ func pkgName(filename string) string {
+-	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
++	file, err := parser.ParseFile(filename, nil, nil, parser.PackageClauseOnly)
+ 	if err != nil || file == nil {
+ 		return ""
+ 	}
+@@ -207,7 +207,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
+ 			nfiles++
+ 			if text == "" {
+ 				// no package documentation yet; take the first found
+-				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
++				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil, nil,
+ 					parser.ParseComments|parser.PackageClauseOnly)
+ 				if err == nil &&
+ 					// Also accept fakePkgName, so we get synopses for commmands.
+@@ -845,7 +845,7 @@ func serveGoSource(c *http.Conn, r *http.Request, path string) {
+ 		Error  string
+ 	}
+ 
+-	file, err := parser.ParseFile(path, nil, parser.ParseComments)
++	file, err := parser.ParseFile(path, nil, nil, parser.ParseComments)
+ 	info.Source = StyledNode{file, &Styler{linetags: true, highlight: r.FormValue("h")}}
+ 	if err != nil {
+ 		info.Error = err.String()
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index b0e4da15ac..14aacfec68 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -600,7 +600,7 @@ func (x *Indexer) VisitFile(path string, d *os.Dir) {
+ 		return
+ 	}
+ 
+-	file, err := parser.ParseFile(path, nil, parser.ParseComments)
++	file, err := parser.ParseFile(path, nil, nil, parser.ParseComments)
+ 	if err != nil {
+ 		return // ignore files with (parse) errors
+ 	}
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index beca5f63d7..6997bf3e21 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -27,8 +27,8 @@ var (
+ 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
+ 
+ 	// debugging support
+-	checks   = flag.Bool("checks", false, "do semantic checks")
+ 	comments = flag.Bool("comments", true, "print comments")
++	debug    = flag.Bool("debug", false, "print debugging information")
+ 	trace    = flag.Bool("trace", false, "print parse trace")
+ 
+ 	// layout control
+@@ -64,9 +64,6 @@ func usage() {
+ 
+ func initParserMode() {
+ 	parserMode = uint(0)
+-	if *checks {
+-		parserMode |= parser.CheckSemantics
+-	}
+ 	if *comments {
+ 		parserMode |= parser.ParseComments
+ 	}
+@@ -103,7 +100,11 @@ func processFile(f *os.File) os.Error {
+ 	if *useOldParser {
+ 		file, err = oldParser.ParseFile(f.Name(), src, parserMode)
+ 	} else {
+-		file, err = parser.ParseFile(f.Name(), src, parserMode)
++		var scope *ast.Scope
++		if *debug {
++			scope = ast.NewScope(nil)
++		}
++		file, err = parser.ParseFile(f.Name(), src, scope, parserMode)
+ 	}
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 32ed227a34..b2b21597db 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -37,7 +37,7 @@ func initRewrite() {
+ // but there are problems with preserving formatting and also
+ // with what a wildcard for a statement looks like.
+ func parseExpr(s string, what string) ast.Expr {
+-	x, err := parser.ParseExpr("input", s)
++	x, err := parser.ParseExpr("input", s, nil)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "parsing %s %s: %s\n", what, s, err)
+ 		os.Exit(2)
+diff --git a/src/pkg/exp/parser/interface.go b/src/pkg/exp/parser/interface.go
+index 86de026ba8..26b08c2d96 100644
+--- a/src/pkg/exp/parser/interface.go
++++ b/src/pkg/exp/parser/interface.go
+@@ -198,5 +198,5 @@ func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Packa
+ 		return nil, os.NewError(path + ": no package found")
+ 	}
+ 
+-	return &ast.Package{name, path, files}, nil
++	return &ast.Package{name, path, nil, files}, nil
+ }
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index b8a9649391..d29dee63e3 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -722,5 +722,6 @@ type File struct {
+ type Package struct {
+ 	Name  string           // package name
+ 	Path  string           // package path
++	Scope *Scope           // package scope
+ 	Files map[string]*File // path-relative filenames
+ }
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index 52f44e76bc..28e4f8db08 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -23,15 +23,14 @@ const (
+ // constant, type, variable, or function (incl. methods).
+ //
+ type Object struct {
+-	Kind  ObjKind
+-	Pos   token.Position // declaration position
+-	Name  string         // declared name
+-	Scope *Scope         // scope in which the Object is declared
++	Kind ObjKind
++	Pos  token.Position // declaration position
++	Name string         // declared name
+ }
+ 
+ 
+ func NewObj(kind ObjKind, pos token.Position, name string) *Object {
+-	return &Object{kind, pos, name, nil}
++	return &Object{kind, pos, name}
+ }
+ 
+ 
+@@ -55,16 +54,16 @@ func NewScope(outer *Scope) *Scope { return &Scope{outer, make(map[string]*Objec
+ 
+ // Declare attempts to insert a named object into the scope s.
+ // If the scope does not contain an object with that name yet,
+-// Declare inserts the object, and the result is true. Otherwise,
+-// the scope remains unchanged and the result is false.
+-func (s *Scope) Declare(obj *Object) bool {
+-	if obj.Name != "_" {
+-		if _, found := s.Objects[obj.Name]; found {
+-			return false
+-		}
++// Declare inserts the object, and returns it. Otherwise, the
++// scope remains unchanged and Declare returns the object found
++// in the scope instead.
++func (s *Scope) Declare(obj *Object) *Object {
++	decl, found := s.Objects[obj.Name]
++	if !found {
+ 		s.Objects[obj.Name] = obj
++		decl = obj
+ 	}
+-	return true
++	return decl
+ }
+ 
+ 
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 3a6bfee7e7..c940e47029 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"go/ast"
+ 	"go/scanner"
++	"go/token"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -50,62 +51,60 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
+ }
+ 
+ 
+-// TODO(gri) Simplify parser interface by splitting these functions
+-//           into two parts: a single Init and a respective xParse
+-//           function. The Init function can be shared.
+-//
+-// - the Init function will take a scope
+-// - if a scope is provided, the parser tracks declarations, otherwise it won't
++func (p *parser) parseEOF() os.Error {
++	p.expect(token.EOF)
++	return p.GetError(scanner.Sorted)
++}
+ 
+ 
+ // ParseExpr parses a Go expression and returns the corresponding
+-// AST node. The filename and src arguments have the same interpretation
++// AST node. The filename, src, and scope arguments have the same interpretation
+ // as for ParseFile. If there is an error, the result expression
+ // may be nil or contain a partial AST.
+ //
+-func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
++func ParseExpr(filename string, src interface{}, scope *ast.Scope) (ast.Expr, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, nil, 0)
+-	return p.parseExpr(), p.GetError(scanner.Sorted)
++	p.init(filename, data, scope, 0)
++	return p.parseExpr(), p.parseEOF()
+ }
+ 
+ 
+ // ParseStmtList parses a list of Go statements and returns the list
+-// of corresponding AST nodes. The filename and src arguments have the same
++// of corresponding AST nodes. The filename, src, and scope arguments have the same
+ // interpretation as for ParseFile. If there is an error, the node
+ // list may be nil or contain partial ASTs.
+ //
+-func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
++func ParseStmtList(filename string, src interface{}, scope *ast.Scope) ([]ast.Stmt, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, nil, 0)
+-	return p.parseStmtList(), p.GetError(scanner.Sorted)
++	p.init(filename, data, scope, 0)
++	return p.parseStmtList(), p.parseEOF()
+ }
+ 
+ 
+ // ParseDeclList parses a list of Go declarations and returns the list
+-// of corresponding AST nodes.  The filename and src arguments have the same
++// of corresponding AST nodes.  The filename, src, and scope arguments have the same
+ // interpretation as for ParseFile. If there is an error, the node
+ // list may be nil or contain partial ASTs.
+ //
+-func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
++func ParseDeclList(filename string, src interface{}, scope *ast.Scope) ([]ast.Decl, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	p.init(filename, data, nil, 0)
+-	return p.parseDeclList(), p.GetError(scanner.Sorted)
++	p.init(filename, data, scope, 0)
++	return p.parseDeclList(), p.parseEOF()
+ }
+ 
+ 
+@@ -118,6 +117,11 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
+ //
+ // If src == nil, ParseFile parses the file specified by filename.
+ //
++// If scope != nil, it is the immediately surrounding scope for the file
++// (the package scope) and it is used to lookup and declare identifiers.
++// When parsing multiple files belonging to a package, the same scope should
++// be provided to all files.
++//
+ // The mode parameter controls the amount of source text parsed and other
+ // optional parser functionality.
+ //
+@@ -127,21 +131,15 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
+ // representing the fragments of erroneous source code). Multiple errors
+ // are returned via a scanner.ErrorList which is sorted by file position.
+ //
+-func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error) {
++func ParseFile(filename string, src interface{}, scope *ast.Scope, mode uint) (*ast.File, os.Error) {
+ 	data, err := readSource(filename, src)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var p parser
+-	// TODO(gri) Remove CheckSemantics flag and code below once
+-	//           scope is provided via Init.
+-	var scope *ast.Scope
+-	if mode&CheckSemantics != 0 {
+-		scope = ast.NewScope(nil)
+-	}
+ 	p.init(filename, data, scope, mode)
+-	return p.parseFile(), p.GetError(scanner.NoMultiples)
++	return p.parseFile(), p.GetError(scanner.NoMultiples) // parseFile() reads to EOF
+ }
+ 
+ 
+@@ -166,18 +164,19 @@ func ParseDir(path string, filter func(*os.Dir) bool, mode uint) (map[string]*as
+ 		return nil, err
+ 	}
+ 
++	scope := ast.NewScope(nil)
+ 	pkgs := make(map[string]*ast.Package)
+ 	for i := 0; i < len(list); i++ {
+ 		entry := &list[i]
+ 		if filter == nil || filter(entry) {
+-			src, err := ParseFile(pathutil.Join(path, entry.Name), nil, mode)
++			src, err := ParseFile(pathutil.Join(path, entry.Name), nil, scope, mode)
+ 			if err != nil {
+ 				return pkgs, err
+ 			}
+ 			name := src.Name.Name()
+ 			pkg, found := pkgs[name]
+ 			if !found {
+-				pkg = &ast.Package{name, path, make(map[string]*ast.File)}
++				pkg = &ast.Package{name, path, scope, make(map[string]*ast.File)}
+ 				pkgs[name] = pkg
+ 			}
+ 			pkg.Files[entry.Name] = src
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 99c2370749..181ac65046 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -30,7 +30,6 @@ const (
+ 	PackageClauseOnly uint = 1 << iota // parsing stops after package clause
+ 	ImportsOnly            // parsing stops after import declarations
+ 	ParseComments          // parse comments and add them to AST
+-	CheckSemantics         // do semantic checks (only declarations for now)
+ 	Trace                  // print a trace of parsed productions
+ )
+ 
+@@ -322,9 +321,15 @@ func (p *parser) parseIdentList(kind ast.ObjKind) []*ast.Ident {
+ 
+ 
+ func (p *parser) declIdent(scope *ast.Scope, id *ast.Ident) {
+-	ok := scope.Declare(id.Obj)
+-	if p.checkDecl && !ok {
+-		p.Error(id.Pos(), "'"+id.Name()+"' declared already")
++	decl := scope.Declare(id.Obj)
++	if p.checkDecl && decl != id.Obj {
++		if decl.Kind == ast.Err {
++			// declared object is a forward declaration - update it
++			*decl = *id.Obj
++			id.Obj = decl
++			return
++		}
++		p.Error(id.Pos(), "'"+id.Name()+"' declared already at "+decl.Pos.String())
+ 	}
+ }
+ 
+@@ -355,9 +360,36 @@ func (p *parser) findIdent() *ast.Ident {
+ 		p.expect(token.IDENT) // use expect() error handling
+ 	}
+ 	if obj == nil {
+-		// TODO(gri) These identifiers need to be tracked as
+-		//           unresolved identifiers in the package
+-		//           scope so that they can be resolved later.
++		// No declaration found: either we are outside any function
++		// (p.funcScope == nil) or the identifier is not declared
++		// in any function. Try the file and package scope.
++		obj = p.fileScope.Lookup(name) // file scope is nested in package scope
++		if obj == nil {
++			// No declaration found anywhere: track as
++			// unresolved identifier in the package scope.
++			obj = ast.NewObj(ast.Err, pos, name)
++			p.pkgScope.Declare(obj)
++		}
++	}
++	return &ast.Ident{pos, obj}
++}
++
++
++func (p *parser) findIdentInScope(scope *ast.Scope) *ast.Ident {
++	pos := p.pos
++	name := "_"
++	var obj *ast.Object
++	if p.tok == token.IDENT {
++		name = string(p.lit)
++		obj = scope.Lookup(name)
++		p.next()
++	} else {
++		p.expect(token.IDENT) // use expect() error handling
++	}
++	if obj == nil {
++		// TODO(gri) At the moment we always arrive here because
++		//           we don't track the lookup scope (and sometimes
++		//           we can't). Just create a useable ident for now.
+ 		obj = ast.NewObj(ast.Err, pos, name)
+ 	}
+ 	return &ast.Ident{pos, obj}
+@@ -421,7 +453,7 @@ func (p *parser) parseQualifiedIdent() ast.Expr {
+ 	if p.tok == token.PERIOD {
+ 		// first identifier is a package identifier
+ 		p.next()
+-		sel := p.findIdent()
++		sel := p.findIdentInScope(nil)
+ 		x = &ast.SelectorExpr{x, sel}
+ 	}
+ 	return x
+@@ -970,7 +1002,7 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
+ 	p.expect(token.PERIOD)
+ 	if p.tok == token.IDENT {
+ 		// selector
+-		sel := p.findIdent()
++		sel := p.findIdentInScope(nil)
+ 		return &ast.SelectorExpr{x, sel}
+ 	}
+ 
+@@ -1403,7 +1435,7 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
+ 	s := &ast.BranchStmt{p.pos, tok, nil}
+ 	p.expect(tok)
+ 	if tok != token.FALLTHROUGH && p.tok == token.IDENT {
+-		s.Label = p.findIdent()
++		s.Label = p.findIdentInScope(nil)
+ 	}
+ 	p.expectSemi()
+ 
+@@ -1943,7 +1975,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.Field {
+ }
+ 
+ 
+-func (p *parser) parseFunctionDecl() *ast.FuncDecl {
++func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 	if p.trace {
+ 		defer un(trace(p, "FunctionDecl"))
+ 	}
+@@ -1988,7 +2020,7 @@ func (p *parser) parseDecl() ast.Decl {
+ 		f = parseVarSpec
+ 
+ 	case token.FUNC:
+-		return p.parseFunctionDecl()
++		return p.parseFuncDecl()
+ 
+ 	default:
+ 		pos := p.pos
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 39e13c5a5d..0d43d2ca70 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -5,6 +5,7 @@
+ package parser
+ 
+ import (
++	"go/ast"
+ 	"os"
+ 	"testing"
+ )
+@@ -20,7 +21,7 @@ var illegalInputs = []interface{}{
+ 
+ func TestParseIllegalInputs(t *testing.T) {
+ 	for _, src := range illegalInputs {
+-		_, err := ParseFile("", src, 0)
++		_, err := ParseFile("", src, nil, 0)
+ 		if err == nil {
+ 			t.Errorf("ParseFile(%v) should have failed", src)
+ 		}
+@@ -40,7 +41,7 @@ var validPrograms = []interface{}{
+ 
+ func TestParseValidPrograms(t *testing.T) {
+ 	for _, src := range validPrograms {
+-		_, err := ParseFile("", src, 0)
++		_, err := ParseFile("", src, ast.NewScope(nil), 0)
+ 		if err != nil {
+ 			t.Errorf("ParseFile(%q): %v", src, err)
+ 		}
+@@ -56,7 +57,7 @@ var validFiles = []string{
+ 
+ func TestParse3(t *testing.T) {
+ 	for _, filename := range validFiles {
+-		_, err := ParseFile(filename, nil, 0)
++		_, err := ParseFile(filename, nil, ast.NewScope(nil), 0)
+ 		if err != nil {
+ 			t.Errorf("ParseFile(%s): %v", filename, err)
+ 		}
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index b733e359bb..12c01e9062 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -51,7 +51,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
+ 	if mode&oldSyntax != 0 {
+ 		prog, err = oldParser.ParseFile(source, nil, parser.ParseComments)
+ 	} else {
+-		prog, err = parser.ParseFile(source, nil, parser.ParseComments)
++		prog, err = parser.ParseFile(source, nil, nil, parser.ParseComments)
+ 	}
+ 	if err != nil {
+ 		t.Error(err)

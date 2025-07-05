@@ -15,6 +15,19 @@ Date:   Thu Apr 16 22:05:35 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index bf12455a5d..06910450ff 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -840,7 +840,6 @@ opswitch:
+ 			n.Left = cheapexpr(n.Left, init)
+ 			// byteindex widens n.Left so that the multiplication doesn't overflow.
+ 			index := nod(OLSH, byteindex(n.Left), nodintconst(3))
+-			index.SetBounded(true)
+ 			if thearch.LinkArch.ByteOrder == binary.BigEndian {
+ 				index = nod(OADD, index, nodintconst(7))
+ 			}

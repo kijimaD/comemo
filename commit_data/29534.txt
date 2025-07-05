@@ -9,6 +9,20 @@ Date:   Tue Sep 20 18:02:27 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/link.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index e239c9d552..3b51390a58 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -703,8 +703,6 @@ type Link struct {
+ 	Mode          int
+ 	Cursym        *LSym
+ 	Version       int
+-	Textp         *LSym
+-	Etextp        *LSym
+ 	Errors        int
+ 
+ 	Framepointer_enabled bool

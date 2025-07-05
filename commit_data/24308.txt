@@ -9,6 +9,25 @@ Date:   Wed Jul 22 13:22:42 2015 -0400
     Change-Id: I7de98f3073a47911863a252b7a74d8fdaa48c86f
     Reviewed-on: https://go-review.googlesource.com/12529
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index e9fd1466ee..785d75a01e 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -164,6 +164,13 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
+ 	})
+ 	t.Logf("total %d CPU profile samples collected", samples)
+ 
++	if samples < 10 && runtime.GOOS == "windows" {
++		// On some windows machines we end up with
++		// not enough samples due to coarse timer
++		// resolution. Let it go.
++		t.Skip("too few samples on Windows (golang.org/issue/10842)")
++	}
++
+ 	if len(need) == 0 {
+ 		return
+ 	}

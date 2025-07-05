@@ -8,8 +8,52 @@ Date:   Thu Dec 9 16:18:31 2010 -0500
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/3556041
-
+---
  doc/go_tutorial.html     | 4 ++--
  doc/progs/helloworld3.go | 4 ++--
  doc/progs/sortmain.go    | 2 +-
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 1b9f752443..11e9b4ad77 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -649,8 +649,8 @@ We can now use our new package:
+ 13    func main() {
+ 14        hello := []byte(&quot;hello, world\n&quot;)
+ 15        file.Stdout.Write(hello)
+-16        file, err := file.Open(&quot;/does/not/exist&quot;,  0,  0)
+-17        if file == nil {
++16        f, err := file.Open(&quot;/does/not/exist&quot;,  0,  0)
++17        if f == nil {
+ 18            fmt.Printf(&quot;can't open file; err=%s\n&quot;,  err.String())
+ 19            os.Exit(1)
+ 20        }
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index e065f02e6b..adbcea3247 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -13,8 +13,8 @@ import (
+ func main() {
+ 	hello := []byte("hello, world\n")
+ 	file.Stdout.Write(hello)
+-	file, err := file.Open("/does/not/exist",  0,  0)
+-	if file == nil {
++	f, err := file.Open("/does/not/exist",  0,  0)
++	if f == nil {
+ 		fmt.Printf("can't open file; err=%s\n",  err.String())
+ 		os.Exit(1)
+ 	}
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index 6bd504a5b8..a77ae7381a 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -6,7 +6,7 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"sort"
++	"./sort"
+ )
+ 
+ func ints() {

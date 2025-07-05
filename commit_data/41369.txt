@@ -17,8 +17,108 @@ Date:   Thu Sep 26 13:17:49 2019 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.13.html            |  2 +-
  src/net/http/serve_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go     |  9 ---------
  3 files changed, 49 insertions(+), 10 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 3baf16c0af..a17337f666 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -821,7 +821,7 @@ godoc
+     <p><!-- CL 154383 -->
+       <a href="/pkg/net/http/#TimeoutHandler"><code>TimeoutHandler</code></a>'s
+       <a href="/pkg/net/http/#ResponseWriter"><code>ResponseWriter</code></a> now implements the
+-      <a href="/pkg/net/http/#Pusher"><code>Pusher</code></a> and <a href="/pkg/net/http/#Flusher"><code>Flusher</code></a> interfaces.
++      <a href="/pkg/net/http/#Pusher"><code>Pusher</code></a> interface.
+     </p>
+ 
+     <p><!-- CL 157339 -->
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 1d1449aa65..e86cc9bdd2 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6161,6 +6161,54 @@ func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 34439: ensure that TimeoutHandler doesn't implement Flusher
++// and that any interaction with Flusher won't affect TimeoutHandler's behavior.
++func TestTimeoutHandlerAndFlusher(t *testing.T) {
++	timeout := 50 * time.Millisecond
++
++	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.WriteHeader(StatusTeapot)
++		w.Write([]byte("line1\n"))
++		fl, ok := w.(Flusher)
++		if ok {
++			fl.Flush()
++		}
++		time.Sleep(timeout * 2)
++		w.Write([]byte("line2\n"))
++	})
++
++	cst := httptest.NewUnstartedServer(TimeoutHandler(handler, timeout, "TIMED OUT\n"))
++	// Provide a logger that will report an error on any superfluous log.
++	cst.Config.ErrorLog = log.New(&errorOnWrite{t: t}, "", 0)
++	cst.Start()
++	defer cst.Close()
++
++	res, err := cst.Client().Get(cst.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++
++	if g, w := res.StatusCode, StatusServiceUnavailable; g != w {
++		t.Errorf("Status code mismatch\ngot:  %d\nwant: %d", g, w)
++	}
++
++	slurp, _ := ioutil.ReadAll(res.Body)
++	if g, w := string(slurp), "TIMED OUT\n"; g != w {
++		t.Fatalf("Body mismatch\ngot:  %q\nwant: %q", g, w)
++	}
++}
++
++// errorOnWrite will invoke t.Error on any attempted write.
++type errorOnWrite struct {
++	t *testing.T
++}
++
++func (ew *errorOnWrite) Write(b []byte) (int, error) {
++	ew.t.Errorf("Unexpected write: %s\n", b)
++	return len(b), nil
++}
++
+ // fetchWireResponse is a helper for dialing to host,
+ // sending http1ReqBody as the payload and retrieving
+ // the response as it was sent on the wire.
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index feff20045a..9fd86ed7cd 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3272,7 +3272,6 @@ type timeoutWriter struct {
+ }
+ 
+ var _ Pusher = (*timeoutWriter)(nil)
+-var _ Flusher = (*timeoutWriter)(nil)
+ 
+ // Push implements the Pusher interface.
+ func (tw *timeoutWriter) Push(target string, opts *PushOptions) error {
+@@ -3282,14 +3281,6 @@ func (tw *timeoutWriter) Push(target string, opts *PushOptions) error {
+ 	return ErrNotSupported
+ }
+ 
+-// Flush implements the Flusher interface.
+-func (tw *timeoutWriter) Flush() {
+-	f, ok := tw.w.(Flusher)
+-	if ok {
+-		f.Flush()
+-	}
+-}
+-
+ func (tw *timeoutWriter) Header() Header { return tw.h }
+ 
+ func (tw *timeoutWriter) Write(p []byte) (int, error) {

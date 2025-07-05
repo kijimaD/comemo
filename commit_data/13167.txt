@@ -19,8 +19,94 @@ Date:   Fri May 25 10:03:59 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6256045
-
+---
  src/pkg/exp/html/foreign.go                        |  1 -
  src/pkg/exp/html/parse.go                          | 31 +++++++++++++---------
  .../exp/html/testlogs/plain-text-unsafe.dat.log    |  4 +--
  3 files changed, 20 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/exp/html/foreign.go b/src/pkg/exp/html/foreign.go
+index 89eef3dcb5..d3b3844099 100644
+--- a/src/pkg/exp/html/foreign.go
++++ b/src/pkg/exp/html/foreign.go
+@@ -82,7 +82,6 @@ var breakout = map[string]bool{
+ 	"dt":         true,
+ 	"em":         true,
+ 	"embed":      true,
+-	"font":       true,
+ 	"h1":         true,
+ 	"h2":         true,
+ 	"h3":         true,
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 1544bee26d..fe5f295b76 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -1785,12 +1785,7 @@ func afterAfterFramesetIM(p *parser) bool {
+ func parseForeignContent(p *parser) bool {
+ 	switch p.tok.Type {
+ 	case TextToken:
+-		// TODO: HTML integration points.
+-		if p.top().Namespace == "" {
+-			inBodyIM(p)
+-			p.resetInsertionMode()
+-			return true
+-		}
++		p.tok.Data = strings.Replace(p.tok.Data, "\x00", "", -1)
+ 		if p.framesetOK {
+ 			p.framesetOK = strings.TrimLeft(p.tok.Data, whitespace) == ""
+ 		}
+@@ -1801,15 +1796,21 @@ func parseForeignContent(p *parser) bool {
+ 			Data: p.tok.Data,
+ 		})
+ 	case StartTagToken:
+-		if htmlIntegrationPoint(p.top()) {
+-			inBodyIM(p)
+-			p.resetInsertionMode()
+-			return true
++		b := breakout[p.tok.Data]
++		if p.tok.Data == "font" {
++		loop:
++			for _, attr := range p.tok.Attr {
++				switch attr.Key {
++				case "color", "face", "size":
++					b = true
++					break loop
++				}
++			}
+ 		}
+-		if breakout[p.tok.Data] {
++		if b {
+ 			for i := len(p.oe) - 1; i >= 0; i-- {
+-				// TODO: MathML integration points.
+-				if p.oe[i].Namespace == "" || htmlIntegrationPoint(p.oe[i]) {
++				n := p.oe[i]
++				if n.Namespace == "" || htmlIntegrationPoint(n) || mathMLTextIntegrationPoint(n) {
+ 					p.oe = p.oe[:i+1]
+ 					break
+ 				}
+@@ -1833,6 +1834,10 @@ func parseForeignContent(p *parser) bool {
+ 		namespace := p.top().Namespace
+ 		p.addElement(p.tok.Data, p.tok.Attr)
+ 		p.top().Namespace = namespace
++		if p.hasSelfClosingToken {
++			p.oe.pop()
++			p.acknowledgeSelfClosingTag()
++		}
+ 	case EndTagToken:
+ 		for i := len(p.oe) - 1; i >= 0; i-- {
+ 			if p.oe[i].Namespace == "" {
+diff --git a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+index 41b003e689..acf1780cf2 100644
+--- a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
++++ b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+@@ -16,8 +16,8 @@ FAIL "<svg>\x00filler\x00text"
+ FAIL "<svg>\x00<frameset>"
+ FAIL "<svg>\x00 <frameset>"
+ FAIL "<svg>\x00a<frameset>"
+-FAIL "<svg>\x00</svg><frameset>"
+-FAIL "<svg>\x00 </svg><frameset>"
++PASS "<svg>\x00</svg><frameset>"
++PASS "<svg>\x00 </svg><frameset>"
+ FAIL "<svg>\x00a</svg><frameset>"
+ PASS "<svg><path></path></svg><frameset>"
+ PASS "<svg><p><frameset>"

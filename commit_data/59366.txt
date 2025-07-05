@@ -12,8 +12,48 @@ Date:   Thu Mar 7 11:16:17 2024 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/covdata/tool_test.go | 2 +-
  src/cmd/dist/testjson.go     | 2 +-
  src/net/http/cgi/host.go     | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/covdata/tool_test.go b/src/cmd/covdata/tool_test.go
+index d99113ebc5..4e56f35798 100644
+--- a/src/cmd/covdata/tool_test.go
++++ b/src/cmd/covdata/tool_test.go
+@@ -294,7 +294,7 @@ func runToolOp(t *testing.T, s state, op string, args []string) []string {
+ 	cmd := testenv.Command(t, s.tool, args...)
+ 	b, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "## %s output: %s\n", op, string(b))
++		fmt.Fprintf(os.Stderr, "## %s output: %s\n", op, b)
+ 		t.Fatalf("%q run error: %v", op, err)
+ 	}
+ 	output := strings.TrimSpace(string(b))
+diff --git a/src/cmd/dist/testjson.go b/src/cmd/dist/testjson.go
+index 62045932a9..c190c665eb 100644
+--- a/src/cmd/dist/testjson.go
++++ b/src/cmd/dist/testjson.go
+@@ -99,7 +99,7 @@ func (f *testJSONFilter) process(line []byte) {
+ 				data, err := json.Marshal(val)
+ 				if err != nil {
+ 					// Should never happen.
+-					panic(fmt.Sprintf("failed to round-trip JSON %q: %s", string(line), err))
++					panic(fmt.Sprintf("failed to round-trip JSON %q: %s", line, err))
+ 				}
+ 				f.w.Write(data)
+ 				// Copy any trailing text. We expect at most a "\n" here, but
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index ef222ab73a..c03fabb807 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -277,7 +277,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		headerLines++
+ 		header, val, ok := strings.Cut(string(line), ":")
+ 		if !ok {
+-			h.printf("cgi: bogus header line: %s", string(line))
++			h.printf("cgi: bogus header line: %s", line)
+ 			continue
+ 		}
+ 		if !httpguts.ValidHeaderFieldName(header) {

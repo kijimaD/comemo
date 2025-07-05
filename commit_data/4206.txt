@@ -6,7 +6,31 @@ Date:   Tue Nov 24 11:33:43 2009 -0800
     
     R=r
     https://golang.org/cl/157157
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 29cc62b8f1..778675f7da 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -23,5 +23,6 @@ Kevin Ballard <kevin@sb.org>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Môshe van der Sterre <moshevds@gmail.com>
++Roger Peppe <rogpeppe@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ William Josephson <wjosephson@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c9c10502d2..e8e2bae543 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -60,6 +60,7 @@ Peter McKenzie <petermck@google.com>
+ Phil Pennock <pdp@golang.org>
+ Rob Pike <r@golang.org>
+ Robert Griesemer <gri@golang.org>
++Roger Peppe <rogpeppe@gmail.com>
+ Russ Cox <rsc@golang.org>
+ Scott Schwartz <scotts@golang.org>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>

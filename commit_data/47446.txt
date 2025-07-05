@@ -29,7 +29,7 @@ Date:   Mon Mar 15 16:48:54 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/lex/input.go            | 30 ++++++++++---
  src/cmd/compile/internal/amd64/ggen.go       |  4 +-
  src/cmd/compile/internal/amd64/ssa.go        | 16 +++----
@@ -51,3 +51,611 @@ Date:   Mon Mar 15 16:48:54 2021 -0400
  src/runtime/race_amd64.s                     | 12 ++---
  src/runtime/sys_linux_amd64.s                |  8 ++--
  20 files changed, 131 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 1d4d4be7bd..d3ad328954 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -46,12 +46,30 @@ func NewInput(name string) *Input {
+ func predefine(defines flags.MultiFlag) map[string]*Macro {
+ 	macros := make(map[string]*Macro)
+ 
+-	if *flags.CompilingRuntime && objabi.Regabi_enabled != 0 {
+-		const name = "GOEXPERIMENT_REGABI"
+-		macros[name] = &Macro{
+-			name:   name,
+-			args:   nil,
+-			tokens: Tokenize("1"),
++	// Set macros for various GOEXPERIMENTs so we can easily
++	// switch runtime assembly code based on them.
++	if *flags.CompilingRuntime {
++		set := func(name string) {
++			macros[name] = &Macro{
++				name:   name,
++				args:   nil,
++				tokens: Tokenize("1"),
++			}
++		}
++		if objabi.Experiment.RegabiWrappers {
++			set("GOEXPERIMENT_REGABI_WRAPPERS")
++		}
++		if objabi.Experiment.RegabiG {
++			set("GOEXPERIMENT_REGABI_G")
++		}
++		if objabi.Experiment.RegabiReflect {
++			set("GOEXPERIMENT_REGABI_REFLECT")
++		}
++		if objabi.Experiment.RegabiDefer {
++			set("GOEXPERIMENT_REGABI_DEFER")
++		}
++		if objabi.Experiment.RegabiArgs {
++			set("GOEXPERIMENT_REGABI_ARGS")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 14c3bd1129..259a083f75 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -85,7 +85,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
+ 		}
+ 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
+ 	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
+-		if objabi.Regabi_enabled == 0 && *state&x15 == 0 {
++		if !objabi.Experiment.RegabiG && *state&x15 == 0 {
+ 			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+ 			*state |= x15
+ 		}
+@@ -98,7 +98,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
+ 			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
+ 		}
+ 	} else if !isPlan9 && (cnt <= int64(128*types.RegSize)) {
+-		if objabi.Regabi_enabled == 0 && *state&x15 == 0 {
++		if !objabi.Experiment.RegabiG && *state&x15 == 0 {
+ 			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+ 			*state |= x15
+ 		}
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 3798c37b34..bdd9da77b0 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -827,8 +827,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		if s.ABI != obj.ABIInternal {
+ 			v.Fatalf("MOVOstorezero can be only used in ABIInternal functions")
+ 		}
+-		if !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap) {
+-			// zeroing X15 manually if wrappers are not used
++		if !objabi.Experiment.RegabiG {
++			// zero X15 manually
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+ 		p := s.Prog(v.Op.Asm())
+@@ -921,8 +921,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		if s.ABI != obj.ABIInternal {
+ 			v.Fatalf("MOVOconst can be only used in ABIInternal functions")
+ 		}
+-		if !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap) {
+-			// zeroing X15 manually if wrappers are not used
++		if !objabi.Experiment.RegabiG {
++			// zero X15 manually
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+ 		off := duffStart(v.AuxInt)
+@@ -1004,20 +1004,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// Closure pointer is DX.
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+ 	case ssa.OpAMD64LoweredGetG:
+-		if objabi.Regabi_enabled == 1 && base.Flag.ABIWrap {
++		if objabi.Experiment.RegabiG {
+ 			v.Fatalf("LoweredGetG should not appear in new ABI")
+ 		}
+ 		r := v.Reg()
+ 		getgFromTLS(s, r)
+ 	case ssa.OpAMD64CALLstatic:
+-		if objabi.Regabi_enabled == 1 && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
++		if objabi.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 			// set G register from TLS
+ 			getgFromTLS(s, x86.REG_R14)
+ 		}
+ 		s.Call(v)
+-		if objabi.Regabi_enabled == 1 && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
++		if objabi.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 			// set G register from TLS
+@@ -1304,7 +1304,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+-		if objabi.Regabi_enabled == 1 && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
++		if objabi.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 			// set G register from TLS
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 1087f97d07..959fededa9 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -82,7 +82,6 @@ type CmdFlags struct {
+ 	CompilingRuntime bool "flag:\"+\" help:\"compiling runtime\""
+ 
+ 	// Longer names
+-	ABIWrap            bool         "help:\"enable generation of ABI wrappers\""
+ 	ABIWrapLimit       int          "help:\"emit at most N ABI wrappers (for debugging)\""
+ 	AsmHdr             string       "help:\"write assembly header to `file`\""
+ 	Bench              string       "help:\"append benchmark times to `file`\""
+@@ -147,7 +146,6 @@ func ParseFlags() {
+ 	Flag.LowerP = &Ctxt.Pkgpath
+ 	Flag.LowerV = &Ctxt.Debugvlog
+ 
+-	Flag.ABIWrap = objabi.Regabi_enabled != 0
+ 	Flag.Dwarf = objabi.GOARCH != "wasm"
+ 	Flag.DwarfBASEntries = &Ctxt.UseBASEntries
+ 	Flag.DwarfLocationLists = &Ctxt.Flag_locationlists
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 9921b51cc7..75fa71ce35 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -6,7 +6,6 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/abi"
+-	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+@@ -204,7 +203,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.floatParamRegs = paramFloatRegAMD64
+ 		c.FPReg = framepointerRegAMD64
+ 		c.LinkReg = linkRegAMD64
+-		c.hasGReg = base.Flag.ABIWrap
++		c.hasGReg = objabi.Experiment.RegabiG
+ 	case "386":
+ 		c.PtrSize = 4
+ 		c.RegSize = 4
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index bece886c0d..7dc381bd81 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -460,7 +460,7 @@
+ (IsInBounds idx len) => (SETB (CMPQ idx len))
+ (IsSliceInBounds idx len) => (SETBE (CMPQ idx len))
+ (NilCheck ...) => (LoweredNilCheck ...)
+-(GetG mem) && !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap) => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
++(GetG mem) && !objabi.Experiment.RegabiG => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
+ (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+ (GetCallerSP ...) => (LoweredGetCallerSP ...)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index ac5bf9d928..36f872d0c4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -5,7 +5,6 @@ package ssa
+ 
+ import "math"
+ import "cmd/internal/objabi"
+-import "cmd/compile/internal/base"
+ import "cmd/compile/internal/types"
+ 
+ func rewriteValueAMD64(v *Value) bool {
+@@ -30273,11 +30272,11 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
+ func rewriteValueAMD64_OpGetG(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (GetG mem)
+-	// cond: !(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap)
++	// cond: !objabi.Experiment.RegabiG
+ 	// result: (LoweredGetG mem)
+ 	for {
+ 		mem := v_0
+-		if !(!(objabi.Regabi_enabled == 1 && base.Flag.ABIWrap)) {
++		if !(!objabi.Experiment.RegabiG) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64LoweredGetG)
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index e3f3ac637b..6d391ed9f7 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -24,7 +24,7 @@ import (
+ // useNewABIWrapGen returns TRUE if the compiler should generate an
+ // ABI wrapper for the function 'f'.
+ func useABIWrapGen(f *ir.Func) bool {
+-	if !base.Flag.ABIWrap {
++	if !objabi.Experiment.RegabiWrappers {
+ 		return false
+ 	}
+ 
+@@ -140,7 +140,7 @@ func ReadSymABIs(file, myimportpath string) {
+ func InitLSym(f *ir.Func, hasBody bool) {
+ 	// FIXME: for new-style ABI wrappers, we set up the lsym at the
+ 	// point the wrapper is created.
+-	if f.LSym != nil && base.Flag.ABIWrap {
++	if f.LSym != nil && objabi.Experiment.RegabiWrappers {
+ 		return
+ 	}
+ 	staticdata.NeedFuncSym(f.Sym())
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 293062b8ec..e97535e748 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -261,8 +261,7 @@ func regAbiForFuncType(ft *types.Func) bool {
+ }
+ 
+ func regabiEnabledForAllCompilation() bool {
+-	// TODO compiler does not yet change behavior for GOEXPERIMENT=regabi
+-	return false && objabi.Regabi_enabled != 0
++	return objabi.Experiment.RegabiArgs
+ }
+ 
+ // getParam returns the Field of ith param of node n (which is a
+@@ -7448,7 +7447,7 @@ func clobberBase(n ir.Node) ir.Node {
+ //
+ func callTargetLSym(callee *ir.Name, callerLSym *obj.LSym) *obj.LSym {
+ 	lsym := callee.Linksym()
+-	if !base.Flag.ABIWrap {
++	if !objabi.Experiment.RegabiWrappers {
+ 		return lsym
+ 	}
+ 	fn := callee.Func
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 02af8eaa82..2fbeaad572 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -646,13 +646,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	var regg int16
+ 	if !p.From.Sym.NoSplit() || (p.From.Sym.Wrapper() && !p.From.Sym.ABIWrapper()) {
+-		if ctxt.Arch.Family == sys.AMD64 && objabi.Regabi_enabled != 0 && cursym.ABI() == obj.ABIInternal {
++		if ctxt.Arch.Family == sys.AMD64 && objabi.Experiment.RegabiG && cursym.ABI() == obj.ABIInternal {
+ 			regg = REGG // use the g register directly in ABIInternal
+ 		} else {
+ 			p = obj.Appendp(p, newprog)
+ 			regg = REG_CX
+ 			if ctxt.Arch.Family == sys.AMD64 {
+-				// Using this register means that stacksplit works w/ //go:registerparams even when objabi.Regabi_enabled == 0
++				// Using this register means that stacksplit works w/ //go:registerparams even when !objabi.Experiment.RegabiG
+ 				regg = REGG // == REG_R14
+ 			}
+ 			p = load_g(ctxt, p, newprog, regg) // load g into regg
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 8c96ceca35..548e9d0a30 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -146,7 +146,28 @@ func init() {
+ 
+ 	// regabi is only supported on amd64.
+ 	if GOARCH != "amd64" {
+-		Regabi_enabled = 0
++		Experiment.regabi = false
++		Experiment.RegabiWrappers = false
++		Experiment.RegabiG = false
++		Experiment.RegabiReflect = false
++		Experiment.RegabiDefer = false
++		Experiment.RegabiArgs = false
++	}
++	// Setting regabi sets working sub-experiments.
++	if Experiment.regabi {
++		Experiment.RegabiWrappers = true
++		Experiment.RegabiG = true
++		Experiment.RegabiReflect = true
++		// Not ready yet:
++		//Experiment.RegabiDefer = true
++		//Experiment.RegabiArgs = true
++	}
++	// Check regabi dependencies.
++	if Experiment.RegabiG && !Experiment.RegabiWrappers {
++		panic("GOEXPERIMENT regabig requires regabiwrappers")
++	}
++	if Experiment.RegabiArgs && !(Experiment.RegabiWrappers && Experiment.RegabiReflect && Experiment.RegabiDefer) {
++		panic("GOEXPERIMENT regabiargs requires regabiwrappers,regabireflect,regabidefer")
+ 	}
+ 
+ 	// Set GOEXPERIMENT to the parsed and canonicalized set of experiments.
+@@ -186,9 +207,42 @@ var (
+ 	Fieldtrack_enabled        int
+ 	Preemptibleloops_enabled  int
+ 	Staticlockranking_enabled int
+-	Regabi_enabled            int
+ )
+ 
++// Experiment contains flags for GOEXPERIMENTs.
++//
++// TODO(austin): Move the package-level experiment flags into this.
++var Experiment ExpFlags
++
++type ExpFlags struct {
++	// regabi is split into several sub-experiments that can be
++	// enabled individually. GOEXPERIMENT=regabi implies the
++	// subset that are currently "working". Not all combinations work.
++	regabi bool
++	// RegabiWrappers enables ABI wrappers for calling between
++	// ABI0 and ABIInternal functions. Without this, the ABIs are
++	// assumed to be identical so cross-ABI calls are direct.
++	RegabiWrappers bool
++	// RegabiG enables dedicated G and zero registers in
++	// ABIInternal.
++	//
++	// Requires wrappers because it makes the ABIs incompatible.
++	RegabiG bool
++	// RegabiReflect enables the register-passing paths in
++	// reflection calls. This is also gated by intArgRegs in
++	// reflect and runtime (which are disabled by default) so it
++	// can be used in targeted tests.
++	RegabiReflect bool
++	// RegabiDefer enables desugaring defer and go calls
++	// into argument-less closures.
++	RegabiDefer bool
++	// RegabiArgs enables register arguments/results in all
++	// compiled Go functions.
++	//
++	// Requires wrappers, reflect, defer.
++	RegabiArgs bool
++}
++
+ // Toolchain experiments.
+ // These are controlled by the GOEXPERIMENT environment
+ // variable recorded when the toolchain is built.
+@@ -199,7 +253,12 @@ var exper = []struct {
+ 	{"fieldtrack", &Fieldtrack_enabled},
+ 	{"preemptibleloops", &Preemptibleloops_enabled},
+ 	{"staticlockranking", &Staticlockranking_enabled},
+-	{"regabi", &Regabi_enabled},
++	{"regabi", &Experiment.regabi},
++	{"regabiwrappers", &Experiment.RegabiWrappers},
++	{"regabig", &Experiment.RegabiG},
++	{"regabireflect", &Experiment.RegabiReflect},
++	{"regabidefer", &Experiment.RegabiDefer},
++	{"regabiargs", &Experiment.RegabiArgs},
+ }
+ 
+ var defaultExpstring string
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 500dca2b8b..c96a9be355 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -493,7 +493,7 @@ func (ctxt *Link) loadlib() {
+ 	default:
+ 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+ 	}
+-	if !*flagAbiWrap || ctxt.linkShared {
++	if !objabi.Experiment.RegabiWrappers || ctxt.linkShared {
+ 		// Use ABI aliases if ABI wrappers are not used.
+ 		// TODO: for now we still use ABI aliases in shared linkage, even if
+ 		// the wrapper is enabled.
+@@ -2116,7 +2116,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 
+ 	// collect text symbol ABI versions.
+ 	symabi := make(map[string]int) // map (unmangled) symbol name to version
+-	if *flagAbiWrap {
++	if objabi.Experiment.RegabiWrappers {
+ 		for _, elfsym := range syms {
+ 			if elf.ST_TYPE(elfsym.Info) != elf.STT_FUNC {
+ 				continue
+@@ -2144,7 +2144,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		symname := elfsym.Name // (unmangled) symbol name
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
+ 			ver = sym.SymVerABIInternal
+-		} else if *flagAbiWrap && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
++		} else if objabi.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+ 			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
+ 				ver = sym.SymVerABIInternal
+ 				symname = strings.TrimSuffix(elfsym.Name, ".abiinternal")
+@@ -2194,7 +2194,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		// mangle Go function names in the .so to include the
+ 		// ABI.
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+-			if *flagAbiWrap {
++			if objabi.Experiment.RegabiWrappers {
+ 				if _, ok := symabi[symname]; ok {
+ 					continue // only use alias for functions w/o ABI wrappers
+ 				}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 8e9a9b9207..3c5355df9c 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -95,7 +95,6 @@ var (
+ 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
+ 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
+ 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+-	flagAbiWrap       = flag.Bool("abiwrap", objabi.Regabi_enabled != 0, "support ABI wrapper functions")
+ 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+ 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
+ )
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index ca8ef8641e..f48822a72e 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -121,7 +121,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
+ 	// sym or marker relocation to associate the wrapper with the
+ 	// wrapped function.
+ 	//
+-	if *flagAbiWrap {
++	if objabi.Experiment.RegabiWrappers {
+ 		if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT {
+ 			// First case
+ 			if ldr.SymVersion(x) == sym.SymVerABIInternal {
+diff --git a/src/internal/abi/abi_amd64.go b/src/internal/abi/abi_amd64.go
+index 07c3ec1aab..aff71f6a58 100644
+--- a/src/internal/abi/abi_amd64.go
++++ b/src/internal/abi/abi_amd64.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build goexperiment.regabi
+-// +build goexperiment.regabi
++//go:build goexperiment.regabireflect
++// +build goexperiment.regabireflect
+ 
+ package abi
+ 
+diff --git a/src/internal/abi/abi_generic.go b/src/internal/abi/abi_generic.go
+index 1e36f36e80..69400f930f 100644
+--- a/src/internal/abi/abi_generic.go
++++ b/src/internal/abi/abi_generic.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !goexperiment.regabi
+-// +build !goexperiment.regabi
++//go:build !goexperiment.regabireflect
++// +build !goexperiment.regabireflect
+ 
+ package abi
+ 
+diff --git a/src/runtime/abi_test.go b/src/runtime/abi_test.go
+index fa365c0832..f50ed879d4 100644
+--- a/src/runtime/abi_test.go
++++ b/src/runtime/abi_test.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build goexperiment.regabi
+-//go:build goexperiment.regabi
++//go:build goexperiment.regabireflect
++// +build goexperiment.regabireflect
+ 
+ // This file contains tests specific to making sure the register ABI
+ // works in a bunch of contexts in the runtime.
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ddd6a5bd5b..ab3f639929 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -442,7 +442,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ 	MOVL	$0, DX
+ 	JMP	runtime·morestack(SB)
+ 
+-#ifdef GOEXPERIMENT_REGABI
++#ifdef GOEXPERIMENT_REGABI_REFLECT
+ // spillArgs stores return values from registers to a *internal/abi.RegArgs in R12.
+ TEXT spillArgs<>(SB),NOSPLIT,$0-0
+ 	MOVQ AX, 0(R12)
+@@ -660,7 +660,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+ // or else unwinding from systemstack_switch is incorrect.
+ // Smashes R9.
+ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
+-#ifndef GOEXPERIMENT_REGABI
++#ifndef GOEXPERIMENT_REGABI_G
+ 	get_tls(R14)
+ 	MOVQ	g(R14), R14
+ #endif
+@@ -1461,7 +1461,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ // signals. It is quite painful to set X15 in the signal context,
+ // so we do it here.
+ TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
+-#ifdef GOEXPERIMENT_REGABI
++#ifdef GOEXPERIMENT_REGABI_G
+ 	get_tls(R14)
+ 	MOVQ	g(R14), R14
+ 	XORPS	X15, X15
+@@ -1483,7 +1483,7 @@ TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$112
+ 	MOVQ	R13, 104(SP)
+ 	// TODO: Consider passing g.m.p in as an argument so they can be shared
+ 	// across a sequence of write barriers.
+-#ifdef GOEXPERIMENT_REGABI
++#ifdef GOEXPERIMENT_REGABI_G
+ 	MOVQ	g_m(R14), R13
+ #else
+ 	get_tls(R13)
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 287bb9fc0a..5f6b86a1fe 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -146,7 +146,7 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
+ // If addr (RARG1) is out of range, do nothing.
+ // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
+ TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
+-#ifndef GOEXPERIMENT_REGABI
++#ifndef GOEXPERIMENT_REGABI_G
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -177,7 +177,7 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ // R11 = caller's return address
+ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ 	MOVQ	DX, BX		// save function entry context (for closures)
+-#ifndef GOEXPERIMENT_REGABI
++#ifndef GOEXPERIMENT_REGABI_G
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -193,7 +193,7 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ // func runtime·racefuncexit()
+ // Called from instrumented code.
+ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
+-#ifndef GOEXPERIMENT_REGABI
++#ifndef GOEXPERIMENT_REGABI_G
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -355,7 +355,7 @@ racecallatomic_data:
+ 	JAE	racecallatomic_ignore
+ racecallatomic_ok:
+ 	// Addr is within the good range, call the atomic function.
+-#ifndef GOEXPERIMENT_REGABI
++#ifndef GOEXPERIMENT_REGABI_G
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -370,7 +370,7 @@ racecallatomic_ignore:
+ 	// An attempt to synchronize on the address would cause crash.
+ 	MOVQ	AX, BX	// remember the original function
+ 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
+-#ifndef GOEXPERIMENT_REGABI
++#ifndef GOEXPERIMENT_REGABI_G
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+@@ -401,7 +401,7 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
+ 
+ // Switches SP to g0 stack and calls (AX). Arguments already set.
+ TEXT	racecall<>(SB), NOSPLIT, $0-0
+-#ifndef GOEXPERIMENT_REGABI
++#ifndef GOEXPERIMENT_REGABI_G
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+ #endif
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index d48573c2c5..584f2c5b1e 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -215,7 +215,7 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+ 
+ 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
+ 
+-#ifdef GOEXPERIMENT_REGABI
++#ifdef GOEXPERIMENT_REGABI_G
+ 	MOVQ	g_m(R14), BX // BX unchanged by C code.
+ #else
+ 	get_tls(CX)
+@@ -236,7 +236,7 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+ 	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	DX, m_vdsoSP(BX)
+ 
+-#ifdef GOEXPERIMENT_REGABI
++#ifdef GOEXPERIMENT_REGABI_G
+ 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
+ #else
+ 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
+@@ -283,7 +283,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 
+ 	MOVQ	SP, R12	// Save old SP; R12 unchanged by C code.
+ 
+-#ifdef GOEXPERIMENT_REGABI
++#ifdef GOEXPERIMENT_REGABI_G
+ 	MOVQ	g_m(R14), BX // BX unchanged by C code.
+ #else
+ 	get_tls(CX)
+@@ -304,7 +304,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	DX, m_vdsoSP(BX)
+ 
+-#ifdef GOEXPERIMENT_REGABI
++#ifdef GOEXPERIMENT_REGABI_G
+ 	CMPQ	R14, m_curg(BX)	// Only switch if on curg.
+ #else
+ 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.

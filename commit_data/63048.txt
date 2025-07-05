@@ -14,7 +14,42 @@ Date:   Mon May 19 13:05:24 2025 -0400
     Auto-Submit: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/bytes/buffer.go    | 6 ++++++
  src/strings/builder.go | 6 ++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index f90d9eca0f..9684513942 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -21,6 +21,12 @@ type Buffer struct {
+ 	buf      []byte // contents are the bytes buf[off : len(buf)]
+ 	off      int    // read at &buf[off], write at &buf[len(buf)]
+ 	lastRead readOp // last read operation, so that Unread* can work correctly.
++
++	// Copying and modifying a non-zero Buffer is prone to error,
++	// but we cannot employ the noCopy trick used by WaitGroup and Mutex,
++	// which causes vet's copylocks checker to report misuse, as vet
++	// cannot reliably distinguish the zero and non-zero cases.
++	// See #26462, #25907, #47276, #48398 for history.
+ }
+ 
+ // The readOp constants describe the last action performed on
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index e6df08c6f4..7ecef3176b 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -23,6 +23,12 @@ type Builder struct {
+ 	buf []byte
+ }
+ 
++// copyCheck implements a dynamic check to prevent modification after
++// copying a non-zero Builder, which would be unsafe (see #25907, #47276).
++//
++// We cannot add a noCopy field to Builder, to cause vet's copylocks
++// check to report copying, because copylocks cannot reliably
++// discriminate the zero and nonzero cases.
+ func (b *Builder) copyCheck() {
+ 	if b.addr == nil {
+ 		// This hack works around a failing of Go's escape analysis

@@ -9,9 +9,136 @@ Date:   Fri Jan 11 12:24:28 2013 +0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7004049
-
+---
  src/cmd/5l/l.h    |  3 ++-
  src/cmd/5l/obj.c  |  7 +++++-
  src/cmd/5l/pass.c | 67 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/ld/doc.go |  8 +++++++
  4 files changed, 83 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 5b05932fdd..0ceafdd112 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -420,8 +420,9 @@ int32	immaddr(int32);
+ int32	opbra(int, int);
+ int	brextra(Prog*);
+ int	isbranch(Prog*);
+-void fnptrs(void);
++void	fnptrs(void);
+ void	doelf(void);
++void	dozerostk(void); // used by -Z
+ 
+ vlong		addaddr(Sym *s, Sym *t);
+ vlong		addsize(Sym *s, Sym *t);
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index a99f67d949..6a95a5e572 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -255,7 +255,12 @@ main(int argc, char *argv[])
+ 	doelf();
+ 	follow();
+ 	softfloat();
+-	noops();
++	// 5l -Z means zero the stack frame on entry.
++	// This slows down function calls but can help avoid
++	// false positives in garbage collection.
++	if(debug['Z'])
++		dozerostk();
++	noops(); // generate stack split prolog, handle div/mod, etc.
+ 	dostkcheck();
+ 	span();
+ 	addexport();
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index 50593ced97..c22b860858 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -333,3 +333,70 @@ rnd(int32 v, int32 r)
+ 	v -= c;
+ 	return v;
+ }
++
++void
++dozerostk(void)
++{
++	Prog *p, *pl;
++	int32 autoffset;
++
++	for(cursym = textp; cursym != nil; cursym = cursym->next) {
++		if(cursym->text == nil || cursym->text->link == nil)
++			continue;				
++		p = cursym->text;
++		autoffset = p->to.offset;
++		if(autoffset < 0)
++			autoffset = 0;
++		if(autoffset && !(p->reg&NOSPLIT)) {
++			// MOVW $4(R13), R1
++			p = appendp(p);
++			p->as = AMOVW;
++			p->from.type = D_CONST;
++			p->from.reg = 13;
++			p->from.offset = 4;
++			p->to.type = D_REG;
++			p->to.reg = 1;
++
++			// MOVW $n(R13), R2
++			p = appendp(p);
++			p->as = AMOVW;
++			p->from.type = D_CONST;
++			p->from.reg = 13;
++			p->from.offset = 4 + autoffset;
++			p->to.type = D_REG;
++			p->to.reg = 2;
++
++			// MOVW $0, R3
++			p = appendp(p);
++			p->as = AMOVW;
++			p->from.type = D_CONST;
++			p->from.offset = 0;
++			p->to.type = D_REG;
++			p->to.reg = 3;
++
++			// L:
++			//	MOVW.P R3, 0(R1) +4
++			//	CMP R1, R2
++			//	BNE L
++			p = pl = appendp(p);
++			p->as = AMOVW;
++			p->from.type = D_REG;
++			p->from.reg = 3;
++			p->to.type = D_OREG;
++			p->to.reg = 1;
++			p->to.offset = 4;
++			p->scond |= C_PBIT;
++
++			p = appendp(p);
++			p->as = ACMP;
++			p->from.type = D_REG;
++			p->from.reg = 1;
++			p->reg = 2;
++
++			p = appendp(p);
++			p->as = ABNE;
++			p->to.type = D_BRANCH;
++			p->cond = pl;
++		}
++	}
++}
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 7fc22983db..357505f0b2 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -61,5 +61,13 @@ Options new in this version:
+ 	-B value
+ 		Add a NT_GNU_BUILD_ID note when using ELF.  The value
+ 		should start with 0x and be an even number of hex digits.
++	-Z
++		Zero stack on function entry. This is expensive but it might
++		be useful in cases where you are suffering from false positives
++		during garbage collection and are willing to trade the CPU time
++		for getting rid of the false positives.
++		NOTE: it only eliminates false positives caused by other function
++		calls, not false positives caused by dead temporaries stored in
++		the current function call.
+ */
+ package documentation

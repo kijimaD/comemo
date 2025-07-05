@@ -7,6 +7,20 @@ Date:   Wed May 22 12:28:58 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/9564044
-
+---
  doc/go_faq.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 62a564b6bf..6cca842406 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -701,7 +701,7 @@ A related example goes the other way:
+ 
+ <pre>
+ type Opener interface {
+-   Open(name) Reader
++   Open() Reader
+ }
+ 
+ func (t T3) Open() *os.File

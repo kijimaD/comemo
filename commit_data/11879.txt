@@ -9,7 +9,7 @@ Date:   Mon Feb 13 23:06:21 2012 -0500
     R=golang-dev, r, iant
     CC=golang-dev
     https://golang.org/cl/5657044
-
+---
  src/pkg/runtime/signal_darwin_386.c    | 4 +---
  src/pkg/runtime/signal_darwin_amd64.c  | 4 +---
  src/pkg/runtime/signal_freebsd_386.c   | 4 +---
@@ -21,3 +21,154 @@ Date:   Mon Feb 13 23:06:21 2012 -0500
  src/pkg/runtime/signal_openbsd_386.c   | 4 +---
  src/pkg/runtime/signal_openbsd_amd64.c | 4 +---
  10 files changed, 10 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/runtime/signal_darwin_386.c b/src/pkg/runtime/signal_darwin_386.c
+index 803bd242f3..1844f68a63 100644
+--- a/src/pkg/runtime/signal_darwin_386.c
++++ b/src/pkg/runtime/signal_darwin_386.c
+@@ -92,9 +92,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG){
+ 		runtime·printf("Signal %d\n", sig);
+diff --git a/src/pkg/runtime/signal_darwin_amd64.c b/src/pkg/runtime/signal_darwin_amd64.c
+index 0c954294a5..32c73081c1 100644
+--- a/src/pkg/runtime/signal_darwin_amd64.c
++++ b/src/pkg/runtime/signal_darwin_amd64.c
+@@ -102,9 +102,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG){
+ 		runtime·printf("Signal %d\n", sig);
+diff --git a/src/pkg/runtime/signal_freebsd_386.c b/src/pkg/runtime/signal_freebsd_386.c
+index b07ead62e8..80da95d98a 100644
+--- a/src/pkg/runtime/signal_freebsd_386.c
++++ b/src/pkg/runtime/signal_freebsd_386.c
+@@ -89,9 +89,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		runtime·printf("Signal %d\n", sig);
+diff --git a/src/pkg/runtime/signal_freebsd_amd64.c b/src/pkg/runtime/signal_freebsd_amd64.c
+index 2a68609681..e4307682f4 100644
+--- a/src/pkg/runtime/signal_freebsd_amd64.c
++++ b/src/pkg/runtime/signal_freebsd_amd64.c
+@@ -97,9 +97,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		runtime·printf("Signal %d\n", sig);
+diff --git a/src/pkg/runtime/signal_linux_386.c b/src/pkg/runtime/signal_linux_386.c
+index b43dbc1121..b154ad8872 100644
+--- a/src/pkg/runtime/signal_linux_386.c
++++ b/src/pkg/runtime/signal_linux_386.c
+@@ -85,9 +85,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		runtime·printf("Signal %d\n", sig);
+diff --git a/src/pkg/runtime/signal_linux_amd64.c b/src/pkg/runtime/signal_linux_amd64.c
+index 551744b78d..14095ba61c 100644
+--- a/src/pkg/runtime/signal_linux_amd64.c
++++ b/src/pkg/runtime/signal_linux_amd64.c
+@@ -95,9 +95,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		runtime·printf("Signal %d\n", sig);
+diff --git a/src/pkg/runtime/signal_netbsd_386.c b/src/pkg/runtime/signal_netbsd_386.c
+index 739b359ee6..39d829484d 100644
+--- a/src/pkg/runtime/signal_netbsd_386.c
++++ b/src/pkg/runtime/signal_netbsd_386.c
+@@ -85,9 +85,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		runtime·printf("Signal %d\n", sig);
+diff --git a/src/pkg/runtime/signal_netbsd_amd64.c b/src/pkg/runtime/signal_netbsd_amd64.c
+index e71f23551d..8b4f624e7c 100644
+--- a/src/pkg/runtime/signal_netbsd_amd64.c
++++ b/src/pkg/runtime/signal_netbsd_amd64.c
+@@ -94,9 +94,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		runtime·printf("Signal %d\n", sig);
+diff --git a/src/pkg/runtime/signal_openbsd_386.c b/src/pkg/runtime/signal_openbsd_386.c
+index 739b359ee6..39d829484d 100644
+--- a/src/pkg/runtime/signal_openbsd_386.c
++++ b/src/pkg/runtime/signal_openbsd_386.c
+@@ -85,9 +85,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		runtime·printf("Signal %d\n", sig);
+diff --git a/src/pkg/runtime/signal_openbsd_amd64.c b/src/pkg/runtime/signal_openbsd_amd64.c
+index e71f23551d..8b4f624e7c 100644
+--- a/src/pkg/runtime/signal_openbsd_amd64.c
++++ b/src/pkg/runtime/signal_openbsd_amd64.c
+@@ -94,9 +94,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		return;
+ 
+ Throw:
+-	if(runtime·panicking)	// traceback already printed
+-		runtime·exit(2);
+-	runtime·panicking = 1;
++	runtime·startpanic();
+ 
+ 	if(sig < 0 || sig >= NSIG)
+ 		runtime·printf("Signal %d\n", sig);

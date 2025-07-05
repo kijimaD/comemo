@@ -8,7 +8,212 @@ Date:   Mon May 2 15:10:37 2011 -0700
     R=nigeltao, rsc
     CC=golang-dev
     https://golang.org/cl/4428080
-
+---
  src/pkg/image/image.go      | 53 +++++++++++++++++++++++++++++++++++++++++++--
  src/pkg/image/png/reader.go | 22 +++++++++----------
  2 files changed, 62 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index 5f398a3047..9f205c1701 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -51,6 +51,13 @@ func (p *RGBA) Set(x, y int, c Color) {
+ 	p.Pix[y*p.Stride+x] = toRGBAColor(c).(RGBAColor)
+ }
+ 
++func (p *RGBA) SetRGBA(x, y int, c RGBAColor) {
++	if !p.Rect.Contains(Point{x, y}) {
++		return
++	}
++	p.Pix[y*p.Stride+x] = c
++}
++
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *RGBA) Opaque() bool {
+ 	if p.Rect.Empty() {
+@@ -103,6 +110,13 @@ func (p *RGBA64) Set(x, y int, c Color) {
+ 	p.Pix[y*p.Stride+x] = toRGBA64Color(c).(RGBA64Color)
+ }
+ 
++func (p *RGBA64) SetRGBA64(x, y int, c RGBA64Color) {
++	if !p.Rect.Contains(Point{x, y}) {
++		return
++	}
++	p.Pix[y*p.Stride+x] = c
++}
++
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *RGBA64) Opaque() bool {
+ 	if p.Rect.Empty() {
+@@ -155,6 +169,13 @@ func (p *NRGBA) Set(x, y int, c Color) {
+ 	p.Pix[y*p.Stride+x] = toNRGBAColor(c).(NRGBAColor)
+ }
+ 
++func (p *NRGBA) SetNRGBA(x, y int, c NRGBAColor) {
++	if !p.Rect.Contains(Point{x, y}) {
++		return
++	}
++	p.Pix[y*p.Stride+x] = c
++}
++
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *NRGBA) Opaque() bool {
+ 	if p.Rect.Empty() {
+@@ -207,6 +228,13 @@ func (p *NRGBA64) Set(x, y int, c Color) {
+ 	p.Pix[y*p.Stride+x] = toNRGBA64Color(c).(NRGBA64Color)
+ }
+ 
++func (p *NRGBA64) SetNRGBA64(x, y int, c NRGBA64Color) {
++	if !p.Rect.Contains(Point{x, y}) {
++		return
++	}
++	p.Pix[y*p.Stride+x] = c
++}
++
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *NRGBA64) Opaque() bool {
+ 	if p.Rect.Empty() {
+@@ -252,11 +280,11 @@ func (p *Alpha) At(x, y int) Color {
+ 	return p.Pix[y*p.Stride+x]
+ }
+ 
+-func (p *Alpha) Set(x, y int, c Color) {
++func (p *Alpha) SetAlpha(x, y int, c AlphaColor) {
+ 	if !p.Rect.Contains(Point{x, y}) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = toAlphaColor(c).(AlphaColor)
++	p.Pix[y*p.Stride+x] = c
+ }
+ 
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+@@ -311,6 +339,13 @@ func (p *Alpha16) Set(x, y int, c Color) {
+ 	p.Pix[y*p.Stride+x] = toAlpha16Color(c).(Alpha16Color)
+ }
+ 
++func (p *Alpha16) SetAlpha16(x, y int, c Alpha16Color) {
++	if !p.Rect.Contains(Point{x, y}) {
++		return
++	}
++	p.Pix[y*p.Stride+x] = c
++}
++
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *Alpha16) Opaque() bool {
+ 	if p.Rect.Empty() {
+@@ -363,6 +398,13 @@ func (p *Gray) Set(x, y int, c Color) {
+ 	p.Pix[y*p.Stride+x] = toGrayColor(c).(GrayColor)
+ }
+ 
++func (p *Gray) SetGray(x, y int, c GrayColor) {
++	if !p.Rect.Contains(Point{x, y}) {
++		return
++	}
++	p.Pix[y*p.Stride+x] = c
++}
++
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *Gray) Opaque() bool {
+ 	return true
+@@ -401,6 +443,13 @@ func (p *Gray16) Set(x, y int, c Color) {
+ 	p.Pix[y*p.Stride+x] = toGray16Color(c).(Gray16Color)
+ }
+ 
++func (p *Gray16) SetGray16(x, y int, c Gray16Color) {
++	if !p.Rect.Contains(Point{x, y}) {
++		return
++	}
++	p.Pix[y*p.Stride+x] = c
++}
++
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *Gray16) Opaque() bool {
+ 	return true
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index b30a951c1c..8c76afa72c 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -378,7 +378,7 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
+ 			for x := 0; x < d.width; x += 8 {
+ 				b := cdat[x/8]
+ 				for x2 := 0; x2 < 8 && x+x2 < d.width; x2++ {
+-					gray.Set(x+x2, y, image.GrayColor{(b >> 7) * 0xff})
++					gray.SetGray(x+x2, y, image.GrayColor{(b >> 7) * 0xff})
+ 					b <<= 1
+ 				}
+ 			}
+@@ -386,7 +386,7 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
+ 			for x := 0; x < d.width; x += 4 {
+ 				b := cdat[x/4]
+ 				for x2 := 0; x2 < 4 && x+x2 < d.width; x2++ {
+-					gray.Set(x+x2, y, image.GrayColor{(b >> 6) * 0x55})
++					gray.SetGray(x+x2, y, image.GrayColor{(b >> 6) * 0x55})
+ 					b <<= 2
+ 				}
+ 			}
+@@ -394,22 +394,22 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
+ 			for x := 0; x < d.width; x += 2 {
+ 				b := cdat[x/2]
+ 				for x2 := 0; x2 < 2 && x+x2 < d.width; x2++ {
+-					gray.Set(x+x2, y, image.GrayColor{(b >> 4) * 0x11})
++					gray.SetGray(x+x2, y, image.GrayColor{(b >> 4) * 0x11})
+ 					b <<= 4
+ 				}
+ 			}
+ 		case cbG8:
+ 			for x := 0; x < d.width; x++ {
+-				gray.Set(x, y, image.GrayColor{cdat[x]})
++				gray.SetGray(x, y, image.GrayColor{cdat[x]})
+ 			}
+ 		case cbGA8:
+ 			for x := 0; x < d.width; x++ {
+ 				ycol := cdat[2*x+0]
+-				nrgba.Set(x, y, image.NRGBAColor{ycol, ycol, ycol, cdat[2*x+1]})
++				nrgba.SetNRGBA(x, y, image.NRGBAColor{ycol, ycol, ycol, cdat[2*x+1]})
+ 			}
+ 		case cbTC8:
+ 			for x := 0; x < d.width; x++ {
+-				rgba.Set(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
++				rgba.SetRGBA(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
+ 			}
+ 		case cbP1:
+ 			for x := 0; x < d.width; x += 8 {
+@@ -456,25 +456,25 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
+ 			}
+ 		case cbTCA8:
+ 			for x := 0; x < d.width; x++ {
+-				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
++				nrgba.SetNRGBA(x, y, image.NRGBAColor{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
+ 			}
+ 		case cbG16:
+ 			for x := 0; x < d.width; x++ {
+ 				ycol := uint16(cdat[2*x+0])<<8 | uint16(cdat[2*x+1])
+-				gray16.Set(x, y, image.Gray16Color{ycol})
++				gray16.SetGray16(x, y, image.Gray16Color{ycol})
+ 			}
+ 		case cbGA16:
+ 			for x := 0; x < d.width; x++ {
+ 				ycol := uint16(cdat[4*x+0])<<8 | uint16(cdat[4*x+1])
+ 				acol := uint16(cdat[4*x+2])<<8 | uint16(cdat[4*x+3])
+-				nrgba64.Set(x, y, image.NRGBA64Color{ycol, ycol, ycol, acol})
++				nrgba64.SetNRGBA64(x, y, image.NRGBA64Color{ycol, ycol, ycol, acol})
+ 			}
+ 		case cbTC16:
+ 			for x := 0; x < d.width; x++ {
+ 				rcol := uint16(cdat[6*x+0])<<8 | uint16(cdat[6*x+1])
+ 				gcol := uint16(cdat[6*x+2])<<8 | uint16(cdat[6*x+3])
+ 				bcol := uint16(cdat[6*x+4])<<8 | uint16(cdat[6*x+5])
+-				rgba64.Set(x, y, image.RGBA64Color{rcol, gcol, bcol, 0xffff})
++				rgba64.SetRGBA64(x, y, image.RGBA64Color{rcol, gcol, bcol, 0xffff})
+ 			}
+ 		case cbTCA16:
+ 			for x := 0; x < d.width; x++ {
+@@ -482,7 +482,7 @@ func (d *decoder) idatReader(idat io.Reader) (image.Image, os.Error) {
+ 				gcol := uint16(cdat[8*x+2])<<8 | uint16(cdat[8*x+3])
+ 				bcol := uint16(cdat[8*x+4])<<8 | uint16(cdat[8*x+5])
+ 				acol := uint16(cdat[8*x+6])<<8 | uint16(cdat[8*x+7])
+-				nrgba64.Set(x, y, image.NRGBA64Color{rcol, gcol, bcol, acol})
++				nrgba64.SetNRGBA64(x, y, image.NRGBA64Color{rcol, gcol, bcol, acol})
+ 			}
+ 		}
+ 

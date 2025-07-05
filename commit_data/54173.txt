@@ -27,7 +27,7 @@ Date:   Thu Mar 10 15:06:43 2022 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cover/cfg_test.go                  | 175 +++++++++++++
  src/cmd/cover/cover.go                     | 403 ++++++++++++++++++++++++++---
  src/cmd/cover/cover_test.go                |  10 +
@@ -40,3 +40,901 @@ Date:   Thu Mar 10 15:06:43 2022 -0500
  src/cmd/cover/testdata/pkgcfg/go.mod       |   3 +
  src/cmd/cover/testdata/pkgcfg/main/main.go |  15 ++
  11 files changed, 658 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+new file mode 100644
+index 0000000000..cdd5466d11
+--- /dev/null
++++ b/src/cmd/cover/cfg_test.go
+@@ -0,0 +1,175 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main_test
++
++import (
++	"encoding/json"
++	"fmt"
++	"internal/coverage"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++func writeFile(t *testing.T, path string, contents []byte) {
++	if err := os.WriteFile(path, contents, 0666); err != nil {
++		t.Fatalf("os.WriteFile(%s) failed: %v", path, err)
++	}
++}
++
++func writePkgConfig(t *testing.T, outdir, tag, ppath, pname string, gran string) string {
++	incfg := filepath.Join(outdir, tag+"incfg.txt")
++	outcfg := filepath.Join(outdir, "outcfg.txt")
++	p := coverage.CoverPkgConfig{
++		PkgPath:     ppath,
++		PkgName:     pname,
++		Granularity: gran,
++		OutConfig:   outcfg,
++	}
++	data, err := json.Marshal(p)
++	if err != nil {
++		t.Fatalf("json.Marshal failed: %v", err)
++	}
++	writeFile(t, incfg, data)
++	return incfg
++}
++
++func runPkgCover(t *testing.T, outdir string, tag string, incfg string, mode string, infiles []string, errExpected bool) ([]string, string, string) {
++	// Write the pkgcfg file.
++	outcfg := filepath.Join(outdir, "outcfg.txt")
++
++	// Form up the arguments and run the tool.
++	outfiles := []string{}
++	for _, inf := range infiles {
++		base := filepath.Base(inf)
++		outfiles = append(outfiles, filepath.Join(outdir, "cov."+base))
++	}
++	ofs := strings.Join(outfiles, string(os.PathListSeparator))
++	args := []string{"-pkgcfg", incfg, "-mode=" + mode, "-var=var" + tag, "-o", ofs}
++	args = append(args, infiles...)
++	cmd := exec.Command(testcover, args...)
++	if errExpected {
++		errmsg := runExpectingError(cmd, t)
++		return nil, "", errmsg
++	} else {
++		run(cmd, t)
++		return outfiles, outcfg, ""
++	}
++}
++
++// Set to true when debugging unit test (to inspect debris, etc).
++// Note that this functionality does not work on windows.
++const debugWorkDir = false
++
++func TestCoverWithCfg(t *testing.T) {
++	t.Parallel()
++	testenv.MustHaveGoRun(t)
++	buildCover(t)
++
++	// Subdir in testdata that has our input files of interest.
++	tpath := filepath.Join("testdata", "pkgcfg")
++
++	// Helper to collect input paths (go files) for a subdir in 'pkgcfg'
++	pfiles := func(subdir string) []string {
++		de, err := os.ReadDir(filepath.Join(tpath, subdir))
++		if err != nil {
++			t.Fatalf("reading subdir %s: %v", subdir, err)
++		}
++		paths := []string{}
++		for _, e := range de {
++			if !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
++				continue
++			}
++			paths = append(paths, filepath.Join(tpath, subdir, e.Name()))
++		}
++		return paths
++	}
++
++	dir := t.TempDir()
++	if debugWorkDir {
++		dir = "/tmp/qqq"
++		os.RemoveAll(dir)
++		os.Mkdir(dir, 0777)
++	}
++	instdira := filepath.Join(dir, "insta")
++	if err := os.Mkdir(instdira, 0777); err != nil {
++		t.Fatal(err)
++	}
++
++	scenarios := []struct {
++		mode, gran string
++	}{
++		{
++			mode: "count",
++			gran: "perblock",
++		},
++		{
++			mode: "set",
++			gran: "perfunc",
++		},
++		{
++			mode: "regonly",
++			gran: "perblock",
++		},
++	}
++
++	tag := "first"
++	var incfg string
++	for _, scenario := range scenarios {
++		// Instrument package "a", producing a set of instrumented output
++		// files and an 'output config' file to pass on to the compiler.
++		ppath := "cfg/a"
++		pname := "a"
++		mode := scenario.mode
++		gran := scenario.gran
++		incfg = writePkgConfig(t, instdira, tag, ppath, pname, gran)
++		ofs, outcfg, _ := runPkgCover(t, instdira, tag, incfg, mode,
++			pfiles("a"), false)
++		t.Logf("outfiles: %+v\n", ofs)
++
++		// Run the compiler on the files to make sure the result is
++		// buildable.
++		bargs := []string{"tool", "compile", "-p", "a", "-coveragecfg", outcfg}
++		bargs = append(bargs, ofs...)
++		cmd := exec.Command(testenv.GoToolPath(t), bargs...)
++		cmd.Dir = instdira
++		run(cmd, t)
++	}
++
++	// Do some error testing to ensure that various bad options and
++	// combinations are properly rejected.
++
++	// Expect error if config file inaccessible/unreadable.
++	mode := "atomic"
++	errExpected := true
++	_, _, errmsg := runPkgCover(t, instdira, tag, "/not/a/file", mode,
++		pfiles("a"), errExpected)
++	want := "error reading pkgconfig file"
++	if !strings.Contains(errmsg, want) {
++		t.Errorf("'bad config file' test: wanted %s got %s", want, errmsg)
++	}
++
++	// Expect err if config file contains unknown stuff.
++	t.Logf("mangling in config")
++	writeFile(t, incfg, []byte(fmt.Sprintf("blah=foo\n")))
++	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
++		pfiles("a"), errExpected)
++	want = "error reading pkgconfig file"
++	if !strings.Contains(errmsg, want) {
++		t.Errorf("'bad config file' test: wanted %s got %s", want, errmsg)
++	}
++
++	// Expect error on empty config file.
++	t.Logf("writing empty config")
++	writeFile(t, incfg, []byte(fmt.Sprintf("\n")))
++	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
++		pfiles("a"), errExpected)
++	if !strings.Contains(errmsg, want) {
++		t.Errorf("'bad config file' test: wanted %s got %s", want, errmsg)
++	}
++}
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 86ef128f2c..05c265d515 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -6,15 +6,22 @@ package main
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	"internal/coverage"
++	"internal/coverage/encodemeta"
++	"internal/coverage/slicewriter"
+ 	"io"
++	"io/ioutil"
+ 	"log"
+ 	"os"
++	"path/filepath"
+ 	"sort"
++	"strings"
+ 
+ 	"cmd/internal/edit"
+ 	"cmd/internal/objabi"
+@@ -35,8 +42,14 @@ Display coverage percentages to stdout for each function:
+ 	go tool cover -func=c.out
+ 
+ Finally, to generate modified source code with coverage annotations
+-(what go test -cover does):
+-	go tool cover -mode=set -var=CoverageVariableName program.go
++for a package (what go test -cover does):
++	go tool cover -mode=set -var=CoverageVariableName \
++		-pkgcfg=<config> -o=<outputfiles> file1.go ... fileN.go
++
++where -pkgcfg points to a file containing the package path,
++package name, module path, and related info from "go build".
++See https://pkg.go.dev/internal/coverage#CoverPkgConfig for
++more on the package config.
+ `
+ 
+ func usage() {
+@@ -50,11 +63,14 @@ func usage() {
+ var (
+ 	mode    = flag.String("mode", "", "coverage mode: set, count, atomic")
+ 	varVar  = flag.String("var", "GoCover", "name of coverage variable to generate")
+-	output  = flag.String("o", "", "file for output; default: stdout")
++	output  = flag.String("o", "", fmt.Sprintf("file(s) for output (if multiple inputs, this is a %q-separated list); defaults to stdout if omitted.", string(os.PathListSeparator)))
+ 	htmlOut = flag.String("html", "", "generate HTML representation of coverage profile")
+ 	funcOut = flag.String("func", "", "output coverage profile information for each function")
++	pkgcfg  = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
+ )
+ 
++var pkgconfig coverage.CoverPkgConfig
++
+ var profile string // The profile to read; the value of -html or -func
+ 
+ var counterStmt func(*File, string) string
+@@ -83,7 +99,7 @@ func main() {
+ 
+ 	// Generate coverage-annotated source.
+ 	if *mode != "" {
+-		annotate(flag.Arg(0))
++		annotate(flag.Args())
+ 		return
+ 	}
+ 
+@@ -127,14 +143,32 @@ func parseFlags() error {
+ 			counterStmt = incCounterStmt
+ 		case "atomic":
+ 			counterStmt = atomicCounterStmt
++		case "regonly", "testmain":
++			counterStmt = nil
+ 		default:
+ 			return fmt.Errorf("unknown -mode %v", *mode)
+ 		}
+ 
+ 		if flag.NArg() == 0 {
+-			return fmt.Errorf("missing source file")
+-		} else if flag.NArg() == 1 {
+-			return nil
++			return fmt.Errorf("missing source file(s)")
++		} else {
++			if *pkgcfg != "" {
++				if *output == "" {
++					return fmt.Errorf("supply output file(s) with -o")
++				}
++				numInputs := len(flag.Args())
++				numOutputs := len(strings.Split(*output, string(os.PathListSeparator)))
++				if numOutputs != numInputs {
++					return fmt.Errorf("number of output files (%d) not equal to number of input files (%d)", numOutputs, numInputs)
++				}
++				if err := readPackageConfig(*pkgcfg); err != nil {
++					return err
++				}
++				return nil
++			}
++			if flag.NArg() == 1 {
++				return nil
++			}
+ 		}
+ 	} else if flag.NArg() == 0 {
+ 		return nil
+@@ -142,6 +176,20 @@ func parseFlags() error {
+ 	return fmt.Errorf("too many arguments")
+ }
+ 
++func readPackageConfig(path string) error {
++	data, err := ioutil.ReadFile(path)
++	if err != nil {
++		return fmt.Errorf("error reading pkgconfig file %q: %v", path, err)
++	}
++	if err := json.Unmarshal(data, &pkgconfig); err != nil {
++		return fmt.Errorf("error reading pkgconfig file %q: %v", path, err)
++	}
++	if pkgconfig.Granularity != "perblock" && pkgconfig.Granularity != "perfunc" {
++		return fmt.Errorf(`%s: pkgconfig requires perblock/perfunc value`, path)
++	}
++	return nil
++}
++
+ // Block represents the information about a basic block to be recorded in the analysis.
+ // Note: Our definition of basic block is based on control structures; we don't break
+ // apart && and ||. We could but it doesn't seem important enough to bother.
+@@ -151,6 +199,18 @@ type Block struct {
+ 	numStmt   int
+ }
+ 
++// Package holds package-specific state.
++type Package struct {
++	mdb            *encodemeta.CoverageMetaDataBuilder
++	counterLengths []int
++}
++
++// Function holds func-specific state.
++type Func struct {
++	units      []coverage.CoverableUnit
++	counterVar string
++}
++
+ // File is a wrapper for the state of a file used in the parser.
+ // The basic parse tree walker is a method of this type.
+ type File struct {
+@@ -160,6 +220,9 @@ type File struct {
+ 	blocks  []Block
+ 	content []byte
+ 	edit    *edit.Buffer
++	mdb     *encodemeta.CoverageMetaDataBuilder
++	fn      Func
++	pkg     *Package
+ }
+ 
+ // findText finds text in the original source, starting at pos.
+@@ -294,14 +357,178 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 		}
+ 	case *ast.FuncDecl:
+ 		// Don't annotate functions with blank names - they cannot be executed.
+-		if n.Name.Name == "_" {
++		// Similarly for bodyless funcs.
++		if n.Name.Name == "_" || n.Body == nil {
+ 			return nil
+ 		}
++		// Determine proper function or method name.
++		fname := n.Name.Name
++		if r := n.Recv; r != nil && len(r.List) == 1 {
++			t := r.List[0].Type
++			star := ""
++			if p, _ := t.(*ast.StarExpr); p != nil {
++				t = p.X
++				star = "*"
++			}
++			if p, _ := t.(*ast.Ident); p != nil {
++				fname = star + p.Name + "." + fname
++			}
++		}
++		walkBody := true
++		if *pkgcfg != "" {
++			f.preFunc(n, fname)
++			if pkgconfig.Granularity == "perfunc" {
++				walkBody = false
++			}
++		}
++		if walkBody {
++			ast.Walk(f, n.Body)
++		}
++		if *pkgcfg != "" {
++			flit := false
++			f.postFunc(n, fname, flit, n.Body)
++		}
++		return nil
++	case *ast.FuncLit:
++		// For function literals enclosed in functions, just glom the
++		// code for the literal in with the enclosing function (for now).
++		if f.fn.counterVar != "" {
++			return f
++		}
++
++		// Hack: function literals aren't named in the go/ast representation,
++		// and we don't know what name the compiler will choose. For now,
++		// just make up a descriptive name.
++		pos := n.Pos()
++		p := f.fset.File(pos).Position(pos)
++		fname := fmt.Sprintf("func.L%d.C%d", p.Line, p.Column)
++		if *pkgcfg != "" {
++			f.preFunc(n, fname)
++		}
++		ast.Walk(f, n.Body)
++		if *pkgcfg != "" {
++			flit := true
++			f.postFunc(n, fname, flit, n.Body)
++		}
++		return nil
+ 	}
+ 	return f
+ }
+ 
+-func annotate(name string) {
++func mkCounterVarName(idx int) string {
++	return fmt.Sprintf("%s_%d", *varVar, idx)
++}
++
++func mkPackageIdVar() string {
++	return *varVar + "P"
++}
++
++func mkMetaVar() string {
++	return *varVar + "M"
++}
++
++func mkPackageIdExpression() string {
++	ppath := pkgconfig.PkgPath
++	if hcid := coverage.HardCodedPkgID(ppath); hcid != -1 {
++		return fmt.Sprintf("uint32(%d)", uint32(hcid))
++	}
++	return mkPackageIdVar()
++}
++
++func (f *File) preFunc(fn ast.Node, fname string) {
++	f.fn.units = f.fn.units[:0]
++
++	// create a new counter variable for this function.
++	cv := mkCounterVarName(len(f.pkg.counterLengths))
++	f.fn.counterVar = cv
++}
++
++func (f *File) postFunc(fn ast.Node, funcname string, flit bool, body *ast.BlockStmt) {
++	// record the length of the counter var required.
++	nc := len(f.fn.units) + coverage.FirstCtrOffset
++	f.pkg.counterLengths = append(f.pkg.counterLengths, nc)
++
++	// FIXME: for windows, do we want "\" and not "/"? Need to test here.
++	// Currently filename is formed as packagepath + "/" + basename.
++	fnpos := f.fset.Position(fn.Pos())
++	ppath := pkgconfig.PkgPath
++	filename := ppath + "/" + filepath.Base(fnpos.Filename)
++
++	// Hand off function to meta-data builder.
++	fd := coverage.FuncDesc{
++		Funcname: funcname,
++		Srcfile:  filename,
++		Units:    f.fn.units,
++		Lit:      flit,
++	}
++	funcId := f.mdb.AddFunc(fd)
++
++	// Generate the registration hook for the function, and insert it
++	// into the prolog.
++	cv := f.fn.counterVar
++	regHook := fmt.Sprintf("%s[0] = %d ; %s[1] = %s ; %s[2] = %d",
++		cv, len(f.fn.units), cv, mkPackageIdExpression(), cv, funcId)
++
++	// Insert a function registration sequence into the function.
++	boff := f.offset(body.Pos())
++	ipos := f.fset.File(body.Pos()).Pos(boff + 1)
++	f.edit.Insert(f.offset(ipos), regHook+" ; ")
++
++	f.fn.counterVar = ""
++}
++
++func annotate(names []string) {
++	var p *Package
++	if *pkgcfg != "" {
++		pp := pkgconfig.PkgPath
++		pn := pkgconfig.PkgName
++		if pn == "main" {
++			pp = "main"
++		}
++		mp := pkgconfig.ModulePath
++		mdb, err := encodemeta.NewCoverageMetaDataBuilder(pp, pn, mp)
++		if err != nil {
++			log.Fatalf("creating coverage meta-data builder: %v\n", err)
++		}
++		p = &Package{
++			mdb: mdb,
++		}
++	}
++	// TODO: process files in parallel here if it matters.
++	outfiles := strings.Split(*output, string(os.PathListSeparator))
++	for k, name := range names {
++		last := false
++		if k == len(names)-1 {
++			last = true
++		}
++
++		fd := os.Stdout
++		isStdout := true
++		if *pkgcfg != "" {
++			var err error
++			fd, err = os.Create(outfiles[k])
++			if err != nil {
++				log.Fatalf("cover: %s", err)
++			}
++			isStdout = false
++		} else if *output != "" {
++			var err error
++			fd, err = os.Create(*output)
++			if err != nil {
++				log.Fatalf("cover: %s", err)
++			}
++			isStdout = false
++		}
++		p.annotateFile(name, fd, last)
++		if !isStdout {
++			if err := fd.Close(); err != nil {
++				log.Fatalf("cover: %s", err)
++			}
++		}
++	}
++}
++
++func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
+ 	fset := token.NewFileSet()
+ 	content, err := os.ReadFile(name)
+ 	if err != nil {
+@@ -319,6 +546,11 @@ func annotate(name string) {
+ 		edit:    edit.NewBuffer(content),
+ 		astFile: parsedFile,
+ 	}
++	if p != nil {
++		file.mdb = p.mdb
++		file.pkg = p
++	}
++
+ 	if *mode == "atomic" {
+ 		// Add import of sync/atomic immediately after package clause.
+ 		// We do this even if there is an existing import, because the
+@@ -328,25 +560,34 @@ func annotate(name string) {
+ 		file.edit.Insert(file.offset(file.astFile.Name.End()),
+ 			fmt.Sprintf("; import %s %q", atomicPackageName, atomicPackagePath))
+ 	}
++	if pkgconfig.PkgName == "main" {
++		file.edit.Insert(file.offset(file.astFile.Name.End()),
++			fmt.Sprintf("; import _ \"runtime/coverage\""))
++	}
+ 
+-	ast.Walk(file, file.astFile)
+-	newContent := file.edit.Bytes()
+-
+-	fd := os.Stdout
+-	if *output != "" {
+-		var err error
+-		fd, err = os.Create(*output)
+-		if err != nil {
+-			log.Fatalf("cover: %s", err)
+-		}
++	if counterStmt != nil {
++		ast.Walk(file, file.astFile)
+ 	}
++	newContent := file.edit.Bytes()
+ 
+ 	fmt.Fprintf(fd, "//line %s:1\n", name)
+ 	fd.Write(newContent)
+ 
+-	// After printing the source tree, add some declarations for the counters etc.
+-	// We could do this by adding to the tree, but it's easier just to print the text.
++	// After printing the source tree, add some declarations for the
++	// counters etc. We could do this by adding to the tree, but it's
++	// easier just to print the text.
+ 	file.addVariables(fd)
++
++	// Emit a reference to the atomic package to avoid
++	// import and not used error when there's no code in a file.
++	if *mode == "atomic" {
++		fmt.Fprintf(fd, "var _ = %s.LoadUint32\n", atomicPackageName)
++	}
++
++	// Last file? Emit meta-data and converage config.
++	if last {
++		p.emitMetaData(fd)
++	}
+ }
+ 
+ // setCounterStmt returns the expression: __count[23] = 1.
+@@ -366,8 +607,30 @@ func atomicCounterStmt(f *File, counter string) string {
+ 
+ // newCounter creates a new counter expression of the appropriate form.
+ func (f *File) newCounter(start, end token.Pos, numStmt int) string {
+-	stmt := counterStmt(f, fmt.Sprintf("%s.Count[%d]", *varVar, len(f.blocks)))
+-	f.blocks = append(f.blocks, Block{start, end, numStmt})
++	var stmt string
++	if *pkgcfg != "" {
++		slot := len(f.fn.units) + coverage.FirstCtrOffset
++		if f.fn.counterVar == "" {
++			panic("internal error: counter var unset")
++		}
++		stmt = counterStmt(f, fmt.Sprintf("%s[%d]", f.fn.counterVar, slot))
++		stpos := f.fset.Position(start)
++		enpos := f.fset.Position(end)
++		stpos, enpos = dedup(stpos, enpos)
++		unit := coverage.CoverableUnit{
++			StLine:  uint32(stpos.Line),
++			StCol:   uint32(stpos.Column),
++			EnLine:  uint32(enpos.Line),
++			EnCol:   uint32(enpos.Column),
++			NxStmts: uint32(numStmt),
++		}
++		f.fn.units = append(f.fn.units, unit)
++
++	} else {
++		stmt = counterStmt(f, fmt.Sprintf("%s.Count[%d]", *varVar,
++			len(f.blocks)))
++		f.blocks = append(f.blocks, Block{start, end, numStmt})
++	}
+ 	return stmt
+ }
+ 
+@@ -621,6 +884,9 @@ func (f *File) offset(pos token.Pos) int {
+ 
+ // addVariables adds to the end of the file the declarations to set up the counter and position variables.
+ func (f *File) addVariables(w io.Writer) {
++	if *pkgcfg != "" {
++		return
++	}
+ 	// Self-check: Verify that the instrumented basic blocks are disjoint.
+ 	t := make([]block1, len(f.blocks))
+ 	for i := range f.blocks {
+@@ -683,12 +949,6 @@ func (f *File) addVariables(w io.Writer) {
+ 
+ 	// Close the struct initialization.
+ 	fmt.Fprintf(w, "}\n")
+-
+-	// Emit a reference to the atomic package to avoid
+-	// import and not used error when there's no code in a file.
+-	if *mode == "atomic" {
+-		fmt.Fprintf(w, "var _ = %s.LoadUint32\n", atomicPackageName)
+-	}
+ }
+ 
+ // It is possible for positions to repeat when there is a line
+@@ -727,3 +987,88 @@ func dedup(p1, p2 token.Position) (r1, r2 token.Position) {
+ 
+ 	return key.p1, key.p2
+ }
++
++type sliceWriteSeeker struct {
++	payload []byte
++	off     int64
++}
++
++func (d *sliceWriteSeeker) Write(p []byte) (n int, err error) {
++	amt := len(p)
++	towrite := d.payload[d.off:]
++	if len(towrite) < amt {
++		d.payload = append(d.payload, make([]byte, amt-len(towrite))...)
++		towrite = d.payload[d.off:]
++	}
++	copy(towrite, p)
++	d.off += int64(amt)
++	return amt, nil
++}
++
++func (d *sliceWriteSeeker) Seek(offset int64, whence int) (int64, error) {
++	if whence == os.SEEK_SET {
++		d.off = offset
++		return offset, nil
++	} else if whence == os.SEEK_CUR {
++		d.off += offset
++		return d.off, nil
++	}
++	// other modes not supported
++	panic("bad")
++}
++
++func (p *Package) emitMetaData(w io.Writer) {
++	if *pkgcfg == "" {
++		return
++	}
++
++	// Something went wrong if regonly/testmain mode is in effect and
++	// we have instrumented functions.
++	if counterStmt == nil && len(p.counterLengths) != 0 {
++		panic("internal error: seen functions with regonly/testmain")
++	}
++
++	// Emit package ID var.
++	fmt.Fprintf(w, "\nvar %sP uint32\n", *varVar)
++
++	// Emit all of the counter variables.
++	for k := range p.counterLengths {
++		cvn := mkCounterVarName(k)
++		fmt.Fprintf(w, "var %s [%d]uint32\n", cvn, p.counterLengths[k])
++	}
++
++	// Emit encoded meta-data.
++	var sws slicewriter.WriteSeeker
++	digest, err := p.mdb.Emit(&sws)
++	if err != nil {
++		log.Fatalf("encoding meta-data: %v", err)
++	}
++	p.mdb = nil
++	fmt.Fprintf(w, "var %s = [...]byte{\n", mkMetaVar())
++	payload := sws.BytesWritten()
++	for k, b := range payload {
++		fmt.Fprintf(w, " 0x%x,", b)
++		if k != 0 && k%8 == 0 {
++			fmt.Fprintf(w, "\n")
++		}
++	}
++	fmt.Fprintf(w, "}\n")
++
++	fixcfg := coverage.CoverFixupConfig{
++		Strategy:           "normal",
++		MetaVar:            mkMetaVar(),
++		MetaLen:            len(payload),
++		MetaHash:           fmt.Sprintf("%x", digest),
++		PkgIdVar:           mkPackageIdVar(),
++		CounterPrefix:      *varVar,
++		CounterGranularity: pkgconfig.Granularity,
++		CounterMode:        *mode,
++	}
++	fixdata, err := json.Marshal(fixcfg)
++	if err != nil {
++		log.Fatalf("marshal fixupcfg: %v", err)
++	}
++	if err := os.WriteFile(pkgconfig.OutConfig, fixdata, 0666); err != nil {
++		log.Fatalf("error writing %s: %v", pkgconfig.OutConfig, err)
++	}
++}
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index d9d63e4587..af9a852ee6 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -570,3 +570,13 @@ func run(c *exec.Cmd, t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func runExpectingError(c *exec.Cmd, t *testing.T) string {
++	t.Helper()
++	t.Log("running", c.Args)
++	out, err := c.CombinedOutput()
++	if err == nil {
++		return fmt.Sprintf("unexpected pass for %+v", c.Args)
++	}
++	return string(out)
++}
+diff --git a/src/cmd/cover/doc.go b/src/cmd/cover/doc.go
+index e091ce9e30..82580cd78b 100644
+--- a/src/cmd/cover/doc.go
++++ b/src/cmd/cover/doc.go
+@@ -7,12 +7,18 @@ Cover is a program for analyzing the coverage profiles generated by
+ 'go test -coverprofile=cover.out'.
+ 
+ Cover is also used by 'go test -cover' to rewrite the source code with
+-annotations to track which parts of each function are executed.
+-It operates on one Go source file at a time, computing approximate
+-basic block information by studying the source. It is thus more portable
+-than binary-rewriting coverage tools, but also a little less capable.
+-For instance, it does not probe inside && and || expressions, and can
+-be mildly confused by single statements with multiple function literals.
++annotations to track which parts of each function are executed (this
++is referred to "instrumentation"). Cover can operate in "legacy mode"
++on a single Go source file at a time, or when invoked by the Go tool
++it will process all the source files in a single package at a time
++(package-scope instrumentation is enabled via "-pkgcfg" option,
++
++When generated instrumented code, the cover tool computes approximate
++basic block information by studying the source. It is thus more
++portable than binary-rewriting coverage tools, but also a little less
++capable. For instance, it does not probe inside && and || expressions,
++and can be mildly confused by single statements with multiple function
++literals.
+ 
+ When computing coverage of a package that uses cgo, the cover tool
+ must be applied to the output of cgo preprocessing, not the input,
+diff --git a/src/cmd/cover/testdata/pkgcfg/a/a.go b/src/cmd/cover/testdata/pkgcfg/a/a.go
+new file mode 100644
+index 0000000000..44c380b379
+--- /dev/null
++++ b/src/cmd/cover/testdata/pkgcfg/a/a.go
+@@ -0,0 +1,28 @@
++package a
++
++type Atyp int
++
++func (ap *Atyp) Set(q int) {
++	*ap = Atyp(q)
++}
++
++func (ap Atyp) Get() int {
++	inter := func(q Atyp) int {
++		return int(q)
++	}
++	return inter(ap)
++}
++
++var afunc = func(x int) int {
++	return x + 1
++}
++var Avar = afunc(42)
++
++func A(x int) int {
++	if x == 0 {
++		return 22
++	} else if x == 1 {
++		return 33
++	}
++	return 44
++}
+diff --git a/src/cmd/cover/testdata/pkgcfg/a/a2.go b/src/cmd/cover/testdata/pkgcfg/a/a2.go
+new file mode 100644
+index 0000000000..e6b2fc10f7
+--- /dev/null
++++ b/src/cmd/cover/testdata/pkgcfg/a/a2.go
+@@ -0,0 +1,8 @@
++package a
++
++func A2() {
++	{
++	}
++	{
++	}
++}
+diff --git a/src/cmd/cover/testdata/pkgcfg/a/a_test.go b/src/cmd/cover/testdata/pkgcfg/a/a_test.go
+new file mode 100644
+index 0000000000..a1608e0bdd
+--- /dev/null
++++ b/src/cmd/cover/testdata/pkgcfg/a/a_test.go
+@@ -0,0 +1,14 @@
++package a_test
++
++import (
++	"cfg/a"
++	"testing"
++)
++
++func TestA(t *testing.T) {
++	a.A(0)
++	var aat a.Atyp
++	at := &aat
++	at.Set(42)
++	println(at.Get())
++}
+diff --git a/src/cmd/cover/testdata/pkgcfg/b/b.go b/src/cmd/cover/testdata/pkgcfg/b/b.go
+new file mode 100644
+index 0000000000..9e330ee2ac
+--- /dev/null
++++ b/src/cmd/cover/testdata/pkgcfg/b/b.go
+@@ -0,0 +1,10 @@
++package b
++
++func B(x int) int {
++	if x == 0 {
++		return 22
++	} else if x == 1 {
++		return 33
++	}
++	return 44
++}
+diff --git a/src/cmd/cover/testdata/pkgcfg/b/b_test.go b/src/cmd/cover/testdata/pkgcfg/b/b_test.go
+new file mode 100644
+index 0000000000..7bdb73bf42
+--- /dev/null
++++ b/src/cmd/cover/testdata/pkgcfg/b/b_test.go
+@@ -0,0 +1,9 @@
++package b
++
++import "testing"
++
++func TestB(t *testing.T) {
++	B(0)
++	B(1)
++	B(2)
++}
+diff --git a/src/cmd/cover/testdata/pkgcfg/go.mod b/src/cmd/cover/testdata/pkgcfg/go.mod
+new file mode 100644
+index 0000000000..3d2ee96414
+--- /dev/null
++++ b/src/cmd/cover/testdata/pkgcfg/go.mod
+@@ -0,0 +1,3 @@
++module cfg
++
++go 1.19
+diff --git a/src/cmd/cover/testdata/pkgcfg/main/main.go b/src/cmd/cover/testdata/pkgcfg/main/main.go
+new file mode 100644
+index 0000000000..a908931f00
+--- /dev/null
++++ b/src/cmd/cover/testdata/pkgcfg/main/main.go
+@@ -0,0 +1,15 @@
++package main
++
++import (
++	"cfg/a"
++	"cfg/b"
++)
++
++func main() {
++	a.A(2)
++	a.A(1)
++	a.A(0)
++	b.B(1)
++	b.B(0)
++	println("done")
++}

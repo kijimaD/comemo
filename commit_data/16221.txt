@@ -7,6 +7,43 @@ Date:   Tue Apr 23 13:13:51 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8919043
-
+---
  doc/code.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 2d63d4dc91..f64dd6a2ad 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -76,11 +76,11 @@ src/
+             oauth_test.go          # test source
+     github.com/nf/
+         streak/
+-	    .git/                  # git repository metadata
++            .git/                  # git repository metadata
+             oauth.go               # command source
+             streak.go              # command source
+         todo/
+-	    .git/                  # git repository metadata
++            .git/                  # git repository metadata
+             task/
+                 task.go            # package source
+             todo.go                # command source
+@@ -471,7 +471,7 @@ func TestSqrt(t *testing.T) {
+ 	const in, out = 4, 2
+ 	if x := Sqrt(in); x != out {
+ 		t.Errorf("Sqrt(%v) = %v, want %v", in, x, out)
+-        }
++	}
+ }
+ </pre>
+ 
+@@ -528,7 +528,7 @@ fetch and behaves the same as <code>go install</code>.)
+ 
+ <p>
+ After issuing the above <code>go get</code> command, the workspace directory
+-tree should now now look like this:
++tree should now look like this:
+ </p>
+ 
+ <pre>

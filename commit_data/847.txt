@@ -7,6 +7,44 @@ Date:   Fri Oct 10 16:21:50 2008 -0700
     R=r
     OCL=16938
     CL=16938
-
+---
  src/runtime/iface.c | 17 +++++++++--------
  1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 089975b923..de59172d17 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -231,7 +231,6 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
+ void
+ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
+ {
+-
+ 	if(debug) {
+ 		prints("I2I sigi=");
+ 		printsigi(si);
+@@ -241,15 +240,17 @@ sys·ifaceI2I(Sigi *si, Map *im, void *it, Map *retim, void *retit)
+ 	}
+ 
+ 	if(im == nil) {
+-		throw("ifaceI2I: nil map");
+-		return;
++		// If incoming interface is uninitialized (zeroed)
++		// make the outgoing interface zeroed as well.
++		retim = nil;
++		retit = nil;
++	} else {
++		retit = it;
++		retim = im;
++		if(im->sigi != si)
++			retim = hashmap(si, im->sigt);
+ 	}
+ 
+-	retit = it;
+-	retim = im;
+-	if(im->sigi != si)
+-		retim = hashmap(si, im->sigt);
+-
+ 	if(debug) {
+ 		prints("I2I ret=");
+ 		printiface(retim, retit);

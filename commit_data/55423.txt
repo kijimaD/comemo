@@ -11,6 +11,20 @@ Date:   Fri Feb 3 13:35:28 2023 -0500
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/net/http/httputil/reverseproxy.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 58064a5332..eece455ac6 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -257,7 +257,7 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
+ //		Rewrite: func(r *ProxyRequest) {
+ //			r.SetURL(target)
+ //			r.Out.Host = r.In.Host // if desired
+-//		}
++//		},
+ //	}
+ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
+ 	director := func(req *http.Request) {

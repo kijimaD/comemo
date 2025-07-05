@@ -13,7 +13,7 @@ Date:   Tue Oct 21 14:34:45 2008 -0700
     R=ken
     OCL=17568
     CL=17568
-
+---
  src/cmd/ar/ar.c     | 35 ++++++++++++++++++++---------------
  src/cmd/gc/dcl.c    | 17 ++++++++++++++++-
  src/cmd/gc/export.c | 36 +++++++++++++++++++++++++-----------
@@ -22,3 +22,426 @@ Date:   Tue Oct 21 14:34:45 2008 -0700
  src/cmd/gc/subr.c   | 36 ++++++++++++++++++++++++++++++------
  test/golden.out     |  4 ++--
  7 files changed, 99 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index aeccc8e573..7b1db9676d 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -674,8 +674,13 @@ scanpkg(Biobuf *b, long size)
+ 	return;
+ 
+ foundstart:
+-	pkg = nil;
++	/* found $$; skip rest of line */
++	while((c = Bgetc(b)) != '\n')
++		if(c == Beof)
++			goto bad;
++
+ 	/* how big is it? */
++	pkg = nil;
+ 	first = 1;
+ 	start = end = 0;
+ 	for (n=0; n<size; n+=Blinelen(b)) {
+@@ -1457,7 +1462,7 @@ ilookup(char *name)
+ {
+ 	int h;
+ 	Import *x;
+-	
++
+ 	h = hashstr(name) % NIHASH;
+ 	for(x=ihash[h]; x; x=x->hash)
+ 		if(x->name[0] == name[0] && strcmp(x->name, name) == 0)
+@@ -1480,7 +1485,7 @@ loadpkgdata(char *data, int len)
+ 	char *p, *ep, *prefix, *name, *def;
+ 	Import *x;
+ 
+-	file = arstrdup(file);	
++	file = arstrdup(file);
+ 	p = data;
+ 	ep = data + len;
+ 	while(parsepkgdata(&p, ep, &export, &prefix, &name, &def) > 0) {
+@@ -1503,7 +1508,7 @@ loadpkgdata(char *data, int len)
+ 				fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+ 				errors++;
+ 			}
+-			
++
+ 			// okay if some .6 say export and others don't.
+ 			// all it takes is one.
+ 			if(export)
+@@ -1517,7 +1522,7 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
+ {
+ 	char *p, *prefix, *name, *def, *edef, *meth;
+ 	int n;
+-	
++
+ 	// skip white space
+ 	p = *pp;
+ 	while(p < ep && (*p == ' ' || *p == '\t'))
+@@ -1532,9 +1537,9 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
+ 		p += 7;
+ 	}
+ 
+-	// prefix: (var|type|func|const) 	
++	// prefix: (var|type|func|const)
+ 	prefix = p;
+-	
++
+ 	prefix = p;
+ 	if(p + 6 > ep)
+ 		return -1;
+@@ -1552,7 +1557,7 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
+ 		return -1;
+ 	}
+ 	p[-1] = '\0';
+-	
++
+ 	// name: a.b followed by space
+ 	name = p;
+ 	while(p < ep && *p != ' ')
+@@ -1569,7 +1574,7 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
+ 		return -1;
+ 	edef = p;
+ 	*p++ = '\0';
+-	
++
+ 	// include methods on successive lines in def of named type
+ 	while(parsemethod(&p, ep, &meth) > 0) {
+ 		*edef++ = '\n';	// overwrites '\0'
+@@ -1602,7 +1607,7 @@ int
+ parsemethod(char **pp, char *ep, char **methp)
+ {
+ 	char *p;
+-	
++
+ 	// skip white space
+ 	p = *pp;
+ 	while(p < ep && (*p == ' ' || *p == '\t'))
+@@ -1613,7 +1618,7 @@ parsemethod(char **pp, char *ep, char **methp)
+ 	// if it says "func (", it's a method
+ 	if(p + 6 >= ep || strncmp(p, "func (", 6) != 0)
+ 		return 0;
+-	
++
+ 	// definition to end of line
+ 	*methp = p;
+ 	while(p < ep && *p != '\n')
+@@ -1633,10 +1638,10 @@ importcmp(const void *va, const void *vb)
+ {
+ 	Import *a, *b;
+ 	int i;
+-	
++
+ 	a = *(Import**)va;
+ 	b = *(Import**)vb;
+-	
++
+ 	i = strcmp(a->prefix, b->prefix);
+ 	if(i != 0) {
+ 		// rewrite so "type" comes first
+@@ -1653,7 +1658,7 @@ char*
+ strappend(char *s, char *t)
+ {
+ 	int n;
+-	
++
+ 	n = strlen(t);
+ 	memmove(s, t, n);
+ 	return s+n;
+@@ -1691,7 +1696,7 @@ getpkgdef(char **datap, int *lenp)
+ 
+ 	// print them into buffer
+ 	data = armalloc(len);
+-	
++
+ 	// import\n
+ 	// $$\n
+ 	// pkgstmt\n
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 7eed70e807..bfccdcfd4c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -725,6 +725,8 @@ addtyp(Type *n, int ctxt)
+ {
+ 	Dcl *r, *d;
+ 	Sym *s;
++	char *p;
++	static int typgen;
+ 
+ 	if(n==T || n->sym == S)
+ 		fatal("addtyp: n=%T t=%T nil", n);
+@@ -736,6 +738,9 @@ addtyp(Type *n, int ctxt)
+ 	else {
+ 		r = autodcl;
+ 		pushdcl(s);
++		p = smprint("%s_%d", s->name, ++typgen);
++		n->xsym = lookup(p);
++		free(p);
+ 	}
+ 
+ 	if(s->tblock == block)
+@@ -750,6 +755,16 @@ addtyp(Type *n, int ctxt)
+ 	d->dtype = n;
+ 	d->op = OTYPE;
+ 
++	d->back = r->back;
++	r->back->forw = d;
++	r->back = d;
++
++	d = dcl();
++	d->dtype = n;
++	d->op = OTYPE;
++
++	r = typelist;
++	d->back = r->back;
+ 	r->back->forw = d;
+ 	r->back = d;
+ 
+@@ -791,7 +806,7 @@ addconst(Node *n, Node *e, int ctxt)
+ 	d->dsym = s;
+ 	d->dnode = e;
+ 	d->op = OCONST;
+-
++	d->back = r->back;
+ 	r->back->forw = d;
+ 	r->back = d;
+ 
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 4058d857df..5067da8707 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -42,7 +42,7 @@ dumpprereq(Type *t)
+ 	if(t == T)
+ 		return;
+ 
+-	if(t->printed)
++	if(t->printed || t == types[t->etype] || t == types[TSTRING])
+ 		return;
+ 	t->printed = 1;
+ 
+@@ -133,7 +133,7 @@ dumpexporttype(Sym *s)
+ 		yyerror("export of incomplete type %T", s->otype);
+ 		return;
+ 	}
+-	Bprint(bout, "type %lS %l#T\n",  s, s->otype);
++	Bprint(bout, "type %#T %l#T\n",  s->otype, s->otype);
+ }
+ 
+ void
+@@ -160,7 +160,7 @@ dumpsym(Sym *s)
+ 
+ 		dumpexporttype(s);
+ 		for(f=s->otype->method; f!=T; f=f->down)
+-			Bprint(bout, "\tfunc (%#T) %hS %#T\n",
++			Bprint(bout, "\tfunc (%#T) %hS %#hT\n",
+ 				f->type->type->type, f->sym, f->type);
+ 		break;
+ 	case LNAME:
+@@ -172,34 +172,48 @@ dumpsym(Sym *s)
+ 	}
+ }
+ 
++void
++dumptype(Type *t)
++{
++	// no need to re-dump type if already exported
++	if(t->printed)
++		return;
++
++	// no need to dump type if it's not ours (was imported)
++	if(t->sym != S && t->sym->otype == t && !t->sym->local)
++		return;
++
++	Bprint(bout, "type %#T %l#T\n",  t, t);
++}
++
+ void
+ dumpexport(void)
+ {
+ 	Dcl *d;
+ 	int32 lno;
+-	char *pkg;
+ 
+-	exporting = 1;
+ 	lno = lineno;
+ 
+ 	Bprint(bout, "   import\n");
+-	Bprint(bout, "   $$\n");
++	Bprint(bout, "   $$  // exports\n");
+ 
+ 	Bprint(bout, "    package %s\n", package);
+-	pkg = package;
+-	package = "$nopkg";
+ 
+ 	for(d=exportlist->forw; d!=D; d=d->forw) {
+ 		lineno = d->lineno;
+ 		dumpsym(d->dsym);
+ 	}
+ 
+-	package = pkg;
++	Bprint(bout, "\n$$  // local types\n");
++
++	for(d=typelist->forw; d!=D; d=d->forw) {
++		lineno = d->lineno;
++		dumptype(d->dtype);
++	}
+ 
+ 	Bprint(bout, "\n$$\n");
+ 
+ 	lineno = lno;
+-	exporting = 0;
+ }
+ 
+ /*
+@@ -243,9 +257,9 @@ importsym(Node *ss, int lexical)
+ 		fatal("importsym: oops1 %N", ss);
+ 
+ 	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
+-
+ 	/* TODO botch - need some diagnostic checking for the following assignment */
+ 	s->opackage = ss->osym->name;
++	s->export = 1;
+ 	return s;
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c72dbb8c67..5e9c363554 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -135,6 +135,7 @@ struct	Type
+ 	Type*	method;
+ 
+ 	Sym*	sym;
++	Sym*	xsym;		// export sym
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 
+ 	Node*	nname;
+@@ -442,6 +443,7 @@ EXTERN	Dcl*	paramdcl;
+ EXTERN	Dcl*	externdcl;
+ EXTERN	Dcl*	exportlist;
+ EXTERN	Dcl*	signatlist;
++EXTERN	Dcl*	typelist;
+ EXTERN	int	dclcontext;	// PEXTERN/PAUTO
+ EXTERN	int	importflag;
+ EXTERN	int	inimportsys;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index de9700da3d..239efca67a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -77,6 +77,9 @@ mainlex(int argc, char *argv[])
+ 	exportlist = mal(sizeof(*exportlist));
+ 	exportlist->back = exportlist;
+ 
++	typelist = mal(sizeof(*typelist));
++	typelist->back = typelist;
++
+ 	// function field skeleton
+ 	fskel = nod(OLIST, N, nod(OLIST, N, N));
+ 	fskel->left = nod(ODCLFIELD, N, N);
+@@ -1112,13 +1115,8 @@ lexinit(void)
+ 			continue;
+ 		}
+ 		t = typ(etype);
+-		switch(etype) {
+-		case TSTRING:
+-		case TCHAN:
+-		case TMAP:
++		if(etype == TSTRING)
+ 			t = ptrto(t);
+-		}
+-
+ 		t->sym = s;
+ 
+ 		dowidth(t);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3953ca20c1..08e965dead 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -959,12 +959,25 @@ int
+ Tpretty(Fmt *fp, Type *t)
+ {
+ 	Type *t1;
++	Sym *s;
+ 
+ 	if(t->etype != TFIELD
+ 	&& t->sym != S
+ 	&& t->sym->name[0] != '_'
+-	&& !(fp->flags&FmtLong))
+-		return fmtprint(fp, "%S", t->sym);
++	&& !(fp->flags&FmtLong)) {
++		s = t->sym;
++		if(t == types[t->etype] || t == types[TSTRING])
++			return fmtprint(fp, "%s", s->name);
++		if(exporting) {
++			if(t->xsym != S)
++				s = t->xsym;
++			if(strcmp(s->opackage, package) == 0)
++			if(s->otype != t || !s->export)
++				return fmtprint(fp, "%lS_%s", s, filename);
++			return fmtprint(fp, "%lS", s);
++		}
++		return fmtprint(fp, "%S", s);
++	}
+ 
+ 	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil)
+ 		return fmtprint(fp, "%s", basicnames[t->etype]);
+@@ -1068,12 +1081,14 @@ Tpretty(Fmt *fp, Type *t)
+ 	return -1;
+ }
+ 
++
++
+ int
+ Tconv(Fmt *fp)
+ {
+ 	char buf[500], buf1[500];
+ 	Type *t, *t1;
+-	int et;
++	int et, exp;
+ 
+ 	t = va_arg(fp->args, Type*);
+ 	if(t == T)
+@@ -1085,9 +1100,18 @@ Tconv(Fmt *fp)
+ 		goto out;
+ 	}
+ 
+-	if(!debug['t'] && Tpretty(fp, t) >= 0) {
+-		t->trecur--;
+-		return 0;
++	if(!debug['t']) {
++		exp = (fp->flags & FmtSharp);
++		if(exp)
++			exporting++;
++		if(Tpretty(fp, t) >= 0) {
++			t->trecur--;
++			if(exp)
++				exporting--;
++			return 0;
++		}
++		if(exp)
++			exporting--;
+ 	}
+ 
+ 	et = t->etype;
+diff --git a/test/golden.out b/test/golden.out
+index 9139d49d9e..472e2e670b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -112,7 +112,7 @@ bugs/bug080.go:12: illegal types for operand: CALL
+ BUG: fails incorrectly
+ 
+ =========== bugs/bug083.go
+-BUG: succeeds incorrectly
++bugs/bug083.dir/bug1.go:5: syntax error near T0
+ 
+ =========== bugs/bug085.go
+ bugs/bug085.go:8: P: undefined
+@@ -165,7 +165,7 @@ BUG: should compile
+ fixedbugs/bug016.go:7: overflow converting constant to uint32
+ 
+ =========== fixedbugs/bug025.go
+-fixedbugs/bug025.go:7: variable exported but not defined: main.Foo
++fixedbugs/bug025.go:7: variable exported but not defined: Foo
+ 
+ =========== fixedbugs/bug027.go
+ hi

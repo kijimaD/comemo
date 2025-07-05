@@ -12,10 +12,123 @@ Date:   Thu Jan 14 13:28:37 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                  |  2 +-
  src/cmd/go.sum                                  |  4 ++--
  src/cmd/go/testdata/script/mod_edit.txt         |  6 +++++
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 30 +++++++++++++++++++++++++
  src/cmd/vendor/modules.txt                      |  2 +-
  5 files changed, 40 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 879513b912..235e28f64f 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20201203190320-1bf35d6f28c2
+ 	golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+ 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+-	golang.org/x/mod v0.4.0
++	golang.org/x/mod v0.4.1
+ 	golang.org/x/sys v0.0.0-20201204225414-ed752295db88 // indirect
+ 	golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index fc251ed663..70aae0b4cc 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 h1:pLI5jrR7OSLijeIDcmRxNmw2api+jEfxLoykJVice/E=
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/mod v0.3.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.4.0 h1:8pl+sMODzuvGJkmj2W4kZihvVb5mKm8pB/X44PIQHv8=
+-golang.org/x/mod v0.4.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.4.1 h1:Kvvh58BN8Y9/lBi7hTekvtMpm07eUZ0ck5pRHpsMWrY=
++golang.org/x/mod v0.4.1/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index 78485eb86a..d7e681e831 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -21,6 +21,12 @@ cmpenv go.mod $WORK/go.mod.edit1
+ go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0 -dropretract=v1.0.0 -dropretract=[v1.1.0,v1.2.0]
+ cmpenv go.mod $WORK/go.mod.edit2
+ 
++# -exclude and -retract reject invalid versions.
++! go mod edit -exclude=example.com/m@bad
++stderr '^go mod: -exclude=example.com/m@bad: version "bad" invalid: must be of the form v1.2.3$'
++! go mod edit -retract=bad
++stderr '^go mod: -retract=bad: version "bad" invalid: must be of the form v1.2.3$'
++
+ # go mod edit -json
+ go mod edit -json
+ cmpenv stdout $WORK/go.mod.json
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 83398dda5d..c6a189dbe0 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -832,7 +832,16 @@ func (f *File) DropRequire(path string) error {
+ 	return nil
+ }
+ 
++// AddExclude adds a exclude statement to the mod file. Errors if the provided
++// version is not a canonical version string
+ func (f *File) AddExclude(path, vers string) error {
++	if !isCanonicalVersion(vers) {
++		return &module.InvalidVersionError{
++			Version: vers,
++			Err:     errors.New("must be of the form v1.2.3"),
++		}
++	}
++
+ 	var hint *Line
+ 	for _, x := range f.Exclude {
+ 		if x.Mod.Path == path && x.Mod.Version == vers {
+@@ -904,7 +913,22 @@ func (f *File) DropReplace(oldPath, oldVers string) error {
+ 	return nil
+ }
+ 
++// AddRetract adds a retract statement to the mod file. Errors if the provided
++// version interval does not consist of canonical version strings
+ func (f *File) AddRetract(vi VersionInterval, rationale string) error {
++	if !isCanonicalVersion(vi.High) {
++		return &module.InvalidVersionError{
++			Version: vi.High,
++			Err:     errors.New("must be of the form v1.2.3"),
++		}
++	}
++	if !isCanonicalVersion(vi.Low) {
++		return &module.InvalidVersionError{
++			Version: vi.Low,
++			Err:     errors.New("must be of the form v1.2.3"),
++		}
++	}
++
+ 	r := &Retract{
+ 		VersionInterval: vi,
+ 	}
+@@ -1061,3 +1085,9 @@ func lineRetractLess(li, lj *Line) bool {
+ 	}
+ 	return semver.Compare(vii.High, vij.High) > 0
+ }
++
++// isCanonicalVersion tests if the provided version string represents a valid
++// canonical version.
++func isCanonicalVersion(vers string) bool {
++	return vers != "" && semver.Canonical(vers) == vers
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 7337800ba6..e033984956 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.4.0
++# golang.org/x/mod v0.4.1
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

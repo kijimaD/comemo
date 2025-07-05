@@ -14,7 +14,58 @@ Date:   Fri Apr 9 22:51:07 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/list.go              | 12 ++++--------
  src/cmd/go/testdata/script/mod_load_badchain.txt |  2 +-
  2 files changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index e33078b53c..66927a8288 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -78,6 +78,10 @@ func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.
+ }
+ 
+ func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
++	if len(args) == 0 {
++		return rs, []*modinfo.ModulePublic{moduleInfo(ctx, rs, Target, mode)}, nil
++	}
++
+ 	var mg *ModuleGraph
+ 	if go117LazyTODO {
+ 		// Pull the args-loop below into another (new) loop.
+@@ -90,10 +94,6 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
+ 		rs, mg, mgErr = expandGraph(ctx, rs)
+ 	}
+ 
+-	if len(args) == 0 {
+-		return rs, []*modinfo.ModulePublic{moduleInfo(ctx, rs, Target, mode)}, mgErr
+-	}
+-
+ 	matchedModule := map[module.Version]bool{}
+ 	for _, arg := range args {
+ 		if strings.Contains(arg, `\`) {
+@@ -149,10 +149,6 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
+ 			continue
+ 		}
+ 
+-		if go117LazyTODO {
+-			ModRoot() // Unversioned paths require that we be inside a module.
+-		}
+-
+ 		// Module path or pattern.
+ 		var match func(string) bool
+ 		if arg == "all" {
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index 8cb7eec0aa..eb464ab0d3 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -22,7 +22,7 @@ cmp go.mod go.mod.orig
+ 
+ # Update manually. Listing modules should produce an error.
+ go mod edit -require=example.com/badchain/a@v1.1.0
+-! go list -m
++! go list -m all
+ cmp stderr list-expected
+ 
+ # Try listing a package that imports a package

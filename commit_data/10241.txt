@@ -8,7 +8,55 @@ Date:   Thu Nov 3 18:05:14 2011 -0700
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/5340041
-
+---
  src/pkg/encoding/gob/type.go      | 15 ++++++++-------
  src/pkg/encoding/gob/type_test.go |  8 ++++++++
  2 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/type.go b/src/pkg/encoding/gob/type.go
+index c3bc7c7ffc..3b862e690e 100644
+--- a/src/pkg/encoding/gob/type.go
++++ b/src/pkg/encoding/gob/type.go
+@@ -703,18 +703,19 @@ func RegisterName(name string, value interface{}) {
+ 		// reserved for nil
+ 		panic("attempt to register empty name")
+ 	}
+-	base := userType(reflect.TypeOf(value)).base
+-	// Check for incompatible duplicates.
+-	if t, ok := nameToConcreteType[name]; ok && t != base {
+-		panic("gob: registering duplicate types for " + name)
++	ut := userType(reflect.TypeOf(value))
++	// Check for incompatible duplicates. The name must refer to the
++	// same user type, and vice versa.
++	if t, ok := nameToConcreteType[name]; ok && t != ut.user {
++		panic(fmt.Sprintf("gob: registering duplicate types for %q: %s != %s", name, t, ut.user))
+ 	}
+-	if n, ok := concreteTypeToName[base]; ok && n != name {
+-		panic("gob: registering duplicate names for " + base.String())
++	if n, ok := concreteTypeToName[ut.base]; ok && n != name {
++		panic(fmt.Sprintf("gob: registering duplicate names for %s: %q != %q", ut.user, n, name))
+ 	}
+ 	// Store the name and type provided by the user....
+ 	nameToConcreteType[name] = reflect.TypeOf(value)
+ 	// but the flattened type in the type table, since that's what decode needs.
+-	concreteTypeToName[base] = name
++	concreteTypeToName[ut.base] = name
+ }
+ 
+ // Register records a type, identified by a value for that type, under its
+diff --git a/src/pkg/encoding/gob/type_test.go b/src/pkg/encoding/gob/type_test.go
+index a6ac9c4201..42bdb4cf7b 100644
+--- a/src/pkg/encoding/gob/type_test.go
++++ b/src/pkg/encoding/gob/type_test.go
+@@ -151,3 +151,11 @@ func TestStructType(t *testing.T) {
+ 		t.Errorf("struct printed as %q; expected %q", str, expected)
+ 	}
+ }
++
++// Should be OK to register the same type multiple times, as long as they're
++// at the same level of indirection.
++func TestRegistration(t *testing.T) {
++	type T struct{ a int }
++	Register(new(T))
++	Register(new(T))
++}

@@ -72,8 +72,4494 @@ Date:   Tue Jul 10 01:48:55 2018 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules |  136 +
  src/cmd/compile/internal/ssa/rewriteARM.go | 4078 ++++++++++++++++++++++++++--
  test/codegen/comparisons.go                |   12 +
  3 files changed, 4059 insertions(+), 167 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index e8a3c27c71..8cea322295 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -1408,3 +1408,139 @@
+ (NE (CMPconst [0] (XORshiftLLreg x y z)) yes no) -> (NE (TEQshiftLLreg x y z) yes no)
+ (NE (CMPconst [0] (XORshiftRLreg x y z)) yes no) -> (NE (TEQshiftRLreg x y z) yes no)
+ (NE (CMPconst [0] (XORshiftRAreg x y z)) yes no) -> (NE (TEQshiftRAreg x y z) yes no)
++(LT (CMPconst [0] l:(SUB x y)) yes no) -> (LT (CMP x y) yes no)
++(LT (CMPconst [0] (MULS x y a)) yes no) -> (LT (CMP a (MUL <x.Type> x y)) yes no)
++(LT (CMPconst [0] l:(SUBconst [c] x)) yes no) -> (LT (CMPconst [c] x) yes no)
++(LT (CMPconst [0] l:(SUBshiftLL x y [c])) yes no) -> (LT (CMPshiftLL x y [c]) yes no)
++(LT (CMPconst [0] l:(SUBshiftRL x y [c])) yes no) -> (LT (CMPshiftRL x y [c]) yes no)
++(LT (CMPconst [0] l:(SUBshiftRA x y [c])) yes no) -> (LT (CMPshiftRA x y [c]) yes no)
++(LT (CMPconst [0] l:(SUBshiftLLreg x y z)) yes no) -> (LT (CMPshiftLLreg x y z) yes no)
++(LT (CMPconst [0] l:(SUBshiftRLreg x y z)) yes no) -> (LT (CMPshiftRLreg x y z) yes no)
++(LT (CMPconst [0] l:(SUBshiftRAreg x y z)) yes no) -> (LT (CMPshiftRAreg x y z) yes no)
++(LE (CMPconst [0] l:(SUB x y)) yes no) -> (LE (CMP x y) yes no)
++(LE (CMPconst [0] (MULS x y a)) yes no) -> (LE (CMP a (MUL <x.Type> x y)) yes no)
++(LE (CMPconst [0] l:(SUBconst [c] x)) yes no) -> (LE (CMPconst [c] x) yes no)
++(LE (CMPconst [0] l:(SUBshiftLL x y [c])) yes no) -> (LE (CMPshiftLL x y [c]) yes no)
++(LE (CMPconst [0] l:(SUBshiftRL x y [c])) yes no) -> (LE (CMPshiftRL x y [c]) yes no)
++(LE (CMPconst [0] l:(SUBshiftRA x y [c])) yes no) -> (LE (CMPshiftRA x y [c]) yes no)
++(LE (CMPconst [0] l:(SUBshiftLLreg x y z)) yes no) -> (LE (CMPshiftLLreg x y z) yes no)
++(LE (CMPconst [0] l:(SUBshiftRLreg x y z)) yes no) -> (LE (CMPshiftRLreg x y z) yes no)
++(LE (CMPconst [0] l:(SUBshiftRAreg x y z)) yes no) -> (LE (CMPshiftRAreg x y z) yes no)
++(LT (CMPconst [0] l:(ADD x y)) yes no) -> (LT (CMN x y) yes no)
++(LT (CMPconst [0] (MULA x y a)) yes no) -> (LT (CMN a (MUL <x.Type> x y)) yes no)
++(LT (CMPconst [0] l:(ADDconst [c] x)) yes no) -> (LT (CMNconst [c] x) yes no)
++(LT (CMPconst [0] l:(ADDshiftLL x y [c])) yes no) -> (LT (CMNshiftLL x y [c]) yes no)
++(LT (CMPconst [0] l:(ADDshiftRL x y [c])) yes no) -> (LT (CMNshiftRL x y [c]) yes no)
++(LT (CMPconst [0] l:(ADDshiftRA x y [c])) yes no) -> (LT (CMNshiftRA x y [c]) yes no)
++(LT (CMPconst [0] l:(ADDshiftLLreg x y z)) yes no) -> (LT (CMNshiftLLreg x y z) yes no)
++(LT (CMPconst [0] l:(ADDshiftRLreg x y z)) yes no) -> (LT (CMNshiftRLreg x y z) yes no)
++(LT (CMPconst [0] l:(ADDshiftRAreg x y z)) yes no) -> (LT (CMNshiftRAreg x y z) yes no)
++(LE (CMPconst [0] l:(ADD x y)) yes no) -> (LE (CMN x y) yes no)
++(LE (CMPconst [0] (MULA x y a)) yes no) -> (LE (CMN a (MUL <x.Type> x y)) yes no)
++(LE (CMPconst [0] l:(ADDconst [c] x)) yes no) -> (LE (CMNconst [c] x) yes no)
++(LE (CMPconst [0] l:(ADDshiftLL x y [c])) yes no) -> (LE (CMNshiftLL x y [c]) yes no)
++(LE (CMPconst [0] l:(ADDshiftRL x y [c])) yes no) -> (LE (CMNshiftRL x y [c]) yes no)
++(LE (CMPconst [0] l:(ADDshiftRA x y [c])) yes no) -> (LE (CMNshiftRA x y [c]) yes no)
++(LE (CMPconst [0] l:(ADDshiftLLreg x y z)) yes no) -> (LE (CMNshiftLLreg x y z) yes no)
++(LE (CMPconst [0] l:(ADDshiftRLreg x y z)) yes no) -> (LE (CMNshiftRLreg x y z) yes no)
++(LE (CMPconst [0] l:(ADDshiftRAreg x y z)) yes no) -> (LE (CMNshiftRAreg x y z) yes no)
++(LT (CMPconst [0] l:(AND x y)) yes no) -> (LT (TST x y) yes no)
++(LT (CMPconst [0] l:(ANDconst [c] x)) yes no) -> (LT (TSTconst [c] x) yes no)
++(LT (CMPconst [0] l:(ANDshiftLL x y [c])) yes no) -> (LT (TSTshiftLL x y [c]) yes no)
++(LT (CMPconst [0] l:(ANDshiftRL x y [c])) yes no) -> (LT (TSTshiftRL x y [c]) yes no)
++(LT (CMPconst [0] l:(ANDshiftRA x y [c])) yes no) -> (LT (TSTshiftRA x y [c]) yes no)
++(LT (CMPconst [0] l:(ANDshiftLLreg x y z)) yes no) -> (LT (TSTshiftLLreg x y z) yes no)
++(LT (CMPconst [0] l:(ANDshiftRLreg x y z)) yes no) -> (LT (TSTshiftRLreg x y z) yes no)
++(LT (CMPconst [0] l:(ANDshiftRAreg x y z)) yes no) -> (LT (TSTshiftRAreg x y z) yes no)
++(LE (CMPconst [0] l:(AND x y)) yes no) -> (LE (TST x y) yes no)
++(LE (CMPconst [0] l:(ANDconst [c] x)) yes no) -> (LE (TSTconst [c] x) yes no)
++(LE (CMPconst [0] l:(ANDshiftLL x y [c])) yes no) -> (LE (TSTshiftLL x y [c]) yes no)
++(LE (CMPconst [0] l:(ANDshiftRL x y [c])) yes no) -> (LE (TSTshiftRL x y [c]) yes no)
++(LE (CMPconst [0] l:(ANDshiftRA x y [c])) yes no) -> (LE (TSTshiftRA x y [c]) yes no)
++(LE (CMPconst [0] l:(ANDshiftLLreg x y z)) yes no) -> (LE (TSTshiftLLreg x y z) yes no)
++(LE (CMPconst [0] l:(ANDshiftRLreg x y z)) yes no) -> (LE (TSTshiftRLreg x y z) yes no)
++(LE (CMPconst [0] l:(ANDshiftRAreg x y z)) yes no) -> (LE (TSTshiftRAreg x y z) yes no)
++(LT (CMPconst [0] l:(XOR x y)) yes no) -> (LT (TEQ x y) yes no)
++(LT (CMPconst [0] l:(XORconst [c] x)) yes no) -> (LT (TEQconst [c] x) yes no)
++(LT (CMPconst [0] l:(XORshiftLL x y [c])) yes no) -> (LT (TEQshiftLL x y [c]) yes no)
++(LT (CMPconst [0] l:(XORshiftRL x y [c])) yes no) -> (LT (TEQshiftRL x y [c]) yes no)
++(LT (CMPconst [0] l:(XORshiftRA x y [c])) yes no) -> (LT (TEQshiftRA x y [c]) yes no)
++(LT (CMPconst [0] l:(XORshiftLLreg x y z)) yes no) -> (LT (TEQshiftLLreg x y z) yes no)
++(LT (CMPconst [0] l:(XORshiftRLreg x y z)) yes no) -> (LT (TEQshiftRLreg x y z) yes no)
++(LT (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) -> (LT (TEQshiftRAreg x y z) yes no)
++(LE (CMPconst [0] l:(XOR x y)) yes no) -> (LE (TEQ x y) yes no)
++(LE (CMPconst [0] l:(XORconst [c] x)) yes no) -> (LE (TEQconst [c] x) yes no)
++(LE (CMPconst [0] l:(XORshiftLL x y [c])) yes no) -> (LE (TEQshiftLL x y [c]) yes no)
++(LE (CMPconst [0] l:(XORshiftRL x y [c])) yes no) -> (LE (TEQshiftRL x y [c]) yes no)
++(LE (CMPconst [0] l:(XORshiftRA x y [c])) yes no) -> (LE (TEQshiftRA x y [c]) yes no)
++(LE (CMPconst [0] l:(XORshiftLLreg x y z)) yes no) -> (LE (TEQshiftLLreg x y z) yes no)
++(LE (CMPconst [0] l:(XORshiftRLreg x y z)) yes no) -> (LE (TEQshiftRLreg x y z) yes no)
++(LE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) -> (LE (TEQshiftRAreg x y z) yes no)
++(GT (CMPconst [0] l:(SUB x y)) yes no) -> (GT (CMP x y) yes no)
++(GT (CMPconst [0] (MULS x y a)) yes no) -> (GT (CMP a (MUL <x.Type> x y)) yes no)
++(GT (CMPconst [0] l:(SUBconst [c] x)) yes no) -> (GT (CMPconst [c] x) yes no)
++(GT (CMPconst [0] l:(SUBshiftLL x y [c])) yes no) -> (GT (CMPshiftLL x y [c]) yes no)
++(GT (CMPconst [0] l:(SUBshiftRL x y [c])) yes no) -> (GT (CMPshiftRL x y [c]) yes no)
++(GT (CMPconst [0] l:(SUBshiftRA x y [c])) yes no) -> (GT (CMPshiftRA x y [c]) yes no)
++(GT (CMPconst [0] l:(SUBshiftLLreg x y z)) yes no) -> (GT (CMPshiftLLreg x y z) yes no)
++(GT (CMPconst [0] l:(SUBshiftRLreg x y z)) yes no) -> (GT (CMPshiftRLreg x y z) yes no)
++(GT (CMPconst [0] l:(SUBshiftRAreg x y z)) yes no) -> (GT (CMPshiftRAreg x y z) yes no)
++(GE (CMPconst [0] l:(SUB x y)) yes no) -> (GE (CMP x y) yes no)
++(GE (CMPconst [0] (MULS x y a)) yes no) -> (GE (CMP a (MUL <x.Type> x y)) yes no)
++(GE (CMPconst [0] l:(SUBconst [c] x)) yes no) -> (GE (CMPconst [c] x) yes no)
++(GE (CMPconst [0] l:(SUBshiftLL x y [c])) yes no) -> (GE (CMPshiftLL x y [c]) yes no)
++(GE (CMPconst [0] l:(SUBshiftRL x y [c])) yes no) -> (GE (CMPshiftRL x y [c]) yes no)
++(GE (CMPconst [0] l:(SUBshiftRA x y [c])) yes no) -> (GE (CMPshiftRA x y [c]) yes no)
++(GE (CMPconst [0] l:(SUBshiftLLreg x y z)) yes no) -> (GE (CMPshiftLLreg x y z) yes no)
++(GE (CMPconst [0] l:(SUBshiftRLreg x y z)) yes no) -> (GE (CMPshiftRLreg x y z) yes no)
++(GE (CMPconst [0] l:(SUBshiftRAreg x y z)) yes no) -> (GE (CMPshiftRAreg x y z) yes no)
++(GT (CMPconst [0] l:(ADD x y)) yes no) -> (GT (CMN x y) yes no)
++(GT (CMPconst [0] l:(ADDconst [c] x)) yes no) -> (GT (CMNconst [c] x) yes no)
++(GT (CMPconst [0] l:(ADDshiftLL x y [c])) yes no) -> (GT (CMNshiftLL x y [c]) yes no)
++(GT (CMPconst [0] l:(ADDshiftRL x y [c])) yes no) -> (GT (CMNshiftRL x y [c]) yes no)
++(GT (CMPconst [0] l:(ADDshiftRA x y [c])) yes no) -> (GT (CMNshiftRA x y [c]) yes no)
++(GT (CMPconst [0] l:(ADDshiftLLreg x y z)) yes no) -> (GT (CMNshiftLLreg x y z) yes no)
++(GT (CMPconst [0] l:(ADDshiftRLreg x y z)) yes no) -> (GT (CMNshiftRLreg x y z) yes no)
++(GT (CMPconst [0] l:(ADDshiftRAreg x y z)) yes no) -> (GT (CMNshiftRAreg x y z) yes no)
++(GE (CMPconst [0] l:(ADD x y)) yes no) -> (GE (CMN x y) yes no)
++(GE (CMPconst [0] (MULA x y a)) yes no) -> (GE (CMN a (MUL <x.Type> x y)) yes no)
++(GE (CMPconst [0] l:(ADDconst [c] x)) yes no) -> (GE (CMNconst [c] x) yes no)
++(GE (CMPconst [0] l:(ADDshiftLL x y [c])) yes no) -> (GE (CMNshiftLL x y [c]) yes no)
++(GE (CMPconst [0] l:(ADDshiftRL x y [c])) yes no) -> (GE (CMNshiftRL x y [c]) yes no)
++(GE (CMPconst [0] l:(ADDshiftRA x y [c])) yes no) -> (GE (CMNshiftRA x y [c]) yes no)
++(GE (CMPconst [0] l:(ADDshiftLLreg x y z)) yes no) -> (GE (CMNshiftLLreg x y z) yes no)
++(GE (CMPconst [0] l:(ADDshiftRLreg x y z)) yes no) -> (GE (CMNshiftRLreg x y z) yes no)
++(GE (CMPconst [0] l:(ADDshiftRAreg x y z)) yes no) -> (GE (CMNshiftRAreg x y z) yes no)
++(GT (CMPconst [0] l:(AND x y)) yes no) -> (GT (TST x y) yes no)
++(GT (CMPconst [0] (MULA x y a)) yes no) -> (GT (CMN a (MUL <x.Type> x y)) yes no)
++(GT (CMPconst [0] l:(ANDconst [c] x)) yes no) -> (GT (TSTconst [c] x) yes no)
++(GT (CMPconst [0] l:(ANDshiftLL x y [c])) yes no) -> (GT (TSTshiftLL x y [c]) yes no)
++(GT (CMPconst [0] l:(ANDshiftRL x y [c])) yes no) -> (GT (TSTshiftRL x y [c]) yes no)
++(GT (CMPconst [0] l:(ANDshiftRA x y [c])) yes no) -> (GT (TSTshiftRA x y [c]) yes no)
++(GT (CMPconst [0] l:(ANDshiftLLreg x y z)) yes no) -> (GT (TSTshiftLLreg x y z) yes no)
++(GT (CMPconst [0] l:(ANDshiftRLreg x y z)) yes no) -> (GT (TSTshiftRLreg x y z) yes no)
++(GT (CMPconst [0] l:(ANDshiftRAreg x y z)) yes no) -> (GT (TSTshiftRAreg x y z) yes no)
++(GE (CMPconst [0] l:(AND x y)) yes no) -> (GE (TST x y) yes no)
++(GE (CMPconst [0] l:(ANDconst [c] x)) yes no) -> (GE (TSTconst [c] x) yes no)
++(GE (CMPconst [0] l:(ANDshiftLL x y [c])) yes no) -> (GE (TSTshiftLL x y [c]) yes no)
++(GE (CMPconst [0] l:(ANDshiftRL x y [c])) yes no) -> (GE (TSTshiftRL x y [c]) yes no)
++(GE (CMPconst [0] l:(ANDshiftRA x y [c])) yes no) -> (GE (TSTshiftRA x y [c]) yes no)
++(GE (CMPconst [0] l:(ANDshiftLLreg x y z)) yes no) -> (GE (TSTshiftLLreg x y z) yes no)
++(GE (CMPconst [0] l:(ANDshiftRLreg x y z)) yes no) -> (GE (TSTshiftRLreg x y z) yes no)
++(GE (CMPconst [0] l:(ANDshiftRAreg x y z)) yes no) -> (GE (TSTshiftRAreg x y z) yes no)
++(GT (CMPconst [0] l:(XOR x y)) yes no) -> (GT (TEQ x y) yes no)
++(GT (CMPconst [0] l:(XORconst [c] x)) yes no) -> (GT (TEQconst [c] x) yes no)
++(GT (CMPconst [0] l:(XORshiftLL x y [c])) yes no) -> (GT (TEQshiftLL x y [c]) yes no)
++(GT (CMPconst [0] l:(XORshiftRL x y [c])) yes no) -> (GT (TEQshiftRL x y [c]) yes no)
++(GT (CMPconst [0] l:(XORshiftRA x y [c])) yes no) -> (GT (TEQshiftRA x y [c]) yes no)
++(GT (CMPconst [0] l:(XORshiftLLreg x y z)) yes no) -> (GT (TEQshiftLLreg x y z) yes no)
++(GT (CMPconst [0] l:(XORshiftRLreg x y z)) yes no) -> (GT (TEQshiftRLreg x y z) yes no)
++(GT (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) -> (GT (TEQshiftRAreg x y z) yes no)
++(GE (CMPconst [0] l:(XOR x y)) yes no) -> (GE (TEQ x y) yes no)
++(GE (CMPconst [0] l:(XORconst [c] x)) yes no) -> (GE (TEQconst [c] x) yes no)
++(GE (CMPconst [0] l:(XORshiftLL x y [c])) yes no) -> (GE (TEQshiftLL x y [c]) yes no)
++(GE (CMPconst [0] l:(XORshiftRL x y [c])) yes no) -> (GE (TEQshiftRL x y [c]) yes no)
++(GE (CMPconst [0] l:(XORshiftRA x y [c])) yes no) -> (GE (TEQshiftRA x y [c]) yes no)
++(GE (CMPconst [0] l:(XORshiftLLreg x y z)) yes no) -> (GE (TEQshiftLLreg x y z) yes no)
++(GE (CMPconst [0] l:(XORshiftRLreg x y z)) yes no) -> (GE (TEQshiftRLreg x y z) yes no)
++(GE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) -> (GE (TEQshiftRAreg x y z) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index e463511f17..40d8d7f0b3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -23274,6 +23274,942 @@ func rewriteBlockARM(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (GE (CMPconst [0] l:(SUB x y)) yes no)
++		// cond:
++		// result: (GE (CMP x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUB {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] (MULS x y a)) yes no)
++		// cond:
++		// result: (GE (CMP a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULS {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(SUBconst [c] x)) yes no)
++		// cond:
++		// result: (GE (CMPconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(SUBshiftLL x y [c])) yes no)
++		// cond:
++		// result: (GE (CMPshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(SUBshiftRL x y [c])) yes no)
++		// cond:
++		// result: (GE (CMPshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(SUBshiftRA x y [c])) yes no)
++		// cond:
++		// result: (GE (CMPshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(SUBshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (GE (CMPshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(SUBshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (GE (CMPshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(SUBshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (GE (CMPshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ADD x y)) yes no)
++		// cond:
++		// result: (GE (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADD {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] (MULA x y a)) yes no)
++		// cond:
++		// result: (GE (CMN a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULA {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ADDconst [c] x)) yes no)
++		// cond:
++		// result: (GE (CMNconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ADDshiftLL x y [c])) yes no)
++		// cond:
++		// result: (GE (CMNshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ADDshiftRL x y [c])) yes no)
++		// cond:
++		// result: (GE (CMNshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ADDshiftRA x y [c])) yes no)
++		// cond:
++		// result: (GE (CMNshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ADDshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (GE (CMNshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ADDshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (GE (CMNshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ADDshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (GE (CMNshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(AND x y)) yes no)
++		// cond:
++		// result: (GE (TST x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMAND {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTST, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ANDconst [c] x)) yes no)
++		// cond:
++		// result: (GE (TSTconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTSTconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ANDshiftLL x y [c])) yes no)
++		// cond:
++		// result: (GE (TSTshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ANDshiftRL x y [c])) yes no)
++		// cond:
++		// result: (GE (TSTshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ANDshiftRA x y [c])) yes no)
++		// cond:
++		// result: (GE (TSTshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ANDshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (GE (TSTshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ANDshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (GE (TSTshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(ANDshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (GE (TSTshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(XOR x y)) yes no)
++		// cond:
++		// result: (GE (TEQ x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXOR {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTEQ, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(XORconst [c] x)) yes no)
++		// cond:
++		// result: (GE (TEQconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTEQconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(XORshiftLL x y [c])) yes no)
++		// cond:
++		// result: (GE (TEQshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(XORshiftRL x y [c])) yes no)
++		// cond:
++		// result: (GE (TEQshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(XORshiftRA x y [c])) yes no)
++		// cond:
++		// result: (GE (TEQshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(XORshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (GE (TEQshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(XORshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (GE (TEQshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (GE (TEQshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
+ 	case BlockARMGT:
+ 		// match: (GT (FlagEQ) yes no)
+ 		// cond:
+@@ -23283,398 +24219,3206 @@ func rewriteBlockARM(b *Block) bool {
+ 			if v.Op != OpARMFlagEQ {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			b.swapSuccessors()
++			return true
++		}
++		// match: (GT (FlagLT_ULT) yes no)
++		// cond:
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagLT_ULT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			b.swapSuccessors()
++			return true
++		}
++		// match: (GT (FlagLT_UGT) yes no)
++		// cond:
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagLT_UGT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			b.swapSuccessors()
++			return true
++		}
++		// match: (GT (FlagGT_ULT) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagGT_ULT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (FlagGT_UGT) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagGT_UGT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (InvertFlags cmp) yes no)
++		// cond:
++		// result: (LT cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMInvertFlags {
++				break
++			}
++			cmp := v.Args[0]
++			b.Kind = BlockARMLT
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(SUB x y)) yes no)
++		// cond:
++		// result: (GT (CMP x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUB {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] (MULS x y a)) yes no)
++		// cond:
++		// result: (GT (CMP a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULS {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(SUBconst [c] x)) yes no)
++		// cond:
++		// result: (GT (CMPconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(SUBshiftLL x y [c])) yes no)
++		// cond:
++		// result: (GT (CMPshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(SUBshiftRL x y [c])) yes no)
++		// cond:
++		// result: (GT (CMPshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(SUBshiftRA x y [c])) yes no)
++		// cond:
++		// result: (GT (CMPshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(SUBshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (GT (CMPshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(SUBshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (GT (CMPshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(SUBshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (GT (CMPshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ADD x y)) yes no)
++		// cond:
++		// result: (GT (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADD {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ADDconst [c] x)) yes no)
++		// cond:
++		// result: (GT (CMNconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ADDshiftLL x y [c])) yes no)
++		// cond:
++		// result: (GT (CMNshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ADDshiftRL x y [c])) yes no)
++		// cond:
++		// result: (GT (CMNshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ADDshiftRA x y [c])) yes no)
++		// cond:
++		// result: (GT (CMNshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ADDshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (GT (CMNshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ADDshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (GT (CMNshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ADDshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (GT (CMNshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(AND x y)) yes no)
++		// cond:
++		// result: (GT (TST x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMAND {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTST, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] (MULA x y a)) yes no)
++		// cond:
++		// result: (GT (CMN a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULA {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ANDconst [c] x)) yes no)
++		// cond:
++		// result: (GT (TSTconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTSTconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ANDshiftLL x y [c])) yes no)
++		// cond:
++		// result: (GT (TSTshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ANDshiftRL x y [c])) yes no)
++		// cond:
++		// result: (GT (TSTshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ANDshiftRA x y [c])) yes no)
++		// cond:
++		// result: (GT (TSTshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ANDshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (GT (TSTshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ANDshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (GT (TSTshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(ANDshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (GT (TSTshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(XOR x y)) yes no)
++		// cond:
++		// result: (GT (TEQ x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXOR {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTEQ, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(XORconst [c] x)) yes no)
++		// cond:
++		// result: (GT (TEQconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTEQconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(XORshiftLL x y [c])) yes no)
++		// cond:
++		// result: (GT (TEQshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(XORshiftRL x y [c])) yes no)
++		// cond:
++		// result: (GT (TEQshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(XORshiftRA x y [c])) yes no)
++		// cond:
++		// result: (GT (TEQshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(XORshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (GT (TEQshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(XORshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (GT (TEQshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (GT (CMPconst [0] l:(XORshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (GT (TEQshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMGT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++	case BlockIf:
++		// match: (If (Equal cc) yes no)
++		// cond:
++		// result: (EQ cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMEqual {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMEQ
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (NotEqual cc) yes no)
++		// cond:
++		// result: (NE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMNotEqual {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMNE
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (LessThan cc) yes no)
++		// cond:
++		// result: (LT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMLessThan {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMLT
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (LessThanU cc) yes no)
++		// cond:
++		// result: (ULT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMLessThanU {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMULT
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (LessEqual cc) yes no)
++		// cond:
++		// result: (LE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMLessEqual {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMLE
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (LessEqualU cc) yes no)
++		// cond:
++		// result: (ULE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMLessEqualU {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMULE
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (GreaterThan cc) yes no)
++		// cond:
++		// result: (GT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMGreaterThan {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMGT
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (GreaterThanU cc) yes no)
++		// cond:
++		// result: (UGT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMGreaterThanU {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMUGT
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (GreaterEqual cc) yes no)
++		// cond:
++		// result: (GE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMGreaterEqual {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMGE
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (GreaterEqualU cc) yes no)
++		// cond:
++		// result: (UGE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMGreaterEqualU {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARMUGE
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If cond yes no)
++		// cond:
++		// result: (NE (CMPconst [0] cond) yes no)
++		for {
++			v := b.Control
++			_ = v
++			cond := b.Control
++			b.Kind = BlockARMNE
++			v0 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
++			v0.AuxInt = 0
++			v0.AddArg(cond)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++	case BlockARMLE:
++		// match: (LE (FlagEQ) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagEQ {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (FlagLT_ULT) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagLT_ULT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (FlagLT_UGT) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagLT_UGT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (FlagGT_ULT) yes no)
++		// cond:
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagGT_ULT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			b.swapSuccessors()
++			return true
++		}
++		// match: (LE (FlagGT_UGT) yes no)
++		// cond:
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagGT_UGT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			b.swapSuccessors()
++			return true
++		}
++		// match: (LE (InvertFlags cmp) yes no)
++		// cond:
++		// result: (GE cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMInvertFlags {
++				break
++			}
++			cmp := v.Args[0]
++			b.Kind = BlockARMGE
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(SUB x y)) yes no)
++		// cond:
++		// result: (LE (CMP x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUB {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] (MULS x y a)) yes no)
++		// cond:
++		// result: (LE (CMP a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULS {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(SUBconst [c] x)) yes no)
++		// cond:
++		// result: (LE (CMPconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(SUBshiftLL x y [c])) yes no)
++		// cond:
++		// result: (LE (CMPshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(SUBshiftRL x y [c])) yes no)
++		// cond:
++		// result: (LE (CMPshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(SUBshiftRA x y [c])) yes no)
++		// cond:
++		// result: (LE (CMPshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(SUBshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (LE (CMPshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(SUBshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (LE (CMPshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(SUBshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (LE (CMPshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ADD x y)) yes no)
++		// cond:
++		// result: (LE (CMN x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADD {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] (MULA x y a)) yes no)
++		// cond:
++		// result: (LE (CMN a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULA {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ADDconst [c] x)) yes no)
++		// cond:
++		// result: (LE (CMNconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ADDshiftLL x y [c])) yes no)
++		// cond:
++		// result: (LE (CMNshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ADDshiftRL x y [c])) yes no)
++		// cond:
++		// result: (LE (CMNshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ADDshiftRA x y [c])) yes no)
++		// cond:
++		// result: (LE (CMNshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ADDshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (LE (CMNshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ADDshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (LE (CMNshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ADDshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (LE (CMNshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(AND x y)) yes no)
++		// cond:
++		// result: (LE (TST x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMAND {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTST, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ANDconst [c] x)) yes no)
++		// cond:
++		// result: (LE (TSTconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTSTconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ANDshiftLL x y [c])) yes no)
++		// cond:
++		// result: (LE (TSTshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ANDshiftRL x y [c])) yes no)
++		// cond:
++		// result: (LE (TSTshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ANDshiftRA x y [c])) yes no)
++		// cond:
++		// result: (LE (TSTshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ANDshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (LE (TSTshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ANDshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (LE (TSTshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(ANDshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (LE (TSTshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(XOR x y)) yes no)
++		// cond:
++		// result: (LE (TEQ x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXOR {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTEQ, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(XORconst [c] x)) yes no)
++		// cond:
++		// result: (LE (TEQconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTEQconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(XORshiftLL x y [c])) yes no)
++		// cond:
++		// result: (LE (TEQshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(XORshiftRL x y [c])) yes no)
++		// cond:
++		// result: (LE (TEQshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(XORshiftRA x y [c])) yes no)
++		// cond:
++		// result: (LE (TEQshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(XORshiftLLreg x y z)) yes no)
++		// cond:
++		// result: (LE (TEQshiftLLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(XORshiftRLreg x y z)) yes no)
++		// cond:
++		// result: (LE (TEQshiftRLreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no)
++		// cond:
++		// result: (LE (TEQshiftRAreg x y z) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLE
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++	case BlockARMLT:
++		// match: (LT (FlagEQ) yes no)
++		// cond:
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagEQ {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			b.swapSuccessors()
++			return true
++		}
++		// match: (LT (FlagLT_ULT) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagLT_ULT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (FlagLT_UGT) yes no)
++		// cond:
++		// result: (First nil yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagLT_UGT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (FlagGT_ULT) yes no)
++		// cond:
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagGT_ULT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			b.swapSuccessors()
++			return true
++		}
++		// match: (LT (FlagGT_UGT) yes no)
++		// cond:
++		// result: (First nil no yes)
++		for {
++			v := b.Control
++			if v.Op != OpARMFlagGT_UGT {
++				break
++			}
++			b.Kind = BlockFirst
++			b.SetControl(nil)
++			b.Aux = nil
++			b.swapSuccessors()
++			return true
++		}
++		// match: (LT (InvertFlags cmp) yes no)
++		// cond:
++		// result: (GT cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMInvertFlags {
++				break
++			}
++			cmp := v.Args[0]
++			b.Kind = BlockARMGT
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPconst [0] l:(SUB x y)) yes no)
++		// cond:
++		// result: (LT (CMP x y) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUB {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPconst [0] (MULS x y a)) yes no)
++		// cond:
++		// result: (LT (CMP a (MUL <x.Type> x y)) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULS {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPconst [0] l:(SUBconst [c] x)) yes no)
++		// cond:
++		// result: (LT (CMPconst [c] x) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPconst [0] l:(SUBshiftLL x y [c])) yes no)
++		// cond:
++		// result: (LT (CMPshiftLL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPconst [0] l:(SUBshiftRL x y [c])) yes no)
++		// cond:
++		// result: (LT (CMPshiftRL x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
++			b.Aux = nil
++			return true
++		}
++		// match: (LT (CMPconst [0] l:(SUBshiftRA x y [c])) yes no)
++		// cond:
++		// result: (LT (CMPshiftRA x y [c]) yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (GT (FlagLT_ULT) yes no)
++		// match: (LT (CMPconst [0] l:(SUBshiftLLreg x y z)) yes no)
+ 		// cond:
+-		// result: (First nil no yes)
++		// result: (LT (CMPshiftLLreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagLT_ULT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (GT (FlagLT_UGT) yes no)
++		// match: (LT (CMPconst [0] l:(SUBshiftRLreg x y z)) yes no)
+ 		// cond:
+-		// result: (First nil no yes)
++		// result: (LT (CMPshiftRLreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagLT_UGT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (GT (FlagGT_ULT) yes no)
++		// match: (LT (CMPconst [0] l:(SUBshiftRAreg x y z)) yes no)
+ 		// cond:
+-		// result: (First nil yes no)
++		// result: (LT (CMPshiftRAreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagGT_ULT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMSUBshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMPshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (GT (FlagGT_UGT) yes no)
++		// match: (LT (CMPconst [0] l:(ADD x y)) yes no)
+ 		// cond:
+-		// result: (First nil yes no)
++		// result: (LT (CMN x y) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagGT_UGT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADD {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (GT (InvertFlags cmp) yes no)
++		// match: (LT (CMPconst [0] (MULA x y a)) yes no)
+ 		// cond:
+-		// result: (LT cmp yes no)
++		// result: (LT (CMN a (MUL <x.Type> x y)) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMInvertFlags {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cmp := v.Args[0]
++			if v.AuxInt != 0 {
++				break
++			}
++			v_0 := v.Args[0]
++			if v_0.Op != OpARMMULA {
++				break
++			}
++			_ = v_0.Args[2]
++			x := v_0.Args[0]
++			y := v_0.Args[1]
++			a := v_0.Args[2]
+ 			b.Kind = BlockARMLT
+-			b.SetControl(cmp)
++			v0 := b.NewValue0(v.Pos, OpARMCMN, types.TypeFlags)
++			v0.AddArg(a)
++			v1 := b.NewValue0(v.Pos, OpARMMUL, x.Type)
++			v1.AddArg(x)
++			v1.AddArg(y)
++			v0.AddArg(v1)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-	case BlockIf:
+-		// match: (If (Equal cc) yes no)
++		// match: (LT (CMPconst [0] l:(ADDconst [c] x)) yes no)
+ 		// cond:
+-		// result: (EQ cc yes no)
++		// result: (LT (CMNconst [c] x) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMEqual {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
+-			b.Kind = BlockARMEQ
+-			b.SetControl(cc)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMNconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If (NotEqual cc) yes no)
++		// match: (LT (CMPconst [0] l:(ADDshiftLL x y [c])) yes no)
+ 		// cond:
+-		// result: (NE cc yes no)
++		// result: (LT (CMNshiftLL x y [c]) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMNotEqual {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
+-			b.Kind = BlockARMNE
+-			b.SetControl(cc)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If (LessThan cc) yes no)
++		// match: (LT (CMPconst [0] l:(ADDshiftRL x y [c])) yes no)
+ 		// cond:
+-		// result: (LT cc yes no)
++		// result: (LT (CMNshiftRL x y [c]) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMLessThan {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
+ 			b.Kind = BlockARMLT
+-			b.SetControl(cc)
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If (LessThanU cc) yes no)
++		// match: (LT (CMPconst [0] l:(ADDshiftRA x y [c])) yes no)
+ 		// cond:
+-		// result: (ULT cc yes no)
++		// result: (LT (CMNshiftRA x y [c]) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMLessThanU {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
+-			b.Kind = BlockARMULT
+-			b.SetControl(cc)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If (LessEqual cc) yes no)
++		// match: (LT (CMPconst [0] l:(ADDshiftLLreg x y z)) yes no)
+ 		// cond:
+-		// result: (LE cc yes no)
++		// result: (LT (CMNshiftLLreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMLessEqual {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
+-			b.Kind = BlockARMLE
+-			b.SetControl(cc)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If (LessEqualU cc) yes no)
++		// match: (LT (CMPconst [0] l:(ADDshiftRLreg x y z)) yes no)
+ 		// cond:
+-		// result: (ULE cc yes no)
++		// result: (LT (CMNshiftRLreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMLessEqualU {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
+-			b.Kind = BlockARMULE
+-			b.SetControl(cc)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If (GreaterThan cc) yes no)
++		// match: (LT (CMPconst [0] l:(ADDshiftRAreg x y z)) yes no)
+ 		// cond:
+-		// result: (GT cc yes no)
++		// result: (LT (CMNshiftRAreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMGreaterThan {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
+-			b.Kind = BlockARMGT
+-			b.SetControl(cc)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMADDshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMCMNshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If (GreaterThanU cc) yes no)
++		// match: (LT (CMPconst [0] l:(AND x y)) yes no)
+ 		// cond:
+-		// result: (UGT cc yes no)
++		// result: (LT (TST x y) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMGreaterThanU {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
+-			b.Kind = BlockARMUGT
+-			b.SetControl(cc)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMAND {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTST, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If (GreaterEqual cc) yes no)
++		// match: (LT (CMPconst [0] l:(ANDconst [c] x)) yes no)
+ 		// cond:
+-		// result: (GE cc yes no)
++		// result: (LT (TSTconst [c] x) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMGreaterEqual {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
+-			b.Kind = BlockARMGE
+-			b.SetControl(cc)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTSTconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If (GreaterEqualU cc) yes no)
++		// match: (LT (CMPconst [0] l:(ANDshiftLL x y [c])) yes no)
+ 		// cond:
+-		// result: (UGE cc yes no)
++		// result: (LT (TSTshiftLL x y [c]) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMGreaterEqualU {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cc := v.Args[0]
+-			b.Kind = BlockARMUGE
+-			b.SetControl(cc)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (If cond yes no)
++		// match: (LT (CMPconst [0] l:(ANDshiftRL x y [c])) yes no)
+ 		// cond:
+-		// result: (NE (CMPconst [0] cond) yes no)
++		// result: (LT (TSTshiftRL x y [c]) yes no)
+ 		for {
+ 			v := b.Control
+-			_ = v
+-			cond := b.Control
+-			b.Kind = BlockARMNE
+-			v0 := b.NewValue0(v.Pos, OpARMCMPconst, types.TypeFlags)
+-			v0.AuxInt = 0
+-			v0.AddArg(cond)
++			if v.Op != OpARMCMPconst {
++				break
++			}
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
+ 			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-	case BlockARMLE:
+-		// match: (LE (FlagEQ) yes no)
++		// match: (LT (CMPconst [0] l:(ANDshiftRA x y [c])) yes no)
+ 		// cond:
+-		// result: (First nil yes no)
++		// result: (LT (TSTshiftRA x y [c]) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagEQ {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (LE (FlagLT_ULT) yes no)
++		// match: (LT (CMPconst [0] l:(ANDshiftLLreg x y z)) yes no)
+ 		// cond:
+-		// result: (First nil yes no)
++		// result: (LT (TSTshiftLLreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagLT_ULT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (LE (FlagLT_UGT) yes no)
++		// match: (LT (CMPconst [0] l:(ANDshiftRLreg x y z)) yes no)
+ 		// cond:
+-		// result: (First nil yes no)
++		// result: (LT (TSTshiftRLreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagLT_UGT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (LE (FlagGT_ULT) yes no)
++		// match: (LT (CMPconst [0] l:(ANDshiftRAreg x y z)) yes no)
+ 		// cond:
+-		// result: (First nil no yes)
++		// result: (LT (TSTshiftRAreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagGT_ULT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMANDshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTSTshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (LE (FlagGT_UGT) yes no)
++		// match: (LT (CMPconst [0] l:(XOR x y)) yes no)
+ 		// cond:
+-		// result: (First nil no yes)
++		// result: (LT (TEQ x y) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagGT_UGT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXOR {
++				break
++			}
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTEQ, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (LE (InvertFlags cmp) yes no)
++		// match: (LT (CMPconst [0] l:(XORconst [c] x)) yes no)
+ 		// cond:
+-		// result: (GE cmp yes no)
++		// result: (LT (TEQconst [c] x) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMInvertFlags {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cmp := v.Args[0]
+-			b.Kind = BlockARMGE
+-			b.SetControl(cmp)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORconst {
++				break
++			}
++			c := l.AuxInt
++			x := l.Args[0]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTEQconst, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-	case BlockARMLT:
+-		// match: (LT (FlagEQ) yes no)
++		// match: (LT (CMPconst [0] l:(XORshiftLL x y [c])) yes no)
+ 		// cond:
+-		// result: (First nil no yes)
++		// result: (LT (TEQshiftLL x y [c]) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagEQ {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftLL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (LT (FlagLT_ULT) yes no)
++		// match: (LT (CMPconst [0] l:(XORshiftRL x y [c])) yes no)
+ 		// cond:
+-		// result: (First nil yes no)
++		// result: (LT (TEQshiftRL x y [c]) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagLT_ULT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRL {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRL, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (LT (FlagLT_UGT) yes no)
++		// match: (LT (CMPconst [0] l:(XORshiftRA x y [c])) yes no)
+ 		// cond:
+-		// result: (First nil yes no)
++		// result: (LT (TEQshiftRA x y [c]) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagLT_UGT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRA {
++				break
++			}
++			c := l.AuxInt
++			_ = l.Args[1]
++			x := l.Args[0]
++			y := l.Args[1]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRA, types.TypeFlags)
++			v0.AuxInt = c
++			v0.AddArg(x)
++			v0.AddArg(y)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+-		// match: (LT (FlagGT_ULT) yes no)
++		// match: (LT (CMPconst [0] l:(XORshiftLLreg x y z)) yes no)
+ 		// cond:
+-		// result: (First nil no yes)
++		// result: (LT (TEQshiftLLreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagGT_ULT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftLLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftLLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (LT (FlagGT_UGT) yes no)
++		// match: (LT (CMPconst [0] l:(XORshiftRLreg x y z)) yes no)
+ 		// cond:
+-		// result: (First nil no yes)
++		// result: (LT (TEQshiftRLreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMFlagGT_UGT {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			b.Kind = BlockFirst
+-			b.SetControl(nil)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRLreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRLreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+-			b.swapSuccessors()
+ 			return true
+ 		}
+-		// match: (LT (InvertFlags cmp) yes no)
++		// match: (LT (CMPconst [0] l:(XORshiftRAreg x y z)) yes no)
+ 		// cond:
+-		// result: (GT cmp yes no)
++		// result: (LT (TEQshiftRAreg x y z) yes no)
+ 		for {
+ 			v := b.Control
+-			if v.Op != OpARMInvertFlags {
++			if v.Op != OpARMCMPconst {
+ 				break
+ 			}
+-			cmp := v.Args[0]
+-			b.Kind = BlockARMGT
+-			b.SetControl(cmp)
++			if v.AuxInt != 0 {
++				break
++			}
++			l := v.Args[0]
++			if l.Op != OpARMXORshiftRAreg {
++				break
++			}
++			_ = l.Args[2]
++			x := l.Args[0]
++			y := l.Args[1]
++			z := l.Args[2]
++			b.Kind = BlockARMLT
++			v0 := b.NewValue0(v.Pos, OpARMTEQshiftRAreg, types.TypeFlags)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.AddArg(z)
++			b.SetControl(v0)
+ 			b.Aux = nil
+ 			return true
+ 		}
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index ebd75d85d9..22d06363ba 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -157,3 +157,15 @@ func CmpZero4(a int64, ptr *int) {
+ 		*ptr = 0
+ 	}
+ }
++
++func CmpToZero(a, b int32) int32 {
++	if a&b < 0 { // arm:`TST`,-`AND`
++		return 1
++	} else if a+b < 0 { // arm:`CMN`,-`ADD`
++		return 2
++	} else if a^b < 0 { // arm:`TEQ`,-`XOR`
++		return 3
++	} else {
++		return 0
++	}
++}

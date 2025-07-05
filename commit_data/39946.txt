@@ -27,7 +27,7 @@ Date:   Wed Mar 20 10:47:17 2019 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../{fd_opendir_ios.go => fd_opendir_darwin.go}    |  3 --
  src/os/{dir_ios.go => dir_darwin.go}               | 13 ++---
  src/os/dir_unix.go                                 |  2 +-
@@ -52,3 +52,921 @@ Date:   Wed Mar 20 10:47:17 2019 -0700
  src/syscall/zsyscall_darwin_arm.go                 | 56 +++++++++++-----------
  src/syscall/zsyscall_darwin_arm64.go               | 56 +++++++++++-----------
  23 files changed, 303 insertions(+), 165 deletions(-)
+
+diff --git a/src/internal/poll/fd_opendir_ios.go b/src/internal/poll/fd_opendir_darwin.go
+similarity index 95%
+rename from src/internal/poll/fd_opendir_ios.go
+rename to src/internal/poll/fd_opendir_darwin.go
+index e646bd9a96..c7d3318c72 100644
+--- a/src/internal/poll/fd_opendir_ios.go
++++ b/src/internal/poll/fd_opendir_darwin.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin
+-// +build arm arm64
+-
+ package poll
+ 
+ import (
+diff --git a/src/os/dir_ios.go b/src/os/dir_darwin.go
+similarity index 84%
+rename from src/os/dir_ios.go
+rename to src/os/dir_darwin.go
+index 8c14d89508..2f9ba78d68 100644
+--- a/src/os/dir_ios.go
++++ b/src/os/dir_darwin.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin
+-// +build arm arm64
+-
+ package os
+ 
+ import (
+@@ -47,12 +44,12 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ 
+ 	names = make([]string, 0, size)
+ 	var dirent syscall.Dirent
+-	var entptr uintptr
+-	for len(names) < size {
+-		if res := readdir_r(d.dir, uintptr(unsafe.Pointer(&dirent)), uintptr(unsafe.Pointer(&entptr))); res != 0 {
++	var entptr *syscall.Dirent
++	for len(names) < size || n == -1 {
++		if res := readdir_r(d.dir, &dirent, &entptr); res != 0 {
+ 			return names, wrapSyscallError("readdir", syscall.Errno(res))
+ 		}
+-		if entptr == 0 { // EOF
++		if entptr == nil { // EOF
+ 			break
+ 		}
+ 		if dirent.Ino == 0 {
+@@ -84,4 +81,4 @@ func (f *File) readdirnames(n int) (names []string, err error) {
+ func closedir(dir uintptr) (err error)
+ 
+ //go:linkname readdir_r syscall.readdir_r
+-func readdir_r(dir, entry, result uintptr) (res int)
++func readdir_r(dir uintptr, entry *syscall.Dirent, result **syscall.Dirent) (res int)
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index bd99ef4813..b2c8fe6f15 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin,!arm,!arm64 dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
++// +build aix dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index f34ac88352..434fa5f588 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -89,6 +89,17 @@ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ }
+ func syscall6X()
+ 
++//go:linkname syscall_syscallPtr syscall.syscallPtr
++//go:nosplit
++//go:cgo_unsafe_args
++func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
++	entersyscallblock()
++	libcCall(unsafe.Pointer(funcPC(syscallPtr)), unsafe.Pointer(&fn))
++	exitsyscall()
++	return
++}
++func syscallPtr()
++
+ //go:linkname syscall_rawSyscall syscall.rawSyscall
+ //go:nosplit
+ //go:cgo_unsafe_args
+diff --git a/src/runtime/sys_darwin_32.go b/src/runtime/sys_darwin_32.go
+index 2f17091327..f126be83e5 100644
+--- a/src/runtime/sys_darwin_32.go
++++ b/src/runtime/sys_darwin_32.go
+@@ -19,14 +19,3 @@ func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, e
+ 	return
+ }
+ func syscall9()
+-
+-//go:linkname syscall_syscallPtr syscall.syscallPtr
+-//go:nosplit
+-//go:cgo_unsafe_args
+-func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+-	entersyscallblock()
+-	libcCall(unsafe.Pointer(funcPC(syscallPtr)), unsafe.Pointer(&fn))
+-	exitsyscall()
+-	return
+-}
+-func syscallPtr()
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 1bc1a63c28..d318509e0a 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -675,9 +675,42 @@ ok:
+ 	POPL	BP
+ 	RET
+ 
+-// Not used on 386.
++// syscallPtr is like syscall except the libc function reports an
++// error by returning NULL and setting errno.
+ TEXT runtime·syscallPtr(SB),NOSPLIT,$0
+-	MOVL	$0xf1, 0xf1  // crash
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	(0*4)(CX), AX // fn
++	MOVL	(1*4)(CX), DX // a1
++	MOVL	DX, 0(SP)
++	MOVL	(2*4)(CX), DX // a2
++	MOVL	DX, 4(SP)
++	MOVL	(3*4)(CX), DX // a3
++	MOVL	DX, 8(SP)
++
++	CALL	AX
++
++	MOVL	32(SP), CX
++	MOVL	AX, (4*4)(CX) // r1
++	MOVL	DX, (5*4)(CX) // r2
++
++	// syscallPtr libc functions return NULL on error
++	// and set errno.
++	TESTL	AX, AX
++	JNE	ok
++
++	// Get error code from libc.
++	CALL	libc_error(SB)
++	MOVL	(AX), AX
++	MOVL	32(SP), CX
++	MOVL	AX, (6*4)(CX) // err
++
++ok:
++	XORL	AX, AX        // no error (it's ignored anyway)
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+ // syscall6 calls a function in libc on behalf of the syscall package.
+diff --git a/src/runtime/sys_darwin_64.go b/src/runtime/sys_darwin_64.go
+index 8c128811b9..07b0bb54af 100644
+--- a/src/runtime/sys_darwin_64.go
++++ b/src/runtime/sys_darwin_64.go
+@@ -19,14 +19,3 @@ func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	return
+ }
+ func syscallX()
+-
+-//go:linkname syscall_syscallXPtr syscall.syscallXPtr
+-//go:nosplit
+-//go:cgo_unsafe_args
+-func syscall_syscallXPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+-	entersyscallblock()
+-	libcCall(unsafe.Pointer(funcPC(syscallXPtr)), unsafe.Pointer(&fn))
+-	exitsyscall()
+-	return
+-}
+-func syscallXPtr()
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index f99cb00ab8..934c510b88 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -637,9 +637,40 @@ ok:
+ 	POPQ	BP
+ 	RET
+ 
+-// Not used on amd64.
+-TEXT runtime·syscallXPtr(SB),NOSPLIT,$0
+-	MOVL	$0xf1, 0xf1  // crash
++// syscallPtr is like syscallX except that the libc function reports an
++// error by returning NULL and setting errno.
++TEXT runtime·syscallPtr(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	SUBQ	$16, SP
++	MOVQ	(0*8)(DI), CX // fn
++	MOVQ	(2*8)(DI), SI // a2
++	MOVQ	(3*8)(DI), DX // a3
++	MOVQ	DI, (SP)
++	MOVQ	(1*8)(DI), DI // a1
++	XORL	AX, AX	      // vararg: say "no float args"
++
++	CALL	CX
++
++	MOVQ	(SP), DI
++	MOVQ	AX, (4*8)(DI) // r1
++	MOVQ	DX, (5*8)(DI) // r2
++
++	// syscallPtr libc functions return NULL on error
++	// and set errno.
++	TESTQ	AX, AX
++	JNE	ok
++
++	// Get error code from libc.
++	CALL	libc_error(SB)
++	MOVLQSX	(AX), AX
++	MOVQ	(SP), DI
++	MOVQ	AX, (6*8)(DI) // err
++
++ok:
++	XORL	AX, AX        // no error (it's ignored anyway)
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+ // syscall6 calls a function in libc on behalf of the syscall package.
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 54c7afbf34..6c3fa0739d 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -418,7 +418,7 @@ ok:
+ 	RET
+ 
+ // syscallPtr is like syscall except the libc function reports an
+-// error by returning NULL.
++// error by returning NULL and setting errno.
+ TEXT runtime·syscallPtr(SB),NOSPLIT,$0
+ 	MOVW.W	R0, -4(R13)	// push structure pointer
+ 	MOVW	0(R0), R12	// fn
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 29951d8ad7..89a2b8a054 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -465,9 +465,9 @@ TEXT runtime·syscallX(SB),NOSPLIT,$0
+ ok:
+ 	RET
+ 
+-// syscallXPtr is like syscallX except that the libc function reports an
+-// error by returning NULL.
+-TEXT runtime·syscallXPtr(SB),NOSPLIT,$0
++// syscallPtr is like syscallX except that the libc function reports an
++// error by returning NULL and setting errno.
++TEXT runtime·syscallPtr(SB),NOSPLIT,$0
+ 	SUB	$16, RSP	// push structure pointer
+ 	MOVD	R0, (RSP)
+ 
+diff --git a/src/syscall/dirent_bsd_test.go b/src/syscall/dirent_bsd_test.go
+index e5f5eb3f8a..e5b8357af7 100644
+--- a/src/syscall/dirent_bsd_test.go
++++ b/src/syscall/dirent_bsd_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin,!arm,!arm64 dragonfly freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package syscall_test
+ 
+diff --git a/src/syscall/mksyscall.pl b/src/syscall/mksyscall.pl
+index 667ca54c02..75345df159 100755
+--- a/src/syscall/mksyscall.pl
++++ b/src/syscall/mksyscall.pl
+@@ -350,6 +350,10 @@ while(<>) {
+ 			$text .= "//go:linkname $funcname $funcname\n";
+ 			# Tell the linker that funcname can be found in libSystem using varname without the libc_ prefix.
+ 			my $basename = substr $funcname, 5;
++			if($basename eq "readdir_r" && ($ENV{'GOARCH'} eq "386" || $ENV{'GOARCH'} eq "amd64")) {
++			    # Hack to make sure we get the 64-bit inode version on darwin/macOS.
++			    $basename .= "\$INODE64"
++			}
+ 			$text .= "//go:cgo_import_dynamic $funcname $basename \"/usr/lib/libSystem.B.dylib\"\n\n";
+ 		}
+ 	}
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 80e42b0aec..59669a473d 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -258,6 +258,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys	Chown(path string, uid int, gid int) (err error)
+ //sys	Chroot(path string) (err error)
+ //sys	Close(fd int) (err error)
++//sys	closedir(dir uintptr) (err error)
+ //sys	Dup(fd int) (nfd int, err error)
+ //sys	Dup2(from int, to int) (err error)
+ //sys	Exchangedata(path1 string, path2 string, options int) (err error)
+@@ -301,6 +302,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error)
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
+ //sys	read(fd int, p []byte) (n int, err error)
++//sys	readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno)
+ //sys	Readlink(path string, buf []byte) (n int, err error)
+ //sys	Rename(from string, to string) (err error)
+ //sys	Revoke(path string) (err error)
+@@ -363,12 +365,65 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	return
+ }
+ 
++func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
++	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
++	const ptrSize = unsafe.Sizeof(uintptr(0))
++	d, err := fdopendir(fd)
++	if err != nil {
++		return 0, err
++	}
++	defer closedir(d)
++	// We keep the number of records already returned in *basep.
++	// It's not the full required semantics, but should handle the case
++	// of calling Getdirentries repeatedly.
++	// It won't handle assigning the results of lseek to *basep, or handle
++	// the directory being edited underfoot.
++	skip := *basep
++	*basep = 0
++	for {
++		var entry Dirent
++		var entryp *Dirent
++		e := readdir_r(d, &entry, &entryp)
++		if e != 0 {
++			return n, errnoErr(e)
++		}
++		if entryp == nil {
++			break
++		}
++		if skip > 0 {
++			skip--
++			*basep++
++			continue
++		}
++		reclen := int(entry.Reclen)
++		if reclen > len(buf) {
++			// Not enough room. Return for now.
++			// *basep will let us know where we should start up again.
++			// Note: this strategy for suspending in the middle and
++			// restarting is O(n^2) in the length of the directory. Oh well.
++			break
++		}
++		// Copy entry into return buffer.
++		s := struct {
++			ptr unsafe.Pointer
++			siz int
++			cap int
++		}{ptr: unsafe.Pointer(&entry), siz: reclen, cap: reclen}
++		copy(buf, *(*[]byte)(unsafe.Pointer(&s)))
++		buf = buf[reclen:]
++		n += reclen
++		*basep++
++	}
++	return n, nil
++}
++
+ // Implemented in the runtime package (runtime/sys_darwin.go)
+ func syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ // Find the entry point for f. See comments in runtime/proc.go for the
+ // function of the same name.
+diff --git a/src/syscall/syscall_darwin_386.go b/src/syscall/syscall_darwin_386.go
+index 045ebc726b..e4908d1f9c 100644
+--- a/src/syscall/syscall_darwin_386.go
++++ b/src/syscall/syscall_darwin_386.go
+@@ -16,7 +16,6 @@ func setTimeval(sec, usec int64) Timeval {
+ 
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_fstat64
+ //sys	Fstatfs(fd int, stat *Statfs_t) (err error) = SYS_fstatfs64
+-//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) = SYS___getdirentries64
+ //sysnb	Gettimeofday(tp *Timeval) (err error)
+ //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_lstat64
+ //sys	Stat(path string, stat *Stat_t) (err error) = SYS_stat64
+@@ -59,6 +58,20 @@ func libc_sendfile_trampoline()
+ //go:linkname libc_sendfile libc_sendfile
+ //go:cgo_import_dynamic libc_sendfile sendfile "/usr/lib/libSystem.B.dylib"
+ 
++func fdopendir(fd int) (dir uintptr, err error) {
++	r0, _, e1 := syscallPtr(funcPC(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
++	dir = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_fdopendir_trampoline()
++
++//go:linkname libc_fdopendir libc_fdopendir
++//go:cgo_import_dynamic libc_fdopendir fdopendir$INODE64 "/usr/lib/libSystem.B.dylib"
++
+ // Implemented in the runtime package (runtime/sys_darwin_32.go)
+ func syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ 
+diff --git a/src/syscall/syscall_darwin_amd64.go b/src/syscall/syscall_darwin_amd64.go
+index 7b6493bf9f..6fc7fb7f10 100644
+--- a/src/syscall/syscall_darwin_amd64.go
++++ b/src/syscall/syscall_darwin_amd64.go
+@@ -16,7 +16,6 @@ func setTimeval(sec, usec int64) Timeval {
+ 
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_fstat64
+ //sys	Fstatfs(fd int, stat *Statfs_t) (err error) = SYS_fstatfs64
+-//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) = SYS___getdirentries64
+ //sysnb	Gettimeofday(tp *Timeval) (err error)
+ //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_lstat64
+ //sys	Stat(path string, stat *Stat_t) (err error) = SYS_stat64
+@@ -59,6 +58,20 @@ func libc_sendfile_trampoline()
+ //go:linkname libc_sendfile libc_sendfile
+ //go:cgo_import_dynamic libc_sendfile sendfile "/usr/lib/libSystem.B.dylib"
+ 
++func fdopendir(fd int) (dir uintptr, err error) {
++	r0, _, e1 := syscallPtr(funcPC(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
++	dir = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_fdopendir_trampoline()
++
++//go:linkname libc_fdopendir libc_fdopendir
++//go:cgo_import_dynamic libc_fdopendir fdopendir$INODE64 "/usr/lib/libSystem.B.dylib"
++
+ // Implemented in the runtime package (runtime/sys_darwin_64.go)
+ func syscallX(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ 
+diff --git a/src/syscall/syscall_darwin_arm.go b/src/syscall/syscall_darwin_arm.go
+index cb7489ed7b..c1b417de92 100644
+--- a/src/syscall/syscall_darwin_arm.go
++++ b/src/syscall/syscall_darwin_arm.go
+@@ -14,20 +14,14 @@ func setTimeval(sec, usec int64) Timeval {
+ 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
+ }
+ 
+-//sys	closedir(dir uintptr) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	Fstatfs(fd int, stat *Statfs_t) (err error)
+ //sysnb	Gettimeofday(tp *Timeval) (err error)
+ //sys	Lstat(path string, stat *Stat_t) (err error)
+-//sys	readdir_r(dir uintptr, entry uintptr, result uintptr) (res int)
+ //sys	Stat(path string, stat *Stat_t) (err error)
+ //sys	Statfs(path string, stat *Statfs_t) (err error)
+ //sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
+ 
+-func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+-	return 0, ENOSYS
+-}
+-
+ func SetKevent(k *Kevent_t, fd, mode, flags int) {
+ 	k.Ident = uint32(fd)
+ 	k.Filter = int16(mode)
+@@ -79,7 +73,6 @@ func libc_fdopendir_trampoline()
+ //go:cgo_import_dynamic libc_fdopendir fdopendir "/usr/lib/libSystem.B.dylib"
+ 
+ // Implemented in the runtime package (runtime/sys_darwin_32.go)
+-func syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic
+diff --git a/src/syscall/syscall_darwin_arm64.go b/src/syscall/syscall_darwin_arm64.go
+index 57902d45c6..3a4c9629ac 100644
+--- a/src/syscall/syscall_darwin_arm64.go
++++ b/src/syscall/syscall_darwin_arm64.go
+@@ -14,20 +14,14 @@ func setTimeval(sec, usec int64) Timeval {
+ 	return Timeval{Sec: int64(sec), Usec: int32(usec)}
+ }
+ 
+-//sys	closedir(dir uintptr) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	Fstatfs(fd int, stat *Statfs_t) (err error)
+ //sysnb	Gettimeofday(tp *Timeval) (err error)
+ //sys	Lstat(path string, stat *Stat_t) (err error)
+-//sys	readdir_r(dirp uintptr, entry uintptr, result uintptr) (res int)
+ //sys	Stat(path string, stat *Stat_t) (err error)
+ //sys	Statfs(path string, stat *Statfs_t) (err error)
+ //sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
+ 
+-func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+-	return 0, ENOSYS
+-}
+-
+ func SetKevent(k *Kevent_t, fd, mode, flags int) {
+ 	k.Ident = uint64(fd)
+ 	k.Filter = int16(mode)
+@@ -65,7 +59,7 @@ func libc_sendfile_trampoline()
+ //go:cgo_import_dynamic libc_sendfile sendfile "/usr/lib/libSystem.B.dylib"
+ 
+ func fdopendir(fd int) (dir uintptr, err error) {
+-	r0, _, e1 := syscallXPtr(funcPC(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
++	r0, _, e1 := syscallPtr(funcPC(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
+ 	dir = uintptr(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -80,6 +74,5 @@ func libc_fdopendir_trampoline()
+ 
+ // Implemented in the runtime package (runtime/sys_darwin_64.go)
+ func syscallX(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+-func syscallXPtr(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic
+diff --git a/src/syscall/zsyscall_darwin_386.go b/src/syscall/zsyscall_darwin_386.go
+index 7f783eb40d..06b188f6c4 100644
+--- a/src/syscall/zsyscall_darwin_386.go
++++ b/src/syscall/zsyscall_darwin_386.go
+@@ -545,6 +545,21 @@ func libc_close_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func closedir(dir uintptr) (err error) {
++	_, _, e1 := syscall(funcPC(libc_closedir_trampoline), uintptr(dir), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_closedir_trampoline()
++
++//go:linkname libc_closedir libc_closedir
++//go:cgo_import_dynamic libc_closedir closedir "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Dup(fd int) (nfd int, err error) {
+ 	r0, _, e1 := syscall(funcPC(libc_dup_trampoline), uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+@@ -1254,6 +1269,19 @@ func libc_read_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno) {
++	r0, _, _ := syscall(funcPC(libc_readdir_r_trampoline), uintptr(dir), uintptr(unsafe.Pointer(entry)), uintptr(unsafe.Pointer(result)))
++	res = Errno(r0)
++	return
++}
++
++func libc_readdir_r_trampoline()
++
++//go:linkname libc_readdir_r libc_readdir_r
++//go:cgo_import_dynamic libc_readdir_r readdir_r$INODE64 "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Readlink(path string, buf []byte) (n int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1960,28 +1988,6 @@ func libc_fstatfs64_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p0 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := syscall6(funcPC(libc___getdirentries64_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc___getdirentries64_trampoline()
+-
+-//go:linkname libc___getdirentries64 libc___getdirentries64
+-//go:cgo_import_dynamic libc___getdirentries64 __getdirentries64 "/usr/lib/libSystem.B.dylib"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Gettimeofday(tp *Timeval) (err error) {
+ 	_, _, e1 := rawSyscall(funcPC(libc_gettimeofday_trampoline), uintptr(unsafe.Pointer(tp)), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_386.s b/src/syscall/zsyscall_darwin_386.s
+index a688192501..ba52e93fe9 100644
+--- a/src/syscall/zsyscall_darwin_386.s
++++ b/src/syscall/zsyscall_darwin_386.s
+@@ -7,6 +7,8 @@ TEXT ·libc_getfsstat64_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getfsstat64(SB)
+ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_setattrlist(SB)
++TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_fdopendir(SB)
+ TEXT ·libc_sendfile_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendfile(SB)
+ TEXT ·libc_getgroups_trampoline(SB),NOSPLIT,$0-0
+@@ -73,6 +75,8 @@ TEXT ·libc_chroot_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_chroot(SB)
+ TEXT ·libc_close_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_close(SB)
++TEXT ·libc_closedir_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_closedir(SB)
+ TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+ TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
+@@ -157,6 +161,8 @@ TEXT ·libc_pwrite_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pwrite(SB)
+ TEXT ·libc_read_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_read(SB)
++TEXT ·libc_readdir_r_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_readdir_r(SB)
+ TEXT ·libc_readlink_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_readlink(SB)
+ TEXT ·libc_rename_trampoline(SB),NOSPLIT,$0-0
+@@ -235,8 +241,6 @@ TEXT ·libc_fstat64_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat64(SB)
+ TEXT ·libc_fstatfs64_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatfs64(SB)
+-TEXT ·libc___getdirentries64_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc___getdirentries64(SB)
+ TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_gettimeofday(SB)
+ TEXT ·libc_lstat64_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index 141f071105..d7d08211be 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -545,6 +545,21 @@ func libc_close_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func closedir(dir uintptr) (err error) {
++	_, _, e1 := syscall(funcPC(libc_closedir_trampoline), uintptr(dir), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_closedir_trampoline()
++
++//go:linkname libc_closedir libc_closedir
++//go:cgo_import_dynamic libc_closedir closedir "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Dup(fd int) (nfd int, err error) {
+ 	r0, _, e1 := syscall(funcPC(libc_dup_trampoline), uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+@@ -1254,6 +1269,19 @@ func libc_read_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno) {
++	r0, _, _ := syscall(funcPC(libc_readdir_r_trampoline), uintptr(dir), uintptr(unsafe.Pointer(entry)), uintptr(unsafe.Pointer(result)))
++	res = Errno(r0)
++	return
++}
++
++func libc_readdir_r_trampoline()
++
++//go:linkname libc_readdir_r libc_readdir_r
++//go:cgo_import_dynamic libc_readdir_r readdir_r$INODE64 "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Readlink(path string, buf []byte) (n int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1960,28 +1988,6 @@ func libc_fstatfs64_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p0 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := syscall6(funcPC(libc___getdirentries64_trampoline), uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc___getdirentries64_trampoline()
+-
+-//go:linkname libc___getdirentries64 libc___getdirentries64
+-//go:cgo_import_dynamic libc___getdirentries64 __getdirentries64 "/usr/lib/libSystem.B.dylib"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Gettimeofday(tp *Timeval) (err error) {
+ 	_, _, e1 := rawSyscall(funcPC(libc_gettimeofday_trampoline), uintptr(unsafe.Pointer(tp)), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_amd64.s b/src/syscall/zsyscall_darwin_amd64.s
+index 21ab38e3ee..32c9e11456 100644
+--- a/src/syscall/zsyscall_darwin_amd64.s
++++ b/src/syscall/zsyscall_darwin_amd64.s
+@@ -7,6 +7,8 @@ TEXT ·libc_getfsstat64_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getfsstat64(SB)
+ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_setattrlist(SB)
++TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_fdopendir(SB)
+ TEXT ·libc_sendfile_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendfile(SB)
+ TEXT ·libc_getgroups_trampoline(SB),NOSPLIT,$0-0
+@@ -73,6 +75,8 @@ TEXT ·libc_chroot_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_chroot(SB)
+ TEXT ·libc_close_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_close(SB)
++TEXT ·libc_closedir_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_closedir(SB)
+ TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+ TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
+@@ -157,6 +161,8 @@ TEXT ·libc_pwrite_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pwrite(SB)
+ TEXT ·libc_read_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_read(SB)
++TEXT ·libc_readdir_r_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_readdir_r(SB)
+ TEXT ·libc_readlink_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_readlink(SB)
+ TEXT ·libc_rename_trampoline(SB),NOSPLIT,$0-0
+@@ -235,8 +241,6 @@ TEXT ·libc_fstat64_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat64(SB)
+ TEXT ·libc_fstatfs64_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatfs64(SB)
+-TEXT ·libc___getdirentries64_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc___getdirentries64(SB)
+ TEXT ·libc_gettimeofday_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_gettimeofday(SB)
+ TEXT ·libc_lstat64_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_arm.go b/src/syscall/zsyscall_darwin_arm.go
+index 9bfaac6ef7..a640c7425a 100644
+--- a/src/syscall/zsyscall_darwin_arm.go
++++ b/src/syscall/zsyscall_darwin_arm.go
+@@ -545,6 +545,21 @@ func libc_close_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func closedir(dir uintptr) (err error) {
++	_, _, e1 := syscall(funcPC(libc_closedir_trampoline), uintptr(dir), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_closedir_trampoline()
++
++//go:linkname libc_closedir libc_closedir
++//go:cgo_import_dynamic libc_closedir closedir "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Dup(fd int) (nfd int, err error) {
+ 	r0, _, e1 := syscall(funcPC(libc_dup_trampoline), uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+@@ -1254,6 +1269,19 @@ func libc_read_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno) {
++	r0, _, _ := syscall(funcPC(libc_readdir_r_trampoline), uintptr(dir), uintptr(unsafe.Pointer(entry)), uintptr(unsafe.Pointer(result)))
++	res = Errno(r0)
++	return
++}
++
++func libc_readdir_r_trampoline()
++
++//go:linkname libc_readdir_r libc_readdir_r
++//go:cgo_import_dynamic libc_readdir_r readdir_r "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Readlink(path string, buf []byte) (n int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1930,21 +1958,6 @@ func libc_openat_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func closedir(dir uintptr) (err error) {
+-	_, _, e1 := syscall(funcPC(libc_closedir_trampoline), uintptr(dir), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_closedir_trampoline()
+-
+-//go:linkname libc_closedir libc_closedir
+-//go:cgo_import_dynamic libc_closedir closedir "/usr/lib/libSystem.B.dylib"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := syscall(funcPC(libc_fstat_trampoline), uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+@@ -2010,19 +2023,6 @@ func libc_lstat_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func readdir_r(dir uintptr, entry uintptr, result uintptr) (res int) {
+-	r0, _, _ := syscall(funcPC(libc_readdir_r_trampoline), uintptr(dir), uintptr(entry), uintptr(result))
+-	res = int(r0)
+-	return
+-}
+-
+-func libc_readdir_r_trampoline()
+-
+-//go:linkname libc_readdir_r libc_readdir_r
+-//go:cgo_import_dynamic libc_readdir_r readdir_r "/usr/lib/libSystem.B.dylib"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Stat(path string, stat *Stat_t) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_darwin_arm64.go b/src/syscall/zsyscall_darwin_arm64.go
+index cdb3630ebd..e6d362d3a4 100644
+--- a/src/syscall/zsyscall_darwin_arm64.go
++++ b/src/syscall/zsyscall_darwin_arm64.go
+@@ -545,6 +545,21 @@ func libc_close_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func closedir(dir uintptr) (err error) {
++	_, _, e1 := syscall(funcPC(libc_closedir_trampoline), uintptr(dir), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_closedir_trampoline()
++
++//go:linkname libc_closedir libc_closedir
++//go:cgo_import_dynamic libc_closedir closedir "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Dup(fd int) (nfd int, err error) {
+ 	r0, _, e1 := syscall(funcPC(libc_dup_trampoline), uintptr(fd), 0, 0)
+ 	nfd = int(r0)
+@@ -1254,6 +1269,19 @@ func libc_read_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno) {
++	r0, _, _ := syscall(funcPC(libc_readdir_r_trampoline), uintptr(dir), uintptr(unsafe.Pointer(entry)), uintptr(unsafe.Pointer(result)))
++	res = Errno(r0)
++	return
++}
++
++func libc_readdir_r_trampoline()
++
++//go:linkname libc_readdir_r libc_readdir_r
++//go:cgo_import_dynamic libc_readdir_r readdir_r "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Readlink(path string, buf []byte) (n int, err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1930,21 +1958,6 @@ func libc_openat_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func closedir(dir uintptr) (err error) {
+-	_, _, e1 := syscall(funcPC(libc_closedir_trampoline), uintptr(dir), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_closedir_trampoline()
+-
+-//go:linkname libc_closedir libc_closedir
+-//go:cgo_import_dynamic libc_closedir closedir "/usr/lib/libSystem.B.dylib"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := syscall(funcPC(libc_fstat_trampoline), uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+@@ -2010,19 +2023,6 @@ func libc_lstat_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func readdir_r(dirp uintptr, entry uintptr, result uintptr) (res int) {
+-	r0, _, _ := syscall(funcPC(libc_readdir_r_trampoline), uintptr(dirp), uintptr(entry), uintptr(result))
+-	res = int(r0)
+-	return
+-}
+-
+-func libc_readdir_r_trampoline()
+-
+-//go:linkname libc_readdir_r libc_readdir_r
+-//go:cgo_import_dynamic libc_readdir_r readdir_r "/usr/lib/libSystem.B.dylib"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Stat(path string, stat *Stat_t) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)

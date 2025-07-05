@@ -10,6 +10,37 @@ Date:   Thu Apr 19 21:56:45 2018 +0300
     Change-Id: Ife7f78a3a76ab7802b5561d1afec536e103b504a
     Reviewed-on: https://go-review.googlesource.com/108275
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/json/decode.go | 12 ++----------
  1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 9479e1a5c6..6a66940034 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -868,11 +868,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 	isNull := item[0] == 'n' // null
+ 	u, ut, pv := indirect(v, isNull)
+ 	if u != nil {
+-		err := u.UnmarshalJSON(item)
+-		if err != nil {
+-			return err
+-		}
+-		return nil
++		return u.UnmarshalJSON(item)
+ 	}
+ 	if ut != nil {
+ 		if item[0] != '"' {
+@@ -899,11 +895,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 			}
+ 			return errPhase
+ 		}
+-		err := ut.UnmarshalText(s)
+-		if err != nil {
+-			return err
+-		}
+-		return nil
++		return ut.UnmarshalText(s)
+ 	}
+ 
+ 	v = pv

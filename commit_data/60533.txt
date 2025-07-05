@@ -12,6 +12,34 @@ Date:   Tue Jul 23 17:54:34 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/600698
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/debuglog_test.go | 12 ------------
  1 file changed, 12 deletions(-)
+
+diff --git a/src/runtime/debuglog_test.go b/src/runtime/debuglog_test.go
+index 6d484c462b..0f91398cdd 100644
+--- a/src/runtime/debuglog_test.go
++++ b/src/runtime/debuglog_test.go
+@@ -24,7 +24,6 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
+-	"internal/testenv"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -156,14 +155,3 @@ func TestDebugLogLongString(t *testing.T) {
+ 		t.Fatalf("want %q, got %q", want, got)
+ 	}
+ }
+-
+-// TestDebugLogBuild verifies that the runtime builds with -tags=debuglog.
+-func TestDebugLogBuild(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+-	// It doesn't matter which program we build, anything will rebuild the
+-	// runtime.
+-	if _, err := buildTestProg(t, "testprog", "-tags=debuglog"); err != nil {
+-		t.Fatal(err)
+-	}
+-}

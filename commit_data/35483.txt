@@ -9,7 +9,38 @@ Date:   Sun Dec 3 19:28:28 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/lfstack.go | 10 ++++++++++
  src/runtime/mgcwork.go |  1 +
  2 files changed, 11 insertions(+)
+
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index 4787c5be3f..406561a275 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -55,3 +55,13 @@ func (head *lfstack) pop() unsafe.Pointer {
+ func (head *lfstack) empty() bool {
+ 	return atomic.Load64((*uint64)(head)) == 0
+ }
++
++// lfnodeValidate panics if node is not a valid address for use with
++// lfstack.push. This only needs to be called when node is allocated.
++func lfnodeValidate(node *lfnode) {
++	if lfstackUnpack(lfstackPack(node, ^uintptr(0))) != node {
++		printlock()
++		println("runtime: bad lfnode address", hex(uintptr(unsafe.Pointer(node))))
++		throw("bad lfnode address")
++	}
++}
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index c6634fc78c..99771e2e57 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -400,6 +400,7 @@ func getempty() *workbuf {
+ 		for i := uintptr(0); i+_WorkbufSize <= workbufAlloc; i += _WorkbufSize {
+ 			newb := (*workbuf)(unsafe.Pointer(s.base() + i))
+ 			newb.nobj = 0
++			lfnodeValidate(&newb.node)
+ 			if i == 0 {
+ 				b = newb
+ 			} else {

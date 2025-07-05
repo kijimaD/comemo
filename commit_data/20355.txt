@@ -12,7 +12,7 @@ Date:   Wed Sep 3 11:10:38 2014 -0400
     R=golang-codereviews, dave, r, iant
     CC=dvyukov, golang-codereviews, khr
     https://golang.org/cl/140870044
-
+---
  src/pkg/runtime/chan.go         | 12 +++---------
  src/pkg/runtime/cpuprof.go      |  3 +--
  src/pkg/runtime/export_test.go  |  2 +-
@@ -23,3 +23,349 @@ Date:   Wed Sep 3 11:10:38 2014 -0400
  src/pkg/runtime/slice.go        | 10 +++-------
  src/pkg/runtime/string.go       |  9 +++------
  9 files changed, 33 insertions(+), 72 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.go b/src/pkg/runtime/chan.go
+index 77df169399..91ade4d37e 100644
+--- a/src/pkg/runtime/chan.go
++++ b/src/pkg/runtime/chan.go
+@@ -82,9 +82,7 @@ func chansend1(t *chantype, c *hchan, elem unsafe.Pointer) {
+  */
+ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 	if raceenabled {
+-		fn := chansend
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		raceReadObjectPC(t.elem, ep, callerpc, pc)
++		raceReadObjectPC(t.elem, ep, callerpc, funcPC(chansend))
+ 	}
+ 
+ 	if c == nil {
+@@ -100,9 +98,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 	}
+ 
+ 	if raceenabled {
+-		fn := chansend
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(c), pc, callerpc)
++		racereadpc(unsafe.Pointer(c), callerpc, funcPC(chansend))
+ 	}
+ 
+ 	// Fast path: check for failed non-blocking operation without acquiring the lock.
+@@ -269,9 +265,7 @@ func closechan(c *hchan) {
+ 
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&c))
+-		fn := closechan
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racewritepc(unsafe.Pointer(c), callerpc, pc)
++		racewritepc(unsafe.Pointer(c), callerpc, funcPC(closechan))
+ 		racerelease(unsafe.Pointer(c))
+ 	}
+ 
+diff --git a/src/pkg/runtime/cpuprof.go b/src/pkg/runtime/cpuprof.go
+index 540c78de8a..b397eafbe0 100644
+--- a/src/pkg/runtime/cpuprof.go
++++ b/src/pkg/runtime/cpuprof.go
+@@ -289,8 +289,7 @@ func (p *cpuProfile) flushlog() bool {
+ 	log := &p.log[p.toggle]
+ 	q := uintptr(0)
+ 	if p.lost > 0 {
+-		f := lostProfileData
+-		lostPC := **(**uintptr)(unsafe.Pointer(&f))
++		lostPC := funcPC(lostProfileData)
+ 		log[0] = p.lost
+ 		log[1] = 1
+ 		log[2] = lostPC
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 5579449c4f..cce9afbef9 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -86,7 +86,7 @@ func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*
+ 	mp := acquirem()
+ 	mp.ptrarg[0] = unsafe.Pointer(desc)
+ 	mp.ptrarg[1] = unsafe.Pointer(ctx)
+-	mp.ptrarg[2] = **(**unsafe.Pointer)(unsafe.Pointer(&body))
++	mp.ptrarg[2] = unsafe.Pointer(funcPC(body)) // TODO(rsc): Should be a scalar.
+ 	mp.scalararg[0] = uintptr(nthr)
+ 	mp.scalararg[1] = uintptr(n)
+ 	mp.scalararg[2] = 0
+diff --git a/src/pkg/runtime/hashmap.go b/src/pkg/runtime/hashmap.go
+index 1bdceab8bb..55287f6ff9 100644
+--- a/src/pkg/runtime/hashmap.go
++++ b/src/pkg/runtime/hashmap.go
+@@ -235,8 +235,7 @@ func makemap(t *maptype, hint int64) *hmap {
+ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapaccess1
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		pc := funcPC(mapaccess1)
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+@@ -284,8 +283,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapaccess2
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		pc := funcPC(mapaccess2)
+ 		racereadpc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+@@ -379,8 +377,7 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapassign1
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		pc := funcPC(mapassign1)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 		raceReadObjectPC(t.elem, val, callerpc, pc)
+@@ -488,8 +485,7 @@ again:
+ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapdelete
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		pc := funcPC(mapdelete)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+@@ -545,9 +541,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapiterinit
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiterinit))
+ 	}
+ 
+ 	if h == nil || h.count == 0 {
+@@ -591,9 +585,7 @@ func mapiternext(it *hiter) {
+ 	h := it.h
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&it))
+-		fn := mapiternext
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiternext))
+ 	}
+ 	t := it.t
+ 	bucket := it.bucket
+@@ -942,9 +934,7 @@ func reflect_maplen(h *hmap) int {
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&h))
+-		fn := reflect_maplen
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(reflect_maplen))
+ 	}
+ 	return h.count
+ }
+diff --git a/src/pkg/runtime/hashmap_fast.go b/src/pkg/runtime/hashmap_fast.go
+index 7059e22a0b..8e21e02d64 100644
+--- a/src/pkg/runtime/hashmap_fast.go
++++ b/src/pkg/runtime/hashmap_fast.go
+@@ -11,9 +11,7 @@ import (
+ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapaccess1_fast32
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero)
+@@ -55,9 +53,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapaccess2_fast32
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero), false
+@@ -99,9 +95,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapaccess1_fast64
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero)
+@@ -143,9 +137,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapaccess2_fast64
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero), false
+@@ -187,9 +179,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapaccess1_faststr
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero)
+@@ -291,9 +281,7 @@ dohash:
+ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 	if raceenabled && h != nil {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := mapaccess2_faststr
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero), false
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index d47503e230..a36b931b88 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -110,3 +110,9 @@ func releaseSudog(s *sudog) {
+ 	s.next = c.sudogcache
+ 	c.sudogcache = s
+ }
++
++// funcPC returns the entry PC of the function f.
++// It assumes that f is a func value. Otherwise the behavior is undefined.
++func funcPC(f interface{}) uintptr {
++	return **(**uintptr)(add(unsafe.Pointer(&f), ptrSize))
++}
+diff --git a/src/pkg/runtime/select.go b/src/pkg/runtime/select.go
+index dbe0543bf7..6d2531e7f8 100644
+--- a/src/pkg/runtime/select.go
++++ b/src/pkg/runtime/select.go
+@@ -13,17 +13,10 @@ const (
+ )
+ 
+ var (
+-	chansendpc uintptr
+-	chanrecvpc uintptr
++	chansendpc = funcPC(chansend)
++	chanrecvpc = funcPC(chanrecv)
+ )
+ 
+-func init() {
+-	f := chansend
+-	chansendpc = **(**uintptr)(unsafe.Pointer(&f))
+-	g := chanrecv
+-	chanrecvpc = **(**uintptr)(unsafe.Pointer(&g))
+-}
+-
+ func selectsize(size uintptr) uintptr {
+ 	selsize := unsafe.Sizeof(_select{}) +
+ 		(size-1)*unsafe.Sizeof(_select{}.scase[0]) +
+@@ -286,7 +279,6 @@ func selectgoImpl(sel *_select) (uintptr, uint16) {
+ 		k      *scase
+ 		sglist *sudog
+ 		sgnext *sudog
+-		fn     func(*g, *_select) bool
+ 	)
+ 
+ loop:
+@@ -371,8 +363,7 @@ loop:
+ 
+ 	// wait for someone to wake us up
+ 	gp.param = nil
+-	fn = selparkcommit
+-	gopark(**(**unsafe.Pointer)(unsafe.Pointer(&fn)), unsafe.Pointer(sel), "select")
++	gopark(unsafe.Pointer(funcPC(selparkcommit)), unsafe.Pointer(sel), "select")
+ 
+ 	// someone woke us up
+ 	sellock(sel)
+diff --git a/src/pkg/runtime/slice.go b/src/pkg/runtime/slice.go
+index c282125b44..68a225a509 100644
+--- a/src/pkg/runtime/slice.go
++++ b/src/pkg/runtime/slice.go
+@@ -48,9 +48,7 @@ func growslice(t *slicetype, old sliceStruct, n int64) sliceStruct {
+ 
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		fn := growslice
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
+-		racereadrangepc(old.array, old.len*int(t.elem.size), callerpc, pc)
++		racereadrangepc(old.array, old.len*int(t.elem.size), callerpc, funcPC(growslice))
+ 	}
+ 
+ 	et := t.elem
+@@ -105,8 +103,7 @@ func slicecopy(to sliceStruct, fm sliceStruct, width uintptr) int {
+ 
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&to))
+-		fn := slicecopy
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		pc := funcPC(slicecopy)
+ 		racewriterangepc(to.array, n*int(width), callerpc, pc)
+ 		racereadrangepc(fm.array, n*int(width), callerpc, pc)
+ 	}
+@@ -133,8 +130,7 @@ func slicestringcopy(to []byte, fm string) int {
+ 
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&to))
+-		fn := slicestringcopy
+-		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		pc := funcPC(slicestringcopy)
+ 		racewriterangepc(unsafe.Pointer(&to[0]), n, callerpc, pc)
+ 	}
+ 
+diff --git a/src/pkg/runtime/string.go b/src/pkg/runtime/string.go
+index e9ea926dff..1cefad9671 100644
+--- a/src/pkg/runtime/string.go
++++ b/src/pkg/runtime/string.go
+@@ -61,11 +61,10 @@ func concatstring5(a [5]string) string {
+ 
+ func slicebytetostring(b []byte) string {
+ 	if raceenabled && len(b) > 0 {
+-		fn := slicebytetostring
+ 		racereadrangepc(unsafe.Pointer(&b[0]),
+ 			len(b),
+ 			getcallerpc(unsafe.Pointer(&b)),
+-			**(**uintptr)(unsafe.Pointer(&fn)))
++			funcPC(slicebytetostring))
+ 	}
+ 	s, c := rawstring(len(b))
+ 	copy(c, b)
+@@ -82,11 +81,10 @@ func slicebytetostringtmp(b []byte) string {
+ 	// m is a string-keyed map and k is a []byte.
+ 
+ 	if raceenabled && len(b) > 0 {
+-		fn := slicebytetostringtmp
+ 		racereadrangepc(unsafe.Pointer(&b[0]),
+ 			len(b),
+ 			getcallerpc(unsafe.Pointer(&b)),
+-			**(**uintptr)(unsafe.Pointer(&fn)))
++			funcPC(slicebytetostringtmp))
+ 	}
+ 	return *(*string)(unsafe.Pointer(&b))
+ }
+@@ -120,11 +118,10 @@ func stringtoslicerune(s string) []rune {
+ 
+ func slicerunetostring(a []rune) string {
+ 	if raceenabled && len(a) > 0 {
+-		fn := slicerunetostring
+ 		racereadrangepc(unsafe.Pointer(&a[0]),
+ 			len(a)*int(unsafe.Sizeof(a[0])),
+ 			getcallerpc(unsafe.Pointer(&a)),
+-			**(**uintptr)(unsafe.Pointer(&fn)))
++			funcPC(slicerunetostring))
+ 	}
+ 	var dum [4]byte
+ 	size1 := 0

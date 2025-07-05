@@ -16,7 +16,39 @@ Date:   Thu Feb 7 16:00:06 2013 -0800
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7305063
-
+---
  src/pkg/bytes/bytes.go      | 5 ++++-
  src/pkg/bytes/bytes_test.go | 7 +++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 31cf89ea87..6d40af4436 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -571,7 +571,10 @@ func indexFunc(s []byte, f func(r rune) bool, truth bool) int {
+ // inverted.
+ func lastIndexFunc(s []byte, f func(r rune) bool, truth bool) int {
+ 	for i := len(s); i > 0; {
+-		r, size := utf8.DecodeLastRune(s[0:i])
++		r, size := rune(s[i-1]), 1
++		if r >= utf8.RuneSelf {
++			r, size = utf8.DecodeLastRune(s[0:i])
++		}
+ 		i -= size
+ 		if f(r) == truth {
+ 			return i
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 1d073b143b..1d6274c33d 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -1073,3 +1073,10 @@ func BenchmarkFieldsFunc(b *testing.B) {
+ 		FieldsFunc(fieldsInput, unicode.IsSpace)
+ 	}
+ }
++
++func BenchmarkTrimSpace(b *testing.B) {
++	s := []byte("  Some text.  \n")
++	for i := 0; i < b.N; i++ {
++		TrimSpace(s)
++	}
++}

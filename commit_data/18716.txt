@@ -10,6 +10,24 @@ Date:   Tue Mar 4 10:36:04 2014 +1100
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/70940043
-
+---
  src/pkg/runtime/cgocall.c | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 9f8db3ae09..b61cc904c1 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -223,10 +223,9 @@ struct CallbackArgs
+ #define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+2*sizeof(void*))
+ #endif
+ 
+-// There is no cgo support for nacl/amd64p32 but we need to have something here 
+-// so use the amd64 value as a placeholder.
++// Unimplemented on amd64p32
+ #ifdef GOARCH_amd64p32
+-#define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+2*sizeof(void*))
++#define CBARGS (CallbackArgs*)(nil)
+ #endif
+ 
+ // On 386, stack frame is three words, plus caller PC.

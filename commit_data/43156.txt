@@ -11,6 +11,31 @@ Date:   Tue Mar 10 22:11:00 2020 -0700
     Change-Id: Ice5e1d8fec91cd6ee7f032e0d21e8315a26bc6a3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222783
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/time/internal_test.go | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index 3bca88e2b9..35ce69b228 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -67,12 +67,13 @@ func CheckRuntimeTimerOverflow() {
+ 		resetTimer(r, 0)
+ 	}()
+ 
+-	// If the test fails, we will hang here until the timeout in the testing package
+-	// fires, which is 10 minutes. It would be nice to catch the problem sooner,
+-	// but there is no reliable way to guarantee that timerproc schedules without
+-	// doing something involving timerproc itself. Previous failed attempts have
+-	// tried calling runtime.Gosched and runtime.GC, but neither is reliable.
+-	// So we fall back to hope: We hope we don't hang here.
++	// If the test fails, we will hang here until the timeout in the
++	// testing package fires, which is 10 minutes. It would be nice to
++	// catch the problem sooner, but there is no reliable way to guarantee
++	// that timers are run without doing something involving the scheduler.
++	// Previous failed attempts have tried calling runtime.Gosched and
++	// runtime.GC, but neither is reliable. So we fall back to hope:
++	// We hope we don't hang here.
+ 	<-t.C
+ }
+ 

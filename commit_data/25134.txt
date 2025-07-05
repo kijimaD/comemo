@@ -16,7 +16,118 @@ Date:   Sun Aug 30 10:23:30 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/tls.go      | 27 +++++++++++++++++++++++----
  src/crypto/tls/tls_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 55 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index fb399d001b..2554af6c22 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -12,6 +12,7 @@ import (
+ 	"crypto/x509"
+ 	"encoding/pem"
+ 	"errors"
++	"fmt"
+ 	"io/ioutil"
+ 	"net"
+ 	"strings"
+@@ -182,32 +183,50 @@ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
+ // X509KeyPair parses a public/private key pair from a pair of
+ // PEM encoded data.
+ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+-	var cert Certificate
+-	var certDERBlock *pem.Block
+ 	fail := func(err error) (Certificate, error) { return Certificate{}, err }
++
++	var cert Certificate
++	var skippedBlockTypes []string
+ 	for {
++		var certDERBlock *pem.Block
+ 		certDERBlock, certPEMBlock = pem.Decode(certPEMBlock)
+ 		if certDERBlock == nil {
+ 			break
+ 		}
+ 		if certDERBlock.Type == "CERTIFICATE" {
+ 			cert.Certificate = append(cert.Certificate, certDERBlock.Bytes)
++		} else {
++			skippedBlockTypes = append(skippedBlockTypes, certDERBlock.Type)
+ 		}
+ 	}
+ 
+ 	if len(cert.Certificate) == 0 {
+-		return fail(errors.New("crypto/tls: failed to parse certificate PEM data"))
++		if len(skippedBlockTypes) == 0 {
++			return fail(errors.New("crypto/tls: failed to find any PEM data in certificate input"))
++		} else if len(skippedBlockTypes) == 1 && strings.HasSuffix(skippedBlockTypes[0], "PRIVATE KEY") {
++			return fail(errors.New("crypto/tls: failed to find certificate PEM data in certificate input, but did find a private key; PEM inputs may have been switched"))
++		} else {
++			return fail(fmt.Errorf("crypto/tls: failed to find \"CERTIFICATE\" PEM block in certificate input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
++		}
+ 	}
+ 
++	skippedBlockTypes = skippedBlockTypes[:0]
+ 	var keyDERBlock *pem.Block
+ 	for {
+ 		keyDERBlock, keyPEMBlock = pem.Decode(keyPEMBlock)
+ 		if keyDERBlock == nil {
+-			return fail(errors.New("crypto/tls: failed to parse key PEM data"))
++			if len(skippedBlockTypes) == 0 {
++				return fail(errors.New("crypto/tls: failed to find any PEM data in key input"))
++			} else if len(skippedBlockTypes) == 1 && skippedBlockTypes[0] == "CERTIFICATE" {
++				return fail(errors.New("crypto/tls: found a certificate rather than a key in the PEM for the private key"))
++			} else {
++				return fail(fmt.Errorf("crypto/tls: failed to find PEM block with type ending in \"PRIVATE KEY\" in key input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
++			}
+ 		}
+ 		if keyDERBlock.Type == "PRIVATE KEY" || strings.HasSuffix(keyDERBlock.Type, " PRIVATE KEY") {
+ 			break
+ 		}
++		skippedBlockTypes = append(skippedBlockTypes, keyDERBlock.Type)
+ 	}
+ 
+ 	var err error
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index c45c10378d..6b5d455be4 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -104,6 +104,38 @@ func TestX509KeyPair(t *testing.T) {
+ 	}
+ }
+ 
++func TestX509KeyPairErrors(t *testing.T) {
++	_, err := X509KeyPair([]byte(rsaKeyPEM), []byte(rsaCertPEM))
++	if err == nil {
++		t.Fatalf("X509KeyPair didn't return an error when arguments were switched")
++	}
++	if subStr := "been switched"; !strings.Contains(err.Error(), subStr) {
++		t.Fatalf("Expected %q in the error when switching arguments to X509KeyPair, but the error was %q", subStr, err)
++	}
++
++	_, err = X509KeyPair([]byte(rsaCertPEM), []byte(rsaCertPEM))
++	if err == nil {
++		t.Fatalf("X509KeyPair didn't return an error when both arguments were certificates")
++	}
++	if subStr := "certificate"; !strings.Contains(err.Error(), subStr) {
++		t.Fatalf("Expected %q in the error when both arguments to X509KeyPair were certificates, but the error was %q", subStr, err)
++	}
++
++	const nonsensePEM = `
++-----BEGIN NONSENSE-----
++Zm9vZm9vZm9v
++-----END NONSENSE-----
++`
++
++	_, err = X509KeyPair([]byte(nonsensePEM), []byte(nonsensePEM))
++	if err == nil {
++		t.Fatalf("X509KeyPair didn't return an error when both arguments were nonsense")
++	}
++	if subStr := "NONSENSE"; !strings.Contains(err.Error(), subStr) {
++		t.Fatalf("Expected %q in the error when both arguments to X509KeyPair were nonsense, but the error was %q", subStr, err)
++	}
++}
++
+ func TestX509MixedKeyPair(t *testing.T) {
+ 	if _, err := X509KeyPair([]byte(rsaCertPEM), []byte(ecdsaKeyPEM)); err == nil {
+ 		t.Error("Load of RSA certificate succeeded with ECDSA private key")

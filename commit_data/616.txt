@@ -7,7 +7,7 @@ Date:   Thu Sep 11 15:48:42 2008 -0700
     R=ken
     OCL=15170
     CL=15170
-
+---
  src/lib/flag.go                    | 4 +---
  src/lib/math/hypot.go              | 1 +
  src/lib/math/pow.go                | 1 +
@@ -17,3 +17,94 @@ Date:   Thu Sep 11 15:48:42 2008 -0700
  test/{bugs => fixedbugs}/bug086.go | 0
  test/golden.out                    | 3 +++
  8 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index acf3424db3..351159c179 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -144,9 +144,7 @@ func (b *BoolValue) Str() string {
+ 	if b.val {
+ 		return "true"
+ 	}
+-	else {
+-		return "false"
+-	}
++	return "false"
+ }
+ 
+ func NewBoolValue(b bool, p *bool) *BoolValue {
+diff --git a/src/lib/math/hypot.go b/src/lib/math/hypot.go
+index 3b3c1e510a..d1afac9e3f 100644
+--- a/src/lib/math/hypot.go
++++ b/src/lib/math/hypot.go
+@@ -49,4 +49,5 @@ hypot(p, q float64) float64
+ 		q = q*r;
+ 		r = q/p;
+ 	}
++	panic("unreachable")
+ }
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+index 8adb72132a..590b0114b8 100644
+--- a/src/lib/math/pow.go
++++ b/src/lib/math/pow.go
+@@ -62,4 +62,5 @@ pow(arg1,arg2 float64) float64
+ 		}
+ 		arg1 *= arg1;
+ 	}
++	panic("unreachable")
+ }
+diff --git a/src/lib/os/os_error.go b/src/lib/os/os_error.go
+index 16799ed5e3..21e1bc6272 100644
+--- a/src/lib/os/os_error.go
++++ b/src/lib/os/os_error.go
+@@ -70,7 +70,6 @@ const NoError = "No Error"
+ func (e *Error) String() string {
+ 	if e == nil {
+ 		return NoError
+-	} else {
+-		return e.s
+ 	}
++	return e.s
+ }
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index e737c55bfe..a978a32ca5 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -382,7 +382,7 @@ func Monmul(U PS, n int) PS{
+ // Multiply by x
+ 
+ func Xmul(U PS) PS{
+-	Monmul(U,1);
++	return Monmul(U,1);
+ }
+ 
+ func Rep(c *rat) PS{
+diff --git a/test/fixedbugs/bug028.go b/test/fixedbugs/bug028.go
+index 7ec016c454..0488ad2cba 100644
+--- a/test/fixedbugs/bug028.go
++++ b/test/fixedbugs/bug028.go
+@@ -16,6 +16,7 @@ func Alloc(i int) int {
+ 	case 10:
+ 		return 10;
+ 	}
++	return 0
+ }
+ 
+ func main() {
+diff --git a/test/bugs/bug086.go b/test/fixedbugs/bug086.go
+similarity index 100%
+rename from test/bugs/bug086.go
+rename to test/fixedbugs/bug086.go
+diff --git a/test/golden.out b/test/golden.out
+index db1a9f37ce..0ff2e357b1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -226,5 +226,8 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
+ =========== fixedbugs/bug081.go
+ fixedbugs/bug081.go:5: syntax error
+ 
++=========== fixedbugs/bug086.go
++fixedbugs/bug086.go:5: function ends without a return statement
++
+ =========== fixedbugs/bug091.go
+ fixedbugs/bug091.go:14: label exit not defined

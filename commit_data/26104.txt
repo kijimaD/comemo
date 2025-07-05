@@ -9,8 +9,119 @@ Date:   Tue Feb 10 11:06:02 2015 +0900
     Change-Id: Ib2cd15ac6106ef8e6b975943db8efc8d8ab21052
     Reviewed-on: https://go-review.googlesource.com/4310
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/internal/syscall/windows/syscall_windows.go  |  3 ++
  src/internal/syscall/windows/zsyscall_windows.go | 28 +++++++++++++++++
  src/os/file_windows.go                           | 40 ++++++++++++++++--------
  3 files changed, 58 insertions(+), 13 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 67bb6c96fe..e5c1cd600c 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -138,3 +138,6 @@ func Rename(oldpath, newpath string) error {
+ 	}
+ 	return MoveFileEx(from, to, MOVEFILE_REPLACE_EXISTING)
+ }
++
++//sys	GetACP() (acp uint, err error) = kernel32.GetACP
++//sys	MultiByteToWideChar(codePage uint, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int, err error) = kernel32.MultiByteToWideChar
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index c8b494a535..fd614f8897 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -14,6 +14,8 @@ var (
+ 	procGetAdaptersAddresses = modiphlpapi.NewProc("GetAdaptersAddresses")
+ 	procGetComputerNameExW   = modkernel32.NewProc("GetComputerNameExW")
+ 	procMoveFileExW          = modkernel32.NewProc("MoveFileExW")
++	procGetACP               = modkernel32.NewProc("GetACP")
++	procMultiByteToWideChar  = modkernel32.NewProc("MultiByteToWideChar")
+ )
+ 
+ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
+@@ -47,3 +49,29 @@ func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
+ 	}
+ 	return
+ }
++
++func MultiByteToWideChar(codePage uint, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int, err error) {
++	r0, _, e1 := syscall.Syscall6(procMultiByteToWideChar.Addr(), 6, uintptr(codePage), uintptr(dwFlags), uintptr(unsafe.Pointer(str)), uintptr(nstr), uintptr(unsafe.Pointer(wchar)), uintptr(nwchar))
++	nwrite = int(r0)
++	if nwrite == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
++
++func GetACP() (acp uint, err error) {
++	r0, _, e1 := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
++	acp = uint(r0)
++	if acp == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 89b1d27fce..b74c8f0631 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -257,24 +257,38 @@ func (f *File) readConsole(b []byte) (n int, err error) {
+ 		return 0, nil
+ 	}
+ 	if len(f.readbuf) == 0 {
+-		// syscall.ReadConsole seems to fail, if given large buffer.
+-		// So limit the buffer to 16000 characters.
+ 		numBytes := len(b)
+-		if numBytes > 16000 {
+-			numBytes = 16000
++		// Windows  can't read bytes over max of int16.
++		if numBytes > 32767 {
++			numBytes = 32767
+ 		}
+-		// get more input data from os
+-		wchars := make([]uint16, numBytes)
+-		var p *uint16
+-		if len(b) > 0 {
+-			p = &wchars[0]
+-		}
+-		var nw uint32
+-		err := syscall.ReadConsole(f.fd, p, uint32(len(wchars)), &nw, nil)
++		mbytes := make([]byte, numBytes)
++		var nmb uint32
++		err := syscall.ReadFile(f.fd, mbytes, &nmb, nil)
+ 		if err != nil {
+ 			return 0, err
+ 		}
+-		f.readbuf = utf16.Decode(wchars[:nw])
++		if nmb > 0 {
++			var pmb *byte
++			if len(b) > 0 {
++				pmb = &mbytes[0]
++			}
++			acp, err := windows.GetACP()
++			if err != nil {
++				return 0, err
++			}
++			nwc, err := windows.MultiByteToWideChar(acp, 2, pmb, int32(nmb), nil, 0)
++			if err != nil {
++				return 0, err
++			}
++			wchars := make([]uint16, nwc)
++			pwc := &wchars[0]
++			nwc, err = windows.MultiByteToWideChar(acp, 2, pmb, int32(nmb), pwc, int32(nwc))
++			if err != nil {
++				return 0, err
++			}
++			f.readbuf = utf16.Decode(wchars[:nwc])
++		}
+ 	}
+ 	for i, r := range f.readbuf {
+ 		if utf8.RuneLen(r) > len(b) {

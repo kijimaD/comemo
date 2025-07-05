@@ -11,7 +11,34 @@ Date:   Tue Nov 14 16:17:05 2023 +0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ir/expr.go | 2 +-
  src/cmd/compile/internal/ir/func.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index cea7c446d4..ca2a2d5008 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -54,7 +54,7 @@ func (n *miniExpr) Init() Nodes           { return n.init }
+ func (n *miniExpr) PtrInit() *Nodes       { return &n.init }
+ func (n *miniExpr) SetInit(x Nodes)       { n.init = x }
+ 
+-// An AddStringExpr is a string concatenation Expr[0] + Exprs[1] + ... + Expr[len(Expr)-1].
++// An AddStringExpr is a string concatenation List[0] + List[1] + ... + List[len(List)-1].
+ type AddStringExpr struct {
+ 	miniExpr
+ 	List     Nodes
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index c28761255f..303c5e4fd0 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -126,7 +126,7 @@ type Func struct {
+ 	NumDefers  int32 // number of defer calls in the function
+ 	NumReturns int32 // number of explicit returns in the function
+ 
+-	// nwbrCalls records the LSyms of functions called by this
++	// NWBRCalls records the LSyms of functions called by this
+ 	// function for go:nowritebarrierrec analysis. Only filled in
+ 	// if nowritebarrierrecCheck != nil.
+ 	NWBRCalls *[]SymAndPos

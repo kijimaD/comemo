@@ -10,7 +10,7 @@ Date:   Mon Apr 2 23:13:43 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/104155
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/call.go                   | 12 ++++++------
  src/go/types/testdata/decls0.src       | 10 +++++-----
  src/go/types/testdata/decls1.src       |  2 +-
@@ -21,3 +21,339 @@ Date:   Mon Apr 2 23:13:43 2018 +0200
  src/go/types/testdata/issues.src       |  2 +-
  src/go/types/testdata/methodsets.src   | 24 ++++++++++++------------
  9 files changed, 50 insertions(+), 50 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 9a785212f8..ba9e45f7af 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -323,12 +323,12 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 			exp := pkg.scope.Lookup(sel)
+ 			if exp == nil {
+ 				if !pkg.fake {
+-					check.errorf(e.Pos(), "%s not declared by package %s", sel, pkg.name)
++					check.errorf(e.Sel.Pos(), "%s not declared by package %s", sel, pkg.name)
+ 				}
+ 				goto Error
+ 			}
+ 			if !exp.Exported() {
+-				check.errorf(e.Pos(), "%s not exported by package %s", sel, pkg.name)
++				check.errorf(e.Sel.Pos(), "%s not exported by package %s", sel, pkg.name)
+ 				// ok to continue
+ 			}
+ 			check.recordUse(e.Sel, exp)
+@@ -373,11 +373,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 		switch {
+ 		case index != nil:
+ 			// TODO(gri) should provide actual type where the conflict happens
+-			check.invalidOp(e.Pos(), "ambiguous selector %s", sel)
++			check.invalidOp(e.Sel.Pos(), "ambiguous selector %s", sel)
+ 		case indirect:
+-			check.invalidOp(e.Pos(), "%s is not in method set of %s", sel, x.typ)
++			check.invalidOp(e.Sel.Pos(), "%s is not in method set of %s", sel, x.typ)
+ 		default:
+-			check.invalidOp(e.Pos(), "%s has no field or method %s", x, sel)
++			check.invalidOp(e.Sel.Pos(), "%s has no field or method %s", x, sel)
+ 		}
+ 		goto Error
+ 	}
+@@ -386,7 +386,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 		// method expression
+ 		m, _ := obj.(*Func)
+ 		if m == nil {
+-			check.invalidOp(e.Pos(), "%s has no method %s", x, sel)
++			check.invalidOp(e.Sel.Pos(), "%s has no method %s", x, sel)
+ 			goto Error
+ 		}
+ 
+diff --git a/src/go/types/testdata/decls0.src b/src/go/types/testdata/decls0.src
+index 0e637f4f01..5ad11270da 100644
+--- a/src/go/types/testdata/decls0.src
++++ b/src/go/types/testdata/decls0.src
+@@ -61,7 +61,7 @@ type (
+ 
+ 
+ type (
+-	p1 pi /* ERROR "no field or method foo" */ .foo
++	p1 pi.foo /* ERROR "no field or method foo" */
+ 	p2 unsafe.Pointer
+ )
+ 
+@@ -189,10 +189,10 @@ func f2(x *f2 /* ERROR "not a type" */ ) {}
+ func f3() (x f3 /* ERROR "not a type" */ ) { return }
+ func f4() (x *f4 /* ERROR "not a type" */ ) { return }
+ 
+-func (S0) m1(x S0 /* ERROR "field or method" */ .m1) {}
+-func (S0) m2(x *S0 /* ERROR "field or method" */ .m2) {}
+-func (S0) m3() (x S0 /* ERROR "field or method" */ .m3) { return }
+-func (S0) m4() (x *S0 /* ERROR "field or method" */ .m4) { return }
++func (S0) m1(x S0.m1 /* ERROR "field or method" */ ) {}
++func (S0) m2(x *S0.m2 /* ERROR "field or method" */ ) {}
++func (S0) m3() (x S0.m3 /* ERROR "field or method" */ ) { return }
++func (S0) m4() (x *S0.m4 /* ERROR "field or method" */ ) { return }
+ 
+ // interfaces may not have any blank methods
+ type BlankI interface {
+diff --git a/src/go/types/testdata/decls1.src b/src/go/types/testdata/decls1.src
+index 1ef2806764..07405469a4 100644
+--- a/src/go/types/testdata/decls1.src
++++ b/src/go/types/testdata/decls1.src
+@@ -64,7 +64,7 @@ var (
+ 	t13 int = a /* ERROR "shifted operand" */ << d
+ 	t14 int = i << j /* ERROR "must be unsigned" */
+ 	t15 math /* ERROR "not in selector" */
+-	t16 math /* ERROR "not declared" */ .xxx
++	t16 math.xxx /* ERROR "not declared" */
+ 	t17 math /* ERROR "not a type" */ .Pi
+ 	t18 float64 = math.Pi * 10.0
+ 	t19 int = t1 /* ERROR "cannot call" */ ()
+diff --git a/src/go/types/testdata/decls3.src b/src/go/types/testdata/decls3.src
+index 80d2bc8ff8..3071fdae5e 100644
+--- a/src/go/types/testdata/decls3.src
++++ b/src/go/types/testdata/decls3.src
+@@ -19,7 +19,7 @@ func _() {
+ 	)
+ 
+ 	var t T3
+-	_ = t /* ERROR "ambiguous selector" */ .X
++	_ = t.X /* ERROR "ambiguous selector" */
+ }
+ 
+ func _() {
+@@ -31,7 +31,7 @@ func _() {
+ 	)
+ 
+ 	var t T4
+-	_ = t /* ERROR "ambiguous selector" */ .X
++	_ = t.X /* ERROR "ambiguous selector" */
+ }
+ 
+ func issue4355() {
+@@ -41,10 +41,10 @@ func issue4355() {
+ 	    T3 struct {T2}
+ 	    T4 struct {T2}
+ 	    T5 struct {T3; T4} // X is embedded twice at the same level via T3->T2->T1->X, T4->T2->T1->X
+-	)	
++	)
+ 
+ 	var t T5
+-	_ = t /* ERROR "ambiguous selector" */ .X
++	_ = t.X /* ERROR "ambiguous selector" */
+ }
+ 
+ func _() {
+@@ -54,7 +54,7 @@ func _() {
+ 	type T struct{ A; B }
+ 
+ 	var t T
+-	_ = t /* ERROR "ambiguous selector" */ .State
++	_ = t.State /* ERROR "ambiguous selector" */
+ }
+ 
+ // Embedded fields can be predeclared types.
+@@ -118,8 +118,8 @@ func _() {
+ 
+ 	var p P
+ 	_ = p.x
+-	_ = p /* ERROR "no field or method" */ .m
+-	_ = P /* ERROR "no field or method" */ .m
++	_ = p.m /* ERROR "no field or method" */
++	_ = P.m /* ERROR "no field or method" */
+ }
+ 
+ // Borrowed from the FieldByName test cases in reflect/all_test.go.
+@@ -209,9 +209,9 @@ type S13 struct {
+ }
+ 
+ func _() {
+-	_ = struct /* ERROR "no field or method" */ {}{}.Foo
++	_ = struct{}{}.Foo /* ERROR "no field or method" */
+ 	_ = S0{}.A
+-	_ = S0 /* ERROR "no field or method" */ {}.D
++	_ = S0{}.D /* ERROR "no field or method" */
+ 	_ = S1{}.A
+ 	_ = S1{}.B
+ 	_ = S1{}.S0
+@@ -220,17 +220,17 @@ func _() {
+ 	_ = S2{}.S1
+ 	_ = S2{}.B
+ 	_ = S2{}.C
+-	_ = S2 /* ERROR "no field or method" */ {}.D
+-	_ = S3 /* ERROR "ambiguous selector" */ {}.S1
++	_ = S2{}.D /* ERROR "no field or method" */
++	_ = S3{}.S1 /* ERROR "ambiguous selector" */
+ 	_ = S3{}.A
+-	_ = S3 /* ERROR "ambiguous selector" */ {}.B
++	_ = S3{}.B /* ERROR "ambiguous selector" */
+ 	_ = S3{}.D
+ 	_ = S3{}.E
+ 	_ = S4{}.A
+-	_ = S4 /* ERROR "no field or method" */ {}.B
+-	_ = S5 /* ERROR "ambiguous selector" */ {}.X
++	_ = S4{}.B /* ERROR "no field or method" */
++	_ = S5{}.X /* ERROR "ambiguous selector" */
+ 	_ = S5{}.Y
+-	_ = S10 /* ERROR "ambiguous selector" */ {}.X
++	_ = S10{}.X /* ERROR "ambiguous selector" */
+ 	_ = S10{}.Y
+ }
+ 
+@@ -306,4 +306,4 @@ type R22 R21
+ type R23 R21
+ type R24 R21
+ 
+-var _ = R0 /* ERROR "ambiguous selector" */ {}.X
+\ No newline at end of file
++var _ = R0{}.X /* ERROR "ambiguous selector" */
+\ No newline at end of file
+diff --git a/src/go/types/testdata/decls4.src b/src/go/types/testdata/decls4.src
+index e9e16bb97a..ab7c67988b 100644
+--- a/src/go/types/testdata/decls4.src
++++ b/src/go/types/testdata/decls4.src
+@@ -190,8 +190,8 @@ type eD struct {
+ }
+ 
+ var (
+-	_ = eD /* ERROR ambiguous selector */ {}.xf
+-	_ = eD /* ERROR ambiguous selector */ {}.xm
++	_ = eD{}.xf /* ERROR ambiguous selector */
++	_ = eD{}.xm /* ERROR ambiguous selector */
+ )
+ 
+ var (
+diff --git a/src/go/types/testdata/expr3.src b/src/go/types/testdata/expr3.src
+index b7ab9b38c7..b4c8163324 100644
+--- a/src/go/types/testdata/expr3.src
++++ b/src/go/types/testdata/expr3.src
+@@ -153,17 +153,17 @@ type T struct {
+ func (*T) m() {}
+ 
+ func method_expressions() {
+-	_ = T /* ERROR "no field or method" */ .a
+-	_ = T /* ERROR "has no method" */ .x
+-	_ = T /* ERROR "not in method set" */ .m
++	_ = T.a /* ERROR "no field or method" */
++	_ = T.x /* ERROR "has no method" */
++	_ = T.m /* ERROR "not in method set" */
+ 	_ = (*T).m
+ 
+-	var f func(*T) = T /* ERROR "not in method set" */ .m
++	var f func(*T) = T.m /* ERROR "not in method set" */
+ 	var g func(*T) = (*T).m
+ 	_, _ = f, g
+ 
+-	_ = T /* ERROR "has no method" */ .y
+-	_ = ( /* ERROR "has no method" */ *T).y
++	_ = T.y /* ERROR "has no method" */
++	_ = (*T).y /* ERROR "has no method" */
+ }
+ 
+ func struct_literals() {
+diff --git a/src/go/types/testdata/importdecl0a.src b/src/go/types/testdata/importdecl0a.src
+index 463dcd083d..e96fca3cdd 100644
+--- a/src/go/types/testdata/importdecl0a.src
++++ b/src/go/types/testdata/importdecl0a.src
+@@ -32,7 +32,7 @@ import f2 "fmt"
+ 
+ // reflect.flag must not be visible in this package
+ type flag int
+-type _ reflect /* ERROR "not exported" */ .flag
++type _ reflect.flag /* ERROR "not exported" */
+ 
+ // imported package name may conflict with local objects
+ type reflect /* ERROR "reflect already declared" */ int
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index 4ecec508db..8c11b376c8 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -84,7 +84,7 @@ func issue10979() {
+ 		nosuchtype /* ERROR undeclared name: nosuchtype */
+ 	}
+ 	type _ interface {
+-		fmt /* ERROR Nosuchtype not declared by package fmt */ .Nosuchtype
++		fmt.Nosuchtype /* ERROR Nosuchtype not declared by package fmt */
+ 	}
+ 	type _ interface {
+ 		nosuchpkg /* ERROR undeclared name: nosuchpkg */ .Nosuchtype
+diff --git a/src/go/types/testdata/methodsets.src b/src/go/types/testdata/methodsets.src
+index 89211468ea..2f21faf1e4 100644
+--- a/src/go/types/testdata/methodsets.src
++++ b/src/go/types/testdata/methodsets.src
+@@ -29,7 +29,7 @@ type T3 struct {
+ func _() {
+ 	var (
+ 		_ func(T0) = T0.v0
+-		_ = T0 /* ERROR "not in method set" */ .p0
++		_ = T0.p0 /* ERROR "not in method set" */
+ 
+ 		_ func (*T0) = (*T0).v0
+ 		_ func (*T0) = (*T0).p0
+@@ -40,7 +40,7 @@ func _() {
+ 		_ func(T2) = T2.p2
+ 
+ 		_ func(T3) = T3.v0
+-		_ func(T3) = T3 /* ERROR "not in method set" */ .p0
++		_ func(T3) = T3.p0 /* ERROR "not in method set" */
+ 		_ func(T3) = T3.v1
+ 		_ func(T3) = T3.p1
+ 		_ func(T3) = T3.v2
+@@ -135,7 +135,7 @@ func _() {
+ func _() {
+ 	var (
+ 		_ func() = T0{}.v0
+-		_ func() = T0 /* ERROR "not in method set" */ {}.p0
++		_ func() = T0{}.p0 /* ERROR "not in method set" */
+ 
+ 		_ func() = (&T0{}).v0
+ 		_ func() = (&T0{}).p0
+@@ -145,7 +145,7 @@ func _() {
+ 		// no values for T2
+ 
+ 		_ func() = T3{}.v0
+-		_ func() = T3 /* ERROR "not in method set" */ {}.p0
++		_ func() = T3{}.p0 /* ERROR "not in method set" */
+ 		_ func() = T3{}.v1
+ 		_ func() = T3{}.p1
+ 		_ func() = T3{}.v2
+@@ -163,7 +163,7 @@ func _() {
+ // Method calls with value receivers
+ func _() {
+ 	T0{}.v0()
+-	T0 /* ERROR "not in method set" */ {}.p0()
++	T0{}.p0 /* ERROR "not in method set" */ ()
+ 
+ 	(&T0{}).v0()
+ 	(&T0{}).p0()
+@@ -173,7 +173,7 @@ func _() {
+ 	// no values for T2
+ 
+ 	T3{}.v0()
+-	T3 /* ERROR "not in method set" */ {}.p0()
++	T3{}.p0 /* ERROR "not in method set" */ ()
+ 	T3{}.v1()
+ 	T3{}.p1()
+ 	T3{}.v2()
+@@ -196,9 +196,9 @@ func issue5918() {
+ 		_ func(error) string = error.Error
+ 
+ 		perr = &err
+-		_ = perr /* ERROR "no field or method" */ .Error()
+-		_ func() string = perr /* ERROR "no field or method" */ .Error
+-		_ func(*error) string = ( /* ERROR "no field or method" */ *error).Error
++		_ = perr.Error /* ERROR "no field or method" */ ()
++		_ func() string = perr.Error /* ERROR "no field or method" */
++		_ func(*error) string = (*error).Error /* ERROR "no field or method" */
+ 	)
+ 
+ 	type T *interface{ m() int }
+@@ -207,8 +207,8 @@ func issue5918() {
+ 		_ = (*x).m()
+ 		_ = (*x).m
+ 
+-		_ = x /* ERROR "no field or method" */ .m()
+-		_ = x /* ERROR "no field or method" */ .m
+-		_ = T /* ERROR "no field or method" */ .m
++		_ = x.m /* ERROR "no field or method" */ ()
++		_ = x.m /* ERROR "no field or method" */
++		_ = T.m /* ERROR "no field or method" */
+ 	)
+ }

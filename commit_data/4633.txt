@@ -7,7 +7,45 @@ Date:   Mon Jan 18 18:26:10 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/186216
-
+---
  test/bugs/bug246.go | 18 ++++++++++++++++++
  test/golden.out     |  5 +++++
  2 files changed, 23 insertions(+)
+
+diff --git a/test/bugs/bug246.go b/test/bugs/bug246.go
+new file mode 100644
+index 0000000000..e46cdfd048
+--- /dev/null
++++ b/test/bugs/bug246.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go || echo BUG: bug246
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++func main() {
++	// works
++	addr := uintptr(0)
++	_ = (*int)(unsafe.Pointer(addr))
++
++	// fails
++	_ = (*int)(unsafe.Pointer(uintptr(0)))
++}
+diff --git a/test/golden.out b/test/golden.out
+index 051bb9bc70..906ecac2bb 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -149,3 +149,8 @@ panic PC=xxx
+ bad map check 13 false false
+ panic PC=xxx
+ BUG: tuple evaluation order
++
++=========== bugs/bug246.go
++bugs/bug246.go:17: cannot convert 0 to type unsafe.Pointer
++bugs/bug246.go:17: cannot convert 0 (type uintptr) to type *int in conversion
++BUG: bug246

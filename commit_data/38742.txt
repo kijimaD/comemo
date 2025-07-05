@@ -18,10 +18,146 @@ Date:   Fri Nov 16 15:39:59 2018 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ppc64/asm.go |  7 +++++++
  src/cmd/link/internal/ppc64/obj.go |  3 ---
  src/runtime/asm_ppc64x.s           | 27 +++++++++++++++++++++++++++
  src/runtime/rt0_linux_ppc64.s      | 17 ++++++++++++-----
  src/runtime/sys_linux_ppc64x.s     |  2 +-
  5 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 11a7aa2164..2ec5a2b18b 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -374,6 +374,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ }
+ 
+ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
++	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
++	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS ||  r.Type == objabi.R_CALLPOWER {
++	} else {
++		if ctxt.Arch.ByteOrder == binary.BigEndian {
++			sectoff += 2
++		}
++	}
+ 	ctxt.Out.Write64(uint64(sectoff))
+ 
+ 	elfsym := r.Xsym.ElfsymForReloc()
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index e630f8c062..fbedc728d9 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -93,9 +93,6 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case objabi.Hlinux: /* ppc64 elf */
+-		if ctxt.Arch == sys.ArchPPC64 {
+-			*ld.FlagD = true // TODO(austin): ELF ABI v1 not supported yet
+-		}
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+ 		if *ld.FlagTextAddr == -1 {
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index fb0003c9b2..0a89b57cd8 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -36,6 +36,12 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	MOVD	_cgo_init(SB), R12
+ 	CMP	R0, R12
+ 	BEQ	nocgo
++#ifdef GOARCH_ppc64
++	// ppc64 use elf ABI v1. we must get the real entry address from
++	// first slot of the function descriptor before call.
++	MOVD	8(R12), R2
++	MOVD	(R12), R12
++#endif
+ 	MOVD	R12, CTR		// r12 = "global function entry point"
+ 	MOVD	R13, R5			// arg 2: TLS base pointer
+ 	MOVD	$setg_gcc<>(SB), R4 	// arg 1: setg
+@@ -597,6 +603,16 @@ g0:
+ #endif
+ 	// This is a "global call", so put the global entry point in r12
+ 	MOVD	R3, R12
++
++#ifdef GOARCH_ppc64
++	// ppc64 use elf ABI v1. we must get the real entry address from
++	// first slot of the function descriptor before call.
++#ifndef GOOS_aix
++	// aix just passes the function pointer for the moment, see golang.org/cl/146898 for details.
++	MOVD	8(R12), R2
++	MOVD	(R12), R12
++#endif
++#endif
+ 	MOVD	R12, CTR
+ 	MOVD	R4, R3		// arg in r3
+ 	BL	(CTR)
+@@ -754,9 +770,20 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
+ 	BL	runtime·save_g(SB)
+ 	RET
+ 
++#ifdef GOARCH_ppc64
++TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
++	DWORD	$_setg_gcc<>(SB)
++	DWORD	$0
++	DWORD	$0
++#endif
++
+ // void setg_gcc(G*); set g in C TLS.
+ // Must obey the gcc calling convention.
++#ifdef GOARCH_ppc64le
+ TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
++#else
++TEXT _setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
++#endif
+ 	// The standard prologue clobbers R31, which is callee-save in
+ 	// the C ABI, so we have to use $-8-0 and save LR ourselves.
+ 	MOVD	LR, R4
+diff --git a/src/runtime/rt0_linux_ppc64.s b/src/runtime/rt0_linux_ppc64.s
+index f814515438..1265b15853 100644
+--- a/src/runtime/rt0_linux_ppc64.s
++++ b/src/runtime/rt0_linux_ppc64.s
+@@ -6,6 +6,11 @@ TEXT _rt0_ppc64_linux(SB),NOSPLIT,$0
+ 	DWORD $0
+ 	DWORD $0
+ 
++TEXT main(SB),NOSPLIT,$0
++	DWORD $_main<>(SB)
++	DWORD $0
++	DWORD $0
++
+ TEXT _main<>(SB),NOSPLIT,$-8
+ 	// In a statically linked binary, the stack contains argc,
+ 	// argv as argc string pointers followed by a NULL, envv as a
+@@ -13,11 +18,13 @@ TEXT _main<>(SB),NOSPLIT,$-8
+ 	// There is no TLS base pointer.
+ 	//
+ 	// TODO(austin): Support ABI v1 dynamic linking entry point
+-	MOVD 0(R1), R3 // argc
+-	ADD $8, R1, R4 // argv
+-	BR main(SB)
+-
+-TEXT main(SB),NOSPLIT,$-8
+ 	MOVD	$runtime·rt0_go(SB), R12
+ 	MOVD	R12, CTR
++	MOVBZ	runtime·iscgo(SB), R5
++	CMP	R5, $0
++	BEQ	nocgo
++	BR	(CTR)
++nocgo:
++	MOVD	0(R1), R3 // argc
++	ADD	$8, R1, R4 // argv
+ 	BR	(CTR)
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index bf01099830..6835f434de 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -414,7 +414,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
+ 	DWORD	$0
+ 	DWORD	$0
+ TEXT runtime·_cgoSigtramp(SB),NOSPLIT,$0
+-	JMP	runtime·sigtramp(SB)
++	JMP	runtime·_sigtramp(SB)
+ #endif
+ 
+ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0

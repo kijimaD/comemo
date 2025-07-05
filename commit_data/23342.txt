@@ -30,7 +30,7 @@ Date:   Wed May 6 22:06:19 2015 -0700
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcarchive/main.c    |  6 +--
  misc/cgo/testcarchive/test.bash | 19 +++++++--
  misc/cgo/testcshared/main0.c    |  5 +--
@@ -38,3 +38,287 @@ Date:   Wed May 6 22:06:19 2015 -0700
  src/cmd/go/build.go             | 90 ++++++++++++++++++++++++++++++++++++++++-
  src/cmd/go/pkg.go               | 10 ++++-
  6 files changed, 131 insertions(+), 17 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main.c b/misc/cgo/testcarchive/main.c
+index b553a3ae50..cc3170de89 100644
+--- a/misc/cgo/testcarchive/main.c
++++ b/misc/cgo/testcarchive/main.c
+@@ -5,10 +5,8 @@
+ #include <stdint.h>
+ #include <stdio.h>
+ 
+-extern signed char DidInitRun();
+-extern signed char DidMainRun();
+-extern int32_t FromPkg();
+-extern void CheckArgs();
++#include "p.h"
++#include "libgo.h"
+ 
+ int main(void) {
+ 	int32_t res;
+diff --git a/misc/cgo/testcarchive/test.bash b/misc/cgo/testcarchive/test.bash
+index adcd88e39b..89b761bddb 100755
+--- a/misc/cgo/testcarchive/test.bash
++++ b/misc/cgo/testcarchive/test.bash
+@@ -5,13 +5,14 @@
+ 
+ set -e
+ 
+-ccargs=""
++ccargs=
+ if [ "$(go env GOOS)" == "darwin" ]; then
+ 	ccargs="-Wl,-no_pie"
+ 	# For darwin/arm.
+ 	# TODO(crawshaw): Can we do better?
+ 	ccargs="$ccargs -framework CoreFoundation -framework Foundation"
+ fi
++ccargs="$ccargs -I pkg/$(go env GOOS)_$(go env GOARCH)"
+ 
+ # TODO(crawshaw): Consider a go env for exec script name.
+ bin=./testp
+@@ -20,12 +21,24 @@ if [ "$(which $exec_script)" != "" ]; then
+ 	bin="$exec_script ./testp"
+ fi
+ 
++rm -rf libgo.a libgo.h testp pkg
++
++# Installing first will create the header files we want.
++
++GOPATH=$(pwd) go install -buildmode=c-archive libgo
++$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c pkg/$(go env GOOS)_$(go env GOARCH)/libgo.a
++$bin arg1 arg2
++rm -f libgo.a libgo.h testp
++
++# Test building libgo other than installing it.
++# Header files are now present.
++
+ GOPATH=$(pwd) go build -buildmode=c-archive src/libgo/libgo.go
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+ $bin arg1 arg2
+-rm libgo.a testp
++rm -f libgo.a libgo.h testp
+ 
+ GOPATH=$(pwd) go build -buildmode=c-archive -o libgo.a libgo
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+ $bin arg1 arg2
+-rm libgo.a testp
++rm -rf libgo.a libgo.h testp pkg
+diff --git a/misc/cgo/testcshared/main0.c b/misc/cgo/testcshared/main0.c
+index 7fe0a27ff8..1274b8950e 100644
+--- a/misc/cgo/testcshared/main0.c
++++ b/misc/cgo/testcshared/main0.c
+@@ -5,9 +5,8 @@
+ #include <stdint.h>
+ #include <stdio.h>
+ 
+-extern int8_t DidInitRun(void);
+-extern int8_t DidMainRun(void);
+-extern int32_t FromPkg(void);
++#include "p.h"
++#include "libgo.h"
+ 
+ // Tests libgo.so to export the following functions.
+ //   int8_t DidInitRun();
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index 9a078e6485..9862a37993 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -20,7 +20,9 @@ goos=$(go env GOOS)
+ androidpath=/data/local/tmp/testcshared-$$
+ 
+ function cleanup() {
+-	rm -f libgo.so libgo2.so testp testp2 testp3
++	rm -rf libgo.so libgo2.so libgo.h testp testp2 testp3 pkg
++
++	rm -rf $(go env GOROOT)/pkg/$(go env GOOS)_$(go env GOARCH)_testcshared_shared
+ 
+ 	if [ "$(go env GOOS)" == "android" ]; then
+ 		adb shell rm -rf $androidpath
+@@ -59,11 +61,19 @@ function binpush() {
+ 	fi
+ }
+ 
+-GOPATH=$(pwd) go build -buildmode=c-shared -o libgo.so src/libgo/libgo.go
++rm -rf pkg
++
++suffix="-installsuffix testcshared"
++
++# Create the header files.
++GOPATH=$(pwd) go install -buildmode=c-shared $suffix libgo
++
++GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo.so src/libgo/libgo.go
+ binpush libgo.so
+ 
+ # test0: exported symbols in shared lib are accessible.
+-$(go env CC) $(go env GOGCCFLAGS) -o testp main0.c libgo.so
++# TODO(iant): using _shared here shouldn't really be necessary.
++$(go env CC) $(go env GOGCCFLAGS) -I pkg/$(go env GOOS)_$(go env GOARCH)_testcshared_shared -o testp main0.c libgo.so
+ binpush testp
+ output=$(run LD_LIBRARY_PATH=. ./testp)
+ if [ "$output" != "PASS" ]; then
+@@ -81,7 +91,7 @@ if [ "$output" != "PASS" ]; then
+ fi
+ 
+ # test2: tests libgo2.so which does not export any functions.
+-GOPATH=$(pwd) go build -buildmode=c-shared -o libgo2.so src/libgo2/libgo2.go
++GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.so src/libgo2/libgo2.go
+ binpush libgo2.so
+ $(go env CC) $(go env GOGCCFLAGS) -o testp2 main2.c -Wl,--no-as-needed libgo2.so
+ binpush testp2
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 20874f0389..fda126b008 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -433,6 +433,11 @@ func runBuild(cmd *Command, args []string) {
+ 		p.target = "" // must build - not up to date
+ 		a := b.action(modeInstall, depMode, p)
+ 		a.target = *buildO
++		if p.local {
++			// If p.local, then b.action did not really install,
++			// so install the header file now if necessary.
++			a = b.maybeAddHeaderAction(a, false)
++		}
+ 		b.do(a)
+ 		return
+ 	}
+@@ -855,6 +860,8 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
+ 		a.f = (*builder).install
+ 		a.deps = []*action{b.action1(modeBuild, depMode, p, lookshared)}
+ 		a.target = a.p.target
++		a = b.maybeAddHeaderAction(a, true)
++
+ 	case modeBuild:
+ 		a.f = (*builder).build
+ 		a.target = a.objpkg
+@@ -965,6 +972,49 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
+ 	return a
+ }
+ 
++// In c-archive/c-shared mode, if the package for the action uses cgo,
++// add a dependency to install the generated export header file, if
++// there is one.
++// The isInstall parameter is whether a is an install action.
++func (b *builder) maybeAddHeaderAction(a *action, isInstall bool) *action {
++	switch buildBuildmode {
++	case "c-archive", "c-shared":
++	default:
++		return a
++	}
++	if !a.p.usesCgo() {
++		return a
++	}
++
++	if isInstall {
++		// For an install action, change the action function.
++		// We can't add an action after the install action,
++		// because it deletes the working directory.
++		// Adding an action before the install action is painful,
++		// because it uses deps[0] to find the source.
++		a.f = (*builder).installWithHeader
++		return a
++	}
++
++	return &action{
++		p:      a.p,
++		deps:   []*action{a},
++		f:      (*builder).installHeader,
++		pkgdir: a.pkgdir,
++		objdir: a.objdir,
++		target: a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h",
++	}
++}
++
++// Install the library and the cgo export header if there is one.
++func (b *builder) installWithHeader(a *action) error {
++	target := a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h"
++	if err := b.doInstallHeader(a, a.objdir, target); err != nil {
++		return err
++	}
++	return b.install(a)
++}
++
+ // actionList returns the list of actions in the dag rooted at root
+ // as visited in a depth-first post-order traversal.
+ func actionList(root *action) []*action {
+@@ -1495,7 +1545,11 @@ func (b *builder) install(a *action) (err error) {
+ 	a1 := a.deps[0]
+ 	perm := os.FileMode(0644)
+ 	if a1.link {
+-		perm = 0755
++		switch buildBuildmode {
++		case "c-archive", "c-shared":
++		default:
++			perm = 0755
++		}
+ 	}
+ 
+ 	// make target directory
+@@ -1639,6 +1693,29 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
+ 	return nil
+ }
+ 
++// Install the cgo export header file, if there is one.
++func (b *builder) installHeader(a *action) error {
++	return b.doInstallHeader(a, a.objdir, a.target)
++}
++
++func (b *builder) doInstallHeader(a *action, objdir, target string) error {
++	src := objdir + "_cgo_install.h"
++	if _, err := os.Stat(src); os.IsNotExist(err) {
++		// If the file does not exist, there are no exported
++		// functions, and we do not install anything.
++		return nil
++	}
++
++	dir, _ := filepath.Split(target)
++	if dir != "" {
++		if err := b.mkdir(dir); err != nil {
++			return err
++		}
++	}
++
++	return b.moveOrCopyFile(a, target, src, 0644)
++}
++
+ // cover runs, in effect,
+ //	go tool cover -mode=b.coverMode -var="varName" -o dst.go src.go
+ func (b *builder) cover(a *action, dst, src string, perm os.FileMode, varName string) error {
+@@ -2742,7 +2819,16 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 			cgoflags = append(cgoflags, "-gccgopkgpath="+pkgpath)
+ 		}
+ 	}
+-	if err := b.run(p.Dir, p.ImportPath, cgoenv, buildToolExec, cgoExe, "-objdir", obj, cgoflags, "--", cgoCPPFLAGS, cgoexeCFLAGS, cgofiles); err != nil {
++
++	switch buildBuildmode {
++	case "c-archive", "c-shared":
++		// Tell cgo that if there are any exported functions
++		// it should generate a header file that C code can
++		// #include.
++		cgoflags = append(cgoflags, "-exportheader="+obj+"_cgo_install.h")
++	}
++
++	if err := b.run(p.Dir, p.ImportPath, cgoenv, buildToolExec, cgoExe, "-objdir", obj, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoexeCFLAGS, cgofiles); err != nil {
+ 		return nil, nil, err
+ 	}
+ 	outGo = append(outGo, gofiles...)
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index ad4b77d343..9466aad6a6 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -487,7 +487,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		return p
+ 	}
+ 
+-	if p.Name == "main" {
++	useBindir := p.Name == "main"
++	if !p.Standard {
++		switch buildBuildmode {
++		case "c-archive", "c-shared":
++			useBindir = false
++		}
++	}
++
++	if useBindir {
+ 		// Report an error when the old code.google.com/p/go.tools paths are used.
+ 		if goTools[p.ImportPath] == stalePath {
+ 			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)

@@ -10,7 +10,32 @@ Date:   Tue Jun 15 10:11:06 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/326730
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/bytealg/index_generic.go | 1 -
  src/internal/bytealg/index_native.go  | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/internal/bytealg/index_generic.go b/src/internal/bytealg/index_generic.go
+index 287bdba4c6..0a6eb90d2d 100644
+--- a/src/internal/bytealg/index_generic.go
++++ b/src/internal/bytealg/index_generic.go
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// go:build !amd64 && !arm64 && !s390x && !ppc64le && !ppc64
+ //go:build !amd64 && !arm64 && !s390x && !ppc64le && !ppc64
+ // +build !amd64,!arm64,!s390x,!ppc64le,!ppc64
+ 
+diff --git a/src/internal/bytealg/index_native.go b/src/internal/bytealg/index_native.go
+index 75aff4b3cb..9547a5d8e2 100644
+--- a/src/internal/bytealg/index_native.go
++++ b/src/internal/bytealg/index_native.go
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// go:build amd64 || arm64 || s390x || ppc64le || ppc64
+ //go:build amd64 || arm64 || s390x || ppc64le || ppc64
+ // +build amd64 arm64 s390x ppc64le ppc64
+ 

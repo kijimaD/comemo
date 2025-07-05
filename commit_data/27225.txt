@@ -61,7 +61,84 @@ Date:   Mon Feb 15 18:30:48 2016 -0500
     Change-Id: Ib60cd46b7a4987e07670eb271d22f6cee5802842
     Reviewed-on: https://go-review.googlesource.com/20044
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mgcmark.go | 17 ++++++++++++-----
  src/runtime/stack.go   |  8 +++++---
  2 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index a079358e70..66d61bae1e 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -144,11 +144,10 @@ func markroot(gcw *gcWork, i uint32) {
+ 			gp.waitsince = work.tstart
+ 		}
+ 
+-		// Shrink a stack if not much of it is being used but not in the scan phase.
+-		if gcphase == _GCmarktermination {
+-			// Shrink during STW GCmarktermination phase thus avoiding
+-			// complications introduced by shrinking during
+-			// non-STW phases.
++		if gcphase == _GCmarktermination && status == _Gdead {
++			// Free gp's stack if necessary. Only do this
++			// during mark termination because otherwise
++			// _Gdead may be transient.
+ 			shrinkstack(gp)
+ 		}
+ 
+@@ -599,6 +598,13 @@ func scanstack(gp *g) {
+ 		throw("can't scan gchelper stack")
+ 	}
+ 
++	// Shrink the stack if not much of it is being used. During
++	// concurrent GC, we can do this during concurrent mark.
++	if !work.markrootDone {
++		shrinkstack(gp)
++	}
++
++	// Prepare for stack barrier insertion/removal.
+ 	var sp, barrierOffset, nextBarrier uintptr
+ 	if gp.syscallsp != 0 {
+ 		sp = gp.syscallsp
+@@ -647,6 +653,7 @@ func scanstack(gp *g) {
+ 		throw("scanstack in wrong phase")
+ 	}
+ 
++	// Scan the stack.
+ 	var cache pcvalueCache
+ 	gcw := &getg().m.p.ptr().gcw
+ 	n := 0
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 06e6416617..fdd6710bad 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1069,7 +1069,8 @@ func gostartcallfn(gobuf *gobuf, fv *funcval) {
+ // Called at garbage collection time.
+ // gp must be stopped, but the world need not be.
+ func shrinkstack(gp *g) {
+-	if readgstatus(gp) == _Gdead {
++	gstatus := readgstatus(gp)
++	if gstatus&^_Gscan == _Gdead {
+ 		if gp.stack.lo != 0 {
+ 			// Free whole stack - it will get reallocated
+ 			// if G is used again.
+@@ -1084,6 +1085,9 @@ func shrinkstack(gp *g) {
+ 	if gp.stack.lo == 0 {
+ 		throw("missing stack in shrinkstack")
+ 	}
++	if gstatus&_Gscan == 0 {
++		throw("bad status in shrinkstack")
++	}
+ 
+ 	if debug.gcshrinkstackoff > 0 {
+ 		return
+@@ -1119,9 +1123,7 @@ func shrinkstack(gp *g) {
+ 		print("shrinking stack ", oldsize, "->", newsize, "\n")
+ 	}
+ 
+-	oldstatus := casgcopystack(gp)
+ 	copystack(gp, newsize, false)
+-	casgstatus(gp, _Gcopystack, oldstatus)
+ }
+ 
+ // freeStackSpans frees unused stack spans at the end of GC.

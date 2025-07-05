@@ -7,6 +7,23 @@ Date:   Tue Dec 31 21:18:40 2013 +1100
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/46630044
-
+---
  src/pkg/container/ring/ring_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/container/ring/ring_test.go b/src/pkg/container/ring/ring_test.go
+index 099d92b25b..552f0e24b5 100644
+--- a/src/pkg/container/ring/ring_test.go
++++ b/src/pkg/container/ring/ring_test.go
+@@ -218,3 +218,11 @@ func TestLinkUnlink(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that calling Move() on an empty Ring initializes it.
++func TestMoveEmptyRing(t *testing.T) {
++	var r Ring
++
++	r.Move(1)
++	verify(t, &r, 1, 0)
++}

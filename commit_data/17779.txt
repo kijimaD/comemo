@@ -7,6 +7,20 @@ Date:   Thu Oct 10 17:16:17 2013 -0700
     R=adg, campoy, r
     CC=golang-dev
     https://golang.org/cl/14419059
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 204e22fa14..8b9e9b6c76 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -984,7 +984,7 @@ def ReadContributors(ui, repo):
+ 			f = open(repo.root + '/CONTRIBUTORS', 'r')
+ 	except:
+ 		ui.write("warning: cannot open %s: %s\n" % (opening, ExceptionDetail()))
+-		return
++		return {}
+ 
+ 	contributors = {}
+ 	for line in f:

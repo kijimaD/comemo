@@ -7,7 +7,32 @@ Date:   Wed Aug 22 11:03:20 2012 +1000
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/6476043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 564d9ab21f..f5a9ea2912 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -117,6 +117,7 @@ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org>
+ Jeremy Jackins <jeremyjackins@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
++Joakim Sernbrant <serbaut@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ John Asmuth <jasmuth@gmail.com>
+ Jonathan Gold <jgold.bg@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 65cb56cba6..4dfd708b5a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -172,6 +172,7 @@ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
+ Jeremy Jackins <jeremyjackins@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
++Joakim Sernbrant <serbaut@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Joel Sing <jsing@google.com>
+ Johan Euphrosine <proppy@google.com>

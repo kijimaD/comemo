@@ -13,6 +13,20 @@ Date:   Thu Jul 25 22:21:52 2024 +0000
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 41fdefe830..693bd9385a 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -392,7 +392,7 @@ type ChanArgs struct {
+ 	T *Type // reference to a chan type whose elements need a width check
+ }
+ 
+-// // FuncArgs contains Type fields specific to TFUNCARGS types.
++// FuncArgs contains Type fields specific to TFUNCARGS types.
+ type FuncArgs struct {
+ 	T *Type // reference to a func type whose elements need a width check
+ }

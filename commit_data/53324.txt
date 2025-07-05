@@ -9,6 +9,18 @@ Date:   Tue Aug 9 17:10:08 2022 -0400
     Change-Id: I73c77666066b105e563215f34e7ede6c1d92226b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/422299
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/crash_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 02604595ac..d5f755296b 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -851,4 +851,4 @@ func TestPanicOnUnsafeSlice(t *testing.T) {
+ 	if !strings.Contains(output, want) {
+ 		t.Errorf("output does not contain %q:\n%s", want, output)
+ 	}
+-}
+\ No newline at end of file
++}

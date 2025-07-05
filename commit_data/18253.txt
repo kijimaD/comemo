@@ -7,6 +7,20 @@ Date:   Tue Jan 14 13:46:22 2014 -0800
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/52310043
-
+---
  src/pkg/runtime/hashmap.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index c359e2a14d..f01779e23d 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -746,7 +746,7 @@ struct hash_iter
+ 	byte *buckets; // bucket ptr at hash_iter initialization time
+ 	struct Bucket *bptr; // current bucket
+ 
+-	uint32 offset; // intra-bucket offset to start from during iteration
++	uint8 offset; // intra-bucket offset to start from during iteration (should be big enough to hold BUCKETSIZE-1)
+ 	bool done;
+ 
+ 	// state of table at time iterator is initialized

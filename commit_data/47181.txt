@@ -10,7 +10,34 @@ Date:   Mon Dec 14 19:39:02 2020 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 4828ba36cc..eb05706811 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -195,7 +195,7 @@ Ayanamist Yang <ayanamist@gmail.com>
+ Aymerick Jéhanne <aymerick@jehanne.org>
+ Azat Kaumov <kaumov.a.r@gmail.com>
+ Baiju Muthukadan <baiju.m.mail@gmail.com>
+-Baokun Lee <nototon@gmail.com>
++Baokun Lee <nototon@gmail.com> <bk@golangcn.org>
+ Bartosz Grzybowski <melkorm@gmail.com>
+ Bastian Ike <bastian.ike@gmail.com>
+ Ben Burkert <ben@benburkert.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ccbe4627f3..b176a03328 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -321,7 +321,7 @@ Azat Kaumov <kaumov.a.r@gmail.com>
+ Baiju Muthukadan <baiju.m.mail@gmail.com>
+ Balaram Makam <bmakam.qdt@qualcommdatacenter.com>
+ Balazs Lecz <leczb@google.com>
+-Baokun Lee <nototon@gmail.com>
++Baokun Lee <nototon@gmail.com> <bk@golangcn.org>
+ Barnaby Keene <accounts@southcla.ws>
+ Bartosz Grzybowski <melkorm@gmail.com>
+ Bartosz Oler <brtsz@google.com>

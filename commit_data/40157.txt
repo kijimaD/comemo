@@ -17,9 +17,100 @@ Date:   Mon Apr 22 23:01:26 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go | 12 +++---------
  src/runtime/debug.go                 |  5 +++++
  src/runtime/debug/mod.go             |  6 +++---
  src/runtime/proc.go                  |  8 ++++++++
  4 files changed, 19 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 25303ce59a..a41b176ccd 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -247,21 +247,15 @@ func findModule(target, path string) module.Version {
+ }
+ 
+ func ModInfoProg(info string) []byte {
+-	// Inject a variable with the debug information as runtime/debug.modinfo,
++	// Inject a variable with the debug information as runtime.modinfo,
+ 	// but compile it in package main so that it is specific to the binary.
+-	//
+ 	// The variable must be a literal so that it will have the correct value
+ 	// before the initializer for package main runs.
+ 	//
+-	// We also want the value to be present even if runtime/debug.modinfo is
+-	// otherwise unused in the rest of the program. Reading it in an init function
+-	// suffices for now.
+-
++	// The runtime startup code refers to the variable, which keeps it live in all binaries.
+ 	return []byte(fmt.Sprintf(`package main
+ import _ "unsafe"
+-//go:linkname __debug_modinfo__ runtime/debug.modinfo
++//go:linkname __debug_modinfo__ runtime.modinfo
+ var __debug_modinfo__ = %q
+-var keepalive_modinfo = __debug_modinfo__
+-func init() { keepalive_modinfo = __debug_modinfo__ }
+ 	`, string(infoStart)+info+string(infoEnd)))
+ }
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 06bf0fa831..af5c3a1170 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -57,3 +57,8 @@ func NumCgoCall() int64 {
+ func NumGoroutine() int {
+ 	return int(gcount())
+ }
++
++//go:linkname debug_modinfo runtime/debug.modinfo
++func debug_modinfo() string {
++	return modinfo
++}
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index 2c5aa27b6e..e3b929a977 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -8,14 +8,14 @@ import (
+ 	"strings"
+ )
+ 
+-// set using cmd/go/internal/modload.ModInfoProg
+-var modinfo string
++// exported from runtime
++func modinfo() string
+ 
+ // ReadBuildInfo returns the build information embedded
+ // in the running binary. The information is available only
+ // in binaries built with module support.
+ func ReadBuildInfo() (info *BuildInfo, ok bool) {
+-	return readBuildInfo(modinfo)
++	return readBuildInfo(modinfo())
+ }
+ 
+ // BuildInfo represents the build information read from
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 57ad17d594..e94de3a43a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -13,6 +13,9 @@ import (
+ 
+ var buildVersion = sys.TheVersion
+ 
++// set using cmd/go/internal/modload.ModInfoProg
++var modinfo string
++
+ // Goroutine scheduler
+ // The scheduler's job is to distribute ready-to-run goroutines over worker threads.
+ //
+@@ -577,6 +580,11 @@ func schedinit() {
+ 		// to ensure runtime·buildVersion is kept in the resulting binary.
+ 		buildVersion = "unknown"
+ 	}
++	if len(modinfo) == 1 {
++		// Condition should never trigger. This code just serves
++		// to ensure runtime·modinfo is kept in the resulting binary.
++		modinfo = ""
++	}
+ }
+ 
+ func dumpgstatus(gp *g) {

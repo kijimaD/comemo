@@ -10,7 +10,7 @@ Date:   Mon May 5 13:40:55 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Mark Freeman <mark@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/importer/ureader.go | 4 ++--
  src/cmd/compile/internal/noder/linker.go     | 4 ++--
  src/cmd/compile/internal/noder/reader.go     | 4 ++--
@@ -18,3 +18,121 @@ Date:   Mon May 5 13:40:55 2025 -0400
  src/go/internal/gcimporter/ureader.go        | 4 ++--
  src/internal/pkgbits/reloc.go                | 5 ++---
  6 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index 2f8f174a93..bb74d4b84d 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -84,14 +84,14 @@ type readerTypeBound struct {
+ 	boundIdx int
+ }
+ 
+-func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
++func (pr *pkgReader) newReader(k pkgbits.SectionKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
+ 	return &reader{
+ 		Decoder: pr.NewDecoder(k, idx, marker),
+ 		p:       pr,
+ 	}
+ }
+ 
+-func (pr *pkgReader) tempReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
++func (pr *pkgReader) tempReader(k pkgbits.SectionKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
+ 	return &reader{
+ 		Decoder: pr.TempDecoder(k, idx, marker),
+ 		p:       pr,
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 4f1cc7b612..1a64e075a1 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -58,7 +58,7 @@ func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.Re
+ 
+ // relocIdx ensures a single element is copied into the output export
+ // data file, and returns the corresponding index in the output.
+-func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx index) index {
++func (l *linker) relocIdx(pr *pkgReader, k pkgbits.SectionKind, idx index) index {
+ 	assert(pr != nil)
+ 
+ 	absIdx := pr.AbsIdx(k, idx)
+@@ -252,7 +252,7 @@ func (l *linker) exportBody(obj *ir.Name, local bool) {
+ 
+ // relocCommon copies the specified element from pr into w,
+ // recursively relocating any referenced elements as well.
+-func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx index) {
++func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.SectionKind, idx index) {
+ 	r := pr.NewDecoderRaw(k, idx)
+ 	w.Relocs = l.relocAll(pr, r.Relocs)
+ 	io.Copy(&w.Data, &r.Data)
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 0f08bce10f..43163e16e5 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -74,7 +74,7 @@ type pkgReaderIndex struct {
+ 	synthetic func(pos src.XPos, r *reader)
+ }
+ 
+-func (pri pkgReaderIndex) asReader(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *reader {
++func (pri pkgReaderIndex) asReader(k pkgbits.SectionKind, marker pkgbits.SyncMarker) *reader {
+ 	if pri.synthetic != nil {
+ 		return &reader{synthetic: pri.synthetic}
+ 	}
+@@ -85,7 +85,7 @@ func (pri pkgReaderIndex) asReader(k pkgbits.RelocKind, marker pkgbits.SyncMarke
+ 	return r
+ }
+ 
+-func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx index, marker pkgbits.SyncMarker) *reader {
++func (pr *pkgReader) newReader(k pkgbits.SectionKind, idx index, marker pkgbits.SyncMarker) *reader {
+ 	return &reader{
+ 		Decoder: pr.NewDecoder(k, idx, marker),
+ 		p:       pr,
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index f4b02f279d..6e557d12d0 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -367,7 +367,7 @@ func (dict *writerDict) itabIdx(typInfo, ifaceInfo typeInfo) int {
+ 	return idx
+ }
+ 
+-func (pw *pkgWriter) newWriter(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *writer {
++func (pw *pkgWriter) newWriter(k pkgbits.SectionKind, marker pkgbits.SyncMarker) *writer {
+ 	return &writer{
+ 		Encoder: pw.NewEncoder(k, marker),
+ 		p:       pw,
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 25039a55ad..def11a7474 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -132,14 +132,14 @@ type readerDict struct {
+ 	derivedTypes []types.Type // lazily instantiated from derived
+ }
+ 
+-func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
++func (pr *pkgReader) newReader(k pkgbits.SectionKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
+ 	return &reader{
+ 		Decoder: pr.NewDecoder(k, idx, marker),
+ 		p:       pr,
+ 	}
+ }
+ 
+-func (pr *pkgReader) tempReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
++func (pr *pkgReader) tempReader(k pkgbits.SectionKind, idx pkgbits.Index, marker pkgbits.SyncMarker) *reader {
+ 	return &reader{
+ 		Decoder: pr.TempDecoder(k, idx, marker),
+ 		p:       pr,
+diff --git a/src/internal/pkgbits/reloc.go b/src/internal/pkgbits/reloc.go
+index e4b494d749..e29150c3e3 100644
+--- a/src/internal/pkgbits/reloc.go
++++ b/src/internal/pkgbits/reloc.go
+@@ -4,11 +4,10 @@
+ 
+ package pkgbits
+ 
+-// A RelocKind indicates a section, as well as the ordering of sections within
++// A SectionKind indicates a section, as well as the ordering of sections within
+ // unified export data. Any object given a dedicated section can be referred to
+ // via a section / index pair (and thus dereferenced) in other sections.
+-type RelocKind int32 // TODO(markfreeman): Replace with uint8.
+-type SectionKind = RelocKind
++type SectionKind int32 // TODO(markfreeman): Replace with uint8.
+ 
+ const (
+ 	RelocString SectionKind = iota

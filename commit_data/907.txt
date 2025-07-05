@@ -8,7 +8,56 @@ Date:   Mon Oct 20 12:37:07 2008 -0700
     DELTA=15  (6 added, 7 deleted, 2 changed)
     OCL=17447
     CL=17461
-
+---
  src/lib/http/conn.go | 11 ++---------
  src/lib/io.go        |  6 ++++++
  2 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/lib/http/conn.go b/src/lib/http/conn.go
+index e7024ed606..15c0707f3e 100644
+--- a/src/lib/http/conn.go
++++ b/src/lib/http/conn.go
+@@ -11,16 +11,9 @@ import (
+ 	"os"
+ )
+ 
+-// Read/write/close interface.
+-type RWC interface {
+-	Read(p *[]byte) (n int, err *os.Error);
+-	Write(p *[]byte) (n int, err *os.Error);
+-	Close() *os.Error;
+-}
+-
+ // Active HTTP connection (server side).
+ export type Conn struct {
+-	rwc RWC;
++	rwc io.ReadWriteClose;
+ 	br *bufio.BufRead;
+ 	bw *bufio.BufWrite;
+ 	close bool;
+@@ -28,7 +21,7 @@ export type Conn struct {
+ }
+ 
+ // Create new connection from rwc.
+-export func NewConn(rwc RWC) (c *Conn, err *os.Error) {
++export func NewConn(rwc io.ReadWriteClose) (c *Conn, err *os.Error) {
+ 	c = new(Conn);
+ 	c.rwc = rwc;
+ 	if c.br, err = bufio.NewBufRead(rwc); err != nil {
+diff --git a/src/lib/io.go b/src/lib/io.go
+index 8ab751a022..20b7b90292 100644
+--- a/src/lib/io.go
++++ b/src/lib/io.go
+@@ -19,6 +19,12 @@ export type ReadWrite interface {
+ 	Write(p *[]byte) (n int, err *os.Error);
+ }
+ 
++export type ReadWriteClose interface {
++	Read(p *[]byte) (n int, err *os.Error);
++	Write(p *[]byte) (n int, err *os.Error);
++	Close() *os.Error;
++}
++
+ export func WriteString(w Write, s string) (n int, err *os.Error) {
+ 	b := new([]byte, len(s)+1);
+ 	if !syscall.StringToBytes(b, s) {

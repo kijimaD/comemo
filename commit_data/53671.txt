@@ -24,9 +24,162 @@ Date:   Fri Jul 29 22:14:53 2022 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 +++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 36 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssagen/ssa.go         |  4 +--
  test/codegen/mathbits.go                       |  8 ++++++
  4 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 9d2d785d0e..9ba0d9c1af 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -56,6 +56,10 @@
+ (Select1 (Add64carry x y c)) =>
+ 	(OR (SLTU <typ.UInt64> s:(ADD <typ.UInt64> x y) x) (SLTU <typ.UInt64> (ADD <typ.UInt64> s c) s))
+ 
++(Select0 (Sub64borrow x y c)) => (SUB (SUB <typ.UInt64> x y) c)
++(Select1 (Sub64borrow x y c)) =>
++	(OR (SLTU <typ.UInt64> x s:(SUB <typ.UInt64> x y)) (SLTU <typ.UInt64> s (SUB <typ.UInt64> s c)))
++
+ // (x + y) / 2 => (x / 2) + (y / 2) + (x & y & 1)
+ (Avg64u <t> x y) => (ADD (ADD <t> (SRLI <t> [1] x) (SRLI <t> [1] y)) (ANDI <t> [1] (AND <t> x y)))
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index e4e4003f34..8e7bdc0a2a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -6089,6 +6089,21 @@ func rewriteValueRISCV64_OpSelect0(v *Value) bool {
+ 		v.AddArg2(v0, c)
+ 		return true
+ 	}
++	// match: (Select0 (Sub64borrow x y c))
++	// result: (SUB (SUB <typ.UInt64> x y) c)
++	for {
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpRISCV64SUB)
++		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, typ.UInt64)
++		v0.AddArg2(x, y)
++		v.AddArg2(v0, c)
++		return true
++	}
+ 	// match: (Select0 m:(LoweredMuluhilo x y))
+ 	// cond: m.Uses == 1
+ 	// result: (MULHU x y)
+@@ -6133,6 +6148,27 @@ func rewriteValueRISCV64_OpSelect1(v *Value) bool {
+ 		v.AddArg2(v0, v2)
+ 		return true
+ 	}
++	// match: (Select1 (Sub64borrow x y c))
++	// result: (OR (SLTU <typ.UInt64> x s:(SUB <typ.UInt64> x y)) (SLTU <typ.UInt64> s (SUB <typ.UInt64> s c)))
++	for {
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpRISCV64OR)
++		v0 := b.NewValue0(v.Pos, OpRISCV64SLTU, typ.UInt64)
++		s := b.NewValue0(v.Pos, OpRISCV64SUB, typ.UInt64)
++		s.AddArg2(x, y)
++		v0.AddArg2(x, s)
++		v2 := b.NewValue0(v.Pos, OpRISCV64SLTU, typ.UInt64)
++		v3 := b.NewValue0(v.Pos, OpRISCV64SUB, typ.UInt64)
++		v3.AddArg2(s, c)
++		v2.AddArg2(s, v3)
++		v.AddArg2(v0, v2)
++		return true
++	}
+ 	// match: (Select1 m:(LoweredMuluhilo x y))
+ 	// cond: m.Uses == 1
+ 	// result: (MUL x y)
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 107944170f..26e14e2d21 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4732,8 +4732,8 @@ func InitTables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X)
+-	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64, sys.ArchARM64, sys.ArchS390X)
++		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64)
++	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64, sys.ArchARM64, sys.ArchS390X, sys.ArchRISCV64)
+ 	addF("math/bits", "Div64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			// check for divide-by-zero/overflow and panic with appropriate message
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index f36916ad03..9c643647ee 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -621,6 +621,7 @@ func Sub(x, y, ci uint) (r, co uint) {
+ 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBE"
++	// riscv64: "SUB","SLTU"
+ 	return bits.Sub(x, y, ci)
+ }
+ 
+@@ -630,6 +631,7 @@ func SubC(x, ci uint) (r, co uint) {
+ 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBE"
++	// riscv64: "SUB","SLTU"
+ 	return bits.Sub(x, 7, ci)
+ }
+ 
+@@ -639,6 +641,7 @@ func SubZ(x, y uint) (r, co uint) {
+ 	// ppc64:"SUBC", -"SUBE", "SUBZE", "NEG"
+ 	// ppc64le:"SUBC", -"SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBC"
++	// riscv64: "SUB","SLTU"
+ 	return bits.Sub(x, y, 0)
+ }
+ 
+@@ -648,6 +651,7 @@ func SubR(x, y, ci uint) uint {
+ 	// ppc64:"SUBC", "SUBE", -"SUBZE", -"NEG"
+ 	// ppc64le:"SUBC", "SUBE", -"SUBZE", -"NEG"
+ 	// s390x:"SUBE"
++	// riscv64: "SUB",-"SLTU"
+ 	r, _ := bits.Sub(x, y, ci)
+ 	return r
+ }
+@@ -669,6 +673,7 @@ func Sub64(x, y, ci uint64) (r, co uint64) {
+ 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBE"
++	// riscv64: "SUB","SLTU"
+ 	return bits.Sub64(x, y, ci)
+ }
+ 
+@@ -678,6 +683,7 @@ func Sub64C(x, ci uint64) (r, co uint64) {
+ 	// ppc64:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// ppc64le:"SUBC", "SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBE"
++	// riscv64: "SUB","SLTU"
+ 	return bits.Sub64(x, 7, ci)
+ }
+ 
+@@ -687,6 +693,7 @@ func Sub64Z(x, y uint64) (r, co uint64) {
+ 	// ppc64:"SUBC", -"SUBE", "SUBZE", "NEG"
+ 	// ppc64le:"SUBC", -"SUBE", "SUBZE", "NEG"
+ 	// s390x:"SUBC"
++	// riscv64: "SUB","SLTU"
+ 	return bits.Sub64(x, y, 0)
+ }
+ 
+@@ -696,6 +703,7 @@ func Sub64R(x, y, ci uint64) uint64 {
+ 	// ppc64:"SUBC", "SUBE", -"SUBZE", -"NEG"
+ 	// ppc64le:"SUBC", "SUBE", -"SUBZE", -"NEG"
+ 	// s390x:"SUBE"
++	// riscv64: "SUB",-"SLTU"
+ 	r, _ := bits.Sub64(x, y, ci)
+ 	return r
+ }

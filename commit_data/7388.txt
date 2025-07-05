@@ -9,8 +9,194 @@ Date:   Mon Feb 7 15:00:30 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/3989065
-
+---
  src/cmd/5g/cgen64.c | 42 +++++++++++++++++++++---------------------
  src/cmd/5g/peep.c   |  6 ++++--
  src/cmd/5g/reg.c    |  4 ++--
  3 files changed, 27 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index 78f2f4aeb4..e5604e2394 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -204,14 +204,17 @@ cgen64(Node *n, Node *res)
+ 				// here and below (verify it optimizes to EOR)
+ 				gins(AEOR, &al, &al);
+ 				gins(AEOR, &ah, &ah);
+-			} else if(v > 32) {
++			} else
++			if(v > 32) {
+ 				gins(AEOR, &al, &al);
+ 				//	MOVW	bl<<(v-32), ah
+ 				gshift(AMOVW, &bl, SHIFT_LL, (v-32), &ah);
+-			} else if(v == 32) {
++			} else
++			if(v == 32) {
+ 				gins(AEOR, &al, &al);
+ 				gins(AMOVW, &bl, &ah);
+-			} else if(v > 0) {
++			} else
++			if(v > 0) {
+ 				//	MOVW	bl<<v, al
+ 				gshift(AMOVW, &bl, SHIFT_LL, v, &al);
+ 
+@@ -341,7 +344,8 @@ olsh_break:
+ 					gins(AEOR, &al, &al);
+ 					gins(AEOR, &ah, &ah);
+ 				}
+-			} else if(v > 32) {
++			} else
++			if(v > 32) {
+ 				if(bh.type->etype == TINT32) {
+ 					//	MOVW	bh->(v-32), al
+ 					gshift(AMOVW, &bh, SHIFT_AR, v-32, &al);
+@@ -353,7 +357,8 @@ olsh_break:
+ 					gshift(AMOVW, &bh, SHIFT_LR, v-32, &al);
+ 					gins(AEOR, &ah, &ah);
+ 				}
+-			} else if(v == 32) {
++			} else
++			if(v == 32) {
+ 				gins(AMOVW, &bh, &al);
+ 				if(bh.type->etype == TINT32) {
+ 					//	MOVW	bh->31, ah
+@@ -361,7 +366,8 @@ olsh_break:
+ 				} else {
+ 					gins(AEOR, &ah, &ah);
+ 				}
+-			} else if( v > 0) {
++			} else
++			if( v > 0) {
+ 				//	MOVW	bl>>v, al
+ 				gshift(AMOVW, &bl, SHIFT_LR, v, &al);
+ 	
+@@ -384,11 +390,16 @@ olsh_break:
+ 
+ 		regalloc(&s, types[TUINT32], N);
+ 		regalloc(&creg, types[TUINT32], N);
+-		if (is64(r->type)) {
++		if(is64(r->type)) {
+ 			// shift is >= 1<<32
+ 			split64(r, &cl, &ch);
+ 			gmove(&ch, &s);
+-			p1 = gins(ATST, &s, N);
++			gins(ATST, &s, N);
++			if(bh.type->etype == TINT32)
++				p1 = gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
++			else
++				p1 = gins(AEOR, &ah, &ah);
++			p1->scond = C_SCOND_NE;
+ 			p6 = gbranch(ABNE, T);
+ 			gmove(&cl, &s);
+ 			splitclean();
+@@ -441,7 +452,6 @@ olsh_break:
+ 			p1 = gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
+ 		else
+ 			p1 = gins(AEOR, &ah, &ah);
+-		p1->scond = C_SCOND_EQ;
+ 		p4 = gbranch(ABEQ, T);
+ 
+ 		// check if shift is < 64
+@@ -461,33 +471,23 @@ olsh_break:
+ 			//	MOVW	bh->(s-32), al
+ 			p1 = gregshift(AMOVW, &bh, SHIFT_AR, &s, &al);
+ 			p1->scond = C_SCOND_LO;
+-
+-			//	MOVW	bh->31, ah
+-			p1 = gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
+-			p1->scond = C_SCOND_LO;
+ 		} else {
+ 			//	MOVW	bh>>(v-32), al
+ 			p1 = gregshift(AMOVW, &bh, SHIFT_LR, &s, &al);
+ 			p1->scond = C_SCOND_LO;
+-
+-			p1 = gins(AEOR, &ah, &ah);
+-			p1->scond = C_SCOND_LO;
+ 		}
+ 
+ 		//	BLO	end
+ 		p5 = gbranch(ABLO, T);
+ 
+ 		// s >= 64
+-		if (p6 != P) patch(p6, pc);
++		if(p6 != P)
++			patch(p6, pc);
+ 		if(bh.type->etype == TINT32) {
+ 			//	MOVW	bh->31, al
+ 			gshift(AMOVW, &bh, SHIFT_AR, 31, &al);
+-
+-			//	MOVW	bh->31, ah
+-			gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
+ 		} else {
+ 			gins(AEOR, &al, &al);
+-			gins(AEOR, &ah, &ah);
+ 		}
+ 
+ 		patch(p2, pc);
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index f619a6206f..783934f9d4 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -99,6 +99,8 @@ loop1:
+ 		case AMOVW:
+ 		case AMOVF:
+ 		case AMOVD:
++			if(p->scond)
++				break;
+ 			if(!regtyp(&p->to))
+ 				break;
+ //			if(isdconst(&p->from)) {
+@@ -335,6 +337,7 @@ subprop(Reg *r0)
+ 
+ 		case AMULLU:
+ 		case AMULA:
++		case AMVN:
+ 
+ 		case ACMN:
+ 		case AADD:
+@@ -347,7 +350,6 @@ subprop(Reg *r0)
+ 		case AORR:
+ 		case AAND:
+ 		case AEOR:
+-		case AMVN:
+ 		case AMUL:
+ 		case AMULU:
+ 		case ADIV:
+@@ -1014,6 +1016,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case AMULLU:	/* read, read, write, write */
+ 	case AMULA:
++	case AMVN:
+ 		return 2;
+ 
+ 	case AADD:	/* read, read, write */
+@@ -1027,7 +1030,6 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case AORR:
+ 	case AAND:
+ 	case AEOR:
+-	case AMVN:
+ 	case AMUL:
+ 	case AMULU:
+ 	case ADIV:
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index eaf02b237e..104c1b7728 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -143,7 +143,7 @@ regopt(Prog *firstp)
+ 	first++;
+ 
+ 	if(debug['K']) {
+-		if(first != 13)
++		if(first != 2)
+ 			return;
+ //		debug['R'] = 2;
+ //		debug['P'] = 2;
+@@ -491,7 +491,7 @@ brk:
+ 	 * peep-hole on basic block
+ 	 */
+ 	if(!debug['R'] || debug['P']) {
+-//		peep();
++		peep();
+ 	}
+ 
+ 	/*

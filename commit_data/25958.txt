@@ -11,7 +11,48 @@ Date:   Fri Dec 4 22:50:23 2015 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/mediatype.go      | 5 +++--
  src/mime/mediatype_test.go | 4 ++++
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 6d4560a351..efee65bb00 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -289,10 +289,11 @@ func consumeMediaParam(v string) (param, value, rest string) {
+ 	}
+ 	rest = rest[1:] // consume equals sign
+ 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
+-	value, rest = consumeValue(rest)
+-	if value == "" {
++	value, rest2 := consumeValue(rest)
++	if value == "" && rest2 == rest {
+ 		return "", "", v
+ 	}
++	rest = rest2
+ 	return param, value, rest
+ }
+ 
+diff --git a/src/mime/mediatype_test.go b/src/mime/mediatype_test.go
+index d018adef2f..9afa55825f 100644
+--- a/src/mime/mediatype_test.go
++++ b/src/mime/mediatype_test.go
+@@ -217,6 +217,9 @@ func TestParseMediaType(t *testing.T) {
+ 		{`form-data; firstname="Брэд"; lastname="Фицпатрик"`,
+ 			"form-data",
+ 			m("firstname", "Брэд", "lastname", "Фицпатрик")},
++
++		// Empty string used to be mishandled.
++		{`foo; bar=""`, "foo", m("bar", "")},
+ 	}
+ 	for _, test := range tests {
+ 		mt, params, err := ParseMediaType(test.in)
+@@ -295,6 +298,7 @@ var formatTests = []formatTest{
+ 	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
+ 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
+ 	{"foo/bar", map[string]string{"0": "'", "9": "'"}, "foo/bar; 0='; 9='"},
++	{"foo", map[string]string{"bar": ""}, `foo; bar=""`},
+ }
+ 
+ func TestFormatMediaType(t *testing.T) {

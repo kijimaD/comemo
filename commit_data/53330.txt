@@ -14,6 +14,20 @@ Date:   Tue Aug 9 15:40:19 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/slice.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 11b1be48db..5c2edd9fe1 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -130,7 +130,7 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+ 	}
+ 
+ 	if et.size == 0 {
+-		if ptr == nil && len > 0  {
++		if ptr == nil && len > 0 {
+ 			panicunsafeslicenilptr()
+ 		}
+ 	}

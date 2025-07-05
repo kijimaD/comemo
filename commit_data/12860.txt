@@ -9,6 +9,18 @@ Date:   Tue Apr 10 10:07:29 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5987070
-
+---
  src/pkg/os/error_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/error_windows.go b/src/pkg/os/error_windows.go
+index 5d692b0736..fbb0d4f3fe 100644
+--- a/src/pkg/os/error_windows.go
++++ b/src/pkg/os/error_windows.go
+@@ -26,5 +26,5 @@ func isPermission(err error) bool {
+ 	if pe, ok := err.(*PathError); ok {
+ 		err = pe.Err
+ 	}
+-	return err == ErrPermission
++	return err == syscall.ERROR_ACCESS_DENIED || err == ErrPermission
+ }

@@ -28,7 +28,7 @@ Date:   Wed Aug 31 16:56:17 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go      |  2 +-
  .../types2/testdata/fixedbugs/issue20583.go        |  2 ++
  .../types2/testdata/fixedbugs/issue26390.go        |  2 ++
@@ -70,3 +70,765 @@ Date:   Wed Aug 31 16:56:17 2022 -0700
  src/go/types/testdata/fixedbugs/issue50372.go      | 27 +++++++++++++++++++++
  src/go/types/testdata/fixedbugs/issue52698.go      | 28 +++++++++++++++-------
  40 files changed, 190 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 3eab464b96..d902b358c9 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -303,7 +303,7 @@ func TestCheck(t *testing.T) {
+ }
+ func TestSpec(t *testing.T)      { testDirFiles(t, "../../../../go/types/testdata/spec", 0, false) }
+ func TestExamples(t *testing.T)  { testDirFiles(t, "../../../../go/types/testdata/examples", 45, false) } // TODO(gri) narrow column tolerance
+-func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
++func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 100, false) }                    // TODO(gri) narrow column tolerance
+ 
+ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
+ 	testenv.MustHaveGoBuild(t)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue20583.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue20583.go
+index 85f11ecd38..d26dbada4f 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue20583.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue20583.go
+@@ -3,10 +3,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ package issue20583
++
+ const (
+ 	_ = 6e886451608 /* ERROR malformed constant */ /2
+ 	_ = 6e886451608i /* ERROR malformed constant */ /2
+ 	_ = 0 * 1e+1000000000 // ERROR malformed constant
++
+ 	x = 1e100000000
+ 	_ = x*x*x*x*x*x* /* ERROR not representable */ x
+ )
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue26390.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue26390.go
+index b8e67e9bdd..9e0101f581 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue26390.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue26390.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// stand-alone test to ensure case is triggered
++
+ package issue26390
+ 
+ type A = T
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go
+index 5ae647c596..9df72f990e 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go
+@@ -87,4 +87,4 @@ func F26[Z any]() T26 { return F26[] /* ERROR operand */ }
+ 
+ // crash 27
+ func e27[T any]() interface{ x27 /* ERROR not a type */ } { panic(0) }
+-func x27() { e27( /* ERROR cannot infer T */ ) }
+\ No newline at end of file
++func x27() { e27 /* ERROR cannot infer T */ () }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39693.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39693.go
+index 301c13be41..496754d972 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39693.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39693.go
+@@ -15,7 +15,7 @@ func Add1[T Number1](a, b T) T {
+ }
+ 
+ type Number2 interface {
+-	int|float64
++	int | float64
+ }
+ 
+ func Add2[T Number2](a, b T) T {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go
+index 8f31012354..d85fa03fc4 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39711.go
+@@ -7,7 +7,7 @@ package p
+ // Do not report a duplicate type error for this term list.
+ // (Check types after interfaces have been completed.)
+ type _ interface {
+-	// TODO(gri) Once we have full type sets we can enable this again.
++	// TODO(rfindley) Once we have full type sets we can enable this again.
+ 	// Fow now we don't permit interfaces in term lists.
+ 	// type interface{ Error() string }, interface{ String() string }
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40038.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40038.go
+index 0981a335da..5f81fcbfaa 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40038.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40038.go
+@@ -12,4 +12,4 @@ func f[P interface{m(P)}]() {}
+ 
+ func _() {
+ 	_ = f[A[int]]
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40056.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40056.go
+index a3f3eecca0..66130c0a55 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40056.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40056.go
+@@ -5,7 +5,7 @@
+ package p
+ 
+ func _() {
+-	NewS( /* ERROR cannot infer T */ ) .M()
++	NewS /* ERROR cannot infer T */ ().M()
+ }
+ 
+ type S struct {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40684.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40684.go
+index 58d0f69f65..63a058d039 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40684.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue40684.go
+@@ -12,4 +12,4 @@ func g[_, _ any]() {}
+ func _() {
+ 	_ = f[T /* ERROR without instantiation */ ]
+ 	_ = g[T /* ERROR without instantiation */ , T /* ERROR without instantiation */ ]
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42987.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42987.go
+index 8aa3544272..f58c63f8a3 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42987.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42987.go
+@@ -5,4 +5,4 @@
+ // Check that there is only one error (no follow-on errors).
+ 
+ package p
+-var _ = [ /* ERROR invalid use of .* array */ ...]byte("foo")
++var _ = [ ... /* ERROR invalid use of \[...\] array */ ]byte("foo")
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43125.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43125.go
+index c2bd970e25..456888de6b 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43125.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43125.go
+@@ -1,4 +1,4 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go
+index 3d8e3453ed..fc50797b17 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go
+@@ -10,7 +10,7 @@ func main() {
+ 
+ type N[T any] struct{}
+ 
+-var _ N[] /* ERROR expected type */
++var _ N [] // ERROR expected type argument list
+ 
+ type I interface {
+ 	~[]int
+@@ -18,14 +18,14 @@ type I interface {
+ 
+ func _[T I](i, j int) {
+ 	var m map[int]int
+-	_ = m[i, j /* ERROR more than one index */ ]
++	_ = m[i, j /* ERROR "more than one index" */ ]
+ 
+ 	var a [3]int
+-	_ = a[i, j /* ERROR more than one index */ ]
++	_ = a[i, j /* ERROR "more than one index" */ ]
+ 
+ 	var s []int
+-	_ = s[i, j /* ERROR more than one index */ ]
++	_ = s[i, j /* ERROR "more than one index" */ ]
+ 
+ 	var t T
+-	_ = t[i, j /* ERROR more than one index */ ]
++	_ = t[i, j /* ERROR "more than one index" */ ]
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45920.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45920.go
+index b113e104bc..a0e2d0c970 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45920.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45920.go
+@@ -8,10 +8,10 @@ func f1[T any, C chan T | <-chan T](ch C) {}
+ 
+ func _(ch chan int)   { f1(ch) }
+ func _(ch <-chan int) { f1(ch) }
+-func _(ch chan<- int) { f1( /* ERROR chan<- int does not implement chan int\|<-chan int */ ch) }
++func _(ch chan<- int) { f1 /* ERROR chan<- int does not implement chan int\|<-chan int */ (ch) }
+ 
+ func f2[T any, C chan T | chan<- T](ch C) {}
+ 
+ func _(ch chan int)   { f2(ch) }
+-func _(ch <-chan int) { f2( /* ERROR <-chan int does not implement chan int\|chan<- int */ ch) }
++func _(ch <-chan int) { f2 /* ERROR <-chan int does not implement chan int\|chan<- int */ (ch) }
+ func _(ch chan<- int) { f2(ch) }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go
+index cea8c14983..9a0f5e3697 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go
+@@ -9,5 +9,5 @@ func app[S interface{ ~[]T }, T any](s S, e T) S {
+ }
+ 
+ func _() {
+-	_ = app[/* ERROR "S does not match" */int]
++	_ = app/* ERROR "S does not match" */[int]
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46275.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46275.go
+index f41ae26e4b..0862d5bb5a 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46275.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46275.go
+@@ -5,22 +5,22 @@
+ package issue46275
+ 
+ type N[T any] struct {
+-        *N[T]
+-        t T
++	*N[T]
++	t T
+ }
+ 
+ func (n *N[T]) Elem() T {
+-        return n.t
++	return n.t
+ }
+ 
+ type I interface {
+-        Elem() string
++	Elem() string
+ }
+ 
+ func _() {
+-        var n1 *N[string]
+-        var _ I = n1
+-        type NS N[string]
+-        var n2 *NS
+-        var _ I = n2
++	var n1 *N[string]
++	var _ I = n1
++	type NS N[string]
++	var n2 *NS
++	var _ I = n2
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46403.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46403.go
+new file mode 100644
+index 0000000000..9d475222ad
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46403.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue46403
++
++func _() {
++	// a should be used, despite the parser error below.
++	var a []int
++	var _ = a[] // ERROR expected operand
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go
+index 5c1fa80b29..a0bfe38de8 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47115.go
+@@ -12,11 +12,11 @@ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | chan<- T }
+ 
+ func _[T any](ch T) {
+-	ch /* ERROR cannot send to ch .* no core type */ <- 0
++	ch <- /* ERROR cannot send to ch .* no core type */ 0
+ }
+ 
+ func _[T C0](ch T) {
+-	ch /* ERROR cannot send to non-channel */ <- 0
++	ch <- /* ERROR cannot send to non-channel */ 0
+ }
+ 
+ func _[T C1](ch T) {
+@@ -24,11 +24,11 @@ func _[T C1](ch T) {
+ }
+ 
+ func _[T C2](ch T) {
+-	ch /* ERROR cannot send to receive-only channel */ <- 0
++	ch  <-/* ERROR cannot send to receive-only channel */ 0
+ }
+ 
+ func _[T C3](ch T) {
+-	ch /* ERROR cannot send to ch .* no core type */ <- 0
++	ch <- /* ERROR cannot send to ch .* no core type */ 0
+ }
+ 
+ func _[T C4](ch T) {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go
+index 3f405baed7..db5fb32483 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go
+@@ -15,12 +15,12 @@ func _[P comparable,
+         _ = f[int]
+         _ = f[P]
+         _ = f[Q]
+-        _ = f[func( /* ERROR does not implement comparable */ )]
++        _ = f[func /* ERROR does not implement comparable */ ()]
+         _ = f[R /* ERROR R does not implement comparable */ ]
+ 
+         _ = g[int]
+         _ = g[P /* ERROR P does not implement interface{interface{comparable; ~int\|~string} */ ]
+         _ = g[Q]
+-        _ = g[func( /* ERROR func\(\) does not implement interface{interface{comparable; ~int\|~string}} */ )]
++        _ = g[func /* ERROR func\(\) does not implement interface{interface{comparable; ~int\|~string}} */ ()]
+         _ = g[R /* ERROR R does not implement interface{interface{comparable; ~int\|~string} */ ]
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48136.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48136.go
+index 0ab92df40f..b87f84ae64 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48136.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48136.go
+@@ -12,12 +12,12 @@ func f5[P interface{ func(P) }]() {}
+ func f6[P interface { *Tree[P] }, Q any ]() {}
+ 
+ func _() {
+-        f1( /* ERROR cannot infer P */ )
+-        f2( /* ERROR cannot infer P */ )
+-        f3( /* ERROR cannot infer P */ )
+-        f4( /* ERROR cannot infer P */ )
+-        f5( /* ERROR cannot infer P */ )
+-        f6( /* ERROR cannot infer P */ )
++        f1 /* ERROR cannot infer P */ ()
++        f2 /* ERROR cannot infer P */ ()
++        f3 /* ERROR cannot infer P */ ()
++        f4 /* ERROR cannot infer P */ ()
++        f5 /* ERROR cannot infer P */ ()
++        f6 /* ERROR cannot infer P */ ()
+ }
+ 
+ type Tree[P any] struct {
+@@ -32,5 +32,5 @@ func foo[Src interface { func() Src }]() Src {
+ }
+ 
+ func _() {
+-        foo( /* ERROR cannot infer Src */ )
++        foo /* ERROR cannot infer Src */ ()
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go
+index 408031cdbc..aa1d12aaf5 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48827.go
+@@ -15,5 +15,5 @@ type (
+ 
+ // The example from the issue.
+ func _() {
+-	_ = &([10]bool /* ERROR "invalid operation.*bool is not a generic type" */ [1 /* ERROR expected type */ ]{})
++	_ = &([10]bool /* ERROR "invalid operation.*bool is not a generic type" */ [1 /* ERROR "expected type" */ ]{})
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go
+index 0efc9066ec..61b757ccb2 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49112.go
+@@ -11,5 +11,5 @@ func _() {
+         _ = f[[ /* ERROR \[\]int does not implement int */ ]int]
+ 
+         f(0)
+-        f( /* ERROR \[\]int does not implement int */ []int{})
++        f/* ERROR \[\]int does not implement int */ ([]int{})
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go
+index 75bea18072..d4c8a897c6 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49179.go
+@@ -17,7 +17,7 @@ func _() {
+ 	_ = f2[myInt]
+ 	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in constraint int\|string|float64 */]
+ 	var x myInt
+-	f3( /* ERROR myInt does not implement int \(possibly missing ~ for int in constraint int\) */ x)
++	f3 /* ERROR myInt does not implement int \(possibly missing ~ for int in constraint int\) */ (x)
+ }
+ 
+ // test case from the issue
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go
+index 9edbf14a55..208501fafd 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49602.go
+@@ -5,15 +5,15 @@
+ package p
+ 
+ type M interface {
+-        m()
++	m()
+ }
+ 
+ type C interface {
+-        comparable
++	comparable
+ }
+ 
+-type _ interface{
+-        int | M // ERROR cannot use p\.M in union \(p\.M contains methods\)
+-        int | comparable // ERROR cannot use comparable in union
+-        int | C // ERROR cannot use p\.C in union \(p\.C embeds comparable\)
++type _ interface {
++	int | M          // ERROR cannot use p\.M in union \(p\.M contains methods\)
++	int | comparable // ERROR cannot use comparable in union
++	int | C          // ERROR cannot use p\.C in union \(p\.C embeds comparable\)
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go
+index 0f15dc0b62..4c9b65a72f 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50372.go
+@@ -11,8 +11,8 @@ func _(s []int) {
+         for range s {}
+         for i = range s {}
+         for i, j = range s {}
+-        for i, j, k /* ERROR range clause permits at most two iteration variables */ = range s {}
+-        for i, j, k /* ERROR range clause permits at most two iteration variables */, l = range s {}
++        for i, j, k /* ERROR range clause permits at most two iteration variables|at most 2 expressions */ = range s {}
++        for i, j, k, l /* ERROR range clause permits at most two iteration variables|at most 2 expressions */ = range s {}
+ }
+ 
+ func _(s chan int) {
+@@ -22,6 +22,6 @@ func _(s chan int) {
+         for range s {}
+         for i = range s {}
+         for i, j /* ERROR range over .* permits only one iteration variable */ = range s {}
+-        for i, j /* ERROR range over .* permits only one iteration variable */, k = range s {}
+-        for i, j /* ERROR range over .* permits only one iteration variable */, k, l = range s {}
++        for i, j, k /* ERROR range over .* permits only one iteration variable|at most 2 expressions */ = range s {}
++        for i, j, k, l /* ERROR range over .* permits only one iteration variable|at most 2 expressions */ = range s {}
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50427.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50427.go
+new file mode 100644
+index 0000000000..d89d63e308
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50427.go
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// The parser no longer parses type parameters for methods.
++// In the past, type checking the code below led to a crash (#50427).
++
++type T interface{ m[ /* ERROR "must have no type parameters" */ P any]() }
++
++func _(t T) {
++	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = t /* ERROR "does not implement" */
++}
++
++type S struct{}
++
++func (S) m[ /* ERROR "must have no type parameters" */ P any]() {}
++
++func _(s S) {
++	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = s /* ERROR "does not implement" */
++
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go
+index ef873e6ea8..808b6471f6 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51229.go
+@@ -109,7 +109,7 @@ func _() {
+ 	var _ chan<- int = ch1()
+ 
+ 	// P cannot be inferred as there's a tilde.
+-	ch2( /* ERROR cannot infer P */ )
++	ch2 /* ERROR cannot infer P */ ()
+ 	type myChan chan int
+ 	ch2[myChan]()
+ 
+@@ -118,11 +118,11 @@ func _() {
+ 	ch3(e)
+ 
+ 	// P cannot be inferred as there's more than one specific type and a tilde.
+-	ch4( /* ERROR cannot infer P */ e)
++	ch4 /* ERROR cannot infer P */ (e)
+ 	_ = ch4[chan int]
+ 
+ 	// P cannot be inferred as there's more than one specific type.
+-	ch5( /* ERROR cannot infer P */ )
++	ch5 /* ERROR cannot infer P */ ()
+ 	ch5[chan<- int]()
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go
+index bc4208e6ee..8a3eb3278d 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51257.go
+@@ -39,7 +39,7 @@ func NewSetFromSlice[T comparable](items []T) *Set[T] {
+ type T struct{ x any }
+ 
+ func main() {
+-	NewSetFromSlice( /* ERROR T does not implement comparable */ []T{
++	NewSetFromSlice /* ERROR T does not implement comparable */ ([]T{
+ 		{"foo"},
+ 		{5},
+ 	})
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go
+index 84e551d9ad..38f86109e3 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go
+@@ -12,7 +12,7 @@ type T[P any, B *P] struct{}
+ func (T /* ERROR cannot use generic type */ ) m0() {}
+ 
+ // TODO(rfindley): eliminate the duplicate errors here.
+-func (T /* ERROR got 1 type parameter, but receiver base type declares 2 */ /* ERROR got 1 arguments but 2 type parameters */ [_]) m1() {}
++func (/* ERROR got 1 type parameter, but receiver base type declares 2 */ T /* ERROR got 1 arguments but 2 type parameters */ [_]) m1() {}
+ func (T[_, _]) m2() {}
+ // TODO(gri) this error is unfortunate (issue #51343)
+ func (T /* ERROR got 3 arguments but 2 type parameters */ [_, _, _]) m3() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51360.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51360.go
+index 447ce036ae..fe3de04dbf 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51360.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51360.go
+@@ -5,9 +5,9 @@
+ package p
+ 
+ func _() {
+-	len. /* ERROR cannot select on len */ Println
+-	len. /* ERROR cannot select on len */ Println()
+-	_ = len. /* ERROR cannot select on len */ Println
+-	_ = len[ /* ERROR cannot index len */ 0]
++	len.Println /* ERROR cannot select on len */
++	len.Println /* ERROR cannot select on len */ ()
++	_ = len.Println /* ERROR cannot select on len */
++	_ = len /* ERROR cannot index len */ [0]
+ 	_ = *len /* ERROR cannot indirect len */
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go
+index 4eba071801..d51607b7ab 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51376.go
+@@ -12,7 +12,7 @@ func g[M map[K]V, K comparable, V any](M) {}
+ func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
+         var m1 M1
+         f(m1)
+-        g( /* ERROR M1 does not implement map\[K\]V */ m1) // M1 has tilde
++        g /* ERROR M1 does not implement map\[K\]V */ (m1) // M1 has tilde
+ 
+         var m2 M2
+         f(m2)
+@@ -20,5 +20,5 @@ func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
+ 
+         var m3 Map
+         f(m3)
+-        g( /* ERROR Map does not implement map\[string\]int */ m3) // M in g does not have tilde
++        g /* ERROR Map does not implement map\[string\]int */ (m3) // M in g does not have tilde
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go
+index f19d906d97..3126770829 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go
+@@ -49,6 +49,6 @@ func f[T interface{comparable; []byte|string}](x T) {
+ }
+ 
+ func _(s []byte) {
+-	f( /* ERROR \[\]byte does not implement interface{comparable; \[\]byte\|string} */ s)
++	f /* ERROR \[\]byte does not implement interface{comparable; \[\]byte\|string} */ (s)
+         _ = f[[ /* ERROR does not implement */ ]byte]
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51593.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51593.go
+index d323618ee8..e06c39fac0 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51593.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51593.go
+@@ -9,5 +9,5 @@ func f[P interface{ m(R) }, R any]() {}
+ type T = interface { m(int) }
+ 
+ func _() {
+-	_ = f[ /* ERROR cannot infer R */ T] // don't crash in type inference
++	_ = f /* ERROR cannot infer R */ [T] // don't crash in type inference
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go b/src/cmd/compile/internal/types2/testdata/issue47996.go
+similarity index 100%
+rename from src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go
+rename to src/cmd/compile/internal/types2/testdata/issue47996.go
+diff --git a/src/go/types/testdata/fixedbugs/issue39693.go b/src/go/types/testdata/fixedbugs/issue39693.go
+index ec7641902a..496754d972 100644
+--- a/src/go/types/testdata/fixedbugs/issue39693.go
++++ b/src/go/types/testdata/fixedbugs/issue39693.go
+@@ -10,12 +10,12 @@ type Number1 interface {
+ 	float64
+ }
+ 
+-func Add[T Number1](a, b T) T {
++func Add1[T Number1](a, b T) T {
+ 	return a /* ERROR not defined */ + b
+ }
+ 
+ type Number2 interface {
+-	int|float64
++	int | float64
+ }
+ 
+ func Add2[T Number2](a, b T) T {
+diff --git a/src/go/types/testdata/fixedbugs/issue46275.go b/src/go/types/testdata/fixedbugs/issue46275.go
+index 0ebde31c8e..0862d5bb5a 100644
+--- a/src/go/types/testdata/fixedbugs/issue46275.go
++++ b/src/go/types/testdata/fixedbugs/issue46275.go
+@@ -5,23 +5,22 @@
+ package issue46275
+ 
+ type N[T any] struct {
+-        *N[T]
+-        t T
++	*N[T]
++	t T
+ }
+ 
+ func (n *N[T]) Elem() T {
+-        return n.t
++	return n.t
+ }
+ 
+ type I interface {
+-        Elem() string
++	Elem() string
+ }
+ 
+ func _() {
+-        var n1 *N[string]
+-        var _ I = n1
+-        type NS N[string]
+-        var n2 *NS
+-        var _ I = n2
++	var n1 *N[string]
++	var _ I = n1
++	type NS N[string]
++	var n2 *NS
++	var _ I = n2
+ }
+-
+diff --git a/src/go/types/testdata/fixedbugs/issue46583.go b/src/go/types/testdata/fixedbugs/issue46583.go
+new file mode 100644
+index 0000000000..da1f1ffbba
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue46583.go
+@@ -0,0 +1,28 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T1 struct{}
++func (t T1) m(int) {}
++var f1 func(T1)
++
++type T2 struct{}
++func (t T2) m(x int) {}
++var f2 func(T2)
++
++type T3 struct{}
++func (T3) m(int) {}
++var f3 func(T3)
++
++type T4 struct{}
++func (T4) m(x int) {}
++var f4 func(T4)
++
++func _() {
++	f1 = T1 /* ERROR func\(T1, int\) */ .m
++	f2 = T2 /* ERROR func\(t T2, x int\) */ .m
++	f3 = T3 /* ERROR func\(T3, int\) */ .m
++	f4 = T4 /* ERROR func\(_ T4, x int\) */ .m
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue48695.go b/src/go/types/testdata/fixedbugs/issue48695.go
+index 2d9e6a5f3d..9f4a76851d 100644
+--- a/src/go/types/testdata/fixedbugs/issue48695.go
++++ b/src/go/types/testdata/fixedbugs/issue48695.go
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-func g[P interface{~func(T) P}, T any](P) {}
++func g[P ~func(T) P, T any](P) {}
+ 
+ func _() {
+ 	type F func(int) F
+diff --git a/src/go/types/testdata/fixedbugs/issue49296.go b/src/go/types/testdata/fixedbugs/issue49296.go
+index 0ad71ef4b2..eaa8e4dc7d 100644
+--- a/src/go/types/testdata/fixedbugs/issue49296.go
++++ b/src/go/types/testdata/fixedbugs/issue49296.go
+@@ -9,7 +9,6 @@ func _[
+         T1 []int,
+         T2 ~float64 | ~complex128 | chan int,
+ ]() {
+-	// TODO(rfindley): the types2 error here is clearer.
+         _ = T0(nil /* ERROR cannot convert nil to T0 */ )
+         _ = T1(1 /* ERROR cannot convert 1 .* to T1 */ )
+         _ = T2(2 /* ERROR cannot convert 2 .* to T2 */ )
+diff --git a/src/go/types/testdata/fixedbugs/issue50372.go b/src/go/types/testdata/fixedbugs/issue50372.go
+new file mode 100644
+index 0000000000..4c9b65a72f
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50372.go
+@@ -0,0 +1,27 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(s []int) {
++        var i, j, k, l int
++        _, _, _, _ = i, j, k, l
++
++        for range s {}
++        for i = range s {}
++        for i, j = range s {}
++        for i, j, k /* ERROR range clause permits at most two iteration variables|at most 2 expressions */ = range s {}
++        for i, j, k, l /* ERROR range clause permits at most two iteration variables|at most 2 expressions */ = range s {}
++}
++
++func _(s chan int) {
++        var i, j, k, l int
++        _, _, _, _ = i, j, k, l
++
++        for range s {}
++        for i = range s {}
++        for i, j /* ERROR range over .* permits only one iteration variable */ = range s {}
++        for i, j, k /* ERROR range over .* permits only one iteration variable|at most 2 expressions */ = range s {}
++        for i, j, k, l /* ERROR range over .* permits only one iteration variable|at most 2 expressions */ = range s {}
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue52698.go b/src/go/types/testdata/fixedbugs/issue52698.go
+index 3babc21d92..d1b06a210d 100644
+--- a/src/go/types/testdata/fixedbugs/issue52698.go
++++ b/src/go/types/testdata/fixedbugs/issue52698.go
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-// sanity check
++// correctness check: ensure that cycles through generic instantiations are detected
+ type T[P any] struct {
+ 	_ P
+ }
+@@ -13,18 +13,30 @@ type S /* ERROR illegal cycle */ struct {
+ 	_ T[S]
+ }
+ 
+-// simplified test
+-var _ B[A]
++// simplified test 1
+ 
+-type A struct {
+-	_ B[string]
++var _ A1[A1[string]]
++
++type A1[P any] struct {
++	_ B1[P]
++}
++
++type B1[P any] struct {
++	_ P
++}
++
++// simplified test 2
++var _ B2[A2]
++
++type A2 struct {
++	_ B2[string]
+ }
+ 
+-type B[P any] struct {
+-	_ C[P]
++type B2[P any] struct {
++	_ C2[P]
+ }
+ 
+-type C[P any] struct {
++type C2[P any] struct {
+ 	_ P
+ }
+ 

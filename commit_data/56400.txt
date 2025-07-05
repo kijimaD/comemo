@@ -15,6 +15,20 @@ Date:   Thu May 4 15:11:28 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/stack_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 042289aa58..96d37b839c 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -81,8 +81,6 @@ func TestStackGrowth(t *testing.T) {
+ 		t.Skip("-quick")
+ 	}
+ 
+-	t.Parallel()
+-
+ 	var wg sync.WaitGroup
+ 
+ 	// in a normal goroutine

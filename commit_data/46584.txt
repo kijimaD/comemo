@@ -21,7 +21,7 @@ Date:   Mon Jan 4 13:32:10 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ir/node.go           |  3 +++
  src/cmd/compile/internal/noder/lex.go         |  3 +++
  src/cmd/compile/internal/ssagen/ssa.go        | 15 +++++++++++
@@ -33,3 +33,214 @@ Date:   Mon Jan 4 13:32:10 2021 -0500
  test/abi/regabipragma.out                     |  6 +++++
  test/run.go                                   |  2 +-
  10 files changed, 98 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a2b6e7203b..a1b09b38cc 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -452,6 +452,9 @@ const (
+ 
+ 	// Go command pragmas
+ 	GoBuildPragma
++
++	RegisterParams // TODO remove after register abi is working
++
+ )
+ 
+ func AsNode(n types.Object) Node {
+diff --git a/src/cmd/compile/internal/noder/lex.go b/src/cmd/compile/internal/noder/lex.go
+index 1095f3344a..cdca9e55f3 100644
+--- a/src/cmd/compile/internal/noder/lex.go
++++ b/src/cmd/compile/internal/noder/lex.go
+@@ -28,6 +28,7 @@ const (
+ 		ir.Nosplit |
+ 		ir.Noinline |
+ 		ir.NoCheckPtr |
++		ir.RegisterParams | // TODO remove after register abi is working
+ 		ir.CgoUnsafeArgs |
+ 		ir.UintptrEscapes |
+ 		ir.Systemstack |
+@@ -79,6 +80,8 @@ func pragmaFlag(verb string) ir.PragmaFlag {
+ 		// in the argument list.
+ 		// Used in syscall/dll_windows.go.
+ 		return ir.UintptrEscapes
++	case "go:registerparams": // TODO remove after register abi is working
++		return ir.RegisterParams
+ 	case "go:notinheap":
+ 		return ir.NotInHeap
+ 	}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 54bde20f1c..3b542cf92a 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -356,6 +356,13 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	if fn.Pragma&ir.Nosplit != 0 {
+ 		s.f.NoSplit = true
+ 	}
++	if fn.Pragma&ir.RegisterParams != 0 { // TODO remove after register abi is working
++		if strings.Contains(name, ".") {
++			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
++		}
++		s.f.Warnl(fn.Pos(), "Declared function %s has register params", name)
++	}
++
+ 	s.panics = map[funcLine]*ssa.Block{}
+ 	s.softFloat = s.config.SoftFloat
+ 
+@@ -4685,6 +4692,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	}
+ 
+ 	testLateExpansion := false
++	inRegisters := false
+ 
+ 	switch n.Op() {
+ 	case ir.OCALLFUNC:
+@@ -4692,6 +4700,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
+ 			fn := fn.(*ir.Name)
+ 			sym = fn.Sym()
++			// TODO remove after register abi is working
++			inRegistersImported := fn.Pragma()&ir.RegisterParams != 0
++			inRegistersSamePackage := fn.Func != nil && fn.Func.Pragma&ir.RegisterParams != 0
++			inRegisters = inRegistersImported || inRegistersSamePackage
++			if inRegisters {
++				s.f.Warnl(n.Pos(), "Called function %s has register params", sym.Linksym().Name)
++			}
+ 			break
+ 		}
+ 		closure = s.expr(fn)
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 4d48b80346..1ba8771139 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -976,6 +976,9 @@ func (w *exportWriter) funcExt(n *ir.Name) {
+ 	w.linkname(n.Sym())
+ 	w.symIdx(n.Sym())
+ 
++	// TODO remove after register abi is working.
++	w.uint64(uint64(n.Func.Pragma))
++
+ 	// Escape analysis.
+ 	for _, fs := range &types.RecvsParams {
+ 		for _, f := range fs(n.Type()).FieldSlice() {
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index c9effabce0..396d09263a 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -647,6 +647,9 @@ func (r *importReader) funcExt(n *ir.Name) {
+ 	r.linkname(n.Sym())
+ 	r.symIdx(n.Sym())
+ 
++	// TODO remove after register abi is working
++	n.SetPragma(ir.PragmaFlag(r.uint64()))
++
+ 	// Escape analysis.
+ 	for _, fs := range &types.RecvsParams {
+ 		for _, f := range fs(n.Type()).FieldSlice() {
+diff --git a/test/abi/regabipragma.dir/main.go b/test/abi/regabipragma.dir/main.go
+new file mode 100644
+index 0000000000..d663337a10
+--- /dev/null
++++ b/test/abi/regabipragma.dir/main.go
+@@ -0,0 +1,36 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"regabipragma.dir/tmp"
++)
++
++type S string
++
++//go:noinline
++func (s S) ff(t string) string {
++	return string(s) + " " + t
++}
++
++//go:noinline
++//go:registerparams
++func f(s,t string) string { // ERROR "Declared function f has register params"
++	return s + " " + t
++}
++
++func check(s string) {
++	if s != "Hello world!" {
++		fmt.Printf("FAIL, wanted 'Hello world!' but got '%s'\n", s)
++	}
++}
++
++func main() {
++	check(f("Hello", "world!"))   // ERROR "Called function ...f has register params"
++	check(tmp.F("Hello", "world!"))  // ERROR "Called function regabipragma.dir/tmp.F has register params"
++	check(S("Hello").ff("world!"))
++	check(tmp.S("Hello").FF("world!"))
++}
+diff --git a/test/abi/regabipragma.dir/tmp/foo.go b/test/abi/regabipragma.dir/tmp/foo.go
+new file mode 100644
+index 0000000000..cff989bbcd
+--- /dev/null
++++ b/test/abi/regabipragma.dir/tmp/foo.go
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tmp
++
++
++type S string
++
++//go:noinline
++func (s S) FF(t string) string {
++        return string(s) + " " + t
++}
++
++//go:noinline
++//go:registerparams
++func F(s,t string) string {
++        return s + " " + t
++}
+diff --git a/test/abi/regabipragma.go b/test/abi/regabipragma.go
+new file mode 100644
+index 0000000000..93cdb6abbb
+--- /dev/null
++++ b/test/abi/regabipragma.go
+@@ -0,0 +1,9 @@
++// runindir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO May delete or adapt this test once regabi is the default
++
++package ignore
+diff --git a/test/abi/regabipragma.out b/test/abi/regabipragma.out
+new file mode 100644
+index 0000000000..7803613351
+--- /dev/null
++++ b/test/abi/regabipragma.out
+@@ -0,0 +1,6 @@
++# regabipragma.dir/tmp
++tmp/foo.go:17:6: Declared function F has register params
++# regabipragma.dir
++./main.go:21:6: Declared function f has register params
++./main.go:32:9: Called function "".f has register params
++./main.go:33:13: Called function regabipragma.dir/tmp.F has register params
+diff --git a/test/run.go b/test/run.go
+index 1c516f4946..09f9717cc0 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -59,7 +59,7 @@ var (
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime"}
++	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi"}
+ 
+ 	// ratec controls the max number of tests running at a time.
+ 	ratec chan bool

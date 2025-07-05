@@ -9,7 +9,59 @@ Date:   Mon Apr 13 19:14:09 2009 -0700
     DELTA=7  (0 added, 0 deleted, 7 changed)
     OCL=27393
     CL=27398
-
+---
  src/lib/exec.go    | 6 +++---
  src/lib/os/file.go | 4 ++--
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/lib/exec.go b/src/lib/exec.go
+index effb46fa45..425b94eb3a 100644
+--- a/src/lib/exec.go
++++ b/src/lib/exec.go
+@@ -184,7 +184,7 @@ func (p *Cmd) Close() *os.Error {
+ 	return err;
+ }
+ 
+-func canexec(file string) bool{
++func canExec(file string) bool{
+ 	d, err := os.Stat(file);
+ 	if err != nil {
+ 		return false;
+@@ -203,7 +203,7 @@ func LookPath(file string) (string, *os.Error) {
+ 	// but that would not match all the Unix shells.
+ 
+ 	if strings.Index(file, "/") >= 0 {
+-		if canexec(file) {
++		if canExec(file) {
+ 			return file, nil;
+ 		}
+ 		return "", os.ENOENT;
+@@ -219,7 +219,7 @@ func LookPath(file string) (string, *os.Error) {
+ 			// Unix shell semantics: path element "" means "."
+ 			dir = ".";
+ 		}
+-		if canexec(dir+"/"+file) {
++		if canExec(dir+"/"+file) {
+ 			return dir+"/"+file, nil;
+ 		}
+ 	}
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index 80f43bb593..9e98be697a 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -287,13 +287,13 @@ func Remove(name string) *os.Error {
+ 	// returns EISDIR, so can't use that.  However,
+ 	// both agree that rmdir(file) returns ENOTDIR,
+ 	// so we can use that to decide which error is real.
+-	// Rmdir might return ENOTDIR if given a bad
++	// Rmdir might also return ENOTDIR if given a bad
+ 	// file path, like /etc/passwd/foo, but in that case,
+ 	// both errors will be ENOTDIR, so it's okay to
+ 	// use the error from unlink.
+ 	if e1 != syscall.ENOTDIR {
+ 		e = e1;
+ 	}
+-	return ErrnoToError(e1);
++	return ErrnoToError(e);
+ }
+ 

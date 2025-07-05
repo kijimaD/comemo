@@ -7,6 +7,31 @@ Date:   Wed Mar 6 15:03:28 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7529043
-
+---
  misc/cgo/test/issue4029.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/test/issue4029.go b/misc/cgo/test/issue4029.go
+index 7495d38fea..b0385eb857 100644
+--- a/misc/cgo/test/issue4029.go
++++ b/misc/cgo/test/issue4029.go
+@@ -47,14 +47,15 @@ func test4029(t *testing.T) {
+ func loadThySelf(t *testing.T, symbol string) {
+ 	this_process := C.dlopen(nil, C.RTLD_NOW)
+ 	if this_process == nil {
+-		t.Fatal("dlopen:", C.GoString(C.dlerror()))
++		t.Error("dlopen:", C.GoString(C.dlerror()))
++		return
+ 	}
+ 	defer C.dlclose(this_process)
+ 
+ 	symbol_address := C.dlsym(this_process, C.CString(symbol))
+ 	if symbol_address == nil {
+-		t.Fatal("dlsym:", C.GoString(C.dlerror()))
+-	} else {
+-		t.Log(symbol, symbol_address)
++		t.Error("dlsym:", C.GoString(C.dlerror()))
++		return
+ 	}
++	t.Log(symbol, symbol_address)
+ }

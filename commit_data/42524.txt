@@ -40,9 +40,214 @@ Date:   Wed Jan 8 09:58:42 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/cgocall.go            | 19 +++++++++++
  src/runtime/os_windows.go         | 67 +++++++++++++++++++++++++++++++++++++++
  src/runtime/preempt_nonwindows.go | 13 ++++++++
  src/runtime/race.go               |  3 ++
  4 files changed, 102 insertions(+)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 5f8ff8139a..a4e64b00cc 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -90,6 +90,11 @@ import (
+ type cgoCallers [32]uintptr
+ 
+ // Call from Go to C.
++//
++// This must be nosplit because it's used for syscalls on some
++// platforms. Syscalls may have untyped arguments on the stack, so
++// it's not safe to grow or scan the stack.
++//
+ //go:nosplit
+ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	if !iscgo && GOOS != "solaris" && GOOS != "illumos" && GOOS != "windows" {
+@@ -127,6 +132,13 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	// saved by entersyscall here.
+ 	entersyscall()
+ 
++	// Tell asynchronous preemption that we're entering external
++	// code. We do this after entersyscall because this may block
++	// and cause an async preemption to fail, but at this point a
++	// sync preemption will succeed (though this is not a matter
++	// of correctness).
++	osPreemptExtEnter(mp)
++
+ 	mp.incgo = true
+ 	errno := asmcgocall(fn, arg)
+ 
+@@ -135,6 +147,8 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	mp.incgo = false
+ 	mp.ncgo--
+ 
++	osPreemptExtExit(mp)
++
+ 	exitsyscall()
+ 
+ 	// Note that raceacquire must be called only after exitsyscall has
+@@ -188,12 +202,16 @@ func cgocallbackg(ctxt uintptr) {
+ 	exitsyscall() // coming out of cgo call
+ 	gp.m.incgo = false
+ 
++	osPreemptExtExit(gp.m)
++
+ 	cgocallbackg1(ctxt)
+ 
+ 	// At this point unlockOSThread has been called.
+ 	// The following code must not change to a different m.
+ 	// This is enforced by checking incgo in the schedule function.
+ 
++	osPreemptExtEnter(gp.m)
++
+ 	gp.m.incgo = true
+ 	// going back to cgo call
+ 	reentersyscall(savedpc, uintptr(savedsp))
+@@ -352,6 +370,7 @@ func unwindm(restore *bool) {
+ 		if mp.ncgo > 0 {
+ 			mp.incgo = false
+ 			mp.ncgo--
++			osPreemptExtExit(mp)
+ 		}
+ 
+ 		releasem(mp)
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 4b590aa9ef..91e147fca9 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -151,6 +151,29 @@ type mOS struct {
+ 
+ 	waitsema   uintptr // semaphore for parking on locks
+ 	resumesema uintptr // semaphore to indicate suspend/resume
++
++	// preemptExtLock synchronizes preemptM with entry/exit from
++	// external C code.
++	//
++	// This protects against races between preemptM calling
++	// SuspendThread and external code on this thread calling
++	// ExitProcess. If these happen concurrently, it's possible to
++	// exit the suspending thread and suspend the exiting thread,
++	// leading to deadlock.
++	//
++	// 0 indicates this M is not being preempted or in external
++	// code. Entering external code CASes this from 0 to 1. If
++	// this fails, a preemption is in progress, so the thread must
++	// wait for the preemption. preemptM also CASes this from 0 to
++	// 1. If this fails, the preemption fails (as it would if the
++	// PC weren't in Go code). The value is reset to 0 when
++	// returning from external code or after a preemption is
++	// complete.
++	//
++	// TODO(austin): We may not need this if preemption were more
++	// tightly synchronized on the G/P status and preemption
++	// blocked transition into _Gsyscall/_Psyscall.
++	preemptExtLock uint32
+ }
+ 
+ //go:linkname os_sigpipe os.sigpipe
+@@ -1121,11 +1144,20 @@ func preemptM(mp *m) {
+ 		throw("self-preempt")
+ 	}
+ 
++	// Synchronize with external code that may try to ExitProcess.
++	if !atomic.Cas(&mp.preemptExtLock, 0, 1) {
++		// External code is running. Fail the preemption
++		// attempt.
++		atomic.Xadd(&mp.preemptGen, 1)
++		return
++	}
++
+ 	// Acquire our own handle to mp's thread.
+ 	lock(&mp.threadLock)
+ 	if mp.thread == 0 {
+ 		// The M hasn't been minit'd yet (or was just unminit'd).
+ 		unlock(&mp.threadLock)
++		atomic.Store(&mp.preemptExtLock, 0)
+ 		atomic.Xadd(&mp.preemptGen, 1)
+ 		return
+ 	}
+@@ -1151,6 +1183,7 @@ func preemptM(mp *m) {
+ 	if int32(stdcall1(_SuspendThread, thread)) == -1 {
+ 		unlock(&suspendLock)
+ 		stdcall1(_CloseHandle, thread)
++		atomic.Store(&mp.preemptExtLock, 0)
+ 		// The thread no longer exists. This shouldn't be
+ 		// possible, but just acknowledge the request.
+ 		atomic.Xadd(&mp.preemptGen, 1)
+@@ -1191,9 +1224,43 @@ func preemptM(mp *m) {
+ 		stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+ 	}
+ 
++	atomic.Store(&mp.preemptExtLock, 0)
++
+ 	// Acknowledge the preemption.
+ 	atomic.Xadd(&mp.preemptGen, 1)
+ 
+ 	stdcall1(_ResumeThread, thread)
+ 	stdcall1(_CloseHandle, thread)
+ }
++
++// osPreemptExtEnter is called before entering external code that may
++// call ExitProcess.
++//
++// This must be nosplit because it may be called from a syscall with
++// untyped stack slots, so the stack must not be grown or scanned.
++//
++//go:nosplit
++func osPreemptExtEnter(mp *m) {
++	for !atomic.Cas(&mp.preemptExtLock, 0, 1) {
++		// An asynchronous preemption is in progress. It's not
++		// safe to enter external code because it may call
++		// ExitProcess and deadlock with SuspendThread.
++		// Ideally we would do the preemption ourselves, but
++		// can't since there may be untyped syscall arguments
++		// on the stack. Instead, just wait and encourage the
++		// SuspendThread APC to run. The preemption should be
++		// done shortly.
++		osyield()
++	}
++	// Asynchronous preemption is now blocked.
++}
++
++// osPreemptExtExit is called after returning from external code that
++// may call ExitProcess.
++//
++// See osPreemptExtEnter for why this is nosplit.
++//
++//go:nosplit
++func osPreemptExtExit(mp *m) {
++	atomic.Store(&mp.preemptExtLock, 0)
++}
+diff --git a/src/runtime/preempt_nonwindows.go b/src/runtime/preempt_nonwindows.go
+new file mode 100644
+index 0000000000..3066a1521e
+--- /dev/null
++++ b/src/runtime/preempt_nonwindows.go
+@@ -0,0 +1,13 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package runtime
++
++//go:nosplit
++func osPreemptExtEnter(mp *m) {}
++
++//go:nosplit
++func osPreemptExtExit(mp *m) {}
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 52c9bd8201..53910f991c 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -403,6 +403,9 @@ func racefini() {
+ 	// already held it's assumed that the first caller exits the program
+ 	// so other calls can hang forever without an issue.
+ 	lock(&raceFiniLock)
++	// We're entering external code that may call ExitProcess on
++	// Windows.
++	osPreemptExtEnter(getg().m)
+ 	racecall(&__tsan_fini, 0, 0, 0, 0)
+ }
+ 

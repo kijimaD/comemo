@@ -9,6 +9,27 @@ Date:   Sat Jul 15 12:13:45 2017 -0600
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strings/example_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index fa34a8099f..d9e31ea770 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -119,6 +119,15 @@ func ExampleIndexAny() {
+ 	// -1
+ }
+ 
++func ExampleIndexByte() {
++	fmt.Println(strings.IndexByte("golang", 'g'))
++	fmt.Println(strings.IndexByte("gophers", 'h'))
++	fmt.Println(strings.IndexByte("golang", 'x'))
++	// Output:
++	// 0
++	// 3
++	// -1
++}
+ func ExampleIndexRune() {
+ 	fmt.Println(strings.IndexRune("chicken", 'k'))
+ 	fmt.Println(strings.IndexRune("chicken", 'd'))

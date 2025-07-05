@@ -7,6 +7,19 @@ Date:   Mon Aug 4 16:29:22 2008 -0700
     R=rsc
     OCL=13840
     CL=13840
-
+---
  test/chan/fifo.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/chan/fifo.go b/test/chan/fifo.go
+index 6112b3cd6f..d6d6d704a2 100644
+--- a/test/chan/fifo.go
++++ b/test/chan/fifo.go
+@@ -45,6 +45,7 @@ func SynchFifo() {
+ 	for i := 0; i < N; i++ {
+ 		ch -< i
+ 	}
++	<-in
+ }
+ 
+ func main() {

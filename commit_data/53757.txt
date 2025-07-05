@@ -27,8 +27,74 @@ Date:   Thu Aug 25 20:32:27 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 14 --------------
  src/cmd/compile/internal/types2/stmt.go   |  6 ++++++
  test/fixedbugs/issue23586.go              |  8 +++-----
  3 files changed, 9 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index d86fe1b72e..8ba72fe7cf 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -953,20 +953,6 @@ func (p *parser) callStmt() *CallStmt {
+ 		x = t
+ 	}
+ 
+-	// TODO(gri) Now that we don't store a CallExpr in a CallStmt anymore
+-	//           we might as well leave this check to the type checker.
+-	//           Adjust this here and in go/parser eventually.
+-	if _, ok := x.(*CallExpr); !ok {
+-		// only report an error if it's a new one
+-		if bad, ok := x.(*BadExpr); !ok {
+-			p.errorAt(x.Pos(), fmt.Sprintf("expression in %s must be function call", s.Tok))
+-			// already progressed, no need to advance
+-			bad = new(BadExpr)
+-			bad.pos = x.Pos()
+-			x = bad
+-		}
+-	}
+-
+ 	s.Call = x
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 92aa6b6f76..adb24d495d 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -166,6 +166,12 @@ func (check *Checker) closeScope() {
+ }
+ 
+ func (check *Checker) suspendedCall(keyword string, call syntax.Expr) {
++	if _, ok := call.(*syntax.CallExpr); !ok {
++		check.errorf(call, "expression in %s must be function call", keyword)
++		check.use(call)
++		return
++	}
++
+ 	var x operand
+ 	var msg string
+ 	switch check.rawExpr(&x, call, nil, false) {
+diff --git a/test/fixedbugs/issue23586.go b/test/fixedbugs/issue23586.go
+index 31d39d8389..c2d4c9ffb5 100644
+--- a/test/fixedbugs/issue23586.go
++++ b/test/fixedbugs/issue23586.go
+@@ -11,15 +11,13 @@
+ 
+ package p
+ 
+-// TODO(gri) The "not used" errors should not be reported.
+-
+ import (
+-	"fmt"  // ERROR "imported and not used"
+-	"math" // ERROR "imported and not used"
++	"fmt"
++	"math"
+ )
+ 
+ func f() {
+-	var i int // ERROR "i declared but not used"
++	var i int
+ 	defer func() { fmt.Println() } // ERROR "must be function call"
+ 	go func() { _ = math.Sin(0) }  // ERROR "must be function call"
+ 	go func() { _ = i}             // ERROR "must be function call"

@@ -7,7 +7,32 @@ Date:   Wed Jul 13 16:10:12 2011 +1000
     R=golang-dev, dsymonds
     CC=bobbypowers, golang-dev
     https://golang.org/cl/4695050
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f9af1a7779..f449c37296 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -28,6 +28,7 @@ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
++Bobby Powers <bobbypowers@gmail.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Dollin <ehog.hedge@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f3920b7791..a6dfc41d3d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -59,6 +59,7 @@ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <Berengar.Lehr@gmx.de>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com>
++Bobby Powers <bobbypowers@gmail.com>
+ Brad Fitzpatrick <bradfitz@golang.org> <bradfitz@gmail.com>
+ Brendan O'Dea <bod@golang.org>
+ Caine Tighe <arctanofyourface@gmail.com>

@@ -12,7 +12,32 @@ Date:   Thu Jun 10 15:17:17 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/go1.17.txt         | 1 +
  src/testing/testing.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/api/go1.17.txt b/api/go1.17.txt
+index 8e4c0f5624..3d0a464fec 100644
+--- a/api/go1.17.txt
++++ b/api/go1.17.txt
+@@ -181,6 +181,7 @@ pkg syscall (windows-amd64), type SysProcAttr struct, AdditionalInheritedHandles
+ pkg syscall (windows-amd64), type SysProcAttr struct, ParentProcess Handle
+ pkg testing, method (*B) Setenv(string, string)
+ pkg testing, method (*T) Setenv(string, string)
++pkg testing, type TB interface, Setenv(string, string)
+ pkg text/template/parse, const SkipFuncCheck = 2
+ pkg text/template/parse, const SkipFuncCheck Mode
+ pkg time, const Layout = "01/02 03:04:05PM '06 -0700"
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index fdf57a3953..eeee0aac17 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -644,6 +644,7 @@ type TB interface {
+ 	Log(args ...interface{})
+ 	Logf(format string, args ...interface{})
+ 	Name() string
++	Setenv(key, value string)
+ 	Skip(args ...interface{})
+ 	SkipNow()
+ 	Skipf(format string, args ...interface{})

@@ -7,7 +7,7 @@ Date:   Mon Aug 5 15:46:06 2013 -0700
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/12486043
-
+---
  src/pkg/crypto/x509/pem_decrypt.go | 2 +-
  src/pkg/debug/gosym/symtab.go      | 4 ++--
  src/pkg/encoding/json/tags.go      | 4 ++--
@@ -30,3 +30,405 @@ Date:   Mon Aug 5 15:46:06 2013 -0700
  src/pkg/regexp/regexp.go           | 4 ++--
  src/pkg/unicode/maketables.go      | 2 +-
  21 files changed, 36 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/pem_decrypt.go b/src/pkg/crypto/x509/pem_decrypt.go
+index 194c81bf68..fda03b233d 100644
+--- a/src/pkg/crypto/x509/pem_decrypt.go
++++ b/src/pkg/crypto/x509/pem_decrypt.go
+@@ -115,7 +115,7 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
+ 		return nil, errors.New("x509: no DEK-Info header in block")
+ 	}
+ 
+-	idx := strings.Index(dek, ",")
++	idx := strings.IndexByte(dek, ',')
+ 	if idx == -1 {
+ 		return nil, errors.New("x509: malformed DEK-Info header")
+ 	}
+diff --git a/src/pkg/debug/gosym/symtab.go b/src/pkg/debug/gosym/symtab.go
+index 9ab05bac2f..c6952af55c 100644
+--- a/src/pkg/debug/gosym/symtab.go
++++ b/src/pkg/debug/gosym/symtab.go
+@@ -40,7 +40,7 @@ func (s *Sym) Static() bool { return s.Type >= 'a' }
+ // PackageName returns the package part of the symbol name,
+ // or the empty string if there is none.
+ func (s *Sym) PackageName() string {
+-	if i := strings.Index(s.Name, "."); i != -1 {
++	if i := strings.IndexByte(s.Name, '.'); i != -1 {
+ 		return s.Name[0:i]
+ 	}
+ 	return ""
+@@ -49,7 +49,7 @@ func (s *Sym) PackageName() string {
+ // ReceiverName returns the receiver type name of this symbol,
+ // or the empty string if there is none.
+ func (s *Sym) ReceiverName() string {
+-	l := strings.Index(s.Name, ".")
++	l := strings.IndexByte(s.Name, '.')
+ 	r := strings.LastIndex(s.Name, ".")
+ 	if l == -1 || r == -1 || l == r {
+ 		return ""
+diff --git a/src/pkg/encoding/json/tags.go b/src/pkg/encoding/json/tags.go
+index c38fd5102f..6a8d03a5df 100644
+--- a/src/pkg/encoding/json/tags.go
++++ b/src/pkg/encoding/json/tags.go
+@@ -15,7 +15,7 @@ type tagOptions string
+ // parseTag splits a struct field's json tag into its name and
+ // comma-separated options.
+ func parseTag(tag string) (string, tagOptions) {
+-	if idx := strings.Index(tag, ","); idx != -1 {
++	if idx := strings.IndexByte(tag, ','); idx != -1 {
+ 		return tag[:idx], tagOptions(tag[idx+1:])
+ 	}
+ 	return tag, tagOptions("")
+@@ -31,7 +31,7 @@ func (o tagOptions) Contains(optionName string) bool {
+ 	s := string(o)
+ 	for s != "" {
+ 		var next string
+-		i := strings.Index(s, ",")
++		i := strings.IndexByte(s, ',')
+ 		if i >= 0 {
+ 			s, next = s[:i], s[i+1:]
+ 		}
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+index 83e65402c0..fb9f782e45 100644
+--- a/src/pkg/encoding/xml/typeinfo.go
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -113,7 +113,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 
+ 	// Split the tag from the xml namespace if necessary.
+ 	tag := f.Tag.Get("xml")
+-	if i := strings.Index(tag, " "); i >= 0 {
++	if i := strings.IndexByte(tag, ' '); i >= 0 {
+ 		finfo.xmlns, tag = tag[:i], tag[i+1:]
+ 	}
+ 
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index 2f36604797..a6ef87ac87 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -1026,7 +1026,7 @@ func (d *Decoder) nsname() (name Name, ok bool) {
+ 	if !ok {
+ 		return
+ 	}
+-	i := strings.Index(s, ":")
++	i := strings.IndexByte(s, ':')
+ 	if i < 0 {
+ 		name.Local = s
+ 	} else {
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 38de9ba07f..cdf8ba9196 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -877,7 +877,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
+ 
+ 		// Split at colon.
+ 		line = strings.TrimSpace(line[4:])
+-		i := strings.Index(line, ":")
++		i := strings.IndexByte(line, ':')
+ 		if i < 0 {
+ 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
+ 		}
+@@ -1022,7 +1022,7 @@ func (ctxt *Context) match(name string) bool {
+ 	if name == "" {
+ 		return false
+ 	}
+-	if i := strings.Index(name, ","); i >= 0 {
++	if i := strings.IndexByte(name, ','); i >= 0 {
+ 		// comma-separated list
+ 		return ctxt.match(name[:i]) && ctxt.match(name[i+1:])
+ 	}
+@@ -1076,7 +1076,7 @@ func (ctxt *Context) match(name string) bool {
+ //     name_$(GOOS)_$(GOARCH)_test.*
+ //
+ func (ctxt *Context) goodOSArchFile(name string) bool {
+-	if dot := strings.Index(name, "."); dot != -1 {
++	if dot := strings.IndexByte(name, '.'); dot != -1 {
+ 		name = name[:dot]
+ 	}
+ 	l := strings.Split(name, "_")
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index e06d2edfb2..af9742c430 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -474,7 +474,7 @@ func stripCommonPrefix(lines []string) {
+ 	 * Check for vertical "line of stars" and correct prefix accordingly.
+ 	 */
+ 	lineOfStars := false
+-	if i := strings.Index(prefix, "*"); i >= 0 {
++	if i := strings.IndexByte(prefix, '*'); i >= 0 {
+ 		// Line of stars present.
+ 		if i > 0 && prefix[i-1] == ' ' {
+ 			i-- // remove trailing blank from prefix so stars remain aligned
+diff --git a/src/pkg/math/big/rat.go b/src/pkg/math/big/rat.go
+index 39791ec6d8..31945aae8d 100644
+--- a/src/pkg/math/big/rat.go
++++ b/src/pkg/math/big/rat.go
+@@ -429,7 +429,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	}
+ 
+ 	// check for a quotient
+-	sep := strings.Index(s, "/")
++	sep := strings.IndexByte(s, '/')
+ 	if sep >= 0 {
+ 		if _, ok := z.a.SetString(s[0:sep], 10); !ok {
+ 			return nil, false
+@@ -443,7 +443,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	}
+ 
+ 	// check for a decimal point
+-	sep = strings.Index(s, ".")
++	sep = strings.IndexByte(s, '.')
+ 	// check for an exponent
+ 	e := strings.IndexAny(s, "eE")
+ 	var exp Int
+diff --git a/src/pkg/mime/mediatype.go b/src/pkg/mime/mediatype.go
+index 8396c0a155..f566a8816f 100644
+--- a/src/pkg/mime/mediatype.go
++++ b/src/pkg/mime/mediatype.go
+@@ -18,7 +18,7 @@ import (
+ // When any of the arguments result in a standard violation then
+ // FormatMediaType returns the empty string.
+ func FormatMediaType(t string, param map[string]string) string {
+-	slash := strings.Index(t, "/")
++	slash := strings.IndexByte(t, '/')
+ 	if slash == -1 {
+ 		return ""
+ 	}
+@@ -91,7 +91,7 @@ func checkMediaTypeDisposition(s string) error {
+ // The returned map, params, maps from the lowercase
+ // attribute to the attribute value with its case preserved.
+ func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {
+-	i := strings.Index(v, ";")
++	i := strings.IndexByte(v, ';')
+ 	if i == -1 {
+ 		i = len(v)
+ 	}
+@@ -127,7 +127,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
+ 		}
+ 
+ 		pmap := params
+-		if idx := strings.Index(key, "*"); idx != -1 {
++		if idx := strings.IndexByte(key, '*'); idx != -1 {
+ 			baseName := key[:idx]
+ 			if continuation == nil {
+ 				continuation = make(map[string]map[string]string)
+diff --git a/src/pkg/net/http/cgi/child.go b/src/pkg/net/http/cgi/child.go
+index 100b8b7776..3a1ef52933 100644
+--- a/src/pkg/net/http/cgi/child.go
++++ b/src/pkg/net/http/cgi/child.go
+@@ -40,7 +40,7 @@ func Request() (*http.Request, error) {
+ func envMap(env []string) map[string]string {
+ 	m := make(map[string]string)
+ 	for _, kv := range env {
+-		if idx := strings.Index(kv, "="); idx != -1 {
++		if idx := strings.IndexByte(kv, '='); idx != -1 {
+ 			m[kv[:idx]] = kv[idx+1:]
+ 		}
+ 	}
+diff --git a/src/pkg/net/http/cookie.go b/src/pkg/net/http/cookie.go
+index 540a8f7a9a..c72c3a21db 100644
+--- a/src/pkg/net/http/cookie.go
++++ b/src/pkg/net/http/cookie.go
+@@ -47,7 +47,7 @@ func readSetCookies(h Header) []*Cookie {
+ 			continue
+ 		}
+ 		parts[0] = strings.TrimSpace(parts[0])
+-		j := strings.Index(parts[0], "=")
++		j := strings.IndexByte(parts[0], '=')
+ 		if j < 0 {
+ 			continue
+ 		}
+@@ -71,7 +71,7 @@ func readSetCookies(h Header) []*Cookie {
+ 			}
+ 
+ 			attr, val := parts[i], ""
+-			if j := strings.Index(attr, "="); j >= 0 {
++			if j := strings.IndexByte(attr, '='); j >= 0 {
+ 				attr, val = attr[:j], attr[j+1:]
+ 			}
+ 			lowerAttr := strings.ToLower(attr)
+@@ -188,7 +188,7 @@ func readCookies(h Header, filter string) []*Cookie {
+ 				continue
+ 			}
+ 			name, val := parts[i], ""
+-			if j := strings.Index(name, "="); j >= 0 {
++			if j := strings.IndexByte(name, '='); j >= 0 {
+ 				name, val = name[:j], name[j+1:]
+ 			}
+ 			if !isCookieNameValid(name) {
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 19b493c375..dcc3bbcb6a 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -467,7 +467,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 		if ra == "" {
+ 			continue
+ 		}
+-		i := strings.Index(ra, "-")
++		i := strings.IndexByte(ra, '-')
+ 		if i < 0 {
+ 			return nil, errors.New("invalid range")
+ 		}
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 90e56225dd..5d9adf7024 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -408,7 +408,7 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
+ 	if !strings.HasPrefix(vers, "HTTP/") {
+ 		return 0, 0, false
+ 	}
+-	dot := strings.Index(vers, ".")
++	dot := strings.IndexByte(vers, '.')
+ 	if dot < 0 {
+ 		return 0, 0, false
+ 	}
+@@ -473,8 +473,8 @@ func (r *Request) SetBasicAuth(username, password string) {
+ 
+ // parseRequestLine parses "GET /foo HTTP/1.1" into its three parts.
+ func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
+-	s1 := strings.Index(line, " ")
+-	s2 := strings.Index(line[s1+1:], " ")
++	s1 := strings.IndexByte(line, ' ')
++	s2 := strings.IndexByte(line[s1+1:], ' ')
+ 	if s1 < 0 || s2 < 0 {
+ 		return
+ 	}
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 4e8f6dce2e..897697d139 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1262,7 +1262,7 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
+ 			}
+ 
+ 			var query string
+-			if i := strings.Index(urlStr, "?"); i != -1 {
++			if i := strings.IndexByte(urlStr, '?'); i != -1 {
+ 				urlStr, query = urlStr[:i], urlStr[i:]
+ 			}
+ 
+@@ -1494,7 +1494,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 		if pattern[0] != '/' {
+ 			// In pattern, at least the last character is a '/', so
+ 			// strings.Index can't be -1.
+-			path = pattern[strings.Index(pattern, "/"):]
++			path = pattern[strings.IndexByte(pattern, '/'):]
+ 		}
+ 		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(path, StatusMovedPermanently), pattern: pattern}
+ 	}
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 043fd48539..1bf5581a17 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -421,7 +421,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+ 		return
+ 	}
+ 	userinfo, host := authority[:i], authority[i+1:]
+-	if strings.Index(userinfo, ":") < 0 {
++	if strings.IndexByte(userinfo, ':') < 0 {
+ 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
+ 			return
+ 		}
+@@ -536,7 +536,7 @@ func parseQuery(m Values, query string) (err error) {
+ 			continue
+ 		}
+ 		value := ""
+-		if i := strings.Index(key, "="); i >= 0 {
++		if i := strings.IndexByte(key, '='); i >= 0 {
+ 			key, value = key[:i], key[i+1:]
+ 		}
+ 		key, err1 := QueryUnescape(key)
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 09daa3f018..8bdcec9cc0 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -890,7 +890,7 @@ func TestHostname(t *testing.T) {
+ 	}
+ 	want := run(t, []string{"/bin/hostname"})
+ 	if hostname != want {
+-		i := strings.Index(hostname, ".")
++		i := strings.IndexByte(hostname, '.')
+ 		if i < 0 || hostname[0:i] != want {
+ 			t.Errorf("Hostname() = %q, want %q", hostname, want)
+ 		}
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index 6095422638..e68a83f80c 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -105,7 +105,7 @@ func lookupUnix(uid int, username string, lookupByName bool) (*User, error) {
+ 	// say: "It is expected to be a comma separated list of
+ 	// personal data where the first item is the full name of the
+ 	// user."
+-	if i := strings.Index(u.Name, ","); i >= 0 {
++	if i := strings.IndexByte(u.Name, ','); i >= 0 {
+ 		u.Name = u.Name[:i]
+ 	}
+ 	return u, nil
+diff --git a/src/pkg/path/match.go b/src/pkg/path/match.go
+index 8154bf6025..d811303500 100644
+--- a/src/pkg/path/match.go
++++ b/src/pkg/path/match.go
+@@ -43,7 +43,7 @@ Pattern:
+ 		star, chunk, pattern = scanChunk(pattern)
+ 		if star && chunk == "" {
+ 			// Trailing * matches rest of string unless it has a /.
+-			return strings.Index(name, "/") < 0, nil
++			return strings.IndexByte(name, '/') < 0, nil
+ 		}
+ 		// Look for match at current position.
+ 		t, ok, err := matchChunk(chunk, name)
+diff --git a/src/pkg/regexp/exec_test.go b/src/pkg/regexp/exec_test.go
+index 555e06e826..d7f5de01fd 100644
+--- a/src/pkg/regexp/exec_test.go
++++ b/src/pkg/regexp/exec_test.go
+@@ -293,7 +293,7 @@ func parseResult(t *testing.T, file string, lineno int, res string) []int {
+ 				out[n] = -1
+ 				out[n+1] = -1
+ 			} else {
+-				k := strings.Index(pair, "-")
++				k := strings.IndexByte(pair, '-')
+ 				if k < 0 {
+ 					t.Fatalf("%s:%d: invalid pair %s", file, lineno, pair)
+ 				}
+@@ -456,7 +456,7 @@ Reading:
+ 				continue Reading
+ 			}
+ 		case ':':
+-			i := strings.Index(flag[1:], ":")
++			i := strings.IndexByte(flag[1:], ':')
+ 			if i < 0 {
+ 				t.Logf("skip: %s", line)
+ 				continue Reading
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 0046026eae..fb699bbdcf 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -429,7 +429,7 @@ func Match(pattern string, b []byte) (matched bool, err error) {
+ // in Expand, so for instance $1 represents the text of the first submatch.
+ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 	n := 2
+-	if strings.Index(repl, "$") >= 0 {
++	if strings.IndexByte(repl, '$') >= 0 {
+ 		n = 2 * (re.numSubexp + 1)
+ 	}
+ 	b := re.replaceAll(nil, src, n, func(dst []byte, match []int) []byte {
+@@ -753,7 +753,7 @@ func (re *Regexp) ExpandString(dst []byte, template string, src string, match []
+ 
+ func (re *Regexp) expand(dst []byte, template string, bsrc []byte, src string, match []int) []byte {
+ 	for len(template) > 0 {
+-		i := strings.Index(template, "$")
++		i := strings.IndexByte(template, '$')
+ 		if i < 0 {
+ 			break
+ 		}
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index e5ed08b237..73ab45e066 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -616,7 +616,7 @@ func verifyRange(name string, inCategory Op, table *unicode.RangeTable) {
+ }
+ 
+ func parseScript(line string, scripts map[string][]Script) {
+-	comment := strings.Index(line, "#")
++	comment := strings.IndexByte(line, '#')
+ 	if comment >= 0 {
+ 		line = line[0:comment]
+ 	}

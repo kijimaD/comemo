@@ -27,7 +27,141 @@ Date:   Tue Apr 19 19:05:53 2016 +0300
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/hash/crc64/crc64.go      | 58 ++++++++++++++++++++++++++++++++++++++++++++
  src/hash/crc64/crc64_test.go | 29 +++++++++++++++++++---
  2 files changed, 83 insertions(+), 4 deletions(-)
+
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index 54cc56055e..e939c2a06a 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -24,9 +24,25 @@ const (
+ // Table is a 256-word table representing the polynomial for efficient processing.
+ type Table [256]uint64
+ 
++var (
++	slicing8TableISO  = makeSlicingBy8Table(makeTable(ISO))
++	slicing8TableECMA = makeSlicingBy8Table(makeTable(ECMA))
++)
++
+ // MakeTable returns a Table constructed from the specified polynomial.
+ // The contents of this Table must not be modified.
+ func MakeTable(poly uint64) *Table {
++	switch poly {
++	case ISO:
++		return &slicing8TableISO[0]
++	case ECMA:
++		return &slicing8TableECMA[0]
++	default:
++		return makeTable(poly)
++	}
++}
++
++func makeTable(poly uint64) *Table {
+ 	t := new(Table)
+ 	for i := 0; i < 256; i++ {
+ 		crc := uint64(i)
+@@ -42,6 +58,19 @@ func MakeTable(poly uint64) *Table {
+ 	return t
+ }
+ 
++func makeSlicingBy8Table(t *Table) *[8]Table {
++	var helperTable [8]Table
++	helperTable[0] = *t
++	for i := 0; i < 256; i++ {
++		crc := t[i]
++		for j := 1; j < 8; j++ {
++			crc = t[crc&0xff] ^ (crc >> 8)
++			helperTable[j][i] = crc
++		}
++	}
++	return &helperTable
++}
++
+ // digest represents the partial evaluation of a checksum.
+ type digest struct {
+ 	crc uint64
+@@ -61,6 +90,35 @@ func (d *digest) Reset() { d.crc = 0 }
+ 
+ func update(crc uint64, tab *Table, p []byte) uint64 {
+ 	crc = ^crc
++	// Table comparison is somewhat expensive, so avoid it for small sizes
++	for len(p) >= 64 {
++		var helperTable *[8]Table
++		if *tab == slicing8TableECMA[0] {
++			helperTable = slicing8TableECMA
++		} else if *tab == slicing8TableISO[0] {
++			helperTable = slicing8TableISO
++			// For smaller sizes creating extended table takes too much time
++		} else if len(p) > 16384 {
++			helperTable = makeSlicingBy8Table(tab)
++		} else {
++			break
++		}
++		// Update using slicing-by-8
++		for len(p) > 8 {
++			crc ^= uint64(p[0]) | uint64(p[1])<<8 | uint64(p[2])<<16 | uint64(p[3])<<24 |
++				uint64(p[4])<<32 | uint64(p[5])<<40 | uint64(p[6])<<48 | uint64(p[7])<<56
++			crc = helperTable[7][crc&0xff] ^
++				helperTable[6][(crc>>8)&0xff] ^
++				helperTable[5][(crc>>16)&0xff] ^
++				helperTable[4][(crc>>24)&0xff] ^
++				helperTable[3][(crc>>32)&0xff] ^
++				helperTable[2][(crc>>40)&0xff] ^
++				helperTable[1][(crc>>48)&0xff] ^
++				helperTable[0][crc>>56]
++			p = p[8:]
++		}
++	}
++	// For reminders or small sizes
+ 	for _, v := range p {
+ 		crc = tab[byte(crc)^v] ^ (crc >> 8)
+ 	}
+diff --git a/src/hash/crc64/crc64_test.go b/src/hash/crc64/crc64_test.go
+index 80dca47f3d..480b150e13 100644
+--- a/src/hash/crc64/crc64_test.go
++++ b/src/hash/crc64/crc64_test.go
+@@ -72,13 +72,13 @@ func TestGolden(t *testing.T) {
+ 	}
+ }
+ 
+-func BenchmarkISOCrc64KB(b *testing.B) {
+-	b.SetBytes(1024)
+-	data := make([]byte, 1024)
++func bench(b *testing.B, poly uint64, size int64) {
++	b.SetBytes(size)
++	data := make([]byte, size)
+ 	for i := range data {
+ 		data[i] = byte(i)
+ 	}
+-	h := New(MakeTable(ISO))
++	h := New(MakeTable(poly))
+ 	in := make([]byte, 0, h.Size())
+ 
+ 	b.ResetTimer()
+@@ -88,3 +88,24 @@ func BenchmarkISOCrc64KB(b *testing.B) {
+ 		h.Sum(in)
+ 	}
+ }
++
++func BenchmarkCrc64(b *testing.B) {
++	b.Run("ISO64KB", func(b *testing.B) {
++		bench(b, ISO, 64<<10)
++	})
++	b.Run("ISO4KB", func(b *testing.B) {
++		bench(b, ISO, 4<<10)
++	})
++	b.Run("ISO1KB", func(b *testing.B) {
++		bench(b, ISO, 1<<10)
++	})
++	b.Run("ECMA64KB", func(b *testing.B) {
++		bench(b, ECMA, 64<<10)
++	})
++	b.Run("Random64KB", func(b *testing.B) {
++		bench(b, 0x777, 64<<10)
++	})
++	b.Run("Random16KB", func(b *testing.B) {
++		bench(b, 0x777, 16<<10)
++	})
++}

@@ -12,7 +12,7 @@ Date:   Tue Apr 27 16:22:25 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/314274
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/time_fake.go         | 21 ++++++++++-----------
  src/runtime/time_windows_386.s   |  3 +++
  src/runtime/time_windows_amd64.s |  3 +++
@@ -21,3 +21,129 @@ Date:   Tue Apr 27 16:22:25 2021 -0700
  src/runtime/timeasm.go           |  4 ++--
  src/runtime/timestub.go          |  4 ++--
  7 files changed, 26 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/time_fake.go b/src/runtime/time_fake.go
+index 1238744ebf..9d9a1e2ca6 100644
+--- a/src/runtime/time_fake.go
++++ b/src/runtime/time_fake.go
+@@ -5,17 +5,10 @@
+ //go:build faketime && !windows
+ // +build faketime,!windows
+ 
+-// Faketime isn't currently supported on Windows. This would require:
+-//
+-// 1. Shadowing time_now, which is implemented in assembly on Windows.
+-//    Since that's exported directly to the time package from runtime
+-//    assembly, this would involve moving it from sys_windows_*.s into
+-//    its own assembly files build-tagged with !faketime and using the
+-//    implementation of time_now from timestub.go in faketime mode.
+-//
+-// 2. Modifying syscall.Write to call syscall.faketimeWrite,
+-//    translating the Stdout and Stderr handles into FDs 1 and 2.
+-//    (See CL 192739 PS 3.)
++// Faketime isn't currently supported on Windows. This would require
++// modifying syscall.Write to call syscall.faketimeWrite,
++// translating the Stdout and Stderr handles into FDs 1 and 2.
++// (See CL 192739 PS 3.)
+ 
+ package runtime
+ 
+@@ -48,6 +41,12 @@ func walltime() (sec int64, nsec int32) {
+ 	return faketime / 1000000000, int32(faketime % 1000000000)
+ }
+ 
++//go:linkname time_now time.now
++func time_now() (sec int64, nsec int32, mono int64) {
++	sec, nsec = walltime()
++	return sec, nsec, nanotime()
++}
++
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+ 	if !(fd == 1 || fd == 2) {
+ 		// Do an ordinary write.
+diff --git a/src/runtime/time_windows_386.s b/src/runtime/time_windows_386.s
+index d1235c9414..19ce6910d7 100644
+--- a/src/runtime/time_windows_386.s
++++ b/src/runtime/time_windows_386.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !faketime
++// +build !faketime
++
+ #include "go_asm.h"
+ #include "textflag.h"
+ #include "time_windows.h"
+diff --git a/src/runtime/time_windows_amd64.s b/src/runtime/time_windows_amd64.s
+index 7d1fcfbcf5..93ab960b06 100644
+--- a/src/runtime/time_windows_amd64.s
++++ b/src/runtime/time_windows_amd64.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !faketime
++// +build !faketime
++
+ #include "go_asm.h"
+ #include "textflag.h"
+ #include "time_windows.h"
+diff --git a/src/runtime/time_windows_arm.s b/src/runtime/time_windows_arm.s
+index 70d0b60f78..7c763b66ed 100644
+--- a/src/runtime/time_windows_arm.s
++++ b/src/runtime/time_windows_arm.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !faketime
++// +build !faketime
++
+ #include "go_asm.h"
+ #include "textflag.h"
+ #include "time_windows.h"
+diff --git a/src/runtime/time_windows_arm64.s b/src/runtime/time_windows_arm64.s
+index 61ce7577ce..ef52ce4c99 100644
+--- a/src/runtime/time_windows_arm64.s
++++ b/src/runtime/time_windows_arm64.s
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !faketime
++// +build !faketime
++
+ #include "go_asm.h"
+ #include "textflag.h"
+ #include "time_windows.h"
+diff --git a/src/runtime/timeasm.go b/src/runtime/timeasm.go
+index fe38a086fc..f0c09461bd 100644
+--- a/src/runtime/timeasm.go
++++ b/src/runtime/timeasm.go
+@@ -4,8 +4,8 @@
+ 
+ // Declarations for operating systems implementing time.now directly in assembly.
+ 
+-//go:build windows
+-// +build windows
++//go:build !faketime && windows
++// +build !faketime,windows
+ 
+ package runtime
+ 
+diff --git a/src/runtime/timestub.go b/src/runtime/timestub.go
+index 2ef8d4665f..a3d9d58286 100644
+--- a/src/runtime/timestub.go
++++ b/src/runtime/timestub.go
+@@ -5,8 +5,8 @@
+ // Declarations for operating systems implementing time.now
+ // indirectly, in terms of walltime and nanotime assembly.
+ 
+-//go:build !windows
+-// +build !windows
++//go:build !faketime && !windows
++// +build !faketime,!windows
+ 
+ package runtime
+ 

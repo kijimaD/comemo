@@ -13,6 +13,61 @@ Date:   Tue Apr 19 12:48:09 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michel Lespinasse <walken@google.com>
-
+---
  src/runtime/iface.go | 32 ++++++++++++++------------------
  1 file changed, 14 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 8f179bac80..352ff77465 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -160,18 +160,16 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
+ 		msanread(elem, t.size)
+ 	}
+ 	if isDirectIface(t) {
+-		e._type = t
+-		typedmemmove(t, unsafe.Pointer(&e.data), elem)
+-	} else {
+-		if x == nil {
+-			x = newobject(t)
+-		}
++		throw("direct convT2E")
++	}
++	if x == nil {
++		x = newobject(t)
+ 		// TODO: We allocate a zeroed object only to overwrite it with
+ 		// actual data. Figure out how to avoid zeroing. Also below in convT2I.
+-		typedmemmove(t, x, elem)
+-		e._type = t
+-		e.data = x
+ 	}
++	typedmemmove(t, x, elem)
++	e._type = t
++	e.data = x
+ 	return
+ }
+ 
+@@ -184,16 +182,14 @@ func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
+ 		msanread(elem, t.size)
+ 	}
+ 	if isDirectIface(t) {
+-		i.tab = tab
+-		typedmemmove(t, unsafe.Pointer(&i.data), elem)
+-	} else {
+-		if x == nil {
+-			x = newobject(t)
+-		}
+-		typedmemmove(t, x, elem)
+-		i.tab = tab
+-		i.data = x
++		throw("direct convT2I")
++	}
++	if x == nil {
++		x = newobject(t)
+ 	}
++	typedmemmove(t, x, elem)
++	i.tab = tab
++	i.data = x
+ 	return
+ }
+ 

@@ -15,7 +15,55 @@ Date:   Sat Sep 26 17:12:14 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/getwd.go        |  8 +-------
  src/os/getwd_darwin.go | 15 ---------------
  2 files changed, 1 insertion(+), 22 deletions(-)
+
+diff --git a/src/os/getwd.go b/src/os/getwd.go
+index f373ce937d..90604cf2f4 100644
+--- a/src/os/getwd.go
++++ b/src/os/getwd.go
+@@ -15,10 +15,6 @@ var getwdCache struct {
+ 	dir string
+ }
+ 
+-// useSyscallwd determines whether to use the return value of
+-// syscall.Getwd based on its error.
+-var useSyscallwd = func(error) bool { return true }
+-
+ // Getwd returns a rooted path name corresponding to the
+ // current directory. If the current directory can be
+ // reached via multiple paths (due to symbolic links),
+@@ -55,9 +51,7 @@ func Getwd() (dir string, err error) {
+ 				break
+ 			}
+ 		}
+-		if useSyscallwd(e) {
+-			return s, NewSyscallError("getwd", e)
+-		}
++		return s, NewSyscallError("getwd", e)
+ 	}
+ 
+ 	// Apply same kludge but to cached dir instead of $PWD.
+diff --git a/src/os/getwd_darwin.go b/src/os/getwd_darwin.go
+deleted file mode 100644
+index e51ffcd5e7..0000000000
+--- a/src/os/getwd_darwin.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-import "syscall"
+-
+-func init() {
+-	useSyscallwd = useSyscallwdDarwin
+-}
+-
+-func useSyscallwdDarwin(err error) bool {
+-	return err != syscall.ENOTSUP
+-}

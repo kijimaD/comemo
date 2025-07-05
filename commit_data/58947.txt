@@ -31,7 +31,56 @@ Date:   Wed Jan 24 22:14:49 2024 +0100
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/net/netip/netip.go      |  7 ++++---
  src/net/netip/netip_test.go | 14 +++++++++-----
  2 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 156f01e11e..e566a4861f 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -949,14 +949,15 @@ func (ip Addr) MarshalText() ([]byte, error) {
+ 		b := make([]byte, 0, max)
+ 		return ip.appendTo4(b), nil
+ 	default:
+-		max := len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
+-		b := make([]byte, 0, max)
+ 		if ip.Is4In6() {
++			max := len("::ffff:255.255.255.255%enp5s0")
++			b := make([]byte, 0, max)
+ 			return ip.appendTo4In6(b), nil
+ 		}
++		max := len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
++		b := make([]byte, 0, max)
+ 		return ip.appendTo6(b), nil
+ 	}
+-
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index a748ac34f1..d80582139e 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -1715,11 +1715,15 @@ func BenchmarkIPStringExpanded(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkIPMarshalText(b *testing.B) {
+-	b.ReportAllocs()
+-	ip := MustParseAddr("66.55.44.33")
+-	for i := 0; i < b.N; i++ {
+-		sinkBytes, _ = ip.MarshalText()
++func BenchmarkAddrMarshalText(b *testing.B) {
++	for _, test := range parseBenchInputs {
++		ip := MustParseAddr(test.ip)
++		b.Run(test.name, func(b *testing.B) {
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				sinkBytes, _ = ip.MarshalText()
++			}
++		})
+ 	}
+ }
+ 

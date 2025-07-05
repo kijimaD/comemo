@@ -9,7 +9,96 @@ Date:   Thu Oct 17 12:13:33 2013 -0400
     R=golang-dev, iant, adg
     CC=golang-dev
     https://golang.org/cl/14747043
-
+---
  src/pkg/encoding/xml/marshal.go      | 13 +++++++------
  src/pkg/encoding/xml/marshal_test.go | 36 ++++++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index e723a193cf..d9522e0b39 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -354,18 +354,19 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
+ 		return nil
+ 	}
+ 
+-	kind := val.Kind()
+-	typ := val.Type()
+-
+-	// Drill into pointers/interfaces
+-	if kind == reflect.Ptr || kind == reflect.Interface {
++	// Drill into interfaces and pointers.
++	// This can turn into an infinite loop given a cyclic chain,
++	// but it matches the Go 1 behavior.
++	for val.Kind() == reflect.Interface || val.Kind() == reflect.Ptr {
+ 		if val.IsNil() {
+ 			return nil
+ 		}
+ 		val = val.Elem()
+-		typ = val.Type()
+ 	}
+ 
++	kind := val.Kind()
++	typ := val.Type()
++
+ 	// Check for marshaler.
+ 	if val.CanInterface() && typ.Implements(marshalerType) {
+ 		return p.marshalInterface(val.Interface().(Marshaler), defaultStart(typ, finfo, startTemplate))
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 1444c9cc2f..d34118a3d8 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -314,6 +314,10 @@ type MarshalerStruct struct {
+ 	Foo MyMarshalerAttrTest `xml:",attr"`
+ }
+ 
++func ifaceptr(x interface{}) interface{} {
++	return &x
++}
++
+ var (
+ 	nameAttr     = "Sarah"
+ 	ageAttr      = uint(12)
+@@ -356,6 +360,7 @@ var marshalTests = []struct {
+ 	{Value: &Plain{NamedType("potato")}, ExpectXML: `<Plain><V>potato</V></Plain>`},
+ 	{Value: &Plain{[]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
+ 	{Value: &Plain{[3]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
++	{Value: ifaceptr(true), MarshalOnly: true, ExpectXML: `<bool>true</bool>`},
+ 
+ 	// Test time.
+ 	{
+@@ -1113,3 +1118,34 @@ func BenchmarkUnmarshal(b *testing.B) {
+ 		Unmarshal(xml, &Feed{})
+ 	}
+ }
++
++// golang.org/issue/6556
++func TestStructPointerMarshal(t *testing.T) {
++	type A struct {
++		XMLName string `xml:"a"`
++		B       []interface{}
++	}
++	type C struct {
++		XMLName Name
++		Value   string `xml:"value"`
++	}
++
++	a := new(A)
++	a.B = append(a.B, &C{
++		XMLName: Name{Local: "c"},
++		Value:   "x",
++	})
++
++	b, err := Marshal(a)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if x := string(b); x != "<a><c><value>x</value></c></a>" {
++		t.Fatal(x)
++	}
++	var v A
++	err = Unmarshal(b, &v)
++	if err != nil {
++		t.Fatal(err)
++	}
++}

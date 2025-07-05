@@ -10,6 +10,27 @@ Date:   Sat Dec 22 18:23:26 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7002053
-
+---
  src/pkg/runtime/cgocall.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 7b540951b3..ed859c07b9 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -132,6 +132,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 		d.link = g->defer;
+ 		d.argp = (void*)-1;  // unused because unlockm never recovers
+ 		d.special = true;
++		d.free = false;
+ 		g->defer = &d;
+ 	}
+ 
+@@ -237,6 +238,7 @@ runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
+ 	d.link = g->defer;
+ 	d.argp = (void*)-1;  // unused because unwindm never recovers
+ 	d.special = true;
++	d.free = false;
+ 	g->defer = &d;
+ 
+ 	if(raceenabled)

@@ -12,6 +12,20 @@ Date:   Mon Oct 17 11:29:34 2022 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/testdata/testprogcgo/sigfwd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/sigfwd.go b/src/runtime/testdata/testprogcgo/sigfwd.go
+index b66616db36..f6a0c031d7 100644
+--- a/src/runtime/testdata/testprogcgo/sigfwd.go
++++ b/src/runtime/testdata/testprogcgo/sigfwd.go
+@@ -61,7 +61,7 @@ var nilPtr *byte
+ func f() (ret bool) {
+ 	defer func() {
+ 		if recover() == nil {
+-			fmt.Errorf("ERROR: couldn't raise SIGSEGV in Go.")
++			fmt.Fprintf(os.Stderr, "ERROR: couldn't raise SIGSEGV in Go\n")
+ 			C.exit(2)
+ 		}
+ 		ret = true

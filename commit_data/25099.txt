@@ -22,7 +22,137 @@ Date:   Thu Sep 17 16:07:38 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/14723
     Reviewed-by: David Symonds <dsymonds@golang.org>
     Run-TryBot: David Symonds <dsymonds@golang.org>
-
+---
  src/archive/tar/writer.go      | 54 +++++++++++++++---------------------------
  src/archive/tar/writer_test.go | 34 ++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 35 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 9dbc01a2ff..3547c1760a 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -23,7 +23,6 @@ var (
+ 	ErrWriteTooLong    = errors.New("archive/tar: write too long")
+ 	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
+ 	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+-	errNameTooLong     = errors.New("archive/tar: name too long")
+ 	errInvalidHeader   = errors.New("archive/tar: header field too long or contains invalid values")
+ )
+ 
+@@ -215,26 +214,14 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 	_, paxPathUsed := paxHeaders[paxPath]
+ 	// try to use a ustar header when only the name is too long
+ 	if !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
+-		suffix := hdr.Name
+-		prefix := ""
+-		if len(hdr.Name) > fileNameSize && isASCII(hdr.Name) {
+-			var err error
+-			prefix, suffix, err = tw.splitUSTARLongName(hdr.Name)
+-			if err == nil {
+-				// ok we can use a ustar long name instead of pax, now correct the fields
+-
+-				// remove the path field from the pax header. this will suppress the pax header
+-				delete(paxHeaders, paxPath)
+-
+-				// update the path fields
+-				tw.cString(pathHeaderBytes, suffix, false, paxNone, nil)
+-				tw.cString(prefixHeaderBytes, prefix, false, paxNone, nil)
+-
+-				// Use the ustar magic if we used ustar long names.
+-				if len(prefix) > 0 && !tw.usedBinary {
+-					copy(header[257:265], []byte("ustar\x00"))
+-				}
+-			}
++		prefix, suffix, ok := splitUSTARPath(hdr.Name)
++		if ok {
++			// Since we can encode in USTAR format, disable PAX header.
++			delete(paxHeaders, paxPath)
++
++			// Update the path fields
++			tw.cString(pathHeaderBytes, suffix, false, paxNone, nil)
++			tw.cString(prefixHeaderBytes, prefix, false, paxNone, nil)
+ 		}
+ 	}
+ 
+@@ -270,28 +257,25 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 	return tw.err
+ }
+ 
+-// writeUSTARLongName splits a USTAR long name hdr.Name.
+-// name must be < 256 characters. errNameTooLong is returned
+-// if hdr.Name can't be split. The splitting heuristic
+-// is compatible with gnu tar.
+-func (tw *Writer) splitUSTARLongName(name string) (prefix, suffix string, err error) {
++// splitUSTARPath splits a path according to USTAR prefix and suffix rules.
++// If the path is not splittable, then it will return ("", "", false).
++func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
+ 	length := len(name)
+-	if length > fileNamePrefixSize+1 {
++	if length <= fileNameSize || !isASCII(name) {
++		return "", "", false
++	} else if length > fileNamePrefixSize+1 {
+ 		length = fileNamePrefixSize + 1
+ 	} else if name[length-1] == '/' {
+ 		length--
+ 	}
++
+ 	i := strings.LastIndex(name[:length], "/")
+-	// nlen contains the resulting length in the name field.
+-	// plen contains the resulting length in the prefix field.
+-	nlen := len(name) - i - 1
+-	plen := i
++	nlen := len(name) - i - 1 // nlen is length of suffix
++	plen := i                 // plen is length of prefix
+ 	if i <= 0 || nlen > fileNameSize || nlen == 0 || plen > fileNamePrefixSize {
+-		err = errNameTooLong
+-		return
++		return "", "", false
+ 	}
+-	prefix, suffix = name[:i], name[i+1:]
+-	return
++	return name[:i], name[i+1:], true
+ }
+ 
+ // writePaxHeader writes an extended pax header to the
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index fe46a67ce3..caf40a836f 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -544,3 +544,37 @@ func TestWriteAfterClose(t *testing.T) {
+ 		t.Fatalf("Write: got %v; want ErrWriteAfterClose", err)
+ 	}
+ }
++
++func TestSplitUSTARPath(t *testing.T) {
++	var sr = strings.Repeat
++
++	var vectors = []struct {
++		input  string // Input path
++		prefix string // Expected output prefix
++		suffix string // Expected output suffix
++		ok     bool   // Split success?
++	}{
++		{"", "", "", false},
++		{"abc", "", "", false},
++		{"用戶名", "", "", false},
++		{sr("a", fileNameSize), "", "", false},
++		{sr("a", fileNameSize) + "/", "", "", false},
++		{sr("a", fileNameSize) + "/a", sr("a", fileNameSize), "a", true},
++		{sr("a", fileNamePrefixSize) + "/", "", "", false},
++		{sr("a", fileNamePrefixSize) + "/a", sr("a", fileNamePrefixSize), "a", true},
++		{sr("a", fileNameSize+1), "", "", false},
++		{sr("/", fileNameSize+1), sr("/", fileNameSize-1), "/", true},
++		{sr("a", fileNamePrefixSize) + "/" + sr("b", fileNameSize),
++			sr("a", fileNamePrefixSize), sr("b", fileNameSize), true},
++		{sr("a", fileNamePrefixSize) + "//" + sr("b", fileNameSize), "", "", false},
++		{sr("a/", fileNameSize), sr("a/", 77) + "a", sr("a/", 22), true},
++	}
++
++	for _, v := range vectors {
++		prefix, suffix, ok := splitUSTARPath(v.input)
++		if prefix != v.prefix || suffix != v.suffix || ok != v.ok {
++			t.Errorf("splitUSTARPath(%q):\ngot  (%q, %q, %v)\nwant (%q, %q, %v)",
++				v.input, prefix, suffix, ok, v.prefix, v.suffix, v.ok)
++		}
++	}
++}

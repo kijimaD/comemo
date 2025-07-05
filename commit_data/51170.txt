@@ -18,6 +18,25 @@ Date:   Thu Dec 9 12:51:29 2021 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/testenv/testenv.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index eeb7d65a9b..d7614b0706 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -346,6 +346,13 @@ func RunWithTimeout(t testing.TB, cmd *exec.Cmd) ([]byte, error) {
+ 		case <-done:
+ 		case <-time.After(time.Duration(scale) * time.Minute):
+ 			p.Signal(Sigquit)
++			// If SIGQUIT doesn't do it after a little
++			// while, kill the process.
++			select {
++			case <-done:
++			case <-time.After(time.Duration(scale) * 30 * time.Second):
++				p.Signal(os.Kill)
++			}
+ 		}
+ 	}()
+ 

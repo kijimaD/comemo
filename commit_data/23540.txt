@@ -20,7 +20,259 @@ Date:   Thu May 21 17:00:37 2015 -0700
     Change-Id: Iccafe37c1593a4946bc552e4ad2045f69be62d80
     Reviewed-on: https://go-review.googlesource.com/10350
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 79 +++++++++++++++++++++------------------
  src/math/big/float_test.go | 93 +++++++++++++++++++++++++++++-----------------
  2 files changed, 101 insertions(+), 71 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index d46c046e67..b666b9dd38 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -853,9 +853,6 @@ func (x *Float) Int64() (int64, Accuracy) {
+ 	panic("unreachable")
+ }
+ 
+-// TODO(gri) Float32 and Float64 are very similar internally but for the
+-// floatxx parameters and some conversions. Should factor out shared code.
+-
+ // Float32 returns the float32 value nearest to x. If x is too small to be
+ // represented by a float32 (|x| < math.SmallestNonzeroFloat32), the result
+ // is (0, Below) or (-0, Above), respectively, depending on the sign of x.
+@@ -880,64 +877,70 @@ func (x *Float) Float32() (float32, Accuracy) {
+ 			emax  = bias              //   127  largest unbiased exponent (normal)
+ 		)
+ 
+-		// Float mantissae m have an explicit msb and are in the range 0.5 <= m < 1.0.
+-		// floatxx mantissae have an implicit msb and are in the range 1.0 <= m < 2.0.
+-		// For a given mantissa m, we need to add 1 to a floatxx exponent to get the
+-		// corresponding Float exponent.
+-		// (see also implementation of math.Ldexp for similar code)
+-
+-		if x.exp < dmin+1 {
+-			// underflow
+-			if x.neg {
+-				var z float32
+-				return -z, Above
++		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for floatxx mantissa.
++		e := x.exp - 1 // exponent for mantissa m with 1.0 <= m < 2.0
++		p := mbits + 1 // precision of normal float
++
++		// If the exponent is too small, we may have a denormal number
++		// in which case we have fewer mantissa bits available: reduce
++		// precision accordingly.
++		if e < emin {
++			p -= emin - int(e)
++			// Make sure we have at least 1 bit so that we don't
++			// lose numbers rounded up to the smallest denormal.
++			if p < 1 {
++				p = 1
+ 			}
+-			return 0.0, Below
+ 		}
+-		// x.exp >= dmin+1
+ 
++		// round
+ 		var r Float
+-		r.prec = mbits + 1 // +1 for implicit msb
+-		if x.exp < emin+1 {
+-			// denormal number - round to fewer bits
+-			r.prec = uint32(x.exp - dmin)
+-		}
++		r.prec = uint32(p)
+ 		r.Set(x)
++		e = r.exp - 1
+ 
+ 		// Rounding may have caused r to overflow to ±Inf
+ 		// (rounding never causes underflows to 0).
+ 		if r.form == inf {
+-			r.exp = emax + 2 // cause overflow below
++			e = emax + 1 // cause overflow below
+ 		}
+ 
+-		if r.exp > emax+1 {
++		// If the exponent is too large, overflow to ±Inf.
++		if e > emax {
+ 			// overflow
+ 			if x.neg {
+ 				return float32(math.Inf(-1)), Below
+ 			}
+ 			return float32(math.Inf(+1)), Above
+ 		}
+-		// dmin+1 <= r.exp <= emax+1
+ 
+-		var s uint32
+-		if r.neg {
+-			s = 1 << (fbits - 1)
++		// Determine sign, biased exponent, and mantissa.
++		var sign, bexp, mant uint32
++		if x.neg {
++			sign = 1 << (fbits - 1)
+ 		}
+ 
+-		m := high32(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
+-
+ 		// Rounding may have caused a denormal number to
+ 		// become normal. Check again.
+-		c := float32(1.0)
+-		if r.exp < emin+1 {
++		if e < emin {
+ 			// denormal number
+-			r.exp += mbits
+-			c = 1.0 / (1 << mbits) // 2**-mbits
++			if e < dmin {
++				// underflow to ±0
++				if x.neg {
++					var z float32
++					return -z, Above
++				}
++				return 0.0, Below
++			}
++			// bexp = 0
++			mant = high32(r.mant) >> (fbits - r.prec)
++		} else {
++			// normal number: emin <= e <= emax
++			bexp = uint32(e+bias) << mbits
++			mant = high32(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
+ 		}
+-		// emin+1 <= r.exp <= emax+1
+-		e := uint32(r.exp-emin) << mbits
+ 
+-		return c * math.Float32frombits(s|e|m), r.acc
++		return math.Float32frombits(sign | bexp | mant), r.acc
+ 
+ 	case zero:
+ 		if x.neg {
+@@ -956,6 +959,10 @@ func (x *Float) Float32() (float32, Accuracy) {
+ 	panic("unreachable")
+ }
+ 
++// TODO(gri) Use same algorithm for Float64 as for Float32. The Float64 code
++// is incorrect for some corner cases (numbers that get rounded up to smallest
++// denormal - test cases are missing).
++
+ // Float64 returns the float64 value nearest to x. If x is too small to be
+ // represented by a float64 (|x| < math.SmallestNonzeroFloat64), the result
+ // is (0, Below) or (-0, Above), respectively, depending on the sign of x.
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 5d241a503b..4da145b652 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -203,6 +203,12 @@ func alike(x, y *Float) bool {
+ 	return x.Cmp(y) == 0 && x.Signbit() == y.Signbit()
+ }
+ 
++func alike32(x, y float32) bool {
++	// we can ignore NaNs
++	return x == y && math.Signbit(float64(x)) == math.Signbit(float64(y))
++
++}
++
+ func TestFloatMantExp(t *testing.T) {
+ 	for _, test := range []struct {
+ 		x    string
+@@ -828,52 +834,69 @@ func TestFloatFloat32(t *testing.T) {
+ 		out float32
+ 		acc Accuracy
+ 	}{
+-		{"-Inf", float32(math.Inf(-1)), Exact},
+-		{"-0x1.ffffff0p2147483646", float32(-math.Inf(+1)), Below}, // overflow in rounding
+-		{"-1e10000", float32(math.Inf(-1)), Below},                 // overflow
+-		{"-0x1p128", float32(math.Inf(-1)), Below},                 // overflow
+-		{"-0x1.ffffff0p127", float32(-math.Inf(+1)), Below},        // overflow
+-		{"-0x1.fffffe8p127", -math.MaxFloat32, Above},
+-		{"-0x1.fffffe0p127", -math.MaxFloat32, Exact},
+-		{"-12345.000000000000000000001", -12345, Above},
+-		{"-12345.0", -12345, Exact},
+-		{"-1.000000000000000000001", -1, Above},
+-		{"-1", -1, Exact},
+-		{"-0x0.000002p-126", -math.SmallestNonzeroFloat32, Exact},
+-		{"-0x0.000002p-127", -0, Above}, // underflow
+-		{"-1e-1000", -0, Above},         // underflow
+ 		{"0", 0, Exact},
+-		{"1e-1000", 0, Below},         // underflow
+-		{"0x0.000002p-127", 0, Below}, // underflow
+-		{"0x0.000002p-126", math.SmallestNonzeroFloat32, Exact},
++
++		// underflow
++		{"1e-1000", 0, Below},
++		{"0x0.000002p-127", 0, Below},
++		{"0x.0000010p-126", 0, Below},
++
++		// denormals
++		{"1.401298464e-45", math.SmallestNonzeroFloat32, Above}, // rounded up to smallest denormal
++		{"0x.ffffff8p-149", math.SmallestNonzeroFloat32, Above}, // rounded up to smallest denormal
++		{"0x.0000018p-126", math.SmallestNonzeroFloat32, Above}, // rounded up to smallest denormal
++		{"0x.0000020p-126", math.SmallestNonzeroFloat32, Exact},
++		{"0x.8p-148", math.SmallestNonzeroFloat32, Exact},
++		{"1p-149", math.SmallestNonzeroFloat32, Exact},
++		{"0x.fffffep-126", math.Float32frombits(0x7fffff), Exact}, // largest denormal
++
++		// normals
++		{"0x.ffffffp-126", math.Float32frombits(0x00800000), Above}, // rounded up to smallest normal
++		{"1p-126", math.Float32frombits(0x00800000), Exact},         // smallest normal
++		{"0x1.fffffep-126", math.Float32frombits(0x00ffffff), Exact},
++		{"0x1.ffffffp-126", math.Float32frombits(0x01000000), Above}, // rounded up
+ 		{"1", 1, Exact},
+ 		{"1.000000000000000000001", 1, Below},
+ 		{"12345.0", 12345, Exact},
+ 		{"12345.000000000000000000001", 12345, Below},
+ 		{"0x1.fffffe0p127", math.MaxFloat32, Exact},
+ 		{"0x1.fffffe8p127", math.MaxFloat32, Below},
+-		{"0x1.ffffff0p127", float32(math.Inf(+1)), Above},        // overflow
+-		{"0x1p128", float32(math.Inf(+1)), Above},                // overflow
+-		{"1e10000", float32(math.Inf(+1)), Above},                // overflow
++
++		// overflow
++		{"0x1.ffffff0p127", float32(math.Inf(+1)), Above},
++		{"0x1p128", float32(math.Inf(+1)), Above},
++		{"1e10000", float32(math.Inf(+1)), Above},
+ 		{"0x1.ffffff0p2147483646", float32(math.Inf(+1)), Above}, // overflow in rounding
+-		{"+Inf", float32(math.Inf(+1)), Exact},
++
++		// inf
++		{"Inf", float32(math.Inf(+1)), Exact},
+ 	} {
+-		// conversion should match strconv where syntax is agreeable
+-		if f, err := strconv.ParseFloat(test.x, 32); err == nil && float32(f) != test.out {
+-			t.Errorf("%s: got %g; want %g (incorrect test data)", test.x, f, test.out)
+-		}
++		for i := 0; i < 2; i++ {
++			// test both signs
++			tx, tout, tacc := test.x, test.out, test.acc
++			if i != 0 {
++				tx = "-" + tx
++				tout = -tout
++				tacc = -tacc
++			}
+ 
+-		x := makeFloat(test.x)
+-		out, acc := x.Float32()
+-		if out != test.out || acc != test.acc {
+-			t.Errorf("%s: got %g (%#x, %s); want %g (%#x, %s)", test.x, out, math.Float32bits(out), acc, test.out, math.Float32bits(test.out), test.acc)
+-		}
++			// conversion should match strconv where syntax is agreeable
++			if f, err := strconv.ParseFloat(tx, 32); err == nil && !alike32(float32(f), tout) {
++				t.Errorf("%s: got %g; want %g (incorrect test data)", tx, f, tout)
++			}
+ 
+-		// test that x.SetFloat64(float64(f)).Float32() == f
+-		var x2 Float
+-		out2, acc2 := x2.SetFloat64(float64(out)).Float32()
+-		if out2 != out || acc2 != Exact {
+-			t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
++			x := makeFloat(tx)
++			out, acc := x.Float32()
++			if !alike32(out, tout) || acc != tacc {
++				t.Errorf("%s: got %g (%#x, %s); want %g (%#x, %s)", tx, out, math.Float32bits(out), acc, test.out, math.Float32bits(test.out), tacc)
++			}
++
++			// test that x.SetFloat64(float64(f)).Float32() == f
++			var x2 Float
++			out2, acc2 := x2.SetFloat64(float64(out)).Float32()
++			if !alike32(out2, out) || acc2 != Exact {
++				t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
++			}
+ 		}
+ 	}
+ }

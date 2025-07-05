@@ -15,10 +15,172 @@ Date:   Wed Nov 28 14:34:45 2018 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     | 22 +++++++++++++---------
  src/cmd/compile/internal/gc/sinit.go     | 17 +++++++++++++----
  src/cmd/compile/internal/gc/typecheck.go | 14 ++++++++++----
  src/cmd/compile/internal/gc/walk.go      |  6 +++++-
  test/fixedbugs/issue23781.go             | 10 ++++++++++
  5 files changed, 51 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index c01820506d..3a9080e67d 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1229,6 +1229,7 @@ func strlit(n *Node) string {
+ 	return n.Val().U.(string)
+ }
+ 
++// TODO(gri) smallintconst is only used in one place - can we used indexconst?
+ func smallintconst(n *Node) bool {
+ 	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
+ 		switch simtype[n.Type.Etype] {
+@@ -1243,7 +1244,7 @@ func smallintconst(n *Node) bool {
+ 
+ 		case TIDEAL, TINT64, TUINT64, TPTR:
+ 			v, ok := n.Val().U.(*Mpint)
+-			if ok && v.Cmp(minintval[TINT32]) > 0 && v.Cmp(maxintval[TINT32]) < 0 {
++			if ok && v.Cmp(minintval[TINT32]) >= 0 && v.Cmp(maxintval[TINT32]) <= 0 {
+ 				return true
+ 			}
+ 		}
+@@ -1252,21 +1253,24 @@ func smallintconst(n *Node) bool {
+ 	return false
+ }
+ 
+-// nonnegintconst checks if Node n contains a constant expression
+-// representable as a non-negative small integer, and returns its
+-// (integer) value if that's the case. Otherwise, it returns -1.
+-func nonnegintconst(n *Node) int64 {
++// indexconst checks if Node n contains a constant expression
++// representable as a non-negative int and returns its value.
++// If n is not a constant expression, not representable as an
++// integer, or negative, it returns -1. If n is too large, it
++// returns -2.
++func indexconst(n *Node) int64 {
+ 	if n.Op != OLITERAL {
+ 		return -1
+ 	}
+ 
+-	// toint will leave n.Val unchanged if it's not castable to an
+-	// Mpint, so we still have to guard the conversion.
+-	v := toint(n.Val())
++	v := toint(n.Val()) // toint returns argument unchanged if not representable as an *Mpint
+ 	vi, ok := v.U.(*Mpint)
+-	if !ok || vi.CmpInt64(0) < 0 || vi.Cmp(maxintval[TINT32]) > 0 {
++	if !ok || vi.CmpInt64(0) < 0 {
+ 		return -1
+ 	}
++	if vi.Cmp(maxintval[TINT]) > 0 {
++		return -2
++	}
+ 
+ 	return vi.Int64()
+ }
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index acd8550ee3..56c63065b2 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -711,7 +711,10 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 		var k int64
+ 		splitnode = func(r *Node) (*Node, *Node) {
+ 			if r.Op == OKEY {
+-				k = nonnegintconst(r.Left)
++				k = indexconst(r.Left)
++				if k < 0 {
++					Fatalf("fixedlit: invalid index %v", r.Left)
++				}
+ 				r = r.Right
+ 			}
+ 			a := nod(OINDEX, var_, nodintconst(k))
+@@ -893,7 +896,10 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 	var index int64
+ 	for _, value := range n.List.Slice() {
+ 		if value.Op == OKEY {
+-			index = nonnegintconst(value.Left)
++			index = indexconst(value.Left)
++			if index < 0 {
++				Fatalf("slicelit: invalid index %v", value.Left)
++			}
+ 			value = value.Right
+ 		}
+ 		a := nod(OINDEX, vauto, nodintconst(index))
+@@ -1250,7 +1256,10 @@ func initplan(n *Node) {
+ 		var k int64
+ 		for _, a := range n.List.Slice() {
+ 			if a.Op == OKEY {
+-				k = nonnegintconst(a.Left)
++				k = indexconst(a.Left)
++				if k < 0 {
++					Fatalf("initplan arraylit: invalid index %v", a.Left)
++				}
+ 				a = a.Right
+ 			}
+ 			addvalue(p, k*n.Type.Elem().Width, a)
+@@ -1260,7 +1269,7 @@ func initplan(n *Node) {
+ 	case OSTRUCTLIT:
+ 		for _, a := range n.List.Slice() {
+ 			if a.Op != OSTRUCTKEY {
+-				Fatalf("initplan fixedlit")
++				Fatalf("initplan structlit")
+ 			}
+ 			addvalue(p, a.Xoffset, a.Left)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index cbca685415..633c5e5061 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3073,10 +3073,16 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 			if l.Op == OKEY {
+ 				l.Left = typecheck(l.Left, ctxExpr)
+ 				evconst(l.Left)
+-				i = nonnegintconst(l.Left)
+-				if i < 0 && !l.Left.Diag() {
+-					yyerror("index must be non-negative integer constant")
+-					l.Left.SetDiag(true)
++				i = indexconst(l.Left)
++				if i < 0 {
++					if !l.Left.Diag() {
++						if i == -2 {
++							yyerror("index too large")
++						} else {
++							yyerror("index must be non-negative integer constant")
++						}
++						l.Left.SetDiag(true)
++					}
+ 					i = -(1 << 30) // stay negative for a while
+ 				}
+ 				vp = &l.Right
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e3fd71e389..528aacb213 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1305,7 +1305,11 @@ opswitch:
+ 			}
+ 			// var arr [r]T
+ 			// n = arr[:l]
+-			t = types.NewArray(t.Elem(), nonnegintconst(r)) // [r]T
++			i := indexconst(r)
++			if i < 0 {
++				Fatalf("walkexpr: invalid index %v", r)
++			}
++			t = types.NewArray(t.Elem(), i) // [r]T
+ 			var_ := temp(t)
+ 			a := nod(OAS, var_, nil) // zero temp
+ 			a = typecheck(a, ctxStmt)
+diff --git a/test/fixedbugs/issue23781.go b/test/fixedbugs/issue23781.go
+new file mode 100644
+index 0000000000..5c03cf7e4e
+--- /dev/null
++++ b/test/fixedbugs/issue23781.go
+@@ -0,0 +1,10 @@
++// +build amd64
++// compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ = []int{1 << 31: 1} // ok on machines with 64bit int

@@ -13,7 +13,7 @@ Date:   Thu Sep 15 16:33:11 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/amd64/galign.go  | 14 --------
  src/cmd/compile/internal/amd64/ggen.go    | 11 ++++++
  src/cmd/compile/internal/amd64/gsubr.go   | 58 -------------------------------
@@ -32,3 +32,608 @@ Date:   Thu Sep 15 16:33:11 2016 -0700
  src/cmd/compile/internal/x86/ggen.go      |  8 +++++
  src/cmd/compile/internal/x86/gsubr.go     | 55 -----------------------------
  17 files changed, 22 insertions(+), 408 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 25d71e6fa6..364509292f 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -18,13 +18,6 @@ func betypeinit() {
+ 	if obj.GOARCH == "amd64p32" {
+ 		leaptr = x86.ALEAL
+ 	}
+-	if gc.Ctxt.Flag_dynlink || obj.GOOS == "nacl" {
+-		resvd = append(resvd, x86.REG_R15)
+-	}
+-	if gc.Ctxt.Framepointer_enabled || obj.GOOS == "nacl" {
+-		resvd = append(resvd, x86.REG_BP)
+-	}
+-	gc.Thearch.ReservedRegs = resvd
+ }
+ 
+ func Main() {
+@@ -34,13 +27,6 @@ func Main() {
+ 	}
+ 	gc.Thearch.REGSP = x86.REGSP
+ 	gc.Thearch.REGCTXT = x86.REGCTXT
+-	gc.Thearch.REGCALLX = x86.REG_BX
+-	gc.Thearch.REGCALLX2 = x86.REG_AX
+-	gc.Thearch.REGRETURN = x86.REG_AX
+-	gc.Thearch.REGMIN = x86.REG_AX
+-	gc.Thearch.REGMAX = x86.REG_R15
+-	gc.Thearch.FREGMIN = x86.REG_X0
+-	gc.Thearch.FREGMAX = x86.REG_X15
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 2e1fb4a2c4..c137b52d80 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -165,3 +165,14 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32, x0 *uin
+ 
+ 	return p
+ }
++
++func ginsnop() {
++	// This is actually not the x86 NOP anymore,
++	// but at the point where it gets used, AX is dead
++	// so it's okay if we lose the high bits.
++	p := gc.Prog(x86.AXCHGL)
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = x86.REG_AX
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = x86.REG_AX
++}
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+deleted file mode 100644
+index 1f5749315f..0000000000
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Derived from Inferno utils/6c/txt.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package amd64
+-
+-import (
+-	"cmd/compile/internal/gc"
+-	"cmd/internal/obj"
+-	"cmd/internal/obj/x86"
+-)
+-
+-var resvd = []int{
+-	x86.REG_DI, // for movstring
+-	x86.REG_SI, // for movstring
+-
+-	x86.REG_AX, // for divide
+-	x86.REG_CX, // for shift
+-	x86.REG_DX, // for divide
+-	x86.REG_SP, // for stack
+-}
+-
+-func ginsnop() {
+-	// This is actually not the x86 NOP anymore,
+-	// but at the point where it gets used, AX is dead
+-	// so it's okay if we lose the high bits.
+-	p := gc.Prog(x86.AXCHGL)
+-	p.From.Type = obj.TYPE_REG
+-	p.From.Reg = x86.REG_AX
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = x86.REG_AX
+-}
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 090a6c25fb..db124f7a81 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -17,15 +17,7 @@ func Main() {
+ 	gc.Thearch.LinkArch = &arm.Linkarm
+ 	gc.Thearch.REGSP = arm.REGSP
+ 	gc.Thearch.REGCTXT = arm.REGCTXT
+-	gc.Thearch.REGCALLX = arm.REG_R1
+-	gc.Thearch.REGCALLX2 = arm.REG_R2
+-	gc.Thearch.REGRETURN = arm.REG_R0
+-	gc.Thearch.REGMIN = arm.REG_R0
+-	gc.Thearch.REGMAX = arm.REGEXT
+-	gc.Thearch.FREGMIN = arm.REG_F0
+-	gc.Thearch.FREGMAX = arm.FREGEXT
+ 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
+-	gc.Thearch.ReservedRegs = resvd
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/arm/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+deleted file mode 100644
+index 30c2b75598..0000000000
+--- a/src/cmd/compile/internal/arm/gsubr.go
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// Derived from Inferno utils/5c/txt.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/5c/txt.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package arm
+-
+-import "cmd/internal/obj/arm"
+-
+-var resvd = []int{
+-	arm.REG_R9,  // formerly reserved for m; might be okay to reuse now; not sure about NaCl
+-	arm.REG_R10, // reserved for g
+-}
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 6677fe6830..27600579fa 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -17,16 +17,7 @@ func Main() {
+ 	gc.Thearch.LinkArch = &arm64.Linkarm64
+ 	gc.Thearch.REGSP = arm64.REGSP
+ 	gc.Thearch.REGCTXT = arm64.REGCTXT
+-	gc.Thearch.REGCALLX = arm64.REGRT1
+-	gc.Thearch.REGCALLX2 = arm64.REGRT2
+-	gc.Thearch.REGRETURN = arm64.REG_R0
+-	gc.Thearch.REGMIN = arm64.REG_R0
+-	gc.Thearch.REGMAX = arm64.REG_R31
+-	gc.Thearch.REGZERO = arm64.REGZERO
+-	gc.Thearch.FREGMIN = arm64.REG_F0
+-	gc.Thearch.FREGMAX = arm64.REG_F31
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+-	gc.Thearch.ReservedRegs = resvd
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+deleted file mode 100644
+index f65ffe54b5..0000000000
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Derived from Inferno utils/6c/txt.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package arm64
+-
+-import "cmd/internal/obj/arm64"
+-
+-var resvd = []int{
+-	arm64.REGTMP,
+-	arm64.REGG,
+-	arm64.REGRT1,
+-	arm64.REGRT2,
+-	arm64.REG_R31, // REGZERO and REGSP
+-}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f4696945cd..b44ad19e0d 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -355,18 +355,9 @@ const (
+ type Arch struct {
+ 	LinkArch *obj.LinkArch
+ 
+-	REGSP        int
+-	REGCTXT      int
+-	REGCALLX     int // BX
+-	REGCALLX2    int // AX
+-	REGRETURN    int // AX
+-	REGMIN       int
+-	REGMAX       int
+-	REGZERO      int // architectural zero register, if available
+-	FREGMIN      int
+-	FREGMAX      int
+-	MAXWIDTH     int64
+-	ReservedRegs []int
++	REGSP    int
++	REGCTXT  int
++	MAXWIDTH int64
+ 
+ 	Betypeinit func()
+ 	Defframe   func(*obj.Prog)
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index d8d12dec50..a7ea66df0c 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -21,15 +21,7 @@ func Main() {
+ 	}
+ 	gc.Thearch.REGSP = mips.REGSP
+ 	gc.Thearch.REGCTXT = mips.REGCTXT
+-	gc.Thearch.REGCALLX = mips.REG_R1
+-	gc.Thearch.REGCALLX2 = mips.REG_R2
+-	gc.Thearch.REGRETURN = mips.REGRET
+-	gc.Thearch.REGMIN = mips.REG_R0
+-	gc.Thearch.REGMAX = mips.REG_R31
+-	gc.Thearch.FREGMIN = mips.REG_F0
+-	gc.Thearch.FREGMAX = mips.REG_F31
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+-	gc.Thearch.ReservedRegs = resvd
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+deleted file mode 100644
+index c67ad55303..0000000000
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ /dev/null
+@@ -1,44 +0,0 @@
+-// Derived from Inferno utils/6c/txt.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package mips64
+-
+-import "cmd/internal/obj/mips"
+-
+-var resvd = []int{
+-	mips.REGZERO,
+-	mips.REGSP,   // reserved for SP
+-	mips.REGSB,   // reserved for SB
+-	mips.REGLINK, // reserved for link
+-	mips.REGG,
+-	mips.REGTMP,
+-	mips.REG_R26, // kernel
+-	mips.REG_R27, // kernel
+-}
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index ddadf80aae..1bbac5c868 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -11,10 +11,6 @@ import (
+ )
+ 
+ func betypeinit() {
+-	if gc.Ctxt.Flag_shared {
+-		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R2)
+-		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R12)
+-	}
+ }
+ 
+ func Main() {
+@@ -24,15 +20,7 @@ func Main() {
+ 	}
+ 	gc.Thearch.REGSP = ppc64.REGSP
+ 	gc.Thearch.REGCTXT = ppc64.REGCTXT
+-	gc.Thearch.REGCALLX = ppc64.REG_R3
+-	gc.Thearch.REGCALLX2 = ppc64.REG_R4
+-	gc.Thearch.REGRETURN = ppc64.REG_R3
+-	gc.Thearch.REGMIN = ppc64.REG_R0
+-	gc.Thearch.REGMAX = ppc64.REG_R31
+-	gc.Thearch.FREGMIN = ppc64.REG_F0
+-	gc.Thearch.FREGMAX = ppc64.REG_F31
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+-	gc.Thearch.ReservedRegs = resvd
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+deleted file mode 100644
+index 16671b23ee..0000000000
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// Derived from Inferno utils/6c/txt.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package ppc64
+-
+-import "cmd/internal/obj/ppc64"
+-
+-var resvd = []int{
+-	ppc64.REGZERO,
+-	ppc64.REGSP, // reserved for SP
+-	// We need to preserve the C ABI TLS pointer because sigtramp
+-	// may happen during C code and needs to access the g. C
+-	// clobbers REGG, so if Go were to clobber REGTLS, sigtramp
+-	// won't know which convention to use. By preserving REGTLS,
+-	// we can just retrieve g from TLS when we aren't sure.
+-	ppc64.REGTLS,
+-
+-	// TODO(austin): Consolidate REGTLS and REGG?
+-	ppc64.REGG,
+-	ppc64.REGTMP, // REGTMP
+-}
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index a178041c80..5cf4434550 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -16,15 +16,7 @@ func Main() {
+ 	gc.Thearch.LinkArch = &s390x.Links390x
+ 	gc.Thearch.REGSP = s390x.REGSP
+ 	gc.Thearch.REGCTXT = s390x.REGCTXT
+-	gc.Thearch.REGCALLX = s390x.REG_R3
+-	gc.Thearch.REGCALLX2 = s390x.REG_R4
+-	gc.Thearch.REGRETURN = s390x.REG_R3
+-	gc.Thearch.REGMIN = s390x.REG_R0
+-	gc.Thearch.REGMAX = s390x.REG_R15
+-	gc.Thearch.FREGMIN = s390x.REG_F0
+-	gc.Thearch.FREGMAX = s390x.REG_F15
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+-	gc.Thearch.ReservedRegs = resvd
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/s390x/gsubr.go b/src/cmd/compile/internal/s390x/gsubr.go
+deleted file mode 100644
+index 06043e225b..0000000000
+--- a/src/cmd/compile/internal/s390x/gsubr.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Derived from Inferno utils/6c/txt.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6c/txt.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package s390x
+-
+-import "cmd/internal/obj/s390x"
+-
+-var resvd = []int{
+-	s390x.REGZERO, // R0
+-	s390x.REGTMP,  // R10
+-	s390x.REGTMP2, // R11
+-	s390x.REGCTXT, // R12
+-	s390x.REGG,    // R13
+-	s390x.REG_LR,  // R14
+-	s390x.REGSP,   // R15
+-}
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index df9f7748f3..9c014678c1 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -19,25 +19,15 @@ func Main() {
+ 	gc.Thearch.LinkArch = &x86.Link386
+ 	gc.Thearch.REGSP = x86.REGSP
+ 	gc.Thearch.REGCTXT = x86.REGCTXT
+-	gc.Thearch.REGCALLX = x86.REG_BX
+-	gc.Thearch.REGCALLX2 = x86.REG_AX
+-	gc.Thearch.REGRETURN = x86.REG_AX
+-	gc.Thearch.REGMIN = x86.REG_AX
+-	gc.Thearch.REGMAX = x86.REG_DI
+ 	switch v := obj.GO386; v {
+ 	case "387":
+-		gc.Thearch.FREGMIN = x86.REG_F0
+-		gc.Thearch.FREGMAX = x86.REG_F7
+ 		gc.Thearch.Use387 = true
+ 	case "sse2":
+-		gc.Thearch.FREGMIN = x86.REG_X0
+-		gc.Thearch.FREGMAX = x86.REG_X7
+ 	default:
+ 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
+ 		gc.Exit(1)
+ 	}
+ 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
+-	gc.Thearch.ReservedRegs = resvd
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 97788254f9..d146fb1b54 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -83,3 +83,11 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
+ 
+ 	return p
+ }
++
++func ginsnop() {
++	p := gc.Prog(x86.AXCHGL)
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = x86.REG_AX
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = x86.REG_AX
++}
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+deleted file mode 100644
+index 96105356fd..0000000000
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Derived from Inferno utils/8c/txt.c
+-// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8c/txt.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package x86
+-
+-import (
+-	"cmd/compile/internal/gc"
+-	"cmd/internal/obj"
+-	"cmd/internal/obj/x86"
+-)
+-
+-var resvd = []int{
+-	//	REG_DI,	// for movstring
+-	//	REG_SI,	// for movstring
+-
+-	x86.REG_AX, // for divide
+-	x86.REG_CX, // for shift
+-	x86.REG_DX, // for divide, context
+-	x86.REG_SP, // for stack
+-}
+-
+-func ginsnop() {
+-	p := gc.Prog(x86.AXCHGL)
+-	p.From.Type = obj.TYPE_REG
+-	p.From.Reg = x86.REG_AX
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = x86.REG_AX
+-}

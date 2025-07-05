@@ -9,9 +9,59 @@ Date:   Mon Aug 17 21:26:45 2015 -0400
     Change-Id: I2d71163b98bcc770147eb9e78dc551a9d0b5b817
     Reviewed-on: https://go-review.googlesource.com/13674
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/pkg.go                             |  2 +-
  src/cmd/go/testdata/testvendor2/src/p/p.go    |  3 +++
  src/cmd/go/testdata/testvendor2/vendor/x/x.go |  1 +
  src/cmd/go/vendor_test.go                     | 12 ++++++++++++
  4 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 5dd2352606..61e3d8dc70 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -416,7 +416,7 @@ func vendoredImportPath(parent *Package, path string) (found string, searched []
+ 		return path, nil
+ 	}
+ 	dir := filepath.Clean(parent.Dir)
+-	root := filepath.Clean(parent.Root)
++	root := filepath.Join(parent.Root, "src")
+ 	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
+ 		fatalf("invalid vendoredImportPath: dir=%q root=%q separator=%q", dir, root, string(filepath.Separator))
+ 	}
+diff --git a/src/cmd/go/testdata/testvendor2/src/p/p.go b/src/cmd/go/testdata/testvendor2/src/p/p.go
+new file mode 100644
+index 0000000000..220b2b2a07
+--- /dev/null
++++ b/src/cmd/go/testdata/testvendor2/src/p/p.go
+@@ -0,0 +1,3 @@
++package p
++
++import "x"
+diff --git a/src/cmd/go/testdata/testvendor2/vendor/x/x.go b/src/cmd/go/testdata/testvendor2/vendor/x/x.go
+new file mode 100644
+index 0000000000..823aafd071
+--- /dev/null
++++ b/src/cmd/go/testdata/testvendor2/vendor/x/x.go
+@@ -0,0 +1 @@
++package x
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index 611aceb999..1e8cf9c8d2 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -244,3 +244,15 @@ func TestVendorList(t *testing.T) {
+ 	tg.run("list", "-f", `{{join .XTestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3")
+ 	tg.grepStdout("go-get-issue-11864/vendor/vendor.org/tx3", "did not find vendor-expanded tx3")
+ }
++
++func TestVendor12156(t *testing.T) {
++	// Former index out of range panic.
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testvendor2"))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	tg.cd(filepath.Join(tg.pwd(), "testdata/testvendor2/src/p"))
++	tg.runFail("build", "p.go")
++	tg.grepStderrNot("panic", "panicked")
++	tg.grepStderr(`cannot find package "x"`, "wrong error")
++}

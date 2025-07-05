@@ -8,7 +8,73 @@ Date:   Fri Apr 17 11:38:58 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9009
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/test.go        |  2 +-
  src/runtime/rt0_linux_386.s | 41 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 8931ced14b..fc3cc6e0c5 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -378,7 +378,7 @@ func (t *tester) buildmode(mode string) bool {
+ 		case t.goos == "darwin" && t.goarch == "amd64":
+ 			// TODO(crawshaw): add darwin/arm{,64}
+ 			return true
+-		case t.goos == "linux" && t.goarch == "amd64":
++		case t.goos == "linux" && (t.goarch == "amd64" || t.goarch == "386"):
+ 			return true
+ 		default:
+ 			return false
+diff --git a/src/runtime/rt0_linux_386.s b/src/runtime/rt0_linux_386.s
+index 47fd908e78..14d9f54826 100644
+--- a/src/runtime/rt0_linux_386.s
++++ b/src/runtime/rt0_linux_386.s
+@@ -12,6 +12,47 @@ TEXT _rt0_386_linux(SB),NOSPLIT,$8
+ 	CALL	main(SB)
+ 	INT	$3
+ 
++// When building with -buildmode=c-shared, this symbol is called when the shared
++// library is loaded.
++TEXT _rt0_386_linux_lib(SB),NOSPLIT,$12
++	MOVL	16(SP), AX
++	MOVL	AX, _rt0_386_linux_lib_argc<>(SB)
++	MOVL	20(SP), AX
++	MOVL	AX, _rt0_386_linux_lib_argv<>(SB)
++
++	// Create a new thread to do the runtime initialization.
++	MOVL	_cgo_sys_thread_create(SB), AX
++	TESTL	AX, AX
++	JZ	nocgo
++	MOVL	$_rt0_386_linux_lib_go(SB), BX
++	MOVL	BX, 0(SP)
++	MOVL	$0, 4(SP)
++	CALL	AX
++	RET
++
++nocgo:
++	MOVL	$0x800000, 0(SP)                    // stacksize = 8192KB
++	MOVL	$_rt0_386_linux_lib_go(SB), AX
++	MOVL	AX, 4(SP)                           // fn
++	MOVL	$0, 8(SP)                           // fnarg
++	MOVL	$runtime·newosproc0(SB), AX
++	CALL	AX
++	RET
++
++TEXT _rt0_386_linux_lib_go(SB),NOSPLIT,$12
++	MOVL	_rt0_386_linux_lib_argc<>(SB), AX
++	MOVL	AX, 0(SP)
++	MOVL	_rt0_386_linux_lib_argv<>(SB), AX
++	MOVL	AX, 4(SP)
++	MOVL	$runtime·rt0_go(SB), AX
++	CALL	AX
++	RET
++
++DATA _rt0_386_linux_lib_argc<>(SB)/4, $0
++GLOBL _rt0_386_linux_lib_argc<>(SB),NOPTR, $4
++DATA _rt0_386_linux_lib_argv<>(SB)/4, $0
++GLOBL _rt0_386_linux_lib_argv<>(SB),NOPTR, $4
++
+ TEXT main(SB),NOSPLIT,$0
+ 	JMP	runtime·rt0_go(SB)
+ 

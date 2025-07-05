@@ -12,6 +12,31 @@ Date:   Wed Sep 6 15:43:12 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  .../compile/internal/inline/inlheur/analyze_func_returns.go   | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+index ca91b2784e..d19c3793a2 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+@@ -222,14 +222,13 @@ func isAllocatedMem(n ir.Node) bool {
+ 
+ func isLiteral(n ir.Node) (constant.Value, bool) {
+ 	sv := ir.StaticValue(n)
+-	if sv.Op() == ir.ONIL {
++	switch sv.Op() {
++	case ir.ONIL:
+ 		return nil, true
++	case ir.OLITERAL:
++		return sv.Val(), true
+ 	}
+-	if sv.Op() != ir.OLITERAL {
+-		return nil, false
+-	}
+-	ce := sv.(*ir.ConstExpr)
+-	return ce.Val(), true
++	return nil, false
+ }
+ 
+ // isSameLiteral checks to see if 'v1' and 'v2' correspond to the same

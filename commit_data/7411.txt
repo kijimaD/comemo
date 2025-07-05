@@ -9,7 +9,7 @@ Date:   Wed Feb 9 14:28:47 2011 -0500
     R=r, gri
     CC=golang-dev
     https://golang.org/cl/4151043
-
+---
  src/pkg/syscall/mksyscall.sh              |  9 +++------
  src/pkg/syscall/syscall.go                |  4 ++++
  src/pkg/syscall/zsyscall_darwin_386.go    | 20 ++++++++++++++++++++
@@ -20,3 +20,741 @@ Date:   Wed Feb 9 14:28:47 2011 -0500
  src/pkg/syscall/zsyscall_linux_amd64.go   | 26 ++++++++++++++++++++++++++
  src/pkg/syscall/zsyscall_linux_arm.go     | 22 ++++++++++++++++++++++
  9 files changed, 157 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/syscall/mksyscall.sh b/src/pkg/syscall/mksyscall.sh
+index 79d19d0d0c..0f8098098d 100755
+--- a/src/pkg/syscall/mksyscall.sh
++++ b/src/pkg/syscall/mksyscall.sh
+@@ -98,14 +98,11 @@ while(<>) {
+ 		} elsif($type =~ /^\[\](.*)/) {
+ 			# Convert slice into pointer, length.
+ 			# Have to be careful not to take address of &a[0] if len == 0:
+-			# pass nil in that case.
++			# pass dummy pointer in that case.
++			# Used to pass nil, but some OSes or simulators reject write(fd, nil, 0).
+ 			$text .= "\tvar _p$n unsafe.Pointer\n";
+ 			$text .= "\tif len($name) > 0 {\n\t\t_p$n = unsafe.Pointer(\&${name}[0])\n\t}";
+-			if($nacl) {
+-				# NaCl rejects zero length write with nil pointer,
+-				# so use non-nil pointer.
+-				$text .= " else {\n\t\t_p$n = unsafe.Pointer(&_zero[0])\n\t}";
+-			}
++			$text .= " else {\n\t\t_p$n = unsafe.Pointer(&_zero)\n\t}";
+ 			$text .= "\n";
+ 			push @args, "uintptr(_p$n)", "uintptr(len($name))";
+ 			$n++;
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index 1647d69e59..96975376f0 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -24,3 +24,7 @@ func StringByteSlice(s string) []byte {
+ // StringBytePtr returns a pointer to a NUL-terminated array of bytes
+ // containing the text of s.
+ func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
++
++// Single-word zero for use when we need a valid pointer to 0 bytes.
++// See mksyscall.sh.
++var _zero uintptr
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 9718e5def4..973f00ef85 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -121,6 +121,8 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+ 	n = int(r0)
+@@ -134,6 +136,8 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+ 	errno = int(e1)
+@@ -155,6 +159,8 @@ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
+ 	var _p0 unsafe.Pointer
+ 	if len(mib) > 0 {
+ 		_p0 = unsafe.Pointer(&mib[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS___SYSCTL, uintptr(_p0), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen))
+ 	errno = int(e1)
+@@ -377,6 +383,8 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_GETDIRENTRIES64, uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+ 	n = int(r0)
+@@ -414,6 +422,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT64, uintptr(_p0), uintptr(len(buf)), uintptr(flags))
+ 	n = int(r0)
+@@ -601,6 +611,8 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+@@ -614,6 +626,8 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+@@ -627,6 +641,8 @@ func Read(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -640,6 +656,8 @@ func Readlink(path string, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -871,6 +889,8 @@ func Write(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index 6dca1987c9..f7a37b63e7 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -121,6 +121,8 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+ 	n = int(r0)
+@@ -134,6 +136,8 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+ 	errno = int(e1)
+@@ -155,6 +159,8 @@ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
+ 	var _p0 unsafe.Pointer
+ 	if len(mib) > 0 {
+ 		_p0 = unsafe.Pointer(&mib[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS___SYSCTL, uintptr(_p0), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen))
+ 	errno = int(e1)
+@@ -377,6 +383,8 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_GETDIRENTRIES64, uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+ 	n = int(r0)
+@@ -414,6 +422,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT64, uintptr(_p0), uintptr(len(buf)), uintptr(flags))
+ 	n = int(r0)
+@@ -601,6 +611,8 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+@@ -614,6 +626,8 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+@@ -627,6 +641,8 @@ func Read(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -640,6 +656,8 @@ func Readlink(path string, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -871,6 +889,8 @@ func Write(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 627a9a24d8..1fab5e2d2f 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -121,6 +121,8 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+ 	n = int(r0)
+@@ -134,6 +136,8 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+ 	errno = int(e1)
+@@ -155,6 +159,8 @@ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
+ 	var _p0 unsafe.Pointer
+ 	if len(mib) > 0 {
+ 		_p0 = unsafe.Pointer(&mib[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS___SYSCTL, uintptr(_p0), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen))
+ 	errno = int(e1)
+@@ -361,6 +367,8 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_GETDIRENTRIES, uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+ 	n = int(r0)
+@@ -398,6 +406,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), uintptr(len(buf)), uintptr(flags))
+ 	n = int(r0)
+@@ -609,6 +619,8 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+@@ -622,6 +634,8 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+@@ -635,6 +649,8 @@ func Read(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -648,6 +664,8 @@ func Readlink(path string, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -871,6 +889,8 @@ func Write(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index 8872367b14..53434b263b 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -121,6 +121,8 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+ 	n = int(r0)
+@@ -134,6 +136,8 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+ 	errno = int(e1)
+@@ -155,6 +159,8 @@ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr)
+ 	var _p0 unsafe.Pointer
+ 	if len(mib) > 0 {
+ 		_p0 = unsafe.Pointer(&mib[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS___SYSCTL, uintptr(_p0), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen))
+ 	errno = int(e1)
+@@ -361,6 +367,8 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_GETDIRENTRIES, uintptr(fd), uintptr(_p0), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0)
+ 	n = int(r0)
+@@ -398,6 +406,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(_p0), uintptr(len(buf)), uintptr(flags))
+ 	n = int(r0)
+@@ -609,6 +619,8 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+@@ -622,6 +634,8 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+@@ -635,6 +649,8 @@ func Read(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -648,6 +664,8 @@ func Readlink(path string, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -871,6 +889,8 @@ func Write(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index aa8c41a312..005cc1542a 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -53,6 +53,8 @@ func Getcwd(buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
+ 	n = int(r0)
+@@ -184,6 +186,8 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(events) > 0 {
+ 		_p0 = unsafe.Pointer(&events[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
+ 	n = int(r0)
+@@ -277,6 +281,8 @@ func Getdents(fd int, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -391,6 +397,8 @@ func Klogctl(typ int, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -468,6 +476,8 @@ func Read(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -481,6 +491,8 @@ func Readlink(path string, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -518,6 +530,8 @@ func Setdomainname(p []byte) (errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+@@ -530,6 +544,8 @@ func Sethostname(p []byte) (errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+@@ -688,6 +704,8 @@ func Write(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -823,6 +841,8 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+@@ -836,6 +856,8 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
+ 	n = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 2759c5c8bb..d449a3bfed 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -53,6 +53,8 @@ func Getcwd(buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
+ 	n = int(r0)
+@@ -184,6 +186,8 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(events) > 0 {
+ 		_p0 = unsafe.Pointer(&events[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
+ 	n = int(r0)
+@@ -277,6 +281,8 @@ func Getdents(fd int, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -391,6 +397,8 @@ func Klogctl(typ int, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -468,6 +476,8 @@ func Read(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -481,6 +491,8 @@ func Readlink(path string, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -518,6 +530,8 @@ func Setdomainname(p []byte) (errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+@@ -530,6 +544,8 @@ func Sethostname(p []byte) (errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+@@ -688,6 +704,8 @@ func Write(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -839,6 +857,8 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PREAD64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+@@ -852,6 +872,8 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_PWRITE64, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+@@ -1071,6 +1093,8 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+ 	n = int(r0)
+@@ -1084,6 +1108,8 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 7111085773..22b736bfaa 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -53,6 +53,8 @@ func Getcwd(buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETCWD, uintptr(_p0), uintptr(len(buf)), 0)
+ 	n = int(r0)
+@@ -184,6 +186,8 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(events) > 0 {
+ 		_p0 = unsafe.Pointer(&events[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(_p0), uintptr(len(events)), uintptr(msec), 0, 0)
+ 	n = int(r0)
+@@ -277,6 +281,8 @@ func Getdents(fd int, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_GETDENTS64, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -391,6 +397,8 @@ func Klogctl(typ int, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_SYSLOG, uintptr(typ), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -468,6 +476,8 @@ func Read(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -481,6 +491,8 @@ func Readlink(path string, buf []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(buf)))
+ 	n = int(r0)
+@@ -518,6 +530,8 @@ func Setdomainname(p []byte) (errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall(SYS_SETDOMAINNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+@@ -530,6 +544,8 @@ func Sethostname(p []byte) (errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall(SYS_SETHOSTNAME, uintptr(_p0), uintptr(len(p)), 0)
+ 	errno = int(e1)
+@@ -688,6 +704,8 @@ func Write(fd int, p []byte) (n int, errno int) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)))
+ 	n = int(r0)
+@@ -802,6 +820,8 @@ func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockl
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+ 	n = int(r0)
+@@ -815,6 +835,8 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 	var _p0 unsafe.Pointer
+ 	if len(buf) > 0 {
+ 		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
+ 	}
+ 	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(_p0), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen))
+ 	errno = int(e1)

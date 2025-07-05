@@ -12,6 +12,31 @@ Date:   Wed Mar 29 12:12:02 2017 -0400
     Change-Id: Ieb725c321d7fab600708e133ae28f531e55521ad
     Reviewed-on: https://go-review.googlesource.com/38743
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/go_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5786defb8b..d23663fc6c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2655,8 +2655,8 @@ func TestGoVetWithTags(t *testing.T) {
+ 	tg.grepBoth(`c\.go.*wrong number of args for format`, "go get vetpkg did not run scan tagged file")
+ }
+ 
+-// Issue 9767.
+-func TestGoGetRscIoToolstash(t *testing.T) {
++// Issue 9767, 19769.
++func TestGoGetDotSlashDownload(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+ 	tg := testgo(t)
+@@ -2664,7 +2664,7 @@ func TestGoGetRscIoToolstash(t *testing.T) {
+ 	tg.tempDir("src/rsc.io")
+ 	tg.setenv("GOPATH", tg.path("."))
+ 	tg.cd(tg.path("src/rsc.io"))
+-	tg.run("get", "./toolstash")
++	tg.run("get", "./pprof_mac_fix")
+ }
+ 
+ // Issue 13037: Was not parsing <meta> tags in 404 served over HTTPS

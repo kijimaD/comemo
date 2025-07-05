@@ -27,8 +27,87 @@ Date:   Tue Oct 20 15:19:36 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  doc/go1.16.html                  | 14 ++++++++++++++
  src/encoding/xml/marshal.go      |  7 +++++--
  src/encoding/xml/marshal_test.go | 24 ++++++++++++++++++++++++
  3 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index b6df0487ca..1239217eed 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -302,6 +302,20 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- crypto/x509 -->
+ 
++<dl id="encoding/xml"><dt><a href="/pkg/encoding/xml/">encoding/xml</a></dt>
++  <dd>
++    <p><!-- CL 264024 -->
++      The encoder has always taken care to avoid using namespace prefixes
++      beginning with <code>xml</code>, which are reserved by the XML
++      specification.
++      Now, following the specification more closely, that check is
++      case-insensitive, so that prefixes beginning
++      with <code>XML</code>, <code>XmL</code>, and so on are also
++      avoided.
++    </p>
++  </dd>
++</dl><!-- encoding/xml -->
++
+ <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+   <dd>
+     <p><!-- CL 233637 -->
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 0554b0d204..d8a04a95a2 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -345,8 +345,11 @@ func (p *printer) createAttrPrefix(url string) string {
+ 	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
+ 		prefix = "_"
+ 	}
+-	if strings.HasPrefix(prefix, "xml") {
+-		// xmlanything is reserved.
++	// xmlanything is reserved and any variant of it regardless of
++	// case should be matched, so:
++	//    (('X'|'x') ('M'|'m') ('L'|'l'))
++	// See Section 2.3 of https://www.w3.org/TR/REC-xml/
++	if len(prefix) >= 3 && strings.EqualFold(prefix[:3], "xml") {
+ 		prefix = "_" + prefix
+ 	}
+ 	if p.attrNS[prefix] != "" {
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 31309ef2ca..d2e5137afd 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -2283,6 +2283,30 @@ var encodeTokenTests = []struct {
+ 		}},
+ 	},
+ 	want: `<foo xmlns="space"><bar xmlns="space" xmlns:space="space" space:attr="value">`,
++}, {
++	desc: "reserved namespace prefix -- all lower case",
++	toks: []Token{
++		StartElement{Name{"", "foo"}, []Attr{
++			{Name{"http://www.w3.org/2001/xmlSchema-instance", "nil"}, "true"},
++		}},
++	},
++	want: `<foo xmlns:_xmlSchema-instance="http://www.w3.org/2001/xmlSchema-instance" _xmlSchema-instance:nil="true">`,
++}, {
++	desc: "reserved namespace prefix -- all upper case",
++	toks: []Token{
++		StartElement{Name{"", "foo"}, []Attr{
++			{Name{"http://www.w3.org/2001/XMLSchema-instance", "nil"}, "true"},
++		}},
++	},
++	want: `<foo xmlns:_XMLSchema-instance="http://www.w3.org/2001/XMLSchema-instance" _XMLSchema-instance:nil="true">`,
++}, {
++	desc: "reserved namespace prefix -- all mixed case",
++	toks: []Token{
++		StartElement{Name{"", "foo"}, []Attr{
++			{Name{"http://www.w3.org/2001/XmLSchema-instance", "nil"}, "true"},
++		}},
++	},
++	want: `<foo xmlns:_XmLSchema-instance="http://www.w3.org/2001/XmLSchema-instance" _XmLSchema-instance:nil="true">`,
+ }}
+ 
+ func TestEncodeToken(t *testing.T) {

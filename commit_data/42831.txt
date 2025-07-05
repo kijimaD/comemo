@@ -17,9 +17,182 @@ Date:   Wed Feb 5 15:19:41 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217940
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go        | 44 +++++++++++++++++++++++++++++++++-------
  src/crypto/ecdsa/ecdsa_test.go   | 30 +++++++++++++++++++++++++++
  src/crypto/ecdsa/example_test.go |  6 +++---
  src/go/build/deps_test.go        |  7 +++++--
  4 files changed, 75 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 65911e737a..744182aac2 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -33,10 +33,12 @@ import (
+ 	"crypto/elliptic"
+ 	"crypto/internal/randutil"
+ 	"crypto/sha512"
+-	"encoding/asn1"
+ 	"errors"
+ 	"io"
+ 	"math/big"
++
++	"golang.org/x/crypto/cryptobyte"
++	"golang.org/x/crypto/cryptobyte/asn1"
+ )
+ 
+ // A invertible implements fast inverse mod Curve.Params().N
+@@ -66,10 +68,6 @@ type PrivateKey struct {
+ 	D *big.Int
+ }
+ 
+-type ecdsaSignature struct {
+-	R, S *big.Int
+-}
+-
+ // Public returns the public key corresponding to priv.
+ func (priv *PrivateKey) Public() crypto.PublicKey {
+ 	return &priv.PublicKey
+@@ -88,7 +86,12 @@ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
+ 		return nil, err
+ 	}
+ 
+-	return asn1.Marshal(ecdsaSignature{r, s})
++	var b cryptobyte.Builder
++	b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
++		b.AddASN1BigInt(r)
++		b.AddASN1BigInt(s)
++	})
++	return b.Bytes()
+ }
+ 
+ var one = new(big.Int).SetInt64(1)
+@@ -159,7 +162,7 @@ var errZeroParam = errors.New("zero parameter")
+ 
+ // Sign signs a hash (which should be the result of hashing a larger message)
+ // using the private key, priv. If the hash is longer than the bit-length of the
+-// private key's curve order, the hash will be truncated to that length.  It
++// private key's curve order, the hash will be truncated to that length. It
+ // returns the signature as a pair of integers. The security of the private key
+ // depends on the entropy of rand.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+@@ -238,6 +241,15 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 	return
+ }
+ 
++// SignASN1 signs a hash (which should be the result of hashing a larger message)
++// using the private key, priv. If the hash is longer than the bit-length of the
++// private key's curve order, the hash will be truncated to that length. It
++// returns the ASN.1 encoded signature. The security of the private key
++// depends on the entropy of rand.
++func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
++	return priv.Sign(rand, hash, nil)
++}
++
+ // Verify verifies the signature in r, s of hash using the public key, pub. Its
+ // return value records whether the signature is valid.
+ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+@@ -282,6 +294,24 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 	return x.Cmp(r) == 0
+ }
+ 
++// VerifyASN1 verifies the ASN.1 encoded signature, sig, of hash using the
++// public key, pub. Its return value records whether the signature is valid.
++func VerifyASN1(pub *PublicKey, hash, sig []byte) bool {
++	var (
++		r, s  = &big.Int{}, &big.Int{}
++		inner cryptobyte.String
++	)
++	input := cryptobyte.String(sig)
++	if !input.ReadASN1(&inner, asn1.SEQUENCE) ||
++		!input.Empty() ||
++		!inner.ReadASN1Integer(r) ||
++		!inner.ReadASN1Integer(s) ||
++		!inner.Empty() {
++		return false
++	}
++	return Verify(pub, hash, r, s)
++}
++
+ type zr struct {
+ 	io.Reader
+ }
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 6284e06bd4..0c1ff6d200 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -131,6 +131,36 @@ func TestSignAndVerify(t *testing.T) {
+ 	testSignAndVerify(t, elliptic.P521(), "p521")
+ }
+ 
++func testSignAndVerifyASN1(t *testing.T, c elliptic.Curve, tag string) {
++	priv, _ := GenerateKey(c, rand.Reader)
++
++	hashed := []byte("testing")
++	sig, err := SignASN1(rand.Reader, priv, hashed)
++	if err != nil {
++		t.Errorf("%s: error signing: %s", tag, err)
++		return
++	}
++
++	if !VerifyASN1(&priv.PublicKey, hashed, sig) {
++		t.Errorf("%s: VerifyASN1 failed", tag)
++	}
++
++	hashed[0] ^= 0xff
++	if VerifyASN1(&priv.PublicKey, hashed, sig) {
++		t.Errorf("%s: VerifyASN1 always works!", tag)
++	}
++}
++
++func TestSignAndVerifyASN1(t *testing.T) {
++	testSignAndVerifyASN1(t, elliptic.P224(), "p224")
++	if testing.Short() {
++		return
++	}
++	testSignAndVerifyASN1(t, elliptic.P256(), "p256")
++	testSignAndVerifyASN1(t, elliptic.P384(), "p384")
++	testSignAndVerifyASN1(t, elliptic.P521(), "p521")
++}
++
+ func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
+ 	priv, _ := GenerateKey(c, rand.Reader)
+ 
+diff --git a/src/crypto/ecdsa/example_test.go b/src/crypto/ecdsa/example_test.go
+index bddeab8955..652c1658f6 100644
+--- a/src/crypto/ecdsa/example_test.go
++++ b/src/crypto/ecdsa/example_test.go
+@@ -21,12 +21,12 @@ func Example() {
+ 	msg := "hello, world"
+ 	hash := sha256.Sum256([]byte(msg))
+ 
+-	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
++	sig, err := ecdsa.SignASN1(rand.Reader, privateKey, hash[:])
+ 	if err != nil {
+ 		panic(err)
+ 	}
+-	fmt.Printf("signature: (0x%x, 0x%x)\n", r, s)
++	fmt.Printf("signature: %x\n", sig)
+ 
+-	valid := ecdsa.Verify(&privateKey.PublicKey, hash[:], r, s)
++	valid := ecdsa.VerifyASN1(&privateKey.PublicKey, hash[:], sig)
+ 	fmt.Println("signature verified:", valid)
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index a64c2b3241..7dd6d5c3fe 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -383,8 +383,11 @@ var pkgDeps = map[string][]string{
+ 
+ 	// Mathematical crypto: dependencies on fmt (L4) and math/big.
+ 	// We could avoid some of the fmt, but math/big imports fmt anyway.
+-	"crypto/dsa":      {"L4", "CRYPTO", "math/big"},
+-	"crypto/ecdsa":    {"L4", "CRYPTO", "crypto/elliptic", "math/big", "encoding/asn1"},
++	"crypto/dsa": {"L4", "CRYPTO", "math/big"},
++	"crypto/ecdsa": {
++		"L4", "CRYPTO", "crypto/elliptic", "math/big",
++		"golang.org/x/crypto/cryptobyte", "golang.org/x/crypto/cryptobyte/asn1",
++	},
+ 	"crypto/elliptic": {"L4", "CRYPTO", "math/big"},
+ 	"crypto/rsa":      {"L4", "CRYPTO", "crypto/rand", "math/big"},
+ 

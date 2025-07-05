@@ -9,6 +9,19 @@ Date:   Fri May 22 15:32:43 2009 -0700
     DELTA=1  (1 added, 0 deleted, 0 changed)
     OCL=29275
     CL=29278
-
+---
  src/cmd/godefs/main.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+index a5818ff899..2c22611822 100644
+--- a/src/cmd/godefs/main.c
++++ b/src/cmd/godefs/main.c
+@@ -151,6 +151,7 @@ main(int argc, char **argv)
+ 
+ 	n = 0;
+ 	av[n++] = "gcc";
++	av[n++] = "-fdollars-in-identifiers";
+ 	av[n++] = "-S";	// write assembly
+ 	av[n++] = "-gstabs";	// include stabs info
+ 	av[n++] = "-o-";	// to stdout

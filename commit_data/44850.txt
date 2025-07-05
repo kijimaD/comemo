@@ -19,7 +19,107 @@ Date:   Fri Aug 28 15:05:44 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/init.go               | 38 +++++++++++++++++------
  src/cmd/go/testdata/script/mod_get_sum_noroot.txt | 11 +++++++
  2 files changed, 39 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 6f93b88eab..8e8fb9e6a1 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -862,14 +862,11 @@ func WriteGoMod() {
+ 		}
+ 	}
+ 
+-	// Always update go.sum, even if we didn't change go.mod: we may have
+-	// downloaded modules that we didn't have before.
+-	modfetch.WriteGoSum(keepSums())
+-
+ 	if !dirty && cfg.CmdName != "mod tidy" {
+ 		// The go.mod file has the same semantic content that it had before
+ 		// (but not necessarily the same exact bytes).
+-		// Ignore any intervening edits.
++		// Don't write go.mod, but write go.sum in case we added or trimmed sums.
++		modfetch.WriteGoSum(keepSums(true))
+ 		return
+ 	}
+ 
+@@ -880,6 +877,9 @@ func WriteGoMod() {
+ 	defer func() {
+ 		// At this point we have determined to make the go.mod file on disk equal to new.
+ 		index = indexModFile(new, modFile, false)
++
++		// Update go.sum after releasing the side lock and refreshing the index.
++		modfetch.WriteGoSum(keepSums(true))
+ 	}()
+ 
+ 	// Make a best-effort attempt to acquire the side lock, only to exclude
+@@ -920,7 +920,10 @@ func WriteGoMod() {
+ // the last load function like ImportPaths, LoadALL, etc.). It also contains
+ // entries for go.mod files needed for MVS (the version of these entries
+ // ends with "/go.mod").
+-func keepSums() map[module.Version]bool {
++//
++// If addDirect is true, the set also includes sums for modules directly
++// required by go.mod, as represented by the index, with replacements applied.
++func keepSums(addDirect bool) map[module.Version]bool {
+ 	// Walk the module graph and keep sums needed by MVS.
+ 	modkey := func(m module.Version) module.Version {
+ 		return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
+@@ -932,9 +935,6 @@ func keepSums() map[module.Version]bool {
+ 	walk = func(m module.Version) {
+ 		// If we build using a replacement module, keep the sum for the replacement,
+ 		// since that's the code we'll actually use during a build.
+-		//
+-		// TODO(golang.org/issue/29182): Perhaps we should keep both sums, and the
+-		// sums for both sets of transitive requirements.
+ 		r := Replacement(m)
+ 		if r.Path == "" {
+ 			keep[modkey(m)] = true
+@@ -964,9 +964,27 @@ func keepSums() map[module.Version]bool {
+ 		}
+ 	}
+ 
++	// Add entries for modules directly required by go.mod.
++	if addDirect {
++		for m := range index.require {
++			var kept module.Version
++			if r := Replacement(m); r.Path != "" {
++				kept = r
++			} else {
++				kept = m
++			}
++			keep[kept] = true
++			keep[module.Version{Path: kept.Path, Version: kept.Version + "/go.mod"}] = true
++		}
++	}
++
+ 	return keep
+ }
+ 
+ func TrimGoSum() {
+-	modfetch.TrimGoSum(keepSums())
++	// Don't retain sums for direct requirements in go.mod. When TrimGoSum is
++	// called, go.mod has not been updated, and it may contain requirements on
++	// modules deleted from the build list.
++	addDirect := false
++	modfetch.TrimGoSum(keepSums(addDirect))
+ }
+diff --git a/src/cmd/go/testdata/script/mod_get_sum_noroot.txt b/src/cmd/go/testdata/script/mod_get_sum_noroot.txt
+new file mode 100644
+index 0000000000..0d9a840e77
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_sum_noroot.txt
+@@ -0,0 +1,11 @@
++# When 'go get' is invoked on a module without a package in the root directory,
++# it should add sums for the module's go.mod file and its content to go.sum.
++# Verifies golang.org/issue/41103.
++go mod init m
++go get rsc.io/QUOTE
++grep '^rsc.io/QUOTE v1.5.2/go.mod ' go.sum
++grep '^rsc.io/QUOTE v1.5.2 ' go.sum
++
++# Double-check rsc.io/QUOTE does not have a root package.
++! go list -mod=readonly rsc.io/QUOTE
++stderr '^cannot find module providing package rsc.io/QUOTE: import lookup disabled by -mod=readonly$'

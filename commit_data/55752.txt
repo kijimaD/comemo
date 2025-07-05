@@ -13,6 +13,19 @@ Date:   Fri Mar 10 12:33:24 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/runtime/traceback_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index b0a383ae71..a47ddb61c5 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -19,6 +19,7 @@ import (
+ 
+ // Test traceback printing of inlined frames.
+ func TestTracebackInlined(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t) // This test requires inlining
+ 	check := func(t *testing.T, r *ttiResult, funcs ...string) {
+ 		t.Helper()
+ 

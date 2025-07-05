@@ -15,6 +15,54 @@ Date:   Thu Mar 7 21:39:59 2013 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7424054
-
+---
  src/pkg/runtime/proc.c | 15 ++++++++++++---
  1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 4ce0a718cd..d0f6745aa7 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -392,7 +392,7 @@ mhelpgc(void)
+ void
+ runtime·starttheworld(void)
+ {
+-	P *p;
++	P *p, *p1;
+ 	M *mp;
+ 	bool add;
+ 
+@@ -405,6 +405,7 @@ runtime·starttheworld(void)
+ 		procresize(runtime·gomaxprocs);
+ 	runtime·gcwaiting = 0;
+ 
++	p1 = nil;
+ 	while(p = pidleget()) {
+ 		// procresize() puts p's with work at the beginning of the list.
+ 		// Once we reach a p without a run queue, the rest don't have one either.
+@@ -414,8 +415,9 @@ runtime·starttheworld(void)
+ 		}
+ 		mp = mget();
+ 		if(mp == nil) {
+-			pidleput(p);
+-			break;
++			p->link = p1;
++			p1 = p;
++			continue;
+ 		}
+ 		if(mp->nextp)
+ 			runtime·throw("starttheworld: inconsistent mp->nextp");
+@@ -428,6 +430,13 @@ runtime·starttheworld(void)
+ 	}
+ 	runtime·unlock(&runtime·sched);
+ 
++	while(p1) {
++		p = p1;
++		p1 = p1->link;
++		add = false;
++		newm(nil, p);
++	}
++
+ 	if(add) {
+ 		// If GC could have used another helper proc, start one now,
+ 		// in the hope that it will be available next time.

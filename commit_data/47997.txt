@@ -15,6 +15,30 @@ Date:   Wed Apr 21 09:04:00 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/index.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index b9b5b53226..6726272f6c 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -349,15 +349,15 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ 	v, valid := constant.Int64Val(constant.ToInt(x.val))
+ 	if !valid || max >= 0 && v >= max {
+ 		if check.conf.CompilerErrorMessages {
+-			check.errorf(&x, "array index %s out of bounds [0:%d]", x.val.String(), max)
++			check.errorf(&x, invalidArg+"array index %s out of bounds [0:%d]", x.val.String(), max)
+ 		} else {
+-			check.errorf(&x, "index %s is out of bounds", &x)
++			check.errorf(&x, invalidArg+"index %s is out of bounds", &x)
+ 		}
+ 		return
+ 	}
+ 
+ 	// 0 <= v [ && v < max ]
+-	return Typ[Int], v
++	return x.typ, v
+ }
+ 
+ // indexElts checks the elements (elts) of an array or slice composite literal

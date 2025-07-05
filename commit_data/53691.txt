@@ -10,7 +10,63 @@ Date:   Sat Aug 27 11:58:12 2022 +0800
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/context/context.go      | 4 ++--
  src/context/context_test.go | 7 +++----
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 1070111efa..7eace57893 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -244,7 +244,7 @@ func newCancelCtx(parent Context) cancelCtx {
+ }
+ 
+ // goroutines counts the number of goroutines ever created; for testing.
+-var goroutines int32
++var goroutines atomic.Int32
+ 
+ // propagateCancel arranges for child to be canceled when parent is.
+ func propagateCancel(parent Context, child canceler) {
+@@ -274,7 +274,7 @@ func propagateCancel(parent Context, child canceler) {
+ 		}
+ 		p.mu.Unlock()
+ 	} else {
+-		atomic.AddInt32(&goroutines, +1)
++		goroutines.Add(1)
+ 		go func() {
+ 			select {
+ 			case <-parent.Done():
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 8673c0fdea..0991880907 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"sync"
+-	"sync/atomic"
+ 	"time"
+ )
+ 
+@@ -723,17 +722,17 @@ func (d *myDoneCtx) Done() <-chan struct{} {
+ }
+ 
+ func XTestCustomContextGoroutines(t testingT) {
+-	g := atomic.LoadInt32(&goroutines)
++	g := goroutines.Load()
+ 	checkNoGoroutine := func() {
+ 		t.Helper()
+-		now := atomic.LoadInt32(&goroutines)
++		now := goroutines.Load()
+ 		if now != g {
+ 			t.Fatalf("%d goroutines created", now-g)
+ 		}
+ 	}
+ 	checkCreatedGoroutine := func() {
+ 		t.Helper()
+-		now := atomic.LoadInt32(&goroutines)
++		now := goroutines.Load()
+ 		if now != g+1 {
+ 			t.Fatalf("%d goroutines created, want 1", now-g)
+ 		}

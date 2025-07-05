@@ -24,10 +24,151 @@ Date:   Mon Feb 10 15:40:55 2014 +0400
     R=golang-codereviews, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/61250043
-
+---
  src/pkg/runtime/lock_futex.c | 12 ++++++++++--
  src/pkg/runtime/lock_sema.c  |  9 +++++++++
  src/pkg/runtime/os_windows.c |  7 +++++--
  src/pkg/runtime/proc.c       |  4 ++--
  src/pkg/runtime/runtime.h    |  3 ++-
  5 files changed, 28 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index e6e9be9239..c16ac905dd 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -130,8 +130,11 @@ runtime·notesleep(Note *n)
+ {
+ 	if(g != m->g0)
+ 		runtime·throw("notesleep not on g0");
+-	while(runtime·atomicload((uint32*)&n->key) == 0)
++	while(runtime·atomicload((uint32*)&n->key) == 0) {
++		m->blocked = true;
+ 		runtime·futexsleep((uint32*)&n->key, 0, -1);
++		m->blocked = false;
++	}
+ }
+ 
+ #pragma textflag NOSPLIT
+@@ -143,8 +146,11 @@ notetsleep(Note *n, int64 ns, int64 deadline, int64 now)
+ 	// does not count against our nosplit stack sequence.
+ 
+ 	if(ns < 0) {
+-		while(runtime·atomicload((uint32*)&n->key) == 0)
++		while(runtime·atomicload((uint32*)&n->key) == 0) {
++			m->blocked = true;
+ 			runtime·futexsleep((uint32*)&n->key, 0, -1);
++			m->blocked = false;
++		}
+ 		return true;
+ 	}
+ 
+@@ -153,7 +159,9 @@ notetsleep(Note *n, int64 ns, int64 deadline, int64 now)
+ 
+ 	deadline = runtime·nanotime() + ns;
+ 	for(;;) {
++		m->blocked = true;
+ 		runtime·futexsleep((uint32*)&n->key, 0, ns);
++		m->blocked = false;
+ 		if(runtime·atomicload((uint32*)&n->key) != 0)
+ 			break;
+ 		now = runtime·nanotime();
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index f7156105f9..927bf11f84 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -161,7 +161,9 @@ runtime·notesleep(Note *n)
+ 		return;
+ 	}
+ 	// Queued.  Sleep.
++	m->blocked = true;
+ 	runtime·semasleep(-1);
++	m->blocked = false;
+ }
+ 
+ #pragma textflag NOSPLIT
+@@ -181,18 +183,23 @@ notetsleep(Note *n, int64 ns, int64 deadline, M *mp)
+ 
+ 	if(ns < 0) {
+ 		// Queued.  Sleep.
++		m->blocked = true;
+ 		runtime·semasleep(-1);
++		m->blocked = false;
+ 		return true;
+ 	}
+ 
+ 	deadline = runtime·nanotime() + ns;
+ 	for(;;) {
+ 		// Registered.  Sleep.
++		m->blocked = true;
+ 		if(runtime·semasleep(ns) >= 0) {
++			m->blocked = false;
+ 			// Acquired semaphore, semawakeup unregistered us.
+ 			// Done.
+ 			return true;
+ 		}
++		m->blocked = false;
+ 
+ 		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
+ 		ns = deadline - runtime·nanotime();
+@@ -214,8 +221,10 @@ notetsleep(Note *n, int64 ns, int64 deadline, M *mp)
+ 		} else if(mp == (M*)LOCKED) {
+ 			// Wakeup happened so semaphore is available.
+ 			// Grab it to avoid getting out of sync.
++			m->blocked = true;
+ 			if(runtime·semasleep(-1) < 0)
+ 				runtime·throw("runtime: unable to acquire - semaphore out of sync");
++			m->blocked = false;
+ 			return true;
+ 		} else
+ 			runtime·throw("runtime: unexpected waitm - semaphore out of sync");
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index aa6360787a..d867b0d50e 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -426,10 +426,13 @@ runtime·profileloop1(void)
+ 		allm = runtime·atomicloadp(&runtime·allm);
+ 		for(mp = allm; mp != nil; mp = mp->alllink) {
+ 			thread = runtime·atomicloadp(&mp->thread);
+-			if(thread == nil)
++			// Do not profile threads blocked on Notes,
++			// this includes idle worker threads,
++			// idle timer thread, idle heap scavenger, etc.
++			if(thread == nil || mp->profilehz == 0 || mp->blocked)
+ 				continue;
+ 			runtime·stdcall(runtime·SuspendThread, 1, thread);
+-			if(mp->profilehz != 0)
++			if(mp->profilehz != 0 && !mp->blocked)
+ 				profilem(mp);
+ 			runtime·stdcall(runtime·ResumeThread, 1, thread);
+ 		}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d2db74d541..52aee39ca3 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2690,10 +2690,10 @@ runtime·schedtrace(bool detailed)
+ 		if(lockedg)
+ 			id3 = lockedg->goid;
+ 		runtime·printf("  M%d: p=%D curg=%D mallocing=%d throwing=%d gcing=%d"
+-			" locks=%d dying=%d helpgc=%d spinning=%d lockedg=%D\n",
++			" locks=%d dying=%d helpgc=%d spinning=%d blocked=%d lockedg=%D\n",
+ 			mp->id, id1, id2,
+ 			mp->mallocing, mp->throwing, mp->gcing, mp->locks, mp->dying, mp->helpgc,
+-			mp->spinning, id3);
++			mp->spinning, m->blocked, id3);
+ 	}
+ 	runtime·lock(&allglock);
+ 	for(gi = 0; gi < runtime·allglen; gi++) {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 13fb554547..ff6a93aedb 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -312,7 +312,8 @@ struct	M
+ 	int32	dying;
+ 	int32	profilehz;
+ 	int32	helpgc;
+-	bool	spinning;
++	bool	spinning;	// M is out of work and is actively looking for work
++	bool	blocked;	// M is blocked on a Note
+ 	uint32	fastrand;
+ 	uint64	ncgocall;	// number of cgo calls in total
+ 	int32	ncgo;		// number of cgo calls currently in progress

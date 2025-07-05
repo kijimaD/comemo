@@ -9,7 +9,78 @@ Date:   Tue Aug 18 17:47:03 2009 -0700
     DELTA=35  (30 added, 4 deleted, 1 changed)
     OCL=33491
     CL=33498
-
+---
  src/pkg/archive/tar/reader.go |  6 +-----
  src/pkg/io/io.go              | 30 ++++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 044d5ab2eb..479d093e04 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -91,16 +91,12 @@ func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
+ 	return len(b), nil
+ }
+ 
+-type seeker interface {
+-	Seek(offset int64, whence int) (ret int64, err os.Error);
+-}
+-
+ // Skip any unread bytes in the existing file entry, as well as any alignment padding.
+ func (tr *Reader) skipUnread() {
+ 	nr := tr.nb + tr.pad;	// number of bytes to skip
+ 
+ 	var n int64;
+-	if sr, ok := tr.r.(seeker); ok {
++	if sr, ok := tr.r.(io.Seeker); ok {
+ 		n, tr.err = sr.Seek(nr, 1);
+ 	} else {
+ 		n, tr.err = io.Copyn(tr.r, ignoreWriter{}, nr);
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index e7f28a4ec5..b38c0efa9a 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -59,6 +59,17 @@ type Closer interface {
+ 	Close() os.Error;
+ }
+ 
++// Seeker is the interface that wraps the basic Seek method.
++//
++// Seek sets the offset for the next Read or Write to offset,
++// interpreted according to whence: 0 means relative to the origin of
++// the file, 1 means relative to the current offset, and 2 means
++// relative to the end.  Seek returns the new offset and an Error, if
++// any.
++type Seeker interface {
++	Seek(offset int64, whence int) (ret int64, err os.Error);
++}
++
+ // ReadWrite is the interface that groups the basic Read and Write methods.
+ type ReadWriter interface {
+ 	Reader;
+@@ -84,6 +95,25 @@ type ReadWriteCloser interface {
+ 	Closer;
+ }
+ 
++// ReadSeeker is the interface that groups the basic Read and Seek methods.
++type ReadSeeker interface {
++	Reader;
++	Seeker;
++}
++
++// WriteSeeker is the interface that groups the basic Write and Seek methods.
++type WriteSeeker interface {
++	Writer;
++	Seeker;
++}
++
++// ReadWriteSeeker is the interface that groups the basic Read, Write and Seek methods.
++type ReadWriteSeeker interface {
++	Reader;
++	Writer;
++	Seeker;
++}
++
+ // WriteString writes the contents of the string s to w, which accepts an array of bytes.
+ func WriteString(w Writer, s string) (n int, err os.Error) {
+ 	return w.Write(strings.Bytes(s))

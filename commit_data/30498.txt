@@ -7,6 +7,20 @@ Date:   Wed Nov 9 09:24:50 2016 +0100
     Change-Id: Ia439c4a3c873ef24f60f8ee54a74f767fdaafd29
     Reviewed-on: https://go-review.googlesource.com/32799
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6763f52ed9..da54416279 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -636,7 +636,7 @@ Markus Duft <markus.duft@salomon.at>
+ Markus Sonderegger <marraison@gmail.com>
+ Markus Zimmermann <zimmski@gmail.com>
+ Martin Garton <garton@gmail.com>
+-Martin Möhrmann <martisch@uos.de>
++Martin Möhrmann <moehrmann@google.com> <martisch@uos.de>
+ Martin Neubauer <m.ne@gmx.net>
+ Martin Olsson <martin@minimum.se>
+ Marvin Stenger <marvin.stenger94@gmail.com>

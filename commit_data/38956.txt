@@ -39,6 +39,23 @@ Date:   Tue Dec 11 22:46:55 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/c/153819
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 737aade739..5018b6d8af 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -489,6 +489,11 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
+ 	}
+ 
+ 	for _, zf := range zr.File {
++		if !zf.FileInfo().Mode().IsRegular() {
++			// Skip symlinks (golang.org/issue/27093).
++			continue
++		}
++
+ 		if topPrefix == "" {
+ 			i := strings.Index(zf.Name, "/")
+ 			if i < 0 {

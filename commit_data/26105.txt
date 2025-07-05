@@ -9,6 +9,20 @@ Date:   Thu Dec 17 16:34:08 2015 +0000
     Change-Id: Id2ce32c52efcfdbd66630725d62d2ca6bf0916d5
     Reviewed-on: https://go-review.googlesource.com/17934
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/pprof/internal/report/report.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/pprof/internal/report/report.go b/src/cmd/pprof/internal/report/report.go
+index 586f41d4d6..0265e2384c 100644
+--- a/src/cmd/pprof/internal/report/report.go
++++ b/src/cmd/pprof/internal/report/report.go
+@@ -1505,7 +1505,7 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok
+ 	case "megabyte", "mb":
+ 		value *= 1024 * 1024
+ 	case "gigabyte", "gb":
+-		value *= 1024 * 1024
++		value *= 1024 * 1024 * 1024
+ 	default:
+ 		return 0, "", false
+ 	}

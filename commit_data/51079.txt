@@ -20,10 +20,79 @@ Date:   Tue Oct 5 19:52:20 2021 -0500
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/x509/root_aix.go     | 3 +--
  src/crypto/x509/root_bsd.go     | 3 +--
  src/crypto/x509/root_js.go      | 3 +--
  src/crypto/x509/root_linux.go   | 3 +--
  src/crypto/x509/root_solaris.go | 3 +--
  5 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/crypto/x509/root_aix.go b/src/crypto/x509/root_aix.go
+index 4d50a13473..99b7463a2a 100644
+--- a/src/crypto/x509/root_aix.go
++++ b/src/crypto/x509/root_aix.go
+@@ -9,8 +9,7 @@ var certFiles = []string{
+ 	"/var/ssl/certs/ca-bundle.crt",
+ }
+ 
+-// Possible directories with certificate files; stop after successfully
+-// reading at least one file from a directory.
++// Possible directories with certificate files; all will be read.
+ var certDirectories = []string{
+ 	"/var/ssl/certs",
+ }
+diff --git a/src/crypto/x509/root_bsd.go b/src/crypto/x509/root_bsd.go
+index 8ac205faa9..a76aef8659 100644
+--- a/src/crypto/x509/root_bsd.go
++++ b/src/crypto/x509/root_bsd.go
+@@ -14,8 +14,7 @@ var certFiles = []string{
+ 	"/etc/openssl/certs/ca-certificates.crt", // NetBSD
+ }
+ 
+-// Possible directories with certificate files; stop after successfully
+-// reading at least one file from a directory.
++// Possible directories with certificate files; all will be read.
+ var certDirectories = []string{
+ 	"/etc/ssl/certs",         // FreeBSD 12.2+
+ 	"/usr/local/share/certs", // FreeBSD
+diff --git a/src/crypto/x509/root_js.go b/src/crypto/x509/root_js.go
+index 9593038517..7b3f1e486f 100644
+--- a/src/crypto/x509/root_js.go
++++ b/src/crypto/x509/root_js.go
+@@ -9,6 +9,5 @@ package x509
+ // Possible certificate files; stop after finding one.
+ var certFiles = []string{}
+ 
+-// Possible directories with certificate files; stop after successfully
+-// reading at least one file from a directory.
++// Possible directories with certificate files; all will be read.
+ var certDirectories = []string{}
+diff --git a/src/crypto/x509/root_linux.go b/src/crypto/x509/root_linux.go
+index ad6ce5cae7..e32989b999 100644
+--- a/src/crypto/x509/root_linux.go
++++ b/src/crypto/x509/root_linux.go
+@@ -14,8 +14,7 @@ var certFiles = []string{
+ 	"/etc/ssl/cert.pem",                                 // Alpine Linux
+ }
+ 
+-// Possible directories with certificate files; stop after successfully
+-// reading at least one file from a directory.
++// Possible directories with certificate files; all will be read.
+ var certDirectories = []string{
+ 	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
+ 	"/etc/pki/tls/certs",           // Fedora/RHEL
+diff --git a/src/crypto/x509/root_solaris.go b/src/crypto/x509/root_solaris.go
+index 97c19139e3..617f26961f 100644
+--- a/src/crypto/x509/root_solaris.go
++++ b/src/crypto/x509/root_solaris.go
+@@ -11,8 +11,7 @@ var certFiles = []string{
+ 	"/etc/ssl/cacert.pem",                // OmniOS
+ }
+ 
+-// Possible directories with certificate files; stop after successfully
+-// reading at least one file from a directory.
++// Possible directories with certificate files; all will be read.
+ var certDirectories = []string{
+ 	"/etc/certs/CA",
+ }

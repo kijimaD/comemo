@@ -9,7 +9,7 @@ Date:   Wed Dec 12 10:51:13 2012 -0800
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6929058
-
+---
  doc/gopher/pencil/gopherhat.jpg     | Bin 0 -> 129627 bytes
  doc/gopher/pencil/gopherhelmet.jpg  | Bin 0 -> 151965 bytes
  doc/gopher/pencil/gophermega.jpg    | Bin 0 -> 122348 bytes
@@ -17,3 +17,28 @@ Date:   Wed Dec 12 10:51:13 2012 -0800
  doc/gopher/pencil/gopherswim.jpg    | Bin 0 -> 158593 bytes
  doc/gopher/pencil/gopherswrench.jpg | Bin 0 -> 231095 bytes
  6 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/gopher/pencil/gopherhat.jpg b/doc/gopher/pencil/gopherhat.jpg
+new file mode 100644
+index 0000000000..f34d7b3258
+Binary files /dev/null and b/doc/gopher/pencil/gopherhat.jpg differ
+diff --git a/doc/gopher/pencil/gopherhelmet.jpg b/doc/gopher/pencil/gopherhelmet.jpg
+new file mode 100644
+index 0000000000..c7b6c61b2b
+Binary files /dev/null and b/doc/gopher/pencil/gopherhelmet.jpg differ
+diff --git a/doc/gopher/pencil/gophermega.jpg b/doc/gopher/pencil/gophermega.jpg
+new file mode 100644
+index 0000000000..779fb073ac
+Binary files /dev/null and b/doc/gopher/pencil/gophermega.jpg differ
+diff --git a/doc/gopher/pencil/gopherrunning.jpg b/doc/gopher/pencil/gopherrunning.jpg
+new file mode 100644
+index 0000000000..eeeddf106f
+Binary files /dev/null and b/doc/gopher/pencil/gopherrunning.jpg differ
+diff --git a/doc/gopher/pencil/gopherswim.jpg b/doc/gopher/pencil/gopherswim.jpg
+new file mode 100644
+index 0000000000..2f32877121
+Binary files /dev/null and b/doc/gopher/pencil/gopherswim.jpg differ
+diff --git a/doc/gopher/pencil/gopherswrench.jpg b/doc/gopher/pencil/gopherswrench.jpg
+new file mode 100644
+index 0000000000..93005f42a8
+Binary files /dev/null and b/doc/gopher/pencil/gopherswrench.jpg differ

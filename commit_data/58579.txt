@@ -17,7 +17,64 @@ Date:   Wed Nov 8 16:08:26 2023 +0100
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/net/http/server.go   | 22 ++++++++++++++--------
  src/net/http/transfer.go |  5 ++---
  2 files changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 7fa785dfee..36a03f4a32 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -575,9 +575,8 @@ type writerOnly struct {
+ // to a *net.TCPConn with sendfile, or from a supported src type such
+ // as a *net.TCPConn on Linux with splice.
+ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+-	bufp := copyBufPool.Get().(*[]byte)
+-	buf := *bufp
+-	defer copyBufPool.Put(bufp)
++	buf := getCopyBuf()
++	defer putCopyBuf(buf)
+ 
+ 	// Our underlying w.conn.rwc is usually a *TCPConn (with its
+ 	// own ReadFrom method). If not, just fall back to the normal
+@@ -807,11 +806,18 @@ var (
+ 	bufioWriter4kPool sync.Pool
+ )
+ 
+-var copyBufPool = sync.Pool{
+-	New: func() any {
+-		b := make([]byte, 32*1024)
+-		return &b
+-	},
++const copyBufPoolSize = 32 * 1024
++
++var copyBufPool = sync.Pool{New: func() any { return new([copyBufPoolSize]byte) }}
++
++func getCopyBuf() []byte {
++	return copyBufPool.Get().(*[copyBufPoolSize]byte)[:]
++}
++func putCopyBuf(b []byte) {
++	if len(b) != copyBufPoolSize {
++		panic("trying to put back buffer of the wrong size in the copyBufPool")
++	}
++	copyBufPool.Put((*[copyBufPoolSize]byte)(b))
+ }
+ 
+ func bufioWriterPool(size int) *sync.Pool {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index dffff56b31..d787258487 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -410,9 +410,8 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
+ //
+ // This function is only intended for use in writeBody.
+ func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err error) {
+-	bufp := copyBufPool.Get().(*[]byte)
+-	buf := *bufp
+-	defer copyBufPool.Put(bufp)
++	buf := getCopyBuf()
++	defer putCopyBuf(buf)
+ 
+ 	n, err = io.CopyBuffer(dst, src, buf)
+ 	if err != nil && err != io.EOF {

@@ -17,7 +17,45 @@ Date:   Tue Aug 3 20:36:02 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/lookup.go        |  5 ++++-
  src/cmd/compile/internal/types2/typeterm_test.go | 10 +++++-----
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 41e5bc7811..f62c3771d2 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -308,7 +308,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		for _, m := range T.typeSet().methods {
+ 			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name)
+ 
+-			if f == nil && static {
++			if f == nil {
++				if !static {
++					continue
++				}
+ 				return m, f
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/types2/typeterm_test.go b/src/cmd/compile/internal/types2/typeterm_test.go
+index 4676fb0437..cc4e30d989 100644
+--- a/src/cmd/compile/internal/types2/typeterm_test.go
++++ b/src/cmd/compile/internal/types2/typeterm_test.go
+@@ -11,11 +11,11 @@ import (
+ 
+ var testTerms = map[string]*term{
+ 	"∅":       nil,
+-	"⊤":       &term{},
+-	"int":     &term{false, Typ[Int]},
+-	"~int":    &term{true, Typ[Int]},
+-	"string":  &term{false, Typ[String]},
+-	"~string": &term{true, Typ[String]},
++	"⊤":       {},
++	"int":     {false, Typ[Int]},
++	"~int":    {true, Typ[Int]},
++	"string":  {false, Typ[String]},
++	"~string": {true, Typ[String]},
+ 	// TODO(gri) add a defined type
+ }
+ 

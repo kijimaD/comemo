@@ -16,8 +16,103 @@ Date:   Wed Mar 16 21:51:17 2016 -0700
     Change-Id: I04b6a3b2ac303c19817e932a36a3b006de103aaa
     Reviewed-on: https://go-review.googlesource.com/20791
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go  | 23 +++++++++++++++++++++++
  src/cmd/compile/internal/gc/walk.go |  7 +++++++
  test/writebarrier.go                | 13 +++++++++++++
  3 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b0c7c5f5b3..1d3c1f6dff 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -96,6 +96,14 @@ func buildssa(fn *Node) *ssa.Func {
+ 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
+ 		s.cgoUnsafeArgs = true
+ 	}
++	if fn.Func.Pragma&Nowritebarrier != 0 {
++		s.noWB = true
++	}
++	defer func() {
++		if s.WBLineno != 0 {
++			fn.Func.WBLineno = s.WBLineno
++		}
++	}()
+ 	// TODO(khr): build config just once at the start of the compiler binary
+ 
+ 	ssaExp.log = printssa
+@@ -271,6 +279,8 @@ type state struct {
+ 	returns []*Node
+ 
+ 	cgoUnsafeArgs bool
++	noWB          bool
++	WBLineno      int32 // line number of first write barrier. 0=no write barriers
+ }
+ 
+ type funcLine struct {
+@@ -2780,6 +2790,13 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
+ 	// } else {
+ 	//   *left = *right
+ 	// }
++
++	if s.noWB {
++		s.Fatalf("write barrier prohibited")
++	}
++	if s.WBLineno == 0 {
++		s.WBLineno = left.Line
++	}
+ 	bThen := s.f.NewBlock(ssa.BlockPlain)
+ 	bElse := s.f.NewBlock(ssa.BlockPlain)
+ 	bEnd := s.f.NewBlock(ssa.BlockPlain)
+@@ -2823,6 +2840,12 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
+ 	//   store pointer fields
+ 	// }
+ 
++	if s.noWB {
++		s.Fatalf("write barrier prohibited")
++	}
++	if s.WBLineno == 0 {
++		s.WBLineno = left.Line
++	}
+ 	s.storeTypeScalars(t, left, right)
+ 
+ 	bThen := s.f.NewBlock(ssa.BlockPlain)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 6d136f6272..3b3645784f 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2146,6 +2146,13 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 		return false
+ 	}
+ 
++	// No write barrier for writing a sliced slice back to its
++	// original location.
++	if (r.Op == OSLICE || r.Op == OSLICE3 || r.Op == OSLICESTR) &&
++		samesafeexpr(r.Left, l) {
++		return false
++	}
++
+ 	// Otherwise, be conservative and use write barrier.
+ 	return true
+ }
+diff --git a/test/writebarrier.go b/test/writebarrier.go
+index e591eaab32..75107287b4 100644
+--- a/test/writebarrier.go
++++ b/test/writebarrier.go
+@@ -168,3 +168,16 @@ func f17(x *T17) {
+ 	x.f = f17                      // no barrier
+ 	x.f = func(y *T17) { *y = *x } // ERROR "write barrier"
+ }
++
++type T18 struct {
++	a []int
++	s string
++}
++
++func f18(p *T18, x *[]int) {
++	p.a = p.a[:5]    // no barrier
++	p.a = p.a[3:5]   // no barrier
++	p.a = p.a[1:2:3] // no barrier
++	p.s = p.s[8:9]   // no barrier
++	*x = (*x)[3:5]   // no barrier
++}

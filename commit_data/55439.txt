@@ -18,7 +18,7 @@ Date:   Wed Feb 1 20:03:17 2023 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go          | 45 -----------------------
  src/cmd/compile/internal/types2/infer2.go         | 45 -----------------------
  src/cmd/compile/internal/types2/unify.go          | 23 ++++++++----
@@ -27,3 +27,357 @@ Date:   Wed Feb 1 20:03:17 2023 -0800
  src/go/types/unify.go                             | 23 ++++++++----
  src/internal/types/testdata/examples/functions.go |  6 +--
  7 files changed, 35 insertions(+), 197 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 671ce6a640..6bf7c55434 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -56,51 +56,6 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
+ 	tparams, params = check.renameTParams(pos, tparams, params)
+ 
+-	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
+-	// If that is the case, permutate params and args such that the arguments with named
+-	// types are first in the list. This doesn't affect type inference if all types are taken
+-	// as is. But when we have inexact unification enabled (as is the case for function type
+-	// inference), when a named type is unified with an unnamed type, unification proceeds
+-	// with the underlying type of the named type because otherwise unification would fail
+-	// right away. This leads to an asymmetry in type inference: in cases where arguments of
+-	// named and unnamed types are passed to parameters with identical type, different types
+-	// (named vs underlying) may be inferred depending on the order of the arguments.
+-	// By ensuring that named types are seen first, order dependence is avoided and unification
+-	// succeeds where it can (go.dev/issue/43056).
+-	const enableArgSorting = true
+-	if m := len(args); m >= 2 && enableArgSorting {
+-		// Determine indices of arguments with named and unnamed types.
+-		var named, unnamed []int
+-		for i, arg := range args {
+-			if hasName(arg.typ) {
+-				named = append(named, i)
+-			} else {
+-				unnamed = append(unnamed, i)
+-			}
+-		}
+-
+-		// If we have named and unnamed types, move the arguments with
+-		// named types first. Update the parameter list accordingly.
+-		// Make copies so as not to clobber the incoming slices.
+-		if len(named) != 0 && len(unnamed) != 0 {
+-			params2 := make([]*Var, m)
+-			args2 := make([]*operand, m)
+-			i := 0
+-			for _, j := range named {
+-				params2[i] = params.At(j)
+-				args2[i] = args[j]
+-				i++
+-			}
+-			for _, j := range unnamed {
+-				params2[i] = params.At(j)
+-				args2[i] = args[j]
+-				i++
+-			}
+-			params = NewTuple(params2...)
+-			args = args2
+-		}
+-	}
+-
+ 	// --- 1 ---
+ 	// Continue with the type arguments we have. Avoid matching generic
+ 	// parameters that already have type arguments against function arguments:
+diff --git a/src/cmd/compile/internal/types2/infer2.go b/src/cmd/compile/internal/types2/infer2.go
+index 6f0c1ddff5..f8a96c9cd8 100644
+--- a/src/cmd/compile/internal/types2/infer2.go
++++ b/src/cmd/compile/internal/types2/infer2.go
+@@ -68,51 +68,6 @@ func (check *Checker) infer2(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
+ 	tparams, params = check.renameTParams(pos, tparams, params)
+ 
+-	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
+-	// If that is the case, permutate params and args such that the arguments with named
+-	// types are first in the list. This doesn't affect type inference if all types are taken
+-	// as is. But when we have inexact unification enabled (as is the case for function type
+-	// inference), when a named type is unified with an unnamed type, unification proceeds
+-	// with the underlying type of the named type because otherwise unification would fail
+-	// right away. This leads to an asymmetry in type inference: in cases where arguments of
+-	// named and unnamed types are passed to parameters with identical type, different types
+-	// (named vs underlying) may be inferred depending on the order of the arguments.
+-	// By ensuring that named types are seen first, order dependence is avoided and unification
+-	// succeeds where it can (go.dev/issue/43056).
+-	const enableArgSorting = true
+-	if m := len(args); m >= 2 && enableArgSorting {
+-		// Determine indices of arguments with named and unnamed types.
+-		var named, unnamed []int
+-		for i, arg := range args {
+-			if hasName(arg.typ) {
+-				named = append(named, i)
+-			} else {
+-				unnamed = append(unnamed, i)
+-			}
+-		}
+-
+-		// If we have named and unnamed types, move the arguments with
+-		// named types first. Update the parameter list accordingly.
+-		// Make copies so as not to clobber the incoming slices.
+-		if len(named) != 0 && len(unnamed) != 0 {
+-			params2 := make([]*Var, m)
+-			args2 := make([]*operand, m)
+-			i := 0
+-			for _, j := range named {
+-				params2[i] = params.At(j)
+-				args2[i] = args[j]
+-				i++
+-			}
+-			for _, j := range unnamed {
+-				params2[i] = params.At(j)
+-				args2[i] = args[j]
+-				i++
+-			}
+-			params = NewTuple(params2...)
+-			args = args2
+-		}
+-	}
+-
+ 	// Make sure we have a "full" list of type arguments, some of which may
+ 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
+ 	if len(targs) < n {
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 48be5aeaef..e73fd8045b 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -161,15 +161,13 @@ func (u *unifier) at(x *TypeParam) Type {
+ }
+ 
+ // set sets the type t for type parameter x;
+-// t must not be nil and it must not have been set before.
++// t must not be nil.
+ func (u *unifier) set(x *TypeParam, t Type) {
+ 	assert(t != nil)
+ 	if traceInference {
+ 		u.tracef("%s ➞ %s", x, t)
+ 	}
+-	h := u.handles[x]
+-	assert(*h == nil)
+-	*h = t
++	*u.handles[x] = t
+ }
+ 
+ // unknowns returns the number of type parameters for which no type has been set yet.
+@@ -259,7 +257,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 	}
+ 
+ 	// Cases where at least one of x or y is a type parameter recorded with u.
+-	// If we have ar least one type parameter, there is one in x.
++	// If we have at least one type parameter, there is one in x.
+ 	switch px, py := u.asTypeParam(x), u.asTypeParam(y); {
+ 	case px != nil && py != nil:
+ 		// both x and y are type parameters
+@@ -271,8 +269,19 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 
+ 	case px != nil:
+ 		// x is a type parameter, y is not
+-		if tx := u.at(px); tx != nil {
+-			return u.nifyEq(tx, y, p)
++		if x := u.at(px); x != nil {
++			// x has an inferred type which must match y
++			if u.nifyEq(x, y, p) {
++				// If we have a match, possibly through underlying types,
++				// and y is a defined type, make sure we record that type
++				// for type parameter x, which may have until now only
++				// recorded an underlying type (go.dev/issue/43056).
++				if _, ok := y.(*Named); ok {
++					u.set(px, y)
++				}
++				return true
++			}
++			return false
+ 		}
+ 		// otherwise, infer type from y
+ 		u.set(px, y)
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 93a43d39ea..a65cdce840 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -58,51 +58,6 @@ func (check *Checker) infer1(posn positioner, tparams []*TypeParam, targs []Type
+ 	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
+ 	tparams, params = check.renameTParams(posn.Pos(), tparams, params)
+ 
+-	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
+-	// If that is the case, permutate params and args such that the arguments with named
+-	// types are first in the list. This doesn't affect type inference if all types are taken
+-	// as is. But when we have inexact unification enabled (as is the case for function type
+-	// inference), when a named type is unified with an unnamed type, unification proceeds
+-	// with the underlying type of the named type because otherwise unification would fail
+-	// right away. This leads to an asymmetry in type inference: in cases where arguments of
+-	// named and unnamed types are passed to parameters with identical type, different types
+-	// (named vs underlying) may be inferred depending on the order of the arguments.
+-	// By ensuring that named types are seen first, order dependence is avoided and unification
+-	// succeeds where it can (go.dev/issue/43056).
+-	const enableArgSorting = true
+-	if m := len(args); m >= 2 && enableArgSorting {
+-		// Determine indices of arguments with named and unnamed types.
+-		var named, unnamed []int
+-		for i, arg := range args {
+-			if hasName(arg.typ) {
+-				named = append(named, i)
+-			} else {
+-				unnamed = append(unnamed, i)
+-			}
+-		}
+-
+-		// If we have named and unnamed types, move the arguments with
+-		// named types first. Update the parameter list accordingly.
+-		// Make copies so as not to clobber the incoming slices.
+-		if len(named) != 0 && len(unnamed) != 0 {
+-			params2 := make([]*Var, m)
+-			args2 := make([]*operand, m)
+-			i := 0
+-			for _, j := range named {
+-				params2[i] = params.At(j)
+-				args2[i] = args[j]
+-				i++
+-			}
+-			for _, j := range unnamed {
+-				params2[i] = params.At(j)
+-				args2[i] = args[j]
+-				i++
+-			}
+-			params = NewTuple(params2...)
+-			args = args2
+-		}
+-	}
+-
+ 	// --- 1 ---
+ 	// Continue with the type arguments we have. Avoid matching generic
+ 	// parameters that already have type arguments against function arguments:
+diff --git a/src/go/types/infer2.go b/src/go/types/infer2.go
+index a0c2ac1c69..d763e3b7ae 100644
+--- a/src/go/types/infer2.go
++++ b/src/go/types/infer2.go
+@@ -70,51 +70,6 @@ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type
+ 	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
+ 	tparams, params = check.renameTParams(posn.Pos(), tparams, params)
+ 
+-	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
+-	// If that is the case, permutate params and args such that the arguments with named
+-	// types are first in the list. This doesn't affect type inference if all types are taken
+-	// as is. But when we have inexact unification enabled (as is the case for function type
+-	// inference), when a named type is unified with an unnamed type, unification proceeds
+-	// with the underlying type of the named type because otherwise unification would fail
+-	// right away. This leads to an asymmetry in type inference: in cases where arguments of
+-	// named and unnamed types are passed to parameters with identical type, different types
+-	// (named vs underlying) may be inferred depending on the order of the arguments.
+-	// By ensuring that named types are seen first, order dependence is avoided and unification
+-	// succeeds where it can (go.dev/issue/43056).
+-	const enableArgSorting = true
+-	if m := len(args); m >= 2 && enableArgSorting {
+-		// Determine indices of arguments with named and unnamed types.
+-		var named, unnamed []int
+-		for i, arg := range args {
+-			if hasName(arg.typ) {
+-				named = append(named, i)
+-			} else {
+-				unnamed = append(unnamed, i)
+-			}
+-		}
+-
+-		// If we have named and unnamed types, move the arguments with
+-		// named types first. Update the parameter list accordingly.
+-		// Make copies so as not to clobber the incoming slices.
+-		if len(named) != 0 && len(unnamed) != 0 {
+-			params2 := make([]*Var, m)
+-			args2 := make([]*operand, m)
+-			i := 0
+-			for _, j := range named {
+-				params2[i] = params.At(j)
+-				args2[i] = args[j]
+-				i++
+-			}
+-			for _, j := range unnamed {
+-				params2[i] = params.At(j)
+-				args2[i] = args[j]
+-				i++
+-			}
+-			params = NewTuple(params2...)
+-			args = args2
+-		}
+-	}
+-
+ 	// Make sure we have a "full" list of type arguments, some of which may
+ 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
+ 	if len(targs) < n {
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index e10493897c..2e341b3807 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -163,15 +163,13 @@ func (u *unifier) at(x *TypeParam) Type {
+ }
+ 
+ // set sets the type t for type parameter x;
+-// t must not be nil and it must not have been set before.
++// t must not be nil.
+ func (u *unifier) set(x *TypeParam, t Type) {
+ 	assert(t != nil)
+ 	if traceInference {
+ 		u.tracef("%s ➞ %s", x, t)
+ 	}
+-	h := u.handles[x]
+-	assert(*h == nil)
+-	*h = t
++	*u.handles[x] = t
+ }
+ 
+ // unknowns returns the number of type parameters for which no type has been set yet.
+@@ -261,7 +259,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 	}
+ 
+ 	// Cases where at least one of x or y is a type parameter recorded with u.
+-	// If we have ar least one type parameter, there is one in x.
++	// If we have at least one type parameter, there is one in x.
+ 	switch px, py := u.asTypeParam(x), u.asTypeParam(y); {
+ 	case px != nil && py != nil:
+ 		// both x and y are type parameters
+@@ -273,8 +271,19 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 
+ 	case px != nil:
+ 		// x is a type parameter, y is not
+-		if tx := u.at(px); tx != nil {
+-			return u.nifyEq(tx, y, p)
++		if x := u.at(px); x != nil {
++			// x has an inferred type which must match y
++			if u.nifyEq(x, y, p) {
++				// If we have a match, possibly through underlying types,
++				// and y is a defined type, make sure we record that type
++				// for type parameter x, which may have until now only
++				// recorded an underlying type (go.dev/issue/43056).
++				if _, ok := y.(*Named); ok {
++					u.set(px, y)
++				}
++				return true
++			}
++			return false
+ 		}
+ 		// otherwise, infer type from y
+ 		u.set(px, y)
+diff --git a/src/internal/types/testdata/examples/functions.go b/src/internal/types/testdata/examples/functions.go
+index 4f58bb5599..effb66c616 100644
+--- a/src/internal/types/testdata/examples/functions.go
++++ b/src/internal/types/testdata/examples/functions.go
+@@ -174,15 +174,15 @@ func g2[T any]([]T, T) {}
+ func g3[T any](*T, ...T) {}
+ 
+ func _() {
+-	type intSlize []int
++	type intSlice []int
+ 	g1([]int{})
+-	g1(intSlize{})
++	g1(intSlice{})
+ 	g2(nil, 0)
+ 
+ 	type myString string
+ 	var s1 string
+ 	g3(nil, "1", myString("2"), "3")
+-	g3(& /* ERROR "does not match" */ s1, "1", myString("2"), "3")
++	g3(&s1, "1", myString /* ERROR `type myString of myString("2") does not match inferred type string for T` */ ("2"), "3")
+ 	_ = s1
+ 
+ 	type myStruct struct{x int}

@@ -21,7 +21,7 @@ Date:   Sun Nov 15 12:57:09 2009 -0800
     
     R=ken2
     https://golang.org/cl/154144
-
+---
  src/cmd/gc/align.c       |   9 ++--
  src/cmd/gc/const.c       |   4 +-
  src/cmd/gc/dcl.c         |  18 +++++++-
@@ -40,3 +40,736 @@ Date:   Sun Nov 15 12:57:09 2009 -0800
  test/fixedbugs/bug216.go |  20 +++++++++
  test/fixedbugs/bug217.go |  15 +++++++
  17 files changed, 246 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index ba43fa05ba..d1cc9c23b6 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -495,10 +495,11 @@ typeinit(void)
+ 	mpatofix(maxintval[TUINT32], "0xffffffff");
+ 	mpatofix(maxintval[TUINT64], "0xffffffffffffffff");
+ 
+-	mpatoflt(maxfltval[TFLOAT32], "3.40282347e+38");
+-	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");
+-	mpatoflt(maxfltval[TFLOAT64], "1.7976931348623157e+308");
+-	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
++	/* f is valid float if min < f < max.  (min and max are not themselves valid.) */
++	mpatoflt(maxfltval[TFLOAT32], "33554431p103");	/* 2^24-1 p (127-23) + 1/2 ulp*/
++	mpatoflt(minfltval[TFLOAT32], "-33554431p103");
++	mpatoflt(maxfltval[TFLOAT64], "18014398509481983p970");	/* 2^53-1 p (1023-52) + 1/2 ulp */
++	mpatoflt(minfltval[TFLOAT64], "-18014398509481983p970");
+ 
+ 	/* for walk to use in error messages */
+ 	types[TFUNC] = functype(N, nil, nil);
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 8cc4c247d6..b11ab1c7f8 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -261,8 +261,8 @@ overflow(Val v, Type *t)
+ 	case CTFLT:
+ 		if(!isfloat[t->etype])
+ 			fatal("overflow: %T floating-point constant", t);
+-		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) < 0
+-		|| mpcmpfltflt(v.u.fval, maxfltval[t->etype]) > 0)
++		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) <= 0
++		|| mpcmpfltflt(v.u.fval, maxfltval[t->etype]) >= 0)
+ 			yyerror("constant %#F overflows %T", v.u.fval, t);
+ 		break;
+ 	}
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 3493e37dee..ec386f3a0c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -302,11 +302,27 @@ NodeList*
+ variter(NodeList *vl, Node *t, NodeList *el)
+ {
+ 	int doexpr;
+-	Node *v, *e;
++	Node *v, *e, *as2;
+ 	NodeList *init;
+ 
+ 	init = nil;
+ 	doexpr = el != nil;
++	
++	if(count(el) == 1 && count(vl) > 1) {
++		e = el->n;
++		as2 = nod(OAS2, N, N);
++		as2->list = vl;
++		as2->rlist = list1(e);
++		for(; vl; vl=vl->next) {
++			v = vl->n;
++			v->op = ONAME;
++			declare(v, dclcontext);
++			v->ntype = t;
++			v->defn = as2;
++		}
++		return list1(as2);
++	}
++	
+ 	for(; vl; vl=vl->next) {
+ 		if(doexpr) {
+ 			if(el == nil) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index cf7862e76d..f5b88ff593 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1048,8 +1048,8 @@ void	typechecklist(NodeList*, int);
+ void	typecheckswitch(Node*);
+ void	typecheckselect(Node*);
+ void	typecheckrange(Node*);
+-Node*	typecheckconv(Node*, Node*, Type*, int);
+-int	checkconv(Type*, Type*, int, int*, int*);
++Node*	typecheckconv(Node*, Node*, Type*, int, char*);
++int	checkconv(Type*, Type*, int, int*, int*, char*);
+ Node*	typecheck(Node**, int);
+ 
+ /*
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 79c720a648..921ff1ed46 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1087,6 +1087,8 @@ xfndcl:
+ 	LFUNC fndcl fnbody
+ 	{
+ 		$$ = $2;
++		if($$ == N)
++			break;
+ 		$$->nbody = $3;
+ 		funcbody($$);
+ 	}
+@@ -1111,10 +1113,19 @@ fndcl:
+ 	{
+ 		Node *rcvr, *t;
+ 
++		$$ = N;
++		if($2 == nil) {
++			yyerror("method has no receiver");
++			break;
++		}
++		if($2->next != nil) {
++			yyerror("method has multiple receivers");
++			break;
++		}
+ 		rcvr = $2->n;
+-		if($2->next != nil || $2->n->op != ODCLFIELD) {
++		if(rcvr->op != ODCLFIELD) {
+ 			yyerror("bad receiver in method");
+-			rcvr = N;
++			break;
+ 		}
+ 
+ 		$$ = nod(ODCLFUNC, N, N);
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 49216b9534..5b6bb1bf38 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -114,6 +114,7 @@ ieeedtod(uint64 *ieee, double native)
+ 	double fr, ho, f;
+ 	int exp;
+ 	uint32 h, l;
++	uint64 bits;
+ 
+ 	if(native < 0) {
+ 		ieeedtod(ieee, -native);
+@@ -129,13 +130,20 @@ ieeedtod(uint64 *ieee, double native)
+ 	fr = modf(fr*f, &ho);
+ 	h = ho;
+ 	h &= 0xfffffL;
+-	h |= (exp+1022L) << 20;
+ 	f = 65536L;
+ 	fr = modf(fr*f, &ho);
+ 	l = ho;
+ 	l <<= 16;
+ 	l |= (int32)(fr*f);
+-	*ieee = ((uint64)h << 32) | l;
++	bits = ((uint64)h<<32) | l;
++	if(exp < -1021) {
++		// gradual underflow
++		bits |= 1LL<<52;
++		bits >>= -1021 - exp;
++		exp = -1022;
++	}
++	bits |= (uint64)(exp+1022L) << 52;
++	*ieee = bits;
+ }
+ 
+ int
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 393dd6426a..758cd4f29b 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -66,12 +66,12 @@ typecheckrange(Node *n)
+ 
+ 	if(v1->defn == n)
+ 		v1->type = t1;
+-	else if(v1->type != T && checkconv(t1, v1->type, 0, &op, &et) < 0)
++	else if(v1->type != T && checkconv(t1, v1->type, 0, &op, &et, "range") < 0)
+ 		yyerror("cannot assign type %T to %+N", t1, v1);
+ 	if(v2) {
+ 		if(v2->defn == n)
+ 			v2->type = t2;
+-		else if(v2->type != T && checkconv(t2, v2->type, 0, &op, &et) < 0)
++		else if(v2->type != T && checkconv(t2, v2->type, 0, &op, &et, "range") < 0)
+ 			yyerror("cannot assign type %T to %+N", t1, v1);
+ 	}
+ 
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index d25694fb78..dc95360ee8 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -59,6 +59,12 @@ init1(Node *n, NodeList **out)
+ 				print("%S\n", n->sym);
+ 			*out = list(*out, n->defn);
+ 			break;
++		
++		case OAS2FUNC:
++			for(l=n->defn->rlist; l; l=l->next)
++				init1(l->n, out);
++			*out = list(*out, n->defn);
++			break;
+ 		}
+ 	}
+ 	n->initorder = 1;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index b87da54255..108a2d3e9b 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -19,8 +19,8 @@
+ static void	implicitstar(Node**);
+ static int	onearg(Node*);
+ static int	lookdot(Node*, Type*);
+-static void	typecheckaste(int, Type*, NodeList*);
+-static int	exportassignok(Type*);
++static void	typecheckaste(int, Type*, NodeList*, char*);
++static int	exportassignok(Type*, char*);
+ static Type*	lookdot1(Sym *s, Type *t, Type *f);
+ static int	nokeys(NodeList*);
+ static void	typecheckcomplit(Node**);
+@@ -673,7 +673,7 @@ reswitch:
+ 
+ 		case ODOTMETH:
+ 			n->op = OCALLMETH;
+-			typecheckaste(OCALL, getthisx(t), list1(l->left));
++			typecheckaste(OCALL, getthisx(t), list1(l->left), "method receiver");
+ 			break;
+ 
+ 		default:
+@@ -684,7 +684,7 @@ reswitch:
+ 			}
+ 			break;
+ 		}
+-		typecheckaste(OCALL, getinargx(t), n->list);
++		typecheckaste(OCALL, getinargx(t), n->list, "function argument");
+ 		ok |= Etop;
+ 		if(t->outtuple == 0)
+ 			goto ret;
+@@ -768,7 +768,7 @@ reswitch:
+ 		convlit1(&n->left, n->type, 1);
+ 		if((t = n->left->type) == T || n->type == T)
+ 			goto error;
+-		n = typecheckconv(n, n->left, n->type, 1);
++		n = typecheckconv(n, n->left, n->type, 1, "conversion");
+ 		if(n->type == T)
+ 			goto error;
+ 		goto ret;
+@@ -960,7 +960,7 @@ reswitch:
+ 		typechecklist(n->list, Erv | Efnstruct);
+ 		if(curfn->type->outnamed && n->list == nil)
+ 			goto ret;
+-		typecheckaste(ORETURN, getoutargx(curfn->type), n->list);
++		typecheckaste(ORETURN, getoutargx(curfn->type), n->list, "return argument");
+ 		goto ret;
+ 
+ 	case OSELECT:
+@@ -1206,13 +1206,11 @@ nokeys(NodeList *l)
+  * check implicit or explicit conversion from node type nt to type t.
+  */
+ int
+-checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
++checkconv(Type *nt, Type *t, int explicit, int *op, int *et, char *desc)
+ {
+ 	*op = OCONV;
+ 	*et = 0;
+ 
+-
+-
+ 	// preexisting error
+ 	if(t == T || t->etype == TFORW)
+ 		return 0;
+@@ -1229,7 +1227,7 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
+ 	}
+ 
+ 	if(eqtype(t, nt)) {
+-		exportassignok(t);
++		exportassignok(t, desc);
+ 		*op = OCONVNOP;
+ 		if(!explicit || t == nt)
+ 			return 0;
+@@ -1334,15 +1332,17 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
+ }
+ 
+ Node*
+-typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
++typecheckconv(Node *nconv, Node *n, Type *t, int explicit, char *desc)
+ {
+ 	int et, op;
+ 	Node *n1;
++	char *prefix;
+ 
+ 	convlit1(&n, t, explicit);
+ 	if(n->type == T)
+ 		return n;
+ 
++
+ 	if(n->op == OLITERAL)
+ 	if(explicit || isideal(n->type))
+ 	if(cvttype(t, n->type)) {
+@@ -1354,12 +1354,17 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
+ 		return n1;
+ 	}
+ 
+-	switch(checkconv(n->type, t, explicit, &op, &et)) {
++	prefix = "";
++	if(desc != nil)
++		prefix = " in ";
++	else
++		desc = "";
++	switch(checkconv(n->type, t, explicit, &op, &et, desc)) {
+ 	case -1:
+ 		if(explicit)
+-			yyerror("cannot convert %+N to type %T", n, t);
++			yyerror("cannot convert %+N to type %T%s%s", n, t, prefix, desc);
+ 		else
+-			yyerror("cannot use %+N as type %T", n, t);
++			yyerror("cannot use %+N as type %T%s%s", n, t, prefix, desc);
+ 		return n;
+ 
+ 	case 0:
+@@ -1386,7 +1391,7 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
+  * typecheck assignment: type list = expression list
+  */
+ static void
+-typecheckaste(int op, Type *tstruct, NodeList *nl)
++typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ {
+ 	Type *t, *tl, *tn;
+ 	Node *n;
+@@ -1409,8 +1414,8 @@ typecheckaste(int op, Type *tstruct, NodeList *nl)
+ 			}
+ 			if(isddd(tl->type))
+ 				goto out;
+-			if(checkconv(tn->type, tl->type, 0, &xx, &yy) < 0)
+-				yyerror("cannot use type %T as type %T", tn->type, tl->type);
++			if(checkconv(tn->type, tl->type, 0, &xx, &yy, desc) < 0)
++				yyerror("cannot use type %T as type %T in %s", tn->type, tl->type, desc);
+ 			tn = tn->down;
+ 		}
+ 		if(tn != T)
+@@ -1434,7 +1439,7 @@ typecheckaste(int op, Type *tstruct, NodeList *nl)
+ 		n = nl->n;
+ 		setlineno(nl->n);
+ 		if(n->type != T)
+-			nl->n = typecheckconv(nil, n, t, 0);
++			nl->n = typecheckconv(nil, n, t, 0, desc);
+ 		nl = nl->next;
+ 	}
+ 	if(nl != nil) {
+@@ -1452,13 +1457,17 @@ out:
+  * an unavailable field.
+  */
+ static int
+-exportassignok(Type *t)
++exportassignok(Type *t, char *desc)
+ {
+ 	Type *f;
+ 	Sym *s;
+ 
+ 	if(t == T)
+ 		return 1;
++	if(t->trecur)
++		return 1;
++	t->trecur = 1;
++
+ 	switch(t->etype) {
+ 	default:
+ 		// most types can't contain others; they're all fine.
+@@ -1471,22 +1480,34 @@ exportassignok(Type *t)
+ 			// s == nil doesn't happen for embedded fields (they get the type symbol).
+ 			// it only happens for fields in a ... struct.
+ 			if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0) {
+-				yyerror("implicit assignment of %T field '%s'", t, s->name);
+-				return 0;
++				char *prefix;
++				
++				prefix = "";
++				if(desc != nil)
++					prefix = " in ";
++				else
++					desc = "";
++				yyerror("implicit assignment of %T field '%s'%s%s", t, s->name, prefix, desc);
++				goto no;
+ 			}
+-			if(!exportassignok(f->type))
+-				return 0;
++			if(!exportassignok(f->type, desc))
++				goto no;
+ 		}
+ 		break;
+ 
+ 	case TARRAY:
+ 		if(t->bound < 0)	// slices are pointers; that's fine
+ 			break;
+-		if(!exportassignok(t->type))
+-			return 0;
++		if(!exportassignok(t->type, desc))
++			goto no;
+ 		break;
+ 	}
++	t->trecur = 0;
+ 	return 1;
++
++no:
++	t->trecur = 0;
++	return 0;
+ }
+ 
+ 
+@@ -1600,6 +1621,7 @@ typecheckcomplit(Node **np)
+ 	Node *l, *n, *hash[101];
+ 	NodeList *ll;
+ 	Type *t, *f;
++	Sym *s;
+ 
+ 	n = *np;
+ 
+@@ -1630,11 +1652,11 @@ typecheckcomplit(Node **np)
+ 				}
+ 				typecheck(&l->right, Erv);
+ 				defaultlit(&l->right, t->type);
+-				l->right = typecheckconv(nil, l->right, t->type, 0);
++				l->right = typecheckconv(nil, l->right, t->type, 0, "array index");
+ 			} else {
+ 				typecheck(&ll->n, Erv);
+ 				defaultlit(&ll->n, t->type);
+-				ll->n = typecheckconv(nil, ll->n, t->type, 0);
++				ll->n = typecheckconv(nil, ll->n, t->type, 0, "array index");
+ 				ll->n = nod(OKEY, nodintconst(i), ll->n);
+ 				ll->n->left->type = types[TINT];
+ 				ll->n->left->typecheck = 1;
+@@ -1670,8 +1692,8 @@ typecheckcomplit(Node **np)
+ 			typecheck(&l->right, Erv);
+ 			defaultlit(&l->left, t->down);
+ 			defaultlit(&l->right, t->type);
+-			l->left = typecheckconv(nil, l->left, t->down, 0);
+-			l->right = typecheckconv(nil, l->right, t->type, 0);
++			l->left = typecheckconv(nil, l->left, t->down, 0, "map key");
++			l->right = typecheckconv(nil, l->right, t->type, 0, "map value");
+ 			keydup(l->left, hash, nelem(hash));
+ 		}
+ 		n->op = OMAPLIT;
+@@ -1689,7 +1711,10 @@ typecheckcomplit(Node **np)
+ 						yyerror("too many values in struct initializer");
+ 					continue;
+ 				}
+-				ll->n = typecheckconv(nil, ll->n, f->type, 0);
++				s = f->sym;
++				if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0)
++					yyerror("implicit assignment of %T field '%s' in struct literal", t, s->name);
++				ll->n = typecheckconv(nil, ll->n, f->type, 0, "field value");
+ 				ll->n = nod(OKEY, newname(f->sym), ll->n);
+ 				ll->n->left->typecheck = 1;
+ 				f = f->down;
+@@ -1706,19 +1731,23 @@ typecheckcomplit(Node **np)
+ 					typecheck(&ll->n, Erv);
+ 					continue;
+ 				}
+-				if(l->left->sym == S) {
++				s = l->left->sym;
++				if(s == S) {
+ 					yyerror("invalid field name %#N in struct initializer", l->left);
+ 					typecheck(&l->right, Erv);
+ 					continue;
+ 				}
+-				l->left = newname(l->left->sym);
++				l->left = newname(s);
+ 				l->left->typecheck = 1;
+-				f = lookdot1(l->left->sym, t, t->type);
++				f = lookdot1(s, t, t->type);
+ 				typecheck(&l->right, Erv);
+-				if(f == nil)
++				if(f == nil) {
++					yyerror("unknown %T field '%s' in struct literal", t, s->name);
+ 					continue;
+-				fielddup(newname(f->sym), hash, nelem(hash));
+-				l->right = typecheckconv(nil, l->right, f->type, 0);
++				}
++				s = f->sym;
++				fielddup(newname(s), hash, nelem(hash));
++				l->right = typecheckconv(nil, l->right, f->type, 0, "field value");
+ 			}
+ 		}
+ 		n->op = OSTRUCTLIT;
+@@ -1879,7 +1908,7 @@ typecheckas(Node *n)
+ 	checkassign(n->left);
+ 	typecheck(&n->right, Erv);
+ 	if(n->left->type != T && n->right && n->right->type != T)
+-		n->right = typecheckconv(nil, n->right, n->left->type, 0);
++		n->right = typecheckconv(nil, n->right, n->left->type, 0, nil);
+ 	if(n->left->defn == n && n->left->ntype == N) {
+ 		defaultlit(&n->right, T);
+ 		n->left->type = n->right->type;
+@@ -1919,7 +1948,7 @@ typecheckas2(Node *n)
+ 		// easy
+ 		for(ll=n->list, lr=n->rlist; ll; ll=ll->next, lr=lr->next) {
+ 			if(ll->n->type != T && lr->n->type != T)
+-				lr->n = typecheckconv(nil, lr->n, ll->n->type, 0);
++				lr->n = typecheckconv(nil, lr->n, ll->n->type, 0, nil);
+ 			if(ll->n->defn == n && ll->n->ntype == N) {
+ 				defaultlit(&lr->n, T);
+ 				ll->n->type = lr->n->type;
+@@ -1937,9 +1966,9 @@ typecheckas2(Node *n)
+ 		if(l->type == T)
+ 			goto out;
+ 		n->op = OAS2MAPW;
+-		n->rlist->n = typecheckconv(nil, r, l->type->down, 0);
++		n->rlist->n = typecheckconv(nil, r, l->type->down, 0, nil);
+ 		r = n->rlist->next->n;
+-		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0);
++		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0, nil);
+ 		goto out;
+ 	}
+ 
+@@ -1960,7 +1989,7 @@ typecheckas2(Node *n)
+ 			t = structfirst(&s, &r->type);
+ 			for(ll=n->list; ll; ll=ll->next) {
+ 				if(ll->n->type != T)
+-					if(checkconv(t->type, ll->n->type, 0, &op, &et) < 0)
++					if(checkconv(t->type, ll->n->type, 0, &op, &et, nil) < 0)
+ 						yyerror("cannot assign type %T to %+N", t->type, ll->n);
+ 				if(ll->n->defn == n && ll->n->ntype == N)
+ 					ll->n->type = t->type;
+@@ -1984,12 +2013,12 @@ typecheckas2(Node *n)
+ 		case ODOTTYPE:
+ 			n->op = OAS2DOTTYPE;
+ 		common:
+-			if(l->type != T && checkconv(r->type, l->type, 0, &op, &et) < 0)
++			if(l->type != T && checkconv(r->type, l->type, 0, &op, &et, nil) < 0)
+ 				yyerror("cannot assign %+N to %+N", r, l);
+ 			if(l->defn == n)
+ 				l->type = r->type;
+ 			l = n->list->next->n;
+-			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et) < 0)
++			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et, nil) < 0)
+ 				yyerror("cannot assign bool value to %+N", l);
+ 			if(l->defn == n && l->ntype == N)
+ 				l->type = types[TBOOL];
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c2d54d251d..6aa23783f5 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1922,7 +1922,7 @@ vmatch1(Node *l, Node *r)
+ 	/*
+ 	 * isolate all left sides
+ 	 */
+-	if(l == N)
++	if(l == N || r == N)
+ 		return 0;
+ 	switch(l->op) {
+ 	case ONAME:
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 4a518c79b1..232916845e 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -599,8 +599,13 @@ ieeedtof(Ieee *e)
+ 			exp++;
+ 		}
+ 	}
+-	if(exp <= -126 || exp >= 130)
+-		diag("double fp to single fp overflow");
++	if(-148 <= exp && exp <= -126) {
++		v |= 1<<23;
++		v >>= -125 - exp;
++		exp = -126;
++	}
++	else if(exp < -148 || exp >= 130)
++		diag("double fp to single fp overflow: %.17g", ieeedtod(e));
+ 	v |= ((exp + 126) & 0xffL) << 23;
+ 	v |= e->h & 0x80000000L;
+ 	return v;
+@@ -620,14 +625,18 @@ ieeedtod(Ieee *ieeep)
+ 	}
+ 	if(ieeep->l == 0 && ieeep->h == 0)
+ 		return 0;
++	exp = (ieeep->h>>20) & ((1L<<11)-1L);
++	exp -= (1L<<10) - 2L;
+ 	fr = ieeep->l & ((1L<<16)-1L);
+ 	fr /= 1L<<16;
+ 	fr += (ieeep->l>>16) & ((1L<<16)-1L);
+ 	fr /= 1L<<16;
+-	fr += (ieeep->h & (1L<<20)-1L) | (1L<<20);
++	if(exp == -(1L<<10) - 2L) {
++		fr += (ieeep->h & (1L<<20)-1L);
++		exp++;
++	} else
++		fr += (ieeep->h & (1L<<20)-1L) | (1L<<20);
+ 	fr /= 1L<<21;
+-	exp = (ieeep->h>>20) & ((1L<<11)-1L);
+-	exp -= (1L<<10) - 2L;
+ 	return ldexp(fr, exp);
+ }
+ 
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 8b4299e7e7..0999228375 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -5,6 +5,7 @@
+ package math_test
+ 
+ import (
++	"fmt";
+ 	. "math";
+ 	"testing";
+ )
+@@ -272,3 +273,29 @@ func TestHypot(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Check that math constants are accepted by compiler
++// and have right value (assumes strconv.Atof works).
++// http://code.google.com/p/go/issues/detail?id=201
++
++type floatTest struct {
++	val	interface{};
++	name	string;
++	str	string;
++}
++
++var floatTests = []floatTest{
++	floatTest{float64(MaxFloat64), "MaxFloat64", "1.7976931348623157e+308"},
++	floatTest{float64(MinFloat64), "MinFloat64", "5e-324"},
++	floatTest{float32(MaxFloat32), "MaxFloat32", "3.4028235e+38"},
++	floatTest{float32(MinFloat32), "MinFloat32", "1e-45"},
++}
++
++func TestFloatMinMax(t *testing.T) {
++	for _, tt := range floatTests {
++		s := fmt.Sprint(tt.val);
++		if s != tt.str {
++			t.Errorf("Sprint(%v) = %s, want %s", tt.name, s, tt.str)
++		}
++	}
++}
+diff --git a/test/assign.go b/test/assign.go
+index ba80c8de51..842bd62d4d 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// errchk $G -e $D/$F.go
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -34,4 +34,12 @@ func main() {
+ 		x = y;	// ERROR "assignment.*Mutex"
+ 		_ = x;
+ 	}
++	{
++		x := sync.Mutex{0, 0};	// ERROR "assignment.*Mutex"
++		_ = x;
++	}
++	{
++		x := sync.Mutex{key: 0};	// ERROR "(unknown|assignment).*Mutex"
++		_ = x;
++	}
+ }
+diff --git a/test/fixedbugs/bug214.go b/test/fixedbugs/bug214.go
+new file mode 100644
+index 0000000000..502e69826a
+--- /dev/null
++++ b/test/fixedbugs/bug214.go
+@@ -0,0 +1,15 @@
++// $G $D/$F.go || echo BUG: bug214
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to crash the compiler.
++// http://code.google.com/p/go/issues/detail?id=88
++
++package main
++
++func main() {
++	x := make(map[int]int, 10);
++	x[0], x[1] = 2, 6;
++}
+diff --git a/test/fixedbugs/bug215.go b/test/fixedbugs/bug215.go
+new file mode 100644
+index 0000000000..d58786c16a
+--- /dev/null
++++ b/test/fixedbugs/bug215.go
+@@ -0,0 +1,16 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to crash the compiler.
++// http://code.google.com/p/go/issues/detail?id=158
++
++package main
++
++type A struct {
++	a A;
++}			// ERROR "recursive"
++func foo()		{ new(A).bar() }
++func (a A) bar()	{}
+diff --git a/test/fixedbugs/bug216.go b/test/fixedbugs/bug216.go
+new file mode 100644
+index 0000000000..76f85464af
+--- /dev/null
++++ b/test/fixedbugs/bug216.go
+@@ -0,0 +1,20 @@
++// $G $D/$F.go || echo BUG: bug216
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to be rejected
++// http://code.google.com/p/go/issues/detail?id=188
++
++package main
++
++func complexSqrt(i int) (int, int)	{ return 0, 1 }
++
++var re, im = complexSqrt(-1)
++
++func main() {
++	if re != 0 || im != 1 {
++		println("BUG: bug216: want 0,-1 have ", re, im)
++	}
++}
+diff --git a/test/fixedbugs/bug217.go b/test/fixedbugs/bug217.go
+new file mode 100644
+index 0000000000..98334c4ce1
+--- /dev/null
++++ b/test/fixedbugs/bug217.go
+@@ -0,0 +1,15 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to crash
++// http://code.google.com/p/go/issues/detail?id=204
++
++package main
++
++func () x()	// ERROR "no receiver"
++
++func (a b, c d) x()	// ERROR "multiple receiver"
++

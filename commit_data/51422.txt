@@ -11,9 +11,99 @@ Date:   Tue Jan 25 09:21:39 2022 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/typestring.go      | 18 ++++++++++++------
  src/cmd/compile/internal/types2/typestring_test.go |  4 ++++
  src/go/types/typestring.go                         | 18 ++++++++++++------
  src/go/types/typestring_test.go                    |  5 +++++
  4 files changed, 33 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 4d03eba657..ada0529929 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -201,12 +201,18 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 
+ 	case *Interface:
+-		if t == universeAny.Type() && w.ctxt == nil {
+-			// When not hashing, we can try to improve type strings by writing "any"
+-			// for a type that is pointer-identical to universeAny. This logic should
+-			// be deprecated by more robust handling for aliases.
+-			w.string("any")
+-			break
++		if w.ctxt == nil {
++			if t == universeAny.Type() {
++				// When not hashing, we can try to improve type strings by writing "any"
++				// for a type that is pointer-identical to universeAny. This logic should
++				// be deprecated by more robust handling for aliases.
++				w.string("any")
++				break
++			}
++			if t == universeComparable.Type().(*Named).underlying {
++				w.string("interface{comparable}")
++				break
++			}
+ 		}
+ 		if t.implicit {
+ 			if len(t.methods) == 0 && len(t.embeddeds) == 1 {
+diff --git a/src/cmd/compile/internal/types2/typestring_test.go b/src/cmd/compile/internal/types2/typestring_test.go
+index eda6835588..c0689e866c 100644
+--- a/src/cmd/compile/internal/types2/typestring_test.go
++++ b/src/cmd/compile/internal/types2/typestring_test.go
+@@ -93,6 +93,10 @@ var independentTestTypes = []testEntry{
+ 	dup(`interface{String() string; m(int) float32}`),
+ 	dup("interface{int|float32|complex128}"),
+ 	dup("interface{int|~float32|~complex128}"),
++	dup("any"),
++	dup("interface{comparable}"),
++	{"comparable", "interface{comparable}"},
++	{"error", "interface{Error() string}"},
+ 
+ 	// maps
+ 	dup("map[string]int"),
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index cf86f9f720..80210a2f34 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -202,12 +202,18 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 
+ 	case *Interface:
+-		if t == universeAny.Type() && w.ctxt == nil {
+-			// When not hashing, we can try to improve type strings by writing "any"
+-			// for a type that is pointer-identical to universeAny. This logic should
+-			// be deprecated by more robust handling for aliases.
+-			w.string("any")
+-			break
++		if w.ctxt == nil {
++			if t == universeAny.Type() {
++				// When not hashing, we can try to improve type strings by writing "any"
++				// for a type that is pointer-identical to universeAny. This logic should
++				// be deprecated by more robust handling for aliases.
++				w.string("any")
++				break
++			}
++			if t == universeComparable.Type().(*Named).underlying {
++				w.string("interface{comparable}")
++				break
++			}
+ 		}
+ 		if t.implicit {
+ 			if len(t.methods) == 0 && len(t.embeddeds) == 1 {
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 14ab9b6002..b7b843516e 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -97,6 +97,11 @@ var independentTestTypes = []testEntry{
+ 	dup(`interface{String() string; m(int) float32}`),
+ 	dup("interface{int|float32|complex128}"),
+ 	dup("interface{int|~float32|~complex128}"),
++	dup("any"),
++	dup("interface{comparable}"),
++	// TODO(gri) adjust test for EvalCompositeTest
++	// {"comparable", "interface{comparable}"},
++	// {"error", "interface{Error() string}"},
+ 
+ 	// maps
+ 	dup("map[string]int"),

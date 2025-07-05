@@ -12,6 +12,20 @@ Date:   Tue Apr 6 03:26:35 2021 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/typecheck/func.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 86058a0c73..bc31284a85 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -459,7 +459,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 
+ 		n := ir.NewConvExpr(n.Pos(), ir.OCONV, nil, arg)
+ 		n.SetType(l.Type())
+-		return typecheck1(n, top)
++		return tcConv(n)
+ 	}
+ 
+ 	typecheckargs(n)

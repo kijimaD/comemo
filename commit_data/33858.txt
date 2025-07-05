@@ -19,7 +19,7 @@ Date:   Mon Sep 11 07:59:30 2017 +0000
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/all/whitelist/386.txt           | 2 --
  src/cmd/vet/all/whitelist/amd64.txt         | 2 --
  src/cmd/vet/all/whitelist/arm.txt           | 2 --
@@ -30,3 +30,120 @@ Date:   Mon Sep 11 07:59:30 2017 +0000
  src/cmd/vet/all/whitelist/s390x.txt         | 2 --
  src/cmd/vet/asmdecl.go                      | 2 +-
  9 files changed, 1 insertion(+), 21 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 33b63e19ba..5a6bde90c2 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -3,8 +3,6 @@
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ 
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+-reflect/asm_386.s: [386] makeFuncStub: use of 4(SP) points beyond argument frame
+-reflect/asm_386.s: [386] methodValueCall: use of 4(SP) points beyond argument frame
+ runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
+ runtime/asm_386.s: [386] morestack: use of 8(SP) points beyond argument frame
+ runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index fb617d5554..56a6e2eb8d 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -5,8 +5,6 @@
+ 
+ 
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+-reflect/asm_amd64.s: [amd64] makeFuncStub: use of 8(SP) points beyond argument frame
+-reflect/asm_amd64.s: [amd64] methodValueCall: use of 8(SP) points beyond argument frame
+ runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
+ runtime/asm_amd64.s: [amd64] morestack: use of 16(SP) points beyond argument frame
+ runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index c0ab9de67d..3560afec7b 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -3,8 +3,6 @@
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ 
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+-reflect/asm_arm.s: [arm] makeFuncStub: use of 8(R13) points beyond argument frame
+-reflect/asm_arm.s: [arm] methodValueCall: use of 8(R13) points beyond argument frame
+ runtime/asm_arm.s: [arm] morestack: use of 4(R13) points beyond argument frame
+ 
+ // Intentionally missing declarations.
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index 8a3c891a70..24fc6f4223 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -2,12 +2,6 @@
+ 
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ 
+-// False positives.
+-
+-// reflect trampolines intentionally omit arg size. Same for morestack.
+-reflect/asm_arm64.s: [arm64] makeFuncStub: use of 16(RSP) points beyond argument frame
+-reflect/asm_arm64.s: [arm64] methodValueCall: use of 16(RSP) points beyond argument frame
+-
+ // Intentionally missing declarations.
+ runtime/asm_arm64.s: [arm64] abort: function abort missing Go declaration
+ runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mips64x.txt b/src/cmd/vet/all/whitelist/mips64x.txt
+index b29cf3e43c..5354d21c64 100644
+--- a/src/cmd/vet/all/whitelist/mips64x.txt
++++ b/src/cmd/vet/all/whitelist/mips64x.txt
+@@ -1,7 +1,5 @@
+ // mips64-specific vet whitelist. See readme.txt for details.
+ 
+-reflect/asm_mips64x.s: [GOARCH] makeFuncStub: use of 16(R29) points beyond argument frame
+-reflect/asm_mips64x.s: [GOARCH] methodValueCall: use of 16(R29) points beyond argument frame
+ runtime/asm_mips64x.s: [GOARCH] abort: function abort missing Go declaration
+ runtime/duff_mips64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
+ runtime/tls_mips64x.s: [GOARCH] save_g: function save_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mipsx.txt b/src/cmd/vet/all/whitelist/mipsx.txt
+index 949a1b366f..860f839921 100644
+--- a/src/cmd/vet/all/whitelist/mipsx.txt
++++ b/src/cmd/vet/all/whitelist/mipsx.txt
+@@ -1,7 +1,5 @@
+ // mips64-specific vet whitelist. See readme.txt for details.
+ 
+-reflect/asm_mipsx.s: [GOARCH] makeFuncStub: use of 8(R29) points beyond argument frame
+-reflect/asm_mipsx.s: [GOARCH] methodValueCall: use of 8(R29) points beyond argument frame
+ runtime/asm_mipsx.s: [GOARCH] abort: function abort missing Go declaration
+ runtime/tls_mipsx.s: [GOARCH] save_g: function save_g missing Go declaration
+ runtime/tls_mipsx.s: [GOARCH] load_g: function load_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 83bcfe966e..4b2aad2aac 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -1,8 +1,6 @@
+ // nacl/amd64p32-specific vet whitelist. See readme.txt for details.
+ 
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+-reflect/asm_amd64p32.s: [amd64p32] makeFuncStub: use of 4(SP) points beyond argument frame
+-reflect/asm_amd64p32.s: [amd64p32] methodValueCall: use of 4(SP) points beyond argument frame
+ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
+ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 16(SP) points beyond argument frame
+ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index 875835e01e..f18236c4f1 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -1,5 +1,3 @@
+-reflect/asm_s390x.s: [s390x] makeFuncStub: use of 16(R15) points beyond argument frame
+-reflect/asm_s390x.s: [s390x] methodValueCall: use of 16(R15) points beyond argument frame
+ runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
+ runtime/asm_s390x.s: [s390x] memeqbody: function memeqbody missing Go declaration
+ runtime/asm_s390x.s: [s390x] memeqbodyclc: function memeqbodyclc missing Go declaration
+diff --git a/src/cmd/vet/asmdecl.go b/src/cmd/vet/asmdecl.go
+index 7882112a51..b01d23d342 100644
+--- a/src/cmd/vet/asmdecl.go
++++ b/src/cmd/vet/asmdecl.go
+@@ -109,7 +109,7 @@ func init() {
+ var (
+ 	re           = regexp.MustCompile
+ 	asmPlusBuild = re(`//\s+\+build\s+([^\n]+)`)
+-	asmTEXT      = re(`\bTEXT\b(.*)·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
++	asmTEXT      = re(`\bTEXT\b(.*)·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+()]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
+ 	asmDATA      = re(`\b(DATA|GLOBL)\b`)
+ 	asmNamedFP   = re(`([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
+ 	asmUnnamedFP = re(`[^+\-0-9](([0-9]+)\(FP\))`)

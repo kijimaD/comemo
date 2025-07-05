@@ -7,6 +7,20 @@ Date:   Thu Oct 29 10:53:37 2009 -0700
     R=rsc
     CC=go-dev
     http://go/go-review/1018003
-
+---
  src/pkg/os/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 1f1d86f4e2..75cc048517 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -315,7 +315,7 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
+ 	}
+ 	dirs = make([]Dir, len(names));
+ 	for i, filename := range names {
+-		dirp, err := Stat(dirname+filename);
++		dirp, err := Lstat(dirname+filename);
+ 		if dirp == nil || err != nil {
+ 			dirs[i].Name = filename;	// rest is already zeroed out
+ 		} else {

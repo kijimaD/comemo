@@ -7,6 +7,34 @@ Date:   Wed Feb 14 00:27:10 2018 -0500
     Change-Id: I02938b2435e3a98efea7ee5545a6f8f5f6f794b4
     Reviewed-on: https://go-review.googlesource.com/93915
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .github/PULL_REQUEST_TEMPLATE.md | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/.github/PULL_REQUEST_TEMPLATE.md b/.github/PULL_REQUEST_TEMPLATE.md
+new file mode 100644
+index 0000000000..85899b97ae
+--- /dev/null
++++ b/.github/PULL_REQUEST_TEMPLATE.md
+@@ -0,0 +1,21 @@
++This PR will be imported into Gerrit with the title and first
++comment (this text) used to generate the subject and body of
++the Gerrit change.
++**Please ensure you adhere to and check off each item in this list.**
++More info can be found at https://github.com/golang/go/wiki/CommitMessage
++
+++ [ ] The PR title is formatted as follows: `net/http: frob the quux before blarfing`
++  + The package name goes before the colon
++  + The part after the colon uses the verb tense + phrase that completes the blank in,
++    "This change modifies Go to ___________"
++  + Lowercase verb after the colon
++  + No trailing period
++  + Keep the title as short as possible. ideally under 76 characters or shorter
+++ [ ] No Markdown
+++ [ ] The first PR comment (this one) is wrapped at 76 characters, unless it's
++      really needed (ASCII art, table, or long link)
+++ [ ] If there is a corresponding issue, add either `Fixes #1234` or `Updates #1234`
++      (the latter if this is not a complete fix) to this comment
+++ [ ] If referring to a repo other than `golang/go` you can use the
++      `owner/repo#issue_number` syntax: `Fixes golang/tools#1234`
+++ [ ] Delete these instructions once you have read and applied them

@@ -21,7 +21,7 @@ Date:   Fri Jun 4 10:26:40 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  .../internal/{typecheck => base}/mapfile_mmap.go   |   4 +-
  .../internal/{typecheck => base}/mapfile_read.go   |   4 +-
  src/cmd/compile/internal/importer/gcimporter.go    |   2 +-
@@ -30,3 +30,615 @@ Date:   Fri Jun 4 10:26:40 2021 -0700
  src/cmd/compile/internal/noder/import.go           | 231 +++++++++++++--------
  src/cmd/compile/internal/typecheck/iimport.go      |  39 +---
  7 files changed, 172 insertions(+), 154 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/mapfile_mmap.go b/src/cmd/compile/internal/base/mapfile_mmap.go
+similarity index 93%
+rename from src/cmd/compile/internal/typecheck/mapfile_mmap.go
+rename to src/cmd/compile/internal/base/mapfile_mmap.go
+index 298b385bcb..c1616db8e9 100644
+--- a/src/cmd/compile/internal/typecheck/mapfile_mmap.go
++++ b/src/cmd/compile/internal/base/mapfile_mmap.go
+@@ -5,7 +5,7 @@
+ //go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd
+ // +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+-package typecheck
++package base
+ 
+ import (
+ 	"os"
+@@ -19,7 +19,7 @@ import (
+ 
+ // mapFile returns length bytes from the file starting at the
+ // specified offset as a string.
+-func mapFile(f *os.File, offset, length int64) (string, error) {
++func MapFile(f *os.File, offset, length int64) (string, error) {
+ 	// POSIX mmap: "The implementation may require that off is a
+ 	// multiple of the page size."
+ 	x := offset & int64(os.Getpagesize()-1)
+diff --git a/src/cmd/compile/internal/typecheck/mapfile_read.go b/src/cmd/compile/internal/base/mapfile_read.go
+similarity index 85%
+rename from src/cmd/compile/internal/typecheck/mapfile_read.go
+rename to src/cmd/compile/internal/base/mapfile_read.go
+index 9637ab97ab..01796a9bab 100644
+--- a/src/cmd/compile/internal/typecheck/mapfile_read.go
++++ b/src/cmd/compile/internal/base/mapfile_read.go
+@@ -5,14 +5,14 @@
+ //go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd
+ // +build !darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd
+ 
+-package typecheck
++package base
+ 
+ import (
+ 	"io"
+ 	"os"
+ )
+ 
+-func mapFile(f *os.File, offset, length int64) (string, error) {
++func MapFile(f *os.File, offset, length int64) (string, error) {
+ 	buf := make([]byte, length)
+ 	_, err := io.ReadFull(io.NewSectionReader(f, offset, length), buf)
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index 6c5458fad1..ff40be65bb 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -155,7 +155,7 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
+ 		// binary export format starts with a 'c', 'd', or 'v'
+ 		// (from "version"). Select appropriate importer.
+ 		if len(data) > 0 && data[0] == 'i' {
+-			_, pkg, err = iImportData(packages, data[1:], id)
++			pkg, err = ImportData(packages, string(data[1:]), id)
+ 		} else {
+ 			err = fmt.Errorf("import %q: old binary export format no longer supported (recompile library)", path)
+ 		}
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index fb39e93073..14e64891b8 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -8,7 +8,6 @@
+ package importer
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types2"
+ 	"encoding/binary"
+@@ -18,10 +17,11 @@ import (
+ 	"io"
+ 	"math/big"
+ 	"sort"
++	"strings"
+ )
+ 
+ type intReader struct {
+-	*bytes.Reader
++	*strings.Reader
+ 	path string
+ }
+ 
+@@ -82,7 +82,7 @@ const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
+ // and returns the number of bytes consumed and a reference to the package.
+ // If the export data version is not recognized or the format is otherwise
+ // compromised, an error is returned.
+-func iImportData(imports map[string]*types2.Package, data []byte, path string) (_ int, pkg *types2.Package, err error) {
++func ImportData(imports map[string]*types2.Package, data, path string) (pkg *types2.Package, err error) {
+ 	const currentVersion = iexportVersionCurrent
+ 	version := int64(-1)
+ 	defer func() {
+@@ -95,7 +95,7 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
+ 		}
+ 	}()
+ 
+-	r := &intReader{bytes.NewReader(data), path}
++	r := &intReader{strings.NewReader(data), path}
+ 
+ 	version = int64(r.uint64())
+ 	switch version {
+@@ -122,7 +122,6 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
+ 		version:       int(version),
+ 
+ 		stringData:   stringData,
+-		stringCache:  make(map[uint64]string),
+ 		pkgCache:     make(map[uint64]*types2.Package),
+ 		posBaseCache: make(map[uint64]*syntax.PosBase),
+ 
+@@ -196,8 +195,7 @@ func iImportData(imports map[string]*types2.Package, data []byte, path string) (
+ 	// package was imported completely and without errors
+ 	localpkg.MarkComplete()
+ 
+-	consumed, _ := r.Seek(0, io_SeekCurrent)
+-	return int(consumed), localpkg, nil
++	return localpkg, nil
+ }
+ 
+ type iimporter struct {
+@@ -205,12 +203,11 @@ type iimporter struct {
+ 	ipath         string
+ 	version       int
+ 
+-	stringData   []byte
+-	stringCache  map[uint64]string
++	stringData   string
+ 	pkgCache     map[uint64]*types2.Package
+ 	posBaseCache map[uint64]*syntax.PosBase
+ 
+-	declData    []byte
++	declData    string
+ 	pkgIndex    map[*types2.Package]map[string]uint64
+ 	typCache    map[uint64]types2.Type
+ 	tparamIndex map[ident]types2.Type
+@@ -233,24 +230,21 @@ func (p *iimporter) doDecl(pkg *types2.Package, name string) {
+ 	// Reader.Reset is not available in Go 1.4.
+ 	// Use bytes.NewReader for now.
+ 	// r.declReader.Reset(p.declData[off:])
+-	r.declReader = *bytes.NewReader(p.declData[off:])
++	r.declReader = *strings.NewReader(p.declData[off:])
+ 
+ 	r.obj(name)
+ }
+ 
+ func (p *iimporter) stringAt(off uint64) string {
+-	if s, ok := p.stringCache[off]; ok {
+-		return s
+-	}
++	var x [binary.MaxVarintLen64]byte
++	n := copy(x[:], p.stringData[off:])
+ 
+-	slen, n := binary.Uvarint(p.stringData[off:])
++	slen, n := binary.Uvarint(x[:n])
+ 	if n <= 0 {
+ 		errorf("varint failed")
+ 	}
+ 	spos := off + uint64(n)
+-	s := string(p.stringData[spos : spos+slen])
+-	p.stringCache[off] = s
+-	return s
++	return p.stringData[spos : spos+slen]
+ }
+ 
+ func (p *iimporter) pkgAt(off uint64) *types2.Package {
+@@ -285,7 +279,7 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
+ 	// Reader.Reset is not available in Go 1.4.
+ 	// Use bytes.NewReader for now.
+ 	// r.declReader.Reset(p.declData[off-predeclReserved:])
+-	r.declReader = *bytes.NewReader(p.declData[off-predeclReserved:])
++	r.declReader = *strings.NewReader(p.declData[off-predeclReserved:])
+ 	t := r.doType(base)
+ 
+ 	if base == nil || !isInterface(t) {
+@@ -296,7 +290,7 @@ func (p *iimporter) typAt(off uint64, base *types2.Named) types2.Type {
+ 
+ type importReader struct {
+ 	p           *iimporter
+-	declReader  bytes.Reader
++	declReader  strings.Reader
+ 	currPkg     *types2.Package
+ 	prevPosBase *syntax.PosBase
+ 	prevLine    int64
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 5c80b20671..96abbe66ae 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -41,21 +41,15 @@ func (g *irgen) decls(decls []syntax.Decl) []ir.Node {
+ }
+ 
+ func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
+-	// TODO(mdempsky): Merge with gcimports so we don't have to import
+-	// packages twice.
+-
+ 	g.pragmaFlags(decl.Pragma, 0)
+ 
+ 	// Get the imported package's path, as resolved already by types2
+ 	// and gcimporter. This is the same path as would be computed by
+ 	// parseImportPath.
+-	path := pkgNameOf(g.info, decl).Imported().Path()
+-
+-	ipkg := readImportFile(g.target, path)
+-	if ipkg == ir.Pkgs.Unsafe {
++	switch pkgNameOf(g.info, decl).Imported().Path() {
++	case "unsafe":
+ 		p.importedUnsafe = true
+-	}
+-	if ipkg.Path == "embed" {
++	case "embed":
+ 		p.importedEmbed = true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 24d911ba38..8076b74650 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -8,7 +8,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/buildcfg"
+-	"io"
+ 	"os"
+ 	pathpkg "path"
+ 	"runtime"
+@@ -46,13 +45,8 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
+ 		panic("mode must be 0")
+ 	}
+ 
+-	path, err := resolveImportPath(path)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	lookup := func(path string) (io.ReadCloser, error) { return openPackage(path) }
+-	return importer.Import(m.packages, path, srcDir, lookup)
++	_, pkg, err := readImportFile(path, typecheck.Target, m.packages)
++	return pkg, err
+ }
+ 
+ func isDriveLetter(b byte) bool {
+@@ -182,7 +176,12 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
+ 		return nil
+ 	}
+ 
+-	pkg := readImportFile(typecheck.Target, path)
++	pkg, _, err := readImportFile(path, typecheck.Target, nil)
++	if err != nil {
++		base.Errorf("%s", err)
++		return nil
++	}
++
+ 	if pkg != ir.Pkgs.Unsafe && pkg.Height >= myheight {
+ 		myheight = pkg.Height + 1
+ 	}
+@@ -203,136 +202,184 @@ func parseImportPath(pathLit *syntax.BasicLit) (string, error) {
+ 		return "", err
+ 	}
+ 
+-	return resolveImportPath(path)
++	return path, err
+ }
+ 
+-func readImportFile(target *ir.Package, path string) *types.Pkg {
+-	importpkg := types.NewPkg(path, "")
+-	if importpkg.Direct {
+-		return importpkg // already fully loaded
++// readImportFile reads the import file for the given package path and
++// returns its types.Pkg representation. If packages is non-nil, the
++// types2.Package representation is also returned.
++func readImportFile(path string, target *ir.Package, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
++	path, err = resolveImportPath(path)
++	if err != nil {
++		return
+ 	}
+-	importpkg.Direct = true
+-	target.Imports = append(target.Imports, importpkg)
+ 
+ 	if path == "unsafe" {
+-		return importpkg // initialized with universe
++		pkg1, pkg2 = ir.Pkgs.Unsafe, types2.Unsafe
++
++		// TODO(mdempsky): Investigate if this actually matters. Why would
++		// the linker or runtime care whether a package imported unsafe?
++		if !pkg1.Direct {
++			pkg1.Direct = true
++			target.Imports = append(target.Imports, pkg1)
++		}
++
++		return
++	}
++
++	pkg1 = types.NewPkg(path, "")
++	if packages != nil {
++		pkg2 = packages[path]
++		assert(pkg1.Direct == (pkg2 != nil && pkg2.Complete()))
++	}
++
++	if pkg1.Direct {
++		return
+ 	}
++	pkg1.Direct = true
++	target.Imports = append(target.Imports, pkg1)
+ 
+ 	f, err := openPackage(path)
+ 	if err != nil {
+-		base.Errorf("could not import %q: %v", path, err)
+-		base.ErrorExit()
++		return
+ 	}
+-	imp := bio.NewReader(f)
+-	defer imp.Close()
+-	file := f.Name()
++	defer f.Close()
++
++	r, end, err := findExportData(f)
++	if err != nil {
++		return
++	}
++
++	if base.Debug.Export != 0 {
++		fmt.Printf("importing %s (%s)\n", path, f.Name())
++	}
++
++	var c byte
++	switch c, err = r.ReadByte(); {
++	case err != nil:
++		return
++
++	case c != 'i':
++		// Indexed format is distinguished by an 'i' byte,
++		// whereas previous export formats started with 'c', 'd', or 'v'.
++		err = fmt.Errorf("unexpected package format byte: %v", c)
++		return
++	}
++
++	// Map string (and data) section into memory as a single large
++	// string. This reduces heap fragmentation and allows
++	// returning individual substrings very efficiently.
++	pos := r.Offset()
++	data, err := base.MapFile(r.File(), pos, end-pos)
++	if err != nil {
++		return
++	}
++
++	typecheck.ReadImports(pkg1, data)
++
++	if packages != nil {
++		pkg2, err = importer.ImportData(packages, data, path)
++		if err != nil {
++			return
++		}
++	}
++
++	err = addFingerprint(path, f, end)
++	return
++}
++
++// findExportData returns a *bio.Reader positioned at the start of the
++// binary export data section, and a file offset for where to stop
++// reading.
++func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
++	r = bio.NewReader(f)
+ 
+ 	// check object header
+-	p, err := imp.ReadString('\n')
++	line, err := r.ReadString('\n')
+ 	if err != nil {
+-		base.Errorf("import %s: reading input: %v", file, err)
+-		base.ErrorExit()
++		return
+ 	}
+ 
+-	if p == "!<arch>\n" { // package archive
++	if line == "!<arch>\n" { // package archive
+ 		// package export block should be first
+-		sz := archive.ReadHeader(imp.Reader, "__.PKGDEF")
++		sz := int64(archive.ReadHeader(r.Reader, "__.PKGDEF"))
+ 		if sz <= 0 {
+-			base.Errorf("import %s: not a package file", file)
+-			base.ErrorExit()
++			err = errors.New("not a package file")
++			return
++		}
++		end = r.Offset() + sz
++		line, err = r.ReadString('\n')
++		if err != nil {
++			return
+ 		}
+-		p, err = imp.ReadString('\n')
++	} else {
++		// Not an archive; provide end of file instead.
++		// TODO(mdempsky): I don't think this happens anymore.
++		var fi os.FileInfo
++		fi, err = f.Stat()
+ 		if err != nil {
+-			base.Errorf("import %s: reading input: %v", file, err)
+-			base.ErrorExit()
++			return
+ 		}
++		end = fi.Size()
+ 	}
+ 
+-	if !strings.HasPrefix(p, "go object ") {
+-		base.Errorf("import %s: not a go object file: %s", file, p)
+-		base.ErrorExit()
++	if !strings.HasPrefix(line, "go object ") {
++		err = fmt.Errorf("not a go object file: %s", line)
++		return
+ 	}
+-	q := objabi.HeaderString()
+-	if p != q {
+-		base.Errorf("import %s: object is [%s] expected [%s]", file, p, q)
+-		base.ErrorExit()
++	if expect := objabi.HeaderString(); line != expect {
++		err = fmt.Errorf("object is [%s] expected [%s]", line, expect)
++		return
+ 	}
+ 
+ 	// process header lines
+-	for {
+-		p, err = imp.ReadString('\n')
++	for !strings.HasPrefix(line, "$$") {
++		line, err = r.ReadString('\n')
+ 		if err != nil {
+-			base.Errorf("import %s: reading input: %v", file, err)
+-			base.ErrorExit()
+-		}
+-		if p == "\n" {
+-			break // header ends with blank line
++			return
+ 		}
+ 	}
+ 
+ 	// Expect $$B\n to signal binary import format.
+-
+-	// look for $$
+-	var c byte
+-	for {
+-		c, err = imp.ReadByte()
+-		if err != nil {
+-			break
+-		}
+-		if c == '$' {
+-			c, err = imp.ReadByte()
+-			if c == '$' || err != nil {
+-				break
+-			}
+-		}
++	if line != "$$B\n" {
++		err = errors.New("old export format no longer supported (recompile library)")
++		return
+ 	}
+ 
+-	// get character after $$
+-	if err == nil {
+-		c, _ = imp.ReadByte()
+-	}
++	return
++}
+ 
++// addFingerprint reads the linker fingerprint included at the end of
++// the exportdata.
++func addFingerprint(path string, f *os.File, end int64) error {
++	const eom = "\n$$\n"
+ 	var fingerprint goobj.FingerprintType
+-	switch c {
+-	case '\n':
+-		base.Errorf("cannot import %s: old export format no longer supported (recompile library)", path)
+-		return nil
+-
+-	case 'B':
+-		if base.Debug.Export != 0 {
+-			fmt.Printf("importing %s (%s)\n", path, file)
+-		}
+-		imp.ReadByte() // skip \n after $$B
+-
+-		c, err = imp.ReadByte()
+-		if err != nil {
+-			base.Errorf("import %s: reading input: %v", file, err)
+-			base.ErrorExit()
+-		}
+ 
+-		// Indexed format is distinguished by an 'i' byte,
+-		// whereas previous export formats started with 'c', 'd', or 'v'.
+-		if c != 'i' {
+-			base.Errorf("import %s: unexpected package format byte: %v", file, c)
+-			base.ErrorExit()
+-		}
+-		fingerprint = typecheck.ReadImports(importpkg, imp)
++	var buf [len(fingerprint) + len(eom)]byte
++	if _, err := f.ReadAt(buf[:], end-int64(len(buf))); err != nil {
++		return err
++	}
+ 
+-	default:
+-		base.Errorf("no import in %q", path)
+-		base.ErrorExit()
++	// Caller should have given us the end position of the export data,
++	// which should end with the "\n$$\n" marker. As a consistency check
++	// to make sure we're reading at the right offset, make sure we
++	// found the marker.
++	if s := string(buf[len(fingerprint):]); s != eom {
++		return fmt.Errorf("expected $$ marker, but found %q", s)
+ 	}
+ 
++	copy(fingerprint[:], buf[:])
++
+ 	// assume files move (get installed) so don't record the full path
+ 	if base.Flag.Cfg.PackageFile != nil {
+ 		// If using a packageFile map, assume path_ can be recorded directly.
+ 		base.Ctxt.AddImport(path, fingerprint)
+ 	} else {
+ 		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
++		file := f.Name()
+ 		base.Ctxt.AddImport(file[len(file)-len(path)-len(".a"):], fingerprint)
+ 	}
+-
+-	return importpkg
++	return nil
+ }
+ 
+ // The linker uses the magic symbol prefixes "go." and "type."
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 45a177951e..cafb18d7a8 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -12,7 +12,6 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
+-	"io"
+ 	"math/big"
+ 	"os"
+ 	"strings"
+@@ -20,8 +19,6 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/bio"
+-	"cmd/internal/goobj"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ )
+@@ -95,7 +92,7 @@ func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset
+ }
+ 
+ type intReader struct {
+-	*bio.Reader
++	*strings.Reader
+ 	pkg *types.Pkg
+ }
+ 
+@@ -117,8 +114,8 @@ func (r *intReader) uint64() uint64 {
+ 	return i
+ }
+ 
+-func ReadImports(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType) {
+-	ird := &intReader{in, pkg}
++func ReadImports(pkg *types.Pkg, data string) {
++	ird := &intReader{strings.NewReader(data), pkg}
+ 
+ 	version := ird.uint64()
+ 	switch version {
+@@ -132,21 +129,15 @@ func ReadImports(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintT
+ 		base.ErrorExit()
+ 	}
+ 
+-	sLen := ird.uint64()
+-	dLen := ird.uint64()
++	sLen := int64(ird.uint64())
++	dLen := int64(ird.uint64())
+ 
+-	// Map string (and data) section into memory as a single large
+-	// string. This reduces heap fragmentation and allows
+-	// returning individual substrings very efficiently.
+-	data, err := mapFile(in.File(), in.Offset(), int64(sLen+dLen))
+-	if err != nil {
+-		base.Errorf("import %q: mapping input: %v", pkg.Path, err)
+-		base.ErrorExit()
+-	}
+-	stringData := data[:sLen]
+-	declData := data[sLen:]
+-
+-	in.MustSeek(int64(sLen+dLen), os.SEEK_CUR)
++	// TODO(mdempsky): Replace os.SEEK_CUR with io.SeekCurrent after
++	// #44505 is fixed.
++	whence, _ := ird.Seek(0, os.SEEK_CUR)
++	stringData := data[whence : whence+sLen]
++	declData := data[whence+sLen : whence+sLen+dLen]
++	ird.Seek(sLen+dLen, os.SEEK_CUR)
+ 
+ 	p := &iimporter{
+ 		exportVersion: version,
+@@ -208,14 +199,6 @@ func ReadImports(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintT
+ 			}
+ 		}
+ 	}
+-
+-	// Fingerprint.
+-	_, err = io.ReadFull(in, fingerprint[:])
+-	if err != nil {
+-		base.Errorf("import %s: error reading fingerprint", pkg.Path)
+-		base.ErrorExit()
+-	}
+-	return fingerprint
+ }
+ 
+ type iimporter struct {

@@ -7,6 +7,37 @@ Date:   Wed Mar 10 13:06:35 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/384043
-
+---
  src/cmd/8g/cgen.c | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 6ea637a282..6a21225072 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -92,12 +92,6 @@ cgen(Node *n, Node *res)
+ 		break;
+ 	}
+ 
+-	// complex types
+-	if(complexop(n, res)) {
+-		complexgen(n, res);
+-		return;
+-	}
+-
+ 	// if both are addressable, move
+ 	if(n->addable && res->addable) {
+ 		gmove(n, res);
+@@ -123,6 +117,12 @@ cgen(Node *n, Node *res)
+ 		return;
+ 	}
+ 
++	// complex types
++	if(complexop(n, res)) {
++		complexgen(n, res);
++		return;
++	}
++
+ 	// otherwise, the result is addressable but n is not.
+ 	// let's do some computation.
+ 

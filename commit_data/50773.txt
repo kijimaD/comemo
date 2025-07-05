@@ -10,6 +10,23 @@ Date:   Sat Apr 24 16:19:07 2021 +0200
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go/internal/bug/bug.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index a81ca7d8c3..702dc2a14a 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -106,8 +106,9 @@ func printGoEnv(w io.Writer) {
+ }
+ 
+ func printGoDetails(w io.Writer) {
+-	printCmdOut(w, "GOROOT/bin/go version: ", filepath.Join(runtime.GOROOT(), "bin/go"), "version")
+-	printCmdOut(w, "GOROOT/bin/go tool compile -V: ", filepath.Join(runtime.GOROOT(), "bin/go"), "tool", "compile", "-V")
++	gocmd := filepath.Join(runtime.GOROOT(), "bin/go")
++	printCmdOut(w, "GOROOT/bin/go version: ", gocmd, "version")
++	printCmdOut(w, "GOROOT/bin/go tool compile -V: ", gocmd, "tool", "compile", "-V")
+ }
+ 
+ func printOSDetails(w io.Writer) {

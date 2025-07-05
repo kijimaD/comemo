@@ -37,7 +37,7 @@ Date:   Wed Jul 28 12:59:14 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  test/escape5.go              |  4 ++--
  test/escape_goto.go          |  6 +++---
  test/fixedbugs/bug267.go     |  2 +-
@@ -50,3 +50,283 @@ Date:   Wed Jul 28 12:59:14 2021 -0700
  test/typeparam/issue45547.go |  2 +-
  test/typeparam/typelist.go   | 14 +++++++-------
  11 files changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/test/escape5.go b/test/escape5.go
+index 97aaf23b2d..089130dad5 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -173,13 +173,13 @@ type U int
+ func (*U) M()   {}
+ func (_ *U) N() {}
+ 
+-func _() {
++func fbad24305a() {
+ 	var u U
+ 	u.M()
+ 	u.N()
+ }
+ 
+-func fbad24305() {
++func fbad24305b() {
+ 	var u U
+ 	(*U).M(&u)
+ 	(*U).N(&u)
+diff --git a/test/escape_goto.go b/test/escape_goto.go
+index f024a9afe3..90da5a2151 100644
+--- a/test/escape_goto.go
++++ b/test/escape_goto.go
+@@ -10,7 +10,7 @@ package escape
+ 
+ var x bool
+ 
+-func _() {
++func f1() {
+ 	var p *int
+ loop:
+ 	if x {
+@@ -22,7 +22,7 @@ loop:
+ 	_ = p
+ }
+ 
+-func _() {
++func f2() {
+ 	var p *int
+ 	if x {
+ 	loop:
+@@ -33,7 +33,7 @@ func _() {
+ 	_ = p
+ }
+ 
+-func _() {
++func f3() {
+ 	var p *int
+ 	if x {
+ 	loop:
+diff --git a/test/fixedbugs/bug267.go b/test/fixedbugs/bug267.go
+index cf8bf841f8..b61216a9d5 100644
+--- a/test/fixedbugs/bug267.go
++++ b/test/fixedbugs/bug267.go
+@@ -10,7 +10,7 @@ type T []int
+ 
+ var a []bool
+ 
+-func _() {
++func f1() {
+ 	if a[T{42}[0]] {
+ 	}
+ 	// if (a[T{42}[0]]) {}  // this compiles
+diff --git a/test/fixedbugs/issue22076.go b/test/fixedbugs/issue22076.go
+index 5d628b96bd..b383a674e2 100644
+--- a/test/fixedbugs/issue22076.go
++++ b/test/fixedbugs/issue22076.go
+@@ -13,12 +13,12 @@ import . "bytes"
+ 
+ var _ Reader // use "bytes" import
+ 
+-func _() {
++func f1() {
+ 	Buffer := 0
+ 	_ = Buffer
+ }
+ 
+-func _() {
++func f2() {
+ 	for Buffer := range []int{} {
+ 		_ = Buffer
+ 	}
+diff --git a/test/fixedbugs/issue27557.go b/test/fixedbugs/issue27557.go
+index e35ab5a169..f609b27faa 100644
+--- a/test/fixedbugs/issue27557.go
++++ b/test/fixedbugs/issue27557.go
+@@ -8,19 +8,19 @@ package p
+ 
+ var sink interface{}
+ 
+-func _() {
++func f1() {
+ 	var t T
+ 	f := t.noescape // ERROR "t.noescape does not escape"
+ 	f()
+ }
+ 
+-func _() {
++func f2() {
+ 	var t T       // ERROR "moved to heap"
+ 	f := t.escape // ERROR "t.escape does not escape"
+ 	f()
+ }
+ 
+-func _() {
++func f3() {
+ 	var t T        // ERROR "moved to heap"
+ 	f := t.returns // ERROR "t.returns does not escape"
+ 	sink = f()
+diff --git a/test/fixedbugs/issue45258.go b/test/fixedbugs/issue45258.go
+index f4d6fccf17..b026c0c8f5 100644
+--- a/test/fixedbugs/issue45258.go
++++ b/test/fixedbugs/issue45258.go
+@@ -22,7 +22,7 @@ func (r *impl) Foo() Barer {
+ 
+ func (r *impl) Bar() {}
+ 
+-func _() {
++func f1() {
+ 	var r Fooer = &impl{}
+ 	r.Foo().Bar()
+ }
+diff --git a/test/fixedbugs/issue8042.go b/test/fixedbugs/issue8042.go
+index 5639f97bb8..be15ef06cd 100644
+--- a/test/fixedbugs/issue8042.go
++++ b/test/fixedbugs/issue8042.go
+@@ -9,7 +9,7 @@
+ 
+ package p
+ 
+-func _() {
++func f1() {
+ 	goto L1
+ 	const x = 0
+ L1:
+@@ -18,7 +18,7 @@ L1:
+ L2:
+ }
+ 
+-func _() {
++func f2() {
+ 	{
+ 		goto L1
+ 	}
+@@ -31,7 +31,7 @@ L1:
+ L2:
+ }
+ 
+-func _(d int) {
++func f3(d int) {
+ 	if d > 0 {
+ 		goto L1
+ 	} else {
+diff --git a/test/fixedbugs/issue8761.go b/test/fixedbugs/issue8761.go
+index 7f458f7f03..e5130e1ff5 100644
+--- a/test/fixedbugs/issue8761.go
++++ b/test/fixedbugs/issue8761.go
+@@ -10,17 +10,17 @@
+ 
+ package p
+ 
+-func _() {
++func f1() {
+ 	type C chan int
+ 	_ = [1][]C{[]C{make(chan int)}}
+ }
+ 
+-func _() {
++func f2() {
+ 	type C interface{}
+ 	_ = [1][]C{[]C{recover()}}
+ }
+ 
+-func _() {
++func f3() {
+ 	type C *int
+ 	_ = [1][]C{[]C{new(int)}}
+ }
+diff --git a/test/inline.go b/test/inline.go
+index 2cda07b2da..a73c0ba7b1 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -49,7 +49,7 @@ func j(x int) int { // ERROR "can inline j"
+ 	}
+ }
+ 
+-func _() int { // ERROR "can inline _"
++func f2() int { // ERROR "can inline f2"
+ 	tmp1 := h
+ 	tmp2 := tmp1
+ 	return tmp2(0) // ERROR "inlining call to h"
+@@ -167,7 +167,7 @@ func (T) meth(int, int) {} // ERROR "can inline T.meth"
+ 
+ func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
+ 
+-func _() { // ERROR "can inline _"
++func f3() { // ERROR "can inline f3"
+ 	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
+ 	// ERRORAUTO "inlining call to T.meth"
+ }
+diff --git a/test/typeparam/issue45547.go b/test/typeparam/issue45547.go
+index 0a08d66b70..b354d4d7f6 100644
+--- a/test/typeparam/issue45547.go
++++ b/test/typeparam/issue45547.go
+@@ -11,7 +11,7 @@ func f[T any]() (f, g T) { return f, g }
+ // Tests for generic function instantiation on the right hande side of multi-value
+ // assignments.
+ 
+-func _() {
++func g() {
+ 	// Multi-value assignment within a function
+ 	var _, _ = f[int]()
+ }
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+index 3d035bf457..a68ae1b5cd 100644
+--- a/test/typeparam/typelist.go
++++ b/test/typeparam/typelist.go
+@@ -69,14 +69,14 @@ func _[V any, T interface{ type map[string]V }](p T) V {
+ // Cannot embed stand-alone type parameters. Disabled for now.
+ /*
+ func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](A, B, C, D)
+-func _() {
++func f0x() {
+         f := f0[string]
+         f("a", "b", "c", "d")
+         f0("a", "b", "c", "d")
+ }
+ 
+ func f1[A any, B interface{type A}](A, B)
+-func _() {
++func f1x() {
+         f := f1[int]
+         f(int(0), int(0))
+         f1(int(0), int(0))
+@@ -86,7 +86,7 @@ func _() {
+ */
+ 
+ func f2[A any, B interface{ type []A }](_ A, _ B)
+-func _() {
++func f2x() {
+ 	f := f2[byte]
+ 	f(byte(0), []byte{})
+ 	f2(byte(0), []byte{})
+@@ -97,7 +97,7 @@ func _() {
+ // Cannot embed stand-alone type parameters. Disabled for now.
+ /*
+ func f3[A any, B interface{type C}, C interface{type *A}](a A, _ B, c C)
+-func _() {
++func f3x() {
+ 	f := f3[int]
+ 	var x int
+ 	f(x, &x, &x)
+@@ -106,7 +106,7 @@ func _() {
+ */
+ 
+ func f4[A any, B interface{ type []C }, C interface{ type *A }](_ A, _ B, c C)
+-func _() {
++func f4x() {
+ 	f := f4[int]
+ 	var x int
+ 	f(x, []*int{}, &x)
+@@ -119,14 +119,14 @@ func f5[A interface {
+ 		c C
+ 	}
+ }, B any, C interface{ type *B }](x B) A
+-func _() {
++func f5x() {
+ 	x := f5(1.2)
+ 	var _ float64 = x.b
+ 	var _ float64 = *x.c
+ }
+ 
+ func f6[A any, B interface{ type struct{ f []A } }](B) A
+-func _() {
++func f6x() {
+ 	x := f6(struct{ f []string }{})
+ 	var _ string = x
+ }

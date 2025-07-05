@@ -12,7 +12,7 @@ Date:   Fri Aug 13 08:34:25 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/defs_linux.go         |  9 +++++++++
  src/runtime/defs_linux_386.go     | 20 ++++++++++++++++++++
  src/runtime/defs_linux_amd64.go   | 20 ++++++++++++++++++++
@@ -35,3 +35,979 @@ Date:   Fri Aug 13 08:34:25 2021 -0700
  src/runtime/sys_linux_riscv64.s   | 32 ++++++++++++++++++++++++++++++++
  src/runtime/sys_linux_s390x.s     | 29 +++++++++++++++++++++++++++++
  21 files changed, 478 insertions(+)
+
+diff --git a/src/runtime/defs_linux.go b/src/runtime/defs_linux.go
+index 022ef19427..7c3167032f 100644
+--- a/src/runtime/defs_linux.go
++++ b/src/runtime/defs_linux.go
+@@ -58,6 +58,9 @@ const (
+ 	SA_ONSTACK = C.SA_ONSTACK
+ 	SA_SIGINFO = C.SA_SIGINFO
+ 
++	SI_KERNEL = C.SI_KERNEL
++	SI_TIMER  = C.SI_TIMER
++
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+ 	SIGQUIT   = C.SIGQUIT
+@@ -109,6 +112,10 @@ const (
+ 	ITIMER_VIRTUAL = C.ITIMER_VIRTUAL
+ 	ITIMER_PROF    = C.ITIMER_PROF
+ 
++	CLOCK_THREAD_CPUTIME_ID = C.CLOCK_THREAD_CPUTIME_ID
++
++	SIGEV_THREAD_ID = C.SIGEV_THREAD_ID
++
+ 	EPOLLIN       = C.POLLIN
+ 	EPOLLOUT      = C.POLLOUT
+ 	EPOLLERR      = C.POLLERR
+@@ -126,5 +133,7 @@ type Timespec C.struct_timespec
+ type Timeval C.struct_timeval
+ type Sigaction C.struct_sigaction
+ type Siginfo C.siginfo_t
++type Itimerspec C.struct_itimerspec
+ type Itimerval C.struct_itimerval
++type Sigevent C.struct_sigevent
+ type EpollEvent C.struct_epoll_event
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index 64a0fbcaaa..d8b546cb4c 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -28,6 +28,9 @@ const (
+ 	_SA_RESTORER = 0x4000000
+ 	_SA_SIGINFO  = 0x4
+ 
++	_SI_KERNEL = 0x80
++	_SI_TIMER  = -0x2
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -79,6 +82,10 @@ const (
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_ITIMER_PROF    = 0x2
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_O_RDONLY   = 0x0
+ 	_O_NONBLOCK = 0x800
+ 	_O_CLOEXEC  = 0x80000
+@@ -212,11 +219,24 @@ type ucontext struct {
+ 	uc_sigmask  uint32
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type epollevent struct {
+ 	events uint32
+ 	data   [8]byte // to match amd64
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index 1ae18a309b..6afb67f77f 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -28,6 +28,9 @@ const (
+ 	_SA_RESTORER = 0x4000000
+ 	_SA_SIGINFO  = 0x4
+ 
++	_SI_KERNEL = 0x80
++	_SI_TIMER  = -0x2
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -79,6 +82,10 @@ const (
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_ITIMER_PROF    = 0x2
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+ 	_EPOLLERR      = 0x8
+@@ -129,11 +136,24 @@ type siginfo struct {
+ 	si_addr uint64
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type epollevent struct {
+ 	events uint32
+ 	data   [8]byte // unaligned uintptr
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index 5bc0916f8b..ec24d76326 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -29,6 +29,8 @@ const (
+ 	_SA_ONSTACK     = 0x8000000
+ 	_SA_RESTORER    = 0 // unused on ARM
+ 	_SA_SIGINFO     = 0x4
++	_SI_KERNEL      = 0x80
++	_SI_TIMER       = -0x2
+ 	_SIGHUP         = 0x1
+ 	_SIGINT         = 0x2
+ 	_SIGQUIT        = 0x3
+@@ -79,6 +81,10 @@ const (
+ 	_O_NONBLOCK     = 0x800
+ 	_O_CLOEXEC      = 0x80000
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+ 	_EPOLLERR      = 0x8
+@@ -153,11 +159,24 @@ func (tv *timeval) set_usec(x int32) {
+ 	tv.tv_usec = x
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type siginfo struct {
+ 	si_signo int32
+ 	si_errno int32
+diff --git a/src/runtime/defs_linux_arm64.go b/src/runtime/defs_linux_arm64.go
+index 0690cd35b2..f9f175004b 100644
+--- a/src/runtime/defs_linux_arm64.go
++++ b/src/runtime/defs_linux_arm64.go
+@@ -28,6 +28,9 @@ const (
+ 	_SA_RESTORER = 0x0 // Only used on intel
+ 	_SA_SIGINFO  = 0x4
+ 
++	_SI_KERNEL = 0x80
++	_SI_TIMER  = -0x2
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -79,6 +82,10 @@ const (
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_ITIMER_PROF    = 0x2
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+ 	_EPOLLERR      = 0x8
+@@ -129,11 +136,24 @@ type siginfo struct {
+ 	si_addr uint64
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type epollevent struct {
+ 	events uint32
+ 	_pad   uint32
+diff --git a/src/runtime/defs_linux_mips64x.go b/src/runtime/defs_linux_mips64x.go
+index 2cafad20cf..1743bbce41 100644
+--- a/src/runtime/defs_linux_mips64x.go
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -32,6 +32,9 @@ const (
+ 	_SA_ONSTACK = 0x8000000
+ 	_SA_SIGINFO = 0x8
+ 
++	_SI_KERNEL = 0x80
++	_SI_TIMER  = -0x2
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -83,6 +86,10 @@ const (
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_ITIMER_PROF    = 0x2
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+ 	_EPOLLERR      = 0x8
+@@ -138,11 +145,24 @@ type siginfo struct {
+ 	si_addr uint64
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type epollevent struct {
+ 	events    uint32
+ 	pad_cgo_0 [4]byte
+diff --git a/src/runtime/defs_linux_mipsx.go b/src/runtime/defs_linux_mipsx.go
+index 3a8dfe2e99..e84d4979e1 100644
+--- a/src/runtime/defs_linux_mipsx.go
++++ b/src/runtime/defs_linux_mipsx.go
+@@ -32,6 +32,9 @@ const (
+ 	_SA_ONSTACK = 0x8000000
+ 	_SA_SIGINFO = 0x8
+ 
++	_SI_KERNEL = 0x80
++	_SI_TIMER  = -0x2
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -83,6 +86,10 @@ const (
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_ITIMER_PROF    = 0x2
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+ 	_EPOLLERR      = 0x8
+@@ -132,11 +139,24 @@ type siginfo struct {
+ 	si_addr uint32
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type epollevent struct {
+ 	events    uint32
+ 	pad_cgo_0 [4]byte
+diff --git a/src/runtime/defs_linux_ppc64.go b/src/runtime/defs_linux_ppc64.go
+index 90b1dc1ff9..e0775e2974 100644
+--- a/src/runtime/defs_linux_ppc64.go
++++ b/src/runtime/defs_linux_ppc64.go
+@@ -27,6 +27,9 @@ const (
+ 	_SA_ONSTACK = 0x8000000
+ 	_SA_SIGINFO = 0x4
+ 
++	_SI_KERNEL = 0x80
++	_SI_TIMER  = -0x2
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -78,6 +81,10 @@ const (
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_ITIMER_PROF    = 0x2
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+ 	_EPOLLERR      = 0x8
+@@ -130,11 +137,24 @@ type siginfo struct {
+ 	si_addr uint64
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type epollevent struct {
+ 	events    uint32
+ 	pad_cgo_0 [4]byte
+diff --git a/src/runtime/defs_linux_ppc64le.go b/src/runtime/defs_linux_ppc64le.go
+index 90b1dc1ff9..e0775e2974 100644
+--- a/src/runtime/defs_linux_ppc64le.go
++++ b/src/runtime/defs_linux_ppc64le.go
+@@ -27,6 +27,9 @@ const (
+ 	_SA_ONSTACK = 0x8000000
+ 	_SA_SIGINFO = 0x4
+ 
++	_SI_KERNEL = 0x80
++	_SI_TIMER  = -0x2
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -78,6 +81,10 @@ const (
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_ITIMER_PROF    = 0x2
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+ 	_EPOLLERR      = 0x8
+@@ -130,11 +137,24 @@ type siginfo struct {
+ 	si_addr uint64
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type epollevent struct {
+ 	events    uint32
+ 	pad_cgo_0 [4]byte
+diff --git a/src/runtime/defs_linux_riscv64.go b/src/runtime/defs_linux_riscv64.go
+index 60da0fae00..1052213a4c 100644
+--- a/src/runtime/defs_linux_riscv64.go
++++ b/src/runtime/defs_linux_riscv64.go
+@@ -29,6 +29,9 @@ const (
+ 	_SA_RESTORER = 0x0
+ 	_SA_SIGINFO  = 0x4
+ 
++	_SI_KERNEL = 0x80
++	_SI_TIMER  = -0x2
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -80,6 +83,10 @@ const (
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_ITIMER_PROF    = 0x2
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+ 	_EPOLLERR      = 0x8
+@@ -127,11 +134,24 @@ type siginfo struct {
+ 	si_addr uint64
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type epollevent struct {
+ 	events    uint32
+ 	pad_cgo_0 [4]byte
+diff --git a/src/runtime/defs_linux_s390x.go b/src/runtime/defs_linux_s390x.go
+index fa289d531c..b072955d4a 100644
+--- a/src/runtime/defs_linux_s390x.go
++++ b/src/runtime/defs_linux_s390x.go
+@@ -28,6 +28,9 @@ const (
+ 	_SA_ONSTACK = 0x8000000
+ 	_SA_SIGINFO = 0x4
+ 
++	_SI_KERNEL = 0x80
++	_SI_TIMER  = -0x2
++
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+@@ -79,6 +82,10 @@ const (
+ 	_ITIMER_VIRTUAL = 0x1
+ 	_ITIMER_PROF    = 0x2
+ 
++	_CLOCK_THREAD_CPUTIME_ID = 0x3
++
++	_SIGEV_THREAD_ID = 0x4
++
+ 	_EPOLLIN       = 0x1
+ 	_EPOLLOUT      = 0x4
+ 	_EPOLLERR      = 0x8
+@@ -126,11 +133,24 @@ type siginfo struct {
+ 	si_addr uint64
+ }
+ 
++type itimerspec struct {
++	it_interval timespec
++	it_value    timespec
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
++type sigevent struct {
++	value  uintptr
++	signo  int32
++	notify int32
++	// below here is a union; sigev_notify_thread_id is the only field we use
++	sigev_notify_thread_id int32
++}
++
+ type epollevent struct {
+ 	events    uint32
+ 	pad_cgo_0 [4]byte
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 88c16f7163..b60dc9ea01 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -395,6 +395,15 @@ func sigaltstack(new, old *stackt)
+ //go:noescape
+ func setitimer(mode int32, new, old *itimerval)
+ 
++//go:noescape
++func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
++
++//go:noescape
++func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
++
++//go:noescape
++func timer_delete(timerid int32) int32
++
+ //go:noescape
+ func rtsigprocmask(how int32, new, old *sigset, size int32)
+ 
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 3ae5a9099f..6df812234c 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -56,6 +56,9 @@
+ #define SYS_epoll_create	254
+ #define SYS_epoll_ctl		255
+ #define SYS_epoll_wait		256
++#define SYS_timer_create	259
++#define SYS_timer_settime	260
++#define SYS_timer_delete	263
+ #define SYS_clock_gettime	265
+ #define SYS_tgkill		270
+ #define SYS_epoll_create1	329
+@@ -210,6 +213,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
+ 	INVOKE_SYSCALL
+ 	RET
+ 
++TEXT runtime·timer_create(SB),NOSPLIT,$0-16
++	MOVL	$SYS_timer_create, AX
++	MOVL	clockid+0(FP), BX
++	MOVL	sevp+4(FP), CX
++	MOVL	timerid+8(FP), DX
++	INVOKE_SYSCALL
++	MOVL	AX, ret+12(FP)
++	RET
++
++TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
++	MOVL	$SYS_timer_settime, AX
++	MOVL	timerid+0(FP), BX
++	MOVL	flags+4(FP), CX
++	MOVL	new+8(FP), DX
++	MOVL	old+12(FP), SI
++	INVOKE_SYSCALL
++	MOVL	AX, ret+16(FP)
++	RET
++
++TEXT runtime·timer_delete(SB),NOSPLIT,$0-8
++	MOVL	$SYS_timer_delete, AX
++	MOVL	timerid+0(FP), BX
++	INVOKE_SYSCALL
++	MOVL	AX, ret+4(FP)
++	RET
++
+ TEXT runtime·mincore(SB),NOSPLIT,$0-16
+ 	MOVL	$SYS_mincore, AX
+ 	MOVL	addr+0(FP), BX
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 64ddc2354e..345dc90eb0 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -41,6 +41,9 @@
+ #define SYS_futex		202
+ #define SYS_sched_getaffinity	204
+ #define SYS_epoll_create	213
++#define SYS_timer_create	222
++#define SYS_timer_settime	223
++#define SYS_timer_delete	226
+ #define SYS_clock_gettime	228
+ #define SYS_exit_group		231
+ #define SYS_epoll_ctl		233
+@@ -195,6 +198,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-24
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·timer_create(SB),NOSPLIT,$0-28
++	MOVL	clockid+0(FP), DI
++	MOVQ	sevp+8(FP), SI
++	MOVQ	timerid+16(FP), DX
++	MOVL	$SYS_timer_create, AX
++	SYSCALL
++	MOVL	AX, ret+24(FP)
++	RET
++
++TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
++	MOVL	timerid+0(FP), DI
++	MOVL	flags+4(FP), SI
++	MOVQ	new+8(FP), DX
++	MOVQ	old+16(FP), R10
++	MOVL	$SYS_timer_settime, AX
++	SYSCALL
++	MOVL	AX, ret+24(FP)
++	RET
++
++TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
++	MOVL	timerid+0(FP), DI
++	MOVL	$SYS_timer_delete, AX
++	SYSCALL
++	MOVL	AX, ret+8(FP)
++	RET
++
+ TEXT runtime·mincore(SB),NOSPLIT,$0-28
+ 	MOVQ	addr+0(FP), DI
+ 	MOVQ	n+8(FP), SI
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index ae99810c10..3f30da7b54 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -45,6 +45,9 @@
+ #define SYS_epoll_create (SYS_BASE + 250)
+ #define SYS_epoll_ctl (SYS_BASE + 251)
+ #define SYS_epoll_wait (SYS_BASE + 252)
++#define SYS_timer_create (SYS_BASE + 257)
++#define SYS_timer_settime (SYS_BASE + 258)
++#define SYS_timer_delete (SYS_BASE + 261)
+ #define SYS_epoll_create1 (SYS_BASE + 357)
+ #define SYS_pipe2 (SYS_BASE + 359)
+ #define SYS_fcntl (SYS_BASE + 55)
+@@ -233,6 +236,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	SWI	$0
+ 	RET
+ 
++TEXT runtime·timer_create(SB),NOSPLIT,$0-16
++	MOVW	clockid+0(FP), R0
++	MOVW	sevp+4(FP), R1
++	MOVW	timerid+8(FP), R2
++	MOVW	$SYS_timer_create, R7
++	SWI	$0
++	MOVW	R0, ret+12(FP)
++	RET
++
++TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
++	MOVW	timerid+0(FP), R0
++	MOVW	flags+4(FP), R1
++	MOVW	new+8(FP), R2
++	MOVW	old+12(FP), R3
++	MOVW	$SYS_timer_settime, R7
++	SWI	$0
++	MOVW	R0, ret+16(FP)
++	RET
++
++TEXT runtime·timer_delete(SB),NOSPLIT,$0-8
++	MOVW	timerid+0(FP), R0
++	MOVW	$SYS_timer_delete, R7
++	SWI	$0
++	MOVW	R0, ret+4(FP)
++	RET
++
+ TEXT runtime·mincore(SB),NOSPLIT,$0
+ 	MOVW	addr+0(FP), R0
+ 	MOVW	n+4(FP), R1
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 9289ad5028..1276c077d7 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -49,6 +49,9 @@
+ #define SYS_socket		198
+ #define SYS_connect		203
+ #define SYS_brk			214
++#define SYS_timer_create	107
++#define SYS_timer_settime	110
++#define SYS_timer_delete	111
+ 
+ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVW	code+0(FP), R0
+@@ -197,6 +200,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	SVC
+ 	RET
+ 
++TEXT runtime·timer_create(SB),NOSPLIT,$0-28
++	MOVW	clockid+0(FP), R0
++	MOVD	sevp+8(FP), R1
++	MOVD	timerid+16(FP), R2
++	MOVD	$SYS_timer_create, R8
++	SVC
++	MOVW	R0, ret+24(FP)
++	RET
++
++TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
++	MOVW	timerid+0(FP), R0
++	MOVW	flags+4(FP), R1
++	MOVD	new+8(FP), R2
++	MOVD	old+16(FP), R3
++	MOVD	$SYS_timer_settime, R8
++	SVC
++	MOVW	R0, ret+24(FP)
++	RET
++
++TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
++	MOVW	timerid+0(FP), R0
++	MOVD	$SYS_timer_delete, R8
++	SVC
++	MOVW	R0, ret+8(FP)
++	RET
++
+ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVD	addr+0(FP), R0
+ 	MOVD	n+8(FP), R1
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 7529a0ed27..08e44d671b 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -41,6 +41,9 @@
+ #define SYS_exit_group		5205
+ #define SYS_epoll_create	5207
+ #define SYS_epoll_ctl		5208
++#define SYS_timer_create	5216
++#define SYS_timer_settime	5217
++#define SYS_timer_delete	5220
+ #define SYS_tgkill		5225
+ #define SYS_openat		5247
+ #define SYS_epoll_pwait		5272
+@@ -204,6 +207,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·timer_create(SB),NOSPLIT,$0-28
++	MOVW	clockid+0(FP), R4
++	MOVV	sevp+8(FP), R5
++	MOVV	timerid+16(FP), R6
++	MOVV	$SYS_timer_create, R2
++	SYSCALL
++	MOVW	R2, ret+24(FP)
++	RET
++
++TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
++	MOVW	timerid+0(FP), R4
++	MOVW	flags+4(FP), R5
++	MOVV	new+8(FP), R6
++	MOVV	old+16(FP), R7
++	MOVV	$SYS_timer_settime, R2
++	SYSCALL
++	MOVW	R2, ret+24(FP)
++	RET
++
++TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
++	MOVW	timerid+0(FP), R4
++	MOVV	$SYS_timer_delete, R2
++	SYSCALL
++	MOVW	R2, ret+8(FP)
++	RET
++
+ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVV	addr+0(FP), R4
+ 	MOVV	n+8(FP), R5
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index b3970be9cf..c828431899 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -43,6 +43,9 @@
+ #define SYS_epoll_create	4248
+ #define SYS_epoll_ctl		4249
+ #define SYS_epoll_wait		4250
++#define SYS_timer_create	4257
++#define SYS_timer_settime	4258
++#define SYS_timer_delete	4261
+ #define SYS_clock_gettime	4263
+ #define SYS_tgkill		4266
+ #define SYS_epoll_create1	4326
+@@ -209,6 +212,32 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·timer_create(SB),NOSPLIT,$0-16
++	MOVW	clockid+0(FP), R4
++	MOVW	sevp+4(FP), R5
++	MOVW	timerid+8(FP), R6
++	MOVW	$SYS_timer_create, R2
++	SYSCALL
++	MOVW	R2, ret+12(FP)
++	RET
++
++TEXT runtime·timer_settime(SB),NOSPLIT,$0-20
++	MOVW	timerid+0(FP), R4
++	MOVW	flags+4(FP), R5
++	MOVW	new+8(FP), R6
++	MOVW	old+12(FP), R7
++	MOVW	$SYS_timer_settime, R2
++	SYSCALL
++	MOVW	R2, ret+16(FP)
++	RET
++
++TEXT runtime·timer_delete(SB),NOSPLIT,$0-8
++	MOVW	timerid+0(FP), R4
++	MOVW	$SYS_timer_delete, R2
++	SYSCALL
++	MOVW	R2, ret+4(FP)
++	RET
++
+ TEXT runtime·mincore(SB),NOSPLIT,$0-16
+ 	MOVW	addr+0(FP), R4
+ 	MOVW	n+4(FP), R5
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 33b6a9409c..56d600b6ea 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -44,6 +44,9 @@
+ #define SYS_epoll_create	236
+ #define SYS_epoll_ctl		237
+ #define SYS_epoll_wait		238
++#define SYS_timer_create	240
++#define SYS_timer_settime	241
++#define SYS_timer_delete	244
+ #define SYS_clock_gettime	246
+ #define SYS_tgkill		250
+ #define SYS_epoll_create1	315
+@@ -176,6 +179,29 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	SYSCALL	$SYS_setitimer
+ 	RET
+ 
++TEXT runtime·timer_create(SB),NOSPLIT,$0-28
++	MOVW	clockid+0(FP), R3
++	MOVD	sevp+8(FP), R4
++	MOVD	timerid+16(FP), R5
++	SYSCALL	$SYS_timer_create
++	MOVW	R3, ret+24(FP)
++	RET
++
++TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
++	MOVW	timerid+0(FP), R3
++	MOVW	flags+4(FP), R4
++	MOVD	new+8(FP), R5
++	MOVD	old+16(FP), R6
++	SYSCALL	$SYS_timer_settime
++	MOVW	R3, ret+24(FP)
++	RET
++
++TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
++	MOVW	timerid+0(FP), R3
++	SYSCALL	$SYS_timer_delete
++	MOVW	R3, ret+8(FP)
++	RET
++
+ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVD	addr+0(FP), R3
+ 	MOVD	n+8(FP), R4
+diff --git a/src/runtime/sys_linux_riscv64.s b/src/runtime/sys_linux_riscv64.s
+index ebcdd56a45..a3da46d136 100644
+--- a/src/runtime/sys_linux_riscv64.s
++++ b/src/runtime/sys_linux_riscv64.s
+@@ -48,6 +48,9 @@
+ #define SYS_sigaltstack		132
+ #define SYS_socket		198
+ #define SYS_tgkill		131
++#define SYS_timer_create	107
++#define SYS_timer_delete	111
++#define SYS_timer_settime	110
+ #define SYS_tkill		130
+ #define SYS_write		64
+ 
+@@ -201,6 +204,35 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	ECALL
+ 	RET
+ 
++// func timer_create(clockid int32, sevp *sigevent, timerid *int32) int32
++TEXT runtime·timer_create(SB),NOSPLIT,$0-28
++	MOVW	clockid+0(FP), A0
++	MOV	sevp+8(FP), A1
++	MOV	timerid+16(FP), A2
++	MOV	$SYS_timer_create, A7
++	ECALL
++	MOVW	A0, ret+24(FP)
++	RET
++
++// func timer_settime(timerid int32, flags int32, new, old *itimerspec) int32
++TEXT runtime·timer_settime(SB),NOSPLIT,$0-28
++	MOVW	timerid+0(FP), A0
++	MOVW	flags+4(FP), A1
++	MOV	new+8(FP), A2
++	MOV	old+16(FP), A3
++	MOV	$SYS_timer_settime, A7
++	ECALL
++	MOVW	A0, ret+24(FP)
++	RET
++
++// func timer_delete(timerid int32) int32
++TEXT runtime·timer_delete(SB),NOSPLIT,$0-12
++	MOVW	timerid+0(FP), A0
++	MOV	$SYS_timer_delete, A7
++	ECALL
++	MOVW	A0, ret+8(FP)
++	RET
++
+ // func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOV	addr+0(FP), A0
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 916dfada8d..886add8b54 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -39,6 +39,9 @@
+ #define SYS_epoll_create        249
+ #define SYS_epoll_ctl           250
+ #define SYS_epoll_wait          251
++#define SYS_timer_create        254
++#define SYS_timer_settime       255
++#define SYS_timer_delete        258
+ #define SYS_clock_gettime       260
+ #define SYS_pipe2		325
+ #define SYS_epoll_create1       327
+@@ -185,6 +188,32 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·timer_create(SB),NOSPLIT|NOFRAME,$0-28
++	MOVW	clockid+0(FP), R2
++	MOVD	sevp+8(FP), R3
++	MOVD	timerid+16(FP), R4
++	MOVW	$SYS_timer_create, R1
++	SYSCALL
++	MOVW	R2, ret+24(FP)
++	RET
++
++TEXT runtime·timer_settime(SB),NOSPLIT|NOFRAME,$0-28
++	MOVW	timerid+0(FP), R2
++	MOVW	flags+4(FP), R3
++	MOVD	new+8(FP), R4
++	MOVD	old+16(FP), R5
++	MOVW	$SYS_timer_settime, R1
++	SYSCALL
++	MOVW	R2, ret+24(FP)
++	RET
++
++TEXT runtime·timer_delete(SB),NOSPLIT|NOFRAME,$0-12
++	MOVW	timerid+0(FP), R2
++	MOVW	$SYS_timer_delete, R1
++	SYSCALL
++	MOVW	R2, ret+8(FP)
++	RET
++
+ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVD	addr+0(FP), R2
+ 	MOVD	n+8(FP), R3

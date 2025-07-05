@@ -7,7 +7,32 @@ Date:   Sun Mar 4 11:34:10 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5729054
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 64d5535696..93386c628f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -75,6 +75,7 @@ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+ Florian Uekermann <florian@uekermann-online.de>
+ Florian Weimer <fw@deneb.enyo.de>
++Francisco Souza <franciscossouza@gmail.com>
+ Gary Burd <gary@beagledreams.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a222d01873..9e5accd50e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -118,6 +118,7 @@ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+ Florian Uekermann <florian@uekermann-online.de> <f1@uekermann-online.de>
+ Florian Weimer <fw@deneb.enyo.de>
++Francisco Souza <franciscossouza@gmail.com>
+ Fumitoshi Ukai <ukai@google.com>
+ Gary Burd <gary@beagledreams.com> <gary.burd@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>

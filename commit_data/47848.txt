@@ -17,9 +17,231 @@ Date:   Sun Apr 11 09:47:13 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go        |  2 +-
  src/cmd/compile/internal/typecheck/iimport.go | 11 +++++++
  test/closure3.dir/main.go                     | 44 +++++++++++++--------------
  test/inline.go                                | 22 +++++++-------
  4 files changed, 45 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 4470df1d2a..3cbe932d55 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -354,7 +354,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		return true
+ 
+ 	case ir.OCLOSURE:
+-		if base.Debug.InlFuncsWithClosures == 0 || typecheck.Go117ExportTypes { // TODO: remove latter condition
++		if base.Debug.InlFuncsWithClosures == 0 {
+ 			v.reason = "not inlining functions with closures"
+ 			return true
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 0d5d892ef5..42c4619666 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1112,6 +1112,14 @@ func (r *importReader) node() ir.Node {
+ 		cvars := make([]*ir.Name, r.int64())
+ 		for i := range cvars {
+ 			cvars[i] = ir.CaptureName(r.pos(), fn, r.localName().Canonical())
++			if go117ExportTypes {
++				if cvars[i].Type() != nil || cvars[i].Defn == nil {
++					base.Fatalf("bad import of closure variable")
++				}
++				// Closure variable should have Defn set, which is its captured
++				// variable, and it gets the same type as the captured variable.
++				cvars[i].SetType(cvars[i].Defn.Type())
++			}
+ 		}
+ 		fn.ClosureVars = cvars
+ 		r.allClosureVars = append(r.allClosureVars, cvars...)
+@@ -1133,6 +1141,9 @@ func (r *importReader) node() ir.Node {
+ 
+ 		clo := ir.NewClosureExpr(pos, fn)
+ 		fn.OClosure = clo
++		if go117ExportTypes {
++			clo.SetType(typ)
++		}
+ 
+ 		return clo
+ 
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index e8e1e99860..2fc33753ed 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -93,11 +93,11 @@ func main() {
+ 		y := func(x int) int { // ERROR "can inline main.func11" "func literal does not escape"
+ 			return x + 2
+ 		}
+-		y, sink = func() (func(int) int, int) { // ERROR "func literal does not escape"
+-			return func(x int) int { // ERROR "can inline main.func12" "func literal escapes"
++		y, sink = func() (func(int) int, int) { // ERROR "can inline main.func12"
++			return func(x int) int { // ERROR "can inline main.func12"
+ 				return x + 1
+ 			}, 42
+-		}()
++		}() // ERROR "func literal does not escape" "inlining call to main.func12"
+ 		if y(40) != 41 {
+ 			ppanic("y(40) != 41")
+ 		}
+@@ -105,14 +105,14 @@ func main() {
+ 
+ 	{
+ 		func() { // ERROR "func literal does not escape"
+-			y := func(x int) int { // ERROR "can inline main.func13.1" "func literal does not escape"
++			y := func(x int) int { // ERROR "func literal does not escape" "can inline main.func13.1"
+ 				return x + 2
+ 			}
+-			y, sink = func() (func(int) int, int) { // ERROR "func literal does not escape"
+-				return func(x int) int { // ERROR "can inline main.func13.2" "func literal escapes"
++			y, sink = func() (func(int) int, int) { // ERROR "can inline main.func13.2"
++				return func(x int) int { // ERROR "can inline main.func13.2"
+ 					return x + 1
+ 				}, 42
+-			}()
++			}() // ERROR "inlining call to main.func13.2" "func literal does not escape"
+ 			if y(40) != 41 {
+ 				ppanic("y(40) != 41")
+ 			}
+@@ -187,29 +187,29 @@ func main() {
+ 
+ 	{
+ 		x := 42
+-		if z := func(y int) int { // ERROR "func literal does not escape"
+-			return func() int { // ERROR "can inline main.func22.1"
++		if z := func(y int) int { // ERROR "can inline main.func22"
++			return func() int { // ERROR "can inline main.func22.1" "can inline main.func30"
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func22.1"
+-		}(1); z != 43 {
++		}(1); z != 43 { // ERROR "inlining call to main.func22" "inlining call to main.func30"
+ 			ppanic("z != 43")
+ 		}
+-		if z := func(y int) int { // ERROR "func literal does not escape"
+-			return func() int { // ERROR "can inline main.func23.1"
++		if z := func(y int) int { // ERROR "func literal does not escape" "can inline main.func23"
++			return func() int { // ERROR "can inline main.func23.1" "can inline main.func31"
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func23.1"
+-		}; z(1) != 43 {
++		}; z(1) != 43 { // ERROR "inlining call to main.func23" "inlining call to main.func31"
+ 			ppanic("z(1) != 43")
+ 		}
+ 	}
+ 
+ 	{
+ 		a := 1
+-		func() { // ERROR "func literal does not escape"
+-			func() { // ERROR "can inline main.func24"
++		func() { // ERROR "can inline main.func24"
++			func() { // ERROR "can inline main.func24" "can inline main.func32"
+ 				a = 2
+ 			}() // ERROR "inlining call to main.func24"
+-		}()
++		}() // ERROR "inlining call to main.func24" "inlining call to main.func32"
+ 		if a != 2 {
+ 			ppanic("a != 2")
+ 		}
+@@ -250,12 +250,12 @@ func main() {
+ 		a := 2
+ 		if r := func(x int) int { // ERROR "func literal does not escape"
+ 			b := 3
+-			return func(y int) int { // ERROR "func literal does not escape"
++			return func(y int) int { // ERROR "can inline main.func27.1"
+ 				c := 5
+-				return func(z int) int { // ERROR "can inline main.func27.1.1"
++				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.2"
+ 					return a*x + b*y + c*z
+ 				}(10) // ERROR "inlining call to main.func27.1.1"
+-			}(100)
++			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.2"
+ 		}(1000); r != 2350 {
+ 			ppanic("r != 2350")
+ 		}
+@@ -265,15 +265,15 @@ func main() {
+ 		a := 2
+ 		if r := func(x int) int { // ERROR "func literal does not escape"
+ 			b := 3
+-			return func(y int) int { // ERROR "func literal does not escape"
++			return func(y int) int { // ERROR "can inline main.func28.1"
+ 				c := 5
+-				func(z int) { // ERROR "can inline main.func28.1.1"
++				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.2"
+ 					a = a * x
+ 					b = b * y
+ 					c = c * z
+ 				}(10) // ERROR "inlining call to main.func28.1.1"
+ 				return a + c
+-			}(100) + b
++			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.2"
+ 		}(1000); r != 2350 {
+ 			ppanic("r != 2350")
+ 		}
+diff --git a/test/inline.go b/test/inline.go
+index b0911056ca..bc23768d01 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -58,7 +58,7 @@ func _() int { // ERROR "can inline _"
+ var somethingWrong error
+ 
+ // local closures can be inlined
+-func l(x, y int) (int, int, error) {
++func l(x, y int) (int, int, error) { // ERROR "can inline l"
+ 	e := func(err error) (int, int, error) { // ERROR "can inline l.func1" "func literal does not escape" "leaking param: err to result"
+ 		return 0, 0, err
+ 	}
+@@ -90,19 +90,19 @@ func n() int {
+ // make sure assignment inside closure is detected
+ func o() int {
+ 	foo := func() int { return 1 } // ERROR "can inline o.func1" "func literal does not escape"
+-	func(x int) {                  // ERROR "func literal does not escape"
++	func(x int) {                  // ERROR "can inline o.func2"
+ 		if x > 10 {
+-			foo = func() int { return 2 } // ERROR "can inline o.func2" "func literal escapes"
++			foo = func() int { return 2 } // ERROR "can inline o.func2"
+ 		}
+-	}(11)
++	}(11) // ERROR "func literal does not escape" "inlining call to o.func2"
+ 	return foo()
+ }
+ 
+-func p() int {
++func p() int { // ERROR "can inline p"
+ 	return func() int { return 42 }() // ERROR "can inline p.func1" "inlining call to p.func1"
+ }
+ 
+-func q(x int) int {
++func q(x int) int { // ERROR "can inline q"
+ 	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "func literal does not escape"
+ 	return foo()                       // ERROR "inlining call to q.func1"
+ }
+@@ -111,15 +111,15 @@ func r(z int) int {
+ 	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
+ 		return x + z
+ 	}
+-	bar := func(x int) int { // ERROR "func literal does not escape"
+-		return x + func(y int) int { // ERROR "can inline r.func2.1"
++	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
++		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
+ 			return 2*y + x*z
+ 		}(x) // ERROR "inlining call to r.func2.1"
+ 	}
+-	return foo(42) + bar(42) // ERROR "inlining call to r.func1"
++	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
+ }
+ 
+-func s0(x int) int {
++func s0(x int) int { // ERROR "can inline s0"
+ 	foo := func() { // ERROR "can inline s0.func1" "func literal does not escape"
+ 		x = x + 1
+ 	}
+@@ -127,7 +127,7 @@ func s0(x int) int {
+ 	return x
+ }
+ 
+-func s1(x int) int {
++func s1(x int) int { // ERROR "can inline s1"
+ 	foo := func() int { // ERROR "can inline s1.func1" "func literal does not escape"
+ 		return x
+ 	}

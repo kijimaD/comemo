@@ -10,7 +10,67 @@ Date:   Mon Sep 15 07:14:33 2014 -0400
     R=adg
     CC=golang-codereviews
     https://golang.org/cl/142090043
-
+---
  src/net/http/fs.go      |  2 +-
  src/net/http/fs_test.go | 37 +++++++++++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index bae902cd29..7bd777b712 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -381,7 +381,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 
+ 	// use contents of index.html for directory, if present
+ 	if d.IsDir() {
+-		index := name + indexPage
++		index := strings.TrimSuffix(name, "/") + indexPage
+ 		ff, err := fs.Open(index)
+ 		if err == nil {
+ 			defer ff.Close()
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index a6f33cc42d..8770d9b410 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -877,4 +877,41 @@ func TestLinuxSendfileChild(*testing.T) {
+ 	}
+ }
+ 
++func TestFileServerCleanPath(t *testing.T) {
++	tests := []struct {
++		path     string
++		wantCode int
++		wantOpen []string
++	}{
++		{"/", 200, []string{"/", "/index.html"}},
++		{"/dir", 301, []string{"/dir"}},
++		{"/dir/", 200, []string{"/dir", "/dir/index.html"}},
++	}
++	for _, tt := range tests {
++		var log []string
++		rr := httptest.NewRecorder()
++		req, _ := NewRequest("GET", "http://foo.localhost"+tt.path, nil)
++		FileServer(fileServerCleanPathDir{&log}).ServeHTTP(rr, req)
++		if !reflect.DeepEqual(log, tt.wantOpen) {
++			t.Logf("For %s: Opens = %q; want %q", tt.path, log, tt.wantOpen)
++		}
++		if rr.Code != tt.wantCode {
++			t.Logf("For %s: Response code = %d; want %d", tt.path, rr.Code, tt.wantCode)
++		}
++	}
++}
++
++type fileServerCleanPathDir struct {
++	log *[]string
++}
++
++func (d fileServerCleanPathDir) Open(path string) (File, error) {
++	*(d.log) = append(*(d.log), path)
++	if path == "/" || path == "/dir" || path == "/dir/" {
++		// Just return back something that's a directory.
++		return Dir(".").Open(".")
++	}
++	return nil, os.ErrNotExist
++}
++
+ type panicOnSeek struct{ io.ReadSeeker }

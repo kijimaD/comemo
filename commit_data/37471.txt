@@ -11,6 +11,30 @@ Date:   Thu Aug 2 12:41:48 2018 -0700
     Change-Id: I0c555c8e18f4c7e289de56d3ef840d79cf0adac2
     Reviewed-on: https://go-review.googlesource.com/127659
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.11.html | 12 +-----------
  1 file changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 57468066c7..de3da01325 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -533,17 +533,7 @@ for k := range m {
+ 
+ </dl><!-- encoding/csv -->
+ 
+-<dl id="go/scanner"><dt><a href="/pkg/go/scanner/">go/scanner</a></dt>
+-  <dd>
+-    <p><!-- CL 100235 -->
+-      The package no longer modifies filenames in <code>//line</code>
+-      directives when recording position information or reporting
+-      errors. Previously the package would change relative paths
+-      in <code>//line</code> directives to absolute paths by
+-      prepending the source file directory.
+-    </p>
+-
+-</dl><!-- go/scanner -->
++<!-- CL 100235 was reverted -->
+ 
+ <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+   <dd>

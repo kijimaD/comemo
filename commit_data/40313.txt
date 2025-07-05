@@ -24,7 +24,7 @@ Date:   Tue Apr 30 15:23:14 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/iexport.go             |  6 +--
  src/cmd/compile/internal/gc/main.go                |  5 ++-
  src/cmd/compile/internal/gc/obj.go                 |  3 +-
@@ -39,3 +39,366 @@ Date:   Tue Apr 30 15:23:14 2019 -0400
  .../internal/obj/sort.go => sort/slice_go18.go}    | 11 +++---
  src/sort/slice_pre113.go                           | 46 ----------------------
  13 files changed, 58 insertions(+), 110 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 93099bfe3d..560aeabf76 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -202,12 +202,12 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
+ 	"math/big"
++	"sort"
+ 	"strings"
+ )
+ 
+@@ -321,12 +321,12 @@ func (w *exportWriter) writeIndex(index map[*Node]uint64, mainIndex bool) {
+ 	for pkg, objs := range pkgObjs {
+ 		pkgs = append(pkgs, pkg)
+ 
+-		obj.SortSlice(objs, func(i, j int) bool {
++		sort.Slice(objs, func(i, j int) bool {
+ 			return objs[i].Sym.Name < objs[j].Sym.Name
+ 		})
+ 	}
+ 
+-	obj.SortSlice(pkgs, func(i, j int) bool {
++	sort.Slice(pkgs, func(i, j int) bool {
+ 		return pkgs[i].Path < pkgs[j].Path
+ 	})
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index dc3fb64e27..51b60fb417 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -27,6 +27,7 @@ import (
+ 	"path"
+ 	"regexp"
+ 	"runtime"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -723,7 +724,7 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 
+ 	// Check whether any of the functions we have compiled have gigantic stack frames.
+-	obj.SortSlice(largeStackFrames, func(i, j int) bool {
++	sort.Slice(largeStackFrames, func(i, j int) bool {
+ 		return largeStackFrames[i].pos.Before(largeStackFrames[j].pos)
+ 	})
+ 	for _, large := range largeStackFrames {
+@@ -1313,7 +1314,7 @@ func clearImports() {
+ 		}
+ 	}
+ 
+-	obj.SortSlice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
++	sort.Slice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
+ 	for _, pkg := range unused {
+ 		pkgnotused(pkg.pos, pkg.path, pkg.name)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 86d52f5084..d0ba6ffb75 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -14,6 +14,7 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"io"
++	"sort"
+ 	"strconv"
+ )
+ 
+@@ -259,7 +260,7 @@ func dumpglobls() {
+ 		}
+ 	}
+ 
+-	obj.SortSlice(funcsyms, func(i, j int) bool {
++	sort.Slice(funcsyms, func(i, j int) bool {
+ 		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
+ 	})
+ 	for _, s := range funcsyms {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 8e4126d779..2ae7452e7d 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -348,7 +348,7 @@ func compileFunctions() {
+ 			// Compile the longest functions first,
+ 			// since they're most likely to be the slowest.
+ 			// This helps avoid stragglers.
+-			obj.SortSlice(compilequeue, func(i, j int) bool {
++			sort.Slice(compilequeue, func(i, j int) bool {
+ 				return compilequeue[i].Nbody.Len() > compilequeue[j].Nbody.Len()
+ 			})
+ 		}
+diff --git a/src/cmd/compile/internal/types/sym_test.go b/src/cmd/compile/internal/types/sym_test.go
+index a2bb02deda..94efd42aa4 100644
+--- a/src/cmd/compile/internal/types/sym_test.go
++++ b/src/cmd/compile/internal/types/sym_test.go
+@@ -6,8 +6,8 @@ package types_test
+ 
+ import (
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/obj"
+ 	"reflect"
++	"sort"
+ 	"testing"
+ )
+ 
+@@ -50,7 +50,7 @@ func TestSymLess(t *testing.T) {
+ 	if reflect.DeepEqual(data, want) {
+ 		t.Fatal("data must be shuffled")
+ 	}
+-	obj.SortSlice(data, func(i, j int) bool { return data[i].Less(data[j]) })
++	sort.Slice(data, func(i, j int) bool { return data[i].Less(data[j]) })
+ 	if !reflect.DeepEqual(data, want) {
+ 		t.Logf("want: %#v", want)
+ 		t.Logf("data: %#v", data)
+diff --git a/src/cmd/internal/obj/bootstrap.go b/src/cmd/internal/obj/bootstrap.go
+deleted file mode 100644
+index 42835e1d9d..0000000000
+--- a/src/cmd/internal/obj/bootstrap.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !go1.8
+-
+-package obj
+-
+-import (
+-	"reflect"
+-	"sort"
+-)
+-
+-func SortSlice(slice interface{}, less func(i, j int) bool) {
+-	val := reflect.ValueOf(slice)
+-	tmp := reflect.New(val.Type().Elem()).Elem()
+-	x := sliceByFn{val: val, tmp: tmp, less: less}
+-	sort.Sort(x)
+-}
+-
+-type sliceByFn struct {
+-	val  reflect.Value
+-	tmp  reflect.Value
+-	less func(i, j int) bool
+-}
+-
+-func (x sliceByFn) Len() int           { return x.val.Len() }
+-func (x sliceByFn) Less(i, j int) bool { return x.less(i, j) }
+-func (x sliceByFn) Swap(i, j int) {
+-	a, b := x.val.Index(i), x.val.Index(j)
+-	x.tmp.Set(a)
+-	a.Set(b)
+-	b.Set(x.tmp)
+-}
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a7927f50b7..6921df3675 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -104,7 +104,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 		// As they are created during Progedit, two symbols can be switched between
+ 		// two different compilations. Therefore, BuildID will be different.
+ 		// TODO: find a better place and optimize to only sort TOC symbols
+-		SortSlice(ctxt.Data, func(i, j int) bool {
++		sort.Slice(ctxt.Data, func(i, j int) bool {
+ 			return ctxt.Data[i].Name < ctxt.Data[j].Name
+ 		})
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 50650bd373..f38f13a6f2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -586,9 +586,8 @@ func findImports(pkg string) ([]string, error) {
+ 	var haveImport = map[string]bool{}
+ 	for _, file := range files {
+ 		name := file.Name()
+-		if name == "slice_pre113.go" {
+-			// This file is ignored by build tags which aren't
+-			// handled by this findImports func.
++		if name == "slice_go14.go" || name == "slice_go18.go" {
++			// These files are for compiler bootstrap with older versions of Go and not built in the standard build.
+ 			continue
+ 		}
+ 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+diff --git a/src/sort/slice.go b/src/sort/slice.go
+index 5196affcfd..1f42c2a3fd 100644
+--- a/src/sort/slice.go
++++ b/src/sort/slice.go
+@@ -2,14 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !compiler_bootstrap go1.13
+-
+ package sort
+ 
+-import (
+-	"internal/reflectlite"
+-)
+-
+ // Slice sorts the provided slice given the provided less function.
+ //
+ // The sort is not guaranteed to be stable. For a stable sort, use
+@@ -17,8 +11,8 @@ import (
+ //
+ // The function panics if the provided interface is not a slice.
+ func Slice(slice interface{}, less func(i, j int) bool) {
+-	rv := reflectlite.ValueOf(slice)
+-	swap := reflectlite.Swapper(slice)
++	rv := reflectValueOf(slice)
++	swap := reflectSwapper(slice)
+ 	length := rv.Len()
+ 	quickSort_func(lessSwap{less, swap}, 0, length, maxDepth(length))
+ }
+@@ -28,8 +22,8 @@ func Slice(slice interface{}, less func(i, j int) bool) {
+ //
+ // The function panics if the provided interface is not a slice.
+ func SliceStable(slice interface{}, less func(i, j int) bool) {
+-	rv := reflectlite.ValueOf(slice)
+-	swap := reflectlite.Swapper(slice)
++	rv := reflectValueOf(slice)
++	swap := reflectSwapper(slice)
+ 	stable_func(lessSwap{less, swap}, rv.Len())
+ }
+ 
+@@ -37,7 +31,7 @@ func SliceStable(slice interface{}, less func(i, j int) bool) {
+ //
+ // The function panics if the provided interface is not a slice.
+ func SliceIsSorted(slice interface{}, less func(i, j int) bool) bool {
+-	rv := reflectlite.ValueOf(slice)
++	rv := reflectValueOf(slice)
+ 	n := rv.Len()
+ 	for i := n - 1; i > 0; i-- {
+ 		if less(i, i-1) {
+diff --git a/src/sort/slice_go113.go b/src/sort/slice_go113.go
+new file mode 100644
+index 0000000000..bf24db714a
+--- /dev/null
++++ b/src/sort/slice_go113.go
+@@ -0,0 +1,12 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build go1.13
++
++package sort
++
++import "internal/reflectlite"
++
++var reflectValueOf = reflectlite.ValueOf
++var reflectSwapper = reflectlite.Swapper
+diff --git a/src/sort/slice_go14.go b/src/sort/slice_go14.go
+new file mode 100644
+index 0000000000..3bf5cbc00b
+--- /dev/null
++++ b/src/sort/slice_go14.go
+@@ -0,0 +1,22 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !go1.8
++
++package sort
++
++import "reflect"
++
++var reflectValueOf = reflect.ValueOf
++
++func reflectSwapper(x interface{}) func(int, int) {
++	v := reflectValueOf(x)
++	tmp := reflect.New(v.Type().Elem()).Elem()
++	return func(i, j int) {
++		a, b := v.Index(i), v.Index(j)
++		tmp.Set(a)
++		a.Set(b)
++		b.Set(tmp)
++	}
++}
+diff --git a/src/cmd/internal/obj/sort.go b/src/sort/slice_go18.go
+similarity index 55%
+rename from src/cmd/internal/obj/sort.go
+rename to src/sort/slice_go18.go
+index 0cb801ee98..e1766040a7 100644
+--- a/src/cmd/internal/obj/sort.go
++++ b/src/sort/slice_go18.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build go1.8
++// +build go1.8,!go1.13
+ 
+-package obj
++package sort
+ 
+-import "sort"
++import "reflect"
+ 
+-func SortSlice(slice interface{}, less func(i, j int) bool) {
+-	sort.Slice(slice, less)
+-}
++var reflectValueOf = reflect.ValueOf
++var reflectSwapper = reflect.Swapper
+diff --git a/src/sort/slice_pre113.go b/src/sort/slice_pre113.go
+deleted file mode 100644
+index 4d5f759a92..0000000000
+--- a/src/sort/slice_pre113.go
++++ /dev/null
+@@ -1,46 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build go1.8,!go1.13
+-
+-package sort
+-
+-import "reflect"
+-
+-// Slice sorts the provided slice given the provided less function.
+-//
+-// The sort is not guaranteed to be stable. For a stable sort, use
+-// SliceStable.
+-//
+-// The function panics if the provided interface is not a slice.
+-func Slice(slice interface{}, less func(i, j int) bool) {
+-	rv := reflect.ValueOf(slice)
+-	swap := reflect.Swapper(slice)
+-	length := rv.Len()
+-	quickSort_func(lessSwap{less, swap}, 0, length, maxDepth(length))
+-}
+-
+-// SliceStable sorts the provided slice given the provided less
+-// function while keeping the original order of equal elements.
+-//
+-// The function panics if the provided interface is not a slice.
+-func SliceStable(slice interface{}, less func(i, j int) bool) {
+-	rv := reflect.ValueOf(slice)
+-	swap := reflect.Swapper(slice)
+-	stable_func(lessSwap{less, swap}, rv.Len())
+-}
+-
+-// SliceIsSorted tests whether a slice is sorted.
+-//
+-// The function panics if the provided interface is not a slice.
+-func SliceIsSorted(slice interface{}, less func(i, j int) bool) bool {
+-	rv := reflect.ValueOf(slice)
+-	n := rv.Len()
+-	for i := n - 1; i > 0; i-- {
+-		if less(i, i-1) {
+-			return false
+-		}
+-	}
+-	return true
+-}

@@ -9,7 +9,35 @@ Date:   Tue Nov 5 15:13:50 2013 +1100
     R=adg, r
     CC=golang-dev
     https://golang.org/cl/21130043
-
+---
  src/pkg/go/doc/synopsis.go      | 3 +++
  src/pkg/go/doc/synopsis_test.go | 2 ++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/pkg/go/doc/synopsis.go b/src/pkg/go/doc/synopsis.go
+index d1ad86c741..c90080b7cc 100644
+--- a/src/pkg/go/doc/synopsis.go
++++ b/src/pkg/go/doc/synopsis.go
+@@ -22,6 +22,9 @@ func firstSentenceLen(s string) int {
+ 		if q == ' ' && p == '.' && (!unicode.IsUpper(pp) || unicode.IsUpper(ppp)) {
+ 			return i
+ 		}
++		if p == '。' || p == '．' {
++			return i
++		}
+ 		ppp, pp, p = pp, p, q
+ 	}
+ 	return len(s)
+diff --git a/src/pkg/go/doc/synopsis_test.go b/src/pkg/go/doc/synopsis_test.go
+index fd7081a07c..59b253cb8d 100644
+--- a/src/pkg/go/doc/synopsis_test.go
++++ b/src/pkg/go/doc/synopsis_test.go
+@@ -28,6 +28,8 @@ var tests = []struct {
+ 	{"P. Q.   ", 8, "P. Q."},
+ 	{"Package Καλημέρα κόσμε.", 36, "Package Καλημέρα κόσμε."},
+ 	{"Package こんにちは 世界\n", 31, "Package こんにちは 世界"},
++	{"Package こんにちは。世界", 26, "Package こんにちは。"},
++	{"Package 안녕．世界", 17, "Package 안녕．"},
+ 	{"Package foo does bar.", 21, "Package foo does bar."},
+ 	{"Copyright 2012 Google, Inc. Package foo does bar.", 27, ""},
+ 	{"All Rights reserved. Package foo does bar.", 20, ""},

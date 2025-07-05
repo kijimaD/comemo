@@ -16,9 +16,109 @@ Date:   Mon Apr 20 11:41:31 2015 -0400
     Change-Id: Id430525f168f106bc4b821ca74b2ca498a748f14
     Reviewed-on: https://go-review.googlesource.com/9152
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go        |  4 ++--
  src/cmd/dist/buildruntime.go |  4 ++--
  src/cmd/dist/buildtool.go    |  2 +-
  src/cmd/dist/util.go         | 25 ++++++++++++++++++++-----
  4 files changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 2262a736de..2fcb12c826 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -809,11 +809,11 @@ func shouldbuild(file, dir string) bool {
+ }
+ 
+ // copy copies the file src to dst, via memory (so only good for small files).
+-func copyfile(dst, src string, exec int) {
++func copyfile(dst, src string, flag int) {
+ 	if vflag > 1 {
+ 		errprintf("cp %s %s\n", src, dst)
+ 	}
+-	writefile(readfile(src), dst, exec)
++	writefile(readfile(src), dst, flag)
+ }
+ 
+ // dopack copies the package src to dst,
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 70aafe9183..9b8d8f0cf6 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -35,7 +35,7 @@ func mkzversion(dir, file string) {
+ 			"const stackGuardMultiplier = %d\n"+
+ 			"var buildVersion = theVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
+ 
+-	writefile(out, file, 0)
++	writefile(out, file, writeSkipSame)
+ }
+ 
+ // mkzbootstrap writes cmd/internal/obj/zbootstrap.go:
+@@ -80,7 +80,7 @@ func mkzbootstrap(file string) {
+ 			"const goexperiment = `%s`\n",
+ 		goroot_final, go386, goarm, goextlinkenabled, findgoversion(), stackGuardMultiplier(), os.Getenv("GOEXPERIMENT"))
+ 
+-	writefile(out, file, 0)
++	writefile(out, file, writeSkipSame)
+ }
+ 
+ // stackGuardMultiplier returns a multiplier to apply to the default
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 2840f71749..be54ac46de 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -118,7 +118,7 @@ func bootstrapBuildTools() {
+ 	// Copy binaries into tool binary directory.
+ 	for _, name := range bootstrapDirs {
+ 		if !strings.Contains(name, "/") {
+-			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), 1)
++			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), writeExec)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index cae5d699d4..f13210f4de 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -245,14 +246,28 @@ func readfile(file string) string {
+ 	return string(data)
+ }
+ 
+-// writefile writes b to the named file, creating it if needed.  if
+-// exec is non-zero, marks the file as executable.
+-func writefile(b, file string, exec int) {
++const (
++	writeExec = 1 << iota
++	writeSkipSame
++)
++
++// writefile writes b to the named file, creating it if needed.
++// if exec is non-zero, marks the file as executable.
++// If the file already exists and has the expected content,
++// it is not rewritten, to avoid changing the time stamp.
++func writefile(b, file string, flag int) {
++	new := []byte(b)
++	if flag&writeSkipSame != 0 {
++		old, err := ioutil.ReadFile(file)
++		if err == nil && bytes.Equal(old, new) {
++			return
++		}
++	}
+ 	mode := os.FileMode(0666)
+-	if exec != 0 {
++	if flag&writeExec != 0 {
+ 		mode = 0777
+ 	}
+-	err := ioutil.WriteFile(file, []byte(b), mode)
++	err := ioutil.WriteFile(file, new, mode)
+ 	if err != nil {
+ 		fatal("%v", err)
+ 	}

@@ -21,6 +21,32 @@ Date:   Wed Jul 23 10:17:59 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/119000043
-
+---
  src/liblink/asm5.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 6ff29f2e60..73a31862f5 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -953,7 +953,11 @@ addpool(Link *ctxt, Prog *p, Addr *a)
+ 
+ 	switch(c) {
+ 	default:
+-		t.to = *a;
++		t.to.offset = a->offset;
++		t.to.sym = a->sym;
++		t.to.type = a->type;
++		t.to.name = a->name;
++		
+ 		if(ctxt->flag_shared && t.to.sym != nil)
+ 			t.pcrel = p;
+ 		break;
+@@ -1102,7 +1106,6 @@ aclass(Link *ctxt, Addr *a)
+ 		case D_STATIC:
+ 			if(a->sym == 0 || a->sym->name == 0) {
+ 				print("null sym external\n");
+-				print("%D\n", a);
+ 				return C_GOK;
+ 			}
+ 			ctxt->instoffset = 0;	// s.b. unused but just in case

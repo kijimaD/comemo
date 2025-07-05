@@ -15,6 +15,24 @@ Date:   Wed Jan 10 06:28:59 2018 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/go/internal/work/exec.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 195437d220..a91ee7702c 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1849,9 +1849,11 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+ 	// GCC says "unrecognized command line option".
+ 	// clang says "unknown argument".
+ 	// Older versions of GCC say "unrecognised debug output level".
++	// For -fsplit-stack GCC says "'-fsplit-stack' is not supported".
+ 	supported := !bytes.Contains(out, []byte("unrecognized")) &&
+ 		!bytes.Contains(out, []byte("unknown")) &&
+-		!bytes.Contains(out, []byte("unrecognised"))
++		!bytes.Contains(out, []byte("unrecognised")) &&
++		!bytes.Contains(out, []byte("is not supported"))
+ 	b.flagCache[key] = supported
+ 	return supported
+ }

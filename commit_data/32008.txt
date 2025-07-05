@@ -24,6 +24,20 @@ Date:   Thu Mar 30 01:23:20 2017 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcshared/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index a0b9f78658..4ff4db446c 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -98,7 +98,7 @@ fi
+ 
+ GOGCCFLAGS=$(go env GOGCCFLAGS)
+ if [ "$goos" = "android" ]; then
+-	GOGCCFLAGS="${GOGCCFLAGS} -pie"
++	GOGCCFLAGS="${GOGCCFLAGS} -pie -fuse-ld=gold"
+ fi
+ 
+ status=0

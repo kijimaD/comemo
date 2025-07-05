@@ -14,7 +14,7 @@ Date:   Thu Oct 27 11:20:20 2016 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go      | 2 +-
  src/cmd/compile/internal/syntax/parser.go   | 3 +--
  src/go/parser/parser.go                     | 3 +--
@@ -22,3 +22,84 @@ Date:   Thu Oct 27 11:20:20 2016 -0700
  src/go/printer/testdata/declarations.golden | 2 --
  src/go/printer/testdata/declarations.input  | 2 --
  6 files changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index ea0f6d7aaf..933fd72fa0 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -11,7 +11,7 @@
+ The export data is a serialized description of the graph of exported
+ "objects": constants, types, variables, and functions. Aliases may be
+ directly reexported, and unaliased types may be indirectly reexported
+-(as part of the type of a directly exorted object). More generally,
++(as part of the type of a directly exported object). More generally,
+ objects referred to from inlined function bodies can be reexported.
+ We need to know which package declares these reexported objects, and
+ therefore packages are also part of the export graph.
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index d0dec3ab1b..fcf4f5b692 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -365,8 +365,7 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 	}
+ 
+ 	name := p.name()
+-	// permit both: type T => p.T and: type T = p.T for now
+-	if p.got(_Rarrow) || p.got(_Assign) {
++	if p.got(_Rarrow) {
+ 		return p.aliasDecl(Type, name, group)
+ 	}
+ 
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 0cff9f005e..375ae03e86 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2343,8 +2343,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
+ 	}
+ 
+ 	ident := p.parseIdent()
+-	// permit both: type T => p.T and: type T = p.T for now
+-	if p.tok == token.ALIAS || p.tok == token.ASSIGN {
++	if p.tok == token.ALIAS {
+ 		p.next()
+ 		return p.parseAliasSpec(doc, ast.Typ, ident)
+ 	}
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 0360cea0a6..514dd4c90c 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -47,7 +47,7 @@ var valids = []string{
+ 	`package p; var _ = map[P]int{P{}:0, {}:1}`,
+ 	`package p; var _ = map[*P]int{&P{}:0, {}:1}`,
+ 	`package p; const c => p.C; var x => X; type T => p.T; func F => p.F`,
+-	`package p; var (_ int; x => p.X; y => Y); type (t => T; t1 = p.T1)`,
++	`package p; var (_ int; x => p.X; y => Y); type (t => T; t1 => p.T1)`,
+ }
+ 
+ func TestValid(t *testing.T) {
+diff --git a/src/go/printer/testdata/declarations.golden b/src/go/printer/testdata/declarations.golden
+index 4d888cc8a4..ff14aba1a7 100644
+--- a/src/go/printer/testdata/declarations.golden
++++ b/src/go/printer/testdata/declarations.golden
+@@ -1015,8 +1015,6 @@ type c => p.C
+ type (
+ 	s	struct{}
+ 	a	=> A
+-	b	=> A
+-	c	=> foo
+ 	ddd	=> p.Foo
+ )
+ 
+diff --git a/src/go/printer/testdata/declarations.input b/src/go/printer/testdata/declarations.input
+index c3a76858b7..748db3b6b1 100644
+--- a/src/go/printer/testdata/declarations.input
++++ b/src/go/printer/testdata/declarations.input
+@@ -1029,8 +1029,6 @@ type c => p.C
+ type (
+ 	s struct{}
+ 	a => A
+-	b = A
+-	c = foo
+ 	ddd => p.Foo
+ )
+ 

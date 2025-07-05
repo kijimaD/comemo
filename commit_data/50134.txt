@@ -13,7 +13,53 @@ Date:   Tue Oct 5 10:29:21 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/types2/index.go                      | 7 +------
  src/cmd/compile/internal/types2/testdata/check/typeparams.go2 | 8 ++++++--
  2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 848a70dea8..47a5e50f62 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -207,7 +207,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch typ := under(x.typ).(type) {
++	switch typ := optype(x.typ).(type) {
+ 	case *Basic:
+ 		if isString(typ) {
+ 			if e.Full {
+@@ -246,11 +246,6 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 	case *Slice:
+ 		valid = true
+ 		// x.typ doesn't change
+-
+-	case *TypeParam:
+-		check.error(x, "generic slice expressions not yet implemented")
+-		x.mode = invalid
+-		return
+ 	}
+ 
+ 	if !valid {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index 69b6925b9f..29c25b0bb4 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -115,9 +115,13 @@ func _[T interface{ [10]byte | string }](x T, i int) { _ = x[i]; _ = x[9]; _ = x
+ func _[T interface{ [10]int | *[20]int | []int }](x T, i int) { _ = x[i]; _ = x[9]; _ = x[10 /* ERROR out of bounds */ ] }
+ 
+ // slicing
+-// TODO(gri) implement this
+ 
+-func _[T interface{ ~string }] (x T, i, j, k int) { _ = x /* ERROR generic slice expressions not yet implemented */ [i:j:k] }
++func _[T interface{ ~[10]E }, E any] (x T, i, j, k int) { var _ []E = x[i:j] }
++func _[T interface{ ~[10]E }, E any] (x T, i, j, k int) { var _ []E = x[i:j:k] }
++func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j] }
++func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j:k] }
++func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j] }
++func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x /* ERROR 3-index slice of string */ [i:j:k] }
+ 
+ // len/cap built-ins
+ 

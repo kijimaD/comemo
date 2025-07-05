@@ -13,8 +13,282 @@ Date:   Wed Aug 4 18:01:41 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        | 42 ++++--------
  .../internal/types2/testdata/check/builtins.go2    | 79 ++++++++++------------
  test/typeparam/builtins.go                         | 71 +++++++++----------
  3 files changed, 80 insertions(+), 112 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index e9df605fd1..184cd027cb 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -472,39 +472,21 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 
+-		min, max := -1, 10
+-		var valid func(t Type) bool
+-		valid = func(t Type) bool {
+-			var m int
+-			switch t := under(t).(type) {
+-			case *Slice:
+-				m = 2
+-			case *Map, *Chan:
+-				m = 1
+-			case *TypeParam:
+-				return t.underIs(valid)
+-			default:
+-				return false
+-			}
+-			if m > min {
+-				min = m
+-			}
+-			if m+1 < max {
+-				max = m + 1
+-			}
+-			return true
+-		}
+-
+-		if !valid(T) {
++		var min int // minimum number of arguments
++		switch optype(T).(type) {
++		case *Slice:
++			min = 2
++		case *Map, *Chan:
++			min = 1
++		case *top:
++			check.errorf(arg0, invalidArg+"cannot make %s; type parameter has no structural type", arg0)
++			return
++		default:
+ 			check.errorf(arg0, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
+ 			return
+ 		}
+-		if nargs < min || max < nargs {
+-			if min == max {
+-				check.errorf(call, "%v expects %d arguments; found %d", call, min, nargs)
+-			} else {
+-				check.errorf(call, "%v expects %d or %d arguments; found %d", call, min, max, nargs)
+-			}
++		if nargs < min || min+1 < nargs {
++			check.errorf(call, invalidOp+"%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins.go2 b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+index 3881090603..0cfea93bf6 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins.go2
+@@ -84,50 +84,41 @@ func _[T M4[K, V], K comparable, V any](m T) {
+ 
+ // make
+ 
+-type Bmc interface {
+-	~map[rune]string | ~chan int
+-}
+-
+-type Bms interface {
+-	~map[string]int | ~[]int
+-}
+-
+-type Bcs interface {
+-	~chan bool | ~[]float64
+-}
+-
+-type Bss interface {
+-	~[]int | ~[]string
+-}
+-
+-func _[T any]() {
+-	_ = make(T /* ERROR invalid argument */)
+-	_ = make(T /* ERROR invalid argument */, 10)
+-	_ = make(T /* ERROR invalid argument */, 10, 20)
+-}
+-
+-func _[T Bmc]() {
+-	_ = make(T)
+-	_ = make(T, 10)
+-	_ = make /* ERROR expects 1 or 2 arguments */ (T, 10, 20)
+-}
+-
+-func _[T Bms]() {
+-	_ = make /* ERROR expects 2 arguments */ (T)
+-	_ = make(T, 10)
+-	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
+-}
+-
+-func _[T Bcs]() {
+-	_ = make /* ERROR expects 2 arguments */ (T)
+-	_ = make(T, 10)
+-	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
+-}
+-
+-func _[T Bss]() {
+-	_ = make /* ERROR expects 2 or 3 arguments */ (T)
+-	_ = make(T, 10)
+-	_ = make(T, 10, 20)
++func _[
++	S1 interface{ []int },
++	S2 interface{ []int | chan int },
++
++	M1 interface{ map[string]int },
++	M2 interface{ map[string]int | chan int },
++
++	C1 interface{ chan int },
++	C2 interface{ chan int | chan string },
++]() {
++	type S0 []int
++	_ = make([]int, 10)
++	_ = make(S0, 10)
++	_ = make(S1, 10)
++	_ = make /* ERROR not enough arguments */ ()
++	_ = make /* ERROR expects 2 or 3 arguments */ (S1)
++	_ = make(S1, 10, 20)
++	_ = make /* ERROR expects 2 or 3 arguments */ (S1, 10, 20, 30)
++	_ = make(S2 /* ERROR cannot make .* no structural type */ , 10)
++
++	type M0 map[string]int
++	_ = make(map[string]int)
++	_ = make(M0)
++	_ = make(M1)
++	_ = make(M1, 10)
++	_ = make/* ERROR expects 1 or 2 arguments */(M1, 10, 20)
++	_ = make(M2 /* ERROR cannot make .* no structural type */ )
++
++	type C0 chan int
++	_ = make(chan int)
++	_ = make(C0)
++	_ = make(C1)
++	_ = make(C1, 10)
++	_ = make/* ERROR expects 1 or 2 arguments */(C1, 10, 20)
++	_ = make(C2 /* ERROR cannot make .* no structural type */ )
+ }
+ 
+ // unsafe.Alignof
+diff --git a/test/typeparam/builtins.go b/test/typeparam/builtins.go
+index 819588b07d..844cdae8ab 100644
+--- a/test/typeparam/builtins.go
++++ b/test/typeparam/builtins.go
+@@ -19,19 +19,19 @@ type C3 interface{ chan int | chan float32 }
+ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | chan<- T }
+ 
+-func _[T C1](ch T) {
++func f1[T C1](ch T) {
+ 	close(ch)
+ }
+ 
+-func _[T C3](ch T) {
++func f2[T C3](ch T) {
+ 	close(ch)
+ }
+ 
+-func _[T C4](ch T) {
++func f3[T C4](ch T) {
+ 	close(ch)
+ }
+ 
+-func _[T C5[X], X any](ch T) {
++func f4[T C5[X], X any](ch T) {
+ 	close(ch)
+ }
+ 
+@@ -45,61 +45,56 @@ type M2 interface {
+ type M3 interface{ map[string]int | map[rune]int }
+ type M4[K comparable, V any] interface{ map[K]V | map[rune]V }
+ 
+-func _[T M1](m T) {
++func g1[T M1](m T) {
+ 	delete(m, "foo")
+ }
+ 
+-func _[T M2](m T) {
++func g2[T M2](m T) {
+ 	delete(m, "foo")
+ }
+ 
+-func _[T M4[rune, V], V any](m T) {
++func g3[T M4[rune, V], V any](m T) {
+ 	delete(m, 'k')
+ }
+ 
+ // make
+ 
+-type Bmc interface {
+-	~map[rune]string | ~chan int
+-}
+-
+-type Bms interface {
+-	~map[string]int | ~[]int
+-}
+-
+-type Bcs interface {
+-	~chan bool | ~[]float64
+-}
++func m1[
++	S1 interface{ []int },
++	S2 interface{ []int | chan int },
+ 
+-type Bss interface {
+-	~[]int | ~[]string
+-}
++	M1 interface{ map[string]int },
++	M2 interface{ map[string]int | chan int },
+ 
+-func _[T Bmc]() {
+-	_ = make(T)
+-	_ = make(T, 10)
+-}
++	C1 interface{ chan int },
++	C2 interface{ chan int | chan string },
++]() {
++	type S0 []int
++	_ = make([]int, 10)
++	_ = make(S0, 10)
++	_ = make(S1, 10)
++	_ = make(S1, 10, 20)
+ 
+-func _[T Bms]() {
+-	_ = make(T, 10)
+-}
+-
+-func _[T Bcs]() {
+-	_ = make(T, 10)
+-}
++	type M0 map[string]int
++	_ = make(map[string]int)
++	_ = make(M0)
++	_ = make(M1)
++	_ = make(M1, 10)
+ 
+-func _[T Bss]() {
+-	_ = make(T, 10)
+-	_ = make(T, 10, 20)
++	type C0 chan int
++	_ = make(chan int)
++	_ = make(C0)
++	_ = make(C1)
++	_ = make(C1, 10)
+ }
+ 
+ // len/cap
+ 
+ type Slice[T any] interface {
+-	type []T
++	[]T
+ }
+ 
+-func _[T any, S Slice[T]]() {
++func c1[T any, S Slice[T]]() {
+ 	x := make(S, 5, 10)
+ 	_ = len(x)
+ 	_ = cap(x)
+@@ -107,7 +102,7 @@ func _[T any, S Slice[T]]() {
+ 
+ // append
+ 
+-func _[T any, S Slice[T]]() {
++func a1[T any, S Slice[T]]() {
+ 	x := make(S, 5)
+ 	y := make(S, 2)
+ 	var z T

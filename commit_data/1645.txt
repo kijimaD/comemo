@@ -8,8 +8,168 @@ Date:   Sun Feb 8 10:17:23 2009 -0800
     DELTA=21  (2 added, 2 deleted, 17 changed)
     OCL=24638
     CL=24654
-
+---
  doc/go_tutorial.txt      |  2 +-
  src/lib/log_test.go      |  4 ++--
  src/lib/regexp/regexp.go | 32 ++++++++++++++++----------------
  3 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 5c8e2f7eaa..1242232f0c 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -661,7 +661,7 @@ etc., there are also "Fprintf" etc.  Unlike in C, "Fprintf"'s first argument is
+ not a file.  Instead, it is a variable of type "io.Write", which is an
+ interface type defined in the "io" library:
+ 
+-	export type Write interface {
++	type Write interface {
+ 		Write(p []byte) (n int, err *os.Error);
+ 	}
+ 
+diff --git a/src/lib/log_test.go b/src/lib/log_test.go
+index 922cbb4fc1..23e58b9901 100644
+--- a/src/lib/log_test.go
++++ b/src/lib/log_test.go
+@@ -51,6 +51,8 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
+ 	if err1 != nil {
+ 		t.Fatal("pipe", err1);
+ 	}
++	defer fd0.Close();
++	defer fd1.Close();
+ 	buf := bufio.NewBufRead(fd0);
+ 	l := NewLogger(fd1, nil, prefix, flag);
+ 	if useLogf {
+@@ -70,8 +72,6 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
+ 	if !matched {
+ 		t.Errorf("log output should match %q is %q", pattern, line);
+ 	}
+-	fd0.Close();
+-	fd1.Close();
+ }
+ 
+ func TestAllLog(t *testing.T) {
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index b406443f53..1a7f8a6b59 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -37,15 +37,15 @@ type instr interface {
+ }
+ 
+ // Fields and methods common to all instructions
+-type _Common struct {
++type common struct {
+ 	next	instr;
+ 	index	int;
+ }
+ 
+-func (c *_Common) Next() instr { return c.next }
+-func (c *_Common) SetNext(i instr) { c.next = i }
+-func (c *_Common) Index() int { return c.index }
+-func (c *_Common) SetIndex(i int) { c.index = i }
++func (c *common) Next() instr { return c.next }
++func (c *common) SetNext(i instr) { c.next = i }
++func (c *common) Index() int { return c.index }
++func (c *common) SetIndex(i int) { c.index = i }
+ 
+ type _RE struct {
+ 	expr	string;	// the original expression
+@@ -73,7 +73,7 @@ const (
+ 
+ // --- START start of program
+ type _Start struct {
+-	_Common
++	common
+ }
+ 
+ func (start *_Start) Type() int { return _START }
+@@ -81,7 +81,7 @@ func (start *_Start) Print() { print("start") }
+ 
+ // --- END end of program
+ type _End struct {
+-	_Common
++	common
+ }
+ 
+ func (end *_End) Type() int { return _END }
+@@ -89,7 +89,7 @@ func (end *_End) Print() { print("end") }
+ 
+ // --- BOT beginning of text
+ type _Bot struct {
+-	_Common
++	common
+ }
+ 
+ func (bot *_Bot) Type() int { return _BOT }
+@@ -97,7 +97,7 @@ func (bot *_Bot) Print() { print("bot") }
+ 
+ // --- EOT end of text
+ type _Eot struct {
+-	_Common
++	common
+ }
+ 
+ func (eot *_Eot) Type() int { return _EOT }
+@@ -105,7 +105,7 @@ func (eot *_Eot) Print() { print("eot") }
+ 
+ // --- CHAR a regular character
+ type _Char struct {
+-	_Common;
++	common;
+ 	char	int;
+ }
+ 
+@@ -121,7 +121,7 @@ func newChar(char int) *_Char {
+ // --- CHARCLASS [a-z]
+ 
+ type _CharClass struct {
+-	_Common;
++	common;
+ 	char	int;
+ 	negate	bool;	// is character class negated? ([^a-z])
+ 	// array of int, stored pairwise: [a-z] is (a,z); x is (x,x):
+@@ -171,7 +171,7 @@ func newCharClass() *_CharClass {
+ 
+ // --- ANY any character
+ type _Any struct {
+-	_Common
++	common
+ }
+ 
+ func (any *_Any) Type() int { return _ANY }
+@@ -179,7 +179,7 @@ func (any *_Any) Print() { print("any") }
+ 
+ // --- BRA parenthesized expression
+ type _Bra struct {
+-	_Common;
++	common;
+ 	n	int;	// subexpression number
+ }
+ 
+@@ -188,7 +188,7 @@ func (bra *_Bra) Print() { print("bra", bra.n); }
+ 
+ // --- EBRA end of parenthesized expression
+ type _Ebra struct {
+-	_Common;
++	common;
+ 	n	int;	// subexpression number
+ }
+ 
+@@ -197,7 +197,7 @@ func (ebra *_Ebra) Print() { print("ebra ", ebra.n); }
+ 
+ // --- ALT alternation
+ type _Alt struct {
+-	_Common;
++	common;
+ 	left	instr;	// other branch
+ }
+ 
+@@ -206,7 +206,7 @@ func (alt *_Alt) Print() { print("alt(", alt.left.Index(), ")"); }
+ 
+ // --- NOP no operation
+ type _Nop struct {
+-	_Common
++	common
+ }
+ 
+ func (nop *_Nop) Type() int { return _NOP }

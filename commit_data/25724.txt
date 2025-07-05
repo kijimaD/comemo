@@ -11,7 +11,53 @@ Date:   Sun Oct 25 14:04:48 2015 -0700
     Change-Id: I40a385b45e279e9f4538bf419baab72781cdb215
     Reviewed-on: https://go-review.googlesource.com/16311
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/format.go      |  6 +++++-
  src/time/format_test.go | 19 +++++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index d727ef0988..697e1dd4ab 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -162,8 +162,12 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
+ 			}
+ 			return layout[0:i], stdDay, layout[i+1:]
+ 
+-		case '_': // _2
++		case '_': // _2, _2006
+ 			if len(layout) >= i+2 && layout[i+1] == '2' {
++				//_2006 is really a literal _, followed by stdLongYear
++				if len(layout) >= i+5 && layout[i+1:i+5] == "2006" {
++					return layout[0 : i+1], stdLongYear, layout[i+5:]
++				}
+ 				return layout[0:i], stdUnderDay, layout[i+2:]
+ 			}
+ 
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 8ff053d4d7..b1b7a005d4 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -529,3 +529,22 @@ func TestFormatSecondsInTimeZone(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 11334.
++func TestUnderscoreTwoThousand(t *testing.T) {
++	format := "15:04_20060102"
++	input := "14:38_20150618"
++	time, err := Parse(format, input)
++	if err != nil {
++		t.Error(err)
++	}
++	if y, m, d := time.Date(); y != 2015 || m != 6 || d != 18 {
++		t.Errorf("Incorrect y/m/d, got %d/%d/%d", y, m, d)
++	}
++	if h := time.Hour(); h != 14 {
++		t.Errorf("Incorrect hour, got %d", h)
++	}
++	if m := time.Minute(); m != 38 {
++		t.Errorf("Incorrect minute, got %d", m)
++	}
++}

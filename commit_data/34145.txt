@@ -19,8 +19,151 @@ Date:   Fri Apr 28 16:48:11 2017 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/check.go        | 20 +++++++-------
  src/cmd/compile/internal/ssa/likelyadjust.go | 40 +++++++++++++++++++++-------
  src/cmd/compile/internal/ssa/looprotate.go   |  3 +++
  3 files changed, 44 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index e8a16aec70..fad57970d0 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -280,15 +280,17 @@ func checkFunc(f *Func) {
+ 	// Check loop construction
+ 	if f.RegAlloc == nil && f.pass != nil { // non-nil pass allows better-targeted debug printing
+ 		ln := f.loopnest()
+-		po := f.postorder() // use po to avoid unreachable blocks.
+-		for _, b := range po {
+-			for _, s := range b.Succs {
+-				bb := s.Block()
+-				if ln.b2l[b.ID] == nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header {
+-					f.Fatalf("block %s not in loop branches to non-header block %s in loop", b.String(), bb.String())
+-				}
+-				if ln.b2l[b.ID] != nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header && !ln.b2l[b.ID].isWithinOrEq(ln.b2l[bb.ID]) {
+-					f.Fatalf("block %s in loop branches to non-header block %s in non-containing loop", b.String(), bb.String())
++		if !ln.hasIrreducible {
++			po := f.postorder() // use po to avoid unreachable blocks.
++			for _, b := range po {
++				for _, s := range b.Succs {
++					bb := s.Block()
++					if ln.b2l[b.ID] == nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header {
++						f.Fatalf("block %s not in loop branches to non-header block %s in loop", b.String(), bb.String())
++					}
++					if ln.b2l[b.ID] != nil && ln.b2l[bb.ID] != nil && bb != ln.b2l[bb.ID].header && !ln.b2l[b.ID].isWithinOrEq(ln.b2l[bb.ID]) {
++						f.Fatalf("block %s in loop branches to non-header block %s in non-containing loop", b.String(), bb.String())
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index d15037dd95..5f4c5d1ccd 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -12,7 +12,7 @@ type loop struct {
+ 	header *Block // The header node of this (reducible) loop
+ 	outer  *loop  // loop containing this loop
+ 
+-	// By default, children exits, and depth are not initialized.
++	// By default, children, exits, and depth are not initialized.
+ 	children []*loop  // loops nested directly within this loop. Initialized by assembleChildren().
+ 	exits    []*Block // exits records blocks reached by exits from this loop. Initialized by findExits().
+ 
+@@ -23,7 +23,7 @@ type loop struct {
+ 	isInner bool  // True if never discovered to contain a loop
+ 
+ 	// register allocation uses this.
+-	containsCall bool // if any block in this loop or any loop it contains has a call
++	containsCall bool // if any block in this loop or any loop within it contains has a call
+ }
+ 
+ // outerinner records that outer contains inner
+@@ -72,11 +72,12 @@ func (l *loop) checkContainsCall(bb *Block) {
+ }
+ 
+ type loopnest struct {
+-	f     *Func
+-	b2l   []*loop
+-	po    []*Block
+-	sdom  SparseTree
+-	loops []*loop
++	f              *Func
++	b2l            []*loop
++	po             []*Block
++	sdom           SparseTree
++	loops          []*loop
++	hasIrreducible bool // TODO current treatment of irreducible loops is very flaky, if accurate loops are needed, must punt at function level.
+ 
+ 	// Record which of the lazily initialized fields have actually been initialized.
+ 	initializedChildren, initializedDepth, initializedExits bool
+@@ -285,6 +286,12 @@ func loopnestfor(f *Func) *loopnest {
+ 	sdom := f.sdom()
+ 	b2l := make([]*loop, f.NumBlocks())
+ 	loops := make([]*loop, 0)
++	visited := make([]bool, f.NumBlocks())
++	sawIrred := false
++
++	if f.pass.debug > 2 {
++		fmt.Printf("loop finding in %s\n", f.Name)
++	}
+ 
+ 	// Reducible-loop-nest-finding.
+ 	for _, b := range po {
+@@ -318,10 +325,17 @@ func loopnestfor(f *Func) *loopnest {
+ 					b2l[bb.ID] = l
+ 					l.checkContainsCall(bb)
+ 				}
+-			} else { // Perhaps a loop header is inherited.
++			} else if !visited[bb.ID] { // Found an irreducible loop
++				sawIrred = true
++				if f.pass != nil && f.pass.debug > 4 {
++					fmt.Printf("loop finding    succ %s of %s is IRRED, in %s\n", bb.String(), b.String(), f.Name)
++				}
++			} else if l != nil {
++				// TODO handle case where l is irreducible.
++				// Perhaps a loop header is inherited.
+ 				// is there any loop containing our successor whose
+ 				// header dominates b?
+-				if l != nil && !sdom.isAncestorEq(l.header, b) {
++				if !sdom.isAncestorEq(l.header, b) {
+ 					l = l.nearestOuterLoop(sdom, b)
+ 				}
+ 				if f.pass != nil && f.pass.debug > 4 {
+@@ -331,6 +345,11 @@ func loopnestfor(f *Func) *loopnest {
+ 						fmt.Printf("loop finding    succ %s of %s provides loop with header %s\n", bb.String(), b.String(), l.header.String())
+ 					}
+ 				}
++			} else { // No loop
++				if f.pass != nil && f.pass.debug > 4 {
++					fmt.Printf("loop finding    succ %s of %s has no loop\n", bb.String(), b.String())
++				}
++
+ 			}
+ 
+ 			if l == nil || innermost == l {
+@@ -355,9 +374,10 @@ func loopnestfor(f *Func) *loopnest {
+ 			innermost.checkContainsCall(b)
+ 			innermost.nBlocks++
+ 		}
++		visited[b.ID] = true
+ 	}
+ 
+-	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops}
++	ln := &loopnest{f: f, b2l: b2l, po: po, sdom: sdom, loops: loops, hasIrreducible: sawIrred}
+ 
+ 	// Curious about the loopiness? "-d=ssa/likelyadjust/stats"
+ 	if f.pass != nil && f.pass.stats > 0 && len(loops) > 0 {
+diff --git a/src/cmd/compile/internal/ssa/looprotate.go b/src/cmd/compile/internal/ssa/looprotate.go
+index d9cba9e9b0..2e5e421df7 100644
+--- a/src/cmd/compile/internal/ssa/looprotate.go
++++ b/src/cmd/compile/internal/ssa/looprotate.go
+@@ -23,6 +23,9 @@ package ssa
+ //    JLT loop
+ func loopRotate(f *Func) {
+ 	loopnest := f.loopnest()
++	if loopnest.hasIrreducible {
++		return
++	}
+ 	if len(loopnest.loops) == 0 {
+ 		return
+ 	}

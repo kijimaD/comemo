@@ -28,7 +28,46 @@ Date:   Thu Jul 7 16:09:08 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/testdata/print.go |  5 +++++
  src/cmd/vet/types.go          | 11 ++++-------
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index ab97256c08..6805b0ec60 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -199,6 +199,11 @@ func PrintfTests() {
+ 	et4.Error() // ok, not an error method.
+ 	var et5 errorTest5
+ 	et5.error() // ok, not an error method.
++	// Interfaces can be used with any verb.
++	var iface interface {
++		ToTheMadness() bool // Method ToTheMadness usually returns false
++	}
++	fmt.Printf("%f", iface) // ok: fmt treats interfaces as transparent and iface may well have a float concrete type
+ 	// Can't print a function.
+ 	Printf("%d", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
+ 	Printf("%v", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 4d0e6154b8..35ee19c85b 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -185,13 +185,10 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
+ 		return f.matchStructArgType(t, typ, arg, inProgress)
+ 
+ 	case *types.Interface:
+-		// If the static type of the argument is empty interface, there's little we can do.
+-		// Example:
+-		//	func f(x interface{}) { fmt.Printf("%s", x) }
+-		// Whether x is valid for %s depends on the type of the argument to f. One day
+-		// we will be able to do better. For now, we assume that empty interface is OK
+-		// but non-empty interfaces, with Stringer and Error handled above, are errors.
+-		return typ.NumMethods() == 0
++		// There's little we can do.
++		// Whether any particular verb is valid depends on the argument.
++		// The user may have reasonable prior knowledge of the contents of the interface.
++		return true
+ 
+ 	case *types.Basic:
+ 		switch typ.Kind() {

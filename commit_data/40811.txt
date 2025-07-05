@@ -18,6 +18,21 @@ Date:   Thu Jul 11 09:43:38 2019 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/185717
     Run-TryBot: Clément Chigot <clement.chigot@atos.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/net_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 2b5845bb15..463ae8856d 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -525,6 +525,9 @@ func TestNotTemporaryRead(t *testing.T) {
+ 	if runtime.GOOS == "freebsd" {
+ 		testenv.SkipFlaky(t, 25289)
+ 	}
++	if runtime.GOOS == "aix" {
++		testenv.SkipFlaky(t, 29685)
++	}
+ 	t.Parallel()
+ 	server := func(cs *TCPConn) error {
+ 		cs.SetLinger(0)

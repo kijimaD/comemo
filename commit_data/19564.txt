@@ -11,7 +11,7 @@ Date:   Tue Jun 17 21:59:50 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/107160047
-
+---
  src/pkg/runtime/asm_386.s      |  4 ++--
  src/pkg/runtime/asm_amd64.s    |  6 +++---
  src/pkg/runtime/asm_amd64p32.s |  6 +++---
@@ -19,3 +19,119 @@ Date:   Tue Jun 17 21:59:50 2014 -0700
  src/pkg/runtime/string.go      | 10 +++++++---
  src/pkg/runtime/stubs.goc      |  5 ++---
  6 files changed, 18 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 2009a6019a..8ba72eb1fc 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -782,9 +782,9 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-4
+ 	RET
+ 
+ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-8
+-	MOVL	x+0(FP),AX		// addr of first arg
++	MOVL	p+0(FP),AX		// addr of first arg
+ 	MOVL	-4(AX),AX		// get calling pc
+-	MOVL	AX, r+4(FP)
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$0-8
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index d15b37210f..b712e3415a 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -858,10 +858,10 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
+ 	MOVQ	-8(AX),AX		// get calling pc
+ 	RET
+ 
+-TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-8
+-	MOVQ	x+0(FP),AX		// addr of first arg
++TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-16
++	MOVQ	p+0(FP),AX		// addr of first arg
+ 	MOVQ	-8(AX),AX		// get calling pc
+-	MOVQ	AX,r+4(FP)
++	MOVQ	AX,ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 4e1fb0a5d5..b70ab698af 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -664,9 +664,9 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
+ 	RET
+ 
+ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-8
+-	MOVL	x+0(FP),AX		// addr of first arg
++	MOVL	p+0(FP),AX		// addr of first arg
+ 	MOVL	-8(AX),AX		// get calling pc
+-	MOVL	AX, r+4(FP)
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
+@@ -686,7 +686,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	ADDQ	DX, AX
+ 	RET
+ 
+-TEXT runtime·stackguard(SB),NOSPLIT,$0-16
++TEXT runtime·stackguard(SB),NOSPLIT,$0-8
+ 	MOVL	SP, DX
+ 	MOVL	DX, sp+0(FP)
+ 	get_tls(CX)
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 5af5895477..bc0dd3ca7c 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -561,7 +561,7 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
+ 	RET
+ 
+ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
+-	MOVW	R14, 4(FP)
++	MOVW	R14, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
+diff --git a/src/pkg/runtime/string.go b/src/pkg/runtime/string.go
+index 9805dd5128..69516af066 100644
+--- a/src/pkg/runtime/string.go
++++ b/src/pkg/runtime/string.go
+@@ -143,15 +143,19 @@ func slicerunetostring(a []rune) string {
+ 	return s[:size2]
+ }
+ 
++type stringStruct struct {
++	str *byte
++	len int
++}
++
+ func cstringToGo(str uintptr) (s string) {
+-	// Note: we need i to be the same type as _string.len and to start at 0.
+-	i := _string{}.len
++	i := 0
+ 	for ; ; i++ {
+ 		if *(*byte)(unsafe.Pointer(str + uintptr(i))) == 0 {
+ 			break
+ 		}
+ 	}
+-	t := (*_string)(unsafe.Pointer(&s))
++	t := (*stringStruct)(unsafe.Pointer(&s))
+ 	t.str = (*byte)(unsafe.Pointer(str))
+ 	t.len = i
+ 	return
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index 1cdc0fabea..901efa4d19 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -19,9 +19,8 @@ package runtime
+ //    out to only NOSPLIT functions (recursively).
+ // 2) Functions should not block.
+ 
+-// During conversion, we can still call out to splittable
+-// functions.  But once conversion is done the invariants
+-// above should hold.
++// These invariants do not hold yet but will be established once we have
++// finished converting runtime support code from C to Go.
+ 
+ #pragma textflag NOSPLIT
+ func rawstring(size intgo) (s String, b Slice) {

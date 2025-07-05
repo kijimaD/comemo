@@ -12,7 +12,49 @@ Date:   Tue Sep 8 21:37:37 2015 -0700
     Change-Id: I862e4934ccdb8661431bcc3e1e93817ea834ea3f
     Reviewed-on: https://go-review.googlesource.com/14405
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 8 ++++----
  test/run.go                        | 4 ++--
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9791967677..e3a71a9f3f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -741,6 +741,10 @@ func (s *state) stmt(n *Node) {
+ 			s.Unimplementedf("defer/go of %s", opnames[call.Op])
+ 		}
+ 
++		// Run all argument assignments.  The arg slots have already
++		// been offset by 2*widthptr.
++		s.stmtList(call.List)
++
+ 		// Write argsize and closure (args to Newproc/Deferproc)
+ 		argsize := s.constInt32(Types[TUINT32], int32(fn.Type.Argwid))
+ 		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, s.sp, argsize, s.mem())
+@@ -748,10 +752,6 @@ func (s *state) stmt(n *Node) {
+ 		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), int64(Widthptr), s.sp)
+ 		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
+ 
+-		// Run all argument assignments.  The arg slots have already
+-		// been offset by 2*widthptr.
+-		s.stmtList(call.List)
+-
+ 		// Call deferproc or newproc
+ 		bNext := s.f.NewBlock(ssa.BlockPlain)
+ 		var op ssa.Op
+diff --git a/test/run.go b/test/run.go
+index f2618e027b..1f9b905ea3 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -638,8 +638,8 @@ func (t *test) run() {
+ 	case "run":
+ 		useTmp = false
+ 		switch t.gofile {
+-		case "bug434.go", "recover.go", "recover1.go", "issue4066.go":
+-			// TODO fix these failures
++		case "bug434.go":
++			// TODO fix this failure
+ 		default:
+ 			ssaMain = true
+ 		}

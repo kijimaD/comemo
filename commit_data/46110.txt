@@ -13,6 +13,29 @@ Date:   Mon Dec 7 15:20:37 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/io/fs/sub.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/io/fs/sub.go b/src/io/fs/sub.go
+index 381f409504..64cdffe6de 100644
+--- a/src/io/fs/sub.go
++++ b/src/io/fs/sub.go
+@@ -88,7 +88,7 @@ func (f *subFS) Open(name string) (File, error) {
+ }
+ 
+ func (f *subFS) ReadDir(name string) ([]DirEntry, error) {
+-	full, err := f.fullName("open", name)
++	full, err := f.fullName("read", name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -97,7 +97,7 @@ func (f *subFS) ReadDir(name string) ([]DirEntry, error) {
+ }
+ 
+ func (f *subFS) ReadFile(name string) ([]byte, error) {
+-	full, err := f.fullName("open", name)
++	full, err := f.fullName("read", name)
+ 	if err != nil {
+ 		return nil, err
+ 	}

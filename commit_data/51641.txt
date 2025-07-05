@@ -12,6 +12,20 @@ Date:   Wed Dec 15 15:59:43 2021 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 364e0c8197..60747d93ca 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2382,7 +2382,7 @@ func (s *state) ssaShiftOp(op ir.Op, t *types.Type, u *types.Type) ssa.Op {
+ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
+ 	if ft.IsBoolean() && tt.IsKind(types.TUINT8) {
+ 		// Bool -> uint8 is generated internally when indexing into runtime.staticbyte.
+-		return s.newValue1(ssa.OpCopy, tt, v)
++		return s.newValue1(ssa.OpCvtBoolToUint8, tt, v)
+ 	}
+ 	if ft.IsInteger() && tt.IsInteger() {
+ 		var op ssa.Op

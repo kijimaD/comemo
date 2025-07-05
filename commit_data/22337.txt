@@ -10,9 +10,208 @@ Date:   Thu Mar 5 14:04:12 2015 -0500
     Change-Id: I8de8e0984b130456da70e4d59891276dfef7ac27
     Reviewed-on: https://go-review.googlesource.com/6932
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/link.go        |  7 +++-
  src/cmd/internal/obj/mgc0.go        |  5 ++-
  src/cmd/internal/obj/ppc64/9.out.go | 10 ++---
  src/cmd/internal/obj/x86/6.out.go   | 80 ++++++++++++++++++++++++++++++-------
  4 files changed, 80 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index bcec3c2e63..5e1733f91a 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -402,8 +402,11 @@ const (
+ )
+ 
+ const (
+-	TYPE_NONE   = 0
+-	TYPE_BRANCH = 5 + iota - 1
++	TYPE_NONE = 0
++)
++
++const (
++	TYPE_BRANCH = 5 + iota
+ 	TYPE_TEXTSIZE
+ 	TYPE_MEM
+ 	TYPE_CONST
+diff --git a/src/cmd/internal/obj/mgc0.go b/src/cmd/internal/obj/mgc0.go
+index 7dfd991f34..2407deaf32 100644
+--- a/src/cmd/internal/obj/mgc0.go
++++ b/src/cmd/internal/obj/mgc0.go
+@@ -29,7 +29,10 @@ const (
+ 	BitsPointer     = 2
+ 	BitsMask        = 3
+ 	PointersPerByte = 8 / BitsPerPointer
+-	InsData         = 1 + iota - 7
++)
++
++const (
++	InsData = 1 + iota
+ 	InsArray
+ 	InsArrayEnd
+ 	InsEnd
+diff --git a/src/cmd/internal/obj/ppc64/9.out.go b/src/cmd/internal/obj/ppc64/9.out.go
+index 90377ff07a..411c951a58 100644
+--- a/src/cmd/internal/obj/ppc64/9.out.go
++++ b/src/cmd/internal/obj/ppc64/9.out.go
+@@ -77,7 +77,7 @@ const (
+ 	REG_R30
+ 	REG_R31
+ 
+-	REG_F0 = obj.RBasePPC64 + 32 + iota - 32
++	REG_F0
+ 	REG_F1
+ 	REG_F2
+ 	REG_F3
+@@ -110,9 +110,7 @@ const (
+ 	REG_F30
+ 	REG_F31
+ 
+-	REG_SPECIAL = obj.RBasePPC64 + 64
+-
+-	REG_CR0 = obj.RBasePPC64 + 64 + iota - 65
++	REG_CR0
+ 	REG_CR1
+ 	REG_CR2
+ 	REG_CR3
+@@ -121,10 +119,12 @@ const (
+ 	REG_CR6
+ 	REG_CR7
+ 
+-	REG_MSR = obj.RBasePPC64 + 72 + iota - 73
++	REG_MSR
+ 	REG_FPSCR
+ 	REG_CR
+ 
++	REG_SPECIAL = REG_CR0
++
+ 	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
+ 	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers
+ 
+diff --git a/src/cmd/internal/obj/x86/6.out.go b/src/cmd/internal/obj/x86/6.out.go
+index 495ecd2707..2734f6a4a9 100644
+--- a/src/cmd/internal/obj/x86/6.out.go
++++ b/src/cmd/internal/obj/x86/6.out.go
+@@ -755,7 +755,10 @@ const (
+ 
+ const (
+ 	REG_NONE = 0
+-	REG_AL   = obj.RBaseAMD64 + 0 + iota - 1
++)
++
++const (
++	REG_AL = obj.RBaseAMD64 + iota
+ 	REG_CL
+ 	REG_DL
+ 	REG_BL
+@@ -772,7 +775,7 @@ const (
+ 	REG_R14B
+ 	REG_R15B
+ 
+-	REG_AX = obj.RBaseAMD64 + 16 + iota - 17
++	REG_AX
+ 	REG_CX
+ 	REG_DX
+ 	REG_BX
+@@ -789,16 +792,30 @@ const (
+ 	REG_R14
+ 	REG_R15
+ 
+-	REG_AH = obj.RBaseAMD64 + 32 + iota - 33
++	REG_AH
+ 	REG_CH
+ 	REG_DH
+ 	REG_BH
+ 
+-	REG_F0 = obj.RBaseAMD64 + 36
+-
+-	REG_M0 = obj.RBaseAMD64 + 44
+-
+-	REG_X0 = obj.RBaseAMD64 + 52 + iota - 39
++	REG_F0
++	REG_F1
++	REG_F2
++	REG_F3
++	REG_F4
++	REG_F5
++	REG_F6
++	REG_F7
++
++	REG_M0
++	REG_M1
++	REG_M2
++	REG_M3
++	REG_M4
++	REG_M5
++	REG_M6
++	REG_M7
++
++	REG_X0
+ 	REG_X1
+ 	REG_X2
+ 	REG_X3
+@@ -815,7 +832,7 @@ const (
+ 	REG_X14
+ 	REG_X15
+ 
+-	REG_CS = obj.RBaseAMD64 + 68 + iota - 55
++	REG_CS
+ 	REG_SS
+ 	REG_DS
+ 	REG_ES
+@@ -828,14 +845,49 @@ const (
+ 	REG_MSW  /* machine status word */
+ 	REG_TASK /* task register */
+ 
+-	REG_CR = obj.RBaseAMD64 + 79
+-	REG_DR = obj.RBaseAMD64 + 95
+-	REG_TR = obj.RBaseAMD64 + 103
+-
+-	REG_TLS = obj.RBaseAMD64 + 111 + iota - 69
++	REG_CR0
++	REG_CR1
++	REG_CR2
++	REG_CR3
++	REG_CR4
++	REG_CR5
++	REG_CR6
++	REG_CR7
++	REG_CR8
++	REG_CR9
++	REG_CR10
++	REG_CR11
++	REG_CR12
++	REG_CR13
++	REG_CR14
++	REG_CR15
++
++	REG_DR0
++	REG_DR1
++	REG_DR2
++	REG_DR3
++	REG_DR4
++	REG_DR5
++	REG_DR6
++	REG_DR7
++
++	REG_TR0
++	REG_TR1
++	REG_TR2
++	REG_TR3
++	REG_TR4
++	REG_TR5
++	REG_TR6
++	REG_TR7
++
++	REG_TLS
+ 
+ 	MAXREG
+ 
++	REG_CR = REG_CR0
++	REG_DR = REG_DR0
++	REG_TR = REG_TR0
++
+ 	REGARG   = -1
+ 	REGRET   = REG_AX
+ 	FREGRET  = REG_X0

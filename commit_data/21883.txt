@@ -11,6 +11,70 @@ Date:   Tue Feb 10 17:10:40 2015 -0800
     Change-Id: I61caf15f91297c12197b825dd70f750c4df02d3d
     Reviewed-on: https://go-review.googlesource.com/4503
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/build.go | 45 ++++++++++++++++++++++++++++++---------------
  1 file changed, 30 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 9fa9a859f0..e3c04b4144 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1689,28 +1689,43 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 		return err
+ 	}
+ 	if verifyAsm {
+-		newArgs := make([]interface{}, len(args))
+-		copy(newArgs, args)
+-		newArgs[1] = tool("new" + archChar + "a")
+-		newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
+-		if err := b.run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
++		if err := asmVerify(b, p, "new"+archChar+"a", ofile, args); err != nil {
+ 			return err
+ 		}
+-		data1, err := ioutil.ReadFile(ofile)
+-		if err != nil {
+-			return err
+-		}
+-		data2, err := ioutil.ReadFile(ofile + ".new")
+-		if err != nil {
+-			return err
+-		}
+-		if !bytes.Equal(data1, data2) {
+-			return fmt.Errorf("%sa and new%sa produced different output files:\n%s\n%s", archChar, archChar, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
++		switch goarch {
++		case "386", "amd64": // Asm only supports these architectures so far.
++			if err := asmVerify(b, p, "asm", ofile, args); err != nil {
++				return err
++			}
+ 		}
+ 	}
+ 	return nil
+ }
+ 
++// asmVerify checks that the assembly run for the specified assembler (asm) agrees
++// with the C-implemented original assembly output, bit for bit.
++func asmVerify(b *builder, p *Package, asm string, ofile string, args []interface{}) error {
++	newArgs := make([]interface{}, len(args))
++	copy(newArgs, args)
++	newArgs[1] = tool(asm)
++	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
++	if err := b.run(p.Dir, p.ImportPath, nil, newArgs...); err != nil {
++		return err
++	}
++	data1, err := ioutil.ReadFile(ofile)
++	if err != nil {
++		return err
++	}
++	data2, err := ioutil.ReadFile(ofile + ".new")
++	if err != nil {
++		return err
++	}
++	if !bytes.Equal(data1, data2) {
++		return fmt.Errorf("%sa and %s produced different output files:\n%s\n%s", archChar, asm, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
++	}
++	return nil
++}
++
+ func (gcToolchain) pkgpath(basedir string, p *Package) string {
+ 	end := filepath.FromSlash(p.ImportPath + ".a")
+ 	return filepath.Join(basedir, end)

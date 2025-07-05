@@ -9,7 +9,32 @@ Date:   Thu Aug 6 08:59:05 2015 +1000
     Change-Id: I0aa3bcbf656e23e6a110041439f6052057074b88
     Reviewed-on: https://go-review.googlesource.com/13270
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index dcffafc3d8..65206309d8 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -61,6 +61,7 @@ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andrey Petrov <andrey.petrov@shazow.net>
+ Andriy Lytvynov <lytvynov.a.v@gmail.com>
+ Andy Davis <andy@bigandian.com>
++Andy Maloney <asmaloney@gmail.com>
+ Anfernee Yongkun Gui <anfernee.gui@gmail.com>
+ Anh Hai Trinh <anh.hai.trinh@gmail.com>
+ Anschel Schaffer-Cohen <anschelsc@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4e134a6466..d974f363be 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -95,6 +95,7 @@ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andrey Petrov <andrey.petrov@shazow.net>
+ Andriy Lytvynov <lytvynov.a.v@gmail.com>
+ Andy Davis <andy@bigandian.com>
++Andy Maloney <asmaloney@gmail.com>
+ Anfernee Yongkun Gui <anfernee.gui@gmail.com>
+ Anh Hai Trinh <anh.hai.trinh@gmail.com>
+ Anschel Schaffer-Cohen <anschelsc@gmail.com>

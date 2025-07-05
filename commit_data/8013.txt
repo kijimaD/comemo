@@ -7,6 +7,48 @@ Date:   Thu Apr 7 15:35:04 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4386042
-
+---
  src/pkg/syscall/asm_freebsd_386.s | 30 ++++++++++++++++++++++++++++++
  1 file changed, 30 insertions(+)
+
+diff --git a/src/pkg/syscall/asm_freebsd_386.s b/src/pkg/syscall/asm_freebsd_386.s
+index 80f06a7262..f2d4438a1e 100644
+--- a/src/pkg/syscall/asm_freebsd_386.s
++++ b/src/pkg/syscall/asm_freebsd_386.s
+@@ -61,6 +61,36 @@ ok6:
+ 	CALL	runtime·exitsyscall(SB)
+ 	RET
+ 
++TEXT	·Syscall9(SB),7,$0
++	CALL	runtime·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok9
++	MOVL	$-1, 44(SP)	// r1
++	MOVL	$-1, 48(SP)	// r2
++	MOVL	AX, 52(SP)		// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok9:
++	MOVL	AX, 44(SP)	// r1
++	MOVL	DX, 48(SP)	// r2
++	MOVL	$0, 52(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
+ TEXT ·RawSyscall(SB),7,$0
+ 	MOVL	4(SP), AX	// syscall entry
+ 	// slide args down on top of system call number

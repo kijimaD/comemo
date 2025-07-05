@@ -11,7 +11,25 @@ Date:   Fri Jan 3 16:26:07 2020 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/badmod/go.mod | 1 -
  src/cmd/go/testdata/badmod/x.go   | 4 ----
  2 files changed, 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/badmod/go.mod b/src/cmd/go/testdata/badmod/go.mod
+deleted file mode 100644
+index f7f6423870..0000000000
+--- a/src/cmd/go/testdata/badmod/go.mod
++++ /dev/null
+@@ -1 +0,0 @@
+-module m
+diff --git a/src/cmd/go/testdata/badmod/x.go b/src/cmd/go/testdata/badmod/x.go
+deleted file mode 100644
+index 579fb086ee..0000000000
+--- a/src/cmd/go/testdata/badmod/x.go
++++ /dev/null
+@@ -1,4 +0,0 @@
+-package x
+-
+-import _ "appengine"
+-import _ "nonexistent.rsc.io" // domain does not exist

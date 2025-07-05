@@ -13,8 +13,141 @@ Date:   Mon Jun 7 18:18:00 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 33 ++++++++++++++-------------------
  src/runtime/panic.go                   | 11 +++--------
  src/runtime/runtime2.go                |  5 ++---
  3 files changed, 19 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 27f0ee685b..613a5b6211 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4940,24 +4940,20 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		addr := s.addr(d)
+ 
+ 		// Must match deferstruct() below and src/runtime/runtime2.go:_defer.
+-		// 0: siz
+-		s.store(types.Types[types.TUINT32],
+-			s.newValue1I(ssa.OpOffPtr, types.Types[types.TUINT32].PtrTo(), t.FieldOff(0), addr),
+-			s.constInt32(types.Types[types.TUINT32], 0))
+-		// 1: started, set in deferprocStack
+-		// 2: heap, set in deferprocStack
+-		// 3: openDefer
+-		// 4: sp, set in deferprocStack
+-		// 5: pc, set in deferprocStack
+-		// 6: fn
++		// 0: started, set in deferprocStack
++		// 1: heap, set in deferprocStack
++		// 2: openDefer
++		// 3: sp, set in deferprocStack
++		// 4: pc, set in deferprocStack
++		// 5: fn
+ 		s.store(closure.Type,
+-			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(6), addr),
++			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(5), addr),
+ 			closure)
+-		// 7: panic, set in deferprocStack
+-		// 8: link, set in deferprocStack
+-		// 9: framepc
+-		// 10: varp
+-		// 11: fd
++		// 6: panic, set in deferprocStack
++		// 7: link, set in deferprocStack
++		// 8: fd
++		// 9: varp
++		// 10: framepc
+ 
+ 		// Call runtime.deferprocStack with pointer to _defer record.
+ 		ACArgs = append(ACArgs, types.Types[types.TUINTPTR])
+@@ -7583,7 +7579,6 @@ func deferstruct() *types.Type {
+ 	// These fields must match the ones in runtime/runtime2.go:_defer and
+ 	// (*state).call above.
+ 	fields := []*types.Field{
+-		makefield("siz", types.Types[types.TUINT32]),
+ 		makefield("started", types.Types[types.TBOOL]),
+ 		makefield("heap", types.Types[types.TBOOL]),
+ 		makefield("openDefer", types.Types[types.TBOOL]),
+@@ -7595,9 +7590,9 @@ func deferstruct() *types.Type {
+ 		makefield("fn", types.Types[types.TUINTPTR]),
+ 		makefield("_panic", types.Types[types.TUINTPTR]),
+ 		makefield("link", types.Types[types.TUINTPTR]),
+-		makefield("framepc", types.Types[types.TUINTPTR]),
+-		makefield("varp", types.Types[types.TUINTPTR]),
+ 		makefield("fd", types.Types[types.TUINTPTR]),
++		makefield("varp", types.Types[types.TUINTPTR]),
++		makefield("framepc", types.Types[types.TUINTPTR]),
+ 	}
+ 
+ 	// build struct holding the above fields
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 5f35abc43b..f6d72995b3 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -258,7 +258,7 @@ func deferproc(fn func()) {
+ }
+ 
+ // deferprocStack queues a new deferred function with a defer record on the stack.
+-// The defer record must have its siz and fn fields initialized.
++// The defer record must have its fn field initialized.
+ // All other fields can contain junk.
+ // The defer record must be immediately followed in memory by
+ // the arguments of the defer.
+@@ -271,10 +271,7 @@ func deferprocStack(d *_defer) {
+ 		// go code on the system stack can't defer
+ 		throw("defer on system stack")
+ 	}
+-	if d.siz != 0 {
+-		throw("defer with non-empty frame")
+-	}
+-	// siz and fn are already set.
++	// fn is already set.
+ 	// The other fields are junk on entry to deferprocStack and
+ 	// are initialized here.
+ 	d.started = false
+@@ -406,7 +403,6 @@ func newdefer(siz int32) *_defer {
+ 			d = (*_defer)(mallocgc(total, deferType, true))
+ 		})
+ 	}
+-	d.siz = siz
+ 	d.heap = true
+ 	return d
+ }
+@@ -428,7 +424,7 @@ func freedefer(d *_defer) {
+ 	if !d.heap {
+ 		return
+ 	}
+-	sc := deferclass(uintptr(d.siz))
++	sc := deferclass(0)
+ 	if sc >= uintptr(len(p{}.deferpool)) {
+ 		return
+ 	}
+@@ -461,7 +457,6 @@ func freedefer(d *_defer) {
+ 
+ 	// These lines used to be simply `*d = _defer{}` but that
+ 	// started causing a nosplit stack overflow via typedmemmove.
+-	d.siz = 0
+ 	d.started = false
+ 	d.openDefer = false
+ 	d.sp = 0
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 8b2998f29a..cf4b0bff43 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -940,14 +940,13 @@ func extendRandom(r []byte, n int) {
+ 
+ // A _defer holds an entry on the list of deferred calls.
+ // If you add a field here, add code to clear it in freedefer and deferProcStack
+-// This struct must match the code in cmd/compile/internal/gc/reflect.go:deferstruct
+-// and cmd/compile/internal/gc/ssa.go:(*state).call.
++// This struct must match the code in cmd/compile/internal/ssagen/ssa.go:deferstruct
++// and cmd/compile/internal/ssagen/ssa.go:(*state).call.
+ // Some defers will be allocated on the stack and some on the heap.
+ // All defers are logically part of the stack, so write barriers to
+ // initialize them are not required. All defers must be manually scanned,
+ // and for heap defers, marked.
+ type _defer struct {
+-	siz     int32 // includes both arguments and results
+ 	started bool
+ 	heap    bool
+ 	// openDefer indicates that this _defer is for a frame with open-coded

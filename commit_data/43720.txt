@@ -7,6 +7,20 @@ Date:   Wed Apr 22 03:24:58 2020 +0900
     Change-Id: I250de9db4e8aca6e1069d05c73051571f1712091
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229141
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index cd8522d904..e88a2f6026 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -656,7 +656,7 @@ func resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
+ // be resolved correctly. Implemented in the runtime package.
+ func addReflectOff(ptr unsafe.Pointer) int32
+ 
+-// resolveReflectType adds a name to the reflection lookup map in the runtime.
++// resolveReflectName adds a name to the reflection lookup map in the runtime.
+ // It returns a new nameOff that can be used to refer to the pointer.
+ func resolveReflectName(n name) nameOff {
+ 	return nameOff(addReflectOff(unsafe.Pointer(n.bytes)))

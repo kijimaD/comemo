@@ -11,7 +11,7 @@ Date:   Fri Feb 21 12:23:47 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222341
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_all.txt             | 296 +++++++++++++++++++++
  .../go/testdata/script/mod_lazy_import_allmod.txt  | 155 +++++++++++
  .../testdata/script/mod_lazy_import_test_dep.txt   | 159 +++++++++++
@@ -21,3 +21,1207 @@ Date:   Fri Feb 21 12:23:47 2020 -0500
  .../testdata/script/mod_lazy_test_of_test_dep.txt  | 118 ++++++++
  src/cmd/go/testdata/script/mod_notall.txt          |  98 +++++++
  8 files changed, 1155 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_all.txt b/src/cmd/go/testdata/script/mod_all.txt
+new file mode 100644
+index 0000000000..a219913094
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_all.txt
+@@ -0,0 +1,296 @@
++# This test illustrates the relationship between the 'all' pattern and
++# the dependencies of the main module.
++
++env PKGFMT='{{if .Module}}{{.ImportPath}}{{end}}'
++env MODFMT='{{.Path}}'
++
++
++# 'go list -deps' lists packages and tests in the main module,
++# along with their transitive dependencies.
++
++go list -f $PKGFMT -deps ./...
++stdout -count=4 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/main$'
++stdout '^example.com/main/testonly'
++
++
++# 'go list -deps -test' lists transitive imports of tests and non-tests in the
++# main module.
++
++go list -f $PKGFMT -deps -test ./...
++stdout -count=13 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/main$'
++stdout '^example.com/main.test$'
++stdout '^example.com/main \[example.com/main.test\]$'
++stdout '^example.com/main_test \[example.com/main.test\]$'
++stdout '^example.com/main/testonly$'
++stdout '^example.com/main/testonly.test$'
++stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
++
++
++# 'go list all' lists the fixpoint of iterating 'go list -deps -test' starting
++# with the packages in the main module, then reducing to only the non-test
++# variants of those packages.
++
++go list -f $PKGFMT all
++stdout -count=11 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/c$'
++stdout '^example.com/main$'
++stdout '^example.com/main/testonly$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/s$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
++stdout '^example.com/w$'
++
++
++# 'go list -test all' is equivalent to 'go list -test $(go list all)'
++# and both should include tests for every package in 'all'.
++
++go list -test -f $PKGFMT example.com/a example.com/b example.com/c example.com/main example.com/main/testonly example.com/q example.com/r example.com/s example.com/t example.com/u example.com/w
++cp stdout list-test-explicit.txt
++
++go list -test -f $PKGFMT all
++cmp stdout list-test-explicit.txt
++stdout -count=34 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/c$'
++stdout '^example.com/main$'
++stdout '^example.com/main/testonly$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/s$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
++stdout '^example.com/w$'
++stdout '^example.com/a.test$'
++stdout '^example.com/a_test \[example.com/a.test\]$'
++stdout '^example.com/b.test$'
++stdout '^example.com/b_test \[example.com/b.test\]$'
++stdout '^example.com/c.test$'
++stdout '^example.com/c_test \[example.com/c.test\]$'
++stdout '^example.com/main.test$'
++stdout '^example.com/main \[example.com/main.test\]$'
++stdout '^example.com/main_test \[example.com/main.test\]$'
++stdout '^example.com/main/testonly.test$'
++stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
++stdout '^example.com/q.test$'
++stdout '^example.com/q_test \[example.com/q.test\]$'
++stdout '^example.com/r.test$'
++stdout '^example.com/r_test \[example.com/r.test\]$'
++stdout '^example.com/s.test$'
++stdout '^example.com/s_test \[example.com/s.test\]$'
++stdout '^example.com/t.test$'
++stdout '^example.com/t_test \[example.com/t.test\]$'
++stdout '^example.com/u.test$'
++stdout '^example.com/u_test \[example.com/u.test\]$'
++stdout '^example.com/w.test$'
++stdout '^example.com/w_test \[example.com/w.test\]$'
++
++
++# 'go list -m all' covers the packages in 'go list -test -deps all'.
++
++go list -m -f $MODFMT all
++stdout -count=10 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/c$'
++stdout '^example.com/main$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/s$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
++stdout '^example.com/w$'
++
++
++# 'go mod vendor' copies in only the packages transitively imported by the main
++# module, and omits their tests. As a result, the 'all' and '...' patterns
++# report fewer packages when using '-mod=vendor'.
++
++go mod vendor
++
++go list -f $PKGFMT -mod=vendor all
++stdout -count=8 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/main$'
++stdout '^example.com/main/testonly$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
++
++go list -test -f $PKGFMT -mod=vendor all
++stdout -count=13 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/main$'
++stdout '^example.com/main/testonly$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
++stdout '^example.com/main.test$'
++stdout '^example.com/main \[example.com/main.test\]$'
++stdout '^example.com/main_test \[example.com/main.test\]$'
++stdout '^example.com/main/testonly.test$'
++stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
++
++# TODO(#36460):
++
++# With lazy loading, 'go list all' without -mod=vendor should match
++# 'go mod vendor'.
++
++# 'go list -test all' should expand that to cover test dependencies
++# of packages imported by the main module.
++
++# 'go list -m all' should cover the packages in 'go list -test all'.
++
++
++-- go.mod --
++module example.com/main
++
++go 1.15
++
++require (
++	example.com/a v0.1.0
++	example.com/b v0.1.0
++	example.com/q v0.1.0
++	example.com/t v0.1.0
++)
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b
++	example.com/c v0.1.0 => ./c
++	example.com/q v0.1.0 => ./q
++	example.com/r v0.1.0 => ./r
++	example.com/s v0.1.0 => ./s
++	example.com/t v0.1.0 => ./t
++	example.com/u v0.1.0 => ./u
++	example.com/w v0.1.0 => ./w
++)
++-- main.go --
++package main
++
++import _ "example.com/a"
++
++func main() {}
++-- main_test.go --
++package main_test
++
++import _ "example.com/t"
++-- testonly/testonly_test.go --
++package testonly_test
++
++import _ "example.com/q"
++-- a/go.mod --
++module example.com/a
++
++go 1.15
++
++require (
++	example.com/b v0.1.0
++	example.com/c v0.1.0
++)
++-- a/a.go --
++package x
++
++import _ "example.com/b"
++-- a/a_test.go --
++package x_test
++
++import _ "example.com/c"
++-- b/go.mod --
++module example.com/b
++
++go 1.15
++-- b/b.go --
++package b
++-- b/b_test.go --
++package b_test
++-- c/go.mod --
++module example.com/c
++
++go 1.15
++-- c/c.go --
++package c
++-- c/c_test.go --
++package c_test
++-- q/go.mod --
++module example.com/q
++
++go 1.15
++
++require (
++	example.com/r v0.1.0
++	example.com/s v0.1.0
++)
++-- q/q.go --
++package q
++import _ "example.com/r"
++-- q/q_test.go --
++package q_test
++import _ "example.com/s"
++-- r/go.mod --
++module example.com/r
++
++go 1.15
++-- r/r.go --
++package r
++-- r/r_test.go --
++package r_test
++-- s/go.mod --
++module example.com/s
++
++go 1.15
++-- s/s.go --
++package s
++-- s/s_test.go --
++package s_test
++-- t/go.mod --
++module example.com/t
++
++go 1.15
++
++require (
++	example.com/u v0.1.0
++	example.com/w v0.1.0
++)
++-- t/t.go --
++package t
++
++import _ "example.com/u"
++-- t/t_test.go --
++package t_test
++
++import _ "example.com/w"
++-- u/go.mod --
++module example.com/u
++
++go 1.15
++-- u/u.go --
++package u
++-- u/u_test.go --
++package u_test
++-- w/go.mod --
++module example.com/w
++
++go 1.15
++-- w/w.go --
++package w
++-- w/w_test.go --
++package w_test
+diff --git a/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt b/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
+new file mode 100644
+index 0000000000..aade00d602
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
+@@ -0,0 +1,155 @@
++# This file demonstrates dependency resolution when the main module imports a
++# new package from a previously-test-only dependency.
++#
++# When lazy loading is active, the loader will not load dependencies of any
++# module whose packages are *only* imported by tests outside the main module. If
++# the main module is changed to import a package from such a module, the
++# dependencies of that module will need to be reloaded.
++
++# Control case: in Go 1.14, the original go.mod is tidy,
++# and the dependency on c is eagerly loaded.
++
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod.orig go.mod
++
++go list -m all
++stdout '^a v0.1.0 '
++stdout '^b v0.1.0 '
++stdout '^c v0.1.0 '
++
++# After adding a new import of b/y,
++# the import of c from b/y should resolve to the version required by b.
++
++cp m.go m.go.orig
++cp m.go.new m.go
++go mod tidy
++cmp go.mod.new go.mod
++
++go list -m all
++stdout '^a v0.1.0 '
++stdout '^b v0.1.0 '
++stdout '^c v0.1.0 '
++
++# With lazy loading, the go.mod requirements are the same,
++# but the dependency on c is initially pruned out.
++
++cp m.go.orig m.go
++cp go.mod.orig go.mod
++go mod edit -go=1.16
++go mod edit -go=1.16 go.mod.new
++
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod.orig go.mod
++
++go list -m all
++stdout '^a v0.1.0 '
++stdout '^b v0.1.0 '
++stdout '^c v0.1.0 '  # TODO(#36460): This should be pruned out.
++
++# After adding a new import of b/y,
++# the import of c from b/y should again resolve to the version required by b.
++
++cp m.go.new m.go
++go mod tidy
++cmp go.mod.new go.mod
++
++go list -m all
++stdout '^a v0.1.0 '
++stdout '^b v0.1.0 '
++stdout '^c v0.1.0 '
++
++-- m.go --
++package main
++
++import (
++	"fmt"
++
++	_ "a"  // a_test imports b/x.
++)
++
++func main() {
++}
++-- m.go.new --
++package main
++
++import (
++	"fmt"
++
++	_ "a"  // a_test imports b/x.
++	"b/y"  // This is a new import, not yet reflected in the go.mod file.
++)
++
++func main() {
++	fmt.Println(b.CVersion())
++}
++-- go.mod --
++module m
++
++go 1.14
++
++require a v0.1.0
++
++replace (
++	a v0.1.0 => ./a1
++	b v0.1.0 => ./b1
++	c v0.1.0 => ./c1
++	c v0.2.0 => ./c2
++)
++-- go.mod.new --
++module m
++
++go 1.14
++
++require (
++	a v0.1.0
++	b v0.1.0
++)
++
++replace (
++	a v0.1.0 => ./a1
++	b v0.1.0 => ./b1
++	c v0.1.0 => ./c1
++	c v0.2.0 => ./c2
++)
++-- a1/go.mod --
++module a
++
++go 1.16
++
++require b v0.1.0
++-- a1/a.go --
++package a
++-- a1/a_test.go --
++package a_test
++
++import _ "b/x"
++-- b1/go.mod --
++module b
++
++go 1.16
++
++require c v0.1.0
++-- b1/x/x.go --
++package x
++-- b1/y/y.go --
++package y
++
++import "c"
++
++func CVersion() string {
++	return c.Version
++}
++-- c1/go.mod --
++module c
++
++go 1.16
++-- c1/c.go --
++package c
++
++const Version = "v0.1.0"
++-- c2/go.mod --
++This file should be unused.
++-- c2/c.go --
++This file should be unused.
+diff --git a/src/cmd/go/testdata/script/mod_lazy_import_test_dep.txt b/src/cmd/go/testdata/script/mod_lazy_import_test_dep.txt
+new file mode 100644
+index 0000000000..b7e3e6cb08
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_lazy_import_test_dep.txt
+@@ -0,0 +1,159 @@
++# This file demonstrates the go.mod changes needed to ensure reproducibility
++# when running 'go test' on a sequence of packages for which each package in the
++# sequence is a test-only dependency of the previous package, as a user might do
++# if they encounter a test failure while fixing a bug found in one of their
++# dependencies.
++
++cp go.mod go.mod.old
++cp lazy.go lazy.go.old
++go mod tidy
++cmp go.mod go.mod.old
++
++# Before adding a new import, the go.mod file should
++# enumerate modules for all packages already imported.
++go list -m all
++stdout '^example.com/d v0.1.0' # not v0.2.0 as would be resolved by 'latest'
++cp stdout list.old
++cmp go.mod go.mod.old
++
++# Following the chain of dependencies by listing test dependencies
++# or running tests should not change the go.mod file.
++go list -test -deps example.com/a
++stdout '^example.com/a'
++stdout '^example.com/b'
++! stdout '^example.com/c'
++[!short] go test -c example.com/a
++cmp go.mod go.mod.old
++
++go list -test -deps example.com/b
++stdout '^example.com/b'
++stdout '^example.com/c'
++! stdout '^example.com/d'
++[!short] go test -c example.com/b
++cmp go.mod go.mod.old
++
++go list -test -deps example.com/c
++stdout '^example.com/c'
++stdout '^example.com/d'
++[!short] go test -c example.com/c
++cmp go.mod go.mod.old
++
++# When we add a new import of a package already imported by a test of a test of
++# a dependency, and that dependency is already tidy, its transitive dependencies
++# should already be present.
++cp lazy.go.new lazy.go
++go list all
++go list -m all
++cmp stdout list.old
++cmp go.mod go.mod.new  # Indirect dependency promoted to direct.
++
++# TODO(#36460):
++
++cp lazy.go.old lazy.go
++cp go.mod.old go.mod
++go mod edit -go=1.16
++
++# If we reach d by running successive tests, we should end up with exactly the
++# version required by c, with an update to the go.mod file as soon as we load a
++# dependency not found in the deepening scan.
++
++# However, if we skip directly to adding a new import of d, the dependency is
++# too far away for a deepening scan to find, which is fine because the package
++# whose test imported it wasn't even in "all". It should resolve from the latest
++# version of its module.
++
++-- go.mod --
++module example.com/lazy
++
++go 1.14
++
++require example.com/a v0.1.0
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b
++	example.com/c v0.1.0 => ./c
++	example.com/d v0.1.0 => ./d1
++	example.com/d v0.2.0 => ./d2
++)
++-- go.mod.new --
++module example.com/lazy
++
++go 1.14
++
++require (
++	example.com/a v0.1.0
++	example.com/d v0.1.0
++)
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b
++	example.com/c v0.1.0 => ./c
++	example.com/d v0.1.0 => ./d1
++	example.com/d v0.2.0 => ./d2
++)
++-- lazy.go --
++package lazy
++
++import (
++	_ "example.com/a"
++)
++
++func main() {}
++-- lazy.go.new --
++package lazy
++
++import (
++	_ "example.com/a"
++	"example.com/d"
++)
++
++func main() {
++	println(d.Version)
++}
++-- a/go.mod --
++module example.com/a
++
++go 1.14
++
++require example.com/b v0.1.0
++-- a/a.go --
++package a
++import _ "example.com/b"
++-- b/go.mod --
++module example.com/b
++
++go 1.16
++
++require example.com/c v0.1.0
++-- b/b.go --
++package b
++-- b/b_test.go --
++package b
++import _ "example.com/c"
++-- c/go.mod --
++module example.com/c
++
++go 1.16
++
++require example.com/d v0.1.0
++-- c/c.go --
++package c
++-- c/c_test.go --
++package c
++import _ "example.com/d"
++-- d1/go.mod --
++module example.com/d
++
++go 1.16
++-- d1/d.go --
++package d
++const Version = "v0.1.0"
++-- d2/go.mod --
++module example.com/d
++
++go 1.16
++-- d2/d.go --
++package d
++const Version = "v0.2.0"
+diff --git a/src/cmd/go/testdata/script/mod_lazy_new_import.txt b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+new file mode 100644
+index 0000000000..76b915afaa
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+@@ -0,0 +1,89 @@
++cp go.mod go.mod.old
++cp lazy.go lazy.go.old
++go mod tidy
++cmp go.mod go.mod.old
++
++# Before adding a new import, the go.mod file should
++# enumerate modules for all packages already imported.
++go list all
++cmp go.mod go.mod.old
++
++# When we add a new import of a package in an existing dependency,
++# and that dependency is already tidy, its transitive dependencies
++# should already be present.
++cp lazy.go.new lazy.go
++go list all
++go list -m all
++stdout '^example.com/c v0.1.0' # not v0.2.0 as would be be resolved by 'latest'
++cmp go.mod go.mod.old
++
++# TODO(#36460):
++cp lazy.go.old lazy.go
++cp go.mod.old go.mod
++go mod edit -go=1.16
++
++# When a new import is found, we should perform a deepening scan of the existing
++# dependencies and add a requirement on the version required by those
++# dependencies — not re-resolve 'latest'.
++
++
++-- go.mod --
++module example.com/lazy
++
++go 1.14
++
++require example.com/a v0.1.0
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++)
++-- lazy.go --
++package lazy
++
++import (
++	_ "example.com/a/x"
++)
++-- lazy.go.new --
++package lazy
++
++import (
++	_ "example.com/a/x"
++	_ "example.com/a/y"
++)
++-- a/go.mod --
++module example.com/a
++
++go 1.14
++
++require (
++	example.com/b v0.1.0
++	example.com/c v0.1.0
++)
++-- a/x/x.go --
++package x
++import _ "example.com/b"
++-- a/y/y.go --
++package y
++import _ "example.com/c"
++-- b/go.mod --
++module example.com/b
++
++go 1.14
++-- b/b.go --
++package b
++-- c1/go.mod --
++module example.com/c
++
++go 1.14
++-- c1/c.go --
++package c
++-- c2/go.mod --
++module example.com/c
++
++go 1.14
++-- c2/c.go --
++package c
++This file should not be used, so this syntax error should be ignored.
+diff --git a/src/cmd/go/testdata/script/mod_lazy_test_all.txt b/src/cmd/go/testdata/script/mod_lazy_test_all.txt
+new file mode 100644
+index 0000000000..4ce9fb167b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_lazy_test_all.txt
+@@ -0,0 +1,125 @@
++cp go.mod go.mod.old
++go mod tidy
++cmp go.mod go.mod.old
++
++# 'go list -m all' includes modules that cover the test dependencies of
++# the packages imported by the main module.
++
++go list -m all
++stdout 'example.com/b v0.1.0'
++stdout 'example.com/c v0.1.0'
++cmp go.mod go.mod.old
++
++# 'go test' (or equivalent) of any package in 'all' should use its existing
++# dependencies without updating the go.mod file.
++
++go list all  # Control case: example.com/b really is in 'all'.
++stdout '^example.com/b$'
++cmp go.mod go.mod.old  # Already tidy, so dependencies shouldn't change.
++
++go list -test -deps example.com/b
++stdout '^example.com/b$'
++stdout '^example.com/c$'
++! stdout '^example.com/d$'
++
++[!short] go test -c example.com/b
++
++cmp go.mod go.mod.old  # Should have resolved the above without modifying go.mod.
++
++
++# TODO(#36460):
++
++# 'go list -m all' should include modules that cover the test dependencies of
++# the packages imported by the main module, found via a deepening scan.
++
++# 'go test' of any package in 'all' should use its existing dependencies without
++# updating the go.mod file. This requires that we consider _dependencies of_ the
++# explicit dependencies of the main module, and that we not record those
++# dependencies explicitly after loading them.
++
++
++-- go.mod --
++module example.com/lazy
++
++go 1.14
++
++require example.com/a v0.1.0
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0 => ./b2
++	example.com/c v0.1.0 => ./c
++	example.com/d v0.1.0 => ./d
++)
++-- lazy.go --
++package lazy
++
++import (
++	_ "example.com/a/x"
++)
++-- a/go.mod --
++module example.com/a
++
++go 1.14
++
++require example.com/b v0.1.0
++-- a/x/x.go --
++package x
++-- a/x/x_test.go --
++package x
++
++import (
++	"testing"
++
++	_ "example.com/b"
++)
++
++func TestUsingB(t *testing.T) {
++	// …
++}
++-- b1/go.mod --
++module example.com/b
++
++go 1.14
++
++require example.com/c v0.1.0
++-- b1/b.go --
++package b
++-- b1/b_test.go --
++package b
++
++import _ "example.com/c"
++-- b2/go.mod --
++module example.com/b
++
++go 1.14
++
++require example.com/c v0.1.0
++-- b2/b.go --
++package b
++-- b2/b_test.go --
++package b
++
++import _ "example.com/c"
++
++This file should not be used, so this syntax error should be ignored.
++-- c/go.mod --
++module example.com/c
++
++go 1.14
++
++require example.com/d v0.1.0
++-- c/c.go --
++package c
++-- c/c_test.go --
++package c
++import _ "example.com/d"
++This file should not be used, so this syntax error should be ignored.
++-- d/go.mod --
++module example.com/d
++
++go 1.14
++-- d/d.go --
++package d
++This file should not be used, so this syntax error should be ignored.
+diff --git a/src/cmd/go/testdata/script/mod_lazy_test_horizon.txt b/src/cmd/go/testdata/script/mod_lazy_test_horizon.txt
+new file mode 100644
+index 0000000000..29fc0aaa74
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_lazy_test_horizon.txt
+@@ -0,0 +1,115 @@
++# This file demonstrates the effect of lazy loading on the selected
++# versions of test dependencies.
++
++# Control case: in Go 1.14, the version of c imported by 'go test x' is the
++# version required by module b, even though b_test is not relevant to the main
++# module. (The main module imports a, and a_test imports b, but all of the
++# packages and tests in the main module can be built without b.)
++
++go list -m c
++stdout '^c v0.2.0 '
++
++[!short] go test -v x
++[!short] stdout ' c v0.2.0$'
++
++# With lazy loading, the go.mod requirements are the same,
++# but the irrelevant dependency on c v0.2.0 should be pruned out,
++# leaving only the relevant dependency on c v0.1.0.
++
++go mod edit -go=1.16
++go list -m c
++stdout '^c v0.2.0'  # TODO(#36460): v0.1.0
++
++[!short] go test -v x
++[!short] stdout ' c v0.2.0$'  # TODO(#36460): v0.1.0
++
++-- m.go --
++package m
++
++import (
++	_ "a"
++	_ "x"
++)
++-- go.mod --
++module m
++
++go 1.14
++
++require (
++	a v0.1.0
++	x v0.1.0
++)
++
++replace (
++	a v0.1.0 => ./a1
++	b v0.1.0 => ./b1
++	c v0.1.0 => ./c1
++	c v0.2.0 => ./c2
++	x v0.1.0 => ./x1
++)
++-- a1/go.mod --
++module a
++
++go 1.16
++
++require b v0.1.0
++-- a1/a.go --
++package a
++-- a1/a_test.go --
++package a_test
++
++import _ "b"
++-- b1/go.mod --
++module b
++
++go 1.16
++
++require c v0.2.0
++-- b1/b.go --
++package b
++-- b1/b_test.go --
++package b_test
++
++import (
++	"c"
++	"testing"
++)
++
++func TestCVersion(t *testing.T) {
++	t.Log(c.Version)
++}
++-- c1/go.mod --
++module c
++
++go 1.16
++-- c1/c.go --
++package c
++
++const Version = "v0.1.0"
++-- c2/go.mod --
++module c
++
++go 1.16
++-- c2/c.go --
++package c
++
++const Version = "v0.2.0"
++-- x1/go.mod --
++module x
++
++go 1.16
++
++require c v0.1.0
++-- x1/x.go --
++package x
++-- x1/x_test.go --
++package x_test
++
++import (
++	"c"
++	"testing"
++)
++
++func TestCVersion(t *testing.T) {
++	t.Log("c", c.Version)
++}
+diff --git a/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt b/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt
+new file mode 100644
+index 0000000000..bbb0772303
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt
+@@ -0,0 +1,118 @@
++cp go.mod go.mod.old
++go mod tidy
++cmp go.mod go.mod.old
++
++# In Go 1.14 mode, 'go list -m all' includes modules needed by the
++# transitive closure of tests of dependencies of tests of dependencies of ….
++
++go list -m all
++stdout 'example.com/b v0.1.0'
++stdout 'example.com/c v0.1.0'
++cmp go.mod go.mod.old
++
++# 'go test' (or equivalent) of any such dependency, no matter how remote, does
++# not update the go.mod file.
++
++go list all
++stdout example.com/a/x
++stdout example.com/b  # Test dependency of example.com/a/x.
++stdout example.com/c  # Test dependency of example.com/b.
++
++go list -test -deps all
++stdout example.com/b
++stdout example.com/c
++cmp go.mod go.mod.old
++
++[!short] go test example.com/a/x
++[!short] cmp go.mod go.mod.old
++
++[!short] go test example.com/b
++[!short] cmp go.mod go.mod.old
++
++# TODO(#36460):
++
++# After changing to 'go 1.15` uniformly, 'go list -m all' should prune out
++# example.com/c, because it is not imported by any package (or test of a package)
++# transitively imported by the main module.
++# example.com/a/x is transitively imported,
++# and example.com/b is needed in order to run 'go test example.com/a/x',
++# but example.com/c is not needed because we don't expect the user to need to run
++# 'go test example.com/b'.
++
++-- go.mod --
++module example.com/lazy
++
++go 1.14
++
++require example.com/a v0.1.0
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0 => ./b2
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++)
++-- lazy.go --
++package lazy
++
++import (
++	_ "example.com/a/x"
++)
++-- a/go.mod --
++module example.com/a
++
++go 1.14
++
++require example.com/b v0.1.0
++-- a/x/x.go --
++package x
++-- a/x/x_test.go --
++package x
++
++import (
++	"testing"
++
++	_ "example.com/b"
++)
++
++func TestUsingB(t *testing.T) {
++	// …
++}
++-- b1/go.mod --
++module example.com/b
++
++go 1.14
++
++require example.com/c v0.1.0
++-- b1/b.go --
++package b
++-- b1/b_test.go --
++package b
++
++import _ "example.com/c"
++-- b2/go.mod --
++module example.com/b
++
++go 1.14
++
++require example.com/c v0.1.0
++-- b2/b.go --
++package b
++This file should not be used, so this syntax error should be ignored.
++-- b2/b_test.go --
++package b
++This file should not be used, so this syntax error should be ignored.
++-- c1/go.mod --
++module example.com/c
++
++go 1.14
++-- c1/c.go --
++package c
++-- c2/go.mod --
++module example.com/c
++
++go 1.14
++-- c2/c.go --
++package c
++This file should not be used, so this syntax error should be ignored.
+diff --git a/src/cmd/go/testdata/script/mod_notall.txt b/src/cmd/go/testdata/script/mod_notall.txt
+new file mode 100644
+index 0000000000..72a02485a4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_notall.txt
+@@ -0,0 +1,98 @@
++# This test demonstrates go commands that combine the 'all' pattern
++# with packages outside of 'all'.
++
++# With -deps, 'all' should include test dependencies of packages in the main
++# module, but not should not include test dependencies of packages imported only
++# by other root patterns.
++
++cp go.mod go.mod.orig
++
++go list -deps all x/otherroot
++
++stdout '^x/inall$'
++stdout '^x/inall/fromtest$'
++stdout '^x/inall/fromtestinall$'
++stdout '^x/otherroot$'
++stdout '^x/otherdep$'
++
++! stdout '^x/fromotherroottest$'
++! stdout '^y/fromotherdeptest$'
++
++# TODO(#40799): cmp go.mod go.mod.orig
++
++# With -deps -test, test dependencies of other roots should be included,
++# but test dependencies of non-roots should not.
++
++go list -deps -test all x/otherroot
++stdout '^x/inall$'
++stdout '^x/inall/fromtest$'
++stdout '^x/inall/fromtestinall$'
++stdout '^x/otherroot$'
++stdout '^x/otherdep$'
++
++stdout '^x/fromotherroottest$'
++! stdout '^y/fromotherdeptest$'
++
++# TODO(#40799): cmp go.mod go.mod.orig
++
++-- m.go --
++package m
++
++import _ "x/inall"
++-- m_test.go --
++package m_test
++
++import _ "x/inall/fromtest"
++-- go.mod --
++module m
++
++go 1.15
++
++require x v0.1.0
++
++replace (
++	x v0.1.0 => ./x
++	y v0.1.0 => ./y
++)
++-- x/go.mod --
++module x
++
++go 1.15
++-- x/inall/inall.go --
++package inall
++-- x/inall/inall_test.go --
++package inall_test
++
++import _ "x/inall/fromtestinall"
++-- x/inall/fromtest/fromtest.go --
++package fromtest
++-- x/inall/fromtestinall/fromtestinall.go --
++package fromtestinall
++-- x/otherroot/otherroot.go --
++package otherroot
++
++import _ "x/otherdep"
++-- x/otherroot/otherroot_test.go --
++package otherroot_test
++
++import _ "x/fromotherroottest"
++-- x/fromotherroottest/fromotherroottest.go --
++package fromotherroottest
++-- x/otherdep/otherdep.go --
++package otherdep
++-- x/otherdep/otherdep_test.go --
++package otherdep_test
++
++import _ "y/fromotherdeptest"
++-- x/otherroot/testonly/testonly.go --
++package testonly
++-- y/go.mod --
++module y
++
++go 1.15
++-- y/fromotherdeptest/fromotherdeptest.go --
++// Package fromotherdeptest is a test dependency of x/otherdep that is
++// not declared in x/go.mod. If the loader resolves this package,
++// it will add this module to the main module's go.mod file,
++// and we can detect the mistake.
++package fromotherdeptest

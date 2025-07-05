@@ -7,6 +7,21 @@ Date:   Fri Oct 4 13:22:20 2013 -0700
     R=golang-dev, cshapiro, iant
     CC=golang-dev
     https://golang.org/cl/14405043
-
+---
  src/pkg/runtime/traceback_x86.c | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index a18bb9a6a2..d658e8f11a 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -9,9 +9,6 @@
+ #include "malloc.h"
+ #include "funcdata.h"
+ 
+-void runtime·deferproc(void);
+-void runtime·newproc(void);
+-void runtime·morestack(void);
+ void runtime·sigpanic(void);
+ 
+ // This code is also used for the 386 tracebacks.

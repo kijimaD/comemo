@@ -6,7 +6,82 @@ Date:   Tue Nov 24 13:18:44 2009 -0800
     
     R=rsc
     https://golang.org/cl/157151
-
+---
  src/pkg/json/struct.go      |  4 ++--
  src/pkg/json/struct_test.go | 35 ++++++++++++++++++++++++++++++++---
  2 files changed, 34 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index 6b74cdae0b..8d86631939 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -392,12 +392,12 @@ func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
+ 		*reflect.InterfaceValue,
+ 		*reflect.PtrValue,
+ 		*reflect.UnsafePointerValue:
+-		return &MarshalError{val.Type()}
++		err = &MarshalError{val.Type()}
+ 	default:
+ 		value := val.(reflect.Value);
+ 		fmt.Fprint(w, value.Interface());
+ 	}
+-	return nil;
++	return;
+ }
+ 
+ func Marshal(w io.Writer, val interface{}) os.Error {
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+index b71c31a857..caf398b11e 100644
+--- a/src/pkg/json/struct_test.go
++++ b/src/pkg/json/struct_test.go
+@@ -188,18 +188,47 @@ var marshalTests = []marshalTest{
+ 	marshalTest{map[string][]int{"3": []int{1, 2, 3}}, `{"3":[1,2,3]}`},
+ }
+ 
+-func TestJsonMarshal(t *testing.T) {
++func TestMarshal(t *testing.T) {
+ 	for _, tt := range marshalTests {
+ 		var buf bytes.Buffer;
+ 
+ 		err := Marshal(&buf, tt.val);
+ 		if err != nil {
+-			t.Errorf("Error converting %s to JSON: \n", err.String())
++			t.Fatalf("Marshal(%T): %s", tt.val, err)
+ 		}
+ 
+ 		s := buf.String();
+ 		if s != tt.out {
+-			t.Errorf("Error converting to JSON. Expected: %q Actual %q\n", tt.out, s)
++			t.Errorf("Marshal(%T) = %q, want %q\n", tt.val, tt.out, s)
+ 		}
+ 	}
+ }
++
++type marshalErrorTest struct {
++	val	interface{};
++	error	string;
++}
++
++type MTE string
++
++var marshalErrorTests = []marshalErrorTest{
++	marshalErrorTest{map[chan int]string{make(chan int): "one"}, "json cannot encode value of type map[chan int] string"},
++	marshalErrorTest{map[string]*MTE{"hi": nil}, "json cannot encode value of type *json.MTE"},
++}
++
++func TestMarshalError(t *testing.T) {
++	for _, tt := range marshalErrorTests {
++		var buf bytes.Buffer;
++
++		err := Marshal(&buf, tt.val);
++
++		if err == nil {
++			t.Fatalf("Marshal(%T): no error, want error %s", tt.val, tt.error)
++		}
++
++		if err.String() != tt.error {
++			t.Fatalf("Marshal(%T) = error %s, want error %s", tt.val, err, tt.error)
++		}
++
++	}
++}

@@ -15,6 +15,30 @@ Date:   Thu Dec 16 10:22:37 2021 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/pprof/pprof_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/http/pprof/pprof_test.go b/src/net/http/pprof/pprof_test.go
+index 84757e401a..1a4d653a62 100644
+--- a/src/net/http/pprof/pprof_test.go
++++ b/src/net/http/pprof/pprof_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/profile"
++	"internal/testenv"
+ 	"io"
+ 	"net/http"
+ 	"net/http/httptest"
+@@ -152,6 +153,10 @@ func mutexHog(duration time.Duration, hogger func(mu1, mu2 *sync.Mutex, start ti
+ }
+ 
+ func TestDeltaProfile(t *testing.T) {
++	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
++		testenv.SkipFlaky(t, 50218)
++	}
++
+ 	rate := runtime.SetMutexProfileFraction(1)
+ 	defer func() {
+ 		runtime.SetMutexProfileFraction(rate)

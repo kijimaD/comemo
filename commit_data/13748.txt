@@ -10,7 +10,50 @@ Date:   Tue Sep 4 12:37:23 2012 -0700
     R=golang-dev, bradfitz, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/6445081
-
+---
  src/pkg/net/file.go          |  4 ++++
  src/pkg/os/exec/exec_test.go | 12 ++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/pkg/net/file.go b/src/pkg/net/file.go
+index 11c8f77a82..60911b17d3 100644
+--- a/src/pkg/net/file.go
++++ b/src/pkg/net/file.go
+@@ -12,10 +12,14 @@ import (
+ )
+ 
+ func newFileFD(f *os.File) (*netFD, error) {
++	syscall.ForkLock.RLock()
+ 	fd, err := syscall.Dup(int(f.Fd()))
+ 	if err != nil {
++		syscall.ForkLock.RUnlock()
+ 		return nil, os.NewSyscallError("dup", err)
+ 	}
++	syscall.CloseOnExec(fd)
++	syscall.ForkLock.RUnlock()
+ 
+ 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+ 	if err != nil {
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index 2cc053e5bc..af07452b46 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -167,6 +167,18 @@ func TestExtraFiles(t *testing.T) {
+ 	}
+ 	defer ln.Close()
+ 
++	// Make sure duplicated fds don't leak to the child.
++	f, err := ln.(*net.TCPListener).File()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	ln2, err := net.FileListener(f)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln2.Close()
++
+ 	// Force TLS root certs to be loaded (which might involve
+ 	// cgo), to make sure none of that potential C code leaks fds.
+ 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

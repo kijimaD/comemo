@@ -12,7 +12,40 @@ Date:   Thu Nov 28 16:10:52 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 5 +++--
  src/cmd/go/internal/help/helpdoc.go | 5 +++--
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 20d76de0c7..830bac2b2f 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2338,8 +2338,9 @@
+ //		external go command build cache.
+ //		See 'go doc cmd/go/internal/cacheprog'.
+ //	GODEBUG
+-//		Enable various debugging facilities. See https://go.dev/doc/godebug
+-//		for details.
++//		Enable various debugging facilities for programs built with Go,
++//		including the go command. Cannot be set using 'go env -w'.
++//		See https://go.dev/doc/godebug for details.
+ //	GOENV
+ //		The location of the Go environment configuration file.
+ //		Cannot be set using 'go env -w'.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 65d0f1a45c..23459ef154 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -511,8 +511,9 @@ General-purpose environment variables:
+ 		external go command build cache.
+ 		See 'go doc cmd/go/internal/cacheprog'.
+ 	GODEBUG
+-		Enable various debugging facilities. See https://go.dev/doc/godebug
+-		for details.
++		Enable various debugging facilities for programs built with Go,
++		including the go command. Cannot be set using 'go env -w'.
++		See https://go.dev/doc/godebug for details.
+ 	GOENV
+ 		The location of the Go environment configuration file.
+ 		Cannot be set using 'go env -w'.

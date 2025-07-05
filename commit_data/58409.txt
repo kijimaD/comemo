@@ -17,7 +17,53 @@ Date:   Sat Aug 26 04:19:40 2023 +1000
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     Reviewed-by: Wang Yaduo <wangyaduo@linux.alibaba.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s | 5 +++++
  src/cmd/internal/obj/riscv/obj.go           | 4 ++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 2afa457105..072302b225 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -94,6 +94,10 @@ start:
+ 
+ 	SUB	X6, X5, X7				// b3836240
+ 	SUB	X5, X6					// 33035340
++	SUB	$-2047, X5, X6				// 1383f27f
++	SUB	$2048, X5, X6				// 13830280
++	SUB	$-2047, X5				// 9382f27f
++	SUB	$2048, X5				// 93820280
+ 
+ 	SRA	X6, X5, X7				// b3d36240
+ 	SRA	X5, X6					// 33535340
+@@ -157,6 +161,7 @@ start:
+ 	ADDW	$1, X6					// 1b031300
+ 	SLLW	$1, X6					// 1b131300
+ 	SRLW	$1, X6					// 1b531300
++	SUBW	$1, X6					// 1b03f3ff
+ 	SRAW	$1, X6					// 1b531340
+ 
+ 	// 5.3: Load and Store Instructions (RV64I)
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 279c8678a7..4ff1d910ce 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -69,6 +69,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		switch p.As {
+ 		case AADD:
+ 			p.As = AADDI
++		case ASUB:
++			p.As, p.From.Offset = AADDI, -p.From.Offset
+ 		case ASLT:
+ 			p.As = ASLTI
+ 		case ASLTU:
+@@ -87,6 +89,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			p.As = ASRAI
+ 		case AADDW:
+ 			p.As = AADDIW
++		case ASUBW:
++			p.As, p.From.Offset = AADDIW, -p.From.Offset
+ 		case ASLLW:
+ 			p.As = ASLLIW
+ 		case ASRLW:

@@ -14,7 +14,7 @@ Date:   Fri Feb 26 14:03:52 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/223068
-
+---
  src/cmd/5l/asm.c  | 2 ++
  src/cmd/5l/doc.go | 2 ++
  src/cmd/5l/l.h    | 1 +
@@ -28,3 +28,186 @@ Date:   Fri Feb 26 14:03:52 2010 -0800
  src/cmd/8l/l.h    | 1 +
  src/cmd/8l/obj.c  | 4 +++-
  12 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 143a4076d1..2a9265a885 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -322,6 +322,8 @@ doelf(void)
+ 		elfwritedynentsym(s, DT_REL, lookup(".rel", 0));
+ 		elfwritedynentsymsize(s, DT_RELSZ, lookup(".rel", 0));
+ 		elfwritedynent(s, DT_RELENT, ELF32RELSIZE);
++		if(rpath)
++			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
+ 		elfwritedynent(s, DT_NULL, 0);
+ 	}
+ }
+diff --git a/src/cmd/5l/doc.go b/src/cmd/5l/doc.go
+index b724e7012f..b09995d719 100644
+--- a/src/cmd/5l/doc.go
++++ b/src/cmd/5l/doc.go
+@@ -23,6 +23,8 @@ Options new in this version:
+ -L dir1,dir2,..
+ 	Search for libraries (package files) in the comma-separated list of directories.
+ 	The default is the single location $GOROOT/pkg/$GOOS_arm.
++-r dir1:dir2:...
++	Set the dynamic linker search path when using ELF.
+ -V
+ 	Print the linker version.
+ 
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 9a54122a71..ac627e456b 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -333,6 +333,7 @@ EXTERN	Oprang	thumboprange[ALAST];
+ EXTERN	char*	outfile;
+ EXTERN	int32	pc;
+ EXTERN	uchar	repop[ALAST];
++EXTERN	char*	rpath;
+ EXTERN	uint32	stroffset;
+ EXTERN	int32	symsize;
+ EXTERN	Prog*	textp;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 9f7aa19c33..06a84eeace 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -81,7 +81,7 @@ linkername[] =
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: 5l [-E entry] [-H head] [-L dir] [-T text] [-D data] [-R rnd] [-o out] main.5\n");
++	fprint(2, "usage: 5l [-E entry] [-H head] [-L dir] [-T text] [-D data] [-R rnd] [-r path] [-o out] main.5\n");
+ 	errorexit();
+ }
+ 
+@@ -128,6 +128,9 @@ main(int argc, char *argv[])
+ 	case 'R':
+ 		INITRND = atolwhex(EARGF(usage()));
+ 		break;
++	case 'r':
++		rpath = EARGF(usage());
++		break;
+ 	case 'H':
+ 		HEADTYPE = atolwhex(EARGF(usage()));
+ 		/* do something about setting INITTEXT */
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index d3f3e358bf..d55c0cee4d 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -408,6 +408,8 @@ doelf(void)
+ 		elfwritedynentsym(s, DT_RELA, lookup(".rela", 0));
+ 		elfwritedynentsymsize(s, DT_RELASZ, lookup(".rela", 0));
+ 		elfwritedynent(s, DT_RELAENT, ELF64RELASIZE);
++		if(rpath)
++			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
+ 		elfwritedynent(s, DT_NULL, 0);
+ 	}
+ }
+diff --git a/src/cmd/6l/doc.go b/src/cmd/6l/doc.go
+index fb88df500d..a74e9b5c0c 100644
+--- a/src/cmd/6l/doc.go
++++ b/src/cmd/6l/doc.go
+@@ -35,6 +35,8 @@ Options new in this version:
+ -L dir1,dir2,..
+ 	Search for libraries (package files) in the comma-separated list of directories.
+ 	The default is the single location $GOROOT/pkg/$GOOS_amd64.
++-r dir1:dir2:...
++	Set the dynamic linker search path when using ELF.
+ -V
+ 	Print the linker version.
+ 
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index be1aa41781..87b81d7f6d 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -330,6 +330,7 @@ EXTERN	int	nerrors;
+ EXTERN	char*	noname;
+ EXTERN	char*	outfile;
+ EXTERN	vlong	pc;
++EXTERN	char*	rpath;
+ EXTERN	int32	spsize;
+ EXTERN	Sym*	symlist;
+ EXTERN	int32	symsize;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index d951696978..b75f8bea28 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -76,7 +76,7 @@ isobjfile(char *f)
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] main.6\n");
++	fprint(2, "usage: 6l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.6\n");
+ 	exits("usage");
+ }
+ 
+@@ -126,6 +126,9 @@ main(int argc, char *argv[])
+ 	case 'R':
+ 		INITRND = atolwhex(EARGF(usage()));
+ 		break;
++	case 'r':
++		rpath = EARGF(usage());
++		break;
+ 	case 'x':	/* produce export table */
+ 		doexp = 1;
+ 		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 005634e429..a1de5fc0e3 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -398,6 +398,8 @@ doelf(void)
+ 		elfwritedynentsym(s, DT_REL, lookup(".rel", 0));
+ 		elfwritedynentsymsize(s, DT_RELSZ, lookup(".rel", 0));
+ 		elfwritedynent(s, DT_RELENT, ELF32RELSIZE);
++		if(rpath)
++			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
+ 		elfwritedynent(s, DT_NULL, 0);
+ 	}
+ }
+diff --git a/src/cmd/8l/doc.go b/src/cmd/8l/doc.go
+index 3a830cb8e1..c8c0586846 100644
+--- a/src/cmd/8l/doc.go
++++ b/src/cmd/8l/doc.go
+@@ -32,6 +32,8 @@ Options new in this version:
+ -L dir1,dir2,..
+ 	Search for libraries (package files) in the comma-separated list of directories.
+ 	The default is the single location $GOROOT/pkg/$GOOS_386.
++-r dir1:dir2:...
++	Set the dynamic linker search path when using ELF.
+ -V
+ 	Print the linker version.
+ 
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index dd559e4195..5940c4a733 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -295,6 +295,7 @@ EXTERN	int	maxop;
+ EXTERN	int	nerrors;
+ EXTERN	char*	noname;
+ EXTERN	int32	pc;
++EXTERN	char*	rpath;
+ EXTERN	int32	spsize;
+ EXTERN	Sym*	symlist;
+ EXTERN	int32	symsize;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index c3044c2561..cd7984d715 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -81,7 +81,7 @@ isobjfile(char *f)
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] main.8\n");
++	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-r path] [-o out] main.8\n");
+ 	exits("usage");
+ }
+ 
+@@ -131,6 +131,8 @@ main(int argc, char *argv[])
+ 	case 'R':
+ 		INITRND = atolwhex(EARGF(usage()));
+ 		break;
++	case 'r':
++		rpath = EARGF(usage());
+ 		break;
+ 	case 'x':	/* produce export table */
+ 		doexp = 1;

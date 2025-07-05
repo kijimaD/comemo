@@ -14,6 +14,20 @@ Date:   Sat Apr 7 10:51:32 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5992058
-
+---
  src/pkg/time/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 98d4bb5c65..bb32bc8431 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -367,7 +367,7 @@ func (t Time) Format(layout string) string {
+ 		hour  int = -1
+ 		min   int
+ 		sec   int
+-		b     buffer
++		b     buffer = make([]byte, 0, len(layout))
+ 	)
+ 	// Each iteration generates one std value.
+ 	for {

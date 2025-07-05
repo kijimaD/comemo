@@ -135,3 +135,102 @@ Date:   Wed Oct 29 11:54:48 2014 -0400
  test/maplinear.go                                  |  17 +-
  test/recover.go                                    |  44 +-
  124 files changed, 4306 insertions(+), 829 deletions(-)
+
+diff --cc src/runtime/mgc0.c
+index cc1f811234,1b41bf9a79..bcc5a2f39d
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@@ -653,68 -593,14 +653,68 @@@ putempty(Workbuf *b
+  	runtime·lfstackpush(&runtime·work.empty, &b->node);
+  }
+  
+ +// Put a full or partially full workbuf on the full list.
+ +static void
+ +putfull(Workbuf *b)
+ +{
+ +	if(b->nobj <= 0) {
+ +		runtime·throw("putfull: b->nobj <= 0\n");
+ +	}
+ +	runtime·lfstackpush(&runtime·work.full, &b->node);
+ +}
+ +
+ +// Get an partially empty work buffer
+ +// if none are available get an empty one.
+ +static Workbuf*
+ +getpartialorempty(void)
+ +{
+ +	Workbuf *b;
+ +
+ +	b = (Workbuf*)runtime·lfstackpop(&runtime·work.partial);
+ +	if(b == nil)
+ +		b = getempty(nil);
+ +	return b;
+ +}
+ +
+ +static void
+ +putpartial(Workbuf *b)
+ +{
+ +
+ +	if(b->nobj == 0)
+ +		runtime·lfstackpush(&runtime·work.empty, &b->node);
+ +	else if (b->nobj < nelem(b->obj))
+ +		runtime·lfstackpush(&runtime·work.partial, &b->node);
+ +	else if (b->nobj == nelem(b->obj))
+ +		runtime·lfstackpush(&runtime·work.full, &b->node);
+ +	else {
+- 		runtime·printf("b=%p, b->nobj=%d, nelem(b->obj)=%d\n", b, b->nobj, (uint32)nelem(b->obj));
+++		runtime·printf("b=%p, b->nobj=%d, nelem(b->obj)=%d\n", b, (uint32)b->nobj, (uint32)nelem(b->obj));
+ +		runtime·throw("putpartial: bad Workbuf b->nobj");
+ +	}
+ +}
+ +
+  void
+ -runtime·gcworkbuffree(void *b)
+ +runtime·gcworkbuffree(Workbuf *b)
+  {
+ -	if(b != nil)
+ +	if(b == nil)
+ +		return;
+ +	if(b->nobj == 0)
+  		putempty(b);
+ +	else
+ +		putfull(b);
+  }
+  
+ -// Get a full work buffer off the work.full list, or return nil.
+ +// Get a full work buffer off the work.full or a partially
+ +// filled one off the work.partial list. If nothing is available
+ +// wait until all the other gc helpers have finished and then
+ +// return nil.
+ +// getfull acts as a barrier for work.nproc helpers. As long as one
+ +// gchelper is actively marking objects it
+ +// may create a workbuffer that the other helpers can work on.
+ +// The for loop either exits when a work buffer is found
+ +// or when _all_ of the work.nproc GC helpers are in the loop 
+ +// looking for work and thus not capable of creating new work.
+ +// This is in fact the termination condition for the STW mark 
+ +// phase.
+  static Workbuf*
+  getfull(Workbuf *b)
+  {
+@@@ -2041,7 -1784,7 +2047,7 @@@ runtime·unrollgcprog_m(void
+  	Type *typ;
+  	byte *mask, *prog;
+  	uintptr pos;
+--	uint32 x;
+++	uintptr x;
+  
+  	typ = g->m->ptrarg[0];
+  	g->m->ptrarg[0] = nil;
+@@@ -2060,8 -1803,8 +2066,9 @@@
+  			unrollgcprog1(mask, prog, &pos, false, true);
+  		}
+  		// atomic way to say mask[0] = 1
+--		x = ((uint32*)mask)[0];
+--		runtime·atomicstore((uint32*)mask, x|1);
+++		x = *(uintptr*)mask;
+++		((byte*)&x)[0] = 1;
+++		runtime·atomicstorep((void**)mask, (void*)x);
+  	}
+  	runtime·unlock(&lock);
+  }

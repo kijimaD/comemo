@@ -12,7 +12,51 @@ Date:   Thu Aug 11 18:49:09 2011 +1000
     R=dsymonds, r
     CC=golang-dev
     https://golang.org/cl/4867042
-
+---
  src/pkg/html/token.go      |  2 +-
  src/pkg/html/token_test.go | 12 +++++++++++-
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index fddc922d60..d266b3a300 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -429,7 +429,7 @@ loop:
+ 	for ; i < z.p1; i++ {
+ 		c := z.buf[i]
+ 		switch c {
+-		case '<', '>', '"', '\'', '/', '=':
++		case '>', '/', '=':
+ 			break loop
+ 		}
+ 		switch {
+diff --git a/src/pkg/html/token_test.go b/src/pkg/html/token_test.go
+index 1330f3247a..0a0beb201b 100644
+--- a/src/pkg/html/token_test.go
++++ b/src/pkg/html/token_test.go
+@@ -49,14 +49,24 @@ var tokenTests = []tokenTest{
+ 	},
+ 	{
+ 		"malformed tag #1",
++		`<p </p>`,
++		`<p <="" p="">`,
++	},
++	{
++		"malformed tag #2",
+ 		`<p id=0</p>`,
+ 		`<p id="0&lt;/p">`,
+ 	},
+ 	{
+-		"malformed tag #2",
++		"malformed tag #3",
+ 		`<p id="0</p>`,
+ 		`<p id="0&lt;/p&gt;">`,
+ 	},
++	{
++		"malformed tag #4",
++		`<p id="0"</p>`,
++		`<p id="0" <="" p="">`,
++	},
+ 	// Comments.
+ 	{
+ 		"comment0",

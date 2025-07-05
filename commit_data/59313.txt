@@ -14,7 +14,63 @@ Date:   Thu Feb 29 16:50:23 2024 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/go_mem.html  | 16 ++++++++--------
  doc/go_spec.html |  3 ++-
  2 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 026c1172e3..c0b81d3fac 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -98,12 +98,12 @@ which in turn are made up of memory operations.
+ A <i>memory operation</i> is modeled by four details:
+ </p>
+ <ul>
+-<li>its kind, indicating whether it is an ordinary data read, an ordinary data write,
+-or a <i>synchronizing operation</i> such as an atomic data access,
+-a mutex operation, or a channel operation,
+-<li>its location in the program,
+-<li>the memory location or variable being accessed, and
+-<li>the values read or written by the operation.
++	<li>its kind, indicating whether it is an ordinary data read, an ordinary data write,
++    or a <i>synchronizing operation</i> such as an atomic data access,
++	a mutex operation, or a channel operation,</li>
++	<li>its location in the program,</li>
++	<li>the memory location or variable being accessed, and</li>
++	<li>the values read or written by the operation.</li>
+ </ul>
+ <p>
+ Some memory operations are <i>read-like</i>, including read, atomic read, mutex lock, and channel receive.
+@@ -162,8 +162,8 @@ where visible means that both of the following hold:
+ </p>
+ 
+ <ol>
+-<li><i>w</i> happens before <i>r</i>.
+-<li><i>w</i> does not happen before any other write <i>w'</i> (to <i>x</i>) that happens before <i>r</i>.
++	<li><i>w</i> happens before <i>r</i>.</li>
++	<li><i>w</i> does not happen before any other write <i>w'</i> (to <i>x</i>) that happens before <i>r</i>.</li>
+ </ol>
+ 
+ <p>
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 7b9dd3862a..8f48f7444b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1682,6 +1682,7 @@ maps grow to accommodate the number of items
+ stored in them, with the exception of <code>nil</code> maps.
+ A <code>nil</code> map is equivalent to an empty map except that no elements
+ may be added.
++</p>
+ 
+ <h3 id="Channel_types">Channel types</h3>
+ 
+@@ -7300,7 +7301,7 @@ The number of elements copied is the minimum of
+ <code>len(src)</code> and <code>len(dst)</code>.
+ As a special case, if the destination's core type is <code>[]byte</code>,
+ <code>copy</code> also accepts a source argument with core type
+-</a> <a href="#Core_types"><code>bytestring</code></a>.
++<a href="#Core_types"><code>bytestring</code></a>.
+ This form copies the bytes from the byte slice or string into the byte slice.
+ </p>
+ 

@@ -17,6 +17,20 @@ Date:   Tue Jun 2 14:48:12 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10634
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f5877e6847..71b083b29c 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1006,7 +1006,7 @@ func gc(mode int) {
+ 		var sbuf [24]byte
+ 		printlock()
+ 		print("gc #", memstats.numgc,
+-			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s ",
++			" @", string(itoaDiv(sbuf[:], uint64(tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
+ 			util, "%: ")
+ 		prev := tSweepTerm
+ 		for i, ns := range []int64{tScan, tInstallWB, tMark, tMarkTerm, tEnd} {

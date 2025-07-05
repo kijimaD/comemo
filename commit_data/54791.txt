@@ -13,7 +13,7 @@ Date:   Tue Nov 15 10:08:11 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/go_test.go                                      | 14 +++++++-------
  src/cmd/go/go_windows_test.go                              |  4 ++--
  src/cmd/go/init_test.go                                    |  3 +--
@@ -21,3 +21,176 @@ Date:   Tue Nov 15 10:08:11 2022 -0500
  src/cmd/go/internal/lockedfile/lockedfile_test.go          |  3 +--
  src/cmd/go/scriptreadme_test.go                            |  3 +--
  6 files changed, 13 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a852fea805..004edd76a4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -487,7 +487,7 @@ func (tg *testgoData) doRun(args []string) error {
+ 	}
+ 
+ 	tg.t.Logf("running testgo %v", args)
+-	cmd := exec.Command(prog, args...)
++	cmd := testenv.Command(tg.t, prog, args...)
+ 	tg.stdout.Reset()
+ 	tg.stderr.Reset()
+ 	cmd.Dir = tg.execDir
+@@ -530,7 +530,7 @@ func (tg *testgoData) runFail(args ...string) {
+ // runGit runs a git command, and expects it to succeed.
+ func (tg *testgoData) runGit(dir string, args ...string) {
+ 	tg.t.Helper()
+-	cmd := exec.Command("git", args...)
++	cmd := testenv.Command(tg.t, "git", args...)
+ 	tg.stdout.Reset()
+ 	tg.stderr.Reset()
+ 	cmd.Stdout = &tg.stdout
+@@ -1583,7 +1583,7 @@ func TestCgoPkgConfig(t *testing.T) {
+ 	tg.run("env", "PKG_CONFIG")
+ 	pkgConfig := strings.TrimSpace(tg.getStdout())
+ 	testenv.MustHaveExecPath(t, pkgConfig)
+-	if out, err := exec.Command(pkgConfig, "--atleast-pkgconfig-version", "0.24").CombinedOutput(); err != nil {
++	if out, err := testenv.Command(t, pkgConfig, "--atleast-pkgconfig-version", "0.24").CombinedOutput(); err != nil {
+ 		t.Skipf("%s --atleast-pkgconfig-version 0.24: %v\n%s", pkgConfig, err, out)
+ 	}
+ 
+@@ -2281,7 +2281,7 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
+ 		panic("unreachable")
+ 	}
+ 
+-	out, err := exec.Command(obj).CombinedOutput()
++	out, err := testenv.Command(t, obj).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -2298,7 +2298,7 @@ func TestUpxCompression(t *testing.T) {
+ 	}
+ 
+ 	testenv.MustHaveExecPath(t, "upx")
+-	out, err := exec.Command("upx", "--version").CombinedOutput()
++	out, err := testenv.Command(t, "upx", "--version").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("upx --version failed: %v", err)
+ 	}
+@@ -2332,13 +2332,13 @@ func TestUpxCompression(t *testing.T) {
+ 	obj := tg.path("main")
+ 	tg.run("build", "-o", obj, src)
+ 
+-	out, err = exec.Command("upx", obj).CombinedOutput()
++	out, err = testenv.Command(t, "upx", obj).CombinedOutput()
+ 	if err != nil {
+ 		t.Logf("executing upx\n%s\n", out)
+ 		t.Fatalf("upx failed with %v", err)
+ 	}
+ 
+-	out, err = exec.Command(obj).CombinedOutput()
++	out, err = testenv.Command(t, obj).CombinedOutput()
+ 	if err != nil {
+ 		t.Logf("%s", out)
+ 		t.Fatalf("running compressed go binary failed with error %s", err)
+diff --git a/src/cmd/go/go_windows_test.go b/src/cmd/go/go_windows_test.go
+index 3094212bae..0c443eb64d 100644
+--- a/src/cmd/go/go_windows_test.go
++++ b/src/cmd/go/go_windows_test.go
+@@ -5,8 +5,8 @@
+ package main_test
+ 
+ import (
++	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
+@@ -38,7 +38,7 @@ func TestAbsolutePath(t *testing.T) {
+ 
+ 	noVolume := file[len(filepath.VolumeName(file)):]
+ 	wrongPath := filepath.Join(dir, noVolume)
+-	cmd := exec.Command(tg.goTool(), "build", noVolume)
++	cmd := testenv.Command(t, tg.goTool(), "build", noVolume)
+ 	cmd.Dir = dir
+ 	output, err := cmd.CombinedOutput()
+ 	if err == nil {
+diff --git a/src/cmd/go/init_test.go b/src/cmd/go/init_test.go
+index 5a5cbe5293..f76425d06e 100644
+--- a/src/cmd/go/init_test.go
++++ b/src/cmd/go/init_test.go
+@@ -6,7 +6,6 @@ package main_test
+ 
+ import (
+ 	"internal/testenv"
+-	"os/exec"
+ 	"sync/atomic"
+ 	"testing"
+ )
+@@ -27,7 +26,7 @@ func BenchmarkExecGoEnv(b *testing.B) {
+ 	b.ResetTimer()
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+-			cmd := exec.Command(gotool, "env", "GOARCH")
++			cmd := testenv.Command(b, gotool, "env", "GOARCH")
+ 
+ 			if err := cmd.Run(); err != nil {
+ 				b.Fatal(err)
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+index 7bd7bd28f5..8e2c6ab4ce 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"testing"
+@@ -199,7 +198,7 @@ func TestLockNotDroppedByExecCommand(t *testing.T) {
+ 	// Some kinds of file locks are dropped when a duplicated or forked file
+ 	// descriptor is unlocked. Double-check that the approach used by os/exec does
+ 	// not accidentally drop locks.
+-	cmd := exec.Command(os.Args[0], "-test.run=^$")
++	cmd := testenv.Command(t, os.Args[0], "-test.run=^$")
+ 	if err := cmd.Run(); err != nil {
+ 		t.Fatalf("exec failed: %v", err)
+ 	}
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_test.go b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+index 79352bc8c7..5f6153cb15 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_test.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+ 	"time"
+@@ -226,7 +225,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command(os.Args[0], "-test.run="+t.Name())
++	cmd := testenv.Command(t, os.Args[0], "-test.run="+t.Name())
+ 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", dirVar, dir))
+ 
+ 	qDone := make(chan struct{})
+diff --git a/src/cmd/go/scriptreadme_test.go b/src/cmd/go/scriptreadme_test.go
+index a6c4f4e909..fde1e8e9f8 100644
+--- a/src/cmd/go/scriptreadme_test.go
++++ b/src/cmd/go/scriptreadme_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"internal/diff"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"strings"
+ 	"testing"
+ 	"text/template"
+@@ -43,7 +42,7 @@ func checkScriptReadme(t *testing.T, engine *script.Engine, env []string) {
+ 	}
+ 
+ 	doc := new(strings.Builder)
+-	cmd := exec.Command(testGo, "doc", "cmd/go/internal/script")
++	cmd := testenv.Command(t, testGo, "doc", "cmd/go/internal/script")
+ 	cmd.Env = env
+ 	cmd.Stdout = doc
+ 	if err := cmd.Run(); err != nil {

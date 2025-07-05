@@ -12,7 +12,7 @@ Date:   Tue Nov 21 16:37:07 2023 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/godebug.md                 |  6 ++++++
  src/crypto/tls/common.go       | 10 ++++++----
  src/crypto/tls/conn.go         | 13 ++++++++++++-
@@ -20,3 +20,135 @@ Date:   Tue Nov 21 16:37:07 2023 +0100
  src/internal/godebugs/table.go |  1 +
  src/runtime/metrics/doc.go     |  4 ++++
  6 files changed, 38 insertions(+), 7 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 9235635bdd..50033b6f17 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -159,6 +159,12 @@ Go 1.22 changed the default TLS cipher suites used by clients and servers when
+ not explicitly configured, removing the cipher suites which used RSA based key
+ exchange. The default can be revert using the [`tlsrsakex` setting](/pkg/crypto/tls/#Config).
+ 
++Go 1.22 disabled
++[`ConnectionState.ExportKeyingMaterial`](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial)
++when the connection supports neither TLS 1.3 nor Extended Master Secret
++(implemented in Go 1.21). It can be reenabled with the [`tlsunsafeekm`
++setting](/pkg/crypto/tls/#ConnectionState.ExportKeyingMaterial).
++
+ ### Go 1.21
+ 
+ Go 1.21 made it a run-time error to call `panic` with a nil interface value,
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 6058824ded..faa460e7fa 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -304,11 +304,13 @@ type ConnectionState struct {
+ // ExportKeyingMaterial returns length bytes of exported key material in a new
+ // slice as defined in RFC 5705. If context is nil, it is not used as part of
+ // the seed. If the connection was set to allow renegotiation via
+-// Config.Renegotiation, this function will return an error.
++// Config.Renegotiation, or if the connections supports neither TLS 1.3 nor
++// Extended Master Secret, this function will return an error.
+ //
+-// There are conditions in which the returned values might not be unique to a
+-// connection. See the Security Considerations sections of RFC 5705 and RFC 7627,
+-// and https://mitls.org/pages/attacks/3SHAKE#channelbindings.
++// Exporting key material without Extended Master Secret or TLS 1.3 was disabled
++// in Go 1.22 due to security issues (see the Security Considerations sections
++// of RFC 5705 and RFC 7627), but can be re-enabled with the GODEBUG setting
++// tlsunsafeekm=1.
+ func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
+ 	return cs.ekm(label, context, length)
+ }
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 647e5b85b6..3e8832f947 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -15,6 +15,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"hash"
++	"internal/godebug"
+ 	"io"
+ 	"net"
+ 	"sync"
+@@ -1599,6 +1600,8 @@ func (c *Conn) ConnectionState() ConnectionState {
+ 	return c.connectionStateLocked()
+ }
+ 
++var ekmgodebug = godebug.New("tlsunsafeekm")
++
+ func (c *Conn) connectionStateLocked() ConnectionState {
+ 	var state ConnectionState
+ 	state.HandshakeComplete = c.isHandshakeComplete.Load()
+@@ -1620,7 +1623,15 @@ func (c *Conn) connectionStateLocked() ConnectionState {
+ 		}
+ 	}
+ 	if c.config.Renegotiation != RenegotiateNever {
+-		state.ekm = noExportedKeyingMaterial
++		state.ekm = noEKMBecauseRenegotiation
++	} else if c.vers != VersionTLS13 && !c.extMasterSecret {
++		state.ekm = func(label string, context []byte, length int) ([]byte, error) {
++			if ekmgodebug.Value() == "1" {
++				ekmgodebug.IncNonDefault()
++				return c.ekm(label, context, length)
++			}
++			return noEKMBecauseNoEMS(label, context, length)
++		}
+ 	} else {
+ 		state.ekm = c.ekm
+ 	}
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 20bac96e86..a7fa3370e6 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -252,13 +252,20 @@ func (h *finishedHash) discardHandshakeBuffer() {
+ 	h.buffer = nil
+ }
+ 
+-// noExportedKeyingMaterial is used as a value of
++// noEKMBecauseRenegotiation is used as a value of
+ // ConnectionState.ekm when renegotiation is enabled and thus
+ // we wish to fail all key-material export requests.
+-func noExportedKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
++func noEKMBecauseRenegotiation(label string, context []byte, length int) ([]byte, error) {
+ 	return nil, errors.New("crypto/tls: ExportKeyingMaterial is unavailable when renegotiation is enabled")
+ }
+ 
++// noEKMBecauseNoEMS is used as a value of ConnectionState.ekm when Extended
++// Master Secret is not negotiated and thus we wish to fail all key-material
++// export requests.
++func noEKMBecauseNoEMS(label string, context []byte, length int) ([]byte, error) {
++	return nil, errors.New("crypto/tls: ExportKeyingMaterial is unavailable when neither TLS 1.3 nor Extended Master Secret are negotiated; override with GODEBUG=tlsunsafeekm=1")
++}
++
+ // ekmFromMasterSecret generates exported keying material as defined in RFC 5705.
+ func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte) func(string, []byte, int) ([]byte, error) {
+ 	return func(label string, context []byte, length int) ([]byte, error) {
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 92a0d089ca..3a76214b39 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -48,6 +48,7 @@ var All = []Info{
+ 	{Name: "tls10server", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
+ 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
++	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+ 	{Name: "zipinsecurepath", Package: "archive/zip"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 5be6c32bfa..8df475666e 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -314,6 +314,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the crypto/tls
+ 		package due to a non-default GODEBUG=tlsrsakex=... setting.
+ 
++	/godebug/non-default-behavior/tlsunsafeekm:events
++		The number of non-default behaviors executed by the crypto/tls
++		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
++
+ 	/godebug/non-default-behavior/x509sha1:events
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509sha1=... setting.

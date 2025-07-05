@@ -18,7 +18,7 @@ Date:   Fri Nov 4 19:12:09 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/testdata/{ => asm}/asm.go              |   0
  src/cmd/vet/testdata/{ => asm}/asm1.s              |   0
  src/cmd/vet/testdata/{ => asm}/asm2.s              |   0
@@ -35,3 +35,255 @@ Date:   Fri Nov 4 19:12:09 2016 +0000
  .../vet/testdata/{ => testingpkg}/tests_test.go    |   0
  src/cmd/vet/vet_test.go                            | 125 +++++++++++++++------
  15 files changed, 92 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/vet/testdata/asm.go b/src/cmd/vet/testdata/asm/asm.go
+similarity index 100%
+rename from src/cmd/vet/testdata/asm.go
+rename to src/cmd/vet/testdata/asm/asm.go
+diff --git a/src/cmd/vet/testdata/asm1.s b/src/cmd/vet/testdata/asm/asm1.s
+similarity index 100%
+rename from src/cmd/vet/testdata/asm1.s
+rename to src/cmd/vet/testdata/asm/asm1.s
+diff --git a/src/cmd/vet/testdata/asm2.s b/src/cmd/vet/testdata/asm/asm2.s
+similarity index 100%
+rename from src/cmd/vet/testdata/asm2.s
+rename to src/cmd/vet/testdata/asm/asm2.s
+diff --git a/src/cmd/vet/testdata/asm3.s b/src/cmd/vet/testdata/asm/asm3.s
+similarity index 100%
+rename from src/cmd/vet/testdata/asm3.s
+rename to src/cmd/vet/testdata/asm/asm3.s
+diff --git a/src/cmd/vet/testdata/asm4.s b/src/cmd/vet/testdata/asm/asm4.s
+similarity index 100%
+rename from src/cmd/vet/testdata/asm4.s
+rename to src/cmd/vet/testdata/asm/asm4.s
+diff --git a/src/cmd/vet/testdata/asm5.s b/src/cmd/vet/testdata/asm/asm5.s
+similarity index 100%
+rename from src/cmd/vet/testdata/asm5.s
+rename to src/cmd/vet/testdata/asm/asm5.s
+diff --git a/src/cmd/vet/testdata/asm6.s b/src/cmd/vet/testdata/asm/asm6.s
+similarity index 100%
+rename from src/cmd/vet/testdata/asm6.s
+rename to src/cmd/vet/testdata/asm/asm6.s
+diff --git a/src/cmd/vet/testdata/asm7.s b/src/cmd/vet/testdata/asm/asm7.s
+similarity index 100%
+rename from src/cmd/vet/testdata/asm7.s
+rename to src/cmd/vet/testdata/asm/asm7.s
+diff --git a/src/cmd/vet/testdata/buildtag.go b/src/cmd/vet/testdata/buildtag/buildtag.go
+similarity index 100%
+rename from src/cmd/vet/testdata/buildtag.go
+rename to src/cmd/vet/testdata/buildtag/buildtag.go
+diff --git a/src/cmd/vet/testdata/buildtag_bad.go b/src/cmd/vet/testdata/buildtag/buildtag_bad.go
+similarity index 100%
+rename from src/cmd/vet/testdata/buildtag_bad.go
+rename to src/cmd/vet/testdata/buildtag/buildtag_bad.go
+diff --git a/src/cmd/vet/testdata/cgo.go b/src/cmd/vet/testdata/cgo/cgo.go
+similarity index 100%
+rename from src/cmd/vet/testdata/cgo.go
+rename to src/cmd/vet/testdata/cgo/cgo.go
+diff --git a/src/cmd/vet/testdata/cgo2.go b/src/cmd/vet/testdata/cgo/cgo2.go
+similarity index 100%
+rename from src/cmd/vet/testdata/cgo2.go
+rename to src/cmd/vet/testdata/cgo/cgo2.go
+diff --git a/src/cmd/vet/testdata/testingpkg/tests.go b/src/cmd/vet/testdata/testingpkg/tests.go
+new file mode 100644
+index 0000000000..69d29d3c6c
+--- /dev/null
++++ b/src/cmd/vet/testdata/testingpkg/tests.go
+@@ -0,0 +1 @@
++package testdata
+diff --git a/src/cmd/vet/testdata/tests_test.go b/src/cmd/vet/testdata/testingpkg/tests_test.go
+similarity index 100%
+rename from src/cmd/vet/testdata/tests_test.go
+rename to src/cmd/vet/testdata/testingpkg/tests_test.go
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index b4b909e0e2..853088d768 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -40,19 +41,22 @@ func MustHavePerl(t *testing.T) {
+ }
+ 
+ var (
+-	built  = false // We have built the binary.
+-	failed = false // We have failed to build the binary, don't try again.
++	buildMu sync.Mutex // guards following
++	built   = false    // We have built the binary.
++	failed  = false    // We have failed to build the binary, don't try again.
+ )
+ 
+ func Build(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	MustHavePerl(t)
++	buildMu.Lock()
++	defer buildMu.Unlock()
+ 	if built {
+ 		return
+ 	}
+ 	if failed {
+ 		t.Skip("cannot run on this environment")
+ 	}
++	testenv.MustHaveGoBuild(t)
++	MustHavePerl(t)
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", binary)
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -83,69 +87,122 @@ func Vet(t *testing.T, files []string) {
+ // 	rm testvet
+ //
+ 
++// TestVet tests self-contained files in testdata/*.go.
++//
++// If a file contains assembly or has inter-dependencies, it should be
++// in its own test, like TestVetAsm, TestDivergentPackagesExamples,
++// etc below.
+ func TestVet(t *testing.T) {
+ 	Build(t)
++	t.Parallel()
+ 
+ 	// errchk ./testvet
+ 	gos, err := filepath.Glob(filepath.Join(dataDir, "*.go"))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	asms, err := filepath.Glob(filepath.Join(dataDir, "*.s"))
+-	if err != nil {
+-		t.Fatal(err)
++	wide := runtime.GOMAXPROCS(0)
++	if wide > len(gos) {
++		wide = len(gos)
++	}
++	batch := make([][]string, wide)
++	for i, file := range gos {
++		batch[i%wide] = append(batch[i%wide], file)
++	}
++	for i, files := range batch {
++		files := files
++		t.Run(fmt.Sprint(i), func(t *testing.T) {
++			t.Parallel()
++			t.Logf("files: %q", files)
++			Vet(t, files)
++		})
+ 	}
+-	files := append(gos, asms...)
+-	Vet(t, files)
+ }
+ 
+-func TestDivergentPackagesExamples(t *testing.T) {
++func TestVetAsm(t *testing.T) {
+ 	Build(t)
++
++	asmDir := filepath.Join(dataDir, "asm")
++	gos, err := filepath.Glob(filepath.Join(asmDir, "*.go"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	asms, err := filepath.Glob(filepath.Join(asmDir, "*.s"))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	t.Parallel()
+ 	// errchk ./testvet
+-	Vet(t, []string{"testdata/divergent"})
++	Vet(t, append(gos, asms...))
+ }
+ 
+-func TestIncompleteExamples(t *testing.T) {
++func TestVetDirs(t *testing.T) {
++	t.Parallel()
+ 	Build(t)
+-	// errchk ./testvet
+-	Vet(t, []string{"testdata/incomplete/examples_test.go"})
++	for _, dir := range []string{
++		"testingpkg",
++		"divergent",
++		"buildtag",
++		"incomplete", // incomplete examples
++	} {
++		dir := dir
++		t.Run(dir, func(t *testing.T) {
++			t.Parallel()
++			gos, err := filepath.Glob(filepath.Join("testdata", dir, "*.go"))
++			if err != nil {
++				t.Fatal(err)
++			}
++			Vet(t, gos)
++		})
++	}
+ }
+ 
+ func run(c *exec.Cmd, t *testing.T) bool {
+ 	output, err := c.CombinedOutput()
+-	os.Stderr.Write(output)
+ 	if err != nil {
++		t.Logf("vet output:\n%s", output)
+ 		t.Fatal(err)
+ 	}
+ 	// Errchk delights by not returning non-zero status if it finds errors, so we look at the output.
+ 	// It prints "BUG" if there is a failure.
+ 	if !c.ProcessState.Success() {
++		t.Logf("vet output:\n%s", output)
+ 		return false
+ 	}
+-	return !bytes.Contains(output, []byte("BUG"))
++	ok := !bytes.Contains(output, []byte("BUG"))
++	if !ok {
++		t.Logf("vet output:\n%s", output)
++	}
++	return ok
+ }
+ 
+ // TestTags verifies that the -tags argument controls which files to check.
+ func TestTags(t *testing.T) {
++	t.Parallel()
+ 	Build(t)
+ 	for _, tag := range []string{"testtag", "x testtag y", "x,testtag,y"} {
+-		t.Logf("-tags=%s", tag)
+-		args := []string{
+-			"-tags=" + tag,
+-			"-v", // We're going to look at the files it examines.
+-			"testdata/tagtest",
+-		}
+-		cmd := exec.Command("./"+binary, args...)
+-		output, err := cmd.CombinedOutput()
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		// file1 has testtag and file2 has !testtag.
+-		if !bytes.Contains(output, []byte(filepath.Join("tagtest", "file1.go"))) {
+-			t.Error("file1 was excluded, should be included")
+-		}
+-		if bytes.Contains(output, []byte(filepath.Join("tagtest", "file2.go"))) {
+-			t.Error("file2 was included, should be excluded")
+-		}
++		tag := tag
++		t.Run(tag, func(t *testing.T) {
++			t.Parallel()
++			t.Logf("-tags=%s", tag)
++			args := []string{
++				"-tags=" + tag,
++				"-v", // We're going to look at the files it examines.
++				"testdata/tagtest",
++			}
++			cmd := exec.Command("./"+binary, args...)
++			output, err := cmd.CombinedOutput()
++			if err != nil {
++				t.Fatal(err)
++			}
++			// file1 has testtag and file2 has !testtag.
++			if !bytes.Contains(output, []byte(filepath.Join("tagtest", "file1.go"))) {
++				t.Error("file1 was excluded, should be included")
++			}
++			if bytes.Contains(output, []byte(filepath.Join("tagtest", "file2.go"))) {
++				t.Error("file2 was included, should be excluded")
++			}
++		})
+ 	}
+ }

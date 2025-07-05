@@ -9,8 +9,110 @@ Date:   Mon Sep 12 15:52:29 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4978064
-
+---
  src/cmd/gc/go.errors |  3 +++
  src/cmd/gc/go.y      | 38 ++++++++++++++++++++++----------------
  test/syntax/else.go  | 12 ++++++++++++
  3 files changed, 37 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/gc/go.errors b/src/cmd/gc/go.errors
+index b5af4678c9..e29cfff5bd 100644
+--- a/src/cmd/gc/go.errors
++++ b/src/cmd/gc/go.errors
+@@ -67,4 +67,7 @@ static struct {
+ 	
+ 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFUNC LNAME
+ 	"nested func not allowed",
++
++	% loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header loop_body LELSE ';'
++	"else must be followed by if or statement block"
+ };
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index a5e92bd4d4..0c007f5f0b 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -57,7 +57,7 @@ static void fixlbrace(int);
+ %type	<node>	compound_stmt dotname embed expr complitexpr
+ %type	<node>	expr_or_type
+ %type	<node>	fndcl fnliteral
+-%type	<node>	for_body for_header for_stmt if_header if_stmt non_dcl_stmt
++%type	<node>	for_body for_header for_stmt if_header if_stmt else non_dcl_stmt
+ %type	<node>	interfacedcl keyval labelname name
+ %type	<node>	name_or_type non_expr_type
+ %type	<node>	new_name dcl_name oexpr typedclname
+@@ -640,6 +640,7 @@ if_header:
+ 		$$->ntest = $3;
+ 	}
+ 
++/* IF cond body (ELSE IF cond body)* (ELSE block)? */
+ if_stmt:
+ 	LIF
+ 	{
+@@ -652,9 +653,27 @@ if_stmt:
+ 	}
+ 	loop_body
+ 	{
++		$3->nbody = $5;
++	}
++	else
++	{
++		popdcl();
+ 		$$ = $3;
+-		$$->nbody = $5;
+-		// no popdcl; maybe there's an LELSE
++		if($7 != N)
++			$$->nelse = list1($7);
++	}
++
++else:
++	{
++		$$ = N;
++	}
++|	LELSE if_stmt
++	{
++		$$ = $2;
++	}
++|	LELSE compound_stmt
++	{
++		$$ = $2;
+ 	}
+ 
+ switch_stmt:
+@@ -1474,19 +1493,6 @@ non_dcl_stmt:
+ |	switch_stmt
+ |	select_stmt
+ |	if_stmt
+-	{
+-		popdcl();
+-		$$ = $1;
+-	}
+-|	if_stmt LELSE stmt
+-	{
+-		if($3->op != OIF && $3->op != OBLOCK)
+-			yyerror("missing { } after else");
+-
+-		popdcl();
+-		$$ = $1;
+-		$$->nelse = list1($3);
+-	}
+ |	labelname ':'
+ 	{
+ 		$1 = nod(OLABEL, $1, N);
+diff --git a/test/syntax/else.go b/test/syntax/else.go
+new file mode 100644
+index 0000000000..186d5959a8
+--- /dev/null
++++ b/test/syntax/else.go
+@@ -0,0 +1,12 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	if true {
++	} else ;  // ERROR "else must be followed by if or statement block"
++}

@@ -18,6 +18,20 @@ Date:   Mon Oct 17 09:29:05 2022 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Peter Weinberger <pjw@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/internal/fuzz/fuzz.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index f3f0d95469..d0eb92dd9f 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -1032,7 +1032,7 @@ func CheckCorpus(vals []any, types []reflect.Type) error {
+ // writeToCorpus will not rewrite it. writeToCorpus sets entry.Path to the new
+ // file that was just written or an error if it failed.
+ func writeToCorpus(entry *CorpusEntry, dir string) (err error) {
+-	sum := fmt.Sprintf("%x", sha256.Sum256(entry.Data))
++	sum := fmt.Sprintf("%x", sha256.Sum256(entry.Data))[:16]
+ 	entry.Path = filepath.Join(dir, sum)
+ 	if err := os.MkdirAll(dir, 0777); err != nil {
+ 		return err

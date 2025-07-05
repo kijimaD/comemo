@@ -16,10 +16,1373 @@ Date:   Fri Feb 10 13:17:20 2017 -0600
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |  13 +
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  31 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  20 +
  src/cmd/compile/internal/ssa/opGen.go        | 298 ++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 798 +++++++++++++++++++++++++++
  5 files changed, 1160 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 4a95d02960..d930d433d1 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -645,6 +645,19 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		// Break false dependency on destination register.
+ 		opregreg(x86.AXORPS, r, r)
+ 		opregreg(v.Op.Asm(), r, v.Args[0].Reg())
++	case ssa.OpAMD64ADDQmem, ssa.OpAMD64ADDLmem, ssa.OpAMD64SUBQmem, ssa.OpAMD64SUBLmem,
++		ssa.OpAMD64ANDQmem, ssa.OpAMD64ANDLmem, ssa.OpAMD64ORQmem, ssa.OpAMD64ORLmem,
++		ssa.OpAMD64XORQmem, ssa.OpAMD64XORLmem, ssa.OpAMD64ADDSDmem, ssa.OpAMD64ADDSSmem,
++		ssa.OpAMD64SUBSDmem, ssa.OpAMD64SUBSSmem, ssa.OpAMD64MULSDmem, ssa.OpAMD64MULSSmem:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[1].Reg()
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++		if v.Reg() != v.Args[0].Reg() {
++			v.Fatalf("input[0] and output not in same register %s", v.LongString())
++		}
+ 	case ssa.OpAMD64DUFFZERO:
+ 		off := duffStart(v.AuxInt)
+ 		adj := duffAdj(v.AuxInt)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index b996dca421..a480b3e7bc 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1981,6 +1981,37 @@
+ (MOVBstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+ 	(MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+ 
++// Merge load and op
++// TODO: add indexed variants?
++(ADDQ x l:(MOVQload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ADDQmem <l.Type> x [off] {sym} ptr mem)
++(ADDQ l:(MOVQload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ADDQmem <l.Type> x [off] {sym} ptr mem)
++(ADDL x l:(MOVLload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ADDLmem <l.Type> x [off] {sym} ptr mem)
++(ADDL l:(MOVLload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ADDLmem <l.Type> x [off] {sym} ptr mem)
++(SUBQ x l:(MOVQload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (SUBQmem <l.Type> x [off] {sym} ptr mem)
++(SUBL x l:(MOVLload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (SUBLmem <l.Type> x [off] {sym} ptr mem)
++(ANDQ x l:(MOVQload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ANDQmem <l.Type> x [off] {sym} ptr mem)
++(ANDQ l:(MOVQload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ANDQmem <l.Type> x [off] {sym} ptr mem)
++(ANDL x l:(MOVLload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ANDLmem <l.Type> x [off] {sym} ptr mem)
++(ANDL l:(MOVLload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ANDLmem <l.Type> x [off] {sym} ptr mem)
++(ORQ x l:(MOVQload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ORQmem <l.Type> x [off] {sym} ptr mem)
++(ORQ l:(MOVQload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ORQmem <l.Type> x [off] {sym} ptr mem)
++(ORL x l:(MOVLload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ORLmem <l.Type> x [off] {sym} ptr mem)
++(ORL l:(MOVLload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ORLmem <l.Type> x [off] {sym} ptr mem)
++(XORQ x l:(MOVQload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (XORQmem <l.Type> x [off] {sym} ptr mem)
++(XORQ l:(MOVQload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (XORQmem <l.Type> x [off] {sym} ptr mem)
++(XORL x l:(MOVLload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (XORLmem <l.Type> x [off] {sym} ptr mem)
++(XORL l:(MOVLload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (XORLmem <l.Type> x [off] {sym} ptr mem)
++(ADDSD x l:(MOVSDload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ADDSDmem <l.Type> x [off] {sym} ptr mem)
++(ADDSD l:(MOVSDload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ADDSDmem <l.Type> x [off] {sym} ptr mem)
++(ADDSS x l:(MOVSSload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ADDSSmem <l.Type> x [off] {sym} ptr mem)
++(ADDSS l:(MOVSSload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (ADDSSmem <l.Type> x [off] {sym} ptr mem)
++(SUBSD x l:(MOVSDload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (SUBSDmem <l.Type> x [off] {sym} ptr mem)
++(SUBSS x l:(MOVSSload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (SUBSSmem <l.Type> x [off] {sym} ptr mem)
++(MULSD x l:(MOVSDload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (MULSDmem <l.Type> x [off] {sym} ptr mem)
++(MULSD l:(MOVSDload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (MULSDmem <l.Type> x [off] {sym} ptr mem)
++(MULSS x l:(MOVSSload [off] {sym} ptr mem)) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (MULSSmem <l.Type> x [off] {sym} ptr mem)
++(MULSS l:(MOVSSload [off] {sym} ptr mem) x) && l.Uses == 1 && canMergeLoad(v, l) && clobber(l) -> @l.Block (MULSSmem <l.Type> x [off] {sym} ptr mem)
++
+ // Merge ADDQconst and LEAQ into atomic loads.
+ (MOVQatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+ 	(MOVQatomicload [off1+off2] {sym} ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 69f3f76955..32758b7bf7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -127,6 +127,7 @@ func init() {
+ 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
+ 
+ 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
++		gp21load  = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: gponly}
+ 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
+ 
+ 		gpstore         = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+@@ -138,6 +139,7 @@ func init() {
+ 
+ 		fp01     = regInfo{inputs: nil, outputs: fponly}
+ 		fp21     = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
++		fp21load = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
+ 		fpgp     = regInfo{inputs: fponly, outputs: gponly}
+ 		gpfp     = regInfo{inputs: gponly, outputs: fponly}
+ 		fp11     = regInfo{inputs: fponly, outputs: fponly}
+@@ -177,6 +179,13 @@ func init() {
+ 		{name: "MOVSDstoreidx1", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"},                // fp64 indexed by i store
+ 		{name: "MOVSDstoreidx8", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"},                // fp64 indexed by 8i store
+ 
++		{name: "ADDSDmem", argLength: 3, reg: fp21load, asm: "ADDSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true}, // fp32 arg0 + tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
++		{name: "ADDSSmem", argLength: 3, reg: fp21load, asm: "ADDSS", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true}, // fp32 arg0 + tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
++		{name: "SUBSSmem", argLength: 3, reg: fp21load, asm: "SUBSS", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true}, // fp32 arg0 - tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
++		{name: "SUBSDmem", argLength: 3, reg: fp21load, asm: "SUBSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true}, // fp64 arg0 - tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
++		{name: "MULSSmem", argLength: 3, reg: fp21load, asm: "MULSS", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true}, // fp32 arg0 * tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
++		{name: "MULSDmem", argLength: 3, reg: fp21load, asm: "MULSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true}, // fp64 arg0 * tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
++
+ 		// binary ops
+ 		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true, clobberFlags: true},                // arg0 + arg1
+ 		{name: "ADDL", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true, clobberFlags: true},                // arg0 + arg1
+@@ -279,6 +288,17 @@ func init() {
+ 		{name: "ROLWconst", argLength: 1, reg: gp11, asm: "ROLW", aux: "Int16", resultInArg0: true, clobberFlags: true}, // arg0 rotate left auxint, rotate amount 0-15
+ 		{name: "ROLBconst", argLength: 1, reg: gp11, asm: "ROLB", aux: "Int8", resultInArg0: true, clobberFlags: true},  // arg0 rotate left auxint, rotate amount 0-7
+ 
++		{name: "ADDLmem", argLength: 3, reg: gp21load, asm: "ADDL", typ: "UInt32", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true}, // arg0 + tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++		{name: "ADDQmem", argLength: 3, reg: gp21load, asm: "ADDQ", typ: "UInt64", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true}, // arg0 + tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++		{name: "SUBQmem", argLength: 3, reg: gp21load, asm: "SUBQ", typ: "UInt64", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true}, // arg0 - tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++		{name: "SUBLmem", argLength: 3, reg: gp21load, asm: "SUBL", typ: "UInt32", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true}, // arg0 - tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++		{name: "ANDLmem", argLength: 3, reg: gp21load, asm: "ANDL", typ: "UInt32", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true}, // arg0 & tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++		{name: "ANDQmem", argLength: 3, reg: gp21load, asm: "ANDQ", typ: "UInt64", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true}, // arg0 & tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++		{name: "ORQmem", argLength: 3, reg: gp21load, asm: "ORQ", typ: "UInt64", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true},   // arg0 | tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++		{name: "ORLmem", argLength: 3, reg: gp21load, asm: "ORL", typ: "UInt32", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true},   // arg0 | tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++		{name: "XORQmem", argLength: 3, reg: gp21load, asm: "XORQ", typ: "UInt64", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true}, // arg0 ^ tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++		{name: "XORLmem", argLength: 3, reg: gp21load, asm: "XORL", typ: "UInt32", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true}, // arg0 ^ tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
++
+ 		// unary ops
+ 		{name: "NEGQ", argLength: 1, reg: gp11, asm: "NEGQ", resultInArg0: true, clobberFlags: true}, // -arg0
+ 		{name: "NEGL", argLength: 1, reg: gp11, asm: "NEGL", resultInArg0: true, clobberFlags: true}, // -arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 0105c37cd5..e2eb376303 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -434,6 +434,12 @@ const (
+ 	OpAMD64MOVSSstoreidx4
+ 	OpAMD64MOVSDstoreidx1
+ 	OpAMD64MOVSDstoreidx8
++	OpAMD64ADDSDmem
++	OpAMD64ADDSSmem
++	OpAMD64SUBSSmem
++	OpAMD64SUBSDmem
++	OpAMD64MULSSmem
++	OpAMD64MULSDmem
+ 	OpAMD64ADDQ
+ 	OpAMD64ADDL
+ 	OpAMD64ADDQconst
+@@ -517,6 +523,16 @@ const (
+ 	OpAMD64ROLLconst
+ 	OpAMD64ROLWconst
+ 	OpAMD64ROLBconst
++	OpAMD64ADDLmem
++	OpAMD64ADDQmem
++	OpAMD64SUBQmem
++	OpAMD64SUBLmem
++	OpAMD64ANDLmem
++	OpAMD64ANDQmem
++	OpAMD64ORQmem
++	OpAMD64ORLmem
++	OpAMD64XORQmem
++	OpAMD64XORLmem
+ 	OpAMD64NEGQ
+ 	OpAMD64NEGL
+ 	OpAMD64NOTQ
+@@ -4651,6 +4667,108 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "ADDSDmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AADDSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:           "ADDSSmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AADDSS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:           "SUBSSmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		asm:            x86.ASUBSS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:           "SUBSDmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		asm:            x86.ASUBSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:           "MULSSmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AMULSS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:           "MULSDmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AMULSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
+ 	{
+ 		name:         "ADDQ",
+ 		argLen:       2,
+@@ -5896,6 +6014,186 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "ADDLmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AADDL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:           "ADDQmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AADDQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:           "SUBQmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.ASUBQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:           "SUBLmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.ASUBL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:           "ANDLmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AANDL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:           "ANDQmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AANDQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:           "ORQmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AORQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:           "ORLmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AORL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:           "XORQmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AXORQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:           "XORLmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		resultInArg0:   true,
++		clobberFlags:   true,
++		faultOnNilArg1: true,
++		asm:            x86.AXORL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:         "NEGQ",
+ 		argLen:       1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5ade11d211..2668a16867 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -16,6 +16,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64ADDQ(v, config)
+ 	case OpAMD64ADDQconst:
+ 		return rewriteValueAMD64_OpAMD64ADDQconst(v, config)
++	case OpAMD64ADDSD:
++		return rewriteValueAMD64_OpAMD64ADDSD(v, config)
++	case OpAMD64ADDSS:
++		return rewriteValueAMD64_OpAMD64ADDSS(v, config)
+ 	case OpAMD64ANDL:
+ 		return rewriteValueAMD64_OpAMD64ANDL(v, config)
+ 	case OpAMD64ANDLconst:
+@@ -180,6 +184,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64MULQ(v, config)
+ 	case OpAMD64MULQconst:
+ 		return rewriteValueAMD64_OpAMD64MULQconst(v, config)
++	case OpAMD64MULSD:
++		return rewriteValueAMD64_OpAMD64MULSD(v, config)
++	case OpAMD64MULSS:
++		return rewriteValueAMD64_OpAMD64MULSS(v, config)
+ 	case OpAMD64NEGL:
+ 		return rewriteValueAMD64_OpAMD64NEGL(v, config)
+ 	case OpAMD64NEGQ:
+@@ -276,6 +284,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64SUBQ(v, config)
+ 	case OpAMD64SUBQconst:
+ 		return rewriteValueAMD64_OpAMD64SUBQconst(v, config)
++	case OpAMD64SUBSD:
++		return rewriteValueAMD64_OpAMD64SUBSD(v, config)
++	case OpAMD64SUBSS:
++		return rewriteValueAMD64_OpAMD64SUBSS(v, config)
+ 	case OpAMD64XADDLlock:
+ 		return rewriteValueAMD64_OpAMD64XADDLlock(v, config)
+ 	case OpAMD64XADDQlock:
+@@ -1019,6 +1031,60 @@ func rewriteValueAMD64_OpAMD64ADDL(v *Value, config *Config) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (ADDL x l:(MOVLload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ADDLmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ADDLmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (ADDL l:(MOVLload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ADDLmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ADDLmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDLconst(v *Value, config *Config) bool {
+@@ -1381,6 +1447,60 @@ func rewriteValueAMD64_OpAMD64ADDQ(v *Value, config *Config) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (ADDQ x l:(MOVQload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ADDQmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ADDQmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (ADDQ l:(MOVQload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ADDQmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ADDQmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDQconst(v *Value, config *Config) bool {
+@@ -1564,6 +1684,124 @@ func rewriteValueAMD64_OpAMD64ADDQconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64ADDSD(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ADDSD x l:(MOVSDload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ADDSDmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVSDload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ADDSDmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (ADDSD l:(MOVSDload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ADDSDmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVSDload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ADDSDmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64ADDSS(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ADDSS x l:(MOVSSload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ADDSSmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVSSload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ADDSSmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (ADDSS l:(MOVSSload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ADDSSmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVSSload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ADDSSmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64ANDL(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1610,6 +1848,60 @@ func rewriteValueAMD64_OpAMD64ANDL(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ANDL x l:(MOVLload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ANDLmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ANDLmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (ANDL l:(MOVLload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ANDLmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ANDLmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ANDLconst(v *Value, config *Config) bool {
+@@ -1749,6 +2041,60 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ANDQ x l:(MOVQload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ANDQmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ANDQmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (ANDQ l:(MOVQload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ANDQmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ANDQmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ANDQconst(v *Value, config *Config) bool {
+@@ -11403,6 +11749,124 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64MULSD(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MULSD x l:(MOVSDload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (MULSDmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVSDload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64MULSDmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MULSD l:(MOVSDload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (MULSDmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVSDload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64MULSDmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64MULSS(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MULSS x l:(MOVSSload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (MULSSmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVSSload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64MULSSmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MULSS l:(MOVSSload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (MULSSmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVSSload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64MULSSmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64NEGL(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -12246,6 +12710,60 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		v0.AddArg(v1)
+ 		return true
+ 	}
++	// match: (ORL x l:(MOVLload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ORLmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ORLmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (ORL l:(MOVLload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ORLmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ORLmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ORLconst(v *Value, config *Config) bool {
+@@ -13302,6 +13820,60 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value, config *Config) bool {
+ 		v0.AddArg(v1)
+ 		return true
+ 	}
++	// match: (ORQ x l:(MOVQload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ORQmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ORQmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (ORQ l:(MOVQload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (ORQmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64ORQmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ORQconst(v *Value, config *Config) bool {
+@@ -15210,6 +15782,33 @@ func rewriteValueAMD64_OpAMD64SUBL(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (SUBL x l:(MOVLload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (SUBLmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64SUBLmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64SUBLconst(v *Value, config *Config) bool {
+@@ -15294,6 +15893,33 @@ func rewriteValueAMD64_OpAMD64SUBQ(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (SUBQ x l:(MOVQload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (SUBQmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64SUBQmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64SUBQconst(v *Value, config *Config) bool {
+@@ -15361,6 +15987,70 @@ func rewriteValueAMD64_OpAMD64SUBQconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64SUBSD(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SUBSD x l:(MOVSDload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (SUBSDmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVSDload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64SUBSDmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64SUBSS(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SUBSS x l:(MOVSSload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (SUBSSmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVSSload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64SUBSSmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64XADDLlock(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -15744,6 +16434,60 @@ func rewriteValueAMD64_OpAMD64XORL(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (XORL x l:(MOVLload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (XORLmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64XORLmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (XORL l:(MOVLload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (XORLmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64XORLmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64XORLconst(v *Value, config *Config) bool {
+@@ -15896,6 +16640,60 @@ func rewriteValueAMD64_OpAMD64XORQ(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (XORQ x l:(MOVQload [off] {sym} ptr mem))
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (XORQmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64XORQmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (XORQ l:(MOVQload [off] {sym} ptr mem) x)
++	// cond: l.Uses == 1 && canMergeLoad(v, l) && clobber(l)
++	// result: @l.Block (XORQmem <l.Type> x [off] {sym} ptr mem)
++	for {
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(l.Uses == 1 && canMergeLoad(v, l) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64XORQmem, l.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(x)
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64XORQconst(v *Value, config *Config) bool {

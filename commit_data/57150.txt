@@ -16,7 +16,34 @@ Date:   Wed Jun 14 12:16:38 2023 +1000
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-
+---
  src/runtime/internal/wasitest/nonblock_test.go | 2 --
  src/runtime/internal/wasitest/tcpecho_test.go  | 2 ++
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/internal/wasitest/nonblock_test.go b/src/runtime/internal/wasitest/nonblock_test.go
+index 8fb2860e4b..3072b96ed8 100644
+--- a/src/runtime/internal/wasitest/nonblock_test.go
++++ b/src/runtime/internal/wasitest/nonblock_test.go
+@@ -37,8 +37,6 @@ func TestNonblock(t *testing.T) {
+ 	}
+ 
+ 	switch os.Getenv("GOWASIRUNTIME") {
+-	case "wazero", "":
+-		t.Skip("wazero does not support non-blocking I/O")
+ 	case "wasmer":
+ 		t.Skip("wasmer does not support non-blocking I/O")
+ 	}
+diff --git a/src/runtime/internal/wasitest/tcpecho_test.go b/src/runtime/internal/wasitest/tcpecho_test.go
+index 506e6fe40a..c56af2cc85 100644
+--- a/src/runtime/internal/wasitest/tcpecho_test.go
++++ b/src/runtime/internal/wasitest/tcpecho_test.go
+@@ -44,6 +44,8 @@ func TestTCPEcho(t *testing.T) {
+ 	subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
+ 
+ 	switch os.Getenv("GOWASIRUNTIME") {
++	case "wazero", "":
++		subProcess.Env = append(subProcess.Env, "GOWASIRUNTIMEARGS=--listen="+host)
+ 	case "wasmtime":
+ 		subProcess.Env = append(subProcess.Env, "GOWASIRUNTIMEARGS=--tcplisten="+host)
+ 	default:

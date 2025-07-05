@@ -8,7 +8,71 @@ Date:   Mon Jan 4 10:34:37 2010 -0800
     R=gri
     CC=golang-dev, rsc
     https://golang.org/cl/183112
-
+---
  src/pkg/go/ast/ast.go  |  9 +++++++--
  src/pkg/go/ast/walk.go | 11 +++++++----
  2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 16a0c66a10..49b92fe289 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -357,7 +357,12 @@ func IsExported(name string) bool {
+ // (i.e., whether it begins with an uppercase letter).
+ func (name *Ident) IsExported() bool { return IsExported(name.Value) }
+ 
+-func (name *Ident) String() string { return name.Value }
++func (name *Ident) String() string {
++	if name != nil {
++		return name.Value
++	}
++	return "<nil>"
++}
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -598,7 +603,7 @@ type (
+ 	TypeSpec struct {
+ 		Doc     *CommentGroup // associated documentation; or nil
+ 		Name    *Ident        // type name
+-		Type    Expr
++		Type    Expr          // *ArrayType, *StructType, *FuncType, *InterfaceType, *MapType, *ChanType or *Ident
+ 		Comment *CommentGroup // line comments; or nil
+ 	}
+ )
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index 104596623c..33a2d32940 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -41,7 +41,7 @@ func walkBlockStmt(v Visitor, b *BlockStmt) {
+ // followed by a call of w.Visit(nil).
+ //
+ // Walk may be called with any of the named ast node types. It also
+-// accepts arguments of type []*Field, []*Ident, []Expr and []Stmt;
++// accepts arguments of type []*Field, []*Ident, []Expr, []Stmt and []Decl;
+ // the respective children are the slice elements.
+ //
+ func Walk(v Visitor, node interface{}) {
+@@ -291,9 +291,7 @@ func Walk(v Visitor, node interface{}) {
+ 	case *File:
+ 		walkCommentGroup(v, n.Doc)
+ 		walkIdent(v, n.Name)
+-		for _, d := range n.Decls {
+-			Walk(v, d)
+-		}
++		Walk(v, n.Decls)
+ 		walkCommentGroup(v, n.Comments)
+ 
+ 	case *Package:
+@@ -321,6 +319,11 @@ func Walk(v Visitor, node interface{}) {
+ 			Walk(v, x)
+ 		}
+ 
++	case []Decl:
++		for _, x := range n {
++			Walk(v, x)
++		}
++
+ 	default:
+ 		fmt.Printf("ast.Walk: unexpected type %T", n)
+ 		panic()

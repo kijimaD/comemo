@@ -32,6 +32,26 @@ Date:   Fri Sep 18 12:30:10 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/hash/maphash/maphash.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index 071dc04b54..ecc147d599 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -6,12 +6,11 @@
+ // These hash functions are intended to be used to implement hash tables or
+ // other data structures that need to map arbitrary strings or byte
+ // sequences to a uniform distribution on unsigned 64-bit integers.
++// Each different instance of a hash table or data structure should use its own Seed.
+ //
+-// The hash functions are collision-resistant but not cryptographically secure.
++// The hash functions are not cryptographically secure.
+ // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
+ //
+-// The hash value of a given byte sequence is consistent within a
+-// single process, but will be different in different processes.
+ package maphash
+ 
+ import "unsafe"

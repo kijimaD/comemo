@@ -44,6 +44,32 @@ Date:   Thu Apr 28 15:01:41 2016 -0700
     Change-Id: Iedee04f39328974c7fa272a6113d423e7ffce50f
     Reviewed-on: https://go-review.googlesource.com/22585
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/writer_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 01b63f2358..86841c755f 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -184,7 +184,7 @@ func BenchmarkCompressedZipGarbage(b *testing.B) {
+ 	b.ReportAllocs()
+ 	var buf bytes.Buffer
+ 	bigBuf := bytes.Repeat([]byte("a"), 1<<20)
+-	for i := 0; i < b.N; i++ {
++	for i := 0; i <= b.N; i++ {
+ 		buf.Reset()
+ 		zw := NewWriter(&buf)
+ 		for j := 0; j < 3; j++ {
+@@ -195,5 +195,11 @@ func BenchmarkCompressedZipGarbage(b *testing.B) {
+ 			w.Write(bigBuf)
+ 		}
+ 		zw.Close()
++		if i == 0 {
++			// Reset the timer after the first time through.
++			// This effectively discards the very large initial flate setup cost,
++			// as well as the initialization of bigBuf.
++			b.ResetTimer()
++		}
+ 	}
+ }

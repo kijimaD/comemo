@@ -16,8 +16,138 @@ Date:   Fri Oct 21 14:28:46 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/work/buildid.go                | 43 ++++++++++++----------
  src/cmd/go/internal/work/exec.go                   |  6 +--
  .../go/testdata/script/list_compiler_output.txt    | 16 ++++++++
  3 files changed, 43 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 72e0885922..e79eb4c66a 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -397,7 +397,7 @@ func (b *Builder) fileHash(file string) string {
+ // during a's work. The caller should defer b.flushOutput(a), to make sure
+ // that flushOutput is eventually called regardless of whether the action
+ // succeeds. The flushOutput call must happen after updateBuildID.
+-func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) bool {
++func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, printOutput bool) bool {
+ 	// The second half of the build ID here is a placeholder for the content hash.
+ 	// It's important that the overall buildID be unlikely verging on impossible
+ 	// to appear in the output by chance, but that should be taken care of by
+@@ -462,9 +462,11 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string)
+ 					// Best effort attempt to display output from the compile and link steps.
+ 					// If it doesn't work, it doesn't work: reusing the cached binary is more
+ 					// important than reprinting diagnostic information.
+-					if c := cache.Default(); c != nil {
+-						showStdout(b, c, a.actionID, "stdout")      // compile output
+-						showStdout(b, c, a.actionID, "link-stdout") // link output
++					if printOutput {
++						if c := cache.Default(); c != nil {
++							showStdout(b, c, a.actionID, "stdout")      // compile output
++							showStdout(b, c, a.actionID, "link-stdout") // link output
++						}
+ 					}
+ 
+ 					// Poison a.Target to catch uses later in the build.
+@@ -490,9 +492,11 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string)
+ 		// Best effort attempt to display output from the compile and link steps.
+ 		// If it doesn't work, it doesn't work: reusing the test result is more
+ 		// important than reprinting diagnostic information.
+-		if c := cache.Default(); c != nil {
+-			showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
+-			showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
++		if printOutput {
++			if c := cache.Default(); c != nil {
++				showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
++				showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
++			}
+ 		}
+ 
+ 		// Poison a.Target to catch uses later in the build.
+@@ -536,19 +540,20 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string)
+ 		if !cfg.BuildA {
+ 			if file, _, err := c.GetFile(actionHash); err == nil {
+ 				if buildID, err := buildid.ReadFile(file); err == nil {
+-					if err := showStdout(b, c, a.actionID, "stdout"); err == nil {
+-						a.built = file
+-						a.Target = "DO NOT USE - using cache"
+-						a.buildID = buildID
+-						if a.json != nil {
+-							a.json.BuildID = a.buildID
+-						}
+-						if p := a.Package; p != nil {
+-							// Clearer than explaining that something else is stale.
+-							p.StaleReason = "not installed but available in build cache"
+-						}
+-						return true
++					if printOutput {
++						showStdout(b, c, a.actionID, "stdout")
+ 					}
++					a.built = file
++					a.Target = "DO NOT USE - using cache"
++					a.buildID = buildID
++					if a.json != nil {
++						a.json.BuildID = a.buildID
++					}
++					if p := a.Package; p != nil {
++						// Clearer than explaining that something else is stale.
++						p.StaleReason = "not installed but available in build cache"
++					}
++					return true
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 9e5b1eaca9..fb1a9bbc14 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -479,7 +479,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
+ 
+ 	if !p.BinaryOnly {
+-		if b.useCache(a, b.buildActionID(a), p.Target) {
++		if b.useCache(a, b.buildActionID(a), p.Target, need&needBuild != 0) {
+ 			// We found the main output in the cache.
+ 			// If we don't need any other outputs, we can stop.
+ 			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
+@@ -1384,7 +1384,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ // link is the action for linking a single command.
+ // Note that any new influence on this logic must be reported in b.linkActionID above as well.
+ func (b *Builder) link(ctx context.Context, a *Action) (err error) {
+-	if b.useCache(a, b.linkActionID(a), a.Package.Target) || b.IsCmdList {
++	if b.useCache(a, b.linkActionID(a), a.Package.Target, !b.IsCmdList) || b.IsCmdList {
+ 		return nil
+ 	}
+ 	defer b.flushOutput(a)
+@@ -1626,7 +1626,7 @@ func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
+ }
+ 
+ func (b *Builder) linkShared(ctx context.Context, a *Action) (err error) {
+-	if b.useCache(a, b.linkSharedActionID(a), a.Target) || b.IsCmdList {
++	if b.useCache(a, b.linkSharedActionID(a), a.Target, !b.IsCmdList) || b.IsCmdList {
+ 		return nil
+ 	}
+ 	defer b.flushOutput(a)
+diff --git a/src/cmd/go/testdata/script/list_compiler_output.txt b/src/cmd/go/testdata/script/list_compiler_output.txt
+new file mode 100644
+index 0000000000..5230bab3fa
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_compiler_output.txt
+@@ -0,0 +1,16 @@
++[short] skip
++
++go install -gcflags=-m .
++stderr 'can inline main'
++go list -gcflags=-m -f '{{.Stale}}' .
++stdout 'false'
++! stderr 'can inline main'
++
++-- go.mod --
++module example.com/foo
++
++go 1.20
++-- main.go --
++package main
++
++func main() {}

@@ -23,9 +23,184 @@ Date:   Mon Oct 16 13:48:06 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go              | 21 --------
  src/cmd/asm/internal/asm/testdata/arm.s      | 72 ++++++++++++----------------
  src/cmd/asm/internal/asm/testdata/armerror.s |  9 ++++
  src/cmd/internal/obj/arm/asm5.go             |  9 ++++
  4 files changed, 48 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index b5e4bddb96..bf3545b32f 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -507,27 +507,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				break
+ 			}
+ 			// Strange special cases.
+-			if arch.IsARMSTREX(op) {
+-				/*
+-					STREX x, (y)
+-						from=(y) reg=x to=x
+-					STREX (x), y
+-						from=(x) reg=y to=y
+-				*/
+-				if a[0].Type == obj.TYPE_REG && a[1].Type != obj.TYPE_REG {
+-					prog.From = a[1]
+-					prog.Reg = a[0].Reg
+-					prog.To = a[0]
+-					break
+-				} else if a[0].Type != obj.TYPE_REG && a[1].Type == obj.TYPE_REG {
+-					prog.From = a[0]
+-					prog.Reg = a[1].Reg
+-					prog.To = a[1]
+-					break
+-				}
+-				p.errorf("unrecognized addressing for %s", op)
+-				return
+-			}
+ 			if arch.IsARMFloatCmp(op) {
+ 				prog.From = a[0]
+ 				prog.Reg = p.getRegister(prog, op, &a[1])
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 61c2d409a9..13fde44504 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -156,18 +156,6 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ //	}
+ 	STREX	R1, (R2), R3 // STREX (R2), R1, R3
+ 
+-//	LTYPE9 cond reg ',' ireg
+-//	{
+-//		outcode($1, $2, &$5, int32($3.Reg), &$3);
+-//	}
+-	STREX	R1, (R2) // STREX (R2), R1, R1
+-
+-//	LTYPE9 cond comma ireg ',' reg
+-//	{
+-//		outcode($1, $2, &$4, int32($6.Reg), &$6);
+-//	}
+-	STREX	(R2), R3 // STREX (R2), R3, R3
+-
+ //
+ // word
+ //
+@@ -771,21 +759,21 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ 	B	jmp_label_0 // JMP     // ffffffea
+ jmp_label_0:
+ 	ADD	$0, R0, R0
+-	BEQ	jmp_label_0 // BEQ 521 // fdffff0a
+-	BNE	jmp_label_0 // BNE 521 // fcffff1a
+-	BCS	jmp_label_0 // BCS 521 // fbffff2a
+-	BCC	jmp_label_0 // BCC 521 // faffff3a
+-	BMI	jmp_label_0 // BMI 521 // f9ffff4a
+-	BPL	jmp_label_0 // BPL 521 // f8ffff5a
+-	BVS	jmp_label_0 // BVS 521 // f7ffff6a
+-	BVC	jmp_label_0 // BVC 521 // f6ffff7a
+-	BHI	jmp_label_0 // BHI 521 // f5ffff8a
+-	BLS	jmp_label_0 // BLS 521 // f4ffff9a
+-	BGE	jmp_label_0 // BGE 521 // f3ffffaa
+-	BLT	jmp_label_0 // BLT 521 // f2ffffba
+-	BGT	jmp_label_0 // BGT 521 // f1ffffca
+-	BLE	jmp_label_0 // BLE 521 // f0ffffda
+-	B	jmp_label_0 // JMP 521 // efffffea
++	BEQ	jmp_label_0 // BEQ 519 // fdffff0a
++	BNE	jmp_label_0 // BNE 519 // fcffff1a
++	BCS	jmp_label_0 // BCS 519 // fbffff2a
++	BCC	jmp_label_0 // BCC 519 // faffff3a
++	BMI	jmp_label_0 // BMI 519 // f9ffff4a
++	BPL	jmp_label_0 // BPL 519 // f8ffff5a
++	BVS	jmp_label_0 // BVS 519 // f7ffff6a
++	BVC	jmp_label_0 // BVC 519 // f6ffff7a
++	BHI	jmp_label_0 // BHI 519 // f5ffff8a
++	BLS	jmp_label_0 // BLS 519 // f4ffff9a
++	BGE	jmp_label_0 // BGE 519 // f3ffffaa
++	BLT	jmp_label_0 // BLT 519 // f2ffffba
++	BGT	jmp_label_0 // BGT 519 // f1ffffca
++	BLE	jmp_label_0 // BLE 519 // f0ffffda
++	B	jmp_label_0 // JMP 519 // efffffea
+ 	B	0(PC)    // JMP 0(PC)  // feffffea
+ jmp_label_1:
+ 	B	jmp_label_1 // JMP     // feffffea
+@@ -816,21 +804,21 @@ jmp_label_1:
+ 	BL	jmp_label_2 // CALL        // ffffffeb
+ jmp_label_2:
+ 	ADD	$0, R0, R0
+-	BL.EQ	jmp_label_2 // CALL.EQ 562 // fdffff0b
+-	BL.NE	jmp_label_2 // CALL.NE 562 // fcffff1b
+-	BL.CS	jmp_label_2 // CALL.CS 562 // fbffff2b
+-	BL.CC	jmp_label_2 // CALL.CC 562 // faffff3b
+-	BL.MI	jmp_label_2 // CALL.MI 562 // f9ffff4b
+-	BL.PL	jmp_label_2 // CALL.PL 562 // f8ffff5b
+-	BL.VS	jmp_label_2 // CALL.VS 562 // f7ffff6b
+-	BL.VC	jmp_label_2 // CALL.VC 562 // f6ffff7b
+-	BL.HI	jmp_label_2 // CALL.HI 562 // f5ffff8b
+-	BL.LS	jmp_label_2 // CALL.LS 562 // f4ffff9b
+-	BL.GE	jmp_label_2 // CALL.GE 562 // f3ffffab
+-	BL.LT	jmp_label_2 // CALL.LT 562 // f2ffffbb
+-	BL.GT	jmp_label_2 // CALL.GT 562 // f1ffffcb
+-	BL.LE	jmp_label_2 // CALL.LE 562 // f0ffffdb
+-	BL	jmp_label_2 // CALL 562    // efffffeb
++	BL.EQ	jmp_label_2 // CALL.EQ 560 // fdffff0b
++	BL.NE	jmp_label_2 // CALL.NE 560 // fcffff1b
++	BL.CS	jmp_label_2 // CALL.CS 560 // fbffff2b
++	BL.CC	jmp_label_2 // CALL.CC 560 // faffff3b
++	BL.MI	jmp_label_2 // CALL.MI 560 // f9ffff4b
++	BL.PL	jmp_label_2 // CALL.PL 560 // f8ffff5b
++	BL.VS	jmp_label_2 // CALL.VS 560 // f7ffff6b
++	BL.VC	jmp_label_2 // CALL.VC 560 // f6ffff7b
++	BL.HI	jmp_label_2 // CALL.HI 560 // f5ffff8b
++	BL.LS	jmp_label_2 // CALL.LS 560 // f4ffff9b
++	BL.GE	jmp_label_2 // CALL.GE 560 // f3ffffab
++	BL.LT	jmp_label_2 // CALL.LT 560 // f2ffffbb
++	BL.GT	jmp_label_2 // CALL.GT 560 // f1ffffcb
++	BL.LE	jmp_label_2 // CALL.LE 560 // f0ffffdb
++	BL	jmp_label_2 // CALL 560    // efffffeb
+ 	BL	0(PC)    // CALL 0(PC)     // feffffeb
+ jmp_label_3:
+ 	BL	jmp_label_3 // CALL        // feffffeb
+diff --git a/src/cmd/asm/internal/asm/testdata/armerror.s b/src/cmd/asm/internal/asm/testdata/armerror.s
+index 0467c052ec..34c2b2a986 100644
+--- a/src/cmd/asm/internal/asm/testdata/armerror.s
++++ b/src/cmd/asm/internal/asm/testdata/armerror.s
+@@ -162,4 +162,13 @@ TEXT errors(SB),$0
+ 	XTABU	R0->24, R5, R2     // ERROR "illegal shift"
+ 	XTAHU	R0@>1, R5, R2      // ERROR "illegal shift"
+ 
++	STREX	R1, (R0)           // ERROR "illegal combination"
++	STREX	(R1), R0           // ERROR "illegal combination"
++	STREX	R1, (R0), R1       // ERROR "cannot use same register as both source and destination"
++	STREX	R1, (R0), R0       // ERROR "cannot use same register as both source and destination"
++	STREXD	R0, (R2), R0       // ERROR "cannot use same register as both source and destination"
++	STREXD	R0, (R2), R1       // ERROR "cannot use same register as both source and destination"
++	STREXD	R0, (R2), R2       // ERROR "cannot use same register as both source and destination"
++	STREXD	R1, (R4), R7       // ERROR "must be even"
++
+ 	END
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 8318966501..fc74919a7f 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -2611,6 +2611,9 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if c.instoffset != 0 {
+ 			c.ctxt.Diag("offset must be zero in STREX")
+ 		}
++		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg {
++			c.ctxt.Diag("cannot use same register as both source and destination: %v", p)
++		}
+ 		o1 = 0x18<<20 | 0xf90
+ 		o1 |= (uint32(p.From.Reg) & 15) << 16
+ 		o1 |= (uint32(p.Reg) & 15) << 0
+@@ -2725,6 +2728,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if c.instoffset != 0 {
+ 			c.ctxt.Diag("offset must be zero in STREX")
+ 		}
++		if p.Reg&1 != 0 {
++			c.ctxt.Diag("source register must be even in STREXD: %v", p)
++		}
++		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg || p.To.Reg == p.Reg+1 {
++			c.ctxt.Diag("cannot use same register as both source and destination: %v", p)
++		}
+ 		o1 = 0x1a<<20 | 0xf90
+ 		o1 |= (uint32(p.From.Reg) & 15) << 16
+ 		o1 |= (uint32(p.Reg) & 15) << 0

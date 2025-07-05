@@ -10,6 +10,20 @@ Date:   Fri Jan 7 14:41:33 2011 -0800
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/3851042
-
+---
  src/pkg/bytes/buffer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 55d3133868..2574b4f432 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -291,7 +291,7 @@ func (b *Buffer) UnreadRune() os.Error {
+ // read operation.  If write has happened since the last read, UnreadByte
+ // returns an error.
+ func (b *Buffer) UnreadByte() os.Error {
+-	if b.lastRead == opReadRune || b.lastRead == opRead {
++	if b.lastRead != opReadRune && b.lastRead != opRead {
+ 		return os.ErrorString("bytes.Buffer: UnreadByte: previous operation was not a read")
+ 	}
+ 	b.lastRead = opInvalid

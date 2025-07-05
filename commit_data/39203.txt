@@ -9,7 +9,34 @@ Date:   Wed Jan 23 15:05:16 2019 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index e754fec012..8b8105b1ad 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -418,7 +418,7 @@ Eivind Uggedal <eivind@uggedal.com>
+ Elbert Fliek <efliek@gmail.com>
+ Eldar Rakhimberdin <ibeono@gmail.com>
+ Elena Grahovac <elena@grahovac.me>
+-Elias Naur <elias.naur@gmail.com>
++Elias Naur <mail@eliasnaur.com> <elias.naur@gmail.com>
+ Elliot Morrison-Reed <elliotmr@gmail.com>
+ Emerson Lin <linyintor@gmail.com>
+ Emil Hessman <emil@hessman.se>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d1be11e392..872d11233e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -575,7 +575,7 @@ Eivind Uggedal <eivind@uggedal.com>
+ Elbert Fliek <efliek@gmail.com>
+ Eldar Rakhimberdin <ibeono@gmail.com>
+ Elena Grahovac <elena@grahovac.me>
+-Elias Naur <elias.naur@gmail.com>
++Elias Naur <mail@eliasnaur.com> <elias.naur@gmail.com>
+ Elliot Morrison-Reed <elliotmr@gmail.com>
+ Emerson Lin <linyintor@gmail.com>
+ Emil Hessman <emil@hessman.se>

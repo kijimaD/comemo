@@ -11,6 +11,25 @@ Date:   Wed Aug 9 02:51:59 2023 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/asan_amd64.s | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/asan_amd64.s b/src/runtime/asan_amd64.s
+index bf847f2601..ac09ec1105 100644
+--- a/src/runtime/asan_amd64.s
++++ b/src/runtime/asan_amd64.s
+@@ -63,10 +63,10 @@ TEXT	runtime·asanpoison(SB), NOSPLIT, $0-16
+ 
+ // func runtime·asanregisterglobals(addr unsafe.Pointer, n uintptr)
+ TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
+-	MOVD	addr+0(FP), RARG0
+-	MOVD	size+8(FP), RARG1
++	MOVQ	addr+0(FP), RARG0
++	MOVQ	size+8(FP), RARG1
+ 	// void __asan_register_globals_go(void *addr, uintptr_t n);
+-	MOVD	$__asan_register_globals_go(SB), AX
++	MOVQ	$__asan_register_globals_go(SB), AX
+ 	JMP	asancall<>(SB)
+ 
+ // Switches SP to g0 stack and calls (AX). Arguments already set.

@@ -12,7 +12,7 @@ Date:   Tue Feb 14 09:13:12 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5657045
-
+---
  src/pkg/go/doc/doc_test.go              | 20 +++++++++++---
  src/pkg/go/doc/exports.go               | 47 ++++++++++++++++++++++++++++-----
  src/pkg/go/doc/reader.go                | 34 ++++++++++++++++++------
@@ -27,3 +27,556 @@ Date:   Tue Feb 14 09:13:12 2012 -0800
  src/pkg/go/doc/testdata/error2.go       | 29 ++++++++++++++++++++
  src/pkg/go/doc/testdata/f.go            |  2 +-
  13 files changed, 322 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc_test.go b/src/pkg/go/doc/doc_test.go
+index 9ffe72032c..f957ede4ab 100644
+--- a/src/pkg/go/doc/doc_test.go
++++ b/src/pkg/go/doc/doc_test.go
+@@ -14,12 +14,14 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
++	"regexp"
+ 	"strings"
+ 	"testing"
+ 	"text/template"
+ )
+ 
+ var update = flag.Bool("update", false, "update golden (.out) files")
++var files = flag.String("files", "", "consider only Go test files matching this regular expression")
+ 
+ const dataDir = "testdata"
+ 
+@@ -66,14 +68,26 @@ type bundle struct {
+ }
+ 
+ func test(t *testing.T, mode Mode) {
+-	// get all packages
++	// determine file filter
++	filter := isGoFile
++	if *files != "" {
++		rx, err := regexp.Compile(*files)
++		if err != nil {
++			t.Fatal(err)
++		}
++		filter = func(fi os.FileInfo) bool {
++			return isGoFile(fi) && rx.MatchString(fi.Name())
++		}
++	}
++
++	// get packages
+ 	fset := token.NewFileSet()
+-	pkgs, err := parser.ParseDir(fset, dataDir, isGoFile, parser.ParseComments)
++	pkgs, err := parser.ParseDir(fset, dataDir, filter, parser.ParseComments)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+-	// test all packages
++	// test packages
+ 	for _, pkg := range pkgs {
+ 		importpath := dataDir + "/" + pkg.Name
+ 		doc := New(pkg, importpath, mode)
+diff --git a/src/pkg/go/doc/exports.go b/src/pkg/go/doc/exports.go
+index 68dd3841be..146be5d870 100644
+--- a/src/pkg/go/doc/exports.go
++++ b/src/pkg/go/doc/exports.go
+@@ -22,12 +22,38 @@ func filterIdentList(list []*ast.Ident) []*ast.Ident {
+ 	return list[0:j]
+ }
+ 
++// removeErrorField removes anonymous fields named "error" from an interface.
++// This is called when "error" has been determined to be a local name,
++// not the predeclared type.
++//
++func removeErrorField(ityp *ast.InterfaceType) {
++	list := ityp.Methods.List // we know that ityp.Methods != nil
++	j := 0
++	for _, field := range list {
++		keepField := true
++		if n := len(field.Names); n == 0 {
++			// anonymous field
++			if fname, _ := baseTypeName(field.Type); fname == "error" {
++				keepField = false
++			}
++		}
++		if keepField {
++			list[j] = field
++			j++
++		}
++	}
++	if j < len(list) {
++		ityp.Incomplete = true
++	}
++	ityp.Methods.List = list[0:j]
++}
++
+ // filterFieldList removes unexported fields (field names) from the field list
+ // in place and returns true if fields were removed. Anonymous fields are
+ // recorded with the parent type. filterType is called with the types of
+ // all remaining fields.
+ //
+-func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList) (removedFields bool) {
++func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp *ast.InterfaceType) (removedFields bool) {
+ 	if fields == nil {
+ 		return
+ 	}
+@@ -37,9 +63,15 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList) (remo
+ 		keepField := false
+ 		if n := len(field.Names); n == 0 {
+ 			// anonymous field
+-			name := r.recordAnonymousField(parent, field.Type)
+-			if ast.IsExported(name) {
++			fname := r.recordAnonymousField(parent, field.Type)
++			if ast.IsExported(fname) {
++				keepField = true
++			} else if ityp != nil && fname == "error" {
++				// possibly the predeclared error interface; keep
++				// it for now but remember this interface so that
++				// it can be fixed if error is also defined locally
+ 				keepField = true
++				r.remember(ityp)
+ 			}
+ 		} else {
+ 			field.Names = filterIdentList(field.Names)
+@@ -86,14 +118,14 @@ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
+ 	case *ast.ArrayType:
+ 		r.filterType(nil, t.Elt)
+ 	case *ast.StructType:
+-		if r.filterFieldList(parent, t.Fields) {
++		if r.filterFieldList(parent, t.Fields, nil) {
+ 			t.Incomplete = true
+ 		}
+ 	case *ast.FuncType:
+ 		r.filterParamList(t.Params)
+ 		r.filterParamList(t.Results)
+ 	case *ast.InterfaceType:
+-		if r.filterFieldList(parent, t.Methods) {
++		if r.filterFieldList(parent, t.Methods, t) {
+ 			t.Incomplete = true
+ 		}
+ 	case *ast.MapType:
+@@ -116,9 +148,12 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
+ 			return true
+ 		}
+ 	case *ast.TypeSpec:
+-		if ast.IsExported(s.Name.Name) {
++		if name := s.Name.Name; ast.IsExported(name) {
+ 			r.filterType(r.lookupType(s.Name.Name), s.Type)
+ 			return true
++		} else if name == "error" {
++			// special case: remember that error is declared locally
++			r.errorDecl = true
+ 		}
+ 	}
+ 	return false
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 5f0643caa3..bdfb294adb 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -17,7 +17,7 @@ import (
+ //
+ // Internally, we treat functions like methods and collect them in method sets.
+ 
+-// methodSet describes a set of methods. Entries where Decl == nil are conflict
++// A methodSet describes a set of methods. Entries where Decl == nil are conflict
+ // entries (more then one method with the same name at the same embedding level).
+ //
+ type methodSet map[string]*Func
+@@ -110,6 +110,9 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
+ 	return
+ }
+ 
++// An embeddedSet describes a set of embedded types.
++type embeddedSet map[*namedType]bool
++
+ // A namedType represents a named unqualified (package local, or possibly
+ // predeclared) type. The namedType for a type name is always found via
+ // reader.lookupType.
+@@ -119,9 +122,9 @@ type namedType struct {
+ 	name string       // type name
+ 	decl *ast.GenDecl // nil if declaration hasn't been seen yet
+ 
+-	isEmbedded bool                // true if this type is embedded
+-	isStruct   bool                // true if this type is a struct
+-	embedded   map[*namedType]bool // true if the embedded type is a pointer
++	isEmbedded bool        // true if this type is embedded
++	isStruct   bool        // true if this type is a struct
++	embedded   embeddedSet // true if the embedded type is a pointer
+ 
+ 	// associated declarations
+ 	values  []*Value // consts and vars
+@@ -152,6 +155,10 @@ type reader struct {
+ 	values  []*Value // consts and vars
+ 	types   map[string]*namedType
+ 	funcs   methodSet
++
++	// support for package-local error type declarations
++	errorDecl bool                 // if set, type "error" was declared locally
++	fixlist   []*ast.InterfaceType // list of interfaces containing anonymous field "error"
+ }
+ 
+ func (r *reader) isVisible(name string) bool {
+@@ -173,7 +180,7 @@ func (r *reader) lookupType(name string) *namedType {
+ 	// type not found - add one without declaration
+ 	typ := &namedType{
+ 		name:     name,
+-		embedded: make(map[*namedType]bool),
++		embedded: make(embeddedSet),
+ 		funcs:    make(methodSet),
+ 		methods:  make(methodSet),
+ 	}
+@@ -210,6 +217,10 @@ func (r *reader) readDoc(comment *ast.CommentGroup) {
+ 	r.doc += "\n" + text
+ }
+ 
++func (r *reader) remember(typ *ast.InterfaceType) {
++	r.fixlist = append(r.fixlist, typ)
++}
++
+ func specNames(specs []ast.Spec) []string {
+ 	names := make([]string, 0, len(specs)) // reasonable estimate
+ 	for _, s := range specs {
+@@ -315,7 +326,7 @@ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
+ 		return // no name or blank name - ignore the type
+ 	}
+ 
+-	// A type should be added at most once, so info.decl
++	// A type should be added at most once, so typ.decl
+ 	// should be nil - if it is not, simply overwrite it.
+ 	typ.decl = decl
+ 
+@@ -543,7 +554,7 @@ func customizeRecv(f *Func, recvTypeName string, embeddedIsPtr bool, level int)
+ 
+ // collectEmbeddedMethods collects the embedded methods of typ in mset.
+ //
+-func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int, visited map[*namedType]bool) {
++func (r *reader) collectEmbeddedMethods(mset methodSet, typ *namedType, recvTypeName string, embeddedIsPtr bool, level int, visited embeddedSet) {
+ 	visited[typ] = true
+ 	for embedded, isPtr := range typ.embedded {
+ 		// Once an embedded type is embedded as a pointer type
+@@ -572,12 +583,19 @@ func (r *reader) computeMethodSets() {
+ 		// collect embedded methods for t
+ 		if t.isStruct {
+ 			// struct
+-			r.collectEmbeddedMethods(t.methods, t, t.name, false, 1, make(map[*namedType]bool))
++			r.collectEmbeddedMethods(t.methods, t, t.name, false, 1, make(embeddedSet))
+ 		} else {
+ 			// interface
+ 			// TODO(gri) fix this
+ 		}
+ 	}
++
++	// if error was declared locally, don't treat it as exported field anymore
++	if r.errorDecl {
++		for _, ityp := range r.fixlist {
++			removeErrorField(ityp)
++		}
++	}
+ }
+ 
+ // cleanupTypes removes the association of functions and methods with
+diff --git a/src/pkg/go/doc/testdata/e.go b/src/pkg/go/doc/testdata/e.go
+index 62a1a40fd7..19dd138cf4 100644
+--- a/src/pkg/go/doc/testdata/e.go
++++ b/src/pkg/go/doc/testdata/e.go
+@@ -1,4 +1,4 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
++// Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/pkg/go/doc/testdata/error1.0.golden b/src/pkg/go/doc/testdata/error1.0.golden
+new file mode 100644
+index 0000000000..6c6fe5d49b
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/error1.0.golden
+@@ -0,0 +1,30 @@
++// 
++PACKAGE error1
++
++IMPORTPATH
++	testdata/error1
++
++FILENAMES
++	testdata/error1.go
++
++TYPES
++	// 
++	type I0 interface {
++		// When embedded, the predeclared error interface
++		// must remain visible in interface types.
++		error
++	}
++
++	// 
++	type S0 struct {
++		// contains filtered or unexported fields
++	}
++
++	// 
++	type T0 struct {
++		ExportedField interface {
++			// error should be visible
++			error
++		}
++	}
++
+diff --git a/src/pkg/go/doc/testdata/error1.1.golden b/src/pkg/go/doc/testdata/error1.1.golden
+new file mode 100644
+index 0000000000..a8dc2e71dc
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/error1.1.golden
+@@ -0,0 +1,32 @@
++// 
++PACKAGE error1
++
++IMPORTPATH
++	testdata/error1
++
++FILENAMES
++	testdata/error1.go
++
++TYPES
++	// 
++	type I0 interface {
++		// When embedded, the predeclared error interface
++		// must remain visible in interface types.
++		error
++	}
++
++	// 
++	type S0 struct {
++		// In struct types, an embedded error must only be visible
++		// if AllDecls is set.
++		error
++	}
++
++	// 
++	type T0 struct {
++		ExportedField interface {
++			// error should be visible
++			error
++		}
++	}
++
+diff --git a/src/pkg/go/doc/testdata/error1.2.golden b/src/pkg/go/doc/testdata/error1.2.golden
+new file mode 100644
+index 0000000000..6c6fe5d49b
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/error1.2.golden
+@@ -0,0 +1,30 @@
++// 
++PACKAGE error1
++
++IMPORTPATH
++	testdata/error1
++
++FILENAMES
++	testdata/error1.go
++
++TYPES
++	// 
++	type I0 interface {
++		// When embedded, the predeclared error interface
++		// must remain visible in interface types.
++		error
++	}
++
++	// 
++	type S0 struct {
++		// contains filtered or unexported fields
++	}
++
++	// 
++	type T0 struct {
++		ExportedField interface {
++			// error should be visible
++			error
++		}
++	}
++
+diff --git a/src/pkg/go/doc/testdata/error1.go b/src/pkg/go/doc/testdata/error1.go
+new file mode 100644
+index 0000000000..3c777a7800
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/error1.go
+@@ -0,0 +1,24 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package error1
++
++type I0 interface {
++	// When embedded, the predeclared error interface
++	// must remain visible in interface types.
++	error
++}
++
++type T0 struct {
++	ExportedField interface {
++		// error should be visible
++		error
++	}
++}
++
++type S0 struct {
++	// In struct types, an embedded error must only be visible
++	// if AllDecls is set.
++	error
++}
+diff --git a/src/pkg/go/doc/testdata/error2.0.golden b/src/pkg/go/doc/testdata/error2.0.golden
+new file mode 100644
+index 0000000000..dedfe412a0
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/error2.0.golden
+@@ -0,0 +1,27 @@
++// 
++PACKAGE error2
++
++IMPORTPATH
++	testdata/error2
++
++FILENAMES
++	testdata/error2.go
++
++TYPES
++	// 
++	type I0 interface {
++		// contains filtered or unexported methods
++	}
++
++	// 
++	type S0 struct {
++		// contains filtered or unexported fields
++	}
++
++	// 
++	type T0 struct {
++		ExportedField interface {
++			// contains filtered or unexported methods
++		}
++	}
++
+diff --git a/src/pkg/go/doc/testdata/error2.1.golden b/src/pkg/go/doc/testdata/error2.1.golden
+new file mode 100644
+index 0000000000..776bd1b3e4
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/error2.1.golden
+@@ -0,0 +1,37 @@
++// 
++PACKAGE error2
++
++IMPORTPATH
++	testdata/error2
++
++FILENAMES
++	testdata/error2.go
++
++TYPES
++	// 
++	type I0 interface {
++		// When embedded, the the locally declared error interface
++		// is only visible if all declarations are shown.
++		error
++	}
++
++	// 
++	type S0 struct {
++		// In struct types, an embedded error must only be visible
++		// if AllDecls is set.
++		error
++	}
++
++	// 
++	type T0 struct {
++		ExportedField interface {
++			// error should not be visible
++			error
++		}
++	}
++
++	// This error declaration shadows the predeclared error type. 
++	type error interface {
++		Error() string
++	}
++
+diff --git a/src/pkg/go/doc/testdata/error2.2.golden b/src/pkg/go/doc/testdata/error2.2.golden
+new file mode 100644
+index 0000000000..dedfe412a0
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/error2.2.golden
+@@ -0,0 +1,27 @@
++// 
++PACKAGE error2
++
++IMPORTPATH
++	testdata/error2
++
++FILENAMES
++	testdata/error2.go
++
++TYPES
++	// 
++	type I0 interface {
++		// contains filtered or unexported methods
++	}
++
++	// 
++	type S0 struct {
++		// contains filtered or unexported fields
++	}
++
++	// 
++	type T0 struct {
++		ExportedField interface {
++			// contains filtered or unexported methods
++		}
++	}
++
+diff --git a/src/pkg/go/doc/testdata/error2.go b/src/pkg/go/doc/testdata/error2.go
+new file mode 100644
+index 0000000000..6cc36feef3
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/error2.go
+@@ -0,0 +1,29 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package error2
++
++type I0 interface {
++	// When embedded, the the locally declared error interface
++	// is only visible if all declarations are shown.
++	error
++}
++
++type T0 struct {
++	ExportedField interface {
++		// error should not be visible
++		error
++	}
++}
++
++type S0 struct {
++	// In struct types, an embedded error must only be visible
++	// if AllDecls is set.
++	error
++}
++
++// This error declaration shadows the predeclared error type.
++type error interface {
++	Error() string
++}
+diff --git a/src/pkg/go/doc/testdata/f.go b/src/pkg/go/doc/testdata/f.go
+index a3051e1fb3..7e9add9078 100644
+--- a/src/pkg/go/doc/testdata/f.go
++++ b/src/pkg/go/doc/testdata/f.go
+@@ -1,4 +1,4 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
++// Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 

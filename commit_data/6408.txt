@@ -10,7 +10,96 @@ Date:   Tue Sep 28 14:40:23 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2246049
-
+---
  src/pkg/json/decode.go      | 38 +++++++++++++++++++++++++++++++-------
  src/pkg/json/decode_test.go |  7 +++++++
  2 files changed, 38 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 3f69650097..71ebd6daf6 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -82,6 +82,18 @@ func (e *UnmarshalTypeError) String() string {
+ 	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
+ }
+ 
++// An UnmarshalFieldError describes a JSON object key that
++// led to an unexported (and therefore unwritable) struct field.
++type UnmarshalFieldError struct {
++	Key   string
++	Type  *reflect.StructType
++	Field reflect.StructField
++}
++
++func (e *UnmarshalFieldError) String() string {
++	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
++}
++
+ // An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
+ // (The argument to Unmarshal must be a non-nil pointer.)
+ type InvalidUnmarshalError struct {
+@@ -450,20 +462,32 @@ func (d *decodeState) object(v reflect.Value) {
+ 		if mv != nil {
+ 			subv = reflect.MakeZero(mv.Type().(*reflect.MapType).Elem())
+ 		} else {
++			var f reflect.StructField
++			var ok bool
+ 			// First try for field with that tag.
++			st := sv.Type().(*reflect.StructType)
+ 			for i := 0; i < sv.NumField(); i++ {
+-				f := sv.Type().(*reflect.StructType).Field(i)
++				f = st.Field(i)
+ 				if f.Tag == key {
+-					subv = sv.Field(i)
++					ok = true
+ 					break
+ 				}
+ 			}
+-			if subv == nil {
++			if !ok {
+ 				// Second, exact match.
+-				subv = sv.FieldByName(key)
+-				if subv == nil {
+-					// Third, case-insensitive match.
+-					subv = sv.FieldByNameFunc(func(s string) bool { return matchName(key, s) })
++				f, ok = st.FieldByName(key)
++			}
++			if !ok {
++				// Third, case-insensitive match.
++				f, ok = st.FieldByNameFunc(func(s string) bool { return matchName(key, s) })
++			}
++
++			// Extract value; name must be exported.
++			if ok {
++				if f.PkgPath != "" {
++					d.saveError(&UnmarshalFieldError{key, st, f})
++				} else {
++					subv = sv.FieldByIndex(f.Index)
+ 				}
+ 			}
+ 		}
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 0aa269743f..d2aa8ab64a 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -17,6 +17,12 @@ type T struct {
+ 	Y int
+ }
+ 
++type tx struct {
++	x int
++}
++
++var txType = reflect.Typeof((*tx)(nil)).(*reflect.PtrType).Elem().(*reflect.StructType)
++
+ type unmarshalTest struct {
+ 	in  string
+ 	ptr interface{}
+@@ -36,6 +42,7 @@ var unmarshalTests = []unmarshalTest{
+ 	unmarshalTest{`"invalid: \uD834x\uDD1E"`, new(string), "invalid: \uFFFDx\uFFFD", nil},
+ 	unmarshalTest{"null", new(interface{}), nil, nil},
+ 	unmarshalTest{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.Typeof("")}},
++	unmarshalTest{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
+ 
+ 	// syntax errors
+ 	unmarshalTest{`{"X": "foo", "Y"}`, nil, nil, SyntaxError("invalid character '}' after object key")},

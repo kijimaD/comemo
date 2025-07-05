@@ -25,7 +25,7 @@ Date:   Tue Feb 15 11:39:41 2022 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../compile/internal/importer/gcimporter_test.go   | 20 ++++-
  src/cmd/compile/internal/noder/export.go           | 46 ++---------
  src/cmd/compile/internal/noder/import.go           | 93 +++++++++-------------
@@ -34,3 +34,439 @@ Date:   Tue Feb 15 11:39:41 2022 -0800
  src/go/internal/gcimporter/gcimporter_test.go      | 27 ++++---
  src/go/types/eval_test.go                          | 10 ++-
  7 files changed, 89 insertions(+), 133 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 9fecf742fb..3b6d77747b 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -115,10 +115,14 @@ func TestImportTestdata(t *testing.T) {
+ 	}
+ 
+ 	testfiles := map[string][]string{
+-		"exports.go": {"go/ast", "go/token"},
++		"exports.go":  {"go/ast", "go/token"},
++		"generics.go": nil,
+ 	}
+-	if !goexperiment.Unified {
+-		testfiles["generics.go"] = nil
++	if goexperiment.Unified {
++		// TODO(mdempsky): Fix test below to flatten the transitive
++		// Package.Imports graph. Unified IR is more precise about
++		// recreating the package import graph.
++		testfiles["exports.go"] = []string{"go/ast"}
+ 	}
+ 
+ 	for testfile, wantImports := range testfiles {
+@@ -326,6 +330,14 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types2.Named, level int) {
+ 		return // not an interface
+ 	}
+ 
++	// The unified IR importer always sets interface method receiver
++	// parameters to point to the Interface type, rather than the Named.
++	// See #49906.
++	var want types2.Type = named
++	if goexperiment.Unified {
++		want = iface
++	}
++
+ 	// check explicitly declared methods
+ 	for i := 0; i < iface.NumExplicitMethods(); i++ {
+ 		m := iface.ExplicitMethod(i)
+@@ -334,7 +346,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types2.Named, level int) {
+ 			t.Errorf("%s: missing receiver type", m)
+ 			continue
+ 		}
+-		if recv.Type() != named {
++		if recv.Type() != want {
+ 			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/noder/export.go b/src/cmd/compile/internal/noder/export.go
+index 1a296e22c8..263cdc262b 100644
+--- a/src/cmd/compile/internal/noder/export.go
++++ b/src/cmd/compile/internal/noder/export.go
+@@ -14,52 +14,22 @@ import (
+ 	"cmd/internal/bio"
+ )
+ 
+-// writeNewExportFunc is a hook that can be added to append extra
+-// export data after the normal export data section. It allows
+-// experimenting with new export data format designs without requiring
+-// immediate support in the go/internal or x/tools importers.
+-var writeNewExportFunc func(out io.Writer)
+-
+ func WriteExports(out *bio.Writer) {
+-	// When unified IR exports are enable, we simply append it to the
+-	// end of the normal export data (with compiler extensions
+-	// disabled), and write an extra header giving its size.
+-	//
+-	// If the compiler sees this header, it knows to read the new data
+-	// instead; meanwhile the go/types importers will silently ignore it
+-	// and continue processing the old export instead.
+-	//
+-	// This allows us to experiment with changes to the new export data
+-	// format without needing to update the go/internal/gcimporter or
+-	// (worse) x/tools/go/gcexportdata.
+-
+-	useNewExport := writeNewExportFunc != nil
+-
+-	var old, new bytes.Buffer
+-
+-	typecheck.WriteExports(&old, !useNewExport)
+-
+-	if useNewExport {
+-		writeNewExportFunc(&new)
+-	}
+-
+-	oldLen := old.Len()
+-	newLen := new.Len()
++	var data bytes.Buffer
+ 
+-	if useNewExport {
+-		fmt.Fprintf(out, "\nnewexportsize %v\n", newLen)
++	if base.Debug.Unified != 0 {
++		data.WriteByte('u')
++		writeUnifiedExport(&data)
++	} else {
++		typecheck.WriteExports(&data, true)
+ 	}
+ 
+ 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
+ 	out.WriteString("\n$$B\n") // indicate binary export format
+-	io.Copy(out, &old)
++	io.Copy(out, &data)
+ 	out.WriteString("\n$$\n")
+-	io.Copy(out, &new)
+ 
+ 	if base.Debug.Export != 0 {
+-		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", base.Ctxt.Pkgpath, oldLen)
+-		if useNewExport {
+-			fmt.Printf("BenchmarkNewExportSize:%s 1 %d bytes\n", base.Ctxt.Pkgpath, newLen)
+-		}
++		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", base.Ctxt.Pkgpath, data.Len())
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 7ba1b23d12..2cef9f75e8 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -8,10 +8,10 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/buildcfg"
++	"internal/pkgbits"
+ 	"os"
+ 	pathpkg "path"
+ 	"runtime"
+-	"strconv"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -28,22 +28,6 @@ import (
+ 	"cmd/internal/objabi"
+ )
+ 
+-// haveLegacyImports records whether we've imported any packages
+-// without a new export data section. This is useful for experimenting
+-// with new export data format designs, when you need to support
+-// existing tests that manually compile files with inconsistent
+-// compiler flags.
+-var haveLegacyImports = false
+-
+-// newReadImportFunc is an extension hook for experimenting with new
+-// export data formats. If a new export data payload was written out
+-// for an imported package by overloading writeNewExportFunc, then
+-// that payload will be mapped into memory and passed to
+-// newReadImportFunc.
+-var newReadImportFunc = func(data string, pkg1 *types.Pkg, env *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+-	panic("unexpected new export data payload")
+-}
+-
+ type gcimports struct {
+ 	ctxt     *types2.Context
+ 	packages map[string]*types2.Package
+@@ -220,7 +204,7 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
+ 	}
+ 	defer f.Close()
+ 
+-	r, end, newsize, err := findExportData(f)
++	r, end, err := findExportData(f)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -229,41 +213,40 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
+ 		fmt.Printf("importing %s (%s)\n", path, f.Name())
+ 	}
+ 
+-	if newsize != 0 {
+-		// We have unified IR data. Map it, and feed to the importers.
+-		end -= newsize
+-		var data string
+-		data, err = base.MapFile(r.File(), end, newsize)
+-		if err != nil {
+-			return
+-		}
++	c, err := r.ReadByte()
++	if err != nil {
++		return
++	}
+ 
+-		pkg2, err = newReadImportFunc(data, pkg1, env, packages)
+-	} else {
+-		// We only have old data. Oh well, fall back to the legacy importers.
+-		haveLegacyImports = true
++	pos := r.Offset()
+ 
+-		var c byte
+-		switch c, err = r.ReadByte(); {
+-		case err != nil:
+-			return
++	// Map export data section into memory as a single large
++	// string. This reduces heap fragmentation and allows returning
++	// individual substrings very efficiently.
++	var data string
++	data, err = base.MapFile(r.File(), pos, end-pos)
++	if err != nil {
++		return
++	}
+ 
+-		case c != 'i':
+-			// Indexed format is distinguished by an 'i' byte,
+-			// whereas previous export formats started with 'c', 'd', or 'v'.
+-			err = fmt.Errorf("unexpected package format byte: %v", c)
+-			return
++	switch c {
++	case 'u':
++		if !buildcfg.Experiment.Unified {
++			base.Fatalf("unexpected export data format")
+ 		}
+ 
+-		pos := r.Offset()
++		// TODO(mdempsky): This seems a bit clunky.
++		data = strings.TrimSuffix(data, "\n$$\n")
+ 
+-		// Map string (and data) section into memory as a single large
+-		// string. This reduces heap fragmentation and allows
+-		// returning individual substrings very efficiently.
+-		var data string
+-		data, err = base.MapFile(r.File(), pos, end-pos)
+-		if err != nil {
+-			return
++		pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
++
++		// Read package descriptors for both types2 and compiler backend.
++		readPackage(newPkgReader(pr), pkg1)
++		pkg2 = importer.ReadPackage(env, packages, pr)
++
++	case 'i':
++		if buildcfg.Experiment.Unified {
++			base.Fatalf("unexpected export data format")
+ 		}
+ 
+ 		typecheck.ReadImports(pkg1, data)
+@@ -274,6 +257,12 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
+ 				return
+ 			}
+ 		}
++
++	default:
++		// Indexed format is distinguished by an 'i' byte,
++		// whereas previous export formats started with 'c', 'd', or 'v'.
++		err = fmt.Errorf("unexpected package format byte: %v", c)
++		return
+ 	}
+ 
+ 	err = addFingerprint(path, f, end)
+@@ -283,7 +272,7 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
+ // findExportData returns a *bio.Reader positioned at the start of the
+ // binary export data section, and a file offset for where to stop
+ // reading.
+-func findExportData(f *os.File) (r *bio.Reader, end, newsize int64, err error) {
++func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
+ 	r = bio.NewReader(f)
+ 
+ 	// check object header
+@@ -326,14 +315,6 @@ func findExportData(f *os.File) (r *bio.Reader, end, newsize int64, err error) {
+ 
+ 	// process header lines
+ 	for !strings.HasPrefix(line, "$$") {
+-		if strings.HasPrefix(line, "newexportsize ") {
+-			fields := strings.Fields(line)
+-			newsize, err = strconv.ParseInt(fields[1], 10, 64)
+-			if err != nil {
+-				return
+-			}
+-		}
+-
+ 		line, err = r.ReadString('\n')
+ 		if err != nil {
+ 			return
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 71efac80aa..1350c22467 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -589,10 +589,6 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 		if pri, ok := objReader[sym]; ok {
+ 			return pri.pr.objIdx(pri.idx, nil, explicits)
+ 		}
+-		if haveLegacyImports {
+-			assert(len(explicits) == 0)
+-			return typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
+-		}
+ 		base.Fatalf("unresolved stub: %v", sym)
+ 	}
+ 
+@@ -1972,12 +1968,6 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 
+ 	pri, ok := bodyReader[fn]
+ 	if !ok {
+-		// Assume it's an imported function or something that we don't
+-		// have access to in quirks mode.
+-		if haveLegacyImports {
+-			return nil
+-		}
+-
+ 		base.FatalfAt(call.Pos(), "missing function body for call to %v", fn)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index f45c4a7ea8..2c1f2362ad 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -16,7 +16,6 @@ import (
+ 	"sort"
+ 
+ 	"cmd/compile/internal/base"
+-	"cmd/compile/internal/importer"
+ 	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+@@ -74,17 +73,6 @@ var localPkgReader *pkgReader
+ func unified(noders []*noder) {
+ 	inline.NewInline = InlineCall
+ 
+-	writeNewExportFunc = writeNewExport
+-
+-	newReadImportFunc = func(data string, pkg1 *types.Pkg, ctxt *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+-		pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
+-
+-		// Read package descriptors for both types2 and compiler backend.
+-		readPackage(newPkgReader(pr), pkg1)
+-		pkg2 = importer.ReadPackage(ctxt, packages, pr)
+-		return
+-	}
+-
+ 	data := writePkgStub(noders)
+ 
+ 	// We already passed base.Flag.Lang to types2 to handle validating
+@@ -266,7 +254,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
+ 	}
+ }
+ 
+-func writeNewExport(out io.Writer) {
++func writeUnifiedExport(out io.Writer) {
+ 	l := linker{
+ 		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
+ 
+@@ -332,5 +320,5 @@ func writeNewExport(out io.Writer) {
+ 		w.Flush()
+ 	}
+ 
+-	l.pw.DumpTo(out)
++	base.Ctxt.Fingerprint = l.pw.DumpTo(out)
+ }
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 89b7fde836..c10915fdf5 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -125,10 +125,14 @@ func TestImportTestdata(t *testing.T) {
+ 	}
+ 
+ 	testfiles := map[string][]string{
+-		"exports.go": {"go/ast", "go/token"},
++		"exports.go":  {"go/ast", "go/token"},
++		"generics.go": nil,
+ 	}
+-	if !goexperiment.Unified {
+-		testfiles["generics.go"] = nil
++	if goexperiment.Unified {
++		// TODO(mdempsky): Fix test below to flatten the transitive
++		// Package.Imports graph. Unified IR is more precise about
++		// recreating the package import graph.
++		testfiles["exports.go"] = []string{"go/ast"}
+ 	}
+ 
+ 	for testfile, wantImports := range testfiles {
+@@ -153,11 +157,6 @@ func TestImportTestdata(t *testing.T) {
+ }
+ 
+ func TestImportTypeparamTests(t *testing.T) {
+-	// This test doesn't yet work with the unified export format.
+-	if goexperiment.Unified {
+-		t.Skip("unified export data format is currently unsupported")
+-	}
+-
+ 	// This package only handles gc export data.
+ 	if runtime.Compiler != "gc" {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+@@ -460,6 +459,14 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+ 		return // not an interface
+ 	}
+ 
++	// The unified IR importer always sets interface method receiver
++	// parameters to point to the Interface type, rather than the Named.
++	// See #49906.
++	var want types.Type = named
++	if goexperiment.Unified {
++		want = iface
++	}
++
+ 	// check explicitly declared methods
+ 	for i := 0; i < iface.NumExplicitMethods(); i++ {
+ 		m := iface.ExplicitMethod(i)
+@@ -468,8 +475,8 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+ 			t.Errorf("%s: missing receiver type", m)
+ 			continue
+ 		}
+-		if recv.Type() != named {
+-			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
++		if recv.Type() != want {
++			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), want)
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index b0745c16d9..6f5b548eb2 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
++	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"strings"
+ 	"testing"
+@@ -208,7 +209,7 @@ func TestCheckExpr(t *testing.T) {
+ 	// expr is an identifier or selector expression that is passed
+ 	// to CheckExpr at the position of the comment, and object is
+ 	// the string form of the object it denotes.
+-	const src = `
++	src := `
+ package p
+ 
+ import "fmt"
+@@ -235,6 +236,13 @@ func f(a int, s string) S {
+ 	return S{}
+ }`
+ 
++	// The unified IR importer always sets interface method receiver
++	// parameters to point to the Interface type, rather than the Named.
++	// See #49906.
++	if goexperiment.Unified {
++		src = strings.ReplaceAll(src, "func (fmt.Stringer).", "func (interface).")
++	}
++
+ 	fset := token.NewFileSet()
+ 	f, err := parser.ParseFile(fset, "p", src, parser.ParseComments)
+ 	if err != nil {

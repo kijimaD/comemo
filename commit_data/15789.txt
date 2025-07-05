@@ -13,10 +13,138 @@ Date:   Fri Mar 15 09:03:45 2013 +0100
     R=rsc, lvd, dvyukov, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/7648045
-
+---
  src/cmd/gc/esc.c                  |  2 +-
  test/escape2.go                   |  7 +++++--
  test/fixedbugs/issue4964.dir/a.go | 27 +++++++++++++++++++++++++++
  test/fixedbugs/issue4964.dir/b.go | 34 ++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue4964.go       | 10 ++++++++++
  5 files changed, 77 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 46c06d10e4..7be7b53413 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -1033,7 +1033,7 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 
+ 	switch(src->op) {
+ 	case ONAME:
+-		if(src->class == PPARAM && leaks && src->esc != EscHeap) {
++		if(src->class == PPARAM && (leaks || dst->escloopdepth < 0) && src->esc != EscHeap) {
+ 			src->esc = EscScope;
+ 			if(debug['m'])
+ 				warnl(src->lineno, "leaking param: %hN", src);
+diff --git a/test/escape2.go b/test/escape2.go
+index 9481619338..3473e4fa45 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -80,7 +80,9 @@ func foo12(yyy **int) { // ERROR "leaking param: yyy"
+ 	xxx = yyy
+ }
+ 
+-func foo13(yyy **int) { // ERROR "yyy does not escape"
++// Must treat yyy as leaking because *yyy leaks, and the escape analysis 
++// summaries in exported metadata do not distinguish these two cases.
++func foo13(yyy **int) { // ERROR "leaking param: yyy"
+ 	*xxx = *yyy
+ }
+ 
+@@ -299,7 +301,8 @@ func (f *Foo) foo45() { // ERROR "f does not escape"
+ 	F.x = f.x
+ }
+ 
+-func (f *Foo) foo46() { // ERROR "f does not escape"
++// See foo13 above for explanation of why f leaks.
++func (f *Foo) foo46() { // ERROR "leaking param: f"
+ 	F.xx = f.xx
+ }
+ 
+diff --git a/test/fixedbugs/issue4964.dir/a.go b/test/fixedbugs/issue4964.dir/a.go
+new file mode 100644
+index 0000000000..2b9e44e351
+--- /dev/null
++++ b/test/fixedbugs/issue4964.dir/a.go
+@@ -0,0 +1,27 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var global, global2 *int
++
++type T struct {
++	Pointer *int
++}
++
++func dontinline() {}
++
++func Store(t *T) {
++	global = t.Pointer
++	dontinline()
++}
++
++func Store2(t *T) {
++	global2 = t.Pointer
++	dontinline()
++}
++
++func Get() *int {
++	return global
++}
+diff --git a/test/fixedbugs/issue4964.dir/b.go b/test/fixedbugs/issue4964.dir/b.go
+new file mode 100644
+index 0000000000..42a6f1d761
+--- /dev/null
++++ b/test/fixedbugs/issue4964.dir/b.go
+@@ -0,0 +1,34 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func F() {
++	// store 1 in a.global
++	x, y := 1, 2
++	t := a.T{Pointer: &x}
++	a.Store(&t)
++	_ = y
++}
++
++func G() {
++	// store 4 in a.global2
++	x, y := 3, 4
++	t := a.T{Pointer: &y}
++	a.Store2(&t)
++	_ = x
++}
++
++func main() {
++	F()
++	G()
++	p := a.Get()
++	n := *p
++	if n != 1 {
++		println(n, "!= 1")
++		panic("n != 1")
++	}
++}
+diff --git a/test/fixedbugs/issue4964.go b/test/fixedbugs/issue4964.go
+new file mode 100644
+index 0000000000..8291d1bb97
+--- /dev/null
++++ b/test/fixedbugs/issue4964.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4964: exported escape analysis result is not enough
++// for cross package analysis.
++
++package ignored

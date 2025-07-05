@@ -7,6 +7,20 @@ Date:   Mon Dec 30 11:41:01 2013 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/46500043
-
+---
  src/pkg/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index e37a3f8879..89d329257b 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1782,7 +1782,7 @@ func (v Value) Slice3(i, j, k int) Value {
+ 
+ 	case Array:
+ 		if v.flag&flagAddr == 0 {
+-			panic("reflect.Value.Slice: slice of unaddressable array")
++			panic("reflect.Value.Slice3: slice of unaddressable array")
+ 		}
+ 		tt := (*arrayType)(unsafe.Pointer(v.typ))
+ 		cap = int(tt.len)

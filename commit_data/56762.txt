@@ -17,7 +17,7 @@ Date:   Tue May 23 14:32:41 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/unify.go            | 2 +-
  src/go/types/unify.go                               | 2 +-
  src/internal/types/testdata/fixedbugs/issue39976.go | 2 +-
@@ -25,3 +25,74 @@ Date:   Tue May 23 14:32:41 2023 -0700
  src/internal/types/testdata/fixedbugs/issue53692.go | 2 +-
  src/internal/types/testdata/fixedbugs/issue57192.go | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index f285497b4f..7b7d7dc9e9 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -56,7 +56,7 @@ const (
+ 	// If enableInterfaceInference is set, type inference uses
+ 	// shared methods for improved type inference involving
+ 	// interfaces.
+-	enableInterfaceInference = false
++	enableInterfaceInference = true
+ 
+ 	// If traceInference is set, unification will print a trace of its operation.
+ 	// Interpretation of trace:
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index c3f71dd9f8..d5757defd6 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -58,7 +58,7 @@ const (
+ 	// If enableInterfaceInference is set, type inference uses
+ 	// shared methods for improved type inference involving
+ 	// interfaces.
+-	enableInterfaceInference = false
++	enableInterfaceInference = true
+ 
+ 	// If traceInference is set, unification will print a trace of its operation.
+ 	// Interpretation of trace:
+diff --git a/src/internal/types/testdata/fixedbugs/issue39976.go b/src/internal/types/testdata/fixedbugs/issue39976.go
+index a66eff29f2..b622cd9287 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39976.go
++++ b/src/internal/types/testdata/fixedbugs/issue39976.go
+@@ -12,5 +12,5 @@ func NewCache[K, V any](p policy[K, V]) {}
+ func _() {
+ 	var lru LRU[int, string]
+ 	NewCache[int, string](&lru)
+-	NewCache(& /* ERROR "does not match policy[K, V] (cannot infer K and V)" */ lru)
++	NewCache /* ERROR "cannot infer K" */ (&lru)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue41176.go b/src/internal/types/testdata/fixedbugs/issue41176.go
+index ecf0575bb5..755e83a632 100644
+--- a/src/internal/types/testdata/fixedbugs/issue41176.go
++++ b/src/internal/types/testdata/fixedbugs/issue41176.go
+@@ -17,5 +17,5 @@ type I[T any] interface {
+ func f[T any](x I[T]) {}
+ 
+ func _() {
+-	f(S /* ERROR "cannot infer T" */ {})
++	f(S{})
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue53692.go b/src/internal/types/testdata/fixedbugs/issue53692.go
+index a7bd5728d4..dc1a76c723 100644
+--- a/src/internal/types/testdata/fixedbugs/issue53692.go
++++ b/src/internal/types/testdata/fixedbugs/issue53692.go
+@@ -11,5 +11,5 @@ type LRU[K comparable, V any] struct{}
+ func WithLocking2[K comparable, V any](Cache[K, V]) {}
+ 
+ func _() {
+-	WithLocking2[string](LRU /* ERROR "type LRU[string, int] of LRU[string, int]{} does not match inferred type Cache[string, int] for Cache[string, V]" */ [string, int]{})
++	WithLocking2 /* ERROR "cannot infer V" */ [string](LRU[string, int]{})
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue57192.go b/src/internal/types/testdata/fixedbugs/issue57192.go
+index 520d63f75d..6c7894ac0f 100644
+--- a/src/internal/types/testdata/fixedbugs/issue57192.go
++++ b/src/internal/types/testdata/fixedbugs/issue57192.go
+@@ -18,5 +18,5 @@ var V2 I2[int]
+ func g[T any](I1[T]) {}
+ func _() {
+ 	g(V1)
+-	g(V2 /* ERROR "type I2[int] of V2 does not match inferred type I1[int] for I1[T]" */)
++	g(V2)
+ }

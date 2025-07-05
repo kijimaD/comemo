@@ -29,6 +29,59 @@ Date:   Mon Mar 20 10:35:51 2023 +0100
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/dial.go | 37 +++++++++++++++++++++++++++++++++++--
  1 file changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 85ec557575..35c2761d29 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -11,12 +11,45 @@ import (
+ 	"time"
+ )
+ 
+-// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
+-// See golang.org/issue/31510
+ const (
++	// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
++	// See go.dev/issue/31510
+ 	defaultTCPKeepAlive = 15 * time.Second
++
++	// For the moment, MultiPath TCP is not used by default
++	// See go.dev/issue/56539
++	defaultMPTCPEnabled = false
+ )
+ 
++// mptcpStatus is a tristate for Multipath TCP, see go.dev/issue/56539
++type mptcpStatus uint8
++
++const (
++	// The value 0 is the system default, linked to defaultMPTCPEnabled
++	mptcpUseDefault mptcpStatus = iota
++	mptcpEnabled
++	mptcpDisabled
++)
++
++func (m *mptcpStatus) get() bool {
++	switch *m {
++	case mptcpEnabled:
++		return true
++	case mptcpDisabled:
++		return false
++	}
++
++	return defaultMPTCPEnabled
++}
++
++func (m *mptcpStatus) set(use bool) {
++	if use {
++		*m = mptcpEnabled
++	} else {
++		*m = mptcpDisabled
++	}
++}
++
+ // A Dialer contains options for connecting to an address.
+ //
+ // The zero value for each field is equivalent to dialing

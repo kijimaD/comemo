@@ -12,10 +12,76 @@ Date:   Wed Dec 9 11:56:45 2009 -0800
     
     R=rsc
     https://golang.org/cl/168045
-
+---
  src/cmd/5g/list.c | 2 +-
  src/cmd/6c/list.c | 2 +-
  src/cmd/6g/list.c | 2 +-
  src/cmd/8c/list.c | 2 +-
  src/cmd/8g/list.c | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index d0febaca6d..dfe3bcb79c 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -233,7 +233,7 @@ int
+ Yconv(Fmt *fp)
+ {
+ 	int i, c;
+-	char str[30], *p, *a;
++	char str[100], *p, *a;
+ 
+ 	a = va_arg(fp->args, char*);
+ 	p = str;
+diff --git a/src/cmd/6c/list.c b/src/cmd/6c/list.c
+index e3a0ea81b4..64afe79fe4 100644
+--- a/src/cmd/6c/list.c
++++ b/src/cmd/6c/list.c
+@@ -353,7 +353,7 @@ int
+ Sconv(Fmt *fp)
+ {
+ 	int i, c;
+-	char str[30], *p, *a;
++	char str[100], *p, *a;
+ 
+ 	a = va_arg(fp->args, char*);
+ 	p = str;
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index 41956e63ca..eadd7481bc 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -313,7 +313,7 @@ int
+ Yconv(Fmt *fp)
+ {
+ 	int i, c;
+-	char str[30], *p, *a;
++	char str[100], *p, *a;
+ 
+ 	a = va_arg(fp->args, char*);
+ 	p = str;
+diff --git a/src/cmd/8c/list.c b/src/cmd/8c/list.c
+index c2ce5b2951..3edaa2e1fb 100644
+--- a/src/cmd/8c/list.c
++++ b/src/cmd/8c/list.c
+@@ -274,7 +274,7 @@ int
+ Sconv(Fmt *fp)
+ {
+ 	int i, c;
+-	char str[30], *p, *a;
++	char str[100], *p, *a;
+ 
+ 	a = va_arg(fp->args, char*);
+ 	p = str;
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+index f94b9e1766..2a7dc277fd 100644
+--- a/src/cmd/8g/list.c
++++ b/src/cmd/8g/list.c
+@@ -256,7 +256,7 @@ int
+ Yconv(Fmt *fp)
+ {
+ 	int i, c;
+-	char str[30], *p, *a;
++	char str[100], *p, *a;
+ 
+ 	a = va_arg(fp->args, char*);
+ 	p = str;

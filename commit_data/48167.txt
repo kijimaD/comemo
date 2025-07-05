@@ -22,9 +22,81 @@ Date:   Thu Apr 29 11:42:35 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/testdata/check/main.go2           |  7 +++++++
  src/go/types/testdata/fixedbugs/issue42987.src | 10 ++++++++++
  src/go/types/testdata/fixedbugs/issue43125.src |  8 ++++++++
  src/go/types/testdata/fixedbugs/issue43190.src | 22 ++++++++++++++++++++++
  4 files changed, 47 insertions(+)
+
+diff --git a/src/go/types/testdata/check/main.go2 b/src/go/types/testdata/check/main.go2
+new file mode 100644
+index 0000000000..65e9aa2962
+--- /dev/null
++++ b/src/go/types/testdata/check/main.go2
+@@ -0,0 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main[ /* ERROR "func main must have no type parameters" */ T any]() {}
+diff --git a/src/go/types/testdata/fixedbugs/issue42987.src b/src/go/types/testdata/fixedbugs/issue42987.src
+new file mode 100644
+index 0000000000..6060ec84bd
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue42987.src
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that there is only one error (no follow-on errors).
++
++package p
++// TODO(rFindley) This is a parser error, but in types2 it is a type checking
++//                error. We could probably do without this check in the parser.
++var _ = [... /* ERROR expected array length, found '...' */ ]byte("foo")
+diff --git a/src/go/types/testdata/fixedbugs/issue43125.src b/src/go/types/testdata/fixedbugs/issue43125.src
+new file mode 100644
+index 0000000000..456888de6b
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue43125.src
+@@ -0,0 +1,8 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ = new(- /* ERROR not a type */ 1)
++var _ = new(1 /* ERROR not a type */ + 1)
+diff --git a/src/go/types/testdata/fixedbugs/issue43190.src b/src/go/types/testdata/fixedbugs/issue43190.src
+new file mode 100644
+index 0000000000..96acb3a2e3
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue43190.src
+@@ -0,0 +1,22 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Most of the errors below are actually produced by the parser, but we check
++// them here for consistency with the types2 tests.
++
++package p
++
++import ; /* ERROR invalid import path */ /* ERROR expected 'STRING' */
++import // ERROR expected ';'
++var _ int
++import /* ERROR expected declaration */ .;
++
++import ()
++import (.)
++import (
++	"fmt"
++	.
++)
++
++var _ = fmt /* ERROR "undeclared name" */ .Println

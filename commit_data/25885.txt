@@ -16,7 +16,48 @@ Date:   Wed Nov 25 12:32:34 2015 -0500
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/syntax/parse.go      | 9 ++++++++-
  src/regexp/syntax/parse_test.go | 2 ++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index d579a4069b..c2b92c1d44 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -830,7 +830,14 @@ func Parse(s string, flags Flags) (*Regexp, error) {
+ 						lit = t[2:i]
+ 						t = t[i+2:]
+ 					}
+-					p.push(literalRegexp(lit, p.flags))
++					for lit != "" {
++						c, rest, err := nextRune(lit)
++						if err != nil {
++							return nil, err
++						}
++						p.literal(c)
++						lit = rest
++					}
+ 					break BigSwitch
+ 				case 'z':
+ 					p.op(OpEndText)
+diff --git a/src/regexp/syntax/parse_test.go b/src/regexp/syntax/parse_test.go
+index c4a1117ff8..626ceeadf6 100644
+--- a/src/regexp/syntax/parse_test.go
++++ b/src/regexp/syntax/parse_test.go
+@@ -144,6 +144,7 @@ var parseTests = []parseTest{
+ 	// Test Perl quoted literals
+ 	{`\Q+|*?{[\E`, `str{+|*?{[}`},
+ 	{`\Q+\E+`, `plus{lit{+}}`},
++	{`\Qab\E+`, `cat{lit{a}plus{lit{b}}}`},
+ 	{`\Q\\E`, `lit{\}`},
+ 	{`\Q\\\E`, `str{\\}`},
+ 
+@@ -479,6 +480,7 @@ var invalidRegexps = []string{
+ 	`a{100000}`,
+ 	`a{100000,}`,
+ 	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
++	`\Q\E*`,
+ }
+ 
+ var onlyPerl = []string{

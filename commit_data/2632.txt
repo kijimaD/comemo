@@ -7,9 +7,73 @@ Date:   Tue Jul 7 11:48:22 2009 -0700
     R=ken
     OCL=31295
     CL=31295
-
+---
  src/cmd/gc/dcl.c                   | 5 +++--
  src/cmd/ld/go.c                    | 2 +-
  test/{bugs => fixedbugs}/bug167.go | 0
  test/golden.out                    | 6 ------
  4 files changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 73cf7786a7..4a1dfa1c1b 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -104,7 +104,7 @@ void
+ updatetype(Type *n, Type *t)
+ {
+ 	Sym *s;
+-	int local;
++	int local, vargen;
+ 	int maplineno, lno, etype;
+ 
+ 	s = n->sym;
+@@ -141,13 +141,14 @@ updatetype(Type *n, Type *t)
+ 	// that is no longer associated with n.
+ 	maplineno = n->maplineno;
+ 	local = n->local;
++	vargen = n->vargen;
+ 	*n = *t;
+ 	n->sym = s;
+ 	n->local = local;
+ 	n->siggen = 0;
+ 	n->printed = 0;
+ 	n->method = nil;
+-	n->vargen = 0;
++	n->vargen = vargen;
+ 	n->nod = N;
+ 
+ 	// catch declaration of incomplete type
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 54a8e48d1d..6c2cbc09bc 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -200,7 +200,7 @@ loadpkgdata(char *file, char *data, int len)
+ 		} else if((ndef = forwardfix(x->def, def)) != nil) {
+ 			x->def = ndef;
+ 		} else {
+-			fprint(2, "%d: conflicting definitions for %s\n", argv0, name);
++			fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
+ 			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
+ 			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
+ 			nerrors++;
+diff --git a/test/bugs/bug167.go b/test/fixedbugs/bug167.go
+similarity index 100%
+rename from test/bugs/bug167.go
+rename to test/fixedbugs/bug167.go
+diff --git a/test/golden.out b/test/golden.out
+index 28083668a0..790e4311bf 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -105,12 +105,6 @@ BUG: bug159
+ 123
+ BUG: should fail
+ 
+-=========== bugs/bug167.go
+-BUG: bug167
+-1606416656: conflicting definitions for main.T·bug167
+-bug167.6:	type main.T·bug167 struct { x int }
+-bug167.6:	type main.T·bug167 struct { x float }
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

@@ -16,6 +16,39 @@ Date:   Wed Apr 9 12:28:27 2014 -0400
     R=golang-codereviews, dominik.honnef, adonovan
     CC=golang-codereviews
     https://golang.org/cl/84900043
-
+---
  misc/emacs/go-mode.el | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 29b1fa4423..6333ff9661 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -294,7 +294,7 @@ For mode=set, all covered lines will have this weight."
+ (defconst go--font-lock-syntactic-keywords
+   ;; Override syntax property of raw string literal contents, so that
+   ;; backslashes have no special meaning in ``. Used in Emacs 23 or older.
+-  '(("\\(`\\)\\([^`]*\\)\\(`\\)"
++  '((go--match-raw-string-literal
+      (1 (7 . ?`))
+      (2 (15 . nil))  ;; 15 = "generic string"
+      (3 (7 . ?`)))))
+@@ -367,6 +367,18 @@ STOP-AT-STRING is not true, over strings."
+       (- (point-max)
+          (point-min))))
+ 
++(defun go--match-raw-string-literal (end)
++  "Search for a raw string literal. Set point to the end of the
++occurence found on success. Returns nil on failure."
++  (when (search-forward "`" end t)
++    (goto-char (match-beginning 0))
++    (if (go-in-string-or-comment-p)
++        (progn (goto-char (match-end 0))
++               (go--match-raw-string-literal end))
++      (when (looking-at "\\(`\\)\\([^`]*\\)\\(`\\)")
++        (goto-char (match-end 0))
++        t))))
++
+ (defun go-previous-line-has-dangling-op-p ()
+   "Returns non-nil if the current line is a continuation line."
+   (let* ((cur-line (line-number-at-pos))

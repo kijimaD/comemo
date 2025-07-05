@@ -11,6 +11,37 @@ Date:   Thu May 24 00:25:12 2018 +0200
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/nat.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index dc292b4e7c..a6f79edccc 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -512,8 +512,7 @@ func karatsubaSqr(z, x nat) {
+ 	n := len(x)
+ 
+ 	if n&1 != 0 || n < karatsubaSqrThreshold || n < 2 {
+-		z = z[:2*n]
+-		basicSqr(z, x)
++		basicSqr(z[:2*n], x)
+ 		return
+ 	}
+ 
+@@ -562,13 +561,14 @@ func (z nat) sqr(x nat) nat {
+ 	if alias(z, x) {
+ 		z = nil // z is an alias for x - cannot reuse
+ 	}
+-	z = z.make(2 * n)
+ 
+ 	if n < basicSqrThreshold {
++		z = z.make(2 * n)
+ 		basicMul(z, x, x)
+ 		return z.norm()
+ 	}
+ 	if n < karatsubaSqrThreshold {
++		z = z.make(2 * n)
+ 		basicSqr(z, x)
+ 		return z.norm()
+ 	}

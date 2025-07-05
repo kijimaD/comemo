@@ -14,7 +14,7 @@ Date:   Wed Jan 21 22:19:15 2015 -0500
     Change-Id: I308c70140238a0cfffd90e133f86f442cd0e17d4
     Reviewed-on: https://go-review.googlesource.com/3276
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  include/link.h         |  2 +-
  src/cmd/5g/ggen.c      | 12 ++++++------
  src/cmd/5g/reg.c       |  2 +-
@@ -35,3 +35,604 @@ Date:   Wed Jan 21 22:19:15 2015 -0500
  src/cmd/gc/typecheck.c |  5 ++++-
  src/cmd/gc/unsafe.c    |  4 +++-
  19 files changed, 98 insertions(+), 79 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 6c8db0e7d7..7653ad2786 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -67,7 +67,7 @@ struct	Addr
+ 	int8	class;	// for 5l, 9l
+ 	uint8	etype; // for 5g, 6g, 8g
+ 	int32	offset2;	// for 5l, 8l
+-	struct Node*	node; // for 5g, 6g, 8g
++	void*	node; // for 5g, 6g, 8g
+ 	int64	width; // for 5g, 6g, 8g
+ };
+ 
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 55ede69e4a..0888f4451d 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -128,10 +128,10 @@ markautoused(Prog* p)
+ 			continue;
+ 
+ 		if (p->from.node)
+-			p->from.node->used = 1;
++			((Node*)(p->from.node))->used = 1;
+ 
+ 		if (p->to.node)
+-			p->to.node->used = 1;
++			((Node*)(p->to.node))->used = 1;
+ 	}
+ }
+ 
+@@ -142,11 +142,11 @@ fixautoused(Prog* p)
+ 	Prog **lp;
+ 
+ 	for (lp=&p; (p=*lp) != P; ) {
+-		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !p->from.node->used) {
++		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !((Node*)(p->from.node))->used) {
+ 			*lp = p->link;
+ 			continue;
+ 		}
+-		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
++		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !((Node*)(p->to.node))->used) {
+ 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+@@ -158,10 +158,10 @@ fixautoused(Prog* p)
+ 		}
+ 
+ 		if (p->from.name == D_AUTO && p->from.node)
+-			p->from.offset += p->from.node->stkdelta;
++			p->from.offset += ((Node*)(p->from.node))->stkdelta;
+ 
+ 		if (p->to.name == D_AUTO && p->to.node)
+-			p->to.offset += p->to.node->stkdelta;
++			p->to.offset += ((Node*)(p->to.node))->stkdelta;
+ 
+ 		lp = &p->link;
+ 	}
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 30fb816013..49f87af84d 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -274,7 +274,7 @@ regopt(Prog *firstp)
+ 	}
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
+-		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
++		if(p->as == AVARDEF && isfat(((Node*)(p->to.node))->type) && ((Node*)(p->to.node))->opt != nil) {
+ 			active++;
+ 			walkvardef(p->to.node, r, active);
+ 		}
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 02e6dc2af5..e7f7745bd2 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -124,10 +124,10 @@ markautoused(Prog* p)
+ 			continue;
+ 
+ 		if (p->from.node)
+-			p->from.node->used = 1;
++			((Node*)(p->from.node))->used = 1;
+ 
+ 		if (p->to.node)
+-			p->to.node->used = 1;
++			((Node*)(p->to.node))->used = 1;
+ 	}
+ }
+ 
+@@ -138,11 +138,11 @@ fixautoused(Prog *p)
+ 	Prog **lp;
+ 
+ 	for (lp=&p; (p=*lp) != P; ) {
+-		if (p->as == ATYPE && p->from.node && p->from.type == D_AUTO && !p->from.node->used) {
++		if (p->as == ATYPE && p->from.node && p->from.type == D_AUTO && !((Node*)(p->from.node))->used) {
+ 			*lp = p->link;
+ 			continue;
+ 		}
+-		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
++		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !((Node*)(p->to.node))->used) {
+ 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+@@ -153,10 +153,10 @@ fixautoused(Prog *p)
+ 			continue;
+ 		}
+ 		if (p->from.type == D_AUTO && p->from.node)
+-			p->from.offset += p->from.node->stkdelta;
++			p->from.offset += ((Node*)(p->from.node))->stkdelta;
+ 
+ 		if (p->to.type == D_AUTO && p->to.node)
+-			p->to.offset += p->to.node->stkdelta;
++			p->to.offset += ((Node*)(p->to.node))->stkdelta;
+ 
+ 		lp = &p->link;
+ 	}
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index f3dc59b146..2a57f31fb1 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -255,7 +255,7 @@ regopt(Prog *firstp)
+ 	}
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
+-		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
++		if(p->as == AVARDEF && isfat(((Node*)(p->to.node))->type) && ((Node*)(p->to.node))->opt != nil) {
+ 			active++;
+ 			walkvardef(p->to.node, r, active);
+ 		}
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index d2597b40fc..79a79dc523 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -114,10 +114,10 @@ markautoused(Prog* p)
+ 			continue;
+ 
+ 		if (p->from.node)
+-			p->from.node->used = 1;
++			((Node*)(p->from.node))->used = 1;
+ 
+ 		if (p->to.node)
+-			p->to.node->used = 1;
++			((Node*)(p->to.node))->used = 1;
+ 	}
+ }
+ 
+@@ -128,11 +128,11 @@ fixautoused(Prog* p)
+ 	Prog **lp;
+ 
+ 	for (lp=&p; (p=*lp) != P; ) {
+-		if (p->as == ATYPE && p->from.node && p->from.type == D_AUTO && !p->from.node->used) {
++		if (p->as == ATYPE && p->from.node && p->from.type == D_AUTO && !((Node*)(p->from.node))->used) {
+ 			*lp = p->link;
+ 			continue;
+ 		}
+-		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
++		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !((Node*)(p->to.node))->used) {
+ 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+@@ -144,10 +144,10 @@ fixautoused(Prog* p)
+ 		}
+ 
+ 		if (p->from.type == D_AUTO && p->from.node)
+-			p->from.offset += p->from.node->stkdelta;
++			p->from.offset += ((Node*)(p->from.node))->stkdelta;
+ 
+ 		if (p->to.type == D_AUTO && p->to.node)
+-			p->to.offset += p->to.node->stkdelta;
++			p->to.offset += ((Node*)(p->to.node))->stkdelta;
+ 
+ 		lp = &p->link;
+ 	}
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index d7394a16d2..4c503a7f99 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -227,7 +227,7 @@ regopt(Prog *firstp)
+ 	}
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
+-		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
++		if(p->as == AVARDEF && isfat(((Node*)(p->to.node))->type) && ((Node*)(p->to.node))->opt != nil) {
+ 			active++;
+ 			walkvardef(p->to.node, r, active);
+ 		}
+diff --git a/src/cmd/9g/ggen.c b/src/cmd/9g/ggen.c
+index 89348bf2b0..3e72adf6b0 100644
+--- a/src/cmd/9g/ggen.c
++++ b/src/cmd/9g/ggen.c
+@@ -124,10 +124,10 @@ markautoused(Prog *p)
+ 			continue;
+ 
+ 		if (p->from.node)
+-			p->from.node->used = 1;
++			((Node*)(p->from.node))->used = 1;
+ 
+ 		if (p->to.node)
+-			p->to.node->used = 1;
++			((Node*)(p->to.node))->used = 1;
+ 	}
+ }
+ 
+@@ -138,11 +138,11 @@ fixautoused(Prog *p)
+ 	Prog **lp;
+ 
+ 	for (lp=&p; (p=*lp) != P; ) {
+-		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !p->from.node->used) {
++		if (p->as == ATYPE && p->from.node && p->from.name == D_AUTO && !((Node*)(p->from.node))->used) {
+ 			*lp = p->link;
+ 			continue;
+ 		}
+-		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
++		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !((Node*)(p->to.node))->used) {
+ 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+@@ -153,10 +153,10 @@ fixautoused(Prog *p)
+ 			continue;
+ 		}
+ 		if (p->from.name == D_AUTO && p->from.node)
+-			p->from.offset += p->from.node->stkdelta;
++			p->from.offset += ((Node*)(p->from.node))->stkdelta;
+ 
+ 		if (p->to.name == D_AUTO && p->to.node)
+-			p->to.offset += p->to.node->stkdelta;
++			p->to.offset += ((Node*)(p->to.node))->stkdelta;
+ 
+ 		lp = &p->link;
+ 	}
+diff --git a/src/cmd/9g/reg.c b/src/cmd/9g/reg.c
+index 6d40127ecc..47e6dd2d4a 100644
+--- a/src/cmd/9g/reg.c
++++ b/src/cmd/9g/reg.c
+@@ -296,7 +296,7 @@ regopt(Prog *firstp)
+ 	}
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
+-		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
++		if(p->as == AVARDEF && isfat(((Node*)(p->to.node))->type) && ((Node*)(p->to.node))->opt != nil) {
+ 			active++;
+ 			walkvardef(p->to.node, r, active);
+ 		}
+diff --git a/src/cmd/gc/array.c b/src/cmd/gc/array.c
+index 611fc9fbd4..f911a741f6 100644
+--- a/src/cmd/gc/array.c
++++ b/src/cmd/gc/array.c
+@@ -10,14 +10,6 @@ enum {
+ 	DEFAULTCAPACITY = 16,
+ };
+ 
+-struct Array
+-{
+-	int32	length;  // number of elements
+-	int32	size;  // element size
+-	int32	capacity;  // size of data in elements
+-	char	*data;  // element storage
+-};
+-
+ Array*
+ arraynew(int32 capacity, int32 size)
+ {
+diff --git a/src/cmd/gc/bv.c b/src/cmd/gc/bv.c
+index cfd1cd2811..2428006c8a 100644
+--- a/src/cmd/gc/bv.c
++++ b/src/cmd/gc/bv.c
+@@ -7,7 +7,7 @@
+ #include "go.h"
+ 
+ enum {
+-	WORDSIZE = sizeof(uint32),
++	WORDSIZE = 4,
+ 	WORDBITS = 32,
+ 	WORDMASK = WORDBITS - 1,
+ 	WORDSHIFT = 5,
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index c9bab7a768..6f3dc93572 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -14,6 +14,14 @@ static	void	minus(Node *nl, Node *res);
+ 
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+ 
++/*c2go
++static int
++CASE(int a, int b)
++{
++	return a<<16 | b;
++}
++*/
++
+ static int
+ overlap(Node *f, Node *t)
+ {
+@@ -308,13 +316,13 @@ complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to)
+ 	na.right = &nc;
+ 	na.type = types[TBOOL];
+ 
+-	memset(&nb, 0, sizeof(na));
++	memset(&nb, 0, sizeof(nb));
+ 	nb.op = OEQ;
+ 	nb.left = &n1;
+ 	nb.right = &n3;
+ 	nb.type = types[TBOOL];
+ 
+-	memset(&nc, 0, sizeof(na));
++	memset(&nc, 0, sizeof(nc));
+ 	nc.op = OEQ;
+ 	nc.left = &n2;
+ 	nc.right = &n4;
+@@ -442,13 +450,13 @@ complexmul(Node *nl, Node *nr, Node *res)
+ 	tempname(&tmp, n5.type);
+ 
+ 	// real part -> tmp
+-	memset(&rm1, 0, sizeof(ra));
++	memset(&rm1, 0, sizeof(rm1));
+ 	rm1.op = OMUL;
+ 	rm1.left = &n1;
+ 	rm1.right = &n3;
+ 	rm1.type = n1.type;
+ 
+-	memset(&rm2, 0, sizeof(ra));
++	memset(&rm2, 0, sizeof(rm2));
+ 	rm2.op = OMUL;
+ 	rm2.left = &n2;
+ 	rm2.right = &n4;
+@@ -462,13 +470,13 @@ complexmul(Node *nl, Node *nr, Node *res)
+ 	cgen(&ra, &tmp);
+ 
+ 	// imag part
+-	memset(&rm1, 0, sizeof(ra));
++	memset(&rm1, 0, sizeof(rm1));
+ 	rm1.op = OMUL;
+ 	rm1.left = &n1;
+ 	rm1.right = &n4;
+ 	rm1.type = n1.type;
+ 
+-	memset(&rm2, 0, sizeof(ra));
++	memset(&rm2, 0, sizeof(rm2));
+ 	rm2.op = OMUL;
+ 	rm2.left = &n2;
+ 	rm2.right = &n3;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 47c0545d55..241912c909 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -256,7 +256,7 @@ dumpexportvar(Sym *s)
+ }
+ 
+ static int
+-methcmp(const void *va, const void *vb)
++methodbyname(const void *va, const void *vb)
+ {
+ 	Type *a, *b;
+ 	
+@@ -297,7 +297,7 @@ dumpexporttype(Type *t)
+ 	i = 0;
+ 	for(f=t->method; f!=T; f=f->down)
+ 		m[i++] = f;
+-	qsort(m, n, sizeof m[0], methcmp);
++	qsort(m, n, sizeof m[0], methodbyname);
+ 
+ 	Bprint(bout, "\ttype %#S %#lT\n", t->sym, t);
+ 	for(i=0; i<n; i++) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ca313a0478..3a1fdde82a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -128,10 +128,6 @@ struct	Val
+ 		Strlit*	sval;		// string CTSTR
+ 	} u;
+ };
+-
+-// prevent incompatible type signatures between libgc and 8g on Plan 9
+-#pragma incomplete struct Array
+-
+ typedef	struct	Array	Array;
+ typedef	struct	Bvec	Bvec;
+ typedef	struct	Pkg Pkg;
+@@ -141,6 +137,14 @@ typedef	struct	NodeList	NodeList;
+ typedef	struct	Type	Type;
+ typedef	struct	Label	Label;
+ 
++struct	Array
++{
++	int32	length;  // number of elements
++	int32	size;  // element size
++	int32	capacity;  // size of data in elements
++	char	*data;  // element storage
++};
++
+ struct	Type
+ {
+ 	uchar	etype;
+@@ -708,8 +712,10 @@ enum
+ 	Ecomplit = 1<<11,	// type in composite literal
+ };
+ 
+-#define	BITS	3
+-#define	NVAR	(BITS*sizeof(uint64)*8)
++enum {
++	BITS = 3,
++	NVAR = 	(BITS*64)
++};
+ 
+ typedef	struct	Bits	Bits;
+ struct	Bits
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index e22d756ced..480f398711 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -735,23 +735,23 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 	}
+ 	if(info.flags & (LeftRead | LeftWrite | LeftAddr)) {
+ 		from = &prog->from;
+-		if (from->node != nil && from->sym != nil && from->node->curfn == curfn) {
+-			switch(from->node->class & ~PHEAP) {
++		if (from->node != nil && from->sym != nil && ((Node*)(from->node))->curfn == curfn) {
++			switch(((Node*)(from->node))->class & ~PHEAP) {
+ 			case PAUTO:
+ 			case PPARAM:
+ 			case PPARAMOUT:
+-				pos = (int)(uintptr)from->node->opt - 1; // index in vars
++				pos = (int)(uintptr)((Node*)(from->node))->opt - 1; // index in vars
+ 				if(pos == -1)
+ 					goto Next;
+ 				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != from->node)
+ 					fatal("bad bookkeeping in liveness %N %d", from->node, pos);
+-				if(from->node->addrtaken) {
++				if(((Node*)(from->node))->addrtaken) {
+ 					bvset(avarinit, pos);
+ 				} else {
+ 					if(info.flags & (LeftRead | LeftAddr))
+ 						bvset(uevar, pos);
+ 					if(info.flags & LeftWrite)
+-						if(from->node != nil && !isfat(from->node->type))
++						if(from->node != nil && !isfat(((Node*)(from->node))->type))
+ 							bvset(varkill, pos);
+ 				}
+ 			}
+@@ -760,17 +760,17 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ Next:
+ 	if(info.flags & (RightRead | RightWrite | RightAddr)) {
+ 		to = &prog->to;
+-		if (to->node != nil && to->sym != nil && to->node->curfn == curfn) {
+-			switch(to->node->class & ~PHEAP) {
++		if (to->node != nil && to->sym != nil && ((Node*)(to->node))->curfn == curfn) {
++			switch(((Node*)(to->node))->class & ~PHEAP) {
+ 			case PAUTO:
+ 			case PPARAM:
+ 			case PPARAMOUT:
+-				pos = (int)(uintptr)to->node->opt - 1; // index in vars
++				pos = (int)(uintptr)((Node*)(to->node))->opt - 1; // index in vars
+ 				if(pos == -1)
+ 					goto Next1;
+ 				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != to->node)
+ 					fatal("bad bookkeeping in liveness %N %d", to->node, pos);
+-				if(to->node->addrtaken) {
++				if(((Node*)(to->node))->addrtaken) {
+ 					if(prog->as != AVARKILL)
+ 						bvset(avarinit, pos);
+ 					if(prog->as == AVARDEF || prog->as == AVARKILL)
+@@ -787,7 +787,7 @@ Next:
+ 					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
+ 						bvset(uevar, pos);
+ 					if(info.flags & RightWrite)
+-						if(to->node != nil && (!isfat(to->node->type) || prog->as == AVARDEF))
++						if(to->node != nil && (!isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
+ 							bvset(varkill, pos);
+ 				}
+ 			}
+@@ -898,8 +898,12 @@ printnode(Node *node)
+ 	char *p;
+ 	char *a;
+ 
+-	p = haspointers(node->type) ? "^" : "";
+-	a = node->addrtaken ? "@" : "";
++	p = "";
++	if(haspointers(node->type))
++		p = "^";
++	a = "";
++	if(node->addrtaken)
++		a = "@";
+ 	print(" %N%s%s", node, p, a);
+ }
+ 
+@@ -1604,11 +1608,11 @@ livenessepilogue(Liveness *lv)
+ 					fmtstrinit(&fmt);
+ 					fmtprint(&fmt, "%L: live at ", p->lineno);
+ 					if(p->as == ACALL && p->to.node)
+-						fmtprint(&fmt, "call to %s:", p->to.node->sym->name);
++						fmtprint(&fmt, "call to %s:", ((Node*)(p->to.node))->sym->name);
+ 					else if(p->as == ACALL)
+ 						fmtprint(&fmt, "indirect call:");
+ 					else
+-						fmtprint(&fmt, "entry to %s:", p->from.node->sym->name);
++						fmtprint(&fmt, "entry to %s:", ((Node*)(p->from.node))->sym->name);
+ 					numlive = 0;
+ 					for(j = 0; j < arraylength(lv->vars); j++) {
+ 						n = *(Node**)arrayget(lv->vars, j);
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index 993bb24821..6d12d20526 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -58,7 +58,7 @@ noreturn(Prog *p)
+ 
+ 	if(p->to.node == nil)
+ 		return 0;
+-	s = p->to.node->sym;
++	s = ((Node*)(p->to.node))->sym;
+ 	if(s == S)
+ 		return 0;
+ 	for(i=0; symlist[i]!=S; i++)
+@@ -586,10 +586,14 @@ mergetemp(Prog *firstp)
+ 		p = r->f.prog;
+ 		proginfo(&info, p);
+ 
+-		if(p->from.node != N && p->from.node->opt && p->to.node != N && p->to.node->opt)
++		if(p->from.node != N && ((Node*)(p->from.node))->opt && p->to.node != N && ((Node*)(p->to.node))->opt)
+ 			fatal("double node %P", p);
+-		if((n = p->from.node) != N && (v = n->opt) != nil ||
+-		   (n = p->to.node) != N && (v = n->opt) != nil) {
++		v = nil;
++		if((n = p->from.node) != N)
++			v = n->opt;
++		if(v == nil && (n = p->to.node) != N)
++			v = n->opt;
++		if(v != nil) {
+ 		   	if(v->def == nil)
+ 		   		v->def = r;
+ 			r->uselink = v->use;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d46e44d313..871f723fda 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -708,7 +708,7 @@ static int
+ methcmp(const void *va, const void *vb)
+ {
+ 	Type *a, *b;
+-	int i;
++	int k;
+ 	
+ 	a = *(Type**)va;
+ 	b = *(Type**)vb;
+@@ -718,13 +718,13 @@ methcmp(const void *va, const void *vb)
+ 		return -1;
+ 	if(b->sym == S)
+ 		return 1;
+-	i = strcmp(a->sym->name, b->sym->name);
+-	if(i != 0)
+-		return i;
++	k = strcmp(a->sym->name, b->sym->name);
++	if(k != 0)
++		return k;
+ 	if(!exportname(a->sym->name)) {
+-		i = strcmp(a->sym->pkg->path->s, b->sym->pkg->path->s);
+-		if(i != 0)
+-			return i;
++		k = strcmp(a->sym->pkg->path->s, b->sym->pkg->path->s);
++		if(k != 0)
++			return k;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 1abdb83c58..222fd5296b 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -586,7 +586,9 @@ reswitch:
+ 				l->typecheck = 1;
+ 				n->left = l;
+ 				t = l->type;
+-			} else if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
++				goto converted;
++			}
++			if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
+ 				if(isinter(l->type) && !isinter(r->type) && algtype1(r->type, nil) == ANOEQ) {
+ 					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
+ 					goto error;
+@@ -597,6 +599,7 @@ reswitch:
+ 				n->right = r;
+ 				t = r->type;
+ 			}
++		converted:
+ 			et = t->etype;
+ 		}
+ 		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index ff08c0eef1..95d212e92b 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -27,7 +27,9 @@ unsafenmagic(Node *nn)
+ 	fn = nn->left;
+ 	args = nn->list;
+ 
+-	if(safemode || fn == N || fn->op != ONAME || (s = fn->sym) == S)
++	if(safemode || fn == N || fn->op != ONAME)
++		goto no;
++	if((s = fn->sym) == S)
+ 		goto no;
+ 	if(s->pkg != unsafepkg)
+ 		goto no;

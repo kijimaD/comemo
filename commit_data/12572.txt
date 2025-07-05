@@ -7,6 +7,20 @@ Date:   Tue Mar 13 03:24:13 2012 +0800
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/5777057
-
+---
  src/cmd/gc/runtime.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 000b2328ff..15a61d9ef6 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // NOTE: If you change this file you must run "./mkbuiltin"
+-// to update builtin.c.boot.  This is not done automatically
++// to update builtin.c.  This is not done automatically
+ // to avoid depending on having a working compiler binary.
+ 
+ // +build ignore

@@ -11,6 +11,32 @@ Date:   Wed May 28 01:01:08 2014 -0400
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/98600046
-
+---
  test/run.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index c96e37dba0..a8d4baa3ac 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -71,15 +71,15 @@ const maxTests = 5000
+ func main() {
+ 	flag.Parse()
+ 
+-	// Disable parallelism if printing
+-	if *verbose {
+-		*numParallel = 1
+-	}
+-
+ 	goos = os.Getenv("GOOS")
+ 	goarch = os.Getenv("GOARCH")
+ 	findExecCmd()
+ 
++	// Disable parallelism if printing or if using a simulator.
++	if *verbose || len(findExecCmd()) > 0 {
++		*numParallel = 1
++	}
++
+ 	ratec = make(chan bool, *numParallel)
+ 	rungatec = make(chan bool, *runoutputLimit)
+ 	var err error

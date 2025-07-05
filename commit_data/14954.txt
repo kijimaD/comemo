@@ -12,7 +12,42 @@ Date:   Tue Jan 22 14:44:49 2013 -0500
     R=golang-dev, remyoudompheng, kevlar, rsc
     CC=golang-dev
     https://golang.org/cl/7069046
-
+---
  src/pkg/time/example_test.go | 10 ++++++++++
  src/pkg/time/format.go       |  2 +-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/example_test.go b/src/pkg/time/example_test.go
+index ea26710d8d..cda565ff3e 100644
+--- a/src/pkg/time/example_test.go
++++ b/src/pkg/time/example_test.go
+@@ -57,6 +57,16 @@ func ExampleDate() {
+ 	// Output: Go launched at 2009-11-10 15:00:00 -0800 PST
+ }
+ 
++func ExampleTime_Format() {
++	const format = "Jan 2, 2006 at 3:04pm (MST)"
++	t := time.Date(2009, time.November, 10, 15, 0, 0, 0, time.Local)
++	fmt.Println(t.Format(format))
++	fmt.Println(t.UTC().Format(format))
++	// Output:
++	// Nov 10, 2009 at 3:00pm (PST)
++	// Nov 10, 2009 at 11:00pm (UTC)
++}
++
+ func ExampleTime_Round() {
+ 	t := time.Date(0, 0, 0, 12, 15, 30, 918273645, time.UTC)
+ 	round := []time.Duration{
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 35118a9ff7..8d21040bf9 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -9,7 +9,7 @@ import "errors"
+ // These are predefined layouts for use in Time.Format.
+ // The standard time used in the layouts is:
+ //	Mon Jan 2 15:04:05 MST 2006
+-// which is Unix time 1136243045. Since MST is GMT-0700,
++// which is Unix time 1136239445. Since MST is GMT-0700,
+ // the standard time can be thought of as
+ //	01/02 03:04:05PM '06 -0700
+ // To define your own format, write down what the standard time would look

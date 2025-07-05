@@ -17,8 +17,145 @@ Date:   Sun Jun 14 12:54:05 2015 +0200
     Change-Id: I022f5f6c88e107c8ba5623661d74a8d260d05266
     Reviewed-on: https://go-review.googlesource.com/11061
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/articles/wiki/final-test.patch | 36 ++++++++++++++++++++++++++++++++++++
  doc/articles/wiki/final.go         | 22 ----------------------
  doc/articles/wiki/test.bash        | 14 ++++++++------
  3 files changed, 44 insertions(+), 28 deletions(-)
+
+diff --git a/doc/articles/wiki/final-test.patch b/doc/articles/wiki/final-test.patch
+new file mode 100644
+index 0000000000..499ad789b3
+--- /dev/null
++++ b/doc/articles/wiki/final-test.patch
+@@ -0,0 +1,36 @@
++*** final.go	2015-06-14 23:59:22.000000000 +0200
++--- final-test.go	2015-06-15 00:15:41.000000000 +0200
++***************
++*** 7,12 ****
++--- 7,14 ----
++  import (
++  	"html/template"
++  	"io/ioutil"
+++ 	"log"
+++ 	"net"
++  	"net/http"
++  	"regexp"
++  )
++***************
++*** 85,89 ****
++  	http.HandleFunc("/edit/", makeHandler(editHandler))
++  	http.HandleFunc("/save/", makeHandler(saveHandler))
++  
++! 	http.ListenAndServe(":8080", nil)
++  }
++--- 87,101 ----
++  	http.HandleFunc("/edit/", makeHandler(editHandler))
++  	http.HandleFunc("/save/", makeHandler(saveHandler))
++  
++! 	l, err := net.Listen("tcp", "127.0.0.1:0")
++! 	if err != nil {
++! 		log.Fatal(err)
++! 	}
++! 	err = ioutil.WriteFile("final-test-port.txt", []byte(l.Addr().String()), 0644)
++! 	if err != nil {
++! 		log.Fatal(err)
++! 	}
++! 	s := &http.Server{}
++! 	s.Serve(l)
++! 	return
++  }
+diff --git a/doc/articles/wiki/final.go b/doc/articles/wiki/final.go
+index d84c1ffb26..139a323010 100644
+--- a/doc/articles/wiki/final.go
++++ b/doc/articles/wiki/final.go
+@@ -5,19 +5,12 @@
+ package main
+ 
+ import (
+-	"flag"
+ 	"html/template"
+ 	"io/ioutil"
+-	"log"
+-	"net"
+ 	"net/http"
+ 	"regexp"
+ )
+ 
+-var (
+-	addr = flag.Bool("addr", false, "find open address and print to final-port.txt")
+-)
+-
+ type Page struct {
+ 	Title string
+ 	Body  []byte
+@@ -88,24 +81,9 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
+ }
+ 
+ func main() {
+-	flag.Parse()
+ 	http.HandleFunc("/view/", makeHandler(viewHandler))
+ 	http.HandleFunc("/edit/", makeHandler(editHandler))
+ 	http.HandleFunc("/save/", makeHandler(saveHandler))
+ 
+-	if *addr {
+-		l, err := net.Listen("tcp", "127.0.0.1:0")
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-		err = ioutil.WriteFile("final-port.txt", []byte(l.Addr().String()), 0644)
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-		s := &http.Server{}
+-		s.Serve(l)
+-		return
+-	}
+-
+ 	http.ListenAndServe(":8080", nil)
+ }
+diff --git a/doc/articles/wiki/test.bash b/doc/articles/wiki/test.bash
+index 2997f1680a..8ecd666da3 100755
+--- a/doc/articles/wiki/test.bash
++++ b/doc/articles/wiki/test.bash
+@@ -7,11 +7,11 @@ set -e
+ wiki_pid=
+ cleanup() {
+ 	kill $wiki_pid
+-	rm -f test_*.out Test.txt final.bin final-port.txt a.out get.bin
++	rm -f test_*.out Test.txt final-test.bin final-test-port.txt a.out get.bin
+ }
+ trap cleanup 0 INT
+ 
+-rm -f get.bin final.bin a.out
++rm -f get.bin final-test.bin a.out
+ 
+ # If called with -all, check that all code snippets compile.
+ if [ "$1" == "-all" ]; then
+@@ -21,12 +21,14 @@ if [ "$1" == "-all" ]; then
+ fi
+ 
+ go build -o get.bin get.go
+-go build -o final.bin final.go
+-(./final.bin --addr) &
++cp final.go final-test.go
++patch final-test.go final-test.patch > /dev/null
++go build -o final-test.bin final-test.go
++./final-test.bin &
+ wiki_pid=$!
+ 
+ l=0
+-while [ ! -f ./final-port.txt ]
++while [ ! -f ./final-test-port.txt ]
+ do
+ 	l=$(($l+1))
+ 	if [ "$l" -gt 5 ]
+@@ -38,7 +40,7 @@ do
+ 	sleep 1
+ done
+ 
+-addr=$(cat final-port.txt)
++addr=$(cat final-test-port.txt)
+ ./get.bin http://$addr/edit/Test > test_edit.out
+ diff -u test_edit.out test_edit.good
+ ./get.bin -post=body=some%20content http://$addr/save/Test > test_save.out

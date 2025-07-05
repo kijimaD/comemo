@@ -12,6 +12,24 @@ Date:   Thu Jun 8 14:43:43 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index ff2eb1aba9..6ef40cb84c 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -158,10 +158,10 @@ func MapBucketType(t *types.Type) *types.Type {
+ 		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, BUCKETSIZE)
+ 	}
+ 	if keytype.Size() > MAXKEYSIZE {
+-		base.Fatalf("key size to large for %v", t)
++		base.Fatalf("key size too large for %v", t)
+ 	}
+ 	if elemtype.Size() > MAXELEMSIZE {
+-		base.Fatalf("elem size to large for %v", t)
++		base.Fatalf("elem size too large for %v", t)
+ 	}
+ 	if t.Key().Size() > MAXKEYSIZE && !keytype.IsPtr() {
+ 		base.Fatalf("key indirect incorrect for %v", t)

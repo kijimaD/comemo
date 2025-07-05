@@ -9,6 +9,20 @@ Date:   Tue Dec 13 13:25:48 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5487062
-
+---
  src/cmd/gc/pgen.c | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 034270360c..3c2237a2ae 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -7,8 +7,6 @@
+ #include	"gg.h"
+ #include	"opt.h"
+ 
+-#define	DUPOK	(1<<1)  /* same in all architectures */
+-
+ static void allocauto(Prog* p);
+ 
+ void

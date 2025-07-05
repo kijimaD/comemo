@@ -9,7 +9,7 @@ Date:   Thu Oct 13 15:46:39 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5265045
-
+---
  src/cmd/gc/dcl.c       |   1 +
  src/cmd/gc/go.h        |   1 +
  src/cmd/gc/subr.c      |   3 +
@@ -17,3 +17,515 @@ Date:   Thu Oct 13 15:46:39 2011 -0400
  src/cmd/gc/walk.c      | 266 ++++++++++++++++++++++++++++++++++++++++++-------
  test/reorder.go        | 121 ++++++++++++++++++++++
  6 files changed, 360 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d8b89b4f38..afbfd97bf6 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -415,6 +415,7 @@ oldname(Sym *s)
+ 			c->funcdepth = funcdepth;
+ 			c->outer = n->closure;
+ 			n->closure = c;
++			n->addrtaken = 1;
+ 			c->closure = n;
+ 			c->xoffset = 0;
+ 			curfn->cvars = list(curfn->cvars, c);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2d4ba31c7e..9ce24eda8b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -266,6 +266,7 @@ struct	Node
+ 	uchar	isddd;
+ 	uchar	readonly;
+ 	uchar	implicit;	// don't show in printout
++	uchar	addrtaken;	// address taken, even if not moved to heap
+ 
+ 	// most nodes
+ 	Type*	type;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b584be8272..bf83dd8fa6 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1155,6 +1155,9 @@ Jconv(Fmt *fp)
+ 	if(n->funcdepth != 0)
+ 		fmtprint(fp, " f(%d)", n->funcdepth);
+ 
++	if(n->addrtaken != 0)
++		fmtprint(fp, " addrtaken(1)");
++
+ 	switch(n->esc) {
+ 	case EscUnknown:
+ 		break;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 9e9e9f9a81..052fc74dff 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -532,6 +532,9 @@ reswitch:
+ 		default:
+ 			checklvalue(n->left, "take the address of");
+ 		}
++		for(l=n->left; l->op == ODOT; l=l->left)
++			l->addrtaken = 1;
++		l->addrtaken = 1;
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+ 		if((t = l->type) == T)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 8dec4956bc..de7004e3e9 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -124,8 +124,9 @@ paramoutheap(Node *fn)
+ 
+ 	for(l=fn->dcl; l; l=l->next) {
+ 		switch(l->n->class) {
++		case PPARAMOUT:
+ 		case PPARAMOUT|PHEAP:
+-			return 1;
++			return l->n->addrtaken;
+ 		case PAUTO:
+ 		case PAUTO|PHEAP:
+ 			// stop early - parameters are over
+@@ -285,6 +286,9 @@ walkstmt(Node **np)
+ 				n->list = concat(list1(f), ascompatet(n->op, rl, &f->type, 0, &n->ninit));
+ 				break;
+ 			}
++
++			// move function calls out, to make reorder3's job easier.
++			walkexprlistsafe(n->list, &n->ninit);
+ 			ll = ascompatee(n->op, rl, n->list, &n->ninit);
+ 			n->list = reorder3(ll);
+ 			break;
+@@ -1308,10 +1312,11 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
+ 	}
+ 
+ 	if(ll != nil || r != T)
+-		yyerror("assignment count mismatch: %d = %d",
++		yyerror("ascompatet: assignment count mismatch: %d = %d",
+ 			count(nl), structcount(*nr));
++
+ 	if(ucount)
+-		fatal("reorder2: too many function calls evaluating parameters");
++		fatal("ascompatet: too many function calls evaluating parameters");
+ 	return concat(nn, mm);
+ }
+ 
+@@ -1790,28 +1795,242 @@ reorder1(NodeList *all)
+ 	return concat(g, r);
+ }
+ 
++static void reorder3save(Node**, NodeList*, NodeList*, NodeList**);
++static int aliased(Node*, NodeList*, NodeList*);
++
+ /*
+  * from ascompat[ee]
+  *	a,b = c,d
+  * simultaneous assignment. there cannot
+  * be later use of an earlier lvalue.
++ *
++ * function calls have been removed.
++ */
++static NodeList*
++reorder3(NodeList *all)
++{
++	NodeList *list, *early;
++	Node *l;
++
++	// If a needed expression may be affected by an
++	// earlier assignment, make an early copy of that
++	// expression and use the copy instead.
++	early = nil;
++	for(list=all; list; list=list->next) {
++		l = list->n->left;
++
++		// Save subexpressions needed on left side.
++		// Drill through non-dereferences.
++		for(;;) {
++			if(l->op == ODOT || l->op == OPAREN) {
++				l = l->left;
++				continue;
++			}
++			if(l->op == OINDEX && isfixedarray(l->left->type)) {
++				reorder3save(&l->right, all, list, &early);
++				l = l->left;
++				continue;
++			}
++			break;
++		}
++		switch(l->op) {
++		default:
++			fatal("reorder3 unexpected lvalue %#O", l->op);
++		case ONAME:
++			break;
++		case OINDEX:
++			reorder3save(&l->left, all, list, &early);
++			reorder3save(&l->right, all, list, &early);
++			break;
++		case OIND:
++		case ODOTPTR:
++			reorder3save(&l->left, all, list, &early);
++		}
++
++		// Save expression on right side.
++		reorder3save(&list->n->right, all, list, &early);
++	}
++
++	return concat(early, all);
++}
++
++static int vmatch2(Node*, Node*);
++static int varexpr(Node*);
++
++/*
++ * if the evaluation of *np would be affected by the 
++ * assignments in all up to but not including stop,
++ * copy into a temporary during *early and
++ * replace *np with that temp.
++ */
++static void
++reorder3save(Node **np, NodeList *all, NodeList *stop, NodeList **early)
++{
++	Node *n, *q;
++
++	n = *np;
++	if(!aliased(n, all, stop))
++		return;
++	
++	q = temp(n->type);
++	q = nod(OAS, q, n);
++	q->typecheck = 1;
++	*early = list(*early, q);
++	*np = q->left;
++}
++
++/*
++ * what's the outer value that a write to n affects?
++ * outer value means containing struct or array.
+  */
++static Node*
++outervalue(Node *n)
++{	
++	for(;;) {
++		if(n->op == ODOT || n->op == OPAREN) {
++			n = n->left;
++			continue;
++		}
++		if(n->op == OINDEX && isfixedarray(n->left->type)) {
++			n = n->left;
++			continue;
++		}
++		break;
++	}
++	return n;
++}
+ 
++/*
++ * Is it possible that the computation of n might be
++ * affected by writes in as up to but not including stop?
++ */
++static int
++aliased(Node *n, NodeList *all, NodeList *stop)
++{
++	int memwrite, varwrite;
++	Node *a;
++	NodeList *l;
++
++	if(n == N)
++		return 0;
++
++	// Look for obvious aliasing: a variable being assigned
++	// during the all list and appearing in n.
++	// Also record whether there are any writes to main memory.
++	// Also record whether there are any writes to variables
++	// whose addresses have been taken.
++	memwrite = 0;
++	varwrite = 0;
++	for(l=all; l!=stop; l=l->next) {
++		a = outervalue(l->n->left);
++		if(a->op != ONAME) {
++			memwrite = 1;
++			continue;
++		}
++		switch(n->class) {
++		default:
++			varwrite = 1;
++			continue;
++		case PAUTO:
++		case PPARAM:
++		case PPARAMOUT:
++			if(n->addrtaken) {
++				varwrite = 1;
++				continue;
++			}
++			if(vmatch2(a, n)) {
++				// Direct hit.
++				return 1;
++			}
++		}
++	}
++
++	// The variables being written do not appear in n.
++	// However, n might refer to computed addresses
++	// that are being written.
++	
++	// If no computed addresses are affected by the writes, no aliasing.
++	if(!memwrite && !varwrite)
++		return 0;
++
++	// If n does not refer to computed addresses
++	// (that is, if n only refers to variables whose addresses
++	// have not been taken), no aliasing.
++	if(varexpr(n))
++		return 0;
++
++	// Otherwise, both the writes and n refer to computed memory addresses.
++	// Assume that they might conflict.
++	return 1;
++}
++
++/*
++ * does the evaluation of n only refer to variables
++ * whose addresses have not been taken?
++ * (and no other memory)
++ */
++static int
++varexpr(Node *n)
++{
++	if(n == N)
++		return 1;
++
++	switch(n->op) {
++	case OLITERAL:	
++		return 1;
++	case ONAME:
++		switch(n->class) {
++		case PAUTO:
++		case PPARAM:
++		case PPARAMOUT:
++			if(!n->addrtaken)
++				return 1;
++		}
++		return 0;
++
++	case OADD:
++	case OSUB:
++	case OOR:
++	case OXOR:
++	case OMUL:
++	case ODIV:
++	case OMOD:
++	case OLSH:
++	case ORSH:
++	case OAND:
++	case OANDNOT:
++	case OPLUS:
++	case OMINUS:
++	case OCOM:
++	case OPAREN:
++	case OANDAND:
++	case OOROR:
++	case ODOT:  // but not ODOTPTR
++	case OCONV:
++	case OCONVNOP:
++	case OCONVIFACE:
++	case ODOTTYPE:
++		return varexpr(n->left) && varexpr(n->right);
++	}
++
++	// Be conservative.
++	return 0;
++}
++
++/*
++ * is the name l mentioned in r?
++ */
+ static int
+ vmatch2(Node *l, Node *r)
+ {
+ 	NodeList *ll;
+ 
+-	/*
+-	 * isolate all right sides
+-	 */
+ 	if(r == N)
+ 		return 0;
+ 	switch(r->op) {
+ 	case ONAME:
+ 		// match each right given left
+-		if(l == r)
+-			return 1;
++		return l == r;
+ 	case OLITERAL:
+ 		return 0;
+ 	}
+@@ -1825,6 +2044,10 @@ vmatch2(Node *l, Node *r)
+ 	return 0;
+ }
+ 
++/*
++ * is any name mentioned in l also mentioned in r?
++ * called by sinit.c
++ */
+ int
+ vmatch1(Node *l, Node *r)
+ {
+@@ -1863,33 +2086,6 @@ vmatch1(Node *l, Node *r)
+ 	return 0;
+ }
+ 
+-static NodeList*
+-reorder3(NodeList *all)
+-{
+-	Node *n1, *n2, *q;
+-	int c1, c2;
+-	NodeList *l1, *l2, *r;
+-
+-	r = nil;
+-	for(l1=all, c1=0; l1; l1=l1->next, c1++) {
+-		n1 = l1->n;
+-		for(l2=all, c2=0; l2; l2=l2->next, c2++) {
+-			n2 = l2->n;
+-			if(c2 > c1) {
+-				if(vmatch1(n1->left, n2->right)) {
+-					// delay assignment to n1->left
+-					q = temp(n1->right->type);
+-					q = nod(OAS, n1->left, q);
+-					n1->left = q->right;
+-					r = list(r, q);
+-					break;
+-				}
+-			}
+-		}
+-	}
+-	return concat(all, r);
+-}
+-
+ /*
+  * walk through argin parameters.
+  * generate and return code to allocate
+diff --git a/test/reorder.go b/test/reorder.go
+new file mode 100644
+index 0000000000..67d07523b4
+--- /dev/null
++++ b/test/reorder.go
+@@ -0,0 +1,121 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check reordering of assignments.
++
++package main
++
++import "fmt"
++
++func main() {
++	p1()
++	p2()
++	p3()
++	p4()
++	p5()
++	p6()
++	p7()
++	p8()
++}
++
++var gx []int
++
++func f(i int) int {
++	return gx[i]
++}
++
++func check(x []int, x0, x1, x2 int) {
++	if x[0] != x0 || x[1] != x1 || x[2] != x2 {
++		fmt.Printf("%v, want %d,%d,%d\n", x, x0, x1, x2)
++		panic("failed")
++	}
++}
++
++func check3(x, y, z, xx, yy, zz int) {
++	if x != xx || y != yy || z != zz {
++		fmt.Printf("%d,%d,%d, want %d,%d,%d\n", x, y, z, xx, yy, zz)
++		panic("failed")
++	}
++}
++
++func p1() {
++	x := []int{1,2,3}
++	i := 0
++	i, x[i] = 1, 100
++	_ = i
++	check(x, 100, 2, 3)
++}
++
++func p2() {
++	x := []int{1,2,3}
++	i := 0
++	x[i], i = 100, 1
++	_ = i
++	check(x, 100, 2, 3)
++}
++
++func p3() {
++	x := []int{1,2,3}
++	y := x
++	gx = x
++	x[1], y[0] = f(0), f(1)
++	check(x, 2, 1, 3)
++}
++
++func p4() {
++	x := []int{1,2,3}
++	y := x
++	gx = x
++	x[1], y[0] = gx[0], gx[1]
++	check(x, 2, 1, 3)
++}
++
++func p5() {
++	x := []int{1,2,3}
++	y := x
++	p := &x[0]
++	q := &x[1]
++	*p, *q = x[1], y[0]
++	check(x, 2, 1, 3)
++}
++
++func p6() {
++	x := 1
++	y := 2
++	z := 3
++	px := &x
++	py := &y
++	*px, *py = y, x
++	check3(x, y, z, 2, 1, 3)	
++}
++
++func f1(x, y, z int) (xx, yy, zz int) {
++	return x, y, z
++}
++
++func f2() (x, y, z int) {
++	return f1(2, 1, 3)
++}
++
++func p7() {
++	x, y, z := f2()
++	check3(x, y, z, 2, 1, 3)
++}
++
++func p8() {
++	x := []int{1,2,3}
++
++	defer func() {
++		err := recover()
++		if err == nil {
++			panic("not panicking")
++		}
++		check(x, 100, 2, 3)
++	}()
++
++	i := 0
++	i, x[i], x[5] = 1, 100, 500
++}

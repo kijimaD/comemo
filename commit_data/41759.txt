@@ -19,8 +19,115 @@ Date:   Wed Oct 23 13:47:36 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/search/search.go           | 12 +++++----
  src/cmd/go/script_test.go                      |  2 ++
  src/cmd/go/testdata/script/mod_fs_patterns.txt | 35 ++++++++++++++++++++++++--
  3 files changed, 42 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 33ab4ae36e..ef3835bfa4 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -361,10 +361,10 @@ func ImportPathsQuiet(patterns []string) []*Match {
+ 	return out
+ }
+ 
+-// CleanPatterns returns the patterns to use for the given
+-// command line. It canonicalizes the patterns but does not
+-// evaluate any matches. It preserves text after '@' for commands
+-// that accept versions.
++// CleanPatterns returns the patterns to use for the given command line. It
++// canonicalizes the patterns but does not evaluate any matches. For patterns
++// that are not local or absolute paths, it preserves text after '@' to avoid
++// modifying version queries.
+ func CleanPatterns(patterns []string) []string {
+ 	if len(patterns) == 0 {
+ 		return []string{"."}
+@@ -372,7 +372,9 @@ func CleanPatterns(patterns []string) []string {
+ 	var out []string
+ 	for _, a := range patterns {
+ 		var p, v string
+-		if i := strings.IndexByte(a, '@'); i < 0 {
++		if build.IsLocalImport(a) || filepath.IsAbs(a) {
++			p = a
++		} else if i := strings.IndexByte(a, '@'); i < 0 {
+ 			p = a
+ 		} else {
+ 			p = a[:i]
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 31e527fd40..362a10fa86 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -117,6 +117,7 @@ func (ts *testScript) setup() {
+ 		"GOSUMDB=" + testSumDBVerifierKey,
+ 		"GONOPROXY=",
+ 		"GONOSUMDB=",
++		"PWD=" + ts.cd,
+ 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
+ 		"devnull=" + os.DevNull,
+ 		"goversion=" + goVersion(ts),
+@@ -414,6 +415,7 @@ func (ts *testScript) cmdCd(neg bool, args []string) {
+ 		ts.fatalf("%s is not a directory", dir)
+ 	}
+ 	ts.cd = dir
++	ts.envMap["PWD"] = dir
+ 	fmt.Fprintf(&ts.log, "%s\n", ts.cd)
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_fs_patterns.txt b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+index fd7de13002..4911fbb613 100644
+--- a/src/cmd/go/testdata/script/mod_fs_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+@@ -1,7 +1,6 @@
+-# File system pattern searches should skip sub-modules and vendor directories.
+-
+ env GO111MODULE=on
+ 
++# File system pattern searches should skip sub-modules and vendor directories.
+ cd x
+ 
+ # all packages
+@@ -40,6 +39,24 @@ stderr '^can.t load package: package ./nonexist: cannot find package "." in:\n\t
+ ! stderr 'import lookup disabled'
+ stderr 'can.t load package: package ./go.mod: cannot find package'
+ 
++
++# File system paths and patterns should allow the '@' character.
++cd ../@at
++go list $PWD
++stdout '^at$'
++go list $PWD/...
++stdout '^at$'
++
++# The '@' character is not allowed in directory paths that are part of
++# a package path.
++cd ../badat/bad@
++! go list .
++stderr 'directory . outside available modules'
++! go list $PWD
++stderr 'directory . outside available modules'
++! go list $PWD/...
++stderr 'directory . outside available modules'
++
+ -- x/go.mod --
+ module m
+ 
+@@ -64,3 +81,17 @@ package z
+ 
+ -- x/y/z/w/w.go --
+ package w
++
++-- @at/go.mod --
++module at
++
++go 1.14
++-- @at/at.go --
++package at
++
++-- badat/go.mod --
++module badat
++
++go 1.14
++-- badat/bad@/bad.go --
++package bad

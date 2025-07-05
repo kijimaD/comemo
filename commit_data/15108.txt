@@ -11,8 +11,125 @@ Date:   Sun Feb 3 02:01:05 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7271046
-
+---
  src/cmd/gc/typecheck.c      | 34 +++++++++++++++++++---------------
  test/fixedbugs/bug205.go    |  6 +++---
  test/fixedbugs/issue4232.go | 33 +++++++++++++++++++++++++++++++++
  3 files changed, 55 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 1bfa0cc471..d029b8bc6c 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -832,23 +832,34 @@ reswitch:
+ 			yyerror("invalid operation: %N (index of type %T)", n, t);
+ 			goto error;
+ 
++
++		case TSTRING:
+ 		case TARRAY:
+ 			defaultlit(&n->right, T);
+-			n->type = t->type;
++			if(t->etype == TSTRING)
++				n->type = types[TUINT8];
++			else
++				n->type = t->type;
++			why = "string";
++			if(t->etype == TARRAY) {
++				if(isfixedarray(t))
++					why = "array";
++				else
++					why = "slice";
++			}
+ 			if(n->right->type != T && !isint[n->right->type->etype]) {
+-				yyerror("non-integer array index %N", n->right);
++				yyerror("non-integer %s index %N", why, n->right);
+ 				break;
+ 			}
+ 			if(n->right->op == OLITERAL) {
+-			       	if(mpgetfix(n->right->val.u.xval) < 0) {
+-					why = isfixedarray(t) ? "array" : "slice";
++			       	if(mpgetfix(n->right->val.u.xval) < 0)
+ 					yyerror("invalid %s index %N (index must be non-negative)", why, n->right);
+-				} else if(isfixedarray(t) && t->bound > 0 && mpgetfix(n->right->val.u.xval) >= t->bound)
++				else if(isfixedarray(t) && t->bound > 0 && mpgetfix(n->right->val.u.xval) >= t->bound)
+ 					yyerror("invalid array index %N (out of bounds for %d-element array)", n->right, t->bound);
+-				else if(mpcmpfixfix(n->right->val.u.xval, maxintval[TINT]) > 0) {
+-					why = isfixedarray(t) ? "array" : "slice";
++				else if(isconst(n->left, CTSTR) && mpgetfix(n->right->val.u.xval) >= n->left->val.u.sval->len)
++					yyerror("invalid string index %N (out of bounds for %d-byte string)", n->right, n->left->val.u.sval->len);
++				else if(mpcmpfixfix(n->right->val.u.xval, maxintval[TINT]) > 0)
+ 					yyerror("invalid %s index %N (index too large)", why, n->right);
+-				}
+ 			}
+ 			break;
+ 
+@@ -860,13 +871,6 @@ reswitch:
+ 			n->type = t->type;
+ 			n->op = OINDEXMAP;
+ 			break;
+-
+-		case TSTRING:
+-			defaultlit(&n->right, types[TUINT]);
+-			if(n->right->type != T && !isint[n->right->type->etype])
+-				yyerror("non-integer string index %N", n->right);
+-			n->type = types[TUINT8];
+-			break;
+ 		}
+ 		goto ret;
+ 
+diff --git a/test/fixedbugs/bug205.go b/test/fixedbugs/bug205.go
+index de17cb6984..769837d04e 100644
+--- a/test/fixedbugs/bug205.go
++++ b/test/fixedbugs/bug205.go
+@@ -11,8 +11,8 @@ var s string;
+ var m map[string]int;
+ 
+ func main() {
+-	println(t["hi"]);	// ERROR "integer"
+-	println(s["hi"]);	// ERROR "integer" "to type uint"
+-	println(m[0]);	// ERROR "map index"
++	println(t["hi"]);	// ERROR "non-integer slice index"
++	println(s["hi"]);	// ERROR "non-integer string index"
++	println(m[0]);	// ERROR "as type string in map index"
+ }
+ 
+diff --git a/test/fixedbugs/issue4232.go b/test/fixedbugs/issue4232.go
+new file mode 100644
+index 0000000000..29ddfa8a90
+--- /dev/null
++++ b/test/fixedbugs/issue4232.go
+@@ -0,0 +1,33 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	var a [10]int
++	_ = a[-1] // ERROR "invalid array index -1"
++	_ = a[-1:] // ERROR "invalid slice index -1"
++	_ = a[:-1] // ERROR "invalid slice index -1"
++	_ = a[10] // ERROR "invalid array index 10"
++
++	var s []int
++	_ = s[-1] // ERROR "invalid slice index -1"
++	_ = s[-1:] // ERROR "invalid slice index -1"
++	_ = s[:-1] // ERROR "invalid slice index -1"
++	_ = s[10]
++
++	const c = "foo"
++	_ = c[-1] // ERROR "invalid string index -1"
++	_ = c[-1:] // ERROR "invalid slice index -1"
++	_ = c[:-1] // ERROR "invalid slice index -1"
++	_ = c[3] // ERROR "invalid string index 3"
++
++	var t string
++	_ = t[-1] // ERROR "invalid string index -1"
++	_ = t[-1:] // ERROR "invalid slice index -1"
++	_ = t[:-1] // ERROR "invalid slice index -1"
++	_ = t[3]
++}

@@ -9,7 +9,42 @@ Date:   Wed Jan 18 19:05:44 2012 -0800
     R=golang-dev, dave, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5554057
-
+---
  src/pkg/syscall/syscall.go         | 8 ++++++++
  src/pkg/syscall/syscall_windows.go | 7 +++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index f82c6c5626..b10358ab82 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -29,3 +29,11 @@ func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
+ // Single-word zero for use when we need a valid pointer to 0 bytes.
+ // See mksyscall.pl.
+ var _zero uintptr
++
++func (ts *Timespec) Unix() (sec int64, nsec int64) {
++	return int64(ts.Sec), int64(ts.Nsec)
++}
++
++func (tv *Timeval) Unix() (sec int64, nsec int64) {
++	return int64(tv.Sec), int64(tv.Usec) * 1000
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index b77a0779c5..45e2994f15 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -624,6 +624,13 @@ func (w WaitStatus) Signaled() bool { return false }
+ 
+ func (w WaitStatus) TrapCause() int { return -1 }
+ 
++// Timespec is an invented structure on Windows, but here for
++// consistency with the syscall package for other operating systems.
++type Timespec struct {
++	Sec  int64
++	Nsec int64
++}
++
+ // TODO(brainman): fix all needed for net
+ 
+ func Accept(fd Handle) (nfd Handle, sa Sockaddr, err error) { return 0, nil, EWINDOWS }

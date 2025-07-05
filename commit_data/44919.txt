@@ -13,8 +13,93 @@ Date:   Tue Sep 15 13:49:45 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/pipe2_illumos.go | 34 ++++++++++++++++++++++++++++++
  src/os/pipe2_illumos.go                    | 25 ++++++++++++++++++++++
  src/os/pipe_bsd.go                         |  2 +-
  3 files changed, 60 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/pipe2_illumos.go b/src/internal/syscall/unix/pipe2_illumos.go
+new file mode 100644
+index 0000000000..f3ac8d29df
+--- /dev/null
++++ b/src/internal/syscall/unix/pipe2_illumos.go
+@@ -0,0 +1,34 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build illumos
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++//go:cgo_import_dynamic libc_pipe2 pipe2 "libc.so"
++
++//go:linkname procpipe2 libc_pipe2
++
++var procpipe2 uintptr
++
++type _C_int int32
++
++func Pipe2(p []int, flags int) error {
++	if len(p) != 2 {
++		return syscall.EINVAL
++	}
++	var pp [2]_C_int
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procpipe2)), 2, uintptr(unsafe.Pointer(&pp)), uintptr(flags), 0, 0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return nil
++}
+diff --git a/src/os/pipe2_illumos.go b/src/os/pipe2_illumos.go
+new file mode 100644
+index 0000000000..026ce62b9a
+--- /dev/null
++++ b/src/os/pipe2_illumos.go
+@@ -0,0 +1,25 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build illumos
++
++package os
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
++
++// Pipe returns a connected pair of Files; reads from r return bytes written to w.
++// It returns the files and an error, if any.
++func Pipe() (r *File, w *File, err error) {
++	var p [2]int
++
++	e := unix.Pipe2(p[0:], syscall.O_CLOEXEC)
++	if e != nil {
++		return nil, nil, NewSyscallError("pipe", e)
++	}
++
++	return newFile(uintptr(p[0]), "|0", kindPipe), newFile(uintptr(p[1]), "|1", kindPipe), nil
++}
+diff --git a/src/os/pipe_bsd.go b/src/os/pipe_bsd.go
+index 0d2d82feb9..115d6baa19 100644
+--- a/src/os/pipe_bsd.go
++++ b/src/os/pipe_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly js,wasm solaris
++// +build aix darwin dragonfly js,wasm solaris,!illumos
+ 
+ package os
+ 

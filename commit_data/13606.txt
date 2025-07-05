@@ -7,10 +7,78 @@ Date:   Thu Aug 9 09:40:05 2012 +1000
     R=rsc, minux.ma, golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/6461047
-
+---
  src/pkg/math/dim_amd64.s    | 2 +-
  src/pkg/math/hypot_386.s    | 2 +-
  src/pkg/math/hypot_amd64.s  | 4 ++--
  src/pkg/math/log_amd64.s    | 2 +-
  src/pkg/math/sincos_amd64.s | 2 +-
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/math/dim_amd64.s b/src/pkg/math/dim_amd64.s
+index c867db5537..a1505ce44c 100644
+--- a/src/pkg/math/dim_amd64.s
++++ b/src/pkg/math/dim_amd64.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #define PosInf 0x7FF0000000000000
+-#define NaN    0x7FF0000000000001
++#define NaN    0x7FF8000000000001
+ #define NegInf 0xFFF0000000000000
+ 
+ // func Dim(x, y float64) float64
+diff --git a/src/pkg/math/hypot_386.s b/src/pkg/math/hypot_386.s
+index 70ff19a176..3b5ea88041 100644
+--- a/src/pkg/math/hypot_386.s
++++ b/src/pkg/math/hypot_386.s
+@@ -48,7 +48,7 @@ not_finite:
+ 	ANDL    $0x7fffffff, AX
+ 	CMPL    AX, $0x7ff00000
+ 	JEQ     is_inf
+-	MOVL    $0x7ff00000, rh+20(FP)  // return NaN = 0x7FF0000000000001
++	MOVL    $0x7ff80000, rh+20(FP)  // return NaN = 0x7FF8000000000001
+ 	MOVL    $0x00000001, rl+16(FP)
+ 	RET
+ is_inf:
+diff --git a/src/pkg/math/hypot_amd64.s b/src/pkg/math/hypot_amd64.s
+index 1f691e70ea..aeb95456bd 100644
+--- a/src/pkg/math/hypot_amd64.s
++++ b/src/pkg/math/hypot_amd64.s
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define PosInf 0x7ff0000000000000
+-#define NaN 0x7FF0000000000001
++#define PosInf 0x7FF0000000000000
++#define NaN 0x7FF8000000000001
+ 
+ // func Hypot(x, y float64) float64
+ TEXT ·Hypot(SB),7,$0
+diff --git a/src/pkg/math/log_amd64.s b/src/pkg/math/log_amd64.s
+index bf989bd2e8..75bc55764d 100644
+--- a/src/pkg/math/log_amd64.s
++++ b/src/pkg/math/log_amd64.s
+@@ -12,7 +12,7 @@
+ #define L5     1.818357216161805012e-01   // 0x3FC7466496CB03DE
+ #define L6     1.531383769920937332e-01   // 0x3FC39A09D078C69F
+ #define L7     1.479819860511658591e-01   // 0x3FC2F112DF3E5244
+-#define NaN    0x7FF0000000000001
++#define NaN    0x7FF8000000000001
+ #define NegInf 0xFFF0000000000000
+ #define PosInf 0x7FF0000000000000
+ 
+diff --git a/src/pkg/math/sincos_amd64.s b/src/pkg/math/sincos_amd64.s
+index 18c824e512..c9dea09164 100644
+--- a/src/pkg/math/sincos_amd64.s
++++ b/src/pkg/math/sincos_amd64.s
+@@ -19,7 +19,7 @@
+ 
+ #define PosOne 0x3FF0000000000000
+ #define PosInf 0x7FF0000000000000
+-#define NaN    0x7FF0000000000001
++#define NaN    0x7FF8000000000001
+ #define PI4A 0.7853981554508209228515625 // pi/4 split into three parts
+ #define PI4B 0.794662735614792836713604629039764404296875e-8
+ #define PI4C 0.306161699786838294306516483068750264552437361480769e-16

@@ -19,6 +19,46 @@ Date:   Thu Jul 11 00:00:32 2024 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index a95fa03e17..05f0affe8a 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -144,6 +144,34 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
+ 	}
+ 	base.ExitIfErrors()
+ 
++	// Implementation restriction: we don't allow not-in-heap types to
++	// be used as map keys/values, or channel.
++	{
++		for _, file := range files {
++			syntax.Inspect(file, func(n syntax.Node) bool {
++				if n, ok := n.(*syntax.TypeDecl); ok {
++					switch n := n.Type.(type) {
++					case *syntax.MapType:
++						typ := n.GetTypeInfo().Type.Underlying().(*types2.Map)
++						if isNotInHeap(typ.Key()) {
++							base.ErrorfAt(m.makeXPos(n.Pos()), 0, "incomplete (or unallocatable) map key not allowed")
++						}
++						if isNotInHeap(typ.Elem()) {
++							base.ErrorfAt(m.makeXPos(n.Pos()), 0, "incomplete (or unallocatable) map value not allowed")
++						}
++					case *syntax.ChanType:
++						typ := n.GetTypeInfo().Type.Underlying().(*types2.Chan)
++						if isNotInHeap(typ.Elem()) {
++							base.ErrorfAt(m.makeXPos(n.Pos()), 0, "chan of incomplete (or unallocatable) type not allowed")
++						}
++					}
++				}
++				return true
++			})
++		}
++	}
++	base.ExitIfErrors()
++
+ 	// Rewrite range over function to explicit function calls
+ 	// with the loop bodies converted into new implicit closures.
+ 	// We do this now, before serialization to unified IR, so that if the

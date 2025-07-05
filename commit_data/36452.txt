@@ -26,9 +26,318 @@ Date:   Sat Apr 21 17:31:21 2018 +1000
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 12 ++---
  src/cmd/compile/internal/gc/builtin/runtime.go | 12 ++---
  src/cmd/compile/internal/gc/walk.go            | 62 +++++++++++-----------
  src/runtime/iface.go                           | 72 +++++++-------------------
  4 files changed, 61 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 3bb17673a5..bdc4974a7c 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -50,16 +50,16 @@ var runtimeDecls = [...]struct {
+ 	{"slicestringcopy", funcTag, 50},
+ 	{"convI2I", funcTag, 51},
+ 	{"convT2E", funcTag, 52},
+-	{"convT2E16", funcTag, 52},
+-	{"convT2E32", funcTag, 52},
+-	{"convT2E64", funcTag, 52},
++	{"convT2E16", funcTag, 51},
++	{"convT2E32", funcTag, 51},
++	{"convT2E64", funcTag, 51},
+ 	{"convT2Estring", funcTag, 52},
+ 	{"convT2Eslice", funcTag, 52},
+ 	{"convT2Enoptr", funcTag, 52},
+ 	{"convT2I", funcTag, 52},
+-	{"convT2I16", funcTag, 52},
+-	{"convT2I32", funcTag, 52},
+-	{"convT2I64", funcTag, 52},
++	{"convT2I16", funcTag, 51},
++	{"convT2I32", funcTag, 51},
++	{"convT2I64", funcTag, 51},
+ 	{"convT2Istring", funcTag, 52},
+ 	{"convT2Islice", funcTag, 52},
+ 	{"convT2Inoptr", funcTag, 52},
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index bda9d1d03c..80294c8e0f 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -62,17 +62,17 @@ func slicestringcopy(to any, fr any) int
+ func convI2I(typ *byte, elem any) (ret any)
+ 
+ func convT2E(typ *byte, elem *any) (ret any)
+-func convT2E16(typ *byte, elem *any) (ret any)
+-func convT2E32(typ *byte, elem *any) (ret any)
+-func convT2E64(typ *byte, elem *any) (ret any)
++func convT2E16(typ *byte, val any) (ret any)
++func convT2E32(typ *byte, val any) (ret any)
++func convT2E64(typ *byte, val any) (ret any)
+ func convT2Estring(typ *byte, elem *any) (ret any)
+ func convT2Eslice(typ *byte, elem *any) (ret any)
+ func convT2Enoptr(typ *byte, elem *any) (ret any)
+ 
+ func convT2I(tab *byte, elem *any) (ret any)
+-func convT2I16(tab *byte, elem *any) (ret any)
+-func convT2I32(tab *byte, elem *any) (ret any)
+-func convT2I64(tab *byte, elem *any) (ret any)
++func convT2I16(tab *byte, val any) (ret any)
++func convT2I32(tab *byte, val any) (ret any)
++func convT2I64(tab *byte, val any) (ret any)
+ func convT2Istring(tab *byte, elem *any) (ret any)
+ func convT2Islice(tab *byte, elem *any) (ret any)
+ func convT2Inoptr(tab *byte, elem *any) (ret any)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c2e5f69d1f..cb482e2323 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -388,51 +388,51 @@ func walkexprlistcheap(s []*Node, init *Nodes) {
+ 	}
+ }
+ 
+-// Build name of function for interface conversion.
+-// Not all names are possible
+-// (e.g., we'll never generate convE2E or convE2I or convI2E).
+-func convFuncName(from, to *types.Type) string {
++// convFuncName builds the runtime function name for interface conversion.
++// It also reports whether the function expects the data by address.
++// Not all names are possible. For example, we never generate convE2E or convE2I.
++func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
+ 	tkind := to.Tie()
+ 	switch from.Tie() {
+ 	case 'I':
+ 		switch tkind {
+ 		case 'I':
+-			return "convI2I"
++			return "convI2I", false
+ 		}
+ 	case 'T':
+ 		switch tkind {
+ 		case 'E':
+ 			switch {
+ 			case from.Size() == 2 && from.Align == 2:
+-				return "convT2E16"
++				return "convT2E16", false
+ 			case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
+-				return "convT2E32"
++				return "convT2E32", false
+ 			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
+-				return "convT2E64"
++				return "convT2E64", false
+ 			case from.IsString():
+-				return "convT2Estring"
++				return "convT2Estring", true
+ 			case from.IsSlice():
+-				return "convT2Eslice"
++				return "convT2Eslice", true
+ 			case !types.Haspointers(from):
+-				return "convT2Enoptr"
++				return "convT2Enoptr", true
+ 			}
+-			return "convT2E"
++			return "convT2E", true
+ 		case 'I':
+ 			switch {
+ 			case from.Size() == 2 && from.Align == 2:
+-				return "convT2I16"
++				return "convT2I16", false
+ 			case from.Size() == 4 && from.Align == 4 && !types.Haspointers(from):
+-				return "convT2I32"
++				return "convT2I32", false
+ 			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
+-				return "convT2I64"
++				return "convT2I64", false
+ 			case from.IsString():
+-				return "convT2Istring"
++				return "convT2Istring", true
+ 			case from.IsSlice():
+-				return "convT2Islice"
++				return "convT2Islice", true
+ 			case !types.Haspointers(from):
+-				return "convT2Inoptr"
++				return "convT2Inoptr", true
+ 			}
+-			return "convT2I"
++			return "convT2I", true
+ 		}
+ 	}
+ 	Fatalf("unknown conv func %c2%c", from.Tie(), to.Tie())
+@@ -980,24 +980,24 @@ opswitch:
+ 			}
+ 		}
+ 
+-		if n.Left.Type.IsInterface() {
+-			ll = append(ll, n.Left)
+-		} else {
+-			// regular types are passed by reference to avoid C vararg calls
+-			// orderexpr arranged for n.Left to be a temporary for all
+-			// the conversions it could see. comparison of an interface
++		fnname, needsaddr := convFuncName(n.Left.Type, n.Type)
++		v := n.Left
++		if needsaddr {
++			// Types of large or unknown size are passed by reference.
++			// Orderexpr arranged for n.Left to be a temporary for all
++			// the conversions it could see. Comparison of an interface
+ 			// with a non-interface, especially in a switch on interface value
+ 			// with non-interface cases, is not visible to orderstmt, so we
+ 			// have to fall back on allocating a temp here.
+-			if islvalue(n.Left) {
+-				ll = append(ll, nod(OADDR, n.Left, nil))
+-			} else {
+-				ll = append(ll, nod(OADDR, copyexpr(n.Left, n.Left.Type, init), nil))
++			if !islvalue(v) {
++				v = copyexpr(v, v.Type, init)
+ 			}
+-			dowidth(n.Left.Type)
++			v = nod(OADDR, v, nil)
+ 		}
++		ll = append(ll, v)
+ 
+-		fn := syslook(convFuncName(n.Left.Type, n.Type))
++		dowidth(n.Left.Type)
++		fn := syslook(fnname)
+ 		fn = substArgTypes(fn, n.Left.Type, n.Type)
+ 		dowidth(fn.Type)
+ 		n = nod(OCALL, fn, nil)
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index bd6bc282f4..4362f2cd5b 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -294,57 +294,39 @@ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+ 	return
+ }
+ 
+-func convT2E16(t *_type, elem unsafe.Pointer) (e eface) {
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E16))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
++func convT2E16(t *_type, val uint16) (e eface) {
+ 	var x unsafe.Pointer
+-	if *(*uint16)(elem) == 0 {
++	if val == 0 {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+ 		x = mallocgc(2, t, false)
+-		*(*uint16)(x) = *(*uint16)(elem)
++		*(*uint16)(x) = val
+ 	}
+ 	e._type = t
+ 	e.data = x
+ 	return
+ }
+ 
+-func convT2E32(t *_type, elem unsafe.Pointer) (e eface) {
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E32))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
++func convT2E32(t *_type, val uint32) (e eface) {
+ 	var x unsafe.Pointer
+-	if *(*uint32)(elem) == 0 {
++	if val == 0 {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+ 		x = mallocgc(4, t, false)
+-		*(*uint32)(x) = *(*uint32)(elem)
++		*(*uint32)(x) = val
+ 	}
+ 	e._type = t
+ 	e.data = x
+ 	return
+ }
+ 
+-func convT2E64(t *_type, elem unsafe.Pointer) (e eface) {
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E64))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
++func convT2E64(t *_type, val uint64) (e eface) {
+ 	var x unsafe.Pointer
+-	if *(*uint64)(elem) == 0 {
++	if val == 0 {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+ 		x = mallocgc(8, t, false)
+-		*(*uint64)(x) = *(*uint64)(elem)
++		*(*uint64)(x) = val
+ 	}
+ 	e._type = t
+ 	e.data = x
+@@ -418,60 +400,42 @@ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
+ 	return
+ }
+ 
+-func convT2I16(tab *itab, elem unsafe.Pointer) (i iface) {
++func convT2I16(tab *itab, val uint16) (i iface) {
+ 	t := tab._type
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I16))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
+ 	var x unsafe.Pointer
+-	if *(*uint16)(elem) == 0 {
++	if val == 0 {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+ 		x = mallocgc(2, t, false)
+-		*(*uint16)(x) = *(*uint16)(elem)
++		*(*uint16)(x) = val
+ 	}
+ 	i.tab = tab
+ 	i.data = x
+ 	return
+ }
+ 
+-func convT2I32(tab *itab, elem unsafe.Pointer) (i iface) {
++func convT2I32(tab *itab, val uint32) (i iface) {
+ 	t := tab._type
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I32))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
+ 	var x unsafe.Pointer
+-	if *(*uint32)(elem) == 0 {
++	if val == 0 {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+ 		x = mallocgc(4, t, false)
+-		*(*uint32)(x) = *(*uint32)(elem)
++		*(*uint32)(x) = val
+ 	}
+ 	i.tab = tab
+ 	i.data = x
+ 	return
+ }
+ 
+-func convT2I64(tab *itab, elem unsafe.Pointer) (i iface) {
++func convT2I64(tab *itab, val uint64) (i iface) {
+ 	t := tab._type
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I64))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
+ 	var x unsafe.Pointer
+-	if *(*uint64)(elem) == 0 {
++	if val == 0 {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+ 		x = mallocgc(8, t, false)
+-		*(*uint64)(x) = *(*uint64)(elem)
++		*(*uint64)(x) = val
+ 	}
+ 	i.tab = tab
+ 	i.data = x

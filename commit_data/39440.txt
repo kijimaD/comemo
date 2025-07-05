@@ -17,8 +17,121 @@ Date:   Wed Feb 27 22:02:51 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/deps_test.go                 | 11 ++++---
  src/internal/lazyregexp/lazyre.go         |  7 +++++
  src/internal/lazytemplate/lazytemplate.go | 52 +++++++++++++++++++++++++++++++
  3 files changed, 65 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 3b6dbd6221..8e289ae95d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -194,11 +194,12 @@ var pkgDeps = map[string][]string{
+ 	"runtime/trace":  {"L0", "context", "fmt"},
+ 	"text/tabwriter": {"L2"},
+ 
+-	"testing":             {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+-	"testing/iotest":      {"L2", "log"},
+-	"testing/quick":       {"L2", "flag", "fmt", "reflect", "time"},
+-	"internal/testenv":    {"L2", "OS", "flag", "testing", "syscall"},
+-	"internal/lazyregexp": {"L2", "OS", "regexp"},
++	"testing":               {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
++	"testing/iotest":        {"L2", "log"},
++	"testing/quick":         {"L2", "flag", "fmt", "reflect", "time"},
++	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall"},
++	"internal/lazyregexp":   {"L2", "OS", "regexp"},
++	"internal/lazytemplate": {"L2", "OS", "text/template"},
+ 
+ 	// L4 is defined as L3+fmt+log+time, because in general once
+ 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
+diff --git a/src/internal/lazyregexp/lazyre.go b/src/internal/lazyregexp/lazyre.go
+index 0c744fa39f..2681af35af 100644
+--- a/src/internal/lazyregexp/lazyre.go
++++ b/src/internal/lazyregexp/lazyre.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package lazyregexp is a thin wrapper over regexp, allowing the use of global
++// regexp variables without forcing them to be compiled at init.
+ package lazyregexp
+ 
+ import (
+@@ -11,6 +13,8 @@ import (
+ 	"sync"
+ )
+ 
++// Regexp is a wrapper around regexp.Regexp, where the underlying regexp will be
++// compiled the first time it is needed.
+ type Regexp struct {
+ 	str  string
+ 	once sync.Once
+@@ -61,6 +65,9 @@ func (r *Regexp) SubexpNames() []string {
+ 
+ var inTest = len(os.Args) > 0 && strings.HasSuffix(strings.TrimSuffix(os.Args[0], ".exe"), ".test")
+ 
++// New creates a new lazy regexp, delaying the compiling work until it is first
++// needed. If the code is being run as part of tests, the regexp compiling will
++// happen immediately.
+ func New(str string) *Regexp {
+ 	lr := &Regexp{str: str}
+ 	if inTest {
+diff --git a/src/internal/lazytemplate/lazytemplate.go b/src/internal/lazytemplate/lazytemplate.go
+new file mode 100644
+index 0000000000..c83eaeaf3e
+--- /dev/null
++++ b/src/internal/lazytemplate/lazytemplate.go
+@@ -0,0 +1,52 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package lazytemplate is a thin wrapper over text/template, allowing the use
++// of global template variables without forcing them to be parsed at init.
++package lazytemplate
++
++import (
++	"io"
++	"os"
++	"strings"
++	"sync"
++	"text/template"
++)
++
++// Template is a wrapper around text/template.Template, where the underlying
++// template will be parsed the first time it is needed.
++type Template struct {
++	name, text string
++
++	once sync.Once
++	tmpl *template.Template
++}
++
++func (r *Template) tp() *template.Template {
++	r.once.Do(r.build)
++	return r.tmpl
++}
++
++func (r *Template) build() {
++	r.tmpl = template.Must(template.New(r.name).Parse(r.text))
++	r.name, r.text = "", ""
++}
++
++func (r *Template) Execute(w io.Writer, data interface{}) error {
++	return r.tp().Execute(w, data)
++}
++
++var inTest = len(os.Args) > 0 && strings.HasSuffix(strings.TrimSuffix(os.Args[0], ".exe"), ".test")
++
++// New creates a new lazy template, delaying the parsing work until it is first
++// needed. If the code is being run as part of tests, the template parsing will
++// happen immediately.
++func New(name, text string) *Template {
++	lt := &Template{name: name, text: text}
++	if inTest {
++		// In tests, always parse the templates early.
++		lt.tp()
++	}
++	return lt
++}

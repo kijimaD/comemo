@@ -14,7 +14,60 @@ Date:   Wed Feb 14 21:01:53 2024 +0000
     Run-TryBot: Sam Thanawalla <samthanawalla@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Commit-Queue: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    |  2 +-
  .../go/testdata/script/mod_gomodcache_vendor.txt   | 32 ++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 1549800afb..0e4b6797c6 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2306,7 +2306,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 		}
+ 		if mi.Replace != nil {
+ 			dm.Replace = debugModFromModinfo(mi.Replace)
+-		} else if mi.Version != "" {
++		} else if mi.Version != "" && cfg.BuildMod != "vendor" {
+ 			dm.Sum = modfetch.Sum(ctx, module.Version{Path: mi.Path, Version: mi.Version})
+ 		}
+ 		return dm
+diff --git a/src/cmd/go/testdata/script/mod_gomodcache_vendor.txt b/src/cmd/go/testdata/script/mod_gomodcache_vendor.txt
+new file mode 100644
+index 0000000000..164460be84
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_gomodcache_vendor.txt
+@@ -0,0 +1,32 @@
++# This test verifies that GOMODCACHE does not affect whether checksums are embedded
++# with vendored files.
++# See issue #46400
++[short] skip 'builds and links a binary twice'
++go mod tidy
++go mod vendor
++
++go build -mod=vendor
++go version -m example$GOEXE
++cp stdout version-m.txt
++
++env GOMODCACHE=$WORK${/}modcache
++go build -mod=vendor
++go version -m example$GOEXE
++cmp stdout version-m.txt
++
++-- go.mod --
++module example
++go 1.22
++require rsc.io/sampler v1.3.0
++
++-- main.go --
++package main
++
++import (
++    "fmt"
++    "rsc.io/sampler"
++)
++
++func main() {
++    fmt.Println(sampler.Hello())
++}
+\ No newline at end of file

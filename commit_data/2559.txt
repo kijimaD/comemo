@@ -9,7 +9,58 @@ Date:   Tue Jun 30 20:01:59 2009 -0700
     DELTA=12  (0 added, 11 deleted, 1 changed)
     OCL=30952
     CL=30965
-
+---
  src/pkg/runtime/mem.c     |  2 +-
  src/pkg/runtime/runtime.h | 11 -----------
  2 files changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/mem.c b/src/pkg/runtime/mem.c
+index 7ed299eb0e..2d6e36ae83 100644
+--- a/src/pkg/runtime/mem.c
++++ b/src/pkg/runtime/mem.c
+@@ -68,7 +68,7 @@ oldmal(uint32 n)
+ }
+ 
+ void
+-sys_mal(uint32 n, uint8 *ret)
++sys·mal(uint32 n, uint8 *ret)
+ {
+ 	ret = mal(n);
+ 	FLUSH(&ret);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index d7bf807cc5..b02844dc96 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -397,12 +397,7 @@ void	notewakeup(Note*);
+  */
+ #ifndef __GNUC__
+ #define sys_memclr sys·memclr
+-#define sys_catstring sys·catstring
+-#define sys_cmpstring sys·cmpstring
+ #define sys_getcallerpc sys·getcallerpc
+-#define sys_indexstring sys·indexstring
+-#define sys_intstring sys·intstring
+-#define sys_mal sys·mal
+ #define sys_mmap sys·mmap
+ #define sys_printarray sys·printarray
+ #define sys_printbool sys·printbool
+@@ -416,7 +411,6 @@ void	notewakeup(Note*);
+ #define sys_printstring sys·printstring
+ #define sys_printuint sys·printuint
+ #define sys_setcallerpc sys·setcallerpc
+-#define sys_slicestring sys·slicestring
+ #endif
+ 
+ /*
+@@ -441,11 +435,6 @@ void	sys_printpointer(void*);
+ void	sys_printuint(uint64);
+ void	sys_printhex(uint64);
+ void	sys_printarray(Array);
+-void	sys_catstring(String, String, String);
+-void	sys_cmpstring(String, String, int32);
+-void	sys_slicestring(String, int32, int32, String);
+-void	sys_indexstring(String, int32, byte);
+-void	sys_intstring(int64, String);
+ 
+ /*
+  * wrapped for go users

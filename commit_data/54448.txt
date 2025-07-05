@@ -13,9 +13,135 @@ Date:   Tue Oct 18 13:00:26 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/types/api_test.go         | 14 +++++---------
  src/go/types/instantiate_test.go | 10 +++++-----
  src/go/types/methodset_test.go   |  2 +-
  src/go/types/named_test.go       |  2 +-
  4 files changed, 12 insertions(+), 16 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index b204025b54..4874ab068c 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -24,12 +24,8 @@ import (
+ // pkgFor parses and type checks the package specified by path and source,
+ // populating info if provided.
+ func pkgFor(path, source string, info *Info) (*Package, error) {
+-	return pkgForMode(path, source, info, 0)
+-}
+-
+-func pkgForMode(path, source string, info *Info, mode parser.Mode) (*Package, error) {
+ 	fset := token.NewFileSet()
+-	f, err := parser.ParseFile(fset, path, source, mode)
++	f, err := parser.ParseFile(fset, path, source, 0)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -1650,7 +1646,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		pkg, err := pkgForMode("test", "package p;"+test.src, nil, 0)
++		pkg, err := pkgFor("test", "package p;"+test.src, nil)
+ 		if err != nil {
+ 			t.Errorf("%s: incorrect test case: %s", test.src, err)
+ 			continue
+@@ -1943,7 +1939,7 @@ func TestIdentical(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		pkg, err := pkgForMode("test", "package p;"+test.src, nil, 0)
++		pkg, err := pkgFor("test", "package p;"+test.src, nil)
+ 		if err != nil {
+ 			t.Errorf("%s: incorrect test case: %s", test.src, err)
+ 			continue
+@@ -2241,7 +2237,7 @@ func f(x T) T { return foo.F(x) }
+ func TestInstantiate(t *testing.T) {
+ 	// eventually we like more tests but this is a start
+ 	const src = "package p; type T[P any] *T[P]"
+-	pkg, err := pkgForMode(".", src, nil, 0)
++	pkg, err := pkgFor(".", src, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -2279,7 +2275,7 @@ func TestInstantiateErrors(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		src := "package p; " + test.src
+-		pkg, err := pkgForMode(".", src, nil, 0)
++		pkg, err := pkgFor(".", src, nil)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+index 91dae734c1..ee68954a17 100644
+--- a/src/go/types/instantiate_test.go
++++ b/src/go/types/instantiate_test.go
+@@ -109,7 +109,7 @@ func TestInstantiateEquality(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		pkg, err := pkgForMode(".", test.src, nil, 0)
++		pkg, err := pkgFor(".", test.src, nil)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -139,11 +139,11 @@ func TestInstantiateEquality(t *testing.T) {
+ func TestInstantiateNonEquality(t *testing.T) {
+ 	const src = "package p; type T[P any] int"
+ 
+-	pkg1, err := pkgForMode(".", src, nil, 0)
++	pkg1, err := pkgFor(".", src, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	pkg2, err := pkgForMode(".", src, nil, 0)
++	pkg2, err := pkgFor(".", src, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -194,7 +194,7 @@ var X T[int]
+ 
+ 	for _, test := range tests {
+ 		src := prefix + test.decl
+-		pkg, err := pkgForMode(".", src, nil, 0)
++		pkg, err := pkgFor(".", src, nil)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -219,7 +219,7 @@ func (T[P]) m() {}
+ 
+ var _ T[int]
+ `
+-	pkg, err := pkgForMode(".", src, nil, 0)
++	pkg, err := pkgFor(".", src, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/types/methodset_test.go b/src/go/types/methodset_test.go
+index 610329ecb9..51303681a3 100644
+--- a/src/go/types/methodset_test.go
++++ b/src/go/types/methodset_test.go
+@@ -84,7 +84,7 @@ func TestNewMethodSet(t *testing.T) {
+ 	}
+ 
+ 	check := func(src string, methods []method, generic bool) {
+-		pkg, err := pkgForMode("test", "package p;"+src, nil, 0)
++		pkg, err := pkgFor("test", "package p;"+src, nil)
+ 		if err != nil {
+ 			t.Errorf("%s: incorrect test case: %s", src, err)
+ 			return
+diff --git a/src/go/types/named_test.go b/src/go/types/named_test.go
+index 0fe17418f4..945e25a41d 100644
+--- a/src/go/types/named_test.go
++++ b/src/go/types/named_test.go
+@@ -33,7 +33,7 @@ func (G[P]) N() (p P) { return }
+ 
+ type Inst = G[int]
+ 	`
+-	pkg, err := pkgForMode("p", src, nil, 0)
++	pkg, err := pkgFor("p", src, nil)
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}

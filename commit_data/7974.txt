@@ -11,7 +11,74 @@ Date:   Mon Apr 4 16:58:11 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4357051
-
+---
  src/pkg/http/transport.go      |  5 +++--
  src/pkg/http/transport_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 7f85c8c281..fa4120e27a 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -436,11 +436,12 @@ func (pc *persistConn) readLoop() {
+ 		} else if err != nil {
+ 			alive = false
+ 		}
++		hasBody := resp != nil && resp.ContentLength != 0
+ 		rc.ch <- responseAndError{resp, err}
+ 
+ 		// Wait for the just-returned response body to be fully consumed
+ 		// before we race and peek on the underlying bufio reader.
+-		if alive {
++		if alive && hasBody {
+ 			<-resp.Body.(*bodyEOFSignal).ch
+ 		}
+ 	}
+@@ -512,7 +513,7 @@ func responseIsKeepAlive(res *Response) bool {
+ // the response body with a bodyEOFSignal-wrapped version.
+ func readResponseWithEOFSignal(r *bufio.Reader, requestMethod string) (resp *Response, err os.Error) {
+ 	resp, err = ReadResponse(r, requestMethod)
+-	if err == nil {
++	if err == nil && resp.ContentLength != 0 {
+ 		resp.Body = &bodyEOFSignal{resp.Body, make(chan bool, 1), false}
+ 	}
+ 	return
+diff --git a/src/pkg/http/transport_test.go b/src/pkg/http/transport_test.go
+index 69a17df856..6a5438d9c6 100644
+--- a/src/pkg/http/transport_test.go
++++ b/src/pkg/http/transport_test.go
+@@ -261,6 +261,34 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ 	}
+ }
+ 
++// TestTransportHeadResponses verifies that we deal with Content-Lengths
++// with no bodies properly
++func TestTransportHeadResponses(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		if r.Method != "HEAD" {
++			panic("expected HEAD; got " + r.Method)
++		}
++		w.Header().Set("Content-Length", "123")
++		w.WriteHeader(200)
++	}))
++	defer ts.Close()
++
++	tr := &Transport{DisableKeepAlives: false}
++	c := &Client{Transport: tr}
++	for i := 0; i < 2; i++ {
++		res, err := c.Head(ts.URL)
++		if err != nil {
++			t.Errorf("error on loop %d: %v", i, err)
++		}
++		if e, g := "123", res.Header.Get("Content-Length"); e != g {
++			t.Errorf("loop %d: expected Content-Length header of %q, got %q", e, g)
++		}
++		if e, g := int64(0), res.ContentLength; e != g {
++			t.Errorf("loop %d: expected res.ContentLength of %v, got %v", e, g)
++		}
++	}
++}
++
+ func TestTransportNilURL(t *testing.T) {
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		fmt.Fprintf(w, "Hi")

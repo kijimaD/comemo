@@ -16,9 +16,130 @@ Date:   Tue Nov 9 19:50:47 2021 -0500
     Trust: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go              |  8 ++++++
  src/runtime/mprof.go                       |  6 +++-
  src/runtime/testdata/testprogcgo/gprof.go  | 46 ++++++++++++++++++++++++++++++
  src/runtime/testdata/testprogcgo/gprof_c.c | 29 +++++++++++++++++++
  4 files changed, 88 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index e6d1742a38..58c340f8ad 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -702,3 +702,11 @@ func TestNeedmDeadlock(t *testing.T) {
+ 		t.Fatalf("want %s, got %s\n", want, output)
+ 	}
+ }
++
++func TestCgoTracebackGoroutineProfile(t *testing.T) {
++	output := runTestProg(t, "testprogcgo", "GoroutineProfile")
++	want := "OK\n"
++	if output != want {
++		t.Fatalf("want %s, got %s\n", want, output)
++	}
++}
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index b4de8f53a9..569c17f0a7 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -805,7 +805,11 @@ func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int
+ 				// truncated profile than to crash the entire process.
+ 				return
+ 			}
+-			saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
++			// saveg calls gentraceback, which may call cgo traceback functions.
++			// The world is stopped, so it cannot use cgocall (which will be
++			// blocked at exitsyscall). Do it on the system stack so it won't
++			// call into the schedular (see traceback.go:cgoContextPCs).
++			systemstack(func() { saveg(^uintptr(0), ^uintptr(0), gp1, &r[0]) })
+ 			if labels != nil {
+ 				lbl[0] = gp1.labels
+ 				lbl = lbl[1:]
+diff --git a/src/runtime/testdata/testprogcgo/gprof.go b/src/runtime/testdata/testprogcgo/gprof.go
+new file mode 100644
+index 0000000000..d453b4d0ce
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/gprof.go
+@@ -0,0 +1,46 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Test taking a goroutine profile with C traceback.
++
++/*
++// Defined in gprof_c.c.
++void CallGoSleep(void);
++void gprofCgoTraceback(void* parg);
++void gprofCgoContext(void* parg);
++*/
++import "C"
++
++import (
++	"fmt"
++	"io"
++	"runtime"
++	"runtime/pprof"
++	"time"
++	"unsafe"
++)
++
++func init() {
++	register("GoroutineProfile", GoroutineProfile)
++}
++
++func GoroutineProfile() {
++	runtime.SetCgoTraceback(0, unsafe.Pointer(C.gprofCgoTraceback), unsafe.Pointer(C.gprofCgoContext), nil)
++
++	go C.CallGoSleep()
++	go C.CallGoSleep()
++	go C.CallGoSleep()
++	time.Sleep(1 * time.Second)
++
++	prof := pprof.Lookup("goroutine")
++	prof.WriteTo(io.Discard, 1)
++	fmt.Println("OK")
++}
++
++//export GoSleep
++func GoSleep() {
++	time.Sleep(time.Hour)
++}
+diff --git a/src/runtime/testdata/testprogcgo/gprof_c.c b/src/runtime/testdata/testprogcgo/gprof_c.c
+new file mode 100644
+index 0000000000..6ddff445ad
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/gprof_c.c
+@@ -0,0 +1,29 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The C definitions for gprof.go. That file uses //export so
++// it can't put function definitions in the "C" import comment.
++
++#include <stdint.h>
++#include <stdlib.h>
++
++// Functions exported from Go.
++extern void GoSleep();
++
++struct cgoContextArg {
++	uintptr_t context;
++};
++
++void gprofCgoContext(void *arg) {
++	((struct cgoContextArg*)arg)->context = 1;
++}
++
++void gprofCgoTraceback(void *arg) {
++	// spend some time here so the P is more likely to be retaken.
++ 	for (volatile int i = 0; i < 123456789; i++);
++}
++
++void CallGoSleep() {
++ 	GoSleep();
++}

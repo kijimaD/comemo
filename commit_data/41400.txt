@@ -23,6 +23,34 @@ Date:   Thu Sep 26 11:00:13 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 14 ++------------
  1 file changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e19b6329ba..727c8102ae 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3130,20 +3130,10 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 			Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
+ 		}
+ 
+-		pl := temp(types.NewPtr(t))
+-		al := nod(OAS, pl, nod(OADDR, cmpl, nil))
+-		al = typecheck(al, ctxStmt)
+-		init.Append(al)
+-
+-		pr := temp(types.NewPtr(t))
+-		ar := nod(OAS, pr, nod(OADDR, cmpr, nil))
+-		ar = typecheck(ar, ctxStmt)
+-		init.Append(ar)
+-
+ 		fn, needsize := eqfor(t)
+ 		call := nod(OCALL, fn, nil)
+-		call.List.Append(pl)
+-		call.List.Append(pr)
++		call.List.Append(nod(OADDR, cmpl, nil))
++		call.List.Append(nod(OADDR, cmpr, nil))
+ 		if needsize {
+ 			call.List.Append(nodintconst(t.Width))
+ 		}

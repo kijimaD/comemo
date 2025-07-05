@@ -12,7 +12,61 @@ Date:   Tue Mar 15 11:06:03 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go  |  5 +++--
  src/cmd/compile/internal/gc/type.go | 16 ++++++++--------
  2 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 21a3837d51..805420b966 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2410,11 +2410,12 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 
+ 	// Start exit block, find address of result.
+ 	s.startBlock(bNext)
+-	fp := n.Left.Type.Results().Field(0)
+-	if fp == nil || k != callNormal {
++	res := n.Left.Type.Results()
++	if res.NumFields() == 0 || k != callNormal {
+ 		// call has no return value. Continue with the next statement.
+ 		return nil
+ 	}
++	fp := res.Field(0)
+ 	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index fee060e293..797174fcab 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -284,7 +284,14 @@ func (t *Type) Recvs() *Type   { return *t.RecvsP() }
+ func (t *Type) Params() *Type  { return *t.ParamsP() }
+ func (t *Type) Results() *Type { return *t.ResultsP() }
+ 
+-func (t *Type) Recv() *Field { return t.Recvs().Field(0) }
++// Recv returns the receiver of function type t, if any.
++func (t *Type) Recv() *Field {
++	s := t.Recvs()
++	if s.NumFields() == 0 {
++		return nil
++	}
++	return s.Field(0)
++}
+ 
+ // recvsParamsResults stores the accessor functions for a function Type's
+ // receiver, parameters, and result parameters, in that order.
+@@ -309,13 +316,6 @@ func (t *Type) Field(i int) *Field {
+ 		}
+ 		i--
+ 	}
+-	if i == 0 {
+-		// To simplify automated rewrites of existing code, if the
+-		// caller asks for the n'th member of an n-element type,
+-		// return nil instead of panicking.
+-		// TODO(mdempsky): Make callers responsible for bounds checking.
+-		return nil
+-	}
+ 	panic("not enough fields")
+ }
+ 

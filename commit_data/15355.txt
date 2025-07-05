@@ -7,6 +7,24 @@ Date:   Thu Feb 21 21:59:46 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7397049
-
+---
  src/pkg/runtime/proc.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5c36ddf745..9909182b6b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -972,6 +972,12 @@ runtime·newextram(void)
+ 	mp->locked = LockInternal;
+ 	mp->lockedg = gp;
+ 	gp->lockedm = mp;
++	// put on allg for garbage collector
++	if(runtime·lastg == nil)
++		runtime·allg = gp;
++	else
++		runtime·lastg->alllink = gp;
++	runtime·lastg = gp;
+ 	schedunlock();
+ 
+ 	// Add m to the extra list.

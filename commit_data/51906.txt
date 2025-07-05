@@ -19,7 +19,7 @@ Date:   Mon Mar 21 16:08:38 2022 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/importer/iimport.go |  6 +++---
  src/go/internal/gcimporter/iimport.go        |  6 +++---
  test/typeparam/issue51836.dir/a.go           |  8 ++++++++
@@ -27,3 +27,129 @@ Date:   Mon Mar 21 16:08:38 2022 -0400
  test/typeparam/issue51836.dir/p.go           | 11 +++++++++++
  test/typeparam/issue51836.go                 |  7 +++++++
  6 files changed, 45 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index bed4fbb016..576036bdce 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -53,7 +53,7 @@ const (
+ )
+ 
+ type ident struct {
+-	pkg  string
++	pkg  *types2.Package
+ 	name string
+ }
+ 
+@@ -402,7 +402,7 @@ func (r *importReader) obj(name string) {
+ 		t := types2.NewTypeParam(tn, nil)
+ 		// To handle recursive references to the typeparam within its
+ 		// bound, save the partial type in tparamIndex before reading the bounds.
+-		id := ident{r.currPkg.Name(), name}
++		id := ident{r.currPkg, name}
+ 		r.p.tparamIndex[id] = t
+ 
+ 		var implicit bool
+@@ -687,7 +687,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 			errorf("unexpected type param type")
+ 		}
+ 		pkg, name := r.qualifiedIdent()
+-		id := ident{pkg.Name(), name}
++		id := ident{pkg, name}
+ 		if t, ok := r.p.tparamIndex[id]; ok {
+ 			// We're already in the process of importing this typeparam.
+ 			return t
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index bff1c09cc9..f9eaa0b10c 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -53,7 +53,7 @@ const (
+ )
+ 
+ type ident struct {
+-	pkg  string
++	pkg  *types.Package
+ 	name string
+ }
+ 
+@@ -393,7 +393,7 @@ func (r *importReader) obj(name string) {
+ 		t := types.NewTypeParam(tn, nil)
+ 		// To handle recursive references to the typeparam within its
+ 		// bound, save the partial type in tparamIndex before reading the bounds.
+-		id := ident{r.currPkg.Name(), name}
++		id := ident{r.currPkg, name}
+ 		r.p.tparamIndex[id] = t
+ 
+ 		var implicit bool
+@@ -676,7 +676,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 			errorf("unexpected type param type")
+ 		}
+ 		pkg, name := r.qualifiedIdent()
+-		id := ident{pkg.Name(), name}
++		id := ident{pkg, name}
+ 		if t, ok := r.p.tparamIndex[id]; ok {
+ 			// We're already in the process of importing this typeparam.
+ 			return t
+diff --git a/test/typeparam/issue51836.dir/a.go b/test/typeparam/issue51836.dir/a.go
+new file mode 100644
+index 0000000000..e9223c9aa8
+--- /dev/null
++++ b/test/typeparam/issue51836.dir/a.go
+@@ -0,0 +1,8 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T[K any] struct {
++}
+diff --git a/test/typeparam/issue51836.dir/aa.go b/test/typeparam/issue51836.dir/aa.go
+new file mode 100644
+index 0000000000..d774be282e
+--- /dev/null
++++ b/test/typeparam/issue51836.dir/aa.go
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import (
++	"./a"
++)
++
++type T[K any] struct {
++	t a.T[K]
++}
+diff --git a/test/typeparam/issue51836.dir/p.go b/test/typeparam/issue51836.dir/p.go
+new file mode 100644
+index 0000000000..98197ae0fd
+--- /dev/null
++++ b/test/typeparam/issue51836.dir/p.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	a "./aa"
++)
++
++var Foo a.T[int]
+diff --git a/test/typeparam/issue51836.go b/test/typeparam/issue51836.go
+new file mode 100644
+index 0000000000..c755e74b9c
+--- /dev/null
++++ b/test/typeparam/issue51836.go
+@@ -0,0 +1,7 @@
++// compiledir -s
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

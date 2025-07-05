@@ -7,6 +7,23 @@ Date:   Wed Sep 11 20:28:14 2013 -0400
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/13263052
-
+---
  src/pkg/net/http/request.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index ccdf121117..57b5d09484 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -291,6 +291,11 @@ func valueOrDefault(value, def string) string {
+ 	return def
+ }
+ 
++// NOTE: This is not intended to reflect the actual Go version being used.
++// It was changed from "Go http package" to "Go 1.1 package http" at the
++// time of the Go 1.1 release because the former User-Agent had ended up
++// on a blacklist for some intrusion detection systems.
++// See https://codereview.appspot.com/7532043.
+ const defaultUserAgent = "Go 1.1 package http"
+ 
+ // Write writes an HTTP/1.1 request -- header and body -- in wire format.

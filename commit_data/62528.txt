@@ -13,6 +13,20 @@ Date:   Sat Mar 8 18:32:14 2025 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/server.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 2daf9d38e3..be25e9a450 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2362,6 +2362,8 @@ func StripPrefix(prefix string, h Handler) Handler {
+ 
+ // Redirect replies to the request with a redirect to url,
+ // which may be a path relative to the request path.
++// Any non-ASCII characters in url will be percent-encoded,
++// but existing percent encodings will not be changed.
+ //
+ // The provided code should be in the 3xx range and is usually
+ // [StatusMovedPermanently], [StatusFound] or [StatusSeeOther].

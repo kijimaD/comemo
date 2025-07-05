@@ -11,7 +11,44 @@ Date:   Thu Oct 18 16:39:49 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go      | 2 --
  src/cmd/compile/internal/gc/reflect.go | 4 ----
  2 files changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index ae1c257e0e..cfd695097f 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -208,8 +208,6 @@ var compiling_runtime bool
+ // Compiling the standard library
+ var compiling_std bool
+ 
+-var compiling_wrappers bool
+-
+ var use_writebarrier bool
+ 
+ var pure_go bool
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 2dd81e30f5..4298805903 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -406,18 +406,14 @@ func methods(t *types.Type) []*Sig {
+ 		if !sig.isym.Siggen() {
+ 			sig.isym.SetSiggen(true)
+ 			if !types.Identical(this, it) {
+-				compiling_wrappers = true
+ 				genwrapper(it, f, sig.isym)
+-				compiling_wrappers = false
+ 			}
+ 		}
+ 
+ 		if !sig.tsym.Siggen() {
+ 			sig.tsym.SetSiggen(true)
+ 			if !types.Identical(this, t) {
+-				compiling_wrappers = true
+ 				genwrapper(t, f, sig.tsym)
+-				compiling_wrappers = false
+ 			}
+ 		}
+ 	}

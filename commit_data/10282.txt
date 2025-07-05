@@ -9,8 +9,162 @@ Date:   Tue Nov 8 16:53:31 2011 +1100
     R=rsc
     CC=golang-dev, hectorchu
     https://golang.org/cl/5331062
-
+---
  src/pkg/runtime/export_test.go          |  2 +
  src/pkg/runtime/proc.c                  |  8 +++
  src/pkg/runtime/syscall_windows_test.go | 96 ++++++++++++++++++++++++++++++++-
  3 files changed, 105 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 53c5fcba47..c603e1b0d7 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -18,6 +18,8 @@ var F64toint = f64toint
+ 
+ func entersyscall()
+ func exitsyscall()
++func golockedOSThread() bool
+ 
+ var Entersyscall = entersyscall
+ var Exitsyscall = exitsyscall
++var LockedOSThread = golockedOSThread
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d51e3d3522..7017838f8a 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1586,6 +1586,14 @@ runtime·lockedOSThread(void)
+ 	return g->lockedm != nil && m->lockedg != nil;
+ }
+ 
++// for testing of callbacks
++void
++runtime·golockedOSThread(bool ret)
++{
++	ret = runtime·lockedOSThread();
++	FLUSH(&ret);
++}
++
+ // for testing of wire, unwire
+ void
+ runtime·mid(uint32 ret)
+diff --git a/src/pkg/runtime/syscall_windows_test.go b/src/pkg/runtime/syscall_windows_test.go
+index 9c3752fa30..8b5d81c4e8 100644
+--- a/src/pkg/runtime/syscall_windows_test.go
++++ b/src/pkg/runtime/syscall_windows_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"runtime"
+ 	"syscall"
+ 	"testing"
+ 	"unsafe"
+@@ -120,7 +121,7 @@ func TestCDecl(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCallback(t *testing.T) {
++func TestEnumWindows(t *testing.T) {
+ 	d := GetDLL(t, "user32.dll")
+ 	isWindows := d.Proc("IsWindow")
+ 	counter := 0
+@@ -144,6 +145,99 @@ func TestCallback(t *testing.T) {
+ 	}
+ }
+ 
++func callback(hwnd syscall.Handle, lparam uintptr) uintptr {
++	(*(*func())(unsafe.Pointer(&lparam)))()
++	return 0 // stop enumeration
++}
++
++// nestedCall calls into Windows, back into Go, and finally to f.
++func nestedCall(t *testing.T, f func()) {
++	c := syscall.NewCallback(callback)
++	d := GetDLL(t, "user32.dll")
++	defer d.Release()
++	d.Proc("EnumWindows").Call(c, uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&f))))
++}
++
++func TestCallback(t *testing.T) {
++	var x = false
++	nestedCall(t, func() { x = true })
++	if !x {
++		t.Fatal("nestedCall did not call func")
++	}
++}
++
++func TestCallbackGC(t *testing.T) {
++	nestedCall(t, runtime.GC)
++}
++
++func TestCallbackPanic(t *testing.T) {
++	// Make sure panic during callback unwinds properly.
++	if runtime.LockedOSThread() {
++		t.Fatal("locked OS thread on entry to TestCallbackPanic")
++	}
++	defer func() {
++		s := recover()
++		if s == nil {
++			t.Fatal("did not panic")
++		}
++		if s.(string) != "callback panic" {
++			t.Fatal("wrong panic:", s)
++		}
++		if runtime.LockedOSThread() {
++			t.Fatal("locked OS thread on exit from TestCallbackPanic")
++		}
++	}()
++	nestedCall(t, func() { panic("callback panic") })
++	panic("nestedCall returned")
++}
++
++func TestCallbackPanicLoop(t *testing.T) {
++	// Make sure we don't blow out m->g0 stack.
++	for i := 0; i < 100000; i++ {
++		TestCallbackPanic(t)
++	}
++}
++
++func TestCallbackPanicLocked(t *testing.T) {
++	runtime.LockOSThread()
++	defer runtime.UnlockOSThread()
++
++	if !runtime.LockedOSThread() {
++		t.Fatal("runtime.LockOSThread didn't")
++	}
++	defer func() {
++		s := recover()
++		if s == nil {
++			t.Fatal("did not panic")
++		}
++		if s.(string) != "callback panic" {
++			t.Fatal("wrong panic:", s)
++		}
++		if !runtime.LockedOSThread() {
++			t.Fatal("lost lock on OS thread after panic")
++		}
++	}()
++	nestedCall(t, func() { panic("callback panic") })
++	panic("nestedCall returned")
++}
++
++func TestBlockingCallback(t *testing.T) {
++	c := make(chan int)
++	go func() {
++		for i := 0; i < 10; i++ {
++			c <- <-c
++		}
++	}()
++	nestedCall(t, func() {
++		for i := 0; i < 10; i++ {
++			c <- i
++			if j := <-c; j != i {
++				t.Errorf("out of sync %d != %d", j, i)
++			}
++		}
++	})
++}
++
+ func TestCallbackInAnotherThread(t *testing.T) {
+ 	// TODO: test a function which calls back in another thread: QueueUserAPC() or CreateThread()
+ }

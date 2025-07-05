@@ -7,7 +7,54 @@ Date:   Thu Feb 26 18:05:47 2015 -0500
     Change-Id: I1bb0b8b11e8c7686b85657050fd7cf926afe4d29
     Reviewed-on: https://go-review.googlesource.com/6200
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/crash_cgo_test.go | 20 +++++++++++---------
  src/runtime/crash_test.go     |  4 ++++
  2 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 7152b93195..f3b69efe75 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -57,15 +57,17 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	case "darwin":
+-		// static constructor needs external linking, but we don't support
+-		// external linking on OS X 10.6.
+-		out, err := exec.Command("uname", "-r").Output()
+-		if err != nil {
+-			t.Fatalf("uname -r failed: %v", err)
+-		}
+-		// OS X 10.6 == Darwin 10.x
+-		if strings.HasPrefix(string(out), "10.") {
+-			t.Skipf("no external linking on OS X 10.6")
++		if runtime.GOARCH != "arm" {
++			// static constructor needs external linking, but we don't support
++			// external linking on OS X 10.6.
++			out, err := exec.Command("uname", "-r").Output()
++			if err != nil {
++				t.Fatalf("uname -r failed: %v", err)
++			}
++			// OS X 10.6 == Darwin 10.x
++			if strings.HasPrefix(string(out), "10.") {
++				t.Skipf("no external linking on OS X 10.6")
++			}
+ 		}
+ 	}
+ 	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 715b2da232..5e26de36ac 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -41,6 +41,10 @@ func executeTest(t *testing.T, templ string, data interface{}, extra ...string)
+ 	switch runtime.GOOS {
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	checkStaleRuntime(t)

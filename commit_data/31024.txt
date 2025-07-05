@@ -9,6 +9,22 @@ Date:   Thu Jan 12 10:49:35 2017 -0500
     Change-Id: I4a046440c30811f26da53bee0e853dae3b0ac57a
     Reviewed-on: https://go-review.googlesource.com/35123
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 1ff02a68e1..f477a4a253 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -1531,6 +1531,10 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
+ 
+ func main() {
+ {{if .IsIOS}}
++	// Send a SIGUSR2, which will be intercepted by LLDB to
++	// tell the test harness that installation was successful,
++	// and to give the exec script a chance set the current
++	// working directory. See misc/ios/go_darwin_arm_exec.go.
+ 	signal.Notify(make(chan os.Signal), syscall.SIGUSR2)
+ 	syscall.Kill(0, syscall.SIGUSR2)
+ 	signal.Reset(syscall.SIGUSR2)

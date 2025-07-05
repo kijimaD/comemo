@@ -9,6 +9,21 @@ Date:   Wed Feb 24 15:06:03 2016 -0800
     Change-Id: Ibdd55acf9e416873c64f8751c2f65f7ccdb1d500
     Reviewed-on: https://go-review.googlesource.com/19914
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  doc/install-source.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 332c72097e..b8cd8dbcfc 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -445,6 +445,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+ <th width="50"></th><th align="left" width="100"><code>$GOOS</code></th> <th align="left" width="100"><code>$GOARCH</code></th>
+ </tr>
+ <tr>
++<td></td><td><code>android</code></td> <td><code>arm</code></td>
++</tr>
++<tr>
+ <td></td><td><code>darwin</code></td> <td><code>386</code></td>
+ </tr>
+ <tr>

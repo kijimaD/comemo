@@ -7,6 +7,25 @@ Date:   Fri Apr 5 14:31:54 2019 -0400
     Change-Id: Iec5e69b3ea163f42234d3b73696427a7aa8732e3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170884
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 1cbb6133f4..a978ddccd5 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -106,6 +106,13 @@ runtime, go command, and the <code>crypto/x509</code>, <code>encoding/json</code
+ 1.11.6 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.11.7 (released 2019/04/05) includes fixes to the runtime and the
++<code>net</code> packages. See the
++<a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.7">Go
++1.11.7 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>
+ 
+ <p>

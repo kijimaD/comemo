@@ -62,6 +62,19 @@ Date:   Thu May 12 17:25:04 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/internal/buildcfg/exp.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 6118c49d7f..8c352149c4 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -132,6 +132,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 	}
+ 	// regabi is only supported on amd64, arm64, riscv64, ppc64 and ppc64le.
+ 	if !regabiSupported {
++		flags.RegabiWrappers = false
+ 		flags.RegabiArgs = false
+ 	}
+ 	// Check regabi dependencies.

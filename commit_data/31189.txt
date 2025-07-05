@@ -13,10 +13,132 @@ Date:   Fri Oct 28 11:42:40 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go     | 4 ++--
  src/cmd/compile/internal/gc/gen.go         | 6 +++---
  src/cmd/compile/internal/gc/sizeof_test.go | 4 ++--
  src/cmd/compile/internal/gc/syntax.go      | 4 ++--
  src/cmd/compile/internal/gc/walk.go        | 6 +++---
  5 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 9e181e5b11..49fc90a278 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -347,7 +347,7 @@ func transformclosure(xfunc *Node) {
+ 				addr := newname(lookupf("&%s", v.Sym.Name))
+ 				addr.Type = ptrto(v.Type)
+ 				addr.Class = PPARAM
+-				v.Name.Heapaddr = addr
++				v.Name.Param.Heapaddr = addr
+ 				fld.Nname = addr
+ 			}
+ 
+@@ -405,7 +405,7 @@ func transformclosure(xfunc *Node) {
+ 				addr.Used = true
+ 				addr.Name.Curfn = xfunc
+ 				xfunc.Func.Dcl = append(xfunc.Func.Dcl, addr)
+-				v.Name.Heapaddr = addr
++				v.Name.Param.Heapaddr = addr
+ 				if v.Name.Byval {
+ 					cv = nod(OADDR, cv, nil)
+ 				}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index e9234802b3..49ccc41760 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -87,7 +87,7 @@ func addrescapes(n *Node) {
+ // isParamStackCopy reports whether this is the on-stack copy of a
+ // function parameter that moved to the heap.
+ func (n *Node) isParamStackCopy() bool {
+-	return n.Op == ONAME && (n.Class == PPARAM || n.Class == PPARAMOUT) && n.Name.Heapaddr != nil
++	return n.Op == ONAME && (n.Class == PPARAM || n.Class == PPARAMOUT) && n.Name.Param.Heapaddr != nil
+ }
+ 
+ // isParamHeapCopy reports whether this is the on-heap copy of
+@@ -137,7 +137,7 @@ func moveToHeap(n *Node) {
+ 		stackcopy.Type = n.Type
+ 		stackcopy.Xoffset = n.Xoffset
+ 		stackcopy.Class = n.Class
+-		stackcopy.Name.Heapaddr = heapaddr
++		stackcopy.Name.Param.Heapaddr = heapaddr
+ 		if n.Class == PPARAMOUT {
+ 			// Make sure the pointer to the heap copy is kept live throughout the function.
+ 			// The function could panic at any point, and then a defer could recover.
+@@ -174,7 +174,7 @@ func moveToHeap(n *Node) {
+ 	n.Class = PAUTOHEAP
+ 	n.Ullman = 2
+ 	n.Xoffset = 0
+-	n.Name.Heapaddr = heapaddr
++	n.Name.Param.Heapaddr = heapaddr
+ 	n.Esc = EscHeap
+ 	if Debug['m'] != 0 {
+ 		fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index b2239c3526..13f823e727 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -23,8 +23,8 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 100, 168},
+-		{Name{}, 44, 72},
+-		{Param{}, 24, 48},
++		{Name{}, 40, 64},
++		{Param{}, 28, 56},
+ 		{Node{}, 96, 152},
+ 		{Sym{}, 64, 120},
+ 		{Type{}, 64, 104},
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 6003a29478..0d393d15e8 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -189,7 +189,6 @@ func (n *Node) SetIota(x int64) {
+ type Name struct {
+ 	Pack      *Node  // real package for import . names
+ 	Pkg       *Pkg   // pkg for OPACK nodes
+-	Heapaddr  *Node  // temp holding heap address of param (could move to Param?)
+ 	Defn      *Node  // initializing assignment
+ 	Curfn     *Node  // function for local variables
+ 	Param     *Param // additional fields for ONAME, OTYPE
+@@ -205,7 +204,8 @@ type Name struct {
+ }
+ 
+ type Param struct {
+-	Ntype *Node
++	Ntype    *Node
++	Heapaddr *Node // temp holding heap address of param
+ 
+ 	// ONAME PAUTOHEAP
+ 	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c57d15c2a1..6844ba5b97 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -231,7 +231,7 @@ func walkstmt(n *Node) *Node {
+ 			if prealloc[v] == nil {
+ 				prealloc[v] = callnew(v.Type)
+ 			}
+-			nn := nod(OAS, v.Name.Heapaddr, prealloc[v])
++			nn := nod(OAS, v.Name.Param.Heapaddr, prealloc[v])
+ 			nn.Colas = true
+ 			nn = typecheck(nn, Etop)
+ 			return walkstmt(nn)
+@@ -314,7 +314,7 @@ func walkstmt(n *Node) *Node {
+ 				}
+ 				if cl == PPARAMOUT {
+ 					if ln.isParamStackCopy() {
+-						ln = walkexpr(typecheck(nod(OIND, ln.Name.Heapaddr, nil), Erv), nil)
++						ln = walkexpr(typecheck(nod(OIND, ln.Name.Param.Heapaddr, nil), Erv), nil)
+ 					}
+ 					rl = append(rl, ln)
+ 				}
+@@ -463,7 +463,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ 	if n.Op == ONAME && n.Class == PAUTOHEAP {
+-		nn := nod(OIND, n.Name.Heapaddr, nil)
++		nn := nod(OIND, n.Name.Param.Heapaddr, nil)
+ 		nn = typecheck(nn, Erv)
+ 		nn = walkexpr(nn, init)
+ 		nn.Left.NonNil = true

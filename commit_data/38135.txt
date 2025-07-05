@@ -25,9 +25,90 @@ Date:   Wed Oct 3 14:40:09 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/methodset.go | 15 ++++++++++++---
  src/go/types/object.go    |  3 ++-
  src/go/types/resolver.go  |  2 ++
  src/go/types/typexpr.go   | 10 +++++++---
  4 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index 2b810da728..c25236656e 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -255,8 +255,17 @@ func (s methodSet) add(list []*Func, index []int, indirect bool, multiples bool)
+ }
+ 
+ // ptrRecv reports whether the receiver is of the form *T.
+-// The receiver must exist.
+ func ptrRecv(f *Func) bool {
+-	_, isPtr := deref(f.typ.(*Signature).recv.typ)
+-	return isPtr
++	// If a method's type is set, use that as the source of truth for the receiver.
++	if f.typ != nil {
++		_, isPtr := deref(f.typ.(*Signature).recv.typ)
++		return isPtr
++	}
++
++	// If a method's type is not set it may be a method/function that is:
++	// 1) client-supplied (via NewFunc with no signature), or
++	// 2) internally created but not yet type-checked.
++	// For case 1) we can't do anything; the client must know what they are doing.
++	// For case 2) we can use the information gathered by the resolver.
++	return f.hasPtrRecv
+ }
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 07adfbc34c..cf773238a0 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -294,6 +294,7 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
+ // An abstract method may belong to many interfaces due to embedding.
+ type Func struct {
+ 	object
++	hasPtrRecv bool // only valid for methods that don't have a type yet
+ }
+ 
+ // NewFunc returns a new function with the given signature, representing
+@@ -304,7 +305,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
+ 	if sig != nil {
+ 		typ = sig
+ 	}
+-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
++	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false}
+ }
+ 
+ // FullName returns the package- or receiver-type-qualified name of
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index ec7e4ed1c5..c2726f4dd2 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -465,6 +465,8 @@ func (check *Checker) collectObjects() {
+ 			typ := unparen(list[0].Type)
+ 			if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
+ 				typ = unparen(ptr.X)
++				// TODO(gri): This may not be sufficient. See issue #27995.
++				f.hasPtrRecv = true
+ 			}
+ 			if base, _ := typ.(*ast.Ident); base != nil {
+ 				// base is a potential base type name; determine
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 12c5c7b0a5..bcdbc5906d 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -558,9 +558,13 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 			pos := name.Pos()
+ 			// Don't type-check signature yet - use an
+ 			// empty signature now and update it later.
+-			// Since we know the receiver, set it up now
+-			// (required to avoid crash in ptrRecv; see
+-			// e.g. test case for issue 6638).
++			// But set up receiver since we know it and
++			// its position, and because interface method
++			// signatures don't get a receiver via regular
++			// type-checking (there isn't a receiver in the
++			// the method's AST). Setting the correct receiver
++			// type is also important for ptrRecv() (see methodset.go).
++			//
+ 			// TODO(gri) Consider marking methods signatures
+ 			// as incomplete, for better error messages. See
+ 			// also the T4 and T5 tests in testdata/cycles2.src.

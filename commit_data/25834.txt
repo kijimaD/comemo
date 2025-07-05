@@ -54,7 +54,7 @@ Date:   Sat Aug 15 13:04:46 2015 +0300
     Change-Id: Ief7c7706b1f2916486ab7190b81aafbb16b70f1e
     Reviewed-on: https://go-review.googlesource.com/13660
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/gob/codec_test.go   |  2 --
  src/encoding/gob/dec_helpers.go  |  9 +++---
  src/encoding/gob/decgen.go       |  9 +++---
@@ -63,3 +63,342 @@ Date:   Sat Aug 15 13:04:46 2015 +0300
  src/encoding/gob/encoder_test.go |  2 +-
  src/encoding/gob/timing_test.go  | 45 +++++++++++++++++++++++++++--
  7 files changed, 105 insertions(+), 43 deletions(-)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index 18327a6a72..8efcdc78ff 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -88,7 +88,6 @@ func verifyInt(i int64, t *testing.T) {
+ 	encState := newEncoderState(b)
+ 	encState.encodeInt(i)
+ 	decState := newDecodeState(newDecBuffer(b.Bytes()))
+-	decState.buf = make([]byte, 8)
+ 	j := decState.decodeInt()
+ 	if i != j {
+ 		t.Errorf("Encode/Decode: sent %#x received %#x", uint64(i), uint64(j))
+@@ -127,7 +126,6 @@ var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
+ func newDecodeState(buf *decBuffer) *decoderState {
+ 	d := new(decoderState)
+ 	d.b = buf
+-	d.buf = make([]byte, uint64Size)
+ 	return d
+ }
+ 
+diff --git a/src/encoding/gob/dec_helpers.go b/src/encoding/gob/dec_helpers.go
+index a1b67661d8..3aa038da75 100644
+--- a/src/encoding/gob/dec_helpers.go
++++ b/src/encoding/gob/dec_helpers.go
+@@ -327,11 +327,12 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
+ 			errorf("string data too long for buffer: %d", n)
+ 		}
+ 		// Read the data.
+-		data := make([]byte, n)
+-		if _, err := state.b.Read(data); err != nil {
+-			errorf("error decoding string: %s", err)
++		data := state.b.Bytes()
++		if len(data) < n {
++			errorf("invalid string length %d: exceeds input size %d", n, len(data))
+ 		}
+-		slice[i] = string(data)
++		slice[i] = string(data[:n])
++		state.b.Drop(n)
+ 	}
+ 	return true
+ }
+diff --git a/src/encoding/gob/decgen.go b/src/encoding/gob/decgen.go
+index da41a899ed..ef73f2dc4a 100644
+--- a/src/encoding/gob/decgen.go
++++ b/src/encoding/gob/decgen.go
+@@ -112,11 +112,12 @@ var types = []Type{
+ 			errorf("string data too long for buffer: %d", n)
+ 		}
+ 		// Read the data.
+-		data := make([]byte, n)
+-		if _, err := state.b.Read(data); err != nil {
+-			errorf("error decoding string: %s", err)
++		data := state.b.Bytes()
++		if len(data) < n {
++			errorf("invalid string length %d: exceeds input size %d", n, len(data))
+ 		}
+-		slice[i] = string(data)`,
++		slice[i] = string(data[:n])
++		state.b.Drop(n)`,
+ 	},
+ 	{
+ 		"uint",
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index ef536b32b2..3b0dca86f3 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -29,8 +29,7 @@ type decoderState struct {
+ 	// The buffer is stored with an extra indirection because it may be replaced
+ 	// if we load a type during decode (when reading an interface value).
+ 	b        *decBuffer
+-	fieldnum int // the last field number read.
+-	buf      []byte
++	fieldnum int           // the last field number read.
+ 	next     *decoderState // for free list
+ }
+ 
+@@ -97,7 +96,6 @@ func (dec *Decoder) newDecoderState(buf *decBuffer) *decoderState {
+ 	if d == nil {
+ 		d = new(decoderState)
+ 		d.dec = dec
+-		d.buf = make([]byte, uint64Size)
+ 	} else {
+ 		dec.freeList = d.next
+ 	}
+@@ -160,15 +158,16 @@ func (state *decoderState) decodeUint() (x uint64) {
+ 	if n > uint64Size {
+ 		error_(errBadUint)
+ 	}
+-	width, err := state.b.Read(state.buf[0:n])
+-	if err != nil {
+-		error_(err)
++	buf := state.b.Bytes()
++	if len(buf) < n {
++		errorf("invalid uint data length %d: exceeds input size %d", n, len(buf))
+ 	}
+ 	// Don't need to check error; it's safe to loop regardless.
+ 	// Could check that the high byte is zero but it's not worth it.
+-	for _, b := range state.buf[0:width] {
++	for _, b := range buf[0:n] {
+ 		x = x<<8 | uint64(b)
+ 	}
++	state.b.Drop(n)
+ 	return x
+ }
+ 
+@@ -397,11 +396,13 @@ func decString(i *decInstr, state *decoderState, value reflect.Value) {
+ 		errorf("bad %s slice length: %d", value.Type(), n)
+ 	}
+ 	// Read the data.
+-	data := make([]byte, n)
+-	if _, err := state.b.Read(data); err != nil {
+-		errorf("error decoding string: %s", err)
++	data := state.b.Bytes()
++	if len(data) < n {
++		errorf("invalid string length %d: exceeds input size %d", n, len(data))
+ 	}
+-	value.SetString(string(data))
++	s := string(data[:n])
++	state.b.Drop(n)
++	value.SetString(s)
+ }
+ 
+ // ignoreUint8Array skips over the data for a byte slice value with no destination.
+@@ -410,8 +411,11 @@ func ignoreUint8Array(i *decInstr, state *decoderState, value reflect.Value) {
+ 	if !ok {
+ 		errorf("slice length too large")
+ 	}
+-	b := make([]byte, n)
+-	state.b.Read(b)
++	bn := state.b.Len()
++	if bn < n {
++		errorf("invalid slice length %d: exceeds input size %d", n, bn)
++	}
++	state.b.Drop(n)
+ }
+ 
+ // Execution engine
+@@ -640,9 +644,9 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
+ 	if nr > uint64(state.b.Len()) {
+ 		errorf("invalid type name length %d: exceeds input size", nr)
+ 	}
+-	b := make([]byte, nr)
+-	state.b.Read(b)
+-	name := string(b)
++	n := int(nr)
++	name := string(state.b.Bytes()[:n])
++	state.b.Drop(n)
+ 	// Allocate the destination interface value.
+ 	if name == "" {
+ 		// Copy the nil interface value to the target.
+@@ -689,11 +693,11 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
+ 	if !ok {
+ 		errorf("bad interface encoding: name too large for buffer")
+ 	}
+-	b := make([]byte, n)
+-	_, err := state.b.Read(b)
+-	if err != nil {
+-		error_(err)
++	bn := state.b.Len()
++	if bn < n {
++		errorf("invalid interface value length %d: exceeds input size %d", n, bn)
+ 	}
++	state.b.Drop(n)
+ 	id := dec.decodeTypeSequence(true)
+ 	if id < 0 {
+ 		error_(dec.err)
+@@ -714,11 +718,13 @@ func (dec *Decoder) decodeGobDecoder(ut *userTypeInfo, state *decoderState, valu
+ 	if !ok {
+ 		errorf("GobDecoder: length too large for buffer")
+ 	}
+-	b := make([]byte, n)
+-	_, err := state.b.Read(b)
+-	if err != nil {
+-		error_(err)
++	b := state.b.Bytes()
++	if len(b) < n {
++		errorf("GobDecoder: invalid data length %d: exceeds input size %d", n, len(b))
+ 	}
++	b = b[:n]
++	state.b.Drop(n)
++	var err error
+ 	// We know it's one of these.
+ 	switch ut.externalDec {
+ 	case xGob:
+@@ -740,11 +746,11 @@ func (dec *Decoder) ignoreGobDecoder(state *decoderState) {
+ 	if !ok {
+ 		errorf("GobDecoder: length too large for buffer")
+ 	}
+-	b := make([]byte, n)
+-	_, err := state.b.Read(b)
+-	if err != nil {
+-		error_(err)
++	bn := state.b.Len()
++	if bn < n {
++		errorf("GobDecoder: invalid data length %d: exceeds input size %d", n, bn)
+ 	}
++	state.b.Drop(n)
+ }
+ 
+ // Index by Go types.
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index f66279f141..96052ef33b 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -10,6 +10,7 @@ import (
+ 	"encoding"
+ 	"math"
+ 	"reflect"
++	"sync"
+ )
+ 
+ const uint64Size = 8
+@@ -36,6 +37,14 @@ type encBuffer struct {
+ 	scratch [64]byte
+ }
+ 
++var encBufferPool = sync.Pool{
++	New: func() interface{} {
++		e := new(encBuffer)
++		e.data = e.scratch[0:0]
++		return e
++	},
++}
++
+ func (e *encBuffer) WriteByte(c byte) {
+ 	e.data = append(e.data, c)
+ }
+@@ -58,7 +67,11 @@ func (e *encBuffer) Bytes() []byte {
+ }
+ 
+ func (e *encBuffer) Reset() {
+-	e.data = e.data[0:0]
++	if len(e.data) >= tooBig {
++		e.data = e.scratch[0:0]
++	} else {
++		e.data = e.data[0:0]
++	}
+ }
+ 
+ func (enc *Encoder) newEncoderState(b *encBuffer) *encoderState {
+@@ -407,7 +420,7 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
+ 	// Encode the value into a new buffer.  Any nested type definitions
+ 	// should be written to b, before the encoded value.
+ 	enc.pushWriter(b)
+-	data := new(encBuffer)
++	data := encBufferPool.Get().(*encBuffer)
+ 	data.Write(spaceForLength)
+ 	enc.encode(data, elem, ut)
+ 	if enc.err != nil {
+@@ -415,6 +428,8 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
+ 	}
+ 	enc.popWriter()
+ 	enc.writeMessage(b, data)
++	data.Reset()
++	encBufferPool.Put(data)
+ 	if enc.err != nil {
+ 		error_(enc.err)
+ 	}
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index dc65734822..570d79696b 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -978,7 +978,7 @@ var badDataTests = []badDataTest{
+ 	{"0f1000fb285d003316020735ff023a65c5", "interface encoding", nil},
+ 	{"03fffb0616fffc00f902ff02ff03bf005d02885802a311a8120228022c028ee7", "GobDecoder", nil},
+ 	// Issue 10491.
+-	{"10fe010f020102fe01100001fe010e000016fe010d030102fe010e00010101015801fe01100000000bfe011000f85555555555555555", "length exceeds input size", nil},
++	{"10fe010f020102fe01100001fe010e000016fe010d030102fe010e00010101015801fe01100000000bfe011000f85555555555555555", "exceeds input size", nil},
+ }
+ 
+ // TestBadData tests that various problems caused by malformed input
+diff --git a/src/encoding/gob/timing_test.go b/src/encoding/gob/timing_test.go
+index 940e5ad412..424b7e6ea8 100644
+--- a/src/encoding/gob/timing_test.go
++++ b/src/encoding/gob/timing_test.go
+@@ -127,8 +127,8 @@ func TestCountDecodeMallocs(t *testing.T) {
+ 			t.Fatal("decode:", err)
+ 		}
+ 	})
+-	if allocs != 4 {
+-		t.Fatalf("mallocs per decode of type Bench: %v; wanted 4\n", allocs)
++	if allocs != 3 {
++		t.Fatalf("mallocs per decode of type Bench: %v; wanted 3\n", allocs)
+ 	}
+ }
+ 
+@@ -200,6 +200,23 @@ func BenchmarkEncodeStringSlice(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkEncodeInterfaceSlice(b *testing.B) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	a := make([]interface{}, 1000)
++	for i := range a {
++		a[i] = "now is the time"
++	}
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		err := enc.Encode(a)
++		if err != nil {
++			b.Fatal(err)
++		}
++	}
++}
++
+ // benchmarkBuf is a read buffer we can reset
+ type benchmarkBuf struct {
+ 	offset int
+@@ -323,3 +340,27 @@ func BenchmarkDecodeStringSlice(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkDecodeInterfaceSlice(b *testing.B) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	a := make([]interface{}, 1000)
++	for i := range a {
++		a[i] = "now is the time"
++	}
++	err := enc.Encode(a)
++	if err != nil {
++		b.Fatal(err)
++	}
++	x := make([]interface{}, 1000)
++	bbuf := benchmarkBuf{data: buf.Bytes()}
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		bbuf.reset()
++		dec := NewDecoder(&bbuf)
++		err := dec.Decode(&x)
++		if err != nil {
++			b.Fatal(i, err)
++		}
++	}
++}

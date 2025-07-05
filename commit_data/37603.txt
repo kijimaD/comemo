@@ -17,6 +17,19 @@ Date:   Mon Aug 20 23:45:34 2018 +0700
     Change-Id: I736804b8ef4dc11e0260fa862999212ab3f7b3fd
     Reviewed-on: https://go-review.googlesource.com/129935
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/extern.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 7171b139c3..2788bd354b 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -238,6 +238,7 @@ func Version() string {
+ 
+ // GOOS is the running program's operating system target:
+ // one of darwin, freebsd, linux, and so on.
++// To view possible combinations of GOOS and GOARCH, run "go tool dist list".
+ const GOOS string = sys.GOOS
+ 
+ // GOARCH is the running program's architecture target:

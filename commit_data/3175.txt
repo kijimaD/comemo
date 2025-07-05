@@ -7,7 +7,42 @@ Date:   Tue Sep 1 14:12:09 2009 -0700
     R=ken
     OCL=34205
     CL=34207
-
+---
  src/cmd/gc/go.y                   | 10 ++++++++++
  test/fixedbugs/bug133.dir/bug2.go |  2 +-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index dfee62293b..920799ec13 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -230,6 +230,16 @@ import_package:
+ 		pkgimportname = $2;
+ 		if(strcmp($2->name, "main") == 0)
+ 			yyerror("cannot import package main");
++			
++		// TODO(rsc): This is not quite precise enough a check
++		// (it excludes google/util/hash from importing hash)
++		// but it is enough to reduce confusion during the 
++		// 2009/09/01 release when all the "import myself"
++		// statements have to go away in programs building
++		// against the release.  Once the programs have converted
++		// it should probably just go away.
++		if(strcmp($2->name, package) == 0)
++			yyerror("package cannot import itself (anymore)");
+ 	}
+ 
+ import_there:
+diff --git a/test/fixedbugs/bug133.dir/bug2.go b/test/fixedbugs/bug133.dir/bug2.go
+index 0b8393c934..cfbb558bfd 100644
+--- a/test/fixedbugs/bug133.dir/bug2.go
++++ b/test/fixedbugs/bug133.dir/bug2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package bug1
++package bug2
+ 
+ import "./bug1"
+ import "./bug0"

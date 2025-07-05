@@ -32,7 +32,61 @@ Date:   Thu Apr 29 22:54:26 2021 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/fmt_load_errors.txt | 13 +++++++++++++
  src/cmd/gofmt/gofmt.go                         | 13 ++++++++++++-
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/fmt_load_errors.txt b/src/cmd/go/testdata/script/fmt_load_errors.txt
+index 297ec0fe3c..84bf41cfba 100644
+--- a/src/cmd/go/testdata/script/fmt_load_errors.txt
++++ b/src/cmd/go/testdata/script/fmt_load_errors.txt
+@@ -6,6 +6,17 @@ go fmt -n exclude
+ stdout 'exclude[/\\]x\.go'
+ stdout 'exclude[/\\]x_linux\.go'
+ 
++# Test edge cases with gofmt.
++# Note that this execs GOROOT/bin/gofmt.
++
++! exec gofmt does-not-exist
++
++exec gofmt gofmt-dir/no-extension
++stdout 'package x'
++
++exec gofmt gofmt-dir
++! stdout 'package x'
++
+ -- exclude/empty/x.txt --
+ -- exclude/ignore/_x.go --
+ package x
+@@ -17,3 +28,5 @@ package x
+ // +build windows
+ 
+ package x
++-- gofmt-dir/no-extension --
++package x
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index fef86c941f..b3c120daab 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -214,8 +214,19 @@ func gofmtMain() {
+ 	}
+ 
+ 	for _, arg := range args {
+-		if err := filepath.WalkDir(arg, visitFile); err != nil {
++		switch info, err := os.Stat(arg); {
++		case err != nil:
+ 			report(err)
++		case !info.IsDir():
++			// Non-directory arguments are always formatted.
++			if err := processFile(arg, nil, os.Stdout, false); err != nil {
++				report(err)
++			}
++		default:
++			// Directories are walked, ignoring non-Go files.
++			if err := filepath.WalkDir(arg, visitFile); err != nil {
++				report(err)
++			}
+ 		}
+ 	}
+ }

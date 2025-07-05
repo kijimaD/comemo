@@ -8,6 +8,20 @@ Date:   Thu Sep 18 15:50:28 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=15489
     CL=15493
-
+---
  src/cmd/clean.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 3537b835c1..14151d86d6 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in 6l 6a 6c 6g gc cc ar db nm acid
++for i in 6l 6a 6c 6g gc cc ar db nm blyacc acid
+ do
+ 	cd $i
+ 	make clean

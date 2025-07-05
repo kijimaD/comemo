@@ -9,6 +9,22 @@ Date:   Tue May 26 15:41:42 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/url/url.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index b7e25ecfcb..b3513a85a3 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -709,8 +709,8 @@ func (v Values) Get(key string) string {
+ 	if v == nil {
+ 		return ""
+ 	}
+-	vs, ok := v[key]
+-	if !ok || len(vs) == 0 {
++	vs := v[key]
++	if len(vs) == 0 {
+ 		return ""
+ 	}
+ 	return vs[0]

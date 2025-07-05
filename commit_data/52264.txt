@@ -15,7 +15,55 @@ Date:   Thu Apr 21 11:17:16 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/vcs/vcs.go   | 2 --
  src/cmd/go/internal/work/exec.go | 6 ++----
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 77208ab762..7dbcfb7cc4 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -22,7 +22,6 @@ import (
+ 	"sync"
+ 	"time"
+ 
+-	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+@@ -657,7 +656,6 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
+ 
+ 	cmd := exec.Command(v.Cmd, args...)
+ 	cmd.Dir = dir
+-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+ 	if cfg.BuildX {
+ 		fmt.Fprintf(os.Stderr, "cd %s\n", dir)
+ 		fmt.Fprintf(os.Stderr, "%s %s\n", v.Cmd, strings.Join(args, " "))
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index f0e6c80029..0b8e5d2330 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2116,11 +2116,10 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([
+ 	cmd.Stderr = &buf
+ 	cleanup := passLongArgsInResponseFiles(cmd)
+ 	defer cleanup()
+-	cmd.Env = os.Environ()
+ 	if dir != "." {
+ 		cmd.Dir = dir
+-		cmd.Env = base.AppendPWD(cmd.Env, dir)
+ 	}
++	cmd.Env = cmd.Environ() // Pre-allocate with correct PWD.
+ 
+ 	// Add the TOOLEXEC_IMPORTPATH environment variable for -toolexec tools.
+ 	// It doesn't really matter if -toolexec isn't being used.
+@@ -2609,8 +2608,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+ 	}
+ 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+ 	cmd.Dir = b.WorkDir
+-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+-	cmd.Env = append(cmd.Env, "LC_ALL=C")
++	cmd.Env = append(cmd.Environ(), "LC_ALL=C")
+ 	out, _ := cmd.CombinedOutput()
+ 	// GCC says "unrecognized command line option".
+ 	// clang says "unknown argument".

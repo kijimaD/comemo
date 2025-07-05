@@ -8,7 +8,52 @@ Date:   Sat Aug 4 16:11:53 2012 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6448057
-
+---
  src/cmd/cc/lex.c   | 7 ++++++-
  src/cmd/cc/lexbody | 7 ++++++-
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index ac190a8cb1..653c298a24 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -377,11 +377,16 @@ lookup(void)
+ 		symb[1] = '"';
+ 	}
+ 
+-	// turn · into .
+ 	for(r=w=symb; *r; r++) {
++		// turn · (U+00B7) into .
++		// turn ∕ (U+2215) into /
+ 		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
+ 			*w++ = '.';
+ 			r++;
++		}else if((uchar)*r == 0xe2 && (uchar)*(r+1) == 0x88 && (uchar)*(r+2) == 0x95) {
++			*w++ = '/';
++			r++;
++			r++;
+ 		}else
+ 			*w++ = *r;
+ 	}
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 51d2e9396a..4cc9c73d9d 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -251,11 +251,16 @@ lookup(void)
+ 		symb[1] = '"';
+ 	}
+ 
+-	// turn · into .
+ 	for(r=w=symb; *r; r++) {
++		// turn · (U+00B7) into .
++		// turn ∕ (U+2215) into /
+ 		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
+ 			*w++ = '.';
+ 			r++;
++		}else if((uchar)*r == 0xe2 && (uchar)*(r+1) == 0x88 && (uchar)*(r+2) == 0x95) {
++			*w++ = '/';
++			r++;
++			r++;
+ 		}else
+ 			*w++ = *r;
+ 	}

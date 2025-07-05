@@ -32,7 +32,7 @@ Date:   Wed Jan 27 11:34:42 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/288814
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go |   3 +-
  src/cmd/compile/internal/ssagen/pgen.go    |   3 +-
  src/cmd/internal/obj/arm64/a.out.go        |   2 +-
@@ -41,3 +41,427 @@ Date:   Wed Jan 27 11:34:42 2021 -0500
  src/runtime/runtime2.go                    |   2 +-
  src/runtime/traceback.go                   |  17 +-
  7 files changed, 175 insertions(+), 147 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index dd22c033cc..70168cffeb 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -271,8 +271,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+ 			offs -= int64(types.PtrSize)
+ 		}
+-		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
+-			// There is a word space for FP on ARM64 even if the frame pointer is disabled
++		if objabi.Framepointer_enabled {
+ 			offs -= int64(types.PtrSize)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 182f8408cf..40f07a8d45 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -213,8 +213,7 @@ func StackOffset(slot ssa.LocalSlot) int32 {
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+ 			off -= int64(types.PtrSize)
+ 		}
+-		if objabi.Framepointer_enabled || objabi.GOARCH == "arm64" {
+-			// There is a word space for FP on ARM64 even if the frame pointer is disabled
++		if objabi.Framepointer_enabled {
+ 			off -= int64(types.PtrSize)
+ 		}
+ 	case ir.PPARAM, ir.PPARAMOUT:
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 1d1bea505c..7ab9c1475f 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -239,7 +239,7 @@ const (
+ 	REGCTXT = REG_R26 // environment for closures
+ 	REGTMP  = REG_R27 // reserved for liblink
+ 	REGG    = REG_R28 // G
+-	REGFP   = REG_R29 // frame pointer, unused in the Go toolchain
++	REGFP   = REG_R29 // frame pointer
+ 	REGLINK = REG_R30
+ 
+ 	// ARM64 uses R31 as both stack pointer and zero register,
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 3b88543852..8f7648e5d5 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -622,25 +622,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
+ 
+-			if objabi.Framepointer_enabled {
+-				q1 = obj.Appendp(q1, c.newprog)
+-				q1.Pos = p.Pos
+-				q1.As = AMOVD
+-				q1.From.Type = obj.TYPE_REG
+-				q1.From.Reg = REGFP
+-				q1.To.Type = obj.TYPE_MEM
+-				q1.To.Reg = REGSP
+-				q1.To.Offset = -8
+-
+-				q1 = obj.Appendp(q1, c.newprog)
+-				q1.Pos = p.Pos
+-				q1.As = ASUB
+-				q1.From.Type = obj.TYPE_CONST
+-				q1.From.Offset = 8
+-				q1.Reg = REGSP
+-				q1.To.Type = obj.TYPE_REG
+-				q1.To.Reg = REGFP
+-			}
++			// Frame pointer.
++			q1 = obj.Appendp(q1, c.newprog)
++			q1.Pos = p.Pos
++			q1.As = AMOVD
++			q1.From.Type = obj.TYPE_REG
++			q1.From.Reg = REGFP
++			q1.To.Type = obj.TYPE_MEM
++			q1.To.Reg = REGSP
++			q1.To.Offset = -8
++
++			q1 = obj.Appendp(q1, c.newprog)
++			q1.Pos = p.Pos
++			q1.As = ASUB
++			q1.From.Type = obj.TYPE_CONST
++			q1.From.Offset = 8
++			q1.Reg = REGSP
++			q1.To.Type = obj.TYPE_REG
++			q1.To.Reg = REGFP
+ 
+ 			if c.cursym.Func().Text.From.Sym.Wrapper() {
+ 				// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+@@ -765,28 +764,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					p.To.Reg = REGSP
+ 					p.Spadj = -c.autosize
+ 
+-					if objabi.Framepointer_enabled {
+-						p = obj.Appendp(p, c.newprog)
+-						p.As = ASUB
+-						p.From.Type = obj.TYPE_CONST
+-						p.From.Offset = 8
+-						p.Reg = REGSP
+-						p.To.Type = obj.TYPE_REG
+-						p.To.Reg = REGFP
+-					}
++					// Frame pointer.
++					p = obj.Appendp(p, c.newprog)
++					p.As = ASUB
++					p.From.Type = obj.TYPE_CONST
++					p.From.Offset = 8
++					p.Reg = REGSP
++					p.To.Type = obj.TYPE_REG
++					p.To.Reg = REGFP
+ 				}
+ 			} else {
+ 				/* want write-back pre-indexed SP+autosize -> SP, loading REGLINK*/
+ 
+-				if objabi.Framepointer_enabled {
+-					p.As = AMOVD
+-					p.From.Type = obj.TYPE_MEM
+-					p.From.Reg = REGSP
+-					p.From.Offset = -8
+-					p.To.Type = obj.TYPE_REG
+-					p.To.Reg = REGFP
+-					p = obj.Appendp(p, c.newprog)
+-				}
++				// Frame pointer.
++				p.As = AMOVD
++				p.From.Type = obj.TYPE_MEM
++				p.From.Reg = REGSP
++				p.From.Offset = -8
++				p.To.Type = obj.TYPE_REG
++				p.To.Reg = REGFP
++				p = obj.Appendp(p, c.newprog)
+ 
+ 				aoffset := c.autosize
+ 
+@@ -821,6 +818,28 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				}
+ 			}
+ 
++			// If enabled, this code emits 'MOV PC, R27' before every 'MOV LR, PC',
++			// so that if you are debugging a low-level crash where PC and LR are zero,
++			// you can look at R27 to see what jumped to the zero.
++			// This is useful when bringing up Go on a new system.
++			// (There is similar code in ../ppc64/obj9.go:/if.false.)
++			const debugRETZERO = false
++			if debugRETZERO {
++				if p.As != obj.ARET {
++					q = newprog()
++					q.Pos = p.Pos
++					q.Link = p.Link
++					p.Link = q
++					p = q
++				}
++				p.As = AADR
++				p.From.Type = obj.TYPE_BRANCH
++				p.From.Offset = 0
++				p.To.Type = obj.TYPE_REG
++				p.To.Reg = REGTMP
++
++			}
++
+ 			if p.As != obj.ARET {
+ 				q = newprog()
+ 				q.Pos = p.Pos
+@@ -866,110 +885,106 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 
+ 		case obj.ADUFFCOPY:
+-			if objabi.Framepointer_enabled {
+-				//  ADR	ret_addr, R27
+-				//  STP	(FP, R27), -24(SP)
+-				//  SUB	24, SP, FP
+-				//  DUFFCOPY
+-				// ret_addr:
+-				//  SUB	8, SP, FP
+-
+-				q1 := p
+-				// copy DUFFCOPY from q1 to q4
+-				q4 := obj.Appendp(p, c.newprog)
+-				q4.Pos = p.Pos
+-				q4.As = obj.ADUFFCOPY
+-				q4.To = p.To
+-
+-				q1.As = AADR
+-				q1.From.Type = obj.TYPE_BRANCH
+-				q1.To.Type = obj.TYPE_REG
+-				q1.To.Reg = REG_R27
+-
+-				q2 := obj.Appendp(q1, c.newprog)
+-				q2.Pos = p.Pos
+-				q2.As = ASTP
+-				q2.From.Type = obj.TYPE_REGREG
+-				q2.From.Reg = REGFP
+-				q2.From.Offset = int64(REG_R27)
+-				q2.To.Type = obj.TYPE_MEM
+-				q2.To.Reg = REGSP
+-				q2.To.Offset = -24
+-
+-				// maintaine FP for DUFFCOPY
+-				q3 := obj.Appendp(q2, c.newprog)
+-				q3.Pos = p.Pos
+-				q3.As = ASUB
+-				q3.From.Type = obj.TYPE_CONST
+-				q3.From.Offset = 24
+-				q3.Reg = REGSP
+-				q3.To.Type = obj.TYPE_REG
+-				q3.To.Reg = REGFP
+-
+-				q5 := obj.Appendp(q4, c.newprog)
+-				q5.Pos = p.Pos
+-				q5.As = ASUB
+-				q5.From.Type = obj.TYPE_CONST
+-				q5.From.Offset = 8
+-				q5.Reg = REGSP
+-				q5.To.Type = obj.TYPE_REG
+-				q5.To.Reg = REGFP
+-				q1.From.SetTarget(q5)
+-				p = q5
+-			}
++			//  ADR	ret_addr, R27
++			//  STP	(FP, R27), -24(SP)
++			//  SUB	24, SP, FP
++			//  DUFFCOPY
++			// ret_addr:
++			//  SUB	8, SP, FP
++
++			q1 := p
++			// copy DUFFCOPY from q1 to q4
++			q4 := obj.Appendp(p, c.newprog)
++			q4.Pos = p.Pos
++			q4.As = obj.ADUFFCOPY
++			q4.To = p.To
++
++			q1.As = AADR
++			q1.From.Type = obj.TYPE_BRANCH
++			q1.To.Type = obj.TYPE_REG
++			q1.To.Reg = REG_R27
++
++			q2 := obj.Appendp(q1, c.newprog)
++			q2.Pos = p.Pos
++			q2.As = ASTP
++			q2.From.Type = obj.TYPE_REGREG
++			q2.From.Reg = REGFP
++			q2.From.Offset = int64(REG_R27)
++			q2.To.Type = obj.TYPE_MEM
++			q2.To.Reg = REGSP
++			q2.To.Offset = -24
++
++			// maintain FP for DUFFCOPY
++			q3 := obj.Appendp(q2, c.newprog)
++			q3.Pos = p.Pos
++			q3.As = ASUB
++			q3.From.Type = obj.TYPE_CONST
++			q3.From.Offset = 24
++			q3.Reg = REGSP
++			q3.To.Type = obj.TYPE_REG
++			q3.To.Reg = REGFP
++
++			q5 := obj.Appendp(q4, c.newprog)
++			q5.Pos = p.Pos
++			q5.As = ASUB
++			q5.From.Type = obj.TYPE_CONST
++			q5.From.Offset = 8
++			q5.Reg = REGSP
++			q5.To.Type = obj.TYPE_REG
++			q5.To.Reg = REGFP
++			q1.From.SetTarget(q5)
++			p = q5
+ 
+ 		case obj.ADUFFZERO:
+-			if objabi.Framepointer_enabled {
+-				//  ADR	ret_addr, R27
+-				//  STP	(FP, R27), -24(SP)
+-				//  SUB	24, SP, FP
+-				//  DUFFZERO
+-				// ret_addr:
+-				//  SUB	8, SP, FP
+-
+-				q1 := p
+-				// copy DUFFZERO from q1 to q4
+-				q4 := obj.Appendp(p, c.newprog)
+-				q4.Pos = p.Pos
+-				q4.As = obj.ADUFFZERO
+-				q4.To = p.To
+-
+-				q1.As = AADR
+-				q1.From.Type = obj.TYPE_BRANCH
+-				q1.To.Type = obj.TYPE_REG
+-				q1.To.Reg = REG_R27
+-
+-				q2 := obj.Appendp(q1, c.newprog)
+-				q2.Pos = p.Pos
+-				q2.As = ASTP
+-				q2.From.Type = obj.TYPE_REGREG
+-				q2.From.Reg = REGFP
+-				q2.From.Offset = int64(REG_R27)
+-				q2.To.Type = obj.TYPE_MEM
+-				q2.To.Reg = REGSP
+-				q2.To.Offset = -24
+-
+-				// maintaine FP for DUFFZERO
+-				q3 := obj.Appendp(q2, c.newprog)
+-				q3.Pos = p.Pos
+-				q3.As = ASUB
+-				q3.From.Type = obj.TYPE_CONST
+-				q3.From.Offset = 24
+-				q3.Reg = REGSP
+-				q3.To.Type = obj.TYPE_REG
+-				q3.To.Reg = REGFP
+-
+-				q5 := obj.Appendp(q4, c.newprog)
+-				q5.Pos = p.Pos
+-				q5.As = ASUB
+-				q5.From.Type = obj.TYPE_CONST
+-				q5.From.Offset = 8
+-				q5.Reg = REGSP
+-				q5.To.Type = obj.TYPE_REG
+-				q5.To.Reg = REGFP
+-				q1.From.SetTarget(q5)
+-				p = q5
+-			}
++			//  ADR	ret_addr, R27
++			//  STP	(FP, R27), -24(SP)
++			//  SUB	24, SP, FP
++			//  DUFFZERO
++			// ret_addr:
++			//  SUB	8, SP, FP
++
++			q1 := p
++			// copy DUFFZERO from q1 to q4
++			q4 := obj.Appendp(p, c.newprog)
++			q4.Pos = p.Pos
++			q4.As = obj.ADUFFZERO
++			q4.To = p.To
++
++			q1.As = AADR
++			q1.From.Type = obj.TYPE_BRANCH
++			q1.To.Type = obj.TYPE_REG
++			q1.To.Reg = REG_R27
++
++			q2 := obj.Appendp(q1, c.newprog)
++			q2.Pos = p.Pos
++			q2.As = ASTP
++			q2.From.Type = obj.TYPE_REGREG
++			q2.From.Reg = REGFP
++			q2.From.Offset = int64(REG_R27)
++			q2.To.Type = obj.TYPE_MEM
++			q2.To.Reg = REGSP
++			q2.To.Offset = -24
++
++			// maintain FP for DUFFZERO
++			q3 := obj.Appendp(q2, c.newprog)
++			q3.Pos = p.Pos
++			q3.As = ASUB
++			q3.From.Type = obj.TYPE_CONST
++			q3.From.Offset = 24
++			q3.Reg = REGSP
++			q3.To.Type = obj.TYPE_REG
++			q3.To.Reg = REGFP
++
++			q5 := obj.Appendp(q4, c.newprog)
++			q5.Pos = p.Pos
++			q5.As = ASUB
++			q5.From.Type = obj.TYPE_CONST
++			q5.From.Offset = 8
++			q5.Reg = REGSP
++			q5.To.Type = obj.TYPE_REG
++			q5.To.Reg = REGFP
++			q1.From.SetTarget(q5)
++			p = q5
+ 		}
+ 
+ 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index a73ab479a1..1f99f8ed5d 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -137,7 +137,7 @@ func init() {
+ }
+ 
+ // Note: must agree with runtime.framepointer_enabled.
+-var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
++var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
+ 
+ func addexp(s string) {
+ 	// Could do general integer parsing here, but the runtime copy doesn't yet.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 05520d07b2..5bd283d12f 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1106,4 +1106,4 @@ var (
+ )
+ 
+ // Must agree with cmd/internal/objabi.Framepointer_enabled.
+-const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
++const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 7321790b78..eb185eecd3 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -275,7 +275,22 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 
+ 		// For architectures with frame pointers, if there's
+ 		// a frame, then there's a saved frame pointer here.
+-		if frame.varp > frame.sp && (GOARCH == "amd64" || GOARCH == "arm64") {
++		//
++		// NOTE: This code is not as general as it looks.
++		// On x86, the ABI is to save the frame pointer word at the
++		// top of the stack frame, so we have to back down over it.
++		// On arm64, the frame pointer should be at the bottom of
++		// the stack (with R29 (aka FP) = RSP), in which case we would
++		// not want to do the subtraction here. But we started out without
++		// any frame pointer, and when we wanted to add it, we didn't
++		// want to break all the assembly doing direct writes to 8(RSP)
++		// to set the first parameter to a called function.
++		// So we decided to write the FP link *below* the stack pointer
++		// (with R29 = RSP - 8 in Go functions).
++		// This is technically ABI-compatible but not standard.
++		// And it happens to end up mimicking the x86 layout.
++		// Other architectures may make different decisions.
++		if frame.varp > frame.sp && framepointer_enabled {
+ 			frame.varp -= sys.PtrSize
+ 		}
+ 

@@ -22,7 +22,57 @@ Date:   Tue Dec 18 20:04:53 2018 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/panic.go | 11 +++++++----
  src/runtime/print.go |  7 ++++++-
  2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 81ff21113f..bb83be4715 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -729,10 +729,13 @@ func fatalpanic(msgs *_panic) {
+ // It returns true if panic messages should be printed, or false if
+ // the runtime is in bad shape and should just print stacks.
+ //
+-// It can have write barriers because the write barrier explicitly
+-// ignores writes once dying > 0.
++// It must not have write barriers even though the write barrier
++// explicitly ignores writes once dying > 0. Write barriers still
++// assume that g.m.p != nil, and this function may not have P
++// in some contexts (e.g. a panic in a signal handler for a signal
++// sent to an M with no P).
+ //
+-//go:yeswritebarrierrec
++//go:nowritebarrierrec
+ func startpanic_m() bool {
+ 	_g_ := getg()
+ 	if mheap_.cachealloc.size == 0 { // very early
+@@ -752,8 +755,8 @@ func startpanic_m() bool {
+ 
+ 	switch _g_.m.dying {
+ 	case 0:
++		// Setting dying >0 has the side-effect of disabling this G's writebuf.
+ 		_g_.m.dying = 1
+-		_g_.writebuf = nil
+ 		atomic.Xadd(&panicking, 1)
+ 		lock(&paniclk)
+ 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
+diff --git a/src/runtime/print.go b/src/runtime/print.go
+index 7b2e4f40ff..e605eb34cb 100644
+--- a/src/runtime/print.go
++++ b/src/runtime/print.go
+@@ -89,7 +89,12 @@ func gwrite(b []byte) {
+ 	}
+ 	recordForPanic(b)
+ 	gp := getg()
+-	if gp == nil || gp.writebuf == nil {
++	// Don't use the writebuf if gp.m is dying. We want anything
++	// written through gwrite to appear in the terminal rather
++	// than be written to in some buffer, if we're in a panicking state.
++	// Note that we can't just clear writebuf in the gp.m.dying case
++	// because a panic isn't allowed to have any write barriers.
++	if gp == nil || gp.writebuf == nil || gp.m.dying > 0 {
+ 		writeErr(b)
+ 		return
+ 	}

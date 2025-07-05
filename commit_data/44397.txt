@@ -12,6 +12,23 @@ Date:   Wed Jun 17 10:41:56 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/239657
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/internal/obj/objfile2.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 898f0a113a..b12b6fe84c 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -208,6 +208,11 @@ func (w *writer) StringTable() {
+ 		if w.pkgpath != "" {
+ 			s.Name = strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+ 		}
++		// Don't put names of builtins into the string table (to save
++		// space).
++		if s.PkgIdx == goobj2.PkgIdxBuiltin {
++			return
++		}
+ 		w.AddString(s.Name)
+ 	})
+ 	w.ctxt.traverseSyms(traverseDefs, func(s *LSym) {

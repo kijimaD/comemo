@@ -9,9 +9,56 @@ Date:   Tue Aug 12 17:07:33 2008 -0700
     R=gri
     OCL=14141
     CL=14141
-
+---
  src/lib/container/vector.go        | 1 +
  test/{bugs => fixedbugs}/bug054.go | 0
  test/{bugs => fixedbugs}/bug089.go | 0
  test/golden.out                    | 8 --------
  4 files changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index c3ec0d390f..b4a910a9e2 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -121,6 +121,7 @@ func Test() {
+ 	v.Insert(0, i1);
+ 	v.Insert(0, i0);
+ 	for i := 0; i < v.Len(); i++ {
++		x := convert(*I, v.At(i));
+ 		print(i, " ", v.At(i).(*I).val, "\n");
+ 	}
+ }
+diff --git a/test/bugs/bug054.go b/test/fixedbugs/bug054.go
+similarity index 100%
+rename from test/bugs/bug054.go
+rename to test/fixedbugs/bug054.go
+diff --git a/test/bugs/bug089.go b/test/fixedbugs/bug089.go
+similarity index 100%
+rename from test/bugs/bug089.go
+rename to test/fixedbugs/bug089.go
+diff --git a/test/golden.out b/test/golden.out
+index 5fd5cbc343..78a8ba01ce 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -87,10 +87,6 @@ bugs/bug048.go:7: illegal types for operand: CONV
+ 	(MAP[<int32>INT32]<int32>INT32)
+ BUG: known to fail incorrectly
+ 
+-=========== bugs/bug054.go
+-bugs/bug054.go:25: fatal error: agen_inter i2s
+-BUG: known to fail incorrectly
+-
+ =========== bugs/bug061.go
+ bugs/bug061.go:7: illegal types for operand: SLICE
+ bugs/bug061.go:7: illegal types for operand: AS
+@@ -186,10 +182,6 @@ bugs/bug088.dir/bug1.go:8: illegal types for operand: AS
+ 	(<(bug0)P.int32>INT32)
+ BUG: fails incorrectly
+ 
+-=========== bugs/bug089.go
+-bugs/bug089.go:16: fatal error: agen_inter i2i
+-BUG: should compile
+-
+ =========== fixedbugs/bug015.go
+ fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
+ 

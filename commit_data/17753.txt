@@ -7,7 +7,32 @@ Date:   Sat Oct 5 14:15:02 2013 +1000
     R=golang-dev, adg
     CC=golang-dev, mikioh.mikioh
     https://golang.org/cl/14417043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index ddbffa8c99..83858cbbe4 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -206,6 +206,7 @@ Luca Greco <luca.greco@alcacoop.it>
+ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Marco Hennings <marco.hennings@freiheit.com>
++Marko Juhani Silokunnas <marko.silokunnas@gmail.com>
+ Markus Duft <markus.duft@salomon.at>
+ Markus Sonderegger <marraison@gmail.com>
+ Martin Neubauer <m.ne@gmx.net>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0e37d2f87b..13c8f371c5 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -308,6 +308,7 @@ Manu Garg <manugarg@google.com>
+ Marcel van Lohuizen <mpvl@golang.org>
+ Marco Hennings <marco.hennings@freiheit.com>
+ Mark Zavislak <zavislak@google.com>
++Marko Juhani Silokunnas <marko.silokunnas@gmail.com>
+ Markus Duft <markus.duft@salomon.at>
+ Markus Sonderegger <marraison@gmail.com>
+ Martin Neubauer <m.ne@gmx.net>

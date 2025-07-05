@@ -11,7 +11,165 @@ Date:   Tue Mar 27 17:06:53 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/go/internal/work/security.go      | 48 +++++++++++++++++++++++++++++--
  src/cmd/go/internal/work/security_test.go |  4 ---
  2 files changed, 46 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 54fd6b9782..5c67aa945e 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -46,12 +46,19 @@ var validCompilerFlags = []*regexp.Regexp{
+ 	re(`-O([^@\-].*)`),
+ 	re(`-W`),
+ 	re(`-W([^@,]+)`), // -Wall but not -Wa,-foo.
++	re(`-Wa,-mbig-obj`),
++	re(`-ansi`),
+ 	re(`-f(no-)?blocks`),
+ 	re(`-f(no-)?common`),
+ 	re(`-f(no-)?constant-cfstrings`),
++	re(`-fdiagnostics-show-note-include-stack`),
+ 	re(`-f(no-)?exceptions`),
++	re(`-f(no-)?inline-functions`),
+ 	re(`-finput-charset=([^@\-].*)`),
++	re(`-f(no-)?fat-lto-objects`),
+ 	re(`-f(no-)?lto`),
++	re(`-fmacro-backtrace-limit=(.+)`),
++	re(`-fmessage-length=(.+)`),
+ 	re(`-f(no-)?modules`),
+ 	re(`-f(no-)?objc-arc`),
+ 	re(`-f(no-)?omit-frame-pointer`),
+@@ -62,27 +69,42 @@ var validCompilerFlags = []*regexp.Regexp{
+ 	re(`-f(no-)?split-stack`),
+ 	re(`-f(no-)?stack-(.+)`),
+ 	re(`-f(no-)?strict-aliasing`),
++	re(`-f(un)signed-char`),
++	re(`-f(no-)?use-linker-plugin`), // safe if -B is not used; we don't permit -B
+ 	re(`-fsanitize=(.+)`),
++	re(`-ftemplate-depth-(.+)`),
++	re(`-fvisibility=(.+)`),
+ 	re(`-g([^@\-].*)?`),
++	re(`-m32`),
++	re(`-m64`),
+ 	re(`-m(arch|cpu|fpu|tune)=([^@\-].*)`),
+ 	re(`-m(no-)?avx[0-9a-z.]*`),
+ 	re(`-m(no-)?ms-bitfields`),
+ 	re(`-m(no-)?stack-(.+)`),
+ 	re(`-mmacosx-(.+)`),
++	re(`-mios-simulator-version-min=(.+)`),
++	re(`-miphoneos-version-min=(.+)`),
+ 	re(`-mnop-fun-dllimport`),
+ 	re(`-m(no-)?sse[0-9.]*`),
++	re(`-mwindows`),
+ 	re(`-pedantic(-errors)?`),
+ 	re(`-pipe`),
+ 	re(`-pthread`),
+ 	re(`-?-std=([^@\-].*)`),
++	re(`-?-stdlib=([^@\-].*)`),
++	re(`-w`),
+ 	re(`-x([^@\-].*)`),
+ }
+ 
+ var validCompilerFlagsWithNextArg = []string{
++	"-arch",
+ 	"-D",
+ 	"-I",
+-	"-isystem",
+ 	"-framework",
++	"-isysroot",
++	"-isystem",
++	"--sysroot",
++	"-target",
+ 	"-x",
+ }
+ 
+@@ -90,43 +112,65 @@ var validLinkerFlags = []*regexp.Regexp{
+ 	re(`-F([^@\-].*)`),
+ 	re(`-l([^@\-].*)`),
+ 	re(`-L([^@\-].*)`),
++	re(`-O`),
++	re(`-O([^@\-].*)`),
+ 	re(`-f(no-)?(pic|PIC|pie|PIE)`),
+ 	re(`-fsanitize=([^@\-].*)`),
+ 	re(`-g([^@\-].*)?`),
+ 	re(`-m(arch|cpu|fpu|tune)=([^@\-].*)`),
++	re(`-mmacosx-(.+)`),
++	re(`-mios-simulator-version-min=(.+)`),
++	re(`-miphoneos-version-min=(.+)`),
++	re(`-mwindows`),
+ 	re(`-(pic|PIC|pie|PIE)`),
+ 	re(`-pthread`),
++	re(`-shared`),
+ 	re(`-?-static([-a-z0-9+]*)`),
++	re(`-?-stdlib=([^@\-].*)`),
+ 
+ 	// Note that any wildcards in -Wl need to exclude comma,
+ 	// since -Wl splits its argument at commas and passes
+ 	// them all to the linker uninterpreted. Allowing comma
+ 	// in a wildcard would allow tunnelling arbitrary additional
+ 	// linker arguments through one of these.
++	re(`-Wl,--(no-)?allow-multiple-definition`),
+ 	re(`-Wl,--(no-)?as-needed`),
+ 	re(`-Wl,-Bdynamic`),
+ 	re(`-Wl,-Bstatic`),
++	re(`-Wl,-d[ny]`),
+ 	re(`-Wl,--disable-new-dtags`),
+ 	re(`-Wl,--enable-new-dtags`),
+ 	re(`-Wl,--end-group`),
+ 	re(`-Wl,-framework,[^,@\-][^,]+`),
+ 	re(`-Wl,-headerpad_max_install_names`),
+ 	re(`-Wl,--no-undefined`),
+-	re(`-Wl,-rpath,([^,@\-][^,]+)`),
++	re(`-Wl,-rpath[=,]([^,@\-][^,]+)`),
+ 	re(`-Wl,-search_paths_first`),
++	re(`-Wl,-sectcreate,([^,@\-][^,]+),([^,@\-][^,]+),([^,@\-][^,]+)`),
+ 	re(`-Wl,--start-group`),
++	re(`-Wl,-?-static`),
++	re(`-Wl,--subsystem,(native|windows|console|posix|xbox)`),
++	re(`-Wl,-undefined[=,]([^,@\-][^,]+)`),
+ 	re(`-Wl,-?-unresolved-symbols=[^,]+`),
+ 	re(`-Wl,--(no-)?warn-([^,]+)`),
++	re(`-Wl,-z,(no)?execstack`),
++	re(`-Wl,-z,relro`),
+ 
+ 	re(`[a-zA-Z0-9_/].*\.(a|o|obj|dll|dylib|so)`), // direct linker inputs: x.o or libfoo.so (but not -foo.o or @foo.o)
+ }
+ 
+ var validLinkerFlagsWithNextArg = []string{
++	"-arch",
+ 	"-F",
+ 	"-l",
+ 	"-L",
+ 	"-framework",
++	"-isysroot",
++	"--sysroot",
++	"-target",
+ 	"-Wl,-framework",
++	"-Wl,-rpath",
++	"-Wl,-undefined",
+ }
+ 
+ func checkCompilerFlags(name, source string, list []string) error {
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 976501b810..bd898c9de6 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -140,9 +140,6 @@ var goodLinkerFlags = [][]string{
+ var badLinkerFlags = [][]string{
+ 	{"-DFOO"},
+ 	{"-Dfoo=bar"},
+-	{"-O"},
+-	{"-O2"},
+-	{"-Osmall"},
+ 	{"-W"},
+ 	{"-Wall"},
+ 	{"-fobjc-arc"},
+@@ -155,7 +152,6 @@ var badLinkerFlags = [][]string{
+ 	{"-fno-stack-xxx"},
+ 	{"-mstack-overflow"},
+ 	{"-mno-stack-overflow"},
+-	{"-mmacosx-version"},
+ 	{"-mnop-fun-dllimport"},
+ 	{"-std=c99"},
+ 	{"-xc"},

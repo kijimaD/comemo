@@ -9,7 +9,34 @@ Date:   Thu Jan 4 15:07:03 2018 +0530
     Change-Id: I964d36ed751ef1844ab6c40f61047297ff1443a3
     Reviewed-on: https://go-review.googlesource.com/85797
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go          | 2 +-
  src/cmd/go/internal/get/get.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index af5e572b23..7ab60aac22 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -505,7 +505,7 @@
+ //
+ // Usage:
+ //
+-// 	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]
++// 	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [-v] [build flags] [packages]
+ //
+ // Get downloads the packages named by the import paths, along with their
+ // dependencies. It then installs the named packages, like 'go install'.
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index d42dae6e61..733116eca0 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -22,7 +22,7 @@ import (
+ )
+ 
+ var CmdGet = &base.Command{
+-	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
++	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [-v] [build flags] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+ Get downloads the packages named by the import paths, along with their

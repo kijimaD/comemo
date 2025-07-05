@@ -11,7 +11,60 @@ Date:   Mon Oct 21 15:29:41 2019 -0700
     Change-Id: I329ef358deea63d8425f76f1d54c95749b96c365
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202484
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/parser/parser.go               | 12 +++++++++++-
  src/go/parser/testdata/issue34946.src | 22 ++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index ba16b65224..35349611e8 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2439,8 +2439,18 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 	var body *ast.BlockStmt
+ 	if p.tok == token.LBRACE {
+ 		body = p.parseBody(scope)
++		p.expectSemi()
++	} else if p.tok == token.SEMICOLON {
++		p.next()
++		if p.tok == token.LBRACE {
++			// opening { of function declaration on next line
++			p.error(p.pos, "unexpected semicolon or newline before {")
++			body = p.parseBody(scope)
++			p.expectSemi()
++		}
++	} else {
++		p.expectSemi()
+ 	}
+-	p.expectSemi()
+ 
+ 	decl := &ast.FuncDecl{
+ 		Doc:  doc,
+diff --git a/src/go/parser/testdata/issue34946.src b/src/go/parser/testdata/issue34946.src
+new file mode 100644
+index 0000000000..6bb15e10c7
+--- /dev/null
++++ b/src/go/parser/testdata/issue34946.src
+@@ -0,0 +1,22 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 34946: Better synchronization of
++// parser for function declarations that start their
++// body's opening { on a new line.
++
++package p
++
++// accept Allman/BSD-style declaration but complain
++// (implicit semicolon between signature and body)
++func _() int
++{ /* ERROR "unexpected semicolon or newline before {" */
++	{ return 0 }
++}
++
++func _() {}
++
++func _(); { /* ERROR "unexpected semicolon or newline before {" */ }
++
++func _() {}

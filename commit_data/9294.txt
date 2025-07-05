@@ -7,6 +7,27 @@ Date:   Fri Aug 5 08:25:49 2011 +1000
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4838050
-
+---
  src/pkg/exp/norm/norm_test.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/pkg/exp/norm/norm_test.go b/src/pkg/exp/norm/norm_test.go
+new file mode 100644
+index 0000000000..12dacfcf30
+--- /dev/null
++++ b/src/pkg/exp/norm/norm_test.go
+@@ -0,0 +1,14 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package norm_test
++
++import (
++	"testing"
++)
++
++func TestPlaceHolder(t *testing.T) {
++	// Does nothing, just allows the Makefile to be canonical
++	// while waiting for the package itself to be written.
++}

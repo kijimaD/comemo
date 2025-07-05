@@ -17,7 +17,98 @@ Date:   Mon May 18 15:23:46 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/fallocate_test.go | 50 ++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/outbuf_darwin.go  | 17 +++++++---
  2 files changed, 63 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/fallocate_test.go b/src/cmd/link/internal/ld/fallocate_test.go
+new file mode 100644
+index 0000000000..a064bea23d
+--- /dev/null
++++ b/src/cmd/link/internal/ld/fallocate_test.go
+@@ -0,0 +1,50 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin linux
++
++package ld
++
++import (
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"syscall"
++	"testing"
++)
++
++func TestFallocate(t *testing.T) {
++	dir, err := ioutil.TempDir("", "TestFallocate")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++	filename := filepath.Join(dir, "a.out")
++	out := NewOutBuf(nil)
++	err = out.Open(filename)
++	if err != nil {
++		t.Fatalf("Open file failed: %v", err)
++	}
++	defer out.Close()
++
++	// Mmap 1 MiB initially, and grow to 2 and 3 MiB.
++	// Check if the file size and disk usage is expected.
++	for _, sz := range []int64{1 << 20, 2 << 20, 3 << 20} {
++		err = out.Mmap(uint64(sz))
++		if err != nil {
++			t.Fatalf("Mmap failed: %v", err)
++		}
++		stat, err := os.Stat(filename)
++		if err != nil {
++			t.Fatalf("Stat failed: %v", err)
++		}
++		if got := stat.Size(); got != sz {
++			t.Errorf("unexpected file size: got %d, want %d", got, sz)
++		}
++		if got, want := stat.Sys().(*syscall.Stat_t).Blocks, (sz+511)/512; got != want {
++			t.Errorf("unexpected disk usage: got %d blocks, want %d", got, want)
++		}
++		out.munmap()
++	}
++}
+diff --git a/src/cmd/link/internal/ld/outbuf_darwin.go b/src/cmd/link/internal/ld/outbuf_darwin.go
+index 299902ec62..9a74ba875e 100644
+--- a/src/cmd/link/internal/ld/outbuf_darwin.go
++++ b/src/cmd/link/internal/ld/outbuf_darwin.go
+@@ -10,16 +10,25 @@ import (
+ )
+ 
+ func (out *OutBuf) fallocate(size uint64) error {
++	stat, err := out.f.Stat()
++	if err != nil {
++		return err
++	}
++	cursize := uint64(stat.Size())
++	if size <= cursize {
++		return nil
++	}
++
+ 	store := &syscall.Fstore_t{
+ 		Flags:   syscall.F_ALLOCATEALL,
+ 		Posmode: syscall.F_PEOFPOSMODE,
+ 		Offset:  0,
+-		Length:  int64(size),
++		Length:  int64(size - cursize), // F_PEOFPOSMODE allocates from the end of the file, so we want the size difference here
+ 	}
+ 
+-	_, _, err := syscall.Syscall(syscall.SYS_FCNTL, uintptr(out.f.Fd()), syscall.F_PREALLOCATE, uintptr(unsafe.Pointer(store)))
+-	if err != 0 {
+-		return err
++	_, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(out.f.Fd()), syscall.F_PREALLOCATE, uintptr(unsafe.Pointer(store)))
++	if errno != 0 {
++		return errno
+ 	}
+ 
+ 	return nil

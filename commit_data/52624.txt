@@ -26,8 +26,72 @@ Date:   Fri May 13 13:16:58 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/lock_js.go  | 8 ++++++++
  src/runtime/os_js.go    | 2 +-
  src/runtime/os_plan9.go | 4 +++-
  3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index 80ee50da35..f71e7a2b4a 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -144,8 +144,12 @@ func notetsleepg(n *note, ns int64) bool {
+ }
+ 
+ // checkTimeouts resumes goroutines that are waiting on a note which has reached its deadline.
++// TODO(drchase): need to understand if write barriers are really okay in this context.
++//
++//go:yeswritebarrierrec
+ func checkTimeouts() {
+ 	now := nanotime()
++	// TODO: map iteration has the write barriers in it; is that okay?
+ 	for n, nt := range notesWithTimeout {
+ 		if n.key == note_cleared && now >= nt.deadline {
+ 			n.key = note_timeout
+@@ -175,6 +179,9 @@ var idleID int32
+ // If an event handler returned, we resume it and it will pause the execution.
+ // beforeIdle either returns the specific goroutine to schedule next or
+ // indicates with otherReady that some goroutine became ready.
++// TODO(drchase): need to understand if write barriers are really okay in this context.
++//
++//go:yeswritebarrierrec
+ func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
+ 	delay := int64(-1)
+ 	if pollUntil != 0 {
+@@ -196,6 +203,7 @@ func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
+ 	}
+ 
+ 	if len(events) == 0 {
++		// TODO: this is the line that requires the yeswritebarrierrec
+ 		go handleAsyncEvent()
+ 		return nil, true
+ 	}
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 7ec1210b73..34cc0271f0 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -129,7 +129,7 @@ func initsig(preinit bool) {
+ //
+ //go:nowritebarrier
+ func newosproc(mp *m) {
+-	panic("newosproc: not implemented")
++	throw("newosproc: not implemented")
+ }
+ 
+ func setProcessCPUProfiler(hz int32) {}
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 1a0c0e9363..13bc3be4ab 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -437,7 +437,9 @@ func exit(e int32) {
+ 	} else {
+ 		// build error string
+ 		var tmp [32]byte
+-		status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
++		sl := itoa(tmp[:len(tmp)-1], uint64(e))
++		// Don't append, rely on the existing data being zero.
++		status = tmp[:len(sl)+1]
+ 	}
+ 	goexitsall(&status[0])
+ 	exits(&status[0])

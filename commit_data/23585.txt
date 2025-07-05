@@ -15,7 +15,68 @@ Date:   Wed May 27 17:33:46 2015 -0400
     Change-Id: I8924f09c91d4945ef3f20e80a6e544008a94a7e4
     Reviewed-on: https://go-review.googlesource.com/10450
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go |  7 ++++++-
  test/fixedbugs/issue9036.go        | 29 +++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index d9ba9b210b..cf41c40964 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -1434,6 +1434,11 @@ casedot:
+ 	}
+ 
+ caseep:
++	if importpkg == nil && (c == 'p' || c == 'P') {
++		// <mantissa>p<base-2-exponent> is allowed in .a/.o imports,
++		// but not in .go sources.  See #9036.
++		Yyerror("malformed floating point constant")
++	}
+ 	cp.WriteByte(byte(c))
+ 	c = getc()
+ 	if c == '+' || c == '-' {
+@@ -1442,7 +1447,7 @@ caseep:
+ 	}
+ 
+ 	if !yy_isdigit(c) {
+-		Yyerror("malformed fp constant exponent")
++		Yyerror("malformed floating point constant exponent")
+ 	}
+ 	for yy_isdigit(c) {
+ 		cp.WriteByte(byte(c))
+diff --git a/test/fixedbugs/issue9036.go b/test/fixedbugs/issue9036.go
+new file mode 100644
+index 0000000000..283159e74a
+--- /dev/null
++++ b/test/fixedbugs/issue9036.go
+@@ -0,0 +1,29 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Expects to see error messages on "p" exponents.
++
++package main
++
++import "fmt"
++
++const (
++	x1 = 1.1    // float
++	x2 = 1e10   // float
++	x3 = 0x1e10 // integer (e is a hex digit)
++	x4 = 0x1p10 // ERROR "malformed floating point constant"
++	x5 = 1p10   // ERROR "malformed floating point constant"
++	x6 = 0p0    // ERROR "malformed floating point constant"
++)
++
++func main() {
++	fmt.Printf("%g %T\n", x1, x1)
++	fmt.Printf("%g %T\n", x2, x2)
++	fmt.Printf("%g %T\n", x3, x3)
++	fmt.Printf("%g %T\n", x4, x4)
++	fmt.Printf("%g %T\n", x5, x5)
++	fmt.Printf("%g %T\n", x6, x6)
++}

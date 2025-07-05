@@ -26,8 +26,88 @@ Date:   Fri Sep 2 01:14:57 2016 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/net/ip_test.go    | 10 ++++++++++
  src/net/parse.go      | 14 +-------------
  src/net/parse_test.go |  5 ++---
  3 files changed, 13 insertions(+), 16 deletions(-)
+
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 0ef46ee334..46551633ce 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -28,6 +28,10 @@ var parseIPTests = []struct {
+ 	{"2001:4860:0:2001::68", IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01, 0, 0, 0, 0, 0, 0, 0x00, 0x68}},
+ 	{"2001:4860:0000:2001:0000:0000:0000:0068", IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01, 0, 0, 0, 0, 0, 0, 0x00, 0x68}},
+ 
++	{"-0.0.0.0", nil},
++	{"0.-1.0.0", nil},
++	{"0.0.-2.0", nil},
++	{"0.0.0.-3", nil},
+ 	{"127.0.0.256", nil},
+ 	{"abc", nil},
+ 	{"123:", nil},
+@@ -332,6 +336,12 @@ var parseCIDRTests = []struct {
+ 	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/255.255.255.0"}},
+ 	{"192.168.1.1/35", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/35"}},
+ 	{"2001:db8::1/-1", nil, nil, &ParseError{Type: "CIDR address", Text: "2001:db8::1/-1"}},
++	{"2001:db8::1/-0", nil, nil, &ParseError{Type: "CIDR address", Text: "2001:db8::1/-0"}},
++	{"-0.0.0.0/32", nil, nil, &ParseError{Type: "CIDR address", Text: "-0.0.0.0/32"}},
++	{"0.-1.0.0/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.-1.0.0/32"}},
++	{"0.0.-2.0/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.-2.0/32"}},
++	{"0.0.0.-3/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.-3/32"}},
++	{"0.0.0.0/-0", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.0/-0"}},
+ 	{"", nil, nil, &ParseError{Type: "CIDR address", Text: ""}},
+ }
+ 
+diff --git a/src/net/parse.go b/src/net/parse.go
+index 363c83f6ce..d615eb2b56 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -127,26 +127,14 @@ const big = 0xFFFFFF
+ // Returns number, characters consumed, success.
+ func dtoi(s string) (n int, i int, ok bool) {
+ 	n = 0
+-	neg := false
+-	if len(s) > 0 && s[0] == '-' {
+-		neg = true
+-		s = s[1:]
+-	}
+ 	for i = 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+ 		n = n*10 + int(s[i]-'0')
+ 		if n >= big {
+-			if neg {
+-				return -big, i + 1, false
+-			}
+ 			return big, i, false
+ 		}
+ 	}
+ 	if i == 0 {
+-		return 0, i, false
+-	}
+-	if neg {
+-		n = -n
+-		i++
++		return 0, 0, false
+ 	}
+ 	return n, i, true
+ }
+diff --git a/src/net/parse_test.go b/src/net/parse_test.go
+index 5c1c88cacd..c5f8bfd198 100644
+--- a/src/net/parse_test.go
++++ b/src/net/parse_test.go
+@@ -86,12 +86,11 @@ func TestDtoi(t *testing.T) {
+ 		ok  bool
+ 	}{
+ 		{"", 0, 0, false},
+-
+-		{"-123456789", -big, 9, false},
+-		{"-1", -1, 2, true},
+ 		{"0", 0, 1, true},
+ 		{"65536", 65536, 5, true},
+ 		{"123456789", big, 8, false},
++		{"-0", 0, 0, false},
++		{"-1234", 0, 0, false},
+ 	} {
+ 		n, i, ok := dtoi(tt.in)
+ 		if n != tt.out || i != tt.off || ok != tt.ok {

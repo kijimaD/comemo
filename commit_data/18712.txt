@@ -9,6 +9,20 @@ Date:   Mon Mar 3 02:16:15 2014 -0500
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/70630043
-
+---
  test/run | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/run b/test/run
+index d206312a29..729fc1eaaf 100755
+--- a/test/run
++++ b/test/run
+@@ -33,7 +33,7 @@ unset GOROOT_FINAL  # breaks ./ imports
+ 
+ failed=0
+ 
+-PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin
++PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin:/usr/pkg/bin
+ 
+ # TODO: We add the tool directory to the PATH to avoid thinking about a better way.
+ PATH="$GOTOOLDIR:$PATH"

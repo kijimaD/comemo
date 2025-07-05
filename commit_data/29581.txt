@@ -16,7 +16,7 @@ Date:   Sun Sep 25 13:38:54 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/defs1_linux.go          |  2 +-
  src/runtime/defs1_netbsd_386.go     |  6 -----
  src/runtime/defs1_netbsd_amd64.go   |  7 -----
@@ -58,3 +58,984 @@ Date:   Sun Sep 25 13:38:54 2016 -0700
  src/runtime/signal_sigtramp.go      |  8 ++----
  src/runtime/signal_unix.go          | 52 +++++++++++++++++++++++++++++++++++++
  40 files changed, 110 insertions(+), 286 deletions(-)
+
+diff --git a/src/runtime/defs1_linux.go b/src/runtime/defs1_linux.go
+index 87c6e02a41..e136d96e78 100644
+--- a/src/runtime/defs1_linux.go
++++ b/src/runtime/defs1_linux.go
+@@ -33,7 +33,7 @@ type Fpxreg1 C.struct__fpxreg
+ type Xmmreg1 C.struct__xmmreg
+ type Fpstate1 C.struct__fpstate
+ type Fpreg1 C.struct__fpreg
+-type SigaltstackT C.struct_sigaltstack
++type StackT C.stack_t
+ type Mcontext C.mcontext_t
+ type Ucontext C.ucontext_t
+ type Sigcontext C.struct_sigcontext
+diff --git a/src/runtime/defs1_netbsd_386.go b/src/runtime/defs1_netbsd_386.go
+index f222bed996..66f07ce5a5 100644
+--- a/src/runtime/defs1_netbsd_386.go
++++ b/src/runtime/defs1_netbsd_386.go
+@@ -83,12 +83,6 @@ const (
+ 	_EVFILT_WRITE = 0x1
+ )
+ 
+-type sigaltstackt struct {
+-	ss_sp    uintptr
+-	ss_size  uintptr
+-	ss_flags int32
+-}
+-
+ type sigset struct {
+ 	__bits [4]uint32
+ }
+diff --git a/src/runtime/defs1_netbsd_amd64.go b/src/runtime/defs1_netbsd_amd64.go
+index c2bde4dabe..9e314718f3 100644
+--- a/src/runtime/defs1_netbsd_amd64.go
++++ b/src/runtime/defs1_netbsd_amd64.go
+@@ -83,13 +83,6 @@ const (
+ 	_EVFILT_WRITE = 0x1
+ )
+ 
+-type sigaltstackt struct {
+-	ss_sp     uintptr
+-	ss_size   uintptr
+-	ss_flags  int32
+-	pad_cgo_0 [4]byte
+-}
+-
+ type sigset struct {
+ 	__bits [4]uint32
+ }
+diff --git a/src/runtime/defs1_netbsd_arm.go b/src/runtime/defs1_netbsd_arm.go
+index c976351a27..a67dd8ac95 100644
+--- a/src/runtime/defs1_netbsd_arm.go
++++ b/src/runtime/defs1_netbsd_arm.go
+@@ -83,12 +83,6 @@ const (
+ 	_EVFILT_WRITE = 0x1
+ )
+ 
+-type sigaltstackt struct {
+-	ss_sp    uintptr
+-	ss_size  uintptr
+-	ss_flags int32
+-}
+-
+ type sigset struct {
+ 	__bits [4]uint32
+ }
+diff --git a/src/runtime/defs1_solaris_amd64.go b/src/runtime/defs1_solaris_amd64.go
+index 85a7b4002d..5ee3c3fc27 100644
+--- a/src/runtime/defs1_solaris_amd64.go
++++ b/src/runtime/defs1_solaris_amd64.go
+@@ -110,20 +110,13 @@ type semt struct {
+ 	sem_pad2  [2]uint64
+ }
+ 
+-type sigaltstackt struct {
+-	ss_sp     *byte
+-	ss_size   uint64
+-	ss_flags  int32
+-	pad_cgo_0 [4]byte
+-}
+-
+ type sigset struct {
+ 	__sigbits [4]uint32
+ }
+ 
+ type stackt struct {
+ 	ss_sp     *byte
+-	ss_size   uint64
++	ss_size   uintptr
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+ }
+diff --git a/src/runtime/defs2_linux.go b/src/runtime/defs2_linux.go
+index 9dea6a1f3a..c10dfb8624 100644
+--- a/src/runtime/defs2_linux.go
++++ b/src/runtime/defs2_linux.go
+@@ -139,7 +139,7 @@ type Timespec C.struct_timespec
+ type Timeval C.struct_timeval
+ type Sigaction C.struct_kernel_sigaction
+ type Siginfo C.siginfo_t
+-type SigaltstackT C.struct_sigaltstack
++type StackT C.stack_t
+ type Sigcontext C.struct_sigcontext
+ type Ucontext C.struct_ucontext
+ type Itimerval C.struct_itimerval
+diff --git a/src/runtime/defs3_linux.go b/src/runtime/defs3_linux.go
+index 489c130d0f..6aa3ee4309 100644
+--- a/src/runtime/defs3_linux.go
++++ b/src/runtime/defs3_linux.go
+@@ -35,7 +35,7 @@ type Gregset C.elf_gregset_t
+ type FPregset C.elf_fpregset_t
+ type Vreg C.elf_vrreg_t
+ 
+-type SigaltstackT C.struct_sigaltstack
++type StackT C.stack_t
+ 
+ // PPC64 uses sigcontext in place of mcontext in ucontext.
+ // see http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/arch/powerpc/include/uapi/asm/ucontext.h
+diff --git a/src/runtime/defs_arm_linux.go b/src/runtime/defs_arm_linux.go
+index afd6897e30..e51dd32b5b 100644
+--- a/src/runtime/defs_arm_linux.go
++++ b/src/runtime/defs_arm_linux.go
+@@ -115,7 +115,7 @@ const (
+ )
+ 
+ type Timespec C.struct_timespec
+-type SigaltstackT C.struct_sigaltstack
++type StackT C.stack_t
+ type Sigcontext C.struct_sigcontext
+ type Ucontext C.struct_ucontext
+ type Timeval C.struct_timeval
+diff --git a/src/runtime/defs_dragonfly.go b/src/runtime/defs_dragonfly.go
+index c5ebe75bb1..ed00be0f44 100644
+--- a/src/runtime/defs_dragonfly.go
++++ b/src/runtime/defs_dragonfly.go
+@@ -109,7 +109,6 @@ const (
+ 
+ type Rtprio C.struct_rtprio
+ type Lwpparams C.struct_lwp_params
+-type SigaltstackT C.struct_sigaltstack
+ type Sigset C.struct___sigset
+ type StackT C.stack_t
+ 
+diff --git a/src/runtime/defs_dragonfly_amd64.go b/src/runtime/defs_dragonfly_amd64.go
+index 3ac10b0904..fc70103286 100644
+--- a/src/runtime/defs_dragonfly_amd64.go
++++ b/src/runtime/defs_dragonfly_amd64.go
+@@ -99,13 +99,6 @@ type lwpparams struct {
+ 	tid2       unsafe.Pointer // *int32
+ }
+ 
+-type sigaltstackt struct {
+-	ss_sp     uintptr
+-	ss_size   uintptr
+-	ss_flags  int32
+-	pad_cgo_0 [4]byte
+-}
+-
+ type sigset struct {
+ 	__bits [4]uint32
+ }
+diff --git a/src/runtime/defs_freebsd.go b/src/runtime/defs_freebsd.go
+index 0253685aac..089cc0f818 100644
+--- a/src/runtime/defs_freebsd.go
++++ b/src/runtime/defs_freebsd.go
+@@ -117,7 +117,6 @@ const (
+ 
+ type Rtprio C.struct_rtprio
+ type ThrParam C.struct_thr_param
+-type SigaltstackT C.struct_sigaltstack
+ type Sigset C.struct___sigset
+ type StackT C.stack_t
+ 
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+index 6938c18736..fe4499d0e0 100644
+--- a/src/runtime/defs_freebsd_386.go
++++ b/src/runtime/defs_freebsd_386.go
+@@ -109,12 +109,6 @@ type thrparam struct {
+ 	spare      [3]uintptr
+ }
+ 
+-type sigaltstackt struct {
+-	ss_sp    *int8
+-	ss_size  uint32
+-	ss_flags int32
+-}
+-
+ type sigset struct {
+ 	__bits [4]uint32
+ }
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+index de98e7a3c1..edaaf66671 100644
+--- a/src/runtime/defs_freebsd_amd64.go
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -110,13 +110,6 @@ type thrparam struct {
+ 	spare      [3]uintptr
+ }
+ 
+-type sigaltstackt struct {
+-	ss_sp     *int8
+-	ss_size   uint64
+-	ss_flags  int32
+-	pad_cgo_0 [4]byte
+-}
+-
+ type sigset struct {
+ 	__bits [4]uint32
+ }
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+index 744330f4b3..9473757cd2 100644
+--- a/src/runtime/defs_freebsd_arm.go
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -109,12 +109,6 @@ type thrparam struct {
+ 	spare      [3]uintptr
+ }
+ 
+-type sigaltstackt struct {
+-	ss_sp    *uint8
+-	ss_size  uint32
+-	ss_flags int32
+-}
+-
+ type sigset struct {
+ 	__bits [4]uint32
+ }
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index 44d2fd1d48..a7e435f854 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -168,7 +168,7 @@ type siginfo struct {
+ 	si_addr uint32
+ }
+ 
+-type sigaltstackt struct {
++type stackt struct {
+ 	ss_sp    *byte
+ 	ss_flags int32
+ 	ss_size  uintptr
+@@ -208,7 +208,7 @@ type sigcontext struct {
+ type ucontext struct {
+ 	uc_flags    uint32
+ 	uc_link     *ucontext
+-	uc_stack    sigaltstackt
++	uc_stack    stackt
+ 	uc_mcontext sigcontext
+ 	uc_sigmask  uint32
+ }
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index 19362855e7..e8c6a212db 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -205,7 +205,7 @@ type fpreg1 struct {
+ 	exponent    uint16
+ }
+ 
+-type sigaltstackt struct {
++type stackt struct {
+ 	ss_sp     *byte
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+@@ -221,7 +221,7 @@ type mcontext struct {
+ type ucontext struct {
+ 	uc_flags     uint64
+ 	uc_link      *ucontext
+-	uc_stack     sigaltstackt
++	uc_stack     stackt
+ 	uc_mcontext  mcontext
+ 	uc_sigmask   usigset
+ 	__fpregs_mem fpstate
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index b68b9642a9..62ec8fab5e 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -101,7 +101,7 @@ func (ts *timespec) set_nsec(x int32) {
+ 	ts.tv_nsec = x
+ }
+ 
+-type sigaltstackt struct {
++type stackt struct {
+ 	ss_sp    *byte
+ 	ss_flags int32
+ 	ss_size  uintptr
+@@ -134,7 +134,7 @@ type sigcontext struct {
+ type ucontext struct {
+ 	uc_flags    uint32
+ 	uc_link     *ucontext
+-	uc_stack    sigaltstackt
++	uc_stack    stackt
+ 	uc_mcontext sigcontext
+ 	uc_sigmask  uint32
+ 	__unused    [31]int32
+diff --git a/src/runtime/defs_linux_arm64.go b/src/runtime/defs_linux_arm64.go
+index d1b1a3677f..c295bc0257 100644
+--- a/src/runtime/defs_linux_arm64.go
++++ b/src/runtime/defs_linux_arm64.go
+@@ -153,7 +153,7 @@ type usigset struct {
+ 	__val [16]uint64
+ }
+ 
+-type sigaltstackt struct {
++type stackt struct {
+ 	ss_sp     *byte
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+@@ -179,7 +179,7 @@ type sockaddr_un struct {
+ type ucontext struct {
+ 	uc_flags    uint64
+ 	uc_link     *ucontext
+-	uc_stack    sigaltstackt
++	uc_stack    stackt
+ 	uc_sigmask  uint64
+ 	_pad        [(1024 - 64) / 8]byte
+ 	_pad2       [8]byte // sigcontext must be aligned to 16-byte
+diff --git a/src/runtime/defs_linux_mips64x.go b/src/runtime/defs_linux_mips64x.go
+index bb3cd9801e..df11cb0965 100644
+--- a/src/runtime/defs_linux_mips64x.go
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -150,7 +150,7 @@ const (
+ 	_SA_RESTORER = 0
+ )
+ 
+-type sigaltstackt struct {
++type stackt struct {
+ 	ss_sp    *byte
+ 	ss_size  uintptr
+ 	ss_flags int32
+@@ -177,7 +177,7 @@ type sigcontext struct {
+ type ucontext struct {
+ 	uc_flags    uint64
+ 	uc_link     *ucontext
+-	uc_stack    sigaltstackt
++	uc_stack    stackt
+ 	uc_mcontext sigcontext
+ 	uc_sigmask  uint64
+ }
+diff --git a/src/runtime/defs_linux_ppc64.go b/src/runtime/defs_linux_ppc64.go
+index 317a764a70..45363d1285 100644
+--- a/src/runtime/defs_linux_ppc64.go
++++ b/src/runtime/defs_linux_ppc64.go
+@@ -170,7 +170,7 @@ type vreg struct {
+ 	u [4]uint32
+ }
+ 
+-type sigaltstackt struct {
++type stackt struct {
+ 	ss_sp     *byte
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+@@ -193,7 +193,7 @@ type sigcontext struct {
+ type ucontext struct {
+ 	uc_flags    uint64
+ 	uc_link     *ucontext
+-	uc_stack    sigaltstackt
++	uc_stack    stackt
+ 	uc_sigmask  uint64
+ 	__unused    [15]uint64
+ 	uc_mcontext sigcontext
+diff --git a/src/runtime/defs_linux_ppc64le.go b/src/runtime/defs_linux_ppc64le.go
+index 317a764a70..45363d1285 100644
+--- a/src/runtime/defs_linux_ppc64le.go
++++ b/src/runtime/defs_linux_ppc64le.go
+@@ -170,7 +170,7 @@ type vreg struct {
+ 	u [4]uint32
+ }
+ 
+-type sigaltstackt struct {
++type stackt struct {
+ 	ss_sp     *byte
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+@@ -193,7 +193,7 @@ type sigcontext struct {
+ type ucontext struct {
+ 	uc_flags    uint64
+ 	uc_link     *ucontext
+-	uc_stack    sigaltstackt
++	uc_stack    stackt
+ 	uc_sigmask  uint64
+ 	__unused    [15]uint64
+ 	uc_mcontext sigcontext
+diff --git a/src/runtime/defs_linux_s390x.go b/src/runtime/defs_linux_s390x.go
+index 5f55d5a889..ab90723f75 100644
+--- a/src/runtime/defs_linux_s390x.go
++++ b/src/runtime/defs_linux_s390x.go
+@@ -143,7 +143,7 @@ const (
+ 	_SA_RESTORER = 0
+ )
+ 
+-type sigaltstackt struct {
++type stackt struct {
+ 	ss_sp    *byte
+ 	ss_flags int32
+ 	ss_size  uintptr
+@@ -161,7 +161,7 @@ type sigcontext struct {
+ type ucontext struct {
+ 	uc_flags    uint64
+ 	uc_link     *ucontext
+-	uc_stack    sigaltstackt
++	uc_stack    stackt
+ 	uc_mcontext sigcontext
+ 	uc_sigmask  uint64
+ }
+diff --git a/src/runtime/defs_netbsd.go b/src/runtime/defs_netbsd.go
+index b27949e423..56db1f0159 100644
+--- a/src/runtime/defs_netbsd.go
++++ b/src/runtime/defs_netbsd.go
+@@ -109,7 +109,6 @@ const (
+ 	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+ 
+-type SigaltstackT C.struct_sigaltstack
+ type Sigset C.sigset_t
+ type Siginfo C.struct__ksiginfo
+ 
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index 39224c988c..7e721504e6 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -106,7 +106,6 @@ const (
+ 
+ type TforkT C.struct___tfork
+ 
+-type SigaltstackT C.struct_sigaltstack
+ type Sigcontext C.struct_sigcontext
+ type Siginfo C.siginfo_t
+ type Sigset C.sigset_t
+diff --git a/src/runtime/defs_openbsd_386.go b/src/runtime/defs_openbsd_386.go
+index 4b60158115..ce08111dea 100644
+--- a/src/runtime/defs_openbsd_386.go
++++ b/src/runtime/defs_openbsd_386.go
+@@ -90,12 +90,6 @@ type tforkt struct {
+ 	tf_stack uintptr
+ }
+ 
+-type sigaltstackt struct {
+-	ss_sp    uintptr
+-	ss_size  uintptr
+-	ss_flags int32
+-}
+-
+ type sigcontext struct {
+ 	sc_gs       uint32
+ 	sc_fs       uint32
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index 3c27c9144f..ea0709809a 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -90,13 +90,6 @@ type tforkt struct {
+ 	tf_stack uintptr
+ }
+ 
+-type sigaltstackt struct {
+-	ss_sp     uintptr
+-	ss_size   uintptr
+-	ss_flags  int32
+-	pad_cgo_0 [4]byte
+-}
+-
+ type sigcontext struct {
+ 	sc_rdi      uint64
+ 	sc_rsi      uint64
+diff --git a/src/runtime/defs_openbsd_arm.go b/src/runtime/defs_openbsd_arm.go
+index aab9276f14..b0fb639c72 100644
+--- a/src/runtime/defs_openbsd_arm.go
++++ b/src/runtime/defs_openbsd_arm.go
+@@ -90,12 +90,6 @@ type tforkt struct {
+ 	tf_stack uintptr
+ }
+ 
+-type sigaltstackt struct {
+-	ss_sp    uintptr
+-	ss_size  uintptr
+-	ss_flags int32
+-}
+-
+ type sigcontext struct {
+ 	__sc_unused int32
+ 	sc_mask     int32
+diff --git a/src/runtime/defs_solaris.go b/src/runtime/defs_solaris.go
+index ba44e5fd4d..0638e0b00a 100644
+--- a/src/runtime/defs_solaris.go
++++ b/src/runtime/defs_solaris.go
+@@ -133,7 +133,6 @@ const (
+ 
+ type SemT C.sem_t
+ 
+-type SigaltstackT C.struct_sigaltstack
+ type Sigset C.sigset_t
+ type StackT C.stack_t
+ 
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index d8390d6b1e..1b618fd42c 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -209,22 +209,8 @@ func miniterrno()
+ func minit() {
+ 	_g_ := getg()
+ 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
+-	// Initialize signal handling
+-	var st sigaltstackt
+-	sigaltstack(nil, &st)
+-	if st.ss_flags&_SS_DISABLE != 0 {
+-		signalstack(&_g_.m.gsignal.stack)
+-		_g_.m.newSigstack = true
+-	} else {
+-		// Use existing signal stack.
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		_g_.m.gsignal.stack.lo = stsp
+-		_g_.m.gsignal.stack.hi = stsp + uintptr(st.ss_size)
+-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+-		_g_.m.gsignal.stackAlloc = uintptr(st.ss_size)
+-		_g_.m.newSigstack = false
+-	}
++
++	minitSignalStack()
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -318,17 +304,10 @@ func getsig(i int32) uintptr {
+ 	return *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
+ }
+ 
++// setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+-func signalstack(s *stack) {
+-	var st sigaltstackt
+-	if s == nil {
+-		st.ss_flags = _SS_DISABLE
+-	} else {
+-		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
+-		st.ss_size = uint64(s.hi - s.lo)
+-		st.ss_flags = 0
+-	}
+-	sigaltstack(&st, nil)
++func setSignalstackSP(s *stackt, sp uintptr) {
++	s.ss_sp = (*byte)(unsafe.Pointer(sp))
+ }
+ 
+ //go:nosplit
+@@ -539,7 +518,7 @@ func sigaction(sig int32, act *sigactiont, oact *sigactiont) /* int32 */ {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
++func sigaltstack(ss *stackt, oss *stackt) /* int32 */ {
+ 	sysvicall2(&libc_sigaltstack, uintptr(unsafe.Pointer(ss)), uintptr(unsafe.Pointer(oss)))
+ }
+ 
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 5e71dabecd..9c00b02341 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -183,21 +183,7 @@ func minit() {
+ 	// The signal handler handles it directly.
+ 	// The sigaltstack assembly function does nothing.
+ 	if GOARCH != "arm" && GOARCH != "arm64" {
+-		var st stackt
+-		sigaltstack(nil, &st)
+-		if st.ss_flags&_SS_DISABLE != 0 {
+-			signalstack(&_g_.m.gsignal.stack)
+-			_g_.m.newSigstack = true
+-		} else {
+-			// Use existing signal stack.
+-			stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-			_g_.m.gsignal.stack.lo = stsp
+-			_g_.m.gsignal.stack.hi = stsp + st.ss_size
+-			_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+-			_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+-			_g_.m.gsignal.stackAlloc = st.ss_size
+-			_g_.m.newSigstack = false
+-		}
++		minitSignalStack()
+ 	}
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+@@ -563,17 +549,10 @@ func getsig(i int32) uintptr {
+ 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
+ }
+ 
++// setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+-func signalstack(s *stack) {
+-	var st stackt
+-	if s == nil {
+-		st.ss_flags = _SS_DISABLE
+-	} else {
+-		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
+-		st.ss_size = s.hi - s.lo
+-		st.ss_flags = 0
+-	}
+-	sigaltstack(&st, nil)
++func setSignalstackSP(s *stackt, sp uintptr) {
++	s.ss_sp = (*byte)(unsafe.Pointer(sp))
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index c71a4b9392..0bbe644440 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -22,7 +22,7 @@ type mOS struct{}
+ func lwp_create(param *lwpparams) int32
+ 
+ //go:noescape
+-func sigaltstack(new, old *sigaltstackt)
++func sigaltstack(new, old *stackt)
+ 
+ //go:noescape
+ func sigaction(sig int32, new, old *sigactiont)
+@@ -185,22 +185,7 @@ func minit() {
+ 	// m.procid is a uint64, but lwp_start writes an int32. Fix it up.
+ 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
+ 
+-	// Initialize signal handling.
+-	var st sigaltstackt
+-	sigaltstack(nil, &st)
+-	if st.ss_flags&_SS_DISABLE != 0 {
+-		signalstack(&_g_.m.gsignal.stack)
+-		_g_.m.newSigstack = true
+-	} else {
+-		// Use existing signal stack.
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		_g_.m.gsignal.stack.lo = stsp
+-		_g_.m.gsignal.stack.hi = stsp + st.ss_size
+-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+-		_g_.m.gsignal.stackAlloc = st.ss_size
+-		_g_.m.newSigstack = false
+-	}
++	minitSignalStack()
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -292,17 +277,10 @@ func getsig(i int32) uintptr {
+ 	return sa.sa_sigaction
+ }
+ 
++// setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+-func signalstack(s *stack) {
+-	var st sigaltstackt
+-	if s == nil {
+-		st.ss_flags = _SS_DISABLE
+-	} else {
+-		st.ss_sp = s.lo
+-		st.ss_size = s.hi - s.lo
+-		st.ss_flags = 0
+-	}
+-	sigaltstack(&st, nil)
++func setSignalstackSP(s *stackt, sp uintptr) {
++	s.ss_sp = sp
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index f35cdf3e9b..ae057b86ca 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -175,22 +175,7 @@ func minit() {
+ 		_g_.m.procid = uint64(*(*uint32)(unsafe.Pointer(&_g_.m.procid)))
+ 	}
+ 
+-	// Initialize signal handling.
+-	var st stackt
+-	sigaltstack(nil, &st)
+-	if st.ss_flags&_SS_DISABLE != 0 {
+-		signalstack(&_g_.m.gsignal.stack)
+-		_g_.m.newSigstack = true
+-	} else {
+-		// Use existing signal stack.
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		_g_.m.gsignal.stack.lo = stsp
+-		_g_.m.gsignal.stack.hi = stsp + st.ss_size
+-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+-		_g_.m.gsignal.stackAlloc = st.ss_size
+-		_g_.m.newSigstack = false
+-	}
++	minitSignalStack()
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -282,17 +267,10 @@ func getsig(i int32) uintptr {
+ 	return sa.sa_handler
+ }
+ 
++// setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+-func signalstack(s *stack) {
+-	var st stackt
+-	if s == nil {
+-		st.ss_flags = _SS_DISABLE
+-	} else {
+-		st.ss_sp = s.lo
+-		st.ss_size = s.hi - s.lo
+-		st.ss_flags = 0
+-	}
+-	sigaltstack(&st, nil)
++func setSignalstackSP(s *stackt, sp uintptr) {
++	s.ss_sp = sp
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 7b3ce71fea..88139ae2fc 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -260,21 +260,7 @@ func minit() {
+ 	// Initialize signal handling.
+ 	_g_ := getg()
+ 
+-	var st sigaltstackt
+-	sigaltstack(nil, &st)
+-	if st.ss_flags&_SS_DISABLE != 0 {
+-		signalstack(&_g_.m.gsignal.stack)
+-		_g_.m.newSigstack = true
+-	} else {
+-		// Use existing signal stack.
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		_g_.m.gsignal.stack.lo = stsp
+-		_g_.m.gsignal.stack.hi = stsp + st.ss_size
+-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+-		_g_.m.gsignal.stackAlloc = st.ss_size
+-		_g_.m.newSigstack = false
+-	}
++	minitSignalStack()
+ 
+ 	// for debuggers, in case cgo created the thread
+ 	_g_.m.procid = uint64(gettid())
+@@ -341,7 +327,7 @@ func cgoSigtramp()
+ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+ 
+ //go:noescape
+-func sigaltstack(new, old *sigaltstackt)
++func sigaltstack(new, old *stackt)
+ 
+ //go:noescape
+ func setitimer(mode int32, new, old *itimerval)
+@@ -419,15 +405,8 @@ func getsig(i int32) uintptr {
+ 	return sa.sa_handler
+ }
+ 
++// setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+-func signalstack(s *stack) {
+-	var st sigaltstackt
+-	if s == nil {
+-		st.ss_flags = _SS_DISABLE
+-	} else {
+-		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
+-		st.ss_size = s.hi - s.lo
+-		st.ss_flags = 0
+-	}
+-	sigaltstack(&st, nil)
++func setSignalstackSP(s *stackt, sp uintptr) {
++	s.ss_sp = (*byte)(unsafe.Pointer(sp))
+ }
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 3a93d49ae0..81c52324ff 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -35,7 +35,7 @@ func setitimer(mode int32, new, old *itimerval)
+ func sigaction(sig int32, new, old *sigactiont)
+ 
+ //go:noescape
+-func sigaltstack(new, old *sigaltstackt)
++func sigaltstack(new, old *stackt)
+ 
+ //go:noescape
+ func sigprocmask(how int32, new, old *sigset)
+@@ -303,17 +303,10 @@ func getsig(i int32) uintptr {
+ 	return sa.sa_sigaction
+ }
+ 
++// setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+-func signalstack(s *stack) {
+-	var st sigaltstackt
+-	if s == nil {
+-		st.ss_flags = _SS_DISABLE
+-	} else {
+-		st.ss_sp = s.lo
+-		st.ss_size = s.hi - s.lo
+-		st.ss_flags = 0
+-	}
+-	sigaltstack(&st, nil)
++func setSignalstackSP(s *stackt, sp uintptr) {
++	s.ss_sp = sp
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 375c100aec..714416fa5b 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -218,22 +218,7 @@ func minit() {
+ 	// m.procid is a uint64, but tfork writes an int32. Fix it up.
+ 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
+ 
+-	// Initialize signal handling
+-	var st stackt
+-	sigaltstack(nil, &st)
+-	if st.ss_flags&_SS_DISABLE != 0 {
+-		signalstack(&_g_.m.gsignal.stack)
+-		_g_.m.newSigstack = true
+-	} else {
+-		// Use existing signal stack.
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		_g_.m.gsignal.stack.lo = stsp
+-		_g_.m.gsignal.stack.hi = stsp + st.ss_size
+-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+-		_g_.m.gsignal.stackAlloc = st.ss_size
+-		_g_.m.newSigstack = false
+-	}
++	minitSignalStack()
+ 
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := _g_.m.sigmask
+@@ -298,17 +283,10 @@ func getsig(i int32) uintptr {
+ 	return sa.sa_sigaction
+ }
+ 
++// setSignaltstackSP sets the ss_sp field of a stackt.
+ //go:nosplit
+-func signalstack(s *stack) {
+-	var st stackt
+-	if s == nil {
+-		st.ss_flags = _SS_DISABLE
+-	} else {
+-		st.ss_sp = s.lo
+-		st.ss_size = s.hi - s.lo
+-		st.ss_flags = 0
+-	}
+-	sigaltstack(&st, nil)
++func setSignalstackSP(s *stackt, sp uintptr) {
++	s.ss_sp = sp
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index fb06de5509..b75d24d63f 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -77,11 +77,7 @@ func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Poi
+ 			setg(nil)
+ 			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+-		g.m.gsignal.stack.lo = stsp
+-		g.m.gsignal.stack.hi = stsp + st.ss_size
+-		g.m.gsignal.stackguard0 = stsp + _StackGuard
+-		g.m.gsignal.stackguard1 = stsp + _StackGuard
+-		g.m.gsignal.stackAlloc = st.ss_size
++		setGsignalStack(&st)
+ 		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+ 	}
+ 
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+index c6c126983d..180b7bab4b 100644
+--- a/src/runtime/signal_freebsd.go
++++ b/src/runtime/signal_freebsd.go
+@@ -73,11 +73,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 			setg(nil)
+ 			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+-		g.m.gsignal.stack.lo = stsp
+-		g.m.gsignal.stack.hi = stsp + st.ss_size
+-		g.m.gsignal.stackguard0 = stsp + _StackGuard
+-		g.m.gsignal.stackguard1 = stsp + _StackGuard
+-		g.m.gsignal.stackAlloc = st.ss_size
++		setGsignalStack(&st)
+ 		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+ 	}
+ 
+diff --git a/src/runtime/signal_openbsd.go b/src/runtime/signal_openbsd.go
+index efe30da5d9..b10686adf3 100644
+--- a/src/runtime/signal_openbsd.go
++++ b/src/runtime/signal_openbsd.go
+@@ -73,11 +73,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 			setg(nil)
+ 			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+-		g.m.gsignal.stack.lo = stsp
+-		g.m.gsignal.stack.hi = stsp + st.ss_size
+-		g.m.gsignal.stackguard0 = stsp + _StackGuard
+-		g.m.gsignal.stackguard1 = stsp + _StackGuard
+-		g.m.gsignal.stackAlloc = st.ss_size
++		setGsignalStack(&st)
+ 		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+ 	}
+ 
+diff --git a/src/runtime/signal_sigtramp.go b/src/runtime/signal_sigtramp.go
+index dbbbcd0392..1ada2759a7 100644
+--- a/src/runtime/signal_sigtramp.go
++++ b/src/runtime/signal_sigtramp.go
+@@ -33,7 +33,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	// If some non-Go code called sigaltstack, adjust.
+ 	sp := uintptr(unsafe.Pointer(&sig))
+ 	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
+-		var st sigaltstackt
++		var st stackt
+ 		sigaltstack(nil, &st)
+ 		if st.ss_flags&_SS_DISABLE != 0 {
+ 			setg(nil)
+@@ -44,11 +44,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 			setg(nil)
+ 			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+ 		}
+-		g.m.gsignal.stack.lo = stsp
+-		g.m.gsignal.stack.hi = stsp + st.ss_size
+-		g.m.gsignal.stackguard0 = stsp + _StackGuard
+-		g.m.gsignal.stackguard1 = stsp + _StackGuard
+-		g.m.gsignal.stackAlloc = st.ss_size
++		setGsignalStack(&st)
+ 		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+ 	}
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 3175118572..c0952d7019 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -525,6 +525,58 @@ func unblocksig(sig int32) {
+ 	sigprocmask(_SIG_UNBLOCK, &set, nil)
+ }
+ 
++// minitSignalStack is called when initializing a new m to set the
++// alternate signal stack. If the alternate signal stack is not set
++// for the thread (the normal case) then set the alternate signal
++// stack to the gsignal stack. If the alternate signal stack is set
++// for the thread (the case when a non-Go thread sets the alternate
++// signal stack and then calls a Go function) then set the gsignal
++// stack to the alternate signal stack. Record which choice was made
++// in newSigstack, so that it can be undone in unminit.
++func minitSignalStack() {
++	_g_ := getg()
++	var st stackt
++	sigaltstack(nil, &st)
++	if st.ss_flags&_SS_DISABLE != 0 {
++		signalstack(&_g_.m.gsignal.stack)
++		_g_.m.newSigstack = true
++	} else {
++		setGsignalStack(&st)
++		_g_.m.newSigstack = false
++	}
++}
++
++// setGsignalStack sets the gsignal stack of the current m to an
++// alternate signal stack returned from the sigaltstack system call.
++// This is used when handling a signal if non-Go code has set the
++// alternate signal stack.
++//go:nosplit
++//go:nowritebarrierrec
++func setGsignalStack(st *stackt) {
++	g := getg()
++	stsp := uintptr(unsafe.Pointer(st.ss_sp))
++	g.m.gsignal.stack.lo = stsp
++	g.m.gsignal.stack.hi = stsp + st.ss_size
++	g.m.gsignal.stackguard0 = stsp + _StackGuard
++	g.m.gsignal.stackguard1 = stsp + _StackGuard
++	g.m.gsignal.stackAlloc = st.ss_size
++}
++
++// signalstack sets the current thread's alternate signal stack to s.
++// If s is nil, the current thread's alternate signal stack is disabled.
++//go:nosplit
++func signalstack(s *stack) {
++	var st stackt
++	if s == nil {
++		st.ss_flags = _SS_DISABLE
++	} else {
++		setSignalstackSP(&st, s.lo)
++		st.ss_size = s.hi - s.lo
++		st.ss_flags = 0
++	}
++	sigaltstack(&st, nil)
++}
++
+ // setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
+ //go:nosplit
+ func setsigsegv(pc uintptr) {

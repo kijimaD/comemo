@@ -8,8 +8,62 @@ Date:   Mon Aug 17 15:20:51 2009 -0700
     DELTA=5  (3 added, 0 deleted, 2 changed)
     OCL=33413
     CL=33417
-
+---
  src/pkg/Make.deps | 3 ++-
  src/pkg/Makefile  | 2 ++
  src/pkg/deps.bash | 2 +-
  3 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 4c29720d58..25dd17093a 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -1,5 +1,6 @@
+ archive/tar.install: bytes.install io.install os.install strconv.install strings.install
+ base64.install: bytes.install io.install os.install strconv.install
++big.install:
+ bignum.install: fmt.install
+ bufio.install: io.install os.install strconv.install utf8.install
+ bytes.install: os.install utf8.install
+@@ -51,7 +52,7 @@ sync.install:
+ syscall.install: sync.install
+ tabwriter.install: bytes.install container/vector.install io.install os.install utf8.install
+ template.install: bytes.install container/vector.install fmt.install io.install os.install reflect.install runtime.install strings.install
+-testing.install: flag.install fmt.install os.install regexp.install runtime.install
++testing.install: flag.install fmt.install os.install runtime.install utf8.install
+ testing/iotest.install: io.install log.install os.install
+ time.install: io.install once.install os.install syscall.install
+ unicode.install:
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 2f58fa7b6a..e6fdb06bd2 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -14,6 +14,7 @@ all: install
+ DIRS=\
+ 	archive/tar\
+ 	base64\
++	big\
+ 	bignum\
+ 	bufio\
+ 	bytes\
+@@ -74,6 +75,7 @@ DIRS=\
+ TEST=\
+ 	archive/tar\
+ 	base64\
++	big\
+ 	bignum\
+ 	bufio\
+ 	bytes\
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index db05f2a1d9..b0d1d7aa57 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -18,7 +18,7 @@ dirpat=$(echo $dirs | sed 's/ /|/g; s/.*/^(&)$/')
+ for dir in $dirs; do (
+ 	cd $dir || exit 1
+ 
+-	sources=$(sed -n 's/\.\$O\\/.go/p' Makefile)
++	sources=$(sed -n 's/\.go\\/.go/p' Makefile)
+ 	sources=$(ls $sources 2> /dev/null)  # remove .s, .c, etc.
+ 
+ 	deps=$(

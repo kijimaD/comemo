@@ -22,9 +22,108 @@ Date:   Tue Aug 13 22:12:02 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12179043
-
+---
  src/pkg/runtime/proc.c         | 31 +++++++++++++++++++++++++------
  src/pkg/runtime/signal_386.c   |  3 +--
  src/pkg/runtime/signal_amd64.c |  3 +--
  src/pkg/runtime/signal_arm.c   |  3 +--
  4 files changed, 28 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index ef4d27f314..10a25f0a95 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1990,26 +1990,45 @@ static struct {
+ 	uintptr pcbuf[100];
+ } prof;
+ 
++static void
++System(void)
++{
++}
++
+ // Called if we receive a SIGPROF signal.
+ void
+ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
+ {
+ 	int32 n;
++	bool traceback;
+ 
+-	// Windows does profiling in a dedicated thread w/o m.
+-	if(!Windows && (m == nil || m->mcache == nil))
+-		return;
+ 	if(prof.fn == nil || prof.hz == 0)
+ 		return;
++	traceback = true;
++	// Windows does profiling in a dedicated thread w/o m.
++	if(!Windows && (m == nil || m->mcache == nil))
++		traceback = false;
++	if(gp == m->g0 || gp == m->gsignal)
++		traceback = false;
++	// Race detector calls asmcgocall w/o entersyscall/exitsyscall,
++	// we can not currently unwind through asmcgocall.
++	if(m != nil && m->racecall)
++		traceback = false;
+ 
+ 	runtime·lock(&prof);
+ 	if(prof.fn == nil) {
+ 		runtime·unlock(&prof);
+ 		return;
+ 	}
+-	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+-	if(n > 0)
+-		prof.fn(prof.pcbuf, n);
++	n = 0;
++	if(traceback)
++		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
++	if(!traceback || n <= 0) {
++		n = 2;
++		prof.pcbuf[0] = (uintptr)pc;
++		prof.pcbuf[1] = (uintptr)System + 1;
++	}
++	prof.fn(prof.pcbuf, n);
+ 	runtime·unlock(&prof);
+ }
+ 
+diff --git a/src/pkg/runtime/signal_386.c b/src/pkg/runtime/signal_386.c
+index 0d8fc706f1..0a5b7e543f 100644
+--- a/src/pkg/runtime/signal_386.c
++++ b/src/pkg/runtime/signal_386.c
+@@ -39,8 +39,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	bool crash;
+ 
+ 	if(sig == SIGPROF) {
+-		if(gp != m->g0 && gp != m->gsignal)
+-			runtime·sigprof((byte*)SIG_EIP(info, ctxt), (byte*)SIG_ESP(info, ctxt), nil, gp);
++		runtime·sigprof((byte*)SIG_EIP(info, ctxt), (byte*)SIG_ESP(info, ctxt), nil, gp);
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/signal_amd64.c b/src/pkg/runtime/signal_amd64.c
+index f566fe16fd..a9b2049169 100644
+--- a/src/pkg/runtime/signal_amd64.c
++++ b/src/pkg/runtime/signal_amd64.c
+@@ -47,8 +47,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	bool crash;
+ 
+ 	if(sig == SIGPROF) {
+-		if(gp != m->g0 && gp != m->gsignal)
+-			runtime·sigprof((byte*)SIG_RIP(info, ctxt), (byte*)SIG_RSP(info, ctxt), nil, gp);
++		runtime·sigprof((byte*)SIG_RIP(info, ctxt), (byte*)SIG_RSP(info, ctxt), nil, gp);
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index febd157891..0e1740b741 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -46,8 +46,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	bool crash;
+ 
+ 	if(sig == SIGPROF) {
+-		if(gp != m->g0 && gp != m->gsignal)
+-			runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp);
++		runtime·sigprof((uint8*)SIG_PC(info, ctxt), (uint8*)SIG_SP(info, ctxt), (uint8*)SIG_LR(info, ctxt), gp);
+ 		return;
+ 	}
+ 

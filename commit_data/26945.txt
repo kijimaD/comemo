@@ -12,7 +12,34 @@ Date:   Thu Feb 18 11:08:25 2016 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go    | 1 -
  src/cmd/link/internal/ld/decodesym.go | 3 ++-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 0a96da61fa..52f3354227 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -233,7 +233,6 @@ func stringsym(s string) (hdr, data *Sym) {
+ 		off = dsname(symdata, off, s[n:n+m])
+ 	}
+ 
+-	off = duint8(symdata, off, 0) // terminating NUL for runtime
+ 	ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 
+ 	return symhdr, symdata
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 52eb46bb5c..ec3a9b5613 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -217,7 +217,8 @@ func decodetype_structfieldname(s *LSym, i int) string {
+ 	if r == nil {           // shouldn't happen.
+ 		return ""
+ 	}
+-	return cstring(r.Sym.P[r.Add:])
++	strlen := int64(decode_inuxi(s.P[Thearch.Ptrsize:], Thearch.Intsize))
++	return string(r.Sym.P[r.Add : r.Add+strlen])
+ }
+ 
+ func decodetype_structfieldtype(s *LSym, i int) *LSym {

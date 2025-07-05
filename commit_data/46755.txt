@@ -19,7 +19,77 @@ Date:   Thu Jan 21 19:27:12 2021 -0800
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 12 ++++++++++--
  test/fixedbugs/issue43835.go        | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a7b6e7fcb3..2133a160b2 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -267,7 +267,7 @@ func walkstmt(n *Node) *Node {
+ 		if n.List.Len() == 0 {
+ 			break
+ 		}
+-		if (Curfn.Type.FuncType().Outnamed && n.List.Len() > 1) || paramoutheap(Curfn) {
++		if (Curfn.Type.FuncType().Outnamed && n.List.Len() > 1) || paramoutheap(Curfn) || Curfn.Func.HasDefer() {
+ 			// assign to the function out parameters,
+ 			// so that reorder3 can fix up conflicts
+ 			var rl []*Node
+@@ -2233,7 +2233,15 @@ func aliased(r *Node, all []*Node) bool {
+ 			memwrite = true
+ 			continue
+ 
+-		case PAUTO, PPARAM, PPARAMOUT:
++		case PPARAMOUT:
++			// Assignments to a result parameter in a function with defers
++			// becomes visible early if evaluation of any later expression
++			// panics (#43835).
++			if Curfn.Func.HasDefer() {
++				return true
++			}
++			fallthrough
++		case PAUTO, PPARAM:
+ 			if l.Name.Addrtaken() {
+ 				memwrite = true
+ 				continue
+diff --git a/test/fixedbugs/issue43835.go b/test/fixedbugs/issue43835.go
+new file mode 100644
+index 0000000000..449eb72ee1
+--- /dev/null
++++ b/test/fixedbugs/issue43835.go
+@@ -0,0 +1,33 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	if f() {
++		panic("FAIL")
++	}
++	if bad, _ := g(); bad {
++		panic("FAIL")
++	}
++}
++
++func f() (bad bool) {
++	defer func() {
++		recover()
++	}()
++	var p *int
++	bad, _ = true, *p
++	return
++}
++
++func g() (bool, int) {
++	defer func() {
++		recover()
++	}()
++	var p *int
++	return true, *p
++}

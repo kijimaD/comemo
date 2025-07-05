@@ -30,7 +30,7 @@ Date:   Tue Feb 25 00:11:28 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go                             |  5 +++--
  src/internal/syscall/execenv/execenv_default.go       | 19 +++++++++++++++++++
  .../syscall/execenv/execenv_windows.go}               | 18 ++++++++++++++----
@@ -38,3 +38,179 @@ Date:   Tue Feb 25 00:11:28 2020 +0000
  src/os/exec/exec.go                                   | 15 ++++++++++-----
  src/os/exec_posix.go                                  |  3 ++-
  6 files changed, 48 insertions(+), 25 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 7dd6d5c3fe..c59ac72aa0 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -153,6 +153,7 @@ var pkgDeps = map[string][]string{
+ 	"internal/syscall/unix":             {"L0", "syscall"},
+ 	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
+ 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
++	"internal/syscall/execenv":          {"L0", "syscall", "internal/syscall/windows", "unicode/utf16"},
+ 	"time": {
+ 		// "L0" without the "io" package:
+ 		"errors",
+@@ -170,10 +171,10 @@ var pkgDeps = map[string][]string{
+ 	"internal/cfg":     {"L0"},
+ 	"internal/poll":    {"L0", "internal/oserror", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows", "internal/syscall/unix"},
+ 	"internal/testlog": {"L0"},
+-	"os":               {"L1", "os", "syscall", "time", "internal/oserror", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
++	"os":               {"L1", "os", "syscall", "time", "internal/oserror", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/syscall/execenv", "internal/testlog"},
+ 	"path/filepath":    {"L2", "os", "syscall", "internal/syscall/windows"},
+ 	"io/ioutil":        {"L2", "os", "path/filepath", "time"},
+-	"os/exec":          {"L2", "os", "context", "path/filepath", "syscall"},
++	"os/exec":          {"L2", "os", "context", "path/filepath", "syscall", "internal/syscall/execenv"},
+ 	"os/signal":        {"L2", "os", "syscall"},
+ 
+ 	// OS enables basic operating system functionality,
+diff --git a/src/internal/syscall/execenv/execenv_default.go b/src/internal/syscall/execenv/execenv_default.go
+new file mode 100644
+index 0000000000..4bdbb55edb
+--- /dev/null
++++ b/src/internal/syscall/execenv/execenv_default.go
+@@ -0,0 +1,19 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package execenv
++
++import "syscall"
++
++// Default will return the default environment
++// variables based on the process attributes
++// provided.
++//
++// Defaults to syscall.Environ() on all platforms
++// other than Windows.
++func Default(sys *syscall.SysProcAttr) ([]string, error) {
++	return syscall.Environ(), nil
++}
+diff --git a/src/os/env_windows.go b/src/internal/syscall/execenv/execenv_windows.go
+similarity index 64%
+rename from src/os/env_windows.go
+rename to src/internal/syscall/execenv/execenv_windows.go
+index b1b1ee4b3e..b50029c198 100644
+--- a/src/os/env_windows.go
++++ b/src/internal/syscall/execenv/execenv_windows.go
+@@ -1,8 +1,10 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
++// Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package os
++// +build windows
++
++package execenv
+ 
+ import (
+ 	"internal/syscall/windows"
+@@ -11,9 +13,17 @@ import (
+ 	"unsafe"
+ )
+ 
+-func environForSysProcAttr(sys *syscall.SysProcAttr) (env []string, err error) {
++// Default will return the default environment
++// variables based on the process attributes
++// provided.
++//
++// If the process attributes contain a token, then
++// the environment variables will be sourced from
++// the defaults for that user token, otherwise they
++// will be sourced from syscall.Environ().
++func Default(sys *syscall.SysProcAttr) (env []string, err error) {
+ 	if sys == nil || sys.Token == 0 {
+-		return Environ(), nil
++		return syscall.Environ(), nil
+ 	}
+ 	var block *uint16
+ 	err = windows.CreateEnvironmentBlock(&block, sys.Token, false)
+diff --git a/src/os/env_default.go b/src/os/env_default.go
+deleted file mode 100644
+index c11ccce7e3..0000000000
+--- a/src/os/env_default.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !windows
+-
+-package os
+-
+-import "syscall"
+-
+-func environForSysProcAttr(sys *syscall.SysProcAttr) ([]string, error) {
+-	return Environ(), nil
+-}
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 3474ae0ca4..0c49575511 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -24,6 +24,7 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"errors"
++	"internal/syscall/execenv"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -222,11 +223,11 @@ func interfaceEqual(a, b interface{}) bool {
+ 	return a == b
+ }
+ 
+-func (c *Cmd) envv() []string {
++func (c *Cmd) envv() ([]string, error) {
+ 	if c.Env != nil {
+-		return c.Env
++		return c.Env, nil
+ 	}
+-	return os.Environ()
++	return execenv.Default(c.SysProcAttr)
+ }
+ 
+ func (c *Cmd) argv() []string {
+@@ -413,11 +414,15 @@ func (c *Cmd) Start() error {
+ 	}
+ 	c.childFiles = append(c.childFiles, c.ExtraFiles...)
+ 
+-	var err error
++	envv, err := c.envv()
++	if err != nil {
++		return err
++	}
++
+ 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
+ 		Dir:   c.Dir,
+ 		Files: c.childFiles,
+-		Env:   addCriticalEnv(dedupEnv(c.envv())),
++		Env:   addCriticalEnv(dedupEnv(envv)),
+ 		Sys:   c.SysProcAttr,
+ 	})
+ 	if err != nil {
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index 95ccc246a8..45b47a542d 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -7,6 +7,7 @@
+ package os
+ 
+ import (
++	"internal/syscall/execenv"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -39,7 +40,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 		Sys: attr.Sys,
+ 	}
+ 	if sysattr.Env == nil {
+-		sysattr.Env, err = environForSysProcAttr(sysattr.Sys)
++		sysattr.Env, err = execenv.Default(sysattr.Sys)
+ 		if err != nil {
+ 			return nil, err
+ 		}

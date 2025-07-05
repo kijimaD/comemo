@@ -13,7 +13,7 @@ Date:   Tue Jun 28 17:06:59 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os3_solaris.go  | 3 +++
  src/runtime/os_dragonfly.go | 1 +
  src/runtime/os_freebsd.go   | 1 +
@@ -21,3 +21,93 @@ Date:   Tue Jun 28 17:06:59 2016 -0700
  src/runtime/os_netbsd.go    | 5 +++++
  src/runtime/os_openbsd.go   | 3 +++
  6 files changed, 16 insertions(+)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 349f4abbcf..9368e0d5c6 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -165,6 +165,9 @@ func newosproc(mp *m, _ unsafe.Pointer) {
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if ret != 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
++		if ret == -_EAGAIN {
++			println("runtime: may need to increase max user processes (ulimit -u)")
++		}
+ 		throw("newosproc")
+ 	}
+ }
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 78a150eee5..85d4aadbfe 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -134,6 +134,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 		tid2:       nil,
+ 	}
+ 
++	// TODO: Check for error.
+ 	lwp_create(&params)
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ }
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 3a73b66277..c187ee805f 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -121,6 +121,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
++	// TODO: Check for error.
+ 	thr_new(&param, int32(unsafe.Sizeof(param)))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ }
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 35b57d8a23..542f214a42 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -154,6 +154,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 
+ 	if ret < 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
++		if ret == -_EAGAIN {
++			println("runtime: may need to increase max user processes (ulimit -u)")
++		}
+ 		throw("newosproc")
+ 	}
+ }
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 41f34f7132..4c44b2bb20 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -20,6 +20,8 @@ const (
+ 	// From NetBSD's <sys/ucontext.h>
+ 	_UC_SIGMASK = 0x01
+ 	_UC_CPU     = 0x04
++
++	_EAGAIN = 35
+ )
+ 
+ type mOS struct {
+@@ -162,6 +164,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	ret := lwp_create(unsafe.Pointer(&uc), 0, unsafe.Pointer(&mp.procid))
+ 	if ret < 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
++		if ret == -_EAGAIN {
++			println("runtime: may need to increase max user processes (ulimit -p)")
++		}
+ 		throw("runtime.newosproc")
+ 	}
+ }
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index ded6b1d4ea..9a5c53ef9e 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -154,6 +154,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 
+ 	if ret < 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
++		if ret == -_EAGAIN {
++			println("runtime: may need to increase max user processes (ulimit -p)")
++		}
+ 		throw("runtime.newosproc")
+ 	}
+ }

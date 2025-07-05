@@ -11,6 +11,23 @@ Date:   Thu Nov 5 09:41:55 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/16690
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
-
+---
  src/cmd/go/go_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2042f7035b..489782df58 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2036,8 +2036,9 @@ func TestGoGenerateRunFlag(t *testing.T) {
+ }
+ 
+ func TestGoGenerateEnv(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping because windows does not have the env command")
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skipf("skipping because %s does not have the env command", runtime.GOOS)
+ 	}
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

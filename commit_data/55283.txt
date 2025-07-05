@@ -15,7 +15,7 @@ Date:   Thu Dec 1 16:14:11 2022 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go             |   1 -
  src/cmd/compile/internal/base/flag.go              |   3 -
  .../compile/internal/devirtualize/devirtualize.go  |  90 +++++-----
@@ -49,3 +49,1061 @@ Date:   Thu Dec 1 16:14:11 2022 -0800
  test/inline_unified.go                             |   2 -
  test/run.go                                        |  28 ---
  32 files changed, 71 insertions(+), 533 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index ee42696ad2..b1dc9bc211 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -47,7 +47,6 @@ type DebugFlags struct {
+ 	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
+ 	TypeAssert            int    `help:"print information about type assertion inlining"`
+ 	TypecheckInl          int    `help:"eager typechecking of inline function bodies" concurrent:"ok"`
+-	Unified               int    `help:"enable unified IR construction"`
+ 	WB                    int    `help:"print information about write barriers"`
+ 	ABIWrap               int    `help:"print information about ABI wrapper generation"`
+ 	MayMoreStack          string `help:"call named function before all stack growth checks" concurrent:"ok"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index eb3d34f0b1..d6b5b90aaa 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -167,9 +167,6 @@ func ParseFlags() {
+ 	Debug.ConcurrentOk = true
+ 	Debug.InlFuncsWithClosures = 1
+ 	Debug.InlStaticInit = 1
+-	if buildcfg.Experiment.Unified {
+-		Debug.Unified = 1
+-	}
+ 	Debug.SyncFrames = -1 // disable sync markers by default
+ 
+ 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index 554e935c3e..6c41d4efd8 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -57,58 +57,52 @@ func Call(call *ir.CallExpr) {
+ 		return
+ 	}
+ 
+-	if base.Debug.Unified != 0 {
+-		// N.B., stencil.go converts shape-typed values to interface type
+-		// using OEFACE instead of OCONVIFACE, so devirtualization fails
+-		// above instead. That's why this code is specific to unified IR.
+-
+-		// If typ is a shape type, then it was a type argument originally
+-		// and we'd need an indirect call through the dictionary anyway.
+-		// We're unable to devirtualize this call.
+-		if typ.IsShape() {
+-			return
+-		}
++	// If typ is a shape type, then it was a type argument originally
++	// and we'd need an indirect call through the dictionary anyway.
++	// We're unable to devirtualize this call.
++	if typ.IsShape() {
++		return
++	}
+ 
+-		// If typ *has* a shape type, then it's an shaped, instantiated
+-		// type like T[go.shape.int], and its methods (may) have an extra
+-		// dictionary parameter. We could devirtualize this call if we
+-		// could derive an appropriate dictionary argument.
+-		//
+-		// TODO(mdempsky): If typ has has a promoted non-generic method,
+-		// then that method won't require a dictionary argument. We could
+-		// still devirtualize those calls.
+-		//
+-		// TODO(mdempsky): We have the *runtime.itab in recv.TypeWord. It
+-		// should be possible to compute the represented type's runtime
+-		// dictionary from this (e.g., by adding a pointer from T[int]'s
+-		// *runtime._type to .dict.T[int]; or by recognizing static
+-		// references to go:itab.T[int],iface and constructing a direct
+-		// reference to .dict.T[int]).
+-		if typ.HasShape() {
+-			if base.Flag.LowerM != 0 {
+-				base.WarnfAt(call.Pos(), "cannot devirtualize %v: shaped receiver %v", call, typ)
+-			}
+-			return
++	// If typ *has* a shape type, then it's an shaped, instantiated
++	// type like T[go.shape.int], and its methods (may) have an extra
++	// dictionary parameter. We could devirtualize this call if we
++	// could derive an appropriate dictionary argument.
++	//
++	// TODO(mdempsky): If typ has has a promoted non-generic method,
++	// then that method won't require a dictionary argument. We could
++	// still devirtualize those calls.
++	//
++	// TODO(mdempsky): We have the *runtime.itab in recv.TypeWord. It
++	// should be possible to compute the represented type's runtime
++	// dictionary from this (e.g., by adding a pointer from T[int]'s
++	// *runtime._type to .dict.T[int]; or by recognizing static
++	// references to go:itab.T[int],iface and constructing a direct
++	// reference to .dict.T[int]).
++	if typ.HasShape() {
++		if base.Flag.LowerM != 0 {
++			base.WarnfAt(call.Pos(), "cannot devirtualize %v: shaped receiver %v", call, typ)
+ 		}
++		return
++	}
+ 
+-		// Further, if sel.X's type has a shape type, then it's a shaped
+-		// interface type. In this case, the (non-dynamic) TypeAssertExpr
+-		// we construct below would attempt to create an itab
+-		// corresponding to this shaped interface type; but the actual
+-		// itab pointer in the interface value will correspond to the
+-		// original (non-shaped) interface type instead. These are
+-		// functionally equivalent, but they have distinct pointer
+-		// identities, which leads to the type assertion failing.
+-		//
+-		// TODO(mdempsky): We know the type assertion here is safe, so we
+-		// could instead set a flag so that walk skips the itab check. For
+-		// now, punting is easy and safe.
+-		if sel.X.Type().HasShape() {
+-			if base.Flag.LowerM != 0 {
+-				base.WarnfAt(call.Pos(), "cannot devirtualize %v: shaped interface %v", call, sel.X.Type())
+-			}
+-			return
++	// Further, if sel.X's type has a shape type, then it's a shaped
++	// interface type. In this case, the (non-dynamic) TypeAssertExpr
++	// we construct below would attempt to create an itab
++	// corresponding to this shaped interface type; but the actual
++	// itab pointer in the interface value will correspond to the
++	// original (non-shaped) interface type instead. These are
++	// functionally equivalent, but they have distinct pointer
++	// identities, which leads to the type assertion failing.
++	//
++	// TODO(mdempsky): We know the type assertion here is safe, so we
++	// could instead set a flag so that walk skips the itab check. For
++	// now, punting is easy and safe.
++	if sel.X.Type().HasShape() {
++		if base.Flag.LowerM != 0 {
++			base.WarnfAt(call.Pos(), "cannot devirtualize %v: shaped interface %v", call, sel.X.Type())
+ 		}
++		return
+ 	}
+ 
+ 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 387c7c03fe..fec6737c1d 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"cmd/compile/internal/types2"
+ 	"fmt"
+ 	"go/build"
+-	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -98,7 +97,7 @@ func TestImportTestdata(t *testing.T) {
+ 		"exports.go":  {"go/ast", "go/token"},
+ 		"generics.go": nil,
+ 	}
+-	if goexperiment.Unified {
++	if true /* was goexperiment.Unified */ {
+ 		// TODO(mdempsky): Fix test below to flatten the transitive
+ 		// Package.Imports graph. Unified IR is more precise about
+ 		// recreating the package import graph.
+@@ -343,8 +342,12 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types2.Named, level int) {
+ 	// The unified IR importer always sets interface method receiver
+ 	// parameters to point to the Interface type, rather than the Named.
+ 	// See #49906.
++	//
++	// TODO(mdempsky): This is only true for the types2 importer. For
++	// the go/types importer, we duplicate the Interface and rewrite its
++	// receiver methods to match historical behavior.
+ 	var want types2.Type = named
+-	if goexperiment.Unified {
++	if true /* was goexperiment.Unified */ {
+ 		want = iface
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index e3b2e44f61..de25d451eb 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -645,15 +645,13 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		// minimize impact to the existing inlining heuristics (in
+ 		// particular, to avoid breaking the existing inlinability regress
+ 		// tests), we need to compensate for this here.
+-		if base.Debug.Unified != 0 {
+-			if init := n.Rhs[0].Init(); len(init) == 1 {
+-				if _, ok := init[0].(*ir.AssignListStmt); ok {
+-					// 4 for each value, because each temporary variable now
+-					// appears 3 times (DCL, LHS, RHS), plus an extra DCL node.
+-					//
+-					// 1 for the extra "tmp1, tmp2 = f()" assignment statement.
+-					v.budget += 4*int32(len(n.Lhs)) + 1
+-				}
++		if init := n.Rhs[0].Init(); len(init) == 1 {
++			if _, ok := init[0].(*ir.AssignListStmt); ok {
++				// 4 for each value, because each temporary variable now
++				// appears 3 times (DCL, LHS, RHS), plus an extra DCL node.
++				//
++				// 1 for the extra "tmp1, tmp2 = f()" assignment statement.
++				v.budget += 4*int32(len(n.Lhs)) + 1
+ 			}
+ 		}
+ 
+@@ -958,49 +956,6 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
+ 		return n
+ 	}
+ 
+-	// The non-unified frontend has issues with inlining and shape parameters.
+-	if base.Debug.Unified == 0 {
+-		// Don't inline a function fn that has no shape parameters, but is passed at
+-		// least one shape arg. This means we must be inlining a non-generic function
+-		// fn that was passed into a generic function, and can be called with a shape
+-		// arg because it matches an appropriate type parameters. But fn may include
+-		// an interface conversion (that may be applied to a shape arg) that was not
+-		// apparent when we first created the instantiation of the generic function.
+-		// We can't handle this if we actually do the inlining, since we want to know
+-		// all interface conversions immediately after stenciling. So, we avoid
+-		// inlining in this case, see issue #49309. (1)
+-		//
+-		// See discussion on go.dev/cl/406475 for more background.
+-		if !fn.Type().Params().HasShape() {
+-			for _, arg := range n.Args {
+-				if arg.Type().HasShape() {
+-					if logopt.Enabled() {
+-						logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+-							fmt.Sprintf("inlining function %v has no-shape params with shape args", ir.FuncName(fn)))
+-					}
+-					return n
+-				}
+-			}
+-		} else {
+-			// Don't inline a function fn that has shape parameters, but is passed no shape arg.
+-			// See comments (1) above, and issue #51909.
+-			inlineable := len(n.Args) == 0 // Function has shape in type, with no arguments can always be inlined.
+-			for _, arg := range n.Args {
+-				if arg.Type().HasShape() {
+-					inlineable = true
+-					break
+-				}
+-			}
+-			if !inlineable {
+-				if logopt.Enabled() {
+-					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+-						fmt.Sprintf("inlining function %v has shape params with no-shape args", ir.FuncName(fn)))
+-				}
+-				return n
+-			}
+-		}
+-	}
+-
+ 	if base.Flag.Cfg.Instrumenting && types.IsRuntimePkg(fn.Sym().Pkg) {
+ 		// Runtime package must not be instrumented.
+ 		// Instrument skips runtime package. However, some runtime code can be
+diff --git a/src/cmd/compile/internal/noder/export.go b/src/cmd/compile/internal/noder/export.go
+index 263cdc262b..e1f289b56f 100644
+--- a/src/cmd/compile/internal/noder/export.go
++++ b/src/cmd/compile/internal/noder/export.go
+@@ -10,19 +10,14 @@ import (
+ 	"io"
+ 
+ 	"cmd/compile/internal/base"
+-	"cmd/compile/internal/typecheck"
+ 	"cmd/internal/bio"
+ )
+ 
+ func WriteExports(out *bio.Writer) {
+ 	var data bytes.Buffer
+ 
+-	if base.Debug.Unified != 0 {
+-		data.WriteByte('u')
+-		writeUnifiedExport(&data)
+-	} else {
+-		typecheck.WriteExports(&data, true)
+-	}
++	data.WriteByte('u')
++	writeUnifiedExport(&data)
+ 
+ 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
+ 	out.WriteString("\n$$B\n") // indicate binary export format
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 8b017ecfd5..b7008ac5e8 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -231,10 +231,6 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
+ 
+ 	switch c {
+ 	case 'u':
+-		if !buildcfg.Experiment.Unified {
+-			base.Fatalf("unexpected export data format")
+-		}
+-
+ 		// TODO(mdempsky): This seems a bit clunky.
+ 		data = strings.TrimSuffix(data, "\n$$\n")
+ 
+@@ -244,20 +240,6 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
+ 		readPackage(newPkgReader(pr), pkg1, false)
+ 		pkg2 = importer.ReadPackage(env, packages, pr)
+ 
+-	case 'i':
+-		if buildcfg.Experiment.Unified {
+-			base.Fatalf("unexpected export data format")
+-		}
+-
+-		typecheck.ReadImports(pkg1, data)
+-
+-		if packages != nil {
+-			pkg2, err = importer.ImportData(packages, data, path)
+-			if err != nil {
+-				return
+-			}
+-		}
+-
+ 	default:
+ 		// Indexed format is distinguished by an 'i' byte,
+ 		// whereas previous export formats started with 'c', 'd', or 'v'.
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index d0d95451ac..1db9618d96 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -73,13 +73,7 @@ func LoadPackage(filenames []string) {
+ 	}
+ 	base.Timer.AddEvent(int64(lines), "lines")
+ 
+-	if base.Debug.Unified != 0 {
+-		unified(noders)
+-		return
+-	}
+-
+-	// Use types2 to type-check and generate IR.
+-	check2(noders)
++	unified(noders)
+ }
+ 
+ func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index bd15729171..bdec467f90 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3688,11 +3688,6 @@ func (r *reader) importedDef() bool {
+ }
+ 
+ func MakeWrappers(target *ir.Package) {
+-	// Only unified IR emits its own wrappers.
+-	if base.Debug.Unified == 0 {
+-		return
+-	}
+-
+ 	// always generate a wrapper for error.Error (#29304)
+ 	needWrapperTypes = append(needWrapperTypes, types.ErrorType)
+ 
+diff --git a/src/cmd/compile/internal/reflectdata/helpers.go b/src/cmd/compile/internal/reflectdata/helpers.go
+index 99461cff52..f2d69cd256 100644
+--- a/src/cmd/compile/internal/reflectdata/helpers.go
++++ b/src/cmd/compile/internal/reflectdata/helpers.go
+@@ -21,7 +21,7 @@ func hasRType(n, rtype ir.Node, fieldName string) bool {
+ 	// gets confused by implicit conversions. Also, because
+ 	// package-scope statements can never be generic, so they'll never
+ 	// require dictionary lookups.
+-	if base.Debug.Unified != 0 && ir.CurFunc.Nname.Sym().Name != "init" {
++	if ir.CurFunc.Nname.Sym().Name != "init" {
+ 		ir.Dump("CurFunc", ir.CurFunc)
+ 		base.FatalfAt(n.Pos(), "missing %s in %v: %+v", fieldName, ir.CurFunc, n)
+ 	}
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 088a879175..6746ac9067 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -16,8 +16,6 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/bitvec"
+ 	"cmd/compile/internal/compare"
+-	"cmd/compile/internal/escape"
+-	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/typebits"
+@@ -1868,199 +1866,14 @@ func NeedEmit(typ *types.Type) bool {
+ //
+ // These wrappers are always fully stenciled.
+ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSym {
+-	orig := rcvr
+ 	if forItab && !types.IsDirectIface(rcvr) {
+ 		rcvr = rcvr.PtrTo()
+ 	}
+ 
+-	generic := false
+-	// We don't need a dictionary if we are reaching a method (possibly via an
+-	// embedded field) which is an interface method.
+-	if !types.IsInterfaceMethod(method.Type) {
+-		rcvr1 := deref(rcvr)
+-		if len(rcvr1.RParams()) > 0 {
+-			// If rcvr has rparams, remember method as generic, which
+-			// means we need to add a dictionary to the wrapper.
+-			generic = true
+-			if rcvr.HasShape() {
+-				base.Fatalf("method on type instantiated with shapes, rcvr:%+v", rcvr)
+-			}
+-		}
+-	}
+-
+ 	newnam := ir.MethodSym(rcvr, method.Sym)
+ 	lsym := newnam.Linksym()
+ 
+ 	// Unified IR creates its own wrappers.
+-	if base.Debug.Unified != 0 {
+-		return lsym
+-	}
+-
+-	if newnam.Siggen() {
+-		return lsym
+-	}
+-	newnam.SetSiggen(true)
+-
+-	methodrcvr := method.Type.Recv().Type
+-	// For generic methods, we need to generate the wrapper even if the receiver
+-	// types are identical, because we want to add the dictionary.
+-	if !generic && types.Identical(rcvr, methodrcvr) {
+-		return lsym
+-	}
+-
+-	if !NeedEmit(rcvr) || rcvr.IsPtr() && !NeedEmit(rcvr.Elem()) {
+-		return lsym
+-	}
+-
+-	base.Pos = base.AutogeneratedPos
+-	typecheck.DeclContext = ir.PEXTERN
+-
+-	// TODO(austin): SelectorExpr may have created one or more
+-	// ir.Names for these already with a nil Func field. We should
+-	// consolidate these and always attach a Func to the Name.
+-	fn := typecheck.DeclFunc(newnam, ir.NewField(base.Pos, typecheck.Lookup(".this"), rcvr),
+-		typecheck.NewFuncParams(method.Type.Params(), true),
+-		typecheck.NewFuncParams(method.Type.Results(), false))
+-
+-	fn.SetDupok(true)
+-
+-	nthis := ir.AsNode(fn.Type().Recv().Nname)
+-
+-	indirect := rcvr.IsPtr() && rcvr.Elem() == methodrcvr
+-
+-	// generate nil pointer check for better error
+-	if indirect {
+-		// generating wrapper from *T to T.
+-		n := ir.NewIfStmt(base.Pos, nil, nil, nil)
+-		n.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, nthis, typecheck.NodNil())
+-		call := ir.NewCallExpr(base.Pos, ir.OCALL, typecheck.LookupRuntime("panicwrap"), nil)
+-		n.Body = []ir.Node{call}
+-		fn.Body.Append(n)
+-	}
+-
+-	dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, nthis, method.Sym))
+-	// generate call
+-	// It's not possible to use a tail call when dynamic linking on ppc64le. The
+-	// bad scenario is when a local call is made to the wrapper: the wrapper will
+-	// call the implementation, which might be in a different module and so set
+-	// the TOC to the appropriate value for that module. But if it returns
+-	// directly to the wrapper's caller, nothing will reset it to the correct
+-	// value for that function.
+-	var call *ir.CallExpr
+-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !generic {
+-		call = ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+-		call.Args = ir.ParamNames(fn.Type())
+-		call.IsDDD = fn.Type().IsVariadic()
+-		fn.Body.Append(ir.NewTailCallStmt(base.Pos, call))
+-	} else {
+-		fn.SetWrapper(true) // ignore frame for panic+recover matching
+-
+-		if generic && dot.X != nthis {
+-			// If there is embedding involved, then we should do the
+-			// normal non-generic embedding wrapper below, which calls
+-			// the wrapper for the real receiver type using dot as an
+-			// argument. There is no need for generic processing (adding
+-			// a dictionary) for this wrapper.
+-			generic = false
+-		}
+-
+-		if generic {
+-			targs := deref(rcvr).RParams()
+-			// The wrapper for an auto-generated pointer/non-pointer
+-			// receiver method should share the same dictionary as the
+-			// corresponding original (user-written) method.
+-			baseOrig := orig
+-			if baseOrig.IsPtr() && !methodrcvr.IsPtr() {
+-				baseOrig = baseOrig.Elem()
+-			} else if !baseOrig.IsPtr() && methodrcvr.IsPtr() {
+-				baseOrig = types.NewPtr(baseOrig)
+-			}
+-			args := []ir.Node{getDictionary(ir.MethodSym(baseOrig, method.Sym), targs)}
+-			if indirect {
+-				args = append(args, ir.NewStarExpr(base.Pos, dot.X))
+-			} else if methodrcvr.IsPtr() && methodrcvr.Elem() == dot.X.Type() {
+-				// Case where method call is via a non-pointer
+-				// embedded field with a pointer method.
+-				args = append(args, typecheck.NodAddrAt(base.Pos, dot.X))
+-			} else {
+-				args = append(args, dot.X)
+-			}
+-			args = append(args, ir.ParamNames(fn.Type())...)
+-
+-			// Target method uses shaped names.
+-			targs2 := make([]*types.Type, len(targs))
+-			origRParams := deref(orig).OrigType().RParams()
+-			for i, t := range targs {
+-				targs2[i] = typecheck.Shapify(t, i, origRParams[i])
+-			}
+-			targs = targs2
+-
+-			sym := typecheck.MakeFuncInstSym(ir.MethodSym(methodrcvr, method.Sym), targs, false, true)
+-			if sym.Def == nil {
+-				// Currently we make sure that we have all the
+-				// instantiations we need by generating them all in
+-				// ../noder/stencil.go:instantiateMethods
+-				// Extra instantiations because of an inlined function
+-				// should have been exported, and so available via
+-				// Resolve.
+-				in := typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
+-				if in.Op() == ir.ONONAME {
+-					base.Fatalf("instantiation %s not found", sym.Name)
+-				}
+-				sym = in.Sym()
+-			}
+-			target := ir.AsNode(sym.Def)
+-			call = ir.NewCallExpr(base.Pos, ir.OCALL, target, args)
+-			// Fill-in the generic method node that was not filled in
+-			// in instantiateMethod.
+-			method.Nname = fn.Nname
+-		} else {
+-			call = ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+-			call.Args = ir.ParamNames(fn.Type())
+-		}
+-		call.IsDDD = fn.Type().IsVariadic()
+-		if method.Type.NumResults() > 0 {
+-			ret := ir.NewReturnStmt(base.Pos, nil)
+-			ret.Results = []ir.Node{call}
+-			fn.Body.Append(ret)
+-		} else {
+-			fn.Body.Append(call)
+-		}
+-	}
+-
+-	typecheck.FinishFuncBody()
+-	if base.Debug.DclStack != 0 {
+-		types.CheckDclstack()
+-	}
+-
+-	typecheck.Func(fn)
+-	ir.CurFunc = fn
+-	typecheck.Stmts(fn.Body)
+-
+-	if AfterGlobalEscapeAnalysis {
+-		// Inlining the method may reveal closures, which require walking all function bodies
+-		// to decide whether to capture free variables by value or by ref. So we only do inline
+-		// if the method do not contain any closures, otherwise, the escape analysis may make
+-		// dead variables resurrected, and causing liveness analysis confused, see issue #53702.
+-		var canInline bool
+-		switch x := call.X.(type) {
+-		case *ir.Name:
+-			canInline = len(x.Func.Closures) == 0
+-		case *ir.SelectorExpr:
+-			if x.Op() == ir.OMETHEXPR {
+-				canInline = x.FuncName().Func != nil && len(x.FuncName().Func.Closures) == 0
+-			}
+-		}
+-		if canInline {
+-			// TODO(prattmic): plumb PGO.
+-			inline.InlineCalls(fn, nil)
+-		}
+-		escape.Batch([]*ir.Func{fn}, false)
+-	}
+-
+-	ir.CurFunc = nil
+-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+-
+ 	return lsym
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index a9d33b6b0a..268c4c41db 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
+-	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+@@ -84,7 +83,7 @@ func TestDebugLinesPushback(t *testing.T) {
+ 
+ 	case "arm64", "amd64": // register ABI
+ 		fn := "(*List[go.shape.int_0]).PushBack"
+-		if buildcfg.Experiment.Unified {
++		if true /* was buildcfg.Experiment.Unified */ {
+ 			// Unified mangles differently
+ 			fn = "(*List[go.shape.int]).PushBack"
+ 		}
+@@ -101,7 +100,7 @@ func TestDebugLinesConvert(t *testing.T) {
+ 
+ 	case "arm64", "amd64": // register ABI
+ 		fn := "G[go.shape.int_0]"
+-		if buildcfg.Experiment.Unified {
++		if true /* was buildcfg.Experiment.Unified */ {
+ 			// Unified mangles differently
+ 			fn = "G[go.shape.int]"
+ 		}
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index bd1bf4114d..3747656d58 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -333,7 +333,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 			return val.Op() == ir.ONIL
+ 		}
+ 
+-		if base.Debug.Unified != 0 && val.Type().HasShape() {
++		if val.Type().HasShape() {
+ 			// See comment in cmd/compile/internal/walk/convert.go:walkConvInterface
+ 			return false
+ 		}
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index e59104df53..eacbe62e68 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -6,7 +6,6 @@ package test
+ 
+ import (
+ 	"bufio"
+-	"internal/buildcfg"
+ 	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"io"
+@@ -235,7 +234,7 @@ func TestIntendedInlining(t *testing.T) {
+ 		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
+ 		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
+ 	}
+-	if buildcfg.Experiment.Unified {
++	if true /* was buildcfg.Experiment.Unified */ {
+ 		// Non-unified IR does not report "inlining call ..." for atomic.Pointer[T]'s methods.
+ 		// TODO(cuonglm): remove once non-unified IR frontend gone.
+ 		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).CompareAndSwap")
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index f14d885564..a4a507dfec 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -336,27 +336,6 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 			} else {
+ 				p.checkForFullyInst(t)
+ 			}
+-			if base.Debug.Unified == 0 {
+-				// If a method of un-exported type is promoted and accessible by
+-				// embedding in an exported type, it makes that type reachable.
+-				//
+-				// Example:
+-				//
+-				//     type t struct {}
+-				//     func (t) M() {}
+-				//
+-				//     func F() interface{} { return struct{ t }{} }
+-				//
+-				// We generate the wrapper for "struct{ t }".M, and inline call
+-				// to "struct{ t }".M, which makes "t.M" reachable.
+-				if t.IsStruct() {
+-					for _, f := range t.FieldSlice() {
+-						if f.Embedded != 0 {
+-							p.markEmbed(f.Type)
+-						}
+-					}
+-				}
+-			}
+ 		}
+ 
+ 		switch n.Op() {
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index bfe27cb60d..96ad6af42d 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -382,7 +382,7 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
+ 			// don't have the methods for them.
+ 			return ir.OCONVIFACE, ""
+ 		}
+-		if base.Debug.Unified != 0 && src.HasShape() {
++		if src.HasShape() {
+ 			// Unified IR uses OCONVIFACE for converting all derived types
+ 			// to interface type, not just type arguments themselves.
+ 			return ir.OCONVIFACE, ""
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 590c9a3ad4..42750c2125 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -217,7 +217,6 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
+ 		base.Fatalf("methodValueWrapper: unexpected %v (%v)", dot, dot.Op())
+ 	}
+ 
+-	t0 := dot.Type()
+ 	meth := dot.Sel
+ 	rcvrtype := dot.X.Type()
+ 	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
+@@ -227,48 +226,6 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
+ 	}
+ 	sym.SetUniq(true)
+ 
+-	if base.Debug.Unified != 0 {
+-		base.FatalfAt(dot.Pos(), "missing wrapper for %v", meth)
+-	}
+-
+-	savecurfn := ir.CurFunc
+-	saveLineNo := base.Pos
+-	ir.CurFunc = nil
+-
+-	base.Pos = base.AutogeneratedPos
+-
+-	fn := typecheck.DeclFunc(sym, nil,
+-		typecheck.NewFuncParams(t0.Params(), true),
+-		typecheck.NewFuncParams(t0.Results(), false))
+-	fn.SetDupok(true)
+-	fn.SetWrapper(true)
+-
+-	// Declare and initialize variable holding receiver.
+-	ptr := ir.NewHiddenParam(base.Pos, fn, typecheck.Lookup(".this"), rcvrtype)
+-
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
+-	call.Args = ir.ParamNames(fn.Type())
+-	call.IsDDD = fn.Type().IsVariadic()
+-
+-	var body ir.Node = call
+-	if t0.NumResults() != 0 {
+-		ret := ir.NewReturnStmt(base.Pos, nil)
+-		ret.Results = []ir.Node{call}
+-		body = ret
+-	}
+-
+-	fn.Body = []ir.Node{body}
+-	typecheck.FinishFuncBody()
+-
+-	typecheck.Func(fn)
+-	// Need to typecheck the body of the just-generated wrapper.
+-	// typecheckslice() requires that Curfn is set when processing an ORETURN.
+-	ir.CurFunc = fn
+-	typecheck.Stmts(fn.Body)
+-	sym.Def = fn.Nname
+-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
+-	ir.CurFunc = savecurfn
+-	base.Pos = saveLineNo
+-
+-	return fn.Nname
++	base.FatalfAt(dot.Pos(), "missing wrapper for %v", meth)
++	panic("unreachable")
+ }
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index bf06ed6f46..629dd9af4f 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -45,7 +45,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 	toType := n.Type()
+ 	if !fromType.IsInterface() && !ir.IsBlank(ir.CurFunc.Nname) {
+ 		// skip unnamed functions (func _())
+-		if base.Debug.Unified != 0 && fromType.HasShape() {
++		if fromType.HasShape() {
+ 			// Unified IR uses OCONVIFACE for converting all derived types
+ 			// to interface type. Avoid assertion failure in
+ 			// MarkTypeUsedInInterface, because we've marked used types
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 7d0033f1d1..4dca2e20d6 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"debug/macho"
+-	"internal/buildcfg"
+ 	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
+@@ -1094,7 +1093,7 @@ func TestUnlinkableObj(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	t.Parallel()
+ 
+-	if buildcfg.Experiment.Unified {
++	if true /* was buildcfg.Experiment.Unified */ {
+ 		t.Skip("TODO(mdempsky): Fix ICE when importing unlinkable objects for GOEXPERIMENT=unified")
+ 	}
+ 
+diff --git a/src/go/importer/importer_test.go b/src/go/importer/importer_test.go
+index 142efd30f4..e5c50f687b 100644
+--- a/src/go/importer/importer_test.go
++++ b/src/go/importer/importer_test.go
+@@ -7,7 +7,6 @@ package importer
+ import (
+ 	"go/build"
+ 	"go/token"
+-	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+@@ -68,7 +67,7 @@ func TestForCompiler(t *testing.T) {
+ 		// support for it in unified IR. It's not clear that we actually
+ 		// need to support importing "math/big" as "math/bigger", for
+ 		// example. cmd/link no longer supports that.
+-		if buildcfg.Experiment.Unified {
++		if true /* was buildcfg.Experiment.Unified */ {
+ 			t.Skip("not supported by GOEXPERIMENT=unified; see go.dev/cl/406319")
+ 		}
+ 
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index f2202ab478..3270f3d682 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -7,7 +7,6 @@ package gcimporter_test
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"internal/goexperiment"
+ 	"internal/goroot"
+ 	"internal/testenv"
+ 	"os"
+@@ -108,7 +107,7 @@ func TestImportTestdata(t *testing.T) {
+ 		"exports.go":  {"go/ast", "go/token"},
+ 		"generics.go": nil,
+ 	}
+-	if goexperiment.Unified {
++	if true /* was goexperiment.Unified */ {
+ 		// TODO(mdempsky): Fix test below to flatten the transitive
+ 		// Package.Imports graph. Unified IR is more precise about
+ 		// recreating the package import graph.
+@@ -168,17 +167,6 @@ func TestImportTypeparamTests(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	var skip map[string]string
+-	if !goexperiment.Unified {
+-		// The Go 1.18 frontend still fails several cases.
+-		skip = map[string]string{
+-			"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+-			"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
+-			"issue47631.go": "can not handle local type declarations",
+-			"issue55101.go": "fails to compile",
+-		}
+-	}
+-
+ 	for _, entry := range list {
+ 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+ 			// For now, only consider standalone go files.
+@@ -186,10 +174,6 @@ func TestImportTypeparamTests(t *testing.T) {
+ 		}
+ 
+ 		t.Run(entry.Name(), func(t *testing.T) {
+-			if reason, ok := skip[entry.Name()]; ok {
+-				t.Skip(reason)
+-			}
+-
+ 			filename := filepath.Join(rootDir, entry.Name())
+ 			src, err := os.ReadFile(filename)
+ 			if err != nil {
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 71f8f5648d..513070c8af 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -70,7 +70,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 	baseline := goexperiment.Flags{
+ 		RegabiWrappers:   regabiSupported,
+ 		RegabiArgs:       regabiSupported,
+-		Unified:          true,
+ 		CoverageRedesign: true,
+ 	}
+ 
+diff --git a/src/internal/goexperiment/exp_unified_off.go b/src/internal/goexperiment/exp_unified_off.go
+deleted file mode 100644
+index 4c16fd8562..0000000000
+--- a/src/internal/goexperiment/exp_unified_off.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Code generated by mkconsts.go. DO NOT EDIT.
+-
+-//go:build !goexperiment.unified
+-// +build !goexperiment.unified
+-
+-package goexperiment
+-
+-const Unified = false
+-const UnifiedInt = 0
+diff --git a/src/internal/goexperiment/exp_unified_on.go b/src/internal/goexperiment/exp_unified_on.go
+deleted file mode 100644
+index 2b17ba3e79..0000000000
+--- a/src/internal/goexperiment/exp_unified_on.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Code generated by mkconsts.go. DO NOT EDIT.
+-
+-//go:build goexperiment.unified
+-// +build goexperiment.unified
+-
+-package goexperiment
+-
+-const Unified = true
+-const UnifiedInt = 1
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index 02e744362c..8292f97b71 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -60,10 +60,6 @@ type Flags struct {
+ 	StaticLockRanking bool
+ 	BoringCrypto      bool
+ 
+-	// Unified enables the compiler's unified IR construction
+-	// experiment.
+-	Unified bool
+-
+ 	// Regabi is split into several sub-experiments that can be
+ 	// enabled individually. Not all combinations work.
+ 	// The "regabi" GOEXPERIMENT is an alias for all "working"
+diff --git a/test/escape_iface_nounified.go b/test/escape_iface_nounified.go
+deleted file mode 100644
+index 1d267bcd18..0000000000
+--- a/test/escape_iface_nounified.go
++++ /dev/null
+@@ -1,25 +0,0 @@
+-// errorcheck -0 -m -l
+-//go:build !goexperiment.unified
+-// +build !goexperiment.unified
+-
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package escape
+-
+-var sink interface{}
+-
+-func dotTypeEscape2() { // #13805, #15796
+-	{
+-		i := 0
+-		j := 0
+-		var ok bool
+-		var x interface{} = i // ERROR "i does not escape"
+-		var y interface{} = j // ERROR "j does not escape"
+-
+-		sink = x.(int) // ERROR "x.\(int\) escapes to heap"
+-		// BAD: should be "y.\(int\) escapes to heap" too
+-		sink, *(&ok) = y.(int)
+-	}
+-}
+diff --git a/test/escape_iface_unified.go b/test/escape_iface_unified.go
+index 80222dae5f..80dc80ca7b 100644
+--- a/test/escape_iface_unified.go
++++ b/test/escape_iface_unified.go
+@@ -1,6 +1,4 @@
+ // errorcheck -0 -m -l
+-//go:build goexperiment.unified
+-// +build goexperiment.unified
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue46903.go b/test/fixedbugs/issue46903.go
+index 28cb43df3b..3a0b6049fd 100644
+--- a/test/fixedbugs/issue46903.go
++++ b/test/fixedbugs/issue46903.go
+@@ -1,8 +1,5 @@
+ // run
+-//go:build goexperiment.unified && cgo
+-
+-// TODO(mdempsky): Enable test unconditionally. This test should pass
+-// for non-unified mode too.
++//go:build cgo
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue53439.go b/test/fixedbugs/issue53439.go
+index dc444b889a..f366a44183 100644
+--- a/test/fixedbugs/issue53439.go
++++ b/test/fixedbugs/issue53439.go
+@@ -1,5 +1,4 @@
+ // compile
+-//go:build goexperiment.unified
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/inline_nounified.go b/test/inline_nounified.go
+deleted file mode 100644
+index 7a9fc10071..0000000000
+--- a/test/inline_nounified.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
+-//go:build !goexperiment.unified
+-// +build !goexperiment.unified
+-
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package foo
+-
+-func r(z int) int {
+-	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
+-		return x + z
+-	}
+-	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
+-		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
+-			return 2*y + x*z
+-		}(x) // ERROR "inlining call to r.func2.1"
+-	}
+-	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
+-}
+diff --git a/test/inline_unified.go b/test/inline_unified.go
+index 5dc43ab070..dad11827d7 100644
+--- a/test/inline_unified.go
++++ b/test/inline_unified.go
+@@ -1,6 +1,4 @@
+ // errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
+-//go:build goexperiment.unified
+-// +build goexperiment.unified
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index 9a18f13672..8eff84d92d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -76,15 +76,6 @@ var env = func() (res envVars) {
+ 	return
+ }()
+ 
+-var unifiedEnabled = func() bool {
+-	for _, tag := range build.Default.ToolTags {
+-		if tag == "goexperiment.unified" {
+-			return true
+-		}
+-	}
+-	return false
+-}()
+-
+ // defaultAllCodeGen returns the default value of the -all_codegen
+ // flag. By default, we prefer to be fast (returning false), except on
+ // the linux-amd64 builder that's already very fast, so we get more
+@@ -374,10 +365,6 @@ func (t *test) initExpectFail() {
+ 		failureSets = append(failureSets, types2Failures32Bit)
+ 	}
+ 
+-	if !unifiedEnabled {
+-		failureSets = append(failureSets, go118Failures)
+-	}
+-
+ 	filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
+ 
+ 	for _, set := range failureSets {
+@@ -2037,21 +2024,6 @@ var types2Failures32Bit = setOf(
+ 	"fixedbugs/issue23305.go", // large untyped int passed to println (32-bit)
+ )
+ 
+-var go118Failures = setOf(
+-	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
+-	"fixedbugs/issue56280.go",  // 1.18 compiler doesn't support inlining generic functions
+-	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
+-	"typeparam/issue47631.go",  // 1.18 can not handle local type declarations
+-	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
+-	"typeparam/issue54456.go",  // 1.18 compiler fails to distinguish local generic types
+-	"typeparam/issue54497.go",  // 1.18 compiler is more conservative about inlining due to repeated issues
+-	"typeparam/issue55101.go",  // 1.18 compiler ICEs writing export data
+-	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
+-	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
+-	"typeparam/mdempsky/18.go", // 1.18 compiler mishandles implicit conversions in select statements
+-	"typeparam/mdempsky/20.go", // 1.18 compiler crashes on method expressions promoted to derived types
+-)
+-
+ // In all of these cases, the 1.17 compiler reports reasonable errors, but either the
+ // 1.17 or 1.18 compiler report extra errors, so we can't match correctly on both. We
+ // now set the patterns to match correctly on all the 1.18 errors.

@@ -14,6 +14,21 @@ Date:   Thu Nov 10 11:15:26 2022 -0500
     Auto-Submit: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/types/errors/codes.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/types/errors/codes.go b/src/internal/types/errors/codes.go
+index 8c0273571f..7bf7b218bd 100644
+--- a/src/internal/types/errors/codes.go
++++ b/src/internal/types/errors/codes.go
+@@ -34,7 +34,9 @@ const (
+ 	// InvalidSyntaxTree occurs if an invalid syntax tree is provided
+ 	// to the type checker. It should never happen.
+ 	InvalidSyntaxTree Code = -1
++)
+ 
++const (
+ 	// The zero Code value indicates an unset (invalid) error code.
+ 	_ Code = iota
+ 

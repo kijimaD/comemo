@@ -7,6 +7,30 @@ Date:   Fri May 15 16:05:52 2015 -0400
     Change-Id: I40e8a4a2e62253233b66f6a2e61e222437292c31
     Reviewed-on: https://go-review.googlesource.com/10151
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/hashmap.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 2b3af301b3..b199330a1e 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -1008,6 +1008,18 @@ var zerotiny [1024]byte
+ // Types allocated by package reflect are in writable memory and
+ // start out with zero set to nil; we initialize those on demand.
+ func mapzero(t *_type) {
++	// On ARM, atomicloadp is implemented as xadd(p, 0),
++	// so we cannot use atomicloadp on read-only memory.
++	// Check whether the pointer is in the heap; if not, it's not writable
++	// so the zero value must already be set.
++	if GOARCH == "arm" && !inheap(uintptr(unsafe.Pointer(t))) {
++		if t.zero == nil {
++			print("runtime: map element ", *t._string, " missing zero value\n")
++			throw("mapzero")
++		}
++		return
++	}
++
+ 	// Already done?
+ 	// Check without lock, so must use atomicload to sync with atomicstore in allocation case below.
+ 	if atomicloadp(unsafe.Pointer(&t.zero)) != nil {

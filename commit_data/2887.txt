@@ -10,7 +10,7 @@ Date:   Wed Aug 5 11:49:51 2009 -0700
     DELTA=587  (519 added, 21 deleted, 47 changed)
     OCL=32754
     CL=32788
-
+---
  usr/austin/eval/compiler.go |   1 +
  usr/austin/eval/decls.go    |   9 ++
  usr/austin/eval/expr.go     | 176 +++++++++++++++++++++++++++++++++--
@@ -20,3 +20,977 @@ Date:   Wed Aug 5 11:49:51 2009 -0700
  usr/austin/eval/typec.go    | 220 ++++++++++++++++++++++++++++++++++++--------
  usr/austin/eval/value.go    |  47 +++++++++-
  8 files changed, 557 insertions(+), 59 deletions(-)
+
+diff --git a/usr/austin/eval/compiler.go b/usr/austin/eval/compiler.go
+index 59858c800b..82f9120a22 100644
+--- a/usr/austin/eval/compiler.go
++++ b/usr/austin/eval/compiler.go
+@@ -39,6 +39,7 @@ type assignCompiler struct
+ func (a *compiler) checkAssign(pos token.Position, rs []*exprCompiler, errOp, errPosName string) (*assignCompiler, bool)
+ func (a *compiler) compileAssign(pos token.Position, lt Type, rs []*exprCompiler, errOp, errPosName string) (func(lv Value, f *Frame))
+ func (a *compiler) compileType(b *block, typ ast.Expr) Type
++func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool
+ func (a *compiler) compileFuncType(b *block, typ *ast.FuncType) *FuncDecl
+ 
+ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool)
+diff --git a/usr/austin/eval/decls.go b/usr/austin/eval/decls.go
+index 3b1ed70ae8..c34baed875 100644
+--- a/usr/austin/eval/decls.go
++++ b/usr/austin/eval/decls.go
+@@ -22,6 +22,8 @@ type Type interface {
+ 	// same named type.  If conv if true, this is conversion
+ 	// compatibility, where two named types are conversion
+ 	// compatible if their definitions are conversion compatible.
++	//
++	// TODO(austin) Deal with recursive types
+ 	compat(o Type, conv bool) bool;
+ 	// lit returns this type's literal.  If this is a named type,
+ 	// this is the unnamed underlying type.  Otherwise, this is an
+@@ -113,6 +115,13 @@ type ArrayValue interface {
+ 	Elem(i int64) Value;
+ }
+ 
++type StructValue interface {
++	Value;
++	// TODO(austin) This is another useless Get()
++	Get() StructValue;
++	Field(i int) Value;
++}
++
+ type PtrValue interface {
+ 	Value;
+ 	Get() Value;
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index 3ebd493fe5..4988224739 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -35,6 +35,7 @@ type exprCompiler struct {
+ 	evalIdealFloat func() *bignum.Rational;
+ 	evalString func(f *Frame) string;
+ 	evalArray func(f *Frame) ArrayValue;
++	evalStruct func(f *Frame) StructValue;
+ 	evalPtr func(f *Frame) Value;
+ 	evalFunc func(f *Frame) Func;
+ 	evalMulti func(f *Frame) []Value;
+@@ -64,7 +65,7 @@ func (a *exprCompiler) genConstant(v Value)
+ func (a *exprCompiler) genIdentOp(level int, index int)
+ func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler)
+ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value)
+-func (a *exprCompiler) genStarOp(v *exprCompiler)
++func (a *exprCompiler) genValue(vf func(*Frame) Value)
+ func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler)
+ func (a *exprCompiler) genUnaryOpNot(v *exprCompiler)
+ func (a *exprCompiler) genUnaryOpXor(v *exprCompiler)
+@@ -172,6 +173,13 @@ func (a *exprCompiler) asArray() (func(f *Frame) ArrayValue) {
+ 	return a.evalArray;
+ }
+ 
++func (a *exprCompiler) asStruct() (func(f *Frame) StructValue) {
++	if a.evalStruct == nil {
++		log.Crashf("tried to get %v node as StructType", a.t);
++	}
++	return a.evalStruct;
++}
++
+ func (a *exprCompiler) asPtr() (func(f *Frame) Value) {
+ 	if a.evalPtr == nil {
+ 		log.Crashf("tried to get %v node as PtrType", a.t);
+@@ -272,6 +280,10 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
+ 	return res;
+ }
+ 
++func (a *exprCompiler) genStarOp(v *exprCompiler) {
++	a.genValue(v.asPtr());
++}
++
+ /*
+  * Assignments
+  */
+@@ -596,7 +608,135 @@ func (a *exprCompiler) DoParenExpr(x *ast.ParenExpr) {
+ }
+ 
+ func (a *exprCompiler) DoSelectorExpr(x *ast.SelectorExpr) {
+-	log.Crash("Not implemented");
++	v := a.copyVisit(x.X);
++	if v.t == nil {
++		return;
++	}
++
++	// mark marks a field that matches the selector name.  It
++	// tracks the best depth found so far and whether more than
++	// one field has been found at that depth.
++	bestDepth := -1;
++	ambig := false;
++	amberr := "";
++	mark := func(depth int, pathName string) {
++		switch {
++		case bestDepth == -1 || depth < bestDepth:
++			bestDepth = depth;
++			ambig = false;
++			amberr = "";
++
++		case depth == bestDepth:
++			ambig = true;
++
++		default:
++			log.Crashf("Marked field at depth %d, but already found one at depth %d", depth, bestDepth);
++		}
++		amberr += "\n\t" + pathName[1:len(pathName)];
++	};
++
++	name := x.Sel.Value;
++	visited := make(map[Type] bool);
++
++	// find recursively searches for the named field, starting at
++	// type t.  If it finds the named field, it returns a function
++	// which takes an exprCompiler that retrieves a value of type
++	// 't' and fills 'a' to retrieve the named field.  We delay
++	// exprCompiler construction to avoid filling in anything
++	// until we're sure we have the right field, and to avoid
++	// producing lots of garbage exprCompilers as we search.
++	var find func(Type, int, string) (func (*exprCompiler));
++	find = func(t Type, depth int, pathName string) (func (*exprCompiler)) {
++		// Don't bother looking if we've found something shallower
++		if bestDepth != -1 && bestDepth < depth {
++			return nil;
++		}
++
++		// Don't check the same type twice and avoid loops
++		if _, ok := visited[t]; ok {
++			return nil;
++		}
++		visited[t] = true;
++
++		// Implicit dereference
++		deref := false;
++		if ti, ok := t.(*PtrType); ok {
++			deref = true;
++			t = ti.Elem;
++		}
++
++		// If it's a named type, look for methods
++		if ti, ok := t.(*NamedType); ok {
++			method, ok := ti.methods[name];
++			if ok {
++				mark(depth, pathName + "." + name);
++				log.Crash("Methods not implemented");
++			}
++			t = ti.def;
++		}
++
++		// If it's a struct type, check fields and embedded types
++		var builder func(*exprCompiler);
++		if t, ok := t.(*StructType); ok {
++			for i, f := range t.Elems {
++				var this *exprCompiler;
++				var sub func(*exprCompiler);
++				switch {
++				case f.Name == name:
++					mark(depth, pathName + "." + name);
++					this = a;
++					sub = func(*exprCompiler) {};
++
++				case f.Anonymous:
++					sub = find(f.Type, depth+1, pathName + "." + f.Name);
++					if sub == nil {
++						continue;
++					}
++					this = a.copy();
++
++				default:
++					continue;
++				}
++
++				// We found something.  Create a
++				// builder for accessing this field.
++				ft := f.Type;
++				index := i;
++				builder = func(parent *exprCompiler) {
++					this.t = ft;
++					var evalAddr func(f *Frame) Value;
++					if deref {
++						pf := parent.asPtr();
++						evalAddr = func(f *Frame) Value {
++							return pf(f).(StructValue).Field(index);
++						};
++					} else {
++						pf := parent.asStruct();
++						evalAddr = func(f *Frame) Value {
++							return pf(f).Field(index);
++						};
++					}
++					this.genValue(evalAddr);
++					sub(this);
++				};
++			}
++		}
++
++		return builder;
++	};
++
++	builder := find(v.t, 0, "");
++	if builder == nil {
++		a.diag("type %v has no field or method %s", v.t, name);
++		return;
++	}
++	if ambig {
++		a.diag("field %s is ambiguous in type %v%s", name, v.t, amberr);
++		return;
++	}
++
++	a.desc = "selector expression";
++	builder(v);
+ }
+ 
+ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
+@@ -810,6 +950,7 @@ func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
+ 	switch vt := v.t.lit().(type) {
+ 	case *PtrType:
+ 		a.t = vt.Elem;
++		// TODO(austin) Deal with nil pointers
+ 		a.genStarOp(v);
+ 		a.desc = "indirect expression";
+ 
+@@ -1134,10 +1275,15 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
+ 			return;
+ 		}
+ 		// Arrays and structs may not be compared to anything.
++		// TODO(austin) Use a multi-type switch
+ 		if _, ok := l.t.(*ArrayType); ok {
+ 			a.diagOpTypes(op, origlt, origrt);
+ 			return;
+ 		}
++		if _, ok := l.t.(*StructType); ok {
++			a.diagOpTypes(op, origlt, origrt);
++			return;
++		}
+ 		a.t = BoolType;
+ 
+ 	default:
+@@ -1283,11 +1429,8 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
+ 	if lenExpr == nil {
+ 		return 0, false;
+ 	}
+-	if !lenExpr.t.isInteger() {
+-		a.diagAt(expr, "array size must be an integer");
+-		return 0, false;
+-	}
+ 
++	// XXX(Spec) Are ideal floats with no fractional part okay?
+ 	if lenExpr.t.isIdeal() {
+ 		lenExpr = lenExpr.convertTo(IntType);
+ 		if lenExpr == nil {
+@@ -1295,6 +1438,11 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
+ 		}
+ 	}
+ 
++	if !lenExpr.t.isInteger() {
++		a.diagAt(expr, "array size must be an integer");
++		return 0, false;
++	}
++
+ 	switch _ := lenExpr.t.lit().(type) {
+ 	case *intType:
+ 		return lenExpr.evalInt(nil), true;
+@@ -1442,6 +1590,9 @@ func (a *exprCompiler) genConstant(v Value) {
+ 	case *ArrayType:
+ 		val := v.(ArrayValue).Get();
+ 		a.evalArray = func(f *Frame) ArrayValue { return val };
++	case *StructType:
++		val := v.(StructValue).Get();
++		a.evalStruct = func(f *Frame) StructValue { return val };
+ 	case *PtrType:
+ 		val := v.(PtrValue).Get();
+ 		a.evalPtr = func(f *Frame) Value { return val };
+@@ -1468,6 +1619,8 @@ func (a *exprCompiler) genIdentOp(level int, index int) {
+ 		a.evalString = func(f *Frame) string { return f.Get(level, index).(StringValue).Get() };
+ 	case *ArrayType:
+ 		a.evalArray = func(f *Frame) ArrayValue { return f.Get(level, index).(ArrayValue).Get() };
++	case *StructType:
++		a.evalStruct = func(f *Frame) StructValue { return f.Get(level, index).(StructValue).Get() };
+ 	case *PtrType:
+ 		a.evalPtr = func(f *Frame) Value { return f.Get(level, index).(PtrValue).Get() };
+ 	case *FuncType:
+@@ -1493,6 +1646,8 @@ func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
+ 		a.evalString = func(f *Frame) string { return lf(f).Elem(rf(f)).(StringValue).Get() };
+ 	case *ArrayType:
+ 		a.evalArray = func(f *Frame) ArrayValue { return lf(f).Elem(rf(f)).(ArrayValue).Get() };
++	case *StructType:
++		a.evalStruct = func(f *Frame) StructValue { return lf(f).Elem(rf(f)).(StructValue).Get() };
+ 	case *PtrType:
+ 		a.evalPtr = func(f *Frame) Value { return lf(f).Elem(rf(f)).(PtrValue).Get() };
+ 	case *FuncType:
+@@ -1517,6 +1672,8 @@ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
+ 		a.evalString = func(f *Frame) string { return call(f)[0].(StringValue).Get() };
+ 	case *ArrayType:
+ 		a.evalArray = func(f *Frame) ArrayValue { return call(f)[0].(ArrayValue).Get() };
++	case *StructType:
++		a.evalStruct = func(f *Frame) StructValue { return call(f)[0].(StructValue).Get() };
+ 	case *PtrType:
+ 		a.evalPtr = func(f *Frame) Value { return call(f)[0].(PtrValue).Get() };
+ 	case *FuncType:
+@@ -1528,9 +1685,8 @@ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
+ 	}
+ }
+ 
+-func (a *exprCompiler) genStarOp(v *exprCompiler) {
+-	vf := v.asPtr();
+-	a.evalAddr = func(f *Frame) Value { return vf(f) };
++func (a *exprCompiler) genValue(vf func(*Frame) Value) {
++	a.evalAddr = vf;
+ 	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+ 		a.evalBool = func(f *Frame) bool { return vf(f).(BoolValue).Get() };
+@@ -1544,6 +1700,8 @@ func (a *exprCompiler) genStarOp(v *exprCompiler) {
+ 		a.evalString = func(f *Frame) string { return vf(f).(StringValue).Get() };
+ 	case *ArrayType:
+ 		a.evalArray = func(f *Frame) ArrayValue { return vf(f).(ArrayValue).Get() };
++	case *StructType:
++		a.evalStruct = func(f *Frame) StructValue { return vf(f).(StructValue).Get() };
+ 	case *PtrType:
+ 		a.evalPtr = func(f *Frame) Value { return vf(f).(PtrValue).Get() };
+ 	case *FuncType:
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index d32a37a367..3ddc55e48a 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -86,7 +86,10 @@ func (b *block) DefineType(name string, pos token.Position, t Type) Type {
+ 	}
+ 	// We take the representative type of t because multiple
+ 	// levels of naming are useless.
+-	nt := &NamedType{pos, name, t.lit()};
++	if t != nil {
++		t = t.lit();
++	}
++	nt := &NamedType{pos, name, t, false, make(map[string] Method)};
+ 	b.defs[name] = nt;
+ 	return nt;
+ }
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index cc3800c82e..2bd7f8574e 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -256,10 +256,12 @@ func (a *stmtCompiler) DoBadStmt(s *ast.BadStmt) {
+ }
+ 
+ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
++	ok := true;
++
+ 	switch decl := s.Decl.(type) {
+ 	case *ast.BadDecl:
+ 		// Do nothing.  Already reported by parser.
+-		return;
++		ok = false;
+ 
+ 	case *ast.FuncDecl:
+ 		log.Crash("FuncDecl at statement level");
+@@ -269,21 +271,22 @@ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
+ 		case token.IMPORT:
+ 			log.Crash("import at statement level");
+ 
+-		case token.CONST, token.TYPE:
++		case token.CONST:
+ 			log.Crashf("%v not implemented", decl.Tok);
+ 
++		case token.TYPE:
++			ok = a.compileTypeDecl(a.block, decl);
++
+ 		case token.VAR:
+-			ok := true;
+ 			for _, spec := range decl.Specs {
+ 				spec := spec.(*ast.ValueSpec);
+ 				if spec.Values == nil {
+ 					// Declaration without assignment
+-					var t Type;
+ 					if spec.Type == nil {
+ 						// Parser should have caught
+ 						log.Crash("Type and Values nil");
+ 					}
+-					t = a.compileType(a.block, spec.Type);
++					t := a.compileType(a.block, spec.Type);
+ 					if t == nil {
+ 						// Define placeholders
+ 						ok = false;
+@@ -300,15 +303,21 @@ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
+ 						lhs[i] = n;
+ 					}
+ 					a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
++					// TODO(austin) This is rediculous.  doAssign
++					// indicates failure by setting a.err.
++					if a.err {
++						ok = false;
++					}
+ 				}
+ 			}
+-			if ok {
+-				a.err = false;
+-			}
+ 		}
+ 	default:
+ 		log.Crashf("Unexpected Decl type %T", s.Decl);
+ 	}
++
++	if ok {
++		a.err = false;
++	}
+ }
+ 
+ func (a *stmtCompiler) DoEmptyStmt(s *ast.EmptyStmt) {
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+index 8c12974ab1..0a595e265b 100644
+--- a/usr/austin/eval/type.go
++++ b/usr/austin/eval/type.go
+@@ -489,6 +489,125 @@ func (t *ArrayType) String() string {
+ 
+ func (t *ArrayType) Zero() Value
+ 
++/*
++ * Struct
++ */
++
++type StructField struct {
++	Name string;
++	Type Type;
++	Anonymous bool;
++}
++
++type StructType struct {
++	commonType;
++	Elems []StructField;
++	maxDepth int;
++}
++
++var structTypes = newTypeArrayMap()
++
++// Two struct types are identical if they have the same sequence of
++// fields, and if corresponding fields have the same names and
++// identical types. Two anonymous fields are considered to have the
++// same name.
++
++func NewStructType(fields []StructField) *StructType {
++	// Start by looking up just the types
++	fts := make([]Type, len(fields));
++	for i, f := range fields {
++		fts[i] = f.Type;
++	}
++	tMapI := structTypes.Get(fts);
++	if tMapI == nil {
++		tMapI = structTypes.Put(fts, make(map[string] *StructType));
++	}
++	tMap := tMapI.(map[string] *StructType);
++
++	// Construct key for field names
++	key := "";
++	for _, f := range fields {
++		// XXX(Spec) It's not clear if struct { T } and struct
++		// { T T } are either identical or compatible.  The
++		// "Struct Types" section says that the name of that
++		// field is "T", which suggests that they are
++		// identical, but it really means that it's the name
++		// for the purpose of selector expressions and nothing
++		// else.  We decided that they should be neither
++		// identical or compatible.
++		if f.Anonymous {
++			key += "!";
++		}
++		key += f.Name + " ";
++	}
++
++	// XXX(Spec) Do the tags also have to be identical for the
++	// types to be identical?  I certainly hope so, because
++	// otherwise, this is the only case where two distinct type
++	// objects can represent identical types.
++
++	t, ok := tMap[key];
++	if !ok {
++		// Create new struct type
++
++		// Compute max anonymous field depth
++		maxDepth := 1;
++		for _, f := range fields {
++			// TODO(austin) Careful of type T struct { *T }
++			if st, ok := f.Type.(*StructType); ok {
++				if st.maxDepth + 1 > maxDepth {
++					maxDepth = st.maxDepth + 1;
++				}
++			}
++		}
++
++		t = &StructType{commonType{}, fields, maxDepth};
++		tMap[key] = t;
++	}
++	return t;
++}
++
++func (t *StructType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*StructType);
++	if !ok {
++		return false;
++	}
++	if len(t.Elems) != len(t2.Elems) {
++		return false;
++	}
++	for i, e := range t.Elems {
++		e2 := t2.Elems[i];
++		// XXX(Spec) An anonymous and a non-anonymous field
++		// are neither identical nor compatible.
++		if (e.Anonymous != e2.Anonymous ||
++		    (!e.Anonymous && e.Name != e2.Name) ||
++		    !e.Type.compat(e2.Type, conv)) {
++			return false;
++		}
++	}
++	return true;
++}
++
++func (t *StructType) lit() Type {
++	return t;
++}
++
++func (t *StructType) String() string {
++	s := "struct {";
++	for i, f := range t.Elems {
++		if i > 0 {
++			s += "; ";
++		}
++		if !f.Anonymous {
++			s += f.Name + " ";
++		}
++		s += f.Type.String();
++	}
++	return s + "}";
++}
++
++func (t *StructType) Zero() Value
++
+ /*
+  * Pointer
+  */
+@@ -682,13 +801,21 @@ type ChanType struct {
+  * Named types
+  */
+ 
++type Method struct {
++	decl *FuncDecl;
++	fn Func;
++}
++
+ type NamedType struct {
+ 	token.Position;
+ 	name string;
+-	// Underlying type
++	// Underlying type.  If incomplete is true, this will be nil.
++	// If incomplete is false and this is still nil, then this is
++	// a placeholder type representing an error.
+ 	def Type;
+-	// TODO(austin) Methods can be on NamedType or *NamedType
+-	//methods map[string] XXX;
++	// True while this type is being defined.
++	incomplete bool;
++	methods map[string] Method;
+ }
+ 
+ func (t *NamedType) compat(o Type, conv bool) bool {
+diff --git a/usr/austin/eval/typec.go b/usr/austin/eval/typec.go
+index 3d672c4aa0..1457ddbd3a 100644
+--- a/usr/austin/eval/typec.go
++++ b/usr/austin/eval/typec.go
+@@ -7,6 +7,7 @@ package eval
+ import (
+ 	"eval";
+ 	"go/ast";
++	"go/token";
+ 	"log";
+ )
+ 
+@@ -24,11 +25,16 @@ type exprCompiler struct
+ type typeCompiler struct {
+ 	*compiler;
+ 	block *block;
++	// Check to be performed after a type declaration is compiled.
++	//
++	// TODO(austin) This will probably have to change after we
++	// eliminate forward declarations.
++	lateCheck func() bool
+ }
+ 
+-func (a *typeCompiler) compileType(x ast.Expr) Type
++func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type
+ 
+-func (a *typeCompiler) compileIdent(x *ast.Ident) Type {
++func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
+ 	_, def := a.block.Lookup(x.Value);
+ 	if def == nil {
+ 		a.diagAt(x, "%s: undefined", x.Value);
+@@ -41,6 +47,16 @@ func (a *typeCompiler) compileIdent(x *ast.Ident) Type {
+ 	case *Variable:
+ 		a.diagAt(x, "variable %v used as type", x.Value);
+ 		return nil;
++	case *NamedType:
++		if !allowRec && def.incomplete {
++			a.diagAt(x, "illegal recursive type");
++			return nil;
++		}
++		if !def.incomplete && def.def == nil {
++			// Placeholder type from an earlier error
++			return nil;
++		}
++		return def;
+ 	case Type:
+ 		return def;
+ 	}
+@@ -48,7 +64,7 @@ func (a *typeCompiler) compileIdent(x *ast.Ident) Type {
+ 	return nil;
+ }
+ 
+-func (a *typeCompiler) compileArrayType(x *ast.ArrayType) *ArrayType {
++func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
+ 	// Compile length expression
+ 	if x.Len == nil {
+ 		a.diagAt(x, "slice types not implemented");
+@@ -61,7 +77,7 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType) *ArrayType {
+ 	l, ok := a.compileArrayLen(a.block, x.Len);
+ 
+ 	// Compile element type
+-	elem := a.compileType(x.Elt);
++	elem := a.compileType(x.Elt, allowRec);
+ 
+ 	if !ok {
+ 		return nil;
+@@ -77,14 +93,6 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType) *ArrayType {
+ 	return NewArrayType(l, elem);
+ }
+ 
+-func (a *typeCompiler) compilePtrType(x *ast.StarExpr) *PtrType {
+-	elem := a.compileType(x.X);
+-	if elem == nil {
+-		return nil;
+-	}
+-	return NewPtrType(elem);
+-}
+-
+ func countFields(fs []*ast.Field) int {
+ 	n := 0;
+ 	for _, f := range fs {
+@@ -97,71 +105,164 @@ func countFields(fs []*ast.Field) int {
+ 	return n;
+ }
+ 
+-func (a *typeCompiler) compileFields(fs []*ast.Field) ([]Type, []*ast.Ident) {
++func (a *typeCompiler) compileFields(fs []*ast.Field, allowRec bool) ([]Type, []*ast.Ident, []token.Position, bool) {
+ 	n := countFields(fs);
+ 	ts := make([]Type, n);
+ 	ns := make([]*ast.Ident, n);
++	ps := make([]token.Position, n);
+ 
+ 	bad := false;
+ 	i := 0;
+ 	for fi, f := range fs {
+-		t := a.compileType(f.Type);
++		t := a.compileType(f.Type, allowRec);
+ 		if t == nil {
+ 			bad = true;
+ 		}
+ 		if f.Names == nil {
+-			// TODO(austin) In a struct, this has an
+-			// implicit name.  However, this also triggers
+-			// for function return values, which should
+-			// not be given names.
+ 			ns[i] = nil;
+ 			ts[i] = t;
++			ps[i] = f.Type.Pos();
+ 			i++;
+ 			continue;
+ 		}
+ 		for _, n := range f.Names {
+ 			ns[i] = n;
+ 			ts[i] = t;
++			ps[i] = n.Pos();
+ 			i++;
+ 		}
+ 	}
+ 
++	return ts, ns, ps, bad;
++}
++
++func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type {
++	ts, names, poss, bad := a.compileFields(x.Fields, allowRec);
++
++	// XXX(Spec) The spec claims that field identifiers must be
++	// unique, but 6g only checks this when they are accessed.  I
++	// think the spec is better in this regard: if I write two
++	// fields with the same name in the same struct type, clearly
++	// that's a mistake.  This definition does *not* descend into
++	// anonymous fields, so it doesn't matter if those change.
++	// There's separate language in the spec about checking
++	// uniqueness of field names inherited from anonymous fields
++	// at use time.
++	fields := make([]StructField, len(ts));
++	nameSet := make(map[string] token.Position, len(ts));
++	for i := range fields {
++		// Compute field name and check anonymous fields
++		var name string;
++		if names[i] != nil {
++			name = names[i].Value;
++		} else {
++			if ts[i] == nil {
++				continue;
++			}
++
++			var nt *NamedType;
++			// [For anonymous fields,] the unqualified
++			// type name acts as the field identifier.
++			switch t := ts[i].(type) {
++			case *NamedType:
++				name = t.name;
++				nt = t;
++			case *PtrType:
++				switch t := t.Elem.(type) {
++				case *NamedType:
++					name = t.name;
++					nt = t;
++				}
++			}
++			// [An anonymous field] must be specified as a
++			// type name T or as a pointer to a type name
++			// *T, and T itself, may not be a pointer or
++			// interface type.
++			if nt == nil {
++				a.diagAt(&poss[i], "embedded type must T or *T, where T is a named type");
++				bad = true;
++				continue;
++			}
++			// The check for embedded pointer types must
++			// be deferred because of things like
++			//  type T *struct { T }
++			lateCheck := a.lateCheck;
++			a.lateCheck = func() bool {
++				if _, ok := nt.lit().(*PtrType); ok {
++					a.diagAt(&poss[i], "embedded type %v is a pointer type", nt);
++					return false;
++				}
++				return lateCheck();
++			};
++		}
++
++		// Check name uniqueness
++		if prev, ok := nameSet[name]; ok {
++			a.diagAt(&poss[i], "field %s redeclared\n\tprevious declaration at %s", name, &prev);
++			bad = true;
++			continue;
++		}
++		nameSet[name] = poss[i];
++
++		// Create field
++		fields[i].Name = name;
++		fields[i].Type = ts[i];
++		fields[i].Anonymous = (names[i] == nil);
++	}
++
+ 	if bad {
+-		return nil, nil;
++		return nil;
+ 	}
+-	return ts, ns;
++
++	return NewStructType(fields);
+ }
+ 
+-func (a *typeCompiler) compileFuncType(x *ast.FuncType) *FuncDecl {
+-	// TODO(austin) Variadic function types
++func (a *typeCompiler) compilePtrType(x *ast.StarExpr) Type {
++	elem := a.compileType(x.X, true);
++	if elem == nil {
++		return nil;
++	}
++	return NewPtrType(elem);
++}
+ 
+-	bad := false;
++func (a *typeCompiler) compileFuncType(x *ast.FuncType, allowRec bool) *FuncDecl {
++	// TODO(austin) Variadic function types
+ 
+-	in, inNames := a.compileFields(x.Params);
+-	out, outNames := a.compileFields(x.Results);
++	// The types of parameters and results must be complete.
++	//
++	// TODO(austin) It's not clear they actually have to be complete.
++	in, inNames, _, inBad := a.compileFields(x.Params, allowRec);
++	out, outNames, _, outBad := a.compileFields(x.Results, allowRec);
+ 
+-	if in == nil || out == nil {
++	if inBad || outBad {
+ 		return nil;
+ 	}
+ 	return &FuncDecl{NewFuncType(in, false, out), nil, inNames, outNames};
+ }
+ 
+-func (a *typeCompiler) compileType(x ast.Expr) Type {
++func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type {
+ 	switch x := x.(type) {
++	case *ast.BadExpr:
++		return nil;
++
+ 	case *ast.Ident:
+-		return a.compileIdent(x);
++		return a.compileIdent(x, allowRec);
+ 
+ 	case *ast.ArrayType:
+-		return a.compileArrayType(x);
++		return a.compileArrayType(x, allowRec);
+ 
+ 	case *ast.StructType:
+-		goto notimpl;
++		return a.compileStructType(x, allowRec);
+ 
+ 	case *ast.StarExpr:
+ 		return a.compilePtrType(x);
+ 
+ 	case *ast.FuncType:
+-		return a.compileFuncType(x).Type;
++		fd := a.compileFuncType(x, allowRec);
++		if fd == nil {
++			return nil;
++		}
++		return fd.Type;
+ 
+ 	case *ast.InterfaceType:
+ 		goto notimpl;
+@@ -173,7 +274,7 @@ func (a *typeCompiler) compileType(x ast.Expr) Type {
+ 		goto notimpl;
+ 
+ 	case *ast.ParenExpr:
+-		return a.compileType(x.X);
++		return a.compileType(x.X, allowRec);
+ 
+ 	case *ast.Ellipsis:
+ 		a.diagAt(x, "illegal use of ellipsis");
+@@ -191,12 +292,59 @@ notimpl:
+  * Type compiler interface
+  */
+ 
++func noLateCheck() bool {
++	return true;
++}
++
+ func (a *compiler) compileType(b *block, typ ast.Expr) Type {
+-	tc := &typeCompiler{a, b};
+-	return tc.compileType(typ);
++	tc := &typeCompiler{a, b, noLateCheck};
++	t := tc.compileType(typ, false);
++	if !tc.lateCheck() {
++		t = nil;
++	}
++	return t;
++}
++
++func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool {
++	ok := true;
++	for _, spec := range decl.Specs {
++		spec := spec.(*ast.TypeSpec);
++		// Create incomplete type for this type
++		nt := b.DefineType(spec.Name.Value, spec.Name.Pos(), nil);
++		if nt != nil {
++			nt.(*NamedType).incomplete = true;
++		}
++		// Compile type
++		tc := &typeCompiler{a, b, noLateCheck};
++		t := tc.compileType(spec.Type, false);
++		if t == nil {
++			// Create a placeholder type
++			ok = false;
++		}
++		// Fill incomplete type
++		if nt != nil {
++			nt.(*NamedType).def = t;
++			nt.(*NamedType).incomplete = false;
++		}
++		// Perform late type checking with complete type
++		if !tc.lateCheck() {
++			ok = false;
++			if nt != nil {
++				// Make the type a placeholder
++				nt.(*NamedType).def = nil;
++			}
++		}
++	}
++	return ok;
+ }
+ 
+ func (a *compiler) compileFuncType(b *block, typ *ast.FuncType) *FuncDecl {
+-	tc := &typeCompiler{a, b};
+-	return tc.compileFuncType(typ);
++	tc := &typeCompiler{a, b, noLateCheck};
++	res := tc.compileFuncType(typ, false);
++	if res != nil {
++		if !tc.lateCheck() {
++			res = nil;
++		}
++	}
++	return res;
+ }
+diff --git a/usr/austin/eval/value.go b/usr/austin/eval/value.go
+index 7f6a366216..b3fd138762 100644
+--- a/usr/austin/eval/value.go
++++ b/usr/austin/eval/value.go
+@@ -478,6 +478,49 @@ func (t *ArrayType) Zero() Value {
+ 	return &res;
+ }
+ 
++/*
++ * Struct
++ */
++
++type structV []Value
++
++// TODO(austin) Should these methods (and arrayV's) be on structV
++// instead of *structV?
++func (v *structV) String() string {
++	res := "{";
++	for i, v := range *v {
++		if i > 0 {
++			res += "; ";
++		}
++		res += v.String();
++	}
++	return res + "}";
++}
++
++func (v *structV) Assign(o Value) {
++	oa := o.(StructValue);
++	l := len(*v);
++	for i := 0; i < l; i++ {
++		(*v)[i].Assign(oa.Field(i));
++	}
++}
++
++func (v *structV) Get() StructValue {
++	return v;
++}
++
++func (v *structV) Field(i int) Value {
++	return (*v)[i];
++}
++
++func (t *StructType) Zero() Value {
++	res := structV(make([]Value, len(t.Elems)));
++	for i, f := range t.Elems {
++		res[i] = f.Type.Zero();
++	}
++	return &res;
++}
++
+ /*
+  * Pointer
+  */
+@@ -562,8 +605,8 @@ func (v multiV) Assign(o Value) {
+ 
+ func (t *MultiType) Zero() Value {
+ 	res := make([]Value, len(t.Elems));
+-	for i := 0; i < len(t.Elems); i++ {
+-		res[i] = t.Elems[i].Zero();
++	for i, t := range t.Elems {
++		res[i] = t.Zero();
+ 	}
+ 	return multiV(res);
+ }

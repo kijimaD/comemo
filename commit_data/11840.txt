@@ -11,6 +11,27 @@ Date:   Sun Feb 12 21:53:33 2012 -0800
     R=rsc, dvyukov
     CC=golang-dev
     https://golang.org/cl/5654065
-
+---
  src/pkg/sync/atomic/atomic_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index ad7557650f..a06c85c3a9 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -636,6 +636,7 @@ func init() {
+ 		// 64-bit system; clear uintptr tests
+ 		hammer32[2].f = nil
+ 		hammer32[5].f = nil
++		hammer32[6].f = nil
+ 	}
+ }
+ 
+@@ -760,6 +761,7 @@ func init() {
+ 		// 32-bit system; clear uintptr tests
+ 		hammer64[2].f = nil
+ 		hammer64[5].f = nil
++		hammer64[6].f = nil
+ 	}
+ }
+ 

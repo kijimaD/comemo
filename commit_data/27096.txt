@@ -24,6 +24,20 @@ Date:   Thu Mar 10 14:25:50 2016 -0800
     Change-Id: Ic0f638ebdd21981d92a99a882affebf3a77ab71a
     Reviewed-on: https://go-review.googlesource.com/20544
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/pkix/pkix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 1b3e3c0440..faad4061fc 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -177,7 +177,7 @@ func (certList *CertificateList) HasExpired(now time.Time) bool {
+ // 5280, section 5.1.
+ type TBSCertificateList struct {
+ 	Raw                 asn1.RawContent
+-	Version             int `asn1:"optional,default:1"`
++	Version             int `asn1:"optional,default:0"`
+ 	Signature           AlgorithmIdentifier
+ 	Issuer              RDNSequence
+ 	ThisUpdate          time.Time

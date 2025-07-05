@@ -8,6 +8,32 @@ Date:   Thu Sep 6 10:37:13 2012 -0700
     R=golang-dev, rsc, 0xjnml
     CC=golang-dev
     https://golang.org/cl/6506083
-
+---
  doc/go_spec.html | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 2350fdbad8..195f7a3c24 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of September 4, 2012",
++	"Subtitle": "Version of September 6, 2012",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -99,6 +99,12 @@ are different characters.
+ Implementation restriction: For compatibility with other tools, a
+ compiler may disallow the NUL character (U+0000) in the source text.
+ </p>
++<p>
++Implementation restriction: For compatibility with other tools, a
++compiler may ignore any UTF-8-encoded Unicode byte order mark
++(U+FEFF) in the source text outside of <a href="#String_literals">string</a>
++and <a href="#Rune_literals">rune</a> literals.
++</p>
+ 
+ <h3 id="Characters">Characters</h3>
+ 

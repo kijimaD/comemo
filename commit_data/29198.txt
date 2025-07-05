@@ -14,9 +14,131 @@ Date:   Tue Aug 30 16:08:06 2016 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/compress/flate/inflate.go      |  3 +++
  src/compress/flate/inflate_test.go | 29 +++++++++++++++++++++++++++++
  src/compress/gzip/gunzip_test.go   | 20 ++++++++++++++++++++
  src/compress/zlib/reader_test.go   | 18 ++++++++++++++++++
  4 files changed, 70 insertions(+)
+
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 68cc232052..9a8c4fc455 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -344,6 +344,9 @@ func (f *decompressor) Read(b []byte) (int, error) {
+ 			return 0, f.err
+ 		}
+ 		f.step(f)
++		if f.err != nil && len(f.toRead) == 0 {
++			f.toRead = f.dict.readFlush() // Flush what's left in case of error
++		}
+ 	}
+ }
+ 
+diff --git a/src/compress/flate/inflate_test.go b/src/compress/flate/inflate_test.go
+index e0bce71d6f..951decd775 100644
+--- a/src/compress/flate/inflate_test.go
++++ b/src/compress/flate/inflate_test.go
+@@ -7,6 +7,8 @@ package flate
+ import (
+ 	"bytes"
+ 	"io"
++	"io/ioutil"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -38,6 +40,33 @@ func TestReset(t *testing.T) {
+ 	}
+ }
+ 
++func TestReaderTruncated(t *testing.T) {
++	vectors := []struct{ input, output string }{
++		{"\x00", ""},
++		{"\x00\f", ""},
++		{"\x00\f\x00", ""},
++		{"\x00\f\x00\xf3\xff", ""},
++		{"\x00\f\x00\xf3\xffhello", "hello"},
++		{"\x00\f\x00\xf3\xffhello, world", "hello, world"},
++		{"\x02", ""},
++		{"\xf2H\xcd", "He"},
++		{"\xf2H͙0a\u0084\t", "Hel\x90\x90\x90\x90\x90"},
++		{"\xf2H͙0a\u0084\t\x00", "Hel\x90\x90\x90\x90\x90"},
++	}
++
++	for i, v := range vectors {
++		r := strings.NewReader(v.input)
++		zr := NewReader(r)
++		b, err := ioutil.ReadAll(zr)
++		if err != io.ErrUnexpectedEOF {
++			t.Errorf("test %d, error mismatch: got %v, want io.ErrUnexpectedEOF", i, err)
++		}
++		if string(b) != v.output {
++			t.Errorf("test %d, output mismatch: got %q, want %q", i, b, v.output)
++		}
++	}
++}
++
+ func TestResetDict(t *testing.T) {
+ 	dict := []byte("the lorem fox")
+ 	ss := []string{
+diff --git a/src/compress/gzip/gunzip_test.go b/src/compress/gzip/gunzip_test.go
+index fdce91989a..fdea0c5d5f 100644
+--- a/src/compress/gzip/gunzip_test.go
++++ b/src/compress/gzip/gunzip_test.go
+@@ -339,6 +339,26 @@ var gunzipTests = []gunzipTest{
+ 		},
+ 		nil,
+ 	},
++	{
++		"",
++		"truncated gzip file amid raw-block",
++		"hello",
++		[]byte{
++			0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,
++			0x00, 0x0c, 0x00, 0xf3, 0xff, 0x68, 0x65, 0x6c, 0x6c, 0x6f,
++		},
++		io.ErrUnexpectedEOF,
++	},
++	{
++		"",
++		"truncated gzip file amid fixed-block",
++		"He",
++		[]byte{
++			0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,
++			0xf2, 0x48, 0xcd,
++		},
++		io.ErrUnexpectedEOF,
++	},
+ }
+ 
+ func TestDecompressor(t *testing.T) {
+diff --git a/src/compress/zlib/reader_test.go b/src/compress/zlib/reader_test.go
+index f74bff1f3c..7e27aecb47 100644
+--- a/src/compress/zlib/reader_test.go
++++ b/src/compress/zlib/reader_test.go
+@@ -121,6 +121,24 @@ var zlibTests = []zlibTest{
+ 		},
+ 		ErrDictionary,
+ 	},
++	{
++		"truncated zlib stream amid raw-block",
++		"hello",
++		[]byte{
++			0x78, 0x9c, 0x00, 0x0c, 0x00, 0xf3, 0xff, 0x68, 0x65, 0x6c, 0x6c, 0x6f,
++		},
++		nil,
++		io.ErrUnexpectedEOF,
++	},
++	{
++		"truncated zlib stream amid fixed-block",
++		"He",
++		[]byte{
++			0x78, 0x9c, 0xf2, 0x48, 0xcd,
++		},
++		nil,
++		io.ErrUnexpectedEOF,
++	},
+ }
+ 
+ func TestDecompressor(t *testing.T) {

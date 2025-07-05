@@ -14,9 +14,203 @@ Date:   Wed Jul 12 09:53:49 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/toolchain.go        | 30 +++++++++++++----
  src/cmd/go/internal/modget/query.go              |  5 ++-
  src/cmd/go/internal/modload/query.go             |  6 +++-
  src/cmd/go/testdata/script/mod_get_toolchain.txt | 43 +++++++++++++++++++-----
  4 files changed, 67 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/toolchain.go b/src/cmd/go/internal/modfetch/toolchain.go
+index 623f68f97b..1669ab92e7 100644
+--- a/src/cmd/go/internal/modfetch/toolchain.go
++++ b/src/cmd/go/internal/modfetch/toolchain.go
+@@ -60,6 +60,15 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
+ 		}
+ 	}
+ 
++	// Always include our own version.
++	// This means that the development branch of Go 1.21 (say) will allow 'go get go@1.21'
++	// even though there are no Go 1.21 releases yet.
++	// Once there is a release, 1.21 will be treated as a query matching the latest available release.
++	// Before then, 1.21 will be treated as a query that resolves to this entry we are adding (1.21).
++	if v := gover.Local(); !have[v] {
++		list = append(list, goPrefix+v)
++	}
++
+ 	if r.path == "go" {
+ 		sort.Slice(list, func(i, j int) bool {
+ 			return gover.Compare(list[i], list[j]) < 0
+@@ -74,20 +83,27 @@ func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions,
+ }
+ 
+ func (r *toolchainRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+-	// If we're asking about "go" (not "toolchain"), pretend to have
+-	// all earlier Go versions available without network access:
+-	// we will provide those ourselves, at least in GOTOOLCHAIN=auto mode.
+-	if r.path == "go" && gover.Compare(rev, gover.Local()) <= 0 {
+-		return &RevInfo{Version: rev}, nil
+-	}
+-
+ 	// Convert rev to DL version and stat that to make sure it exists.
++	// In theory the go@ versions should be like 1.21.0
++	// and the toolchain@ versions should be like go1.21.0
++	// but people will type the wrong one, and so we accept
++	// both and silently correct it to the standard form.
+ 	prefix := ""
+ 	v := rev
+ 	v = strings.TrimPrefix(v, "go")
+ 	if r.path == "toolchain" {
+ 		prefix = "go"
+ 	}
++
++	if !gover.IsValid(v) {
++		return nil, fmt.Errorf("invalid %s version %s", r.path, rev)
++	}
++	// If we're asking about "go" (not "toolchain"), pretend to have
++	// all earlier Go versions available without network access:
++	// we will provide those ourselves, at least in GOTOOLCHAIN=auto mode.
++	if r.path == "go" && gover.Compare(v, gover.Local()) <= 0 {
++		return &RevInfo{Version: prefix + v}, nil
++	}
+ 	if gover.IsLang(v) {
+ 		return nil, fmt.Errorf("go language version %s is not a toolchain version", rev)
+ 	}
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index 68706e7c79..b78c1c4621 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -239,10 +239,13 @@ func (q *query) matchesPath(path string) bool {
+ // canMatchInModule reports whether the given module path can potentially
+ // contain q.pattern.
+ func (q *query) canMatchInModule(mPath string) bool {
++	if gover.IsToolchain(mPath) {
++		return false
++	}
+ 	if q.canMatchWildcardInModule != nil {
+ 		return q.canMatchWildcardInModule(mPath)
+ 	}
+-	return str.HasPathPrefix(q.pattern, mPath) && !gover.IsToolchain(mPath)
++	return str.HasPathPrefix(q.pattern, mPath)
+ }
+ 
+ // pathOnce invokes f to generate the pathSet for the given path,
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 81c32d27a1..f8ddf1101a 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -473,7 +473,11 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ // AllowedFunc of qm.
+ func (qm *queryMatcher) allowsVersion(ctx context.Context, v string) bool {
+ 	if qm.prefix != "" && !strings.HasPrefix(v, qm.prefix) {
+-		return false
++		if gover.IsToolchain(qm.path) && strings.TrimSuffix(qm.prefix, ".") == v {
++			// Allow 1.21 to match "1.21." prefix.
++		} else {
++			return false
++		}
+ 	}
+ 	if qm.filter != nil && !qm.filter(v) {
+ 		return false
+diff --git a/src/cmd/go/testdata/script/mod_get_toolchain.txt b/src/cmd/go/testdata/script/mod_get_toolchain.txt
+index 143ad32a4e..758142d668 100644
+--- a/src/cmd/go/testdata/script/mod_get_toolchain.txt
++++ b/src/cmd/go/testdata/script/mod_get_toolchain.txt
+@@ -1,5 +1,5 @@
+ # setup
+-env TESTGO_VERSION=go1.99.0
++env TESTGO_VERSION=go1.99rc1
+ env TESTGO_VERSION_SWITCH=switch
+ 
+ # go get go should use the latest Go 1.23
+@@ -7,28 +7,28 @@ cp go.mod.orig go.mod
+ go get go
+ stderr '^go: upgraded go 1.21 => 1.23.9$'
+ grep 'go 1.23.9' go.mod
+-grep 'toolchain go1.99.0' go.mod
++grep 'toolchain go1.99rc1' go.mod
+ 
+ # go get go@1.23 should use the latest Go 1.23
+ cp go.mod.orig go.mod
+ go get go@1.23
+ stderr '^go: upgraded go 1.21 => 1.23.9$'
+ grep 'go 1.23.9' go.mod
+-grep 'toolchain go1.99.0' go.mod
++grep 'toolchain go1.99rc1' go.mod
+ 
+ # go get go@1.22 should use the latest Go 1.22
+ cp go.mod.orig go.mod
+ go get go@1.22
+ stderr '^go: upgraded go 1.21 => 1.22.9$'
+ grep 'go 1.22.9' go.mod
+-grep 'toolchain go1.99.0' go.mod
++grep 'toolchain go1.99rc1' go.mod
+ 
+ # go get go@patch should use the latest patch release
+ go get go@1.22.1
+ go get go@patch
+ stderr '^go: upgraded go 1.22.1 => 1.22.9$'
+ grep 'go 1.22.9' go.mod
+-grep 'toolchain go1.99.0' go.mod
++grep 'toolchain go1.99rc1' go.mod
+ 
+ # go get go@1.24 does NOT find the release candidate
+ cp go.mod.orig go.mod
+@@ -40,20 +40,20 @@ cp go.mod.orig go.mod
+ go get go@1.24rc1
+ stderr '^go: upgraded go 1.21 => 1.24rc1$'
+ grep 'go 1.24rc1' go.mod
+-grep 'toolchain go1.99.0' go.mod
++grep 'toolchain go1.99rc1' go.mod
+ 
+ # go get go@latest finds the latest Go 1.23
+ cp go.mod.orig go.mod
+ go get go@latest
+ stderr '^go: upgraded go 1.21 => 1.23.9$'
+ grep 'go 1.23.9' go.mod
+-grep 'toolchain go1.99.0' go.mod
++grep 'toolchain go1.99rc1' go.mod
+ 
+ # Again, with toolchains.
+ 
+ # go get toolchain should find go1.999testmod.
+ go get toolchain
+-stderr '^go: upgraded toolchain go1.99.0 => go1.999testmod$'
++stderr '^go: upgraded toolchain go1.99rc1 => go1.999testmod$'
+ grep 'go 1.23.9' go.mod
+ grep 'toolchain go1.999testmod' go.mod
+ 
+@@ -96,6 +96,33 @@ stderr '^go: added toolchain go1.999testmod$'
+ grep 'go 1.21' go.mod
+ grep 'toolchain go1.999testmod' go.mod
+ 
++# Bug fixes.
++
++# go get go@garbage should fail but not crash
++! go get go@garbage
++! stderr panic
++stderr '^go: invalid go version garbage$'
++
++# go get go@go1.21.0 is OK - we silently correct to 1.21.0
++go get go@1.19
++go get go@go1.21.0
++stderr '^go: upgraded go 1.19 => 1.21.0'
++
++# go get toolchain@1.24rc1 is OK too.
++go get toolchain@1.24rc1
++stderr '^go: downgraded toolchain go1.999testmod => go1.24rc1$'
++
++# go get go@1.21 should work if we are the Go 1.21 language version,
++# even though there's no toolchain for it.
++# (Older versions resolve to the latest release in that version, so for example
++# go get go@1.20 might resolve to 1.20.9, but if we're the devel copy of
++# Go 1.21, there's no release yet to resolve to, so we resolve to ourselves.)
++env TESTGO_VERSION=go1.21
++go get go@1.19 toolchain@none
++go get go@1.21
++grep 'go 1.21$' go.mod
++! grep toolchain go.mod
++
+ -- go.mod.orig --
+ module m
+ 

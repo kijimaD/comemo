@@ -14,9 +14,182 @@ Date:   Fri Nov 30 21:12:06 2018 +1100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go                   | 60 ++++++++++++++++++++-----
  src/runtime/proc.go                             |  3 ++
  src/runtime/testdata/testprogcgo/pprof.go       |  8 +++-
  src/runtime/testdata/testprogcgo/threadpprof.go |  6 ++-
  4 files changed, 65 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 6da8341e84..c1dd757797 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -263,7 +263,7 @@ func TestCgoTracebackContext(t *testing.T) {
+ 	}
+ }
+ 
+-func testCgoPprof(t *testing.T, buildArg, runArg string) {
++func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
+ 	t.Parallel()
+ 	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
+ 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+@@ -287,7 +287,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
+ 	defer os.Remove(fn)
+ 
+ 	for try := 0; try < 2; try++ {
+-		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1"))
++		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-traces"))
+ 		// Check that pprof works both with and without explicit executable on command line.
+ 		if try == 0 {
+ 			cmd.Args = append(cmd.Args, exe, fn)
+@@ -307,30 +307,38 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
+ 			cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
+ 		}
+ 
+-		top, err := cmd.CombinedOutput()
+-		t.Logf("%s:\n%s", cmd.Args, top)
++		out, err := cmd.CombinedOutput()
++		t.Logf("%s:\n%s", cmd.Args, out)
+ 		if err != nil {
+ 			t.Error(err)
+-		} else if !bytes.Contains(top, []byte("cpuHog")) {
+-			t.Error("missing cpuHog in pprof output")
++			continue
++		}
++
++		trace := findTrace(string(out), top)
++		if len(trace) == 0 {
++			t.Errorf("%s traceback missing.", top)
++			continue
++		}
++		if trace[len(trace)-1] != bottom {
++			t.Errorf("invalid traceback origin: got=%v; want=[%s ... %s]", trace, top, bottom)
+ 		}
+ 	}
+ }
+ 
+ func TestCgoPprof(t *testing.T) {
+-	testCgoPprof(t, "", "CgoPprof")
++	testCgoPprof(t, "", "CgoPprof", "cpuHog", "runtime.main")
+ }
+ 
+ func TestCgoPprofPIE(t *testing.T) {
+-	testCgoPprof(t, "-buildmode=pie", "CgoPprof")
++	testCgoPprof(t, "-buildmode=pie", "CgoPprof", "cpuHog", "runtime.main")
+ }
+ 
+ func TestCgoPprofThread(t *testing.T) {
+-	testCgoPprof(t, "", "CgoPprofThread")
++	testCgoPprof(t, "", "CgoPprofThread", "cpuHogThread", "cpuHogThread2")
+ }
+ 
+ func TestCgoPprofThreadNoTraceback(t *testing.T) {
+-	testCgoPprof(t, "", "CgoPprofThreadNoTraceback")
++	testCgoPprof(t, "", "CgoPprofThreadNoTraceback", "cpuHogThread", "runtime._ExternalCode")
+ }
+ 
+ func TestRaceProf(t *testing.T) {
+@@ -509,3 +517,35 @@ func TestBigStackCallbackCgo(t *testing.T) {
+ 		t.Errorf("expected %q got %v", want, got)
+ 	}
+ }
++
++func nextTrace(lines []string) ([]string, []string) {
++	var trace []string
++	for n, line := range lines {
++		if strings.HasPrefix(line, "---") {
++			return trace, lines[n+1:]
++		}
++		fields := strings.Fields(strings.TrimSpace(line))
++		if len(fields) == 0 {
++			continue
++		}
++		// Last field contains the function name.
++		trace = append(trace, fields[len(fields)-1])
++	}
++	return nil, nil
++}
++
++func findTrace(text, top string) []string {
++	lines := strings.Split(text, "\n")
++	_, lines = nextTrace(lines) // Skip the header.
++	for len(lines) > 0 {
++		var t []string
++		t, lines = nextTrace(lines)
++		if len(t) == 0 {
++			continue
++		}
++		if t[0] == top {
++			return t
++		}
++	}
++	return nil
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 409869fd10..fc77a964b6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3742,6 +3742,9 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 
+ 		// Collect Go stack that leads to the cgo call.
+ 		n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[cgoOff], len(stk)-cgoOff, nil, nil, 0)
++		if n > 0 {
++			n += cgoOff
++		}
+ 	} else if traceback {
+ 		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
+ 	}
+diff --git a/src/runtime/testdata/testprogcgo/pprof.go b/src/runtime/testdata/testprogcgo/pprof.go
+index 4460b9304e..00f2c42e93 100644
+--- a/src/runtime/testdata/testprogcgo/pprof.go
++++ b/src/runtime/testdata/testprogcgo/pprof.go
+@@ -26,6 +26,9 @@ void cpuHog() {
+ 	salt2 = foo;
+ }
+ 
++void cpuHog2() {
++}
++
+ static int cpuHogCount;
+ 
+ struct cgoTracebackArg {
+@@ -37,10 +40,13 @@ struct cgoTracebackArg {
+ 
+ // pprofCgoTraceback is passed to runtime.SetCgoTraceback.
+ // For testing purposes it pretends that all CPU hits in C code are in cpuHog.
++// Issue #29034: At least 2 frames are required to verify all frames are captured
++// since runtime/pprof ignores the runtime.goexit base frame if it exists.
+ void pprofCgoTraceback(void* parg) {
+ 	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
+ 	arg->buf[0] = (uintptr_t)(cpuHog) + 0x10;
+-	arg->buf[1] = 0;
++	arg->buf[1] = (uintptr_t)(cpuHog2) + 0x4;
++	arg->buf[2] = 0;
+ 	++cpuHogCount;
+ }
+ 
+diff --git a/src/runtime/testdata/testprogcgo/threadpprof.go b/src/runtime/testdata/testprogcgo/threadpprof.go
+index 3da82961b9..37a2a1ab65 100644
+--- a/src/runtime/testdata/testprogcgo/threadpprof.go
++++ b/src/runtime/testdata/testprogcgo/threadpprof.go
+@@ -30,6 +30,9 @@ void cpuHogThread() {
+ 	threadSalt2 = foo;
+ }
+ 
++void cpuHogThread2() {
++}
++
+ static int cpuHogThreadCount;
+ 
+ struct cgoTracebackArg {
+@@ -44,7 +47,8 @@ struct cgoTracebackArg {
+ void pprofCgoThreadTraceback(void* parg) {
+ 	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
+ 	arg->buf[0] = (uintptr_t)(cpuHogThread) + 0x10;
+-	arg->buf[1] = 0;
++	arg->buf[1] = (uintptr_t)(cpuHogThread2) + 0x4;
++	arg->buf[2] = 0;
+ 	__sync_add_and_fetch(&cpuHogThreadCount, 1);
+ }
+ 

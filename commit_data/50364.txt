@@ -8,8 +8,115 @@ Date:   Fri Sep 24 16:06:07 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/356170
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgcmark.go  | 10 +++++-----
  src/runtime/mgcpacer.go | 20 +++++---------------
  src/runtime/proc.go     |  2 +-
  3 files changed, 11 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 246907e538..efda65fe1e 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -400,8 +400,8 @@ retry:
+ 	// balance positive. When the required amount of work is low,
+ 	// we over-assist to build up credit for future allocations
+ 	// and amortize the cost of assisting.
+-	assistWorkPerByte := float64frombits(atomic.Load64(&gcController.assistWorkPerByte))
+-	assistBytesPerWork := float64frombits(atomic.Load64(&gcController.assistBytesPerWork))
++	assistWorkPerByte := gcController.assistWorkPerByte.Load()
++	assistBytesPerWork := gcController.assistBytesPerWork.Load()
+ 	debtBytes := -gp.gcAssistBytes
+ 	scanWork := int64(assistWorkPerByte * float64(debtBytes))
+ 	if scanWork < gcOverAssistWork {
+@@ -545,7 +545,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 	// this scan work counts for. The "1+" is a poor man's
+ 	// round-up, to ensure this adds credit even if
+ 	// assistBytesPerWork is very low.
+-	assistBytesPerWork := float64frombits(atomic.Load64(&gcController.assistBytesPerWork))
++	assistBytesPerWork := gcController.assistBytesPerWork.Load()
+ 	gp.gcAssistBytes += 1 + int64(assistBytesPerWork*float64(workDone))
+ 
+ 	// If this is the last worker and we ran out of work,
+@@ -638,7 +638,7 @@ func gcFlushBgCredit(scanWork int64) {
+ 		return
+ 	}
+ 
+-	assistBytesPerWork := float64frombits(atomic.Load64(&gcController.assistBytesPerWork))
++	assistBytesPerWork := gcController.assistBytesPerWork.Load()
+ 	scanBytes := int64(float64(scanWork) * assistBytesPerWork)
+ 
+ 	lock(&work.assistQueue.lock)
+@@ -672,7 +672,7 @@ func gcFlushBgCredit(scanWork int64) {
+ 
+ 	if scanBytes > 0 {
+ 		// Convert from scan bytes back to work.
+-		assistWorkPerByte := float64frombits(atomic.Load64(&gcController.assistWorkPerByte))
++		assistWorkPerByte := gcController.assistWorkPerByte.Load()
+ 		scanWork = int64(float64(scanBytes) * assistWorkPerByte)
+ 		atomic.Xaddint64(&gcController.bgScanCredit, scanWork)
+ 	}
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 9338359de7..342ea419fe 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -222,24 +222,14 @@ type gcControllerState struct {
+ 	// bytes that should be performed by mutator assists. This is
+ 	// computed at the beginning of each cycle and updated every
+ 	// time heapScan is updated.
+-	//
+-	// Stored as a uint64, but it's actually a float64. Use
+-	// float64frombits to get the value.
+-	//
+-	// Read and written atomically.
+-	assistWorkPerByte uint64
++	assistWorkPerByte atomic.Float64
+ 
+ 	// assistBytesPerWork is 1/assistWorkPerByte.
+ 	//
+-	// Stored as a uint64, but it's actually a float64. Use
+-	// float64frombits to get the value.
+-	//
+-	// Read and written atomically.
+-	//
+ 	// Note that because this is read and written independently
+ 	// from assistWorkPerByte users may notice a skew between
+ 	// the two values, and such a state should be safe.
+-	assistBytesPerWork uint64
++	assistBytesPerWork atomic.Float64
+ 
+ 	// fractionalUtilizationGoal is the fraction of wall clock
+ 	// time that should be spent in the fractional mark worker on
+@@ -333,7 +323,7 @@ func (c *gcControllerState) startCycle() {
+ 	c.revise()
+ 
+ 	if debug.gcpacertrace > 0 {
+-		assistRatio := float64frombits(atomic.Load64(&c.assistWorkPerByte))
++		assistRatio := c.assistWorkPerByte.Load()
+ 		print("pacer: assist ratio=", assistRatio,
+ 			" (scan ", gcController.heapScan>>20, " MB in ",
+ 			work.initialHeapLive>>20, "->",
+@@ -439,8 +429,8 @@ func (c *gcControllerState) revise() {
+ 	// cycle.
+ 	assistWorkPerByte := float64(scanWorkRemaining) / float64(heapRemaining)
+ 	assistBytesPerWork := float64(heapRemaining) / float64(scanWorkRemaining)
+-	atomic.Store64(&c.assistWorkPerByte, float64bits(assistWorkPerByte))
+-	atomic.Store64(&c.assistBytesPerWork, float64bits(assistBytesPerWork))
++	c.assistWorkPerByte.Store(assistWorkPerByte)
++	c.assistBytesPerWork.Store(assistBytesPerWork)
+ }
+ 
+ // endCycle computes the trigger ratio for the next cycle.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c14a1f143c..b80f09f993 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3646,7 +3646,7 @@ func goexit0(gp *g) {
+ 		// Flush assist credit to the global pool. This gives
+ 		// better information to pacing if the application is
+ 		// rapidly creating an exiting goroutines.
+-		assistWorkPerByte := float64frombits(atomic.Load64(&gcController.assistWorkPerByte))
++		assistWorkPerByte := gcController.assistWorkPerByte.Load()
+ 		scanCredit := int64(assistWorkPerByte * float64(gp.gcAssistBytes))
+ 		atomic.Xaddint64(&gcController.bgScanCredit, scanCredit)
+ 		gp.gcAssistBytes = 0

@@ -15,8 +15,143 @@ Date:   Mon Jun 13 17:25:27 2022 -0700
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/debug/pe/section.go         |  8 ++------
  src/internal/saferio/io.go      | 41 ++++++++++++++++++++++++++++++++++++++
  src/internal/saferio/io_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
  3 files changed, 87 insertions(+), 6 deletions(-)
+
+diff --git a/src/debug/pe/section.go b/src/debug/pe/section.go
+index ee59dedeb4..997f0ef714 100644
+--- a/src/debug/pe/section.go
++++ b/src/debug/pe/section.go
+@@ -7,6 +7,7 @@ package pe
+ import (
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/saferio"
+ 	"io"
+ 	"strconv"
+ )
+@@ -97,12 +98,7 @@ type Section struct {
+ 
+ // Data reads and returns the contents of the PE section s.
+ func (s *Section) Data() ([]byte, error) {
+-	dat := make([]byte, s.sr.Size())
+-	n, err := s.sr.ReadAt(dat, 0)
+-	if n == len(dat) {
+-		err = nil
+-	}
+-	return dat[0:n], err
++	return saferio.ReadDataAt(s.sr, uint64(s.sr.Size()), 0)
+ }
+ 
+ // Open returns a new ReadSeeker reading the PE section s.
+diff --git a/src/internal/saferio/io.go b/src/internal/saferio/io.go
+index 6d132c0034..019216f352 100644
+--- a/src/internal/saferio/io.go
++++ b/src/internal/saferio/io.go
+@@ -50,3 +50,44 @@ func ReadData(r io.Reader, n uint64) ([]byte, error) {
+ 	}
+ 	return buf, nil
+ }
++
++// ReadDataAt reads n bytes from the input stream at off, but avoids
++// allocating all n bytes if n is large. This avoids crashing the program
++// by allocating all n bytes in cases where n is incorrect.
++func ReadDataAt(r io.ReaderAt, n uint64, off int64) ([]byte, error) {
++	if int64(n) < 0 || n != uint64(int(n)) {
++		// n is too large to fit in int, so we can't allocate
++		// a buffer large enough. Treat this as a read failure.
++		return nil, io.ErrUnexpectedEOF
++	}
++
++	if n < chunk {
++		buf := make([]byte, n)
++		_, err := r.ReadAt(buf, off)
++		if err != nil {
++			// io.SectionReader can return EOF for n == 0,
++			// but for our purposes that is a success.
++			if err != io.EOF || n > 0 {
++				return nil, err
++			}
++		}
++		return buf, nil
++	}
++
++	var buf []byte
++	buf1 := make([]byte, chunk)
++	for n > 0 {
++		next := n
++		if next > chunk {
++			next = chunk
++		}
++		_, err := r.ReadAt(buf1[:next], off)
++		if err != nil {
++			return nil, err
++		}
++		buf = append(buf, buf1[:next]...)
++		n -= next
++		off += int64(next)
++	}
++	return buf, nil
++}
+diff --git a/src/internal/saferio/io_test.go b/src/internal/saferio/io_test.go
+index f7a635d8bf..301b798834 100644
+--- a/src/internal/saferio/io_test.go
++++ b/src/internal/saferio/io_test.go
+@@ -6,6 +6,7 @@ package saferio
+ 
+ import (
+ 	"bytes"
++	"io"
+ 	"testing"
+ )
+ 
+@@ -37,3 +38,46 @@ func TestReadData(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestReadDataAt(t *testing.T) {
++	const count = 100
++	input := bytes.Repeat([]byte{'a'}, count)
++
++	t.Run("small", func(t *testing.T) {
++		got, err := ReadDataAt(bytes.NewReader(input), count, 0)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !bytes.Equal(got, input) {
++			t.Errorf("got %v, want %v", got, input)
++		}
++	})
++
++	t.Run("large", func(t *testing.T) {
++		_, err := ReadDataAt(bytes.NewReader(input), 10<<30, 0)
++		if err == nil {
++			t.Error("large read succeeded unexpectedly")
++		}
++	})
++
++	t.Run("maxint", func(t *testing.T) {
++		_, err := ReadDataAt(bytes.NewReader(input), 1<<62, 0)
++		if err == nil {
++			t.Error("large read succeeded unexpectedly")
++		}
++	})
++
++	t.Run("SectionReader", func(t *testing.T) {
++		// Reading 0 bytes from an io.SectionReader at the end
++		// of the section will return EOF, but ReadDataAt
++		// should succeed and return 0 bytes.
++		sr := io.NewSectionReader(bytes.NewReader(input), 0, 0)
++		got, err := ReadDataAt(sr, 0, 0)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if len(got) > 0 {
++			t.Errorf("got %d bytes, expected 0", len(got))
++		}
++	})
++}

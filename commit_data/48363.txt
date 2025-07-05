@@ -21,7 +21,7 @@ Date:   Tue Jan 19 22:30:10 2021 +0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules   | 19 +++++++
  src/cmd/compile/internal/ssa/gen/ARM64.rules   |  9 ++++
  src/cmd/compile/internal/ssa/gen/generic.rules |  6 +--
@@ -29,3 +29,286 @@ Date:   Tue Jan 19 22:30:10 2021 +0800
  src/cmd/compile/internal/ssa/rewriteARM64.go   | 50 +++++++++++++++++
  test/codegen/copy.go                           | 36 +++++++++++++
  6 files changed, 191 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index ec91ea1513..4cd00732fc 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2216,3 +2216,22 @@
+ (MOVOstore [dstOff] {dstSym} ptr (MOVOload [srcOff] {srcSym} (SB) _) mem) && symIsRO(srcSym) =>
+   (MOVQstore [dstOff+8] {dstSym} ptr (MOVQconst [int64(read64(srcSym, int64(srcOff)+8, config.ctxt.Arch.ByteOrder))])
+     (MOVQstore [dstOff] {dstSym} ptr (MOVQconst [int64(read64(srcSym, int64(srcOff), config.ctxt.Arch.ByteOrder))]) mem))
++
++// Arch-specific inlining for small or disjoint runtime.memmove
++// Match post-lowering calls, memory version.
++(SelectN [0] call:(CALLstatic {sym} s1:(MOVQstoreconst _ [sc] s2:(MOVQstore _ src s3:(MOVQstore _ dst mem)))))
++	&& sc.Val64() >= 0
++	&& isSameCall(sym, "runtime.memmove")
++	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
++	&& isInlinableMemmove(dst, src, sc.Val64(), config)
++	&& clobber(s1, s2, s3, call)
++	=> (Move [sc.Val64()] dst src mem)
++
++// Match post-lowering calls, register version.
++(SelectN [0] call:(CALLstatic {sym} dst src (MOVQconst [sz]) mem))
++	&& sz >= 0
++	&& isSameCall(sym, "runtime.memmove")
++	&& call.Uses == 1
++	&& isInlinableMemmove(dst, src, sz, config)
++	&& clobber(call)
++	=> (Move [sz] dst src mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 3d2759493e..62699f290c 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -2859,3 +2859,12 @@
+ (MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+ (MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+ (MOVDload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
++
++// Arch-specific inlining for small or disjoint runtime.memmove
++(SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
++	&& sz >= 0
++	&& isSameCall(sym, "runtime.memmove")
++	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
++	&& isInlinableMemmove(dst, src, sz, config)
++	&& clobber(s1, s2, s3, call)
++	=> (Move [sz] dst src mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index aad7600d79..5cbc70cf41 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2065,7 +2065,7 @@
+ (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem)))))
+ 	&& sz >= 0
+ 	&& isSameCall(sym, "runtime.memmove")
+-	&& t.IsPtr() // avoids TUINTPTR, see issue 30061
++	&& t.IsPtr() // avoids TUNSAFEPTR, see issue 30061
+ 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
+ 	&& isInlinableMemmove(dst, src, int64(sz), config)
+ 	&& clobber(s1, s2, s3, call)
+@@ -2076,7 +2076,7 @@
+ 	&& sz >= 0
+ 	&& call.Uses == 1 // this will exclude all calls with results
+ 	&& isSameCall(sym, "runtime.memmove")
+-	&& dst.Type.IsPtr() // avoids TUINTPTR, see issue 30061
++	&& dst.Type.IsPtr() // avoids TUNSAFEPTR, see issue 30061
+ 	&& isInlinableMemmove(dst, src, int64(sz), config)
+ 	&& clobber(call)
+ 	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+@@ -2086,7 +2086,7 @@
+ 	&& sz >= 0
+ 	&& call.Uses == 1 // this will exclude all calls with results
+ 	&& isSameCall(sym, "runtime.memmove")
+-	&& dst.Type.IsPtr() // avoids TUINTPTR, see issue 30061
++	&& dst.Type.IsPtr() // avoids TUNSAFEPTR, see issue 30061
+ 	&& isInlinableMemmove(dst, src, int64(sz), config)
+ 	&& clobber(call)
+ 	=> (Move {dst.Type.Elem()} [int64(sz)] dst src mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index efb5d27145..5045ba7351 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1038,6 +1038,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpSelect0(v)
+ 	case OpSelect1:
+ 		return rewriteValueAMD64_OpSelect1(v)
++	case OpSelectN:
++		return rewriteValueAMD64_OpSelectN(v)
+ 	case OpSignExt16to32:
+ 		v.Op = OpAMD64MOVWQSX
+ 		return true
+@@ -32981,6 +32983,78 @@ func rewriteValueAMD64_OpSelect1(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpSelectN(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	config := b.Func.Config
++	// match: (SelectN [0] call:(CALLstatic {sym} s1:(MOVQstoreconst _ [sc] s2:(MOVQstore _ src s3:(MOVQstore _ dst mem)))))
++	// cond: sc.Val64() >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sc.Val64(), config) && clobber(s1, s2, s3, call)
++	// result: (Move [sc.Val64()] dst src mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpAMD64CALLstatic || len(call.Args) != 1 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		s1 := call.Args[0]
++		if s1.Op != OpAMD64MOVQstoreconst {
++			break
++		}
++		sc := auxIntToValAndOff(s1.AuxInt)
++		_ = s1.Args[1]
++		s2 := s1.Args[1]
++		if s2.Op != OpAMD64MOVQstore {
++			break
++		}
++		_ = s2.Args[2]
++		src := s2.Args[1]
++		s3 := s2.Args[2]
++		if s3.Op != OpAMD64MOVQstore {
++			break
++		}
++		mem := s3.Args[2]
++		dst := s3.Args[1]
++		if !(sc.Val64() >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sc.Val64(), config) && clobber(s1, s2, s3, call)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(sc.Val64())
++		v.AddArg3(dst, src, mem)
++		return true
++	}
++	// match: (SelectN [0] call:(CALLstatic {sym} dst src (MOVQconst [sz]) mem))
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)
++	// result: (Move [sz] dst src mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpAMD64CALLstatic || len(call.Args) != 4 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		mem := call.Args[3]
++		dst := call.Args[0]
++		src := call.Args[1]
++		call_2 := call.Args[2]
++		if call_2.Op != OpAMD64MOVQconst {
++			break
++		}
++		sz := auxIntToInt64(call_2.AuxInt)
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(sz)
++		v.AddArg3(dst, src, mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 0ba3951df5..3cdc4d36cb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -984,6 +984,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpSelect0(v)
+ 	case OpSelect1:
+ 		return rewriteValueARM64_OpSelect1(v)
++	case OpSelectN:
++		return rewriteValueARM64_OpSelectN(v)
+ 	case OpSignExt16to32:
+ 		v.Op = OpARM64MOVHreg
+ 		return true
+@@ -25983,6 +25985,54 @@ func rewriteValueARM64_OpSelect1(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpSelectN(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	config := b.Func.Config
++	// match: (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore _ src s3:(MOVDstore {t} _ dst mem)))))
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3, call)
++	// result: (Move [sz] dst src mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpARM64CALLstatic {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		s1 := call.Args[0]
++		if s1.Op != OpARM64MOVDstore {
++			break
++		}
++		_ = s1.Args[2]
++		s1_1 := s1.Args[1]
++		if s1_1.Op != OpARM64MOVDconst {
++			break
++		}
++		sz := auxIntToInt64(s1_1.AuxInt)
++		s2 := s1.Args[2]
++		if s2.Op != OpARM64MOVDstore {
++			break
++		}
++		_ = s2.Args[2]
++		src := s2.Args[1]
++		s3 := s2.Args[2]
++		if s3.Op != OpARM64MOVDstore {
++			break
++		}
++		mem := s3.Args[2]
++		dst := s3.Args[1]
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3, call)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(sz)
++		v.AddArg3(dst, src, mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+diff --git a/test/codegen/copy.go b/test/codegen/copy.go
+index 0cd86d1161..ea8a01f803 100644
+--- a/test/codegen/copy.go
++++ b/test/codegen/copy.go
+@@ -97,6 +97,42 @@ func moveDisjointNoOverlap(a *[256]byte) {
+ 	copy(a[:], a[128:])
+ }
+ 
++// Check arch-specific memmove lowering. See issue 41662 fot details
++
++func moveArchLowering1(b []byte, x *[1]byte) {
++	_ = b[1]
++	// amd64:-".*memmove"
++	// arm64:-".*memmove"
++	copy(b, x[:])
++}
++
++func moveArchLowering2(b []byte, x *[2]byte) {
++	_ = b[2]
++	// amd64:-".*memmove"
++	// arm64:-".*memmove"
++	copy(b, x[:])
++}
++
++func moveArchLowering4(b []byte, x *[4]byte) {
++	_ = b[4]
++	// amd64:-".*memmove"
++	// arm64:-".*memmove"
++	copy(b, x[:])
++}
++
++func moveArchLowering8(b []byte, x *[8]byte) {
++	_ = b[8]
++	// amd64:-".*memmove"
++	// arm64:-".*memmove"
++	copy(b, x[:])
++}
++
++func moveArchLowering16(b []byte, x *[16]byte) {
++	_ = b[16]
++	// amd64:-".*memmove"
++	copy(b, x[:])
++}
++
+ // Check that no branches are generated when the pointers are [not] equal.
+ 
+ func ptrEqual() {

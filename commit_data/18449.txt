@@ -12,6 +12,19 @@ Date:   Tue Feb 11 16:00:44 2014 +1100
     R=r
     CC=golang-codereviews
     https://golang.org/cl/61740043
-
+---
  doc/root.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index 48280ac359..43637933a6 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -140,7 +140,6 @@ window.initFuncs.push(function() {
+ 	var videos = [
+ 		{h: 241, s: "//www.youtube.com/embed/ytEkHepK08c"}, // Tour of Go
+ 		{h: 241, s: "//www.youtube.com/embed/f6kdp27TYZs"}, // Concurrency Patterns
+-		{h: 233, s: "//player.vimeo.com/video/53221560"},   // Grows with grace
+ 		{h: 233, s: "//player.vimeo.com/video/69237265"}    // Simple environment
+ 	];
+ 	var v = videos[Math.floor(Math.random()*videos.length)];

@@ -14,7 +14,7 @@ Date:   Thu Oct 13 22:31:46 2016 +0300
     Reviewed-on: https://go-review.googlesource.com/31030
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/compile/internal/gc/obj.go     | 53 +++++-----------------------------
  src/cmd/compile/internal/gc/ssa.go     |  2 +-
  src/cmd/internal/obj/link.go           | 18 +++++-------
@@ -23,3 +23,240 @@ Date:   Thu Oct 13 22:31:46 2016 +0300
  src/cmd/link/internal/ld/lib.go        |  2 --
  src/cmd/link/internal/ld/symtab.go     | 11 ++-----
  7 files changed, 23 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index cb9ea52b62..1c48517955 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -280,18 +280,7 @@ func dbvec(s *Sym, off int, bv bvec) int {
+ 	return off
+ }
+ 
+-// stringConstantSyms holds the pair of symbols we create for a
+-// constant string.
+-type stringConstantSyms struct {
+-	hdr  *obj.LSym // string header
+-	data *obj.LSym // actual string data
+-}
+-
+-// stringConstants maps from the symbol name we use for the string
+-// contents to the pair of linker symbols for that string.
+-var stringConstants = make(map[string]stringConstantSyms, 100)
+-
+-func stringsym(s string) (hdr, data *obj.LSym) {
++func stringsym(s string) (data *obj.LSym) {
+ 	var symname string
+ 	if len(s) > 100 {
+ 		// Huge strings are hashed to avoid long names in object files.
+@@ -308,33 +297,15 @@ func stringsym(s string) (hdr, data *obj.LSym) {
+ 	const prefix = "go.string."
+ 	symdataname := prefix + symname
+ 
+-	// All the strings have the same prefix, so ignore it for map
+-	// purposes, but use a slice of the symbol name string to
+-	// reduce long-term memory overhead.
+-	key := symdataname[len(prefix):]
+-
+-	if syms, ok := stringConstants[key]; ok {
+-		return syms.hdr, syms.data
+-	}
+-
+-	symhdrname := "go.string.hdr." + symname
+-
+-	symhdr := obj.Linklookup(Ctxt, symhdrname, 0)
+ 	symdata := obj.Linklookup(Ctxt, symdataname, 0)
+ 
+-	stringConstants[key] = stringConstantSyms{symhdr, symdata}
+-
+-	// string header
+-	off := 0
+-	off = dsymptrLSym(symhdr, off, symdata, 0)
+-	off = duintxxLSym(symhdr, off, uint64(len(s)), Widthint)
+-	ggloblLSym(symhdr, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+-
+-	// string data
+-	off = dsnameLSym(symdata, 0, s)
+-	ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
++	if !symdata.Seenglobl {
++		// string data
++		off := dsnameLSym(symdata, 0, s)
++		ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
++	}
+ 
+-	return symhdr, symdata
++	return symdata
+ }
+ 
+ var slicebytes_gen int
+@@ -357,14 +328,6 @@ func slicebytes(nam *Node, s string, len int) {
+ 	duintxx(nam.Sym, off, uint64(len), Widthint)
+ }
+ 
+-func datagostring(sval string, a *obj.Addr) {
+-	symhdr, _ := stringsym(sval)
+-	a.Type = obj.TYPE_MEM
+-	a.Name = obj.NAME_EXTERN
+-	a.Sym = symhdr
+-	a.Offset = 0
+-}
+-
+ func dsname(s *Sym, off int, t string) int {
+ 	return dsnameLSym(Linksym(s), off, t)
+ }
+@@ -465,7 +428,7 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
+ 
+ func gdatastring(nam *Node, sval string) {
+ 	s := Linksym(nam.Sym)
+-	_, symdata := stringsym(sval)
++	symdata := stringsym(sval)
+ 	s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
+ 	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthint, int64(len(sval)))
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 452d449f21..45070c8d31 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4525,7 +4525,7 @@ func (s *ssaExport) TypeBytePtr() ssa.Type { return ptrto(Types[TUINT8]) }
+ // is the data component of a global string constant containing s.
+ func (*ssaExport) StringData(s string) interface{} {
+ 	// TODO: is idealstring correct?  It might not matter...
+-	_, data := stringsym(s)
++	data := stringsym(s)
+ 	return &ssa.ExternSymbol{Typ: idealstring, Sym: data}
+ }
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index fecd71f674..46d249f88a 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -393,7 +393,6 @@ const (
+ 	STYPE
+ 	SSTRING
+ 	SGOSTRING
+-	SGOSTRINGHDR
+ 	SGOFUNC
+ 	SGCBITS
+ 	SRODATA
+@@ -417,7 +416,6 @@ const (
+ 	STYPERELRO
+ 	SSTRINGRELRO
+ 	SGOSTRINGRELRO
+-	SGOSTRINGHDRRELRO
+ 	SGOFUNCRELRO
+ 	SGCBITSRELRO
+ 	SRODATARELRO
+@@ -466,7 +464,6 @@ var ReadOnly = []SymKind{
+ 	STYPE,
+ 	SSTRING,
+ 	SGOSTRING,
+-	SGOSTRINGHDR,
+ 	SGOFUNC,
+ 	SGCBITS,
+ 	SRODATA,
+@@ -476,14 +473,13 @@ var ReadOnly = []SymKind{
+ // RelROMap describes the transformation of read-only symbols to rel-ro
+ // symbols.
+ var RelROMap = map[SymKind]SymKind{
+-	STYPE:        STYPERELRO,
+-	SSTRING:      SSTRINGRELRO,
+-	SGOSTRING:    SGOSTRINGRELRO,
+-	SGOSTRINGHDR: SGOSTRINGHDRRELRO,
+-	SGOFUNC:      SGOFUNCRELRO,
+-	SGCBITS:      SGCBITSRELRO,
+-	SRODATA:      SRODATARELRO,
+-	SFUNCTAB:     SFUNCTABRELRO,
++	STYPE:     STYPERELRO,
++	SSTRING:   SSTRINGRELRO,
++	SGOSTRING: SGOSTRINGRELRO,
++	SGOFUNC:   SGOFUNCRELRO,
++	SGCBITS:   SGCBITSRELRO,
++	SRODATA:   SRODATARELRO,
++	SFUNCTAB:  SFUNCTABRELRO,
+ }
+ 
+ type Reloc struct {
+diff --git a/src/cmd/internal/obj/symkind_string.go b/src/cmd/internal/obj/symkind_string.go
+index e8fed78841..fef8c355e4 100644
+--- a/src/cmd/internal/obj/symkind_string.go
++++ b/src/cmd/internal/obj/symkind_string.go
+@@ -4,9 +4,9 @@ package obj
+ 
+ import "fmt"
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOSTRINGHDRSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOSTRINGHDRRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILESFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFO"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILESFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFO"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 52, 59, 66, 73, 81, 91, 100, 110, 122, 136, 153, 165, 177, 189, 202, 211, 220, 227, 235, 243, 249, 258, 266, 273, 283, 291, 296, 300, 309, 316, 321, 333, 345, 362, 379, 384, 393, 399, 409, 417, 427, 437}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 214, 220, 229, 237, 244, 254, 262, 267, 271, 280, 287, 292, 304, 316, 333, 350, 355, 364, 370, 380, 388, 398, 408}
+ 
+ func (i SymKind) String() string {
+ 	if i < 0 || i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 4714d20866..5460b76c99 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1135,7 +1135,7 @@ func symalign(s *Symbol) int32 {
+ 	} else if s.Align != 0 {
+ 		return min
+ 	}
+-	if (strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.")) || strings.HasPrefix(s.Name, "type..namedata.") {
++	if strings.HasPrefix(s.Name, "go.string.") || strings.HasPrefix(s.Name, "type..namedata.") {
+ 		// String data is just bytes.
+ 		// If we align it, we waste a lot of space to padding.
+ 		return min
+@@ -1336,7 +1336,7 @@ func (ctxt *Link) dodata() {
+ 			for _, s := range data[symnro] {
+ 				isRelro := len(s.R) > 0
+ 				switch s.Type {
+-				case obj.STYPE, obj.SGOSTRINGHDR, obj.STYPERELRO, obj.SGOSTRINGHDRRELRO, obj.SGOFUNCRELRO:
++				case obj.STYPE, obj.STYPERELRO, obj.SGOFUNCRELRO:
+ 					// Symbols are not sorted yet, so it is possible
+ 					// that an Outer symbol has been changed to a
+ 					// relro Type before it reaches here.
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 735408cd47..629facdc45 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1890,13 +1890,11 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 			obj.STYPE,
+ 			obj.SSTRING,
+ 			obj.SGOSTRING,
+-			obj.SGOSTRINGHDR,
+ 			obj.SGOFUNC,
+ 			obj.SGCBITS,
+ 			obj.STYPERELRO,
+ 			obj.SSTRINGRELRO,
+ 			obj.SGOSTRINGRELRO,
+-			obj.SGOSTRINGHDRRELRO,
+ 			obj.SGOFUNCRELRO,
+ 			obj.SGCBITSRELRO,
+ 			obj.SRODATARELRO,
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index e4280f0ccb..97c6c2db72 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -435,10 +435,9 @@ func (ctxt *Link) symtab() {
+ 		return s
+ 	}
+ 	var (
+-		symgostring    = groupSym("go.string.*", obj.SGOSTRING)
+-		symgostringhdr = groupSym("go.string.hdr.*", obj.SGOSTRINGHDR)
+-		symgofunc      = groupSym("go.func.*", obj.SGOFUNC)
+-		symgcbits      = groupSym("runtime.gcbits.*", obj.SGCBITS)
++		symgostring = groupSym("go.string.*", obj.SGOSTRING)
++		symgofunc   = groupSym("go.func.*", obj.SGOFUNC)
++		symgcbits   = groupSym("runtime.gcbits.*", obj.SGCBITS)
+ 	)
+ 
+ 	var symgofuncrel *Symbol
+@@ -508,10 +507,6 @@ func (ctxt *Link) symtab() {
+ 			s.Type = obj.SGOSTRING
+ 			s.Attr |= AttrHidden
+ 			s.Outer = symgostring
+-			if strings.HasPrefix(s.Name, "go.string.hdr.") {
+-				s.Type = obj.SGOSTRINGHDR
+-				s.Outer = symgostringhdr
+-			}
+ 
+ 		case strings.HasPrefix(s.Name, "runtime.gcbits."):
+ 			s.Type = obj.SGCBITS

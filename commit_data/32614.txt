@@ -59,7 +59,7 @@ Date:   Fri Mar 24 16:43:02 2017 -0400
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/acos_s390x.s         | 144 +++++++++
  src/math/acosh.go             |   4 +-
  src/math/acosh_s390x.s        | 172 +++++++++++
@@ -95,3 +95,5252 @@ Date:   Fri Mar 24 16:43:02 2017 -0400
  src/math/stubs_s390x.s        | 423 +++++++++++++++++++++++----
  src/math/tan_s390x.s          | 110 +++++++
  34 files changed, 4720 insertions(+), 65 deletions(-)
+
+diff --git a/src/math/acos_s390x.s b/src/math/acos_s390x.s
+new file mode 100644
+index 0000000000..306f45a406
+--- /dev/null
++++ b/src/math/acos_s390x.s
+@@ -0,0 +1,144 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial coefficients and other constants
++DATA ·acosrodataL13<> + 0(SB)/8, $0.314159265358979323E+01   //pi
++DATA ·acosrodataL13<> + 8(SB)/8, $-0.0
++DATA ·acosrodataL13<> + 16(SB)/8, $0x7ff8000000000000    //Nan
++DATA ·acosrodataL13<> + 24(SB)/8, $-1.0
++DATA ·acosrodataL13<> + 32(SB)/8, $1.0
++DATA ·acosrodataL13<> + 40(SB)/8, $0.166666666666651626E+00
++DATA ·acosrodataL13<> + 48(SB)/8, $0.750000000042621169E-01
++DATA ·acosrodataL13<> + 56(SB)/8, $0.446428567178116477E-01
++DATA ·acosrodataL13<> + 64(SB)/8, $0.303819660378071894E-01
++DATA ·acosrodataL13<> + 72(SB)/8, $0.223715011892010405E-01
++DATA ·acosrodataL13<> + 80(SB)/8, $0.173659424522364952E-01
++DATA ·acosrodataL13<> + 88(SB)/8, $0.137810186504372266E-01
++DATA ·acosrodataL13<> + 96(SB)/8, $0.134066870961173521E-01
++DATA ·acosrodataL13<> + 104(SB)/8, $-.412335502831898721E-02
++DATA ·acosrodataL13<> + 112(SB)/8, $0.867383739532082719E-01
++DATA ·acosrodataL13<> + 120(SB)/8, $-.328765950607171649E+00
++DATA ·acosrodataL13<> + 128(SB)/8, $0.110401073869414626E+01
++DATA ·acosrodataL13<> + 136(SB)/8, $-.270694366992537307E+01
++DATA ·acosrodataL13<> + 144(SB)/8, $0.500196500770928669E+01
++DATA ·acosrodataL13<> + 152(SB)/8, $-.665866959108585165E+01
++DATA ·acosrodataL13<> + 160(SB)/8, $-.344895269334086578E+01
++DATA ·acosrodataL13<> + 168(SB)/8, $0.927437952918301659E+00
++DATA ·acosrodataL13<> + 176(SB)/8, $0.610487478874645653E+01
++DATA ·acosrodataL13<> + 184(SB)/8, $0.157079632679489656e+01
++DATA ·acosrodataL13<> + 192(SB)/8, $0.0
++GLOBL ·acosrodataL13<> + 0(SB), RODATA, $200
++
++// Acos returns the arccosine, in radians, of the argument.
++//
++// Special case is:
++//      Acos(x) = NaN if x < -1 or x > 1
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·acosAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·acosrodataL13<>+0(SB), R9
++	WORD	$0xB3CD00C0	//lgdr %r12, %f0
++	FMOVD	F0, F10
++	SRAD	$32, R12
++	WORD	$0xC0293FE6	//iilf	%r2,1072079005
++	BYTE	$0xA0
++	BYTE	$0x9D
++	WORD	$0xB917001C	//llgtr	%r1,%r12
++	CMPW	R1,R2
++	BGT	L2
++	FMOVD	192(R9), F8
++	FMADD	F0, F0, F8
++	FMOVD	184(R9), F1
++L3:
++	WFMDB	V8, V8, V2
++	FMOVD	176(R9), F6
++	FMOVD	168(R9), F0
++	FMOVD	160(R9), F4
++	WFMADB	V2, V0, V6, V0
++	FMOVD	152(R9), F6
++	WFMADB	V2, V4, V6, V4
++	FMOVD	144(R9), F6
++	WFMADB	V2, V0, V6, V0
++	FMOVD	136(R9), F6
++	WFMADB	V2, V4, V6, V4
++	FMOVD	128(R9), F6
++	WFMADB	V2, V0, V6, V0
++	FMOVD	120(R9), F6
++	WFMADB	V2, V4, V6, V4
++	FMOVD	112(R9), F6
++	WFMADB	V2, V0, V6, V0
++	FMOVD	104(R9), F6
++	WFMADB	V2, V4, V6, V4
++	FMOVD	96(R9), F6
++	WFMADB	V2, V0, V6, V0
++	FMOVD	88(R9), F6
++	WFMADB	V2, V4, V6, V4
++	FMOVD	80(R9), F6
++	WFMADB	V2, V0, V6, V0
++	FMOVD	72(R9), F6
++	WFMADB	V2, V4, V6, V4
++	FMOVD	64(R9), F6
++	WFMADB	V2, V0, V6, V0
++	FMOVD	56(R9), F6
++	WFMADB	V2, V4, V6, V4
++	FMOVD	48(R9), F6
++	WFMADB	V2, V0, V6, V0
++	FMOVD	40(R9), F6
++	WFMADB	V2, V4, V6, V2
++	FMOVD	192(R9), F4
++	WFMADB	V8, V0, V2, V0
++	WFMADB	V10, V8, V4, V8
++	FMADD	F0, F8, F10
++	WFSDB	V10, V1, V10
++L1:
++	FMOVD	F10, ret+8(FP)
++	RET
++
++L2:
++	WORD	$0xC0293FEF	//iilf	%r2,1072693247
++	BYTE	$0xFF
++	BYTE	$0xFF
++	CMPW	R1, R2
++	BLE	L12
++L4:
++	WORD	$0xED009020	//cdb	%f0,.L34-.L13(%r9)
++	BYTE	$0x00
++	BYTE	$0x19
++	BEQ	L8
++	WORD	$0xED009018	//cdb	%f0,.L35-.L13(%r9)
++	BYTE	$0x00
++	BYTE	$0x19
++	BEQ	L9
++	WFCEDBS	V10, V10, V0
++	BVS	L1
++	FMOVD	16(R9), F10
++	BR	L1
++L12:
++	FMOVD	24(R9), F0
++	FMADD	F10, F10, F0
++	WORD	$0xB3130080	//lcdbr	%f8,%f0
++	WORD	$0xED009008	//cdb	%f0,.L37-.L13(%r9)
++	BYTE	$0x00
++	BYTE	$0x19
++	FSQRT	F8, F10
++L5:
++	MOVW	R12, R4
++	CMPBLE	R4, $0, L7
++	WORD	$0xB31300AA	//lcdbr	%f10,%f10
++	FMOVD	$0, F1
++	BR	L3
++L9:
++	FMOVD	0(R9), F10
++	BR	L1
++L8:
++	FMOVD	$0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L7:
++	FMOVD	0(R9), F1
++	BR	L3
+diff --git a/src/math/acosh.go b/src/math/acosh.go
+index dce21b2350..cc8195ce32 100644
+--- a/src/math/acosh.go
++++ b/src/math/acosh.go
+@@ -39,7 +39,9 @@ package math
+ //	Acosh(+Inf) = +Inf
+ //	Acosh(x) = NaN if x < 1
+ //	Acosh(NaN) = NaN
+-func Acosh(x float64) float64 {
++func Acosh(x float64) float64
++
++func acosh(x float64) float64 {
+ 	const (
+ 		Ln2   = 6.93147180559945286227e-01 // 0x3FE62E42FEFA39EF
+ 		Large = 1 << 28                    // 2**28
+diff --git a/src/math/acosh_s390x.s b/src/math/acosh_s390x.s
+new file mode 100644
+index 0000000000..e120285c3d
+--- /dev/null
++++ b/src/math/acosh_s390x.s
+@@ -0,0 +1,172 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial coefficients and other constants
++DATA ·acoshrodataL11<> + 0(SB)/8, $-1.0
++DATA ·acoshrodataL11<> + 8(SB)/8, $.41375273347623353626
++DATA ·acoshrodataL11<> + 16(SB)/8, $.51487302528619766235E+04
++DATA ·acoshrodataL11<> + 24(SB)/8, $-1.67526912689208984375
++DATA ·acoshrodataL11<> + 32(SB)/8, $0.181818181818181826E+00
++DATA ·acoshrodataL11<> + 40(SB)/8, $-.165289256198351540E-01
++DATA ·acoshrodataL11<> + 48(SB)/8, $0.200350613573012186E-02
++DATA ·acoshrodataL11<> + 56(SB)/8, $-.273205381970859341E-03
++DATA ·acoshrodataL11<> + 64(SB)/8, $0.397389654305194527E-04
++DATA ·acoshrodataL11<> + 72(SB)/8, $0.938370938292558173E-06
++DATA ·acoshrodataL11<> + 80(SB)/8, $-.602107458843052029E-05
++DATA ·acoshrodataL11<> + 88(SB)/8, $0.212881813645679599E-07
++DATA ·acoshrodataL11<> + 96(SB)/8, $-.148682720127920854E-06
++DATA ·acoshrodataL11<> + 104(SB)/8, $-5.5
++DATA ·acoshrodataL11<> + 112(SB)/8, $0x7ff8000000000000      //Nan
++GLOBL ·acoshrodataL11<> + 0(SB), RODATA, $120
++
++// Table of log correction terms
++DATA ·acoshtab2068<> + 0(SB)/8, $0.585235384085551248E-01
++DATA ·acoshtab2068<> + 8(SB)/8, $0.412206153771168640E-01
++DATA ·acoshtab2068<> + 16(SB)/8, $0.273839003221648339E-01
++DATA ·acoshtab2068<> + 24(SB)/8, $0.166383778368856480E-01
++DATA ·acoshtab2068<> + 32(SB)/8, $0.866678223433169637E-02
++DATA ·acoshtab2068<> + 40(SB)/8, $0.319831684989627514E-02
++DATA ·acoshtab2068<> + 48(SB)/8, $0.0
++DATA ·acoshtab2068<> + 56(SB)/8, $-.113006378583725549E-02
++DATA ·acoshtab2068<> + 64(SB)/8, $-.367979419636602491E-03
++DATA ·acoshtab2068<> + 72(SB)/8, $0.213172484510484979E-02
++DATA ·acoshtab2068<> + 80(SB)/8, $0.623271047682013536E-02
++DATA ·acoshtab2068<> + 88(SB)/8, $0.118140812789696885E-01
++DATA ·acoshtab2068<> + 96(SB)/8, $0.187681358930914206E-01
++DATA ·acoshtab2068<> + 104(SB)/8, $0.269985148668178992E-01
++DATA ·acoshtab2068<> + 112(SB)/8, $0.364186619761331328E-01
++DATA ·acoshtab2068<> + 120(SB)/8, $0.469505379381388441E-01
++GLOBL ·acoshtab2068<> + 0(SB), RODATA, $128
++
++// Acosh returns the inverse hyperbolic cosine of the argument.
++//
++// Special cases are:
++//      Acosh(+Inf) = +Inf
++//      Acosh(x) = NaN if x < 1
++//      Acosh(NaN) = NaN
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·acoshAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·acoshrodataL11<>+0(SB), R9
++	WORD	$0xB3CD0010	//lgdr %r1, %f0
++	WORD	$0xC0295FEF	//iilf	%r2,1609564159
++	BYTE	$0xFF
++	BYTE	$0xFF
++	SRAD	$32, R1
++	CMPW	R1, R2
++	BGT	L2
++	WORD	$0xC0293FEF	//iilf	%r2,1072693247
++	BYTE	$0xFF
++	BYTE	$0xFF
++	CMPW	R1, R2
++	BGT	L10
++L3:
++	WFCEDBS	V0, V0, V2
++	BVS	L1
++	FMOVD	112(R9), F0
++L1:
++	FMOVD	F0, ret+8(FP)
++	RET
++L2:
++	WORD	$0xC0297FEF	//iilf	%r2,2146435071
++	BYTE	$0xFF
++	BYTE	$0xFF
++	MOVW	R1, R6
++	MOVW	R2, R7
++	CMPBGT	R6, R7, L1
++	FMOVD	F0, F8
++	FMOVD	$0, F0
++	WFADB	V0, V8, V0
++	WORD	$0xC0398006	//iilf	%r3,2147909631
++	BYTE	$0x7F
++	BYTE	$0xFF
++	WORD	$0xB3CD0050	//lgdr %r5, %f0
++	SRAD	$32, R5
++	MOVH	$0x0, R1
++	SUBW	R5, R3
++	FMOVD	$0, F10
++	WORD	$0xEC4320AF	//risbg	%r4,%r3,32,128+47,0
++	BYTE	$0x00
++	BYTE	$0x55
++	WORD	$0xEC3339BC	//risbg	%r3,%r3,57,128+60,64-13
++	BYTE	$0x33
++	BYTE	$0x55
++	BYTE	$0x18	//lr	%r2,%r4
++	BYTE	$0x24
++	WORD	$0xEC14001F	//risbgn	%r1,%r4,64-64+0,64-64+0+32-1,64-0-32
++	BYTE	$0x20
++	BYTE	$0x59
++	SUBW	$0x100000, R2
++	SRAW	$8, R2, R2
++	ORW	$0x45000000, R2
++L5:
++	WORD	$0xB3C10001	//ldgr	%f0,%r1
++	FMOVD	104(R9), F2
++	FMADD	F8, F0, F2
++	FMOVD	96(R9), F4
++	WFMADB	V10, V0, V2, V0
++	FMOVD	88(R9), F6
++	FMOVD	80(R9), F2
++	WFMADB	V0, V6, V4, V6
++	FMOVD	72(R9), F1
++	WFMDB	V0, V0, V4
++	WFMADB	V0, V1, V2, V1
++	FMOVD	64(R9), F2
++	WFMADB	V6, V4, V1, V6
++	FMOVD	56(R9), F1
++	WORD	$0xEC3339BC	//risbg	%r3,%r3,57,128+60,0
++	BYTE	$0x00
++	BYTE	$0x55
++	WFMADB	V0, V2, V1, V2
++	FMOVD	48(R9), F1
++	WFMADB	V4, V6, V2, V6
++	FMOVD	40(R9), F2
++	WFMADB	V0, V1, V2, V1
++	VLVGF	$0, R2, V2
++	WFMADB	V4, V6, V1, V4
++	LDEBR	F2, F2
++	FMOVD	32(R9), F6
++	WFMADB	V0, V4, V6, V4
++	FMOVD	24(R9), F1
++	FMOVD	16(R9), F6
++	MOVD	$·acoshtab2068<>+0(SB), R1
++	WFMADB	V2, V1, V6, V2
++	FMOVD	0(R3)(R1*1), F3
++	WFMADB	V0, V4, V3, V0
++	FMOVD	8(R9), F4
++	FMADD	F4, F2, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L10:
++	FMOVD	F0, F8
++	FMOVD	0(R9), F0
++	FMADD	F8, F8, F0
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	FSQRT	F0, F10
++L4:
++	WFADB	V10, V8, V0
++	WORD	$0xC0398006	//iilf	%r3,2147909631
++	BYTE	$0x7F
++	BYTE	$0xFF
++	WORD	$0xB3CD0050	//lgdr %r5, %f0
++	SRAD	$32, R5
++	MOVH	$0x0, R1
++	SUBW	R5, R3
++	SRAW	$8, R3, R2
++	WORD	$0xEC4320AF	//risbg	%r4,%r3,32,128+47,0
++	BYTE	$0x00
++	BYTE	$0x55
++	ANDW	$0xFFFFFF00, R2
++	WORD	$0xEC3339BC	//risbg	%r3,%r3,57,128+60,64-13
++	BYTE	$0x33
++	BYTE	$0x55
++	ORW	$0x45000000, R2
++	WORD	$0xEC14001F	//risbgn	%r1,%r4,64-64+0,64-64+0+32-1,64-0-32
++	BYTE	$0x20
++	BYTE	$0x59
++	BR	L5
+diff --git a/src/math/arith_s390x.go b/src/math/arith_s390x.go
+index 892935a1ef..4a1d2f8e5c 100644
+--- a/src/math/arith_s390x.go
++++ b/src/math/arith_s390x.go
+@@ -22,6 +22,54 @@ func sinhAsm(x float64) float64
+ func tanhTrampolineSetup(x float64) float64
+ func tanhAsm(x float64) float64
+ 
++func log1pTrampolineSetup(x float64) float64
++func log1pAsm(x float64) float64
++
++func atanhTrampolineSetup(x float64) float64
++func atanhAsm(x float64) float64
++
++func acosTrampolineSetup(x float64) float64
++func acosAsm(x float64) float64
++
++func acoshTrampolineSetup(x float64) float64
++func acoshAsm(x float64) float64
++
++func asinTrampolineSetup(x float64) float64
++func asinAsm(x float64) float64
++
++func asinhTrampolineSetup(x float64) float64
++func asinhAsm(x float64) float64
++
++func erfTrampolineSetup(x float64) float64
++func erfAsm(x float64) float64
++
++func erfcTrampolineSetup(x float64) float64
++func erfcAsm(x float64) float64
++
++func atanTrampolineSetup(x float64) float64
++func atanAsm(x float64) float64
++
++func atan2TrampolineSetup(x, y float64) float64
++func atan2Asm(x, y float64) float64
++
++func cbrtTrampolineSetup(x float64) float64
++func cbrtAsm(x float64) float64
++
++func logTrampolineSetup(x float64) float64
++func logAsm(x float64) float64
++
++func tanTrampolineSetup(x float64) float64
++func tanAsm(x float64) float64
++
++func expTrampolineSetup(x float64) float64
++func expAsm(x float64) float64
++
++func expm1TrampolineSetup(x float64) float64
++func expm1Asm(x float64) float64
++
++func powTrampolineSetup(x, y float64) float64
++func powAsm(x, y float64) float64
++
+ // hasVectorFacility reports whether the machine has the z/Architecture
+ // vector facility installed and enabled.
+ func hasVectorFacility() bool
+diff --git a/src/math/arith_s390x_test.go b/src/math/arith_s390x_test.go
+index b4f3070c6e..cfbc7b7823 100644
+--- a/src/math/arith_s390x_test.go
++++ b/src/math/arith_s390x_test.go
+@@ -106,6 +106,37 @@ func TestLargeSinNovec(t *testing.T) {
+ 	}
+ }
+ 
++func TestLargeTanNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	large := float64(100000 * Pi)
++	for i := 0; i < len(vf); i++ {
++		f1 := tanLarge[i]
++		f2 := TanNovec(vf[i] + large)
++		if !close(f1, f2) {
++			t.Errorf("Tan(%g) = %g, want %g", vf[i]+large, f2, f1)
++		}
++	}
++}
++
++func TestTanNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		if f := TanNovec(vf[i]); !veryclose(tan[i], f) {
++			t.Errorf("Tan(%g) = %g, want %g", vf[i], f, tan[i])
++		}
++	}
++	// same special cases as Sin
++	for i := 0; i < len(vfsinSC); i++ {
++		if f := TanNovec(vfsinSC[i]); !alike(sinSC[i], f) {
++			t.Errorf("Tan(%g) = %g, want %g", vfsinSC[i], f, sinSC[i])
++		}
++	}
++}
++
+ func TestTanhNovec(t *testing.T) {
+ 	if !HasVX {
+ 		t.Skipf("no vector support")
+@@ -142,3 +173,270 @@ func TestLog10Novec(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestLog1pNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		a := vf[i] / 100
++		if f := Log1pNovec(a); !veryclose(log1p[i], f) {
++			t.Errorf("Log1p(%g) = %g, want %g", a, f, log1p[i])
++		}
++	}
++	a := 9.0
++	if f := Log1pNovec(a); f != Ln10 {
++		t.Errorf("Log1p(%g) = %g, want %g", a, f, Ln10)
++	}
++	for i := 0; i < len(vflogSC); i++ {
++		if f := Log1pNovec(vflog1pSC[i]); !alike(log1pSC[i], f) {
++			t.Errorf("Log1p(%g) = %g, want %g", vflog1pSC[i], f, log1pSC[i])
++		}
++	}
++}
++
++func TestAtanhNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		a := vf[i] / 10
++		if f := AtanhNovec(a); !veryclose(atanh[i], f) {
++			t.Errorf("Atanh(%g) = %g, want %g", a, f, atanh[i])
++		}
++	}
++	for i := 0; i < len(vfatanhSC); i++ {
++		if f := AtanhNovec(vfatanhSC[i]); !alike(atanhSC[i], f) {
++			t.Errorf("Atanh(%g) = %g, want %g", vfatanhSC[i], f, atanhSC[i])
++		}
++	}
++}
++
++func TestAcosNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		a := vf[i] / 10
++		if f := AcosNovec(a); !close(acos[i], f) {
++			t.Errorf("Acos(%g) = %g, want %g", a, f, acos[i])
++		}
++	}
++	for i := 0; i < len(vfacosSC); i++ {
++		if f := AcosNovec(vfacosSC[i]); !alike(acosSC[i], f) {
++			t.Errorf("Acos(%g) = %g, want %g", vfacosSC[i], f, acosSC[i])
++		}
++	}
++}
++
++func TestAsinNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		a := vf[i] / 10
++		if f := AsinNovec(a); !veryclose(asin[i], f) {
++			t.Errorf("Asin(%g) = %g, want %g", a, f, asin[i])
++		}
++	}
++	for i := 0; i < len(vfasinSC); i++ {
++		if f := AsinNovec(vfasinSC[i]); !alike(asinSC[i], f) {
++			t.Errorf("Asin(%g) = %g, want %g", vfasinSC[i], f, asinSC[i])
++		}
++	}
++}
++
++func TestAcoshNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		a := 1 + Abs(vf[i])
++		if f := AcoshNovec(a); !veryclose(acosh[i], f) {
++			t.Errorf("Acosh(%g) = %g, want %g", a, f, acosh[i])
++		}
++	}
++	for i := 0; i < len(vfacoshSC); i++ {
++		if f := AcoshNovec(vfacoshSC[i]); !alike(acoshSC[i], f) {
++			t.Errorf("Acosh(%g) = %g, want %g", vfacoshSC[i], f, acoshSC[i])
++		}
++	}
++}
++
++func TestAsinhNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		if f := AsinhNovec(vf[i]); !veryclose(asinh[i], f) {
++			t.Errorf("Asinh(%g) = %g, want %g", vf[i], f, asinh[i])
++		}
++	}
++	for i := 0; i < len(vfasinhSC); i++ {
++		if f := AsinhNovec(vfasinhSC[i]); !alike(asinhSC[i], f) {
++			t.Errorf("Asinh(%g) = %g, want %g", vfasinhSC[i], f, asinhSC[i])
++		}
++	}
++}
++
++func TestErfNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		a := vf[i] / 10
++		if f := ErfNovec(a); !veryclose(erf[i], f) {
++			t.Errorf("Erf(%g) = %g, want %g", a, f, erf[i])
++		}
++	}
++	for i := 0; i < len(vferfSC); i++ {
++		if f := ErfNovec(vferfSC[i]); !alike(erfSC[i], f) {
++			t.Errorf("Erf(%g) = %g, want %g", vferfSC[i], f, erfSC[i])
++		}
++	}
++}
++
++func TestErfcNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		a := vf[i] / 10
++		if f := ErfcNovec(a); !veryclose(erfc[i], f) {
++			t.Errorf("Erfc(%g) = %g, want %g", a, f, erfc[i])
++		}
++	}
++	for i := 0; i < len(vferfcSC); i++ {
++		if f := ErfcNovec(vferfcSC[i]); !alike(erfcSC[i], f) {
++			t.Errorf("Erfc(%g) = %g, want %g", vferfcSC[i], f, erfcSC[i])
++		}
++	}
++}
++
++func TestAtanNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		if f := AtanNovec(vf[i]); !veryclose(atan[i], f) {
++			t.Errorf("Atan(%g) = %g, want %g", vf[i], f, atan[i])
++		}
++	}
++	for i := 0; i < len(vfatanSC); i++ {
++		if f := AtanNovec(vfatanSC[i]); !alike(atanSC[i], f) {
++			t.Errorf("Atan(%g) = %g, want %g", vfatanSC[i], f, atanSC[i])
++		}
++	}
++}
++
++func TestAtan2Novec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		if f := Atan2Novec(10, vf[i]); !veryclose(atan2[i], f) {
++			t.Errorf("Atan2(10, %g) = %g, want %g", vf[i], f, atan2[i])
++		}
++	}
++	for i := 0; i < len(vfatan2SC); i++ {
++		if f := Atan2Novec(vfatan2SC[i][0], vfatan2SC[i][1]); !alike(atan2SC[i], f) {
++			t.Errorf("Atan2(%g, %g) = %g, want %g", vfatan2SC[i][0], vfatan2SC[i][1], f, atan2SC[i])
++		}
++	}
++}
++
++func TestCbrtNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		if f := CbrtNovec(vf[i]); !veryclose(cbrt[i], f) {
++			t.Errorf("Cbrt(%g) = %g, want %g", vf[i], f, cbrt[i])
++		}
++	}
++	for i := 0; i < len(vfcbrtSC); i++ {
++		if f := CbrtNovec(vfcbrtSC[i]); !alike(cbrtSC[i], f) {
++			t.Errorf("Cbrt(%g) = %g, want %g", vfcbrtSC[i], f, cbrtSC[i])
++		}
++	}
++}
++
++func TestLogNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		a := Abs(vf[i])
++		if f := LogNovec(a); log[i] != f {
++			t.Errorf("Log(%g) = %g, want %g", a, f, log[i])
++		}
++	}
++	if f := LogNovec(10); f != Ln10 {
++		t.Errorf("Log(%g) = %g, want %g", 10.0, f, Ln10)
++	}
++	for i := 0; i < len(vflogSC); i++ {
++		if f := LogNovec(vflogSC[i]); !alike(logSC[i], f) {
++			t.Errorf("Log(%g) = %g, want %g", vflogSC[i], f, logSC[i])
++		}
++	}
++}
++
++func TestExpNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	testExpNovec(t, Exp, "Exp")
++	testExpNovec(t, ExpGo, "ExpGo")
++}
++
++func testExpNovec(t *testing.T, Exp func(float64) float64, name string) {
++	for i := 0; i < len(vf); i++ {
++		if f := ExpNovec(vf[i]); !veryclose(exp[i], f) {
++			t.Errorf("%s(%g) = %g, want %g", name, vf[i], f, exp[i])
++		}
++	}
++	for i := 0; i < len(vfexpSC); i++ {
++		if f := ExpNovec(vfexpSC[i]); !alike(expSC[i], f) {
++			t.Errorf("%s(%g) = %g, want %g", name, vfexpSC[i], f, expSC[i])
++		}
++	}
++}
++
++func TestExpm1Novec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		a := vf[i] / 100
++		if f := Expm1Novec(a); !veryclose(expm1[i], f) {
++			t.Errorf("Expm1(%g) = %g, want %g", a, f, expm1[i])
++		}
++	}
++	for i := 0; i < len(vf); i++ {
++		a := vf[i] * 10
++		if f := Expm1Novec(a); !close(expm1Large[i], f) {
++			t.Errorf("Expm1(%g) = %g, want %g", a, f, expm1Large[i])
++		}
++	}
++	for i := 0; i < len(vfexpm1SC); i++ {
++		if f := Expm1Novec(vfexpm1SC[i]); !alike(expm1SC[i], f) {
++			t.Errorf("Expm1(%g) = %g, want %g", vfexpm1SC[i], f, expm1SC[i])
++		}
++	}
++}
++
++func TestPowNovec(t *testing.T) {
++	if !HasVX {
++		t.Skipf("no vector support")
++	}
++	for i := 0; i < len(vf); i++ {
++		if f := PowNovec(10, vf[i]); !close(pow[i], f) {
++			t.Errorf("Pow(10, %g) = %g, want %g", vf[i], f, pow[i])
++		}
++	}
++	for i := 0; i < len(vfpowSC); i++ {
++		if f := PowNovec(vfpowSC[i][0], vfpowSC[i][1]); !alike(powSC[i], f) {
++			t.Errorf("Pow(%g, %g) = %g, want %g", vfpowSC[i][0], vfpowSC[i][1], f, powSC[i])
++		}
++	}
++}
+diff --git a/src/math/asin_s390x.s b/src/math/asin_s390x.s
+new file mode 100644
+index 0000000000..fd5ab040a5
+--- /dev/null
++++ b/src/math/asin_s390x.s
+@@ -0,0 +1,162 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial coefficients and other constants
++DATA ·asinrodataL15<> + 0(SB)/8, $-1.309611320495605469
++DATA ·asinrodataL15<> + 8(SB)/8, $0x3ff921fb54442d18
++DATA ·asinrodataL15<> + 16(SB)/8, $0xbff921fb54442d18
++DATA ·asinrodataL15<> + 24(SB)/8, $1.309611320495605469
++DATA ·asinrodataL15<> + 32(SB)/8, $-0.0
++DATA ·asinrodataL15<> + 40(SB)/8, $1.199437040755305217
++DATA ·asinrodataL15<> + 48(SB)/8, $0.166666666666651626E+00
++DATA ·asinrodataL15<> + 56(SB)/8, $0.750000000042621169E-01
++DATA ·asinrodataL15<> + 64(SB)/8, $0.446428567178116477E-01
++DATA ·asinrodataL15<> + 72(SB)/8, $0.303819660378071894E-01
++DATA ·asinrodataL15<> + 80(SB)/8, $0.223715011892010405E-01
++DATA ·asinrodataL15<> + 88(SB)/8, $0.173659424522364952E-01
++DATA ·asinrodataL15<> + 96(SB)/8, $0.137810186504372266E-01
++DATA ·asinrodataL15<> + 104(SB)/8, $0.134066870961173521E-01
++DATA ·asinrodataL15<> + 112(SB)/8, $-.412335502831898721E-02
++DATA ·asinrodataL15<> + 120(SB)/8, $0.867383739532082719E-01
++DATA ·asinrodataL15<> + 128(SB)/8, $-.328765950607171649E+00
++DATA ·asinrodataL15<> + 136(SB)/8, $0.110401073869414626E+01
++DATA ·asinrodataL15<> + 144(SB)/8, $-.270694366992537307E+01
++DATA ·asinrodataL15<> + 152(SB)/8, $0.500196500770928669E+01
++DATA ·asinrodataL15<> + 160(SB)/8, $-.665866959108585165E+01
++DATA ·asinrodataL15<> + 168(SB)/8, $-.344895269334086578E+01
++DATA ·asinrodataL15<> + 176(SB)/8, $0.927437952918301659E+00
++DATA ·asinrodataL15<> + 184(SB)/8, $0.610487478874645653E+01
++DATA ·asinrodataL15<> + 192(SB)/8, $0x7ff8000000000000			//+Inf
++DATA ·asinrodataL15<> + 200(SB)/8, $-1.0
++DATA ·asinrodataL15<> + 208(SB)/8, $1.0
++DATA ·asinrodataL15<> + 216(SB)/8, $1.00000000000000000e-20
++GLOBL ·asinrodataL15<> + 0(SB), RODATA, $224
++
++// Asin returns the arcsine, in radians, of the argument.
++//
++// Special cases are:
++//      Asin(±0) = ±0=
++//      Asin(x) = NaN if x < -1 or x > 1
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·asinAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·asinrodataL15<>+0(SB), R9
++	WORD	$0xB3CD0070	//lgdr %r7, %f0
++	FMOVD	F0, F8
++	SRAD	$32, R7
++	WORD	$0xC0193FE6 //iilf  %r1,1072079005
++	BYTE	$0xA0
++	BYTE	$0x9D
++	WORD	$0xB91700C7 //llgtr %r12,%r7
++	MOVW	R12, R8
++	MOVW	R1, R6
++	CMPBGT	R8, R6, L2
++	WORD	$0xC0193BFF //iilf  %r1,1006632959
++	BYTE	$0xFF
++	BYTE	$0xFF
++	MOVW	R1, R6
++	CMPBGT	R8, R6, L13
++L3:
++	FMOVD	216(R9), F0
++	FMADD	F0, F8, F8
++L1:
++	FMOVD	F8, ret+8(FP)
++	RET
++L2:
++	WORD	$0xC0193FEF	//iilf	%r1,1072693247
++	BYTE	$0xFF
++	BYTE	$0xFF
++	CMPW	R12, R1
++	BLE	L14
++L5:
++	WORD	$0xED0090D0	//cdb	%f0,.L17-.L15(%r9)
++	BYTE	$0x00
++	BYTE	$0x19
++	BEQ		L9
++	WORD	$0xED0090C8	//cdb	%f0,.L18-.L15(%r9)
++	BYTE	$0x00
++	BYTE	$0x19
++	BEQ	L10
++	WFCEDBS	V8, V8, V0
++	BVS	L1
++	FMOVD	192(R9), F8
++	BR	L1
++L13:
++	WFMDB	V0, V0, V10
++L4:
++	WFMDB	V10, V10, V0
++	FMOVD	184(R9), F6
++	FMOVD	176(R9), F2
++	FMOVD	168(R9), F4
++	WFMADB	V0, V2, V6, V2
++	FMOVD	160(R9), F6
++	WFMADB	V0, V4, V6, V4
++	FMOVD	152(R9), F6
++	WFMADB	V0, V2, V6, V2
++	FMOVD	144(R9), F6
++	WFMADB	V0, V4, V6, V4
++	FMOVD	136(R9), F6
++	WFMADB	V0, V2, V6, V2
++	WORD	$0xC0193FE6	//iilf	%r1,1072079005
++	BYTE	$0xA0
++	BYTE	$0x9D
++	FMOVD	128(R9), F6
++	WFMADB	V0, V4, V6, V4
++	FMOVD	120(R9), F6
++	WFMADB	V0, V2, V6, V2
++	FMOVD	112(R9), F6
++	WFMADB	V0, V4, V6, V4
++	FMOVD	104(R9), F6
++	WFMADB	V0, V2, V6, V2
++	FMOVD	96(R9), F6
++	WFMADB	V0, V4, V6, V4
++	FMOVD	88(R9), F6
++	WFMADB	V0, V2, V6, V2
++	FMOVD	80(R9), F6
++	WFMADB	V0, V4, V6, V4
++	FMOVD	72(R9), F6
++	WFMADB	V0, V2, V6, V2
++	FMOVD	64(R9), F6
++	WFMADB	V0, V4, V6, V4
++	FMOVD	56(R9), F6
++	WFMADB	V0, V2, V6, V2
++	FMOVD	48(R9), F6
++	WFMADB	V0, V4, V6, V0
++	WFMDB	V8, V10, V4
++	FMADD	F2, F10, F0
++	FMADD	F0, F4, F8
++	CMPW	R12, R1
++	BLE	L1
++	FMOVD	40(R9), F0
++	FMADD	F0, F1, F8
++	FMOVD	F8, ret+8(FP)
++	RET
++L14:
++	FMOVD	200(R9), F0
++	FMADD	F8, F8, F0
++	WORD	$0xB31300A0	//lcdbr	%f10,%f0
++	WORD	$0xED009020	//cdb	%f0,.L39-.L15(%r9)
++	BYTE	$0x00
++	BYTE	$0x19
++	FSQRT	F10, F8
++L6:
++	MOVW	R7, R6
++	CMPBLE	R6, $0, L8
++	WORD	$0xB3130088	//lcdbr	%f8,%f8
++	FMOVD	24(R9), F1
++	BR	L4
++L10:
++	FMOVD	16(R9), F8
++	BR	L1
++L9:
++	FMOVD	8(R9), F8
++	FMOVD	F8, ret+8(FP)
++	RET
++L8:
++	FMOVD	0(R9), F1
++	BR	L4
+diff --git a/src/math/asinh.go b/src/math/asinh.go
+index 3b793b0cea..65ae4c652d 100644
+--- a/src/math/asinh.go
++++ b/src/math/asinh.go
+@@ -36,7 +36,9 @@ package math
+ //	Asinh(±0) = ±0
+ //	Asinh(±Inf) = ±Inf
+ //	Asinh(NaN) = NaN
+-func Asinh(x float64) float64 {
++func Asinh(x float64) float64
++
++func asinh(x float64) float64 {
+ 	const (
+ 		Ln2      = 6.93147180559945286227e-01 // 0x3FE62E42FEFA39EF
+ 		NearZero = 1.0 / (1 << 28)            // 2**-28
+diff --git a/src/math/asinh_s390x.s b/src/math/asinh_s390x.s
+new file mode 100644
+index 0000000000..870a64a7a0
+--- /dev/null
++++ b/src/math/asinh_s390x.s
+@@ -0,0 +1,223 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial coefficients and other constants
++DATA ·asinhrodataL18<> + 0(SB)/8, $0.749999999977387502E-01
++DATA ·asinhrodataL18<> + 8(SB)/8, $-.166666666666657082E+00
++DATA ·asinhrodataL18<> + 16(SB)/8, $0.303819368237360639E-01
++DATA ·asinhrodataL18<> + 24(SB)/8, $-.446428569571752982E-01
++DATA ·asinhrodataL18<> + 32(SB)/8, $0.173500047922695924E-01
++DATA ·asinhrodataL18<> + 40(SB)/8, $-.223719767210027185E-01
++DATA ·asinhrodataL18<> + 48(SB)/8, $0.113655037946822130E-01
++DATA ·asinhrodataL18<> + 56(SB)/8, $0.579747490622448943E-02
++DATA ·asinhrodataL18<> + 64(SB)/8, $-.139372433914359122E-01
++DATA ·asinhrodataL18<> + 72(SB)/8, $-.218674325255800840E-02
++DATA ·asinhrodataL18<> + 80(SB)/8, $-.891074277756961157E-02
++DATA ·asinhrodataL18<> + 88(SB)/8, $.41375273347623353626
++DATA ·asinhrodataL18<> + 96(SB)/8, $.51487302528619766235E+04
++DATA ·asinhrodataL18<> + 104(SB)/8, $-1.67526912689208984375
++DATA ·asinhrodataL18<> + 112(SB)/8, $0.181818181818181826E+00
++DATA ·asinhrodataL18<> + 120(SB)/8, $-.165289256198351540E-01
++DATA ·asinhrodataL18<> + 128(SB)/8, $0.200350613573012186E-02
++DATA ·asinhrodataL18<> + 136(SB)/8, $-.273205381970859341E-03
++DATA ·asinhrodataL18<> + 144(SB)/8, $0.397389654305194527E-04
++DATA ·asinhrodataL18<> + 152(SB)/8, $0.938370938292558173E-06
++DATA ·asinhrodataL18<> + 160(SB)/8, $0.212881813645679599E-07
++DATA ·asinhrodataL18<> + 168(SB)/8, $-.602107458843052029E-05
++DATA ·asinhrodataL18<> + 176(SB)/8, $-.148682720127920854E-06
++DATA ·asinhrodataL18<> + 184(SB)/8, $-5.5
++DATA ·asinhrodataL18<> + 192(SB)/8, $1.0
++DATA ·asinhrodataL18<> + 200(SB)/8, $1.0E-20
++GLOBL ·asinhrodataL18<> + 0(SB), RODATA, $208
++
++// Table of log correction terms
++DATA ·asinhtab2080<> + 0(SB)/8, $0.585235384085551248E-01
++DATA ·asinhtab2080<> + 8(SB)/8, $0.412206153771168640E-01
++DATA ·asinhtab2080<> + 16(SB)/8, $0.273839003221648339E-01
++DATA ·asinhtab2080<> + 24(SB)/8, $0.166383778368856480E-01
++DATA ·asinhtab2080<> + 32(SB)/8, $0.866678223433169637E-02
++DATA ·asinhtab2080<> + 40(SB)/8, $0.319831684989627514E-02
++DATA ·asinhtab2080<> + 48(SB)/8, $0.0
++DATA ·asinhtab2080<> + 56(SB)/8, $-.113006378583725549E-02
++DATA ·asinhtab2080<> + 64(SB)/8, $-.367979419636602491E-03
++DATA ·asinhtab2080<> + 72(SB)/8, $0.213172484510484979E-02
++DATA ·asinhtab2080<> + 80(SB)/8, $0.623271047682013536E-02
++DATA ·asinhtab2080<> + 88(SB)/8, $0.118140812789696885E-01
++DATA ·asinhtab2080<> + 96(SB)/8, $0.187681358930914206E-01
++DATA ·asinhtab2080<> + 104(SB)/8, $0.269985148668178992E-01
++DATA ·asinhtab2080<> + 112(SB)/8, $0.364186619761331328E-01
++DATA ·asinhtab2080<> + 120(SB)/8, $0.469505379381388441E-01
++GLOBL ·asinhtab2080<> + 0(SB), RODATA, $128
++
++// Asinh returns the inverse hyperbolic sine of the argument.
++//
++// Special cases are:
++//      Asinh(±0) = ±0
++//      Asinh(±Inf) = ±Inf
++//      Asinh(NaN) = NaN
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·asinhAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·asinhrodataL18<>+0(SB), R9
++	WORD	$0xB3CD00C0	//lgdr %r12, %f0
++	WORD	$0xC0293FDF	//iilf	%r2,1071644671
++	BYTE	$0xFF
++	BYTE	$0xFF
++	SRAD	$32, R12
++	WORD	$0xB917001C	//llgtr	%r1,%r12
++	MOVW	R1, R6
++	MOVW	R2, R7
++	CMPBLE	R6, R7, L2
++	WORD	$0xC0295FEF	//iilf	%r2,1609564159
++	BYTE	$0xFF
++	BYTE	$0xFF
++	MOVW	R2, R7
++	CMPBLE	R6, R7, L14
++L3:
++	WORD	$0xC0297FEF	//iilf	%r2,2146435071
++	BYTE	$0xFF
++	BYTE	$0xFF
++	CMPW	R1, R2
++	BGT	L1
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	FMOVD	F0, F10
++	BLTU	L15
++L9:
++	FMOVD	$0, F0
++	WFADB	V0, V10, V0
++	WORD	$0xC0398006	//iilf	%r3,2147909631
++	BYTE	$0x7F
++	BYTE	$0xFF
++	WORD	$0xB3CD0050	//lgdr %r5, %f0
++	SRAD	$32, R5
++	MOVH	$0x0, R2
++	SUBW	R5, R3
++	FMOVD	$0, F8
++	WORD	$0xEC4320AF	//risbg	%r4,%r3,32,128+47,0
++	BYTE	$0x00
++	BYTE	$0x55
++	BYTE	$0x18	//lr	%r1,%r4
++	BYTE	$0x14
++	WORD	$0xEC24001F	//risbgn	%r2,%r4,64-64+0,64-64+0+32-1,64-0-32
++	BYTE	$0x20
++	BYTE	$0x59
++	SUBW	$0x100000, R1
++	SRAW	$8, R1, R1
++	ORW	$0x45000000, R1
++	BR	L6
++L2:
++	MOVD	$0x30000000, R2
++	CMPW	R1, R2
++	BGT	L16
++	FMOVD	200(R9), F2
++	FMADD	F2, F0, F0
++L1:
++	FMOVD	F0, ret+8(FP)
++	RET
++L14:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLTU	L17
++	FMOVD	F0, F10
++L4:
++	FMOVD	192(R9), F2
++	WFMADB	V0, V0, V2, V0
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	FSQRT	F0, F8
++L5:
++	WFADB	V8, V10, V0
++	WORD	$0xC0398006	//iilf	%r3,2147909631
++	BYTE	$0x7F
++	BYTE	$0xFF
++	WORD	$0xB3CD0050	//lgdr %r5, %f0
++	SRAD	$32, R5
++	MOVH	$0x0, R2
++	SUBW	R5, R3
++	WORD	$0xEC4320AF	//risbg	%r4,%r3,32,128+47,0
++	BYTE	$0x00
++	BYTE	$0x55
++	SRAW	$8, R4, R1
++	WORD	$0xEC24001F	//risbgn	%r2,%r4,64-64+0,64-64+0+32-1,64-0-32
++	BYTE	$0x20
++	BYTE	$0x59
++	ORW	$0x45000000, R1
++L6:
++	WORD	$0xB3C10022	//ldgr	%f2,%r2
++	FMOVD	184(R9), F0
++	WFMADB	V8, V2, V0, V8
++	FMOVD	176(R9), F4
++	WFMADB	V10, V2, V8, V2
++	FMOVD	168(R9), F0
++	FMOVD	160(R9), F6
++	FMOVD	152(R9), F1
++	WFMADB	V2, V6, V4, V6
++	WFMADB	V2, V1, V0, V1
++	WFMDB	V2, V2, V4
++	FMOVD	144(R9), F0
++	WFMADB	V6, V4, V1, V6
++	FMOVD	136(R9), F1
++	WORD	$0xEC3339BC	//risbg	%r3,%r3,57,128+60,64-13
++	BYTE	$0x33
++	BYTE	$0x55
++	WFMADB	V2, V0, V1, V0
++	FMOVD	128(R9), F1
++	WFMADB	V4, V6, V0, V6
++	FMOVD	120(R9), F0
++	WFMADB	V2, V1, V0, V1
++	VLVGF	$0, R1, V0
++	WFMADB	V4, V6, V1, V4
++	LDEBR	F0, F0
++	FMOVD	112(R9), F6
++	WFMADB	V2, V4, V6, V4
++	MOVD	$·asinhtab2080<>+0(SB), R1
++	FMOVD	104(R9), F1
++	WORD	$0x68331000	//ld	%f3,0(%r3,%r1)
++	FMOVD	96(R9), F6
++	WFMADB	V2, V4, V3, V2
++	WFMADB	V0, V1, V6, V0
++	FMOVD	88(R9), F4
++	WFMADB	V0, V4, V2, V0
++	MOVD	R12, R6
++	CMPBGT	R6, $0, L1
++
++	WORD	$0xB3130000	//lcdbr	%f0,%f0
++	FMOVD	F0, ret+8(FP)
++	RET
++L16:
++	WFMDB	V0, V0, V1
++	FMOVD	80(R9), F6
++	WFMDB	V1, V1, V4
++	FMOVD	72(R9), F2
++	WFMADB	V4, V2, V6, V2
++	FMOVD	64(R9), F3
++	FMOVD	56(R9), F6
++	WFMADB	V4, V2, V3, V2
++	FMOVD	48(R9), F3
++	WFMADB	V4, V6, V3, V6
++	FMOVD	40(R9), F5
++	FMOVD	32(R9), F3
++	WFMADB	V4, V2, V5, V2
++	WFMADB	V4, V6, V3, V6
++	FMOVD	24(R9), F5
++	FMOVD	16(R9), F3
++	WFMADB	V4, V2, V5, V2
++	WFMADB	V4, V6, V3, V6
++	FMOVD	8(R9), F5
++	FMOVD	0(R9), F3
++	WFMADB	V4, V2, V5, V2
++	WFMADB	V4, V6, V3, V4
++	WFMDB	V0, V1, V6
++	WFMADB	V1, V4, V2, V4
++	FMADD	F4, F6, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L17:
++	WORD	$0xB31300A0	//lcdbr	%f10,%f0
++	BR	L4
++L15:
++	WORD	$0xB31300A0	//lcdbr	%f10,%f0
++	BR	L9
+diff --git a/src/math/asinh_stub.s b/src/math/asinh_stub.s
+new file mode 100644
+index 0000000000..2c94aad355
+--- /dev/null
++++ b/src/math/asinh_stub.s
+@@ -0,0 +1,17 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32 arm
++
++#include "textflag.h"
++
++TEXT ·Acosh(SB),NOSPLIT,$0
++    JMP ·acosh(SB)
++
++TEXT ·Asinh(SB),NOSPLIT,$0
++    JMP ·asinh(SB)
++
++TEXT ·Atanh(SB),NOSPLIT,$0
++	JMP ·atanh(SB)
++
+diff --git a/src/math/atan2_s390x.s b/src/math/atan2_s390x.s
+new file mode 100644
+index 0000000000..5d90d488fc
+--- /dev/null
++++ b/src/math/atan2_s390x.s
+@@ -0,0 +1,302 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++#define PosInf		0x7FF0000000000000
++#define NegInf		0xFFF0000000000000
++#define NegZero		0x8000000000000000
++#define Pi		0x400921FB54442D18
++#define NegPi		0xC00921FB54442D18
++#define Pi3Div4		0x4002D97C7F3321D2	// 3Pi/4
++#define NegPi3Div4	0xC002D97C7F3321D2	// -3Pi/4
++#define PiDiv4		0x3FE921FB54442D18	// Pi/4
++#define NegPiDiv4	0xBFE921FB54442D18	// -Pi/4
++
++// Minimax polynomial coefficients and other constants
++DATA ·atan2rodataL25<> + 0(SB)/8, $0.199999999999554423E+00
++DATA ·atan2rodataL25<> + 8(SB)/8, $-.333333333333330928E+00
++DATA ·atan2rodataL25<> + 16(SB)/8, $0.111111110136634272E+00
++DATA ·atan2rodataL25<> + 24(SB)/8, $-.142857142828026806E+00
++DATA ·atan2rodataL25<> + 32(SB)/8, $0.769228118888682505E-01
++DATA ·atan2rodataL25<> + 40(SB)/8, $0.588059263575587687E-01
++DATA ·atan2rodataL25<> + 48(SB)/8, $-.909090711945939878E-01
++DATA ·atan2rodataL25<> + 56(SB)/8, $-.666641501287528609E-01
++DATA ·atan2rodataL25<> + 64(SB)/8, $0.472329433805024762E-01
++DATA ·atan2rodataL25<> + 72(SB)/8, $-.525380587584426406E-01
++DATA ·atan2rodataL25<> + 80(SB)/8, $-.422172007412067035E-01
++DATA ·atan2rodataL25<> + 88(SB)/8, $0.366935664549587481E-01
++DATA ·atan2rodataL25<> + 96(SB)/8, $0.220852012160300086E-01
++DATA ·atan2rodataL25<> + 104(SB)/8, $-.299856214685512712E-01
++DATA ·atan2rodataL25<> + 112(SB)/8, $0.726338160757602439E-02
++DATA ·atan2rodataL25<> + 120(SB)/8, $0.134893651284712515E-04
++DATA ·atan2rodataL25<> + 128(SB)/8, $-.291935324869629616E-02
++DATA ·atan2rodataL25<> + 136(SB)/8, $-.154797890856877418E-03
++DATA ·atan2rodataL25<> + 144(SB)/8, $0.843488472994227321E-03
++DATA ·atan2rodataL25<> + 152(SB)/8, $-.139950258898989925E-01
++GLOBL ·atan2rodataL25<> + 0(SB), RODATA, $160
++
++DATA ·atan2xpi2h<> + 0(SB)/8, $0x3ff330e4e4fa7b1b
++DATA ·atan2xpi2h<> + 8(SB)/8, $0xbff330e4e4fa7b1b
++DATA ·atan2xpi2h<> + 16(SB)/8, $0x400330e4e4fa7b1b
++DATA ·atan2xpi2h<> + 24(SB)/8, $0xc00330e4e4fa7b1b
++GLOBL ·atan2xpi2h<> + 0(SB), RODATA, $32
++DATA ·atan2xpim<> + 0(SB)/8, $0x3ff4f42b00000000
++GLOBL ·atan2xpim<> + 0(SB), RODATA, $8
++
++// Atan2 returns the arc tangent of y/x, using
++// the signs of the two to determine the quadrant
++// of the return value.
++//
++// Special cases are (in order):
++//      Atan2(y, NaN) = NaN
++//      Atan2(NaN, x) = NaN
++//      Atan2(+0, x>=0) = +0
++//      Atan2(-0, x>=0) = -0
++//      Atan2(+0, x<=-0) = +Pi
++//      Atan2(-0, x<=-0) = -Pi
++//      Atan2(y>0, 0) = +Pi/2
++//      Atan2(y<0, 0) = -Pi/2
++//      Atan2(+Inf, +Inf) = +Pi/4
++//      Atan2(-Inf, +Inf) = -Pi/4
++//      Atan2(+Inf, -Inf) = 3Pi/4
++//      Atan2(-Inf, -Inf) = -3Pi/4
++//      Atan2(y, +Inf) = 0
++//      Atan2(y>0, -Inf) = +Pi
++//      Atan2(y<0, -Inf) = -Pi
++//      Atan2(+Inf, x) = +Pi/2
++//      Atan2(-Inf, x) = -Pi/2
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·atan2Asm(SB), NOSPLIT, $0-24
++	// special case
++	MOVD	x+0(FP), R1
++	MOVD	y+8(FP), R2
++
++	// special case Atan2(NaN, y) = NaN
++	MOVD	$~(1<<63), R5
++	AND	R1, R5		// x = |x|
++	MOVD	$PosInf, R3
++	CMPUBLT	R3, R5, returnX
++
++	// special case Atan2(x, NaN) = NaN
++	MOVD	$~(1<<63), R5
++	AND	R2, R5
++	CMPUBLT R3, R5, returnY
++
++	MOVD	$NegZero, R3
++	CMPUBEQ	R3, R1, xIsNegZero
++
++	MOVD	$0, R3
++	CMPUBEQ	R3, R1, xIsPosZero
++
++	MOVD	$PosInf, R4
++	CMPUBEQ	R4, R2, yIsPosInf
++
++	MOVD	$NegInf, R4
++	CMPUBEQ	R4, R2, yIsNegInf
++	BR	Normal
++xIsNegZero:
++	// special case Atan(-0, y>=0) = -0
++	MOVD	$0, R4
++	CMPBLE	R4, R2, returnX
++
++	//special case Atan2(-0, y<=-0) = -Pi
++	MOVD	$NegZero, R4
++	CMPBGE	R4, R2, returnNegPi
++	BR	Normal
++xIsPosZero:
++	//special case Atan2(0, 0) = 0
++	MOVD	$0, R4
++	CMPUBEQ	R4, R2, returnX
++
++	//special case Atan2(0, y<=-0) = Pi
++	MOVD	$NegZero, R4
++	CMPBGE	R4, R2, returnPi
++	BR Normal
++yIsNegInf:
++	//special case Atan2(+Inf, -Inf) = 3Pi/4
++	MOVD	$PosInf, R3
++	CMPUBEQ	R3, R1, posInfNegInf
++
++	//special case Atan2(-Inf, -Inf) = -3Pi/4
++	MOVD	$NegInf, R3
++	CMPUBEQ	R3, R1, negInfNegInf
++	BR Normal
++yIsPosInf:
++	//special case Atan2(+Inf, +Inf) = Pi/4
++	MOVD	$PosInf, R3
++	CMPUBEQ	R3, R1, posInfPosInf
++
++	//special case Atan2(-Inf, +Inf) = -Pi/4
++	MOVD	$NegInf, R3
++	CMPUBEQ	R3, R1, negInfPosInf
++
++	//special case Atan2(-Pi, +Inf) = Pi
++	MOVD	$NegPi, R3
++	CMPUBEQ	R3, R1, negPiPosInf
++
++Normal:
++	FMOVD	x+0(FP), F0
++	FMOVD	y+8(FP), F2
++	MOVD	$·atan2rodataL25<>+0(SB), R9
++	WORD	$0xB3CD0020	//lgdr	%r2,%f0
++	WORD	$0xB3CD0012	//lgdr	%r1,%f2
++	WORD	$0xEC2220BF	//risbgn	%r2,%r2,64-32,128+63,64+0+32
++	BYTE	$0x60
++	BYTE	$0x59
++	WORD	$0xEC1120BF	//risbgn	%r1,%r1,64-32,128+63,64+0+32
++	BYTE	$0x60
++	BYTE	$0x59
++	WORD	$0xB9170032	//llgtr	%r3,%r2
++	WORD	$0xEC523FBF	//risbg	%r5,%r2,64-1,128+63,64+32+1
++	BYTE	$0x61
++	BYTE	$0x55
++	WORD	$0xB9170041	//llgtr	%r4,%r1
++	WFLCDB	V0, V20
++	MOVW	R4, R6
++	MOVW	R3, R7
++	CMPUBLT	R6, R7, L17
++	WFDDB	V2, V0, V3
++	ADDW	$2, R5, R2
++	MOVW	R4, R6
++	MOVW	R3, R7
++	CMPUBLE	R6, R7, L20
++L3:
++	WFMDB	V3, V3, V4
++	VLEG	$0, 152(R9), V18
++	VLEG	$0, 144(R9), V16
++	FMOVD	136(R9), F1
++	FMOVD	128(R9), F5
++	FMOVD	120(R9), F6
++	WFMADB	V4, V16, V5, V16
++	WFMADB	V4, V6, V1, V6
++	FMOVD	112(R9), F7
++	WFMDB	V4, V4, V1
++	WFMADB	V4, V7, V18, V7
++	VLEG	$0, 104(R9), V18
++	WFMADB	V1, V6, V16, V6
++	CMPWU	R4, R3
++	FMOVD	96(R9), F5
++	VLEG	$0, 88(R9), V16
++	WFMADB	V4, V5, V18, V5
++	VLEG	$0, 80(R9), V18
++	VLEG	$0, 72(R9), V22
++	WFMADB	V4, V16, V18, V16
++	VLEG	$0, 64(R9), V18
++	WFMADB	V1, V7, V5, V7
++	WFMADB	V4, V18, V22, V18
++	WFMDB	V1, V1, V5
++	WFMADB	V1, V16, V18, V16
++	VLEG	$0, 56(R9), V18
++	WFMADB	V5, V6, V7, V6
++	VLEG	$0, 48(R9), V22
++	FMOVD	40(R9), F7
++	WFMADB	V4, V7, V18, V7
++	VLEG	$0, 32(R9), V18
++	WFMADB	V5, V6, V16, V6
++	WFMADB	V4, V18, V22, V18
++	VLEG	$0, 24(R9), V16
++	WFMADB	V1, V7, V18, V7
++	VLEG	$0, 16(R9), V18
++	VLEG	$0, 8(R9), V22
++	WFMADB	V4, V18, V16, V18
++	VLEG	$0, 0(R9), V16
++	WFMADB	V5, V6, V7, V6
++	WFMADB	V4, V16, V22, V16
++	FMUL	F3, F4
++	WFMADB	V1, V18, V16, V1
++	FMADD	F6, F5, F1
++	WFMADB	V4, V1, V3, V4
++	BLT	L18
++	BGT	L7
++	WORD	$0xB3120022	//ltdbr	%f2,%f2
++	BLTU	L21
++L8:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLTU	L22
++L9:
++	WFCHDBS	V2, V0, V0
++	BNE	L18
++L7:
++	MOVW	R1, R6
++	CMPBGE	R6, $0, L1
++L18:
++	WORD	$0xEC223ABC	//risbg	%r2,%r2,58,128+60,3
++	BYTE	$0x03
++	BYTE	$0x55
++	MOVD	$·atan2xpi2h<>+0(SB), R1
++	MOVD	·atan2xpim<>+0(SB), R3
++	WORD	$0xB3C10003	//ldgr	%f0,%r3
++	WORD	$0xED021000	//madb	%f4,%f0,0(%r2,%r1)
++	BYTE	$0x40
++	BYTE	$0x1E
++L1:
++	FMOVD	F4, ret+16(FP)
++	RET
++
++L20:
++	WORD	$0xB3120022	//ltdbr	%f2,%f2
++	BLTU	L23
++	FMOVD	F2, F6
++L4:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLTU	L24
++	FMOVD	F0, F4
++L5:
++	WFCHDBS	V6, V4, V4
++	BEQ	L3
++L17:
++	WFDDB	V0, V2, V4
++	BYTE	$0x18	//lr	%r2,%r5
++	BYTE	$0x25
++	WORD	$0xB3130034	//lcdbr	%f3,%f4
++	BR	L3
++L23:
++	WORD	$0xB3130062	//lcdbr	%f6,%f2
++	BR	L4
++L22:
++	VLR	V20, V0
++	BR	L9
++L21:
++	WORD	$0xB3130022	//lcdbr	%f2,%f2
++	BR	L8
++L24:
++	VLR	V20, V4
++	BR	L5
++returnX:	//the result is same as the first argument
++	MOVD	R1, ret+16(FP)
++	RET
++returnY:	//the result is same as the second argument
++	MOVD	R2, ret+16(FP)
++	RET
++returnPi:
++	MOVD	$Pi, R1
++	MOVD	R1, ret+16(FP)
++	RET
++returnNegPi:
++	MOVD	$NegPi, R1
++	MOVD	R1, ret+16(FP)
++	RET
++posInfNegInf:
++	MOVD	$Pi3Div4, R1
++	MOVD	R1, ret+16(FP)
++	RET
++negInfNegInf:
++	MOVD	$NegPi3Div4, R1
++	MOVD	R1, ret+16(FP)
++	RET
++posInfPosInf:
++	MOVD	$PiDiv4, R1
++	MOVD	R1, ret+16(FP)
++	RET
++negInfPosInf:
++	MOVD	$NegPiDiv4, R1
++	MOVD	R1, ret+16(FP)
++	RET
++negPiPosInf:
++	MOVD	$NegZero, R1
++	MOVD	R1, ret+16(FP)
++	RET
+diff --git a/src/math/atan_s390x.s b/src/math/atan_s390x.s
+new file mode 100644
+index 0000000000..9f4eaa28d5
+--- /dev/null
++++ b/src/math/atan_s390x.s
+@@ -0,0 +1,132 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial coefficients and other constants
++DATA ·atanrodataL8<> + 0(SB)/8, $0.199999999999554423E+00
++DATA ·atanrodataL8<> + 8(SB)/8, $0.111111110136634272E+00
++DATA ·atanrodataL8<> + 16(SB)/8, $-.142857142828026806E+00
++DATA ·atanrodataL8<> + 24(SB)/8, $-.333333333333330928E+00
++DATA ·atanrodataL8<> + 32(SB)/8, $0.769228118888682505E-01
++DATA ·atanrodataL8<> + 40(SB)/8, $0.588059263575587687E-01
++DATA ·atanrodataL8<> + 48(SB)/8, $-.666641501287528609E-01
++DATA ·atanrodataL8<> + 56(SB)/8, $-.909090711945939878E-01
++DATA ·atanrodataL8<> + 64(SB)/8, $0.472329433805024762E-01
++DATA ·atanrodataL8<> + 72(SB)/8, $0.366935664549587481E-01
++DATA ·atanrodataL8<> + 80(SB)/8, $-.422172007412067035E-01
++DATA ·atanrodataL8<> + 88(SB)/8, $-.299856214685512712E-01
++DATA ·atanrodataL8<> + 96(SB)/8, $0.220852012160300086E-01
++DATA ·atanrodataL8<> + 104(SB)/8, $0.726338160757602439E-02
++DATA ·atanrodataL8<> + 112(SB)/8, $0.843488472994227321E-03
++DATA ·atanrodataL8<> + 120(SB)/8, $0.134893651284712515E-04
++DATA ·atanrodataL8<> + 128(SB)/8, $-.525380587584426406E-01
++DATA ·atanrodataL8<> + 136(SB)/8, $-.139950258898989925E-01
++DATA ·atanrodataL8<> + 144(SB)/8, $-.291935324869629616E-02
++DATA ·atanrodataL8<> + 152(SB)/8, $-.154797890856877418E-03
++GLOBL ·atanrodataL8<> + 0(SB), RODATA, $160
++
++DATA ·atanxpi2h<> + 0(SB)/8, $0x3ff330e4e4fa7b1b
++DATA ·atanxpi2h<> + 8(SB)/8, $0xbff330e4e4fa7b1b
++DATA ·atanxpi2h<> + 16(SB)/8, $0x400330e4e4fa7b1b
++DATA ·atanxpi2h<> + 24(SB)/4, $0xc00330e4e4fa7b1b
++GLOBL ·atanxpi2h<> + 0(SB), RODATA, $32
++DATA ·atanxpim<> + 0(SB)/8, $0x3ff4f42b00000000
++GLOBL ·atanxpim<> + 0(SB), RODATA, $8
++DATA ·atanxmone<> + 0(SB)/8, $-1.0
++GLOBL ·atanxmone<> + 0(SB), RODATA, $8
++
++// Atan returns the arctangent, in radians, of the argument.
++//
++// Special cases are:
++//      Atan(±0) = ±0
++//      Atan(±Inf) = ±Pi/2Pi
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·atanAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	//special case Atan(±0) = ±0
++	FMOVD   $(0.0), F1
++	FCMPU   F0, F1
++	BEQ     atanIsZero
++
++	MOVD	$·atanrodataL8<>+0(SB), R5
++	MOVH	$0x3FE0, R3
++	WORD	$0xB3CD0010	//lgdr	%r1,%f0
++	WORD	$0xEC1120BF	//risbgn	%r1,%r1,64-32,128+63,64+0+32
++	BYTE	$0x60
++	BYTE	$0x59
++	RLL	$16, R1, R2
++	ANDW	$0x7FF0, R2
++	MOVW	R2, R6
++	MOVW	R3, R7
++	CMPUBLE	R6, R7, L6
++	MOVD	$·atanxmone<>+0(SB), R3
++	FMOVD	0(R3), F2
++	WFDDB	V0, V2, V0
++	WORD	$0xEC113FBF	//risbg	%r1,%r1,64-1,128+63,64+32+1
++	BYTE	$0x61
++	BYTE	$0x55
++	MOVD	$·atanxpi2h<>+0(SB), R3
++	MOVWZ	R1, R1
++	SLD	$3, R1, R1
++	WORD	$0x68813000	//ld	%f8,0(%r1,%r3)
++L6:
++	WFMDB	V0, V0, V2
++	FMOVD	152(R5), F6
++	FMOVD	144(R5), F1
++	FMOVD	136(R5), F7
++	VLEG	$0, 128(R5), V16
++	FMOVD	120(R5), F4
++	FMOVD	112(R5), F5
++	WFMADB	V2, V4, V6, V4
++	WFMADB	V2, V5, V1, V5
++	WFMDB	V2, V2, V6
++	FMOVD	104(R5), F3
++	FMOVD	96(R5), F1
++	WFMADB	V2, V3, V7, V3
++	MOVH	$0x3FE0, R1
++	FMOVD	88(R5), F7
++	WFMADB	V2, V1, V7, V1
++	FMOVD	80(R5), F7
++	WFMADB	V6, V3, V1, V3
++	WFMADB	V6, V4, V5, V4
++	WFMDB	V6, V6, V1
++	FMOVD	72(R5), F5
++	WFMADB	V2, V5, V7, V5
++	FMOVD	64(R5), F7
++	WFMADB	V2, V7, V16, V7
++	VLEG	$0, 56(R5), V16
++	WFMADB	V6, V5, V7, V5
++	WFMADB	V1, V4, V3, V4
++	FMOVD	48(R5), F7
++	FMOVD	40(R5), F3
++	WFMADB	V2, V3, V7, V3
++	FMOVD	32(R5), F7
++	WFMADB	V2, V7, V16, V7
++	VLEG	$0, 24(R5), V16
++	WFMADB	V1, V4, V5, V4
++	FMOVD	16(R5), F5
++	WFMADB	V6, V3, V7, V3
++	FMOVD	8(R5), F7
++	WFMADB	V2, V7, V5, V7
++	FMOVD	0(R5), F5
++	WFMADB	V2, V5, V16, V5
++	WFMADB	V1, V4, V3, V4
++	WFMADB	V6, V7, V5, V6
++	FMUL	F0, F2
++	FMADD	F4, F1, F6
++	FMADD	F6, F2, F0
++	MOVW	R2, R6
++	MOVW	R1, R7
++	CMPUBLE	R6, R7, L1
++	MOVD	$·atanxpim<>+0(SB), R1
++	WORD	$0xED801000	//madb	%f0,%f8,0(%r1)
++	BYTE	$0x00
++	BYTE	$0x1E
++L1:
++atanIsZero:
++	FMOVD	F0, ret+8(FP)
++	RET
+diff --git a/src/math/atanh.go b/src/math/atanh.go
+index d59a8474fc..8904bd6dd2 100644
+--- a/src/math/atanh.go
++++ b/src/math/atanh.go
+@@ -44,7 +44,9 @@ package math
+ //	Atanh(-1) = -Inf
+ //	Atanh(x) = NaN if x < -1 or x > 1
+ //	Atanh(NaN) = NaN
+-func Atanh(x float64) float64 {
++func Atanh(x float64) float64
++
++func atanh(x float64) float64 {
+ 	const NearZero = 1.0 / (1 << 28) // 2**-28
+ 	// special cases
+ 	switch {
+diff --git a/src/math/atanh_s390x.s b/src/math/atanh_s390x.s
+new file mode 100644
+index 0000000000..57b61a34ff
+--- /dev/null
++++ b/src/math/atanh_s390x.s
+@@ -0,0 +1,178 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial coefficients and other constants
++DATA ·atanhrodataL10<> + 0(SB)/8, $.41375273347623353626
++DATA ·atanhrodataL10<> + 8(SB)/8, $.51487302528619766235E+04
++DATA ·atanhrodataL10<> + 16(SB)/8, $-1.67526912689208984375
++DATA ·atanhrodataL10<> + 24(SB)/8, $0.181818181818181826E+00
++DATA ·atanhrodataL10<> + 32(SB)/8, $-.165289256198351540E-01
++DATA ·atanhrodataL10<> + 40(SB)/8, $0.200350613573012186E-02
++DATA ·atanhrodataL10<> + 48(SB)/8, $0.397389654305194527E-04
++DATA ·atanhrodataL10<> + 56(SB)/8, $-.273205381970859341E-03
++DATA ·atanhrodataL10<> + 64(SB)/8, $0.938370938292558173E-06
++DATA ·atanhrodataL10<> + 72(SB)/8, $-.148682720127920854E-06
++DATA ·atanhrodataL10<> + 80(SB)/8, $ 0.212881813645679599E-07
++DATA ·atanhrodataL10<> + 88(SB)/8, $-.602107458843052029E-05
++DATA ·atanhrodataL10<> + 96(SB)/8, $-5.5
++DATA ·atanhrodataL10<> + 104(SB)/8, $-0.5
++DATA ·atanhrodataL10<> + 112(SB)/8, $0.0
++DATA ·atanhrodataL10<> + 120(SB)/8, $0x7ff8000000000000      //Nan
++DATA ·atanhrodataL10<> + 128(SB)/8, $-1.0
++DATA ·atanhrodataL10<> + 136(SB)/8, $1.0
++DATA ·atanhrodataL10<> + 144(SB)/8, $1.0E-20
++GLOBL ·atanhrodataL10<> + 0(SB), RODATA, $152
++
++// Table of log correction terms
++DATA ·atanhtab2076<> + 0(SB)/8, $0.585235384085551248E-01
++DATA ·atanhtab2076<> + 8(SB)/8, $0.412206153771168640E-01
++DATA ·atanhtab2076<> + 16(SB)/8, $0.273839003221648339E-01
++DATA ·atanhtab2076<> + 24(SB)/8, $0.166383778368856480E-01
++DATA ·atanhtab2076<> + 32(SB)/8, $0.866678223433169637E-02
++DATA ·atanhtab2076<> + 40(SB)/8, $0.319831684989627514E-02
++DATA ·atanhtab2076<> + 48(SB)/8, $0.000000000000000000E+00
++DATA ·atanhtab2076<> + 56(SB)/8, $-.113006378583725549E-02
++DATA ·atanhtab2076<> + 64(SB)/8, $-.367979419636602491E-03
++DATA ·atanhtab2076<> + 72(SB)/8, $0.213172484510484979E-02
++DATA ·atanhtab2076<> + 80(SB)/8, $0.623271047682013536E-02
++DATA ·atanhtab2076<> + 88(SB)/8, $0.118140812789696885E-01
++DATA ·atanhtab2076<> + 96(SB)/8, $0.187681358930914206E-01
++DATA ·atanhtab2076<> + 104(SB)/8, $0.269985148668178992E-01
++DATA ·atanhtab2076<> + 112(SB)/8, $0.364186619761331328E-01
++DATA ·atanhtab2076<> + 120(SB)/8, $0.469505379381388441E-01
++GLOBL ·atanhtab2076<> + 0(SB), RODATA, $128
++
++// Table of +/- .5
++DATA ·atanhtabh2075<> + 0(SB)/8, $0.5
++DATA ·atanhtabh2075<> + 8(SB)/8, $-.5
++GLOBL ·atanhtabh2075<> + 0(SB), RODATA, $16
++
++// Atanh returns the inverse hyperbolic tangent of the argument.
++//
++// Special cases are:
++//      Atanh(1) = +Inf
++//      Atanh(±0) = ±0
++//      Atanh(-1) = -Inf
++//      Atanh(x) = NaN if x < -1 or x > 1
++//      Atanh(NaN) = NaN
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT    ·atanhAsm(SB), NOSPLIT, $0-16
++    FMOVD   x+0(FP), F0
++    MOVD    $·atanhrodataL10<>+0(SB), R5
++    WORD    $0xB3CD0010	//lgdr %r1, %f0
++    WORD    $0xC0393FEF //iilf  %r3,1072693247
++    BYTE    $0xFF
++    BYTE    $0xFF
++    SRAD    $32, R1
++    WORD    $0xB9170021 //llgtr %r2,%r1
++    MOVW    R2, R6
++    MOVW    R3, R7
++    CMPBGT  R6, R7, L2
++    WORD    $0xC0392FFF //iilf  %r3,805306367
++    BYTE    $0xFF
++    BYTE    $0xFF
++    MOVW    R2, R6
++    MOVW    R3, R7
++    CMPBGT  R6, R7, L9
++L3:
++    FMOVD   144(R5), F2
++    FMADD   F2, F0, F0
++L1:
++    FMOVD   F0, ret+8(FP)
++    RET
++
++L2:
++    WORD    $0xED005088 //cdb   %f0,.L12-.L10(%r5)
++    BYTE    $0x00
++    BYTE    $0x19
++    BEQ L5
++    WORD    $0xED005080 //cdb   %f0,.L13-.L10(%r5)
++    BYTE    $0x00
++    BYTE    $0x19
++    BEQ L5
++    WFCEDBS V0, V0, V2
++    BVS L1
++    FMOVD   120(R5), F0
++    BR  L1
++L5:
++    WORD    $0xED005070 //ddb   %f0,.L15-.L10(%r5)
++    BYTE    $0x00
++    BYTE    $0x1D
++    FMOVD   F0, ret+8(FP)
++    RET
++
++L9:
++    FMOVD   F0, F2
++    MOVD    $·atanhtabh2075<>+0(SB), R2
++    SRW $31, R1, R1
++    FMOVD   104(R5), F4
++    MOVW    R1, R1
++    SLD $3, R1, R1
++    WORD    $0x68012000 //ld    %f0,0(%r1,%r2)
++    WFMADB  V2, V4, V0, V4
++    VLEG    $0, 96(R5), V16
++    FDIV    F4, F2
++    WORD    $0xC0298006 //iilf  %r2,2147909631
++    BYTE    $0x7F
++    BYTE    $0xFF
++    FMOVD   88(R5), F6
++    FMOVD   80(R5), F1
++    FMOVD   72(R5), F7
++    FMOVD   64(R5), F5
++    FMOVD   F2, F4
++    WORD    $0xED405088 //adb   %f4,.L12-.L10(%r5)
++    BYTE    $0x00
++    BYTE    $0x1A
++    WORD    $0xB3CD0044	//lgdr %r4, %f4
++    SRAD    $32, R4
++    FMOVD   F4, F3
++    WORD    $0xED305088 //sdb   %f3,.L12-.L10(%r5)
++    BYTE    $0x00
++    BYTE    $0x1B
++    SUBW    R4, R2
++    WFSDB   V3, V2, V3
++    WORD    $0xEC1220AF //risbg %r1,%r2,32,128+47,0
++    BYTE    $0x00
++    BYTE    $0x55
++    SLD $32, R1, R1
++    WORD    $0xB3C10021 //ldgr  %f2,%r1
++    WFMADB  V4, V2, V16, V4
++    SRAW    $8, R2, R1
++    WFMADB  V4, V5, V6, V5
++    WFMDB   V4, V4, V6
++    WFMADB  V4, V1, V7, V1
++    WFMADB  V2, V3, V4, V2
++    WFMADB  V1, V6, V5, V1
++    FMOVD   56(R5), F3
++    FMOVD   48(R5), F5
++    WFMADB  V4, V5, V3, V4
++    FMOVD   40(R5), F3
++    FMADD   F1, F6, F4
++    FMOVD   32(R5), F1
++    FMADD   F3, F2, F1
++    ANDW    $0xFFFFFF00, R1
++    WFMADB  V6, V4, V1, V6
++    FMOVD   24(R5), F3
++    ORW $0x45000000, R1
++    WFMADB  V2, V6, V3, V6
++    VLVGF   $0, R1, V4
++    LDEBR   F4, F4
++    WORD    $0xEC2239BC //risbg %r2,%r2,57,128+60,64-13
++    BYTE    $0x33
++    BYTE    $0x55
++    MOVD    $·atanhtab2076<>+0(SB), R1
++    FMOVD   16(R5), F3
++    WORD    $0x68521000 //ld    %f5,0(%r2,%r1)
++    FMOVD   8(R5), F1
++    WFMADB  V2, V6, V5, V2
++    WFMADB  V4, V3, V1, V4
++    FMOVD   0(R5), F6
++    FMADD   F6, F4, F2
++    FMUL    F2, F0
++    FMOVD   F0, ret+8(FP)
++    RET
+diff --git a/src/math/cbrt.go b/src/math/cbrt.go
+index f009fafd7d..4afd4a8f30 100644
+--- a/src/math/cbrt.go
++++ b/src/math/cbrt.go
+@@ -22,7 +22,9 @@ package math
+ //	Cbrt(±0) = ±0
+ //	Cbrt(±Inf) = ±Inf
+ //	Cbrt(NaN) = NaN
+-func Cbrt(x float64) float64 {
++func Cbrt(x float64) float64
++
++func cbrt(x float64) float64 {
+ 	const (
+ 		B1             = 715094163                   // (682-0.03306235651)*2**20
+ 		B2             = 696219795                   // (664-0.03306235651)*2**20
+diff --git a/src/math/cbrt_s390x.s b/src/math/cbrt_s390x.s
+new file mode 100644
+index 0000000000..20d9fe6f55
+--- /dev/null
++++ b/src/math/cbrt_s390x.s
+@@ -0,0 +1,162 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial coefficients and other constants
++DATA ·cbrtrodataL9<> + 0(SB)/8, $-.00016272731015974436E+00
++DATA ·cbrtrodataL9<> + 8(SB)/8, $0.66639548758285293179E+00
++DATA ·cbrtrodataL9<> + 16(SB)/8, $0.55519402697349815993E+00
++DATA ·cbrtrodataL9<> + 24(SB)/8, $0.49338566048766782004E+00
++DATA ·cbrtrodataL9<> + 32(SB)/8, $0.45208160036325611486E+00
++DATA ·cbrtrodataL9<> + 40(SB)/8, $0.43099892837778637816E+00
++DATA ·cbrtrodataL9<> + 48(SB)/8, $1.000244140625
++DATA ·cbrtrodataL9<> + 56(SB)/8, $0.33333333333333333333E+00
++DATA ·cbrtrodataL9<> + 64(SB)/8, $79228162514264337593543950336.
++GLOBL ·cbrtrodataL9<> + 0(SB), RODATA, $72
++
++// Index tables
++DATA ·cbrttab32069<> + 0(SB)/8, $0x404030303020202
++DATA ·cbrttab32069<> + 8(SB)/8, $0x101010101000000
++DATA ·cbrttab32069<> + 16(SB)/8, $0x808070706060605
++DATA ·cbrttab32069<> + 24(SB)/8, $0x505040404040303
++DATA ·cbrttab32069<> + 32(SB)/8, $0xe0d0c0c0b0b0b0a
++DATA ·cbrttab32069<> + 40(SB)/8, $0xa09090908080808
++DATA ·cbrttab32069<> + 48(SB)/8, $0x11111010100f0f0f
++DATA ·cbrttab32069<> + 56(SB)/8, $0xe0e0e0e0e0d0d0d
++DATA ·cbrttab32069<> + 64(SB)/8, $0x1515141413131312
++DATA ·cbrttab32069<> + 72(SB)/8, $0x1212111111111010
++GLOBL ·cbrttab32069<> + 0(SB), RODATA, $80
++
++DATA ·cbrttab22068<> + 0(SB)/8, $0x151015001420141
++DATA ·cbrttab22068<> + 8(SB)/8, $0x140013201310130
++DATA ·cbrttab22068<> + 16(SB)/8, $0x122012101200112
++DATA ·cbrttab22068<> + 24(SB)/8, $0x111011001020101
++DATA ·cbrttab22068<> + 32(SB)/8, $0x10000f200f100f0
++DATA ·cbrttab22068<> + 40(SB)/8, $0xe200e100e000d2
++DATA ·cbrttab22068<> + 48(SB)/8, $0xd100d000c200c1
++DATA ·cbrttab22068<> + 56(SB)/8, $0xc000b200b100b0
++DATA ·cbrttab22068<> + 64(SB)/8, $0xa200a100a00092
++DATA ·cbrttab22068<> + 72(SB)/8, $0x91009000820081
++DATA ·cbrttab22068<> + 80(SB)/8, $0x80007200710070
++DATA ·cbrttab22068<> + 88(SB)/8, $0x62006100600052
++DATA ·cbrttab22068<> + 96(SB)/8, $0x51005000420041
++DATA ·cbrttab22068<> + 104(SB)/8, $0x40003200310030
++DATA ·cbrttab22068<> + 112(SB)/8, $0x22002100200012
++DATA ·cbrttab22068<> + 120(SB)/8, $0x11001000020001
++GLOBL ·cbrttab22068<> + 0(SB), RODATA, $128
++
++DATA ·cbrttab12067<> + 0(SB)/8, $0x53e1529051324fe1
++DATA ·cbrttab12067<> + 8(SB)/8, $0x4e904d324be14a90
++DATA ·cbrttab12067<> + 16(SB)/8, $0x493247e146904532
++DATA ·cbrttab12067<> + 24(SB)/8, $0x43e1429041323fe1
++DATA ·cbrttab12067<> + 32(SB)/8, $0x3e903d323be13a90
++DATA ·cbrttab12067<> + 40(SB)/8, $0x393237e136903532
++DATA ·cbrttab12067<> + 48(SB)/8, $0x33e1329031322fe1
++DATA ·cbrttab12067<> + 56(SB)/8, $0x2e902d322be12a90
++DATA ·cbrttab12067<> + 64(SB)/8, $0xd3e1d290d132cfe1
++DATA ·cbrttab12067<> + 72(SB)/8, $0xce90cd32cbe1ca90
++DATA ·cbrttab12067<> + 80(SB)/8, $0xc932c7e1c690c532
++DATA ·cbrttab12067<> + 88(SB)/8, $0xc3e1c290c132bfe1
++DATA ·cbrttab12067<> + 96(SB)/8, $0xbe90bd32bbe1ba90
++DATA ·cbrttab12067<> + 104(SB)/8, $0xb932b7e1b690b532
++DATA ·cbrttab12067<> + 112(SB)/8, $0xb3e1b290b132afe1
++DATA ·cbrttab12067<> + 120(SB)/8, $0xae90ad32abe1aa90
++GLOBL ·cbrttab12067<> + 0(SB), RODATA, $128
++
++// Cbrt returns the cube root of the argument.
++//
++// Special cases are:
++//      Cbrt(±0) = ±0
++//      Cbrt(±Inf) = ±Inf
++//      Cbrt(NaN) = NaN
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·cbrtAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·cbrtrodataL9<>+0(SB), R9
++	WORD	$0xB3CD0020	//lgdr %r2, %f0
++	WORD	$0xC039000F	//iilf	%r3,1048575
++	BYTE	$0xFF
++	BYTE	$0xFF
++	SRAD	$32, R2
++	WORD	$0xB9170012	//llgtr	%r1,%r2
++	MOVW	R1, R6
++	MOVW	R3, R7
++	CMPBLE	R6, R7, L2
++	WORD	$0xC0397FEF	//iilf	%r3,2146435071
++	BYTE	$0xFF
++	BYTE	$0xFF
++	MOVW	R3, R7
++	CMPBLE	R6, R7, L8
++L1:
++	FMOVD	F0, ret+8(FP)
++	RET
++L3:
++L2:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BEQ	L1
++	FMOVD	F0, F2
++	WORD	$0xED209040	//mdb	%f2,.L10-.L9(%r9)
++	BYTE	$0x00
++	BYTE	$0x1C
++	MOVH	$0x200, R4
++	WORD	$0xB3CD0022	//lgdr %r2, %f2
++	SRAD	$32, R2
++L4:
++	WORD	$0xEC3239BE	//risbg	%r3,%r2,57,128+62,64-25
++	BYTE	$0x27
++	BYTE	$0x55
++	MOVD	$·cbrttab12067<>+0(SB), R1
++	WORD	$0x48131000	//lh	%r1,0(%r3,%r1)
++	WORD	$0xEC3239BE	//risbg	%r3,%r2,57,128+62,64-19
++	BYTE	$0x2D
++	BYTE	$0x55
++	MOVD	$·cbrttab22068<>+0(SB), R5
++	WORD	$0xEC223CBF	//risbgn	%r2,%r2,64-4,128+63,64+44+4
++	BYTE	$0x70
++	BYTE	$0x59
++	WORD	$0x4A135000	//ah	%r1,0(%r3,%r5)
++	BYTE	$0x18	//lr	%r3,%r1
++	BYTE	$0x31
++	MOVD	$·cbrttab32069<>+0(SB), R1
++	FMOVD	56(R9), F1
++	FMOVD	48(R9), F5
++	WORD	$0xEC23393B	//rosbg	%r2,%r3,57,59,4
++	BYTE	$0x04
++	BYTE	$0x56
++	WORD	$0xE3121000	//llc	%r1,0(%r2,%r1)
++	BYTE	$0x00
++	BYTE	$0x94
++	ADDW	R3, R1
++	ADDW	R4, R1
++	SLW	$16, R1, R1
++	SLD	$32, R1, R1
++	WORD	$0xB3C10021	//ldgr	%f2,%r1
++	WFMDB	V2, V2, V4
++	WFMDB	V4, V0, V6
++	WFMSDB	V4, V6, V2, V4
++	FMOVD	40(R9), F6
++	FMSUB	F1, F4, F2
++	FMOVD	32(R9), F4
++	WFMDB	V2, V2, V3
++	FMOVD	24(R9), F1
++	FMUL	F3, F0
++	FMOVD	16(R9), F3
++	WFMADB	V2, V0, V5, V2
++	FMOVD	8(R9), F5
++	FMADD	F6, F2, F4
++	WFMADB	V2, V1, V3, V1
++	WFMDB	V2, V2, V6
++	FMOVD	0(R9), F3
++	WFMADB	V4, V6, V1, V4
++	WFMADB	V2, V5, V3, V2
++	FMADD	F4, F6, F2
++	FMADD	F2, F0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L8:
++	MOVH	$0x0, R4
++	BR	L4
+diff --git a/src/math/cbrt_stub.s b/src/math/cbrt_stub.s
+new file mode 100644
+index 0000000000..65300d4519
+--- /dev/null
++++ b/src/math/cbrt_stub.s
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32 arm
++
++#include "textflag.h"
++
++TEXT ·Cbrt(SB),NOSPLIT,$0
++    JMP ·cbrt(SB)
++
+diff --git a/src/math/erf.go b/src/math/erf.go
+index 8ddd5f9809..9b4048f687 100644
+--- a/src/math/erf.go
++++ b/src/math/erf.go
+@@ -185,7 +185,9 @@ const (
+ //	Erf(+Inf) = 1
+ //	Erf(-Inf) = -1
+ //	Erf(NaN) = NaN
+-func Erf(x float64) float64 {
++func Erf(x float64) float64
++
++func erf(x float64) float64 {
+ 	const (
+ 		VeryTiny = 2.848094538889218e-306 // 0x0080000000000000
+ 		Small    = 1.0 / (1 << 28)        // 2**-28
+@@ -262,7 +264,9 @@ func Erf(x float64) float64 {
+ //	Erfc(+Inf) = 0
+ //	Erfc(-Inf) = 2
+ //	Erfc(NaN) = NaN
+-func Erfc(x float64) float64 {
++func Erfc(x float64) float64
++
++func erfc(x float64) float64 {
+ 	const Tiny = 1.0 / (1 << 56) // 2**-56
+ 	// special cases
+ 	switch {
+diff --git a/src/math/erf_s390x.s b/src/math/erf_s390x.s
+new file mode 100644
+index 0000000000..5b62bdad76
+--- /dev/null
++++ b/src/math/erf_s390x.s
+@@ -0,0 +1,299 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial coefficients and other constants
++DATA ·erfrodataL13<> + 0(SB)/8, $0.243673229298474689E+01
++DATA ·erfrodataL13<> + 8(SB)/8, $-.654905018503145600E+00
++DATA ·erfrodataL13<> + 16(SB)/8, $0.404669310217538718E+01
++DATA ·erfrodataL13<> + 24(SB)/8, $-.564189219162765367E+00
++DATA ·erfrodataL13<> + 32(SB)/8, $-.200104300906596851E+01
++DATA ·erfrodataL13<> + 40(SB)/8, $0.5
++DATA ·erfrodataL13<> + 48(SB)/8, $0.144070097650207154E+00
++DATA ·erfrodataL13<> + 56(SB)/8, $-.116697735205906191E+00
++DATA ·erfrodataL13<> + 64(SB)/8, $0.256847684882319665E-01
++DATA ·erfrodataL13<> + 72(SB)/8, $-.510805169106229148E-02
++DATA ·erfrodataL13<> + 80(SB)/8, $0.885258164825590267E-03
++DATA ·erfrodataL13<> + 88(SB)/8, $-.133861989591931411E-03
++DATA ·erfrodataL13<> + 96(SB)/8, $0.178294867340272534E-04
++DATA ·erfrodataL13<> + 104(SB)/8, $-.211436095674019218E-05
++DATA ·erfrodataL13<> + 112(SB)/8, $0.225503753499344434E-06
++DATA ·erfrodataL13<> + 120(SB)/8, $-.218247939190783624E-07
++DATA ·erfrodataL13<> + 128(SB)/8, $0.193179206264594029E-08
++DATA ·erfrodataL13<> + 136(SB)/8, $-.157440643541715319E-09
++DATA ·erfrodataL13<> + 144(SB)/8, $0.118878583237342616E-10
++DATA ·erfrodataL13<> + 152(SB)/8, $0.554289288424588473E-13
++DATA ·erfrodataL13<> + 160(SB)/8, $-.277649758489502214E-14
++DATA ·erfrodataL13<> + 168(SB)/8, $-.839318416990049443E-12
++DATA ·erfrodataL13<> + 176(SB)/8, $-2.25
++DATA ·erfrodataL13<> + 184(SB)/8, $.12837916709551258632
++DATA ·erfrodataL13<> + 192(SB)/8, $1.0
++DATA ·erfrodataL13<> + 200(SB)/8, $0.500000000000004237e+00
++DATA ·erfrodataL13<> + 208(SB)/8, $1.0
++DATA ·erfrodataL13<> + 216(SB)/8, $0.416666664838056960e-01
++DATA ·erfrodataL13<> + 224(SB)/8, $0.166666666630345592e+00
++DATA ·erfrodataL13<> + 232(SB)/8, $0.138926439368309441e-02
++DATA ·erfrodataL13<> + 240(SB)/8, $0.833349307718286047e-02
++DATA ·erfrodataL13<> + 248(SB)/8, $-.693147180559945286e+00
++DATA ·erfrodataL13<> + 256(SB)/8, $-.144269504088896339e+01
++DATA ·erfrodataL13<> + 264(SB)/8, $281475245147134.9375
++DATA ·erfrodataL13<> + 272(SB)/8, $0.358256136398192529E+01
++DATA ·erfrodataL13<> + 280(SB)/8, $-.554084396500738270E+00
++DATA ·erfrodataL13<> + 288(SB)/8, $0.203630123025312046E+02
++DATA ·erfrodataL13<> + 296(SB)/8, $-.735750304705934424E+01
++DATA ·erfrodataL13<> + 304(SB)/8, $0.250491598091071797E+02
++DATA ·erfrodataL13<> + 312(SB)/8, $-.118955882760959931E+02
++DATA ·erfrodataL13<> + 320(SB)/8, $0.942903335085524187E+01
++DATA ·erfrodataL13<> + 328(SB)/8, $-.564189522219085689E+00
++DATA ·erfrodataL13<> + 336(SB)/8, $-.503767199403555540E+01
++DATA ·erfrodataL13<> + 344(SB)/8, $0xbbc79ca10c924223
++DATA ·erfrodataL13<> + 352(SB)/8, $0.004099975562609307E+01
++DATA ·erfrodataL13<> + 360(SB)/8, $-.324434353381296556E+00
++DATA ·erfrodataL13<> + 368(SB)/8, $0.945204812084476250E-01
++DATA ·erfrodataL13<> + 376(SB)/8, $-.221407443830058214E-01
++DATA ·erfrodataL13<> + 384(SB)/8, $0.426072376238804349E-02
++DATA ·erfrodataL13<> + 392(SB)/8, $-.692229229127016977E-03
++DATA ·erfrodataL13<> + 400(SB)/8, $0.971111253652087188E-04
++DATA ·erfrodataL13<> + 408(SB)/8, $-.119752226272050504E-04
++DATA ·erfrodataL13<> + 416(SB)/8, $0.131662993588532278E-05
++DATA ·erfrodataL13<> + 424(SB)/8, $0.115776482315851236E-07
++DATA ·erfrodataL13<> + 432(SB)/8, $-.780118522218151687E-09
++DATA ·erfrodataL13<> + 440(SB)/8, $-.130465975877241088E-06
++DATA ·erfrodataL13<> + 448(SB)/8, $-0.25
++GLOBL ·erfrodataL13<> + 0(SB), RODATA, $456
++
++// Table of log correction terms
++DATA ·erftab2066<> + 0(SB)/8, $0.442737824274138381e-01
++DATA ·erftab2066<> + 8(SB)/8, $0.263602189790660309e-01
++DATA ·erftab2066<> + 16(SB)/8, $0.122565642281703586e-01
++DATA ·erftab2066<> + 24(SB)/8, $0.143757052860721398e-02
++DATA ·erftab2066<> + 32(SB)/8, $-.651375034121276075e-02
++DATA ·erftab2066<> + 40(SB)/8, $-.119317678849450159e-01
++DATA ·erftab2066<> + 48(SB)/8, $-.150868749549871069e-01
++DATA ·erftab2066<> + 56(SB)/8, $-.161992609578469234e-01
++DATA ·erftab2066<> + 64(SB)/8, $-.154492360403337917e-01
++DATA ·erftab2066<> + 72(SB)/8, $-.129850717389178721e-01
++DATA ·erftab2066<> + 80(SB)/8, $-.892902649276657891e-02
++DATA ·erftab2066<> + 88(SB)/8, $-.338202636596794887e-02
++DATA ·erftab2066<> + 96(SB)/8, $0.357266307045684762e-02
++DATA ·erftab2066<> + 104(SB)/8, $0.118665304327406698e-01
++DATA ·erftab2066<> + 112(SB)/8, $0.214434994118118914e-01
++DATA ·erftab2066<> + 120(SB)/8, $0.322580645161290314e-01
++GLOBL ·erftab2066<> + 0(SB), RODATA, $128
++
++// Table of +/- 1.0
++DATA ·erftab12067<> + 0(SB)/8, $1.0
++DATA ·erftab12067<> + 8(SB)/8, $-1.0
++GLOBL ·erftab12067<> + 0(SB), RODATA, $16
++
++// Erf returns the error function of the argument.
++//
++// Special cases are:
++//      Erf(+Inf) = 1
++//      Erf(-Inf) = -1
++//      Erf(NaN) = NaN
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·erfAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·erfrodataL13<>+0(SB), R5
++	WORD	$0xB3CD0010	//lgdr %r1, %f0
++	FMOVD	F0, F6
++	SRAD	$48, R1
++	MOVH	$16383, R3
++	WORD	$0xEC2131BF	//risbg	%r2,%r1,49,128+63,0
++	BYTE	$0x00
++	BYTE	$0x55
++	MOVW	R2, R6
++	MOVW	R3, R7
++	CMPBGT	R6, R7, L2
++	MOVH	$12287, R1
++	MOVW	R1, R7
++	CMPBLE	R6, R7 ,L12
++	MOVH	$16367, R1
++	MOVW	R1, R7
++	CMPBGT	R6, R7, L5
++	FMOVD	448(R5), F4
++	FMADD	F0, F0, F4
++	FMOVD	440(R5), F3
++	WFMDB	V4, V4, V2
++	FMOVD	432(R5), F0
++	FMOVD	424(R5), F1
++	WFMADB	V2, V0, V3, V0
++	FMOVD	416(R5), F3
++	WFMADB	V2, V1, V3, V1
++	FMOVD	408(R5), F5
++	FMOVD	400(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V1, V3, V1
++	FMOVD	392(R5), F5
++	FMOVD	384(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V1, V3, V1
++	FMOVD	376(R5), F5
++	FMOVD	368(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V1, V3, V1
++	FMOVD	360(R5), F5
++	FMOVD	352(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V1, V3, V2
++	WFMADB	V4, V0, V2, V0
++	WFMADB	V6, V0, V6, V0
++L1:
++	FMOVD	F0, ret+8(FP)
++	RET
++L2:
++	MOVH	R1, R1
++	MOVH	$16407, R3
++	SRW	$31, R1, R1
++	MOVW	R2, R6
++	MOVW	R3, R7
++	CMPBLE	R6, R7, L6
++	MOVW	R1, R1
++	SLD	$3, R1, R1
++	MOVD	$·erftab12067<>+0(SB), R3
++	WORD    $0x68013000     //ld %f0,0(%r1,%r3)
++	MOVH	$32751, R1
++	MOVW	R1, R7
++	CMPBGT	R6, R7, L7
++	FMOVD	344(R5), F2
++	FMADD	F2, F0, F0
++L7:
++	WFCEDBS	V6, V6, V2
++	BEQ	L1
++	FMOVD	F6, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++
++L6:
++	MOVW	R1, R1
++	SLD	$3, R1, R1
++	MOVD	$·erftab12067<>+0(SB), R4
++	WFMDB	V0, V0, V1
++	MOVH	$0x0, R3
++	WORD    $0x68014000     //ld %f0,0(%r1,%r4)
++	MOVH	$16399, R1
++	MOVW	R2, R6
++	MOVW	R1, R7
++	CMPBGT	R6, R7, L8
++	FMOVD	336(R5), F3
++	FMOVD	328(R5), F2
++	FMOVD	F1, F4
++	WFMADB	V1, V2, V3, V2
++	WORD	$0xED405140	//adb %f4,.L30-.L13(%r5)
++	BYTE	$0x00
++	BYTE	$0x1A
++	FMOVD	312(R5), F3
++	WFMADB	V1, V2, V3, V2
++	FMOVD	304(R5), F3
++	WFMADB	V1, V4, V3, V4
++	FMOVD	296(R5), F3
++	WFMADB	V1, V2, V3, V2
++	FMOVD	288(R5), F3
++	WFMADB	V1, V4, V3, V4
++	FMOVD	280(R5), F3
++	WFMADB	V1, V2, V3, V2
++	FMOVD	272(R5), F3
++	WFMADB	V1, V4, V3, V4
++L9:
++	FMOVD	264(R5), F3
++	FMUL	F4, F6
++	FMOVD	256(R5), F4
++	WFMADB	V1, V4, V3, V4
++	FDIV	F6, F2
++	WORD	$0xB3CD0014	//lgdr %r1, %f4
++	FSUB	F3, F4
++	FMOVD	248(R5), F6
++	WFMSDB	V4, V6, V1, V4
++	FMOVD	240(R5), F1
++	FMOVD	232(R5), F6
++	WFMADB	V4, V6, V1, V6
++	FMOVD	224(R5), F1
++	FMOVD	216(R5), F3
++	WFMADB	V4, V3, V1, V3
++	WFMDB	V4, V4, V1
++	FMOVD	208(R5), F5
++	WFMADB	V6, V1, V3, V6
++	FMOVD	200(R5), F3
++	MOVH	R1,R1
++	WFMADB	V4, V3, V5, V3
++	WORD	$0xEC2139BC	//risbg	%r2,%r1,57,128+60,3
++	BYTE	$0x03
++	BYTE	$0x55
++	WFMADB	V1, V6, V3, V6
++	WORD	$0xEC31000F	//risbgn %r3,%r1,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	MOVD	$·erftab2066<>+0(SB), R1
++	FMOVD	192(R5), F1
++	WORD	$0xB3C10033	//ldgr %f3,%r3
++	WORD	$0xED221000	//madb %f2,%f2,0(%r2,%r1)
++	BYTE	$0x20
++	BYTE	$0x1E
++	WFMADB	V4, V6, V1, V4
++	FMUL	F3, F2
++	FMADD	F4, F2, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L12:
++	FMOVD	184(R5), F0
++	WFMADB	V6, V0, V6, V0
++	FMOVD	F0, ret+8(FP)
++	RET
++L5:
++	FMOVD	176(R5), F1
++	FMADD	F0, F0, F1
++	FMOVD	168(R5), F3
++	WFMDB	V1, V1, V2
++	FMOVD	160(R5), F0
++	FMOVD	152(R5), F4
++	WFMADB	V2, V0, V3, V0
++	FMOVD	144(R5), F3
++	WFMADB	V2, V4, V3, V4
++	FMOVD	136(R5), F5
++	FMOVD	128(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V4, V3, V4
++	FMOVD	120(R5), F5
++	FMOVD	112(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V4, V3, V4
++	FMOVD	104(R5), F5
++	FMOVD	96(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V4, V3, V4
++	FMOVD	88(R5), F5
++	FMOVD	80(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V4, V3, V4
++	FMOVD	72(R5), F5
++	FMOVD	64(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V4, V3, V4
++	FMOVD	56(R5), F5
++	FMOVD	48(R5), F3
++	WFMADB	V2, V0, V5, V0
++	WFMADB	V2, V4, V3, V2
++	FMOVD	40(R5), F4
++	WFMADB	V1, V0, V2, V0
++	FMUL	F6, F0
++	FMADD	F4, F6, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L8:
++	FMOVD	32(R5), F3
++	FMOVD	24(R5), F2
++	FMOVD	F1, F4
++	WFMADB	V1, V2, V3, V2
++	WORD	$0xED405010	//adb %f4,.L68-.L13(%r5)
++	BYTE	$0x00
++	BYTE	$0x1A
++	FMOVD	8(R5), F3
++	WFMADB	V1, V2, V3, V2
++	FMOVD	·erfrodataL13<>+0(SB), F3
++	WFMADB	V1, V4, V3, V4
++	BR	L9
+diff --git a/src/math/erf_stub.s b/src/math/erf_stub.s
+new file mode 100644
+index 0000000000..a1eccc77c1
+--- /dev/null
++++ b/src/math/erf_stub.s
+@@ -0,0 +1,14 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32 arm
++
++#include "textflag.h"
++
++TEXT ·Erf(SB),NOSPLIT,$0
++    JMP ·erf(SB)
++
++TEXT ·Erfc(SB),NOSPLIT,$0
++    JMP ·erfc(SB)
++
+diff --git a/src/math/erfc_s390x.s b/src/math/erfc_s390x.s
+new file mode 100644
+index 0000000000..edf51440a5
+--- /dev/null
++++ b/src/math/erfc_s390x.s
+@@ -0,0 +1,530 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++#define NegInf 0xFFF0000000000000
++
++// Minimax polynomial coefficients and other constants
++DATA ·erfcrodataL38<> + 0(SB)/8, $.234875460637085087E-01
++DATA ·erfcrodataL38<> + 8(SB)/8, $.234469449299256284E-01
++DATA ·erfcrodataL38<> + 16(SB)/8, $-.606918710392844955E-04
++DATA ·erfcrodataL38<> + 24(SB)/8, $-.198827088077636213E-04
++DATA ·erfcrodataL38<> + 32(SB)/8, $.257805645845475331E-06
++DATA ·erfcrodataL38<> + 40(SB)/8, $-.184427218110620284E-09
++DATA ·erfcrodataL38<> + 48(SB)/8, $.122408098288933181E-10
++DATA ·erfcrodataL38<> + 56(SB)/8, $.484691106751495392E-07
++DATA ·erfcrodataL38<> + 64(SB)/8, $-.150147637632890281E-08
++DATA ·erfcrodataL38<> + 72(SB)/8, $23.999999999973521625
++DATA ·erfcrodataL38<> + 80(SB)/8, $27.226017111108365754
++DATA ·erfcrodataL38<> + 88(SB)/8, $-2.0
++DATA ·erfcrodataL38<> + 96(SB)/8, $0.100108802034478228E+00
++DATA ·erfcrodataL38<> + 104(SB)/8, $0.244588413746558125E+00
++DATA ·erfcrodataL38<> + 112(SB)/8, $-.669188879646637174E-01
++DATA ·erfcrodataL38<> + 120(SB)/8, $0.151311447000953551E-01
++DATA ·erfcrodataL38<> + 128(SB)/8, $-.284720833493302061E-02
++DATA ·erfcrodataL38<> + 136(SB)/8, $0.455491239358743212E-03
++DATA ·erfcrodataL38<> + 144(SB)/8, $-.631850539280720949E-04
++DATA ·erfcrodataL38<> + 152(SB)/8, $0.772532660726086679E-05
++DATA ·erfcrodataL38<> + 160(SB)/8, $-.843706007150936940E-06
++DATA ·erfcrodataL38<> + 168(SB)/8, $-.735330214904227472E-08
++DATA ·erfcrodataL38<> + 176(SB)/8, $0.753002008837084967E-09
++DATA ·erfcrodataL38<> + 184(SB)/8, $0.832482036660624637E-07
++DATA ·erfcrodataL38<> + 192(SB)/8, $-0.75
++DATA ·erfcrodataL38<> + 200(SB)/8, $.927765678007128609E-01
++DATA ·erfcrodataL38<> + 208(SB)/8, $.903621209344751506E-01
++DATA ·erfcrodataL38<> + 216(SB)/8, $-.344203375025257265E-02
++DATA ·erfcrodataL38<> + 224(SB)/8, $-.869243428221791329E-03
++DATA ·erfcrodataL38<> + 232(SB)/8, $.174699813107105603E-03
++DATA ·erfcrodataL38<> + 240(SB)/8, $.649481036316130000E-05
++DATA ·erfcrodataL38<> + 248(SB)/8, $-.895265844897118382E-05
++DATA ·erfcrodataL38<> + 256(SB)/8, $.135970046909529513E-05
++DATA ·erfcrodataL38<> + 264(SB)/8, $.277617717014748015E-06
++DATA ·erfcrodataL38<> + 272(SB)/8, $.810628018408232910E-08
++DATA ·erfcrodataL38<> + 280(SB)/8, $.210430084693497985E-07
++DATA ·erfcrodataL38<> + 288(SB)/8, $-.342138077525615091E-08
++DATA ·erfcrodataL38<> + 296(SB)/8, $-.165467946798610800E-06
++DATA ·erfcrodataL38<> + 304(SB)/8, $5.999999999988412824
++DATA ·erfcrodataL38<> + 312(SB)/8, $.468542210149072159E-01
++DATA ·erfcrodataL38<> + 320(SB)/8, $.465343528567604256E-01
++DATA ·erfcrodataL38<> + 328(SB)/8, $-.473338083650201733E-03
++DATA ·erfcrodataL38<> + 336(SB)/8, $-.147220659069079156E-03
++DATA ·erfcrodataL38<> + 344(SB)/8, $.755284723554388339E-05
++DATA ·erfcrodataL38<> + 352(SB)/8, $.116158570631428789E-05
++DATA ·erfcrodataL38<> + 360(SB)/8, $-.155445501551602389E-06
++DATA ·erfcrodataL38<> + 368(SB)/8, $-.616940119847805046E-10
++DATA ·erfcrodataL38<> + 376(SB)/8, $-.728705590727563158E-10
++DATA ·erfcrodataL38<> + 384(SB)/8, $-.983452460354586779E-08
++DATA ·erfcrodataL38<> + 392(SB)/8, $.365156164194346316E-08
++DATA ·erfcrodataL38<> + 400(SB)/8, $11.999999999996530775
++DATA ·erfcrodataL38<> + 408(SB)/8, $0.467773498104726584E-02
++DATA ·erfcrodataL38<> + 416(SB)/8, $0.206669853540920535E-01
++DATA ·erfcrodataL38<> + 424(SB)/8, $0.413339707081841473E-01
++DATA ·erfcrodataL38<> + 432(SB)/8, $0.482229658262131320E-01
++DATA ·erfcrodataL38<> + 440(SB)/8, $0.344449755901841897E-01
++DATA ·erfcrodataL38<> + 448(SB)/8, $0.130890907240765465E-01
++DATA ·erfcrodataL38<> + 456(SB)/8, $-.459266344100642687E-03
++DATA ·erfcrodataL38<> + 464(SB)/8, $-.337888800856913728E-02
++DATA ·erfcrodataL38<> + 472(SB)/8, $-.159103061687062373E-02
++DATA ·erfcrodataL38<> + 480(SB)/8, $-.501128905515922644E-04
++DATA ·erfcrodataL38<> + 488(SB)/8, $0.262775855852903132E-03
++DATA ·erfcrodataL38<> + 496(SB)/8, $0.103860982197462436E-03
++DATA ·erfcrodataL38<> + 504(SB)/8, $-.548835785414200775E-05
++DATA ·erfcrodataL38<> + 512(SB)/8, $-.157075054646618214E-04
++DATA ·erfcrodataL38<> + 520(SB)/8, $-.480056366276045110E-05
++DATA ·erfcrodataL38<> + 528(SB)/8, $0.198263013759701555E-05
++DATA ·erfcrodataL38<> + 536(SB)/8, $-.224394262958888780E-06
++DATA ·erfcrodataL38<> + 544(SB)/8, $-.321853693146683428E-06
++DATA ·erfcrodataL38<> + 552(SB)/8, $0.445073894984683537E-07
++DATA ·erfcrodataL38<> + 560(SB)/8, $0.660425940000555729E-06
++DATA ·erfcrodataL38<> + 568(SB)/8, $2.0
++DATA ·erfcrodataL38<> + 576(SB)/8, $8.63616855509444462538e-78
++DATA ·erfcrodataL38<> + 584(SB)/8, $1.00000000000000222044
++DATA ·erfcrodataL38<> + 592(SB)/8, $0.500000000000004237e+00
++DATA ·erfcrodataL38<> + 600(SB)/8, $0.416666664838056960e-01
++DATA ·erfcrodataL38<> + 608(SB)/8, $0.166666666630345592e+00
++DATA ·erfcrodataL38<> + 616(SB)/8, $0.138926439368309441e-02
++DATA ·erfcrodataL38<> + 624(SB)/8, $0.833349307718286047e-02
++DATA ·erfcrodataL38<> + 632(SB)/8, $-.693147180558298714e+00
++DATA ·erfcrodataL38<> + 640(SB)/8, $-.164659495826017651e-11
++DATA ·erfcrodataL38<> + 648(SB)/8, $.179001151181866548E+00
++DATA ·erfcrodataL38<> + 656(SB)/8, $-.144269504088896339e+01
++DATA ·erfcrodataL38<> + 664(SB)/8, $+281475245147134.9375
++DATA ·erfcrodataL38<> + 672(SB)/8, $.163116780021877404E+00
++DATA ·erfcrodataL38<> + 680(SB)/8, $-.201574395828120710E-01
++DATA ·erfcrodataL38<> + 688(SB)/8, $-.185726336009394125E-02
++DATA ·erfcrodataL38<> + 696(SB)/8, $.199349204957273749E-02
++DATA ·erfcrodataL38<> + 704(SB)/8, $-.554902415532606242E-03
++DATA ·erfcrodataL38<> + 712(SB)/8, $-.638914789660242846E-05
++DATA ·erfcrodataL38<> + 720(SB)/8, $-.424441522653742898E-04
++DATA ·erfcrodataL38<> + 728(SB)/8, $.827967511921486190E-04
++DATA ·erfcrodataL38<> + 736(SB)/8, $.913965446284062654E-05
++DATA ·erfcrodataL38<> + 744(SB)/8, $.277344791076320853E-05
++DATA ·erfcrodataL38<> + 752(SB)/8, $-.467239678927239526E-06
++DATA ·erfcrodataL38<> + 760(SB)/8, $.344814065920419986E-07
++DATA ·erfcrodataL38<> + 768(SB)/8, $-.366013491552527132E-05
++DATA ·erfcrodataL38<> + 776(SB)/8, $.181242810023783439E-05
++DATA ·erfcrodataL38<> + 784(SB)/8, $2.999999999991234567
++DATA ·erfcrodataL38<> + 792(SB)/8, $1.0
++GLOBL ·erfcrodataL38<> + 0(SB), RODATA, $800
++
++// Table of log correction terms
++DATA ·erfctab2069<> + 0(SB)/8, $0.442737824274138381e-01
++DATA ·erfctab2069<> + 8(SB)/8, $0.263602189790660309e-01
++DATA ·erfctab2069<> + 16(SB)/8, $0.122565642281703586e-01
++DATA ·erfctab2069<> + 24(SB)/8, $0.143757052860721398e-02
++DATA ·erfctab2069<> + 32(SB)/8, $-.651375034121276075e-02
++DATA ·erfctab2069<> + 40(SB)/8, $-.119317678849450159e-01
++DATA ·erfctab2069<> + 48(SB)/8, $-.150868749549871069e-01
++DATA ·erfctab2069<> + 56(SB)/8, $-.161992609578469234e-01
++DATA ·erfctab2069<> + 64(SB)/8, $-.154492360403337917e-01
++DATA ·erfctab2069<> + 72(SB)/8, $-.129850717389178721e-01
++DATA ·erfctab2069<> + 80(SB)/8, $-.892902649276657891e-02
++DATA ·erfctab2069<> + 88(SB)/8, $-.338202636596794887e-02
++DATA ·erfctab2069<> + 96(SB)/8, $0.357266307045684762e-02
++DATA ·erfctab2069<> + 104(SB)/8, $0.118665304327406698e-01
++DATA ·erfctab2069<> + 112(SB)/8, $0.214434994118118914e-01
++DATA ·erfctab2069<> + 120(SB)/8, $0.322580645161290314e-01
++GLOBL ·erfctab2069<> + 0(SB), RODATA, $128
++
++// Erfc returns the complementary error function of the argument.
++//
++// Special cases are:
++//      Erfc(+Inf) = 0
++//      Erfc(-Inf) = 2
++//      Erfc(NaN) = NaN
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·erfcAsm(SB), NOSPLIT, $0-16
++	//special case Erfc(+Inf) = 0
++	MOVD	x+0(FP), R1
++	MOVD	$NegInf, R2
++	CMPUBEQ	R1, R2, erfcIsPosInf
++
++	FMOVD	x+0(FP), F0
++	MOVD	$·erfcrodataL38<>+0(SB), R9
++	WORD	$0xB3CD0010	//lgdr %r1, %f0
++	FMOVD	F0, F2
++	SRAD	$48, R1
++	MOVH	$0x3FFF, R3
++	MOVH	R1, R2
++	ANDW	$0x7FFF, R1
++	MOVW	R1, R6
++	MOVW	R3, R7
++	CMPBGT	R6, R7, L2
++	MOVH	$0x3FEF, R3
++	MOVW	R3, R7
++	CMPBGT	R6, R7, L3
++	MOVH	$0x2FFF, R2
++	MOVW	R2, R7
++	CMPBGT	R6, R7, L4
++	FMOVD	792(R9), F0
++	WFSDB	V2, V0, V2
++	FMOVD	F2, ret+8(FP)
++	RET
++
++L2:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	MOVH	$0x0, R4
++	BLTU	L3
++	FMOVD	F0, F1
++L9:
++	MOVH	$0x400F, R3
++	MOVW	R1, R6
++	MOVW	R3, R7
++	CMPBGT	R6, R7, L10
++	FMOVD	784(R9), F3
++	FSUB	F1, F3
++	VLEG	$0, 776(R9), V20
++	WFDDB	V1, V3, V6
++	VLEG	$0, 768(R9), V18
++	FMOVD	760(R9), F7
++	FMOVD	752(R9), F5
++	VLEG	$0, 744(R9), V16
++	FMOVD	736(R9), F3
++	FMOVD	728(R9), F2
++	FMOVD	720(R9), F4
++	WFMDB	V6, V6, V1
++	FMUL	F0, F0
++	MOVH	$0x0, R3
++	WFMADB	V1, V7, V20, V7
++	WFMADB	V1, V5, V18, V5
++	WFMADB	V1, V7, V16, V7
++	WFMADB	V1, V5, V3, V5
++	WFMADB	V1, V7, V4, V7
++	WFMADB	V1, V5, V2, V5
++	FMOVD	712(R9), F2
++	WFMADB	V1, V7, V2, V7
++	FMOVD	704(R9), F2
++	WFMADB	V1, V5, V2, V5
++	FMOVD	696(R9), F2
++	WFMADB	V1, V7, V2, V7
++	FMOVD	688(R9), F2
++	MOVH	$0x0, R1
++	WFMADB	V1, V5, V2, V5
++	FMOVD	680(R9), F2
++	WFMADB	V1, V7, V2, V7
++	FMOVD	672(R9), F2
++	WFMADB	V1, V5, V2, V1
++	FMOVD	664(R9), F3
++	WFMADB	V6, V7, V1, V7
++	FMOVD	656(R9), F5
++	FMOVD	648(R9), F2
++	WFMADB	V0, V5, V3, V5
++	WFMADB	V6, V7, V2, V7
++L11:
++	WORD	$0xB3CD0065	//lgdr %r6, %f5
++	WFSDB	V0, V0, V2
++	WORD	$0xED509298	//sdb	%f5,.L55-.L38(%r9)
++	BYTE	$0x00
++	BYTE	$0x1B
++	FMOVD	640(R9), F6
++	FMOVD	632(R9), F4
++	WFMSDB	V5, V6, V2, V6
++	WFMSDB	V5, V4, V0, V4
++	FMOVD	624(R9), F2
++	FADD	F6, F4
++	FMOVD	616(R9), F0
++	FMOVD	608(R9), F6
++	WFMADB	V4, V0, V2, V0
++	FMOVD	600(R9), F3
++	WFMDB	V4, V4, V2
++	MOVH	R6,R6
++	ADD	R6, R3
++	WFMADB	V4, V3, V6, V3
++	FMOVD	592(R9), F6
++	WFMADB	V0, V2, V3, V0
++	FMOVD	584(R9), F3
++	WFMADB	V4, V6, V3, V6
++	WORD	$0xECC339BC	//risbg	%r12,%r3,57,128+60,3
++	BYTE	$0x03
++	BYTE	$0x55
++	WFMADB	V2, V0, V6, V0
++	MOVD	$·erfctab2069<>+0(SB), R5
++	WORD	$0x682C5000	//ld	%f2,0(%r12,%r5)
++	FMADD	F2, F4, F4
++	WORD	$0xEC43000F	//risbgn	%r4,%r3,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	WFMADB	V4, V0, V2, V4
++	WORD	$0xB3C10024	//ldgr	%f2,%r4
++	FMADD	F4, F2, F2
++	MOVW	R2, R6
++	CMPBLE	R6, $0, L20
++	MOVW	R1, R6
++	CMPBEQ	R6, $0, L21
++	WORD	$0xED709240	//mdb	%f7,.L66-.L38(%r9)
++	BYTE	$0x00
++	BYTE	$0x1C
++L21:
++	FMUL	F7, F2
++L1:
++	FMOVD	F2, ret+8(FP)
++	RET
++L3:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLTU	L30
++	FMOVD	568(R9), F2
++	WFSDB	V0, V2, V0
++L8:
++	WFMDB	V0, V0, V4
++	FMOVD	560(R9), F2
++	FMOVD	552(R9), F6
++	FMOVD	544(R9), F1
++	WFMADB	V4, V6, V2, V6
++	FMOVD	536(R9), F2
++	WFMADB	V4, V1, V2, V1
++	FMOVD	528(R9), F3
++	FMOVD	520(R9), F2
++	WFMADB	V4, V6, V3, V6
++	WFMADB	V4, V1, V2, V1
++	FMOVD	512(R9), F3
++	FMOVD	504(R9), F2
++	WFMADB	V4, V6, V3, V6
++	WFMADB	V4, V1, V2, V1
++	FMOVD	496(R9), F3
++	FMOVD	488(R9), F2
++	WFMADB	V4, V6, V3, V6
++	WFMADB	V4, V1, V2, V1
++	FMOVD	480(R9), F3
++	FMOVD	472(R9), F2
++	WFMADB	V4, V6, V3, V6
++	WFMADB	V4, V1, V2, V1
++	FMOVD	464(R9), F3
++	FMOVD	456(R9), F2
++	WFMADB	V4, V6, V3, V6
++	WFMADB	V4, V1, V2, V1
++	FMOVD	448(R9), F3
++	FMOVD	440(R9), F2
++	WFMADB	V4, V6, V3, V6
++	WFMADB	V4, V1, V2, V1
++	FMOVD	432(R9), F3
++	FMOVD	424(R9), F2
++	WFMADB	V4, V6, V3, V6
++	WFMADB	V4, V1, V2, V1
++	FMOVD	416(R9), F3
++	FMOVD	408(R9), F2
++	WFMADB	V4, V6, V3, V6
++	FMADD	F1, F4, F2
++	FMADD	F6, F0, F2
++	MOVW	R2, R6
++	CMPBGE	R6, $0, L1
++	FMOVD	568(R9), F0
++	WFSDB	V2, V0, V2
++	BR	L1
++L10:
++	MOVH	$0x401F, R3
++	MOVW	R1, R6
++	MOVW	R3, R7
++	CMPBLE	R6, R7, L36
++	MOVH	$0x402F, R3
++	MOVW	R3, R7
++	CMPBGT	R6, R7, L13
++	FMOVD	400(R9), F3
++	FSUB	F1, F3
++	VLEG	$0, 392(R9), V20
++	WFDDB	V1, V3, V6
++	VLEG	$0, 384(R9), V18
++	FMOVD	376(R9), F2
++	FMOVD	368(R9), F4
++	VLEG	$0, 360(R9), V16
++	FMOVD	352(R9), F7
++	FMOVD	344(R9), F3
++	FMUL	F0, F0
++	WFMDB	V6, V6, V1
++	FMOVD	656(R9), F5
++	MOVH	$0x0, R3
++	WFMADB	V1, V2, V20, V2
++	WFMADB	V1, V4, V18, V4
++	WFMADB	V1, V2, V16, V2
++	WFMADB	V1, V4, V7, V4
++	WFMADB	V1, V2, V3, V2
++	FMOVD	336(R9), F3
++	WFMADB	V1, V4, V3, V4
++	FMOVD	328(R9), F3
++	WFMADB	V1, V2, V3, V2
++	FMOVD	320(R9), F3
++	WFMADB	V1, V4, V3, V1
++	FMOVD	312(R9), F7
++	WFMADB	V6, V2, V1, V2
++	MOVH	$0x0, R1
++	FMOVD	664(R9), F3
++	FMADD	F2, F6, F7
++	WFMADB	V0, V5, V3, V5
++	BR	L11
++L35:
++	WORD	$0xB3130010	//lcdbr	%f1,%f0
++	BR	L9
++L36:
++	FMOVD	304(R9), F3
++	FSUB	F1, F3
++	VLEG	$0, 296(R9), V20
++	WFDDB	V1, V3, V6
++	FMOVD	288(R9), F5
++	FMOVD	280(R9), F1
++	FMOVD	272(R9), F2
++	VLEG	$0, 264(R9), V18
++	VLEG	$0, 256(R9), V16
++	FMOVD	248(R9), F3
++	FMOVD	240(R9), F4
++	WFMDB	V6, V6, V7
++	FMUL	F0, F0
++	MOVH	$0x0, R3
++	FMADD	F5, F7, F1
++	WFMADB	V7, V2, V20, V2
++	WFMADB	V7, V1, V18, V1
++	WFMADB	V7, V2, V16, V2
++	WFMADB	V7, V1, V3, V1
++	WFMADB	V7, V2, V4, V2
++	FMOVD	232(R9), F4
++	WFMADB	V7, V1, V4, V1
++	FMOVD	224(R9), F4
++	WFMADB	V7, V2, V4, V2
++	FMOVD	216(R9), F4
++	WFMADB	V7, V1, V4, V1
++	FMOVD	208(R9), F4
++	MOVH	$0x0, R1
++	WFMADB	V7, V2, V4, V7
++	FMOVD	656(R9), F5
++	WFMADB	V6, V1, V7, V1
++	FMOVD	664(R9), F3
++	FMOVD	200(R9), F7
++	WFMADB	V0, V5, V3, V5
++	FMADD	F1, F6, F7
++	BR	L11
++L4:
++	FMOVD	192(R9), F1
++	FMADD	F0, F0, F1
++	FMOVD	184(R9), F3
++	WFMDB	V1, V1, V0
++	FMOVD	176(R9), F4
++	FMOVD	168(R9), F6
++	WFMADB	V0, V4, V3, V4
++	FMOVD	160(R9), F3
++	WFMADB	V0, V6, V3, V6
++	FMOVD	152(R9), F5
++	FMOVD	144(R9), F3
++	WFMADB	V0, V4, V5, V4
++	WFMADB	V0, V6, V3, V6
++	FMOVD	136(R9), F5
++	FMOVD	128(R9), F3
++	WFMADB	V0, V4, V5, V4
++	WFMADB	V0, V6, V3, V6
++	FMOVD	120(R9), F5
++	FMOVD	112(R9), F3
++	WFMADB	V0, V4, V5, V4
++	WFMADB	V0, V6, V3, V6
++	FMOVD	104(R9), F5
++	FMOVD	96(R9), F3
++	WFMADB	V0, V4, V5, V4
++	WFMADB	V0, V6, V3, V0
++	FMOVD	F2, F6
++	FMADD	F4, F1, F0
++	WORD	$0xED609318	//sdb	%f6,.L39-.L38(%r9)
++	BYTE	$0x00
++	BYTE	$0x1B
++	WFMSDB	V2, V0, V6, V2
++	FMOVD	F2, ret+8(FP)
++	RET
++L30:
++	WORD	$0xED009238	//adb	%f0,.L67-.L38(%r9)
++	BYTE	$0x00
++	BYTE	$0x1A
++	BR	L8
++L20:
++	FMOVD	88(R9), F0
++	WFMADB	V7, V2, V0, V2
++	WORD	$0xB3130022	//lcdbr	%f2,%f2
++	FMOVD	F2, ret+8(FP)
++	RET
++L13:
++	MOVH	$0x403A, R3
++	MOVW	R1, R6
++	MOVW	R3, R7
++	CMPBLE	R6, R7, L4
++	WORD	$0xED109050	//cdb	%f1,.L128-.L38(%r9)
++	BYTE	$0x00
++	BYTE	$0x19
++	BGE	L37
++	BVS	L37
++	FMOVD	72(R9), F6
++	FSUB	F1, F6
++	MOVH	$0x1000, R3
++	FDIV	F1, F6
++	MOVH	$0x1000, R1
++L17:
++	WFMDB	V6, V6, V1
++	FMOVD	64(R9), F2
++	FMOVD	56(R9), F4
++	FMOVD	48(R9), F3
++	WFMADB	V1, V3, V2, V3
++	FMOVD	40(R9), F2
++	WFMADB	V1, V2, V4, V2
++	FMOVD	32(R9), F4
++	WFMADB	V1, V3, V4, V3
++	FMOVD	24(R9), F4
++	WFMADB	V1, V2, V4, V2
++	FMOVD	16(R9), F4
++	WFMADB	V1, V3, V4, V3
++	FMOVD	8(R9), F4
++	WFMADB	V1, V2, V4, V1
++	FMUL	F0, F0
++	WFMADB	V3, V6, V1, V3
++	FMOVD	656(R9), F5
++	FMOVD	664(R9), F4
++	FMOVD	0(R9), F7
++	WFMADB	V0, V5, V4, V5
++	FMADD	F6, F3, F7
++	BR	L11
++L14:
++	FMOVD	72(R9), F6
++	FSUB	F1, F6
++	MOVH	$0x403A, R3
++	FDIV	F1, F6
++	MOVW	R1, R6
++	MOVW	R3, R7
++	CMPBEQ	R6, R7, L23
++	MOVH	$0x0, R3
++	MOVH	$0x0, R1
++	BR	L17
++L37:
++	WFCEDBS	V0, V0, V0
++	BVS	L1
++	MOVW	R2, R6
++	CMPBLE	R6, $0, L18
++	MOVH	$0x7FEF, R2
++	MOVW	R1, R6
++	MOVW	R2, R7
++	CMPBGT	R6, R7, L24
++
++	WORD	$0xA5400010	//iihh	%r4,16
++	WORD	$0xB3C10024	//ldgr	%f2,%r4
++	FMUL	F2, F2
++	BR	L1
++L23:
++	MOVH	$0x1000, R3
++	MOVH	$0x1000, R1
++	BR	L17
++L24:
++	FMOVD	$0, F2
++	BR	L1
++L18:
++	MOVH	$0x7FEF, R2
++	MOVW	R1, R6
++	MOVW	R2, R7
++	CMPBGT	R6, R7, L25
++	WORD	$0xA5408010	//iihh	%r4,32784
++	FMOVD	568(R9), F2
++	WORD	$0xB3C10004	//ldgr	%f0,%r4
++	FMADD	F2, F0, F2
++	BR	L1
++L25:
++	FMOVD	568(R9), F2
++	BR	L1
++erfcIsPosInf:
++	FMOVD	$(2.0), F1
++	FMOVD	F1, ret+8(FP)
++	RET
++
+diff --git a/src/math/exp_s390x.s b/src/math/exp_s390x.s
+new file mode 100644
+index 0000000000..dac0a5cd9b
+--- /dev/null
++++ b/src/math/exp_s390x.s
+@@ -0,0 +1,185 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial approximation and other constants
++DATA ·exprodataL22<> + 0(SB)/8, $800.0E+00
++DATA ·exprodataL22<> + 8(SB)/8, $1.0000000000000022e+00
++DATA ·exprodataL22<> + 16(SB)/8, $0.500000000000004237e+00
++DATA ·exprodataL22<> + 24(SB)/8, $0.166666666630345592e+00
++DATA ·exprodataL22<> + 32(SB)/8, $0.138926439368309441e-02
++DATA ·exprodataL22<> + 40(SB)/8, $0.833349307718286047e-02
++DATA ·exprodataL22<> + 48(SB)/8, $0.416666664838056960e-01
++DATA ·exprodataL22<> + 56(SB)/8, $-.231904681384629956E-16
++DATA ·exprodataL22<> + 64(SB)/8, $-.693147180559945286E+00
++DATA ·exprodataL22<> + 72(SB)/8, $0.144269504088896339E+01
++DATA ·exprodataL22<> + 80(SB)/8, $704.0E+00
++GLOBL ·exprodataL22<> + 0(SB), RODATA, $88
++
++DATA ·expxinf<> + 0(SB)/8, $0x7ff0000000000000
++GLOBL ·expxinf<> + 0(SB), RODATA, $8
++DATA ·expx4ff<> + 0(SB)/8, $0x4ff0000000000000
++GLOBL ·expx4ff<> + 0(SB), RODATA, $8
++DATA ·expx2ff<> + 0(SB)/8, $0x2ff0000000000000
++GLOBL ·expx2ff<> + 0(SB), RODATA, $8
++DATA ·expxaddexp<> + 0(SB)/8, $0xc2f0000100003fef
++GLOBL ·expxaddexp<> + 0(SB), RODATA, $8
++
++// Log multipliers table
++DATA ·exptexp<> + 0(SB)/8, $0.442737824274138381E-01
++DATA ·exptexp<> + 8(SB)/8, $0.263602189790660309E-01
++DATA ·exptexp<> + 16(SB)/8, $0.122565642281703586E-01
++DATA ·exptexp<> + 24(SB)/8, $0.143757052860721398E-02
++DATA ·exptexp<> + 32(SB)/8, $-.651375034121276075E-02
++DATA ·exptexp<> + 40(SB)/8, $-.119317678849450159E-01
++DATA ·exptexp<> + 48(SB)/8, $-.150868749549871069E-01
++DATA ·exptexp<> + 56(SB)/8, $-.161992609578469234E-01
++DATA ·exptexp<> + 64(SB)/8, $-.154492360403337917E-01
++DATA ·exptexp<> + 72(SB)/8, $-.129850717389178721E-01
++DATA ·exptexp<> + 80(SB)/8, $-.892902649276657891E-02
++DATA ·exptexp<> + 88(SB)/8, $-.338202636596794887E-02
++DATA ·exptexp<> + 96(SB)/8, $0.357266307045684762E-02
++DATA ·exptexp<> + 104(SB)/8, $0.118665304327406698E-01
++DATA ·exptexp<> + 112(SB)/8, $0.214434994118118914E-01
++DATA ·exptexp<> + 120(SB)/8, $0.322580645161290314E-01
++GLOBL ·exptexp<> + 0(SB), RODATA, $128
++
++// Exp returns e**x, the base-e exponential of x.
++//
++// Special cases are:
++//      Exp(+Inf) = +Inf
++//      Exp(NaN) = NaN
++// Very large values overflow to 0 or +Inf.
++// Very small values underflow to 1.
++// The algorithm used is minimax polynomial approximation using a table of
++// polynomial coefficients determined with a Remez exchange algorithm.
++
++TEXT	·expAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·exprodataL22<>+0(SB), R5
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLTU	L20
++	FMOVD	F0, F2
++L2:
++	WORD	$0xED205050	//cdb	%f2,.L23-.L22(%r5)
++	BYTE	$0x00
++	BYTE	$0x19
++	BGE	L16
++	BVS	L16
++	WFCEDBS	V2, V2, V2
++	BVS	LEXITTAGexp
++	MOVD	$·expxaddexp<>+0(SB), R1
++	FMOVD	72(R5), F6
++	FMOVD	0(R1), F2
++	WFMSDB	V0, V6, V2, V6
++	FMOVD	64(R5), F4
++	FADD	F6, F2
++	FMOVD	56(R5), F1
++	FMADD	F4, F2, F0
++	FMOVD	48(R5), F3
++	WFMADB	V2, V1, V0, V2
++	FMOVD	40(R5), F1
++	FMOVD	32(R5), F4
++	FMUL	F0, F0
++	WFMADB	V2, V4, V1, V4
++	WORD	$0xB3CD0016	//lgdr	%r1,%f6
++	FMOVD	24(R5), F1
++	WFMADB	V2, V3, V1, V3
++	FMOVD	16(R5), F1
++	WFMADB	V0, V4, V3, V4
++	FMOVD	8(R5), F3
++	WFMADB	V2, V1, V3, V1
++	WORD	$0xEC3139BC	//risbg	%r3,%r1,57,128+60,3
++	BYTE	$0x03
++	BYTE	$0x55
++	WFMADB	V0, V4, V1, V0
++	MOVD	$·exptexp<>+0(SB), R2
++	WORD	$0x68432000	//ld	%f4,0(%r3,%r2)
++	FMADD	F4, F2, F2
++	SLD	$48, R1, R2
++	WFMADB	V2, V0, V4, V2
++	WORD	$0xB3C10002	//ldgr	%f0,%r2
++	FMADD	F0, F2, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L16:
++	WFCEDBS	V2, V2, V4
++	BVS	LEXITTAGexp
++	WORD	$0xED205000	//cdb	%f2,.L33-.L22(%r5)
++	BYTE	$0x00
++	BYTE	$0x19
++	BLT	L6
++	WFCEDBS	V2, V0, V0
++	BVS	L13
++	MOVD	$·expxinf<>+0(SB), R1
++	FMOVD	0(R1), F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L20:
++	WORD	$0xB3130020	//lcdbr	%f2,%f0
++	BR	L2
++L6:
++	MOVD	$·expxaddexp<>+0(SB), R1
++	FMOVD	72(R5), F3
++	FMOVD	0(R1), F4
++	WFMSDB	V0, V3, V4, V3
++	FMOVD	64(R5), F6
++	FADD	F3, F4
++	FMOVD	56(R5), F5
++	WFMADB	V4, V6, V0, V6
++	FMOVD	32(R5), F1
++	WFMADB	V4, V5, V6, V4
++	FMOVD	40(R5), F5
++	FMUL	F6, F6
++	WFMADB	V4, V1, V5, V1
++	FMOVD	48(R5), F7
++	WORD	$0xB3CD0013	//lgdr	%r1,%f3
++	FMOVD	24(R5), F5
++	WFMADB	V4, V7, V5, V7
++	FMOVD	16(R5), F5
++	WFMADB	V6, V1, V7, V1
++	FMOVD	8(R5), F7
++	WFMADB	V4, V5, V7, V5
++	WORD	$0xEC3139BC	//risbg	%r3,%r1,57,128+60,3
++	BYTE	$0x03
++	BYTE	$0x55
++	WFMADB	V6, V1, V5, V6
++	MOVD	$·exptexp<>+0(SB), R2
++	WFCHDBS	V2, V0, V0
++	WORD	$0x68132000	//ld	%f1,0(%r3,%r2)
++	FMADD	F1, F4, F4
++	MOVD	$0x4086000000000000, R2
++	WFMADB	V4, V6, V1, V4
++	BEQ	L21
++	ADDW	$0xF000, R1
++	WORD	$0xEC21000F	//risbgn	%r2,%r1,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	WORD	$0xB3C10002	//ldgr	%f0,%r2
++	FMADD	F0, F4, F0
++	MOVD	$·expx4ff<>+0(SB), R3
++	FMOVD	0(R3), F2
++	FMUL	F2, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L13:
++	FMOVD	$0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L21:
++	ADDW	$0x1000, R1
++	WORD	$0xEC21000F	//risbgn	%r2,%r1,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	WORD	$0xB3C10002	//ldgr	%f0,%r2
++	FMADD	F0, F4, F0
++	MOVD	$·expx2ff<>+0(SB), R3
++	FMOVD	0(R3), F2
++	FMUL	F2, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++LEXITTAGexp:
++	FMOVD	F0, ret+8(FP)
++	RET
+diff --git a/src/math/expm1_s390x.s b/src/math/expm1_s390x.s
+new file mode 100644
+index 0000000000..641b2a893d
+--- /dev/null
++++ b/src/math/expm1_s390x.s
+@@ -0,0 +1,202 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial approximation and other constants
++DATA ·expm1rodataL22<> + 0(SB)/8, $-1.0
++DATA ·expm1rodataL22<> + 8(SB)/8, $800.0E+00
++DATA ·expm1rodataL22<> + 16(SB)/8, $1.0
++DATA ·expm1rodataL22<> + 24(SB)/8, $-.231904681384629956E-16
++DATA ·expm1rodataL22<> + 32(SB)/8, $0.50000000000000029671E+00
++DATA ·expm1rodataL22<> + 40(SB)/8, $0.16666666666666676570E+00
++DATA ·expm1rodataL22<> + 48(SB)/8, $0.83333333323590973444E-02
++DATA ·expm1rodataL22<> + 56(SB)/8, $0.13889096526400683566E-02
++DATA ·expm1rodataL22<> + 64(SB)/8, $0.41666666661701152924E-01
++DATA ·expm1rodataL22<> + 72(SB)/8, $0.19841562053987360264E-03
++DATA ·expm1rodataL22<> + 80(SB)/8, $-.693147180559945286E+00
++DATA ·expm1rodataL22<> + 88(SB)/8, $0.144269504088896339E+01
++DATA ·expm1rodataL22<> + 96(SB)/8, $704.0E+00
++GLOBL ·expm1rodataL22<> + 0(SB), RODATA, $104
++
++DATA ·expm1xmone<> + 0(SB)/8, $0xbff0000000000000
++GLOBL ·expm1xmone<> + 0(SB), RODATA, $8
++DATA ·expm1xinf<> + 0(SB)/8, $0x7ff0000000000000
++GLOBL ·expm1xinf<> + 0(SB), RODATA, $8
++DATA ·expm1x4ff<> + 0(SB)/8, $0x4ff0000000000000
++GLOBL ·expm1x4ff<> + 0(SB), RODATA, $8
++DATA ·expm1x2ff<> + 0(SB)/8, $0x2ff0000000000000
++GLOBL ·expm1x2ff<> + 0(SB), RODATA, $8
++DATA ·expm1xaddexp<> + 0(SB)/8, $0xc2f0000100003ff0
++GLOBL ·expm1xaddexp<> + 0(SB), RODATA, $8
++
++// Log multipliers table
++DATA ·expm1tab<> + 0(SB)/8, $0.0
++DATA ·expm1tab<> + 8(SB)/8, $-.171540871271399150E-01
++DATA ·expm1tab<> + 16(SB)/8, $-.306597931864376363E-01
++DATA ·expm1tab<> + 24(SB)/8, $-.410200970469965021E-01
++DATA ·expm1tab<> + 32(SB)/8, $-.486343079978231466E-01
++DATA ·expm1tab<> + 40(SB)/8, $-.538226193725835820E-01
++DATA ·expm1tab<> + 48(SB)/8, $-.568439602538111520E-01
++DATA ·expm1tab<> + 56(SB)/8, $-.579091847395528847E-01
++DATA ·expm1tab<> + 64(SB)/8, $-.571909584179366341E-01
++DATA ·expm1tab<> + 72(SB)/8, $-.548312665987204407E-01
++DATA ·expm1tab<> + 80(SB)/8, $-.509471843643441085E-01
++DATA ·expm1tab<> + 88(SB)/8, $-.456353588448863359E-01
++DATA ·expm1tab<> + 96(SB)/8, $-.389755254243262365E-01
++DATA ·expm1tab<> + 104(SB)/8, $-.310332908285244231E-01
++DATA ·expm1tab<> + 112(SB)/8, $-.218623539150173528E-01
++DATA ·expm1tab<> + 120(SB)/8, $-.115062908917949451E-01
++GLOBL ·expm1tab<> + 0(SB), RODATA, $128
++
++// Expm1 returns e**x - 1, the base-e exponential of x minus 1.
++// It is more accurate than Exp(x) - 1 when x is near zero.
++//
++// Special cases are:
++//      Expm1(+Inf) = +Inf
++//      Expm1(-Inf) = -1
++//      Expm1(NaN) = NaN
++// Very large values overflow to -1 or +Inf.
++// The algorithm used is minimax polynomial approximation using a table of
++// polynomial coefficients determined with a Remez exchange algorithm.
++
++TEXT	·expm1Asm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·expm1rodataL22<>+0(SB), R5
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLTU	L20
++	FMOVD	F0, F2
++L2:
++	WORD	$0xED205060	//cdb	%f2,.L23-.L22(%r5)
++	BYTE	$0x00
++	BYTE	$0x19
++	BGE	L16
++	BVS	L16
++	WFCEDBS	V2, V2, V2
++	BVS	LEXITTAGexpm1
++	MOVD	$·expm1xaddexp<>+0(SB), R1
++	FMOVD	88(R5), F1
++	FMOVD	0(R1), F2
++	WFMSDB	V0, V1, V2, V1
++	FMOVD	80(R5), F6
++	WFADB	V1, V2, V4
++	FMOVD	72(R5), F2
++	FMADD	F6, F4, F0
++	FMOVD	64(R5), F3
++	FMOVD	56(R5), F6
++	FMOVD	48(R5), F5
++	FMADD	F2, F0, F6
++	WFMADB	V0, V5, V3, V5
++	WFMDB	V0, V0, V2
++	WORD	$0xB3CD0011	//lgdr	%r1,%f1
++	WFMADB	V6, V2, V5, V6
++	FMOVD	40(R5), F3
++	FMOVD	32(R5), F5
++	WFMADB	V0, V3, V5, V3
++	FMOVD	24(R5), F5
++	WFMADB	V2, V6, V3, V2
++	FMADD	F5, F4, F0
++	FMOVD	16(R5), F6
++	WFMADB	V0, V2, V6, V2
++	WORD	$0xEC3139BC	//risbg	%r3,%r1,57,128+60,3
++	BYTE	$0x03
++	BYTE	$0x55
++	WORD	$0xB3130022	//lcdbr	%f2,%f2
++	MOVD	$·expm1tab<>+0(SB), R2
++	WORD	$0x68432000	//ld	%f4,0(%r3,%r2)
++	FMADD	F4, F0, F0
++	SLD	$48, R1, R2
++	WFMSDB	V2, V0, V4, V0
++	WORD	$0xB3C10042	//ldgr	%f4,%r2
++	WORD	$0xB3130000	//lcdbr	%f0,%f0
++	FSUB	F4, F6
++	WFMSDB	V0, V4, V6, V0
++	FMOVD	F0, ret+8(FP)
++	RET
++L16:
++	WFCEDBS	V2, V2, V4
++	BVS	LEXITTAGexpm1
++	WORD	$0xED205008	//cdb	%f2,.L34-.L22(%r5)
++	BYTE	$0x00
++	BYTE	$0x19
++	BLT	L6
++	WFCEDBS	V2, V0, V0
++	BVS	L7
++	MOVD	$·expm1xinf<>+0(SB), R1
++	FMOVD	0(R1), F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L20:
++	WORD	$0xB3130020	//lcdbr	%f2,%f0
++	BR	L2
++L6:
++	MOVD	$·expm1xaddexp<>+0(SB), R1
++	FMOVD	88(R5), F5
++	FMOVD	0(R1), F4
++	WFMSDB	V0, V5, V4, V5
++	FMOVD	80(R5), F3
++	WFADB	V5, V4, V1
++	VLEG	$0, 48(R5), V16
++	WFMADB	V1, V3, V0, V3
++	FMOVD	56(R5), F4
++	FMOVD	64(R5), F7
++	FMOVD	72(R5), F6
++	WFMADB	V3, V16, V7, V16
++	WFMADB	V3, V6, V4, V6
++	WFMDB	V3, V3, V4
++	MOVD	$·expm1tab<>+0(SB), R2
++	WFMADB	V6, V4, V16, V6
++	VLEG	$0, 32(R5), V16
++	FMOVD	40(R5), F7
++	WFMADB	V3, V7, V16, V7
++	VLEG	$0, 24(R5), V16
++	WFMADB	V4, V6, V7, V4
++	WFMADB	V1, V16, V3, V1
++	FMOVD	16(R5), F6
++	FMADD	F4, F1, F6
++	WORD	$0xB3CD0015	//lgdr	%r1,%f5
++	WORD	$0xB3130066	//lcdbr	%f6,%f6
++	WORD	$0xEC3139BC	//risbg	%r3,%r1,57,128+60,3
++	BYTE	$0x03
++	BYTE	$0x55
++	WORD	$0x68432000	//ld	%f4,0(%r3,%r2)
++	FMADD	F4, F1, F1
++	MOVD	$0x4086000000000000, R2
++	FMSUB	F1, F6, F4
++	WORD	$0xB3130044	//lcdbr	%f4,%f4
++	WFCHDBS	V2, V0, V0
++	BEQ	L21
++	ADDW	$0xF000, R1
++	WORD	$0xEC21000F	//risbgn	%r2,%r1,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	WORD	$0xB3C10002	//ldgr	%f0,%r2
++	FMADD	F0, F4, F0
++	MOVD	$·expm1x4ff<>+0(SB), R3
++	FMOVD	0(R5), F4
++	FMOVD	0(R3), F2
++	WFMADB	V2, V0, V4, V0
++	FMOVD	F0, ret+8(FP)
++	RET
++L7:
++	MOVD	$·expm1xmone<>+0(SB), R1
++	FMOVD	0(R1), F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L21:
++	ADDW	$0x1000, R1
++	WORD	$0xEC21000F	//risbgn	%r2,%r1,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	WORD	$0xB3C10002	//ldgr	%f0,%r2
++	FMADD	F0, F4, F0
++	MOVD	$·expm1x2ff<>+0(SB), R3
++	FMOVD	0(R5), F4
++	FMOVD	0(R3), F2
++	WFMADB	V2, V0, V4, V0
++	FMOVD	F0, ret+8(FP)
++	RET
++LEXITTAGexpm1:
++	FMOVD	F0, ret+8(FP)
++	RET
+diff --git a/src/math/export_s390x_test.go b/src/math/export_s390x_test.go
+index 3fdbd8640f..827bf1c8f6 100644
+--- a/src/math/export_s390x_test.go
++++ b/src/math/export_s390x_test.go
+@@ -11,4 +11,21 @@ var CoshNoVec = cosh
+ var SinNoVec = sin
+ var SinhNoVec = sinh
+ var TanhNoVec = tanh
++var Log1pNovec = log1p
++var AtanhNovec = atanh
++var AcosNovec = acos
++var AcoshNovec = acosh
++var AsinNovec = asin
++var AsinhNovec = asinh
++var ErfNovec = erf
++var ErfcNovec = erfc
++var AtanNovec = atan
++var Atan2Novec = atan2
++var CbrtNovec = cbrt
++var LogNovec = log
++var TanNovec = tan
++var ExpNovec = exp
++var Expm1Novec = expm1
++var PowNovec = pow
++var HypotNovec = hypot
+ var HasVX = hasVX
+diff --git a/src/math/log1p_s390x.s b/src/math/log1p_s390x.s
+new file mode 100644
+index 0000000000..c7e986033f
+--- /dev/null
++++ b/src/math/log1p_s390x.s
+@@ -0,0 +1,186 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Constants
++DATA ·log1pxlim<> + 0(SB)/4, $0xfff00000
++GLOBL ·log1pxlim<> + 0(SB), RODATA, $4
++DATA ·log1pxzero<> + 0(SB)/8, $0.0
++GLOBL ·log1pxzero<> + 0(SB), RODATA, $8
++DATA ·log1pxminf<> + 0(SB)/8, $0xfff0000000000000
++GLOBL ·log1pxminf<> + 0(SB), RODATA, $8
++DATA ·log1pxnan<> + 0(SB)/8, $0x7ff8000000000000
++GLOBL ·log1pxnan<> + 0(SB), RODATA, $8
++DATA ·log1pyout<> + 0(SB)/8, $0x40fce621e71da000
++GLOBL ·log1pyout<> + 0(SB), RODATA, $8
++DATA ·log1pxout<> + 0(SB)/8, $0x40f1000000000000
++GLOBL ·log1pxout<> + 0(SB), RODATA, $8
++DATA ·log1pxl2<> + 0(SB)/8, $0xbfda7aecbeba4e46
++GLOBL ·log1pxl2<> + 0(SB), RODATA, $8
++DATA ·log1pxl1<> + 0(SB)/8, $0x3ffacde700000000
++GLOBL ·log1pxl1<> + 0(SB), RODATA, $8
++DATA ·log1pxa<> + 0(SB)/8, $5.5
++GLOBL ·log1pxa<> + 0(SB), RODATA, $8
++DATA ·log1pxmone<> + 0(SB)/8, $-1.0
++GLOBL ·log1pxmone<> + 0(SB), RODATA, $8
++
++// Minimax polynomial approximations
++DATA ·log1pc8<> + 0(SB)/8, $0.212881813645679599E-07
++GLOBL ·log1pc8<> + 0(SB), RODATA, $8
++DATA ·log1pc7<> + 0(SB)/8, $-.148682720127920854E-06
++GLOBL ·log1pc7<> + 0(SB), RODATA, $8
++DATA ·log1pc6<> + 0(SB)/8, $0.938370938292558173E-06
++GLOBL ·log1pc6<> + 0(SB), RODATA, $8
++DATA ·log1pc5<> + 0(SB)/8, $-.602107458843052029E-05
++GLOBL ·log1pc5<> + 0(SB), RODATA, $8
++DATA ·log1pc4<> + 0(SB)/8, $0.397389654305194527E-04
++GLOBL ·log1pc4<> + 0(SB), RODATA, $8
++DATA ·log1pc3<> + 0(SB)/8, $-.273205381970859341E-03
++GLOBL ·log1pc3<> + 0(SB), RODATA, $8
++DATA ·log1pc2<> + 0(SB)/8, $0.200350613573012186E-02
++GLOBL ·log1pc2<> + 0(SB), RODATA, $8
++DATA ·log1pc1<> + 0(SB)/8, $-.165289256198351540E-01
++GLOBL ·log1pc1<> + 0(SB), RODATA, $8
++DATA ·log1pc0<> + 0(SB)/8, $0.181818181818181826E+00
++GLOBL ·log1pc0<> + 0(SB), RODATA, $8
++
++
++// Table of log10 correction terms
++DATA ·log1ptab<> + 0(SB)/8, $0.585235384085551248E-01
++DATA ·log1ptab<> + 8(SB)/8, $0.412206153771168640E-01
++DATA ·log1ptab<> + 16(SB)/8, $0.273839003221648339E-01
++DATA ·log1ptab<> + 24(SB)/8, $0.166383778368856480E-01
++DATA ·log1ptab<> + 32(SB)/8, $0.866678223433169637E-02
++DATA ·log1ptab<> + 40(SB)/8, $0.319831684989627514E-02
++DATA ·log1ptab<> + 48(SB)/8, $-.000000000000000000E+00
++DATA ·log1ptab<> + 56(SB)/8, $-.113006378583725549E-02
++DATA ·log1ptab<> + 64(SB)/8, $-.367979419636602491E-03
++DATA ·log1ptab<> + 72(SB)/8, $0.213172484510484979E-02
++DATA ·log1ptab<> + 80(SB)/8, $0.623271047682013536E-02
++DATA ·log1ptab<> + 88(SB)/8, $0.118140812789696885E-01
++DATA ·log1ptab<> + 96(SB)/8, $0.187681358930914206E-01
++DATA ·log1ptab<> + 104(SB)/8, $0.269985148668178992E-01
++DATA ·log1ptab<> + 112(SB)/8, $0.364186619761331328E-01
++DATA ·log1ptab<> + 120(SB)/8, $0.469505379381388441E-01
++GLOBL ·log1ptab<> + 0(SB), RODATA, $128
++
++// Log1p returns the natural logarithm of 1 plus its argument x.
++// It is more accurate than Log(1 + x) when x is near zero.
++//
++// Special cases are:
++//      Log1p(+Inf) = +Inf
++//      Log1p(±0) = ±0
++//      Log1p(-1) = -Inf
++//      Log1p(x < -1) = NaN
++//      Log1p(NaN) = NaN
++// The algorithm used is minimax polynomial approximation
++// with coefficients determined with a Remez exchange algorithm.
++
++TEXT	·log1pAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·log1pxmone<>+0(SB), R1
++	MOVD	·log1pxout<>+0(SB), R2
++	FMOVD	0(R1), F3
++	MOVD	$·log1pxa<>+0(SB), R1
++	MOVWZ	·log1pxlim<>+0(SB), R0
++	FMOVD	0(R1), F1
++	MOVD	$·log1pc8<>+0(SB), R1
++	FMOVD	0(R1), F5
++	MOVD	$·log1pc7<>+0(SB), R1
++	VLEG	$0, 0(R1), V20
++	MOVD	$·log1pc6<>+0(SB), R1
++	WFSDB	V0, V3, V4
++	VLEG	$0, 0(R1), V18
++	MOVD	$·log1pc5<>+0(SB), R1
++	VLEG	$0, 0(R1), V16
++	MOVD	R2, R5
++	WORD	$0xB3CD0034	//lgdr	%r3,%f4
++	WORD	$0xC0190006	//iilf	%r1,425983
++	BYTE	$0x7F
++	BYTE	$0xFF
++	SRAD	$32, R3, R3
++	SUBW	R3, R1
++	SRW	$16, R1, R1
++	BYTE	$0x18	//lr	%r4,%r1
++	BYTE	$0x41
++	WORD	$0xEC24000F	//risbgn	%r2,%r4,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	WORD	$0xEC54101F	//risbgn	%r5,%r4,64-64+16,64-64+16+16-1,64-16-16
++	BYTE	$0x20
++	BYTE	$0x59
++	MOVW	R0, R6
++	MOVW	R3, R7
++	CMPBGT	R6, R7, L8
++	WFCEDBS	V4, V4, V6
++	MOVD	$·log1pxzero<>+0(SB), R1
++	FMOVD	0(R1), F2
++	BVS	LEXITTAGlog1p
++	WORD	$0xB3130044
++	WFCEDBS	V2, V4, V6
++	BEQ	L9
++	WFCHDBS	V4, V2, V2
++	BEQ	LEXITTAGlog1p
++	MOVD	$·log1pxnan<>+0(SB), R1
++	FMOVD	0(R1), F0
++	FMOVD	F0, ret+8(FP)
++	RET
++
++L8:
++	WORD	$0xB3C10022	//ldgr	%f2,%r2
++	FSUB	F4, F3
++	FMADD	F2, F4, F1
++	MOVD	$·log1pc4<>+0(SB), R2
++	WORD	$0xB3130041
++	FMOVD	0(R2), F7
++	FSUB	F3, F0
++	MOVD	$·log1pc3<>+0(SB), R2
++	FMOVD	0(R2), F3
++	MOVD	$·log1pc2<>+0(SB), R2
++	WFMDB	V1, V1, V6
++	FMADD	F7, F4, F3
++	WFMSDB	V0, V2, V1, V0
++	FMOVD	0(R2), F7
++	WFMADB	V4, V5, V20, V5
++	MOVD	$·log1pc1<>+0(SB), R2
++	FMOVD	0(R2), F2
++	FMADD	F7, F4, F2
++	WFMADB	V4, V18, V16, V4
++	FMADD	F3, F6, F2
++	WFMADB	V5, V6, V4, V5
++	FMUL	F6, F6
++	MOVD	$·log1pc0<>+0(SB), R2
++	WFMADB	V6, V5, V2, V6
++	FMOVD	0(R2), F4
++	WFMADB	V0, V6, V4, V6
++	WORD	$0xEC1139BC	//risbg	%r1,%r1,57,128+60,3
++	BYTE	$0x03
++	BYTE	$0x55
++	MOVD	$·log1ptab<>+0(SB), R2
++	MOVD	$·log1pxl1<>+0(SB), R3
++	WORD	$0x68112000	//ld	%f1,0(%r1,%r2)
++	FMOVD	0(R3), F2
++	WFMADB	V0, V6, V1, V0
++	MOVD	$·log1pyout<>+0(SB), R1
++	WORD	$0xB3C10065	//ldgr	%f6,%r5
++	FMOVD	0(R1), F4
++	WFMSDB	V2, V6, V4, V2
++	MOVD	$·log1pxl2<>+0(SB), R1
++	FMOVD	0(R1), F4
++	FMADD	F4, F2, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++
++L9:
++	MOVD	$·log1pxminf<>+0(SB), R1
++	FMOVD	0(R1), F0
++	FMOVD	F0, ret+8(FP)
++	RET
++
++
++LEXITTAGlog1p:
++	FMOVD	F0, ret+8(FP)
++	RET
++
+diff --git a/src/math/log_s390x.s b/src/math/log_s390x.s
+new file mode 100644
+index 0000000000..b0e193f594
+--- /dev/null
++++ b/src/math/log_s390x.s
+@@ -0,0 +1,180 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial approximations
++DATA ·logrodataL21<> + 0(SB)/8, $-.499999999999999778E+00
++DATA ·logrodataL21<> + 8(SB)/8, $0.333333333333343751E+00
++DATA ·logrodataL21<> + 16(SB)/8, $-.250000000001606881E+00
++DATA ·logrodataL21<> + 24(SB)/8, $0.199999999971603032E+00
++DATA ·logrodataL21<> + 32(SB)/8, $-.166666663114122038E+00
++DATA ·logrodataL21<> + 40(SB)/8, $-.125002923782692399E+00
++DATA ·logrodataL21<> + 48(SB)/8, $0.111142014580396256E+00
++DATA ·logrodataL21<> + 56(SB)/8, $0.759438932618934220E-01
++DATA ·logrodataL21<> + 64(SB)/8, $0.142857144267212549E+00
++DATA ·logrodataL21<> + 72(SB)/8, $-.993038938793590759E-01
++DATA ·logrodataL21<> + 80(SB)/8, $-1.0
++GLOBL ·logrodataL21<> + 0(SB), RODATA, $88
++
++// Constants
++DATA ·logxminf<> + 0(SB)/8, $0xfff0000000000000
++GLOBL ·logxminf<> + 0(SB), RODATA, $8
++DATA ·logxnan<> + 0(SB)/8, $0x7ff8000000000000
++GLOBL ·logxnan<> + 0(SB), RODATA, $8
++DATA ·logx43f<> + 0(SB)/8, $0x43f0000000000000
++GLOBL ·logx43f<> + 0(SB), RODATA, $8
++DATA ·logxl2<> + 0(SB)/8, $0x3fda7aecbeba4e46
++GLOBL ·logxl2<> + 0(SB), RODATA, $8
++DATA ·logxl1<> + 0(SB)/8, $0x3ffacde700000000
++GLOBL ·logxl1<> + 0(SB), RODATA, $8
++
++/* Input transform scale and add constants */
++DATA ·logxm<> + 0(SB)/8, $0x3fc77604e63c84b1
++DATA ·logxm<> + 8(SB)/8, $0x40fb39456ab53250
++DATA ·logxm<> + 16(SB)/8, $0x3fc9ee358b945f3f
++DATA ·logxm<> + 24(SB)/8, $0x40fb39418bf3b137
++DATA ·logxm<> + 32(SB)/8, $0x3fccfb2e1304f4b6
++DATA ·logxm<> + 40(SB)/8, $0x40fb393d3eda3022
++DATA ·logxm<> + 48(SB)/8, $0x3fd0000000000000
++DATA ·logxm<> + 56(SB)/8, $0x40fb393969e70000
++DATA ·logxm<> + 64(SB)/8, $0x3fd11117aafbfe04
++DATA ·logxm<> + 72(SB)/8, $0x40fb3936eaefafcf
++DATA ·logxm<> + 80(SB)/8, $0x3fd2492af5e658b2
++DATA ·logxm<> + 88(SB)/8, $0x40fb39343ff01715
++DATA ·logxm<> + 96(SB)/8, $0x3fd3b50c622a43dd
++DATA ·logxm<> + 104(SB)/8, $0x40fb39315adae2f3
++DATA ·logxm<> + 112(SB)/8, $0x3fd56bbeea918777
++DATA ·logxm<> + 120(SB)/8, $0x40fb392e21698552
++GLOBL ·logxm<> + 0(SB), RODATA, $128
++
++// Log returns the natural logarithm of the argument.
++//
++// Special cases are:
++//      Log(+Inf) = +Inf
++//      Log(0) = -Inf
++//      Log(x < 0) = NaN
++//      Log(NaN) = NaN
++// The algorithm used is minimax polynomial approximation using a table of
++// polynomial coefficients determined with a Remez exchange algorithm.
++
++TEXT	·logAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	MOVD	$·logrodataL21<>+0(SB), R9
++	MOVH	$0x8006, R4
++	WORD	$0xB3CD0010	//lgdr	%r1,%f0
++	MOVD	$0x3FF0000000000000, R6
++	SRAD	$48, R1, R1
++	MOVD	$0x40F03E8000000000, R8
++	SUBW	R1, R4
++	WORD	$0xEC2420BB	//risbg	%r2,%r4,32,128+59,0
++	BYTE	$0x00
++	BYTE	$0x55
++	WORD	$0xEC62000F	//risbgn	%r6,%r2,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	WORD	$0xEC82101F	//risbgn	%r8,%r2,64-64+16,64-64+16+16-1,64-16-16
++	BYTE	$0x20
++	BYTE	$0x59
++	MOVW	R1, R7
++	CMPBGT	R7, $22, L17
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	MOVD	$·logx43f<>+0(SB), R1
++	FMOVD	0(R1), F2
++	BLEU	L3
++	MOVH	$0x8005, R12
++	MOVH	$0x8405, R0
++	BR	L15
++L7:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLEU	L3
++L15:
++	FMUL	F2, F0
++	WORD	$0xB3CD0010	//lgdr	%r1,%f0
++	SRAD	$48, R1, R1
++	SUBW	R1, R0, R2
++	SUBW	R1, R12, R3
++	BYTE	$0x18	//lr	%r4,%r2
++	BYTE	$0x42
++	ANDW	$0xFFFFFFF0, R3
++	ANDW	$0xFFFFFFF0, R2
++	BYTE	$0x18	//lr	%r5,%r1
++	BYTE	$0x51
++	MOVW	R1, R7
++	CMPBLE	R7, $22, L7
++	WORD	$0xEC63000F	//risbgn	%r6,%r3,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	WORD	$0xEC82101F	//risbgn	%r8,%r2,64-64+16,64-64+16+16-1,64-16-16
++	BYTE	$0x20
++	BYTE	$0x59
++L2:
++	MOVH	R5, R5
++	MOVH	$0x7FEF, R1
++	CMPW	R5, R1
++	BGT	L1
++	WORD	$0xB3C10026	//ldgr	%f2,%r6
++	FMUL	F2, F0
++	WORD	$0xEC4439BB	//risbg	%r4,%r4,57,128+59,3
++	BYTE	$0x03
++	BYTE	$0x55
++	FMOVD	80(R9), F2
++	MOVD	$·logxm<>+0(SB), R7
++	ADD	R7, R4
++	FMOVD	72(R9), F4
++	WORD	$0xED004000	//madb	%f2,%f0,0(%r4)
++	BYTE	$0x20
++	BYTE	$0x1E
++	FMOVD	64(R9), F1
++	FMOVD	F2, F0
++	FMOVD	56(R9), F2
++	WFMADB	V0, V2, V4, V2
++	WFMDB	V0, V0, V6
++	FMOVD	48(R9), F4
++	WFMADB	V0, V2, V4, V2
++	FMOVD	40(R9), F4
++	WFMADB	V2, V6, V1, V2
++	FMOVD	32(R9), F1
++	WFMADB	V6, V4, V1, V4
++	FMOVD	24(R9), F1
++	WFMADB	V6, V2, V1, V2
++	FMOVD	16(R9), F1
++	WFMADB	V6, V4, V1, V4
++	MOVD	$·logxl1<>+0(SB), R1
++	FMOVD	8(R9), F1
++	WFMADB	V6, V2, V1, V2
++	FMOVD	0(R9), F1
++	WFMADB	V6, V4, V1, V4
++	FMOVD	8(R4), F1
++	WFMADB	V0, V2, V4, V2
++	WORD	$0xB3C10048	//ldgr	%f4,%r8
++	WFMADB	V6, V2, V0, V2
++	WORD	$0xED401000	//msdb	%f1,%f4,0(%r1)
++	BYTE	$0x10
++	BYTE	$0x1F
++	MOVD	·logxl2<>+0(SB), R1
++	WORD	$0xB3130001	//lcdbr	%f0,%f1
++	WORD	$0xB3C10041	//ldgr	%f4,%r1
++	WFMADB	V0, V4, V2, V0
++L1:
++	FMOVD	F0, ret+8(FP)
++	RET
++L3:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BEQ	L20
++	BGE	L1
++	BVS	L1
++
++	MOVD	$·logxnan<>+0(SB), R1
++	FMOVD	0(R1), F0
++	BR	L1
++L20:
++	MOVD	$·logxminf<>+0(SB), R1
++	FMOVD	0(R1), F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L17:
++	BYTE	$0x18	//lr	%r5,%r1
++	BYTE	$0x51
++	BR	L2
+diff --git a/src/math/pow.go b/src/math/pow.go
+index 77af25648a..b3bfadfb87 100644
+--- a/src/math/pow.go
++++ b/src/math/pow.go
+@@ -35,7 +35,9 @@ func isOddInt(x float64) bool {
+ //	Pow(+Inf, y) = +0 for y < 0
+ //	Pow(-Inf, y) = Pow(-0, -y)
+ //	Pow(x, y) = NaN for finite x < 0 and finite non-integer y
+-func Pow(x, y float64) float64 {
++func Pow(x, y float64) float64
++
++func pow(x, y float64) float64 {
+ 	switch {
+ 	case y == 0 || x == 1:
+ 		return 1
+diff --git a/src/math/pow_s390x.s b/src/math/pow_s390x.s
+new file mode 100644
+index 0000000000..fa8decb806
+--- /dev/null
++++ b/src/math/pow_s390x.s
+@@ -0,0 +1,666 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++#define PosInf   0x7FF0000000000000
++#define NaN      0x7FF8000000000001
++#define NegInf   0xFFF0000000000000
++#define PosOne   0x3FF0000000000000
++#define NegOne   0xBFF0000000000000
++#define NegZero  0x8000000000000000
++
++// Minimax polynomial approximation
++DATA ·powrodataL51<> + 0(SB)/8, $-1.0
++DATA ·powrodataL51<> + 8(SB)/8, $1.0
++DATA ·powrodataL51<> + 16(SB)/8, $0.24022650695910110361E+00
++DATA ·powrodataL51<> + 24(SB)/8, $0.69314718055994686185E+00
++DATA ·powrodataL51<> + 32(SB)/8, $0.96181291057109484809E-02
++DATA ·powrodataL51<> + 40(SB)/8, $0.15403814778342868389E-03
++DATA ·powrodataL51<> + 48(SB)/8, $0.55504108652095235601E-01
++DATA ·powrodataL51<> + 56(SB)/8, $0.13333818813168698658E-02
++DATA ·powrodataL51<> + 64(SB)/8, $0.68205322933914439200E-12
++DATA ·powrodataL51<> + 72(SB)/8, $-.18466496523378731640E-01
++DATA ·powrodataL51<> + 80(SB)/8, $0.19697596291603973706E-02
++DATA ·powrodataL51<> + 88(SB)/8, $0.23083120654155209200E+00
++DATA ·powrodataL51<> + 96(SB)/8, $0.55324356012093416771E-06
++DATA ·powrodataL51<> + 104(SB)/8, $-.40340677224649339048E-05
++DATA ·powrodataL51<> + 112(SB)/8, $0.30255507904062541562E-04
++DATA ·powrodataL51<> + 120(SB)/8, $-.77453979912413008787E-07
++DATA ·powrodataL51<> + 128(SB)/8, $-.23637115549923464737E-03
++DATA ·powrodataL51<> + 136(SB)/8, $0.11016119077267717198E-07
++DATA ·powrodataL51<> + 144(SB)/8, $0.22608272174486123035E-09
++DATA ·powrodataL51<> + 152(SB)/8, $-.15895808101370190382E-08
++DATA ·powrodataL51<> + 160(SB)/8, $0x4540190000000000
++GLOBL ·powrodataL51<> + 0(SB), RODATA, $168
++
++// Constants
++DATA ·pow_x001a<> + 0(SB)/8, $0x1a000000000000
++GLOBL ·pow_x001a<> + 0(SB), RODATA, $8
++DATA ·pow_xinf<> + 0(SB)/8, $0x7ff0000000000000      //+Inf
++GLOBL ·pow_xinf<> + 0(SB), RODATA, $8
++DATA ·pow_xnan<> + 0(SB)/8, $0x7ff8000000000000      //NaN
++GLOBL ·pow_xnan<> + 0(SB), RODATA, $8
++DATA ·pow_x434<> + 0(SB)/8, $0x4340000000000000
++GLOBL ·pow_x434<> + 0(SB), RODATA, $8
++DATA ·pow_x433<> + 0(SB)/8, $0x4330000000000000
++GLOBL ·pow_x433<> + 0(SB), RODATA, $8
++DATA ·pow_x43f<> + 0(SB)/8, $0x43f0000000000000
++GLOBL ·pow_x43f<> + 0(SB), RODATA, $8
++DATA ·pow_xadd<> + 0(SB)/8, $0xc2f0000100003fef
++GLOBL ·pow_xadd<> + 0(SB), RODATA, $8
++DATA ·pow_xa<> + 0(SB)/8, $0x4019000000000000
++GLOBL ·pow_xa<> + 0(SB), RODATA, $8
++
++// Scale correction tables
++DATA powiadd<> + 0(SB)/8, $0xf000000000000000
++DATA powiadd<> + 8(SB)/8, $0x1000000000000000
++GLOBL powiadd<> + 0(SB), RODATA, $16
++DATA powxscale<> + 0(SB)/8, $0x4ff0000000000000
++DATA powxscale<> + 8(SB)/8, $0x2ff0000000000000
++GLOBL powxscale<> + 0(SB), RODATA, $16
++
++// Fractional powers of 2 table
++DATA ·powtexp<> + 0(SB)/8, $0.442737824274138381E-01
++DATA ·powtexp<> + 8(SB)/8, $0.263602189790660309E-01
++DATA ·powtexp<> + 16(SB)/8, $0.122565642281703586E-01
++DATA ·powtexp<> + 24(SB)/8, $0.143757052860721398E-02
++DATA ·powtexp<> + 32(SB)/8, $-.651375034121276075E-02
++DATA ·powtexp<> + 40(SB)/8, $-.119317678849450159E-01
++DATA ·powtexp<> + 48(SB)/8, $-.150868749549871069E-01
++DATA ·powtexp<> + 56(SB)/8, $-.161992609578469234E-01
++DATA ·powtexp<> + 64(SB)/8, $-.154492360403337917E-01
++DATA ·powtexp<> + 72(SB)/8, $-.129850717389178721E-01
++DATA ·powtexp<> + 80(SB)/8, $-.892902649276657891E-02
++DATA ·powtexp<> + 88(SB)/8, $-.338202636596794887E-02
++DATA ·powtexp<> + 96(SB)/8, $0.357266307045684762E-02
++DATA ·powtexp<> + 104(SB)/8, $0.118665304327406698E-01
++DATA ·powtexp<> + 112(SB)/8, $0.214434994118118914E-01
++DATA ·powtexp<> + 120(SB)/8, $0.322580645161290314E-01
++GLOBL ·powtexp<> + 0(SB), RODATA, $128
++
++// Log multiplier tables
++DATA ·powtl<> + 0(SB)/8, $0xbdf9723a80db6a05
++DATA ·powtl<> + 8(SB)/8, $0x3e0cfe4a0babe862
++DATA ·powtl<> + 16(SB)/8, $0xbe163b42dd33dada
++DATA ·powtl<> + 24(SB)/8, $0xbe0cdf9de2a8429c
++DATA ·powtl<> + 32(SB)/8, $0xbde9723a80db6a05
++DATA ·powtl<> + 40(SB)/8, $0xbdb37fcae081745e
++DATA ·powtl<> + 48(SB)/8, $0xbdd8b2f901ac662c
++DATA ·powtl<> + 56(SB)/8, $0xbde867dc68c36cc9
++DATA ·powtl<> + 64(SB)/8, $0xbdd23e36b47256b7
++DATA ·powtl<> + 72(SB)/8, $0xbde4c9b89fcc7933
++DATA ·powtl<> + 80(SB)/8, $0xbdd16905cad7cf66
++DATA ·powtl<> + 88(SB)/8, $0x3ddb417414aa5529
++DATA ·powtl<> + 96(SB)/8, $0xbdce046f2889983c
++DATA ·powtl<> + 104(SB)/8, $0x3dc2c3865d072897
++DATA ·powtl<> + 112(SB)/8, $0x8000000000000000
++DATA ·powtl<> + 120(SB)/8, $0x3dc1ca48817f8afe
++DATA ·powtl<> + 128(SB)/8, $0xbdd703518a88bfb7
++DATA ·powtl<> + 136(SB)/8, $0x3dc64afcc46942ce
++DATA ·powtl<> + 144(SB)/8, $0xbd9d79191389891a
++DATA ·powtl<> + 152(SB)/8, $0x3ddd563044da4fa0
++DATA ·powtl<> + 160(SB)/8, $0x3e0f42b5e5f8f4b6
++DATA ·powtl<> + 168(SB)/8, $0x3e0dfa2c2cbf6ead
++DATA ·powtl<> + 176(SB)/8, $0x3e14e25e91661293
++DATA ·powtl<> + 184(SB)/8, $0x3e0aac461509e20c
++GLOBL ·powtl<> + 0(SB), RODATA, $192
++
++DATA ·powtm<> + 0(SB)/8, $0x3da69e13
++DATA ·powtm<> + 8(SB)/8, $0x100003d66fcb6
++DATA ·powtm<> + 16(SB)/8, $0x200003d1538df
++DATA ·powtm<> + 24(SB)/8, $0x300003cab729e
++DATA ·powtm<> + 32(SB)/8, $0x400003c1a784c
++DATA ·powtm<> + 40(SB)/8, $0x500003ac9b074
++DATA ·powtm<> + 48(SB)/8, $0x60000bb498d22
++DATA ·powtm<> + 56(SB)/8, $0x68000bb8b29a2
++DATA ·powtm<> + 64(SB)/8, $0x70000bb9a32d4
++DATA ·powtm<> + 72(SB)/8, $0x74000bb9946bb
++DATA ·powtm<> + 80(SB)/8, $0x78000bb92e34b
++DATA ·powtm<> + 88(SB)/8, $0x80000bb6c57dc
++DATA ·powtm<> + 96(SB)/8, $0x84000bb4020f7
++DATA ·powtm<> + 104(SB)/8, $0x8c000ba93832d
++DATA ·powtm<> + 112(SB)/8, $0x9000080000000
++DATA ·powtm<> + 120(SB)/8, $0x940003aa66c4c
++DATA ·powtm<> + 128(SB)/8, $0x980003b2fb12a
++DATA ·powtm<> + 136(SB)/8, $0xa00003bc1def6
++DATA ·powtm<> + 144(SB)/8, $0xa80003c1eb0eb
++DATA ·powtm<> + 152(SB)/8, $0xb00003c64dcec
++DATA ·powtm<> + 160(SB)/8, $0xc00003cc49e4e
++DATA ·powtm<> + 168(SB)/8, $0xd00003d12f1de
++DATA ·powtm<> + 176(SB)/8, $0xe00003d4a9c6f
++DATA ·powtm<> + 184(SB)/8, $0xf00003d846c66
++GLOBL ·powtm<> + 0(SB), RODATA, $192
++
++// Table of indeces into multiplier tables
++// Adjusted from asm to remove offset and convert
++DATA ·powtabi<> + 0(SB)/8, $0x1010101
++DATA ·powtabi<> + 8(SB)/8, $0x101020202020203
++DATA ·powtabi<> + 16(SB)/8, $0x303030404040405
++DATA ·powtabi<> + 24(SB)/8, $0x505050606060708
++DATA ·powtabi<> + 32(SB)/8, $0x90a0b0c0d0e0f10
++DATA ·powtabi<> + 40(SB)/8, $0x1011111212121313
++DATA ·powtabi<> + 48(SB)/8, $0x1314141414151515
++DATA ·powtabi<> + 56(SB)/8, $0x1516161617171717
++GLOBL ·powtabi<> + 0(SB), RODATA, $64
++
++// Pow returns x**y, the base-x exponential of y.
++//
++// Special cases are (in order):
++//      Pow(x, ±0) = 1 for any x
++//      Pow(1, y) = 1 for any y
++//      Pow(x, 1) = x for any x
++//      Pow(NaN, y) = NaN
++//      Pow(x, NaN) = NaN
++//      Pow(±0, y) = ±Inf for y an odd integer < 0
++//      Pow(±0, -Inf) = +Inf
++//      Pow(±0, +Inf) = +0
++//      Pow(±0, y) = +Inf for finite y < 0 and not an odd integer
++//      Pow(±0, y) = ±0 for y an odd integer > 0
++//      Pow(±0, y) = +0 for finite y > 0 and not an odd integer
++//      Pow(-1, ±Inf) = 1
++//      Pow(x, +Inf) = +Inf for |x| > 1
++//      Pow(x, -Inf) = +0 for |x| > 1
++//      Pow(x, +Inf) = +0 for |x| < 1
++//      Pow(x, -Inf) = +Inf for |x| < 1
++//      Pow(+Inf, y) = +Inf for y > 0
++//      Pow(+Inf, y) = +0 for y < 0
++//      Pow(-Inf, y) = Pow(-0, -y)
++//      Pow(x, y) = NaN for finite x < 0 and finite non-integer y
++
++TEXT	·powAsm(SB), NOSPLIT, $0-24
++	// special case
++	MOVD	x+0(FP), R1
++	MOVD	y+8(FP), R2
++
++	// special case Pow(1, y) = 1 for any y
++	MOVD	$PosOne, R3
++	CMPUBEQ	R1, R3, xIsOne
++
++	// special case Pow(x, 1) = x for any x
++	MOVD	$PosOne, R4
++	CMPUBEQ	R2, R4, yIsOne
++
++	// special case Pow(x, NaN) = NaN for any x
++	MOVD	$~(1<<63), R5
++	AND	R2, R5    // y = |y|
++	MOVD	$PosInf, R4
++	CMPUBLT R4, R5, yIsNan
++
++	MOVD	$NegInf, R3
++	CMPUBEQ	R1, R3, xIsNegInf
++
++	MOVD	$NegOne, R3
++	CMPUBEQ	R1, R3, xIsNegOne
++
++	MOVD	$PosInf, R3
++	CMPUBEQ	R1, R3, xIsPosInf
++
++	MOVD	$NegZero, R3
++	CMPUBEQ	R1, R3, xIsNegZero
++
++	MOVD	$PosInf, R4
++	CMPUBEQ	R2, R4, yIsPosInf
++
++	MOVD	$0x0, R3
++	CMPUBEQ	R1, R3, xIsPosZero
++	CMPBLT	R1, R3, xLtZero
++	BR	Normal
++xIsPosInf:
++	// special case Pow(+Inf, y) = +Inf for y > 0
++	MOVD	$0x0, R4
++	CMPBGT	R2, R4, posInfGeZero
++	BR	Normal
++xIsNegInf:
++	//Pow(-Inf, y) = Pow(-0, -y)
++	FMOVD y+8(FP), F2
++	FNEG F2, F2			// y = -y
++	BR negZeroNegY		// call Pow(-0, -y)
++xIsNegOne:
++	// special case Pow(-1, ±Inf) = 1
++	MOVD	$PosInf, R4
++	CMPUBEQ	R2, R4, negOnePosInf
++	MOVD	$NegInf, R4
++	CMPUBEQ	R2, R4, negOneNegInf
++	BR	Normal
++xIsPosZero:
++	// special case Pow(+0, -Inf) = +Inf
++	MOVD	$NegInf, R4
++	CMPUBEQ	R2, R4, zeroNegInf
++
++	// special case Pow(+0, y < 0) = +Inf
++	FMOVD	y+8(FP), F2
++	FMOVD	$(0.0), F4
++	FCMPU	F2, F4
++	BLT	posZeroLtZero				//y < 0.0
++	BR	Normal
++xIsNegZero:
++	// special case Pow(-0, -Inf) = +Inf
++	MOVD	$NegInf, R4
++	CMPUBEQ	R2, R4, zeroNegInf
++	FMOVD	y+8(FP), F2
++negZeroNegY:
++	// special case Pow(x, ±0) = 1 for any x
++	FMOVD	$(0.0), F4
++	FCMPU	F4, F2
++	BLT	negZeroGtZero		// y > 0.0
++	BEQ yIsZero				// y = 0.0
++
++	FMOVD $(-0.0), F4
++	FCMPU F4, F2
++	BLT negZeroGtZero				// y > -0.0
++	BEQ yIsZero				// y = -0.0
++
++	// special case Pow(-0, y) = -Inf for y an odd integer < 0
++	// special case Pow(-0, y) = +Inf for finite y < 0 and not an odd integer
++	FIDBR	$5, F2, F4		//F2 translate to integer F4
++	FCMPU	F2, F4
++	BNE	zeroNotOdd			// y is not an (odd) integer and y < 0
++	FMOVD	$(2.0), F4
++	FDIV	F4, F2			// F2 = F2 / 2.0
++	FIDBR	$5, F2, F4		//F2 translate to integer F4
++	FCMPU	F2, F4
++	BNE	negZeroOddInt		// y is an odd integer and y < 0
++	BR	zeroNotOdd			// y is not an (odd) integer and y < 0
++
++negZeroGtZero:
++	// special case Pow(-0, y) = -0 for y an odd integer > 0
++	// special case Pow(±0, y) = +0 for finite y > 0 and not an odd integer
++	FIDBR	$5, F2, F4      //F2 translate to integer F4
++	FCMPU	F2, F4
++	BNE	zeroNotOddGtZero    // y is not an (odd) integer and y > 0
++	FMOVD	$(2.0), F4
++	FDIV	F4, F2          // F2 = F2 / 2.0
++	FIDBR	$5, F2, F4      //F2 translate to integer F4
++	FCMPU	F2, F4
++	BNE	negZeroOddIntGtZero       // y is an odd integer and y > 0
++	BR	zeroNotOddGtZero          // y is not an (odd) integer
++
++xLtZero:
++	// special case Pow(x, y) = NaN for finite x < 0 and finite non-integer y
++	FMOVD	y+8(FP), F2
++	FIDBR	$5, F2, F4
++	FCMPU	F2, F4
++	BNE	ltZeroInt
++	BR	Normal
++yIsPosInf:
++	// special case Pow(x, +Inf) = +Inf for |x| > 1
++	FMOVD	x+0(FP), F1
++	FMOVD	$(1.0), F3
++	FCMPU	F1, F3
++	BGT	gtOnePosInf
++	FMOVD	$(-1.0), F3
++	FCMPU	F1, F3
++	BLT	ltNegOnePosInf
++Normal:
++	FMOVD	x+0(FP), F0
++	FMOVD	y+8(FP), F2
++	MOVD	$·powrodataL51<>+0(SB), R9
++	WORD	$0xB3CD0030	//lgdr	%r3,%f0
++	WORD	$0xC0298009	//iilf	%r2,2148095317
++	BYTE	$0x55
++	BYTE	$0x55
++	WORD	$0xEC1320BF	//risbgn	%r1,%r3,64-32,128+63,64+0+32
++	BYTE	$0x60
++	BYTE	$0x59
++	SUBW	R1, R2
++	WORD	$0xEC323ABF	//risbgn	%r3,%r2,64-6,128+63,64+44+6
++	BYTE	$0x72
++	BYTE	$0x59
++	BYTE	$0x18	//lr	%r5,%r1
++	BYTE	$0x51
++	MOVD	$·powtabi<>+0(SB), R12
++	WORD	$0xE303C000	//llgc	%r0,0(%r3,%r12)
++	BYTE	$0x00
++	BYTE	$0x90
++	SUBW	$0x1A0000, R5
++	SLD	$3, R0, R3
++	MOVD	$·powtm<>+0(SB), R4
++	MOVH	$0x0, R8
++	ANDW	$0x7FF00000, R2
++	ORW	R5, R1
++	WORD	$0x5A234000	//a	%r2,0(%r3,%r4)
++	MOVD	$0x3FF0000000000000, R5
++	WORD	$0xEC3228BF	//risbg	%r3,%r2,64-24,128+63,64+32+24
++	BYTE	$0x78
++	BYTE	$0x55
++	WORD	$0xEC82001F	//risbgn	%r8,%r2,64-64+0,64-64+0+32-1,64-0-32
++	BYTE	$0x20
++	BYTE	$0x59
++	ORW	$0x45000000, R3
++	MOVW	R1, R6
++	CMPBLT	R6, $0, L42
++	FMOVD	F0, F4
++L2:
++	VLVGF	$0, R3, V1
++	MOVD	$·pow_xa<>+0(SB), R2
++	WORD	$0xED3090A0	//lde	%f3,.L52-.L51(%r9)
++	BYTE	$0x00
++	BYTE	$0x24
++	FMOVD	0(R2), F6
++	FSUBS	F1, F3
++	WORD	$0xB3C10018	//ldgr	%f1,%r8
++	WFMSDB	V4, V1, V6, V4
++	FMOVD	152(R9), F6
++	WFMDB	V4, V4, V7
++	FMOVD	144(R9), F1
++	FMOVD	136(R9), F5
++	WFMADB	V4, V1, V6, V1
++	VLEG	$0, 128(R9), V16
++	FMOVD	120(R9), F6
++	WFMADB	V4, V5, V6, V5
++	FMOVD	112(R9), F6
++	WFMADB	V1, V7, V5, V1
++	WFMADB	V4, V6, V16, V16
++	SLD	$3, R0, R2
++	FMOVD	104(R9), F5
++	WORD	$0xED824004	//ldeb	%f8,4(%r2,%r4)
++	BYTE	$0x00
++	BYTE	$0x04
++	LDEBR	F3, F3
++	FMOVD	96(R9), F6
++	WFMADB	V4, V6, V5, V6
++	FADD	F8, F3
++	WFMADB	V7, V6, V16, V6
++	FMUL	F7, F7
++	FMOVD	88(R9), F5
++	FMADD	F7, F1, F6
++	WFMADB	V4, V5, V3, V16
++	FMOVD	80(R9), F1
++	WFSDB	V16, V3, V3
++	MOVD	$·powtl<>+0(SB), R3
++	WFMADB	V4, V6, V1, V6
++	FMADD	F5, F4, F3
++	FMOVD	72(R9), F1
++	WFMADB	V4, V6, V1, V6
++	WORD	$0xED323000	//adb	%f3,0(%r2,%r3)
++	BYTE	$0x00
++	BYTE	$0x1A
++	FMOVD	64(R9), F1
++	WFMADB	V4, V6, V1, V6
++	MOVD	$·pow_xadd<>+0(SB), R2
++	WFMADB	V4, V6, V3, V4
++	FMOVD	0(R2), F5
++	WFADB	V4, V16, V3
++	VLEG	$0, 56(R9), V20
++	WFMSDB	V2, V3, V5, V3
++	VLEG	$0, 48(R9), V18
++	WFADB	V3, V5, V6
++	WORD	$0xB3CD0023	//lgdr	%r2,%f3
++	WFMSDB	V2, V16, V6, V16
++	FMOVD	40(R9), F1
++	WFMADB	V2, V4, V16, V4
++	FMOVD	32(R9), F7
++	WFMDB	V4, V4, V3
++	WFMADB	V4, V1, V20, V1
++	WFMADB	V4, V7, V18, V7
++	VLEG	$0, 24(R9), V16
++	WFMADB	V1, V3, V7, V1
++	FMOVD	16(R9), F5
++	WFMADB	V4, V5, V16, V5
++	WORD	$0xEC4239BC	//risbg	%r4,%r2,57,128+60,3
++	BYTE	$0x03
++	BYTE	$0x55
++	WFMADB	V3, V1, V5, V1
++	MOVD	$·powtexp<>+0(SB), R3
++	WORD	$0x68343000	//ld	%f3,0(%r4,%r3)
++	FMADD	F3, F4, F4
++	WORD	$0xEC52000F	//risbgn	%r5,%r2,64-64+0,64-64+0+16-1,64-0-16
++	BYTE	$0x30
++	BYTE	$0x59
++	WFMADB	V4, V1, V3, V4
++	WORD	$0xB3CD0026	//lgdr	%r2,%f6
++	WORD	$0xB3C10015	//ldgr	%f1,%r5
++	SRAD	$48, R2, R2
++	FMADD	F1, F4, F1
++	RLL	$16, R2, R2
++	ANDW	$0x7FFF0000, R2
++	WORD	$0xC22B3F71	//alfi	%r2,1064370176
++	BYTE	$0x00
++	BYTE	$0x00
++	ORW	R2, R1, R3
++	MOVW	R3, R6
++	CMPBLT	R6, $0, L43
++L1:
++	FMOVD	F1, ret+16(FP)
++	RET
++L43:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLTU	L44
++	FMOVD	F0, F3
++L7:
++	MOVD	$·pow_xinf<>+0(SB), R3
++	FMOVD	0(R3), F5
++	WFCEDBS	V3, V5, V7
++	BVS	L8
++	WFMDB	V3, V2, V6
++L8:
++	WFCEDBS	V2, V2, V3
++	BVS	L9
++	WORD	$0xB3120022	//ltdbr	%f2,%f2
++	BEQ	L26
++	MOVW	R1, R6
++	CMPBLT	R6, $0, L45
++L11:
++	WORD	$0xC0190003	//iilf	%r1,262143
++	BYTE	$0xFF
++	BYTE	$0xFF
++	MOVW	R2, R7
++	MOVW	R1, R6
++	CMPBLE	R7, R6, L34
++	WORD	$0xEC1520BF	//risbgn	%r1,%r5,64-32,128+63,64+0+32
++	BYTE	$0x60
++	BYTE	$0x59
++	WORD	$0xB3CD0026	//lgdr	%r2,%f6
++	MOVD	$powiadd<>+0(SB), R3
++	WORD	$0xEC223CBC	//risbg	%r2,%r2,60,128+60,64-60
++	BYTE	$0x04
++	BYTE	$0x55
++	WORD	$0x5A123000	//a	%r1,0(%r2,%r3)
++	WORD	$0xEC51001F	//risbgn	%r5,%r1,64-64+0,64-64+0+32-1,64-0-32
++	BYTE	$0x20
++	BYTE	$0x59
++	WORD	$0xB3C10015	//ldgr	%f1,%r5
++	FMADD	F1, F4, F1
++	MOVD	$powxscale<>+0(SB), R1
++	WORD	$0xED121000	//mdb	%f1,0(%r2,%r1)
++	BYTE	$0x00
++	BYTE	$0x1C
++	BR	L1
++L42:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLTU	L46
++	FMOVD	F0, F4
++L3:
++	MOVD	$·pow_x001a<>+0(SB), R2
++	WORD	$0xED402000	//cdb	%f4,0(%r2)
++	BYTE	$0x00
++	BYTE	$0x19
++	BGE	L2
++	BVS	L2
++	MOVD	$·pow_x43f<>+0(SB), R2
++	WORD	$0xED402000	//mdb	%f4,0(%r2)
++	BYTE	$0x00
++	BYTE	$0x1C
++	WORD	$0xC0298009	//iilf	%r2,2148095317
++	BYTE	$0x55
++	BYTE	$0x55
++	WORD	$0xB3CD0034	//lgdr	%r3,%f4
++	WORD	$0xEC3320BF	//risbgn	%r3,%r3,64-32,128+63,64+0+32
++	BYTE	$0x60
++	BYTE	$0x59
++	SUBW	R3, R2, R3
++	WORD	$0xEC2321AB	//risbg	%r2,%r3,33,128+43,0
++	BYTE	$0x00
++	BYTE	$0x55
++	WORD	$0xEC333ABF	//risbgn	%r3,%r3,64-6,128+63,64+44+6
++	BYTE	$0x72
++	BYTE	$0x59
++	WORD	$0xE303C000	//llgc	%r0,0(%r3,%r12)
++	BYTE	$0x00
++	BYTE	$0x90
++	SLD	$3, R0, R3
++	WORD	$0x5A234000	//a	%r2,0(%r3,%r4)
++	BYTE	$0x18	//lr	%r3,%r2
++	BYTE	$0x32
++	WORD	$0xEC83001F	//risbgn	%r8,%r3,64-64+0,64-64+0+32-1,64-0-32
++	BYTE	$0x20
++	BYTE	$0x59
++	ADDW	$0x4000000, R3
++	BLEU	L5
++	WORD	$0xEC3328BF	//risbg	%r3,%r3,64-24,128+63,64+32+24
++	BYTE	$0x78
++	BYTE	$0x55
++	ORW	$0x45000000, R3
++	BR	L2
++L9:
++	WFCEDBS	V0, V0, V4
++	BVS	L35
++	FMOVD	F2, F1
++	BR	L1
++L46:
++	WORD	$0xB3130040	//lcdbr	%f4,%f0
++	BR	L3
++L44:
++	WORD	$0xB3130030	//lcdbr	%f3,%f0
++	BR	L7
++L35:
++	FMOVD	F0, F1
++	BR	L1
++L26:
++	FMOVD	8(R9), F1
++	BR	L1
++L34:
++	FMOVD	8(R9), F4
++L19:
++	WORD	$0xB3120066	//ltdbr	%f6,%f6
++	BLEU	L47
++L18:
++	WFMDB	V4, V5, V1
++	BR	L1
++L5:
++	WORD	$0xEC3321B2	//risbg	%r3,%r3,33,128+50,64-1
++	BYTE	$0x3F
++	BYTE	$0x55
++	WORD	$0xC23B4000	//alfi	%r3,1073741824
++	BYTE	$0x00
++	BYTE	$0x00
++	RLL	$24, R3, R3
++	ORW	$0x45000000, R3
++	BR	L2
++L45:
++	WFCEDBS	V0, V0, V4
++	BVS	L35
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLEU	L48
++	FMOVD	8(R9), F4
++L12:
++	MOVW	R2, R6
++	CMPBLT	R6, $0, L19
++	FMUL	F4, F1
++	BR	L1
++L47:
++	BLT	L40
++	WFCEDBS	V0, V0, V2
++	BVS	L49
++L16:
++	MOVD	·pow_xnan<>+0(SB), R1
++	WORD	$0xB3C10001	//ldgr	%f0,%r1
++	WFMDB	V4, V0, V1
++	BR	L1
++L48:
++	WORD	$0xB3CD0030	//lgdr	%r3,%f0
++	WORD	$0xEC1320BF	//risbgn	%r1,%r3,64-32,128+63,64+0+32
++	BYTE	$0x60
++	BYTE	$0x59
++	MOVW	R1, R6
++	CMPBEQ	R6, $0, L29
++	WORD	$0xB3120022	//ltdbr	%f2,%f2
++	BLTU	L50
++	FMOVD	F2, F4
++L14:
++	MOVD	$·pow_x433<>+0(SB), R1
++	FMOVD	0(R1), F7
++	WFCHDBS	V4, V7, V3
++	BEQ	L15
++	WFADB	V7, V4, V3
++	FSUB	F7, F3
++	WFCEDBS	V4, V3, V3
++	BEQ	L15
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	FMOVD	8(R9), F4
++	BNE	L16
++L13:
++	WORD	$0xB3120022	//ltdbr	%f2,%f2
++	BLT	L18
++L40:
++	FMOVD	$0, F0
++	WFMDB	V4, V0, V1
++	BR	L1
++L49:
++	WFMDB	V0, V4, V1
++	BR	L1
++L29:
++	FMOVD	8(R9), F4
++	BR	L13
++L15:
++	MOVD	$·pow_x434<>+0(SB), R1
++	FMOVD	0(R1), F7
++	WFCHDBS	V4, V7, V3
++	BEQ	L32
++	WFADB	V7, V4, V3
++	FSUB	F7, F3
++	WFCEDBS	V4, V3, V4
++	BEQ	L32
++	FMOVD	0(R9), F4
++L17:
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BNE	L12
++	BR	L13
++L32:
++	FMOVD	8(R9), F4
++	BR	L17
++L50:
++	WORD	$0xB3130042	//lcdbr	%f4,%f2
++	BR	L14
++xIsOne:			// Pow(1, y) = 1 for any y
++yIsOne:			// Pow(x, 1) = x for any x
++posInfGeZero:	// Pow(+Inf, y) = +Inf for y > 0
++	MOVD	R1, ret+16(FP)
++	RET
++yIsNan:			//  Pow(NaN, y) = NaN
++ltZeroInt:		// Pow(x, y) = NaN for finite x < 0 and finite non-integer y
++	MOVD	$NaN, R2
++	MOVD	R2, ret+16(FP)
++	RET
++negOnePosInf:	// Pow(-1, ±Inf) = 1
++negOneNegInf:
++	MOVD	$PosOne, R3
++	MOVD	R3, ret+16(FP)
++	RET
++negZeroOddInt:
++	MOVD	$NegInf, R3
++	MOVD	R3, ret+16(FP)
++	RET
++zeroNotOdd:		// Pow(±0, y) = +Inf for finite y < 0 and not an odd integer
++posZeroLtZero:	// special case Pow(+0, y < 0) = +Inf
++zeroNegInf:		// Pow(±0, -Inf) = +Inf
++	MOVD	$PosInf, R3
++	MOVD	R3, ret+16(FP)
++	RET
++gtOnePosInf:	//Pow(x, +Inf) = +Inf for |x| > 1
++ltNegOnePosInf:
++	MOVD	R2, ret+16(FP)
++	RET
++yIsZero:		//Pow(x, ±0) = 1 for any x
++	MOVD	$PosOne, R4
++	MOVD	R4, ret+16(FP)
++	RET
++negZeroOddIntGtZero:        // Pow(-0, y) = -0 for y an odd integer > 0
++	MOVD	$NegZero, R3
++	MOVD	R3, ret+16(FP)
++	RET
++zeroNotOddGtZero:        // Pow(±0, y) = +0 for finite y > 0 and not an odd integer
++	MOVD	$0, ret+16(FP)
++	RET
+diff --git a/src/math/pow_stub.s b/src/math/pow_stub.s
+new file mode 100644
+index 0000000000..322d6c45db
+--- /dev/null
++++ b/src/math/pow_stub.s
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32 arm
++
++#include "textflag.h"
++
++TEXT ·Pow(SB),NOSPLIT,$0
++    JMP ·pow(SB)
++
+diff --git a/src/math/stubs_arm64.s b/src/math/stubs_arm64.s
+index 4985974b48..ea8d339e5b 100644
+--- a/src/math/stubs_arm64.s
++++ b/src/math/stubs_arm64.s
+@@ -12,15 +12,33 @@ TEXT ·Asin(SB),NOSPLIT,$0
+ TEXT ·Acos(SB),NOSPLIT,$0
+ 	B ·acos(SB)
+ 
++TEXT ·Asinh(SB),NOSPLIT,$0
++        B ·asinh(SB)
++
++TEXT ·Acosh(SB),NOSPLIT,$0
++        B ·acosh(SB)
++
+ TEXT ·Atan2(SB),NOSPLIT,$0
+ 	B ·atan2(SB)
+ 
+ TEXT ·Atan(SB),NOSPLIT,$0
+ 	B ·atan(SB)
+ 
++TEXT ·Atanh(SB),NOSPLIT,$0
++	B ·atanh(SB)
++
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	B ·exp2(SB)
+ 
++TEXT ·Erf(SB),NOSPLIT,$0
++	B ·erf(SB)
++
++TEXT ·Erfc(SB),NOSPLIT,$0
++	B ·erfc(SB)
++
++TEXT ·Cbrt(SB),NOSPLIT,$0
++	B ·cbrt(SB)
++
+ TEXT ·Cosh(SB),NOSPLIT,$0
+ 	B ·cosh(SB)
+ 
+@@ -71,3 +89,6 @@ TEXT ·Tan(SB),NOSPLIT,$0
+ 
+ TEXT ·Tanh(SB),NOSPLIT,$0
+ 	B ·tanh(SB)
++
++TEXT ·Pow(SB),NOSPLIT,$0
++	B ·pow(SB)
+diff --git a/src/math/stubs_mips64x.s b/src/math/stubs_mips64x.s
+index 4090529711..a0e0e38810 100644
+--- a/src/math/stubs_mips64x.s
++++ b/src/math/stubs_mips64x.s
+@@ -12,12 +12,21 @@ TEXT ·Asin(SB),NOSPLIT,$0
+ TEXT ·Acos(SB),NOSPLIT,$0
+ 	JMP ·acos(SB)
+ 
++TEXT ·Asinh(SB),NOSPLIT,$0
++        JMP ·asinh(SB)
++
++TEXT ·Acosh(SB),NOSPLIT,$0
++        JMP ·acosh(SB)
++
+ TEXT ·Atan2(SB),NOSPLIT,$0
+ 	JMP ·atan2(SB)
+ 
+ TEXT ·Atan(SB),NOSPLIT,$0
+ 	JMP ·atan(SB)
+ 
++TEXT ·Atanh(SB),NOSPLIT,$0
++	JMP ·atanh(SB)
++
+ TEXT ·Dim(SB),NOSPLIT,$0
+ 	JMP ·dim(SB)
+ 
+@@ -27,6 +36,12 @@ TEXT ·Min(SB),NOSPLIT,$0
+ TEXT ·Max(SB),NOSPLIT,$0
+ 	JMP ·max(SB)
+ 
++TEXT ·Erf(SB),NOSPLIT,$0
++	JMP ·erf(SB)
++
++TEXT ·Erfc(SB),NOSPLIT,$0
++	JMP ·erfc(SB)
++
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	JMP ·exp2(SB)
+ 
+@@ -95,3 +110,9 @@ TEXT ·Tan(SB),NOSPLIT,$0
+ 
+ TEXT ·Tanh(SB),NOSPLIT,$0
+ 	JMP ·tanh(SB)
++
++TEXT ·Cbrt(SB),NOSPLIT,$0
++	JMP ·cbrt(SB)
++
++TEXT ·Pow(SB),NOSPLIT,$0
++	JMP ·pow(SB)
+diff --git a/src/math/stubs_mipsx.s b/src/math/stubs_mipsx.s
+index 7346442553..e959f079bb 100644
+--- a/src/math/stubs_mipsx.s
++++ b/src/math/stubs_mipsx.s
+@@ -12,12 +12,21 @@ TEXT ·Asin(SB),NOSPLIT,$0
+ TEXT ·Acos(SB),NOSPLIT,$0
+ 	JMP	·acos(SB)
+ 
++TEXT ·Asinh(SB),NOSPLIT,$0
++        JMP ·asinh(SB)
++
++TEXT ·Acosh(SB),NOSPLIT,$0
++        JMP ·acosh(SB)
++
+ TEXT ·Atan2(SB),NOSPLIT,$0
+ 	JMP	·atan2(SB)
+ 
+ TEXT ·Atan(SB),NOSPLIT,$0
+ 	JMP	·atan(SB)
+ 
++TEXT ·Atanh(SB),NOSPLIT,$0
++	JMP	·atanh(SB)
++
+ TEXT ·Dim(SB),NOSPLIT,$0
+ 	JMP	·dim(SB)
+ 
+@@ -27,6 +36,12 @@ TEXT ·Min(SB),NOSPLIT,$0
+ TEXT ·Max(SB),NOSPLIT,$0
+ 	JMP	·max(SB)
+ 
++TEXT ·Erf(SB),NOSPLIT,$0
++	JMP	·erf(SB)
++
++TEXT ·Erfc(SB),NOSPLIT,$0
++	JMP	·erfc(SB)
++
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	JMP	·exp2(SB)
+ 
+@@ -93,3 +108,9 @@ TEXT ·Tan(SB),NOSPLIT,$0
+ TEXT ·Tanh(SB),NOSPLIT,$0
+         JMP ·tanh(SB)
+ 
++TEXT ·Cbrt(SB),NOSPLIT,$0
++        JMP ·cbrt(SB)
++
++TEXT ·Pow(SB),NOSPLIT,$0
++        JMP ·pow(SB)
++
+diff --git a/src/math/stubs_ppc64x.s b/src/math/stubs_ppc64x.s
+index 73e8ad9df4..9d46ebff74 100644
+--- a/src/math/stubs_ppc64x.s
++++ b/src/math/stubs_ppc64x.s
+@@ -12,12 +12,21 @@ TEXT ·Asin(SB),NOSPLIT,$0
+ TEXT ·Acos(SB),NOSPLIT,$0
+ 	BR ·acos(SB)
+ 
++TEXT ·Asinh(SB),NOSPLIT,$0
++        BR ·asinh(SB)
++
++TEXT ·Acosh(SB),NOSPLIT,$0
++        BR ·acosh(SB)
++
+ TEXT ·Atan2(SB),NOSPLIT,$0
+ 	BR ·atan2(SB)
+ 
+ TEXT ·Atan(SB),NOSPLIT,$0
+ 	BR ·atan(SB)
+ 
++TEXT ·Atanh(SB),NOSPLIT,$0
++	BR ·atanh(SB)
++
+ TEXT ·Dim(SB),NOSPLIT,$0
+ 	BR ·dim(SB)
+ 
+@@ -27,6 +36,12 @@ TEXT ·Min(SB),NOSPLIT,$0
+ TEXT ·Max(SB),NOSPLIT,$0
+ 	BR ·max(SB)
+ 
++TEXT ·Erf(SB),NOSPLIT,$0
++	BR ·erf(SB)
++
++TEXT ·Erfc(SB),NOSPLIT,$0
++	BR ·erfc(SB)
++
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	BR ·exp2(SB)
+ 
+@@ -83,3 +98,10 @@ TEXT ·Tan(SB),NOSPLIT,$0
+ 
+ TEXT ·Tanh(SB),NOSPLIT,$0
+ 	BR ·tanh(SB)
++
++TEXT ·Cbrt(SB),NOSPLIT,$0
++	BR ·cbrt(SB)
++
++TEXT ·Pow(SB),NOSPLIT,$0
++	BR ·pow(SB)
++
+diff --git a/src/math/stubs_s390x.s b/src/math/stubs_s390x.s
+index 260272ce88..889e248db9 100644
+--- a/src/math/stubs_s390x.s
++++ b/src/math/stubs_s390x.s
+@@ -4,27 +4,9 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Asin(SB),NOSPLIT,$0
+-	BR ·asin(SB)
+-
+-TEXT ·Acos(SB),NOSPLIT,$0
+-	BR ·acos(SB)
+-
+-TEXT ·Atan2(SB),NOSPLIT,$0
+-	BR ·atan2(SB)
+-
+-TEXT ·Atan(SB),NOSPLIT,$0
+-	BR ·atan(SB)
+-
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	BR ·exp2(SB)
+ 
+-TEXT ·Expm1(SB),NOSPLIT,$0
+-	BR ·expm1(SB)
+-
+-TEXT ·Exp(SB),NOSPLIT,$0
+-	BR ·exp(SB)
+-
+ TEXT ·Frexp(SB),NOSPLIT,$0
+ 	BR ·frexp(SB)
+ 
+@@ -37,12 +19,6 @@ TEXT ·Ldexp(SB),NOSPLIT,$0
+ TEXT ·Log2(SB),NOSPLIT,$0
+ 	BR ·log2(SB)
+ 
+-TEXT ·Log1p(SB),NOSPLIT,$0
+-	BR ·log1p(SB)
+-
+-TEXT ·Log(SB),NOSPLIT,$0
+-	BR ·log(SB)
+-
+ TEXT ·Modf(SB),NOSPLIT,$0
+ 	BR ·modf(SB)
+ 
+@@ -52,9 +28,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
+ TEXT ·Remainder(SB),NOSPLIT,$0
+ 	BR ·remainder(SB)
+ 
+-TEXT ·Tan(SB),NOSPLIT,$0
+-	BR ·tan(SB)
+-
+ //if go assembly use vector instruction
+ TEXT ·hasVectorFacility(SB),NOSPLIT,$24-1
+ 	MOVD    $x-24(SP), R1
+@@ -77,129 +50,463 @@ novector:
+ 	RET
+ 
+ TEXT ·Log10(SB),NOSPLIT,$0
+-	MOVD    log10vectorfacility+0x00(SB),R1
++	MOVD    ·log10vectorfacility+0x00(SB),R1
+ 	BR      (R1)
+ 
+ TEXT ·log10TrampolineSetup(SB),NOSPLIT, $0
+ 	MOVB    ·hasVX(SB), R1
+ 	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $log10vectorfacility+0x00(SB), R1
++	MOVD    $·log10vectorfacility+0x00(SB), R1
+ 	MOVD    $·log10(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·log10(SB)
+ vectorimpl:
+-	MOVD    $log10vectorfacility+0x00(SB), R1
++	MOVD    $·log10vectorfacility+0x00(SB), R1
+ 	MOVD    $·log10Asm(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·log10Asm(SB)
+ 
+-GLOBL log10vectorfacility+0x00(SB), NOPTR, $8
+-DATA log10vectorfacility+0x00(SB)/8, $·log10TrampolineSetup(SB)
++GLOBL ·log10vectorfacility+0x00(SB), NOPTR, $8
++DATA ·log10vectorfacility+0x00(SB)/8, $·log10TrampolineSetup(SB)
+ 
+ 
+ TEXT ·Cos(SB),NOSPLIT,$0
+-	MOVD    cosvectorfacility+0x00(SB),R1
++	MOVD    ·cosvectorfacility+0x00(SB),R1
+ 	BR      (R1)
+ 
+ TEXT ·cosTrampolineSetup(SB),NOSPLIT, $0
+ 	MOVB    ·hasVX(SB), R1
+ 	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $cosvectorfacility+0x00(SB), R1
++	MOVD    $·cosvectorfacility+0x00(SB), R1
+ 	MOVD    $·cos(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·cos(SB)
+ vectorimpl:
+-	MOVD    $cosvectorfacility+0x00(SB), R1
++	MOVD    $·cosvectorfacility+0x00(SB), R1
+ 	MOVD    $·cosAsm(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·cosAsm(SB)
+ 
+-GLOBL cosvectorfacility+0x00(SB), NOPTR, $8
+-DATA cosvectorfacility+0x00(SB)/8, $·cosTrampolineSetup(SB)
++GLOBL ·cosvectorfacility+0x00(SB), NOPTR, $8
++DATA ·cosvectorfacility+0x00(SB)/8, $·cosTrampolineSetup(SB)
+ 
+ 
+ TEXT ·Cosh(SB),NOSPLIT,$0
+-	MOVD    coshvectorfacility+0x00(SB),R1
++	MOVD    ·coshvectorfacility+0x00(SB),R1
+ 	BR      (R1)
+ 
+ TEXT ·coshTrampolineSetup(SB),NOSPLIT, $0
+ 	MOVB    ·hasVX(SB), R1
+ 	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $coshvectorfacility+0x00(SB), R1
++	MOVD    $·coshvectorfacility+0x00(SB), R1
+ 	MOVD    $·cosh(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·cosh(SB)
+ vectorimpl:
+-	MOVD    $coshvectorfacility+0x00(SB), R1
++	MOVD    $·coshvectorfacility+0x00(SB), R1
+ 	MOVD    $·coshAsm(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·coshAsm(SB)
+ 
+-GLOBL coshvectorfacility+0x00(SB), NOPTR, $8
+-DATA coshvectorfacility+0x00(SB)/8, $·coshTrampolineSetup(SB)
++GLOBL ·coshvectorfacility+0x00(SB), NOPTR, $8
++DATA ·coshvectorfacility+0x00(SB)/8, $·coshTrampolineSetup(SB)
+ 
+ 
+ TEXT ·Sin(SB),NOSPLIT,$0
+-	MOVD    sinvectorfacility+0x00(SB),R1
++	MOVD    ·sinvectorfacility+0x00(SB),R1
+ 	BR      (R1)
+ 
+ TEXT ·sinTrampolineSetup(SB),NOSPLIT, $0
+ 	MOVB    ·hasVX(SB), R1
+ 	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $sinvectorfacility+0x00(SB), R1
++	MOVD    $·sinvectorfacility+0x00(SB), R1
+ 	MOVD    $·sin(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·sin(SB)
+ vectorimpl:
+-	MOVD    $sinvectorfacility+0x00(SB), R1
++	MOVD    $·sinvectorfacility+0x00(SB), R1
+ 	MOVD    $·sinAsm(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·sinAsm(SB)
+ 
+-GLOBL sinvectorfacility+0x00(SB), NOPTR, $8
+-DATA sinvectorfacility+0x00(SB)/8, $·sinTrampolineSetup(SB)
++GLOBL ·sinvectorfacility+0x00(SB), NOPTR, $8
++DATA ·sinvectorfacility+0x00(SB)/8, $·sinTrampolineSetup(SB)
+ 
+ 
+ TEXT ·Sinh(SB),NOSPLIT,$0
+-	MOVD    sinhvectorfacility+0x00(SB),R1
++	MOVD    ·sinhvectorfacility+0x00(SB),R1
+ 	BR      (R1)
+ 
+ TEXT ·sinhTrampolineSetup(SB),NOSPLIT, $0
+ 	MOVB    ·hasVX(SB), R1
+ 	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $sinhvectorfacility+0x00(SB), R1
++	MOVD    $·sinhvectorfacility+0x00(SB), R1
+ 	MOVD    $·sinh(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·sinh(SB)
+ vectorimpl:
+-	MOVD    $sinhvectorfacility+0x00(SB), R1
++	MOVD    $·sinhvectorfacility+0x00(SB), R1
+ 	MOVD    $·sinhAsm(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·sinhAsm(SB)
+ 
+-GLOBL sinhvectorfacility+0x00(SB), NOPTR, $8
+-DATA sinhvectorfacility+0x00(SB)/8, $·sinhTrampolineSetup(SB)
+-
++GLOBL ·sinhvectorfacility+0x00(SB), NOPTR, $8
++DATA ·sinhvectorfacility+0x00(SB)/8, $·sinhTrampolineSetup(SB)
+ 
+ 
+ TEXT ·Tanh(SB),NOSPLIT,$0
+-	MOVD    tanhvectorfacility+0x00(SB),R1
++	MOVD    ·tanhvectorfacility+0x00(SB),R1
+ 	BR      (R1)
+ 
+ TEXT ·tanhTrampolineSetup(SB),NOSPLIT, $0
+ 	MOVB    ·hasVX(SB), R1
+ 	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
+-	MOVD    $tanhvectorfacility+0x00(SB), R1
++	MOVD    $·tanhvectorfacility+0x00(SB), R1
+ 	MOVD    $·tanh(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·tanh(SB)
+ vectorimpl:
+-	MOVD    $tanhvectorfacility+0x00(SB), R1
++	MOVD    $·tanhvectorfacility+0x00(SB), R1
+ 	MOVD    $·tanhAsm(SB), R2
+ 	MOVD    R2, 0(R1)
+ 	BR      ·tanhAsm(SB)
+ 
+-GLOBL tanhvectorfacility+0x00(SB), NOPTR, $8
+-DATA tanhvectorfacility+0x00(SB)/8, $·tanhTrampolineSetup(SB)
++GLOBL ·tanhvectorfacility+0x00(SB), NOPTR, $8
++DATA ·tanhvectorfacility+0x00(SB)/8, $·tanhTrampolineSetup(SB)
++
++
++TEXT ·Log1p(SB),NOSPLIT,$0
++	MOVD    ·log1pvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·log1pTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·log1pvectorfacility+0x00(SB), R1
++	MOVD    $·log1p(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·log1p(SB)
++vectorimpl:
++	MOVD    $·log1pvectorfacility+0x00(SB), R1
++	MOVD    $·log1pAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·log1pAsm(SB)
++
++GLOBL ·log1pvectorfacility+0x00(SB), NOPTR, $8
++DATA ·log1pvectorfacility+0x00(SB)/8, $·log1pTrampolineSetup(SB)
++
++
++TEXT ·Atanh(SB),NOSPLIT,$0
++	MOVD    ·atanhvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·atanhTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·atanhvectorfacility+0x00(SB), R1
++	MOVD    $·atanh(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·atanh(SB)
++vectorimpl:
++	MOVD    $·atanhvectorfacility+0x00(SB), R1
++	MOVD    $·atanhAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·atanhAsm(SB)
++
++GLOBL ·atanhvectorfacility+0x00(SB), NOPTR, $8
++DATA ·atanhvectorfacility+0x00(SB)/8, $·atanhTrampolineSetup(SB)
++
++
++TEXT ·Acos(SB),NOSPLIT,$0
++	MOVD    ·acosvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·acosTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·acosvectorfacility+0x00(SB), R1
++	MOVD    $·acos(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·acos(SB)
++vectorimpl:
++	MOVD    $·acosvectorfacility+0x00(SB), R1
++	MOVD    $·acosAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·acosAsm(SB)
++
++GLOBL ·acosvectorfacility+0x00(SB), NOPTR, $8
++DATA ·acosvectorfacility+0x00(SB)/8, $·acosTrampolineSetup(SB)
++
++
++TEXT ·Asin(SB),NOSPLIT,$0
++	MOVD    ·asinvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·asinTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·asinvectorfacility+0x00(SB), R1
++	MOVD    $·asin(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·asin(SB)
++vectorimpl:
++	MOVD    $·asinvectorfacility+0x00(SB), R1
++	MOVD    $·asinAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·asinAsm(SB)
++
++GLOBL ·asinvectorfacility+0x00(SB), NOPTR, $8
++DATA ·asinvectorfacility+0x00(SB)/8, $·asinTrampolineSetup(SB)
++
++
++TEXT ·Asinh(SB),NOSPLIT,$0
++	MOVD    ·asinhvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·asinhTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·asinhvectorfacility+0x00(SB), R1
++	MOVD    $·asinh(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·asinh(SB)
++vectorimpl:
++	MOVD    $·asinhvectorfacility+0x00(SB), R1
++	MOVD    $·asinhAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·asinhAsm(SB)
++
++GLOBL ·asinhvectorfacility+0x00(SB), NOPTR, $8
++DATA ·asinhvectorfacility+0x00(SB)/8, $·asinhTrampolineSetup(SB)
++
++
++TEXT ·Acosh(SB),NOSPLIT,$0
++	MOVD    ·acoshvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·acoshTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·acoshvectorfacility+0x00(SB), R1
++	MOVD    $·acosh(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·acosh(SB)
++vectorimpl:
++	MOVD    $·acoshvectorfacility+0x00(SB), R1
++	MOVD    $·acoshAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·acoshAsm(SB)
++
++GLOBL ·acoshvectorfacility+0x00(SB), NOPTR, $8
++DATA ·acoshvectorfacility+0x00(SB)/8, $·acoshTrampolineSetup(SB)
++
++
++TEXT ·Erf(SB),NOSPLIT,$0
++	MOVD    ·erfvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·erfTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·erfvectorfacility+0x00(SB), R1
++	MOVD    $·erf(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·erf(SB)
++vectorimpl:
++	MOVD    $·erfvectorfacility+0x00(SB), R1
++	MOVD    $·erfAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·erfAsm(SB)
++
++GLOBL ·erfvectorfacility+0x00(SB), NOPTR, $8
++DATA ·erfvectorfacility+0x00(SB)/8, $·erfTrampolineSetup(SB)
++
++
++TEXT ·Erfc(SB),NOSPLIT,$0
++	MOVD    ·erfcvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·erfcTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·erfcvectorfacility+0x00(SB), R1
++	MOVD    $·erfc(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·erfc(SB)
++vectorimpl:
++	MOVD    $·erfcvectorfacility+0x00(SB), R1
++	MOVD    $·erfcAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·erfcAsm(SB)
++
++GLOBL ·erfcvectorfacility+0x00(SB), NOPTR, $8
++DATA ·erfcvectorfacility+0x00(SB)/8, $·erfcTrampolineSetup(SB)
++
++
++TEXT ·Atan(SB),NOSPLIT,$0
++	MOVD    ·atanvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·atanTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·atanvectorfacility+0x00(SB), R1
++	MOVD    $·atan(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·atan(SB)
++vectorimpl:
++	MOVD    $·atanvectorfacility+0x00(SB), R1
++	MOVD    $·atanAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·atanAsm(SB)
++
++GLOBL ·atanvectorfacility+0x00(SB), NOPTR, $8
++DATA ·atanvectorfacility+0x00(SB)/8, $·atanTrampolineSetup(SB)
++
++
++TEXT ·Atan2(SB),NOSPLIT,$0
++	MOVD    ·atan2vectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·atan2TrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·atan2vectorfacility+0x00(SB), R1
++	MOVD    $·atan2(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·atan2(SB)
++vectorimpl:
++	MOVD    $·atan2vectorfacility+0x00(SB), R1
++	MOVD    $·atan2Asm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·atan2Asm(SB)
++
++GLOBL ·atan2vectorfacility+0x00(SB), NOPTR, $8
++DATA ·atan2vectorfacility+0x00(SB)/8, $·atan2TrampolineSetup(SB)
++
++
++TEXT ·Cbrt(SB),NOSPLIT,$0
++	MOVD    ·cbrtvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·cbrtTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·cbrtvectorfacility+0x00(SB), R1
++	MOVD    $·cbrt(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·cbrt(SB)
++vectorimpl:
++	MOVD    $·cbrtvectorfacility+0x00(SB), R1
++	MOVD    $·cbrtAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·cbrtAsm(SB)
++
++GLOBL ·cbrtvectorfacility+0x00(SB), NOPTR, $8
++DATA ·cbrtvectorfacility+0x00(SB)/8, $·cbrtTrampolineSetup(SB)
++
++
++TEXT ·Log(SB),NOSPLIT,$0
++	MOVD    ·logvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·logTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·logvectorfacility+0x00(SB), R1
++	MOVD    $·log(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·log(SB)
++vectorimpl:
++	MOVD    $·logvectorfacility+0x00(SB), R1
++	MOVD    $·logAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·logAsm(SB)
++
++GLOBL ·logvectorfacility+0x00(SB), NOPTR, $8
++DATA ·logvectorfacility+0x00(SB)/8, $·logTrampolineSetup(SB)
++
++
++TEXT ·Tan(SB),NOSPLIT,$0
++	MOVD    ·tanvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·tanTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·tanvectorfacility+0x00(SB), R1
++	MOVD    $·tan(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·tan(SB)
++vectorimpl:
++	MOVD    $·tanvectorfacility+0x00(SB), R1
++	MOVD    $·tanAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·tanAsm(SB)
++
++GLOBL ·tanvectorfacility+0x00(SB), NOPTR, $8
++DATA ·tanvectorfacility+0x00(SB)/8, $·tanTrampolineSetup(SB)
++
++TEXT ·Exp(SB),NOSPLIT,$0
++	MOVD    ·expvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·expTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·expvectorfacility+0x00(SB), R1
++	MOVD    $·exp(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·exp(SB)
++vectorimpl:
++	MOVD    $·expvectorfacility+0x00(SB), R1
++	MOVD    $·expAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·expAsm(SB)
++
++GLOBL ·expvectorfacility+0x00(SB), NOPTR, $8
++DATA ·expvectorfacility+0x00(SB)/8, $·expTrampolineSetup(SB)
++
++
++TEXT ·Expm1(SB),NOSPLIT,$0
++	MOVD    ·expm1vectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·expm1TrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·expm1vectorfacility+0x00(SB), R1
++	MOVD    $·expm1(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·expm1(SB)
++vectorimpl:
++	MOVD    $·expm1vectorfacility+0x00(SB), R1
++	MOVD    $·expm1Asm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·expm1Asm(SB)
++
++GLOBL ·expm1vectorfacility+0x00(SB), NOPTR, $8
++DATA ·expm1vectorfacility+0x00(SB)/8, $·expm1TrampolineSetup(SB)
++
++
++TEXT ·Pow(SB),NOSPLIT,$0
++	MOVD    ·powvectorfacility+0x00(SB),R1
++	BR      (R1)
++
++TEXT ·powTrampolineSetup(SB),NOSPLIT, $0
++	MOVB    ·hasVX(SB), R1
++	CMPBEQ  R1, $1, vectorimpl      // vectorfacility = 1, vector supported
++	MOVD    $·powvectorfacility+0x00(SB), R1
++	MOVD    $·pow(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·pow(SB)
++vectorimpl:
++	MOVD    $·powvectorfacility+0x00(SB), R1
++	MOVD    $·powAsm(SB), R2
++	MOVD    R2, 0(R1)
++	BR      ·powAsm(SB)
++
++GLOBL ·powvectorfacility+0x00(SB), NOPTR, $8
++DATA ·powvectorfacility+0x00(SB)/8, $·powTrampolineSetup(SB)
+ 
+ 
+diff --git a/src/math/tan_s390x.s b/src/math/tan_s390x.s
+new file mode 100644
+index 0000000000..c03b24033b
+--- /dev/null
++++ b/src/math/tan_s390x.s
+@@ -0,0 +1,110 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// Minimax polynomial approximations
++DATA ·tanrodataL13<> + 0(SB)/8, $0.181017336383229927e-07
++DATA ·tanrodataL13<> + 8(SB)/8, $-.256590857271311164e-03
++DATA ·tanrodataL13<> + 16(SB)/8, $-.464359274328689195e+00
++DATA ·tanrodataL13<> + 24(SB)/8, $1.0
++DATA ·tanrodataL13<> + 32(SB)/8, $-.333333333333333464e+00
++DATA ·tanrodataL13<> + 40(SB)/8, $0.245751217306830032e-01
++DATA ·tanrodataL13<> + 48(SB)/8, $-.245391301343844510e-03
++DATA ·tanrodataL13<> + 56(SB)/8, $0.214530914428992319e-01
++DATA ·tanrodataL13<> + 64(SB)/8, $0.108285667160535624e-31
++DATA ·tanrodataL13<> + 72(SB)/8, $0.612323399573676480e-16
++DATA ·tanrodataL13<> + 80(SB)/8, $0.157079632679489656e+01
++DATA ·tanrodataL13<> + 88(SB)/8, $0.636619772367581341e+00
++GLOBL ·tanrodataL13<> + 0(SB), RODATA, $96
++
++// Constants
++DATA ·tanxnan<> + 0(SB)/8, $0x7ff8000000000000
++GLOBL ·tanxnan<> + 0(SB), RODATA, $8
++DATA ·tanxlim<> + 0(SB)/8, $0x432921fb54442d19
++GLOBL ·tanxlim<> + 0(SB), RODATA, $8
++DATA ·tanxadd<> + 0(SB)/8, $0xc338000000000000
++GLOBL ·tanxadd<> + 0(SB), RODATA, $8
++
++// Tan returns the tangent of the radian argument.
++//
++// Special cases are:
++//      Tan(±0) = ±0
++//      Tan(±Inf) = NaN
++//      Tan(NaN) = NaN
++// The algorithm used is minimax polynomial approximation using a table of
++// polynomial coefficients determined with a Remez exchange algorithm.
++
++TEXT	·tanAsm(SB), NOSPLIT, $0-16
++	FMOVD	x+0(FP), F0
++	//specail case Tan(±0) = ±0
++	FMOVD   $(0.0), F1
++	FCMPU   F0, F1
++	BEQ     atanIsZero
++
++	MOVD	$·tanrodataL13<>+0(SB), R5
++	WORD	$0xB3120000	//ltdbr	%f0,%f0
++	BLTU	L10
++	FMOVD	F0, F2
++L2:
++	MOVD	$·tanxlim<>+0(SB), R1
++	WORD	$0xED201000	//cdb	%f2,0(%r1)
++	BYTE	$0x00
++	BYTE	$0x19
++	BGE	L11
++	BVS	L11
++	MOVD	$·tanxadd<>+0(SB), R1
++	FMOVD	88(R5), F6
++	FMOVD	0(R1), F4
++	WFMSDB	V0, V6, V4, V6
++	FMOVD	80(R5), F1
++	FADD	F6, F4
++	FMOVD	72(R5), F2
++	FMSUB	F1, F4, F0
++	FMOVD	64(R5), F3
++	WFMADB	V4, V2, V0, V2
++	FMOVD	56(R5), F1
++	WFMADB	V4, V3, V2, V4
++	FMUL	F2, F2
++	VLEG	$0, 48(R5), V18
++	WORD	$0xB3CD0016	//lgdr	%r1,%f6
++	FMOVD	40(R5), F5
++	FMOVD	32(R5), F3
++	FMADD	F1, F2, F3
++	FMOVD	24(R5), F1
++	FMOVD	16(R5), F7
++	FMOVD	8(R5), F0
++	WFMADB	V2, V7, V1, V7
++	WFMADB	V2, V0, V5, V0
++	WFMDB	V2, V2, V1
++	FMOVD	0(R5), F5
++	WFLCDB	V4, V16
++	WFMADB	V2, V5, V18, V5
++	WFMADB	V1, V0, V7, V0
++	WORD	$0xA7110001	//tmll	%r1,1
++	WFMADB	V1, V5, V3, V1
++	BNE	L12
++	WFDDB	V0, V1, V0
++	WFMDB	V2, V16, V2
++	WFMADB	V2, V0, V4, V0
++	WORD	$0xB3130000	//lcdbr	%f0,%f0
++	FMOVD	F0, ret+8(FP)
++	RET
++L12:
++	WFMSDB	V2, V1, V0, V2
++	WFMDB	V16, V2, V2
++	FDIV	F2, F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L11:
++	MOVD	$·tanxnan<>+0(SB), R1
++	FMOVD	0(R1), F0
++	FMOVD	F0, ret+8(FP)
++	RET
++L10:
++	WORD	$0xB3130020	//lcdbr	%f2,%f0
++	BR	L2
++atanIsZero:
++	FMOVD	F0, ret+8(FP)
++	RET

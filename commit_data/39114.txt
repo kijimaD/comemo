@@ -25,7 +25,56 @@ Date:   Wed Sep 19 14:45:45 2018 +0200
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/test.go                | 6 ++++++
  src/cmd/go/testdata/script/gcflags_patterns.txt | 8 ++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index bb9568d07e..bd6f00bb66 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -227,6 +227,12 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 		}
+ 	}
+ 
++	allTestImports := make([]*Package, 0, len(pmain.Internal.Imports)+len(imports)+len(ximports))
++	allTestImports = append(allTestImports, pmain.Internal.Imports...)
++	allTestImports = append(allTestImports, imports...)
++	allTestImports = append(allTestImports, ximports...)
++	setToolFlags(allTestImports...)
++
+ 	// Do initial scan for metadata needed for writing _testmain.go
+ 	// Use that metadata to update the list of imports for package main.
+ 	// The list of imports is used by recompileForTest and by the loop
+diff --git a/src/cmd/go/testdata/script/gcflags_patterns.txt b/src/cmd/go/testdata/script/gcflags_patterns.txt
+index fe2cf6f0fb..2d7e88647b 100644
+--- a/src/cmd/go/testdata/script/gcflags_patterns.txt
++++ b/src/cmd/go/testdata/script/gcflags_patterns.txt
+@@ -21,6 +21,10 @@ stderr 'compile.* -p y'
+ go build -n -v -gcflags='  z1 =  	-e 	' z1
+ stderr 'compile.* -e .*-p z1'
+ 
++# -gcflags='all=-N -l' should apply to all packages, even with go test
++go test -c -n -gcflags='all=-N -l' z1
++stderr 'compile.* -N -l .*-p z3 '
++
+ # -ldflags for implicit test package applies to test binary
+ go test -c -n -gcflags=-N -ldflags=-X=x.y=z z1
+ stderr 'compile.* -N .*z_test.go'
+@@ -58,11 +62,15 @@ import _ "z2"
+ -- z1/z_test.go --
+ package z1_test
+ import "testing"
++import _ "z3"
+ func Test(t *testing.T) {}
+ 
+ -- z2/z.go --
+ package z2
+ 
++-- z3/z.go --
++package z3
++
+ -- y/y.go --
+ package y
+ 

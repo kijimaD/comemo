@@ -11,8 +11,92 @@ Date:   Tue Jul 3 08:16:43 2012 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/6356048
-
+---
  src/pkg/syscall/syscall_freebsd.go       | 12 ------------
  src/pkg/syscall/syscall_freebsd_386.go   | 14 ++++++++++++++
  src/pkg/syscall/syscall_freebsd_amd64.go | 14 ++++++++++++++
  3 files changed, 28 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index a206ec0c7b..903e5b6d1c 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -89,18 +89,6 @@ func Pipe(p []int) (err error) {
+ 	return
+ }
+ 
+-func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+-	var writtenOut uint64 = 0
+-	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
+-
+-	written = int(writtenOut)
+-
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+ func GetsockoptIPMreqn(fd, level, opt int) (*IPMreqn, error) {
+ 	var value IPMreqn
+ 	vallen := _Socklen(SizeofIPMreqn)
+diff --git a/src/pkg/syscall/syscall_freebsd_386.go b/src/pkg/syscall/syscall_freebsd_386.go
+index fa322c5961..de670e67cb 100644
+--- a/src/pkg/syscall/syscall_freebsd_386.go
++++ b/src/pkg/syscall/syscall_freebsd_386.go
+@@ -4,6 +4,8 @@
+ 
+ package syscall
+ 
++import "unsafe"
++
+ func Getpagesize() int { return 4096 }
+ 
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+@@ -41,4 +43,16 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++	var writtenOut uint64 = 0
++	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr((*offset)>>32), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0)
++
++	written = int(writtenOut)
++
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic
+diff --git a/src/pkg/syscall/syscall_freebsd_amd64.go b/src/pkg/syscall/syscall_freebsd_amd64.go
+index 488c0b9ad8..46bb5c6b0e 100644
+--- a/src/pkg/syscall/syscall_freebsd_amd64.go
++++ b/src/pkg/syscall/syscall_freebsd_amd64.go
+@@ -4,6 +4,8 @@
+ 
+ package syscall
+ 
++import "unsafe"
++
+ func Getpagesize() int { return 4096 }
+ 
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+@@ -41,4 +43,16 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++	var writtenOut uint64 = 0
++	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
++
++	written = int(writtenOut)
++
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)

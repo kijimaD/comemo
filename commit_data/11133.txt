@@ -12,7 +12,36 @@ Date:   Thu Jan 12 11:32:28 2012 -0800
     R=remyoudompheng
     CC=golang-dev
     https://golang.org/cl/5530082
-
+---
  src/pkg/strconv/ftoa.go      | 2 +-
  src/pkg/strconv/ftoa_test.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index f4434fd517..b1d4b32f03 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -241,7 +241,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 
+ 		// Okay to round up if upper has a different digit and
+ 		// either upper is inclusive or upper is bigger than the result of rounding up.
+-		okup := m != u && (inclusive || i+1 < upper.nd)
++		okup := m != u && (inclusive || m+1 < u || i+1 < upper.nd)
+ 
+ 		// If it's okay to do either, then round to the nearest one.
+ 		// If it's okay to do only one, do it.
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index 40c71a28b4..1d90a67f52 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -123,6 +123,10 @@ var ftoatests = []ftoaTest{
+ 	{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
+ 	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+ 	{2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
++
++	// Issue 2625.
++	{383260575764816448, 'f', 0, "383260575764816448"},
++	{383260575764816448, 'g', -1, "3.8326057576481645e+17"},
+ }
+ 
+ func TestFtoa(t *testing.T) {

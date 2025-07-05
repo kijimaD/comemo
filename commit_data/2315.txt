@@ -9,7 +9,55 @@ Date:   Tue May 26 17:39:25 2009 -0700
     R=ken
     OCL=29415
     CL=29415
-
+---
  src/runtime/mgc0.c   | 12 ++++++++----
  src/runtime/string.c |  2 +-
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 9c4061f6ec..d58d6ce44d 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -22,6 +22,10 @@ enum {
+ extern byte etext[];
+ extern byte end[];
+ 
++enum {
++	PtrSize = sizeof(void*)
++};
++
+ static void
+ scanblock(int32 depth, byte *b, int64 n)
+ {
+@@ -34,14 +38,14 @@ scanblock(int32 depth, byte *b, int64 n)
+ 
+ 	if(Debug)
+ 		printf("%d scanblock %p %D\n", depth, b, n);
+-	off = (uint32)(uintptr)b & 7;
++	off = (uint32)(uintptr)b & (PtrSize-1);
+ 	if(off) {
+-		b += 8 - off;
+-		n -= 8 - off;
++		b += PtrSize - off;
++		n -= PtrSize - off;
+ 	}
+ 
+ 	vp = (void**)b;
+-	n /= 8;
++	n /= PtrSize;
+ 	for(i=0; i<n; i++) {
+ 		if(mlookup(vp[i], &obj, &size, &ref)) {
+ 			if(*ref == RefFree || *ref == RefStack)
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index 5e4922a99f..d7393ef6ed 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -27,7 +27,7 @@ gostringsize(int32 l)
+ 
+ 	if(l == 0)
+ 		return emptystring;
+-	s.str = mal(l);
++	s.str = mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
+ 	s.len = l;
+ 	if(l > maxstring)
+ 		maxstring = l;

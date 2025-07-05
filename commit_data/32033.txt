@@ -9,7 +9,54 @@ Date:   Thu Mar 30 15:44:12 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go | 6 +++---
  src/cmd/compile/internal/gc/subr.go    | 4 ----
  2 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index f2efa2165d..5319d1bd6d 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -196,7 +196,7 @@ func closurename(n *Node) *Sym {
+ 	default:
+ 		Fatalf("closurename called for %S", n)
+ 	}
+-	n.Sym = lookupf("%s.%s%d", outer, prefix, gen)
++	n.Sym = lookup(fmt.Sprintf("%s.%s%d", outer, prefix, gen))
+ 	return n.Sym
+ }
+ 
+@@ -344,7 +344,7 @@ func transformclosure(xfunc *Node) {
+ 				// we introduce function param &v *T
+ 				// and v remains PAUTOHEAP with &v heapaddr
+ 				// (accesses will implicitly deref &v).
+-				addr := newname(lookupf("&%s", v.Sym.Name))
++				addr := newname(lookup("&" + v.Sym.Name))
+ 				addr.Type = typPtr(v.Type)
+ 				addr.Class = PPARAM
+ 				v.Name.Param.Heapaddr = addr
+@@ -394,7 +394,7 @@ func transformclosure(xfunc *Node) {
+ 			} else {
+ 				// Declare variable holding addresses taken from closure
+ 				// and initialize in entry prologue.
+-				addr := newname(lookupf("&%s", v.Sym.Name))
++				addr := newname(lookup("&" + v.Sym.Name))
+ 				addr.Name.Param.Ntype = nod(OIND, typenod(v.Type), nil)
+ 				addr.Class = PAUTO
+ 				addr.SetUsed(true)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 23fb5df659..7e6a2a287f 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -211,10 +211,6 @@ func lookup(name string) *Sym {
+ 	return localpkg.Lookup(name)
+ }
+ 
+-func lookupf(format string, a ...interface{}) *Sym {
+-	return lookup(fmt.Sprintf(format, a...))
+-}
+-
+ // lookupN looks up the symbol starting with prefix and ending with
+ // the decimal n. If prefix is too long, lookupN panics.
+ func lookupN(prefix string, n int) *Sym {

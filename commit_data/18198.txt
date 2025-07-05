@@ -7,6 +7,75 @@ Date:   Wed Jan 8 20:37:41 2014 -0500
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/48890044
-
+---
  src/pkg/debug/goobj/read.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 50 insertions(+)
+
+diff --git a/src/pkg/debug/goobj/read.go b/src/pkg/debug/goobj/read.go
+index 3338c411dc..f65abb6c27 100644
+--- a/src/pkg/debug/goobj/read.go
++++ b/src/pkg/debug/goobj/read.go
+@@ -72,6 +72,49 @@ const (
+ 	SHOSTOBJ
+ )
+ 
++var symKindStrings = []string{
++	SBSS:              "SBSS",
++	SCONST:            "SCONST",
++	SDATA:             "SDATA",
++	SDYNIMPORT:        "SDYNIMPORT",
++	SELFROSECT:        "SELFROSECT",
++	SELFRXSECT:        "SELFRXSECT",
++	SELFSECT:          "SELFSECT",
++	SFILE:             "SFILE",
++	SFILEPATH:         "SFILEPATH",
++	SFUNCTAB:          "SFUNCTAB",
++	SGOFUNC:           "SGOFUNC",
++	SGOSTRING:         "SGOSTRING",
++	SHOSTOBJ:          "SHOSTOBJ",
++	SINITARR:          "SINITARR",
++	SMACHO:            "SMACHO",
++	SMACHOGOT:         "SMACHOGOT",
++	SMACHOINDIRECTGOT: "SMACHOINDIRECTGOT",
++	SMACHOINDIRECTPLT: "SMACHOINDIRECTPLT",
++	SMACHOPLT:         "SMACHOPLT",
++	SMACHOSYMSTR:      "SMACHOSYMSTR",
++	SMACHOSYMTAB:      "SMACHOSYMTAB",
++	SNOPTRBSS:         "SNOPTRBSS",
++	SNOPTRDATA:        "SNOPTRDATA",
++	SPCLNTAB:          "SPCLNTAB",
++	SRODATA:           "SRODATA",
++	SSTRING:           "SSTRING",
++	SSYMTAB:           "SSYMTAB",
++	STEXT:             "STEXT",
++	STLSBSS:           "STLSBSS",
++	STYPE:             "STYPE",
++	STYPELINK:         "STYPELINK",
++	SWINDOWS:          "SWINDOWS",
++	SXREF:             "SXREF",
++}
++
++func (k SymKind) String() string {
++	if k < 0 || int(k) >= len(symKindStrings) {
++		return fmt.Sprintf("SymKind(%d)", k)
++	}
++	return symKindStrings[k]
++}
++
+ // A Sym is a named symbol in an object file.
+ type Sym struct {
+ 	SymID         // symbol identifier (name and version)
+@@ -98,6 +141,13 @@ type SymID struct {
+ 	Version int
+ }
+ 
++func (s SymID) String() string {
++	if s.Version == 0 {
++		return s.Name
++	}
++	return fmt.Sprintf("%s<%d>", s.Name, s.Version)
++}
++
+ // A Data is a reference to data stored in an object file.
+ // It records the offset and size of the data, so that a client can
+ // read the data only if necessary.

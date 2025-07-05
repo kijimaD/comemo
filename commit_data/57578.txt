@@ -13,7 +13,7 @@ Date:   Wed Aug 16 17:23:52 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             |  3 +-
  src/cmd/compile/internal/ir/expr.go                |  3 +-
  src/cmd/compile/internal/ir/func.go                |  2 +-
@@ -35,3 +35,709 @@ Date:   Wed Aug 16 17:23:52 2023 -0700
  src/cmd/compile/internal/walk/closure.go           |  3 +-
  src/cmd/compile/internal/walk/switch.go            |  2 +-
  20 files changed, 96 insertions(+), 138 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 078fba594d..908d6ca347 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -820,9 +820,8 @@ func inlcopy(n ir.Node) ir.Node {
+ 			oldfn := x.Func
+ 			newfn := ir.NewFunc(oldfn.Pos())
+ 			m.(*ir.ClosureExpr).Func = newfn
+-			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
++			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym(), oldfn.Nname.Type())
+ 			// XXX OK to share fn.Type() ??
+-			newfn.Nname.SetType(oldfn.Nname.Type())
+ 			newfn.Body = inlcopylist(oldfn.Body)
+ 			// Make shallow copy of the Dcl and ClosureVar slices
+ 			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 0f44bd8e21..69edd1c3cf 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -557,9 +557,8 @@ func (n *SelectorExpr) FuncName() *Name {
+ 	if n.Op() != OMETHEXPR {
+ 		panic(n.no("FuncName"))
+ 	}
+-	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel))
++	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel), n.Type())
+ 	fn.Class = PFUNC
+-	fn.SetType(n.Type())
+ 	if n.Selection.Nname != nil {
+ 		// TODO(austin): Nname is nil for interface method
+ 		// expressions (I.M), so we can't attach a Func to
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index b0b4d52fa3..fa45ccb2df 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -398,7 +398,7 @@ func NewClosureFunc(pos src.XPos, hidden bool) *Func {
+ 	fn := NewFunc(pos)
+ 	fn.SetIsHiddenClosure(hidden)
+ 
+-	fn.Nname = NewNameAt(pos, BlankNode.Sym())
++	fn.Nname = NewNameAt(pos, BlankNode.Sym(), nil)
+ 	fn.Nname.Func = fn
+ 	fn.Nname.Defn = fn
+ 
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 0f565833d2..4489e7cc1f 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -147,11 +147,42 @@ func (n *Name) RecordFrameOffset(offset int64) {
+ 
+ // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
+ // The caller is responsible for setting Curfn.
+-func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
++func NewNameAt(pos src.XPos, sym *types.Sym, typ *types.Type) *Name {
+ 	if sym == nil {
+ 		base.Fatalf("NewNameAt nil")
+ 	}
+-	return newNameAt(pos, ONAME, sym)
++	n := newNameAt(pos, ONAME, sym)
++	if typ != nil {
++		n.SetType(typ)
++		n.SetTypecheck(1)
++	}
++	return n
++}
++
++// NewBuiltin returns a new Name representing a builtin function,
++// either predeclared or from package unsafe.
++func NewBuiltin(sym *types.Sym, op Op) *Name {
++	n := newNameAt(src.NoXPos, ONAME, sym)
++	n.BuiltinOp = op
++	n.SetTypecheck(1)
++	sym.Def = n
++	return n
++}
++
++// NewLocal returns a new function-local variable with the given name and type.
++func (fn *Func) NewLocal(pos src.XPos, sym *types.Sym, class Class, typ *types.Type) *Name {
++	switch class {
++	case PPARAM, PPARAMOUT, PAUTO:
++		// ok
++	default:
++		base.FatalfAt(pos, "NewLocal: unexpected class for %v: %v", sym, class)
++	}
++
++	n := NewNameAt(pos, sym, typ)
++	n.Class = class
++	n.Curfn = fn
++	fn.Dcl = append(fn.Dcl, n)
++	return n
+ }
+ 
+ // NewDeclNameAt returns a new Name associated with symbol s at position pos.
+@@ -345,16 +376,13 @@ func NewClosureVar(pos src.XPos, fn *Func, n *Name) *Name {
+ 		base.Fatalf("NewClosureVar: %+v", n)
+ 	}
+ 
+-	c := NewNameAt(pos, n.Sym())
++	c := NewNameAt(pos, n.Sym(), n.Type())
+ 	c.Curfn = fn
+ 	c.Class = PAUTOHEAP
+ 	c.SetIsClosureVar(true)
+ 	c.Defn = n.Canonical()
+ 	c.Outer = n
+ 
+-	c.SetType(n.Type())
+-	c.SetTypecheck(n.Typecheck())
+-
+ 	fn.ClosureVars = append(fn.ClosureVars, c)
+ 
+ 	return c
+@@ -371,9 +399,8 @@ func NewHiddenParam(pos src.XPos, fn *Func, sym *types.Sym, typ *types.Type) *Na
+ 
+ 	// Create a fake parameter, disassociated from any real function, to
+ 	// pretend to capture.
+-	fake := NewNameAt(pos, sym)
++	fake := NewNameAt(pos, sym, typ)
+ 	fake.Class = PPARAM
+-	fake.SetType(typ)
+ 	fake.SetByval(true)
+ 
+ 	return NewClosureVar(pos, fn, fake)
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a6a4766336..4ba560bba7 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -470,7 +470,7 @@ func AsNode(n types.Object) Node {
+ 	return n.(Node)
+ }
+ 
+-var BlankNode Node
++var BlankNode *Name
+ 
+ func IsConst(n Node, ct constant.Kind) bool {
+ 	return ConstType(n) == ct
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 42794da042..c51963e1c2 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -995,8 +995,7 @@ func (r *reader) method(rext *reader) *types.Field {
+ 	_, recv := r.param()
+ 	typ := r.signature(recv)
+ 
+-	name := ir.NewNameAt(pos, ir.MethodSym(recv.Type, sym))
+-	setType(name, typ)
++	name := ir.NewNameAt(pos, ir.MethodSym(recv.Type, sym), typ)
+ 
+ 	name.Func = ir.NewFunc(r.pos())
+ 	name.Func.Nname = name
+@@ -1386,7 +1385,7 @@ func (pr *pkgReader) dictNameOf(dict *readerDict) *ir.Name {
+ 		return sym.Def.(*ir.Name)
+ 	}
+ 
+-	name := ir.NewNameAt(pos, sym)
++	name := ir.NewNameAt(pos, sym, dict.varType())
+ 	name.Class = ir.PEXTERN
+ 	sym.Def = name // break cycles with mutual subdictionaries
+ 
+@@ -1453,9 +1452,6 @@ func (pr *pkgReader) dictNameOf(dict *readerDict) *ir.Name {
+ 
+ 	objw.Global(lsym, int32(ot), obj.DUPOK|obj.RODATA)
+ 
+-	name.SetType(dict.varType())
+-	name.SetTypecheck(1)
+-
+ 	return name
+ }
+ 
+@@ -1530,9 +1526,7 @@ func (r *reader) funcarg(param *types.Field, sym *types.Sym, ctxt ir.Class) {
+ 		return
+ 	}
+ 
+-	name := ir.NewNameAt(r.inlPos(param.Pos), sym)
+-	setType(name, param.Type)
+-	r.addLocal(name, ctxt)
++	name := r.addLocal(r.inlPos(param.Pos), sym, ctxt, param.Type)
+ 
+ 	if r.inlCall == nil {
+ 		if !r.funarghack {
+@@ -1548,9 +1542,11 @@ func (r *reader) funcarg(param *types.Field, sym *types.Sym, ctxt ir.Class) {
+ 	}
+ }
+ 
+-func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
++func (r *reader) addLocal(pos src.XPos, sym *types.Sym, ctxt ir.Class, typ *types.Type) *ir.Name {
+ 	assert(ctxt == ir.PAUTO || ctxt == ir.PPARAM || ctxt == ir.PPARAMOUT)
+ 
++	name := ir.NewNameAt(pos, sym, typ)
++
+ 	if name.Sym().Name == dictParamName {
+ 		r.dictParam = name
+ 	} else {
+@@ -1572,7 +1568,7 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
+ 
+ 	// TODO(mdempsky): Move earlier.
+ 	if ir.IsBlank(name) {
+-		return
++		return name
+ 	}
+ 
+ 	if r.inlCall != nil {
+@@ -1592,6 +1588,8 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
+ 	if ctxt == ir.PAUTO {
+ 		name.SetFrameOffset(0)
+ 	}
++
++	return name
+ }
+ 
+ func (r *reader) useLocal() *ir.Name {
+@@ -1836,9 +1834,7 @@ func (r *reader) assign() (ir.Node, bool) {
+ 		_, sym := r.localIdent()
+ 		typ := r.typ()
+ 
+-		name := ir.NewNameAt(pos, sym)
+-		setType(name, typ)
+-		r.addLocal(name, ir.PAUTO)
++		name := r.addLocal(pos, sym, ir.PAUTO, typ)
+ 		return name, true
+ 
+ 	case assignExpr:
+@@ -2064,9 +2060,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 			pos := r.pos()
+ 			typ := r.typ()
+ 
+-			name := ir.NewNameAt(pos, ident.Sym())
+-			setType(name, typ)
+-			r.addLocal(name, ir.PAUTO)
++			name := r.addLocal(pos, ident.Sym(), ir.PAUTO, typ)
+ 			clause.Var = name
+ 			name.Defn = tag
+ 		}
+@@ -3468,11 +3462,10 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
+ 
+ 	// TODO(mdempsky): This still feels clumsy. Can we do better?
+ 	tmpfn := ir.NewFunc(fn.Pos())
+-	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), callerfn.Sym())
++	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), callerfn.Sym(), fn.Type())
+ 	tmpfn.Closgen = callerfn.Closgen
+ 	defer func() { callerfn.Closgen = tmpfn.Closgen }()
+ 
+-	setType(tmpfn.Nname, fn.Type())
+ 	r.curfn = tmpfn
+ 
+ 	r.inlCaller = callerfn
+@@ -3644,12 +3637,11 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 	topdcls := len(typecheck.Target.Funcs)
+ 
+ 	tmpfn := ir.NewFunc(fn.Pos())
+-	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), fn.Sym())
++	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), fn.Sym(), fn.Type())
+ 	tmpfn.ClosureVars = fn.ClosureVars
+ 
+ 	{
+ 		r := pri.asReader(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+-		setType(tmpfn.Nname, fn.Type())
+ 
+ 		// Don't change parameter's Sym/Nname fields.
+ 		r.funarghack = true
+@@ -3879,29 +3871,23 @@ func wrapMethodValue(recvType *types.Type, method *types.Field, target *ir.Packa
+ }
+ 
+ func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *types.Field) *ir.Func {
++	sig := newWrapperType(wrapper, method)
++
+ 	fn := ir.NewFunc(pos)
+ 	fn.SetDupok(true) // TODO(mdempsky): Leave unset for local, non-generic wrappers?
+ 
+-	name := ir.NewNameAt(pos, sym)
++	name := ir.NewNameAt(pos, sym, sig)
+ 	ir.MarkFunc(name)
+ 	name.Func = fn
+ 	name.Defn = fn
+ 	fn.Nname = name
+ 
+-	sig := newWrapperType(wrapper, method)
+ 	setType(name, sig)
+ 
+ 	// TODO(mdempsky): De-duplicate with similar logic in funcargs.
+ 	defParams := func(class ir.Class, params *types.Type) {
+ 		for _, param := range params.FieldSlice() {
+-			name := ir.NewNameAt(param.Pos, param.Sym)
+-			name.Class = class
+-			setType(name, param.Type)
+-
+-			name.Curfn = fn
+-			fn.Dcl = append(fn.Dcl, name)
+-
+-			param.Nname = name
++			param.Nname = fn.NewLocal(param.Pos, param.Sym, class, param.Type)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 3e5ab2ec39..25c7b77831 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -319,7 +319,7 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+ 
+ 		if r.Bool() {
+ 			sym := importpkg.Lookup(".inittask")
+-			task := ir.NewNameAt(src.NoXPos, sym)
++			task := ir.NewNameAt(src.NoXPos, sym, nil)
+ 			task.Class = ir.PEXTERN
+ 			sym.Def = task
+ 		}
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 95e3b5cee3..48c6b03527 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -132,12 +132,12 @@ func MakeTask() {
+ 
+ 			// Call runtime.asanregisterglobals function to poison redzones.
+ 			// runtime.asanregisterglobals(unsafe.Pointer(&globals[0]), ni)
+-			asanf := typecheck.NewName(ir.Pkgs.Runtime.Lookup("asanregisterglobals"))
++			asanf := ir.NewNameAt(base.Pos, ir.Pkgs.Runtime.Lookup("asanregisterglobals"),
++				types.NewSignature(nil, []*types.Field{
++					types.NewField(base.Pos, nil, types.Types[types.TUNSAFEPTR]),
++					types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
++				}, nil))
+ 			ir.MarkFunc(asanf)
+-			asanf.SetType(types.NewSignature(nil, []*types.Field{
+-				types.NewField(base.Pos, nil, types.Types[types.TUNSAFEPTR]),
+-				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+-			}, nil))
+ 			asancall := ir.NewCallExpr(base.Pos, ir.OCALL, asanf, nil)
+ 			asancall.Args.Append(typecheck.ConvNop(typecheck.NodAddr(
+ 				ir.NewIndexExpr(base.Pos, globals, ir.NewInt(base.Pos, 0))), types.Types[types.TUNSAFEPTR]))
+@@ -193,8 +193,7 @@ func MakeTask() {
+ 
+ 	// Make an .inittask structure.
+ 	sym := typecheck.Lookup(".inittask")
+-	task := typecheck.NewName(sym)
+-	task.SetType(types.Types[types.TUINT8]) // fake type
++	task := ir.NewNameAt(base.Pos, sym, types.Types[types.TUINT8]) // fake type
+ 	task.Class = ir.PEXTERN
+ 	sym.Def = task
+ 	lsym := task.Linksym()
+diff --git a/src/cmd/compile/internal/pkginit/initAsanGlobals.go b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+index ce26cbf189..42db0eaf1b 100644
+--- a/src/cmd/compile/internal/pkginit/initAsanGlobals.go
++++ b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+@@ -23,8 +23,7 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
+ 	// var asanglobals []asanGlobalStruct
+ 	arraytype := types.NewArray(asanGlobalStruct, int64(len(InstrumentGlobalsMap)))
+ 	symG := lname(".asanglobals")
+-	globals := typecheck.NewName(symG)
+-	globals.SetType(arraytype)
++	globals := ir.NewNameAt(base.Pos, symG, arraytype)
+ 	globals.Class = ir.PEXTERN
+ 	symG.Def = globals
+ 	typecheck.Target.Externs = append(typecheck.Target.Externs, globals)
+@@ -32,8 +31,7 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
+ 	// var asanL []asanLocationStruct
+ 	arraytype = types.NewArray(asanLocationStruct, int64(len(InstrumentGlobalsMap)))
+ 	symL := lname(".asanL")
+-	asanlocation := typecheck.NewName(symL)
+-	asanlocation.SetType(arraytype)
++	asanlocation := ir.NewNameAt(base.Pos, symL, arraytype)
+ 	asanlocation.Class = ir.PEXTERN
+ 	symL.Def = asanlocation
+ 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanlocation)
+@@ -43,22 +41,19 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
+ 	// var asanModulename string
+ 	// var asanFilename string
+ 	symL = lname(".asanName")
+-	asanName := typecheck.NewName(symL)
+-	asanName.SetType(types.Types[types.TSTRING])
++	asanName := ir.NewNameAt(base.Pos, symL, types.Types[types.TSTRING])
+ 	asanName.Class = ir.PEXTERN
+ 	symL.Def = asanName
+ 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanName)
+ 
+ 	symL = lname(".asanModulename")
+-	asanModulename := typecheck.NewName(symL)
+-	asanModulename.SetType(types.Types[types.TSTRING])
++	asanModulename := ir.NewNameAt(base.Pos, symL, types.Types[types.TSTRING])
+ 	asanModulename.Class = ir.PEXTERN
+ 	symL.Def = asanModulename
+ 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanModulename)
+ 
+ 	symL = lname(".asanFilename")
+-	asanFilename := typecheck.NewName(symL)
+-	asanFilename.SetType(types.Types[types.TSTRING])
++	asanFilename := ir.NewNameAt(base.Pos, symL, types.Types[types.TSTRING])
+ 	asanFilename.Class = ir.PEXTERN
+ 	symL.Def = asanFilename
+ 	typecheck.Target.Externs = append(typecheck.Target.Externs, asanFilename)
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 14f2474a11..53a5b3070b 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -59,7 +59,7 @@ func (c *Conf) Frontend() Frontend {
+ 		f.Nname = ir.NewNameAt(f.Pos(), &types.Sym{
+ 			Pkg:  types.NewPkg("my/import/path", "path"),
+ 			Name: "function",
+-		})
++		}, nil)
+ 		f.LSym = &obj.LSym{Name: "my/import/path.function"}
+ 
+ 		c.fe = TestFrontend{
+@@ -83,8 +83,7 @@ func (TestFrontend) StringData(s string) *obj.LSym {
+ 	return nil
+ }
+ func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
+-	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
+-	n.SetType(t)
++	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"}, t)
+ 	n.Class = ir.PAUTO
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 64101a28dc..25e93b531d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -675,12 +675,9 @@ func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
+ 	}
+ 
+ 	// Declare variable to hold address.
+-	addr := ir.NewNameAt(pos, &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg})
+-	addr.SetType(types.NewPtr(n.Type()))
+-	addr.Class = ir.PAUTO
++	sym := &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg}
++	addr := s.curfn.NewLocal(pos, sym, ir.PAUTO, types.NewPtr(n.Type()))
+ 	addr.SetUsed(true)
+-	addr.Curfn = s.curfn
+-	s.curfn.Dcl = append(s.curfn.Dcl, addr)
+ 	types.CalcSize(addr.Type())
+ 
+ 	if n.Class == ir.PPARAMOUT {
+@@ -939,7 +936,7 @@ func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) { s.f.Warnl
+ func (s *state) Debug_checknil() bool                                { return s.f.Frontend().Debug_checknil() }
+ 
+ func ssaMarker(name string) *ir.Name {
+-	return typecheck.NewName(&types.Sym{Name: name})
++	return ir.NewNameAt(base.Pos, &types.Sym{Name: name}, nil)
+ }
+ 
+ var (
+@@ -7976,15 +7973,10 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t
+ 		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
+ 	}
+ 
+-	s := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
+-	n := ir.NewNameAt(parent.N.Pos(), s)
+-	s.Def = n
+-	ir.AsNode(s.Def).Name().SetUsed(true)
+-	n.SetType(t)
+-	n.Class = ir.PAUTO
++	sym := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
++	n := e.curfn.NewLocal(parent.N.Pos(), sym, ir.PAUTO, t)
++	n.SetUsed(true)
+ 	n.SetEsc(ir.EscNever)
+-	n.Curfn = e.curfn
+-	e.curfn.Dcl = append(e.curfn.Dcl, n)
+ 	types.CalcSize(t)
+ 	return ssa.LocalSlot{N: n, Type: t, Off: 0, SplitOf: parent, SplitOffset: offset}
+ }
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index e39d0ee6a5..14107057d4 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -17,7 +17,6 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+-	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/notsha256"
+ 	"cmd/internal/obj"
+@@ -56,7 +55,7 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
+ 	if nam.Op() != ir.ONAME {
+ 		base.Fatalf("InitSliceBytes %v", nam)
+ 	}
+-	InitSlice(nam, off, slicedata(nam.Pos(), s).Linksym(), int64(len(s)))
++	InitSlice(nam, off, slicedata(nam.Pos(), s), int64(len(s)))
+ }
+ 
+ const (
+@@ -134,7 +133,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
+ 		if readonly {
+ 			sym = StringSym(pos, string(data))
+ 		} else {
+-			sym = slicedata(pos, string(data)).Linksym()
++			sym = slicedata(pos, string(data))
+ 		}
+ 		if len(hash) > 0 {
+ 			sum := notsha256.Sum256(data)
+@@ -182,7 +181,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
+ 	} else {
+ 		// Emit a zero-length data symbol
+ 		// and then fix up length and content to use file.
+-		symdata = slicedata(pos, "").Linksym()
++		symdata = slicedata(pos, "")
+ 		symdata.Size = size
+ 		symdata.Type = objabi.SNOPTRDATA
+ 		info := symdata.NewFileInfo()
+@@ -195,18 +194,14 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
+ 
+ var slicedataGen int
+ 
+-func slicedata(pos src.XPos, s string) *ir.Name {
++func slicedata(pos src.XPos, s string) *obj.LSym {
+ 	slicedataGen++
+ 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
+-	sym := types.LocalPkg.Lookup(symname)
+-	symnode := typecheck.NewName(sym)
+-	sym.Def = symnode
+-
+-	lsym := symnode.Linksym()
++	lsym := types.LocalPkg.Lookup(symname).LinksymABI(obj.ABI0)
+ 	off := dstringdata(lsym, 0, s, pos, "slice")
+ 	objw.Global(lsym, int32(off), obj.NOPTR|obj.LOCAL)
+ 
+-	return symnode
++	return lsym
+ }
+ 
+ func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index b1c91089b9..016d0692ed 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -684,13 +684,12 @@ func StaticName(t *types.Type) *ir.Name {
+ 	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen))
+ 	statuniqgen++
+ 
+-	n := typecheck.NewName(sym)
++	n := ir.NewNameAt(base.Pos, sym, t)
+ 	sym.Def = n
+ 
+ 	n.Class = ir.PEXTERN
+ 	typecheck.Target.Externs = append(typecheck.Target.Externs, n)
+ 
+-	n.SetType(t)
+ 	n.Linksym().Set(obj.AttrStatic, true)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/test/abiutilsaux_test.go b/src/cmd/compile/internal/test/abiutilsaux_test.go
+index 07b8eb7289..3316af6940 100644
+--- a/src/cmd/compile/internal/test/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/test/abiutilsaux_test.go
+@@ -21,10 +21,9 @@ import (
+ 
+ func mkParamResultField(t *types.Type, s *types.Sym, which ir.Class) *types.Field {
+ 	field := types.NewField(src.NoXPos, s, t)
+-	n := typecheck.NewName(s)
++	n := ir.NewNameAt(src.NoXPos, s, t)
+ 	n.Class = which
+ 	field.Nname = n
+-	n.SetType(t)
+ 	return field
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 8bd1d03222..c0b7c76176 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -19,7 +19,7 @@ var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
+ 
+ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.Func {
+ 	fn := ir.NewFunc(base.Pos)
+-	fn.Nname = ir.NewNameAt(base.Pos, sym)
++	fn.Nname = ir.NewNameAt(base.Pos, sym, nil)
+ 	fn.Nname.Func = fn
+ 	fn.Nname.Defn = fn
+ 	ir.MarkFunc(fn.Nname)
+@@ -119,15 +119,7 @@ func declareParam(fn *ir.Func, ctxt ir.Class, i int, param *ir.Field) *types.Fie
+ 	}
+ 
+ 	if sym != nil {
+-		name := ir.NewNameAt(param.Pos, sym)
+-		name.SetType(f.Type)
+-		name.SetTypecheck(1)
+-
+-		name.Class = ctxt
+-		fn.Dcl = append(fn.Dcl, name)
+-		name.Curfn = fn
+-
+-		f.Nname = name
++		f.Nname = fn.NewLocal(param.Pos, sym, ctxt, f.Type)
+ 	}
+ 
+ 	return f
+@@ -157,16 +149,11 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+ 		Name: autotmpname(len(curfn.Dcl)),
+ 		Pkg:  types.LocalPkg,
+ 	}
+-	n := ir.NewNameAt(pos, s)
+-	s.Def = n
+-	n.SetType(t)
+-	n.SetTypecheck(1)
+-	n.Class = ir.PAUTO
++	n := curfn.NewLocal(pos, s, ir.PAUTO, t)
++	s.Def = n // TODO(mdempsky): Should be unnecessary.
+ 	n.SetEsc(ir.EscNever)
+-	n.Curfn = curfn
+ 	n.SetUsed(true)
+ 	n.SetAutoTemp(true)
+-	curfn.Dcl = append(curfn.Dcl, n)
+ 
+ 	types.CalcSize(t)
+ 
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 18b93ba0ad..75b5d58fee 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -48,13 +48,6 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
+ 	return args
+ }
+ 
+-// NewName returns a new ONAME Node associated with symbol s.
+-func NewName(s *types.Sym) *ir.Name {
+-	n := ir.NewNameAt(base.Pos, s)
+-	n.Curfn = ir.CurFunc
+-	return n
+-}
+-
+ // NodAddr returns a node representing &n at base.Pos.
+ func NodAddr(n ir.Node) *ir.AddrExpr {
+ 	return NodAddrAt(base.Pos, n)
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index 7fe649faaa..55160e47f0 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -30,9 +30,8 @@ func SubstArgTypes(old *ir.Name, types_ ...*types.Type) *ir.Name {
+ 	for _, t := range types_ {
+ 		types.CalcSize(t)
+ 	}
+-	n := ir.NewNameAt(old.Pos(), old.Sym())
++	n := ir.NewNameAt(old.Pos(), old.Sym(), types.SubstAny(old.Type(), &types_))
+ 	n.Class = old.Class
+-	n.SetType(types.SubstAny(old.Type(), &types_))
+ 	n.Func = old.Func
+ 	if len(types_) > 0 {
+ 		base.Fatalf("SubstArgTypes: too many argument types")
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index 076c9da0b1..a5bfca2157 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -75,17 +75,11 @@ func InitUniverse() {
+ 	})
+ 
+ 	for _, s := range &builtinFuncs {
+-		s2 := types.BuiltinPkg.Lookup(s.name)
+-		def := NewName(s2)
+-		def.BuiltinOp = s.op
+-		s2.Def = def
++		ir.NewBuiltin(types.BuiltinPkg.Lookup(s.name), s.op)
+ 	}
+ 
+ 	for _, s := range &unsafeFuncs {
+-		s2 := types.UnsafePkg.Lookup(s.name)
+-		def := NewName(s2)
+-		def.BuiltinOp = s.op
+-		s2.Def = def
++		ir.NewBuiltin(types.UnsafePkg.Lookup(s.name), s.op)
+ 	}
+ 
+ 	s := types.BuiltinPkg.Lookup("true")
+@@ -96,14 +90,11 @@ func InitUniverse() {
+ 
+ 	s = Lookup("_")
+ 	types.BlankSym = s
+-	s.Def = NewName(s)
+-	ir.BlankNode = ir.AsNode(s.Def)
+-	ir.BlankNode.SetType(types.Types[types.TBLANK])
+-	ir.BlankNode.SetTypecheck(1)
++	ir.BlankNode = ir.NewNameAt(src.NoXPos, s, types.Types[types.TBLANK])
++	s.Def = ir.BlankNode
+ 
+ 	s = types.BuiltinPkg.Lookup("_")
+-	s.Def = NewName(s)
+-	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
++	s.Def = ir.NewNameAt(src.NoXPos, s, types.Types[types.TBLANK])
+ 
+ 	s = types.BuiltinPkg.Lookup("nil")
+ 	s.Def = NodNil()
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 1fa3ac0f18..27eebf4144 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -47,9 +47,8 @@ func directClosureCall(n *ir.CallExpr) {
+ 			// and v remains PAUTOHEAP with &v heapaddr
+ 			// (accesses will implicitly deref &v).
+ 
+-			addr := ir.NewNameAt(clofn.Pos(), typecheck.Lookup("&"+v.Sym().Name))
++			addr := ir.NewNameAt(clofn.Pos(), typecheck.Lookup("&"+v.Sym().Name), types.NewPtr(v.Type()))
+ 			addr.Curfn = clofn
+-			addr.SetType(types.NewPtr(v.Type()))
+ 			v.Heapaddr = addr
+ 			v = addr
+ 		}
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 1a167d363e..3af457b8c0 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -548,7 +548,7 @@ func (s *typeSwitch) Add(pos src.XPos, n1 ir.Node, caseVar *ir.Name, jmp ir.Node
+ 		typecheck.Stmts(l)
+ 		body.Append(l...)
+ 	} else {
+-		caseVar = ir.BlankNode.(*ir.Name)
++		caseVar = ir.BlankNode
+ 	}
+ 
+ 	// cv, ok = iface.(type)

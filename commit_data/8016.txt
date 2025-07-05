@@ -9,6 +9,20 @@ Date:   Fri Apr 8 10:27:47 2011 +1000
     R=golang-dev, r2
     CC=ality, fhs, golang-dev
     https://golang.org/cl/4375044
-
+---
  src/pkg/syscall/syscall_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 705c742b14..4ac2154c85 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -685,7 +685,7 @@ func (w WaitStatus) Continued() bool { return false }
+ 
+ func (w WaitStatus) StopSignal() int { return -1 }
+ 
+-func (w WaitStatus) Signaled() bool { return true }
++func (w WaitStatus) Signaled() bool { return false }
+ 
+ func (w WaitStatus) TrapCause() int { return -1 }
+ 

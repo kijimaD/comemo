@@ -14,7 +14,7 @@ Date:   Mon May 2 18:02:22 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/expr.go             | 8 +++++---
  src/cmd/compile/internal/noder/reader.go        | 2 +-
  src/cmd/compile/internal/noder/transform.go     | 3 +--
@@ -24,3 +24,137 @@ Date:   Mon May 2 18:02:22 2022 -0700
  src/cmd/compile/internal/walk/closure.go        | 4 ++--
  src/cmd/compile/internal/walk/expr.go           | 2 +-
  8 files changed, 14 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 4f1f582fa1..78b084341a 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -200,11 +200,13 @@ type CompLitExpr struct {
+ 	Len int64
+ }
+ 
+-func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
+-	n := &CompLitExpr{Ntype: typ}
++func NewCompLitExpr(pos src.XPos, op Op, typ *types.Type, list []Node) *CompLitExpr {
++	n := &CompLitExpr{List: list}
+ 	n.pos = pos
+ 	n.SetOp(op)
+-	n.List = list
++	if typ != nil {
++		n.Ntype = TypeNode(typ)
++	}
+ 	n.orig = n
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index b95dc23edb..9474568b27 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1728,7 +1728,7 @@ func (r *reader) compLit() ir.Node {
+ 		*elemp = wrapName(r.pos(), r.expr())
+ 	}
+ 
+-	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), elems))
++	lit := typecheck.Expr(ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, elems))
+ 	if typ0.IsPtr() {
+ 		lit = typecheck.Expr(typecheck.NodAddrAt(pos, lit))
+ 		lit.SetType(typ0)
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 43fd73fdbc..6b17ab283a 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -74,8 +74,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
+ 		i++
+ 	}
+ 
+-	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
+-	nn.List = list
++	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, n.Type(), list)
+ 	typed(n.Type(), nn)
+ 	// Need to transform the OCOMPLIT.
+ 	return transformCompLit(nn)
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 0d9b18bc37..9d55d73592 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -23,7 +23,7 @@ func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
+ 		n.SetType(typ)
+ 	} else {
+ 		args = append([]ir.Node(nil), args...)
+-		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), args)
++		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, args)
+ 		lit.SetImplicit(true)
+ 		n = lit
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 7ce613ca97..cee952b659 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1417,7 +1417,7 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OCOMPLIT:
+ 		pos := r.pos()
+ 		t := r.typ()
+-		n := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(t), r.exprList())
++		n := ir.NewCompLitExpr(pos, ir.OCOMPLIT, t, r.exprList())
+ 		n.SetType(t)
+ 		return n
+ 
+@@ -1425,7 +1425,7 @@ func (r *importReader) node() ir.Node {
+ 		pos := r.pos()
+ 		typ := r.typ()
+ 		list := r.exprList()
+-		n := ir.NewCompLitExpr(pos, op, ir.TypeNode(typ), list)
++		n := ir.NewCompLitExpr(pos, op, typ, list)
+ 		n.SetType(typ)
+ 		if op == ir.OSLICELIT {
+ 			n.Len = int64(r.uint64())
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 2eb9e6d718..6e61d9f309 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1624,9 +1624,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
+ 		i++
+ 	}
+ 
+-	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
+-	nn.List = l
+-	return Expr(nn)
++	return Expr(ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, n.Type(), l))
+ }
+ 
+ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index f7bd2e0e07..ee9b24d09d 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -120,7 +120,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 
+ 	typ := typecheck.ClosureType(clo)
+ 
+-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
++	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, typ, nil)
+ 	clos.SetEsc(clo.Esc())
+ 	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, clofn.Nname)}, closureArgs(clo)...)
+ 	for i, value := range clos.List {
+@@ -186,7 +186,7 @@ func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+ 
+ 	typ := typecheck.MethodValueType(n)
+ 
+-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
++	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, typ, nil)
+ 	clos.SetEsc(n.Esc())
+ 	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, methodValueWrapper(n)), n.X}
+ 
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 26a23c4d09..c5dd344315 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -480,7 +480,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
+ 
+ 		t := types.NewSlice(types.Types[types.TSTRING])
+ 		// args[1:] to skip buf arg
+-		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(t), args[1:])
++		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, args[1:])
+ 		slice.Prealloc = n.Prealloc
+ 		args = []ir.Node{buf, slice}
+ 		slice.SetEsc(ir.EscNone)

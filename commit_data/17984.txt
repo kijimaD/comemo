@@ -11,9 +11,70 @@ Date:   Thu Dec 12 19:02:11 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/40510048
-
+---
  test/fixedbugs/issue5957.dir/c.go | 10 +++++-----
  test/import1.go                   |  2 +-
  test/import4.dir/empty.go         |  2 +-
  test/import4.dir/import4.go       |  4 ++--
  4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/test/fixedbugs/issue5957.dir/c.go b/test/fixedbugs/issue5957.dir/c.go
+index 42c88177b5..a1781d4d40 100644
+--- a/test/fixedbugs/issue5957.dir/c.go
++++ b/test/fixedbugs/issue5957.dir/c.go
+@@ -1,12 +1,12 @@
+ package p
+ 
+ import (
+-	"./a" // ERROR "imported and not used: \x22a\x22 as surprise"
+-	"./b" // ERROR "imported and not used: \x22b\x22 as surprise2"
+-	b "./b" // ERROR "imported and not used: \x22b\x22$"
+-	foo "math" // ERROR "imported and not used: \x22math\x22 as foo"
++	"./a" // ERROR "imported and not used: \x22a\x22 as surprise|imported and not used: surprise"
++	"./b" // GC_ERROR "imported and not used: \x22b\x22 as surprise2|imported and not used: surprise2"
++	b "./b" // ERROR "imported and not used: \x22b\x22$|imported and not used: surprise2"
++	foo "math" // ERROR "imported and not used: \x22math\x22 as foo|imported and not used: math"
+ 	"fmt" // actually used
+-	"strings" // ERROR "imported and not used: \x22strings\x22"
++	"strings" // ERROR "imported and not used: \x22strings\x22|imported and not used: strings"
+ )
+ 
+ var _ = fmt.Printf
+diff --git a/test/import1.go b/test/import1.go
+index d2bb55cbff..2433b5f2ad 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -15,5 +15,5 @@ import bufio "os"	// ERROR "redeclared|redefinition|incompatible" "imported and
+ import (
+ 	"fmt"	// GCCGO_ERROR "previous|not used"
+ 	fmt "math"	// ERROR "redeclared|redefinition|incompatible" "imported and not used: \x22math\x22 as fmt"
+-	. "math"	// ERROR "imported and not used: \x22math\x22$"
++	. "math"	// GC_ERROR "imported and not used: \x22math\x22$"
+ )
+diff --git a/test/import4.dir/empty.go b/test/import4.dir/empty.go
+index c8214f36da..1dffa170df 100644
+--- a/test/import4.dir/empty.go
++++ b/test/import4.dir/empty.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package P
++package empty
+ 
+ import ( )
+ const ( )
+diff --git a/test/import4.dir/import4.go b/test/import4.dir/import4.go
+index b9f973f172..f92c663d04 100644
+--- a/test/import4.dir/import4.go
++++ b/test/import4.dir/import4.go
+@@ -18,7 +18,7 @@ import X "math"	// ERROR "imported and not used.*math"
+ import . "bufio"	// ERROR "imported and not used.*bufio"
+ 
+ // again, package without anything in it
+-import "./empty"	// ERROR "imported and not used.*empty"
+-import Z "./empty"	// ERROR "imported and not used.*empty"
++import "./empty"	// GC_ERROR "imported and not used.*empty"
++import Z "./empty"	// GC_ERROR "imported and not used.*empty"
+ import . "./empty"	// ERROR "imported and not used.*empty"
+ 

@@ -17,7 +17,7 @@ Date:   Tue Nov 27 08:50:28 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modfetch/cache.go         |  5 +-
  src/cmd/go/internal/modfetch/coderepo.go      | 67 +++++++++++----------------
  src/cmd/go/internal/modfetch/coderepo_test.go |  8 +++-
@@ -25,3 +25,388 @@ Date:   Tue Nov 27 08:50:28 2018 -0500
  src/cmd/go/internal/modfetch/proxy.go         | 30 ++++--------
  src/cmd/go/internal/modfetch/repo.go          | 19 ++++----
  6 files changed, 71 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 171718d20b..f3f04a151d 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/json"
+ 	"fmt"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -215,8 +216,8 @@ func (r *cachingRepo) GoMod(rev string) ([]byte, error) {
+ 	return append([]byte(nil), c.text...), nil
+ }
+ 
+-func (r *cachingRepo) Zip(version, tmpdir string) (string, error) {
+-	return r.r.Zip(version, tmpdir)
++func (r *cachingRepo) Zip(dst io.Writer, version string) error {
++	return r.r.Zip(dst, version)
+ }
+ 
+ // Stat is like Lookup(path).Stat(rev) but avoids the
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 9cf0e91150..737aade739 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -407,25 +407,26 @@ func (r *codeRepo) modPrefix(rev string) string {
+ 	return r.modPath + "@" + rev
+ }
+ 
+-func (r *codeRepo) Zip(version string, tmpdir string) (tmpfile string, err error) {
++func (r *codeRepo) Zip(dst io.Writer, version string) error {
+ 	rev, dir, _, err := r.findDir(version)
+ 	if err != nil {
+-		return "", err
++		return err
+ 	}
+ 	dl, actualDir, err := r.code.ReadZip(rev, dir, codehost.MaxZipFile)
+ 	if err != nil {
+-		return "", err
++		return err
+ 	}
++	defer dl.Close()
+ 	if actualDir != "" && !hasPathPrefix(dir, actualDir) {
+-		return "", fmt.Errorf("internal error: downloading %v %v: dir=%q but actualDir=%q", r.path, rev, dir, actualDir)
++		return fmt.Errorf("internal error: downloading %v %v: dir=%q but actualDir=%q", r.path, rev, dir, actualDir)
+ 	}
+ 	subdir := strings.Trim(strings.TrimPrefix(dir, actualDir), "/")
+ 
+ 	// Spool to local file.
+-	f, err := ioutil.TempFile(tmpdir, "go-codehost-")
++	f, err := ioutil.TempFile("", "go-codehost-")
+ 	if err != nil {
+ 		dl.Close()
+-		return "", err
++		return err
+ 	}
+ 	defer os.Remove(f.Name())
+ 	defer f.Close()
+@@ -433,35 +434,24 @@ func (r *codeRepo) Zip(version string, tmpdir string) (tmpfile string, err error
+ 	lr := &io.LimitedReader{R: dl, N: maxSize + 1}
+ 	if _, err := io.Copy(f, lr); err != nil {
+ 		dl.Close()
+-		return "", err
++		return err
+ 	}
+ 	dl.Close()
+ 	if lr.N <= 0 {
+-		return "", fmt.Errorf("downloaded zip file too large")
++		return fmt.Errorf("downloaded zip file too large")
+ 	}
+ 	size := (maxSize + 1) - lr.N
+ 	if _, err := f.Seek(0, 0); err != nil {
+-		return "", err
++		return err
+ 	}
+ 
+ 	// Translate from zip file we have to zip file we want.
+ 	zr, err := zip.NewReader(f, size)
+ 	if err != nil {
+-		return "", err
+-	}
+-	f2, err := ioutil.TempFile(tmpdir, "go-codezip-")
+-	if err != nil {
+-		return "", err
++		return err
+ 	}
+ 
+-	zw := zip.NewWriter(f2)
+-	newName := f2.Name()
+-	defer func() {
+-		f2.Close()
+-		if err != nil {
+-			os.Remove(newName)
+-		}
+-	}()
++	zw := zip.NewWriter(dst)
+ 	if subdir != "" {
+ 		subdir += "/"
+ 	}
+@@ -472,12 +462,12 @@ func (r *codeRepo) Zip(version string, tmpdir string) (tmpfile string, err error
+ 		if topPrefix == "" {
+ 			i := strings.Index(zf.Name, "/")
+ 			if i < 0 {
+-				return "", fmt.Errorf("missing top-level directory prefix")
++				return fmt.Errorf("missing top-level directory prefix")
+ 			}
+ 			topPrefix = zf.Name[:i+1]
+ 		}
+ 		if !strings.HasPrefix(zf.Name, topPrefix) {
+-			return "", fmt.Errorf("zip file contains more than one top-level directory")
++			return fmt.Errorf("zip file contains more than one top-level directory")
+ 		}
+ 		dir, file := path.Split(zf.Name)
+ 		if file == "go.mod" {
+@@ -497,11 +487,12 @@ func (r *codeRepo) Zip(version string, tmpdir string) (tmpfile string, err error
+ 			name = dir[:len(dir)-1]
+ 		}
+ 	}
++
+ 	for _, zf := range zr.File {
+ 		if topPrefix == "" {
+ 			i := strings.Index(zf.Name, "/")
+ 			if i < 0 {
+-				return "", fmt.Errorf("missing top-level directory prefix")
++				return fmt.Errorf("missing top-level directory prefix")
+ 			}
+ 			topPrefix = zf.Name[:i+1]
+ 		}
+@@ -509,7 +500,7 @@ func (r *codeRepo) Zip(version string, tmpdir string) (tmpfile string, err error
+ 			continue
+ 		}
+ 		if !strings.HasPrefix(zf.Name, topPrefix) {
+-			return "", fmt.Errorf("zip file contains more than one top-level directory")
++			return fmt.Errorf("zip file contains more than one top-level directory")
+ 		}
+ 		name := strings.TrimPrefix(zf.Name, topPrefix)
+ 		if !strings.HasPrefix(name, subdir) {
+@@ -529,28 +520,28 @@ func (r *codeRepo) Zip(version string, tmpdir string) (tmpfile string, err error
+ 		}
+ 		base := path.Base(name)
+ 		if strings.ToLower(base) == "go.mod" && base != "go.mod" {
+-			return "", fmt.Errorf("zip file contains %s, want all lower-case go.mod", zf.Name)
++			return fmt.Errorf("zip file contains %s, want all lower-case go.mod", zf.Name)
+ 		}
+ 		if name == "LICENSE" {
+ 			haveLICENSE = true
+ 		}
+-		size := int64(zf.UncompressedSize)
++		size := int64(zf.UncompressedSize64)
+ 		if size < 0 || maxSize < size {
+-			return "", fmt.Errorf("module source tree too big")
++			return fmt.Errorf("module source tree too big")
+ 		}
+ 		maxSize -= size
+ 
+ 		rc, err := zf.Open()
+ 		if err != nil {
+-			return "", err
++			return err
+ 		}
+ 		w, err := zw.Create(r.modPrefix(version) + "/" + name)
+ 		lr := &io.LimitedReader{R: rc, N: size + 1}
+ 		if _, err := io.Copy(w, lr); err != nil {
+-			return "", err
++			return err
+ 		}
+ 		if lr.N <= 0 {
+-			return "", fmt.Errorf("individual file too large")
++			return fmt.Errorf("individual file too large")
+ 		}
+ 	}
+ 
+@@ -559,21 +550,15 @@ func (r *codeRepo) Zip(version string, tmpdir string) (tmpfile string, err error
+ 		if err == nil {
+ 			w, err := zw.Create(r.modPrefix(version) + "/LICENSE")
+ 			if err != nil {
+-				return "", err
++				return err
+ 			}
+ 			if _, err := w.Write(data); err != nil {
+-				return "", err
++				return err
+ 			}
+ 		}
+ 	}
+-	if err := zw.Close(); err != nil {
+-		return "", err
+-	}
+-	if err := f2.Close(); err != nil {
+-		return "", err
+-	}
+ 
+-	return f2.Name(), nil
++	return zw.Close()
+ }
+ 
+ // hasPathPrefix reports whether the path s begins with the
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 73c4bd2cca..e8bf8ed750 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -391,7 +391,13 @@ func TestCodeRepo(t *testing.T) {
+ 				}
+ 			}
+ 			if tt.zip != nil || tt.ziperr != "" {
+-				zipfile, err := repo.Zip(tt.version, tmpdir)
++				f, err := ioutil.TempFile(tmpdir, tt.version+".zip.")
++				if err != nil {
++					t.Fatalf("ioutil.TempFile: %v", err)
++				}
++				zipfile := f.Name()
++				err = repo.Zip(f, tt.version)
++				f.Close()
+ 				if err != nil {
+ 					if tt.ziperr != "" {
+ 						if err.Error() == tt.ziperr {
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 9984595c05..e3bc7b5133 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -108,41 +108,47 @@ func downloadZip(mod module.Version, target string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	tmpfile, err := repo.Zip(mod.Version, os.TempDir())
++	tmpfile, err := ioutil.TempFile("", "go-codezip-")
+ 	if err != nil {
+ 		return err
+ 	}
+-	defer os.Remove(tmpfile)
++	defer func() {
++		tmpfile.Close()
++		os.Remove(tmpfile.Name())
++	}()
++	if err := repo.Zip(tmpfile, mod.Version); err != nil {
++		return err
++	}
+ 
+ 	// Double-check zip file looks OK.
+-	z, err := zip.OpenReader(tmpfile)
++	fi, err := tmpfile.Stat()
++	if err != nil {
++		return err
++	}
++	z, err := zip.NewReader(tmpfile, fi.Size())
+ 	if err != nil {
+ 		return err
+ 	}
+ 	prefix := mod.Path + "@" + mod.Version + "/"
+ 	for _, f := range z.File {
+ 		if !strings.HasPrefix(f.Name, prefix) {
+-			z.Close()
+ 			return fmt.Errorf("zip for %s has unexpected file %s", prefix[:len(prefix)-1], f.Name)
+ 		}
+ 	}
+-	z.Close()
+ 
+-	hash, err := dirhash.HashZip(tmpfile, dirhash.DefaultHash)
++	hash, err := dirhash.HashZip(tmpfile.Name(), dirhash.DefaultHash)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	checkOneSum(mod, hash) // check before installing the zip file
+-	r, err := os.Open(tmpfile)
+-	if err != nil {
++	if _, err := tmpfile.Seek(0, io.SeekStart); err != nil {
+ 		return err
+ 	}
+-	defer r.Close()
+ 	w, err := os.Create(target)
+ 	if err != nil {
+ 		return err
+ 	}
+-	if _, err := io.Copy(w, r); err != nil {
++	if _, err := io.Copy(w, tmpfile); err != nil {
+ 		w.Close()
+ 		return fmt.Errorf("copying: %v", err)
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 7c78502f31..60ed2a3796 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -8,7 +8,6 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"net/url"
+ 	"os"
+ 	"strings"
+@@ -209,39 +208,26 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
+ 	return data, nil
+ }
+ 
+-func (p *proxyRepo) Zip(version string, tmpdir string) (tmpfile string, err error) {
++func (p *proxyRepo) Zip(dst io.Writer, version string) error {
+ 	var body io.ReadCloser
+ 	encVer, err := module.EncodeVersion(version)
+ 	if err != nil {
+-		return "", err
++		return err
+ 	}
+ 	err = webGetBody(p.url+"/@v/"+pathEscape(encVer)+".zip", &body)
+ 	if err != nil {
+-		return "", err
++		return err
+ 	}
+ 	defer body.Close()
+ 
+-	// Spool to local file.
+-	f, err := ioutil.TempFile(tmpdir, "go-proxy-download-")
+-	if err != nil {
+-		return "", err
+-	}
+-	defer f.Close()
+-	maxSize := int64(codehost.MaxZipFile)
+-	lr := &io.LimitedReader{R: body, N: maxSize + 1}
+-	if _, err := io.Copy(f, lr); err != nil {
+-		os.Remove(f.Name())
+-		return "", err
++	lr := &io.LimitedReader{R: body, N: codehost.MaxZipFile + 1}
++	if _, err := io.Copy(dst, lr); err != nil {
++		return err
+ 	}
+ 	if lr.N <= 0 {
+-		os.Remove(f.Name())
+-		return "", fmt.Errorf("downloaded zip file too large")
+-	}
+-	if err := f.Close(); err != nil {
+-		os.Remove(f.Name())
+-		return "", err
++		return fmt.Errorf("downloaded zip file too large")
+ 	}
+-	return f.Name(), nil
++	return nil
+ }
+ 
+ // pathEscape escapes s so it can be used in a path.
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 0ea8c1f0e3..c63f6b0422 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -6,8 +6,10 @@ package modfetch
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"sort"
++	"strconv"
+ 	"time"
+ 
+ 	"cmd/go/internal/cfg"
+@@ -45,11 +47,8 @@ type Repo interface {
+ 	// GoMod returns the go.mod file for the given version.
+ 	GoMod(version string) (data []byte, err error)
+ 
+-	// Zip downloads a zip file for the given version
+-	// to a new file in a given temporary directory.
+-	// It returns the name of the new file.
+-	// The caller should remove the file when finished with it.
+-	Zip(version, tmpdir string) (tmpfile string, err error)
++	// Zip writes a zip file for the given version to dst.
++	Zip(dst io.Writer, version string) error
+ }
+ 
+ // A Rev describes a single revision in a module repository.
+@@ -357,7 +356,11 @@ func (l *loggingRepo) GoMod(version string) ([]byte, error) {
+ 	return l.r.GoMod(version)
+ }
+ 
+-func (l *loggingRepo) Zip(version, tmpdir string) (string, error) {
+-	defer logCall("Repo[%s]: Zip(%q, %q)", l.r.ModulePath(), version, tmpdir)()
+-	return l.r.Zip(version, tmpdir)
++func (l *loggingRepo) Zip(dst io.Writer, version string) error {
++	dstName := "_"
++	if dst, ok := dst.(interface{ Name() string }); ok {
++		dstName = strconv.Quote(dst.Name())
++	}
++	defer logCall("Repo[%s]: Zip(%s, %q)", l.r.ModulePath(), dstName, version)()
++	return l.r.Zip(dst, version)
+ }

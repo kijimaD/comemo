@@ -11,6 +11,27 @@ Date:   Tue May 16 17:51:43 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.21.html | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 421a509fea..66bf5470ba 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -52,8 +52,13 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h3 id="go-command">Go command</h3>
+ 
+-<p>
+-  TODO: complete this section, or delete if not needed
++<p><-- https://go.dev/issue/58099, CL 474236 -->
++  The <code>-pgo</code> build flag now defaults to <code>-pgo=auto</code>,
++  and the restriction of specifying a single main package on the command
++  line is now removed. If a file named <code>default.pgo</code> is present
++  in the main package's directory, the <code>go</code> command will use
++  it to enable profile-guided optimization for building the corresponding
++  program.
+ </p>
+ 
+ <h2 id="runtime">Runtime</h2>

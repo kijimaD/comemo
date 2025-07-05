@@ -19,7 +19,120 @@ Date:   Thu Feb 25 22:24:07 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/url/url.go      | 28 +++++++++++++++++-----------
  src/net/url/url_test.go | 22 ++++++++++++++++++++++
  2 files changed, 39 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index b3513a85a3..48119f4a5d 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -307,14 +307,15 @@ func escape(s string, mode encoding) string {
+ // construct a URL struct directly and set the Opaque field instead of Path.
+ // These still work as well.
+ type URL struct {
+-	Scheme   string
+-	Opaque   string    // encoded opaque data
+-	User     *Userinfo // username and password information
+-	Host     string    // host or host:port
+-	Path     string
+-	RawPath  string // encoded path hint (Go 1.5 and later only; see EscapedPath method)
+-	RawQuery string // encoded query values, without '?'
+-	Fragment string // fragment for references, without '#'
++	Scheme     string
++	Opaque     string    // encoded opaque data
++	User       *Userinfo // username and password information
++	Host       string    // host or host:port
++	Path       string
++	RawPath    string // encoded path hint (Go 1.5 and later only; see EscapedPath method)
++	ForceQuery bool   // append a query ('?') even if RawQuery is empty
++	RawQuery   string // encoded query values, without '?'
++	Fragment   string // fragment for references, without '#'
+ }
+ 
+ // User returns a Userinfo containing the provided username
+@@ -459,7 +460,12 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+ 	}
+ 	url.Scheme = strings.ToLower(url.Scheme)
+ 
+-	rest, url.RawQuery = split(rest, "?", true)
++	if strings.HasSuffix(rest, "?") {
++		url.ForceQuery = true
++		rest = rest[:len(rest)-1]
++	} else {
++		rest, url.RawQuery = split(rest, "?", true)
++	}
+ 
+ 	if !strings.HasPrefix(rest, "/") {
+ 		if url.Scheme != "" {
+@@ -684,7 +690,7 @@ func (u *URL) String() string {
+ 		}
+ 		buf.WriteString(path)
+ 	}
+-	if u.RawQuery != "" {
++	if u.ForceQuery || u.RawQuery != "" {
+ 		buf.WriteByte('?')
+ 		buf.WriteString(u.RawQuery)
+ 	}
+@@ -913,7 +919,7 @@ func (u *URL) RequestURI() string {
+ 			result = u.Scheme + ":" + result
+ 		}
+ 	}
+-	if u.RawQuery != "" {
++	if u.ForceQuery || u.RawQuery != "" {
+ 		result += "?" + u.RawQuery
+ 	}
+ 	return result
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index d3f8487bd7..a3088ec0a3 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -72,6 +72,17 @@ var urltests = []URLTest{
+ 		},
+ 		"ftp://john%20doe@www.google.com/",
+ 	},
++	// empty query
++	{
++		"http://www.google.com/?",
++		&URL{
++			Scheme:     "http",
++			Host:       "www.google.com",
++			Path:       "/",
++			ForceQuery: true,
++		},
++		"",
++	},
+ 	// query
+ 	{
+ 		"http://www.google.com/?q=go+language",
+@@ -874,11 +885,13 @@ var resolveReferenceTests = []struct {
+ 	// Absolute URL references
+ 	{"http://foo.com?a=b", "https://bar.com/", "https://bar.com/"},
+ 	{"http://foo.com/", "https://bar.com/?a=b", "https://bar.com/?a=b"},
++	{"http://foo.com/", "https://bar.com/?", "https://bar.com/?"},
+ 	{"http://foo.com/bar", "mailto:foo@example.com", "mailto:foo@example.com"},
+ 
+ 	// Path-absolute references
+ 	{"http://foo.com/bar", "/baz", "http://foo.com/baz"},
+ 	{"http://foo.com/bar?a=b#f", "/baz", "http://foo.com/baz"},
++	{"http://foo.com/bar?a=b", "/baz?", "http://foo.com/baz?"},
+ 	{"http://foo.com/bar?a=b", "/baz?c=d", "http://foo.com/baz?c=d"},
+ 
+ 	// Scheme-relative
+@@ -1217,6 +1230,15 @@ var requritests = []RequestURITest{
+ 		},
+ 		"//foo",
+ 	},
++	{
++		&URL{
++			Scheme:     "http",
++			Host:       "example.com",
++			Path:       "/foo",
++			ForceQuery: true,
++		},
++		"/foo?",
++	},
+ }
+ 
+ func TestRequestURI(t *testing.T) {

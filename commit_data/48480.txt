@@ -15,6 +15,26 @@ Date:   Sun May 9 09:05:45 2021 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 5d7dc320aa..0e22b61bc3 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -531,6 +531,14 @@ func RecordFlags(flags ...string) {
+ 		fmt.Fprintf(&cmd, " -%s=%v", f.Name, getter.Get())
+ 	}
+ 
++	// Adds flag to producer string singalling whether regabi is turned on or
++	// off.
++	// Once regabi is turned on across the board and the relative GOEXPERIMENT
++	// knobs no longer exist this code should be removed.
++	if buildcfg.Experiment.RegabiArgs {
++		cmd.Write([]byte(" regabi"))
++	}
++
+ 	if cmd.Len() == 0 {
+ 		return
+ 	}

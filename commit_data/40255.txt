@@ -8,7 +8,58 @@ Date:   Mon Apr 29 08:38:24 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174219
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/script_test.go                    |  2 ++
  src/cmd/go/testdata/script/mod_gonoproxy.txt | 31 ++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 8be7a08675..499a1ccd3f 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -111,6 +111,8 @@ func (ts *testScript) setup() {
+ 		"GOPROXY=" + proxyURL,
+ 		"GOROOT=" + testGOROOT,
+ 		"GOSUMDB=" + testSumDBVerifierKey,
++		"GONOPROXY=",
++		"GONOSUMDB=",
+ 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
+ 		"devnull=" + os.DevNull,
+ 		"goversion=" + goVersion(ts),
+diff --git a/src/cmd/go/testdata/script/mod_gonoproxy.txt b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+new file mode 100644
+index 0000000000..f038112bf1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+@@ -0,0 +1,31 @@
++env GO111MODULE=on
++env sumdb=$GOSUMDB
++env proxy=$GOPROXY
++env GOPROXY GONOPROXY GOSUMDB GONOSUMDB
++env dbname=localhost.localdev/sumdb
++
++# disagree with sumdb fails
++cp go.mod.orig go.mod
++env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
++! go get rsc.io/quote
++stderr 'SECURITY ERROR'
++
++# but GONOSUMDB bypasses sumdb, for rsc.io/quote, rsc.io/sampler, golang.org/x/text
++env GONOSUMDB='*/quote,*/*mple*,golang.org/x'
++go get rsc.io/quote
++
++# and GONOPROXY bypasses proxy
++[!net] skip
++env GONOPROXY='*/fortune'
++! go get rsc.io/fortune # does not exist in real world, only on test proxy
++stderr 'git ls-remote'
++
++env GOSUMDB=
++env GONOPROXY='*/x'
++go get golang.org/x/text
++go list -m all
++! stdout 'text.*v0.0.0-2017' # should not have the version from the proxy
++
++
++-- go.mod.orig --
++module m

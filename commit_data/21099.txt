@@ -8,6 +8,19 @@ Date:   Fri Nov 14 17:03:17 2014 +1100
     R=dsymonds
     CC=golang-codereviews, nmvc
     https://golang.org/cl/169580043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a0566745f2..b5e709ed6e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -452,6 +452,7 @@ Nicholas Katsaros <nick@nickkatsaros.com>
+ Nicholas Presta <nick@nickpresta.ca> <nick1presta@gmail.com>
+ Nicholas Sullivan <nicholas.sullivan@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
++Nick Cooper <nmvc@google.com>
+ Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
+ Nicolas Kaiser <nikai@nikai.net>
+ Nicolas Owens <mischief@offblast.org>

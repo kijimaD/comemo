@@ -12,6 +12,18 @@ Date:   Sat Feb 23 00:22:39 2013 +0100
     R=rsc, rminnich, ality
     CC=golang-dev
     https://golang.org/cl/7391047
-
+---
  src/all.rc | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/all.rc b/src/all.rc
+index 04d4b255c0..b9d4c32eb9 100755
+--- a/src/all.rc
++++ b/src/all.rc
+@@ -9,5 +9,6 @@ if(! test -f make.rc){
+ }
+ 
+ . ./make.rc --no-banner
++bind -b $GOROOT/bin /bin
+ ./run.rc --no-rebuild
+ $GOTOOLDIR/dist banner  # print build info

@@ -7,6 +7,20 @@ Date:   Wed Feb 22 17:36:25 2012 -0500
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/5689073
-
+---
  src/cmd/5a/a.y | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index 9a0efd5e06..512fb5a952 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -217,7 +217,7 @@ inst:
+  */
+ |	LTYPEB name ',' imm
+ 	{
+-		outcode($1, Always, &$2, NREG, &$4);
++		outcode($1, Always, &$2, 0, &$4);
+ 	}
+ |	LTYPEB name ',' con ',' imm
+ 	{

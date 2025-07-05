@@ -23,6 +23,22 @@ Date:   Wed Nov 15 13:08:23 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/syscall/syscall_windows.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 33876c7fe0..d13acc5c44 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -409,6 +409,10 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
+ 		// Necessary for opening directory handles.
+ 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
+ 	}
++	if mode&O_SYNC != 0 {
++		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
++		attrs |= _FILE_FLAG_WRITE_THROUGH
++	}
+ 	return CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
+ }
+ 

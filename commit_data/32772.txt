@@ -20,8 +20,135 @@ Date:   Tue May 23 11:15:41 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go    |  2 +-
  src/cmd/asm/internal/asm/testdata/armerror.s | 13 +++++++++++
  src/cmd/internal/obj/arm/asm5.go             | 35 +++++++++++++++++++---------
  3 files changed, 38 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 7554a30b54..7037e3fc4d 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -305,7 +305,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 			continue
+ 		}
+ 		fileline := m[1]
+-		if errors[fileline] != "" {
++		if errors[fileline] != "" && errors[fileline] != line {
+ 			t.Errorf("multiple errors on %s:\n\t%s\n\t%s", fileline, errors[fileline], line)
+ 			continue
+ 		}
+diff --git a/src/cmd/asm/internal/asm/testdata/armerror.s b/src/cmd/asm/internal/asm/testdata/armerror.s
+index 9ef276b40f..e37bd6e2e7 100644
+--- a/src/cmd/asm/internal/asm/testdata/armerror.s
++++ b/src/cmd/asm/internal/asm/testdata/armerror.s
+@@ -7,4 +7,17 @@ TEXT errors(SB),$0
+ 	ADD.P	R1, R2, R3         // ERROR "invalid .P suffix"
+ 	SUB.W	R2, R3             // ERROR "invalid .W suffix"
+ 	BL	4(R4)              // ERROR "non-zero offset"
++	ADDF	F0, R1, F2         // ERROR "illegal combination"
++	SWI	(R0)               // ERROR "illegal combination"
++	NEGF	F0, F1, F2         // ERROR "illegal combination"
++	NEGD	F0, F1, F2         // ERROR "illegal combination"
++	ABSF	F0, F1, F2         // ERROR "illegal combination"
++	ABSD	F0, F1, F2         // ERROR "illegal combination"
++	SQRTF	F0, F1, F2         // ERROR "illegal combination"
++	SQRTD	F0, F1, F2         // ERROR "illegal combination"
++	MOVF	F0, F1, F2         // ERROR "illegal combination"
++	MOVD	F0, F1, F2         // ERROR "illegal combination"
++	MOVDF	F0, F1, F2         // ERROR "illegal combination"
++	MOVFD	F0, F1, F2         // ERROR "illegal combination"
++
+ 	END
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 7bb77b6e19..c27b470817 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -228,8 +228,9 @@ var optab = []Optab{
+ 	{AMOVF, C_FREG, C_NONE, C_ADDR, 68, 8, 0, LTO | LPCREL, 4},
+ 	{AMOVF, C_ADDR, C_NONE, C_FREG, 69, 8, 0, LFROM | LPCREL, 4},
+ 	{AADDF, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
+-	{AADDF, C_FREG, C_REG, C_FREG, 54, 4, 0, 0, 0},
+-	{AMOVF, C_FREG, C_NONE, C_FREG, 54, 4, 0, 0, 0},
++	{AADDF, C_FREG, C_FREG, C_FREG, 54, 4, 0, 0, 0},
++	{AMOVF, C_FREG, C_NONE, C_FREG, 55, 4, 0, 0, 0},
++	{ANEGF, C_FREG, C_NONE, C_FREG, 55, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_FCR, 56, 4, 0, 0, 0},
+ 	{AMOVW, C_FCR, C_NONE, C_REG, 57, 4, 0, 0, 0},
+ 	{AMOVW, C_SHIFT, C_NONE, C_REG, 59, 4, 0, 0, 0},
+@@ -284,7 +285,7 @@ var optab = []Optab{
+ 	{ASTREX, C_SOREG, C_REG, C_REG, 78, 4, 0, 0, 0},
+ 	{AMOVF, C_ZFCON, C_NONE, C_FREG, 80, 8, 0, 0, 0},
+ 	{AMOVF, C_SFCON, C_NONE, C_FREG, 81, 4, 0, 0, 0},
+-	{ACMPF, C_FREG, C_REG, C_NONE, 82, 8, 0, 0, 0},
++	{ACMPF, C_FREG, C_FREG, C_NONE, 82, 8, 0, 0, 0},
+ 	{ACMPF, C_FREG, C_NONE, C_NONE, 83, 8, 0, 0, 0},
+ 	{AMOVFW, C_FREG, C_NONE, C_FREG, 84, 4, 0, 0, 0},
+ 	{AMOVWF, C_FREG, C_NONE, C_FREG, 85, 4, 0, 0, 0},
+@@ -1325,7 +1326,14 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
+ 	a3--
+ 	a2 := C_NONE
+ 	if p.Reg != 0 {
+-		a2 = C_REG
++		switch {
++		case REG_F0 <= p.Reg && p.Reg <= REG_F15:
++			a2 = C_FREG
++		case REG_R0 <= p.Reg && p.Reg <= REG_R15:
++			a2 = C_REG
++		default:
++			c.ctxt.Diag("invalid register in %v", p)
++		}
+ 	}
+ 
+ 	// If current instruction has a .S suffix (flags update),
+@@ -1353,8 +1361,7 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
+ 		}
+ 	}
+ 
+-	c.ctxt.Diag("illegal combination %v; %v %v %v, %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.To.Type)
+-	c.ctxt.Diag("from %d %d to %d %d\n", p.From.Type, p.From.Name, p.To.Type, p.To.Name)
++	c.ctxt.Diag("illegal combination %v; %v %v %v; from %d %d; to %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.From.Name, p.To.Type, p.To.Name)
+ 	if ops == nil {
+ 		ops = optab
+ 	}
+@@ -1590,14 +1597,15 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AMULD, r0)
+ 			opset(ADIVF, r0)
+ 			opset(ADIVD, r0)
++
++		case ANEGF:
++			opset(ANEGD, r0)
+ 			opset(ASQRTF, r0)
+ 			opset(ASQRTD, r0)
+ 			opset(AMOVFD, r0)
+ 			opset(AMOVDF, r0)
+ 			opset(AABSF, r0)
+ 			opset(AABSD, r0)
+-			opset(ANEGF, r0)
+-			opset(ANEGD, r0)
+ 
+ 		case ACMPF:
+ 			opset(ACMPD, r0)
+@@ -2167,13 +2175,18 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		r := int(p.Reg)
+ 		if r == 0 {
+ 			r = rt
+-			if p.As == AMOVF || p.As == AMOVD || p.As == AMOVFD || p.As == AMOVDF || p.As == ASQRTF || p.As == ASQRTD || p.As == AABSF || p.As == AABSD || p.As == ANEGF || p.As == ANEGD {
+-				r = 0
+-			}
+ 		}
+ 
+ 		o1 |= (uint32(rf)&15)<<0 | (uint32(r)&15)<<16 | (uint32(rt)&15)<<12
+ 
++	case 55: /* negf freg, freg */
++		o1 = c.oprrr(p, p.As, int(p.Scond))
++
++		rf := int(p.From.Reg)
++		rt := int(p.To.Reg)
++
++		o1 |= (uint32(rf)&15)<<0 | (uint32(rt)&15)<<12
++
+ 	case 56: /* move to FP[CS]R */
+ 		o1 = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0xe<<24 | 1<<8 | 1<<4
+ 

@@ -17,7 +17,81 @@ Date:   Wed Apr 28 04:32:15 2021 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go                    | 23 +++++++++++-----------
  .../go/testdata/script/list_module_when_error.txt  | 19 ++++++++++++++++++
  2 files changed, 31 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index c1e3eaa0f3..2d91d10583 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1846,6 +1846,14 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 	stk.Push(path)
+ 	defer stk.Pop()
+ 
++	pkgPath := p.ImportPath
++	if p.Internal.CmdlineFiles {
++		pkgPath = "command-line-arguments"
++	}
++	if cfg.ModulesEnabled {
++		p.Module = modload.PackageModuleInfo(ctx, pkgPath)
++	}
++
+ 	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
+ 	if err != nil {
+ 		p.Incomplete = true
+@@ -1905,6 +1913,10 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 	p.Internal.Imports = imports
+ 	p.collectDeps()
+ 
++	if cfg.ModulesEnabled && p.Error == nil && p.Name == "main" && len(p.DepsErrors) == 0 {
++		p.Internal.BuildInfo = modload.PackageBuildInfo(pkgPath, p.Deps)
++	}
++
+ 	// unsafe is a fake package.
+ 	if p.Standard && (p.ImportPath == "unsafe" || cfg.BuildContext.Compiler == "gccgo") {
+ 		p.Target = ""
+@@ -1944,17 +1956,6 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 		setError(fmt.Errorf("Fortran source files not allowed when not using cgo or SWIG: %s", strings.Join(p.FFiles, " ")))
+ 		return
+ 	}
+-
+-	if cfg.ModulesEnabled && p.Error == nil {
+-		mainPath := p.ImportPath
+-		if p.Internal.CmdlineFiles {
+-			mainPath = "command-line-arguments"
+-		}
+-		p.Module = modload.PackageModuleInfo(ctx, mainPath)
+-		if p.Name == "main" && len(p.DepsErrors) == 0 {
+-			p.Internal.BuildInfo = modload.PackageBuildInfo(mainPath, p.Deps)
+-		}
+-	}
+ }
+ 
+ // An EmbedError indicates a problem with a go:embed directive.
+diff --git a/src/cmd/go/testdata/script/list_module_when_error.txt b/src/cmd/go/testdata/script/list_module_when_error.txt
+new file mode 100644
+index 0000000000..844164cd6a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_module_when_error.txt
+@@ -0,0 +1,19 @@
++# The Module field should be populated even if there is an error loading the package.
++
++env GO111MODULE=on
++
++go list -e -f {{.Module}}
++stdout '^mod.com$'
++
++-- go.mod --
++module mod.com
++
++go 1.16
++
++-- blah.go --
++package blah
++
++import _ "embed"
++
++//go:embed README.md
++var readme string

@@ -18,7 +18,7 @@ Date:   Tue Jun 5 08:14:57 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go                   |  2 +-
  src/internal/cpu/cpu.go                     |  2 +-
  src/runtime/internal/atomic/atomic_arm.go   |  4 ++--
@@ -43,3 +43,388 @@ Date:   Tue Jun 5 08:14:57 2018 +0200
  src/runtime/sema.go                         |  4 ++--
  src/runtime/time.go                         |  4 ++--
  23 files changed, 23 insertions(+), 33 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 729d0db51f..244c745d41 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -38,7 +38,7 @@ var pkgDeps = map[string][]string{
+ 	"io":                      {"errors", "sync", "sync/atomic"},
+ 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "internal/cpu", "internal/bytealg"},
+ 	"runtime/internal/sys":    {},
+-	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
++	"runtime/internal/atomic": {"unsafe", "internal/cpu"},
+ 	"internal/race":           {"runtime", "unsafe"},
+ 	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
+ 	"sync/atomic":             {"unsafe"},
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 5363f11b90..bfb016c7f7 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -17,7 +17,7 @@ type CacheLinePad struct{ _ [CacheLinePadSize]byte }
+ // CacheLineSize is the CPU's assumed cache line size.
+ // There is currently no runtime detection of the real cache line size
+ // so we use the constant per GOARCH CacheLinePadSize as an approximation.
+-var CacheLineSize = CacheLinePadSize
++var CacheLineSize uintptr = CacheLinePadSize
+ 
+ var X86 x86
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index 4ed7e991fe..1ecdb11db9 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -7,7 +7,7 @@
+ package atomic
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/cpu"
+ 	"unsafe"
+ )
+ 
+@@ -31,7 +31,7 @@ func (l *spinlock) unlock() {
+ 
+ var locktab [57]struct {
+ 	l   spinlock
+-	pad [sys.CacheLineSize - unsafe.Sizeof(spinlock{})]byte
++	pad [cpu.CacheLinePadSize - unsafe.Sizeof(spinlock{})]byte
+ }
+ 
+ func addrLock(addr *uint64) *spinlock {
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index 32be1c779d..55943f6925 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -7,14 +7,14 @@
+ package atomic
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/cpu"
+ 	"unsafe"
+ )
+ 
+ // TODO implement lock striping
+ var lock struct {
+ 	state uint32
+-	pad   [sys.CacheLineSize - 4]byte
++	pad   [cpu.CacheLinePadSize - 4]byte
+ }
+ 
+ //go:noescape
+diff --git a/src/runtime/internal/sys/arch_386.go b/src/runtime/internal/sys/arch_386.go
+index 5fb1fba02b..5375701337 100644
+--- a/src/runtime/internal/sys/arch_386.go
++++ b/src/runtime/internal/sys/arch_386.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = I386
+ 	BigEndian           = false
+-	CacheLineSize       = 64
+ 	DefaultPhysPageSize = GoosNacl*65536 + (1-GoosNacl)*4096 // 4k normally; 64k on NaCl
+ 	PCQuantum           = 1
+ 	Int64Align          = 4
+diff --git a/src/runtime/internal/sys/arch_amd64.go b/src/runtime/internal/sys/arch_amd64.go
+index 2f32bc469f..86fed4d531 100644
+--- a/src/runtime/internal/sys/arch_amd64.go
++++ b/src/runtime/internal/sys/arch_amd64.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = AMD64
+ 	BigEndian           = false
+-	CacheLineSize       = 64
+ 	DefaultPhysPageSize = 4096
+ 	PCQuantum           = 1
+ 	Int64Align          = 8
+diff --git a/src/runtime/internal/sys/arch_amd64p32.go b/src/runtime/internal/sys/arch_amd64p32.go
+index c560907c67..749d724809 100644
+--- a/src/runtime/internal/sys/arch_amd64p32.go
++++ b/src/runtime/internal/sys/arch_amd64p32.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = AMD64
+ 	BigEndian           = false
+-	CacheLineSize       = 64
+ 	DefaultPhysPageSize = 65536*GoosNacl + 4096*(1-GoosNacl)
+ 	PCQuantum           = 1
+ 	Int64Align          = 8
+diff --git a/src/runtime/internal/sys/arch_arm.go b/src/runtime/internal/sys/arch_arm.go
+index f383d82027..2af09e0e35 100644
+--- a/src/runtime/internal/sys/arch_arm.go
++++ b/src/runtime/internal/sys/arch_arm.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = ARM
+ 	BigEndian           = false
+-	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 4
+diff --git a/src/runtime/internal/sys/arch_arm64.go b/src/runtime/internal/sys/arch_arm64.go
+index cb83ecc445..f13d2de129 100644
+--- a/src/runtime/internal/sys/arch_arm64.go
++++ b/src/runtime/internal/sys/arch_arm64.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = ARM64
+ 	BigEndian           = false
+-	CacheLineSize       = 64
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+diff --git a/src/runtime/internal/sys/arch_mips.go b/src/runtime/internal/sys/arch_mips.go
+index e12f32d0ee..e9bd69c928 100644
+--- a/src/runtime/internal/sys/arch_mips.go
++++ b/src/runtime/internal/sys/arch_mips.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = MIPS
+ 	BigEndian           = true
+-	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 4
+diff --git a/src/runtime/internal/sys/arch_mips64.go b/src/runtime/internal/sys/arch_mips64.go
+index 973ec10e17..5eb7b2b7b1 100644
+--- a/src/runtime/internal/sys/arch_mips64.go
++++ b/src/runtime/internal/sys/arch_mips64.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = MIPS64
+ 	BigEndian           = true
+-	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 16384
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+diff --git a/src/runtime/internal/sys/arch_mips64le.go b/src/runtime/internal/sys/arch_mips64le.go
+index e96d962f36..14c804ed85 100644
+--- a/src/runtime/internal/sys/arch_mips64le.go
++++ b/src/runtime/internal/sys/arch_mips64le.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = MIPS64
+ 	BigEndian           = false
+-	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 16384
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+diff --git a/src/runtime/internal/sys/arch_mipsle.go b/src/runtime/internal/sys/arch_mipsle.go
+index 25742ae9d3..91badb17d5 100644
+--- a/src/runtime/internal/sys/arch_mipsle.go
++++ b/src/runtime/internal/sys/arch_mipsle.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = MIPS
+ 	BigEndian           = false
+-	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 4
+diff --git a/src/runtime/internal/sys/arch_ppc64.go b/src/runtime/internal/sys/arch_ppc64.go
+index a538bbdec0..8cde4e18d0 100644
+--- a/src/runtime/internal/sys/arch_ppc64.go
++++ b/src/runtime/internal/sys/arch_ppc64.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = PPC64
+ 	BigEndian           = true
+-	CacheLineSize       = 128
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+diff --git a/src/runtime/internal/sys/arch_ppc64le.go b/src/runtime/internal/sys/arch_ppc64le.go
+index aa50689181..10c0066849 100644
+--- a/src/runtime/internal/sys/arch_ppc64le.go
++++ b/src/runtime/internal/sys/arch_ppc64le.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = PPC64
+ 	BigEndian           = false
+-	CacheLineSize       = 128
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+diff --git a/src/runtime/internal/sys/arch_s390x.go b/src/runtime/internal/sys/arch_s390x.go
+index e42c420a54..77fd4bf07d 100644
+--- a/src/runtime/internal/sys/arch_s390x.go
++++ b/src/runtime/internal/sys/arch_s390x.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = S390X
+ 	BigEndian           = true
+-	CacheLineSize       = 256
+ 	DefaultPhysPageSize = 4096
+ 	PCQuantum           = 2
+ 	Int64Align          = 8
+diff --git a/src/runtime/internal/sys/arch_wasm.go b/src/runtime/internal/sys/arch_wasm.go
+index 5463f934d6..203fc2e472 100644
+--- a/src/runtime/internal/sys/arch_wasm.go
++++ b/src/runtime/internal/sys/arch_wasm.go
+@@ -7,7 +7,6 @@ package sys
+ const (
+ 	ArchFamily          = WASM
+ 	BigEndian           = false
+-	CacheLineSize       = 64
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 1
+ 	Int64Align          = 8
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f54c8eb14f..c95b5ed37f 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -137,8 +137,8 @@
+ package runtime
+ 
+ import (
++	"internal/cpu"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -414,7 +414,7 @@ type gcControllerState struct {
+ 	// If this is zero, no fractional workers are needed.
+ 	fractionalUtilizationGoal float64
+ 
+-	_ [sys.CacheLineSize]byte
++	_ cpu.CacheLinePad
+ }
+ 
+ // startCycle resets the GC controller's state and computes estimates
+@@ -919,9 +919,9 @@ const gcAssistTimeSlack = 5000
+ const gcOverAssistWork = 64 << 10
+ 
+ var work struct {
+-	full  lfstack                  // lock-free list of full blocks workbuf
+-	empty lfstack                  // lock-free list of empty blocks workbuf
+-	pad0  [sys.CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
++	full  lfstack          // lock-free list of full blocks workbuf
++	empty lfstack          // lock-free list of empty blocks workbuf
++	pad0  cpu.CacheLinePad // prevents false-sharing between full/empty and nproc/nwait
+ 
+ 	wbufSpans struct {
+ 		lock mutex
+diff --git a/src/runtime/mgcsweepbuf.go b/src/runtime/mgcsweepbuf.go
+index 6c1118e385..0491f7ccf6 100644
+--- a/src/runtime/mgcsweepbuf.go
++++ b/src/runtime/mgcsweepbuf.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/cpu"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -83,7 +84,7 @@ retry:
+ 			if newCap == 0 {
+ 				newCap = gcSweepBufInitSpineCap
+ 			}
+-			newSpine := persistentalloc(newCap*sys.PtrSize, sys.CacheLineSize, &memstats.gc_sys)
++			newSpine := persistentalloc(newCap*sys.PtrSize, cpu.CacheLineSize, &memstats.gc_sys)
+ 			if b.spineCap != 0 {
+ 				// Blocks are allocated off-heap, so
+ 				// no write barriers.
+@@ -102,7 +103,7 @@ retry:
+ 		}
+ 
+ 		// Allocate a new block and add it to the spine.
+-		block = (*gcSweepBlock)(persistentalloc(unsafe.Sizeof(gcSweepBlock{}), sys.CacheLineSize, &memstats.gc_sys))
++		block = (*gcSweepBlock)(persistentalloc(unsafe.Sizeof(gcSweepBlock{}), cpu.CacheLineSize, &memstats.gc_sys))
+ 		blockp := add(b.spine, sys.PtrSize*top)
+ 		// Blocks are allocated off-heap, so no write barrier.
+ 		atomic.StorepNoWB(blockp, unsafe.Pointer(block))
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index b11853ca18..00ecfa2d66 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -9,6 +9,7 @@
+ package runtime
+ 
+ import (
++	"internal/cpu"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -137,12 +138,12 @@ type mheap struct {
+ 
+ 	// central free lists for small size classes.
+ 	// the padding makes sure that the MCentrals are
+-	// spaced CacheLineSize bytes apart, so that each MCentral.lock
++	// spaced CacheLinePadSize bytes apart, so that each MCentral.lock
+ 	// gets its own cache line.
+ 	// central is indexed by spanClass.
+ 	central [numSpanClasses]struct {
+ 		mcentral mcentral
+-		pad      [sys.CacheLineSize - unsafe.Sizeof(mcentral{})%sys.CacheLineSize]byte
++		pad      [cpu.CacheLinePadSize - unsafe.Sizeof(mcentral{})%cpu.CacheLinePadSize]byte
+ 	}
+ 
+ 	spanalloc             fixalloc // allocator for span*
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 9311924942..e4c6b3b52a 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/cpu"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -548,7 +549,7 @@ type p struct {
+ 
+ 	runSafePointFn uint32 // if 1, run sched.safePointFn at next safe point
+ 
+-	pad [sys.CacheLineSize]byte
++	pad cpu.CacheLinePad
+ }
+ 
+ type schedt struct {
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index aba9733127..18e0a398ba 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -20,8 +20,8 @@
+ package runtime
+ 
+ import (
++	"internal/cpu"
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -48,7 +48,7 @@ const semTabSize = 251
+ 
+ var semtable [semTabSize]struct {
+ 	root semaRoot
+-	pad  [sys.CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
++	pad  [cpu.CacheLinePadSize - unsafe.Sizeof(semaRoot{})]byte
+ }
+ 
+ //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 9de45f5e08..790819f259 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -7,7 +7,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/sys"
++	"internal/cpu"
+ 	"unsafe"
+ )
+ 
+@@ -50,7 +50,7 @@ var timers [timersLen]struct {
+ 
+ 	// The padding should eliminate false sharing
+ 	// between timersBucket values.
+-	pad [sys.CacheLineSize - unsafe.Sizeof(timersBucket{})%sys.CacheLineSize]byte
++	pad [cpu.CacheLinePadSize - unsafe.Sizeof(timersBucket{})%cpu.CacheLinePadSize]byte
+ }
+ 
+ func (t *timer) assignBucket() *timersBucket {

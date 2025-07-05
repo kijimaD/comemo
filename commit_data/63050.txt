@@ -21,7 +21,7 @@ Date:   Wed Jan 22 17:18:19 2025 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go             |  15 ++-
  src/cmd/link/internal/ld/elf_test.go               |   3 +-
  src/cmd/link/internal/ld/ld_test.go                |   5 +-
@@ -39,3 +39,793 @@ Date:   Wed Jan 22 17:18:19 2025 -0500
  .../testdata/testprog/lockosthread_linux.go        |   5 +-
  src/runtime/time_test.go                           |   2 +-
  16 files changed, 204 insertions(+), 144 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 28b5ddf74c..ab086c57f4 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -287,7 +287,10 @@ func TestSizes(t *testing.T) {
+ 	mustHaveDWARF(t)
+ 
+ 	// External linking may bring in C symbols with unknown size. Skip.
+-	testenv.MustInternalLink(t, false)
++	//
++	// N.B. go build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	t.Parallel()
+ 
+@@ -861,7 +864,9 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
+ 
+ func TestRuntimeTypeAttrInternal(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+-	testenv.MustInternalLink(t, false)
++	// N.B. go build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	mustHaveDWARF(t)
+ 
+@@ -1491,7 +1496,11 @@ func TestIssue39757(t *testing.T) {
+ 
+ func TestIssue42484(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+-	testenv.MustInternalLink(t, false) // Avoid spurious failures from external linkers.
++	// Avoid spurious failures from external linkers.
++	//
++	// N.B. go build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	mustHaveDWARF(t)
+ 
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index c42a1173b6..c2a1bc0b94 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -278,7 +278,8 @@ func TestElfBindNow(t *testing.T) {
+ 	for _, test := range tests {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			if test.mustInternalLink {
+-				testenv.MustInternalLink(t, test.mustHaveCGO)
++				// N.B. none of the tests pass -asan/-msan/-asan.
++				testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: test.mustHaveCGO})
+ 			}
+ 			if test.mustHaveCGO {
+ 				testenv.MustHaveCGO(t)
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index c954ab6bca..4f343f3eb8 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -21,7 +21,10 @@ func TestUndefinedRelocErrors(t *testing.T) {
+ 
+ 	// When external linking, symbols may be defined externally, so we allow
+ 	// undefined symbols and let external linker resolve. Skip the test.
+-	testenv.MustInternalLink(t, false)
++	//
++	// N.B. go build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	t.Parallel()
+ 
+diff --git a/src/cmd/link/internal/ld/macho_test.go b/src/cmd/link/internal/ld/macho_test.go
+index ad02731d3a..29adc0b78b 100644
+--- a/src/cmd/link/internal/ld/macho_test.go
++++ b/src/cmd/link/internal/ld/macho_test.go
+@@ -66,7 +66,7 @@ func TestMachoSectionsReadOnly(t *testing.T) {
+ 	for _, test := range tests {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			if test.mustInternalLink {
+-				testenv.MustInternalLink(t, test.mustHaveCGO)
++				testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: test.mustHaveCGO})
+ 			}
+ 			if test.mustHaveCGO {
+ 				testenv.MustHaveCGO(t)
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 53c4ee77fe..f26495a2b1 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -46,7 +46,9 @@ func TestIssue21703(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	testenv.MustHaveGoBuild(t)
+-	testenv.MustInternalLink(t, false)
++	// N.B. the build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	const source = `
+ package main
+@@ -91,7 +93,9 @@ func TestIssue28429(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	testenv.MustHaveGoBuild(t)
+-	testenv.MustInternalLink(t, false)
++	// N.B. go build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	tmpdir := t.TempDir()
+ 
+@@ -189,7 +193,9 @@ main.x: relocation target main.zero not defined
+ func TestIssue33979(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+-	testenv.MustInternalLink(t, true)
++	// N.B. go build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	t.Parallel()
+ 
+@@ -953,7 +959,9 @@ func TestIndexMismatch(t *testing.T) {
+ 	// This shouldn't happen with "go build". We invoke the compiler and the linker
+ 	// manually, and try to "trick" the linker with an inconsistent object file.
+ 	testenv.MustHaveGoBuild(t)
+-	testenv.MustInternalLink(t, false)
++	// N.B. the build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	t.Parallel()
+ 
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index face58c311..13c93fb459 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -11,7 +11,9 @@ import (
+ 
+ func TestInternalLinkerCgoExec(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+-	testenv.MustInternalLink(t, true)
++	// N.B. the go build explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: true})
+ 	testGoExec(t, true, false)
+ }
+ 
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 268231e23a..2922ada8e9 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -163,7 +163,9 @@ func TestExtract(t *testing.T) {
+ // Test that pack-created archives can be understood by the tools.
+ func TestHello(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+-	testenv.MustInternalLink(t, false)
++	// N.B. the build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	dir := t.TempDir()
+ 	hello := filepath.Join(dir, "hello.go")
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index ac65ce53fb..0f6c9bbdad 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -335,13 +335,27 @@ func CanInternalLink(withCgo bool) bool {
+ 	return !platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, withCgo)
+ }
+ 
++// SpecialBuildTypes are interesting build types that may affect linking.
++type SpecialBuildTypes struct {
++	Cgo  bool
++	Asan bool
++	Msan bool
++	Race bool
++}
++
++// NoSpecialBuildTypes indicates a standard, no cgo go build.
++var NoSpecialBuildTypes SpecialBuildTypes
++
+ // MustInternalLink checks that the current system can link programs with internal
+ // linking.
+ // If not, MustInternalLink calls t.Skip with an explanation.
+-func MustInternalLink(t testing.TB, withCgo bool) {
+-	if !CanInternalLink(withCgo) {
++func MustInternalLink(t testing.TB, with SpecialBuildTypes) {
++	if with.Asan || with.Msan || with.Race {
++		t.Skipf("skipping test: internal linking with sanitizers is not supported")
++	}
++	if !CanInternalLink(with.Cgo) {
+ 		t.Helper()
+-		if withCgo && CanInternalLink(false) {
++		if with.Cgo && CanInternalLink(false) {
+ 			t.Skipf("skipping test: internal linking on %s/%s is not supported with cgo", runtime.GOOS, runtime.GOARCH)
+ 		}
+ 		t.Skipf("skipping test: internal linking on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 8c62387193..3bded3dea6 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -683,7 +683,10 @@ func TestExtraFiles(t *testing.T) {
+ 
+ 	// This test runs with cgo disabled. External linking needs cgo, so
+ 	// it doesn't work if external linking is required.
+-	testenv.MustInternalLink(t, false)
++	//
++	// N.B. go build below explictly doesn't pass through
++	// -asan/-msan/-race, so we don't care about those.
++	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+ 
+ 	if runtime.GOOS == "windows" {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index e54ad495e6..4c642383f5 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -8,8 +8,10 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/asan"
+ 	"internal/goos"
+-	"internal/platform"
++	"internal/msan"
++	"internal/race"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -259,10 +261,13 @@ func TestCgoCrashTraceback(t *testing.T) {
+ 	default:
+ 		t.Skipf("not yet supported on %s", platform)
+ 	}
++	if asan.Enabled || msan.Enabled {
++		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
++	}
+ 	got := runTestProg(t, "testprogcgo", "CrashTraceback")
+ 	for i := 1; i <= 3; i++ {
+ 		if !strings.Contains(got, fmt.Sprintf("cgo symbolizer:%d", i)) {
+-			t.Errorf("missing cgo symbolizer:%d", i)
++			t.Errorf("missing cgo symbolizer:%d in %s", i, got)
+ 		}
+ 	}
+ }
+@@ -312,7 +317,11 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
+ 	}
+ 	testenv.MustHaveGoRun(t)
+ 
+-	exe, err := buildTestProg(t, "testprogcgo", buildArg)
++	var args []string
++	if buildArg != "" {
++		args = append(args, buildArg)
++	}
++	exe, err := buildTestProg(t, "testprogcgo", args...)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -373,6 +382,9 @@ func TestCgoPprof(t *testing.T) {
+ }
+ 
+ func TestCgoPprofPIE(t *testing.T) {
++	if race.Enabled {
++		t.Skip("skipping test: -race + PIE not supported")
++	}
+ 	testCgoPprof(t, "-buildmode=pie", "CgoPprof", "cpuHog", "runtime.main")
+ }
+ 
+@@ -385,8 +397,8 @@ func TestCgoPprofThreadNoTraceback(t *testing.T) {
+ }
+ 
+ func TestRaceProf(t *testing.T) {
+-	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+-		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
++	if !race.Enabled {
++		t.Skip("skipping: race detector not enabled")
+ 	}
+ 	if runtime.GOOS == "windows" {
+ 		t.Skipf("skipping: test requires pthread support")
+@@ -395,13 +407,7 @@ func TestRaceProf(t *testing.T) {
+ 
+ 	testenv.MustHaveGoRun(t)
+ 
+-	// This test requires building various packages with -race, so
+-	// it's somewhat slow.
+-	if testing.Short() {
+-		t.Skip("skipping test in -short mode")
+-	}
+-
+-	exe, err := buildTestProg(t, "testprogcgo", "-race")
++	exe, err := buildTestProg(t, "testprogcgo")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -417,8 +423,8 @@ func TestRaceProf(t *testing.T) {
+ }
+ 
+ func TestRaceSignal(t *testing.T) {
+-	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+-		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
++	if !race.Enabled {
++		t.Skip("skipping: race detector not enabled")
+ 	}
+ 	if runtime.GOOS == "windows" {
+ 		t.Skipf("skipping: test requires pthread support")
+@@ -432,13 +438,7 @@ func TestRaceSignal(t *testing.T) {
+ 
+ 	testenv.MustHaveGoRun(t)
+ 
+-	// This test requires building various packages with -race, so
+-	// it's somewhat slow.
+-	if testing.Short() {
+-		t.Skip("skipping test in -short mode")
+-	}
+-
+-	exe, err := buildTestProg(t, "testprogcgo", "-race")
++	exe, err := buildTestProg(t, "testprogcgo")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -545,6 +545,9 @@ func TestCgoTracebackSigpanic(t *testing.T) {
+ 		// than injecting a sigpanic.
+ 		t.Skip("no sigpanic in C on windows")
+ 	}
++	if asan.Enabled || msan.Enabled {
++		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
++	}
+ 	if runtime.GOOS == "ios" {
+ 		testenv.SkipFlaky(t, 59912)
+ 	}
+@@ -647,6 +650,9 @@ func TestSegv(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("no signals on %s", runtime.GOOS)
+ 	}
++	if asan.Enabled || msan.Enabled {
++		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
++	}
+ 
+ 	for _, test := range []string{"Segv", "SegvInCgo", "TgkillSegv", "TgkillSegvInCgo"} {
+ 		test := test
+@@ -776,6 +782,9 @@ func TestCgoNoCallback(t *testing.T) {
+ }
+ 
+ func TestCgoNoEscape(t *testing.T) {
++	if asan.Enabled {
++		t.Skip("skipping test: ASAN forces extra heap allocations")
++	}
+ 	got := runTestProg(t, "testprogcgo", "CgoNoEscape")
+ 	want := "OK\n"
+ 	if got != want {
+@@ -820,34 +829,6 @@ func TestDestructorCallback(t *testing.T) {
+ 	}
+ }
+ 
+-func TestDestructorCallbackRace(t *testing.T) {
+-	// This test requires building with -race,
+-	// so it's somewhat slow.
+-	if testing.Short() {
+-		t.Skip("skipping test in -short mode")
+-	}
+-
+-	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+-		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
+-	}
+-
+-	t.Parallel()
+-
+-	exe, err := buildTestProg(t, "testprogcgo", "-race")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "DestructorCallback")).CombinedOutput()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	if want := "OK\n"; string(got) != want {
+-		t.Errorf("expected %q, but got:\n%s", want, got)
+-	}
+-}
+-
+ func TestEnsureBindM(t *testing.T) {
+ 	t.Parallel()
+ 	switch runtime.GOOS {
+@@ -867,6 +848,10 @@ func TestStackSwitchCallback(t *testing.T) {
+ 	case "windows", "plan9", "android", "ios", "openbsd": // no getcontext
+ 		t.Skipf("skipping test on %s", runtime.GOOS)
+ 	}
++	if asan.Enabled {
++		// ASAN prints this as a warning.
++		t.Skip("skipping test on ASAN because ASAN doesn't fully support makecontext/swapcontext functions")
++	}
+ 	got := runTestProg(t, "testprogcgo", "StackSwitchCallback")
+ 	skip := "SKIP\n"
+ 	if got == skip {
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index e29a78c2e4..e691746598 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -10,7 +10,10 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
++	"internal/asan"
++	"internal/msan"
+ 	"internal/profile"
++	"internal/race"
+ 	"internal/testenv"
+ 	traceparse "internal/trace"
+ 	"io"
+@@ -166,6 +169,16 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
+ 		// Don't get confused if testenv.GoToolPath calls t.Skip.
+ 		target.err = errors.New("building test called t.Skip")
+ 
++		if asan.Enabled {
++			flags = append(flags, "-asan")
++		}
++		if msan.Enabled {
++			flags = append(flags, "-msan")
++		}
++		if race.Enabled {
++			flags = append(flags, "-race")
++		}
++
+ 		exe := filepath.Join(dir, name+".exe")
+ 
+ 		start := time.Now()
+@@ -230,9 +243,17 @@ func TestCrashHandler(t *testing.T) {
+ 	testCrashHandler(t, false)
+ }
+ 
++var deadlockBuildTypes = testenv.SpecialBuildTypes{
++	// External linking brings in cgo, causing deadlock detection not working.
++	Cgo:  false,
++	Asan: asan.Enabled,
++	Msan: msan.Enabled,
++	Race: race.Enabled,
++}
++
+ func testDeadlock(t *testing.T, name string) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t, false)
++	testenv.MustInternalLink(t, deadlockBuildTypes)
+ 
+ 	output := runTestProg(t, "testprog", name)
+ 	want := "fatal error: all goroutines are asleep - deadlock!\n"
+@@ -259,7 +280,7 @@ func TestLockedDeadlock2(t *testing.T) {
+ 
+ func TestGoexitDeadlock(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t, false)
++	testenv.MustInternalLink(t, deadlockBuildTypes)
+ 
+ 	output := runTestProg(t, "testprog", "GoexitDeadlock")
+ 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+@@ -390,7 +411,7 @@ func TestRepanickedPanicSandwich(t *testing.T) {
+ 
+ func TestGoexitCrash(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t, false)
++	testenv.MustInternalLink(t, deadlockBuildTypes)
+ 
+ 	output := runTestProg(t, "testprog", "GoexitExit")
+ 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+@@ -451,7 +472,7 @@ func TestBreakpoint(t *testing.T) {
+ 
+ func TestGoexitInPanic(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t, false)
++	testenv.MustInternalLink(t, deadlockBuildTypes)
+ 
+ 	// see issue 8774: this code used to trigger an infinite recursion
+ 	output := runTestProg(t, "testprog", "GoexitInPanic")
+@@ -518,7 +539,7 @@ func TestPanicAfterGoexit(t *testing.T) {
+ 
+ func TestRecoveredPanicAfterGoexit(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t, false)
++	testenv.MustInternalLink(t, deadlockBuildTypes)
+ 
+ 	output := runTestProg(t, "testprog", "RecoveredPanicAfterGoexit")
+ 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+@@ -529,7 +550,7 @@ func TestRecoveredPanicAfterGoexit(t *testing.T) {
+ 
+ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t, false)
++	testenv.MustInternalLink(t, deadlockBuildTypes)
+ 
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit")
+@@ -541,7 +562,7 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
+ 
+ func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
+ 	// External linking brings in cgo, causing deadlock detection not working.
+-	testenv.MustInternalLink(t, false)
++	testenv.MustInternalLink(t, deadlockBuildTypes)
+ 
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit2")
+@@ -654,6 +675,9 @@ func TestConcurrentMapWrites(t *testing.T) {
+ 	if !*concurrentMapTest {
+ 		t.Skip("skipping without -run_concurrent_map_tests")
+ 	}
++	if race.Enabled {
++		t.Skip("skipping test: -race will catch the race, this test is for the built-in race detection")
++	}
+ 	testenv.MustHaveGoRun(t)
+ 	output := runTestProg(t, "testprog", "concurrentMapWrites")
+ 	want := "fatal error: concurrent map writes\n"
+@@ -668,6 +692,9 @@ func TestConcurrentMapReadWrite(t *testing.T) {
+ 	if !*concurrentMapTest {
+ 		t.Skip("skipping without -run_concurrent_map_tests")
+ 	}
++	if race.Enabled {
++		t.Skip("skipping test: -race will catch the race, this test is for the built-in race detection")
++	}
+ 	testenv.MustHaveGoRun(t)
+ 	output := runTestProg(t, "testprog", "concurrentMapReadWrite")
+ 	want := "fatal error: concurrent map read and map write\n"
+@@ -682,6 +709,9 @@ func TestConcurrentMapIterateWrite(t *testing.T) {
+ 	if !*concurrentMapTest {
+ 		t.Skip("skipping without -run_concurrent_map_tests")
+ 	}
++	if race.Enabled {
++		t.Skip("skipping test: -race will catch the race, this test is for the built-in race detection")
++	}
+ 	testenv.MustHaveGoRun(t)
+ 	output := runTestProg(t, "testprog", "concurrentMapIterateWrite")
+ 	want := "fatal error: concurrent map iteration and map write\n"
+@@ -695,6 +725,9 @@ func TestConcurrentMapIterateWrite(t *testing.T) {
+ 
+ func TestConcurrentMapWritesIssue69447(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
++	if race.Enabled {
++		t.Skip("skipping test: -race will catch the race, this test is for the built-in race detection")
++	}
+ 	exe, err := buildTestProg(t, "testprog")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -795,6 +828,9 @@ retry:
+ }
+ 
+ func TestBadTraceback(t *testing.T) {
++	if asan.Enabled || msan.Enabled || race.Enabled {
++		t.Skip("skipped test: checkptr mode catches the corruption")
++	}
+ 	output := runTestProg(t, "testprog", "BadTraceback")
+ 	for _, want := range []string{
+ 		"unexpected return pc",
+@@ -1087,7 +1123,9 @@ func TestPanicWhilePanicking(t *testing.T) {
+ 
+ func TestPanicOnUnsafeSlice(t *testing.T) {
+ 	output := runTestProg(t, "testprog", "panicOnNilAndEleSizeIsZero")
+-	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
++	// Note: This is normally a panic, but is a throw when checkptr is
++	// enabled.
++	want := "unsafe.Slice: ptr is nil and len is not zero"
+ 	if !strings.Contains(output, want) {
+ 		t.Errorf("output does not contain %q:\n%s", want, output)
+ 	}
+diff --git a/src/runtime/ehooks_test.go b/src/runtime/ehooks_test.go
+index 4beb20b0be..c7f51740fb 100644
+--- a/src/runtime/ehooks_test.go
++++ b/src/runtime/ehooks_test.go
+@@ -5,89 +5,74 @@
+ package runtime_test
+ 
+ import (
+-	"internal/platform"
+-	"internal/testenv"
+ 	"os/exec"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestExitHooks(t *testing.T) {
+-	bmodes := []string{""}
+ 	if testing.Short() {
+ 		t.Skip("skipping due to -short")
+ 	}
+-	// Note the HasCGO() test below; this is to prevent the test
+-	// running if CGO_ENABLED=0 is in effect.
+-	haverace := platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
+-	if haverace && testenv.HasCGO() {
+-		bmodes = append(bmodes, "-race")
+-	}
+-	for _, bmode := range bmodes {
+-		scenarios := []struct {
+-			mode     string
+-			expected string
+-			musthave []string
+-		}{
+-			{
+-				mode:     "simple",
+-				expected: "bar foo",
+-			},
+-			{
+-				mode:     "goodexit",
+-				expected: "orange apple",
+-			},
+-			{
+-				mode:     "badexit",
+-				expected: "blub blix",
+-			},
+-			{
+-				mode: "panics",
+-				musthave: []string{
+-					"fatal error: exit hook invoked panic",
+-					"main.testPanics",
+-				},
+-			},
+-			{
+-				mode: "callsexit",
+-				musthave: []string{
+-					"fatal error: exit hook invoked exit",
+-				},
++
++	scenarios := []struct {
++		mode     string
++		expected string
++		musthave []string
++	}{
++		{
++			mode:     "simple",
++			expected: "bar foo",
++		},
++		{
++			mode:     "goodexit",
++			expected: "orange apple",
++		},
++		{
++			mode:     "badexit",
++			expected: "blub blix",
++		},
++		{
++			mode: "panics",
++			musthave: []string{
++				"fatal error: exit hook invoked panic",
++				"main.testPanics",
+ 			},
+-			{
+-				mode:     "exit2",
+-				expected: "",
++		},
++		{
++			mode: "callsexit",
++			musthave: []string{
++				"fatal error: exit hook invoked exit",
+ 			},
+-		}
++		},
++		{
++			mode:     "exit2",
++			expected: "",
++		},
++	}
+ 
+-		exe, err := buildTestProg(t, "testexithooks", bmode)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
++	exe, err := buildTestProg(t, "testexithooks")
++	if err != nil {
++		t.Fatal(err)
++	}
+ 
+-		bt := ""
+-		if bmode != "" {
+-			bt = " bmode: " + bmode
++	for _, s := range scenarios {
++		cmd := exec.Command(exe, []string{"-mode", s.mode}...)
++		out, _ := cmd.CombinedOutput()
++		outs := strings.ReplaceAll(string(out), "\n", " ")
++		outs = strings.TrimSpace(outs)
++		if s.expected != "" && s.expected != outs {
++			t.Fatalf("failed %s: wanted %q\noutput:\n%s",
++			s.mode, s.expected, outs)
+ 		}
+-		for _, s := range scenarios {
+-			cmd := exec.Command(exe, []string{"-mode", s.mode}...)
+-			out, _ := cmd.CombinedOutput()
+-			outs := strings.ReplaceAll(string(out), "\n", " ")
+-			outs = strings.TrimSpace(outs)
+-			if s.expected != "" && s.expected != outs {
+-				t.Fatalf("failed%s mode %s: wanted %q\noutput:\n%s", bt,
+-					s.mode, s.expected, outs)
+-			}
+-			for _, need := range s.musthave {
+-				if !strings.Contains(outs, need) {
+-					t.Fatalf("failed mode %s: output does not contain %q\noutput:\n%s",
+-						s.mode, need, outs)
+-				}
+-			}
+-			if s.expected == "" && s.musthave == nil && outs != "" {
+-				t.Errorf("failed mode %s: wanted no output\noutput:\n%s", s.mode, outs)
++		for _, need := range s.musthave {
++			if !strings.Contains(outs, need) {
++				t.Fatalf("failed mode %s: output does not contain %q\noutput:\n%s",
++				s.mode, need, outs)
+ 			}
+ 		}
++		if s.expected == "" && s.musthave == nil && outs != "" {
++			t.Errorf("failed mode %s: wanted no output\noutput:\n%s", s.mode, outs)
++		}
+ 	}
+ }
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index e084460b8e..56fb4ed18a 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -7,6 +7,8 @@ package runtime_test
+ import (
+ 	"fmt"
+ 	"internal/asan"
++	"internal/msan"
++	"internal/race"
+ 	"internal/testenv"
+ 	"math/bits"
+ 	"math/rand"
+@@ -199,6 +201,9 @@ func TestPeriodicGC(t *testing.T) {
+ }
+ 
+ func TestGcZombieReporting(t *testing.T) {
++	if asan.Enabled || msan.Enabled || race.Enabled {
++		t.Skip("skipped test: checkptr mode catches the issue before getting to zombie reporting")
++	}
+ 	// This test is somewhat sensitive to how the allocator works.
+ 	// Pointers in zombies slice may cross-span, thus we
+ 	// add invalidptr=0 for avoiding the badPointer check.
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 600e80d8bf..a7c6fc8e5a 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/asan"
+ 	"internal/testenv"
+ 	"reflect"
+ 	"regexp"
+@@ -932,6 +933,9 @@ func TestFramePointerAdjust(t *testing.T) {
+ 	default:
+ 		t.Skipf("frame pointer is not supported on %s", GOARCH)
+ 	}
++	if asan.Enabled {
++		t.Skip("skipping test: ASAN forces heap allocation")
++	}
+ 	output := runTestProg(t, "testprog", "FramePointerAdjust")
+ 	if output != "" {
+ 		t.Errorf("output:\n%s\n\nwant no output", output)
+diff --git a/src/runtime/testdata/testprog/lockosthread_linux.go b/src/runtime/testdata/testprog/lockosthread_linux.go
+index 5e49b43ca2..9a5e266427 100644
+--- a/src/runtime/testdata/testprog/lockosthread_linux.go
++++ b/src/runtime/testdata/testprog/lockosthread_linux.go
+@@ -13,7 +13,7 @@ func init() {
+ 	register("LockOSThreadVgetrandom", LockOSThreadVgetrandom)
+ }
+ 
+-var sinkInt int
++var sinkInt = 1
+ 
+ func LockOSThreadVgetrandom() {
+ 	// This is a regression test for https://go.dev/issue/73141. When that
+@@ -57,8 +57,9 @@ func LockOSThreadVgetrandom() {
+ 			// interesting scheduling where threads get descheduled
+ 			// in the middle of getting or putting vgetrandom
+ 			// state.
++			i := 0
+ 			for range 10 * 1000 * 1000 {
+-				sinkInt = 1
++				i += sinkInt
+ 			}
+ 		}()
+ 	}
+diff --git a/src/runtime/time_test.go b/src/runtime/time_test.go
+index 7ac86998c6..92ffe7f8f4 100644
+--- a/src/runtime/time_test.go
++++ b/src/runtime/time_test.go
+@@ -23,7 +23,7 @@ func TestFakeTime(t *testing.T) {
+ 
+ 	// Faketime is advanced in checkdead. External linking brings in cgo,
+ 	// causing checkdead not working.
+-	testenv.MustInternalLink(t, false)
++	testenv.MustInternalLink(t, deadlockBuildTypes)
+ 
+ 	t.Parallel()
+ 

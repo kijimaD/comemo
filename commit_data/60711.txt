@@ -13,6 +13,44 @@ Date:   Mon Aug 19 14:28:41 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/os/removeall_test.go | 23 ++---------------------
  1 file changed, 2 insertions(+), 21 deletions(-)
+
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 454a6b5d0a..474db2cac8 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -187,30 +187,11 @@ func TestRemoveAllLongPath(t *testing.T) {
+ }
+ 
+ func TestRemoveAllDot(t *testing.T) {
+-	prevDir, err := Getwd()
+-	if err != nil {
+-		t.Fatalf("Could not get wd: %s", err)
+-	}
+-	tempDir, err := MkdirTemp("", "TestRemoveAllDot-")
+-	if err != nil {
+-		t.Fatalf("Could not create TempDir: %s", err)
+-	}
+-	defer RemoveAll(tempDir)
++	t.Chdir(t.TempDir())
+ 
+-	err = Chdir(tempDir)
+-	if err != nil {
+-		t.Fatalf("Could not chdir to tempdir: %s", err)
+-	}
+-
+-	err = RemoveAll(".")
+-	if err == nil {
++	if err := RemoveAll("."); err == nil {
+ 		t.Errorf("RemoveAll succeed to remove .")
+ 	}
+-
+-	err = Chdir(prevDir)
+-	if err != nil {
+-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
+-	}
+ }
+ 
+ func TestRemoveAllDotDot(t *testing.T) {

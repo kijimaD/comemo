@@ -10,7 +10,7 @@ Date:   Wed Sep 6 22:42:11 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go        |  4 ----
  src/cmd/compile/internal/ssa/cse_test.go      |  5 ++---
  src/cmd/compile/internal/ssa/export_test.go   | 11 ++++++-----
@@ -21,3 +21,208 @@ Date:   Wed Sep 6 22:42:11 2023 -0700
  src/cmd/compile/internal/ssa/writebarrier.go  |  2 +-
  src/cmd/compile/internal/ssagen/ssa.go        |  4 ----
  9 files changed, 25 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 4dcb57c2f9..5bbc88aaae 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -146,10 +146,6 @@ type Frontend interface {
+ 	// StringData returns a symbol pointing to the given string's contents.
+ 	StringData(string) *obj.LSym
+ 
+-	// Auto returns a Node for an auto variable of the given type.
+-	// The SSA compiler uses this function to allocate space for spills.
+-	Auto(src.XPos, *types.Type) *ir.Name
+-
+ 	// Given the name for a compound type, returns the name we should use
+ 	// for the parts of that compound type.
+ 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
+diff --git a/src/cmd/compile/internal/ssa/cse_test.go b/src/cmd/compile/internal/ssa/cse_test.go
+index 813ebe43a1..7d3e44fbe0 100644
+--- a/src/cmd/compile/internal/ssa/cse_test.go
++++ b/src/cmd/compile/internal/ssa/cse_test.go
+@@ -6,7 +6,6 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/src"
+ 	"testing"
+ )
+ 
+@@ -22,7 +21,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
+ 	arg1Aux := &tstAux{"arg1-aux"}
+ 	arg2Aux := &tstAux{"arg2-aux"}
+ 	arg3Aux := &tstAux{"arg3-aux"}
+-	a := c.Frontend().Auto(src.NoXPos, c.config.Types.Int8.PtrTo())
++	a := c.Temp(c.config.Types.Int8.PtrTo())
+ 
+ 	// construct lots of values with args that have aux values and place
+ 	// them in an order that triggers the bug
+@@ -93,7 +92,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
+ // TestZCSE tests the zero arg cse.
+ func TestZCSE(t *testing.T) {
+ 	c := testConfig(t)
+-	a := c.Frontend().Auto(src.NoXPos, c.config.Types.Int8.PtrTo())
++	a := c.Temp(c.config.Types.Int8.PtrTo())
+ 
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index e2a600a201..a6b956338c 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -70,6 +70,12 @@ func (c *Conf) Frontend() Frontend {
+ 	return c.fe
+ }
+ 
++func (c *Conf) Temp(typ *types.Type) *ir.Name {
++	n := ir.NewNameAt(src.NoXPos, &types.Sym{Name: "aFakeAuto"}, typ)
++	n.Class = ir.PAUTO
++	return n
++}
++
+ // TestFrontend is a test-only frontend.
+ // It assumes 64 bit integers and pointers.
+ type TestFrontend struct {
+@@ -81,11 +87,6 @@ type TestFrontend struct {
+ func (TestFrontend) StringData(s string) *obj.LSym {
+ 	return nil
+ }
+-func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
+-	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"}, t)
+-	n.Class = ir.PAUTO
+-	return n
+-}
+ func (d TestFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
+ 	return LocalSlot{N: parent.N, Type: t, Off: offset}
+ }
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 2318d52e0c..2aaf6e769e 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -7,6 +7,8 @@ package ssa
+ import (
+ 	"cmd/compile/internal/abi"
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
+@@ -818,3 +820,8 @@ func (f *Func) useFMA(v *Value) bool {
+ 	}
+ 	return base.FmaHash.MatchPos(v.Pos, nil)
+ }
++
++// NewLocal returns a new anonymous local variable of the given type.
++func (f *Func) NewLocal(pos src.XPos, typ *types.Type) *ir.Name {
++	return typecheck.TempAt(pos, f.fe.Func(), typ) // Note: adds new auto to fn.Dcl list
++}
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index c4d6e48cad..fcd3f5c8b5 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -2544,7 +2544,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
+ 					// Allocate a temp location to spill a register to.
+ 					// The type of the slot is immaterial - it will not be live across
+ 					// any safepoint. Just use a type big enough to hold any register.
+-					t := LocalSlot{N: e.s.f.fe.Auto(c.Pos, types.Int64), Type: types.Int64}
++					t := LocalSlot{N: e.s.f.NewLocal(c.Pos, types.Int64), Type: types.Int64}
+ 					// TODO: reuse these slots. They'll need to be erased first.
+ 					e.set(t, vid, x, false, c.Pos)
+ 					if e.s.f.pass.debug > regDebug {
+diff --git a/src/cmd/compile/internal/ssa/regalloc_test.go b/src/cmd/compile/internal/ssa/regalloc_test.go
+index d990cac47b..7d804a0d30 100644
+--- a/src/cmd/compile/internal/ssa/regalloc_test.go
++++ b/src/cmd/compile/internal/ssa/regalloc_test.go
+@@ -6,7 +6,6 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/src"
+ 	"testing"
+ )
+ 
+@@ -53,7 +52,7 @@ func TestNoGetgLoadReg(t *testing.T) {
+ 	f := c.Fun("b1",
+ 		Bloc("b1",
+ 			Valu("v1", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("v6", OpArg, c.config.Types.Int64, 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Int64)),
++			Valu("v6", OpArg, c.config.Types.Int64, 0, c.Temp(c.config.Types.Int64)),
+ 			Valu("v8", OpGetG, c.config.Types.Int64.PtrTo(), 0, nil, "v1"),
+ 			Valu("v11", OpARM64CMPconst, types.TypeFlags, 0, nil, "v6"),
+ 			Eq("v11", "b2", "b4"),
+@@ -92,8 +91,8 @@ func TestSpillWithLoop(t *testing.T) {
+ 	f := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("ptr", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Int64)),
+-			Valu("cond", OpArg, c.config.Types.Bool, 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Bool)),
++			Valu("ptr", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Temp(c.config.Types.Int64)),
++			Valu("cond", OpArg, c.config.Types.Bool, 0, c.Temp(c.config.Types.Bool)),
+ 			Valu("ld", OpAMD64MOVQload, c.config.Types.Int64, 0, nil, "ptr", "mem"), // this value needs a spill
+ 			Goto("loop"),
+ 		),
+@@ -125,8 +124,8 @@ func TestSpillMove1(t *testing.T) {
+ 	f := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("x", OpArg, c.config.Types.Int64, 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Int64)),
+-			Valu("p", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Int64.PtrTo())),
++			Valu("x", OpArg, c.config.Types.Int64, 0, c.Temp(c.config.Types.Int64)),
++			Valu("p", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Temp(c.config.Types.Int64.PtrTo())),
+ 			Valu("a", OpAMD64TESTQ, types.TypeFlags, 0, nil, "x", "x"),
+ 			Goto("loop1"),
+ 		),
+@@ -174,8 +173,8 @@ func TestSpillMove2(t *testing.T) {
+ 	f := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("x", OpArg, c.config.Types.Int64, 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Int64)),
+-			Valu("p", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Int64.PtrTo())),
++			Valu("x", OpArg, c.config.Types.Int64, 0, c.Temp(c.config.Types.Int64)),
++			Valu("p", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Temp(c.config.Types.Int64.PtrTo())),
+ 			Valu("a", OpAMD64TESTQ, types.TypeFlags, 0, nil, "x", "x"),
+ 			Goto("loop1"),
+ 		),
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 3e24b48a69..c9ca778b3a 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -280,7 +280,7 @@ func (s *stackAllocState) stackalloc() {
+ 			// If there is no unused stack slot, allocate a new one.
+ 			if i == len(locs) {
+ 				s.nAuto++
+-				locs = append(locs, LocalSlot{N: f.fe.Auto(v.Pos, v.Type), Type: v.Type, Off: 0})
++				locs = append(locs, LocalSlot{N: f.NewLocal(v.Pos, v.Type), Type: v.Type, Off: 0})
+ 				locations[v.Type] = locs
+ 			}
+ 			// Use the stack variable at that index for v.
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 010e59ef43..1caccb7c18 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -319,7 +319,7 @@ func writebarrier(f *Func) {
+ 						}
+ 
+ 						t := val.Type.Elem()
+-						tmp := f.fe.Auto(w.Pos, t)
++						tmp := f.NewLocal(w.Pos, t)
+ 						mem = b.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, mem)
+ 						tmpaddr := b.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, mem)
+ 						siz := t.Size()
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 8a8a2eb104..cfc8b6682c 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7918,10 +7918,6 @@ func (e *ssafn) StringData(s string) *obj.LSym {
+ 	return data
+ }
+ 
+-func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Name {
+-	return typecheck.TempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
+-}
+-
+ // SplitSlot returns a slot representing the data of parent starting at offset.
+ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
+ 	node := parent.N

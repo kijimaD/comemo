@@ -7,7 +7,32 @@ Date:   Wed Oct 26 11:17:48 2011 -0700
     R=golang-dev, rsc, iant
     CC=golang-dev
     https://golang.org/cl/5312057
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index bd9cc0cc64..91329b56b7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -89,6 +89,7 @@ Joe Poirier <jdpoirier@gmail.com>
+ John Asmuth <jasmuth@gmail.com>
+ Jonathan Mark <jhmark@xenops.com>
+ Jonathan Wills <runningwild@gmail.com>
++Jongmin Kim <atomaths@gmail.com>
+ Jose Luis Vázquez González <josvazg@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 36e2a86c62..151cdca653 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -140,6 +140,7 @@ John DeNero <denero@google.com>
+ Jonathan Allie <jonallie@google.com>
+ Jonathan Mark <jhmark@xenops.com> <jhmark000@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
++Jongmin Kim <atomaths@gmail.com>
+ Jos Visser <josv@google.com>
+ Jose Luis Vázquez González <josvazg@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>

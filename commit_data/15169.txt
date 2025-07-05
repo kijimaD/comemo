@@ -7,10 +7,213 @@ Date:   Fri Feb 8 17:02:08 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7299067
-
+---
  src/pkg/net/sock_bsd.go     | 31 -------------------------------
  src/pkg/net/sock_linux.go   | 31 -------------------------------
  src/pkg/net/sock_posix.go   |  4 +---
  src/pkg/net/sock_unix.go    | 36 ++++++++++++++++++++++++++++++++++++
  src/pkg/net/sock_windows.go | 18 +++++++-----------
  5 files changed, 44 insertions(+), 76 deletions(-)
+
+diff --git a/src/pkg/net/sock_bsd.go b/src/pkg/net/sock_bsd.go
+index 2607b04c7b..3205f94047 100644
+--- a/src/pkg/net/sock_bsd.go
++++ b/src/pkg/net/sock_bsd.go
+@@ -4,8 +4,6 @@
+ 
+ // +build darwin freebsd netbsd openbsd
+ 
+-// Sockets for BSD variants
+-
+ package net
+ 
+ import (
+@@ -31,32 +29,3 @@ func maxListenerBacklog() int {
+ 	}
+ 	return int(n)
+ }
+-
+-func listenerSockaddr(s, f int, la syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (syscall.Sockaddr, error) {
+-	a := toAddr(la)
+-	if a == nil {
+-		return la, nil
+-	}
+-	switch v := a.(type) {
+-	case *TCPAddr, *UnixAddr:
+-		err := setDefaultListenerSockopts(s)
+-		if err != nil {
+-			return nil, err
+-		}
+-	case *UDPAddr:
+-		if v.IP.IsMulticast() {
+-			err := setDefaultMulticastSockopts(s)
+-			if err != nil {
+-				return nil, err
+-			}
+-			switch f {
+-			case syscall.AF_INET:
+-				v.IP = IPv4zero
+-			case syscall.AF_INET6:
+-				v.IP = IPv6unspecified
+-			}
+-			return v.sockaddr(f)
+-		}
+-	}
+-	return la, nil
+-}
+diff --git a/src/pkg/net/sock_linux.go b/src/pkg/net/sock_linux.go
+index e509d93978..8bbd74ddc9 100644
+--- a/src/pkg/net/sock_linux.go
++++ b/src/pkg/net/sock_linux.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Sockets for Linux
+-
+ package net
+ 
+ import "syscall"
+@@ -25,32 +23,3 @@ func maxListenerBacklog() int {
+ 	}
+ 	return n
+ }
+-
+-func listenerSockaddr(s, f int, la syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (syscall.Sockaddr, error) {
+-	a := toAddr(la)
+-	if a == nil {
+-		return la, nil
+-	}
+-	switch v := a.(type) {
+-	case *TCPAddr, *UnixAddr:
+-		err := setDefaultListenerSockopts(s)
+-		if err != nil {
+-			return nil, err
+-		}
+-	case *UDPAddr:
+-		if v.IP.IsMulticast() {
+-			err := setDefaultMulticastSockopts(s)
+-			if err != nil {
+-				return nil, err
+-			}
+-			switch f {
+-			case syscall.AF_INET:
+-				v.IP = IPv4zero
+-			case syscall.AF_INET6:
+-				v.IP = IPv6unspecified
+-			}
+-			return v.sockaddr(f)
+-		}
+-	}
+-	return la, nil
+-}
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 9cd149e466..b50a892b14 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -4,8 +4,6 @@
+ 
+ // +build darwin freebsd linux netbsd openbsd windows
+ 
+-// Sockets
+-
+ package net
+ 
+ import (
+@@ -15,7 +13,7 @@ import (
+ 
+ var listenerBacklog = maxListenerBacklog()
+ 
+-// Generic socket creation.
++// Generic POSIX socket creation.
+ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	s, err := sysSocket(f, t, p)
+ 	if err != nil {
+diff --git a/src/pkg/net/sock_unix.go b/src/pkg/net/sock_unix.go
+new file mode 100644
+index 0000000000..b0d6d4900f
+--- /dev/null
++++ b/src/pkg/net/sock_unix.go
+@@ -0,0 +1,36 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd
++
++package net
++
++import "syscall"
++
++func listenerSockaddr(s, f int, la syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (syscall.Sockaddr, error) {
++	a := toAddr(la)
++	if a == nil {
++		return la, nil
++	}
++	switch a := a.(type) {
++	case *TCPAddr, *UnixAddr:
++		if err := setDefaultListenerSockopts(s); err != nil {
++			return nil, err
++		}
++	case *UDPAddr:
++		if a.IP.IsMulticast() {
++			if err := setDefaultMulticastSockopts(s); err != nil {
++				return nil, err
++			}
++			switch f {
++			case syscall.AF_INET:
++				a.IP = IPv4zero
++			case syscall.AF_INET6:
++				a.IP = IPv6unspecified
++			}
++			return a.sockaddr(f)
++		}
++	}
++	return la, nil
++}
+diff --git a/src/pkg/net/sock_windows.go b/src/pkg/net/sock_windows.go
+index fc5d9e5de2..a77c48437f 100644
+--- a/src/pkg/net/sock_windows.go
++++ b/src/pkg/net/sock_windows.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Sockets for Windows
+-
+ package net
+ 
+ import "syscall"
+@@ -18,25 +16,23 @@ func listenerSockaddr(s syscall.Handle, f int, la syscall.Sockaddr, toAddr func(
+ 	if a == nil {
+ 		return la, nil
+ 	}
+-	switch v := a.(type) {
++	switch a := a.(type) {
+ 	case *TCPAddr, *UnixAddr:
+-		err := setDefaultListenerSockopts(s)
+-		if err != nil {
++		if err := setDefaultListenerSockopts(s); err != nil {
+ 			return nil, err
+ 		}
+ 	case *UDPAddr:
+-		if v.IP.IsMulticast() {
+-			err := setDefaultMulticastSockopts(s)
+-			if err != nil {
++		if a.IP.IsMulticast() {
++			if err := setDefaultMulticastSockopts(s); err != nil {
+ 				return nil, err
+ 			}
+ 			switch f {
+ 			case syscall.AF_INET:
+-				v.IP = IPv4zero
++				a.IP = IPv4zero
+ 			case syscall.AF_INET6:
+-				v.IP = IPv6unspecified
++				a.IP = IPv6unspecified
+ 			}
+-			return v.sockaddr(f)
++			return a.sockaddr(f)
+ 		}
+ 	}
+ 	return la, nil

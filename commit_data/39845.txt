@@ -9,6 +9,53 @@ Date:   Mon Mar 25 22:40:27 2019 +0000
     GitHub-Pull-Request: golang/go#31019
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169078
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/jn.go | 20 ++++++++++----------
  1 file changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/math/jn.go b/src/math/jn.go
+index 4a8ddfad9b..b1aca8ff6b 100644
+--- a/src/math/jn.go
++++ b/src/math/jn.go
+@@ -103,15 +103,15 @@ func Jn(n int, x float64) float64 {
+ 			//                 3     s+c             c-s
+ 
+ 			var temp float64
+-			switch n & 3 {
++			switch s, c := Sincos(x); n & 3 {
+ 			case 0:
+-				temp = Cos(x) + Sin(x)
++				temp = c + s
+ 			case 1:
+-				temp = -Cos(x) + Sin(x)
++				temp = -c + s
+ 			case 2:
+-				temp = -Cos(x) - Sin(x)
++				temp = -c - s
+ 			case 3:
+-				temp = Cos(x) - Sin(x)
++				temp = c - s
+ 			}
+ 			b = (1 / SqrtPi) * temp / Sqrt(x)
+ 		} else {
+@@ -278,15 +278,15 @@ func Yn(n int, x float64) float64 {
+ 		//		   3	 s+c		 c-s
+ 
+ 		var temp float64
+-		switch n & 3 {
++		switch s, c := Sincos(x); n & 3 {
+ 		case 0:
+-			temp = Sin(x) - Cos(x)
++			temp = s - c
+ 		case 1:
+-			temp = -Sin(x) - Cos(x)
++			temp = -s - c
+ 		case 2:
+-			temp = -Sin(x) + Cos(x)
++			temp = -s + c
+ 		case 3:
+-			temp = Sin(x) + Cos(x)
++			temp = s + c
+ 		}
+ 		b = (1 / SqrtPi) * temp / Sqrt(x)
+ 	} else {

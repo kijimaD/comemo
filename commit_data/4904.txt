@@ -7,7 +7,68 @@ Date:   Fri Feb 19 11:41:48 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/216054
-
+---
  src/cmd/godoc/godoc.go | 13 +++++--------
  src/cmd/godoc/main.go  |  4 ++--
  2 files changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 08a9902969..98cac945fe 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1100,14 +1100,12 @@ type httpHandler struct {
+ }
+ 
+ 
+-// getPageInfo returns the PageInfo for a package directory path. If
++// getPageInfo returns the PageInfo for a package directory dirname. If
+ // the parameter try is true, no errors are logged if getPageInfo fails.
+ // If there is no corresponding package in the directory, PageInfo.PDoc
+ // is nil. If there are no subdirectories, PageInfo.Dirs is nil.
+ //
+-func (h *httpHandler) getPageInfo(relpath string, try bool) PageInfo {
+-	dirname := absolutePath(relpath, h.fsRoot)
+-
++func (h *httpHandler) getPageInfo(dirname, relpath string, try bool) PageInfo {
+ 	// filter function to select the desired .go files
+ 	filter := func(d *os.Dir) bool {
+ 		// If we are looking at cmd documentation, only accept
+@@ -1129,9 +1127,7 @@ func (h *httpHandler) getPageInfo(relpath string, try bool) PageInfo {
+ 
+ 	// Get the best matching package: either the first one, or the
+ 	// first one whose package name matches the directory name.
+-	// The package name is the directory name within its parent
+-	// (use dirname instead of path because dirname is clean; i.e.
+-	// has no trailing '/').
++	// The package name is the directory name within its parent.
+ 	_, pkgname := pathutil.Split(dirname)
+ 	var pkg *ast.Package
+ 	for _, p := range pkgs {
+@@ -1177,7 +1173,8 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
+ 	}
+ 
+ 	relpath := r.URL.Path[len(h.pattern):]
+-	info := h.getPageInfo(relpath, false)
++	abspath := absolutePath(relpath, h.fsRoot)
++	info := h.getPageInfo(abspath, relpath, false)
+ 
+ 	if r.FormValue("f") == "text" {
+ 		contents := applyTemplate(packageText, "packageText", info)
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 0074a22dee..5ce7f9d51b 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -224,11 +224,11 @@ func main() {
+ 		packageText = packageHTML
+ 	}
+ 
+-	info := pkgHandler.getPageInfo(flag.Arg(0), true)
++	info := pkgHandler.getPageInfo(flag.Arg(0), flag.Arg(0), true)
+ 
+ 	if info.PDoc == nil && info.Dirs == nil {
+ 		// try again, this time assume it's a command
+-		info = cmdHandler.getPageInfo(flag.Arg(0), false)
++		info = cmdHandler.getPageInfo(flag.Arg(0), flag.Arg(0), false)
+ 	}
+ 
+ 	if info.PDoc != nil && flag.NArg() > 1 {

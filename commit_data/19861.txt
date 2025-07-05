@@ -8,6 +8,20 @@ Date:   Thu Jul 31 13:54:42 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/119340043
-
+---
  src/pkg/strconv/atoi.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index cbf0380ec8..9ecec5a58b 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -31,7 +31,7 @@ func rangeError(fn, str string) *NumError {
+ 	return &NumError{fn, str, ErrRange}
+ }
+ 
+-const intSize = 32 << uint(^uint(0)>>63)
++const intSize = 32 << (^uint(0) >> 63)
+ 
+ // IntSize is the size in bits of an int or uint value.
+ const IntSize = intSize

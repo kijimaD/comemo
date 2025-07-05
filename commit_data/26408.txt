@@ -17,10 +17,128 @@ Date:   Wed Jan 20 15:31:26 2016 +1300
     Reviewed-on: https://go-review.googlesource.com/18714
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go                 | 12 ++++++++
  misc/cgo/testshared/src/explicit/explicit.go       |  9 ++++++
  misc/cgo/testshared/src/implicit/implicit.go       |  5 ++++
  misc/cgo/testshared/src/implicitcmd/implicitcmd.go | 10 +++++++
  src/cmd/link/internal/ld/lib.go                    | 34 +++++++++++-----------
  5 files changed, 53 insertions(+), 17 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 592a91715e..86fb530167 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -749,3 +749,15 @@ func TestABIChecking(t *testing.T) {
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
+ 	run(t, "after non-ABI breaking change", "./bin/exe")
+ }
++
++// If a package 'explicit' imports a package 'implicit', building
++// 'explicit' into a shared library implicitly includes implicit in
++// the shared library. Building an executable that imports both
++// explicit and implicit builds the code from implicit into the
++// executable rather than fetching it from the shared library. The
++// link still succeeds and the executable still runs though.
++func TestImplicitInclusion(t *testing.T) {
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "explicit")
++	goCmd(t, "install", "-linkshared", "implicitcmd")
++	run(t, "running executable linked against library that contains same package as it", "./bin/implicitcmd")
++}
+diff --git a/misc/cgo/testshared/src/explicit/explicit.go b/misc/cgo/testshared/src/explicit/explicit.go
+new file mode 100644
+index 0000000000..6a4453f775
+--- /dev/null
++++ b/misc/cgo/testshared/src/explicit/explicit.go
+@@ -0,0 +1,9 @@
++package explicit
++
++import (
++	"implicit"
++)
++
++func E() int {
++	return implicit.I()
++}
+diff --git a/misc/cgo/testshared/src/implicit/implicit.go b/misc/cgo/testshared/src/implicit/implicit.go
+new file mode 100644
+index 0000000000..5360188c56
+--- /dev/null
++++ b/misc/cgo/testshared/src/implicit/implicit.go
+@@ -0,0 +1,5 @@
++package implicit
++
++func I() int {
++	return 42
++}
+diff --git a/misc/cgo/testshared/src/implicitcmd/implicitcmd.go b/misc/cgo/testshared/src/implicitcmd/implicitcmd.go
+new file mode 100644
+index 0000000000..f6112933e5
+--- /dev/null
++++ b/misc/cgo/testshared/src/implicitcmd/implicitcmd.go
+@@ -0,0 +1,10 @@
++package main
++
++import (
++	"explicit"
++	"implicit"
++)
++
++func main() {
++	println(implicit.I() + explicit.E())
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 75612503b1..a23a437e3d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -504,14 +504,21 @@ func loadlib() {
+ 
+ 	var i int
+ 	for i = 0; i < len(Ctxt.Library); i++ {
+-		if Debug['v'] > 1 {
+-			fmt.Fprintf(&Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].File, Ctxt.Library[i].Objref)
+-		}
+ 		iscgo = iscgo || Ctxt.Library[i].Pkg == "runtime/cgo"
++		if Ctxt.Library[i].Shlib == "" {
++			if Debug['v'] > 1 {
++				fmt.Fprintf(&Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].File, Ctxt.Library[i].Objref)
++			}
++			objfile(Ctxt.Library[i])
++		}
++	}
++
++	for i = 0; i < len(Ctxt.Library); i++ {
+ 		if Ctxt.Library[i].Shlib != "" {
++			if Debug['v'] > 1 {
++				fmt.Fprintf(&Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].Shlib, Ctxt.Library[i].Objref)
++			}
+ 			ldshlibsyms(Ctxt.Library[i].Shlib)
+-		} else {
+-			objfile(Ctxt.Library[i])
+ 		}
+ 	}
+ 
+@@ -1458,18 +1465,11 @@ func ldshlibsyms(shlib string) {
+ 			continue
+ 		}
+ 		lsym := Linklookup(Ctxt, elfsym.Name, 0)
+-		if lsym.Type != 0 && lsym.Type != obj.SDYNIMPORT && lsym.Dupok == 0 {
+-			if (lsym.Type != obj.SBSS && lsym.Type != obj.SNOPTRBSS) || len(lsym.R) != 0 || len(lsym.P) != 0 || f.Sections[elfsym.Section].Type != elf.SHT_NOBITS {
+-				Diag("Found duplicate symbol %s reading from %s, first found in %s", elfsym.Name, shlib, lsym.File)
+-			}
+-			if lsym.Size > int64(elfsym.Size) {
+-				// If the existing symbol is a BSS value that is
+-				// larger than the one read from the shared library,
+-				// keep references to that.  Conversely, if the
+-				// version from the shared libray is larger, we want
+-				// to make all references be to that.
+-				continue
+-			}
++		// Because loadlib above loads all .a files before loading any shared
++		// libraries, any symbols we find that duplicate symbols already
++		// loaded should be ignored (the symbols from the .a files "win").
++		if lsym.Type != 0 {
++			continue
+ 		}
+ 		lsym.Type = obj.SDYNIMPORT
+ 		lsym.ElfType = elf.ST_TYPE(elfsym.Info)

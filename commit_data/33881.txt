@@ -9,7 +9,7 @@ Date:   Fri Sep 15 10:24:47 2017 +0900
     Change-Id: I7362bdc199e83073a712be657f5d9ba16df3077e
     Reviewed-on: https://go-review.googlesource.com/63850
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/archive/zip/reader.go                         |  2 +-
  src/cmd/cgo/main.go                               |  2 +-
  src/cmd/compile/internal/gc/walk.go               |  4 ++--
@@ -34,3 +34,357 @@ Date:   Fri Sep 15 10:24:47 2017 +0900
  test/chan/sendstmt.go                             |  2 +-
  test/fixedbugs/issue15747b.go                     |  2 +-
  23 files changed, 29 insertions(+), 29 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index f6c3ead3be..615ae2fdcd 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -94,7 +94,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 
+ 	// The count of files inside a zip is truncated to fit in a uint16.
+ 	// Gloss over this by reading headers until we encounter
+-	// a bad one, and then only report a ErrFormat or UnexpectedEOF if
++	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
+ 	// the file count modulo 65536 is incorrect.
+ 	for {
+ 		f := &File{zip: z, zipr: r, zipsize: size}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 2820fc1bfb..f2a2d859aa 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -106,7 +106,7 @@ func (n *Name) IsConst() bool {
+ 	return strings.HasSuffix(n.Kind, "const")
+ }
+ 
+-// A ExpFunc is an exported function, callable from C.
++// An ExpFunc is an exported function, callable from C.
+ // Such functions are identified in the Go input file
+ // by doc comments containing the line //export ExpName
+ type ExpFunc struct {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 157693f321..327ca469c3 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1767,7 +1767,7 @@ func ascompatee1(l *Node, r *Node, init *Nodes) *Node {
+ 
+ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
+ 	// check assign expression list to
+-	// a expression list. called in
++	// an expression list. called in
+ 	//	expr-list = expr-list
+ 
+ 	// ensure order of evaluation for function calls
+@@ -1819,7 +1819,7 @@ func fncall(l *Node, rt *types.Type) bool {
+ }
+ 
+ // check assign type list to
+-// a expression list. called in
++// an expression list. called in
+ //	expr-list = func()
+ func ascompatet(nl Nodes, nr *types.Type) []*Node {
+ 	if nl.Len() != nr.NumFields() {
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index 4222bf81c5..e8168bdc2b 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -17,7 +17,7 @@ type edgeMem struct {
+ 	m *Value // phi for memory at dest of e
+ }
+ 
+-// a rewriteTarget is a a value-argindex pair indicating
++// a rewriteTarget is a value-argindex pair indicating
+ // where a rewrite is applied.  Note that this is for values,
+ // not for block controls, because block controls are not targets
+ // for the rewrites performed in inserting rescheduling checks.
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index c435a5a008..b1cf7cdd9f 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -632,7 +632,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				//	B    end
+ 				//
+ 				// The NOP is needed to give the jumps somewhere to land.
+-				// It is a liblink NOP, not a ARM64 NOP: it encodes to 0 instruction bytes.
++				// It is a liblink NOP, not an ARM64 NOP: it encodes to 0 instruction bytes.
+ 				q = q1
+ 
+ 				// MOV g_panic(g), R1
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 6359877a1b..4d945ad019 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -123,7 +123,7 @@ func getattr(die *dwarf.DWDie, attr uint16) *dwarf.DWAttr {
+ 	return nil
+ }
+ 
+-// Every DIE has at least a AT_name attribute (but it will only be
++// Every DIE has at least an AT_name attribute (but it will only be
+ // written out if it is listed in the abbrev).
+ func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version int) *dwarf.DWDie {
+ 	die := new(dwarf.DWDie)
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 8bd750bd8b..85d52e8500 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -66,7 +66,7 @@ type Header struct {
+ // Only the first header is recorded in the Reader fields.
+ //
+ // Gzip files store a length and checksum of the uncompressed data.
+-// The Reader will return a ErrChecksum when Read
++// The Reader will return an ErrChecksum when Read
+ // reaches the end of the uncompressed data if it does not
+ // have the expected length or checksum. Clients should treat data
+ // returned by Read as tentative until they receive the io.EOF
+diff --git a/src/context/example_test.go b/src/context/example_test.go
+index 2d48d4e82b..b2c2aa921d 100644
+--- a/src/context/example_test.go
++++ b/src/context/example_test.go
+@@ -52,7 +52,7 @@ func ExampleWithCancel() {
+ 	// 5
+ }
+ 
+-// This example passes a context with a arbitrary deadline to tell a blocking
++// This example passes a context with an arbitrary deadline to tell a blocking
+ // function that it should abandon its work as soon as it gets to it.
+ func ExampleWithDeadline() {
+ 	d := time.Now().Add(50 * time.Millisecond)
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index bc0c3e3462..e94585579e 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -37,7 +37,7 @@ type PrivateKey struct {
+ // this error must be handled.
+ var ErrInvalidPublicKey = errors.New("crypto/dsa: invalid public key")
+ 
+-// ParameterSizes is a enumeration of the acceptable bit lengths of the primes
++// ParameterSizes is an enumeration of the acceptable bit lengths of the primes
+ // in a set of DSA parameters. See FIPS 186-3, section 4.2.
+ type ParameterSizes int
+ 
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 02848fd595..817bf7deb6 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -49,7 +49,7 @@ type PublicKey struct {
+ 	X, Y *big.Int
+ }
+ 
+-// PrivateKey represents a ECDSA private key.
++// PrivateKey represents an ECDSA private key.
+ type PrivateKey struct {
+ 	PublicKey
+ 	D *big.Int
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index cf30b43b5b..8edce749b1 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -172,7 +172,7 @@ func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
+ }
+ 
+ // ecdheRSAKeyAgreement implements a TLS key agreement where the server
+-// generates a ephemeral EC public/private key pair and signs it. The
++// generates an ephemeral EC public/private key pair and signs it. The
+ // pre-master secret is then calculated using ECDH. The signature may
+ // either be ECDSA or RSA.
+ type ecdheKeyAgreement struct {
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index b8e2770596..73193c3407 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -374,7 +374,7 @@ func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
+ 
+ // PrintableString
+ 
+-// parsePrintableString parses a ASN.1 PrintableString from the given byte
++// parsePrintableString parses an ASN.1 PrintableString from the given byte
+ // array and returns it.
+ func parsePrintableString(bytes []byte) (ret string, err error) {
+ 	for _, b := range bytes {
+@@ -406,7 +406,7 @@ func isPrintable(b byte) bool {
+ 
+ // IA5String
+ 
+-// parseIA5String parses a ASN.1 IA5String (ASCII string) from the given
++// parseIA5String parses an ASN.1 IA5String (ASCII string) from the given
+ // byte slice and returns it.
+ func parseIA5String(bytes []byte) (ret string, err error) {
+ 	for _, b := range bytes {
+@@ -421,7 +421,7 @@ func parseIA5String(bytes []byte) (ret string, err error) {
+ 
+ // T61String
+ 
+-// parseT61String parses a ASN.1 T61String (8-bit clean string) from the given
++// parseT61String parses an ASN.1 T61String (8-bit clean string) from the given
+ // byte slice and returns it.
+ func parseT61String(bytes []byte) (ret string, err error) {
+ 	return string(bytes), nil
+@@ -429,7 +429,7 @@ func parseT61String(bytes []byte) (ret string, err error) {
+ 
+ // UTF8String
+ 
+-// parseUTF8String parses a ASN.1 UTF8String (raw UTF-8) from the given byte
++// parseUTF8String parses an ASN.1 UTF8String (raw UTF-8) from the given byte
+ // array and returns it.
+ func parseUTF8String(bytes []byte) (ret string, err error) {
+ 	if !utf8.Valid(bytes) {
+@@ -992,7 +992,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ //
+ // The following tags on struct fields have special meaning to Unmarshal:
+ //
+-//	application specifies that a APPLICATION tag is used
++//	application specifies that an APPLICATION tag is used
+ //	default:x   sets the default value for optional integer fields (only used if optional is also present)
+ //	explicit    specifies that an additional, explicit tag wraps the implicit one
+ //	optional    marks the field as ASN.1 OPTIONAL
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index bbd3ee7308..b081431200 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -18,7 +18,7 @@ var (
+ 	byteFFEncoder encoder = byteEncoder(0xff)
+ )
+ 
+-// encoder represents a ASN.1 element that is waiting to be marshaled.
++// encoder represents an ASN.1 element that is waiting to be marshaled.
+ type encoder interface {
+ 	// Len returns the number of bytes needed to marshal this element.
+ 	Len() int
+diff --git a/src/image/color/color.go b/src/image/color/color.go
+index 0832c59729..f719f25da1 100644
+--- a/src/image/color/color.go
++++ b/src/image/color/color.go
+@@ -200,7 +200,7 @@ func nrgbaModel(c Color) Color {
+ 	if a == 0 {
+ 		return NRGBA{0, 0, 0, 0}
+ 	}
+-	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
++	// Since Color.RGBA returns an alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
+ 	r = (r * 0xffff) / a
+ 	g = (g * 0xffff) / a
+ 	b = (b * 0xffff) / a
+@@ -218,7 +218,7 @@ func nrgba64Model(c Color) Color {
+ 	if a == 0 {
+ 		return NRGBA64{0, 0, 0, 0}
+ 	}
+-	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
++	// Since Color.RGBA returns an alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
+ 	r = (r * 0xffff) / a
+ 	g = (g * 0xffff) / a
+ 	b = (b * 0xffff) / a
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index b02544bc2a..2d6547b4aa 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1213,7 +1213,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		}
+ 	}
+ 
+-	// Check for a explicit (and valid) Content-Length header.
++	// Check for an explicit (and valid) Content-Length header.
+ 	hasCL := w.contentLength != -1
+ 
+ 	if w.wants10KeepAlive && (isHEAD || hasCL || !bodyAllowedForStatus(w.status)) {
+diff --git a/src/os/sys_windows.go b/src/os/sys_windows.go
+index f6da88c61c..72ad90b924 100644
+--- a/src/os/sys_windows.go
++++ b/src/os/sys_windows.go
+@@ -24,7 +24,7 @@ func hostname() (name string, err error) {
+ 			return "", NewSyscallError("ComputerNameEx", err)
+ 		}
+ 
+-		// If we received a ERROR_MORE_DATA, but n doesn't get larger,
++		// If we received an ERROR_MORE_DATA, but n doesn't get larger,
+ 		// something has gone wrong and we may be in an infinite loop
+ 		if n <= uint32(len(b)) {
+ 			return "", NewSyscallError("ComputerNameEx", err)
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index e67b3cdcff..09e007d560 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -176,7 +176,7 @@ type emptyInterface struct {
+ 	word unsafe.Pointer
+ }
+ 
+-// nonEmptyInterface is the header for a interface value with methods.
++// nonEmptyInterface is the header for an interface value with methods.
+ type nonEmptyInterface struct {
+ 	// see ../runtime/iface.go:/Itab
+ 	itab *struct {
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index f8fe7b5def..ea5b1361cb 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -16,7 +16,7 @@ type queue struct {
+ 	dense  []entry
+ }
+ 
+-// A entry is an entry on a queue.
++// An entry is an entry on a queue.
+ // It holds both the instruction pc and the actual thread.
+ // Some queue entries are just place holders so that the machine
+ // knows it has considered that pc. Such entries have t == nil.
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index ce4d707e06..672d190f12 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -340,7 +340,7 @@ func unwindm(restore *bool) {
+ 	// Call endcgo to do the accounting that cgocall will not have a
+ 	// chance to do during an unwind.
+ 	//
+-	// In the case where a a Go call originates from C, ncgo is 0
++	// In the case where a Go call originates from C, ncgo is 0
+ 	// and there is no matching cgocall to end.
+ 	if mp.ncgo > 0 {
+ 		endcgo(mp)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 68f32aa01b..3aaa09d703 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -863,7 +863,7 @@ HaveSpan:
+ // Large spans have a minimum size of 1MByte. The maximum number of large spans to support
+ // 1TBytes is 1 million, experimentation using random sizes indicates that the depth of
+ // the tree is less that 2x that of a perfectly balanced tree. For 1TByte can be referenced
+-// by a perfectly balanced tree with a a depth of 20. Twice that is an acceptable 40.
++// by a perfectly balanced tree with a depth of 20. Twice that is an acceptable 40.
+ func (h *mheap) isLargeSpan(npages uintptr) bool {
+ 	return npages >= uintptr(len(h.free))
+ }
+diff --git a/src/strconv/extfloat.go b/src/strconv/extfloat.go
+index 7033e96c39..7f17bc6a0d 100644
+--- a/src/strconv/extfloat.go
++++ b/src/strconv/extfloat.go
+@@ -641,7 +641,7 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
+ // adjustLastDigit modifies d = x-currentDiff*ε, to get closest to
+ // d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
+ // It assumes that a decimal digit is worth ulpDecimal*ε, and that
+-// all data is known with a error estimate of ulpBinary*ε.
++// all data is known with an error estimate of ulpBinary*ε.
+ func adjustLastDigit(d *decimalSlice, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
+ 	if ulpDecimal < 2*ulpBinary {
+ 		// Approximation is too wide.
+diff --git a/test/chan/sendstmt.go b/test/chan/sendstmt.go
+index c0f1a29f64..d296a55cda 100644
+--- a/test/chan/sendstmt.go
++++ b/test/chan/sendstmt.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test various parsing cases that are a little
+-// different now that send is a statement, not a expression.
++// different now that send is a statement, not an expression.
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue15747b.go b/test/fixedbugs/issue15747b.go
+index 9620d3d0cb..bdb2a940c8 100644
+--- a/test/fixedbugs/issue15747b.go
++++ b/test/fixedbugs/issue15747b.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Issue 15747: If a ODCL is dropped, for example when inlining,
++// Issue 15747: If an ODCL is dropped, for example when inlining,
+ // then it's easy to end up not initializing the '&x' pseudo-variable
+ // to point to an actual allocation. The liveness analysis will detect
+ // this and abort the computation, so this test just checks that the

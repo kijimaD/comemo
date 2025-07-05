@@ -9,7 +9,7 @@ Date:   Tue Oct 13 13:05:16 2009 -0700
     DELTA=31  (0 added, 1 deleted, 30 changed)
     OCL=35665
     CL=35673
-
+---
  src/pkg/container/heap/heap.go           | 20 ++++++++++----------
  src/pkg/container/vector/intvector.go    |  2 +-
  src/pkg/container/vector/stringvector.go |  2 +-
@@ -17,3 +17,247 @@ Date:   Tue Oct 13 13:05:16 2009 -0700
  src/pkg/go/scanner/errors.go             |  2 +-
  src/pkg/sort/sort.go                     | 29 ++++++++++++++---------------
  6 files changed, 29 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index 6b10872e1f..f78e3b3a5d 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -3,20 +3,20 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This package provides heap operations for any type that implements
+-// HeapInterface.
++// heap.Interface.
+ //
+ package heap
+ 
+ import "sort"
+ 
+-// Any type that implements HeapInterface may be used as a
++// Any type that implements heap.Interface may be used as a
+ // heap with the following invariants (established after Init
+ // has been called):
+ //
+ //	h.Less(i, j) for 0 <= i < h.Len() and j = 2*i+1 or 2*i+2 and j < h.Len()
+ //
+-type HeapInterface interface {
+-	sort.SortInterface;
++type Interface interface {
++	sort.Interface;
+ 	Push(x interface{});
+ 	Pop() interface{};
+ }
+@@ -27,7 +27,7 @@ type HeapInterface interface {
+ // and may be called whenever the heap invariants may have been invalidated.
+ // Its complexity is O(n*log(n)) where n = h.Len().
+ //
+-func Init(h HeapInterface) {
++func Init(h Interface) {
+ 	sort.Sort(h);
+ }
+ 
+@@ -35,7 +35,7 @@ func Init(h HeapInterface) {
+ // Push pushes the element x onto the heap. The complexity is
+ // O(log(n)) where n = h.Len().
+ //
+-func Push(h HeapInterface, x interface{}) {
++func Push(h Interface, x interface{}) {
+ 	h.Push(x);
+ 	up(h, h.Len() - 1);
+ }
+@@ -44,7 +44,7 @@ func Push(h HeapInterface, x interface{}) {
+ // Pop removes the minimum element (according to Less) from the heap
+ // and returns it. The complexity is O(log(n)) where n = h.Len().
+ //
+-func Pop(h HeapInterface) interface{} {
++func Pop(h Interface) interface{} {
+ 	n := h.Len() - 1;
+ 	h.Swap(0, n);
+ 	down(h, 0, n);
+@@ -55,7 +55,7 @@ func Pop(h HeapInterface) interface{} {
+ // Remove removes the element at index i from the heap.
+ // The complexity is O(log(n)) where n = h.Len().
+ //
+-func Remove(h HeapInterface, i int) interface{} {
++func Remove(h Interface, i int) interface{} {
+ 	n := h.Len() - 1;
+ 	if n != i {
+ 		h.Swap(n, i);
+@@ -66,7 +66,7 @@ func Remove(h HeapInterface, i int) interface{} {
+ }
+ 
+ 
+-func up(h HeapInterface, j int) {
++func up(h Interface, j int) {
+ 	for {
+ 		i := (j-1)/2;
+ 		if i == j || h.Less(i, j) {
+@@ -78,7 +78,7 @@ func up(h HeapInterface, j int) {
+ }
+ 
+ 
+-func down(h HeapInterface, i, n int) {
++func down(h Interface, i, n int) {
+ 	for {
+ 		j := 2*i + 1;
+ 		if j >= n {
+diff --git a/src/pkg/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+index 0ae25b9822..9db2529580 100644
+--- a/src/pkg/container/vector/intvector.go
++++ b/src/pkg/container/vector/intvector.go
+@@ -93,7 +93,7 @@ func (p *IntVector) AppendVector(x *IntVector) {
+ }
+ 
+ 
+-// SortInterface support
++// sort.Interface support
+ // Less returns a boolean denoting whether the i'th element is less than the j'th element.
+ func (p *IntVector) Less(i, j int) bool {
+ 	return p.At(i) < p.At(j);
+diff --git a/src/pkg/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+index 4949d06b75..4e54ea85c4 100644
+--- a/src/pkg/container/vector/stringvector.go
++++ b/src/pkg/container/vector/stringvector.go
+@@ -92,7 +92,7 @@ func (p *StringVector) AppendVector(x *StringVector) {
+ }
+ 
+ 
+-// SortInterface support
++// sort.Interface support
+ // Less returns a boolean denoting whether the i'th element is less than the j'th element.
+ func (p *StringVector) Less(i, j int) bool {
+ 	return p.At(i) < p.At(j);
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index fc7cf64ae9..3746b422a7 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -207,9 +207,9 @@ func (p *Vector) AppendVector(x *Vector) {
+ }
+ 
+ 
+-// Partial SortInterface support
++// Partial sort.Interface support
+ 
+-// LessInterface provides partial support of the SortInterface.
++// LessInterface provides partial support of the sort.Interface.
+ type LessInterface interface {
+ 	Less(y Element) bool;
+ }
+diff --git a/src/pkg/go/scanner/errors.go b/src/pkg/go/scanner/errors.go
+index 73429f1fa4..0900667013 100644
+--- a/src/pkg/go/scanner/errors.go
++++ b/src/pkg/go/scanner/errors.go
+@@ -82,7 +82,7 @@ func (e *Error) String() string {
+ type ErrorList []*Error
+ 
+ 
+-// ErrorList implements the SortInterface.
++// ErrorList implements the sort Interface.
+ func (p ErrorList) Len() int {
+ 	return len(p);
+ }
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index bf700a4f86..0aac7d3237 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -6,11 +6,10 @@
+ // and user-defined collections.
+ package sort
+ 
+-// SortInterface is the interface that a type, typically a collection,
+-// must implement for its contents to be sorted in increasing order.
+-// Its methods require that the elements of the collection be enumerated
+-// by an integer index.
+-type SortInterface interface {
++// A type, typically a collection, that satisfies sort.Interface can be
++// sorted by the routines in this package.  The methods require that the
++// elements of the collection be enumerated by an integer index.
++type Interface interface {
+ 	// Len is the number of elements in the collection.
+ 	Len() int;
+ 	// Less returns whether the element with index i is should sort
+@@ -29,7 +28,7 @@ func min(a, b int) int {
+ }
+ 
+ // Insertion sort
+-func insertionSort(data SortInterface, a, b int) {
++func insertionSort(data Interface, a, b int) {
+ 	for i := a+1; i < b; i++ {
+ 		for j := i; j > a && data.Less(j, j-1); j-- {
+ 			data.Swap(j, j-1);
+@@ -41,7 +40,7 @@ func insertionSort(data SortInterface, a, b int) {
+ // ``Engineering a Sort Function,'' SP&E November 1993.
+ 
+ // Move the median of the three values data[a], data[b], data[c] into data[a].
+-func medianOfThree(data SortInterface, a, b, c int) {
++func medianOfThree(data Interface, a, b, c int) {
+ 	m0 := b;
+ 	m1 := a;
+ 	m2 := c;
+@@ -58,13 +57,13 @@ func medianOfThree(data SortInterface, a, b, c int) {
+ // now data[m0] <= data[m1] <= data[m2]
+ }
+ 
+-func swapRange(data SortInterface, a, b, n int) {
++func swapRange(data Interface, a, b, n int) {
+ 	for i := 0; i < n; i++ {
+ 		data.Swap(a+i, b+i);
+ 	}
+ }
+ 
+-func doPivot(data SortInterface, lo, hi int) (midlo, midhi int) {
++func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
+ 	m := (lo+hi)/2;
+ 	if hi-lo > 40 {
+ 		// Tukey's ``Ninther,'' median of three medians of three.
+@@ -123,7 +122,7 @@ func doPivot(data SortInterface, lo, hi int) (midlo, midhi int) {
+ 	return lo+b-a, hi-(d-c);
+ }
+ 
+-func quickSort(data SortInterface, a, b int) {
++func quickSort(data Interface, a, b int) {
+ 	if b-a > 7 {
+ 		mlo, mhi := doPivot(data, a, b);
+ 		quickSort(data, a, mlo);
+@@ -133,12 +132,12 @@ func quickSort(data SortInterface, a, b int) {
+ 	}
+ }
+ 
+-func Sort(data SortInterface) {
++func Sort(data Interface) {
+ 	quickSort(data, 0, data.Len());
+ }
+ 
+ 
+-func IsSorted(data SortInterface) bool {
++func IsSorted(data Interface) bool {
+ 	n := data.Len();
+ 	for i := n-1; i > 0; i-- {
+ 		if data.Less(i, i-1) {
+@@ -151,7 +150,7 @@ func IsSorted(data SortInterface) bool {
+ 
+ // Convenience types for common cases
+ 
+-// IntArray attaches the methods of SortInterface to []int, sorting in increasing order.
++// IntArray attaches the methods of Interface to []int, sorting in increasing order.
+ type IntArray []int
+ 
+ func (p IntArray) Len() int {
+@@ -170,7 +169,7 @@ func (p IntArray) Sort() {
+ }
+ 
+ 
+-// FloatArray attaches the methods of SortInterface to []float, sorting in increasing order.
++// FloatArray attaches the methods of Interface to []float, sorting in increasing order.
+ type FloatArray []float
+ 
+ func (p FloatArray) Len() int {
+@@ -189,7 +188,7 @@ func (p FloatArray) Sort() {
+ }
+ 
+ 
+-// StringArray attaches the methods of SortInterface to []string, sorting in increasing order.
++// StringArray attaches the methods of Interface to []string, sorting in increasing order.
+ type StringArray []string
+ 
+ func (p StringArray) Len() int {

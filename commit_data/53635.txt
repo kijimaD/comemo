@@ -16,7 +16,34 @@ Date:   Wed Aug 24 20:52:51 2022 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/extern.go | 2 +-
  src/runtime/mgc.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 8fb8720e89..531c07cf3d 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -79,7 +79,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	error at each collection, summarizing the amount of memory collected and the
+ 	length of the pause. The format of this line is subject to change.
+ 	Currently, it is:
+-		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # P
++		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # MB stacks, #MB globals, # P
+ 	where the fields are as follows:
+ 		gc #         the GC number, incremented at each GC
+ 		@#s          time in seconds since program start
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 1db0984906..3361d48abd 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1120,7 +1120,7 @@ func gcMarkTermination() {
+ 		print(" ms cpu, ",
+ 			work.heap0>>20, "->", work.heap1>>20, "->", work.heap2>>20, " MB, ",
+ 			gcController.lastHeapGoal>>20, " MB goal, ",
+-			gcController.maxStackScan.Load()>>20, " MB stacks, ",
++			gcController.lastStackScan.Load()>>20, " MB stacks, ",
+ 			gcController.globalsScan.Load()>>20, " MB globals, ",
+ 			work.maxprocs, " P")
+ 		if work.userForced {

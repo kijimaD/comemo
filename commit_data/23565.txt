@@ -20,7 +20,7 @@ Date:   Mon May 25 13:59:08 2015 +1200
     Change-Id: I6077a68d395c8a2bc43dec8506e73c71ef77d9b9
     Reviewed-on: https://go-review.googlesource.com/10375
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 176 +++++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/amd64/obj.go |   8 --
  src/cmd/link/internal/ld/data.go   |   7 ++
@@ -28,3 +28,593 @@ Date:   Mon May 25 13:59:08 2015 +1200
  src/cmd/link/internal/ld/lib.go    |  65 ++++++++++++--
  src/cmd/link/internal/ld/symtab.go |  12 +--
  6 files changed, 322 insertions(+), 58 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index c7f998c5c0..1d731af2a2 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -8,10 +8,12 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"debug/elf"
++	"encoding/binary"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"math/rand"
+@@ -176,6 +178,89 @@ func TestShlibnameFiles(t *testing.T) {
+ 	}
+ }
+ 
++// Is a given offset into the file contained in a loaded segment?
++func isOffsetLoaded(f *elf.File, offset uint64) bool {
++	for _, prog := range f.Progs {
++		if prog.Type == elf.PT_LOAD {
++			if prog.Off <= offset && offset < prog.Off+prog.Filesz {
++				return true
++			}
++		}
++	}
++	return false
++}
++
++func rnd(v int32, r int32) int32 {
++	if r <= 0 {
++		return v
++	}
++	v += r - 1
++	c := v % r
++	if c < 0 {
++		c += r
++	}
++	v -= c
++	return v
++}
++
++func readwithpad(r io.Reader, sz int32) ([]byte, error) {
++	data := make([]byte, rnd(sz, 4))
++	_, err := io.ReadFull(r, data)
++	if err != nil {
++		return nil, err
++	}
++	data = data[:sz]
++	return data, nil
++}
++
++type note struct {
++	name    string
++	tag     int32
++	desc    string
++	section *elf.Section
++}
++
++// Read all notes from f. As ELF section names are not supposed to be special, one
++// looks for a particular note by scanning all SHT_NOTE sections looking for a note
++// with a particular "name" and "tag".
++func readNotes(f *elf.File) ([]*note, error) {
++	var notes []*note
++	for _, sect := range f.Sections {
++		if sect.Type != elf.SHT_NOTE {
++			continue
++		}
++		r := sect.Open()
++		for {
++			var namesize, descsize, tag int32
++			err := binary.Read(r, f.ByteOrder, &namesize)
++			if err != nil {
++				if err == io.EOF {
++					break
++				}
++				return nil, fmt.Errorf("read namesize failed:", err)
++			}
++			err = binary.Read(r, f.ByteOrder, &descsize)
++			if err != nil {
++				return nil, fmt.Errorf("read descsize failed:", err)
++			}
++			err = binary.Read(r, f.ByteOrder, &tag)
++			if err != nil {
++				return nil, fmt.Errorf("read type failed:", err)
++			}
++			name, err := readwithpad(r, namesize)
++			if err != nil {
++				return nil, fmt.Errorf("read name failed:", err)
++			}
++			desc, err := readwithpad(r, descsize)
++			if err != nil {
++				return nil, fmt.Errorf("read desc failed:", err)
++			}
++			notes = append(notes, &note{name: string(name), tag: tag, desc: string(desc), section: sect})
++		}
++	}
++	return notes, nil
++}
++
+ func dynStrings(path string, flag elf.DynTag) []string {
+ 	f, err := elf.Open(path)
+ 	defer f.Close()
+@@ -233,6 +318,97 @@ func TestGOPathShlib(t *testing.T) {
+ 	run(t, "executable linked to GOPATH library", "./bin/exe")
+ }
+ 
++// The shared library contains a note listing the packages it contains in a section
++// that is not mapped into memory.
++func testPkgListNote(t *testing.T, f *elf.File, note *note) {
++	if note.section.Flags != 0 {
++		t.Errorf("package list section has flags %v", note.section.Flags)
++	}
++	if isOffsetLoaded(f, note.section.Offset) {
++		t.Errorf("package list section contained in PT_LOAD segment")
++	}
++	if note.desc != "dep\n" {
++		t.Errorf("incorrect package list %q", note.desc)
++	}
++}
++
++// The shared library contains a note containing the ABI hash that is mapped into
++// memory and there is a local symbol called go.link.abihashbytes that points 16
++// bytes into it.
++func testABIHashNote(t *testing.T, f *elf.File, note *note) {
++	if note.section.Flags != elf.SHF_ALLOC {
++		t.Errorf("abi hash section has flags %v", note.section.Flags)
++	}
++	if !isOffsetLoaded(f, note.section.Offset) {
++		t.Errorf("abihash section not contained in PT_LOAD segment")
++	}
++	var hashbytes elf.Symbol
++	symbols, err := f.Symbols()
++	if err != nil {
++		t.Errorf("error reading symbols %v", err)
++		return
++	}
++	for _, sym := range symbols {
++		if sym.Name == "go.link.abihashbytes" {
++			hashbytes = sym
++		}
++	}
++	if hashbytes.Name == "" {
++		t.Errorf("no symbol called go.link.abihashbytes")
++		return
++	}
++	if elf.ST_BIND(hashbytes.Info) != elf.STB_LOCAL {
++		t.Errorf("%s has incorrect binding %v", hashbytes.Name, elf.ST_BIND(hashbytes.Info))
++	}
++	if f.Sections[hashbytes.Section] != note.section {
++		t.Errorf("%s has incorrect section %v", hashbytes.Name, f.Sections[hashbytes.Section].Name)
++	}
++	if hashbytes.Value-note.section.Addr != 16 {
++		t.Errorf("%s has incorrect offset into section %d", hashbytes.Name, hashbytes.Value-note.section.Addr)
++	}
++}
++
++// The shared library contains notes with defined contents; see above.
++func TestNotes(t *testing.T) {
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
++	f, err := elf.Open(filepath.Join(gopathInstallDir, "libdep.so"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	notes, err := readNotes(f)
++	if err != nil {
++		t.Fatal(err)
++	}
++	pkgListNoteFound := false
++	abiHashNoteFound := false
++	for _, note := range notes {
++		if note.name != "GO\x00\x00" {
++			continue
++		}
++		switch note.tag {
++		case 1: // ELF_NOTE_GOPKGLIST_TAG
++			if pkgListNoteFound {
++				t.Error("multiple package list notes")
++			}
++			testPkgListNote(t, f, note)
++			pkgListNoteFound = true
++		case 2: // ELF_NOTE_GOABIHASH_TAG
++			if abiHashNoteFound {
++				t.Error("multiple abi hash notes")
++			}
++			testABIHashNote(t, f, note)
++			abiHashNoteFound = true
++		}
++	}
++	if !pkgListNoteFound {
++		t.Error("package list note not found")
++	}
++	if !abiHashNoteFound {
++		t.Error("abi hash note not found")
++	}
++}
++
+ // Testing rebuilding of shared libraries when they are stale is a bit more
+ // complicated that it seems like it should be. First, we make everything "old": but
+ // only a few seconds old, or it might be older than 6g (or the runtime source) and
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index bb65067e87..1aa4422ed9 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -168,14 +168,6 @@ func archinit() {
+ 		ld.Elfinit()
+ 
+ 		ld.HEADR = ld.ELFRESERVE
+-		if ld.Buildmode == ld.BuildmodeShared {
+-			// When building a shared library we write a package list
+-			// note that can get quite large. The external linker will
+-			// re-layout all the sections anyway, so making this larger
+-			// just wastes a little space in the intermediate object
+-			// file, not the final shared library.
+-			ld.HEADR *= 3
+-		}
+ 		if ld.INITTEXT == -1 {
+ 			ld.INITTEXT = (1 << 22) + int64(ld.HEADR)
+ 		}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index cf28e7b384..e8d30f6a89 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1688,6 +1688,13 @@ func address() {
+ 		}
+ 	}
+ 
++	if Buildmode == BuildmodeShared {
++		s := Linklookup(Ctxt, "go.link.abihashbytes", 0)
++		sectSym := Linklookup(Ctxt, ".note.go.abihash", 0)
++		s.Sect = sectSym.Sect
++		s.Value = int64(sectSym.Sect.Vaddr + 16)
++	}
++
+ 	xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
+ 	xdefine("runtime.etext", obj.STEXT, int64(text.Vaddr+text.Length))
+ 	xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index d26a82e64a..83f10d39f6 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -6,8 +6,10 @@ package ld
+ 
+ import (
+ 	"cmd/internal/obj"
++	"crypto/sha1"
+ 	"encoding/binary"
+ 	"fmt"
++	"sort"
+ )
+ 
+ /*
+@@ -1199,32 +1201,14 @@ func elfwritebuildinfo() int {
+ 	return int(sh.size)
+ }
+ 
+-// Go package list note
++// Go specific notes
+ const (
+ 	ELF_NOTE_GOPKGLIST_TAG = 1
++	ELF_NOTE_GOABIHASH_TAG = 2
+ )
+ 
+ var ELF_NOTE_GO_NAME = []byte("GO\x00\x00")
+ 
+-func elfgopkgnote(sh *ElfShdr, startva uint64, resoff uint64) int {
+-	n := len(ELF_NOTE_GO_NAME) + int(Rnd(int64(len(pkglistfornote)), 4))
+-	return elfnote(sh, startva, resoff, n, false)
+-}
+-
+-func elfwritegopkgnote() int {
+-	sh := elfwritenotehdr(".note.go.pkg-list", uint32(len(ELF_NOTE_GO_NAME)), uint32(len(pkglistfornote)), ELF_NOTE_GOPKGLIST_TAG)
+-	if sh == nil {
+-		return 0
+-	}
+-
+-	Cwrite(ELF_NOTE_GO_NAME)
+-	Cwrite(pkglistfornote)
+-	var zero = make([]byte, 4)
+-	Cwrite(zero[:int(Rnd(int64(len(pkglistfornote)), 4)-int64(len(pkglistfornote)))])
+-
+-	return int(sh.size)
+-}
+-
+ var elfverneed int
+ 
+ type Elfaux struct {
+@@ -1455,6 +1439,24 @@ func elfshalloc(sect *Section) *ElfShdr {
+ 
+ func elfshbits(sect *Section) *ElfShdr {
+ 	sh := elfshalloc(sect)
++	// If this section has already been set up as a note, we assume type_ and
++	// flags are already correct, but the other fields still need filling in.
++	if sh.type_ == SHT_NOTE {
++		if Linkmode != LinkExternal {
++			// TODO(mwhudson): the approach here will work OK when
++			// linking internally for notes that we want to be included
++			// in a loadable segment (e.g. the abihash note) but not for
++			// notes that we do not want to be mapped (e.g. the package
++			// list note). The real fix is probably to define new values
++			// for LSym.Type corresponding to mapped and unmapped notes
++			// and handle them in dodata().
++			Diag("sh.type_ == SHT_NOTE in elfshbits when linking internally")
++		}
++		sh.addralign = uint64(sect.Align)
++		sh.size = sect.Length
++		sh.off = sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr
++		return sh
++	}
+ 	if sh.type_ > 0 {
+ 		return sh
+ 	}
+@@ -1490,13 +1492,16 @@ func elfshbits(sect *Section) *ElfShdr {
+ 
+ func elfshreloc(sect *Section) *ElfShdr {
+ 	// If main section is SHT_NOBITS, nothing to relocate.
+-	// Also nothing to relocate in .shstrtab.
++	// Also nothing to relocate in .shstrtab or notes.
+ 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
+ 		return nil
+ 	}
+ 	if sect.Name == ".shstrtab" || sect.Name == ".tbss" {
+ 		return nil
+ 	}
++	if sect.Elfsect.type_ == SHT_NOTE {
++		return nil
++	}
+ 
+ 	var prefix string
+ 	var typ int
+@@ -1596,6 +1601,29 @@ func Elfemitreloc() {
+ 	}
+ }
+ 
++func addgonote(sectionName string, tag uint32, desc []byte) {
++	s := Linklookup(Ctxt, sectionName, 0)
++	s.Reachable = true
++	s.Type = obj.SELFROSECT
++	// namesz
++	Adduint32(Ctxt, s, uint32(len(ELF_NOTE_GO_NAME)))
++	// descsz
++	Adduint32(Ctxt, s, uint32(len(desc)))
++	// tag
++	Adduint32(Ctxt, s, tag)
++	// name + padding
++	s.P = append(s.P, ELF_NOTE_GO_NAME...)
++	for len(s.P)%4 != 0 {
++		s.P = append(s.P, 0)
++	}
++	// desc + padding
++	s.P = append(s.P, desc...)
++	for len(s.P)%4 != 0 {
++		s.P = append(s.P, 0)
++	}
++	s.Size = int64(len(s.P))
++}
++
+ func doelf() {
+ 	if !Iself {
+ 		return
+@@ -1632,9 +1660,6 @@ func doelf() {
+ 	if len(buildinfo) > 0 {
+ 		Addstring(shstrtab, ".note.gnu.build-id")
+ 	}
+-	if Buildmode == BuildmodeShared {
+-		Addstring(shstrtab, ".note.go.pkg-list")
+-	}
+ 	Addstring(shstrtab, ".elfdata")
+ 	Addstring(shstrtab, ".rodata")
+ 	Addstring(shstrtab, ".typelink")
+@@ -1668,6 +1693,11 @@ func doelf() {
+ 
+ 		// add a .note.GNU-stack section to mark the stack as non-executable
+ 		Addstring(shstrtab, ".note.GNU-stack")
++
++		if Buildmode == BuildmodeShared {
++			Addstring(shstrtab, ".note.go.abihash")
++			Addstring(shstrtab, ".note.go.pkg-list")
++		}
+ 	}
+ 
+ 	hasinitarr := Linkshared
+@@ -1856,6 +1886,25 @@ func doelf() {
+ 		// size of .rel(a).plt section.
+ 		Elfwritedynent(s, DT_DEBUG, 0)
+ 	}
++
++	if Buildmode == BuildmodeShared {
++		// The go.link.abihashbytes symbol will be pointed at the appropriate
++		// part of the .note.go.abihash section in data.go:func address().
++		s := Linklookup(Ctxt, "go.link.abihashbytes", 0)
++		s.Local = true
++		s.Type = obj.SRODATA
++		s.Special = 1
++		s.Reachable = true
++		s.Size = int64(sha1.Size)
++
++		sort.Sort(byPkg(Ctxt.Library))
++		h := sha1.New()
++		for _, l := range Ctxt.Library {
++			h.Write(l.hash)
++		}
++		addgonote(".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
++		addgonote(".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, []byte(pkglistfornote))
++	}
+ }
+ 
+ // Do not write DT_NULL.  elfdynhash will finish it.
+@@ -1922,15 +1971,11 @@ func Asmbelf(symo int64) {
+ 		eh.phentsize = 0
+ 
+ 		if Buildmode == BuildmodeShared {
+-			// The package list note we make space for here can get quite
+-			// large. The external linker will re-layout all the sections
+-			// anyway, so making this larger just wastes a little space
+-			// in the intermediate object file, not the final shared
+-			// library.
+-			elfreserve *= 3
+-			resoff = elfreserve
+ 			sh := elfshname(".note.go.pkg-list")
+-			resoff -= int64(elfgopkgnote(sh, uint64(startva), uint64(resoff)))
++			sh.type_ = SHT_NOTE
++			sh = elfshname(".note.go.abihash")
++			sh.type_ = SHT_NOTE
++			sh.flags = SHF_ALLOC
+ 		}
+ 		goto elfobj
+ 	}
+@@ -2340,9 +2385,6 @@ elfobj:
+ 			a += int64(elfwritebuildinfo())
+ 		}
+ 	}
+-	if Buildmode == BuildmodeShared {
+-		a += int64(elfwritegopkgnote())
+-	}
+ 
+ 	if a > elfreserve {
+ 		Diag("ELFRESERVE too small: %d > %d", a, elfreserve)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index ea82ea5995..26d722911b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -36,6 +36,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"crypto/sha1"
+ 	"debug/elf"
++	"encoding/binary"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -1154,8 +1155,8 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ func readelfsymboldata(f *elf.File, sym *elf.Symbol) []byte {
+ 	data := make([]byte, sym.Size)
+ 	sect := f.Sections[sym.Section]
+-	if sect.Type != elf.SHT_PROGBITS {
+-		Diag("reading %s from non-PROGBITS section", sym.Name)
++	if sect.Type != elf.SHT_PROGBITS && sect.Type != elf.SHT_NOTE {
++		Diag("reading %s from non-data section", sym.Name)
+ 	}
+ 	n, err := sect.ReadAt(data, int64(sym.Value-sect.Offset))
+ 	if uint64(n) != sym.Size {
+@@ -1164,6 +1165,55 @@ func readelfsymboldata(f *elf.File, sym *elf.Symbol) []byte {
+ 	return data
+ }
+ 
++func readwithpad(r io.Reader, sz int32) ([]byte, error) {
++	data := make([]byte, Rnd(int64(sz), 4))
++	_, err := io.ReadFull(r, data)
++	if err != nil {
++		return nil, err
++	}
++	data = data[:sz]
++	return data, nil
++}
++
++func readnote(f *elf.File, name []byte, typ int32) ([]byte, error) {
++	for _, sect := range f.Sections {
++		if sect.Type != elf.SHT_NOTE {
++			continue
++		}
++		r := sect.Open()
++		for {
++			var namesize, descsize, noteType int32
++			err := binary.Read(r, f.ByteOrder, &namesize)
++			if err != nil {
++				if err == io.EOF {
++					break
++				}
++				return nil, fmt.Errorf("read namesize failed:", err)
++			}
++			err = binary.Read(r, f.ByteOrder, &descsize)
++			if err != nil {
++				return nil, fmt.Errorf("read descsize failed:", err)
++			}
++			err = binary.Read(r, f.ByteOrder, &noteType)
++			if err != nil {
++				return nil, fmt.Errorf("read type failed:", err)
++			}
++			noteName, err := readwithpad(r, namesize)
++			if err != nil {
++				return nil, fmt.Errorf("read name failed:", err)
++			}
++			desc, err := readwithpad(r, descsize)
++			if err != nil {
++				return nil, fmt.Errorf("read desc failed:", err)
++			}
++			if string(name) == string(noteName) && typ == noteType {
++				return desc, nil
++			}
++		}
++	}
++	return nil, nil
++}
++
+ func ldshlibsyms(shlib string) {
+ 	found := false
+ 	libpath := ""
+@@ -1194,6 +1244,13 @@ func ldshlibsyms(shlib string) {
+ 		return
+ 	}
+ 	defer f.Close()
++
++	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
++	if err != nil {
++		Diag("cannot read ABI hash from shared library %s: %v", libpath, err)
++		return
++	}
++
+ 	syms, err := f.Symbols()
+ 	if err != nil {
+ 		Diag("cannot read symbols from shared library: %s", libpath)
+@@ -1211,7 +1268,6 @@ func ldshlibsyms(shlib string) {
+ 	// table removed.
+ 	gcmasks := make(map[uint64][]byte)
+ 	types := []*LSym{}
+-	var hash []byte
+ 	for _, s := range syms {
+ 		if elf.ST_TYPE(s.Info) == elf.STT_NOTYPE || elf.ST_TYPE(s.Info) == elf.STT_SECTION {
+ 			continue
+@@ -1225,9 +1281,6 @@ func ldshlibsyms(shlib string) {
+ 		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
+ 			gcmasks[s.Value] = readelfsymboldata(f, &s)
+ 		}
+-		if s.Name == "go.link.abihashbytes" {
+-			hash = readelfsymboldata(f, &s)
+-		}
+ 		if elf.ST_BIND(s.Info) != elf.STB_GLOBAL {
+ 			continue
+ 		}
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 12476f79a2..7ceb64f941 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -32,10 +32,8 @@ package ld
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"crypto/sha1"
+ 	"fmt"
+ 	"path/filepath"
+-	"sort"
+ 	"strings"
+ )
+ 
+@@ -429,16 +427,12 @@ func symtab() {
+ 	}
+ 
+ 	if Buildmode == BuildmodeShared {
+-		sort.Sort(byPkg(Ctxt.Library))
+-		h := sha1.New()
+-		for _, l := range Ctxt.Library {
+-			h.Write(l.hash)
+-		}
+ 		abihashgostr := Linklookup(Ctxt, "go.link.abihash."+filepath.Base(outfile), 0)
+ 		abihashgostr.Reachable = true
+ 		abihashgostr.Type = obj.SRODATA
+-		var hashbytes []byte
+-		addgostring(abihashgostr, "go.link.abihashbytes", string(h.Sum(hashbytes)))
++		hashsym := Linklookup(Ctxt, "go.link.abihashbytes", 0)
++		Addaddr(Ctxt, abihashgostr, hashsym)
++		adduint(Ctxt, abihashgostr, uint64(hashsym.Size))
+ 	}
+ 
+ 	// Information about the layout of the executable image for the

@@ -10,7 +10,122 @@ Date:   Thu Sep 29 21:31:41 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5168041
-
+---
  src/pkg/exp/template/html/escape.go      | 41 ++++++++++++++++++++++++++---
  src/pkg/exp/template/html/escape_test.go | 44 ++++++++++++++++++++++++++++++++
  2 files changed, 82 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index 13a035f348..74abccecdd 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -262,19 +262,54 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s, escFnsEq)
+ 		if i != -1 {
+ 			for _, name := range s[:i] {
+-				newCmds = append(newCmds, newIdentCmd(name))
++				newCmds = appendCmd(newCmds, newIdentCmd(name))
+ 			}
+ 			s = s[i+1:]
+ 		}
+-		newCmds = append(newCmds, id)
++		newCmds = appendCmd(newCmds, id)
+ 	}
+ 	// Create any remaining sanitizers.
+ 	for _, name := range s {
+-		newCmds = append(newCmds, newIdentCmd(name))
++		newCmds = appendCmd(newCmds, newIdentCmd(name))
+ 	}
+ 	p.Cmds = newCmds
+ }
+ 
++// redundantFuncs[a][b] implies that funcMap[b](funcMap[a](x)) == funcMap[a](x)
++// for all x.
++var redundantFuncs = map[string]map[string]bool{
++	"exp_template_html_commentescaper": {
++		"exp_template_html_attrescaper":    true,
++		"exp_template_html_nospaceescaper": true,
++		"exp_template_html_htmlescaper":    true,
++	},
++	"exp_template_html_cssescaper": {
++		"exp_template_html_attrescaper": true,
++	},
++	"exp_template_html_jsregexpescaper": {
++		"exp_template_html_attrescaper": true,
++	},
++	"exp_template_html_jsstrescaper": {
++		"exp_template_html_attrescaper": true,
++	},
++	"exp_template_html_urlescaper": {
++		"exp_template_html_urlnormalizer": true,
++	},
++}
++
++// appendCmd appends the given command to the end of the command pipeline
++// unless it is redundant with the last command.
++func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.CommandNode {
++	if n := len(cmds); n != 0 {
++		last, ok := cmds[n-1].Args[0].(*parse.IdentifierNode)
++		next, _ := cmd.Args[0].(*parse.IdentifierNode)
++		if ok && redundantFuncs[last.Ident][next.Ident] {
++			return cmds
++		}
++	}
++	return append(cmds, cmd)
++}
++
+ // indexOfStr is the first i such that eq(s, strs[i]) or -1 if s was not found.
+ func indexOfStr(s string, strs []string, eq func(a, b string) bool) int {
+ 	for i, t := range strs {
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index a4ec25f363..9466cc1d5d 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -1577,3 +1577,47 @@ func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
+ 	defer expectExecuteFailure(t, &b)
+ 	s.Execute(&b, "t", nil)
+ }
++
++func TestRedundantFuncs(t *testing.T) {
++	inputs := []interface{}{
++		"\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f" +
++			"\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
++			` !"#$%&'()*+,-./` +
++			`0123456789:;<=>?` +
++			`@ABCDEFGHIJKLMNO` +
++			`PQRSTUVWXYZ[\]^_` +
++			"`abcdefghijklmno" +
++			"pqrstuvwxyz{|}~\x7f" +
++			"\u00A0\u0100\u2028\u2029\ufeff\ufdec\ufffd\uffff\U0001D11E" +
++			"&amp;%22\\",
++		CSS(`a[href =~ "//example.com"]#foo`),
++		HTML(`Hello, <b>World</b> &amp;tc!`),
++		HTMLAttr(` dir="ltr"`),
++		JS(`c && alert("Hello, World!");`),
++		JSStr(`Hello, World & O'Reilly\x21`),
++		URL(`greeting=H%69&addressee=(World)`),
++	}
++
++	for n0, m := range redundantFuncs {
++		f0 := funcMap[n0].(func(...interface{}) string)
++		for n1, _ := range m {
++			f1 := funcMap[n1].(func(...interface{}) string)
++			for _, input := range inputs {
++				want := f0(input)
++				if got := f1(want); want != got {
++					t.Errorf("%s %s with %T %q: want\n\t%q,\ngot\n\t%q", n0, n1, input, input, want, got)
++				}
++			}
++		}
++	}
++}
++
++func BenchmarkEscapedExecute(b *testing.B) {
++	tmpl := template.Must(Escape(template.Must(template.New("t").Parse(`<a onclick="alert('{{.}}')">{{.}}</a>`))))
++	var buf bytes.Buffer
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		tmpl.Execute(&buf, "foo & 'bar' & baz")
++		buf.Reset()
++	}
++}

@@ -8,9 +8,311 @@ Date:   Thu Jan 8 14:43:56 2009 -0800
     R=r
     OCL=22331
     CL=22331
-
+---
  usr/gri/pretty/Makefile   |  2 +-
  usr/gri/pretty/globals.go | 15 +++++++++++++++
  usr/gri/pretty/parser.go  | 48 ++++++++++++++++++++++++++++-------------------
  usr/gri/pretty/printer.go | 32 ++++++++++++++++++++++---------
  4 files changed, 68 insertions(+), 29 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 1386c0cd58..82a25b03fb 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -37,7 +37,7 @@ parser.6:	 scanner.6 ast.6 globals.6 object.6 type.6
+ 
+ platform.6:	 utils.6
+ 
+-printer.6:	 scanner.6 ast.6 globals.6 object.6 type.6
++printer.6:	 scanner.6 ast.6 globals.6 object.6 type.6 utils.6
+ 
+ typechecker.6:	ast.6 universe.6 globals.6 type.6
+ 
+diff --git a/usr/gri/pretty/globals.go b/usr/gri/pretty/globals.go
+index 199a8c91e2..4ad3bba094 100644
+--- a/usr/gri/pretty/globals.go
++++ b/usr/gri/pretty/globals.go
+@@ -25,6 +25,8 @@ type OldCompilation struct
+ // or nesting level (pnolev).
+ 
+ export type Object struct {
++	id int;  // unique id
++
+ 	exported bool;
+ 	pos int;  // source position (< 0 if unknown position)
+ 	kind int;
+@@ -38,6 +40,8 @@ export type Object struct {
+ 
+ 
+ export type Type struct {
++	id int;  // unique id
++
+ 	ref int;  // for exporting only: >= 0 means already exported
+ 	form int;
+ 	size int;  // in bytes
+@@ -108,23 +112,34 @@ export type Stat interface {
+ // Creation
+ 
+ export var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
++var ObjectId int;
+ 
+ export func NewObject(pos, kind int, ident string) *Object {
+ 	obj := new(Object);
++	obj.id = ObjectId;
++	ObjectId++;
++	
+ 	obj.exported = false;
+ 	obj.pos = pos;
+ 	obj.kind = kind;
+ 	obj.ident = ident;
+ 	obj.typ = Universe_void_typ;
+ 	obj.pnolev = 0;
++
+ 	return obj;
+ }
+ 
+ 
++var TypeId int;
++
+ export func NewType(form int) *Type {
+ 	typ := new(Type);
++	typ.id = TypeId;
++	TypeId++;
++
+ 	typ.ref = -1;  // not yet exported
+ 	typ.form = form;
++
+ 	return typ;
+ }
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index fa5925675d..7831ca8ec6 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -163,12 +163,13 @@ func (P *Parser) CloseScope() {
+ }
+ 
+ 
+-func (P *Parser) Lookup(ident string) *Globals.Object {
+-	for scope := P.top_scope; scope != nil; scope = scope.parent {
++func Lookup(scope *Globals.Scope, ident string) *Globals.Object {
++	for scope != nil {
+ 		obj := scope.Lookup(ident);
+ 		if obj != nil {
+ 			return obj;
+ 		}
++		scope = scope.parent;
+ 	}
+ 	return nil;
+ }
+@@ -244,16 +245,25 @@ func (P *Parser) ParseStatement() *AST.Stat;
+ func (P *Parser) ParseDeclaration() *AST.Decl;
+ 
+ 
+-func (P *Parser) ParseIdent() *AST.Expr {
++// If scope != nil, lookup identifier in scope. Otherwise create one.
++func (P *Parser) ParseIdent(scope *Globals.Scope) *AST.Expr {
+ 	P.Trace("Ident");
+-
++	
+ 	x := AST.BadExpr;
+ 	if P.tok == Scanner.IDENT {
+-		obj := Globals.NewObject(P.pos, Object.NONE, P.val);
++		var obj *Globals.Object;
++		if scope != nil {
++			obj = Lookup(scope, P.val);
++		}
++		if obj == nil {
++			obj = Globals.NewObject(P.pos, Object.NONE, P.val);
++		} else {
++			assert(obj.kind != Object.NONE);
++		}
+ 		x = AST.NewLit(P.pos, Scanner.IDENT, obj);
+ 		if P.verbose {
+ 			P.PrintIndent();
+-			print("Ident = \"", x.obj.ident, "\"\n");
++			print("Ident = \"", P.val, "\"\n");
+ 		}
+ 		P.Next();
+ 	} else {
+@@ -269,11 +279,11 @@ func (P *Parser) ParseIdentList() *AST.Expr {
+ 	P.Trace("IdentList");
+ 
+ 	var last *AST.Expr;
+-	x := P.ParseIdent();
++	x := P.ParseIdent(nil);
+ 	for P.tok == Scanner.COMMA {
+ 		pos := P.pos;
+ 		P.Next();
+-		y := P.ParseIdent();
++		y := P.ParseIdent(nil);
+ 		if last == nil {
+ 			x = P.NewExpr(pos, Scanner.COMMA, x, y);
+ 			last = x;
+@@ -318,11 +328,11 @@ func (P *Parser) ParseVarType() *AST.Type {
+ func (P *Parser) ParseQualifiedIdent() *AST.Expr {
+ 	P.Trace("QualifiedIdent");
+ 
+-	x := P.ParseIdent();
++	x := P.ParseIdent(P.top_scope);
+ 	for P.tok == Scanner.PERIOD {
+ 		pos := P.pos;
+ 		P.Next();
+-		y := P.ParseIdent();
++		y := P.ParseIdent(nil);
+ 		x = P.NewExpr(pos, Scanner.PERIOD, x, y);
+ 	}
+ 
+@@ -390,7 +400,7 @@ func (P *Parser) ParseChannelType() *AST.Type {
+ func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
+ 	t := AST.BadType;
+ 	if expect_ident {
+-		x := P.ParseIdent();
++		x := P.ParseIdent(nil);
+ 		t = AST.NewType(x.pos, Scanner.IDENT);
+ 		t.expr = x;
+ 	} else if P.tok == Scanner.ELLIPSIS {
+@@ -802,7 +812,7 @@ func (P *Parser) ParseOperand() *AST.Expr {
+ 	x := AST.BadExpr;
+ 	switch P.tok {
+ 	case Scanner.IDENT:
+-		x = P.ParseIdent();
++		x = P.ParseIdent(P.top_scope);
+ 
+ 	case Scanner.LPAREN:
+ 		// TODO we could have a function type here as in: new(())
+@@ -850,7 +860,7 @@ func (P *Parser) ParseSelectorOrTypeGuard(x *AST.Expr) *AST.Expr {
+ 	P.Expect(Scanner.PERIOD);
+ 
+ 	if P.tok == Scanner.IDENT {
+-		x.y = P.ParseIdent();
++		x.y = P.ParseIdent(nil);
+ 
+ 	} else {
+ 		P.Expect(Scanner.LPAREN);
+@@ -991,7 +1001,7 @@ func (P *Parser) ParsePrimaryExpr() *AST.Expr {
+ 		case Scanner.LPAREN: x = P.ParseCall(x);
+ 		case Scanner.LBRACE:
+ 			// assume a composite literal only if x could be a type
+-			// and if we are not inside control clause (expr_lev >= 0)
++			// and if we are not inside a control clause (expr_lev >= 0)
+ 			// (composites inside control clauses must be parenthesized)
+ 			var t *AST.Type;
+ 			if P.expr_lev >= 0 {
+@@ -1196,7 +1206,7 @@ func (P *Parser) ParseControlFlowStat(tok int) *AST.Stat {
+ 	s := AST.NewStat(P.pos, tok);
+ 	P.Expect(tok);
+ 	if tok != Scanner.FALLTHROUGH && P.tok == Scanner.IDENT {
+-		s.expr = P.ParseIdent();
++		s.expr = P.ParseIdent(P.top_scope);
+ 	}
+ 
+ 	P.Ecart();
+@@ -1476,7 +1486,7 @@ func (P *Parser) ParseImportSpec(pos int) *AST.Decl {
+ 		P.Error(P.pos, `"import ." not yet handled properly`);
+ 		P.Next();
+ 	} else if P.tok == Scanner.IDENT {
+-		d.ident = P.ParseIdent();
++		d.ident = P.ParseIdent(nil);
+ 	}
+ 
+ 	if P.tok == Scanner.STRING {
+@@ -1519,7 +1529,7 @@ func (P *Parser) ParseTypeSpec(exported bool, pos int) *AST.Decl {
+ 	P.Trace("TypeSpec");
+ 
+ 	d := AST.NewDecl(pos, Scanner.TYPE, exported);
+-	d.ident = P.ParseIdent();
++	d.ident = P.ParseIdent(nil);
+ 	d.typ = P.ParseType();
+ 	P.opt_semi = true;
+ 
+@@ -1619,7 +1629,7 @@ func (P *Parser) ParseFunctionDecl(exported bool) *AST.Decl {
+ 		}
+ 	}
+ 
+-	d.ident = P.ParseIdent();
++	d.ident = P.ParseIdent(nil);
+ 	d.typ = P.ParseFunctionType();
+ 	d.typ.key = recv;
+ 
+@@ -1698,7 +1708,7 @@ func (P *Parser) ParseProgram() *AST.Program {
+ 	P.OpenScope();
+ 	p := AST.NewProgram(P.pos);
+ 	P.Expect(Scanner.PACKAGE);
+-	p.ident = P.ParseIdent();
++	p.ident = P.ParseIdent(nil);
+ 
+ 	// package body
+ 	{	P.OpenScope();
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 10dc45d3d8..2338ab2331 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -11,6 +11,7 @@ import (
+ 	"tabwriter";
+ 	"flag";
+ 	"fmt";
++	Utils "utils";
+ 	Globals "globals";
+ 	Object "object";
+ 	Scanner "scanner";
+@@ -115,8 +116,8 @@ func HtmlEscape(s string) string {
+ 		var esc string;
+ 		for i := 0; i < len(s); i++ {
+ 			switch s[i] {
+-			case '<': esc = "&lt";
+-			case '&': esc = "&amp";
++			case '<': esc = "&lt;";
++			case '&': esc = "&amp;";
+ 			default: continue;
+ 			}
+ 			return s[0 : i] + esc + HtmlEscape(s[i+1 : len(s)]);
+@@ -365,12 +366,24 @@ func (P *Printer) HtmlEpilogue() {
+ }
+ 
+ 
+-func (P *Printer) HtmlIdentifier(pos int, obj *Globals.Object) {
+-	if html.BVal() {
+-		// no need to HtmlEscape ident
+-		P.TaggedString(pos, `<a href="#` + obj.ident + `">`, obj.ident, `</a>`);
++func (P *Printer) HtmlIdentifier(x *AST.Expr) {
++	if x.tok != Scanner.IDENT {
++		panic();
++	}
++	obj := x.obj;
++	if html.BVal() && obj.kind != Object.NONE {
++		// depending on whether we have a declaration or use, generate different html
++		// - no need to HtmlEscape ident
++		id := Utils.IntToString(obj.id, 10);
++		if x.pos == obj.pos {
++			// probably the declaration of x
++			P.TaggedString(x.pos, `<a name="id` + id + `">`, obj.ident, `</a>`);
++		} else {
++			// probably not the declaration of x
++			P.TaggedString(x.pos, `<a href="#id` + id + `">`, obj.ident, `</a>`);
++		}
+ 	} else {
+-		P.String(pos, obj.ident);
++		P.String(x.pos, obj.ident);
+ 	}
+ }
+ 
+@@ -517,7 +530,7 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
+ 		P.Type(x.t);
+ 
+ 	case Scanner.IDENT:
+-		P.HtmlIdentifier(x.pos, x.obj);
++		P.HtmlIdentifier(x);
+ 	
+ 	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
+ 		// literal
+@@ -867,7 +880,8 @@ export func Print(prog *AST.Program) {
+ 	text := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, html.BVal());
+ 	P.Init(text, prog.comments);
+ 
+-	P.HtmlPrologue("<the source>");
++	// TODO would be better to make the name of the src file be the title
++	P.HtmlPrologue("package " + prog.ident.obj.ident);
+ 	P.Program(prog);
+ 	P.HtmlEpilogue();
+ 	

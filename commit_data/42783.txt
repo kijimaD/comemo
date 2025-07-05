@@ -14,9 +14,241 @@ Date:   Fri Jan 10 16:59:02 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214382
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 107 ---------------------
  src/cmd/go/testdata/script/build_dash_x.txt        |  49 ++++++++++
  .../go/testdata/script/cgo_flag_contains_space.txt |  15 +++
  .../script/test_write_profiles_on_timeout.txt      |  14 +++
  4 files changed, 78 insertions(+), 107 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2e07565648..c98efb7015 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2357,25 +2357,6 @@ const (
+ 	okPattern        = `(?m)^ok`
+ )
+ 
+-// Issue 19394
+-func TestWriteProfilesOnTimeout(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.tempDir("profiling")
+-	tg.tempFile("profiling/timeouttest_test.go", `package timeouttest_test
+-import "testing"
+-import "time"
+-func TestSleep(t *testing.T) { time.Sleep(time.Second) }`)
+-	tg.cd(tg.path("profiling"))
+-	tg.runFail(
+-		"test",
+-		"-cpuprofile", tg.path("profiling/cpu.pprof"), "-memprofile", tg.path("profiling/mem.pprof"),
+-		"-timeout", "1ms")
+-	tg.mustHaveContent(tg.path("profiling/cpu.pprof"))
+-	tg.mustHaveContent(tg.path("profiling/mem.pprof"))
+-}
+-
+ func TestLinkXImportPathEscape(t *testing.T) {
+ 	// golang.org/issue/16710
+ 	skipIfGccgo(t, "gccgo does not support -ldflags -X")
+@@ -2661,29 +2642,6 @@ func TestNeedVersion(t *testing.T) {
+ 	tg.grepStderr("compile", "does not match go tool version")
+ }
+ 
+-func TestCgoFlagContainsSpace(t *testing.T) {
+-	tooSlow(t)
+-	if !canCgo {
+-		t.Skip("skipping because cgo not enabled")
+-	}
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-
+-	tg.makeTempdir()
+-	tg.cd(tg.path("."))
+-	tg.tempFile("main.go", `package main
+-		// #cgo CFLAGS: -I"c flags"
+-		// #cgo LDFLAGS: -L"ld flags"
+-		import "C"
+-		func main() {}
+-	`)
+-	tg.run("run", "-x", "main.go")
+-	tg.grepStderr(`"-I[^"]+c flags"`, "did not find quoted c flags")
+-	tg.grepStderrNot(`"-I[^"]+c flags".*"-I[^"]+c flags"`, "found too many quoted c flags")
+-	tg.grepStderr(`"-L[^"]+ld flags"`, "did not find quoted ld flags")
+-	tg.grepStderrNot(`"-L[^"]+c flags".*"-L[^"]+c flags"`, "found too many quoted ld flags")
+-}
+-
+ // Issue 9737: verify that GOARM and GO386 affect the computed build ID.
+ func TestBuildIDContainsArchModeEnv(t *testing.T) {
+ 	if testing.Short() {
+@@ -2783,71 +2741,6 @@ func TestBuildmodePIE(t *testing.T) {
+ 	}
+ }
+ 
+-func TestExecBuildX(t *testing.T) {
+-	tooSlow(t)
+-	if !canCgo {
+-		t.Skip("skipping because cgo not enabled")
+-	}
+-
+-	testenv.MustHaveExecPath(t, "/usr/bin/env")
+-	testenv.MustHaveExecPath(t, "bash")
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-
+-	tg.tempDir("cache")
+-	tg.setenv("GOCACHE", tg.path("cache"))
+-
+-	// Before building our test main.go, ensure that an up-to-date copy of
+-	// runtime/cgo is present in the cache. If it isn't, the 'go build' step below
+-	// will fail with "can't open import". See golang.org/issue/29004.
+-	tg.run("build", "runtime/cgo")
+-
+-	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
+-	src := tg.path("main.go")
+-	obj := tg.path("main")
+-	tg.run("build", "-x", "-o", obj, src)
+-	sh := tg.path("test.sh")
+-	cmds := tg.getStderr()
+-	err := ioutil.WriteFile(sh, []byte("set -e\n"+cmds), 0666)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	out, err := exec.Command(obj).CombinedOutput()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if string(out) != "hello" {
+-		t.Fatalf("got %q; want %q", out, "hello")
+-	}
+-
+-	err = os.Remove(obj)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	out, err = exec.Command("/usr/bin/env", "bash", "-x", sh).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("/bin/sh %s: %v\n%s", sh, err, out)
+-	}
+-	t.Logf("shell output:\n%s", out)
+-
+-	out, err = exec.Command(obj).CombinedOutput()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if string(out) != "hello" {
+-		t.Fatalf("got %q; want %q", out, "hello")
+-	}
+-
+-	matches := regexp.MustCompile(`^WORK=(.*)\n`).FindStringSubmatch(cmds)
+-	if len(matches) == 0 {
+-		t.Fatal("no WORK directory")
+-	}
+-	tg.must(robustio.RemoveAll(matches[1]))
+-}
+-
+ func TestUpxCompression(t *testing.T) {
+ 	if runtime.GOOS != "linux" ||
+ 		(runtime.GOARCH != "amd64" && runtime.GOARCH != "386") {
+diff --git a/src/cmd/go/testdata/script/build_dash_x.txt b/src/cmd/go/testdata/script/build_dash_x.txt
+new file mode 100644
+index 0000000000..3082095c5c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_dash_x.txt
+@@ -0,0 +1,49 @@
++[short] skip
++[!cgo] skip
++
++[!exec:/usr/bin/env] skip
++[!exec:bash] skip
++[!exec:cat] skip
++
++mkdir $WORK/tmp/cache
++env GOCACHE=$WORK/tmp/cache
++
++# Before building our test main.go, ensure that an up-to-date copy of
++# runtime/cgo is present in the cache. If it isn't, the 'go build' step below
++# will fail with "can't open import". See golang.org/issue/29004.
++#
++# (The fix in golang.org/issue/29004 didn't completely fix the underlying issue:
++# cmd/go/internal/load adds a bunch of implicit dependencies
++# based on various heuristics, and, due to a bug described in
++# https://golang.org/issue/31544#issuecomment-490607180,
++# those implicit dependencies are not added early enough during
++# loading to properly affect the import graph.)
++go build runtime/cgo
++
++go build -x -o main main.go
++cp stderr commands.txt
++exec cat header.txt commands.txt
++cp stdout test.sh
++
++exec ./main
++cmp stderr hello.txt
++rm ./main
++
++exec /usr/bin/env bash -x test.sh
++exec ./main
++cmp stderr hello.txt
++
++grep '^WORK=(.*)\n' commands.txt
++
++-- main.go --
++package main
++
++import "C"
++
++func main() {
++	print("hello\n")
++}
++-- header.txt --
++set -e
++-- hello.txt --
++hello
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/cgo_flag_contains_space.txt b/src/cmd/go/testdata/script/cgo_flag_contains_space.txt
+new file mode 100644
+index 0000000000..940340e98d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_flag_contains_space.txt
+@@ -0,0 +1,15 @@
++[short] skip
++[!cgo] skip
++
++go run -x main.go
++stderr '"-I[^"]+c flags"' # find quoted c flags
++! stderr '"-I[^"]+c flags".*"-I[^"]+c flags"' # don't find too many quoted c flags
++stderr '"-L[^"]+ld flags"' # find quoted ld flags
++! stderr '"-L[^"]+c flags".*"-L[^"]+c flags"' # don't find too many quoted ld flags
++
++-- main.go --
++package main
++// #cgo CFLAGS: -I"c flags"
++// #cgo LDFLAGS: -L"ld flags"
++import "C"
++func main() {}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt b/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt
+new file mode 100644
+index 0000000000..a6cb934709
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_write_profiles_on_timeout.txt
+@@ -0,0 +1,14 @@
++# Tests issue 19394
++
++[short] skip
++
++cd profiling
++! go test -cpuprofile cpu.pprof -memprofile mem.pprof -timeout 1ms
++grep . cpu.pprof
++grep . mem.pprof
++
++-- profiling/timeout_test.go --
++package timeouttest_test
++import "testing"
++import "time"
++func TestSleep(t *testing.T) { time.Sleep(time.Second) }
+\ No newline at end of file

@@ -12,7 +12,49 @@ Date:   Thu Mar 30 16:40:52 2017 -0700
     Change-Id: I6056f97aa5c24a19376957da29199135c8da35f9
     Reviewed-on: https://go-review.googlesource.com/39033
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 10 ----------
  src/cmd/compile/internal/gc/go.go      |  2 +-
  2 files changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index d60b959e37..1663555b12 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -265,11 +265,6 @@ func export(out *bufio.Writer, trace bool) int {
+ 			Fatalf("exporter: unexpected symbol: %v", sym)
+ 		}
+ 
+-		// TODO(gri) Should we do this check?
+-		// if !sym.Export() {
+-		// 	continue
+-		// }
+-
+ 		if sym.Def == nil {
+ 			Fatalf("exporter: unknown export symbol: %v", sym)
+ 		}
+@@ -332,11 +327,6 @@ func export(out *bufio.Writer, trace bool) int {
+ 			Fatalf("exporter: unexpected symbol: %v", sym)
+ 		}
+ 
+-		// TODO(gri) Should we do this check?
+-		// if !sym.Export() {
+-		// 	continue
+-		// }
+-
+ 		if sym.Def == nil {
+ 			Fatalf("exporter: unknown export symbol: %v", sym)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f4ef28376c..c98001239e 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -61,7 +61,7 @@ type Sym struct {
+ }
+ 
+ const (
+-	symExport = 1 << iota // to be exported
++	symExport = 1 << iota // added to exportlist (no need to add again)
+ 	symPackage
+ 	symExported // already written out by export
+ 	symUniq

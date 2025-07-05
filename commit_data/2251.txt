@@ -17,8 +17,54 @@ Date:   Tue May 19 15:23:43 2009 -0700
     DELTA=5  (0 added, 0 deleted, 5 changed)
     OCL=29044
     CL=29055
-
+---
  test/fixedbugs/bug117.go | 2 +-
  test/import1.go          | 4 ++--
  test/interface9.go       | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/bug117.go b/test/fixedbugs/bug117.go
+index cc3ac34ce9..8e447cd455 100644
+--- a/test/fixedbugs/bug117.go
++++ b/test/fixedbugs/bug117.go
+@@ -15,7 +15,7 @@ func fn(p PS) int {
+   // p has type PS, and PS has no methods.
+   // (a compiler might see that p is a pointer
+   // and go looking in S without noticing PS.)
+-  return p.get()	// ERROR "undefined DOT"
++  return p.get()	// ERROR "undefined"
+ }
+ func main() {
+   s := S{1};
+diff --git a/test/import1.go b/test/import1.go
+index caa12224c8..35b618937f 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -9,6 +9,6 @@
+ package main
+ 
+ import (
+-	"bufio";
+-	bufio "os";	// ERROR "redeclaration"
++	"bufio";	// GCCGO_ERROR "previous"
++	bufio "os";	// ERROR "redeclaration|redefinition|incompatible"
+ )
+diff --git a/test/interface9.go b/test/interface9.go
+index 42214bd769..c26bdb0872 100644
+--- a/test/interface9.go
++++ b/test/interface9.go
+@@ -26,12 +26,12 @@ func main() {
+ 	var sp SP;
+ 
+ 	v = t;
+-	p = t;	// ERROR "is not"
++	p = t;	// ERROR "is not|requires a pointer"
+ 	v = &t;
+ 	p = &t;
+ 
+ 	v = s;
+-	p = s;	// ERROR "is not"
++	p = s;	// ERROR "is not|requires a pointer"
+ 	v = &s;
+ 	p = &s;
+ 

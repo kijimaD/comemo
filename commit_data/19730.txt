@@ -8,7 +8,32 @@ Date:   Tue Jul 15 11:25:39 2014 +1000
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/112300043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 061fb98f6a..146508b8da 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -88,6 +88,7 @@ Chris Farmiloe <chrisfarms@gmail.com>
+ Chris Howey <howeyc@gmail.com>
+ Chris Jones <chris@cjones.org>
+ Chris Lennert <calennert@gmail.com>
++Chris McGee <sirnewton_01@yahoo.ca> <newton688@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
+ Christine Hansmann <chhansmann@gmail.com>
+ Christoffer Buchholz <christoffer.buchholz@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c3f6dec623..f9bea4381f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -139,6 +139,7 @@ Chris Hundt <hundt@google.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+ Chris Manghane <cmang@golang.org>
++Chris McGee <sirnewton_01@yahoo.ca> <newton688@gmail.com>
+ Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
+ Christine Hansmann <chhansmann@gmail.com>
+ Christoffer Buchholz <christoffer.buchholz@gmail.com>

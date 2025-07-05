@@ -12,6 +12,29 @@ Date:   Thu Sep 15 20:46:20 2016 -0300
     Change-Id: I6746fd115ed5a58971fd24e54024d29d18ead1fa
     Reviewed-on: https://go-review.googlesource.com/29311
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/effective_go.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index f6fe48c8d0..e07c27ca2f 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2409,7 +2409,7 @@ The <code>http</code> package contains this code:
+ // Handler object that calls f.
+ type HandlerFunc func(ResponseWriter, *Request)
+ 
+-// ServeHTTP calls f(c, req).
++// ServeHTTP calls f(w, req).
+ func (f HandlerFunc) ServeHTTP(w ResponseWriter, req *Request) {
+     f(w, req)
+ }
+@@ -2447,7 +2447,7 @@ the handler installed at that page has value <code>ArgServer</code>
+ and type <code>HandlerFunc</code>.
+ The HTTP server will invoke the method <code>ServeHTTP</code>
+ of that type, with <code>ArgServer</code> as the receiver, which will in turn call
+-<code>ArgServer</code> (via the invocation <code>f(c, req)</code>
++<code>ArgServer</code> (via the invocation <code>f(w, req)</code>
+ inside <code>HandlerFunc.ServeHTTP</code>).
+ The arguments will then be displayed.
+ </p>

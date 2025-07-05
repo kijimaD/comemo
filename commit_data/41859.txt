@@ -15,10 +15,297 @@ Date:   Tue Oct 29 00:16:28 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/mips/ssa.go        | 24 ++++++++++---
  src/cmd/compile/internal/ssa/gen/MIPS.rules | 10 +++---
  src/cmd/compile/internal/ssa/gen/MIPSOps.go | 10 +++---
  src/cmd/compile/internal/ssa/opGen.go       | 35 ++++++++++++++++---
  src/cmd/compile/internal/ssa/rewriteMIPS.go | 54 ++++++++++++++++++++++-------
  5 files changed, 104 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index bac8574b5c..7efd8e105b 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -497,20 +497,36 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = gc.ExtendCheckFunc[v.AuxInt]
+ 		s.UseArgs(12) // space used in callee args area by assembly stubs
+-	case ssa.OpMIPSLoweredAtomicLoad:
++	case ssa.OpMIPSLoweredAtomicLoad8,
++		ssa.OpMIPSLoweredAtomicLoad32:
+ 		s.Prog(mips.ASYNC)
+ 
+-		p := s.Prog(mips.AMOVW)
++		var op obj.As
++		switch v.Op {
++		case ssa.OpMIPSLoweredAtomicLoad8:
++			op = mips.AMOVB
++		case ssa.OpMIPSLoweredAtomicLoad32:
++			op = mips.AMOVW
++		}
++		p := s.Prog(op)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+ 
+ 		s.Prog(mips.ASYNC)
+-	case ssa.OpMIPSLoweredAtomicStore:
++	case ssa.OpMIPSLoweredAtomicStore8,
++		ssa.OpMIPSLoweredAtomicStore32:
+ 		s.Prog(mips.ASYNC)
+ 
+-		p := s.Prog(mips.AMOVW)
++		var op obj.As
++		switch v.Op {
++		case ssa.OpMIPSLoweredAtomicStore8:
++			op = mips.AMOVB
++		case ssa.OpMIPSLoweredAtomicStore32:
++			op = mips.AMOVW
++		}
++		p := s.Prog(op)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 2932f13ac7..b6c5a9349d 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -351,11 +351,11 @@
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // atomic intrinsics
+-(AtomicLoad32  ptr mem) -> (LoweredAtomicLoad ptr mem)
+-(AtomicLoadPtr ptr mem) -> (LoweredAtomicLoad  ptr mem)
++(AtomicLoad(8|32) ptr mem) -> (LoweredAtomicLoad(8|32) ptr mem)
++(AtomicLoadPtr    ptr mem) -> (LoweredAtomicLoad32     ptr mem)
+ 
+-(AtomicStore32      ptr val mem) -> (LoweredAtomicStore ptr val mem)
+-(AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore  ptr val mem)
++(AtomicStore(8|32)  ptr val mem) -> (LoweredAtomicStore(8|32) ptr val mem)
++(AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore32     ptr val mem)
+ 
+ (AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange ptr val mem)
+ (AtomicAdd32 ptr val mem) -> (LoweredAtomicAdd ptr val mem)
+@@ -708,6 +708,6 @@
+ (CMOVZ a (MOVWconst [0]) c) -> (CMOVZzero a c)
+ 
+ // atomic
+-(LoweredAtomicStore ptr (MOVWconst [0]) mem) -> (LoweredAtomicStorezero ptr mem)
++(LoweredAtomicStore32 ptr (MOVWconst [0]) mem) -> (LoweredAtomicStorezero ptr mem)
+ (LoweredAtomicAdd ptr (MOVWconst [c]) mem) && is16Bit(c) -> (LoweredAtomicAddconst [c] ptr mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index 0f7b985e06..b82358b24a 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -262,15 +262,17 @@ func init() {
+ 		// load from arg0. arg1=mem.
+ 		// returns <value,memory> so they can be properly ordered with other loads.
+ 		// SYNC
+-		// MOVW	(Rarg0), Rout
++		// MOV(B|W)	(Rarg0), Rout
+ 		// SYNC
+-		{name: "LoweredAtomicLoad", argLength: 2, reg: gpload, faultOnNilArg0: true},
++		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
++		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
+ 
+ 		// store arg1 to arg0. arg2=mem. returns memory.
+ 		// SYNC
+-		// MOVW	Rarg1, (Rarg0)
++		// MOV(B|W)	Rarg1, (Rarg0)
+ 		// SYNC
+-		{name: "LoweredAtomicStore", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicStorezero", argLength: 2, reg: gpstore0, faultOnNilArg0: true, hasSideEffects: true},
+ 
+ 		// atomic exchange.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 5077e80a15..9f112c10f1 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1537,8 +1537,10 @@ const (
+ 	OpMIPSCALLstatic
+ 	OpMIPSCALLclosure
+ 	OpMIPSCALLinter
+-	OpMIPSLoweredAtomicLoad
+-	OpMIPSLoweredAtomicStore
++	OpMIPSLoweredAtomicLoad8
++	OpMIPSLoweredAtomicLoad32
++	OpMIPSLoweredAtomicStore8
++	OpMIPSLoweredAtomicStore32
+ 	OpMIPSLoweredAtomicStorezero
+ 	OpMIPSLoweredAtomicExchange
+ 	OpMIPSLoweredAtomicAdd
+@@ -20316,7 +20318,20 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "LoweredAtomicLoad",
++		name:           "LoweredAtomicLoad8",
++		argLen:         2,
++		faultOnNilArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 140738025226238}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 SP g R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicLoad32",
+ 		argLen:         2,
+ 		faultOnNilArg0: true,
+ 		reg: regInfo{
+@@ -20329,7 +20344,19 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "LoweredAtomicStore",
++		name:           "LoweredAtomicStore8",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 469762046},       // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
++				{0, 140738025226238}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 SP g R31 SB
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicStore32",
+ 		argLen:         3,
+ 		faultOnNilArg0: true,
+ 		hasSideEffects: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 72e596517f..d17be4422b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -41,12 +41,16 @@ func rewriteValueMIPS(v *Value) bool {
+ 		return rewriteValueMIPS_OpAtomicExchange32_0(v)
+ 	case OpAtomicLoad32:
+ 		return rewriteValueMIPS_OpAtomicLoad32_0(v)
++	case OpAtomicLoad8:
++		return rewriteValueMIPS_OpAtomicLoad8_0(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValueMIPS_OpAtomicLoadPtr_0(v)
+ 	case OpAtomicOr8:
+ 		return rewriteValueMIPS_OpAtomicOr8_0(v)
+ 	case OpAtomicStore32:
+ 		return rewriteValueMIPS_OpAtomicStore32_0(v)
++	case OpAtomicStore8:
++		return rewriteValueMIPS_OpAtomicStore8_0(v)
+ 	case OpAtomicStorePtrNoWB:
+ 		return rewriteValueMIPS_OpAtomicStorePtrNoWB_0(v)
+ 	case OpAvg32u:
+@@ -245,8 +249,8 @@ func rewriteValueMIPS(v *Value) bool {
+ 		return rewriteValueMIPS_OpMIPSCMOVZzero_0(v)
+ 	case OpMIPSLoweredAtomicAdd:
+ 		return rewriteValueMIPS_OpMIPSLoweredAtomicAdd_0(v)
+-	case OpMIPSLoweredAtomicStore:
+-		return rewriteValueMIPS_OpMIPSLoweredAtomicStore_0(v)
++	case OpMIPSLoweredAtomicStore32:
++		return rewriteValueMIPS_OpMIPSLoweredAtomicStore32_0(v)
+ 	case OpMIPSMOVBUload:
+ 		return rewriteValueMIPS_OpMIPSMOVBUload_0(v)
+ 	case OpMIPSMOVBUreg:
+@@ -826,11 +830,23 @@ func rewriteValueMIPS_OpAtomicExchange32_0(v *Value) bool {
+ }
+ func rewriteValueMIPS_OpAtomicLoad32_0(v *Value) bool {
+ 	// match: (AtomicLoad32 ptr mem)
+-	// result: (LoweredAtomicLoad ptr mem)
++	// result: (LoweredAtomicLoad32 ptr mem)
+ 	for {
+ 		mem := v.Args[1]
+ 		ptr := v.Args[0]
+-		v.reset(OpMIPSLoweredAtomicLoad)
++		v.reset(OpMIPSLoweredAtomicLoad32)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueMIPS_OpAtomicLoad8_0(v *Value) bool {
++	// match: (AtomicLoad8 ptr mem)
++	// result: (LoweredAtomicLoad8 ptr mem)
++	for {
++		mem := v.Args[1]
++		ptr := v.Args[0]
++		v.reset(OpMIPSLoweredAtomicLoad8)
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+@@ -838,11 +854,11 @@ func rewriteValueMIPS_OpAtomicLoad32_0(v *Value) bool {
+ }
+ func rewriteValueMIPS_OpAtomicLoadPtr_0(v *Value) bool {
+ 	// match: (AtomicLoadPtr ptr mem)
+-	// result: (LoweredAtomicLoad ptr mem)
++	// result: (LoweredAtomicLoad32 ptr mem)
+ 	for {
+ 		mem := v.Args[1]
+ 		ptr := v.Args[0]
+-		v.reset(OpMIPSLoweredAtomicLoad)
++		v.reset(OpMIPSLoweredAtomicLoad32)
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+@@ -923,12 +939,26 @@ func rewriteValueMIPS_OpAtomicOr8_0(v *Value) bool {
+ }
+ func rewriteValueMIPS_OpAtomicStore32_0(v *Value) bool {
+ 	// match: (AtomicStore32 ptr val mem)
+-	// result: (LoweredAtomicStore ptr val mem)
++	// result: (LoweredAtomicStore32 ptr val mem)
++	for {
++		mem := v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		v.reset(OpMIPSLoweredAtomicStore32)
++		v.AddArg(ptr)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValueMIPS_OpAtomicStore8_0(v *Value) bool {
++	// match: (AtomicStore8 ptr val mem)
++	// result: (LoweredAtomicStore8 ptr val mem)
+ 	for {
+ 		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		val := v.Args[1]
+-		v.reset(OpMIPSLoweredAtomicStore)
++		v.reset(OpMIPSLoweredAtomicStore8)
+ 		v.AddArg(ptr)
+ 		v.AddArg(val)
+ 		v.AddArg(mem)
+@@ -937,12 +967,12 @@ func rewriteValueMIPS_OpAtomicStore32_0(v *Value) bool {
+ }
+ func rewriteValueMIPS_OpAtomicStorePtrNoWB_0(v *Value) bool {
+ 	// match: (AtomicStorePtrNoWB ptr val mem)
+-	// result: (LoweredAtomicStore ptr val mem)
++	// result: (LoweredAtomicStore32 ptr val mem)
+ 	for {
+ 		mem := v.Args[2]
+ 		ptr := v.Args[0]
+ 		val := v.Args[1]
+-		v.reset(OpMIPSLoweredAtomicStore)
++		v.reset(OpMIPSLoweredAtomicStore32)
+ 		v.AddArg(ptr)
+ 		v.AddArg(val)
+ 		v.AddArg(mem)
+@@ -3000,8 +3030,8 @@ func rewriteValueMIPS_OpMIPSLoweredAtomicAdd_0(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueMIPS_OpMIPSLoweredAtomicStore_0(v *Value) bool {
+-	// match: (LoweredAtomicStore ptr (MOVWconst [0]) mem)
++func rewriteValueMIPS_OpMIPSLoweredAtomicStore32_0(v *Value) bool {
++	// match: (LoweredAtomicStore32 ptr (MOVWconst [0]) mem)
+ 	// result: (LoweredAtomicStorezero ptr mem)
+ 	for {
+ 		mem := v.Args[2]

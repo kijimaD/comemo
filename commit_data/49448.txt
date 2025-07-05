@@ -17,7 +17,37 @@ Date:   Thu Aug 19 16:36:38 2021 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/crypto/rand/rand_getentropy.go             | 4 ++--
  src/internal/syscall/unix/getentropy_darwin.go | 3 +++
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/rand/rand_getentropy.go b/src/crypto/rand/rand_getentropy.go
+index f82018a495..dd725372ad 100644
+--- a/src/crypto/rand/rand_getentropy.go
++++ b/src/crypto/rand/rand_getentropy.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || openbsd
+-// +build darwin openbsd
++//go:build (darwin && !ios) || openbsd
++// +build darwin,!ios openbsd
+ 
+ package rand
+ 
+diff --git a/src/internal/syscall/unix/getentropy_darwin.go b/src/internal/syscall/unix/getentropy_darwin.go
+index e1a410a454..c75006bf8b 100644
+--- a/src/internal/syscall/unix/getentropy_darwin.go
++++ b/src/internal/syscall/unix/getentropy_darwin.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin && !ios
++// +build darwin,!ios
++
+ package unix
+ 
+ import (

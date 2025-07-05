@@ -9,7 +9,34 @@ Date:   Sun Mar 8 14:28:35 2015 +0100
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/hash/crc32/crc32_generic.go | 2 +-
  src/os/signal/sig.s             | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/hash/crc32/crc32_generic.go b/src/hash/crc32/crc32_generic.go
+index 6f597f556b..416c1b7c55 100644
+--- a/src/hash/crc32/crc32_generic.go
++++ b/src/hash/crc32/crc32_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 arm ppc64 ppc64le
++// +build 386 arm arm64 ppc64 ppc64le
+ 
+ package crc32
+ 
+diff --git a/src/os/signal/sig.s b/src/os/signal/sig.s
+index f54e6ff9c0..7fa6c9224e 100644
+--- a/src/os/signal/sig.s
++++ b/src/os/signal/sig.s
+@@ -4,7 +4,7 @@
+ 
+ // Assembly to get into package runtime without using exported symbols.
+ 
+-// +build amd64 amd64p32 arm 386 ppc64 ppc64le
++// +build amd64 amd64p32 arm arm64 386 ppc64 ppc64le
+ 
+ #include "textflag.h"
+ 

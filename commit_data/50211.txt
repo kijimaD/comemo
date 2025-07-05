@@ -13,7 +13,36 @@ Date:   Fri Oct 8 10:37:54 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/ast.go               | 2 --
  src/go/types/typestring_test.go | 4 ----
  2 files changed, 6 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 70d0912f67..38b6de57d3 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -998,8 +998,6 @@ type (
+ 		Name *Ident        // function/method name
+ 		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
+ 		Body *BlockStmt    // function body; or nil for external (non-Go) function
+-		// TODO(rFindley) consider storing TParams here, rather than FuncType, as
+-		//                they are only valid for declared functions
+ 	}
+ )
+ 
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index ddbb2884b6..5718ffcc6c 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -98,10 +98,6 @@ var independentTestTypes = []testEntry{
+ 	dup("interface{int|float32|complex128}"),
+ 	dup("interface{int|~float32|~complex128}"),
+ 
+-	// TODO(rFindley) uncomment this once this AST is accepted, and add more test
+-	// cases.
+-	// dup(`interface{type int, float32, complex128}`),
+-
+ 	// maps
+ 	dup("map[string]int"),
+ 	{"map[struct{x, y int}][]byte", "map[struct{x int; y int}][]byte"},

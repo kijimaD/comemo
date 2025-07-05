@@ -9,6 +9,23 @@ Date:   Fri Aug 21 11:30:19 2015 -0700
     Change-Id: I1f07c444623cd864667e21b2fee534eacdc193bb
     Reviewed-on: https://go-review.googlesource.com/13814
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/big/int_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 88c8c2bb64..97874626f3 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -387,6 +387,11 @@ func TestSetBytes(t *testing.T) {
+ }
+ 
+ func checkBytes(b []byte) bool {
++	// trim leading zero bytes since Bytes() won't return them
++	// (was issue 12231)
++	for len(b) > 0 && b[0] == 0 {
++		b = b[1:]
++	}
+ 	b2 := new(Int).SetBytes(b).Bytes()
+ 	return bytes.Equal(b, b2)
+ }

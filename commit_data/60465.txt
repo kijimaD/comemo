@@ -10,6 +10,22 @@ Date:   Fri May 31 10:33:13 2024 +0900
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/internal/trace/event/event.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/trace/event/event.go b/src/internal/trace/event/event.go
+index adcb8811d8..9a9bf74c6a 100644
+--- a/src/internal/trace/event/event.go
++++ b/src/internal/trace/event/event.go
+@@ -4,7 +4,9 @@
+ 
+ package event
+ 
+-// Type is the common in-memory representation of the low-leve
++// Type indicates an event's type from which its arguments and semantics can be
++// derived. Its representation matches the wire format's representation of the event
++// types that precede all event data.
+ type Type uint8
+ 
+ // Spec is a specification for a trace event. It contains sufficient information

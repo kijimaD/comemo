@@ -15,6 +15,37 @@ Date:   Mon Jan 4 22:58:24 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/fmt.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 92ea160a28..a4e769f508 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1237,10 +1237,25 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 				fmt.Fprintf(w, "%+v-%s", n.Op(), name)
+ 			}
+ 			dumpNodes(w, val, depth+1)
++		default:
++			if vf.Kind() == reflect.Slice && vf.Type().Elem().Implements(nodeType) {
++				if vf.Len() == 0 {
++					continue
++				}
++				if name != "" {
++					indent(w, depth)
++					fmt.Fprintf(w, "%+v-%s", n.Op(), name)
++				}
++				for i, n := 0, vf.Len(); i < n; i++ {
++					dumpNode(w, vf.Index(i).Interface().(Node), depth+1)
++				}
++			}
+ 		}
+ 	}
+ }
+ 
++var nodeType = reflect.TypeOf((*Node)(nil)).Elem()
++
+ func dumpNodes(w io.Writer, list Nodes, depth int) {
+ 	if len(list) == 0 {
+ 		fmt.Fprintf(w, " <nil>")

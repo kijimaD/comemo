@@ -12,6 +12,20 @@ Date:   Thu Dec 14 13:12:45 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mheap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 0bbda4aa3b..0069328346 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -399,7 +399,7 @@ type mspan struct {
+ 	_    sys.NotInHeap
+ 	next *mspan     // next span in list, or nil if none
+ 	prev *mspan     // previous span in list, or nil if none
+-	list *mSpanList // For debugging. TODO: Remove.
++	list *mSpanList // For debugging.
+ 
+ 	startAddr uintptr // address of first byte of span aka s.base()
+ 	npages    uintptr // number of pages in span

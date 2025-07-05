@@ -8,9 +8,80 @@ Date:   Mon Mar 11 14:24:51 2013 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7420052
-
+---
  src/cmd/ld/go.c                         | 11 ++++++++---
  src/pkg/runtime/cgo/gcc_openbsd_386.c   |  6 +++---
  src/pkg/runtime/cgo/gcc_openbsd_amd64.c |  6 +++---
  src/run.bash                            |  1 -
  4 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 27307819fc..ff1f5f437b 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -499,11 +499,16 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 				remote = local;
+ 			local = expandpkg(local, pkg);
+ 			s = lookup(local, 0);
++
++			// export overrides import, for openbsd/cgo.
++			// see issue 4878.
+ 			if(s->dynimplib != nil) {
+-				fprint(2, "%s: symbol is both imported and exported: %s\n", argv0, local);
+-				nerrors++;
++				s->dynimplib = nil;
++				s->extname = nil;
++				s->dynimpvers = nil;
++				s->type = 0;
+ 			}
+-			
++
+ 			if(s->cgoexport == 0) {
+ 				if(strcmp(f[0], "cgo_export_static") == 0)
+ 					s->cgoexport |= CgoExportStatic;
+diff --git a/src/pkg/runtime/cgo/gcc_openbsd_386.c b/src/pkg/runtime/cgo/gcc_openbsd_386.c
+index 86c1365adc..80be31b9c3 100644
+--- a/src/pkg/runtime/cgo/gcc_openbsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_openbsd_386.c
+@@ -48,9 +48,9 @@ tcb_fixup(int mainthread)
+ 	bcopy(oldtcb, newtcb + TLS_SIZE, TCB_SIZE);
+ 	__set_tcb(newtcb + TLS_SIZE);
+ 
+-	// The main thread TCB is a static allocation - do not try to free it.
+-	if(!mainthread)
+-		free(oldtcb);
++	// NOTE(jsing, minux): we can't free oldtcb without causing double-free
++	// problem. so newtcb will be memory leaks. Get rid of this when OpenBSD
++	// has proper support for PT_TLS.
+ }
+ 
+ static void *
+diff --git a/src/pkg/runtime/cgo/gcc_openbsd_amd64.c b/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
+index d3a5e36b03..e9cc8184bd 100644
+--- a/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
+@@ -48,9 +48,9 @@ tcb_fixup(int mainthread)
+ 	bcopy(oldtcb, newtcb + TLS_SIZE, TCB_SIZE);
+ 	__set_tcb(newtcb + TLS_SIZE);
+ 
+-	// The main thread TCB is a static allocation - do not try to free it.
+-	if(!mainthread)
+-		free(oldtcb);
++	// NOTE(jsing, minux): we can't free oldtcb without causing double-free
++	// problem. so newtcb will be memory leaks. Get rid of this when OpenBSD
++	// has proper support for PT_TLS.
+ }
+ 
+ static void *
+diff --git a/src/run.bash b/src/run.bash
+index 1d54c94907..f53236ae73 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -74,7 +74,6 @@ go run $GOROOT/test/run.go - .
+ ) || exit $?
+ 
+ [ "$CGO_ENABLED" != 1 ] ||
+-[ "$GOHOSTOS" == openbsd ] || # issue 4878
+ (xcd ../misc/cgo/test
+ go test
+ case "$GOHOSTOS-$GOARCH" in

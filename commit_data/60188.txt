@@ -16,7 +16,54 @@ Date:   Thu May 23 16:30:20 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go | 5 +++--
  src/go/types/infer.go                    | 5 +++--
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 2a46de9b97..122ac9e04f 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -693,6 +693,7 @@ type cycleFinder struct {
+ }
+ 
+ func (w *cycleFinder) typ(typ Type) {
++	typ = Unalias(typ)
+ 	if w.seen[typ] {
+ 		// We have seen typ before. If it is one of the type parameters
+ 		// in w.tparams, iterative substitution will lead to infinite expansion.
+@@ -714,8 +715,8 @@ func (w *cycleFinder) typ(typ Type) {
+ 	case *Basic:
+ 		// nothing to do
+ 
+-	case *Alias:
+-		w.typ(Unalias(t))
++	// *Alias:
++	//      This case should not occur because of Unalias(typ) at the top.
+ 
+ 	case *Array:
+ 		w.typ(t.elem)
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 7e63b0a665..d0f1c1caf4 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -696,6 +696,7 @@ type cycleFinder struct {
+ }
+ 
+ func (w *cycleFinder) typ(typ Type) {
++	typ = Unalias(typ)
+ 	if w.seen[typ] {
+ 		// We have seen typ before. If it is one of the type parameters
+ 		// in w.tparams, iterative substitution will lead to infinite expansion.
+@@ -717,8 +718,8 @@ func (w *cycleFinder) typ(typ Type) {
+ 	case *Basic:
+ 		// nothing to do
+ 
+-	case *Alias:
+-		w.typ(Unalias(t))
++	// *Alias:
++	//      This case should not occur because of Unalias(typ) at the top.
+ 
+ 	case *Array:
+ 		w.typ(t.elem)

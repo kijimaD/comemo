@@ -10,6 +10,22 @@ Date:   Mon Jun 7 17:11:32 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index ac315d4727..42f3631b92 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -116,10 +116,6 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="tools">Tools</h2>
+ 
+-<p>
+-  TODO: complete the Tools section
+-</p>
+-
+ <h3 id="go-command">Go command</h3>
+ 
+ <h4 id="lazy-loading">Lazy module loading</h4>

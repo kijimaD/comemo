@@ -22,7 +22,7 @@ Date:   Mon Mar 12 07:32:28 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_linux_novdso.go  |  2 +-
  src/runtime/sys_linux_arm64.s   | 71 +++++++++++++++++++++++++++++++++++++++--
  src/runtime/vdso_elf64.go       |  2 +-
@@ -34,3 +34,271 @@ Date:   Mon Mar 12 07:32:28 2018 +0000
  src/runtime/vdso_linux_arm64.go | 21 ++++++++++++
  src/runtime/vdso_linux_test.go  |  2 +-
  10 files changed, 103 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/os_linux_novdso.go b/src/runtime/os_linux_novdso.go
+index b5a6b0e947..ee4a7a95c2 100644
+--- a/src/runtime/os_linux_novdso.go
++++ b/src/runtime/os_linux_novdso.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build !386,!amd64,!arm
++// +build !386,!amd64,!arm,!arm64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 6954f32aac..8a56ba6bab 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -12,6 +12,9 @@
+ 
+ #define AT_FDCWD -100
+ 
++#define CLOCK_REALTIME 0
++#define CLOCK_MONOTONIC 1
++
+ #define SYS_exit		93
+ #define SYS_read		63
+ #define SYS_write		64
+@@ -180,23 +183,87 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 
+ // func walltime() (sec int64, nsec int32)
+ TEXT runtime·walltime(SB),NOSPLIT,$24-12
+-	MOVW	$0, R0 // CLOCK_REALTIME
++	MOVD	RSP, R20	// R20 is unchanged by C code
+ 	MOVD	RSP, R1
++
++	MOVD	g_m(g), R21	// R21 = m
++
++	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	MOVD	LR, m_vdsoPC(R21)
++	MOVD	R20, m_vdsoSP(R21)
++
++	MOVD	m_curg(R21), R0
++	CMP	g, R0
++	BNE	noswitch
++
++	MOVD	m_g0(R21), R3
++	MOVD	(g_sched+gobuf_sp)(R3), R1	// Set RSP to g0 stack
++
++noswitch:
++	SUB	$16, R1
++	BIC	$15, R1	// Align for C code
++	MOVD	R1, RSP
++
++	MOVW	$CLOCK_REALTIME, R0
++	MOVD	runtime·vdsoClockgettimeSym(SB), R2
++	CBZ	R2, fallback
++	BL	(R2)
++	B	finish
++
++fallback:
+ 	MOVD	$SYS_clock_gettime, R8
+ 	SVC
++
++finish:
+ 	MOVD	0(RSP), R3	// sec
+ 	MOVD	8(RSP), R5	// nsec
++
++	MOVD	R20, RSP	// restore SP
++	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
++
+ 	MOVD	R3, sec+0(FP)
+ 	MOVW	R5, nsec+8(FP)
+ 	RET
+ 
+ TEXT runtime·nanotime(SB),NOSPLIT,$24-8
+-	MOVW	$1, R0 // CLOCK_MONOTONIC
++	MOVD	RSP, R20	// R20 is unchanged by C code
+ 	MOVD	RSP, R1
++
++	MOVD	g_m(g), R21	// R21 = m
++
++	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	MOVD	LR, m_vdsoPC(R21)
++	MOVD	R20, m_vdsoSP(R21)
++
++	MOVD	m_curg(R21), R0
++	CMP	g, R0
++	BNE	noswitch
++
++	MOVD	m_g0(R21), R3
++	MOVD	(g_sched+gobuf_sp)(R3), R1	// Set RSP to g0 stack
++
++noswitch:
++	SUB	$16, R1
++	BIC	$15, R1
++	MOVD	R1, RSP
++
++	MOVW	$CLOCK_MONOTONIC, R0
++	MOVD	runtime·vdsoClockgettimeSym(SB), R2
++	CBZ	R2, fallback
++	BL	(R2)
++	B	finish
++
++fallback:
+ 	MOVD	$SYS_clock_gettime, R8
+ 	SVC
++
++finish:
+ 	MOVD	0(RSP), R3	// sec
+ 	MOVD	8(RSP), R5	// nsec
++
++	MOVD	R20, RSP	// restore SP
++	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
++
+ 	// sec is in R3, nsec in R5
+ 	// return nsec in R3
+ 	MOVD	$1000000000, R4
+diff --git a/src/runtime/vdso_elf64.go b/src/runtime/vdso_elf64.go
+index 828714dbcf..8510250065 100644
+--- a/src/runtime/vdso_elf64.go
++++ b/src/runtime/vdso_elf64.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build amd64
++// +build amd64 arm64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/vdso_in_none.go b/src/runtime/vdso_in_none.go
+index f727e1d0e8..34cfac56d1 100644
+--- a/src/runtime/vdso_in_none.go
++++ b/src/runtime/vdso_in_none.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,!386,!amd64,!arm !linux
++// +build linux,!386,!amd64,!arm,!arm64 !linux
+ 
+ package runtime
+ 
+diff --git a/src/runtime/vdso_linux.go b/src/runtime/vdso_linux.go
+index 7939bb54be..c246b33884 100644
+--- a/src/runtime/vdso_linux.go
++++ b/src/runtime/vdso_linux.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build 386 amd64 arm
++// +build 386 amd64 arm arm64
+ 
+ package runtime
+ 
+@@ -96,8 +96,6 @@ type vdsoInfo struct {
+ 	verdef *elfVerdef
+ }
+ 
+-var linux26 = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
+-
+ // see vdso_linux_*.go for vdsoSymbolKeys[] and vdso*Sym vars
+ 
+ func vdsoInitFromSysinfoEhdr(info *vdsoInfo, hdr *elfEhdr) {
+@@ -220,7 +218,6 @@ func vdsoParseSymbols(info *vdsoInfo, version int32) {
+ 		if k.name != gostringnocopy(&info.symstrings[sym.st_name]) {
+ 			return false
+ 		}
+-
+ 		// Check symbol version.
+ 		if info.versym != nil && version != 0 && int32(info.versym[symIndex]&0x7fff) != version {
+ 			return false
+@@ -276,7 +273,7 @@ func vdsoauxv(tag, val uintptr) {
+ 		// when passed to the three functions below.
+ 		info1 := (*vdsoInfo)(noescape(unsafe.Pointer(&info)))
+ 		vdsoInitFromSysinfoEhdr(info1, (*elfEhdr)(unsafe.Pointer(val)))
+-		vdsoParseSymbols(info1, vdsoFindVersion(info1, &linux26))
++		vdsoParseSymbols(info1, vdsoFindVersion(info1, &vdsoLinuxVersion))
+ 	}
+ }
+ 
+diff --git a/src/runtime/vdso_linux_386.go b/src/runtime/vdso_linux_386.go
+index 90f7af507b..5092c7c1d1 100644
+--- a/src/runtime/vdso_linux_386.go
++++ b/src/runtime/vdso_linux_386.go
+@@ -11,11 +11,11 @@ const (
+ 	vdsoArrayMax = 1<<31 - 1
+ )
+ 
++var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
++
+ var vdsoSymbolKeys = []vdsoSymbolKey{
+ 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+ }
+ 
+ // initialize to fall back to syscall
+-var (
+-	vdsoClockgettimeSym uintptr = 0
+-)
++var vdsoClockgettimeSym uintptr = 0
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux_amd64.go
+index 387d72e0cb..d9ab4ab3c6 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux_amd64.go
+@@ -10,6 +10,8 @@ const (
+ 	vdsoArrayMax = 1<<50 - 1
+ )
+ 
++var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
++
+ var vdsoSymbolKeys = []vdsoSymbolKey{
+ 	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &vdsoGettimeofdaySym},
+ 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+diff --git a/src/runtime/vdso_linux_arm.go b/src/runtime/vdso_linux_arm.go
+index 143d2b5624..ac3bdcf043 100644
+--- a/src/runtime/vdso_linux_arm.go
++++ b/src/runtime/vdso_linux_arm.go
+@@ -11,6 +11,8 @@ const (
+ 	vdsoArrayMax = 1<<31 - 1
+ )
+ 
++var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
++
+ var vdsoSymbolKeys = []vdsoSymbolKey{
+ 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+ }
+diff --git a/src/runtime/vdso_linux_arm64.go b/src/runtime/vdso_linux_arm64.go
+new file mode 100644
+index 0000000000..2f003cd645
+--- /dev/null
++++ b/src/runtime/vdso_linux_arm64.go
+@@ -0,0 +1,21 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	// vdsoArrayMax is the byte-size of a maximally sized array on this architecture.
++	// See cmd/compile/internal/arm64/galign.go arch.MAXWIDTH initialization.
++	vdsoArrayMax = 1<<50 - 1
++)
++
++// key and version at man 7 vdso : aarch64
++var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6.39", 0x75fcb89}
++
++var vdsoSymbolKeys = []vdsoSymbolKey{
++	{"__kernel_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
++}
++
++// initialize to fall back to syscall
++var vdsoClockgettimeSym uintptr = 0
+diff --git a/src/runtime/vdso_linux_test.go b/src/runtime/vdso_linux_test.go
+index 5cc5493dc6..b5221f90b7 100644
+--- a/src/runtime/vdso_linux_test.go
++++ b/src/runtime/vdso_linux_test.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build linux
+-// +build 386 amd64 arm
++// +build 386 amd64 arm arm64
+ 
+ package runtime_test
+ 

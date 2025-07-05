@@ -11,7 +11,7 @@ Date:   Tue Apr 4 14:20:26 2023 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/gmp/fib.go                                 | 1 -
  misc/cgo/gmp/pi.go                                  | 1 -
  misc/cgo/test/callback_c_gc.c                       | 2 +-
@@ -83,3 +83,897 @@ Date:   Tue Apr 4 14:20:26 2023 -0700
  misc/cgo/testsovar/testdata/main.go                 | 1 -
  misc/cgo/testtls/tls_test.go                        | 1 -
  70 files changed, 28 insertions(+), 87 deletions(-)
+
+diff --git a/misc/cgo/gmp/fib.go b/misc/cgo/gmp/fib.go
+index f453fcf184..48b070049f 100644
+--- a/misc/cgo/gmp/fib.go
++++ b/misc/cgo/gmp/fib.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // Compute Fibonacci numbers with two goroutines
+ // that pass integers back and forth.  No actual
+diff --git a/misc/cgo/gmp/pi.go b/misc/cgo/gmp/pi.go
+index 5ea034900a..537a426b38 100644
+--- a/misc/cgo/gmp/pi.go
++++ b/misc/cgo/gmp/pi.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/test/callback_c_gc.c b/misc/cgo/test/callback_c_gc.c
+index eb720eba7c..c6666c2b4e 100644
+--- a/misc/cgo/test/callback_c_gc.c
++++ b/misc/cgo/test/callback_c_gc.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build gc
++//go:build gc
+ 
+ #include "_cgo_export.h"
+ #include <stdint.h>
+diff --git a/misc/cgo/test/callback_c_gccgo.c b/misc/cgo/test/callback_c_gccgo.c
+index 4eaa8184b3..91d37f02d8 100644
+--- a/misc/cgo/test/callback_c_gccgo.c
++++ b/misc/cgo/test/callback_c_gccgo.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build gccgo
++//go:build gccgo
+ 
+ #include "_cgo_export.h"
+ #include <stdint.h>
+diff --git a/misc/cgo/test/cgo_thread_lock.go b/misc/cgo/test/cgo_thread_lock.go
+index 3b9ac84549..1c983375d9 100644
+--- a/misc/cgo/test/cgo_thread_lock.go
++++ b/misc/cgo/test/cgo_thread_lock.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build linux && freebsd && openbsd
+-// +build linux,freebsd,openbsd
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/cgo_unix_test.go b/misc/cgo/test/cgo_unix_test.go
+index a324503a22..e6d6ee54b4 100644
+--- a/misc/cgo/test/cgo_unix_test.go
++++ b/misc/cgo/test/cgo_unix_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows
+-// +build !windows
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/cthread_unix.c b/misc/cgo/test/cthread_unix.c
+index 13623254a9..d0da643158 100644
+--- a/misc/cgo/test/cthread_unix.c
++++ b/misc/cgo/test/cthread_unix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ #include <pthread.h>
+ #include "_cgo_export.h"
+diff --git a/misc/cgo/test/issue1435.go b/misc/cgo/test/issue1435.go
+index 3fb721ac39..a672e26aa0 100644
+--- a/misc/cgo/test/issue1435.go
++++ b/misc/cgo/test/issue1435.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build linux && cgo
+-// +build linux,cgo
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+index e50f9ae530..f02fc4476d 100644
+--- a/misc/cgo/test/issue18146.go
++++ b/misc/cgo/test/issue18146.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows
+-// +build !windows
+ 
+ // Issue 18146: pthread_create failure during syscall.Exec.
+ 
+diff --git a/misc/cgo/test/issue21897.go b/misc/cgo/test/issue21897.go
+index 8f39252e68..cd3600a0cf 100644
+--- a/misc/cgo/test/issue21897.go
++++ b/misc/cgo/test/issue21897.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin && cgo && !internal
+-// +build darwin,cgo,!internal
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue21897b.go b/misc/cgo/test/issue21897b.go
+index 50aece3528..e12564c216 100644
+--- a/misc/cgo/test/issue21897b.go
++++ b/misc/cgo/test/issue21897b.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !darwin || !cgo || internal
+-// +build !darwin !cgo internal
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue24161arg/def.go b/misc/cgo/test/issue24161arg/def.go
+index 06126143e5..acea3aeb34 100644
+--- a/misc/cgo/test/issue24161arg/def.go
++++ b/misc/cgo/test/issue24161arg/def.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin
+-// +build darwin
+ 
+ package issue24161arg
+ 
+diff --git a/misc/cgo/test/issue24161arg/use.go b/misc/cgo/test/issue24161arg/use.go
+index a776ce0584..7987105efa 100644
+--- a/misc/cgo/test/issue24161arg/use.go
++++ b/misc/cgo/test/issue24161arg/use.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin
+-// +build darwin
+ 
+ package issue24161arg
+ 
+diff --git a/misc/cgo/test/issue24161e0/main.go b/misc/cgo/test/issue24161e0/main.go
+index 4b139552e2..5912fe27cc 100644
+--- a/misc/cgo/test/issue24161e0/main.go
++++ b/misc/cgo/test/issue24161e0/main.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin
+-// +build darwin
+ 
+ package issue24161e0
+ 
+diff --git a/misc/cgo/test/issue24161e1/main.go b/misc/cgo/test/issue24161e1/main.go
+index 1b30b9a9fc..8c2bc6ec07 100644
+--- a/misc/cgo/test/issue24161e1/main.go
++++ b/misc/cgo/test/issue24161e1/main.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin
+-// +build darwin
+ 
+ package issue24161e1
+ 
+diff --git a/misc/cgo/test/issue24161e2/main.go b/misc/cgo/test/issue24161e2/main.go
+index 4a7e1033e3..159f4796fe 100644
+--- a/misc/cgo/test/issue24161e2/main.go
++++ b/misc/cgo/test/issue24161e2/main.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin
+-// +build darwin
+ 
+ package issue24161e2
+ 
+diff --git a/misc/cgo/test/issue24161res/restype.go b/misc/cgo/test/issue24161res/restype.go
+index cb33f3c8aa..07cb98dbcf 100644
+--- a/misc/cgo/test/issue24161res/restype.go
++++ b/misc/cgo/test/issue24161res/restype.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin
+-// +build darwin
+ 
+ package issue24161res
+ 
+diff --git a/misc/cgo/test/issue29563.go b/misc/cgo/test/issue29563.go
+index 9f29da4c75..bbe98bbd48 100644
+--- a/misc/cgo/test/issue29563.go
++++ b/misc/cgo/test/issue29563.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows
+-// +build !windows
+ 
+ // Issue 29563: internal linker fails on duplicate weak symbols.
+ // No runtime test; just make sure it compiles.
+diff --git a/misc/cgo/test/issue4029.c b/misc/cgo/test/issue4029.c
+index e79c5a709c..212d6922f8 100644
+--- a/misc/cgo/test/issue4029.c
++++ b/misc/cgo/test/issue4029.c
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows,!static
+-// +build !darwin !internal_pie,!arm64
++//go:build !windows && !static && (!darwin || (!internal_pie && !arm64))
+ 
+ #include <stdint.h>
+ #include <dlfcn.h>
+diff --git a/misc/cgo/test/issue4029.go b/misc/cgo/test/issue4029.go
+index 90ca08cbfb..686b7679f3 100644
+--- a/misc/cgo/test/issue4029.go
++++ b/misc/cgo/test/issue4029.go
+@@ -3,9 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows && !static && (!darwin || (!internal_pie && !arm64))
+-// +build !windows
+-// +build !static
+-// +build !darwin !internal_pie,!arm64
+ 
+ // Excluded in darwin internal linking PIE mode, as dynamic export is not
+ // supported.
+diff --git a/misc/cgo/test/issue4029w.go b/misc/cgo/test/issue4029w.go
+index c2f59485e4..91dad6abcb 100644
+--- a/misc/cgo/test/issue4029w.go
++++ b/misc/cgo/test/issue4029w.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build windows || static || (darwin && internal_pie) || (darwin && arm64)
+-// +build windows static darwin,internal_pie darwin,arm64
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue42018.go b/misc/cgo/test/issue42018.go
+index fab686a678..6b369bfab4 100644
+--- a/misc/cgo/test/issue42018.go
++++ b/misc/cgo/test/issue42018.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows
+-// +build !windows
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue6997_linux.c b/misc/cgo/test/issue6997_linux.c
+index de803d296e..c6d251bbe5 100644
+--- a/misc/cgo/test/issue6997_linux.c
++++ b/misc/cgo/test/issue6997_linux.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !android
++//go:build !android
+ 
+ #include <pthread.h>
+ #include <stdio.h>
+diff --git a/misc/cgo/test/issue6997_linux.go b/misc/cgo/test/issue6997_linux.go
+index 4acc8c1a07..1de5edda04 100644
+--- a/misc/cgo/test/issue6997_linux.go
++++ b/misc/cgo/test/issue6997_linux.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !android
+-// +build !android
+ 
+ // Test that pthread_cancel works as expected
+ // (NPTL uses SIGRTMIN to implement thread cancellation)
+diff --git a/misc/cgo/test/issue8517.go b/misc/cgo/test/issue8517.go
+index 7316ab0335..2261513022 100644
+--- a/misc/cgo/test/issue8517.go
++++ b/misc/cgo/test/issue8517.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows
+-// +build !windows
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue8694.go b/misc/cgo/test/issue8694.go
+index 19071ce159..3b8f065d27 100644
+--- a/misc/cgo/test/issue8694.go
++++ b/misc/cgo/test/issue8694.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !android
+-// +build !android
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue9400/asm_386.s b/misc/cgo/test/issue9400/asm_386.s
+index 96b8b60c10..8a3830135f 100644
+--- a/misc/cgo/test/issue9400/asm_386.s
++++ b/misc/cgo/test/issue9400/asm_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build gc
++//go:build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/issue9400/asm_amd64x.s b/misc/cgo/test/issue9400/asm_amd64x.s
+index 99509bce5e..07adaf745f 100644
+--- a/misc/cgo/test/issue9400/asm_amd64x.s
++++ b/misc/cgo/test/issue9400/asm_amd64x.s
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32
+-// +build gc
++//go:build (amd64 || amd64p32) && gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/issue9400/asm_arm.s b/misc/cgo/test/issue9400/asm_arm.s
+index cc92856c2f..41261725ca 100644
+--- a/misc/cgo/test/issue9400/asm_arm.s
++++ b/misc/cgo/test/issue9400/asm_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build gc
++//go:build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/issue9400/asm_arm64.s b/misc/cgo/test/issue9400/asm_arm64.s
+index 2565793f9a..affbd71e65 100644
+--- a/misc/cgo/test/issue9400/asm_arm64.s
++++ b/misc/cgo/test/issue9400/asm_arm64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build gc
++//go:build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/issue9400/asm_mips64x.s b/misc/cgo/test/issue9400/asm_mips64x.s
+index 693231ddfe..1f492eafe9 100644
+--- a/misc/cgo/test/issue9400/asm_mips64x.s
++++ b/misc/cgo/test/issue9400/asm_mips64x.s
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build mips64 mips64le
+-// +build gc
++//go:build (mips64 || mips64le) && gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/issue9400/asm_mipsx.s b/misc/cgo/test/issue9400/asm_mipsx.s
+index 63261bbf9d..695273d90f 100644
+--- a/misc/cgo/test/issue9400/asm_mipsx.s
++++ b/misc/cgo/test/issue9400/asm_mipsx.s
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build mips mipsle
+-// +build gc
++//go:build (mips || mipsle) && gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/issue9400/asm_ppc64x.s b/misc/cgo/test/issue9400/asm_ppc64x.s
+index b5613fb6ec..5f13f1696d 100644
+--- a/misc/cgo/test/issue9400/asm_ppc64x.s
++++ b/misc/cgo/test/issue9400/asm_ppc64x.s
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ppc64 ppc64le
+-// +build gc
++//go:build (ppc64 || ppc64le) && gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/issue9400/asm_riscv64.s b/misc/cgo/test/issue9400/asm_riscv64.s
+index 244dadac35..fa34f6bd37 100644
+--- a/misc/cgo/test/issue9400/asm_riscv64.s
++++ b/misc/cgo/test/issue9400/asm_riscv64.s
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build riscv64
+-// +build gc
++//go:build riscv64 && gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/issue9400/asm_s390x.s b/misc/cgo/test/issue9400/asm_s390x.s
+index 4856492958..2552fa7008 100644
+--- a/misc/cgo/test/issue9400/asm_s390x.s
++++ b/misc/cgo/test/issue9400/asm_s390x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build gc
++//go:build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/issue9400/gccgo.go b/misc/cgo/test/issue9400/gccgo.go
+index e1e805cb5c..4dd987bf74 100644
+--- a/misc/cgo/test/issue9400/gccgo.go
++++ b/misc/cgo/test/issue9400/gccgo.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build gccgo
+-// +build gccgo
+ 
+ package issue9400
+ 
+diff --git a/misc/cgo/test/issue9400/stubs.go b/misc/cgo/test/issue9400/stubs.go
+index 56bd6f44cb..08cde2e33b 100644
+--- a/misc/cgo/test/issue9400/stubs.go
++++ b/misc/cgo/test/issue9400/stubs.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build gc
+-// +build gc
+ 
+ package issue9400
+ 
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index 6b371897a7..d468cf8251 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows && !android
+-// +build !windows,!android
+ 
+ // Test that the Go runtime still works if C code changes the signal stack.
+ 
+diff --git a/misc/cgo/test/sigprocmask.c b/misc/cgo/test/sigprocmask.c
+index e77ba5b08e..43158332b9 100644
+--- a/misc/cgo/test/sigprocmask.c
++++ b/misc/cgo/test/sigprocmask.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows
++//go:build !windows
+ 
+ #include <errno.h>
+ #include <signal.h>
+diff --git a/misc/cgo/test/sigprocmask.go b/misc/cgo/test/sigprocmask.go
+index 983734cc7b..6cc04d6855 100644
+--- a/misc/cgo/test/sigprocmask.go
++++ b/misc/cgo/test/sigprocmask.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows
+-// +build !windows
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/test_unix.go b/misc/cgo/test/test_unix.go
+index 831b9ca625..50fb0d4db2 100644
+--- a/misc/cgo/test/test_unix.go
++++ b/misc/cgo/test/test_unix.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows
+-// +build !windows
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/testcshared/testdata/libgo2/dup2.go b/misc/cgo/testcshared/testdata/libgo2/dup2.go
+index dc03633db6..ef86083a03 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/dup2.go
++++ b/misc/cgo/testcshared/testdata/libgo2/dup2.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin || dragonfly || freebsd || (linux && !arm64 && !riscv64) || netbsd || openbsd
+-// +build darwin dragonfly freebsd linux,!arm64,!riscv64 netbsd openbsd
+ 
+ package main
+ 
+diff --git a/misc/cgo/testcshared/testdata/libgo2/dup3.go b/misc/cgo/testcshared/testdata/libgo2/dup3.go
+index 705cdbc4fd..913c4bbaca 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/dup3.go
++++ b/misc/cgo/testcshared/testdata/libgo2/dup3.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build (linux && arm64) || (linux && riscv64)
+-// +build linux,arm64 linux,riscv64
+ 
+ package main
+ 
+diff --git a/misc/cgo/testcshared/testdata/libgo2/libgo2.go b/misc/cgo/testcshared/testdata/libgo2/libgo2.go
+index d8a6c48703..5f6cfd0039 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/libgo2.go
++++ b/misc/cgo/testcshared/testdata/libgo2/libgo2.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package main
+ 
+diff --git a/misc/cgo/testgodefs/testdata/anonunion.go b/misc/cgo/testgodefs/testdata/anonunion.go
+index 9e9daa6625..2c86c5c29e 100644
+--- a/misc/cgo/testgodefs/testdata/anonunion.go
++++ b/misc/cgo/testgodefs/testdata/anonunion.go
+@@ -1,9 +1,8 @@
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
++
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testgodefs/testdata/bitfields.go b/misc/cgo/testgodefs/testdata/bitfields.go
+index a7f26dd6d2..431ffc0696 100644
+--- a/misc/cgo/testgodefs/testdata/bitfields.go
++++ b/misc/cgo/testgodefs/testdata/bitfields.go
+@@ -1,9 +1,8 @@
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
++
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testgodefs/testdata/fieldtypedef.go b/misc/cgo/testgodefs/testdata/fieldtypedef.go
+index 50562538b2..b0c507477f 100644
+--- a/misc/cgo/testgodefs/testdata/fieldtypedef.go
++++ b/misc/cgo/testgodefs/testdata/fieldtypedef.go
+@@ -1,9 +1,8 @@
+ // Copyright 2018 The Go Authors. All rights reserve d.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
++
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testgodefs/testdata/issue37479.go b/misc/cgo/testgodefs/testdata/issue37479.go
+index ba7185b81f..d54531045f 100644
+--- a/misc/cgo/testgodefs/testdata/issue37479.go
++++ b/misc/cgo/testgodefs/testdata/issue37479.go
+@@ -1,9 +1,8 @@
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
++
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testgodefs/testdata/issue37621.go b/misc/cgo/testgodefs/testdata/issue37621.go
+index 515f0c089f..655e8ae465 100644
+--- a/misc/cgo/testgodefs/testdata/issue37621.go
++++ b/misc/cgo/testgodefs/testdata/issue37621.go
+@@ -1,9 +1,8 @@
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
++
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testgodefs/testdata/issue38649.go b/misc/cgo/testgodefs/testdata/issue38649.go
+index 5ef00eb5fe..78b5f78edd 100644
+--- a/misc/cgo/testgodefs/testdata/issue38649.go
++++ b/misc/cgo/testgodefs/testdata/issue38649.go
+@@ -1,9 +1,8 @@
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
++
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testgodefs/testdata/issue39534.go b/misc/cgo/testgodefs/testdata/issue39534.go
+index e310a81266..af730e98d9 100644
+--- a/misc/cgo/testgodefs/testdata/issue39534.go
++++ b/misc/cgo/testgodefs/testdata/issue39534.go
+@@ -1,9 +1,8 @@
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
++
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testgodefs/testdata/issue48396.go b/misc/cgo/testgodefs/testdata/issue48396.go
+index 27c03940b7..81dd2feb80 100644
+--- a/misc/cgo/testgodefs/testdata/issue48396.go
++++ b/misc/cgo/testgodefs/testdata/issue48396.go
+@@ -1,9 +1,8 @@
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
++
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testgodefs/testdata/issue8478.go b/misc/cgo/testgodefs/testdata/issue8478.go
+index ec3bdcf43b..f4ef164bda 100644
+--- a/misc/cgo/testgodefs/testdata/issue8478.go
++++ b/misc/cgo/testgodefs/testdata/issue8478.go
+@@ -1,9 +1,8 @@
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
++
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testplugin/testdata/issue22295.pkg/main.go b/misc/cgo/testplugin/testdata/issue22295.pkg/main.go
+index eb6064be80..44b2a2140e 100644
+--- a/misc/cgo/testplugin/testdata/issue22295.pkg/main.go
++++ b/misc/cgo/testplugin/testdata/issue22295.pkg/main.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testplugin/testdata/unnamed1/main.go b/misc/cgo/testplugin/testdata/unnamed1/main.go
+index 1629f18e01..1620dc48ce 100644
+--- a/misc/cgo/testplugin/testdata/unnamed1/main.go
++++ b/misc/cgo/testplugin/testdata/unnamed1/main.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testplugin/testdata/unnamed2/main.go b/misc/cgo/testplugin/testdata/unnamed2/main.go
+index 35e9f381f9..027ef6475c 100644
+--- a/misc/cgo/testplugin/testdata/unnamed2/main.go
++++ b/misc/cgo/testplugin/testdata/unnamed2/main.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testshared/testdata/depBase/asm.s b/misc/cgo/testshared/testdata/depBase/asm.s
+index 0f1111f392..51adca3a33 100644
+--- a/misc/cgo/testshared/testdata/depBase/asm.s
++++ b/misc/cgo/testshared/testdata/depBase/asm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build gc
++//go:build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/testshared/testdata/depBase/gccgo.go b/misc/cgo/testshared/testdata/depBase/gccgo.go
+index 2c829989e0..a59d0b8c3f 100644
+--- a/misc/cgo/testshared/testdata/depBase/gccgo.go
++++ b/misc/cgo/testshared/testdata/depBase/gccgo.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build gccgo
+-// +build gccgo
+ 
+ package depBase
+ 
+diff --git a/misc/cgo/testshared/testdata/depBase/stubs.go b/misc/cgo/testshared/testdata/depBase/stubs.go
+index aca7a85f69..c15e4e9a74 100644
+--- a/misc/cgo/testshared/testdata/depBase/stubs.go
++++ b/misc/cgo/testshared/testdata/depBase/stubs.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build gc
+-// +build gc
+ 
+ package depBase
+ 
+diff --git a/misc/cgo/testso/noso_test.go b/misc/cgo/testso/noso_test.go
+index 1014534d62..45b13e1928 100644
+--- a/misc/cgo/testso/noso_test.go
++++ b/misc/cgo/testso/noso_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !cgo
+-// +build !cgo
+ 
+ package so_test
+ 
+diff --git a/misc/cgo/testso/so_test.go b/misc/cgo/testso/so_test.go
+index 6d14e32dc6..5c460d21b6 100644
+--- a/misc/cgo/testso/so_test.go
++++ b/misc/cgo/testso/so_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build cgo
+-// +build cgo
+ 
+ package so_test
+ 
+diff --git a/misc/cgo/testso/testdata/cgoso_c.c b/misc/cgo/testso/testdata/cgoso_c.c
+index e5015ed5e8..d5fb559f83 100644
+--- a/misc/cgo/testso/testdata/cgoso_c.c
++++ b/misc/cgo/testso/testdata/cgoso_c.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
++//go:build ignore
+ 
+ #ifdef WIN32
+ // A Windows DLL is unable to call an arbitrary function in
+diff --git a/misc/cgo/testso/testdata/cgoso_unix.go b/misc/cgo/testso/testdata/cgoso_unix.go
+index 5164af5b3f..ea9cb0a903 100644
+--- a/misc/cgo/testso/testdata/cgoso_unix.go
++++ b/misc/cgo/testso/testdata/cgoso_unix.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build aix || dragonfly || freebsd || linux || netbsd || solaris
+-// +build aix dragonfly freebsd linux netbsd solaris
+ 
+ package cgosotest
+ 
+diff --git a/misc/cgo/testso/testdata/main.go b/misc/cgo/testso/testdata/main.go
+index 5e2d6eff86..84382f739c 100644
+--- a/misc/cgo/testso/testdata/main.go
++++ b/misc/cgo/testso/testdata/main.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testsovar/noso_test.go b/misc/cgo/testsovar/noso_test.go
+index 1014534d62..45b13e1928 100644
+--- a/misc/cgo/testsovar/noso_test.go
++++ b/misc/cgo/testsovar/noso_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !cgo
+-// +build !cgo
+ 
+ package so_test
+ 
+diff --git a/misc/cgo/testsovar/so_test.go b/misc/cgo/testsovar/so_test.go
+index 6d14e32dc6..5c460d21b6 100644
+--- a/misc/cgo/testsovar/so_test.go
++++ b/misc/cgo/testsovar/so_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build cgo
+-// +build cgo
+ 
+ package so_test
+ 
+diff --git a/misc/cgo/testsovar/testdata/cgoso_c.c b/misc/cgo/testsovar/testdata/cgoso_c.c
+index a448c01342..36f4d570ee 100644
+--- a/misc/cgo/testsovar/testdata/cgoso_c.c
++++ b/misc/cgo/testsovar/testdata/cgoso_c.c
+@@ -2,6 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
++//go:build ignore
+ 
+ const char *exported_var = "Hello world";
+diff --git a/misc/cgo/testsovar/testdata/cgoso_c.h b/misc/cgo/testsovar/testdata/cgoso_c.h
+index 640db7b396..eccd8c0d0c 100644
+--- a/misc/cgo/testsovar/testdata/cgoso_c.h
++++ b/misc/cgo/testsovar/testdata/cgoso_c.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
++//go:build ignore
+ 
+ #ifdef WIN32
+ #if defined(EXPORT_DLL)
+diff --git a/misc/cgo/testsovar/testdata/main.go b/misc/cgo/testsovar/testdata/main.go
+index 462e99389d..018b835c6c 100644
+--- a/misc/cgo/testsovar/testdata/main.go
++++ b/misc/cgo/testsovar/testdata/main.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/misc/cgo/testtls/tls_test.go b/misc/cgo/testtls/tls_test.go
+index a3b67c0044..9d660b8337 100644
+--- a/misc/cgo/testtls/tls_test.go
++++ b/misc/cgo/testtls/tls_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !windows
+-// +build !windows
+ 
+ package cgotlstest
+ 

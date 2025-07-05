@@ -25,8 +25,140 @@ Date:   Thu Aug 29 15:08:33 2024 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/runtime/map_noswiss.go   | 16 ++++++++++++-
  src/runtime/map_swiss.go     | 16 ++++++++++++-
  test/fixedbugs/issue69110.go | 57 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 87 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/map_noswiss.go b/src/runtime/map_noswiss.go
+index 3a1c774b9d..95c4f049b1 100644
+--- a/src/runtime/map_noswiss.go
++++ b/src/runtime/map_noswiss.go
+@@ -1213,6 +1213,11 @@ func (h *hmap) sameSizeGrow() bool {
+ 	return h.flags&sameSizeGrow != 0
+ }
+ 
++//go:linkname sameSizeGrowForIssue69110Test
++func sameSizeGrowForIssue69110Test(h *hmap) bool {
++	return h.sameSizeGrow()
++}
++
+ // noldbuckets calculates the number of buckets prior to the current map growth.
+ func (h *hmap) noldbuckets() uintptr {
+ 	oldB := h.B
+@@ -1672,7 +1677,16 @@ func moveToBmap(t *maptype, h *hmap, dst *bmap, pos int, src *bmap) (*bmap, int)
+ }
+ 
+ func mapclone2(t *maptype, src *hmap) *hmap {
+-	dst := makemap(t, src.count, nil)
++	hint := src.count
++	if overLoadFactor(hint, src.B) {
++		// Note: in rare cases (e.g. during a same-sized grow) the map
++		// can be overloaded. Make sure we don't allocate a destination
++		// bucket array larger than the source bucket array.
++		// This will cause the cloned map to be overloaded also,
++		// but that's better than crashing. See issue 69110.
++		hint = int(loadFactorNum * (bucketShift(src.B) / loadFactorDen))
++	}
++	dst := makemap(t, hint, nil)
+ 	dst.hash0 = src.hash0
+ 	dst.nevacuate = 0
+ 	// flags do not need to be copied here, just like a new map has no flags.
+diff --git a/src/runtime/map_swiss.go b/src/runtime/map_swiss.go
+index b76878da9a..aa2fb61859 100644
+--- a/src/runtime/map_swiss.go
++++ b/src/runtime/map_swiss.go
+@@ -1119,6 +1119,11 @@ func (h *hmap) sameSizeGrow() bool {
+ 	return h.flags&sameSizeGrow != 0
+ }
+ 
++//go:linkname sameSizeGrowForIssue69110Test
++func sameSizeGrowForIssue69110Test(h *hmap) bool {
++	return h.sameSizeGrow()
++}
++
+ // noldbuckets calculates the number of buckets prior to the current map growth.
+ func (h *hmap) noldbuckets() uintptr {
+ 	oldB := h.B
+@@ -1497,7 +1502,16 @@ func moveToBmap(t *maptype, h *hmap, dst *bmap, pos int, src *bmap) (*bmap, int)
+ }
+ 
+ func mapclone2(t *maptype, src *hmap) *hmap {
+-	dst := makemap(t, src.count, nil)
++	hint := src.count
++	if overLoadFactor(hint, src.B) {
++		// Note: in rare cases (e.g. during a same-sized grow) the map
++		// can be overloaded. Make sure we don't allocate a destination
++		// bucket array larger than the source bucket array.
++		// This will cause the cloned map to be overloaded also,
++		// but that's better than crashing. See issue 69110.
++		hint = int(loadFactorNum * (bucketShift(src.B) / loadFactorDen))
++	}
++	dst := makemap(t, hint, nil)
+ 	dst.hash0 = src.hash0
+ 	dst.nevacuate = 0
+ 	// flags do not need to be copied here, just like a new map has no flags.
+diff --git a/test/fixedbugs/issue69110.go b/test/fixedbugs/issue69110.go
+new file mode 100644
+index 0000000000..71a4bcac31
+--- /dev/null
++++ b/test/fixedbugs/issue69110.go
+@@ -0,0 +1,57 @@
++// run
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"maps"
++	_ "unsafe"
++)
++
++func main() {
++	for i := 0; i < 100; i++ {
++		f()
++	}
++}
++
++const NB = 4
++
++func f() {
++	// Make a map with NB buckets, at max capacity.
++	// 6.5 entries/bucket.
++	ne := NB * 13 / 2
++	m := map[int]int{}
++	for i := 0; i < ne; i++ {
++		m[i] = i
++	}
++
++	// delete/insert a lot, to hopefully get lots of overflow buckets
++	// and trigger a same-size grow.
++	ssg := false
++	for i := ne; i < ne+1000; i++ {
++		delete(m, i-ne)
++		m[i] = i
++		if sameSizeGrow(m) {
++			ssg = true
++			break
++		}
++	}
++	if !ssg {
++		return
++	}
++
++	// Insert 1 more entry, which would ordinarily trigger a growth.
++	// We can't grow while growing, so we instead go over our
++	// target capacity.
++	m[-1] = -1
++
++	// Cloning in this state will make a map with a destination bucket
++	// array twice the size of the source.
++	_ = maps.Clone(m)
++}
++
++//go:linkname sameSizeGrow runtime.sameSizeGrowForIssue69110Test
++func sameSizeGrow(m map[int]int) bool

@@ -7,6 +7,20 @@ Date:   Fri Mar 18 12:38:38 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4284057
-
+---
  src/cmd/cgo/ast.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index d49e4b4bba..f5d884eafd 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -180,7 +180,7 @@ func (f *File) saveExport(x interface{}, context string) {
+ 		return
+ 	}
+ 	for _, c := range n.Doc.List {
+-		if string(c.Text[0:9]) != "//export " {
++		if !strings.HasPrefix(string(c.Text), "//export ") {
+ 			continue
+ 		}
+ 

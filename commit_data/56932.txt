@@ -12,6 +12,27 @@ Date:   Thu Jun 1 10:13:11 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Bypass: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/testdata/script/gotoolchain_net.txt | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/gotoolchain_net.txt b/src/cmd/go/testdata/script/gotoolchain_net.txt
+index 7d92b72315..d04229d293 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_net.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_net.txt
+@@ -24,6 +24,15 @@ stderr 'go: downloading go1.999testmod \(.*/.*\)'
+ env GOPROXY=
+ env GOSUMDB=
+ env GOTOOLCHAIN=go1.20.1
++
++	# Avoid resolving a "go1.20.1" from the user's real $PATH.
++	# That would not only cause the "downloading go1.20.1" message
++	# to be suppressed, but may spuriously fail:
++	# golang.org/dl/go1.20.1 expects to find its GOROOT in $HOME/sdk,
++	# but the script environment sets HOME=/no-home.
++env PATH=
++env path=
++
+ go version
+ stderr '^go: downloading go1.20.1 '
+ stdout go1.20.1

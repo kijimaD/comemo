@@ -13,7 +13,32 @@ Date:   Wed Apr 15 19:11:47 2015 +1000
     Change-Id: I5cbbb4e5888c5d298fe2fef240782d0e49f59af8
     Reviewed-on: https://go-review.googlesource.com/8939
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/runtime/os_linux_arm.go   | 1 +
  src/runtime/os_linux_arm64.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index d88bf785ee..c5abedbd98 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -64,6 +64,7 @@ func sysargs(argc int32, argv **byte) {
+ 	}
+ }
+ 
++//go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index c3ad871349..3f994f128b 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -11,6 +11,7 @@ const (
+ 
+ var randomNumber uint32
+ 
++//go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.

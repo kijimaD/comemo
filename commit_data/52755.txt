@@ -14,6 +14,20 @@ Date:   Mon May 23 23:52:21 2022 +0100
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/builtin/builtin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index e3e4df9de6..7feb209bb4 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -236,7 +236,7 @@ func imag(c ComplexType) FloatType
+ //
+ //	x, ok := <-c
+ //
+-// will also set ok to false for a closed channel.
++// will also set ok to false for a closed and empty channel.
+ func close(c chan<- Type)
+ 
+ // The panic built-in function stops normal execution of the current

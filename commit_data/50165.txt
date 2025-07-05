@@ -12,6 +12,21 @@ Date:   Tue Oct 5 14:35:24 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/objfile.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 687cddc70c..98af803880 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -409,9 +409,6 @@ func contentHashSection(s *LSym) byte {
+ 	if s.IsPcdata() {
+ 		return 'P'
+ 	}
+-	if strings.HasPrefix(name, "runtime.gcbits.") {
+-		return 'G' // gcbits
+-	}
+ 	if strings.HasPrefix(name, "gcargs.") ||
+ 		strings.HasPrefix(name, "gclocals.") ||
+ 		strings.HasPrefix(name, "gclocals·") ||

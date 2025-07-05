@@ -7,6 +7,53 @@ Date:   Wed Jul 14 16:09:22 2010 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/1766042
-
+---
  doc/go_spec.html | 17 ++++++++++-------
  1 file changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 598bc928d3..13b3a90704 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of July 12, 2010 -->
++<!-- subtitle Version of July 14, 2010 -->
+ 
+ <!--
+ TODO
+@@ -4347,14 +4347,17 @@ BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
+ <h3 id="Close_and_closed">Close and closed</h3>
+ 
+ <p>
+-For a channel <code>c</code>, the predefined function <code>close(c)</code>
+-marks the channel as unable to accept more
+-values through a send operation.  After any previously
++For a channel <code>c</code>, the built-in function <code>close(c)</code>
++marks the channel as unable to accept more values through a send operation;
++values sent to a closed channed are ignored.
++After calling <code>close</code>, and after any previously
+ sent values have been received, receive operations will return
+-the zero value for the channel's type.  After at least one such zero value has been
++the zero value for the channel's type without blocking.
++After at least one such zero value has been
+ received, <code>closed(c)</code> returns true.
+ </p>
+ 
++
+ <h3 id="Length_and_capacity">Length and capacity</h3>
+ 
+ <p>
+@@ -4560,10 +4563,10 @@ func recover() interface{}
+ </pre>
+ 
+ <p>
+-<font color=red>TODO: Most of this text could move to the respective
++<span class="alert">TODO: Most of this text could move to the respective
+ comments in <code>runtime.go</code> once the functions are implemented.
+ They are here, at least for now, for reference and discussion.
+-</font>
++</span>
+ </p>
+ 
+ <p>

@@ -14,6 +14,20 @@ Date:   Mon Mar 15 23:10:21 2021 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Trust: Filippo Valsorda <filippo@golang.org>
-
+---
  src/net/udpsock_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 8aa64baefe..b4000b5664 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -447,7 +447,7 @@ func TestUDPReadSizeError(t *testing.T) {
+ }
+ 
+ func BenchmarkWriteToReadFromUDP(b *testing.B) {
+-	conn, err := ListenUDP("udp4", new(UDPAddr))
++	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}

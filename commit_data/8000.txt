@@ -52,7 +52,48 @@ Date:   Wed Apr 6 15:06:28 2011 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4343046
-
+---
  src/Make.pkg     | 2 +-
  src/pkg/Makefile | 9 ++++++---
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index f871cf9398..59ce56ac0d 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -55,7 +55,7 @@ coverage:
+ 	gotest
+ 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+-CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* *.cgo[12].*
++CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* *.cgo[12].* test.out build.out
+ 
+ test:
+ 	gotest
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 4171c2fd65..dd0dd9cd6c 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -230,16 +230,19 @@ bench.dirs: $(addsuffix .bench, $(BENCH))
+ 	+$(MAKE) -C $* clean
+ 
+ %.install:
+-	+$(MAKE) -C $* install
++	+@echo install $*
++	+@$(MAKE) -C $* install >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out)
+ 
+ %.nuke:
+ 	+$(MAKE) -C $* nuke
+ 
+ %.test:
+-	+$(MAKE) -C $* test
++	+@echo test $*
++	+@$(MAKE) -C $* test >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
+ 
+ %.testshort:
+-	+$(MAKE) -C $* testshort
++	+@echo test $*
++	+@$(MAKE) -C $* testshort >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
+ 
+ %.bench:
+ 	+$(MAKE) -C $* bench	

@@ -11,8 +11,107 @@ Date:   Fri Feb 10 13:28:29 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5645080
-
+---
  src/pkg/go/printer/printer_test.go          |  7 +++++++
  src/pkg/go/printer/testdata/comments.golden | 22 +++++++++++++++++++++-
  src/pkg/go/printer/testdata/comments.input  | 22 +++++++++++++++++++++-
  3 files changed, 49 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index a0578814aa..38eaf65303 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -67,6 +67,13 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+ 	}
+ 	res := buf.Bytes()
+ 
++	// formatted source must be valid
++	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
++		t.Error(err)
++		t.Logf("\n%s", res)
++		return
++	}
++
+ 	// update golden files if necessary
+ 	if *update {
+ 		if err := ioutil.WriteFile(golden, res, 0644); err != nil {
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index d2ad9e3a2f..7438a32e44 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -404,7 +404,7 @@ func _() {
+ 	*/
+ }
+ 
+-// Some interesting interspersed comments
++// Some interesting interspersed comments.
+ func _( /* this */ x /* is */ /* an */ int) {
+ }
+ 
+@@ -428,6 +428,26 @@ func _() {
+ 	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */ }
+ }
+ 
++// Test cases from issue 1542:
++// Comments must not be placed before commas and cause invalid programs.
++func _() {
++	var a = []int{1, 2	/*jasldf*/}
++	_ = a
++}
++
++func _() {
++	var a = []int{1, 2}/*jasldf
++	 */
++
++	_ = a
++}
++
++func _() {
++	var a = []int{1, 2}// jasldf 
++
++	_ = a
++}
++
+ // Comments immediately adjacent to punctuation (for which the go/printer
+ // may only have estimated position information) must remain after the punctuation.
+ func _() {
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 222e0a713d..e382764081 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -410,7 +410,7 @@ func _() {
+ }
+ 
+ 
+-// Some interesting interspersed comments
++// Some interesting interspersed comments.
+ func _(/* this */x/* is *//* an */ int) {
+ }
+ 
+@@ -432,6 +432,26 @@ func _() {
+ 	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */}
+ }
+ 
++// Test cases from issue 1542:
++// Comments must not be placed before commas and cause invalid programs.
++func _() {
++	var a = []int{1, 2, /*jasldf*/
++	}
++	_ = a
++}
++
++func _() {
++	var a = []int{1, 2, /*jasldf
++						*/
++	}
++	_ = a
++}
++
++func _() {
++	var a = []int{1, 2, // jasldf 
++	}
++	_ = a
++}
+ 
+ // Comments immediately adjacent to punctuation (for which the go/printer
+ // may only have estimated position information) must remain after the punctuation.

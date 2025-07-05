@@ -14,6 +14,23 @@ Date:   Mon May 12 23:38:26 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/100430043
-
+---
  src/pkg/encoding/json/decode.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index dde0d78e32..af1c908ad7 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -54,6 +54,11 @@ import (
+ // If no more serious errors are encountered, Unmarshal returns
+ // an UnmarshalTypeError describing the earliest such error.
+ //
++// The JSON null value unmarshals into an interface, map, pointer, or slice
++// by setting that Go value to nil. Because null is often used in JSON to mean
++// ``not present,'' unmarshaling a JSON null into any other Go type has no effect
++// on the value and produces no error.
++//
+ // When unmarshaling quoted strings, invalid UTF-8 or
+ // invalid UTF-16 surrogate pairs are not treated as an error.
+ // Instead, they are replaced by the Unicode replacement

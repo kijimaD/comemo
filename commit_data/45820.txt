@@ -14,7 +14,45 @@ Date:   Fri Nov 20 11:18:15 2020 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go              | 9 +++++++++
  src/cmd/go/testdata/script/mod_get_retract.txt | 1 +
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 2413fd20bc..ecb0142524 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -1567,11 +1567,20 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns
+ 		})
+ 	}
+ 	<-r.work.Idle()
++	var retractPath string
+ 	for _, r := range retractions {
+ 		if r.err != nil {
+ 			fmt.Fprintf(os.Stderr, "go: warning: %v\n", r.err)
++			if retractPath == "" {
++				retractPath = r.m.Path
++			} else {
++				retractPath = "<module>"
++			}
+ 		}
+ 	}
++	if retractPath != "" {
++		fmt.Fprintf(os.Stderr, "go: run 'go get %s@latest' to switch to the latest unretracted version\n", retractPath)
++	}
+ }
+ 
+ // reportChanges logs version changes to os.Stderr.
+diff --git a/src/cmd/go/testdata/script/mod_get_retract.txt b/src/cmd/go/testdata/script/mod_get_retract.txt
+index 13a47bc359..6e328eb592 100644
+--- a/src/cmd/go/testdata/script/mod_get_retract.txt
++++ b/src/cmd/go/testdata/script/mod_get_retract.txt
+@@ -11,6 +11,7 @@ cp go.mod.orig go.mod
+ go mod edit -require example.com/retract/self/prev@v1.9.0
+ go get -d example.com/retract/self/prev
+ stderr '^go: warning: example.com/retract/self/prev@v1.9.0: retracted by module author: self$'
++stderr '^go: run ''go get example.com/retract/self/prev@latest'' to switch to the latest unretracted version$'
+ go list -m example.com/retract/self/prev
+ stdout '^example.com/retract/self/prev v1.9.0$'
+ 

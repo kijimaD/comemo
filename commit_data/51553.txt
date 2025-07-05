@@ -15,7 +15,54 @@ Date:   Fri Feb 11 12:01:34 2022 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/vet/vet.go          |  2 ++
  src/cmd/go/testdata/script/work_vet.txt | 19 +++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 88b3c570a0..d3e0dd8116 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
++	"cmd/go/internal/modload"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+ )
+@@ -54,6 +55,7 @@ See also: go fmt, go fix.
+ 
+ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 	vetFlags, pkgArgs := vetFlags(args)
++	modload.InitWorkfile() // The vet command does custom flag processing; initialize workspaces after that.
+ 
+ 	if cfg.DebugTrace != "" {
+ 		var close func() error
+diff --git a/src/cmd/go/testdata/script/work_vet.txt b/src/cmd/go/testdata/script/work_vet.txt
+new file mode 100644
+index 0000000000..e258fc0394
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_vet.txt
+@@ -0,0 +1,19 @@
++! go vet ./a
++stderr 'fmt.Println call has possible formatting directive'
++
++-- go.work --
++go 1.18
++
++use ./a
++-- a/go.mod --
++module example.com/a
++
++go 1.18
++-- a/a.go --
++package a
++
++import "fmt"
++
++func A() {
++    fmt.Println("%s")
++}
+\ No newline at end of file

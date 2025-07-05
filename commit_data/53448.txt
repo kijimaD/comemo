@@ -13,9 +13,108 @@ Date:   Wed Aug 17 14:13:06 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/runtime/chan.go     | 6 +++---
  src/runtime/runtime2.go | 4 ++--
  src/runtime/select.go   | 5 ++---
  src/runtime/stack.go    | 4 ++--
  4 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index ca516ad9e8..853a300ab5 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -255,7 +255,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 	// to park on a channel. The window between when this G's status
+ 	// changes and when we set gp.activeStackChans is not safe for
+ 	// stack shrinking.
+-	atomic.Store8(&gp.parkingOnChan, 1)
++	gp.parkingOnChan.Store(true)
+ 	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanSend, traceEvGoBlockSend, 2)
+ 	// Ensure the value being sent is kept alive until the
+ 	// receiver copies it out. The sudog has a pointer to the
+@@ -579,7 +579,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 	// to park on a channel. The window between when this G's status
+ 	// changes and when we set gp.activeStackChans is not safe for
+ 	// stack shrinking.
+-	atomic.Store8(&gp.parkingOnChan, 1)
++	gp.parkingOnChan.Store(true)
+ 	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanReceive, traceEvGoBlockRecv, 2)
+ 
+ 	// someone woke us up
+@@ -664,7 +664,7 @@ func chanparkcommit(gp *g, chanLock unsafe.Pointer) bool {
+ 	// Mark that it's safe for stack shrinking to occur now,
+ 	// because any thread acquiring this G's stack for shrinking
+ 	// is guaranteed to observe activeStackChans after this store.
+-	atomic.Store8(&gp.parkingOnChan, 0)
++	gp.parkingOnChan.Store(false)
+ 	// Make sure we unlock after setting activeStackChans and
+ 	// unsetting parkingOnChan. The moment we unlock chanLock
+ 	// we risk gp getting readied by a channel operation and
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 32ad34ccdf..2fbb1d1744 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -461,8 +461,8 @@ type g struct {
+ 	activeStackChans bool
+ 	// parkingOnChan indicates that the goroutine is about to
+ 	// park on a chansend or chanrecv. Used to signal an unsafe point
+-	// for stack shrinking. It's a boolean value, but is updated atomically.
+-	parkingOnChan uint8
++	// for stack shrinking.
++	parkingOnChan atomic.Bool
+ 
+ 	raceignore     int8     // ignore race detection events
+ 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index e18b2f14c0..2dd6333fa7 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -8,7 +8,6 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -70,7 +69,7 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
+ 	// Mark that it's safe for stack shrinking to occur now,
+ 	// because any thread acquiring this G's stack for shrinking
+ 	// is guaranteed to observe activeStackChans after this store.
+-	atomic.Store8(&gp.parkingOnChan, 0)
++	gp.parkingOnChan.Store(false)
+ 	// Make sure we unlock after setting activeStackChans and
+ 	// unsetting parkingOnChan. The moment we unlock any of the
+ 	// channel locks we risk gp getting readied by a channel operation
+@@ -324,7 +323,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 	// to park on a channel. The window between when this G's status
+ 	// changes and when we set gp.activeStackChans is not safe for
+ 	// stack shrinking.
+-	atomic.Store8(&gp.parkingOnChan, 1)
++	gp.parkingOnChan.Store(true)
+ 	gopark(selparkcommit, nil, waitReasonSelect, traceEvGoBlockSelect, 1)
+ 	gp.activeStackChans = false
+ 
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 2a7f0bd1c3..0bfa9320e0 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -886,7 +886,7 @@ func copystack(gp *g, newsize uintptr) {
+ 	// Adjust sudogs, synchronizing with channel ops if necessary.
+ 	ncopy := used
+ 	if !gp.activeStackChans {
+-		if newsize < old.hi-old.lo && atomic.Load8(&gp.parkingOnChan) != 0 {
++		if newsize < old.hi-old.lo && gp.parkingOnChan.Load() {
+ 			// It's not safe for someone to shrink this stack while we're actively
+ 			// parking on a channel, but it is safe to grow since we do that
+ 			// ourselves and explicitly don't want to synchronize with channels
+@@ -1150,7 +1150,7 @@ func isShrinkStackSafe(gp *g) bool {
+ 	// We also can't *shrink* the stack in the window between the
+ 	// goroutine calling gopark to park on a channel and
+ 	// gp.activeStackChans being set.
+-	return gp.syscallsp == 0 && !gp.asyncSafePoint && atomic.Load8(&gp.parkingOnChan) == 0
++	return gp.syscallsp == 0 && !gp.asyncSafePoint && !gp.parkingOnChan.Load()
+ }
+ 
+ // Maybe shrink the stack being used by gp.

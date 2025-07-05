@@ -9,8 +9,81 @@ Date:   Wed Oct 6 21:32:31 2010 +1100
     R=golang-dev, rsc, adg
     CC=golang-dev
     https://golang.org/cl/2338042
-
+---
  src/pkg/syscall/types_linux.c         | 2 ++
  src/pkg/syscall/ztypes_linux_386.go   | 7 +++++++
  src/pkg/syscall/ztypes_linux_amd64.go | 7 +++++++
  3 files changed, 16 insertions(+)
+
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+old mode 100644
+new mode 100755
+index d0cd4a1849..7489bc9f9a
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -108,6 +108,7 @@ typedef struct linger $Linger;
+ typedef struct iovec $Iovec;
+ typedef struct msghdr $Msghdr;
+ typedef struct cmsghdr $Cmsghdr;
++typedef struct ucred $Ucred;
+ 
+ enum {
+ 	$SizeofSockaddrInet4 = sizeof(struct sockaddr_in),
+@@ -117,6 +118,7 @@ enum {
+ 	$SizeofLinger = sizeof(struct linger),
+ 	$SizeofMsghdr = sizeof(struct msghdr),
+ 	$SizeofCmsghdr = sizeof(struct cmsghdr),
++	$SizeofUcred = sizeof(struct ucred),
+ };
+ 
+ 
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index 53751529b9..99ce60819c 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -19,6 +19,7 @@ const (
+ 	SizeofLinger        = 0x8
+ 	SizeofMsghdr        = 0x1c
+ 	SizeofCmsghdr       = 0xc
++	SizeofUcred         = 0xc
+ 	SizeofInotifyEvent  = 0x10
+ )
+ 
+@@ -218,6 +219,12 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Ucred struct {
++	Pid int32
++	Uid uint32
++	Gid uint32
++}
++
+ type InotifyEvent struct {
+ 	Wd     int32
+ 	Mask   uint32
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 6a19a88a80..3883a58aa0 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -19,6 +19,7 @@ const (
+ 	SizeofLinger        = 0x8
+ 	SizeofMsghdr        = 0x38
+ 	SizeofCmsghdr       = 0x10
++	SizeofUcred         = 0xc
+ 	SizeofInotifyEvent  = 0x10
+ )
+ 
+@@ -220,6 +221,12 @@ type Cmsghdr struct {
+ 	Type  int32
+ }
+ 
++type Ucred struct {
++	Pid int32
++	Uid uint32
++	Gid uint32
++}
++
+ type InotifyEvent struct {
+ 	Wd     int32
+ 	Mask   uint32

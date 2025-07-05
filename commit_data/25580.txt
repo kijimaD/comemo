@@ -12,7 +12,50 @@ Date:   Tue Nov 10 20:12:37 2015 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mgc.go     | 2 --
  src/runtime/mgcmark.go | 4 ++--
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index bf93259d50..b49452a3ea 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -161,7 +161,6 @@ func gcinit() {
+ 		throw("size of Workbuf is suboptimal")
+ 	}
+ 
+-	work.markfor = parforalloc(_MaxGcproc)
+ 	_ = setGCPercent(readgogc())
+ 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+ 		datap.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
+@@ -743,7 +742,6 @@ var work struct {
+ 	nwait   uint32
+ 	ndone   uint32
+ 	alldone note
+-	markfor *parfor
+ 
+ 	// Number of roots of various root types. Set by gcMarkRootPrepare.
+ 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index f1a92e0be2..c038dea04a 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -97,7 +97,7 @@ var oneptrmask = [...]uint8{1}
+ // Preemption must be disabled (because this uses a gcWork).
+ //
+ //go:nowritebarrier
+-func markroot(desc *parfor, i uint32) {
++func markroot(i uint32) {
+ 	// TODO: Consider using getg().m.p.ptr().gcw.
+ 	var gcw gcWork
+ 
+@@ -796,7 +796,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 				break
+ 			}
+ 			// TODO: Pass in gcw.
+-			markroot(nil, job)
++			markroot(job)
+ 		}
+ 	}
+ 

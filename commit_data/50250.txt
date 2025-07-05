@@ -17,7 +17,81 @@ Date:   Tue Oct 12 12:38:42 2021 -0400
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 10 ++++++--
  test/fixedbugs/issue48916.go                 | 37 ++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index a0f0e653aa..18c9ab696d 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1678,7 +1678,7 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
+ 		t := v.Type
+ 		key := selKey{v, 0, t.Size(), t}
+ 		w := x.commonArgs[key]
+-		if w != nil {
++		if w != nil && w.Uses != 0 { // do not reuse dead value
+ 			v.copyOf(w)
+ 			break
+ 		}
+@@ -1709,9 +1709,15 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 	}
+ 	key := selKey{baseArg, offset, t.Size(), t}
+ 	w := x.commonArgs[key]
+-	if w != nil {
++	if w != nil && w.Uses != 0 { // do not reuse dead value
+ 		if toReplace != nil {
+ 			toReplace.copyOf(w)
++			if x.debug > 1 {
++				x.Printf("...replace %s\n", toReplace.LongString())
++			}
++		}
++		if x.debug > 1 {
++			x.Printf("-->%s\n", w.LongString())
+ 		}
+ 		return w
+ 	}
+diff --git a/test/fixedbugs/issue48916.go b/test/fixedbugs/issue48916.go
+new file mode 100644
+index 0000000000..cbe97b5127
+--- /dev/null
++++ b/test/fixedbugs/issue48916.go
+@@ -0,0 +1,37 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 48916: expand_calls pass crashes due to a (dead)
++// use of an OpInvalid value.
++
++package p
++
++type T struct {
++	num int64
++}
++
++func foo(vs map[T]struct{}, d T) error {
++	_, ok := vs[d]
++	if !ok {
++		return nil
++	}
++
++	switch d.num {
++	case 0:
++	case 1:
++	case 2:
++	case 3:
++	case 4:
++	case 5:
++	case 6:
++		var num float64
++		if num != 0 {
++			return nil
++		}
++	}
++
++	return nil
++}

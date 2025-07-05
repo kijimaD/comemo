@@ -12,6 +12,22 @@ Date:   Tue Jul 2 11:44:43 2024 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/doc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index bd620f9878..9ec2c002f4 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -55,6 +55,10 @@ Flags:
+ 		Set build mode (default exe).
+ 	-c
+ 		Dump call graphs.
++	-checklinkname=value
++		If value is 0, all go:linkname directives are permitted.
++		If value is 1 (the default), only a known set of widely-used
++		linknames are permitted.
+ 	-compressdwarf
+ 		Compress DWARF if possible (default true).
+ 	-cpuprofile file

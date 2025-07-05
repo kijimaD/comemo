@@ -15,7 +15,159 @@ Date:   Wed Nov 10 15:54:00 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/instantiate_test.go | 33 ++++++++++++++++++++
  src/go/types/typestring.go       | 66 ++++++++++++++++++++++++++++++++--------
  2 files changed, 87 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+index a4ed581e35..281c8bbcad 100644
+--- a/src/go/types/instantiate_test.go
++++ b/src/go/types/instantiate_test.go
+@@ -5,12 +5,14 @@
+ package types_test
+ 
+ import (
++	"go/token"
+ 	. "go/types"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestInstantiateEquality(t *testing.T) {
++	emptySignature := NewSignatureType(nil, nil, nil, nil, nil, false)
+ 	tests := []struct {
+ 		src       string
+ 		name1     string
+@@ -37,6 +39,37 @@ func TestInstantiateEquality(t *testing.T) {
+ 			"T", []Type{NewSlice(Typ[Int])},
+ 			true,
+ 		},
++		{
++			// interface{interface{...}} is equivalent to interface{...}
++			"package equivalentinterfaces; type T[P any] int",
++			"T", []Type{
++				NewInterfaceType([]*Func{NewFunc(token.NoPos, nil, "M", emptySignature)}, nil),
++			},
++			"T", []Type{
++				NewInterfaceType(
++					nil,
++					[]Type{
++						NewInterfaceType([]*Func{NewFunc(token.NoPos, nil, "M", emptySignature)}, nil),
++					},
++				),
++			},
++			true,
++		},
++		{
++			// int|string is equivalent to string|int
++			"package equivalenttypesets; type T[P any] int",
++			"T", []Type{
++				NewInterfaceType(nil, []Type{
++					NewUnion([]*Term{NewTerm(false, Typ[Int]), NewTerm(false, Typ[String])}),
++				}),
++			},
++			"T", []Type{
++				NewInterfaceType(nil, []Type{
++					NewUnion([]*Term{NewTerm(false, Typ[String]), NewTerm(false, Typ[Int])}),
++				}),
++			},
++			true,
++		},
+ 		{
+ 			"package basicfunc; func F[P any]() {}",
+ 			"F", []Type{Typ[Int]},
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index cb41abd2ac..f33175f97e 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -10,7 +10,9 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/token"
++	"sort"
+ 	"strconv"
++	"strings"
+ 	"unicode/utf8"
+ )
+ 
+@@ -211,20 +213,24 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 		w.string("interface{")
+ 		first := true
+-		for _, m := range t.methods {
+-			if !first {
+-				w.byte(';')
++		if w.ctxt != nil {
++			w.typeSet(t.typeSet())
++		} else {
++			for _, m := range t.methods {
++				if !first {
++					w.byte(';')
++				}
++				first = false
++				w.string(m.name)
++				w.signature(m.typ.(*Signature))
+ 			}
+-			first = false
+-			w.string(m.name)
+-			w.signature(m.typ.(*Signature))
+-		}
+-		for _, typ := range t.embeddeds {
+-			if !first {
+-				w.byte(';')
++			for _, typ := range t.embeddeds {
++				if !first {
++					w.byte(';')
++				}
++				first = false
++				w.typ(typ)
+ 			}
+-			first = false
+-			w.typ(typ)
+ 		}
+ 		w.byte('}')
+ 
+@@ -299,6 +305,42 @@ func (w *typeWriter) typ(typ Type) {
+ 	}
+ }
+ 
++// typeSet writes a canonical hash for an interface type set.
++func (w *typeWriter) typeSet(s *_TypeSet) {
++	assert(w.ctxt != nil)
++	first := true
++	for _, m := range s.methods {
++		if !first {
++			w.byte(';')
++		}
++		first = false
++		w.string(m.name)
++		w.signature(m.typ.(*Signature))
++	}
++	switch {
++	case s.terms.isAll():
++		// nothing to do
++	case s.terms.isEmpty():
++		w.string(s.terms.String())
++	default:
++		var termHashes []string
++		for _, term := range s.terms {
++			// terms are not canonically sorted, so we sort their hashes instead.
++			var buf bytes.Buffer
++			if term.tilde {
++				buf.WriteByte('~')
++			}
++			newTypeHasher(&buf, w.ctxt).typ(term.typ)
++			termHashes = append(termHashes, buf.String())
++		}
++		sort.Strings(termHashes)
++		if !first {
++			w.byte(';')
++		}
++		w.string(strings.Join(termHashes, "|"))
++	}
++}
++
+ func (w *typeWriter) typeList(list []Type) {
+ 	w.byte('[')
+ 	for i, typ := range list {

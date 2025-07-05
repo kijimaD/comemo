@@ -13,6 +13,21 @@ Date:   Mon Jun 21 20:14:21 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/gofmt/doc.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 68476e7d44..e340665594 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -26,9 +26,6 @@ The flags are:
+ 		Do not print reformatted sources to standard output.
+ 		If a file's formatting is different from gofmt's, print its name
+ 		to standard output.
+-	-G
+-		Allow generic code, using type parameters.
+-		See golang.org/issues/43651 for more information.
+ 	-r rule
+ 		Apply the rewrite rule to the source before reformatting.
+ 	-s

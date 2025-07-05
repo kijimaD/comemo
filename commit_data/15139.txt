@@ -7,6 +7,20 @@ Date:   Tue Feb 5 15:39:55 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7305043
-
+---
  src/pkg/archive/tar/common.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/archive/tar/common.go b/src/pkg/archive/tar/common.go
+index 921b9fe9bd..74a0f0e3c1 100644
+--- a/src/pkg/archive/tar/common.go
++++ b/src/pkg/archive/tar/common.go
+@@ -80,7 +80,7 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 		Mode:    int64(fi.Mode().Perm()), // or'd with c_IS* constants later
+ 	}
+ 	switch {
+-	case fi.Mode()&os.ModeType == 0:
++	case fi.Mode().IsRegular():
+ 		h.Mode |= c_ISREG
+ 		h.Typeflag = TypeReg
+ 		h.Size = fi.Size()

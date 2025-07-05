@@ -7,6 +7,24 @@ Date:   Tue Jan 7 18:25:11 2014 +0100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/48420044
-
+---
  src/cmd/gc/subr.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index f8e321c962..779580295f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2591,8 +2591,10 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 
+ 	funcbody(fn);
+ 	curfn = fn;
+-	// wrappers where T is anonymous (struct{ NamedType }) can be duplicated.
+-	if(rcvr->etype == TSTRUCT || isptr[rcvr->etype] && rcvr->type->etype == TSTRUCT)
++	// wrappers where T is anonymous (struct or interface) can be duplicated.
++	if(rcvr->etype == TSTRUCT ||
++		rcvr->etype == TINTER ||
++		isptr[rcvr->etype] && rcvr->type->etype == TSTRUCT)
+ 		fn->dupok = 1;
+ 	typecheck(&fn, Etop);
+ 	typechecklist(fn->nbody, Etop);

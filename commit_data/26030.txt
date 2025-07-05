@@ -7,6 +7,38 @@ Date:   Mon Dec 14 12:16:13 2015 +0900
     Change-Id: I064a7e21bdc55d7f72147bcf6cfb91b96dbb77bb
     Reviewed-on: https://go-review.googlesource.com/17795
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/net/interface_windows.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index 55c4821090..d14b60f283 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -71,7 +71,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	var ift []Interface
+ 	for _, aa := range aas {
+ 		index := aa.IfIndex
+-		if index == 0 { // ipv6IfIndex is a sustitute for ifIndex
++		if index == 0 { // ipv6IfIndex is a substitute for ifIndex
+ 			index = aa.Ipv6IfIndex
+ 		}
+ 		if ifindex == 0 || ifindex == int(index) {
+@@ -128,7 +128,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 	var ifat []Addr
+ 	for _, aa := range aas {
+ 		index := aa.IfIndex
+-		if index == 0 { // ipv6IfIndex is a sustitute for ifIndex
++		if index == 0 { // ipv6IfIndex is a substitute for ifIndex
+ 			index = aa.Ipv6IfIndex
+ 		}
+ 		var pfx4, pfx6 []IPNet
+@@ -250,7 +250,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 	var ifat []Addr
+ 	for _, aa := range aas {
+ 		index := aa.IfIndex
+-		if index == 0 { // ipv6IfIndex is a sustitute for ifIndex
++		if index == 0 { // ipv6IfIndex is a substitute for ifIndex
+ 			index = aa.Ipv6IfIndex
+ 		}
+ 		if ifi == nil || ifi.Index == int(index) {

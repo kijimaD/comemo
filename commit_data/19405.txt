@@ -10,6 +10,22 @@ Date:   Tue May 20 14:48:23 2014 +0900
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/94680043
-
+---
  doc/go1.3.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 900f6c77fc..db7425ccdb 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -285,10 +285,6 @@ Significant instances include:
+ 
+ <ul> 
+ 
+-<li>
+-As mentioned above, the default stack size has been reduced from 8 kilobytes to 4 kilobytes.
+-</li>
+-
+ <li>
+ The runtime handles defers more efficiently, reducing the memory footprint by about two kilobytes
+ per goroutine that calls defer.

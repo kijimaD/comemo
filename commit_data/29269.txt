@@ -9,7 +9,36 @@ Date:   Tue Sep 6 13:56:48 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go  | 3 ++-
  src/cmd/compile/internal/mips64/ssa.go | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 11ae535d7a..9275d736eb 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -637,7 +637,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 				ssa.OpARM64MOVWload, ssa.OpARM64MOVWUload, ssa.OpARM64MOVDload,
+ 				ssa.OpARM64FMOVSload, ssa.OpARM64FMOVDload,
+ 				ssa.OpARM64MOVBstore, ssa.OpARM64MOVHstore, ssa.OpARM64MOVWstore, ssa.OpARM64MOVDstore,
+-				ssa.OpARM64FMOVSstore, ssa.OpARM64FMOVDstore:
++				ssa.OpARM64FMOVSstore, ssa.OpARM64FMOVDstore,
++				ssa.OpARM64MOVBstorezero, ssa.OpARM64MOVHstorezero, ssa.OpARM64MOVWstorezero, ssa.OpARM64MOVDstorezero:
+ 				// arg0 is ptr, auxint is offset
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+ 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 62b662e560..69fc51f0c5 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -660,7 +660,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 				ssa.OpMIPS64MOVWload, ssa.OpMIPS64MOVWUload, ssa.OpMIPS64MOVVload,
+ 				ssa.OpMIPS64MOVFload, ssa.OpMIPS64MOVDload,
+ 				ssa.OpMIPS64MOVBstore, ssa.OpMIPS64MOVHstore, ssa.OpMIPS64MOVWstore, ssa.OpMIPS64MOVVstore,
+-				ssa.OpMIPS64MOVFstore, ssa.OpMIPS64MOVDstore:
++				ssa.OpMIPS64MOVFstore, ssa.OpMIPS64MOVDstore,
++				ssa.OpMIPS64MOVBstorezero, ssa.OpMIPS64MOVHstorezero, ssa.OpMIPS64MOVWstorezero, ssa.OpMIPS64MOVVstorezero:
+ 				// arg0 is ptr, auxint is offset
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+ 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {

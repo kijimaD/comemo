@@ -9,8 +9,81 @@ Date:   Tue Mar 29 10:18:43 2016 -0700
     Change-Id: I721348ed2122b6a9cd87ad2041b6ee3bf6b2bbb5
     Reviewed-on: https://go-review.googlesource.com/21306
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go     | 20 ++++++--------------
  src/cmd/compile/internal/gc/type.go     |  9 +++++++++
  src/cmd/compile/internal/gc/universe.go |  3 +--
  3 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 96fe219686..6262910634 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1149,19 +1149,11 @@ var (
+ )
+ 
+ func initPtrto() {
+-	ptrToUint8 = ptrto1(Types[TUINT8])
+-	ptrToAny = ptrto1(Types[TANY])
+-	ptrToString = ptrto1(Types[TSTRING])
+-	ptrToBool = ptrto1(Types[TBOOL])
+-	ptrToInt32 = ptrto1(Types[TINT32])
+-}
+-
+-func ptrto1(t *Type) *Type {
+-	t1 := typ(Tptr)
+-	t1.Type = t
+-	t1.Width = int64(Widthptr)
+-	t1.Align = uint8(Widthptr)
+-	return t1
++	ptrToUint8 = typPtr(Types[TUINT8])
++	ptrToAny = typPtr(Types[TANY])
++	ptrToString = typPtr(Types[TSTRING])
++	ptrToBool = typPtr(Types[TBOOL])
++	ptrToInt32 = typPtr(Types[TINT32])
+ }
+ 
+ // Ptrto returns the Type *t.
+@@ -1187,7 +1179,7 @@ func Ptrto(t *Type) *Type {
+ 	case Types[TBOOL]:
+ 		return ptrToBool
+ 	}
+-	return ptrto1(t)
++	return typPtr(t)
+ }
+ 
+ func frame(context int) {
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index c6a2dd92a3..2240a59c16 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -267,6 +267,15 @@ func typeChan(elem *Type, dir uint8) *Type {
+ 	return t
+ }
+ 
++// typPtr returns a new pointer type pointing to t.
++func typPtr(elem *Type) *Type {
++	t := typ(Tptr)
++	t.Type = elem
++	t.Width = int64(Widthptr)
++	t.Align = uint8(Widthptr)
++	return t
++}
++
+ // typWrapper returns a new wrapper psuedo-type.
+ func typWrapper(et EType, wrapped *Type) *Type {
+ 	switch et {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index db323ea6d0..20c1c8c4d5 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -361,8 +361,7 @@ func typeinit() {
+ 	dowidth(Types[TSTRING])
+ 	dowidth(idealstring)
+ 
+-	itable = typ(Tptr)
+-	itable.Type = Types[TUINT8]
++	itable = typPtr(Types[TUINT8])
+ }
+ 
+ func lexinit1() {

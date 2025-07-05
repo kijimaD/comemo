@@ -10,7 +10,60 @@ Date:   Thu Apr 3 19:04:33 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/84010044
-
+---
  src/cmd/gc/const.c | 17 ++++++++++++++++-
  test/const5.go     |  4 ++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index cfd81e86f5..28d0725d33 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1629,10 +1629,25 @@ hascallchan(Node *n)
+ 	if(n == N)
+ 		return 0;
+ 	switch(n->op) {
++	case OAPPEND:
+ 	case OCALL:
+ 	case OCALLFUNC:
+-	case OCALLMETH:
+ 	case OCALLINTER:
++	case OCALLMETH:
++	case OCAP:
++	case OCLOSE:
++	case OCOMPLEX:
++	case OCOPY:
++	case ODELETE:
++	case OIMAG:
++	case OLEN:
++	case OMAKE:
++	case ONEW:
++	case OPANIC:
++	case OPRINT:
++	case OPRINTN:
++	case OREAL:
++	case ORECOVER:
+ 	case ORECV:
+ 		return 1;
+ 	}
+diff --git a/test/const5.go b/test/const5.go
+index 87fe33a385..60b4d0d12c 100644
+--- a/test/const5.go
++++ b/test/const5.go
+@@ -18,6 +18,7 @@ var s [][30]int
+ 
+ func f() *[40]int
+ var c chan *[50]int
++var z complex128
+ 
+ const (
+ 	n1 = len(b.a)
+@@ -29,5 +30,8 @@ const (
+ 
+ 	n6 = cap(f())  // ERROR "is not a constant|is not constant"
+ 	n7 = cap(<-c) // ERROR "is not a constant|is not constant"
++	n8 = real(z) // ERROR "is not a constant|is not constant"
++	n9 = len([4]float64{real(z)}) // ERROR "is not a constant|is not constant"
++
+ )
+ 

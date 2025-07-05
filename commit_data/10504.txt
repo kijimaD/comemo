@@ -10,7 +10,56 @@ Date:   Fri Nov 25 14:13:10 2011 +0300
     R=golang-dev, adg
     CC=golang-dev, mdbrown
     https://golang.org/cl/5437060
-
+---
  src/pkg/runtime/time.goc   | 13 ++++++++++---
  src/pkg/time/sleep_test.go | 16 ++++++++++++++++
  2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 23ad1aaef7..ad9f3aac56 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -133,9 +133,16 @@ deltimer(Timer *t)
+ 		return false;
+ 	}
+ 
+-	timers.t[i] = timers.t[--timers.len];
+-	siftup(i);
+-	siftdown(i);
++	timers.len--;
++	if(i == timers.len) {
++		timers.t[i] = nil;
++	} else {
++		timers.t[i] = timers.t[timers.len];
++		timers.t[timers.len] = nil;
++		timers.t[i]->i = i;
++		siftup(i);
++		siftdown(i);
++	}
+ 	runtime·unlock(&timers);
+ 	return true;
+ }
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 4c4a079880..6fa2b69c50 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -205,3 +205,19 @@ func testAfterQueuing(t *testing.T) error {
+ 	}
+ 	return nil
+ }
++
++func TestTimerStopStress(t *testing.T) {
++	if testing.Short() {
++		return
++	}
++	for i := 0; i < 100; i++ {
++		go func(i int) {
++			timer := AfterFunc(2e9, func() {
++				t.Fatalf("timer %d was not stopped", i)
++			})
++			Sleep(1e9)
++			timer.Stop()
++		}(i)
++	}
++	Sleep(3e9)
++}

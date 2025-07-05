@@ -10,6 +10,21 @@ Date:   Mon Oct 26 20:57:53 2015 -0500
     Change-Id: If5bbddac76bf42616938a8e8e84cb7441fa02f73
     Reviewed-on: https://go-review.googlesource.com/16350
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 1c2b7ac2a8..af672eea99 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -90,8 +90,8 @@ var passes = [...]pass{
+ 	{"generic cse", cse},
+ 	{"nilcheckelim", nilcheckelim},
+ 	{"generic deadcode", deadcode},
+-	{"dse", dse},
+ 	{"fuse", fuse},
++	{"dse", dse},
+ 	{"tighten", tighten}, // move values closer to their uses
+ 	{"lower", lower},
+ 	{"lowered cse", cse},

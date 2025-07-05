@@ -23,8 +23,73 @@ Date:   Tue Nov 1 00:29:16 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5333050
-
+---
  include/ar.h                    |  2 +-
  src/cmd/ld/lib.c                | 10 ++--------
  src/pkg/exp/types/exportdata.go |  6 +++---
  3 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/include/ar.h b/include/ar.h
+index b565ac90bf..d5636b3623 100644
+--- a/include/ar.h
++++ b/include/ar.h
+@@ -32,7 +32,7 @@
+ #define	SARMAG	8
+ 
+ #define	ARFMAG	"`\n"
+-#define SARNAME	64
++#define	SARNAME	16
+ 
+ struct	ar_hdr
+ {
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 8f95665b33..33fa0d1546 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -313,15 +313,9 @@ nextar(Biobuf *bp, int off, struct ar_hdr *a)
+ 			return 0;
+ 		return -1;
+ 	}
+-	if(r == SAR_HDR) {
+-		memmove(a, buf, SAR_HDR);
+-	} else if (r == SAR_HDR-SARNAME+16) {	// old Plan 9
+-		memset(a->name, ' ', sizeof a->name);
+-		memmove(a, buf, 16);
+-		memmove((char*)a+SARNAME, buf+16, SAR_HDR-SARNAME);
+-	} else {	// unexpected
++	if(r != SAR_HDR)
+ 		return -1;
+-	}
++	memmove(a, buf, SAR_HDR);
+ 	if(strncmp(a->fmag, ARFMAG, sizeof a->fmag))
+ 		return -1;
+ 	arsize = strtol(a->size, 0, 0);
+diff --git a/src/pkg/exp/types/exportdata.go b/src/pkg/exp/types/exportdata.go
+index 383520320f..784ffff01a 100644
+--- a/src/pkg/exp/types/exportdata.go
++++ b/src/pkg/exp/types/exportdata.go
+@@ -17,7 +17,7 @@ import (
+ 
+ func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
+ 	// See $GOROOT/include/ar.h.
+-	hdr := make([]byte, 64+12+6+6+8+10+2)
++	hdr := make([]byte, 16+12+6+6+8+10+2)
+ 	_, err = io.ReadFull(buf, hdr)
+ 	if err != nil {
+ 		return
+@@ -25,13 +25,13 @@ func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
+ 	if trace {
+ 		fmt.Printf("header: %s", hdr)
+ 	}
+-	s := strings.TrimSpace(string(hdr[64+12+6+6+8:][:10]))
++	s := strings.TrimSpace(string(hdr[16+12+6+6+8:][:10]))
+ 	size, err = strconv.Atoi(s)
+ 	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
+ 		err = os.NewError("invalid archive header")
+ 		return
+ 	}
+-	name = strings.TrimSpace(string(hdr[:64]))
++	name = strings.TrimSpace(string(hdr[:16]))
+ 	return
+ }
+ 

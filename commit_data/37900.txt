@@ -11,6 +11,19 @@ Date:   Fri Sep 7 04:12:42 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/cmd/go/internal/work/security.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index d5d126123a..2132c5f3e1 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -170,6 +170,7 @@ var validLinkerFlags = []*regexp.Regexp{
+ 	re(`-Wl,-e[=,][a-zA-Z0-9]*`),
+ 	re(`-Wl,--enable-new-dtags`),
+ 	re(`-Wl,--end-group`),
++	re(`-Wl,--(no-)?export-dynamic`),
+ 	re(`-Wl,-framework,[^,@\-][^,]+`),
+ 	re(`-Wl,-headerpad_max_install_names`),
+ 	re(`-Wl,--no-undefined`),

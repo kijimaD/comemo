@@ -10,6 +10,20 @@ Date:   Mon Mar 21 13:30:50 2016 -0400
     Change-Id: I7b3713d4cc7514cfc58f947a45702348f6d7b824
     Reviewed-on: https://go-review.googlesource.com/20966
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/debug/gosym/pclntab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/gosym/pclntab.go b/src/debug/gosym/pclntab.go
+index 01a9f11f05..291f102262 100644
+--- a/src/debug/gosym/pclntab.go
++++ b/src/debug/gosym/pclntab.go
+@@ -167,7 +167,7 @@ func (t *LineTable) go12Init() {
+ 	// Check header: 4-byte magic, two zeros, pc quantum, pointer size.
+ 	t.go12 = -1 // not Go 1.2 until proven otherwise
+ 	if len(t.Data) < 16 || t.Data[4] != 0 || t.Data[5] != 0 ||
+-		(t.Data[6] != 1 && t.Data[6] != 4) || // pc quantum
++		(t.Data[6] != 1 && t.Data[6] != 2 && t.Data[6] != 4) || // pc quantum
+ 		(t.Data[7] != 4 && t.Data[7] != 8) { // pointer size
+ 		return
+ 	}

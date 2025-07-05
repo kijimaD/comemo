@@ -13,7 +13,36 @@ Date:   Thu Jun 18 16:19:18 2015 +0200
     Change-Id: Ib6f1292b8ade4805756fcb6696ba1fca8f9f39a9
     Reviewed-on: https://go-review.googlesource.com/11243
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/trace/main.go  | 2 +-
  src/cmd/trace/pprof.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index ea6eef353f..c8a9231de7 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -124,7 +124,7 @@ var templMain = []byte(`
+ <body>
+ <a href="/trace">View trace</a><br>
+ <a href="/goroutines">Goroutine analysis</a><br>
+-<a href="/io">IO blocking profile</a><br>
++<a href="/io">Network blocking profile</a><br>
+ <a href="/block">Synchronization blocking profile</a><br>
+ <a href="/syscall">Syscall blocking profile</a><br>
+ <a href="/sched">Scheduler latency profile</a><br>
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index 9e6f277978..154f04d56c 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -124,6 +124,10 @@ func httpSched(w http.ResponseWriter, r *http.Request) {
+ 
+ // generateSVGProfile generates pprof-like profile stored in prof and writes in to w.
+ func serveSVGProfile(w http.ResponseWriter, r *http.Request, prof map[uint64]Record) {
++	if len(prof) == 0 {
++		http.Error(w, "The profile is empty", http.StatusNotFound)
++		return
++	}
+ 	blockf, err := ioutil.TempFile("", "block")
+ 	if err != nil {
+ 		http.Error(w, fmt.Sprintf("failed to create temp file: %v", err), http.StatusInternalServerError)

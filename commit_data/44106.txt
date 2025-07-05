@@ -24,10 +24,100 @@ Date:   Fri May 8 14:17:55 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/sockopt_aix.go     | 7 +++++--
  src/net/sockopt_bsd.go     | 7 +++++--
  src/net/sockopt_linux.go   | 7 +++++--
  src/net/sockopt_solaris.go | 7 +++++--
  src/net/sockopt_windows.go | 6 ++++--
  5 files changed, 24 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/sockopt_aix.go b/src/net/sockopt_aix.go
+index b49c4d5c7c..7729a4470b 100644
+--- a/src/net/sockopt_aix.go
++++ b/src/net/sockopt_aix.go
+@@ -16,8 +16,11 @@ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
+ 		// never admit this option.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
+ 	}
+-	// Allow broadcast.
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++	if (sotype == syscall.SOCK_DGRAM || sotype == syscall.SOCK_RAW) && family != syscall.AF_UNIX {
++		// Allow broadcast.
++		return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++	}
++	return nil
+ }
+ 
+ func setDefaultListenerSockopts(s int) error {
+diff --git a/src/net/sockopt_bsd.go b/src/net/sockopt_bsd.go
+index 4ecc8cb1cf..8fd1e882c6 100644
+--- a/src/net/sockopt_bsd.go
++++ b/src/net/sockopt_bsd.go
+@@ -31,8 +31,11 @@ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
+ 		// never admit this option.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
+ 	}
+-	// Allow broadcast.
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++	if (sotype == syscall.SOCK_DGRAM || sotype == syscall.SOCK_RAW) && family != syscall.AF_UNIX {
++		// Allow broadcast.
++		return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++	}
++	return nil
+ }
+ 
+ func setDefaultListenerSockopts(s int) error {
+diff --git a/src/net/sockopt_linux.go b/src/net/sockopt_linux.go
+index 0f70b12407..3d544299ac 100644
+--- a/src/net/sockopt_linux.go
++++ b/src/net/sockopt_linux.go
+@@ -16,8 +16,11 @@ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
+ 		// never admit this option.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
+ 	}
+-	// Allow broadcast.
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++	if (sotype == syscall.SOCK_DGRAM || sotype == syscall.SOCK_RAW) && family != syscall.AF_UNIX {
++		// Allow broadcast.
++		return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++	}
++	return nil
+ }
+ 
+ func setDefaultListenerSockopts(s int) error {
+diff --git a/src/net/sockopt_solaris.go b/src/net/sockopt_solaris.go
+index 0f70b12407..3d544299ac 100644
+--- a/src/net/sockopt_solaris.go
++++ b/src/net/sockopt_solaris.go
+@@ -16,8 +16,11 @@ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
+ 		// never admit this option.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
+ 	}
+-	// Allow broadcast.
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++	if (sotype == syscall.SOCK_DGRAM || sotype == syscall.SOCK_RAW) && family != syscall.AF_UNIX {
++		// Allow broadcast.
++		return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++	}
++	return nil
+ }
+ 
+ func setDefaultListenerSockopts(s int) error {
+diff --git a/src/net/sockopt_windows.go b/src/net/sockopt_windows.go
+index 8017426521..8afaf34514 100644
+--- a/src/net/sockopt_windows.go
++++ b/src/net/sockopt_windows.go
+@@ -16,8 +16,10 @@ func setDefaultSockopts(s syscall.Handle, family, sotype int, ipv6only bool) err
+ 		// never admit this option.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
+ 	}
+-	// Allow broadcast.
+-	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
++	if (sotype == syscall.SOCK_DGRAM || sotype == syscall.SOCK_RAW) && family != syscall.AF_UNIX && family != syscall.AF_INET6 {
++		// Allow broadcast.
++		return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++	}
+ 	return nil
+ }
+ 

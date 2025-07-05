@@ -20,6 +20,54 @@ Date:   Sat Oct 28 14:23:21 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/internal/cfg/cfg.go | 21 ++++++++++++++++++++-
  1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 290757fdb4..3c7b918523 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -100,22 +100,41 @@ func findGOROOT() string {
+ 	if env := os.Getenv("GOROOT"); env != "" {
+ 		return filepath.Clean(env)
+ 	}
++	def := filepath.Clean(runtime.GOROOT())
+ 	exe, err := os.Executable()
+ 	if err == nil {
+ 		exe, err = filepath.Abs(exe)
+ 		if err == nil {
+ 			if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
++				// If def (runtime.GOROOT()) and dir are the same
++				// directory, prefer the spelling used in def.
++				if isSameDir(def, dir) {
++					return def
++				}
+ 				return dir
+ 			}
+ 			exe, err = filepath.EvalSymlinks(exe)
+ 			if err == nil {
+ 				if dir := filepath.Join(exe, "../.."); isGOROOT(dir) {
++					if isSameDir(def, dir) {
++						return def
++					}
+ 					return dir
+ 				}
+ 			}
+ 		}
+ 	}
+-	return filepath.Clean(runtime.GOROOT())
++	return def
++}
++
++// isSameDir reports whether dir1 and dir2 are the same directory.
++func isSameDir(dir1, dir2 string) bool {
++	if dir1 == dir2 {
++		return true
++	}
++	info1, err1 := os.Stat(dir1)
++	info2, err2 := os.Stat(dir2)
++	return err1 == nil && err2 == nil && os.SameFile(info1, info2)
+ }
+ 
+ // isGOROOT reports whether path looks like a GOROOT.

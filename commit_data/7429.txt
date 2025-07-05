@@ -9,6 +9,27 @@ Date:   Thu Feb 10 15:39:08 2011 -0500
     R=brainman
     CC=golang-dev
     https://golang.org/cl/4170041
-
+---
  src/pkg/runtime/windows/mem.c | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index c523195a46..54d77da37e 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -48,7 +48,14 @@ runtime·SysFree(void *v, uintptr n)
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {
+-	return runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
++	// v is just a hint.
++	// First try at v.
++	v = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
++	if(v != nil)
++		return v;
++	
++	// Next let the kernel choose the address.
++	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+ }
+ 
+ void

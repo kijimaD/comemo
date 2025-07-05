@@ -44,6 +44,28 @@ Date:   Thu Apr 11 20:33:20 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/578319
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/trace/v2/testdata/testprog/gc-stress.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/internal/trace/v2/testdata/testprog/gc-stress.go b/src/internal/trace/v2/testdata/testprog/gc-stress.go
+index e56245bb8f..7979234c40 100644
+--- a/src/internal/trace/v2/testdata/testprog/gc-stress.go
++++ b/src/internal/trace/v2/testdata/testprog/gc-stress.go
+@@ -11,7 +11,6 @@ package main
+ 
+ import (
+ 	"log"
+-	"math/rand"
+ 	"os"
+ 	"runtime"
+ 	"runtime/trace"
+@@ -62,7 +61,7 @@ func main() {
+ 		i := i
+ 		go func() {
+ 			for {
+-				sink[i] = make([]byte, rand.Intn(32<<10))
++				sink[i] = make([]byte, 4<<10)
+ 			}
+ 		}()
+ 	}

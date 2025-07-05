@@ -12,9 +12,190 @@ Date:   Sat Sep 10 13:24:35 2016 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go     | 40 ++++++++++++++------------------
  src/cmd/compile/internal/gc/sinit.go     |  5 ++--
  src/cmd/compile/internal/gc/typecheck.go | 40 ++++++++++++++------------------
  test/fixedbugs/issue16439.go             | 18 ++++++++++++++
  4 files changed, 56 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 1d6bb15272..6860656870 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1513,37 +1513,33 @@ func smallintconst(n *Node) bool {
+ 			return true
+ 
+ 		case TIDEAL, TINT64, TUINT64, TPTR64:
+-			if n.Val().U.(*Mpint).Cmp(minintval[TINT32]) < 0 || n.Val().U.(*Mpint).Cmp(maxintval[TINT32]) > 0 {
+-				break
++			v, ok := n.Val().U.(*Mpint)
++			if ok && v.Cmp(minintval[TINT32]) > 0 && v.Cmp(maxintval[TINT32]) < 0 {
++				return true
+ 			}
+-			return true
+ 		}
+ 	}
+ 
+ 	return false
+ }
+ 
+-func nonnegconst(n *Node) int {
+-	if n.Op == OLITERAL && n.Type != nil {
+-		switch simtype[n.Type.Etype] {
+-		// check negative and 2^31
+-		case TINT8,
+-			TUINT8,
+-			TINT16,
+-			TUINT16,
+-			TINT32,
+-			TUINT32,
+-			TINT64,
+-			TUINT64,
+-			TIDEAL:
+-			if n.Val().U.(*Mpint).Cmp(minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(maxintval[TINT32]) > 0 {
+-				break
+-			}
+-			return int(n.Int64())
+-		}
++// nonnegintconst checks if Node n contains a constant expression
++// representable as a non-negative small integer, and returns its
++// (integer) value if that's the case. Otherwise, it returns -1.
++func nonnegintconst(n *Node) int64 {
++	if n.Op != OLITERAL {
++		return -1
++	}
++
++	// toint will leave n.Val unchanged if it's not castable to an
++	// Mpint, so we still have to guard the conversion.
++	v := toint(n.Val())
++	vi, ok := v.U.(*Mpint)
++	if !ok || vi.Val.Sign() < 0 || vi.Cmp(maxintval[TINT32]) > 0 {
++		return -1
+ 	}
+ 
+-	return -1
++	return vi.Int64()
+ }
+ 
+ // convert x to type et and back to int64
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 334a3e5789..5030d7b23d 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1226,10 +1226,11 @@ func initplan(n *Node) {
+ 
+ 	case OARRAYLIT, OSLICELIT:
+ 		for _, a := range n.List.Slice() {
+-			if a.Op != OKEY || !smallintconst(a.Left) {
++			index := nonnegintconst(a.Left)
++			if a.Op != OKEY || index < 0 {
+ 				Fatalf("initplan fixedlit")
+ 			}
+-			addvalue(p, n.Type.Elem().Width*a.Left.Int64(), a.Right)
++			addvalue(p, index*n.Type.Elem().Width, a.Right)
+ 		}
+ 
+ 	case OSTRUCTLIT:
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ed5ee104df..66ebaa0586 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2781,19 +2781,6 @@ func keydup(n *Node, hash map[uint32][]*Node) {
+ 	hash[h] = append(hash[h], orign)
+ }
+ 
+-func indexdup(n *Node, hash map[int64]*Node) {
+-	if n.Op != OLITERAL {
+-		Fatalf("indexdup: not OLITERAL")
+-	}
+-
+-	v := n.Int64()
+-	if hash[v] != nil {
+-		yyerror("duplicate index in array literal: %d", v)
+-		return
+-	}
+-	hash[v] = n
+-}
+-
+ // iscomptype reports whether type t is a composite literal type
+ // or a pointer to one.
+ func iscomptype(t *Type) bool {
+@@ -2890,16 +2877,17 @@ func typecheckcomplit(n *Node) *Node {
+ 		n.Type = nil
+ 
+ 	case TARRAY, TSLICE:
+-		// Only allocate hash if there are some key/value pairs.
+-		var hash map[int64]*Node
++		// If there are key/value pairs, create a map to keep seen
++		// keys so we can check for duplicate indices.
++		var indices map[int64]bool
+ 		for _, n1 := range n.List.Slice() {
+ 			if n1.Op == OKEY {
+-				hash = make(map[int64]*Node)
++				indices = make(map[int64]bool)
+ 				break
+ 			}
+ 		}
+-		length := int64(0)
+-		i := 0
++
++		var length, i int64
+ 		checkBounds := t.IsArray() && !t.isDDDArray()
+ 		for i2, n2 := range n.List.Slice() {
+ 			l := n2
+@@ -2913,19 +2901,25 @@ func typecheckcomplit(n *Node) *Node {
+ 
+ 			l.Left = typecheck(l.Left, Erv)
+ 			evconst(l.Left)
+-			i = nonnegconst(l.Left)
++
++			i = nonnegintconst(l.Left)
+ 			if i < 0 && l.Left.Diag == 0 {
+ 				yyerror("index must be non-negative integer constant")
+ 				l.Left.Diag = 1
+ 				i = -(1 << 30) // stay negative for a while
+ 			}
+ 
+-			if i >= 0 && hash != nil {
+-				indexdup(l.Left, hash)
++			if i >= 0 && indices != nil {
++				if indices[i] {
++					yyerror("duplicate index in array literal: %d", i)
++				} else {
++					indices[i] = true
++				}
+ 			}
++
+ 			i++
+-			if int64(i) > length {
+-				length = int64(i)
++			if i > length {
++				length = i
+ 				if checkBounds && length > t.NumElem() {
+ 					setlineno(l)
+ 					yyerror("array index %d out of bounds [0:%d]", length-1, t.NumElem())
+diff --git a/test/fixedbugs/issue16439.go b/test/fixedbugs/issue16439.go
+new file mode 100644
+index 0000000000..d321b6083e
+--- /dev/null
++++ b/test/fixedbugs/issue16439.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var a []int = []int{1: 1}
++var b []int = []int{-1: 1} // ERROR "must be non-negative integer constant"
++
++var c []int = []int{2.0: 2}
++var d []int = []int{-2.0: 2} // ERROR "must be non-negative integer constant"
++
++var e []int = []int{3 + 0i: 3}
++var f []int = []int{3i: 3} // ERROR "truncated to real"
++
++var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant"

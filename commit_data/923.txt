@@ -8,7 +8,80 @@ Date:   Tue Oct 21 14:44:31 2008 -0700
     R=ken
     OCL=17569
     CL=17569
-
+---
  src/cmd/gc/export.c |  2 +-
  src/cmd/gc/subr.c   | 13 +++++--------
  2 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 5067da8707..20fca3640b 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -46,7 +46,7 @@ dumpprereq(Type *t)
+ 		return;
+ 	t->printed = 1;
+ 
+-	if(t->sym != S && t->etype != TFIELD && t->sym->name[0] != '_')
++	if(t->sym != S && t->etype != TFIELD)
+ 		dumpsym(t->sym);
+ 	dumpprereq(t->type);
+ 	dumpprereq(t->down);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 08e965dead..ba5f698900 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -963,7 +963,6 @@ Tpretty(Fmt *fp, Type *t)
+ 
+ 	if(t->etype != TFIELD
+ 	&& t->sym != S
+-	&& t->sym->name[0] != '_'
+ 	&& !(fp->flags&FmtLong)) {
+ 		s = t->sym;
+ 		if(t == types[t->etype] || t == types[TSTRING])
+@@ -1117,10 +1116,8 @@ Tconv(Fmt *fp)
+ 	et = t->etype;
+ 
+ 	strcpy(buf, "");
+-	if(t->sym != S) {
+-		if(t->sym->name[0] != '_')
++	if(t->sym != S)
+ 		snprint(buf, sizeof(buf), "<%S>", t->sym);
+-	}
+ 
+ 	switch(et) {
+ 	default:
+@@ -1479,7 +1476,7 @@ ismethod(Type *t)
+ 
+ 	// direct receiver
+ 	s = t->sym;
+-	if(s != S && s->name[0] != '_') {
++	if(s != S) {
+ 		if(t->methptr == 2)
+ 			goto both;
+ 		t->methptr |= 1;
+@@ -1495,7 +1492,7 @@ ismethod(Type *t)
+ 		return T;
+ 
+ 	s = t->sym;
+-	if(s != S && s->name[0] != '_') {
++	if(s != S) {
+ 		if(t->methptr == 1)
+ 			goto both;
+ 		t->methptr |= 2;
+@@ -1616,14 +1613,14 @@ signame(Type *t, int block)
+ 		goto bad;
+ 
+ 	s = t->sym;
+-	if(s == S || s->name[0] == '_') {
++	if(s == S) {
+ 		if(isptr[t->etype]) {
+ 			t = t->type;
+ 			if(t == T)
+ 				goto bad;
+ 		}
+ 		s = t->sym;
+-		if(s == S || s->name[0] == '_')
++		if(s == S)
+ 			goto bad;
+ 	}
+ 

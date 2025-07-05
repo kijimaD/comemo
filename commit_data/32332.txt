@@ -7,6 +7,20 @@ Date:   Thu Apr 20 18:26:05 2017 +0900
     Change-Id: I4204e268c7220a50ceb270432067850ec2b5af80
     Reviewed-on: https://go-review.googlesource.com/41230
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index bbd7f24d48..bc70b0c8e3 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1833,7 +1833,7 @@ for a min function that chooses the least of a list of integers:
+ </p>
+ <pre>
+ func Min(a ...int) int {
+-    min := int(^uint(0) >> 1)  // largest int
++    min := int(^uint(0) &gt;&gt; 1)  // largest int
+     for _, i := range a {
+         if i &lt; min {
+             min = i

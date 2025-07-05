@@ -13,9 +13,202 @@ Date:   Sat May 13 00:01:50 2017 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/cgo_unix.go            | 20 +++++++++-----------
  src/os/user/cgo_lookup_unix.go | 12 ++++++------
  src/os/user/listgroups_unix.go |  9 ++++-----
  src/plugin/plugin_dlopen.go    | 33 +++++++++++++++++++--------------
  4 files changed, 38 insertions(+), 36 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index d5173d68be..1baa01f036 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -12,7 +12,6 @@ package net
+ #include <sys/socket.h>
+ #include <netinet/in.h>
+ #include <netdb.h>
+-#include <stdlib.h>
+ #include <unistd.h>
+ #include <string.h>
+ */
+@@ -95,15 +94,14 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err
+ }
+ 
+ func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (port int, err error) {
+-	s := C.CString(service)
+-	// Lowercase the service name in the C-allocated memory.
+-	for i := 0; i < len(service); i++ {
+-		bp := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(s)) + uintptr(i)))
+-		*bp = lowerASCII(*bp)
++	cservice := make([]byte, len(service)+1)
++	copy(cservice, service)
++	// Lowercase the C service name.
++	for i, b := range cservice[:len(service)] {
++		cservice[i] = lowerASCII(b)
+ 	}
+ 	var res *C.struct_addrinfo
+-	defer C.free(unsafe.Pointer(s))
+-	gerrno, err := C.getaddrinfo(nil, s, hints, &res)
++	gerrno, err := C.getaddrinfo(nil, (*C.char)(unsafe.Pointer(&cservice[0])), hints, &res)
+ 	if gerrno != 0 {
+ 		switch gerrno {
+ 		case C.EAI_SYSTEM:
+@@ -145,10 +143,10 @@ func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error) {
+ 	hints.ai_flags = cgoAddrInfoFlags
+ 	hints.ai_socktype = C.SOCK_STREAM
+ 
+-	h := C.CString(name)
+-	defer C.free(unsafe.Pointer(h))
++	h := make([]byte, len(name)+1)
++	copy(h, name)
+ 	var res *C.struct_addrinfo
+-	gerrno, err := C.getaddrinfo(h, nil, &hints, &res)
++	gerrno, err := C.getaddrinfo((*C.char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
+ 	if gerrno != 0 {
+ 		switch gerrno {
+ 		case C.EAI_SYSTEM:
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 58ecf32405..6f66851bbb 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -52,8 +52,8 @@ func current() (*User, error) {
+ func lookupUser(username string) (*User, error) {
+ 	var pwd C.struct_passwd
+ 	var result *C.struct_passwd
+-	nameC := C.CString(username)
+-	defer C.free(unsafe.Pointer(nameC))
++	nameC := make([]byte, len(username)+1)
++	copy(nameC, username)
+ 
+ 	buf := alloc(userBuffer)
+ 	defer buf.free()
+@@ -63,7 +63,7 @@ func lookupUser(username string) (*User, error) {
+ 		// passing a size_t to getpwnam_r, because for unknown
+ 		// reasons passing a size_t to getpwnam_r doesn't work on
+ 		// Solaris.
+-		return syscall.Errno(C.mygetpwnam_r(nameC,
++		return syscall.Errno(C.mygetpwnam_r((*C.char)(unsafe.Pointer(&nameC[0])),
+ 			&pwd,
+ 			(*C.char)(buf.ptr),
+ 			C.size_t(buf.size),
+@@ -140,11 +140,11 @@ func lookupGroup(groupname string) (*Group, error) {
+ 
+ 	buf := alloc(groupBuffer)
+ 	defer buf.free()
+-	cname := C.CString(groupname)
+-	defer C.free(unsafe.Pointer(cname))
++	cname := make([]byte, len(groupname)+1)
++	copy(cname, groupname)
+ 
+ 	err := retryWithBuffer(buf, func() syscall.Errno {
+-		return syscall.Errno(C.mygetgrnam_r(cname,
++		return syscall.Errno(C.mygetgrnam_r((*C.char)(unsafe.Pointer(&cname[0])),
+ 			&grp,
+ 			(*C.char)(buf.ptr),
+ 			C.size_t(buf.size),
+diff --git a/src/os/user/listgroups_unix.go b/src/os/user/listgroups_unix.go
+index db952c64bf..6f8c644f69 100644
+--- a/src/os/user/listgroups_unix.go
++++ b/src/os/user/listgroups_unix.go
+@@ -15,7 +15,6 @@ import (
+ /*
+ #include <unistd.h>
+ #include <sys/types.h>
+-#include <stdlib.h>
+ */
+ import "C"
+ 
+@@ -25,12 +24,12 @@ func listGroups(u *User) ([]string, error) {
+ 		return nil, fmt.Errorf("user: list groups for %s: invalid gid %q", u.Username, u.Gid)
+ 	}
+ 	userGID := C.gid_t(ug)
+-	nameC := C.CString(u.Username)
+-	defer C.free(unsafe.Pointer(nameC))
++	nameC := make([]byte, len(u.Username)+1)
++	copy(nameC, u.Username)
+ 
+ 	n := C.int(256)
+ 	gidsC := make([]C.gid_t, n)
+-	rv := getGroupList(nameC, userGID, &gidsC[0], &n)
++	rv := getGroupList((*C.char)(unsafe.Pointer(&nameC[0])), userGID, &gidsC[0], &n)
+ 	if rv == -1 {
+ 		// More than initial buffer, but now n contains the correct size.
+ 		const maxGroups = 2048
+@@ -38,7 +37,7 @@ func listGroups(u *User) ([]string, error) {
+ 			return nil, fmt.Errorf("user: list groups for %s: member of more than %d groups", u.Username, maxGroups)
+ 		}
+ 		gidsC = make([]C.gid_t, n)
+-		rv := getGroupList(nameC, userGID, &gidsC[0], &n)
++		rv := getGroupList((*C.char)(unsafe.Pointer(&nameC[0])), userGID, &gidsC[0], &n)
+ 		if rv == -1 {
+ 			return nil, fmt.Errorf("user: list groups for %s failed (changed groups?)", u.Username)
+ 		}
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index 3237598f06..ce66c036c9 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -81,16 +81,16 @@ func pathToPrefix(s string) string {
+ }
+ 
+ func open(name string) (*Plugin, error) {
+-	cPath := (*C.char)(C.malloc(C.PATH_MAX + 1))
+-	defer C.free(unsafe.Pointer(cPath))
+-
+-	cRelName := C.CString(name)
+-	defer C.free(unsafe.Pointer(cRelName))
+-	if C.realpath(cRelName, cPath) == nil {
++	cPath := make([]byte, C.PATH_MAX+1)
++	cRelName := make([]byte, len(name)+1)
++	copy(cRelName, name)
++	if C.realpath(
++		(*C.char)(unsafe.Pointer(&cRelName[0])),
++		(*C.char)(unsafe.Pointer(&cPath[0]))) == nil {
+ 		return nil, errors.New("plugin.Open(" + name + "): realpath failed")
+ 	}
+ 
+-	filepath := C.GoString(cPath)
++	filepath := C.GoString((*C.char)(unsafe.Pointer(&cPath[0])))
+ 
+ 	pluginsMu.Lock()
+ 	if p := plugins[filepath]; p != nil {
+@@ -99,7 +99,7 @@ func open(name string) (*Plugin, error) {
+ 		return p, nil
+ 	}
+ 	var cErr *C.char
+-	h := C.pluginOpen(cPath, &cErr)
++	h := C.pluginOpen((*C.char)(unsafe.Pointer(&cPath[0])), &cErr)
+ 	if h == 0 {
+ 		pluginsMu.Unlock()
+ 		return nil, errors.New("plugin.Open: " + C.GoString(cErr))
+@@ -127,9 +127,11 @@ func open(name string) (*Plugin, error) {
+ 	plugins[filepath] = p
+ 	pluginsMu.Unlock()
+ 
+-	initStr := C.CString(pluginpath + ".init")
+-	initFuncPC := C.pluginLookup(h, initStr, &cErr)
+-	C.free(unsafe.Pointer(initStr))
++	initStr := make([]byte, len(pluginpath)+6)
++	copy(initStr, pluginpath)
++	copy(initStr[len(pluginpath):], ".init")
++
++	initFuncPC := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&initStr[0])), &cErr)
+ 	if initFuncPC != nil {
+ 		initFuncP := &initFuncPC
+ 		initFunc := *(*func())(unsafe.Pointer(&initFuncP))
+@@ -144,9 +146,12 @@ func open(name string) (*Plugin, error) {
+ 			delete(syms, symName)
+ 			symName = symName[1:]
+ 		}
+-		cname := C.CString(pathToPrefix(pluginpath) + "." + symName)
+-		p := C.pluginLookup(h, cname, &cErr)
+-		C.free(unsafe.Pointer(cname))
++
++		fullName := pathToPrefix(pluginpath) + "." + symName
++		cname := make([]byte, len(fullName)+1)
++		copy(cname, fullName)
++
++		p := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&cname[0])), &cErr)
+ 		if p == nil {
+ 			return nil, errors.New("plugin.Open: could not find symbol " + symName + ": " + C.GoString(cErr))
+ 		}

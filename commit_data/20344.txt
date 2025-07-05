@@ -8,10 +8,206 @@ Date:   Tue Sep 2 10:07:02 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/133460043
-
+---
  src/pkg/reflect/asm_386.s      | 29 -----------------------------
  src/pkg/reflect/asm_amd64.s    | 29 -----------------------------
  src/pkg/reflect/asm_amd64p32.s | 29 -----------------------------
  src/pkg/reflect/asm_arm.s      | 29 -----------------------------
  src/pkg/runtime/thunk.s        | 39 +++++++++++++++++++++++++++++++++++++++
  5 files changed, 39 insertions(+), 116 deletions(-)
+
+diff --git a/src/pkg/reflect/asm_386.s b/src/pkg/reflect/asm_386.s
+index 933908f206..c028113a0c 100644
+--- a/src/pkg/reflect/asm_386.s
++++ b/src/pkg/reflect/asm_386.s
+@@ -25,32 +25,3 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVL	CX, 4(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+-
+-// Stubs to give reflect package access to runtime services
+-// TODO: should probably be done another way.
+-TEXT ·makemap(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_makemap(SB)
+-TEXT ·mapaccess(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapaccess(SB)
+-TEXT ·mapassign(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapassign(SB)
+-TEXT ·mapdelete(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapdelete(SB)
+-TEXT ·mapiterinit(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiterinit(SB)
+-TEXT ·mapiterkey(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiterkey(SB)
+-TEXT ·mapiternext(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiternext(SB)
+-TEXT ·maplen(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_maplen(SB)
+-TEXT ·ismapkey(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_ismapkey(SB)
+-TEXT ·ifaceE2I(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_ifaceE2I(SB)
+-TEXT ·unsafe_New(SB),NOSPLIT,$0-0
+-	JMP	runtime·newobject(SB)
+-TEXT ·unsafe_NewArray(SB),NOSPLIT,$0-0
+-	JMP	runtime·newarray(SB)
+-TEXT ·makechan(SB),NOSPLIT,$0-0
+-	JMP	runtime·makechan(SB)
+diff --git a/src/pkg/reflect/asm_amd64.s b/src/pkg/reflect/asm_amd64.s
+index 85de6ea827..b3c54f0482 100644
+--- a/src/pkg/reflect/asm_amd64.s
++++ b/src/pkg/reflect/asm_amd64.s
+@@ -25,32 +25,3 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
+ 	MOVQ	CX, 8(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+-
+-// Stubs to give reflect package access to runtime services
+-// TODO: should probably be done another way.
+-TEXT ·makemap(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_makemap(SB)
+-TEXT ·mapaccess(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapaccess(SB)
+-TEXT ·mapassign(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapassign(SB)
+-TEXT ·mapdelete(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapdelete(SB)
+-TEXT ·mapiterinit(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiterinit(SB)
+-TEXT ·mapiterkey(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiterkey(SB)
+-TEXT ·mapiternext(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiternext(SB)
+-TEXT ·maplen(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_maplen(SB)
+-TEXT ·ismapkey(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_ismapkey(SB)
+-TEXT ·ifaceE2I(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_ifaceE2I(SB)
+-TEXT ·unsafe_New(SB),NOSPLIT,$0-0
+-	JMP	runtime·newobject(SB)
+-TEXT ·unsafe_NewArray(SB),NOSPLIT,$0-0
+-	JMP	runtime·newarray(SB)
+-TEXT ·makechan(SB),NOSPLIT,$0-0
+-	JMP	runtime·makechan(SB)
+diff --git a/src/pkg/reflect/asm_amd64p32.s b/src/pkg/reflect/asm_amd64p32.s
+index 933908f206..c028113a0c 100644
+--- a/src/pkg/reflect/asm_amd64p32.s
++++ b/src/pkg/reflect/asm_amd64p32.s
+@@ -25,32 +25,3 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVL	CX, 4(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+-
+-// Stubs to give reflect package access to runtime services
+-// TODO: should probably be done another way.
+-TEXT ·makemap(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_makemap(SB)
+-TEXT ·mapaccess(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapaccess(SB)
+-TEXT ·mapassign(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapassign(SB)
+-TEXT ·mapdelete(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapdelete(SB)
+-TEXT ·mapiterinit(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiterinit(SB)
+-TEXT ·mapiterkey(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiterkey(SB)
+-TEXT ·mapiternext(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_mapiternext(SB)
+-TEXT ·maplen(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_maplen(SB)
+-TEXT ·ismapkey(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_ismapkey(SB)
+-TEXT ·ifaceE2I(SB),NOSPLIT,$0-0
+-	JMP	runtime·reflect_ifaceE2I(SB)
+-TEXT ·unsafe_New(SB),NOSPLIT,$0-0
+-	JMP	runtime·newobject(SB)
+-TEXT ·unsafe_NewArray(SB),NOSPLIT,$0-0
+-	JMP	runtime·newarray(SB)
+-TEXT ·makechan(SB),NOSPLIT,$0-0
+-	JMP	runtime·makechan(SB)
+diff --git a/src/pkg/reflect/asm_arm.s b/src/pkg/reflect/asm_arm.s
+index e621b169b1..6bd5d48ec9 100644
+--- a/src/pkg/reflect/asm_arm.s
++++ b/src/pkg/reflect/asm_arm.s
+@@ -25,32 +25,3 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVW	R1, 8(R13)
+ 	BL	·callMethod(SB)
+ 	RET
+-
+-// Stubs to give reflect package access to runtime services
+-// TODO: should probably be done another way.
+-TEXT ·makemap(SB),NOSPLIT,$-4-0
+-	B	runtime·reflect_makemap(SB)
+-TEXT ·mapaccess(SB),NOSPLIT,$-4-0
+-	B	runtime·reflect_mapaccess(SB)
+-TEXT ·mapassign(SB),NOSPLIT,$-4-0
+-	B	runtime·reflect_mapassign(SB)
+-TEXT ·mapdelete(SB),NOSPLIT,$-4-0
+-	B	runtime·reflect_mapdelete(SB)
+-TEXT ·mapiterinit(SB),NOSPLIT,$-4-0
+-	B	runtime·reflect_mapiterinit(SB)
+-TEXT ·mapiterkey(SB),NOSPLIT,$-4-0
+-	B	runtime·reflect_mapiterkey(SB)
+-TEXT ·mapiternext(SB),NOSPLIT,$-4-0
+-	B	runtime·reflect_mapiternext(SB)
+-TEXT ·maplen(SB),NOSPLIT,$-4-0
+-	B	runtime·reflect_maplen(SB)
+-TEXT ·ismapkey(SB),NOSPLIT,$-4-0
+-	B	runtime·reflect_ismapkey(SB)
+-TEXT ·ifaceE2I(SB),NOSPLIT,$0-0
+-	B	runtime·reflect_ifaceE2I(SB)
+-TEXT ·unsafe_New(SB),NOSPLIT,$0-0
+-	B	runtime·newobject(SB)
+-TEXT ·unsafe_NewArray(SB),NOSPLIT,$0-0
+-	B	runtime·newarray(SB)
+-TEXT ·makechan(SB),NOSPLIT,$0-0
+-	B	runtime·makechan(SB)
+diff --git a/src/pkg/runtime/thunk.s b/src/pkg/runtime/thunk.s
+index 57943ea997..eaba5e1489 100644
+--- a/src/pkg/runtime/thunk.s
++++ b/src/pkg/runtime/thunk.s
+@@ -76,3 +76,42 @@ TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
+ 
+ TEXT syscall·setenv_c(SB), NOSPLIT, $0-0
+ 	JMP	runtime·syscall_setenv_c(SB)
++
++TEXT reflect·makemap(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_makemap(SB)
++
++TEXT reflect·mapaccess(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapaccess(SB)
++
++TEXT reflect·mapassign(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapassign(SB)
++
++TEXT reflect·mapdelete(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapdelete(SB)
++
++TEXT reflect·mapiterinit(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiterinit(SB)
++
++TEXT reflect·mapiterkey(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiterkey(SB)
++
++TEXT reflect·mapiternext(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiternext(SB)
++
++TEXT reflect·maplen(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_maplen(SB)
++
++TEXT reflect·ismapkey(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_ismapkey(SB)
++
++TEXT reflect·ifaceE2I(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_ifaceE2I(SB)
++
++TEXT reflect·unsafe_New(SB),NOSPLIT,$0-0
++	JMP	runtime·newobject(SB)
++
++TEXT reflect·unsafe_NewArray(SB),NOSPLIT,$0-0
++	JMP	runtime·newarray(SB)
++
++TEXT reflect·makechan(SB),NOSPLIT,$0-0
++	JMP	runtime·makechan(SB)

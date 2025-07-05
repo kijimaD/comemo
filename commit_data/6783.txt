@@ -22,6 +22,19 @@ Date:   Mon Nov 22 10:59:51 2010 -0500
     R=rsc, ejsherry
     CC=golang-dev
     https://golang.org/cl/3231042
-
+---
  src/cmd/gc/typecheck.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 919d99ecf7..70464a4b76 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -656,6 +656,7 @@ reswitch:
+ 		r = n->right;
+ 		if((t = r->type) == T)
+ 			goto error;
++		r = assignconv(r, l->type->type, "send");
+ 		// TODO: more aggressive
+ 		n->etype = 0;
+ 		n->type = T;

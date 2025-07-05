@@ -9,6 +9,26 @@ Date:   Mon Dec 11 16:45:56 2023 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  doc/go1.22.html | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 18d42e5b53..e5fac31ae6 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -568,12 +568,8 @@ defer func() {
+ 
+ <dl id="io"><dt><a href="/pkg/io/">io</a></dt>
+   <dd>
+-    <p><!-- https://go.dev/issue/61870 -->
+-      TODO: <a href="https://go.dev/issue/61870">https://go.dev/issue/61870</a>: add SectionReader.Outer method
+-    </p>
+-
+-    <p><!-- CL 526855 -->
+-      TODO: <a href="https://go.dev/cl/526855">https://go.dev/cl/526855</a>: io: add (*SectionReader).Outer(); modified api/next/61870.txt
++    <p><!-- https://go.dev/issue/61870, CL 526855 -->
++      The new <a href="/pkg/io#SectionReader.Outer"><code>SectionReader.Outer</code></a> method returns the <a href="/pkg/io#ReaderAt"><code>ReaderAt</code></a>, offset, and size passed to <a href="/pkg/io#NewSectionReader"><code>NewSectionReader</code></a>.
+     </p>
+   </dd>
+ </dl><!-- io -->

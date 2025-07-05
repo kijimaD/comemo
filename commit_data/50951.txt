@@ -20,7 +20,32 @@ Date:   Thu Nov 18 13:30:55 2021 -0800
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt | 2 --
  src/internal/fuzz/worker.go                             | 3 ++-
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+index 5b1e26be24..3764dcb915 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+@@ -1,5 +1,3 @@
+-skip  # https://golang.org/issue/49047
+-
+ # TODO(jayconrod): support shared memory on more platforms.
+ [!darwin] [!linux] [!windows] skip
+ 
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index e7d824bea1..5be49d28f9 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -1111,7 +1111,8 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
+ 		wc.m.r.restore(mem.header().randState, mem.header().randInc)
+ 		if !args.Warmup {
+ 			// Only mutate the valuesOut if fuzzing actually occurred.
+-			for i := int64(0); i < resp.Count%chainedMutations; i++ {
++			numMutations := ((resp.Count - 1) % chainedMutations) + 1
++			for i := int64(0); i < numMutations; i++ {
+ 				wc.m.mutate(valuesOut, cap(mem.valueRef()))
+ 			}
+ 		}

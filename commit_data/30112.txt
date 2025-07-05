@@ -34,7 +34,7 @@ Date:   Mon Oct 24 23:15:41 2016 +0300
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Shahar Kohanim <skohanim@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/gsubr.go   |  2 +-
  src/cmd/compile/internal/gc/obj.go     |  2 +-
  src/cmd/compile/internal/gc/pgen.go    |  2 +-
@@ -52,3 +52,761 @@ Date:   Mon Oct 24 23:15:41 2016 +0300
  src/cmd/internal/obj/sizeof_test.go    |  2 +-
  src/cmd/internal/obj/x86/obj6.go       | 26 ++++++-------
  16 files changed, 128 insertions(+), 103 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index fb6402206b..fd536ee06d 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -94,7 +94,7 @@ func ggloblsym(s *Sym, width int32, flags int16) {
+ 
+ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
+ 	if flags&obj.LOCAL != 0 {
+-		s.Local = true
++		s.Set(obj.AttrLocal, true)
+ 		flags &^= obj.LOCAL
+ 	}
+ 	Ctxt.Globl(s, int64(width), int(flags))
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 7009a3ab90..a5a2e707f6 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -299,7 +299,7 @@ func stringsym(s string) (data *obj.LSym) {
+ 
+ 	symdata := obj.Linklookup(Ctxt, symdataname, 0)
+ 
+-	if !symdata.Seenglobl {
++	if !symdata.SeenGlobl() {
+ 		// string data
+ 		off := dsnameLSym(symdata, 0, s)
+ 		ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 1346ca156b..e368e87f2f 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -387,7 +387,7 @@ func compile(fn *Node) {
+ 		ptxt.From3.Offset |= obj.REFLECTMETHOD
+ 	}
+ 	if fn.Func.Pragma&Systemstack != 0 {
+-		ptxt.From.Sym.Cfunc = true
++		ptxt.From.Sym.Set(obj.AttrCFunc, true)
+ 	}
+ 
+ 	// Clumsy but important.
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 1d5e5cfbbb..dc2b09eee7 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1684,7 +1684,7 @@ func onebitwritesymbol(arr []bvec, sym *Sym) {
+ 	duint32(sym, 0, uint32(i)) // number of bitmaps
+ 	ls := Linksym(sym)
+ 	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
+-	ls.Dupok = true
++	ls.Set(obj.AttrDuplicateOK, true)
+ 	sv := obj.SymVer{Name: ls.Name, Version: 0}
+ 	ls2, ok := Ctxt.Hash[sv]
+ 	if ok {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 1c887ced25..da63f87c22 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1350,7 +1350,7 @@ ok:
+ 			keep = true
+ 		}
+ 	}
+-	s.Lsym.MakeTypelink = keep
++	s.Lsym.Set(obj.AttrMakeTypelink, keep)
+ 
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 61701d4ffa..21be63426a 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -443,7 +443,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Name = obj.NAME_EXTERN
+ 		p.From.Sym = obj.Linklookup(gc.Ctxt, literal, 0)
+-		p.From.Sym.Local = true
++		p.From.Sym.Set(obj.AttrLocal, true)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 78082ebe8b..6e5390c24e 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -175,7 +175,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// We only care about global data: NAME_EXTERN means a global
+ 	// symbol in the Go sense, and p.Sym.Local is true for a few
+ 	// internally defined symbols.
+-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
++	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+ 		// MOVW $sym, Rx becomes MOVW sym@GOT, Rx
+ 		// MOVW $sym+<off>, Rx becomes MOVW sym@GOT, Rx; ADD <off>, Rx
+ 		if p.As != AMOVW {
+@@ -202,12 +202,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// MOVx sym, Ry becomes MOVW sym@GOT, R9; MOVx (R9), Ry
+ 	// MOVx Ry, sym becomes MOVW sym@GOT, R9; MOVx Ry, (R9)
+ 	// An addition may be inserted between the two MOVs if there is an offset.
+-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
++		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+ 		}
+ 		source = &p.From
+-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 		source = &p.To
+ 	} else {
+ 		return
+@@ -366,7 +366,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if cursym.Text.Mark&LEAF != 0 {
+-				cursym.Leaf = true
++				cursym.Set(obj.AttrLeaf, true)
+ 				if autosize == 0 {
+ 					break
+ 				}
+@@ -710,7 +710,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Reg = REGG
+ 	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+-	if ctxt.Cursym.Cfunc {
++	if ctxt.Cursym.CFunc() {
+ 		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+@@ -835,7 +835,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	call.To.Type = obj.TYPE_BRANCH
+ 	morestack := "runtime.morestack"
+ 	switch {
+-	case ctxt.Cursym.Cfunc:
++	case ctxt.Cursym.CFunc():
+ 		morestack = "runtime.morestackc"
+ 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
+ 		morestack = "runtime.morestack_noctxt"
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 087f4a99ee..707ba9f0d4 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -57,7 +57,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Reg = REGG
+ 	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+-	if ctxt.Cursym.Cfunc {
++	if ctxt.Cursym.CFunc() {
+ 		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+@@ -205,7 +205,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	call.To.Type = obj.TYPE_BRANCH
+ 	morestack := "runtime.morestack"
+ 	switch {
+-	case ctxt.Cursym.Cfunc:
++	case ctxt.Cursym.CFunc():
+ 		morestack = "runtime.morestackc"
+ 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
+ 		morestack = "runtime.morestack_noctxt"
+@@ -267,7 +267,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+-			p.From.Sym.Local = true
++			p.From.Sym.Set(obj.AttrLocal, true)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -280,7 +280,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+-			p.From.Sym.Local = true
++			p.From.Sym.Set(obj.AttrLocal, true)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -361,7 +361,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// We only care about global data: NAME_EXTERN means a global
+ 	// symbol in the Go sense, and p.Sym.Local is true for a few
+ 	// internally defined symbols.
+-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
++	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+ 		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
+ 		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
+ 		if p.As != AMOVD {
+@@ -388,12 +388,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// MOVx sym, Ry becomes MOVD sym@GOT, REGTMP; MOVx (REGTMP), Ry
+ 	// MOVx Ry, sym becomes MOVD sym@GOT, REGTMP; MOVD Ry, (REGTMP)
+ 	// An addition may be inserted between the two MOVs if there is an offset.
+-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
++		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+ 		}
+ 		source = &p.From
+-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 		source = &p.To
+ 	} else {
+ 		return
+@@ -746,7 +746,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				aoffset = 0xF0
+ 			}
+ 			if cursym.Text.Mark&LEAF != 0 {
+-				cursym.Leaf = true
++				cursym.Set(obj.AttrLeaf, true)
+ 				if ctxt.Autosize == 0 {
+ 					break
+ 				}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index aa2bbf2b28..7d8502a1ea 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -320,18 +320,36 @@ const (
+ 
+ // An LSym is the sort of symbol that is written to an object file.
+ type LSym struct {
+-	Name      string
+-	Type      SymKind
+-	Version   int16
+-	Dupok     bool
+-	Cfunc     bool
+-	Nosplit   bool
+-	Leaf      bool
+-	Seenglobl bool
+-	Onlist    bool
++	Name    string
++	Type    SymKind
++	Version int16
++	Attribute
++
++	RefIdx int // Index of this symbol in the symbol reference list.
++	Args   int32
++	Locals int32
++	Size   int64
++	Gotype *LSym
++	Autom  *Auto
++	Text   *Prog
++	Pcln   *Pcln
++	P      []byte
++	R      []Reloc
++}
++
++// Attribute is a set of symbol attributes.
++type Attribute int16
++
++const (
++	AttrDuplicateOK Attribute = 1 << iota
++	AttrCFunc
++	AttrNoSplit
++	AttrLeaf
++	AttrSeenGlobl
++	AttrOnList
+ 
+ 	// MakeTypelink means that the type should have an entry in the typelink table.
+-	MakeTypelink bool
++	AttrMakeTypelink
+ 
+ 	// ReflectMethod means the function may call reflect.Type.Method or
+ 	// reflect.Type.MethodByName. Matching is imprecise (as reflect.Type
+@@ -339,7 +357,7 @@ type LSym struct {
+ 	// set in some cases when the reflect package is not called.
+ 	//
+ 	// Used by the linker to determine what methods can be pruned.
+-	ReflectMethod bool
++	AttrReflectMethod
+ 
+ 	// Local means make the symbol local even when compiling Go code to reference Go
+ 	// symbols in other shared libraries, as in this mode symbols are global by
+@@ -347,18 +365,25 @@ type LSym struct {
+ 	// visible outside of the module (shared library or executable) that contains its
+ 	// definition. (When not compiling to support Go shared libraries, all symbols are
+ 	// local in this sense unless there is a cgo_export_* directive).
+-	Local bool
++	AttrLocal
++)
+ 
+-	RefIdx int // Index of this symbol in the symbol reference list.
+-	Args   int32
+-	Locals int32
+-	Size   int64
+-	Gotype *LSym
+-	Autom  *Auto
+-	Text   *Prog
+-	Pcln   *Pcln
+-	P      []byte
+-	R      []Reloc
++func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
++func (a Attribute) MakeTypelink() bool  { return a&AttrMakeTypelink != 0 }
++func (a Attribute) CFunc() bool         { return a&AttrCFunc != 0 }
++func (a Attribute) NoSplit() bool       { return a&AttrNoSplit != 0 }
++func (a Attribute) Leaf() bool          { return a&AttrLeaf != 0 }
++func (a Attribute) SeenGlobl() bool     { return a&AttrSeenGlobl != 0 }
++func (a Attribute) OnList() bool        { return a&AttrOnList != 0 }
++func (a Attribute) ReflectMethod() bool { return a&AttrReflectMethod != 0 }
++func (a Attribute) Local() bool         { return a&AttrLocal != 0 }
++
++func (a *Attribute) Set(flag Attribute, value bool) {
++	if value {
++		*a |= flag
++	} else {
++		*a &^= flag
++	}
+ }
+ 
+ // The compiler needs LSym to satisfy fmt.Stringer, because it stores
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index af515a67c6..402b65eb27 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -314,7 +314,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if cursym.Text.Mark&LEAF != 0 {
+-				cursym.Leaf = true
++				cursym.Set(obj.AttrLeaf, true)
+ 				break
+ 			}
+ 
+@@ -559,7 +559,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Reg = REGG
+ 	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+-	if ctxt.Cursym.Cfunc {
++	if ctxt.Cursym.CFunc() {
+ 		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+@@ -689,7 +689,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 
+ 	p.As = AJAL
+ 	p.To.Type = obj.TYPE_BRANCH
+-	if ctxt.Cursym.Cfunc {
++	if ctxt.Cursym.CFunc() {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+ 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 0a269afdca..eb56c6f54c 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -320,19 +320,19 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 	if s.Type != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
+ 	}
+-	if s.Dupok {
++	if s.DuplicateOK() {
+ 		fmt.Fprintf(ctxt.Bso, "dupok ")
+ 	}
+-	if s.Cfunc {
++	if s.CFunc() {
+ 		fmt.Fprintf(ctxt.Bso, "cfunc ")
+ 	}
+-	if s.Nosplit {
++	if s.NoSplit() {
+ 		fmt.Fprintf(ctxt.Bso, "nosplit ")
+ 	}
+ 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+ 	if s.Type == STEXT {
+ 		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
+-		if s.Leaf {
++		if s.Leaf() {
+ 			fmt.Fprintf(ctxt.Bso, " leaf")
+ 		}
+ 	}
+@@ -391,13 +391,13 @@ func (w *objWriter) writeSym(s *LSym) {
+ 	w.writeInt(int64(s.Type))
+ 	w.writeRefIndex(s)
+ 	flags := int64(0)
+-	if s.Dupok {
++	if s.DuplicateOK() {
+ 		flags |= 1
+ 	}
+-	if s.Local {
++	if s.Local() {
+ 		flags |= 1 << 1
+ 	}
+-	if s.MakeTypelink {
++	if s.MakeTypelink() {
+ 		flags |= 1 << 2
+ 	}
+ 	w.writeInt(flags)
+@@ -422,19 +422,19 @@ func (w *objWriter) writeSym(s *LSym) {
+ 
+ 	w.writeInt(int64(s.Args))
+ 	w.writeInt(int64(s.Locals))
+-	if s.Nosplit {
++	if s.NoSplit() {
+ 		w.writeInt(1)
+ 	} else {
+ 		w.writeInt(0)
+ 	}
+ 	flags = int64(0)
+-	if s.Leaf {
++	if s.Leaf() {
+ 		flags |= 1
+ 	}
+-	if s.Cfunc {
++	if s.CFunc() {
+ 		flags |= 1 << 1
+ 	}
+-	if s.ReflectMethod {
++	if s.ReflectMethod() {
+ 		flags |= 1 << 2
+ 	}
+ 	w.writeInt(flags)
+@@ -560,7 +560,7 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
+ 		}
+ 		dw = append(dw, dsym)
+ 		dsym.Type = SDWARFINFO
+-		dsym.Dupok = s.Dupok
++		dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+ 		var vars dwarf.Var
+ 		var abbrev int
+ 		var offs int32
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 9264218259..804ea637b3 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -86,20 +86,20 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				if s.Text != nil {
+ 					log.Fatalf("duplicate TEXT for %s", s.Name)
+ 				}
+-				if s.Onlist {
++				if s.OnList() {
+ 					log.Fatalf("symbol %s listed multiple times", s.Name)
+ 				}
+-				s.Onlist = true
++				s.Set(AttrOnList, true)
+ 				text = append(text, s)
+ 				flag := int(p.From3Offset())
+ 				if flag&DUPOK != 0 {
+-					s.Dupok = true
++					s.Set(AttrDuplicateOK, true)
+ 				}
+ 				if flag&NOSPLIT != 0 {
+-					s.Nosplit = true
++					s.Set(AttrNoSplit, true)
+ 				}
+ 				if flag&REFLECTMETHOD != 0 {
+-					s.ReflectMethod = true
++					s.Set(AttrReflectMethod, true)
+ 				}
+ 				s.Type = STEXT
+ 				s.Text = p
+@@ -182,21 +182,21 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+-	if s.Seenglobl {
++	if s.SeenGlobl() {
+ 		fmt.Printf("duplicate %v\n", s)
+ 	}
+-	s.Seenglobl = true
+-	if s.Onlist {
++	s.Set(AttrSeenGlobl, true)
++	if s.OnList() {
+ 		log.Fatalf("symbol %s listed multiple times", s.Name)
+ 	}
+-	s.Onlist = true
++	s.Set(AttrOnList, true)
+ 	ctxt.Data = append(ctxt.Data, s)
+ 	s.Size = size
+ 	if s.Type == 0 || s.Type == SXREF {
+ 		s.Type = SBSS
+ 	}
+ 	if flag&DUPOK != 0 {
+-		s.Dupok = true
++		s.Set(AttrDuplicateOK, true)
+ 	}
+ 	if flag&RODATA != 0 {
+ 		s.Type = SRODATA
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 978007c396..7ed302ad96 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -63,7 +63,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+-			p.From.Sym.Local = true
++			p.From.Sym.Set(obj.AttrLocal, true)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -76,7 +76,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+-			p.From.Sym.Local = true
++			p.From.Sym.Set(obj.AttrLocal, true)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -89,7 +89,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+-			p.From.Sym.Local = true
++			p.From.Sym.Set(obj.AttrLocal, true)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -168,7 +168,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// We only care about global data: NAME_EXTERN means a global
+ 	// symbol in the Go sense, and p.Sym.Local is true for a few
+ 	// internally defined symbols.
+-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
++	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+ 		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
+ 		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
+ 		if p.As != AMOVD {
+@@ -195,12 +195,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// MOVx sym, Ry becomes MOVD sym@GOT, REGTMP; MOVx (REGTMP), Ry
+ 	// MOVx Ry, sym becomes MOVD sym@GOT, REGTMP; MOVx Ry, (REGTMP)
+ 	// An addition may be inserted between the two MOVs if there is an offset.
+-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
++		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+ 		}
+ 		source = &p.From
+-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 		source = &p.To
+ 	} else {
+ 		return
+@@ -542,7 +542,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if cursym.Text.Mark&LEAF != 0 {
+-				cursym.Leaf = true
++				cursym.Set(obj.AttrLeaf, true)
+ 				break
+ 			}
+ 
+@@ -838,7 +838,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Reg = REGG
+ 	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+-	if ctxt.Cursym.Cfunc {
++	if ctxt.Cursym.CFunc() {
+ 		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+@@ -953,7 +953,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	}
+ 
+ 	var morestacksym *obj.LSym
+-	if ctxt.Cursym.Cfunc {
++	if ctxt.Cursym.CFunc() {
+ 		morestacksym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+ 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+ 		morestacksym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 179b5b1396..615cfc2db2 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -66,7 +66,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+-			p.From.Sym.Local = true
++			p.From.Sym.Set(obj.AttrLocal, true)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -82,7 +82,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
+-			p.From.Sym.Local = true
++			p.From.Sym.Set(obj.AttrLocal, true)
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -99,7 +99,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 				s.Size = 8
+ 				p.From.Type = obj.TYPE_MEM
+ 				p.From.Sym = s
+-				p.From.Sym.Local = true
++				p.From.Sym.Set(obj.AttrLocal, true)
+ 				p.From.Name = obj.NAME_EXTERN
+ 				p.From.Offset = 0
+ 			}
+@@ -137,7 +137,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// We only care about global data: NAME_EXTERN means a global
+ 	// symbol in the Go sense, and p.Sym.Local is true for a few
+ 	// internally defined symbols.
+-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
++	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+ 		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
+ 		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
+ 		if p.To.Type != obj.TYPE_REG || p.As != AMOVD {
+@@ -162,12 +162,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// MOVD sym, Ry becomes MOVD sym@GOT, REGTMP; MOVD (REGTMP), Ry
+ 	// MOVD Ry, sym becomes MOVD sym@GOT, REGTMP; MOVD Ry, (REGTMP)
+ 	// An addition may be inserted between the two MOVs if there is an offset.
+-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
++		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+ 		}
+ 		source = &p.From
+-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 		source = &p.To
+ 	} else {
+ 		return
+@@ -424,7 +424,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if cursym.Text.Mark&LEAF != 0 {
+-				cursym.Leaf = true
++				cursym.Set(obj.AttrLeaf, true)
+ 				break
+ 			}
+ 
+@@ -664,7 +664,7 @@ func stacksplitPre(ctxt *obj.Link, p *obj.Prog, framesize int32) (*obj.Prog, *ob
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Reg = REGG
+ 	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+-	if ctxt.Cursym.Cfunc {
++	if ctxt.Cursym.CFunc() {
+ 		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+@@ -815,7 +815,7 @@ func stacksplitPost(ctxt *obj.Link, p *obj.Prog, pPre *obj.Prog, pPreempt *obj.P
+ 
+ 	p.As = ABL
+ 	p.To.Type = obj.TYPE_BRANCH
+-	if ctxt.Cursym.Cfunc {
++	if ctxt.Cursym.CFunc() {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+ 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+diff --git a/src/cmd/internal/obj/sizeof_test.go b/src/cmd/internal/obj/sizeof_test.go
+index 391ed37efb..b8a3c5456c 100644
+--- a/src/cmd/internal/obj/sizeof_test.go
++++ b/src/cmd/internal/obj/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Addr{}, 40, 64},
+-		{LSym{}, 84, 136},
++		{LSym{}, 76, 128},
+ 		{Prog{}, 144, 224},
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 4e7c1538e9..102d8c3c4f 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -266,7 +266,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Sym = s
+-			p.From.Sym.Local = true
++			p.From.Sym.Set(obj.AttrLocal, true)
+ 			p.From.Offset = 0
+ 		}
+ 
+@@ -306,7 +306,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Sym = s
+-			p.From.Sym.Local = true
++			p.From.Sym.Set(obj.AttrLocal, true)
+ 			p.From.Offset = 0
+ 		}
+ 	}
+@@ -379,12 +379,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// We only care about global data: NAME_EXTERN means a global
+ 	// symbol in the Go sense, and p.Sym.Local is true for a few
+ 	// internally defined symbols.
+-	if p.As == lea && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
++	if p.As == lea && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+ 		// $LEA sym, Rx becomes $MOV $sym, Rx which will be rewritten below
+ 		p.As = mov
+ 		p.From.Type = obj.TYPE_ADDR
+ 	}
+-	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
++	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+ 		// $MOV $sym, Rx becomes $MOV sym@GOT, Rx
+ 		// $MOV $sym+<off>, Rx becomes $MOV sym@GOT, Rx; $LEA <off>(Rx), Rx
+ 		// On 386 only, more complicated things like PUSHL $sym become $MOV sym@GOT, CX; PUSHL CX
+@@ -430,12 +430,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	// MOVx sym, Ry becomes $MOV sym@GOT, R15; MOVx (R15), Ry
+ 	// MOVx Ry, sym becomes $MOV sym@GOT, R15; MOVx Ry, (R15)
+ 	// An addition may be inserted between the two MOVs if there is an offset.
+-	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+-		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
++		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+ 		}
+ 		source = &p.From
+-	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+ 		source = &p.To
+ 	} else {
+ 		return
+@@ -445,7 +445,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 		// to a PLT, so make sure the GOT pointer is loaded into BX.
+ 		// RegTo2 is set on the replacement call insn to stop it being
+ 		// processed when it is in turn passed to progedit.
+-		if p.Mode == 64 || (p.To.Sym != nil && p.To.Sym.Local) || p.RegTo2 != 0 {
++		if p.Mode == 64 || (p.To.Sym != nil && p.To.Sym.Local()) || p.RegTo2 != 0 {
+ 			return
+ 		}
+ 		p1 := obj.Appendp(ctxt, p)
+@@ -564,7 +564,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
+ 	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
+ 	q.To.Type = obj.TYPE_MEM
+ 	q.To.Name = obj.NAME_EXTERN
+-	q.To.Sym.Local = true
++	q.To.Sym.Set(obj.AttrLocal, true)
+ 	r.As = p.As
+ 	r.Scond = p.Scond
+ 	r.From = p.From
+@@ -1014,7 +1014,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 		p.From.Reg = REG_SP
+ 		indir_cx(ctxt, p, &p.To)
+ 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+-		if ctxt.Cursym.Cfunc {
++		if ctxt.Cursym.CFunc() {
+ 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 		}
+ 	} else if framesize <= obj.StackBig {
+@@ -1036,7 +1036,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 		p.From.Reg = REG_AX
+ 		indir_cx(ctxt, p, &p.To)
+ 		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+-		if ctxt.Cursym.Cfunc {
++		if ctxt.Cursym.CFunc() {
+ 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 		}
+ 	} else {
+@@ -1060,7 +1060,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 		p.As = mov
+ 		indir_cx(ctxt, p, &p.From)
+ 		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
+-		if ctxt.Cursym.Cfunc {
++		if ctxt.Cursym.CFunc() {
+ 			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 		}
+ 		p.To.Type = obj.TYPE_REG
+@@ -1137,7 +1137,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 	call.To.Name = obj.NAME_EXTERN
+ 	morestack := "runtime.morestack"
+ 	switch {
+-	case ctxt.Cursym.Cfunc:
++	case ctxt.Cursym.CFunc():
+ 		morestack = "runtime.morestackc"
+ 	case ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
+ 		morestack = "runtime.morestack_noctxt"

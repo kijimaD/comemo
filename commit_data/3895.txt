@@ -7,6 +7,20 @@ Date:   Sun Nov 8 00:18:15 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1025022
-
+---
  doc/style.css | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/style.css b/doc/style.css
+index 78f31473b4..167ad48899 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -84,7 +84,7 @@ a:link {
+ }
+ 
+ a:visited {
+-  color: #0000ff
++  color: #0b2455
+ }
+ 
+ a:hover {

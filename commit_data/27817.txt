@@ -9,6 +9,21 @@ Date:   Thu Apr 14 14:53:12 2016 +0900
     Change-Id: I563140c2acd37d4989a940488b217414cf73f6c2
     Reviewed-on: https://go-review.googlesource.com/22077
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/net/error_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 40f235c924..31cc0e5055 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -211,6 +211,9 @@ func TestDialAddrError(t *testing.T) {
+ 	case "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
++	if !supportsIPv4 || !supportsIPv6 {
++		t.Skip("both IPv4 and IPv6 are required")
++	}
+ 
+ 	for _, tt := range []struct {
+ 		network string

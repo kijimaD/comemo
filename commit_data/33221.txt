@@ -9,6 +9,33 @@ Date:   Fri Aug 4 11:23:25 2017 -0700
     Change-Id: Ia131b9a4dc4986950d9ecbfcbd6b026ade234fc0
     Reviewed-on: https://go-review.googlesource.com/53370
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.9.html | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index aafd03c51f..7cee379c45 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -156,6 +156,21 @@ type T1 = T2
+   directories, write <code>./vendor/...</code>.
+ </p>
+ 
++<h3 id="goroot">Moved GOROOT</h3>
++
++<p><!-- CL 42533 -->
++  The <a href="/cmd/go/">go tool</a> will now use the path from which it
++  was invoked to attempt to locate the root of the Go install tree.
++  This means that if the entire Go installation is moved to a new
++  location, the go tool should continue to work as usual.
++  This may be overriden by setting <code>GOROOT</code> in the environment,
++  which should only be done in unusual circumstances.
++  Note that this does not affect the result of
++  the <a href="/pkg/runtime/#GOROOT">runtime.GOROOT</a> function, which
++  will continue to report the original installation location;
++  this may be fixed in later releases.
++</p>
++
+ <h3 id="compiler">Compiler Toolchain</h3>
+ 
+ <p><!-- CL 37441 -->

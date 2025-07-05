@@ -7,6 +7,20 @@ Date:   Wed Oct 26 16:16:46 2011 +0900
     R=lvd
     CC=golang-dev
     https://golang.org/cl/5314060
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 1d7f0e82e3..6e66b502fb 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -229,7 +229,7 @@ main(int argc, char *argv[])
+ 		p = expstring();
+ 		if(strcmp(p, "X:none") == 0)
+ 			p = "";
+-		print("%cg version %s%s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
++		print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
+ 		exits(0);
+ 	} ARGEND
+ 

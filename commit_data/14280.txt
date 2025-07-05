@@ -9,7 +9,58 @@ Date:   Thu Nov 1 18:59:32 2012 +0100
     R=rsc, lvd, golang-dev
     CC=golang-dev
     https://golang.org/cl/6815061
-
+---
  src/cmd/gc/inl.c            |  2 ++
  test/fixedbugs/issue4323.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 40a42af37a..54f4a0b597 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -556,6 +556,8 @@ mkinlcall1(Node **np, Node *fn)
+ 	for(ll = dcl; ll; ll=ll->next)
+ 		if(ll->n->op == ONAME) {
+ 			ll->n->inlvar = inlvar(ll->n);
++			// Typecheck because inlvar is not necessarily a function parameter.
++			typecheck(&ll->n->inlvar, Erv);
+ 			ninit = list(ninit, nod(ODCL, ll->n->inlvar, N));  // otherwise gen won't emit the allocations for heapallocs
+ 			if (ll->n->class == PPARAMOUT)  // we rely on the order being correct here
+ 				inlretvars = list(inlretvars, ll->n->inlvar);
+diff --git a/test/fixedbugs/issue4323.go b/test/fixedbugs/issue4323.go
+new file mode 100644
+index 0000000000..6bb78f43cf
+--- /dev/null
++++ b/test/fixedbugs/issue4323.go
+@@ -0,0 +1,31 @@
++// compile
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4323: inlining of functions with local variables
++// forgets to typecheck the declarations in the inlined copy.
++
++package main
++
++type reader struct {
++	C chan T
++}
++
++type T struct{ C chan []byte }
++
++var r = newReader()
++
++func newReader() *reader { return new(reader) }
++
++func (r *reader) Read(n int) ([]byte, error) {
++	req := T{C: make(chan []byte)}
++	r.C <- req
++	return <-req.C, nil
++}
++
++func main() {
++	s, err := r.Read(1)
++	_, _ = s, err
++}

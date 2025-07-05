@@ -14,7 +14,7 @@ Date:   Sun Dec 20 14:29:20 2015 -0500
     Change-Id: I21f202a2f13e73df3f6bd54ae6a317c467b68151
     Reviewed-on: https://go-review.googlesource.com/18084
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go | 11 ++++++++---
  src/race.bash        |  2 +-
  src/race.bat         |  2 +-
@@ -22,3 +22,104 @@ Date:   Sun Dec 20 14:29:20 2015 -0500
  src/run.bat          |  2 +-
  src/run.rc           |  2 +-
  6 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index f2b0796130..fc08cf7e69 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -22,8 +22,10 @@ import (
+ 
+ func cmdtest() {
+ 	var t tester
++	var noRebuild bool
+ 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
+-	flag.BoolVar(&t.noRebuild, "no-rebuild", false, "don't rebuild std and cmd packages")
++	flag.BoolVar(&t.rebuild, "rebuild", false, "rebuild everything first")
++	flag.BoolVar(&noRebuild, "no-rebuild", false, "overrides -rebuild (historical dreg)")
+ 	flag.BoolVar(&t.keepGoing, "k", false, "keep going even when error occurred")
+ 	flag.BoolVar(&t.race, "race", false, "run in race builder mode (different set of tests)")
+ 	flag.StringVar(&t.banner, "banner", "##### ", "banner prefix; blank means no section banners")
+@@ -31,6 +33,9 @@ func cmdtest() {
+ 		"run only those tests matching the regular expression; empty means to run all. "+
+ 			"Special exception: if the string begins with '!', the match is inverted.")
+ 	xflagparse(-1) // any number of args
++	if noRebuild {
++		t.rebuild = false
++	}
+ 	t.run()
+ }
+ 
+@@ -38,7 +43,7 @@ func cmdtest() {
+ type tester struct {
+ 	race      bool
+ 	listMode  bool
+-	noRebuild bool
++	rebuild   bool
+ 	keepGoing bool
+ 	runRxStr  string
+ 	runRx     *regexp.Regexp
+@@ -97,7 +102,7 @@ func (t *tester) run() {
+ 		}
+ 	}
+ 
+-	if !t.noRebuild {
++	if t.rebuild {
+ 		t.out("Building packages and commands.")
+ 		cmd := exec.Command("go", "install", "-a", "-v", "std", "cmd")
+ 		cmd.Stdout = os.Stdout
+diff --git a/src/race.bash b/src/race.bash
+index e0917369f3..adf2297c2f 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -41,4 +41,4 @@ if [ ! -f make.bash ]; then
+ fi
+ . ./make.bash --no-banner
+ go install -race std
+-go tool dist test -no-rebuild -race
++go tool dist test -race
+diff --git a/src/race.bat b/src/race.bat
+index 33db692878..e8df480811 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -34,7 +34,7 @@ echo # go install -race std
+ go install -race std
+ if errorlevel 1 goto fail
+ 
+-go tool dist test -no-rebuild -race
++go tool dist test -race
+ 
+ if errorlevel 1 goto fail
+ goto succ
+diff --git a/src/run.bash b/src/run.bash
+index f35ec78982..3acf46a996 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -35,4 +35,4 @@ if ulimit -T &> /dev/null; then
+ 	[ "$(ulimit -H -T)" == "unlimited" ] || ulimit -S -T $(ulimit -H -T)
+ fi
+ 
+-exec go tool dist test "$@"
++exec go tool dist test -rebuild "$@"
+diff --git a/src/run.bat b/src/run.bat
+index 495711102e..01a66bc574 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -37,7 +37,7 @@ call env.bat
+ del env.bat
+ echo.
+ 
+-go tool dist test --no-rebuild
++go tool dist test
+ if errorlevel 1 goto fail
+ echo.
+ 
+diff --git a/src/run.rc b/src/run.rc
+index d0ba866e7d..d314808f3f 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -10,4 +10,4 @@ eval `{go env}
+ GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
+             # to be under $GOPATH, then some tests below will fail
+ 
+-exec go tool dist test $*
++exec go tool dist test -rebuild $*

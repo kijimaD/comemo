@@ -23,7 +23,7 @@ Date:   Sun Apr 8 13:39:10 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go   |  2 +-
  src/cmd/compile/internal/gc/const.go     | 12 +++++++-----
  src/cmd/compile/internal/gc/dcl.go       | 10 +++++-----
@@ -41,3 +41,653 @@ Date:   Sun Apr 8 13:39:10 2018 +0100
  src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
  src/cmd/compile/internal/gc/walk.go      | 16 ++++++++--------
  16 files changed, 70 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index db038bd6c0..6a05bef3aa 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -136,7 +136,7 @@ func closurename(outerfunc *Node) *types.Sym {
+ 		// There may be multiple functions named "_". In those
+ 		// cases, we can't use their individual Closgens as it
+ 		// would lead to name clashes.
+-		if !isblank(outerfunc.Func.Nname) {
++		if !outerfunc.Func.Nname.isBlank() {
+ 			gen = &outerfunc.Func.Closgen
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index a239cd6d3e..cbb9c2ee08 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1506,12 +1506,14 @@ func nonnegintconst(n *Node) int64 {
+ 	return vi.Int64()
+ }
+ 
+-// Is n a Go language constant (as opposed to a compile-time constant)?
++// isGoConst reports whether n is a Go language constant (as opposed to a
++// compile-time constant).
++//
+ // Expressions derived from nil, like string([]byte(nil)), while they
+ // may be known at compile time, are not Go language constants.
+ // Only called for expressions known to evaluated to compile-time
+ // constants.
+-func isgoconst(n *Node) bool {
++func (n *Node) isGoConst() bool {
+ 	if n.Orig != nil {
+ 		n = n.Orig
+ 	}
+@@ -1545,18 +1547,18 @@ func isgoconst(n *Node) bool {
+ 		OCOMPLEX,
+ 		OREAL,
+ 		OIMAG:
+-		if isgoconst(n.Left) && (n.Right == nil || isgoconst(n.Right)) {
++		if n.Left.isGoConst() && (n.Right == nil || n.Right.isGoConst()) {
+ 			return true
+ 		}
+ 
+ 	case OCONV:
+-		if okforconst[n.Type.Etype] && isgoconst(n.Left) {
++		if okforconst[n.Type.Etype] && n.Left.isGoConst() {
+ 			return true
+ 		}
+ 
+ 	case OLEN, OCAP:
+ 		l := n.Left
+-		if isgoconst(l) {
++		if l.isGoConst() {
+ 			return true
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ab6dd8bc39..5db2c67d7f 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -64,7 +64,7 @@ func declare(n *Node, ctxt Class) {
+ 		return
+ 	}
+ 
+-	if isblank(n) {
++	if n.isBlank() {
+ 		return
+ 	}
+ 
+@@ -178,7 +178,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 		declare(v, dclcontext)
+ 		v.Name.Param.Ntype = t
+ 
+-		if e != nil || Curfn != nil || isblank(v) {
++		if e != nil || Curfn != nil || v.isBlank() {
+ 			if Curfn != nil {
+ 				init = append(init, nod(ODCL, v, nil))
+ 			}
+@@ -326,7 +326,7 @@ func colasdefn(left []*Node, defn *Node) {
+ 
+ 	var nnew, nerr int
+ 	for i, n := range left {
+-		if isblank(n) {
++		if n.isBlank() {
+ 			continue
+ 		}
+ 		if !colasname(n) {
+@@ -367,7 +367,7 @@ func ifacedcl(n *Node) {
+ 		Fatalf("ifacedcl")
+ 	}
+ 
+-	if isblank(n.Left) {
++	if n.Left.isBlank() {
+ 		yyerror("methods must have a unique non-blank name")
+ 	}
+ }
+@@ -457,7 +457,7 @@ func funcargs(nt *Node) {
+ 		// TODO: n->left->missing = 1;
+ 		n.Left.Op = ONAME
+ 
+-		if isblank(n.Left) {
++		if n.Left.isBlank() {
+ 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
+ 			// The name must be different from ~r above because if you have
+ 			//	func f() (_ int)
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index fcb4e96a75..64ac29e764 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1066,7 +1066,7 @@ func (e *EscState) escassignSinkWhyWhere(dst, src *Node, reason string, call *No
+ // evaluated in curfn.	For expr==nil, dst must still be examined for
+ // evaluations inside it (e.g *f(x) = y)
+ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
+-	if isblank(dst) || dst == nil || src == nil || src.Op == ONONAME || src.Op == OXXX {
++	if dst.isBlank() || dst == nil || src == nil || src.Op == ONONAME || src.Op == OXXX {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 0414d36157..d98e085705 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -174,7 +174,7 @@ func (f *Func) initLSym() {
+ 		Fatalf("Func.initLSym called twice")
+ 	}
+ 
+-	if nam := f.Nname; !isblank(nam) {
++	if nam := f.Nname; !nam.isBlank() {
+ 		f.lsym = nam.Sym.Linksym()
+ 		if f.Pragma&Systemstack != 0 {
+ 			f.lsym.Set(obj.AttrCFunc, true)
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index ea42664ba2..98ea289548 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -26,7 +26,7 @@ func anyinit(n []*Node) bool {
+ 		switch ln.Op {
+ 		case ODCLFUNC, ODCLCONST, ODCLTYPE, OEMPTY:
+ 		case OAS:
+-			if !isblank(ln.Left) || !candiscard(ln.Right) {
++			if !ln.Left.isBlank() || !candiscard(ln.Right) {
+ 				return true
+ 			}
+ 		default:
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 9ee6176ead..6e3876f937 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -753,7 +753,7 @@ func mkinlcall(n *Node, fn *Node) *Node {
+ }
+ 
+ func tinlvar(t *types.Field, inlvars map[*Node]*Node) *Node {
+-	if asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
++	if asNode(t.Nname) != nil && !asNode(t.Nname).isBlank() {
+ 		inlvar := inlvars[asNode(t.Nname)]
+ 		if inlvar == nil {
+ 			Fatalf("missing inlvar for %v\n", asNode(t.Nname))
+@@ -885,7 +885,7 @@ func mkinlcall1(n, fn *Node) *Node {
+ 	for i, t := range fn.Type.Results().Fields().Slice() {
+ 		var m *Node
+ 		var mpos src.XPos
+-		if t != nil && asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
++		if t != nil && asNode(t.Nname) != nil && !asNode(t.Nname).isBlank() {
+ 			mpos = asNode(t.Nname).Pos
+ 			m = inlvar(asNode(t.Nname))
+ 			m = typecheck(m, Erv)
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 412498b7df..6083870735 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -654,7 +654,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		n := p.nod(expr, OTYPESW, nil, p.expr(expr.X))
+ 		if expr.Lhs != nil {
+ 			n.Left = p.declName(expr.Lhs)
+-			if isblank(n.Left) {
++			if n.Left.isBlank() {
+ 				yyerror("invalid variable name %v in type switch", n.Left)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 6ba6f91a9a..b62c2412a0 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -461,7 +461,7 @@ func (o *Order) mapAssign(n *Node) {
+ 					m.Right = o.copyExpr(m.Right, m.Right.Type, false)
+ 				}
+ 				fallthrough
+-			case instrumenting && n.Op == OAS2FUNC && !isblank(m):
++			case instrumenting && n.Op == OAS2FUNC && !m.isBlank():
+ 				t := o.newTemp(m.Type, false)
+ 				n.List.SetIndex(i, t)
+ 				a := nod(OAS, m, t)
+@@ -700,7 +700,7 @@ func (o *Order) stmt(n *Node) {
+ 			Fatalf("orderstmt range %v", n.Type)
+ 
+ 		case TARRAY, TSLICE:
+-			if n.List.Len() < 2 || isblank(n.List.Second()) {
++			if n.List.Len() < 2 || n.List.Second().isBlank() {
+ 				// for i := range x will only use x once, to compute len(x).
+ 				// No need to copy it.
+ 				break
+@@ -812,7 +812,7 @@ func (o *Order) stmt(n *Node) {
+ 				// temporary per distinct type, sharing the temp among all receives
+ 				// with that temp. Similarly one ok bool could be shared among all
+ 				// the x,ok receives. Not worth doing until there's a clear need.
+-				if r.Left != nil && isblank(r.Left) {
++				if r.Left != nil && r.Left.isBlank() {
+ 					r.Left = nil
+ 				}
+ 				if r.Left != nil {
+@@ -833,7 +833,7 @@ func (o *Order) stmt(n *Node) {
+ 					n2.Ninit.Append(tmp2)
+ 				}
+ 
+-				if r.List.Len() != 0 && isblank(r.List.First()) {
++				if r.List.Len() != 0 && r.List.First().isBlank() {
+ 					r.List.Set(nil)
+ 				}
+ 				if r.List.Len() != 0 {
+@@ -1178,7 +1178,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ // okas creates and returns an assignment of val to ok,
+ // including an explicit conversion if necessary.
+ func okas(ok, val *Node) *Node {
+-	if !isblank(ok) {
++	if !ok.isBlank() {
+ 		val = conv(val, ok.Type)
+ 	}
+ 	return nod(OAS, ok, val)
+@@ -1196,7 +1196,7 @@ func (o *Order) as2(n *Node) {
+ 	tmplist := []*Node{}
+ 	left := []*Node{}
+ 	for _, l := range n.List.Slice() {
+-		if !isblank(l) {
++		if !l.isBlank() {
+ 			tmp := o.newTemp(l.Type, types.Haspointers(l.Type))
+ 			tmplist = append(tmplist, tmp)
+ 			left = append(left, l)
+@@ -1213,7 +1213,7 @@ func (o *Order) as2(n *Node) {
+ 
+ 	ti := 0
+ 	for ni, l := range n.List.Slice() {
+-		if !isblank(l) {
++		if !l.isBlank() {
+ 			n.List.SetIndex(ni, tmplist[ti])
+ 			ti++
+ 		}
+@@ -1224,12 +1224,12 @@ func (o *Order) as2(n *Node) {
+ // Just like as2, this also adds temporaries to ensure left-to-right assignment.
+ func (o *Order) okAs2(n *Node) {
+ 	var tmp1, tmp2 *Node
+-	if !isblank(n.List.First()) {
++	if !n.List.First().isBlank() {
+ 		typ := n.Rlist.First().Type
+ 		tmp1 = o.newTemp(typ, types.Haspointers(typ))
+ 	}
+ 
+-	if !isblank(n.List.Second()) {
++	if !n.List.Second().isBlank() {
+ 		tmp2 = o.newTemp(types.Types[TBOOL], false)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index d8e504dd14..a7be2d3c9b 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -106,7 +106,7 @@ func typecheckrangeExpr(n *Node) {
+ 	// "if the second iteration variable is the blank identifier, the range
+ 	// clause is equivalent to the same clause with only the first variable
+ 	// present."
+-	if isblank(v2) {
++	if v2.isBlank() {
+ 		if v1 != nil {
+ 			n.List.Set1(v1)
+ 		}
+@@ -177,11 +177,11 @@ func walkrange(n *Node) *Node {
+ 		v2 = n.List.Second()
+ 	}
+ 
+-	if isblank(v2) {
++	if v2.isBlank() {
+ 		v2 = nil
+ 	}
+ 
+-	if isblank(v1) && v2 == nil {
++	if v1.isBlank() && v2 == nil {
+ 		v1 = nil
+ 	}
+ 
+@@ -478,7 +478,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
+ 		return false
+ 	}
+ 	elemsize := n.Type.Elem().Width
+-	if elemsize <= 0 || !iszero(stmt.Right) {
++	if elemsize <= 0 || !isZero(stmt.Right) {
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index d083fc4208..b5e9a3c48d 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -56,7 +56,7 @@ func init1(n *Node, out *[]*Node) {
+ 	switch n.Class() {
+ 	case PEXTERN, PFUNC:
+ 	default:
+-		if isblank(n) && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder() == InitNotStarted {
++		if n.isBlank() && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder() == InitNotStarted {
+ 			// blank names initialization is part of init() but not
+ 			// when they are inside a function.
+ 			break
+@@ -115,7 +115,7 @@ func init1(n *Node, out *[]*Node) {
+ 				Dump("defn", defn)
+ 				Fatalf("init1: bad defn")
+ 			}
+-			if isblank(defn.Left) && candiscard(defn.Right) {
++			if defn.Left.isBlank() && candiscard(defn.Right) {
+ 				defn.Op = OEMPTY
+ 				defn.Left = nil
+ 				defn.Right = nil
+@@ -126,7 +126,7 @@ func init1(n *Node, out *[]*Node) {
+ 			if Debug['j'] != 0 {
+ 				fmt.Printf("%v\n", n.Sym)
+ 			}
+-			if isblank(n) || !staticinit(n, out) {
++			if n.isBlank() || !staticinit(n, out) {
+ 				if Debug['%'] != 0 {
+ 					Dump("nonstatic", defn)
+ 				}
+@@ -303,7 +303,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 		return true
+ 
+ 	case OLITERAL:
+-		if iszero(r) {
++		if isZero(r) {
+ 			return true
+ 		}
+ 		gdata(l, r, int(l.Type.Width))
+@@ -380,7 +380,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		return staticcopy(l, r, out)
+ 
+ 	case OLITERAL:
+-		if iszero(r) {
++		if isZero(r) {
+ 			return true
+ 		}
+ 		gdata(l, r, int(l.Type.Width))
+@@ -578,7 +578,7 @@ func staticname(t *types.Type) *Node {
+ 	return n
+ }
+ 
+-func isliteral(n *Node) bool {
++func isLiteral(n *Node) bool {
+ 	// Treat nils as zeros rather than literals.
+ 	return n.Op == OLITERAL && n.Val().Ctype() != CTNIL
+ }
+@@ -607,7 +607,7 @@ const (
+ func getdyn(n *Node, top bool) initGenType {
+ 	switch n.Op {
+ 	default:
+-		if isliteral(n) {
++		if isLiteral(n) {
+ 			return initConst
+ 		}
+ 		return initDynamic
+@@ -742,7 +742,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 			continue
+ 		}
+ 
+-		islit := isliteral(value)
++		islit := isLiteral(value)
+ 		if (kind == initKindStatic && !islit) || (kind == initKindDynamic && islit) {
+ 			continue
+ 		}
+@@ -898,7 +898,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 			continue
+ 		}
+ 
+-		if isliteral(value) {
++		if isLiteral(value) {
+ 			continue
+ 		}
+ 
+@@ -1264,7 +1264,7 @@ func initplan(n *Node) {
+ 
+ func addvalue(p *InitPlan, xoffset int64, n *Node) {
+ 	// special case: zero can be dropped entirely
+-	if iszero(n) {
++	if isZero(n) {
+ 		return
+ 	}
+ 
+@@ -1284,13 +1284,13 @@ func addvalue(p *InitPlan, xoffset int64, n *Node) {
+ 	p.E = append(p.E, InitEntry{Xoffset: xoffset, Expr: n})
+ }
+ 
+-func iszero(n *Node) bool {
++func isZero(n *Node) bool {
+ 	switch n.Op {
+ 	case OLITERAL:
+ 		switch u := n.Val().U.(type) {
+ 		default:
+ 			Dump("unexpected literal", n)
+-			Fatalf("iszero")
++			Fatalf("isZero")
+ 		case *NilVal:
+ 			return true
+ 		case string:
+@@ -1310,7 +1310,7 @@ func iszero(n *Node) bool {
+ 			if n1.Op == OKEY {
+ 				n1 = n1.Right
+ 			}
+-			if !iszero(n1) {
++			if !isZero(n1) {
+ 				return false
+ 			}
+ 		}
+@@ -1318,7 +1318,7 @@ func iszero(n *Node) bool {
+ 
+ 	case OSTRUCTLIT:
+ 		for _, n1 := range n.List.Slice() {
+-			if !iszero(n1.Left) {
++			if !isZero(n1.Left) {
+ 				return false
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 69c20719ce..59de5efe11 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -800,7 +800,7 @@ func (s *state) stmt(n *Node) {
+ 				// All literals with nonzero fields have already been
+ 				// rewritten during walk. Any that remain are just T{}
+ 				// or equivalents. Use the zero value.
+-				if !iszero(rhs) {
++				if !isZero(rhs) {
+ 					Fatalf("literal with nonzero value in SSA: %v", rhs)
+ 				}
+ 				rhs = nil
+@@ -828,7 +828,7 @@ func (s *state) stmt(n *Node) {
+ 			}
+ 		}
+ 
+-		if isblank(n.Left) {
++		if n.Left.isBlank() {
+ 			// _ = rhs
+ 			// Just evaluate rhs for side-effects.
+ 			if rhs != nil {
+@@ -2115,7 +2115,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			// All literals with nonzero fields have already been
+ 			// rewritten during walk. Any that remain are just T{}
+ 			// or equivalents. Use the zero value.
+-			if !iszero(n.Left) {
++			if !isZero(n.Left) {
+ 				Fatalf("literal with nonzero value in SSA: %v", n.Left)
+ 			}
+ 			return s.zeroVal(n.Type)
+@@ -2267,7 +2267,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		// All literals with nonzero fields have already been
+ 		// rewritten during walk. Any that remain are just T{}
+ 		// or equivalents. Use the zero value.
+-		if !iszero(n) {
++		if !isZero(n) {
+ 			Fatalf("literal with nonzero value in SSA: %v", n)
+ 		}
+ 		return s.zeroVal(n.Type)
+@@ -2495,7 +2495,7 @@ const (
+ // If deref is true and right == nil, just do left = 0.
+ // skip indicates assignments (at the top level) that can be avoided.
+ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) {
+-	if left.Op == ONAME && isblank(left) {
++	if left.Op == ONAME && left.isBlank() {
+ 		return
+ 	}
+ 	t := left.Type
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index f46279cf6e..2f8f92271e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -438,8 +438,8 @@ func treecopy(n *Node, pos src.XPos) *Node {
+ 	}
+ }
+ 
+-// isnil reports whether n represents the universal untyped zero value "nil".
+-func isnil(n *Node) bool {
++// isNil reports whether n represents the universal untyped zero value "nil".
++func (n *Node) isNil() bool {
+ 	// Check n.Orig because constant propagation may produce typed nil constants,
+ 	// which don't exist in the Go spec.
+ 	return Isconst(n.Orig, CTNIL)
+@@ -462,7 +462,7 @@ func isptrto(t *types.Type, et types.EType) bool {
+ 	return true
+ }
+ 
+-func isblank(n *Node) bool {
++func (n *Node) isBlank() bool {
+ 	if n == nil {
+ 		return false
+ 	}
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index cc69d86870..8dbbb553de 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -70,7 +70,7 @@ func typecheckswitch(n *Node) {
+ 		if t != nil && !t.IsInterface() {
+ 			yyerrorl(n.Pos, "cannot type switch on non-interface value %L", n.Left.Right)
+ 		}
+-		if v := n.Left.Left; v != nil && !isblank(v) && n.List.Len() == 0 {
++		if v := n.Left.Left; v != nil && !v.isBlank() && n.List.Len() == 0 {
+ 			// We don't actually declare the type switch's guarded
+ 			// declaration itself. So if there are no cases, we
+ 			// won't notice that it went unused.
+@@ -143,7 +143,7 @@ func typecheckswitch(n *Node) {
+ 						} else {
+ 							yyerrorl(ncase.Pos, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+ 						}
+-					case nilonly != "" && !isnil(n1):
++					case nilonly != "" && !n1.isNil():
+ 						yyerrorl(ncase.Pos, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
+ 					case t.IsInterface() && !n1.Type.IsInterface() && !IsComparable(n1.Type):
+ 						yyerrorl(ncase.Pos, "invalid case %L in switch (incomparable type)", n1)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index bd0c4aec9e..00c3242815 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -307,7 +307,7 @@ func typecheck1(n *Node, top int) *Node {
+ 
+ 		if top&Easgn == 0 {
+ 			// not a write to the variable
+-			if isblank(n) {
++			if n.isBlank() {
+ 				yyerror("cannot use _ as value")
+ 				n.Type = nil
+ 				return n
+@@ -673,19 +673,19 @@ func typecheck1(n *Node, top int) *Node {
+ 			return n
+ 		}
+ 
+-		if l.Type.IsSlice() && !isnil(l) && !isnil(r) {
++		if l.Type.IsSlice() && !l.isNil() && !r.isNil() {
+ 			yyerror("invalid operation: %v (slice can only be compared to nil)", n)
+ 			n.Type = nil
+ 			return n
+ 		}
+ 
+-		if l.Type.IsMap() && !isnil(l) && !isnil(r) {
++		if l.Type.IsMap() && !l.isNil() && !r.isNil() {
+ 			yyerror("invalid operation: %v (map can only be compared to nil)", n)
+ 			n.Type = nil
+ 			return n
+ 		}
+ 
+-		if l.Type.Etype == TFUNC && !isnil(l) && !isnil(r) {
++		if l.Type.Etype == TFUNC && !l.isNil() && !r.isNil() {
+ 			yyerror("invalid operation: %v (func can only be compared to nil)", n)
+ 			n.Type = nil
+ 			return n
+@@ -3304,7 +3304,7 @@ func typecheckas(n *Node) {
+ 	if n.Left.Typecheck() == 0 {
+ 		n.Left = typecheck(n.Left, Erv|Easgn)
+ 	}
+-	if !isblank(n.Left) {
++	if !n.Left.isBlank() {
+ 		checkwidth(n.Left.Type) // ensure width is calculated for backend
+ 	}
+ }
+@@ -3664,7 +3664,7 @@ func typecheckdef(n *Node) {
+ 			goto ret
+ 		}
+ 
+-		if e.Type != nil && e.Op != OLITERAL || !isgoconst(e) {
++		if e.Type != nil && e.Op != OLITERAL || !e.isGoConst() {
+ 			if !e.Diag() {
+ 				yyerror("const initializer %v is not a constant", e)
+ 				e.SetDiag(true)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e84d96a8a4..c7c39232f4 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -703,7 +703,7 @@ opswitch:
+ 			break
+ 		}
+ 
+-		if !instrumenting && iszero(n.Right) {
++		if !instrumenting && isZero(n.Right) {
+ 			break
+ 		}
+ 
+@@ -783,7 +783,7 @@ opswitch:
+ 		walkexprlistsafe(n.List.Slice(), init)
+ 		r.Left = walkexpr(r.Left, init)
+ 		var n1 *Node
+-		if isblank(n.List.First()) {
++		if n.List.First().isBlank() {
+ 			n1 = nodnil()
+ 		} else {
+ 			n1 = nod(OADDR, n.List.First(), nil)
+@@ -834,14 +834,14 @@ opswitch:
+ 		// mapaccess2* returns a typed bool, but due to spec changes,
+ 		// the boolean result of i.(T) is now untyped so we make it the
+ 		// same type as the variable on the lhs.
+-		if ok := n.List.Second(); !isblank(ok) && ok.Type.IsBoolean() {
++		if ok := n.List.Second(); !ok.isBlank() && ok.Type.IsBoolean() {
+ 			r.Type.Field(1).Type = ok.Type
+ 		}
+ 		n.Rlist.Set1(r)
+ 		n.Op = OAS2FUNC
+ 
+ 		// don't generate a = *var if a is _
+-		if !isblank(a) {
++		if !a.isBlank() {
+ 			var_ := temp(types.NewPtr(t.Val()))
+ 			var_.SetTypecheck(1)
+ 			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
+@@ -1216,7 +1216,7 @@ opswitch:
+ 		n.Left = walkexpr(n.Left, init)
+ 		low, high, max := n.SliceBounds()
+ 		low = walkexpr(low, init)
+-		if low != nil && iszero(low) {
++		if low != nil && isZero(low) {
+ 			// Reduce x[0:j] to x[:j] and x[0:j:k] to x[:j:k].
+ 			low = nil
+ 		}
+@@ -1848,7 +1848,7 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
+ 
+ 	var nn, mm Nodes
+ 	for i, l := range nl.Slice() {
+-		if isblank(l) {
++		if l.isBlank() {
+ 			continue
+ 		}
+ 		r := nr.Field(i)
+@@ -1967,7 +1967,7 @@ func nodarg(t interface{}, fp int) *Node {
+ 	// Rewrite argument named _ to __,
+ 	// or else the assignment to _ will be
+ 	// discarded during code generation.
+-	if isblank(n) {
++	if n.isBlank() {
+ 		n.Sym = lookup("__")
+ 	}
+ 
+@@ -2268,7 +2268,7 @@ func convas(n *Node, init *Nodes) *Node {
+ 		return n
+ 	}
+ 
+-	if isblank(n.Left) {
++	if n.Left.isBlank() {
+ 		n.Right = defaultlit(n.Right, nil)
+ 		return n
+ 	}

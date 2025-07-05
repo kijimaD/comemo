@@ -20,6 +20,35 @@ Date:   Fri Oct 27 10:34:25 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index d86af557b2..2756a3b1db 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -77,12 +77,14 @@ var bootstrapDirs = []string{
+ 	"cmd/link/internal/s390x",
+ 	"cmd/link/internal/sym",
+ 	"cmd/link/internal/x86",
++	"container/heap",
+ 	"debug/dwarf",
+ 	"debug/elf",
+ 	"debug/macho",
+ 	"debug/pe",
+ 	"math/big",
+ 	"math/bits",
++	"sort",
+ }
+ 
+ // File prefixes that are ignored by go/build anyway, and cause
+@@ -180,7 +182,7 @@ func bootstrapBuildTools() {
+ 		pathf("%s/bin/go", goroot_bootstrap),
+ 		"install",
+ 		"-gcflags=-l",
+-		"-tags=math_big_pure_go",
++		"-tags=math_big_pure_go compiler_bootstrap",
+ 		"-v",
+ 	}
+ 	if tool := os.Getenv("GOBOOTSTRAP_TOOLEXEC"); tool != "" {

@@ -16,7 +16,58 @@ Date:   Wed Apr 26 17:29:33 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testplugin/plugin_test.go | 16 ++++++++++++++--
  src/cmd/link/internal/ld/data.go   |  2 +-
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index 285681018a..8960694351 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -116,11 +116,15 @@ func testMain(m *testing.M) int {
+ 	return m.Run()
+ }
+ 
+-func goCmd(t *testing.T, op string, args ...string) {
++func goCmd(t *testing.T, op string, args ...string) string {
+ 	if t != nil {
+ 		t.Helper()
+ 	}
+-	run(t, filepath.Join(goroot, "bin", "go"), append([]string{op, "-gcflags", gcflags}, args...)...)
++	var flags []string
++	if op != "tool" {
++		flags = []string{"-gcflags", gcflags}
++	}
++	return run(t, filepath.Join(goroot, "bin", "go"), append(append([]string{op}, flags...), args...)...)
+ }
+ 
+ // escape converts a string to something suitable for a shell command line.
+@@ -190,6 +194,14 @@ func TestDWARFSections(t *testing.T) {
+ 	goCmd(t, "run", "./checkdwarf/main.go", "./host.exe", "main.main")
+ }
+ 
++func TestBuildID(t *testing.T) {
++	// check that plugin has build ID.
++	b := goCmd(t, "tool", "buildid", "plugin1.so")
++	if len(b) == 0 {
++		t.Errorf("build id not found")
++	}
++}
++
+ func TestRunHost(t *testing.T) {
+ 	run(t, "./host.exe")
+ }
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index c3550e59a5..7c135ae7e6 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2248,7 +2248,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
+ // at the very beginning of the text segment.
+ // This “header” is read by cmd/go.
+ func (ctxt *Link) textbuildid() {
+-	if ctxt.IsELF || ctxt.BuildMode == BuildModePlugin || *flagBuildid == "" {
++	if ctxt.IsELF || *flagBuildid == "" {
+ 		return
+ 	}
+ 

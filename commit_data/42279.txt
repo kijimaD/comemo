@@ -11,6 +11,20 @@ Date:   Thu Nov 21 10:55:41 2019 +0000
     GitHub-Pull-Request: golang/go#35736
     Reviewed-on: https://go-review.googlesource.com/c/go/+/208297
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 6480d4b432..2880e820c3 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -452,7 +452,7 @@ func getscheme(rawurl string) (scheme, path string, err error) {
+ }
+ 
+ // split slices s into two substrings separated by the first occurrence of
+-// sep. If cutc is true then sep is included with the second substring.
++// sep. If cutc is true then sep is excluded from the second substring.
+ // If sep does not occur in s then s and the empty string is returned.
+ func split(s string, sep byte, cutc bool) (string, string) {
+ 	i := strings.IndexByte(s, sep)

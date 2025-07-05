@@ -10,6 +10,22 @@ Date:   Tue Mar 16 17:09:23 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/302370
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 39617cf524..8c9003434c 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3681,8 +3681,8 @@ The bitwise logical and shift operators apply to integers only.
+ ^    bitwise XOR            integers
+ &amp;^   bit clear (AND NOT)    integers
+ 
+-&lt;&lt;   left shift             integer &lt;&lt; integer >= 0
+-&gt;&gt;   right shift            integer &gt;&gt; integer >= 0
++&lt;&lt;   left shift             integer &lt;&lt; integer &gt;= 0
++&gt;&gt;   right shift            integer &gt;&gt; integer &gt;= 0
+ </pre>
+ 
+ 

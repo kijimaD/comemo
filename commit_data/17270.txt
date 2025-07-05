@@ -7,7 +7,37 @@ Date:   Thu Aug 15 11:51:04 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12858044
-
+---
  src/pkg/runtime/gc_test.go | 4 +++-
  test/recover3.go           | 3 ++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index a3c731ccb0..dbd68c1c75 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -136,7 +136,9 @@ func TestGcRescan(t *testing.T) {
+ 	for i := 0; i < 10; i++ {
+ 		p := &Y{}
+ 		p.c = make(chan error)
+-		p.nextx = &head.X
++		if head != nil {
++			p.nextx = &head.X
++		}
+ 		p.nexty = head
+ 		p.p = new(int)
+ 		*p.p = 42
+diff --git a/test/recover3.go b/test/recover3.go
+index ebfa0a3075..e17bfb3f6a 100644
+--- a/test/recover3.go
++++ b/test/recover3.go
+@@ -64,7 +64,8 @@ func main() {
+ 
+ 	i = 99999
+ 	var sl []int
+-	check("array-bounds", func() { println(p[i]) }, "index out of range")
++	p1 := new([10]int)
++	check("array-bounds", func() { println(p1[i]) }, "index out of range")
+ 	check("slice-bounds", func() { println(sl[i]) }, "index out of range")
+ 
+ 	var inter interface{}

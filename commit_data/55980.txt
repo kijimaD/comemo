@@ -23,6 +23,19 @@ Date:   Wed Mar 29 18:03:26 2023 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/run.bash | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 6274df6fb3..badb8c60e2 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -31,7 +31,6 @@ fi
+ 
+ export GOENV=off
+ eval $(../bin/go tool dist env)
+-export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
+ 
+ unset CDPATH	# in case user has it set
+ 

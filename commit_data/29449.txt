@@ -19,7 +19,7 @@ Date:   Thu Sep 15 08:07:54 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/amd64/galign.go  |   1 -
  src/cmd/compile/internal/amd64/gsubr.go   | 115 +-------------------
  src/cmd/compile/internal/arm/galign.go    |   1 -
@@ -43,3 +43,1374 @@ Date:   Thu Sep 15 08:07:54 2016 -0700
  src/cmd/compile/internal/x86/galign.go    |   1 -
  src/cmd/compile/internal/x86/gsubr.go     |  96 +----------------
  22 files changed, 62 insertions(+), 973 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 22a25af1d7..25d71e6fa6 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -45,7 +45,6 @@ func Main() {
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Gins = gins
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSARegToReg = ssaRegToReg
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index 76fca896e7..1f5749315f 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+-	"fmt"
+ )
+ 
+ var resvd = []int{
+@@ -47,117 +46,13 @@ var resvd = []int{
+ 	x86.REG_SP, // for stack
+ }
+ 
+-func samaddr(f *gc.Node, t *gc.Node) bool {
+-	if f.Op != t.Op {
+-		return false
+-	}
+-
+-	switch f.Op {
+-	case gc.OREGISTER:
+-		if f.Reg != t.Reg {
+-			break
+-		}
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-/*
+- * generate one instruction:
+- *	as f, t
+- */
+-func gins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+-	//	Node nod;
+-
+-	//	if(f != N && f->op == OINDEX) {
+-	//		gc.Regalloc(&nod, &regnode, Z);
+-	//		v = constnode.vconst;
+-	//		gc.Cgen(f->right, &nod);
+-	//		constnode.vconst = v;
+-	//		idx.reg = nod.reg;
+-	//		gc.Regfree(&nod);
+-	//	}
+-	//	if(t != N && t->op == OINDEX) {
+-	//		gc.Regalloc(&nod, &regnode, Z);
+-	//		v = constnode.vconst;
+-	//		gc.Cgen(t->right, &nod);
+-	//		constnode.vconst = v;
+-	//		idx.reg = nod.reg;
+-	//		gc.Regfree(&nod);
+-	//	}
+-
+-	if f != nil && f.Op == gc.OADDR && (as == x86.AMOVL || as == x86.AMOVQ) {
+-		// Turn MOVL $xxx into LEAL xxx.
+-		// These should be equivalent but most of the backend
+-		// only expects to see LEAL, because that's what we had
+-		// historically generated. Various hidden assumptions are baked in by now.
+-		if as == x86.AMOVL {
+-			as = x86.ALEAL
+-		} else {
+-			as = x86.ALEAQ
+-		}
+-		f = f.Left
+-	}
+-
+-	switch as {
+-	case x86.AMOVB,
+-		x86.AMOVW,
+-		x86.AMOVL,
+-		x86.AMOVQ,
+-		x86.AMOVSS,
+-		x86.AMOVSD:
+-		if f != nil && t != nil && samaddr(f, t) {
+-			return nil
+-		}
+-
+-	case x86.ALEAQ:
+-		if f != nil && gc.Isconst(f, gc.CTNIL) {
+-			gc.Fatalf("gins LEAQ nil %v", f.Type)
+-		}
+-	}
+-
+-	p := gc.Prog(as)
+-	gc.Naddr(&p.From, f)
+-	gc.Naddr(&p.To, t)
+-
+-	if gc.Debug['g'] != 0 {
+-		fmt.Printf("%v\n", p)
+-	}
+-
+-	w := int32(0)
+-	switch as {
+-	case x86.AMOVB:
+-		w = 1
+-
+-	case x86.AMOVW:
+-		w = 2
+-
+-	case x86.AMOVL:
+-		w = 4
+-
+-	case x86.AMOVQ:
+-		w = 8
+-	}
+-
+-	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Width > int64(w))) {
+-		gc.Dump("f", f)
+-		gc.Dump("t", t)
+-		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+-	}
+-
+-	if p.To.Type == obj.TYPE_ADDR && w > 0 {
+-		gc.Fatalf("bad use of addr: %v", p)
+-	}
+-
+-	return p
+-}
+-
+ func ginsnop() {
+ 	// This is actually not the x86 NOP anymore,
+ 	// but at the point where it gets used, AX is dead
+ 	// so it's okay if we lose the high bits.
+-	var reg gc.Node
+-	gc.Nodreg(&reg, gc.Types[gc.TINT], x86.REG_AX)
+-	gins(x86.AXCHGL, &reg, &reg)
++	p := gc.Prog(x86.AXCHGL)
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = x86.REG_AX
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = x86.REG_AX
+ }
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index acd150846f..090a6c25fb 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -29,7 +29,6 @@ func Main() {
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Gins = gins
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSARegToReg = ssaRegToReg
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 66acf03a8f..07278d15bd 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -96,8 +96,10 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
+ }
+ 
+ func ginsnop() {
+-	var r gc.Node
+-	gc.Nodreg(&r, gc.Types[gc.TINT], arm.REG_R0)
+-	p := gins(arm.AAND, &r, &r)
++	p := gc.Prog(arm.AAND)
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = arm.REG_R0
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = arm.REG_R0
+ 	p.Scond = arm.C_SCOND_EQ
+ }
+diff --git a/src/cmd/compile/internal/arm/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+index 2ef4760013..e6e2139d48 100644
+--- a/src/cmd/compile/internal/arm/gsubr.go
++++ b/src/cmd/compile/internal/arm/gsubr.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+-	"fmt"
+ )
+ 
+ var resvd = []int{
+@@ -42,85 +41,6 @@ var resvd = []int{
+ 	arm.REG_R10, // reserved for g
+ }
+ 
+-/*
+- * generate one instruction:
+- *	as f, t
+- */
+-func gins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+-	//	Node nod;
+-	//	int32 v;
+-
+-	if f != nil && f.Op == gc.OINDEX {
+-		gc.Fatalf("gins OINDEX not implemented")
+-	}
+-
+-	//		gc.Regalloc(&nod, &regnode, Z);
+-	//		v = constnode.vconst;
+-	//		gc.Cgen(f->right, &nod);
+-	//		constnode.vconst = v;
+-	//		idx.reg = nod.reg;
+-	//		gc.Regfree(&nod);
+-	if t != nil && t.Op == gc.OINDEX {
+-		gc.Fatalf("gins OINDEX not implemented")
+-	}
+-
+-	//		gc.Regalloc(&nod, &regnode, Z);
+-	//		v = constnode.vconst;
+-	//		gc.Cgen(t->right, &nod);
+-	//		constnode.vconst = v;
+-	//		idx.reg = nod.reg;
+-	//		gc.Regfree(&nod);
+-
+-	p := gc.Prog(as)
+-	gc.Naddr(&p.From, f)
+-	gc.Naddr(&p.To, t)
+-
+-	switch as {
+-	case arm.ABL:
+-		if p.To.Type == obj.TYPE_REG {
+-			p.To.Type = obj.TYPE_MEM
+-		}
+-
+-	case arm.ACMP, arm.ACMPF, arm.ACMPD:
+-		if t != nil {
+-			if f.Op != gc.OREGISTER {
+-				/* generate a comparison
+-				TODO(kaib): one of the args can actually be a small constant. relax the constraint and fix call sites.
+-				*/
+-				gc.Fatalf("bad operands to gcmp")
+-			}
+-			p.From = p.To
+-			p.To = obj.Addr{}
+-			raddr(f, p)
+-		}
+-
+-	case arm.AMULU:
+-		if f != nil && f.Op != gc.OREGISTER {
+-			gc.Fatalf("bad operands to mul")
+-		}
+-
+-	case arm.AMOVW:
+-		if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR || p.From.Type == obj.TYPE_CONST) && (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) {
+-			gc.Fatalf("gins double memory")
+-		}
+-
+-	case arm.AADD:
+-		if p.To.Type == obj.TYPE_MEM {
+-			gc.Fatalf("gins arith to mem")
+-		}
+-
+-	case arm.ARSB:
+-		if p.From.Type == obj.TYPE_NONE {
+-			gc.Fatalf("rsb with no from")
+-		}
+-	}
+-
+-	if gc.Debug['g'] != 0 {
+-		fmt.Printf("%v\n", p)
+-	}
+-	return p
+-}
+-
+ /*
+  * insert n into reg slot of p
+  */
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 696434ba69..6677fe6830 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -30,7 +30,6 @@ func Main() {
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Gins = gins
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSARegToReg = ssaRegToReg
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 0ea3e4adea..05ba855440 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -106,7 +106,6 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ }
+ 
+ func ginsnop() {
+-	var con gc.Node
+-	gc.Nodconst(&con, gc.Types[gc.TINT], 0)
+-	gins(arm64.AHINT, &con, nil)
++	p := gc.Prog(arm64.AHINT)
++	p.From.Type = obj.TYPE_CONST
+ }
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index 3bc1bd8273..b6b71f01be 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+-	"fmt"
+ )
+ 
+ var resvd = []int{
+@@ -45,115 +44,6 @@ var resvd = []int{
+ 	arm64.REG_R31, // REGZERO and REGSP
+ }
+ 
+-/*
+- * generate
+- *	as $c, n
+- */
+-func ginscon(as obj.As, c int64, n2 *gc.Node) {
+-	var n1 gc.Node
+-
+-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
+-
+-	if as != arm64.AMOVD && (c < -arm64.BIG || c > arm64.BIG) || as == arm64.AMUL || n2 != nil && n2.Op != gc.OREGISTER {
+-		// cannot have more than 16-bit of immediate in ADD, etc.
+-		// instead, MOV into register first.
+-		var ntmp gc.Node
+-		gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+-
+-		gins(arm64.AMOVD, &n1, &ntmp)
+-		gins(as, &ntmp, n2)
+-		gc.Regfree(&ntmp)
+-		return
+-	}
+-
+-	rawgins(as, &n1, n2)
+-}
+-
+-// gins is called by the front end.
+-// It synthesizes some multiple-instruction sequences
+-// so the front end can stay simpler.
+-func gins(as obj.As, f, t *gc.Node) *obj.Prog {
+-	if as >= obj.A_ARCHSPECIFIC {
+-		if x, ok := f.IntLiteral(); ok {
+-			ginscon(as, x, t)
+-			return nil // caller must not use
+-		}
+-	}
+-	return rawgins(as, f, t)
+-}
+-
+-/*
+- * generate one instruction:
+- *	as f, t
+- */
+-func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+-	// TODO(austin): Add self-move test like in 6g (but be careful
+-	// of truncation moves)
+-
+-	p := gc.Prog(as)
+-	gc.Naddr(&p.From, f)
+-	gc.Naddr(&p.To, t)
+-
+-	switch as {
+-	case arm64.ACMP, arm64.AFCMPS, arm64.AFCMPD:
+-		if t != nil {
+-			if f.Op != gc.OREGISTER {
+-				gc.Fatalf("bad operands to gcmp")
+-			}
+-			p.From = p.To
+-			p.To = obj.Addr{}
+-			raddr(f, p)
+-		}
+-	}
+-
+-	// Bad things the front end has done to us. Crash to find call stack.
+-	switch as {
+-	case arm64.AAND, arm64.AMUL:
+-		if p.From.Type == obj.TYPE_CONST {
+-			gc.Debug['h'] = 1
+-			gc.Fatalf("bad inst: %v", p)
+-		}
+-	case arm64.ACMP:
+-		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
+-			gc.Debug['h'] = 1
+-			gc.Fatalf("bad inst: %v", p)
+-		}
+-	}
+-
+-	if gc.Debug['g'] != 0 {
+-		fmt.Printf("%v\n", p)
+-	}
+-
+-	w := int32(0)
+-	switch as {
+-	case arm64.AMOVB,
+-		arm64.AMOVBU:
+-		w = 1
+-
+-	case arm64.AMOVH,
+-		arm64.AMOVHU:
+-		w = 2
+-
+-	case arm64.AMOVW,
+-		arm64.AMOVWU:
+-		w = 4
+-
+-	case arm64.AMOVD:
+-		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
+-			break
+-		}
+-		w = 8
+-	}
+-
+-	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
+-		gc.Dump("f", f)
+-		gc.Dump("t", t)
+-		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+-	}
+-
+-	return p
+-}
+-
+ /*
+  * insert n into reg slot of p
+  */
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index c4cf9abbb8..f4696945cd 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -370,7 +370,6 @@ type Arch struct {
+ 
+ 	Betypeinit func()
+ 	Defframe   func(*obj.Prog)
+-	Gins       func(obj.As, *Node, *Node) *obj.Prog
+ 	Proginfo   func(*obj.Prog) // fills in Prog.Info
+ 	Use387     bool            // should 8g use 387 FP instructions instead of sse2.
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 4326852a00..c0150fd030 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -34,8 +34,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"fmt"
+-	"runtime"
+-	"strings"
+ )
+ 
+ var (
+@@ -75,19 +73,6 @@ func Prog(as obj.As) *obj.Prog {
+ 	return p
+ }
+ 
+-func Nodreg(n *Node, t *Type, r int) {
+-	if t == nil {
+-		Fatalf("nodreg: t nil")
+-	}
+-
+-	*n = Node{}
+-	n.Op = OREGISTER
+-	n.Addable = true
+-	ullmancalc(n)
+-	n.Reg = int16(r)
+-	n.Type = t
+-}
+-
+ func Afunclit(a *obj.Addr, n *Node) {
+ 	if a.Type == obj.TYPE_ADDR && a.Name == obj.NAME_EXTERN {
+ 		a.Type = obj.TYPE_MEM
+@@ -176,7 +161,7 @@ func fixautoused(p *obj.Prog) {
+ }
+ 
+ func ggloblnod(nam *Node) {
+-	p := Thearch.Gins(obj.AGLOBL, nam, nil)
++	p := Gins(obj.AGLOBL, nam, nil)
+ 	p.Lineno = nam.Lineno
+ 	p.From.Sym.Gotype = Linksym(ngotype(nam))
+ 	p.To.Sym = nil
+@@ -196,7 +181,7 @@ func ggloblsym(s *Sym, width int32, flags int16) {
+ }
+ 
+ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
+-	p := Thearch.Gins(obj.AGLOBL, nil, nil)
++	p := Gins(obj.AGLOBL, nil, nil)
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Name = obj.NAME_EXTERN
+ 	p.From.Sym = s
+@@ -211,7 +196,7 @@ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
+ }
+ 
+ func gtrack(s *Sym) {
+-	p := Thearch.Gins(obj.AUSEFIELD, nil, nil)
++	p := Gins(obj.AUSEFIELD, nil, nil)
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Name = obj.NAME_EXTERN
+ 	p.From.Sym = Linksym(s)
+@@ -598,6 +583,25 @@ func Patch(p *obj.Prog, to *obj.Prog) {
+ 	p.To.Offset = to.Pc
+ }
+ 
++// Gins inserts instruction as. f is from, t is to.
++func Gins(as obj.As, f, t *Node) *obj.Prog {
++	switch as {
++	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF, obj.ATYPE,
++		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD, obj.AGLOBL:
++	default:
++		Fatalf("unhandled gins op %v", as)
++	}
++
++	p := Prog(as)
++	Naddr(&p.From, f)
++	Naddr(&p.To, t)
++
++	if Debug['g'] != 0 {
++		fmt.Printf("%v\n", p)
++	}
++	return p
++}
++
+ var reg [100]int       // count of references to reg
+ var regstk [100][]byte // allocation sites, when -v is given
+ 
+@@ -617,131 +621,3 @@ func ginit() {
+ 		reg[r-Thearch.REGMIN] = 1
+ 	}
+ }
+-
+-// allocate register of type t, leave in n.
+-// if o != N, o may be reusable register.
+-// caller must Regfree(n).
+-func Regalloc(n *Node, t *Type, o *Node) {
+-	if t == nil {
+-		Fatalf("regalloc: t nil")
+-	}
+-	et := simtype[t.Etype]
+-	if Ctxt.Arch.RegSize == 4 && (et == TINT64 || et == TUINT64) {
+-		Fatalf("regalloc 64bit")
+-	}
+-
+-	var i int
+-Switch:
+-	switch et {
+-	default:
+-		Fatalf("regalloc: unknown type %v", t)
+-
+-	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TPTR32, TPTR64, TBOOL:
+-		if o != nil && o.Op == OREGISTER {
+-			i = int(o.Reg)
+-			if Thearch.REGMIN <= i && i <= Thearch.REGMAX {
+-				break Switch
+-			}
+-		}
+-		for i = Thearch.REGMIN; i <= Thearch.REGMAX; i++ {
+-			if reg[i-Thearch.REGMIN] == 0 {
+-				break Switch
+-			}
+-		}
+-		flusherrors()
+-		regdump()
+-		Fatalf("out of fixed registers")
+-
+-	case TFLOAT32, TFLOAT64:
+-		if Thearch.Use387 {
+-			i = Thearch.FREGMIN // x86.REG_F0
+-			break Switch
+-		}
+-		if o != nil && o.Op == OREGISTER {
+-			i = int(o.Reg)
+-			if Thearch.FREGMIN <= i && i <= Thearch.FREGMAX {
+-				break Switch
+-			}
+-		}
+-		for i = Thearch.FREGMIN; i <= Thearch.FREGMAX; i++ {
+-			if reg[i-Thearch.REGMIN] == 0 { // note: REGMIN, not FREGMIN
+-				break Switch
+-			}
+-		}
+-		flusherrors()
+-		regdump()
+-		Fatalf("out of floating registers")
+-
+-	case TCOMPLEX64, TCOMPLEX128:
+-		tempname(n, t)
+-		return
+-	}
+-
+-	ix := i - Thearch.REGMIN
+-	if reg[ix] == 0 && Debug['v'] > 0 {
+-		if regstk[ix] == nil {
+-			regstk[ix] = make([]byte, 4096)
+-		}
+-		stk := regstk[ix]
+-		n := runtime.Stack(stk[:cap(stk)], false)
+-		regstk[ix] = stk[:n]
+-	}
+-	reg[ix]++
+-	Nodreg(n, t, i)
+-}
+-
+-func Regfree(n *Node) {
+-	if n.Op == ONAME {
+-		return
+-	}
+-	if n.Op != OREGISTER && n.Op != OINDREG {
+-		Fatalf("regfree: not a register")
+-	}
+-	i := int(n.Reg)
+-	if i == Thearch.REGSP {
+-		return
+-	}
+-	switch {
+-	case Thearch.REGMIN <= i && i <= Thearch.REGMAX,
+-		Thearch.FREGMIN <= i && i <= Thearch.FREGMAX:
+-		// ok
+-	default:
+-		Fatalf("regfree: reg out of range")
+-	}
+-
+-	i -= Thearch.REGMIN
+-	if reg[i] <= 0 {
+-		Fatalf("regfree: reg not allocated")
+-	}
+-	reg[i]--
+-	if reg[i] == 0 {
+-		regstk[i] = regstk[i][:0]
+-	}
+-}
+-
+-func regdump() {
+-	if Debug['v'] == 0 {
+-		fmt.Printf("run compiler with -v for register allocation sites\n")
+-		return
+-	}
+-
+-	dump := func(r int) {
+-		stk := regstk[r-Thearch.REGMIN]
+-		if len(stk) == 0 {
+-			return
+-		}
+-		fmt.Printf("reg %v allocated at:\n", obj.Rconv(r))
+-		fmt.Printf("\t%s\n", strings.Replace(strings.TrimSpace(string(stk)), "\n", "\n\t", -1))
+-	}
+-
+-	for r := Thearch.REGMIN; r <= Thearch.REGMAX; r++ {
+-		if reg[r-Thearch.REGMIN] != 0 {
+-			dump(r)
+-		}
+-	}
+-	for r := Thearch.FREGMIN; r <= Thearch.FREGMAX; r++ {
+-		if reg[r-Thearch.REGMIN] == 0 {
+-			dump(r)
+-		}
+-	}
+-}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 04f9801665..bfe1cd21b0 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -24,7 +24,7 @@ func makefuncdatasym(nameprefix string, funcdatakind int64) *Sym {
+ 	pnod := newname(sym)
+ 	pnod.Class = PEXTERN
+ 	Nodconst(&nod, Types[TINT32], funcdatakind)
+-	Thearch.Gins(obj.AFUNCDATA, &nod, pnod)
++	Gins(obj.AFUNCDATA, &nod, pnod)
+ 	return sym
+ }
+ 
+@@ -96,9 +96,9 @@ func gvardefx(n *Node, as obj.As) {
+ 	switch n.Class {
+ 	case PAUTO, PPARAM, PPARAMOUT:
+ 		if as == obj.AVARLIVE {
+-			Thearch.Gins(as, n, nil)
++			Gins(as, n, nil)
+ 		} else {
+-			Thearch.Gins(as, nil, n)
++			Gins(as, nil, n)
+ 		}
+ 	}
+ }
+@@ -389,7 +389,7 @@ func compile(fn *Node) {
+ 	if isblank(nam) {
+ 		nam = nil
+ 	}
+-	ptxt := Thearch.Gins(obj.ATEXT, nam, &nod1)
++	ptxt := Gins(obj.ATEXT, nam, &nod1)
+ 	Afunclit(&ptxt.From, Curfn.Func.Nname)
+ 	ptxt.From3 = new(obj.Addr)
+ 	if fn.Func.Dupok {
+@@ -443,7 +443,7 @@ func compile(fn *Node) {
+ 		switch n.Class {
+ 		case PAUTO, PPARAM, PPARAMOUT:
+ 			Nodconst(&nod1, Types[TUINTPTR], n.Type.Width)
+-			p := Thearch.Gins(obj.ATYPE, n, &nod1)
++			p := Gins(obj.ATYPE, n, &nod1)
+ 			p.From.Gotype = Linksym(ngotype(n))
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index ca1cb689ff..d8d12dec50 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -33,7 +33,6 @@ func Main() {
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Gins = gins
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSARegToReg = ssaRegToReg
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index c8c0d91fdd..d1b5a118dc 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -101,7 +101,9 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ }
+ 
+ func ginsnop() {
+-	var reg gc.Node
+-	gc.Nodreg(&reg, gc.Types[gc.TINT], mips.REG_R0)
+-	gins(mips.ANOR, &reg, &reg)
++	p := gc.Prog(mips.ANOR)
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = mips.REG_R0
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = mips.REG_R0
+ }
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+index ecf83594ce..c67ad55303 100644
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ b/src/cmd/compile/internal/mips64/gsubr.go
+@@ -30,12 +30,7 @@
+ 
+ package mips64
+ 
+-import (
+-	"cmd/compile/internal/gc"
+-	"cmd/internal/obj"
+-	"cmd/internal/obj/mips"
+-	"fmt"
+-)
++import "cmd/internal/obj/mips"
+ 
+ var resvd = []int{
+ 	mips.REGZERO,
+@@ -47,136 +42,3 @@ var resvd = []int{
+ 	mips.REG_R26, // kernel
+ 	mips.REG_R27, // kernel
+ }
+-
+-/*
+- * generate
+- *      as $c, n
+- */
+-func ginscon(as obj.As, c int64, n2 *gc.Node) {
+-	var n1 gc.Node
+-
+-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
+-
+-	if as != mips.AMOVV && (c < -mips.BIG || c > mips.BIG) || n2.Op != gc.OREGISTER || as == mips.AMUL || as == mips.AMULU || as == mips.AMULV || as == mips.AMULVU {
+-		// cannot have more than 16-bit of immediate in ADD, etc.
+-		// instead, MOV into register first.
+-		var ntmp gc.Node
+-		gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+-
+-		rawgins(mips.AMOVV, &n1, &ntmp)
+-		rawgins(as, &ntmp, n2)
+-		gc.Regfree(&ntmp)
+-		return
+-	}
+-
+-	rawgins(as, &n1, n2)
+-}
+-
+-// gins is called by the front end.
+-// It synthesizes some multiple-instruction sequences
+-// so the front end can stay simpler.
+-func gins(as obj.As, f, t *gc.Node) *obj.Prog {
+-	if as >= obj.A_ARCHSPECIFIC {
+-		if x, ok := f.IntLiteral(); ok {
+-			ginscon(as, x, t)
+-			return nil // caller must not use
+-		}
+-	}
+-	return rawgins(as, f, t)
+-}
+-
+-/*
+- * generate one instruction:
+- *	as f, t
+- */
+-func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+-	// TODO(austin): Add self-move test like in 6g (but be careful
+-	// of truncation moves)
+-
+-	p := gc.Prog(as)
+-	gc.Naddr(&p.From, f)
+-	gc.Naddr(&p.To, t)
+-
+-	switch as {
+-	case obj.ACALL:
+-		if p.To.Type == obj.TYPE_REG {
+-			// Allow front end to emit CALL REG, and rewrite into CALL (REG).
+-			p.From = obj.Addr{}
+-			p.To.Type = obj.TYPE_MEM
+-			p.To.Offset = 0
+-
+-			if gc.Debug['g'] != 0 {
+-				fmt.Printf("%v\n", p)
+-			}
+-
+-			return p
+-		}
+-
+-	// Bad things the front end has done to us. Crash to find call stack.
+-	case mips.AAND:
+-		if p.From.Type == obj.TYPE_CONST {
+-			gc.Debug['h'] = 1
+-			gc.Fatalf("bad inst: %v", p)
+-		}
+-	case mips.ASGT, mips.ASGTU:
+-		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
+-			gc.Debug['h'] = 1
+-			gc.Fatalf("bad inst: %v", p)
+-		}
+-
+-	// Special cases
+-	case mips.AMUL, mips.AMULU, mips.AMULV, mips.AMULVU:
+-		if p.From.Type == obj.TYPE_CONST {
+-			gc.Debug['h'] = 1
+-			gc.Fatalf("bad inst: %v", p)
+-		}
+-
+-		pp := gc.Prog(mips.AMOVV)
+-		pp.From.Type = obj.TYPE_REG
+-		pp.From.Reg = mips.REG_LO
+-		pp.To = p.To
+-
+-		p.Reg = p.To.Reg
+-		p.To = obj.Addr{}
+-
+-	case mips.ASUBVU:
+-		// unary
+-		if f == nil {
+-			p.From = p.To
+-			p.Reg = mips.REGZERO
+-		}
+-	}
+-
+-	if gc.Debug['g'] != 0 {
+-		fmt.Printf("%v\n", p)
+-	}
+-
+-	w := int32(0)
+-	switch as {
+-	case mips.AMOVB,
+-		mips.AMOVBU:
+-		w = 1
+-
+-	case mips.AMOVH,
+-		mips.AMOVHU:
+-		w = 2
+-
+-	case mips.AMOVW,
+-		mips.AMOVWU:
+-		w = 4
+-
+-	case mips.AMOVV:
+-		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
+-			break
+-		}
+-		w = 8
+-	}
+-
+-	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
+-		gc.Dump("f", f)
+-		gc.Dump("t", t)
+-		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+-	}
+-
+-	return p
+-}
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 5491c125e1..ddadf80aae 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -36,7 +36,6 @@ func Main() {
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Gins = gins
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSARegToReg = ssaRegToReg
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index bc7a91cec7..9e51c28735 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -93,7 +93,9 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ }
+ 
+ func ginsnop() {
+-	var reg gc.Node
+-	gc.Nodreg(&reg, gc.Types[gc.TINT], ppc64.REG_R0)
+-	gins(ppc64.AOR, &reg, &reg)
++	p := gc.Prog(ppc64.AOR)
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = ppc64.REG_R0
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = ppc64.REG_R0
+ }
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index ab9c16ced8..16671b23ee 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -30,12 +30,7 @@
+ 
+ package ppc64
+ 
+-import (
+-	"cmd/compile/internal/gc"
+-	"cmd/internal/obj"
+-	"cmd/internal/obj/ppc64"
+-	"fmt"
+-)
++import "cmd/internal/obj/ppc64"
+ 
+ var resvd = []int{
+ 	ppc64.REGZERO,
+@@ -51,153 +46,3 @@ var resvd = []int{
+ 	ppc64.REGG,
+ 	ppc64.REGTMP, // REGTMP
+ }
+-
+-/*
+- * generate
+- *	as $c, n
+- */
+-func ginscon(as obj.As, c int64, n2 *gc.Node) {
+-	var n1 gc.Node
+-
+-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
+-
+-	if as != ppc64.AMOVD && (c < -ppc64.BIG || c > ppc64.BIG) || n2.Op != gc.OREGISTER || as == ppc64.AMULLD {
+-		// cannot have more than 16-bit of immediate in ADD, etc.
+-		// instead, MOV into register first.
+-		var ntmp gc.Node
+-		gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+-
+-		rawgins(ppc64.AMOVD, &n1, &ntmp)
+-		rawgins(as, &ntmp, n2)
+-		gc.Regfree(&ntmp)
+-		return
+-	}
+-
+-	rawgins(as, &n1, n2)
+-}
+-
+-// gins is called by the front end.
+-// It synthesizes some multiple-instruction sequences
+-// so the front end can stay simpler.
+-func gins(as obj.As, f, t *gc.Node) *obj.Prog {
+-	if as >= obj.A_ARCHSPECIFIC {
+-		if x, ok := f.IntLiteral(); ok {
+-			ginscon(as, x, t)
+-			return nil // caller must not use
+-		}
+-	}
+-	return rawgins(as, f, t)
+-}
+-
+-/*
+- * generate one instruction:
+- *	as f, t
+- */
+-func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+-	// TODO(austin): Add self-move test like in 6g (but be careful
+-	// of truncation moves)
+-
+-	p := gc.Prog(as)
+-	gc.Naddr(&p.From, f)
+-	gc.Naddr(&p.To, t)
+-
+-	switch as {
+-	case obj.ACALL:
+-		if p.To.Type == obj.TYPE_REG && p.To.Reg != ppc64.REG_CTR {
+-			// Allow front end to emit CALL REG, and rewrite into MOV REG, CTR; CALL CTR.
+-			if gc.Ctxt.Flag_shared {
+-				// Make sure function pointer is in R12 as well when
+-				// compiling Go into PIC.
+-				// TODO(mwhudson): it would obviously be better to
+-				// change the register allocation to put the value in
+-				// R12 already, but I don't know how to do that.
+-				q := gc.Prog(as)
+-				q.As = ppc64.AMOVD
+-				q.From = p.To
+-				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = ppc64.REG_R12
+-			}
+-			pp := gc.Prog(as)
+-			pp.From = p.From
+-			pp.To.Type = obj.TYPE_REG
+-			pp.To.Reg = ppc64.REG_CTR
+-
+-			p.As = ppc64.AMOVD
+-			p.From = p.To
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = ppc64.REG_CTR
+-
+-			if gc.Ctxt.Flag_shared {
+-				// When compiling Go into PIC, the function we just
+-				// called via pointer might have been implemented in
+-				// a separate module and so overwritten the TOC
+-				// pointer in R2; reload it.
+-				q := gc.Prog(ppc64.AMOVD)
+-				q.From.Type = obj.TYPE_MEM
+-				q.From.Offset = 24
+-				q.From.Reg = ppc64.REGSP
+-				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = ppc64.REG_R2
+-			}
+-
+-			if gc.Debug['g'] != 0 {
+-				fmt.Printf("%v\n", p)
+-				fmt.Printf("%v\n", pp)
+-			}
+-
+-			return pp
+-		}
+-
+-	// Bad things the front end has done to us. Crash to find call stack.
+-	case ppc64.AAND, ppc64.AMULLD:
+-		if p.From.Type == obj.TYPE_CONST {
+-			gc.Debug['h'] = 1
+-			gc.Fatalf("bad inst: %v", p)
+-		}
+-	case ppc64.ACMP, ppc64.ACMPU:
+-		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
+-			gc.Debug['h'] = 1
+-			gc.Fatalf("bad inst: %v", p)
+-		}
+-	}
+-
+-	if gc.Debug['g'] != 0 {
+-		fmt.Printf("%v\n", p)
+-	}
+-
+-	w := int32(0)
+-	switch as {
+-	case ppc64.AMOVB,
+-		ppc64.AMOVBU,
+-		ppc64.AMOVBZ,
+-		ppc64.AMOVBZU:
+-		w = 1
+-
+-	case ppc64.AMOVH,
+-		ppc64.AMOVHU,
+-		ppc64.AMOVHZ,
+-		ppc64.AMOVHZU:
+-		w = 2
+-
+-	case ppc64.AMOVW,
+-		ppc64.AMOVWU,
+-		ppc64.AMOVWZ,
+-		ppc64.AMOVWZU:
+-		w = 4
+-
+-	case ppc64.AMOVD,
+-		ppc64.AMOVDU:
+-		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
+-			break
+-		}
+-		w = 8
+-	}
+-
+-	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
+-		gc.Dump("f", f)
+-		gc.Dump("t", t)
+-		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+-	}
+-
+-	return p
+-}
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index 93ece5a7ff..a178041c80 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -28,7 +28,6 @@ func Main() {
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Gins = gins
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSARegToReg = ssaRegToReg
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index 60b08c89f0..15c65546d6 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -144,7 +144,9 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ }
+ 
+ func ginsnop() {
+-	var reg gc.Node
+-	gc.Nodreg(&reg, gc.Types[gc.TINT], s390x.REG_R0)
+-	gins(s390x.AOR, &reg, &reg)
++	p := gc.Prog(s390x.AOR)
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = int16(s390x.REG_R0)
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = int16(s390x.REG_R0)
+ }
+diff --git a/src/cmd/compile/internal/s390x/gsubr.go b/src/cmd/compile/internal/s390x/gsubr.go
+index dbacad9ea2..06043e225b 100644
+--- a/src/cmd/compile/internal/s390x/gsubr.go
++++ b/src/cmd/compile/internal/s390x/gsubr.go
+@@ -30,12 +30,7 @@
+ 
+ package s390x
+ 
+-import (
+-	"cmd/compile/internal/gc"
+-	"cmd/internal/obj"
+-	"cmd/internal/obj/s390x"
+-	"fmt"
+-)
++import "cmd/internal/obj/s390x"
+ 
+ var resvd = []int{
+ 	s390x.REGZERO, // R0
+@@ -46,110 +41,3 @@ var resvd = []int{
+ 	s390x.REG_LR,  // R14
+ 	s390x.REGSP,   // R15
+ }
+-
+-// generate
+-//	as $c, n
+-func ginscon(as obj.As, c int64, n2 *gc.Node) {
+-	var n1 gc.Node
+-
+-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
+-
+-	if as != s390x.AMOVD && (c < -s390x.BIG || c > s390x.BIG) || n2.Op != gc.OREGISTER {
+-		// cannot have more than 16-bit of immediate in ADD, etc.
+-		// instead, MOV into register first.
+-		var ntmp gc.Node
+-		gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
+-
+-		rawgins(s390x.AMOVD, &n1, &ntmp)
+-		rawgins(as, &ntmp, n2)
+-		gc.Regfree(&ntmp)
+-		return
+-	}
+-
+-	rawgins(as, &n1, n2)
+-}
+-
+-func intLiteral(n *gc.Node) (x int64, ok bool) {
+-	switch {
+-	case n == nil:
+-		return
+-	case gc.Isconst(n, gc.CTINT):
+-		return n.Int64(), true
+-	case gc.Isconst(n, gc.CTBOOL):
+-		return int64(obj.Bool2int(n.Bool())), true
+-	}
+-	return
+-}
+-
+-// gins is called by the front end.
+-// It synthesizes some multiple-instruction sequences
+-// so the front end can stay simpler.
+-func gins(as obj.As, f, t *gc.Node) *obj.Prog {
+-	if t != nil {
+-		if as >= obj.A_ARCHSPECIFIC {
+-			if x, ok := intLiteral(f); ok {
+-				ginscon(as, x, t)
+-				return nil // caller must not use
+-			}
+-		}
+-	}
+-	return rawgins(as, f, t)
+-}
+-
+-// generate one instruction:
+-//	as f, t
+-func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+-	// self move check
+-	// TODO(mundaym): use sized math and extend to MOVB, MOVWZ etc.
+-	switch as {
+-	case s390x.AMOVD, s390x.AFMOVS, s390x.AFMOVD:
+-		if f != nil && t != nil &&
+-			f.Op == gc.OREGISTER && t.Op == gc.OREGISTER &&
+-			f.Reg == t.Reg {
+-			return nil
+-		}
+-	}
+-
+-	p := gc.Prog(as)
+-	gc.Naddr(&p.From, f)
+-	gc.Naddr(&p.To, t)
+-
+-	switch as {
+-	// Bad things the front end has done to us. Crash to find call stack.
+-	case s390x.ACMP, s390x.ACMPU:
+-		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
+-			gc.Debug['h'] = 1
+-			gc.Fatalf("bad inst: %v", p)
+-		}
+-	}
+-
+-	if gc.Debug['g'] != 0 {
+-		fmt.Printf("%v\n", p)
+-	}
+-
+-	w := int32(0)
+-	switch as {
+-	case s390x.AMOVB, s390x.AMOVBZ:
+-		w = 1
+-
+-	case s390x.AMOVH, s390x.AMOVHZ:
+-		w = 2
+-
+-	case s390x.AMOVW, s390x.AMOVWZ:
+-		w = 4
+-
+-	case s390x.AMOVD:
+-		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
+-			break
+-		}
+-		w = 8
+-	}
+-
+-	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
+-		gc.Dump("f", f)
+-		gc.Dump("t", t)
+-		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+-	}
+-
+-	return p
+-}
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 269ff56938..df9f7748f3 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -41,7 +41,6 @@ func Main() {
+ 
+ 	gc.Thearch.Betypeinit = betypeinit
+ 	gc.Thearch.Defframe = defframe
+-	gc.Thearch.Gins = gins
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSARegToReg = ssaRegToReg
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index a0d36a2d70..96105356fd 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+-	"fmt"
+ )
+ 
+ var resvd = []int{
+@@ -47,95 +46,10 @@ var resvd = []int{
+ 	x86.REG_SP, // for stack
+ }
+ 
+-func samaddr(f *gc.Node, t *gc.Node) bool {
+-	if f.Op != t.Op {
+-		return false
+-	}
+-
+-	switch f.Op {
+-	case gc.OREGISTER:
+-		if f.Reg != t.Reg {
+-			break
+-		}
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-/*
+- * generate one instruction:
+- *	as f, t
+- */
+-func gins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+-	if as == x86.AFMOVF && f != nil && f.Op == gc.OREGISTER && t != nil && t.Op == gc.OREGISTER {
+-		gc.Fatalf("gins MOVF reg, reg")
+-	}
+-	if as == x86.ACVTSD2SS && f != nil && f.Op == gc.OLITERAL {
+-		gc.Fatalf("gins CVTSD2SS const")
+-	}
+-	if as == x86.AMOVSD && t != nil && t.Op == gc.OREGISTER && t.Reg == x86.REG_F0 {
+-		gc.Fatalf("gins MOVSD into F0")
+-	}
+-
+-	if as == x86.AMOVL && f != nil && f.Op == gc.OADDR && f.Left.Op == gc.ONAME && f.Left.Class != gc.PEXTERN && f.Left.Class != gc.PFUNC {
+-		// Turn MOVL $xxx(FP/SP) into LEAL xxx.
+-		// These should be equivalent but most of the backend
+-		// only expects to see LEAL, because that's what we had
+-		// historically generated. Various hidden assumptions are baked in by now.
+-		as = x86.ALEAL
+-		f = f.Left
+-	}
+-
+-	switch as {
+-	case x86.AMOVB,
+-		x86.AMOVW,
+-		x86.AMOVL:
+-		if f != nil && t != nil && samaddr(f, t) {
+-			return nil
+-		}
+-
+-	case x86.ALEAL:
+-		if f != nil && gc.Isconst(f, gc.CTNIL) {
+-			gc.Fatalf("gins LEAL nil %v", f.Type)
+-		}
+-	}
+-
+-	p := gc.Prog(as)
+-	gc.Naddr(&p.From, f)
+-	gc.Naddr(&p.To, t)
+-
+-	if gc.Debug['g'] != 0 {
+-		fmt.Printf("%v\n", p)
+-	}
+-
+-	w := 0
+-	switch as {
+-	case x86.AMOVB:
+-		w = 1
+-
+-	case x86.AMOVW:
+-		w = 2
+-
+-	case x86.AMOVL:
+-		w = 4
+-	}
+-
+-	if true && w != 0 && f != nil && (p.From.Width > int64(w) || p.To.Width > int64(w)) {
+-		gc.Dump("bad width from:", f)
+-		gc.Dump("bad width to:", t)
+-		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+-	}
+-
+-	if p.To.Type == obj.TYPE_ADDR && w > 0 {
+-		gc.Fatalf("bad use of addr: %v", p)
+-	}
+-
+-	return p
+-}
+-
+ func ginsnop() {
+-	var reg gc.Node
+-	gc.Nodreg(&reg, gc.Types[gc.TINT], x86.REG_AX)
+-	gins(x86.AXCHGL, &reg, &reg)
++	p := gc.Prog(x86.AXCHGL)
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = x86.REG_AX
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = x86.REG_AX
+ }

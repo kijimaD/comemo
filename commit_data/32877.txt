@@ -11,6 +11,21 @@ Date:   Fri Jun 9 16:45:55 2017 +0000
     Change-Id: I698c83cbc288082558e34097ff54d1428aed75ec
     Reviewed-on: https://go-review.googlesource.com/45171
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
-
+---
  src/os/exec/exec.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 0b16f22a99..7f0d68b071 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -91,9 +91,6 @@ type Cmd struct {
+ 	// ExtraFiles specifies additional open files to be inherited by the
+ 	// new process. It does not include standard input, standard output, or
+ 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
+-	//
+-	// BUG(rsc): On OS X 10.6, child processes may sometimes inherit unwanted fds.
+-	// https://golang.org/issue/2603
+ 	ExtraFiles []*os.File
+ 
+ 	// SysProcAttr holds optional, operating system-specific attributes.

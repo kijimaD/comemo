@@ -33,8 +33,278 @@ Date:   Wed Apr 26 12:04:08 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/swt.go | 90 ++++++++++++++++++--------------------
  test/switch5.go                    | 45 ++++++++-----------
  test/switch7.go                    | 35 +++++++++++++++
  3 files changed, 96 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 871cb5b8b1..1b76650a7f 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"fmt"
+ 	"sort"
+ )
+ 
+@@ -203,6 +204,11 @@ func typecheckswitch(n *Node) {
+ 
+ 		typecheckslice(ncase.Nbody.Slice(), Etop)
+ 	}
++	switch top {
++	// expression switch
++	case Erv:
++		checkDupExprCases(n.Left, n.List.Slice())
++	}
+ }
+ 
+ // walkswitch walks a switch statement.
+@@ -523,9 +529,6 @@ func (s *exprSwitch) genCaseClauses(clauses []*Node) caseClauses {
+ 	if cc.defjmp == nil {
+ 		cc.defjmp = nod(OBREAK, nil, nil)
+ 	}
+-
+-	// diagnose duplicate cases
+-	s.checkDupCases(cc.list)
+ 	return cc
+ }
+ 
+@@ -599,20 +602,18 @@ Outer:
+ 	}
+ }
+ 
+-func (s *exprSwitch) checkDupCases(cc []caseClause) {
+-	if len(cc) < 2 {
++func checkDupExprCases(exprname *Node, clauses []*Node) {
++	// boolean (naked) switch, nothing to do.
++	if exprname == nil {
+ 		return
+ 	}
+ 	// The common case is that s's expression is not an interface.
+ 	// In that case, all constant clauses have the same type,
+ 	// so checking for duplicates can be done solely by value.
+-	if !s.exprname.Type.IsInterface() {
++	if !exprname.Type.IsInterface() {
+ 		seen := make(map[interface{}]*Node)
+-		for _, c := range cc {
+-			switch {
+-			case c.node.Left != nil:
+-				// Single constant.
+-
++		for _, ncase := range clauses {
++			for _, n := range ncase.List.Slice() {
+ 				// Can't check for duplicates that aren't constants, per the spec. Issue 15896.
+ 				// Don't check for duplicate bools. Although the spec allows it,
+ 				// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
+@@ -620,35 +621,18 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
+ 				//       case GOARCH == "arm" && GOARM == "5":
+ 				//       case GOARCH == "arm":
+ 				//     which would both evaluate to false for non-ARM compiles.
+-				if ct := consttype(c.node.Left); ct < 0 || ct == CTBOOL {
++				if ct := consttype(n); ct < 0 || ct == CTBOOL {
+ 					continue
+ 				}
+ 
+-				val := c.node.Left.Val().Interface()
++				val := n.Val().Interface()
+ 				prev, dup := seen[val]
+ 				if !dup {
+-					seen[val] = c.node
++					seen[val] = n
+ 					continue
+ 				}
+-				setlineno(c.node)
+-				yyerror("duplicate case %#v in switch\n\tprevious case at %v", val, prev.Line())
+-
+-			case c.node.List.Len() == 2:
+-				// Range of integers.
+-				low := c.node.List.First().Int64()
+-				high := c.node.List.Second().Int64()
+-				for i := low; i <= high; i++ {
+-					prev, dup := seen[i]
+-					if !dup {
+-						seen[i] = c.node
+-						continue
+-					}
+-					setlineno(c.node)
+-					yyerror("duplicate case %d in switch\n\tprevious case at %v", i, prev.Line())
+-				}
+-
+-			default:
+-				Fatalf("bad caseClause node in checkDupCases: %v", c.node)
++				yyerrorl(ncase.Pos, "duplicate case %s in switch\n\tprevious case at %v",
++					nodeAndVal(n), prev.Line())
+ 			}
+ 		}
+ 		return
+@@ -660,25 +644,35 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
+ 		val interface{}
+ 	}
+ 	seen := make(map[typeVal]*Node)
+-	for _, c := range cc {
+-		if ct := consttype(c.node.Left); ct < 0 || ct == CTBOOL {
+-			continue
+-		}
+-		n := c.node.Left
+-		tv := typeVal{
+-			typ: n.Type.LongString(),
+-			val: n.Val().Interface(),
+-		}
+-		prev, dup := seen[tv]
+-		if !dup {
+-			seen[tv] = c.node
+-			continue
++	for _, ncase := range clauses {
++		for _, n := range ncase.List.Slice() {
++			if ct := consttype(n); ct < 0 || ct == CTBOOL {
++				continue
++			}
++			tv := typeVal{
++				typ: n.Type.LongString(),
++				val: n.Val().Interface(),
++			}
++			prev, dup := seen[tv]
++			if !dup {
++				seen[tv] = n
++				continue
++			}
++			yyerrorl(ncase.Pos, "duplicate case %s in switch\n\tprevious case at %v",
++				nodeAndVal(n), prev.Line())
+ 		}
+-		setlineno(c.node)
+-		yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
+ 	}
+ }
+ 
++func nodeAndVal(n *Node) string {
++	show := n.String()
++	val := n.Val().Interface()
++	if s := fmt.Sprintf("%#v", val); show != s {
++		show += " (value " + s + ")"
++	}
++	return show
++}
++
+ // walk generates an AST that implements sw,
+ // where sw is a type switch.
+ // The AST is generally of the form of a linear
+diff --git a/test/switch5.go b/test/switch5.go
+index 5c3b28f180..ce95bf8d7b 100644
+--- a/test/switch5.go
++++ b/test/switch5.go
+@@ -9,8 +9,6 @@
+ 
+ package main
+ 
+-import "fmt"
+-
+ func f0(x int) {
+ 	switch x {
+ 	case 0:
+@@ -19,7 +17,7 @@ func f0(x int) {
+ 
+ 	switch x {
+ 	case 0:
+-	case int(0): // ERROR "duplicate case 0 in switch"
++	case int(0): // ERROR "duplicate case int.0. .value 0. in switch"
+ 	}
+ }
+ 
+@@ -46,30 +44,9 @@ func f3(e interface{}) {
+ 	case 0: // ERROR "duplicate case 0 in switch"
+ 	case int64(0):
+ 	case float32(10):
+-	case float32(10): // ERROR "duplicate case float32\(10\) in switch"
++	case float32(10): // ERROR "duplicate case float32\(10\) .value 10. in switch"
+ 	case float64(10):
+-	case float64(10): // ERROR "duplicate case float64\(10\) in switch"
+-	}
+-}
+-
+-func f4(e interface{}) {
+-	switch e.(type) {
+-	case int:
+-	case int: // ERROR "duplicate case int in type switch"
+-	case int64:
+-	case error:
+-	case error: // ERROR "duplicate case error in type switch"
+-	case fmt.Stringer:
+-	case fmt.Stringer: // ERROR "duplicate case fmt.Stringer in type switch"
+-	case struct {
+-		i int "tag1"
+-	}:
+-	case struct {
+-		i int "tag2"
+-	}:
+-	case struct { // ERROR "duplicate case struct { i int .tag1. } in type switch"
+-		i int "tag1"
+-	}:
++	case float64(10): // ERROR "duplicate case float64\(10\) .value 10. in switch"
+ 	}
+ }
+ 
+@@ -99,3 +76,19 @@ func f7(a int) {
+ 	case 1, 2, 3, 4: // ERROR "duplicate case 1"
+ 	}
+ }
++
++// Ensure duplicates with simple literals are printed as they were
++// written, not just their values. Particularly useful for runes.
++func f8(r rune) {
++	const x = 10
++	switch r {
++	case 33, 33: // ERROR "duplicate case 33 in switch"
++	case 34, '"': // ERROR "duplicate case '"' .value 34. in switch"
++	case 35, rune('#'): // ERROR "duplicate case rune.'#'. .value 35. in switch"
++	case 36, rune(36): // ERROR "duplicate case rune.36. .value 36. in switch"
++	case 37, '$'+1: // ERROR "duplicate case '\$' \+ 1 .value 37. in switch"
++	case 'b':
++	case 'a', 'b', 'c', 'd': // ERROR "duplicate case 'b' .value 98."
++	case x, x: // ERROR "duplicate case x .value 10."
++	}
++}
+diff --git a/test/switch7.go b/test/switch7.go
+new file mode 100644
+index 0000000000..75060669b3
+--- /dev/null
++++ b/test/switch7.go
+@@ -0,0 +1,35 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that type switch statements with duplicate cases are detected
++// by the compiler.
++// Does not compile.
++
++package main
++
++import "fmt"
++
++func f4(e interface{}) {
++	switch e.(type) {
++	case int:
++	case int: // ERROR "duplicate case int in type switch"
++	case int64:
++	case error:
++	case error: // ERROR "duplicate case error in type switch"
++	case fmt.Stringer:
++	case fmt.Stringer: // ERROR "duplicate case fmt.Stringer in type switch"
++	case struct {
++		i int "tag1"
++	}:
++	case struct {
++		i int "tag2"
++	}:
++	case struct { // ERROR "duplicate case struct { i int .tag1. } in type switch"
++		i int "tag1"
++	}:
++	}
++}
++

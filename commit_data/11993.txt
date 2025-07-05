@@ -9,7 +9,46 @@ Date:   Fri Feb 17 14:39:50 2012 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5671078
-
+---
  src/cmd/fix/error_test.go | 8 ++++++++
  src/cmd/fix/fix.go        | 1 +
  2 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/fix/error_test.go b/src/cmd/fix/error_test.go
+index eeab7e2ee1..027eed24f8 100644
+--- a/src/cmd/fix/error_test.go
++++ b/src/cmd/fix/error_test.go
+@@ -42,6 +42,10 @@ func g() {
+ 	error := 1
+ 	_ = error
+ }
++
++func h(os.Error) {}
++
++func i(...os.Error) {}
+ `,
+ 		Out: `package main
+ 
+@@ -59,6 +63,10 @@ func g() {
+ 	error := 1
+ 	_ = error
+ }
++
++func h(error) {}
++
++func i(...error) {}
+ `,
+ 	},
+ 	{
+diff --git a/src/cmd/fix/fix.go b/src/cmd/fix/fix.go
+index d2067cb51e..a100be794e 100644
+--- a/src/cmd/fix/fix.go
++++ b/src/cmd/fix/fix.go
+@@ -113,6 +113,7 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+ 	case *ast.BadExpr:
+ 	case *ast.Ident:
+ 	case *ast.Ellipsis:
++		walkBeforeAfter(&n.Elt, before, after)
+ 	case *ast.BasicLit:
+ 	case *ast.FuncLit:
+ 		walkBeforeAfter(&n.Type, before, after)

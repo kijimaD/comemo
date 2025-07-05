@@ -15,8 +15,136 @@ Date:   Wed Mar 22 11:31:56 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmt_test.go          |  1 -
  src/cmd/compile/internal/gc/gsubr.go | 52 ------------------------------------
  src/cmd/compile/internal/gc/pgen.go  | 20 +++++++-------
  3 files changed, 10 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index fd6abc20fa..585351d8cb 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -653,7 +653,6 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/syntax.token %d":            "",
+ 	"cmd/compile/internal/syntax.token %q":            "",
+ 	"cmd/compile/internal/syntax.token %s":            "",
+-	"cmd/internal/obj.As %v":                          "",
+ 	"cmd/internal/src.Pos %s":                         "",
+ 	"cmd/internal/src.Pos %v":                         "",
+ 	"error %v":                                        "",
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index c895117390..f048fd1aed 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -109,44 +109,6 @@ func isfat(t *Type) bool {
+ 	return false
+ }
+ 
+-// Naddr rewrites a to refer to n.
+-// It assumes that a is zeroed on entry.
+-func Naddr(a *obj.Addr, n *Node) {
+-	if n == nil {
+-		return
+-	}
+-
+-	if n.Op != ONAME {
+-		Debug['h'] = 1
+-		Dump("naddr", n)
+-		Fatalf("naddr: bad %v %v", n.Op, Ctxt.Dconv(a))
+-	}
+-
+-	a.Offset = n.Xoffset
+-	s := n.Sym
+-
+-	if s == nil {
+-		Fatalf("naddr: nil sym %v", n)
+-	}
+-
+-	a.Type = obj.TYPE_MEM
+-	switch n.Class {
+-	default:
+-		Fatalf("naddr: ONAME class %v %d\n", n.Sym, n.Class)
+-
+-	case PEXTERN, PFUNC:
+-		a.Name = obj.NAME_EXTERN
+-
+-	case PAUTO:
+-		a.Name = obj.NAME_AUTO
+-
+-	case PPARAM, PPARAMOUT:
+-		a.Name = obj.NAME_PARAM
+-	}
+-
+-	a.Sym = Linksym(s)
+-}
+-
+ func Addrconst(a *obj.Addr, v int64) {
+ 	a.Sym = nil
+ 	a.Type = obj.TYPE_CONST
+@@ -277,17 +239,3 @@ func Patch(p *obj.Prog, to *obj.Prog) {
+ 	p.To.Val = to
+ 	p.To.Offset = to.Pc
+ }
+-
+-// Gins inserts instruction as. f is from, t is to.
+-func Gins(as obj.As, f, t *Node) *obj.Prog {
+-	switch as {
+-	case obj.ATEXT, obj.AFUNCDATA:
+-	default:
+-		Fatalf("unhandled gins op %v", as)
+-	}
+-
+-	p := Prog(as)
+-	Naddr(&p.From, f)
+-	Naddr(&p.To, t)
+-	return p
+-}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6294c125c7..09487e0f80 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -316,12 +316,15 @@ func compile(fn *Node) {
+ 
+ 	setlineno(fn)
+ 
+-	nam := fn.Func.Nname
+-	if isblank(nam) {
+-		nam = nil
++	ptxt := Prog(obj.ATEXT)
++	if nam := fn.Func.Nname; !isblank(nam) {
++		ptxt.From.Type = obj.TYPE_MEM
++		ptxt.From.Name = obj.NAME_EXTERN
++		ptxt.From.Sym = Linksym(nam.Sym)
++		if fn.Func.Pragma&Systemstack != 0 {
++			ptxt.From.Sym.Set(obj.AttrCFunc, true)
++		}
+ 	}
+-	ptxt := Gins(obj.ATEXT, nam, nil)
+-	fnsym := ptxt.From.Sym
+ 
+ 	ptxt.From3 = new(obj.Addr)
+ 	if fn.Func.Dupok() {
+@@ -342,9 +345,6 @@ func compile(fn *Node) {
+ 	if fn.Func.ReflectMethod() {
+ 		ptxt.From3.Offset |= obj.REFLECTMETHOD
+ 	}
+-	if fn.Func.Pragma&Systemstack != 0 {
+-		ptxt.From.Sym.Set(obj.AttrCFunc, true)
+-	}
+ 
+ 	// Clumsy but important.
+ 	// See test/recover.go for test cases and src/reflect/value.go
+@@ -357,10 +357,10 @@ func compile(fn *Node) {
+ 
+ 	genssa(ssafn, ptxt)
+ 
++	fieldtrack(ptxt.From.Sym, fn.Func.FieldTrack)
++
+ 	obj.Flushplist(Ctxt, plist) // convert from Prog list to machine code
+ 	ptxt = nil                  // nil to prevent misuse; Prog may have been freed by Flushplist
+-
+-	fieldtrack(fnsym, fn.Func.FieldTrack)
+ }
+ 
+ func debuginfo(fnsym *obj.LSym) []*dwarf.Var {

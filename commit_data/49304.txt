@@ -24,7 +24,7 @@ Date:   Tue Aug 10 11:02:34 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |  37 +++-
@@ -40,3 +40,965 @@ Date:   Tue Aug 10 11:02:34 2021 -0400
  src/cmd/vendor/modules.txt                         |   3 +-
  src/cmd/vet/testdata/print/print.go                |   8 +-
  14 files changed, 563 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index da304e292b..ccfff09885 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -10,6 +10,6 @@ require (
+ 	golang.org/x/mod v0.4.3-0.20210608190319-0f08993efd8a
+ 	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
+ 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+-	golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
++	golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151
+ 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 7f0d978ef0..f4d41f0d10 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,7 +16,7 @@ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 h1:yhBbb4IRs2HS9PPlAg6DMC6mU
+ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210503060354-a79de5458b56 h1:b8jxX3zqjpqb2LklXPzKSGJhzyxCOZSz8ncv8Nv+y7w=
+ golang.org/x/term v0.0.0-20210503060354-a79de5458b56/go.mod h1:tfny5GFUkzUvx4ps4ajbZsCe5lw1metzhBm9T3x7oIY=
+-golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9 h1:2XlR/j4I4xz5GQZI7zBjqTfezYyRIE2jD5IMousB2rg=
+-golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
++golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151 h1:jHjT6WuVKEMzjJgrS1+r1wk54oxwqumUnvtn0QZXyXE=
++golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index eb0016b18f..7b82d0b6dd 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -51,6 +51,11 @@ type asmArch struct {
+ 	bigEndian bool
+ 	stack     string
+ 	lr        bool
++	// retRegs is a list of registers for return value in register ABI (ABIInternal).
++	// For now, as we only check whether we write to any result, here we only need to
++	// include the first integer register and first floating-point register. Accessing
++	// any of them counts as writing to result.
++	retRegs []string
+ 	// calculated during initialization
+ 	sizes    types.Sizes
+ 	intSize  int
+@@ -79,8 +84,8 @@ type asmVar struct {
+ var (
+ 	asmArch386      = asmArch{name: "386", bigEndian: false, stack: "SP", lr: false}
+ 	asmArchArm      = asmArch{name: "arm", bigEndian: false, stack: "R13", lr: true}
+-	asmArchArm64    = asmArch{name: "arm64", bigEndian: false, stack: "RSP", lr: true}
+-	asmArchAmd64    = asmArch{name: "amd64", bigEndian: false, stack: "SP", lr: false}
++	asmArchArm64    = asmArch{name: "arm64", bigEndian: false, stack: "RSP", lr: true, retRegs: []string{"R0", "F0"}}
++	asmArchAmd64    = asmArch{name: "amd64", bigEndian: false, stack: "SP", lr: false, retRegs: []string{"AX", "X0"}}
+ 	asmArchMips     = asmArch{name: "mips", bigEndian: true, stack: "R29", lr: true}
+ 	asmArchMipsLE   = asmArch{name: "mipsle", bigEndian: false, stack: "R29", lr: true}
+ 	asmArchMips64   = asmArch{name: "mips64", bigEndian: true, stack: "R29", lr: true}
+@@ -137,7 +142,7 @@ var (
+ 	asmSP        = re(`[^+\-0-9](([0-9]+)\(([A-Z0-9]+)\))`)
+ 	asmOpcode    = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
+ 	ppc64Suff    = re(`([BHWD])(ZU|Z|U|BR)?$`)
+-	abiSuff      = re(`^(.+)<ABI.+>$`)
++	abiSuff      = re(`^(.+)<(ABI.+)>$`)
+ )
+ 
+ func run(pass *analysis.Pass) (interface{}, error) {
+@@ -185,6 +190,7 @@ Files:
+ 		var (
+ 			fn                 *asmFunc
+ 			fnName             string
++			abi                string
+ 			localSize, argSize int
+ 			wroteSP            bool
+ 			noframe            bool
+@@ -195,18 +201,22 @@ Files:
+ 		flushRet := func() {
+ 			if fn != nil && fn.vars["ret"] != nil && !haveRetArg && len(retLine) > 0 {
+ 				v := fn.vars["ret"]
++				resultStr := fmt.Sprintf("%d-byte ret+%d(FP)", v.size, v.off)
++				if abi == "ABIInternal" {
++					resultStr = "result register"
++				}
+ 				for _, line := range retLine {
+-					pass.Reportf(analysisutil.LineStart(tf, line), "[%s] %s: RET without writing to %d-byte ret+%d(FP)", arch, fnName, v.size, v.off)
++					pass.Reportf(analysisutil.LineStart(tf, line), "[%s] %s: RET without writing to %s", arch, fnName, resultStr)
+ 				}
+ 			}
+ 			retLine = nil
+ 		}
+-		trimABI := func(fnName string) string {
++		trimABI := func(fnName string) (string, string) {
+ 			m := abiSuff.FindStringSubmatch(fnName)
+ 			if m != nil {
+-				return m[1]
++				return m[1], m[2]
+ 			}
+-			return fnName
++			return fnName, ""
+ 		}
+ 		for lineno, line := range lines {
+ 			lineno++
+@@ -273,11 +283,12 @@ Files:
+ 						// log.Printf("%s:%d: [%s] cannot check cross-package assembly function: %s is in package %s", fname, lineno, arch, fnName, pkgPath)
+ 						fn = nil
+ 						fnName = ""
++						abi = ""
+ 						continue
+ 					}
+ 				}
+ 				// Trim off optional ABI selector.
+-				fnName := trimABI(fnName)
++				fnName, abi = trimABI(fnName)
+ 				flag := m[3]
+ 				fn = knownFunc[fnName][arch]
+ 				if fn != nil {
+@@ -305,6 +316,7 @@ Files:
+ 				flushRet()
+ 				fn = nil
+ 				fnName = ""
++				abi = ""
+ 				continue
+ 			}
+ 
+@@ -335,6 +347,15 @@ Files:
+ 				haveRetArg = true
+ 			}
+ 
++			if abi == "ABIInternal" && !haveRetArg {
++				for _, reg := range archDef.retRegs {
++					if strings.Contains(line, reg) {
++						haveRetArg = true
++						break
++					}
++				}
++			}
++
+ 			for _, m := range asmSP.FindAllStringSubmatch(line, -1) {
+ 				if m[3] != archDef.stack || wroteSP || noframe {
+ 					continue
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 822820f06e..6589478af0 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -555,7 +555,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 	format, idx := formatString(pass, call)
+ 	if idx < 0 {
+ 		if false {
+-			pass.Reportf(call.Lparen, "can't check non-constant format in call to %s", fn.Name())
++			pass.Reportf(call.Lparen, "can't check non-constant format in call to %s", fn.FullName())
+ 		}
+ 		return
+ 	}
+@@ -563,7 +563,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 	firstArg := idx + 1 // Arguments are immediately after format string.
+ 	if !strings.Contains(format, "%") {
+ 		if len(call.Args) > firstArg {
+-			pass.Reportf(call.Lparen, "%s call has arguments but no formatting directives", fn.Name())
++			pass.Reportf(call.Lparen, "%s call has arguments but no formatting directives", fn.FullName())
+ 		}
+ 		return
+ 	}
+@@ -577,7 +577,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 		if format[i] != '%' {
+ 			continue
+ 		}
+-		state := parsePrintfVerb(pass, call, fn.Name(), format[i:], firstArg, argNum)
++		state := parsePrintfVerb(pass, call, fn.FullName(), format[i:], firstArg, argNum)
+ 		if state == nil {
+ 			return
+ 		}
+@@ -589,8 +589,12 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 			anyIndex = true
+ 		}
+ 		if state.verb == 'w' {
+-			if kind != KindErrorf {
+-				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w, which is only supported by Errorf", state.name)
++			switch kind {
++			case KindNone, KindPrint:
++				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", state.name)
++				return
++			case KindPrintf:
++				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w, which is only supported for functions backed by fmt.Errorf", state.name)
+ 				return
+ 			}
+ 			if anyW {
+@@ -621,7 +625,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 	if maxArgNum != len(call.Args) {
+ 		expect := maxArgNum - firstArg
+ 		numArgs := len(call.Args) - firstArg
+-		pass.ReportRangef(call, "%s call needs %v but has %v", fn.Name(), count(expect, "arg"), count(numArgs, "arg"))
++		pass.ReportRangef(call, "%s call needs %v but has %v", fn.FullName(), count(expect, "arg"), count(numArgs, "arg"))
+ 	}
+ }
+ 
+@@ -949,7 +953,7 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) (string, bool) {
+ 	}
+ 	if id, ok := e.(*ast.Ident); ok {
+ 		if pass.TypesInfo.Uses[id] == sig.Recv() {
+-			return method.Name(), true
++			return method.FullName(), true
+ 		}
+ 	}
+ 	return "", false
+@@ -1044,7 +1048,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if sel, ok := call.Args[0].(*ast.SelectorExpr); ok {
+ 			if x, ok := sel.X.(*ast.Ident); ok {
+ 				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
+-					pass.ReportRangef(call, "%s does not take io.Writer but has first arg %s", fn.Name(), analysisutil.Format(pass.Fset, call.Args[0]))
++					pass.ReportRangef(call, "%s does not take io.Writer but has first arg %s", fn.FullName(), analysisutil.Format(pass.Fset, call.Args[0]))
+ 				}
+ 			}
+ 		}
+@@ -1058,7 +1062,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if strings.Contains(s, "%") {
+ 			m := printFormatRE.FindStringSubmatch(s)
+ 			if m != nil {
+-				pass.ReportRangef(call, "%s call has possible formatting directive %s", fn.Name(), m[0])
++				pass.ReportRangef(call, "%s call has possible formatting directive %s", fn.FullName(), m[0])
+ 			}
+ 		}
+ 	}
+@@ -1068,16 +1072,16 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+ 			str, _ := strconv.Unquote(lit.Value)
+ 			if strings.HasSuffix(str, "\n") {
+-				pass.ReportRangef(call, "%s arg list ends with redundant newline", fn.Name())
++				pass.ReportRangef(call, "%s arg list ends with redundant newline", fn.FullName())
+ 			}
+ 		}
+ 	}
+ 	for _, arg := range args {
+ 		if isFunctionValue(pass, arg) {
+-			pass.ReportRangef(call, "%s arg %s is a func value, not called", fn.Name(), analysisutil.Format(pass.Fset, arg))
++			pass.ReportRangef(call, "%s arg %s is a func value, not called", fn.FullName(), analysisutil.Format(pass.Fset, arg))
+ 		}
+ 		if methodName, ok := recursiveStringer(pass, arg); ok {
+-			pass.ReportRangef(call, "%s arg %s causes recursive call to %s method", fn.Name(), analysisutil.Format(pass.Fset, arg), methodName)
++			pass.ReportRangef(call, "%s arg %s causes recursive call to %s method", fn.FullName(), analysisutil.Format(pass.Fset, arg), methodName)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
+index cf72ea990b..5fe75b14c7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
+@@ -9,6 +9,8 @@ import (
+ 	"go/ast"
+ 	"reflect"
+ 	"sort"
++
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ // An ApplyFunc is invoked by Apply for each node n, even if n is nil,
+@@ -437,7 +439,13 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
+ 		}
+ 
+ 	default:
+-		panic(fmt.Sprintf("Apply: unexpected node type %T", n))
++		if ix := typeparams.GetIndexExprData(n); ix != nil {
++			a.apply(n, "X", nil, ix.X)
++			// *ast.IndexExpr was handled above, so n must be an *ast.MultiIndexExpr.
++			a.applyList(n, "Indices")
++		} else {
++			panic(fmt.Sprintf("Apply: unexpected node type %T", n))
++		}
+ 	}
+ 
+ 	if a.post != nil && !a.post(&a.cursor) {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index cffd7acbee..81e8fdcf0c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -58,7 +58,7 @@ type Path string
+ // - The only OT operator is Object.Type,
+ //   which we encode as '.' because dot cannot appear in an identifier.
+ // - The TT operators are encoded as [EKPRU].
+-// - The OT operators are encoded as [AFMO];
++// - The TO operators are encoded as [AFMO];
+ //   three of these (At,Field,Method) require an integer operand,
+ //   which is encoded as a string of decimal digits.
+ //   These indices are stable across different representations
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/input.go b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/input.go
+index ac377035ec..c1038163f1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/input.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/input.go
+@@ -27,23 +27,23 @@ const (
+ // RuneRoles detects the roles of each byte rune in an input string and stores it in the output
+ // slice. The rune role depends on the input type. Stops when it parsed all the runes in the string
+ // or when it filled the output. If output is nil, then it gets created.
+-func RuneRoles(str string, reuse []RuneRole) []RuneRole {
++func RuneRoles(candidate []byte, reuse []RuneRole) []RuneRole {
+ 	var output []RuneRole
+-	if cap(reuse) < len(str) {
+-		output = make([]RuneRole, 0, len(str))
++	if cap(reuse) < len(candidate) {
++		output = make([]RuneRole, 0, len(candidate))
+ 	} else {
+ 		output = reuse[:0]
+ 	}
+ 
+ 	prev, prev2 := rtNone, rtNone
+-	for i := 0; i < len(str); i++ {
+-		r := rune(str[i])
++	for i := 0; i < len(candidate); i++ {
++		r := rune(candidate[i])
+ 
+ 		role := RNone
+ 
+ 		curr := rtLower
+-		if str[i] <= unicode.MaxASCII {
+-			curr = runeType(rt[str[i]] - '0')
++		if candidate[i] <= unicode.MaxASCII {
++			curr = runeType(rt[candidate[i]] - '0')
+ 		}
+ 
+ 		if curr == rtLower {
+@@ -58,7 +58,7 @@ func RuneRoles(str string, reuse []RuneRole) []RuneRole {
+ 			if prev == rtUpper {
+ 				// This and previous characters are both upper case.
+ 
+-				if i+1 == len(str) {
++				if i+1 == len(candidate) {
+ 					// This is last character, previous was also uppercase -> this is UCTail
+ 					// i.e., (current char is C): aBC / BC / ABC
+ 					role = RUCTail
+@@ -118,11 +118,26 @@ func LastSegment(input string, roles []RuneRole) string {
+ 	return input[start+1 : end+1]
+ }
+ 
+-// ToLower transforms the input string to lower case, which is stored in the output byte slice.
++// fromChunks copies string chunks into the given buffer.
++func fromChunks(chunks []string, buffer []byte) []byte {
++	ii := 0
++	for _, chunk := range chunks {
++		for i := 0; i < len(chunk); i++ {
++			if ii >= cap(buffer) {
++				break
++			}
++			buffer[ii] = chunk[i]
++			ii++
++		}
++	}
++	return buffer[:ii]
++}
++
++// toLower transforms the input string to lower case, which is stored in the output byte slice.
+ // The lower casing considers only ASCII values - non ASCII values are left unmodified.
+ // Stops when parsed all input or when it filled the output slice. If output is nil, then it gets
+ // created.
+-func ToLower(input string, reuse []byte) []byte {
++func toLower(input []byte, reuse []byte) []byte {
+ 	output := reuse
+ 	if cap(reuse) < len(input) {
+ 		output = make([]byte, len(input))
+@@ -130,7 +145,7 @@ func ToLower(input string, reuse []byte) []byte {
+ 
+ 	for i := 0; i < len(input); i++ {
+ 		r := rune(input[i])
+-		if r <= unicode.MaxASCII {
++		if input[i] <= unicode.MaxASCII {
+ 			if 'A' <= r && r <= 'Z' {
+ 				r += 'a' - 'A'
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/matcher.go b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/matcher.go
+index 16a643097d..265cdcf160 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/matcher.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/matcher.go
+@@ -51,8 +51,12 @@ type Matcher struct {
+ 	lastCandidateLen     int // in bytes
+ 	lastCandidateMatched bool
+ 
+-	// Here we save the last candidate in lower-case. This is basically a byte slice we reuse for
+-	// performance reasons, so the slice is not reallocated for every candidate.
++	// Reusable buffers to avoid allocating for every candidate.
++	//  - inputBuf stores the concatenated input chunks
++	//  - lowerBuf stores the last candidate in lower-case
++	//  - rolesBuf stores the calculated roles for each rune in the last
++	//    candidate.
++	inputBuf [MaxInputSize]byte
+ 	lowerBuf [MaxInputSize]byte
+ 	rolesBuf [MaxInputSize]RuneRole
+ }
+@@ -72,7 +76,7 @@ func NewMatcher(pattern string) *Matcher {
+ 
+ 	m := &Matcher{
+ 		pattern:      pattern,
+-		patternLower: ToLower(pattern, nil),
++		patternLower: toLower([]byte(pattern), nil),
+ 	}
+ 
+ 	for i, c := range m.patternLower {
+@@ -88,7 +92,7 @@ func NewMatcher(pattern string) *Matcher {
+ 		m.patternShort = m.patternLower
+ 	}
+ 
+-	m.patternRoles = RuneRoles(pattern, nil)
++	m.patternRoles = RuneRoles([]byte(pattern), nil)
+ 
+ 	if len(pattern) > 0 {
+ 		maxCharScore := 4
+@@ -102,10 +106,15 @@ func NewMatcher(pattern string) *Matcher {
+ // This is not designed for parallel use. Multiple candidates must be scored sequentially.
+ // Returns a score between 0 and 1 (0 - no match, 1 - perfect match).
+ func (m *Matcher) Score(candidate string) float32 {
++	return m.ScoreChunks([]string{candidate})
++}
++
++func (m *Matcher) ScoreChunks(chunks []string) float32 {
++	candidate := fromChunks(chunks, m.inputBuf[:])
+ 	if len(candidate) > MaxInputSize {
+ 		candidate = candidate[:MaxInputSize]
+ 	}
+-	lower := ToLower(candidate, m.lowerBuf[:])
++	lower := toLower(candidate, m.lowerBuf[:])
+ 	m.lastCandidateLen = len(candidate)
+ 
+ 	if len(m.pattern) == 0 {
+@@ -174,7 +183,7 @@ func (m *Matcher) MatchedRanges() []int {
+ 	return ret
+ }
+ 
+-func (m *Matcher) match(candidate string, candidateLower []byte) bool {
++func (m *Matcher) match(candidate []byte, candidateLower []byte) bool {
+ 	i, j := 0, 0
+ 	for ; i < len(candidateLower) && j < len(m.patternLower); i++ {
+ 		if candidateLower[i] == m.patternLower[j] {
+@@ -192,7 +201,7 @@ func (m *Matcher) match(candidate string, candidateLower []byte) bool {
+ 	return true
+ }
+ 
+-func (m *Matcher) computeScore(candidate string, candidateLower []byte) int {
++func (m *Matcher) computeScore(candidate []byte, candidateLower []byte) int {
+ 	pattLen, candLen := len(m.pattern), len(candidate)
+ 
+ 	for j := 0; j <= len(m.pattern); j++ {
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go
+new file mode 100644
+index 0000000000..062f491fb5
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/lsp/fuzzy/symbol.go
+@@ -0,0 +1,224 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fuzzy
++
++import (
++	"unicode"
++)
++
++// SymbolMatcher implements a fuzzy matching algorithm optimized for Go symbols
++// of the form:
++//  example.com/path/to/package.object.field
++//
++// Knowing that we are matching symbols like this allows us to make the
++// following optimizations:
++//  - We can incorporate right-to-left relevance directly into the score
++//    calculation.
++//  - We can match from right to left, discarding leading bytes if the input is
++//    too long.
++//  - We just take the right-most match without losing too much precision. This
++//    allows us to use an O(n) algorithm.
++//  - We can operate directly on chunked strings; in many cases we will
++//    be storing the package path and/or package name separately from the
++//    symbol or identifiers, so doing this avoids allocating strings.
++//  - We can return the index of the right-most match, allowing us to trim
++//    irrelevant qualification.
++//
++// This implementation is experimental, serving as a reference fast algorithm
++// to compare to the fuzzy algorithm implemented by Matcher.
++type SymbolMatcher struct {
++	// Using buffers of length 256 is both a reasonable size for most qualified
++	// symbols, and makes it easy to avoid bounds checks by using uint8 indexes.
++	pattern     [256]rune
++	patternLen  uint8
++	inputBuffer [256]rune   // avoid allocating when considering chunks
++	roles       [256]uint32 // which roles does a rune play (word start, etc.)
++	segments    [256]uint8  // how many segments from the right is each rune
++}
++
++const (
++	segmentStart uint32 = 1 << iota
++	wordStart
++	separator
++)
++
++// NewSymbolMatcher creates a SymbolMatcher that may be used to match the given
++// search pattern.
++//
++// Currently this matcher only accepts case-insensitive fuzzy patterns.
++//
++// TODO(rfindley):
++//  - implement smart-casing
++//  - implement space-separated groups
++//  - implement ', ^, and $ modifiers
++//
++// An empty pattern matches no input.
++func NewSymbolMatcher(pattern string) *SymbolMatcher {
++	m := &SymbolMatcher{}
++	for _, p := range pattern {
++		m.pattern[m.patternLen] = unicode.ToLower(p)
++		m.patternLen++
++		if m.patternLen == 255 || int(m.patternLen) == len(pattern) {
++			// break at 255 so that we can represent patternLen with a uint8.
++			break
++		}
++	}
++	return m
++}
++
++// Match looks for the right-most match of the search pattern within the symbol
++// represented by concatenating the given chunks, returning its offset and
++// score.
++//
++// If a match is found, the first return value will hold the absolute byte
++// offset within all chunks for the start of the symbol. In other words, the
++// index of the match within strings.Join(chunks, ""). If no match is found,
++// the first return value will be -1.
++//
++// The second return value will be the score of the match, which is always
++// between 0 and 1, inclusive. A score of 0 indicates no match.
++func (m *SymbolMatcher) Match(chunks []string) (int, float64) {
++	// Explicit behavior for an empty pattern.
++	//
++	// As a minor optimization, this also avoids nilness checks later on, since
++	// the compiler can prove that m != nil.
++	if m.patternLen == 0 {
++		return -1, 0
++	}
++
++	// First phase: populate the input buffer with lower-cased runes.
++	//
++	// We could also check for a forward match here, but since we'd have to write
++	// the entire input anyway this has negligible impact on performance.
++
++	var (
++		inputLen  = uint8(0)
++		modifiers = wordStart | segmentStart
++	)
++
++input:
++	for _, chunk := range chunks {
++		for _, r := range chunk {
++			if r == '.' || r == '/' {
++				modifiers |= separator
++			}
++			// optimization: avoid calls to unicode.ToLower, which can't be inlined.
++			l := r
++			if r <= unicode.MaxASCII {
++				if 'A' <= r && r <= 'Z' {
++					l = r + 'a' - 'A'
++				}
++			} else {
++				l = unicode.ToLower(r)
++			}
++			if l != r {
++				modifiers |= wordStart
++			}
++			m.inputBuffer[inputLen] = l
++			m.roles[inputLen] = modifiers
++			inputLen++
++			if m.roles[inputLen-1]&separator != 0 {
++				modifiers = wordStart | segmentStart
++			} else {
++				modifiers = 0
++			}
++			// TODO: we should prefer the right-most input if it overflows, rather
++			//       than the left-most as we're doing here.
++			if inputLen == 255 {
++				break input
++			}
++		}
++	}
++
++	// Second phase: find the right-most match, and count segments from the
++	// right.
++
++	var (
++		pi    = uint8(m.patternLen - 1) // pattern index
++		p     = m.pattern[pi]           // pattern rune
++		start = -1                      // start offset of match
++		rseg  = uint8(0)
++	)
++	const maxSeg = 3 // maximum number of segments from the right to count, for scoring purposes.
++
++	for ii := inputLen - 1; ; ii-- {
++		r := m.inputBuffer[ii]
++		if rseg < maxSeg && m.roles[ii]&separator != 0 {
++			rseg++
++		}
++		m.segments[ii] = rseg
++		if p == r {
++			if pi == 0 {
++				start = int(ii)
++				break
++			}
++			pi--
++			p = m.pattern[pi]
++		}
++		// Don't check ii >= 0 in the loop condition: ii is a uint8.
++		if ii == 0 {
++			break
++		}
++	}
++
++	if start < 0 {
++		// no match: skip scoring
++		return -1, 0
++	}
++
++	// Third phase: find the shortest match, and compute the score.
++
++	// Score is the average score for each character.
++	//
++	// A character score is the multiple of:
++	//   1. 1.0 if the character starts a segment, .8 if the character start a
++	//      mid-segment word, otherwise 0.6. This carries over to immediately
++	//      following characters.
++	//   2. 1.0 if the character is part of the last segment, otherwise
++	//      1.0-.2*<segments from the right>, with a max segment count of 3.
++	//
++	// This is a very naive algorithm, but it is fast. There's lots of prior art
++	// here, and we should leverage it. For example, we could explicitly consider
++	// character distance, and exact matches of words or segments.
++	//
++	// Also note that this might not actually find the highest scoring match, as
++	// doing so could require a non-linear algorithm, depending on how the score
++	// is calculated.
++
++	pi = 0
++	p = m.pattern[pi]
++
++	const (
++		segStreak  = 1.0
++		wordStreak = 0.8
++		noStreak   = 0.6
++		perSegment = 0.2 // we count at most 3 segments above
++	)
++
++	streakBonus := noStreak
++	totScore := 0.0
++	for ii := uint8(start); ii < inputLen; ii++ {
++		r := m.inputBuffer[ii]
++		if r == p {
++			pi++
++			p = m.pattern[pi]
++			// Note: this could be optimized with some bit operations.
++			switch {
++			case m.roles[ii]&segmentStart != 0 && segStreak > streakBonus:
++				streakBonus = segStreak
++			case m.roles[ii]&wordStart != 0 && wordStreak > streakBonus:
++				streakBonus = wordStreak
++			}
++			totScore += streakBonus * (1.0 - float64(m.segments[ii])*perSegment)
++			if pi >= m.patternLen {
++				break
++			}
++		} else {
++			streakBonus = noStreak
++		}
++	}
++
++	return start, totScore / float64(m.patternLen)
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+new file mode 100644
+index 0000000000..9fc6b4beb8
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+@@ -0,0 +1,25 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package typeparams provides functions to work indirectly with type parameter
++// data stored in go/ast and go/types objects, while these API are guarded by a
++// build constraint.
++//
++// This package exists to make it easier for tools to work with generic code,
++// while also compiling against older Go versions.
++package typeparams
++
++import (
++	"go/ast"
++	"go/token"
++)
++
++// A IndexExprData holds data from both ast.IndexExpr and the new
++// ast.MultiIndexExpr, which was introduced in Go 1.18.
++type IndexExprData struct {
++	X       ast.Expr   // expression
++	Lbrack  token.Pos  // position of "["
++	Indices []ast.Expr // index expressions
++	Rbrack  token.Pos  // position of "]"
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/notypeparams.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/notypeparams.go
+new file mode 100644
+index 0000000000..e975e476f6
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/notypeparams.go
+@@ -0,0 +1,93 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !typeparams || !go1.18
++// +build !typeparams !go1.18
++
++package typeparams
++
++import (
++	"go/ast"
++	"go/types"
++)
++
++// NOTE: doc comments must be kept in sync with typeparams.go.
++
++// Enabled reports whether type parameters are enabled in the current build
++// environment.
++const Enabled = false
++
++// GetIndexExprData extracts data from AST nodes that represent index
++// expressions.
++//
++// For an ast.IndexExpr, the resulting IndexExprData will have exactly one
++// index expression. For an ast.MultiIndexExpr (go1.18+), it may have a
++// variable number of index expressions.
++//
++// For nodes that don't represent index expressions, GetIndexExprData returns
++// nil.
++func GetIndexExprData(n ast.Node) *IndexExprData {
++	if e, _ := n.(*ast.IndexExpr); e != nil {
++		return &IndexExprData{
++			X:       e.X,
++			Lbrack:  e.Lbrack,
++			Indices: []ast.Expr{e.Index},
++			Rbrack:  e.Rbrack,
++		}
++	}
++	return nil
++}
++
++// ForTypeDecl extracts the (possibly nil) type parameter node list from n.
++func ForTypeDecl(*ast.TypeSpec) *ast.FieldList {
++	return nil
++}
++
++// ForFuncDecl extracts the (possibly nil) type parameter node list from n.
++func ForFuncDecl(*ast.FuncDecl) *ast.FieldList {
++	return nil
++}
++
++// ForSignature extracts the (possibly empty) type parameter object list from
++// sig.
++func ForSignature(*types.Signature) []*types.TypeName {
++	return nil
++}
++
++// IsComparable reports if iface is the comparable interface.
++func IsComparable(*types.Interface) bool {
++	return false
++}
++
++// IsConstraint reports whether iface may only be used as a type parameter
++// constraint (i.e. has a type set or is the comparable interface).
++func IsConstraint(*types.Interface) bool {
++	return false
++}
++
++// ForNamed extracts the (possibly empty) type parameter object list from
++// named.
++func ForNamed(*types.Named) []*types.TypeName {
++	return nil
++}
++
++// NamedTArgs extracts the (possibly empty) type argument list from named.
++func NamedTArgs(*types.Named) []types.Type {
++	return nil
++}
++
++// InitInferred initializes info to record inferred type information.
++func InitInferred(*types.Info) {
++}
++
++// GetInferred extracts inferred type information from info for e.
++//
++// The expression e may have an inferred type if it is an *ast.IndexExpr
++// representing partial instantiation of a generic function type for which type
++// arguments have been inferred using constraint type inference, or if it is an
++// *ast.CallExpr for which type type arguments have be inferred using both
++// constraint type inference and function argument inference.
++func GetInferred(*types.Info, ast.Expr) ([]types.Type, *types.Signature) {
++	return nil, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go
+new file mode 100644
+index 0000000000..be6b0525f6
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go
+@@ -0,0 +1,115 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build typeparams && go1.18
++// +build typeparams,go1.18
++
++package typeparams
++
++import (
++	"go/ast"
++	"go/types"
++)
++
++// NOTE: doc comments must be kept in sync with notypeparams.go.
++
++// Enabled reports whether type parameters are enabled in the current build
++// environment.
++const Enabled = true
++
++// GetIndexExprData extracts data from AST nodes that represent index
++// expressions.
++//
++// For an ast.IndexExpr, the resulting IndexExprData will have exactly one
++// index expression. For an ast.MultiIndexExpr (go1.18+), it may have a
++// variable number of index expressions.
++//
++// For nodes that don't represent index expressions, GetIndexExprData returns
++// nil.
++func GetIndexExprData(n ast.Node) *IndexExprData {
++	switch e := n.(type) {
++	case *ast.IndexExpr:
++		return &IndexExprData{
++			X:       e.X,
++			Lbrack:  e.Lbrack,
++			Indices: []ast.Expr{e.Index},
++			Rbrack:  e.Rbrack,
++		}
++	case *ast.MultiIndexExpr:
++		return (*IndexExprData)(e)
++	}
++	return nil
++}
++
++// ForTypeDecl extracts the (possibly nil) type parameter node list from n.
++func ForTypeDecl(n *ast.TypeSpec) *ast.FieldList {
++	return n.TParams
++}
++
++// ForFuncDecl extracts the (possibly nil) type parameter node list from n.
++func ForFuncDecl(n *ast.FuncDecl) *ast.FieldList {
++	if n.Type != nil {
++		return n.Type.TParams
++	}
++	return nil
++}
++
++// ForSignature extracts the (possibly empty) type parameter object list from
++// sig.
++func ForSignature(sig *types.Signature) []*types.TypeName {
++	return tparamsSlice(sig.TParams())
++}
++
++// IsComparable reports if iface is the comparable interface.
++func IsComparable(iface *types.Interface) bool {
++	return iface.IsComparable()
++}
++
++// IsConstraint reports whether iface may only be used as a type parameter
++// constraint (i.e. has a type set or is the comparable interface).
++func IsConstraint(iface *types.Interface) bool {
++	return iface.IsConstraint()
++}
++
++// ForNamed extracts the (possibly empty) type parameter object list from
++// named.
++func ForNamed(named *types.Named) []*types.TypeName {
++	return tparamsSlice(named.TParams())
++}
++
++func tparamsSlice(tparams *types.TypeParams) []*types.TypeName {
++	if tparams.Len() == 0 {
++		return nil
++	}
++	result := make([]*types.TypeName, tparams.Len())
++	for i := 0; i < tparams.Len(); i++ {
++		result[i] = tparams.At(i)
++	}
++	return result
++}
++
++// NamedTArgs extracts the (possibly empty) type argument list from named.
++func NamedTArgs(named *types.Named) []types.Type {
++	return named.TArgs()
++}
++
++// InitInferred initializes info to record inferred type information.
++func InitInferred(info *types.Info) {
++	info.Inferred = make(map[ast.Expr]types.Inferred)
++}
++
++// GetInferred extracts inferred type information from info for e.
++//
++// The expression e may have an inferred type if it is an *ast.IndexExpr
++// representing partial instantiation of a generic function type for which type
++// arguments have been inferred using constraint type inference, or if it is an
++// *ast.CallExpr for which type type arguments have be inferred using both
++// constraint type inference and function argument inference.
++func GetInferred(info *types.Info, e ast.Expr) ([]types.Type, *types.Signature) {
++	if info.Inferred == nil {
++		return nil, nil
++	}
++	inf := info.Inferred[e]
++	return inf.TArgs, inf.Sig
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 34dbdaf5dd..c98bdcd344 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -48,7 +48,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
++# golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+@@ -92,6 +92,7 @@ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/lsp/fuzzy
++golang.org/x/tools/internal/typeparams
+ # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+ ## explicit; go 1.11
+ golang.org/x/xerrors
+diff --git a/src/cmd/vet/testdata/print/print.go b/src/cmd/vet/testdata/print/print.go
+index fca594925f..46240e87bf 100644
+--- a/src/cmd/vet/testdata/print/print.go
++++ b/src/cmd/vet/testdata/print/print.go
+@@ -491,10 +491,10 @@ type recursiveStringer int
+ func (s recursiveStringer) String() string {
+ 	_ = fmt.Sprintf("%d", s)
+ 	_ = fmt.Sprintf("%#v", s)
+-	_ = fmt.Sprintf("%v", s)  // ERROR "Sprintf format %v with arg s causes recursive String method call"
+-	_ = fmt.Sprintf("%v", &s) // ERROR "Sprintf format %v with arg &s causes recursive String method call"
++	_ = fmt.Sprintf("%v", s)  // ERROR "Sprintf format %v with arg s causes recursive .*String method call"
++	_ = fmt.Sprintf("%v", &s) // ERROR "Sprintf format %v with arg &s causes recursive .*String method call"
+ 	_ = fmt.Sprintf("%T", s)  // ok; does not recursively call String
+-	return fmt.Sprintln(s)    // ERROR "Sprintln arg s causes recursive call to String method"
++	return fmt.Sprintln(s)    // ERROR "Sprintln arg s causes recursive call to .*String method"
+ }
+ 
+ type recursivePtrStringer int
+@@ -502,7 +502,7 @@ type recursivePtrStringer int
+ func (p *recursivePtrStringer) String() string {
+ 	_ = fmt.Sprintf("%v", *p)
+ 	_ = fmt.Sprint(&p)     // ok; prints address
+-	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to String method"
++	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to .*String method"
+ }
+ 
+ type BoolFormatter bool

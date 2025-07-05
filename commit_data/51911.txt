@@ -13,9 +13,102 @@ Date:   Tue Mar 22 21:28:32 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/394914
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go                |  4 ++--
  .../internal/types2/testdata/fixedbugs/issue51877.go   | 18 ++++++++++++++++++
  src/go/types/expr.go                                   |  4 ++--
  src/go/types/testdata/fixedbugs/issue51877.go          | 18 ++++++++++++++++++
  4 files changed, 40 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 7d2a7ba46b..23225c8d0d 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1429,7 +1429,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					}
+ 					check.expr(x, e)
+ 					if i >= len(fields) {
+-						check.error(x, "too many values in struct literal")
++						check.errorf(x, "too many values in %s{…}", base)
+ 						break // cannot continue
+ 					}
+ 					// i < len(fields)
+@@ -1442,7 +1442,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					check.assignment(x, etyp, "struct literal")
+ 				}
+ 				if len(e.ElemList) < len(fields) {
+-					check.error(e.Rbrace, "too few values in struct literal")
++					check.errorf(e.Rbrace, "too few values in %s{…}", base)
+ 					// ok to continue
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51877.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51877.go
+new file mode 100644
+index 0000000000..06f054b257
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51877.go
+@@ -0,0 +1,18 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S struct {
++	f1 int
++	f2 bool
++}
++
++var (
++	_ = S{0}                    /* ERROR too few values in S{…} */
++	_ = struct{ f1, f2 int }{0} /* ERROR too few values in struct{f1 int; f2 int}{…} */
++
++	_ = S{0, true, "foo" /* ERROR too many values in S{…} */}
++	_ = struct{ f1, f2 int }{0, 1, 2 /* ERROR too many values in struct{f1 int; f2 int}{…} */}
++)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 160dcc35d0..a3c9041bdd 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1404,7 +1404,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					}
+ 					check.expr(x, e)
+ 					if i >= len(fields) {
+-						check.error(x, _InvalidStructLit, "too many values in struct literal")
++						check.errorf(x, _InvalidStructLit, "too many values in %s{…}", base)
+ 						break // cannot continue
+ 					}
+ 					// i < len(fields)
+@@ -1419,7 +1419,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					check.assignment(x, etyp, "struct literal")
+ 				}
+ 				if len(e.Elts) < len(fields) {
+-					check.error(inNode(e, e.Rbrace), _InvalidStructLit, "too few values in struct literal")
++					check.errorf(inNode(e, e.Rbrace), _InvalidStructLit, "too few values in %s{…}", base)
+ 					// ok to continue
+ 				}
+ 			}
+diff --git a/src/go/types/testdata/fixedbugs/issue51877.go b/src/go/types/testdata/fixedbugs/issue51877.go
+new file mode 100644
+index 0000000000..06f054b257
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51877.go
+@@ -0,0 +1,18 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S struct {
++	f1 int
++	f2 bool
++}
++
++var (
++	_ = S{0}                    /* ERROR too few values in S{…} */
++	_ = struct{ f1, f2 int }{0} /* ERROR too few values in struct{f1 int; f2 int}{…} */
++
++	_ = S{0, true, "foo" /* ERROR too many values in S{…} */}
++	_ = struct{ f1, f2 int }{0, 1, 2 /* ERROR too many values in struct{f1 int; f2 int}{…} */}
++)

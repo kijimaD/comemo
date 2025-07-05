@@ -14,7 +14,34 @@ Date:   Wed Mar 21 19:42:24 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/runtime/os_freebsd_arm.go | 2 +-
  src/runtime/os_linux_arm.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index f0d04244f3..d2dc26f0c4 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -21,7 +21,7 @@ func checkgoarm() {
+ 	}
+ 	if goarm > 6 && hwcap&_HWCAP_VFPv3 == 0 {
+ 		print("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n")
+-		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
++		print("this GOARM=", goarm, " binary. Recompile using GOARM=5 or GOARM=6.\n")
+ 		exit(1)
+ 	}
+ 
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index a0e2c081b9..14f1cfeaef 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -33,7 +33,7 @@ func checkgoarm() {
+ 	}
+ 	if goarm > 6 && hwcap&_HWCAP_VFPv3 == 0 {
+ 		print("runtime: this CPU has no VFPv3 floating point hardware, so it cannot run\n")
+-		print("this GOARM=", goarm, " binary. Recompile using GOARM=5.\n")
++		print("this GOARM=", goarm, " binary. Recompile using GOARM=5 or GOARM=6.\n")
+ 		exit(1)
+ 	}
+ }

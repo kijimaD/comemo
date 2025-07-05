@@ -9,6 +9,29 @@ Date:   Mon Sep 23 15:14:26 2013 +1000
     R=r, minux.ma
     CC=golang-dev
     https://golang.org/cl/13478045
-
+---
  doc/go1.2.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index fcbf5e22f5..2dc90f8368 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -823,6 +823,17 @@ are absorbed by the
+ and the client receives an empty body as required by the HTTP specification.
+ </li>
+ 
++<li>
++The <a href="/pkg/os/exec/"><code>os/exec</code></a> package's 
++<a href="/pkg/os/exec/#Cmd.StdinPipe"><code>Cmd.StdinPipe</code></a> method 
++returns an <code>io.WriteCloser</code>, but has changed its concrete
++implementation from <code>*os.File</code> to an unexported type that embeds
++<code>*os.File</code>, and it is now safe to close the returned value.
++Before Go 1.2, there was an unavoidable race that this change fixes.
++Code that needs access to the methods of <code>*os.File</code> can use an
++interface type assertion, such as <code>wc.(interface{ Sync() error })</code>.
++</li>
++
+ <li>
+ The <a href="/pkg/runtime/"><code>runtime</code></a> package relaxes
+ the constraints on finalizer functions in

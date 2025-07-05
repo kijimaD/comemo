@@ -22,10 +22,289 @@ Date:   Tue Jan 3 10:15:55 2017 -0700
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/export_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/gc_test.go     | 51 ++++++++++++++++++++++++++++++++++++
  src/runtime/mcentral.go    | 12 +++++++++
  src/runtime/mheap.go       | 12 ++++++---
  src/runtime/mstats.go      | 46 ++++++++++++++++----------------
  5 files changed, 159 insertions(+), 27 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index ae2454a425..80ddf2ea1f 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -271,3 +271,68 @@ func (p *ProfBuf) Read(mode profBufReadMode) ([]uint64, []unsafe.Pointer, bool)
+ func (p *ProfBuf) Close() {
+ 	(*profBuf)(p).close()
+ }
++
++// ReadMemStatsSlow returns both the runtime-computed MemStats and
++// MemStats accumulated by scanning the heap.
++func ReadMemStatsSlow() (base, slow MemStats) {
++	stopTheWorld("ReadMemStatsSlow")
++
++	// Run on the system stack to avoid stack growth allocation.
++	systemstack(func() {
++		// Make sure stats don't change.
++		getg().m.mallocing++
++
++		readmemstats_m(&base)
++
++		// Initialize slow from base and zero the fields we're
++		// recomputing.
++		slow = base
++		slow.Alloc = 0
++		slow.TotalAlloc = 0
++		slow.Mallocs = 0
++		slow.Frees = 0
++		var bySize [_NumSizeClasses]struct {
++			Mallocs, Frees uint64
++		}
++
++		// Add up current allocations in spans.
++		for _, s := range mheap_.allspans {
++			if s.state != mSpanInUse {
++				continue
++			}
++			if s.sizeclass == 0 {
++				slow.Mallocs++
++				slow.Alloc += uint64(s.elemsize)
++			} else {
++				slow.Mallocs += uint64(s.allocCount)
++				slow.Alloc += uint64(s.allocCount) * uint64(s.elemsize)
++				bySize[s.sizeclass].Mallocs += uint64(s.allocCount)
++			}
++		}
++
++		// Add in frees. readmemstats_m flushed the cached stats, so
++		// these are up-to-date.
++		var smallFree uint64
++		slow.Frees = mheap_.nlargefree
++		for i := range mheap_.nsmallfree {
++			slow.Frees += mheap_.nsmallfree[i]
++			bySize[i].Frees = mheap_.nsmallfree[i]
++			bySize[i].Mallocs += mheap_.nsmallfree[i]
++			smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
++		}
++		slow.Frees += memstats.tinyallocs
++		slow.Mallocs += slow.Frees
++
++		slow.TotalAlloc = slow.Alloc + mheap_.largefree + smallFree
++
++		for i := range slow.BySize {
++			slow.BySize[i].Mallocs = bySize[i].Mallocs
++			slow.BySize[i].Frees = bySize[i].Frees
++		}
++
++		getg().m.mallocing--
++	})
++
++	startTheWorld()
++	return
++}
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 4a32f15167..03acc8aaa6 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"fmt"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -448,3 +449,53 @@ func TestPageAccounting(t *testing.T) {
+ 		t.Fatalf("mheap_.pagesInUse is %d, but direct count is %d", pagesInUse, counted)
+ 	}
+ }
++
++func TestReadMemStats(t *testing.T) {
++	base, slow := runtime.ReadMemStatsSlow()
++	if base != slow {
++		logDiff(t, "MemStats", reflect.ValueOf(base), reflect.ValueOf(slow))
++		t.Fatal("memstats mismatch")
++	}
++}
++
++func logDiff(t *testing.T, prefix string, got, want reflect.Value) {
++	typ := got.Type()
++	switch typ.Kind() {
++	case reflect.Array, reflect.Slice:
++		if got.Len() != want.Len() {
++			t.Logf("len(%s): got %v, want %v", prefix, got, want)
++			return
++		}
++		for i := 0; i < got.Len(); i++ {
++			logDiff(t, fmt.Sprintf("%s[%d]", prefix, i), got.Index(i), want.Index(i))
++		}
++	case reflect.Struct:
++		for i := 0; i < typ.NumField(); i++ {
++			gf, wf := got.Field(i), want.Field(i)
++			logDiff(t, prefix+"."+typ.Field(i).Name, gf, wf)
++		}
++	case reflect.Map:
++		t.Fatal("not implemented: logDiff for map")
++	default:
++		if got.Interface() != want.Interface() {
++			t.Logf("%s: got %v, want %v", prefix, got, want)
++		}
++	}
++}
++
++func BenchmarkReadMemStats(b *testing.B) {
++	var ms runtime.MemStats
++	const heapSize = 100 << 20
++	x := make([]*[1024]byte, heapSize/1024)
++	for i := range x {
++		x[i] = new([1024]byte)
++	}
++	hugeSink = x
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		runtime.ReadMemStats(&ms)
++	}
++
++	hugeSink = nil
++}
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index ddcf81ebb1..be3820a9a5 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -22,6 +22,11 @@ type mcentral struct {
+ 	sizeclass int32
+ 	nonempty  mSpanList // list of spans with a free object, ie a nonempty free list
+ 	empty     mSpanList // list of spans with no free objects (or cached in an mcache)
++
++	// nmalloc is the cumulative count of objects allocated from
++	// this mcentral, assuming all spans in mcaches are
++	// fully-allocated. Written atomically, read under STW.
++	nmalloc uint64
+ }
+ 
+ // Initialize a single central free list.
+@@ -106,6 +111,9 @@ havespan:
+ 	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
+ 		throw("span has no free objects")
+ 	}
++	// Assume all objects from this span will be allocated in the
++	// mcache. If it gets uncached, we'll adjust this.
++	atomic.Xadd64(&c.nmalloc, int64(n))
+ 	usedBytes := uintptr(s.allocCount) * s.elemsize
+ 	if usedBytes > 0 {
+ 		reimburseSweepCredit(usedBytes)
+@@ -150,6 +158,10 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ 		// mCentral_CacheSpan conservatively counted
+ 		// unallocated slots in heap_live. Undo this.
+ 		atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
++		// cacheSpan updated alloc assuming all objects on s
++		// were going to be allocated. Adjust for any that
++		// weren't.
++		atomic.Xadd64(&c.nmalloc, -int64(n))
+ 	}
+ 	unlock(&c.lock)
+ }
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 650a6d1a9c..03f944a1d5 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -82,9 +82,11 @@ type mheap struct {
+ 	// compiler can't 8-byte align fields.
+ 
+ 	// Malloc stats.
+-	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
+-	nlargefree uint64                  // number of frees for large objects (>maxsmallsize)
+-	nsmallfree [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
++	largealloc  uint64                  // bytes allocated for large objects
++	nlargealloc uint64                  // number of large object allocations
++	largefree   uint64                  // bytes freed for large objects (>maxsmallsize)
++	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
++	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
+ 
+ 	// range of addresses we might see in the heap
+ 	bitmap         uintptr // Points to one byte past the end of the bitmap
+@@ -236,7 +238,7 @@ type mspan struct {
+ 	sweepgen    uint32
+ 	divMul      uint16     // for divide by elemsize - divMagic.mul
+ 	baseMask    uint16     // if non-0, elemsize is a power of 2, & this will get object allocation base
+-	allocCount  uint16     // capacity - number of objects in freelist
++	allocCount  uint16     // number of allocated objects
+ 	sizeclass   uint8      // size class
+ 	incache     bool       // being used by an mcache
+ 	state       mSpanState // mspaninuse etc
+@@ -587,6 +589,8 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
+ 		h.pagesInUse += uint64(npage)
+ 		if large {
+ 			memstats.heap_objects++
++			mheap_.largealloc += uint64(s.elemsize)
++			mheap_.nlargealloc++
+ 			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
+ 			// Swept spans are at the end of lists.
+ 			if s.npages < uintptr(len(h.busy)) {
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index b34bbf9a67..36b5b5077d 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -534,37 +534,37 @@ func updatememstats() {
+ 	// Aggregate local stats.
+ 	cachestats()
+ 
+-	// Scan all spans and count number of alive objects.
+-	lock(&mheap_.lock)
+-	for _, s := range mheap_.allspans {
+-		if s.state != mSpanInUse {
++	// Collect allocation stats. This is safe and consistent
++	// because the world is stopped.
++	var smallFree, totalAlloc, totalFree uint64
++	for i := range mheap_.central {
++		if i == 0 {
++			memstats.nmalloc += mheap_.nlargealloc
++			totalAlloc += mheap_.largealloc
++			totalFree += mheap_.largefree
++			memstats.nfree += mheap_.nlargefree
+ 			continue
+ 		}
+-		if s.sizeclass == 0 {
+-			memstats.nmalloc++
+-			memstats.alloc += uint64(s.elemsize)
+-		} else {
+-			memstats.nmalloc += uint64(s.allocCount)
+-			memstats.by_size[s.sizeclass].nmalloc += uint64(s.allocCount)
+-			memstats.alloc += uint64(s.allocCount) * uint64(s.elemsize)
+-		}
+-	}
+-	unlock(&mheap_.lock)
+-
+-	// Aggregate by size class.
+-	smallfree := uint64(0)
+-	memstats.nfree = mheap_.nlargefree
+-	for i := 0; i < len(memstats.by_size); i++ {
++		// The mcaches are now empty, so mcentral stats are
++		// up-to-date.
++		c := &mheap_.central[i].mcentral
++		memstats.nmalloc += c.nmalloc
++		memstats.by_size[i].nmalloc += c.nmalloc
++		totalAlloc += c.nmalloc * uint64(class_to_size[i])
++
++		// The mcache stats have been flushed to mheap_.
+ 		memstats.nfree += mheap_.nsmallfree[i]
+ 		memstats.by_size[i].nfree = mheap_.nsmallfree[i]
+-		memstats.by_size[i].nmalloc += mheap_.nsmallfree[i]
+-		smallfree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
++		smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
+ 	}
++	totalFree += smallFree
++
+ 	memstats.nfree += memstats.tinyallocs
+-	memstats.nmalloc += memstats.nfree
++	memstats.nmalloc += memstats.tinyallocs
+ 
+ 	// Calculate derived stats.
+-	memstats.total_alloc = memstats.alloc + mheap_.largefree + smallfree
++	memstats.total_alloc = totalAlloc
++	memstats.alloc = totalAlloc - totalFree
+ 	memstats.heap_alloc = memstats.alloc
+ 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
+ }

@@ -20,6 +20,22 @@ Date:   Wed Aug 17 10:04:57 2022 -0500
     Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1c22568ebd..759377ffa5 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -839,9 +839,8 @@ func (t *tester) registerTests() {
+ 		if gohostos == "linux" && goarch == "amd64" {
+ 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
+ 		}
+-		if goos == "linux" && goarch != "ppc64le" {
++		if goos == "linux" {
+ 			// because syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only built on linux.
+-			// Some inconsistent failures happen on ppc64le so disable for now.
+ 			t.registerHostTest("testsanitizers", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+ 		}
+ 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {

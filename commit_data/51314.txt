@@ -17,7 +17,70 @@ Date:   Fri Jan 7 12:18:30 2022 -0800
     Trust: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_test_race.txt | 38 ++++++++++++++++++++++
  src/testing/fuzz.go                                |  6 ++--
  2 files changed, 42 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_test_race.txt b/src/cmd/go/testdata/script/test_fuzz_test_race.txt
+new file mode 100644
+index 0000000000..0bbc1fdd7d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_test_race.txt
+@@ -0,0 +1,38 @@
++# Test that when both race detection and coverage instrumentation are enabled,
++# and seed values are being executed, the race detector isn't mistakenly
++# triggered.
++
++[short] skip
++[!fuzz] skip
++
++# Test with coverage instrumentation enbaled (-fuzz) and race instrumentation
++# but without actually fuzzing the target (by using a non-matching pattern)
++go test -fuzz=xxx -race -v
++! stderr 'race detected during execution of test'
++
++# Test with just race instrumentation enabled
++go test -race -v
++! stderr 'race detected during execution of test'
++
++# Test with coverage and race instrumentation enabled, and a matching fuzz
++# pattern
++go test -fuzz=FuzzRace -race -v -fuzztime=200x
++! stderr 'race detected during execution of test'
++
++-- go.mod --
++module test
++
++-- race_test.go --
++package race
++
++import "testing"
++
++func FuzzRace(f *testing.F) {
++	for i := 0; i < 100; i++ {
++		f.Add(i)
++	}
++
++	f.Fuzz(func(t *testing.T, i int) {
++		t.Parallel()
++	})
++}
+\ No newline at end of file
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 037d531acf..e1d7544f7a 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -327,8 +327,10 @@ func (f *F) Fuzz(ff any) {
+ 			// we make sure it is called right before the tRunner function
+ 			// exits, regardless of whether it was executed cleanly, panicked,
+ 			// or if the fuzzFn called t.Fatal.
+-			defer f.fuzzContext.deps.SnapshotCoverage()
+-			f.fuzzContext.deps.ResetCoverage()
++			if f.testContext.isFuzzing {
++				defer f.fuzzContext.deps.SnapshotCoverage()
++				f.fuzzContext.deps.ResetCoverage()
++			}
+ 			fn.Call(args)
+ 		})
+ 		<-t.signal

@@ -30,9 +30,610 @@ Date:   Tue Apr 21 14:22:41 2015 -0700
     Change-Id: If2cf0682a5bf1cc592bdda7c126ed4eee8944fba
     Reviewed-on: https://go-review.googlesource.com/9202
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/runtime/asm_386.s   | 93 ++++++++++++++++++++++++-------------------------
  src/runtime/asm_amd64.s | 68 +++++++++++++++++-------------------
  src/runtime/asm_arm.s   | 30 ++++++++--------
  src/runtime/asm_arm64.s | 30 ++++++++--------
  4 files changed, 108 insertions(+), 113 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index f2222d03b0..13362012dd 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1296,9 +1296,8 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-13
+ 	MOVL	a+0(FP), SI
+ 	MOVL	b+4(FP), DI
+ 	MOVL	size+8(FP), BX
+-	CALL	runtime·memeqbody(SB)
+-	MOVB	AX, ret+12(FP)
+-	RET
++	LEAL	ret+12(FP), AX
++	JMP	runtime·memeqbody(SB)
+ 
+ // memequal_varlen(a, b unsafe.Pointer) bool
+ TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
+@@ -1307,9 +1306,8 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-9
+ 	CMPL    SI, DI
+ 	JEQ     eq
+ 	MOVL    4(DX), BX    // compiler stores size at offset 4 in the closure
+-	CALL    runtime·memeqbody(SB)
+-	MOVB    AX, ret+8(FP)
+-	RET
++	LEAL	ret+8(FP), AX
++	JMP	runtime·memeqbody(SB)
+ eq:
+ 	MOVB    $1, ret+8(FP)
+ 	RET
+@@ -1325,9 +1323,8 @@ TEXT runtime·eqstring(SB),NOSPLIT,$0-17
+ 	CMPL	SI, DI
+ 	JEQ	same
+ 	MOVL	s1len+4(FP), BX
+-	CALL	runtime·memeqbody(SB)
+-	MOVB	AX, v+16(FP)
+-	RET
++	LEAL	v+16(FP), AX
++	JMP	runtime·memeqbody(SB)
+ same:
+ 	MOVB	$1, v+16(FP)
+ 	RET
+@@ -1335,22 +1332,21 @@ same:
+ TEXT bytes·Equal(SB),NOSPLIT,$0-25
+ 	MOVL	a_len+4(FP), BX
+ 	MOVL	b_len+16(FP), CX
+-	XORL	AX, AX
+ 	CMPL	BX, CX
+ 	JNE	eqret
+ 	MOVL	a+0(FP), SI
+ 	MOVL	b+12(FP), DI
+-	CALL	runtime·memeqbody(SB)
++	LEAL	ret+24(FP), AX
++	JMP	runtime·memeqbody(SB)
+ eqret:
+-	MOVB	AX, ret+24(FP)
++	MOVB	$0, ret+24(FP)
+ 	RET
+ 
+ // a in SI
+ // b in DI
+ // count in BX
++// address of result byte in AX
+ TEXT runtime·memeqbody(SB),NOSPLIT,$0-0
+-	XORL	AX, AX
+-
+ 	CMPL	BX, $4
+ 	JB	small
+ 
+@@ -1381,6 +1377,7 @@ hugeloop:
+ 	SUBL	$64, BX
+ 	CMPL	DX, $0xffff
+ 	JEQ	hugeloop
++	MOVB	$0, (AX)
+ 	RET
+ 
+ 	// 4 bytes at a time using 32-bit register
+@@ -1394,6 +1391,7 @@ bigloop:
+ 	SUBL	$4, BX
+ 	CMPL	CX, DX
+ 	JEQ	bigloop
++	MOVB	$0, (AX)
+ 	RET
+ 
+ 	// remaining 0-4 bytes
+@@ -1401,7 +1399,7 @@ leftover:
+ 	MOVL	-4(SI)(BX*1), CX
+ 	MOVL	-4(DI)(BX*1), DX
+ 	CMPL	CX, DX
+-	SETEQ	AX
++	SETEQ	(AX)
+ 	RET
+ 
+ small:
+@@ -1438,7 +1436,7 @@ di_finish:
+ 	SUBL	SI, DI
+ 	SHLL	CX, DI
+ equal:
+-	SETEQ	AX
++	SETEQ	(AX)
+ 	RET
+ 
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+@@ -1446,18 +1444,16 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	s1_len+4(FP), BX
+ 	MOVL	s2_base+8(FP), DI
+ 	MOVL	s2_len+12(FP), DX
+-	CALL	runtime·cmpbody(SB)
+-	MOVL	AX, ret+16(FP)
+-	RET
++	LEAL	ret+16(FP), AX
++	JMP	runtime·cmpbody(SB)
+ 
+ TEXT bytes·Compare(SB),NOSPLIT,$0-28
+ 	MOVL	s1+0(FP), SI
+ 	MOVL	s1+4(FP), BX
+ 	MOVL	s2+12(FP), DI
+ 	MOVL	s2+16(FP), DX
+-	CALL	runtime·cmpbody(SB)
+-	MOVL	AX, ret+24(FP)
+-	RET
++	LEAL	ret+24(FP), AX
++	JMP	runtime·cmpbody(SB)
+ 
+ TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
+ 	MOVL	s+0(FP), SI
+@@ -1492,14 +1488,13 @@ TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+ //   DI = b
+ //   BX = alen
+ //   DX = blen
+-// output:
+-//   AX = 1/0/-1
++//   AX = address of return word (set to 1/0/-1)
+ TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
++	MOVL	DX, BP
++	SUBL	BX, DX // DX = blen-alen
++	CMOVLGT	BX, BP // BP = min(alen, blen)
+ 	CMPL	SI, DI
+ 	JEQ	allsame
+-	CMPL	BX, DX
+-	MOVL	DX, BP
+-	CMOVLLT	BX, BP // BP = min(alen, blen)
+ 	CMPL	BP, $4
+ 	JB	small
+ 	TESTL	$0x4000000, runtime·cpuid_edx(SB) // check for sse2
+@@ -1510,8 +1505,8 @@ largeloop:
+ 	MOVOU	(SI), X0
+ 	MOVOU	(DI), X1
+ 	PCMPEQB X0, X1
+-	PMOVMSKB X1, AX
+-	XORL	$0xffff, AX	// convert EQ to NE
++	PMOVMSKB X1, BX
++	XORL	$0xffff, BX	// convert EQ to NE
+ 	JNE	diff16	// branch if at least one byte is not equal
+ 	ADDL	$16, SI
+ 	ADDL	$16, DI
+@@ -1519,20 +1514,21 @@ largeloop:
+ 	JMP	largeloop
+ 
+ diff16:
+-	BSFL	AX, BX	// index of first byte that differs
+-	XORL	AX, AX
++	BSFL	BX, BX	// index of first byte that differs
++	XORL	DX, DX
+ 	MOVB	(SI)(BX*1), CX
+ 	CMPB	CX, (DI)(BX*1)
+-	SETHI	AX
+-	LEAL	-1(AX*2), AX	// convert 1/0 to +1/-1
++	SETHI	DX
++	LEAL	-1(DX*2), DX	// convert 1/0 to +1/-1
++	MOVL	DX, (AX)
+ 	RET
+ 
+ mediumloop:
+ 	CMPL	BP, $4
+ 	JBE	_0through4
+-	MOVL	(SI), AX
++	MOVL	(SI), BX
+ 	MOVL	(DI), CX
+-	CMPL	AX, CX
++	CMPL	BX, CX
+ 	JNE	diff4
+ 	ADDL	$4, SI
+ 	ADDL	$4, DI
+@@ -1540,19 +1536,20 @@ mediumloop:
+ 	JMP	mediumloop
+ 
+ _0through4:
+-	MOVL	-4(SI)(BP*1), AX
++	MOVL	-4(SI)(BP*1), BX
+ 	MOVL	-4(DI)(BP*1), CX
+-	CMPL	AX, CX
++	CMPL	BX, CX
+ 	JEQ	allsame
+ 
+ diff4:
+-	BSWAPL	AX	// reverse order of bytes
++	BSWAPL	BX	// reverse order of bytes
+ 	BSWAPL	CX
+-	XORL	AX, CX	// find bit differences
++	XORL	BX, CX	// find bit differences
+ 	BSRL	CX, CX	// index of highest bit difference
+-	SHRL	CX, AX	// move a's bit to bottom
+-	ANDL	$1, AX	// mask bit
+-	LEAL	-1(AX*2), AX // 1/0 => +1/-1
++	SHRL	CX, BX	// move a's bit to bottom
++	ANDL	$1, BX	// mask bit
++	LEAL	-1(BX*2), BX // 1/0 => +1/-1
++	MOVL	BX, (AX)
+ 	RET
+ 
+ 	// 0-3 bytes in common
+@@ -1590,18 +1587,20 @@ di_finish:
+ 	BSRL	DI, CX	// index of highest bit difference
+ 	SHRL	CX, SI	// move a's bit to bottom
+ 	ANDL	$1, SI	// mask bit
+-	LEAL	-1(SI*2), AX // 1/0 => +1/-1
++	LEAL	-1(SI*2), BX // 1/0 => +1/-1
++	MOVL	BX, (AX)
+ 	RET
+ 
+ 	// all the bytes in common are the same, so we just need
+ 	// to compare the lengths.
+ allsame:
+-	XORL	AX, AX
++	XORL	BX, BX
+ 	XORL	CX, CX
+-	CMPL	BX, DX
+-	SETGT	AX	// 1 if alen > blen
++	TESTL	DX, DX
++	SETLT	BX	// 1 if alen > blen
+ 	SETEQ	CX	// 1 if alen == blen
+-	LEAL	-1(CX)(AX*2), AX	// 1,0,-1 result
++	LEAL	-1(CX)(BX*2), BX	// 1,0,-1 result
++	MOVL	BX, (AX)
+ 	RET
+ 
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 02e25f7402..36353d108f 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1262,9 +1262,8 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-25
+ 	MOVQ	a+0(FP), SI
+ 	MOVQ	b+8(FP), DI
+ 	MOVQ	size+16(FP), BX
+-	CALL	runtime·memeqbody(SB)
+-	MOVB	AX, ret+24(FP)
+-	RET
++	LEAQ	ret+24(FP), AX
++	JMP	runtime·memeqbody(SB)
+ 
+ // memequal_varlen(a, b unsafe.Pointer) bool
+ TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
+@@ -1273,9 +1272,8 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$0-17
+ 	CMPQ	SI, DI
+ 	JEQ	eq
+ 	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
+-	CALL	runtime·memeqbody(SB)
+-	MOVB	AX, ret+16(FP)
+-	RET
++	LEAQ	ret+16(FP), AX
++	JMP	runtime·memeqbody(SB)
+ eq:
+ 	MOVB	$1, ret+16(FP)
+ 	RET
+@@ -1291,9 +1289,8 @@ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
+ 	CMPQ	SI, DI
+ 	JEQ	eq
+ 	MOVQ	s1len+8(FP), BX
+-	CALL	runtime·memeqbody(SB)
+-	MOVB	AX, v+32(FP)
+-	RET
++	LEAQ	v+32(FP), AX
++	JMP	runtime·memeqbody(SB)
+ eq:
+ 	MOVB	$1, v+32(FP)
+ 	RET
+@@ -1301,9 +1298,8 @@ eq:
+ // a in SI
+ // b in DI
+ // count in BX
++// address of result byte in AX
+ TEXT runtime·memeqbody(SB),NOSPLIT,$0-0
+-	XORQ	AX, AX
+-
+ 	CMPQ	BX, $8
+ 	JB	small
+ 	
+@@ -1332,6 +1328,7 @@ hugeloop:
+ 	SUBQ	$64, BX
+ 	CMPL	DX, $0xffff
+ 	JEQ	hugeloop
++	MOVB	$0, (AX)
+ 	RET
+ 
+ 	// 8 bytes at a time using 64-bit register
+@@ -1345,6 +1342,7 @@ bigloop:
+ 	SUBQ	$8, BX
+ 	CMPQ	CX, DX
+ 	JEQ	bigloop
++	MOVB	$0, (AX)
+ 	RET
+ 
+ 	// remaining 0-8 bytes
+@@ -1352,7 +1350,7 @@ leftover:
+ 	MOVQ	-8(SI)(BX*1), CX
+ 	MOVQ	-8(DI)(BX*1), DX
+ 	CMPQ	CX, DX
+-	SETEQ	AX
++	SETEQ	(AX)
+ 	RET
+ 
+ small:
+@@ -1387,7 +1385,7 @@ di_finish:
+ 	SUBQ	SI, DI
+ 	SHLQ	CX, DI
+ equal:
+-	SETEQ	AX
++	SETEQ	(AX)
+ 	RET
+ 
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+@@ -1395,26 +1393,23 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+ 	MOVQ	s1_len+8(FP), BX
+ 	MOVQ	s2_base+16(FP), DI
+ 	MOVQ	s2_len+24(FP), DX
+-	CALL	runtime·cmpbody(SB)
+-	MOVQ	AX, ret+32(FP)
+-	RET
++	LEAQ	ret+32(FP), R9
++	JMP	runtime·cmpbody(SB)
+ 
+ TEXT bytes·Compare(SB),NOSPLIT,$0-56
+ 	MOVQ	s1+0(FP), SI
+ 	MOVQ	s1+8(FP), BX
+ 	MOVQ	s2+24(FP), DI
+ 	MOVQ	s2+32(FP), DX
+-	CALL	runtime·cmpbody(SB)
+-	MOVQ	AX, res+48(FP)
+-	RET
++	LEAQ	res+48(FP), R9
++	JMP	runtime·cmpbody(SB)
+ 
+ // input:
+ //   SI = a
+ //   DI = b
+ //   BX = alen
+ //   DX = blen
+-// output:
+-//   AX = 1/0/-1
++//   R9 = address of output word (stores -1/0/1 here)
+ TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
+ 	CMPQ	SI, DI
+ 	JEQ	allsame
+@@ -1446,6 +1441,7 @@ diff16:
+ 	CMPB	CX, (DI)(BX*1)
+ 	SETHI	AX
+ 	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
++	MOVQ	AX, (R9)
+ 	RET
+ 
+ 	// 0 through 16 bytes left, alen>=8, blen>=8
+@@ -1471,6 +1467,7 @@ diff8:
+ 	SHRQ	CX, AX	// move a's bit to bottom
+ 	ANDQ	$1, AX	// mask bit
+ 	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
++	MOVQ	AX, (R9)
+ 	RET
+ 
+ 	// 0-7 bytes in common
+@@ -1509,6 +1506,7 @@ di_finish:
+ 	SHRQ	CX, SI	// move a's bit to bottom
+ 	ANDQ	$1, SI	// mask bit
+ 	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
++	MOVQ	AX, (R9)
+ 	RET
+ 
+ allsame:
+@@ -1518,30 +1516,28 @@ allsame:
+ 	SETGT	AX	// 1 if alen > blen
+ 	SETEQ	CX	// 1 if alen == blen
+ 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
++	MOVQ	AX, (R9)
+ 	RET
+ 
+ TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), SI
+ 	MOVQ s_len+8(FP), BX
+ 	MOVB c+24(FP), AL
+-	CALL runtime·indexbytebody(SB)
+-	MOVQ AX, ret+32(FP)
+-	RET
++	LEAQ ret+32(FP), R8
++	JMP  runtime·indexbytebody(SB)
+ 
+ TEXT strings·IndexByte(SB),NOSPLIT,$0-32
+ 	MOVQ s+0(FP), SI
+ 	MOVQ s_len+8(FP), BX
+ 	MOVB c+16(FP), AL
+-	CALL runtime·indexbytebody(SB)
+-	MOVQ AX, ret+24(FP)
+-	RET
++	LEAQ ret+24(FP), R8
++	JMP  runtime·indexbytebody(SB)
+ 
+ // input:
+ //   SI: data
+ //   BX: data len
+ //   AL: byte sought
+-// output:
+-//   AX
++//   R8: address to put result
+ TEXT runtime·indexbytebody(SB),NOSPLIT,$0
+ 	MOVQ SI, DI
+ 
+@@ -1600,7 +1596,7 @@ condition:
+ 	JZ success
+ 
+ failure:
+-	MOVQ $-1, AX
++	MOVQ $-1, (R8)
+ 	RET
+ 
+ // handle for lengths < 16
+@@ -1608,7 +1604,7 @@ small:
+ 	MOVQ BX, CX
+ 	REPN; SCASB
+ 	JZ success
+-	MOVQ $-1, AX
++	MOVQ $-1, (R8)
+ 	RET
+ 
+ // we've found the chunk containing the byte
+@@ -1618,26 +1614,26 @@ ssesuccess:
+ 	BSFW DX, DX
+ 	SUBQ SI, DI
+ 	ADDQ DI, DX
+-	MOVQ DX, AX
++	MOVQ DX, (R8)
+ 	RET
+ 
+ success:
+ 	SUBQ SI, DI
+ 	SUBL $1, DI
+-	MOVQ DI, AX
++	MOVQ DI, (R8)
+ 	RET
+ 
+ TEXT bytes·Equal(SB),NOSPLIT,$0-49
+ 	MOVQ	a_len+8(FP), BX
+ 	MOVQ	b_len+32(FP), CX
+-	XORQ	AX, AX
+ 	CMPQ	BX, CX
+ 	JNE	eqret
+ 	MOVQ	a+0(FP), SI
+ 	MOVQ	b+24(FP), DI
+-	CALL	runtime·memeqbody(SB)
++	LEAQ	ret+48(FP), AX
++	JMP	runtime·memeqbody(SB)
+ eqret:
+-	MOVB	AX, ret+48(FP)
++	MOVB	$0, ret+48(FP)
+ 	RET
+ 
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index b7042ea26b..e69b1ef7c2 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -782,33 +782,31 @@ eq:
+ 	MOVB	R0, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
++TEXT runtime·cmpstring(SB),NOSPLIT,$-4-20
+ 	MOVW	s1_base+0(FP), R2
+ 	MOVW	s1_len+4(FP), R0
+ 	MOVW	s2_base+8(FP), R3
+ 	MOVW	s2_len+12(FP), R1
+-	BL	runtime·cmpbody(SB)
+-	MOVW	R8, ret+16(FP)
+-	RET
++	ADD	$20, R13, R7
++	B	runtime·cmpbody(SB)
+ 
+-TEXT bytes·Compare(SB),NOSPLIT,$0-28
++TEXT bytes·Compare(SB),NOSPLIT,$-4-28
+ 	MOVW	s1+0(FP), R2
+ 	MOVW	s1+4(FP), R0
+ 	MOVW	s2+12(FP), R3
+ 	MOVW	s2+16(FP), R1
+-	BL	runtime·cmpbody(SB)
+-	MOVW	R8, ret+24(FP)
+-	RET
++	ADD	$28, R13, R7
++	B	runtime·cmpbody(SB)
+ 
+ // On entry:
+ // R0 is the length of s1
+ // R1 is the length of s2
+ // R2 points to the start of s1
+ // R3 points to the start of s2
++// R7 points to return value (-1/0/1 will be written here)
+ //
+ // On exit:
+-// R8 is -1/0/+1
+-// R5, R4, and R6 are clobbered
++// R4, R5, and R6 are clobbered
+ TEXT runtime·cmpbody(SB),NOSPLIT,$-4-0
+ 	CMP 	R0, R1
+ 	MOVW 	R0, R6
+@@ -823,14 +821,16 @@ loop:
+ 	CMP	R4, R5
+ 	BEQ	loop
+ 	// bytes differed
+-	MOVW.LT	$1, R8
+-	MOVW.GT	$-1, R8
++	MOVW.LT	$1, R0
++	MOVW.GT	$-1, R0
++	MOVW	R0, (R7)
+ 	RET
+ samebytes:
+ 	CMP	R0, R1
+-	MOVW.LT	$1, R8
+-	MOVW.GT	$-1, R8
+-	MOVW.EQ	$0, R8
++	MOVW.LT	$1, R0
++	MOVW.GT	$-1, R0
++	MOVW.EQ	$0, R0
++	MOVW	R0, (R7)
+ 	RET
+ 
+ // eqstring tests whether two strings are equal.
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index c43621a997..03488a6751 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -818,33 +818,31 @@ eq:
+ 	MOVB	R3, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
++TEXT runtime·cmpstring(SB),NOSPLIT,$-4-40
+ 	MOVD	s1_base+0(FP), R2
+ 	MOVD	s1_len+8(FP), R0
+ 	MOVD	s2_base+16(FP), R3
+ 	MOVD	s2_len+24(FP), R1
+-	BL	runtime·cmpbody<>(SB)
+-	MOVD	R8, ret+32(FP)
+-	RET
++	ADD	$40, RSP, R7
++	B	runtime·cmpbody<>(SB)
+ 
+-TEXT bytes·Compare(SB),NOSPLIT,$0-56
++TEXT bytes·Compare(SB),NOSPLIT,$-4-56
+ 	MOVD	s1+0(FP), R2
+ 	MOVD	s1+8(FP), R0
+ 	MOVD	s2+24(FP), R3
+ 	MOVD	s2+32(FP), R1
+-	BL	runtime·cmpbody<>(SB)
+-	MOVD	R8, ret+48(FP)
+-	RET
++	ADD	$56, RSP, R7
++	B	runtime·cmpbody<>(SB)
+ 
+ // On entry:
+ // R0 is the length of s1
+ // R1 is the length of s2
+ // R2 points to the start of s1
+ // R3 points to the start of s2
++// R7 points to return value (-1/0/1 will be written here)
+ //
+ // On exit:
+-// R8 is -1/0/+1
+-// R5, R4, and R6 are clobbered
++// R4, R5, and R6 are clobbered
+ TEXT runtime·cmpbody<>(SB),NOSPLIT,$-4-0
+ 	CMP	R0, R1
+ 	CSEL    LT, R1, R0, R6 // R6 is min(R0, R1)
+@@ -858,14 +856,16 @@ loop:
+ 	CMP	R4, R5
+ 	BEQ	loop
+ 	// bytes differed
+-	MOVD	$1, R8
+-	CSNEG	LT, R8, R8, R8
++	MOVD	$1, R4
++	CSNEG	LT, R4, R4, R4
++	MOVD	R4, (R7)
+ 	RET
+ samebytes:
+-	MOVD	$1, R8
++	MOVD	$1, R4
+ 	CMP	R0, R1
+-	CSNEG	LT, R8, R8, R8
+-	CSEL	EQ, ZR, R8, R8
++	CSNEG	LT, R4, R4, R4
++	CSEL	EQ, ZR, R4, R4
++	MOVD	R4, (R7)
+ 	RET
+ 
+ // eqstring tests whether two strings are equal.

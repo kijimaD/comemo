@@ -45,7 +45,7 @@ Date:   Thu Apr 7 21:40:37 2011 -0700
     R=eds, rog, rsc
     CC=golang-dev
     https://golang.org/cl/4314054
-
+---
  src/pkg/Makefile                      |   1 +
  src/pkg/go/typechecker/typechecker.go |   2 +-
  src/pkg/go/types/Makefile             |  15 +
@@ -57,3 +57,1790 @@ Date:   Thu Apr 7 21:40:37 2011 -0700
  src/pkg/go/types/types.go             | 122 ++++++
  src/pkg/go/types/universe.go          | 113 +++++
  10 files changed, 1715 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 1e066dcf95..0d426e7a54 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -90,6 +90,7 @@ DIRS=\
+ 	go/scanner\
+ 	go/token\
+ 	go/typechecker\
++	go/types\
+ 	gob\
+ 	hash\
+ 	hash/adler32\
+diff --git a/src/pkg/go/typechecker/typechecker.go b/src/pkg/go/typechecker/typechecker.go
+index b5e695d973..b151f5834d 100644
+--- a/src/pkg/go/typechecker/typechecker.go
++++ b/src/pkg/go/typechecker/typechecker.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// INCOMPLETE PACKAGE.
++// DEPRECATED PACKAGE - SEE go/types INSTEAD.
+ // This package implements typechecking of a Go AST.
+ // The result of the typecheck is an augmented AST
+ // with object and type information for each identifier.
+diff --git a/src/pkg/go/types/Makefile b/src/pkg/go/types/Makefile
+new file mode 100644
+index 0000000000..54e762b362
+--- /dev/null
++++ b/src/pkg/go/types/Makefile
+@@ -0,0 +1,15 @@
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=go/types
++GOFILES=\
++	const.go\
++	exportdata.go\
++	gcimporter.go\
++	types.go\
++	universe.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/go/types/const.go b/src/pkg/go/types/const.go
+new file mode 100644
+index 0000000000..6fdc22f6b3
+--- /dev/null
++++ b/src/pkg/go/types/const.go
+@@ -0,0 +1,347 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements operations on ideal constants.
++
++package types
++
++import (
++	"big"
++	"go/token"
++	"strconv"
++)
++
++
++// TODO(gri) Consider changing the API so Const is an interface
++//           and operations on consts don't have to type switch.
++
++// A Const implements an ideal constant Value.
++// The zero value z for a Const is not a valid constant value.
++type Const struct {
++	// representation of constant values:
++	// ideal bool     ->  bool
++	// ideal int      ->  *big.Int
++	// ideal float    ->  *big.Rat
++	// ideal complex  ->  cmplx
++	// ideal string   ->  string
++	val interface{}
++}
++
++
++// Representation of complex values.
++type cmplx struct {
++	re, im *big.Rat
++}
++
++
++func assert(cond bool) {
++	if !cond {
++		panic("go/types internal error: assertion failed")
++	}
++}
++
++
++// MakeConst makes an ideal constant from a literal
++// token and the corresponding literal string.
++func MakeConst(tok token.Token, lit string) Const {
++	switch tok {
++	case token.INT:
++		var x big.Int
++		_, ok := x.SetString(lit, 0)
++		assert(ok)
++		return Const{&x}
++	case token.FLOAT:
++		var y big.Rat
++		_, ok := y.SetString(lit)
++		assert(ok)
++		return Const{&y}
++	case token.IMAG:
++		assert(lit[len(lit)-1] == 'i')
++		var im big.Rat
++		_, ok := im.SetString(lit[0 : len(lit)-1])
++		assert(ok)
++		return Const{cmplx{big.NewRat(0, 1), &im}}
++	case token.CHAR:
++		assert(lit[0] == '\'' && lit[len(lit)-1] == '\'')
++		code, _, _, err := strconv.UnquoteChar(lit[1:len(lit)-1], '\'')
++		assert(err == nil)
++		return Const{big.NewInt(int64(code))}
++	case token.STRING:
++		s, err := strconv.Unquote(lit)
++		assert(err == nil)
++		return Const{s}
++	}
++	panic("unreachable")
++}
++
++
++// MakeZero returns the zero constant for the given type.
++func MakeZero(typ *Type) Const {
++	// TODO(gri) fix this
++	return Const{0}
++}
++
++
++// Match attempts to match the internal constant representations of x and y.
++// If the attempt is successful, the result is the values of x and y,
++// if necessary converted to have the same internal representation; otherwise
++// the results are invalid.
++func (x Const) Match(y Const) (u, v Const) {
++	switch a := x.val.(type) {
++	case bool:
++		if _, ok := y.val.(bool); ok {
++			u, v = x, y
++		}
++	case *big.Int:
++		switch y.val.(type) {
++		case *big.Int:
++			u, v = x, y
++		case *big.Rat:
++			var z big.Rat
++			z.SetInt(a)
++			u, v = Const{&z}, y
++		case cmplx:
++			var z big.Rat
++			z.SetInt(a)
++			u, v = Const{cmplx{&z, big.NewRat(0, 1)}}, y
++		}
++	case *big.Rat:
++		switch y.val.(type) {
++		case *big.Int:
++			v, u = y.Match(x)
++		case *big.Rat:
++			u, v = x, y
++		case cmplx:
++			u, v = Const{cmplx{a, big.NewRat(0, 0)}}, y
++		}
++	case cmplx:
++		switch y.val.(type) {
++		case *big.Int, *big.Rat:
++			v, u = y.Match(x)
++		case cmplx:
++			u, v = x, y
++		}
++	case string:
++		if _, ok := y.val.(string); ok {
++			u, v = x, y
++		}
++	default:
++		panic("unreachable")
++	}
++	return
++}
++
++
++// Convert attempts to convert the constant x to a given type.
++// If the attempt is successful, the result is the new constant;
++// otherwise the result is invalid.
++func (x Const) Convert(typ *Type) Const {
++	// TODO(gri) implement this
++	switch x := x.val.(type) {
++	case bool:
++	case *big.Int:
++	case *big.Rat:
++	case cmplx:
++	case string:
++	}
++	return x
++}
++
++
++func (x Const) String() string {
++	switch x := x.val.(type) {
++	case bool:
++		if x {
++			return "true"
++		}
++		return "false"
++	case *big.Int:
++		return x.String()
++	case *big.Rat:
++		return x.FloatString(10) // 10 digits of precision after decimal point seems fine
++	case cmplx:
++		// TODO(gri) don't print 0 components
++		return x.re.FloatString(10) + " + " + x.im.FloatString(10) + "i"
++	case string:
++		return x
++	}
++	panic("unreachable")
++}
++
++
++func (x Const) UnaryOp(op token.Token) Const {
++	panic("unimplemented")
++}
++
++
++func (x Const) BinaryOp(op token.Token, y Const) Const {
++	var z interface{}
++	switch x := x.val.(type) {
++	case bool:
++		z = binaryBoolOp(x, op, y.val.(bool))
++	case *big.Int:
++		z = binaryIntOp(x, op, y.val.(*big.Int))
++	case *big.Rat:
++		z = binaryFloatOp(x, op, y.val.(*big.Rat))
++	case cmplx:
++		z = binaryCmplxOp(x, op, y.val.(cmplx))
++	case string:
++		z = binaryStringOp(x, op, y.val.(string))
++	default:
++		panic("unreachable")
++	}
++	return Const{z}
++}
++
++
++func binaryBoolOp(x bool, op token.Token, y bool) interface{} {
++	switch op {
++	case token.EQL:
++		return x == y
++	case token.NEQ:
++		return x != y
++	}
++	panic("unreachable")
++}
++
++
++func binaryIntOp(x *big.Int, op token.Token, y *big.Int) interface{} {
++	var z big.Int
++	switch op {
++	case token.ADD:
++		return z.Add(x, y)
++	case token.SUB:
++		return z.Sub(x, y)
++	case token.MUL:
++		return z.Mul(x, y)
++	case token.QUO:
++		return z.Quo(x, y)
++	case token.REM:
++		return z.Rem(x, y)
++	case token.AND:
++		return z.And(x, y)
++	case token.OR:
++		return z.Or(x, y)
++	case token.XOR:
++		return z.Xor(x, y)
++	case token.AND_NOT:
++		return z.AndNot(x, y)
++	case token.SHL:
++		panic("unimplemented")
++	case token.SHR:
++		panic("unimplemented")
++	case token.EQL:
++		return x.Cmp(y) == 0
++	case token.NEQ:
++		return x.Cmp(y) != 0
++	case token.LSS:
++		return x.Cmp(y) < 0
++	case token.LEQ:
++		return x.Cmp(y) <= 0
++	case token.GTR:
++		return x.Cmp(y) > 0
++	case token.GEQ:
++		return x.Cmp(y) >= 0
++	}
++	panic("unreachable")
++}
++
++
++func binaryFloatOp(x *big.Rat, op token.Token, y *big.Rat) interface{} {
++	var z big.Rat
++	switch op {
++	case token.ADD:
++		return z.Add(x, y)
++	case token.SUB:
++		return z.Sub(x, y)
++	case token.MUL:
++		return z.Mul(x, y)
++	case token.QUO:
++		return z.Quo(x, y)
++	case token.EQL:
++		return x.Cmp(y) == 0
++	case token.NEQ:
++		return x.Cmp(y) != 0
++	case token.LSS:
++		return x.Cmp(y) < 0
++	case token.LEQ:
++		return x.Cmp(y) <= 0
++	case token.GTR:
++		return x.Cmp(y) > 0
++	case token.GEQ:
++		return x.Cmp(y) >= 0
++	}
++	panic("unreachable")
++}
++
++
++func binaryCmplxOp(x cmplx, op token.Token, y cmplx) interface{} {
++	a, b := x.re, x.im
++	c, d := y.re, y.im
++	switch op {
++	case token.ADD:
++		// (a+c) + i(b+d)
++		var re, im big.Rat
++		re.Add(a, c)
++		im.Add(b, d)
++		return cmplx{&re, &im}
++	case token.SUB:
++		// (a-c) + i(b-d)
++		var re, im big.Rat
++		re.Sub(a, c)
++		im.Sub(b, d)
++		return cmplx{&re, &im}
++	case token.MUL:
++		// (ac-bd) + i(bc+ad)
++		var ac, bd, bc, ad big.Rat
++		ac.Mul(a, c)
++		bd.Mul(b, d)
++		bc.Mul(b, c)
++		ad.Mul(a, d)
++		var re, im big.Rat
++		re.Sub(&ac, &bd)
++		im.Add(&bc, &ad)
++		return cmplx{&re, &im}
++	case token.QUO:
++		// (ac+bd)/s + i(bc-ad)/s, with s = cc + dd
++		var ac, bd, bc, ad, s big.Rat
++		ac.Mul(a, c)
++		bd.Mul(b, d)
++		bc.Mul(b, c)
++		ad.Mul(a, d)
++		s.Add(c.Mul(c, c), d.Mul(d, d))
++		var re, im big.Rat
++		re.Add(&ac, &bd)
++		re.Quo(&re, &s)
++		im.Sub(&bc, &ad)
++		im.Quo(&im, &s)
++		return cmplx{&re, &im}
++	case token.EQL:
++		return a.Cmp(c) == 0 && b.Cmp(d) == 0
++	case token.NEQ:
++		return a.Cmp(c) != 0 || b.Cmp(d) != 0
++	}
++	panic("unreachable")
++}
++
++
++func binaryStringOp(x string, op token.Token, y string) interface{} {
++	switch op {
++	case token.ADD:
++		return x + y
++	case token.EQL:
++		return x == y
++	case token.NEQ:
++		return x != y
++	case token.LSS:
++		return x < y
++	case token.LEQ:
++		return x <= y
++	case token.GTR:
++		return x > y
++	case token.GEQ:
++		return x >= y
++	}
++	panic("unreachable")
++}
+diff --git a/src/pkg/go/types/exportdata.go b/src/pkg/go/types/exportdata.go
+new file mode 100644
+index 0000000000..cb08ffe18a
+--- /dev/null
++++ b/src/pkg/go/types/exportdata.go
+@@ -0,0 +1,135 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements ExportData.
++
++package types
++
++import (
++	"bufio"
++	"fmt"
++	"io"
++	"os"
++	"strconv"
++	"strings"
++)
++
++
++func readGopackHeader(buf *bufio.Reader) (name string, size int, err os.Error) {
++	// See $GOROOT/include/ar.h.
++	hdr := make([]byte, 64+12+6+6+8+10+2)
++	_, err = io.ReadFull(buf, hdr)
++	if err != nil {
++		return
++	}
++	if trace {
++		fmt.Printf("header: %s", hdr)
++	}
++	s := strings.TrimSpace(string(hdr[64+12+6+6+8:][:10]))
++	size, err = strconv.Atoi(s)
++	if err != nil || hdr[len(hdr)-2] != '`' || hdr[len(hdr)-1] != '\n' {
++		err = os.ErrorString("invalid archive header")
++		return
++	}
++	name = strings.TrimSpace(string(hdr[:64]))
++	return
++}
++
++
++type dataReader struct {
++	*bufio.Reader
++	io.Closer
++}
++
++
++// ExportData returns a readCloser positioned at the beginning of the
++// export data section of the given object/archive file, or an error.
++// It is the caller's responsibility to close the readCloser.
++//
++func ExportData(filename string) (rc io.ReadCloser, err os.Error) {
++	file, err := os.Open(filename)
++	if err != nil {
++		return
++	}
++
++	defer func() {
++		if err != nil {
++			file.Close()
++			// Add file name to error.
++			err = fmt.Errorf("reading export data: %s: %v", filename, err)
++		}
++	}()
++
++	buf := bufio.NewReader(file)
++
++	// Read first line to make sure this is an object file.
++	line, err := buf.ReadSlice('\n')
++	if err != nil {
++		return
++	}
++	if string(line) == "!<arch>\n" {
++		// Archive file.  Scan to __.PKGDEF, which should
++		// be second archive entry.
++		var name string
++		var size int
++
++		// First entry should be __.SYMDEF.
++		// Read and discard.
++		if name, size, err = readGopackHeader(buf); err != nil {
++			return
++		}
++		if name != "__.SYMDEF" {
++			err = os.ErrorString("go archive does not begin with __.SYMDEF")
++			return
++		}
++		const block = 4096
++		tmp := make([]byte, block)
++		for size > 0 {
++			n := size
++			if n > block {
++				n = block
++			}
++			_, err = io.ReadFull(buf, tmp[:n])
++			if err != nil {
++				return
++			}
++			size -= n
++		}
++
++		// Second entry should be __.PKGDEF.
++		if name, size, err = readGopackHeader(buf); err != nil {
++			return
++		}
++		if name != "__.PKGDEF" {
++			err = os.ErrorString("go archive is missing __.PKGDEF")
++			return
++		}
++
++		// Read first line of __.PKGDEF data, so that line
++		// is once again the first line of the input.
++		line, err = buf.ReadSlice('\n')
++		if err != nil {
++			return
++		}
++	}
++
++	// Now at __.PKGDEF in archive or still at beginning of file.
++	// Either way, line should begin with "go object ".
++	if !strings.HasPrefix(string(line), "go object ") {
++		err = os.ErrorString("not a go object file")
++		return
++	}
++
++	// Skip over object header to export data.
++	// Begins after first line with $$.
++	for line[0] != '$' {
++		line, err = buf.ReadSlice('\n')
++		if err != nil {
++			return
++		}
++	}
++
++	rc = &dataReader{buf, file}
++	return
++}
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+new file mode 100644
+index 0000000000..9e0ae6285b
+--- /dev/null
++++ b/src/pkg/go/types/gcimporter.go
+@@ -0,0 +1,786 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements an ast.Importer for gc generated object files.
++// TODO(gri) Eventually move this into a separate package outside types.
++
++package types
++
++import (
++	"big"
++	"fmt"
++	"go/ast"
++	"go/token"
++	"io"
++	"os"
++	"path/filepath"
++	"runtime"
++	"scanner"
++	"strconv"
++)
++
++
++const trace = false // set to true for debugging
++
++var (
++	pkgRoot = filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH)
++	pkgExts = [...]string{".a", ".5", ".6", ".8"}
++)
++
++
++// findPkg returns the filename and package id for an import path.
++// If no file was found, an empty filename is returned.
++func findPkg(path string) (filename, id string) {
++	if len(path) == 0 {
++		return
++	}
++
++	id = path
++	var noext string
++	switch path[0] {
++	default:
++		// "x" -> "$GOROOT/pkg/$GOOS_$GOARCH/x.ext", "x"
++		noext = filepath.Join(pkgRoot, path)
++
++	case '.':
++		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
++		cwd, err := os.Getwd()
++		if err != nil {
++			return
++		}
++		noext = filepath.Join(cwd, path)
++		id = noext
++
++	case '/':
++		// "/x" -> "/x.ext", "/x"
++		noext = path
++	}
++
++	// try extensions
++	for _, ext := range pkgExts {
++		filename = noext + ext
++		if f, err := os.Stat(filename); err == nil && f.IsRegular() {
++			return
++		}
++	}
++
++	filename = "" // not found
++	return
++}
++
++
++// gcParser parses the exports inside a gc compiler-produced
++// object/archive file and populates its scope with the results.
++type gcParser struct {
++	scanner scanner.Scanner
++	tok     int                   // current token
++	lit     string                // literal string; only valid for Ident, Int, String tokens
++	id      string                // package id of imported package
++	scope   *ast.Scope            // scope of imported package; alias for deps[id]
++	deps    map[string]*ast.Scope // package id -> package scope
++}
++
++
++func (p *gcParser) init(filename, id string, src io.Reader) {
++	p.scanner.Init(src)
++	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
++	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
++	p.scanner.Whitespace = 1<<'\t' | 1<<' '
++	p.scanner.Filename = filename // for good error messages
++	p.next()
++	p.id = id
++	p.scope = ast.NewScope(nil)
++	p.deps = map[string]*ast.Scope{"unsafe": Unsafe, id: p.scope}
++}
++
++
++func (p *gcParser) next() {
++	p.tok = p.scanner.Scan()
++	switch p.tok {
++	case scanner.Ident, scanner.Int, scanner.String:
++		p.lit = p.scanner.TokenText()
++	default:
++		p.lit = ""
++	}
++	if trace {
++		fmt.Printf("%s: %q -> %q\n", scanner.TokenString(p.tok), p.scanner.TokenText(), p.lit)
++	}
++}
++
++
++// GcImporter implements the ast.Importer signature.
++func GcImporter(path string) (name string, scope *ast.Scope, err os.Error) {
++	if path == "unsafe" {
++		return path, Unsafe, nil
++	}
++
++	defer func() {
++		if r := recover(); r != nil {
++			err = r.(importError) // will re-panic if r is not an importError
++			if trace {
++				panic(err) // force a stack trace
++			}
++		}
++	}()
++
++	filename, id := findPkg(path)
++	if filename == "" {
++		err = os.ErrorString("can't find import: " + id)
++		return
++	}
++
++	buf, err := ExportData(filename)
++	if err != nil {
++		return
++	}
++	defer buf.Close()
++
++	if trace {
++		fmt.Printf("importing %s\n", filename)
++	}
++
++	var p gcParser
++	p.init(filename, id, buf)
++	name, scope = p.parseExport()
++
++	return
++}
++
++
++// ----------------------------------------------------------------------------
++// Error handling
++
++// Internal errors are boxed as importErrors.
++type importError struct {
++	pos scanner.Position
++	err os.Error
++}
++
++
++func (e importError) String() string {
++	return fmt.Sprintf("import error %s (byte offset = %d): %s", e.pos, e.pos.Offset, e.err)
++}
++
++
++func (p *gcParser) error(err interface{}) {
++	if s, ok := err.(string); ok {
++		err = os.ErrorString(s)
++	}
++	// panic with a runtime.Error if err is not an os.Error
++	panic(importError{p.scanner.Pos(), err.(os.Error)})
++}
++
++
++func (p *gcParser) errorf(format string, args ...interface{}) {
++	p.error(fmt.Sprintf(format, args...))
++}
++
++
++func (p *gcParser) expect(tok int) string {
++	lit := p.lit
++	if p.tok != tok {
++		p.errorf("expected %q, got %q (%q)", scanner.TokenString(tok), scanner.TokenString(p.tok), lit)
++	}
++	p.next()
++	return lit
++}
++
++
++func (p *gcParser) expectSpecial(tok string) {
++	sep := 'x' // not white space
++	i := 0
++	for i < len(tok) && p.tok == int(tok[i]) && sep > ' ' {
++		sep = p.scanner.Peek() // if sep <= ' ', there is white space before the next token
++		p.next()
++		i++
++	}
++	if i < len(tok) {
++		p.errorf("expected %q, got %q", tok, tok[0:i])
++	}
++}
++
++
++func (p *gcParser) expectKeyword(keyword string) {
++	lit := p.expect(scanner.Ident)
++	if lit != keyword {
++		p.errorf("expected keyword %s, got %q", keyword, lit)
++	}
++}
++
++
++// ----------------------------------------------------------------------------
++// Import declarations
++
++// ImportPath = string_lit .
++//
++func (p *gcParser) parsePkgId() *ast.Scope {
++	id, err := strconv.Unquote(p.expect(scanner.String))
++	if err != nil {
++		p.error(err)
++	}
++
++	scope := p.scope // id == "" stands for the imported package id
++	if id != "" {
++		if scope = p.deps[id]; scope == nil {
++			scope = ast.NewScope(nil)
++			p.deps[id] = scope
++		}
++	}
++
++	return scope
++}
++
++
++// dotIdentifier = ( ident | '·' ) { ident | int | '·' } .
++func (p *gcParser) parseDotIdent() string {
++	ident := ""
++	if p.tok != scanner.Int {
++		sep := 'x' // not white space
++		for (p.tok == scanner.Ident || p.tok == scanner.Int || p.tok == '·') && sep > ' ' {
++			ident += p.lit
++			sep = p.scanner.Peek() // if sep <= ' ', there is white space before the next token
++			p.next()
++		}
++	}
++	if ident == "" {
++		p.expect(scanner.Ident) // use expect() for error handling
++	}
++	return ident
++}
++
++
++// ExportedName = ImportPath "." dotIdentifier .
++//
++func (p *gcParser) parseExportedName(kind ast.ObjKind) *ast.Object {
++	scope := p.parsePkgId()
++	p.expect('.')
++	name := p.parseDotIdent()
++
++	// a type may have been declared before - if it exists
++	// already in the respective package scope, return that
++	// type
++	if kind == ast.Typ {
++		if obj := scope.Lookup(name); obj != nil {
++			assert(obj.Kind == ast.Typ)
++			return obj
++		}
++	}
++
++	// any other object must be a newly declared object -
++	// create it and insert it into the package scope
++	obj := ast.NewObj(kind, name)
++	if scope.Insert(obj) != nil {
++		p.errorf("already declared: %s", obj.Name)
++	}
++
++	// a new type object is a named type and may be referred
++	// to before the underlying type is known - set it up
++	if kind == ast.Typ {
++		obj.Type = &Name{Obj: obj}
++	}
++
++	return obj
++}
++
++
++// ----------------------------------------------------------------------------
++// Types
++
++// BasicType = identifier .
++//
++func (p *gcParser) parseBasicType() Type {
++	obj := Universe.Lookup(p.expect(scanner.Ident))
++	if obj == nil || obj.Kind != ast.Typ {
++		p.errorf("not a basic type: %s", obj.Name)
++	}
++	return obj.Type.(Type)
++}
++
++
++// ArrayType = "[" int_lit "]" Type .
++//
++func (p *gcParser) parseArrayType() Type {
++	// "[" already consumed and lookahead known not to be "]"
++	lit := p.expect(scanner.Int)
++	p.expect(']')
++	elt := p.parseType()
++	n, err := strconv.Atoui64(lit)
++	if err != nil {
++		p.error(err)
++	}
++	return &Array{Len: n, Elt: elt}
++}
++
++
++// MapType = "map" "[" Type "]" Type .
++//
++func (p *gcParser) parseMapType() Type {
++	p.expectKeyword("map")
++	p.expect('[')
++	key := p.parseType()
++	p.expect(']')
++	elt := p.parseType()
++	return &Map{Key: key, Elt: elt}
++}
++
++
++// Name = identifier | "?" .
++//
++func (p *gcParser) parseName() (name string) {
++	switch p.tok {
++	case scanner.Ident:
++		name = p.lit
++		p.next()
++	case '?':
++		// anonymous
++		p.next()
++	default:
++		p.error("name expected")
++	}
++	return
++}
++
++
++// Field = Name Type [ ":" string_lit ] .
++//
++func (p *gcParser) parseField(scope *ast.Scope) {
++	// TODO(gri) The code below is not correct for anonymous fields:
++	//           The name is the type name; it should not be empty.
++	name := p.parseName()
++	ftyp := p.parseType()
++	if name == "" {
++		// anonymous field - ftyp must be T or *T and T must be a type name
++		ftyp = Deref(ftyp)
++		if ftyp, ok := ftyp.(*Name); ok {
++			name = ftyp.Obj.Name
++		} else {
++			p.errorf("anonymous field expected")
++		}
++	}
++	if p.tok == ':' {
++		p.next()
++		tag := p.expect(scanner.String)
++		_ = tag // TODO(gri) store tag somewhere
++	}
++	fld := ast.NewObj(ast.Var, name)
++	fld.Type = ftyp
++	scope.Insert(fld)
++}
++
++
++// StructType = "struct" "{" [ FieldList ] "}" .
++// FieldList  = Field { ";" Field } .
++//
++func (p *gcParser) parseStructType() Type {
++	p.expectKeyword("struct")
++	p.expect('{')
++	scope := ast.NewScope(nil)
++	if p.tok != '}' {
++		p.parseField(scope)
++		for p.tok == ';' {
++			p.next()
++			p.parseField(scope)
++		}
++	}
++	p.expect('}')
++	return &Struct{}
++}
++
++
++// Parameter = ( identifier | "?" ) [ "..." ] Type .
++//
++func (p *gcParser) parseParameter(scope *ast.Scope, isVariadic *bool) {
++	name := p.parseName()
++	if name == "" {
++		name = "_" // cannot access unnamed identifiers
++	}
++	if isVariadic != nil {
++		if *isVariadic {
++			p.error("... not on final argument")
++		}
++		if p.tok == '.' {
++			p.expectSpecial("...")
++			*isVariadic = true
++		}
++	}
++	ptyp := p.parseType()
++	par := ast.NewObj(ast.Var, name)
++	par.Type = ptyp
++	scope.Insert(par)
++}
++
++
++// Parameters    = "(" [ ParameterList ] ")" .
++// ParameterList = { Parameter "," } Parameter .
++//
++func (p *gcParser) parseParameters(scope *ast.Scope, isVariadic *bool) {
++	p.expect('(')
++	if p.tok != ')' {
++		p.parseParameter(scope, isVariadic)
++		for p.tok == ',' {
++			p.next()
++			p.parseParameter(scope, isVariadic)
++		}
++	}
++	p.expect(')')
++}
++
++
++// Signature = Parameters [ Result ] .
++// Result    = Type | Parameters .
++//
++func (p *gcParser) parseSignature(scope *ast.Scope, isVariadic *bool) {
++	p.parseParameters(scope, isVariadic)
++
++	// optional result type
++	switch p.tok {
++	case scanner.Ident, scanner.String, '[', '*', '<':
++		// single, unnamed result
++		result := ast.NewObj(ast.Var, "_")
++		result.Type = p.parseType()
++		scope.Insert(result)
++	case '(':
++		// named or multiple result(s)
++		p.parseParameters(scope, nil)
++	}
++}
++
++
++// FuncType = "func" Signature .
++//
++func (p *gcParser) parseFuncType() Type {
++	// "func" already consumed
++	scope := ast.NewScope(nil)
++	isVariadic := false
++	p.parseSignature(scope, &isVariadic)
++	return &Func{IsVariadic: isVariadic}
++}
++
++
++// MethodSpec = identifier Signature .
++//
++func (p *gcParser) parseMethodSpec(scope *ast.Scope) {
++	p.expect(scanner.Ident)
++	isVariadic := false
++	p.parseSignature(scope, &isVariadic)
++}
++
++
++// InterfaceType = "interface" "{" [ MethodList ] "}" .
++// MethodList    = MethodSpec { ";" MethodSpec } .
++//
++func (p *gcParser) parseInterfaceType() Type {
++	p.expectKeyword("interface")
++	p.expect('{')
++	scope := ast.NewScope(nil)
++	if p.tok != '}' {
++		p.parseMethodSpec(scope)
++		for p.tok == ';' {
++			p.next()
++			p.parseMethodSpec(scope)
++		}
++	}
++	p.expect('}')
++	return &Interface{}
++}
++
++
++// ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .
++//
++func (p *gcParser) parseChanType() Type {
++	dir := ast.SEND | ast.RECV
++	if p.tok == scanner.Ident {
++		p.expectKeyword("chan")
++		if p.tok == '<' {
++			p.expectSpecial("<-")
++			dir = ast.SEND
++		}
++	} else {
++		p.expectSpecial("<-")
++		p.expectKeyword("chan")
++		dir = ast.RECV
++	}
++	elt := p.parseType()
++	return &Chan{Dir: dir, Elt: elt}
++}
++
++
++// Type =
++//	BasicType | TypeName | ArrayType | SliceType | StructType |
++//      PointerType | FuncType | InterfaceType | MapType | ChanType |
++//      "(" Type ")" .
++// BasicType = ident .
++// TypeName = ExportedName .
++// SliceType = "[" "]" Type .
++// PointerType = "*" Type .
++//
++func (p *gcParser) parseType() Type {
++	switch p.tok {
++	case scanner.Ident:
++		switch p.lit {
++		default:
++			return p.parseBasicType()
++		case "struct":
++			return p.parseStructType()
++		case "func":
++			p.next() // parseFuncType assumes "func" is already consumed
++			return p.parseFuncType()
++		case "interface":
++			return p.parseInterfaceType()
++		case "map":
++			return p.parseMapType()
++		case "chan":
++			return p.parseChanType()
++		}
++	case scanner.String:
++		// TypeName
++		return p.parseExportedName(ast.Typ).Type.(Type)
++	case '[':
++		p.next() // look ahead
++		if p.tok == ']' {
++			// SliceType
++			p.next()
++			return &Slice{Elt: p.parseType()}
++		}
++		return p.parseArrayType()
++	case '*':
++		// PointerType
++		p.next()
++		return &Pointer{Base: p.parseType()}
++	case '<':
++		return p.parseChanType()
++	case '(':
++		// "(" Type ")"
++		p.next()
++		typ := p.parseType()
++		p.expect(')')
++		return typ
++	}
++	p.errorf("expected type, got %s (%q)", scanner.TokenString(p.tok), p.lit)
++	return nil
++}
++
++
++// ----------------------------------------------------------------------------
++// Declarations
++
++// ImportDecl = "import" identifier string_lit .
++//
++func (p *gcParser) parseImportDecl() {
++	p.expectKeyword("import")
++	// The identifier has no semantic meaning in the import data.
++	// It exists so that error messages can print the real package
++	// name: binary.ByteOrder instead of "encoding/binary".ByteOrder.
++	// TODO(gri): Save package id -> package name mapping.
++	p.expect(scanner.Ident)
++	p.parsePkgId()
++}
++
++
++// int_lit = [ "+" | "-" ] { "0" ... "9" } .
++//
++func (p *gcParser) parseInt() (sign, val string) {
++	switch p.tok {
++	case '-':
++		p.next()
++		sign = "-"
++	case '+':
++		p.next()
++	}
++	val = p.expect(scanner.Int)
++	return
++}
++
++
++// number = int_lit [ "p" int_lit ] .
++//
++func (p *gcParser) parseNumber() Const {
++	// mantissa
++	sign, val := p.parseInt()
++	mant, ok := new(big.Int).SetString(sign+val, 10)
++	assert(ok)
++
++	if p.lit == "p" {
++		// exponent (base 2)
++		p.next()
++		sign, val = p.parseInt()
++		exp, err := strconv.Atoui(val)
++		if err != nil {
++			p.error(err)
++		}
++		if sign == "-" {
++			denom := big.NewInt(1)
++			denom.Lsh(denom, exp)
++			return Const{new(big.Rat).SetFrac(mant, denom)}
++		}
++		if exp > 0 {
++			mant.Lsh(mant, exp)
++		}
++		return Const{new(big.Rat).SetInt(mant)}
++	}
++
++	return Const{mant}
++}
++
++
++// ConstDecl   = "const" ExportedName [ Type ] "=" Literal .
++// Literal     = bool_lit | int_lit | float_lit | complex_lit | string_lit .
++// bool_lit    = "true" | "false" .
++// complex_lit = "(" float_lit "+" float_lit ")" .
++// string_lit  = `"` { unicode_char } `"` .
++//
++func (p *gcParser) parseConstDecl() {
++	p.expectKeyword("const")
++	obj := p.parseExportedName(ast.Con)
++	var x Const
++	var typ Type
++	if p.tok != '=' {
++		obj.Type = p.parseType()
++	}
++	p.expect('=')
++	switch p.tok {
++	case scanner.Ident:
++		// bool_lit
++		if p.lit != "true" && p.lit != "false" {
++			p.error("expected true or false")
++		}
++		x = Const{p.lit == "true"}
++		typ = Bool.Underlying
++		p.next()
++	case '-', scanner.Int:
++		// int_lit
++		x = p.parseNumber()
++		typ = Int.Underlying
++		if _, ok := x.val.(*big.Rat); ok {
++			typ = Float64.Underlying
++		}
++	case '(':
++		// complex_lit
++		p.next()
++		re := p.parseNumber()
++		p.expect('+')
++		im := p.parseNumber()
++		p.expect(')')
++		x = Const{cmplx{re.val.(*big.Rat), im.val.(*big.Rat)}}
++		typ = Complex128.Underlying
++	case scanner.String:
++		// string_lit
++		x = MakeConst(token.STRING, p.lit)
++		p.next()
++		typ = String.Underlying
++	default:
++		p.error("expected literal")
++	}
++	if obj.Type == nil {
++		obj.Type = typ
++	}
++	_ = x // TODO(gri) store x somewhere
++}
++
++
++// TypeDecl = "type" ExportedName Type .
++//
++func (p *gcParser) parseTypeDecl() {
++	p.expectKeyword("type")
++	obj := p.parseExportedName(ast.Typ)
++	typ := p.parseType()
++
++	name := obj.Type.(*Name)
++	assert(name.Underlying == nil)
++	assert(Underlying(typ) == typ)
++	name.Underlying = typ
++}
++
++
++// VarDecl = "var" ExportedName Type .
++//
++func (p *gcParser) parseVarDecl() {
++	p.expectKeyword("var")
++	obj := p.parseExportedName(ast.Var)
++	obj.Type = p.parseType()
++}
++
++
++// FuncDecl = "func" ExportedName Signature .
++//
++func (p *gcParser) parseFuncDecl() {
++	// "func" already consumed
++	obj := p.parseExportedName(ast.Fun)
++	obj.Type = p.parseFuncType()
++}
++
++
++// MethodDecl = "func" Receiver identifier Signature .
++// Receiver   = "(" ( identifier | "?" ) [ "*" ] ExportedName ")" .
++//
++func (p *gcParser) parseMethodDecl() {
++	// "func" already consumed
++	scope := ast.NewScope(nil) // method scope
++	p.expect('(')
++	p.parseParameter(scope, nil) // receiver
++	p.expect(')')
++	p.expect(scanner.Ident)
++	isVariadic := false
++	p.parseSignature(scope, &isVariadic)
++
++}
++
++
++// Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .
++//
++func (p *gcParser) parseDecl() {
++	switch p.lit {
++	case "import":
++		p.parseImportDecl()
++	case "const":
++		p.parseConstDecl()
++	case "type":
++		p.parseTypeDecl()
++	case "var":
++		p.parseVarDecl()
++	case "func":
++		p.next() // look ahead
++		if p.tok == '(' {
++			p.parseMethodDecl()
++		} else {
++			p.parseFuncDecl()
++		}
++	}
++	p.expect('\n')
++}
++
++
++// ----------------------------------------------------------------------------
++// Export
++
++// Export        = "PackageClause { Decl } "$$" .
++// PackageClause = "package" identifier [ "safe" ] "\n" .
++//
++func (p *gcParser) parseExport() (string, *ast.Scope) {
++	p.expectKeyword("package")
++	name := p.expect(scanner.Ident)
++	if p.tok != '\n' {
++		// A package is safe if it was compiled with the -u flag,
++		// which disables the unsafe package.
++		// TODO(gri) remember "safe" package
++		p.expectKeyword("safe")
++	}
++	p.expect('\n')
++
++	for p.tok != '$' && p.tok != scanner.EOF {
++		p.parseDecl()
++	}
++
++	if ch := p.scanner.Peek(); p.tok != '$' || ch != '$' {
++		// don't call next()/expect() since reading past the
++		// export data may cause scanner errors (e.g. NUL chars)
++		p.errorf("expected '$$', got %s %c", scanner.TokenString(p.tok), ch)
++	}
++
++	if n := p.scanner.ErrorCount; n != 0 {
++		p.errorf("expected no scanner errors, got %d", n)
++	}
++
++	return name, p.scope
++}
+diff --git a/src/pkg/go/types/gcimporter_test.go b/src/pkg/go/types/gcimporter_test.go
+new file mode 100644
+index 0000000000..387874877a
+--- /dev/null
++++ b/src/pkg/go/types/gcimporter_test.go
+@@ -0,0 +1,106 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import (
++	"exec"
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++	"time"
++)
++
++
++var gcName, gcPath string // compiler name and path
++
++func init() {
++	// find a compiler
++	for _, char := range []string{"5", "6", "8"} {
++		var err os.Error
++		gcName = char + "g"
++		gcPath, err = exec.LookPath(gcName)
++		if err == nil {
++			return
++		}
++	}
++}
++
++
++func compile(t *testing.T, dirname, filename string) {
++	cmd, err := exec.Run(gcPath, []string{gcPath, filename}, nil, dirname, exec.DevNull, exec.Pipe, exec.MergeWithStdout)
++	if err != nil {
++		t.Errorf("%s %s failed: %s", gcName, filename, err)
++		return
++	}
++	defer cmd.Close()
++
++	msg, err := cmd.Wait(0)
++	if err != nil {
++		t.Errorf("%s %s failed: %s", gcName, filename, err)
++		return
++	}
++
++	if !msg.Exited() || msg.ExitStatus() != 0 {
++		t.Errorf("%s %s failed: exit status = %d", gcName, filename, msg.ExitStatus())
++		output, _ := ioutil.ReadAll(cmd.Stdout)
++		t.Log(string(output))
++	}
++}
++
++
++func testPath(t *testing.T, path string) bool {
++	_, _, err := GcImporter(path)
++	if err != nil {
++		t.Errorf("testPath(%s): %s", path, err)
++		return false
++	}
++	return true
++}
++
++
++const maxTime = 3e9 // maximum allotted testing time in ns
++
++func testDir(t *testing.T, dir string, endTime int64) (nimports int) {
++	dirname := filepath.Join(pkgRoot, dir)
++	list, err := ioutil.ReadDir(dirname)
++	if err != nil {
++		t.Errorf("testDir(%s): %s", dirname, err)
++	}
++	for _, f := range list {
++		if time.Nanoseconds() >= endTime {
++			t.Log("testing time used up")
++			return
++		}
++		switch {
++		case f.IsRegular():
++			// try extensions
++			for _, ext := range pkgExts {
++				if strings.HasSuffix(f.Name, ext) {
++					name := f.Name[0 : len(f.Name)-len(ext)] // remove extension
++					if testPath(t, filepath.Join(dir, name)) {
++						nimports++
++					}
++				}
++			}
++		case f.IsDirectory():
++			nimports += testDir(t, filepath.Join(dir, f.Name), endTime)
++		}
++	}
++	return
++}
++
++
++func TestGcImport(t *testing.T) {
++	compile(t, "testdata", "exports.go")
++
++	nimports := 0
++	if testPath(t, "./testdata/exports") {
++		nimports++
++	}
++	nimports += testDir(t, "", time.Nanoseconds()+maxTime) // installed packages
++	t.Logf("tested %d imports", nimports)
++}
+diff --git a/src/pkg/go/types/testdata/exports.go b/src/pkg/go/types/testdata/exports.go
+new file mode 100644
+index 0000000000..13efe012a0
+--- /dev/null
++++ b/src/pkg/go/types/testdata/exports.go
+@@ -0,0 +1,89 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is used to generate a .6 object file which
++// serves as test file for gcimporter_test.go.
++
++package exports
++
++import (
++	"go/ast"
++)
++
++
++const (
++	C0 int = 0
++	C1 = 3.14159265
++	C2 = 2.718281828i
++	C3 = -123.456e-789
++	C4 = +123.456E+789
++	C5 = 1234i
++	C6 = "foo\n"
++	C7 = `bar\n`
++)
++
++
++type (
++	T1  int
++	T2  [10]int
++	T3  []int
++	T4  *int
++	T5  chan int
++	T6a chan<- int
++	T6b chan (<-chan int)
++	T6c chan<- (chan int)
++	T7  <-chan *ast.File
++	T8  struct{}
++	T9  struct {
++		a    int
++		b, c float32
++		d    []string "tag"
++	}
++	T10 struct {
++		T8
++		T9
++		_ *T10
++	}
++	T11 map[int]string
++	T12 interface{}
++	T13 interface {
++		m1()
++		m2(int) float32
++	}
++	T14 interface {
++		T12
++		T13
++		m3(x ...struct{}) []T9
++	}
++	T15 func()
++	T16 func(int)
++	T17 func(x int)
++	T18 func() float32
++	T19 func() (x float32)
++	T20 func(...interface{})
++	T21 struct{ next *T21 }
++	T22 struct{ link *T23 }
++	T23 struct{ link *T22 }
++	T24 *T24
++	T25 *T26
++	T26 *T27
++	T27 *T25
++	T28 func(T28) T28
++)
++
++
++var (
++	V0 int
++	V1 = -991.0
++)
++
++
++func F1()         {}
++func F2(x int)    {}
++func F3() int     { return 0 }
++func F4() float32 { return 0 }
++func F5(a, b, c int, u, v, w struct{ x, y T1 }, more ...interface{}) (p, q, r chan<- T10)
++
++
++func (p *T1) M1()
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+new file mode 100644
+index 0000000000..72384e1217
+--- /dev/null
++++ b/src/pkg/go/types/types.go
+@@ -0,0 +1,122 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PACKAGE UNDER CONSTRUCTION. ANY AND ALL PARTS MAY CHANGE.
++// The types package declares the types used to represent Go types.
++//
++package types
++
++import "go/ast"
++
++
++// All types implement the Type interface.
++type Type interface {
++	isType()
++}
++
++
++// All concrete types embed ImplementsType which
++// ensures that all types implement the Type interface.
++type ImplementsType struct{}
++
++func (t *ImplementsType) isType() {}
++
++
++// A Basic represents a (unnamed) basic type.
++type Basic struct {
++	ImplementsType
++	// TODO(gri) need a field specifying the exact basic type
++}
++
++
++// An Array represents an array type [Len]Elt.
++type Array struct {
++	ImplementsType
++	Len uint64
++	Elt Type
++}
++
++
++// A Slice represents a slice type []Elt.
++type Slice struct {
++	ImplementsType
++	Elt Type
++}
++
++
++// A Struct represents a struct type struct{...}.
++type Struct struct {
++	ImplementsType
++	// TODO(gri) need to remember fields.
++}
++
++
++// A Pointer represents a pointer type *Base.
++type Pointer struct {
++	ImplementsType
++	Base Type
++}
++
++
++// A Func represents a function type func(...) (...).
++type Func struct {
++	ImplementsType
++	IsVariadic bool
++	// TODO(gri) need to remember parameters.
++}
++
++
++// An Interface represents an interface type interface{...}.
++type Interface struct {
++	ImplementsType
++	// TODO(gri) need to remember methods.
++}
++
++
++// A Map represents a map type map[Key]Elt.
++type Map struct {
++	ImplementsType
++	Key, Elt Type
++}
++
++
++// A Chan represents a channel type chan Elt, <-chan Elt, or chan<-Elt.
++type Chan struct {
++	ImplementsType
++	Dir ast.ChanDir
++	Elt Type
++}
++
++
++// A Name represents a named type as declared in a type declaration.
++type Name struct {
++	ImplementsType
++	Underlying Type        // nil if not fully declared
++	Obj        *ast.Object // corresponding declared object
++	// TODO(gri) need to remember fields and methods.
++}
++
++
++// If typ is a pointer type, Deref returns the pointer's base type;
++// otherwise it returns typ.
++func Deref(typ Type) Type {
++	if typ, ok := typ.(*Pointer); ok {
++		return typ.Base
++	}
++	return typ
++}
++
++
++// Underlying returns the underlying type of a type.
++func Underlying(typ Type) Type {
++	if typ, ok := typ.(*Name); ok {
++		utyp := typ.Underlying
++		if _, ok := utyp.(*Basic); ok {
++			return typ
++		}
++		return utyp
++
++	}
++	return typ
++}
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/go/types/universe.go
+new file mode 100644
+index 0000000000..2a54a8ac12
+--- /dev/null
++++ b/src/pkg/go/types/universe.go
+@@ -0,0 +1,113 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// FILE UNDER CONSTRUCTION. ANY AND ALL PARTS MAY CHANGE.
++// This file implements the universe and unsafe package scopes.
++
++package types
++
++import "go/ast"
++
++
++var (
++	scope, // current scope to use for initialization
++	Universe,
++	Unsafe *ast.Scope
++)
++
++
++func define(kind ast.ObjKind, name string) *ast.Object {
++	obj := ast.NewObj(kind, name)
++	if scope.Insert(obj) != nil {
++		panic("types internal error: double declaration")
++	}
++	return obj
++}
++
++
++func defType(name string) *Name {
++	obj := define(ast.Typ, name)
++	typ := &Name{Underlying: &Basic{}, Obj: obj}
++	obj.Type = typ
++	return typ
++}
++
++
++func defConst(name string) {
++	obj := define(ast.Con, name)
++	_ = obj // TODO(gri) fill in other properties
++}
++
++
++func defFun(name string) {
++	obj := define(ast.Fun, name)
++	_ = obj // TODO(gri) fill in other properties
++}
++
++
++var (
++	Bool,
++	Int,
++	Float64,
++	Complex128,
++	String *Name
++)
++
++
++func init() {
++	Universe = ast.NewScope(nil)
++	scope = Universe
++
++	Bool = defType("bool")
++	defType("byte") // TODO(gri) should be an alias for uint8
++	defType("complex64")
++	Complex128 = defType("complex128")
++	defType("float32")
++	Float64 = defType("float64")
++	defType("int8")
++	defType("int16")
++	defType("int32")
++	defType("int64")
++	String = defType("string")
++	defType("uint8")
++	defType("uint16")
++	defType("uint32")
++	defType("uint64")
++	Int = defType("int")
++	defType("uint")
++	defType("uintptr")
++
++	defConst("true")
++	defConst("false")
++	defConst("iota")
++	defConst("nil")
++
++	defFun("append")
++	defFun("cap")
++	defFun("close")
++	defFun("complex")
++	defFun("copy")
++	defFun("imag")
++	defFun("len")
++	defFun("make")
++	defFun("new")
++	defFun("panic")
++	defFun("print")
++	defFun("println")
++	defFun("real")
++	defFun("recover")
++
++	Unsafe = ast.NewScope(nil)
++	scope = Unsafe
++	defType("Pointer")
++
++	defFun("Alignof")
++	defFun("New")
++	defFun("NewArray")
++	defFun("Offsetof")
++	defFun("Reflect")
++	defFun("Sizeof")
++	defFun("Typeof")
++	defFun("Unreflect")
++}

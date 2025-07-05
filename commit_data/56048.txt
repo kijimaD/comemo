@@ -21,7 +21,7 @@ Date:   Mon Jan 16 16:21:48 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/cmd/internal/goobj/objfile.go           |   1 +
  src/cmd/internal/obj/link.go                |   3 +
  src/cmd/internal/obj/objfile.go             |   8 +-
@@ -34,3 +34,341 @@ Date:   Mon Jan 16 16:21:48 2023 +0100
  src/cmd/link/internal/sym/symkind.go        |   4 +
  src/cmd/link/internal/sym/symkind_string.go |   7 +-
  11 files changed, 170 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 0364f856cf..64d453abdc 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -443,6 +443,7 @@ const (
+ 	AuxPcinline
+ 	AuxPcdata
+ 	AuxWasmImport
++	AuxSehUnwindInfo
+ )
+ 
+ func (a *Aux) Type() uint8 { return a[0] }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 077562a267..037561db1f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -503,6 +503,8 @@ type FuncInfo struct {
+ 	FuncInfoSym   *LSym
+ 	WasmImportSym *LSym
+ 	WasmImport    *WasmImport
++
++	sehUnwindInfoSym *LSym
+ }
+ 
+ // JumpTable represents a table used for implementing multi-way
+@@ -1072,6 +1074,7 @@ type LinkArch struct {
+ 	Preprocess     func(*Link, *LSym, ProgAlloc)
+ 	Assemble       func(*Link, *LSym, ProgAlloc)
+ 	Progedit       func(*Link, *Prog, ProgAlloc)
++	SEH            func(*Link, *LSym) *LSym
+ 	UnaryDst       map[As]bool // Instruction takes one operand, a destination.
+ 	DWARFRegisters map[int16]int16
+ }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 78fa4c1076..1e9e5a827b 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -602,6 +602,9 @@ func (w *writer) Aux(s *LSym) {
+ 		if fn.Pcln.Pcinline != nil && fn.Pcln.Pcinline.Size != 0 {
+ 			w.aux1(goobj.AuxPcinline, fn.Pcln.Pcinline)
+ 		}
++		if fn.sehUnwindInfoSym != nil && fn.sehUnwindInfoSym.Size != 0 {
++			w.aux1(goobj.AuxSehUnwindInfo, fn.sehUnwindInfoSym)
++		}
+ 		for _, pcSym := range fn.Pcln.Pcdata {
+ 			w.aux1(goobj.AuxPcdata, pcSym)
+ 		}
+@@ -707,6 +710,9 @@ func nAuxSym(s *LSym) int {
+ 		if fn.Pcln.Pcinline != nil && fn.Pcln.Pcinline.Size != 0 {
+ 			n++
+ 		}
++		if fn.sehUnwindInfoSym != nil && fn.sehUnwindInfoSym.Size != 0 {
++			n++
++		}
+ 		n += len(fn.Pcln.Pcdata)
+ 		if fn.WasmImport != nil {
+ 			if fn.WasmImportSym == nil || fn.WasmImportSym.Size == 0 {
+@@ -770,7 +776,7 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		fn.FuncInfoSym = isym
+ 		b.Reset()
+ 
+-		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym}
++		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym, fn.sehUnwindInfoSym}
+ 		for _, s := range auxsyms {
+ 			if s == nil || s.Size == 0 {
+ 				continue
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 835f37f2ff..278ba65d97 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -157,6 +157,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
+ 		if myimportpath != "" {
+ 			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+ 		}
++		if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.SEH != nil {
++			s.Func().sehUnwindInfoSym = ctxt.Arch.SEH(ctxt, s)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 4a01af3927..49968d3177 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -416,7 +416,7 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 		}
+ 	}
+ 
+-	auxsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym, fninfo.WasmImportSym}
++	auxsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym, fninfo.WasmImportSym, fninfo.sehUnwindInfoSym}
+ 	for _, s := range auxsyms {
+ 		if s == nil || s.Size == 0 {
+ 			continue
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 6b6aa8809a..c85b5018eb 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -628,6 +628,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p.To.Offset += int64(bpsize)
+ 	} else {
+ 		bpsize = 0
++		p.From.Sym.Set(obj.AttrNoFrame, true)
+ 	}
+ 
+ 	textarg := int64(p.To.Val.(int32))
+@@ -1526,6 +1527,7 @@ var Linkamd64 = obj.LinkArch{
+ 	Preprocess:     preprocess,
+ 	Assemble:       span6,
+ 	Progedit:       progedit,
++	SEH:            populateSeh,
+ 	UnaryDst:       unaryDst,
+ 	DWARFRegisters: AMD64DWARFRegisters,
+ }
+diff --git a/src/cmd/internal/obj/x86/seh.go b/src/cmd/internal/obj/x86/seh.go
+new file mode 100644
+index 0000000000..e7d3d571b7
+--- /dev/null
++++ b/src/cmd/internal/obj/x86/seh.go
+@@ -0,0 +1,141 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x86
++
++import (
++	"cmd/internal/obj"
++	"cmd/internal/objabi"
++	"cmd/internal/src"
++	"encoding/base64"
++	"fmt"
++	"math"
++)
++
++type sehbuf struct {
++	ctxt *obj.Link
++	data []byte
++	off  int
++}
++
++func newsehbuf(ctxt *obj.Link, nodes uint8) sehbuf {
++	// - 8 bytes for the header
++	// - 2 bytes for each node
++	// - 2 bytes in case nodes is not even
++	size := 8 + nodes*2
++	if nodes%2 != 0 {
++		size += 2
++	}
++	return sehbuf{ctxt, make([]byte, size), 0}
++}
++
++func (b *sehbuf) write8(v uint8) {
++	b.data[b.off] = v
++	b.off++
++}
++
++func (b *sehbuf) write32(v uint32) {
++	b.ctxt.Arch.ByteOrder.PutUint32(b.data[b.off:], v)
++	b.off += 4
++}
++
++func (b *sehbuf) writecode(op, value uint8) {
++	b.write8(value<<4 | op)
++}
++
++// populateSeh generates the SEH unwind information for s.
++func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
++	if s.NoFrame() {
++		return
++	}
++
++	// This implementation expects the following function prologue layout:
++	// - Stack split code (optional)
++	// - PUSHQ	BP
++	// - MOVQ	SP,	BP
++	//
++	// If the prologue layout change, the unwind information should be updated
++	// accordingly.
++
++	// Search for the PUSHQ BP instruction inside the prologue.
++	var pushbp *obj.Prog
++	for p := s.Func().Text; p != nil; p = p.Link {
++		if p.As == APUSHQ && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_BP {
++			pushbp = p
++			break
++		}
++		if p.Pos.Xlogue() == src.PosPrologueEnd {
++			break
++		}
++	}
++	if pushbp == nil {
++		ctxt.Diag("missing frame pointer instruction: PUSHQ BP")
++		return
++	}
++
++	// It must be followed by a MOVQ SP, BP.
++	movbp := pushbp.Link
++	if movbp == nil {
++		ctxt.Diag("missing frame pointer instruction: MOVQ SP, BP")
++		return
++	}
++	if !(movbp.As == AMOVQ && movbp.From.Type == obj.TYPE_REG && movbp.From.Reg == REG_SP &&
++		movbp.To.Type == obj.TYPE_REG && movbp.To.Reg == REG_BP && movbp.From.Offset == 0) {
++		ctxt.Diag("unexpected frame pointer instruction\n%v", movbp)
++		return
++	}
++	if movbp.Link.Pc > math.MaxUint8 {
++		// SEH unwind information don't support prologues that are more than 255 bytes long.
++		// These are very rare, but still possible, e.g., when compiling functions with many
++		// parameters with -gcflags=-d=maymorestack=runtime.mayMoreStackPreempt.
++		// Return without reporting an error.
++		return
++	}
++
++	// Reference:
++	// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-unwind_info
++
++	const (
++		UWOP_PUSH_NONVOL = 0
++		UWOP_SET_FPREG   = 3
++		SEH_REG_BP       = 5
++	)
++
++	// Fow now we only support operations which are encoded
++	// using a single 2-byte node, so the number of nodes
++	// is the number of operations.
++	nodes := uint8(2)
++	buf := newsehbuf(ctxt, nodes)
++	buf.write8(1)                    // Flags + version
++	buf.write8(uint8(movbp.Link.Pc)) // Size of prolog
++	buf.write8(nodes)                // Count of nodes
++	buf.write8(SEH_REG_BP)           // FP register
++
++	// Notes are written in reverse order of appearance.
++	buf.write8(uint8(movbp.Link.Pc))
++	buf.writecode(UWOP_SET_FPREG, 0)
++
++	buf.write8(uint8(pushbp.Link.Pc))
++	buf.writecode(UWOP_PUSH_NONVOL, SEH_REG_BP)
++
++	// The following 4 bytes reference the RVA of the exception handler,
++	// in case the function has one. We don't use it for now.
++	buf.write32(0)
++
++	// The list of unwind infos in a PE binary have very low cardinality
++	// as each info only contains frame pointer operations,
++	// which are very similar across functions.
++	// Dedup them when possible.
++	hash := base64.StdEncoding.EncodeToString(buf.data)
++	symname := fmt.Sprintf("%d.%s", len(buf.data), hash)
++	return ctxt.LookupInit("go:sehuw."+symname, func(s *obj.LSym) {
++		s.WriteBytes(ctxt, 0, buf.data)
++		s.Type = objabi.SSEHUNWINDINFO
++		s.Set(obj.AttrDuplicateOK, true)
++		s.Set(obj.AttrLocal, true)
++		// Note: AttrContentAddressable cannot be set here,
++		// because the content-addressable-handling code
++		// does not know about aux symbols.
++	})
++}
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index a58816e292..bafc51b46f 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -72,5 +72,6 @@ const (
+ 	SCOVERAGE_COUNTER
+ 	SCOVERAGE_AUXVAR
+ 
++	SSEHUNWINDINFO
+ 	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
+ )
+diff --git a/src/cmd/internal/objabi/symkind_string.go b/src/cmd/internal/objabi/symkind_string.go
+index be4e91f53f..3f2ad43fca 100644
+--- a/src/cmd/internal/objabi/symkind_string.go
++++ b/src/cmd/internal/objabi/symkind_string.go
+@@ -28,11 +28,12 @@ func _() {
+ 	_ = x[SLIBFUZZER_8BIT_COUNTER-17]
+ 	_ = x[SCOVERAGE_COUNTER-18]
+ 	_ = x[SCOVERAGE_AUXVAR-19]
++	_ = x[SSEHUNWINDINFO-20]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVAR"
++const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSSEHUNWINDINFO"
+ 
+-var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 63, 74, 83, 95, 105, 114, 125, 134, 145, 168, 185, 201}
++var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 63, 74, 83, 95, 105, 114, 125, 134, 145, 168, 185, 201, 215}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 2f8e8fe133..db87212a17 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -123,6 +123,9 @@ const (
+ 	SDWARFRANGE
+ 	SDWARFLOC
+ 	SDWARFLINES
++
++	// SEH symbol types
++	SSEHUNWINDINFO
+ )
+ 
+ // AbiSymKindToSymKind maps values read from object files (which are
+@@ -148,6 +151,7 @@ var AbiSymKindToSymKind = [...]SymKind{
+ 	objabi.SLIBFUZZER_8BIT_COUNTER: SLIBFUZZER_8BIT_COUNTER,
+ 	objabi.SCOVERAGE_COUNTER:       SCOVERAGE_COUNTER,
+ 	objabi.SCOVERAGE_AUXVAR:        SCOVERAGE_AUXVAR,
++	objabi.SSEHUNWINDINFO:          SSEHUNWINDINFO,
+ }
+ 
+ // ReadOnly are the symbol kinds that form read-only sections. In some
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index 1cd7ab17ef..09508ce766 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -1,4 +1,4 @@
+-// Code generated by "stringer -type=SymKind symkind.go"; DO NOT EDIT.
++// Code generated by "stringer -type=SymKind"; DO NOT EDIT.
+ 
+ package sym
+ 
+@@ -67,11 +67,12 @@ func _() {
+ 	_ = x[SDWARFRANGE-56]
+ 	_ = x[SDWARFLOC-57]
+ 	_ = x[SDWARFLINES-58]
++	_ = x[SSEHUNWINDINFO-59]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINES"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSSEHUNWINDINFO"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 336, 353, 369, 376, 381, 393, 405, 422, 439, 448, 458, 466, 475, 485, 497, 508, 517, 529, 539, 548, 559, 568, 579}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 336, 353, 369, 376, 381, 393, 405, 422, 439, 448, 458, 466, 475, 485, 497, 508, 517, 529, 539, 548, 559, 568, 579, 593}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {

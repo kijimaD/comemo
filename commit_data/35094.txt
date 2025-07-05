@@ -10,6 +10,21 @@ Date:   Wed Dec 13 14:38:58 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/83836
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/errchk | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/test/errchk b/test/errchk
+index bc8ef19cb0..1cb57bb961 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -65,6 +65,9 @@ $out = join('', <CMD>);
+ 
+ close CMD;
+ 
++# Remove lines beginning with #, printed by go command to indicate package.
++@out = grep {!/^#/} @out;
++
+ if($exitcode != 0 && $? == 0) {
+ 	print STDERR "BUG: errchk: command succeeded unexpectedly\n";
+ 	print STDERR @out;

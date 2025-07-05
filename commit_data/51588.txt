@@ -25,7 +25,7 @@ Date:   Wed Feb 16 12:33:17 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/test/testdata/ptrsort.go  |  2 +-
  src/cmd/go/internal/load/pkg.go                    |  7 +--
  src/cmd/go/internal/modload/import.go              | 18 +++++++-
@@ -34,3 +34,200 @@ Date:   Wed Feb 16 12:33:17 2022 -0500
  src/cmd/go/testdata/script/run_issue51125.txt      | 54 ++++++++++++++++++++++
  .../go/testdata/script/test_relative_cmdline.txt   |  4 +-
  7 files changed, 80 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/testdata/ptrsort.go b/src/cmd/compile/internal/test/testdata/ptrsort.go
+index 6cc7ba4851..d26ba581d9 100644
+--- a/src/cmd/compile/internal/test/testdata/ptrsort.go
++++ b/src/cmd/compile/internal/test/testdata/ptrsort.go
+@@ -6,7 +6,7 @@ package main
+ import (
+ 	"fmt"
+ 
+-	"./mysort"
++	"cmd/compile/internal/test/testdata/mysort"
+ )
+ 
+ type MyString struct {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 214502da7c..d68f43a7c9 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -819,11 +819,11 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
+ 	}
+ 	r := resolvedImportCache.Do(importKey, func() any {
+ 		var r resolvedImport
+-		if build.IsLocalImport(path) {
++		if cfg.ModulesEnabled {
++			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
++		} else if build.IsLocalImport(path) {
+ 			r.dir = filepath.Join(parentDir, path)
+ 			r.path = dirToImportPath(r.dir)
+-		} else if cfg.ModulesEnabled {
+-			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
+ 		} else if mode&ResolveImport != 0 {
+ 			// We do our own path resolution, because we want to
+ 			// find out the key to use in packageCache without the
+@@ -1113,6 +1113,7 @@ func dirAndRoot(path string, dir, root string) (string, string) {
+ 	}
+ 
+ 	if !str.HasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator || path != "command-line-arguments" && !build.IsLocalImport(path) && filepath.Join(root, path) != dir {
++		debug.PrintStack()
+ 		base.Fatalf("unexpected directory layout:\n"+
+ 			"	import path: %s\n"+
+ 			"	root: %s\n"+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 812e48a156..4862f625b4 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -248,12 +248,26 @@ func (e *invalidImportError) Unwrap() error {
+ // return the module, its root directory, and a list of other modules that
+ // lexically could have provided the package but did not.
+ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph) (m module.Version, dir string, altMods []module.Version, err error) {
++	invalidf := func(format string, args ...interface{}) (module.Version, string, []module.Version, error) {
++		return module.Version{}, "", nil, &invalidImportError{
++			importPath: path,
++			err:        fmt.Errorf(format, args...),
++		}
++	}
++
+ 	if strings.Contains(path, "@") {
+-		return module.Version{}, "", nil, fmt.Errorf("import path should not have @version")
++		return invalidf("import path %q should not have @version", path)
+ 	}
+ 	if build.IsLocalImport(path) {
+-		return module.Version{}, "", nil, fmt.Errorf("relative import not supported")
++		return invalidf("%q is relative, but relative import paths are not supported in module mode", path)
+ 	}
++	if filepath.IsAbs(path) {
++		return invalidf("%q is not a package path; see 'go help packages'", path)
++	}
++	if search.IsMetaPackage(path) {
++		return invalidf("%q is not an importable package; see 'go help packages'", path)
++	}
++
+ 	if path == "C" {
+ 		// There's no directory for import "C".
+ 		return module.Version{}, "", nil, nil
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index a4a7cb263e..d4847efb98 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1675,24 +1675,6 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
+ 
+ // load loads an individual package.
+ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
+-	if strings.Contains(pkg.path, "@") {
+-		// Leave for error during load.
+-		return
+-	}
+-	if build.IsLocalImport(pkg.path) || filepath.IsAbs(pkg.path) {
+-		// Leave for error during load.
+-		// (Module mode does not allow local imports.)
+-		return
+-	}
+-
+-	if search.IsMetaPackage(pkg.path) {
+-		pkg.err = &invalidImportError{
+-			importPath: pkg.path,
+-			err:        fmt.Errorf("%q is not an importable package; see 'go help packages'", pkg.path),
+-		}
+-		return
+-	}
+-
+ 	var mg *ModuleGraph
+ 	if ld.requirements.pruning == unpruned {
+ 		var err error
+diff --git a/src/cmd/go/testdata/script/build_internal.txt b/src/cmd/go/testdata/script/build_internal.txt
+index 25aa18cfcb..5b786f2fbc 100644
+--- a/src/cmd/go/testdata/script/build_internal.txt
++++ b/src/cmd/go/testdata/script/build_internal.txt
+@@ -10,8 +10,10 @@ stderr 'internal'
+ 
+ # Test internal packages outside GOROOT are respected
+ cd ../testinternal2
++env GO111MODULE=off
+ ! go build -v .
+ stderr 'p\.go:3:8: use of internal package .*internal/w not allowed'
++env GO111MODULE=''
+ 
+ [gccgo] skip # gccgo does not have GOROOT
+ cd ../testinternal
+diff --git a/src/cmd/go/testdata/script/run_issue51125.txt b/src/cmd/go/testdata/script/run_issue51125.txt
+new file mode 100644
+index 0000000000..8fa4486ca4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/run_issue51125.txt
+@@ -0,0 +1,54 @@
++# Regression test for https://go.dev/issue/51125:
++# Relative import paths (a holdover from GOPATH) were accidentally allowed in module mode.
++
++cd $WORK
++
++# Relative imports should not be allowed with a go.mod file.
++
++! go run driver.go
++stderr '^driver.go:3:8: "./mypkg" is relative, but relative import paths are not supported in module mode$'
++
++go list -e -f '{{with .Error}}{{.}}{{end}}' -deps driver.go
++stdout '^driver.go:3:8: "./mypkg" is relative, but relative import paths are not supported in module mode$'
++! stderr .
++
++
++# Relative imports should not be allowed in module mode even without a go.mod file.
++rm go.mod
++
++! go run driver.go
++stderr '^driver.go:3:8: "./mypkg" is relative, but relative import paths are not supported in module mode$'
++
++go list -e -f '{{with .Error}}{{.}}{{end}}' -deps driver.go
++stdout '^driver.go:3:8: "./mypkg" is relative, but relative import paths are not supported in module mode$'
++! stderr .
++
++
++# In GOPATH mode, they're still allowed (but only outside of GOPATH/src).
++env GO111MODULE=off
++
++[!short] go run driver.go
++
++go list -deps driver.go
++
++
++-- $WORK/go.mod --
++module example
++
++go 1.17
++-- $WORK/driver.go --
++package main
++
++import "./mypkg"
++
++func main() {
++	mypkg.MyFunc()
++}
++-- $WORK/mypkg/code.go --
++package mypkg
++
++import "fmt"
++
++func MyFunc() {
++	fmt.Println("Hello, world!")
++}
+diff --git a/src/cmd/go/testdata/script/test_relative_cmdline.txt b/src/cmd/go/testdata/script/test_relative_cmdline.txt
+index 2f9c80fe4d..96f7b87265 100644
+--- a/src/cmd/go/testdata/script/test_relative_cmdline.txt
++++ b/src/cmd/go/testdata/script/test_relative_cmdline.txt
+@@ -1,5 +1,7 @@
+ # Relative imports in command line package
+ 
++env GO111MODULE=off
++
+ # Run tests outside GOPATH.
+ env GOPATH=$WORK/tmp
+ 
+@@ -47,4 +49,4 @@ func TestF1(t *testing.T) {
+ 	if F() != p2.F() {
+ 		t.Fatal(F())
+ 	}
+-}
+\ No newline at end of file
++}

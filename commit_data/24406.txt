@@ -34,6 +34,41 @@ Date:   Mon Jul 27 22:38:17 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12740
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Peter Waldschmidt <peter@waldschmidt.com>
-
+---
  src/encoding/json/stream.go | 15 +++++++++++----
  1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index 3e8fe40268..dc53bceff8 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -252,18 +252,25 @@ const (
+ 
+ // advance tokenstate from a separator state to a value state
+ func (dec *Decoder) tokenPrepareForDecode() error {
+-	c, err := dec.peek()
+-	if err != nil {
+-		return err
+-	}
++	// Note: Not calling peek before switch, to avoid
++	// putting peek into the standard Decode path.
++	// peek is only called when using the Token API.
+ 	switch dec.tokenState {
+ 	case tokenArrayComma:
++		c, err := dec.peek()
++		if err != nil {
++			return err
++		}
+ 		if c != ',' {
+ 			return &SyntaxError{"expected comma after array element", 0}
+ 		}
+ 		dec.scanp++
+ 		dec.tokenState = tokenArrayValue
+ 	case tokenObjectColon:
++		c, err := dec.peek()
++		if err != nil {
++			return err
++		}
+ 		if c != ':' {
+ 			return &SyntaxError{"expected colon after object key", 0}
+ 		}

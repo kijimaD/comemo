@@ -9,6 +9,23 @@ Date:   Sat Apr 11 19:38:45 2015 -0400
     Change-Id: Iabb6282f18548da43117ee60f7ad6e272502f09d
     Reviewed-on: https://go-review.googlesource.com/8825
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/nm/nm_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 3081921584..155d103ee7 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -59,8 +59,9 @@ func TestNM(t *testing.T) {
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	case "darwin":
+-		if runtime.GOARCH == "arm" {
+-			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
+ 		}
+ 	}
+ 

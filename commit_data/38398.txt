@@ -542,3 +542,22 @@ Date:   Thu Oct 25 19:30:18 2018 -0400
  test/uintptrescapes2.go                            |    4 +-
  test/unsafereject2.go                              |   15 -
  534 files changed, 25004 insertions(+), 6720 deletions(-)
+
+diff --cc src/crypto/tls/cipher_suites.go
+index e4027e8ab4,e937235876..2475906ae1
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@@ -136,11 -134,7 +135,11 @@@ func macSHA1(version uint16, key []byte
+  		copy(mac.key, key)
+  		return mac
+  	}
+ -	return tls10MAC{h: hmac.New(newConstantTimeHash(sha1.New), key)}
+ +	h := sha1.New
+ +	if !boring.Enabled {
+ +		h = newConstantTimeHash(h)
+ +	}
+- 	return tls10MAC{hmac.New(h, key)}
+++	return tls10MAC{h: hmac.New(h, key)}
+  }
+  
+  // macSHA256 returns a SHA-256 based MAC. These are only supported in TLS 1.2

@@ -23,8 +23,383 @@ Date:   Mon Apr 4 18:22:29 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/benchmark.go |  45 ++++++++++++++++---
  src/testing/sub_test.go  | 110 ++++++++++++++++++++++++++++++++++++++++++++++-
  src/testing/testing.go   |  16 ++++---
  3 files changed, 158 insertions(+), 13 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index c935bc5e06..5d58b85e78 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -208,7 +208,24 @@ func (b *B) run1() bool {
+ 		b.runN(1)
+ 	}()
+ 	<-b.signal
+-	return !b.hasSub
++	if b.failed {
++		fmt.Fprintf(b.w, "--- FAIL: %s\n%s", b.name, b.output)
++		return false
++	}
++	// Only print the output if we know we are not going to proceed.
++	// Otherwise it is printed in processBench.
++	if b.hasSub || b.finished {
++		tag := "BENCH"
++		if b.skipped {
++			tag = "SKIP"
++		}
++		if b.chatty && (len(b.output) > 0 || b.finished) {
++			b.trimOutput()
++			fmt.Fprintf(b.w, "--- %s: %s\n%s", tag, b.name, b.output)
++		}
++		return false
++	}
++	return true
+ }
+ 
+ // run executes the benchmark in a separate goroutine, including all of its
+@@ -372,7 +389,11 @@ func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benc
+ 		}
+ 	}
+ 	main := &B{
+-		common: common{name: "Main"},
++		common: common{
++			name:   "Main",
++			w:      os.Stdout,
++			chatty: *chatty,
++		},
+ 		benchFunc: func(b *B) {
+ 			for _, Benchmark := range bs {
+ 				b.Run(Benchmark.Name, Benchmark.F)
+@@ -390,13 +411,15 @@ func (ctx *benchContext) processBench(b *B) {
+ 	for i, procs := range cpuList {
+ 		runtime.GOMAXPROCS(procs)
+ 		benchName := benchmarkName(b.name, procs)
+-		fmt.Printf("%-*s\t", ctx.maxLen, benchName)
++		fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+ 		// Recompute the running time for all but the first iteration.
+ 		if i > 0 {
+ 			b = &B{
+ 				common: common{
+ 					signal: make(chan bool),
+ 					name:   b.name,
++					w:      b.w,
++					chatty: b.chatty,
+ 				},
+ 				benchFunc: b.benchFunc,
+ 				benchTime: b.benchTime,
+@@ -408,19 +431,19 @@ func (ctx *benchContext) processBench(b *B) {
+ 			// The output could be very long here, but probably isn't.
+ 			// We print it all, regardless, because we don't want to trim the reason
+ 			// the benchmark failed.
+-			fmt.Printf("--- FAIL: %s\n%s", benchName, b.output)
++			fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
+ 			continue
+ 		}
+ 		results := r.String()
+ 		if *benchmarkMemory || b.showAllocResult {
+ 			results += "\t" + r.MemString()
+ 		}
+-		fmt.Println(results)
++		fmt.Fprintln(b.w, results)
+ 		// Unlike with tests, we ignore the -chatty flag and always print output for
+ 		// benchmarks since the output generation time will skew the results.
+ 		if len(b.output) > 0 {
+ 			b.trimOutput()
+-			fmt.Printf("--- BENCH: %s\n%s", benchName, b.output)
++			fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
+ 		}
+ 		if p := runtime.GOMAXPROCS(-1); p != procs {
+ 			fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+@@ -453,6 +476,8 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 			name:   benchName,
+ 			parent: &b.common,
+ 			level:  b.level + 1,
++			w:      b.w,
++			chatty: b.chatty,
+ 		},
+ 		benchFunc: f,
+ 		benchTime: b.benchTime,
+@@ -597,9 +622,17 @@ func Benchmark(f func(b *B)) BenchmarkResult {
+ 	b := &B{
+ 		common: common{
+ 			signal: make(chan bool),
++			w:      discard{},
+ 		},
+ 		benchFunc: f,
+ 		benchTime: *benchTime,
+ 	}
++	if !b.run1() {
++		return BenchmarkResult{}
++	}
+ 	return b.run()
+ }
++
++type discard struct{}
++
++func (discard) Write(b []byte) (n int, err error) { return len(b), nil }
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 264d77c2cf..e053a3c348 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -5,8 +5,9 @@
+ package testing
+ 
+ import (
+-	"io/ioutil"
++	"bytes"
+ 	"regexp"
++	"strings"
+ 	"sync/atomic"
+ 	"time"
+ )
+@@ -113,11 +114,17 @@ func TestTRun(t *T) {
+ 		desc   string
+ 		ok     bool
+ 		maxPar int
++		chatty bool
++		output string
+ 		f      func(*T)
+ 	}{{
+ 		desc:   "failnow skips future sequential and parallel tests at same level",
+ 		ok:     false,
+ 		maxPar: 1,
++		output: `
++--- FAIL: failnow skips future sequential and parallel tests at same level (0.00s)
++    --- FAIL: failnow skips future sequential and parallel tests at same level/#00 (0.00s)
++    `,
+ 		f: func(t *T) {
+ 			ranSeq := false
+ 			ranPar := false
+@@ -149,6 +156,11 @@ func TestTRun(t *T) {
+ 		desc:   "failure in parallel test propagates upwards",
+ 		ok:     false,
+ 		maxPar: 1,
++		output: `
++--- FAIL: failure in parallel test propagates upwards (0.00s)
++    --- FAIL: failure in parallel test propagates upwards/#00 (0.00s)
++        --- FAIL: failure in parallel test propagates upwards/#00/par (0.00s)
++		`,
+ 		f: func(t *T) {
+ 			t.Run("", func(t *T) {
+ 				t.Parallel()
+@@ -158,6 +170,28 @@ func TestTRun(t *T) {
+ 				})
+ 			})
+ 		},
++	}, {
++		desc:   "skipping without message, chatty",
++		ok:     true,
++		chatty: true,
++		output: `
++=== RUN   skipping without message, chatty
++--- SKIP: skipping without message, chatty (0.00s)`,
++		f: func(t *T) { t.SkipNow() },
++	}, {
++		desc: "skipping without message, not chatty",
++		ok:   true,
++		f:    func(t *T) { t.SkipNow() },
++	}, {
++		desc: "skipping after error",
++		output: `
++--- FAIL: skipping after error (0.00s)
++	sub_test.go:nnn: an error
++	sub_test.go:nnn: skipped`,
++		f: func(t *T) {
++			t.Error("an error")
++			t.Skip("skipped")
++		},
+ 	}, {
+ 		desc:   "use Run to locally synchronize parallelism",
+ 		ok:     true,
+@@ -301,14 +335,23 @@ func TestTRun(t *T) {
+ 				})
+ 			}
+ 		},
++	}, {
++		desc:   "skip output",
++		ok:     true,
++		maxPar: 4,
++		f: func(t *T) {
++			t.Skip()
++		},
+ 	}}
+ 	for _, tc := range testCases {
+ 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
++		buf := &bytes.Buffer{}
+ 		root := &T{
+ 			common: common{
+ 				signal: make(chan bool),
+ 				name:   "Test",
+-				w:      ioutil.Discard,
++				w:      buf,
++				chatty: tc.chatty,
+ 			},
+ 			context: ctx,
+ 		}
+@@ -324,6 +367,11 @@ func TestTRun(t *T) {
+ 		if ctx.running != 0 || ctx.numWaiting != 0 {
+ 			t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, ctx.running, ctx.numWaiting)
+ 		}
++		got := sanitizeLog(buf.String())
++		want := sanitizeLog(tc.output)
++		if got != want {
++			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
++		}
+ 	}
+ }
+ 
+@@ -336,6 +384,8 @@ func TestBRun(t *T) {
+ 	testCases := []struct {
+ 		desc   string
+ 		failed bool
++		chatty bool
++		output string
+ 		f      func(*B)
+ 	}{{
+ 		desc: "simulate sequential run of subbenchmarks.",
+@@ -371,7 +421,34 @@ func TestBRun(t *T) {
+ 	}, {
+ 		desc:   "failure carried over to root",
+ 		failed: true,
++		output: "--- FAIL: root",
+ 		f:      func(b *B) { b.Fail() },
++	}, {
++		desc:   "skipping without message, chatty",
++		chatty: true,
++		output: "--- SKIP: root",
++		f:      func(b *B) { b.SkipNow() },
++	}, {
++		desc:   "skipping with message, chatty",
++		chatty: true,
++		output: `
++--- SKIP: root
++	sub_test.go:: skipping`,
++		f: func(b *B) { b.Skip("skipping") },
++	}, {
++		desc: "skipping without message, not chatty",
++		f:    func(b *B) { b.SkipNow() },
++	}, {
++		desc:   "skipping after error",
++		failed: true,
++		output: `
++--- FAIL: root
++	sub_test.go:nnn: an error
++	sub_test.go:nnn: skipped`,
++		f: func(b *B) {
++			b.Error("an error")
++			b.Skip("skipped")
++		},
+ 	}, {
+ 		desc: "memory allocation",
+ 		f: func(b *B) {
+@@ -398,11 +475,15 @@ func TestBRun(t *T) {
+ 	}}
+ 	for _, tc := range testCases {
+ 		var ok bool
++		buf := &bytes.Buffer{}
+ 		// This is almost like the Benchmark function, except that we override
+ 		// the benchtime and catch the failure result of the subbenchmark.
+ 		root := &B{
+ 			common: common{
+ 				signal: make(chan bool),
++				name:   "root",
++				w:      buf,
++				chatty: tc.chatty,
+ 			},
+ 			benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
+ 			benchTime: time.Microsecond,
+@@ -418,5 +499,30 @@ func TestBRun(t *T) {
+ 		if root.result.N != 1 {
+ 			t.Errorf("%s: N for parent benchmark was %d; want 1", tc.desc, root.result.N)
+ 		}
++		got := sanitizeLog(buf.String())
++		want := sanitizeLog(tc.output)
++		if got != want {
++			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
++		}
+ 	}
+ }
++
++// sanitizeLog removes line numbers from log entries.
++func sanitizeLog(s string) string {
++	s = strings.TrimSpace(s)
++	lines := strings.Split(s, "\n")
++	for i, line := range lines {
++		p := strings.IndexByte(line, ':')
++		if p > 0 && line[p+4] == ':' { // assuming 3-digit file positions
++			lines[i] = line[:p+1] + line[p+4:]
++		}
++	}
++	return strings.Join(lines, "\n")
++}
++
++func TestBenchmarkOutput(t *T) {
++	// Ensure Benchmark initialized common.w by invoking it with an error and
++	// normal case.
++	Benchmark(func(b *B) { b.Error("do not print this output") })
++	Benchmark(func(b *B) {})
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index f9bb43b618..8e16db321d 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -199,6 +199,7 @@ type common struct {
+ 	mu       sync.RWMutex // guards output and failed
+ 	output   []byte       // Output generated by test or benchmark.
+ 	w        io.Writer    // For flushToParent.
++	chatty   bool         // A copy of the chatty flag.
+ 	failed   bool         // Test or benchmark has failed.
+ 	skipped  bool         // Test of benchmark has been skipped.
+ 	finished bool
+@@ -265,7 +266,6 @@ func (c *common) flushToParent(format string, args ...interface{}) {
+ 	defer p.mu.Unlock()
+ 
+ 	fmt.Fprintf(p.w, format, args...)
+-	fmt.Fprintln(p.w)
+ 
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+@@ -562,13 +562,18 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 			name:    testName,
+ 			parent:  &t.common,
+ 			level:   t.level + 1,
++			chatty:  t.chatty,
+ 		},
+ 		context: t.context,
+ 	}
+ 	t.w = indenter{&t.common}
+ 
+-	if *chatty {
+-		fmt.Printf("=== RUN   %s\n", t.name)
++	if t.chatty {
++		// Print directly to root's io.Writer so there is no delay.
++		root := t.parent
++		for ; root.parent != nil; root = t.parent {
++		}
++		fmt.Fprintf(root.w, "=== RUN   %s\n", t.name)
+ 	}
+ 	// Instead of reducing the running count of this test before calling the
+ 	// tRunner and increasing it afterwards, we rely on tRunner keeping the
+@@ -690,10 +695,10 @@ func (t *T) report() {
+ 		return
+ 	}
+ 	dstr := fmtDuration(t.duration)
+-	format := "--- %s: %s (%s)"
++	format := "--- %s: %s (%s)\n"
+ 	if t.Failed() {
+ 		t.flushToParent(format, "FAIL", t.name, dstr)
+-	} else if *chatty {
++	} else if t.chatty {
+ 		if t.Skipped() {
+ 			t.flushToParent(format, "SKIP", t.name, dstr)
+ 		} else {
+@@ -716,6 +721,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 				signal:  make(chan bool),
+ 				barrier: make(chan bool),
+ 				w:       os.Stdout,
++				chatty:  *chatty,
+ 			},
+ 			context: ctx,
+ 		}

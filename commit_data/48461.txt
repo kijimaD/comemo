@@ -12,6 +12,21 @@ Date:   Fri May 21 12:50:52 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/os/exec.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index edb773a092..bc75d4dd66 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -54,6 +54,9 @@ type ProcAttr struct {
+ 	// standard error. An implementation may support additional entries,
+ 	// depending on the underlying operating system. A nil entry corresponds
+ 	// to that file being closed when the process starts.
++	// On Unix systems, StartProcess will change these File values
++	// to blocking mode, which means that SetDeadline will stop working
++	// and calling Close will not interrupt a Read or Write.
+ 	Files []*File
+ 
+ 	// Operating system-specific process creation attributes.

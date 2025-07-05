@@ -8,6 +8,20 @@ Date:   Mon Jul 7 16:31:20 2014 +1000
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/109080048
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 32ff09bdd3..849c1e4763 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -473,7 +473,7 @@ Mercurial failed to merge your changes with the independent change.
+ When this happens, Mercurial leaves both edits in the file,
+ marked by <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> and
+ <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>.
+-it is now your job to edit the file to combine them.
++It is now your job to edit the file to combine them.
+ Continuing the example, searching for those strings in <code>flag_test.go</code>
+ might turn up:
+ </p>

@@ -13,7 +13,7 @@ Date:   Wed May 20 15:10:05 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go   | 35 ------------------
  src/cmd/link/internal/amd64/obj.go   |  3 +-
  src/cmd/link/internal/arm/asm.go     | 30 ----------------
@@ -37,3 +37,751 @@ Date:   Wed May 20 15:10:05 2020 -0400
  src/cmd/link/internal/x86/asm.go     | 33 -----------------
  src/cmd/link/internal/x86/obj.go     |  3 +-
  22 files changed, 104 insertions(+), 304 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 06c5f30983..6e784b59f4 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -38,7 +38,6 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"log"
+-	"sync"
+ )
+ 
+ func PADDR(x uint32) uint32 {
+@@ -680,40 +679,6 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsELF {
+-		ld.Asmbelfsetup()
+-	}
+-
+-	var wg sync.WaitGroup
+-	sect := ld.Segtext.Sections[0]
+-	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-	f := func(ctxt *ld.Link, out *ld.OutBuf, start, length int64) {
+-		// 0xCC is INT $3 - breakpoint instruction
+-		ld.CodeblkPad(ctxt, out, start, length, []byte{0xCC})
+-	}
+-	ld.WriteParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
+-
+-	for _, sect := range ld.Segtext.Sections[1:] {
+-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-	}
+-
+-	if ld.Segrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
+-	}
+-
+-	if ld.Segrelrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
+-	}
+-
+-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
+-
+-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+-
+-	wg.Wait()
+-}
+-
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	machlink := int64(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 3239c61864..90de67d086 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -50,12 +50,13 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Minalign:   minAlign,
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
++		// 0xCC is INT $3 - breakpoint instruction
++		CodePad: []byte{0xCC},
+ 
+ 		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 357a22b879..db2e2cf69a 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -39,7 +39,6 @@ import (
+ 	"debug/elf"
+ 	"fmt"
+ 	"log"
+-	"sync"
+ )
+ 
+ // This assembler:
+@@ -672,35 +671,6 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsELF {
+-		ld.Asmbelfsetup()
+-	}
+-
+-	var wg sync.WaitGroup
+-	sect := ld.Segtext.Sections[0]
+-	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-	ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
+-
+-	for _, sect := range ld.Segtext.Sections[1:] {
+-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-	}
+-
+-	if ld.Segrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
+-	}
+-
+-	if ld.Segrelrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
+-	}
+-
+-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
+-
+-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+-	wg.Wait()
+-}
+-
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 003c80a508..c70b10e75d 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -51,7 +51,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Trampoline:       trampoline,
+-		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index fae3aa5ac2..94c86e0b46 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -39,7 +39,6 @@ import (
+ 	"debug/elf"
+ 	"fmt"
+ 	"log"
+-	"sync"
+ )
+ 
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+@@ -797,35 +796,6 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsELF {
+-		ld.Asmbelfsetup()
+-	}
+-
+-	var wg sync.WaitGroup
+-	sect := ld.Segtext.Sections[0]
+-	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-	ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
+-
+-	for _, sect := range ld.Segtext.Sections[1:] {
+-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-	}
+-
+-	if ld.Segrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
+-	}
+-
+-	if ld.Segrelrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
+-	}
+-
+-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
+-
+-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+-	wg.Wait()
+-}
+-
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	machlink := uint32(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 4ed05c087a..de6ab58329 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -50,7 +50,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+new file mode 100644
+index 0000000000..ede4f91664
+--- /dev/null
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -0,0 +1,70 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/link/internal/loader"
++	"sync"
++)
++
++// Assembling the binary is broken into two steps:
++//  - writing out the code/data/dwarf Segments
++//  - writing out the architecture specific pieces.
++// This function handles the first part.
++func asmb(ctxt *Link, ldr *loader.Loader) {
++	// TODO(jfaller): delete me.
++	if thearch.Asmb != nil {
++		thearch.Asmb(ctxt, ldr)
++		return
++	}
++
++	if ctxt.IsELF {
++		Asmbelfsetup()
++	}
++
++	var wg sync.WaitGroup
++	sect := Segtext.Sections[0]
++	offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
++	f := func(ctxt *Link, out *OutBuf, start, length int64) {
++		pad := thearch.CodePad
++		if pad == nil {
++			pad = zeros[:]
++		}
++		CodeblkPad(ctxt, out, start, length, pad)
++	}
++
++	if !thearch.WriteTextBlocks {
++		writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
++		for _, sect := range Segtext.Sections[1:] {
++			offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
++			writeParallel(&wg, Datblk, ctxt, offset, sect.Vaddr, sect.Length)
++		}
++	} else {
++		// TODO why can't we handle all sections this way?
++		for _, sect := range Segtext.Sections {
++			offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
++			// Handle additional text sections with Codeblk
++			if sect.Name == ".text" {
++				writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
++			} else {
++				writeParallel(&wg, Datblk, ctxt, offset, sect.Vaddr, sect.Length)
++			}
++		}
++	}
++
++	if Segrodata.Filelen > 0 {
++		writeParallel(&wg, Datblk, ctxt, Segrodata.Fileoff, Segrodata.Vaddr, Segrodata.Filelen)
++	}
++
++	if Segrelrodata.Filelen > 0 {
++		writeParallel(&wg, Datblk, ctxt, Segrelrodata.Fileoff, Segrelrodata.Vaddr, Segrelrodata.Filelen)
++	}
++
++	writeParallel(&wg, Datblk, ctxt, Segdata.Fileoff, Segdata.Vaddr, Segdata.Filelen)
++
++	writeParallel(&wg, dwarfblk, ctxt, Segdwarf.Fileoff, Segdwarf.Vaddr, Segdwarf.Filelen)
++
++	wg.Wait()
++}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 98242b16e4..26f443c56a 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -801,10 +801,6 @@ func (state *dodataState) dynreloc(ctxt *Link) {
+ 	}
+ }
+ 
+-func Codeblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
+-	CodeblkPad(ctxt, out, addr, size, zeros[:])
+-}
+-
+ func CodeblkPad(ctxt *Link, out *OutBuf, addr int64, size int64, pad []byte) {
+ 	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.Textp, addr, size, pad)
+ }
+@@ -951,8 +947,8 @@ func writeBlock(out *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size i
+ 
+ type writeFn func(*Link, *OutBuf, int64, int64)
+ 
+-// WriteParallel handles scheduling parallel execution of data write functions.
+-func WriteParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, length uint64) {
++// writeParallel handles scheduling parallel execution of data write functions.
++func writeParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, length uint64) {
+ 	if out, err := ctxt.Out.View(seek); err != nil {
+ 		ctxt.Out.SeekSet(int64(seek))
+ 		fn(ctxt, ctxt.Out, int64(vaddr), int64(length))
+@@ -981,7 +977,7 @@ func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
+ 	writeBlocks(out, ctxt.outSem, ctxt.loader, ctxt.datap, addr, size, zeros[:])
+ }
+ 
+-func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
++func dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
+ 	// Concatenate the section symbol lists into a single list to pass
+ 	// to writeBlocks.
+ 	//
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 04c4adfb86..33cb9788c4 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -184,8 +184,18 @@ type Arch struct {
+ 	Openbsddynld   string
+ 	Dragonflydynld string
+ 	Solarisdynld   string
+-	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
+-	Archinit       func(*Link)
++
++	// Empty spaces between codeblocks will be padded with this value.
++	// For example an architecture might want to pad with a trap instruction to
++	// catch wayward programs. Architectures that do not define a padding value
++	// are padded with zeros.
++	CodePad []byte
++
++	// Set to true to write all text blocks in with CodeBlkWrite
++	WriteTextBlocks bool
++
++	Adddynrel func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
++	Archinit  func(*Link)
+ 	// Archreloc is an arch-specific hook that assists in relocation processing
+ 	// (invoked by 'relocsym'); it handles target-specific relocation tasks.
+ 	// Here "rel" is the current relocation being examined, "sym" is the symbol
+@@ -212,10 +222,13 @@ type Arch struct {
+ 	// index of the relocation.
+ 	Trampoline func(ctxt *Link, ldr *loader.Loader, ri int, rs, s loader.Sym)
+ 
+-	// Asmb and Asmb2 are arch-specific routines that write the output
+-	// file. Typically, Asmb writes most of the content (sections and
+-	// segments), for which we have computed the size and offset. Asmb2
+-	// writes the rest.
++	// Assembling the binary breaks into two phases, writing the code/data/
++	// dwarf information (which is rather generic), and some more architecture
++	// specific work like setting up the elf headers/dynamic relocations, etc.
++	// The phases are called "Asmb" and "Asmb2". Asmb2 needs to be defined for
++	// every architecture, but only if architecture has an Asmb function will
++	// it be used for assembly.  Otherwise a generic assembly Asmb function is
++	// used.
+ 	Asmb  func(*Link, *loader.Loader)
+ 	Asmb2 func(*Link, *loader.Loader)
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 6bb1ea7a56..ee5cc19bad 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -313,11 +313,11 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 			panic(err)
+ 		}
+ 	}
+-	// Asmb will redirect symbols to the output file mmap, and relocations
++	// asmb will redirect symbols to the output file mmap, and relocations
+ 	// will be applied directly there.
+ 	bench.Start("Asmb")
+ 	ctxt.loader.InitOutData()
+-	thearch.Asmb(ctxt, ctxt.loader)
++	asmb(ctxt, ctxt.loader)
+ 	bench.Start("reloc")
+ 	ctxt.reloc()
+ 	bench.Start("Asmb2")
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index fdcb79326d..c43b1e61ef 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -38,7 +38,6 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"fmt"
+-	"sync"
+ )
+ 
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+@@ -153,31 +152,6 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
+ 	return -1
+ }
+ 
+-func asmb(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsELF {
+-		ld.Asmbelfsetup()
+-	}
+-
+-	var wg sync.WaitGroup
+-	sect := ld.Segtext.Sections[0]
+-	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-	ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
+-
+-	for _, sect = range ld.Segtext.Sections[1:] {
+-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-	}
+-
+-	if ld.Segrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
+-	}
+-
+-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
+-
+-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+-	wg.Wait()
+-}
+-
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index 5acbaddd41..eb0dbe62be 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -52,7 +52,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index d72f6d2496..c10bbb4fec 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -38,7 +38,6 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"fmt"
+-	"sync"
+ )
+ 
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
+@@ -159,35 +158,6 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
+ 	return -1
+ }
+ 
+-func asmb(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsELF {
+-		ld.Asmbelfsetup()
+-	}
+-
+-	var wg sync.WaitGroup
+-	sect := ld.Segtext.Sections[0]
+-	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-	ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
+-
+-	for _, sect := range ld.Segtext.Sections[1:] {
+-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-	}
+-
+-	if ld.Segrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
+-	}
+-
+-	if ld.Segrelrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
+-	}
+-
+-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
+-
+-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+-	wg.Wait()
+-}
+-
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 55ca337e06..90919ee737 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -51,7 +51,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index aae42c0bbc..74c4c4d05d 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -41,7 +41,6 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"strings"
+-	"sync"
+ )
+ 
+ func genplt(ctxt *ld.Link, ldr *loader.Loader) {
+@@ -1081,36 +1080,6 @@ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilde
+ 	return glink
+ }
+ 
+-func asmb(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsELF {
+-		ld.Asmbelfsetup()
+-	}
+-
+-	var wg sync.WaitGroup
+-	for _, sect := range ld.Segtext.Sections {
+-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-		// Handle additional text sections with Codeblk
+-		if sect.Name == ".text" {
+-			ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
+-		} else {
+-			ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-		}
+-	}
+-
+-	if ld.Segrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
+-	}
+-
+-	if ld.Segrelrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
+-	}
+-
+-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
+-
+-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+-	wg.Wait()
+-}
+-
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 49c7ec2103..ae291f87fc 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -43,17 +43,17 @@ func Init() (*sys.Arch, ld.Arch) {
+ 	}
+ 
+ 	theArch := ld.Arch{
+-		Funcalign:  funcAlign,
+-		Maxalign:   maxAlign,
+-		Minalign:   minAlign,
+-		Dwarfregsp: dwarfRegSP,
+-		Dwarfreglr: dwarfRegLR,
++		Funcalign:       funcAlign,
++		Maxalign:        maxAlign,
++		Minalign:        minAlign,
++		Dwarfregsp:      dwarfRegSP,
++		Dwarfreglr:      dwarfRegLR,
++		WriteTextBlocks: true,
+ 
+ 		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index b9c5c68693..bc39c06309 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -13,7 +13,6 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"fmt"
+ 	"log"
+-	"sync"
+ )
+ 
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+@@ -91,35 +90,6 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
+ 	return -1
+ }
+ 
+-func asmb(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsELF {
+-		ld.Asmbelfsetup()
+-	}
+-
+-	var wg sync.WaitGroup
+-	sect := ld.Segtext.Sections[0]
+-	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-	ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
+-
+-	for _, sect := range ld.Segtext.Sections[1:] {
+-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-	}
+-
+-	if ld.Segrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
+-	}
+-
+-	if ld.Segrelrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
+-	}
+-
+-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
+-
+-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+-	wg.Wait()
+-}
+-
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	ld.Symsize = 0
+ 	ld.Lcsize = 0
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index 9fe9822a32..a0ff179d83 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -23,7 +23,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index ae2baaa05a..7465212b9d 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -38,7 +38,6 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"fmt"
+-	"sync"
+ )
+ 
+ // gentext generates assembly to append the local moduledata to the global
+@@ -477,35 +476,6 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsELF {
+-		ld.Asmbelfsetup()
+-	}
+-
+-	var wg sync.WaitGroup
+-	sect := ld.Segtext.Sections[0]
+-	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-	ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
+-
+-	for _, sect := range ld.Segtext.Sections[1:] {
+-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-	}
+-
+-	if ld.Segrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
+-	}
+-
+-	if ld.Segrelrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
+-	}
+-
+-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
+-
+-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+-	wg.Wait()
+-}
+-
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 54d640731e..28886804b7 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -50,7 +50,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index ecd5058f4c..967261a8cd 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -38,7 +38,6 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"log"
+-	"sync"
+ )
+ 
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+@@ -511,38 +510,6 @@ func addgotsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 	}
+ }
+ 
+-func asmb(ctxt *ld.Link, _ *loader.Loader) {
+-	if ctxt.IsELF {
+-		ld.Asmbelfsetup()
+-	}
+-
+-	var wg sync.WaitGroup
+-	sect := ld.Segtext.Sections[0]
+-	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-	f := func(ctxt *ld.Link, out *ld.OutBuf, start, length int64) {
+-		ld.CodeblkPad(ctxt, out, start, length, []byte{0xCC})
+-	}
+-	ld.WriteParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
+-
+-	for _, sect := range ld.Segtext.Sections[1:] {
+-		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-	}
+-
+-	if ld.Segrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
+-	}
+-
+-	if ld.Segrelrodata.Filelen > 0 {
+-		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
+-	}
+-
+-	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
+-
+-	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+-	wg.Wait()
+-}
+-
+ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	machlink := uint32(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index f53ecc8fc0..b604c1f8c2 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -45,12 +45,13 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Minalign:   minAlign,
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
++		// 0xCC is INT $3 - breakpoint instruction
++		CodePad: []byte{0xCC},
+ 
+ 		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,

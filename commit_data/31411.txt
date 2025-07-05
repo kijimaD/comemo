@@ -22,8 +22,144 @@ Date:   Fri Feb 17 11:32:08 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/37211
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/math/bits/bits.go      | 36 ++++++++++++++++++++++++++++--------
  src/math/bits/bits_impl.go |  8 --------
  src/math/bits/bits_test.go | 24 ++++++++++++++++++++++++
  3 files changed, 52 insertions(+), 16 deletions(-)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index ab3f3eaa1e..9bbc2c5883 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -113,7 +113,7 @@ func Reverse(x uint) uint {
+ 
+ // Reverse8 returns the value of x with its bits in reversed order.
+ func Reverse8(x uint8) uint8 {
+-	const m = 0xff
++	const m = 1<<8 - 1
+ 	x = x&(m0&m)>>1 | x&^(m0&m)<<1
+ 	x = x&(m1&m)>>2 | x&^(m1&m)<<2
+ 	x = x&(m2&m)>>4 | x&^(m2&m)<<4
+@@ -122,7 +122,7 @@ func Reverse8(x uint8) uint8 {
+ 
+ // Reverse16 returns the value of x with its bits in reversed order.
+ func Reverse16(x uint16) uint16 {
+-	const m = 0xffff
++	const m = 1<<16 - 1
+ 	x = x&(m0&m)>>1 | x&^(m0&m)<<1
+ 	x = x&(m1&m)>>2 | x&^(m1&m)<<2
+ 	x = x&(m2&m)>>4 | x&^(m2&m)<<4
+@@ -132,7 +132,7 @@ func Reverse16(x uint16) uint16 {
+ 
+ // Reverse32 returns the value of x with its bits in reversed order.
+ func Reverse32(x uint32) uint32 {
+-	const m = 0xffffffff
++	const m = 1<<32 - 1
+ 	x = x&(m0&m)>>1 | x&^(m0&m)<<1
+ 	x = x&(m1&m)>>2 | x&^(m1&m)<<2
+ 	x = x&(m2&m)>>4 | x&^(m2&m)<<4
+@@ -143,7 +143,7 @@ func Reverse32(x uint32) uint32 {
+ 
+ // Reverse64 returns the value of x with its bits in reversed order.
+ func Reverse64(x uint64) uint64 {
+-	const m = 0xffffffffffffffff
++	const m = 1<<64 - 1
+ 	x = x&(m0&m)>>1 | x&^(m0&m)<<1
+ 	x = x&(m1&m)>>2 | x&^(m1&m)<<2
+ 	x = x&(m2&m)>>4 | x&^(m2&m)<<4
+@@ -156,16 +156,36 @@ func Reverse64(x uint64) uint64 {
+ // --- ReverseBytes ---
+ 
+ // ReverseBytes returns the value of x with its bytes in reversed order.
+-func ReverseBytes(x uint) uint { return uint(swap(uint64(x), UintSize)) }
++func ReverseBytes(x uint) uint {
++	if UintSize == 32 {
++		return uint(ReverseBytes32(uint32(x)))
++	}
++	return uint(ReverseBytes64(uint64(x)))
++}
+ 
+ // ReverseBytes16 returns the value of x with its bytes in reversed order.
+-func ReverseBytes16(x uint16) uint16 { return uint16(swap(uint64(x), 16)) }
++func ReverseBytes16(x uint16) uint16 {
++	const m = 1<<16 - 1
++	x = x&(m3&m)>>8 | x&^(m3&m)<<8
++	return x
++}
+ 
+ // ReverseBytes32 returns the value of x with its bytes in reversed order.
+-func ReverseBytes32(x uint32) uint32 { return uint32(swap(uint64(x), 32)) }
++func ReverseBytes32(x uint32) uint32 {
++	const m = 1<<32 - 1
++	x = x&(m3&m)>>8 | x&^(m3&m)<<8
++	x = x&(m4&m)>>16 | x&^(m4&m)<<16
++	return x
++}
+ 
+ // ReverseBytes64 returns the value of x with its bytes in reversed order.
+-func ReverseBytes64(x uint64) uint64 { return uint64(swap(uint64(x), 64)) }
++func ReverseBytes64(x uint64) uint64 {
++	const m = 1<<64 - 1
++	x = x&(m3&m)>>8 | x&^(m3&m)<<8
++	x = x&(m4&m)>>16 | x&^(m4&m)<<16
++	x = x&(m5&m)>>32 | x&^(m5&m)<<32
++	return x
++}
+ 
+ // --- Len ---
+ 
+diff --git a/src/math/bits/bits_impl.go b/src/math/bits/bits_impl.go
+index da38429fee..3a425e3b83 100644
+--- a/src/math/bits/bits_impl.go
++++ b/src/math/bits/bits_impl.go
+@@ -93,14 +93,6 @@ func rot(x uint64, size, k uint) uint64 {
+ 	return x<<k | x>>(size-k)&(1<<k-1)
+ }
+ 
+-func swap(x uint64, size uint) (r uint64) {
+-	for i := size / 8; i > 0; i-- {
+-		r = r<<8 | x&0xff
+-		x >>= 8
+-	}
+-	return
+-}
+-
+ func blen(x uint64) (i int) {
+ 	for ; x >= 1<<(16-1); x >>= 16 {
+ 		i += 16
+diff --git a/src/math/bits/bits_test.go b/src/math/bits/bits_test.go
+index bba35612fe..e1c7201daa 100644
+--- a/src/math/bits/bits_test.go
++++ b/src/math/bits/bits_test.go
+@@ -453,6 +453,30 @@ func testReverseBytes(t *testing.T, x64, want64 uint64) {
+ 	}
+ }
+ 
++func BenchmarkReverseBytes(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ReverseBytes(deBruijn64 & (1<<UintSize - 1))
++	}
++}
++
++func BenchmarkReverseBytes16(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ReverseBytes16(deBruijn64 & (1<<16 - 1))
++	}
++}
++
++func BenchmarkReverseBytes32(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ReverseBytes32(deBruijn64 & (1<<32 - 1))
++	}
++}
++
++func BenchmarkReverseBytes64(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ReverseBytes64(deBruijn64 & (1<<64 - 1))
++	}
++}
++
+ func TestLen(t *testing.T) {
+ 	for i := 0; i < 256; i++ {
+ 		len := 8 - tab[i].nlz

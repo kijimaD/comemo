@@ -10,6 +10,21 @@ Date:   Mon Jun 29 11:40:13 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/11721
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/sync/waitgroup_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/sync/waitgroup_test.go b/src/sync/waitgroup_test.go
+index d3329624fc..3e3e3bf824 100644
+--- a/src/sync/waitgroup_test.go
++++ b/src/sync/waitgroup_test.go
+@@ -69,6 +69,9 @@ func TestWaitGroupMisuse(t *testing.T) {
+ 
+ func TestWaitGroupMisuse2(t *testing.T) {
+ 	knownRacy(t)
++	if testing.Short() {
++		t.Skip("skipping flaky test in short mode; see issue 11443")
++	}
+ 	if runtime.NumCPU() <= 2 {
+ 		t.Skip("NumCPU<=2, skipping: this test requires parallelism")
+ 	}

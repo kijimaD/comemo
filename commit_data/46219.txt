@@ -15,6 +15,21 @@ Date:   Mon Dec 14 21:56:25 2020 -0800
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue11371.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/issue11371.go b/test/fixedbugs/issue11371.go
+index 05b8fcfebe..8acd18fccb 100644
+--- a/test/fixedbugs/issue11371.go
++++ b/test/fixedbugs/issue11371.go
+@@ -11,7 +11,7 @@ package issue11371
+ 
+ const a int = 1.1        // ERROR "constant 1.1 truncated to integer|floating-point constant truncated to integer"
+ const b int = 1e20       // ERROR "overflows int|integer constant overflow"
+-const c int = 1 + 1e-100 // ERROR "constant truncated to integer"
+-const d int = 1 - 1e-100 // ERROR "constant truncated to integer"
++const c int = 1 + 1e-70  // ERROR "constant truncated to integer"
++const d int = 1 - 1e-70  // ERROR "constant truncated to integer"
+ const e int = 1.00000001 // ERROR "constant truncated to integer"
+ const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|floating-point constant truncated to integer"

@@ -12,7 +12,7 @@ Date:   Wed Aug 24 00:44:03 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/vendor/golang_org/x/net/route/address.go       | 18 ++++++++++++++---
  .../golang_org/x/net/route/interface_freebsd.go    | 12 +++++------
  .../golang_org/x/net/route/interface_openbsd.go    |  9 ++++++++-
@@ -20,3 +20,174 @@ Date:   Wed Aug 24 00:44:03 2016 +0900
  src/vendor/golang_org/x/net/route/message_test.go  | 23 ++++++++++++++++++++++
  src/vendor/golang_org/x/net/route/route_openbsd.go |  6 +++++-
  6 files changed, 63 insertions(+), 11 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/route/address.go b/src/vendor/golang_org/x/net/route/address.go
+index 206a8371d4..a56909c105 100644
+--- a/src/vendor/golang_org/x/net/route/address.go
++++ b/src/vendor/golang_org/x/net/route/address.go
+@@ -234,7 +234,11 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
+ 					return nil, err
+ 				}
+ 				as[i] = a
+-				b = b[roundup(int(b[0])):]
++				l := roundup(int(b[0]))
++				if len(b) < l {
++					return nil, errMessageTooShort
++				}
++				b = b[l:]
+ 			case sysAF_INET, sysAF_INET6:
+ 				af = int(b[1])
+ 				a, err := parseInetAddr(af, b)
+@@ -242,7 +246,11 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
+ 					return nil, err
+ 				}
+ 				as[i] = a
+-				b = b[roundup(int(b[0])):]
++				l := roundup(int(b[0]))
++				if len(b) < l {
++					return nil, errMessageTooShort
++				}
++				b = b[l:]
+ 			default:
+ 				l, a, err := fn(af, b)
+ 				if err != nil {
+@@ -262,7 +270,11 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
+ 				return nil, err
+ 			}
+ 			as[i] = a
+-			b = b[roundup(int(b[0])):]
++			l := roundup(int(b[0]))
++			if len(b) < l {
++				return nil, errMessageTooShort
++			}
++			b = b[l:]
+ 		}
+ 	}
+ 	return as[:], nil
+diff --git a/src/vendor/golang_org/x/net/route/interface_freebsd.go b/src/vendor/golang_org/x/net/route/interface_freebsd.go
+index c83053915d..9f6f50c00f 100644
+--- a/src/vendor/golang_org/x/net/route/interface_freebsd.go
++++ b/src/vendor/golang_org/x/net/route/interface_freebsd.go
+@@ -13,12 +13,12 @@ func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, erro
+ 		extOff = int(nativeEndian.Uint16(b[18:20]))
+ 		bodyOff = int(nativeEndian.Uint16(b[16:18]))
+ 	} else {
+-		if len(b) < w.bodyOff {
+-			return nil, errMessageTooShort
+-		}
+ 		extOff = w.extOff
+ 		bodyOff = w.bodyOff
+ 	}
++	if len(b) < extOff || len(b) < bodyOff {
++		return nil, errInvalidMessage
++	}
+ 	l := int(nativeEndian.Uint16(b[:2]))
+ 	if len(b) < l {
+ 		return nil, errInvalidMessage
+@@ -53,11 +53,11 @@ func (w *wireFormat) parseInterfaceAddrMessage(typ RIBType, b []byte) (Message,
+ 		}
+ 		bodyOff = int(nativeEndian.Uint16(b[16:18]))
+ 	} else {
+-		if len(b) < w.bodyOff {
+-			return nil, errMessageTooShort
+-		}
+ 		bodyOff = w.bodyOff
+ 	}
++	if len(b) < bodyOff {
++		return nil, errInvalidMessage
++	}
+ 	l := int(nativeEndian.Uint16(b[:2]))
+ 	if len(b) < l {
+ 		return nil, errInvalidMessage
+diff --git a/src/vendor/golang_org/x/net/route/interface_openbsd.go b/src/vendor/golang_org/x/net/route/interface_openbsd.go
+index 24451d8ca1..e4a143c1c7 100644
+--- a/src/vendor/golang_org/x/net/route/interface_openbsd.go
++++ b/src/vendor/golang_org/x/net/route/interface_openbsd.go
+@@ -24,7 +24,11 @@ func (*wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
+ 		Addrs:   make([]Addr, sysRTAX_MAX),
+ 		raw:     b[:l],
+ 	}
+-	a, err := parseLinkAddr(b[int(nativeEndian.Uint16(b[4:6])):])
++	ll := int(nativeEndian.Uint16(b[4:6]))
++	if len(b) < ll {
++		return nil, errInvalidMessage
++	}
++	a, err := parseLinkAddr(b[ll:])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -42,6 +46,9 @@ func (*wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, erro
+ 		return nil, errInvalidMessage
+ 	}
+ 	bodyOff := int(nativeEndian.Uint16(b[4:6]))
++	if len(b) < bodyOff {
++		return nil, errInvalidMessage
++	}
+ 	m := &InterfaceAddrMessage{
+ 		Version: int(b[2]),
+ 		Type:    int(b[3]),
+diff --git a/src/vendor/golang_org/x/net/route/message.go b/src/vendor/golang_org/x/net/route/message.go
+index 27cbf6b77a..d7ae0eb50f 100644
+--- a/src/vendor/golang_org/x/net/route/message.go
++++ b/src/vendor/golang_org/x/net/route/message.go
+@@ -42,6 +42,12 @@ func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
+ 	for len(b) > 4 {
+ 		nmsgs++
+ 		l := int(nativeEndian.Uint16(b[:2]))
++		if l == 0 {
++			return nil, errInvalidMessage
++		}
++		if len(b) < l {
++			return nil, errMessageTooShort
++		}
+ 		if b[2] != sysRTM_VERSION {
+ 			b = b[l:]
+ 			continue
+diff --git a/src/vendor/golang_org/x/net/route/message_test.go b/src/vendor/golang_org/x/net/route/message_test.go
+index a1263d8f25..c0c7c57a9a 100644
+--- a/src/vendor/golang_org/x/net/route/message_test.go
++++ b/src/vendor/golang_org/x/net/route/message_test.go
+@@ -93,3 +93,26 @@ func TestMonitorAndParseRIB(t *testing.T) {
+ 		time.Sleep(200 * time.Millisecond)
+ 	}
+ }
++
++func TestParseRIBWithFuzz(t *testing.T) {
++	for _, fuzz := range []string{
++		"0\x00\x05\x050000000000000000" +
++			"00000000000000000000" +
++			"00000000000000000000" +
++			"00000000000000000000" +
++			"0000000000000\x02000000" +
++			"00000000",
++		"\x02\x00\x05\f0000000000000000" +
++			"0\x0200000000000000",
++		"\x02\x00\x05\x100000000000000\x1200" +
++			"0\x00\xff\x00",
++		"\x02\x00\x05\f0000000000000000" +
++			"0\x12000\x00\x02\x0000",
++		"\x00\x00\x00\x01\x00",
++		"00000",
++	} {
++		for typ := RIBType(0); typ < 256; typ++ {
++			ParseRIB(typ, []byte(fuzz))
++		}
++	}
++}
+diff --git a/src/vendor/golang_org/x/net/route/route_openbsd.go b/src/vendor/golang_org/x/net/route/route_openbsd.go
+index b07862f04d..76eae40d80 100644
+--- a/src/vendor/golang_org/x/net/route/route_openbsd.go
++++ b/src/vendor/golang_org/x/net/route/route_openbsd.go
+@@ -19,7 +19,11 @@ func (*wireFormat) parseRouteMessage(_ RIBType, b []byte) (Message, error) {
+ 		Index:   int(nativeEndian.Uint16(b[6:8])),
+ 		raw:     b[:l],
+ 	}
+-	as, err := parseAddrs(uint(nativeEndian.Uint32(b[12:16])), parseKernelInetAddr, b[int(nativeEndian.Uint16(b[4:6])):])
++	ll := int(nativeEndian.Uint16(b[4:6]))
++	if len(b) < ll {
++		return nil, errInvalidMessage
++	}
++	as, err := parseAddrs(uint(nativeEndian.Uint32(b[12:16])), parseKernelInetAddr, b[ll:])
+ 	if err != nil {
+ 		return nil, err
+ 	}

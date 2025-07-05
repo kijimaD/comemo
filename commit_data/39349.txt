@@ -9,6 +9,32 @@ Date:   Tue Jan 22 16:21:32 2019 -0500
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/handshake_client.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index ca74989f6e..31bd069bbc 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -85,7 +85,6 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
+ 	possibleCipherSuites := config.cipherSuites()
+ 	hello.cipherSuites = make([]uint16, 0, len(possibleCipherSuites))
+ 
+-NextCipherSuite:
+ 	for _, suiteId := range possibleCipherSuites {
+ 		for _, suite := range cipherSuites {
+ 			if suite.id != suiteId {
+@@ -94,10 +93,10 @@ NextCipherSuite:
+ 			// Don't advertise TLS 1.2-only cipher suites unless
+ 			// we're attempting TLS 1.2.
+ 			if hello.vers < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
+-				continue
++				break
+ 			}
+ 			hello.cipherSuites = append(hello.cipherSuites, suiteId)
+-			continue NextCipherSuite
++			break
+ 		}
+ 	}
+ 

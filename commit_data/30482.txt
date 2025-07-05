@@ -9,7 +9,51 @@ Date:   Mon Nov 7 15:56:41 2016 -0800
     Change-Id: I424ba93725f22fd599e052eb182f9ba2fca8e8bd
     Reviewed-on: https://go-review.googlesource.com/32881
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api.go   | 13 +++++++++----
  src/go/types/check.go |  1 -
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index ca109f0a80..44949895a7 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -135,7 +135,8 @@ type Config struct {
+ // be incomplete.
+ type Info struct {
+ 	// Types maps expressions to their types, and for constant
+-	// expressions, their values. Invalid expressions are omitted.
++	// expressions, also their values. Invalid expressions are
++	// omitted.
+ 	//
+ 	// For (possibly parenthesized) identifiers denoting built-in
+ 	// functions, the recorded signatures are call-site specific:
+@@ -143,9 +144,13 @@ type Info struct {
+ 	// an argument-specific signature. Otherwise, the recorded type
+ 	// is invalid.
+ 	//
+-	// Identifiers on the lhs of declarations (i.e., the identifiers
+-	// which are being declared) are collected in the Defs map.
+-	// Identifiers denoting packages are collected in the Uses maps.
++	// The Types map does not record the type of every identifier,
++	// only those that appear where an arbitrary expression is
++	// permitted. For instance, the identifier f in a selector
++	// expression x.f is found only in the Selections map, the
++	// identifier z in a variable declaration 'var z int' is found
++	// only in the Defs map, and identifiers denoting packages in
++	// qualified identifiers are collected in the Uses map.
+ 	Types map[ast.Expr]TypeAndValue
+ 
+ 	// Defs maps identifiers to the objects they define (including
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 0279be0e84..28e94f1940 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -345,7 +345,6 @@ func (check *Checker) recordImplicit(node ast.Node, obj Object) {
+ func (check *Checker) recordSelection(x *ast.SelectorExpr, kind SelectionKind, recv Type, obj Object, index []int, indirect bool) {
+ 	assert(obj != nil && (recv == nil || len(index) > 0))
+ 	check.recordUse(x.Sel, obj)
+-	// TODO(gri) Should we also call recordTypeAndValue?
+ 	if m := check.Selections; m != nil {
+ 		m[x] = &Selection{kind, recv, obj, index, indirect}
+ 	}

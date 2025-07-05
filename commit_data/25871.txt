@@ -9,6 +9,43 @@ Date:   Mon Nov 30 14:18:09 2015 -0800
     Change-Id: Id64ebd0527881450fdaffbb66d8b1831a6b7c43c
     Reviewed-on: https://go-review.googlesource.com/17263
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_spec.html | 18 ++++++++++++------
  1 file changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 7e42bc33ee..9178ccd068 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of November 25, 2015",
++	"Subtitle": "Version of November 30, 2015",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1051,12 +1051,18 @@ but are otherwise ignored.
+ </p>
+ 
+ <pre>
+-// A struct corresponding to the TimeStamp protocol buffer.
+-// The tag strings define the protocol buffer field numbers.
+ struct {
+-	microsec  uint64 "field 1"
+-	serverIP6 uint64 "field 2"
+-	process   string "field 3"
++	x, y float64 ""  // an empty tag string is like an absent tag
++	name string  "any string is permitted as a tag"
++	_    [4]byte "ceci n'est pas un champ de structure"
++}
++
++// A struct corresponding to a TimeStamp protocol buffer.
++// The tag strings define the protocol buffer field numbers;
++// they follow the convention outlined by the reflect package.
++struct {
++	microsec  uint64 `protobuf:"1"`
++	serverIP6 uint64 `protobuf:"2"`
+ }
+ </pre>
+ 

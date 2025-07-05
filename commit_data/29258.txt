@@ -12,9 +12,74 @@ Date:   Mon Sep 5 05:19:30 2016 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file_plan9.go   | 5 -----
  src/os/file_unix.go    | 5 -----
  src/os/file_windows.go | 5 -----
  src/os/types.go        | 5 +++++
  4 files changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 9edb6bc074..880d56a16f 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -11,11 +11,6 @@ import (
+ 	"time"
+ )
+ 
+-// File represents an open file descriptor.
+-type File struct {
+-	*file
+-}
+-
+ // file is the real representation of *File.
+ // The extra level of indirection ensures that no clients of os
+ // can overwrite this data, which could cause the finalizer
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 5bc2b11622..83a814348f 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -19,11 +19,6 @@ func rename(oldname, newname string) error {
+ 	return nil
+ }
+ 
+-// File represents an open file descriptor.
+-type File struct {
+-	*file
+-}
+-
+ // file is the real representation of *File.
+ // The extra level of indirection ensures that no clients of os
+ // can overwrite this data, which could cause the finalizer
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 722d4d0823..e1f9f1c33d 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -15,11 +15,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-// File represents an open file descriptor.
+-type File struct {
+-	*file
+-}
+-
+ // file is the real representation of *File.
+ // The extra level of indirection ensures that no clients of os
+ // can overwrite this data, which could cause the finalizer
+diff --git a/src/os/types.go b/src/os/types.go
+index 12b593fa1e..c56548353f 100644
+--- a/src/os/types.go
++++ b/src/os/types.go
+@@ -12,6 +12,11 @@ import (
+ // Getpagesize returns the underlying system's memory page size.
+ func Getpagesize() int { return syscall.Getpagesize() }
+ 
++// File represents an open file descriptor.
++type File struct {
++	*file // os specific
++}
++
+ // A FileInfo describes a file and is returned by Stat and Lstat.
+ type FileInfo interface {
+ 	Name() string       // base name of the file

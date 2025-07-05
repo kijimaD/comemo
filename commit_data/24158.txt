@@ -10,8 +10,87 @@ Date:   Sat Jul 11 11:28:16 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12080
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/build.go   |  9 ++++++---
  src/cmd/go/go_test.go | 21 +++++++++++++++++++++
  src/cmd/go/pkg.go     |  6 ++++++
  3 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 0e78328829..c3afa5af9c 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -501,11 +501,14 @@ func runInstall(cmd *Command, args []string) {
+ 
+ 	for _, p := range pkgs {
+ 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
+-			if p.cmdline {
++			switch {
++			case p.gobinSubdir:
++				errorf("go install: cannot install cross-compiled binaries when GOBIN is set")
++			case p.cmdline:
+ 				errorf("go install: no install location for .go files listed on command line (GOBIN not set)")
+-			} else if p.ConflictDir != "" {
++			case p.ConflictDir != "":
+ 				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
+-			} else {
++			default:
+ 				errorf("go install: no install location for directory %s outside GOPATH\n"+
+ 					"\tFor more details see: go help gopath", p.Dir)
+ 			}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 008d40f7e1..59c2cffa9f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -740,6 +740,27 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
+ 	tg.wantStale("mypkg", "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale")
+ }
+ 
++func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempFile("src/mycmd/x.go", `package main
++		func main() {}`)
++	tg.setenv("GOPATH", tg.path("."))
++
++	tg.run("build", "mycmd")
++
++	goarch := "386"
++	if runtime.GOARCH == "386" {
++		goarch = "amd64"
++	}
++	tg.setenv("GOOS", "linux")
++	tg.setenv("GOARCH", goarch)
++	tg.runFail("install", "mycmd")
++	tg.setenv("GOBIN", tg.path("."))
++	tg.runFail("install", "mycmd")
++	tg.run("install", "cmd/pack")
++}
++
+ func TestGoInstsallDetectsRemovedFilesInPackageMain(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index f949d4e9f2..432a98ba99 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -98,6 +98,7 @@ type Package struct {
+ 	coverVars    map[string]*CoverVar // variables created by coverage analysis
+ 	omitDWARF    bool                 // tell linker not to write DWARF information
+ 	buildID      string               // expected build ID for generated package
++	gobinSubdir  bool                 // install target would be subdir of GOBIN
+ }
+ 
+ // CoverVar holds the name of the generated coverage variables targeting the named file.
+@@ -718,6 +719,11 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		} else if p.build.BinDir != "" {
+ 			// Install to GOBIN or bin of GOPATH entry.
+ 			p.target = filepath.Join(p.build.BinDir, elem)
++			if !p.Goroot && strings.Contains(elem, "/") {
++				// Do not create bin/goos_goarch/elem.
++				p.target = ""
++				p.gobinSubdir = true
++			}
+ 		}
+ 		if goTools[p.ImportPath] == toTool {
+ 			// This is for 'go tool'.

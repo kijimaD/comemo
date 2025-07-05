@@ -10,9 +10,193 @@ Date:   Wed Feb 22 10:49:37 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5676088
-
+---
  src/cmd/go/pkg.go               | 29 ++---------------------
  src/cmd/godoc/dirtrees.go       |  3 ++-
  src/pkg/go/doc/synopsis.go      | 52 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/go/doc/synopsis_test.go | 44 ++++++++++++++++++++++++++++++++++
  4 files changed, 100 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index c855fa6c4c..718b9fea03 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/build"
++	"go/doc"
+ 	"go/scanner"
+ 	"os"
+ 	"path/filepath"
+@@ -220,32 +221,6 @@ func reusePackage(p *Package, stk *importStack) *Package {
+ 	return p
+ }
+ 
+-// firstSentence returns the first sentence of the document text.
+-// The sentence ends after the first period followed by a space.
+-// The returned sentence will have no \n \r or \t characters and
+-// will use only single spaces between words.
+-func firstSentence(text string) string {
+-	var b []byte
+-	space := true
+-Loop:
+-	for i := 0; i < len(text); i++ {
+-		switch c := text[i]; c {
+-		case ' ', '\t', '\r', '\n':
+-			if !space {
+-				space = true
+-				if len(b) > 0 && b[len(b)-1] == '.' {
+-					break Loop
+-				}
+-				b = append(b, ' ')
+-			}
+-		default:
+-			space = false
+-			b = append(b, c)
+-		}
+-	}
+-	return string(b)
+-}
+-
+ // isGoTool is the list of directories for Go programs that are installed in
+ // $GOROOT/bin/tool.
+ var isGoTool = map[string]bool{
+@@ -298,7 +273,7 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 
+ 	p.info = info
+ 	p.Name = info.Package
+-	p.Doc = firstSentence(info.PackageComment.Text())
++	p.Doc = doc.Synopsis(info.PackageComment.Text())
+ 	p.Imports = info.Imports
+ 	p.GoFiles = info.GoFiles
+ 	p.TestGoFiles = info.TestGoFiles
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index c61f791dcb..90f2c80ce7 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -8,6 +8,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+ 	"log"
+@@ -135,7 +136,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 							i = 3 // none of the above
+ 						}
+ 						if 0 <= i && i < len(synopses) && synopses[i] == "" {
+-							synopses[i] = firstSentence(file.Doc.Text())
++							synopses[i] = doc.Synopsis(file.Doc.Text())
+ 						}
+ 					}
+ 				}
+diff --git a/src/pkg/go/doc/synopsis.go b/src/pkg/go/doc/synopsis.go
+new file mode 100644
+index 0000000000..2192d78c0c
+--- /dev/null
++++ b/src/pkg/go/doc/synopsis.go
+@@ -0,0 +1,52 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package doc
++
++import "unicode"
++
++// firstSentenceLen returns the length of the first sentence in s.
++// The sentence ends after the first period followed by space and
++// not preceded by exactly one uppercase letter.
++//
++func firstSentenceLen(s string) int {
++	var ppp, pp, p rune
++	for i, q := range s {
++		if q == '\n' || q == '\r' || q == '\t' {
++			q = ' '
++		}
++		if q == ' ' && p == '.' && (!unicode.IsUpper(pp) || unicode.IsUpper(ppp)) {
++			return i
++		}
++		ppp, pp, p = pp, p, q
++	}
++	return len(s)
++}
++
++// Synopsis returns a cleaned version of the first sentence in s.
++// That sentence ends after the first period followed by space and
++// not preceded by exactly one uppercase letter. The result string
++// has no \n, \r, or \t characters and uses only single spaces between
++// words.
++//
++func Synopsis(s string) string {
++	n := firstSentenceLen(s)
++	var b []byte
++	p := byte(' ')
++	for i := 0; i < n; i++ {
++		q := s[i]
++		if q == '\n' || q == '\r' || q == '\t' {
++			q = ' '
++		}
++		if q != ' ' || p != ' ' {
++			b = append(b, q)
++			p = q
++		}
++	}
++	// remove trailing blank, if any
++	if n := len(b); n > 0 && p == ' ' {
++		b = b[0 : n-1]
++	}
++	return string(b)
++}
+diff --git a/src/pkg/go/doc/synopsis_test.go b/src/pkg/go/doc/synopsis_test.go
+new file mode 100644
+index 0000000000..dfc6598af4
+--- /dev/null
++++ b/src/pkg/go/doc/synopsis_test.go
+@@ -0,0 +1,44 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package doc
++
++import "testing"
++
++var tests = []struct {
++	txt string
++	fsl int
++	syn string
++}{
++	{"", 0, ""},
++	{"foo", 3, "foo"},
++	{"foo.", 4, "foo."},
++	{"foo.bar", 7, "foo.bar"},
++	{"  foo.  ", 6, "foo."},
++	{"  foo\t  bar.\n", 12, "foo bar."},
++	{"  foo\t  bar.\n", 12, "foo bar."},
++	{"a  b\n\nc\r\rd\t\t", 12, "a b c d"},
++	{"a  b\n\nc\r\rd\t\t  . BLA", 15, "a b c d ."},
++	{"Package poems by T.S.Eliot. To rhyme...", 27, "Package poems by T.S.Eliot."},
++	{"Package poems by T. S. Eliot. To rhyme...", 29, "Package poems by T. S. Eliot."},
++	{"foo implements the foo ABI. The foo ABI is...", 27, "foo implements the foo ABI."},
++	{"Package\nfoo. ..", 12, "Package foo."},
++	{"P . Q.", 3, "P ."},
++	{"P. Q.   ", 8, "P. Q."},
++	{"Package Καλημέρα κόσμε.", 36, "Package Καλημέρα κόσμε."},
++	{"Package こんにちは 世界\n", 31, "Package こんにちは 世界"},
++}
++
++func TestSynopsis(t *testing.T) {
++	for _, e := range tests {
++		fsl := firstSentenceLen(e.txt)
++		if fsl != e.fsl {
++			t.Errorf("got fsl = %d; want %d for %q\n", fsl, e.fsl, e.txt)
++		}
++		syn := Synopsis(e.txt)
++		if syn != e.syn {
++			t.Errorf("got syn = %q; want %q for %q\n", syn, e.syn, e.txt)
++		}
++	}
++}

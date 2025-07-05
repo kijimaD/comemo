@@ -9,7 +9,7 @@ Date:   Mon Jul 11 15:23:38 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4678047
-
+---
  src/pkg/exp/template/doc.go        |  6 +++++-
  src/pkg/exp/template/exec.go       | 29 +++++++++++++++++++++--------
  src/pkg/exp/template/exec_test.go  |  4 ++++
@@ -18,3 +18,251 @@ Date:   Mon Jul 11 15:23:38 2011 +1000
  src/pkg/exp/template/parse.go      | 12 ++++++++----
  src/pkg/exp/template/parse_test.go |  9 ++++++---
  7 files changed, 47 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index 736b1a3d87..a0fdd0a1f9 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -79,7 +79,7 @@ maps, and strings, any value v with len(v)==0 counts as a zero value.
+ 
+ Arguments
+ 
+-An argument is a simple value, denoted by one of the following:
++An argument is a simple value, denoted by one of the following.
+ 
+ 	- A boolean, string, character, integer, floating-point, imaginary
+ 	  or complex constant in Go syntax. These behave like Go's untyped
+@@ -100,6 +100,8 @@ An argument is a simple value, denoted by one of the following:
+ 	  The result is the value of the field. Field invocations may be
+ 	  chained:
+ 	    .Field1.Field2
++	  Fields can also be evaluated on variables, including chaining:
++	    $x.Field1.Field2
+ 	- The name of a niladic method of the data, preceded by a period,
+ 	  such as
+ 		.Method
+@@ -111,6 +113,8 @@ An argument is a simple value, denoted by one of the following:
+ 	  Method invocations may be chained, but only the last element of
+ 	  the chain may be a method; other others must be struct fields:
+ 	    .Field1.Field2.Method
++	  Methods can also be evaluated on variables, including chaining:
++	    $x.Field1.Method
+ 	- The name of a niladic function, such as
+ 		fun
+ 	  The result is the value of invoking the function, fun(). The return
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 21e8e812ea..d24e8b9084 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -271,7 +271,7 @@ func (s *state) evalPipeline(data reflect.Value, pipe *pipeNode) (value reflect.
+ 		}
+ 	}
+ 	if pipe.decl != nil {
+-		s.push(pipe.decl.ident, value)
++		s.push(pipe.decl.ident[0], value)
+ 	}
+ 	return value
+ }
+@@ -290,6 +290,8 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
+ 	case *identifierNode:
+ 		// Must be a function.
+ 		return s.evalFunction(data, n.ident, cmd.args, final)
++	case *variableNode:
++		return s.evalVariableNode(n, cmd.args, final)
+ 	}
+ 	s.notAFunction(cmd.args, final)
+ 	switch word := firstWord.(type) {
+@@ -313,21 +315,32 @@ func (s *state) evalCommand(data reflect.Value, cmd *commandNode, final reflect.
+ 		}
+ 	case *stringNode:
+ 		return reflect.ValueOf(word.text)
+-	case *variableNode:
+-		return s.varValue(word.ident)
+ 	}
+ 	s.errorf("can't handle command %q", firstWord)
+ 	panic("not reached")
+ }
+ 
+ func (s *state) evalFieldNode(data reflect.Value, field *fieldNode, args []node, final reflect.Value) reflect.Value {
++	return s.evalFieldChain(data, field.ident, args, final)
++}
++
++func (s *state) evalVariableNode(v *variableNode, args []node, final reflect.Value) reflect.Value {
++	// $x.Field has $x as the first ident, Field as the second. Eval the var, then the fields.
++	data := s.varValue(v.ident[0])
++	if len(v.ident) == 1 {
++		return data
++	}
++	return s.evalFieldChain(data, v.ident[1:], args, final)
++}
++
++func (s *state) evalFieldChain(data reflect.Value, ident []string, args []node, final reflect.Value) reflect.Value {
+ 	// Up to the last entry, it must be a field.
+-	n := len(field.ident)
++	n := len(ident)
+ 	for i := 0; i < n-1; i++ {
+-		data = s.evalField(data, field.ident[i], nil, zero, false)
++		data = s.evalField(data, ident[i], nil, zero, false)
+ 	}
+ 	// Now it can be a field or method and if a method, gets arguments.
+-	return s.evalField(data, field.ident[n-1], args, final, true)
++	return s.evalField(data, ident[n-1], args, final, true)
+ }
+ 
+ func (s *state) evalFunction(data reflect.Value, name string, args []node, final reflect.Value) reflect.Value {
+@@ -468,7 +481,7 @@ func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Va
+ 	case *fieldNode:
+ 		return s.validateType(s.evalFieldNode(data, arg, []node{n}, zero), typ)
+ 	case *variableNode:
+-		return s.validateType(s.varValue(arg.ident), typ)
++		return s.validateType(s.evalVariableNode(arg, nil, zero), typ)
+ 	}
+ 	switch typ.Kind() {
+ 	case reflect.Bool:
+@@ -578,7 +591,7 @@ func (s *state) evalEmptyInterface(data reflect.Value, n node) reflect.Value {
+ 	case *stringNode:
+ 		return reflect.ValueOf(n.text)
+ 	case *variableNode:
+-		return s.varValue(n.ident)
++		return s.evalVariableNode(n, nil, zero)
+ 	}
+ 	s.errorf("can't handle assignment of %s to empty interface argument", n)
+ 	panic("not reached")
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 55cb681363..e4fd4e6ab8 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -165,6 +165,9 @@ var execTests = []execTest{
+ 	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
+ 	{"if $x with $y int", "{{if $x := true}}{{with $y := .I}}{{$x}},{{$y}}{{end}}{{end}}", "true,17", tVal, true},
+ 	{"if $x with $x int", "{{if $x := true}}{{with $x := .I}}{{$x}},{{end}}{{$x}}{{end}}", "17,true", tVal, true},
++	{"$.I", "{{$.I}}", "17", tVal, true},
++	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
++	{"with $x struct.U.V", "{{with $x := $}}{{$.U.V}}{{end}}", "v", tVal, true},
+ 
+ 	// Pointers.
+ 	{"*int", "{{.PI}}", "23", tVal, true},
+@@ -186,6 +189,7 @@ var execTests = []execTest{
+ 	{".Method2(3, .X)", "-{{.Method2 3 .X}}-", "-Method2: 3 x-", tVal, true},
+ 	{".Method2(.U16, `str`)", "-{{.Method2 .U16 `str`}}-", "-Method2: 16 str-", tVal, true},
+ 	{".Method2(.U16, $x)", "{{if $x := .X}}-{{.Method2 .U16 $x}}{{end}}-", "-Method2: 16 x-", tVal, true},
++	{"method on var", "{{if $x := .}}-{{$x.Method2 .U16 $x.X}}{{end}}-", "-Method2: 16 x-", tVal, true},
+ 
+ 	// Pipelines.
+ 	{"pipeline", "-{{.Method0 | .Method2 .U16}}-", "-Method2: 16 M0-", tVal, true},
+diff --git a/src/pkg/exp/template/lex.go b/src/pkg/exp/template/lex.go
+index 7aebe02a31..72eff105e4 100644
+--- a/src/pkg/exp/template/lex.go
++++ b/src/pkg/exp/template/lex.go
+@@ -329,7 +329,7 @@ Loop:
+ 		switch r := l.next(); {
+ 		case isAlphaNumeric(r):
+ 			// absorb.
+-		case r == '.' && l.input[l.start] == '.':
++		case r == '.' && (l.input[l.start] == '.' || l.input[l.start] == '$'):
+ 			// field chaining; absorb into one token.
+ 		default:
+ 			l.backup()
+diff --git a/src/pkg/exp/template/lex_test.go b/src/pkg/exp/template/lex_test.go
+index e88fd363fd..36079e22f5 100644
+--- a/src/pkg/exp/template/lex_test.go
++++ b/src/pkg/exp/template/lex_test.go
+@@ -97,7 +97,7 @@ var lexTests = []lexTest{
+ 		tRight,
+ 		tEOF,
+ 	}},
+-	{"variables", "{{$c := printf $ $hello $23 $.Method}}", []item{
++	{"variables", "{{$c := printf $ $hello $23 $ $var.Field .Method}}", []item{
+ 		tLeft,
+ 		{itemVariable, "$c"},
+ 		{itemColonEquals, ":="},
+@@ -106,6 +106,7 @@ var lexTests = []lexTest{
+ 		{itemVariable, "$hello"},
+ 		{itemVariable, "$23"},
+ 		{itemVariable, "$"},
++		{itemVariable, "$var.Field"},
+ 		{itemField, ".Method"},
+ 		tRight,
+ 		tEOF,
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index 38a415dbd5..774a7dd84b 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -214,11 +214,11 @@ func (i *identifierNode) String() string {
+ // variableNode holds a variable.
+ type variableNode struct {
+ 	nodeType
+-	ident string
++	ident []string
+ }
+ 
+ func newVariable(ident string) *variableNode {
+-	return &variableNode{nodeType: nodeVariable, ident: ident}
++	return &variableNode{nodeType: nodeVariable, ident: strings.Split(ident, ".")}
+ }
+ 
+ func (v *variableNode) String() string {
+@@ -716,6 +716,9 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
+ 		if ce := t.peek(); ce.typ == itemColonEquals {
+ 			t.next()
+ 			decl = newVariable(v.val)
++			if len(decl.ident) != 1 {
++				t.errorf("illegal variable in declaration: %s", v.val)
++			}
+ 			t.vars = append(t.vars, v.val)
+ 		} else {
+ 			t.backup2(v)
+@@ -854,9 +857,10 @@ Loop:
+ 		case itemDot:
+ 			cmd.append(newDot())
+ 		case itemVariable:
++			v := newVariable(token.val)
+ 			found := false
+ 			for _, varName := range t.vars {
+-				if varName == token.val {
++				if varName == v.ident[0] {
+ 					found = true
+ 					break
+ 				}
+@@ -864,7 +868,7 @@ Loop:
+ 			if !found {
+ 				t.errorf("undefined variable %q", token.val)
+ 			}
+-			cmd.append(newVariable(token.val))
++			cmd.append(v)
+ 		case itemField:
+ 			cmd.append(newField(token.val))
+ 		case itemBool:
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index 7439ec8092..2a2fa648d7 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -172,15 +172,17 @@ var parseTests = []parseTest{
+ 	{"simple command", "{{printf}}", noError,
+ 		`[(action: [(command: [I=printf])])]`},
+ 	{"$ invocation", "{{$}}", noError,
+-		"[(action: [(command: [V=$])])]"},
++		"[(action: [(command: [V=[$]])])]"},
+ 	{"variable invocation", "{{with $x := 3}}{{$x 23}}{{end}}", noError,
+-		"[({{with $x := [(command: [N=3])]}} [(action: [(command: [V=$x N=23])])])]"},
++		"[({{with [$x] := [(command: [N=3])]}} [(action: [(command: [V=[$x] N=23])])])]"},
++	{"variable with fields", "{{$.I}}", noError,
++		"[(action: [(command: [V=[$ I]])])]"},
+ 	{"multi-word command", "{{printf `%d` 23}}", noError,
+ 		"[(action: [(command: [I=printf S=`%d` N=23])])]"},
+ 	{"pipeline", "{{.X|.Y}}", noError,
+ 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
+ 	{"pipeline with decl", "{{$x := .X|.Y}}", noError,
+-		`[(action: $x := [(command: [F=[X]]) (command: [F=[Y]])])]`},
++		`[(action: [$x] := [(command: [F=[X]]) (command: [F=[Y]])])]`},
+ 	{"declaration", "{{.X|.Y}}", noError,
+ 		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
+ 	{"simple if", "{{if .X}}hello{{end}}", noError,
+@@ -217,6 +219,7 @@ var parseTests = []parseTest{
+ 	{"undefined function", "hello{{undefined}}", hasError, ""},
+ 	{"undefined variable", "{{$x}}", hasError, ""},
+ 	{"variable undefined after end", "{{with $x := 4}}{{end}}{{$x}}", hasError, ""},
++	{"declare with field", "{{with $x.Y := 4}}{{end}}", hasError, ""},
+ }
+ 
+ func TestParse(t *testing.T) {

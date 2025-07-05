@@ -14,7 +14,50 @@ Date:   Tue Sep 4 17:17:32 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 4 ++--
  test/escape_param.go               | 8 ++++++++
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 99f046ad21..9db6c8e0b4 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -696,9 +696,9 @@ func (e *EscState) mayAffectMemory(n *Node) bool {
+ 	case OCONV:
+ 		return e.mayAffectMemory(n.Left)
+ 	case OINDEX:
+-		return e.mayAffectMemory(n.Left) && e.mayAffectMemory(n.Right)
++		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
+ 	case OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
+-		return e.mayAffectMemory(n.Left) && e.mayAffectMemory(n.Right)
++		return e.mayAffectMemory(n.Left) || e.mayAffectMemory(n.Right)
+ 	case ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
+ 		return e.mayAffectMemory(n.Left)
+ 	default:
+diff --git a/test/escape_param.go b/test/escape_param.go
+index 4eb96dff9b..dff13b6f7c 100644
+--- a/test/escape_param.go
++++ b/test/escape_param.go
+@@ -11,6 +11,8 @@
+ 
+ package escape
+ 
++func zero() int { return 0 }
++
+ var sink interface{}
+ 
+ // in -> out
+@@ -62,6 +64,12 @@ func paramArraySelfAssign(p *PairOfPairs) { // ERROR "p does not escape"
+ 	p.pairs[0] = p.pairs[1] // ERROR "ignoring self-assignment in p.pairs\[0\] = p.pairs\[1\]"
+ }
+ 
++func paramArraySelfAssignUnsafeIndex(p *PairOfPairs) { // ERROR "leaking param content: p"
++	// Function call inside index disables self-assignment case to trigger.
++	p.pairs[zero()] = p.pairs[1]
++	p.pairs[zero()+1] = p.pairs[1]
++}
++
+ type PairOfPairs struct {
+ 	pairs [2]*Pair
+ }

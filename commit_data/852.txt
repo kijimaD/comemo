@@ -7,8 +7,66 @@ Date:   Mon Oct 13 20:14:09 2008 -0700
     R=r
     OCL=17063
     CL=17063
-
+---
  src/cmd/gc/dcl.c | 2 +-
  src/cmd/gc/go.h  | 3 ++-
  src/cmd/gc/go.y  | 9 +++++++--
  3 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 5ba7408444..725bfd2ae0 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -987,7 +987,7 @@ fninit(Node *n)
+ 	// (2)
+ 
+ 	maxarg = 0;
+-	stksize = 0;
++	stksize = initstksize;
+ 
+ 	snprint(namebuf, sizeof(namebuf), "init_%s_function", filename);
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5916b11ebf..fec7ba7dde 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -451,7 +451,8 @@ EXTERN	Node*	lastconst;
+ EXTERN	int32	vargen;
+ EXTERN	int32	exportgen;
+ EXTERN	int32	maxarg;
+-EXTERN	int32	stksize;
++EXTERN	int32	stksize;		// stack size for current frame
++EXTERN	int32	initstksize;		// stack size for init function
+ EXTERN	ushort	blockgen;		// max block number
+ EXTERN	ushort	block;			// current block number
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index d08fb515ca..b7eba4a470 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -178,7 +178,11 @@ hidden_import_list:
+  * declarations
+  */
+ xdcl:
+-	common_dcl
++	{ stksize = initstksize; } common_dcl
++	{
++		$$ = $2;
++		initstksize = stksize;
++	}
+ |	xfndcl
+ 	{
+ 		$$ = N;
+@@ -187,10 +191,11 @@ xdcl:
+ 	{
+ 		$$ = N;
+ 	}
+-|	LEXPORT { exportadj = 1; } common_dcl
++|	LEXPORT { exportadj = 1; stksize = initstksize; } common_dcl
+ 	{
+ 		$$ = $3;
+ 		exportadj = 0;
++		initstksize = stksize;
+ 	}
+ |	LEXPORT '(' export_list_r ')'
+ 	{

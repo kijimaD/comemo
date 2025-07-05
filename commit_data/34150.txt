@@ -24,9 +24,88 @@ Date:   Fri Jun 16 09:23:45 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_darwin_386.s   | 8 +++++++-
  src/runtime/sys_darwin_amd64.s | 9 ++++++++-
  src/runtime/sys_darwin_arm.s   | 6 ++++++
  src/runtime/sys_darwin_arm64.s | 6 ++++++
  4 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 5c62bfd20e..dc4516dbdd 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -19,7 +19,13 @@ TEXT runtime·exit(SB),NOSPLIT,$0
+ 
+ // Exit this OS thread (like pthread_exit, which eventually
+ // calls __bsdthread_terminate).
+-TEXT runtime·exit1(SB),NOSPLIT,$0
++TEXT runtime·exit1(SB),NOSPLIT,$16-0
++	// __bsdthread_terminate takes 4 word-size arguments.
++	// Set them all to 0. (None are an exit status.)
++	MOVL	$0, 0(SP)
++	MOVL	$0, 4(SP)
++	MOVL	$0, 8(SP)
++	MOVL	$0, 12(SP)
+ 	MOVL	$361, AX
+ 	INT	$0x80
+ 	JAE 2(PC)
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index e8ae6fac4f..16125b0d4f 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -26,12 +26,19 @@ TEXT runtime·exit(SB),NOSPLIT,$0
+ // Exit this OS thread (like pthread_exit, which eventually
+ // calls __bsdthread_terminate).
+ TEXT runtime·exit1(SB),NOSPLIT,$0
+-	MOVL	code+0(FP), DI		// arg 1 exit status
++	// __bsdthread_terminate takes 4 word-size arguments.
++	// Set them all to 0. (None are an exit status.)
++	MOVL	$0, DI
++	MOVL	$0, SI
++	MOVL	$0, DX
++	MOVL	$0, R10
+ 	MOVL	$(0x2000000+361), AX	// syscall entry
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++
++
+ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVQ	name+0(FP), DI		// arg 1 pathname
+ 	MOVL	mode+8(FP), SI		// arg 2 flags
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 5def7766b0..d59a3aaa4d 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -90,6 +90,12 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
+ // Exit this OS thread (like pthread_exit, which eventually
+ // calls __bsdthread_terminate).
+ TEXT runtime·exit1(SB),NOSPLIT,$0
++	// __bsdthread_terminate takes 4 word-size arguments.
++	// Set them all to 0. (None are an exit status.)
++	MOVW	$0, R0
++	MOVW	$0, R1
++	MOVW	$0, R2
++	MOVW	$0, R3
+ 	MOVW	$SYS_bsdthread_terminate, R12
+ 	SWI	$0x80
+ 	MOVW	$1234, R0
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 34fb1f3086..513f1284ef 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -90,6 +90,12 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
+ // Exit this OS thread (like pthread_exit, which eventually
+ // calls __bsdthread_terminate).
+ TEXT runtime·exit1(SB),NOSPLIT,$0
++	// __bsdthread_terminate takes 4 word-size arguments.
++	// Set them all to 0. (None are an exit status.)
++	MOVW	$0, R0
++	MOVW	$0, R1
++	MOVW	$0, R2
++	MOVW	$0, R3
+ 	MOVW	$SYS_bsdthread_terminate, R16
+ 	SVC	$0x80
+ 	MOVD	$1234, R0

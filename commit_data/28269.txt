@@ -12,7 +12,66 @@ Date:   Fri May 6 10:11:41 2016 -0700
     Change-Id: I02f66983cefdf07a6aed262fb4af8add464d8e9a
     Reviewed-on: https://go-review.googlesource.com/22854
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go | 31 ++++++++++++++++++++++++++++---
  src/cmd/compile/internal/gc/ssa.go  |  2 +-
  2 files changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 8f466e338a..eec693c4d2 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -73,12 +73,37 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 	case ssa.OpARMADDconst:
++		if v.Aux != nil {
++			switch v.Aux.(type) {
++			default:
++				v.Fatalf("aux is of unknown type %T", v.Aux)
++			case *ssa.ExternSymbol:
++				reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
++				if reg.Name() != "SB" {
++					v.Fatalf("extern symbol with non-SB base register %s", reg.Name())
++				}
++			case *ssa.ArgSymbol,
++				*ssa.AutoSymbol:
++				reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
++				if reg.Name() != "SP" {
++					v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
++				}
++			}
++			// MOVW $sym+off(base), R
++			// the assembler expands it as the following:
++			// - base is SP: add constant offset to SP (R13)
++			//               when constant is large, tmp register (R11) may be used
++			// - base is SB: load external address from constant pool (use relocation)
++			p := gc.Prog(arm.AMOVW)
++			p.From.Type = obj.TYPE_ADDR
++			gc.AddAux(&p.From, v)
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = gc.SSARegNum(v)
++			break
++		}
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+-		if v.Aux != nil {
+-			panic("can't handle symbolic constant yet")
+-		}
+ 		p.Reg = gc.SSARegNum(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = gc.SSARegNum(v)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 19af92100a..265873a3ab 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4094,7 +4094,7 @@ func AddAux(a *obj.Addr, v *ssa.Value) {
+ 	AddAux2(a, v, v.AuxInt)
+ }
+ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+-	if a.Type != obj.TYPE_MEM {
++	if a.Type != obj.TYPE_MEM && a.Type != obj.TYPE_ADDR {
+ 		v.Fatalf("bad AddAux addr %v", a)
+ 	}
+ 	// add integer offset

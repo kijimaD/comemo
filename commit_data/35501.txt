@@ -17,7 +17,67 @@ Date:   Wed Feb 14 07:42:40 2018 -0800
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go | 28 +++++++++++++++++++++++++++-
  src/cmd/go/internal/load/pkg.go      |  1 +
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index fff04bcbef..6f32e52ec8 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1346,8 +1346,22 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+ 		}
+ 		p.linknames = append(p.linknames, linkname{pos, f[1], f[2]})
+ 
++	case strings.HasPrefix(text, "go:cgo_import_dynamic "):
++		// This is permitted for general use because Solaris
++		// code relies on it in golang.org/x/sys/unix and others.
++		fields := pragmaFields(text)
++		if len(fields) >= 4 {
++			lib := strings.Trim(fields[3], `"`)
++			if lib != "" && !safeArg(lib) && !isCgoGeneratedFile(pos) {
++				p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid library name %q in cgo_import_dynamic directive", lib)})
++			}
++			p.pragcgobuf += p.pragcgo(pos, text)
++			return pragmaValue("go:cgo_import_dynamic")
++		}
++		fallthrough
+ 	case strings.HasPrefix(text, "go:cgo_"):
+-		// For security, we disallow //go:cgo_* directives outside cgo-generated files.
++		// For security, we disallow //go:cgo_* directives other
++		// than cgo_import_dynamic outside cgo-generated files.
+ 		// Exception: they are allowed in the standard library, for runtime and syscall.
+ 		if !isCgoGeneratedFile(pos) && !compiling_std {
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in cgo-generated code", text)})
+@@ -1383,6 +1397,18 @@ func isCgoGeneratedFile(pos src.Pos) bool {
+ 	return strings.HasPrefix(filepath.Base(filepath.Clean(pos.AbsFilename())), "_cgo_")
+ }
+ 
++// safeArg reports whether arg is a "safe" command-line argument,
++// meaning that when it appears in a command-line, it probably
++// doesn't have some special meaning other than its own name.
++// This is copied from SafeArg in cmd/go/internal/load/pkg.go.
++func safeArg(name string) bool {
++	if name == "" {
++		return false
++	}
++	c := name[0]
++	return '0' <= c && c <= '9' || 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || c == '.' || c == '_' || c == '/' || c >= utf8.RuneSelf
++}
++
+ func mkname(sym *types.Sym) *Node {
+ 	n := oldname(sym)
+ 	if n.Name != nil && n.Name.Pack != nil {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index bbd75bc9b6..b006d4137c 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1206,6 +1206,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ // GNU binutils flagfile specifiers, sometimes called "response files").
+ // To be conservative, we reject almost any arg beginning with non-alphanumeric ASCII.
+ // We accept leading . _ and / as likely in file system paths.
++// There is a copy of this function in cmd/compile/internal/gc/noder.go.
+ func SafeArg(name string) bool {
+ 	if name == "" {
+ 		return false

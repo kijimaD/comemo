@@ -11,7 +11,7 @@ Date:   Sat Sep 14 01:29:19 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     |  4 ++--
  src/cmd/compile/internal/gc/noder.go     |  6 +++---
  src/cmd/compile/internal/gc/order.go     |  2 +-
@@ -20,3 +20,186 @@ Date:   Sat Sep 14 01:29:19 2019 +0700
  src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
  src/cmd/compile/internal/gc/walk.go      | 12 ++++++------
  7 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index e40c23b8ef..510b1cd15d 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -612,7 +612,7 @@ func evconst(n *Node) {
+ 				var strs []string
+ 				i2 := i1
+ 				for i2 < len(s) && Isconst(s[i2], CTSTR) {
+-					strs = append(strs, s[i2].Val().U.(string))
++					strs = append(strs, strlit(s[i2]))
+ 					i2++
+ 				}
+ 
+@@ -635,7 +635,7 @@ func evconst(n *Node) {
+ 		switch nl.Type.Etype {
+ 		case TSTRING:
+ 			if Isconst(nl, CTSTR) {
+-				setintconst(n, int64(len(nl.Val().U.(string))))
++				setintconst(n, int64(len(strlit(nl))))
+ 			}
+ 		case TARRAY:
+ 			if !hascallchan(nl) {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index a60b854b2c..6bbabb45dd 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -762,7 +762,7 @@ func (p *noder) sum(x syntax.Expr) *Node {
+ 	n := p.expr(x)
+ 	if Isconst(n, CTSTR) && n.Sym == nil {
+ 		nstr = n
+-		chunks = append(chunks, nstr.Val().U.(string))
++		chunks = append(chunks, strlit(nstr))
+ 	}
+ 
+ 	for i := len(adds) - 1; i >= 0; i-- {
+@@ -772,12 +772,12 @@ func (p *noder) sum(x syntax.Expr) *Node {
+ 		if Isconst(r, CTSTR) && r.Sym == nil {
+ 			if nstr != nil {
+ 				// Collapse r into nstr instead of adding to n.
+-				chunks = append(chunks, r.Val().U.(string))
++				chunks = append(chunks, strlit(r))
+ 				continue
+ 			}
+ 
+ 			nstr = r
+-			chunks = append(chunks, nstr.Val().U.(string))
++			chunks = append(chunks, strlit(nstr))
+ 		} else {
+ 			if len(chunks) > 1 {
+ 				nstr.SetVal(Val{U: strings.Join(chunks, "")})
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 0ea43f114e..ee04b69a68 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1017,7 +1017,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		haslit := false
+ 		for _, n1 := range n.List.Slice() {
+ 			hasbyte = hasbyte || n1.Op == OBYTES2STR
+-			haslit = haslit || n1.Op == OLITERAL && len(n1.Val().U.(string)) != 0
++			haslit = haslit || n1.Op == OLITERAL && len(strlit(n1)) != 0
+ 		}
+ 
+ 		if haslit && hasbyte {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index ae8e79d854..ae16d41b1c 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -211,7 +211,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 
+ 	case OSTR2BYTES:
+ 		if l.Class() == PEXTERN && r.Left.Op == OLITERAL {
+-			sval := r.Left.Val().U.(string)
++			sval := strlit(r.Left)
+ 			slicebytes(l, sval, len(sval))
+ 			return true
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 97d9b0f912..7b0c7e5c43 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2336,7 +2336,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				// Replace "abc"[1] with 'b'.
+ 				// Delayed until now because "abc"[1] is not an ideal constant.
+ 				// See test/fixedbugs/issue11370.go.
+-				return s.newValue0I(ssa.OpConst8, types.Types[TUINT8], int64(int8(n.Left.Val().U.(string)[n.Right.Int64()])))
++				return s.newValue0I(ssa.OpConst8, types.Types[TUINT8], int64(int8(strlit(n.Left)[n.Right.Int64()])))
+ 			}
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e725c6f363..050a74b1e6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1043,8 +1043,8 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 					yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
+ 				} else if t.IsArray() && x >= t.NumElem() {
+ 					yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
+-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
+-					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
++				} else if Isconst(n.Left, CTSTR) && x >= int64(len(strlit(n.Left))) {
++					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(strlit(n.Left)))
+ 				} else if n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+ 					yyerror("invalid %s index %v (index too large)", why, n.Right)
+ 				}
+@@ -2148,8 +2148,8 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
+ 		} else if tp != nil && tp.NumElem() >= 0 && r.Int64() > tp.NumElem() {
+ 			yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
+ 			return false
+-		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(l.Val().U.(string))) {
+-			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
++		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(strlit(l))) {
++			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(strlit(l)))
+ 			return false
+ 		} else if r.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
+ 			yyerror("invalid slice index %v (index too large)", r)
+@@ -3409,7 +3409,7 @@ func stringtoruneslit(n *Node) *Node {
+ 	}
+ 
+ 	var l []*Node
+-	s := n.Left.Val().U.(string)
++	s := strlit(n.Left)
+ 	i := 0
+ 	for _, r := range s {
+ 		l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index cb49e0f7ce..d2036b6e32 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1054,7 +1054,7 @@ opswitch:
+ 				yyerror("index out of bounds")
+ 			}
+ 		} else if Isconst(n.Left, CTSTR) {
+-			n.SetBounded(bounded(r, int64(len(n.Left.Val().U.(string)))))
++			n.SetBounded(bounded(r, int64(len(strlit(n.Left)))))
+ 			if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+ 				Warn("index bounds check elided")
+ 			}
+@@ -1389,7 +1389,7 @@ opswitch:
+ 	case OSTR2BYTES:
+ 		s := n.Left
+ 		if Isconst(s, CTSTR) {
+-			sc := s.Val().U.(string)
++			sc := strlit(s)
+ 
+ 			// Allocate a [n]byte of the right size.
+ 			t := types.NewArray(types.Types[TUINT8], int64(len(sc)))
+@@ -1792,7 +1792,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 	for i := 0; i < len(s); {
+ 		var strs []string
+ 		for i < len(s) && Isconst(s[i], CTSTR) {
+-			strs = append(strs, s[i].Val().U.(string))
++			strs = append(strs, strlit(s[i]))
+ 			i++
+ 		}
+ 		if len(strs) > 0 {
+@@ -1861,7 +1861,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 		case TSTRING:
+ 			cs := ""
+ 			if Isconst(n, CTSTR) {
+-				cs = n.Val().U.(string)
++				cs = strlit(n)
+ 			}
+ 			switch cs {
+ 			case " ":
+@@ -2510,7 +2510,7 @@ func addstr(n *Node, init *Nodes) *Node {
+ 		sz := int64(0)
+ 		for _, n1 := range n.List.Slice() {
+ 			if n1.Op == OLITERAL {
+-				sz += int64(len(n1.Val().U.(string)))
++				sz += int64(len(strlit(n1)))
+ 			}
+ 		}
+ 
+@@ -3350,7 +3350,7 @@ func walkcompareString(n *Node, init *Nodes) *Node {
+ 			// Length-only checks are ok, though.
+ 			maxRewriteLen = 0
+ 		}
+-		if s := cs.Val().U.(string); len(s) <= maxRewriteLen {
++		if s := strlit(cs); len(s) <= maxRewriteLen {
+ 			if len(s) > 0 {
+ 				ncs = safeexpr(ncs, init)
+ 			}

@@ -7,6 +7,19 @@ Date:   Mon Jul 1 18:10:03 2013 -0400
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/10849043
-
+---
  src/pkg/runtime/proc_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index 605f747cbe..7e551d2fd1 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -169,6 +169,7 @@ var preempt = func() int {
+ }
+ 
+ func TestPreemptionGC(t *testing.T) {
++	t.Skip("preemption is disabled")
+ 	// Test that pending GC preempts running goroutines.
+ 	const P = 5
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P + 1))

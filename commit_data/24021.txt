@@ -28,7 +28,7 @@ Date:   Wed Jun 24 17:48:22 2015 -0700
     Change-Id: I40959b22993c4f70784b4eca472cae752347879c
     Reviewed-on: https://go-review.googlesource.com/11452
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  42 +++++----
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |   5 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   1 +
@@ -37,3 +37,389 @@ Date:   Wed Jun 24 17:48:22 2015 -0700
  src/cmd/compile/internal/ssa/opGen.go          |  63 +++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 120 +++++++++++++++++++++++++
  7 files changed, 220 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 51e4735520..f9c8c9b62b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -392,7 +392,9 @@ func (s *state) stmt(n *Node) {
+ 		// generate body
+ 		s.startBlock(bBody)
+ 		s.stmtList(n.Nbody)
+-		s.stmt(n.Right)
++		if n.Right != nil {
++			s.stmt(n.Right)
++		}
+ 		b = s.endBlock()
+ 		addEdge(b, bCond)
+ 
+@@ -409,6 +411,21 @@ func (s *state) stmt(n *Node) {
+ 	}
+ }
+ 
++var binOpToSSA = [...]ssa.Op{
++	// Comparisons
++	OEQ: ssa.OpEq,
++	ONE: ssa.OpNeq,
++	OLT: ssa.OpLess,
++	OLE: ssa.OpLeq,
++	OGT: ssa.OpGreater,
++	OGE: ssa.OpGeq,
++	// Arithmetic
++	OADD: ssa.OpAdd,
++	OSUB: ssa.OpSub,
++	OLSH: ssa.OpLsh,
++	ORSH: ssa.OpRsh,
++}
++
+ // expr converts the expression n to ssa, adds it to s and returns the ssa result.
+ func (s *state) expr(n *Node) *ssa.Value {
+ 	s.pushLine(n.Lineno)
+@@ -444,28 +461,15 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		x := s.expr(n.Left)
+ 		return s.newValue1(ssa.OpConvert, n.Type, x)
+ 
+-		// binary ops
+-	case OLT:
+-		a := s.expr(n.Left)
+-		b := s.expr(n.Right)
+-		return s.newValue2(ssa.OpLess, ssa.TypeBool, a, b)
+-	case OADD:
+-		a := s.expr(n.Left)
+-		b := s.expr(n.Right)
+-		return s.newValue2(ssa.OpAdd, a.Type, a, b)
+-	case OSUB:
+-		// TODO:(khr) fold code for all binary ops together somehow
+-		a := s.expr(n.Left)
+-		b := s.expr(n.Right)
+-		return s.newValue2(ssa.OpSub, a.Type, a, b)
+-	case OLSH:
++	// binary ops
++	case OLT, OEQ, ONE, OLE, OGE, OGT:
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+-		return s.newValue2(ssa.OpLsh, a.Type, a, b)
+-	case ORSH:
++		return s.newValue2(binOpToSSA[n.Op], ssa.TypeBool, a, b)
++	case OADD, OSUB, OLSH, ORSH:
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+-		return s.newValue2(ssa.OpRsh, a.Type, a, b)
++		return s.newValue2(binOpToSSA[n.Op], a.Type, a, b)
+ 
+ 	case OADDR:
+ 		return s.addr(n.Left)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 124b13b6f2..d3d14c3a0f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -48,6 +48,11 @@
+ 			y))
+ 
+ (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
++(Leq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETLE (CMPQ <TypeFlags> x y))
++(Greater x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETG (CMPQ <TypeFlags> x y))
++(Geq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETGE (CMPQ <TypeFlags> x y))
++(Eq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETEQ (CMPQ <TypeFlags> x y))
++(Neq x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETNE (CMPQ <TypeFlags> x y))
+ 
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
+ (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index c0f36b51b3..6d0b4ece3c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -122,6 +122,7 @@ func init() {
+ 		{name: "SETEQ", reg: flagsgp}, // extract == condition from arg0
+ 		{name: "SETNE", reg: flagsgp}, // extract != condition from arg0
+ 		{name: "SETL", reg: flagsgp},  // extract signed < condition from arg0
++		{name: "SETLE", reg: flagsgp}, // extract signed <= condition from arg0
+ 		{name: "SETG", reg: flagsgp},  // extract signed > condition from arg0
+ 		{name: "SETGE", reg: flagsgp}, // extract signed >= condition from arg0
+ 		{name: "SETB", reg: flagsgp},  // extract unsigned < condition from arg0
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index e7c4de8eb1..151e8e13e3 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -15,7 +15,12 @@ var genericOps = []opData{
+ 	{name: "Rsh"}, // arg0 >> arg1 (signed/unsigned depending on signedness of type)
+ 
+ 	// 2-input comparisons
+-	{name: "Less"}, // arg0 < arg1
++	{name: "Eq"},      // arg0 == arg1
++	{name: "Neq"},     // arg0 != arg1
++	{name: "Less"},    // arg0 < arg1
++	{name: "Leq"},     // arg0 <= arg1
++	{name: "Greater"}, // arg0 > arg1
++	{name: "Geq"},     // arg0 <= arg1
+ 
+ 	// Data movement
+ 	{name: "Phi"},  // select an argument based on which predecessor block we came from
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index 2d60957d49..272fd0c027 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -22,13 +22,14 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto(blockn(0)),
+ 		),
+ 	)
+ 	for i := 0; i < depth; i++ {
+ 		blocs = append(blocs,
+ 			Bloc(blockn(i),
+-				Valu(ptrn(i), OpGlobal, ptrType, 0, nil),
++				Valu(ptrn(i), OpAddr, ptrType, 0, nil, "sb"),
+ 				Valu(booln(i), OpIsNonNil, TypeBool, 0, nil, ptrn(i)),
+ 				If(booln(i), blockn(i+1), "exit"),
+ 			),
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 20adc62958..997522037c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -72,6 +72,7 @@ const (
+ 	OpAMD64SETEQ
+ 	OpAMD64SETNE
+ 	OpAMD64SETL
++	OpAMD64SETLE
+ 	OpAMD64SETG
+ 	OpAMD64SETGE
+ 	OpAMD64SETB
+@@ -112,7 +113,12 @@ const (
+ 	OpMul
+ 	OpLsh
+ 	OpRsh
++	OpEq
++	OpNeq
+ 	OpLess
++	OpLeq
++	OpGreater
++	OpGeq
+ 	OpPhi
+ 	OpCopy
+ 	OpConst
+@@ -451,6 +457,18 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "SETLE",
++		reg: regInfo{
++			inputs: []regMask{
++				8589934592, // .FLAGS
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "SETG",
+ 		reg: regInfo{
+@@ -920,6 +938,24 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 		generic: true,
+ 	},
++	{
++		name: "Eq",
++		reg: regInfo{
++			inputs:   []regMask{},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++		generic: true,
++	},
++	{
++		name: "Neq",
++		reg: regInfo{
++			inputs:   []regMask{},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++		generic: true,
++	},
+ 	{
+ 		name: "Less",
+ 		reg: regInfo{
+@@ -929,6 +965,33 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 		generic: true,
+ 	},
++	{
++		name: "Leq",
++		reg: regInfo{
++			inputs:   []regMask{},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++		generic: true,
++	},
++	{
++		name: "Greater",
++		reg: regInfo{
++			inputs:   []regMask{},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++		generic: true,
++	},
++	{
++		name: "Geq",
++		reg: regInfo{
++			inputs:   []regMask{},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++		generic: true,
++	},
+ 	{
+ 		name: "Phi",
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index dfed084875..599203c119 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -519,6 +519,78 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endcc7894224d4f6b0bcabcece5d0185912
+ 	endcc7894224d4f6b0bcabcece5d0185912:
+ 		;
++	case OpEq:
++		// match: (Eq x y)
++		// cond: is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)
++		// result: (SETEQ (CMPQ <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)) {
++				goto endad64a62086703de09f52315e190bdf0e
++			}
++			v.Op = OpAMD64SETEQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto endad64a62086703de09f52315e190bdf0e
++	endad64a62086703de09f52315e190bdf0e:
++		;
++	case OpGeq:
++		// match: (Geq x y)
++		// cond: is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)
++		// result: (SETGE (CMPQ <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)) {
++				goto end31ba1968829a3b451a35431111140fec
++			}
++			v.Op = OpAMD64SETGE
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end31ba1968829a3b451a35431111140fec
++	end31ba1968829a3b451a35431111140fec:
++		;
++	case OpGreater:
++		// match: (Greater x y)
++		// cond: is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)
++		// result: (SETG (CMPQ <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)) {
++				goto end1cff30b1bf40104e5e30ab73d6568f7f
++			}
++			v.Op = OpAMD64SETG
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto end1cff30b1bf40104e5e30ab73d6568f7f
++	end1cff30b1bf40104e5e30ab73d6568f7f:
++		;
+ 	case OpIsInBounds:
+ 		// match: (IsInBounds idx len)
+ 		// cond:
+@@ -560,6 +632,30 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endff508c3726edfb573abc6128c177e76c
+ 	endff508c3726edfb573abc6128c177e76c:
+ 		;
++	case OpLeq:
++		// match: (Leq x y)
++		// cond: is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)
++		// result: (SETLE (CMPQ <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)) {
++				goto enddb4f100c01cdd95d69d399ffc37e33e7
++			}
++			v.Op = OpAMD64SETLE
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto enddb4f100c01cdd95d69d399ffc37e33e7
++	enddb4f100c01cdd95d69d399ffc37e33e7:
++		;
+ 	case OpLess:
+ 		// match: (Less x y)
+ 		// cond: is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)
+@@ -1117,6 +1213,30 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endfab0d598f376ecba45a22587d50f7aff
+ 	endfab0d598f376ecba45a22587d50f7aff:
+ 		;
++	case OpNeq:
++		// match: (Neq x y)
++		// cond: is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)
++		// result: (SETNE (CMPQ <TypeFlags> x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)) {
++				goto enddccbd4e7581ae8d9916b933d3501987b
++			}
++			v.Op = OpAMD64SETNE
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
++			v0.Type = TypeFlags
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v.AddArg(v0)
++			return true
++		}
++		goto enddccbd4e7581ae8d9916b933d3501987b
++	enddccbd4e7581ae8d9916b933d3501987b:
++		;
+ 	case OpOffPtr:
+ 		// match: (OffPtr [off] ptr)
+ 		// cond:

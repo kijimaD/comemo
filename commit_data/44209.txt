@@ -14,7 +14,80 @@ Date:   Tue May 26 17:45:11 2020 +0300
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go           | 25 ++++++++++++++++---------
  src/cmd/go/testdata/script/clean_cache_n.txt | 25 +++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index d5028de970..99704cb2b1 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -137,20 +137,27 @@ func runClean(cmd *base.Command, args []string) {
+ 				if cfg.BuildN || cfg.BuildX {
+ 					b.Showcmd("", "rm -r %s", strings.Join(subdirs, " "))
+ 				}
+-				for _, d := range subdirs {
+-					// Only print the first error - there may be many.
+-					// This also mimics what os.RemoveAll(dir) would do.
+-					if err := os.RemoveAll(d); err != nil && !printedErrors {
+-						printedErrors = true
+-						base.Errorf("go clean -cache: %v", err)
++				if !cfg.BuildN {
++					for _, d := range subdirs {
++						// Only print the first error - there may be many.
++						// This also mimics what os.RemoveAll(dir) would do.
++						if err := os.RemoveAll(d); err != nil && !printedErrors {
++							printedErrors = true
++							base.Errorf("go clean -cache: %v", err)
++						}
+ 					}
+ 				}
+ 			}
+ 
+ 			logFile := filepath.Join(dir, "log.txt")
+-			if err := os.RemoveAll(logFile); err != nil && !printedErrors {
+-				printedErrors = true
+-				base.Errorf("go clean -cache: %v", err)
++			if cfg.BuildN || cfg.BuildX {
++				b.Showcmd("", "rm -f %s", logFile)
++			}
++			if !cfg.BuildN {
++				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
++					printedErrors = true
++					base.Errorf("go clean -cache: %v", err)
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/clean_cache_n.txt b/src/cmd/go/testdata/script/clean_cache_n.txt
+new file mode 100644
+index 0000000000..4497b36bc3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/clean_cache_n.txt
+@@ -0,0 +1,25 @@
++# We're testing cache behavior, so start with a clean GOCACHE.
++env GOCACHE=$WORK/cache
++
++# Build something so that the cache gets populates
++go build main.go
++
++# Check that cache contains directories before running
++exists $GOCACHE/00
++
++# Run go clean -cache -n and ensure that directories weren't deleted
++go clean -cache -n
++exists $GOCACHE/00
++
++# Re-run go clean cache without the -n flag go ensure that directories were properly removed
++go clean -cache
++! exists $GOCACHE/00
++
++-- main.go --
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println("hello!")
++}

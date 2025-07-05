@@ -11,9 +11,91 @@ Date:   Fri Aug 26 11:28:41 2016 -0400
     Change-Id: I5952d67ab29d5ef8923ff1143e17a8d30169d692
     Reviewed-on: https://go-review.googlesource.com/27826
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  2 ++
  src/cmd/internal/obj/s390x/a.out.go       |  2 ++
  src/cmd/internal/obj/s390x/anames.go      |  2 ++
  src/cmd/internal/obj/s390x/asmz.go        | 17 +++++++++++++++++
  4 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index e902100dc5..4060f08780 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -178,6 +178,8 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	FABS	F1, F2                 // b3100021
+ 	FSQRTS	F3, F4                 // b3140043
+ 	FSQRT	F5, F15                // b31500f5
++	FIEBR	$0, F0, F1             // b3570010
++	FIDBR	$7, F2, F3             // b35f7032
+ 
+ 	VL	(R15), V1              // e710f0000006
+ 	VST	V1, (R15)              // e710f000000e
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 28b03d433f..ed9a1972f0 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -286,6 +286,8 @@ const (
+ 	AFSUBS
+ 	AFSQRT
+ 	AFSQRTS
++	AFIEBR
++	AFIDBR
+ 
+ 	// convert from int32/int64 to float/float64
+ 	ACEFBRA
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index c8367d6eca..4a8e619ac1 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -79,6 +79,8 @@ var Anames = []string{
+ 	"FSUBS",
+ 	"FSQRT",
+ 	"FSQRTS",
++	"FIEBR",
++	"FIDBR",
+ 	"CEFBRA",
+ 	"CDFBRA",
+ 	"CEGBRA",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 0b0ed585e8..47c901f01e 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -191,6 +191,7 @@ var optab = []Optab{
+ 	Optab{AFMOVD, C_ZCON, C_NONE, C_NONE, C_FREG, 67, 0},
+ 	Optab{ACEFBRA, C_REG, C_NONE, C_NONE, C_FREG, 82, 0},
+ 	Optab{ACFEBRA, C_FREG, C_NONE, C_NONE, C_REG, 83, 0},
++	Optab{AFIEBR, C_SCON, C_FREG, C_NONE, C_FREG, 48, 0},
+ 
+ 	// load symbol address (plus offset)
+ 	Optab{AMOVD, C_SYMADDR, C_NONE, C_NONE, C_REG, 19, 0},
+@@ -912,6 +913,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ACLFDBR, r)
+ 			opset(ACLGEBR, r)
+ 			opset(ACLGDBR, r)
++		case AFIEBR:
++			opset(AFIDBR, r)
+ 		case ACMPBEQ:
+ 			opset(ACMPBGE, r)
+ 			opset(ACMPBGT, r)
+@@ -3205,6 +3208,20 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			zRRE(op_LCGR, uint32(p.To.Reg), uint32(r), asm)
+ 		}
+ 
++	case 48: // floating-point round to integer
++		m3 := vregoff(ctxt, &p.From)
++		if 0 > m3 || m3 > 7 {
++			ctxt.Diag("mask (%v) must be in the range [0, 7]", m3)
++		}
++		var opcode uint32
++		switch p.As {
++		case AFIEBR:
++			opcode = op_FIEBR
++		case AFIDBR:
++			opcode = op_FIDBR
++		}
++		zRRF(opcode, uint32(m3), 0, uint32(p.To.Reg), uint32(p.Reg), asm)
++
+ 	case 67: // fmov $0 freg
+ 		var opcode uint32
+ 		switch p.As {

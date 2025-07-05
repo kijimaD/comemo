@@ -12,6 +12,37 @@ Date:   Sun Jul 8 16:42:33 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/malloc_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 0bce059f7f..e6afc25ea9 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -19,7 +19,11 @@ import (
+ 	"unsafe"
+ )
+ 
++var testMemStatsCount int
++
+ func TestMemStats(t *testing.T) {
++	testMemStatsCount++
++
+ 	// Make sure there's at least one forced GC.
+ 	GC()
+ 
+@@ -35,6 +39,13 @@ func TestMemStats(t *testing.T) {
+ 	}
+ 	le := func(thresh float64) func(interface{}) error {
+ 		return func(x interface{}) error {
++			// These sanity tests aren't necessarily valid
++			// with high -test.count values, so only run
++			// them once.
++			if testMemStatsCount > 1 {
++				return nil
++			}
++
+ 			if reflect.ValueOf(x).Convert(reflect.TypeOf(thresh)).Float() < thresh {
+ 				return nil
+ 			}

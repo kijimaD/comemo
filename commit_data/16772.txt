@@ -14,7 +14,34 @@ Date:   Mon Jul 15 20:39:07 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/11313043
-
+---
  src/cmd/gc/subr.c      | 2 +-
  src/cmd/gc/typecheck.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index dee5b01610..3b1b0543e0 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1260,7 +1260,7 @@ assignop(Type *src, Type *dst, char **why)
+ 					"\t\thave %S%hhT\n\t\twant %S%hhT", src, dst, missing->sym,
+ 					have->sym, have->type, missing->sym, missing->type);
+ 			else if(ptr)
+-				*why = smprint(":\n\t%T does not implement %T (%S method requires pointer receiver)",
++				*why = smprint(":\n\t%T does not implement %T (%S method has pointer receiver)",
+ 					src, dst, missing->sym);
+ 			else if(have)
+ 				*why = smprint(":\n\t%T does not implement %T (missing %S method)\n"
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d4dc0813da..54ce5b3ea6 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -839,7 +839,7 @@ reswitch:
+ 					"\t\thave %S%hhT\n\t\twant %S%hhT", n->type, t, missing->sym,
+ 					have->sym, have->type, missing->sym, missing->type);
+ 			else if(ptr)
+-				yyerror("impossible type assertion:\n\t%T does not implement %T (%S method requires pointer receiver)",
++				yyerror("impossible type assertion:\n\t%T does not implement %T (%S method has pointer receiver)",
+ 					n->type, t, missing->sym);
+ 			else if(have)
+ 				yyerror("impossible type assertion:\n\t%T does not implement %T (missing %S method)\n"

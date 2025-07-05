@@ -14,7 +14,7 @@ Date:   Mon Dec 21 01:20:20 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/279305
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go  |  4 ----
  src/cmd/compile/internal/gc/iimport.go | 15 +++++++++++++++
  src/cmd/compile/internal/gc/main.go    | 17 ++++++++++-------
@@ -23,3 +23,197 @@ Date:   Mon Dec 21 01:20:20 2020 -0500
  src/cmd/compile/internal/gc/timings.go |  2 ++
  src/cmd/compile/internal/ir/stmt.go    |  7 +++++++
  7 files changed, 44 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 235cef47ea..3351cfe968 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -143,10 +143,6 @@ type EscEdge struct {
+ 	notes  *EscNote
+ }
+ 
+-func init() {
+-	ir.EscFmt = escFmt
+-}
+-
+ // escFmt is called from node printing to print information about escape analysis results.
+ func escFmt(n ir.Node) string {
+ 	text := ""
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index cd66d39b66..358fdef294 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -685,6 +685,21 @@ func (r *importReader) typeExt(t *types.Type) {
+ // so we can use index to reference the symbol.
+ var typeSymIdx = make(map[*types.Type][2]int64)
+ 
++func BaseTypeIndex(t *types.Type) int64 {
++	tbase := t
++	if t.IsPtr() && t.Sym() == nil && t.Elem().Sym() != nil {
++		tbase = t.Elem()
++	}
++	i, ok := typeSymIdx[tbase]
++	if !ok {
++		return -1
++	}
++	if t != tbase {
++		return i[1]
++	}
++	return i[0]
++}
++
+ func (r *importReader) doInline(fn *ir.Func) {
+ 	if len(fn.Inl.Body) != 0 {
+ 		base.Fatalf("%v already has inline body", fn)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 4aa2a2ca47..80b17ebbf8 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -54,9 +54,6 @@ func hidePanic() {
+ // Target is the package being compiled.
+ var Target *ir.Package
+ 
+-// timing data for compiler phases
+-var timings Timings
+-
+ // Main parses flags and Go source files specified in the command-line
+ // arguments, type-checks the parsed Go package, compiles functions to machine
+ // code, and finally writes the compiled package definition to disk.
+@@ -189,6 +186,7 @@ func Main(archInit func(*Arch)) {
+ 		logopt.LogJsonOption(base.Flag.JSON)
+ 	}
+ 
++	ir.EscFmt = escFmt
+ 	IsIntrinsicCall = isIntrinsicCall
+ 	SSADumpInline = ssaDumpInline
+ 	initSSAEnv()
+@@ -962,9 +960,11 @@ type lang struct {
+ // any language version is supported.
+ var langWant lang
+ 
+-// langSupported reports whether language version major.minor is
+-// supported in a particular package.
+-func langSupported(major, minor int, pkg *types.Pkg) bool {
++// AllowsGoVersion reports whether a particular package
++// is allowed to use Go version major.minor.
++// We assume the imported packages have all been checked,
++// so we only have to check the local package against the -lang flag.
++func AllowsGoVersion(pkg *types.Pkg, major, minor int) bool {
+ 	if pkg == nil {
+ 		// TODO(mdempsky): Set Pkg for local types earlier.
+ 		pkg = types.LocalPkg
+@@ -973,13 +973,16 @@ func langSupported(major, minor int, pkg *types.Pkg) bool {
+ 		// Assume imported packages passed type-checking.
+ 		return true
+ 	}
+-
+ 	if langWant.major == 0 && langWant.minor == 0 {
+ 		return true
+ 	}
+ 	return langWant.major > major || (langWant.major == major && langWant.minor >= minor)
+ }
+ 
++func langSupported(major, minor int, pkg *types.Pkg) bool {
++	return AllowsGoVersion(pkg, major, minor)
++}
++
+ // checkLang verifies that the -lang flag holds a valid value, and
+ // exits if not. It initializes data used by langSupported.
+ func checkLang() {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 094c386218..c6625da1da 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -127,8 +127,7 @@ func dumpdata() {
+ 	addsignats(Target.Externs)
+ 	dumpsignats()
+ 	dumptabs()
+-	ptabsLen := len(ptabs)
+-	itabsLen := len(itabs)
++	numPTabs, numITabs := CountTabs()
+ 	dumpimportstrings()
+ 	dumpbasictypes()
+ 	dumpembeds()
+@@ -168,10 +167,11 @@ func dumpdata() {
+ 	if numExports != len(Target.Exports) {
+ 		base.Fatalf("Target.Exports changed after compile functions loop")
+ 	}
+-	if ptabsLen != len(ptabs) {
++	newNumPTabs, newNumITabs := CountTabs()
++	if newNumPTabs != numPTabs {
+ 		base.Fatalf("ptabs changed after compile functions loop")
+ 	}
+-	if itabsLen != len(itabs) {
++	if newNumITabs != numITabs {
+ 		base.Fatalf("itabs changed after compile functions loop")
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 8e2c6f62e1..92b04f20d5 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -34,6 +34,10 @@ type ptabEntry struct {
+ 	t *types.Type
+ }
+ 
++func CountTabs() (numPTabs, numITabs int) {
++	return len(ptabs), len(itabs)
++}
++
+ // runtime interface and reflection data structures
+ var (
+ 	signatmu    sync.Mutex // protects signatset and signatslice
+@@ -1158,13 +1162,9 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Kind()] && tbase != types.ByteType && tbase != types.RuneType && tbase != types.ErrorType) { // int, float, etc
+ 		// named types from other files are defined only by those files
+ 		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg {
+-			if i, ok := typeSymIdx[tbase]; ok {
++			if i := BaseTypeIndex(t); i >= 0 {
+ 				lsym.Pkg = tbase.Sym().Pkg.Prefix
+-				if t != tbase {
+-					lsym.SymIdx = int32(i[1])
+-				} else {
+-					lsym.SymIdx = int32(i[0])
+-				}
++				lsym.SymIdx = int32(i)
+ 				lsym.Set(obj.AttrIndexed, true)
+ 			}
+ 			return lsym
+diff --git a/src/cmd/compile/internal/gc/timings.go b/src/cmd/compile/internal/gc/timings.go
+index 56b3899e2f..ac12d78d1e 100644
+--- a/src/cmd/compile/internal/gc/timings.go
++++ b/src/cmd/compile/internal/gc/timings.go
+@@ -11,6 +11,8 @@ import (
+ 	"time"
+ )
+ 
++var timings Timings
++
+ // Timings collects the execution times of labeled phases
+ // which are added trough a sequence of Start/Stop calls.
+ // Events may be associated with each phase via AddEvent.
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 12811821ad..e2543a5541 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -5,6 +5,7 @@
+ package ir
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ )
+@@ -164,6 +165,12 @@ type BlockStmt struct {
+ func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
+ 	n := &BlockStmt{}
+ 	n.pos = pos
++	if !pos.IsKnown() {
++		n.pos = base.Pos
++		if len(list) > 0 {
++			n.pos = list[0].Pos()
++		}
++	}
+ 	n.op = OBLOCK
+ 	n.List_.Set(list)
+ 	return n

@@ -14,7 +14,63 @@ Date:   Fri Mar 29 20:03:29 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170858
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/malloc.go   |  8 ++++++++
  src/runtime/os_linux.go | 23 +++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index c22c7aa7dc..f2cb6085bc 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -324,6 +324,14 @@ const (
+ // mallocinit.
+ var physPageSize uintptr
+ 
++// physHugePageSize is the size in bytes of the OS's default physical huge
++// page size whose allocation is opaque to the application.
++//
++// If set, this must be set by the OS init code (typically in osinit) before
++// mallocinit. However, setting it at all is optional, and leaving the default
++// value is always safe (though potentially less efficient).
++var physHugePageSize uintptr
++
+ // OS-defined helpers:
+ //
+ // sysAlloc obtains a large chunk of zeroed memory from the
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index a817020c90..ad35b97251 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -261,8 +261,31 @@ func sysauxv(auxv []uintptr) int {
+ 	return i / 2
+ }
+ 
++var sysTHPSizePath = []byte("/sys/kernel/mm/transparent_hugepage/hpage_pmd_size\x00")
++
++func getHugePageSize() uintptr {
++	var numbuf [20]byte
++	fd := open(&sysTHPSizePath[0], 0 /* O_RDONLY */, 0)
++	if fd < 0 {
++		return 0
++	}
++	n := read(fd, noescape(unsafe.Pointer(&numbuf[0])), int32(len(numbuf)))
++	if n <= 0 {
++		closefd(fd)
++		return 0
++	}
++	l := n - 1 // remove trailing newline
++	v, ok := atoi(slicebytetostringtmp(numbuf[:l]))
++	if !ok || v < 0 {
++		v = 0
++	}
++	closefd(fd)
++	return uintptr(v)
++}
++
+ func osinit() {
+ 	ncpu = getproccount()
++	physHugePageSize = getHugePageSize()
+ }
+ 
+ var urandom_dev = []byte("/dev/urandom\x00")

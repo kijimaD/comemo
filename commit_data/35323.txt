@@ -32,7 +32,7 @@ Date:   Mon Dec 11 15:30:39 2017 -0800
     Change-Id: Ic95f709560858b4bdf8c645be70abe4449f6184d
     Reviewed-on: https://go-review.googlesource.com/83397
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/check.go               | 31 +++++++------------------------
  src/go/types/decl.go                | 14 +++++++++++++-
  src/go/types/expr.go                | 18 ++++++++----------
@@ -45,3 +45,375 @@ Date:   Mon Dec 11 15:30:39 2017 -0800
  src/go/types/testdata/vardecl.src   | 15 ++++++++++++++-
  src/go/types/typexpr.go             |  6 +++---
  11 files changed, 88 insertions(+), 54 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index b046458cf7..af2ce9e605 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -39,14 +39,6 @@ type exprInfo struct {
+ 	val   constant.Value // constant value; or nil (if not a constant)
+ }
+ 
+-// funcInfo stores the information required for type-checking a function.
+-type funcInfo struct {
+-	name string    // for debugging/tracing only
+-	decl *declInfo // for cycle detection
+-	sig  *Signature
+-	body *ast.BlockStmt
+-}
+-
+ // A context represents the context within which an object is type-checked.
+ type context struct {
+ 	decl          *declInfo      // package-level declaration whose init expression/function body is checked
+@@ -96,8 +88,7 @@ type Checker struct {
+ 	methods    map[string][]*Func       // maps package scope type names to associated non-blank, non-interface methods
+ 	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
+ 	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
+-	funcs      []funcInfo               // list of functions to type-check
+-	delayed    []func()                 // delayed checks requiring fully setup types
++	delayed    []func()                 // stack of delayed actions
+ 
+ 	// context within which the current object is type-checked
+ 	// (valid only for the duration of type-checking a specific object)
+@@ -153,11 +144,11 @@ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, ty
+ 	m[e] = exprInfo{lhs, mode, typ, val}
+ }
+ 
+-func (check *Checker) later(name string, decl *declInfo, sig *Signature, body *ast.BlockStmt) {
+-	check.funcs = append(check.funcs, funcInfo{name, decl, sig, body})
+-}
+-
+-func (check *Checker) delay(f func()) {
++// later pushes f on to the stack of actions that will be processed later;
++// either at the end of the current statement, or in case of a local constant
++// or variable declaration, before the constant or variable is in scope
++// (so that f still sees the scope before any new declarations).
++func (check *Checker) later(f func()) {
+ 	check.delayed = append(check.delayed, f)
+ }
+ 
+@@ -195,7 +186,6 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 	check.methods = nil
+ 	check.interfaces = nil
+ 	check.untyped = nil
+-	check.funcs = nil
+ 	check.delayed = nil
+ 
+ 	// determine package name and collect valid files
+@@ -246,17 +236,10 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 
+ 	check.packageObjects()
+ 
+-	check.functionBodies()
++	check.processDelayed(0) // incl. all functions
+ 
+ 	check.initOrder()
+ 
+-	// perform delayed checks
+-	// (cannot use range - delayed checks may add more delayed checks;
+-	// e.g., when type-checking delayed embedded interfaces)
+-	for i := 0; i < len(check.delayed); i++ {
+-		check.delayed[i]()
+-	}
+-
+ 	if !check.conf.DisableUnusedImportCheck {
+ 		check.unusedImports()
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index f78aed9368..8faa2e1f7e 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -355,7 +355,9 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	// function body must be type-checked after global declarations
+ 	// (functions implemented elsewhere have no body)
+ 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
+-		check.later(obj.name, decl, sig, fdecl.Body)
++		check.later(func() {
++			check.funcBody(decl, obj.name, sig, fdecl.Body)
++		})
+ 	}
+ }
+ 
+@@ -373,6 +375,8 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 			case *ast.ValueSpec:
+ 				switch d.Tok {
+ 				case token.CONST:
++					top := len(check.delayed)
++
+ 					// determine which init exprs to use
+ 					switch {
+ 					case s.Type != nil || len(s.Values) > 0:
+@@ -397,6 +401,9 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 
+ 					check.arityMatch(s, last)
+ 
++					// process function literals in init expressions before scope changes
++					check.processDelayed(top)
++
+ 					// spec: "The scope of a constant or variable identifier declared
+ 					// inside a function begins at the end of the ConstSpec or VarSpec
+ 					// (ShortVarDecl for short variable declarations) and ends at the
+@@ -407,6 +414,8 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 					}
+ 
+ 				case token.VAR:
++					top := len(check.delayed)
++
+ 					lhs0 := make([]*Var, len(s.Names))
+ 					for i, name := range s.Names {
+ 						lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
+@@ -447,6 +456,9 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 
+ 					check.arityMatch(s, nil)
+ 
++					// process function literals in init expressions before scope changes
++					check.processDelayed(top)
++
+ 					// declare all variables
+ 					// (only at this point are the variable scopes (parents) set)
+ 					scopePos := s.End() // see constant declarations
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 59534c7570..aec35b61c8 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1030,16 +1030,14 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// Anonymous functions are considered part of the
+ 			// init expression/func declaration which contains
+ 			// them: use existing package-level declaration info.
+-			//
+-			// TODO(gri) We delay type-checking of regular (top-level)
+-			//           function bodies until later. Why don't we do
+-			//           it for closures of top-level expressions?
+-			//           (We can't easily do it for local closures
+-			//           because the surrounding scopes must reflect
+-			//           the exact position where the closure appears
+-			//           in the source; e.g., variables declared below
+-			//           must not be visible).
+-			check.funcBody(check.decl, "", sig, e.Body)
++			decl := check.decl // capture for use in closure below
++			// Don't type-check right away because the function may
++			// be part of a type definition to which the function
++			// body refers. Instead, type-check as soon as possible,
++			// but before the enclosing scope contents changes (#22992).
++			check.later(func() {
++				check.funcBody(decl, "<function literal>", sig, e.Body)
++			})
+ 			x.mode = value
+ 			x.typ = sig
+ 		} else {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index b5bec13d9d..a49bf4961d 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -493,10 +493,13 @@ func (a inSourceOrder) Len() int           { return len(a) }
+ func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
+ func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ 
+-// functionBodies typechecks all function bodies.
+-func (check *Checker) functionBodies() {
+-	for _, f := range check.funcs {
+-		check.funcBody(f.decl, f.name, f.sig, f.body)
++// processDelayed processes all delayed actions pushed after top.
++func (check *Checker) processDelayed(top int) {
++	for len(check.delayed) > top {
++		i := len(check.delayed) - 1
++		f := check.delayed[i]
++		check.delayed = check.delayed[:i]
++		f() // may append to check.delayed
+ 	}
+ }
+ 
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index af43c804a8..23b395c87c 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -7,7 +7,6 @@
+ package types
+ 
+ import (
+-	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
+@@ -16,11 +15,10 @@ import (
+ 
+ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
+ 	if trace {
+-		if name == "" {
+-			name = "<function literal>"
+-		}
+-		fmt.Printf("--- %s: %s {\n", name, sig)
+-		defer fmt.Println("--- <end>")
++		check.trace(body.Pos(), "--- %s: %s", name, sig)
++		defer func() {
++			check.trace(body.End(), "--- <end>")
++		}()
+ 	}
+ 
+ 	// set function scope extent
+@@ -52,8 +50,6 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 
+ 	// spec: "Implementation restriction: A compiler may make it illegal to
+ 	// declare a variable inside a function body if the variable is never used."
+-	// (One could check each scope after use, but that distributes this check
+-	// over several places because CloseScope is not always called explicitly.)
+ 	check.usage(sig.scope)
+ }
+ 
+@@ -72,7 +68,7 @@ func (check *Checker) usage(scope *Scope) {
+ 	}
+ 
+ 	for _, scope := range scope.children {
+-		// Don't go inside closure scopes a second time;
++		// Don't go inside function literal scopes a second time;
+ 		// they are handled explicitly by funcBody.
+ 		if !scope.isFunc {
+ 			check.usage(scope)
+@@ -309,6 +305,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		}(check.scope)
+ 	}
+ 
++	// process collected function literals before scope changes
++	defer check.processDelayed(len(check.delayed))
++
+ 	inner := ctxt &^ (fallthroughOk | finalSwitchCase)
+ 	switch s := s.(type) {
+ 	case *ast.BadStmt, *ast.EmptyStmt:
+diff --git a/src/go/types/testdata/constdecl.src b/src/go/types/testdata/constdecl.src
+index 6de9b13d6e..c2f40ed6e6 100644
+--- a/src/go/types/testdata/constdecl.src
++++ b/src/go/types/testdata/constdecl.src
+@@ -5,6 +5,7 @@
+ package constdecl
+ 
+ import "math"
++import "unsafe"
+ 
+ var v int
+ 
+@@ -94,4 +95,16 @@ func _() {
+ 	)
+ }
+ 
++// Test case for constants depending on function literals (see also #22992).
++const A /* ERROR initialization cycle */ = unsafe.Sizeof(func() { _ = A })
++
++func _() {
++	// The function literal below must not see a.
++	const a = unsafe.Sizeof(func() { _ = a /* ERROR "undeclared name" */ })
++	const b = unsafe.Sizeof(func() { _ = a })
++
++	// The function literal below must not see x, y, or z.
++	const x, y, z = 0, 1, unsafe.Sizeof(func() { _ = x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ })
++}
++
+ // TODO(gri) move extra tests from testdata/const0.src into here
+diff --git a/src/go/types/testdata/cycles.src b/src/go/types/testdata/cycles.src
+index 0165baa21a..79e75e9316 100644
+--- a/src/go/types/testdata/cycles.src
++++ b/src/go/types/testdata/cycles.src
+@@ -4,6 +4,8 @@
+ 
+ package cycles
+ 
++import "unsafe"
++
+ type (
+ 	T0 int
+ 	T1 /* ERROR cycle */ T1
+@@ -150,3 +152,12 @@ type (
+ 	T16 map[[len(T16 /* ERROR cycle */ {1:2})]int]int
+ 	T17 map[int][len(T17 /* ERROR cycle */ {1:2})]int
+ )
++
++// Test case for types depending on function literals (see also #22992).
++type T20 chan [unsafe.Sizeof(func(ch T20){ _ = <-ch })]byte
++type T22 = chan [unsafe.Sizeof(func(ch T20){ _ = <-ch })]byte
++
++func _() {
++	type T1 chan [unsafe.Sizeof(func(ch T1){ _ = <-ch })]byte
++	type T2 = chan [unsafe.Sizeof(func(ch T2){ _ = <-ch })]byte
++}
+diff --git a/src/go/types/testdata/cycles5.src b/src/go/types/testdata/cycles5.src
+index 984da681bd..aab9ee235e 100644
+--- a/src/go/types/testdata/cycles5.src
++++ b/src/go/types/testdata/cycles5.src
+@@ -112,6 +112,8 @@ type (
+ 
+ // arbitrary code may appear inside an interface
+ 
++const n = unsafe.Sizeof(func(){})
++
+ type I interface {
+-	m([unsafe.Sizeof(func() { I.m(nil) })]byte) // should report an error (see #22992)
++	m([unsafe.Sizeof(func() { I.m(nil, [n]byte{}) })]byte)
+ }
+diff --git a/src/go/types/testdata/init0.src b/src/go/types/testdata/init0.src
+index ef0349c70f..6e8746afb6 100644
+--- a/src/go/types/testdata/init0.src
++++ b/src/go/types/testdata/init0.src
+@@ -75,7 +75,7 @@ var x8 = x7
+ func f2() (int, int) { return f3() + f3(), 0 }
+ func f3() int { return x8 }
+ 
+-// cycles via closures
++// cycles via function literals
+ 
+ var x9 /* ERROR initialization cycle */ = func() int { return x9 }()
+ 
+diff --git a/src/go/types/testdata/vardecl.src b/src/go/types/testdata/vardecl.src
+index 197dec2d5d..54f5ef1e10 100644
+--- a/src/go/types/testdata/vardecl.src
++++ b/src/go/types/testdata/vardecl.src
+@@ -151,7 +151,7 @@ func (r T) _(a, b, c int) (u, v, w int) {
+ 	return
+ }
+ 
+-// Unused variables in closures must lead to only one error (issue #22524).
++// Unused variables in function literals must lead to only one error (issue #22524).
+ func _() {
+ 	_ = func() {
+ 		var x /* ERROR declared but not used */ int
+@@ -190,4 +190,17 @@ func _() {
+ 	_ = b
+ }
+ 
++// Test case for variables depending on function literals (see also #22992).
++var A /* ERROR initialization cycle */ = func() int { return A }()
++
++func _() {
++	// The function literal below must not see a.
++	var a = func() int { return a /* ERROR "undeclared name" */ }()
++	var _ = func() int { return a }()
++
++	// The function literal below must not see x, y, or z.
++	var x, y, z = 0, 1, func() int { return x /* ERROR "undeclared name" */ + y /* ERROR "undeclared name" */ + z /* ERROR "undeclared name" */ }()
++	_, _, _ = x, y, z
++}
++
+ // TODO(gri) consolidate other var decl checks in this file
+\ No newline at end of file
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 883e62e0ba..aedd71e918 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -317,7 +317,7 @@ func (check *Checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName)
+ 		//
+ 		// Delay this check because it requires fully setup types;
+ 		// it is safe to continue in any case (was issue 6667).
+-		check.delay(func() {
++		check.later(func() {
+ 			if !Comparable(typ.key) {
+ 				check.errorf(e.Key.Pos(), "invalid map key type %s", typ.key)
+ 			}
+@@ -478,8 +478,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	// collect embedded interfaces
+ 	// Only needed for printing and API. Delay collection
+ 	// to end of type-checking when all types are complete.
+-	interfaceScope := check.scope // capture for use in delayed function
+-	check.delay(func() {
++	interfaceScope := check.scope // capture for use in closure below
++	check.later(func() {
+ 		check.scope = interfaceScope
+ 		if trace {
+ 			check.trace(iface.Pos(), "-- delayed checking embedded interfaces of %s", iface)

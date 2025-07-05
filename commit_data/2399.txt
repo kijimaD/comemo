@@ -8,7 +8,134 @@ Date:   Fri Jun 5 13:09:03 2009 -0700
     DELTA=110  (110 added, 0 deleted, 0 changed)
     OCL=29766
     CL=29951
-
+---
  src/lib/strings/strings.go      | 58 +++++++++++++++++++++++++++++++++++++++++
  src/lib/strings/strings_test.go | 52 ++++++++++++++++++++++++++++++++++++
  2 files changed, 110 insertions(+)
+
+diff --git a/src/lib/strings/strings.go b/src/lib/strings/strings.go
+index fabd9329f2..2e3dc0215e 100644
+--- a/src/lib/strings/strings.go
++++ b/src/lib/strings/strings.go
+@@ -118,3 +118,61 @@ func HasPrefix(s, prefix string) bool {
+ func HasSuffix(s, suffix string) bool {
+ 	return len(s) >= len(suffix) && s[len(s)-len(suffix):len(s)] == suffix
+ }
++
++// Upper returns a copy of the string s, with all low ASCII lowercase letters
++// converted to uppercase.
++// TODO: full Unicode support
++func UpperASCII(s string) string {
++	// Note, we can work byte-by-byte because UTF-8 multibyte characters
++	// don't use any low ASCII byte values.
++	b := make([]byte, len(s));
++	for i := 0; i < len(s); i++ {
++		c := s[i];
++		if 'a' <= c && c <= 'z' {
++			c -= 'a' - 'A';
++		}
++		b[i] = c;
++	}
++	return string(b);
++}
++
++// Upper returns a copy of the string s, with all low ASCII lowercase letters
++// converted to lowercase.
++// TODO: full Unicode support
++func LowerASCII(s string) string {
++	// Note, we can work byte-by-byte because UTF-8 multibyte characters
++	// don't use any low ASCII byte values.
++	b := make([]byte, len(s));
++	for i := 0; i < len(s); i++ {
++		c := s[i];
++		if 'A' <= c && c <= 'Z' {
++			c += 'a' - 'A';
++		}
++		b[i] = c;
++	}
++	return string(b);
++}
++
++func isWhitespaceASCII(c byte) bool {
++	switch int(c) {
++	case ' ', '\t', '\r', '\n':
++		return true;
++	}
++ 	return false;
++}
++
++// Trim returns a slice of the string s, with all leading and trailing whitespace
++// removed.  "Whitespace" for now defined as space, tab, CR, or LF.
++// TODO: full Unicode whitespace support (need a unicode.IsWhitespace method)
++func TrimSpaceASCII(s string) string {
++	// Note, we can work byte-by-byte because UTF-8 multibyte characters
++	// don't use any low ASCII byte values.
++	start, end := 0, len(s);
++	for start < end && isWhitespaceASCII(s[start]) {
++		start++;
++	}
++	for start < end && isWhitespaceASCII(s[end-1]) {
++		end--;
++	}
++	return s[start:end];
++}
+diff --git a/src/lib/strings/strings_test.go b/src/lib/strings/strings_test.go
+index 2cbf70b93b..05e6620321 100644
+--- a/src/lib/strings/strings_test.go
++++ b/src/lib/strings/strings_test.go
+@@ -79,3 +79,55 @@ func TestSplit(t *testing.T) {
+ 	}
+ }
+ 
++// Test case for any function which accepts and returns a single string.
++type StringTest struct {
++	in, out string;
++}
++
++// Execute f on each test case.  funcName should be the name of f; it's used
++// in failure reports.
++func runStringTests(t *testing.T, f func(string) string, funcName string, testCases []StringTest) {
++	for i, tc := range testCases {
++		actual := f(tc.in);
++		if (actual != tc.out) {
++			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out);
++		}
++	}
++}
++
++var upperASCIITests = []StringTest {
++	StringTest{"", ""},
++	StringTest{"abc", "ABC"},
++	StringTest{"AbC123", "ABC123"},
++	StringTest{"azAZ09_", "AZAZ09_"}
++}
++
++var lowerASCIITests = []StringTest {
++	StringTest{"", ""},
++	StringTest{"abc", "abc"},
++	StringTest{"AbC123", "abc123"},
++	StringTest{"azAZ09_", "azaz09_"}
++}
++
++var trimSpaceASCIITests = []StringTest {
++	StringTest{"", ""},
++	StringTest{"abc", "abc"},
++	StringTest{" ", ""},
++	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
++	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
++	StringTest{" \t\r\n x\t\t\r\r\ny\n ", "x\t\t\r\r\ny"},
++	StringTest{"1 \t\r\n2", "1 \t\r\n2"},
++}
++
++func TestUpperASCII(t *testing.T) {
++	runStringTests(t, UpperASCII, "UpperASCII", upperASCIITests);
++}
++
++func TestLowerASCII(t *testing.T) {
++	runStringTests(t, LowerASCII, "LowerASCII", lowerASCIITests);
++}
++
++func TestTrimSpaceASCII(t *testing.T) {
++	runStringTests(t, TrimSpaceASCII, "TrimSpaceASCII", trimSpaceASCIITests);
++}
++

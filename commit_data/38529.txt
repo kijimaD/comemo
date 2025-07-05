@@ -27,7 +27,7 @@ Date:   Mon Oct 29 18:21:00 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 18 -----------
  src/cmd/compile/internal/gc/obj.go   | 12 ++++----
  src/cmd/compile/internal/gc/plive.go | 59 +++++++++++++++++++++++++-----------
@@ -35,3 +35,231 @@ Date:   Mon Oct 29 18:21:00 2018 -0400
  src/cmd/internal/obj/link.go         |  6 ++--
  src/cmd/internal/obj/plist.go        | 12 --------
  6 files changed, 52 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index f39ffc7365..16602b9988 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -185,24 +185,6 @@ func (pp *Progs) settext(fn *Node) {
+ 	ptxt.From.Type = obj.TYPE_MEM
+ 	ptxt.From.Name = obj.NAME_EXTERN
+ 	ptxt.From.Sym = fn.Func.lsym
+-
+-	p := pp.Prog(obj.AFUNCDATA)
+-	Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
+-	p.To.Type = obj.TYPE_MEM
+-	p.To.Name = obj.NAME_EXTERN
+-	p.To.Sym = &fn.Func.lsym.Func.GCArgs
+-
+-	p = pp.Prog(obj.AFUNCDATA)
+-	Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
+-	p.To.Type = obj.TYPE_MEM
+-	p.To.Name = obj.NAME_EXTERN
+-	p.To.Sym = &fn.Func.lsym.Func.GCLocals
+-
+-	p = pp.Prog(obj.AFUNCDATA)
+-	Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
+-	p.To.Type = obj.TYPE_MEM
+-	p.To.Name = obj.NAME_EXTERN
+-	p.To.Sym = &fn.Func.lsym.Func.GCRegs
+ }
+ 
+ func (f *Func) initLSym() {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index a9dd092b67..e3c8e07ffa 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -277,18 +277,18 @@ func dumpglobls() {
+ // Though the object file format handles duplicates efficiently,
+ // storing only a single copy of the data,
+ // failure to remove these duplicates adds a few percent to object file size.
++//
++// This is done during the sequential phase after compilation, since
++// global symbols can't be declared during parallel compilation.
+ func addGCLocals() {
+-	seen := make(map[string]bool)
+ 	for _, s := range Ctxt.Text {
+ 		if s.Func == nil {
+ 			continue
+ 		}
+-		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals, &s.Func.GCRegs} {
+-			if seen[gcsym.Name] {
+-				continue
++		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
++			if gcsym != nil && !gcsym.OnList() {
++				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
+ 			}
+-			Ctxt.Data = append(Ctxt.Data, gcsym)
+-			seen[gcsym.Name] = true
+ 		}
+ 		if x := s.Func.StackObjects; x != nil {
+ 			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index a38c33647e..601815f7c5 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1461,7 +1461,7 @@ func (lv *Liveness) printDebug() {
+ // first word dumped is the total number of bitmaps. The second word is the
+ // length of the bitmaps. All bitmaps are assumed to be of equal length. The
+ // remaining bytes are the raw bitmaps.
+-func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
++func (lv *Liveness) emit() (argsSym, liveSym, regsSym *obj.LSym) {
+ 	// Size args bitmaps to be just large enough to hold the largest pointer.
+ 	// First, find the largest Xoffset node we care about.
+ 	// (Nodes without pointers aren't in lv.vars; see livenessShouldTrack.)
+@@ -1489,13 +1489,16 @@ func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
+ 	// This would require shifting all bitmaps.
+ 	maxLocals := lv.stkptrsize
+ 
++	// Temporary symbols for encoding bitmaps.
++	var argsSymTmp, liveSymTmp, regsSymTmp obj.LSym
++
+ 	args := bvalloc(int32(maxArgs / int64(Widthptr)))
+-	aoff := duint32(argssym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+-	aoff = duint32(argssym, aoff, uint32(args.n))          // number of bits in each bitmap
++	aoff := duint32(&argsSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
++	aoff = duint32(&argsSymTmp, aoff, uint32(args.n))          // number of bits in each bitmap
+ 
+ 	locals := bvalloc(int32(maxLocals / int64(Widthptr)))
+-	loff := duint32(livesym, 0, uint32(len(lv.stackMaps))) // number of bitmaps
+-	loff = duint32(livesym, loff, uint32(locals.n))        // number of bits in each bitmap
++	loff := duint32(&liveSymTmp, 0, uint32(len(lv.stackMaps))) // number of bitmaps
++	loff = duint32(&liveSymTmp, loff, uint32(locals.n))        // number of bits in each bitmap
+ 
+ 	for _, live := range lv.stackMaps {
+ 		args.Clear()
+@@ -1503,13 +1506,13 @@ func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
+ 
+ 		lv.pointerMap(live, lv.vars, args, locals)
+ 
+-		aoff = dbvec(argssym, aoff, args)
+-		loff = dbvec(livesym, loff, locals)
++		aoff = dbvec(&argsSymTmp, aoff, args)
++		loff = dbvec(&liveSymTmp, loff, locals)
+ 	}
+ 
+ 	regs := bvalloc(lv.usedRegs())
+-	roff := duint32(regssym, 0, uint32(len(lv.regMaps))) // number of bitmaps
+-	roff = duint32(regssym, roff, uint32(regs.n))        // number of bits in each bitmap
++	roff := duint32(&regsSymTmp, 0, uint32(len(lv.regMaps))) // number of bitmaps
++	roff = duint32(&regsSymTmp, roff, uint32(regs.n))        // number of bits in each bitmap
+ 	if regs.n > 32 {
+ 		// Our uint32 conversion below won't work.
+ 		Fatalf("GP registers overflow uint32")
+@@ -1519,25 +1522,29 @@ func (lv *Liveness) emit(argssym, livesym, regssym *obj.LSym) {
+ 		for _, live := range lv.regMaps {
+ 			regs.Clear()
+ 			regs.b[0] = uint32(live)
+-			roff = dbvec(regssym, roff, regs)
++			roff = dbvec(&regsSymTmp, roff, regs)
+ 		}
+ 	}
+ 
+ 	// Give these LSyms content-addressable names,
+ 	// so that they can be de-duplicated.
+ 	// This provides significant binary size savings.
+-	// It is safe to rename these LSyms because
+-	// they are tracked separately from ctxt.hash.
+-	argssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(argssym.P))
+-	livesym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(livesym.P))
+-	regssym.Name = fmt.Sprintf("gclocals·%x", md5.Sum(regssym.P))
++	//
++	// These symbols will be added to Ctxt.Data by addGCLocals
++	// after parallel compilation is done.
++	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
++		return Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
++			lsym.P = tmpSym.P
++		})
++	}
++	return makeSym(&argsSymTmp), makeSym(&liveSymTmp), makeSym(&regsSymTmp)
+ }
+ 
+ // Entry pointer for liveness analysis. Solves for the liveness of
+ // pointer variables in the function and emits a runtime data
+ // structure read by the garbage collector.
+ // Returns a map from GC safe points to their corresponding stack map index.
+-func liveness(e *ssafn, f *ssa.Func) LivenessMap {
++func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+ 	// Construct the global liveness state.
+ 	vars, idx := getvariables(e.curfn)
+ 	lv := newliveness(e.curfn, f, vars, idx, e.stkptrsize)
+@@ -1577,7 +1584,25 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
+ 
+ 	// Emit the live pointer map data structures
+ 	if ls := e.curfn.Func.lsym; ls != nil {
+-		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals, &ls.Func.GCRegs)
++		ls.Func.GCArgs, ls.Func.GCLocals, ls.Func.GCRegs = lv.emit()
++
++		p := pp.Prog(obj.AFUNCDATA)
++		Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = ls.Func.GCArgs
++
++		p = pp.Prog(obj.AFUNCDATA)
++		Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = ls.Func.GCLocals
++
++		p = pp.Prog(obj.AFUNCDATA)
++		Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = ls.Func.GCRegs
+ 	}
+ 	return lv.livenessMap
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4607cf1912..b0ccd01752 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5051,7 +5051,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 
+ 	e := f.Frontend().(*ssafn)
+ 
+-	s.livenessMap = liveness(e, f)
++	s.livenessMap = liveness(e, f, pp)
+ 	emitStackObjects(e, pp)
+ 
+ 	// Remember where each block starts.
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index f983d5277e..d924cbc214 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -403,9 +403,9 @@ type FuncInfo struct {
+ 	dwarfAbsFnSym  *LSym
+ 	dwarfIsStmtSym *LSym
+ 
+-	GCArgs       LSym
+-	GCLocals     LSym
+-	GCRegs       LSym
++	GCArgs       *LSym
++	GCLocals     *LSym
++	GCRegs       *LSym
+ 	StackObjects *LSym
+ }
+ 
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index a8675055d9..6710b375f1 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -147,18 +147,6 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	isstmt.Type = objabi.SDWARFMISC
+ 	isstmt.Set(AttrDuplicateOK, s.DuplicateOK())
+ 	ctxt.Data = append(ctxt.Data, isstmt)
+-
+-	// Set up the function's gcargs and gclocals.
+-	// They will be filled in later if needed.
+-	gcargs := &s.Func.GCArgs
+-	gcargs.Set(AttrDuplicateOK, true)
+-	gcargs.Type = objabi.SRODATA
+-	gclocals := &s.Func.GCLocals
+-	gclocals.Set(AttrDuplicateOK, true)
+-	gclocals.Type = objabi.SRODATA
+-	gcregs := &s.Func.GCRegs
+-	gcregs.Set(AttrDuplicateOK, true)
+-	gcregs.Type = objabi.SRODATA
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

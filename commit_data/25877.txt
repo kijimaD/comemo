@@ -17,8 +17,182 @@ Date:   Thu Nov 5 15:47:20 2015 -0800
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     Reviewed-by: Klaus Post <klauspost@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/example_test.go | 29 +++++++++++++++++++++++++++++
  src/archive/zip/reader.go       | 32 +++++++++++++++++++++++++++-----
  src/archive/zip/writer.go       | 30 ++++++++++++++++++++++++------
  3 files changed, 80 insertions(+), 11 deletions(-)
+
+diff --git a/src/archive/zip/example_test.go b/src/archive/zip/example_test.go
+index c2ed9e79ca..8dd79cc79c 100644
+--- a/src/archive/zip/example_test.go
++++ b/src/archive/zip/example_test.go
+@@ -7,6 +7,7 @@ package zip_test
+ import (
+ 	"archive/zip"
+ 	"bytes"
++	"compress/flate"
+ 	"fmt"
+ 	"io"
+ 	"log"
+@@ -73,3 +74,31 @@ func ExampleReader() {
+ 	// Contents of README:
+ 	// This is the source code repository for the Go programming language.
+ }
++
++func ExampleWriter_RegisterCompressor() {
++	// Override the default Deflate compressor with a higher compression
++	// level.
++
++	// Create a buffer to write our archive to.
++	buf := new(bytes.Buffer)
++
++	// Create a new zip archive.
++	w := zip.NewWriter(buf)
++
++	var fw *flate.Writer
++
++	// Register the deflator.
++	w.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
++		var err error
++		if fw == nil {
++			// Creating a flate compressor for every file is
++			// expensive, create one and reuse it.
++			fw, err = flate.NewWriter(out, flate.BestCompression)
++		} else {
++			fw.Reset(out)
++		}
++		return fw, err
++	})
++
++	// Proceed to add files to w.
++}
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 0f7086081a..9aa77d9c43 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -22,9 +22,10 @@ var (
+ )
+ 
+ type Reader struct {
+-	r       io.ReaderAt
+-	File    []*File
+-	Comment string
++	r             io.ReaderAt
++	File          []*File
++	Comment       string
++	decompressors map[uint16]Decompressor
+ }
+ 
+ type ReadCloser struct {
+@@ -34,6 +35,7 @@ type ReadCloser struct {
+ 
+ type File struct {
+ 	FileHeader
++	zip          *Reader
+ 	zipr         io.ReaderAt
+ 	zipsize      int64
+ 	headerOffset int64
+@@ -95,7 +97,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 	// a bad one, and then only report a ErrFormat or UnexpectedEOF if
+ 	// the file count modulo 65536 is incorrect.
+ 	for {
+-		f := &File{zipr: r, zipsize: size}
++		f := &File{zip: z, zipr: r, zipsize: size}
+ 		err = readDirectoryHeader(f, buf)
+ 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
+ 			break
+@@ -113,6 +115,26 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 	return nil
+ }
+ 
++// RegisterDecompressor registers or overrides a custom decompressor for a
++// specific method ID. If a decompressor for a given method is not found,
++// Reader will default to looking up the decompressor at the package level.
++//
++// Must not be called concurrently with Open on any Files in the Reader.
++func (z *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
++	if z.decompressors == nil {
++		z.decompressors = make(map[uint16]Decompressor)
++	}
++	z.decompressors[method] = dcomp
++}
++
++func (z *Reader) decompressor(method uint16) Decompressor {
++	dcomp := z.decompressors[method]
++	if dcomp == nil {
++		dcomp = decompressor(method)
++	}
++	return dcomp
++}
++
+ // Close closes the Zip file, rendering it unusable for I/O.
+ func (rc *ReadCloser) Close() error {
+ 	return rc.f.Close()
+@@ -140,7 +162,7 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
+ 	}
+ 	size := int64(f.CompressedSize64)
+ 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
+-	dcomp := decompressor(f.Method)
++	dcomp := f.zip.decompressor(f.Method)
+ 	if dcomp == nil {
+ 		err = ErrAlgorithm
+ 		return
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 3be2b5fdb2..c39c674515 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -14,14 +14,14 @@ import (
+ )
+ 
+ // TODO(adg): support zip file comments
+-// TODO(adg): support specifying deflate level
+ 
+ // Writer implements a zip file writer.
+ type Writer struct {
+-	cw     *countWriter
+-	dir    []*header
+-	last   *fileWriter
+-	closed bool
++	cw          *countWriter
++	dir         []*header
++	last        *fileWriter
++	closed      bool
++	compressors map[uint16]Compressor
+ }
+ 
+ type header struct {
+@@ -220,7 +220,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 		compCount: &countWriter{w: w.cw},
+ 		crc32:     crc32.NewIEEE(),
+ 	}
+-	comp := compressor(fh.Method)
++	comp := w.compressor(fh.Method)
+ 	if comp == nil {
+ 		return nil, ErrAlgorithm
+ 	}
+@@ -270,6 +270,24 @@ func writeHeader(w io.Writer, h *FileHeader) error {
+ 	return err
+ }
+ 
++// RegisterCompressor registers or overrides a custom compressor for a specific
++// method ID. If a compressor for a given method is not found, Writer will
++// default to looking up the compressor at the package level.
++func (w *Writer) RegisterCompressor(method uint16, comp Compressor) {
++	if w.compressors == nil {
++		w.compressors = make(map[uint16]Compressor)
++	}
++	w.compressors[method] = comp
++}
++
++func (w *Writer) compressor(method uint16) Compressor {
++	comp := w.compressors[method]
++	if comp == nil {
++		comp = compressor(method)
++	}
++	return comp
++}
++
+ type fileWriter struct {
+ 	*header
+ 	zipw      io.Writer

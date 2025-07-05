@@ -11,7 +11,51 @@ Date:   Fri Sep 16 09:27:06 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go    | 8 +-------
  src/cmd/compile/internal/ppc64/prog.go | 6 ++++--
  2 files changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8fa335a300..5d5022fea7 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3387,8 +3387,7 @@ func samecheap(a *Node, b *Node) bool {
+ // The result of walkrotate MUST be assigned back to n, e.g.
+ // 	n.Left = walkrotate(n.Left)
+ func walkrotate(n *Node) *Node {
+-	//TODO: enable LROT on ARM64 once the old backend is gone
+-	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM64, sys.PPC64) {
++	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.PPC64) {
+ 		return n
+ 	}
+ 
+@@ -3647,11 +3646,6 @@ ret:
+ func walkdiv(n *Node, init *Nodes) *Node {
+ 	// if >= 0, nr is 1<<pow // 1 if nr is negative.
+ 
+-	// TODO(minux)
+-	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.PPC64) {
+-		return n
+-	}
+-
+ 	if n.Right.Op != OLITERAL {
+ 		return n
+ 	}
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index 455db9af6c..cc83f0d208 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -54,8 +54,10 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
+ 	ppc64.AEQV & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AMULLD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.AMULLW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AMULHD & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+-	ppc64.AMULHDU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AMULHD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AMULHDU & obj.AMask: {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AMULHW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	ppc64.AMULHWU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.ADIVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.ADIVDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	ppc64.ADIVW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},

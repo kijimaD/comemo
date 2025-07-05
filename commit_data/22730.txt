@@ -12,7 +12,47 @@ Date:   Mon Apr 6 11:39:36 2015 -0700
     Change-Id: I913ae9c3c45cef509f2b8eb02d1efa87fbd52afa
     Reviewed-on: https://go-review.googlesource.com/8496
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/decode.go       |  6 +++++-
  src/encoding/gob/encoder_test.go | 14 ++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index a5bef93141..e227b221aa 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -688,7 +688,11 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
+ 		error_(dec.err)
+ 	}
+ 	// At this point, the decoder buffer contains a delimited value. Just toss it.
+-	state.b.Drop(int(state.decodeUint()))
++	n := int(state.decodeUint())
++	if n < 0 || state.b.Len() < n {
++		errorf("bad interface encoding: length too large for buffer")
++	}
++	state.b.Drop(n)
+ }
+ 
+ // decodeGobDecoder decodes something implementing the GobDecoder interface.
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 4af7195209..7607b17dee 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -954,3 +954,17 @@ func TestErrorForHugeSlice(t *testing.T) {
+ 		t.Fatalf("decode: expected slice too big error, got %s", err.Error())
+ 	}
+ }
++
++// Don't crash, just give error with corrupted length.
++// Issue 10270.
++func TestErrorBadDrop(t *testing.T) {
++	data := []byte{0x05, 0x10, 0x00, 0x28, 0x55, 0x7b, 0x02, 0x02, 0x7f, 0x83, 0x02}
++	d := NewDecoder(bytes.NewReader(data))
++	err := d.Decode(nil)
++	if err == nil {
++		t.Fatal("decode: no error")
++	}
++	if !strings.Contains(err.Error(), "interface encoding") {
++		t.Fatalf("decode: expected interface encoding error, got %s", err.Error())
++	}
++}

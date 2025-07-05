@@ -11,6 +11,19 @@ Date:   Mon Apr 27 10:56:38 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9363
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/os_netbsd.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index b542b41b92..af52099079 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -15,7 +15,6 @@ func sigaction(sig int32, new, old *sigactiont)
+ //go:noescape
+ func sigaltstack(new, old *sigaltstackt)
+ 
+-//go:noescape
+ func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	throw("sigfwd not implemented")
+ }

@@ -15,6 +15,54 @@ Date:   Sun Apr 15 23:52:12 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/checkbce.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/test/checkbce.go b/test/checkbce.go
+index 430dcf9cbc..0a2842f10c 100644
+--- a/test/checkbce.go
++++ b/test/checkbce.go
+@@ -10,6 +10,8 @@
+ 
+ package main
+ 
++import "encoding/binary"
++
+ func f0(a []int) {
+ 	a[0] = 1 // ERROR "Found IsInBounds$"
+ 	a[0] = 1
+@@ -142,6 +144,33 @@ func g4(a [100]int) {
+ 	}
+ }
+ 
++func decode1(data []byte) (x uint64) {
++	for len(data) >= 32 {
++		x += binary.BigEndian.Uint64(data[:8])
++		x += binary.BigEndian.Uint64(data[8:16])
++		x += binary.BigEndian.Uint64(data[16:24])
++		x += binary.BigEndian.Uint64(data[24:32])
++		data = data[32:]
++	}
++	return x
++}
++
++func decode2(data []byte) (x uint64) {
++	// TODO(rasky): this should behave like decode1 and compile to no
++	// boundchecks. We're currently not able to remove all of them.
++	for len(data) >= 32 {
++		x += binary.BigEndian.Uint64(data)
++		data = data[8:]
++		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
++		data = data[8:]
++		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
++		data = data[8:]
++		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
++		data = data[8:]
++	}
++	return x
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

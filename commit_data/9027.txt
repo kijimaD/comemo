@@ -9,6 +9,21 @@ Date:   Tue Jul 12 17:02:55 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4703041
-
+---
  src/pkg/image/draw/draw.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/image/draw/draw.go b/src/pkg/image/draw/draw.go
+index 1583e6b888..a748ff8c77 100644
+--- a/src/pkg/image/draw/draw.go
++++ b/src/pkg/image/draw/draw.go
+@@ -193,9 +193,6 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
+ }
+ 
+ func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
+-	if r.Dy() < 1 {
+-		return
+-	}
+ 	sr, sg, sb, sa := src.RGBA()
+ 	// The built-in copy function is faster than a straightforward for loop to fill the destination with
+ 	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and

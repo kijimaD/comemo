@@ -18,7 +18,7 @@ Date:   Mon Jan 24 15:42:52 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/interface.go       |  2 +-
  src/cmd/compile/internal/types2/predicates.go      |  2 +-
  .../types2/testdata/fixedbugs/issue50782.go2       | 40 ++++++++++++++++++++++
@@ -28,3 +28,186 @@ Date:   Mon Jan 24 15:42:52 2022 -0500
  src/go/types/testdata/fixedbugs/issue50782.go2     | 40 ++++++++++++++++++++++
  src/go/types/typeset.go                            |  4 +--
  8 files changed, 88 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 4ce75c476c..ca5140d092 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -86,7 +86,7 @@ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
+ func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
+ 
+ // IsComparable reports whether each type in interface t's type set is comparable.
+-func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
++func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable(nil) }
+ 
+ // IsMethodSet reports whether the interface t is fully described by its method set.
+ func (t *Interface) IsMethodSet() bool { return t.typeSet().IsMethodSet() }
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index d982866f8e..cc3c76e695 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -131,7 +131,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	case *Array:
+ 		return comparable(t.elem, seen)
+ 	case *Interface:
+-		return !isTypeParam(T) || t.IsComparable()
++		return !isTypeParam(T) || t.typeSet().IsComparable(seen)
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50782.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50782.go2
+new file mode 100644
+index 0000000000..8f41b84163
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50782.go2
+@@ -0,0 +1,40 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// The first example from the issue.
++type Numeric interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64
++}
++
++// numericAbs matches numeric types with an Abs method.
++type numericAbs[T Numeric] interface {
++	~struct{ Value T }
++	Abs() T
++}
++
++// AbsDifference computes the absolute value of the difference of
++// a and b, where the absolute value is determined by the Abs method.
++func absDifference[T numericAbs[T /* ERROR T does not implement Numeric */]](a, b T) T {
++	// TODO: the error below should probably be positioned on the '-'.
++	d := a /* ERROR "invalid operation: operator - not defined" */ .Value - b.Value
++	return d.Abs()
++}
++
++// The second example from the issue.
++type T[P int] struct{ f P }
++
++func _[P T[P /* ERROR "P does not implement int" */ ]]() {}
++
++// Additional tests
++func _[P T[T /* ERROR "T\[P\] does not implement int" */ [P /* ERROR "P does not implement int" */ ]]]() {}
++func _[P T[Q /* ERROR "Q does not implement int" */ ], Q T[P /* ERROR "P does not implement int" */ ]]() {}
++func _[P T[Q], Q int]() {}
++
++type C[P comparable] struct{ f P }
++func _[P C[C[P]]]() {}
++func _[P C[C /* ERROR "C\[Q\] does not implement comparable" */ [Q /* ERROR "Q does not implement comparable" */]], Q func()]() {}
++func _[P [10]C[P]]() {}
++func _[P struct{ f C[C[P]]}]() {}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 8670c17861..348b8150d3 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -34,12 +34,12 @@ func (s *_TypeSet) IsAll() bool {
+ func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
+ 
+ // IsComparable reports whether each type in the set is comparable.
+-func (s *_TypeSet) IsComparable() bool {
++func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 	if s.terms.isAll() {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && Comparable(t.typ)
++		return t != nil && comparable(t.typ, seen)
+ 	})
+ }
+ 
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 1ff9015780..b9d4660eb4 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -111,7 +111,7 @@ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
+ func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
+ 
+ // IsComparable reports whether each type in interface t's type set is comparable.
+-func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
++func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable(nil) }
+ 
+ // IsMethodSet reports whether the interface t is fully described by its method
+ // set.
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 1202db4049..1ba0043327 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -133,7 +133,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	case *Array:
+ 		return comparable(t.elem, seen)
+ 	case *Interface:
+-		return !isTypeParam(T) || t.IsComparable()
++		return !isTypeParam(T) || t.typeSet().IsComparable(seen)
+ 	}
+ 	return false
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue50782.go2 b/src/go/types/testdata/fixedbugs/issue50782.go2
+new file mode 100644
+index 0000000000..8f41b84163
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50782.go2
+@@ -0,0 +1,40 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// The first example from the issue.
++type Numeric interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64
++}
++
++// numericAbs matches numeric types with an Abs method.
++type numericAbs[T Numeric] interface {
++	~struct{ Value T }
++	Abs() T
++}
++
++// AbsDifference computes the absolute value of the difference of
++// a and b, where the absolute value is determined by the Abs method.
++func absDifference[T numericAbs[T /* ERROR T does not implement Numeric */]](a, b T) T {
++	// TODO: the error below should probably be positioned on the '-'.
++	d := a /* ERROR "invalid operation: operator - not defined" */ .Value - b.Value
++	return d.Abs()
++}
++
++// The second example from the issue.
++type T[P int] struct{ f P }
++
++func _[P T[P /* ERROR "P does not implement int" */ ]]() {}
++
++// Additional tests
++func _[P T[T /* ERROR "T\[P\] does not implement int" */ [P /* ERROR "P does not implement int" */ ]]]() {}
++func _[P T[Q /* ERROR "Q does not implement int" */ ], Q T[P /* ERROR "P does not implement int" */ ]]() {}
++func _[P T[Q], Q int]() {}
++
++type C[P comparable] struct{ f P }
++func _[P C[C[P]]]() {}
++func _[P C[C /* ERROR "C\[Q\] does not implement comparable" */ [Q /* ERROR "Q does not implement comparable" */]], Q func()]() {}
++func _[P [10]C[P]]() {}
++func _[P struct{ f C[C[P]]}]() {}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 3739cd83d6..2317177f03 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -32,12 +32,12 @@ func (s *_TypeSet) IsAll() bool { return !s.comparable && len(s.methods) == 0 &&
+ func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
+ 
+ // IsComparable reports whether each type in the set is comparable.
+-func (s *_TypeSet) IsComparable() bool {
++func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 	if s.terms.isAll() {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && Comparable(t.typ)
++		return t != nil && comparable(t.typ, seen)
+ 	})
+ }
+ 

@@ -22,8 +22,179 @@ Date:   Thu Nov 19 15:24:42 2015 -0400
     Change-Id: I780d628a762006bb11899caf20b5f97b462a717f
     Reviewed-on: https://go-review.googlesource.com/16953
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/dnsclient_unix.go      | 21 ++++++++---
  src/net/dnsclient_unix_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++
  src/net/hook.go                |  3 ++
  3 files changed, 98 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 319011f5f6..15a4081835 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -24,9 +24,16 @@ import (
+ 	"time"
+ )
+ 
++// A dnsDialer provides dialing suitable for DNS queries.
++type dnsDialer interface {
++	dialDNS(string, string) (dnsConn, error)
++}
++
+ // A dnsConn represents a DNS transport endpoint.
+ type dnsConn interface {
+-	Conn
++	io.Closer
++
++	SetDeadline(time.Time) error
+ 
+ 	// readDNSResponse reads a DNS response message from the DNS
+ 	// transport endpoint and returns the received DNS response
+@@ -121,7 +128,7 @@ func (d *Dialer) dialDNS(network, server string) (dnsConn, error) {
+ 
+ // exchange sends a query on the connection and hopes for a response.
+ func exchange(server, name string, qtype uint16, timeout time.Duration) (*dnsMsg, error) {
+-	d := Dialer{Timeout: timeout}
++	d := testHookDNSDialer(timeout)
+ 	out := dnsMsg{
+ 		dnsMsgHdr: dnsMsgHdr{
+ 			recursion_desired: true,
+@@ -440,7 +447,8 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
+ 	conf := resolvConf.dnsConfig
+ 	resolvConf.mu.RUnlock()
+ 	type racer struct {
+-		rrs []dnsRR
++		fqdn string
++		rrs  []dnsRR
+ 		error
+ 	}
+ 	lane := make(chan racer, 1)
+@@ -450,13 +458,16 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
+ 		for _, qtype := range qtypes {
+ 			go func(qtype uint16) {
+ 				_, rrs, err := tryOneName(conf, fqdn, qtype)
+-				lane <- racer{rrs, err}
++				lane <- racer{fqdn, rrs, err}
+ 			}(qtype)
+ 		}
+ 		for range qtypes {
+ 			racer := <-lane
+ 			if racer.error != nil {
+-				lastErr = racer.error
++				// Prefer error for original name.
++				if lastErr == nil || racer.fqdn == name+"." {
++					lastErr = racer.error
++				}
+ 				continue
+ 			}
+ 			addrs = append(addrs, addrRecordList(racer.rrs)...)
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 66ca4cf8ab..95c14df52e 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -424,6 +424,57 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+ 	defer conf.teardown()
+ }
+ 
++// Issue 12712.
++// When using search domains, return the error encountered
++// querying the original name instead of an error encountered
++// querying a generated name.
++func TestErrorForOriginalNameWhenSearching(t *testing.T) {
++	const fqdn = "doesnotexist.domain"
++
++	origTestHookDNSDialer := testHookDNSDialer
++	defer func() { testHookDNSDialer = origTestHookDNSDialer }()
++
++	conf, err := newResolvConfTest()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conf.teardown()
++
++	if err := conf.writeAndUpdate([]string{"search servfail"}); err != nil {
++		t.Fatal(err)
++	}
++
++	d := &fakeDNSConn{}
++	testHookDNSDialer = func(time.Duration) dnsDialer { return d }
++
++	d.rh = func(q *dnsMsg) (*dnsMsg, error) {
++		r := &dnsMsg{
++			dnsMsgHdr: dnsMsgHdr{
++				id: q.id,
++			},
++		}
++
++		switch q.question[0].Name {
++		case fqdn + ".servfail.":
++			r.rcode = dnsRcodeServerFailure
++		default:
++			r.rcode = dnsRcodeNameError
++		}
++
++		return r, nil
++	}
++
++	_, err = goLookupIP(fqdn)
++	if err == nil {
++		t.Fatal("expected an error")
++	}
++
++	want := &DNSError{Name: fqdn, Err: errNoSuchHost.Error()}
++	if err, ok := err.(*DNSError); !ok || err.Name != want.Name || err.Err != want.Err {
++		t.Errorf("got %v; want %v", err, want)
++	}
++}
++
+ func BenchmarkGoLookupIP(b *testing.B) {
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 
+@@ -461,3 +512,31 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
+ 		goLookupIP("www.example.com")
+ 	}
+ }
++
++type fakeDNSConn struct {
++	// last query
++	q *dnsMsg
++	// reply handler
++	rh func(*dnsMsg) (*dnsMsg, error)
++}
++
++func (f *fakeDNSConn) dialDNS(n, s string) (dnsConn, error) {
++	return f, nil
++}
++
++func (f *fakeDNSConn) Close() error {
++	return nil
++}
++
++func (f *fakeDNSConn) SetDeadline(time.Time) error {
++	return nil
++}
++
++func (f *fakeDNSConn) writeDNSQuery(q *dnsMsg) error {
++	f.q = q
++	return nil
++}
++
++func (f *fakeDNSConn) readDNSResponse() (*dnsMsg, error) {
++	return f.rh(f.q)
++}
+diff --git a/src/net/hook.go b/src/net/hook.go
+index 9ab34c0e36..81e061f372 100644
+--- a/src/net/hook.go
++++ b/src/net/hook.go
+@@ -4,8 +4,11 @@
+ 
+ package net
+ 
++import "time"
++
+ var (
+ 	testHookDialTCP      = dialTCP
++	testHookDNSDialer    = func(d time.Duration) dnsDialer { return &Dialer{Timeout: d} }
+ 	testHookHostsPath    = "/etc/hosts"
+ 	testHookLookupIP     = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
+ 	testHookSetKeepAlive = func() {}

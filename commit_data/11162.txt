@@ -9,7 +9,7 @@ Date:   Fri Jan 13 15:45:05 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5541057
-
+---
  src/pkg/exp/sql/convert_test.go      | 13 +++++++++++++
  src/pkg/exp/sql/driver/driver.go     |  1 +
  src/pkg/exp/sql/driver/types.go      |  7 +++++--
@@ -17,3 +17,226 @@ Date:   Fri Jan 13 15:45:05 2012 -0800
  src/pkg/exp/sql/fakedb_test.go       |  5 ++++-
  src/pkg/exp/sql/sql_test.go          | 13 +++++++++++--
  6 files changed, 38 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/exp/sql/convert_test.go b/src/pkg/exp/sql/convert_test.go
+index bed09ffb29..702ba4399d 100644
+--- a/src/pkg/exp/sql/convert_test.go
++++ b/src/pkg/exp/sql/convert_test.go
+@@ -8,8 +8,11 @@ import (
+ 	"fmt"
+ 	"reflect"
+ 	"testing"
++	"time"
+ )
+ 
++var someTime = time.Unix(123, 0)
++
+ type conversionTest struct {
+ 	s, d interface{} // source and destination
+ 
+@@ -19,6 +22,7 @@ type conversionTest struct {
+ 	wantstr  string
+ 	wantf32  float32
+ 	wantf64  float64
++	wanttime time.Time
+ 	wantbool bool // used if d is of type *bool
+ 	wanterr  string
+ }
+@@ -35,12 +39,14 @@ var (
+ 	scanbool   bool
+ 	scanf32    float32
+ 	scanf64    float64
++	scantime   time.Time
+ )
+ 
+ var conversionTests = []conversionTest{
+ 	// Exact conversions (destination pointer type matches source type)
+ 	{s: "foo", d: &scanstr, wantstr: "foo"},
+ 	{s: 123, d: &scanint, wantint: 123},
++	{s: someTime, d: &scantime, wanttime: someTime},
+ 
+ 	// To strings
+ 	{s: []byte("byteslice"), d: &scanstr, wantstr: "byteslice"},
+@@ -106,6 +112,10 @@ func float32Value(ptr interface{}) float32 {
+ 	return *(ptr.(*float32))
+ }
+ 
++func timeValue(ptr interface{}) time.Time {
++	return *(ptr.(*time.Time))
++}
++
+ func TestConversions(t *testing.T) {
+ 	for n, ct := range conversionTests {
+ 		err := convertAssign(ct.d, ct.s)
+@@ -138,6 +148,9 @@ func TestConversions(t *testing.T) {
+ 		if bp, boolTest := ct.d.(*bool); boolTest && *bp != ct.wantbool && ct.wanterr == "" {
+ 			errf("want bool %v, got %v", ct.wantbool, *bp)
+ 		}
++		if !ct.wanttime.IsZero() && !ct.wanttime.Equal(timeValue(ct.d)) {
++			errf("want time %v, got %v", ct.wanttime, timeValue(ct.d))
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/exp/sql/driver/driver.go b/src/pkg/exp/sql/driver/driver.go
+index f0bcca2910..0cd2562d68 100644
+--- a/src/pkg/exp/sql/driver/driver.go
++++ b/src/pkg/exp/sql/driver/driver.go
+@@ -16,6 +16,7 @@
+ //   nil
+ //   []byte
+ //   string   [*] everywhere except from Rows.Next.
++//   time.Time
+ //
+ package driver
+ 
+diff --git a/src/pkg/exp/sql/driver/types.go b/src/pkg/exp/sql/driver/types.go
+index 086b529c84..0ee278856d 100644
+--- a/src/pkg/exp/sql/driver/types.go
++++ b/src/pkg/exp/sql/driver/types.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"reflect"
+ 	"strconv"
++	"time"
+ )
+ 
+ // ValueConverter is the interface providing the ConvertValue method.
+@@ -143,9 +144,10 @@ func (stringType) ConvertValue(v interface{}) (interface{}, error) {
+ //   bool
+ //   nil
+ //   []byte
++//   time.Time
+ //   string
+ //
+-// This is the ame list as IsScanSubsetType, with the addition of
++// This is the same list as IsScanSubsetType, with the addition of
+ // string.
+ func IsParameterSubsetType(v interface{}) bool {
+ 	if IsScanSubsetType(v) {
+@@ -165,6 +167,7 @@ func IsParameterSubsetType(v interface{}) bool {
+ //   bool
+ //   nil
+ //   []byte
++//   time.Time
+ //
+ // This is the same list as IsParameterSubsetType, without string.
+ func IsScanSubsetType(v interface{}) bool {
+@@ -172,7 +175,7 @@ func IsScanSubsetType(v interface{}) bool {
+ 		return true
+ 	}
+ 	switch v.(type) {
+-	case int64, float64, []byte, bool:
++	case int64, float64, []byte, bool, time.Time:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/pkg/exp/sql/driver/types_test.go b/src/pkg/exp/sql/driver/types_test.go
+index 4b049e26e5..966bc6b458 100644
+--- a/src/pkg/exp/sql/driver/types_test.go
++++ b/src/pkg/exp/sql/driver/types_test.go
+@@ -7,6 +7,7 @@ package driver
+ import (
+ 	"reflect"
+ 	"testing"
++	"time"
+ )
+ 
+ type valueConverterTest struct {
+@@ -16,6 +17,8 @@ type valueConverterTest struct {
+ 	err string
+ }
+ 
++var now = time.Now()
++
+ var valueConverterTests = []valueConverterTest{
+ 	{Bool, "true", true, ""},
+ 	{Bool, "True", true, ""},
+@@ -33,6 +36,7 @@ var valueConverterTests = []valueConverterTest{
+ 	{Bool, uint16(0), false, ""},
+ 	{c: Bool, in: "foo", err: "sql/driver: couldn't convert \"foo\" into type bool"},
+ 	{c: Bool, in: 2, err: "sql/driver: couldn't convert 2 into type bool"},
++	{DefaultParameterConverter, now, now, ""},
+ }
+ 
+ func TestValueConverters(t *testing.T) {
+diff --git a/src/pkg/exp/sql/fakedb_test.go b/src/pkg/exp/sql/fakedb_test.go
+index d81c09e642..70aa68c138 100644
+--- a/src/pkg/exp/sql/fakedb_test.go
++++ b/src/pkg/exp/sql/fakedb_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"time"
+ 
+ 	"exp/sql/driver"
+ )
+@@ -220,7 +221,7 @@ func (c *fakeConn) Close() error {
+ func checkSubsetTypes(args []interface{}) error {
+ 	for n, arg := range args {
+ 		switch arg.(type) {
+-		case int64, float64, bool, nil, []byte, string:
++		case int64, float64, bool, nil, []byte, string, time.Time:
+ 		default:
+ 			return fmt.Errorf("fakedb_test: invalid argument #%d: %v, type %T", n+1, arg, arg)
+ 		}
+@@ -589,6 +590,8 @@ func converterForType(typ string) driver.ValueConverter {
+ 		return driver.Int32
+ 	case "string":
+ 		return driver.String
++	case "datetime":
++		return driver.DefaultParameterConverter
+ 	}
+ 	panic("invalid fakedb column type of " + typ)
+ }
+diff --git a/src/pkg/exp/sql/sql_test.go b/src/pkg/exp/sql/sql_test.go
+index 716d4ca9df..3f98a8cd9f 100644
+--- a/src/pkg/exp/sql/sql_test.go
++++ b/src/pkg/exp/sql/sql_test.go
+@@ -8,10 +8,13 @@ import (
+ 	"reflect"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ const fakeDBName = "foo"
+ 
++var chrisBirthday = time.Unix(123456789, 0)
++
+ func newTestDB(t *testing.T, name string) *DB {
+ 	db, err := Open("test", fakeDBName)
+ 	if err != nil {
+@@ -21,10 +24,10 @@ func newTestDB(t *testing.T, name string) *DB {
+ 		t.Fatalf("exec wipe: %v", err)
+ 	}
+ 	if name == "people" {
+-		exec(t, db, "CREATE|people|name=string,age=int32,photo=blob,dead=bool")
++		exec(t, db, "CREATE|people|name=string,age=int32,photo=blob,dead=bool,bdate=datetime")
+ 		exec(t, db, "INSERT|people|name=Alice,age=?,photo=APHOTO", 1)
+ 		exec(t, db, "INSERT|people|name=Bob,age=?,photo=BPHOTO", 2)
+-		exec(t, db, "INSERT|people|name=Chris,age=?,photo=CPHOTO", 3)
++		exec(t, db, "INSERT|people|name=Chris,age=?,photo=CPHOTO,bdate=?", 3, chrisBirthday)
+ 	}
+ 	return db
+ }
+@@ -105,12 +108,18 @@ func TestQueryRow(t *testing.T) {
+ 	defer closeDB(t, db)
+ 	var name string
+ 	var age int
++	var birthday time.Time
+ 
+ 	err := db.QueryRow("SELECT|people|age,name|age=?", 3).Scan(&age)
+ 	if err == nil || !strings.Contains(err.Error(), "expected 2 destination arguments") {
+ 		t.Errorf("expected error from wrong number of arguments; actually got: %v", err)
+ 	}
+ 
++	err = db.QueryRow("SELECT|people|bdate|age=?", 3).Scan(&birthday)
++	if err != nil || !birthday.Equal(chrisBirthday) {
++		t.Errorf("chris birthday = %v, err = %v; want %v", birthday, err, chrisBirthday)
++	}
++
+ 	err = db.QueryRow("SELECT|people|age,name|age=?", 2).Scan(&age, &name)
+ 	if err != nil {
+ 		t.Fatalf("age QueryRow+Scan: %v", err)

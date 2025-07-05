@@ -13,6 +13,20 @@ Date:   Wed Dec 13 13:45:05 2023 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/abi/iface.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/internal/abi/iface.go b/src/internal/abi/iface.go
+index 8fefcaefa0..fb25a2d1f3 100644
+--- a/src/internal/abi/iface.go
++++ b/src/internal/abi/iface.go
+@@ -12,7 +12,6 @@ package abi
+ type ITab struct {
+ 	Inter *InterfaceType
+ 	Type  *Type
+-	Hash  uint32 // copy of Type.Hash. Used for type switches.
+-	_     [4]byte
++	Hash  uint32     // copy of Type.Hash. Used for type switches.
+ 	Fun   [1]uintptr // variable sized. fun[0]==0 means Type does not implement Inter.
+ }

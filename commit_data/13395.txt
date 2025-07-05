@@ -11,6 +11,24 @@ Date:   Mon Jun 25 17:19:08 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6332053
-
+---
  misc/chrome/gophertool/manifest.json | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/misc/chrome/gophertool/manifest.json b/misc/chrome/gophertool/manifest.json
+index 3a2540a862..1a2e920300 100644
+--- a/misc/chrome/gophertool/manifest.json
++++ b/misc/chrome/gophertool/manifest.json
+@@ -1,8 +1,11 @@
+ {
+   "name": "Hacking Gopher",
+   "version": "1.0",
++  "manifest_version": 2,
+   "description": "Go Hacking utility",
+-  "background_page": "background.html",
++  "background": {
++    "page": "background.html"
++  },
+   "browser_action": {
+     "default_icon": "gopher.png",
+     "popup": "popup.html"

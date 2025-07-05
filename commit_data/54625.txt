@@ -16,6 +16,31 @@ Date:   Wed Nov 2 17:21:09 2022 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 6d2847bc06..eb346e29fc 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -147,7 +147,7 @@ type CmdFlags struct {
+ func ParseFlags() {
+ 	Flag.I = addImportDir
+ 
+-	Flag.LowerC = 1
++	Flag.LowerC = runtime.GOMAXPROCS(0)
+ 	Flag.LowerD = objabi.NewDebugFlag(&Debug, DebugSSA)
+ 	Flag.LowerP = &Ctxt.Pkgpath
+ 	Flag.LowerV = &Ctxt.Debugvlog
+@@ -267,8 +267,8 @@ func ParseFlags() {
+ 	if Flag.LowerC < 1 {
+ 		log.Fatalf("-c must be at least 1, got %d", Flag.LowerC)
+ 	}
+-	if Flag.LowerC > 1 && !concurrentBackendAllowed() {
+-		log.Fatalf("cannot use concurrent backend compilation with provided flags; invoked as %v", os.Args)
++	if !concurrentBackendAllowed() {
++		Flag.LowerC = 1
+ 	}
+ 
+ 	if Flag.CompilingRuntime {

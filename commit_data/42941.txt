@@ -11,7 +11,7 @@ Date:   Wed Feb 26 03:58:59 2020 +1100
     Change-Id: Ib2798324881e9db842c864e91a0c1b1e48c4b67b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220921
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go           |  4 ++--
  src/cmd/compile/internal/riscv64/ssa.go        |  2 +-
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++--
@@ -19,3 +19,149 @@ Date:   Wed Feb 26 03:58:59 2020 +1100
  src/cmd/compile/internal/ssa/opGen.go          | 15 +++++++++++++++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 22 ++++++++--------------
  6 files changed, 29 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index d406780a79..b3262018b4 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -705,8 +705,8 @@ func (lv *Liveness) markUnsafePoints() {
+ 					v = v.Args[0]
+ 					continue
+ 				}
+-			case ssa.OpRISCV64SUB:
+-				// RISCV64 lowers Neq32 to include a SUB with multiple arguments.
++			case ssa.OpRISCV64SUBW:
++				// RISCV64 lowers Neq32 to include a SUBW with multiple arguments.
+ 				// TODO(jsing): it would be preferable not to use Neq32 for
+ 				// writeBuffer.enabled checks on this platform.
+ 				v = v.Args[0]
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index d33240351f..2ccd3b2830 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -228,7 +228,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddrAuto(&p.To, v)
+ 	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
+ 		// nothing to do
+-	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64XOR, ssa.OpRISCV64OR, ssa.OpRISCV64AND,
++	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64SUBW, ssa.OpRISCV64XOR, ssa.OpRISCV64OR, ssa.OpRISCV64AND,
+ 		ssa.OpRISCV64SLL, ssa.OpRISCV64SRA, ssa.OpRISCV64SRL,
+ 		ssa.OpRISCV64SLT, ssa.OpRISCV64SLTU, ssa.OpRISCV64MUL, ssa.OpRISCV64MULW, ssa.OpRISCV64MULH,
+ 		ssa.OpRISCV64MULHU, ssa.OpRISCV64DIV, ssa.OpRISCV64DIVU, ssa.OpRISCV64DIVW,
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 711f904f0d..1ffb9575e0 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -267,7 +267,7 @@
+ 
+ (EqPtr x y) -> (SEQZ (SUB <x.Type> x y))
+ (Eq64  x y) -> (SEQZ (SUB <x.Type> x y))
+-(Eq32  x y) -> (SEQZ (ZeroExt32to64 (SUB <x.Type> x y)))
++(Eq32  x y) -> (SEQZ (SUBW <x.Type> x y))
+ (Eq16  x y) -> (SEQZ (ZeroExt16to64 (SUB <x.Type> x y)))
+ (Eq8   x y) -> (SEQZ (ZeroExt8to64  (SUB <x.Type> x y)))
+ (Eq64F ...) -> (FEQD ...)
+@@ -275,7 +275,7 @@
+ 
+ (NeqPtr x y) -> (SNEZ (SUB <x.Type> x y))
+ (Neq64  x y) -> (SNEZ (SUB <x.Type> x y))
+-(Neq32  x y) -> (SNEZ (ZeroExt32to64 (SUB <x.Type> x y)))
++(Neq32  x y) -> (SNEZ (SUBW <x.Type> x y))
+ (Neq16  x y) -> (SNEZ (ZeroExt16to64 (SUB <x.Type> x y)))
+ (Neq8   x y) -> (SNEZ (ZeroExt8to64  (SUB <x.Type> x y)))
+ (Neq64F ...) -> (FNED ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 88a97e43fd..a1cf2e6857 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -130,6 +130,7 @@ func init() {
+ 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true}, // arg0 + arg1
+ 		{name: "ADDI", argLength: 1, reg: gp11sb, asm: "ADDI", aux: "Int64"},  // arg0 + auxint
+ 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                    // arg0 - arg1
++		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW"},                  // 32 low bits of arg 0 - 32 low bits of arg 1, sign extended to 64 bits
+ 
+ 		// M extension. H means high (i.e., it returns the top bits of
+ 		// the result). U means unsigned. W means word (i.e., 32-bit).
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ff382eb673..a810d9fbc6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1885,6 +1885,7 @@ const (
+ 	OpRISCV64ADD
+ 	OpRISCV64ADDI
+ 	OpRISCV64SUB
++	OpRISCV64SUBW
+ 	OpRISCV64MUL
+ 	OpRISCV64MULW
+ 	OpRISCV64MULH
+@@ -25028,6 +25029,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SUBW",
++		argLen: 2,
++		asm:    riscv.ASUBW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:        "MUL",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index fe1604eca5..61da7a41bd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -816,18 +816,15 @@ func rewriteValueRISCV64_OpEq32(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Eq32 x y)
+-	// result: (SEQZ (ZeroExt32to64 (SUB <x.Type> x y)))
++	// result: (SEQZ (SUBW <x.Type> x y))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+ 		v.reset(OpRISCV64SEQZ)
+-		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+-		v1 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
+-		v1.AddArg(x)
+-		v1.AddArg(y)
+-		v0.AddArg(v1)
++		v0 := b.NewValue0(v.Pos, OpRISCV64SUBW, x.Type)
++		v0.AddArg(x)
++		v0.AddArg(y)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -2217,18 +2214,15 @@ func rewriteValueRISCV64_OpNeq32(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Neq32 x y)
+-	// result: (SNEZ (ZeroExt32to64 (SUB <x.Type> x y)))
++	// result: (SNEZ (SUBW <x.Type> x y))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+ 		v.reset(OpRISCV64SNEZ)
+-		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+-		v1 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
+-		v1.AddArg(x)
+-		v1.AddArg(y)
+-		v0.AddArg(v1)
++		v0 := b.NewValue0(v.Pos, OpRISCV64SUBW, x.Type)
++		v0.AddArg(x)
++		v0.AddArg(y)
+ 		v.AddArg(v0)
+ 		return true
+ 	}

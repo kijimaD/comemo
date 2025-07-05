@@ -6,7 +6,70 @@ Date:   Tue Dec 1 21:47:00 2009 -0800
     
     R=rsc
     https://golang.org/cl/163070
-
+---
  src/pkg/gob/decoder.go      |  7 +++++++
  src/pkg/gob/encoder_test.go | 15 +++++++++++++--
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 1713a3e59f..a88c97400e 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -58,6 +58,13 @@ func (dec *Decoder) recvType(id typeId) {
+ // The value underlying e must be the correct type for the next
+ // data item received.
+ func (dec *Decoder) Decode(e interface{}) os.Error {
++	// If e represents a value, the answer won't get back to the
++	// caller.  Make sure it's a pointer.
++	if _, ok := reflect.Typeof(e).(*reflect.PtrType); !ok {
++		dec.state.err = os.ErrorString("gob: attempt to decode into a non-pointer");
++		return dec.state.err;
++	}
++
+ 	// Make sure we're single-threaded through here.
+ 	dec.mutex.Lock();
+ 	defer dec.mutex.Unlock();
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 77487884d6..26ce96faf4 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"io";
+ 	"os";
+ 	"reflect";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -195,7 +196,6 @@ func TestPtrTypeToType(t *testing.T) {
+ }
+ 
+ func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
+-	// Encode a *T, decode a T
+ 	type Type2 struct {
+ 		a ****float;
+ 	}
+@@ -215,7 +215,6 @@ func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
+ }
+ 
+ func TestSlice(t *testing.T) {
+-	// Encode a *T, decode a T
+ 	type Type3 struct {
+ 		a []string;
+ 	}
+@@ -225,3 +224,15 @@ func TestSlice(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++func TestValueError(t *testing.T) {
++	// Encode a *T, decode a T
++	type Type4 struct {
++		a int;
++	}
++	t4p := Type4{3};	// note: not a pointer, unlike the other tests.
++	var t4 Type4;
++	if err := encAndDec(t4, t4p); err == nil || strings.Index(err.String(), "pointer") <= 0 {
++		t.Error("expected error; got none or got wrong one")
++	}
++}

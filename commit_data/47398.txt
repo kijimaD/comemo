@@ -13,6 +13,27 @@ Date:   Fri Mar 12 11:26:51 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/tidy.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 34ff86ff18..33ecd80bcb 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -60,6 +60,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 	// request that their test dependencies be included.
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
++	modload.DisallowWriteGoMod() // Suppress writing until we've tidied the file.
+ 
+ 	modload.LoadPackages(ctx, modload.PackageOpts{
+ 		Tags:                     imports.AnyTags(),
+@@ -72,5 +73,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	modload.TidyBuildList()
+ 	modload.TrimGoSum()
++
++	modload.AllowWriteGoMod()
+ 	modload.WriteGoMod()
+ }

@@ -29,7 +29,7 @@ Date:   Wed Aug 24 18:33:21 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/asm_arm.s     |  7 +++++++
  src/runtime/asm_arm64.s   |  7 +++++++
  src/runtime/asm_mips64x.s |  7 +++++++
@@ -38,3 +38,141 @@ Date:   Wed Aug 24 18:33:21 2022 -0400
  src/runtime/asm_riscv64.s | 11 +++++++++--
  src/runtime/asm_s390x.s   |  7 +++++++
  7 files changed, 51 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index b47184e36b..591ef2a399 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -387,6 +387,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	RET
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
++	// Force SPWRITE. This function doesn't actually write SP,
++	// but it is called with a special calling convention where
++	// the caller doesn't save LR on stack but passes it as a
++	// register (R3), and the unwinder currently doesn't understand.
++	// Make it SPWRITE to stop unwinding. (See issue 54332)
++	MOVW	R13, R13
++
+ 	MOVW	$0, R7
+ 	B runtime·morestack(SB)
+ 
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 7836ba1d96..7eb5bcfd21 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -320,6 +320,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	UNDEF
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
++	// Force SPWRITE. This function doesn't actually write SP,
++	// but it is called with a special calling convention where
++	// the caller doesn't save LR on stack but passes it as a
++	// register (R3), and the unwinder currently doesn't understand.
++	// Make it SPWRITE to stop unwinding. (See issue 54332)
++	MOVD	RSP, RSP
++
+ 	MOVW	$0, R26
+ 	B runtime·morestack(SB)
+ 
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 3597ebec57..1abadb9c7d 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -258,6 +258,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	UNDEF
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
++	// Force SPWRITE. This function doesn't actually write SP,
++	// but it is called with a special calling convention where
++	// the caller doesn't save LR on stack but passes it as a
++	// register (R3), and the unwinder currently doesn't understand.
++	// Make it SPWRITE to stop unwinding. (See issue 54332)
++	MOVV	R29, R29
++
+ 	MOVV	R0, REGCTXT
+ 	JMP	runtime·morestack(SB)
+ 
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 4a086b8eb3..877c1bb97b 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -257,6 +257,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	UNDEF
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
++	// Force SPWRITE. This function doesn't actually write SP,
++	// but it is called with a special calling convention where
++	// the caller doesn't save LR on stack but passes it as a
++	// register (R3), and the unwinder currently doesn't understand.
++	// Make it SPWRITE to stop unwinding. (See issue 54332)
++	MOVW	R29, R29
++
+ 	MOVW	R0, REGCTXT
+ 	JMP	runtime·morestack(SB)
+ 
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index c6bcf82ec0..6a162eff0a 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -334,6 +334,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	UNDEF
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
++	// Force SPWRITE. This function doesn't actually write SP,
++	// but it is called with a special calling convention where
++	// the caller doesn't save LR on stack but passes it as a
++	// register (R5), and the unwinder currently doesn't understand.
++	// Make it SPWRITE to stop unwinding. (See issue 54332)
++	MOVD	R1, R1
++
+ 	MOVD	R0, R11
+ 	BR	runtime·morestack(SB)
+ 
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 00caa9f18a..389851beb9 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -158,8 +158,8 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
+  */
+ 
+ // Called during function prolog when more stack is needed.
+-// Caller has already loaded:
+-// R1: framesize, R2: argsize, R3: LR
++// Called with return address (i.e. caller's PC) in X5 (aka T0),
++// and the LR register contains the caller's LR.
+ //
+ // The traceback routines see morestack on a g0 as being
+ // the top of a stack (for example, morestack calling newstack
+@@ -209,6 +209,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 
+ // func morestack_noctxt()
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
++	// Force SPWRITE. This function doesn't actually write SP,
++	// but it is called with a special calling convention where
++	// the caller doesn't save LR on stack but passes it as a
++	// register, and the unwinder currently doesn't understand.
++	// Make it SPWRITE to stop unwinding. (See issue 54332)
++	MOV	X2, X2
++
+ 	MOV	ZERO, CTXT
+ 	JMP	runtime·morestack(SB)
+ 
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 9159a67372..334e1aa909 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -346,6 +346,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	UNDEF
+ 
+ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
++	// Force SPWRITE. This function doesn't actually write SP,
++	// but it is called with a special calling convention where
++	// the caller doesn't save LR on stack but passes it as a
++	// register (R5), and the unwinder currently doesn't understand.
++	// Make it SPWRITE to stop unwinding. (See issue 54332)
++	MOVD	R15, R15
++
+ 	MOVD	$0, R12
+ 	BR	runtime·morestack(SB)
+ 

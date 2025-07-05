@@ -20,7 +20,56 @@ Date:   Tue Nov 1 10:00:25 2022 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/export_test.go | 13 +++++++++++--
  src/runtime/malloc_test.go |  6 +++++-
  2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 8e0a57987f..bc1b3353e5 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -503,7 +503,10 @@ func KeepNArenaHints(n int) {
+ // MapNextArenaHint reserves a page at the next arena growth hint,
+ // preventing the arena from growing there, and returns the range of
+ // addresses that are no longer viable.
+-func MapNextArenaHint() (start, end uintptr) {
++//
++// This may fail to reserve memory. If it fails, it still returns the
++// address range it attempted to reserve.
++func MapNextArenaHint() (start, end uintptr, ok bool) {
+ 	hint := mheap_.arenaHints
+ 	addr := hint.addr
+ 	if hint.down {
+@@ -512,7 +515,13 @@ func MapNextArenaHint() (start, end uintptr) {
+ 	} else {
+ 		start, end = addr, addr+heapArenaBytes
+ 	}
+-	sysReserve(unsafe.Pointer(addr), physPageSize)
++	got := sysReserve(unsafe.Pointer(addr), physPageSize)
++	ok = (addr == uintptr(got))
++	if !ok {
++		// We were unable to get the requested reservation.
++		// Release what we did get and fail.
++		sysFreeOS(got, physPageSize)
++	}
+ 	return
+ }
+ 
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index cc2007604d..a13f382172 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -294,7 +294,11 @@ func TestArenaCollision(t *testing.T) {
+ 	for i := 0; i < 5; i++ {
+ 		// Reserve memory at the next hint so it can't be used
+ 		// for the heap.
+-		start, end := MapNextArenaHint()
++		start, end, ok := MapNextArenaHint()
++		if !ok {
++			t.Skipf("failed to reserve memory at next arena hint [%#x, %#x)", start, end)
++		}
++		t.Logf("reserved [%#x, %#x)", start, end)
+ 		disallowed = append(disallowed, [2]uintptr{start, end})
+ 		// Allocate until the runtime tries to use the hint we
+ 		// just mapped over.

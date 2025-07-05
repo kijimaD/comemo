@@ -30,10 +30,177 @@ Date:   Thu Sep 18 14:49:24 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/138290045
-
+---
  src/runtime/error.go  | 22 -------------------
  src/runtime/malloc.c  |  2 +-
  src/runtime/panic.go  | 59 +++++++++++++++++++++++++--------------------------
  src/runtime/proc.c    |  7 ------
  src/runtime/runtime.h |  3 ---
  5 files changed, 30 insertions(+), 63 deletions(-)
+
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 3ea93680ce..0b40c702b0 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -71,28 +71,6 @@ func (e errorString) Error() string {
+ 	return "runtime error: " + string(e)
+ }
+ 
+-// For calling from C.
+-func newErrorString(s string, ret *interface{}) {
+-	*ret = errorString(s)
+-}
+-
+-// An errorCString represents a runtime error described by a single C string.
+-// Not "type errorCString unsafe.Pointer" because of http://golang.org/issue/7084.
+-// Not uintptr because we want to avoid an allocation if interfaces can't hold
+-// uintptrs directly (and cstr _is_ a pointer).
+-type errorCString struct{ cstr unsafe.Pointer }
+-
+-func (e errorCString) RuntimeError() {}
+-
+-func (e errorCString) Error() string {
+-	return "runtime error: " + gostringnocopy((*byte)(e.cstr))
+-}
+-
+-// For calling from C.
+-func newErrorCString(s unsafe.Pointer, ret *interface{}) {
+-	*ret = errorCString{s}
+-}
+-
+ type stringer interface {
+ 	String() string
+ }
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index d5f2b9ab80..60d20a992d 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -335,7 +335,7 @@ static void*
+ cnew(Type *typ, intgo n)
+ {
+ 	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
+-		runtime·panicstring("runtime: allocation size out of range");
++		runtime·throw("runtime: allocation size out of range");
+ 	return runtime·mallocgc(typ->size*n, typ, typ->kind&KindNoPointers ? FlagNoScan : 0);
+ }
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 927b6db44b..3cc31053e8 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -281,6 +281,35 @@ func gopanic(e interface{}) {
+ 	if gp.m.curg != gp {
+ 		gothrow("panic on m stack")
+ 	}
++
++	// m.softfloat is set during software floating point.
++	// It increments m.locks to avoid preemption.
++	// We moved the memory loads out, so there shouldn't be
++	// any reason for it to panic anymore.
++	if gp.m.softfloat != 0 {
++		gp.m.locks--
++		gp.m.softfloat = 0
++		gothrow("panic during softfloat")
++	}
++	if gp.m.mallocing != 0 {
++		print("panic: ")
++		printany(e)
++		print("\n")
++		gothrow("panic during malloc")
++	}
++	if gp.m.gcing != 0 {
++		print("panic: ")
++		printany(e)
++		print("\n")
++		gothrow("panic during gc")
++	}
++	if gp.m.locks != 0 {
++		print("panic: ")
++		printany(e)
++		print("\n")
++		gothrow("panic holding locks")
++	}
++
+ 	var p _panic
+ 	p.arg = e
+ 	p.link = gp._panic
+@@ -431,33 +460,3 @@ func gothrow(s string) {
+ 	dopanic(0)
+ 	*(*int)(nil) = 0 // not reached
+ }
+-
+-func panicstring(s *int8) {
+-	// m.softfloat is set during software floating point,
+-	// which might cause a fault during a memory load.
+-	// It increments m.locks to avoid preemption.
+-	// If we're panicking, the software floating point frames
+-	// will be unwound, so decrement m.locks as they would.
+-	gp := getg()
+-	if gp.m.softfloat != 0 {
+-		gp.m.locks--
+-		gp.m.softfloat = 0
+-	}
+-
+-	if gp.m.mallocing != 0 {
+-		print("panic: ", s, "\n")
+-		gothrow("panic during malloc")
+-	}
+-	if gp.m.gcing != 0 {
+-		print("panic: ", s, "\n")
+-		gothrow("panic during gc")
+-	}
+-	if gp.m.locks != 0 {
+-		print("panic: ", s, "\n")
+-		gothrow("panic holding locks")
+-	}
+-
+-	var err interface{}
+-	newErrorCString(unsafe.Pointer(s), &err)
+-	gopanic(err)
+-}
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 4282a145e1..860701ee58 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -123,7 +123,6 @@ runtime·schedinit(void)
+ {
+ 	int32 n, procs;
+ 	byte *p;
+-	Eface i;
+ 
+ 	// raceinit must be the first call to race detector.
+ 	// In particular, it must be done before mallocinit below calls racemapshadow.
+@@ -137,12 +136,6 @@ runtime·schedinit(void)
+ 	runtime·mallocinit();
+ 	mcommoninit(g->m);
+ 	
+-	// Initialize the itable value for newErrorCString,
+-	// so that the next time it gets called, possibly
+-	// in a fault during a garbage collection, it will not
+-	// need to allocated memory.
+-	runtime·newErrorCString(0, &i);
+-	
+ 	runtime·goargs();
+ 	runtime·goenvs();
+ 	runtime·parsedebugvars();
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index c034f3aa97..386b09b96b 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -804,7 +804,6 @@ void	runtime·goenvs(void);
+ void	runtime·goenvs_unix(void);
+ void*	runtime·getu(void);
+ void	runtime·throw(int8*);
+-void	runtime·panicstring(int8*);
+ bool	runtime·canpanic(G*);
+ void	runtime·prints(int8*);
+ void	runtime·printf(int8*, ...);
+@@ -1063,8 +1062,6 @@ void	runtime·panicdivide(void);
+  */
+ void	runtime·printany(Eface);
+ void	runtime·newTypeAssertionError(String*, String*, String*, String*, Eface*);
+-void	runtime·newErrorString(String, Eface*);
+-void	runtime·newErrorCString(int8*, Eface*);
+ void	runtime·fadd64c(uint64, uint64, uint64*);
+ void	runtime·fsub64c(uint64, uint64, uint64*);
+ void	runtime·fmul64c(uint64, uint64, uint64*);

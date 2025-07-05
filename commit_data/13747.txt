@@ -34,7 +34,7 @@ Date:   Tue Sep 4 14:40:49 2012 -0400
     R=iant, rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/6498057
-
+---
  src/pkg/runtime/signal_linux_amd64.c | 2 ++
  src/pkg/runtime/sys_darwin_386.s     | 9 ++++++---
  src/pkg/runtime/sys_darwin_amd64.s   | 4 +++-
@@ -54,3 +54,305 @@ Date:   Tue Sep 4 14:40:49 2012 -0400
  src/pkg/runtime/thread_openbsd.c     | 6 +++++-
  src/pkg/runtime/thread_plan9.c       | 2 +-
  18 files changed, 67 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/runtime/signal_linux_amd64.c b/src/pkg/runtime/signal_linux_amd64.c
+index 8ff5be7859..96088f781d 100644
+--- a/src/pkg/runtime/signal_linux_amd64.c
++++ b/src/pkg/runtime/signal_linux_amd64.c
+@@ -135,6 +135,8 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	if(restart)
+ 		sa.sa_flags |= SA_RESTART;
+ 	sa.sa_mask = ~0ULL;
++	// TODO(adonovan): Linux manpage says "sa_restorer element is
++	// obsolete and should not be used".  Avoid it here, and test.
+ 	sa.sa_restorer = (void*)runtime·sigreturn;
+ 	if(fn == runtime·sighandler)
+ 		fn = (void*)runtime·sigtramp;
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index 5f7919dc8c..c1652090cb 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -213,8 +213,8 @@ TEXT runtime·sigaction(SB),7,$0
+ // It is called with the following arguments on the stack:
+ //	0(FP)	"return address" - ignored
+ //	4(FP)	actual handler
+-//	8(FP)	siginfo style - ignored
+-//	12(FP)	signal number
++//	8(FP)	signal number
++//	12(FP)	siginfo style
+ //	16(FP)	siginfo
+ //	20(FP)	context
+ TEXT runtime·sigtramp(SB),7,$40
+@@ -223,8 +223,11 @@ TEXT runtime·sigtramp(SB),7,$40
+ 	// check that m exists
+ 	MOVL	m(CX), BP
+ 	CMPL	BP, $0
+-	JNE	2(PC)
++	JNE	5(PC)
++	MOVL	sig+8(FP), BX
++	MOVL	BX, 0(SP)
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVL	g(CX), DI
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 36e49ebf8b..69207c8d8a 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -173,8 +173,10 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	2(PC)
++	JNE	4(PC)
++	MOVL	DX, 0(SP)
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVQ	g(BX), R10
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index a72d8972b1..2cfce09f44 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -162,8 +162,11 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	// check that m exists
+ 	MOVL	m(CX), BX
+ 	CMPL	BX, $0
+-	JNE	2(PC)
++	JNE	5(PC)
++	MOVL	signo+0(FP), BX
++	MOVL	BX, 0(SP)
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVL	g(CX), DI
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 36e034a802..3d25db2ce7 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -138,8 +138,10 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	2(PC)
++	JNE	4(PC)
++	MOVQ	DI, 0(SP)
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVQ	g(BX), R10
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index d9f979f509..28ae37b8d9 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -170,8 +170,11 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	// check that m exists
+ 	MOVL	m(CX), BX
+ 	CMPL	BX, $0
+-	JNE	2(PC)
++	JNE	5(PC)
++	MOVL	sig+0(FP), BX
++	MOVL	BX, 0(SP)
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVL	g(CX), DI
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index e0ca6583c6..88810ff74a 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -157,8 +157,10 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	2(PC)
++	JNE	4(PC)
++	MOVQ	DI, 0(SP)
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVQ	g(BX), R10
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 0112cf9158..38bcebfa1a 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -296,7 +296,8 @@ TEXT runtime·sigaltstack(SB),7,$0
+ TEXT runtime·sigtramp(SB),7,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+-	// first save R0, becuase cgo_load_gm will clobber it
++	// first save R0, because cgo_load_gm will clobber it
++	// TODO(adonovan): call runtime·badsignal if m=0, like other platforms?
+ 	MOVW	R0, 4(R13)
+ 	MOVW	cgo_load_gm(SB), R0
+ 	CMP 	$0, R0
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 75a38f820e..5f6738ee2d 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -178,8 +178,11 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	// check that m exists
+ 	MOVL	m(CX), BX
+ 	CMPL	BX, $0
+-	JNE	2(PC)
++	JNE	5(PC)
++	MOVL	signo+0(FP), BX
++	MOVL	BX, 0(SP)      
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVL	g(CX), DI
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index f5feb48418..9fe1ebbc49 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -196,8 +196,10 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	2(PC)
++	JNE	4(PC)
++	MOVQ	DI, 0(SP)
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVQ	g(BX), R10
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index 0774162f64..d04b5e653a 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -151,8 +151,11 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	// check that m exists
+ 	MOVL	m(CX), BX
+ 	CMPL	BX, $0
+-	JNE	2(PC)
++	JNE	5(PC)
++	MOVL	signo+0(FP), BX
++	MOVL	BX, 0(SP)
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVL	g(CX), DI
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 9df903f74f..ad7de11f84 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -187,8 +187,10 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	// check that m exists
+ 	MOVQ	m(BX), BP
+ 	CMPQ	BP, $0
+-	JNE	2(PC)
++	JNE	4(PC)
++	MOVQ	DI, 0(SP)
+ 	CALL	runtime·badsignal(SB)
++	RET
+ 
+ 	// save g
+ 	MOVQ	g(BX), R10
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index bfdd9873ea..aff2b6fd37 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -502,7 +502,11 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ #pragma textflag 7
+ void
+-runtime·badsignal(void)
++runtime·badsignal(int32 sig)
+ {
++	if (sig == SIGPROF) {
++		return;  // Ignore SIGPROFs intended for a non-Go thread.
++	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
++	runtime·exit(1);
+ }
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 1597b1e88b..4d39f3c804 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -211,7 +211,11 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ #pragma textflag 7
+ void
+-runtime·badsignal(void)
++runtime·badsignal(int32 sig)
+ {
++	if (sig == SIGPROF) {
++		return;  // Ignore SIGPROFs intended for a non-Go thread.
++	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
++	runtime·exit(1);
+ }
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index f66d2dd4d2..c428ba1b39 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -261,7 +261,11 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ #pragma textflag 7
+ void
+-runtime·badsignal(void)
++runtime·badsignal(int32 sig)
+ {
++	if (sig == SIGPROF) {
++		return;  // Ignore SIGPROFs intended for a non-Go thread.
++	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
++	runtime·exit(1);
+ }
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index be6c205c28..a703e0714a 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -261,7 +261,11 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ #pragma textflag 7
+ void
+-runtime·badsignal(void)
++runtime·badsignal(int32 sig)
+ {
++	if (sig == SIGPROF) {
++		return;  // Ignore SIGPROFs intended for a non-Go thread.
++	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
++	runtime·exit(1);
+ }
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index 4e4db74745..c55f25278f 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -234,7 +234,11 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ #pragma textflag 7
+ void
+-runtime·badsignal(void)
++runtime·badsignal(int32 sig)
+ {
++	if (sig == SIGPROF) {
++		return;  // Ignore SIGPROFs intended for a non-Go thread.
++	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
++	runtime.exit(1)
+ }
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index 57d535713d..9898a65b28 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -354,7 +354,7 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go.
+ // This runs on a foreign stack, without an m or a g.  No stack split.
+ #pragma textflag 7
+ void
+-runtime·badsignal(void)
++runtime·badsignal(int32 sig)
+ {
+ 	runtime·pwrite(2, badsignal, sizeof badsignal - 1, -1LL);
+ }

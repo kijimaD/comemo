@@ -14,7 +14,65 @@ Date:   Fri Aug 19 00:15:53 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/internal/saferio/io.go      |  7 +++++++
  src/internal/saferio/io_test.go | 21 +++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/internal/saferio/io.go b/src/internal/saferio/io.go
+index 0361011e95..8fb27b0be3 100644
+--- a/src/internal/saferio/io.go
++++ b/src/internal/saferio/io.go
+@@ -21,6 +21,10 @@ const chunk = 10 << 20 // 10M
+ // ReadData reads n bytes from the input stream, but avoids allocating
+ // all n bytes if n is large. This avoids crashing the program by
+ // allocating all n bytes in cases where n is incorrect.
++//
++// The error is io.EOF only if no bytes were read.
++// If an io.EOF happens after reading some but not all the bytes,
++// ReadData returns io.ErrUnexpectedEOF.
+ func ReadData(r io.Reader, n uint64) ([]byte, error) {
+ 	if int64(n) < 0 || n != uint64(int(n)) {
+ 		// n is too large to fit in int, so we can't allocate
+@@ -46,6 +50,9 @@ func ReadData(r io.Reader, n uint64) ([]byte, error) {
+ 		}
+ 		_, err := io.ReadFull(r, buf1[:next])
+ 		if err != nil {
++			if len(buf) > 0 && err == io.EOF {
++				err = io.ErrUnexpectedEOF
++			}
+ 			return nil, err
+ 		}
+ 		buf = append(buf, buf1[:next]...)
+diff --git a/src/internal/saferio/io_test.go b/src/internal/saferio/io_test.go
+index 9214e735c2..1a7d3e1840 100644
+--- a/src/internal/saferio/io_test.go
++++ b/src/internal/saferio/io_test.go
+@@ -37,6 +37,27 @@ func TestReadData(t *testing.T) {
+ 			t.Error("large read succeeded unexpectedly")
+ 		}
+ 	})
++
++	t.Run("small-EOF", func(t *testing.T) {
++		_, err := ReadData(bytes.NewReader(nil), chunk-1)
++		if err != io.EOF {
++			t.Errorf("ReadData = %v, want io.EOF", err)
++		}
++	})
++
++	t.Run("large-EOF", func(t *testing.T) {
++		_, err := ReadData(bytes.NewReader(nil), chunk+1)
++		if err != io.EOF {
++			t.Errorf("ReadData = %v, want io.EOF", err)
++		}
++	})
++
++	t.Run("large-UnexpectedEOF", func(t *testing.T) {
++		_, err := ReadData(bytes.NewReader(make([]byte, chunk)), chunk+1)
++		if err != io.ErrUnexpectedEOF {
++			t.Errorf("ReadData = %v, want io.ErrUnexpectedEOF", err)
++		}
++	})
+ }
+ 
+ func TestReadDataAt(t *testing.T) {

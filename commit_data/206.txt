@@ -6,7 +6,7 @@ Date:   Sat Jun 21 15:11:29 2008 -0700
     half-step toward multivalued map indexing
     
     SVN=124019
-
+---
  src/cmd/6g/cgen.c  |  28 +++++++++-
  src/cmd/6g/gen.c   |  35 +++++++++++-
  src/cmd/6g/gsubr.c |  28 +++++-----
@@ -17,3 +17,1015 @@ Date:   Sat Jun 21 15:11:29 2008 -0700
  src/cmd/gc/subr.c  |   2 +
  src/cmd/gc/walk.c  | 146 +++++++++++++++++++++++++++++++++++++++++++-----
  9 files changed, 394 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index d42fb76cdd..58b3af7059 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -234,6 +234,11 @@ agen(Node *n, Node *res)
+ 	ulong w, lno;
+ 	Type *t;
+ 
++
++	if(debug['g']) {
++		dump("\nagen-res", res);
++		dump("agen-r", n);
++	}
+ 	if(n == N || n->type == T)
+ 		return;
+ 
+@@ -267,6 +272,21 @@ agen(Node *n, Node *res)
+ //		regfree(&n1);
+ //		break;
+ 
++	case OCALLMETH:
++		cgen_callmeth(n);
++		cgen_aret(n, res);
++		break;
++
++	case OCALLINTER:
++		cgen_callinter(n, res);
++		cgen_aret(n, res);
++		break;
++
++	case OCALL:
++		cgen_call(n);
++		cgen_aret(n, res);
++		break;
++
+ 	case OINDEXPTR:
+ 		w = n->type->width;
+ 		if(nr->addable)
+@@ -388,6 +408,9 @@ bgen(Node *n, int true, Prog *to)
+ 	Node n1, n2, tmp;
+ 	Prog *p1, *p2;
+ 
++	if(debug['g']) {
++		dump("\nbgen", n);
++	}
+ 	if(n == N)
+ 		n = booltrue;
+ 
+@@ -554,6 +577,10 @@ sgen(Node *n, Node *ns, ulong w)
+ 	Node nodl, nodr;
+ 	long c;
+ 
++	if(debug['g']) {
++		dump("\nsgen-res", ns);
++		dump("sgen-r", n);
++	}
+ 	if(w == 0)
+ 		return;
+ 	if(n->ullman >= UINF && ns->ullman >= UINF) {
+@@ -570,7 +597,6 @@ sgen(Node *n, Node *ns, ulong w)
+ 		agen(ns, &nodl);
+ 		agen(n, &nodr);
+ 	}
+-
+ 	gins(ACLD, N, N);	// clear direction flag
+ 
+ 	c = w / 8;
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index f99114003f..576db49a6f 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -658,7 +658,7 @@ cgen_callret(Node *n, Node *res)
+ 
+ 	fp = structfirst(&flist, getoutarg(t));
+ 	if(fp == T)
+-		fatal("cgen_callret: nil");
++		fatal("cgen_aret: nil");
+ 
+ 	memset(&nod, 0, sizeof(nod));
+ 	nod.op = OINDREG;
+@@ -670,6 +670,39 @@ cgen_callret(Node *n, Node *res)
+ 	cgen_as(res, &nod, 0);
+ }
+ 
++void
++cgen_aret(Node *n, Node *res)
++{
++	Node nod1, nod2;
++	Type *fp, *t;
++	Iter flist;
++
++fatal("cgen_aret");
++
++	t = n->left->type;
++	if(t->etype == TPTR32 || t->etype == TPTR64)
++		t = t->type;
++
++	fp = structfirst(&flist, getoutarg(t));
++	if(fp == T)
++		fatal("cgen_aret: nil");
++/* gins LEA */
++	memset(&nod1, 0, sizeof(nod1));
++	nod1.op = OINDREG;
++	nod1.val.vval = D_SP;
++	nod1.addable = 1;
++
++	nod1.xoffset = fp->width;
++	nod1.type = fp->type;
++
++	memset(&nod2, 0, sizeof(nod2));
++	nod2.op = OADDR;
++	nod2.left = &nod1;
++	nod2.addable = 1;
++
++	cgen_as(res, &nod2, 0);
++}
++
+ void
+ cgen_ret(Node *n)
+ {
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 2c750957b0..956d357be3 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1098,20 +1098,20 @@ naddr(Node *n, Addr *a)
+ 		fatal("naddr: const %lT", n->type);
+ 		break;
+ 
+-//	case OADDR:
+-//		naddr(n->left, a);
+-//		if(a->type >= D_INDIR) {
+-//			a->type -= D_INDIR;
+-//			break;
+-//		}
+-//		if(a->type == D_EXTERN || a->type == D_STATIC ||
+-//		   a->type == D_AUTO || a->type == D_PARAM)
+-//			if(a->index == D_NONE) {
+-//				a->index = a->type;
+-//				a->type = D_ADDR;
+-//				break;
+-//			}
+-//		goto bad;
++	case OADDR:
++		naddr(n->left, a);
++		if(a->type >= D_INDIR) {
++			a->type -= D_INDIR;
++			break;
++		}
++		if(a->type == D_EXTERN || a->type == D_STATIC ||
++		   a->type == D_AUTO || a->type == D_PARAM)
++			if(a->index == D_NONE) {
++				a->index = a->type;
++				a->type = D_ADDR;
++				break;
++			}
++		fatal("naddr: OADDR\n");
+ 
+ //	case OADD:
+ //		if(n->right->op == OLITERAL) {
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 183da44704..6320120aab 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -489,6 +489,8 @@ dcopy(Sym *a, Sym *b)
+ 	a->lexical = b->lexical;
+ 	a->undef = b->undef;
+ 	a->vargen = b->vargen;
++	a->vblock = b->vblock;
++	a->tblock = b->tblock;
+ }
+ 
+ Sym*
+@@ -533,6 +535,7 @@ popdcl(char *why)
+ 	if(strcmp(why, d->package) != 0)
+ 		fatal("popdcl: pushed as %s poped as %s", d->package, why);
+ 	dclstack = d->link;
++	block = d->vblock;
+ }
+ 
+ void
+@@ -560,6 +563,10 @@ markdcl(char *why)
+ 	d = push();
+ 	d->name = nil;		// used as a mark in fifo
+ 	d->package = why;	// diagnostic for unmatched
++	d->vblock = block;
++
++	blockgen++;
++	block = blockgen;
+ //	if(dflag())
+ //		print("markdcl\n");
+ }
+@@ -628,25 +635,20 @@ addvar(Node *n, Type *t, int ctxt)
+ 
+ 	r = autodcl;
+ 	if(ctxt == PEXTERN) {
+-		on = s->oname;
+-		if(on != N) {
+-			if(eqtype(t, on->type, 0)) {
+-				warn("%S redeclared", s);
+-				return;
+-			}
+-			yyerror("%S redeclared (%T %T)", s,
+-				on->type, t);
+-		}
+ 		r = externdcl;
+ 		gen = 0;
+ 	}
+ 
++	if(s->vblock == block)
++		yyerror("var %S redeclared in this block %d", s, block);
++		
+ 	if(ctxt != PEXTERN)
+ 		pushdcl(s);
+ 
+ 	s->vargen = gen;
+ 	s->oname = n;
+ 	s->offset = 0;
++	s->vblock = block;
+ 
+ 	n->type = t;
+ 	n->vargen = gen;
+@@ -692,16 +694,13 @@ addtyp(Type *n, Type *t, int ctxt)
+ 				s->otype = t;
+ 				return;
+ 			}
+-			if(eqtype(t, ot, 0)) {
+-				warn("%S redeclared", s);
+-				return;
+-			}
+-			yyerror("%S redeclared (%T %T)", s,
+-				ot, t);
+ 		}
+ 		r = externdcl;
+ 	}
+ 
++	if(s->tblock == block)
++		yyerror("type %S redeclared in this block %d", s, block);
++
+ 	if(ctxt != PEXTERN)
+ 		pushdcl(s);
+ 
+@@ -712,6 +711,7 @@ addtyp(Type *n, Type *t, int ctxt)
+ 	s->vargen = vargen;
+ 	s->otype = t;
+ 	s->lexical = LATYPE;
++	s->tblock = block;
+ 
+ 	t->sym = s;
+ 	t->vargen = vargen;
+@@ -784,9 +784,11 @@ oldname(Sym *s)
+ 
+ 	n = s->oname;
+ 	if(n == N) {
+-		yyerror("%S undefined", s);
+-		n = newname(s);
+-		dodclvar(n, types[TINT32]);
++		n = nod(ONONAME, N, N);
++		n->sym = s;
++		n->type = T;
++		n->addable = 1;
++		n->ullman = 0;
+ 	}
+ 	return n;
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4e08bc5845..1321badb45 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -71,10 +71,16 @@ typedef	struct	Type	Type;
+ 
+ struct	Type
+ {
+-	int	etype;
+-	int	chan;
++	uchar	etype;
++	uchar	chan;
+ 	uchar	recur;		// to detect loops
+ 	uchar	trecur;		// to detect loops
++
++	// TFUNCT
++	uchar	thistuple;
++	uchar	outtuple;
++	uchar	intuple;
++
+ 	Sym*	sym;
+ 	long	vargen;		// unique name for OTYPE/ONAME
+ 
+@@ -94,10 +100,6 @@ struct	Type
+ 	Type*	argin;
+ 	Node*	nname;
+ 
+-	uchar	thistuple;
+-	uchar	outtuple;
+-	uchar	intuple;
+-
+ 	// TARRAY
+ 	long	bound;
+ };
+@@ -105,7 +107,13 @@ struct	Type
+ 
+ struct	Node
+ {
+-	int	op;
++	uchar	op;
++	uchar	ullman;		// sethi/ullman number
++	uchar	addable;	// type of addressability - 0 is not addressable
++	uchar	trecur;		// to detect loops
++	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
++	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
++	uchar	method;		// OCALLMETH name
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -134,12 +142,6 @@ struct	Node
+ 	Sym*	fsym;		// import
+ 	Sym*	psym;		// import
+ 	Sym*	sym;		// various
+-	uchar	ullman;		// sethi/ullman number
+-	uchar	addable;	// type of addressability - 0 is not addressable
+-	uchar	trecur;		// to detect loops
+-	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
+-	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
+-	uchar	method;		// OCALLMETH name
+ 	long	vargen;		// unique name for OTYPE/ONAME
+ 	ulong	lineno;
+ 	vlong	xoffset;
+@@ -148,6 +150,14 @@ struct	Node
+ 
+ struct	Sym
+ {
++	ushort	tblock;
++	ushort	vblock;
++
++	uchar	undef;		// a diagnostic has been generated
++	uchar	export;		// marked as export
++	uchar	exported;	// has been exported
++	uchar	sym;		// huffman encoding in object file
++
+ 	char*	opackage;	// original package name
+ 	char*	package;	// package name
+ 	char*	name;		// variable name
+@@ -159,10 +169,6 @@ struct	Sym
+ 	vlong	offset;		// stack location if automatic
+ 	long	lexical;
+ 	long	vargen;		// unique variable number
+-	uchar	undef;		// a diagnostic has been generated
+-	uchar	export;		// marked as export
+-	uchar	exported;	// has been exported
+-	uchar	sym;		// huffman encoding in object file
+ 	Sym*	link;
+ };
+ #define	S	((Sym*)0)
+@@ -170,7 +176,7 @@ struct	Sym
+ typedef	struct	Dcl	Dcl;
+ struct	Dcl
+ {
+-	int	op;
++	uchar	op;
+ 	Sym*	dsym;		// for printing only
+ 	Node*	dnode;		// oname
+ 	Type*	dtype;		// otype
+@@ -207,7 +213,7 @@ enum
+ 
+ 	OTYPE, OCONST, OVAR, OEXPORT, OIMPORT,
+ 
+-	ONAME,
++	ONAME, ONONAME,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
+ 	ODCLFUNC, ODCLFIELD, ODCLARG,
+ 	OLIST, OCMP,
+@@ -392,6 +398,8 @@ EXTERN	long	vargen;
+ EXTERN	long	exportgen;
+ EXTERN	long	maxarg;
+ EXTERN	long	stksize;
++EXTERN	ushort	blockgen;		// max block number
++EXTERN	ushort	block;			// current block number
+ 
+ EXTERN	Node*	retnil;
+ EXTERN	Node*	fskel;
+@@ -570,6 +578,7 @@ Node*	stringop(Node*, int);
+ Node*	mapop(Node*, int);
+ Node*	convas(Node*);
+ void	arrayconv(Type*, Node*);
++Node*	colas(Node*, Node*);
+ Node*	reorder1(Node*);
+ Node*	reorder2(Node*);
+ Node*	reorder3(Node*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index c07d113d9b..55418991cd 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -28,7 +28,8 @@
+ 
+ %type	<sym>		sym laconst lname latype
+ %type	<lint>		chandir
+-%type	<node>		xdcl xdcl_list_r oxdcl_list common_dcl
++%type	<node>		xdcl xdcl_list_r oxdcl_list
++%type	<node>		common_dcl Acommon_dcl Bcommon_dcl
+ %type	<node>		oarg_type_list arg_type_list_r arg_type
+ %type	<node>		else_stmt1 else_stmt2 inc_stmt noninc_stmt
+ %type	<node>		complex_stmt compound_stmt ostmt_list
+@@ -40,17 +41,19 @@
+ %type	<node>		simple_stmt osimple_stmt semi_stmt
+ %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
+ %type	<node>		name name_name new_name new_name_list_r
+-%type	<node>		vardcl_list_r vardcl
++%type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+ %type	<node>		interfacedcl_list_r interfacedcl
+ %type	<node>		structdcl_list_r structdcl
+ %type	<node>		export_list_r export
+ %type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
+ %type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
+ %type	<node>		fnbody
+-%type	<node>		fnres fnliteral xfndcl fndcl
++%type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl
+ %type	<node>		keyval_list_r keyval
++%type	<node>		typedcl Atypedcl Btypedcl
+ 
+-%type	<type>		type fntypeh fntype fnlitdcl intype new_type typeconv
++%type	<type>		fntype fnlitdcl intype new_type typeconv
++%type	<type>		type Atype Btype fntypeh Afntypeh Bfntypeh
+ 
+ %left			LOROR
+ %left			LANDAND
+@@ -147,7 +150,11 @@ xdcl:
+ 	}
+ 
+ common_dcl:
+-	LVAR vardcl
++	Acommon_dcl
++|	Bcommon_dcl
++
++Acommon_dcl:
++	LVAR Avardcl
+ 	{
+ 		$$ = $2;
+ 	}
+@@ -155,27 +162,50 @@ common_dcl:
+ 	{
+ 		$$ = rev($3);
+ 	}
+-|	LCONST constdcl
++|	LCONST '(' constdcl_list_r osemi ')'
+ 	{
+ 		$$ = N;
+ 		iota = 0;
+ 	}
+-|	LCONST '(' constdcl_list_r osemi ')'
++|	LTYPE Atypedcl
+ 	{
+ 		$$ = N;
+-		iota = 0;
+ 	}
+-|	LTYPE typedcl
++|	LTYPE '(' typedcl_list_r osemi ')'
+ 	{
+ 		$$ = N;
+ 	}
+-|	LTYPE '(' typedcl_list_r osemi ')'
++
++Bcommon_dcl:
++	LVAR Bvardcl
++	{
++		$$ = $2;
++	}
++|	LCONST constdcl
++	{
++		$$ = N;
++		iota = 0;
++	}
++|	LTYPE Btypedcl
+ 	{
+ 		$$ = N;
+ 	}
+ 
+ vardcl:
+-	new_name_list_r type
++	Avardcl
++|	Bvardcl
++
++Avardcl:
++	new_name_list_r Atype
++	{
++		$$ = rev($1);
++		dodclvar($$, $2);
++
++		$$ = nod(OAS, $$, N);
++	}
++
++Bvardcl:
++	new_name_list_r Btype
+ 	{
+ 		$$ = rev($1);
+ 		dodclvar($$, $2);
+@@ -214,7 +244,17 @@ constdcl:
+ 	}
+ 
+ typedcl:
+-	new_type type
++	Atypedcl
++|	Btypedcl
++
++Atypedcl:
++	new_type Atype
++	{
++		dodcltype($1, $2);
++	}
++
++Btypedcl:
++	new_type Btype
+ 	{
+ 		dodcltype($1, $2);
+ 	}
+@@ -249,13 +289,9 @@ noninc_stmt:
+ 	{
+ 		$$ = nod(OAS, $1, $3);
+ 	}
+-|	new_name LCOLAS expr
++|	expr_list LCOLAS expr_list
+ 	{
+-		walktype($3, Erv);	// this is a little harry
+-		defaultlit($3);
+-		dodclvar($1, $3->type);
+-
+-		$$ = nod(OAS, $1, $3);
++		$$ = nod(OAS, colas($1, $3), $3);
+ 	}
+ 
+ inc_stmt:
+@@ -768,21 +804,25 @@ typeconv:
+ 	}
+ 
+ type:
++	Atype
++|	Btype
++
++Atype:
+ 	latype
+ 	{
+ 		$$ = oldtype($1);
+ 	}
+-|	'[' oexpr ']' type
++|	'[' oexpr ']' Atype
+ 	{
+ 		$$ = aindex($2, $4);
+ 	}
+-|	LCHAN chandir type
++|	LCHAN chandir Atype
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+ 		$$->chan = $2;
+ 	}
+-|	LMAP '[' type ']' type
++|	LMAP '[' type ']' Atype
+ 	{
+ 		$$ = typ(TMAP);
+ 		$$->down = $3;
+@@ -805,8 +845,31 @@ type:
+ 	{
+ 		$$ = dostruct(N, TINTER);
+ 	}
+-|	fntypeh
+-|	'*' type
++|	Afntypeh
++|	'*' Atype
++	{
++		$$ = ptrto($2);
++	}
++
++Btype:
++	'[' oexpr ']' Btype
++	{
++		$$ = aindex($2, $4);
++	}
++|	LCHAN chandir Btype
++	{
++		$$ = typ(TCHAN);
++		$$->type = $3;
++		$$->chan = $2;
++	}
++|	LMAP '[' type ']' Btype
++	{
++		$$ = typ(TMAP);
++		$$->down = $3;
++		$$->type = $5;
++	}
++|	Bfntypeh
++|	'*' Btype
+ 	{
+ 		$$ = ptrto($2);
+ 	}
+@@ -874,12 +937,31 @@ fndcl:
+ 	}
+ 
+ fntypeh:
+-	LFUNC '(' oarg_type_list ')' fnres
++	Afntypeh
++|	Bfntypeh
++
++Afntypeh:
++	LFUNC '(' oarg_type_list ')' Afnres
++	{
++		$$ = functype(N, $3, $5);
++		funcnam($$, nil);
++	}
++|	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' Afnres
++	/* i dont believe that this form is useful for anything */
++	{
++		if($3 == N || $3->op == OLIST)
++			yyerror("syntax error in method receiver");
++		$$ = functype($3, $7, $9);
++		funcnam($$, nil);
++	}
++
++Bfntypeh:
++	LFUNC '(' oarg_type_list ')' Bfnres
+ 	{
+ 		$$ = functype(N, $3, $5);
+ 		funcnam($$, nil);
+ 	}
+-|	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' fnres
++|	LFUNC '(' oarg_type_list ')' '.' '(' oarg_type_list ')' Bfnres
+ 	/* i dont believe that this form is useful for anything */
+ 	{
+ 		if($3 == N || $3->op == OLIST)
+@@ -942,12 +1024,12 @@ fnbody:
+ 	{
+ 		$$ = N;
+ 	}
+-
+ fnres:
+-	{
+-		$$ = N;
+-	}
+-|	type
++	Afnres
++|	Bfnres
++
++Afnres:
++	Atype
+ 	{
+ 		$$ = nod(ODCLFIELD, N, N);
+ 		$$->type = $1;
+@@ -958,6 +1040,17 @@ fnres:
+ 		$$ = $2;
+ 	}
+ 
++Bfnres:
++	{
++		$$ = N;
++	}
++|	Btype
++	{
++		$$ = nod(ODCLFIELD, N, N);
++		$$->type = $1;
++		$$ = cleanidlist($$);
++	}
++
+ /*
+  * lists of things
+  * note that they are left recursive
+@@ -1082,6 +1175,7 @@ arg_type_list_r:
+ Astmt:
+ 	complex_stmt
+ |	compound_stmt
++|	Acommon_dcl
+ |	';'
+ 	{
+ 		$$ = N;
+@@ -1093,7 +1187,7 @@ Astmt:
+  */
+ Bstmt:
+ 	semi_stmt
+-|	common_dcl
++|	Bcommon_dcl
+ 
+ /*
+  * need semi in front YES
+@@ -1154,6 +1248,10 @@ Bstmt_list_r:
+ stmt_list_r:
+ 	Astmt_list_r
+ |	Bstmt_list_r
++|	error ';'
++	{
++		$$ = N;
++	}
+ 
+ expr_list_r:
+ 	expr
+@@ -1228,6 +1326,7 @@ expr_list:
+ 		$$ = rev($1);
+ 	}
+ 
++
+ /*
+  * optional things
+  */
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index fbba021a1c..ca7d3a09ef 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -54,6 +54,8 @@ mainlex(int argc, char *argv[])
+ 	
+ 	lexinit();
+ 	lineno = 1;
++	block = 1;
++	blockgen = 1;
+ 
+ 	infile = argv[0];
+ 	linehist(infile, 0);
+@@ -770,7 +772,7 @@ loop:
+ 
+ 	default:
+ 		if(c != e)
+-			warn("unknown escape sequence: %c", c);
++			yyerror("unknown escape sequence: %c", c);
+ 	}
+ 	*val = c;
+ 	return 0;
+@@ -791,7 +793,7 @@ hex:
+ 			l = l*16 + c-'A' + 10;
+ 			continue;
+ 		}
+-		warn("non-hex character in escape sequence: %c", c);
++		yyerror("non-hex character in escape sequence: %c", c);
+ 		ungetc(c);
+ 		break;
+ 	}
+@@ -806,11 +808,11 @@ oct:
+ 			l = l*8 + c-'0';
+ 			continue;
+ 		}
+-		warn("non-oct character in escape sequence: %c", c);
++		yyerror("non-oct character in escape sequence: %c", c);
+ 		ungetc(c);
+ 	}
+ 	if(l > 255)
+-		warn("oct escape value > 255: %d", l);
++		yyerror("oct escape value > 255: %d", l);
+ 
+ 	*val = l;
+ 	return 0;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 499200521f..3cd96fa525 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -615,6 +615,7 @@ opnames[] =
+ 	[OMOD]		= "MOD",
+ 	[OMUL]		= "MUL",
+ 	[ONAME]		= "NAME",
++	[ONONAME]	= "NONAME",
+ 	[ONE]		= "NE",
+ 	[ONOT]		= "NOT",
+ 	[OOROR]		= "OROR",
+@@ -998,6 +999,7 @@ Nconv(Fmt *fp)
+ 		break;
+ 
+ 	case ONAME:
++	case ONONAME:
+ 		if(n->sym == S) {
+ 			snprint(buf, sizeof(buf), "%O%J", n->op, n);
+ 			break;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f577a9f708..b9dd4c7695 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -38,7 +38,7 @@ walktype(Node *n, int top)
+ 	lno = dynlineno;
+ 	if(top == Exxx || top == Eyyy) {
+ 		dump("", n);
+-		fatal("walktype: top=%d", top);
++		fatal("walktype: bad top=%d", top);
+ 	}
+ 
+ loop:
+@@ -79,6 +79,17 @@ loop:
+ 		ullmancalc(n);
+ 		goto ret;
+ 
++	case ONONAME:
++		s = n->sym;
++		if(s->undef == 0) {
++			s->undef = 1;
++			yyerror("%S: undefined", s);
++			goto ret;
++		}
++		if(top == Etop)
++			goto nottop;
++		goto ret;
++
+ 	case ONAME:
+ 		if(top == Etop)
+ 			goto nottop;
+@@ -200,6 +211,9 @@ loop:
+ 
+ 		case OCALLMETH:
+ 			// add this-pointer to the arg list
++			// this is bad - if not a simple
++			// should make a temp copy rather
++			// than recalculate it.
+ 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
+ 			r = ascompatte(n->op, getthis(t), &n->left->left, 0);
+ 			if(l != N)
+@@ -461,9 +475,6 @@ loop:
+ 			goto badt;
+ 
+ 		case TMAP:
+-
+-print("top=%d type %lT", top, t);
+-dump("index", n);
+ 			// right side must map type
+ 			if(n->right->type == T) {
+ 				convlit(n->right, t->down);
+@@ -477,7 +488,7 @@ dump("index", n);
+ 			n->op = OINDEX;
+ 			n->type = t->type;
+ 			if(top == Erv)
+-*n = *mapop(n, top);
++				*n = *mapop(n, top);
+ 			break;
+ 
+ 		case TSTRING:
+@@ -493,7 +504,7 @@ dump("index", n);
+ 				goto badt;
+ 			*n = *stringop(n, top);
+ 			break;
+-			
++
+ 		case TARRAY:
+ 		case TDARRAY:
+ 			// right side must be an int
+@@ -746,7 +757,6 @@ casebody(Node *n)
+ 	Node *oc, *ot, *t;
+ 	Iter save;
+ 
+-
+ 	/*
+ 	 * look to see if statements at top level have
+ 	 * case labels attached to them. convert the illegal
+@@ -912,7 +922,6 @@ print("%L walkdot %O %d\n", n->op, top);
+ 	}
+ }
+ 
+-
+ Node*
+ ascompatee(int op, Node **nl, Node **nr)
+ {
+@@ -927,7 +936,6 @@ ascompatee(int op, Node **nl, Node **nr)
+ 	l = listfirst(&savel, nl);
+ 	r = listfirst(&saver, nr);
+ 	nn = N;
+-	
+ 
+ loop:
+ 	if(l == N || r == N) {
+@@ -1382,7 +1390,6 @@ mapop(Node *n, int top)
+ 	case OINDEX:
+ 		if(top != Erv)
+ 			goto nottop;
+-dump("access start", n);
+ 		// mapaccess1(hmap *map[any]any, key any) (val any);
+ 
+ 		t = fixmap(n->left->type);
+@@ -1415,7 +1422,6 @@ dump("access start", n);
+ 		r = nod(OCALL, on, r);
+ 		walktype(r, Erv);
+ 		r->type = t->type;
+-dump("access finish", r);
+ 		break;
+ 
+ 		// mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+@@ -1515,7 +1521,6 @@ dump("access finish", r);
+ 		break;
+ 
+ 	}
+-//dump("mapop return", r);
+ 	dynlineno = lno;
+ 	return r;
+ 
+@@ -1544,7 +1549,7 @@ convas(Node *n)
+ 	Type *lt, *rt;
+ 
+ 	if(n->op != OAS)
+-		fatal("convas: not as %O", n->op);
++		fatal("convas: not OAS %O", n->op);
+ 
+ 	ullmancalc(n);
+ 	l = n->left;
+@@ -1631,6 +1636,121 @@ loop:
+ 	goto loop;
+ }
+ 
++Node*
++old2new(Node *n, Type *t)
++{
++	Node *l;
++
++	if(n->op != ONAME && n->op != ONONAME) {
++		yyerror("left side of := must be a name");
++		return n;
++	}
++	l = newname(n->sym);
++	dodclvar(l, t);
++	return l;
++}
++
++Node*
++colas(Node *nl, Node *nr)
++{
++	Iter savel, saver;
++	Node *l, *r, *a, *n;
++	Type *t;
++	int cl, cr;
++
++	/* nl is an expression list.
++	 * nr is an expression list.
++	 * return a newname-list from
++	 * the types from the rhs.
++	 */
++	n = N;
++	cr = listcount(nr);
++	cl = listcount(nl);
++	if(cl != cr) {
++		if(cr == 1)
++			goto multi;
++		goto badt;
++	}
++
++	l = listfirst(&savel, &nl);
++	r = listfirst(&saver, &nr);
++
++loop:
++	if(l == N)
++		return n;
++
++	walktype(r, Erv);
++	defaultlit(r);
++	a = old2new(l, r->type);
++	if(n == N)
++		n = a;
++	else
++		n = nod(OLIST, n, a);
++
++	l = listnext(&savel);
++	r = listnext(&saver);
++	goto loop;
++
++multi:
++	/*
++	 * there is a list on the left
++	 * and a mono on the right.
++	 * go into the right to get
++	 * individual types for the left.
++	 */
++	switch(nr->op) {
++	default:
++		goto badt;
++
++	case OCALLMETH:
++	case OCALLINTER:
++	case OCALL:
++		walktype(nr->left, Erv);
++		t = nr->left->type;
++		if(t == T || t->etype != TFUNC)
++			goto badt;
++		if(t->outtuple != cl)
++			goto badt;
++
++		l = listfirst(&savel, &nl);
++		t = structfirst(&saver, getoutarg(t));
++		while(l != N) {
++			a = old2new(l, t);
++			if(n == N)
++				n = a;
++			else
++				n = nod(OLIST, n, a);
++			l = listnext(&savel);
++			t = structnext(&saver);
++		}
++		break;
++
++	case OINDEX:
++	case OINDEXPTR:
++		// check if rhs is a map index.
++		// if so, types are bool,maptype
++		if(cl != 2)
++			goto badt;
++		walktype(nr->left, Elv);
++		t = nr->left->type;
++		if(t != T && isptr[t->etype])
++			t = t->type;
++		if(t == T || t->etype != TMAP)
++			goto badt;
++
++		a = old2new(nl->left, types[TBOOL]);
++		n = a;
++		a = old2new(nl->right, t->type);
++		n = nod(OLIST, n, a);
++		break;
++	}
++	return n;
++
++badt:
++	yyerror("shape error across :=");
++	return nl;
++}
++
+ Node*
+ reorder1(Node *n)
+ {

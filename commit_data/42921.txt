@@ -15,7 +15,75 @@ Date:   Tue Jan 14 18:15:25 2020 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/type.go      |  7 +++++--
  src/mime/type_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/mime/type.go b/src/mime/type.go
+index aa05077e22..260c535af0 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -7,6 +7,7 @@ package mime
+ 
+ import (
+ 	"fmt"
++	"sort"
+ 	"strings"
+ 	"sync"
+ )
+@@ -49,7 +50,7 @@ func setMimeTypes(lowerExt, mixExt map[string]string) {
+ 			panic(err)
+ 		}
+ 		var exts []string
+-		if ei, ok := extensions.Load(k); ok {
++		if ei, ok := extensions.Load(justType); ok {
+ 			exts = ei.([]string)
+ 		}
+ 		extensions.Store(justType, append(exts, k))
+@@ -151,7 +152,9 @@ func ExtensionsByType(typ string) ([]string, error) {
+ 	if !ok {
+ 		return nil, nil
+ 	}
+-	return append([]string{}, s.([]string)...), nil
++	ret := append([]string(nil), s.([]string)...)
++	sort.Strings(ret)
++	return ret, nil
+ }
+ 
+ // AddExtensionType sets the MIME type associated with
+diff --git a/src/mime/type_test.go b/src/mime/type_test.go
+index e7aef9a196..f10e6343f9 100644
+--- a/src/mime/type_test.go
++++ b/src/mime/type_test.go
+@@ -188,3 +188,30 @@ func BenchmarkExtensionsByType(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func TestExtensionsByType2(t *testing.T) {
++	cleanup := setMimeInit(func() {
++		clearMimeTypes()
++		// Initialize built-in types like in type.go before osInitMime.
++		setMimeTypes(builtinTypesLower, builtinTypesLower)
++	})
++	defer cleanup()
++
++	tests := []struct {
++		typ  string
++		want []string
++	}{
++		{typ: "image/jpeg", want: []string{".jpeg", ".jpg"}},
++	}
++
++	for _, tt := range tests {
++		got, err := ExtensionsByType(tt.typ)
++		if err != nil {
++			t.Errorf("ExtensionsByType(%q): %v", tt.typ, err)
++			continue
++		}
++		if !reflect.DeepEqual(got, tt.want) {
++			t.Errorf("ExtensionsByType(%q) = %q; want %q", tt.typ, got, tt.want)
++		}
++	}
++}

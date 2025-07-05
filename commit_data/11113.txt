@@ -9,9 +9,87 @@ Date:   Wed Jan 11 13:21:06 2012 -0800
     R=lvd
     CC=golang-dev
     https://golang.org/cl/5538043
-
+---
  src/cmd/gc/fmt.c                 |  4 +++-
  test/fixedbugs/bug392.dir/one.go | 15 ++++++++++++---
  test/fixedbugs/bug392.dir/two.go | 14 +++++++++++++-
  test/fixedbugs/bug392.go         |  6 +-----
  4 files changed, 29 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 0eb5854aec..f49c703f36 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1078,7 +1078,9 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		if(n->val.ctype == CTNIL)
+ 			n = n->orig; // if this node was a nil decorated with at type, print the original naked nil
+ 		if(n->type != types[n->type->etype] && n->type != idealbool && n->type != idealstring) {
+-			if(isptr[n->type->etype])
++			// Need parens when type begins with what might
++			// be misinterpreted as a unary operator: * or <-.
++			if(isptr[n->type->etype] || (n->type->etype == TCHAN && n->type->chan == Crecv))
+ 				return fmtprint(f, "(%T)(%V)", n->type, &n->val);
+ 			else 
+ 				return fmtprint(f, "%T(%V)", n->type, &n->val);
+diff --git a/test/fixedbugs/bug392.dir/one.go b/test/fixedbugs/bug392.dir/one.go
+index 6353b88e1a..50c1689e3b 100644
+--- a/test/fixedbugs/bug392.dir/one.go
++++ b/test/fixedbugs/bug392.dir/one.go
+@@ -1,6 +1,15 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Functions that the inliner exported incorrectly.
++
+ package one
+ 
+-type file int
+-func (file *file) isnil() bool { return file == nil }
+-func (fil *file)  isnil2() bool { return fil == nil }
++type T int
++
++// Issue 2678
++func F1(T *T) bool { return T == nil }
+ 
++// Issue 2682.
++func F2(c chan int) bool { return c == (<-chan int)(nil) }
+diff --git a/test/fixedbugs/bug392.dir/two.go b/test/fixedbugs/bug392.dir/two.go
+index 8a5346ab72..f16533a330 100644
+--- a/test/fixedbugs/bug392.dir/two.go
++++ b/test/fixedbugs/bug392.dir/two.go
+@@ -1,4 +1,16 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Use the functions in one.go so that the inlined
++// forms get type-checked.
++
+ package two
+ 
+-import _ "./one"
++import "./one"
++
++func use() {
++	one.F1(nil)
++	one.F2(nil)
++}
+ 
+diff --git a/test/fixedbugs/bug392.go b/test/fixedbugs/bug392.go
+index 46781eb428..50af6006fb 100644
+--- a/test/fixedbugs/bug392.go
++++ b/test/fixedbugs/bug392.go
+@@ -1,11 +1,7 @@
+-// $G $D/$F.dir/one.go && $G -ll $D/$F.dir/two.go
++// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-//
+-// Issue 2678
+-// -ll flag in command above is to force typecheck on import, needed to trigger the bug.
+-// fixedbugs/bug392.dir/two.go:3: cannot call non-function *one.file (type one.file)
+ 
+ package ignored

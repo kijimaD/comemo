@@ -16,8 +16,100 @@ Date:   Tue Aug 15 10:24:41 2023 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../script/cgo_suspect_flag_force_external.txt       | 20 ++++++++++++++++++++
  src/cmd/internal/archive/archive.go                  | 18 ++++++++++++++++++
  src/cmd/internal/objfile/goobj.go                    |  2 +-
  3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+index e5bcdc6cfa..d555278865 100644
+--- a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
++++ b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+@@ -95,6 +95,9 @@ go build -ldflags=-tmpdir=tmp4 -o $devnull ./usesExplicitCgo &
+ [cgolinkext] go list ./usesInternalCgo
+ [!cgolinkext] go build '-ldflags=-tmpdir=tmp5 -linkmode=internal' -o $devnull ./usesInternalCgo &
+ 
++# Sixth build: explicit CGO use in a non-main package.
++go build -o p.a ./nonMainPackageUsesExplicitCgo &
++
+ wait
+ 
+ # Check first build: no external linking expected
+@@ -113,6 +116,10 @@ exists tmp4/go.o
+ # Fifth build: explicit CGO, -linkmode=internal.
+ ! exists tmp5/go.o
+ 
++# Sixth build: make sure that "go tool nm" doesn't get confused
++# by the presence of the "preferlinkext" sentinel.
++go tool nm p.a
++
+ -- go.mod --
+ 
+ module cgo.example
+@@ -153,3 +160,16 @@ import "C"
+ func main() {
+      println(C.meaningOfLife())
+ }
++
++-- nonMainPackageUsesExplicitCgo/main.go --
++
++package p
++
++/*
++int meaningOfLife() { return 42; }
++*/
++import "C"
++
++func PrintIt() {
++     println(C.meaningOfLife())
++}
+diff --git a/src/cmd/internal/archive/archive.go b/src/cmd/internal/archive/archive.go
+index 8ac50e202f..393034d776 100644
+--- a/src/cmd/internal/archive/archive.go
++++ b/src/cmd/internal/archive/archive.go
+@@ -70,6 +70,7 @@ const (
+ 	EntryPkgDef EntryType = iota
+ 	EntryGoObj
+ 	EntryNativeObj
++	EntrySentinelNonObj
+ )
+ 
+ func (e *Entry) String() string {
+@@ -357,6 +358,23 @@ func (r *objReader) parseArchive(verbose bool) error {
+ 				Data:  Data{r.offset, size},
+ 			})
+ 			r.skip(size)
++		case "preferlinkext", "dynimportfail":
++			if size == 0 {
++				// These are not actual objects, but rather sentinel
++				// entries put into the archive by the Go command to
++				// be read by the linker. See #62036.
++				r.a.Entries = append(r.a.Entries, Entry{
++					Name:  name,
++					Type:  EntrySentinelNonObj,
++					Mtime: mtime,
++					Uid:   uid,
++					Gid:   gid,
++					Mode:  mode,
++					Data:  Data{r.offset, size},
++				})
++				break
++			}
++			fallthrough
+ 		default:
+ 			var typ EntryType
+ 			var o *GoObj
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index 24d2d0bb5c..a0a2a1799b 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -35,7 +35,7 @@ func openGoFile(f *os.File) (*File, error) {
+ L:
+ 	for _, e := range a.Entries {
+ 		switch e.Type {
+-		case archive.EntryPkgDef:
++		case archive.EntryPkgDef, archive.EntrySentinelNonObj:
+ 			continue
+ 		case archive.EntryGoObj:
+ 			o := e.Obj

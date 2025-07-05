@@ -13,6 +13,105 @@ Date:   Sun Aug 20 14:10:38 2023 -0700
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types/fmt.go | 60 +++++++++++++++++------------------
  1 file changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 2b9ba08314..2011ea1521 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -483,12 +483,12 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 		} else {
+ 			if t.Recv() != nil {
+ 				b.WriteString("method")
+-				tconv2(b, t.recvsTuple(), 0, mode, visited)
++				formatParams(b, t.Recvs(), mode, visited)
+ 				b.WriteByte(' ')
+ 			}
+ 			b.WriteString("func")
+ 		}
+-		tconv2(b, t.paramsTuple(), 0, mode, visited)
++		formatParams(b, t.Params(), mode, visited)
+ 
+ 		switch t.NumResults() {
+ 		case 0:
+@@ -500,7 +500,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 
+ 		default:
+ 			b.WriteByte(' ')
+-			tconv2(b, t.ResultsTuple(), 0, mode, visited)
++			formatParams(b, t.Results(), mode, visited)
+ 		}
+ 
+ 	case TSTRUCT:
+@@ -520,35 +520,18 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 			break
+ 		}
+ 
+-		if t.StructType().ParamTuple {
+-			b.WriteByte('(')
+-			fieldVerb := 'v'
+-			switch mode {
+-			case fmtTypeID, fmtTypeIDName, fmtGo:
+-				// no argument names on function signature, and no "noescape"/"nosplit" tags
+-				fieldVerb = 'S'
+-			}
+-			for i, f := range t.Fields() {
+-				if i != 0 {
+-					b.WriteString(", ")
+-				}
+-				fldconv(b, f, fieldVerb, mode, visited, true)
+-			}
+-			b.WriteByte(')')
+-		} else {
+-			b.WriteString("struct {")
+-			for i, f := range t.Fields() {
+-				if i != 0 {
+-					b.WriteByte(';')
+-				}
+-				b.WriteByte(' ')
+-				fldconv(b, f, 'L', mode, visited, false)
+-			}
+-			if t.NumFields() != 0 {
+-				b.WriteByte(' ')
++		b.WriteString("struct {")
++		for i, f := range t.Fields() {
++			if i != 0 {
++				b.WriteByte(';')
+ 			}
+-			b.WriteByte('}')
++			b.WriteByte(' ')
++			fldconv(b, f, 'L', mode, visited, false)
+ 		}
++		if t.NumFields() != 0 {
++			b.WriteByte(' ')
++		}
++		b.WriteByte('}')
+ 
+ 	case TFORW:
+ 		b.WriteString("undefined")
+@@ -573,6 +556,23 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 	}
+ }
+ 
++func formatParams(b *bytes.Buffer, params []*Field, mode fmtMode, visited map[*Type]int) {
++	b.WriteByte('(')
++	fieldVerb := 'v'
++	switch mode {
++	case fmtTypeID, fmtTypeIDName, fmtGo:
++		// no argument names on function signature, and no "noescape"/"nosplit" tags
++		fieldVerb = 'S'
++	}
++	for i, param := range params {
++		if i != 0 {
++			b.WriteString(", ")
++		}
++		fldconv(b, param, fieldVerb, mode, visited, true)
++	}
++	b.WriteByte(')')
++}
++
+ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Type]int, isParam bool) {
+ 	if f == nil {
+ 		b.WriteString("<T>")

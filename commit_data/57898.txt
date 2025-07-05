@@ -23,6 +23,35 @@ Date:   Mon Aug 14 09:41:43 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/traceback_test.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index 1617612418..204b4f5316 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -108,7 +108,13 @@ func ttiSigpanic1() (res *ttiResult) {
+ 		recover()
+ 	}()
+ 	ttiSigpanic2()
+-	panic("did not panic")
++	// without condition below the inliner might decide to de-prioritize
++	// the callsite above (since it would be on an "always leads to panic"
++	// path).
++	if alwaysTrue {
++		panic("did not panic")
++	}
++	return nil
+ }
+ func ttiSigpanic2() {
+ 	ttiSigpanic3()
+@@ -118,6 +124,8 @@ func ttiSigpanic3() {
+ 	*p = 3
+ }
+ 
++var alwaysTrue = true
++
+ //go:noinline
+ func ttiWrapper1() *ttiResult {
+ 	var w ttiWrapper

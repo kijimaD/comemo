@@ -16,7 +16,58 @@ Date:   Wed Oct 10 10:03:27 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/imports/scan.go        | 10 ++++++++++
  src/cmd/go/testdata/script/mod_symlink.txt | 23 +++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/go/internal/imports/scan.go b/src/cmd/go/internal/imports/scan.go
+index d944e95724..966a38cfef 100644
+--- a/src/cmd/go/internal/imports/scan.go
++++ b/src/cmd/go/internal/imports/scan.go
+@@ -22,6 +22,16 @@ func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
+ 	var files []string
+ 	for _, info := range infos {
+ 		name := info.Name()
++
++		// If the directory entry is a symlink, stat it to obtain the info for the
++		// link target instead of the link itself.
++		if info.Mode()&os.ModeSymlink != 0 {
++			info, err = os.Stat(name)
++			if err != nil {
++				continue // Ignore broken symlinks.
++			}
++		}
++
+ 		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
+ 			files = append(files, filepath.Join(dir, name))
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_symlink.txt b/src/cmd/go/testdata/script/mod_symlink.txt
+new file mode 100644
+index 0000000000..61da3cc355
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_symlink.txt
+@@ -0,0 +1,23 @@
++env GO111MODULE=on
++[!symlink] skip
++
++# 'go list' should resolve modules of imported packages.
++go list -deps -f '{{.Module}}'
++stdout golang.org/x/text
++
++# They should continue to resolve if the importing file is a symlink.
++mkdir links
++cd links
++symlink go.mod -> ../go.mod
++symlink issue.go -> ../issue.go
++
++go list -deps -f '{{.Module}}'
++stdout golang.org/x/text
++
++-- go.mod --
++module golang.org/issue/28107
++
++-- issue.go --
++package issue
++
++import _ "golang.org/x/text/language"

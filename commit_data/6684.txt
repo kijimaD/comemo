@@ -9,7 +9,7 @@ Date:   Mon Nov 1 14:32:48 2010 -0700
     R=rsc, r2, r
     CC=golang-dev
     https://golang.org/cl/2265044
-
+---
  src/pkg/exec/lp_unix.go         |  2 +-
  src/pkg/exec/lp_windows.go      |  2 +-
  src/pkg/fmt/fmt_test.go         |  2 +-
@@ -22,3 +22,185 @@ Date:   Mon Nov 1 14:32:48 2010 -0700
  src/pkg/strings/strings.go      |  5 +++++
  src/pkg/strings/strings_test.go | 21 +++++++++++++++++++++
  11 files changed, 38 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/exec/lp_unix.go b/src/pkg/exec/lp_unix.go
+index 10f3da19e6..b2feecd10e 100644
+--- a/src/pkg/exec/lp_unix.go
++++ b/src/pkg/exec/lp_unix.go
+@@ -25,7 +25,7 @@ func LookPath(file string) (string, os.Error) {
+ 	// (only bypass the path if file begins with / or ./ or ../)
+ 	// but that would not match all the Unix shells.
+ 
+-	if strings.Index(file, "/") >= 0 {
++	if strings.Contains(file, "/") {
+ 		if canExec(file) {
+ 			return file, nil
+ 		}
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/exec/lp_windows.go
+index bdf6e00de1..9d5dc1a144 100644
+--- a/src/pkg/exec/lp_windows.go
++++ b/src/pkg/exec/lp_windows.go
+@@ -45,7 +45,7 @@ func LookPath(file string) (string, os.Error) {
+ 			}
+ 		}
+ 	}
+-	if strings.Index(file, `\`) >= 0 || strings.Index(file, `/`) >= 0 {
++	if strings.Contains(file, `\`) || strings.Contains(file, `/`) {
+ 		if f, ok := canExec(file, exts); ok {
+ 			return f, nil
+ 		}
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 2b50532863..2c09e0713b 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -382,7 +382,7 @@ var fmttests = []fmtTest{
+ func TestSprintf(t *testing.T) {
+ 	for _, tt := range fmttests {
+ 		s := Sprintf(tt.fmt, tt.val)
+-		if i := strings.Index(s, "0x"); i >= 0 && strings.Index(tt.out, "PTR") >= 0 {
++		if i := strings.Index(s, "0x"); i >= 0 && strings.Contains(tt.out, "PTR") {
+ 			j := i + 2
+ 			for ; j < len(s); j++ {
+ 				c := s[j]
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 45533fab52..b88689988d 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -299,7 +299,7 @@ func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
+ 	}
+ 
+ 	key = string(line[0:i])
+-	if strings.Index(key, " ") >= 0 {
++	if strings.Contains(key, " ") {
+ 		// Key field has space - no good.
+ 		goto Malformed
+ 	}
+@@ -689,5 +689,5 @@ func (r *Request) wantsHttp10KeepAlive() bool {
+ 	if !exists {
+ 		return false
+ 	}
+-	return strings.Index(strings.ToLower(value), "keep-alive") != -1
++	return strings.Contains(strings.ToLower(value), "keep-alive")
+ }
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 23c36c10c7..68fd32b5f3 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -317,9 +317,9 @@ func errorKludge(w *response) {
+ 	// Is it a broken browser?
+ 	var msg string
+ 	switch agent := w.req.UserAgent; {
+-	case strings.Index(agent, "MSIE") >= 0:
++	case strings.Contains(agent, "MSIE"):
+ 		msg = "Internet Explorer"
+-	case strings.Index(agent, "Chrome/") >= 0:
++	case strings.Contains(agent, "Chrome/"):
+ 		msg = "Chrome"
+ 	default:
+ 		return
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 40945e49fc..75030e87df 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -340,7 +340,7 @@ func fixLength(status int, requestMethod string, header map[string]string, te []
+ 	// Logic based on media type. The purpose of the following code is just
+ 	// to detect whether the unsupported "multipart/byteranges" is being
+ 	// used. A proper Content-Type parser is needed in the future.
+-	if strings.Index(strings.ToLower(header["Content-Type"]), "multipart/byteranges") >= 0 {
++	if strings.Contains(strings.ToLower(header["Content-Type"]), "multipart/byteranges") {
+ 		return -1, ErrNotSupported
+ 	}
+ 
+@@ -360,7 +360,7 @@ func shouldClose(major, minor int, header map[string]string) bool {
+ 			return true
+ 		}
+ 		v = strings.ToLower(v)
+-		if strings.Index(v, "keep-alive") == -1 {
++		if !strings.Contains(v, "keep-alive") {
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 23abc62a97..b878c009f9 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -439,7 +439,7 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 		// instead.  Clients that wish to use RawAuthority will have to
+ 		// interpret it themselves: RFC 2396 does not define the meaning.
+ 
+-		if strings.Index(rawHost, "%") >= 0 {
++		if strings.Contains(rawHost, "%") {
+ 			// Host cannot contain escaped characters.
+ 			err = os.ErrorString("hexadecimal escape in host")
+ 			goto Error
+diff --git a/src/pkg/smtp/smtp.go b/src/pkg/smtp/smtp.go
+index 778d8c8839..3b805166ef 100644
+--- a/src/pkg/smtp/smtp.go
++++ b/src/pkg/smtp/smtp.go
+@@ -57,7 +57,7 @@ func NewClient(conn net.Conn, host string) (*Client, os.Error) {
+ 		return nil, err
+ 	}
+ 	c := &Client{Text: text, conn: conn, serverName: host}
+-	if strings.Index(msg, "ESMTP") >= 0 {
++	if strings.Contains(msg, "ESMTP") {
+ 		err = c.ehlo()
+ 	} else {
+ 		err = c.helo()
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index ca62296d64..ed58897236 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -234,7 +234,7 @@ func Unquote(s string) (t string, err os.Error) {
+ 	s = s[1 : n-1]
+ 
+ 	if quote == '`' {
+-		if strings.Index(s, "`") >= 0 {
++		if strings.Contains(s, "`") {
+ 			return "", os.EINVAL
+ 		}
+ 		return s, nil
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 431e3f82ea..f08b855999 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -61,6 +61,11 @@ func Count(s, sep string) int {
+ 	return n
+ }
+ 
++// Contains returns true if substr is within s.
++func Contains(s, substr string) bool {
++	return Index(s, substr) != -1
++}
++
+ // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+ func Index(s, sep string) int {
+ 	n := len(sep)
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 13c21bf77a..657c8e8906 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -739,3 +739,24 @@ func TestTitle(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type ContainsTest struct {
++	str, substr string
++	expected    bool
++}
++
++var ContainsTests = []ContainsTest{
++	{"abc", "bc", true},
++	{"abc", "bcd", false},
++	{"abc", "", true},
++	{"", "a", false},
++}
++
++func TestContains(t *testing.T) {
++	for _, ct := range ContainsTests {
++		if Contains(ct.str, ct.substr) != ct.expected {
++			t.Errorf("Contains(%s, %s) = %v, want %v",
++				ct.str, ct.substr, !ct.expected, ct.expected)
++		}
++	}
++}

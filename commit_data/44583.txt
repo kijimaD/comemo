@@ -19,7 +19,77 @@ Date:   Thu Aug 13 11:56:31 2020 +0300
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/sql.go      |  5 ++++-
  src/database/sql/sql_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index b3d0653f5c..0b85db66b9 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -3110,6 +3110,9 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
+ // "select cursor(select * from my_table) from dual", into a
+ // *Rows value that can itself be scanned from. The parent
+ // select query will close any cursor *Rows if the parent *Rows is closed.
++//
++// If any of the first arguments implementing Scanner returns an error,
++// that error will be wrapped in the returned error
+ func (rs *Rows) Scan(dest ...interface{}) error {
+ 	rs.closemu.RLock()
+ 
+@@ -3133,7 +3136,7 @@ func (rs *Rows) Scan(dest ...interface{}) error {
+ 	for i, sv := range rs.lastcols {
+ 		err := convertAssignRows(dest[i], sv, rs)
+ 		if err != nil {
+-			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %v`, i, rs.rowsi.Columns()[i], err)
++			return fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, i, rs.rowsi.Columns()[i], err)
+ 		}
+ 	}
+ 	return nil
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 5727f0d8aa..762d42f54b 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -4149,6 +4149,41 @@ func TestQueryExecContextOnly(t *testing.T) {
+ 	}
+ }
+ 
++type alwaysErrScanner struct{}
++
++var errTestScanWrap = errors.New("errTestScanWrap")
++
++func (alwaysErrScanner) Scan(interface{}) error {
++	return errTestScanWrap
++}
++
++// Issue 38099: Ensure that Rows.Scan properly wraps underlying errors.
++func TestRowsScanProperlyWrapsErrors(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	rows, err := db.Query("SELECT|people|age|")
++	if err != nil {
++		t.Fatalf("Query: %v", err)
++	}
++
++	var res alwaysErrScanner
++
++	for rows.Next() {
++		err = rows.Scan(&res)
++		if err == nil {
++			t.Fatal("expecting back an error")
++		}
++		if !errors.Is(err, errTestScanWrap) {
++			t.Fatalf("errors.Is mismatch\n%v\nWant: %v", err, errTestScanWrap)
++		}
++		// Ensure that error substring matching still correctly works.
++		if !strings.Contains(err.Error(), errTestScanWrap.Error()) {
++			t.Fatalf("Error %v does not contain %v", err, errTestScanWrap)
++		}
++	}
++}
++
+ // badConn implements a bad driver.Conn, for TestBadDriver.
+ // The Exec method panics.
+ type badConn struct{}

@@ -15,6 +15,27 @@ Date:   Sat May 6 15:27:02 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 66c1bfc41a..e52de3b6af 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -3779,8 +3779,13 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
+ 	// going to compile.
+ 	goFile = objdir + goFile
+ 	newGoFile := objdir + "_" + base + "_swig.go"
+-	if err := os.Rename(goFile, newGoFile); err != nil {
+-		return "", "", err
++	if cfg.BuildX || cfg.BuildN {
++		b.Showcmd("", "mv %s %s", goFile, newGoFile)
++	}
++	if !cfg.BuildN {
++		if err := os.Rename(goFile, newGoFile); err != nil {
++			return "", "", err
++		}
+ 	}
+ 	return newGoFile, objdir + gccBase + gccExt, nil
+ }

@@ -11,8 +11,48 @@ Date:   Fri Jul 12 14:23:36 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/11208045
-
+---
  src/cmd/5a/lex.c | 2 +-
  src/cmd/6a/lex.c | 2 +-
  src/cmd/8a/lex.c | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 3ce1bfe952..d997754fd3 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -68,7 +68,7 @@ main(int argc, char *argv[])
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+-		if(c >= 0 || c < sizeof(debug))
++		if(c >= 0 && c < sizeof(debug))
+ 			debug[c] = 1;
+ 		break;
+ 
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 89143e7894..290785c551 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -74,7 +74,7 @@ main(int argc, char *argv[])
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+-		if(c >= 0 || c < sizeof(debug))
++		if(c >= 0 && c < sizeof(debug))
+ 			debug[c] = 1;
+ 		break;
+ 
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index a7840f6258..2e69085129 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -74,7 +74,7 @@ main(int argc, char *argv[])
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+-		if(c >= 0 || c < sizeof(debug))
++		if(c >= 0 && c < sizeof(debug))
+ 			debug[c] = 1;
+ 		break;
+ 

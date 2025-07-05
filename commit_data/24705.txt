@@ -14,6 +14,20 @@ Date:   Mon Aug 24 18:30:53 2015 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/gob/decode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index e913f15c54..ef536b32b2 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -634,7 +634,7 @@ func (dec *Decoder) ignoreSlice(state *decoderState, elemOp decOp) {
+ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, value reflect.Value) {
+ 	// Read the name of the concrete type.
+ 	nr := state.decodeUint()
+-	if nr < 0 || nr > 1<<31 { // zero is permissible for anonymous types
++	if nr > 1<<31 { // zero is permissible for anonymous types
+ 		errorf("invalid type name length %d", nr)
+ 	}
+ 	if nr > uint64(state.b.Len()) {

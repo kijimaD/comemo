@@ -7,6 +7,19 @@ Date:   Tue Oct 28 20:20:55 2008 -0700
     R=r
     OCL=17987
     CL=17987
-
+---
  usr/gri/pretty/test.sh | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index ef9c66f0f4..a4ca3ecaa7 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -44,7 +44,6 @@ apply() {
+ 		$GOROOT/test/*.go \
+ 		$GOROOT/test/bugs/*.go \
+ 		$GOROOT/test/fixedbugs/*.go \
+-		$GOROOT/src/pkg/*.go \
+ 		$GOROOT/src/lib/*.go \
+ 		$GOROOT/src/lib/*/*.go \
+ 		$GOROOT/usr/r/*/*.go

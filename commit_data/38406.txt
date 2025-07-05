@@ -11,8 +11,186 @@ Date:   Tue Oct 9 15:19:36 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go              | 50 ++++++++++++-----------
  src/cmd/go/testdata/script/mod_replace.txt        | 28 ++++++++++++-
  src/cmd/go/testdata/script/mod_vendor_replace.txt | 39 ++++++++++++++++++
  3 files changed, 93 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index a506c25dc7..b87a700256 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -145,34 +145,38 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 				}
+ 			}
+ 		}
+-		if cfg.BuildMod == "vendor" {
+-			m.Dir = filepath.Join(ModRoot, "vendor", m.Path)
+-		}
+ 	}
+ 
+-	complete(info)
++	if !fromBuildList {
++		complete(info)
++		return info
++	}
+ 
+-	if fromBuildList {
+-		if r := Replacement(m); r.Path != "" {
+-			info.Replace = &modinfo.ModulePublic{
+-				Path:      r.Path,
+-				Version:   r.Version,
+-				GoVersion: info.GoVersion,
+-			}
+-			if r.Version == "" {
+-				if filepath.IsAbs(r.Path) {
+-					info.Replace.Dir = r.Path
+-				} else {
+-					info.Replace.Dir = filepath.Join(ModRoot, r.Path)
+-				}
+-			}
+-			complete(info.Replace)
+-			info.Dir = info.Replace.Dir
+-			info.GoMod = filepath.Join(info.Dir, "go.mod")
+-			info.Error = nil // ignore error loading original module version (it has been replaced)
+-		}
++	r := Replacement(m)
++	if r.Path == "" {
++		complete(info)
++		return info
+ 	}
+ 
++	// Don't hit the network to fill in extra data for replaced modules.
++	// The original resolved Version and Time don't matter enough to be
++	// worth the cost, and we're going to overwrite the GoMod and Dir from the
++	// replacement anyway. See https://golang.org/issue/27859.
++	info.Replace = &modinfo.ModulePublic{
++		Path:      r.Path,
++		Version:   r.Version,
++		GoVersion: info.GoVersion,
++	}
++	if r.Version == "" {
++		if filepath.IsAbs(r.Path) {
++			info.Replace.Dir = r.Path
++		} else {
++			info.Replace.Dir = filepath.Join(ModRoot, r.Path)
++		}
++	}
++	complete(info.Replace)
++	info.Dir = info.Replace.Dir
++	info.GoMod = filepath.Join(info.Dir, "go.mod")
+ 	return info
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_replace.txt b/src/cmd/go/testdata/script/mod_replace.txt
+index 5894ed69f3..b9cf00c36c 100644
+--- a/src/cmd/go/testdata/script/mod_replace.txt
++++ b/src/cmd/go/testdata/script/mod_replace.txt
+@@ -1,10 +1,14 @@
+ env GO111MODULE=on
+ 
++cp go.mod go.mod.orig
++
++# Make sure the test builds without replacement.
+ go build -o a1.exe .
+ exec ./a1.exe
+ stdout 'Don''t communicate by sharing memory'
+ 
+ # Modules can be replaced by local packages.
++cp go.mod.orig go.mod
+ go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
+ go build -o a2.exe .
+ exec ./a2.exe
+@@ -12,16 +16,26 @@ stdout 'Concurrency is not parallelism.'
+ 
+ # The module path of the replacement doesn't need to match.
+ # (For example, it could be a long-running fork with its own import path.)
++cp go.mod.orig go.mod
+ go mod edit -replace=rsc.io/quote/v3=./local/not-rsc.io/quote/v3
+ go build -o a3.exe .
+ exec ./a3.exe
+ stdout 'Clear is better than clever.'
+ 
+ # However, the same module can't be used as two different paths.
+-go mod edit -dropreplace=rsc.io/quote/v3 -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0 -require=not-rsc.io/quote/v3@v3.0.0
++cp go.mod.orig go.mod
++go mod edit -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0 -require=not-rsc.io/quote/v3@v3.0.0
+ ! go build -o a4.exe .
+ stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
+ 
++# Modules that do not (yet) exist upstream can be replaced too.
++cp go.mod.orig go.mod
++go mod edit -require not-rsc.io/quote/v3@v3.0.0 -replace=not-rsc.io/quote/v3=./local/rsc.io/quote/v3
++go build -o a5.exe ./usenewmodule
++! stderr 'finding not-rsc.io/quote/v3'
++exec ./a5.exe
++stdout 'Concurrency is not parallelism.'
++
+ -- go.mod --
+ module quoter
+ 
+@@ -39,6 +53,18 @@ func main() {
+ 	fmt.Println(quote.GoV3())
+ }
+ 
++-- usenewmodule/main.go --
++package main
++
++import (
++	"fmt"
++	"not-rsc.io/quote/v3"
++)
++
++func main() {
++	fmt.Println(quote.GoV3())
++}
++
+ -- local/rsc.io/quote/v3/go.mod --
+ module rsc.io/quote/v3
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor_replace.txt b/src/cmd/go/testdata/script/mod_vendor_replace.txt
+new file mode 100644
+index 0000000000..6bc1c77ed3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_replace.txt
+@@ -0,0 +1,39 @@
++env GO111MODULE=on
++
++# Before vendoring, we expect to see the original directory.
++go list -f '{{.Version}} {{.Dir}}' -m rsc.io/quote/v3
++stdout 'v3.0.0'
++stdout '.*[/\\]not-rsc.io[/\\]quote[/\\]v3'
++
++# Since all dependencies are replaced, 'go mod vendor' should not
++# have to download anything from the network.
++go mod vendor
++! stderr 'downloading'
++! stderr 'finding'
++
++# After vendoring, we expect to see the replacement in the vendor directory,
++# without attempting to look up the non-replaced version.
++cmp vendor/rsc.io/quote/v3/quote.go local/not-rsc.io/quote/v3/quote.go
++
++go list -mod=vendor -f '{{.Version}} {{.Dir}}' -m rsc.io/quote/v3
++stdout 'v3.0.0'
++stdout '.*[/\\]vendor[/\\]rsc.io[/\\]quote[/\\]v3'
++! stderr 'finding'
++! stderr 'lookup disabled'
++
++-- go.mod --
++module example.com/replace
++
++require rsc.io/quote/v3 v3.0.0
++replace rsc.io/quote/v3 => ./local/not-rsc.io/quote/v3
++
++-- imports.go --
++package replace
++
++import _ "rsc.io/quote/v3"
++
++-- local/not-rsc.io/quote/v3/go.mod --
++module not-rsc.io/quote/v3
++
++-- local/not-rsc.io/quote/v3/quote.go --
++package quote

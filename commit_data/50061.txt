@@ -15,7 +15,41 @@ Date:   Wed Sep 29 10:50:18 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/text/template/exec.go      | 5 ++++-
  src/text/template/exec_test.go | 4 ++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index e03920964e..fce3b0abbf 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -721,9 +721,12 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
+ 		for _, arg := range args {
+ 			v = s.evalArg(dot, argType, arg).Interface().(reflect.Value)
+ 			if truth(v) == (name == "or") {
+-				break
++				return v
+ 			}
+ 		}
++		if final != missingVal {
++			v = s.validateType(final, argType)
++		}
+ 		return v
+ 	}
+ 
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 93fd54e84d..a0432a588d 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -485,6 +485,10 @@ var execTests = []execTest{
+ 	{"and short-circuit", "{{and 1 0 (die)}}", "0", nil, true},
+ 	{"or short-circuit2", "{{or 0 0 (die)}}", "", nil, false},
+ 	{"and short-circuit2", "{{and 1 1 (die)}}", "", nil, false},
++	{"and pipe-true", "{{1 | and 1}}", "1", nil, true},
++	{"and pipe-false", "{{0 | and 1}}", "0", nil, true},
++	{"or pipe-true", "{{1 | or 0}}", "1", nil, true},
++	{"or pipe-false", "{{0 | or 0}}", "0", nil, true},
+ 	{"boolean if", "{{if and true 1 `hi`}}TRUE{{else}}FALSE{{end}}", "TRUE", tVal, true},
+ 	{"boolean if not", "{{if and true 1 `hi` | not}}TRUE{{else}}FALSE{{end}}", "FALSE", nil, true},
+ 

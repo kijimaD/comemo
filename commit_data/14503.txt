@@ -11,8 +11,265 @@ Date:   Tue Nov 27 18:20:44 2012 +1100
     R=bradfitz, dr.volker.dobler, rsc
     CC=golang-dev
     https://golang.org/cl/6849092
-
+---
  src/pkg/exp/cookiejar/jar.go          |  89 ++++++++++++++++++++++++++++++
  src/pkg/exp/cookiejar/storage.go      | 101 ++++++++++++++++++++++++++++++++++
  src/pkg/exp/cookiejar/storage_test.go |  48 ++++++++++++++++
  3 files changed, 238 insertions(+)
+
+diff --git a/src/pkg/exp/cookiejar/jar.go b/src/pkg/exp/cookiejar/jar.go
+new file mode 100644
+index 0000000000..2159ec532a
+--- /dev/null
++++ b/src/pkg/exp/cookiejar/jar.go
+@@ -0,0 +1,89 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package cookiejar implements an RFC 6265-compliant http.CookieJar.
++//
++// TODO: example code to create a memory-backed cookie jar with the default
++// public suffix list.
++package cookiejar
++
++import (
++	"net/http"
++	"net/url"
++)
++
++// PublicSuffixList provides the public suffix of a domain. For example:
++//      - the public suffix of "example.com" is "com",
++//      - the public suffix of "foo1.foo2.foo3.co.uk" is "co.uk", and
++//      - the public suffix of "bar.pvt.k12.wy.us" is "pvt.k12.wy.us".
++//
++// Implementations of PublicSuffixList must be safe for concurrent use by
++// multiple goroutines.
++//
++// An implementation that always returns "" is valid and may be useful for
++// testing but it is not secure: it means that the HTTP server for foo.com can
++// set a cookie for bar.com.
++type PublicSuffixList interface {
++	// PublicSuffix returns the public suffix of domain.
++	//
++	// TODO: specify which of the caller and callee is responsible for IP
++	// addresses, for leading and trailing dots, for case sensitivity, and
++	// for IDN/Punycode.
++	PublicSuffix(domain string) string
++
++	// String returns a description of the source of this public suffix list.
++	// A Jar will store its PublicSuffixList's description in its storage,
++	// and update the stored cookies if its list has a different description
++	// than the stored list. The description will typically contain something
++	// like a time stamp or version number.
++	String() string
++}
++
++// Options are the options for creating a new Jar.
++type Options struct {
++	// Storage is the cookie jar storage. It may not be nil.
++	Storage Storage
++
++	// PublicSuffixList is the public suffix list that determines whether an
++	// HTTP server can set a cookie for a domain. It may not be nil.
++	PublicSuffixList PublicSuffixList
++
++	// TODO: ErrorFunc for handling storage errors?
++}
++
++// Jar implements the http.CookieJar interface from the net/http package.
++type Jar struct {
++	storage Storage
++	psList  PublicSuffixList
++}
++
++// New returns a new cookie jar.
++func New(o *Options) *Jar {
++	return &Jar{
++		storage: o.Storage,
++		psList:  o.PublicSuffixList,
++	}
++}
++
++// TODO(nigeltao): how do we reject HttpOnly cookies? Do we post-process the
++// return value from Jar.Cookies?
++//
++// HttpOnly cookies are those for regular HTTP(S) requests but should not be
++// visible from JavaScript. The HttpOnly bit mitigates XSS attacks; it's not
++// for HTTP vs HTTPS vs FTP transports.
++
++// Cookies implements the Cookies method of the http.CookieJar interface.
++//
++// It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
++func (j *Jar) Cookies(u *url.URL) []*http.Cookie {
++	// TODO.
++	return nil
++}
++
++// SetCookies implements the SetCookies method of the http.CookieJar interface.
++//
++// It does nothing if the URL's scheme is not HTTP or HTTPS.
++func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
++	// TODO.
++}
+diff --git a/src/pkg/exp/cookiejar/storage.go b/src/pkg/exp/cookiejar/storage.go
+new file mode 100644
+index 0000000000..5294f587e4
+--- /dev/null
++++ b/src/pkg/exp/cookiejar/storage.go
+@@ -0,0 +1,101 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cookiejar
++
++import (
++	"time"
++)
++
++// Storage is a Jar's storage. It is a multi-map, mapping keys to one or more
++// entries. Each entry consists of a subkey, creation time, last access time,
++// and some arbitrary data.
++//
++// The Add and Delete methods have undefined behavior if the key is invalid.
++// A valid key must use only bytes in the character class [a-z0-9.-] and
++// must have at least one non-. byte. Note that this excludes any key
++// containing a capital ASCII letter as well as the empty string.
++type Storage interface {
++	// A client must call Lock before calling other methods and must call
++	// Unlock when finished. Between the calls to Lock and Unlock, a client
++	// can assume that other clients are not modifying the Storage.
++	Lock()
++	Unlock()
++
++	// Add adds entries to the storage. Each entry's Subkey and Data must
++	// both be non-empty.
++	//
++	// If the Storage already contains an entry with the same key and
++	// subkey then the new entry is stored with the creation time of the
++	// old entry, and the old entry is deleted.
++	//
++	// Adding entries may cause other entries to be deleted, to maintain an
++	// implementation-specific storage constraint.
++	Add(key string, entries ...Entry) error
++
++	// Delete deletes all entries for the given key.
++	Delete(key string) error
++
++	// Entries calls f for each entry stored for that key. If f returns a
++	// non-nil error then the iteration stops and Entries returns that
++	// error. Iteration is not guaranteed to be in any particular order.
++	//
++	// If f returns an Update action then that stored entry's LastAccess
++	// time will be set to the time that f returned. If f returns a Delete
++	// action then that entry will be deleted from the Storage.
++	//
++	// f may call a Storage's Add and Delete methods; those modifications
++	// will not affect the list of entries visited in this call to Entries.
++	Entries(key string, f func(entry Entry) (Action, time.Time, error)) error
++
++	// Keys calls f for each key stored. f will not be called on a key with
++	// zero entries. If f returns a non-nil error then the iteration stops
++	// and Keys returns that error. Iteration is not guaranteed to be in any
++	// particular order.
++	//
++	// f may call a Storage's Add, Delete and Entries methods; those
++	// modifications will not affect the list of keys visited in this call
++	// to Keys.
++	Keys(f func(key string) error) error
++}
++
++// Entry is an entry in a Storage.
++type Entry struct {
++	Subkey     string
++	Data       string
++	Creation   time.Time
++	LastAccess time.Time
++}
++
++// Action is an action returned by the function passed to Entries.
++type Action int
++
++const (
++	// Pass means to take no further action with an Entry.
++	Pass Action = iota
++	// Update means to update the LastAccess time of an Entry.
++	Update
++	// Delete means to delete an Entry.
++	Delete
++)
++
++// ValidStorageKey returns whether the given key is valid for a Storage.
++func ValidStorageKey(key string) bool {
++	hasNonDot := false
++	for i := 0; i < len(key); i++ {
++		switch c := key[i]; {
++		case 'a' <= c && c <= 'z':
++			fallthrough
++		case '0' <= c && c <= '9':
++			fallthrough
++		case c == '-':
++			hasNonDot = true
++		case c == '.':
++			// No-op.
++		default:
++			return false
++		}
++	}
++	return hasNonDot
++}
+diff --git a/src/pkg/exp/cookiejar/storage_test.go b/src/pkg/exp/cookiejar/storage_test.go
+new file mode 100644
+index 0000000000..de6aa2b6a7
+--- /dev/null
++++ b/src/pkg/exp/cookiejar/storage_test.go
+@@ -0,0 +1,48 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cookiejar
++
++import (
++	"testing"
++)
++
++var validStorageKeyTests = map[string]bool{
++	"":            false,
++	".":           false,
++	"..":          false,
++	"/":           false,
++	"EXAMPLE.com": false,
++	"\n":          false,
++	"\r":          false,
++	"\r\n":        false,
++	"\x00":        false,
++	"back\\slash": false,
++	"co:lon":      false,
++	"com,ma":      false,
++	"semi;colon":  false,
++	"sl/ash":      false,
++	"sp ace":      false,
++	"under_score": false,
++	"π":           false,
++
++	"-":                true,
++	".dot":             true,
++	".dot.":            true,
++	".metadata":        true,
++	".x..y..z...":      true,
++	"dot.":             true,
++	"example.com":      true,
++	"foo":              true,
++	"hy-phen":          true,
++	"xn--bcher-kva.ch": true,
++}
++
++func TestValidStorageKey(t *testing.T) {
++	for key, want := range validStorageKeyTests {
++		if got := ValidStorageKey(key); got != want {
++			t.Errorf("%q: got %v, want %v", key, got, want)
++		}
++	}
++}

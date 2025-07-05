@@ -8,7 +8,45 @@ Date:   Mon Sep 22 16:16:22 2008 -0700
     DELTA=9  (4 added, 3 deleted, 2 changed)
     OCL=15655
     CL=15655
-
+---
  test/fixedbugs/bug067.go | 6 +++++-
  test/golden.out          | 5 +----
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/bug067.go b/test/fixedbugs/bug067.go
+index a7efbcf164..451ebbbf30 100644
+--- a/test/fixedbugs/bug067.go
++++ b/test/fixedbugs/bug067.go
+@@ -6,6 +6,10 @@
+ 
+ package main
+ 
++var c *chan int
++
+ func main() {
+-	go func() { print("ok\n") } ();
++	c = new(chan int)
++	go func() { print("ok\n"); c <- 0 } ();
++	<-c
+ }
+diff --git a/test/golden.out b/test/golden.out
+index ceac2404f6..f82bc7a44e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,7 +1,4 @@
+ 
+-=========== ./dialgoogle.go
+-/Users/r/go/pkg/net.a:4 dialgoogle.go:5: os is becoming a package behind your back
+-
+ =========== ./helloworld.go
+ hello, world
+ 
+@@ -250,7 +247,7 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
+ 	(<int32>INT32)
+ 
+ =========== fixedbugs/bug081.go
+-fixedbugs/bug081.go:5: x is var, not type
++fixedbugs/bug081.go:5: no type x
+ 
+ =========== fixedbugs/bug086.go
+ fixedbugs/bug086.go:5: function ends without a return statement

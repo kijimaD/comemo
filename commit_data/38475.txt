@@ -13,6 +13,26 @@ Date:   Wed Oct 31 09:32:51 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/work/gccgo.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index ca3be4fd36..b89d07ead0 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -186,12 +186,12 @@ func (gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []string)
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objdir, f))
+ 	}
+-	var arArgs string
++	var arArgs []string
+ 	if cfg.Goos == "aix" && cfg.Goarch == "ppc64" {
+ 		// AIX puts both 32-bit and 64-bit objects in the same archive.
+ 		// Tell the AIX "ar" command to only care about 64-bit objects.
+ 		// AIX "ar" command does not know D option.
+-		arArgs = "-X64"
++		arArgs = []string{"-X64"}
+ 	}
+ 
+ 	return b.run(a, p.Dir, p.ImportPath, nil, "ar", arArgs, "rc", mkAbs(objdir, afile), absOfiles)

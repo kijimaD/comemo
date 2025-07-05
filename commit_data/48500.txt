@@ -10,6 +10,25 @@ Date:   Tue May 25 10:33:02 2021 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/321811
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.17.html | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index c2317a4035..bdde26bd10 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -558,9 +558,10 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+   <dd>
+     <p><!-- CL 260858 -->
+-      time.Time now has a <a href="/pkg/time/#Time.GoString">GoString</a>
+-      method that will return a more useful value for times when printed with
+-      the <code>"%#v"</code> format specifier in the fmt package.
++      The <a href="/pkg/time/#Time"><code>Time</code></a> type now has a
++      <a href="/pkg/time/#Time.GoString"><code>GoString</code></a> method that
++      will return a more useful value for times when printed with the
++      <code>%#v</code> format specifier in the <code>fmt</code> package.
+     </p>
+ 
+     <p><!-- CL 264077 -->

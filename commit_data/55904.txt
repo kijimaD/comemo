@@ -13,6 +13,20 @@ Date:   Thu Mar 23 13:52:59 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/transport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 7561f7f5cb..807cc8f0eb 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -173,7 +173,7 @@ type Transport struct {
+ 	// If non-nil, HTTP/2 support may not be enabled by default.
+ 	TLSClientConfig *tls.Config
+ 
+-	// TLSHandshakeTimeout specifies the maximum amount of time waiting to
++	// TLSHandshakeTimeout specifies the maximum amount of time to
+ 	// wait for a TLS handshake. Zero means no timeout.
+ 	TLSHandshakeTimeout time.Duration
+ 

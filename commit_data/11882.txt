@@ -7,7 +7,32 @@ Date:   Mon Feb 13 23:45:49 2012 -0500
     R=golang-dev, gri, bradfitz
     CC=golang-dev
     https://golang.org/cl/5658046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 9a3de973ad..5ecc7276c7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -51,6 +51,7 @@ Corey Thomasson <cthom.lists@gmail.com>
+ Damian Gryski <dgryski@gmail.com>
+ Dan Sinclair <dan.sinclair@gmail.com>
+ Daniel Fleischman <danielfleischman@gmail.com>
++Daniel Krech <eikeon@eikeon.com>
+ Daniel Theophanes <kardianos@gmail.com>
+ Darren Elwood <darren@textnode.com>
+ Dave Cheney <dave@cheney.net>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 16133eadd0..9d41f11a03 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -87,6 +87,7 @@ Corey Thomasson <cthom.lists@gmail.com>
+ Damian Gryski <dgryski@gmail.com>
+ Dan Sinclair <dan.sinclair@gmail.com>
+ Daniel Fleischman <danielfleischman@gmail.com>
++Daniel Krech <eikeon@eikeon.com>
+ Daniel Nadasi <dnadasi@google.com>
+ Daniel Theophanes <kardianos@gmail.com>
+ Darren Elwood <darren@textnode.com>

@@ -20,6 +20,20 @@ Date:   Wed Feb 17 20:34:34 2021 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/asm_riscv64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 31e324d677..3d0349471a 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -449,7 +449,7 @@ TEXT callRet<>(SB), NOSPLIT, $40-0
+ 	MOV	A1, 16(X2)
+ 	MOV	A3, 24(X2)
+ 	MOV	A2, 32(X2)
+-	MOV	$0, 40(X2)
++	MOV	ZERO, 40(X2)
+ 	CALL	runtime·reflectcallmove(SB)
+ 	RET
+ 

@@ -24,7 +24,69 @@ Date:   Tue Feb 17 16:28:10 2015 +1100
     Change-Id: Ic39e628db31dc5fe5220f4b444e6d5000eeace5b
     Reviewed-on: https://go-review.googlesource.com/5006
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/geom.go      | 12 +++++++-----
  src/image/geom_test.go | 12 ++++++++++++
  2 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/image/geom.go b/src/image/geom.go
+index 7c56010653..70e3ff0288 100644
+--- a/src/image/geom.go
++++ b/src/image/geom.go
+@@ -62,7 +62,7 @@ func (p Point) Mod(r Rectangle) Point {
+ 
+ // Eq reports whether p and q are equal.
+ func (p Point) Eq(q Point) bool {
+-	return p.X == q.X && p.Y == q.Y
++	return p == q
+ }
+ 
+ // ZP is the zero Point.
+@@ -190,10 +190,10 @@ func (r Rectangle) Empty() bool {
+ 	return r.Min.X >= r.Max.X || r.Min.Y >= r.Max.Y
+ }
+ 
+-// Eq reports whether r and s are equal.
++// Eq reports whether r and s contain the same set of points. All empty
++// rectangles are considered equal.
+ func (r Rectangle) Eq(s Rectangle) bool {
+-	return r.Min.X == s.Min.X && r.Min.Y == s.Min.Y &&
+-		r.Max.X == s.Max.X && r.Max.Y == s.Max.Y
++	return r == s || r.Empty() && s.Empty()
+ }
+ 
+ // Overlaps reports whether r and s have a non-empty intersection.
+@@ -229,7 +229,9 @@ func (r Rectangle) Canon() Rectangle {
+ // ZR is the zero Rectangle.
+ var ZR Rectangle
+ 
+-// Rect is shorthand for Rectangle{Pt(x0, y0), Pt(x1, y1)}.
++// Rect is shorthand for Rectangle{Pt(x0, y0), Pt(x1, y1)}. The returned
++// rectangle has minimum and maximum coordinates swapped if necessary so that
++// it is well-formed.
+ func Rect(x0, y0, x1, y1 int) Rectangle {
+ 	if x0 > x1 {
+ 		x0, x1 = x1, x0
+diff --git a/src/image/geom_test.go b/src/image/geom_test.go
+index 5bbd8a9492..6e9c6a13c2 100644
+--- a/src/image/geom_test.go
++++ b/src/image/geom_test.go
+@@ -39,6 +39,18 @@ func TestRectangle(t *testing.T) {
+ 		Rect(6, 5, 4, 3),
+ 	}
+ 
++	// r.Eq(s) should be equivalent to every point in r being in s, and every
++	// point in s being in r.
++	for _, r := range rects {
++		for _, s := range rects {
++			got := r.Eq(s)
++			want := in(r, s) == nil && in(s, r) == nil
++			if got != want {
++				t.Errorf("Eq: r=%s, s=%s: got %t, want %t", r, s, got, want)
++			}
++		}
++	}
++
+ 	// The intersection should be the largest rectangle a such that every point
+ 	// in a is both in r and in s.
+ 	for _, r := range rects {

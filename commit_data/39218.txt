@@ -31,8 +31,130 @@ Date:   Sun Jan 27 21:03:32 2019 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/link.go    | 19 +++++++------
  src/cmd/link/internal/sym/symbol.go | 10 +++++++
  src/cmd/link/link_test.go           | 55 +++++++++++++++++++++++++++++++++++++
  3 files changed, 75 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index f3f1bba773..8ed5c6e27e 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -113,15 +113,16 @@ func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
+ 		// Try to find symbol under another ABI.
+ 		var reqABI, haveABI obj.ABI
+ 		haveABI = ^obj.ABI(0)
+-		for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
+-			v := sym.ABIToVersion(abi)
+-			if v == -1 {
+-				continue
+-			}
+-			if v == int(r.Sym.Version) {
+-				reqABI = abi
+-			} else if ctxt.Syms.ROLookup(r.Sym.Name, v) != nil {
+-				haveABI = abi
++		reqABI, ok := sym.VersionToABI(int(r.Sym.Version))
++		if ok {
++			for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
++				v := sym.ABIToVersion(abi)
++				if v == -1 {
++					continue
++				}
++				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
++					haveABI = abi
++				}
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 24b0d682c4..8b70d61846 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -68,6 +68,16 @@ func ABIToVersion(abi obj.ABI) int {
+ 	return -1
+ }
+ 
++func VersionToABI(v int) (obj.ABI, bool) {
++	switch v {
++	case SymVerABI0:
++		return obj.ABI0, true
++	case SymVerABIInternal:
++		return obj.ABIInternal, true
++	}
++	return ^obj.ABI(0), false
++}
++
+ func (s *Symbol) String() string {
+ 	if s.Version == 0 {
+ 		return s.Name
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 6ed751abb5..e0aae02884 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -6,6 +6,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"regexp"
+ 	"strings"
+ 	"testing"
+ )
+@@ -116,3 +117,57 @@ func TestIssue28429(t *testing.T) {
+ 	// to compile the extra section.
+ 	runGo("tool", "link", "main.a")
+ }
++
++func TestUnresolved(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	tmpdir, err := ioutil.TempDir("", "unresolved-")
++	if err != nil {
++		t.Fatalf("failed to create temp dir: %v", err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	write := func(name, content string) {
++		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++
++	// Test various undefined references. Because of issue #29852,
++	// this used to give confusing error messages because the
++	// linker would find an undefined reference to "zero" created
++	// by the runtime package.
++
++	write("main.go", `package main
++
++func main() {
++        x()
++}
++
++func x()
++`)
++	write("main.s", `
++TEXT ·x(SB),0,$0
++        MOVD zero<>(SB), AX
++        MOVD zero(SB), AX
++        MOVD ·zero(SB), AX
++        RET
++`)
++	cmd := exec.Command(testenv.GoToolPath(t), "build")
++	cmd.Dir = tmpdir
++	cmd.Env = append(os.Environ(), []string{"GOARCH=amd64", "GOOS=linux"}...)
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		t.Fatalf("expected build to fail, but it succeeded")
++	}
++	out = regexp.MustCompile("(?m)^#.*\n").ReplaceAll(out, nil)
++	got := string(out)
++	want := `main.x: relocation target zero not defined
++main.x: relocation target zero not defined
++main.x: relocation target main.zero not defined
++`
++	if want != got {
++		t.Fatalf("want:\n%sgot:\n%s", want, got)
++	}
++}

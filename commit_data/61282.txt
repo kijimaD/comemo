@@ -9,6 +9,20 @@ Date:   Thu Oct 24 14:11:30 2024 +0300
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/net/http/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 2167f060be..be3e44c6d2 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -367,7 +367,7 @@ var profileDescriptions = map[string]string{
+ 	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
+ 	"mutex":        "Stack traces of holders of contended mutexes",
+ 	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
+-	"symbol":       "Maps given program counters to function names. Counters can be specifed in a GET raw query or POST body, multiple counters are separated by '+'.",
++	"symbol":       "Maps given program counters to function names. Counters can be specified in a GET raw query or POST body, multiple counters are separated by '+'.",
+ 	"threadcreate": "Stack traces that led to the creation of new OS threads",
+ 	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
+ }

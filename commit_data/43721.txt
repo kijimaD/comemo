@@ -14,7 +14,7 @@ Date:   Mon Jan 20 17:00:48 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/export_test.go   |  31 +++++
  src/time/time.go          |  50 ++++---
  src/time/time_test.go     |   7 +
@@ -22,3 +22,654 @@ Date:   Mon Jan 20 17:00:48 2020 -0800
  src/time/zoneinfo_read.go |  15 +-
  src/time/zoneinfo_test.go |  94 +++++++++++++
  6 files changed, 523 insertions(+), 22 deletions(-)
+
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index 5b44f5c3b3..f4a8cd9b72 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -36,12 +36,43 @@ var (
+ 	ReadFile               = readFile
+ 	LoadTzinfo             = loadTzinfo
+ 	NextStdChunk           = nextStdChunk
++	Tzset                  = tzset
++	TzsetName              = tzsetName
++	TzsetOffset            = tzsetOffset
+ )
+ 
+ func LoadFromEmbeddedTZData(zone string) (string, error) {
+ 	return loadFromEmbeddedTZData(zone)
+ }
+ 
++type RuleKind int
++
++const (
++	RuleJulian       = RuleKind(ruleJulian)
++	RuleDOY          = RuleKind(ruleDOY)
++	RuleMonthWeekDay = RuleKind(ruleMonthWeekDay)
++)
++
++type Rule struct {
++	Kind RuleKind
++	Day  int
++	Week int
++	Mon  int
++	Time int
++}
++
++func TzsetRule(s string) (Rule, string, bool) {
++	r, rs, ok := tzsetRule(s)
++	rr := Rule{
++		Kind: RuleKind(r.kind),
++		Day:  r.day,
++		Week: r.week,
++		Mon:  r.mon,
++		Time: r.time,
++	}
++	return rr, rs, ok
++}
++
+ // StdChunkNames maps from nextStdChunk results to the matched strings.
+ var StdChunkNames = map[int]string{
+ 	0:                               "",
+diff --git a/src/time/time.go b/src/time/time.go
+index 3d242f2541..8ae62308e5 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1019,6 +1019,34 @@ func daysIn(m Month, year int) int {
+ 	return int(daysBefore[m] - daysBefore[m-1])
+ }
+ 
++// daysSinceEpoch takes a year and returns the number of days from
++// the absolute epoch to the start of that year.
++// This is basically (year - zeroYear) * 365, but accounting for leap days.
++func daysSinceEpoch(year int) uint64 {
++	y := uint64(int64(year) - absoluteZeroYear)
++
++	// Add in days from 400-year cycles.
++	n := y / 400
++	y -= 400 * n
++	d := daysPer400Years * n
++
++	// Add in 100-year cycles.
++	n = y / 100
++	y -= 100 * n
++	d += daysPer100Years * n
++
++	// Add in 4-year cycles.
++	n = y / 4
++	y -= 4 * n
++	d += daysPer4Years * n
++
++	// Add in non-leap years.
++	n = y
++	d += 365 * n
++
++	return d
++}
++
+ // Provided by package runtime.
+ func now() (sec int64, nsec int32, mono int64)
+ 
+@@ -1327,28 +1355,8 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
+ 	hour, min = norm(hour, min, 60)
+ 	day, hour = norm(day, hour, 24)
+ 
+-	y := uint64(int64(year) - absoluteZeroYear)
+-
+ 	// Compute days since the absolute epoch.
+-
+-	// Add in days from 400-year cycles.
+-	n := y / 400
+-	y -= 400 * n
+-	d := daysPer400Years * n
+-
+-	// Add in 100-year cycles.
+-	n = y / 100
+-	y -= 100 * n
+-	d += daysPer100Years * n
+-
+-	// Add in 4-year cycles.
+-	n = y / 4
+-	y -= 4 * n
+-	d += daysPer4Years * n
+-
+-	// Add in non-leap years.
+-	n = y
+-	d += 365 * n
++	d := daysSinceEpoch(year)
+ 
+ 	// Add in days before this month.
+ 	d += uint64(daysBefore[month-1])
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index ab96d67aa9..154198a1ce 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -66,6 +66,13 @@ var nanoutctests = []TimeTest{
+ var localtests = []TimeTest{
+ 	{0, parsedTime{1969, December, 31, 16, 0, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
+ 	{1221681866, parsedTime{2008, September, 17, 13, 4, 26, 0, Wednesday, -7 * 60 * 60, "PDT"}},
++	{2159200800, parsedTime{2038, June, 3, 11, 0, 0, 0, Thursday, -7 * 60 * 60, "PDT"}},
++	{2152173599, parsedTime{2038, March, 14, 1, 59, 59, 0, Sunday, -8 * 60 * 60, "PST"}},
++	{2152173600, parsedTime{2038, March, 14, 3, 0, 0, 0, Sunday, -7 * 60 * 60, "PDT"}},
++	{2152173601, parsedTime{2038, March, 14, 3, 0, 1, 0, Sunday, -7 * 60 * 60, "PDT"}},
++	{2172733199, parsedTime{2038, November, 7, 1, 59, 59, 0, Sunday, -7 * 60 * 60, "PDT"}},
++	{2172733200, parsedTime{2038, November, 7, 1, 0, 0, 0, Sunday, -8 * 60 * 60, "PST"}},
++	{2172733201, parsedTime{2038, November, 7, 1, 0, 1, 0, Sunday, -8 * 60 * 60, "PST"}},
+ }
+ 
+ var nanolocaltests = []TimeTest{
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 558803f24e..c3662297c7 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -21,6 +21,13 @@ type Location struct {
+ 	zone []zone
+ 	tx   []zoneTrans
+ 
++	// The tzdata information can be followed by a string that describes
++	// how to handle DST transitions not recorded in zoneTrans.
++	// The format is the TZ environment variable without a colon; see
++	// https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html.
++	// Example string, for America/Los_Angeles: PST8PDT,M3.2.0,M11.1.0
++	extend string
++
+ 	// Most lookups will be for the current time.
+ 	// To avoid the binary search through tx, keep a
+ 	// static one-element cache that gives the correct
+@@ -167,6 +174,15 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64)
+ 	offset = zone.offset
+ 	start = tx[lo].when
+ 	// end = maintained during the search
++
++	// If we're at the end of the known zone transitions,
++	// try the extend string.
++	if lo == len(tx)-1 && l.extend != "" {
++		if ename, eoffset, estart, eend, ok := tzset(l.extend, end, sec); ok {
++			return ename, eoffset, estart, eend
++		}
++	}
++
+ 	return
+ }
+ 
+@@ -222,6 +238,338 @@ func (l *Location) firstZoneUsed() bool {
+ 	return false
+ }
+ 
++// tzset takes a timezone string like the one found in the TZ environment
++// variable, the end of the last time zone transition expressed as seconds
++// since January 1, 1970 00:00:00 UTC, and a time expressed the same way.
++// We call this a tzset string since in C the function tzset reads TZ.
++// The return values are as for lookup, plus ok which reports whether the
++// parse succeeded.
++func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, ok bool) {
++	var (
++		stdName, dstName     string
++		stdOffset, dstOffset int
++	)
++
++	stdName, s, ok = tzsetName(s)
++	if ok {
++		stdOffset, s, ok = tzsetOffset(s)
++	}
++	if !ok {
++		return "", 0, 0, 0, false
++	}
++
++	// The numbers in the tzset string are added to local time to get UTC,
++	// but our offsets are added to UTC to get local time,
++	// so we negate the number we see here.
++	stdOffset = -stdOffset
++
++	if len(s) == 0 || s[0] == ',' {
++		// No daylight savings time.
++		return stdName, stdOffset, initEnd, omega, true
++	}
++
++	dstName, s, ok = tzsetName(s)
++	if ok {
++		if len(s) == 0 || s[0] == ',' {
++			dstOffset = stdOffset + secondsPerHour
++		} else {
++			dstOffset, s, ok = tzsetOffset(s)
++			dstOffset = -dstOffset // as with stdOffset, above
++		}
++	}
++	if !ok {
++		return "", 0, 0, 0, false
++	}
++
++	if len(s) == 0 {
++		// Default DST rules per tzcode.
++		s = ",M3.2.0,M11.1.0"
++	}
++	// The TZ definition does not mention ';' here but tzcode accepts it.
++	if s[0] != ',' && s[0] != ';' {
++		return "", 0, 0, 0, false
++	}
++	s = s[1:]
++
++	var startRule, endRule rule
++	startRule, s, ok = tzsetRule(s)
++	if !ok || len(s) == 0 || s[0] != ',' {
++		return "", 0, 0, 0, false
++	}
++	s = s[1:]
++	endRule, s, ok = tzsetRule(s)
++	if !ok || len(s) > 0 {
++		return "", 0, 0, 0, false
++	}
++
++	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
++
++	ysec := int64(yday*secondsPerDay) + sec%secondsPerDay
++
++	// Compute start of year in seconds since Unix epoch.
++	d := daysSinceEpoch(year)
++	abs := int64(d * secondsPerDay)
++	abs += absoluteToInternal + internalToUnix
++
++	startSec := int64(tzruleTime(year, startRule, stdOffset))
++	endSec := int64(tzruleTime(year, endRule, dstOffset))
++	if endSec < startSec {
++		startSec, endSec = endSec, startSec
++		stdName, dstName = dstName, stdName
++		stdOffset, dstOffset = dstOffset, stdOffset
++	}
++
++	// The start and end values that we return are accurate
++	// close to a daylight savings transition, but are otherwise
++	// just the start and end of the year. That suffices for
++	// the only caller that cares, which is Date.
++	if ysec < startSec {
++		return stdName, stdOffset, abs, startSec + abs, true
++	} else if ysec >= endSec {
++		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, true
++	} else {
++		return dstName, dstOffset, startSec + abs, endSec + abs, true
++	}
++}
++
++// tzsetName returns the timezone name at the start of the tzset string s,
++// and the remainder of s, and reports whether the parsing is OK.
++func tzsetName(s string) (string, string, bool) {
++	if len(s) == 0 {
++		return "", "", false
++	}
++	if s[0] != '<' {
++		for i, r := range s {
++			switch r {
++			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '-', '+':
++				if i < 3 {
++					return "", "", false
++				}
++				return s[:i], s[i:], true
++			}
++		}
++		if len(s) < 3 {
++			return "", "", false
++		}
++		return s, "", true
++	} else {
++		for i, r := range s {
++			if r == '>' {
++				return s[1:i], s[i+1:], true
++			}
++		}
++		return "", "", false
++	}
++}
++
++// tzsetOffset returns the timezone offset at the start of the tzset string s,
++// and the remainder of s, and reports whether the parsing is OK.
++// The timezone offset is returned as a number of seconds.
++func tzsetOffset(s string) (offset int, rest string, ok bool) {
++	if len(s) == 0 {
++		return 0, "", false
++	}
++	neg := false
++	if s[0] == '+' {
++		s = s[1:]
++	} else if s[0] == '-' {
++		s = s[1:]
++		neg = true
++	}
++
++	var hours int
++	hours, s, ok = tzsetNum(s, 0, 24)
++	if !ok {
++		return 0, "", false
++	}
++	off := hours * secondsPerHour
++	if len(s) == 0 || s[0] != ':' {
++		if neg {
++			off = -off
++		}
++		return off, s, true
++	}
++
++	var mins int
++	mins, s, ok = tzsetNum(s[1:], 0, 59)
++	if !ok {
++		return 0, "", false
++	}
++	off += mins * secondsPerMinute
++	if len(s) == 0 || s[0] != ':' {
++		if neg {
++			off = -off
++		}
++		return off, s, true
++	}
++
++	var secs int
++	secs, s, ok = tzsetNum(s[1:], 0, 59)
++	if !ok {
++		return 0, "", false
++	}
++	off += secs
++
++	if neg {
++		off = -off
++	}
++	return off, s, true
++}
++
++// ruleKind is the kinds of rules that can be seen in a tzset string.
++type ruleKind int
++
++const (
++	ruleJulian ruleKind = iota
++	ruleDOY
++	ruleMonthWeekDay
++)
++
++// rule is a rule read from a tzset string.
++type rule struct {
++	kind ruleKind
++	day  int
++	week int
++	mon  int
++	time int // transition time
++}
++
++// tzsetRule parses a rule from a tzset string.
++// It returns the rule, and the remainder of the string, and reports success.
++func tzsetRule(s string) (rule, string, bool) {
++	var r rule
++	if len(s) == 0 {
++		return rule{}, "", false
++	}
++	ok := false
++	if s[0] == 'J' {
++		var jday int
++		jday, s, ok = tzsetNum(s[1:], 1, 365)
++		if !ok {
++			return rule{}, "", false
++		}
++		r.kind = ruleJulian
++		r.day = jday
++	} else if s[0] == 'M' {
++		var mon int
++		mon, s, ok = tzsetNum(s[1:], 1, 12)
++		if !ok || len(s) == 0 || s[0] != '.' {
++			return rule{}, "", false
++
++		}
++		var week int
++		week, s, ok = tzsetNum(s[1:], 1, 5)
++		if !ok || len(s) == 0 || s[0] != '.' {
++			return rule{}, "", false
++		}
++		var day int
++		day, s, ok = tzsetNum(s[1:], 0, 6)
++		if !ok {
++			return rule{}, "", false
++		}
++		r.kind = ruleMonthWeekDay
++		r.day = day
++		r.week = week
++		r.mon = mon
++	} else {
++		var day int
++		day, s, ok = tzsetNum(s, 0, 365)
++		if !ok {
++			return rule{}, "", false
++		}
++		r.kind = ruleDOY
++		r.day = day
++	}
++
++	if len(s) == 0 || s[0] != '/' {
++		r.time = 2 * secondsPerHour // 2am is the default
++		return r, s, true
++	}
++
++	offset, s, ok := tzsetOffset(s[1:])
++	if !ok || offset < 0 {
++		return rule{}, "", false
++	}
++	r.time = offset
++
++	return r, s, true
++}
++
++// tzsetNum parses a number from a tzset string.
++// It returns the number, and the remainder of the string, and reports success.
++// The number must be between min and max.
++func tzsetNum(s string, min, max int) (num int, rest string, ok bool) {
++	if len(s) == 0 {
++		return 0, "", false
++	}
++	num = 0
++	for i, r := range s {
++		if r < '0' || r > '9' {
++			if i == 0 || num < min {
++				return 0, "", false
++			}
++			return num, s[i:], true
++		}
++		num *= 10
++		num += int(r) - '0'
++		if num > max {
++			return 0, "", false
++		}
++	}
++	if num < min {
++		return 0, "", false
++	}
++	return num, "", true
++}
++
++// tzruleTime takes a year, a rule, and a timezone offset,
++// and returns the number of seconds since the start of the year
++// that the rule takes effect.
++func tzruleTime(year int, r rule, off int) int {
++	var s int
++	switch r.kind {
++	case ruleJulian:
++		s = (r.day - 1) * secondsPerDay
++		if isLeap(year) && r.day >= 60 {
++			s += secondsPerDay
++		}
++	case ruleDOY:
++		s = r.day * secondsPerDay
++	case ruleMonthWeekDay:
++		// Zeller's Congruence.
++		m1 := (r.mon+9)%12 + 1
++		yy0 := year
++		if r.mon <= 2 {
++			yy0--
++		}
++		yy1 := yy0 / 100
++		yy2 := yy0 % 100
++		dow := ((26*m1-2)/10 + 1 + yy2 + yy2/4 + yy1/4 - 2*yy1) % 7
++		if dow < 0 {
++			dow += 7
++		}
++		// Now dow is the day-of-week of the first day of r.mon.
++		// Get the day-of-month of the first "dow" day.
++		d := r.day - dow
++		if d < 0 {
++			d += 7
++		}
++		for i := 1; i < r.week; i++ {
++			if d+7 >= daysIn(Month(r.mon), year) {
++				break
++			}
++			d += 7
++		}
++		d += int(daysBefore[r.mon-1])
++		if isLeap(year) && r.mon > 2 {
++			d++
++		}
++		s = d * secondsPerDay
++	}
++
++	return s + r.time - off
++}
++
+ // lookupName returns information about the time zone with
+ // the given name (such as "EST") at the given pseudo-Unix time
+ // (what the given time of day would be in UTC).
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index d5824f2670..6f789be92a 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -90,6 +90,13 @@ func (d *dataIO) byte() (n byte, ok bool) {
+ 	return p[0], true
+ }
+ 
++// read returns the read of the data in the buffer.
++func (d *dataIO) rest() []byte {
++	r := d.p
++	d.p = nil
++	return r
++}
++
+ // Make a string by stopping at the first NUL
+ func byteString(p []byte) string {
+ 	for i := 0; i < len(p); i++ {
+@@ -225,6 +232,12 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 		return nil, badData
+ 	}
+ 
++	var extend string
++	rest := d.rest()
++	if len(rest) > 2 && rest[0] == '\n' && rest[len(rest)-1] == '\n' {
++		extend = string(rest[1 : len(rest)-1])
++	}
++
+ 	// Now we can build up a useful data structure.
+ 	// First the zone information.
+ 	//	utcoff[4] isdst[1] nameindex[1]
+@@ -301,7 +314,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 	}
+ 
+ 	// Committed to succeed.
+-	l := &Location{zone: zone, tx: tx, name: name}
++	l := &Location{zone: zone, tx: tx, name: name, extend: extend}
+ 
+ 	// Fill in the cache with information about right now,
+ 	// since that will be the most common lookup.
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index a7ef10c6bc..72829bc9fb 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -182,3 +182,97 @@ func TestMalformedTZData(t *testing.T) {
+ 		t.Error("expected error, got none")
+ 	}
+ }
++
++func TestTzset(t *testing.T) {
++	for _, test := range []struct {
++		inStr string
++		inEnd int64
++		inSec int64
++		name  string
++		off   int
++		start int64
++		end   int64
++		ok    bool
++	}{
++		{"", 0, 0, "", 0, 0, 0, false},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2159200800, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173599, "PST", -8 * 60 * 60, 2145916800, 2152173600, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173600, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173601, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733199, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733200, "PST", -8 * 60 * 60, 2172733200, 2177452800, true},
++		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733201, "PST", -8 * 60 * 60, 2172733200, 2177452800, true},
++	} {
++		name, off, start, end, ok := time.Tzset(test.inStr, test.inEnd, test.inSec)
++		if name != test.name || off != test.off || start != test.start || end != test.end || ok != test.ok {
++			t.Errorf("tzset(%q, %d, %d) = %q, %d, %d, %d, %t, want %q, %d, %d, %d, %t", test.inStr, test.inEnd, test.inSec, name, off, start, end, ok, test.name, test.off, test.start, test.end, test.ok)
++		}
++	}
++}
++
++func TestTzsetName(t *testing.T) {
++	for _, test := range []struct {
++		in   string
++		name string
++		out  string
++		ok   bool
++	}{
++		{"", "", "", false},
++		{"X", "", "", false},
++		{"PST", "PST", "", true},
++		{"PST8PDT", "PST", "8PDT", true},
++		{"PST-08", "PST", "-08", true},
++		{"<A+B>+08", "A+B", "+08", true},
++	} {
++		name, out, ok := time.TzsetName(test.in)
++		if name != test.name || out != test.out || ok != test.ok {
++			t.Errorf("tzsetName(%q) = %q, %q, %t, want %q, %q, %t", test.in, name, out, ok, test.name, test.out, test.ok)
++		}
++	}
++}
++
++func TestTzsetOffset(t *testing.T) {
++	for _, test := range []struct {
++		in  string
++		off int
++		out string
++		ok  bool
++	}{
++		{"", 0, "", false},
++		{"X", 0, "", false},
++		{"+", 0, "", false},
++		{"+08", 8 * 60 * 60, "", true},
++		{"-01:02:03", -1*60*60 - 2*60 - 3, "", true},
++		{"01", 1 * 60 * 60, "", true},
++		{"100", 0, "", false},
++		{"8PDT", 8 * 60 * 60, "PDT", true},
++	} {
++		off, out, ok := time.TzsetOffset(test.in)
++		if off != test.off || out != test.out || ok != test.ok {
++			t.Errorf("tzsetName(%q) = %d, %q, %t, want %d, %q, %t", test.in, off, out, ok, test.off, test.out, test.ok)
++		}
++	}
++}
++
++func TestTzsetRule(t *testing.T) {
++	for _, test := range []struct {
++		in  string
++		r   time.Rule
++		out string
++		ok  bool
++	}{
++		{"", time.Rule{}, "", false},
++		{"X", time.Rule{}, "", false},
++		{"J10", time.Rule{Kind: time.RuleJulian, Day: 10, Time: 2 * 60 * 60}, "", true},
++		{"20", time.Rule{Kind: time.RuleDOY, Day: 20, Time: 2 * 60 * 60}, "", true},
++		{"M1.2.3", time.Rule{Kind: time.RuleMonthWeekDay, Mon: 1, Week: 2, Day: 3, Time: 2 * 60 * 60}, "", true},
++		{"30/03:00:00", time.Rule{Kind: time.RuleDOY, Day: 30, Time: 3 * 60 * 60}, "", true},
++		{"M4.5.6/03:00:00", time.Rule{Kind: time.RuleMonthWeekDay, Mon: 4, Week: 5, Day: 6, Time: 3 * 60 * 60}, "", true},
++		{"M4.5.7/03:00:00", time.Rule{}, "", false},
++	} {
++		r, out, ok := time.TzsetRule(test.in)
++		if r != test.r || out != test.out || ok != test.ok {
++			t.Errorf("tzsetName(%q) = %#v, %q, %t, want %#v, %q, %t", test.in, r, out, ok, test.r, test.out, test.ok)
++		}
++	}
++}

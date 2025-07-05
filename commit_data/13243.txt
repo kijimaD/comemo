@@ -10,8 +10,120 @@ Date:   Fri Jun 1 10:23:15 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6248071
-
+---
  src/cmd/6l/l.h    | 17 +++++++++++++++++
  src/cmd/6l/span.c | 45 ++++++++++++++++++++++++++++++++++++++++++++-
  src/libmach/8db.c |  1 +
  3 files changed, 62 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index b1611e016a..4e271c31fe 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -41,6 +41,23 @@ enum
+ {
+ 	thechar = '6',
+ 	PtrSize = 8,
++	
++	// Loop alignment constants:
++	// want to align loop entry to LoopAlign-byte boundary,
++	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
++	// We define a loop entry as the target of a backward jump.
++	//
++	// gcc uses MaxLoopPad = 10 for its 'generic x86-64' config,
++	// and it aligns all jump targets, not just backward jump targets.
++	//
++	// As of 6/1/2012, the effect of setting MaxLoopPad = 10 here
++	// is very slight but negative, so the alignment is disabled by
++	// setting MaxLoopPad = 0. The code is here for reference and
++	// for future experiments.
++	// 
++	LoopAlign = 16,
++	MaxLoopPad = 0,
++
+ 	FuncAlign = 16
+ };
+ 
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 28eb38f404..60916c0412 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -37,6 +37,37 @@ static int	rexflag;
+ static int	asmode;
+ static vlong	vaddr(Adr*, Reloc*);
+ 
++// single-instruction no-ops of various lengths.
++// constructed by hand and disassembled with gdb to verify.
++// see http://www.agner.org/optimize/optimizing_assembly.pdf for discussion.
++static uchar nop[][16] = {
++	{0x90},
++	{0x66, 0x90},
++	{0x0F, 0x1F, 0x00},
++	{0x0F, 0x1F, 0x40, 0x00},
++	{0x0F, 0x1F, 0x44, 0x00, 0x00},
++	{0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00},
++	{0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00},
++	{0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
++	{0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
++	{0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
++};
++
++static void
++fillnop(uchar *p, int n)
++{
++	int m;
++
++	while(n > 0) {
++		m = n;
++		if(m > nelem(nop))
++			m = nelem(nop);
++		memmove(p, nop[m-1], m);
++		p += m;
++		n -= m;
++	}
++}
++
+ void
+ span1(Sym *s)
+ {
+@@ -52,8 +83,10 @@ span1(Sym *s)
+ 
+ 	for(p = s->text; p != P; p = p->link) {
+ 		p->back = 2;	// use short branches first time through
+-		if((q = p->pcond) != P && (q->back & 2))
++		if((q = p->pcond) != P && (q->back & 2)) {
+ 			p->back |= 1;	// backward jump
++			q->back |= 4;   // loop head
++		}
+ 
+ 		if(p->as == AADJSP) {
+ 			p->to.type = D_SP;
+@@ -78,6 +111,16 @@ span1(Sym *s)
+ 		s->np = 0;
+ 		c = 0;
+ 		for(p = s->text; p != P; p = p->link) {
++			if((p->back & 4) && (c&(LoopAlign-1)) != 0) {
++				// pad with NOPs
++				v = -c&(LoopAlign-1);
++				if(v <= MaxLoopPad) {
++					symgrow(s, c+v);
++					fillnop(s->p+c, v);
++					c += v;
++				}
++			}
++
+ 			p->pc = c;
+ 
+ 			// process forward jumps to p
+diff --git a/src/libmach/8db.c b/src/libmach/8db.c
+index ce1b4ddd76..9ef02c4289 100644
+--- a/src/libmach/8db.c
++++ b/src/libmach/8db.c
+@@ -622,6 +622,7 @@ static Optable optab0F[256]=
+ [0x15] =	{ RM,0,		"UNPCKH%s	%x,%X" },
+ [0x16] =	{ RM,0,		"MOV[L]H%s	%x,%X" },	/* TO DO: L if source is XMM */
+ [0x17] =	{ RM,0,		"MOVH%s	%X,%x" },
++[0x1F] =	{ RM,0,		"NOP%S	%e" },
+ [0x20] =	{ RMR,0,		"MOVL	%C,%e" },
+ [0x21] =	{ RMR,0,		"MOVL	%D,%e" },
+ [0x22] =	{ RMR,0,		"MOVL	%e,%C" },

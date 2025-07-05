@@ -9,7 +9,125 @@ Date:   Sat May 30 13:17:12 2015 -0400
     Change-Id: Iab2ebc17a3d6418edfeb7b585e4f251e7a11f399
     Reviewed-on: https://go-review.googlesource.com/10552
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func_test.go | 16 +++++-------
  src/cmd/compile/internal/ssa/print.go     | 41 +++++++++++++++++++++----------
  2 files changed, 34 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 4839c1ee63..b66ab24778 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -324,11 +324,9 @@ func TestEquiv(t *testing.T) {
+ 	}
+ 	for _, c := range equivalentCases {
+ 		if !Equiv(c.f.f, c.g.f) {
+-			t.Errorf("expected equivalence. Func definitions:")
+-			// TODO(matloob): Rewrite PrintFunc to output to a string or writer,
+-			// so the functions can be written to the error log.
+-			PrintFunc(c.f.f)
+-			PrintFunc(c.g.f)
++			t.Error("expected equivalence. Func definitions:")
++			t.Error(c.f.f)
++			t.Error(c.g.f)
+ 		}
+ 	}
+ 
+@@ -394,11 +392,9 @@ func TestEquiv(t *testing.T) {
+ 	}
+ 	for _, c := range differentCases {
+ 		if Equiv(c.f.f, c.g.f) {
+-			t.Errorf("expected difference. Func definitions:")
+-			// TODO(matloob): Rewrite PrintFunc to output to a string or writer,
+-			// so the functions can be written to the error log.
+-			PrintFunc(c.f.f)
+-			PrintFunc(c.g.f)
++			t.Error("expected difference. Func definitions:")
++			t.Error(c.f.f)
++			t.Error(c.g.f)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index eeea30d970..b9a958c18e 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -4,15 +4,30 @@
+ 
+ package ssa
+ 
+-import "fmt"
++import (
++	"bytes"
++	"fmt"
++	"io"
++	"os"
++)
+ 
+ func printFunc(f *Func) {
+-	fmt.Print(f.Name)
+-	fmt.Print(" ")
+-	fmt.Println(f.Type)
++	fprintFunc(os.Stdout, f)
++}
++
++func (f *Func) String() string {
++	var buf bytes.Buffer
++	fprintFunc(&buf, f)
++	return buf.String()
++}
++
++func fprintFunc(w io.Writer, f *Func) {
++	fmt.Fprint(w, f.Name)
++	fmt.Fprint(w, " ")
++	fmt.Fprintln(w, f.Type)
+ 	printed := make([]bool, f.NumValues())
+ 	for _, b := range f.Blocks {
+-		fmt.Printf("  b%d:\n", b.ID)
++		fmt.Fprintf(w, "  b%d:\n", b.ID)
+ 		n := 0
+ 
+ 		// print phis first since all value cycles contain a phi
+@@ -20,8 +35,8 @@ func printFunc(f *Func) {
+ 			if v.Op != OpPhi {
+ 				continue
+ 			}
+-			fmt.Print("    ")
+-			fmt.Println(v.LongString())
++			fmt.Fprint(w, "    ")
++			fmt.Fprintln(w, v.LongString())
+ 			printed[v.ID] = true
+ 			n++
+ 		}
+@@ -39,25 +54,25 @@ func printFunc(f *Func) {
+ 						continue outer
+ 					}
+ 				}
+-				fmt.Print("    ")
+-				fmt.Println(v.LongString())
++				fmt.Fprint(w, "    ")
++				fmt.Fprintln(w, v.LongString())
+ 				printed[v.ID] = true
+ 				n++
+ 			}
+ 			if m == n {
+-				fmt.Println("dependency cycle!")
++				fmt.Fprintln(w, "dependency cycle!")
+ 				for _, v := range b.Values {
+ 					if printed[v.ID] {
+ 						continue
+ 					}
+-					fmt.Print("    ")
+-					fmt.Println(v.LongString())
++					fmt.Fprint(w, "    ")
++					fmt.Fprintln(w, v.LongString())
+ 					printed[v.ID] = true
+ 					n++
+ 				}
+ 			}
+ 		}
+ 
+-		fmt.Println("    " + b.LongString())
++		fmt.Fprintln(w, "    "+b.LongString())
+ 	}
+ }

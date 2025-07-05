@@ -13,7 +13,7 @@ Date:   Wed May 22 15:00:20 2024 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ir/func.go      |   9 +-
  src/cmd/compile/internal/ir/mknode.go    |   8 +
  src/cmd/compile/internal/ir/name.go      |   9 +-
@@ -22,3 +22,1171 @@ Date:   Wed May 22 15:00:20 2024 -0700
  src/cmd/compile/internal/ir/op_string.go |   4 +-
  src/cmd/compile/internal/ir/visit.go     |  12 +
  7 files changed, 670 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 9c7ba97eb5..e005ef7a7f 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -177,10 +177,11 @@ func NewFunc(fpos, npos src.XPos, sym *types.Sym, typ *types.Type) *Func {
+ 
+ func (f *Func) isStmt() {}
+ 
+-func (n *Func) copy() Node                                  { panic(n.no("copy")) }
+-func (n *Func) doChildren(do func(Node) bool) bool          { return doNodes(n.Body, do) }
+-func (n *Func) editChildren(edit func(Node) Node)           { editNodes(n.Body, edit) }
+-func (n *Func) editChildrenWithHidden(edit func(Node) Node) { editNodes(n.Body, edit) }
++func (n *Func) copy() Node                                   { panic(n.no("copy")) }
++func (n *Func) doChildren(do func(Node) bool) bool           { return doNodes(n.Body, do) }
++func (n *Func) doChildrenWithHidden(do func(Node) bool) bool { return doNodes(n.Body, do) }
++func (n *Func) editChildren(edit func(Node) Node)            { editNodes(n.Body, edit) }
++func (n *Func) editChildrenWithHidden(edit func(Node) Node)  { editNodes(n.Body, edit) }
+ 
+ func (f *Func) Type() *types.Type                { return f.Nname.Type() }
+ func (f *Func) Sym() *types.Sym                  { return f.Nname.Sym() }
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index ca78a03d04..ee9746689a 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -255,6 +255,7 @@ func processType(t *ast.TypeSpec) {
+ 	// Process fields.
+ 	var copyBody strings.Builder
+ 	var doChildrenBody strings.Builder
++	var doChildrenWithHiddenBody strings.Builder
+ 	var editChildrenBody strings.Builder
+ 	var editChildrenWithHiddenBody strings.Builder
+ 	for _, f := range fields {
+@@ -297,9 +298,13 @@ func processType(t *ast.TypeSpec) {
+ 				ptr = "*"
+ 			}
+ 			if isSlice {
++				fmt.Fprintf(&doChildrenWithHiddenBody,
++					"if do%ss(n.%s, do) {\nreturn true\n}\n", ft, name)
+ 				fmt.Fprintf(&editChildrenWithHiddenBody,
+ 					"edit%ss(n.%s, edit)\n", ft, name)
+ 			} else {
++				fmt.Fprintf(&doChildrenWithHiddenBody,
++					"if n.%s != nil && do(n.%s) {\nreturn true\n}\n", name, name)
+ 				fmt.Fprintf(&editChildrenWithHiddenBody,
+ 					"if n.%s != nil {\nn.%s = edit(n.%s).(%s%s)\n}\n", name, name, name, ptr, ft)
+ 			}
+@@ -326,6 +331,9 @@ func processType(t *ast.TypeSpec) {
+ 	fmt.Fprintf(&buf, "func (n *%s) doChildren(do func(Node) bool) bool {\n", name)
+ 	buf.WriteString(doChildrenBody.String())
+ 	fmt.Fprintf(&buf, "return false\n}\n")
++	fmt.Fprintf(&buf, "func (n *%s) doChildrenWithHidden(do func(Node) bool) bool {\n", name)
++	buf.WriteString(doChildrenWithHiddenBody.String())
++	fmt.Fprintf(&buf, "return false\n}\n")
+ 	fmt.Fprintf(&buf, "func (n *%s) editChildren(edit func(Node) Node) {\n", name)
+ 	buf.WriteString(editChildrenBody.String())
+ 	fmt.Fprintf(&buf, "}\n")
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 1ce6e43d0b..6f8d0a7fcc 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -66,10 +66,11 @@ type Name struct {
+ 
+ func (n *Name) isExpr() {}
+ 
+-func (n *Name) copy() Node                                  { panic(n.no("copy")) }
+-func (n *Name) doChildren(do func(Node) bool) bool          { return false }
+-func (n *Name) editChildren(edit func(Node) Node)           {}
+-func (n *Name) editChildrenWithHidden(edit func(Node) Node) {}
++func (n *Name) copy() Node                                   { panic(n.no("copy")) }
++func (n *Name) doChildren(do func(Node) bool) bool           { return false }
++func (n *Name) doChildrenWithHidden(do func(Node) bool) bool { return false }
++func (n *Name) editChildren(edit func(Node) Node)            {}
++func (n *Name) editChildrenWithHidden(edit func(Node) Node)  {}
+ 
+ // RecordFrameOffset records the frame offset for the name.
+ // It is used by package types when laying out function arguments.
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 21d181dba6..acdd47d219 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -29,6 +29,7 @@ type Node interface {
+ 	copy() Node
+ 
+ 	doChildren(func(Node) bool) bool
++	doChildrenWithHidden(func(Node) bool) bool
+ 	editChildren(func(Node) Node)
+ 	editChildrenWithHidden(func(Node) Node)
+ 
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index fc28067629..026acbf9dd 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -23,6 +23,18 @@ func (n *AddStringExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *AddStringExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if doNodes(n.List, do) {
++		return true
++	}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
++	}
++	return false
++}
+ func (n *AddStringExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	editNodes(n.List, edit)
+@@ -56,6 +68,18 @@ func (n *AddrExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *AddrExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
++	}
++	return false
++}
+ func (n *AddrExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -95,6 +119,18 @@ func (n *AssignListStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *AssignListStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if doNodes(n.Lhs, do) {
++		return true
++	}
++	if doNodes(n.Rhs, do) {
++		return true
++	}
++	return false
++}
+ func (n *AssignListStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	editNodes(n.Lhs, edit)
+@@ -124,6 +160,18 @@ func (n *AssignOpStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *AssignOpStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.Y != nil && do(n.Y) {
++		return true
++	}
++	return false
++}
+ func (n *AssignOpStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -161,6 +209,18 @@ func (n *AssignStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *AssignStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.Y != nil && do(n.Y) {
++		return true
++	}
++	return false
++}
+ func (n *AssignStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -192,6 +252,12 @@ func (n *BasicLit) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *BasicLit) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
+ func (n *BasicLit) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+@@ -217,6 +283,21 @@ func (n *BinaryExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *BinaryExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.Y != nil && do(n.Y) {
++		return true
++	}
++	if n.RType != nil && do(n.RType) {
++		return true
++	}
++	return false
++}
+ func (n *BinaryExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -255,6 +336,15 @@ func (n *BlockStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *BlockStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if doNodes(n.List, do) {
++		return true
++	}
++	return false
++}
+ func (n *BlockStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	editNodes(n.List, edit)
+@@ -276,6 +366,12 @@ func (n *BranchStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *BranchStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
+ func (n *BranchStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+@@ -301,6 +397,30 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
+ 	if doNodes(n.Args, do) {
+ 		return true
+ 	}
++	if n.DeferAt != nil && do(n.DeferAt) {
++		return true
++	}
++	if doNames(n.KeepAlive, do) {
++		return true
++	}
++	return false
++}
++func (n *CallExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Fun != nil && do(n.Fun) {
++		return true
++	}
++	if doNodes(n.Args, do) {
++		return true
++	}
++	if n.DeferAt != nil && do(n.DeferAt) {
++		return true
++	}
++	if n.RType != nil && do(n.RType) {
++		return true
++	}
+ 	if doNames(n.KeepAlive, do) {
+ 		return true
+ 	}
+@@ -312,6 +432,9 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
+ 		n.Fun = edit(n.Fun).(Node)
+ 	}
+ 	editNodes(n.Args, edit)
++	if n.DeferAt != nil {
++		n.DeferAt = edit(n.DeferAt).(Node)
++	}
+ 	editNames(n.KeepAlive, edit)
+ }
+ func (n *CallExpr) editChildrenWithHidden(edit func(Node) Node) {
+@@ -320,6 +443,9 @@ func (n *CallExpr) editChildrenWithHidden(edit func(Node) Node) {
+ 		n.Fun = edit(n.Fun).(Node)
+ 	}
+ 	editNodes(n.Args, edit)
++	if n.DeferAt != nil {
++		n.DeferAt = edit(n.DeferAt).(Node)
++	}
+ 	if n.RType != nil {
+ 		n.RType = edit(n.RType).(Node)
+ 	}
+@@ -353,6 +479,24 @@ func (n *CaseClause) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *CaseClause) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Var != nil && do(n.Var) {
++		return true
++	}
++	if doNodes(n.List, do) {
++		return true
++	}
++	if doNodes(n.RTypes, do) {
++		return true
++	}
++	if doNodes(n.Body, do) {
++		return true
++	}
++	return false
++}
+ func (n *CaseClause) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Var != nil {
+@@ -387,6 +531,15 @@ func (n *ClosureExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *ClosureExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
++	}
++	return false
++}
+ func (n *ClosureExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Prealloc != nil {
+@@ -419,6 +572,18 @@ func (n *CommClause) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *CommClause) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Comm != nil && do(n.Comm) {
++		return true
++	}
++	if doNodes(n.Body, do) {
++		return true
++	}
++	return false
++}
+ func (n *CommClause) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Comm != nil {
+@@ -453,6 +618,21 @@ func (n *CompLitExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *CompLitExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if doNodes(n.List, do) {
++		return true
++	}
++	if n.RType != nil && do(n.RType) {
++		return true
++	}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
++	}
++	return false
++}
+ func (n *CompLitExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	editNodes(n.List, edit)
+@@ -486,6 +666,27 @@ func (n *ConvExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *ConvExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.TypeWord != nil && do(n.TypeWord) {
++		return true
++	}
++	if n.SrcRType != nil && do(n.SrcRType) {
++		return true
++	}
++	if n.ElemRType != nil && do(n.ElemRType) {
++		return true
++	}
++	if n.ElemElemRType != nil && do(n.ElemElemRType) {
++		return true
++	}
++	return false
++}
+ func (n *ConvExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -522,6 +723,12 @@ func (n *Decl) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *Decl) doChildrenWithHidden(do func(Node) bool) bool {
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	return false
++}
+ func (n *Decl) editChildren(edit func(Node) Node) {
+ 	if n.X != nil {
+ 		n.X = edit(n.X).(*Name)
+@@ -551,6 +758,18 @@ func (n *DynamicType) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *DynamicType) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.RType != nil && do(n.RType) {
++		return true
++	}
++	if n.ITab != nil && do(n.ITab) {
++		return true
++	}
++	return false
++}
+ func (n *DynamicType) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.RType != nil {
+@@ -594,6 +813,24 @@ func (n *DynamicTypeAssertExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *DynamicTypeAssertExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.SrcRType != nil && do(n.SrcRType) {
++		return true
++	}
++	if n.RType != nil && do(n.RType) {
++		return true
++	}
++	if n.ITab != nil && do(n.ITab) {
++		return true
++	}
++	return false
++}
+ func (n *DynamicTypeAssertExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -647,6 +884,21 @@ func (n *ForStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *ForStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Cond != nil && do(n.Cond) {
++		return true
++	}
++	if n.Post != nil && do(n.Post) {
++		return true
++	}
++	if doNodes(n.Body, do) {
++		return true
++	}
++	return false
++}
+ func (n *ForStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Cond != nil {
+@@ -683,6 +935,21 @@ func (n *GoDeferStmt) doChildren(do func(Node) bool) bool {
+ 	if n.Call != nil && do(n.Call) {
+ 		return true
+ 	}
++	if n.DeferAt != nil && do(n.DeferAt) {
++		return true
++	}
++	return false
++}
++func (n *GoDeferStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Call != nil && do(n.Call) {
++		return true
++	}
++	if n.DeferAt != nil && do(n.DeferAt) {
++		return true
++	}
+ 	return false
+ }
+ func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
+@@ -690,12 +957,18 @@ func (n *GoDeferStmt) editChildren(edit func(Node) Node) {
+ 	if n.Call != nil {
+ 		n.Call = edit(n.Call).(Node)
+ 	}
++	if n.DeferAt != nil {
++		n.DeferAt = edit(n.DeferAt).(Expr)
++	}
+ }
+ func (n *GoDeferStmt) editChildrenWithHidden(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Call != nil {
+ 		n.Call = edit(n.Call).(Node)
+ 	}
++	if n.DeferAt != nil {
++		n.DeferAt = edit(n.DeferAt).(Expr)
++	}
+ }
+ 
+ func (n *Ident) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+@@ -710,6 +983,12 @@ func (n *Ident) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *Ident) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
+ func (n *Ident) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+@@ -740,6 +1019,21 @@ func (n *IfStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *IfStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Cond != nil && do(n.Cond) {
++		return true
++	}
++	if doNodes(n.Body, do) {
++		return true
++	}
++	if doNodes(n.Else, do) {
++		return true
++	}
++	return false
++}
+ func (n *IfStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Cond != nil {
+@@ -775,6 +1069,21 @@ func (n *IndexExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *IndexExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.Index != nil && do(n.Index) {
++		return true
++	}
++	if n.RType != nil && do(n.RType) {
++		return true
++	}
++	return false
++}
+ func (n *IndexExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -809,6 +1118,12 @@ func (n *InlineMarkStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *InlineMarkStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
+ func (n *InlineMarkStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+@@ -836,6 +1151,18 @@ func (n *InlinedCallExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *InlinedCallExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if doNodes(n.Body, do) {
++		return true
++	}
++	if doNodes(n.ReturnVars, do) {
++		return true
++	}
++	return false
++}
+ func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	editNodes(n.Body, edit)
+@@ -863,7 +1190,28 @@ func (n *InterfaceSwitchStmt) doChildren(do func(Node) bool) bool {
+ 	if n.Itab != nil && do(n.Itab) {
+ 		return true
+ 	}
+-	if n.RuntimeType != nil && do(n.RuntimeType) {
++	if n.RuntimeType != nil && do(n.RuntimeType) {
++		return true
++	}
++	if n.Hash != nil && do(n.Hash) {
++		return true
++	}
++	return false
++}
++func (n *InterfaceSwitchStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Case != nil && do(n.Case) {
++		return true
++	}
++	if n.Itab != nil && do(n.Itab) {
++		return true
++	}
++	if n.RuntimeType != nil && do(n.RuntimeType) {
++		return true
++	}
++	if n.Hash != nil && do(n.Hash) {
+ 		return true
+ 	}
+ 	return false
+@@ -879,6 +1227,9 @@ func (n *InterfaceSwitchStmt) editChildren(edit func(Node) Node) {
+ 	if n.RuntimeType != nil {
+ 		n.RuntimeType = edit(n.RuntimeType).(Node)
+ 	}
++	if n.Hash != nil {
++		n.Hash = edit(n.Hash).(Node)
++	}
+ }
+ func (n *InterfaceSwitchStmt) editChildrenWithHidden(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+@@ -891,6 +1242,9 @@ func (n *InterfaceSwitchStmt) editChildrenWithHidden(edit func(Node) Node) {
+ 	if n.RuntimeType != nil {
+ 		n.RuntimeType = edit(n.RuntimeType).(Node)
+ 	}
++	if n.Hash != nil {
++		n.Hash = edit(n.Hash).(Node)
++	}
+ }
+ 
+ func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+@@ -908,6 +1262,15 @@ func (n *JumpTableStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *JumpTableStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Idx != nil && do(n.Idx) {
++		return true
++	}
++	return false
++}
+ func (n *JumpTableStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Idx != nil {
+@@ -939,6 +1302,18 @@ func (n *KeyExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *KeyExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Key != nil && do(n.Key) {
++		return true
++	}
++	if n.Value != nil && do(n.Value) {
++		return true
++	}
++	return false
++}
+ func (n *KeyExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Key != nil {
+@@ -970,6 +1345,12 @@ func (n *LabelStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *LabelStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
+ func (n *LabelStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+@@ -989,6 +1370,12 @@ func (n *LinksymOffsetExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *LinksymOffsetExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
+ func (n *LinksymOffsetExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+@@ -1014,6 +1401,18 @@ func (n *LogicalExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *LogicalExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.Y != nil && do(n.Y) {
++		return true
++	}
++	return false
++}
+ func (n *LogicalExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -1051,6 +1450,21 @@ func (n *MakeExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *MakeExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.RType != nil && do(n.RType) {
++		return true
++	}
++	if n.Len != nil && do(n.Len) {
++		return true
++	}
++	if n.Cap != nil && do(n.Cap) {
++		return true
++	}
++	return false
++}
+ func (n *MakeExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Len != nil {
+@@ -1087,6 +1501,12 @@ func (n *NilExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *NilExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
+ func (n *NilExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+@@ -1109,6 +1529,15 @@ func (n *ParenExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *ParenExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	return false
++}
+ func (n *ParenExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -1150,6 +1579,42 @@ func (n *RangeStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *RangeStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.RType != nil && do(n.RType) {
++		return true
++	}
++	if n.Key != nil && do(n.Key) {
++		return true
++	}
++	if n.Value != nil && do(n.Value) {
++		return true
++	}
++	if doNodes(n.Body, do) {
++		return true
++	}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
++	}
++	if n.KeyTypeWord != nil && do(n.KeyTypeWord) {
++		return true
++	}
++	if n.KeySrcRType != nil && do(n.KeySrcRType) {
++		return true
++	}
++	if n.ValueTypeWord != nil && do(n.ValueTypeWord) {
++		return true
++	}
++	if n.ValueSrcRType != nil && do(n.ValueSrcRType) {
++		return true
++	}
++	return false
++}
+ func (n *RangeStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -1210,6 +1675,12 @@ func (n *ResultExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *ResultExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
+ func (n *ResultExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ }
+@@ -1233,6 +1704,15 @@ func (n *ReturnStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *ReturnStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if doNodes(n.Results, do) {
++		return true
++	}
++	return false
++}
+ func (n *ReturnStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	editNodes(n.Results, edit)
+@@ -1262,6 +1742,18 @@ func (n *SelectStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *SelectStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if doCommClauses(n.Cases, do) {
++		return true
++	}
++	if doNodes(n.Compiled, do) {
++		return true
++	}
++	return false
++}
+ func (n *SelectStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	editCommClauses(n.Cases, edit)
+@@ -1291,6 +1783,18 @@ func (n *SelectorExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *SelectorExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.Prealloc != nil && do(n.Prealloc) {
++		return true
++	}
++	return false
++}
+ func (n *SelectorExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -1328,6 +1832,18 @@ func (n *SendStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *SendStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Chan != nil && do(n.Chan) {
++		return true
++	}
++	if n.Value != nil && do(n.Value) {
++		return true
++	}
++	return false
++}
+ func (n *SendStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Chan != nil {
+@@ -1371,6 +1887,24 @@ func (n *SliceExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *SliceExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.Low != nil && do(n.Low) {
++		return true
++	}
++	if n.High != nil && do(n.High) {
++		return true
++	}
++	if n.Max != nil && do(n.Max) {
++		return true
++	}
++	return false
++}
+ func (n *SliceExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -1423,6 +1957,21 @@ func (n *SliceHeaderExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *SliceHeaderExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Ptr != nil && do(n.Ptr) {
++		return true
++	}
++	if n.Len != nil && do(n.Len) {
++		return true
++	}
++	if n.Cap != nil && do(n.Cap) {
++		return true
++	}
++	return false
++}
+ func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Ptr != nil {
+@@ -1463,6 +2012,15 @@ func (n *StarExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *StarExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	return false
++}
+ func (n *StarExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -1494,6 +2052,18 @@ func (n *StringHeaderExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *StringHeaderExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Ptr != nil && do(n.Ptr) {
++		return true
++	}
++	if n.Len != nil && do(n.Len) {
++		return true
++	}
++	return false
++}
+ func (n *StringHeaderExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Ptr != nil {
+@@ -1528,6 +2098,15 @@ func (n *StructKeyExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *StructKeyExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Value != nil && do(n.Value) {
++		return true
++	}
++	return false
++}
+ func (n *StructKeyExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Value != nil {
+@@ -1564,6 +2143,21 @@ func (n *SwitchStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *SwitchStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Tag != nil && do(n.Tag) {
++		return true
++	}
++	if doCaseClauses(n.Cases, do) {
++		return true
++	}
++	if doNodes(n.Compiled, do) {
++		return true
++	}
++	return false
++}
+ func (n *SwitchStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Tag != nil {
+@@ -1596,6 +2190,15 @@ func (n *TailCallStmt) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *TailCallStmt) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.Call != nil && do(n.Call) {
++		return true
++	}
++	return false
++}
+ func (n *TailCallStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Call != nil {
+@@ -1624,6 +2227,18 @@ func (n *TypeAssertExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *TypeAssertExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	if n.ITab != nil && do(n.ITab) {
++		return true
++	}
++	return false
++}
+ func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -1654,6 +2269,15 @@ func (n *TypeSwitchGuard) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *TypeSwitchGuard) doChildrenWithHidden(do func(Node) bool) bool {
++	if n.Tag != nil && do(n.Tag) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	return false
++}
+ func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
+ 	if n.Tag != nil {
+ 		n.Tag = edit(n.Tag).(*Ident)
+@@ -1686,6 +2310,15 @@ func (n *UnaryExpr) doChildren(do func(Node) bool) bool {
+ 	}
+ 	return false
+ }
++func (n *UnaryExpr) doChildrenWithHidden(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	if n.X != nil && do(n.X) {
++		return true
++	}
++	return false
++}
+ func (n *UnaryExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.X != nil {
+@@ -1707,6 +2340,9 @@ func (n *typeNode) copy() Node {
+ func (n *typeNode) doChildren(do func(Node) bool) bool {
+ 	return false
+ }
++func (n *typeNode) doChildrenWithHidden(do func(Node) bool) bool {
++	return false
++}
+ func (n *typeNode) editChildren(edit func(Node) Node) {
+ }
+ func (n *typeNode) editChildrenWithHidden(edit func(Node) Node) {
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index fb97ac68f4..d8b5c177b5 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -162,9 +162,9 @@ func _() {
+ 	_ = x[OEND-151]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLEARCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERSTRINGHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2MINMAXREALIMAGCOMPLEXUNSAFEADDUNSAFESLICEUNSAFESLICEDATAUNSAFESTRINGUNSAFESTRINGDATAMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWINLCALLMAKEFACEITABIDATASPTRCFUNCCHECKNILRESULTINLMARKLINKSYMOFFSETJUMPTABLEINTERFACESWITCHDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
++const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLEARCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTLNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERSTRINGHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2MINMAXREALIMAGCOMPLEXUNSAFEADDUNSAFESLICEUNSAFESLICEDATAUNSAFESTRINGUNSAFESTRINGDATAMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWINLCALLMAKEFACEITABIDATASPTRCFUNCCHECKNILRESULTINLMARKLINKSYMOFFSETJUMPTABLEINTERFACESWITCHDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 129, 141, 143, 146, 156, 163, 170, 177, 181, 185, 193, 201, 210, 213, 218, 223, 230, 237, 243, 252, 260, 268, 274, 278, 287, 294, 298, 301, 308, 314, 317, 323, 330, 338, 342, 349, 357, 359, 361, 363, 365, 367, 369, 374, 379, 387, 390, 399, 402, 406, 414, 421, 430, 443, 446, 449, 452, 455, 458, 461, 467, 470, 473, 479, 483, 486, 490, 495, 500, 506, 511, 515, 520, 528, 536, 542, 551, 562, 574, 581, 590, 594, 601, 609, 612, 615, 619, 623, 630, 639, 650, 665, 677, 693, 701, 710, 715, 720, 724, 732, 737, 741, 744, 748, 750, 755, 757, 762, 768, 774, 780, 786, 793, 801, 805, 810, 814, 819, 827, 833, 840, 853, 862, 877, 891, 906, 917, 925, 929, 940, 951, 954}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 129, 141, 143, 146, 156, 163, 170, 177, 181, 185, 193, 201, 210, 213, 218, 223, 230, 237, 243, 252, 260, 268, 274, 278, 287, 294, 298, 301, 308, 314, 317, 323, 330, 338, 342, 349, 357, 359, 361, 363, 365, 367, 369, 374, 379, 387, 390, 399, 402, 406, 414, 421, 430, 443, 446, 449, 452, 455, 458, 461, 467, 470, 473, 479, 483, 486, 490, 495, 500, 507, 512, 516, 521, 529, 537, 543, 552, 563, 575, 582, 591, 595, 602, 610, 613, 616, 620, 624, 631, 640, 651, 666, 678, 694, 702, 711, 716, 721, 725, 733, 738, 742, 745, 749, 751, 756, 758, 763, 769, 775, 781, 787, 794, 802, 806, 811, 815, 820, 828, 834, 841, 854, 863, 878, 892, 907, 918, 926, 930, 941, 952, 955}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/visit.go b/src/cmd/compile/internal/ir/visit.go
+index 73ec1de544..8dff11af33 100644
+--- a/src/cmd/compile/internal/ir/visit.go
++++ b/src/cmd/compile/internal/ir/visit.go
+@@ -94,6 +94,18 @@ func DoChildren(n Node, do func(Node) bool) bool {
+ 	return n.doChildren(do)
+ }
+ 
++// DoChildrenWithHidden is like DoChildren, but also visits
++// Node-typed fields tagged with `mknode:"-"`.
++//
++// TODO(mdempsky): Remove the `mknode:"-"` tags so this function can
++// go away.
++func DoChildrenWithHidden(n Node, do func(Node) bool) bool {
++	if n == nil {
++		return false
++	}
++	return n.doChildrenWithHidden(do)
++}
++
+ // Visit visits each non-nil node x in the IR tree rooted at n
+ // in a depth-first preorder traversal, calling visit on each node visited.
+ func Visit(n Node, visit func(Node)) {

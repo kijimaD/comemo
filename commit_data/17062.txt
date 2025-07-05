@@ -13,8 +13,73 @@ Date:   Wed Aug 7 06:49:11 2013 +1000
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/12519044
-
+---
  src/pkg/runtime/print.c    | 2 --
  src/pkg/runtime/runtime.h  | 2 +-
  src/pkg/runtime/string.goc | 8 ++++----
  3 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 9220762355..4950cfaa31 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -350,8 +350,6 @@ runtime·printpointer(void *p)
+ void
+ runtime·printstring(String v)
+ {
+-	extern uint32 runtime·maxstring;
+-
+ 	if(v.len > runtime·maxstring) {
+ 		gwrite("[string too long]", 17);
+ 		return;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ff3ecfaaaf..55ae16e276 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -706,7 +706,7 @@ extern	int8*	runtime·goos;
+ extern	int32	runtime·ncpu;
+ extern	bool	runtime·iscgo;
+ extern 	void	(*runtime·sysargs)(int32, uint8**);
+-extern	uint32	runtime·maxstring;
++extern	uintptr	runtime·maxstring;
+ extern	uint32	runtime·Hchansize;
+ extern	uint32	runtime·cpuid_ecx;
+ extern	uint32	runtime·cpuid_edx;
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index c7632b2a96..0c0129e267 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -35,13 +35,13 @@ runtime·findnullw(uint16 *s)
+ 	return l;
+ }
+ 
+-uint32 runtime·maxstring = 256; // a hint for print
++uintptr runtime·maxstring = 256; // a hint for print
+ 
+ static String
+ gostringsize(intgo l)
+ {
+ 	String s;
+-	uint32 ms;
++	uintptr ms;
+ 
+ 	if(l == 0)
+ 		return runtime·emptystring;
+@@ -51,7 +51,7 @@ gostringsize(intgo l)
+ 	s.str[l] = 0;
+ 	for(;;) {
+ 		ms = runtime·maxstring;
+-		if((uint32)l <= ms || runtime·cas(&runtime·maxstring, ms, (uint32)l))
++		if((uintptr)l <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)l))
+ 			break;
+ 	}
+ 	return s;
+@@ -176,7 +176,7 @@ concatstring(intgo n, String *s)
+ // not have a fixed size argument count.
+ #pragma textflag 7
+ void
+-runtime·concatstring(int32 n, String s1, ...)
++runtime·concatstring(intgo n, String s1, ...)
+ {
+ 	(&s1)[n] = concatstring(n, &s1);
+ }

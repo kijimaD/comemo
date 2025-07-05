@@ -10,6 +10,39 @@ Date:   Fri Sep 14 12:06:21 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6497138
-
+---
  src/cmd/go/pkg.go | 14 ++++++--------
  1 file changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index c9c4e2d779..c902b81122 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -264,13 +264,11 @@ func reusePackage(p *Package, stk *importStack) *Package {
+ // isGoTool is the list of directories for Go programs that are installed in
+ // $GOROOT/pkg/tool.
+ var isGoTool = map[string]bool{
+-	"cmd/api":      true,
+-	"cmd/cgo":      true,
+-	"cmd/fix":      true,
+-	"cmd/vet":      true,
+-	"cmd/yacc":     true,
+-	"exp/gotype":   true,
+-	"exp/ebnflint": true,
++	"cmd/api":  true,
++	"cmd/cgo":  true,
++	"cmd/fix":  true,
++	"cmd/vet":  true,
++	"cmd/yacc": true,
+ }
+ 
+ // expandScanner expands a scanner.List error into all the errors in the list.
+@@ -321,7 +319,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 			elem = full
+ 		}
+ 		p.target = filepath.Join(p.build.BinDir, elem)
+-		if p.Goroot && isGoTool[p.ImportPath] {
++		if p.Goroot && (isGoTool[p.ImportPath] || hasPrefix(p.ImportPath, "exp/")) {
+ 			p.target = filepath.Join(gorootPkg, "tool", full)
+ 		}
+ 		if buildContext.GOOS == "windows" {

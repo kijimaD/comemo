@@ -7,6 +7,19 @@ Date:   Thu Oct 6 13:12:11 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5211045
-
+---
  doc/godocs.js | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index cf97b31508..58ce52f85d 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -194,7 +194,6 @@ function godocs_bindExampleToggles() {
+   var examples = document.getElementsByClassName("example");
+   for (var i = 0; i < examples.length; i++) {
+     var eg = examples[i];
+-    console.log(eg);
+     godocs_bindExampleToggle(eg);
+   }
+ }

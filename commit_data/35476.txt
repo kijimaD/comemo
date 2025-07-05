@@ -38,9 +38,548 @@ Date:   Tue Dec 5 18:02:10 2017 -0500
     Change-Id: Iec9276c6c51e5be441ccd52dec270f1e3b153970
     Reviewed-on: https://go-review.googlesource.com/71690
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/internal/trace/parser.go         | 163 +++++++++++++++++++++++------------
  src/runtime/trace.go                 | 125 +++++++++++++++++++++++----
  src/runtime/trace/annotation.go      |  11 ++-
  src/runtime/trace/annotation_test.go |  86 ++++++++++++++++++
  4 files changed, 309 insertions(+), 76 deletions(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 4e6ef02cc7..e6e1a4d171 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -130,9 +130,10 @@ func parse(r io.Reader, bin string) (int, ParseResult, error) {
+ 
+ // rawEvent is a helper type used during parsing.
+ type rawEvent struct {
+-	off  int
+-	typ  byte
+-	args []uint64
++	off   int
++	typ   byte
++	args  []uint64
++	sargs []string
+ }
+ 
+ // readTrace does wire-format parsing and verification.
+@@ -259,11 +260,34 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 				return
+ 			}
+ 		}
++		switch ev.typ {
++		case EvUserLog: // EvUserLog records are followed by a value string of length ev.args[len(ev.args)-1]
++			var s string
++			s, off, err = readStr(r, off)
++			ev.sargs = append(ev.sargs, s)
++		}
+ 		events = append(events, ev)
+ 	}
+ 	return
+ }
+ 
++func readStr(r io.Reader, off0 int) (s string, off int, err error) {
++	var sz uint64
++	sz, off, err = readVal(r, off0)
++	if err != nil || sz == 0 {
++		return "", off, err
++	}
++	if sz > 1e6 {
++		return "", off, fmt.Errorf("string at offset %d is too large (len=%d)", off, sz)
++	}
++	buf := make([]byte, sz)
++	n, err := io.ReadFull(r, buf)
++	if err != nil || sz != uint64(n) {
++		return "", off + n, fmt.Errorf("failed to read trace at offset %d: read %v, want %v, error %v", off, n, sz, err)
++	}
++	return string(buf), off + n, nil
++}
++
+ // parseHeader parses trace header of the form "go 1.7 trace\x00\x00\x00\x00"
+ // and returns parsed version as 1007.
+ func parseHeader(buf []byte) (int, error) {
+@@ -416,6 +440,15 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 				lastG = 0
+ 			case EvGoSysExit, EvGoWaiting, EvGoInSyscall:
+ 				e.G = e.Args[0]
++			case EvUserTaskCreate:
++				// e.Args 0: taskID, 1:parentID, 2:nameID
++				e.SArgs = []string{strings[e.Args[2]]}
++			case EvUserSpan:
++				// e.Args 0: taskID, 1: mode, 2:nameID
++				e.SArgs = []string{strings[e.Args[2]]}
++			case EvUserLog:
++				// e.Args 0: taskID, 1:keyID, 2: stackID
++				e.SArgs = []string{strings[e.Args[1]], raw.sargs[0]}
+ 			}
+ 			batches[lastP] = append(batches[lastP], e)
+ 		}
+@@ -551,6 +584,7 @@ func postProcessTrace(ver int, events []*Event) error {
+ 
+ 	gs := make(map[uint64]gdesc)
+ 	ps := make(map[int]pdesc)
++	tasks := make(map[uint64]*Event) // task id to task events
+ 	gs[0] = gdesc{state: gRunning}
+ 	var evGC, evSTW *Event
+ 
+@@ -756,6 +790,16 @@ func postProcessTrace(ver int, events []*Event) error {
+ 			g.evStart.Link = ev
+ 			g.evStart = nil
+ 			p.g = 0
++		case EvUserTaskCreate:
++			taskid := ev.Args[0]
++			if prevEv, ok := tasks[taskid]; ok {
++				return fmt.Errorf("task id conflicts (id:%d), %q vs %q", taskid, ev, prevEv)
++			}
++			tasks[ev.Args[0]] = ev
++		case EvUserTaskEnd:
++			if prevEv, ok := tasks[ev.Args[0]]; ok {
++				prevEv.Link = ev
++			}
+ 		}
+ 
+ 		gs[ev.G] = g
+@@ -869,12 +913,20 @@ func Print(events []*Event) {
+ 
+ // PrintEvent dumps the event to stdout. For debugging.
+ func PrintEvent(ev *Event) {
++	fmt.Printf("%s\n", ev)
++}
++
++func (ev *Event) String() string {
+ 	desc := EventDescriptions[ev.Type]
+-	fmt.Printf("%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
++	w := new(bytes.Buffer)
++	fmt.Fprintf(w, "%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
+ 	for i, a := range desc.Args {
+-		fmt.Printf(" %v=%v", a, ev.Args[i])
++		fmt.Fprintf(w, " %v=%v", a, ev.Args[i])
++	}
++	for i, a := range desc.SArgs {
++		fmt.Fprintf(w, " %v=%v", a, ev.SArgs[i])
+ 	}
+-	fmt.Printf("\n")
++	return w.String()
+ }
+ 
+ // argNum returns total number of args for the event accounting for timestamps,
+@@ -979,54 +1031,55 @@ var EventDescriptions = [EvCount]struct {
+ 	minVersion int
+ 	Stack      bool
+ 	Args       []string
++	SArgs      []string // string arguments
+ }{
+-	EvNone:              {"None", 1005, false, []string{}},
+-	EvBatch:             {"Batch", 1005, false, []string{"p", "ticks"}}, // in 1.5 format it was {"p", "seq", "ticks"}
+-	EvFrequency:         {"Frequency", 1005, false, []string{"freq"}},   // in 1.5 format it was {"freq", "unused"}
+-	EvStack:             {"Stack", 1005, false, []string{"id", "siz"}},
+-	EvGomaxprocs:        {"Gomaxprocs", 1005, true, []string{"procs"}},
+-	EvProcStart:         {"ProcStart", 1005, false, []string{"thread"}},
+-	EvProcStop:          {"ProcStop", 1005, false, []string{}},
+-	EvGCStart:           {"GCStart", 1005, true, []string{"seq"}}, // in 1.5 format it was {}
+-	EvGCDone:            {"GCDone", 1005, false, []string{}},
+-	EvGCSTWStart:        {"GCSTWStart", 1005, false, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
+-	EvGCSTWDone:         {"GCSTWDone", 1005, false, []string{}},
+-	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}},
+-	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}}, // before 1.9, format was {}
+-	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}},
+-	EvGoStart:           {"GoStart", 1005, false, []string{"g", "seq"}}, // in 1.5 format it was {"g"}
+-	EvGoEnd:             {"GoEnd", 1005, false, []string{}},
+-	EvGoStop:            {"GoStop", 1005, true, []string{}},
+-	EvGoSched:           {"GoSched", 1005, true, []string{}},
+-	EvGoPreempt:         {"GoPreempt", 1005, true, []string{}},
+-	EvGoSleep:           {"GoSleep", 1005, true, []string{}},
+-	EvGoBlock:           {"GoBlock", 1005, true, []string{}},
+-	EvGoUnblock:         {"GoUnblock", 1005, true, []string{"g", "seq"}}, // in 1.5 format it was {"g"}
+-	EvGoBlockSend:       {"GoBlockSend", 1005, true, []string{}},
+-	EvGoBlockRecv:       {"GoBlockRecv", 1005, true, []string{}},
+-	EvGoBlockSelect:     {"GoBlockSelect", 1005, true, []string{}},
+-	EvGoBlockSync:       {"GoBlockSync", 1005, true, []string{}},
+-	EvGoBlockCond:       {"GoBlockCond", 1005, true, []string{}},
+-	EvGoBlockNet:        {"GoBlockNet", 1005, true, []string{}},
+-	EvGoSysCall:         {"GoSysCall", 1005, true, []string{}},
+-	EvGoSysExit:         {"GoSysExit", 1005, false, []string{"g", "seq", "ts"}},
+-	EvGoSysBlock:        {"GoSysBlock", 1005, false, []string{}},
+-	EvGoWaiting:         {"GoWaiting", 1005, false, []string{"g"}},
+-	EvGoInSyscall:       {"GoInSyscall", 1005, false, []string{"g"}},
+-	EvHeapAlloc:         {"HeapAlloc", 1005, false, []string{"mem"}},
+-	EvNextGC:            {"NextGC", 1005, false, []string{"mem"}},
+-	EvTimerGoroutine:    {"TimerGoroutine", 1005, false, []string{"g"}}, // in 1.5 format it was {"g", "unused"}
+-	EvFutileWakeup:      {"FutileWakeup", 1005, false, []string{}},
+-	EvString:            {"String", 1007, false, []string{}},
+-	EvGoStartLocal:      {"GoStartLocal", 1007, false, []string{"g"}},
+-	EvGoUnblockLocal:    {"GoUnblockLocal", 1007, true, []string{"g"}},
+-	EvGoSysExitLocal:    {"GoSysExitLocal", 1007, false, []string{"g", "ts"}},
+-	EvGoStartLabel:      {"GoStartLabel", 1008, false, []string{"g", "seq", "label"}},
+-	EvGoBlockGC:         {"GoBlockGC", 1008, true, []string{}},
+-	EvGCMarkAssistStart: {"GCMarkAssistStart", 1009, true, []string{}},
+-	EvGCMarkAssistDone:  {"GCMarkAssistDone", 1009, false, []string{}},
+-	EvUserTaskCreate:    {"UserTaskCreate", 1011, true, []string{"taskid", "pid", "nameid"}},
+-	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}},
+-	EvUserSpan:          {"UserSpan", 1011, true, []string{"taskid", "mode", "nameid"}},
+-	EvUserLog:           {"UserLog", 1011, true, []string{"id", "key id"}},
++	EvNone:              {"None", 1005, false, []string{}, nil},
++	EvBatch:             {"Batch", 1005, false, []string{"p", "ticks"}, nil}, // in 1.5 format it was {"p", "seq", "ticks"}
++	EvFrequency:         {"Frequency", 1005, false, []string{"freq"}, nil},   // in 1.5 format it was {"freq", "unused"}
++	EvStack:             {"Stack", 1005, false, []string{"id", "siz"}, nil},
++	EvGomaxprocs:        {"Gomaxprocs", 1005, true, []string{"procs"}, nil},
++	EvProcStart:         {"ProcStart", 1005, false, []string{"thread"}, nil},
++	EvProcStop:          {"ProcStop", 1005, false, []string{}, nil},
++	EvGCStart:           {"GCStart", 1005, true, []string{"seq"}, nil}, // in 1.5 format it was {}
++	EvGCDone:            {"GCDone", 1005, false, []string{}, nil},
++	EvGCSTWStart:        {"GCSTWStart", 1005, false, []string{"kindid"}, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
++	EvGCSTWDone:         {"GCSTWDone", 1005, false, []string{}, nil},
++	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}, nil},
++	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}, nil}, // before 1.9, format was {}
++	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}, nil},
++	EvGoStart:           {"GoStart", 1005, false, []string{"g", "seq"}, nil}, // in 1.5 format it was {"g"}
++	EvGoEnd:             {"GoEnd", 1005, false, []string{}, nil},
++	EvGoStop:            {"GoStop", 1005, true, []string{}, nil},
++	EvGoSched:           {"GoSched", 1005, true, []string{}, nil},
++	EvGoPreempt:         {"GoPreempt", 1005, true, []string{}, nil},
++	EvGoSleep:           {"GoSleep", 1005, true, []string{}, nil},
++	EvGoBlock:           {"GoBlock", 1005, true, []string{}, nil},
++	EvGoUnblock:         {"GoUnblock", 1005, true, []string{"g", "seq"}, nil}, // in 1.5 format it was {"g"}
++	EvGoBlockSend:       {"GoBlockSend", 1005, true, []string{}, nil},
++	EvGoBlockRecv:       {"GoBlockRecv", 1005, true, []string{}, nil},
++	EvGoBlockSelect:     {"GoBlockSelect", 1005, true, []string{}, nil},
++	EvGoBlockSync:       {"GoBlockSync", 1005, true, []string{}, nil},
++	EvGoBlockCond:       {"GoBlockCond", 1005, true, []string{}, nil},
++	EvGoBlockNet:        {"GoBlockNet", 1005, true, []string{}, nil},
++	EvGoSysCall:         {"GoSysCall", 1005, true, []string{}, nil},
++	EvGoSysExit:         {"GoSysExit", 1005, false, []string{"g", "seq", "ts"}, nil},
++	EvGoSysBlock:        {"GoSysBlock", 1005, false, []string{}, nil},
++	EvGoWaiting:         {"GoWaiting", 1005, false, []string{"g"}, nil},
++	EvGoInSyscall:       {"GoInSyscall", 1005, false, []string{"g"}, nil},
++	EvHeapAlloc:         {"HeapAlloc", 1005, false, []string{"mem"}, nil},
++	EvNextGC:            {"NextGC", 1005, false, []string{"mem"}, nil},
++	EvTimerGoroutine:    {"TimerGoroutine", 1005, false, []string{"g"}, nil}, // in 1.5 format it was {"g", "unused"}
++	EvFutileWakeup:      {"FutileWakeup", 1005, false, []string{}, nil},
++	EvString:            {"String", 1007, false, []string{}, nil},
++	EvGoStartLocal:      {"GoStartLocal", 1007, false, []string{"g"}, nil},
++	EvGoUnblockLocal:    {"GoUnblockLocal", 1007, true, []string{"g"}, nil},
++	EvGoSysExitLocal:    {"GoSysExitLocal", 1007, false, []string{"g", "ts"}, nil},
++	EvGoStartLabel:      {"GoStartLabel", 1008, false, []string{"g", "seq", "labelid"}, []string{"label"}},
++	EvGoBlockGC:         {"GoBlockGC", 1008, true, []string{}, nil},
++	EvGCMarkAssistStart: {"GCMarkAssistStart", 1009, true, []string{}, nil},
++	EvGCMarkAssistDone:  {"GCMarkAssistDone", 1009, false, []string{}, nil},
++	EvUserTaskCreate:    {"UserTaskCreate", 1011, true, []string{"taskid", "pid", "typeid"}, []string{"name"}},
++	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}, nil},
++	EvUserSpan:          {"UserSpan", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
++	EvUserLog:           {"UserLog", 1011, true, []string{"id", "keyid"}, []string{"category", "message"}},
+ }
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index b6c75ca6c2..c4090ff29a 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -128,11 +128,13 @@ var trace struct {
+ 
+ 	// Dictionary for traceEvString.
+ 	//
+-	// Currently this is used only at trace setup and for
+-	// func/file:line info after tracing session, so we assume
+-	// single-threaded access.
+-	strings   map[string]uint64
+-	stringSeq uint64
++	// TODO: central lock to access the map is not ideal.
++	//   option: pre-assign ids to all user annotation span names and tags
++	//   option: per-P cache
++	//   option: sync.Map like data structure
++	stringsLock mutex
++	strings     map[string]uint64
++	stringSeq   uint64
+ 
+ 	// markWorkerLabels maps gcMarkWorkerMode to string ID.
+ 	markWorkerLabels [len(gcMarkWorkerModeStrings)]uint64
+@@ -513,12 +515,26 @@ func traceEvent(ev byte, skip int, args ...uint64) {
+ 	// so if we see trace.enabled == true now, we know it's true for the rest of the function.
+ 	// Exitsyscall can run even during stopTheWorld. The race with StartTrace/StopTrace
+ 	// during tracing in exitsyscall is resolved by locking trace.bufLock in traceLockBuffer.
++	//
++	// Note trace_userTaskCreate runs the same check.
+ 	if !trace.enabled && !mp.startingtrace {
+ 		traceReleaseBuffer(pid)
+ 		return
+ 	}
++
++	if skip > 0 {
++		if getg() == mp.curg {
++			skip++ // +1 because stack is captured in traceEventLocked.
++		}
++	}
++	traceEventLocked(0, mp, pid, bufp, ev, skip, args...)
++	traceReleaseBuffer(pid)
++}
++
++func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev byte, skip int, args ...uint64) {
+ 	buf := (*bufp).ptr()
+-	const maxSize = 2 + 5*traceBytesPerNumber // event type, length, sequence, timestamp, stack id and two add params
++	// TODO: test on non-zero extraBytes param.
++	maxSize := 2 + 5*traceBytesPerNumber + extraBytes // event type, length, sequence, timestamp, stack id and two add params
+ 	if buf == nil || len(buf.arr)-buf.pos < maxSize {
+ 		buf = traceFlush(traceBufPtrOf(buf), pid).ptr()
+ 		(*bufp).set(buf)
+@@ -561,7 +577,6 @@ func traceEvent(ev byte, skip int, args ...uint64) {
+ 		// Fill in actual length.
+ 		*lenp = byte(evSize - 2)
+ 	}
+-	traceReleaseBuffer(pid)
+ }
+ 
+ func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
+@@ -643,7 +658,20 @@ func traceString(bufp *traceBufPtr, pid int32, s string) (uint64, *traceBufPtr)
+ 	if s == "" {
+ 		return 0, bufp
+ 	}
++
++	lock(&trace.stringsLock)
++	if raceenabled {
++		// raceacquire is necessary because the map access
++		// below is race annotated.
++		raceacquire(unsafe.Pointer(&trace.stringsLock))
++	}
++
+ 	if id, ok := trace.strings[s]; ok {
++		if raceenabled {
++			racerelease(unsafe.Pointer(&trace.stringsLock))
++		}
++		unlock(&trace.stringsLock)
++
+ 		return id, bufp
+ 	}
+ 
+@@ -651,6 +679,11 @@ func traceString(bufp *traceBufPtr, pid int32, s string) (uint64, *traceBufPtr)
+ 	id := trace.stringSeq
+ 	trace.strings[s] = id
+ 
++	if raceenabled {
++		racerelease(unsafe.Pointer(&trace.stringsLock))
++	}
++	unlock(&trace.stringsLock)
++
+ 	// memory allocation in above may trigger tracing and
+ 	// cause *bufp changes. Following code now works with *bufp,
+ 	// so there must be no memory allocation or any activities
+@@ -664,8 +697,16 @@ func traceString(bufp *traceBufPtr, pid int32, s string) (uint64, *traceBufPtr)
+ 	}
+ 	buf.byte(traceEvString)
+ 	buf.varint(id)
+-	buf.varint(uint64(len(s)))
+-	buf.pos += copy(buf.arr[buf.pos:], s)
++
++	// double-check the string and the length can fit.
++	// Otherwise, truncate the string.
++	slen := len(s)
++	if room := len(buf.arr) - buf.pos; room < slen+traceBytesPerNumber {
++		slen = room
++	}
++
++	buf.varint(uint64(slen))
++	buf.pos += copy(buf.arr[buf.pos:], s[:slen])
+ 
+ 	(*bufp).set(buf)
+ 	return id, bufp
+@@ -1109,24 +1150,72 @@ func traceNextGC() {
+ 
+ //go:linkname trace_userTaskCreate runtime/trace.userTaskCreate
+ func trace_userTaskCreate(id, parentID uint64, taskType string) {
+-	// TODO: traceEvUserTaskCreate
+-	// TODO: truncate the name if too long.
++	if !trace.enabled {
++		return
++	}
++
++	// Same as in traceEvent.
++	mp, pid, bufp := traceAcquireBuffer()
++	if !trace.enabled && !mp.startingtrace {
++		traceReleaseBuffer(pid)
++		return
++	}
++
++	typeStringID, bufp := traceString(bufp, pid, taskType)
++	traceEventLocked(0, mp, pid, bufp, traceEvUserTaskCreate, 3, id, parentID, typeStringID)
++	traceReleaseBuffer(pid)
+ }
+ 
+ //go:linkname trace_userTaskEnd runtime/trace.userTaskEnd
+ func trace_userTaskEnd(id uint64) {
+-	// TODO: traceEvUserSpan
++	traceEvent(traceEvUserTaskEnd, 2, id)
+ }
+ 
+ //go:linkname trace_userSpan runtime/trace.userSpan
+-func trace_userSpan(id, mode uint64, spanType string) {
+-	// TODO: traceEvString for name.
+-	// TODO: truncate the name if too long.
+-	// TODO: traceEvSpan.
++func trace_userSpan(id, mode uint64, name string) {
++	if !trace.enabled {
++		return
++	}
++
++	mp, pid, bufp := traceAcquireBuffer()
++	if !trace.enabled && !mp.startingtrace {
++		traceReleaseBuffer(pid)
++		return
++	}
++
++	nameStringID, bufp := traceString(bufp, pid, name)
++	traceEventLocked(0, mp, pid, bufp, traceEvUserSpan, 3, id, mode, nameStringID)
++	traceReleaseBuffer(pid)
+ }
+ 
+ //go:linkname trace_userLog runtime/trace.userLog
+ func trace_userLog(id uint64, category, message string) {
+-	// TODO: traceEvString for key.
+-	// TODO: traceEvUserLog.
++	if !trace.enabled {
++		return
++	}
++
++	mp, pid, bufp := traceAcquireBuffer()
++	if !trace.enabled && !mp.startingtrace {
++		traceReleaseBuffer(pid)
++		return
++	}
++
++	categoryID, bufp := traceString(bufp, pid, category)
++
++	extraSpace := traceBytesPerNumber + len(message) // extraSpace for the value string
++	traceEventLocked(extraSpace, mp, pid, bufp, traceEvUserLog, 3, id, categoryID)
++	// traceEventLocked reserved extra space for val and len(val)
++	// in buf, so buf now has room for the following.
++	buf := (*bufp).ptr()
++
++	// double-check the message and its length can fit.
++	// Otherwise, truncate the message.
++	slen := len(message)
++	if room := len(buf.arr) - buf.pos; room < slen+traceBytesPerNumber {
++		slen = room
++	}
++	buf.varint(uint64(slen))
++	buf.pos += copy(buf.arr[buf.pos:], message[:slen])
++
++	traceReleaseBuffer(pid)
+ }
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+index f34ec25f53..be92d52af8 100644
+--- a/src/runtime/trace/annotation.go
++++ b/src/runtime/trace/annotation.go
+@@ -72,9 +72,11 @@ type task struct {
+ 	// TODO(hyangah): record parent id?
+ }
+ 
++var lastTaskID uint64 = 0 // task id issued last time
++
+ func newID() uint64 {
+-	// TODO(hyangah): implement
+-	return 0
++	// TODO(hyangah): use per-P cache
++	return atomic.AddUint64(&lastTaskID, 1)
+ }
+ 
+ var bgTask = task{id: uint64(0)}
+@@ -90,7 +92,10 @@ func Log(ctx context.Context, category, message string) {
+ // Logf is like Log, but the value is formatted using the specified format spec.
+ func Logf(ctx context.Context, category, format string, args ...interface{}) {
+ 	if IsEnabled() {
+-		Log(ctx, category, fmt.Sprintf(format, args...))
++		// Ideally this should be just Log, but that will
++		// add one more frame in the stack trace.
++		id := fromContext(ctx).id
++		userLog(id, category, fmt.Sprintf(format, args...))
+ 	}
+ }
+ 
+diff --git a/src/runtime/trace/annotation_test.go b/src/runtime/trace/annotation_test.go
+new file mode 100644
+index 0000000000..c54eae3a96
+--- /dev/null
++++ b/src/runtime/trace/annotation_test.go
+@@ -0,0 +1,86 @@
++package trace_test
++
++import (
++	"bytes"
++	"context"
++	"internal/trace"
++	"reflect"
++	. "runtime/trace"
++	"sync"
++	"testing"
++)
++
++func TestUserTaskSpan(t *testing.T) {
++	bgctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++
++	// TODO(hyangah): test pre-existing spans don't cause troubles
++
++	buf := new(bytes.Buffer)
++	if err := Start(buf); err != nil {
++		t.Fatalf("failed to start tracing: %v", err)
++	}
++
++	// Beginning of traced execution
++	var wg sync.WaitGroup
++	ctx, end := NewContext(bgctx, "task0") // EvUserTaskCreate("task0")
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		defer end() // EvUserTaskEnd("span0")
++
++		WithSpan(ctx, "span0", func(ctx context.Context) {
++			// EvUserSpanCreate("span0", start)
++			Log(ctx, "key0", "0123456789abcdef") // EvUserLog("task0", "key0", "0....f")
++			// EvUserSpan("span0", end)
++		})
++	}()
++	wg.Wait()
++	// End of traced execution
++	Stop()
++	saveTrace(t, buf, "TestUserTaskSpan")
++	res, err := trace.Parse(buf, "")
++	if err != nil {
++		t.Fatalf("Parse failed: %v", err)
++	}
++
++	// Check whether we see all user annotation related records in order
++	type testData struct {
++		typ  byte
++		strs []string
++		args []uint64
++	}
++
++	var got []testData
++	tasks := map[uint64]string{}
++	for _, e := range res.Events {
++		t.Logf("%s", e)
++		switch e.Type {
++		case trace.EvUserTaskCreate:
++			taskName := e.SArgs[0]
++			got = append(got, testData{trace.EvUserTaskCreate, []string{taskName}, nil})
++			tasks[e.Args[0]] = taskName
++		case trace.EvUserLog:
++			key, val := e.SArgs[0], e.SArgs[1]
++			taskName := tasks[e.Args[0]]
++			got = append(got, testData{trace.EvUserLog, []string{taskName, key, val}, nil})
++		case trace.EvUserTaskEnd:
++			taskName := tasks[e.Args[0]]
++			got = append(got, testData{trace.EvUserTaskEnd, []string{taskName}, nil})
++		case trace.EvUserSpan:
++			taskName := tasks[e.Args[0]]
++			spanName := e.SArgs[0]
++			got = append(got, testData{trace.EvUserSpan, []string{taskName, spanName}, []uint64{e.Args[1]}})
++		}
++	}
++	want := []testData{
++		{trace.EvUserTaskCreate, []string{"task0"}, nil},
++		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{0}},
++		{trace.EvUserLog, []string{"task0", "key0", "0123456789abcdef"}, nil},
++		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{1}},
++		{trace.EvUserTaskEnd, []string{"task0"}, nil},
++	}
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("Got user span related events %+v\nwant: %+v", got, want)
++	}
++}

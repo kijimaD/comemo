@@ -9,6 +9,19 @@ Date:   Tue Sep 17 15:24:54 2013 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/13683044
-
+---
  test/escape2.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/escape2.go b/test/escape2.go
+index 5122356bf9..be89c2d840 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1136,6 +1136,7 @@ func foo126() {
+ 			px = &i // ERROR "&i escapes"
+ 		}()
+ 	}
++	_ = px
+ }
+ 
+ var px *int

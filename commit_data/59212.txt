@@ -13,7 +13,7 @@ Date:   Sat Nov 4 16:14:29 2023 +0800
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/text/scanner/scanner.go      | 36 ++++++++++++++++++------------------
  src/text/tabwriter/tabwriter.go  | 18 +++++++++---------
  src/text/template/exec.go        |  6 +++---
@@ -23,3 +23,365 @@ Date:   Sat Nov 4 16:14:29 2023 +0800
  src/text/template/parse/parse.go |  4 ++--
  src/text/template/template.go    |  6 +++---
  8 files changed, 46 insertions(+), 46 deletions(-)
+
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index 44be0b6bd4..6ae7a9b987 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -8,7 +8,7 @@
+ // existing tools, the NUL character is not allowed. If the first character
+ // in the source is a UTF-8 encoded byte order mark (BOM), it is discarded.
+ //
+-// By default, a Scanner skips white space and Go comments and recognizes all
++// By default, a [Scanner] skips white space and Go comments and recognizes all
+ // literals as defined by the Go language specification. It may be
+ // customized to recognize only a subset of those literals and to recognize
+ // different identifier and white space characters.
+@@ -47,7 +47,7 @@ func (pos Position) String() string {
+ }
+ 
+ // Predefined mode bits to control recognition of tokens. For instance,
+-// to configure a Scanner such that it only recognizes (Go) identifiers,
++// to configure a [Scanner] such that it only recognizes (Go) identifiers,
+ // integers, and skips comments, set the Scanner's Mode field to:
+ //
+ //	ScanIdents | ScanInts | SkipComments
+@@ -56,7 +56,7 @@ func (pos Position) String() string {
+ // set, unrecognized tokens are not ignored. Instead, the scanner simply
+ // returns the respective individual characters (or possibly sub-tokens).
+ // For instance, if the mode is ScanIdents (not ScanStrings), the string
+-// "foo" is scanned as the token sequence '"' Ident '"'.
++// "foo" is scanned as the token sequence '"' [Ident] '"'.
+ //
+ // Use GoTokens to configure the Scanner such that it accepts all Go
+ // literal tokens including Go identifiers. Comments will be skipped.
+@@ -106,13 +106,13 @@ func TokenString(tok rune) string {
+ 	return fmt.Sprintf("%q", string(tok))
+ }
+ 
+-// GoWhitespace is the default value for the Scanner's Whitespace field.
++// GoWhitespace is the default value for the [Scanner]'s Whitespace field.
+ // Its value selects Go's white space characters.
+ const GoWhitespace = 1<<'\t' | 1<<'\n' | 1<<'\r' | 1<<' '
+ 
+ const bufLen = 1024 // at least utf8.UTFMax
+ 
+-// A Scanner implements reading of Unicode characters and tokens from an io.Reader.
++// A Scanner implements reading of Unicode characters and tokens from an [io.Reader].
+ type Scanner struct {
+ 	// Input
+ 	src io.Reader
+@@ -175,9 +175,9 @@ type Scanner struct {
+ 	Position
+ }
+ 
+-// Init initializes a Scanner with a new source and returns s.
+-// Error is set to nil, ErrorCount is set to 0, Mode is set to GoTokens,
+-// and Whitespace is set to GoWhitespace.
++// Init initializes a [Scanner] with a new source and returns s.
++// [Scanner.Error] is set to nil, [Scanner.ErrorCount] is set to 0, [Scanner.Mode] is set to [GoTokens],
++// and [Scanner.Whitespace] is set to [GoWhitespace].
+ func (s *Scanner) Init(src io.Reader) *Scanner {
+ 	s.src = src
+ 
+@@ -296,10 +296,10 @@ func (s *Scanner) next() rune {
+ }
+ 
+ // Next reads and returns the next Unicode character.
+-// It returns EOF at the end of the source. It reports
++// It returns [EOF] at the end of the source. It reports
+ // a read error by calling s.Error, if not nil; otherwise
+-// it prints an error message to os.Stderr. Next does not
+-// update the Scanner's Position field; use Pos() to
++// it prints an error message to [os.Stderr]. Next does not
++// update the [Scanner.Position] field; use [Scanner.Pos]() to
+ // get the current position.
+ func (s *Scanner) Next() rune {
+ 	s.tokPos = -1 // don't collect token text
+@@ -312,7 +312,7 @@ func (s *Scanner) Next() rune {
+ }
+ 
+ // Peek returns the next Unicode character in the source without advancing
+-// the scanner. It returns EOF if the scanner's position is at the last
++// the scanner. It returns [EOF] if the scanner's position is at the last
+ // character of the source.
+ func (s *Scanner) Peek() rune {
+ 	if s.ch == -2 {
+@@ -639,10 +639,10 @@ func (s *Scanner) scanComment(ch rune) rune {
+ }
+ 
+ // Scan reads the next token or Unicode character from source and returns it.
+-// It only recognizes tokens t for which the respective Mode bit (1<<-t) is set.
+-// It returns EOF at the end of the source. It reports scanner errors (read and
++// It only recognizes tokens t for which the respective [Scanner.Mode] bit (1<<-t) is set.
++// It returns [EOF] at the end of the source. It reports scanner errors (read and
+ // token errors) by calling s.Error, if not nil; otherwise it prints an error
+-// message to os.Stderr.
++// message to [os.Stderr].
+ func (s *Scanner) Scan() rune {
+ 	ch := s.Peek()
+ 
+@@ -742,8 +742,8 @@ redo:
+ }
+ 
+ // Pos returns the position of the character immediately after
+-// the character or token returned by the last call to Next or Scan.
+-// Use the Scanner's Position field for the start position of the most
++// the character or token returned by the last call to [Scanner.Next] or [Scanner.Scan].
++// Use the [Scanner.Position] field for the start position of the most
+ // recently scanned token.
+ func (s *Scanner) Pos() (pos Position) {
+ 	pos.Filename = s.Filename
+@@ -766,7 +766,7 @@ func (s *Scanner) Pos() (pos Position) {
+ }
+ 
+ // TokenText returns the string corresponding to the most recently scanned token.
+-// Valid after calling Scan and in calls of Scanner.Error.
++// Valid after calling [Scanner.Scan] and in calls of [Scanner.Error].
+ func (s *Scanner) TokenText() string {
+ 	if s.tokPos < 0 {
+ 		// no token text
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index d4cfcf556a..18ff667ba8 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -59,7 +59,7 @@ type cell struct {
+ // this may not be true in some fonts or if the string contains combining
+ // characters.
+ //
+-// If DiscardEmptyColumns is set, empty columns that are terminated
++// If [DiscardEmptyColumns] is set, empty columns that are terminated
+ // entirely by vertical (or "soft") tabs are discarded. Columns
+ // terminated by horizontal (or "hard") tabs are not affected by
+ // this flag.
+@@ -68,24 +68,24 @@ type cell struct {
+ // are passed through. The widths of tags and entities are
+ // assumed to be zero (tags) and one (entities) for formatting purposes.
+ //
+-// A segment of text may be escaped by bracketing it with Escape
++// A segment of text may be escaped by bracketing it with [Escape]
+ // characters. The tabwriter passes escaped text segments through
+ // unchanged. In particular, it does not interpret any tabs or line
+-// breaks within the segment. If the StripEscape flag is set, the
++// breaks within the segment. If the [StripEscape] flag is set, the
+ // Escape characters are stripped from the output; otherwise they
+ // are passed through as well. For the purpose of formatting, the
+ // width of the escaped text is always computed excluding the Escape
+ // characters.
+ //
+ // The formfeed character acts like a newline but it also terminates
+-// all columns in the current line (effectively calling Flush). Tab-
++// all columns in the current line (effectively calling [Writer.Flush]). Tab-
+ // terminated cells in the next line start new columns. Unless found
+ // inside an HTML tag or inside an escaped text segment, formfeed
+ // characters appear as newlines in the output.
+ //
+ // The Writer must buffer input internally, because proper spacing
+ // of one line may depend on the cells in future lines. Clients must
+-// call Flush when done calling Write.
++// call Flush when done calling [Writer.Write].
+ type Writer struct {
+ 	// configuration
+ 	output   io.Writer
+@@ -192,7 +192,7 @@ const (
+ 	Debug
+ )
+ 
+-// A Writer must be initialized with a call to Init. The first parameter (output)
++// A [Writer] must be initialized with a call to Init. The first parameter (output)
+ // specifies the filter output. The remaining parameters control the formatting:
+ //
+ //	minwidth	minimal cell width including any padding
+@@ -480,8 +480,8 @@ func (b *Writer) handlePanic(err *error, op string) {
+ 	}
+ }
+ 
+-// Flush should be called after the last call to Write to ensure
+-// that any data buffered in the Writer is written to output. Any
++// Flush should be called after the last call to [Writer.Write] to ensure
++// that any data buffered in the [Writer] is written to output. Any
+ // incomplete escape sequence at the end is considered
+ // complete for formatting purposes.
+ func (b *Writer) Flush() error {
+@@ -593,7 +593,7 @@ func (b *Writer) Write(buf []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// NewWriter allocates and initializes a new tabwriter.Writer.
++// NewWriter allocates and initializes a new [Writer].
+ // The parameters are the same as for the Init function.
+ func NewWriter(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
+ 	return new(Writer).Init(output, minwidth, tabwidth, padding, padchar, flags)
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 2b778fff69..20d8f98f28 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -201,8 +201,8 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
+ // A template may be executed safely in parallel, although if parallel
+ // executions share a Writer the output may be interleaved.
+ //
+-// If data is a reflect.Value, the template applies to the concrete
+-// value that the reflect.Value holds, as in fmt.Print.
++// If data is a [reflect.Value], the template applies to the concrete
++// value that the reflect.Value holds, as in [fmt.Print].
+ func (t *Template) Execute(wr io.Writer, data any) error {
+ 	return t.execute(wr, data)
+ }
+@@ -228,7 +228,7 @@ func (t *Template) execute(wr io.Writer, data any) (err error) {
+ // DefinedTemplates returns a string listing the defined templates,
+ // prefixed by the string "; defined templates are: ". If there are none,
+ // it returns the empty string. For generating an error message here
+-// and in html/template.
++// and in [html/template].
+ func (t *Template) DefinedTemplates() string {
+ 	if t.common == nil {
+ 		return ""
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index a949f896fa..c9d5835bed 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -22,14 +22,14 @@ import (
+ // return value evaluates to non-nil during execution, execution terminates and
+ // Execute returns that error.
+ //
+-// Errors returned by Execute wrap the underlying error; call errors.As to
++// Errors returned by Execute wrap the underlying error; call [errors.As] to
+ // unwrap them.
+ //
+ // When template execution invokes a function with an argument list, that list
+ // must be assignable to the function's parameter types. Functions meant to
+ // apply to arguments of arbitrary type can use parameters of type interface{} or
+-// of type reflect.Value. Similarly, functions meant to return a result of arbitrary
+-// type can return interface{} or reflect.Value.
++// of type [reflect.Value]. Similarly, functions meant to return a result of arbitrary
++// type can return interface{} or [reflect.Value].
+ type FuncMap map[string]any
+ 
+ // builtins returns the FuncMap.
+diff --git a/src/text/template/helper.go b/src/text/template/helper.go
+index 48af3928b3..06e7a92798 100644
+--- a/src/text/template/helper.go
++++ b/src/text/template/helper.go
+@@ -28,7 +28,7 @@ func Must(t *Template, err error) *Template {
+ 	return t
+ }
+ 
+-// ParseFiles creates a new Template and parses the template definitions from
++// ParseFiles creates a new [Template] and parses the template definitions from
+ // the named files. The returned template's name will have the base name and
+ // parsed contents of the first file. There must be at least one file.
+ // If an error occurs, parsing stops and the returned *Template is nil.
+@@ -93,12 +93,12 @@ func parseFiles(t *Template, readFile func(string) (string, []byte, error), file
+ 	return t, nil
+ }
+ 
+-// ParseGlob creates a new Template and parses the template definitions from
++// ParseGlob creates a new [Template] and parses the template definitions from
+ // the files identified by the pattern. The files are matched according to the
+ // semantics of filepath.Match, and the pattern must match at least one file.
+ // The returned template will have the (base) name and (parsed) contents of the
+ // first file matched by the pattern. ParseGlob is equivalent to calling
+-// ParseFiles with the list of files matched by the pattern.
++// [ParseFiles] with the list of files matched by the pattern.
+ //
+ // When parsing multiple files with the same name in different directories,
+ // the last one mentioned will be the one that results.
+@@ -131,7 +131,7 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
+ 	return parseFiles(t, readFileOS, filenames...)
+ }
+ 
+-// ParseFS is like ParseFiles or ParseGlob but reads from the file system fsys
++// ParseFS is like [Template.ParseFiles] or [Template.ParseGlob] but reads from the file system fsys
+ // instead of the host operating system's file system.
+ // It accepts a list of glob patterns.
+ // (Note that most file names serve as glob patterns matching only themselves.)
+@@ -139,7 +139,7 @@ func ParseFS(fsys fs.FS, patterns ...string) (*Template, error) {
+ 	return parseFS(nil, fsys, patterns)
+ }
+ 
+-// ParseFS is like ParseFiles or ParseGlob but reads from the file system fsys
++// ParseFS is like [Template.ParseFiles] or [Template.ParseGlob] but reads from the file system fsys
+ // instead of the host operating system's file system.
+ // It accepts a list of glob patterns.
+ // (Note that most file names serve as glob patterns matching only themselves.)
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index c36688825c..23ba9aec2b 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -346,12 +346,12 @@ type IdentifierNode struct {
+ 	Ident string // The identifier's name.
+ }
+ 
+-// NewIdentifier returns a new IdentifierNode with the given identifier name.
++// NewIdentifier returns a new [IdentifierNode] with the given identifier name.
+ func NewIdentifier(ident string) *IdentifierNode {
+ 	return &IdentifierNode{NodeType: NodeIdentifier, Ident: ident}
+ }
+ 
+-// SetPos sets the position. NewIdentifier is a public method so we can't modify its signature.
++// SetPos sets the position. [NewIdentifier] is a public method so we can't modify its signature.
+ // Chained for convenience.
+ // TODO: fix one day?
+ func (i *IdentifierNode) SetPos(pos Pos) *IdentifierNode {
+@@ -359,7 +359,7 @@ func (i *IdentifierNode) SetPos(pos Pos) *IdentifierNode {
+ 	return i
+ }
+ 
+-// SetTree sets the parent tree for the node. NewIdentifier is a public method so we can't modify its signature.
++// SetTree sets the parent tree for the node. [NewIdentifier] is a public method so we can't modify its signature.
+ // Chained for convenience.
+ // TODO: fix one day?
+ func (i *IdentifierNode) SetTree(t *Tree) *IdentifierNode {
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index b768dd4985..27c84f31eb 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -42,7 +42,7 @@ const (
+ 	SkipFuncCheck                  // do not check that functions are defined
+ )
+ 
+-// Copy returns a copy of the Tree. Any parsing state is discarded.
++// Copy returns a copy of the [Tree]. Any parsing state is discarded.
+ func (t *Tree) Copy() *Tree {
+ 	if t == nil {
+ 		return nil
+@@ -55,7 +55,7 @@ func (t *Tree) Copy() *Tree {
+ 	}
+ }
+ 
+-// Parse returns a map from template name to parse.Tree, created by parsing the
++// Parse returns a map from template name to [Tree], created by parsing the
+ // templates described in the argument string. The top-level template will be
+ // given the specified name. If an error is encountered, parsing stops and an
+ // empty map is returned with the error.
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 776be9cd07..86fd3f122a 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -24,7 +24,7 @@ type common struct {
+ }
+ 
+ // Template is the representation of a parsed template. The *parse.Tree
+-// field is exported only for use by html/template and should be treated
++// field is exported only for use by [html/template] and should be treated
+ // as unexported by all other clients.
+ type Template struct {
+ 	name string
+@@ -79,7 +79,7 @@ func (t *Template) init() {
+ 
+ // Clone returns a duplicate of the template, including all associated
+ // templates. The actual representation is not copied, but the name space of
+-// associated templates is, so further calls to Parse in the copy will add
++// associated templates is, so further calls to [Template.Parse] in the copy will add
+ // templates to the copy but not to the original. Clone can be used to prepare
+ // common templates and use them with variant definitions for other templates
+ // by adding the variants after the clone is made.
+@@ -157,7 +157,7 @@ func (t *Template) Templates() []*Template {
+ }
+ 
+ // Delims sets the action delimiters to the specified strings, to be used in
+-// subsequent calls to Parse, ParseFiles, or ParseGlob. Nested template
++// subsequent calls to [Template.Parse], [Template.ParseFiles], or [Template.ParseGlob]. Nested template
+ // definitions will inherit the settings. An empty delimiter stands for the
+ // corresponding default: {{ or }}.
+ // The return value is the template, so calls can be chained.

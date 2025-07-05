@@ -10,6 +10,20 @@ Date:   Mon May 21 00:13:22 2012 +1000
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/6223051
-
+---
  src/pkg/syscall/syscall_netbsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_netbsd.go b/src/pkg/syscall/syscall_netbsd.go
+index 3f6d16f569..d36aa0c528 100644
+--- a/src/pkg/syscall/syscall_netbsd.go
++++ b/src/pkg/syscall/syscall_netbsd.go
+@@ -22,7 +22,7 @@ type SockaddrDatalink struct {
+ 	Nlen   uint8
+ 	Alen   uint8
+ 	Slen   uint8
+-	Data   [24]int8
++	Data   [12]int8
+ 	raw    RawSockaddrDatalink
+ }
+ 

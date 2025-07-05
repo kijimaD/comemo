@@ -8,6 +8,23 @@ Date:   Thu Sep 25 10:52:02 2014 -0700
     R=golang-codereviews, bradfitz, josharian, rsc, adg
     CC=golang-codereviews
     https://golang.org/cl/141340043
-
+---
  src/time/time.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 4f76d79ee5..0300e846a4 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -31,6 +31,11 @@ import "errors"
+ // change the instant in time being denoted and therefore does not affect the
+ // computations described in earlier paragraphs.
+ //
++// Note that the Go == operator compares not just the time instant but also the
++// Location. Therefore, Time values should not be used as map or database keys
++// without first guaranteeing that the identical Location has been set for all
++// values, which can be achieved through use of the UTC or Local method.
++//
+ type Time struct {
+ 	// sec gives the number of seconds elapsed since
+ 	// January 1, year 1 00:00:00 UTC.

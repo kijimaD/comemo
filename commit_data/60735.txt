@@ -36,7 +36,7 @@ Date:   Wed Aug 21 09:30:14 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/62384.txt                               |  4 +++
  doc/next/6-stdlib/99-minor/crypto/x509/62384.md  |  2 ++
  doc/next/6-stdlib/99-minor/math/rand/v2/62384.md |  1 +
@@ -47,3 +47,277 @@ Date:   Wed Aug 21 09:30:14 2024 +0000
  src/math/rand/v2/pcg.go                          | 18 ++++++-----
  src/math/rand/v2/pcg_test.go                     | 13 ++++++--
  9 files changed, 116 insertions(+), 20 deletions(-)
+
+diff --git a/api/next/62384.txt b/api/next/62384.txt
+index 0c6053d2a0..3a50a2792a 100644
+--- a/api/next/62384.txt
++++ b/api/next/62384.txt
+@@ -11,3 +11,7 @@ pkg math/big, method (*Rat) AppendText([]uint8) ([]uint8, error) #62384
+ pkg regexp, method (*Regexp) AppendText([]uint8) ([]uint8, error) #62384
+ pkg time, method (Time) AppendBinary([]uint8) ([]uint8, error) #62384
+ pkg time, method (Time) AppendText([]uint8) ([]uint8, error) #62384
++pkg math/rand/v2, method (*ChaCha8) AppendBinary([]uint8) ([]uint8, error) #62384
++pkg math/rand/v2, method (*PCG) AppendBinary([]uint8) ([]uint8, error) #62384
++pkg crypto/x509, method (OID) AppendBinary([]uint8) ([]uint8, error) #62384
++pkg crypto/x509, method (OID) AppendText([]uint8) ([]uint8, error) #62384
+diff --git a/doc/next/6-stdlib/99-minor/crypto/x509/62384.md b/doc/next/6-stdlib/99-minor/crypto/x509/62384.md
+new file mode 100644
+index 0000000000..a8c6a29d9a
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/x509/62384.md
+@@ -0,0 +1,2 @@
++[OID] now implements the [encoding.BinaryAppender] and [encoding.TextAppender]
++interfaces.
+diff --git a/doc/next/6-stdlib/99-minor/math/rand/v2/62384.md b/doc/next/6-stdlib/99-minor/math/rand/v2/62384.md
+new file mode 100644
+index 0000000000..04dcb8b88a
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/math/rand/v2/62384.md
+@@ -0,0 +1 @@
++[ChaCha8] and [PCG] now implement the [encoding.BinaryAppender] interface.
+diff --git a/src/crypto/x509/oid.go b/src/crypto/x509/oid.go
+index fd438eacf9..b1464346b6 100644
+--- a/src/crypto/x509/oid.go
++++ b/src/crypto/x509/oid.go
+@@ -112,9 +112,14 @@ func appendBase128BigInt(dst []byte, n *big.Int) []byte {
+ 	return dst
+ }
+ 
++// AppendText implements [encoding.TextAppender]
++func (o OID) AppendText(b []byte) ([]byte, error) {
++	return append(b, o.String()...), nil
++}
++
+ // MarshalText implements [encoding.TextMarshaler]
+ func (o OID) MarshalText() ([]byte, error) {
+-	return []byte(o.String()), nil
++	return o.AppendText(nil)
+ }
+ 
+ // UnmarshalText implements [encoding.TextUnmarshaler]
+@@ -180,9 +185,14 @@ func (o *OID) unmarshalOIDText(oid string) error {
+ 	return nil
+ }
+ 
++// AppendBinary implements [encoding.BinaryAppender]
++func (o OID) AppendBinary(b []byte) ([]byte, error) {
++	return append(b, o.der...), nil
++}
++
+ // MarshalBinary implements [encoding.BinaryMarshaler]
+ func (o OID) MarshalBinary() ([]byte, error) {
+-	return bytes.Clone(o.der), nil
++	return o.AppendBinary(nil)
+ }
+ 
+ // UnmarshalBinary implements [encoding.BinaryUnmarshaler]
+diff --git a/src/crypto/x509/oid_test.go b/src/crypto/x509/oid_test.go
+index 4d5803d427..0b60895a12 100644
+--- a/src/crypto/x509/oid_test.go
++++ b/src/crypto/x509/oid_test.go
+@@ -228,6 +228,14 @@ func TestOIDMarshal(t *testing.T) {
+ 			continue
+ 		}
+ 
++		textAppend := make([]byte, 4)
++		textAppend, err = o.AppendText(textAppend)
++		textAppend = textAppend[4:]
++		if string(textAppend) != tt.in || err != nil {
++			t.Errorf("(%#v).AppendText() = (%v, %v); want = (%v, nil)", o, string(textAppend), err, tt.in)
++			continue
++		}
++
+ 		binary, err := o.MarshalBinary()
+ 		if err != nil {
+ 			t.Errorf("(%#v).MarshalBinary() = %v; want = nil", o, err)
+@@ -242,6 +250,23 @@ func TestOIDMarshal(t *testing.T) {
+ 			t.Errorf("(*OID).UnmarshalBinary(%v) = %v; want = %v", binary, o3, tt.out)
+ 			continue
+ 		}
++
++		binaryAppend := make([]byte, 4)
++		binaryAppend, err = o.AppendBinary(binaryAppend)
++		binaryAppend = binaryAppend[4:]
++		if err != nil {
++			t.Errorf("(%#v).AppendBinary() = %v; want = nil", o, err)
++		}
++
++		var o4 OID
++		if err := o4.UnmarshalBinary(binaryAppend); err != nil {
++			t.Errorf("(*OID).UnmarshalBinary(%v) = %v; want = nil", binaryAppend, err)
++		}
++
++		if !o4.Equal(tt.out) {
++			t.Errorf("(*OID).UnmarshalBinary(%v) = %v; want = %v", binaryAppend, o4, tt.out)
++			continue
++		}
+ 	}
+ }
+ 
+diff --git a/src/math/rand/v2/chacha8.go b/src/math/rand/v2/chacha8.go
+index f9eaacf601..b06d66ffa2 100644
+--- a/src/math/rand/v2/chacha8.go
++++ b/src/math/rand/v2/chacha8.go
+@@ -70,7 +70,7 @@ func (c *ChaCha8) Read(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
++// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+ func (c *ChaCha8) UnmarshalBinary(data []byte) error {
+ 	data, ok := cutPrefix(data, []byte("readbuf:"))
+ 	if ok {
+@@ -98,13 +98,18 @@ func readUint8LengthPrefixed(b []byte) (buf, rest []byte, ok bool) {
+ 	return b[1 : 1+b[0]], b[1+b[0]:], true
+ }
+ 
+-// MarshalBinary implements the encoding.BinaryMarshaler interface.
+-func (c *ChaCha8) MarshalBinary() ([]byte, error) {
++// AppendBinary implements the [encoding.BinaryAppender] interface.
++func (c *ChaCha8) AppendBinary(b []byte) ([]byte, error) {
+ 	if c.readLen > 0 {
+-		out := []byte("readbuf:")
+-		out = append(out, uint8(c.readLen))
+-		out = append(out, c.readBuf[len(c.readBuf)-c.readLen:]...)
+-		return append(out, chacha8rand.Marshal(&c.state)...), nil
++		b = append(b, "readbuf:"...)
++		b = append(b, uint8(c.readLen))
++		b = append(b, c.readBuf[len(c.readBuf)-c.readLen:]...)
+ 	}
+-	return chacha8rand.Marshal(&c.state), nil
++	return append(b, chacha8rand.Marshal(&c.state)...), nil
++}
++
++// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
++func (c *ChaCha8) MarshalBinary() ([]byte, error) {
++	// the maximum length of (chacha8rand.Marshal + c.readBuf + "readbuf:") is 64
++	return c.AppendBinary(make([]byte, 0, 64))
+ }
+diff --git a/src/math/rand/v2/chacha8_test.go b/src/math/rand/v2/chacha8_test.go
+index 50e83ea19a..ba11b7cc45 100644
+--- a/src/math/rand/v2/chacha8_test.go
++++ b/src/math/rand/v2/chacha8_test.go
+@@ -98,6 +98,22 @@ func TestChaCha8Read(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkChaCha8MarshalBinary(b *testing.B) {
++	p := NewChaCha8(chacha8seed)
++	for range b.N {
++		p.MarshalBinary()
++	}
++}
++
++func BenchmarkChaCha8MarshalBinaryRead(b *testing.B) {
++	p := NewChaCha8(chacha8seed)
++	buf := make([]byte, 1)
++	for range b.N {
++		p.MarshalBinary()
++		p.Read(buf)
++	}
++}
++
+ func TestChaCha8Marshal(t *testing.T) {
+ 	p := NewChaCha8(chacha8seed)
+ 	for i, x := range chacha8output {
+@@ -108,6 +124,17 @@ func TestChaCha8Marshal(t *testing.T) {
+ 		if string(enc) != chacha8marshal[i] {
+ 			t.Errorf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshal[i])
+ 		}
++
++		b := make([]byte, 4, 32)
++		b, err = p.AppendBinary(b)
++		encAppend := b[4:]
++		if err != nil {
++			t.Fatalf("#%d: AppendBinary: %v", i, err)
++		}
++		if string(encAppend) != chacha8marshal[i] {
++			t.Errorf("#%d: AppendBinary=%q, want %q", i, encAppend, chacha8marshal[i])
++		}
++
+ 		*p = ChaCha8{}
+ 		if err := p.UnmarshalBinary(enc); err != nil {
+ 			t.Fatalf("#%d: UnmarshalBinary: %v", i, err)
+@@ -128,6 +155,17 @@ func TestChaCha8MarshalRead(t *testing.T) {
+ 		if string(enc) != chacha8marshalread[i] {
+ 			t.Errorf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshalread[i])
+ 		}
++
++		b := make([]byte, 4, 32)
++		b, err = p.AppendBinary(b)
++		encAppend := b[4:]
++		if err != nil {
++			t.Fatalf("#%d: AppendBinary: %v", i, err)
++		}
++		if string(encAppend) != chacha8marshalread[i] {
++			t.Errorf("#%d: AppendBinary=%q, want %q", i, encAppend, chacha8marshalread[i])
++		}
++
+ 		*p = ChaCha8{}
+ 		if err := p.UnmarshalBinary(enc); err != nil {
+ 			t.Fatalf("#%d: UnmarshalBinary: %v", i, err)
+diff --git a/src/math/rand/v2/pcg.go b/src/math/rand/v2/pcg.go
+index 4ccd5e320b..a70efe8e55 100644
+--- a/src/math/rand/v2/pcg.go
++++ b/src/math/rand/v2/pcg.go
+@@ -31,18 +31,22 @@ func (p *PCG) Seed(seed1, seed2 uint64) {
+ 	p.lo = seed2
+ }
+ 
+-// MarshalBinary implements the encoding.BinaryMarshaler interface.
+-func (p *PCG) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 20)
+-	copy(b, "pcg:")
+-	byteorder.BePutUint64(b[4:], p.hi)
+-	byteorder.BePutUint64(b[4+8:], p.lo)
++// AppendBinary implements the [encoding.BinaryAppender] interface.
++func (p *PCG) AppendBinary(b []byte) ([]byte, error) {
++	b = append(b, "pcg:"...)
++	b = byteorder.BeAppendUint64(b, p.hi)
++	b = byteorder.BeAppendUint64(b, p.lo)
+ 	return b, nil
+ }
+ 
++// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
++func (p *PCG) MarshalBinary() ([]byte, error) {
++	return p.AppendBinary(make([]byte, 0, 20))
++}
++
+ var errUnmarshalPCG = errors.New("invalid PCG encoding")
+ 
+-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
++// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+ func (p *PCG) UnmarshalBinary(data []byte) error {
+ 	if len(data) != 20 || string(data[:4]) != "pcg:" {
+ 		return errUnmarshalPCG
+diff --git a/src/math/rand/v2/pcg_test.go b/src/math/rand/v2/pcg_test.go
+index db866c8c85..6558dab77b 100644
+--- a/src/math/rand/v2/pcg_test.go
++++ b/src/math/rand/v2/pcg_test.go
+@@ -21,9 +21,10 @@ func BenchmarkPCG_DXSM(b *testing.B) {
+ func TestPCGMarshal(t *testing.T) {
+ 	var p PCG
+ 	const (
+-		seed1 = 0x123456789abcdef0
+-		seed2 = 0xfedcba9876543210
+-		want  = "pcg:\x12\x34\x56\x78\x9a\xbc\xde\xf0\xfe\xdc\xba\x98\x76\x54\x32\x10"
++		seed1      = 0x123456789abcdef0
++		seed2      = 0xfedcba9876543210
++		want       = "pcg:\x12\x34\x56\x78\x9a\xbc\xde\xf0\xfe\xdc\xba\x98\x76\x54\x32\x10"
++		wantAppend = "\x00\x00\x00\x00" + want
+ 	)
+ 	p.Seed(seed1, seed2)
+ 	data, err := p.MarshalBinary()
+@@ -31,6 +32,12 @@ func TestPCGMarshal(t *testing.T) {
+ 		t.Errorf("MarshalBinary() = %q, %v, want %q, nil", data, err, want)
+ 	}
+ 
++	dataAppend := make([]byte, 4, 32)
++	dataAppend, err = p.AppendBinary(dataAppend)
++	if string(dataAppend) != wantAppend || err != nil {
++		t.Errorf("AppendBinary() = %q, %v, want %q, nil", dataAppend, err, wantAppend)
++	}
++
+ 	q := PCG{}
+ 	if err := q.UnmarshalBinary([]byte(want)); err != nil {
+ 		t.Fatalf("UnmarshalBinary(): %v", err)

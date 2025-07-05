@@ -12,6 +12,22 @@ Date:   Thu Mar 29 11:26:27 2018 -0700
     Change-Id: Ibe5385acafe4eac38823de98a025cd37f7a77d3b
     Reviewed-on: https://go-review.googlesource.com/103399
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 98d78f0c82..a4a93e7878 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3472,6 +3472,10 @@ func dolockOSThread() {
+ // If the calling goroutine exits without unlocking the thread,
+ // the thread will be terminated.
+ //
++// All init functions are run on the startup thread. Calling LockOSThread
++// from an init function will cause the main function to be invoked on
++// that thread.
++//
+ // A goroutine should call LockOSThread before calling OS services or
+ // non-Go library functions that depend on per-thread state.
+ func LockOSThread() {

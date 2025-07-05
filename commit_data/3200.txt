@@ -8,8 +8,268 @@ Date:   Thu Sep 3 09:58:13 2009 -0700
     DELTA=217  (216 added, 0 deleted, 1 changed)
     OCL=34279
     CL=34306
-
+---
  src/cmd/godoc/Makefile |   1 +
  src/cmd/godoc/godoc.go |  16 +++-
  src/cmd/godoc/spec.go  | 201 +++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 217 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index a534e09596..00463a5ea5 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -7,5 +7,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ TARG=godoc
+ GOFILES=\
+ 	godoc.go\
++	spec.go\
+ 
+ include $(GOROOT)/src/Make.cmd
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index c8d4941f71..d3a4bc342c 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -52,7 +52,10 @@ import (
+ )
+ 
+ 
+-const Pkg = "/pkg/"	// name for auto-generated package documentation tree
++const (
++	Pkg = "/pkg/";	// name for auto-generated package documentation tree
++	Spec = "/doc/go_spec.html";
++)
+ 
+ 
+ type delayTime struct {
+@@ -399,6 +402,16 @@ func serveGoSource(c *http.Conn, name string) {
+ }
+ 
+ 
++func serveGoSpec(c *http.Conn, r *http.Request) {
++	src, err := io.ReadFile(pathutil.Join(goroot, Spec));
++	if err != nil {
++		http.NotFound(c, r);
++		return;
++	}
++	linkify(c, src);
++}
++
++
+ var fileServer = http.FileServer(".", "");
+ 
+ func serveFile(c *http.Conn, req *http.Request) {
+@@ -654,6 +667,7 @@ func main() {
+ 			handler = loggingHandler(handler);
+ 		}
+ 
++		http.Handle(Spec, http.HandlerFunc(serveGoSpec));
+ 		http.Handle(Pkg, http.HandlerFunc(servePkg));
+ 		if *syncCmd != "" {
+ 			http.Handle("/debug/sync", http.HandlerFunc(dosync));
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+new file mode 100644
+index 0000000000..39c00a8f71
+--- /dev/null
++++ b/src/cmd/godoc/spec.go
+@@ -0,0 +1,201 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains the mechanism to "linkify" html source
++// text containing EBNF sections (as found in go_spec.html).
++// The result is the input source text with the EBNF sections
++// modified such that identifiers are linked to the respective
++// definitions.
++
++package main
++
++import (
++	"bytes";
++	"fmt";
++	"go/scanner";
++	"go/token";
++	"io";
++	"strings";
++)
++
++
++type ebnfParser struct {
++	out io.Writer;  // parser output
++	src []byte;  // parser source
++	scanner scanner.Scanner;
++	prev int;  // offset of previous token
++	pos token.Position;  // token position
++	tok token.Token;  // one token look-ahead
++	lit []byte;  // token literal
++}
++
++
++func (p *ebnfParser) flush() {
++	p.out.Write(p.src[p.prev : p.pos.Offset]);
++	p.prev = p.pos.Offset;
++}
++
++
++func (p *ebnfParser) next() {
++	p.flush();
++	p.pos, p.tok, p.lit = p.scanner.Scan();
++	if p.tok.IsKeyword() {
++		// TODO Should keyword mapping always happen outside scanner?
++		//      Or should there be a flag to scanner to enable keyword mapping?
++		p.tok = token.IDENT;
++	}
++}
++
++
++func (p *ebnfParser) Error (pos token.Position, msg string) {
++	fmt.Fprintf(p.out, "<font color=red>error: %s</font>", msg);
++}
++
++
++func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
++	msg = "expected " + msg;
++	if pos.Offset == p.pos.Offset {
++		// the error happened at the current position;
++		// make the error message more specific
++		msg += ", found '" + p.tok.String() + "'";
++		if p.tok.IsLiteral() {
++			msg += " " + string(p.lit);
++		}
++	}
++	p.Error(pos, msg);
++}
++
++
++func (p *ebnfParser) expect(tok token.Token) token.Position {
++	pos := p.pos;
++	if p.tok != tok {
++		p.errorExpected(pos, "'" + tok.String() + "'");
++	}
++	p.next();  // make progress in any case
++	return pos;
++}
++
++
++func (p *ebnfParser) parseIdentifier(def bool) {
++	name := string(p.lit);
++	p.expect(token.IDENT);
++	if def {
++		fmt.Fprintf(p.out, `<a id="%s">%s</a>`, name, name);
++	} else {
++		fmt.Fprintf(p.out, `<a href="#%s" style="text-decoration: none;">%s</a>`, name, name);
++	}
++	p.prev += len(name);  // skip identifier when calling flush
++}
++
++
++func (p *ebnfParser) parseTerm() bool {
++	switch p.tok {
++	case token.IDENT:
++		p.parseIdentifier(false);
++
++	case token.STRING:
++		p.next();
++		if p.tok == token.ELLIPSIS {
++			p.next();
++			p.expect(token.STRING);
++		}
++
++	case token.LPAREN:
++		p.next();
++		p.parseExpression();
++		p.expect(token.RPAREN);
++
++	case token.LBRACK:
++		p.next();
++		p.parseExpression();
++		p.expect(token.RBRACK);
++
++	case token.LBRACE:
++		p.next();
++		p.parseExpression();
++		p.expect(token.RBRACE);
++
++	default:
++		return false;
++	}
++
++	return true;
++}
++
++
++func (p *ebnfParser) parseSequence() {
++	for p.parseTerm() {
++	}
++}
++
++
++func (p *ebnfParser) parseExpression() {
++	for {
++		p.parseSequence();
++		if p.tok != token.OR {
++			break;
++		}
++		p.next();
++	}
++}
++
++
++func (p *ebnfParser) parseProduction() {
++	p.parseIdentifier(true);
++	p.expect(token.ASSIGN);
++	p.parseExpression();
++	p.expect(token.PERIOD);
++}
++
++
++func (p *ebnfParser) parse(out io.Writer, src []byte) {
++	// initialize ebnfParser
++	p.out = out;
++	p.src = src;
++	p.scanner.Init("", src, p, 0);
++	p.next();  // initializes pos, tok, lit
++
++	// process source
++	for p.tok != token.EOF {
++		p.parseProduction();
++	}
++	p.flush();
++}
++
++
++// Markers around EBNF sections
++var (
++	open = strings.Bytes(`<pre class="ebnf">`);
++	close = strings.Bytes(`</pre>`);
++)
++
++
++func linkify(out io.Writer, src []byte) {
++	for len(src) > 0 {
++		n := len(src);
++
++		// i: beginning of EBNF text (or end of source)
++		i := bytes.Index(src, open);
++		if i < 0 {
++			i = n-len(open);
++		}
++		i += len(open);
++
++		// j: end of EBNF text (or end of source)
++		j := bytes.Index(src[i : n], close);  // close marker
++		if j < 0 {
++			j = n-i;
++		}
++		j += i;
++
++		// write text before EBNF
++		out.Write(src[0 : i]);
++		// parse and write EBNF
++		var p ebnfParser;
++		p.parse(out, src[i : j]);
++
++		// advance
++		src = src[j : n];
++	}
++}

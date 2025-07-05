@@ -7,6 +7,19 @@ Date:   Fri Feb 3 17:36:48 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5631044
-
+---
  test/fixedbugs/bug405.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug405.go b/test/fixedbugs/bug405.go
+index 36e8013ea5..dcca000449 100644
+--- a/test/fixedbugs/bug405.go
++++ b/test/fixedbugs/bug405.go
+@@ -1,6 +1,6 @@
+ // $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 

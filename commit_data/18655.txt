@@ -8,8 +8,47 @@ Date:   Wed Feb 26 10:20:49 2014 +0900
     R=golang-codereviews, iant, aram, dave
     CC=golang-codereviews
     https://golang.org/cl/68770044
-
+---
  src/pkg/net/file_test.go  | 2 +-
  src/pkg/net/file_unix.go  | 1 -
  src/pkg/net/ipraw_test.go | 2 +-
  3 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/file_test.go b/src/pkg/net/file_test.go
+index 09d1f4dcc0..d81bca7824 100644
+--- a/src/pkg/net/file_test.go
++++ b/src/pkg/net/file_test.go
+@@ -181,7 +181,7 @@ var filePacketConnTests = []struct {
+ 
+ func TestFilePacketConn(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows", "nacl":
++	case "nacl", "plan9", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+diff --git a/src/pkg/net/file_unix.go b/src/pkg/net/file_unix.go
+index c674b9b320..07b3ecf626 100644
+--- a/src/pkg/net/file_unix.go
++++ b/src/pkg/net/file_unix.go
+@@ -24,7 +24,6 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 
+ 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+ 	if err != nil {
+-		println("getsockopt failed", fd, err.Error())
+ 		closesocket(fd)
+ 		return nil, os.NewSyscallError("getsockopt", err)
+ 	}
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 51a1b2c2fe..0632dafc65 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -247,7 +247,7 @@ var ipConnLocalNameTests = []struct {
+ 
+ func TestIPConnLocalName(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows", "nacl":
++	case "nacl", "plan9", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	default:
+ 		if os.Getuid() != 0 {

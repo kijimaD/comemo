@@ -35,7 +35,7 @@ Date:   Tue Sep 26 12:35:54 2017 +1000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/runtime/os_plan9.go                 |  2 +-
  src/runtime/runtime.go                  |  6 ++++++
  src/runtime/syscall_windows.go          |  6 ------
@@ -83,3 +83,788 @@ Date:   Tue Sep 26 12:35:54 2017 +1000
  src/syscall/zsyscall_openbsd_arm.go     |  7 -------
  src/syscall/zsyscall_solaris_amd64.go   |  8 --------
  46 files changed, 9 insertions(+), 264 deletions(-)
+
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 45e881aa41..0b01297471 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -393,7 +393,7 @@ func postnote(pid uint64, msg []byte) int {
+ }
+ 
+ //go:nosplit
+-func exit(e int) {
++func exit(e int32) {
+ 	var status []byte
+ 	if e == 0 {
+ 		status = emptystatus
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index d8fe2f451f..33ecc260dd 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -57,3 +57,9 @@ func syscall_Getpagesize() int { return int(physPageSize) }
+ 
+ //go:linkname os_runtime_args os.runtime_args
+ func os_runtime_args() []string { return append([]string{}, argslice...) }
++
++//go:linkname syscall_Exit syscall.Exit
++//go:nosplit
++func syscall_Exit(code int) {
++	exit(int32(code))
++}
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index f170bc3f8f..134d4dbd99 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -223,9 +223,3 @@ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
+ 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+ 	return c.r1, c.r2, c.err
+ }
+-
+-//go:linkname syscall_exit syscall.Exit
+-//go:nosplit
+-func syscall_exit(code int) {
+-	exit(int32(code))
+-}
+diff --git a/src/syscall/asm_plan9_386.s b/src/syscall/asm_plan9_386.s
+index c6ec2a987c..2e7db8c410 100644
+--- a/src/syscall/asm_plan9_386.s
++++ b/src/syscall/asm_plan9_386.s
+@@ -152,12 +152,3 @@ copyresult6:
+ 	MOVSL
+ 	MOVSL
+ 	RET
+-
+-//func exit(code int)
+-// Import runtime·exit for cleanly exiting.
+-TEXT ·exit(SB),NOSPLIT,$4-4
+-	NO_LOCAL_POINTERS
+-	MOVL	code+0(FP), AX
+-	MOVL	AX, 0(SP)
+-	CALL	runtime·exit(SB)
+-	RET
+diff --git a/src/syscall/asm_plan9_amd64.s b/src/syscall/asm_plan9_amd64.s
+index da77ec4e1c..da93afabc1 100644
+--- a/src/syscall/asm_plan9_amd64.s
++++ b/src/syscall/asm_plan9_amd64.s
+@@ -150,12 +150,3 @@ copyresult6:
+ 	MOVSQ
+ 	MOVSQ
+ 	RET
+-
+-//func exit(code int)
+-// Import runtime·exit for cleanly exiting.
+-TEXT ·exit(SB),NOSPLIT,$8-8
+-	NO_LOCAL_POINTERS
+-	MOVQ	code+0(FP), AX
+-	MOVQ	AX, 0(SP)
+-	CALL	runtime·exit(SB)
+-	RET
+diff --git a/src/syscall/asm_plan9_arm.s b/src/syscall/asm_plan9_arm.s
+index 7ffd4dc761..4972597c40 100644
+--- a/src/syscall/asm_plan9_arm.s
++++ b/src/syscall/asm_plan9_arm.s
+@@ -88,12 +88,3 @@ TEXT ·seek(SB),NOSPLIT,$0-36
+ 	MOVW	$err+28(FP), R1
+ 	BL		sysresult<>(SB)
+ 	RET
+-
+-//func exit(code int)
+-// Import runtime·exit for cleanly exiting.
+-TEXT ·exit(SB),NOSPLIT,$4-4
+-	NO_LOCAL_POINTERS
+-	MOVW	code+0(FP), R0
+-	MOVW	R0, e-4(SP)
+-	BL		runtime·exit(SB)
+-	RET
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 7db994bf08..1340f2aa00 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -96,6 +96,7 @@ func (tv *Timeval) Nano() int64 {
+ 	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1000
+ }
+ 
+-// Getpagesize is provided by the runtime.
++// Getpagesize and Exit are provided by the runtime.
+ 
+ func Getpagesize() int
++func Exit(code int)
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 236ba3ddc0..9845effb26 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -213,7 +213,6 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys	Dup(fd int) (nfd int, err error)
+ //sys	Dup2(from int, to int) (err error)
+ //sys	Exchangedata(path1 string, path2 string, options int) (err error)
+-//sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 7383ed0bc1..766d005bd3 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -138,7 +138,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	Close(fd int) (err error)
+ //sys	Dup(fd int) (nfd int, err error)
+ //sys	Dup2(from int, to int) (err error)
+-//sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 59bf5706fd..85790b31d2 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -147,7 +147,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	Close(fd int) (err error)
+ //sys	Dup(fd int) (nfd int, err error)
+ //sys	Dup2(from int, to int) (err error)
+-//sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index b42a8c1ba4..008ccb3762 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -823,7 +823,6 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ //sysnb	EpollCreate1(flag int) (fd int, err error)
+ //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+-//sys	Exit(code int) = SYS_EXIT_GROUP
+ //sys	Faccessat(dirfd int, path string, mode uint32, flags int) (err error)
+ //sys	Fallocate(fd int, mode uint32, off int64, len int64) (err error)
+ //sys	Fchdir(fd int) (err error)
+diff --git a/src/syscall/syscall_nacl.go b/src/syscall/syscall_nacl.go
+index 3247505288..1102cd66e3 100644
+--- a/src/syscall/syscall_nacl.go
++++ b/src/syscall/syscall_nacl.go
+@@ -10,7 +10,6 @@ import (
+ )
+ 
+ //sys	naclClose(fd int) (err error) = sys_close
+-//sys	Exit(code int) (err error)
+ //sys	naclFstat(fd int, stat *Stat_t) (err error) = sys_fstat
+ //sys	naclRead(fd int, b []byte) (n int, err error) = sys_read
+ //sys	naclSeek(fd int, off *int64, whence int) (err error) = sys_lseek
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index cf28fcc210..21af0fa0de 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -134,7 +134,6 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sys	Close(fd int) (err error)
+ //sys	Dup(fd int) (nfd int, err error)
+ //sys	Dup2(from int, to int) (err error)
+-//sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index edc1026c59..7ac8b2d040 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -112,7 +112,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	Close(fd int) (err error)
+ //sys	Dup(fd int) (nfd int, err error)
+ //sys	Dup2(from int, to int) (err error)
+-//sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index 7d1576dc34..12b61ee164 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -85,11 +85,6 @@ func errstr() string {
+ 	return cstring(buf[:])
+ }
+ 
+-// Implemented in assembly to import from runtime.
+-func exit(code int)
+-
+-func Exit(code int) { exit(code) }
+-
+ func readnum(path string) (uint, error) {
+ 	var b [12]byte
+ 
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index b71cdcfdd7..73ac12759c 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -436,7 +436,6 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error)
+ //sys	Chroot(path string) (err error)
+ //sys	Close(fd int) (err error)
+ //sys	Dup(fd int) (nfd int, err error)
+-//sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 4619ce2a2b..cf27de30f5 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -236,9 +236,6 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ 
+ // syscall interface implementation for other packages
+ 
+-// Implemented in ../runtime/syscall_windows.go.
+-func Exit(code int)
+-
+ func makeInheritSa() *SecurityAttributes {
+ 	var sa SecurityAttributes
+ 	sa.Length = uint32(unsafe.Sizeof(sa))
+diff --git a/src/syscall/zsyscall_darwin_386.go b/src/syscall/zsyscall_darwin_386.go
+index 200407e82a..fe9129a491 100644
+--- a/src/syscall/zsyscall_darwin_386.go
++++ b/src/syscall/zsyscall_darwin_386.go
+@@ -444,13 +444,6 @@ func Exchangedata(path1 string, path2 string, options int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index 1303f62226..3a08ad3e37 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -444,13 +444,6 @@ func Exchangedata(path1 string, path2 string, options int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_arm.go b/src/syscall/zsyscall_darwin_arm.go
+index 8b63729d6e..c845cfa67f 100644
+--- a/src/syscall/zsyscall_darwin_arm.go
++++ b/src/syscall/zsyscall_darwin_arm.go
+@@ -444,13 +444,6 @@ func Exchangedata(path1 string, path2 string, options int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_arm64.go b/src/syscall/zsyscall_darwin_arm64.go
+index 73a834c717..66ffa33631 100644
+--- a/src/syscall/zsyscall_darwin_arm64.go
++++ b/src/syscall/zsyscall_darwin_arm64.go
+@@ -444,13 +444,6 @@ func Exchangedata(path1 string, path2 string, options int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_dragonfly_amd64.go b/src/syscall/zsyscall_dragonfly_amd64.go
+index c19b065a69..5eca951d04 100644
+--- a/src/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/syscall/zsyscall_dragonfly_amd64.go
+@@ -438,13 +438,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index 24240779cc..e1d371423c 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -414,13 +414,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index 3b01001537..561870ccce 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -414,13 +414,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index 2a65f54506..cefebb9417 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -414,13 +414,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 58d7ffc89e..8955fca336 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index dd48398d68..34cbed812c 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index f96759a748..c9fa1c86e2 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index 6fadf5f474..c3c94ebba6 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index 9b169f0fd2..5aa984d780 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index 809b0e7c94..223591dcf0 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index c0560b4806..eee62ff2cd 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index 6fd4618fe5..07825a3b80 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 374d01137f..56fb3b8d93 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 125180e2ef..d08279f4fb 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index e46837631b..e8f1a70b43 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -356,13 +356,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT_GROUP, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_nacl_386.go b/src/syscall/zsyscall_nacl_386.go
+index b66ec69d54..1feab5702f 100644
+--- a/src/syscall/zsyscall_nacl_386.go
++++ b/src/syscall/zsyscall_nacl_386.go
+@@ -19,16 +19,6 @@ func naclClose(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) (err error) {
+-	_, _, e1 := Syscall(sys_exit, uintptr(code), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func naclFstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := Syscall(sys_fstat, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_nacl_amd64p32.go b/src/syscall/zsyscall_nacl_amd64p32.go
+index e74931b543..880fa45d1d 100644
+--- a/src/syscall/zsyscall_nacl_amd64p32.go
++++ b/src/syscall/zsyscall_nacl_amd64p32.go
+@@ -19,16 +19,6 @@ func naclClose(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) (err error) {
+-	_, _, e1 := Syscall(sys_exit, uintptr(code), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func naclFstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := Syscall(sys_fstat, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_nacl_arm.go b/src/syscall/zsyscall_nacl_arm.go
+index 4a1ca3891f..4c852c531a 100644
+--- a/src/syscall/zsyscall_nacl_arm.go
++++ b/src/syscall/zsyscall_nacl_arm.go
+@@ -19,16 +19,6 @@ func naclClose(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) (err error) {
+-	_, _, e1 := Syscall(sys_exit, uintptr(code), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func naclFstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := Syscall(sys_fstat, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index d7ecd57141..b6313d5e97 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -421,13 +421,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index 75ded311a7..3455828e46 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -421,13 +421,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index 6333790cbc..438cfdb619 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -421,13 +421,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index afcaf23f85..af97f3a561 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -419,13 +419,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index fa4e19b22c..728ad6be98 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -419,13 +419,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index 0b842d9c61..9998a83d12 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -419,13 +419,6 @@ func Dup2(from int, to int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Exit(code int) {
+-	Syscall(SYS_EXIT, uintptr(code), 0, 0)
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_solaris_amd64.go b/src/syscall/zsyscall_solaris_amd64.go
+index c9a5e8a4dd..4bb8318158 100644
+--- a/src/syscall/zsyscall_solaris_amd64.go
++++ b/src/syscall/zsyscall_solaris_amd64.go
+@@ -21,7 +21,6 @@ import "unsafe"
+ //go:cgo_import_dynamic libc_Chroot chroot "libc.so"
+ //go:cgo_import_dynamic libc_Close close "libc.so"
+ //go:cgo_import_dynamic libc_Dup dup "libc.so"
+-//go:cgo_import_dynamic libc_Exit exit "libc.so"
+ //go:cgo_import_dynamic libc_Fchdir fchdir "libc.so"
+ //go:cgo_import_dynamic libc_Fchmod fchmod "libc.so"
+ //go:cgo_import_dynamic libc_Fchown fchown "libc.so"
+@@ -106,7 +105,6 @@ import "unsafe"
+ //go:linkname libc_Chroot libc_Chroot
+ //go:linkname libc_Close libc_Close
+ //go:linkname libc_Dup libc_Dup
+-//go:linkname libc_Exit libc_Exit
+ //go:linkname libc_Fchdir libc_Fchdir
+ //go:linkname libc_Fchmod libc_Fchmod
+ //go:linkname libc_Fchown libc_Fchown
+@@ -194,7 +192,6 @@ var (
+ 	libc_Chroot,
+ 	libc_Close,
+ 	libc_Dup,
+-	libc_Exit,
+ 	libc_Fchdir,
+ 	libc_Fchmod,
+ 	libc_Fchown,
+@@ -413,11 +410,6 @@ func Dup(fd int) (nfd int, err error) {
+ 	return
+ }
+ 
+-func Exit(code int) {
+-	sysvicall6(uintptr(unsafe.Pointer(&libc_Exit)), 1, uintptr(code), 0, 0, 0, 0, 0)
+-	return
+-}
+-
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Fchdir)), 1, uintptr(fd), 0, 0, 0, 0, 0)
+ 	if e1 != 0 {

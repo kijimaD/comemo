@@ -13,7 +13,35 @@ Date:   Fri May 10 11:13:06 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_windows.go       | 3 ++-
  src/runtime/sys_windows_amd64.s | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 4d051a246a..074ae0f40d 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -135,7 +135,8 @@ var (
+ // to start new os thread.
+ func tstart_stdcall(newm *m)
+ 
+-func ctrlhandler(_type uint32)
++// Called by OS using stdcall ABI.
++func ctrlhandler()
+ 
+ type mOS struct {
+ 	waitsema uintptr // semaphore for parking on locks
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 39ebe1bdf9..2aea8eaff7 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -211,7 +211,7 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+ 	JMP	sigtramp<>(SB)
+ 
+ TEXT runtime·ctrlhandler(SB),NOSPLIT|NOFRAME,$8
+-	MOVQ	CX, _type+16(SP)		// spill
++	MOVQ	CX, 16(SP)		// spill
+ 	MOVQ	$runtime·ctrlhandler1(SB), CX
+ 	MOVQ	CX, 0(SP)
+ 	CALL	runtime·externalthreadhandler(SB)

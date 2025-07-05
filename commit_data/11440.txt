@@ -7,6 +7,26 @@ Date:   Fri Jan 27 16:11:17 2012 -0500
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5586044
-
+---
  src/pkg/reflect/type.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 15b32efe37..0acee9e434 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -789,6 +789,14 @@ func (t *structType) Field(i int) (f StructField) {
+ 		f.Tag = StructTag(*p.tag)
+ 	}
+ 	f.Offset = p.offset
++
++	// NOTE(rsc): This is the only allocation in the interface
++	// presented by a reflect.Type.  It would be nice to avoid,
++	// at least in the common cases, but we need to make sure
++	// that misbehaving clients of reflect cannot affect other
++	// uses of reflect.  One possibility is CL 5371098, but we
++	// postponed that ugliness until there is a demonstrated
++	// need for the performance.  This is issue 2320.
+ 	f.Index = []int{i}
+ 	return
+ }

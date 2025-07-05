@@ -35,9 +35,80 @@ Date:   Mon Oct 18 23:07:59 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/356709
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go      | 2 +-
  src/runtime/mgcpacer.go | 2 +-
  src/runtime/mgcsweep.go | 6 +++---
  src/runtime/mheap.go    | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 34b5b482a3..654fa4118a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1457,7 +1457,7 @@ func gcSweep(mode gcMode) {
+ 	lock(&mheap_.lock)
+ 	mheap_.sweepgen += 2
+ 	mheap_.sweepDrained = 0
+-	mheap_.pagesSwept = 0
++	mheap_.pagesSwept.Store(0)
+ 	mheap_.sweepArenas = mheap_.allArenas
+ 	mheap_.reclaimIndex = 0
+ 	mheap_.reclaimCredit = 0
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 3cd4ea2fde..f858ab08d0 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -751,7 +751,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
+ 			// Avoid setting the sweep ratio extremely high
+ 			heapDistance = _PageSize
+ 		}
+-		pagesSwept := atomic.Load64(&mheap_.pagesSwept)
++		pagesSwept := mheap_.pagesSwept.Load()
+ 		pagesInUse := mheap_.pagesInUse.Load()
+ 		sweepDistancePages := int64(pagesInUse) - int64(pagesSwept)
+ 		if sweepDistancePages <= 0 {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 1812644623..78d1f33925 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -245,7 +245,7 @@ func (l *sweepLocker) dispose() {
+ 
+ func (l *sweepLocker) sweepIsDone() {
+ 	if debug.gcpacertrace > 0 {
+-		print("pacer: sweep done at heap size ", gcController.heapLive>>20, "MB; allocated ", (gcController.heapLive-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
++		print("pacer: sweep done at heap size ", gcController.heapLive>>20, "MB; allocated ", (gcController.heapLive-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept.Load(), " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
+ 	}
+ }
+ 
+@@ -408,7 +408,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 		traceGCSweepSpan(s.npages * _PageSize)
+ 	}
+ 
+-	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
++	mheap_.pagesSwept.Add(int64(s.npages))
+ 
+ 	spc := s.spanclass
+ 	size := s.elemsize
+@@ -724,7 +724,7 @@ retry:
+ 	// Fix debt if necessary.
+ 	newHeapLive := uintptr(atomic.Load64(&gcController.heapLive)-mheap_.sweepHeapLiveBasis) + spanBytes
+ 	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
+-	for pagesTarget > int64(atomic.Load64(&mheap_.pagesSwept)-sweptBasis) {
++	for pagesTarget > int64(mheap_.pagesSwept.Load()-sweptBasis) {
+ 		if sweepone() == ^uintptr(0) {
+ 			mheap_.sweepPagesPerByte = 0
+ 			break
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index a787f67460..27f60771eb 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -103,7 +103,7 @@ type mheap struct {
+ 	// the slope, it would create a discontinuity in debt if any
+ 	// progress has already been made.
+ 	pagesInUse         atomic.Uint64 // pages of spans in stats mSpanInUse
+-	pagesSwept         uint64        // pages swept this cycle; updated atomically
++	pagesSwept         atomic.Uint64 // pages swept this cycle
+ 	pagesSweptBasis    uint64        // pagesSwept to use as the origin of the sweep ratio; updated atomically
+ 	sweepHeapLiveBasis uint64        // value of gcController.heapLive to use as the origin of sweep ratio; written with lock, read without
+ 	sweepPagesPerByte  float64       // proportional sweep ratio; written with lock, read without

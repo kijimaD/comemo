@@ -16,6 +16,16 @@ Date:   Tue Oct 27 11:40:00 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/265697
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/gccgosizes.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/gccgosizes.go b/src/cmd/compile/internal/types2/gccgosizes.go
+index d3c79745a2..05aba53472 100644
+--- a/src/cmd/compile/internal/types2/gccgosizes.go
++++ b/src/cmd/compile/internal/types2/gccgosizes.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

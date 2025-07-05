@@ -16,7 +16,185 @@ Date:   Sat Apr 29 23:25:34 2017 +0200
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/common.go   | 20 +++++++++-----------
  src/archive/tar/tar_test.go | 26 +++++++++++++-------------
  2 files changed, 22 insertions(+), 24 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index d2ae66d554..d49c5c3fd9 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -158,11 +158,15 @@ func (fi headerFileInfo) Mode() (mode os.FileMode) {
+ // sysStat, if non-nil, populates h from system-dependent fields of fi.
+ var sysStat func(fi os.FileInfo, h *Header) error
+ 
+-// Mode constants from the tar spec.
+ const (
+-	c_ISUID  = 04000   // Set uid
+-	c_ISGID  = 02000   // Set gid
+-	c_ISVTX  = 01000   // Save text (sticky bit)
++	// Mode constants from the USTAR spec:
++	// See http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
++	c_ISUID = 04000 // Set uid
++	c_ISGID = 02000 // Set gid
++	c_ISVTX = 01000 // Save text (sticky bit)
++
++	// Common Unix mode constants; these are not defined in any common tar standard.
++	// Header.FileInfo understands these, but FileInfoHeader will never produce these.
+ 	c_ISDIR  = 040000  // Directory
+ 	c_ISFIFO = 010000  // FIFO
+ 	c_ISREG  = 0100000 // Regular file
+@@ -208,30 +212,24 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 	}
+ 	switch {
+ 	case fm.IsRegular():
+-		h.Mode |= c_ISREG
+ 		h.Typeflag = TypeReg
+ 		h.Size = fi.Size()
+ 	case fi.IsDir():
+ 		h.Typeflag = TypeDir
+-		h.Mode |= c_ISDIR
+ 		h.Name += "/"
+ 	case fm&os.ModeSymlink != 0:
+ 		h.Typeflag = TypeSymlink
+-		h.Mode |= c_ISLNK
+ 		h.Linkname = link
+ 	case fm&os.ModeDevice != 0:
+ 		if fm&os.ModeCharDevice != 0 {
+-			h.Mode |= c_ISCHR
+ 			h.Typeflag = TypeChar
+ 		} else {
+-			h.Mode |= c_ISBLK
+ 			h.Typeflag = TypeBlock
+ 		}
+ 	case fm&os.ModeNamedPipe != 0:
+ 		h.Typeflag = TypeFifo
+-		h.Mode |= c_ISFIFO
+ 	case fm&os.ModeSocket != 0:
+-		h.Mode |= c_ISSOCK
++		return nil, fmt.Errorf("archive/tar: sockets not supported")
+ 	default:
+ 		return nil, fmt.Errorf("archive/tar: unknown file mode %v", fm)
+ 	}
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 1cb7ec2525..fb7a9dcfc4 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -29,7 +29,7 @@ func TestFileInfoHeader(t *testing.T) {
+ 	if g, e := h.Name, "small.txt"; g != e {
+ 		t.Errorf("Name = %q; want %q", g, e)
+ 	}
+-	if g, e := h.Mode, int64(fi.Mode().Perm())|c_ISREG; g != e {
++	if g, e := h.Mode, int64(fi.Mode().Perm()); g != e {
+ 		t.Errorf("Mode = %#o; want %#o", g, e)
+ 	}
+ 	if g, e := h.Size, int64(5); g != e {
+@@ -57,7 +57,7 @@ func TestFileInfoHeaderDir(t *testing.T) {
+ 		t.Errorf("Name = %q; want %q", g, e)
+ 	}
+ 	// Ignoring c_ISGID for golang.org/issue/4867
+-	if g, e := h.Mode&^c_ISGID, int64(fi.Mode().Perm())|c_ISDIR; g != e {
++	if g, e := h.Mode&^c_ISGID, int64(fi.Mode().Perm()); g != e {
+ 		t.Errorf("Mode = %#o; want %#o", g, e)
+ 	}
+ 	if g, e := h.Size, int64(0); g != e {
+@@ -157,7 +157,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// regular file.
+ 		h: &Header{
+ 			Name:     "test.txt",
+-			Mode:     0644 | c_ISREG,
++			Mode:     0644,
+ 			Size:     12,
+ 			ModTime:  time.Unix(1360600916, 0),
+ 			Typeflag: TypeReg,
+@@ -167,7 +167,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// symbolic link.
+ 		h: &Header{
+ 			Name:     "link.txt",
+-			Mode:     0777 | c_ISLNK,
++			Mode:     0777,
+ 			Size:     0,
+ 			ModTime:  time.Unix(1360600852, 0),
+ 			Typeflag: TypeSymlink,
+@@ -177,7 +177,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// character device node.
+ 		h: &Header{
+ 			Name:     "dev/null",
+-			Mode:     0666 | c_ISCHR,
++			Mode:     0666,
+ 			Size:     0,
+ 			ModTime:  time.Unix(1360578951, 0),
+ 			Typeflag: TypeChar,
+@@ -187,7 +187,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// block device node.
+ 		h: &Header{
+ 			Name:     "dev/sda",
+-			Mode:     0660 | c_ISBLK,
++			Mode:     0660,
+ 			Size:     0,
+ 			ModTime:  time.Unix(1360578954, 0),
+ 			Typeflag: TypeBlock,
+@@ -197,7 +197,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// directory.
+ 		h: &Header{
+ 			Name:     "dir/",
+-			Mode:     0755 | c_ISDIR,
++			Mode:     0755,
+ 			Size:     0,
+ 			ModTime:  time.Unix(1360601116, 0),
+ 			Typeflag: TypeDir,
+@@ -207,7 +207,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// fifo node.
+ 		h: &Header{
+ 			Name:     "dev/initctl",
+-			Mode:     0600 | c_ISFIFO,
++			Mode:     0600,
+ 			Size:     0,
+ 			ModTime:  time.Unix(1360578949, 0),
+ 			Typeflag: TypeFifo,
+@@ -217,7 +217,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// setuid.
+ 		h: &Header{
+ 			Name:     "bin/su",
+-			Mode:     0755 | c_ISREG | c_ISUID,
++			Mode:     0755 | c_ISUID,
+ 			Size:     23232,
+ 			ModTime:  time.Unix(1355405093, 0),
+ 			Typeflag: TypeReg,
+@@ -227,7 +227,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// setguid.
+ 		h: &Header{
+ 			Name:     "group.txt",
+-			Mode:     0750 | c_ISREG | c_ISGID,
++			Mode:     0750 | c_ISGID,
+ 			Size:     0,
+ 			ModTime:  time.Unix(1360602346, 0),
+ 			Typeflag: TypeReg,
+@@ -237,7 +237,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// sticky.
+ 		h: &Header{
+ 			Name:     "sticky.txt",
+-			Mode:     0600 | c_ISREG | c_ISVTX,
++			Mode:     0600 | c_ISVTX,
+ 			Size:     7,
+ 			ModTime:  time.Unix(1360602540, 0),
+ 			Typeflag: TypeReg,
+@@ -247,7 +247,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// hard link.
+ 		h: &Header{
+ 			Name:     "hard.txt",
+-			Mode:     0644 | c_ISREG,
++			Mode:     0644,
+ 			Size:     0,
+ 			Linkname: "file.txt",
+ 			ModTime:  time.Unix(1360600916, 0),
+@@ -258,7 +258,7 @@ func TestHeaderRoundTrip(t *testing.T) {
+ 		// More information.
+ 		h: &Header{
+ 			Name:     "info.txt",
+-			Mode:     0600 | c_ISREG,
++			Mode:     0600,
+ 			Size:     0,
+ 			Uid:      1000,
+ 			Gid:      1000,

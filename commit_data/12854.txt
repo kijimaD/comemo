@@ -7,6 +7,20 @@ Date:   Tue Apr 10 01:50:46 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5989065
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index babe5d7774..8cb257a59f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2396,7 +2396,7 @@ type T2 struct {
+ 
+ func (recv *T2) M2()
+ 
+-var p *T2  // with p != nil and p.T1 != nil
++var p *T2  // with p != nil and p.T0 != nil
+ </pre>
+ 
+ <p>

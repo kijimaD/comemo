@@ -17,9 +17,76 @@ Date:   Fri Apr 5 18:22:10 2024 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go.mod                |  2 +-
  src/go.sum                |  4 ++--
  src/net/http/h2_bundle.go | 15 ++++++++++++++-
  src/vendor/modules.txt    |  2 +-
  4 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 862e7803b4..f7c8f6fad0 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.23
+ 
+ require (
+ 	golang.org/x/crypto v0.22.0
+-	golang.org/x/net v0.24.1-0.20240405150138-b67a0f053553
++	golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index fef068762a..d6799d4b3f 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.22.0 h1:g1v0xeRhjcugydODzvb3mEM9SQ0HGp9s/nh3COQ/C30=
+ golang.org/x/crypto v0.22.0/go.mod h1:vr6Su+7cTlO45qkww3VDJlzDn0ctJvRgYbC2NvXHt+M=
+-golang.org/x/net v0.24.1-0.20240405150138-b67a0f053553 h1:SY0JWjR8cbNiMj6BwFjzJIzYd/8cIgfg1cbdMpm8g38=
+-golang.org/x/net v0.24.1-0.20240405150138-b67a0f053553/go.mod h1:2Q7sJY5mzlzWjKtYUEXSlBWCdyaioyXzRB2RtU8KVE8=
++golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114 h1:0+DQSN4OXt0ivfKIOXFQ+8vsRb1pNvvdl7DZ6AR07OQ=
++golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114/go.mod h1:2Q7sJY5mzlzWjKtYUEXSlBWCdyaioyXzRB2RtU8KVE8=
+ golang.org/x/sys v0.19.0 h1:q5f1RH2jigJ1MoAWp2KTp3gm5zAGFUTarQZ5U386+4o=
+ golang.org/x/sys v0.19.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 683d538dbc..5f97a27ac2 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -8338,7 +8338,20 @@ func (cc *http2ClientConn) setGoAway(f *http2GoAwayFrame) {
+ 	}
+ 	last := f.LastStreamID
+ 	for streamID, cs := range cc.streams {
+-		if streamID > last {
++		if streamID <= last {
++			// The server's GOAWAY indicates that it received this stream.
++			// It will either finish processing it, or close the connection
++			// without doing so. Either way, leave the stream alone for now.
++			continue
++		}
++		if streamID == 1 && cc.goAway.ErrCode != http2ErrCodeNo {
++			// Don't retry the first stream on a connection if we get a non-NO error.
++			// If the server is sending an error on a new connection,
++			// retrying the request on a new one probably isn't going to work.
++			cs.abortStreamLocked(fmt.Errorf("http2: Transport received GOAWAY from server ErrCode:%v", cc.goAway.ErrCode))
++		} else {
++			// Aborting the stream with errClentConnGotGoAway indicates that
++			// the request should be retried on a new connection.
+ 			cs.abortStreamLocked(http2errClientConnGotGoAway)
+ 		}
+ 	}
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index f8274732d3..19555379f6 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.24.1-0.20240405150138-b67a0f053553
++# golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

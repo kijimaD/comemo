@@ -15,8 +15,77 @@ Date:   Fri Apr 12 09:47:43 2019 -0400
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go      |  2 +-
  src/cmd/go/internal/modload/build.go | 24 +++++++++++++++++++++---
  src/cmd/go/internal/work/exec.go     |  2 +-
  3 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 27efc7c04a..daaa3ab0c1 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -40,7 +40,7 @@ var (
+ 	ModPackageModuleInfo func(path string) *modinfo.ModulePublic                                                  // return module info for Package struct
+ 	ModImportPaths       func(args []string) []*search.Match                                                      // expand import paths
+ 	ModPackageBuildInfo  func(main string, deps []string) string                                                  // return module info to embed in binary
+-	ModInfoProg          func(info string) []byte                                                                 // wrap module info in .go code for binary
++	ModInfoProg          func(info string, isgccgo bool) []byte                                                   // wrap module info in .go code for binary
+ 	ModImportFromFiles   func([]string)                                                                           // update go.mod to add modules for imports in these files
+ 	ModDirImportPath     func(string) string                                                                      // return effective import path for directory
+ )
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index ff42516c80..f8dc0c84ff 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -249,16 +249,34 @@ func findModule(target, path string) module.Version {
+ 	panic("unreachable")
+ }
+ 
+-func ModInfoProg(info string) []byte {
++func ModInfoProg(info string, isgccgo bool) []byte {
+ 	// Inject a variable with the debug information as runtime.modinfo,
+ 	// but compile it in package main so that it is specific to the binary.
+ 	// The variable must be a literal so that it will have the correct value
+ 	// before the initializer for package main runs.
+ 	//
+-	// The runtime startup code refers to the variable, which keeps it live in all binaries.
+-	return []byte(fmt.Sprintf(`package main
++	// The runtime startup code refers to the variable, which keeps it live
++	// in all binaries.
++	//
++	// Note: we use an alternate recipe below for gccgo (based on an
++	// init function) due to the fact that gccgo does not support
++	// applying a "//go:linkname" directive to a variable. This has
++	// drawbacks in that other packages may want to look at the module
++	// info in their init functions (see issue 29628), which won't
++	// work for gccgo. See also issue 30344.
++
++	if !isgccgo {
++		return []byte(fmt.Sprintf(`package main
+ import _ "unsafe"
+ //go:linkname __debug_modinfo__ runtime.modinfo
+ var __debug_modinfo__ = %q
+ 	`, string(infoStart)+info+string(infoEnd)))
++	} else {
++		return []byte(fmt.Sprintf(`package main
++import _ "unsafe"
++//go:linkname __set_debug_modinfo__ runtime..z2fdebug.setmodinfo
++func __set_debug_modinfo__(string)
++func init() { __set_debug_modinfo__(%q) }
++	`, string(infoStart)+info+string(infoEnd)))
++	}
+ }
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 626cacfe99..b75c61b6f2 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -663,7 +663,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 	}
+ 
+ 	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
+-		if err := b.writeFile(objdir+"_gomod_.go", load.ModInfoProg(p.Internal.BuildInfo)); err != nil {
++		if err := b.writeFile(objdir+"_gomod_.go", load.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")); err != nil {
+ 			return err
+ 		}
+ 		gofiles = append(gofiles, objdir+"_gomod_.go")

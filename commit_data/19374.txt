@@ -11,7 +11,46 @@ Date:   Thu May 15 15:18:05 2014 -0700
     R=golang-codereviews, bradfitz, iant, mikioh.mikioh, dominik.honnef
     CC=golang-codereviews
     https://golang.org/cl/94530043
-
+---
  src/pkg/archive/tar/reader.go      |  3 +++
  src/pkg/archive/tar/reader_test.go | 16 ++++++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index e6ac538aad..920a9b08f9 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -724,6 +724,9 @@ func (tr *Reader) numBytes() int64 {
+ // It returns 0, io.EOF when it reaches the end of that entry,
+ // until Next is called to advance to the next entry.
+ func (tr *Reader) Read(b []byte) (n int, err error) {
++	if tr.curr == nil {
++		return 0, io.EOF
++	}
+ 	n, err = tr.curr.Read(b)
+ 	if err != nil && err != io.EOF {
+ 		tr.err = err
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index ed058978cc..9601ffe459 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -725,3 +725,19 @@ func TestReadGNUSparseMap1x0(t *testing.T) {
+ 		t.Errorf("Incorrect sparse map: got %v, wanted %v", sp, expected)
+ 	}
+ }
++
++func TestUninitializedRead(t *testing.T) {
++	test := gnuTarTest
++	f, err := os.Open(test.file)
++	if err != nil {
++		t.Fatalf("Unexpected error: %v", err)
++	}
++	defer f.Close()
++
++	tr := NewReader(f)
++	_, err = tr.Read([]byte{})
++	if err == nil || err != io.EOF {
++		t.Errorf("Unexpected error: %v, wanted %v", err, io.EOF)
++	}
++
++}

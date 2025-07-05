@@ -7,6 +7,52 @@ Date:   Thu Apr 16 13:49:36 2015 -0400
     Change-Id: Ib227aa3e14d01a0ab1ad9e53d107858e045d1c42
     Reviewed-on: https://go-review.googlesource.com/8984
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/rt0_darwin_arm64.s | 34 ++++++++++++++++++++++++++++++++++
  1 file changed, 34 insertions(+)
+
+diff --git a/src/runtime/rt0_darwin_arm64.s b/src/runtime/rt0_darwin_arm64.s
+index c728859008..e4e4a30f46 100644
+--- a/src/runtime/rt0_darwin_arm64.s
++++ b/src/runtime/rt0_darwin_arm64.s
+@@ -11,6 +11,40 @@ TEXT _rt0_arm64_darwin(SB),NOSPLIT,$-8
+ 	MOVD	$1, R16	// SYS_exit
+ 	SVC	$0x80
+ 
++// When linking with -buildmode=c-archive or -buildmode=c-shared,
++// this symbol is called from a global initialization function.
++//
++// Note that all currently shipping darwin/arm64 platforms require
++// cgo and do not support c-shared.
++TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$0
++	// R27 is REGTMP, reserved for liblink. It is used below to
++	// move R0/R1 into globals. However in the standard ARM64 calling
++	// convention, it is a callee-saved register. So we save it to a
++	// temporary register.
++	MOVD  R27, R7
++
++	MOVD  R0, _rt0_arm64_darwin_lib_argc<>(SB)
++	MOVD  R1, _rt0_arm64_darwin_lib_argv<>(SB)
++	// Create a new thread to do the runtime initialization and return.
++	MOVD  _cgo_sys_thread_create(SB), R4
++	MOVD  $_rt0_arm64_darwin_lib_go(SB), R0
++	MOVD  $0, R1
++	BL    (R4)
++
++	MOVD  R7, R27
++	RET
++
++TEXT _rt0_arm64_darwin_lib_go(SB),NOSPLIT,$0
++	MOVD  _rt0_arm64_darwin_lib_argc<>(SB), R0
++	MOVD  _rt0_arm64_darwin_lib_argv<>(SB), R1
++	MOVD  $runtime·rt0_go(SB), R4
++	B     (R4)
++
++DATA  _rt0_arm64_darwin_lib_argc<>(SB)/8, $0
++GLOBL _rt0_arm64_darwin_lib_argc<>(SB),NOPTR, $8
++DATA  _rt0_arm64_darwin_lib_argv<>(SB)/8, $0
++GLOBL _rt0_arm64_darwin_lib_argv<>(SB),NOPTR, $8
++
+ TEXT main(SB),NOSPLIT,$-8
+ 	MOVD	$runtime·rt0_go(SB), R2
+ 	BL	(R2)

@@ -43,7 +43,7 @@ Date:   Wed Apr 2 16:49:27 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/83630044
-
+---
  src/cmd/gc/go.h            |   2 +-
  src/cmd/gc/md5.c           |   4 +-
  src/cmd/gc/md5.h           |   2 +-
@@ -59,3 +59,809 @@ Date:   Wed Apr 2 16:49:27 2014 -0400
  src/pkg/runtime/mgc0.c     |  26 ++---
  src/pkg/runtime/stack.c    |  10 +-
  14 files changed, 201 insertions(+), 181 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index bd2b38d88e..01dfe7fed7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1508,7 +1508,7 @@ void	gused(Node*);
+ void	movelarge(NodeList*);
+ int	isfat(Type*);
+ void	linkarchinit(void);
+-void	liveness(Node*, Prog*, Sym*, Sym*, Sym*);
++void	liveness(Node*, Prog*, Sym*, Sym*);
+ void	markautoused(Prog*);
+ Plist*	newplist(void);
+ Node*	nodarg(Type*, int);
+diff --git a/src/cmd/gc/md5.c b/src/cmd/gc/md5.c
+index bbd4e298f0..0051ac964e 100644
+--- a/src/cmd/gc/md5.c
++++ b/src/cmd/gc/md5.c
+@@ -63,7 +63,7 @@ md5write(MD5 *d, uchar *p, int nn)
+ }
+ 
+ uint64
+-md5sum(MD5 *d)
++md5sum(MD5 *d, uint64 *hi)
+ {
+ 	uchar tmp[64];
+ 	int i;
+@@ -87,6 +87,8 @@ md5sum(MD5 *d)
+ 	if(d->nx != 0)
+ 		fatal("md5sum");
+ 
++	if(hi != nil)
++		*hi = d->s[2] | ((uint64)d->s[3]<<32);
+ 	return d->s[0] | ((uint64)d->s[1]<<32);
+ }
+ 
+diff --git a/src/cmd/gc/md5.h b/src/cmd/gc/md5.h
+index f153e30f22..5a60106b21 100644
+--- a/src/cmd/gc/md5.h
++++ b/src/cmd/gc/md5.h
+@@ -13,4 +13,4 @@ struct MD5
+ 
+ void md5reset(MD5*);
+ void md5write(MD5*, uchar*, int);
+-uint64 md5sum(MD5*);
++uint64 md5sum(MD5*, uint64*);
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index fec4aa5f14..2c986bb94c 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -8,6 +8,7 @@
+ 
+ #include	<u.h>
+ #include	<libc.h>
++#include	"md5.h"
+ #include	"gg.h"
+ #include	"opt.h"
+ #include	"../../pkg/runtime/funcdata.h"
+@@ -130,6 +131,23 @@ removevardef(Prog *firstp)
+ 	}
+ }
+ 
++static void
++gcsymdup(Sym *s)
++{
++	LSym *ls;
++	uint64 lo, hi;
++	
++	ls = linksym(s);
++	if(ls->nr > 0)
++		fatal("cannot rosymdup %s with relocations", ls->name);
++	MD5 d;
++	md5reset(&d);
++	md5write(&d, ls->p, ls->np);
++	lo = md5sum(&d, &hi);
++	ls->name = smprint("gclocals·%016llux%016llux", lo, hi);
++	ls->dupok = 1;
++}
++
+ void
+ compile(Node *fn)
+ {
+@@ -143,7 +161,6 @@ compile(Node *fn)
+ 	NodeList *l;
+ 	Sym *gcargs;
+ 	Sym *gclocals;
+-	Sym *gcdead;
+ 
+ 	if(newproc == N) {
+ 		newproc = sysfunc("newproc");
+@@ -227,15 +244,6 @@ compile(Node *fn)
+ 
+ 	gcargs = makefuncdatasym("gcargs·%d", FUNCDATA_ArgsPointerMaps);
+ 	gclocals = makefuncdatasym("gclocals·%d", FUNCDATA_LocalsPointerMaps);
+-	// TODO(cshapiro): emit the dead value map when the garbage collector
+-	// pre-verification pass is checked in.  It is otherwise harmless to
+-	// emit this information if it is not used but it does cost RSS at
+-	// compile time.  At present, the amount of additional RSS is
+-	// substantial enough to affect our smallest build machines.
+-	if(0)
+-		gcdead = makefuncdatasym("gcdead·%d", FUNCDATA_DeadValueMaps);
+-	else
+-		gcdead = nil;
+ 
+ 	for(t=curfn->paramfld; t; t=t->down)
+ 		gtrack(tracksym(t->type));
+@@ -304,7 +312,9 @@ compile(Node *fn)
+ 	}
+ 
+ 	// Emit garbage collection symbols.
+-	liveness(curfn, ptxt, gcargs, gclocals, gcdead);
++	liveness(curfn, ptxt, gcargs, gclocals);
++	gcsymdup(gcargs);
++	gcsymdup(gclocals);
+ 
+ 	defframe(ptxt);
+ 
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 8423b833de..83bd0fc49d 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -119,11 +119,6 @@ struct Liveness {
+ 	// in the arguments and locals area, indexed by bb->rpo.
+ 	Array *argslivepointers;
+ 	Array *livepointers;
+-
+-	// An array with a bit vector for each safe point tracking dead values
+-	// pointers in the arguments and locals area, indexed by bb->rpo.
+-	Array *argsdeadvalues;
+-	Array *deadvalues;
+ };
+ 
+ static void*
+@@ -270,7 +265,7 @@ blockany(BasicBlock *bb, int (*callback)(Prog*))
+ // Collects and returns and array of Node*s for functions arguments and local
+ // variables.
+ static Array*
+-getvariables(Node *fn, int allvalues)
++getvariables(Node *fn)
+ {
+ 	Array *result;
+ 	NodeList *ll;
+@@ -282,7 +277,7 @@ getvariables(Node *fn, int allvalues)
+ 			case PAUTO:
+ 			case PPARAM:
+ 			case PPARAMOUT:
+-				if(haspointers(ll->n->type) || allvalues)
++				if(haspointers(ll->n->type))
+ 					arrayadd(result, &ll->n);
+ 				break;
+ 			}
+@@ -764,7 +759,7 @@ Next1:;
+ // liveness computation.  The cfg argument is an array of BasicBlock*s and the
+ // vars argument is an array of Node*s.
+ static Liveness*
+-newliveness(Node *fn, Prog *ptxt, Array *cfg, Array *vars, int computedead)
++newliveness(Node *fn, Prog *ptxt, Array *cfg, Array *vars)
+ {
+ 	Liveness *result;
+ 	int32 i;
+@@ -799,13 +794,6 @@ newliveness(Node *fn, Prog *ptxt, Array *cfg, Array *vars, int computedead)
+ 
+ 	result->livepointers = arraynew(0, sizeof(Bvec*));
+ 	result->argslivepointers = arraynew(0, sizeof(Bvec*));
+-	if(computedead) {
+-		result->deadvalues = arraynew(0, sizeof(Bvec*));
+-		result->argsdeadvalues = arraynew(0, sizeof(Bvec*));
+-	} else {
+-		result->deadvalues = nil;
+-		result->argsdeadvalues = nil;
+-	}
+ 	return result;
+ }
+ 
+@@ -826,16 +814,6 @@ freeliveness(Liveness *lv)
+ 		free(*(Bvec**)arrayget(lv->argslivepointers, i));
+ 	arrayfree(lv->argslivepointers);
+ 
+-	if(lv->deadvalues != nil) {
+-		for(i = 0; i < arraylength(lv->deadvalues); i++)
+-			free(*(Bvec**)arrayget(lv->deadvalues, i));
+-		arrayfree(lv->deadvalues);
+-	
+-		for(i = 0; i < arraylength(lv->argsdeadvalues); i++)
+-			free(*(Bvec**)arrayget(lv->argsdeadvalues, i));
+-		arrayfree(lv->argsdeadvalues);
+-	}
+-
+ 	for(i = 0; i < arraylength(lv->cfg); i++) {
+ 		free(lv->uevar[i]);
+ 		free(lv->varkill[i]);
+@@ -1218,54 +1196,6 @@ twobitlivepointermap(Liveness *lv, Bvec *liveout, Array *vars, Bvec *args, Bvec
+ 	}
+ }
+ 
+-
+-// Generates dead value maps for arguments and local variables.  Dead values of
+-// any type are tracked, not just pointers.  The this argument and the in
+-// arguments are never assumed dead.  The vars argument is an array of Node*s.
+-static void
+-twobitdeadvaluemap(Liveness *lv, Bvec *liveout, Array *vars, Bvec *args, Bvec *locals)
+-{
+-	Node *node;
+-	/*
+-	Type *thisargtype;
+-	Type *inargtype;
+-	*/
+-	vlong xoffset;
+-	int32 i;
+-
+-	for(i = 0; i < arraylength(vars); i++) {
+-		node = *(Node**)arrayget(vars, i);
+-		switch(node->class) {
+-		case PAUTO:
+-			if(!bvget(liveout, i)) {
+-				xoffset = node->xoffset + stkptrsize;
+-				twobitwalktype1(node->type, &xoffset, locals);
+-			}
+-			break;
+-		case PPARAM:
+-		case PPARAMOUT:
+-			if(!bvget(liveout, i)) {
+-				xoffset = node->xoffset;
+-				twobitwalktype1(node->type, &xoffset, args);
+-			}
+-			break;
+-		}
+-	}
+-	USED(lv);
+-	/*
+-	thisargtype = getinargx(lv->fn->type);
+-	if(thisargtype != nil) {
+-		xoffset = 0;
+-		twobitwalktype1(thisargtype, &xoffset, args);
+-	}
+-	inargtype = getinargx(lv->fn->type);
+-	if(inargtype != nil) {
+-		xoffset = 0;
+-		twobitwalktype1(inargtype, &xoffset, args);
+-	}
+-	*/
+-}
+-
+ // Construct a disembodied instruction.
+ static Prog*
+ unlinkedprog(int as)
+@@ -1574,14 +1504,6 @@ livenessepilogue(Liveness *lv)
+ 				// over the block (as this loop does), while the liveout
+ 				// requires walking backward (as the next loop does).
+ 				twobitlivepointermap(lv, any, lv->vars, args, locals);
+-	
+-				// Dead stuff second.
+-				if(lv->deadvalues != nil) {
+-					args = bvalloc(argswords() * BitsPerPointer);
+-					arrayadd(lv->argsdeadvalues, &args);
+-					locals = bvalloc(localswords() * BitsPerPointer);
+-					arrayadd(lv->deadvalues, &locals);
+-				}
+ 			}
+ 			
+ 			if(p == bb->last)
+@@ -1669,13 +1591,6 @@ livenessepilogue(Liveness *lv)
+ 						msg[--startmsg] = fmtstrflush(&fmt);
+ 				}
+ 
+-				// Record dead values.
+-				if(lv->deadvalues != nil) {
+-					args = *(Bvec**)arrayget(lv->argsdeadvalues, pos);
+-					locals = *(Bvec**)arrayget(lv->deadvalues, pos);
+-					twobitdeadvaluemap(lv, liveout, lv->vars, args, locals);
+-				}
+-
+ 				// Only CALL instructions need a PCDATA annotation.
+ 				// The TEXT instruction annotation is implicit.
+ 				if(p->as == ACALL) {
+@@ -1717,6 +1632,113 @@ livenessepilogue(Liveness *lv)
+ 	flusherrors();
+ }
+ 
++// FNV-1 hash function constants.
++#define H0 2166136261
++#define Hp 16777619
++
++static uint32
++hashbitmap(uint32 h, Bvec *bv)
++{
++	uchar *p, *ep;
++	
++	p = (uchar*)bv->b;
++	ep = p + 4*((bv->n+31)/32);
++	while(p < ep)
++		h = (h*Hp) ^ *p++;
++	return h;
++}
++
++// Compact liveness information by coalescing identical per-call-site bitmaps.
++// The merging only happens for a single function, not across the entire binary.
++//
++// There are actually two lists of bitmaps, one list for the local variables and one
++// list for the function arguments. Both lists are indexed by the same PCDATA
++// index, so the corresponding pairs must be considered together when
++// merging duplicates. The argument bitmaps change much less often during
++// function execution than the local variable bitmaps, so it is possible that
++// we could introduce a separate PCDATA index for arguments vs locals and
++// then compact the set of argument bitmaps separately from the set of
++// local variable bitmaps. As of 2014-04-02, doing this to the godoc binary
++// is actually a net loss: we save about 50k of argument bitmaps but the new
++// PCDATA tables cost about 100k. So for now we keep using a single index for
++// both bitmap lists.
++static void
++livenesscompact(Liveness *lv)
++{
++	int *table, *remap, i, j, n, tablesize, uniq;
++	uint32 h;
++	Bvec *local, *arg, *jlocal, *jarg;
++	Prog *p;
++
++	// Linear probing hash table of bitmaps seen so far.
++	// The hash table has 4n entries to keep the linear
++	// scan short. An entry of -1 indicates an empty slot.
++	n = arraylength(lv->livepointers);
++	tablesize = 4*n;
++	table = xmalloc(tablesize*sizeof table[0]);
++	memset(table, 0xff, tablesize*sizeof table[0]);
++	
++	// remap[i] = the new index of the old bit vector #i.
++	remap = xmalloc(n*sizeof remap[0]);
++	memset(remap, 0xff, n*sizeof remap[0]);
++	uniq = 0; // unique tables found so far
++
++	// Consider bit vectors in turn.
++	// If new, assign next number using uniq,
++	// record in remap, record in lv->livepointers and lv->argslivepointers
++	// under the new index, and add entry to hash table.
++	// If already seen, record earlier index in remap and free bitmaps.
++	for(i=0; i<n; i++) {
++		local = *(Bvec**)arrayget(lv->livepointers, i);
++		arg = *(Bvec**)arrayget(lv->argslivepointers, i);
++		h = hashbitmap(hashbitmap(H0, local), arg) % tablesize;
++
++		for(;;) {
++			j = table[h];
++			if(j < 0)
++				break;
++			jlocal = *(Bvec**)arrayget(lv->livepointers, j);
++			jarg = *(Bvec**)arrayget(lv->argslivepointers, j);
++			if(bvcmp(local, jlocal) == 0 && bvcmp(arg, jarg) == 0) {
++				free(local);
++				free(arg);
++				remap[i] = j;
++				goto Next;
++			}
++			if(++h == tablesize)
++				h = 0;
++		}
++		table[h] = uniq;
++		remap[i] = uniq;
++		*(Bvec**)arrayget(lv->livepointers, uniq) = local;
++		*(Bvec**)arrayget(lv->argslivepointers, uniq) = arg;
++		uniq++;
++	Next:;
++	}
++
++	// We've already reordered lv->livepointers[0:uniq]
++	// and lv->argslivepointers[0:uniq] and freed the bitmaps
++	// we don't need anymore. Clear the pointers later in the
++	// array so that we can tell where the coalesced bitmaps stop
++	// and so that we don't double-free when cleaning up.
++	for(j=uniq; j<n; j++) {
++		*(Bvec**)arrayget(lv->livepointers, j) = nil;
++		*(Bvec**)arrayget(lv->argslivepointers, j) = nil;
++	}
++	
++	// Rewrite PCDATA instructions to use new numbering.
++	for(p=lv->ptxt; p != P; p=p->link) {
++		if(p->as == APCDATA && p->from.offset == PCDATA_StackMapIndex) {
++			i = p->to.offset;
++			if(i >= 0)
++				p->to.offset = remap[i];
++		}
++	}
++
++	free(table);
++	free(remap);
++}
++
+ static int
+ printbitset(int printed, char *name, Array *vars, Bvec *bits)
+ {
+@@ -1843,44 +1865,28 @@ livenessprintdebug(Liveness *lv)
+ // words that are followed are the raw bitmap words.  The arr argument is an
+ // array of Node*s.
+ static void
+-twobitwritesymbol(Array *arr, Sym *sym, Bvec *check)
++twobitwritesymbol(Array *arr, Sym *sym)
+ {
+ 	Bvec *bv;
+-	int off, i, j, len, pos;
+-	uint32 bit, word, checkword;
++	int off, i, j, len;
++	uint32 word;
+ 
+ 	len = arraylength(arr);
+-	// Dump the length of the bitmap array.
+-	off = duint32(sym, 0, len);
++	off = 0;
++	off += 4; // number of bitmaps, to fill in later
++	bv = *(Bvec**)arrayget(arr, 0);
++	off = duint32(sym, off, bv->n); // number of bits in each bitmap
+ 	for(i = 0; i < len; i++) {
++		// bitmap words
+ 		bv = *(Bvec**)arrayget(arr, i);
+-		// If we have been provided a check bitmap we can use it
+-		// to confirm that the bitmap we are dumping is a subset
+-		// of the check bitmap.
+-		if(check != nil) {
+-			for(j = 0; j < bv->n; j += 32) {
+-				word = bv->b[j/32];
+-				checkword = check->b[j/32];
+-				if(word != checkword) {
+-					// Found a mismatched word; find the mismatched bit.
+-					for(pos = 0; pos < 32; pos++) {
+-						bit = 1 << pos;
+-						if((word & bit) && !(checkword & bit)) {
+-							print("twobitwritesymbol: expected %032b to be a subset of %032b\n", word, checkword);
+-							fatal("mismatch at bit position %d\n", pos);
+-						}
+-					}
+-				}
+-			}
+-		}
+-		// Dump the length of the bitmap.
+-		off = duint32(sym, off, bv->n);
+-		// Dump the words of the bitmap.
++		if(bv == nil)
++			break;
+ 		for(j = 0; j < bv->n; j += 32) {
+ 			word = bv->b[j/32];
+ 			off = duint32(sym, off, word);
+ 		}
+ 	}
++	duint32(sym, 0, i); // number of bitmaps
+ 	ggloblsym(sym, off, 0, 1);
+ }
+ 
+@@ -1897,7 +1903,7 @@ printprog(Prog *p)
+ // the liveness of pointer variables in the function, and emits a runtime data
+ // structure read by the garbage collector.
+ void
+-liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym, Sym *deadsym)
++liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym)
+ {
+ 	Array *cfg, *vars;
+ 	Liveness *lv;
+@@ -1919,8 +1925,8 @@ liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym, Sym *deadsym)
+ 	cfg = newcfg(firstp);
+ 	if(debuglive >= 3)
+ 		printcfg(cfg);
+-	vars = getvariables(fn, deadsym != nil);
+-	lv = newliveness(fn, firstp, cfg, vars, deadsym != nil);
++	vars = getvariables(fn);
++	lv = newliveness(fn, firstp, cfg, vars);
+ 
+ 	// Run the dataflow framework.
+ 	livenessprologue(lv);
+@@ -1930,17 +1936,16 @@ liveness(Node *fn, Prog *firstp, Sym *argssym, Sym *livesym, Sym *deadsym)
+ 	if(debuglive >= 3)
+ 		livenessprintcfg(lv);
+ 	livenessepilogue(lv);
+-	
++	if(debuglive >= 3)
++		livenessprintcfg(lv);
++	livenesscompact(lv);
++
+ 	if(debuglive >= 2)
+ 		livenessprintdebug(lv);
+ 
+ 	// Emit the live pointer map data structures
+-	twobitwritesymbol(lv->livepointers, livesym, nil);
+-	twobitwritesymbol(lv->argslivepointers, argssym, nil);
+-
+-	// Optionally emit a dead value map data structure for locals.
+-	if(deadsym != nil)
+-		twobitwritesymbol(lv->deadvalues, deadsym, nil);
++	twobitwritesymbol(lv->livepointers, livesym);
++	twobitwritesymbol(lv->argslivepointers, argssym);
+ 
+ 	// Free everything.
+ 	freeliveness(lv);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index feb3af702c..c7db5e8cd9 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1678,7 +1678,7 @@ typehash(Type *t)
+ 	md5reset(&d);
+ 	md5write(&d, (uchar*)p, strlen(p));
+ 	free(p);
+-	return md5sum(&d);
++	return md5sum(&d, nil);
+ }
+ 
+ Type*
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index d3c29a1415..b4551a0908 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -98,6 +98,7 @@ EXTERN	char*	paramspace;
+ EXTERN	int	nerrors;
+ 
+ EXTERN	int	linkmode;
++EXTERN	int64	liveness;
+ 
+ // for dynexport field of LSym
+ enum
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index b04f4cbab0..6bf2449f0c 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -189,6 +189,7 @@ main(int argc, char *argv[])
+ 		Bprint(&bso, "%d symbols\n", ctxt->nsymbol);
+ 		Bprint(&bso, "%d sizeof adr\n", sizeof(Addr));
+ 		Bprint(&bso, "%d sizeof prog\n", sizeof(Prog));
++		Bprint(&bso, "%lld liveness data\n", liveness);
+ 	}
+ 	Bflush(&bso);
+ 
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index c87d0f089c..1d55119935 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -429,6 +429,8 @@ symtab(void)
+ 			s->type = SGOFUNC;
+ 			s->hide = 1;
+ 			s->outer = symgofunc;
++			s->align = 4;
++			liveness += (s->size+s->align-1)&~(s->align-1);
+ 		}
+ 	}
+ }
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 52ec90d688..b602536251 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -485,7 +485,7 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 	static int ndup;
+ 	char *name;
+ 	Reloc *r;
+-	LSym *s;
++	LSym *s, *dup;
+ 	Pcln *pc;
+ 	Auto *a;
+ 	
+@@ -502,11 +502,14 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 	if(v != 0)
+ 		v = ctxt->version;
+ 	s = linklookup(ctxt, name, v);
++	dup = nil;
+ 	if(s->type != 0 && s->type != SXREF) {
+ 		if(s->type != SBSS && s->type != SNOPTRBSS && !dupok && !s->dupok)
+ 			sysfatal("duplicate symbol %s (types %d and %d) in %s and %s", s->name, s->type, t, s->file, pn);
+-		if(s->np > 0)
++		if(s->np > 0) {
++			dup = s;
+ 			s = linklookup(ctxt, ".dup", ndup++); // scratch
++		}
+ 	}
+ 	s->file = pkg;
+ 	s->dupok = dupok;
+@@ -537,6 +540,13 @@ readsym(Link *ctxt, Biobuf *f, char *pkg, char *pn)
+ 		}
+ 	}
+ 	
++	if(s->np > 0 && dup != nil && dup->np > 0 && strncmp(s->name, "gclocals·", 10) == 0) {
++		// content-addressed garbage collection liveness bitmap symbol.
++		// double check for hash collisions.
++		if(s->np != dup->np || memcmp(s->p, dup->p, s->np) != 0)
++			sysfatal("dupok hash collision for %s in %s and %s", s->name, s->file, pn);
++	}
++	
+ 	if(s->type == STEXT) {
+ 		s->args = rdint(f);
+ 		s->locals = rdint(f);
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index bc0fd49c0a..f9bc4e559f 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -244,7 +244,7 @@ struct ChildInfo {
+ 	// the layout of the outargs region.
+ 	uintptr argoff;     // where the arguments start in the frame
+ 	uintptr arglen;     // size of args region
+-	BitVector *args;    // if not nil, pointer map of args region
++	BitVector args;    // if args.n >= 0, pointer map of args region
+ 
+ 	byte *sp;           // callee sp
+ 	uintptr depth;      // depth in call stack (0 == most recent)
+@@ -301,7 +301,7 @@ dumpframe(Stkframe *s, void *arg)
+ 	int32 pcdata;
+ 	StackMap *stackmap;
+ 	int8 *name;
+-	BitVector *bv;
++	BitVector bv;
+ 
+ 	child = (ChildInfo*)arg;
+ 	f = s->fn;
+@@ -320,13 +320,13 @@ dumpframe(Stkframe *s, void *arg)
+ 	stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+ 
+ 	// Dump any types we will need to resolve Efaces.
+-	if(child->args != nil)
+-		dumpbvtypes(child->args, (byte*)s->sp + child->argoff);
++	if(child->args.n >= 0)
++		dumpbvtypes(&child->args, (byte*)s->sp + child->argoff);
+ 	if(stackmap != nil && stackmap->n > 0) {
+ 		bv = runtime·stackmapdata(stackmap, pcdata);
+-		dumpbvtypes(bv, s->varp - bv->n / BitsPerPointer * PtrSize);
++		dumpbvtypes(&bv, s->varp - bv.n / BitsPerPointer * PtrSize);
+ 	} else {
+-		bv = nil;
++		bv.n = -1;
+ 	}
+ 
+ 	// Dump main body of stack frame.
+@@ -343,8 +343,8 @@ dumpframe(Stkframe *s, void *arg)
+ 	dumpcstr(name);
+ 
+ 	// Dump fields in the outargs section
+-	if(child->args != nil) {
+-		dumpbv(child->args, child->argoff);
++	if(child->args.n >= 0) {
++		dumpbv(&child->args, child->argoff);
+ 	} else {
+ 		// conservative - everything might be a pointer
+ 		for(off = child->argoff; off < child->argoff + child->arglen; off += PtrSize) {
+@@ -370,7 +370,7 @@ dumpframe(Stkframe *s, void *arg)
+ 	} else if(stackmap->n > 0) {
+ 		// Locals bitmap information, scan just the pointers in
+ 		// locals.
+-		dumpbv(bv, s->varp - bv->n / BitsPerPointer * PtrSize - (byte*)s->sp);
++		dumpbv(&bv, s->varp - bv.n / BitsPerPointer * PtrSize - (byte*)s->sp);
+ 	}
+ 	dumpint(FieldKindEol);
+ 
+@@ -383,7 +383,7 @@ dumpframe(Stkframe *s, void *arg)
+ 	if(stackmap != nil)
+ 		child->args = runtime·stackmapdata(stackmap, pcdata);
+ 	else
+-		child->args = nil;
++		child->args.n = -1;
+ 	return true;
+ }
+ 
+@@ -421,7 +421,7 @@ dumpgoroutine(G *gp)
+ 	dumpint((uintptr)gp->panic);
+ 
+ 	// dump stack
+-	child.args = nil;
++	child.args.n = -1;
+ 	child.arglen = 0;
+ 	child.sp = nil;
+ 	child.depth = 0;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 4b9cbc9787..9d478f82c1 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -602,12 +602,13 @@ typedef struct BitVector BitVector;
+ struct BitVector
+ {
+ 	int32 n; // # of bits
+-	uint32 data[];
++	uint32 *data;
+ };
+ typedef struct StackMap StackMap;
+ struct StackMap
+ {
+-	int32 n;
++	int32 n; // number of bitmaps
++	int32 nbit; // number of bits in each bitmap
+ 	uint32 data[];
+ };
+ enum {
+@@ -626,7 +627,7 @@ enum {
+ };
+ // Returns pointer map data for the given stackmap index
+ // (the index is encoded in PCDATA_StackMapIndex).
+-BitVector*	runtime·stackmapdata(StackMap *stackmap, int32 n);
++BitVector	runtime·stackmapdata(StackMap *stackmap, int32 n);
+ 
+ // defined in mgc0.go
+ void	runtime·gc_m_ptr(Eface*);
+@@ -636,4 +637,4 @@ void	runtime·memorydump(void);
+ int32	runtime·setgcpercent(int32);
+ 
+ // Value we use to mark dead pointers when GODEBUG=gcdead=1.
+-#define PoisonPtr ((uintptr)0x6969696969696969LL)
++#define PoisonPtr ((uintptr)0xf9696969f9696969LL)
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 26382f4142..d6eedfaa93 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1403,24 +1403,12 @@ handoff(Workbuf *b)
+ 
+ extern byte pclntab[]; // base for f->ptrsoff
+ 
+-BitVector*
++BitVector
+ runtime·stackmapdata(StackMap *stackmap, int32 n)
+ {
+-	BitVector *bv;
+-	uint32 *ptr;
+-	uint32 words;
+-	int32 i;
+-
+-	if(n < 0 || n >= stackmap->n) {
++	if(n < 0 || n >= stackmap->n)
+ 		runtime·throw("stackmapdata: index out of range");
+-	}
+-	ptr = stackmap->data;
+-	for(i = 0; i < n; i++) {
+-		bv = (BitVector*)ptr;
+-		words = ((bv->n + 31) / 32) + 1;
+-		ptr += words;
+-	}
+-	return (BitVector*)ptr;
++	return (BitVector){stackmap->nbit, stackmap->data + n*((stackmap->nbit+31)/32)};
+ }
+ 
+ // Scans an interface data value when the interface type indicates
+@@ -1533,7 +1521,7 @@ scanframe(Stkframe *frame, void *wbufp)
+ {
+ 	Func *f;
+ 	StackMap *stackmap;
+-	BitVector *bv;
++	BitVector bv;
+ 	uintptr size;
+ 	uintptr targetpc;
+ 	int32 pcdata;
+@@ -1576,9 +1564,9 @@ scanframe(Stkframe *frame, void *wbufp)
+ 				runtime·throw("scanframe: bad symbol table");
+ 			}
+ 			bv = runtime·stackmapdata(stackmap, pcdata);
+-			size = (bv->n * PtrSize) / BitsPerPointer;
++			size = (bv.n * PtrSize) / BitsPerPointer;
+ 			precise = true;
+-			scanbitvector(f, true, frame->varp - size, bv, afterprologue, wbufp);
++			scanbitvector(f, true, frame->varp - size, &bv, afterprologue, wbufp);
+ 		}
+ 	}
+ 
+@@ -1587,7 +1575,7 @@ scanframe(Stkframe *frame, void *wbufp)
+ 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+ 	if(stackmap != nil) {
+ 		bv = runtime·stackmapdata(stackmap, pcdata);
+-		scanbitvector(f, precise, frame->argp, bv, true, wbufp);
++		scanbitvector(f, precise, frame->argp, &bv, true, wbufp);
+ 	} else
+ 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
+ 	return true;
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index f48b76c733..2c5e052365 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -436,7 +436,7 @@ adjustframe(Stkframe *frame, void *arg)
+ 	Func *f;
+ 	StackMap *stackmap;
+ 	int32 pcdata;
+-	BitVector *bv;
++	BitVector bv;
+ 	uintptr targetpc;
+ 
+ 	adjinfo = arg;
+@@ -462,7 +462,7 @@ adjustframe(Stkframe *frame, void *arg)
+ 		bv = runtime·stackmapdata(stackmap, pcdata);
+ 		if(StackDebug >= 3)
+ 			runtime·printf("      locals\n");
+-		adjustpointers((byte**)frame->varp - bv->n / BitsPerPointer, bv, adjinfo, f);
++		adjustpointers((byte**)frame->varp - bv.n / BitsPerPointer, &bv, adjinfo, f);
+ 	}
+ 	// adjust inargs and outargs
+ 	if(frame->arglen != 0) {
+@@ -472,7 +472,7 @@ adjustframe(Stkframe *frame, void *arg)
+ 		bv = runtime·stackmapdata(stackmap, pcdata);
+ 		if(StackDebug >= 3)
+ 			runtime·printf("      args\n");
+-		adjustpointers((byte**)frame->argp, bv, adjinfo, nil);
++		adjustpointers((byte**)frame->argp, &bv, adjinfo, nil);
+ 	}
+ 	return true;
+ }
+@@ -491,7 +491,7 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
+ 	Func *f;
+ 	FuncVal *fn;
+ 	StackMap *stackmap;
+-	BitVector *bv;
++	BitVector bv;
+ 
+ 	for(dp = &gp->defer, d = *dp; d != nil; dp = &d->link, d = *dp) {
+ 		if(adjinfo->oldstk <= (byte*)d && (byte*)d < adjinfo->oldbase) {
+@@ -526,7 +526,7 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
+ 			if(stackmap == nil)
+ 				runtime·throw("runtime: deferred function has no arg ptr map");
+ 			bv = runtime·stackmapdata(stackmap, 0);
+-			adjustpointers(d->args, bv, adjinfo, f);
++			adjustpointers(d->args, &bv, adjinfo, f);
+ 		}
+ 		d->argp += adjinfo->delta;
+ 	}

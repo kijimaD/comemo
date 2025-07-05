@@ -26,7 +26,189 @@ Date:   Fri Jul 27 19:32:17 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 68 ++++++++++++++++++++++++++++++++++
  test/escape_param.go               | 75 +++++++++++++++++++++++++++++++++++---
  2 files changed, 138 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 3df565aea5..a852e0a3d0 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -654,6 +654,58 @@ func (e *EscState) esclist(l Nodes, parent *Node) {
+ 	}
+ }
+ 
++// isSelfAssign reports whether assignment from src to dst can
++// be ignored by the escape analysis as it's effectively a self-assignment.
++func (e *EscState) isSelfAssign(dst, src *Node) bool {
++	if dst == nil || src == nil || dst.Op != src.Op {
++		return false
++	}
++
++	switch dst.Op {
++	case ODOT, ODOTPTR:
++		// Safe trailing accessors that are permitted to differ.
++	case OINDEX:
++		if e.mayAffectMemory(dst.Right) || e.mayAffectMemory(src.Right) {
++			return false
++		}
++	default:
++		return false
++	}
++
++	// The expression prefix must be both "safe" and identical.
++	return samesafeexpr(dst.Left, src.Left)
++}
++
++// mayAffectMemory reports whether n evaluation may affect program memory state.
++// If expression can't affect it, then it can be safely ignored by the escape analysis.
++func (e *EscState) mayAffectMemory(n *Node) bool {
++	// We may want to use "memory safe" black list instead of general
++	// "side-effect free", which can include all calls and other ops
++	// that can affect allocate or change global state.
++	// It's safer to start from a whitelist for now.
++	//
++	// We're ignoring things like division by zero, index out of range,
++	// and nil pointer dereference here.
++	switch n.Op {
++	case ONAME, OCLOSUREVAR, OLITERAL:
++		return false
++	case ODOT, ODOTPTR:
++		return e.mayAffectMemory(n.Left)
++	case OIND, OCONVNOP:
++		return e.mayAffectMemory(n.Left)
++	case OCONV:
++		return e.mayAffectMemory(n.Left)
++	case OINDEX:
++		return e.mayAffectMemory(n.Left) && e.mayAffectMemory(n.Right)
++	case OADD, OSUB, OOR, OXOR, OMUL, OLSH, ORSH, OAND, OANDNOT, ODIV, OMOD:
++		return e.mayAffectMemory(n.Left) && e.mayAffectMemory(n.Right)
++	case ONOT, OCOM, OPLUS, OMINUS, OALIGNOF, OOFFSETOF, OSIZEOF:
++		return e.mayAffectMemory(n.Left)
++	default:
++		return true
++	}
++}
++
+ func (e *EscState) esc(n *Node, parent *Node) {
+ 	if n == nil {
+ 		return
+@@ -813,6 +865,22 @@ opSwitch:
+ 			break
+ 		}
+ 
++		// Also skip trivial assignments that assign back to the same object.
++		//
++		// It covers these cases:
++		//	val.x = val.y
++		//	val.x[i] = val.y[j]
++		//	val.x1.x2 = val.x1.y2
++		//	... etc
++		//
++		// These assignments do not change assigned object lifetime.
++		if e.isSelfAssign(n.Left, n.Right) {
++			if Debug['m'] != 0 {
++				Warnl(n.Pos, "%v ignoring self-assignment in %S", e.curfnSym(n), n)
++			}
++			break
++		}
++
+ 		e.escassign(n.Left, n.Right, e.stepAssignWhere(nil, nil, "", n))
+ 
+ 	case OAS2: // x,y = a,b
+diff --git a/test/escape_param.go b/test/escape_param.go
+index 2c43b96ba0..4eb96dff9b 100644
+--- a/test/escape_param.go
++++ b/test/escape_param.go
+@@ -58,20 +58,85 @@ func caller2b() {
+ 	sink = p       // ERROR "p escapes to heap$"
+ }
+ 
++func paramArraySelfAssign(p *PairOfPairs) { // ERROR "p does not escape"
++	p.pairs[0] = p.pairs[1] // ERROR "ignoring self-assignment in p.pairs\[0\] = p.pairs\[1\]"
++}
++
++type PairOfPairs struct {
++	pairs [2]*Pair
++}
++
++type BoxedPair struct {
++	pair *Pair
++}
++
++type WrappedPair struct {
++	pair Pair
++}
++
++func leakParam(x interface{}) { // ERROR "leaking param: x"
++	sink = x
++}
++
++func sinkAfterSelfAssignment1(box *BoxedPair) { // ERROR "leaking param content: box"
++	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
++	sink = box.pair.p2        // ERROR "box.pair.p2 escapes to heap"
++}
++
++func sinkAfterSelfAssignment2(box *BoxedPair) { // ERROR "leaking param content: box"
++	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
++	sink = box.pair           // ERROR "box.pair escapes to heap"
++}
++
++func sinkAfterSelfAssignment3(box *BoxedPair) { // ERROR "leaking param content: box"
++	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
++	leakParam(box.pair.p2)    // ERROR "box.pair.p2 escapes to heap"
++}
++
++func sinkAfterSelfAssignment4(box *BoxedPair) { // ERROR "leaking param content: box"
++	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
++	leakParam(box.pair)       // ERROR "box.pair escapes to heap"
++}
++
++func selfAssignmentAndUnrelated(box1, box2 *BoxedPair) { // ERROR "leaking param content: box2" "box1 does not escape"
++	box1.pair.p1 = box1.pair.p2 // ERROR "ignoring self-assignment in box1.pair.p1 = box1.pair.p2"
++	leakParam(box2.pair.p2)     // ERROR "box2.pair.p2 escapes to heap"
++}
++
++func notSelfAssignment1(box1, box2 *BoxedPair) { // ERROR "leaking param content: box2" "box1 does not escape"
++	box1.pair.p1 = box2.pair.p1
++}
++
++func notSelfAssignment2(p1, p2 *PairOfPairs) { // ERROR "leaking param content: p2" "p1 does not escape"
++	p1.pairs[0] = p2.pairs[1]
++}
++
++func notSelfAssignment3(p1, p2 *PairOfPairs) { // ERROR "leaking param content: p2" "p1 does not escape"
++	p1.pairs[0].p1 = p2.pairs[1].p1
++}
++
++func boxedPairSelfAssign(box *BoxedPair) { // ERROR "box does not escape"
++	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
++}
++
++func wrappedPairSelfAssign(w *WrappedPair) { // ERROR "w does not escape"
++	w.pair.p1 = w.pair.p2 // ERROR "ignoring self-assignment in w.pair.p1 = w.pair.p2"
++}
++
+ // in -> in
+ type Pair struct {
+ 	p1 *int
+ 	p2 *int
+ }
+ 
+-func param3(p *Pair) { // ERROR "leaking param content: p$"
+-	p.p1 = p.p2
++func param3(p *Pair) { // ERROR "param3 p does not escape"
++	p.p1 = p.p2 // ERROR "param3 ignoring self-assignment in p.p1 = p.p2"
+ }
+ 
+ func caller3a() {
+-	i := 0            // ERROR "moved to heap: i$"
+-	j := 0            // ERROR "moved to heap: j$"
+-	p := Pair{&i, &j} // ERROR "&i escapes to heap$" "&j escapes to heap$"
++	i := 0
++	j := 0
++	p := Pair{&i, &j} // ERROR "caller3a &i does not escape" "caller3a &j does not escape"
+ 	param3(&p)        // ERROR "caller3a &p does not escape"
+ 	_ = p
+ }

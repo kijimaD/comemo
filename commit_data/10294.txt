@@ -7,7 +7,7 @@ Date:   Tue Nov 8 15:43:02 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5338043
-
+---
  doc/codelab/wiki/final-noclosure.go     |  4 ++--
  doc/codelab/wiki/final-noerror.go       |  4 ++--
  doc/codelab/wiki/final-parsetemplate.go |  4 ++--
@@ -61,3 +61,910 @@ Date:   Tue Nov 8 15:43:02 2011 -0800
  test/stringrange.go                     |  2 +-
  test/utf.go                             |  2 +-
  52 files changed, 87 insertions(+), 87 deletions(-)
+
+diff --git a/doc/codelab/wiki/final-noclosure.go b/doc/codelab/wiki/final-noclosure.go
+index 47f84a7d45..2d42106398 100644
+--- a/doc/codelab/wiki/final-noclosure.go
++++ b/doc/codelab/wiki/final-noclosure.go
+@@ -2,10 +2,10 @@ package main
+ 
+ import (
+ 	"errors"
+-	"http"
+ 	"io/ioutil"
++	"net/http"
+ 	"regexp"
+-	"template"
++	"text/template"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/final-noerror.go b/doc/codelab/wiki/final-noerror.go
+index 69e191292f..53433e958c 100644
+--- a/doc/codelab/wiki/final-noerror.go
++++ b/doc/codelab/wiki/final-noerror.go
+@@ -1,9 +1,9 @@
+ package main
+ 
+ import (
+-	"http"
+ 	"io/ioutil"
+-	"template"
++	"net/http"
++	"text/template"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/final-parsetemplate.go b/doc/codelab/wiki/final-parsetemplate.go
+index d3675a0e19..e3d8a97a1d 100644
+--- a/doc/codelab/wiki/final-parsetemplate.go
++++ b/doc/codelab/wiki/final-parsetemplate.go
+@@ -1,10 +1,10 @@
+ package main
+ 
+ import (
+-	"http"
+ 	"io/ioutil"
++	"net/http"
+ 	"regexp"
+-	"template"
++	"text/template"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/final-template.go b/doc/codelab/wiki/final-template.go
+index 4b5c44e090..0230ae5780 100644
+--- a/doc/codelab/wiki/final-template.go
++++ b/doc/codelab/wiki/final-template.go
+@@ -1,9 +1,9 @@
+ package main
+ 
+ import (
+-	"http"
+ 	"io/ioutil"
+-	"template"
++	"net/http"
++	"text/template"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/final.go b/doc/codelab/wiki/final.go
+index 11620af3ed..66f19c1e9f 100644
+--- a/doc/codelab/wiki/final.go
++++ b/doc/codelab/wiki/final.go
+@@ -1,10 +1,10 @@
+ package main
+ 
+ import (
+-	"http"
+ 	"io/ioutil"
++	"net/http"
+ 	"regexp"
+-	"template"
++	"text/template"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/get.go b/doc/codelab/wiki/get.go
+index 723484dec9..383935378d 100644
+--- a/doc/codelab/wiki/get.go
++++ b/doc/codelab/wiki/get.go
+@@ -1,12 +1,12 @@
+ package main
+ 
+ import (
+-	"http"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+ 	"log"
+ 	"net"
++	"net/http"
+ 	"os"
+ 	"strings"
+ )
+diff --git a/doc/codelab/wiki/htmlify.go b/doc/codelab/wiki/htmlify.go
+index 9e7605b921..1f9023f437 100644
+--- a/doc/codelab/wiki/htmlify.go
++++ b/doc/codelab/wiki/htmlify.go
+@@ -1,9 +1,9 @@
+ package main
+ 
+ import (
+-	"template"
+-	"os"
+ 	"io/ioutil"
++	"os"
++	"text/template"
+ )
+ 
+ func main() {
+diff --git a/doc/codelab/wiki/http-sample.go b/doc/codelab/wiki/http-sample.go
+index 33379a1b65..ac8cc4f2d6 100644
+--- a/doc/codelab/wiki/http-sample.go
++++ b/doc/codelab/wiki/http-sample.go
+@@ -2,7 +2,7 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"http"
++	"net/http"
+ )
+ 
+ func handler(w http.ResponseWriter, r *http.Request) {
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index 3dafc5cbef..08e181e3b0 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -237,7 +237,7 @@ package main
+ 
+ import (
+ 	&#34;fmt&#34;
+-	&#34;http&#34;
++	&#34;net/http&#34;
+ )
+ 
+ func handler(w http.ResponseWriter, r *http.Request) {
+diff --git a/doc/codelab/wiki/notemplate.go b/doc/codelab/wiki/notemplate.go
+index d2deec11e5..2b2aa685f6 100644
+--- a/doc/codelab/wiki/notemplate.go
++++ b/doc/codelab/wiki/notemplate.go
+@@ -2,8 +2,8 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"http"
+ 	"io/ioutil"
++	"net/http"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/part2.go b/doc/codelab/wiki/part2.go
+index a192089deb..96359a17e2 100644
+--- a/doc/codelab/wiki/part2.go
++++ b/doc/codelab/wiki/part2.go
+@@ -2,8 +2,8 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"http"
+ 	"io/ioutil"
++	"net/http"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/srcextract.go b/doc/codelab/wiki/srcextract.go
+index 6b5fbcb432..74c33a2d64 100644
+--- a/doc/codelab/wiki/srcextract.go
++++ b/doc/codelab/wiki/srcextract.go
+@@ -3,13 +3,13 @@ package main
+ import (
+ 	"bytes"
+ 	"flag"
++	"go/ast"
+ 	"go/parser"
+ 	"go/printer"
+-	"go/ast"
+ 	"go/token"
+ 	"log"
+-	"template"
+ 	"os"
++	"text/template"
+ )
+ 
+ var (
+diff --git a/doc/codewalk/markov.go b/doc/codewalk/markov.go
+index 959c2b158d..cb28eb0bcc 100644
+--- a/doc/codewalk/markov.go
++++ b/doc/codewalk/markov.go
+@@ -50,8 +50,8 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"io"
++	"math/rand"
+ 	"os"
+-	"rand"
+ 	"strings"
+ 	"time"
+ )
+diff --git a/doc/codewalk/pig.go b/doc/codewalk/pig.go
+index 9e415f5899..b3f02aff1e 100644
+--- a/doc/codewalk/pig.go
++++ b/doc/codewalk/pig.go
+@@ -6,7 +6,7 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"rand"
++	"math/rand"
+ )
+ 
+ const (
+diff --git a/doc/codewalk/urlpoll.go b/doc/codewalk/urlpoll.go
+index b320eb1837..1439e34218 100644
+--- a/doc/codewalk/urlpoll.go
++++ b/doc/codewalk/urlpoll.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"http"
+ 	"log"
++	"net/http"
+ 	"time"
+ )
+ 
+diff --git a/doc/progs/eff_qr.go b/doc/progs/eff_qr.go
+index 5d1fd38e06..de96a0208f 100644
+--- a/doc/progs/eff_qr.go
++++ b/doc/progs/eff_qr.go
+@@ -2,9 +2,9 @@ package main
+ 
+ import (
+ 	"flag"
+-	"http"
+ 	"log"
+-	"template"
++	"net/http"
++	"text/template"
+ )
+ 
+ var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
+diff --git a/doc/talks/io2010/balance.go b/doc/talks/io2010/balance.go
+index b01f7468c5..a3825cbc55 100644
+--- a/doc/talks/io2010/balance.go
++++ b/doc/talks/io2010/balance.go
+@@ -8,7 +8,7 @@ import (
+ 	"container/heap"
+ 	"flag"
+ 	"fmt"
+-	"rand"
++	"math/rand"
+ 	"time"
+ )
+ 
+diff --git a/doc/tmpltohtml.go b/doc/tmpltohtml.go
+index 25bc3a4dbe..d9b002e1e7 100644
+--- a/doc/tmpltohtml.go
++++ b/doc/tmpltohtml.go
+@@ -27,7 +27,7 @@ import (
+ 	"os"
+ 	"regexp"
+ 	"strings"
+-	"template"
++	"text/template"
+ )
+ 
+ func Usage() {
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index b034aa38cf..408db34651 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -6,10 +6,10 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"exec"
+ 	"io"
+ 	"log"
+ 	"os"
++	"os/exec"
+ 	"strings"
+ )
+ 
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 3bc2f194d2..3e2217f541 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -6,13 +6,13 @@ package main
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"errors"
+ 	"fmt"
+-	"http"
+-	"json"
+ 	"log"
++	"net/http"
++	"net/url"
+ 	"strconv"
+-	"url"
+ )
+ 
+ type param map[string]string
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index abc866a7a4..6168eb3489 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"encoding/xml"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+@@ -17,7 +18,6 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
+-	"xml"
+ )
+ 
+ const (
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index 47dc323f4d..aa09e38745 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -5,16 +5,16 @@
+ package main
+ 
+ import (
+-	"exec"
+ 	"flag"
+-	"http"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
++	"net/http"
+ 	"os"
++	"os/exec"
+ 	"runtime"
+ 	"strconv"
+-	"template"
++	"text/template"
+ )
+ 
+ var (
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index b4a83bf12a..8a778418df 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -5,11 +5,11 @@
+ package main
+ 
+ import (
+-	"exec"
+ 	"fmt"
+ 	"go/token"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ )
+ 
+ // run runs the command argv, feeding in stdin on standard input.
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 784399dce8..239d77d405 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -10,7 +10,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"strings"
+-	"template"
++	"text/template"
+ )
+ 
+ // A Command is an implementation of a go command
+diff --git a/src/cmd/godoc/appinit.go b/src/cmd/godoc/appinit.go
+index 37c55451a2..2b3f41e160 100644
+--- a/src/cmd/godoc/appinit.go
++++ b/src/cmd/godoc/appinit.go
+@@ -9,8 +9,8 @@ package main
+ 
+ import (
+ 	"archive/zip"
+-	"http"
+ 	"log"
++	"net/http"
+ 	"path"
+ )
+ 
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 6f25769a3c..0162dc55d7 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -13,19 +13,19 @@
+ package main
+ 
+ import (
++	"encoding/xml"
+ 	"errors"
+ 	"fmt"
+-	"http"
+ 	"io"
+ 	"log"
++	"net/http"
+ 	"os"
+ 	"regexp"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+-	"template"
+-	"utf8"
+-	"xml"
++	"text/template"
++	"unicode/utf8"
+ )
+ 
+ // Handler for /doc/codewalk/ and below.
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index 78dde4166f..1855072c01 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -17,7 +17,7 @@ import (
+ 	"io"
+ 	"regexp"
+ 	"strconv"
+-	"template"
++	"text/template"
+ )
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 0d82a1504c..6ddae54bb2 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -13,9 +13,9 @@ import (
+ 	"go/doc"
+ 	"go/printer"
+ 	"go/token"
+-	"http"
+ 	"io"
+ 	"log"
++	"net/http"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -23,7 +23,7 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strings"
+-	"template"
++	"text/template"
+ 	"time"
+ )
+ 
+diff --git a/src/cmd/godoc/httpzip.go b/src/cmd/godoc/httpzip.go
+index 3e25b6473d..a6c5ed654f 100644
+--- a/src/cmd/godoc/httpzip.go
++++ b/src/cmd/godoc/httpzip.go
+@@ -26,8 +26,8 @@ package main
+ import (
+ 	"archive/zip"
+ 	"fmt"
+-	"http"
+ 	"io"
++	"net/http"
+ 	"os"
+ 	"path"
+ 	"sort"
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 172eae3969..27dd4feec1 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -40,12 +40,12 @@ package main
+ import (
+ 	"bufio"
+ 	"bytes"
++	"encoding/gob"
+ 	"errors"
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
+-	"gob"
+ 	"index/suffixarray"
+ 	"io"
+ 	"path/filepath"
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 1a8db4708c..584c805a1b 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -34,10 +34,11 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build"
+-	"http"
+-	_ "http/pprof" // to serve /debug/pprof/*
+ 	"io"
+ 	"log"
++	"net/http"
++	_ "net/http/pprof" // to serve /debug/pprof/*
++	"net/url"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -45,7 +46,6 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"time"
+-	"url"
+ )
+ 
+ const defaultAddr = ":6060" // default webserver address
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index a83348d1bd..c11f25d20b 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -14,7 +14,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"scanner"
++	"text/scanner"
+ )
+ 
+ type ebnfParser struct {
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index 9ab5f83353..b572647681 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -15,7 +15,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"time"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // An RWValue wraps a value and permits mutually exclusive
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index fbb705c076..a1509b9262 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -6,7 +6,6 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"exec"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+@@ -16,6 +15,7 @@ import (
+ 	"go/token"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 1ca47eccb8..9562d7965c 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -6,7 +6,6 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"exec"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+@@ -17,6 +16,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"runtime/pprof"
+ 	"strings"
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 7f2bf0647a..25049f8f8c 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -13,7 +13,7 @@ import (
+ 	"reflect"
+ 	"strings"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ func initRewrite() {
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 927970a45b..b7225e0b78 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -8,12 +8,12 @@ package main
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"errors"
+-	"exec"
+ 	"fmt"
+-	"http"
+-	"json"
++	"net/http"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 7414a25052..3a05db2055 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -7,13 +7,13 @@ package main
+ import (
+ 	"bytes"
+ 	"errors"
+-	"exec"
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
+ 	"go/token"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"path/filepath" // use for file system paths
+ 	"regexp"
+ 	"runtime"
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 7445c9c207..1a52ab2e72 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -12,7 +12,7 @@ import (
+ 	"go/build"
+ 	"path" // use for import paths
+ 	"strings"
+-	"template"
++	"text/template"
+ )
+ 
+ // domake builds the package in dir.
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index e8e2ec892f..536e01f971 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -6,7 +6,6 @@ package main
+ 
+ import (
+ 	"bufio"
+-	"exec"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build"
+@@ -15,12 +14,13 @@ import (
+ 	"go/token"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"time"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // Environment for commands.
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index e62c16feee..ae00e49a64 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -20,7 +20,7 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"strings"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ var verbose = flag.Bool("v", false, "verbose")
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index ec69340c39..edde6cba08 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -6,11 +6,11 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"exec"
+ 	"flag"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"patch"
+ 	"path/filepath"
+ 	"sort"
+diff --git a/test/alias.go b/test/alias.go
+index 199c782d00..410a44e6c0 100644
+--- a/test/alias.go
++++ b/test/alias.go
+@@ -11,25 +11,25 @@ package main
+ 
+ import (
+ 	"fmt"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+-func f(byte) {}
++func f(byte)  {}
+ func g(uint8) {}
+ 
+ func main() {
+ 	var x float64
+-	f(x)  // ERROR "byte"
+-	g(x)  // ERROR "uint8"
++	f(x) // ERROR "byte"
++	g(x) // ERROR "uint8"
+ 
+ 	// Test across imports.
+ 
+ 	var ff fmt.Formatter
+ 	var fs fmt.State
+-	ff.Format(fs, x)  // ERROR "rune"
++	ff.Format(fs, x) // ERROR "rune"
+ 
+-	utf8.RuneStart(x)  // ERROR "byte"
++	utf8.RuneStart(x) // ERROR "byte"
+ 
+ 	var s utf8.String
+-	s.At(x)  // ERROR "int"
++	s.At(x) // ERROR "int"
+ }
+diff --git a/test/bench/pidigits.go b/test/bench/pidigits.go
+index e59312177f..a0f21a91db 100644
+--- a/test/bench/pidigits.go
++++ b/test/bench/pidigits.go
+@@ -38,9 +38,9 @@ POSSIBILITY OF SUCH DAMAGE.
+ package main
+ 
+ import (
+-	"big"
+ 	"flag"
+ 	"fmt"
++	"math/big"
+ )
+ 
+ var n = flag.Int("n", 27, "number of digits")
+diff --git a/test/chan/select5.go b/test/chan/select5.go
+index 6071821671..cc2cc71000 100644
+--- a/test/chan/select5.go
++++ b/test/chan/select5.go
+@@ -18,7 +18,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
+-	"template"
++	"text/template"
+ )
+ 
+ func main() {
+diff --git a/test/cmplxdivide.go b/test/cmplxdivide.go
+index 6a67b175de..461ee9796e 100644
+--- a/test/cmplxdivide.go
++++ b/test/cmplxdivide.go
+@@ -9,14 +9,14 @@
+ package main
+ 
+ import (
+-	"cmath"
+ 	"fmt"
+ 	"math"
++	"math/cmplx"
+ )
+ 
+-type Test struct{
+-	f, g	complex128
+-	out	complex128
++type Test struct {
++	f, g complex128
++	out  complex128
+ }
+ 
+ var nan = math.NaN()
+@@ -25,9 +25,9 @@ var negzero = math.Copysign(0, -1)
+ 
+ func calike(a, b complex128) bool {
+ 	switch {
+-	case cmath.IsInf(a) && cmath.IsInf(b):
++	case cmplx.IsInf(a) && cmplx.IsInf(b):
+ 		return true
+-	case cmath.IsNaN(a) && cmath.IsNaN(b):
++	case cmplx.IsNaN(a) && cmplx.IsNaN(b):
+ 		return true
+ 	}
+ 	return a == b
+@@ -36,7 +36,7 @@ func calike(a, b complex128) bool {
+ func main() {
+ 	bad := false
+ 	for _, t := range tests {
+-		x := t.f/t.g
++		x := t.f / t.g
+ 		if !calike(x, t.out) {
+ 			if !bad {
+ 				fmt.Printf("BUG\n")
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+index 1d7257521c..d0f4e09ba9 100644
+--- a/test/garbage/parser.go
++++ b/test/garbage/parser.go
+@@ -12,14 +12,14 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	"log"
++	"net/http"
++	_ "net/http/pprof"
+ 	"os"
+ 	"path"
+ 	"runtime"
+ 	"strings"
+ 	"time"
+-	"http"
+-	_ "http/pprof"
+-	"log"
+ )
+ 
+ var serve = flag.String("serve", "", "serve http on this address at end")
+diff --git a/test/ken/divconst.go b/test/ken/divconst.go
+index c3b9092cdc..5a64d16b49 100644
+--- a/test/ken/divconst.go
++++ b/test/ken/divconst.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-import "rand"
++import "math/rand"
+ 
+ const Count = 1e5
+ 
+diff --git a/test/ken/modconst.go b/test/ken/modconst.go
+index acb8831ef7..c2603a0a09 100644
+--- a/test/ken/modconst.go
++++ b/test/ken/modconst.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-import "rand"
++import "math/rand"
+ 
+ const Count = 1e5
+ 
+diff --git a/test/mallocrand.go b/test/mallocrand.go
+index f014b441b2..726e36799a 100644
+--- a/test/mallocrand.go
++++ b/test/mallocrand.go
+@@ -10,7 +10,7 @@ package main
+ 
+ import (
+ 	"flag"
+-	"rand"
++	"math/rand"
+ 	"runtime"
+ 	"unsafe"
+ )
+diff --git a/test/stringrange.go b/test/stringrange.go
+index 924022b48e..6a7063e239 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -9,7 +9,7 @@ package main
+ import (
+ 	"fmt"
+ 	"os"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ func main() {
+diff --git a/test/utf.go b/test/utf.go
+index ed8a983d8f..9fba58156b 100644
+--- a/test/utf.go
++++ b/test/utf.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-import "utf8"
++import "unicode/utf8"
+ 
+ func main() {
+ 	var chars [6]rune

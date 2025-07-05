@@ -9,6 +9,22 @@ Date:   Tue Dec 22 23:46:07 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/print.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index 6831b3ada3..ac7333ca4e 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -73,7 +73,9 @@ func (x byPos) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ // FlushErrors sorts errors seen so far by line number, prints them to stdout,
+ // and empties the errors array.
+ func FlushErrors() {
+-	Ctxt.Bso.Flush()
++	if Ctxt != nil && Ctxt.Bso != nil {
++		Ctxt.Bso.Flush()
++	}
+ 	if len(errorMsgs) == 0 {
+ 		return
+ 	}

@@ -14,6 +14,42 @@ Date:   Tue Jun 23 11:36:57 2015 -0700
     Change-Id: I9e7046c73b0d0bc4de002234924d9e7c59aceb41
     Reviewed-on: https://go-review.googlesource.com/11362
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 1c5e1911e0..d5e3899fd3 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -283,7 +283,7 @@ func Get(url string) (resp *Response, err error) {
+ 
+ // Get issues a GET to the specified URL. If the response is one of the
+ // following redirect codes, Get follows the redirect after calling the
+-// Client's CheckRedirect function.
++// Client's CheckRedirect function:
+ //
+ //    301 (Moved Permanently)
+ //    302 (Found)
+@@ -497,9 +497,9 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
+ 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+ }
+ 
+-// Head issues a HEAD to the specified URL.  If the response is one of the
+-// following redirect codes, Head follows the redirect after calling the
+-// Client's CheckRedirect function.
++// Head issues a HEAD to the specified URL.  If the response is one of
++// the following redirect codes, Head follows the redirect, up to a
++// maximum of 10 redirects:
+ //
+ //    301 (Moved Permanently)
+ //    302 (Found)
+@@ -513,7 +513,7 @@ func Head(url string) (resp *Response, err error) {
+ 
+ // Head issues a HEAD to the specified URL.  If the response is one of the
+ // following redirect codes, Head follows the redirect after calling the
+-// Client's CheckRedirect function.
++// Client's CheckRedirect function:
+ //
+ //    301 (Moved Permanently)
+ //    302 (Found)

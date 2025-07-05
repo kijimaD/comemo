@@ -9,7 +9,41 @@ Date:   Mon Dec 12 13:56:56 2011 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5483054
-
+---
  src/pkg/exp/sql/sql.go      |  1 +
  src/pkg/exp/sql/sql_test.go | 13 +++++++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/pkg/exp/sql/sql.go b/src/pkg/exp/sql/sql.go
+index f17d12eaa1..948b911f2e 100644
+--- a/src/pkg/exp/sql/sql.go
++++ b/src/pkg/exp/sql/sql.go
+@@ -134,6 +134,7 @@ func (db *DB) maxIdleConns() int {
+ func (db *DB) conn() (driver.Conn, error) {
+ 	db.mu.Lock()
+ 	if db.closed {
++		db.mu.Unlock()
+ 		return nil, errors.New("sql: database is closed")
+ 	}
+ 	if n := len(db.freeConn); n > 0 {
+diff --git a/src/pkg/exp/sql/sql_test.go b/src/pkg/exp/sql/sql_test.go
+index 4f8318d26e..f8ccf764e7 100644
+--- a/src/pkg/exp/sql/sql_test.go
++++ b/src/pkg/exp/sql/sql_test.go
+@@ -228,3 +228,16 @@ func TestTxStmt(t *testing.T) {
+ 		t.Fatalf("Commit = %v", err)
+ 	}
+ }
++
++// Tests fix for issue 2542, that we release a lock when querying on
++// a closed connection.
++func TestIssue2542Deadlock(t *testing.T) {
++	db := newTestDB(t, "people")
++	closeDB(t, db)
++	for i := 0; i < 2; i++ {
++		_, err := db.Query("SELECT|people|age,name|")
++		if err == nil {
++			t.Fatalf("expected error")
++		}
++	}
++}

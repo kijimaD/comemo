@@ -7,7 +7,7 @@ Date:   Tue Oct 7 12:59:54 2008 -0700
     R=gri,r
     OCL=16648
     CL=16652
-
+---
  src/lib/flag.go          |  6 ++++++
  test/bugs/bug041.go      |  1 +
  test/fixedbugs/bug066.go |  4 ++++
@@ -15,3 +15,177 @@ Date:   Tue Oct 7 12:59:54 2008 -0700
  usr/gri/gosrc/globals.go |  9 +++++++--
  usr/gri/pretty/ast.go    | 49 +++++++++++++++++++++++++++++++++++++++++++++---
  6 files changed, 70 insertions(+), 5 deletions(-)
+
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index 968790edf0..a46e5fda1c 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -98,6 +98,12 @@ func atob(str string) (value bool, ok bool) {
+ 	return false, false
+ }
+ 
++type (
++	BoolValue struct;
++	IntValue struct;
++	StringValue struct;
++)
++
+ // -- Bool Value
+ type BoolValue struct {
+ 	val bool;
+diff --git a/test/bugs/bug041.go b/test/bugs/bug041.go
+index 1a6e0dde80..f565666691 100644
+--- a/test/bugs/bug041.go
++++ b/test/bugs/bug041.go
+@@ -6,6 +6,7 @@
+ 
+ package main
+ 
++type T struct
+ type S struct {
+   p *T  // BUG T never declared
+ }
+diff --git a/test/fixedbugs/bug066.go b/test/fixedbugs/bug066.go
+index 792e265f60..ab69257920 100644
+--- a/test/fixedbugs/bug066.go
++++ b/test/fixedbugs/bug066.go
+@@ -6,6 +6,10 @@
+ 
+ package main
+ 
++type (
++	Type struct;
++	Object struct;
++)
+ 
+ type Scope struct {
+ 	entries *map[string] *Object;
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index cca74e57a5..7d2eecbf7d 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -9,6 +9,12 @@ package main
+ 
+ const nilchar = 0;
+ 
++type (
++	Atom struct;
++	List struct;
++	Slist struct;
++)
++
+ type Atom struct {
+ 	str		string;
+ 	integer		int;
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index da5125a5f9..14e588ee9d 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -13,6 +13,11 @@ package Globals
+ 
+ // ----------------------------------------------------------------------------
+ 
++type Type struct
++type Scope struct
++type Elem struct
++type Compilation struct
++
+ export type Object struct {
+ 	exported bool;
+ 	pos int;  // source position (< 0 if unknown position)
+@@ -86,7 +91,7 @@ export type Compilation struct {
+ 	// environment
+ 	flags *Flags;
+ 	env *Environment;
+-	
++
+ 	// TODO use open arrays eventually
+ 	pkg_list [256] *Package;  // pkg_list[0] is the current package
+ 	pkg_ref int;
+@@ -199,7 +204,7 @@ func (L *List) at(i int) *Elem {
+ 	for ; i > 0; i-- {
+ 		p = p.next;
+ 	}
+-	
++
+ 	return p;
+ }
+ 
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 58f2d6e41d..cd31f3f21a 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -8,11 +8,54 @@ package AST
+ // ----------------------------------------------------------------------------
+ // Visitor
+ 
++type (
++	Nil struct;
++	Ident struct;
++	ArrayType struct;
++	StructType struct;
++	MapType struct;
++	ChannelType struct;
++	PointerType struct;
++	InterfaceType struct;
++	FunctionType struct;
++	VarDeclList struct;
++	ImportDecl struct;
++	ConstDecl struct;
++	TypeDecl struct;
++	VarDecl struct;
++	Declaration struct;
++	FuncDecl struct;
++	MethodDecl struct;
++	Selector struct;
++	Index struct;
++	Call struct;
++	Pair struct;
++	Binary struct;
++	Unary struct;
++	Literal struct;
++	CompositeLit struct;
++	FunctionLit struct;
++	Label struct;
++	Block struct;
++	ExprStat struct;
++	Assignment struct;
++	ControlClause struct;
++	IfStat struct;
++	ForStat struct;
++	CaseClause struct;
++	SwitchStat struct;
++	ReturnStat struct;
++	IncDecStat struct;
++	ControlFlowStat struct;
++	GoStat struct;
++	Program struct;
++)
++
+ export type Visitor interface {
+ 	// Basics
+ 	DoNil(x *Nil);
+ 	DoIdent(x *Ident);
+-	
++
+ 	// Types
+ 	DoFunctionType(x *FunctionType);
+ 	DoArrayType(x *ArrayType);
+@@ -21,7 +64,7 @@ export type Visitor interface {
+ 	DoChannelType(x *ChannelType);
+ 	DoInterfaceType(x *InterfaceType);
+ 	DoPointerType(x *PointerType);
+-	
++
+ 	// Declarations
+ 	DoImportDecl(x *ImportDecl);
+ 	DoConstDecl(x *ConstDecl);
+@@ -31,7 +74,7 @@ export type Visitor interface {
+ 	DoFuncDecl(x *FuncDecl);
+ 	DoMethodDecl(x *MethodDecl);
+ 	DoDeclaration(x *Declaration);
+-	
++
+ 	// Expressions
+ 	DoBinary(x *Binary);
+ 	DoUnary(x *Unary);

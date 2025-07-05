@@ -9,7 +9,77 @@ Date:   Mon Apr 10 12:26:49 2017 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_mutex.go   | 12 ++++++------
  src/internal/poll/fd_windows.go |  2 +-
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/poll/fd_mutex.go b/src/internal/poll/fd_mutex.go
+index 2b76053370..38d4be248d 100644
+--- a/src/internal/poll/fd_mutex.go
++++ b/src/internal/poll/fd_mutex.go
+@@ -56,7 +56,7 @@ func (mu *fdMutex) incref() bool {
+ 		}
+ 		new := old + mutexRef
+ 		if new&mutexRefMask == 0 {
+-			panic("net: inconsistent fdMutex")
++			panic("inconsistent poll.fdMutex")
+ 		}
+ 		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+ 			return true
+@@ -75,7 +75,7 @@ func (mu *fdMutex) increfAndClose() bool {
+ 		// Mark as closed and acquire a reference.
+ 		new := (old | mutexClosed) + mutexRef
+ 		if new&mutexRefMask == 0 {
+-			panic("net: inconsistent fdMutex")
++			panic("inconsistent poll.fdMutex")
+ 		}
+ 		// Remove all read and write waiters.
+ 		new &^= mutexRMask | mutexWMask
+@@ -101,7 +101,7 @@ func (mu *fdMutex) decref() bool {
+ 	for {
+ 		old := atomic.LoadUint64(&mu.state)
+ 		if old&mutexRefMask == 0 {
+-			panic("net: inconsistent fdMutex")
++			panic("inconsistent poll.fdMutex")
+ 		}
+ 		new := old - mutexRef
+ 		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+@@ -136,13 +136,13 @@ func (mu *fdMutex) rwlock(read bool) bool {
+ 			// Lock is free, acquire it.
+ 			new = (old | mutexBit) + mutexRef
+ 			if new&mutexRefMask == 0 {
+-				panic("net: inconsistent fdMutex")
++				panic("inconsistent poll.fdMutex")
+ 			}
+ 		} else {
+ 			// Wait for lock.
+ 			new = old + mutexWait
+ 			if new&mutexMask == 0 {
+-				panic("net: inconsistent fdMutex")
++				panic("inconsistent poll.fdMutex")
+ 			}
+ 		}
+ 		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+@@ -174,7 +174,7 @@ func (mu *fdMutex) rwunlock(read bool) bool {
+ 	for {
+ 		old := atomic.LoadUint64(&mu.state)
+ 		if old&mutexBit == 0 || old&mutexRefMask == 0 {
+-			panic("net: inconsistent fdMutex")
++			panic("inconsistent poll.fdMutex")
+ 		}
+ 		// Drop lock, drop reference and wake read waiter if present.
+ 		new := (old &^ mutexBit) - mutexRef
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 8f24bd65e5..a5a1c0c966 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -203,7 +203,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 	case ErrClosing, ErrTimeout:
+ 		// will deal with those.
+ 	default:
+-		panic("net: unexpected runtime.netpoll error: " + netpollErr.Error())
++		panic("unexpected runtime.netpoll error: " + netpollErr.Error())
+ 	}
+ 	// Cancel our request.
+ 	if canCancelIO {

@@ -18,7 +18,63 @@ Date:   Sat Jun 13 13:50:02 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/asn1/asn1.go      |  4 ++++
  src/encoding/asn1/asn1_test.go | 18 ++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 3eab6aa384..2ac411af88 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -26,6 +26,7 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"time"
++	"unicode/utf8"
+ )
+ 
+ // A StructuralError suggests that the ASN.1 data is valid, but the Go type
+@@ -389,6 +390,9 @@ func parseT61String(bytes []byte) (ret string, err error) {
+ // parseUTF8String parses a ASN.1 UTF8String (raw UTF-8) from the given byte
+ // array and returns it.
+ func parseUTF8String(bytes []byte) (ret string, err error) {
++	if !utf8.Valid(bytes) {
++		return "", errors.New("asn1: invalid UTF-8 string")
++	}
+ 	return string(bytes), nil
+ }
+ 
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index acba0965a2..893d0801b0 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"math/big"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -922,3 +923,20 @@ func TestTruncatedExplicitTag(t *testing.T) {
+ 		t.Error("Unmarshal returned without error")
+ 	}
+ }
++
++type invalidUTF8Test struct {
++	Str string `asn1:"utf8"`
++}
++
++func TestUnmarshalInvalidUTF8(t *testing.T) {
++	data := []byte("0\x05\f\x03a\xc9c")
++	var result invalidUTF8Test
++	_, err := Unmarshal(data, &result)
++
++	const expectedSubstring = "UTF"
++	if err == nil {
++		t.Fatal("Successfully unmarshaled invalid UTF-8 data")
++	} else if !strings.Contains(err.Error(), expectedSubstring) {
++		t.Fatalf("Expected error to mention %q but error was %q", expectedSubstring, err.Error())
++	}
++}

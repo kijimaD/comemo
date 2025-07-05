@@ -12,6 +12,20 @@ Date:   Fri Sep 2 14:32:36 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Julie Qiu <julieqiu@google.com>
-
+---
  .github/ISSUE_TEMPLATE/04-vuln.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/04-vuln.md b/.github/ISSUE_TEMPLATE/04-vuln.md
+index 090fb0de70..6f07bc8b54 100644
+--- a/.github/ISSUE_TEMPLATE/04-vuln.md
++++ b/.github/ISSUE_TEMPLATE/04-vuln.md
+@@ -2,7 +2,7 @@
+ name: Go vulnerability management - bugs and feature requests
+ about: Issues or feature requests about Go vulnerability management
+ title: "x/vuln: "
+-labels: x/vuln
++labels: vulncheck or vulndb
+ ---
+ 
+ <!--

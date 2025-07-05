@@ -19,6 +19,21 @@ Date:   Thu May 12 10:03:25 2022 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index 99bae1daf0..d2ded27f85 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -241,8 +241,7 @@ func FuzzBool(f *testing.F) {
+ 
+ func FuzzFloat(f *testing.F) {
+ 	f.Fuzz(func(t *testing.T, a float64) {
+-		if a != float64(int64(a)) {
+-			// It has a decimal, so it was mutated by division
++		if a != 0 {
+ 			panic("this input caused a crash!")
+ 		}
+ 	})

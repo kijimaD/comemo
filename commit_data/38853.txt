@@ -44,9 +44,138 @@ Date:   Sat Dec 1 13:21:04 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go |  2 +-
  test/fixedbugs/issue29013a.go        | 24 ++++++++++++++++++++
  test/fixedbugs/issue29013b.go        | 43 ++++++++++++++++++++++++++++++++++++
  test/sinit.go                        |  6 -----
  4 files changed, 68 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 56c63065b2..de0298b746 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -350,7 +350,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 				continue
+ 			}
+ 			ll := n.sepcopy()
+-			if staticassign(ll, e.Expr, out) {
++			if staticcopy(ll, e.Expr, out) {
+ 				continue
+ 			}
+ 			// Requires computation, but we're
+diff --git a/test/fixedbugs/issue29013a.go b/test/fixedbugs/issue29013a.go
+new file mode 100644
+index 0000000000..efc50dfb1f
+--- /dev/null
++++ b/test/fixedbugs/issue29013a.go
+@@ -0,0 +1,24 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type TestSuite struct {
++	Tests []int
++}
++
++var Suites = []TestSuite{
++	Dicts,
++}
++var Dicts = TestSuite{
++	Tests: []int{0},
++}
++
++func main() {
++	if &Dicts.Tests[0] != &Suites[0].Tests[0] {
++		panic("bad")
++	}
++}
+diff --git a/test/fixedbugs/issue29013b.go b/test/fixedbugs/issue29013b.go
+new file mode 100644
+index 0000000000..b8502dad9b
+--- /dev/null
++++ b/test/fixedbugs/issue29013b.go
+@@ -0,0 +1,43 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type TestSuite struct {
++	Tests []Test
++}
++type Test struct {
++	Want interface{}
++}
++type Int struct {
++	i int
++}
++
++func NewInt(v int) Int {
++	return Int{i: v}
++}
++
++var Suites = []TestSuite{
++	Dicts,
++}
++var Dicts = TestSuite{
++	Tests: []Test{
++		{
++			Want: map[Int]bool{NewInt(1): true},
++		},
++		{
++			Want: map[Int]string{
++				NewInt(3): "3",
++			},
++		},
++	},
++}
++
++func main() {
++	if Suites[0].Tests[0].Want.(map[Int]bool)[NewInt(3)] {
++		panic("bad")
++	}
++}
+diff --git a/test/sinit.go b/test/sinit.go
+index c4d0edf871..df4d50d367 100644
+--- a/test/sinit.go
++++ b/test/sinit.go
+@@ -43,15 +43,12 @@ var c = []int{1201, 1202, 1203}
+ 
+ var aa = [3][3]int{[3]int{2001, 2002, 2003}, [3]int{2004, 2005, 2006}, [3]int{2007, 2008, 2009}}
+ var as = [3]S{S{2101, 2102, 2103}, S{2104, 2105, 2106}, S{2107, 2108, 2109}}
+-var ac = [3][]int{[]int{2201, 2202, 2203}, []int{2204, 2205, 2206}, []int{2207, 2208, 2209}}
+ 
+ var sa = SA{[3]int{3001, 3002, 3003}, [3]int{3004, 3005, 3006}, [3]int{3007, 3008, 3009}}
+ var ss = SS{S{3101, 3102, 3103}, S{3104, 3105, 3106}, S{3107, 3108, 3109}}
+-var sc = SC{[]int{3201, 3202, 3203}, []int{3204, 3205, 3206}, []int{3207, 3208, 3209}}
+ 
+ var ca = [][3]int{[3]int{4001, 4002, 4003}, [3]int{4004, 4005, 4006}, [3]int{4007, 4008, 4009}}
+ var cs = []S{S{4101, 4102, 4103}, S{4104, 4105, 4106}, S{4107, 4108, 4109}}
+-var cc = [][]int{[]int{4201, 4202, 4203}, []int{4204, 4205, 4206}, []int{4207, 4208, 4209}}
+ 
+ var answers = [...]int{
+ 	// s
+@@ -135,15 +132,12 @@ var copy_c = c
+ 
+ var copy_aa = aa
+ var copy_as = as
+-var copy_ac = ac
+ 
+ var copy_sa = sa
+ var copy_ss = ss
+-var copy_sc = sc
+ 
+ var copy_ca = ca
+ var copy_cs = cs
+-var copy_cc = cc
+ 
+ var copy_answers = answers
+ 

@@ -10,8 +10,221 @@ Date:   Thu Jan 29 18:33:19 2015 +0300
     Change-Id: I0df5f310cb3370a904c94d9647a9cf0f15729075
     Reviewed-on: https://go-review.googlesource.com/3507
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/range.c     |  19 +++++--
  src/cmd/gc/typecheck.c |   3 +-
  test/closure2.go       | 135 ++++++++++++++++++++++++++++++++++---------------
  3 files changed, 112 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 5d6a562ab8..ff05820b58 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -18,14 +18,25 @@ typecheckrange(Node *n)
+ 	Node *v1, *v2;
+ 	NodeList *ll;
+ 
++	// Typechecking order is important here:
++	// 0. first typecheck range expression (slice/map/chan),
++	//	it is evaluated only once and so logically it is not part of the loop.
++	// 1. typcheck produced values,
++	//	this part can declare new vars and so it must be typechecked before body,
++	//	because body can contain a closure that captures the vars.
++	// 2. decldepth++ to denote loop body.
++	// 3. typecheck body.
++	// 4. decldepth--.
++
++	typecheck(&n->right, Erv);
++	if((t = n->right->type) == T)
++		goto out;
++
+ 	// delicate little dance.  see typecheckas2
+ 	for(ll=n->list; ll; ll=ll->next)
+ 		if(ll->n->defn != n)
+ 			typecheck(&ll->n, Erv | Easgn);
+ 
+-	typecheck(&n->right, Erv);
+-	if((t = n->right->type) == T)
+-		goto out;
+ 	if(isptr[t->etype] && isfixedarray(t->type))
+ 		t = t->type;
+ 	n->type = t;
+@@ -106,7 +117,9 @@ out:
+ 		if(ll->n->typecheck == 0)
+ 			typecheck(&ll->n, Erv | Easgn);
+ 
++	decldepth++;
+ 	typechecklist(n->nbody, Etop);
++	decldepth--;
+ }
+ 
+ void
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 0699ca1f47..635d2c4170 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2828,7 +2828,8 @@ checkassign(Node *stmt, Node *n)
+ {
+ 	Node *r, *l;
+ 
+-	if(n->defn != stmt) {
++	// Variables declared in ORANGE are assigned on every iteration.
++	if(n->defn != stmt || stmt->op == ORANGE) {
+ 		r = outervalue(n);
+ 		for(l = n; l != r; l = l->left) {
+ 			l->assigned = 1;
+diff --git a/test/closure2.go b/test/closure2.go
+index 8947450561..4d61b45d3f 100644
+--- a/test/closure2.go
++++ b/test/closure2.go
+@@ -10,56 +10,109 @@
+ package main
+ 
+ func main() {
+-	type X struct {
+-		v int
+-	}
+-	var x X
+-	func() {
+-		x.v++
+-	}()
+-	if x.v != 1 {
+-		panic("x.v != 1")
+-	}
++	{
++		type X struct {
++			v int
++		}
++		var x X
++		func() {
++			x.v++
++		}()
++		if x.v != 1 {
++			panic("x.v != 1")
++		}
+ 
+-	type Y struct {
+-		X
+-	}
+-	var y Y
+-	func() {
+-		y.v = 1
+-	}()
+-	if y.v != 1 {
+-		panic("y.v != 1")
++		type Y struct {
++			X
++		}
++		var y Y
++		func() {
++			y.v = 1
++		}()
++		if y.v != 1 {
++			panic("y.v != 1")
++		}
+ 	}
+ 
+-	type Z struct {
+-		a [3]byte
+-	}
+-	var z Z
+-	func() {
+-		i := 0
+-		for z.a[1] = 1; i < 10; i++ {
++	{
++		type Z struct {
++			a [3]byte
++		}
++		var z Z
++		func() {
++			i := 0
++			for z.a[1] = 1; i < 10; i++ {
++			}
++		}()
++		if z.a[1] != 1 {
++			panic("z.a[1] != 1")
+ 		}
+-	}()
+-	if z.a[1] != 1 {
+-		panic("z.a[1] != 1")
+ 	}
+ 
+-	w := 0
+-	tmp := 0
+-	f := func() {
+-		if w != 1 {
+-			panic("w != 1")
++	{
++		w := 0
++		tmp := 0
++		f := func() {
++			if w != 1 {
++				panic("w != 1")
++			}
+ 		}
+-	}
+-	func() {
+-		tmp = w // force capture of w, but do not write to it yet
+-		_ = tmp
+ 		func() {
++			tmp = w // force capture of w, but do not write to it yet
++			_ = tmp
+ 			func() {
+-				w++ // write in a nested closure
++				func() {
++					w++ // write in a nested closure
++				}()
+ 			}()
+ 		}()
+-	}()
+-	f()
++		f()
++	}
++
++	{
++		var g func() int
++		for i := range [2]int{} {
++			if i == 0 {
++				g = func() int {
++					return i // test that we capture by ref here, i is mutated on every interation
++				}
++			}
++		}
++		if g() != 1 {
++			panic("g() != 1")
++		}
++	}
++
++	{
++		var g func() int
++		q := 0
++		for range [2]int{} {
++			q++
++			g = func() int {
++				return q // test that we capture by ref here
++					 // q++ must on a different decldepth than q declaration
++			}
++		}
++		if g() != 2 {
++			panic("g() != 2")
++		}
++	}
++
++	{
++		var g func() int
++		var a [2]int
++		q := 0
++		for a[func() int {
++			q++
++			return 0
++		}()] = range [2]int{} {
++			g = func() int {
++				return q // test that we capture by ref here
++					 // q++ must on a different decldepth than q declaration
++			}
++		}
++		if g() != 2 {
++			panic("g() != 2")
++		}
++	}
+ }

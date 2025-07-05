@@ -12,6 +12,32 @@ Date:   Wed Jun 6 11:36:35 2018 -0700
     Change-Id: I0ac48c41647c628aa7636b29eaedfd9d01913762
     Reviewed-on: https://go-review.googlesource.com/116735
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/errors.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 0c0049b1f3..4c8d8537ee 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -67,10 +67,20 @@ func (check *Checker) dump(format string, args ...interface{}) {
+ }
+ 
+ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
++	// Cheap trick: Don't report errors with messages containing
++	// "invalid operand" or "invalid type" as those tend to be
++	// follow-on errors which don't add useful information. Only
++	// exclude them if these strings are not at the beginning,
++	// and only if we have at least one error already reported.
++	if check.firstErr != nil && (strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0) {
++		return
++	}
++
+ 	err := Error{check.fset, pos, msg, soft}
+ 	if check.firstErr == nil {
+ 		check.firstErr = err
+ 	}
++
+ 	f := check.conf.Error
+ 	if f == nil {
+ 		panic(bailout{}) // report only first error

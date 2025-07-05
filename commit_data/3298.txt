@@ -12,7 +12,7 @@ Date:   Thu Sep 17 09:12:14 2009 -0700
     DELTA=300  (227 added, 25 deleted, 48 changed)
     OCL=34697
     CL=34730
-
+---
  src/pkg/go/ast/ast.go                           | 10 +++--
  src/pkg/go/ast/filter.go                        | 39 +++++------------
  src/pkg/go/parser/parser.go                     |  4 +-
@@ -23,3 +23,581 @@ Date:   Thu Sep 17 09:12:14 2009 -0700
  src/pkg/go/printer/testdata/declarations.go     | 50 +++++++++++++++++++++-
  src/pkg/go/printer/testdata/declarations.golden | 46 +++++++++++++++++++-
  9 files changed, 270 insertions(+), 68 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index cc48dcc744..8861049aaf 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -83,12 +83,12 @@ type CommentGroup struct {
+ // Expressions and types
+ 
+ // A Field represents a Field declaration list in a struct type,
+-// a method in an interface type, or a parameter/result declaration
++// a method list in an interface type, or a parameter/result declaration
+ // in a signature.
+ //
+ type Field struct {
+ 	Doc *CommentGroup;  // associated documentation; or nil
+-	Names []*Ident;  // field/method/parameter names; nil if anonymous field
++	Names []*Ident;  // field/method/parameter names; or nil if anonymous field
+ 	Type Expr;  // field/method/parameter type
+ 	Tag []*BasicLit;  // field tag; or nil
+ 	Comment *CommentGroup;  // line comments; or nil
+@@ -249,8 +249,9 @@ type (
+ 	StructType struct {
+ 		token.Position;  // position of "struct" keyword
+ 		Lbrace token.Position;  // position of "{"
+-		Fields []*Field;  // list of field declarations; nil if forward declaration
++		Fields []*Field;  // list of field declarations
+ 		Rbrace token.Position;  // position of "}"
++		Incomplete bool;  // true if (source) fields are missing in the Fields list
+ 	};
+ 
+ 	// Pointer types are represented via StarExpr nodes.
+@@ -266,8 +267,9 @@ type (
+ 	InterfaceType struct {
+ 		token.Position;  // position of "interface" keyword
+ 		Lbrace token.Position;  // position of "{"
+-		Methods []*Field; // list of methods; nil if forward declaration
++		Methods []*Field; // list of methods
+ 		Rbrace token.Position;  // position of "}"
++		Incomplete bool;  // true if (source) methods are missing in the Methods list
+ 	};
+ 
+ 	// A MapType node represents a map type.
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 16bcdb9d7e..467f772be8 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -4,9 +4,7 @@
+ 
+ package ast
+ 
+-import (
+-	"go/token";
+-)
++import "go/token";
+ 
+ 
+ func filterIdentList(list []*Ident) []*Ident {
+@@ -38,7 +36,7 @@ func isExportedType(typ Expr) bool {
+ }
+ 
+ 
+-func filterFieldList(list []*Field) []*Field {
++func filterFieldList(list []*Field, incomplete *bool) []*Field {
+ 	j := 0;
+ 	for _, f := range list {
+ 		exported := false;
+@@ -51,7 +49,11 @@ func filterFieldList(list []*Field) []*Field {
+ 			// type information.)
+ 			exported = isExportedType(f.Type);
+ 		} else {
++			n := len(f.Names);
+ 			f.Names = filterIdentList(f.Names);
++			if len(f.Names) < n {
++				*incomplete = true;
++			}
+ 			exported = len(f.Names) > 0;
+ 		}
+ 		if exported {
+@@ -60,11 +62,8 @@ func filterFieldList(list []*Field) []*Field {
+ 			j++;
+ 		}
+ 	}
+-	if j > 0 && j < len(list) {
+-		// fields have been stripped but there is at least one left;
+-		// add a '...' anonymous field instead
+-		list[j] = &Field{nil, nil, &Ellipsis{}, nil, nil};
+-		j++;
++	if j < len(list) {
++		*incomplete = true;
+ 	}
+ 	return list[0 : j];
+ }
+@@ -84,30 +83,12 @@ func filterType(typ Expr) {
+ 	case *ArrayType:
+ 		filterType(t.Elt);
+ 	case *StructType:
+-		// don't change if empty struct
+-		if len(t.Fields) > 0 {
+-			t.Fields = filterFieldList(t.Fields);
+-			if len(t.Fields) == 0 {
+-				// all fields have been stripped - make look like forward-decl
+-				t.Lbrace = noPos;
+-				t.Fields = nil;
+-				t.Rbrace = noPos;
+-			}
+-		}
++		t.Fields = filterFieldList(t.Fields, &t.Incomplete);
+ 	case *FuncType:
+ 		filterParamList(t.Params);
+ 		filterParamList(t.Results);
+ 	case *InterfaceType:
+-		// don't change if empty interface
+-		if len(t.Methods) > 0 {
+-			t.Methods = filterFieldList(t.Methods);
+-			if len(t.Methods) == 0 {
+-				// all methods have been stripped - make look like forward-decl
+-				t.Lbrace = noPos;
+-				t.Methods = nil;
+-				t.Rbrace = noPos;
+-			}
+-		}
++		t.Methods = filterFieldList(t.Methods, &t.Incomplete);
+ 	case *MapType:
+ 		filterType(t.Key);
+ 		filterType(t.Value);
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 76682db950..e8a981e8df 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -512,7 +512,7 @@ func (p *parser) parseStructType() *ast.StructType {
+ 		fields[i] = list.At(i).(*ast.Field);
+ 	}
+ 
+-	return &ast.StructType{pos, lbrace, fields, rbrace};
++	return &ast.StructType{pos, lbrace, fields, rbrace, false};
+ }
+ 
+ 
+@@ -720,7 +720,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 		methods[i] = list.At(i).(*ast.Field);
+ 	}
+ 
+-	return &ast.InterfaceType{pos, lbrace, methods, rbrace};
++	return &ast.InterfaceType{pos, lbrace, methods, rbrace, false};
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 7cd3c493bf..5ee428ca1c 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -550,7 +550,8 @@ func (p *printer) parameters(list []*ast.Field) {
+ }
+ 
+ 
+-func (p *printer) signature(params, result []*ast.Field) {
++// Returns true if a separating semicolon is optional.
++func (p *printer) signature(params, result []*ast.Field) (optSemi bool) {
+ 	p.parameters(params);
+ 	if result != nil {
+ 		p.print(blank);
+@@ -559,29 +560,35 @@ func (p *printer) signature(params, result []*ast.Field) {
+ 			// single anonymous result; no ()'s unless it's a function type
+ 			f := result[0];
+ 			if _, isFtyp := f.Type.(*ast.FuncType); !isFtyp {
+-				p.expr(f.Type);
++				optSemi = p.expr(f.Type);
+ 				return;
+ 			}
+ 		}
+ 
+ 		p.parameters(result);
+ 	}
++	return;
+ }
+ 
+ 
+-// Returns true if the field list ends in a closing brace.
+-func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isInterface bool) bool {
+-	if list == nil {
+-		// forward declaration
+-		// TODO(gri) remove this logic once godoc doesn't produce field
+-		//           lists that resemble forward declarations anymore
+-		return false;  // no {}'s
++func incompleteMsg(isInterface bool) string {
++	if isInterface {
++		return "// contains unexported methods";
+ 	}
++	return "// contains unexported fields";
++}
++
+ 
++func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete, isInterface bool) {
+ 	if len(list) == 0 {
+-		// no blank between keyword and {} in this case
+-		p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
+-		return true;  // empty list with {}'s
++		if isIncomplete {
++			// all entries were stripped
++			p.print(blank, lbrace, token.LBRACE, +1, newline, incompleteMsg(isInterface), -1, newline, rbrace, token.RBRACE);
++		} else {
++			// no blank between keyword and {} in this case
++			p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
++		}
++		return;
+ 	}
+ 
+ 	p.print(blank, lbrace, token.LBRACE, +1, newline);
+@@ -636,9 +643,13 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 
+ 	p.print(token.SEMICOLON);
+ 	p.lineComment(lastComment);
+-	p.print(-1, formfeed, rbrace, token.RBRACE);
+ 
+-	return true;  // field list with {}'s
++	if isIncomplete {
++		// at least one entry printed, but some entries were stripped
++		p.print(newline, incompleteMsg(isInterface));
++	}
++
++	p.print(-1, formfeed, rbrace, token.RBRACE);
+ }
+ 
+ 
+@@ -715,6 +726,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
+ }
+ 
+ 
++// Returns true if a separating semicolon is optional.
+ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 	p.print(expr.Pos());
+ 
+@@ -735,7 +747,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 
+ 	case *ast.StarExpr:
+ 		p.print(token.MUL);
+-		p.expr(x.X);
++		optSemi = p.expr(x.X);
+ 
+ 	case *ast.UnaryExpr:
+ 		const prec = token.UnaryPrec;
+@@ -823,25 +835,27 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 			p.expr(x.Len);
+ 		}
+ 		p.print(token.RBRACK);
+-		p.expr(x.Elt);
++		optSemi = p.expr(x.Elt);
+ 
+ 	case *ast.StructType:
+ 		p.print(token.STRUCT);
+-		optSemi = p.fieldList(x.Lbrace, x.Fields, x.Rbrace, false);
++		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, false);
++		optSemi = true;
+ 
+ 	case *ast.FuncType:
+ 		p.print(token.FUNC);
+-		p.signature(x.Params, x.Results);
++		optSemi = p.signature(x.Params, x.Results);
+ 
+ 	case *ast.InterfaceType:
+ 		p.print(token.INTERFACE);
+-		optSemi = p.fieldList(x.Lbrace, x.Methods, x.Rbrace, true);
++		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, true);
++		optSemi = true;
+ 
+ 	case *ast.MapType:
+ 		p.print(token.MAP, token.LBRACK);
+ 		p.expr(x.Key);
+ 		p.print(token.RBRACK);
+-		p.expr(x.Value);
++		optSemi = p.expr(x.Value);
+ 
+ 	case *ast.ChanType:
+ 		switch x.Dir {
+@@ -853,7 +867,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 			p.print(token.CHAN, token.ARROW);
+ 		}
+ 		p.print(blank);
+-		p.expr(x.Value);
++		optSemi = p.expr(x.Value);
+ 
+ 	default:
+ 		panic("unreachable");
+diff --git a/src/pkg/go/printer/testdata/comments.go b/src/pkg/go/printer/testdata/comments.go
+index 212d064406..690da6bbef 100644
+--- a/src/pkg/go/printer/testdata/comments.go
++++ b/src/pkg/go/printer/testdata/comments.go
+@@ -15,9 +15,47 @@ const (
+ )
+ 
+ 
+-// The T type.
+-type T struct {
+-	a, b, c int  // 3 fields
++// The SZ struct; it is empty.
++type SZ struct {}
++
++// The S0 struct; no field is exported.
++type S0 struct {
++	int;
++	x, y, z int;  // 3 unexported fields
++}
++
++// The S1 struct; some fields are not exported.
++type S1 struct {
++	S0;
++	A, B, C float;  // 3 exported fields
++	D, b, c int;  // 2 unexported fields
++}
++
++// The S2 struct; all fields are exported.
++type S2 struct {
++	S1;
++	A, B, C float;  // 3 exported fields
++}
++
++// The IZ interface; it is empty.
++type SZ interface {}
++
++// The I0 interface; no method is exported.
++type I0 interface {
++	f, g (x int) int;  // 2 unexported methods
++}
++
++// The I1 interface; some methods are not exported.
++type I1 interface {
++	I0;
++	F, G (x float) float;  // 2 exported methods
++	H, g (x int) int;  // 1 unexported method
++}
++
++// The I2 interface; all methods are exported.
++type I1 interface {
++	I0;
++	F, G (x float) float;  // 2 exported methods
+ }
+ 
+ // This comment group should be separated
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 877a7357a1..af11771afa 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -15,9 +15,47 @@ const (
+ )
+ 
+ 
+-// The T type.
+-type T struct {
+-	a, b, c	int;	// 3 fields
++// The SZ struct; it is empty.
++type SZ struct{}
++
++// The S0 struct; no field is exported.
++type S0 struct {
++	int;
++	x, y, z	int;	// 3 unexported fields
++}
++
++// The S1 struct; some fields are not exported.
++type S1 struct {
++	S0;
++	A, B, C	float;	// 3 exported fields
++	D, b, c	int;	// 2 unexported fields
++}
++
++// The S2 struct; all fields are exported.
++type S2 struct {
++	S1;
++	A, B, C	float;	// 3 exported fields
++}
++
++// The IZ interface; it is empty.
++type SZ interface{}
++
++// The I0 interface; no method is exported.
++type I0 interface {
++	f, g	(x int) int;	// 2 unexported methods
++}
++
++// The I1 interface; some methods are not exported.
++type I1 interface {
++	I0;
++	F, G	(x float) float;	// 2 exported methods
++	H, g	(x int) int;		// 1 unexported method
++}
++
++// The I2 interface; all methods are exported.
++type I1 interface {
++	I0;
++	F, G	(x float) float;	// 2 exported methods
+ }
+ 
+ // This comment group should be separated
+diff --git a/src/pkg/go/printer/testdata/comments.x b/src/pkg/go/printer/testdata/comments.x
+index 4ebb6ec670..d8aa0fceeb 100644
+--- a/src/pkg/go/printer/testdata/comments.x
++++ b/src/pkg/go/printer/testdata/comments.x
+@@ -2,5 +2,46 @@
+ //
+ package main
+ 
+-// The T type.
+-type T struct
++// The SZ struct; it is empty.
++type SZ struct{}
++
++// The S0 struct; no field is exported.
++type S0 struct {
++	// contains unexported fields
++}
++
++// The S1 struct; some fields are not exported.
++type S1 struct {
++	S0;
++	A, B, C	float;	// 3 exported fields
++	D		int;	// 2 unexported fields
++	// contains unexported fields
++}
++
++// The S2 struct; all fields are exported.
++type S2 struct {
++	S1;
++	A, B, C	float;	// 3 exported fields
++}
++
++// The IZ interface; it is empty.
++type SZ interface{}
++
++// The I0 interface; no method is exported.
++type I0 interface {
++	// contains unexported methods
++}
++
++// The I1 interface; some methods are not exported.
++type I1 interface {
++	I0;
++	F, G	(x float) float;
++	H		(x int) int;
++	// contains unexported methods
++}
++
++// The I2 interface; all methods are exported.
++type I1 interface {
++	I0;
++	F, G	(x float) float;
++}
+diff --git a/src/pkg/go/printer/testdata/declarations.go b/src/pkg/go/printer/testdata/declarations.go
+index 309caf3b61..3865a4319a 100644
+--- a/src/pkg/go/printer/testdata/declarations.go
++++ b/src/pkg/go/printer/testdata/declarations.go
+@@ -7,10 +7,10 @@ package imports
+ import "io"
+ 
+ import (
+-	a "io"
++	_ "io"
+ )
+ 
+-import a "io"
++import _ "io"
+ 
+ import (
+ 	"io";
+@@ -25,4 +25,50 @@ import (
+ 	c "i" "o";
+ )
+ 
++func _() {
++	// the following decls need a semicolon at the end
++	type _ int;
++	type _ *int;
++	type _ []int;
++	type _ map[string]int;
++	type _ chan int;
++	type _ func() int;
++
++	var _ int;
++	var _ *int;
++	var _ []int;
++	var _ map[string]int;
++	var _ chan int;
++	var _ func() int;
++
++	// the following decls don't need a semicolon at the end
++	type _ struct{}
++	type _ *struct{}
++	type _ []struct{}
++	type _ map[string]struct{}
++	type _ chan struct{}
++	type _ func() struct{}
++
++	type _ interface{}
++	type _ *interface{}
++	type _ []interface{}
++	type _ map[string]interface{}
++	type _ chan interface{}
++	type _ func() interface{}
++
++	var _ struct{}
++	var _ *struct{}
++	var _ []struct{}
++	var _ map[string]struct{}
++	var _ chan struct{}
++	var _ func() struct{}
++
++	var _ interface{}
++	var _ *interface{}
++	var _ []interface{}
++	var _ map[string]interface{}
++	var _ chan interface{}
++	var _ func() interface{}
++}
++
+ // TODO(gri) add more test cases
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 21c3c2b930..131841c943 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -7,10 +7,10 @@ package imports
+ import "io"
+ 
+ import (
+-	a "io";
++	_ "io";
+ )
+ 
+-import a "io"
++import _ "io"
+ 
+ import (
+ 	"io";
+@@ -25,4 +25,46 @@ import (
+ 	c			"i" "o";
+ )
+ 
++func _() {
++	// the following decls need a semicolon at the end
++	type _ int;
++	type _ *int;
++	type _ []int;
++	type _ map[string]int;
++	type _ chan int;
++	type _ func() int;
++	var _ int;
++	var _ *int;
++	var _ []int;
++	var _ map[string]int;
++	var _ chan int;
++	var _ func() int;
++	
++	// the following decls don't need a semicolon at the end
++	type _ struct{}
++	type _ *struct{}
++	type _ []struct{}
++	type _ map[string]struct{}
++	type _ chan struct{}
++	type _ func() struct{}
++	type _ interface{}
++	type _ *interface{}
++	type _ []interface{}
++	type _ map[string]interface{}
++	type _ chan interface{}
++	type _ func() interface{}
++	var _ struct{}
++	var _ *struct{}
++	var _ []struct{}
++	var _ map[string]struct{}
++	var _ chan struct{}
++	var _ func() struct{}
++	var _ interface{}
++	var _ *interface{}
++	var _ []interface{}
++	var _ map[string]interface{}
++	var _ chan interface{}
++	var _ func() interface{}
++}
++
+ // TODO(gri) add more test cases

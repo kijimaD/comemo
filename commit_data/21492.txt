@@ -57,6 +57,84 @@ Date:   Thu Jan 8 11:14:06 2015 -0800
     Change-Id: I46698729d5e0bc3e277aa0146a9d7a086c0c26f1
     Reviewed-on: https://go-review.googlesource.com/2560
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/math/big/arith_386.s | 22 +++++++++++-----------
  1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index 649bc4dc88..eb17bc1459 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -7,8 +7,6 @@
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+-// TODO(gri) Replace uses of RCRL/RCLL with ADDL/SBBL respectively.
+-
+ // func mulWW(x, y Word) (z1, z0 Word)
+ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	MOVL x+0(FP), AX
+@@ -39,15 +37,16 @@ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP E1
+ 
+ L1:	MOVL (SI)(BX*4), AX
+-	RCRL $1, DX
++	ADDL DX, DX		// restore CF
+ 	ADCL (CX)(BX*4), AX
+-	RCLL $1, DX
++	SBBL DX, DX		// save CF
+ 	MOVL AX, (DI)(BX*4)
+ 	ADDL $1, BX		// i++
+ 
+ E1:	CMPL BX, BP		// i < n
+ 	JL L1
+ 
++	NEGL DX
+ 	MOVL DX, c+36(FP)
+ 	RET
+ 
+@@ -64,15 +63,16 @@ TEXT ·subVV(SB),NOSPLIT,$0
+ 	JMP E2
+ 
+ L2:	MOVL (SI)(BX*4), AX
+-	RCRL $1, DX
++	ADDL DX, DX		// restore CF
+ 	SBBL (CX)(BX*4), AX
+-	RCLL $1, DX
++	SBBL DX, DX		// save CF
+ 	MOVL AX, (DI)(BX*4)
+ 	ADDL $1, BX		// i++
+ 
+ E2:	CMPL BX, BP		// i < n
+ 	JL L2
+ 
++	NEGL DX
+ 	MOVL DX, c+36(FP)
+ 	RET
+ 
+@@ -88,8 +88,8 @@ TEXT ·addVW(SB),NOSPLIT,$0
+ 
+ L3:	ADDL (SI)(BX*4), AX
+ 	MOVL AX, (DI)(BX*4)
+-	RCLL $1, AX
+-	ANDL $1, AX
++	SBBL AX, AX		// save CF
++	NEGL AX
+ 	ADDL $1, BX		// i++
+ 
+ E3:	CMPL BX, BP		// i < n
+@@ -108,11 +108,11 @@ TEXT ·subVW(SB),NOSPLIT,$0
+ 	MOVL $0, BX		// i = 0
+ 	JMP E4
+ 
+-L4:	MOVL (SI)(BX*4), DX	// TODO(gri) is there a reverse SUBL?
++L4:	MOVL (SI)(BX*4), DX
+ 	SUBL AX, DX
+ 	MOVL DX, (DI)(BX*4)
+-	RCLL $1, AX
+-	ANDL $1, AX
++	SBBL AX, AX		// save CF
++	NEGL AX
+ 	ADDL $1, BX		// i++
+ 
+ E4:	CMPL BX, BP		// i < n

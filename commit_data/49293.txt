@@ -16,8 +16,174 @@ Date:   Wed Aug 4 20:55:28 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/testsanitizers/msan_test.go      |   1 +
  misc/cgo/testsanitizers/testdata/msan8.go | 109 ++++++++++++++++++++++++++++++
  src/runtime/cgo/gcc_traceback.c           |  20 ++++++
  3 files changed, 130 insertions(+)
+
+diff --git a/misc/cgo/testsanitizers/msan_test.go b/misc/cgo/testsanitizers/msan_test.go
+index 2a3494fbfc..5ee9947a58 100644
+--- a/misc/cgo/testsanitizers/msan_test.go
++++ b/misc/cgo/testsanitizers/msan_test.go
+@@ -42,6 +42,7 @@ func TestMSAN(t *testing.T) {
+ 		{src: "msan5.go"},
+ 		{src: "msan6.go"},
+ 		{src: "msan7.go"},
++		{src: "msan8.go"},
+ 		{src: "msan_fail.go", wantErr: true},
+ 	}
+ 	for _, tc := range cases {
+diff --git a/misc/cgo/testsanitizers/testdata/msan8.go b/misc/cgo/testsanitizers/testdata/msan8.go
+new file mode 100644
+index 0000000000..1cb5c5677f
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/msan8.go
+@@ -0,0 +1,109 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <pthread.h>
++#include <signal.h>
++#include <stdint.h>
++
++#include <sanitizer/msan_interface.h>
++
++// cgoTracebackArg is the type of the argument passed to msanGoTraceback.
++struct cgoTracebackArg {
++	uintptr_t context;
++	uintptr_t sigContext;
++	uintptr_t* buf;
++	uintptr_t max;
++};
++
++// msanGoTraceback is registered as the cgo traceback function.
++// This will be called when a signal occurs.
++void msanGoTraceback(void* parg) {
++	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
++        arg->buf[0] = 0;
++}
++
++// msanGoWait will be called with all registers undefined as far as
++// msan is concerned. It just waits for a signal.
++// Because the registers are msan-undefined, the signal handler will
++// be invoked with all registers msan-undefined.
++__attribute__((noinline))
++void msanGoWait(unsigned long a1, unsigned long a2, unsigned long a3, unsigned long a4, unsigned long a5, unsigned long a6) {
++	sigset_t mask;
++
++	sigemptyset(&mask);
++        sigsuspend(&mask);
++}
++
++// msanGoSignalThread is the thread ID of the msanGoLoop thread.
++static pthread_t msanGoSignalThread;
++
++// msanGoSignalThreadSet is used to record that msanGoSignalThread
++// has been initialized. This is accessed atomically.
++static int32_t msanGoSignalThreadSet;
++
++// uninit is explicitly poisoned, so that we can make all registers
++// undefined by calling msanGoWait.
++static unsigned long uninit;
++
++// msanGoLoop loops calling msanGoWait, with the arguments passed
++// such that msan thinks that they are undefined. msan permits
++// undefined values to be used as long as they are not used to
++// for conditionals or for memory access.
++void msanGoLoop() {
++	int i;
++
++	msanGoSignalThread = pthread_self();
++        __atomic_store_n(&msanGoSignalThreadSet, 1, __ATOMIC_SEQ_CST);
++
++	// Force uninit to be undefined for msan.
++	__msan_poison(&uninit, sizeof uninit);
++	for (i = 0; i < 100; i++) {
++		msanGoWait(uninit, uninit, uninit, uninit, uninit, uninit);
++        }
++}
++
++// msanGoReady returns whether msanGoSignalThread is set.
++int msanGoReady() {
++	return __atomic_load_n(&msanGoSignalThreadSet, __ATOMIC_SEQ_CST) != 0;
++}
++
++// msanGoSendSignal sends a signal to the msanGoLoop thread.
++void msanGoSendSignal() {
++	pthread_kill(msanGoSignalThread, SIGWINCH);
++}
++*/
++import "C"
++
++import (
++	"runtime"
++	"time"
++)
++
++func main() {
++	runtime.SetCgoTraceback(0, C.msanGoTraceback, nil, nil)
++
++	c := make(chan bool)
++	go func() {
++		defer func() { c <- true }()
++		C.msanGoLoop()
++	}()
++
++	for C.msanGoReady() == 0 {
++		time.Sleep(time.Microsecond)
++	}
++
++loop:
++	for {
++		select {
++		case <-c:
++			break loop
++		default:
++			C.msanGoSendSignal()
++			time.Sleep(time.Microsecond)
++		}
++	}
++}
+diff --git a/src/runtime/cgo/gcc_traceback.c b/src/runtime/cgo/gcc_traceback.c
+index d86331c583..6e9470c43c 100644
+--- a/src/runtime/cgo/gcc_traceback.c
++++ b/src/runtime/cgo/gcc_traceback.c
+@@ -7,6 +7,14 @@
+ #include <stdint.h>
+ #include "libcgo.h"
+ 
++#ifndef __has_feature
++#define __has_feature(x) 0
++#endif
++
++#if __has_feature(memory_sanitizer)
++#include <sanitizer/msan_interface.h>
++#endif
++
+ // Call the user's traceback function and then call sigtramp.
+ // The runtime signal handler will jump to this code.
+ // We do it this way so that the user's traceback function will be called
+@@ -19,6 +27,18 @@ x_cgo_callers(uintptr_t sig, void *info, void *context, void (*cgoTraceback)(str
+ 	arg.SigContext = (uintptr_t)(context);
+ 	arg.Buf = cgoCallers;
+ 	arg.Max = 32; // must match len(runtime.cgoCallers)
++
++#if __has_feature(memory_sanitizer)
++        // This function is called directly from the signal handler.
++        // The arguments are passed in registers, so whether msan
++        // considers cgoCallers to be initialized depends on whether
++        // it considers the appropriate register to be initialized.
++        // That can cause false reports in rare cases.
++        // Explicitly unpoison the memory to avoid that.
++        // See issue #47543 for more details.
++        __msan_unpoison(&arg, sizeof arg);
++#endif
++
+ 	(*cgoTraceback)(&arg);
+ 	sigtramp(sig, info, context);
+ }

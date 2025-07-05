@@ -7,6 +7,20 @@ Date:   Tue Jan 30 00:14:54 2018 +0530
     Change-Id: I802bc11d90d414e7313dd11842a04fd6b591ea06
     Reviewed-on: https://go-review.googlesource.com/90595
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index adaf983cee..e5312becbb 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -30,7 +30,7 @@ You must go through the following process <em>prior to contributing</em>.
+ You only need to do this once per Google Account.
+ </p>
+ 
+-<h2 id="go-contrib-init">Automatically set up &amp; diagnose your development environment</h3>
++<h2 id="go-contrib-init">Automatically set up &amp; diagnose your development environment</h2>
+ <p>
+   The <code>go-contrib-init</code> tool configures and debugs your Go
+   development environment, automatically performing many of the steps

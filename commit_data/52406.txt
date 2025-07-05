@@ -33,7 +33,7 @@ Date:   Fri Oct 1 22:52:12 2021 -0400
     Change-Id: Ia30f914e683e491a00900fd27868446c65e5d3c2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/353989
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go   |  57 +++++++++-
  src/runtime/mgc.go           |  22 +++-
  src/runtime/mgclimit.go      | 263 +++++++++++++++++++++++++++++++++++++++++++
@@ -42,3 +42,816 @@ Date:   Fri Oct 1 22:52:12 2021 -0400
  src/runtime/mgcpacer.go      |  31 +++--
  src/runtime/proc.go          |   6 +-
  7 files changed, 632 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 6d17d1bc4d..708da264b7 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1312,7 +1312,7 @@ func (c *GCController) Revise(d GCControllerReviseDelta) {
+ }
+ 
+ func (c *GCController) EndCycle(bytesMarked uint64, assistTime, elapsed int64, gomaxprocs int) {
+-	c.assistTime = assistTime
++	c.assistTime.Store(assistTime)
+ 	c.endCycle(elapsed, gomaxprocs, false)
+ 	c.resetLive(bytesMarked)
+ 	c.commit()
+@@ -1373,6 +1373,61 @@ func (c *PIController) Next(input, setpoint, period float64) (float64, bool) {
+ 	return c.piController.next(input, setpoint, period)
+ }
+ 
++const (
++	CapacityPerProc          = capacityPerProc
++	GCCPULimiterUpdatePeriod = gcCPULimiterUpdatePeriod
++)
++
++type GCCPULimiter struct {
++	limiter gcCPULimiterState
++}
++
++func NewGCCPULimiter(now int64, gomaxprocs int32) *GCCPULimiter {
++	// Force the controller to escape. We're going to
++	// do 64-bit atomics on it, and if it gets stack-allocated
++	// on a 32-bit architecture, it may get allocated unaligned
++	// space.
++	l := escape(new(GCCPULimiter))
++	l.limiter.resetCapacity(now, gomaxprocs)
++	return l
++}
++
++func (l *GCCPULimiter) Fill() uint64 {
++	return l.limiter.bucket.fill
++}
++
++func (l *GCCPULimiter) Capacity() uint64 {
++	return l.limiter.bucket.capacity
++}
++
++func (l *GCCPULimiter) Overflow() uint64 {
++	return l.limiter.overflow
++}
++
++func (l *GCCPULimiter) Limiting() bool {
++	return l.limiter.limiting()
++}
++
++func (l *GCCPULimiter) NeedUpdate(now int64) bool {
++	return l.limiter.needUpdate(now)
++}
++
++func (l *GCCPULimiter) StartGCTransition(enableGC bool, totalAssistTime, now int64) {
++	l.limiter.startGCTransition(enableGC, totalAssistTime, now)
++}
++
++func (l *GCCPULimiter) FinishGCTransition(now int64) {
++	l.limiter.finishGCTransition(now)
++}
++
++func (l *GCCPULimiter) Update(totalAssistTime int64, now int64) {
++	l.limiter.update(totalAssistTime, now)
++}
++
++func (l *GCCPULimiter) ResetCapacity(now int64, nprocs int32) {
++	l.limiter.resetCapacity(now, nprocs)
++}
++
+ const ScavengePercent = scavengePercent
+ 
+ type Scavenger struct {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f79bd54c5e..d7e373b5d8 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -675,6 +675,9 @@ func gcStart(trigger gcTrigger) {
+ 	gcController.startCycle(now, int(gomaxprocs), trigger)
+ 	work.heapGoal = gcController.heapGoal
+ 
++	// Notify the CPU limiter that assists may begin.
++	gcCPULimiter.startGCTransition(true, 0, now)
++
+ 	// In STW mode, disable scheduling of user Gs. This may also
+ 	// disable scheduling of this goroutine, so it may block as
+ 	// soon as we start the world again.
+@@ -725,6 +728,9 @@ func gcStart(trigger gcTrigger) {
+ 		work.pauseNS += now - work.pauseStart
+ 		work.tMark = now
+ 		memstats.gcPauseDist.record(now - work.pauseStart)
++
++		// Release the CPU limiter.
++		gcCPULimiter.finishGCTransition(now)
+ 	})
+ 
+ 	// Release the world sema before Gosched() in STW mode
+@@ -882,6 +888,9 @@ top:
+ 	// this before waking blocked assists.
+ 	atomic.Store(&gcBlackenEnabled, 0)
+ 
++	// Notify the CPU limiter that assists will now cease.
++	gcCPULimiter.startGCTransition(false, gcController.assistTime.Load(), now)
++
+ 	// Wake all blocked assists. These will run when we
+ 	// start the world again.
+ 	gcWakeAllAssists()
+@@ -997,7 +1006,7 @@ func gcMarkTermination() {
+ 	sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
+ 	// We report idle marking time below, but omit it from the
+ 	// overall utilization here since it's "free".
+-	markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
++	markCpu := gcController.assistTime.Load() + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
+ 	markTermCpu := int64(work.stwprocs) * (work.tEnd - work.tMarkTerm)
+ 	cycleCpu := sweepTermCpu + markCpu + markTermCpu
+ 	work.totaltime += cycleCpu
+@@ -1020,6 +1029,9 @@ func gcMarkTermination() {
+ 	injectglist(&work.sweepWaiters.list)
+ 	unlock(&work.sweepWaiters.lock)
+ 
++	// Release the CPU limiter.
++	gcCPULimiter.finishGCTransition(now)
++
+ 	// Finish the current heap profiling cycle and start a new
+ 	// heap profiling cycle. We do this before starting the world
+ 	// so events don't leak into the wrong cycle.
+@@ -1081,7 +1093,13 @@ func gcMarkTermination() {
+ 			prev = ns
+ 		}
+ 		print(" ms clock, ")
+-		for i, ns := range []int64{sweepTermCpu, gcController.assistTime, gcController.dedicatedMarkTime + gcController.fractionalMarkTime, gcController.idleMarkTime, markTermCpu} {
++		for i, ns := range []int64{
++			sweepTermCpu,
++			gcController.assistTime.Load(),
++			gcController.dedicatedMarkTime + gcController.fractionalMarkTime,
++			gcController.idleMarkTime,
++			markTermCpu,
++		} {
+ 			if i == 2 || i == 3 {
+ 				// Separate mark time components with /.
+ 				print("/")
+diff --git a/src/runtime/mgclimit.go b/src/runtime/mgclimit.go
+new file mode 100644
+index 0000000000..1330ce63c0
+--- /dev/null
++++ b/src/runtime/mgclimit.go
+@@ -0,0 +1,263 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "runtime/internal/atomic"
++
++// gcCPULimiter is a mechanism to limit GC CPU utilization in situations
++// where it might become excessive and inhibit application progress (e.g.
++// a death spiral).
++//
++// The core of the limiter is a leaky bucket mechanism that fills with GC
++// CPU time and drains with mutator time. Because the bucket fills and
++// drains with time directly (i.e. without any weighting), this effectively
++// sets a very conservative limit of 50%. This limit could be enforced directly,
++// however, but the purpose of the bucket is to accomodate spikes in GC CPU
++// utilization without hurting throughput.
++//
++// Note that the bucket in the leaky bucket mechanism can never go negative,
++// so the GC never gets credit for a lot of CPU time spent without the GC
++// running. This is intentional, as an application that stays idle for, say,
++// an entire day, could build up enough credit to fail to prevent a death
++// spiral the following day. The bucket's capacity is the GC's only leeway.
++//
++// The capacity thus also sets the window the limiter considers. For example,
++// if the capacity of the bucket is 1 cpu-second, then the limiter will not
++// kick in until at least 1 full cpu-second in the last 2 cpu-second window
++// is spent on GC CPU time.
++var gcCPULimiter gcCPULimiterState
++
++type gcCPULimiterState struct {
++	lock atomic.Uint32
++
++	enabled atomic.Bool
++	bucket  struct {
++		// Invariants:
++		// - fill >= 0
++		// - capacity >= 0
++		// - fill <= capacity
++		fill, capacity uint64
++	}
++	// TODO(mknyszek): Export this as a runtime/metric to provide an estimate of
++	// how much GC work is being dropped on the floor.
++	overflow uint64
++
++	// gcEnabled is an internal copy of gcBlackenEnabled that determines
++	// whether the limiter tracks total assist time.
++	//
++	// gcBlackenEnabled isn't used directly so as to keep this structure
++	// unit-testable.
++	gcEnabled bool
++
++	// transitioning is true when the GC is in a STW and transitioning between
++	// the mark and sweep phases.
++	transitioning bool
++
++	// lastTotalAssistTime is the last value of a monotonically increasing
++	// count of GC assist time, like gcController.assistTime.
++	lastTotalAssistTime int64
++
++	_ uint32 // Align lastUpdate on 32-bit platforms.
++
++	// lastUpdate is the nanotime timestamp of the last time update was called.
++	//
++	// Updated under lock, but may be read concurrently.
++	lastUpdate atomic.Int64
++
++	// nprocs is an internal copy of gomaxprocs, used to determine total available
++	// CPU time.
++	//
++	// gomaxprocs isn't used directly so as to keep this structure unit-testable.
++	nprocs int32
++}
++
++// limiting returns true if the CPU limiter is currently enabled, meaning the Go GC
++// should take action to limit CPU utilization.
++//
++// It is safe to call concurrently with other operations.
++func (l *gcCPULimiterState) limiting() bool {
++	return l.enabled.Load()
++}
++
++// startGCTransition notifies the limiter of a GC transition. totalAssistTime
++// is the same as described for update. now must be the start of the STW pause
++// for the GC transition.
++//
++// This call takes ownership of the limiter and disables all other means of
++// updating the limiter. Release ownership by calling finishGCTransition.
++//
++// It is safe to call concurrently with other operations.
++func (l *gcCPULimiterState) startGCTransition(enableGC bool, totalAssistTime, now int64) {
++	if !l.tryLock() {
++		// This must happen during a STW, so we can't fail to acquire the lock.
++		// If we did, something went wrong. Throw.
++		throw("failed to acquire lock to start a GC transition")
++	}
++	if l.gcEnabled == enableGC {
++		throw("transitioning GC to the same state as before?")
++	}
++	// Flush whatever was left between the last update and now.
++	l.updateLocked(totalAssistTime, now)
++	if enableGC && totalAssistTime != 0 {
++		throw("assist time must be zero on entry to a GC cycle")
++	}
++	l.gcEnabled = enableGC
++	l.transitioning = true
++	// N.B. finishGCTransition releases the lock.
++	//
++	// We don't release here to increase the chance that if there's a failure
++	// to finish the transition, that we throw on failing to acquire the lock.
++}
++
++// finishGCTransition notifies the limiter that the GC transition is complete
++// and releases ownership of it. It also accumulates STW time in the bucket.
++// now must be the timestamp from the end of the STW pause.
++func (l *gcCPULimiterState) finishGCTransition(now int64) {
++	if !l.transitioning {
++		throw("finishGCTransition called without starting one?")
++	}
++	// Count the full nprocs set of CPU time because the world is stopped
++	// between startGCTransition and finishGCTransition. Even though the GC
++	// isn't running on all CPUs, it is preventing user code from doing so,
++	// so it might as well be.
++	if lastUpdate := l.lastUpdate.Load(); now >= lastUpdate {
++		l.accumulate(0, (now-lastUpdate)*int64(l.nprocs))
++	}
++	l.lastUpdate.Store(now)
++	l.transitioning = false
++	// Reset lastTotalAssistTime for the next GC cycle.
++	l.lastTotalAssistTime = 0
++	l.unlock()
++}
++
++// gcCPULimiterUpdatePeriod dictates the maximum amount of wall-clock time
++// we can go before updating the limiter.
++const gcCPULimiterUpdatePeriod = 10e6 // 10ms
++
++// needUpdate returns true if the limiter's maximum update period has been
++// exceeded, and so would benefit from an update.
++func (l *gcCPULimiterState) needUpdate(now int64) bool {
++	return now-l.lastUpdate.Load() > gcCPULimiterUpdatePeriod
++}
++
++// update updates the bucket given runtime-specific information. totalAssistTime must
++// be a value that increases monotonically throughout the GC cycle, and is reset
++// at the start of a new mark phase. now is the current monotonic time in nanoseconds.
++//
++// This is safe to call concurrently with other operations, except *GCTransition.
++func (l *gcCPULimiterState) update(totalAssistTime int64, now int64) {
++	if !l.tryLock() {
++		// We failed to acquire the lock, which means something else is currently
++		// updating. Just drop our update, the next one to update will include
++		// our total assist time.
++		return
++	}
++	if l.transitioning {
++		throw("update during transition")
++	}
++	l.updateLocked(totalAssistTime, now)
++	l.unlock()
++}
++
++// updatedLocked is the implementation of update. l.lock must be held.
++func (l *gcCPULimiterState) updateLocked(totalAssistTime int64, now int64) {
++	lastUpdate := l.lastUpdate.Load()
++	if now < lastUpdate || totalAssistTime < l.lastTotalAssistTime {
++		// Defensively avoid overflow. This isn't even the latest update anyway.
++		// This might seem like a lot to back out on, but provided that both
++		// totalAssistTime and now are fresh, updaters must've been closely
++		// racing. It's close enough that it doesn't matter, and in the long
++		// term the result is the same.
++		return
++	}
++	windowTotalTime := (now - lastUpdate) * int64(l.nprocs)
++	l.lastUpdate.Store(now)
++	if !l.gcEnabled {
++		l.accumulate(windowTotalTime, 0)
++		return
++	}
++	windowGCTime := totalAssistTime - l.lastTotalAssistTime
++	windowGCTime += int64(float64(windowTotalTime) * gcBackgroundUtilization)
++	l.accumulate(windowTotalTime-windowGCTime, windowGCTime)
++	l.lastTotalAssistTime = totalAssistTime
++}
++
++// accumulate adds time to the bucket and signals whether the limiter is enabled.
++//
++// This is an internal function that deals just with the bucket. Prefer update.
++// l.lock must be held.
++func (l *gcCPULimiterState) accumulate(mutatorTime, gcTime int64) {
++	headroom := l.bucket.capacity - l.bucket.fill
++	enabled := headroom == 0
++
++	// Let's be careful about three things here:
++	// 1. The addition and subtraction, for the invariants.
++	// 2. Overflow.
++	// 3. Excessive mutation of l.enabled, which is accessed
++	//    by all assists, potentially more than once.
++	change := gcTime - mutatorTime
++
++	// Handle limiting case.
++	if change > 0 && headroom <= uint64(change) {
++		l.overflow += uint64(change) - headroom
++		l.bucket.fill = l.bucket.capacity
++		if !enabled {
++			l.enabled.Store(true)
++		}
++		return
++	}
++
++	// Handle non-limiting cases.
++	if change < 0 && l.bucket.fill <= uint64(-change) {
++		// Bucket emptied.
++		l.bucket.fill = 0
++	} else {
++		// All other cases.
++		l.bucket.fill -= uint64(-change)
++	}
++	if change != 0 && enabled {
++		l.enabled.Store(false)
++	}
++}
++
++// tryLock attempts to lock l. Returns true on success.
++func (l *gcCPULimiterState) tryLock() bool {
++	return l.lock.CompareAndSwap(0, 1)
++}
++
++// unlock releases the lock on l. Must be called if tryLock returns true.
++func (l *gcCPULimiterState) unlock() {
++	old := l.lock.Swap(0)
++	if old != 1 {
++		throw("double unlock")
++	}
++}
++
++// capacityPerProc is the limiter's bucket capacity for each P in GOMAXPROCS.
++const capacityPerProc = 1e9 // 1 second in nanoseconds
++
++// resetCapacity updates the capacity based on GOMAXPROCS. Must not be called
++// while the GC is enabled.
++//
++// It is safe to call concurrently with other operations.
++func (l *gcCPULimiterState) resetCapacity(now int64, nprocs int32) {
++	if !l.tryLock() {
++		// This must happen during a STW, so we can't fail to acquire the lock.
++		// If we did, something went wrong. Throw.
++		throw("failed to acquire lock to reset capacity")
++	}
++	// Flush the rest of the time for this period.
++	l.updateLocked(0, now)
++	l.nprocs = nprocs
++
++	l.bucket.capacity = uint64(nprocs) * capacityPerProc
++	if l.bucket.fill > l.bucket.capacity {
++		l.bucket.fill = l.bucket.capacity
++		l.enabled.Store(true)
++	} else if l.bucket.fill < l.bucket.capacity {
++		l.enabled.Store(false)
++	}
++	l.unlock()
++}
+diff --git a/src/runtime/mgclimit_test.go b/src/runtime/mgclimit_test.go
+new file mode 100644
+index 0000000000..b5e2190470
+--- /dev/null
++++ b/src/runtime/mgclimit_test.go
+@@ -0,0 +1,253 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	. "runtime"
++	"testing"
++	"time"
++)
++
++func TestGCCPULimiter(t *testing.T) {
++	const procs = 14
++
++	// Create mock time.
++	ticks := int64(0)
++	advance := func(d time.Duration) int64 {
++		t.Helper()
++		ticks += int64(d)
++		return ticks
++	}
++
++	// Create mock assist time.
++	assistCPUTime := int64(0)
++	doAssist := func(d time.Duration, frac float64) int64 {
++		t.Helper()
++		assistCPUTime += int64(frac * float64(d) * procs)
++		return assistCPUTime
++	}
++
++	l := NewGCCPULimiter(ticks, procs)
++
++	// Do the whole test twice to make sure state doesn't leak across.
++	var baseOverflow uint64 // Track total overflow across iterations.
++	for i := 0; i < 2; i++ {
++		t.Logf("Iteration %d", i+1)
++
++		if l.Capacity() != procs*CapacityPerProc {
++			t.Fatalf("unexpected capacity: %d", l.Capacity())
++		}
++		if l.Fill() != 0 {
++			t.Fatalf("expected empty bucket to start")
++		}
++
++		// Test filling the bucket with just mutator time.
++
++		l.Update(0, advance(10*time.Millisecond))
++		l.Update(0, advance(1*time.Second))
++		l.Update(0, advance(1*time.Hour))
++		if l.Fill() != 0 {
++			t.Fatalf("expected empty bucket from only accumulating mutator time, got fill of %d cpu-ns", l.Fill())
++		}
++
++		// Test needUpdate.
++
++		if l.NeedUpdate(advance(GCCPULimiterUpdatePeriod / 2)) {
++			t.Fatal("need update even though updated half a period ago")
++		}
++		if !l.NeedUpdate(advance(GCCPULimiterUpdatePeriod)) {
++			t.Fatal("doesn't need update even though updated 1.5 periods ago")
++		}
++		l.Update(0, advance(0))
++		if l.NeedUpdate(advance(0)) {
++			t.Fatal("need update even though just updated")
++		}
++
++		// Test transitioning the bucket to enable the GC.
++
++		l.StartGCTransition(true, 0, advance(109*time.Millisecond))
++		l.FinishGCTransition(advance(2*time.Millisecond + 1*time.Microsecond))
++
++		if expect := uint64((2*time.Millisecond + 1*time.Microsecond) * procs); l.Fill() != expect {
++			t.Fatalf("expected fill of %d, got %d cpu-ns", expect, l.Fill())
++		}
++
++		// Test passing time without assists during a GC. Specifically, just enough to drain the bucket to
++		// exactly procs nanoseconds (easier to get to because of rounding).
++		//
++		// The window we need to drain the bucket is 1/(1-2*gcBackgroundUtilization) times the current fill:
++		//
++		//   fill + (window * procs * gcBackgroundUtilization - window * procs * (1-gcBackgroundUtilization)) = n
++		//   fill = n - (window * procs * gcBackgroundUtilization - window * procs * (1-gcBackgroundUtilization))
++		//   fill = n + window * procs * ((1-gcBackgroundUtilization) - gcBackgroundUtilization)
++		//   fill = n + window * procs * (1-2*gcBackgroundUtilization)
++		//   window = (fill - n) / (procs * (1-2*gcBackgroundUtilization)))
++		//
++		// And here we want n=procs:
++		factor := (1 / (1 - 2*GCBackgroundUtilization))
++		fill := (2*time.Millisecond + 1*time.Microsecond) * procs
++		l.Update(0, advance(time.Duration(factor*float64(fill-procs)/procs)))
++		if l.Fill() != procs {
++			t.Fatalf("expected fill %d cpu-ns from draining after a GC started, got fill of %d cpu-ns", procs, l.Fill())
++		}
++
++		// Drain to zero for the rest of the test.
++		l.Update(0, advance(2*procs*CapacityPerProc))
++		if l.Fill() != 0 {
++			t.Fatalf("expected empty bucket from draining, got fill of %d cpu-ns", l.Fill())
++		}
++
++		// Test filling up the bucket with 50% total GC work (so, not moving the bucket at all).
++		l.Update(doAssist(10*time.Millisecond, 0.5-GCBackgroundUtilization), advance(10*time.Millisecond))
++		if l.Fill() != 0 {
++			t.Fatalf("expected empty bucket from 50%% GC work, got fill of %d cpu-ns", l.Fill())
++		}
++
++		// Test adding to the bucket overall with 100% GC work.
++		l.Update(doAssist(time.Millisecond, 1.0-GCBackgroundUtilization), advance(time.Millisecond))
++		if expect := uint64(procs * time.Millisecond); l.Fill() != expect {
++			t.Errorf("expected %d fill from 100%% GC CPU, got fill of %d cpu-ns", expect, l.Fill())
++		}
++		if l.Limiting() {
++			t.Errorf("limiter is enabled after filling bucket but shouldn't be")
++		}
++		if t.Failed() {
++			t.FailNow()
++		}
++
++		// Test filling the bucket exactly full.
++		l.Update(doAssist(CapacityPerProc-time.Millisecond, 1.0-GCBackgroundUtilization), advance(CapacityPerProc-time.Millisecond))
++		if l.Fill() != l.Capacity() {
++			t.Errorf("expected bucket filled to capacity %d, got %d", l.Capacity(), l.Fill())
++		}
++		if !l.Limiting() {
++			t.Errorf("limiter is not enabled after filling bucket but should be")
++		}
++		if l.Overflow() != 0+baseOverflow {
++			t.Errorf("bucket filled exactly should not have overflow, found %d", l.Overflow())
++		}
++		if t.Failed() {
++			t.FailNow()
++		}
++
++		// Test adding with a delta of exactly zero. That is, GC work is exactly 50% of all resources.
++		// Specifically, the limiter should still be on, and no overflow should accumulate.
++		l.Update(doAssist(1*time.Second, 0.5-GCBackgroundUtilization), advance(1*time.Second))
++		if l.Fill() != l.Capacity() {
++			t.Errorf("expected bucket filled to capacity %d, got %d", l.Capacity(), l.Fill())
++		}
++		if !l.Limiting() {
++			t.Errorf("limiter is not enabled after filling bucket but should be")
++		}
++		if l.Overflow() != 0+baseOverflow {
++			t.Errorf("bucket filled exactly should not have overflow, found %d", l.Overflow())
++		}
++		if t.Failed() {
++			t.FailNow()
++		}
++
++		// Drain the bucket by half.
++		l.Update(doAssist(CapacityPerProc, 0), advance(CapacityPerProc))
++		if expect := l.Capacity() / 2; l.Fill() != expect {
++			t.Errorf("failed to drain to %d, got fill %d", expect, l.Fill())
++		}
++		if l.Limiting() {
++			t.Errorf("limiter is enabled after draining bucket but shouldn't be")
++		}
++		if t.Failed() {
++			t.FailNow()
++		}
++
++		// Test overfilling the bucket.
++		l.Update(doAssist(CapacityPerProc, 1.0-GCBackgroundUtilization), advance(CapacityPerProc))
++		if l.Fill() != l.Capacity() {
++			t.Errorf("failed to fill to capacity %d, got fill %d", l.Capacity(), l.Fill())
++		}
++		if !l.Limiting() {
++			t.Errorf("limiter is not enabled after overfill but should be")
++		}
++		if expect := uint64(CapacityPerProc * procs / 2); l.Overflow() != expect+baseOverflow {
++			t.Errorf("bucket overfilled should have overflow %d, found %d", expect, l.Overflow())
++		}
++		if t.Failed() {
++			t.FailNow()
++		}
++
++		// Test ending the cycle with some assists left over.
++
++		l.StartGCTransition(false, doAssist(1*time.Millisecond, 1.0-GCBackgroundUtilization), advance(1*time.Millisecond))
++		if l.Fill() != l.Capacity() {
++			t.Errorf("failed to maintain fill to capacity %d, got fill %d", l.Capacity(), l.Fill())
++		}
++		if !l.Limiting() {
++			t.Errorf("limiter is not enabled after overfill but should be")
++		}
++		if expect := uint64((CapacityPerProc/2 + time.Millisecond) * procs); l.Overflow() != expect+baseOverflow {
++			t.Errorf("bucket overfilled should have overflow %d, found %d", expect, l.Overflow())
++		}
++		if t.Failed() {
++			t.FailNow()
++		}
++
++		// Make sure the STW adds to the bucket.
++		l.FinishGCTransition(advance(5 * time.Millisecond))
++		if l.Fill() != l.Capacity() {
++			t.Errorf("failed to maintain fill to capacity %d, got fill %d", l.Capacity(), l.Fill())
++		}
++		if !l.Limiting() {
++			t.Errorf("limiter is not enabled after overfill but should be")
++		}
++		if expect := uint64((CapacityPerProc/2 + 6*time.Millisecond) * procs); l.Overflow() != expect+baseOverflow {
++			t.Errorf("bucket overfilled should have overflow %d, found %d", expect, l.Overflow())
++		}
++		if t.Failed() {
++			t.FailNow()
++		}
++
++		// Reset the mock total assist CPU time, since we just ended the cycle.
++		assistCPUTime = 0
++
++		// Resize procs up and make sure limiting stops.
++		expectFill := l.Capacity()
++		l.ResetCapacity(advance(0), procs+10)
++		if l.Fill() != expectFill {
++			t.Errorf("failed to maintain fill at old capacity %d, got fill %d", expectFill, l.Fill())
++		}
++		if l.Limiting() {
++			t.Errorf("limiter is enabled after resetting capacity higher")
++		}
++		if expect := uint64((CapacityPerProc/2 + 6*time.Millisecond) * procs); l.Overflow() != expect+baseOverflow {
++			t.Errorf("bucket overflow %d should have remained constant, found %d", expect, l.Overflow())
++		}
++		if t.Failed() {
++			t.FailNow()
++		}
++
++		// Resize procs down and make sure limiting begins again.
++		// Also make sure resizing doesn't affect overflow. This isn't
++		// a case where we want to report overflow, because we're not
++		// actively doing work to achieve it. It's that we have fewer
++		// CPU resources now.
++		l.ResetCapacity(advance(0), procs-10)
++		if l.Fill() != l.Capacity() {
++			t.Errorf("failed lower fill to new capacity %d, got fill %d", l.Capacity(), l.Fill())
++		}
++		if !l.Limiting() {
++			t.Errorf("limiter is disabled after resetting capacity lower")
++		}
++		if expect := uint64((CapacityPerProc/2 + 6*time.Millisecond) * procs); l.Overflow() != expect+baseOverflow {
++			t.Errorf("bucket overflow %d should have remained constant, found %d", expect, l.Overflow())
++		}
++		if t.Failed() {
++			t.FailNow()
++		}
++
++		// Get back to a zero state. The top of the loop will double check.
++		l.ResetCapacity(advance(CapacityPerProc*procs), procs)
++
++		// Track total overflow for future iterations.
++		baseOverflow += uint64((CapacityPerProc/2 + 6*time.Millisecond) * procs)
++	}
++}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index cd0ec007f3..63c90010ec 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -413,6 +413,14 @@ func gcAssistAlloc(gp *g) {
+ 
+ 	traced := false
+ retry:
++	if go119MemoryLimitSupport && gcCPULimiter.limiting() {
++		// If the CPU limiter is enabled, intentionally don't
++		// assist to reduce the amount of CPU time spent in the GC.
++		if traced {
++			traceGCMarkAssistDone()
++		}
++		return
++	}
+ 	// Compute the amount of scan work we need to do to make the
+ 	// balance positive. When the required amount of work is low,
+ 	// we over-assist to build up credit for future allocations
+@@ -581,12 +589,14 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 		// a valid pointer).
+ 		gp.param = unsafe.Pointer(gp)
+ 	}
+-	duration := nanotime() - startTime
++	now := nanotime()
++	duration := now - startTime
+ 	_p_ := gp.m.p.ptr()
+ 	_p_.gcAssistTime += duration
+ 	if _p_.gcAssistTime > gcAssistTimeSlack {
+-		atomic.Xaddint64(&gcController.assistTime, _p_.gcAssistTime)
++		assistTime := gcController.assistTime.Add(_p_.gcAssistTime)
+ 		_p_.gcAssistTime = 0
++		gcCPULimiter.update(assistTime, now)
+ 	}
+ }
+ 
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index e3313863ba..e106824c95 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -11,6 +11,12 @@ import (
+ 	"unsafe"
+ )
+ 
++// go119MemoryLimitSupport is a feature flag for a number of changes
++// related to the memory limit feature (#48409). Disabling this flag
++// disables those features, as well as the memory limit mechanism,
++// which becomes a no-op.
++const go119MemoryLimitSupport = true
++
+ const (
+ 	// gcGoalUtilization is the goal CPU utilization for
+ 	// marking as a fraction of GOMAXPROCS.
+@@ -249,10 +255,11 @@ type gcControllerState struct {
+ 	bgScanCredit int64
+ 
+ 	// assistTime is the nanoseconds spent in mutator assists
+-	// during this cycle. This is updated atomically. Updates
+-	// occur in bounded batches, since it is both written and read
+-	// throughout the cycle.
+-	assistTime int64
++	// during this cycle. This is updated atomically, and must also
++	// be updated atomically even during a STW, because it is read
++	// by sysmon. Updates occur in bounded batches, since it is both
++	// written and read throughout the cycle.
++	assistTime atomic.Int64
+ 
+ 	// dedicatedMarkTime is the nanoseconds spent in dedicated
+ 	// mark workers during this cycle. This is updated atomically
+@@ -381,7 +388,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
+ 	c.stackScanWork.Store(0)
+ 	c.globalsScanWork.Store(0)
+ 	c.bgScanCredit = 0
+-	c.assistTime = 0
++	c.assistTime.Store(0)
+ 	c.dedicatedMarkTime = 0
+ 	c.fractionalMarkTime = 0
+ 	c.idleMarkTime = 0
+@@ -608,7 +615,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
+ 	utilization := gcBackgroundUtilization
+ 	// Add assist utilization; avoid divide by zero.
+ 	if assistDuration > 0 {
+-		utilization += float64(c.assistTime) / float64(assistDuration*int64(procs))
++		utilization += float64(c.assistTime.Load()) / float64(assistDuration*int64(procs))
+ 	}
+ 
+ 	if c.heapLive <= c.trigger {
+@@ -743,11 +750,19 @@ func (c *gcControllerState) enlistWorker() {
+ 
+ // findRunnableGCWorker returns a background mark worker for _p_ if it
+ // should be run. This must only be called when gcBlackenEnabled != 0.
+-func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
++func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
+ 	if gcBlackenEnabled == 0 {
+ 		throw("gcControllerState.findRunnable: blackening not enabled")
+ 	}
+ 
++	// Since we have the current time, check if the GC CPU limiter
++	// hasn't had an update in a while. This check is necessary in
++	// case the limiter is on but hasn't been checked in a while and
++	// so may have left sufficient headroom to turn off again.
++	if gcCPULimiter.needUpdate(now) {
++		gcCPULimiter.update(gcController.assistTime.Load(), now)
++	}
++
+ 	if !gcMarkWorkAvailable(_p_) {
+ 		// No work to be done right now. This can happen at
+ 		// the end of the mark phase when there are still
+@@ -799,7 +814,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+ 		// goal?
+ 		//
+ 		// This should be kept in sync with pollFractionalWorkerExit.
+-		delta := nanotime() - c.markStartTime
++		delta := now - c.markStartTime
+ 		if delta > 0 && float64(_p_.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
+ 			// Nope. No need to run a fractional worker.
+ 			gcBgMarkWorkerPool.push(&node.node)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2bf5c55730..f29cc800f7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2577,7 +2577,7 @@ top:
+ 
+ 	// Try to schedule a GC worker.
+ 	if gcBlackenEnabled != 0 {
+-		gp = gcController.findRunnableGCWorker(_p_)
++		gp = gcController.findRunnableGCWorker(_p_, now)
+ 		if gp != nil {
+ 			return gp, false, true
+ 		}
+@@ -4869,6 +4869,10 @@ func procresize(nprocs int32) *p {
+ 	stealOrder.reset(uint32(nprocs))
+ 	var int32p *int32 = &gomaxprocs // make compiler check that gomaxprocs is an int32
+ 	atomic.Store((*uint32)(unsafe.Pointer(int32p)), uint32(nprocs))
++	if old != nprocs {
++		// Notify the limiter that the amount of procs has changed.
++		gcCPULimiter.resetCapacity(now, nprocs)
++	}
+ 	return runnablePs
+ }
+ 

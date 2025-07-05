@@ -7,6 +7,20 @@ Date:   Tue Jun 1 14:27:45 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1395041
-
+---
  src/cmd/goinstall/download.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index df1cde6e9c..d8d999d788 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -102,7 +102,7 @@ var git = vcs{
+ 	cmd:            "git",
+ 	metadir:        ".git",
+ 	clone:          "clone",
+-	update:         "checkout",
++	update:         "pull",
+ 	pull:           "fetch",
+ 	log:            "log",
+ 	logLimitFlag:   "-n1",

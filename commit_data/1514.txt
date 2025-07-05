@@ -9,6 +9,22 @@ Date:   Fri Jan 16 14:59:27 2009 -0800
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=22979
     CL=22986
-
+---
  src/lib/time/tick_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/time/tick_test.go b/src/lib/time/tick_test.go
+index 85eb52e0fd..79038dcf84 100644
+--- a/src/lib/time/tick_test.go
++++ b/src/lib/time/tick_test.go
+@@ -11,8 +11,8 @@ import (
+ 
+ export func TestTick(t *testing.T) {
+ 	const (
+-		Delta uint64 = 100*1e6;
+-		Count uint64 = 10;
++		Delta = 100*1e6;
++		Count = 10;
+ 	);
+ 	c := Tick(Delta);
+ 	t0 := Nanoseconds();

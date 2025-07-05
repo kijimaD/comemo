@@ -37,9 +37,122 @@ Date:   Wed Aug 11 22:17:20 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1982041
-
+---
  src/cmd/gopack/ar.c               | 19 +++++++++++++++----
  test/fixedbugs/bug302.dir/main.go |  5 +++++
  test/fixedbugs/bug302.go          |  2 +-
  test/run                          |  2 +-
  4 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index 377366ec48..5c8cd75efd 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -601,17 +601,21 @@ scanobj(Biobuf *b, Arfile *ap, long size)
+ 	if (obj < 0) {			/* not an object file */
+ 		if (!gflag || strcmp(file, pkgdef) != 0) {  /* don't clear allobj if it's pkg defs */
+ 			fprint(2, "gopack: non-object file %s\n", file);
++			errors++;
+ 			allobj = 0;
+ 		}
+ 		d = dirfstat(Bfildes(b));
+-		if (d != nil && d->length == 0)
++		if (d != nil && d->length == 0) {
+ 			fprint(2, "gopack: zero length file %s\n", file);
++			errors++;
++		}
+ 		free(d);
+ 		Bseek(b, offset, 0);
+ 		return;
+ 	}
+ 	if (lastobj >= 0 && obj != lastobj) {
+ 		fprint(2, "gopack: inconsistent object file %s\n", file);
++		errors++;
+ 		allobj = 0;
+ 		Bseek(b, offset, 0);
+ 		return;
+@@ -619,6 +623,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
+ 	lastobj = obj;
+ 	if (!readar(b, obj, offset+size, 0)) {
+ 		fprint(2, "gopack: invalid symbol reference in file %s\n", file);
++		errors++;
+ 		allobj = 0;
+ 		Bseek(b, offset, 0);
+ 		return;
+@@ -718,8 +723,8 @@ foundstart:
+ 	first = 1;
+ 	start = end = 0;
+ 	for (n=0; n<size; n+=Blinelen(b)) {
+-		line = Brdline(b, '\n');
+-		if (line == 0)
++		line = Brdstr(b, '\n', 0);
++		if (line == nil)
+ 			goto bad;
+ 		if (first && strstrn(line, Blinelen(b), "package ")) {
+ 			if (Blinelen(b) > sizeof(pkgbuf)-1)
+@@ -742,14 +747,19 @@ foundstart:
+ 				safe = 0;
+ 			start = Boffset(b);  // after package statement
+ 			first = 0;
++			free(line);
+ 			continue;
+ 		}
+-		if(line[0] == '$' && line[1] == '$')
++		if(line[0] == '$' && line[1] == '$') {
++			free(line);
+ 			goto foundend;
++		}
+ 		end = Boffset(b);  // before closing $$
++		free(line);
+ 	}
+ bad:
+ 	fprint(2, "gopack: bad package import section in %s\n", file);
++	errors++;
+ 	return;
+ 
+ foundend:
+@@ -795,6 +805,7 @@ objsym(Sym *s, void *p)
+ 	if(s->type == 'T' && duplicate(as->name, &ofile)) {
+ 		dupfound = 1;
+ 		fprint(2, "duplicate text symbol: %s and %s: %s\n", as->file, ofile, as->name);
++		errors++;
+ 		free(as->name);
+ 		free(as);
+ 		return;
+diff --git a/test/fixedbugs/bug302.dir/main.go b/test/fixedbugs/bug302.dir/main.go
+index 4013199585..9f874d08f5 100644
+--- a/test/fixedbugs/bug302.dir/main.go
++++ b/test/fixedbugs/bug302.dir/main.go
+@@ -4,4 +4,9 @@
+ 
+ package main
+ 
++// Check that the export information is correct in p.6.
+ import _ "./p"
++
++// Check that it's still correct in pp.a (which contains p.6).
++import _ "./pp"
++
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index 2a1d922d30..e9edb94ac8 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -1,4 +1,4 @@
+-// $G $D/bug302.dir/p.go && $G $D/bug302.dir/main.go
++// $G $D/bug302.dir/p.go && gopack grc pp.a p.$A && $G $D/bug302.dir/main.go
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run b/test/run
+index 6d02c91842..d2c6b4dc9a 100755
+--- a/test/run
++++ b/test/run
+@@ -101,7 +101,7 @@ done | # clean up some stack noise
+ 		/Segmentation fault/d
+ 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
+ 
+-rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
++rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A *.a $A.out
+ diffmsg=""
+ if ! diff golden.out run.out
+ then

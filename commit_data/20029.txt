@@ -8,6 +8,23 @@ Date:   Tue Aug 12 19:50:03 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/121590043
-
+---
  src/pkg/runtime/{noasm_arm.goc => noasm.goc} | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/noasm_arm.goc b/src/pkg/runtime/noasm.goc
+similarity index 97%
+rename from src/pkg/runtime/noasm_arm.goc
+rename to src/pkg/runtime/noasm.goc
+index fe3591e8a3..4966677293 100644
+--- a/src/pkg/runtime/noasm_arm.goc
++++ b/src/pkg/runtime/noasm.goc
+@@ -5,6 +5,8 @@
+ // Routines that are implemented in assembly in asm_{amd64,386}.s
+ // but are implemented in C for arm.
+ 
++// +build arm power64 power64le
++
+ package runtime
+ #include "runtime.h"
+ #include "../../cmd/ld/textflag.h"

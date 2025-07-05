@@ -22,7 +22,64 @@ Date:   Thu Jun 5 13:55:35 2025 -0700
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/synctest/synctest_test.go |  4 ++--
  src/runtime/synctest.go                | 13 ++++++++++---
  2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/synctest/synctest_test.go b/src/internal/synctest/synctest_test.go
+index c2f84be736..fe6eb63702 100644
+--- a/src/internal/synctest/synctest_test.go
++++ b/src/internal/synctest/synctest_test.go
+@@ -488,7 +488,7 @@ func TestDeadlockRoot(t *testing.T) {
+ }
+ 
+ func TestDeadlockChild(t *testing.T) {
+-	defer wantPanic(t, "deadlock: all goroutines in bubble are blocked")
++	defer wantPanic(t, "deadlock: main bubble goroutine has exited but blocked goroutines remain")
+ 	synctest.Run(func() {
+ 		go func() {
+ 			select {}
+@@ -497,7 +497,7 @@ func TestDeadlockChild(t *testing.T) {
+ }
+ 
+ func TestDeadlockTicker(t *testing.T) {
+-	defer wantPanic(t, "deadlock: all goroutines in bubble are blocked")
++	defer wantPanic(t, "deadlock: main bubble goroutine has exited but blocked goroutines remain")
+ 	synctest.Run(func() {
+ 		go func() {
+ 			for range time.Tick(1 * time.Second) {
+diff --git a/src/runtime/synctest.go b/src/runtime/synctest.go
+index c837c792a5..08a0e5d444 100644
+--- a/src/runtime/synctest.go
++++ b/src/runtime/synctest.go
+@@ -242,7 +242,13 @@ func synctestRun(f func()) {
+ 		raceacquireg(gp, gp.bubble.raceaddr())
+ 	}
+ 	if total != 1 {
+-		panic(synctestDeadlockError{bubble})
++		var reason string
++		if bubble.done {
++			reason = "deadlock: main bubble goroutine has exited but blocked goroutines remain"
++		} else {
++			reason = "deadlock: all goroutines in bubble are blocked"
++		}
++		panic(synctestDeadlockError{reason: reason, bubble: bubble})
+ 	}
+ 	if gp.timer != nil && gp.timer.isFake {
+ 		// Verify that we haven't marked this goroutine's sleep timer as fake.
+@@ -252,11 +258,12 @@ func synctestRun(f func()) {
+ }
+ 
+ type synctestDeadlockError struct {
++	reason string
+ 	bubble *synctestBubble
+ }
+ 
+-func (synctestDeadlockError) Error() string {
+-	return "deadlock: all goroutines in bubble are blocked"
++func (e synctestDeadlockError) Error() string {
++	return e.reason
+ }
+ 
+ func synctestidle_c(gp *g, _ unsafe.Pointer) bool {

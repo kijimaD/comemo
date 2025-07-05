@@ -12,8 +12,49 @@ Date:   Wed May 2 12:15:54 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/sys_bsd.go   | 3 ---
  src/os/sys_linux.go | 2 --
  src/os/sys_plan9.go | 2 --
  3 files changed, 7 deletions(-)
+
+diff --git a/src/os/sys_bsd.go b/src/os/sys_bsd.go
+index 8ad5e21837..78705c286d 100644
+--- a/src/os/sys_bsd.go
++++ b/src/os/sys_bsd.go
+@@ -4,9 +4,6 @@
+ 
+ // +build darwin dragonfly freebsd nacl netbsd openbsd
+ 
+-// os code shared between *BSD systems including OS X (Darwin)
+-// and FreeBSD.
+-
+ package os
+ 
+ import "syscall"
+diff --git a/src/os/sys_linux.go b/src/os/sys_linux.go
+index 467127653a..36a8a24455 100644
+--- a/src/os/sys_linux.go
++++ b/src/os/sys_linux.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Linux-specific
+-
+ package os
+ 
+ import (
+diff --git a/src/os/sys_plan9.go b/src/os/sys_plan9.go
+index 07a7905f47..40374eb242 100644
+--- a/src/os/sys_plan9.go
++++ b/src/os/sys_plan9.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Plan 9-specific
+-
+ package os
+ 
+ func hostname() (name string, err error) {

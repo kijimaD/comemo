@@ -14,7 +14,7 @@ Date:   Wed Feb 20 08:18:04 2013 +0900
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/7300081
-
+---
  src/pkg/net/interface_bsd.go     | 50 ++++++++++++++++++----------------------
  src/pkg/net/interface_darwin.go  | 22 ++++++++----------
  src/pkg/net/interface_freebsd.go | 22 ++++++++----------
@@ -23,3 +23,381 @@ Date:   Wed Feb 20 08:18:04 2013 +0900
  src/pkg/net/interface_openbsd.go |  1 +
  src/pkg/net/interface_windows.go |  4 ++++
  7 files changed, 56 insertions(+), 64 deletions(-)
+
+diff --git a/src/pkg/net/interface_bsd.go b/src/pkg/net/interface_bsd.go
+index df9b3a2f27..9e74845762 100644
+--- a/src/pkg/net/interface_bsd.go
++++ b/src/pkg/net/interface_bsd.go
+@@ -22,18 +22,16 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route rib", err)
+ 	}
+-
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route message", err)
+ 	}
+-
+ 	var ift []Interface
+ 	for _, m := range msgs {
+-		switch v := m.(type) {
++		switch m := m.(type) {
+ 		case *syscall.InterfaceMessage:
+-			if ifindex == 0 || ifindex == int(v.Header.Index) {
+-				ifi, err := newLink(v)
++			if ifindex == 0 || ifindex == int(m.Header.Index) {
++				ifi, err := newLink(m)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+@@ -49,26 +47,25 @@ func newLink(m *syscall.InterfaceMessage) ([]Interface, error) {
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+-
+ 	var ift []Interface
+-	for _, s := range sas {
+-		switch v := s.(type) {
++	for _, sa := range sas {
++		switch sa := sa.(type) {
+ 		case *syscall.SockaddrDatalink:
+ 			// NOTE: SockaddrDatalink.Data is minimum work area,
+ 			// can be larger.
+-			m.Data = m.Data[unsafe.Offsetof(v.Data):]
++			m.Data = m.Data[unsafe.Offsetof(sa.Data):]
+ 			ifi := Interface{Index: int(m.Header.Index), Flags: linkFlags(m.Header.Flags)}
+ 			var name [syscall.IFNAMSIZ]byte
+-			for i := 0; i < int(v.Nlen); i++ {
++			for i := 0; i < int(sa.Nlen); i++ {
+ 				name[i] = byte(m.Data[i])
+ 			}
+-			ifi.Name = string(name[:v.Nlen])
++			ifi.Name = string(name[:sa.Nlen])
+ 			ifi.MTU = int(m.Header.Data.Mtu)
+-			addr := make([]byte, v.Alen)
+-			for i := 0; i < int(v.Alen); i++ {
+-				addr[i] = byte(m.Data[int(v.Nlen)+i])
++			addr := make([]byte, sa.Alen)
++			for i := 0; i < int(sa.Alen); i++ {
++				addr[i] = byte(m.Data[int(sa.Nlen)+i])
+ 			}
+-			ifi.HardwareAddr = addr[:v.Alen]
++			ifi.HardwareAddr = addr[:sa.Alen]
+ 			ift = append(ift, ifi)
+ 		}
+ 	}
+@@ -103,18 +100,16 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route rib", err)
+ 	}
+-
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route message", err)
+ 	}
+-
+ 	var ifat []Addr
+ 	for _, m := range msgs {
+-		switch v := m.(type) {
++		switch m := m.(type) {
+ 		case *syscall.InterfaceAddrMessage:
+-			if ifindex == 0 || ifindex == int(v.Header.Index) {
+-				ifa, err := newAddr(v)
++			if ifindex == 0 || ifindex == int(m.Header.Index) {
++				ifa, err := newAddr(m)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+@@ -132,30 +127,29 @@ func newAddr(m *syscall.InterfaceAddrMessage) (Addr, error) {
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+-
+ 	ifa := &IPNet{}
+-	for i, s := range sas {
+-		switch v := s.(type) {
++	for i, sa := range sas {
++		switch sa := sa.(type) {
+ 		case *syscall.SockaddrInet4:
+ 			switch i {
+ 			case 0:
+-				ifa.Mask = IPv4Mask(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])
++				ifa.Mask = IPv4Mask(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
+ 			case 1:
+-				ifa.IP = IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])
++				ifa.IP = IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])
+ 			}
+ 		case *syscall.SockaddrInet6:
+ 			switch i {
+ 			case 0:
+ 				ifa.Mask = make(IPMask, IPv6len)
+-				copy(ifa.Mask, v.Addr[:])
++				copy(ifa.Mask, sa.Addr[:])
+ 			case 1:
+ 				ifa.IP = make(IP, IPv6len)
+-				copy(ifa.IP, v.Addr[:])
++				copy(ifa.IP, sa.Addr[:])
+ 				// NOTE: KAME based IPv6 protcol stack usually embeds
+ 				// the interface index in the interface-local or link-
+ 				// local address as the kernel-internal form.
+ 				if ifa.IP.IsLinkLocalUnicast() {
+-					// remove embedded scope zone ID
++					ifa.Zone = zoneToString(int(ifa.IP[2]<<8 | ifa.IP[3]))
+ 					ifa.IP[2], ifa.IP[3] = 0, 0
+ 				}
+ 			}
+diff --git a/src/pkg/net/interface_darwin.go b/src/pkg/net/interface_darwin.go
+index 0b5fb5fb9d..edf4d74dfa 100644
+--- a/src/pkg/net/interface_darwin.go
++++ b/src/pkg/net/interface_darwin.go
+@@ -19,18 +19,16 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route rib", err)
+ 	}
+-
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route message", err)
+ 	}
+-
+ 	var ifmat []Addr
+ 	for _, m := range msgs {
+-		switch v := m.(type) {
++		switch m := m.(type) {
+ 		case *syscall.InterfaceMulticastAddrMessage:
+-			if ifindex == 0 || ifindex == int(v.Header.Index) {
+-				ifma, err := newMulticastAddr(v)
++			if ifindex == 0 || ifindex == int(m.Header.Index) {
++				ifma, err := newMulticastAddr(m)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+@@ -46,22 +44,20 @@ func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+-
+ 	var ifmat []Addr
+-	for _, s := range sas {
+-		switch v := s.(type) {
++	for _, sa := range sas {
++		switch sa := sa.(type) {
+ 		case *syscall.SockaddrInet4:
+-			ifma := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
++			ifma := &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])}
+ 			ifmat = append(ifmat, ifma.toAddr())
+ 		case *syscall.SockaddrInet6:
+ 			ifma := &IPAddr{IP: make(IP, IPv6len)}
+-			copy(ifma.IP, v.Addr[:])
++			copy(ifma.IP, sa.Addr[:])
+ 			// NOTE: KAME based IPv6 protcol stack usually embeds
+ 			// the interface index in the interface-local or link-
+ 			// local address as the kernel-internal form.
+-			if ifma.IP.IsInterfaceLocalMulticast() ||
+-				ifma.IP.IsLinkLocalMulticast() {
+-				// remove embedded scope zone ID
++			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
++				ifma.Zone = zoneToString(int(ifma.IP[2]<<8 | ifma.IP[3]))
+ 				ifma.IP[2], ifma.IP[3] = 0, 0
+ 			}
+ 			ifmat = append(ifmat, ifma.toAddr())
+diff --git a/src/pkg/net/interface_freebsd.go b/src/pkg/net/interface_freebsd.go
+index 3cba28fc69..af3be4d3c2 100644
+--- a/src/pkg/net/interface_freebsd.go
++++ b/src/pkg/net/interface_freebsd.go
+@@ -19,18 +19,16 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route rib", err)
+ 	}
+-
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route message", err)
+ 	}
+-
+ 	var ifmat []Addr
+ 	for _, m := range msgs {
+-		switch v := m.(type) {
++		switch m := m.(type) {
+ 		case *syscall.InterfaceMulticastAddrMessage:
+-			if ifindex == 0 || ifindex == int(v.Header.Index) {
+-				ifma, err := newMulticastAddr(v)
++			if ifindex == 0 || ifindex == int(m.Header.Index) {
++				ifma, err := newMulticastAddr(m)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+@@ -46,22 +44,20 @@ func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+-
+ 	var ifmat []Addr
+-	for _, s := range sas {
+-		switch v := s.(type) {
++	for _, sa := range sas {
++		switch sa := sa.(type) {
+ 		case *syscall.SockaddrInet4:
+-			ifma := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
++			ifma := &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])}
+ 			ifmat = append(ifmat, ifma.toAddr())
+ 		case *syscall.SockaddrInet6:
+ 			ifma := &IPAddr{IP: make(IP, IPv6len)}
+-			copy(ifma.IP, v.Addr[:])
++			copy(ifma.IP, sa.Addr[:])
+ 			// NOTE: KAME based IPv6 protcol stack usually embeds
+ 			// the interface index in the interface-local or link-
+ 			// local address as the kernel-internal form.
+-			if ifma.IP.IsInterfaceLocalMulticast() ||
+-				ifma.IP.IsLinkLocalMulticast() {
+-				// remove embedded scope zone ID
++			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
++				ifma.Zone = zoneToString(int(ifma.IP[2]<<8 | ifma.IP[3]))
+ 				ifma.IP[2], ifma.IP[3] = 0, 0
+ 			}
+ 			ifmat = append(ifmat, ifma.toAddr())
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+index 13a788a003..5c7590b3c2 100644
+--- a/src/pkg/net/interface_linux.go
++++ b/src/pkg/net/interface_linux.go
+@@ -20,17 +20,16 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("netlink rib", err)
+ 	}
+-
+ 	msgs, err := syscall.ParseNetlinkMessage(tab)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("netlink message", err)
+ 	}
+-
+ 	var ift []Interface
++loop:
+ 	for _, m := range msgs {
+ 		switch m.Header.Type {
+ 		case syscall.NLMSG_DONE:
+-			goto done
++			break loop
+ 		case syscall.RTM_NEWLINK:
+ 			ifim := (*syscall.IfInfomsg)(unsafe.Pointer(&m.Data[0]))
+ 			if ifindex == 0 || ifindex == int(ifim.Index) {
+@@ -43,7 +42,6 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 			}
+ 		}
+ 	}
+-done:
+ 	return ift, nil
+ }
+ 
+@@ -98,12 +96,10 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("netlink rib", err)
+ 	}
+-
+ 	msgs, err := syscall.ParseNetlinkMessage(tab)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("netlink message", err)
+ 	}
+-
+ 	ifat, err := addrTable(msgs, ifindex)
+ 	if err != nil {
+ 		return nil, err
+@@ -113,10 +109,11 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+ 
+ func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
+ 	var ifat []Addr
++loop:
+ 	for _, m := range msgs {
+ 		switch m.Header.Type {
+ 		case syscall.NLMSG_DONE:
+-			goto done
++			break loop
+ 		case syscall.RTM_NEWADDR:
+ 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
+ 			ifi, err := InterfaceByIndex(int(ifam.Index))
+@@ -132,7 +129,6 @@ func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
+ 			}
+ 		}
+ 	}
+-done:
+ 	return ifat, nil
+ }
+ 
+@@ -149,6 +145,9 @@ func newAddr(attrs []syscall.NetlinkRouteAttr, ifi *Interface, ifam *syscall.IfA
+ 				ifa.IP = make(IP, IPv6len)
+ 				copy(ifa.IP, a.Value[:])
+ 				ifa.Mask = CIDRMask(int(ifam.Prefixlen), 8*IPv6len)
++				if ifam.Scope == syscall.RT_SCOPE_HOST || ifam.Scope == syscall.RT_SCOPE_LINK {
++					ifa.Zone = zoneToString(int(ifam.Index))
++				}
+ 			}
+ 		}
+ 	}
+@@ -180,7 +179,6 @@ func parseProcNetIGMP(path string, ifi *Interface) []Addr {
+ 		return nil
+ 	}
+ 	defer fd.close()
+-
+ 	var (
+ 		ifmat []Addr
+ 		name  string
+@@ -218,7 +216,6 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
+ 		return nil
+ 	}
+ 	defer fd.close()
+-
+ 	var ifmat []Addr
+ 	b := make([]byte, IPv6len)
+ 	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
+@@ -231,6 +228,9 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
+ 				b[i/2], _ = xtoi2(f[2][i:i+2], 0)
+ 			}
+ 			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
++			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
++				ifma.Zone = ifi.Name
++			}
+ 			ifmat = append(ifmat, ifma.toAddr())
+ 		}
+ 	}
+diff --git a/src/pkg/net/interface_netbsd.go b/src/pkg/net/interface_netbsd.go
+index 4150e9ad5d..691d311d8d 100644
+--- a/src/pkg/net/interface_netbsd.go
++++ b/src/pkg/net/interface_netbsd.go
+@@ -10,5 +10,6 @@ package net
+ // addresses for all network interfaces.  Otherwise it returns
+ // addresses for a specific interface.
+ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
++	// TODO(mikio): Implement this like other platforms.
+ 	return nil, nil
+ }
+diff --git a/src/pkg/net/interface_openbsd.go b/src/pkg/net/interface_openbsd.go
+index d8adb46765..3188871031 100644
+--- a/src/pkg/net/interface_openbsd.go
++++ b/src/pkg/net/interface_openbsd.go
+@@ -10,5 +10,6 @@ package net
+ // addresses for all network interfaces.  Otherwise it returns
+ // addresses for a specific interface.
+ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
++	// TODO(mikio): Implement this like other platforms.
+ 	return nil, nil
+ }
+diff --git a/src/pkg/net/interface_windows.go b/src/pkg/net/interface_windows.go
+index c7a3eac2a7..aa57fab695 100644
+--- a/src/pkg/net/interface_windows.go
++++ b/src/pkg/net/interface_windows.go
+@@ -25,6 +25,9 @@ func getAdapterList() (*syscall.IpAdapterInfo, error) {
+ 	b := make([]byte, 1000)
+ 	l := uint32(len(b))
+ 	a := (*syscall.IpAdapterInfo)(unsafe.Pointer(&b[0]))
++	// TODO(mikio): GetAdaptersInfo returns IP_ADAPTER_INFO that
++	// contains IPv4 address list only. We should use another API
++	// for fetching IPv6 stuff from the kernel.
+ 	err := syscall.GetAdaptersInfo(a, &l)
+ 	if err == syscall.ERROR_BUFFER_OVERFLOW {
+ 		b = make([]byte, l)
+@@ -154,5 +157,6 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+ // addresses for all network interfaces.  Otherwise it returns
+ // addresses for a specific interface.
+ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
++	// TODO(mikio): Implement this like other platforms.
+ 	return nil, nil
+ }

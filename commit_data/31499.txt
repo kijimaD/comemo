@@ -7,6 +7,36 @@ Date:   Fri Feb 24 16:50:48 2017 -0800
     Change-Id: I3e40018ab1903d3b9ada7ad7812ba71ea2a428e7
     Reviewed-on: https://go-review.googlesource.com/37456
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/bits/bits.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index 97186adc94..4038e9bf01 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -28,19 +28,19 @@ func LeadingZeros64(x uint64) int { return 64 - blen(uint64(x)) }
+ 
+ // --- TrailingZeros ---
+ 
+-// TrailingZeros returns the number of trailing zero bits in x; the result is 0 for x == 0.
++// TrailingZeros returns the number of trailing zero bits in x; the result is UintSize for x == 0.
+ func TrailingZeros(x uint) int { return ntz(x) }
+ 
+-// TrailingZeros8 returns the number of trailing zero bits in x; the result is 0 for x == 0.
++// TrailingZeros8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
+ func TrailingZeros8(x uint8) int { return ntz8(x) }
+ 
+-// TrailingZeros16 returns the number of trailing zero bits in x; the result is 0 for x == 0.
++// TrailingZeros16 returns the number of trailing zero bits in x; the result is 16 for x == 0.
+ func TrailingZeros16(x uint16) int { return ntz16(x) }
+ 
+-// TrailingZeros32 returns the number of trailing zero bits in x; the result is 0 for x == 0.
++// TrailingZeros32 returns the number of trailing zero bits in x; the result is 32 for x == 0.
+ func TrailingZeros32(x uint32) int { return ntz32(x) }
+ 
+-// TrailingZeros64 returns the number of trailing zero bits in x; the result is 0 for x == 0.
++// TrailingZeros64 returns the number of trailing zero bits in x; the result is 64 for x == 0.
+ func TrailingZeros64(x uint64) int { return ntz64(x) }
+ 
+ // --- OnesCount ---

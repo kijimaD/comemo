@@ -12,10 +12,109 @@ Date:   Wed Feb 26 04:00:10 2020 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go        |  2 +-
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  2 +-
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  1 +
  src/cmd/compile/internal/ssa/opGen.go          | 15 +++++++++++++++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 13 ++++---------
  5 files changed, 22 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 2ccd3b2830..167c9a3411 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -256,7 +256,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpRISCV64ADDI, ssa.OpRISCV64XORI, ssa.OpRISCV64ORI, ssa.OpRISCV64ANDI,
++	case ssa.OpRISCV64ADDI, ssa.OpRISCV64ADDIW, ssa.OpRISCV64XORI, ssa.OpRISCV64ORI, ssa.OpRISCV64ANDI,
+ 		ssa.OpRISCV64SLLI, ssa.OpRISCV64SRAI, ssa.OpRISCV64SRLI, ssa.OpRISCV64SLTI,
+ 		ssa.OpRISCV64SLTIU:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index e2ac4ea5e6..720724647e 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -109,7 +109,7 @@
+ (SignExt8to64  <t> x) -> (SRAI [56] (SLLI <t> [56] x))
+ (SignExt16to32 <t> x) -> (SRAI [48] (SLLI <t> [48] x))
+ (SignExt16to64 <t> x) -> (SRAI [48] (SLLI <t> [48] x))
+-(SignExt32to64 <t> x) -> (SRAI [32] (SLLI <t> [32] x))
++(SignExt32to64 <t> x) -> (ADDIW [0] x)
+ 
+ (ZeroExt8to16  <t> x) -> (SRLI [56] (SLLI <t> [56] x))
+ (ZeroExt8to32  <t> x) -> (SRLI [56] (SLLI <t> [56] x))
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index a1cf2e6857..7829f9a07c 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -129,6 +129,7 @@ func init() {
+ 	RISCV64ops := []opData{
+ 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true}, // arg0 + arg1
+ 		{name: "ADDI", argLength: 1, reg: gp11sb, asm: "ADDI", aux: "Int64"},  // arg0 + auxint
++		{name: "ADDIW", argLength: 1, reg: gp11, asm: "ADDIW", aux: "Int64"},  // 32 low bits of arg0 + auxint, sign extended to 64 bits
+ 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                    // arg0 - arg1
+ 		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW"},                  // 32 low bits of arg 0 - 32 low bits of arg 1, sign extended to 64 bits
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a810d9fbc6..b951065e7c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1884,6 +1884,7 @@ const (
+ 
+ 	OpRISCV64ADD
+ 	OpRISCV64ADDI
++	OpRISCV64ADDIW
+ 	OpRISCV64SUB
+ 	OpRISCV64SUBW
+ 	OpRISCV64MUL
+@@ -25015,6 +25016,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "ADDIW",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     riscv.AADDIW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:   "SUB",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index e25f80c5ca..e4480dc366 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -4109,18 +4109,13 @@ func rewriteValueRISCV64_OpSignExt16to64(v *Value) bool {
+ }
+ func rewriteValueRISCV64_OpSignExt32to64(v *Value) bool {
+ 	v_0 := v.Args[0]
+-	b := v.Block
+ 	// match: (SignExt32to64 <t> x)
+-	// result: (SRAI [32] (SLLI <t> [32] x))
++	// result: (ADDIW [0] x)
+ 	for {
+-		t := v.Type
+ 		x := v_0
+-		v.reset(OpRISCV64SRAI)
+-		v.AuxInt = 32
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
+-		v0.AuxInt = 32
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpRISCV64ADDIW)
++		v.AuxInt = 0
++		v.AddArg(x)
+ 		return true
+ 	}
+ }

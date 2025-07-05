@@ -12,6 +12,22 @@ Date:   Tue Apr 16 08:11:21 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/servemux121.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/http/servemux121.go b/src/net/http/servemux121.go
+index c0a4b77010..923a28fb44 100644
+--- a/src/net/http/servemux121.go
++++ b/src/net/http/servemux121.go
+@@ -10,6 +10,10 @@ package http
+ // Changes are minimal: aside from the different receiver type,
+ // they mostly involve renaming functions, usually by unexporting them.
+ 
++// servemux121.go exists solely to provide a snapshot of
++// the pre-Go 1.22 ServeMux implementation for backwards compatibility.
++// Do not modify this file, it should remain frozen.
++
+ import (
+ 	"internal/godebug"
+ 	"net/url"

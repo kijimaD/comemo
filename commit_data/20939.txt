@@ -10,10 +10,193 @@ Date:   Tue Oct 28 21:53:09 2014 -0400
     R=austin
     CC=golang-codereviews, khr
     https://golang.org/cl/159700044
-
+---
  src/runtime/asm_386.s         | 14 +++++++++++++
  src/runtime/asm_amd64.s       | 14 +++++++++++++
  src/runtime/asm_arm.s         | 15 +++++++++++++
  src/runtime/crash_cgo_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++
  src/runtime/crash_test.go     | 17 +++++++++++++--
  5 files changed, 107 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 20d3c47c94..0d46a9eff7 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -732,6 +732,20 @@ needm:
+ 	MOVL	g(CX), BP
+ 	MOVL	g_m(BP), BP
+ 
++	// Set m->sched.sp = SP, so that if a panic happens
++	// during the function we are about to execute, it will
++	// have a valid SP to run on the g0 stack.
++	// The next few lines (after the havem label)
++	// will save this SP onto the stack and then write
++	// the same SP back to m->sched.sp. That seems redundant,
++	// but if an unrecovered panic happens, unwindm will
++	// restore the g->sched.sp from the stack location
++	// and then onM will try to use it. If we don't set it here,
++	// that restored SP will be uninitialized (typically 0) and
++	// will not be usable.
++	MOVL	m_g0(BP), SI
++	MOVL	SP, (g_sched+gobuf_sp)(SI)
++
+ havem:
+ 	// Now there's a valid m, and we're running on its m->g0.
+ 	// Save current m->g0->sched.sp on stack and then set it to SP.
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 709834180e..a9b082beb8 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -717,6 +717,20 @@ needm:
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BP
+ 	MOVQ	g_m(BP), BP
++	
++	// Set m->sched.sp = SP, so that if a panic happens
++	// during the function we are about to execute, it will
++	// have a valid SP to run on the g0 stack.
++	// The next few lines (after the havem label)
++	// will save this SP onto the stack and then write
++	// the same SP back to m->sched.sp. That seems redundant,
++	// but if an unrecovered panic happens, unwindm will
++	// restore the g->sched.sp from the stack location
++	// and then onM will try to use it. If we don't set it here,
++	// that restored SP will be uninitialized (typically 0) and
++	// will not be usable.
++	MOVQ	m_g0(BP), SI
++	MOVQ	SP, (g_sched+gobuf_sp)(SI)
+ 
+ havem:
+ 	// Now there's a valid m, and we're running on its m->g0.
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 621d13187a..e94b4c1ff6 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -556,6 +556,21 @@ TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
+ 	MOVW	$runtime·needm(SB), R0
+ 	BL	(R0)
+ 
++	// Set m->sched.sp = SP, so that if a panic happens
++	// during the function we are about to execute, it will
++	// have a valid SP to run on the g0 stack.
++	// The next few lines (after the havem label)
++	// will save this SP onto the stack and then write
++	// the same SP back to m->sched.sp. That seems redundant,
++	// but if an unrecovered panic happens, unwindm will
++	// restore the g->sched.sp from the stack location
++	// and then onM will try to use it. If we don't set it here,
++	// that restored SP will be uninitialized (typically 0) and
++	// will not be usable.
++	MOVW	g_m(g), R8
++	MOVW	m_g0(R8), R3
++	MOVW	R13, (g_sched+gobuf_sp)(R3)
++
+ havem:
+ 	MOVW	g_m(g), R8
+ 	MOVW	R8, savedm-4(SP)
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 4ff0084c22..7877965587 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -8,6 +8,7 @@ package runtime_test
+ 
+ import (
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -34,6 +35,14 @@ func TestCgoTraceback(t *testing.T) {
+ 	}
+ }
+ 
++func TestCgoExternalThreadPanic(t *testing.T) {
++	got := executeTest(t, cgoExternalThreadPanicSource, nil, "main.c", cgoExternalThreadPanicC)
++	want := "panic: BOOM"
++	if !strings.Contains(got, want) {
++		t.Fatalf("want failure containing %q. output:\n%s\n", want, got)
++	}
++}
++
+ const cgoSignalDeadlockSource = `
+ package main
+ 
+@@ -117,3 +126,43 @@ func main() {
+ 	fmt.Printf("OK\n")
+ }
+ `
++
++const cgoExternalThreadPanicSource = `
++package main
++
++// void start(void);
++import "C"
++
++func main() {
++	C.start()
++	select {}
++}
++
++//export gopanic
++func gopanic() {
++	panic("BOOM")
++}
++`
++
++const cgoExternalThreadPanicC = `
++#include <stdlib.h>
++#include <stdio.h>
++#include <pthread.h>
++
++void gopanic(void);
++
++static void*
++die(void* x)
++{
++	gopanic();
++	return 0;
++}
++
++void
++start(void)
++{
++	pthread_t t;
++	if(pthread_create(&t, 0, die, 0) != 0)
++		printf("pthread_create failed\n");
++}
++`
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 783b4c48f5..211a0476fd 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -31,7 +31,7 @@ func testEnv(cmd *exec.Cmd) *exec.Cmd {
+ 	return cmd
+ }
+ 
+-func executeTest(t *testing.T, templ string, data interface{}) string {
++func executeTest(t *testing.T, templ string, data interface{}, extra ...string) string {
+ 	switch runtime.GOOS {
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+@@ -61,7 +61,20 @@ func executeTest(t *testing.T, templ string, data interface{}) string {
+ 		t.Fatalf("failed to close file: %v", err)
+ 	}
+ 
+-	got, _ := testEnv(exec.Command("go", "run", src)).CombinedOutput()
++	for i := 0; i < len(extra); i += 2 {
++		if err := ioutil.WriteFile(filepath.Join(dir, extra[i]), []byte(extra[i+1]), 0666); err != nil {
++			t.Fatal(err)
++		}
++	}
++
++	cmd := exec.Command("go", "build", "-o", "a.exe")
++	cmd.Dir = dir
++	out, err := testEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("building source: %v\n%s", err, out)
++	}
++
++	got, _ := testEnv(exec.Command(filepath.Join(dir, "a.exe"))).CombinedOutput()
+ 	return string(got)
+ }
+ 

@@ -24,9 +24,159 @@ Date:   Wed Jul 29 22:04:09 2015 -0700
     Change-Id: I3fba3f02f11265b3c41d68616f79dedb05b81225
     Reviewed-on: https://go-review.googlesource.com/12864
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue11925.go | 37 +++++++++++++++++++++++++++++++++++++
  misc/cgo/test/issue8428.go  |  7 +++++--
  src/cmd/cgo/gcc.go          | 26 ++++++++++++++++++++++----
  4 files changed, 65 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 1a9207ca2a..9af31e8a20 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -64,5 +64,6 @@ func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
+ func Test9026(t *testing.T)                  { test9026(t) }
+ func Test9557(t *testing.T)                  { test9557(t) }
+ func Test10303(t *testing.T)                 { test10303(t, 10) }
++func Test11925(t *testing.T)                 { test11925(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue11925.go b/misc/cgo/test/issue11925.go
+new file mode 100644
+index 0000000000..9e50fb7027
+--- /dev/null
++++ b/misc/cgo/test/issue11925.go
+@@ -0,0 +1,37 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 11925.  Structs with zero-length trailing fields are now
++// padded by the Go compiler.
++
++package cgotest
++
++/*
++struct a11925 {
++	int i;
++	char a[0];
++	char b[0];
++};
++
++struct b11925 {
++	int i;
++	char a[0];
++	char b[];
++};
++*/
++import "C"
++
++import (
++	"testing"
++	"unsafe"
++)
++
++func test11925(t *testing.T) {
++	if C.sizeof_struct_a11925 != unsafe.Sizeof(C.struct_a11925{}) {
++		t.Errorf("size of a changed: C %d, Go %d", C.sizeof_struct_a11925, unsafe.Sizeof(C.struct_a11925{}))
++	}
++	if C.sizeof_struct_b11925 != unsafe.Sizeof(C.struct_b11925{}) {
++		t.Errorf("size of b changed: C %d, Go %d", C.sizeof_struct_b11925, unsafe.Sizeof(C.struct_b11925{}))
++	}
++}
+diff --git a/misc/cgo/test/issue8428.go b/misc/cgo/test/issue8428.go
+index a3dc5755ce..16fa7cc6ec 100644
+--- a/misc/cgo/test/issue8428.go
++++ b/misc/cgo/test/issue8428.go
+@@ -20,6 +20,7 @@ struct issue8428two {
+ 	void *p;
+ 	char b;
+ 	char rest[0];
++	char pad;
+ };
+ 
+ struct issue8428three {
+@@ -34,8 +35,10 @@ import "C"
+ import "unsafe"
+ 
+ var _ = C.struct_issue8428one{
+-	b:    C.char(0),
+-	rest: [0]C.char{},
++	b: C.char(0),
++	// The trailing rest field is not available in cgo.
++	// See issue 11925.
++	// rest: [0]C.char{},
+ }
+ 
+ var _ = C.struct_issue8428two{
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 84f4978f63..b64849a8d1 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1544,11 +1544,13 @@ func (c *typeConv) intExpr(n int64) ast.Expr {
+ }
+ 
+ // Add padding of given size to fld.
+-func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
++func (c *typeConv) pad(fld []*ast.Field, sizes []int64, size int64) ([]*ast.Field, []int64) {
+ 	n := len(fld)
+ 	fld = fld[0 : n+1]
+ 	fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident("_")}, Type: c.Opaque(size)}
+-	return fld
++	sizes = sizes[0 : n+1]
++	sizes[n] = size
++	return fld, sizes
+ }
+ 
+ // Struct conversion: return Go and (gc) C syntax for type.
+@@ -1559,6 +1561,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 	var buf bytes.Buffer
+ 	buf.WriteString("struct {")
+ 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1) // enough for padding around every field
++	sizes := make([]int64, 0, 2*len(dt.Field)+1)
+ 	off := int64(0)
+ 
+ 	// Rename struct fields that happen to be named Go keywords into
+@@ -1594,7 +1597,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 	anon := 0
+ 	for _, f := range dt.Field {
+ 		if f.ByteOffset > off {
+-			fld = c.pad(fld, f.ByteOffset-off)
++			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
+ 			off = f.ByteOffset
+ 		}
+ 
+@@ -1652,6 +1655,8 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 			ident[name] = name
+ 		}
+ 		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(ident[name])}, Type: tgo}
++		sizes = sizes[0 : n+1]
++		sizes[n] = size
+ 		off += size
+ 		buf.WriteString(t.C.String())
+ 		buf.WriteString(" ")
+@@ -1662,9 +1667,22 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 		}
+ 	}
+ 	if off < dt.ByteSize {
+-		fld = c.pad(fld, dt.ByteSize-off)
++		fld, sizes = c.pad(fld, sizes, dt.ByteSize-off)
+ 		off = dt.ByteSize
+ 	}
++
++	// If the last field in a non-zero-sized struct is zero-sized
++	// the compiler is going to pad it by one (see issue 9401).
++	// We can't permit that, because then the size of the Go
++	// struct will not be the same as the size of the C struct.
++	// Our only option in such a case is to remove the field,
++	// which means that it can not be referenced from Go.
++	for off > 0 && sizes[len(sizes)-1] == 0 {
++		n := len(sizes)
++		fld = fld[0 : n-1]
++		sizes = sizes[0 : n-1]
++	}
++
+ 	if off != dt.ByteSize {
+ 		fatalf("%s: struct size calculation error off=%d bytesize=%d", lineno(pos), off, dt.ByteSize)
+ 	}

@@ -12,8 +12,52 @@ Date:   Mon Mar 8 18:13:19 2010 -0800
     R=kaib, rsc
     CC=golang-dev
     https://golang.org/cl/244041
-
+---
  src/cmd/5a/lex.c  | 3 ---
  src/cmd/5l/asm.c  | 4 ++--
  test/arm-pass.txt | 3 ++-
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index e0235d4e67..2cc0993e47 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -46,9 +46,6 @@ systemtype(int sys)
+ 	return sys&Plan9;
+ }
+ 
+-void*	alloc(int32);
+-void*	allocn(void*, int32, int32);
+-
+ void
+ main(int argc, char *argv[])
+ {
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 2a9265a885..cba5c376c4 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -195,8 +195,8 @@ vlong elfstr[NElfStr];
+ void
+ doelf(void)
+ {
+-	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
+-	int h, nsym, t;
++	Sym *s, *shstrtab, *dynamic, *dynstr;
++	int h, nsym;
+ 
+ 	if(!iself)
+ 		return;
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index cdaa35fae8..2f3b66020e 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -8,7 +8,8 @@ chan/perm.go
+ chan/powser1.go
+ chan/powser2.go
+ chan/select.go
+-chan/sieve.go
++chan/sieve1.go
++chan/sieve2.go
+ chancap.go
+ char_lit.go
+ closedchan.go

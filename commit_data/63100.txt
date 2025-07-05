@@ -9,10 +9,189 @@ Date:   Mon May 19 16:06:42 2025 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Mark Freeman <mark@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/noder/doc.go    | 32 ++++++++++++++------------------
  src/cmd/compile/internal/noder/linker.go |  4 ++--
  src/internal/pkgbits/decoder.go          | 12 ++++++------
  src/internal/pkgbits/encoder.go          |  8 ++++----
  src/internal/pkgbits/reloc.go            |  8 ++++----
  5 files changed, 30 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/doc.go b/src/cmd/compile/internal/noder/doc.go
+index a35efa886d..f76e5723b7 100644
+--- a/src/cmd/compile/internal/noder/doc.go
++++ b/src/cmd/compile/internal/noder/doc.go
+@@ -59,7 +59,7 @@ contains exactly two elements — a public root and a private root.
+ The public root element identifies the package and provides references
+ for all exported objects it contains.
+ 
+-    PublicRoot  = Relocs
++    PublicRoot  = RefTable
+                   [ Sync ]
+                   PkgRef
+                   [ HasInit ]
+@@ -79,7 +79,7 @@ A base is either a file base or line base (produced by a line
+ directive). Every base has a position, line, and column; these are
+ constant for file bases and hence not encoded.
+ 
+-    PosBase = Relocs
++    PosBase = RefTable
+               [ Sync ]
+               StringRef       // the (absolute) file name for the base
+               Bool            // true if a file base, else a line base
+@@ -118,7 +118,7 @@ packages. The below package paths have special meaning.
+     | "unsafe"     | the compiler-known unsafe package |
+     +--------------+-----------------------------------+
+ 
+-    Pkg        = Relocs
++    Pkg        = RefTable
+                  [ Sync ]
+                  StringRef      // path
+                  // The below is ommitted for the special package paths
+@@ -138,21 +138,17 @@ Note, a PkgRef is *not* equivalent to Ref[Pkg] due to an extra marker.
+ 
+ # References
+ A reference table precedes every element. Each entry in the table
+-contains a section / index pair denoting the location of the referenced
+-element.
+-
+-    // TODO(markfreeman): Rename to RefTable.
+-    Relocs   = [ Sync ]
+-               RelocCount
+-               { Reloc }
+-               .
+-    // TODO(markfreeman): Rename to RefTableEntryCount.
+-    RelocCount = Uint64 .
+-    // TODO(markfreeman): Rename to RefTableEntry.
+-    Reloc    = [ Sync ]
+-               SectionKind
+-               RelIndex
+-               .
++contains a (section, index) pair denoting the location of the
++referenced element.
++
++    RefTable      = [ Sync ]
++                    Uint64            // the number of table entries
++                    { RefTableEntry }
++                    .
++    RefTableEntry = [ Sync ]
++                    SectionKind
++                    RelIndex
++                    .
+ 
+ Elements encode references to other elements as an index in the
+ reference table — not the location of the referenced element directly.
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 6ee29a205b..51b03a1897 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -47,8 +47,8 @@ type linker struct {
+ // relocAll ensures that all elements specified by pr and relocs are
+ // copied into the output export data file, and returns the
+ // corresponding indices in the output.
+-func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.RelocEnt {
+-	res := make([]pkgbits.RelocEnt, len(relocs))
++func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RefTableEntry) []pkgbits.RefTableEntry {
++	res := make([]pkgbits.RefTableEntry, len(relocs))
+ 	for i, rent := range relocs {
+ 		rent.Idx = l.relocIdx(pr, rent.Kind, rent.Idx)
+ 		res[i] = rent
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 9ff6f5c76c..bbda6e9285 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -54,7 +54,7 @@ type PkgDecoder struct {
+ 	// (or 0, if K==0) and end at elemEndsEnds[K].
+ 	elemEndsEnds [numRelocs]uint32
+ 
+-	scratchRelocEnt []RelocEnt
++	scratchRelocEnt []RefTableEntry
+ }
+ 
+ // PkgPath returns the package path for the package
+@@ -196,10 +196,10 @@ func (pr *PkgDecoder) NewDecoderRaw(k SectionKind, idx RelIndex) Decoder {
+ 
+ 	r.Data.Reset(pr.DataIdx(k, idx))
+ 	r.Sync(SyncRelocs)
+-	r.Relocs = make([]RelocEnt, r.Len())
++	r.Relocs = make([]RefTableEntry, r.Len())
+ 	for i := range r.Relocs {
+ 		r.Sync(SyncReloc)
+-		r.Relocs[i] = RelocEnt{SectionKind(r.Len()), RelIndex(r.Len())}
++		r.Relocs[i] = RefTableEntry{SectionKind(r.Len()), RelIndex(r.Len())}
+ 	}
+ 
+ 	return r
+@@ -219,11 +219,11 @@ func (pr *PkgDecoder) TempDecoderRaw(k SectionKind, idx RelIndex) Decoder {
+ 		r.Relocs = pr.scratchRelocEnt[:l]
+ 		pr.scratchRelocEnt = nil
+ 	} else {
+-		r.Relocs = make([]RelocEnt, l)
++		r.Relocs = make([]RefTableEntry, l)
+ 	}
+ 	for i := range r.Relocs {
+ 		r.Sync(SyncReloc)
+-		r.Relocs[i] = RelocEnt{SectionKind(r.Len()), RelIndex(r.Len())}
++		r.Relocs[i] = RefTableEntry{SectionKind(r.Len()), RelIndex(r.Len())}
+ 	}
+ 
+ 	return r
+@@ -234,7 +234,7 @@ func (pr *PkgDecoder) TempDecoderRaw(k SectionKind, idx RelIndex) Decoder {
+ type Decoder struct {
+ 	common *PkgDecoder
+ 
+-	Relocs []RelocEnt
++	Relocs []RefTableEntry
+ 	Data   strings.Reader
+ 
+ 	k   SectionKind
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index 5c51642e3c..3d1223bb63 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -147,8 +147,8 @@ func (pw *PkgEncoder) NewEncoderRaw(k SectionKind) *Encoder {
+ type Encoder struct {
+ 	p *PkgEncoder
+ 
+-	Relocs   []RelocEnt
+-	RelocMap map[RelocEnt]uint32
++	Relocs   []RefTableEntry
++	RelocMap map[RefTableEntry]uint32
+ 	Data     bytes.Buffer // accumulated element bitstream data
+ 
+ 	encodingRelocHeader bool
+@@ -211,13 +211,13 @@ func (w *Encoder) rawVarint(x int64) {
+ }
+ 
+ func (w *Encoder) rawReloc(k SectionKind, idx RelIndex) int {
+-	e := RelocEnt{k, idx}
++	e := RefTableEntry{k, idx}
+ 	if w.RelocMap != nil {
+ 		if i, ok := w.RelocMap[e]; ok {
+ 			return int(i)
+ 		}
+ 	} else {
+-		w.RelocMap = make(map[RelocEnt]uint32)
++		w.RelocMap = make(map[RefTableEntry]uint32)
+ 	}
+ 
+ 	i := len(w.Relocs)
+diff --git a/src/internal/pkgbits/reloc.go b/src/internal/pkgbits/reloc.go
+index d3b897757f..d132f4e995 100644
+--- a/src/internal/pkgbits/reloc.go
++++ b/src/internal/pkgbits/reloc.go
+@@ -32,10 +32,10 @@ type Index int32
+ // references from Index to RelIndex.
+ type RelIndex = Index
+ 
+-// A RelocEnt, or relocation entry, is an entry in an element's reference
+-// table. All elements are preceded by a reference table which provides
+-// locations for all dereferences that the element may use.
+-type RelocEnt struct {
++// A RefTableEntry is an entry in an element's reference table. All
++// elements are preceded by a reference table which provides locations
++// for referenced elements.
++type RefTableEntry struct {
+ 	Kind SectionKind
+ 	Idx  RelIndex
+ }

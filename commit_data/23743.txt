@@ -7,6 +7,19 @@ Date:   Tue Jun 9 11:47:45 2015 -0700
     Change-Id: I7cad3f7af2452e29b3dae3da87cbd24013f6dae6
     Reviewed-on: https://go-review.googlesource.com/10850
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 3a09576e73..fc41bffcb9 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -35,6 +35,7 @@ bytes: add Buffer.Cap (https://golang.org/cl/8342)
+ bytes, strings: add Reader.Size (https://golang.org/cl/3199)
+ bytes, strings: add LastIndexByte (https://golang.org/cl/9500)
+ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
++crypto/cipher: support non-standard nonce lengths for GCM. (https://golang.org/cl/8946)
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+ crypto/elliptic: Unmarshaling points now automatically checks that the point is on the curve (https://golang.org/cl/2421)
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)

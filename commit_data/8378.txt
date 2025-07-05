@@ -27,7 +27,7 @@ Date:   Fri May 13 07:31:24 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4535056
-
+---
  doc/codelab/wiki/get.go             |  2 +-
  misc/dashboard/builder/http.go      |  2 +-
  src/cmd/godoc/main.go               |  2 +-
@@ -51,3 +51,859 @@ Date:   Fri May 13 07:31:24 2011 -0700
  src/pkg/websocket/client.go         |  4 +--
  src/pkg/websocket/websocket_test.go |  4 +--
  22 files changed, 202 insertions(+), 99 deletions(-)
+
+diff --git a/doc/codelab/wiki/get.go b/doc/codelab/wiki/get.go
+index 3428314162..c36684e3e4 100644
+--- a/doc/codelab/wiki/get.go
++++ b/doc/codelab/wiki/get.go
+@@ -37,7 +37,7 @@ func main() {
+ 		b := strings.NewReader(*post)
+ 		r, err = http.Post(url, "application/x-www-form-urlencoded", b)
+ 	} else {
+-		r, _, err = http.Get(url)
++		r, err = http.Get(url)
+ 	}
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 6749e3528e..45ecb78cca 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -35,7 +35,7 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
+ 			}
+ 			cmd += "?" + http.EncodeQuery(m)
+ 		}
+-		r, _, err = http.Get(cmd)
++		r, err = http.Get(cmd)
+ 	case "POST":
+ 		r, err = http.PostForm(cmd, args)
+ 	default:
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 2138267078..967ea87272 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -176,7 +176,7 @@ func remoteSearch(query string) (res *http.Response, err os.Error) {
+ 	// remote search
+ 	for _, addr := range addrs {
+ 		url := "http://" + addr + search
+-		res, _, err = http.Get(url)
++		res, err = http.Get(url)
+ 		if err == nil && res.StatusCode == http.StatusOK {
+ 			break
+ 		}
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 12f09b4e49..d19de5c4f6 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -10,6 +10,7 @@ GOFILES=\
+ 	netdial.go\
+ 	main.go\
+ 	osopen.go\
++	httpfinalurl.go\
+ 	httpserver.go\
+ 	procattr.go\
+ 	reflect.go\
+diff --git a/src/cmd/gofix/httpfinalurl.go b/src/cmd/gofix/httpfinalurl.go
+new file mode 100644
+index 0000000000..53642b22f1
+--- /dev/null
++++ b/src/cmd/gofix/httpfinalurl.go
+@@ -0,0 +1,56 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++var httpFinalURLFix = fix{
++	"httpfinalurl",
++	httpfinalurl,
++	`Adapt http Get calls to not have a finalURL result parameter.
++
++	http://codereview.appspot.com/4535056/
++`,
++}
++
++func init() {
++	register(httpFinalURLFix)
++}
++
++func httpfinalurl(f *ast.File) bool {
++	if !imports(f, "http") {
++		return false
++	}
++
++	fixed := false
++	walk(f, func(n interface{}) {
++		// Fix up calls to http.Get.
++		//
++		// If they have blank identifiers, remove them:
++		//    resp, _, err := http.Get(url)
++		// -> resp, err := http.Get(url)
++		//
++		// But if they're using the finalURL parameter, warn:
++		//    resp, finalURL, err := http.Get(url)
++		as, ok := n.(*ast.AssignStmt)
++		if !ok || len(as.Lhs) != 3 || len(as.Rhs) != 1 {
++			return
++		}
++
++		if !isCall(as.Rhs[0], "http", "Get") {
++			return
++		}
++
++		if isBlank(as.Lhs[1]) {
++			as.Lhs = []ast.Expr{as.Lhs[0], as.Lhs[2]}
++			fixed = true
++		} else {
++			warn(as.Pos(), "call to http.Get records final URL")
++		}
++	})
++	return fixed
++}
+diff --git a/src/cmd/gofix/httpfinalurl_test.go b/src/cmd/gofix/httpfinalurl_test.go
+new file mode 100644
+index 0000000000..9e7d6242d6
+--- /dev/null
++++ b/src/cmd/gofix/httpfinalurl_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(httpfinalurlTests)
++}
++
++var httpfinalurlTests = []testCase{
++	{
++		Name: "finalurl.0",
++		In: `package main
++
++import (
++	"http"
++)
++
++func f() {
++	resp, _, err := http.Get("http://www.google.com/")
++	_, _ = resp, err
++}
++`,
++		Out: `package main
++
++import (
++	"http"
++)
++
++func f() {
++	resp, err := http.Get("http://www.google.com/")
++	_, _ = resp, err
++}
++`,
++	},
++}
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index d73cbc8550..469d49dbe9 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -126,13 +126,10 @@ func shouldRedirect(statusCode int) bool {
+ //    303 (See Other)
+ //    307 (Temporary Redirect)
+ //
+-// finalURL is the URL from which the response was fetched -- identical to the
+-// input URL unless redirects were followed.
+-//
+ // Caller should close r.Body when done reading from it.
+ //
+ // Get is a convenience wrapper around DefaultClient.Get.
+-func Get(url string) (r *Response, finalURL string, err os.Error) {
++func Get(url string) (r *Response, err os.Error) {
+ 	return DefaultClient.Get(url)
+ }
+ 
+@@ -145,11 +142,8 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
+ //    303 (See Other)
+ //    307 (Temporary Redirect)
+ //
+-// finalURL is the URL from which the response was fetched -- identical
+-// to the input URL unless redirects were followed.
+-//
+ // Caller should close r.Body when done reading from it.
+-func (c *Client) Get(url string) (r *Response, finalURL string, err os.Error) {
++func (c *Client) Get(url string) (r *Response, err os.Error) {
+ 	// TODO: if/when we add cookie support, the redirected request shouldn't
+ 	// necessarily supply the same cookies as the original.
+ 	var base *URL
+@@ -198,7 +192,6 @@ func (c *Client) Get(url string) (r *Response, finalURL string, err os.Error) {
+ 			via = append(via, &req)
+ 			continue
+ 		}
+-		finalURL = url
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 59d62c1c9d..31654d0be3 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -26,7 +26,7 @@ func TestClient(t *testing.T) {
+ 	ts := httptest.NewServer(robotsTxtHandler)
+ 	defer ts.Close()
+ 
+-	r, _, err := Get(ts.URL)
++	r, err := Get(ts.URL)
+ 	var b []byte
+ 	if err == nil {
+ 		b, err = ioutil.ReadAll(r.Body)
+@@ -96,7 +96,7 @@ func TestRedirects(t *testing.T) {
+ 	defer ts.Close()
+ 
+ 	c := &Client{}
+-	_, _, err := c.Get(ts.URL)
++	_, err := c.Get(ts.URL)
+ 	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+ 		t.Errorf("with default client, expected error %q, got %q", e, g)
+ 	}
+@@ -107,7 +107,8 @@ func TestRedirects(t *testing.T) {
+ 		lastVia = via
+ 		return checkErr
+ 	}}
+-	_, finalUrl, err := c.Get(ts.URL)
++	res, err := c.Get(ts.URL)
++	finalUrl := res.Request.URL.String()
+ 	if e, g := "<nil>", fmt.Sprintf("%v", err); e != g {
+ 		t.Errorf("with custom client, expected error %q, got %q", e, g)
+ 	}
+@@ -119,7 +120,8 @@ func TestRedirects(t *testing.T) {
+ 	}
+ 
+ 	checkErr = os.NewError("no redirects allowed")
+-	_, finalUrl, err = c.Get(ts.URL)
++	res, err = c.Get(ts.URL)
++	finalUrl = res.Request.URL.String()
+ 	if e, g := "Get /?n=1: no redirects allowed", fmt.Sprintf("%v", err); e != g {
+ 		t.Errorf("with redirects forbidden, expected error %q, got %q", e, g)
+ 	}
+diff --git a/src/pkg/http/fs_test.go b/src/pkg/http/fs_test.go
+index 09d0981f26..b94196258e 100644
+--- a/src/pkg/http/fs_test.go
++++ b/src/pkg/http/fs_test.go
+@@ -96,7 +96,7 @@ func TestServeFileContentType(t *testing.T) {
+ 	}))
+ 	defer ts.Close()
+ 	get := func(want string) {
+-		resp, _, err := Get(ts.URL)
++		resp, err := Get(ts.URL)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/pkg/http/persist.go b/src/pkg/http/persist.go
+index a9af1f5516..4eb4ab0cdf 100644
+--- a/src/pkg/http/persist.go
++++ b/src/pkg/http/persist.go
+@@ -343,7 +343,7 @@ func (cc *ClientConn) Read(req *Request) (*Response, os.Error) {
+ 
+ // readUsing is the implementation of Read with a replaceable
+ // ReadResponse-like function, used by the Transport.
+-func (cc *ClientConn) readUsing(req *Request, readRes func(buf *bufio.Reader, method string) (*Response, os.Error)) (resp *Response, err os.Error) {
++func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Request) (*Response, os.Error)) (resp *Response, err os.Error) {
+ 	// Retrieve the pipeline ID of this request/response pair
+ 	cc.lk.Lock()
+ 	id, ok := cc.pipereq[req]
+@@ -386,7 +386,7 @@ func (cc *ClientConn) readUsing(req *Request, readRes func(buf *bufio.Reader, me
+ 		}
+ 	}
+ 
+-	resp, err = readRes(r, req.Method)
++	resp, err = readRes(r, req)
+ 	cc.lk.Lock()
+ 	defer cc.lk.Unlock()
+ 	if err != nil {
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index f79d3a2424..466e47a1f8 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -162,11 +162,12 @@ func TestRedirect(t *testing.T) {
+ 	defer ts.Close()
+ 
+ 	var end = regexp.MustCompile("/foo/$")
+-	r, url, err := Get(ts.URL)
++	r, err := Get(ts.URL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	r.Body.Close()
++	url := r.Request.URL.String()
+ 	if r.StatusCode != 200 || !end.MatchString(url) {
+ 		t.Fatalf("Get got status %d at %q, want 200 matching /foo/$", r.StatusCode, url)
+ 	}
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index a65c2b14df..42e60c1f67 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -30,10 +30,6 @@ type Response struct {
+ 	ProtoMajor int    // e.g. 1
+ 	ProtoMinor int    // e.g. 0
+ 
+-	// RequestMethod records the method used in the HTTP request.
+-	// Header fields such as Content-Length have method-specific meaning.
+-	RequestMethod string // e.g. "HEAD", "CONNECT", "GET", etc.
+-
+ 	// Header maps header keys to values.  If the response had multiple
+ 	// headers with the same key, they will be concatenated, with comma
+ 	// delimiters.  (Section 4.2 of RFC 2616 requires that multiple headers
+@@ -68,19 +64,26 @@ type Response struct {
+ 	// Trailer maps trailer keys to values, in the same
+ 	// format as the header.
+ 	Trailer Header
++
++	// The Request that was sent to obtain this Response.
++	// Request's Body is nil (having already been consumed).
++	// This is only populated for Client requests.
++	Request *Request
+ }
+ 
+-// ReadResponse reads and returns an HTTP response from r.  The RequestMethod
+-// parameter specifies the method used in the corresponding request (e.g.,
+-// "GET", "HEAD").  Clients must call resp.Body.Close when finished reading
+-// resp.Body.  After that call, clients can inspect resp.Trailer to find
+-// key/value pairs included in the response trailer.
+-func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os.Error) {
++// ReadResponse reads and returns an HTTP response from r.  The
++// req parameter specifies the Request that corresponds to
++// this Response.  Clients must call resp.Body.Close when finished
++// reading resp.Body.  After that call, clients can inspect
++// resp.Trailer to find key/value pairs included in the response
++// trailer.
++func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err os.Error) {
+ 
+ 	tp := textproto.NewReader(r)
+ 	resp = new(Response)
+ 
+-	resp.RequestMethod = strings.ToUpper(requestMethod)
++	resp.Request = req
++	resp.Request.Method = strings.ToUpper(resp.Request.Method)
+ 
+ 	// Parse the first line of the response.
+ 	line, err := tp.ReadLine()
+@@ -164,7 +167,9 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
+ func (resp *Response) Write(w io.Writer) os.Error {
+ 
+ 	// RequestMethod should be upper-case
+-	resp.RequestMethod = strings.ToUpper(resp.RequestMethod)
++	if resp.Request != nil {
++		resp.Request.Method = strings.ToUpper(resp.Request.Method)
++	}
+ 
+ 	// Status line
+ 	text := resp.Status
+diff --git a/src/pkg/http/response_test.go b/src/pkg/http/response_test.go
+index 9e77c20c40..acf6d739e8 100644
+--- a/src/pkg/http/response_test.go
++++ b/src/pkg/http/response_test.go
+@@ -23,6 +23,10 @@ type respTest struct {
+ 	Body string
+ }
+ 
++func dummyReq(method string) *Request {
++	return &Request{Method: method}
++}
++
+ var respTests = []respTest{
+ 	// Unchunked response without Content-Length.
+ 	{
+@@ -32,12 +36,12 @@ var respTests = []respTest{
+ 			"Body here\n",
+ 
+ 		Response{
+-			Status:        "200 OK",
+-			StatusCode:    200,
+-			Proto:         "HTTP/1.0",
+-			ProtoMajor:    1,
+-			ProtoMinor:    0,
+-			RequestMethod: "GET",
++			Status:     "200 OK",
++			StatusCode: 200,
++			Proto:      "HTTP/1.0",
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			Request:    dummyReq("GET"),
+ 			Header: Header{
+ 				"Connection": {"close"}, // TODO(rsc): Delete?
+ 			},
+@@ -61,7 +65,7 @@ var respTests = []respTest{
+ 			Proto:         "HTTP/1.1",
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    1,
+-			RequestMethod: "GET",
++			Request:       dummyReq("GET"),
+ 			Close:         true,
+ 			ContentLength: -1,
+ 		},
+@@ -81,7 +85,7 @@ var respTests = []respTest{
+ 			Proto:         "HTTP/1.1",
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    1,
+-			RequestMethod: "GET",
++			Request:       dummyReq("GET"),
+ 			Close:         false,
+ 			ContentLength: 0,
+ 		},
+@@ -98,12 +102,12 @@ var respTests = []respTest{
+ 			"Body here\n",
+ 
+ 		Response{
+-			Status:        "200 OK",
+-			StatusCode:    200,
+-			Proto:         "HTTP/1.0",
+-			ProtoMajor:    1,
+-			ProtoMinor:    0,
+-			RequestMethod: "GET",
++			Status:     "200 OK",
++			StatusCode: 200,
++			Proto:      "HTTP/1.0",
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			Request:    dummyReq("GET"),
+ 			Header: Header{
+ 				"Connection":     {"close"}, // TODO(rsc): Delete?
+ 				"Content-Length": {"10"},    // TODO(rsc): Delete?
+@@ -133,7 +137,7 @@ var respTests = []respTest{
+ 			Proto:            "HTTP/1.0",
+ 			ProtoMajor:       1,
+ 			ProtoMinor:       0,
+-			RequestMethod:    "GET",
++			Request:          dummyReq("GET"),
+ 			Header:           Header{},
+ 			Close:            true,
+ 			ContentLength:    -1,
+@@ -160,7 +164,7 @@ var respTests = []respTest{
+ 			Proto:            "HTTP/1.0",
+ 			ProtoMajor:       1,
+ 			ProtoMinor:       0,
+-			RequestMethod:    "GET",
++			Request:          dummyReq("GET"),
+ 			Header:           Header{},
+ 			Close:            true,
+ 			ContentLength:    -1, // TODO(rsc): Fix?
+@@ -183,7 +187,7 @@ var respTests = []respTest{
+ 			Proto:         "HTTP/1.0",
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    0,
+-			RequestMethod: "HEAD",
++			Request:       dummyReq("HEAD"),
+ 			Header:        Header{},
+ 			Close:         true,
+ 			ContentLength: 0,
+@@ -199,12 +203,12 @@ var respTests = []respTest{
+ 			"\r\n",
+ 
+ 		Response{
+-			Status:        "200 OK",
+-			StatusCode:    200,
+-			Proto:         "HTTP/1.1",
+-			ProtoMajor:    1,
+-			ProtoMinor:    1,
+-			RequestMethod: "GET",
++			Status:     "200 OK",
++			StatusCode: 200,
++			Proto:      "HTTP/1.1",
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Request:    dummyReq("GET"),
+ 			Header: Header{
+ 				"Content-Length": {"0"},
+ 			},
+@@ -225,7 +229,7 @@ var respTests = []respTest{
+ 			Proto:         "HTTP/1.0",
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    0,
+-			RequestMethod: "GET",
++			Request:       dummyReq("GET"),
+ 			Header:        Header{},
+ 			Close:         true,
+ 			ContentLength: -1,
+@@ -244,7 +248,7 @@ var respTests = []respTest{
+ 			Proto:         "HTTP/1.0",
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    0,
+-			RequestMethod: "GET",
++			Request:       dummyReq("GET"),
+ 			Header:        Header{},
+ 			Close:         true,
+ 			ContentLength: -1,
+@@ -259,7 +263,7 @@ func TestReadResponse(t *testing.T) {
+ 		tt := &respTests[i]
+ 		var braw bytes.Buffer
+ 		braw.WriteString(tt.Raw)
+-		resp, err := ReadResponse(bufio.NewReader(&braw), tt.Resp.RequestMethod)
++		resp, err := ReadResponse(bufio.NewReader(&braw), tt.Resp.Request)
+ 		if err != nil {
+ 			t.Errorf("#%d: %s", i, err)
+ 			continue
+@@ -340,7 +344,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
+ 		buf.WriteString("Next Request Here")
+ 
+ 		bufr := bufio.NewReader(&buf)
+-		resp, err := ReadResponse(bufr, "GET")
++		resp, err := ReadResponse(bufr, dummyReq("GET"))
+ 		checkErr(err, "ReadResponse")
+ 		expectedLength := int64(-1)
+ 		if !test.chunked {
+diff --git a/src/pkg/http/responsewrite_test.go b/src/pkg/http/responsewrite_test.go
+index de0635da51..f8e63acf4f 100644
+--- a/src/pkg/http/responsewrite_test.go
++++ b/src/pkg/http/responsewrite_test.go
+@@ -22,7 +22,7 @@ var respWriteTests = []respWriteTest{
+ 			StatusCode:    503,
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    0,
+-			RequestMethod: "GET",
++			Request:       dummyReq("GET"),
+ 			Header:        Header{},
+ 			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+ 			ContentLength: 6,
+@@ -38,7 +38,7 @@ var respWriteTests = []respWriteTest{
+ 			StatusCode:    200,
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    0,
+-			RequestMethod: "GET",
++			Request:       dummyReq("GET"),
+ 			Header:        Header{},
+ 			Body:          ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+ 			ContentLength: -1,
+@@ -53,7 +53,7 @@ var respWriteTests = []respWriteTest{
+ 			StatusCode:       200,
+ 			ProtoMajor:       1,
+ 			ProtoMinor:       1,
+-			RequestMethod:    "GET",
++			Request:          dummyReq("GET"),
+ 			Header:           Header{},
+ 			Body:             ioutil.NopCloser(bytes.NewBufferString("abcdef")),
+ 			ContentLength:    6,
+@@ -71,10 +71,10 @@ var respWriteTests = []respWriteTest{
+ 	// Also tests removal of leading and trailing whitespace.
+ 	{
+ 		Response{
+-			StatusCode:    204,
+-			ProtoMajor:    1,
+-			ProtoMinor:    1,
+-			RequestMethod: "GET",
++			StatusCode: 204,
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Request:    dummyReq("GET"),
+ 			Header: Header{
+ 				"Foo": []string{" Bar\nBaz "},
+ 			},
+diff --git a/src/pkg/http/reverseproxy_test.go b/src/pkg/http/reverseproxy_test.go
+index 8cf7705d74..162000eceb 100644
+--- a/src/pkg/http/reverseproxy_test.go
++++ b/src/pkg/http/reverseproxy_test.go
+@@ -33,7 +33,7 @@ func TestReverseProxy(t *testing.T) {
+ 	frontend := httptest.NewServer(proxyHandler)
+ 	defer frontend.Close()
+ 
+-	res, _, err := Get(frontend.URL)
++	res, err := Get(frontend.URL)
+ 	if err != nil {
+ 		t.Fatalf("Get: %v", err)
+ 	}
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index c9305682d2..8c91983b2a 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -252,7 +252,7 @@ func TestServerTimeouts(t *testing.T) {
+ 	// Hit the HTTP server successfully.
+ 	tr := &Transport{DisableKeepAlives: true} // they interfere with this test
+ 	c := &Client{Transport: tr}
+-	r, _, err := c.Get(url)
++	r, err := c.Get(url)
+ 	if err != nil {
+ 		t.Fatalf("http Get #1: %v", err)
+ 	}
+@@ -282,7 +282,7 @@ func TestServerTimeouts(t *testing.T) {
+ 	// Hit the HTTP server successfully again, verifying that the
+ 	// previous slow connection didn't run our handler.  (that we
+ 	// get "req=2", not "req=3")
+-	r, _, err = Get(url)
++	r, err = Get(url)
+ 	if err != nil {
+ 		t.Fatalf("http Get #2: %v", err)
+ 	}
+@@ -323,7 +323,7 @@ func TestIdentityResponse(t *testing.T) {
+ 	// responses.
+ 	for _, te := range []string{"", "identity"} {
+ 		url := ts.URL + "/?te=" + te
+-		res, _, err := Get(url)
++		res, err := Get(url)
+ 		if err != nil {
+ 			t.Fatalf("error with Get of %s: %v", url, err)
+ 		}
+@@ -342,7 +342,7 @@ func TestIdentityResponse(t *testing.T) {
+ 
+ 	// Verify that ErrContentLength is returned
+ 	url := ts.URL + "/?overwrite=1"
+-	_, _, err := Get(url)
++	_, err := Get(url)
+ 	if err != nil {
+ 		t.Fatalf("error with Get of %s: %v", url, err)
+ 	}
+@@ -389,7 +389,7 @@ func TestServeHTTP10Close(t *testing.T) {
+ 	}
+ 
+ 	r := bufio.NewReader(conn)
+-	_, err = ReadResponse(r, "GET")
++	_, err = ReadResponse(r, &Request{Method: "GET"})
+ 	if err != nil {
+ 		t.Fatal("ReadResponse error:", err)
+ 	}
+@@ -417,7 +417,7 @@ func TestSetsRemoteAddr(t *testing.T) {
+ 	}))
+ 	defer ts.Close()
+ 
+-	res, _, err := Get(ts.URL)
++	res, err := Get(ts.URL)
+ 	if err != nil {
+ 		t.Fatalf("Get error: %v", err)
+ 	}
+@@ -438,7 +438,7 @@ func TestChunkedResponseHeaders(t *testing.T) {
+ 	}))
+ 	defer ts.Close()
+ 
+-	res, _, err := Get(ts.URL)
++	res, err := Get(ts.URL)
+ 	if err != nil {
+ 		t.Fatalf("Get error: %v", err)
+ 	}
+@@ -465,7 +465,7 @@ func Test304Responses(t *testing.T) {
+ 		}
+ 	}))
+ 	defer ts.Close()
+-	res, _, err := Get(ts.URL)
++	res, err := Get(ts.URL)
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -516,7 +516,7 @@ func TestTLSServer(t *testing.T) {
+ 	if !strings.HasPrefix(ts.URL, "https://") {
+ 		t.Fatalf("expected test TLS server to start with https://, got %q", ts.URL)
+ 	}
+-	res, _, err := Get(ts.URL)
++	res, err := Get(ts.URL)
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -657,7 +657,7 @@ func TestTimeoutHandler(t *testing.T) {
+ 
+ 	// Succeed without timing out:
+ 	sendHi <- true
+-	res, _, err := Get(ts.URL)
++	res, err := Get(ts.URL)
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -674,7 +674,7 @@ func TestTimeoutHandler(t *testing.T) {
+ 
+ 	// Times out:
+ 	timeout <- 1
+-	res, _, err = Get(ts.URL)
++	res, err = Get(ts.URL)
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 0fa8bed43a..062e7a0ff7 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -45,7 +45,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
+ 		t.TransferEncoding = rr.TransferEncoding
+ 		t.Trailer = rr.Trailer
+ 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
+-		t.ResponseToHEAD = noBodyExpected(rr.RequestMethod)
++		t.ResponseToHEAD = noBodyExpected(rr.Request.Method)
+ 	}
+ 
+ 	// Sanitize Body,ContentLength,TransferEncoding
+@@ -196,7 +196,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 	case *Response:
+ 		t.Header = rr.Header
+ 		t.StatusCode = rr.StatusCode
+-		t.RequestMethod = rr.RequestMethod
++		t.RequestMethod = rr.Request.Method
+ 		t.ProtoMajor = rr.ProtoMajor
+ 		t.ProtoMinor = rr.ProtoMinor
+ 		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 281ee62926..249faabe54 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -249,18 +249,22 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, os.Error) {
+ 			}
+ 		}
+ 	case cm.targetScheme == "https":
+-		fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\n", cm.targetAddr)
+-		fmt.Fprintf(conn, "Host: %s\r\n", cm.targetAddr)
++		connectReq := &Request{
++			Method: "CONNECT",
++			RawURL: cm.targetAddr,
++			Host:   cm.targetAddr,
++			Header: make(Header),
++		}
+ 		if pa != "" {
+-			fmt.Fprintf(conn, "Proxy-Authorization: %s\r\n", pa)
++			connectReq.Header.Set("Proxy-Authorization", pa)
+ 		}
+-		fmt.Fprintf(conn, "\r\n")
++		connectReq.Write(conn)
+ 
+ 		// Read response.
+ 		// Okay to use and discard buffered reader here, because
+ 		// TLS server will not speak until spoken to.
+ 		br := bufio.NewReader(conn)
+-		resp, err := ReadResponse(br, "CONNECT")
++		resp, err := ReadResponse(br, connectReq)
+ 		if err != nil {
+ 			conn.Close()
+ 			return nil, err
+@@ -447,8 +451,8 @@ func (pc *persistConn) readLoop() {
+ 		}
+ 
+ 		rc := <-pc.reqch
+-		resp, err := pc.cc.readUsing(rc.req, func(buf *bufio.Reader, reqMethod string) (*Response, os.Error) {
+-			resp, err := ReadResponse(buf, reqMethod)
++		resp, err := pc.cc.readUsing(rc.req, func(buf *bufio.Reader, forReq *Request) (*Response, os.Error) {
++			resp, err := ReadResponse(buf, forReq)
+ 			if err != nil || resp.ContentLength == 0 {
+ 				return resp, err
+ 			}
+diff --git a/src/pkg/http/transport_test.go b/src/pkg/http/transport_test.go
+index 34011293fd..13865505ef 100644
+--- a/src/pkg/http/transport_test.go
++++ b/src/pkg/http/transport_test.go
+@@ -43,7 +43,7 @@ func TestTransportKeepAlives(t *testing.T) {
+ 		c := &Client{Transport: tr}
+ 
+ 		fetch := func(n int) string {
+-			res, _, err := c.Get(ts.URL)
++			res, err := c.Get(ts.URL)
+ 			if err != nil {
+ 				t.Fatalf("error in disableKeepAlive=%v, req #%d, GET: %v", disableKeepAlive, n, err)
+ 			}
+@@ -160,7 +160,7 @@ func TestTransportIdleCacheKeys(t *testing.T) {
+ 		t.Errorf("After CloseIdleConnections expected %d idle conn cache keys; got %d", e, g)
+ 	}
+ 
+-	resp, _, err := c.Get(ts.URL)
++	resp, err := c.Get(ts.URL)
+ 	if err != nil {
+ 		t.Error(err)
+ 	}
+@@ -201,7 +201,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ 	// Their responses will hang until we we write to resch, though.
+ 	donech := make(chan bool)
+ 	doReq := func() {
+-		resp, _, err := c.Get(ts.URL)
++		resp, err := c.Get(ts.URL)
+ 		if err != nil {
+ 			t.Error(err)
+ 		}
+@@ -266,7 +266,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ 		}
+ 		for retries >= 0 {
+ 			retries--
+-			res, _, err := c.Get(ts.URL)
++			res, err := c.Get(ts.URL)
+ 			if err != nil {
+ 				condFatalf("error in req #%d, GET: %v", n, err)
+ 				continue
+@@ -420,7 +420,7 @@ func TestTransportGzip(t *testing.T) {
+ 		c := &Client{Transport: &Transport{}}
+ 
+ 		// First fetch something large, but only read some of it.
+-		res, _, err := c.Get(ts.URL + "?body=large&chunked=" + chunked)
++		res, err := c.Get(ts.URL + "?body=large&chunked=" + chunked)
+ 		if err != nil {
+ 			t.Fatalf("large get: %v", err)
+ 		}
+@@ -440,7 +440,7 @@ func TestTransportGzip(t *testing.T) {
+ 		}
+ 
+ 		// Then something small.
+-		res, _, err = c.Get(ts.URL + "?chunked=" + chunked)
++		res, err = c.Get(ts.URL + "?chunked=" + chunked)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -490,7 +490,7 @@ func TestTransportGzipRecursive(t *testing.T) {
+ 	defer ts.Close()
+ 
+ 	c := &Client{Transport: &Transport{}}
+-	res, _, err := c.Get(ts.URL)
++	res, err := c.Get(ts.URL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 8af4afcf69..a8e560cbe5 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -216,7 +216,7 @@ func DialHTTPPath(network, address, path string) (*Client, os.Error) {
+ 
+ 	// Require successful HTTP response
+ 	// before switching to RPC protocol.
+-	resp, err := http.ReadResponse(bufio.NewReader(conn), "CONNECT")
++	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: "CONNECT"})
+ 	if err == nil && resp.Status == connected {
+ 		return NewClient(conn), nil
+ 	}
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index 78c8b7f57b..3712c2d1b8 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -235,7 +235,7 @@ func handshake(resourceName, host, origin, location, protocol string, br *bufio.
+ 	}
+ 
+ 	// Step 28-29, 32-40. read response from server.
+-	resp, err := http.ReadResponse(br, "GET")
++	resp, err := http.ReadResponse(br, &http.Request{Method: "GET"})
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -297,7 +297,7 @@ func draft75handshake(resourceName, host, origin, location, protocol string, br
+ 	}
+ 	bw.WriteString("\r\n")
+ 	bw.Flush()
+-	resp, err := http.ReadResponse(br, "GET")
++	resp, err := http.ReadResponse(br, &http.Request{Method: "GET"})
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 10f88dfd1a..84788b416e 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -150,7 +150,7 @@ func TestHTTP(t *testing.T) {
+ 
+ 	// If the client did not send a handshake that matches the protocol
+ 	// specification, the server should abort the WebSocket connection.
+-	_, _, err := http.Get(fmt.Sprintf("http://%s/echo", serverAddr))
++	_, err := http.Get(fmt.Sprintf("http://%s/echo", serverAddr))
+ 	if err == nil {
+ 		t.Error("Get: unexpected success")
+ 		return
+@@ -169,7 +169,7 @@ func TestHTTP(t *testing.T) {
+ func TestHTTPDraft75(t *testing.T) {
+ 	once.Do(startServer)
+ 
+-	r, _, err := http.Get(fmt.Sprintf("http://%s/echoDraft75", serverAddr))
++	r, err := http.Get(fmt.Sprintf("http://%s/echoDraft75", serverAddr))
+ 	if err != nil {
+ 		t.Errorf("Get: error %#v", err)
+ 		return

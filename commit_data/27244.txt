@@ -23,8 +23,237 @@ Date:   Fri Mar 11 13:29:23 2016 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 24 +++++++-------
  src/fmt/format.go   | 92 ++++++++++++++++++++++++++++++++++-------------------
  src/fmt/print.go    | 26 ++-------------
  3 files changed, 74 insertions(+), 68 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 60423667e4..55f46dd833 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -338,19 +338,23 @@ var fmtTests = []struct {
+ 	{"%.d", 0, ""},
+ 
+ 	// unicode format
+-	{"%U", 0x1, "U+0001"},
+-	{"%U", uint(0x1), "U+0001"},
+-	{"%.8U", 0x2, "U+00000002"},
+-	{"%U", 0x1234, "U+1234"},
+-	{"%U", 0x12345, "U+12345"},
+-	{"%10.6U", 0xABC, "  U+000ABC"},
+-	{"%-10.6U", 0xABC, "U+000ABC  "},
++	{"%U", 0, "U+0000"},
++	{"%U", -1, "U+FFFFFFFFFFFFFFFF"},
+ 	{"%U", '\n', `U+000A`},
+ 	{"%#U", '\n', `U+000A`},
+-	{"%U", 'x', `U+0078`},
+-	{"%#U", 'x', `U+0078 'x'`},
++	{"%+U", 'x', `U+0078`},       // Plus flag should have no effect.
++	{"%# U", 'x', `U+0078 'x'`},  // Space flag should have no effect.
++	{"%#.2U", 'x', `U+0078 'x'`}, // Precisions below 4 should print 4 digits.
+ 	{"%U", '\u263a', `U+263A`},
+ 	{"%#U", '\u263a', `U+263A '☺'`},
++	{"%U", '\U0001D6C2', `U+1D6C2`},
++	{"%#U", '\U0001D6C2', `U+1D6C2 '𝛂'`},
++	{"%#14.6U", '⌘', "  U+002318 '⌘'"},
++	{"%#-14.6U", '⌘', "U+002318 '⌘'  "},
++	{"%#014.6U", '⌘', "  U+002318 '⌘'"},
++	{"%#-014.6U", '⌘', "U+002318 '⌘'  "},
++	{"%.80U", uint(42), zeroFill("U+", 80, "2A")},
++	{"%#.80U", '日', zeroFill("U+", 80, "65E5") + " '日'"},
+ 
+ 	// floats
+ 	{"%+.3e", 0.0, "+0.000e+00"},
+@@ -819,8 +823,6 @@ var fmtTests = []struct {
+ 
+ 	// Used to panic: integer function didn't look at f.prec, f.unicode, f.width or sign.
+ 	{"%#.80x", 42, "0x0000000000000000000000000000000000000000000000000000000000000000000000000000002a"},
+-	{"%.80U", 42, "U+0000000000000000000000000000000000000000000000000000000000000000000000000000002A"},
+-	{"%#.80U", '日', "U+000000000000000000000000000000000000000000000000000000000000000000000000000065E5 '日'"},
+ 	{"%.65d", -44, "-00000000000000000000000000000000000000000000000000000000000000044"},
+ 	{"%+.65d", 44, "+00000000000000000000000000000000000000000000000000000000000000044"},
+ 	{"% .65d", 44, " 00000000000000000000000000000000000000000000000000000000000000044"},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 3fd115c529..b6786b9aed 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -31,8 +31,6 @@ type fmtFlags struct {
+ 	plus        bool
+ 	sharp       bool
+ 	space       bool
+-	unicode     bool
+-	uniQuote    bool // Use 'x'= prefix for %U if printable.
+ 	zero        bool
+ 
+ 	// For the formats %+v %#v, we set the plusV/sharpV flags
+@@ -133,6 +131,65 @@ func (f *fmt) fmt_boolean(v bool) {
+ 	}
+ }
+ 
++// fmt_unicode formats a uint64 as "U+0078" or with f.sharp set as "U+0078 'x'".
++func (f *fmt) fmt_unicode(u uint64) {
++	buf := f.intbuf[0:]
++
++	// With default precision set the maximum needed buf length is 18
++	// for formatting -1 with %#U ("U+FFFFFFFFFFFFFFFF")
++	// which fits into the already allocated intbuf with a capacity of 65 bytes.
++	prec := 4
++	if f.precPresent && f.prec > 4 {
++		prec = f.prec
++		// Compute space needed for "U+" , number, " '", character, "'".
++		width := 2 + prec + 2 + utf8.UTFMax + 1
++		if width > cap(buf) {
++			buf = make([]byte, width)
++		}
++	}
++
++	// Format into buf, ending at buf[i]. Formatting numbers is easier right-to-left.
++	i := len(buf)
++
++	// For %#U we want to add a space and a quoted character at the end of the buffer.
++	if f.sharp && u <= utf8.MaxRune && strconv.IsPrint(rune(u)) {
++		i--
++		buf[i] = '\''
++		i -= utf8.RuneLen(rune(u))
++		utf8.EncodeRune(buf[i:], rune(u))
++		i--
++		buf[i] = '\''
++		i--
++		buf[i] = ' '
++	}
++	// Format the Unicode code point u as a hexadecimal number.
++	for u >= 16 {
++		i--
++		buf[i] = udigits[u&0xF]
++		prec--
++		u >>= 4
++	}
++	i--
++	buf[i] = udigits[u]
++	prec--
++	// Add zeros in front of the number until requested precision is reached.
++	for prec > 0 {
++		i--
++		buf[i] = '0'
++		prec--
++	}
++	// Add a leading "U+".
++	i--
++	buf[i] = '+'
++	i--
++	buf[i] = 'U'
++
++	oldZero := f.zero
++	f.zero = false
++	f.pad(buf[i:])
++	f.zero = oldZero
++}
++
+ // integer; interprets prec but not wid. Once formatted, result is sent to pad()
+ // and then flags are cleared.
+ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+@@ -153,14 +210,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 			// Also adds "0x".
+ 			width += 2
+ 		}
+-		if f.unicode {
+-			// Also adds "U+".
+-			width += 2
+-			if f.uniQuote {
+-				// Also adds " 'x'".
+-				width += 1 + 1 + utf8.UTFMax + 1
+-			}
+-		}
+ 		if negative || f.plus || f.space {
+ 			width++
+ 		}
+@@ -243,12 +292,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 			buf[i] = '0'
+ 		}
+ 	}
+-	if f.unicode {
+-		i--
+-		buf[i] = '+'
+-		i--
+-		buf[i] = 'U'
+-	}
+ 
+ 	if negative {
+ 		i--
+@@ -261,23 +304,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 		buf[i] = ' '
+ 	}
+ 
+-	// If we want a quoted char for %#U, move the data up to make room.
+-	if f.unicode && f.uniQuote && a >= 0 && a <= utf8.MaxRune && strconv.IsPrint(rune(a)) {
+-		runeWidth := utf8.RuneLen(rune(a))
+-		width := 1 + 1 + runeWidth + 1 // space, quote, rune, quote
+-		copy(buf[i-width:], buf[i:])   // guaranteed to have enough room.
+-		i -= width
+-		// Now put " 'x'" at the end.
+-		j := len(buf) - width
+-		buf[j] = ' '
+-		j++
+-		buf[j] = '\''
+-		j++
+-		utf8.EncodeRune(buf[j:], rune(a))
+-		j += runeWidth
+-		buf[j] = '\''
+-	}
+-
+ 	f.pad(buf[i:])
+ }
+ 
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index e229bf7a62..862deb9dcb 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -358,7 +358,7 @@ func (p *pp) fmtInt64(v int64, verb rune) {
+ 	case 'x':
+ 		p.fmt.integer(v, 16, signed, ldigits)
+ 	case 'U':
+-		p.fmtUnicode(v)
++		p.fmt.fmt_unicode(uint64(v))
+ 	case 'X':
+ 		p.fmt.integer(v, 16, signed, udigits)
+ 	default:
+@@ -375,28 +375,6 @@ func (p *pp) fmt0x64(v uint64, leading0x bool) {
+ 	p.fmt.sharp = sharp
+ }
+ 
+-// fmtUnicode formats a uint64 in U+1234 form by
+-// temporarily turning on the unicode flag and tweaking the precision.
+-func (p *pp) fmtUnicode(v int64) {
+-	precPresent := p.fmt.precPresent
+-	sharp := p.fmt.sharp
+-	p.fmt.sharp = false
+-	prec := p.fmt.prec
+-	if !precPresent {
+-		// If prec is already set, leave it alone; otherwise 4 is minimum.
+-		p.fmt.prec = 4
+-		p.fmt.precPresent = true
+-	}
+-	p.fmt.unicode = true // turn on U+
+-	p.fmt.uniQuote = sharp
+-	p.fmt.integer(int64(v), 16, unsigned, udigits)
+-	p.fmt.unicode = false
+-	p.fmt.uniQuote = false
+-	p.fmt.prec = prec
+-	p.fmt.precPresent = precPresent
+-	p.fmt.sharp = sharp
+-}
+-
+ func (p *pp) fmtUint64(v uint64, verb rune) {
+ 	switch verb {
+ 	case 'b':
+@@ -424,7 +402,7 @@ func (p *pp) fmtUint64(v uint64, verb rune) {
+ 	case 'X':
+ 		p.fmt.integer(int64(v), 16, unsigned, udigits)
+ 	case 'U':
+-		p.fmtUnicode(int64(v))
++		p.fmt.fmt_unicode(v)
+ 	default:
+ 		p.badVerb(verb)
+ 	}

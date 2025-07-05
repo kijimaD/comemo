@@ -7,8 +7,156 @@ Date:   Wed Jun 2 16:28:01 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1486041
-
+---
  src/pkg/fmt/print.go     |  1 -
  src/pkg/fmt/scan.go      | 28 ++++++++++++++++++++++------
  src/pkg/fmt/scan_test.go | 12 ++++++++++++
  3 files changed, 34 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index c45438c4ee..bb6990ae97 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -119,7 +119,6 @@
+ package fmt
+ 
+ // BUG: format precision and flags are not yet implemented for scanning.
+-// BUG: %sqx are not yet implemented for scanning byte slices.
+ 
+ import (
+ 	"bytes"
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 2708568579..87ec695fb5 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -649,6 +649,10 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 		}
+ 	case *string:
+ 		*v = s.convertString(verb)
++	case *[]byte:
++		// We scan to string and convert so we get a copy of the data.
++		// If we scanned to bytes, the slice would point at the buffer.
++		*v = []byte(s.convertString(verb))
+ 	default:
+ 		val := reflect.NewValue(v)
+ 		ptr, ok := val.(*reflect.PtrValue)
+@@ -683,6 +687,17 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 			v.Set(uintptr(s.scanUint(verb, uintptrBits)))
+ 		case *reflect.StringValue:
+ 			v.Set(s.convertString(verb))
++		case *reflect.SliceValue:
++			// For now, can only handle (renamed) []byte.
++			typ := v.Type().(*reflect.SliceType)
++			if _, ok := typ.Elem().(*reflect.Uint8Type); !ok {
++				goto CantHandle
++			}
++			str := s.convertString(verb)
++			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
++			for i := 0; i < len(str); i++ {
++				v.Elem(i).(*reflect.Uint8Value).Set(str[i])
++			}
+ 		case *reflect.FloatValue:
+ 			v.Set(float(s.convertFloat(s.token())))
+ 		case *reflect.Float32Value:
+@@ -696,6 +711,7 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 		case *reflect.Complex128Value:
+ 			v.Set(s.scanComplex(verb, (*ss).convertFloat64))
+ 		default:
++		CantHandle:
+ 			s.errorString("Scan: can't handle type: " + val.Type().String())
+ 		}
+ 	}
+@@ -738,12 +754,12 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err os.Error) {
+ 	return
+ }
+ 
+-// advance determines whether the next characters in the input matches
++// advance determines whether the next characters in the input match
+ // those of the format.  It returns the number of bytes (sic) consumed
+ // in the format. Newlines included, all runs of space characters in
+-// either input or format behave as a single space. This routines also
+-// handles the %% case.  If the return value is zero, either the format
+-// is sitting on a % or the input is empty.
++// either input or format behave as a single space. This routine also
++// handles the %% case.  If the return value is zero, either format
++// starts with a % (with no following %) or the input is empty.
+ func (s *ss) advance(format string) (i int) {
+ 	for i < len(format) {
+ 		fmtc, w := utf8.DecodeRuneInString(format[i:])
+@@ -797,9 +813,9 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err os.E
+ 			i += w
+ 			continue
+ 		}
+-		// Either we have a percent character or we ran out of input.
++		// Either we failed to advance, we have a percent character, or we ran out of input.
+ 		if format[i] != '%' {
+-			// Out of format.  Have we run out of input?
++			// Can't advance format.  Do we have arguments still to process?
+ 			if i < len(a) {
+ 				s.errorString("too many arguments for format")
+ 			}
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index cd19903ebb..6ea5ec95fd 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -40,6 +40,7 @@ type (
+ 	renamedUint64     uint64
+ 	renamedUintptr    uintptr
+ 	renamedString     string
++	renamedBytes      []byte
+ 	renamedFloat      float
+ 	renamedFloat32    float32
+ 	renamedFloat64    float64
+@@ -64,6 +65,7 @@ var (
+ 	float32Val           float32
+ 	float64Val           float64
+ 	stringVal            string
++	bytesVal             []byte
+ 	complexVal           complex
+ 	complex64Val         complex64
+ 	complex128Val        complex128
+@@ -80,6 +82,7 @@ var (
+ 	renamedUint64Val     renamedUint64
+ 	renamedUintptrVal    renamedUintptr
+ 	renamedStringVal     renamedString
++	renamedBytesVal      renamedBytes
+ 	renamedFloatVal      renamedFloat
+ 	renamedFloat32Val    renamedFloat32
+ 	renamedFloat64Val    renamedFloat64
+@@ -140,6 +143,7 @@ var scanTests = []ScanTest{
+ 	ScanTest{"2.3e1\n", &float32Val, float32(2.3e1)},
+ 	ScanTest{"2.3e2\n", &float64Val, float64(2.3e2)},
+ 	ScanTest{"2.35\n", &stringVal, "2.35"},
++	ScanTest{"2345678\n", &bytesVal, []byte("2345678")},
+ 	ScanTest{"(3.4e1-2i)\n", &complexVal, 3.4e1 - 2i},
+ 	ScanTest{"-3.45e1-3i\n", &complex64Val, complex64(-3.45e1 - 3i)},
+ 	ScanTest{"-.45e1-1e2i\n", &complex128Val, complex128(-.45e1 - 100i)},
+@@ -162,6 +166,7 @@ var scanTests = []ScanTest{
+ 	ScanTest{"112\n", &renamedUint64Val, renamedUint64(112)},
+ 	ScanTest{"113\n", &renamedUintptrVal, renamedUintptr(113)},
+ 	ScanTest{"114\n", &renamedStringVal, renamedString("114")},
++	ScanTest{"115\n", &renamedBytesVal, renamedBytes([]byte("115"))},
+ 
+ 	// Custom scanner.
+ 	ScanTest{"  xxx ", &xVal, Xs("xxx")},
+@@ -196,6 +201,12 @@ var scanfTests = []ScanfTest{
+ 	ScanfTest{"%q", `"quoted\twith\\do\u0075bl\x65s"` + "\n", &stringVal, "quoted\twith\\doubles"},
+ 	ScanfTest{"%q", "`quoted with backs`\n", &stringVal, "quoted with backs"},
+ 
++	// Byte slices
++	ScanfTest{"%s", "bytes-%s\n", &bytesVal, []byte("bytes-%s")},
++	ScanfTest{"%x", "62797465732d2578\n", &bytesVal, []byte("bytes-%x")},
++	ScanfTest{"%q", `"bytes\rwith\vdo\u0075bl\x65s"` + "\n", &bytesVal, []byte("bytes\rwith\vdoubles")},
++	ScanfTest{"%q", "`bytes with backs`\n", &bytesVal, []byte("bytes with backs")},
++
+ 	// Renamed types
+ 	ScanfTest{"%v\n", "true\n", &renamedBoolVal, renamedBool(true)},
+ 	ScanfTest{"%t\n", "F\n", &renamedBoolVal, renamedBool(false)},
+@@ -213,6 +224,7 @@ var scanfTests = []ScanfTest{
+ 	ScanfTest{"%d", "112\n", &renamedUint64Val, renamedUint64(112)},
+ 	ScanfTest{"%d", "113\n", &renamedUintptrVal, renamedUintptr(113)},
+ 	ScanfTest{"%s", "114\n", &renamedStringVal, renamedString("114")},
++	ScanfTest{"%q", "\"1155\"\n", &renamedBytesVal, renamedBytes([]byte("1155"))},
+ 	ScanfTest{"%g", "115.1\n", &renamedFloatVal, renamedFloat(115.1)},
+ 	ScanfTest{"%g", "116e1\n", &renamedFloat32Val, renamedFloat32(116e1)},
+ 	ScanfTest{"%g", "-11.7e+1", &renamedFloat64Val, renamedFloat64(-11.7e+1)},

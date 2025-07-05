@@ -11,6 +11,19 @@ Date:   Wed Feb 13 13:19:06 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7311091
-
+---
  src/pkg/os/os_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index ba914a2c48..29706015d1 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -41,7 +41,6 @@ var sysdir = func() (sd *sysDir) {
+ 		sd = &sysDir{
+ 			Getenv("SystemRoot") + "\\system32\\drivers\\etc",
+ 			[]string{
+-				"hosts",
+ 				"networks",
+ 				"protocol",
+ 				"services",

@@ -14,9 +14,140 @@ Date:   Mon Jul 6 11:26:45 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/243913
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/io/fs/stat.go            | 31 +++++++++++++++++++++++++++++++
  src/io/fs/stat_test.go       | 36 ++++++++++++++++++++++++++++++++++++
  src/testing/fstest/mapfs.go  |  4 ++++
  src/testing/fstest/testfs.go | 25 ++++++++++++++++++++++++-
  4 files changed, 95 insertions(+), 1 deletion(-)
+
+diff --git a/src/io/fs/stat.go b/src/io/fs/stat.go
+new file mode 100644
+index 0000000000..735a6e3281
+--- /dev/null
++++ b/src/io/fs/stat.go
+@@ -0,0 +1,31 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs
++
++// A StatFS is a file system with a Stat method.
++type StatFS interface {
++	FS
++
++	// Stat returns a FileInfo describing the file.
++	// If there is an error, it should be of type *PathError.
++	Stat(name string) (FileInfo, error)
++}
++
++// Stat returns a FileInfo describing the named file from the file system.
++//
++// If fs implements StatFS, Stat calls fs.Stat.
++// Otherwise, Stat opens the file to stat it.
++func Stat(fsys FS, name string) (FileInfo, error) {
++	if fsys, ok := fsys.(StatFS); ok {
++		return fsys.Stat(name)
++	}
++
++	file, err := fsys.Open(name)
++	if err != nil {
++		return nil, err
++	}
++	defer file.Close()
++	return file.Stat()
++}
+diff --git a/src/io/fs/stat_test.go b/src/io/fs/stat_test.go
+new file mode 100644
+index 0000000000..e312b6fbd9
+--- /dev/null
++++ b/src/io/fs/stat_test.go
+@@ -0,0 +1,36 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs_test
++
++import (
++	"fmt"
++	. "io/fs"
++	"testing"
++)
++
++type statOnly struct{ StatFS }
++
++func (statOnly) Open(name string) (File, error) { return nil, ErrNotExist }
++
++func TestStat(t *testing.T) {
++	check := func(desc string, info FileInfo, err error) {
++		t.Helper()
++		if err != nil || info == nil || info.Mode() != 0456 {
++			infoStr := "<nil>"
++			if info != nil {
++				infoStr = fmt.Sprintf("FileInfo(Mode: %#o)", info.Mode())
++			}
++			t.Fatalf("Stat(%s) = %v, %v, want Mode:0456, nil", desc, infoStr, err)
++		}
++	}
++
++	// Test that Stat uses the method when present.
++	info, err := Stat(statOnly{testFsys}, "hello.txt")
++	check("statOnly", info, err)
++
++	// Test that Stat uses Open when the method is not present.
++	info, err = Stat(openOnly{testFsys}, "hello.txt")
++	check("openOnly", info, err)
++}
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index e969ac2bd1..b01911e589 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -120,6 +120,10 @@ func (fsys MapFS) ReadFile(name string) ([]byte, error) {
+ 	return fs.ReadFile(fsOnly{fsys}, name)
+ }
+ 
++func (fsys MapFS) Stat(name string) (fs.FileInfo, error) {
++	return fs.Stat(fsOnly{fsys}, name)
++}
++
+ // A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
+ type mapFileInfo struct {
+ 	name string
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 66725ca2a4..290d2596cc 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -230,7 +230,30 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
+ 	fentry := formatEntry(entry)
+ 	finfo := formatInfoEntry(info)
+ 	if fentry != finfo {
+-		t.errorf("%s: mismatch:\n\tentry = %v\n\tfile.Stat() = %v", path, fentry, finfo)
++		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, finfo)
++	}
++
++	info2, err := fs.Stat(t.fsys, path)
++	if err != nil {
++		t.errorf("%s: fs.Stat: %v", path, err)
++		return
++	}
++	finfo = formatInfo(info)
++	finfo2 := formatInfo(info2)
++	if finfo2 != finfo {
++		t.errorf("%s: fs.Stat(...) = %s\n\twant %s", path, finfo2, finfo)
++	}
++
++	if fsys, ok := t.fsys.(fs.StatFS); ok {
++		info2, err := fsys.Stat(path)
++		if err != nil {
++			t.errorf("%s: fsys.Stat: %v", path, err)
++			return
++		}
++		finfo2 := formatInfo(info2)
++		if finfo2 != finfo {
++			t.errorf("%s: fsys.Stat(...) = %s\n\twant %s", path, finfo2, finfo)
++		}
+ 	}
+ }
+ 

@@ -10,7 +10,7 @@ Date:   Mon Mar 1 09:47:09 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/297409
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/ir/visit.go       | 8 ++++----
  src/cmd/compile/internal/types2/call.go    | 4 ++--
  src/cmd/compile/internal/types2/typexpr.go | 4 ++--
@@ -21,3 +21,175 @@ Date:   Mon Mar 1 09:47:09 2021 +0000
  src/syscall/exec_windows_test.go           | 2 +-
  test/run.go                                | 2 +-
  9 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/visit.go b/src/cmd/compile/internal/ir/visit.go
+index c1b3d4ed95..e4aeae3522 100644
+--- a/src/cmd/compile/internal/ir/visit.go
++++ b/src/cmd/compile/internal/ir/visit.go
+@@ -25,10 +25,10 @@ package ir
+ //
+ //	var do func(ir.Node) bool
+ //	do = func(x ir.Node) bool {
+-//		... processing BEFORE visting children ...
++//		... processing BEFORE visiting children ...
+ //		if ... should visit children ... {
+ //			ir.DoChildren(x, do)
+-//			... processing AFTER visting children ...
++//			... processing AFTER visiting children ...
+ //		}
+ //		if ... should stop parent DoChildren call from visiting siblings ... {
+ //			return true
+@@ -43,11 +43,11 @@ package ir
+ //
+ //	var do func(ir.Node) bool
+ //	do = func(x ir.Node) bool {
+-//		... processing BEFORE visting children ...
++//		... processing BEFORE visiting children ...
+ //		if ... should visit children ... {
+ //			ir.DoChildren(x, do)
+ //		}
+-//		... processing AFTER visting children ...
++//		... processing AFTER visiting children ...
+ //		return false
+ //	}
+ //	do(root)
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 72805c453b..3f40a99b07 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -71,7 +71,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
+ 			x.expr = inst
+ 			return
+ 		}
+-		// all type arguments were inferred sucessfully
++		// all type arguments were inferred successfully
+ 		if debug {
+ 			for _, targ := range targs {
+ 				assert(targ != nil)
+@@ -402,7 +402,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, args []*o
+ 				return
+ 			}
+ 		}
+-		// all type arguments were inferred sucessfully
++		// all type arguments were inferred successfully
+ 		if debug {
+ 			for _, targ := range targs {
+ 				assert(targ != nil)
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 7190cb446a..02f9b2804d 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -426,7 +426,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ }
+ 
+ // goTypeName returns the Go type name for typ and
+-// removes any occurences of "types." from that name.
++// removes any occurrences of "types." from that name.
+ func goTypeName(typ Type) string {
+ 	return strings.Replace(fmt.Sprintf("%T", typ), "types.", "", -1) // strings.ReplaceAll is not available in Go 1.4
+ }
+@@ -710,7 +710,7 @@ func (check *Checker) arrayLength(e syntax.Expr) int64 {
+ }
+ 
+ // typeList provides the list of types corresponding to the incoming expression list.
+-// If an error occured, the result is nil, but all list elements were type-checked.
++// If an error occurred, the result is nil, but all list elements were type-checked.
+ func (check *Checker) typeList(list []syntax.Expr) []Type {
+ 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
+ 	for i, x := range list {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index bd10f6fbc3..f23ca02e1d 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -73,7 +73,7 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
+ 			x.expr = inst
+ 			return
+ 		}
+-		// all type arguments were inferred sucessfully
++		// all type arguments were inferred successfully
+ 		if debug {
+ 			for _, targ := range targs {
+ 				assert(targ != nil)
+@@ -404,7 +404,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
+ 				return
+ 			}
+ 		}
+-		// all type arguments were inferred sucessfully
++		// all type arguments were inferred successfully
+ 		if debug {
+ 			for _, targ := range targs {
+ 				assert(targ != nil)
+diff --git a/src/go/types/examples/types.go2 b/src/go/types/examples/types.go2
+index 20abefbe05..59c8804ad2 100644
+--- a/src/go/types/examples/types.go2
++++ b/src/go/types/examples/types.go2
+@@ -146,7 +146,7 @@ func _() {
+ 
+ // We accept parenthesized embedded struct fields so we can distinguish between
+ // a named field with a parenthesized type foo (T) and an embedded parameterized
+-// type (foo(T)), similarly to interace embedding.
++// type (foo(T)), similarly to interface embedding.
+ // They still need to be valid embedded types after the parentheses are stripped
+ // (i.e., in contrast to interfaces, we cannot embed a struct literal). The name
+ // of the embedded field is derived as before, after stripping parentheses.
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 8f30a67a2f..63e37de4b7 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -398,7 +398,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ }
+ 
+ // goTypeName returns the Go type name for typ and
+-// removes any occurences of "types." from that name.
++// removes any occurrences of "types." from that name.
+ func goTypeName(typ Type) string {
+ 	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types.", "")
+ }
+@@ -674,7 +674,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
+ }
+ 
+ // typeList provides the list of types corresponding to the incoming expression list.
+-// If an error occured, the result is nil, but all list elements were type-checked.
++// If an error occurred, the result is nil, but all list elements were type-checked.
+ func (check *Checker) typeList(list []ast.Expr) []Type {
+ 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
+ 	for i, x := range list {
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 20f41d96b5..36d6b3095b 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -378,7 +378,7 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 	// Stack-assigned return values do not share
+ 	// space with arguments like they do with registers,
+ 	// so we need to inject a stack offset here.
+-	// Fake it by artifically extending stackBytes by
++	// Fake it by artificially extending stackBytes by
+ 	// the return offset.
+ 	out.stackBytes = retOffset
+ 	for i, res := range t.out() {
+diff --git a/src/syscall/exec_windows_test.go b/src/syscall/exec_windows_test.go
+index 8a1c2ceaae..fb2c767c35 100644
+--- a/src/syscall/exec_windows_test.go
++++ b/src/syscall/exec_windows_test.go
+@@ -108,7 +108,7 @@ func TestChangingProcessParent(t *testing.T) {
+ 	}
+ 	childOutput, err = ioutil.ReadFile(childDumpPath)
+ 	if err != nil {
+-		t.Fatalf("reading child ouput failed: %v", err)
++		t.Fatalf("reading child output failed: %v", err)
+ 	}
+ 	if got, want := string(childOutput), fmt.Sprintf("%d", parent.Process.Pid); got != want {
+ 		t.Fatalf("child output: want %q, got %q", want, got)
+diff --git a/test/run.go b/test/run.go
+index 657632643e..570768e680 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -757,7 +757,7 @@ func (t *test) run() {
+ 		// up and running against the existing test cases. The explicitly
+ 		// listed files don't pass yet, usually because the error messages
+ 		// are slightly different (this list is not complete). Any errorcheck
+-		// tests that require output from analysis phases past intial type-
++		// tests that require output from analysis phases past initial type-
+ 		// checking are also excluded since these phases are not running yet.
+ 		// We can get rid of this code once types2 is fully plugged in.
+ 

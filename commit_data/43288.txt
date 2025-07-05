@@ -17,8 +17,120 @@ Date:   Sat Mar 21 16:06:57 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/xcoff.go      | 22 +++++++++++++++------
  src/cmd/link/internal/loader/loader.go | 35 ++++++----------------------------
  src/cmd/link/internal/sym/symbols.go   |  6 ++++--
  3 files changed, 26 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 74889b3833..5d36622bad 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1186,9 +1186,9 @@ func (ctxt *Link) doxcoff() {
+ 	if ctxt.LinkMode == LinkExternal {
+ 		// Change rt0_go name to match name in runtime/cgo:main().
+ 		rt0 := ctxt.Syms.ROLookup("runtime.rt0_go", 0)
+-		ctxt.Syms.Rename(rt0.Name, "runtime_rt0_go", 0)
++		rt0.SetExtname("runtime_rt0_go")
+ 
+-		for _, s := range ctxt.Syms.Allsym {
++		for _, s := range ctxt.Textp {
+ 			if !s.Attr.CgoExport() {
+ 				continue
+ 			}
+@@ -1198,9 +1198,19 @@ func (ctxt *Link) doxcoff() {
+ 				// On AIX, a exported function must have two symbols:
+ 				// - a .text symbol which must start with a ".".
+ 				// - a .data symbol which is a function descriptor.
+-				ctxt.Syms.Rename(s.Name, "."+name, 0)
+-
+-				desc := ctxt.Syms.Lookup(name, 0)
++				//
++				// XXX the old code was quite confusing -- it always
++				// rename a version 0 symbol, even if s.Version is not
++				// 0, but the descriptor still points to s.
++				// And in xcoffCreateExportFile, it seems to expect a
++				// name before the renaming.
++				// I guess this happens to work as the ABIALIAS symbol
++				// and the TEXT symbol have the same address.
++				// (Do the same here for now, but using Extname.)
++				s0 := ctxt.Syms.ROLookup(s.Name, 0)
++				s0.SetExtname("." + name)
++
++				desc := ctxt.Syms.Newsym(name, 0)
+ 				desc.Type = sym.SNOPTRDATA
+ 				desc.AddAddr(ctxt.Arch, s)
+ 				desc.AddAddr(ctxt.Arch, toc)
+@@ -1662,7 +1672,7 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
+ 		if !s.Attr.CgoExport() {
+ 			continue
+ 		}
+-		if !strings.HasPrefix(s.String(), "_cgoexp_") {
++		if !strings.HasPrefix(s.Extname(), "_cgoexp_") {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index b06e92214e..2c180af0a4 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2060,35 +2060,12 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
+ 		i := l.Lookup(name, ver)
+ 		return l.Syms[i]
+ 	}
+-	syms.Rename = func(old, new string, ver int) {
+-		// annoying... maybe there is a better way to do this
+-		if ver >= 2 {
+-			panic("cannot rename static symbol")
+-		}
+-		i := l.Lookup(old, ver)
+-		s := l.Syms[i]
+-		s.Name = new
+-		if s.Extname() == old {
+-			s.SetExtname(new)
+-		}
+-		delete(l.symsByName[ver], old)
+-
+-		// This mirrors the old code. But I'm not sure if the logic of
+-		// handling dup in the old code actually works, or necessary.
+-		dupi := l.symsByName[ver][new]
+-		dup := l.Syms[dupi]
+-		if dup == nil {
+-			l.symsByName[ver][new] = i
+-		} else {
+-			if s.Type == 0 {
+-				dup.Attr |= s.Attr
+-				*s = *dup
+-			} else if dup.Type == 0 {
+-				s.Attr |= dup.Attr
+-				*dup = *s
+-				l.symsByName[ver][new] = i
+-			}
+-		}
++	syms.Newsym = func(name string, ver int) *sym.Symbol {
++		i := l.newExtSym(name, ver)
++		s := l.allocSym(name, ver)
++		l.installSym(i, s)
++		syms.Allsym = append(syms.Allsym, s) // XXX see above
++		return s
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index 10e4ac5f54..d36be11ee8 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -46,8 +46,10 @@ type Symbols struct {
+ 	// if it is not found.
+ 	ROLookup func(name string, v int) *Symbol
+ 
+-	// Rename renames a symbol.
+-	Rename func(old, new string, v int)
++	// Create a symbol with the given name and version. The new symbol
++	// is not added to the lookup table and is not dedup'd with existing
++	// symbols (if any).
++	Newsym func(name string, v int) *Symbol
+ }
+ 
+ func NewSymbols() *Symbols {

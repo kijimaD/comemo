@@ -7,7 +7,32 @@ Date:   Fri Dec 24 09:24:33 2010 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/3824043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index a1c0938a44..758226e5ed 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -25,6 +25,7 @@ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
++Caine Tighe <arctanofyourface@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 2ad8dd7d45..4f56b5d538 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -56,6 +56,7 @@ Benny Siegert <bsiegert@gmail.com>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com>
+ Brad Fitzpatrick <brad@danga.com> <bradfitz@gmail.com>
+ Brendan O'Dea <bod@golang.org>
++Caine Tighe <arctanofyourface@gmail.com>
+ Cary Hull <chull@google.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>

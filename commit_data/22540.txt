@@ -10,6 +10,26 @@ Date:   Sat Mar 21 13:19:33 2015 +1100
     Change-Id: Ic7eccddc6fd6c4682cac1761294893928f5428a2
     Reviewed-on: https://go-review.googlesource.com/7920
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/asm_amd64p32.s | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index c3a0a245a2..f8ef2f0e4e 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -541,6 +541,14 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-5
+ 	ORB	AX, 0(BX)
+ 	RET
+ 
++// void	runtime·atomicand8(byte volatile*, byte);
++TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
++	MOVL	ptr+0(FP), BX
++	MOVB	val+4(FP), AX
++	LOCK
++	ANDB	AX, 0(BX)
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller

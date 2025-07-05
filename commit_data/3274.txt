@@ -18,7 +18,7 @@ Date:   Tue Sep 15 13:06:24 2009 -0700
     DELTA=881  (579 added, 223 deleted, 79 changed)
     OCL=34623
     CL=34651
-
+---
  src/cmd/gofmt/test.sh                              |   2 +-
  src/pkg/Make.deps                                  |   2 +-
  src/pkg/go/ast/Makefile                            |   1 +
@@ -34,3 +34,1130 @@ Date:   Tue Sep 15 13:06:24 2009 -0700
  src/pkg/go/printer/testdata/expressions.golden     |  74 ++++++++
  src/pkg/go/printer/testdata/linebreaks.golden      |  17 +-
  14 files changed, 494 insertions(+), 138 deletions(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index d99ca32a78..971408ab21 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -36,7 +36,7 @@ apply1() {
+ 	# TODO: restructure script so these files are only excluded from idempotency testing
+ 	comment.go | net.go | powser1.go | powser2.go | bug052.go | simpbool.go | "shift.go" | range.go | \
+ 	goyacc.go | godoc.go | rpc.go | struct.go | log.go | decimal.go | tabwriter.go | encoder.go | debug.go | \
+-	elf.go | meteor-contest.go | elffmt.go | \
++	elf.go | meteor-contest.go | elffmt.go | xml.go | \
+ 	\
+ 	test_errors.go | calc.go | method1.go | selftest1.go | func3.go | const2.go | \
+ 	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index aed887c0dc..3618863e3b 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -29,7 +29,7 @@ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+ go/ast.install: go/token.install unicode.install utf8.install
+ go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+ go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
+-go/printer.install: fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install tabwriter.install
++go/printer.install: container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install tabwriter.install
+ go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
+ go/token.install: fmt.install strconv.install
+ gob.install: bytes.install fmt.install io.install math.install os.install reflect.install strings.install sync.install unicode.install
+diff --git a/src/pkg/go/ast/Makefile b/src/pkg/go/ast/Makefile
+index 0c3d9f1d6b..c1e7b7e22e 100644
+--- a/src/pkg/go/ast/Makefile
++++ b/src/pkg/go/ast/Makefile
+@@ -7,6 +7,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ TARG=go/ast
+ GOFILES=\
+ 	ast.go\
++	scope.go\
+ 	filter.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index b0cb6bfe86..cc48dcc744 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -90,7 +90,7 @@ type Field struct {
+ 	Doc *CommentGroup;  // associated documentation; or nil
+ 	Names []*Ident;  // field/method/parameter names; nil if anonymous field
+ 	Type Expr;  // field/method/parameter type
+-	Tag []*StringLit;  // field tag; or nil
++	Tag []*BasicLit;  // field tag; or nil
+ 	Comment *CommentGroup;  // line comments; or nil
+ };
+ 
+@@ -120,37 +120,20 @@ type (
+ 		token.Position;  // position of "..."
+ 	};
+ 
+-	// An IntLit node represents an integer literal.
+-	IntLit struct {
+-		token.Position;  // int literal position
+-		Value []byte;  // literal string; e.g. 42 or 0x7f
+-	};
+-
+-	// A FloatLit node represents a floating-point literal.
+-	FloatLit struct {
+-		token.Position;  // float literal position
+-		Value []byte;  // literal string; e.g. 3.14 or 1e-9
+-	};
+-
+-	// A CharLit node represents a character literal.
+-	CharLit struct {
+-		token.Position;  // char literal position
+-		Value []byte;  // literal string, including quotes; e.g. 'a' or '\x7f'
+-	};
+-
+-	// A StringLit node represents a string literal.
+-	StringLit struct {
+-		token.Position;  // string literal position
+-		Value []byte;  // literal string, including quotes; e.g. "foo" or `\m\n\o`
++	// A BasicLit node represents a literal of basic type.
++	BasicLit struct {
++		token.Position;  // literal position
++		Kind token.Token;  //  token.INT, token.FLOAT, token.CHAR, or token.STRING
++		Value []byte;  // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
+ 	};
+ 
+ 	// A StringList node represents a sequence of adjacent string literals.
+-	// A single string literal (common case) is represented by a StringLit
++	// A single string literal (common case) is represented by a BasicLit
+ 	// node; StringList nodes are used only if there are two or more string
+ 	// literals in a sequence.
+ 	//
+ 	StringList struct {
+-		Strings []*StringLit;  // list of strings, len(Strings) > 1
++		Strings []*BasicLit;  // list of strings, len(Strings) > 1
+ 	};
+ 
+ 	// A FuncLit node represents a function literal.
+@@ -322,10 +305,7 @@ func (x *KeyValueExpr) Pos() token.Position  { return x.Key.Pos(); }
+ func (x *BadExpr) exprNode() {}
+ func (x *Ident) exprNode() {}
+ func (x *Ellipsis) exprNode() {}
+-func (x *IntLit) exprNode() {}
+-func (x *FloatLit) exprNode() {}
+-func (x *CharLit) exprNode() {}
+-func (x *StringLit) exprNode() {}
++func (x *BasicLit) exprNode() {}
+ func (x *StringList) exprNode() {}
+ func (x *FuncLit) exprNode() {}
+ func (x *CompositeLit) exprNode() {}
+@@ -584,7 +564,7 @@ type (
+ 	ImportSpec struct {
+ 		Doc *CommentGroup;  // associated documentation; or nil
+ 		Name *Ident;  // local package name (including "."); or nil
+-		Path []*StringLit;  // package path
++		Path []*BasicLit;  // package path
+ 		Comment *CommentGroup;  // line comments; or nil
+ 	};
+ 
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+new file mode 100644
+index 0000000000..f8baa71895
+--- /dev/null
++++ b/src/pkg/go/ast/scope.go
+@@ -0,0 +1,79 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ast
++
++import "go/token";
++
++
++type Scope struct {
++	Outer *Scope;
++	Names map[string]*Ident
++}
++
++
++func NewScope(outer *Scope) *Scope {
++	return &Scope{outer, make(map[string]*Ident)};
++}
++
++
++func (s *Scope) Declare(ident *Ident) bool {
++	if _, found := s.Names[ident.Value]; found {
++		return false;
++	}
++	s.Names[ident.Value] = ident;
++	return true;
++}
++
++
++func (s *Scope) Lookup(name string) *Ident {
++	for ; s != nil; s = s.Outer {
++		if ident, found := s.Names[name]; found {
++			return ident;
++		}
++	}
++	return nil;
++}
++
++
++var Universe = Scope {
++	Names: map[string]*Ident {
++		// basic types
++		"bool": nil,
++		"byte": nil,
++		"int8": nil,
++		"int16": nil,
++		"int32": nil,
++		"int64": nil,
++		"uint8": nil,
++		"uint16": nil,
++		"uint32": nil,
++		"uint64": nil,
++		"float32": nil,
++		"float64": nil,
++		"string": nil,
++
++		// convenience types
++		"int": nil,
++		"uint": nil,
++		"uintptr": nil,
++		"float": nil,
++
++		// constants
++		"false": nil,
++		"true": nil,
++		"iota": nil,
++		"nil": nil,
++
++		// functions
++		"cap": nil,
++		"len": nil,
++		"new": nil,
++		"make": nil,
++		"panic": nil,
++		"panicln": nil,
++		"print": nil,
++		"println": nil,
++	}
++}
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 34d6146f86..3ed25065f7 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -62,6 +62,11 @@ type parser struct {
+ 	// Non-syntactic parser control
+ 	optSemi bool;  // true if semicolon separator is optional in statement list
+ 	exprLev int;  // < 0: in control clause, >= 0: in expression
++
++	// Scopes
++	pkgScope *ast.Scope;
++	fileScope *ast.Scope;
++	topScope *ast.Scope;
+ };
+ 
+ 
+@@ -153,7 +158,7 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
+ 	comment = &ast.Comment{p.pos, p.lit};
+ 	p.next0();
+ 
+-	return comment, endline;
++	return;
+ }
+ 
+ 
+@@ -262,6 +267,34 @@ func (p *parser) expect(tok token.Token) token.Position {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Scope support
++
++func openScope(p *parser) *parser {
++	p.topScope = ast.NewScope(p.topScope);
++	return p;
++}
++
++
++func close/*Scope*/(p *parser) {
++	p.topScope = p.topScope.Outer;
++}
++
++
++func (p *parser) declare(ident *ast.Ident) {
++	if !p.topScope.Declare(ident) {
++		p.Error(p.pos, "'" + ident.Value + "' declared already");
++	}
++}
++
++
++func (p *parser) declareList(idents []*ast.Ident) {
++	for _, ident := range idents {
++		p.declare(ident);
++	}
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Common productions
+ 
+@@ -426,7 +459,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
+ 	typ := p.tryType();
+ 
+ 	// optional tag
+-	var tag []*ast.StringLit;
++	var tag []*ast.BasicLit;
+ 	if p.tok == token.STRING {
+ 		tag = p.parseStringList(nil);
+ 	}
+@@ -625,7 +658,7 @@ func (p *parser) parseSignature() (params []*ast.Field, results []*ast.Field) {
+ 	params = p.parseParameters(true);
+ 	results = p.parseResult();
+ 
+-	return params, results;
++	return;
+ }
+ 
+ 
+@@ -796,11 +829,13 @@ func (p *parser) parseStmtList() []ast.Stmt {
+ }
+ 
+ 
+-func (p *parser) parseBlockStmt() *ast.BlockStmt {
++func (p *parser) parseBlockStmt(idents []*ast.Ident) *ast.BlockStmt {
+ 	if p.trace {
+ 		defer un(trace(p, "BlockStmt"));
+ 	}
+ 
++	defer close(openScope(p));
++
+ 	lbrace := p.expect(token.LBRACE);
+ 	list := p.parseStmtList();
+ 	rbrace := p.expect(token.RBRACE);
+@@ -813,7 +848,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit {
++func (p *parser) parseStringList(x *ast.BasicLit) []*ast.BasicLit {
+ 	if p.trace {
+ 		defer un(trace(p, "StringList"));
+ 	}
+@@ -824,14 +859,14 @@ func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit {
+ 	}
+ 
+ 	for p.tok == token.STRING {
+-		list.Push(&ast.StringLit{p.pos, p.lit});
++		list.Push(&ast.BasicLit{p.pos, token.STRING, p.lit});
+ 		p.next();
+ 	}
+ 
+ 	// convert list
+-	strings := make([]*ast.StringLit, list.Len());
++	strings := make([]*ast.BasicLit, list.Len());
+ 	for i := 0; i < list.Len(); i++ {
+-		strings[i] = list.At(i).(*ast.StringLit);
++		strings[i] = list.At(i).(*ast.BasicLit);
+ 	}
+ 
+ 	return strings;
+@@ -845,7 +880,7 @@ func (p *parser) parseFuncLit() ast.Expr {
+ 
+ 	typ := p.parseFuncType();
+ 	p.exprLev++;
+-	body := p.parseBlockStmt();
++	body := p.parseBlockStmt(nil);
+ 	p.optSemi = false;  // function body requires separating ";"
+ 	p.exprLev--;
+ 
+@@ -865,25 +900,10 @@ func (p *parser) parseOperand() ast.Expr {
+ 	case token.IDENT:
+ 		return p.parseIdent();
+ 
+-	case token.INT:
+-		x := &ast.IntLit{p.pos, p.lit};
++	case token.INT, token.FLOAT, token.CHAR, token.STRING:
++		x := &ast.BasicLit{p.pos, p.tok, p.lit};
+ 		p.next();
+-		return x;
+-
+-	case token.FLOAT:
+-		x := &ast.FloatLit{p.pos, p.lit};
+-		p.next();
+-		return x;
+-
+-	case token.CHAR:
+-		x := &ast.CharLit{p.pos, p.lit};
+-		p.next();
+-		return x;
+-
+-	case token.STRING:
+-		x := &ast.StringLit{p.pos, p.lit};
+-		p.next();
+-		if p.tok == token.STRING {
++		if p.tok == token.STRING && p.tok == token.STRING {
+ 			return &ast.StringList{p.parseStringList(x)};
+ 		}
+ 		return x;
+@@ -1043,10 +1063,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 	switch t := x.(type) {
+ 	case *ast.BadExpr:
+ 	case *ast.Ident:
+-	case *ast.IntLit:
+-	case *ast.FloatLit:
+-	case *ast.CharLit:
+-	case *ast.StringLit:
++	case *ast.BasicLit:
+ 	case *ast.StringList:
+ 	case *ast.FuncLit:
+ 	case *ast.CompositeLit:
+@@ -1382,9 +1399,12 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
+ 		defer un(trace(p, "IfStmt"));
+ 	}
+ 
++	// IfStmt block
++	defer close(openScope(p));
++
+ 	pos := p.expect(token.IF);
+ 	s1, s2, _ := p.parseControlClause(false);
+-	body := p.parseBlockStmt();
++	body := p.parseBlockStmt(nil);
+ 	var else_ ast.Stmt;
+ 	if p.tok == token.ELSE {
+ 		p.next();
+@@ -1400,6 +1420,9 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
+ 		defer un(trace(p, "CaseClause"));
+ 	}
+ 
++	// CaseClause block
++	defer close(openScope(p));
++
+ 	// SwitchCase
+ 	pos := p.pos;
+ 	var x []ast.Expr;
+@@ -1444,6 +1467,9 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
+ 		defer un(trace(p, "TypeCaseClause"));
+ 	}
+ 
++	// TypeCaseClause block
++	defer close(openScope(p));
++
+ 	// TypeSwitchCase
+ 	pos := p.pos;
+ 	var types []ast.Expr;
+@@ -1480,6 +1506,9 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
+ 		defer un(trace(p, "SwitchStmt"));
+ 	}
+ 
++	// SwitchStmt block
++	defer close(openScope(p));
++
+ 	pos := p.expect(token.SWITCH);
+ 	s1, s2, _ := p.parseControlClause(false);
+ 
+@@ -1514,6 +1543,9 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 		defer un(trace(p, "CommClause"));
+ 	}
+ 
++	// CommClause block
++	defer close(openScope(p));
++
+ 	// CommCase
+ 	pos := p.pos;
+ 	var tok token.Token;
+@@ -1574,9 +1606,12 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		defer un(trace(p, "ForStmt"));
+ 	}
+ 
++	// ForStmt block
++	defer close(openScope(p));
++
+ 	pos := p.expect(token.FOR);
+ 	s1, s2, s3 := p.parseControlClause(true);
+-	body := p.parseBlockStmt();
++	body := p.parseBlockStmt(nil);
+ 
+ 	if as, isAssign := s2.(*ast.AssignStmt); isAssign {
+ 		// possibly a for statement with a range clause; check assignment operator
+@@ -1642,7 +1677,7 @@ func (p *parser) parseStmt() ast.Stmt {
+ 	case token.BREAK, token.CONTINUE, token.GOTO, token.FALLTHROUGH:
+ 		return p.parseBranchStmt(p.tok);
+ 	case token.LBRACE:
+-		return p.parseBlockStmt();
++		return p.parseBlockStmt(nil);
+ 	case token.IF:
+ 		return p.parseIfStmt();
+ 	case token.SWITCH:
+@@ -1694,7 +1729,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.S
+ 		ident = p.parseIdent();
+ 	}
+ 
+-	var path []*ast.StringLit;
++	var path []*ast.BasicLit;
+ 	if p.tok == token.STRING {
+ 		path = p.parseStringList(nil);
+ 	} else {
+@@ -1847,7 +1882,7 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
+ 
+ 	var body *ast.BlockStmt;
+ 	if p.tok == token.LBRACE {
+-		body = p.parseBlockStmt();
++		body = p.parseBlockStmt(nil);
+ 	}
+ 
+ 	return &ast.FuncDecl{doc, recv, ident, &ast.FuncType{pos, params, results}, body};
+@@ -1884,21 +1919,27 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
+ 		return decl, gotSemi;
+ 	}
+ 
+-	decl, gotSemi = p.parseGenDecl(p.tok, f, getSemi);  // TODO 6g/spec issue
+-	return;
++	return p.parseGenDecl(p.tok, f, getSemi);
+ }
+ 
+ 
+ func (p *parser) parseDeclList() []ast.Decl {
+-	var list vector.Vector;
++	if p.trace {
++		defer un(trace(p, "DeclList"));
++	}
++
++	list := vector.New(0);
+ 	for p.tok != token.EOF {
+ 		decl, _ := p.parseDecl(true);	// consume optional semicolon
+ 		list.Push(decl);
+ 	}
++
++	// convert vector
+ 	decls := make([]ast.Decl, list.Len());
+ 	for i := 0; i < list.Len(); i++ {
+ 		decls[i] = list.At(i).(ast.Decl);
+ 	}
++
+ 	return decls;
+ }
+ 
+@@ -1911,6 +1952,9 @@ func (p *parser) parseFile() *ast.File {
+ 		defer un(trace(p, "File"));
+ 	}
+ 
++	// file block
++	defer close(openScope(p));
++
+ 	// package clause
+ 	doc := p.leadComment;
+ 	pos := p.expect(token.PACKAGE);
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 84a0534958..202faecab5 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -6,6 +6,7 @@
+ package printer
+ 
+ import (
++	"container/vector";
+ 	"fmt";
+ 	"go/ast";
+ 	"go/token";
+@@ -383,12 +384,7 @@ func (p *printer) print(args ...) {
+ 		p.pos = next;
+ 
+ 		if data != nil {
+-			// if there are comments before the next item, intersperse them
+-			if p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset {
+-				p.intersperseComments(next);
+-			}
+-
+-			p.writeWhitespace();
++			p.flush(next);
+ 
+ 			// intersperse extra newlines if present in the source
+ 			p.writeNewlines(next.Line - p.pos.Line);
+@@ -400,9 +396,15 @@ func (p *printer) print(args ...) {
+ }
+ 
+ 
+-// Flush prints any pending whitespace.
+-func (p *printer) flush() {
+-	// TODO(gri) any special handling of pending comments needed?
++// Flush prints any pending comments and whitespace occuring
++// textually before the position of the next item.
++//
++func (p *printer) flush(next token.Position) {
++	// if there are comments before the next item, intersperse them
++	if p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset {
++		p.intersperseComments(next);
++	}
++
+ 	p.writeWhitespace();
+ }
+ 
+@@ -459,7 +461,7 @@ func (p *printer) identList(list []*ast.Ident) {
+ }
+ 
+ 
+-func (p *printer) stringList(list []*ast.StringLit) {
++func (p *printer) stringList(list []*ast.BasicLit) {
+ 	// convert into an expression list
+ 	xlist := make([]ast.Expr, len(list));
+ 	for i, x := range list {
+@@ -484,8 +486,7 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
+ 		return;
+ 	}
+ 
+-	n := len(list)-1;  // TODO 6g compiler bug - need temporary variable n
+-	if list[0].Pos().Line == list[n].Pos().Line {
++	if list[0].Pos().Line == list[len(list)-1].Pos().Line {
+ 		// all list entries on a single line
+ 		if mode & blankStart != 0 {
+ 			p.print(blank);
+@@ -644,7 +645,76 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-// Returns true if a separating semicolon is optional.
++func needsBlanks(expr ast.Expr) bool {
++	switch x := expr.(type) {
++	case *ast.Ident:
++		// "long" identifiers look better with blanks around them
++		return len(x.Value) > 12;  // adjust as looks best
++	case *ast.BasicLit:
++		// "long" literals look better with blanks around them
++		return len(x.Value) > 6;  // adjust as looks best
++	case *ast.ParenExpr:
++		// parenthesized expressions don't need blanks around them
++		return false;
++	case *ast.CallExpr:
++		// call expressions need blanks if they have more than one
++		// argument or if the function or the argument need blanks
++		return len(x.Args) > 1 || needsBlanks(x.Fun) || len(x.Args) == 1 && needsBlanks(x.Args[0]);
++	}
++	return true;
++}
++
++
++// TODO(gri) Write this recursively; get rid of vector use.
++func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
++	prec := x.Op.Precedence();
++	if prec < prec1 {
++		// parenthesis needed
++		// Note: The parser inserts an ast.ParenExpr node; thus this case
++		//       can only occur if the AST is created in a different way.
++		p.print(token.LPAREN);
++		p.expr(x);
++		p.print(token.RPAREN);
++		return;
++	}
++
++	// Traverse left, collect all operations at same precedence
++	// and determine if blanks should be printed.
++	//
++	// This algorithm assumes that the right-hand side of a binary
++	// operation has a different (higher) precedence then the current
++	// node, which is how the parser creates the AST.
++	var list vector.Vector;
++	printBlanks := prec <= token.EQL.Precedence() || needsBlanks(x.Y);
++	for {
++		list.Push(x);
++		if t, ok := x.X.(*ast.BinaryExpr); ok && t.Op.Precedence() == prec {
++			x = t;
++			if needsBlanks(x.Y) {
++				printBlanks = true;
++			}
++		} else {
++			break;
++		}
++	}
++	if needsBlanks(x.X) {
++		printBlanks = true;
++	}
++
++	// Print collected operations left-to-right, with blanks if necessary.
++	p.expr1(x.X, prec);
++	for list.Len() > 0 {
++		x = list.Pop().(*ast.BinaryExpr);
++		if printBlanks {
++			p.print(blank, x.OpPos, x.Op, blank);
++		} else {
++			p.print(x.OpPos, x.Op);
++		}
++		p.expr1(x.Y, prec);
++	}
++}
++
++
+ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 	p.print(expr.Pos());
+ 
+@@ -656,16 +726,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		p.print(x.Value);
+ 
+ 	case *ast.BinaryExpr:
+-		prec := x.Op.Precedence();
+-		if prec < prec1 {
+-			p.print(token.LPAREN);
+-		}
+-		p.expr1(x.X, prec);
+-		p.print(blank, x.OpPos, x.Op, blank);
+-		p.expr1(x.Y, prec);
+-		if prec < prec1 {
+-			p.print(token.RPAREN);
+-		}
++		p.binaryExpr(x, prec1);
+ 
+ 	case *ast.KeyValueExpr:
+ 		p.expr(x.Key);
+@@ -677,29 +738,22 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		p.expr(x.X);
+ 
+ 	case *ast.UnaryExpr:
+-		prec := token.UnaryPrec;
++		const prec = token.UnaryPrec;
+ 		if prec < prec1 {
++			// parenthesis needed
+ 			p.print(token.LPAREN);
+-		}
+-		p.print(x.Op);
+-		if x.Op == token.RANGE {
+-			p.print(blank);
+-		}
+-		p.expr1(x.X, prec);
+-		if prec < prec1 {
++			p.expr(x);
+ 			p.print(token.RPAREN);
++		} else {
++			// no parenthesis needed
++			p.print(x.Op);
++			if x.Op == token.RANGE {
++				p.print(blank);
++			}
++			p.expr1(x.X, prec);
+ 		}
+ 
+-	case *ast.IntLit:
+-		p.print(x.Value);
+-
+-	case *ast.FloatLit:
+-		p.print(x.Value);
+-
+-	case *ast.CharLit:
+-		p.print(x.Value);
+-
+-	case *ast.StringLit:
++	case *ast.BasicLit:
+ 		p.print(x.Value);
+ 
+ 	case *ast.StringList:
+@@ -735,9 +789,15 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 	case *ast.IndexExpr:
+ 		p.expr1(x.X, token.HighestPrec);
+ 		p.print(token.LBRACK);
+-		p.expr(x.Index);
++		p.expr1(x.Index, token.LowestPrec);
+ 		if x.End != nil {
+-			p.print(blank, token.COLON, blank);
++			if needsBlanks(x.Index) || needsBlanks(x.End) {
++				// blanks around ":"
++				p.print(blank, token.COLON, blank);
++			} else {
++				// no blanks around ":"
++				p.print(token.COLON);
++			}
+ 			p.expr(x.End);
+ 		}
+ 		p.print(token.RBRACK);
+@@ -799,12 +859,12 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		panic("unreachable");
+ 	}
+ 
+-	return optSemi;
++	return;
+ }
+ 
+ 
+ // Returns true if a separating semicolon is optional.
+-func (p *printer) expr(x ast.Expr) bool {
++func (p *printer) expr(x ast.Expr) (optSemi bool) {
+ 	return p.expr1(x, token.LowestPrec);
+ }
+ 
+@@ -910,9 +970,9 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 		// nothing to do
+ 
+ 	case *ast.LabeledStmt:
+-		p.print(-1, newline);
++		p.print(-1, formfeed);
+ 		p.expr(s.Label);
+-		p.print(token.COLON, tab, +1);
++		p.print(token.COLON, tab, +1, formfeed);
+ 		optSemi = p.stmt(s.Stmt);
+ 
+ 	case *ast.ExprStmt:
+@@ -1046,7 +1106,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 		panic("unreachable");
+ 	}
+ 
+-	return optSemi;
++	return;
+ }
+ 
+ 
+@@ -1054,15 +1114,29 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ // Declarations
+ 
+ // Returns line comment, if any, and whether a separating semicolon is optional.
++// The parameters m and n control layout; m has different meanings for different
++// specs, n is the number of specs in the group.
++//
++// ImportSpec:
++//   m = number of imports with a rename
+ //
+-func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool) {
++func (p *printer) spec(spec ast.Spec, m, n int) (comment *ast.CommentGroup, optSemi bool) {
+ 	switch s := spec.(type) {
+ 	case *ast.ImportSpec:
+ 		p.leadComment(s.Doc);
+-		if s.Name != nil {
+-			p.expr(s.Name);
++		if m > 0 {
++			// we may have a rename
++			if s.Name != nil {
++				p.expr(s.Name);
++			}
++			if m > 1 {
++				// more than one rename - align with tab
++				p.print(tab);
++			} else {
++				// only one rename - no need for alignment with tab
++				p.print(blank);
++			}
+ 		}
+-		p.print(tab);
+ 		p.expr(&ast.StringList{s.Path});
+ 		comment = s.Comment;
+ 
+@@ -1095,6 +1169,16 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool)
+ }
+ 
+ 
++func countImportRenames(list []ast.Spec) (n int) {
++	for _, s := range list {
++		if s.(*ast.ImportSpec).Name != nil {
++			n++;
++		}
++	}
++	return;
++}
++
++
+ // Returns true if a separating semicolon is optional.
+ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) {
+ 	switch d := decl.(type) {
+@@ -1105,6 +1189,12 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 		p.leadComment(d.Doc);
+ 		p.print(lineTag(d.Pos()), d.Tok, blank);
+ 
++		// determine layout constant m
++		var m int;
++		if d.Tok == token.IMPORT {
++			m = countImportRenames(d.Specs);
++		}
++
+ 		if d.Lparen.IsValid() {
+ 			// group of parenthesized declarations
+ 			p.print(d.Lparen, token.LPAREN);
+@@ -1116,7 +1206,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 						p.lineComment(comment);
+ 						p.print(newline);
+ 					}
+-					comment, optSemi = p.spec(s);
++					comment, optSemi = p.spec(s, m, len(d.Specs));
+ 				}
+ 				p.print(token.SEMICOLON);
+ 				p.lineComment(comment);
+@@ -1128,7 +1218,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 
+ 		} else {
+ 			// single declaration
+-			comment, optSemi = p.spec(d.Specs[0]);
++			comment, optSemi = p.spec(d.Specs[0], m, 1);
+ 		}
+ 
+ 	case *ast.FuncDecl:
+@@ -1182,6 +1272,9 @@ func (p *printer) file(src *ast.File) {
+ // ----------------------------------------------------------------------------
+ // Public interface
+ 
++var inf = token.Position{Offset: 1<<30, Line: 1<<30}
++
++
+ // Fprint "pretty-prints" an AST node to output and returns the number of
+ // bytes written, and an error, if any. The node type must be *ast.File,
+ // or assignment-compatible to ast.Expr, ast.Decl, or ast.Stmt. Printing
+@@ -1221,7 +1314,7 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
+ 		default:
+ 			p.errors <- os.NewError("unsupported node type");
+ 		}
+-		p.flush();
++		p.flush(inf);
+ 		p.errors <- nil;  // no errors
+ 	}();
+ 	err := <-p.errors;  // wait for completion of goroutine
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index ab0ae95089..65827de8e1 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -99,14 +99,20 @@ type entry struct {
+ 
+ // Use gotest -update to create/update the respective golden files.
+ var data = []entry{
+-	entry{ "source1.go", "golden1.go", false },
+-	entry{ "source1.go", "golden1.x", true },
++	entry{ "comments.go", "comments.golden", false },
++	entry{ "comments.go", "comments.x", true },
+ 	entry{ "linebreaks.go", "linebreaks.golden", false },
++	entry{ "expressions.go", "expressions.golden", false },
++	entry{ "declarations.go", "declarations.golden", false },
+ }
+ 
+ 
+ func Test(t *testing.T) {
+ 	for _, e := range data {
+-		check(t, path.Join(dataDir, e.source), path.Join(dataDir, e.golden), e.exports);
++		source := path.Join(dataDir, e.source);
++		golden := path.Join(dataDir, e.golden);
++		check(t, source, golden, e.exports);
++		// TODO(gri) check that golden is idempotent
++		//check(t, golden, golden, e.exports);
+ 	}
+ }
+diff --git a/src/pkg/go/printer/testdata/source1.go b/src/pkg/go/printer/testdata/comments.go
+similarity index 95%
+rename from src/pkg/go/printer/testdata/source1.go
+rename to src/pkg/go/printer/testdata/comments.go
+index d9aa8199a7..212d064406 100644
+--- a/src/pkg/go/printer/testdata/source1.go
++++ b/src/pkg/go/printer/testdata/comments.go
+@@ -79,3 +79,5 @@ func typeswitch(x interface{}) {
+ 	default:
+ 	}
+ }
++
++// This comment is the last entry in this file. It must be printed.
+diff --git a/src/pkg/go/printer/testdata/golden1.go b/src/pkg/go/printer/testdata/comments.golden
+similarity index 93%
+rename from src/pkg/go/printer/testdata/golden1.go
+rename to src/pkg/go/printer/testdata/comments.golden
+index 7f9a15a7f4..877a7357a1 100644
+--- a/src/pkg/go/printer/testdata/golden1.go
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -6,7 +6,7 @@
+ //
+ package main
+ 
+-import 	"fmt"	// fmt
++import "fmt"	// fmt
+ 
+ const c0	= 0	// zero
+ const (
+@@ -72,3 +72,5 @@ func typeswitch(x interface{}) {
+ 	default:
+ 	}
+ }
++
++// This comment is the last entry in this file. It must be printed.
+diff --git a/src/pkg/go/printer/testdata/golden1.x b/src/pkg/go/printer/testdata/comments.x
+similarity index 100%
+rename from src/pkg/go/printer/testdata/golden1.x
+rename to src/pkg/go/printer/testdata/comments.x
+diff --git a/src/pkg/go/printer/testdata/expressions.go b/src/pkg/go/printer/testdata/expressions.go
+new file mode 100644
+index 0000000000..3d1b4f2951
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/expressions.go
+@@ -0,0 +1,74 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package expressions
++
++type T struct {
++	x, y, z int
++}
++
++var (
++	a, b, c, d, e int;
++	longIdentifier1, longIdentifier2, longIdentifier3 int;
++	t0, t1, t2 T;
++	s string;
++)
++
++func main() {
++	// no spaces around simple or parenthesized expressions
++	_ = a+b;
++	_ = a+b+c;
++	_ = a+b-c;
++	_ = a-b-c;
++	_ = a+(b*c);
++	_ = a+(b/c);
++	_ = a-(b%c);
++	_ = 1+a;
++	_ = a+1;
++	_ = a+b+1;
++	_ = "foo"+s;
++	_ = s+"foo";
++	_ = s[1:2];
++	_ = s[a:b];
++	_ = s[0:len(s)];
++
++	// spaces around expressions of different precedence or expressions containing spaces
++	_ = a + -b;
++	_ = a - ^b;
++	_ = a / *b;
++	_ = a + b*c;
++	_ = 1 + b*c;
++	_ = a + 2*c;
++	_ = a + c*2;
++	_ = 1 + 2*3;
++	_ = s[1 : 2*3];
++	_ = s[a : b-c];
++	_ = s[a+b : len(s)];
++	_ = s[len(s) : -a];
++	_ = s[a : len(s)+1];
++
++	// spaces around operators with equal or lower precedence than comparisons
++	_ = a == b;
++	_ = a != b;
++	_ = a > b;
++	_ = a >= b;
++	_ = a < b;
++	_ = a <= b;
++	_ = a < b && c > d;
++	_ = a < b || c > d;
++
++	// spaces around "long" operands
++	_ = a + longIdentifier1;
++	_ = longIdentifier1 + a;
++	_ = longIdentifier1 + longIdentifier2 * longIdentifier3;
++	_ = s + "a longer string";
++
++	// some selected cases
++	_ = a + t0.x;
++	_ = a + t0.x + t1.x * t2.x;
++	_ = a + b + c + d + e + 2*3;
++	_ = a + b + c + 2*3 + d + e;
++	_ = (a+b+c)*2;
++	_ = a - b + c - d + (a+b+c) + d&e;
++}
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+new file mode 100644
+index 0000000000..f63eb5e379
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -0,0 +1,74 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package expressions
++
++type T struct {
++	x, y, z	int;
++}
++
++var (
++	a, b, c, d, e int;
++	longIdentifier1, longIdentifier2, longIdentifier3 int;
++	t0, t1, t2 T;
++	s string;
++)
++
++func main() {
++	// no spaces around simple or parenthesized expressions
++	_ = a+b;
++	_ = a+b+c;
++	_ = a+b-c;
++	_ = a-b-c;
++	_ = a+(b*c);
++	_ = a+(b/c);
++	_ = a-(b%c);
++	_ = 1+a;
++	_ = a+1;
++	_ = a+b+1;
++	_ = "foo"+s;
++	_ = s+"foo";
++	_ = s[1:2];
++	_ = s[a:b];
++	_ = s[0:len(s)];
++	
++	// spaces around expressions of different precedence or expressions containing spaces
++	_ = a + -b;
++	_ = a - ^b;
++	_ = a / *b;
++	_ = a + b*c;
++	_ = 1 + b*c;
++	_ = a + 2*c;
++	_ = a + c*2;
++	_ = 1 + 2*3;
++	_ = s[1 : 2*3];
++	_ = s[a : b-c];
++	_ = s[a+b : len(s)];
++	_ = s[len(s) : -a];
++	_ = s[a : len(s)+1];
++	
++	// spaces around operators with equal or lower precedence than comparisons
++	_ = a == b;
++	_ = a != b;
++	_ = a > b;
++	_ = a >= b;
++	_ = a < b;
++	_ = a <= b;
++	_ = a < b && c > d;
++	_ = a < b || c > d;
++	
++	// spaces around "long" operands
++	_ = a + longIdentifier1;
++	_ = longIdentifier1 + a;
++	_ = longIdentifier1 + longIdentifier2 * longIdentifier3;
++	_ = s + "a longer string";
++	
++	// some selected cases
++	_ = a + t0.x;
++	_ = a + t0.x + t1.x * t2.x;
++	_ = a + b + c + d + e + 2*3;
++	_ = a + b + c + 2*3 + d + e;
++	_ = (a+b+c)*2;
++	_ = a - b + c - d + (a+b+c) + d&e;
++}
+diff --git a/src/pkg/go/printer/testdata/linebreaks.golden b/src/pkg/go/printer/testdata/linebreaks.golden
+index 5bc055f997..3fc487dbbf 100644
+--- a/src/pkg/go/printer/testdata/linebreaks.golden
++++ b/src/pkg/go/printer/testdata/linebreaks.golden
+@@ -5,13 +5,13 @@
+ package linebreaks
+ 
+ import (
+-		"bytes";
+-		"fmt";
+-		"io";
+-		"os";
+-		"reflect";
+-		"strings";
+-		"testing";
++	"bytes";
++	"fmt";
++	"io";
++	"os";
++	"reflect";
++	"strings";
++	"testing";
+ )
+ 
+ type untarTest struct {
+@@ -118,7 +118,8 @@ var facts	= map[int]string{
+ 
+ func TestReader(t *testing.T) {
+ 
+-testLoop:	for i, test := range untarTests {
++testLoop:	
++	for i, test := range untarTests {
+ 		f, err := os.Open(test.file, os.O_RDONLY, 0444);
+ 		if err != nil {
+ 			t.Errorf("test %d: Unexpected error: %v", i, err);

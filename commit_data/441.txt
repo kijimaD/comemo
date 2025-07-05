@@ -10,7 +10,7 @@ Date:   Mon Jul 28 13:07:58 2008 -0700
     R=ken
     OCL=13521
     CL=13521
-
+---
  src/syscall/errstr_darwin.go       |  6 ++----
  src/syscall/errstr_linux.go        |  6 ++----
  src/syscall/stat_amd64_darwin.go   |  9 +++++----
@@ -19,3 +19,164 @@ Date:   Mon Jul 28 13:07:58 2008 -0700
  src/syscall/syscall_amd64_darwin.s | 13 +++++++++++++
  src/syscall/syscall_amd64_linux.s  | 16 ++++++++++++++++
  7 files changed, 46 insertions(+), 19 deletions(-)
+
+diff --git a/src/syscall/errstr_darwin.go b/src/syscall/errstr_darwin.go
+index aac256909d..c3ae975234 100644
+--- a/src/syscall/errstr_darwin.go
++++ b/src/syscall/errstr_darwin.go
+@@ -329,8 +329,6 @@ func init(){
+ 	error[ELAST] = "Must be equal largest errno"; 
+ }
+ 
+-var digits string = "0123456789"
+-
+ func str(val int64) string {  // do it here rather than with fmt to avoid dependency
+ 	if val < 0 {
+ 		return "-" + str(-val);
+@@ -338,11 +336,11 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 	var buf [32]byte;  // big enough for int64
+ 	i := len(buf)-1;
+ 	for val >= 10 {
+-		buf[i] = digits[val%10];
++		buf[i] = val%10 + '0';
+ 		i--;
+ 		val /= 10;
+ 	}
+-	buf[i] = digits[val];
++	buf[i] = val + '0';
+ 	return string(buf)[i:len(buf)];
+ }
+ 
+diff --git a/src/syscall/errstr_linux.go b/src/syscall/errstr_linux.go
+index 875217afc1..fa42572cf7 100644
+--- a/src/syscall/errstr_linux.go
++++ b/src/syscall/errstr_linux.go
+@@ -403,8 +403,6 @@ func init(){
+ 	error[EKEYREJECTED] = "Key was rejected by service";
+ }
+ 
+-var digits string = "0123456789"
+-
+ func str(val int64) string {  // do it here rather than with fmt to avoid dependency
+ 	if val < 0 {
+ 		return "-" + str(-val);
+@@ -412,11 +410,11 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 	var buf [32]byte;  // big enough for int64
+ 	i := len(buf)-1;
+ 	for val >= 10 {
+-		buf[i] = digits[val%10];
++		buf[i] = val%10 + '0';
+ 		i--;
+ 		val /= 10;
+ 	}
+-	buf[i] = digits[val];
++	buf[i] = val + '0';
+ 	return string(buf)[i:len(buf)];
+ }
+ 
+diff --git a/src/syscall/stat_amd64_darwin.go b/src/syscall/stat_amd64_darwin.go
+index 84a09d2bdd..efec383840 100644
+--- a/src/syscall/stat_amd64_darwin.go
++++ b/src/syscall/stat_amd64_darwin.go
+@@ -4,13 +4,14 @@
+ 
+ package syscall
+ 
+-func stat(*byte, *Stat) (ret int64, errno int64);
+-func fstat(int64, *Stat) (ret int64, errno int64);
++func stat(name *byte, buf *Stat) (ret int64, errno int64);
++func fstat(fd int64, buf *Stat) (ret int64, errno int64);
++func lstat(name *byte, buf *Stat) (ret int64, errno int64);
+ 
+ export Stat
+-export stat, fstat
++export stat, fstat, lstat
+ 
+-// Stat and relatives for Linux
++// Stat and relatives for Darwin
+ 
+ type dev_t uint32;
+ type ino_t uint64;
+diff --git a/src/syscall/stat_amd64_linux.go b/src/syscall/stat_amd64_linux.go
+index 92d99e4caa..a7bff9db60 100644
+--- a/src/syscall/stat_amd64_linux.go
++++ b/src/syscall/stat_amd64_linux.go
+@@ -4,11 +4,12 @@
+ 
+ package syscall
+ 
+-func stat(*byte, *Stat) (ret int64, errno int64);
+-func fstat(int64, *Stat) (ret int64, errno int64);
++func stat(name *byte, buf *Stat) (ret int64, errno int64);
++func fstat(fd int64, buf *Stat) (ret int64, errno int64);
++func lstat(name *byte, buf *Stat) (ret int64, errno int64);
+ 
+ export Stat
+-export stat, fstat
++export stat, fstat, lstat
+ 
+ // Stat and relatives for Linux
+ 
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index f6277d414f..a834e29989 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -11,9 +11,9 @@ package syscall
+  * in these calling sequences.
+  */
+ 
+-func open(*byte, int64) (ret int64, errno int64);
+-func close(int64) (ret int64, errno int64);
+-func read(int64, *byte, int64) (ret int64, errno int64);
+-func write(int64, *byte, int64) (ret int64, errno int64);
++func open(name *byte, mode int64) (ret int64, errno int64);
++func close(fd int64) (ret int64, errno int64);
++func read(fd int64, buf *byte, nbytes int64) (ret int64, errno int64);
++func write(fd int64, buf *byte, nbytes int64) (ret int64, errno int64);
+ 
+ export open, close, read, write
+diff --git a/src/syscall/syscall_amd64_darwin.s b/src/syscall/syscall_amd64_darwin.s
+index 3f32ff653b..7fc316f87a 100644
+--- a/src/syscall/syscall_amd64_darwin.s
++++ b/src/syscall/syscall_amd64_darwin.s
+@@ -85,3 +85,16 @@ TEXT	syscall·fstat(SB),1,$-8
+ 	MOVQ	AX, 24(SP)
+ 	MOVQ	$0, 32(SP)
+ 	RET
++
++TEXT	syscall·lstat(SB),1,$-8
++	MOVQ	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVL	$(0x2000000+340), AX	// syscall entry
++	SYSCALL
++	JCC	4(PC)
++	MOVQ	$-1, 24(SP)
++	MOVQ	AX, 32(SP)
++	RET
++	MOVQ	AX, 24(SP)
++	MOVQ	$0, 32(SP)
++	RET
+diff --git a/src/syscall/syscall_amd64_linux.s b/src/syscall/syscall_amd64_linux.s
+index 7eab69fc0d..1a37dc0d29 100644
+--- a/src/syscall/syscall_amd64_linux.s
++++ b/src/syscall/syscall_amd64_linux.s
+@@ -99,3 +99,19 @@ TEXT	syscall·fstat(SB),1,$0-16
+ 	MOVQ	AX, 24(SP)
+ 	MOVQ	$0, 32(SP)
+ 	RET
++
++TEXT	syscall·lstat(SB),1,$0-16
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	$0, DX
++	MOVQ	$6, AX			// syscall entry
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	5(PC)
++	MOVQ	$-1, 24(SP)
++	NEGQ	AX
++	MOVQ	AX, 32(SP)
++	RET
++	MOVQ	AX, 24(SP)
++	MOVQ	$0, 32(SP)
++	RET

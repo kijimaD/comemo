@@ -15,7 +15,32 @@ Date:   Tue Jul 11 15:54:48 2023 -0400
     Auto-Submit: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/const.go | 1 -
  src/go/types/const.go                    | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/const.go b/src/cmd/compile/internal/types2/const.go
+index 9be578c647..af27c727dd 100644
+--- a/src/cmd/compile/internal/types2/const.go
++++ b/src/cmd/compile/internal/types2/const.go
+@@ -73,7 +73,6 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 
+ 	sizeof := func(T Type) int64 {
+ 		s := conf.sizeof(T)
+-		assert(s == 4 || s == 8)
+ 		return s
+ 	}
+ 
+diff --git a/src/go/types/const.go b/src/go/types/const.go
+index 66fa60804f..bffea146a0 100644
+--- a/src/go/types/const.go
++++ b/src/go/types/const.go
+@@ -74,7 +74,6 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 
+ 	sizeof := func(T Type) int64 {
+ 		s := conf.sizeof(T)
+-		assert(s == 4 || s == 8)
+ 		return s
+ 	}
+ 

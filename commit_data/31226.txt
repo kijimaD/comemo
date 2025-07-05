@@ -10,7 +10,38 @@ Date:   Mon Feb 6 11:03:58 2017 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 4 +---
  src/crypto/tls/common.go             | 4 +---
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index ae516818f5..5d19f407cc 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -254,9 +254,7 @@ func (d *deadcodepass) init() {
+ 				}
+ 			}
+ 		}
+-		for _, name := range markextra {
+-			names = append(names, name)
+-		}
++		names = append(names, markextra...)
+ 		for _, s := range dynexp {
+ 			d.mark(s, nil)
+ 		}
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 2ebb37bd40..7e061f4d55 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -946,9 +946,7 @@ func initDefaultCipherSuites() {
+ 	}
+ 
+ 	varDefaultCipherSuites = make([]uint16, 0, len(cipherSuites))
+-	for _, topCipher := range topCipherSuites {
+-		varDefaultCipherSuites = append(varDefaultCipherSuites, topCipher)
+-	}
++	varDefaultCipherSuites = append(varDefaultCipherSuites, topCipherSuites...)
+ 
+ NextCipherSuite:
+ 	for _, suite := range cipherSuites {

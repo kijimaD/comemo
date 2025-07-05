@@ -14,7 +14,7 @@ Date:   Mon Feb 23 14:02:27 2015 -0500
     Change-Id: Ic5a94f1c3a8015a9054e21c8969b52d964a36c45
     Reviewed-on: https://go-review.googlesource.com/5633
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/gc/const.go    |  2 +-
  src/cmd/internal/gc/fmt.go      |  2 +-
  src/cmd/internal/gc/go.y        |  2 +-
@@ -23,3 +23,154 @@ Date:   Mon Feb 23 14:02:27 2015 -0500
  src/cmd/internal/gc/subr.go     |  6 +++++-
  src/cmd/internal/gc/y.go        |  2 +-
  7 files changed, 27 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/internal/gc/const.go
+index f9bd5571b4..49d3bcc568 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/internal/gc/const.go
+@@ -788,7 +788,7 @@ func evconst(n *Node) {
+ 	// which is not quite an ideal error.
+ 	case OMOD<<16 | CTFLT:
+ 		if n.Diag == 0 {
+-			Yyerror("illegal constant expression: floating-point % operation")
++			Yyerror("illegal constant expression: floating-point %% operation")
+ 			n.Diag = 1
+ 		}
+ 
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 43e5d55137..b155f78574 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -1899,7 +1899,7 @@ func Nconv(n *Node, flag int) string {
+ 		dumpdepth--
+ 
+ 	default:
+-		Fatal("unhandled %N mode")
++		Fatal("unhandled %%N mode")
+ 	}
+ 
+ 	flag = sf
+diff --git a/src/cmd/internal/gc/go.y b/src/cmd/internal/gc/go.y
+index 90384499fd..53aec54e4a 100644
+--- a/src/cmd/internal/gc/go.y
++++ b/src/cmd/internal/gc/go.y
+@@ -449,7 +449,7 @@ simple_stmt:
+ 			if $1.Next != nil {
+ 				Yyerror("argument count mismatch: %d = %d", count($1), 1);
+ 			} else if ($1.N.Op != ONAME && $1.N.Op != OTYPE && $1.N.Op != ONONAME) || isblank($1.N) {
+-				Yyerror("invalid variable name %nil in type switch", $1.N);
++				Yyerror("invalid variable name %s in type switch", Nconv($1.N, 0));
+ 			} else {
+ 				$$.Left = dclname($1.N.Sym);
+ 			}  // it's a colas, so must not re-use an oldname.
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 555a8fddd6..26f2eff13a 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -75,15 +75,16 @@ func usage() {
+ 	Exit(2)
+ }
+ 
+-func fault(s int) {
+-	// If we've already complained about things
+-	// in the program, don't bother complaining
+-	// about the seg fault too; let the user clean up
+-	// the code and try again.
++func hidePanic() {
+ 	if nsavederrors+nerrors > 0 {
+-		errorexit()
++		// If we've already complained about things
++		// in the program, don't bother complaining
++		// about a panic too; let the user clean up
++		// the code and try again.
++		if err := recover(); err != nil {
++			errorexit()
++		}
+ 	}
+-	Fatal("fault")
+ }
+ 
+ func doversion() {
+@@ -95,7 +96,7 @@ func doversion() {
+ 		p = ""
+ 	}
+ 	sep = ""
+-	if p[0] != 0 {
++	if p != "" {
+ 		sep = " "
+ 	}
+ 	fmt.Printf("%cg version %s%s%s\n", Thearch.Thechar, obj.Getgoversion(), sep, p)
+@@ -103,6 +104,7 @@ func doversion() {
+ }
+ 
+ func Main() {
++	defer hidePanic()
+ 	var l *NodeList
+ 	var p string
+ 
+@@ -1834,8 +1836,14 @@ func (yy) Error(msg string) {
+ 	Yyerror("%s", msg)
+ }
+ 
++var theparser yyParser
++var parsing bool
++
+ func yyparse() {
+-	yyParse(yy{})
++	theparser = yyNewParser()
++	parsing = true
++	theparser.Parse(yy{})
++	parsing = false
+ }
+ 
+ func yylex(yylval *yySymType) int32 {
+diff --git a/src/cmd/internal/gc/mparith1.go b/src/cmd/internal/gc/mparith1.go
+index 45f16d969c..14b8620ad4 100644
+--- a/src/cmd/internal/gc/mparith1.go
++++ b/src/cmd/internal/gc/mparith1.go
+@@ -638,7 +638,7 @@ func Fconv(fvp *Mpflt, flag int) string {
+ 			if d >= 0 && (flag&obj.FmtSign != 0 /*untyped*/) {
+ 				fp += fmt.Sprintf("+")
+ 			}
+-			fp += fmt.Sprintf("%g", d)
++			fp += fmt.Sprintf("%.6g", d)
+ 			return fp
+ 		}
+ 
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index c8e613ce26..dba7dc338f 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -36,7 +36,8 @@ func errorexit() {
+ }
+ 
+ func parserline() int {
+-	if yychar_subr != 0 && yychar_subr != -2 { // parser has one symbol lookahead
++	if parsing && theparser.Lookahead() > 0 {
++		// parser has one symbol lookahead
+ 		return int(prevlineno)
+ 	}
+ 	return int(lineno)
+@@ -135,6 +136,9 @@ var yyerror_lastsyntax int
+ func Yyerror(fmt_ string, args ...interface{}) {
+ 	var i int
+ 
++	if fmt_ == "%s" && len(args) == 1 && args[0] == "syntax error" {
++		nsyntaxerrors++
++	}
+ 	if strings.HasPrefix(fmt_, "syntax error") {
+ 		nsyntaxerrors++
+ 
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/internal/gc/y.go
+index 5b79856981..b05fe8f34e 100644
+--- a/src/cmd/internal/gc/y.go
++++ b/src/cmd/internal/gc/y.go
+@@ -1467,7 +1467,7 @@ yydefault:
+ 				if yyDollar[1].list.Next != nil {
+ 					Yyerror("argument count mismatch: %d = %d", count(yyDollar[1].list), 1)
+ 				} else if (yyDollar[1].list.N.Op != ONAME && yyDollar[1].list.N.Op != OTYPE && yyDollar[1].list.N.Op != ONONAME) || isblank(yyDollar[1].list.N) {
+-					Yyerror("invalid variable name %nil in type switch", yyDollar[1].list.N)
++					Yyerror("invalid variable name %s in type switch", Nconv(yyDollar[1].list.N, 0))
+ 				} else {
+ 					yyVAL.node.Left = dclname(yyDollar[1].list.N.Sym)
+ 				} // it's a colas, so must not re-use an oldname.

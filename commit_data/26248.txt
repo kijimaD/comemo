@@ -13,7 +13,121 @@ Date:   Wed Jan 6 15:14:05 2016 -0500
     Change-Id: I481717409e1d44b524f83c70a8dc377699d1a2a5
     Reviewed-on: https://go-review.googlesource.com/18334
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 32 +++++++++++++++++++++++++++++++-
  src/cmd/go/vcs.go     | 30 ++----------------------------
  2 files changed, 33 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6dc08cf9ce..cc36b43de3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1063,7 +1063,6 @@ func TestImportCommentConflict(t *testing.T) {
+ // cmd/go: custom import path checking should not apply to github.com/xxx/yyy.
+ func TestIssue10952(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+-
+ 	if _, err := exec.LookPath("git"); err != nil {
+ 		t.Skip("skipping because git binary not found")
+ 	}
+@@ -1081,6 +1080,34 @@ func TestIssue10952(t *testing.T) {
+ 	tg.run("get", "-d", "-u", importPath)
+ }
+ 
++func TestGetGitDefaultBranch(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++	if _, err := exec.LookPath("git"); err != nil {
++		t.Skip("skipping because git binary not found")
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempDir("src")
++	tg.setenv("GOPATH", tg.path("."))
++
++	// This repo has two branches, master and another-branch.
++	// The another-branch is the default that you get from 'git clone'.
++	// The go get command variants should not override this.
++	const importPath = "github.com/rsc/go-get-default-branch"
++
++	tg.run("get", "-d", importPath)
++	repoDir := tg.path("src/" + importPath)
++	defer tg.resetReadOnlyFlagAll(repoDir)
++	tg.runGit(repoDir, "branch", "--contains", "HEAD")
++	tg.grepStdout(`\* another-branch`, "not on correct default branch")
++
++	tg.run("get", "-d", "-u", importPath)
++	tg.runGit(repoDir, "branch", "--contains", "HEAD")
++	tg.grepStdout(`\* another-branch`, "not on correct default branch")
++}
++
+ func TestDisallowedCSourceFiles(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -2219,6 +2246,9 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
+ 
+ func TestIssue10193(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
++	if _, err := exec.LookPath("hg"); err != nil {
++		t.Skip("skipping because hg binary not found")
++	}
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 59e72c6de2..074dd8b2b1 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -137,8 +137,9 @@ var vcsGit = &vcsCmd{
+ 	// both createCmd and downloadCmd update the working dir.
+ 	// No need to do more here. We used to 'checkout master'
+ 	// but that doesn't work if the default branch is not named master.
++	// DO NOT add 'checkout master' here.
+ 	// See golang.org/issue/9032.
+-	tagSyncDefault: []string{"checkout master", "submodule update --init --recursive"},
++	tagSyncDefault: []string{"submodule update --init --recursive"},
+ 
+ 	scheme:     []string{"git", "https", "http", "git+ssh", "ssh"},
+ 	pingCmd:    "ls-remote {scheme}://{repo}",
+@@ -385,9 +386,6 @@ func (v *vcsCmd) create(dir, repo string) error {
+ 
+ // download downloads any new changes for the repo in dir.
+ func (v *vcsCmd) download(dir string) error {
+-	if err := v.fixDetachedHead(dir); err != nil {
+-		return err
+-	}
+ 	for _, cmd := range v.downloadCmd {
+ 		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
+ 			continue
+@@ -399,30 +397,6 @@ func (v *vcsCmd) download(dir string) error {
+ 	return nil
+ }
+ 
+-// fixDetachedHead switches a Git repository in dir from a detached head to the master branch.
+-// Go versions before 1.2 downloaded Git repositories in an unfortunate way
+-// that resulted in the working tree state being on a detached head.
+-// That meant the repository was not usable for normal Git operations.
+-// Go 1.2 fixed that, but we can't pull into a detached head, so if this is
+-// a Git repository we check for being on a detached head and switch to the
+-// real branch, almost always called "master".
+-// TODO(dsymonds): Consider removing this for Go 1.3.
+-func (v *vcsCmd) fixDetachedHead(dir string) error {
+-	if v != vcsGit {
+-		return nil
+-	}
+-
+-	// "git symbolic-ref HEAD" succeeds iff we are not on a detached head.
+-	if err := v.runVerboseOnly(dir, "symbolic-ref HEAD"); err == nil {
+-		// not on a detached head
+-		return nil
+-	}
+-	if buildV {
+-		log.Printf("%s on detached head; repairing", dir)
+-	}
+-	return v.run(dir, "checkout master")
+-}
+-
+ // tags returns the list of available tags for the repo in dir.
+ func (v *vcsCmd) tags(dir string) ([]string, error) {
+ 	var tags []string

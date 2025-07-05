@@ -11,6 +11,20 @@ Date:   Thu Aug 8 10:57:32 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12530044
-
+---
  misc/notepadplus/functionList.xml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/notepadplus/functionList.xml b/misc/notepadplus/functionList.xml
+index 3d86bad7fa..6e00305fa3 100644
+--- a/misc/notepadplus/functionList.xml
++++ b/misc/notepadplus/functionList.xml
+@@ -7,7 +7,7 @@
+ 		<!-- <parsers> -->
+ 			<parser id="go" displayName="Go" commentExpr="((/\*.*?\*)/|(//.*?$))">
+ 				<function
+-					mainExpr="(^func\s+\w+)|(^func\s*\(\s*\w+\s*\*?\s*\w+\s*\)\s*\w+)"
++					mainExpr="(^func\s+\w+)|(^func\s*\(\s*\w*\s*\*?\s*\w+\s*\)\s*\w+)"
+ 					displayMode="$className->$functionName">
+ 					<functionName>
+ 						<nameExpr expr="((func\s+\w+)|(\)\s*\w+))"/>

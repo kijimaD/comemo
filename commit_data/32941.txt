@@ -15,6 +15,50 @@ Date:   Thu Jun 15 16:59:16 2017 +0200
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 12 +-----------
  1 file changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index b025e189f0..219ea01e8e 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -91,16 +91,13 @@ func TestGdbPython(t *testing.T) {
+ }
+ 
+ func TestGdbPythonCgo(t *testing.T) {
+-	if runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" {
++	if runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" || runtime.GOARCH == "mips64" {
+ 		testenv.SkipFlaky(t, 18784)
+ 	}
+ 	testGdbPython(t, true)
+ }
+ 
+ func testGdbPython(t *testing.T, cgo bool) {
+-	if runtime.GOARCH == "mips64" {
+-		testenv.SkipFlaky(t, 18173)
+-	}
+ 	if cgo && !build.Default.CgoEnabled {
+ 		t.Skip("skipping because cgo is not enabled")
+ 	}
+@@ -258,9 +255,6 @@ func TestGdbBacktrace(t *testing.T) {
+ 	if runtime.GOOS == "netbsd" {
+ 		testenv.SkipFlaky(t, 15603)
+ 	}
+-	if runtime.GOARCH == "mips64" {
+-		testenv.SkipFlaky(t, 18173)
+-	}
+ 
+ 	t.Parallel()
+ 	checkGdbEnvironment(t)
+@@ -332,10 +326,6 @@ func main() {
+ // TestGdbAutotmpTypes ensures that types of autotmp variables appear in .debug_info
+ // See bug #17830.
+ func TestGdbAutotmpTypes(t *testing.T) {
+-	if runtime.GOARCH == "mips64" {
+-		testenv.SkipFlaky(t, 18173)
+-	}
+-
+ 	t.Parallel()
+ 	checkGdbEnvironment(t)
+ 	checkGdbVersion(t)

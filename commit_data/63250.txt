@@ -15,6 +15,20 @@ Date:   Thu May 29 19:04:08 2025 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/internal/obj/s390x/condition_code.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/s390x/condition_code.go b/src/cmd/internal/obj/s390x/condition_code.go
+index f498fd6f77..3330d1310d 100644
+--- a/src/cmd/internal/obj/s390x/condition_code.go
++++ b/src/cmd/internal/obj/s390x/condition_code.go
+@@ -122,7 +122,7 @@ func (c CCMask) String() string {
+ 	}
+ 
+ 	// invalid
+-	return fmt.Sprintf("Invalid (%#x)", c)
++	return fmt.Sprintf("Invalid (%#x)", uint8(c))
+ }
+ 
+ func (CCMask) CanBeAnSSAAux() {}

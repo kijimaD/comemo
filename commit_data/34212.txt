@@ -25,6 +25,24 @@ Date:   Tue Oct 10 21:15:56 2017 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/{vdso_linux_amd64.go => vdso_linux.go} | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux.go
+similarity index 99%
+rename from src/runtime/vdso_linux_amd64.go
+rename to src/runtime/vdso_linux.go
+index 37736b1028..84de070486 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build linux
++// +build amd64
++
+ package runtime
+ 
+ import "unsafe"

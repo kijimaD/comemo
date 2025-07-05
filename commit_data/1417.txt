@@ -7,7 +7,7 @@ Date:   Tue Jan 6 15:19:02 2009 -0800
     R=r
     OCL=22166
     CL=22166
-
+---
  src/lib/bignum.go                   | 26 +++++++++----------
  src/lib/bufio.go                    | 16 ++++++------
  src/lib/bufio_test.go               | 16 ++++++------
@@ -122,3 +122,2958 @@ Date:   Tue Jan 6 15:19:02 2009 -0800
  test/utf.go                         |  2 +-
  test/vectors.go                     |  2 +-
  113 files changed, 363 insertions(+), 364 deletions(-)
+
+diff --git a/src/lib/bignum.go b/src/lib/bignum.go
+index d8f8000b61..60d3b87c1e 100755
+--- a/src/lib/bignum.go
++++ b/src/lib/bignum.go
+@@ -166,7 +166,7 @@ func (x Natural) Add(y Natural) Natural {
+ 	}
+ 
+ 	c := Digit(0);
+-	z := new(Natural, n + 1);
++	z := make(Natural, n + 1);
+ 	i := 0;
+ 	for i < m {
+ 		t := c + x[i] + y[i];
+@@ -195,7 +195,7 @@ func (x Natural) Sub(y Natural) Natural {
+ 	}
+ 
+ 	c := Digit(0);
+-	z := new(Natural, n);
++	z := make(Natural, n);
+ 	i := 0;
+ 	for i < m {
+ 		t := c + x[i] - y[i];
+@@ -253,7 +253,7 @@ func (x Natural) Mul(y Natural) Natural {
+ 	n := len(x);
+ 	m := len(y);
+ 
+-	z := new(Natural, n + m);
++	z := make(Natural, n + m);
+ 	for j := 0; j < m; j++ {
+ 		d := y[j];
+ 		if d != 0 {
+@@ -280,7 +280,7 @@ func (x Natural) Mul(y Natural) Natural {
+ 
+ func Unpack(x Natural) []Digit2 {
+ 	n := len(x);
+-	z := new([]Digit2, n*2 + 1);  // add space for extra digit (used by DivMod)
++	z := make([]Digit2, n*2 + 1);  // add space for extra digit (used by DivMod)
+ 	for i := 0; i < n; i++ {
+ 		t := x[i];
+ 		z[i*2] = Digit2(t & M2);
+@@ -296,7 +296,7 @@ func Unpack(x Natural) []Digit2 {
+ 
+ func Pack(x []Digit2) Natural {
+ 	n := (len(x) + 1) / 2;
+-	z := new(Natural, n);
++	z := make(Natural, n);
+ 	if len(x) & 1 == 1 {
+ 		// handle odd len(x)
+ 		n--;
+@@ -472,7 +472,7 @@ func Shl(z, x []Digit, s uint) Digit {
+ func (x Natural) Shl(s uint) Natural {
+ 	n := uint(len(x));
+ 	m := n + s/W;
+-	z := new(Natural, m+1);
++	z := make(Natural, m+1);
+ 
+ 	z[m] = Shl(z[m-n : m], x, s%W);
+ 
+@@ -497,7 +497,7 @@ func (x Natural) Shr(s uint) Natural {
+ 	if m > n {  // check for underflow
+ 		m = 0;
+ 	}
+-	z := new(Natural, m);
++	z := make(Natural, m);
+ 
+ 	Shr(z, x[n-m : n], s%W);
+ 
+@@ -512,7 +512,7 @@ func (x Natural) And(y Natural) Natural {
+ 		return y.And(x);
+ 	}
+ 
+-	z := new(Natural, m);
++	z := make(Natural, m);
+ 	for i := 0; i < m; i++ {
+ 		z[i] = x[i] & y[i];
+ 	}
+@@ -536,7 +536,7 @@ func (x Natural) Or(y Natural) Natural {
+ 		return y.Or(x);
+ 	}
+ 
+-	z := new(Natural, n);
++	z := make(Natural, n);
+ 	for i := 0; i < m; i++ {
+ 		z[i] = x[i] | y[i];
+ 	}
+@@ -553,7 +553,7 @@ func (x Natural) Xor(y Natural) Natural {
+ 		return y.Xor(x);
+ 	}
+ 
+-	z := new(Natural, n);
++	z := make(Natural, n);
+ 	for i := 0; i < m; i++ {
+ 		z[i] = x[i] ^ y[i];
+ 	}
+@@ -627,10 +627,10 @@ func (x Natural) ToString(base uint) string {
+ 	// allocate buffer for conversion
+ 	assert(2 <= base && base <= 16);
+ 	n := (x.Log2() + 1) / Log2(Digit(base)) + 1;  // +1: round up
+-	s := new([]byte, n);
++	s := make([]byte, n);
+ 
+ 	// don't destroy x
+-	t := new(Natural, len(x));
++	t := make(Natural, len(x));
+ 	Copy(t, x);
+ 
+ 	// convert
+@@ -681,7 +681,7 @@ func HexValue(ch byte) uint {
+ func MulAdd1(x Natural, d, c Digit) Natural {
+ 	assert(IsSmall(d-1) && IsSmall(c));
+ 	n := len(x);
+-	z := new(Natural, n + 1);
++	z := make(Natural, n + 1);
+ 
+ 	for i := 0; i < n; i++ {
+ 		t := c + x[i]*d;
+diff --git a/src/lib/bufio.go b/src/lib/bufio.go
+index 68be143206..52b70b71da 100644
+--- a/src/lib/bufio.go
++++ b/src/lib/bufio.go
+@@ -50,8 +50,8 @@ export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+-	b = new(*BufRead);
+-	b.buf = new([]byte, size);
++	b = new(BufRead);
++	b.buf = make([]byte, size);
+ 	b.rd = rd;
+ 	return b, nil
+ }
+@@ -262,7 +262,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+ 		}
+ 
+ 		// Read bytes out of buffer.
+-		buf := new([]byte, b.Buffered());
++		buf := make([]byte, b.Buffered());
+ 		var n int;
+ 		n, e = b.Read(buf);
+ 		if e != nil {
+@@ -278,9 +278,9 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+ 
+ 		// Grow list if needed.
+ 		if full == nil {
+-			full = new([][]byte, 16);
++			full = make([][]byte, 16);
+ 		} else if nfull >= len(full) {
+-			newfull := new([][]byte, len(full)*2);
++			newfull := make([][]byte, len(full)*2);
+ 			// BUG slice assignment
+ 			for i := 0; i < len(full); i++ {
+ 				newfull[i] = full[i];
+@@ -301,7 +301,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+ 	n += len(frag);
+ 
+ 	// Copy full pieces and fragment in.
+-	buf := new([]byte, n);
++	buf := make([]byte, n);
+ 	n = 0;
+ 	for i := 0; i < nfull; i++ {
+ 		CopySlice(buf[n:n+len(full[i])], full[i]);
+@@ -339,8 +339,8 @@ export func NewBufWriteSize(wr io.Write, size int) (b *BufWrite, err *os.Error)
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+-	b = new(*BufWrite);
+-	b.buf = new([]byte, size);
++	b = new(BufWrite);
++	b.buf = make([]byte, size);
+ 	b.wr = wr;
+ 	return b, nil
+ }
+diff --git a/src/lib/bufio_test.go b/src/lib/bufio_test.go
+index fecc7780da..272b8b65c5 100644
+--- a/src/lib/bufio_test.go
++++ b/src/lib/bufio_test.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ func StringToBytes(s string) []byte {
+-	b := new([]byte, len(s));
++	b := make([]byte, len(s));
+ 	for i := 0; i < len(s); i++ {
+ 		b[i] = s[i]
+ 	}
+@@ -34,7 +34,7 @@ type ByteReader struct {
+ }
+ 
+ func NewByteReader(p []byte) io.Read {
+-	b := new(*ByteReader);
++	b := new(ByteReader);
+ 	b.p = p;
+ 	return b
+ }
+@@ -56,7 +56,7 @@ type HalfByteReader struct {
+ }
+ 
+ func NewHalfByteReader(p []byte) io.Read {
+-	b := new(*HalfByteReader);
++	b := new(HalfByteReader);
+ 	b.p = p;
+ 	return b
+ }
+@@ -80,7 +80,7 @@ type Rot13Reader struct {
+ }
+ 
+ func NewRot13Reader(r io.Read) *Rot13Reader {
+-	r13 := new(*Rot13Reader);
++	r13 := new(Rot13Reader);
+ 	r13.r = r;
+ 	return r13
+ }
+@@ -238,14 +238,14 @@ type ByteWriter struct {
+ }
+ 
+ func NewByteWriter() WriteBuffer {
+-	return new(*ByteWriter)
++	return new(ByteWriter)
+ }
+ 
+ func (w *ByteWriter) Write(p []byte) (int, *os.Error) {
+ 	if w.p == nil {
+-		w.p = new([]byte, len(p)+100)
++		w.p = make([]byte, len(p)+100)
+ 	} else if w.n + len(p) >= len(w.p) {
+-		newp := new([]byte, len(w.p)*2 + len(p));
++		newp := make([]byte, len(w.p)*2 + len(p));
+ 		Copy(newp[0:w.n], w.p[0:w.n]);
+ 		w.p = newp
+ 	}
+@@ -266,7 +266,7 @@ type HalfByteWriter struct {
+ }
+ 
+ func NewHalfByteWriter() WriteBuffer {
+-	w := new(*HalfByteWriter);
++	w := new(HalfByteWriter);
+ 	w.bw = NewByteWriter();
+ 	return w
+ }
+diff --git a/src/lib/container/array/array.go b/src/lib/container/array/array.go
+index e87f4266b6..241e8d9e97 100644
+--- a/src/lib/container/array/array.go
++++ b/src/lib/container/array/array.go
+@@ -22,7 +22,7 @@ func (p *Array) Init(initial_len int) *Array {
+ 		if initial_len > n {
+ 			n = initial_len
+ 		}
+-		a = new([]Element, n);
++		a = make([]Element, n);
+ 	} else {
+ 		// nil out entries
+ 		for j := len(a) - 1; j >= 0; j-- {
+@@ -36,7 +36,7 @@ func (p *Array) Init(initial_len int) *Array {
+ 
+ 
+ export func New(len int) *Array {
+-	return new(*Array).Init(len)
++	return new(Array).Init(len)
+ }
+ 
+ 
+@@ -66,7 +66,7 @@ func (p *Array) Insert(i int, x Element) {
+ 
+ 	// grow array by doubling its capacity
+ 	if n == cap(a) {
+-		b := new([]Element, 2*n);
++		b := make([]Element, 2*n);
+ 		for j := n-1; j >= 0; j-- {
+ 			b[j] = a[j];
+ 		}
+diff --git a/src/lib/container/array/intarray.go b/src/lib/container/array/intarray.go
+index a02e56883c..eb7e83907a 100644
+--- a/src/lib/container/array/intarray.go
++++ b/src/lib/container/array/intarray.go
+@@ -19,7 +19,7 @@ func (p *IntArray) Init(len int) *IntArray {
+ 
+ 
+ export func NewIntArray(len int) *IntArray {
+-	return new(*IntArray).Init(len)
++	return new(IntArray).Init(len)
+ }
+ 
+ 
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index bc962f699f..6db76bbdee 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -318,10 +318,10 @@ func (f *Flag) SVal() string {
+ }
+ 
+ func New() *Flags {
+-	f := new(*Flags);
++	f := new(Flags);
+ 	f.first_arg = 1;	// 0 is the program name, 1 is first arg
+-	f.actual = new(map[string] *Flag);
+-	f.formal = new(map[string] *Flag);
++	f.actual = make(map[string] *Flag);
++	f.formal = make(map[string] *Flag);
+ 	return f;
+ }
+ 
+@@ -361,7 +361,7 @@ export func NArg() int {
+ }
+ 
+ func Add(name string, value Value, usage string) *Flag {
+-	f := new(*Flag);
++	f := new(Flag);
+ 	f.name = name;
+ 	f.usage = usage;
+ 	f.value = value;
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index 42d750dfc8..9b0a126b0b 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -71,7 +71,7 @@ func (f *Fmt) init() {
+ }
+ 
+ export func New() *Fmt {
+-	f := new(*Fmt);
++	f := new(Fmt);
+ 	f.init();
+ 	return f;
+ }
+@@ -135,7 +135,7 @@ func (f *Fmt) pad(s string) {
+ 			if w > NByte {
+ 				w = NByte;
+ 			}
+-			buf := new([]byte, w);
++			buf := make([]byte, w);
+ 			for i := 0; i < w; i++ {
+ 				buf[i] = padchar;
+ 			}
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 6546e13afc..6f0b0cf15a 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -46,7 +46,7 @@ type P struct {
+ }
+ 
+ func Printer() *P {
+-	p := new(*P);
++	p := new(P);
+ 	p.fmt = fmt.New();
+ 	return p;
+ }
+@@ -81,7 +81,7 @@ func (p *P) ensure(n int) {
+ 		if newn < n {
+ 			newn = n + AllocSize
+ 		}
+-		b := new([]byte, newn);
++		b := make([]byte, newn);
+ 		for i := 0; i < p.n; i++ {
+ 			b[i] = p.buf[i];
+ 		}
+diff --git a/src/lib/hash/adler32.go b/src/lib/hash/adler32.go
+index f1aa732445..4d32fd8d85 100644
+--- a/src/lib/hash/adler32.go
++++ b/src/lib/hash/adler32.go
+@@ -52,7 +52,7 @@ func (d *Digest) Sum32() uint32 {
+ }
+ 
+ func (d *Digest) Sum() []byte {
+-	p := new([]byte, 4);
++	p := make([]byte, 4);
+ 	s := d.Sum32();
+ 	p[0] = byte(s>>24);
+ 	p[1] = byte(s>>16);
+diff --git a/src/lib/hash/crc32.go b/src/lib/hash/crc32.go
+index 9f6aa7d351..dca75793bc 100644
+--- a/src/lib/hash/crc32.go
++++ b/src/lib/hash/crc32.go
+@@ -29,7 +29,7 @@ export const (
+ export type Table []uint32
+ 
+ export func MakeTable(poly uint32) Table {
+-	t := new(Table, 256);
++	t := make(Table, 256);
+ 	for i := 0; i < 256; i++ {
+ 		crc := uint32(i);
+ 		for j := 0; j < 8; j++ {
+@@ -74,7 +74,7 @@ func (d *Digest) Sum32() uint32 {
+ }
+ 
+ func (d *Digest) Sum() []byte {
+-	p := new([]byte, 4);
++	p := make([]byte, 4);
+ 	s := d.Sum32();
+ 	p[0] = byte(s>>24);
+ 	p[1] = byte(s>>16);
+diff --git a/src/lib/hash/md5.go b/src/lib/hash/md5.go
+index 773ff4a5d6..37dd2a4e6b 100644
+--- a/src/lib/hash/md5.go
++++ b/src/lib/hash/md5.go
+@@ -27,7 +27,7 @@ export type Digest struct {
+ }
+ 
+ export func NewDigest() *Digest {
+-	d := new(*Digest);
++	d := new(Digest);
+ 	d.s[0] = A;
+ 	d.s[1] = B;
+ 	d.s[2] = C;
+@@ -88,7 +88,7 @@ func (d *Digest) Sum() []byte {
+ 		panicln("oops");
+ 	}
+ 
+-	p := new([]byte, 16);
++	p := make([]byte, 16);
+ 	j := 0;
+ 	for i := 0; i < 4; i++ {
+ 		s := d.s[i];
+diff --git a/src/lib/hash/sha1.go b/src/lib/hash/sha1.go
+index 97333473b4..da50e46e82 100644
+--- a/src/lib/hash/sha1.go
++++ b/src/lib/hash/sha1.go
+@@ -28,7 +28,7 @@ export type Digest struct {
+ }
+ 
+ export func NewDigest() *Digest {
+-	d := new(*Digest);
++	d := new(Digest);
+ 	d.h[0] = H0;
+ 	d.h[1] = H1;
+ 	d.h[2] = H2;
+@@ -90,7 +90,7 @@ func (d *Digest) Sum() []byte {
+ 		panicln("oops");
+ 	}
+ 
+-	p := new([]byte, 20);
++	p := make([]byte, 20);
+ 	j := 0;
+ 	for i := 0; i < 5; i++ {
+ 		s := d.h[i];
+diff --git a/src/lib/http/conn.go b/src/lib/http/conn.go
+index ec33d9e8ef..15c0707f3e 100644
+--- a/src/lib/http/conn.go
++++ b/src/lib/http/conn.go
+@@ -22,7 +22,7 @@ export type Conn struct {
+ 
+ // Create new connection from rwc.
+ export func NewConn(rwc io.ReadWriteClose) (c *Conn, err *os.Error) {
+-	c = new(*Conn);
++	c = new(Conn);
+ 	c.rwc = rwc;
+ 	if c.br, err = bufio.NewBufRead(rwc); err != nil {
+ 		return nil, err
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index c997ee81e2..3d000abdef 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -181,7 +181,7 @@ func ParseHTTPVersion(vers string) (int, int, bool) {
+ 
+ // Read and parse a request from b.
+ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+-	req = new(*Request);
++	req = new(Request);
+ 
+ 	// First line: GET /index.html HTTP/1.0
+ 	var s string;
+@@ -205,7 +205,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 
+ 	// Subsequent lines: Key: value.
+ 	nheader := 0;
+-	req.header = new(map[string] string);
++	req.header = make(map[string] string);
+ 	for {
+ 		var key, value string;
+ 		if key, value, err = ReadKeyValue(b); err != nil {
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index b985c9757f..f96f9479a9 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -60,7 +60,7 @@ export func URLUnescape(s string) (string, *os.Error) {
+ 		return s, nil
+ 	}
+ 
+-	t := new([]byte, len(s)-2*n);
++	t := make([]byte, len(s)-2*n);
+ 	j := 0;
+ 	for i := 0; i < len(s); {
+ 		if s[i] == '%' {
+@@ -131,7 +131,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ 	if rawurl == "" {
+ 		return nil, BadURL
+ 	}
+-	url = new(*URL);
++	url = new(URL);
+ 	url.raw = rawurl;
+ 
+ 	// Split off possible leading "http:", "mailto:", etc.
+diff --git a/src/lib/io/bytebuffer.go b/src/lib/io/bytebuffer.go
+index f85679c8f5..59547afb4a 100644
+--- a/src/lib/io/bytebuffer.go
++++ b/src/lib/io/bytebuffer.go
+@@ -40,12 +40,12 @@ func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
+ 	plen := len(p);
+ 	if len(b.buf) == 0 {
+ 		b.cap = plen + 1024;
+-		b.buf = new([]byte, b.cap);
++		b.buf = make([]byte, b.cap);
+ 		b.len = 0;
+ 	}
+ 	if b.len + len(p) > b.cap {
+ 		b.cap = 2*(b.cap + plen);
+-		nb := new([]byte, b.cap);
++		nb := make([]byte, b.cap);
+ 		bytecopy(nb, 0, b.buf, 0, b.len);
+ 		b.buf = nb;
+ 	}
+@@ -81,7 +81,7 @@ func (b *ByteBuffer) Data() []byte {
+ 
+ 
+ export func NewByteBufferFromArray(buf []byte) *ByteBuffer {
+-	b := new(*ByteBuffer);
++	b := new(ByteBuffer);
+ 	b.buf = buf;
+ 	b.off = 0;
+ 	b.len = len(buf);
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index af6a9fee91..0a512e9e1a 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -31,7 +31,7 @@ export type ReadWriteClose interface {
+ }
+ 
+ export func WriteString(w Write, s string) (n int, err *os.Error) {
+-	b := new([]byte, len(s)+1);
++	b := make([]byte, len(s)+1);
+ 	if !syscall.StringToBytes(b, s) {
+ 		return -1, os.EINVAL
+ 	}
+@@ -80,7 +80,7 @@ export func MakeFullReader(fd Read) Read {
+ // Copies n bytes (or until EOF is reached) from src to dst.
+ // Returns the number of bytes copied and the error, if any.
+ export func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
+-	buf := new([]byte, 32*1024);
++	buf := make([]byte, 32*1024);
+ 	for written < n {
+ 		l := len(buf);
+ 		if d := n - written; d < int64(l) {
+@@ -116,7 +116,7 @@ export func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
+ // Copies from src to dst until EOF is reached.
+ // Returns the number of bytes copied and the error, if any.
+ export func Copy(src Read, dst Write) (written int64, err *os.Error) {
+-	buf := new([]byte, 32*1024);
++	buf := make([]byte, 32*1024);
+ 	for {
+ 		nr, er := src.Read(buf);
+ 		if nr > 0 {
+@@ -148,7 +148,7 @@ export func Copy(src Read, dst Write) (written int64, err *os.Error) {
+ // Could fill with syscall.StringToBytes but it adds an unnecessary \000
+ // so the length would be wrong.
+ export func StringBytes(s string) []byte {
+-	b := new([]byte, len(s));
++	b := make([]byte, len(s));
+ 	for i := 0; i < len(s); i++ {
+ 		b[i] = s[i];
+ 	}
+diff --git a/src/lib/json/generic.go b/src/lib/json/generic.go
+index 4f4268459b..b62f8d96db 100644
+--- a/src/lib/json/generic.go
++++ b/src/lib/json/generic.go
+@@ -269,11 +269,11 @@ func (b *JsonBuilder) Array() {
+ }
+ 
+ func (b *JsonBuilder) Map() {
+-	b.Put(&Map{new(map[string]Json), Null{}})
++	b.Put(&Map{make(map[string]Json), Null{}})
+ }
+ 
+ func (b *JsonBuilder) Elem(i int) Builder {
+-	bb := new(*JsonBuilder);
++	bb := new(JsonBuilder);
+ 	bb.a = b.Get().(*Array).a;
+ 	bb.i = i;
+ 	for i >= bb.a.Len() {
+@@ -283,7 +283,7 @@ func (b *JsonBuilder) Elem(i int) Builder {
+ }
+ 
+ func (b *JsonBuilder) Key(k string) Builder {
+-	bb := new(*JsonBuilder);
++	bb := new(JsonBuilder);
+ 	bb.m = b.Get().(*Map).m;
+ 	bb.k = k;
+ 	bb.m[k] = null;
+@@ -293,7 +293,7 @@ func (b *JsonBuilder) Key(k string) Builder {
+ export func StringToJson(s string) (json Json, ok bool, errtok string) {
+ 	var errindx int;
+ 	var j Json;
+-	b := new(*JsonBuilder);
++	b := new(JsonBuilder);
+ 	b.ptr = &j;
+ 	ok, errindx, errtok = Parse(s, b);
+ 	if !ok {
+diff --git a/src/lib/json/generic_test.go b/src/lib/json/generic_test.go
+index 0851c1c4a0..41685b405c 100644
+--- a/src/lib/json/generic_test.go
++++ b/src/lib/json/generic_test.go
+@@ -40,7 +40,7 @@ export func TestJson(t *testing.T) {
+ }
+ 
+ export func TestJsonMap(t *testing.T) {
+-	values := new(map[string]Json);
++	values := make(map[string]Json);
+ 	mapstr := "{";
+ 	for i := 0; i < len(jsontests); i++ {
+ 		val, ok, errtok := StringToJson(jsontests[i]);
+diff --git a/src/lib/json/parse.go b/src/lib/json/parse.go
+index f38bb59a6f..cec2a2961b 100644
+--- a/src/lib/json/parse.go
++++ b/src/lib/json/parse.go
+@@ -48,7 +48,7 @@ export func Unquote(s string) (t string, ok bool) {
+ 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
+ 		return
+ 	}
+-	b := new([]byte, len(s));
++	b := make([]byte, len(s));
+ 	w := 0;
+ 	for r := 1; r < len(s)-1; {
+ 		switch {
+@@ -118,9 +118,9 @@ export func Unquote(s string) (t string, ok bool) {
+ }
+ 
+ export func Quote(s string) string {
+-	chr := new([]byte, utf8.UTFMax);
++	chr := make([]byte, utf8.UTFMax);
+ 	chr0 := chr[0:1];
+-	b := new(*io.ByteBuffer);
++	b := new(io.ByteBuffer);
+ 	chr[0] = '"';
+ 	b.Write(chr0);
+ 	for i := 0; i < len(s); i++ {
+@@ -387,7 +387,7 @@ Switch:
+ }
+ 
+ export func Parse(s string, build Builder) (ok bool, errindx int, errtok string) {
+-	lex := new(*Lexer);
++	lex := new(Lexer);
+ 	lex.s = s;
+ 	lex.Next();
+ 	if ParseValue(lex, build) {
+diff --git a/src/lib/net/dialgoogle_test.go b/src/lib/net/dialgoogle_test.go
+index 684439d0b0..86ef5b91e9 100644
+--- a/src/lib/net/dialgoogle_test.go
++++ b/src/lib/net/dialgoogle_test.go
+@@ -22,7 +22,7 @@ func FetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+ 	req := io.StringBytes("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
+ 	n, errno := fd.Write(req);
+ 
+-	buf := new([]byte, 1000);
++	buf := make([]byte, 1000);
+ 	n, errno = io.Readn(fd, buf);
+ 
+ 	if n < 1000 {
+diff --git a/src/lib/net/dnsclient.go b/src/lib/net/dnsclient.go
+index eff46f8b19..f9ca002dd4 100644
+--- a/src/lib/net/dnsclient.go
++++ b/src/lib/net/dnsclient.go
+@@ -44,7 +44,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
+ 	if len(name) >= 256 {
+ 		return nil, DNS_NameTooLong
+ 	}
+-	out := new(*DNS_Msg);
++	out := new(DNS_Msg);
+ 	out.id = 0x1234;
+ 	out.question = []DNS_Question{
+ 		DNS_Question{ name, DNS_TypeA, DNS_ClassINET }
+@@ -64,14 +64,14 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
+ 		// TODO(rsc): set up timeout or call ReadTimeout.
+ 		// right now net does not support that.
+ 
+-		buf := new([]byte, 2000);	// More than enough.
++		buf := make([]byte, 2000);	// More than enough.
+ 		n, err = c.Read(buf);
+ 		if err != nil {
+ 			// TODO(rsc): only continue if timed out
+ 			continue
+ 		}
+ 		buf = buf[0:n];
+-		in := new(*DNS_Msg);
++		in := new(DNS_Msg);
+ 		if !in.Unpack(buf) || in.id != out.id {
+ 			continue
+ 		}
+@@ -85,7 +85,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
+ // On return, if err == nil, addrs != nil.
+ // TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
+ func Answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
+-	addrs = new([]string, 0, len(dns.answer));
++	addrs = make([]string, 0, len(dns.answer));
+ 
+ 	if dns.rcode == DNS_RcodeNameError && dns.authoritative {
+ 		return nil, DNS_NameNotFound	// authoritative "no such host"
+diff --git a/src/lib/net/dnsconfig.go b/src/lib/net/dnsconfig.go
+index 5c2b45812a..04feddbf27 100644
+--- a/src/lib/net/dnsconfig.go
++++ b/src/lib/net/dnsconfig.go
+@@ -31,9 +31,9 @@ export func DNS_ReadConfig() *DNS_Config {
+ 	if file == nil {
+ 		return nil
+ 	}
+-	conf := new(*DNS_Config);
+-	conf.servers = new([]string, 3)[0:0];		// small, but the standard limit
+-	conf.search = new([]string, 0);
++	conf := new(DNS_Config);
++	conf.servers = make([]string, 3)[0:0];		// small, but the standard limit
++	conf.search = make([]string, 0);
+ 	conf.ndots = 1;
+ 	conf.timeout = 1;
+ 	conf.attempts = 1;
+@@ -62,14 +62,14 @@ export func DNS_ReadConfig() *DNS_Config {
+ 
+ 		case "domain":	// set search path to just this domain
+ 			if len(f) > 1 {
+-				conf.search = new([]string, 1);
++				conf.search = make([]string, 1);
+ 				conf.search[0] = f[1];
+ 			} else {
+-				conf.search = new([]string, 0)
++				conf.search = make([]string, 0)
+ 			}
+ 
+ 		case "search":	// set search path to given servers
+-			conf.search = new([]string, len(f) - 1);
++			conf.search = make([]string, len(f) - 1);
+ 			for i := 0; i < len(conf.search); i++ {
+ 				conf.search[i] = f[i+1];
+ 			}
+diff --git a/src/lib/net/dnsmsg.go b/src/lib/net/dnsmsg.go
+index 1c85c935ef..76cdd904ad 100644
+--- a/src/lib/net/dnsmsg.go
++++ b/src/lib/net/dnsmsg.go
+@@ -198,18 +198,18 @@ export type DNS_RR_A struct {
+ 
+ // Map of constructors for each RR wire type.
+ var rr_mk = map[int]*()DNS_RR {
+-	DNS_TypeCNAME: func() DNS_RR { return new(*DNS_RR_CNAME) },
+-	DNS_TypeHINFO: func() DNS_RR { return new(*DNS_RR_HINFO) },
+-	DNS_TypeMB: func() DNS_RR { return new(*DNS_RR_MB) },
+-	DNS_TypeMG: func() DNS_RR { return new(*DNS_RR_MG) },
+-	DNS_TypeMINFO: func() DNS_RR { return new(*DNS_RR_MINFO) },
+-	DNS_TypeMR: func() DNS_RR { return new(*DNS_RR_MR) },
+-	DNS_TypeMX: func() DNS_RR { return new(*DNS_RR_MX) },
+-	DNS_TypeNS: func() DNS_RR { return new(*DNS_RR_NS) },
+-	DNS_TypePTR: func() DNS_RR { return new(*DNS_RR_PTR) },
+-	DNS_TypeSOA: func() DNS_RR { return new(*DNS_RR_SOA) },
+-	DNS_TypeTXT: func() DNS_RR { return new(*DNS_RR_TXT) },
+-	DNS_TypeA: func() DNS_RR { return new(*DNS_RR_A) },
++	DNS_TypeCNAME: func() DNS_RR { return new(DNS_RR_CNAME) },
++	DNS_TypeHINFO: func() DNS_RR { return new(DNS_RR_HINFO) },
++	DNS_TypeMB: func() DNS_RR { return new(DNS_RR_MB) },
++	DNS_TypeMG: func() DNS_RR { return new(DNS_RR_MG) },
++	DNS_TypeMINFO: func() DNS_RR { return new(DNS_RR_MINFO) },
++	DNS_TypeMR: func() DNS_RR { return new(DNS_RR_MR) },
++	DNS_TypeMX: func() DNS_RR { return new(DNS_RR_MX) },
++	DNS_TypeNS: func() DNS_RR { return new(DNS_RR_NS) },
++	DNS_TypePTR: func() DNS_RR { return new(DNS_RR_PTR) },
++	DNS_TypeSOA: func() DNS_RR { return new(DNS_RR_SOA) },
++	DNS_TypeTXT: func() DNS_RR { return new(DNS_RR_TXT) },
++	DNS_TypeA: func() DNS_RR { return new(DNS_RR_A) },
+ }
+ 
+ // Pack a domain name s into msg[off:].
+@@ -424,7 +424,7 @@ func UnpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int,
+ 				}
+ 				n := int(msg[off]);
+ 				off++;
+-				b := new([]byte, n);
++				b := make([]byte, n);
+ 				for i := 0; i < n; i++ {
+ 					b[i] = msg[off+i];
+ 				}
+@@ -582,7 +582,7 @@ func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
+ 	// Could work harder to calculate message size,
+ 	// but this is far more than we need and not
+ 	// big enough to hurt the allocator.
+-	msg = new([]byte, 2000);
++	msg = make([]byte, 2000);
+ 
+ 	// Pack it in: header and then the pieces.
+ 	off := 0;
+@@ -623,10 +623,10 @@ func (dns *DNS_Msg) Unpack(msg []byte) bool {
+ 	dns.rcode = int(dh.bits & 0xF);
+ 
+ 	// Arrays.
+-	dns.question = new([]DNS_Question, dh.qdcount);
+-	dns.answer = new([]DNS_RR, dh.ancount);
+-	dns.ns = new([]DNS_RR, dh.nscount);
+-	dns.extra = new([]DNS_RR, dh.arcount);
++	dns.question = make([]DNS_Question, dh.qdcount);
++	dns.answer = make([]DNS_RR, dh.ancount);
++	dns.ns = make([]DNS_RR, dh.nscount);
++	dns.extra = make([]DNS_RR, dh.arcount);
+ 
+ 	for i := 0; i < len(dns.question); i++ {
+ 		off, ok = UnpackStruct(&dns.question[i], msg, off);
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index a9c90c87cc..e155abdc1e 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -78,9 +78,9 @@ type PollServer struct {
+ func (s *PollServer) Run();
+ 
+ func NewPollServer() (s *PollServer, err *os.Error) {
+-	s = new(*PollServer);
+-	s.cr = new(chan *FD, 1);
+-	s.cw = new(chan *FD, 1);
++	s = new(PollServer);
++	s.cr = make(chan *FD, 1);
++	s.cw = make(chan *FD, 1);
+ 	if s.pr, s.pw, err = os.Pipe(); err != nil {
+ 		return nil, err
+ 	}
+@@ -100,7 +100,7 @@ func NewPollServer() (s *PollServer, err *os.Error) {
+ 		s.poll.Close();
+ 		goto Error
+ 	}
+-	s.pending = new(map[int64] *FD);
++	s.pending = make(map[int64] *FD);
+ 	go s.Run();
+ 	return s, nil
+ }
+@@ -214,11 +214,11 @@ export func NewFD(fd int64) (f *FD, err *os.Error) {
+ 	if err = SetNonblock(fd); err != nil {
+ 		return nil, err
+ 	}
+-	f = new(*FD);
++	f = new(FD);
+ 	f.fd = fd;
+ 	f.osfd = os.NewFD(fd);
+-	f.cr = new(chan *FD, 1);
+-	f.cw = new(chan *FD, 1);
++	f.cr = make(chan *FD, 1);
++	f.cw = make(chan *FD, 1);
+ 	return f, nil
+ }
+ 
+diff --git a/src/lib/net/fd_darwin.go b/src/lib/net/fd_darwin.go
+index 5a21be58e3..a92ad78131 100644
+--- a/src/lib/net/fd_darwin.go
++++ b/src/lib/net/fd_darwin.go
+@@ -19,7 +19,7 @@ export type Pollster struct {
+ }
+ 
+ export func NewPollster() (p *Pollster, err *os.Error) {
+-	p = new(*Pollster);
++	p = new(Pollster);
+ 	var e int64;
+ 	if p.kq, e = syscall.kqueue(); e != 0 {
+ 		return nil, os.ErrnoToError(e)
+diff --git a/src/lib/net/fd_linux.go b/src/lib/net/fd_linux.go
+index e459dddc4a..77c27473f4 100644
+--- a/src/lib/net/fd_linux.go
++++ b/src/lib/net/fd_linux.go
+@@ -25,7 +25,7 @@ export type Pollster struct {
+ }
+ 
+ export func NewPollster() (p *Pollster, err *os.Error) {
+-	p = new(*Pollster);
++	p = new(Pollster);
+ 	var e int64;
+ 
+ 	// The arg to epoll_create is a hint to the kernel
+@@ -34,7 +34,7 @@ export func NewPollster() (p *Pollster, err *os.Error) {
+ 	if p.epfd, e = syscall.epoll_create(16); e != 0 {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+-	p.events = new(map[int64] uint32);
++	p.events = make(map[int64] uint32);
+ 	return p, nil
+ }
+ 
+diff --git a/src/lib/net/ip.go b/src/lib/net/ip.go
+index 883a1c63e5..5ab0c50db9 100644
+--- a/src/lib/net/ip.go
++++ b/src/lib/net/ip.go
+@@ -23,7 +23,7 @@ export const (
+ 
+ // Make the 4 bytes into an IPv4 address (in IPv6 form)
+ func MakeIPv4(a, b, c, d byte) []byte {
+-	p := new([]byte, IPv6len);
++	p := make([]byte, IPv6len);
+ 	for i := 0; i < 10; i++ {
+ 		p[i] = 0
+ 	}
+@@ -44,11 +44,11 @@ func init() {
+ 	IPv4allsys = MakeIPv4(0xe0, 0x00, 0x00, 0x01);
+ 	IPv4allrouter = MakeIPv4(0xe0, 0x00, 0x00, 0x02);
+ 	IPv4prefix = MakeIPv4(0, 0, 0, 0);
+-	IPallbits = new([]byte, IPv6len);
++	IPallbits = make([]byte, IPv6len);
+ 	for i := 0; i < IPv6len; i++ {
+ 		IPallbits[i] = 0xff
+ 	}
+-	IPnoaddr = new([]byte, IPv6len);	// zeroed
++	IPnoaddr = make([]byte, IPv6len);	// zeroed
+ }
+ 
+ // Is p all zeros?
+@@ -115,7 +115,7 @@ export func Mask(ip []byte, mask []byte) []byte {
+ 	if n != len(mask) {
+ 		return nil
+ 	}
+-	out := new([]byte, n);
++	out := make([]byte, n);
+ 	for i := 0; i < n; i++ {
+ 		out[i] = ip[i] & mask[i];
+ 	}
+@@ -280,7 +280,7 @@ func ParseIPv4(s string) []byte {
+ //	* The last 32 bits can be in IPv4 form.
+ // Thus, ::ffff:1.2.3.4 is the IPv4 address 1.2.3.4.
+ func ParseIPv6(s string) []byte {
+-	p := new([]byte, 16);
++	p := make([]byte, 16);
+ 	ellipsis := -1;	// position of ellipsis in p
+ 	i := 0;	// index in string s
+ 
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index cdf606ace9..915a354f55 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -370,7 +370,7 @@ func (c *ConnTCP) SetNoDelay(nodelay bool) *os.Error {
+ }
+ 
+ func NewConnTCP(fd *FD, raddr string) *ConnTCP {
+-	c := new(*ConnTCP);
++	c := new(ConnTCP);
+ 	c.fd = fd;
+ 	c.raddr = raddr;
+ 	c.SetNoDelay(true);
+@@ -398,7 +398,7 @@ export type ConnUDP struct {
+ }
+ 
+ func NewConnUDP(fd *FD, raddr string) *ConnUDP {
+-	c := new(*ConnUDP);
++	c := new(ConnUDP);
+ 	c.fd = fd;
+ 	c.raddr = raddr;
+ 	return c
+@@ -497,7 +497,7 @@ export func ListenTCP(net, laddr string) (l *ListenerTCP, err *os.Error) {
+ 		syscall.close(fd.fd);
+ 		return nil, os.ErrnoToError(e1)
+ 	}
+-	l = new(*ListenerTCP);
++	l = new(ListenerTCP);
+ 	l.fd = fd;
+ 	return l, nil
+ }
+diff --git a/src/lib/net/net_darwin.go b/src/lib/net/net_darwin.go
+index 9d143d3499..2ad0043c50 100644
+--- a/src/lib/net/net_darwin.go
++++ b/src/lib/net/net_darwin.go
+@@ -16,7 +16,7 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+-	sa := new(*syscall.SockaddrInet4);
++	sa := new(syscall.SockaddrInet4);
+ 	sa.len = syscall.SizeofSockaddrInet4;
+ 	sa.family = syscall.AF_INET;
+ 	sa.port[0] = byte(port>>8);
+@@ -32,7 +32,7 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+-	sa := new(*syscall.SockaddrInet6);
++	sa := new(syscall.SockaddrInet6);
+ 	sa.len = syscall.SizeofSockaddrInet6;
+ 	sa.family = syscall.AF_INET6;
+ 	sa.port[0] = byte(port>>8);
+diff --git a/src/lib/net/net_linux.go b/src/lib/net/net_linux.go
+index 028e6e23b5..19ae0b6aeb 100644
+--- a/src/lib/net/net_linux.go
++++ b/src/lib/net/net_linux.go
+@@ -16,7 +16,7 @@ export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+-	sa := new(*syscall.SockaddrInet4);
++	sa := new(syscall.SockaddrInet4);
+ 	sa.family = syscall.AF_INET;
+ 	sa.port[0] = byte(port>>8);
+ 	sa.port[1] = byte(port);
+@@ -41,7 +41,7 @@ export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.E
+ 		p = IPv6zero;
+ 	}
+ 
+-	sa := new(*syscall.SockaddrInet6);
++	sa := new(syscall.SockaddrInet6);
+ 	sa.family = syscall.AF_INET6;
+ 	sa.port[0] = byte(port>>8);
+ 	sa.port[1] = byte(port);
+diff --git a/src/lib/net/parse.go b/src/lib/net/parse.go
+index b9ee185223..904eb649af 100644
+--- a/src/lib/net/parse.go
++++ b/src/lib/net/parse.go
+@@ -60,7 +60,7 @@ package func Open(name string) *File {
+ 	if err != nil {
+ 		return nil
+ 	}
+-	return &File{fd, new([]byte, 1024)[0:0]};
++	return &File{fd, make([]byte, 1024)[0:0]};
+ }
+ 
+ package func ByteIndex(s string, c byte) int {
+@@ -85,7 +85,7 @@ package func CountAnyByte(s string, t string) int {
+ 
+ // Split s at any bytes in t.
+ package func SplitAtBytes(s string, t string) []string {
+-	a := new([]string, 1+CountAnyByte(s, t));
++	a := make([]string, 1+CountAnyByte(s, t));
+ 	n := 0;
+ 	last := 0;
+ 	for i := 0; i < len(s); i++ {
+diff --git a/src/lib/net/port.go b/src/lib/net/port.go
+index efcbc0ad93..fbf5308e5f 100644
+--- a/src/lib/net/port.go
++++ b/src/lib/net/port.go
+@@ -17,7 +17,7 @@ import (
+ var services map[string] map[string] int
+ 
+ func ReadServices() {
+-	services = new(map[string] map[string] int);
++	services = make(map[string] map[string] int);
+ 	file := Open("/etc/services");
+ 	for line, ok := file.ReadLine(); ok; line, ok = file.ReadLine() {
+ 		// "http 80/tcp www www-http # World Wide Web HTTP"
+@@ -36,7 +36,7 @@ func ReadServices() {
+ 		netw := portnet[j+1:len(portnet)];	// "tcp"
+ 		m, ok1 := services[netw];
+ 		if !ok1 {
+-			m = new(map[string] int);
++			m = make(map[string] int);
+ 			services[netw] = m;
+ 		}
+ 		for i := 0; i < len(f); i++ {
+diff --git a/src/lib/net/tcpserver_test.go b/src/lib/net/tcpserver_test.go
+index e5520f58a9..730764c809 100644
+--- a/src/lib/net/tcpserver_test.go
++++ b/src/lib/net/tcpserver_test.go
+@@ -36,7 +36,7 @@ func Serve(t *testing.T, network, addr string, listening, done chan<- int) {
+ 		if err != nil {
+ 			break;
+ 		}
+-		echodone := new(chan int);
++		echodone := make(chan int);
+ 		go Echo(fd, echodone);
+ 		<-echodone;	// make sure Echo stops
+ 		l.Close();
+@@ -67,8 +67,8 @@ func Connect(t *testing.T, network, addr string) {
+ 
+ func DoTest(t *testing.T, network, listenaddr, dialaddr string) {
+ 	t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr);
+-	listening := new(chan int);
+-	done := new(chan int);
++	listening := make(chan int);
++	done := make(chan int);
+ 	go Serve(t, network, listenaddr, listening, done);
+ 	<-listening;	// wait for server to start
+ 	Connect(t, network, dialaddr);
+diff --git a/src/lib/once.go b/src/lib/once.go
+index 414f28888a..a086d77201 100644
+--- a/src/lib/once.go
++++ b/src/lib/once.go
+@@ -22,8 +22,8 @@ type Request struct {
+ }
+ 
+ // TODO: Would like to use chan Request but 6g rejects it.
+-var service = new(chan *Request)
+-var jobmap = new(map[*()]*Job)
++var service = make(chan *Request)
++var jobmap = make(map[*()]*Job)
+ 
+ // Moderate access to the jobmap.
+ // Even if accesses were thread-safe (they should be but are not)
+@@ -34,8 +34,8 @@ func Server() {
+ 		req := <-service;
+ 		job, present := jobmap[req.f];
+ 		if !present {
+-			job = new(*Job);
+-			job.doit = new(chan bool, 1);
++			job = new(Job);
++			job.doit = make(chan bool, 1);
+ 			job.doit <- true;
+ 			jobmap[req.f] = job
+ 		}
+@@ -52,7 +52,7 @@ export func Do(f *()) {
+ 	var present bool;
+ 	// job, present = jobmap[f]
+ 	if !present {
+-		c := new(chan *Job);
++		c := make(chan *Job);
+ 		req := Request{f, c};
+ 		service <- &req;
+ 		job = <-c
+diff --git a/src/lib/os/os_error.go b/src/lib/os/os_error.go
+index 6db223e097..4c03454d94 100644
+--- a/src/lib/os/os_error.go
++++ b/src/lib/os/os_error.go
+@@ -12,7 +12,7 @@ export type Error struct {
+ 	s string
+ }
+ 
+-var ErrorTab = new(map[int64] *Error);
++var ErrorTab = make(map[int64] *Error);
+ 
+ export func NewError(s string) *Error {
+ 	return &Error{s}
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index 4e878aabb9..5f317c7751 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -85,7 +85,7 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 	if fd == nil {
+ 		return 0, EINVAL
+ 	}
+-	b := new([]byte, len(s)+1);
++	b := make([]byte, len(s)+1);
+ 	if !syscall.StringToBytes(b, s) {
+ 		return 0, EINVAL
+ 	}
+diff --git a/src/lib/rand.go b/src/lib/rand.go
+index 029a75c165..ebdfdf117f 100644
+--- a/src/lib/rand.go
++++ b/src/lib/rand.go
+@@ -166,7 +166,7 @@ frand() float
+ export func
+ perm(n int) []int
+ {
+-	m := new([]int, n);
++	m := make([]int, n);
+ 	for i:=0; i<n; i++ {
+ 		m[i] = i;
+ 	}
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index d2e5bd07a2..eb0bbf9e66 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -176,7 +176,7 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	}
+ 	{
+ 		type C chan *T;	// TODO: should not be necessary
+-		var tmp = new(*C);
++		var tmp = new(C);
+ 		value := reflect.NewValue(tmp);
+ 		assert(reflect.ValueToString(value), "*reflect.C·all_test(@)");
+ 	}
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index f978e78600..2cc3e48430 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -332,7 +332,7 @@ func (t *InterfaceTypeStruct) Len() int {
+ 	return len(t.field)
+ }
+ 
+-var NilInterface = NewInterfaceTypeStruct("nil", "", new([]Field, 0));
++var NilInterface = NewInterfaceTypeStruct("nil", "", make([]Field, 0));
+ 
+ // -- Func
+ 
+@@ -397,9 +397,9 @@ func init() {
+ 
+ 	Lock();	// not necessary because of init ordering but be safe.
+ 
+-	types = new(map[string] Type);
+-	typestring = new(map[string] string);
+-	basicstub = new(map[string] *StubType);
++	types = make(map[string] Type);
++	typestring = make(map[string] string);
++	basicstub = make(map[string] *StubType);
+ 
+ 	// Basics go into types table
+ 	types[MissingString] = Missing;
+@@ -674,11 +674,11 @@ func (p *Parser) Chan(name string, tokstart, dir int) *StubType {
+ 
+ // Parse array of fields for struct, interface, and func arguments
+ func (p *Parser) Fields(sep, term string) []Field {
+-	a := new([]Field, 10);
++	a := make([]Field, 10);
+ 	nf := 0;
+ 	for p.token != "" && p.token != term {
+ 		if nf == len(a) {
+-			a1 := new([]Field, 2*nf);
++			a1 := make([]Field, 2*nf);
+ 			for i := 0; i < nf; i++ {
+ 				a1[i] = a[i];
+ 			}
+@@ -706,7 +706,7 @@ func (p *Parser) Fields(sep, term string) []Field {
+ 
+ // A single type packaged as a field for a function return
+ func (p *Parser) OneField() []Field {
+-	a := new([]Field, 1);
++	a := make([]Field, 1);
+ 	a[0].name = "";
+ 	a[0].typ = p.Type("");
+ 	return a;
+@@ -838,7 +838,7 @@ export func ParseTypeString(name, typestring string) Type {
+ 		// If the typestring is empty, it represents (the type of) a nil interface value
+ 		return NilInterface
+ 	}
+-	p := new(*Parser);
++	p := new(Parser);
+ 	p.str = typestring;
+ 	p.Next();
+ 	return p.Type(name).Get();
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 1e566f44ed..2ff4b85e03 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -625,7 +625,7 @@ func (v *FixedArrayValueStruct) Elem(i int) Value {
+ func ArrayCreator(typ Type, addr Addr) Value {
+ 	arraytype := typ.(ArrayType);
+ 	if arraytype.Open() {
+-		v := new(*OpenArrayValueStruct);
++		v := new(OpenArrayValueStruct);
+ 		v.kind = ArrayKind;
+ 		v.addr = addr;
+ 		v.typ = typ;
+@@ -634,7 +634,7 @@ func ArrayCreator(typ Type, addr Addr) Value {
+ 		v.array = addr.(*RuntimeArray);
+ 		return v;
+ 	}
+-	v := new(*FixedArrayValueStruct);
++	v := new(FixedArrayValueStruct);
+ 	v.kind = ArrayKind;
+ 	v.addr = addr;
+ 	v.typ = typ;
+@@ -710,7 +710,7 @@ func (v *StructValueStruct) Field(i int) Value {
+ func StructCreator(typ Type, addr Addr) Value {
+ 	t := typ.(StructType);
+ 	nfield := t.Len();
+-	v := &StructValueStruct{ Common{StructKind, typ, addr}, new([]Value, nfield) };
++	v := &StructValueStruct{ Common{StructKind, typ, addr}, make([]Value, nfield) };
+ 	for i := 0; i < nfield; i++ {
+ 		name, ftype, str, offset := t.Field(i);
+ 		addr_uint := uintptr(addr) + uintptr(offset);
+@@ -783,7 +783,7 @@ var creator = map[int] Creator {
+ 	FuncKind : &FuncCreator,
+ }
+ 
+-var typecache = new(map[string] *Type);
++var typecache = make(map[string] *Type);
+ 
+ func NewValueAddr(typ Type, addr Addr) Value {
+ 	c, ok := creator[typ.Kind()];
+@@ -807,7 +807,7 @@ export func NewInitValue(typ Type) Value {
+ 	if size == 0 {
+ 		size = 1;
+ 	}
+-	data := new([]uint8, size);
++	data := make([]uint8, size);
+ 	return NewValueAddr(typ, Addr(&data[0]));
+ }
+ 
+@@ -824,12 +824,12 @@ export func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
+ 		return nil
+ 	}
+ 
+-	array := new(*RuntimeArray);
++	array := new(RuntimeArray);
+ 	size := typ.Elem().Size() * cap;
+ 	if size == 0 {
+ 		size = 1;
+ 	}
+-	data := new([]uint8, size);
++	data := make([]uint8, size);
+ 	array.data = Addr(&data[0]);
+ 	array.len = uint32(len);
+ 	array.cap = uint32(cap);
+@@ -874,13 +874,13 @@ export func NewValue(e interface {}) Value {
+ 	p, ok := typecache[typestring];
+ 	if !ok {
+ 		typ := ParseTypeString("", typestring);
+-		p = new(*Type);
++		p = new(Type);
+ 		*p = typ;
+ 		typecache[typestring] = p;
+ 	}
+ 	// Content of interface is a value; need a permanent copy to take its address
+ 	// so we can modify the contents. Values contain pointers to 'values'.
+-	ap := new(*uint64);
++	ap := new(uint64);
+ 	*ap = value;
+ 	return NewValueAddr(*p, ap.(Addr));
+ }
+diff --git a/src/lib/regexp/all_test.go b/src/lib/regexp/all_test.go
+index 99d5d00ad7..143d813806 100644
+--- a/src/lib/regexp/all_test.go
++++ b/src/lib/regexp/all_test.go
+@@ -197,7 +197,7 @@ func MatchStringsTest(t *testing.T, expr string, str string, match []int) {
+ 	if re == nil {
+ 		return
+ 	}
+-	strs := new([]string, len(match)/2);
++	strs := make([]string, len(match)/2);
+ 	for i := 0; i < len(match); i++ {
+ 		strs[i/2] = str[match[i] : match[i+1]]
+ 	}
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 383db09a45..49f971610b 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -112,7 +112,7 @@ func (char *Char) Type() int { return CHAR }
+ func (char *Char) Print() { print("char ", string(char.char)) }
+ 
+ func NewChar(char int) *Char {
+-	c := new(*Char);
++	c := new(Char);
+ 	c.char = char;
+ 	return c;
+ }
+@@ -163,7 +163,7 @@ func (cclass *CharClass) Matches(c int) bool {
+ }
+ 
+ func NewCharClass() *CharClass {
+-	c := new(*CharClass);
++	c := new(CharClass);
+ 	c.ranges = array.NewIntArray(0);
+ 	return c;
+ }
+@@ -249,7 +249,7 @@ func (p *Parser) nextc() int {
+ }
+ 
+ func NewParser(re *RE) *Parser {
+-	parser := new(*Parser);
++	parser := new(Parser);
+ 	parser.re = re;
+ 	parser.nextc();	// load p.ch
+ 	return parser;
+@@ -364,15 +364,15 @@ func (p *Parser) Term() (start, end Inst) {
+ 		p.re.Error(ErrUnmatchedRbkt);
+ 	case '^':
+ 		p.nextc();
+-		start = p.re.Add(new(*Bot));
++		start = p.re.Add(new(Bot));
+ 		return start, start;
+ 	case '$':
+ 		p.nextc();
+-		start = p.re.Add(new(*Eot));
++		start = p.re.Add(new(Eot));
+ 		return start, start;
+ 	case '.':
+ 		p.nextc();
+-		start = p.re.Add(new(*Any));
++		start = p.re.Add(new(Any));
+ 		return start, start;
+ 	case '[':
+ 		p.nextc();
+@@ -393,9 +393,9 @@ func (p *Parser) Term() (start, end Inst) {
+ 		}
+ 		p.nlpar--;
+ 		p.nextc();
+-		bra := new(*Bra);
++		bra := new(Bra);
+ 		p.re.Add(bra);
+-		ebra := new(*Ebra);
++		ebra := new(Ebra);
+ 		p.re.Add(ebra);
+ 		bra.n = nbra;
+ 		ebra.n = nbra;
+@@ -437,7 +437,7 @@ func (p *Parser) Closure() (start, end Inst) {
+ 	switch p.c() {
+ 	case '*':
+ 		// (start,end)*:
+-		alt := new(*Alt);
++		alt := new(Alt);
+ 		p.re.Add(alt);
+ 		end.SetNext(alt);	// after end, do alt
+ 		alt.left = start;	// alternate brach: return to start
+@@ -445,16 +445,16 @@ func (p *Parser) Closure() (start, end Inst) {
+ 		end = alt;
+ 	case '+':
+ 		// (start,end)+:
+-		alt := new(*Alt);
++		alt := new(Alt);
+ 		p.re.Add(alt);
+ 		end.SetNext(alt);	// after end, do alt
+ 		alt.left = start;	// alternate brach: return to start
+ 		end = alt;	// start is unchanged; end is alt
+ 	case '?':
+ 		// (start,end)?:
+-		alt := new(*Alt);
++		alt := new(Alt);
+ 		p.re.Add(alt);
+-		nop := new(*Nop);
++		nop := new(Nop);
+ 		p.re.Add(nop);
+ 		alt.left = start;	// alternate branch is start
+ 		alt.next = nop;	// follow on to nop
+@@ -478,7 +478,7 @@ func (p *Parser) Concatenation() (start, end Inst) {
+ 		switch {
+ 		case nstart == NULL:	// end of this concatenation
+ 			if start == NULL {	// this is the empty string
+-				nop := p.re.Add(new(*Nop));
++				nop := p.re.Add(new(Nop));
+ 				return nop, nop;
+ 			}
+ 			return;
+@@ -501,11 +501,11 @@ func (p *Parser) Regexp() (start, end Inst) {
+ 		case '|':
+ 			p.nextc();
+ 			nstart, nend := p.Concatenation();
+-			alt := new(*Alt);
++			alt := new(Alt);
+ 			p.re.Add(alt);
+ 			alt.left = start;
+ 			alt.next = nstart;
+-			nop := new(*Nop);
++			nop := new(Nop);
+ 			p.re.Add(nop);
+ 			end.SetNext(nop);
+ 			nend.SetNext(nop);
+@@ -550,12 +550,12 @@ func (re *RE) Dump() {
+ 
+ func (re *RE) DoParse() {
+ 	parser := NewParser(re);
+-	start := new(*Start);
++	start := new(Start);
+ 	re.Add(start);
+ 	s, e := parser.Regexp();
+ 	start.next = s;
+ 	re.start = start;
+-	e.SetNext(re.Add(new(*End)));
++	e.SetNext(re.Add(new(End)));
+ 
+ 	if debug {
+ 		re.Dump();
+@@ -572,7 +572,7 @@ func (re *RE) DoParse() {
+ 
+ 
+ func Compiler(str string, ch chan *RE) {
+-	re := new(*RE);
++	re := new(RE);
+ 	re.expr = str;
+ 	re.inst = array.New(0);
+ 	re.ch = ch;
+@@ -589,7 +589,7 @@ export type Regexp interface {
+ 
+ // Compile in separate goroutine; wait for result
+ export func Compile(str string) (regexp Regexp, error *os.Error) {
+-	ch := new(chan *RE);
++	ch := make(chan *RE);
+ 	go Compiler(str, ch);
+ 	re := <-ch;
+ 	return re, re.error
+@@ -615,7 +615,7 @@ func AddState(s []State, inst Inst, match []int) []State {
+ 		 }
+ 	}
+ 	if l == cap(s) {
+-		s1 := new([]State, 2*l)[0:l];
++		s1 := make([]State, 2*l)[0:l];
+ 		for i := 0; i < l; i++ {
+ 			s1[i] = s[i];
+ 		}
+@@ -629,15 +629,15 @@ func AddState(s []State, inst Inst, match []int) []State {
+ 
+ func (re *RE) DoExecute(str string, pos int) []int {
+ 	var s [2][]State;	// TODO: use a vector when State values (not ptrs) can be vector elements
+-	s[0] = new([]State, 10)[0:0];
+-	s[1] = new([]State, 10)[0:0];
++	s[0] = make([]State, 10)[0:0];
++	s[1] = make([]State, 10)[0:0];
+ 	in, out := 0, 1;
+ 	var final State;
+ 	found := false;
+ 	for pos <= len(str) {
+ 		if !found {
+ 			// prime the pump if we haven't seen a match yet
+-			match := new([]int, 2*(re.nbra+1));
++			match := make([]int, 2*(re.nbra+1));
+ 			for i := 0; i < len(match); i++ {
+ 				match[i] = -1;	// no match seen; catches cases like "a(b)?c" on "ac"
+ 			}
+@@ -689,7 +689,7 @@ func (re *RE) DoExecute(str string, pos int) []int {
+ 			case ALT:
+ 				s[in] = AddState(s[in], state.inst.(*Alt).left, state.match);
+ 				// give other branch a copy of this match vector
+-				s1 := new([]int, 2*(re.nbra+1));
++				s1 := make([]int, 2*(re.nbra+1));
+ 				for i := 0; i < len(s1); i++ {
+ 					s1[i] = state.match[i]
+ 				}
+@@ -729,7 +729,7 @@ func (re *RE) MatchStrings(s string) []string {
+ 	if r == nil {
+ 		return nil
+ 	}
+-	a := new([]string, len(r)/2);
++	a := make([]string, len(r)/2);
+ 	for i := 0; i < len(r); i += 2 {
+ 		a[i/2] = s[r[i] : r[i+1]]
+ 	}
+diff --git a/src/lib/sort_test.go b/src/lib/sort_test.go
+index 1a6b602442..03f71da557 100644
+--- a/src/lib/sort_test.go
++++ b/src/lib/sort_test.go
+@@ -76,7 +76,7 @@ export func TestSortStrings(t *testing.T) {
+ }
+ 
+ export func TestSortLargeRandom(t *testing.T) {
+-	data := new([]int, 1000000);
++	data := make([]int, 1000000);
+ 	for i := 0; i < len(data); i++ {
+ 		data[i] = rand.rand() % 100;
+ 	}
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index b7f5156147..8869e2032c 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -34,7 +34,7 @@ func StringToDecimal(s string) (neg bool, d *Decimal, trunc bool, ok bool) {
+ 	}
+ 
+ 	// digits
+-	b := new(*Decimal);
++	b := new(Decimal);
+ 	sawdot := false;
+ 	sawdigits := false;
+ 	for ; i < len(s); i++ {
+diff --git a/src/lib/strconv/decimal.go b/src/lib/strconv/decimal.go
+index 9f94e30039..440b028f4e 100644
+--- a/src/lib/strconv/decimal.go
++++ b/src/lib/strconv/decimal.go
+@@ -39,7 +39,7 @@ func (a *Decimal) String() string {
+ 		n += -a.dp;
+ 	}
+ 
+-	buf := new([]byte, n);
++	buf := make([]byte, n);
+ 	w := 0;
+ 	switch {
+ 	case a.nd == 0:
+@@ -120,7 +120,7 @@ func (a *Decimal) Assign(v uint64) {
+ }
+ 
+ package func NewDecimal(i uint64) *Decimal {
+-	a := new(*Decimal);
++	a := new(Decimal);
+ 	a.Assign(i);
+ 	return a;
+ }
+diff --git a/src/lib/strconv/ftoa.go b/src/lib/strconv/ftoa.go
+index 0b6a616d1f..b99d9d593e 100644
+--- a/src/lib/strconv/ftoa.go
++++ b/src/lib/strconv/ftoa.go
+@@ -236,7 +236,7 @@ func RoundShortest(d *Decimal, mant uint64, exp int, flt *FloatInfo) {
+ 
+ // %e: -d.ddddde±dd
+ func FmtE(neg bool, d *Decimal, prec int) string {
+-	buf := new([]byte, 3+Max(prec, 0)+30);	// "-0." + prec digits + exp
++	buf := make([]byte, 3+Max(prec, 0)+30);	// "-0." + prec digits + exp
+ 	w := 0;	// write index
+ 
+ 	// sign
+@@ -306,7 +306,7 @@ func FmtE(neg bool, d *Decimal, prec int) string {
+ 
+ // %f: -ddddddd.ddddd
+ func FmtF(neg bool, d *Decimal, prec int) string {
+-	buf := new([]byte, 1+Max(d.dp, 1)+1+Max(prec, 0));
++	buf := make([]byte, 1+Max(d.dp, 1)+1+Max(prec, 0));
+ 	w := 0;
+ 
+ 	// sign
+diff --git a/src/lib/strings.go b/src/lib/strings.go
+index a553ec419b..9da48069cb 100644
+--- a/src/lib/strings.go
++++ b/src/lib/strings.go
+@@ -8,7 +8,7 @@ import "utf8"
+ 
+ // Split string into array of UTF-8 sequences (still strings)
+ export func explode(s string) []string {
+-	a := new([]string, utf8.RuneCountInString(s, 0, len(s)));
++	a := make([]string, utf8.RuneCountInString(s, 0, len(s)));
+ 	j := 0;
+ 	var size, rune int;
+ 	for i := 0; i < len(a); i++ {
+@@ -57,7 +57,7 @@ export func split(s, sep string) []string {
+ 	c := sep[0];
+ 	start := 0;
+ 	n := count(s, sep)+1;
+-	a := new([]string, n);
++	a := make([]string, n);
+ 	na := 0;
+ 	for i := 0; i+len(sep) <= len(s); i++ {
+ 		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
+@@ -84,7 +84,7 @@ export func join(a []string, sep string) string {
+ 		n += len(a[i])
+ 	}
+ 
+-	b := new([]byte, n);
++	b := make([]byte, n);
+ 	bp := 0;
+ 	for i := 0; i < len(a); i++ {
+ 		s := a[i];
+diff --git a/src/lib/sync/mutex_test.go b/src/lib/sync/mutex_test.go
+index 0fd204c89e..876cb0f14d 100644
+--- a/src/lib/sync/mutex_test.go
++++ b/src/lib/sync/mutex_test.go
+@@ -20,9 +20,9 @@ func HammerSemaphore(s *int32, cdone chan bool) {
+ }
+ 
+ export func TestSemaphore(t *testing.T) {
+-	s := new(*int32);
++	s := new(int32);
+ 	*s = 1;
+-	c := new(chan bool);
++	c := make(chan bool);
+ 	for i := 0; i < 10; i++ {
+ 		go HammerSemaphore(s, c);
+ 	}
+@@ -41,8 +41,8 @@ func HammerMutex(m *Mutex, cdone chan bool) {
+ }
+ 
+ export func TestMutex(t *testing.T) {
+-	m := new(*Mutex);
+-	c := new(chan bool);
++	m := new(Mutex);
++	c := make(chan bool);
+ 	for i := 0; i < 10; i++ {
+ 		go HammerMutex(m, c);
+ 	}
+diff --git a/src/lib/tabwriter/tabwriter.go b/src/lib/tabwriter/tabwriter.go
+index f8df1e18d1..a004088325 100644
+--- a/src/lib/tabwriter/tabwriter.go
++++ b/src/lib/tabwriter/tabwriter.go
+@@ -21,7 +21,7 @@ type ByteArray struct {
+ 
+ 
+ func (b *ByteArray) Init(initial_size int) {
+-	b.a = new([]byte, initial_size)[0 : 0];
++	b.a = make([]byte, initial_size)[0 : 0];
+ }
+ 
+ 
+@@ -50,7 +50,7 @@ func (b *ByteArray) Append(s []byte) {
+ 		if m > n2 {
+ 			n2 = m;
+ 		}
+-		b := new([]byte, n2);
++		b := make([]byte, n2);
+ 		for i := 0; i < n; i++ {
+ 			b[i] = a[i];
+ 		}
+@@ -446,5 +446,5 @@ func (b *Writer) Append(buf []byte) {
+ 
+ 
+ export func New(writer io.Write, cellwidth, padding int, padchar byte, align_left, filter_html bool) *Writer {
+-	return new(*Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
++	return new(Writer).Init(writer, cellwidth, padding, padchar, align_left, filter_html)
+ }
+diff --git a/src/lib/tabwriter/tabwriter_test.go b/src/lib/tabwriter/tabwriter_test.go
+index 56b7e226c8..acd377d3ab 100644
+--- a/src/lib/tabwriter/tabwriter_test.go
++++ b/src/lib/tabwriter/tabwriter_test.go
+@@ -18,7 +18,7 @@ type Buffer struct {
+ 
+ 
+ func (b *Buffer) Init(n int) {
+-	b.a = new([]byte, n)[0 : 0];
++	b.a = make([]byte, n)[0 : 0];
+ }
+ 
+ 
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index 3609a25077..6d3275f00b 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -92,8 +92,8 @@ export func Main(tests []Test) {
+ 		if chatty {
+ 			println("=== RUN ", tests[i].name);
+ 		}
+-		t := new(*T);
+-		t.ch = new(chan *T);
++		t := new(T);
++		t.ch = make(chan *T);
+ 		go TRunner(t, &tests[i]);
+ 		<-t.ch;
+ 		if t.failed {
+diff --git a/src/lib/time/tick.go b/src/lib/time/tick.go
+index a4cb786c5c..408dbc2684 100644
+--- a/src/lib/time/tick.go
++++ b/src/lib/time/tick.go
+@@ -53,7 +53,7 @@ export func Tick(ns int64) chan int64 {
+ 	if ns <= 0 {
+ 		return nil
+ 	}
+-	c := new(chan int64);
++	c := make(chan int64);
+ 	go Ticker(ns, c);
+ 	return c;
+ }
+diff --git a/src/lib/time/time.go b/src/lib/time/time.go
+index c067cbeff4..1325d26c09 100644
+--- a/src/lib/time/time.go
++++ b/src/lib/time/time.go
+@@ -71,7 +71,7 @@ const (
+ )
+ 
+ export func SecondsToUTC(sec int64) *Time {
+-	t := new(*Time);
++	t := new(Time);
+ 
+ 	// Split into time and day.
+ 	day := sec/SecondsPerDay;
+@@ -281,7 +281,7 @@ func AddString(buf []byte, bp int, s string) int {
+ // Just enough of strftime to implement the date formats below.
+ // Not exported.
+ func Format(t *Time, fmt string) string {
+-	buf := new([]byte, 128);
++	buf := make([]byte, 128);
+ 	bp := 0;
+ 
+ 	for i := 0; i < len(fmt); i++ {
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index 9ac9807ab1..cdd656ce0d 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -162,7 +162,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 	// Now we can build up a useful data structure.
+ 	// First the zone information.
+ 	//	utcoff[4] isdst[1] nameindex[1]
+-	zone := new([]Zone, n[NZone]);
++	zone := make([]Zone, n[NZone]);
+ 	for i := 0; i < len(zone); i++ {
+ 		var ok bool;
+ 		var n uint32;
+@@ -182,7 +182,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 	}
+ 
+ 	// Now the transition time info.
+-	zt = new([]Zonetime, n[NTime]);
++	zt = make([]Zonetime, n[NTime]);
+ 	for i := 0; i < len(zt); i++ {
+ 		var ok bool;
+ 		var n uint32;
+@@ -209,7 +209,7 @@ func ReadFile(name string, max int) (p []byte, err *os.Error) {
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	p = new([]byte, max+1)[0:0];
++	p = make([]byte, max+1)[0:0];
+ 	n := 0;
+ 	for len(p) < max {
+ 		nn, e := fd.Read(p[n:cap(p)]);
+diff --git a/src/run.bash b/src/run.bash
+index 30166f71e9..bba8c229b9 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -52,11 +52,11 @@ time make
+ make smoketest
+ ) || exit $?
+ 
+-(xcd ../usr/gri/gosrc
+-make clean
+-time make
+-# make test
+-) || exit $?
++# (xcd ../usr/gri/gosrc
++# make clean
++# time make
++# # make test
++# ) || exit $?
+ 
+ (xcd ../test
+ ./run
+diff --git a/test/235.go b/test/235.go
+index 4ff7c30c8c..9db10175dd 100644
+--- a/test/235.go
++++ b/test/235.go
+@@ -9,8 +9,8 @@ package main
+ type T chan uint64;
+ 
+ func M(f uint64) (in, out T) {
+-	in = new(T, 100);
+-	out = new(T, 100);
++	in = make(T, 100);
++	out = make(T, 100);
+ 	go func(in, out T, f uint64) {
+ 		for {
+ 			out <- f * <-in;
+@@ -44,9 +44,9 @@ func main() {
+ 		1250, 1280, 1296, 1350, 1440, 1458, 1500, 1536, 1600 };
+ 
+ 	x := uint64(1);
+-	ins := new([]T, n);
+-	outs := new([]T, n);
+-	xs := new([]uint64, n);
++	ins := make([]T, n);
++	outs := make([]T, n);
++	xs := make([]uint64, n);
+ 	for i := 0; i < n; i++ {
+ 		ins[i], outs[i] = M(F[i]);
+ 		xs[i] = x;
+diff --git a/test/bigalg.go b/test/bigalg.go
+index 748ef858fa..434eecf5d2 100644
+--- a/test/bigalg.go
++++ b/test/bigalg.go
+@@ -45,8 +45,8 @@ func SameArray(a, b []int) bool {
+ }
+ 
+ var t = T{1.5, 123, "hello", 255}
+-var mt = new(map[int]T)
+-var ma = new(map[int][]int)
++var mt = make(map[int]T)
++var ma = make(map[int][]int)
+ 
+ func maptest() {
+ 	mt[0] = t;
+@@ -62,8 +62,8 @@ func maptest() {
+ 	}
+ }
+ 
+-var mt1 = new(map[T]int)
+-var ma1 = new(map[[]int] int)
++var mt1 = make(map[T]int)
++var ma1 = make(map[[]int] int)
+ 
+ func maptest2() {
+ 	mt1[t] = 123;
+@@ -81,8 +81,8 @@ func maptest2() {
+ 	}
+ }
+ 
+-var ct = new(chan T)
+-var ca = new(chan []int)
++var ct = make(chan T)
++var ca = make(chan []int)
+ 
+ func send() {
+ 	ct <- t;
+@@ -114,7 +114,7 @@ func interfacetest() {
+ 	if !SameArray(a, a1) {
+ 		println("interface <-> []int", a, a1);
+ 	}
+-	pa := new(*[]int);
++	pa := new([]int);
+ 	*pa = a;
+ 	i = pa;
+ 	a1 = *i.(*[]int);
+diff --git a/test/bugs/bug121.go b/test/bugs/bug121.go
+index cea6f1b701..cc960e318c 100644
+--- a/test/bugs/bug121.go
++++ b/test/bugs/bug121.go
+@@ -21,5 +21,5 @@ func (s *S) g() {}
+ func (s *S) h() {}  // here we can't write (s *S) T either
+ 
+ func main() {
+-	var i I = new(*S);
++	var i I = new(S);
+ }
+diff --git a/test/bugs/bug122.go b/test/bugs/bug122.go
+index da58944b77..775cf73e82 100644
+--- a/test/bugs/bug122.go
++++ b/test/bugs/bug122.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	a := new([]int, 10, 20, 30, 40);  // should allow at most 2 sizes
++	a := make([]int, 10, 20, 30, 40);  // should allow at most 2 sizes
+ }
+diff --git a/test/bugs/bug130.go b/test/bugs/bug130.go
+index 6e189ca5ce..7122863bb2 100644
+--- a/test/bugs/bug130.go
++++ b/test/bugs/bug130.go
+@@ -14,7 +14,7 @@ func (p *S) send(c chan <- int) { c <- p.v }
+ func main() {
+   s := S{0};
+   var i I = &s;
+-  c := new(chan int);
++  c := make(chan int);
+   go i.send(c);
+   sys.exit(<-c);
+ }
+diff --git a/test/chan/fifo.go b/test/chan/fifo.go
+index eef494dd6f..e19059547f 100644
+--- a/test/chan/fifo.go
++++ b/test/chan/fifo.go
+@@ -11,7 +11,7 @@ package main
+ const N = 10
+ 
+ func AsynchFifo() {
+-	ch := new(chan int, N);
++	ch := make(chan int, N);
+ 	for i := 0; i < N; i++ {
+ 		ch <- i
+ 	}
+@@ -33,11 +33,11 @@ func Chain(ch <-chan int, val int, in <-chan int, out chan<- int) {
+ 
+ // thread together a daisy chain to read the elements in sequence
+ func SynchFifo() {
+-	ch := new(chan int);
+-	in := new(chan int);
++	ch := make(chan int);
++	in := make(chan int);
+ 	start := in;
+ 	for i := 0; i < N; i++ {
+-		out := new(chan int);
++		out := make(chan int);
+ 		go Chain(ch, i, in, out);
+ 		in = out;
+ 	}
+diff --git a/test/chan/goroutines.go b/test/chan/goroutines.go
+index afc5ead30f..db76a399c2 100644
+--- a/test/chan/goroutines.go
++++ b/test/chan/goroutines.go
+@@ -28,11 +28,11 @@ func main() {
+ 			sys.exit(1);
+ 		}
+ 	}
+-	leftmost := new(chan int);
++	leftmost := make(chan int);
+ 	right := leftmost;
+ 	left := leftmost;
+ 	for i := 0; i < n; i++ {
+-		right = new(chan int);
++		right = make(chan int);
+ 		go f(left, right);
+ 		left = right;
+ 	}
+diff --git a/test/chan/nonblock.go b/test/chan/nonblock.go
+index 4d36bdbbf2..1c3128d5b9 100644
+--- a/test/chan/nonblock.go
++++ b/test/chan/nonblock.go
+@@ -53,10 +53,10 @@ func main() {
+ 	var ok bool;
+ 
+ 	for buffer := 0; buffer < 2; buffer++ {
+-		c32 := new(chan int32, buffer);
+-		c64 := new(chan int64, buffer);
+-		cb := new(chan bool, buffer);
+-		cs := new(chan string, buffer);
++		c32 := make(chan int32, buffer);
++		c64 := make(chan int64, buffer);
++		cb := make(chan bool, buffer);
++		cs := make(chan string, buffer);
+ 
+ 		i32, ok = <-c32;
+ 		if ok { panic("blocked i32sender") }
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index a010f69951..6e6489134d 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -46,15 +46,15 @@ func Init();
+ func mkdch() *dch {
+ 	c := chnameserial % len(chnames);
+ 	chnameserial++;
+-	d := new(*dch);
+-	d.req = new(chan int);
+-	d.dat = new(chan item);
++	d := new(dch);
++	d.req = make(chan int);
++	d.dat = make(chan item);
+ 	d.nam = c;
+ 	return d;
+ }
+ 
+ func mkdch2() *dch2 {
+-	d2 := new(*dch2);
++	d2 := new(dch2);
+ 	d2[0] = mkdch();
+ 	d2[1] = mkdch();
+ 	return d2;
+@@ -93,7 +93,7 @@ func dosplit(in *dch, out *dch2, wait chan int ){
+ 
+ 	seqno++;
+ 	in.req <- seqno;
+-	release := new(chan  int);
++	release := make(chan  int);
+ 	go dosplit(in, out, release);
+ 	dat := <-in.dat;
+ 	out[0].dat <- dat;
+@@ -106,7 +106,7 @@ func dosplit(in *dch, out *dch2, wait chan int ){
+ }
+ 
+ func split(in *dch, out *dch2){
+-	release := new(chan int);
++	release := make(chan int);
+ 	go dosplit(in, out, release);
+ 	release <- 0;
+ }
+@@ -127,9 +127,9 @@ func get(in *dch) *rat {
+ func getn(in []*dch, n int) []item {
+ 	// BUG n:=len(in);
+ 	if n != 2 { panic("bad n in getn") };
+-	req := new(*[2] chan int);
+-	dat := new(*[2] chan item);
+-	out := new([]item, 2);
++	req := new([2] chan int);
++	dat := new([2] chan item);
++	out := make([]item, 2);
+ 	var i int;
+ 	var it item;
+ 	for i=0; i<n; i++ {
+@@ -208,7 +208,7 @@ func gcd (u, v int64) int64{
+ 
+ func i2tor(u, v int64) *rat{
+ 	g := gcd(u,v);
+-	r := new(*rat);
++	r := new(rat);
+ 	if v > 0 {
+ 		r.num = u/g;
+ 		r.den = v/g;
+@@ -246,7 +246,7 @@ func add(u, v *rat) *rat {
+ func mul(u, v *rat) *rat{
+ 	g1 := gcd(u.num,v.den);
+ 	g2 := gcd(u.den,v.num);
+-	r := new(*rat);
++	r := new(rat);
+ 	r.num =(u.num/g1)*(v.num/g2);
+ 	r.den = (u.den/g2)*(v.den/g1);
+ 	return r;
+@@ -646,7 +646,7 @@ func main() {
+ 		check(Ones, one, 5, "Ones");
+ 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
+ 		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
+-		a := new([] *rat, N);
++		a := make([] *rat, N);
+ 		d := Diff(Ones);
+ 		// BUG: want array initializer
+ 		for i:=0; i < N; i++ {
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index 5f2d1dc8cb..14364e6023 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -51,15 +51,15 @@ func Init();
+ func mkdch() *dch {
+ 	c := chnameserial % len(chnames);
+ 	chnameserial++;
+-	d := new(*dch);
+-	d.req = new(chan int);
+-	d.dat = new(chan item);
++	d := new(dch);
++	d.req = make(chan int);
++	d.dat = make(chan item);
+ 	d.nam = c;
+ 	return d;
+ }
+ 
+ func mkdch2() *dch2 {
+-	d2 := new(*dch2);
++	d2 := new(dch2);
+ 	d2[0] = mkdch();
+ 	d2[1] = mkdch();
+ 	return d2;
+@@ -98,7 +98,7 @@ func dosplit(in *dch, out *dch2, wait chan int ){
+ 
+ 	seqno++;
+ 	in.req <- seqno;
+-	release := new(chan  int);
++	release := make(chan  int);
+ 	go dosplit(in, out, release);
+ 	dat := <-in.dat;
+ 	out[0].dat <- dat;
+@@ -111,7 +111,7 @@ func dosplit(in *dch, out *dch2, wait chan int ){
+ }
+ 
+ func split(in *dch, out *dch2){
+-	release := new(chan int);
++	release := make(chan int);
+ 	go dosplit(in, out, release);
+ 	release <- 0;
+ }
+@@ -132,9 +132,9 @@ func get(in *dch) *rat {
+ func getn(in []*dch, n int) []item {
+ 	// BUG n:=len(in);
+ 	if n != 2 { panic("bad n in getn") };
+-	req := new([] chan int, 2);
+-	dat := new([] chan item, 2);
+-	out := new([]item, 2);
++	req := make([] chan int, 2);
++	dat := make([] chan item, 2);
++	out := make([]item, 2);
+ 	var i int;
+ 	var it item;
+ 	for i=0; i<n; i++ {
+@@ -213,7 +213,7 @@ func gcd (u, v int64) int64{
+ 
+ func i2tor(u, v int64) *rat{
+ 	g := gcd(u,v);
+-	r := new(*rat);
++	r := new(rat);
+ 	if v > 0 {
+ 		r.num = u/g;
+ 		r.den = v/g;
+@@ -251,7 +251,7 @@ func add(u, v *rat) *rat {
+ func mul(u, v *rat) *rat{
+ 	g1 := gcd(u.num,v.den);
+ 	g2 := gcd(u.den,v.num);
+-	r := new(*rat);
++	r := new(rat);
+ 	r.num =(u.num/g1)*(v.num/g2);
+ 	r.den = (u.den/g2)*(v.den/g1);
+ 	return r;
+@@ -651,7 +651,7 @@ func main() {
+ 		check(Ones, one, 5, "Ones");
+ 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
+ 		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
+-		a := new([]*rat, N);
++		a := make([]*rat, N);
+ 		d := Diff(Ones);
+ 		// BUG: want array initializer
+ 		for i:=0; i < N; i++ {
+diff --git a/test/chan/select.go b/test/chan/select.go
+index 3158ee6c29..d8a462551a 100644
+--- a/test/chan/select.go
++++ b/test/chan/select.go
+@@ -34,8 +34,8 @@ func Send(a, b chan uint) int {
+ }
+ 
+ func main() {
+-  a := new(chan uint, 1);
+-  b := new(chan uint, 1);
++  a := make(chan uint, 1);
++  b := make(chan uint, 1);
+   if v := Send(a, b); v != 2 {
+     panicln("Send returned", v, "!= 2");
+   }
+diff --git a/test/chan/sieve.go b/test/chan/sieve.go
+index b6bcdb33da..0923ab5d61 100644
+--- a/test/chan/sieve.go
++++ b/test/chan/sieve.go
+@@ -29,19 +29,19 @@ func Filter(in <-chan int, out chan<- int, prime int) {
+ 
+ // The prime sieve: Daisy-chain Filter processes together.
+ func Sieve(primes chan<- int) {
+-	ch := new(chan int);  // Create a new channel.
++	ch := make(chan int);  // Create a new channel.
+ 	go Generate(ch);  // Start Generate() as a subprocess.
+ 	for {
+ 		prime := <-ch;
+ 		primes <- prime;
+-		ch1 := new(chan int);
++		ch1 := make(chan int);
+ 		go Filter(ch, ch1, prime);
+ 		ch = ch1
+ 	}
+ }
+ 
+ func main() {
+-	primes := new(chan int);
++	primes := make(chan int);
+ 	go Sieve(primes);
+ 	a := []int{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
+ 	for i := 0; i < len(a); i++ {
+diff --git a/test/complit.go b/test/complit.go
+index ca3c8e0483..67064fe239 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -11,7 +11,7 @@ type T struct { i int; f float; s string; next *T }
+ type R struct { num int }
+ 
+ func itor(a int) *R {
+-	r := new(*R);
++	r := new(R);
+ 	r.num = a;
+ 	return r;
+ }
+@@ -48,7 +48,7 @@ func main() {
+ 	at := []*T{&t, &t, &t};
+ 	if len(at) != 3 { panic("at") }
+ 
+-	c := new(chan int);
++	c := make(chan int);
+ 	ac := []chan int{c, c, c};
+ 	if len(ac) != 3 { panic("ac") }
+ 
+diff --git a/test/fixedbugs/bug011.go b/test/fixedbugs/bug011.go
+index c2d9cde6c0..63673c0865 100644
+--- a/test/fixedbugs/bug011.go
++++ b/test/fixedbugs/bug011.go
+@@ -16,7 +16,7 @@ func (t *T) m(a int, b float) int {
+ }
+ 
+ func main() {
+-	var t *T = new(*T);
++	var t *T = new(T);
+ 	t.x = 1;
+ 	t.y = 2;
+ 	r10 := t.m(1, 3.0);
+diff --git a/test/fixedbugs/bug026.go b/test/fixedbugs/bug026.go
+index d8a1d77851..1d97c18ae5 100644
+--- a/test/fixedbugs/bug026.go
++++ b/test/fixedbugs/bug026.go
+@@ -18,8 +18,8 @@ func (v *Vector) Insert(i int, e Element) {
+ 
+ func main() {
+ 	type I struct { val int; };  // BUG: can't be local; works if global
+-	v := new(*Vector);
+-	v.Insert(0, new(*I));
++	v := new(Vector);
++	v.Insert(0, new(I));
+ }
+ /*
+ check: main_sigs_I: not defined
+diff --git a/test/fixedbugs/bug027.go b/test/fixedbugs/bug027.go
+index 428a4b6a88..16300502b8 100644
+--- a/test/fixedbugs/bug027.go
++++ b/test/fixedbugs/bug027.go
+@@ -15,9 +15,9 @@ type Vector struct {
+ }
+ 
+ func New() *Vector {
+-	v := new(*Vector);
++	v := new(Vector);
+ 	v.nelem = 0;
+-	v.elem = new([]Element, 10);
++	v.elem = make([]Element, 10);
+ 	return v;
+ }
+ 
+@@ -32,11 +32,11 @@ func (v *Vector) Insert(e Element) {
+ 
+ func main() {
+ 	type I struct { val int; };
+-	i0 := new(*I); i0.val = 0;
+-	i1 := new(*I); i1.val = 11;
+-	i2 := new(*I); i2.val = 222;
+-	i3 := new(*I); i3.val = 3333;
+-	i4 := new(*I); i4.val = 44444;
++	i0 := new(I); i0.val = 0;
++	i1 := new(I); i1.val = 11;
++	i2 := new(I); i2.val = 222;
++	i3 := new(I); i3.val = 3333;
++	i4 := new(I); i4.val = 44444;
+ 	v := New();
+ 	print("hi\n");
+ 	v.Insert(i4);
+diff --git a/test/fixedbugs/bug038.go b/test/fixedbugs/bug038.go
+index 444a04252b..7585376a36 100644
+--- a/test/fixedbugs/bug038.go
++++ b/test/fixedbugs/bug038.go
+@@ -9,5 +9,5 @@ package main
+ 
+ func main() {
+ 	var z [3]byte;
+-	z := new(*[3]byte);  // BUG redeclaration
++	z := new([3]byte);  // BUG redeclaration
+ }
+diff --git a/test/fixedbugs/bug045.go b/test/fixedbugs/bug045.go
+index 37c17c13bb..88c005d32d 100644
+--- a/test/fixedbugs/bug045.go
++++ b/test/fixedbugs/bug045.go
+@@ -13,7 +13,7 @@ type T struct {
+ func main() {
+ 	var ta []*T;
+ 
+-	ta = *new(*[1]*T);	// TODO: the first * shouldn't be necessary
++	ta = *new([1]*T);	// TODO: the first * shouldn't be necessary
+ 	ta[0] = nil;
+ }
+ /*
+diff --git a/test/fixedbugs/bug054.go b/test/fixedbugs/bug054.go
+index c121fb5e76..0ed5d07082 100644
+--- a/test/fixedbugs/bug054.go
++++ b/test/fixedbugs/bug054.go
+@@ -30,12 +30,12 @@ func (s *TStruct) field(i int) *TStruct {
+ }
+ 
+ func main() {
+-	v := new(*Vector);
+-	v.elem = new([]Element, 10);
+-	t := new(*TStruct);
++	v := new(Vector);
++	v.elem = make([]Element, 10);
++	t := new(TStruct);
+ 	t.name = "hi";
+ 	v.elem[0] = t;
+-	s := new(*TStruct);
++	s := new(TStruct);
+ 	s.name = "foo";
+ 	s.fields = v;
+ 	if s.field(0).name != "hi" {
+diff --git a/test/fixedbugs/bug058.go b/test/fixedbugs/bug058.go
+index 2cfe19de4a..da47ae5687 100644
+--- a/test/fixedbugs/bug058.go
++++ b/test/fixedbugs/bug058.go
+@@ -10,7 +10,7 @@ type Box struct {};
+ var m map[string] *Box;
+ 
+ func main() {
+-  m := new(map[string] *Box);
++  m := make(map[string] *Box);
+   s := "foo";
+   var x *Box = nil;
+   m[s] = x;
+diff --git a/test/fixedbugs/bug059.go b/test/fixedbugs/bug059.go
+index 5a29ed1f09..501616b3d6 100644
+--- a/test/fixedbugs/bug059.go
++++ b/test/fixedbugs/bug059.go
+@@ -19,11 +19,11 @@ func P(a []string) string {
+ }
+ 
+ func main() {
+-	m := new(map[string] []string);
++	m := make(map[string] []string);
+ 	as := new([2]string);
+ 	as[0] = "0";
+ 	as[1] = "1";
+-	m["0"] = as;
++	m["0"] = *as;
+ 
+ 	a := m["0"];
+ 	a[0] = "x";
+diff --git a/test/fixedbugs/bug060.go b/test/fixedbugs/bug060.go
+index 6d558a4f1d..124e401ff8 100644
+--- a/test/fixedbugs/bug060.go
++++ b/test/fixedbugs/bug060.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	m := new(map[int]int);
++	m := make(map[int]int);
+ 	m[0] = 0;
+ 	m[0]++;
+ 	if m[0] != 1 {
+diff --git a/test/fixedbugs/bug067.go b/test/fixedbugs/bug067.go
+index 1e747ebba8..b812f01169 100644
+--- a/test/fixedbugs/bug067.go
++++ b/test/fixedbugs/bug067.go
+@@ -9,7 +9,7 @@ package main
+ var c chan int
+ 
+ func main() {
+-	c = new(chan int);
++	c = make(chan int);
+ 	go func() { print("ok\n"); c <- 0 } ();
+ 	<-c
+ }
+diff --git a/test/fixedbugs/bug069.go b/test/fixedbugs/bug069.go
+index 2e538469b3..950ba8e010 100644
+--- a/test/fixedbugs/bug069.go
++++ b/test/fixedbugs/bug069.go
+@@ -7,12 +7,12 @@
+ package main
+ 
+ func main(){
+-	c := new(chan int);
++	c := make(chan int);
+ 	ok := false;
+ 	i := 0;
+ 
+ 	i, ok = <-c;  // works
+ 
+-	ca := new(*[2]chan int);
++	ca := new([2]chan int);
+ 	i, ok = <-(ca[0]);  // fails: c.go:11: bad shape across assignment - cr=1 cl=2
+ }
+diff --git a/test/fixedbugs/bug075.go b/test/fixedbugs/bug075.go
+index c1b8647453..fceeef8cba 100644
+--- a/test/fixedbugs/bug075.go
++++ b/test/fixedbugs/bug075.go
+@@ -8,8 +8,8 @@ package main
+ 
+ type T struct { m map[int]int }
+ func main() {
+-	t := new(*T);
+-	t.m = new(map[int]int);
++	t := new(T);
++	t.m = make(map[int]int);
+ 	var x int;
+ 	var ok bool;
+ 	x, ok = t.m[0];  //bug075.go:11: bad shape across assignment - cr=1 cl=2
+diff --git a/test/fixedbugs/bug084.go b/test/fixedbugs/bug084.go
+index 138b6da4b1..2897593dcd 100644
+--- a/test/fixedbugs/bug084.go
++++ b/test/fixedbugs/bug084.go
+@@ -17,7 +17,7 @@ func (s *Service) Serve(a int64) {
+ var arith Service
+ 
+ func main() {
+-	c := new(chan string);
+-	a := new(*Service);
++	c := make(chan string);
++	a := new(Service);
+ 	go a.Serve(1234);
+ }
+diff --git a/test/bugs/bug098.go b/test/fixedbugs/bug098.go
+similarity index 100%
+rename from test/bugs/bug098.go
+rename to test/fixedbugs/bug098.go
+diff --git a/test/fixedbugs/bug099.go b/test/fixedbugs/bug099.go
+index 2b1776c1f5..f76f0e873c 100644
+--- a/test/fixedbugs/bug099.go
++++ b/test/fixedbugs/bug099.go
+@@ -18,7 +18,7 @@ func (s *S) F() int { return 1 }
+ // if you take it out (and the 0s below)
+ // then the bug goes away.
+ func NewI(i int) I {
+-	return new(*S)
++	return new(S)
+ }
+ 
+ // Uses interface method.
+diff --git a/test/fixedbugs/bug102.go b/test/fixedbugs/bug102.go
+index 314a37f3df..58480974ba 100644
+--- a/test/fixedbugs/bug102.go
++++ b/test/fixedbugs/bug102.go
+@@ -16,7 +16,7 @@ func main() {
+ 	if string(b1) != "hello" {
+ 		panic("bad convert 1")
+ 	}
+-	var b2 = new([]byte, 5);
++	var b2 = make([]byte, 5);
+ 	for i := 0; i < 5; i++ { b2[i] = b1[i] }
+ 	if string(b2) != "hello" {
+ 		panic("bad convert 2")
+diff --git a/test/fixedbugs/bug111.go b/test/fixedbugs/bug111.go
+index ee61cd8302..39da9b4dd6 100644
+--- a/test/fixedbugs/bug111.go
++++ b/test/fixedbugs/bug111.go
+@@ -22,7 +22,7 @@ func (s *Stucky) Me() Iffy {
+ }
+ 
+ func main() {
+-	s := new(*Stucky);
++	s := new(Stucky);
+ 	i := s.Me();
+ 	j := i.Me();
+ 	j.Me();
+diff --git a/test/func.go b/test/func.go
+index 7b15f7477a..ee9414ddc4 100644
+--- a/test/func.go
++++ b/test/func.go
+@@ -81,7 +81,7 @@ func main() {
+ 	r9, s9 := f9(1);
+ 	assertequal(r9, 9, "r9");
+ 	assertequal(int(s9), 9, "s9");
+-	var t *T = new(*T);
++	var t *T = new(T);
+ 	t.x = 1;
+ 	t.y = 2;
+ 	r10 := t.m10(1, 3.0);
+diff --git a/test/golden.out b/test/golden.out
+index f1a6ad31fd..8ee55ef353 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -111,12 +111,6 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
+ bugs/bug087.go:8: illegal combination of literals LEN 9
+ BUG: fails incorrectly
+ 
+-=========== bugs/bug098.go
+-bugs/bug098.go:10: illegal types for operand: AS
+-	*M
+-	**M
+-BUG should compile
+-
+ =========== bugs/bug105.go
+ bugs/bug105.go:8: P: undefined
+ bugs/bug105.go:8: illegal types for operand: RETURN
+diff --git a/test/hashmap.go b/test/hashmap.go
+index d458b8c973..6f70f2b50c 100755
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -64,7 +64,7 @@ func (m *HashMap) Clear() {
+ 
+ func (m *HashMap) Initialize (initial_log2_capacity uint32) {
+ 	m.log2_capacity_ = initial_log2_capacity;
+-	m.map_ = new(*[1024] Entry);
++	m.map_ = new([1024] Entry);
+ 	m.Clear();
+ }
+ 
+@@ -157,7 +157,7 @@ func (n *Number) Match(other *KeyType) bool {
+ 
+ 
+ func MakeNumber (x uint32) *Number {
+-	var n *Number = new(*Number);
++	var n *Number = new(Number);
+ 	n.x = x;
+ 	return n;
+ }
+@@ -168,7 +168,7 @@ func main() {
+ 
+ 	//print "HashMap - gri 2/8/2008\n";
+ 
+-	var hmap *HashMap = new(*HashMap);
++	var hmap *HashMap = new(HashMap);
+ 	hmap.Initialize(0);
+ 
+ 	var x1 *Number = MakeNumber(1001);
+diff --git a/test/hilbert.go b/test/hilbert.go
+index a807c3ccac..5410db9ca9 100644
+--- a/test/hilbert.go
++++ b/test/hilbert.go
+@@ -47,10 +47,10 @@ func (a *Matrix) set(i, j int, x *Big.Rational) {
+ 
+ func NewMatrix(n, m int) *Matrix {
+ 	assert(0 <= n && 0 <= m);
+-	a := new(*Matrix);
++	a := new(Matrix);
+ 	a.n = n;
+ 	a.m = m;
+-	a.a = new([]*Big.Rational, n*m);
++	a.a = make([]*Big.Rational, n*m);
+ 	return a;
+ }
+ 
+diff --git a/test/interface1.go b/test/interface1.go
+index a053ed3e91..649a955f6d 100644
+--- a/test/interface1.go
++++ b/test/interface1.go
+@@ -28,8 +28,8 @@ func AddInst(Inst) *Inst {
+ }
+ 
+ func main() {
+-	re := new(*Regexp);
++	re := new(Regexp);
+ 	print("call addinst\n");
+-	var x Inst = AddInst(new(*Start));	// ERROR "illegal|incompatible"
++	var x Inst = AddInst(new(Start));	// ERROR "illegal|incompatible"
+ 	print("return from  addinst\n");
+ }
+diff --git a/test/ken/array.go b/test/ken/array.go
+index 29b456dd9a..2969f36693 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -66,7 +66,7 @@ res(t int, lb, hb int)
+ func
+ testpdpd()
+ {
+-	a := new([]int, 10, 100);
++	a := make([]int, 10, 100);
+ 	if len(a) != 10 && cap(a) != 100 {
+ 		panic("len and cap from new: ", len(a), " ", cap(a), "\n");
+ 	}
+@@ -95,7 +95,7 @@ testpfpf()
+ func
+ testpdpf1()
+ {
+-	a := new(*[40]int);
++	a := new([40]int);
+ 	setpd(*a);
+ 	res(sumpd(*a), 0, 40);
+ 
+@@ -117,7 +117,7 @@ testpdpf2()
+ func
+ testpdfault()
+ {
+-	a := new([]int, 100);
++	a := make([]int, 100);
+ 
+ 	print("good\n");
+ 	for i:=0; i<100; i++ {
+diff --git a/test/ken/chan.go b/test/ken/chan.go
+index da08477e65..ba13375871 100644
+--- a/test/ken/chan.go
++++ b/test/ken/chan.go
+@@ -38,17 +38,17 @@ var
+ func
+ init()
+ {
+-	nc = new(*Chan);
++	nc = new(Chan);
+ }
+ 
+ func
+ mkchan(c,n int) []*Chan
+ {
+-	ca := new([]*Chan, n);
++	ca := make([]*Chan, n);
+ 	for i:=0; i<n; i++ {
+ 		cval = cval+100;
+-		ch := new(*Chan);
+-		ch.sc = new(chan int, c);
++		ch := new(Chan);
++		ch.sc = make(chan int, c);
+ 		ch.rc = ch.sc;
+ 		ch.sv = cval;
+ 		ch.rv = cval;
+diff --git a/test/ken/embed.go b/test/ken/embed.go
+index 42e83e44fd..f0c9f4ec2b 100644
+--- a/test/ken/embed.go
++++ b/test/ken/embed.go
+@@ -166,10 +166,10 @@ main()
+ 	var s *S;
+ 
+ 	// allocate
+-	s = new(*S);
+-	s.Subp = new(*Subp);
+-	s.Sub.SubSubp = new(*SubSubp);
+-	s.Subp.SubpSubp = new(*SubpSubp);
++	s = new(S);
++	s.Subp = new(Subp);
++	s.Sub.SubSubp = new(SubSubp);
++	s.Subp.SubpSubp = new(SubpSubp);
+ 
+ 	// explicit assignment
+ 	s.a = 1;
+diff --git a/test/ken/interfun.go b/test/ken/interfun.go
+index 4ab2b8b9fe..97db893168 100644
+--- a/test/ken/interfun.go
++++ b/test/ken/interfun.go
+@@ -40,7 +40,7 @@ main()
+ 	var i2 I2;
+ 	var g *S;
+ 
+-	s := new(*S);
++	s := new(S);
+ 	s.a = 5;
+ 	s.b = 6;
+ 
+diff --git a/test/ken/intervar.go b/test/ken/intervar.go
+index 711568b4cb..1c3d650006 100644
+--- a/test/ken/intervar.go
++++ b/test/ken/intervar.go
+@@ -58,9 +58,9 @@ puts(s string)
+ func
+ main()
+ {
+-	p := new(*Print);
+-	b := new(*Bio);
+-	f := new(*File);
++	p := new(Print);
++	b := new(Bio);
++	f := new(File);
+ 
+ 	p.whoami = 1;
+ 	p.put = b;
+diff --git a/test/ken/ptrfun.go b/test/ken/ptrfun.go
+index 949cb823e5..e7db3a94d3 100644
+--- a/test/ken/ptrfun.go
++++ b/test/ken/ptrfun.go
+@@ -27,7 +27,7 @@ main()
+ 	var v int;
+ 	var c *C;
+ 
+-	c = new(*C);
++	c = new(C);
+ 	c.a = 6;
+ 	c.x = &g;
+ 
+diff --git a/test/ken/range.go b/test/ken/range.go
+index 5bb6d55dc2..2417580ddb 100644
+--- a/test/ken/range.go
++++ b/test/ken/range.go
+@@ -21,8 +21,8 @@ f(k int) byte
+ func
+ init()
+ {
+-	p = new([]byte, size);
+-	m = new(map[int]byte);
++	p = make([]byte, size);
++	m = make(map[int]byte);
+ 	for k:=0; k<size; k++ {
+ 		v := f(k);
+ 		a[k] = v;
+diff --git a/test/ken/rob1.go b/test/ken/rob1.go
+index 35397b36ff..a75878b1f5 100644
+--- a/test/ken/rob1.go
++++ b/test/ken/rob1.go
+@@ -31,7 +31,7 @@ Init()
+ func (list *List)
+ Insert(i Item)
+ {
+-	item := new(*ListItem);
++	item := new(ListItem);
+ 	item.item = i;
+ 	item.next = list.head;
+ 	list.head = item;
+@@ -69,10 +69,10 @@ Print()
+ func
+ main()
+ {
+-	list := new(*List);
++	list := new(List);
+ 	list.Init();
+ 	for i := 0; i < 10; i = i + 1 {
+-		integer := new(*Integer);
++		integer := new(Integer);
+ 		integer.Init(i);
+ 		list.Insert(integer);
+ 	}
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index 6e14bdae39..1b4d86e6f2 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -213,7 +213,7 @@ func ParseList() *Slist
+ {
+ 	var slist, retval *Slist;
+ 
+-	slist = new(*Slist);
++	slist = new(Slist);
+ 	slist.list.car = nil;
+ 	slist.list.cdr = nil;
+ 	slist.isatom = false;
+@@ -225,7 +225,7 @@ func ParseList() *Slist
+ 		if token == ')' || token == EOF {	// empty cdr
+ 			break;
+ 		}
+-		slist.list.cdr = new(*Slist);
++		slist.list.cdr = new(Slist);
+ 		slist = slist.list.cdr;
+ 	}
+ 	return retval;
+@@ -236,7 +236,7 @@ func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
+ 	var h, length int;
+ 	var slist, tail *Slist;
+ 
+-	slist = new(*Slist);
++	slist = new(Slist);
+ 	if token == '0' {
+ 		slist.atom.integer = i;
+ 		slist.isstring = false;
+diff --git a/test/ken/robfunc.go b/test/ken/robfunc.go
+index 947016fac1..12b4b6d7b6 100644
+--- a/test/ken/robfunc.go
++++ b/test/ken/robfunc.go
+@@ -86,7 +86,7 @@ func main() {
+ 	r9, s9 = f9(1);
+ 	assertequal(r9, 9, "r9");
+ 	assertequal(int(s9), 9, "s9");
+-	var t *T = new(*T);
++	var t *T = new(T);
+ 	t.x = 1;
+ 	t.y = 2;
+ 	r10 := t.m10(1, 3.0);
+diff --git a/test/ken/simparray.go b/test/ken/simparray.go
+index f68ff145bb..90331e5e3d 100644
+--- a/test/ken/simparray.go
++++ b/test/ken/simparray.go
+@@ -35,7 +35,7 @@ main()
+ 
+ 	if s2 != 35 { panic(s2); }
+ 
+-	b := new(*[100]int);
++	b := new([100]int);
+ 	for i:=0; i<100; i=i+1 {
+ 		b[i] = i;
+ 	}
+diff --git a/test/ken/simpbool.go b/test/ken/simpbool.go
+index 28ddafe158..aad111dd55 100644
+--- a/test/ken/simpbool.go
++++ b/test/ken/simpbool.go
+@@ -30,7 +30,7 @@ main()
+ 	if !!!a { panic(6); }
+ 
+ 	var x *s;
+-	x = new(*s);
++	x = new(s);
+ 	x.a = true;
+ 	x.b = false;
+ 
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 7bd402e1f0..850ddccf69 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -92,7 +92,7 @@ main()
+ 	}
+ 
+ 	/* create string with byte array pointer */
+-	z2 := new(*[3]byte);
++	z2 := new([3]byte);
+ 	z2[0] = 'a';
+ 	z2[1] = 'b';
+ 	z2[2] = 'c';
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index ae54ab81b4..f0486477c5 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -96,7 +96,7 @@ func atoi(s string) int {
+ 
+ func main() {
+ 	flag.Parse();
+-	b = new([]*byte, 10000);
++	b = make([]*byte, 10000);
+ 	if flag.NArg() > 0 {
+ 		AllocAndFree(atoi(flag.Arg(0)), atoi(flag.Arg(1)));
+ 		return;
+diff --git a/test/map.go b/test/map.go
+index bc31bf8300..caa764d2d8 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -35,27 +35,27 @@ func main() {
+ 		}
+ 	}
+ 
+-	mib := new(map[int] bool);
+-	mii := new(map[int] int);
+-	mfi := new(map[float] int);
+-	mif := new(map[int] float);
+-	msi := new(map[string] int);
+-	mis := new(map[int] string);
+-	mss := new(map[string] string);
+-	mspa := new(map[string] []string);
++	mib := make(map[int] bool);
++	mii := make(map[int] int);
++	mfi := make(map[float] int);
++	mif := make(map[int] float);
++	msi := make(map[string] int);
++	mis := make(map[int] string);
++	mss := make(map[string] string);
++	mspa := make(map[string] []string);
+ 	// BUG need an interface map both ways too
+ 
+ 	type T struct {
+ 		i int64;	// can't use string here; struct values are only compared at the top level
+ 		f float;
+ 	};
+-	mipT := new(map[int] *T);
+-	mpTi := new(map[*T] int);
+-	mit := new(map[int] T);
+-	mti := new(map[T] int);
++	mipT := make(map[int] *T);
++	mpTi := make(map[*T] int);
++	mit := make(map[int] T);
++	mti := make(map[T] int);
+ 
+ 	type M map[int] int;
+-	mipM := new(map[int] M);
++	mipM := make(map[int] M);
+ 
+ 	const count = 1000;
+ 	var apT [2*count]*T;
+@@ -65,14 +65,13 @@ func main() {
+ 		s10 := strconv.itoa(i*10);
+ 		f := float(i);
+ 		t := T{int64(i),f};
+-		apT[i] = new(*T);
++		apT[i] = new(T);
+ 		apT[i].i = int64(i);
+ 		apT[i].f = f;
+-		apT[2*i] = new(*T);	// need twice as many entries as we use, for the nonexistence check
++		apT[2*i] = new(T);	// need twice as many entries as we use, for the nonexistence check
+ 		apT[2*i].i = int64(i);
+ 		apT[2*i].f = f;
+-		// BUG m := M{i, i+1};
+-		m := new(M); m[i] = i+1;
++		m := M{i: i+1};
+ 		mib[i] = (i != 0);
+ 		mii[i] = 10*i;
+ 		mfi[float(i)] = 10*i;
+@@ -81,7 +80,7 @@ func main() {
+ 		msi[s] = i;
+ 		mss[s] = s10;
+ 		mss[s] = s10;
+-		as := new([]string, arraylen);
++		as := make([]string, arraylen);
+ 			as[0] = s10;
+ 			as[1] = s10;
+ 		mspa[s] = as;
+@@ -123,6 +122,9 @@ func main() {
+ 	if len(mpTi) != count {
+ 		fmt.printf("len(mpTi) = %d\n", len(mpTi));
+ 	}
++	if len(mti) != count {
++		fmt.printf("len(mti) = %d\n", len(mti));
++	}
+ 	if len(mipM) != count {
+ 		fmt.printf("len(mipM) = %d\n", len(mipM));
+ 	}
+@@ -172,6 +174,9 @@ func main() {
+ 		if(mpTi[apT[i]] != i) {
+ 			fmt.printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]]);
+ 		}
++		if(mti[t] != i) {
++			fmt.printf("mti[%s] = %s\n", s, mti[t]);
++		}
+ 		if (mipM[i][i] != i + 1) {
+ 			fmt.printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i]);
+ 		}
+diff --git a/test/newfn.go b/test/newfn.go
+index 8aacd8448a..fbbf942ce4 100644
+--- a/test/newfn.go
++++ b/test/newfn.go
+@@ -10,5 +10,5 @@ func main()
+ {
+ 	f := new(());	// ERROR "new"
+ 	g := new((x int, f float) string);	// ERROR "new"
+-	h := new(*());	// ok
++	h := new(());	// ok
+ }
+diff --git a/test/nil.go b/test/nil.go
+index 8cd8e57aac..1aef54ba9b 100644
+--- a/test/nil.go
++++ b/test/nil.go
+@@ -30,6 +30,6 @@ func main() {
+ 	c = nil;
+ 	t = nil;
+ 	i = nil;
+-	ta = new([]IN, 1);
++	ta = make([]IN, 1);
+ 	ta[0] = nil;
+ }
+diff --git a/test/peano.go b/test/peano.go
+index e290905741..07e5f0ed37 100644
+--- a/test/peano.go
++++ b/test/peano.go
+@@ -25,7 +25,7 @@ func is_zero(x *Number) bool {
+ 
+ 
+ func add1(x *Number) *Number {
+-	e := new(*Number);
++	e := new(Number);
+ 	e.next = x;
+ 	return e;
+ }
+diff --git a/test/sieve.go b/test/sieve.go
+index 91fa6e5f0c..e163456176 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -26,12 +26,12 @@ func Filter(in <-chan int, out chan<- int, prime int) {
+ 
+ // The prime sieve: Daisy-chain Filter processes together.
+ func Sieve() {
+-	ch := new(chan int);  // Create a new channel.
++	ch := make(chan int);  // Create a new channel.
+ 	go Generate(ch);  // Start Generate() as a subprocess.
+ 	for {
+ 		prime := <-ch;
+ 		print(prime, "\n");
+-		ch1 := new(chan int);
++		ch1 := make(chan int);
+ 		go Filter(ch, ch1, prime);
+ 		ch = ch1
+ 	}
+diff --git a/test/test0.go b/test/test0.go
+index 0a11e1d288..95d225444f 100644
+--- a/test/test0.go
++++ b/test/test0.go
+@@ -55,7 +55,7 @@ func swap(x, y int) (u, v int) {
+ }
+ 
+ func control_structs() {
+-  var p *Point = new(*Point).Initialize(2, 3);
++  var p *Point = new(Point).Initialize(2, 3);
+   i := p.Distance();
+   var f float = 0.3;
+   for {}
+diff --git a/test/utf.go b/test/utf.go
+index 7880b5ab90..5905152b67 100644
+--- a/test/utf.go
++++ b/test/utf.go
+@@ -29,7 +29,7 @@ func main() {
+ 	// encoded as bytes:  'a' 'b' 'c' e6 97 a5 e6 9c ac e8 aa 9e
+ 	const L = 12;
+ 	if L != l { panic("wrong length constructing array") }
+-	a := new(*[L]byte);
++	a := new([L]byte);
+ 	a[0] = 'a';
+ 	a[1] = 'b';
+ 	a[2] = 'c';
+diff --git a/test/vectors.go b/test/vectors.go
+index 921bc28c2b..e5cbde2d53 100644
+--- a/test/vectors.go
++++ b/test/vectors.go
+@@ -31,7 +31,7 @@ func test0() {
+ func test1() {
+ 	var a [1000] *S;
+ 	for i := 0; i < len(a); i++ {
+-		a[i] = new(*S).Init(i);
++		a[i] = new(S).Init(i);
+ 	}
+ 
+ 	v := array.New(0);

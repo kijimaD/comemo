@@ -15,7 +15,108 @@ Date:   Mon Jun 26 19:07:24 2017 +0000
     Change-Id: I0c86d10c557254bf99fdd988227dcb15f968770b
     Reviewed-on: https://go-review.googlesource.com/46716
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 26 +++++++++++------------
  src/net/http/httputil/reverseproxy_test.go | 33 ++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index fd78d45602..0d514f529b 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -114,6 +114,16 @@ func copyHeader(dst, src http.Header) {
+ 	}
+ }
+ 
++func cloneHeader(h http.Header) http.Header {
++	h2 := make(http.Header, len(h))
++	for k, vv := range h {
++		vv2 := make([]string, len(vv))
++		copy(vv2, vv)
++		h2[k] = vv2
++	}
++	return h2
++}
++
+ // Hop-by-hop headers. These are removed when sent to the backend.
+ // http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+ var hopHeaders = []string{
+@@ -154,23 +164,16 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		outreq.Body = nil // Issue 16036: nil Body for http.Transport retries
+ 	}
+ 
++	outreq.Header = cloneHeader(req.Header)
++
+ 	p.Director(outreq)
+ 	outreq.Close = false
+ 
+-	// We are modifying the same underlying map from req (shallow
+-	// copied above) so we only copy it if necessary.
+-	copiedHeaders := false
+-
+ 	// Remove hop-by-hop headers listed in the "Connection" header.
+ 	// See RFC 2616, section 14.10.
+ 	if c := outreq.Header.Get("Connection"); c != "" {
+ 		for _, f := range strings.Split(c, ",") {
+ 			if f = strings.TrimSpace(f); f != "" {
+-				if !copiedHeaders {
+-					outreq.Header = make(http.Header)
+-					copyHeader(outreq.Header, req.Header)
+-					copiedHeaders = true
+-				}
+ 				outreq.Header.Del(f)
+ 			}
+ 		}
+@@ -181,11 +184,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	// connection, regardless of what the client sent to us.
+ 	for _, h := range hopHeaders {
+ 		if outreq.Header.Get(h) != "" {
+-			if !copiedHeaders {
+-				outreq.Header = make(http.Header)
+-				copyHeader(outreq.Header, req.Header)
+-				copiedHeaders = true
+-			}
+ 			outreq.Header.Del(h)
+ 		}
+ 	}
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 57503cc896..37a9992375 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -736,3 +736,36 @@ func TestServeHTTPDeepCopy(t *testing.T) {
+ 		t.Errorf("got = %+v; want = %+v", got, want)
+ 	}
+ }
++
++// Issue 18327: verify we always do a deep copy of the Request.Header map
++// before any mutations.
++func TestClonesRequestHeaders(t *testing.T) {
++	req, _ := http.NewRequest("GET", "http://foo.tld/", nil)
++	req.RemoteAddr = "1.2.3.4:56789"
++	rp := &ReverseProxy{
++		Director: func(req *http.Request) {
++			req.Header.Set("From-Director", "1")
++		},
++		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
++			if v := req.Header.Get("From-Director"); v != "1" {
++				t.Errorf("From-Directory value = %q; want 1", v)
++			}
++			return nil, io.EOF
++		}),
++	}
++	rp.ServeHTTP(httptest.NewRecorder(), req)
++
++	if req.Header.Get("From-Director") == "1" {
++		t.Error("Director header mutation modified caller's request")
++	}
++	if req.Header.Get("X-Forwarded-For") != "" {
++		t.Error("X-Forward-For header mutation modified caller's request")
++	}
++
++}
++
++type roundTripperFunc func(req *http.Request) (*http.Response, error)
++
++func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
++	return fn(req)
++}

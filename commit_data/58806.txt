@@ -16,6 +16,22 @@ Date:   Wed Dec 13 11:38:01 2023 -0800
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  doc/go1.22.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 233f7e1fb0..cd20bb7479 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -621,8 +621,8 @@ defer func() {
+     </p>
+ 
+     <p><!-- CL 467335 -->
+-      The Go DNS Resolver, used when building the binary with "-tags=netgo",
+-      now searches a matching name in the Windows hosts file,
++      The Go DNS Resolver, used when building with "-tags=netgo",
++      now searches for a matching name in the Windows hosts file,
+       located at <code>%SystemRoot%\System32\drivers\etc\hosts</code>,
+       before making a DNS query.
+     </p>

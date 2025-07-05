@@ -14,6 +14,22 @@ Date:   Mon May 1 14:27:36 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbitmap.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 82bfe84267..2a9f1b83e5 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1047,7 +1047,9 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 					endnb += endnb
+ 				}
+ 				// Truncate to a multiple of original ptrmask.
+-				endnb = maxBits / nb * nb
++				// Because nb+nb <= maxBits, nb fits in a byte.
++				// Byte division is cheaper than uintptr division.
++				endnb = uintptr(maxBits/byte(nb)) * nb
+ 				pbits &= 1<<endnb - 1
+ 				b = pbits
+ 				nb = endnb

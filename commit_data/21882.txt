@@ -12,10 +12,192 @@ Date:   Tue Feb 10 17:11:36 2015 -0800
     Change-Id: I27112eaaa1faa0d2ba97e414f0571b70733ea087
     Reviewed-on: https://go-review.googlesource.com/4502
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go | 82 +++++++++++++++++++++++----------------
  src/cmd/asm/internal/lex/input.go |  5 ++-
  src/cmd/dist/build.go             |  2 +-
  src/cmd/dist/buildtool.go         |  7 +++-
  src/cmd/internal/obj/x86/obj6.go  |  1 +
  5 files changed, 60 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 8ba0973d97..c09221e31e 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -235,6 +235,9 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 			break // Nothing can follow.
+ 		}
+ 		p.symbolReference(a, tok.String(), prefix)
++		if p.peek() == '(' {
++			p.registerIndirect(a, prefix)
++		}
+ 	case scanner.Int, scanner.Float, scanner.String, '+', '-', '~', '(':
+ 		if p.have(scanner.Float) {
+ 			if prefix != '$' {
+@@ -276,39 +279,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 			}
+ 			break // Nothing can follow.
+ 		}
+-		p.next()
+-		tok := p.next()
+-		r1, r2, scale, ok := p.register(tok.String(), 0)
+-		if !ok {
+-			p.errorf("indirect through non-register %s", tok)
+-		}
+-		if r2 != 0 {
+-			p.errorf("indirect through register pair")
+-		}
+-		a.Type = obj.TYPE_MEM
+-		if prefix == '$' {
+-			a.Type = obj.TYPE_ADDR
+-		}
+-		a.Reg = r1
+-		if r1 == arch.RPC && prefix != 0 {
+-			p.errorf("illegal addressing mode for PC")
+-		}
+-		a.Scale = scale
+-		p.get(')')
+-		if scale == 0 && p.peek() == '(' {
+-			p.next()
+-			tok := p.next()
+-			r1, r2, scale, ok = p.register(tok.String(), 0)
+-			if !ok {
+-				p.errorf("indirect through non-register %s", tok)
+-			}
+-			if r2 != 0 {
+-				p.errorf("unimplemented two-register form")
+-			}
+-			a.Index = r1
+-			a.Scale = scale
+-			p.get(')')
+-		}
++		p.registerIndirect(a, prefix)
+ 	}
+ 	p.expect(scanner.EOF)
+ 	return true
+@@ -396,6 +367,51 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
+ 	p.get(')')
+ }
+ 
++// registerIndirect parses the general form of a register indirection.
++// It is can be (R1), (R2*scale), or (R1)(R2*scale) where R1 may be a simple
++// register or register pair R:R.
++// The opening parenthesis is known to be present.
++func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
++	p.next()
++	tok := p.next()
++	r1, r2, scale, ok := p.register(tok.String(), 0)
++	if !ok {
++		p.errorf("indirect through non-register %s", tok)
++	}
++	if r2 != 0 {
++		p.errorf("indirect through register pair")
++	}
++	a.Type = obj.TYPE_MEM
++	if prefix == '$' {
++		a.Type = obj.TYPE_ADDR
++	}
++	a.Reg = r1
++	if r1 == arch.RPC && prefix != 0 {
++		p.errorf("illegal addressing mode for PC")
++	}
++	p.get(')')
++	if scale == 0 && p.peek() == '(' {
++		// General form (R)(R*scale).
++		p.next()
++		tok := p.next()
++		r1, r2, scale, ok = p.register(tok.String(), 0)
++		if !ok {
++			p.errorf("indirect through non-register %s", tok)
++		}
++		if r2 != 0 {
++			p.errorf("unimplemented two-register form")
++		}
++		a.Index = r1
++		a.Scale = scale
++		p.get(')')
++	} else if scale != 0 {
++		// First (R) was missing, all we have is (R*scale).
++		a.Reg = 0
++		a.Index = r1
++		a.Scale = scale
++	}
++}
++
+ // Note: There are two changes in the expression handling here
+ // compared to the old yacc/C implemenatations. Neither has
+ // much practical consequence because the expressions we
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 4c8abafc23..8768b4f648 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -93,9 +93,9 @@ func (in *Input) Next() ScanToken {
+ 		in.text = in.peekText
+ 		return tok
+ 	}
+-	// If we cannot generate a token after 100 tries, we're in trouble.
++	// If we cannot generate a token after 100 macro invocations, we're in trouble.
+ 	// The usual case is caught by Push, below, but be safe.
+-	for i := 0; i < 100; i++ {
++	for nesting := 0; nesting < 100; {
+ 		tok := in.Stack.Next()
+ 		switch tok {
+ 		case '#':
+@@ -108,6 +108,7 @@ func (in *Input) Next() ScanToken {
+ 			name := in.Stack.Text()
+ 			macro := in.macros[name]
+ 			if macro != nil {
++				nesting++
+ 				in.invokeMacro(macro)
+ 				continue
+ 			}
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 152655b508..5cfc47ce84 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -629,7 +629,7 @@ func install(dir string) {
+ 	}
+ 
+ 	isgo := true
+-	ispkg := !strings.HasPrefix(dir, "cmd/") || strings.HasPrefix(dir, "cmd/internal/")
++	ispkg := !strings.HasPrefix(dir, "cmd/") || strings.HasPrefix(dir, "cmd/internal/") || strings.HasPrefix(dir, "cmd/asm/internal/")
+ 	islib := false
+ 
+ 	// Legacy C exceptions.
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 6cfe4c78b5..5b2db27143 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -29,6 +29,11 @@ var bootstrapDirs = []string{
+ 	"internal/obj/i386",
+ 	"internal/obj/ppc64",
+ 	"internal/obj/x86",
++	"asm",
++	"asm/internal/arch",
++	"asm/internal/asm",
++	"asm/internal/flags",
++	"asm/internal/lex",
+ 	"new5a",
+ 	"new6a",
+ 	"new8a",
+@@ -119,7 +124,7 @@ func bootstrapFixImports(text, srcFile string) string {
+ 		}
+ 		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
+ 			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
+-			lines[i] = strings.Replace(line, `"cmd/internal/`, `"bootstrap/internal/`, -1)
++			lines[i] = strings.Replace(line, `"cmd/`, `"bootstrap/`, -1)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index b3991e4a27..82960d746f 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1063,6 +1063,7 @@ loop:
+ 		q.To.Type = obj.TYPE_BRANCH
+ 		q.To.Offset = p.Pc
+ 		q.Pcond = p
++		q.Ctxt = p.Ctxt
+ 		p = q
+ 	}
+ 

@@ -11,9 +11,118 @@ Date:   Wed Oct 5 15:01:15 2016 -0700
     Change-Id: Iccc882b4bc7f8b61b6092f330e405c146a80dc98
     Reviewed-on: https://go-review.googlesource.com/30472
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/math/big/floatconv.go    |  5 ++++-
  src/math/big/int.go          | 10 +++++-----
  src/math/big/ratconv.go      | 13 +++++++++----
  src/math/big/ratconv_test.go |  5 +++++
  4 files changed, 23 insertions(+), 10 deletions(-)
+
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index a884df6fe1..4ba03bc105 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -14,7 +14,9 @@ import (
+ 
+ // SetString sets z to the value of s and returns z and a boolean indicating
+ // success. s must be a floating-point number of the same format as accepted
+-// by Parse, with base argument 0.
++// by Parse, with base argument 0. The entire string (not just a prefix) must
++// be valid for success. If the operation failed, the value of z is undefined
++// but the returned value is nil.
+ func (z *Float) SetString(s string) (*Float, bool) {
+ 	if f, _, err := z.Parse(s, 0); err == nil {
+ 		return f, true
+@@ -212,6 +214,7 @@ func (z *Float) pow5(n uint64) *Float {
+ //
+ // It sets z to the (possibly rounded) value of the corresponding floating-
+ // point value, and returns z, the actual base b, and an error err, if any.
++// The entire string (not just a prefix) must be consumed for success.
+ // If z's precision is 0, it is changed to 64 before rounding takes effect.
+ // The number must be of the form:
+ //
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 6c08843861..e8bd13f5b3 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -361,7 +361,8 @@ func (x *Int) Uint64() uint64 {
+ }
+ 
+ // SetString sets z to the value of s, interpreted in the given base,
+-// and returns z and a boolean indicating success. If SetString fails,
++// and returns z and a boolean indicating success. The entire string
++// (not just a prefix) must be valid for success. If SetString fails,
+ // the value of z is undefined but the returned value is nil.
+ //
+ // The base argument must be 0 or a value between 2 and MaxBase. If the base
+@@ -371,12 +372,11 @@ func (x *Int) Uint64() uint64 {
+ //
+ func (z *Int) SetString(s string, base int) (*Int, bool) {
+ 	r := strings.NewReader(s)
+-	_, _, err := z.scan(r, base)
+-	if err != nil {
++	if _, _, err := z.scan(r, base); err != nil {
+ 		return nil, false
+ 	}
+-	_, err = r.ReadByte()
+-	if err != io.EOF {
++	// entire string must have been consumed
++	if _, err := r.ReadByte(); err != io.EOF {
+ 		return nil, false
+ 	}
+ 	return z, true // err == io.EOF => scan consumed all of s
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index ef2b6750d0..8a43f8bf64 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -36,8 +36,9 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
+ 
+ // SetString sets z to the value of s and returns z and a boolean indicating
+ // success. s can be given as a fraction "a/b" or as a floating-point number
+-// optionally followed by an exponent. If the operation failed, the value of
+-// z is undefined but the returned value is nil.
++// optionally followed by an exponent. The entire string (not just a prefix)
++// must be valid for success. If the operation failed, the value of z is un-
++// defined but the returned value is nil.
+ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	if len(s) == 0 {
+ 		return nil, false
+@@ -49,9 +50,13 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 		if _, ok := z.a.SetString(s[:sep], 0); !ok {
+ 			return nil, false
+ 		}
+-		s = s[sep+1:]
++		r := strings.NewReader(s[sep+1:])
+ 		var err error
+-		if z.b.abs, _, _, err = z.b.abs.scan(strings.NewReader(s), 0, false); err != nil {
++		if z.b.abs, _, _, err = z.b.abs.scan(r, 0, false); err != nil {
++			return nil, false
++		}
++		// entire string must have been consumed
++		if _, err = r.ReadByte(); err != io.EOF {
+ 			return nil, false
+ 		}
+ 		if len(z.b.abs) == 0 {
+diff --git a/src/math/big/ratconv_test.go b/src/math/big/ratconv_test.go
+index 35ad6ccea7..3a191a6f53 100644
+--- a/src/math/big/ratconv_test.go
++++ b/src/math/big/ratconv_test.go
+@@ -50,6 +50,10 @@ var setStringTests = []StringTest{
+ 	{"204211327800791583.81095", "4084226556015831676219/20000", true},
+ 	{"0e9999999999", "0", true}, // issue #16176
+ 	{in: "1/0"},
++	{in: "4/3/2"}, // issue 17001
++	{in: "4/3/"},
++	{in: "4/3."},
++	{in: "4/"},
+ }
+ 
+ // These are not supported by fmt.Fscanf.
+@@ -59,6 +63,7 @@ var setStringTests2 = []StringTest{
+ 	{"-010.", "-10", true},
+ 	{"0x10/0x20", "1/2", true},
+ 	{"0b1000/3", "8/3", true},
++	{in: "4/3x"},
+ 	// TODO(gri) add more tests
+ }
+ 

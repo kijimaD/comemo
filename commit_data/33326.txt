@@ -12,7 +12,55 @@ Date:   Sun Aug 13 19:49:27 2017 -0600
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/time/format.go   | 2 +-
  src/time/zoneinfo.go | 8 ++++----
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index b0f8806984..c960df0197 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1071,7 +1071,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+ 		// Look for local zone with the given offset.
+ 		// If that zone was in effect at the given time, use it.
+-		offset, _, ok := local.lookupName(zoneName, t.unixSec())
++		offset, ok := local.lookupName(zoneName, t.unixSec())
+ 		if ok {
+ 			t.addSec(-int64(offset))
+ 			t.setLoc(local)
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index f4d4df95d3..09687fd0ad 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -223,7 +223,7 @@ func (l *Location) firstZoneUsed() bool {
+ // lookupName returns information about the time zone with
+ // the given name (such as "EST") at the given pseudo-Unix time
+ // (what the given time of day would be in UTC).
+-func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool, ok bool) {
++func (l *Location) lookupName(name string, unix int64) (offset int, ok bool) {
+ 	l = l.get()
+ 
+ 	// First try for a zone with the right name that was actually
+@@ -235,9 +235,9 @@ func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool,
+ 	for i := range l.zone {
+ 		zone := &l.zone[i]
+ 		if zone.name == name {
+-			nam, offset, isDST, _, _ := l.lookup(unix - int64(zone.offset))
++			nam, offset, _, _, _ := l.lookup(unix - int64(zone.offset))
+ 			if nam == zone.name {
+-				return offset, isDST, true
++				return offset, true
+ 			}
+ 		}
+ 	}
+@@ -246,7 +246,7 @@ func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool,
+ 	for i := range l.zone {
+ 		zone := &l.zone[i]
+ 		if zone.name == name {
+-			return zone.offset, zone.isDST, true
++			return zone.offset, true
+ 		}
+ 	}
+ 

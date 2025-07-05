@@ -19,7 +19,98 @@ Date:   Mon Feb 15 15:55:28 2021 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/client.go      |  9 +++++++--
  src/net/http/client_test.go | 30 +++++++++++++++++++-----------
  2 files changed, 26 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 2f7d4f696b..1e300acf89 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -144,7 +144,8 @@ type RoundTripper interface {
+ 
+ // refererForURL returns a referer without any authentication info or
+ // an empty string if lastReq scheme is https and newReq scheme is http.
+-func refererForURL(lastReq, newReq *url.URL) string {
++// If the referer was explicitly set, then it will continue to be used.
++func refererForURL(lastReq, newReq *url.URL, explicitRef string) string {
+ 	// https://tools.ietf.org/html/rfc7231#section-5.5.2
+ 	//   "Clients SHOULD NOT include a Referer header field in a
+ 	//    (non-secure) HTTP request if the referring page was
+@@ -152,6 +153,10 @@ func refererForURL(lastReq, newReq *url.URL) string {
+ 	if lastReq.Scheme == "https" && newReq.Scheme == "http" {
+ 		return ""
+ 	}
++	if explicitRef != "" {
++		return explicitRef
++	}
++
+ 	referer := lastReq.String()
+ 	if lastReq.User != nil {
+ 		// This is not very efficient, but is the best we can
+@@ -676,7 +681,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
+ 
+ 			// Add the Referer header from the most recent
+ 			// request URL to the new one, if it's not https->http:
+-			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL); ref != "" {
++			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL, req.Header.Get("Referer")); ref != "" {
+ 				req.Header.Set("Referer", ref)
+ 			}
+ 			err = c.checkRedirect(req, reqs)
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index bb1ed6f10c..b8c914bfd0 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1411,24 +1411,32 @@ func (f eofReaderFunc) Read(p []byte) (n int, err error) {
+ 
+ func TestReferer(t *testing.T) {
+ 	tests := []struct {
+-		lastReq, newReq string // from -> to URLs
+-		want            string
++		lastReq, newReq, explicitRef string // from -> to URLs, explicitly set Referer value
++		want                         string
+ 	}{
+ 		// don't send user:
+-		{"http://gopher@test.com", "http://link.com", "http://test.com"},
+-		{"https://gopher@test.com", "https://link.com", "https://test.com"},
++		{lastReq: "http://gopher@test.com", newReq: "http://link.com", want: "http://test.com"},
++		{lastReq: "https://gopher@test.com", newReq: "https://link.com", want: "https://test.com"},
+ 
+ 		// don't send a user and password:
+-		{"http://gopher:go@test.com", "http://link.com", "http://test.com"},
+-		{"https://gopher:go@test.com", "https://link.com", "https://test.com"},
++		{lastReq: "http://gopher:go@test.com", newReq: "http://link.com", want: "http://test.com"},
++		{lastReq: "https://gopher:go@test.com", newReq: "https://link.com", want: "https://test.com"},
+ 
+ 		// nothing to do:
+-		{"http://test.com", "http://link.com", "http://test.com"},
+-		{"https://test.com", "https://link.com", "https://test.com"},
++		{lastReq: "http://test.com", newReq: "http://link.com", want: "http://test.com"},
++		{lastReq: "https://test.com", newReq: "https://link.com", want: "https://test.com"},
+ 
+ 		// https to http doesn't send a referer:
+-		{"https://test.com", "http://link.com", ""},
+-		{"https://gopher:go@test.com", "http://link.com", ""},
++		{lastReq: "https://test.com", newReq: "http://link.com", want: ""},
++		{lastReq: "https://gopher:go@test.com", newReq: "http://link.com", want: ""},
++
++		// https to http should remove an existing referer:
++		{lastReq: "https://test.com", newReq: "http://link.com", explicitRef: "https://foo.com", want: ""},
++		{lastReq: "https://gopher:go@test.com", newReq: "http://link.com", explicitRef: "https://foo.com", want: ""},
++
++		// don't override an existing referer:
++		{lastReq: "https://test.com", newReq: "https://link.com", explicitRef: "https://foo.com", want: "https://foo.com"},
++		{lastReq: "https://gopher:go@test.com", newReq: "https://link.com", explicitRef: "https://foo.com", want: "https://foo.com"},
+ 	}
+ 	for _, tt := range tests {
+ 		l, err := url.Parse(tt.lastReq)
+@@ -1439,7 +1447,7 @@ func TestReferer(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		r := ExportRefererForURL(l, n)
++		r := ExportRefererForURL(l, n, tt.explicitRef)
+ 		if r != tt.want {
+ 			t.Errorf("refererForURL(%q, %q) = %q; want %q", tt.lastReq, tt.newReq, r, tt.want)
+ 		}

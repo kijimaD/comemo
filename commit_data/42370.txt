@@ -17,10 +17,203 @@ Date:   Fri Dec 6 14:48:26 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go             | 27 +++++++++---
  src/cmd/go/testdata/script/mod_bad_domain.txt     |  8 +++-
  src/cmd/go/testdata/script/mod_build_info_err.txt |  4 +-
  src/cmd/go/testdata/script/mod_goroot_errors.txt  | 53 +++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_tidy_error.txt     |  4 +-
  5 files changed, 84 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index dc0fc3c4d0..1899abbd8f 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -20,7 +20,6 @@ import (
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+@@ -40,7 +39,7 @@ var _ load.ImportPathError = (*ImportMissingError)(nil)
+ 
+ func (e *ImportMissingError) Error() string {
+ 	if e.Module.Path == "" {
+-		if str.HasPathPrefix(e.Path, "cmd") {
++		if search.IsStandardImportPath(e.Path) {
+ 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+ 		}
+ 		if i := load.ImportPathError(nil); errors.As(e.QueryErr, &i) {
+@@ -121,8 +120,8 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 	}
+ 
+ 	// Is the package in the standard library?
+-	if search.IsStandardImportPath(path) &&
+-		goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
++	pathIsStd := search.IsStandardImportPath(path)
++	if pathIsStd && goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+ 		if targetInGorootSrc {
+ 			if dir, ok := dirInModule(path, targetPrefix, ModRoot(), true); ok {
+ 				return Target, dir, nil
+@@ -131,9 +130,6 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		dir := filepath.Join(cfg.GOROOT, "src", path)
+ 		return module.Version{}, dir, nil
+ 	}
+-	if str.HasPathPrefix(path, "cmd") {
+-		return module.Version{}, "", &ImportMissingError{Path: path}
+-	}
+ 
+ 	// -mod=vendor is special.
+ 	// Everything must be in the main module or the main module's vendor directory.
+@@ -187,6 +183,12 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 	// Look up module containing the package, for addition to the build list.
+ 	// Goal is to determine the module, download it to dir, and return m, dir, ErrMissing.
+ 	if cfg.BuildMod == "readonly" {
++		if pathIsStd {
++			// 'import lookup disabled' would be confusing for standard-library paths,
++			// since the user probably isn't expecting us to look up a module for
++			// those anyway.
++			return module.Version{}, "", &ImportMissingError{Path: path}
++		}
+ 		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+ 	}
+ 	if modRoot == "" && !allowMissingModuleImports {
+@@ -253,6 +255,17 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		}
+ 	}
+ 
++	if pathIsStd {
++		// This package isn't in the standard library, isn't in any module already
++		// in the build list, and isn't in any other module that the user has
++		// shimmed in via a "replace" directive.
++		// Moreover, the import path is reserved for the standard library, so
++		// QueryPackage cannot possibly find a module containing this package.
++		//
++		// Instead of trying QueryPackage, report an ImportMissingError immediately.
++		return module.Version{}, "", &ImportMissingError{Path: path}
++	}
++
+ 	candidates, err := QueryPackage(path, "latest", Allowed)
+ 	if err != nil {
+ 		if errors.Is(err, os.ErrNotExist) {
+diff --git a/src/cmd/go/testdata/script/mod_bad_domain.txt b/src/cmd/go/testdata/script/mod_bad_domain.txt
+index c9fd044cdc..ec0d474382 100644
+--- a/src/cmd/go/testdata/script/mod_bad_domain.txt
++++ b/src/cmd/go/testdata/script/mod_bad_domain.txt
+@@ -2,10 +2,16 @@ env GO111MODULE=on
+ 
+ # explicit get should report errors about bad names
+ ! go get appengine
+-stderr 'malformed module path "appengine": missing dot in first path element'
++stderr '^go get appengine: package appengine is not in GOROOT \(.*\)$'
+ ! go get x/y.z
+ stderr 'malformed module path "x/y.z": missing dot in first path element'
+ 
++# 'go list -m' should report errors about module names, never GOROOT.
++! go list -m -versions appengine
++stderr 'malformed module path "appengine": missing dot in first path element'
++! go list -m -versions x/y.z
++stderr 'malformed module path "x/y.z": missing dot in first path element'
++
+ # build should report all unsatisfied imports,
+ # but should be more definitive about non-module import paths
+ ! go build ./useappengine
+diff --git a/src/cmd/go/testdata/script/mod_build_info_err.txt b/src/cmd/go/testdata/script/mod_build_info_err.txt
+index 5ceb154a48..87a099b219 100644
+--- a/src/cmd/go/testdata/script/mod_build_info_err.txt
++++ b/src/cmd/go/testdata/script/mod_build_info_err.txt
+@@ -2,7 +2,7 @@
+ # Verifies golang.org/issue/34393.
+ 
+ go list -e -deps -f '{{with .Error}}{{.Pos}}: {{.Err}}{{end}}' ./main
+-stdout 'bad[/\\]bad.go:3:8: malformed module path "string": missing dot in first path element'
++stdout 'bad[/\\]bad.go:3:8: malformed module path "🐧.example.com/string": invalid char ''🐧'''
+ 
+ -- go.mod --
+ module m
+@@ -19,4 +19,4 @@ func main() {}
+ -- bad/bad.go --
+ package bad
+ 
+-import _ "string"
++import _ "🐧.example.com/string"
+diff --git a/src/cmd/go/testdata/script/mod_goroot_errors.txt b/src/cmd/go/testdata/script/mod_goroot_errors.txt
+new file mode 100644
+index 0000000000..255844408a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_goroot_errors.txt
+@@ -0,0 +1,53 @@
++env GO111MODULE=on
++
++# Regression test for https://golang.org/issue/34769.
++# Missing standard-library imports should refer to GOROOT rather than
++# complaining about a malformed module path.
++# This is especially important when GOROOT is set incorrectly,
++# since such an error will occur for every package in std.
++
++# Building a nonexistent std package directly should fail usefully.
++
++! go build -mod=readonly nonexist
++! stderr 'import lookup disabled'
++! stderr 'missing dot'
++stderr '^can''t load package: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++
++! go build nonexist
++! stderr 'import lookup disabled'
++! stderr 'missing dot'
++stderr '^can''t load package: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++
++# Building a nonexistent std package indirectly should also fail usefully.
++
++! go build -mod=readonly ./importnonexist
++! stderr 'import lookup disabled'
++! stderr 'missing dot'
++stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++
++! go build ./importnonexist
++! stderr 'import lookup disabled'
++! stderr 'missing dot'
++stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++
++# Building an *actual* std package should fail if GOROOT is set to something bogus.
++
++[!short] go build ./importjson  # Prove that it works when GOROOT is valid.
++
++env GOROOT=$WORK/not-a-valid-goroot
++! go build ./importjson
++! stderr 'import lookup disabled'
++! stderr 'missing dot'
++stderr 'importjson[/\\]x.go:2:8: package encoding/json is not in GOROOT \('$WORK'[/\\]not-a-valid-goroot[/\\]src[/\\]encoding[/\\]json\)$'
++
++-- go.mod --
++module example.com
++go 1.14
++-- importnonexist/x.go --
++package importnonexist
++import _ "nonexist"
++-- importjson/x.go --
++package importjson
++import _ "encoding/json"
++-- $WORK/not-a-valid-goroot/README --
++This directory is not a valid GOROOT.
+diff --git a/src/cmd/go/testdata/script/mod_tidy_error.txt b/src/cmd/go/testdata/script/mod_tidy_error.txt
+index 9bb8528cb0..b6c24ceaf7 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_error.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_error.txt
+@@ -4,12 +4,12 @@ env GO111MODULE=on
+ # 'go mod tidy' and 'go mod vendor' should not hide loading errors.
+ 
+ ! go mod tidy
+-stderr '^issue27063 imports\n\tnonexist: malformed module path "nonexist": missing dot in first path element'
++stderr '^issue27063 imports\n\tnonexist: package nonexist is not in GOROOT \(.*\)'
+ stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
+ stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
+ 
+ ! go mod vendor
+-stderr '^issue27063 imports\n\tnonexist: malformed module path "nonexist": missing dot in first path element'
++stderr '^issue27063 imports\n\tnonexist: package nonexist is not in GOROOT \(.*\)'
+ stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
+ stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
+ 

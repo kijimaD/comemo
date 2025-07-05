@@ -14,8 +14,80 @@ Date:   Fri Jan 3 17:03:42 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213220
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go                                    | 16 ----------------
  .../go/testdata/{flag_test.go => script/test_flag.txt}   |  6 ++++++
  src/cmd/go/testdata/script/test_minus_n.txt              | 14 ++++++++++++++
  3 files changed, 20 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 77917b84b6..0d657b2ef8 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2602,14 +2602,6 @@ func TestGoTestMainTwice(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGoTestFlagsAfterPackage(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "testdata/flag_test.go", "-v", "-args", "-v=7") // Two distinct -v flags.
+-	tg.run("test", "-v", "testdata/flag_test.go", "-args", "-v=7") // Two distinct -v flags.
+-}
+-
+ func TestGoTestXtestonlyWorks(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -4767,14 +4759,6 @@ func TestInstallDeps(t *testing.T) {
+ 	tg.mustExist(p1)
+ }
+ 
+-func TestGoTestMinusN(t *testing.T) {
+-	// Intent here is to verify that 'go test -n' works without crashing.
+-	// This reuses flag_test.go, but really any test would do.
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "testdata/flag_test.go", "-n", "-args", "-v=7")
+-}
+-
+ func TestGoTestJSON(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo does not have standard packages")
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/flag_test.go b/src/cmd/go/testdata/script/test_flag.txt
+similarity index 58%
+rename from src/cmd/go/testdata/flag_test.go
+rename to src/cmd/go/testdata/script/test_flag.txt
+index ddf613d870..bbcad1c59c 100644
+--- a/src/cmd/go/testdata/flag_test.go
++++ b/src/cmd/go/testdata/script/test_flag.txt
+@@ -1,3 +1,9 @@
++[short] skip
++
++go test flag_test.go -v -args -v=7 # Two distinct -v flags
++go test -v flag_test.go -args -v=7 # Two distinct -v flags
++
++-- flag_test.go --
+ package flag_test
+ 
+ import (
+diff --git a/src/cmd/go/testdata/script/test_minus_n.txt b/src/cmd/go/testdata/script/test_minus_n.txt
+new file mode 100644
+index 0000000000..9900dbca0b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_minus_n.txt
+@@ -0,0 +1,14 @@
++# The intent here is to verify that 'go test -n' works without crashing.
++# Any test will do.
++
++go test -n x_test.go
++
++-- x_test.go --
++package x_test
++
++import (
++	"testing"
++)
++
++func TestEmpty(t *testing.T) {
++}

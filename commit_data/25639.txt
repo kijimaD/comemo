@@ -12,7 +12,7 @@ Date:   Thu Nov 12 13:27:40 2015 -0800
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/internal/sys/arch_386.go      | 1 -
  src/runtime/internal/sys/arch_amd64.go    | 1 -
  src/runtime/internal/sys/arch_amd64p32.go | 1 -
@@ -23,3 +23,85 @@ Date:   Thu Nov 12 13:27:40 2015 -0800
  src/runtime/internal/sys/arch_ppc64.go    | 1 -
  src/runtime/internal/sys/arch_ppc64le.go  | 1 -
  9 files changed, 9 deletions(-)
+
+diff --git a/src/runtime/internal/sys/arch_386.go b/src/runtime/internal/sys/arch_386.go
+index 15c8e840eb..1f1c704f9a 100644
+--- a/src/runtime/internal/sys/arch_386.go
++++ b/src/runtime/internal/sys/arch_386.go
+@@ -16,4 +16,3 @@ const (
+ )
+ 
+ type Uintreg uint32
+-type Intptr int32 // TODO(rsc): remove
+diff --git a/src/runtime/internal/sys/arch_amd64.go b/src/runtime/internal/sys/arch_amd64.go
+index bc9002cc71..80fff557f2 100644
+--- a/src/runtime/internal/sys/arch_amd64.go
++++ b/src/runtime/internal/sys/arch_amd64.go
+@@ -16,4 +16,3 @@ const (
+ )
+ 
+ type Uintreg uint64
+-type Intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/internal/sys/arch_amd64p32.go b/src/runtime/internal/sys/arch_amd64p32.go
+index d7c185f168..ca29f698a2 100644
+--- a/src/runtime/internal/sys/arch_amd64p32.go
++++ b/src/runtime/internal/sys/arch_amd64p32.go
+@@ -16,4 +16,3 @@ const (
+ )
+ 
+ type Uintreg uint64
+-type Intptr int32 // TODO(rsc): remove
+diff --git a/src/runtime/internal/sys/arch_arm.go b/src/runtime/internal/sys/arch_arm.go
+index d395ac5fa8..b185e8fb69 100644
+--- a/src/runtime/internal/sys/arch_arm.go
++++ b/src/runtime/internal/sys/arch_arm.go
+@@ -16,4 +16,3 @@ const (
+ )
+ 
+ type Uintreg uint32
+-type Intptr int32 // TODO(rsc): remove
+diff --git a/src/runtime/internal/sys/arch_arm64.go b/src/runtime/internal/sys/arch_arm64.go
+index bd7e41d97e..b63a7a6f9a 100644
+--- a/src/runtime/internal/sys/arch_arm64.go
++++ b/src/runtime/internal/sys/arch_arm64.go
+@@ -16,4 +16,3 @@ const (
+ )
+ 
+ type Uintreg uint64
+-type Intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/internal/sys/arch_mips64.go b/src/runtime/internal/sys/arch_mips64.go
+index 6fa0f5ee74..5b933d4e1a 100644
+--- a/src/runtime/internal/sys/arch_mips64.go
++++ b/src/runtime/internal/sys/arch_mips64.go
+@@ -16,4 +16,3 @@ const (
+ )
+ 
+ type Uintreg uint64
+-type Intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/internal/sys/arch_mips64le.go b/src/runtime/internal/sys/arch_mips64le.go
+index 92b35ad65b..ce2e98b19f 100644
+--- a/src/runtime/internal/sys/arch_mips64le.go
++++ b/src/runtime/internal/sys/arch_mips64le.go
+@@ -16,4 +16,3 @@ const (
+ )
+ 
+ type Uintreg uint64
+-type Intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/internal/sys/arch_ppc64.go b/src/runtime/internal/sys/arch_ppc64.go
+index 9b13415dfc..fca31c28d0 100644
+--- a/src/runtime/internal/sys/arch_ppc64.go
++++ b/src/runtime/internal/sys/arch_ppc64.go
+@@ -16,4 +16,3 @@ const (
+ )
+ 
+ type Uintreg uint64
+-type Intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/internal/sys/arch_ppc64le.go b/src/runtime/internal/sys/arch_ppc64le.go
+index db9b2aa32b..586a954a0c 100644
+--- a/src/runtime/internal/sys/arch_ppc64le.go
++++ b/src/runtime/internal/sys/arch_ppc64le.go
+@@ -16,4 +16,3 @@ const (
+ )
+ 
+ type Uintreg uint64
+-type Intptr int64 // TODO(rsc): remove

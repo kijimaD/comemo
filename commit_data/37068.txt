@@ -11,7 +11,7 @@ Date:   Mon Jun 25 12:30:31 2018 +0200
     Change-Id: If2ed48ca3ba8874074687bfb2375d2f5592e8e0d
     Reviewed-on: https://go-review.googlesource.com/120564
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rand/rand_js.go   |  2 +-
  src/net/http/roundtrip_js.go | 18 +++++++++---------
  src/syscall/fs_js.go         |  4 ++--
@@ -19,3 +19,295 @@ Date:   Mon Jun 25 12:30:31 2018 +0200
  src/syscall/js/js.go         | 34 ++++++++++++++++++++--------------
  src/syscall/js/js_test.go    | 26 +++++++++++++-------------
  6 files changed, 50 insertions(+), 44 deletions(-)
+
+diff --git a/src/crypto/rand/rand_js.go b/src/crypto/rand/rand_js.go
+index bc54ccd37d..89247693a7 100644
+--- a/src/crypto/rand/rand_js.go
++++ b/src/crypto/rand/rand_js.go
+@@ -12,7 +12,7 @@ func init() {
+ 	Reader = &reader{}
+ }
+ 
+-var jsCrypto = js.Global.Get("crypto")
++var jsCrypto = js.Global().Get("crypto")
+ 
+ // reader implements a pseudorandom generator
+ // using JavaScript crypto.getRandomValues method.
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index e99d418da4..c183f87fff 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -22,28 +22,28 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 	if useFakeNetwork() {
+ 		return t.roundTrip(req)
+ 	}
+-	headers := js.Global.Get("Headers").New()
++	headers := js.Global().Get("Headers").New()
+ 	for key, values := range req.Header {
+ 		for _, value := range values {
+ 			headers.Call("append", key, value)
+ 		}
+ 	}
+ 
+-	ac := js.Global.Get("AbortController")
+-	if ac != js.Undefined {
++	ac := js.Global().Get("AbortController")
++	if ac != js.Undefined() {
+ 		// Some browsers that support WASM don't necessarily support
+ 		// the AbortController. See
+ 		// https://developer.mozilla.org/en-US/docs/Web/API/AbortController#Browser_compatibility.
+ 		ac = ac.New()
+ 	}
+ 
+-	opt := js.Global.Get("Object").New()
++	opt := js.Global().Get("Object").New()
+ 	// See https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch
+ 	// for options available.
+ 	opt.Set("headers", headers)
+ 	opt.Set("method", req.Method)
+ 	opt.Set("credentials", "same-origin")
+-	if ac != js.Undefined {
++	if ac != js.Undefined() {
+ 		opt.Set("signal", ac.Get("signal"))
+ 	}
+ 
+@@ -62,7 +62,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		req.Body.Close()
+ 		opt.Set("body", body)
+ 	}
+-	respPromise := js.Global.Call("fetch", req.URL.String(), opt)
++	respPromise := js.Global().Call("fetch", req.URL.String(), opt)
+ 	var (
+ 		respCh = make(chan *Response, 1)
+ 		errCh  = make(chan error, 1)
+@@ -90,7 +90,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 
+ 		b := result.Get("body")
+ 		var body io.ReadCloser
+-		if b != js.Undefined {
++		if b != js.Undefined() {
+ 			body = &streamReader{stream: b.Call("getReader")}
+ 		} else {
+ 			// Fall back to using ArrayBuffer
+@@ -122,7 +122,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 	respPromise.Call("then", success, failure)
+ 	select {
+ 	case <-req.Context().Done():
+-		if ac != js.Undefined {
++		if ac != js.Undefined() {
+ 			// Abort the Fetch request
+ 			ac.Call("abort")
+ 		}
+@@ -225,7 +225,7 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
+ 		)
+ 		success := js.NewCallback(func(args []js.Value) {
+ 			// Wrap the input ArrayBuffer with a Uint8Array
+-			uint8arrayWrapper := js.Global.Get("Uint8Array").New(args[0])
++			uint8arrayWrapper := js.Global().Get("Uint8Array").New(args[0])
+ 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
+ 			js.ValueOf(value).Call("set", uint8arrayWrapper)
+ 			bCh <- value
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index 141d46803c..64b7b8a1ad 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -15,8 +15,8 @@ import (
+ // Provided by package runtime.
+ func now() (sec int64, nsec int32)
+ 
+-var jsProcess = js.Global.Get("process")
+-var jsFS = js.Global.Get("fs")
++var jsProcess = js.Global().Get("process")
++var jsFS = js.Global().Get("fs")
+ var constants = jsFS.Get("constants")
+ 
+ var (
+diff --git a/src/syscall/js/callback.go b/src/syscall/js/callback.go
+index 2c693240fa..cfcce693cb 100644
+--- a/src/syscall/js/callback.go
++++ b/src/syscall/js/callback.go
+@@ -8,9 +8,9 @@ package js
+ 
+ import "sync"
+ 
+-var pendingCallbacks = Global.Get("Array").New()
++var pendingCallbacks = Global().Get("Array").New()
+ 
+-var makeCallbackHelper = Global.Call("eval", `
++var makeCallbackHelper = Global().Call("eval", `
+ 	(function(id, pendingCallbacks, resolveCallbackPromise) {
+ 		return function() {
+ 			pendingCallbacks.push({ id: id, args: arguments });
+@@ -19,7 +19,7 @@ var makeCallbackHelper = Global.Call("eval", `
+ 	})
+ `)
+ 
+-var makeEventCallbackHelper = Global.Call("eval", `
++var makeEventCallbackHelper = Global().Call("eval", `
+ 	(function(preventDefault, stopPropagation, stopImmediatePropagation, fn) {
+ 		return function(event) {
+ 			if (preventDefault) {
+@@ -118,7 +118,7 @@ func callbackLoop() {
+ 		sleepUntilCallback()
+ 		for {
+ 			cb := pendingCallbacks.Call("shift")
+-			if cb == Undefined {
++			if cb == Undefined() {
+ 				break
+ 			}
+ 
+@@ -127,7 +127,7 @@ func callbackLoop() {
+ 			f, ok := callbacks[id]
+ 			callbacksMu.Unlock()
+ 			if !ok {
+-				Global.Get("console").Call("error", "call to closed callback")
++				Global().Get("console").Call("error", "call to closed callback")
+ 				continue
+ 			}
+ 
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index cbd0730c64..93c3965246 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -39,23 +39,29 @@ func (e Error) Error() string {
+ }
+ 
+ var (
+-	// Undefined is the JavaScript value "undefined". The zero Value equals to Undefined.
+-	Undefined = makeValue(0)
+-
+-	// Null is the JavaScript value "null".
+-	Null = makeValue(1)
++	valueUndefined         = makeValue(0)
++	valueNull              = makeValue(1)
++	valueGlobal            = makeValue(2)
++	memory                 = makeValue(3) // WebAssembly linear memory
++	resolveCallbackPromise = makeValue(4) // function that the callback helper uses to resume the execution of Go's WebAssembly code
++)
+ 
+-	// Global is the JavaScript global object, usually "window" or "global".
+-	Global = makeValue(2)
++// Undefined returns the JavaScript value "undefined".
++func Undefined() Value {
++	return valueUndefined
++}
+ 
+-	// memory is the WebAssembly linear memory.
+-	memory = makeValue(3)
++// Null returns the JavaScript value "null".
++func Null() Value {
++	return valueNull
++}
+ 
+-	// resolveCallbackPromise is a function that the callback helper uses to resume the execution of Go's WebAssembly code.
+-	resolveCallbackPromise = makeValue(4)
+-)
++// Global returns the JavaScript global object, usually "window" or "global".
++func Global() Value {
++	return valueGlobal
++}
+ 
+-var uint8Array = Global.Get("Uint8Array")
++var uint8Array = valueGlobal.Get("Uint8Array")
+ 
+ // ValueOf returns x as a JavaScript value.
+ func ValueOf(x interface{}) Value {
+@@ -65,7 +71,7 @@ func ValueOf(x interface{}) Value {
+ 	case Callback:
+ 		return x.enqueueFn
+ 	case nil:
+-		return Null
++		return valueNull
+ 	case bool:
+ 		return makeValue(boolVal(x))
+ 	case int:
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 53d21a3f4f..e5e950f3a3 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"testing"
+ )
+ 
+-var dummys = js.Global.Call("eval", `({
++var dummys = js.Global().Call("eval", `({
+ 	someBool: true,
+ 	someString: "abc\u1234",
+ 	someInt: 42,
+@@ -90,16 +90,16 @@ func TestFloat(t *testing.T) {
+ }
+ 
+ func TestUndefined(t *testing.T) {
+-	dummys.Set("test", js.Undefined)
+-	if dummys == js.Undefined || dummys.Get("test") != js.Undefined || dummys.Get("xyz") != js.Undefined {
++	dummys.Set("test", js.Undefined())
++	if dummys == js.Undefined() || dummys.Get("test") != js.Undefined() || dummys.Get("xyz") != js.Undefined() {
+ 		t.Errorf("js.Undefined expected")
+ 	}
+ }
+ 
+ func TestNull(t *testing.T) {
+ 	dummys.Set("test1", nil)
+-	dummys.Set("test2", js.Null)
+-	if dummys == js.Null || dummys.Get("test1") != js.Null || dummys.Get("test2") != js.Null {
++	dummys.Set("test2", js.Null())
++	if dummys == js.Null() || dummys.Get("test1") != js.Null() || dummys.Get("test2") != js.Null() {
+ 		t.Errorf("js.Null expected")
+ 	}
+ }
+@@ -128,7 +128,7 @@ func TestCall(t *testing.T) {
+ 	if got := dummys.Call("add", i, 2).Int(); got != 42 {
+ 		t.Errorf("got %#v, want %#v", got, 42)
+ 	}
+-	if got := dummys.Call("add", js.Global.Call("eval", "40"), 2).Int(); got != 42 {
++	if got := dummys.Call("add", js.Global().Call("eval", "40"), 2).Int(); got != 42 {
+ 		t.Errorf("got %#v, want %#v", got, 42)
+ 	}
+ }
+@@ -141,17 +141,17 @@ func TestInvoke(t *testing.T) {
+ }
+ 
+ func TestNew(t *testing.T) {
+-	if got := js.Global.Get("Array").New(42).Length(); got != 42 {
++	if got := js.Global().Get("Array").New(42).Length(); got != 42 {
+ 		t.Errorf("got %#v, want %#v", got, 42)
+ 	}
+ }
+ 
+ func TestInstanceOf(t *testing.T) {
+-	someArray := js.Global.Get("Array").New()
+-	if got, want := someArray.InstanceOf(js.Global.Get("Array")), true; got != want {
++	someArray := js.Global().Get("Array").New()
++	if got, want := someArray.InstanceOf(js.Global().Get("Array")), true; got != want {
+ 		t.Errorf("got %#v, want %#v", got, want)
+ 	}
+-	if got, want := someArray.InstanceOf(js.Global.Get("Function")), false; got != want {
++	if got, want := someArray.InstanceOf(js.Global().Get("Function")), false; got != want {
+ 		t.Errorf("got %#v, want %#v", got, want)
+ 	}
+ }
+@@ -165,7 +165,7 @@ func TestCallback(t *testing.T) {
+ 		c <- struct{}{}
+ 	})
+ 	defer cb.Close()
+-	js.Global.Call("setTimeout", cb, 0, 42)
++	js.Global().Call("setTimeout", cb, 0, 42)
+ 	<-c
+ }
+ 
+@@ -186,7 +186,7 @@ func TestEventCallback(t *testing.T) {
+ 		})
+ 		defer cb.Close()
+ 
+-		event := js.Global.Call("eval", fmt.Sprintf("({ called: false, %s: function() { this.called = true; } })", name))
++		event := js.Global().Call("eval", fmt.Sprintf("({ called: false, %s: function() { this.called = true; } })", name))
+ 		js.ValueOf(cb).Invoke(event)
+ 		if !event.Get("called").Bool() {
+ 			t.Errorf("%s not called", name)
+@@ -202,5 +202,5 @@ func ExampleNewCallback() {
+ 		fmt.Println("button clicked")
+ 		cb.Close() // close the callback if the button will not be clicked again
+ 	})
+-	js.Global.Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
++	js.Global().Get("document").Call("getElementById", "myButton").Call("addEventListener", "click", cb)
+ }

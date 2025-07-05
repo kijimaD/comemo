@@ -11,7 +11,7 @@ Date:   Mon Feb 29 12:40:23 2016 -0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/obj.go  |  3 +++
  src/cmd/link/internal/arm/obj.go    |  3 +++
  src/cmd/link/internal/arm64/obj.go  |  3 +++
@@ -21,3 +21,171 @@ Date:   Mon Feb 29 12:40:23 2016 -0900
  src/cmd/link/internal/ppc64/obj.go  |  6 ++++++
  src/cmd/link/internal/x86/obj.go    |  3 +++
  8 files changed, 54 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 1aa4422ed9..0167b69900 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -74,6 +74,9 @@ func linkarchinit() {
+ 	ld.Thearch.Lput = ld.Lputl
+ 	ld.Thearch.Wput = ld.Wputl
+ 	ld.Thearch.Vput = ld.Vputl
++	ld.Thearch.Append16 = ld.Append16l
++	ld.Thearch.Append32 = ld.Append32l
++	ld.Thearch.Append64 = ld.Append64l
+ 
+ 	ld.Thearch.Linuxdynld = "/lib64/ld-linux-x86-64.so.2"
+ 	ld.Thearch.Freebsddynld = "/libexec/ld-elf.so.1"
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 29a58c6fd2..1a83c3ba4c 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -70,6 +70,9 @@ func linkarchinit() {
+ 	ld.Thearch.Lput = ld.Lputl
+ 	ld.Thearch.Wput = ld.Wputl
+ 	ld.Thearch.Vput = ld.Vputl
++	ld.Thearch.Append16 = ld.Append16l
++	ld.Thearch.Append32 = ld.Append32l
++	ld.Thearch.Append64 = ld.Append64l
+ 
+ 	ld.Thearch.Linuxdynld = "/lib/ld-linux.so.3" // 2 for OABI, 3 for EABI
+ 	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index ae121c28bf..762809fd30 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -70,6 +70,9 @@ func linkarchinit() {
+ 	ld.Thearch.Lput = ld.Lputl
+ 	ld.Thearch.Wput = ld.Wputl
+ 	ld.Thearch.Vput = ld.Vputl
++	ld.Thearch.Append16 = ld.Append16l
++	ld.Thearch.Append32 = ld.Append32l
++	ld.Thearch.Append64 = ld.Append64l
+ 
+ 	ld.Thearch.Linuxdynld = "/lib/ld-linux-aarch64.so.1"
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d078069f4a..a9f60348ed 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -107,9 +107,12 @@ type Arch struct {
+ 	Gentext          func()
+ 	Machoreloc1      func(*Reloc, int64) int
+ 	PEreloc1         func(*Reloc, int64) bool
+-	Lput             func(uint32)
+ 	Wput             func(uint16)
++	Lput             func(uint32)
+ 	Vput             func(uint64)
++	Append16         func(b []byte, v uint16) []byte
++	Append32         func(b []byte, v uint32) []byte
++	Append64         func(b []byte, v uint64) []byte
+ }
+ 
+ type Rpath struct {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index aea55299f5..0267ee46cf 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -296,6 +296,13 @@ func Wputb(w uint16) {
+ 	Cput(uint8(w))
+ }
+ 
++func Append16b(b []byte, v uint16) []byte {
++	return append(b, uint8(v>>8), uint8(v))
++}
++func Append16l(b []byte, v uint16) []byte {
++	return append(b, uint8(v), uint8(v>>8))
++}
++
+ func Lputb(l uint32) {
+ 	Cput(uint8(l >> 24))
+ 	Cput(uint8(l >> 16))
+@@ -310,6 +317,13 @@ func Lputl(l uint32) {
+ 	Cput(uint8(l >> 24))
+ }
+ 
++func Append32b(b []byte, v uint32) []byte {
++	return append(b, uint8(v>>24), uint8(v>>16), uint8(v>>8), uint8(v))
++}
++func Append32l(b []byte, v uint32) []byte {
++	return append(b, uint8(v), uint8(v>>8), uint8(v>>16), uint8(v>>24))
++}
++
+ func Vputb(v uint64) {
+ 	Lputb(uint32(v >> 32))
+ 	Lputb(uint32(v))
+@@ -320,6 +334,18 @@ func Vputl(v uint64) {
+ 	Lputl(uint32(v >> 32))
+ }
+ 
++func Append64b(b []byte, v uint64) []byte {
++	b = Append32b(b, uint32(v>>32))
++	b = Append32b(b, uint32(v))
++	return b
++}
++
++func Append64l(b []byte, v uint64) []byte {
++	b = Append32l(b, uint32(v))
++	b = Append32l(b, uint32(v>>32))
++	return b
++}
++
+ type byPkg []*Library
+ 
+ func (libs byPkg) Len() int {
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index ad686e9343..5ab5808047 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -75,10 +75,16 @@ func linkarchinit() {
+ 		ld.Thearch.Lput = ld.Lputl
+ 		ld.Thearch.Wput = ld.Wputl
+ 		ld.Thearch.Vput = ld.Vputl
++		ld.Thearch.Append16 = ld.Append16l
++		ld.Thearch.Append32 = ld.Append32l
++		ld.Thearch.Append64 = ld.Append64l
+ 	} else {
+ 		ld.Thearch.Lput = ld.Lputb
+ 		ld.Thearch.Wput = ld.Wputb
+ 		ld.Thearch.Vput = ld.Vputb
++		ld.Thearch.Append16 = ld.Append16b
++		ld.Thearch.Append32 = ld.Append32b
++		ld.Thearch.Append64 = ld.Append64b
+ 	}
+ 
+ 	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index c604d3b492..61b26799a1 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -75,10 +75,16 @@ func linkarchinit() {
+ 		ld.Thearch.Lput = ld.Lputl
+ 		ld.Thearch.Wput = ld.Wputl
+ 		ld.Thearch.Vput = ld.Vputl
++		ld.Thearch.Append16 = ld.Append16l
++		ld.Thearch.Append32 = ld.Append32l
++		ld.Thearch.Append64 = ld.Append64l
+ 	} else {
+ 		ld.Thearch.Lput = ld.Lputb
+ 		ld.Thearch.Wput = ld.Wputb
+ 		ld.Thearch.Vput = ld.Vputb
++		ld.Thearch.Append16 = ld.Append16b
++		ld.Thearch.Append32 = ld.Append32b
++		ld.Thearch.Append64 = ld.Append64b
+ 	}
+ 
+ 	// TODO(austin): ABI v1 uses /usr/lib/ld.so.1
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index c1535555b3..a4da60d7dd 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -71,6 +71,9 @@ func linkarchinit() {
+ 	ld.Thearch.Lput = ld.Lputl
+ 	ld.Thearch.Wput = ld.Wputl
+ 	ld.Thearch.Vput = ld.Vputl
++	ld.Thearch.Append16 = ld.Append16l
++	ld.Thearch.Append32 = ld.Append32l
++	ld.Thearch.Append64 = ld.Append64l
+ 
+ 	ld.Thearch.Linuxdynld = "/lib/ld-linux.so.2"
+ 	ld.Thearch.Freebsddynld = "/usr/libexec/ld-elf.so.1"

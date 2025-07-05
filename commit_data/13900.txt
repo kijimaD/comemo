@@ -9,8 +9,67 @@ Date:   Fri Sep 21 21:12:41 2012 -0400
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/6545055
-
+---
  src/cmd/gc/go.h        | 1 +
  src/cmd/gc/reflect.c   | 4 ++++
  src/cmd/gc/typecheck.c | 4 +---
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 67793bd435..37ed4fa0da 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -919,6 +919,7 @@ EXTERN	int32	thunk;
+ EXTERN	int	funcdepth;
+ EXTERN	int	typecheckok;
+ EXTERN	int	compiling_runtime;
++EXTERN	int	compiling_wrappers;
+ 
+ /*
+  *	y.tab.c
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index f38f58b9cc..52b38d7167 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -210,22 +210,26 @@ methods(Type *t)
+ 				// but we can generate more efficient code
+ 				// using genembedtramp if all that is necessary
+ 				// is a pointer adjustment and a JMP.
++				compiling_wrappers = 1;
+ 				if(isptr[it->etype] && isptr[this->etype]
+ 				&& f->embedded && !isifacemethod(f->type))
+ 					genembedtramp(it, f, a->isym, 1);
+ 				else
+ 					genwrapper(it, f, a->isym, 1);
++				compiling_wrappers = 0;
+ 			}
+ 		}
+ 
+ 		if(!(a->tsym->flags & SymSiggen)) {
+ 			a->tsym->flags |= SymSiggen;
+ 			if(!eqtype(this, t)) {
++				compiling_wrappers = 1;
+ 				if(isptr[t->etype] && isptr[this->etype]
+ 				&& f->embedded && !isifacemethod(f->type))
+ 					genembedtramp(t, f, a->tsym, 0);
+ 				else
+ 					genwrapper(t, f, a->tsym, 0);
++				compiling_wrappers = 0;
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index eeb46e2aa7..74ed84b134 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1536,9 +1536,7 @@ ret:
+ 		}
+ 	}
+ 
+-	// TODO(rsc): should not need to check importpkg,
+-	// but reflect mentions unsafe.Pointer.
+-	if(safemode && !incannedimport && !importpkg && t && t->etype == TUNSAFEPTR)
++	if(safemode && !incannedimport && !importpkg && !compiling_wrappers && t && t->etype == TUNSAFEPTR)
+ 		yyerror("cannot use unsafe.Pointer");
+ 
+ 	evconst(n);

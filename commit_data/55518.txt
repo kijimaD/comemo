@@ -52,8 +52,83 @@ Date:   Sun Jan 8 17:39:02 2023 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/internal/bigmod/_asm/nat_amd64_asm.go |  1 +
  src/crypto/internal/bigmod/nat_amd64.go          |  1 +
  src/crypto/rsa/rsa_test.go                       | 27 ++++++++++++++++++++++++
  3 files changed, 29 insertions(+)
+
+diff --git a/src/crypto/internal/bigmod/_asm/nat_amd64_asm.go b/src/crypto/internal/bigmod/_asm/nat_amd64_asm.go
+index cea9365dcc..5690f04d1e 100644
+--- a/src/crypto/internal/bigmod/_asm/nat_amd64_asm.go
++++ b/src/crypto/internal/bigmod/_asm/nat_amd64_asm.go
+@@ -17,6 +17,7 @@ func main() {
+ 	ConstraintExpr("amd64,gc,!purego")
+ 
+ 	Implement("montgomeryLoop")
++	Pragma("noescape")
+ 
+ 	size := Load(Param("d").Len(), GP64())
+ 	d := Mem{Base: Load(Param("d").Base(), GP64())}
+diff --git a/src/crypto/internal/bigmod/nat_amd64.go b/src/crypto/internal/bigmod/nat_amd64.go
+index eaed2280c4..e94778245d 100644
+--- a/src/crypto/internal/bigmod/nat_amd64.go
++++ b/src/crypto/internal/bigmod/nat_amd64.go
+@@ -4,4 +4,5 @@
+ 
+ package bigmod
+ 
++//go:noescape
+ func montgomeryLoop(d []uint, a []uint, b []uint, m []uint, m0inv uint) uint
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index 16101f043a..3278a7ff30 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	. "crypto/rsa"
+ 	"crypto/sha1"
+@@ -16,6 +17,7 @@ import (
+ 	"encoding/pem"
+ 	"flag"
+ 	"fmt"
++	"internal/testenv"
+ 	"math/big"
+ 	"strings"
+ 	"testing"
+@@ -129,6 +131,31 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
+ 	}
+ }
+ 
++func TestAllocations(t *testing.T) {
++	if boring.Enabled {
++		t.Skip("skipping allocations test with BoringCrypto")
++	}
++	testenv.SkipIfOptimizationOff(t)
++
++	m := []byte("Hello Gophers")
++	c, err := EncryptPKCS1v15(rand.Reader, &test2048Key.PublicKey, m)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if allocs := testing.AllocsPerRun(100, func() {
++		p, err := DecryptPKCS1v15(nil, test2048Key, c)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !bytes.Equal(p, m) {
++			t.Fatalf("unexpected output: %q", p)
++		}
++	}); allocs > 10 {
++		t.Errorf("expected less than 10 allocations, got %0.1f", allocs)
++	}
++}
++
+ var allFlag = flag.Bool("all", false, "test all key sizes up to 2048")
+ 
+ func TestEverything(t *testing.T) {

@@ -10,7 +10,7 @@ Date:   Sun Jan 29 14:40:22 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/sym.go                          | 2 +-
  src/cmd/internal/src/pos.go                          | 2 +-
  src/cmd/link/internal/benchmark/bench.go             | 2 +-
@@ -22,3 +22,161 @@ Date:   Sun Jan 29 14:40:22 2023 +0800
  src/encoding/gob/encode.go                           | 2 +-
  src/fmt/scan.go                                      | 2 +-
  10 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index e5b052c537..e0817d5f74 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -85,7 +85,7 @@ func (ctxt *Link) LookupABI(name string, abi ABI) *LSym {
+ 	return ctxt.LookupABIInit(name, abi, nil)
+ }
+ 
+-// LookupABI looks up a symbol with the given ABI.
++// LookupABIInit looks up a symbol with the given ABI.
+ // If it does not exist, it creates it and
+ // passes it to init for one-time initialization.
+ func (ctxt *Link) LookupABIInit(name string, abi ABI, init func(s *LSym)) *LSym {
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 15f64acff8..6f1c7dddbc 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -434,7 +434,7 @@ func (x lico) withIsStmt() lico {
+ 	return x.withStmt(PosIsStmt)
+ }
+ 
+-// withLogue attaches a prologue/epilogue attribute to a lico
++// withXlogue attaches a prologue/epilogue attribute to a lico
+ func (x lico) withXlogue(xlogue PosXlogue) lico {
+ 	if x == 0 {
+ 		if xlogue == 0 {
+diff --git a/src/cmd/link/internal/benchmark/bench.go b/src/cmd/link/internal/benchmark/bench.go
+index 7c6f278264..96fa04ae5b 100644
+--- a/src/cmd/link/internal/benchmark/bench.go
++++ b/src/cmd/link/internal/benchmark/bench.go
+@@ -106,7 +106,7 @@ func (m *Metrics) Report(w io.Writer) {
+ 	fmt.Fprintf(w, "%s 1 %d ns/op\n", makeBenchString("total time"+gcString), totTime.Nanoseconds())
+ }
+ 
+-// Starts marks the beginning of a new measurement phase.
++// Start marks the beginning of a new measurement phase.
+ // Once a metric is started, it continues until either a Report is issued, or another Start is called.
+ func (m *Metrics) Start(name string) {
+ 	if m == nil {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d364e090e8..8acf8aadb0 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -127,7 +127,7 @@ func (ctxt *Link) mkArchSym(name string, ver int, ls *loader.Sym) {
+ 	ctxt.loader.SetAttrReachable(*ls, true)
+ }
+ 
+-// mkArchVecSym is similar to  setArchSyms, but operates on elements within
++// mkArchSymVec is similar to  setArchSyms, but operates on elements within
+ // a slice, where each element corresponds to some symbol version.
+ func (ctxt *Link) mkArchSymVec(name string, ver int, ls []loader.Sym) {
+ 	ls[ver] = ctxt.loader.LookupOrCreateSym(name, ver)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 808b218062..2ac17f4f16 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1281,7 +1281,7 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
+ 	l.align[i] = uint8(bits.Len32(uint32(align)))
+ }
+ 
+-// SymValue returns the section of the i-th symbol. i is global index.
++// SymSect returns the section of the i-th symbol. i is global index.
+ func (l *Loader) SymSect(i Sym) *sym.Section {
+ 	if int(i) >= len(l.symSects) {
+ 		// symSects is extended lazily -- it the sym in question is
+@@ -1320,7 +1320,7 @@ func (l *Loader) NewSection() *sym.Section {
+ 	return sect
+ }
+ 
+-// SymDynImplib returns the "dynimplib" attribute for the specified
++// SymDynimplib returns the "dynimplib" attribute for the specified
+ // symbol, making up a portion of the info for a symbol specified
+ // on a "cgo_import_dynamic" compiler directive.
+ func (l *Loader) SymDynimplib(i Sym) string {
+@@ -1503,7 +1503,7 @@ func (l *Loader) SetSymDynid(i Sym, val int32) {
+ 	}
+ }
+ 
+-// DynIdSyms returns the set of symbols for which dynID is set to an
++// DynidSyms returns the set of symbols for which dynID is set to an
+ // interesting (non-default) value. This is expected to be a fairly
+ // small set.
+ func (l *Loader) DynidSyms() []Sym {
+@@ -1836,7 +1836,7 @@ func (l *Loader) Relocs(i Sym) Relocs {
+ 	return l.relocs(r, li)
+ }
+ 
+-// Relocs returns a Relocs object given a local sym index and reader.
++// relocs returns a Relocs object given a local sym index and reader.
+ func (l *Loader) relocs(r *oReader, li uint32) Relocs {
+ 	var rs []goobj.Reloc
+ 	if l.isExtReader(r) {
+diff --git a/src/cmd/pprof/readlineui.go b/src/cmd/pprof/readlineui.go
+index b269177650..b0f998f719 100644
+--- a/src/cmd/pprof/readlineui.go
++++ b/src/cmd/pprof/readlineui.go
+@@ -51,7 +51,7 @@ func newReadlineUI() driver.UI {
+ 	return &readlineUI{term: term.NewTerminal(rw, "")}
+ }
+ 
+-// Read returns a line of text (a command) read from the user.
++// ReadLine returns a line of text (a command) read from the user.
+ // prompt is printed before reading the command.
+ func (r *readlineUI) ReadLine(prompt string) (string, error) {
+ 	r.term.SetPrompt(prompt)
+diff --git a/src/crypto/internal/edwards25519/field/fe_generic.go b/src/crypto/internal/edwards25519/field/fe_generic.go
+index d6667b27be..3582df8b22 100644
+--- a/src/crypto/internal/edwards25519/field/fe_generic.go
++++ b/src/crypto/internal/edwards25519/field/fe_generic.go
+@@ -245,7 +245,7 @@ func feSquareGeneric(v, a *Element) {
+ 	v.carryPropagate()
+ }
+ 
+-// carryPropagate brings the limbs below 52 bits by applying the reduction
++// carryPropagateGeneric brings the limbs below 52 bits by applying the reduction
+ // identity (a * 2²⁵⁵ + b = a * 19 + b) to the l4 carry.
+ func (v *Element) carryPropagateGeneric() *Element {
+ 	c0 := v.l0 >> 51
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 03c72633be..fc65d87aaf 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -811,7 +811,7 @@ func (c *Conn) readFromUntil(r io.Reader, n int) error {
+ 	return err
+ }
+ 
+-// sendAlert sends a TLS alert message.
++// sendAlertLocked sends a TLS alert message.
+ func (c *Conn) sendAlertLocked(err alert) error {
+ 	switch err {
+ 	case alertNoRenegotiation, alertCloseNotify:
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 38430342b6..abc76701ca 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -465,7 +465,7 @@ func isZero(val reflect.Value) bool {
+ 	panic("unknown type in isZero " + val.Type().String())
+ }
+ 
+-// encGobEncoder encodes a value that implements the GobEncoder interface.
++// encodeGobEncoder encodes a value that implements the GobEncoder interface.
+ // The data is sent as a byte array.
+ func (enc *Encoder) encodeGobEncoder(b *encBuffer, ut *userTypeInfo, v reflect.Value) {
+ 	// TODO: should we catch panics from the called method?
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index d38610df35..2780b82de2 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -803,7 +803,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
+ 	return f
+ }
+ 
+-// convertComplex converts the next token to a complex128 value.
++// scanComplex converts the next token to a complex128 value.
+ // The atof argument is a type-specific reader for the underlying type.
+ // If we're reading complex64, atof will parse float32s and convert them
+ // to float64's to avoid reproducing this code for each complex type.

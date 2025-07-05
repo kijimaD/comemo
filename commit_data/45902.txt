@@ -20,6 +20,22 @@ Date:   Fri Nov 27 20:45:15 2020 +0100
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/syscall_windows_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 3827c6ed83..a20573eb6a 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -969,8 +969,9 @@ func TestDLLPreloadMitigation(t *testing.T) {
+ #include <stdint.h>
+ #include <windows.h>
+ 
+-uintptr_t cfunc() {
++uintptr_t cfunc(void) {
+    SetLastError(123);
++   return 0;
+ }
+ `
+ 	srcname := "nojack.c"

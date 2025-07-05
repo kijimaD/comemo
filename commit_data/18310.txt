@@ -7,6 +7,20 @@ Date:   Tue Jan 21 11:54:21 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/55140044
-
+---
  src/cmd/gc/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index 791967708c..ce9ebcfb2a 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -37,6 +37,8 @@ Substitute 6g with 8g or 5g where appropriate.
+ Flags:
+ 	-o file
+ 		output file, default file.6 for 6g, etc.
++	-pack
++		write a package file rather than an object file
+ 	-e
+ 		normally the compiler quits after 10 errors; -e prints all errors
+ 	-p path

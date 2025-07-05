@@ -15,6 +15,20 @@ Date:   Fri Dec 15 02:02:41 2023 +0000
     Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/cgo/libcgo.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 295c12c53c..26da68fadb 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -76,7 +76,7 @@ void x_cgo_getstackbound(uintptr bounds[2]);
+ /*
+  * Prints error then calls abort. For linux and android.
+  */
+-void fatalf(const char* format, ...);
++void fatalf(const char* format, ...) __attribute__ ((noreturn));
+ 
+ /*
+  * Registers the current mach thread port for EXC_BAD_ACCESS processing.

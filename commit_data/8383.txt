@@ -20,7 +20,95 @@ Date:   Fri May 13 08:17:59 2011 -0700
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4517058
-
+---
  src/pkg/http/client.go      | 33 +++++++++++++++++++++++----------
  src/pkg/http/client_test.go |  6 ++++++
  2 files changed, 29 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 469d49dbe9..8b52669642 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -144,6 +144,10 @@ func Get(url string) (r *Response, err os.Error) {
+ //
+ // Caller should close r.Body when done reading from it.
+ func (c *Client) Get(url string) (r *Response, err os.Error) {
++	return c.sendFollowingRedirects("GET", url)
++}
++
++func (c *Client) sendFollowingRedirects(method, url string) (r *Response, err os.Error) {
+ 	// TODO: if/when we add cookie support, the redirected request shouldn't
+ 	// necessarily supply the same cookies as the original.
+ 	var base *URL
+@@ -155,7 +159,7 @@ func (c *Client) Get(url string) (r *Response, err os.Error) {
+ 
+ 	for redirect := 0; ; redirect++ {
+ 		var req Request
+-		req.Method = "GET"
++		req.Method = method
+ 		req.Header = make(Header)
+ 		if base == nil {
+ 			req.URL, err = ParseURL(url)
+@@ -195,7 +199,7 @@ func (c *Client) Get(url string) (r *Response, err os.Error) {
+ 		return
+ 	}
+ 
+-	err = &URLError{"Get", url, err}
++	err = &URLError{method[0:1] + strings.ToLower(method[1:]), url, err}
+ 	return
+ }
+ 
+@@ -283,19 +287,28 @@ func urlencode(data map[string]string) (b *bytes.Buffer) {
+ 	return bytes.NewBuffer([]byte(EncodeQuery(m)))
+ }
+ 
+-// Head issues a HEAD to the specified URL.
++// Head issues a HEAD to the specified URL.  If the response is one of the
++// following redirect codes, Head follows the redirect after calling the
++// Client's CheckRedirect function.
++//
++//    301 (Moved Permanently)
++//    302 (Found)
++//    303 (See Other)
++//    307 (Temporary Redirect)
+ //
+ // Head is a wrapper around DefaultClient.Head
+ func Head(url string) (r *Response, err os.Error) {
+ 	return DefaultClient.Head(url)
+ }
+ 
+-// Head issues a HEAD to the specified URL.
++// Head issues a HEAD to the specified URL.  If the response is one of the
++// following redirect codes, Head follows the redirect after calling the
++// Client's CheckRedirect function.
++//
++//    301 (Moved Permanently)
++//    302 (Found)
++//    303 (See Other)
++//    307 (Temporary Redirect)
+ func (c *Client) Head(url string) (r *Response, err os.Error) {
+-	var req Request
+-	req.Method = "HEAD"
+-	if req.URL, err = ParseURL(url); err != nil {
+-		return
+-	}
+-	return send(&req, c.Transport)
++	return c.sendFollowingRedirects("HEAD", url)
+ }
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 31654d0be3..6adc9a8836 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -101,6 +101,12 @@ func TestRedirects(t *testing.T) {
+ 		t.Errorf("with default client, expected error %q, got %q", e, g)
+ 	}
+ 
++	// HEAD request should also have the ability to follow redirects.
++	_, err = c.Head(ts.URL)
++	if e, g := "Head /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
++		t.Errorf("with default client, expected error %q, got %q", e, g)
++	}
++
+ 	var checkErr os.Error
+ 	var lastVia []*Request
+ 	c = &Client{CheckRedirect: func(_ *Request, via []*Request) os.Error {

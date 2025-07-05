@@ -48,8 +48,99 @@ Date:   Mon Sep 12 16:37:03 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4956077
-
+---
  src/pkg/exp/template/html/context.go     |  4 ++++
  src/pkg/exp/template/html/escape.go      | 15 ++++++++++++++-
  src/pkg/exp/template/html/escape_test.go | 16 ++++++++++++++++
  3 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/template/html/context.go b/src/pkg/exp/template/html/context.go
+index 856d1c94eb..19381d5d62 100644
+--- a/src/pkg/exp/template/html/context.go
++++ b/src/pkg/exp/template/html/context.go
+@@ -198,6 +198,8 @@ const (
+ 	jsCtxRegexp jsCtx = iota
+ 	// jsCtxDivOp occurs where a '/' would start a division operator.
+ 	jsCtxDivOp
++	// jsCtxUnknown occurs where a '/' is ambiguous due to context joining.
++	jsCtxUnknown
+ )
+ 
+ func (c jsCtx) String() string {
+@@ -206,6 +208,8 @@ func (c jsCtx) String() string {
+ 		return "jsCtxRegexp"
+ 	case jsCtxDivOp:
+ 		return "jsCtxDivOp"
++	case jsCtxUnknown:
++		return "jsCtxUnknown"
+ 	}
+ 	return fmt.Sprintf("illegal jsCtx %d", c)
+ }
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index 955b41be22..c0a0a24dd2 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -217,6 +217,14 @@ func join(a, b context, line int, nodeName string) context {
+ 		return c
+ 	}
+ 
++	c = a
++	c.jsCtx = b.jsCtx
++	if c.eq(b) {
++		// The contexts differ only by jsCtx.
++		c.jsCtx = jsCtxUnknown
++		return c
++	}
++
+ 	return context{
+ 		state:   stateError,
+ 		errLine: line,
+@@ -492,8 +500,13 @@ func tJS(c context, s []byte) (context, []byte) {
+ 			c.state, i = stateJSBlockCmt, i+1
+ 		case c.jsCtx == jsCtxRegexp:
+ 			c.state = stateJSRegexp
+-		default:
++		case c.jsCtx == jsCtxDivOp:
+ 			c.jsCtx = jsCtxRegexp
++		default:
++			return context{
++				state:  stateError,
++				errStr: fmt.Sprintf("'/' could start div or regexp: %.32q", s[i:]),
++			}, nil
+ 		}
+ 	default:
+ 		panic("unreachable")
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 488f33a4ad..5110b445ca 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -202,6 +202,13 @@ func TestEscape(t *testing.T) {
+ 			`<script>alert(/{{""}}/.test(""));</script>`,
+ 			`<script>alert(/(?:)/.test(""));</script>`,
+ 		},
++		{
++			"jsReAmbigOk",
++			`<script>{{if true}}var x = 1{{end}}</script>`,
++			// The {if} ends in an ambiguous jsCtx but there is
++			// no slash following so we shouldn't care.
++			`<script>var x = 1</script>`,
++		},
+ 		{
+ 			"styleBidiKeywordPassed",
+ 			`<p style="dir: {{"ltr"}}">`,
+@@ -480,6 +487,15 @@ func TestErrors(t *testing.T) {
+ 			"<!-- {{.H}} -->",
+ 			"z:1: (action: [(command: [F=[H]])]) appears inside a comment",
+ 		},
++		{
++			// It is ambiguous whether 1.5 should be 1\.5 or 1.5.
++			// Either `var x = 1/- 1.5 /i.test(x)`
++			// where `i.test(x)` is a method call of reference i,
++			// or `/-1\.5/i.test(x)` which is a method call on a
++			// case insensitive regular expression.
++			`<script>{{if false}}var x = 1{{end}}/-{{"1.5"}}/i.test(x)</script>`,
++			`: '/' could start div or regexp: "/-"`,
++		},
+ 	}
+ 
+ 	for _, test := range tests {

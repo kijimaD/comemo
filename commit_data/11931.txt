@@ -7,6 +7,33 @@ Date:   Wed Feb 15 00:59:01 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5671051
-
+---
  lib/godoc/package.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index f0604e2f48..f69f885cea 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -26,10 +26,10 @@
+ 		<div id="manual-nav">
+ 			<dl>
+ 			{{if .Consts}}
+-				<dd><a href="#Constants">Constants</a></dd>
++				<dd><a href="#constants">Constants</a></dd>
+ 			{{end}}
+ 			{{if .Vars}}
+-				<dd><a href="#Variables">Variables</a></dd>
++				<dd><a href="#variables">Variables</a></dd>
+ 			{{end}}
+ 			{{range .Funcs}}
+ 				{{$name_html := html .Name}}
+@@ -48,7 +48,7 @@
+ 				{{end}}
+ 			{{end}}
+ 			{{if .Bugs}}
+-				<dd><a href="#Bugs">Bugs</a></dd>
++				<dd><a href="#bugs">Bugs</a></dd>
+ 			{{end}}
+ 		</dl>
+ 

@@ -16,6 +16,26 @@ Date:   Fri Aug 12 09:20:40 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/zoneinfo.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index b3313583d8..3c4aac375b 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -634,10 +634,10 @@ var zoneinfoOnce sync.Once
+ // LoadLocation looks for the IANA Time Zone database in the following
+ // locations in order:
+ //
+-// - the directory or uncompressed zip file named by the ZONEINFO environment variable
+-// - on a Unix system, the system standard installation location
+-// - $GOROOT/lib/time/zoneinfo.zip
+-// - the time/tzdata package, if it was imported
++//   - the directory or uncompressed zip file named by the ZONEINFO environment variable
++//   - on a Unix system, the system standard installation location
++//   - $GOROOT/lib/time/zoneinfo.zip
++//   - the time/tzdata package, if it was imported
+ func LoadLocation(name string) (*Location, error) {
+ 	if name == "" || name == "UTC" {
+ 		return UTC, nil

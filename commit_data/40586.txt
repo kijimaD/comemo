@@ -17,7 +17,45 @@ Date:   Fri May 31 12:05:07 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m | 8 +++++---
  src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go | 4 ++--
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m b/src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m
+index 78e6e9e252..946278803e 100644
+--- a/src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m
++++ b/src/cmd/link/internal/ld/testdata/issue32233/lib/ObjC.m
+@@ -3,12 +3,14 @@
+ // license that can be found in the LICENSE file.
+ 
+ #import <Foundation/Foundation.h>
+-#import <UserNotifications/UserNotifications.h>
++#import <AppKit/NSAppearance.h>
+ 
+ BOOL function(void) {
++#if defined(MAC_OS_X_VERSION_MIN_REQUIRED) && (MAC_OS_X_VERSION_MIN_REQUIRED > 101300)
++  NSAppearance *darkAppearance;
+   if (@available(macOS 10.14, *)) {
+-    UNUserNotificationCenter *center =
+-        [UNUserNotificationCenter currentNotificationCenter];
++    darkAppearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+   }
++#endif
+   return NO;
+ }
+diff --git a/src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go b/src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go
+index efd56fb340..514b9b9a4a 100644
+--- a/src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go
++++ b/src/cmd/link/internal/ld/testdata/issue32233/lib/lib.go
+@@ -5,8 +5,8 @@
+ package lib
+ 
+ /*
+-#cgo darwin CFLAGS: -mmacosx-version-min=10.10 -D__MAC_OS_X_VERSION_MAX_ALLOWED=101450 -Wunguarded-availability-new
+-#cgo darwin LDFLAGS: -framework Foundation -framework UserNotifications
++#cgo darwin CFLAGS: -D__MAC_OS_X_VERSION_MAX_ALLOWED=101450
++#cgo darwin LDFLAGS: -framework Foundation -framework AppKit
+ #include "stdlib.h"
+ int function(void);
+ */

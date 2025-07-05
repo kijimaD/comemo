@@ -17,8 +17,58 @@ Date:   Tue Dec 20 12:58:23 2011 -0800
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/5498048
-
+---
  src/pkg/html/template/escape.go      | 10 +++++++++-
  src/pkg/html/template/escape_test.go |  2 +-
  src/pkg/text/template/exec.go        |  2 +-
  3 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 2f6be3b6c2..c6f723ae4a 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -486,9 +486,17 @@ func (e *escaper) escapeTree(c context, name string, line int) (context, string)
+ 	}
+ 	t := e.template(name)
+ 	if t == nil {
++		// Two cases: The template exists but is empty, or has never been mentioned at
++		// all. Distinguish the cases in the error messages.
++		if e.tmpl.set[name] != nil {
++			return context{
++				state: stateError,
++				err:   errorf(ErrNoSuchTemplate, line, "%q is an incomplete or empty template", name),
++			}, dname
++		}
+ 		return context{
+ 			state: stateError,
+-			err:   errorf(ErrNoSuchTemplate, line, "no such template %s", name),
++			err:   errorf(ErrNoSuchTemplate, line, "no such template %q", name),
+ 		}, dname
+ 	}
+ 	if dname != name {
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 7702300ffd..a57f9826b5 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -928,7 +928,7 @@ func TestErrors(t *testing.T) {
+ 		},
+ 		{
+ 			`{{template "foo"}}`,
+-			"z:1: no such template foo",
++			"z:1: no such template \"foo\"",
+ 		},
+ 		{
+ 			`<div{{template "y"}}>` +
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index ba20fff89d..acb88afee3 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -107,7 +107,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+ 		vars: []variable{{"$", value}},
+ 	}
+ 	if t.Tree == nil || t.Root == nil {
+-		state.errorf("must be parsed before execution")
++		state.errorf("%q is an incomplete or empty template", t.name)
+ 	}
+ 	state.walk(value, t.Root)
+ 	return

@@ -7,6 +7,19 @@ Date:   Wed Feb 1 20:53:31 2012 -0800
     R=golang-dev
     CC=bradfitz, golang-dev
     https://golang.org/cl/5606050
-
+---
  misc/chrome/gophertool/popup.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/chrome/gophertool/popup.html b/misc/chrome/gophertool/popup.html
+index ebbc71f3aa..4816c392be 100644
+--- a/misc/chrome/gophertool/popup.html
++++ b/misc/chrome/gophertool/popup.html
+@@ -49,6 +49,6 @@ function openURL(url) {
+ <a href="#" onclick="openURL('http://code.google.com/p/go/source/list')">commit</a>, or
+ <a href="#" onclick="openURL('http://golang.org/pkg/')">pkg</a> id/name:</small>
+ <form style='margin: 0' onsubmit="return navigate();"><nobr><input id="inputbox" size=10 /><input type="submit" value="go" /></nobr></form>
+-<small>Also: <a href="#" onclick="openURL('http://godashboard.appspot.com/')">buildbots</small>
++<small>Also: <a href="#" onclick="openURL('http://build.golang.org/')">buildbots</small>
+ </body>
+ </html>

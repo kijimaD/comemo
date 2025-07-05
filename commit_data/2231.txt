@@ -8,7 +8,7 @@ Date:   Sat May 16 13:29:08 2009 -0700
     R=r
     OCL=28966
     CL=28966
-
+---
  src/cmd/6g/cgen.c | 6 +++++-
  src/cmd/6g/gen.c  | 6 ++++++
  src/cmd/6g/gg.h   | 1 +
@@ -16,3 +16,99 @@ Date:   Sat May 16 13:29:08 2009 -0700
  src/cmd/gc/dcl.c  | 2 ++
  src/cmd/gc/go.h   | 2 +-
  6 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 0e7db2c060..148ee6b217 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -23,11 +23,15 @@ cgen(Node *n, Node *res)
+ 		dump("cgen-res", res);
+ 	}
+ 	if(n == N || n->type == T)
+-		return;
++		goto ret;
+ 
+ 	if(res == N || res->type == T)
+ 		fatal("cgen: res nil");
+ 
++	// static initializations
++	if(gen_as_init(n, res))
++		goto ret;
++
+ 	if(n->ullman >= UINF) {
+ 		if(n->op == OINDREG)
+ 			fatal("cgen: this is going to misscompile");
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 8f083ad299..9246bc96b1 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -697,3 +697,9 @@ clearfat(Node *nl)
+ 		c--;
+ 	}
+ }
++
++int
++gen_as_init(Node *nr, Node *nl)
++{
++	return 0;
++}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 0cebfba469..266a11ddc6 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -77,6 +77,7 @@ void	genconv(Type*, Type*);
+ void	allocparams(void);
+ void	checklabels();
+ void	ginscall(Node*, int);
++int	gen_as_init(Node*, Node*);
+ 
+ /*
+  * cgen
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 25416a936e..e990d661df 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -185,7 +185,8 @@ dumpfuncs(void)
+ 	for(pl=plist; pl!=nil; pl=pl->link) {
+ 		for(p=pl->firstpc; p!=P; p=p->link) {
+ 			p->loc = pcloc;
+-			pcloc++;
++			if(p->as != ADATA && p->as != AGLOBL)
++				pcloc++;
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 3e6f760922..ef49ee0ff9 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1411,7 +1411,9 @@ fninit(Node *n)
+ //dump("r", fn->nbody);
+ 
+ 	popdcl();
++	initflag = 1;	// flag for loader static initialization
+ 	compile(fn);
++	initflag = 0;
+ }
+ 
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 270f246c10..cf597644d2 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -228,7 +228,6 @@ struct	Node
+ 	int32	vargen;		// unique name for OTYPE/ONAME
+ 	int32	lineno;
+ 	vlong	xoffset;
+-	int32	ostk;
+ };
+ #define	N	((Node*)0)
+ 
+@@ -569,6 +568,7 @@ EXTERN	Dcl*	typelist;
+ EXTERN	int	dclcontext;	// PEXTERN/PAUTO
+ EXTERN	int	importflag;
+ EXTERN	int	inimportsys;
++EXTERN	int	initflag;		// compiling the init fn
+ 
+ EXTERN	uint32	iota;
+ EXTERN	Node*	lastconst;

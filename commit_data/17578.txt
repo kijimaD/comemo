@@ -9,8 +9,51 @@ Date:   Thu Sep 12 13:22:56 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/13468045
-
+---
  src/pkg/text/template/parse/lex.go        | 4 ++++
  src/pkg/text/template/parse/lex_test.go   | 3 +++
  src/pkg/text/template/parse/parse_test.go | 2 +-
  3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index 1674aaf9cd..690497d645 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -217,6 +217,10 @@ func lexText(l *lexer) stateFn {
+ 			}
+ 			return lexLeftDelim
+ 		}
++		// Check for right after left in case they're the same.
++		if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
++			return l.errorf("unmatched right delimiter")
++		}
+ 		if l.next() == eof {
+ 			break
+ 		}
+diff --git a/src/pkg/text/template/parse/lex_test.go b/src/pkg/text/template/parse/lex_test.go
+index ae90ae407b..e72e07f269 100644
+--- a/src/pkg/text/template/parse/lex_test.go
++++ b/src/pkg/text/template/parse/lex_test.go
+@@ -340,6 +340,9 @@ var lexTests = []lexTest{
+ 		{itemText, 0, "hello-"},
+ 		{itemError, 0, `comment ends before closing delimiter`},
+ 	}},
++	{"unmatched right delimiter", "hello-{.}}-world", []item{
++		{itemError, 0, `unmatched right delimiter`},
++	}},
+ }
+ 
+ // collect gathers the emitted items into a slice.
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index c35f4ac5df..049e65c7d3 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -312,7 +312,7 @@ var isEmptyTests = []isEmptyTest{
+ 	{"spaces only", " \t\n \t\n", true},
+ 	{"definition", `{{define "x"}}something{{end}}`, true},
+ 	{"definitions and space", "{{define `x`}}something{{end}}\n\n{{define `y`}}something{{end}}\n\n", true},
+-	{"definitions and text", "{{define `x`}}something{{end}}\nx\n{{define `y`}}something{{end}}\ny\n}}", false},
++	{"definitions and text", "{{define `x`}}something{{end}}\nx\n{{define `y`}}something{{end}}\ny\n", false},
+ 	{"definition and action", "{{define `x`}}something{{end}}{{if 3}}foo{{end}}", false},
+ }
+ 

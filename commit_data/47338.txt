@@ -25,9 +25,124 @@ Date:   Wed Mar 10 17:27:30 2021 -0800
     Trust: Dan Scales <danscales@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go       |  7 +++++
  src/cmd/compile/internal/noder/expr.go    |  2 +-
  src/cmd/compile/internal/noder/helpers.go |  9 ++++--
  test/typeparam/lockable.go                | 50 +++++++++++++++++++++++++++++++
  4 files changed, 64 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 65ed3cff66..2d62b22d8c 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -740,6 +740,13 @@ func IsAddressable(n Node) bool {
+ 	case ODEREF, ODOTPTR:
+ 		return true
+ 
++	case OXDOT:
++		// TODO(danscales): remove this case as we remove calls to the old
++		// typechecker in (*irgen).funcBody().
++		if base.Flag.G == 0 {
++			return false
++		}
++		fallthrough
+ 	case ODOT:
+ 		n := n.(*SelectorExpr)
+ 		return IsAddressable(n.X)
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 06aa91199c..989ebf236e 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -188,7 +188,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ // than in typecheck.go.
+ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.SelectorExpr) ir.Node {
+ 	x := g.expr(expr.X)
+-	if x.Type().Kind() == types.TTYPEPARAM {
++	if x.Type().HasTParam() {
+ 		// Leave a method call on a type param as an OXDOT, since it can
+ 		// only be fully transformed once it has an instantiated type.
+ 		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 4cb6bc3eab..2b084ff311 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -54,8 +54,11 @@ func Nil(pos src.XPos, typ *types.Type) ir.Node {
+ // Expressions
+ 
+ func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
+-	// TODO(mdempsky): Avoid typecheck.Expr. Probably just need to set OPTRLIT when appropriate.
+-	n := typecheck.Expr(typecheck.NodAddrAt(pos, x)).(*ir.AddrExpr)
++	n := typecheck.NodAddrAt(pos, x)
++	switch x.Op() {
++	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
++		n.SetOp(ir.OPTRLIT)
++	}
+ 	typed(types.NewPtr(x.Type()), n)
+ 	return n
+ }
+@@ -125,7 +128,7 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 	n.IsDDD = dots
+ 
+ 	if fun.Op() == ir.OXDOT {
+-		if fun.(*ir.SelectorExpr).X.Type().Kind() != types.TTYPEPARAM {
++		if !fun.(*ir.SelectorExpr).X.Type().HasTParam() {
+ 			base.FatalfAt(pos, "Expecting type param receiver in %v", fun)
+ 		}
+ 		// For methods called in a generic function, don't do any extra
+diff --git a/test/typeparam/lockable.go b/test/typeparam/lockable.go
+new file mode 100644
+index 0000000000..d53817521f
+--- /dev/null
++++ b/test/typeparam/lockable.go
+@@ -0,0 +1,50 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "sync"
++
++// A _Lockable is a value that may be safely simultaneously accessed
++// from multiple goroutines via the Get and Set methods.
++type _Lockable[T any] struct {
++	T
++	mu sync.Mutex
++}
++
++// Get returns the value stored in a _Lockable.
++func (l *_Lockable[T]) get() T {
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	return l.T
++}
++
++// set sets the value in a _Lockable.
++func (l *_Lockable[T]) set(v T) {
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	l.T = v
++}
++
++func main() {
++	sl := _Lockable[string]{T: "a"}
++	if got := sl.get(); got != "a" {
++		panic(got)
++	}
++	sl.set("b")
++	if got := sl.get(); got != "b" {
++		panic(got)
++	}
++
++	il := _Lockable[int]{T: 1}
++	if got := il.get(); got != 1 {
++		panic(got)
++	}
++	il.set(2)
++	if got := il.get(); got != 2 {
++		panic(got)
++	}
++}

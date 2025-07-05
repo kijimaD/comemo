@@ -16,6 +16,20 @@ Date:   Sun Aug 27 11:27:45 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/59351
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/rsa/pss.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index 1ba194a4ad..75558a92cf 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -6,7 +6,7 @@ package rsa
+ 
+ // This file implements the PSS signature scheme [1].
+ //
+-// [1] http://www.rsa.com/rsalabs/pkcs/files/h11300-wp-pkcs-1v2-2-rsa-cryptography-standard.pdf
++// [1] https://www.emc.com/collateral/white-papers/h11300-pkcs-1v2-2-rsa-cryptography-standard-wp.pdf
+ 
+ import (
+ 	"bytes"

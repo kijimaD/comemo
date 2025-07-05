@@ -9,7 +9,42 @@ Date:   Mon Sep 19 12:12:04 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/ldelf.go |  2 +-
  src/cmd/link/internal/ld/sym.go   | 13 -------------
  2 files changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index e26be08030..1aaee1c8e5 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -1070,7 +1070,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (er
+ 				// local names and hidden global names are unique
+ 				// and should only be referenced by their index, not name, so we
+ 				// don't bother to add them into the hash table
+-				s = linknewsym(ctxt, sym.name, ctxt.Syms.Version)
++				s = ctxt.Syms.newsym(sym.name, ctxt.Syms.Version)
+ 
+ 				s.Type |= obj.SHIDDEN
+ 			}
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 7d3797d769..4908e34608 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -132,16 +132,3 @@ func (ctxt *Link) computeTLSOffset() {
+ 	}
+ 
+ }
+-
+-func linknewsym(ctxt *Link, name string, v int) *Symbol {
+-	return ctxt.Syms.newsym(name, v)
+-}
+-
+-func Linklookup(ctxt *Link, name string, v int) *Symbol {
+-	return ctxt.Syms.Lookup(name, v)
+-}
+-
+-// read-only lookup
+-func Linkrlookup(ctxt *Link, name string, v int) *Symbol {
+-	return ctxt.Syms.ROLookup(name, v)
+-}

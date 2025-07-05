@@ -11,7 +11,7 @@ Date:   Tue Dec 3 15:02:10 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/209660
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/list_constraints.txt    | 85 ++++++++++++++++++++++
  src/cmd/go/testdata/script/list_tags.txt           | 10 ---
  src/go/build/build.go                              | 47 ++++++++----
@@ -19,3 +19,232 @@ Date:   Tue Dec 3 15:02:10 2019 -0500
  src/go/build/testdata/cgo_disabled/cgo_disabled.go |  5 ++
  src/go/build/testdata/cgo_disabled/empty.go        |  1 +
  6 files changed, 139 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/list_constraints.txt b/src/cmd/go/testdata/script/list_constraints.txt
+new file mode 100644
+index 0000000000..665670e190
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_constraints.txt
+@@ -0,0 +1,85 @@
++# Check that files and their imports are not included in 'go list' output
++# when they are excluded by build constraints.
++
++# Linux and cgo files should be included when building in that configuration.
++env GOOS=linux
++env CGO_ENABLED=1
++go list -f '{{range .GoFiles}}{{.}} {{end}}'
++stdout '^cgotag.go empty.go suffix_linux.go tag.go $'
++go list -f '{{range .CgoFiles}}{{.}} {{end}}'
++stdout '^cgoimport.go $'
++go list -f '{{range .Imports}}{{.}} {{end}}'
++stdout '^C cgoimport cgotag suffix tag $'
++
++# Disabling cgo should exclude cgo files and their imports.
++env CGO_ENABLED=0
++go list -f '{{range .GoFiles}}{{.}} {{end}}'
++stdout 'empty.go suffix_linux.go tag.go'
++go list -f '{{range .CgoFiles}}{{.}} {{end}}'
++! stdout .
++go list -f '{{range .Imports}}{{.}} {{end}}'
++stdout '^suffix tag $'
++
++# Changing OS should exclude linux sources.
++env GOOS=darwin
++go list -f '{{range .GoFiles}}{{.}} {{end}}'
++stdout '^empty.go $'
++go list -f '{{range .Imports}}{{.}} {{end}}'
++stdout '^$'
++
++# Enabling a tag should include files that require it.
++go list -tags=extra -f '{{range .GoFiles}}{{.}} {{end}}'
++stdout '^empty.go extra.go $'
++go list -tags=extra -f '{{range .Imports}}{{.}} {{end}}'
++stdout '^extra $'
++
++# Packages that require a tag should not be listed unless the tag is on.
++! go list ./tagonly
++go list -tags=extra ./tagonly
++stdout m/tagonly
++
++-- go.mod --
++module m
++
++go 1.13
++
++-- empty.go --
++package p
++
++-- extra.go --
++// +build extra
++
++package p
++
++import _ "extra"
++
++-- suffix_linux.go --
++package p
++
++import _ "suffix"
++
++-- tag.go --
++// +build linux
++
++package p
++
++import _ "tag"
++
++-- cgotag.go --
++// +build cgo
++
++package p
++
++import _ "cgotag"
++
++-- cgoimport.go --
++package p
++
++import "C"
++
++import _ "cgoimport"
++
++-- tagonly/tagonly.go --
++// +build extra
++
++package tagonly
+diff --git a/src/cmd/go/testdata/script/list_tags.txt b/src/cmd/go/testdata/script/list_tags.txt
+deleted file mode 100644
+index 49069bd213..0000000000
+--- a/src/cmd/go/testdata/script/list_tags.txt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-env GO111MODULE=off
+-
+-# go list supports -tags
+-go list -tags=thetag ./my...
+-stdout mypkg
+-
+--- mypkg/x.go --
+-// +build thetag
+-
+-package mypkg
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index a4523a6eef..62b70c26f1 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -905,6 +905,11 @@ Found:
+ 		}
+ 
+ 		// Record imports and information about cgo.
++		type importPos struct {
++			path string
++			pos  token.Pos
++		}
++		var fileImports []importPos
+ 		isCgo := false
+ 		for _, decl := range pf.Decls {
+ 			d, ok := decl.(*ast.GenDecl)
+@@ -921,13 +926,7 @@ Found:
+ 				if err != nil {
+ 					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
+ 				}
+-				if isXTest {
+-					xTestImported[path] = append(xTestImported[path], fset.Position(spec.Pos()))
+-				} else if isTest {
+-					testImported[path] = append(testImported[path], fset.Position(spec.Pos()))
+-				} else {
+-					imported[path] = append(imported[path], fset.Position(spec.Pos()))
+-				}
++				fileImports = append(fileImports, importPos{path, spec.Pos()})
+ 				if path == "C" {
+ 					if isTest {
+ 						badFile(fmt.Errorf("use of cgo in test %s not supported", filename))
+@@ -946,21 +945,37 @@ Found:
+ 				}
+ 			}
+ 		}
+-		if isCgo {
++
++		var fileList *[]string
++		var importMap map[string][]token.Position
++		switch {
++		case isCgo:
+ 			allTags["cgo"] = true
+ 			if ctxt.CgoEnabled {
+-				p.CgoFiles = append(p.CgoFiles, name)
++				fileList = &p.CgoFiles
++				importMap = imported
+ 			} else {
+-				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
++				// Ignore imports from cgo files if cgo is disabled.
++				fileList = &p.IgnoredGoFiles
++			}
++		case isXTest:
++			fileList = &p.XTestGoFiles
++			importMap = xTestImported
++		case isTest:
++			fileList = &p.TestGoFiles
++			importMap = testImported
++		default:
++			fileList = &p.GoFiles
++			importMap = imported
++		}
++		*fileList = append(*fileList, name)
++		if importMap != nil {
++			for _, imp := range fileImports {
++				importMap[imp.path] = append(importMap[imp.path], fset.Position(imp.pos))
+ 			}
+-		} else if isXTest {
+-			p.XTestGoFiles = append(p.XTestGoFiles, name)
+-		} else if isTest {
+-			p.TestGoFiles = append(p.TestGoFiles, name)
+-		} else {
+-			p.GoFiles = append(p.GoFiles, name)
+ 		}
+ 	}
++
+ 	if badGoError != nil {
+ 		return p, badGoError
+ 	}
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 1d14731983..8045487174 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -526,3 +526,20 @@ func TestMissingImportErrorRepetition(t *testing.T) {
+ 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
+ 	}
+ }
++
++// TestCgoImportsIgnored checks that imports in cgo files are not included
++// in the imports list when cgo is disabled.
++// Verifies golang.org/issue/35946.
++func TestCgoImportsIgnored(t *testing.T) {
++	ctxt := Default
++	ctxt.CgoEnabled = false
++	p, err := ctxt.ImportDir("testdata/cgo_disabled", 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, path := range p.Imports {
++		if path == "should/be/ignored" {
++			t.Errorf("found import %q in ignored cgo file", path)
++		}
++	}
++}
+diff --git a/src/go/build/testdata/cgo_disabled/cgo_disabled.go b/src/go/build/testdata/cgo_disabled/cgo_disabled.go
+new file mode 100644
+index 0000000000..d1edb99fa4
+--- /dev/null
++++ b/src/go/build/testdata/cgo_disabled/cgo_disabled.go
+@@ -0,0 +1,5 @@
++package cgo_disabled
++
++import "C"
++
++import _ "should/be/ignored"
+diff --git a/src/go/build/testdata/cgo_disabled/empty.go b/src/go/build/testdata/cgo_disabled/empty.go
+new file mode 100644
+index 0000000000..63afe42d6a
+--- /dev/null
++++ b/src/go/build/testdata/cgo_disabled/empty.go
+@@ -0,0 +1 @@
++package cgo_disabled

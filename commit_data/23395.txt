@@ -15,6 +15,26 @@ Date:   Thu Feb 19 21:37:38 2015 +0100
     Change-Id: I19a1221bcefe0806e7556c124c6da7ac0c2160b5
     Reviewed-on: https://go-review.googlesource.com/5312
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/vcs.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 408104d776..2179000afd 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -115,8 +115,12 @@ var vcsGit = &vcsCmd{
+ 	tagLookupCmd: []tagCmd{
+ 		{"show-ref tags/{tag} origin/{tag}", `((?:tags|origin)/\S+)$`},
+ 	},
+-	tagSyncCmd:     "checkout {tag}",
+-	tagSyncDefault: "checkout master",
++	tagSyncCmd: "checkout {tag}",
++	// both createCmd and downloadCmd update the working dir.
++	// No need to do more here. We used to 'checkout master'
++	// but that doesn't work if the default branch is not named master.
++	// See golang.org/issue/9032.
++	tagSyncDefault: "",
+ 
+ 	scheme:     []string{"git", "https", "http", "git+ssh"},
+ 	pingCmd:    "ls-remote {scheme}://{repo}",

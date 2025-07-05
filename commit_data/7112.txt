@@ -11,10 +11,342 @@ Date:   Fri Jan 14 09:10:02 2011 +1100
     R=rsc, adg, dangabrad, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/3910042
-
+---
  src/pkg/http/readrequest_test.go | 35 +++++++++++++++++
  src/pkg/http/request.go          |  2 +-
  src/pkg/http/serve_test.go       | 85 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/http/url.go              | 30 +++++++++++++-
  src/pkg/http/url_test.go         | 80 ++++++++++++++++++++++++++++++++++---
  5 files changed, 223 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/http/readrequest_test.go b/src/pkg/http/readrequest_test.go
+index 067e17ddae..5e1cbcbcbd 100644
+--- a/src/pkg/http/readrequest_test.go
++++ b/src/pkg/http/readrequest_test.go
+@@ -69,6 +69,41 @@ var reqTests = []reqTest{
+ 
+ 		"abcdef\n",
+ 	},
++
++	// Tests that we don't parse a path that looks like a
++	// scheme-relative URI as a scheme-relative URI.
++	{
++		"GET //user@host/is/actually/a/path/ HTTP/1.1\r\n" +
++			"Host: test\r\n\r\n",
++
++		Request{
++			Method: "GET",
++			RawURL: "//user@host/is/actually/a/path/",
++			URL: &URL{
++				Raw:          "//user@host/is/actually/a/path/",
++				Scheme:       "",
++				RawPath:      "//user@host/is/actually/a/path/",
++				RawAuthority: "",
++				RawUserinfo:  "",
++				Host:         "",
++				Path:         "//user@host/is/actually/a/path/",
++				RawQuery:     "",
++				Fragment:     "",
++			},
++			Proto:         "HTTP/1.1",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			Header:        map[string]string{},
++			Close:         false,
++			ContentLength: -1,
++			Host:          "test",
++			Referer:       "",
++			UserAgent:     "",
++			Form:          map[string][]string{},
++		},
++
++		"",
++	},
+ }
+ 
+ func TestReadRequest(t *testing.T) {
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index b88689988d..04bebaaf55 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -504,7 +504,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 		return nil, &badStringError{"malformed HTTP version", req.Proto}
+ 	}
+ 
+-	if req.URL, err = ParseURL(req.RawURL); err != nil {
++	if req.URL, err = ParseRequestURL(req.RawURL); err != nil {
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 43e1b93a59..053d6dca44 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -7,7 +7,9 @@
+ package http
+ 
+ import (
++	"bufio"
+ 	"bytes"
++	"io"
+ 	"os"
+ 	"net"
+ 	"testing"
+@@ -133,3 +135,86 @@ func TestConsumingBodyOnNextConn(t *testing.T) {
+ 		t.Errorf("Serve returned %q; expected EOF", serveerr)
+ 	}
+ }
++
++type responseWriterMethodCall struct {
++	method                 string
++	headerKey, headerValue string // if method == "SetHeader"
++	bytesWritten           []byte // if method == "Write"
++	responseCode           int    // if method == "WriteHeader"
++}
++
++type recordingResponseWriter struct {
++	log []*responseWriterMethodCall
++}
++
++func (rw *recordingResponseWriter) RemoteAddr() string {
++	return "1.2.3.4"
++}
++
++func (rw *recordingResponseWriter) UsingTLS() bool {
++	return false
++}
++
++func (rw *recordingResponseWriter) SetHeader(k, v string) {
++	rw.log = append(rw.log, &responseWriterMethodCall{method: "SetHeader", headerKey: k, headerValue: v})
++}
++
++func (rw *recordingResponseWriter) Write(buf []byte) (int, os.Error) {
++	rw.log = append(rw.log, &responseWriterMethodCall{method: "Write", bytesWritten: buf})
++	return len(buf), nil
++}
++
++func (rw *recordingResponseWriter) WriteHeader(code int) {
++	rw.log = append(rw.log, &responseWriterMethodCall{method: "WriteHeader", responseCode: code})
++}
++
++func (rw *recordingResponseWriter) Flush() {
++	rw.log = append(rw.log, &responseWriterMethodCall{method: "Flush"})
++}
++
++func (rw *recordingResponseWriter) Hijack() (io.ReadWriteCloser, *bufio.ReadWriter, os.Error) {
++	panic("Not supported")
++}
++
++// Tests for http://code.google.com/p/go/issues/detail?id=900
++func TestMuxRedirectLeadingSlashes(t *testing.T) {
++	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
++	for _, path := range paths {
++		req, err := ReadRequest(bufio.NewReader(bytes.NewBufferString("GET " + path + " HTTP/1.1\r\nHost: test\r\n\r\n")))
++		if err != nil {
++			t.Errorf("%s", err)
++		}
++		mux := NewServeMux()
++		resp := new(recordingResponseWriter)
++		resp.log = make([]*responseWriterMethodCall, 0)
++
++		mux.ServeHTTP(resp, req)
++
++		dumpLog := func() {
++			t.Logf("For path %q:", path)
++			for _, call := range resp.log {
++				t.Logf("Got call: %s, header=%s, value=%s, buf=%q, code=%d", call.method,
++					call.headerKey, call.headerValue, call.bytesWritten, call.responseCode)
++			}
++		}
++
++		if len(resp.log) != 2 {
++			dumpLog()
++			t.Errorf("expected 2 calls to response writer; got %d", len(resp.log))
++			return
++		}
++
++		if resp.log[0].method != "SetHeader" ||
++			resp.log[0].headerKey != "Location" || resp.log[0].headerValue != "/foo.txt" {
++			dumpLog()
++			t.Errorf("Expected SetHeader of Location to /foo.txt")
++			return
++		}
++
++		if resp.log[1].method != "WriteHeader" || resp.log[1].responseCode != StatusMovedPermanently {
++			dumpLog()
++			t.Errorf("Expected WriteHeader of StatusMovedPermanently")
++			return
++		}
++	}
++}
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index f0ac4c1dfd..e4aa077e52 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -385,7 +385,25 @@ func split(s string, c byte, cutc bool) (string, string) {
+ // ParseURL parses rawurl into a URL structure.
+ // The string rawurl is assumed not to have a #fragment suffix.
+ // (Web browsers strip #fragment before sending the URL to a web server.)
++// The rawurl may be relative or absolute.
+ func ParseURL(rawurl string) (url *URL, err os.Error) {
++	return parseURL(rawurl, false)
++}
++
++// ParseRequestURL parses rawurl into a URL structure.  It assumes that
++// rawurl was received from an HTTP request, so the rawurl is interpreted
++// only as an absolute URI or an absolute path.
++// The string rawurl is assumed not to have a #fragment suffix.
++// (Web browsers strip #fragment before sending the URL to a web server.)
++func ParseRequestURL(rawurl string) (url *URL, err os.Error) {
++	return parseURL(rawurl, true)
++}
++
++// parseURL parses a URL from a string in one of two contexts.  If
++// viaRequest is true, the URL is assumed to have arrived via an HTTP request,
++// in which case only absolute URLs or path-absolute relative URLs are allowed.
++// If viaRequest is false, all forms of relative URLs are allowed.
++func parseURL(rawurl string, viaRequest bool) (url *URL, err os.Error) {
+ 	if rawurl == "" {
+ 		err = os.ErrorString("empty url")
+ 		goto Error
+@@ -400,7 +418,9 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 		goto Error
+ 	}
+ 
+-	if url.Scheme != "" && (len(path) == 0 || path[0] != '/') {
++	leadingSlash := strings.HasPrefix(path, "/")
++
++	if url.Scheme != "" && !leadingSlash {
+ 		// RFC 2396:
+ 		// Absolute URI (has scheme) with non-rooted path
+ 		// is uninterpreted.  It doesn't even have a ?query.
+@@ -412,6 +432,11 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 		}
+ 		url.OpaquePath = true
+ 	} else {
++		if viaRequest && !leadingSlash {
++			err = os.ErrorString("invalid URI for request")
++			goto Error
++		}
++
+ 		// Split off query before parsing path further.
+ 		url.RawPath = path
+ 		path, query := split(path, '?', false)
+@@ -420,7 +445,8 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 		}
+ 
+ 		// Maybe path is //authority/path
+-		if url.Scheme != "" && len(path) > 2 && path[0:2] == "//" {
++		if (url.Scheme != "" || !viaRequest) &&
++			strings.HasPrefix(path, "//") && !strings.HasPrefix(path, "///") {
+ 			url.RawAuthority, path = split(path[2:], '/', false)
+ 			url.RawPath = url.RawPath[2+len(url.RawAuthority):]
+ 		}
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index 447d5390ef..9a67185d24 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -188,14 +188,48 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
+-	// leading // without scheme shouldn't create an authority
++	// leading // without scheme should create an authority
+ 	{
+ 		"//foo",
+ 		&URL{
+-			Raw:     "//foo",
+-			Scheme:  "",
+-			RawPath: "//foo",
+-			Path:    "//foo",
++			RawAuthority: "foo",
++			Raw:          "//foo",
++			Host:         "foo",
++			Scheme:       "",
++			RawPath:      "",
++			Path:         "",
++		},
++		"",
++	},
++	// leading // without scheme, with userinfo, path, and query
++	{
++		"//user@foo/path?a=b",
++		&URL{
++			Raw:          "//user@foo/path?a=b",
++			RawAuthority: "user@foo",
++			RawUserinfo:  "user",
++			Scheme:       "",
++			RawPath:      "/path?a=b",
++			Path:         "/path",
++			RawQuery:     "a=b",
++			Host:         "foo",
++		},
++		"",
++	},
++	// Three leading slashes isn't an authority, but doesn't return an error.
++	// (We can't return an error, as this code is also used via
++	// ServeHTTP -> ReadRequest -> ParseURL, which is arguably a
++	// different URL parsing context, but currently shares the
++	// same codepath)
++	{
++		"///threeslashes",
++		&URL{
++			RawAuthority: "",
++			Raw:          "///threeslashes",
++			Host:         "",
++			Scheme:       "",
++			RawPath:      "///threeslashes",
++			Path:         "///threeslashes",
+ 		},
+ 		"",
+ 	},
+@@ -272,7 +306,7 @@ var urlfragtests = []URLTest{
+ 
+ // more useful string for debugging than fmt's struct printer
+ func ufmt(u *URL) string {
+-	return fmt.Sprintf("%q, %q, %q, %q, %q, %q, %q, %q, %q",
++	return fmt.Sprintf("raw=%q, scheme=%q, rawpath=%q, auth=%q, userinfo=%q, host=%q, path=%q, rawq=%q, frag=%q",
+ 		u.Raw, u.Scheme, u.RawPath, u.RawAuthority, u.RawUserinfo,
+ 		u.Host, u.Path, u.RawQuery, u.Fragment)
+ }
+@@ -301,6 +335,40 @@ func TestParseURLReference(t *testing.T) {
+ 	DoTest(t, ParseURLReference, "ParseURLReference", urlfragtests)
+ }
+ 
++const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
++
++var parseRequestUrlTests = []struct {
++	url           string
++	expectedValid bool
++}{
++	{"http://foo.com", true},
++	{"http://foo.com/", true},
++	{"http://foo.com/path", true},
++	{"/", true},
++	{pathThatLooksSchemeRelative, true},
++	{"//not.a.user@%66%6f%6f.com/just/a/path/also", true},
++	{"foo.html", false},
++	{"../dir/", false},
++}
++
++func TestParseRequestURL(t *testing.T) {
++	for _, test := range parseRequestUrlTests {
++		_, err := ParseRequestURL(test.url)
++		valid := err == nil
++		if valid != test.expectedValid {
++			t.Errorf("Expected valid=%v for %q; got %v", test.expectedValid, test.url, valid)
++		}
++	}
++
++	url, err := ParseRequestURL(pathThatLooksSchemeRelative)
++	if err != nil {
++		t.Fatalf("Unexpected error %v", err)
++	}
++	if url.Path != pathThatLooksSchemeRelative {
++		t.Errorf("Expected path %q; got %q", pathThatLooksSchemeRelative, url.Path)
++	}
++}
++
+ func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
+ 	for _, tt := range tests {
+ 		u, err := parse(tt.in)

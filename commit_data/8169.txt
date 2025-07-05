@@ -7,6 +7,40 @@ Date:   Wed Apr 20 18:19:22 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4449041
-
+---
  src/run.bash | 11 +----------
  1 file changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index ea98403f73..ccdbc1aa9c 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -33,8 +33,7 @@ xcd() {
+ if $rebuild; then
+ 	(xcd pkg
+ 		gomake clean
+-		time gomake
+-		gomake install
++		time gomake install
+ 	) || exit $i
+ fi
+ 
+@@ -43,18 +42,10 @@ gomake testshort
+ ) || exit $?
+ 
+ (xcd pkg/sync;
+-if $rebuild; then
+-	gomake clean;
+-	time gomake
+-fi
+ GOMAXPROCS=10 gomake testshort
+ ) || exit $?
+ 
+ (xcd cmd/ebnflint
+-if $rebuild; then
+-	gomake clean;
+-	time gomake
+-fi
+ time gomake test
+ ) || exit $?
+ 

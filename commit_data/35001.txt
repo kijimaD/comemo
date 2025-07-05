@@ -14,6 +14,22 @@ Date:   Mon Dec 4 10:59:39 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/81775
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/method7.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/test/method7.go b/test/method7.go
+index 4e1b3c340a..72c88b377d 100644
+--- a/test/method7.go
++++ b/test/method7.go
+@@ -45,9 +45,8 @@ func main() {
+ 	interface{ m1(string) }.m1(x, "d")
+ 	want += " m1(d)"
+ 
+-	g := struct{ T }.m2
+-	_ = g
+ 	// cannot link the call below - see #22444
++	// g := struct{ T }.m2
+ 	// g(struct{T}{})
+ 	// want += " m2()"
+ 

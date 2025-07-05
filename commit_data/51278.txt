@@ -19,8 +19,56 @@ Date:   Wed Dec 15 11:37:36 2021 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.18.html                     | 9 +++++----
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/help/helpdoc.go | 2 +-
  3 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index a5d7dcfcc5..0f313ee454 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -143,11 +143,12 @@ Do not send CLs removing the interior tags from such phrases.
+ <h3 id="amd64">AMD64</h3>
+ 
+ <p><!-- CL 349595 -->
+-  Go 1.18 introduces the new <code>GOAMD64</code> environment variable which selects
+-  a version of the AMD64 architecture. Allowed values are <code>v1</code>,
++  Go 1.18 introduces the new <code>GOAMD64</code> environment variable, which selects
++  a mininum target version of the AMD64 architecture. Allowed values are <code>v1</code>,
+   <code>v2</code>, <code>v3</code>, or <code>v4</code>. Each higher level requires,
+-  and takes advantage of, additional processor features.  A detailed description of the
+-  versions is <a href="https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels">here</a>.
++  and takes advantage of, additional processor features. A detailed
++  description can be found
++  <a href="https://golang.org/wiki/MinimumRequirements#amd64">here</a>.
+ </p>
+ <p>
+   The <code>GOAMD64</code> environment variable defaults to <code>v1</code>.
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d90321414a..3bb9d146b2 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2131,7 +2131,7 @@
+ // 	GOAMD64
+ // 		For GOARCH=amd64, the microarchitecture level for which to compile.
+ // 		Valid values are v1 (default), v2, v3, v4.
+-// 		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
++// 		See https://golang.org/wiki/MinimumRequirements#amd64
+ // 	GOMIPS
+ // 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ // 		Valid values are hardfloat (default), softfloat.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 035235fe1b..7dc066cfba 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -595,7 +595,7 @@ Architecture-specific environment variables:
+ 	GOAMD64
+ 		For GOARCH=amd64, the microarchitecture level for which to compile.
+ 		Valid values are v1 (default), v2, v3, v4.
+-		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
++		See https://golang.org/wiki/MinimumRequirements#amd64
+ 	GOMIPS
+ 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ 		Valid values are hardfloat (default), softfloat.

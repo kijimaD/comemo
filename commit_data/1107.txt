@@ -9,7 +9,41 @@ Date:   Tue Nov 11 18:17:54 2008 -0800
     DELTA=24  (8 added, 16 deleted, 0 changed)
     OCL=19006
     CL=19057
-
+---
  test/{bugs => fixedbugs}/bug077.go | 7 +------
  test/golden.out                    | 3 ---
  2 files changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/test/bugs/bug077.go b/test/fixedbugs/bug077.go
+similarity index 60%
+rename from test/bugs/bug077.go
+rename to test/fixedbugs/bug077.go
+index 97b9d2f459..ba6e3b77da 100644
+--- a/test/bugs/bug077.go
++++ b/test/fixedbugs/bug077.go
+@@ -8,10 +8,5 @@ package main
+ 
+ func main() {
+ 	var exit int;
+-exit:  // this shouldn't be legal
++exit:
+ }
+-
+-/*
+-Within a scope, an identifier should have only one association - it cannot be
+-a variable and a label at the same time.
+-*/
+diff --git a/test/golden.out b/test/golden.out
+index 3b4fcecfe4..70b5db2700 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -97,9 +97,6 @@ bugs/bug064.go:15: illegal types for operand: CALL
+ 	struct { u int; v int }
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug077.go
+-BUG: known to succeed incorrectly
+-
+ =========== bugs/bug080.go
+ bugs/bug080.go:12: illegal types for operand: CALL
+ 	int

@@ -14,7 +14,7 @@ Date:   Wed Nov 29 19:41:11 2017 +0000
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../x/net/internal/nettest/helper_bsd.go           |  53 +++++++
  .../x/net/internal/nettest/helper_nobsd.go         |  15 ++
  .../x/net/internal/nettest/helper_posix.go         |  31 +++++
@@ -26,3 +26,602 @@ Date:   Wed Nov 29 19:41:11 2017 +0000
  .../golang_org/x/net/internal/nettest/stack.go     | 152 +++++++++++++++++++++
  .../golang_org/x/net/nettest/conntest_test.go      |  58 +-------
  10 files changed, 463 insertions(+), 54 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_bsd.go b/src/vendor/golang_org/x/net/internal/nettest/helper_bsd.go
+new file mode 100644
+index 0000000000..a6e433b58c
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_bsd.go
+@@ -0,0 +1,53 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd
++
++package nettest
++
++import (
++	"runtime"
++	"strconv"
++	"strings"
++	"syscall"
++)
++
++var darwinVersion int
++
++func init() {
++	if runtime.GOOS == "darwin" {
++		// See http://support.apple.com/kb/HT1633.
++		s, err := syscall.Sysctl("kern.osrelease")
++		if err != nil {
++			return
++		}
++		ss := strings.Split(s, ".")
++		if len(ss) == 0 {
++			return
++		}
++		darwinVersion, _ = strconv.Atoi(ss[0])
++	}
++}
++
++func supportsIPv6MulticastDeliveryOnLoopback() bool {
++	switch runtime.GOOS {
++	case "freebsd":
++		// See http://www.freebsd.org/cgi/query-pr.cgi?pr=180065.
++		// Even after the fix, it looks like the latest
++		// kernels don't deliver link-local scoped multicast
++		// packets correctly.
++		return false
++	case "darwin":
++		return !causesIPv6Crash()
++	default:
++		return true
++	}
++}
++
++func causesIPv6Crash() bool {
++	// We see some kernel crash when running IPv6 with IP-level
++	// options on Darwin kernel version 12 or below.
++	// See golang.org/issues/17015.
++	return darwinVersion < 13
++}
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go b/src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go
+new file mode 100644
+index 0000000000..bc7da5e0d5
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go
+@@ -0,0 +1,15 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux solaris
++
++package nettest
++
++func supportsIPv6MulticastDeliveryOnLoopback() bool {
++	return true
++}
++
++func causesIPv6Crash() bool {
++	return false
++}
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_posix.go b/src/vendor/golang_org/x/net/internal/nettest/helper_posix.go
+new file mode 100644
+index 0000000000..963ed99655
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_posix.go
+@@ -0,0 +1,31 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
++
++package nettest
++
++import (
++	"os"
++	"syscall"
++)
++
++func protocolNotSupported(err error) bool {
++	switch err := err.(type) {
++	case syscall.Errno:
++		switch err {
++		case syscall.EPROTONOSUPPORT, syscall.ENOPROTOOPT:
++			return true
++		}
++	case *os.SyscallError:
++		switch err := err.Err.(type) {
++		case syscall.Errno:
++			switch err {
++			case syscall.EPROTONOSUPPORT, syscall.ENOPROTOOPT:
++				return true
++			}
++		}
++	}
++	return false
++}
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go b/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go
+new file mode 100644
+index 0000000000..ea61b6f399
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go
+@@ -0,0 +1,32 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build nacl plan9
++
++package nettest
++
++import (
++	"fmt"
++	"runtime"
++)
++
++func maxOpenFiles() int {
++	return defaultMaxOpenFiles
++}
++
++func supportsRawIPSocket() (string, bool) {
++	return fmt.Sprintf("not supported on %s", runtime.GOOS), false
++}
++
++func supportsIPv6MulticastDeliveryOnLoopback() bool {
++	return false
++}
++
++func causesIPv6Crash() bool {
++	return false
++}
++
++func protocolNotSupported(err error) bool {
++	return false
++}
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_unix.go b/src/vendor/golang_org/x/net/internal/nettest/helper_unix.go
+new file mode 100644
+index 0000000000..ed13e448b7
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_unix.go
+@@ -0,0 +1,29 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package nettest
++
++import (
++	"fmt"
++	"os"
++	"runtime"
++	"syscall"
++)
++
++func maxOpenFiles() int {
++	var rlim syscall.Rlimit
++	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim); err != nil {
++		return defaultMaxOpenFiles
++	}
++	return int(rlim.Cur)
++}
++
++func supportsRawIPSocket() (string, bool) {
++	if os.Getuid() != 0 {
++		return fmt.Sprintf("must be root on %s", runtime.GOOS), false
++	}
++	return "", true
++}
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_windows.go b/src/vendor/golang_org/x/net/internal/nettest/helper_windows.go
+new file mode 100644
+index 0000000000..3dcb727c95
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_windows.go
+@@ -0,0 +1,42 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package nettest
++
++import (
++	"fmt"
++	"runtime"
++	"syscall"
++)
++
++func maxOpenFiles() int {
++	return 4 * defaultMaxOpenFiles /* actually it's 16581375 */
++}
++
++func supportsRawIPSocket() (string, bool) {
++	// From http://msdn.microsoft.com/en-us/library/windows/desktop/ms740548.aspx:
++	// Note: To use a socket of type SOCK_RAW requires administrative privileges.
++	// Users running Winsock applications that use raw sockets must be a member of
++	// the Administrators group on the local computer, otherwise raw socket calls
++	// will fail with an error code of WSAEACCES. On Windows Vista and later, access
++	// for raw sockets is enforced at socket creation. In earlier versions of Windows,
++	// access for raw sockets is enforced during other socket operations.
++	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, 0)
++	if err == syscall.WSAEACCES {
++		return fmt.Sprintf("no access to raw socket allowed on %s", runtime.GOOS), false
++	}
++	if err != nil {
++		return err.Error(), false
++	}
++	syscall.Closesocket(s)
++	return "", true
++}
++
++func supportsIPv6MulticastDeliveryOnLoopback() bool {
++	return true
++}
++
++func causesIPv6Crash() bool {
++	return false
++}
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/interface.go b/src/vendor/golang_org/x/net/internal/nettest/interface.go
+new file mode 100644
+index 0000000000..8e6333afe1
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/internal/nettest/interface.go
+@@ -0,0 +1,94 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package nettest
++
++import "net"
++
++// IsMulticastCapable reports whether ifi is an IP multicast-capable
++// network interface. Network must be "ip", "ip4" or "ip6".
++func IsMulticastCapable(network string, ifi *net.Interface) (net.IP, bool) {
++	switch network {
++	case "ip", "ip4", "ip6":
++	default:
++		return nil, false
++	}
++	if ifi == nil || ifi.Flags&net.FlagUp == 0 || ifi.Flags&net.FlagMulticast == 0 {
++		return nil, false
++	}
++	return hasRoutableIP(network, ifi)
++}
++
++// RoutedInterface returns a network interface that can route IP
++// traffic and satisfies flags. It returns nil when an appropriate
++// network interface is not found. Network must be "ip", "ip4" or
++// "ip6".
++func RoutedInterface(network string, flags net.Flags) *net.Interface {
++	switch network {
++	case "ip", "ip4", "ip6":
++	default:
++		return nil
++	}
++	ift, err := net.Interfaces()
++	if err != nil {
++		return nil
++	}
++	for _, ifi := range ift {
++		if ifi.Flags&flags != flags {
++			continue
++		}
++		if _, ok := hasRoutableIP(network, &ifi); !ok {
++			continue
++		}
++		return &ifi
++	}
++	return nil
++}
++
++func hasRoutableIP(network string, ifi *net.Interface) (net.IP, bool) {
++	ifat, err := ifi.Addrs()
++	if err != nil {
++		return nil, false
++	}
++	for _, ifa := range ifat {
++		switch ifa := ifa.(type) {
++		case *net.IPAddr:
++			if ip := routableIP(network, ifa.IP); ip != nil {
++				return ip, true
++			}
++		case *net.IPNet:
++			if ip := routableIP(network, ifa.IP); ip != nil {
++				return ip, true
++			}
++		}
++	}
++	return nil, false
++}
++
++func routableIP(network string, ip net.IP) net.IP {
++	if !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsGlobalUnicast() {
++		return nil
++	}
++	switch network {
++	case "ip4":
++		if ip := ip.To4(); ip != nil {
++			return ip
++		}
++	case "ip6":
++		if ip.IsLoopback() { // addressing scope of the loopback address depends on each implementation
++			return nil
++		}
++		if ip := ip.To16(); ip != nil && ip.To4() == nil {
++			return ip
++		}
++	default:
++		if ip := ip.To4(); ip != nil {
++			return ip
++		}
++		if ip := ip.To16(); ip != nil {
++			return ip
++		}
++	}
++	return nil
++}
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/rlimit.go b/src/vendor/golang_org/x/net/internal/nettest/rlimit.go
+new file mode 100644
+index 0000000000..bb34aec0bb
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/internal/nettest/rlimit.go
+@@ -0,0 +1,11 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package nettest
++
++const defaultMaxOpenFiles = 256
++
++// MaxOpenFiles returns the maximum number of open files for the
++// caller's process.
++func MaxOpenFiles() int { return maxOpenFiles() }
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/stack.go b/src/vendor/golang_org/x/net/internal/nettest/stack.go
+new file mode 100644
+index 0000000000..06f4e09ef8
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/internal/nettest/stack.go
+@@ -0,0 +1,152 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package nettest provides utilities for network testing.
++package nettest // import "golang.org/x/net/internal/nettest"
++
++import (
++	"fmt"
++	"io/ioutil"
++	"net"
++	"os"
++	"runtime"
++)
++
++var (
++	supportsIPv4 bool
++	supportsIPv6 bool
++)
++
++func init() {
++	if ln, err := net.Listen("tcp4", "127.0.0.1:0"); err == nil {
++		ln.Close()
++		supportsIPv4 = true
++	}
++	if ln, err := net.Listen("tcp6", "[::1]:0"); err == nil {
++		ln.Close()
++		supportsIPv6 = true
++	}
++}
++
++// SupportsIPv4 reports whether the platform supports IPv4 networking
++// functionality.
++func SupportsIPv4() bool { return supportsIPv4 }
++
++// SupportsIPv6 reports whether the platform supports IPv6 networking
++// functionality.
++func SupportsIPv6() bool { return supportsIPv6 }
++
++// SupportsRawIPSocket reports whether the platform supports raw IP
++// sockets.
++func SupportsRawIPSocket() (string, bool) {
++	return supportsRawIPSocket()
++}
++
++// SupportsIPv6MulticastDeliveryOnLoopback reports whether the
++// platform supports IPv6 multicast packet delivery on software
++// loopback interface.
++func SupportsIPv6MulticastDeliveryOnLoopback() bool {
++	return supportsIPv6MulticastDeliveryOnLoopback()
++}
++
++// ProtocolNotSupported reports whether err is a protocol not
++// supported error.
++func ProtocolNotSupported(err error) bool {
++	return protocolNotSupported(err)
++}
++
++// TestableNetwork reports whether network is testable on the current
++// platform configuration.
++func TestableNetwork(network string) bool {
++	// This is based on logic from standard library's
++	// net/platform_test.go.
++	switch network {
++	case "unix", "unixgram":
++		switch runtime.GOOS {
++		case "android", "nacl", "plan9", "windows":
++			return false
++		}
++		if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++			return false
++		}
++	case "unixpacket":
++		switch runtime.GOOS {
++		case "android", "darwin", "freebsd", "nacl", "plan9", "windows":
++			return false
++		case "netbsd":
++			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.
++			if runtime.GOARCH == "386" {
++				return false
++			}
++		}
++	}
++	return true
++}
++
++// NewLocalListener returns a listener which listens to a loopback IP
++// address or local file system path.
++// Network must be "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
++func NewLocalListener(network string) (net.Listener, error) {
++	switch network {
++	case "tcp":
++		if supportsIPv4 {
++			if ln, err := net.Listen("tcp4", "127.0.0.1:0"); err == nil {
++				return ln, nil
++			}
++		}
++		if supportsIPv6 {
++			return net.Listen("tcp6", "[::1]:0")
++		}
++	case "tcp4":
++		if supportsIPv4 {
++			return net.Listen("tcp4", "127.0.0.1:0")
++		}
++	case "tcp6":
++		if supportsIPv6 {
++			return net.Listen("tcp6", "[::1]:0")
++		}
++	case "unix", "unixpacket":
++		return net.Listen(network, localPath())
++	}
++	return nil, fmt.Errorf("%s is not supported", network)
++}
++
++// NewLocalPacketListener returns a packet listener which listens to a
++// loopback IP address or local file system path.
++// Network must be "udp", "udp4", "udp6" or "unixgram".
++func NewLocalPacketListener(network string) (net.PacketConn, error) {
++	switch network {
++	case "udp":
++		if supportsIPv4 {
++			if c, err := net.ListenPacket("udp4", "127.0.0.1:0"); err == nil {
++				return c, nil
++			}
++		}
++		if supportsIPv6 {
++			return net.ListenPacket("udp6", "[::1]:0")
++		}
++	case "udp4":
++		if supportsIPv4 {
++			return net.ListenPacket("udp4", "127.0.0.1:0")
++		}
++	case "udp6":
++		if supportsIPv6 {
++			return net.ListenPacket("udp6", "[::1]:0")
++		}
++	case "unixgram":
++		return net.ListenPacket(network, localPath())
++	}
++	return nil, fmt.Errorf("%s is not supported", network)
++}
++
++func localPath() string {
++	f, err := ioutil.TempFile("", "nettest")
++	if err != nil {
++		panic(err)
++	}
++	path := f.Name()
++	f.Close()
++	os.Remove(path)
++	return path
++}
+diff --git a/src/vendor/golang_org/x/net/nettest/conntest_test.go b/src/vendor/golang_org/x/net/nettest/conntest_test.go
+index 23bd69fc63..ae8426a05c 100644
+--- a/src/vendor/golang_org/x/net/nettest/conntest_test.go
++++ b/src/vendor/golang_org/x/net/nettest/conntest_test.go
+@@ -7,63 +7,13 @@
+ package nettest
+ 
+ import (
+-	"fmt"
+-	"io/ioutil"
+ 	"net"
+ 	"os"
+ 	"runtime"
+ 	"testing"
+-)
+-
+-// testUnixAddr uses ioutil.TempFile to get a name that is unique.
+-// It also uses /tmp directory in case it is prohibited to create UNIX
+-// sockets in TMPDIR.
+-func testUnixAddr() string {
+-	f, err := ioutil.TempFile("", "go-nettest")
+-	if err != nil {
+-		panic(err)
+-	}
+-	addr := f.Name()
+-	f.Close()
+-	os.Remove(addr)
+-	return addr
+-}
+-
+-// testableNetwork reports whether network is testable on the current
+-// platform configuration.
+-// This is based on logic from standard library's net/platform_test.go.
+-func testableNetwork(network string) bool {
+-	switch network {
+-	case "unix":
+-		switch runtime.GOOS {
+-		case "android", "nacl", "plan9", "windows":
+-			return false
+-		}
+-		if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+-			return false
+-		}
+-	case "unixpacket":
+-		switch runtime.GOOS {
+-		case "android", "darwin", "nacl", "plan9", "windows", "freebsd":
+-			return false
+-		}
+-	}
+-	return true
+-}
+ 
+-func newLocalListener(network string) (net.Listener, error) {
+-	switch network {
+-	case "tcp":
+-		ln, err := net.Listen("tcp", "127.0.0.1:0")
+-		if err != nil {
+-			ln, err = net.Listen("tcp6", "[::1]:0")
+-		}
+-		return ln, err
+-	case "unix", "unixpacket":
+-		return net.Listen(network, testUnixAddr())
+-	}
+-	return nil, fmt.Errorf("%s is not supported", network)
+-}
++	"golang_org/x/net/internal/nettest"
++)
+ 
+ func TestTestConn(t *testing.T) {
+ 	tests := []struct{ name, network string }{
+@@ -74,12 +24,12 @@ func TestTestConn(t *testing.T) {
+ 
+ 	for _, tt := range tests {
+ 		t.Run(tt.name, func(t *testing.T) {
+-			if !testableNetwork(tt.network) {
++			if !nettest.TestableNetwork(tt.network) {
+ 				t.Skipf("not supported on %s", runtime.GOOS)
+ 			}
+ 
+ 			mp := func() (c1, c2 net.Conn, stop func(), err error) {
+-				ln, err := newLocalListener(tt.network)
++				ln, err := nettest.NewLocalListener(tt.network)
+ 				if err != nil {
+ 					return nil, nil, nil, err
+ 				}

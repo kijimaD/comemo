@@ -9,8 +9,112 @@ Date:   Fri Jan 11 08:30:25 2013 -0800
     R=golang-dev, iant, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/7065063
-
+---
  src/pkg/os/file_unix.go  | 19 -------------------
  src/pkg/os/pipe_bsd.go   | 28 ++++++++++++++++++++++++++++
  src/pkg/os/pipe_linux.go | 33 +++++++++++++++++++++++++++++++++
  3 files changed, 61 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 5a220f66a7..4f59c94cb9 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -274,25 +274,6 @@ func basename(name string) string {
+ 	return name
+ }
+ 
+-// Pipe returns a connected pair of Files; reads from r return bytes written to w.
+-// It returns the files and an error, if any.
+-func Pipe() (r *File, w *File, err error) {
+-	var p [2]int
+-
+-	// See ../syscall/exec.go for description of lock.
+-	syscall.ForkLock.RLock()
+-	e := syscall.Pipe(p[0:])
+-	if e != nil {
+-		syscall.ForkLock.RUnlock()
+-		return nil, nil, NewSyscallError("pipe", e)
+-	}
+-	syscall.CloseOnExec(p[0])
+-	syscall.CloseOnExec(p[1])
+-	syscall.ForkLock.RUnlock()
+-
+-	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
+-}
+-
+ // TempDir returns the default directory to use for temporary files.
+ func TempDir() string {
+ 	dir := Getenv("TMPDIR")
+diff --git a/src/pkg/os/pipe_bsd.go b/src/pkg/os/pipe_bsd.go
+new file mode 100644
+index 0000000000..a2ce9a39f5
+--- /dev/null
++++ b/src/pkg/os/pipe_bsd.go
+@@ -0,0 +1,28 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd netbsd openbsd
++
++package os
++
++import "syscall"
++
++// Pipe returns a connected pair of Files; reads from r return bytes written to w.
++// It returns the files and an error, if any.
++func Pipe() (r *File, w *File, err error) {
++	var p [2]int
++
++	// See ../syscall/exec.go for description of lock.
++	syscall.ForkLock.RLock()
++	e := syscall.Pipe(p[0:])
++	if e != nil {
++		syscall.ForkLock.RUnlock()
++		return nil, nil, NewSyscallError("pipe", e)
++	}
++	syscall.CloseOnExec(p[0])
++	syscall.CloseOnExec(p[1])
++	syscall.ForkLock.RUnlock()
++
++	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
++}
+diff --git a/src/pkg/os/pipe_linux.go b/src/pkg/os/pipe_linux.go
+new file mode 100644
+index 0000000000..9bafad84f9
+--- /dev/null
++++ b/src/pkg/os/pipe_linux.go
+@@ -0,0 +1,33 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++// Pipe returns a connected pair of Files; reads from r return bytes written to w.
++// It returns the files and an error, if any.
++func Pipe() (r *File, w *File, err error) {
++	var p [2]int
++
++	e := syscall.Pipe2(p[0:], syscall.O_CLOEXEC)
++	// pipe2 was added in 2.6.27 and our minimum requirement is 2.6.23, so it
++	// might not be implemented.
++	if e == syscall.ENOSYS {
++		// See ../syscall/exec.go for description of lock.
++		syscall.ForkLock.RLock()
++		e = syscall.Pipe(p[0:])
++		if e != nil {
++			syscall.ForkLock.RUnlock()
++			return nil, nil, NewSyscallError("pipe", e)
++		}
++		syscall.CloseOnExec(p[0])
++		syscall.CloseOnExec(p[1])
++		syscall.ForkLock.RUnlock()
++	} else if e != nil {
++		return nil, nil, NewSyscallError("pipe2", e)
++	}
++
++	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
++}

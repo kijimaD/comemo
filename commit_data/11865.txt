@@ -7,6 +7,20 @@ Date:   Tue Feb 14 12:37:57 2012 +1100
     R=gri, r
     CC=golang-dev
     https://golang.org/cl/5659048
-
+---
  src/cmd/api/goapi.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 62ab606c65..4746ec8e0b 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -767,7 +767,7 @@ func (w *Walker) walkStructType(name string, t *ast.StructType) {
+ 				case *ast.SelectorExpr:
+ 					w.emitFeature(fmt.Sprintf("embedded %s", w.nodeString(typ)))
+ 				default:
+-					log.Fatal("unable to handle embedded starexpr before %T", typ)
++					log.Fatalf("unable to handle embedded starexpr before %T", typ)
+ 				}
+ 			case *ast.SelectorExpr:
+ 				w.emitFeature(fmt.Sprintf("embedded %s", w.nodeString(typ)))

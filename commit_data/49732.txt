@@ -12,9 +12,76 @@ Date:   Fri Sep 3 11:22:18 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gcimporter/iimport.go |  2 +-
  src/go/types/builtins.go              |  2 +-
  src/go/types/decl.go                  |  2 +-
  src/go/types/typeparam.go             | 10 +++++++---
  4 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 3571941d04..96c2bb3f2c 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -355,7 +355,7 @@ func (r *importReader) obj(name string) {
+ 		}
+ 		name0, sub := parseSubscript(name)
+ 		tn := types.NewTypeName(pos, r.currPkg, name0, nil)
+-		t := (*types.Checker)(nil).NewTypeParam(tn, nil)
++		t := types.NewTypeParam(tn, nil)
+ 		if sub == 0 {
+ 			errorf("missing subscript")
+ 		}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index ecf7b89275..d805e46666 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -830,7 +830,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// type param is placed in the current package so export/import
+ 		// works as expected.
+ 		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
+-		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
++		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
+ 		ptyp.index = tp.index
+ 
+ 		return ptyp
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 80f8f2f429..b48081f0b1 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -677,7 +677,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
+ func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {
+ 	for _, name := range names {
+ 		tname := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+-		tpar := check.NewTypeParam(tname, &emptyInterface)       // assigns type to tpar as a side-effect
++		tpar := check.newTypeParam(tname, &emptyInterface)       // assigns type to tpar as a side-effect
+ 		check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
+ 		tparams = append(tparams, tpar)
+ 	}
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index b6952489ca..29d44f4cb2 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -32,15 +32,19 @@ type TypeParam struct {
+ // or Signature type by calling SetTParams. Setting a type parameter on more
+ // than one type will result in a panic.
+ //
+-// The bound argument can be nil, and set later via SetBound.
+-func (check *Checker) NewTypeParam(obj *TypeName, bound Type) *TypeParam {
++// The bound argument can be nil, and set later via SetConstraint.
++func NewTypeParam(obj *TypeName, constraint Type) *TypeParam {
++	return (*Checker)(nil).newTypeParam(obj, constraint)
++}
++
++func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	// Always increment lastID, even if it is not used.
+ 	id := nextID()
+ 	if check != nil {
+ 		check.nextID++
+ 		id = check.nextID
+ 	}
+-	typ := &TypeParam{check: check, id: id, obj: obj, index: -1, bound: bound}
++	typ := &TypeParam{check: check, id: id, obj: obj, index: -1, bound: constraint}
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+ 	}

@@ -17,7 +17,7 @@ Date:   Thu Aug 24 15:10:39 2023 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/bytes.go                            |  9 ++-------
  src/internal/bytealg/lastindexbyte_generic.go | 23 +++++++++++++++++++++++
  src/net/netip/leaf_alts.go                    |  9 ---------
@@ -26,3 +26,194 @@ Date:   Thu Aug 24 15:10:39 2023 +0200
  src/os/tempfile.go                            | 13 ++-----------
  src/strings/strings.go                        |  9 ++-------
  7 files changed, 34 insertions(+), 38 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index c54e52e4fc..7ecf3b59f6 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -112,7 +112,7 @@ func LastIndex(s, sep []byte) int {
+ 	case n == 0:
+ 		return len(s)
+ 	case n == 1:
+-		return LastIndexByte(s, sep[0])
++		return bytealg.LastIndexByte(s, sep[0])
+ 	case n == len(s):
+ 		if Equal(s, sep) {
+ 			return 0
+@@ -144,12 +144,7 @@ func LastIndex(s, sep []byte) int {
+ 
+ // LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
+ func LastIndexByte(s []byte, c byte) int {
+-	for i := len(s) - 1; i >= 0; i-- {
+-		if s[i] == c {
+-			return i
+-		}
+-	}
+-	return -1
++	return bytealg.LastIndexByte(s, c)
+ }
+ 
+ // IndexRune interprets s as a sequence of UTF-8-encoded code points.
+diff --git a/src/internal/bytealg/lastindexbyte_generic.go b/src/internal/bytealg/lastindexbyte_generic.go
+new file mode 100644
+index 0000000000..b905f53c2b
+--- /dev/null
++++ b/src/internal/bytealg/lastindexbyte_generic.go
+@@ -0,0 +1,23 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bytealg
++
++func LastIndexByte(s []byte, c byte) int {
++	for i := len(s) - 1; i >= 0; i-- {
++		if s[i] == c {
++			return i
++		}
++	}
++	return -1
++}
++
++func LastIndexByteString(s string, c byte) int {
++	for i := len(s) - 1; i >= 0; i-- {
++		if s[i] == c {
++			return i
++		}
++	}
++	return -1
++}
+diff --git a/src/net/netip/leaf_alts.go b/src/net/netip/leaf_alts.go
+index 70513abfd9..d887bed627 100644
+--- a/src/net/netip/leaf_alts.go
++++ b/src/net/netip/leaf_alts.go
+@@ -7,15 +7,6 @@
+ 
+ package netip
+ 
+-func stringsLastIndexByte(s string, b byte) int {
+-	for i := len(s) - 1; i >= 0; i-- {
+-		if s[i] == b {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+-
+ func beUint64(b []byte) uint64 {
+ 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+ 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index d640c26492..0c9dc3246c 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -1038,7 +1038,7 @@ func (p AddrPort) Port() uint16 { return p.port }
+ // ip string should parse as an IPv6 address or an IPv4 address, in
+ // order for s to be a valid ip:port string.
+ func splitAddrPort(s string) (ip, port string, v6 bool, err error) {
+-	i := stringsLastIndexByte(s, ':')
++	i := bytealg.LastIndexByteString(s, ':')
+ 	if i == -1 {
+ 		return "", "", false, errors.New("not an ip:port")
+ 	}
+@@ -1269,7 +1269,7 @@ func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLe
+ //
+ // Note that masked address bits are not zeroed. Use Masked for that.
+ func ParsePrefix(s string) (Prefix, error) {
+-	i := stringsLastIndexByte(s, '/')
++	i := bytealg.LastIndexByteString(s, '/')
+ 	if i < 0 {
+ 		return Prefix{}, errors.New("netip.ParsePrefix(" + strconv.Quote(s) + "): no '/'")
+ 	}
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 8336487c14..03cdb5be4a 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/bytealg"
+ 	"internal/poll"
+ 	"io"
+ 	"runtime"
+@@ -387,7 +388,7 @@ func hasPrefix(s, prefix string) bool {
+ }
+ 
+ func rename(oldname, newname string) error {
+-	dirname := oldname[:lastIndex(oldname, '/')+1]
++	dirname := oldname[:bytealg.LastIndexByteString(oldname, '/')+1]
+ 	if hasPrefix(newname, dirname) {
+ 		newname = newname[len(dirname):]
+ 	} else {
+@@ -396,7 +397,7 @@ func rename(oldname, newname string) error {
+ 
+ 	// If newname still contains slashes after removing the oldname
+ 	// prefix, the rename is cross-directory and must be rejected.
+-	if lastIndex(newname, '/') >= 0 {
++	if bytealg.LastIndexByteString(newname, '/') >= 0 {
+ 		return &LinkError{"rename", oldname, newname, ErrInvalid}
+ 	}
+ 
+diff --git a/src/os/tempfile.go b/src/os/tempfile.go
+index 99f65c625a..315f65ad9c 100644
+--- a/src/os/tempfile.go
++++ b/src/os/tempfile.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/bytealg"
+ 	"internal/itoa"
+ )
+ 
+@@ -62,7 +63,7 @@ func prefixAndSuffix(pattern string) (prefix, suffix string, err error) {
+ 			return "", "", errPatternHasSeparator
+ 		}
+ 	}
+-	if pos := lastIndex(pattern, '*'); pos != -1 {
++	if pos := bytealg.LastIndexByteString(pattern, '*'); pos != -1 {
+ 		prefix, suffix = pattern[:pos], pattern[pos+1:]
+ 	} else {
+ 		prefix = pattern
+@@ -116,13 +117,3 @@ func joinPath(dir, name string) string {
+ 	}
+ 	return dir + string(PathSeparator) + name
+ }
+-
+-// lastIndex from the strings package.
+-func lastIndex(s string, sep byte) int {
+-	for i := len(s) - 1; i >= 0; i-- {
+-		if s[i] == sep {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 2dd4321142..301cd8667e 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -83,7 +83,7 @@ func LastIndex(s, substr string) int {
+ 	case n == 0:
+ 		return len(s)
+ 	case n == 1:
+-		return LastIndexByte(s, substr[0])
++		return bytealg.LastIndexByteString(s, substr[0])
+ 	case n == len(s):
+ 		if substr == s {
+ 			return 0
+@@ -227,12 +227,7 @@ func LastIndexAny(s, chars string) int {
+ 
+ // LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
+ func LastIndexByte(s string, c byte) int {
+-	for i := len(s) - 1; i >= 0; i-- {
+-		if s[i] == c {
+-			return i
+-		}
+-	}
+-	return -1
++	return bytealg.LastIndexByteString(s, c)
+ }
+ 
+ // Generic split: splits after each instance of sep,

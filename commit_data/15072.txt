@@ -9,6 +9,34 @@ Date:   Thu Jan 31 15:59:30 2013 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7228079
-
+---
  test/fixedbugs/issue4734.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/test/fixedbugs/issue4734.go b/test/fixedbugs/issue4734.go
+new file mode 100644
+index 0000000000..69f66f2129
+--- /dev/null
++++ b/test/fixedbugs/issue4734.go
+@@ -0,0 +1,21 @@
++// compile
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Caused gccgo to emit multiple definitions of the same symbol.
++
++package p
++
++type S1 struct{}
++
++func (s *S1) M() {}
++
++type S2 struct {
++	F struct{ *S1 }
++}
++
++func F() {
++	_ = struct{ *S1 }{}
++}

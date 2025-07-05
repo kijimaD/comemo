@@ -29,9 +29,231 @@ Date:   Fri Jul 6 01:29:47 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/cover/func.go            | 86 ++++++++++++++++++++++++++++++++++++----
  src/cmd/cover/html.go            |  7 +++-
  src/cmd/go/internal/load/test.go |  4 +-
  src/cmd/go/internal/test/test.go | 19 +++++++--
  4 files changed, 101 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/cover/func.go b/src/cmd/cover/func.go
+index 1673fbf315..fe64374189 100644
+--- a/src/cmd/cover/func.go
++++ b/src/cmd/cover/func.go
+@@ -8,13 +8,20 @@ package main
+ 
+ import (
+ 	"bufio"
++	"bytes"
++	"encoding/json"
++	"errors"
+ 	"fmt"
+ 	"go/ast"
+-	"go/build"
+ 	"go/parser"
+ 	"go/token"
++	"io"
+ 	"os"
++	"os/exec"
++	"path"
+ 	"path/filepath"
++	"runtime"
++	"strings"
+ 	"text/tabwriter"
+ )
+ 
+@@ -36,6 +43,11 @@ func funcOutput(profile, outputFile string) error {
+ 		return err
+ 	}
+ 
++	dirs, err := findPkgs(profiles)
++	if err != nil {
++		return err
++	}
++
+ 	var out *bufio.Writer
+ 	if outputFile == "" {
+ 		out = bufio.NewWriter(os.Stdout)
+@@ -55,7 +67,7 @@ func funcOutput(profile, outputFile string) error {
+ 	var total, covered int64
+ 	for _, profile := range profiles {
+ 		fn := profile.FileName
+-		file, err := findFile(fn)
++		file, err := findFile(dirs, fn)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -154,14 +166,72 @@ func (f *FuncExtent) coverage(profile *Profile) (num, den int64) {
+ 	return covered, total
+ }
+ 
+-// findFile finds the location of the named file in GOROOT, GOPATH etc.
+-func findFile(file string) (string, error) {
+-	dir, file := filepath.Split(file)
+-	pkg, err := build.Import(dir, ".", build.FindOnly)
++// Pkg describes a single package, compatible with the JSON output from 'go list'; see 'go help list'.
++type Pkg struct {
++	ImportPath string
++	Dir        string
++	Error      *struct {
++		Err string
++	}
++}
++
++func findPkgs(profiles []*Profile) (map[string]*Pkg, error) {
++	// Run go list to find the location of every package we care about.
++	pkgs := make(map[string]*Pkg)
++	var list []string
++	for _, profile := range profiles {
++		if strings.HasPrefix(profile.FileName, ".") || filepath.IsAbs(profile.FileName) {
++			// Relative or absolute path.
++			continue
++		}
++		pkg := path.Dir(profile.FileName)
++		if _, ok := pkgs[pkg]; !ok {
++			pkgs[pkg] = nil
++			list = append(list, pkg)
++		}
++	}
++
++	// Note: usually run as "go tool cover" in which case $GOROOT is set,
++	// in which case runtime.GOROOT() does exactly what we want.
++	goTool := filepath.Join(runtime.GOROOT(), "bin/go")
++	cmd := exec.Command(goTool, append([]string{"list", "-e", "-json"}, list...)...)
++	var stderr bytes.Buffer
++	cmd.Stderr = &stderr
++	stdout, err := cmd.Output()
+ 	if err != nil {
+-		return "", fmt.Errorf("can't find %q: %v", file, err)
++		return nil, fmt.Errorf("cannot run go list: %v\n%s", err, stderr.Bytes())
++	}
++	dec := json.NewDecoder(bytes.NewReader(stdout))
++	for {
++		var pkg Pkg
++		err := dec.Decode(&pkg)
++		if err == io.EOF {
++			break
++		}
++		if err != nil {
++			return nil, fmt.Errorf("decoding go list json: %v", err)
++		}
++		pkgs[pkg.ImportPath] = &pkg
++	}
++	return pkgs, nil
++}
++
++// findFile finds the location of the named file in GOROOT, GOPATH etc.
++func findFile(pkgs map[string]*Pkg, file string) (string, error) {
++	if strings.HasPrefix(file, ".") || filepath.IsAbs(file) {
++		// Relative or absolute path.
++		return file, nil
++	}
++	pkg := pkgs[path.Dir(file)]
++	if pkg != nil {
++		if pkg.Dir != "" {
++			return filepath.Join(pkg.Dir, path.Base(file)), nil
++		}
++		if pkg.Error != nil {
++			return "", errors.New(pkg.Error.Err)
++		}
+ 	}
+-	return filepath.Join(pkg.Dir, file), nil
++	return "", fmt.Errorf("did not find package for %s in go list output", file)
+ }
+ 
+ func percent(covered, total int64) float64 {
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+index 2179728216..7940e78f22 100644
+--- a/src/cmd/cover/html.go
++++ b/src/cmd/cover/html.go
+@@ -29,12 +29,17 @@ func htmlOutput(profile, outfile string) error {
+ 
+ 	var d templateData
+ 
++	dirs, err := findPkgs(profiles)
++	if err != nil {
++		return err
++	}
++
+ 	for _, profile := range profiles {
+ 		fn := profile.FileName
+ 		if profile.Mode == "set" {
+ 			d.Set = true
+ 		}
+-		file, err := findFile(fn)
++		file, err := findFile(dirs, fn)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 1444ddb58a..7cc6e910af 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -36,7 +36,7 @@ type TestCover struct {
+ 	Pkgs     []*Package
+ 	Paths    []string
+ 	Vars     []coverInfo
+-	DeclVars func(string, ...string) map[string]*CoverVar
++	DeclVars func(*Package, ...string) map[string]*CoverVar
+ }
+ 
+ // TestPackagesFor returns three packages:
+@@ -264,7 +264,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 		var coverFiles []string
+ 		coverFiles = append(coverFiles, ptest.GoFiles...)
+ 		coverFiles = append(coverFiles, ptest.CgoFiles...)
+-		ptest.Internal.CoverVars = cover.DeclVars(ptest.ImportPath, coverFiles...)
++		ptest.Internal.CoverVars = cover.DeclVars(ptest, coverFiles...)
+ 	}
+ 
+ 	for _, cp := range pmain.Internal.Imports {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 585481b6b7..ae2a5e9e4d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -698,7 +698,7 @@ func runTest(cmd *base.Command, args []string) {
+ 			coverFiles = append(coverFiles, p.GoFiles...)
+ 			coverFiles = append(coverFiles, p.CgoFiles...)
+ 			coverFiles = append(coverFiles, p.TestGoFiles...)
+-			p.Internal.CoverVars = declareCoverVars(p.ImportPath, coverFiles...)
++			p.Internal.CoverVars = declareCoverVars(p, coverFiles...)
+ 			if testCover && testCoverMode == "atomic" {
+ 				ensureImport(p, "sync/atomic")
+ 			}
+@@ -966,7 +966,7 @@ func isTestFile(file string) bool {
+ 
+ // declareCoverVars attaches the required cover variables names
+ // to the files, to be used when annotating the files.
+-func declareCoverVars(importPath string, files ...string) map[string]*load.CoverVar {
++func declareCoverVars(p *load.Package, files ...string) map[string]*load.CoverVar {
+ 	coverVars := make(map[string]*load.CoverVar)
+ 	coverIndex := 0
+ 	// We create the cover counters as new top-level variables in the package.
+@@ -975,14 +975,25 @@ func declareCoverVars(importPath string, files ...string) map[string]*load.Cover
+ 	// so we append 12 hex digits from the SHA-256 of the import path.
+ 	// The point is only to avoid accidents, not to defeat users determined to
+ 	// break things.
+-	sum := sha256.Sum256([]byte(importPath))
++	sum := sha256.Sum256([]byte(p.ImportPath))
+ 	h := fmt.Sprintf("%x", sum[:6])
+ 	for _, file := range files {
+ 		if isTestFile(file) {
+ 			continue
+ 		}
++		// For a package that is "local" (imported via ./ import or command line, outside GOPATH),
++		// we record the full path to the file name.
++		// Otherwise we record the import path, then a forward slash, then the file name.
++		// This makes profiles within GOPATH file system-independent.
++		// These names appear in the cmd/cover HTML interface.
++		var longFile string
++		if p.Internal.Local {
++			longFile = filepath.Join(p.Dir, file)
++		} else {
++			longFile = path.Join(p.ImportPath, file)
++		}
+ 		coverVars[file] = &load.CoverVar{
+-			File: filepath.Join(importPath, file),
++			File: longFile,
+ 			Var:  fmt.Sprintf("GoCover_%d_%x", coverIndex, h),
+ 		}
+ 		coverIndex++

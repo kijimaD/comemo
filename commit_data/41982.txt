@@ -13,7 +13,41 @@ Date:   Thu Oct 31 09:52:21 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204538
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/vet/testdata/asm/asm.go |  2 ++
  src/cmd/vet/testdata/asm/asm1.s | 15 +++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/vet/testdata/asm/asm.go b/src/cmd/vet/testdata/asm/asm.go
+index 72ff452aae..1e60d8bf94 100644
+--- a/src/cmd/vet/testdata/asm/asm.go
++++ b/src/cmd/vet/testdata/asm/asm.go
+@@ -7,3 +7,5 @@
+ package testdata
+ 
+ func arg1(x int8, y uint8)
++
++func cpx(x complex64, y complex128)
+diff --git a/src/cmd/vet/testdata/asm/asm1.s b/src/cmd/vet/testdata/asm/asm1.s
+index c3ba986fb8..a5bb6dd0af 100644
+--- a/src/cmd/vet/testdata/asm/asm1.s
++++ b/src/cmd/vet/testdata/asm/asm1.s
+@@ -6,3 +6,18 @@
+ 
+ TEXT ·arg1(SB),0,$0-2
+ 	MOVW	x+0(FP), AX // ERROR "\[amd64\] arg1: invalid MOVW of x\+0\(FP\); int8 is 1-byte value"
++
++TEXT ·cpx(SB),0,$0-24
++	// These are ok
++	MOVSS	x_real+0(FP), X0
++	MOVSS	x_imag+4(FP), X0
++	MOVSD	y_real+8(FP), X0
++	MOVSD	y_imag+16(FP), X0
++	// Loading both parts of a complex is ok: see issue 35264.
++	MOVSD	x+0(FP), X0
++	MOVO	y+8(FP), X0
++	MOVOU	y+8(FP), X0
++
++	// These are not ok.
++	MOVO	x+0(FP), X0 // ERROR "\[amd64\] cpx: invalid MOVO of x\+0\(FP\); complex64 is 8-byte value containing x_real\+0\(FP\) and x_imag\+4\(FP\)"
++	MOVSD	y+8(FP), X0 // ERROR "\[amd64\] cpx: invalid MOVSD of y\+8\(FP\); complex128 is 16-byte value containing y_real\+8\(FP\) and y_imag\+16\(FP\)"

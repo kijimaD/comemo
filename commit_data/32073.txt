@@ -20,9 +20,83 @@ Date:   Fri Mar 31 07:14:16 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go    |  6 ++++++
  test/fixedbugs/issue19764.dir/a.go | 15 +++++++++++++++
  test/fixedbugs/issue19764.dir/b.go | 13 +++++++++++++
  test/fixedbugs/issue19764.go       | 10 ++++++++++
  4 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a5c72cf8b2..d13c93b9a1 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -647,6 +647,12 @@ func (ctxt *Link) loadlib() {
+ 				if !s.Attr.OnList() {
+ 					ctxt.Textp = append(ctxt.Textp, s)
+ 					s.Attr |= AttrOnList
++					// dupok symbols may be defined in multiple packages. its
++					// associated package is chosen sort of arbitrarily (the
++					// first containing package that the linker loads). canonicalize
++					// it here to the package with which it will be laid down
++					// in text.
++					s.File = pathtoprefix(lib.Pkg)
+ 				}
+ 			}
+ 		}
+diff --git a/test/fixedbugs/issue19764.dir/a.go b/test/fixedbugs/issue19764.dir/a.go
+new file mode 100644
+index 0000000000..64538e5bdf
+--- /dev/null
++++ b/test/fixedbugs/issue19764.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T struct{ _ int }
++func (t T) M() {}
++
++type I interface { M() }
++
++func F() {
++	var t I = &T{}
++	t.M() // call to the wrapper (*T).M
++}
+diff --git a/test/fixedbugs/issue19764.dir/b.go b/test/fixedbugs/issue19764.dir/b.go
+new file mode 100644
+index 0000000000..d39f125f37
+--- /dev/null
++++ b/test/fixedbugs/issue19764.dir/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	var x a.I = &a.T{}
++	x.M() // call to the wrapper (*T).M
++	a.F() // make sure a.F is not dead, which also calls (*T).M inside package a
++}
+diff --git a/test/fixedbugs/issue19764.go b/test/fixedbugs/issue19764.go
+new file mode 100644
+index 0000000000..26fb00be2d
+--- /dev/null
++++ b/test/fixedbugs/issue19764.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 19764: test that the linker's trampoline insertion
++// pass is happy with direct calls to interface wrappers that
++// may be defined in multiple packages.
++package ignore

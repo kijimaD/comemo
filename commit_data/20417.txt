@@ -8,6 +8,20 @@ Date:   Sat Sep 6 21:10:06 2014 -0400
     R=adg, bradfitz, minux
     CC=golang-codereviews
     https://golang.org/cl/140310045
-
+---
  misc/makerelease/makerelease.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index 1f60f87045..369ab5cb0b 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -30,7 +30,7 @@ import (
+ 	"strings"
+ 
+ 	"code.google.com/p/goauth2/oauth"
+-	"code.google.com/p/google-api-go-client/storage/v1beta2"
++	storage "code.google.com/p/google-api-go-client/storage/v1beta2"
+ )
+ 
+ var (

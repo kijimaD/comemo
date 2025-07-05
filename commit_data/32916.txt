@@ -18,7 +18,83 @@ Date:   Thu May 25 15:12:54 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/issue18720.go |  9 +++++++++
  src/cmd/cgo/gcc.go          | 23 ++++++++++++++++++++---
  2 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/issue18720.go b/misc/cgo/test/issue18720.go
+index 243ff898c2..a93304498e 100644
+--- a/misc/cgo/test/issue18720.go
++++ b/misc/cgo/test/issue18720.go
+@@ -8,6 +8,10 @@ package cgotest
+ #define HELLO "hello"
+ #define WORLD "world"
+ #define HELLO_WORLD HELLO "\000" WORLD
++
++struct foo { char c; };
++#define SIZE_OF(x) sizeof(x)
++#define SIZE_OF_FOO SIZE_OF(struct foo)
+ */
+ import "C"
+ import "testing"
+@@ -16,4 +20,9 @@ func test18720(t *testing.T) {
+ 	if C.HELLO_WORLD != "hello\000world" {
+ 		t.Fatalf(`expected "hello\000world", but got %q`, C.HELLO_WORLD)
+ 	}
++
++	// Issue 20125.
++	if got, want := C.SIZE_OF_FOO, 1; got != want {
++		t.Errorf("C.SIZE_OF_FOO == %v, expected %v", got, want)
++	}
+ }
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 0850bdc92f..766d87da7c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -367,10 +367,17 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		notDeclared
+ 		notSignedIntConst
+ 	)
++	sawUnmatchedErrors := false
+ 	for _, line := range strings.Split(stderr, "\n") {
+-		if !strings.Contains(line, ": error:") {
+-			// we only care about errors.
+-			// we tried to turn off warnings on the command line, but one never knows.
++		// Ignore warnings and random comments, with one
++		// exception: newer GCC versions will sometimes emit
++		// an error on a macro #define with a note referring
++		// to where the expansion occurs. We care about where
++		// the expansion occurs, so in that case treat the note
++		// as an error.
++		isError := strings.Contains(line, ": error:")
++		isErrorNote := strings.Contains(line, ": note:") && sawUnmatchedErrors
++		if !isError && !isErrorNote {
+ 			continue
+ 		}
+ 
+@@ -388,6 +395,9 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		i, _ := strconv.Atoi(line[c1+1 : c2])
+ 		i--
+ 		if i < 0 || i >= len(names) {
++			if isError {
++				sawUnmatchedErrors = true
++			}
+ 			continue
+ 		}
+ 
+@@ -411,7 +421,14 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 			sniff[i] |= notStrLiteral
+ 		case "not-signed-int-const":
+ 			sniff[i] |= notSignedIntConst
++		default:
++			if isError {
++				sawUnmatchedErrors = true
++			}
++			continue
+ 		}
++
++		sawUnmatchedErrors = false
+ 	}
+ 
+ 	if !completed {

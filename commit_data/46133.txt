@@ -14,7 +14,39 @@ Date:   Mon Dec 7 15:26:24 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/mknode.go | 2 +-
  src/cmd/compile/internal/ir/stmt.go   | 7 ++++++-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index 978b2de5a5..72034022cb 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -144,7 +144,7 @@ func forNodeFields(typName string, typ *types.Struct, f func(name string, is fun
+ 			if strings.ToLower(strings.TrimSuffix(v.Name(), "_")) != "body" {
+ 				continue
+ 			}
+-		case "Name", "Pack":
++		case "Name":
+ 			continue
+ 		}
+ 		switch v.Name() {
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index ccf46dfa73..68f9b0bd7c 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -33,7 +33,12 @@ func (n *Decl) Left() Node     { return n.X }
+ func (n *Decl) SetLeft(x Node) { n.X = x }
+ 
+ // A Stmt is a Node that can appear as a statement.
+-// This includes statement-like expressions such as <-c and f().
++// This includes statement-like expressions such as f().
++//
++// (It's possible it should include <-c, but that would require
++// splitting ORECV out of UnaryExpr, which hasn't yet been
++// necessary. Maybe instead we will introduce ExprStmt at
++// some point.)
+ type Stmt interface {
+ 	Node
+ 	isStmt()

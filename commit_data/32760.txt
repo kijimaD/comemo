@@ -15,8 +15,108 @@ Date:   Fri Apr 21 11:49:19 2017 -0600
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 38 ++++++++++++++++++++++++++++++
  src/net/http/request.go                    |  8 +++++++
  src/net/http/request_test.go               | 16 +++++++++++++
  3 files changed, 62 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 04ac6b4059..57503cc896 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -698,3 +698,41 @@ func BenchmarkServeHTTP(b *testing.B) {
+ 		proxy.ServeHTTP(w, r)
+ 	}
+ }
++
++func TestServeHTTPDeepCopy(t *testing.T) {
++	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.Write([]byte("Hello Gopher!"))
++	}))
++	defer backend.Close()
++	backendURL, err := url.Parse(backend.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	type result struct {
++		before, after string
++	}
++
++	resultChan := make(chan result, 1)
++	proxyHandler := NewSingleHostReverseProxy(backendURL)
++	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		before := r.URL.String()
++		proxyHandler.ServeHTTP(w, r)
++		after := r.URL.String()
++		resultChan <- result{before: before, after: after}
++	}))
++	defer frontend.Close()
++
++	want := result{before: "/", after: "/"}
++
++	res, err := frontend.Client().Get(frontend.URL)
++	if err != nil {
++		t.Fatalf("Do: %v", err)
++	}
++	res.Body.Close()
++
++	got := <-resultChan
++	if got != want {
++		t.Errorf("got = %+v; want = %+v", got, want)
++	}
++}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 739970b28c..82466d9b36 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -329,6 +329,14 @@ func (r *Request) WithContext(ctx context.Context) *Request {
+ 	r2 := new(Request)
+ 	*r2 = *r
+ 	r2.ctx = ctx
++
++	// Deep copy the URL because it isn't
++	// a map and the URL is mutable by users
++	// of WithContext.
++	r2URL := new(url.URL)
++	*r2URL = *r.URL
++	r2.URL = r2URL
++
+ 	return r2
+ }
+ 
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index e6748375b5..1608d1c4fe 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -7,6 +7,7 @@ package http_test
+ import (
+ 	"bufio"
+ 	"bytes"
++	"context"
+ 	"encoding/base64"
+ 	"fmt"
+ 	"io"
+@@ -785,6 +786,21 @@ func TestMaxBytesReaderStickyError(t *testing.T) {
+ 	}
+ }
+ 
++func TestWithContextDeepCopiesURL(t *testing.T) {
++	req, err := NewRequest("POST", "https://golang.org/", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	reqCopy := req.WithContext(context.Background())
++	reqCopy.URL.Scheme = "http"
++
++	firstURL, secondURL := req.URL.String(), reqCopy.URL.String()
++	if firstURL == secondURL {
++		t.Errorf("unexpected change to original request's URL")
++	}
++}
++
+ // verify that NewRequest sets Request.GetBody and that it works
+ func TestNewRequestGetBody(t *testing.T) {
+ 	tests := []struct {

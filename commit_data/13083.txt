@@ -12,7 +12,34 @@ Date:   Thu May 17 04:22:44 2012 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6212055
-
+---
  misc/chrome/gophertool/gopher.js  | 2 +-
  misc/chrome/gophertool/popup.html | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/chrome/gophertool/gopher.js b/misc/chrome/gophertool/gopher.js
+index 847c1c70d6..3238f0fccd 100644
+--- a/misc/chrome/gophertool/gopher.js
++++ b/misc/chrome/gophertool/gopher.js
+@@ -12,7 +12,7 @@ function urlForInput(t) {
+     }
+ 
+     if (numericRE.test(t)) {
+-        if (t < 1000000) {
++        if (t < 150000) {
+             return "http://code.google.com/p/go/issues/detail?id=" + t;
+         }
+         return "http://codereview.appspot.com/" + t + "/";
+diff --git a/misc/chrome/gophertool/popup.html b/misc/chrome/gophertool/popup.html
+index 4816c392be..a569392d0d 100644
+--- a/misc/chrome/gophertool/popup.html
++++ b/misc/chrome/gophertool/popup.html
+@@ -48,7 +48,7 @@ function openURL(url) {
+ <a href="#" onclick="openURL('http://codereview.appspot.com/')">codereview</a>,
+ <a href="#" onclick="openURL('http://code.google.com/p/go/source/list')">commit</a>, or
+ <a href="#" onclick="openURL('http://golang.org/pkg/')">pkg</a> id/name:</small>
+-<form style='margin: 0' onsubmit="return navigate();"><nobr><input id="inputbox" size=10 /><input type="submit" value="go" /></nobr></form>
++<form style='margin: 0' onsubmit="return navigate();"><nobr><input id="inputbox" size=10 tabindex=1 /><input type="submit" value="go" /></nobr></form>
+ <small>Also: <a href="#" onclick="openURL('http://build.golang.org/')">buildbots</small>
+ </body>
+ </html>

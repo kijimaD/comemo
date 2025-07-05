@@ -16,7 +16,58 @@ Date:   Tue Jun 7 13:53:40 2022 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/internal/modindex/read.go | 13 ++++++++++---
  src/cmd/go/script_test.go            |  1 -
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 0ed480fbd0..daa85762be 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -22,7 +22,6 @@ import (
+ 	"runtime"
+ 	"runtime/debug"
+ 	"sort"
+-	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"unsafe"
+@@ -40,7 +39,15 @@ import (
+ // It will be removed before the release.
+ // TODO(matloob): Remove enabled once we have more confidence on the
+ // module index.
+-var enabled, _ = strconv.ParseBool(os.Getenv("GOINDEX"))
++var enabled = func() bool {
++	debug := strings.Split(os.Getenv("GODEBUG"), ",")
++	for _, f := range debug {
++		if f == "goindex=0" {
++			return false
++		}
++	}
++	return true
++}()
+ 
+ // ModuleIndex represents and encoded module index file. It is used to
+ // do the equivalent of build.Import of packages in the module and answer other
+@@ -125,7 +132,7 @@ func openIndex(modroot string, ismodcache bool) (*ModuleIndex, error) {
+ 		data, _, err := cache.Default().GetMmap(id)
+ 		if err != nil {
+ 			// Couldn't read from modindex. Assume we couldn't read from
+-			// the index because the module has't been indexed yet.
++			// the index because the module hasn't been indexed yet.
+ 			data, err = indexModule(modroot)
+ 			if err != nil {
+ 				return result{nil, err}
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index d1fe36ec21..04bc8d581a 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -170,7 +170,6 @@ func (ts *testScript) setup() {
+ 		"GOCACHE=" + testGOCACHE,
+ 		"GODEBUG=" + os.Getenv("GODEBUG"),
+ 		"GOEXE=" + cfg.ExeSuffix,
+-		"GOINDEX=true",
+ 		"GOOS=" + runtime.GOOS,
+ 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
+ 		"GOPROXY=" + proxyURL,

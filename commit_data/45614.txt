@@ -11,8 +11,60 @@ Date:   Tue Oct 27 19:47:29 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/265761
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/objabi/funcdata.go | 6 +++---
  src/runtime/funcdata.h              | 6 +++---
  src/runtime/symtab.go               | 6 +++---
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/funcdata.go b/src/cmd/internal/objabi/funcdata.go
+index 1c5e5e1c8c..faa2863325 100644
+--- a/src/cmd/internal/objabi/funcdata.go
++++ b/src/cmd/internal/objabi/funcdata.go
+@@ -17,9 +17,9 @@ const (
+ 
+ 	FUNCDATA_ArgsPointerMaps    = 0
+ 	FUNCDATA_LocalsPointerMaps  = 1
+-	FUNCDATA_StackObjects       = 3
+-	FUNCDATA_InlTree            = 4
+-	FUNCDATA_OpenCodedDeferInfo = 5
++	FUNCDATA_StackObjects       = 2
++	FUNCDATA_InlTree            = 3
++	FUNCDATA_OpenCodedDeferInfo = 4
+ 
+ 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
+ 	// whose argument size is unknown (C vararg functions, and
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index e9b6a7ed06..798dbaceab 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -14,9 +14,9 @@
+ 
+ #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
+ #define FUNCDATA_LocalsPointerMaps 1
+-#define FUNCDATA_StackObjects 3
+-#define FUNCDATA_InlTree 4
+-#define FUNCDATA_OpenCodedDeferInfo 5 /* info for func with open-coded defers */
++#define FUNCDATA_StackObjects 2
++#define FUNCDATA_InlTree 3
++#define FUNCDATA_OpenCodedDeferInfo 4 /* info for func with open-coded defers */
+ 
+ // Pseudo-assembly statements.
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index a4b4344ea7..7667f23f1d 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -274,9 +274,9 @@ const (
+ 
+ 	_FUNCDATA_ArgsPointerMaps    = 0
+ 	_FUNCDATA_LocalsPointerMaps  = 1
+-	_FUNCDATA_StackObjects       = 3
+-	_FUNCDATA_InlTree            = 4
+-	_FUNCDATA_OpenCodedDeferInfo = 5
++	_FUNCDATA_StackObjects       = 2
++	_FUNCDATA_InlTree            = 3
++	_FUNCDATA_OpenCodedDeferInfo = 4
+ 
+ 	_ArgsSizeUnknown = -0x80000000
+ )

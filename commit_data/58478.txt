@@ -26,7 +26,7 @@ Date:   Tue Oct 24 16:04:42 2023 -0500
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go              |  13 +-
  src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |  83 ++---
  .../compile/internal/ssa/_gen/PPC64latelower.rules |  17 +
@@ -35,3 +35,966 @@ Date:   Tue Oct 24 16:04:42 2023 -0500
  .../compile/internal/ssa/rewritePPC64latelower.go  | 357 +++++++++++++++++++++
  test/codegen/bool.go                               |  65 +++-
  7 files changed, 663 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 9ba66b35f3..d20a31e38a 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -593,7 +593,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
+-	case ssa.OpPPC64ANDCC, ssa.OpPPC64ORCC, ssa.OpPPC64XORCC:
++	case ssa.OpPPC64ADDCC, ssa.OpPPC64ANDCC, ssa.OpPPC64SUBCC, ssa.OpPPC64ORCC, ssa.OpPPC64XORCC, ssa.OpPPC64NORCC,
++		ssa.OpPPC64ANDNCC:
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+ 		p := s.Prog(v.Op.Asm())
+@@ -603,6 +604,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+ 
++	case ssa.OpPPC64NEGCC, ssa.OpPPC64CNTLZDCC:
++		p := s.Prog(v.Op.Asm())
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[0].Reg()
++
+ 	case ssa.OpPPC64ROTLconst, ssa.OpPPC64ROTLWconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+@@ -734,13 +742,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
+-	case ssa.OpPPC64ANDCCconst:
++	case ssa.OpPPC64ADDCCconst, ssa.OpPPC64ANDCCconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.Reg = v.Args[0].Reg()
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+-		//		p.To.Reg = ppc64.REGTMP // discard result
+ 		p.To.Reg = v.Reg0()
+ 
+ 	case ssa.OpPPC64MOVDaddr:
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index d002a43331..7aa2e6c351 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -176,14 +176,17 @@ func init() {
+ 		r6          = buildReg("R6")
+ 	)
+ 	ops := []opData{
+-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},        // arg0 + arg1
+-		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "Int64"},        // arg0 + auxInt
+-		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},      // arg0+arg1
+-		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},    // arg0+arg1
+-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                           // arg0-arg1
+-		{name: "SUBFCconst", argLength: 1, reg: gp11cxer, asm: "SUBC", aux: "Int64"}, // auxInt - arg0 (carry is ignored)
+-		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                         // arg0-arg1
+-		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                       // arg0-arg1
++		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},                              // arg0 + arg1
++		{name: "ADDCC", argLength: 2, reg: gp21, asm: "ADDCC", commutative: true, typ: "(Int,Flags)"},      // arg0 + arg1
++		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "Int64"},                              // arg0 + auxInt
++		{name: "ADDCCconst", argLength: 1, reg: gp11cxer, asm: "ADDCCC", aux: "Int64", typ: "(Int,Flags)"}, // arg0 + auxInt sets CC, clobbers XER
++		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},                            // arg0+arg1
++		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},                          // arg0+arg1
++		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                                                 // arg0-arg1
++		{name: "SUBCC", argLength: 2, reg: gp21, asm: "SUBCC", typ: "(Int,Flags)"},                         // arg0-arg1 sets CC
++		{name: "SUBFCconst", argLength: 1, reg: gp11cxer, asm: "SUBC", aux: "Int64"},                       // auxInt - arg0 (carry is ignored)
++		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                                               // arg0-arg1
++		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                                             // arg0-arg1
+ 
+ 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
+ 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
+@@ -245,8 +248,9 @@ func init() {
+ 		{name: "RLDICL", argLength: 1, reg: gp11, asm: "RLDICL", aux: "Int64"},                     // Auxint is encoded similarly to RLWINM, but only MB and SH are valid. ME is always 63.
+ 		{name: "RLDICR", argLength: 1, reg: gp11, asm: "RLDICR", aux: "Int64"},                     // Likewise, but only ME and SH are valid. MB is always 0.
+ 
+-		{name: "CNTLZD", argLength: 1, reg: gp11, asm: "CNTLZD", clobberFlags: true}, // count leading zeros
+-		{name: "CNTLZW", argLength: 1, reg: gp11, asm: "CNTLZW", clobberFlags: true}, // count leading zeros (32 bit)
++		{name: "CNTLZD", argLength: 1, reg: gp11, asm: "CNTLZD"},                          // count leading zeros
++		{name: "CNTLZDCC", argLength: 1, reg: gp11, asm: "CNTLZDCC", typ: "(Int, Flags)"}, // count leading zeros, sets CC
++		{name: "CNTLZW", argLength: 1, reg: gp11, asm: "CNTLZW"},                          // count leading zeros (32 bit)
+ 
+ 		{name: "CNTTZD", argLength: 1, reg: gp11, asm: "CNTTZD"}, // count trailing zeros
+ 		{name: "CNTTZW", argLength: 1, reg: gp11, asm: "CNTTZW"}, // count trailing zeros (32 bit)
+@@ -285,34 +289,37 @@ func init() {
+ 		{name: "MFVSRD", argLength: 1, reg: fpgp, asm: "MFVSRD", typ: "Int64"},   // move 64 bits of F register into G register
+ 		{name: "MTVSRD", argLength: 1, reg: gpfp, asm: "MTVSRD", typ: "Float64"}, // move 64 bits of G register into F register
+ 
+-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},                                               // arg0&arg1
+-		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                                                // arg0&^arg1
+-		{name: "ANDCC", argLength: 2, reg: gp21, asm: "ANDCC", commutative: true, clobberFlags: true, typ: "(Int64,Flags)"}, // arg0&arg1 sets CC
+-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                                                 // arg0|arg1
+-		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                                                  // arg0|^arg1
+-		{name: "ORCC", argLength: 2, reg: gp21, asm: "ORCC", commutative: true, clobberFlags: true, typ: "(Int,Flags)"},     // arg0|arg1 sets CC
+-		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                                               // ^(arg0|arg1)
+-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true},                                 // arg0^arg1
+-		{name: "XORCC", argLength: 2, reg: gp21, asm: "XORCC", commutative: true, clobberFlags: true, typ: "(Int,Flags)"},   // arg0^arg1 sets CC
+-		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true},                                 // arg0^^arg1
+-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                                                  // -arg0 (integer)
+-		{name: "BRD", argLength: 1, reg: gp11, asm: "BRD"},                                                                  // reversebytes64(arg0)
+-		{name: "BRW", argLength: 1, reg: gp11, asm: "BRW"},                                                                  // reversebytes32(arg0)
+-		{name: "BRH", argLength: 1, reg: gp11, asm: "BRH"},                                                                  // reversebytes16(arg0)
+-		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                                                // -arg0 (floating point)
+-		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                                                              // sqrt(arg0) (floating point)
+-		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                                                            // sqrt(arg0) (floating point, single precision)
+-		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                                                              // floor(arg0), float64
+-		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                                                               // ceil(arg0), float64
+-		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                                                              // trunc(arg0), float64
+-		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                                                              // round(arg0), float64
+-		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                                                // abs(arg0), float64
+-		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                                                              // -abs(arg0), float64
+-		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                                                            // copysign arg0 -> arg1, float64
+-
+-		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},   // arg0|aux
+-		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"}, // arg0^aux
+-		{name: "ANDCCconst", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}, asm: "ANDCC", aux: "Int64", clobberFlags: true, typ: "(Int,Flags)"}, // arg0&aux == 0 // and-immediate sets CC on PPC, always.
++		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},                           // arg0&arg1
++		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                            // arg0&^arg1
++		{name: "ANDNCC", argLength: 2, reg: gp21, asm: "ANDNCC", typ: "(Int64,Flags)"},                  // arg0&^arg1 sets CC
++		{name: "ANDCC", argLength: 2, reg: gp21, asm: "ANDCC", commutative: true, typ: "(Int64,Flags)"}, // arg0&arg1 sets CC
++		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                             // arg0|arg1
++		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                              // arg0|^arg1
++		{name: "ORCC", argLength: 2, reg: gp21, asm: "ORCC", commutative: true, typ: "(Int,Flags)"},     // arg0|arg1 sets CC
++		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                           // ^(arg0|arg1)
++		{name: "NORCC", argLength: 2, reg: gp21, asm: "NORCC", commutative: true, typ: "(Int,Flags)"},   // ^(arg0|arg1) sets CC
++		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true},             // arg0^arg1
++		{name: "XORCC", argLength: 2, reg: gp21, asm: "XORCC", commutative: true, typ: "(Int,Flags)"},   // arg0^arg1 sets CC
++		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true},             // arg0^^arg1
++		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                              // -arg0 (integer)
++		{name: "NEGCC", argLength: 1, reg: gp11, asm: "NEGCC", typ: "(Int,Flags)"},                      // -arg0 (integer) sets CC
++		{name: "BRD", argLength: 1, reg: gp11, asm: "BRD"},                                              // reversebytes64(arg0)
++		{name: "BRW", argLength: 1, reg: gp11, asm: "BRW"},                                              // reversebytes32(arg0)
++		{name: "BRH", argLength: 1, reg: gp11, asm: "BRH"},                                              // reversebytes16(arg0)
++		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                            // -arg0 (floating point)
++		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                                          // sqrt(arg0) (floating point)
++		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                                        // sqrt(arg0) (floating point, single precision)
++		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                                          // floor(arg0), float64
++		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                                           // ceil(arg0), float64
++		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                                          // trunc(arg0), float64
++		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                                          // round(arg0), float64
++		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                            // abs(arg0), float64
++		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                                          // -abs(arg0), float64
++		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                                        // copysign arg0 -> arg1, float64
++
++		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                                       // arg0|aux
++		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                     // arg0^aux
++		{name: "ANDCCconst", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}, asm: "ANDCC", aux: "Int64", typ: "(Int,Flags)"}, // arg0&aux == 0 // and-immediate sets CC on PPC, always.
+ 
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB", typ: "Int64"},   // sign extend int8 to int64
+ 		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ", typ: "Int64"}, // zero extend uint8 to uint64
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules b/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
+index d5fe1276aa..2eecf94300 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
+@@ -36,3 +36,20 @@
+ 
+ // When PCRel is supported, paddi can add a 34b signed constant in one instruction.
+ (ADD (MOVDconst [m]) x) && supportsPPC64PCRel() && (m<<30)>>30 == m => (ADDconst [m] x)
++
++
++// Where possible and practical, generate CC opcodes. Due to the structure of the rules, there are limits to how
++// a Value can be rewritten which make it impossible to correctly rewrite sibling Value users. To workaround this
++// case, candidates for CC opcodes are converted in two steps:
++//   1. Convert all (x (Op ...) ...) into (x (Select0 (OpCC ...) ...). See convertPPC64OpToOpCC for more
++//      detail on how and why this is done there.
++//   2. Rewrite (CMPconst [0] (Select0 (OpCC ...))) into (Select1 (OpCC...))
++// Note: to minimize potentially expensive regeneration of CC opcodes during the flagalloc pass, only rewrite if
++//       both ops are in the same block.
++(CMPconst [0] z:((ADD|AND|ANDN|OR|SUB|NOR|XOR) x y)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
++(CMPconst [0] z:((NEG|CNTLZD) x)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
++// Note: ADDCCconst only assembles to 1 instruction for int16 constants.
++(CMPconst [0] z:(ADDconst [c] x)) && int64(int16(c)) == c && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
++// And finally, fixup the flag user.
++(CMPconst <t> [0] (Select0 z:((ADD|AND|ANDN|OR|SUB|NOR|XOR)CC x y))) => (Select1 <t> z)
++(CMPconst <t> [0] (Select0 z:((ADDCCconst|NEGCC|CNTLZDCC) y))) => (Select1 <t> z)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 011bf94f72..80ac8e4f8b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2106,10 +2106,13 @@ const (
+ 	OpMIPS64LoweredPanicBoundsC
+ 
+ 	OpPPC64ADD
++	OpPPC64ADDCC
+ 	OpPPC64ADDconst
++	OpPPC64ADDCCconst
+ 	OpPPC64FADD
+ 	OpPPC64FADDS
+ 	OpPPC64SUB
++	OpPPC64SUBCC
+ 	OpPPC64SUBFCconst
+ 	OpPPC64FSUB
+ 	OpPPC64FSUBS
+@@ -2161,6 +2164,7 @@ const (
+ 	OpPPC64RLDICL
+ 	OpPPC64RLDICR
+ 	OpPPC64CNTLZD
++	OpPPC64CNTLZDCC
+ 	OpPPC64CNTLZW
+ 	OpPPC64CNTTZD
+ 	OpPPC64CNTTZW
+@@ -2186,15 +2190,18 @@ const (
+ 	OpPPC64MTVSRD
+ 	OpPPC64AND
+ 	OpPPC64ANDN
++	OpPPC64ANDNCC
+ 	OpPPC64ANDCC
+ 	OpPPC64OR
+ 	OpPPC64ORN
+ 	OpPPC64ORCC
+ 	OpPPC64NOR
++	OpPPC64NORCC
+ 	OpPPC64XOR
+ 	OpPPC64XORCC
+ 	OpPPC64EQV
+ 	OpPPC64NEG
++	OpPPC64NEGCC
+ 	OpPPC64BRD
+ 	OpPPC64BRW
+ 	OpPPC64BRH
+@@ -28232,6 +28239,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "ADDCC",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AADDCC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:    "ADDconst",
+ 		auxType: auxInt64,
+@@ -28246,6 +28268,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "ADDCCconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.AADDCCC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 9223372036854775808, // XER
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:        "FADD",
+ 		argLen:      2,
+@@ -28290,6 +28327,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SUBCC",
++		argLen: 2,
++		asm:    ppc64.ASUBCC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:    "SUBFCconst",
+ 		auxType: auxInt64,
+@@ -29026,10 +29077,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "CNTLZD",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          ppc64.ACNTLZD,
++		name:   "CNTLZD",
++		argLen: 1,
++		asm:    ppc64.ACNTLZD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -29040,10 +29090,22 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "CNTLZW",
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          ppc64.ACNTLZW,
++		name:   "CNTLZDCC",
++		argLen: 1,
++		asm:    ppc64.ACNTLZDCC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "CNTLZW",
++		argLen: 1,
++		asm:    ppc64.ACNTLZW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -29379,11 +29441,24 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "ANDCC",
+-		argLen:       2,
+-		commutative:  true,
+-		clobberFlags: true,
+-		asm:          ppc64.AANDCC,
++		name:   "ANDNCC",
++		argLen: 2,
++		asm:    ppc64.AANDNCC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:        "ANDCC",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AANDCC,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -29424,11 +29499,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "ORCC",
+-		argLen:       2,
+-		commutative:  true,
+-		clobberFlags: true,
+-		asm:          ppc64.AORCC,
++		name:        "ORCC",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AORCC,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -29454,6 +29528,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "NORCC",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.ANORCC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:        "XOR",
+ 		argLen:      2,
+@@ -29470,11 +29559,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "XORCC",
+-		argLen:       2,
+-		commutative:  true,
+-		clobberFlags: true,
+-		asm:          ppc64.AXORCC,
++		name:        "XORCC",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AXORCC,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+@@ -29513,6 +29601,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "NEGCC",
++		argLen: 1,
++		asm:    ppc64.ANEGCC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "BRD",
+ 		argLen: 1,
+@@ -29712,11 +29813,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "ANDCCconst",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          ppc64.AANDCC,
++		name:    "ANDCCconst",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.AANDCC,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index c94a4202ec..fa4208228e 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1630,6 +1630,52 @@ func mergePPC64SldiSrw(sld, srw int64) int64 {
+ 	return encodePPC64RotateMask((32-srw+sld)&31, int64(mask), 32)
+ }
+ 
++// Convert a PPC64 opcode from the Op to OpCC form. This converts (op x y)
++// to (Select0 (opCC x y)) without having to explicitly fixup every user
++// of op.
++//
++// E.g consider the case:
++// a = (ADD x y)
++// b = (CMPconst [0] a)
++// c = (OR a z)
++//
++// A rule like (CMPconst [0] (ADD x y)) => (CMPconst [0] (Select0 (ADDCC x y)))
++// would produce:
++// a  = (ADD x y)
++// a' = (ADDCC x y)
++// a” = (Select0 a')
++// b  = (CMPconst [0] a”)
++// c  = (OR a z)
++//
++// which makes it impossible to rewrite the second user. Instead the result
++// of this conversion is:
++// a' = (ADDCC x y)
++// a  = (Select0 a')
++// b  = (CMPconst [0] a)
++// c  = (OR a z)
++//
++// Which makes it trivial to rewrite b using a lowering rule.
++func convertPPC64OpToOpCC(op *Value) *Value {
++	ccOpMap := map[Op]Op{
++		OpPPC64ADD:      OpPPC64ADDCC,
++		OpPPC64ADDconst: OpPPC64ADDCCconst,
++		OpPPC64AND:      OpPPC64ANDCC,
++		OpPPC64ANDN:     OpPPC64ANDNCC,
++		OpPPC64CNTLZD:   OpPPC64CNTLZDCC,
++		OpPPC64OR:       OpPPC64ORCC,
++		OpPPC64SUB:      OpPPC64SUBCC,
++		OpPPC64NEG:      OpPPC64NEGCC,
++		OpPPC64NOR:      OpPPC64NORCC,
++		OpPPC64XOR:      OpPPC64XORCC,
++	}
++	b := op.Block
++	opCC := b.NewValue0I(op.Pos, ccOpMap[op.Op], types.NewTuple(op.Type, types.TypeFlags), op.AuxInt)
++	opCC.AddArgs(op.Args...)
++	op.reset(OpSelect0)
++	op.AddArgs(opCC)
++	return op
++}
++
+ // Convenience function to rotate a 32 bit constant value by another constant.
+ func rotateLeft32(v, rotate int64) int64 {
+ 	return int64(bits.RotateLeft32(uint32(v), int(rotate)))
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+index 2e8ad928f8..771dd6aaa2 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+@@ -11,6 +11,8 @@ func rewriteValuePPC64latelower(v *Value) bool {
+ 		return rewriteValuePPC64latelower_OpPPC64ADD(v)
+ 	case OpPPC64AND:
+ 		return rewriteValuePPC64latelower_OpPPC64AND(v)
++	case OpPPC64CMPconst:
++		return rewriteValuePPC64latelower_OpPPC64CMPconst(v)
+ 	case OpPPC64ISEL:
+ 		return rewriteValuePPC64latelower_OpPPC64ISEL(v)
+ 	case OpPPC64RLDICL:
+@@ -144,6 +146,361 @@ func rewriteValuePPC64latelower_OpPPC64AND(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64latelower_OpPPC64CMPconst(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (CMPconst [0] z:(ADD x y))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64ADD {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst [0] z:(AND x y))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64AND {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst [0] z:(ANDN x y))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64ANDN {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst [0] z:(OR x y))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64OR {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst [0] z:(SUB x y))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64SUB {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst [0] z:(NOR x y))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64NOR {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst [0] z:(XOR x y))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64XOR {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst [0] z:(NEG x))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64NEG {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst [0] z:(CNTLZD x))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64CNTLZD {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst [0] z:(ADDconst [c] x))
++	// cond: int64(int16(c)) == c && v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64ADDconst {
++			break
++		}
++		c := auxIntToInt64(z.AuxInt)
++		if !(int64(int16(c)) == c && v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(ADDCC x y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64ADDCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(ANDCC x y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64ANDCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(ANDNCC x y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64ANDNCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(ORCC x y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64ORCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(SUBCC x y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64SUBCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(NORCC x y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64NORCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(XORCC x y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64XORCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(ADDCCconst y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64ADDCCconst {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(NEGCC y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64NEGCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	// match: (CMPconst <t> [0] (Select0 z:(CNTLZDCC y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64CNTLZDCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64latelower_OpPPC64ISEL(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+diff --git a/test/codegen/bool.go b/test/codegen/bool.go
+index 109c3aa0cd..990a9ed1b1 100644
+--- a/test/codegen/bool.go
++++ b/test/codegen/bool.go
+@@ -6,6 +6,10 @@
+ 
+ package codegen
+ 
++import (
++	"math/bits"
++)
++
+ // This file contains codegen tests related to boolean simplifications/optimizations.
+ 
+ func convertNeq0B(x uint8, c bool) bool {
+@@ -211,11 +215,62 @@ func TestSetInvGeFp64(x float64, y float64) bool {
+ 	b := !(x >= y)
+ 	return b
+ }
+-func TestAndCompareZero(x uint64, y uint64) uint64 {
+-	// ppc64x:"ANDCC"
+-	b := x&3
++func TestLogicalCompareZero(x *[64]uint64) {
++	// ppc64x:"ANDCC",^"AND"
++	b := x[0]&3
++	if b!=0 {
++		x[0] = b
++	}
++	// ppc64x:"ANDCC",^"AND"
++	b = x[1]&x[2]
++	if b!=0 {
++		x[1] = b
++	}
++	// ppc64x:"ANDNCC",^"ANDN"
++	b = x[1]&^x[2]
++	if b!=0 {
++		x[1] = b
++	}
++	// ppc64x:"ORCC",^"OR"
++	b = x[3]|x[4]
++	if b!=0 {
++		x[3] = b
++	}
++	// ppc64x:"SUBCC",^"SUB"
++	b = x[5]-x[6]
++	if b!=0 {
++		x[5] = b
++	}
++	// ppc64x:"NORCC",^"NOR"
++	b = ^(x[5]|x[6])
+ 	if b!=0 {
+-		return b
++		x[5] = b
+ 	}
+-	return b+8
++	// ppc64x:"XORCC",^"XOR"
++	b = x[7]^x[8]
++	if b!=0 {
++		x[7] = b
++	}
++	// ppc64x:"ADDCC",^"ADD"
++	b = x[9]+x[10]
++	if b!=0 {
++		x[9] = b
++	}
++	// ppc64x:"NEGCC",^"NEG"
++	b = -x[11]
++	if b!=0 {
++		x[11] = b
++	}
++	// ppc64x:"CNTLZDCC",^"CNTLZD"
++	b = uint64(bits.LeadingZeros64(x[12]))
++	if b!=0 {
++		x[12] = b
++	}
++
++	// ppc64x:"ADDCCC\t[$]4,"
++	c := int64(x[12]) + 4
++	if c <= 0 {
++		x[12] = uint64(c)
++	}
++
+ }

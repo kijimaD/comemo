@@ -9,9 +9,182 @@ Date:   Tue Oct 25 22:22:26 2011 -0700
     R=mikesamuel, nigeltao, r
     CC=golang-dev
     https://golang.org/cl/5307044
-
+---
  src/pkg/exp/template/html/css.go      | 40 +++++++++++++++++------------------
  src/pkg/exp/template/html/css_test.go |  6 +++---
  src/pkg/exp/template/html/html.go     |  2 +-
  src/pkg/exp/template/html/js.go       | 16 +++++++-------
  4 files changed, 32 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/css.go b/src/pkg/exp/template/html/css.go
+index c22ec6df0d..c26ae78d17 100644
+--- a/src/pkg/exp/template/html/css.go
++++ b/src/pkg/exp/template/html/css.go
+@@ -35,19 +35,19 @@ func endsWithCSSKeyword(b []byte, kw string) bool {
+ }
+ 
+ // isCSSNmchar returns whether rune is allowed anywhere in a CSS identifier.
+-func isCSSNmchar(rune int) bool {
++func isCSSNmchar(r rune) bool {
+ 	// Based on the CSS3 nmchar production but ignores multi-rune escape
+ 	// sequences.
+ 	// http://www.w3.org/TR/css3-syntax/#SUBTOK-nmchar
+-	return 'a' <= rune && rune <= 'z' ||
+-		'A' <= rune && rune <= 'Z' ||
+-		'0' <= rune && rune <= '9' ||
+-		'-' == rune ||
+-		'_' == rune ||
++	return 'a' <= r && r <= 'z' ||
++		'A' <= r && r <= 'Z' ||
++		'0' <= r && r <= '9' ||
++		r == '-' ||
++		r == '_' ||
+ 		// Non-ASCII cases below.
+-		0x80 <= rune && rune <= 0xd7ff ||
+-		0xe000 <= rune && rune <= 0xfffd ||
+-		0x10000 <= rune && rune <= 0x10ffff
++		0x80 <= r && r <= 0xd7ff ||
++		0xe000 <= r && r <= 0xfffd ||
++		0x10000 <= r && r <= 0x10ffff
+ }
+ 
+ // decodeCSS decodes CSS3 escapes given a sequence of stringchars.
+@@ -81,11 +81,11 @@ func decodeCSS(s []byte) []byte {
+ 			for j < len(s) && j < 7 && isHex(s[j]) {
+ 				j++
+ 			}
+-			rune := hexDecode(s[1:j])
+-			if rune > unicode.MaxRune {
+-				rune, j = rune/16, j-1
++			r := hexDecode(s[1:j])
++			if r > unicode.MaxRune {
++				r, j = r/16, j-1
+ 			}
+-			n := utf8.EncodeRune(b[len(b):cap(b)], rune)
++			n := utf8.EncodeRune(b[len(b):cap(b)], r)
+ 			// The optional space at the end allows a hex
+ 			// sequence to be followed by a literal hex.
+ 			// string(decodeCSS([]byte(`\A B`))) == "\nB"
+@@ -105,17 +105,17 @@ func isHex(c byte) bool {
+ }
+ 
+ // hexDecode decodes a short hex digit sequence: "10" -> 16.
+-func hexDecode(s []byte) int {
+-	n := 0
++func hexDecode(s []byte) rune {
++	n := rune(0)
+ 	for _, c := range s {
+ 		n <<= 4
+ 		switch {
+ 		case '0' <= c && c <= '9':
+-			n |= int(c - '0')
++			n |= rune(c - '0')
+ 		case 'a' <= c && c <= 'f':
+-			n |= int(c-'a') + 10
++			n |= rune(c-'a') + 10
+ 		case 'A' <= c && c <= 'F':
+-			n |= int(c-'A') + 10
++			n |= rune(c-'A') + 10
+ 		default:
+ 			panic(fmt.Sprintf("Bad hex digit in %q", s))
+ 		}
+@@ -251,11 +251,11 @@ func cssValueFilter(args ...interface{}) string {
+ 		case '-':
+ 			// Disallow <!-- or -->.
+ 			// -- should not appear in valid identifiers.
+-			if i != 0 && '-' == b[i-1] {
++			if i != 0 && b[i-1] == '-' {
+ 				return filterFailsafe
+ 			}
+ 		default:
+-			if c < 0x80 && isCSSNmchar(int(c)) {
++			if c < 0x80 && isCSSNmchar(rune(c)) {
+ 				id = append(id, c)
+ 			}
+ 		}
+diff --git a/src/pkg/exp/template/html/css_test.go b/src/pkg/exp/template/html/css_test.go
+index 5f633e8944..b3b83e855d 100644
+--- a/src/pkg/exp/template/html/css_test.go
++++ b/src/pkg/exp/template/html/css_test.go
+@@ -35,7 +35,7 @@ func TestEndsWithCSSKeyword(t *testing.T) {
+ 
+ func TestIsCSSNmchar(t *testing.T) {
+ 	tests := []struct {
+-		rune int
++		rune rune
+ 		want bool
+ 	}{
+ 		{0, false},
+@@ -114,11 +114,11 @@ func TestDecodeCSS(t *testing.T) {
+ func TestHexDecode(t *testing.T) {
+ 	for i := 0; i < 0x200000; i += 101 /* coprime with 16 */ {
+ 		s := strconv.Itob(i, 16)
+-		if got := hexDecode([]byte(s)); got != i {
++		if got := int(hexDecode([]byte(s))); got != i {
+ 			t.Errorf("%s: want %d but got %d", s, i, got)
+ 		}
+ 		s = strings.ToUpper(s)
+-		if got := hexDecode([]byte(s)); got != i {
++		if got := int(hexDecode([]byte(s))); got != i {
+ 			t.Errorf("%s: want %d but got %d", s, i, got)
+ 		}
+ 	}
+diff --git a/src/pkg/exp/template/html/html.go b/src/pkg/exp/template/html/html.go
+index 91bb1b1704..92d8f41994 100644
+--- a/src/pkg/exp/template/html/html.go
++++ b/src/pkg/exp/template/html/html.go
+@@ -139,7 +139,7 @@ var htmlNospaceNormReplacementTable = []string{
+ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
+ 	written, b := 0, new(bytes.Buffer)
+ 	for i, r := range s {
+-		if r < len(replacementTable) {
++		if int(r) < len(replacementTable) {
+ 			if repl := replacementTable[r]; len(repl) != 0 {
+ 				b.WriteString(s[written:i])
+ 				b.WriteString(repl)
+diff --git a/src/pkg/exp/template/html/js.go b/src/pkg/exp/template/html/js.go
+index 98c2ac5f27..5646f8a4fd 100644
+--- a/src/pkg/exp/template/html/js.go
++++ b/src/pkg/exp/template/html/js.go
+@@ -85,7 +85,7 @@ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
+ 		// Look for an IdentifierName and see if it is a keyword that
+ 		// can precede a regular expression.
+ 		j := n
+-		for j > 0 && isJSIdentPart(int(s[j-1])) {
++		for j > 0 && isJSIdentPart(rune(s[j-1])) {
+ 			j--
+ 		}
+ 		if regexpPrecederKeywords[string(s[j:])] {
+@@ -234,7 +234,7 @@ func replace(s string, replacementTable []string) string {
+ 	for i, r := range s {
+ 		var repl string
+ 		switch {
+-		case r < len(replacementTable) && replacementTable[r] != "":
++		case int(r) < len(replacementTable) && replacementTable[r] != "":
+ 			repl = replacementTable[r]
+ 		case r == '\u2028':
+ 			repl = `\u2028`
+@@ -329,17 +329,17 @@ var jsRegexpReplacementTable = []string{
+ // It does not handle all the non-Latin letters, joiners, and combining marks,
+ // but it does handle every codepoint that can occur in a numeric literal or
+ // a keyword.
+-func isJSIdentPart(rune int) bool {
++func isJSIdentPart(r rune) bool {
+ 	switch {
+-	case '$' == rune:
++	case r == '$':
+ 		return true
+-	case '0' <= rune && rune <= '9':
++	case '0' <= r && r <= '9':
+ 		return true
+-	case 'A' <= rune && rune <= 'Z':
++	case 'A' <= r && r <= 'Z':
+ 		return true
+-	case '_' == rune:
++	case r == '_':
+ 		return true
+-	case 'a' <= rune && rune <= 'z':
++	case 'a' <= r && r <= 'z':
+ 		return true
+ 	}
+ 	return false

@@ -7,10 +7,586 @@ Date:   Mon Jul 15 10:57:01 2013 +1000
     R=r, nigeltao
     CC=golang-dev
     https://golang.org/cl/10896043
-
+---
  src/pkg/go/build/deps_test.go             |   2 +-
  src/pkg/image/gif/reader.go               |   2 +-
  src/pkg/image/gif/writer.go               | 329 ++++++++++++++++++++++++++++++
  src/pkg/image/gif/writer_test.go          | 204 ++++++++++++++++++
  src/pkg/image/testdata/video-005.gray.gif | Bin 0 -> 14505 bytes
  5 files changed, 535 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 71b1bcf060..eb2eb515a5 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -202,7 +202,7 @@ var pkgDeps = map[string][]string{
+ 	"go/build":            {"L4", "OS", "GOPARSER"},
+ 	"html":                {"L4"},
+ 	"image/draw":          {"L4"},
+-	"image/gif":           {"L4", "compress/lzw"},
++	"image/gif":           {"L4", "compress/lzw", "image/draw"},
+ 	"image/jpeg":          {"L4"},
+ 	"image/png":           {"L4", "compress/zlib"},
+ 	"index/suffixarray":   {"L4", "regexp"},
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index 5adc8b97fa..8b0298a29f 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package gif implements a GIF image decoder.
++// Package gif implements a GIF image decoder and encoder.
+ //
+ // The GIF specification is at http://www.w3.org/Graphics/GIF/spec-gif89a.txt.
+ package gif
+diff --git a/src/pkg/image/gif/writer.go b/src/pkg/image/gif/writer.go
+new file mode 100644
+index 0000000000..23f8b1b3ad
+--- /dev/null
++++ b/src/pkg/image/gif/writer.go
+@@ -0,0 +1,329 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gif
++
++import (
++	"bufio"
++	"compress/lzw"
++	"errors"
++	"image"
++	"image/color"
++	"image/draw"
++	"io"
++)
++
++// Graphic control extension fields.
++const (
++	gcLabel     = 0xF9
++	gcBlockSize = 0x04
++)
++
++var log2Lookup = [8]int{2, 4, 8, 16, 32, 64, 128, 256}
++
++func log2(x int) int {
++	for i, v := range log2Lookup {
++		if x <= v {
++			return i
++		}
++	}
++	return -1
++}
++
++// Little-endian.
++func writeUint16(b []uint8, u uint16) {
++	b[0] = uint8(u)
++	b[1] = uint8(u >> 8)
++}
++
++// writer is a buffered writer.
++type writer interface {
++	Flush() error
++	io.Writer
++	io.ByteWriter
++}
++
++// encoder encodes an image to the GIF format.
++type encoder struct {
++	// w is the writer to write to. err is the first error encountered during
++	// writing. All attempted writes after the first error become no-ops.
++	w   writer
++	err error
++	// g is a reference to the data that is being encoded.
++	g *GIF
++	// bitsPerPixel is the number of bits required to represent each color
++	// in the image.
++	bitsPerPixel int
++	// buf is a scratch buffer. It must be at least 768 so we can write the color map.
++	buf [1024]byte
++}
++
++// blockWriter writes the block structure of GIF image data, which
++// comprises (n, (n bytes)) blocks, with 1 <= n <= 255. It is the
++// writer given to the LZW encoder, which is thus immune to the
++// blocking.
++type blockWriter struct {
++	e *encoder
++}
++
++func (b blockWriter) Write(data []byte) (int, error) {
++	if b.e.err != nil {
++		return 0, b.e.err
++	}
++	if len(data) == 0 {
++		return 0, nil
++	}
++	total := 0
++	for total < len(data) {
++		n := copy(b.e.buf[1:256], data[total:])
++		total += n
++		b.e.buf[0] = uint8(n)
++
++		n, b.e.err = b.e.w.Write(b.e.buf[:n+1])
++		if b.e.err != nil {
++			return 0, b.e.err
++		}
++	}
++	return total, b.e.err
++}
++
++func (e *encoder) flush() {
++	if e.err != nil {
++		return
++	}
++	e.err = e.w.Flush()
++}
++
++func (e *encoder) write(p []byte) {
++	if e.err != nil {
++		return
++	}
++	_, e.err = e.w.Write(p)
++}
++
++func (e *encoder) writeByte(b byte) {
++	if e.err != nil {
++		return
++	}
++	e.err = e.w.WriteByte(b)
++}
++
++func (e *encoder) writeHeader() {
++	if e.err != nil {
++		return
++	}
++	_, e.err = io.WriteString(e.w, "GIF89a")
++	if e.err != nil {
++		return
++	}
++
++	// TODO: This bases the global color table on the first image
++	// only.
++	pm := e.g.Image[0]
++	// Logical screen width and height.
++	writeUint16(e.buf[0:2], uint16(pm.Bounds().Dx()))
++	writeUint16(e.buf[2:4], uint16(pm.Bounds().Dy()))
++	e.write(e.buf[:4])
++
++	e.bitsPerPixel = log2(len(pm.Palette)) + 1
++	e.buf[0] = 0x80 | ((uint8(e.bitsPerPixel) - 1) << 4) | (uint8(e.bitsPerPixel) - 1)
++	e.buf[1] = 0x00 // Background Color Index.
++	e.buf[2] = 0x00 // Pixel Aspect Ratio.
++	e.write(e.buf[:3])
++
++	// Global Color Table.
++	e.writeColorTable(pm.Palette, e.bitsPerPixel-1)
++
++	// Add animation info if necessary.
++	if len(e.g.Image) > 1 {
++		e.buf[0] = 0x21 // Extension Introducer.
++		e.buf[1] = 0xff // Application Label.
++		e.buf[2] = 0x0b // Block Size.
++		e.write(e.buf[:3])
++		_, e.err = io.WriteString(e.w, "NETSCAPE2.0") // Application Identifier.
++		if e.err != nil {
++			return
++		}
++		e.buf[0] = 0x03 // Block Size.
++		e.buf[1] = 0x01 // Sub-block Index.
++		writeUint16(e.buf[2:4], uint16(e.g.LoopCount))
++		e.buf[4] = 0x00 // Block Terminator.
++		e.write(e.buf[:5])
++	}
++}
++
++func (e *encoder) writeColorTable(p color.Palette, size int) {
++	if e.err != nil {
++		return
++	}
++
++	for i := 0; i < log2Lookup[size]; i++ {
++		if i < len(p) {
++			r, g, b, _ := p[i].RGBA()
++			e.buf[3*i+0] = uint8(r >> 8)
++			e.buf[3*i+1] = uint8(g >> 8)
++			e.buf[3*i+2] = uint8(b >> 8)
++		} else {
++			// Pad with black.
++			e.buf[3*i+0] = 0x00
++			e.buf[3*i+1] = 0x00
++			e.buf[3*i+2] = 0x00
++		}
++	}
++	e.write(e.buf[:3*log2Lookup[size]])
++}
++
++func (e *encoder) writeImageBlock(pm *image.Paletted, delay int) {
++	if e.err != nil {
++		return
++	}
++
++	if len(pm.Palette) == 0 {
++		e.err = errors.New("gif: cannot encode image block with empty palette")
++		return
++	}
++
++	b := pm.Bounds()
++	if b.Dx() >= 1<<16 || b.Dy() >= 1<<16 || b.Min.X < 0 || b.Min.X >= 1<<16 || b.Min.Y < 0 || b.Min.Y >= 1<<16 {
++		e.err = errors.New("gif: image block is too large to encode")
++		return
++	}
++
++	transparentIndex := -1
++	for i, c := range pm.Palette {
++		if _, _, _, a := c.RGBA(); a == 0 {
++			transparentIndex = i
++			break
++		}
++	}
++
++	if delay > 0 || transparentIndex != -1 {
++		e.buf[0] = sExtension  // Extension Introducer.
++		e.buf[1] = gcLabel     // Graphic Control Label.
++		e.buf[2] = gcBlockSize // Block Size.
++		if transparentIndex != -1 {
++			e.buf[3] = 0x01
++		} else {
++			e.buf[3] = 0x00
++		}
++		writeUint16(e.buf[4:6], uint16(delay)) // Delay Time (1/100ths of a second)
++
++		// Transparent color index.
++		if transparentIndex != -1 {
++			e.buf[6] = uint8(transparentIndex)
++		} else {
++			e.buf[6] = 0x00
++		}
++		e.buf[7] = 0x00 // Block Terminator.
++		e.write(e.buf[:8])
++	}
++	e.buf[0] = sImageDescriptor
++	writeUint16(e.buf[1:3], uint16(b.Min.X))
++	writeUint16(e.buf[3:5], uint16(b.Min.Y))
++	writeUint16(e.buf[5:7], uint16(b.Dx()))
++	writeUint16(e.buf[7:9], uint16(b.Dy()))
++	e.write(e.buf[:9])
++
++	paddedSize := log2(len(pm.Palette)) // Size of Local Color Table: 2^(1+n).
++	// Interlacing is not supported.
++	e.writeByte(0x80 | uint8(paddedSize))
++
++	// Local Color Table.
++	e.writeColorTable(pm.Palette, paddedSize)
++
++	litWidth := e.bitsPerPixel
++	if litWidth < 2 {
++		litWidth = 2
++	}
++	e.writeByte(uint8(litWidth)) // LZW Minimum Code Size.
++
++	lzww := lzw.NewWriter(blockWriter{e: e}, lzw.LSB, litWidth)
++	_, e.err = lzww.Write(pm.Pix)
++	if e.err != nil {
++		lzww.Close()
++		return
++	}
++	lzww.Close()
++	e.writeByte(0x00) // Block Terminator.
++}
++
++// Options are the encoding parameters.
++type Options struct {
++	// NumColors is the maximum number of colors used in the image.
++	// It ranges from 1 to 256.
++	NumColors int
++
++	// Quantizer is used to produce a palette with size NumColors.
++	// color.Plan9Palette is used in place of a nil Quantizer.
++	Quantizer draw.Quantizer
++
++	// Drawer is used to convert the source image to the desired palette.
++	// draw.FloydSteinberg is used in place of a nil Drawer.
++	Drawer draw.Drawer
++}
++
++// EncodeAll writes the images in g to w in GIF format with the
++// given loop count and delay between frames.
++func EncodeAll(w io.Writer, g *GIF) error {
++	if len(g.Image) == 0 {
++		return errors.New("gif: must provide at least one image")
++	}
++
++	if len(g.Image) != len(g.Delay) {
++		return errors.New("gif: mismatched image and delay lengths")
++	}
++	if g.LoopCount < 0 {
++		g.LoopCount = 0
++	}
++
++	e := encoder{g: g}
++	if ww, ok := w.(writer); ok {
++		e.w = ww
++	} else {
++		e.w = bufio.NewWriter(w)
++	}
++
++	e.writeHeader()
++	for i, pm := range g.Image {
++		e.writeImageBlock(pm, g.Delay[i])
++	}
++	e.writeByte(sTrailer)
++	e.flush()
++	return e.err
++}
++
++// Encode writes the Image m to w in GIF format.
++func Encode(w io.Writer, m image.Image, o *Options) error {
++	// Check for bounds and size restrictions.
++	b := m.Bounds()
++	if b.Dx() >= 1<<16 || b.Dy() >= 1<<16 {
++		return errors.New("gif: image is too large to encode")
++	}
++
++	opts := Options{}
++	if o != nil {
++		opts = *o
++	}
++	if opts.NumColors < 1 || 256 < opts.NumColors {
++		opts.NumColors = 256
++	}
++	if opts.Drawer == nil {
++		opts.Drawer = draw.FloydSteinberg
++	}
++
++	pm, ok := m.(*image.Paletted)
++	if !ok || len(pm.Palette) > opts.NumColors {
++		// TODO: Pick a better sub-sample of the Plan 9 palette.
++		pm = image.NewPaletted(b, color.Plan9Palette[:opts.NumColors])
++		if opts.Quantizer != nil {
++			pm.Palette = opts.Quantizer.Quantize(make(color.Palette, 0, opts.NumColors), m)
++		}
++		opts.Drawer.Draw(pm, b, m, image.ZP)
++	}
++
++	return EncodeAll(w, &GIF{
++		Image: []*image.Paletted{pm},
++		Delay: []int{0},
++	})
++}
+diff --git a/src/pkg/image/gif/writer_test.go b/src/pkg/image/gif/writer_test.go
+new file mode 100644
+index 0000000000..c1ada769c2
+--- /dev/null
++++ b/src/pkg/image/gif/writer_test.go
+@@ -0,0 +1,204 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gif
++
++import (
++	"bytes"
++	"image"
++	"image/color"
++	_ "image/png"
++	"io/ioutil"
++	"math/rand"
++	"os"
++	"testing"
++)
++
++func readImg(filename string) (image.Image, error) {
++	f, err := os.Open(filename)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	m, _, err := image.Decode(f)
++	return m, err
++}
++
++func readGIF(filename string) (*GIF, error) {
++	f, err := os.Open(filename)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	return DecodeAll(f)
++}
++
++func delta(u0, u1 uint32) int64 {
++	d := int64(u0) - int64(u1)
++	if d < 0 {
++		return -d
++	}
++	return d
++}
++
++// averageDelta returns the average delta in RGB space. The two images must
++// have the same bounds.
++func averageDelta(m0, m1 image.Image) int64 {
++	b := m0.Bounds()
++	var sum, n int64
++	for y := b.Min.Y; y < b.Max.Y; y++ {
++		for x := b.Min.X; x < b.Max.X; x++ {
++			c0 := m0.At(x, y)
++			c1 := m1.At(x, y)
++			r0, g0, b0, _ := c0.RGBA()
++			r1, g1, b1, _ := c1.RGBA()
++			sum += delta(r0, r1)
++			sum += delta(g0, g1)
++			sum += delta(b0, b1)
++			n += 3
++		}
++	}
++	return sum / n
++}
++
++var testCase = []struct {
++	filename  string
++	tolerance int64
++}{
++	{"../testdata/video-001.png", 1 << 12},
++	{"../testdata/video-001.gif", 0},
++	{"../testdata/video-001.interlaced.gif", 0},
++}
++
++func TestWriter(t *testing.T) {
++	for _, tc := range testCase {
++		m0, err := readImg(tc.filename)
++		if err != nil {
++			t.Error(tc.filename, err)
++			continue
++		}
++		var buf bytes.Buffer
++		err = Encode(&buf, m0, nil)
++		if err != nil {
++			t.Error(tc.filename, err)
++			continue
++		}
++		m1, err := Decode(&buf)
++		if err != nil {
++			t.Error(tc.filename, err)
++			continue
++		}
++		if m0.Bounds() != m1.Bounds() {
++			t.Errorf("%s, bounds differ: %v and %v", tc.filename, m0.Bounds(), m1.Bounds())
++			continue
++		}
++		// Compare the average delta to the tolerance level.
++		avgDelta := averageDelta(m0, m1)
++		if avgDelta > tc.tolerance {
++			t.Errorf("%s: average delta is too high. expected: %d, got %d", tc.filename, tc.tolerance, avgDelta)
++			continue
++		}
++	}
++}
++
++var frames = []string{
++	"../testdata/video-001.gif",
++	"../testdata/video-005.gray.gif",
++}
++
++func TestEncodeAll(t *testing.T) {
++	g0 := &GIF{
++		Image:     make([]*image.Paletted, len(frames)),
++		Delay:     make([]int, len(frames)),
++		LoopCount: 5,
++	}
++	for i, f := range frames {
++		m, err := readGIF(f)
++		if err != nil {
++			t.Error(f, err)
++		}
++		g0.Image[i] = m.Image[0]
++	}
++	var buf bytes.Buffer
++	if err := EncodeAll(&buf, g0); err != nil {
++		t.Fatal("EncodeAll:", err)
++	}
++	g1, err := DecodeAll(&buf)
++	if err != nil {
++		t.Fatal("DecodeAll:", err)
++	}
++	if g0.LoopCount != g1.LoopCount {
++		t.Errorf("loop counts differ: %d and %d", g0.LoopCount, g1.LoopCount)
++	}
++	for i := range g0.Image {
++		m0, m1 := g0.Image[i], g1.Image[i]
++		if m0.Bounds() != m1.Bounds() {
++			t.Errorf("%s, bounds differ: %v and %v", frames[i], m0.Bounds(), m1.Bounds())
++		}
++		d0, d1 := g0.Delay[i], g1.Delay[i]
++		if d0 != d1 {
++			t.Errorf("%s: delay values differ: %d and %d", frames[i], d0, d1)
++		}
++	}
++
++	g1.Delay = make([]int, 1)
++	if err := EncodeAll(ioutil.Discard, g1); err == nil {
++		t.Error("expected error from mismatched delay and image slice lengths")
++	}
++	if err := EncodeAll(ioutil.Discard, &GIF{}); err == nil {
++		t.Error("expected error from providing empty gif")
++	}
++}
++
++func BenchmarkEncode(b *testing.B) {
++	b.StopTimer()
++
++	bo := image.Rect(0, 0, 640, 480)
++	rnd := rand.New(rand.NewSource(123))
++
++	// Restrict to a 256-color paletted image to avoid quantization path.
++	palette := make(color.Palette, 256)
++	for i := range palette {
++		palette[i] = color.RGBA{
++			uint8(rnd.Intn(256)),
++			uint8(rnd.Intn(256)),
++			uint8(rnd.Intn(256)),
++			255,
++		}
++	}
++	img := image.NewPaletted(image.Rect(0, 0, 640, 480), palette)
++	for y := bo.Min.Y; y < bo.Max.Y; y++ {
++		for x := bo.Min.X; x < bo.Max.X; x++ {
++			img.Set(x, y, palette[rnd.Intn(256)])
++		}
++	}
++
++	b.SetBytes(640 * 480 * 4)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		Encode(ioutil.Discard, img, nil)
++	}
++}
++
++func BenchmarkQuantizedEncode(b *testing.B) {
++	b.StopTimer()
++	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
++	bo := img.Bounds()
++	rnd := rand.New(rand.NewSource(123))
++	for y := bo.Min.Y; y < bo.Max.Y; y++ {
++		for x := bo.Min.X; x < bo.Max.X; x++ {
++			img.SetRGBA(x, y, color.RGBA{
++				uint8(rnd.Intn(256)),
++				uint8(rnd.Intn(256)),
++				uint8(rnd.Intn(256)),
++				255,
++			})
++		}
++	}
++	b.SetBytes(640 * 480 * 4)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		Encode(ioutil.Discard, img, nil)
++	}
++}
+diff --git a/src/pkg/image/testdata/video-005.gray.gif b/src/pkg/image/testdata/video-005.gray.gif
+new file mode 100644
+index 0000000000..23350d6dc1
+Binary files /dev/null and b/src/pkg/image/testdata/video-005.gray.gif differ

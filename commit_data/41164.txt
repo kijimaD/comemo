@@ -11,6 +11,35 @@ Date:   Thu Sep 5 14:26:29 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index cd85bad45f..541d856b28 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -140,7 +140,10 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ 	}
+ 	tags, err := r.code.Tags(p)
+ 	if err != nil {
+-		return nil, err
++		return nil, &module.ModuleError{
++			Path: r.modPath,
++			Err:  err,
++		}
+ 	}
+ 
+ 	list := []string{}
+@@ -171,7 +174,10 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ 		// by referring to them with a +incompatible suffix, as in v17.0.0+incompatible.
+ 		files, err := r.code.ReadFileRevs(incompatible, "go.mod", codehost.MaxGoMod)
+ 		if err != nil {
+-			return nil, err
++			return nil, &module.ModuleError{
++				Path: r.modPath,
++				Err:  err,
++			}
+ 		}
+ 		for _, rev := range incompatible {
+ 			f := files[rev]

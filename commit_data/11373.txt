@@ -10,6 +10,20 @@ Date:   Wed Jan 25 11:56:31 2012 +1100
     R=gri
     CC=golang-dev
     https://golang.org/cl/5575054
-
+---
  src/cmd/godoc/main.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 9f4659151e..f74b6f4047 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -337,6 +337,8 @@ func main() {
+ 			}()
+ 		}
+ 
++		// Immediately update metadata.
++		updateMetadata()
+ 		// Periodically refresh metadata.
+ 		go refreshMetadataLoop()
+ 

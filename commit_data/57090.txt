@@ -15,6 +15,20 @@ Date:   Thu Jun 15 09:50:03 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/compress/bzip2/bit_reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/compress/bzip2/bit_reader.go b/src/compress/bzip2/bit_reader.go
+index ab1d606514..b451265475 100644
+--- a/src/compress/bzip2/bit_reader.go
++++ b/src/compress/bzip2/bit_reader.go
+@@ -60,7 +60,7 @@ func (br *bitReader) ReadBits64(bits uint) (n uint64) {
+ 	//        |------------|
+ 	//           br.bits (num valid bits)
+ 	//
+-	// This the next line right shifts the desired bits into the
++	// The next line right shifts the desired bits into the
+ 	// least-significant places and masks off anything above.
+ 	n = (br.n >> (br.bits - bits)) & ((1 << bits) - 1)
+ 	br.bits -= bits

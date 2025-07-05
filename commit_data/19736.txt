@@ -10,7 +10,52 @@ Date:   Tue Jul 15 14:49:26 2014 +1000
     R=ruiu, josharian, adg
     CC=golang-codereviews
     https://golang.org/cl/102470046
-
+---
  src/pkg/net/dnsconfig_unix.go    | 10 +++++++---
  src/pkg/net/testdata/resolv.conf |  1 +
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/dnsconfig_unix.go b/src/pkg/net/dnsconfig_unix.go
+index af288253e0..db45716f12 100644
+--- a/src/pkg/net/dnsconfig_unix.go
++++ b/src/pkg/net/dnsconfig_unix.go
+@@ -75,19 +75,19 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
+ 			for i := 1; i < len(f); i++ {
+ 				s := f[i]
+ 				switch {
+-				case len(s) >= 6 && s[0:6] == "ndots:":
++				case hasPrefix(s, "ndots:"):
+ 					n, _, _ := dtoi(s, 6)
+ 					if n < 1 {
+ 						n = 1
+ 					}
+ 					conf.ndots = n
+-				case len(s) >= 8 && s[0:8] == "timeout:":
++				case hasPrefix(s, "timeout:"):
+ 					n, _, _ := dtoi(s, 8)
+ 					if n < 1 {
+ 						n = 1
+ 					}
+ 					conf.timeout = n
+-				case len(s) >= 8 && s[0:9] == "attempts:":
++				case hasPrefix(s, "attempts:"):
+ 					n, _, _ := dtoi(s, 9)
+ 					if n < 1 {
+ 						n = 1
+@@ -103,3 +103,7 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
+ 
+ 	return conf, nil
+ }
++
++func hasPrefix(s, prefix string) bool {
++	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
++}
+diff --git a/src/pkg/net/testdata/resolv.conf b/src/pkg/net/testdata/resolv.conf
+index b5972e09c9..3841bbf904 100644
+--- a/src/pkg/net/testdata/resolv.conf
++++ b/src/pkg/net/testdata/resolv.conf
+@@ -3,3 +3,4 @@
+ domain Home
+ nameserver 192.168.1.1
+ options ndots:5 timeout:10 attempts:3 rotate
++options attempts 3

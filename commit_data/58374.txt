@@ -11,7 +11,70 @@ Date:   Fri Oct 13 14:59:10 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-
+---
  src/errors/errors.go | 6 +++---
  src/errors/wrap.go   | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/errors/errors.go b/src/errors/errors.go
+index 41397774d3..9e3860aaa9 100644
+--- a/src/errors/errors.go
++++ b/src/errors/errors.go
+@@ -26,7 +26,7 @@
+ // itself followed by the tree of each of its children in turn
+ // (pre-order, depth-first traversal).
+ //
+-// Is examines the tree of its first argument looking for an error that
++// [Is] examines the tree of its first argument looking for an error that
+ // matches the second. It reports whether it finds a match. It should be
+ // used in preference to simple equality checks:
+ //
+@@ -38,7 +38,7 @@
+ //
+ // because the former will succeed if err wraps [io/fs.ErrExist].
+ //
+-// As examines the tree of its first argument looking for an error that can be
++// [As] examines the tree of its first argument looking for an error that can be
+ // assigned to its second argument, which must be a pointer. If it succeeds, it
+ // performs the assignment and returns true. Otherwise, it returns false. The form
+ //
+@@ -80,7 +80,7 @@ func (e *errorString) Error() string {
+ //
+ //	errors.Is(err, errors.ErrUnsupported)
+ //
+-// either by directly wrapping ErrUnsupported or by implementing an Is method.
++// either by directly wrapping ErrUnsupported or by implementing an [Is] method.
+ //
+ // Functions and methods should document the cases in which an error
+ // wrapping this will be returned.
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 756de6cc1c..e1cc466eea 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -27,7 +27,7 @@ func Unwrap(err error) error {
+ // Is reports whether any error in err's tree matches target.
+ //
+ // The tree consists of err itself, followed by the errors obtained by repeatedly
+-// calling Unwrap. When err wraps multiple errors, Is examines err followed by a
++// calling [Unwrap]. When err wraps multiple errors, Is examines err followed by a
+ // depth-first traversal of its children.
+ //
+ // An error is considered to match a target if it is equal to that target or if
+@@ -40,7 +40,7 @@ func Unwrap(err error) error {
+ //
+ // then Is(MyError{}, fs.ErrExist) returns true. See [syscall.Errno.Is] for
+ // an example in the standard library. An Is method should only shallowly
+-// compare err and the target and not call Unwrap on either.
++// compare err and the target and not call [Unwrap] on either.
+ func Is(err, target error) bool {
+ 	if target == nil {
+ 		return err == target
+@@ -81,7 +81,7 @@ func is(err, target error, targetComparable bool) bool {
+ // target to that error value and returns true. Otherwise, it returns false.
+ //
+ // The tree consists of err itself, followed by the errors obtained by repeatedly
+-// calling Unwrap. When err wraps multiple errors, As examines err followed by a
++// calling [Unwrap]. When err wraps multiple errors, As examines err followed by a
+ // depth-first traversal of its children.
+ //
+ // An error matches target if the error's concrete value is assignable to the value

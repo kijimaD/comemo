@@ -9,7 +9,43 @@ Date:   Fri Jul 19 15:04:53 2013 -0700
     R=golang-dev, khr, rsc
     CC=golang-dev
     https://golang.org/cl/11606043
-
+---
  src/cmd/gc/pgen.c | 4 ++--
  src/cmd/ld/lib.c  | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index c25cccdd38..6b8fe4676d 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -17,7 +17,7 @@ compile(Node *fn)
+ {
+ 	Plist *pl;
+ 	Node nod1, *n, *gcnod;
+-	Prog *pfuncdata, *ptxt, *p, *p1;
++	Prog *ptxt, *p, *p1;
+ 	int32 lno;
+ 	Type *t;
+ 	Iter save;
+@@ -99,7 +99,7 @@ compile(Node *fn)
+ 	gcnod->class = PEXTERN;
+ 
+ 	nodconst(&nod1, types[TINT32], FUNCDATA_GC);
+-	pfuncdata = gins(AFUNCDATA, &nod1, gcnod);
++	gins(AFUNCDATA, &nod1, gcnod);
+ 
+ 	for(t=curfn->paramfld; t; t=t->down)
+ 		gtrack(tracksym(t->type));
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 6a299e7f9a..674a129775 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -2458,7 +2458,7 @@ pclntab(void)
+ 		for(p = cursym->text; p != P; p = p->link) {
+ 			if(p->as == AFUNCDATA) {
+ 				if((havefunc[p->from.offset/32]>>(p->from.offset%32))&1)
+-					diag("multiple definitions for FUNCDATA $%d", i);
++					diag("multiple definitions for FUNCDATA $%d", p->from.offset);
+ 				havefunc[p->from.offset/32] |= 1<<(p->from.offset%32);
+ 			}
+ 			if(p->as == APCDATA)

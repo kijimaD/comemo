@@ -11,6 +11,47 @@ Date:   Wed Nov 20 16:11:49 2024 +0100
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/crypto/internal/fips/ed25519/cast.go | 26 ++++++++++++++++----------
  1 file changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/src/crypto/internal/fips/ed25519/cast.go b/src/crypto/internal/fips/ed25519/cast.go
+index aa6ba668c0..8ac7a6f688 100644
+--- a/src/crypto/internal/fips/ed25519/cast.go
++++ b/src/crypto/internal/fips/ed25519/cast.go
+@@ -14,19 +14,25 @@ import (
+ 
+ func fipsPCT(k *PrivateKey) error {
+ 	return fips.PCT("Ed25519 sign and verify PCT", func() error {
+-		msg := []byte("PCT")
+-		sig := Sign(k, msg)
+-		// Note that this runs pub.a.SetBytes. If we wanted to make key generation
+-		// in FIPS mode faster, we could reuse A from GenerateKey. But another thing
+-		// that could make it faster is just _not doing a useless self-test_.
+-		pub, err := NewPublicKey(k.PublicKey())
+-		if err != nil {
+-			return err
+-		}
+-		return Verify(pub, msg, sig)
++		return pairwiseTest(k)
+ 	})
+ }
+ 
++// pairwiseTest needs to be a top-level function declaration to let the calls
++// inline and their allocations not escape.
++func pairwiseTest(k *PrivateKey) error {
++	msg := []byte("PCT")
++	sig := Sign(k, msg)
++	// Note that this runs pub.a.SetBytes. If we wanted to make key generation
++	// in FIPS mode faster, we could reuse A from GenerateKey. But another thing
++	// that could make it faster is just _not doing a useless self-test_.
++	pub, err := NewPublicKey(k.PublicKey())
++	if err != nil {
++		return err
++	}
++	return Verify(pub, msg, sig)
++}
++
+ func signWithoutSelfTest(priv *PrivateKey, message []byte) []byte {
+ 	signature := make([]byte, signatureSize)
+ 	return signWithDom(signature, priv, message, domPrefixPure, "")

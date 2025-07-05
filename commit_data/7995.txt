@@ -7,7 +7,85 @@ Date:   Wed Apr 6 14:52:42 2011 +1000
     R=bradfitz, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4368041
-
+---
  src/pkg/http/fs.go      | 30 ++++++++++++++++--------------
  src/pkg/http/fs_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 40 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 7b2cc7f93f..c5efffca9c 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -134,21 +134,23 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 	size := d.Size
+ 	code := StatusOK
+ 
+-	// use extension to find content type.
+-	ext := filepath.Ext(name)
+-	if ctype := mime.TypeByExtension(ext); ctype != "" {
+-		w.Header().Set("Content-Type", ctype)
+-	} else {
+-		// read first chunk to decide between utf-8 text and binary
+-		var buf [1024]byte
+-		n, _ := io.ReadFull(f, buf[:])
+-		b := buf[:n]
+-		if isText(b) {
+-			w.Header().Set("Content-Type", "text-plain; charset=utf-8")
+-		} else {
+-			w.Header().Set("Content-Type", "application/octet-stream") // generic binary
++	// If Content-Type isn't set, use the file's extension to find it.
++	if w.Header().Get("Content-Type") == "" {
++		ctype := mime.TypeByExtension(filepath.Ext(name))
++		if ctype == "" {
++			// read a chunk to decide between utf-8 text and binary
++			var buf [1024]byte
++			n, _ := io.ReadFull(f, buf[:])
++			b := buf[:n]
++			if isText(b) {
++				ctype = "text-plain; charset=utf-8"
++			} else {
++				// generic binary
++				ctype = "application/octet-stream"
++			}
++			f.Seek(0, os.SEEK_SET) // rewind to output whole file
+ 		}
+-		f.Seek(0, os.SEEK_SET) // rewind to output whole file
++		w.Header().Set("Content-Type", ctype)
+ 	}
+ 
+ 	// handle Content-Range header.
+diff --git a/src/pkg/http/fs_test.go b/src/pkg/http/fs_test.go
+index a89c76d0bf..692b9863e8 100644
+--- a/src/pkg/http/fs_test.go
++++ b/src/pkg/http/fs_test.go
+@@ -85,6 +85,30 @@ func TestServeFile(t *testing.T) {
+ 	}
+ }
+ 
++func TestServeFileContentType(t *testing.T) {
++	const ctype = "icecream/chocolate"
++	override := false
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		if override {
++			w.Header().Set("Content-Type", ctype)
++		}
++		ServeFile(w, r, "testdata/file")
++	}))
++	defer ts.Close()
++	get := func(want string) {
++		resp, _, err := Get(ts.URL)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if h := resp.Header.Get("Content-Type"); h != want {
++			t.Errorf("Content-Type mismatch: got %q, want %q", h, want)
++		}
++	}
++	get("text-plain; charset=utf-8")
++	override = true
++	get(ctype)
++}
++
+ func getBody(t *testing.T, req Request) (*Response, []byte) {
+ 	r, err := DefaultClient.Do(&req)
+ 	if err != nil {

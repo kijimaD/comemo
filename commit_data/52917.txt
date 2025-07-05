@@ -16,7 +16,7 @@ Date:   Tue May 24 10:24:05 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/codes.go   |   5 +-
  src/cmd/compile/internal/noder/linker.go  |  24 +++-
  src/cmd/compile/internal/noder/quirks.go  |  10 +-
@@ -24,3 +24,844 @@ Date:   Tue May 24 10:24:05 2022 -0700
  src/cmd/compile/internal/noder/unified.go |   6 +-
  src/cmd/compile/internal/noder/writer.go  | 181 +++++++++++++++++++++++++-----
  6 files changed, 241 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index 59c8ec8121..f7ad2503c2 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -8,6 +6,7 @@ package noder
+ 
+ import "internal/pkgbits"
+ 
++// A codeStmt distinguishes among statement encodings.
+ type codeStmt int
+ 
+ func (c codeStmt) Marker() pkgbits.SyncMarker { return pkgbits.SyncStmt1 }
+@@ -31,6 +30,7 @@ const (
+ 	stmtSelect
+ )
+ 
++// A codeExpr distinguishes among expression encodings.
+ type codeExpr int
+ 
+ func (c codeExpr) Marker() pkgbits.SyncMarker { return pkgbits.SyncExpr }
+@@ -66,6 +66,7 @@ const (
+ 	assignExpr
+ )
+ 
++// A codeDecl distinguishes among declaration encodings.
+ type codeDecl int
+ 
+ func (c codeDecl) Marker() pkgbits.SyncMarker { return pkgbits.SyncDecl }
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index a58b9b930c..1626c04090 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -34,6 +32,9 @@ import (
+ // low-level linking details can be moved there, but the logic for
+ // handling extension data needs to stay in the compiler.
+ 
++// A linker combines a package's stub export data with any referenced
++// elements from imported packages into a single, self-contained
++// export data file.
+ type linker struct {
+ 	pw pkgbits.PkgEncoder
+ 
+@@ -41,6 +42,9 @@ type linker struct {
+ 	decls map[*types.Sym]pkgbits.Index
+ }
+ 
++// relocAll ensures that all elements specified by pr and relocs are
++// copied into the output export data file, and returns the
++// corresponding indices in the output.
+ func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.RelocEnt {
+ 	res := make([]pkgbits.RelocEnt, len(relocs))
+ 	for i, rent := range relocs {
+@@ -50,6 +54,8 @@ func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.Re
+ 	return res
+ }
+ 
++// relocIdx ensures a single element is copied into the output export
++// data file, and returns the corresponding index in the output.
+ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx pkgbits.Index) pkgbits.Index {
+ 	assert(pr != nil)
+ 
+@@ -85,10 +91,19 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx pkgbits.Index)
+ 	return newidx
+ }
+ 
++// relocString copies the specified string from pr into the output
++// export data file, deduplicating it against other strings.
+ func (l *linker) relocString(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+ 	return l.pw.StringIdx(pr.StringIdx(idx))
+ }
+ 
++// relocPkg copies the specified package from pr into the output
++// export data file, rewriting its import path to match how it was
++// imported.
++//
++// TODO(mdempsky): Since CL 391014, we already have the compilation
++// unit's import path, so there should be no need to rewrite packages
++// anymore.
+ func (l *linker) relocPkg(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+ 	path := pr.PeekPkgPath(idx)
+ 
+@@ -114,6 +129,9 @@ func (l *linker) relocPkg(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+ 	return w.Flush()
+ }
+ 
++// relocObj copies the specified object from pr into the output export
++// data file, rewriting its compiler-private extension data (e.g.,
++// adding inlining cost and escape analysis results for functions).
+ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+ 	path, name, tag := pr.PeekObj(idx)
+ 	sym := types.NewPkg(path, "").Lookup(name)
+@@ -184,6 +202,8 @@ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+ 	return w.Idx
+ }
+ 
++// relocCommon copies the specified element from pr into w,
++// recursively relocating any referenced elements as well.
+ func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx pkgbits.Index) {
+ 	r := pr.NewDecoderRaw(k, idx)
+ 	w.Relocs = l.relocAll(pr, r.Relocs)
+diff --git a/src/cmd/compile/internal/noder/quirks.go b/src/cmd/compile/internal/noder/quirks.go
+index c4cb9b9a2c..a22577f965 100644
+--- a/src/cmd/compile/internal/noder/quirks.go
++++ b/src/cmd/compile/internal/noder/quirks.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -12,12 +10,12 @@ import (
+ 	"cmd/compile/internal/syntax"
+ )
+ 
+-// This file defines helper functions useful for satisfying toolstash
+-// -cmp when compared against the legacy frontend behavior, but can be
+-// removed after that's no longer a concern.
+-
+ // typeExprEndPos returns the position that noder would leave base.Pos
+ // after parsing the given type expression.
++//
++// Deprecated: This function exists to emulate position semantics from
++// Go 1.17, necessary for compatibility with the backend DWARF
++// generation logic that assigns variables to their appropriate scope.
+ func typeExprEndPos(expr0 syntax.Expr) syntax.Pos {
+ 	for {
+ 		switch expr := expr0.(type) {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index e8401c5775..5ebc776605 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -26,15 +24,25 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
++// This file implements cmd/compile backend's reader for the Unified
++// IR export data.
++
++// A pkgReader reads Unified IR export data.
+ type pkgReader struct {
+ 	pkgbits.PkgDecoder
+ 
++	// Indices for encoded things; lazily populated as needed.
++	//
++	// Note: Objects (i.e., ir.Names) are lazily instantiated by
++	// populating their types.Sym.Def; see objReader below.
++
+ 	posBases []*src.PosBase
+ 	pkgs     []*types.Pkg
+ 	typs     []*types.Type
+ 
+-	// offset for rewriting the given index into the output,
+-	// but bitwise inverted so we can detect if we're missing the entry or not.
++	// offset for rewriting the given (absolute!) index into the output,
++	// but bitwise inverted so we can detect if we're missing the entry
++	// or not.
+ 	newindex []pkgbits.Index
+ }
+ 
+@@ -50,6 +58,8 @@ func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
+ 	}
+ }
+ 
++// A pkgReaderIndex compactly identifies an index (and its
++// corresponding dictionary) within a package's export data.
+ type pkgReaderIndex struct {
+ 	pr   *pkgReader
+ 	idx  pkgbits.Index
+@@ -69,6 +79,7 @@ func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pk
+ 	}
+ }
+ 
++// A writer provides APIs for reading an individual element.
+ type reader struct {
+ 	pkgbits.Decoder
+ 
+@@ -162,6 +173,7 @@ func setValue(name *ir.Name, val constant.Value) {
+ 
+ // @@@ Positions
+ 
++// pos reads a position from the bitstream.
+ func (r *reader) pos() src.XPos {
+ 	return base.Ctxt.PosTable.XPos(r.pos0())
+ }
+@@ -178,10 +190,13 @@ func (r *reader) pos0() src.Pos {
+ 	return src.MakePos(posBase, line, col)
+ }
+ 
++// posBase reads a position base from the bitstream.
+ func (r *reader) posBase() *src.PosBase {
+ 	return r.inlPosBase(r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase)))
+ }
+ 
++// posBaseIdx returns the specified position base, reading it first if
++// needed.
+ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *src.PosBase {
+ 	if b := pr.posBases[idx]; b != nil {
+ 		return b
+@@ -222,6 +237,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *src.PosBase {
+ 	return b
+ }
+ 
++// TODO(mdempsky): Document this.
+ func (r *reader) inlPosBase(oldBase *src.PosBase) *src.PosBase {
+ 	if r.inlCall == nil {
+ 		return oldBase
+@@ -236,36 +252,23 @@ func (r *reader) inlPosBase(oldBase *src.PosBase) *src.PosBase {
+ 	return newBase
+ }
+ 
++// TODO(mdempsky): Document this.
+ func (r *reader) updatePos(xpos src.XPos) src.XPos {
+ 	pos := base.Ctxt.PosTable.Pos(xpos)
+ 	pos.SetBase(r.inlPosBase(pos.Base()))
+ 	return base.Ctxt.PosTable.XPos(pos)
+ }
+ 
+-func (r *reader) origPos(xpos src.XPos) src.XPos {
+-	if r.inlCall == nil {
+-		return xpos
+-	}
+-
+-	pos := base.Ctxt.PosTable.Pos(xpos)
+-	for old, new := range r.inlPosBases {
+-		if pos.Base() == new {
+-			pos.SetBase(old)
+-			return base.Ctxt.PosTable.XPos(pos)
+-		}
+-	}
+-
+-	base.FatalfAt(xpos, "pos base missing from inlPosBases")
+-	panic("unreachable")
+-}
+-
+ // @@@ Packages
+ 
++// pkg reads a package reference from the bitstream.
+ func (r *reader) pkg() *types.Pkg {
+ 	r.Sync(pkgbits.SyncPkg)
+ 	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
+ }
+ 
++// pkgIdx returns the specified package from the export data, reading
++// it first if needed.
+ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Pkg {
+ 	if pkg := pr.pkgs[idx]; pkg != nil {
+ 		return pkg
+@@ -276,6 +279,7 @@ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Pkg {
+ 	return pkg
+ }
+ 
++// doPkg reads a package definition from the bitstream.
+ func (r *reader) doPkg() *types.Pkg {
+ 	path := r.String()
+ 	switch path {
+@@ -530,8 +534,12 @@ func (r *reader) param() (*types.Pkg, *types.Field) {
+ 
+ // @@@ Objects
+ 
++// objReader maps qualified identifiers (represented as *types.Sym) to
++// a pkgReader and corresponding index that can be used for reading
++// that object's definition.
+ var objReader = map[*types.Sym]pkgReaderIndex{}
+ 
++// obj reads an instantiated object reference from the bitstream.
+ func (r *reader) obj() ir.Node {
+ 	r.Sync(pkgbits.SyncObject)
+ 
+@@ -567,6 +575,8 @@ func (r *reader) obj() ir.Node {
+ 	return r.p.objIdx(idx, implicits, explicits)
+ }
+ 
++// objIdx returns the specified object from the bitstream,
++// instantiated with the given type arguments, if any.
+ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Type) ir.Node {
+ 	rname := pr.newReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
+ 	_, sym := rname.qualifiedIdent()
+@@ -707,6 +717,7 @@ func (r *reader) mangle(sym *types.Sym) *types.Sym {
+ 	return sym.Pkg.Lookup(buf.String())
+ }
+ 
++// objDictIdx reads and returns the specified object dictionary.
+ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, explicits []*types.Type) *readerDict {
+ 	r := pr.newReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
+ 
+@@ -955,6 +966,8 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
+ // constructed.
+ var todoBodies []*ir.Func
+ 
++// addBody reads a function body reference from the element bitstream,
++// and associates it with fn.
+ func (r *reader) addBody(fn *ir.Func) {
+ 	pri := pkgReaderIndex{r.p, r.Reloc(pkgbits.RelocBody), r.dict}
+ 	bodyReader[fn] = pri
+@@ -978,6 +991,8 @@ func (pri pkgReaderIndex) funcBody(fn *ir.Func) {
+ 	r.funcBody(fn)
+ }
+ 
++// funcBody reads a function body definition from the element
++// bitstream, and populates fn with it.
+ func (r *reader) funcBody(fn *ir.Func) {
+ 	r.curfn = fn
+ 	r.closureVars = fn.ClosureVars
+@@ -1995,6 +2010,8 @@ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
+ 
+ var inlgen = 0
+ 
++// InlineCall implements inline.NewInline by re-reading the function
++// body from its Unified IR export data.
+ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+ 	// TODO(mdempsky): Turn callerfn into an explicit parameter.
+ 	callerfn := ir.CurFunc
+@@ -2281,18 +2298,21 @@ func (r *reader) needWrapper(typ *types.Type) {
+ 	}
+ }
+ 
++// importedDef reports whether r is reading from an imported and
++// non-generic element.
++//
++// If a type was found in an imported package, then we can assume that
++// package (or one of its transitive dependencies) already generated
++// method wrappers for it.
++//
++// Exception: If we're instantiating an imported generic type or
++// function, we might be instantiating it with type arguments not
++// previously seen before.
++//
++// TODO(mdempsky): Distinguish when a generic function or type was
++// instantiated in an imported package so that we can add types to
++// haveWrapperTypes instead.
+ func (r *reader) importedDef() bool {
+-	// If a type was found in an imported package, then we can assume
+-	// that package (or one of its transitive dependencies) already
+-	// generated method wrappers for it.
+-	//
+-	// Exception: If we're instantiating an imported generic type or
+-	// function, we might be instantiating it with type arguments not
+-	// previously seen before.
+-	//
+-	// TODO(mdempsky): Distinguish when a generic function or type was
+-	// instantiated in an imported package so that we can add types to
+-	// haveWrapperTypes instead.
+ 	return r.p != localPkgReader && !r.hasTypeParams()
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index f7cf7f90b2..95486af66c 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -226,6 +224,8 @@ func freePackage(pkg *types2.Package) {
+ 	base.Fatalf("package never finalized")
+ }
+ 
++// readPackage reads package export data from pr to populate
++// importpkg.
+ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
+ 	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 
+@@ -252,6 +252,8 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg) {
+ 	}
+ }
+ 
++// writeUnifiedExport writes to `out` the finalized, self-contained
++// Unified IR export data file for the current compilation unit.
+ func writeUnifiedExport(out io.Writer) {
+ 	l := linker{
+ 		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 4d133e033e..8ef63a0085 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1,5 +1,3 @@
+-// UNREVIEWED
+-
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -16,6 +14,45 @@ import (
+ 	"cmd/compile/internal/types2"
+ )
+ 
++// This file implements the Unified IR package writer and defines the
++// Unified IR export data format.
++//
++// Low-level coding details (e.g., byte-encoding of individual
++// primitive values, or handling element bitstreams and
++// cross-references) are handled by internal/pkgbits, so here we only
++// concern ourselves with higher-level worries like mapping Go
++// language constructs into elements.
++
++// There are two central types in the writing process: the "writer"
++// type handles writing out individual elements, while the "pkgWriter"
++// type keeps track of which elements have already been created.
++//
++// For each sort of "thing" (e.g., position, package, object, type)
++// that can be written into the export data, there are generally
++// several methods that work together:
++//
++// - writer.thing handles writing out a *use* of a thing, which often
++//   means writing a relocation to that thing's encoded index.
++//
++// - pkgWriter.thingIdx handles reserving an index for a thing, and
++//   writing out any elements needed for the thing.
++//
++// - writer.doThing handles writing out the *definition* of a thing,
++//   which in general is a mix of low-level coding primitives (e.g.,
++//   ints and strings) or uses of other things.
++//
++// A design goal of Unified IR is to have a single, canonical writer
++// implementation, but multiple reader implementations each tailored
++// to their respective needs. For example, within cmd/compile's own
++// backend, inlining is implemented largely by just re-running the
++// function body reading code.
++
++// TODO(mdempsky): Add an importer for Unified IR to the x/tools repo,
++// and better document the file format boundary between public and
++// private data.
++
++// A pkgWriter constructs Unified IR export data from the results of
++// running the types2 type checker on a Go compilation unit.
+ type pkgWriter struct {
+ 	pkgbits.PkgEncoder
+ 
+@@ -23,18 +60,29 @@ type pkgWriter struct {
+ 	curpkg *types2.Package
+ 	info   *types2.Info
+ 
++	// Indices for previously written syntax and types2 things.
++
+ 	posBasesIdx map[*syntax.PosBase]pkgbits.Index
+ 	pkgsIdx     map[*types2.Package]pkgbits.Index
+ 	typsIdx     map[types2.Type]pkgbits.Index
+-	globalsIdx  map[types2.Object]pkgbits.Index
++	objsIdx     map[types2.Object]pkgbits.Index
++
++	// Maps from types2.Objects back to their syntax.Decl.
+ 
+ 	funDecls map[*types2.Func]*syntax.FuncDecl
+ 	typDecls map[*types2.TypeName]typeDeclGen
+ 
+-	linknames  map[types2.Object]string
++	// linknames maps package-scope objects to their linker symbol name,
++	// if specified by a //go:linkname directive.
++	linknames map[types2.Object]string
++
++	// cgoPragmas accumulates any //go:cgo_* pragmas that need to be
++	// passed through to cmd/link.
+ 	cgoPragmas [][]string
+ }
+ 
++// newPkgWriter returns an initialized pkgWriter for the specified
++// package.
+ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
+ 	return &pkgWriter{
+ 		PkgEncoder: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
+@@ -43,9 +91,9 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
+ 		curpkg: pkg,
+ 		info:   info,
+ 
+-		pkgsIdx:    make(map[*types2.Package]pkgbits.Index),
+-		globalsIdx: make(map[types2.Object]pkgbits.Index),
+-		typsIdx:    make(map[types2.Type]pkgbits.Index),
++		pkgsIdx: make(map[*types2.Package]pkgbits.Index),
++		objsIdx: make(map[types2.Object]pkgbits.Index),
++		typsIdx: make(map[types2.Type]pkgbits.Index),
+ 
+ 		posBasesIdx: make(map[*syntax.PosBase]pkgbits.Index),
+ 
+@@ -56,18 +104,23 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
+ 	}
+ }
+ 
++// errorf reports a user error about thing p.
+ func (pw *pkgWriter) errorf(p poser, msg string, args ...interface{}) {
+ 	base.ErrorfAt(pw.m.pos(p), msg, args...)
+ }
+ 
++// fatalf reports an internal compiler error about thing p.
+ func (pw *pkgWriter) fatalf(p poser, msg string, args ...interface{}) {
+ 	base.FatalfAt(pw.m.pos(p), msg, args...)
+ }
+ 
++// unexpected reports a fatal error about a thing of unexpected
++// dynamic type.
+ func (pw *pkgWriter) unexpected(what string, p poser) {
+ 	pw.fatalf(p, "unexpected %s: %v (%T)", what, p, p)
+ }
+ 
++// A writer provides APIs for writing out an individual element.
+ type writer struct {
+ 	p *pkgWriter
+ 
+@@ -77,13 +130,19 @@ type writer struct {
+ 	// scope closes, and then maybe we can just use the same map for
+ 	// storing the TypeParams too (as their TypeName instead).
+ 
+-	// variables declared within this function
++	// localsIdx tracks any local variables declared within this
++	// function body. It's unused for writing out non-body things.
+ 	localsIdx map[*types2.Var]int
+ 
+-	closureVars    []posObj
+-	closureVarsIdx map[*types2.Var]int
++	// closureVars tracks any free variables that are referenced by this
++	// function body. It's unused for writing out non-body things.
++	closureVars    []posVar
++	closureVarsIdx map[*types2.Var]int // index of previously seen free variables
+ 
+-	dict    *writerDict
++	dict *writerDict
++
++	// derived tracks whether the type being written out references any
++	// type parameters. It's unused for writing non-type things.
+ 	derived bool
+ }
+ 
+@@ -128,16 +187,25 @@ type typeInfo struct {
+ 	derived bool
+ }
+ 
++// An objInfo represents a reference to an encoded, instantiated (if
++// applicable) Go object.
+ type objInfo struct {
+ 	idx       pkgbits.Index // index for the generic function declaration
+ 	explicits []typeInfo    // info for the type arguments
+ }
+ 
++// An itabInfo represents a reference to an encoded itab entry (i.e.,
++// a non-empty interface type along with a concrete type that
++// implements that interface).
++//
++// itabInfo is only used for
+ type itabInfo struct {
+ 	typIdx pkgbits.Index // always a derived type index
+ 	iface  typeInfo      // always a non-empty interface type
+ }
+ 
++// anyDerived reports whether any of info's explicit type arguments
++// are derived types.
+ func (info objInfo) anyDerived() bool {
+ 	for _, explicit := range info.explicits {
+ 		if explicit.derived {
+@@ -147,6 +215,8 @@ func (info objInfo) anyDerived() bool {
+ 	return false
+ }
+ 
++// equals reports whether info and other represent the same Go object
++// (i.e., same base object and identical type arguments, if any).
+ func (info objInfo) equals(other objInfo) bool {
+ 	if info.idx != other.idx {
+ 		return false
+@@ -169,6 +239,7 @@ func (pw *pkgWriter) newWriter(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *
+ 
+ // @@@ Positions
+ 
++// pos writes the position of p into the element bitstream.
+ func (w *writer) pos(p poser) {
+ 	w.Sync(pkgbits.SyncPos)
+ 	pos := p.Pos()
+@@ -178,17 +249,19 @@ func (w *writer) pos(p poser) {
+ 		return
+ 	}
+ 
+-	// TODO(mdempsky): Delta encoding. Also, if there's a b-side, update
+-	// its position base too (but not vice versa!).
++	// TODO(mdempsky): Delta encoding.
+ 	w.posBase(pos.Base())
+ 	w.Uint(pos.Line())
+ 	w.Uint(pos.Col())
+ }
+ 
++// posBase writes a reference to the given PosBase into the element
++// bitstream.
+ func (w *writer) posBase(b *syntax.PosBase) {
+ 	w.Reloc(pkgbits.RelocPosBase, w.p.posBaseIdx(b))
+ }
+ 
++// posBaseIdx returns the index for the given PosBase.
+ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) pkgbits.Index {
+ 	if idx, ok := pw.posBasesIdx[b]; ok {
+ 		return idx
+@@ -210,11 +283,14 @@ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) pkgbits.Index {
+ 
+ // @@@ Packages
+ 
++// pkg writes a use of the given Package into the element bitstream.
+ func (w *writer) pkg(pkg *types2.Package) {
+ 	w.Sync(pkgbits.SyncPkg)
+ 	w.Reloc(pkgbits.RelocPkg, w.p.pkgIdx(pkg))
+ }
+ 
++// pkgIdx returns the index for the given package, adding it to the
++// package export data if needed.
+ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
+ 	if idx, ok := pw.pkgsIdx[pkg]; ok {
+ 		return idx
+@@ -256,10 +332,13 @@ func (pw *pkgWriter) pkgIdx(pkg *types2.Package) pkgbits.Index {
+ 
+ var anyTypeName = types2.Universe.Lookup("any").(*types2.TypeName)
+ 
++// typ writes a use of the given type into the bitstream.
+ func (w *writer) typ(typ types2.Type) {
+ 	w.typInfo(w.p.typIdx(typ, w.dict))
+ }
+ 
++// typInfo writes a use of the given type (specified as a typeInfo
++// instead) into the bitstream.
+ func (w *writer) typInfo(info typeInfo) {
+ 	w.Sync(pkgbits.SyncType)
+ 	if w.Bool(info.derived) {
+@@ -468,6 +547,11 @@ func (w *writer) param(param *types2.Var) {
+ 
+ // @@@ Objects
+ 
++// obj writes a use of the given object into the bitstream.
++//
++// If obj is a generic object, then explicits are the explicit type
++// arguments used to instantiate it (i.e., used to substitute the
++// object's own declared type parameters).
+ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+ 	explicitInfos := make([]typeInfo, explicits.Len())
+ 	for i := range explicitInfos {
+@@ -515,8 +599,13 @@ func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+ 	}
+ }
+ 
++// objIdx returns the index for the given Object, adding it to the
++// export data as needed.
+ func (pw *pkgWriter) objIdx(obj types2.Object) pkgbits.Index {
+-	if idx, ok := pw.globalsIdx[obj]; ok {
++	// TODO(mdempsky): Validate that obj is a global object (or a local
++	// defined type, which we hoist to global scope anyway).
++
++	if idx, ok := pw.objsIdx[obj]; ok {
+ 		return idx
+ 	}
+ 
+@@ -530,12 +619,35 @@ func (pw *pkgWriter) objIdx(obj types2.Object) pkgbits.Index {
+ 		dict.implicits = decl.implicits
+ 	}
+ 
++	// We encode objects into 4 elements across different sections, all
++	// sharing the same index:
++	//
++	// - RelocName has just the object's qualified name (i.e.,
++	//   Object.Pkg and Object.Name) and the CodeObj indicating what
++	//   specific type of Object it is (Var, Func, etc).
++	//
++	// - RelocObj has the remaining public details about the object,
++	//   relevant to go/types importers.
++	//
++	// - RelocObjExt has additional private details about the object,
++	//   which are only relevant to cmd/compile itself. This is
++	//   separated from RelocObj so that go/types importers are
++	//   unaffected by internal compiler changes.
++	//
++	// - RelocObjDict has public details about the object's type
++	//   parameters and derived type's used by the object. This is
++	//   separated to facilitate the eventual introduction of
++	//   shape-based stenciling.
++	//
++	// TODO(mdempsky): Re-evaluate whether RelocName still makes sense
++	// to keep separate from RelocObj.
++
+ 	w := pw.newWriter(pkgbits.RelocObj, pkgbits.SyncObject1)
+ 	wext := pw.newWriter(pkgbits.RelocObjExt, pkgbits.SyncObject1)
+ 	wname := pw.newWriter(pkgbits.RelocName, pkgbits.SyncObject1)
+ 	wdict := pw.newWriter(pkgbits.RelocObjDict, pkgbits.SyncObject1)
+ 
+-	pw.globalsIdx[obj] = w.Idx // break cycles
++	pw.objsIdx[obj] = w.Idx // break cycles
+ 	assert(wext.Idx == w.Idx)
+ 	assert(wname.Idx == w.Idx)
+ 	assert(wdict.Idx == w.Idx)
+@@ -557,6 +669,8 @@ func (pw *pkgWriter) objIdx(obj types2.Object) pkgbits.Index {
+ 	return w.Idx
+ }
+ 
++// doObj writes the RelocObj definition for obj to w, and the
++// RelocObjExt definition to wext.
+ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
+ 	if obj.Pkg() != w.p.curpkg {
+ 		return pkgbits.ObjStub
+@@ -726,8 +840,8 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
+ // me a little nervous to try it again.
+ 
+ // localIdent writes the name of a locally declared object (i.e.,
+-// objects that can only be accessed by name, within the context of a
+-// particular function).
++// objects that can only be accessed by non-qualified name, within the
++// context of a particular function).
+ func (w *writer) localIdent(obj types2.Object) {
+ 	assert(!isGlobal(obj))
+ 	w.Sync(pkgbits.SyncLocalIdent)
+@@ -789,7 +903,7 @@ func (w *writer) funcExt(obj *types2.Func) {
+ 	}
+ 
+ 	sig, block := obj.Type().(*types2.Signature), decl.Body
+-	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, block, w.dict)
++	body, closureVars := w.p.bodyIdx(sig, block, w.dict)
+ 	assert(len(closureVars) == 0)
+ 
+ 	w.Sync(pkgbits.SyncFuncExt)
+@@ -831,7 +945,9 @@ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
+ 
+ // @@@ Function bodies
+ 
+-func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx pkgbits.Index, closureVars []posObj) {
++// bodyIdx returns the index for the given function body (specified by
++// block), adding it to the export data
++func (pw *pkgWriter) bodyIdx(sig *types2.Signature, block *syntax.BlockStmt, dict *writerDict) (idx pkgbits.Index, closureVars []posVar) {
+ 	w := pw.newWriter(pkgbits.RelocBody, pkgbits.SyncFuncBody)
+ 	w.dict = dict
+ 
+@@ -864,6 +980,7 @@ func (w *writer) funcarg(param *types2.Var, result bool) {
+ 	}
+ }
+ 
++// addLocal records the declaration of a new local variable.
+ func (w *writer) addLocal(obj *types2.Var) {
+ 	w.Sync(pkgbits.SyncAddLocal)
+ 	idx := len(w.localsIdx)
+@@ -876,6 +993,8 @@ func (w *writer) addLocal(obj *types2.Var) {
+ 	w.localsIdx[obj] = idx
+ }
+ 
++// useLocal writes a reference to the given local or free variable
++// into the bitstream.
+ func (w *writer) useLocal(pos syntax.Pos, obj *types2.Var) {
+ 	w.Sync(pkgbits.SyncUseObjLocal)
+ 
+@@ -890,7 +1009,7 @@ func (w *writer) useLocal(pos syntax.Pos, obj *types2.Var) {
+ 			w.closureVarsIdx = make(map[*types2.Var]int)
+ 		}
+ 		idx = len(w.closureVars)
+-		w.closureVars = append(w.closureVars, posObj{pos, obj})
++		w.closureVars = append(w.closureVars, posVar{pos, obj})
+ 		w.closureVarsIdx[obj] = idx
+ 	}
+ 	w.Len(idx)
+@@ -913,6 +1032,7 @@ func (w *writer) closeAnotherScope() {
+ 
+ // @@@ Statements
+ 
++// stmt writes the given statement into the function body bitstream.
+ func (w *writer) stmt(stmt syntax.Stmt) {
+ 	var stmts []syntax.Stmt
+ 	if stmt != nil {
+@@ -1213,6 +1333,7 @@ func (w *writer) optLabel(label *syntax.Name) {
+ 
+ // @@@ Expressions
+ 
++// expr writes the given expression into the function body bitstream.
+ func (w *writer) expr(expr syntax.Expr) {
+ 	base.Assertf(expr != nil, "missing expression")
+ 
+@@ -1439,7 +1560,7 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
+ 	assert(ok)
+ 	sig := tv.Type.(*types2.Signature)
+ 
+-	body, closureVars := w.p.bodyIdx(w.p.curpkg, sig, expr.Body, w.dict)
++	body, closureVars := w.p.bodyIdx(sig, expr.Body, w.dict)
+ 
+ 	w.Sync(pkgbits.SyncFuncLit)
+ 	w.pos(expr)
+@@ -1448,15 +1569,15 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
+ 	w.Len(len(closureVars))
+ 	for _, cv := range closureVars {
+ 		w.pos(cv.pos)
+-		w.useLocal(cv.pos, cv.obj)
++		w.useLocal(cv.pos, cv.var_)
+ 	}
+ 
+ 	w.Reloc(pkgbits.RelocBody, body)
+ }
+ 
+-type posObj struct {
+-	pos syntax.Pos
+-	obj *types2.Var
++type posVar struct {
++	pos  syntax.Pos
++	var_ *types2.Var
+ }
+ 
+ func (w *writer) exprList(expr syntax.Expr) {
+@@ -1509,6 +1630,9 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr, nilOK bool) {
+ 	w.typInfo(info)
+ }
+ 
++// isInterface reports whether typ is known to be an interface type.
++// If typ is a type parameter, then isInterface reports an internal
++// compiler error instead.
+ func isInterface(typ types2.Type) bool {
+ 	if _, ok := typ.(*types2.TypeParam); ok {
+ 		// typ is a type parameter and may be instantiated as either a
+@@ -1521,6 +1645,7 @@ func isInterface(typ types2.Type) bool {
+ 	return ok
+ }
+ 
++// op writes an Op into the bitstream.
+ func (w *writer) op(op ir.Op) {
+ 	// TODO(mdempsky): Remove in favor of explicit codes? Would make
+ 	// export data more stable against internal refactorings, but low
+@@ -1561,6 +1686,12 @@ type fileImports struct {
+ 	importedEmbed, importedUnsafe bool
+ }
+ 
++// declCollector is a visitor type that collects compiler-needed
++// information about declarations that types2 doesn't track.
++//
++// Notably, it maps declared types and functions back to their
++// declaration statement, keeps track of implicit type parameters, and
++// assigns unique type "generation" numbers to local defined types.
+ type declCollector struct {
+ 	pw         *pkgWriter
+ 	typegen    *int

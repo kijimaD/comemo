@@ -24,9 +24,413 @@ Date:   Wed Jan 4 17:23:46 2023 -0500
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/os/os_windows_test.go | 82 +++++++++++++++++++++++++++++++++++++++++++++--
  src/os/stat_test.go       | 29 +++++++++++++++++
  src/os/stat_windows.go    | 77 ++++++++++++++++++++++++++++----------------
  src/os/types_windows.go   | 63 +++++++++++++++++++++++++-----------
  4 files changed, 203 insertions(+), 48 deletions(-)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 17b03e9508..1133639105 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
+@@ -713,11 +714,13 @@ func TestReadStdin(t *testing.T) {
+ func TestStatPagefile(t *testing.T) {
+ 	t.Parallel()
+ 
+-	fi, err := os.Stat(`c:\pagefile.sys`)
++	const path = `c:\pagefile.sys`
++	fi, err := os.Stat(path)
+ 	if err == nil {
+ 		if fi.Name() == "" {
+-			t.Fatal(`FileInfo of c:\pagefile.sys has empty name`)
++			t.Fatalf("Stat(%q).Name() is empty", path)
+ 		}
++		t.Logf("Stat(%q).Size() = %v", path, fi.Size())
+ 		return
+ 	}
+ 	if os.IsNotExist(err) {
+@@ -1290,3 +1293,78 @@ func TestOpenDirTOCTOU(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++func TestAppExecLinkStat(t *testing.T) {
++	// We expect executables installed to %LOCALAPPDATA%\Microsoft\WindowsApps to
++	// be reparse points with tag IO_REPARSE_TAG_APPEXECLINK. Here we check that
++	// such reparse points are treated as irregular (but executable) files, not
++	// broken symlinks.
++	appdata := os.Getenv("LOCALAPPDATA")
++	if appdata == "" {
++		t.Skipf("skipping: LOCALAPPDATA not set")
++	}
++
++	pythonExeName := "python3.exe"
++	pythonPath := filepath.Join(appdata, `Microsoft\WindowsApps`, pythonExeName)
++
++	lfi, err := os.Lstat(pythonPath)
++	if err != nil {
++		t.Skip("skipping test, because Python 3 is not installed via the Windows App Store on this system; see https://golang.org/issue/42919")
++	}
++
++	// An APPEXECLINK reparse point is not a symlink, so os.Readlink should return
++	// a non-nil error for it, and Stat should return results identical to Lstat.
++	linkName, err := os.Readlink(pythonPath)
++	if err == nil {
++		t.Errorf("os.Readlink(%q) = %q, but expected an error\n(should be an APPEXECLINK reparse point, not a symlink)", pythonPath, linkName)
++	}
++
++	sfi, err := os.Stat(pythonPath)
++	if err != nil {
++		t.Fatalf("Stat %s: %v", pythonPath, err)
++	}
++
++	if lfi.Name() != sfi.Name() {
++		t.Logf("os.Lstat(%q) = %+v", pythonPath, lfi)
++		t.Logf("os.Stat(%q)  = %+v", pythonPath, sfi)
++		t.Errorf("files should be same")
++	}
++
++	if lfi.Name() != pythonExeName {
++		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, lfi.Name(), pythonExeName)
++	}
++	if m := lfi.Mode(); m&fs.ModeSymlink != 0 {
++		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
++	}
++	if m := lfi.Mode(); m&fs.ModeDir != 0 {
++		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
++	}
++	if m := lfi.Mode(); m&fs.ModeIrregular == 0 {
++		// A reparse point is not a regular file, but we don't have a more appropriate
++		// ModeType bit for it, so it should be marked as irregular.
++		t.Errorf("%q should not be a regular file (mode=0x%x)", pythonPath, uint32(m))
++	}
++
++	if sfi.Name() != pythonExeName {
++		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, sfi.Name(), pythonExeName)
++	}
++	if m := sfi.Mode(); m&fs.ModeSymlink != 0 {
++		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
++	}
++	if m := sfi.Mode(); m&fs.ModeDir != 0 {
++		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
++	}
++	if m := sfi.Mode(); m&fs.ModeIrregular == 0 {
++		// A reparse point is not a regular file, but we don't have a more appropriate
++		// ModeType bit for it, so it should be marked as irregular.
++		t.Errorf("%q should not be a regular file (mode=0x%x)", pythonPath, uint32(m))
++	}
++
++	p, err := exec.LookPath(pythonPath)
++	if err != nil {
++		t.Errorf("exec.LookPath(%q): %v", pythonPath, err)
++	}
++	if p != pythonPath {
++		t.Errorf("exec.LookPath(%q) = %q; want %q", pythonPath, p, pythonPath)
++	}
++}
+diff --git a/src/os/stat_test.go b/src/os/stat_test.go
+index c876d434fd..72621f257b 100644
+--- a/src/os/stat_test.go
++++ b/src/os/stat_test.go
+@@ -182,6 +182,31 @@ func testSymlinkSameFile(t *testing.T, path, link string) {
+ 	}
+ }
+ 
++func testSymlinkSameFileOpen(t *testing.T, link string) {
++	f, err := os.Open(link)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	defer f.Close()
++
++	fi, err := f.Stat()
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	fi2, err := os.Stat(link)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	if !os.SameFile(fi, fi2) {
++		t.Errorf("os.Open(%q).Stat() and os.Stat(%q) are not the same file", link, link)
++	}
++}
++
+ func TestDirAndSymlinkStats(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 	t.Parallel()
+@@ -199,6 +224,7 @@ func TestDirAndSymlinkStats(t *testing.T) {
+ 	}
+ 	testSymlinkStats(t, dirlink, true)
+ 	testSymlinkSameFile(t, dir, dirlink)
++	testSymlinkSameFileOpen(t, dirlink)
+ 
+ 	linklink := filepath.Join(tmpdir, "linklink")
+ 	if err := os.Symlink(dirlink, linklink); err != nil {
+@@ -206,6 +232,7 @@ func TestDirAndSymlinkStats(t *testing.T) {
+ 	}
+ 	testSymlinkStats(t, linklink, true)
+ 	testSymlinkSameFile(t, dir, linklink)
++	testSymlinkSameFileOpen(t, linklink)
+ }
+ 
+ func TestFileAndSymlinkStats(t *testing.T) {
+@@ -225,6 +252,7 @@ func TestFileAndSymlinkStats(t *testing.T) {
+ 	}
+ 	testSymlinkStats(t, filelink, false)
+ 	testSymlinkSameFile(t, file, filelink)
++	testSymlinkSameFileOpen(t, filelink)
+ 
+ 	linklink := filepath.Join(tmpdir, "linklink")
+ 	if err := os.Symlink(filelink, linklink); err != nil {
+@@ -232,6 +260,7 @@ func TestFileAndSymlinkStats(t *testing.T) {
+ 	}
+ 	testSymlinkStats(t, linklink, false)
+ 	testSymlinkSameFile(t, file, linklink)
++	testSymlinkSameFileOpen(t, linklink)
+ }
+ 
+ // see issue 27225 for details
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 8747c19888..7ac9f7b860 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -20,7 +20,7 @@ func (file *File) Stat() (FileInfo, error) {
+ }
+ 
+ // stat implements both Stat and Lstat of a file.
+-func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
++func stat(funcname, name string, followSymlinks bool) (FileInfo, error) {
+ 	if len(name) == 0 {
+ 		return nil, &PathError{Op: funcname, Path: name, Err: syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}
+@@ -33,8 +33,29 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
+ 	// See https://golang.org/issues/19922#issuecomment-300031421 for details.
+ 	var fa syscall.Win32FileAttributeData
+ 	err = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
++
++	// GetFileAttributesEx fails with ERROR_SHARING_VIOLATION error for
++	// files like c:\pagefile.sys. Use FindFirstFile for such files.
++	if err == windows.ERROR_SHARING_VIOLATION {
++		var fd syscall.Win32finddata
++		sh, err := syscall.FindFirstFile(namep, &fd)
++		if err != nil {
++			return nil, &PathError{Op: "FindFirstFile", Path: name, Err: err}
++		}
++		syscall.FindClose(sh)
++		if fd.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
++			// Not a symlink or mount point. FindFirstFile is good enough.
++			fs := newFileStatFromWin32finddata(&fd)
++			if err := fs.saveInfoFromPath(name); err != nil {
++				return nil, err
++			}
++			return fs, nil
++		}
++	}
++
+ 	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+-		// Not a symlink.
++		// The file is definitely not a symlink, because it isn't any kind of reparse point.
++		// The information we got from GetFileAttributesEx is good enough for now.
+ 		fs := &fileStat{
+ 			FileAttributes: fa.FileAttributes,
+ 			CreationTime:   fa.CreationTime,
+@@ -48,30 +69,34 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
+ 		}
+ 		return fs, nil
+ 	}
+-	// GetFileAttributesEx fails with ERROR_SHARING_VIOLATION error for
+-	// files, like c:\pagefile.sys. Use FindFirstFile for such files.
+-	if err == windows.ERROR_SHARING_VIOLATION {
+-		var fd syscall.Win32finddata
+-		sh, err := syscall.FindFirstFile(namep, &fd)
+-		if err != nil {
+-			return nil, &PathError{Op: "FindFirstFile", Path: name, Err: err}
+-		}
+-		syscall.FindClose(sh)
+-		fs := newFileStatFromWin32finddata(&fd)
+-		if err := fs.saveInfoFromPath(name); err != nil {
+-			return nil, err
+-		}
+-		return fs, nil
+-	}
+ 
+-	// Finally use CreateFile.
+-	h, err := syscall.CreateFile(namep, 0, 0, nil,
+-		syscall.OPEN_EXISTING, createFileAttrs, 0)
++	// Use CreateFile to determine whether the file is a symlink and, if so,
++	// save information about the link target.
++	// Set FILE_FLAG_BACKUP_SEMANTICS so that CreateFile will create the handle
++	// even if name refers to a directory.
++	h, err := syscall.CreateFile(namep, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|syscall.FILE_FLAG_OPEN_REPARSE_POINT, 0)
+ 	if err != nil {
++		// Since CreateFile failed, we can't determine whether name refers to a
++		// symlink, or some other kind of reparse point. Since we can't return a
++		// FileInfo with a known-accurate Mode, we must return an error.
+ 		return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
+ 	}
+-	defer syscall.CloseHandle(h)
+-	return statHandle(name, h)
++
++	fi, err := statHandle(name, h)
++	syscall.CloseHandle(h)
++	if err == nil && followSymlinks && fi.(*fileStat).isSymlink() {
++		// To obtain information about the link target, we reopen the file without
++		// FILE_FLAG_OPEN_REPARSE_POINT and examine the resulting handle.
++		// (See https://devblogs.microsoft.com/oldnewthing/20100212-00/?p=14963.)
++		h, err = syscall.CreateFile(namep, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
++		if err != nil {
++			// name refers to a symlink, but we couldn't resolve the symlink target.
++			return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
++		}
++		defer syscall.CloseHandle(h)
++		return statHandle(name, h)
++	}
++	return fi, err
+ }
+ 
+ func statHandle(name string, h syscall.Handle) (FileInfo, error) {
+@@ -93,14 +118,10 @@ func statHandle(name string, h syscall.Handle) (FileInfo, error) {
+ 
+ // statNolog implements Stat for Windows.
+ func statNolog(name string) (FileInfo, error) {
+-	return stat("Stat", name, syscall.FILE_FLAG_BACKUP_SEMANTICS)
++	return stat("Stat", name, true)
+ }
+ 
+ // lstatNolog implements Lstat for Windows.
+ func lstatNolog(name string) (FileInfo, error) {
+-	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
+-	// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
+-	// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
+-	attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
+-	return stat("Lstat", name, attrs)
++	return stat("Lstat", name, false)
+ }
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index d444e8b48a..9a3d508783 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -25,7 +25,7 @@ type fileStat struct {
+ 	FileSizeLow    uint32
+ 
+ 	// from Win32finddata
+-	Reserved0 uint32
++	ReparseTag uint32
+ 
+ 	// what syscall.GetFileType returns
+ 	filetype uint32
+@@ -73,7 +73,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
+ 		vol:            d.VolumeSerialNumber,
+ 		idxhi:          d.FileIndexHigh,
+ 		idxlo:          d.FileIndexLow,
+-		Reserved0:      ti.ReparseTag,
++		ReparseTag:     ti.ReparseTag,
+ 		// fileStat.path is used by os.SameFile to decide if it needs
+ 		// to fetch vol, idxhi and idxlo. But these are already set,
+ 		// so set fileStat.path to "" to prevent os.SameFile doing it again.
+@@ -83,26 +83,39 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
+ // newFileStatFromWin32finddata copies all required information
+ // from syscall.Win32finddata d into the newly created fileStat.
+ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
+-	return &fileStat{
++	fs := &fileStat{
+ 		FileAttributes: d.FileAttributes,
+ 		CreationTime:   d.CreationTime,
+ 		LastAccessTime: d.LastAccessTime,
+ 		LastWriteTime:  d.LastWriteTime,
+ 		FileSizeHigh:   d.FileSizeHigh,
+ 		FileSizeLow:    d.FileSizeLow,
+-		Reserved0:      d.Reserved0,
+ 	}
++	if d.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
++		// Per https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataw:
++		// “If the dwFileAttributes member includes the FILE_ATTRIBUTE_REPARSE_POINT
++		// attribute, this member specifies the reparse point tag. Otherwise, this
++		// value is undefined and should not be used.”
++		fs.ReparseTag = d.Reserved0
++	}
++	return fs
+ }
+ 
+ func (fs *fileStat) isSymlink() bool {
+-	// Use instructions described at
+-	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
+-	// to recognize whether it's a symlink.
+-	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+-		return false
+-	}
+-	return fs.Reserved0 == syscall.IO_REPARSE_TAG_SYMLINK ||
+-		fs.Reserved0 == windows.IO_REPARSE_TAG_MOUNT_POINT
++	// As of https://go.dev/cl/86556, we treat MOUNT_POINT reparse points as
++	// symlinks because otherwise certain directory junction tests in the
++	// path/filepath package would fail.
++	//
++	// However,
++	// https://learn.microsoft.com/en-us/windows/win32/fileio/hard-links-and-junctions
++	// seems to suggest that directory junctions should be treated like hard
++	// links, not symlinks.
++	//
++	// TODO(bcmills): Get more input from Microsoft on what the behavior ought to
++	// be for MOUNT_POINT reparse points.
++
++	return fs.ReparseTag == syscall.IO_REPARSE_TAG_SYMLINK ||
++		fs.ReparseTag == windows.IO_REPARSE_TAG_MOUNT_POINT
+ }
+ 
+ func (fs *fileStat) Size() int64 {
+@@ -127,6 +140,9 @@ func (fs *fileStat) Mode() (m FileMode) {
+ 	case syscall.FILE_TYPE_CHAR:
+ 		m |= ModeDevice | ModeCharDevice
+ 	}
++	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 && m&ModeType == 0 {
++		m |= ModeIrregular
++	}
+ 	return m
+ }
+ 
+@@ -163,12 +179,23 @@ func (fs *fileStat) loadFileId() error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
+-	if fs.isSymlink() {
+-		// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
+-		// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
+-		attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
+-	}
++
++	// Per https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-points-and-file-operations,
++	// “Applications that use the CreateFile function should specify the
++	// FILE_FLAG_OPEN_REPARSE_POINT flag when opening the file if it is a reparse
++	// point.”
++	//
++	// And per https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew,
++	// “If the file is not a reparse point, then this flag is ignored.”
++	//
++	// So we set FILE_FLAG_OPEN_REPARSE_POINT unconditionally, since we want
++	// information about the reparse point itself.
++	//
++	// If the file is a symlink, the symlink target should have already been
++	// resolved when the fileStat was created, so we don't need to worry about
++	// resolving symlink reparse points again here.
++	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS | syscall.FILE_FLAG_OPEN_REPARSE_POINT)
++
+ 	h, err := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
+ 	if err != nil {
+ 		return err

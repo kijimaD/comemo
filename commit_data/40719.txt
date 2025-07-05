@@ -17,7 +17,7 @@ Date:   Wed Jun 19 17:48:33 2019 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/os_darwin.go       | 60 +++++++++++++++++++++--------
  src/runtime/sys_darwin.go      | 58 +++++++++++++++++++---------
  src/runtime/sys_darwin_386.s   | 85 +++++++++++++++++++++++++++++-------------
@@ -25,3 +25,541 @@ Date:   Wed Jun 19 17:48:33 2019 +0000
  src/runtime/sys_darwin_arm.s   | 54 ++++++++++++++++-----------
  src/runtime/sys_darwin_arm64.s | 53 +++++++++++++++-----------
  6 files changed, 249 insertions(+), 123 deletions(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 4b6dbf6427..819aaaca70 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -7,7 +7,10 @@ package runtime
+ import "unsafe"
+ 
+ type mOS struct {
+-	sema uintptr
++	initialized bool
++	mutex       pthreadmutex
++	cond        pthreadcond
++	count       int
+ }
+ 
+ func unimplemented(name string) {
+@@ -17,32 +20,59 @@ func unimplemented(name string) {
+ 
+ //go:nosplit
+ func semacreate(mp *m) {
+-	if mp.sema == 0 {
+-		mp.sema = dispatch_semaphore_create(0)
++	if mp.initialized {
++		return
++	}
++	mp.initialized = true
++	if err := pthread_mutex_init(&mp.mutex, nil); err != 0 {
++		throw("pthread_mutex_init")
++	}
++	if err := pthread_cond_init(&mp.cond, nil); err != 0 {
++		throw("pthread_cond_init")
+ 	}
+ }
+ 
+-const (
+-	_DISPATCH_TIME_NOW     = uint64(0)
+-	_DISPATCH_TIME_FOREVER = ^uint64(0)
+-)
+-
+ //go:nosplit
+ func semasleep(ns int64) int32 {
+-	mp := getg().m
+-	t := _DISPATCH_TIME_FOREVER
++	var start int64
+ 	if ns >= 0 {
+-		t = dispatch_time(_DISPATCH_TIME_NOW, ns)
++		start = nanotime()
+ 	}
+-	if dispatch_semaphore_wait(mp.sema, t) != 0 {
+-		return -1
++	mp := getg().m
++	pthread_mutex_lock(&mp.mutex)
++	for {
++		if mp.count > 0 {
++			mp.count--
++			pthread_mutex_unlock(&mp.mutex)
++			return 0
++		}
++		if ns >= 0 {
++			spent := nanotime() - start
++			if spent >= ns {
++				pthread_mutex_unlock(&mp.mutex)
++				return -1
++			}
++			var t timespec
++			t.setNsec(ns - spent)
++			err := pthread_cond_timedwait_relative_np(&mp.cond, &mp.mutex, &t)
++			if err == _ETIMEDOUT {
++				pthread_mutex_unlock(&mp.mutex)
++				return -1
++			}
++		} else {
++			pthread_cond_wait(&mp.cond, &mp.mutex)
++		}
+ 	}
+-	return 0
+ }
+ 
+ //go:nosplit
+ func semawakeup(mp *m) {
+-	dispatch_semaphore_signal(mp.sema)
++	pthread_mutex_lock(&mp.mutex)
++	mp.count++
++	if mp.count > 0 {
++		pthread_cond_signal(&mp.cond)
++	}
++	pthread_mutex_unlock(&mp.mutex)
+ }
+ 
+ // BSD interface for threading.
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 2aaa0f8546..b50d441d92 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -339,33 +339,52 @@ func kevent_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+-func dispatch_semaphore_create(val int) (sema uintptr) {
+-	libcCall(unsafe.Pointer(funcPC(dispatch_semaphore_create_trampoline)), unsafe.Pointer(&val))
+-	return
++func pthread_mutex_init(m *pthreadmutex, attr *pthreadmutexattr) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_init_trampoline)), unsafe.Pointer(&m))
+ }
+-func dispatch_semaphore_create_trampoline()
++func pthread_mutex_init_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+-func dispatch_semaphore_wait(sema uintptr, t uint64) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(dispatch_semaphore_wait_trampoline)), unsafe.Pointer(&sema))
++func pthread_mutex_lock(m *pthreadmutex) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_lock_trampoline)), unsafe.Pointer(&m))
+ }
+-func dispatch_semaphore_wait_trampoline()
++func pthread_mutex_lock_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+-func dispatch_semaphore_signal(sema uintptr) {
+-	libcCall(unsafe.Pointer(funcPC(dispatch_semaphore_signal_trampoline)), unsafe.Pointer(&sema))
++func pthread_mutex_unlock(m *pthreadmutex) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_unlock_trampoline)), unsafe.Pointer(&m))
+ }
+-func dispatch_semaphore_signal_trampoline()
++func pthread_mutex_unlock_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+-func dispatch_time(base uint64, delta int64) (result uint64) {
+-	libcCall(unsafe.Pointer(funcPC(dispatch_time_trampoline)), unsafe.Pointer(&base))
+-	return
++func pthread_cond_init(c *pthreadcond, attr *pthreadcondattr) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_cond_init_trampoline)), unsafe.Pointer(&c))
++}
++func pthread_cond_init_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_cond_wait(c *pthreadcond, m *pthreadmutex) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_cond_wait_trampoline)), unsafe.Pointer(&c))
++}
++func pthread_cond_wait_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_cond_timedwait_relative_np(c *pthreadcond, m *pthreadmutex, t *timespec) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_relative_np_trampoline)), unsafe.Pointer(&c))
++}
++func pthread_cond_timedwait_relative_np_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_cond_signal(c *pthreadcond) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_cond_signal_trampoline)), unsafe.Pointer(&c))
+ }
+-func dispatch_time_trampoline()
++func pthread_cond_signal_trampoline()
+ 
+ // Not used on Darwin, but must be defined.
+ func exitThread(wait *uint32) {
+@@ -411,10 +430,13 @@ func closeonexec(fd int32) {
+ //go:cgo_import_dynamic libc_kqueue kqueue "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_kevent kevent "/usr/lib/libSystem.B.dylib"
+ 
+-//go:cgo_import_dynamic libc_dispatch_semaphore_create dispatch_semaphore_create "/usr/lib/libSystem.B.dylib"
+-//go:cgo_import_dynamic libc_dispatch_semaphore_wait dispatch_semaphore_wait "/usr/lib/libSystem.B.dylib"
+-//go:cgo_import_dynamic libc_dispatch_semaphore_signal dispatch_semaphore_signal "/usr/lib/libSystem.B.dylib"
+-//go:cgo_import_dynamic libc_dispatch_time dispatch_time "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_mutex_init pthread_mutex_init "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_mutex_lock pthread_mutex_lock "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_mutex_unlock pthread_mutex_unlock "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_cond_init pthread_cond_init "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+ 
+ // Magic incantation to get libSystem actually dynamically linked.
+ // TODO: Why does the code require this?  See cmd/link/internal/ld/go.go
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 0c54d13b02..9a0b3607c2 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -532,63 +532,96 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+ 	POPL    BP
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_create_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	SUBL	$8, SP
+-	MOVL	16(SP), BX
+-	MOVL	0(BX), AX	// arg 1 value
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 mutex
+ 	MOVL	AX, 0(SP)
+-	CALL	libc_dispatch_semaphore_create(SB)
+-	MOVL	AX, 4(BX)	// result sema
++	MOVL	4(CX), AX	// arg 2 attr
++	MOVL	AX, 4(SP)
++	CALL	libc_pthread_mutex_init(SB)
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_wait_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-	SUBL	$24, SP
+-	MOVL	32(SP), CX
+-	MOVL	0(CX), AX	// arg 1 sema
++	SUBL	$8, SP
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 mutex
++	MOVL	AX, 0(SP)
++	CALL	libc_pthread_mutex_lock(SB)
++	MOVL	BP, SP
++	POPL	BP
++	RET
++
++TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 mutex
++	MOVL	AX, 0(SP)
++	CALL	libc_pthread_mutex_unlock(SB)
++	MOVL	BP, SP
++	POPL	BP
++	RET
++
++TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 cond
+ 	MOVL	AX, 0(SP)
+-	MOVL	4(CX), AX	// arg 2 timeout/0
++	MOVL	4(CX), AX	// arg 2 attr
+ 	MOVL	AX, 4(SP)
+-	MOVL	8(CX), AX	// arg 2 timeout/1
+-	MOVL	AX, 8(SP)
+-	CALL	libc_dispatch_semaphore_wait(SB)
++	CALL	libc_pthread_cond_init(SB)
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_signal_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	SUBL	$8, SP
+ 	MOVL	16(SP), CX
+-	MOVL	0(CX), AX	// arg 1 sema
++	MOVL	0(CX), AX	// arg 1 cond
+ 	MOVL	AX, 0(SP)
+-	CALL	libc_dispatch_semaphore_signal(SB)
++	MOVL	4(CX), AX	// arg 2 mutex
++	MOVL	AX, 4(SP)
++	CALL	libc_pthread_cond_wait(SB)
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 	RET
+ 
+-TEXT runtime·dispatch_time_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	SUBL	$24, SP
+-	MOVL	32(SP), BX
+-	MOVL	0(BX), AX	// arg 1 base/0
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX	// arg 1 cond
+ 	MOVL	AX, 0(SP)
+-	MOVL	4(BX), AX	// arg 1 base/1
++	MOVL	4(CX), AX	// arg 2 mutex
+ 	MOVL	AX, 4(SP)
+-	MOVL	8(BX), AX	// arg 2 delta/0
++	MOVL	8(CX), AX	// arg 3 timeout
+ 	MOVL	AX, 8(SP)
+-	MOVL	12(BX), AX	// arg 2 delta/1
+-	MOVL	AX, 12(SP)
+-	CALL	libc_dispatch_time(SB)
+-	MOVL	AX, 16(BX)	// result/0
+-	MOVL	DX, 20(BX)	// result/1
++	CALL	libc_pthread_cond_timedwait_relative_np(SB)
++	MOVL	BP, SP
++	POPL	BP
++	RET
++
++TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 cond
++	MOVL	AX, 0(SP)
++	CALL	libc_pthread_cond_signal(SB)
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 	RET
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 95ba496cbc..bbe6bc14bf 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -482,44 +482,64 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_create_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	MOVQ	DI, BX
+-	MOVQ	0(BX), DI	// arg 1 value
+-	CALL	libc_dispatch_semaphore_create(SB)
+-	MOVQ	AX, 8(BX)	// result sema
++	MOVQ	8(DI), SI	// arg 2 attr
++	MOVQ	0(DI), DI	// arg 1 mutex
++	CALL	libc_pthread_mutex_init(SB)
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_wait_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	MOVQ	8(DI), SI	// arg 2 timeout
+-	MOVQ	0(DI), DI	// arg 1 sema
+-	CALL	libc_dispatch_semaphore_wait(SB)
+-	TESTQ	AX, AX	// For safety convert 64-bit result to int32 0 or 1.
+-	JEQ	2(PC)
+-	MOVL	$1, AX
++	MOVQ	0(DI), DI	// arg 1 mutex
++	CALL	libc_pthread_mutex_lock(SB)
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_signal_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	MOVQ	0(DI), DI	// arg 1 sema
+-	CALL	libc_dispatch_semaphore_signal(SB)
++	MOVQ	0(DI), DI	// arg 1 mutex
++	CALL	libc_pthread_mutex_unlock(SB)
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·dispatch_time_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	MOVQ	DI, BX
+-	MOVQ	0(BX), DI	// arg 1 base
+-	MOVQ	8(BX), SI	// arg 2 delta
+-	CALL	libc_dispatch_time(SB)
+-	MOVQ	AX, 16(BX)
++	MOVQ	8(DI), SI	// arg 2 attr
++	MOVQ	0(DI), DI	// arg 1 cond
++	CALL	libc_pthread_cond_init(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI	// arg 2 mutex
++	MOVQ	0(DI), DI	// arg 1 cond
++	CALL	libc_pthread_cond_wait(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	8(DI), SI	// arg 2 mutex
++	MOVQ	16(DI), DX	// arg 3 timeout
++	MOVQ	0(DI), DI	// arg 1 cond
++	CALL	libc_pthread_cond_timedwait_relative_np(SB)
++	POPQ	BP
++	RET
++
++TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	MOVQ	0(DI), DI	// arg 1 cond
++	CALL	libc_pthread_cond_signal(SB)
+ 	POPQ	BP
+ 	RET
+ 
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index bb0832f3af..82470bc4df 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -343,34 +343,44 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_raise(SB)
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_create_trampoline(SB),NOSPLIT,$0
+-	MOVW	R0, R8
+-	MOVW	0(R8), R0	// arg 1 value
+-	BL	libc_dispatch_semaphore_create(SB)
+-	MOVW	R0, 4(R8)	// result sema
++TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
++	MOVW	4(R0), R1	// arg 2 attr
++	MOVW	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_init(SB)
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_wait_trampoline(SB),NOSPLIT,$0
+-	MOVW	4(R0), R1	// arg 2 timeout/0
+-	MOVW	8(R0), R2	// arg 2 timeout/1
+-	MOVW	0(R0), R0	// arg 1 sema
+-	BL	libc_dispatch_semaphore_wait(SB)
++TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
++	MOVW	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_lock(SB)
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_signal_trampoline(SB),NOSPLIT,$0
+-	MOVW	0(R0), R0	// arg 1 sema
+-	BL	libc_dispatch_semaphore_signal(SB)
++TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
++	MOVW	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_unlock(SB)
+ 	RET
+ 
+-TEXT runtime·dispatch_time_trampoline(SB),NOSPLIT,$0
+-	MOVW	R0, R8
+-	MOVW	0(R8), R0	// arg 1 base/0
+-	MOVW	4(R8), R1	// arg 1 base/1
+-	MOVW	8(R8), R2	// arg 2 delta/0
+-	MOVW	12(R8), R3	// arg 2 delta/1
+-	BL	libc_dispatch_time(SB)
+-	MOVW	R0, 16(R8)	// result/0
+-	MOVW	R1, 20(R8)	// result/1
++TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
++	MOVW	4(R0), R1	// arg 2 attr
++	MOVW	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_init(SB)
++	RET
++
++TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
++	MOVW	4(R0), R1	// arg 2 mutex
++	MOVW	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_wait(SB)
++	RET
++
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
++	MOVW	4(R0), R1	// arg 2 mutex
++	MOVW	8(R0), R2	// arg 3 timeout
++	MOVW	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_timedwait_relative_np(SB)
++	RET
++
++TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
++	MOVW	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_signal(SB)
+ 	RET
+ 
+ // syscall calls a function in libc on behalf of the syscall package.
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 4c81b99336..af03af37bb 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -409,33 +409,44 @@ TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_raise(SB)
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_create_trampoline(SB),NOSPLIT,$0
+-	MOVD	R0, R19
+-	MOVD	0(R19), R0	// arg 1 value
+-	BL	libc_dispatch_semaphore_create(SB)
+-	MOVD	R0, 8(R19)	// result sema
++TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 attr
++	MOVD	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_init(SB)
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_wait_trampoline(SB),NOSPLIT,$0
+-	MOVD	8(R0), R1	// arg 2 timeout
+-	MOVD	0(R0), R0	// arg 1 sema
+-	BL	libc_dispatch_semaphore_wait(SB)
+-	CMP	$0, R0	// For safety convert 64-bit result to int32 0 or 1.
+-	BEQ	2(PC)
+-	MOVW	$1, R0
++TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
++	MOVD	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_lock(SB)
+ 	RET
+ 
+-TEXT runtime·dispatch_semaphore_signal_trampoline(SB),NOSPLIT,$0
+-	MOVD	0(R0), R0	// arg 1 sema
+-	BL	libc_dispatch_semaphore_signal(SB)
++TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
++	MOVD	0(R0), R0	// arg 1 mutex
++	BL	libc_pthread_mutex_unlock(SB)
+ 	RET
+ 
+-TEXT runtime·dispatch_time_trampoline(SB),NOSPLIT,$0
+-	MOVD	R0, R19
+-	MOVD	0(R19), R0	// arg 1 base
+-	MOVD	8(R19), R1	// arg 2 delta
+-	BL	libc_dispatch_time(SB)
+-	MOVD	R0, 16(R19)	// result
++TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 attr
++	MOVD	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_init(SB)
++	RET
++
++TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 mutex
++	MOVD	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_wait(SB)
++	RET
++
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 mutex
++	MOVD	16(R0), R2	// arg 3 timeout
++	MOVD	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_timedwait_relative_np(SB)
++	RET
++
++TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
++	MOVD	0(R0), R0	// arg 1 cond
++	BL	libc_pthread_cond_signal(SB)
+ 	RET
+ 
+ // syscall calls a function in libc on behalf of the syscall package.

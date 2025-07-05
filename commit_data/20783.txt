@@ -8,6 +8,21 @@ Date:   Thu Oct 9 11:12:03 2014 +0200
     R=rsc, bradfitz
     CC=aram, golang-codereviews
     https://golang.org/cl/154140043
-
+---
  src/net/rpc/client_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/rpc/client_test.go b/src/net/rpc/client_test.go
+index d116d2acc9..fb838eb34f 100644
+--- a/src/net/rpc/client_test.go
++++ b/src/net/rpc/client_test.go
+@@ -52,6 +52,9 @@ func (s *S) Recv(nul *struct{}, reply *R) error {
+ }
+ 
+ func TestGobError(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/8908")
++	}
+ 	defer func() {
+ 		err := recover()
+ 		if err == nil {

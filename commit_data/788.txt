@@ -8,6 +8,57 @@ Date:   Wed Oct 1 11:06:13 2008 -0700
     DELTA=41  (41 added, 0 deleted, 0 changed)
     OCL=16290
     CL=16293
-
+---
  src/all.bash | 44 ++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 44 insertions(+)
+
+diff --git a/src/all.bash b/src/all.bash
+new file mode 100755
+index 0000000000..b9202e1118
+--- /dev/null
++++ b/src/all.bash
+@@ -0,0 +1,44 @@
++#!/bin/bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++bash make.bash
++
++xcd() {
++	builtin cd $1
++	echo --- cd $1
++}
++
++(xcd ../usr/gri/gosrc
++make clean
++time make
++make test
++)
++
++(xcd ../usr/gri/pretty
++make clean
++time make
++make test
++)
++
++(xcd ../usr/r/rpc
++make clean
++time make
++chanrun
++)
++
++(xcd ../usr/r/refl
++rm -f *.6 6.out
++6g refl.go
++6g printf.go
++6g main.go
++6l main.6
++6.out
++)
++
++(xcd ../test
++./run
++)
++

@@ -9,7 +9,34 @@ Date:   Thu Mar 15 15:22:56 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5784083
-
+---
  misc/dist/bindist.go | 2 ++
  src/cmd/dist/build.c | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 8fd3bfde0f..b03fd706db 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -43,6 +43,8 @@ const (
+ )
+ 
+ var preBuildCleanFiles = []string{
++	"src/cmd/cov",
++	"src/cmd/prof",
+ 	"src/pkg/exp",
+ 	"src/pkg/old",
+ }
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index acd7347aa8..3936f76210 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1214,6 +1214,8 @@ clean(void)
+ 	vinit(&dir);
+ 
+ 	for(i=0; i<nelem(cleantab); i++) {
++		if((streq(cleantab[i], "cmd/cov") || streq(cleantab[i], "cmd/prof")) && !isdir(cleantab[i]))
++			continue;
+ 		bpathf(&path, "%s/src/%s", goroot, cleantab[i]);
+ 		xreaddir(&dir, bstr(&path));
+ 		// Remove generated files.

@@ -8,6 +8,20 @@ Date:   Tue Mar 13 12:52:15 2012 +1100
     R=golang-dev, robert.hencke
     CC=golang-dev
     https://golang.org/cl/5798071
-
+---
  src/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index b3db71a6bd..080e0d6e1d 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -21,7 +21,7 @@
+ # building the packages and commands.
+ #
+ # GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+-# building the packages and commands.
++# building the commands.
+ #
+ # CGO_ENABLED: Setting this to 0 disables the use of cgo
+ # in the built and installed packages and tools.

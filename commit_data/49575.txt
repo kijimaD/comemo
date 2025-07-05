@@ -12,7 +12,56 @@ Date:   Fri Aug 27 22:59:26 2021 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types/size.go | 6 +++++-
  src/cmd/compile/internal/types/type.go | 6 +-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index a47a26da74..0f3db06c1d 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -357,7 +357,7 @@ func CalcSize(t *Type) {
+ 		return
+ 	}
+ 
+-	if t.WidthCalculated() {
++	if t.widthCalculated() {
+ 		return
+ 	}
+ 
+@@ -570,6 +570,10 @@ func RecalcSize(t *Type) {
+ 	CalcSize(t)
+ }
+ 
++func (t *Type) widthCalculated() bool {
++	return t.align > 0
++}
++
+ // when a type's width should be known, we call CheckSize
+ // to compute it.  during a declaration like
+ //
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index c510a705f2..8fb8fb377f 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1060,7 +1060,7 @@ func (t *Type) SetFields(fields []*Field) {
+ 	// Rather than try to track and invalidate those,
+ 	// enforce that SetFields cannot be called once
+ 	// t's width has been calculated.
+-	if t.WidthCalculated() {
++	if t.widthCalculated() {
+ 		base.Fatalf("SetFields of %v: width previously calculated", t)
+ 	}
+ 	t.wantEtype(TSTRUCT)
+@@ -1084,10 +1084,6 @@ func (t *Type) SetInterface(methods []*Field) {
+ 	t.Methods().Set(methods)
+ }
+ 
+-func (t *Type) WidthCalculated() bool {
+-	return t.align > 0
+-}
+-
+ // ArgWidth returns the total aligned argument size for a function.
+ // It includes the receiver, parameters, and results.
+ func (t *Type) ArgWidth() int64 {

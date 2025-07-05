@@ -19,7 +19,68 @@ Date:   Thu Oct 11 14:43:47 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/decode.go      |  2 +-
  src/encoding/json/decode_test.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 6608415e13..731553dca6 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -473,7 +473,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
+ 		if v.IsNil() {
+ 			v.Set(reflect.New(v.Type().Elem()))
+ 		}
+-		if v.Type().NumMethod() > 0 {
++		if v.Type().NumMethod() > 0 && v.CanInterface() {
+ 			if u, ok := v.Interface().(Unmarshaler); ok {
+ 				return u, nil, reflect.Value{}
+ 			}
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 70731a62d6..54432600a5 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -266,6 +266,10 @@ type XYZ struct {
+ 	Z interface{}
+ }
+ 
++type unexportedWithMethods struct{}
++
++func (unexportedWithMethods) F() {}
++
+ func sliceAddr(x []int) *[]int                 { return &x }
+ func mapAddr(x map[string]int) *map[string]int { return &x }
+ 
+@@ -2151,6 +2155,9 @@ func TestInvalidStringOption(t *testing.T) {
+ //
+ // (Issue 24152) If the embedded struct is given an explicit name,
+ // ensure that the normal unmarshal logic does not panic in reflect.
++//
++// (Issue 28145) If the embedded struct is given an explicit name and has
++// exported methods, don't cause a panic trying to get its value.
+ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
+ 	type (
+ 		embed1 struct{ Q int }
+@@ -2190,6 +2197,9 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
+ 			embed2 `json:"embed2"`
+ 			Q      int
+ 		}
++		S9 struct {
++			unexportedWithMethods `json:"embed"`
++		}
+ 	)
+ 
+ 	tests := []struct {
+@@ -2251,6 +2261,11 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
+ 		in:  `{"embed1": {"Q": 1}, "embed2": {"Q": 2}, "Q": 3}`,
+ 		ptr: new(S8),
+ 		out: &S8{embed1{1}, embed2{2}, 3},
++	}, {
++		// Issue 228145, similar to the cases above.
++		in:  `{"embed": {}}`,
++		ptr: new(S9),
++		out: &S9{},
+ 	}}
+ 
+ 	for i, tt := range tests {

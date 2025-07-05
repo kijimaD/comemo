@@ -32,7 +32,7 @@ Date:   Sat Nov 2 14:43:34 2019 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/tls/alert.go                  |  2 +
  src/crypto/tls/common.go                 | 66 +++++++++++++++++++-------------
  src/crypto/tls/conn_test.go              | 12 +-----
@@ -41,3 +41,277 @@ Date:   Sat Nov 2 14:43:34 2019 -0400
  src/crypto/tls/handshake_server_tls13.go | 13 +++----
  src/crypto/tls/tls.go                    |  5 ++-
  7 files changed, 81 insertions(+), 47 deletions(-)
+
+diff --git a/src/crypto/tls/alert.go b/src/crypto/tls/alert.go
+index 24199a735a..22b3eca92f 100644
+--- a/src/crypto/tls/alert.go
++++ b/src/crypto/tls/alert.go
+@@ -40,6 +40,7 @@ const (
+ 	alertNoRenegotiation        alert = 100
+ 	alertMissingExtension       alert = 109
+ 	alertUnsupportedExtension   alert = 110
++	alertUnrecognizedName       alert = 112
+ 	alertNoApplicationProtocol  alert = 120
+ )
+ 
+@@ -69,6 +70,7 @@ var alertText = map[alert]string{
+ 	alertNoRenegotiation:        "no renegotiation",
+ 	alertMissingExtension:       "missing extension",
+ 	alertUnsupportedExtension:   "unsupported extension",
++	alertUnrecognizedName:       "unrecognized name",
+ 	alertNoApplicationProtocol:  "no application protocol",
+ }
+ 
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 8011cebaa3..2c1ff27718 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -457,19 +457,26 @@ type Config struct {
+ 	// If Time is nil, TLS uses time.Now.
+ 	Time func() time.Time
+ 
+-	// Certificates contains one or more certificate chains to present to
+-	// the other side of the connection. Server configurations must include
+-	// at least one certificate or else set GetCertificate. Clients doing
+-	// client-authentication may set either Certificates or
+-	// GetClientCertificate.
++	// Certificates contains one or more certificate chains to present to the
++	// other side of the connection. The first certificate compatible with the
++	// peer's requirements is selected automatically.
++	//
++	// Server configurations must set one of Certificates, GetCertificate or
++	// GetConfigForClient. Clients doing client-authentication may set either
++	// Certificates or GetClientCertificate.
++	//
++	// Note: if there are multiple Certificates, and they don't have the
++	// optional field Leaf set, certificate selection will incur a significant
++	// per-handshake performance cost.
+ 	Certificates []Certificate
+ 
+ 	// NameToCertificate maps from a certificate name to an element of
+ 	// Certificates. Note that a certificate name can be of the form
+ 	// '*.example.com' and so doesn't have to be a domain name as such.
+-	// See Config.BuildNameToCertificate
+-	// The nil value causes the first element of Certificates to be used
+-	// for all connections.
++	//
++	// Deprecated: NameToCertificate only allows associating a single
++	// certificate with a given name. Leave this field nil to let the library
++	// select the first compatible chain from Certificates.
+ 	NameToCertificate map[string]*Certificate
+ 
+ 	// GetCertificate returns a Certificate based on the given
+@@ -478,7 +485,7 @@ type Config struct {
+ 	//
+ 	// If GetCertificate is nil or returns nil, then the certificate is
+ 	// retrieved from NameToCertificate. If NameToCertificate is nil, the
+-	// first element of Certificates will be used.
++	// best element of Certificates will be used.
+ 	GetCertificate func(*ClientHelloInfo) (*Certificate, error)
+ 
+ 	// GetClientCertificate, if not nil, is called when a server requests a
+@@ -869,6 +876,8 @@ func (c *Config) mutualVersion(peerVersions []uint16) (uint16, bool) {
+ 	return 0, false
+ }
+ 
++var errNoCertificates = errors.New("tls: no certificates configured")
++
+ // getCertificate returns the best certificate for the given ClientHelloInfo,
+ // defaulting to the first element of c.Certificates.
+ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, error) {
+@@ -881,31 +890,32 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
+ 	}
+ 
+ 	if len(c.Certificates) == 0 {
+-		return nil, errors.New("tls: no certificates configured")
++		return nil, errNoCertificates
+ 	}
+ 
+-	if len(c.Certificates) == 1 || c.NameToCertificate == nil {
++	if len(c.Certificates) == 1 {
+ 		// There's only one choice, so no point doing any work.
+ 		return &c.Certificates[0], nil
+ 	}
+ 
+-	name := strings.ToLower(clientHello.ServerName)
+-	for len(name) > 0 && name[len(name)-1] == '.' {
+-		name = name[:len(name)-1]
+-	}
+-
+-	if cert, ok := c.NameToCertificate[name]; ok {
+-		return cert, nil
++	if c.NameToCertificate != nil {
++		name := strings.ToLower(clientHello.ServerName)
++		if cert, ok := c.NameToCertificate[name]; ok {
++			return cert, nil
++		}
++		if len(name) > 0 {
++			labels := strings.Split(name, ".")
++			labels[0] = "*"
++			wildcardName := strings.Join(labels, ".")
++			if cert, ok := c.NameToCertificate[wildcardName]; ok {
++				return cert, nil
++			}
++		}
+ 	}
+ 
+-	// try replacing labels in the name with wildcards until we get a
+-	// match.
+-	labels := strings.Split(name, ".")
+-	for i := range labels {
+-		labels[i] = "*"
+-		candidate := strings.Join(labels, ".")
+-		if cert, ok := c.NameToCertificate[candidate]; ok {
+-			return cert, nil
++	for _, cert := range c.Certificates {
++		if err := clientHello.SupportsCertificate(&cert); err == nil {
++			return &cert, nil
+ 		}
+ 	}
+ 
+@@ -1109,6 +1119,10 @@ func (cri *CertificateRequestInfo) SupportsCertificate(c *Certificate) error {
+ // BuildNameToCertificate parses c.Certificates and builds c.NameToCertificate
+ // from the CommonName and SubjectAlternateName fields of each of the leaf
+ // certificates.
++//
++// Deprecated: NameToCertificate only allows associating a single certificate
++// with a given name. Leave that field nil to let the library select the first
++// compatible chain from Certificates.
+ func (c *Config) BuildNameToCertificate() {
+ 	c.NameToCertificate = make(map[string]*Certificate)
+ 	for i := range c.Certificates {
+diff --git a/src/crypto/tls/conn_test.go b/src/crypto/tls/conn_test.go
+index 57f61050e5..78935b1234 100644
+--- a/src/crypto/tls/conn_test.go
++++ b/src/crypto/tls/conn_test.go
+@@ -72,8 +72,6 @@ var certWildcardExampleCom = `308201743082011ea003020102021100a7aa6297c9416a4633
+ 
+ var certFooExampleCom = `308201753082011fa00302010202101bbdb6070b0aeffc49008cde74deef29300d06092a864886f70d01010b050030123110300e060355040a130741636d6520436f301e170d3136303831373231343234345a170d3137303831373231343234345a30123110300e060355040a130741636d6520436f305c300d06092a864886f70d0101010500034b003048024100f00ac69d8ca2829f26216c7b50f1d4bbabad58d447706476cd89a2f3e1859943748aa42c15eedc93ac7c49e40d3b05ed645cb6b81c4efba60d961f44211a54eb0203010001a351304f300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff04023000301a0603551d1104133011820f666f6f2e6578616d706c652e636f6d300d06092a864886f70d01010b0500034100a0957fca6d1e0f1ef4b247348c7a8ca092c29c9c0ecc1898ea6b8065d23af6d922a410dd2335a0ea15edd1394cef9f62c9e876a21e35250a0b4fe1ddceba0f36`
+ 
+-var certDoubleWildcardExampleCom = `308201753082011fa003020102021039d262d8538db8ffba30d204e02ddeb5300d06092a864886f70d01010b050030123110300e060355040a130741636d6520436f301e170d3136303831373231343331335a170d3137303831373231343331335a30123110300e060355040a130741636d6520436f305c300d06092a864886f70d0101010500034b003048024100abb6bd84b8b9be3fb9415d00f22b4ddcaec7c99855b9d818c09003e084578430e5cfd2e35faa3561f036d496aa43a9ca6e6cf23c72a763c04ae324004f6cbdbb0203010001a351304f300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff04023000301a0603551d1104133011820f2a2e2a2e6578616d706c652e636f6d300d06092a864886f70d01010b05000341004837521004a5b6bc7ad5d6c0dae60bb7ee0fa5e4825be35e2bb6ef07ee29396ca30ceb289431bcfd363888ba2207139933ac7c6369fa8810c819b2e2966abb4b`
+-
+ func TestCertificateSelection(t *testing.T) {
+ 	config := Config{
+ 		Certificates: []Certificate{
+@@ -86,9 +84,6 @@ func TestCertificateSelection(t *testing.T) {
+ 			{
+ 				Certificate: [][]byte{fromHex(certFooExampleCom)},
+ 			},
+-			{
+-				Certificate: [][]byte{fromHex(certDoubleWildcardExampleCom)},
+-			},
+ 		},
+ 	}
+ 
+@@ -124,11 +119,8 @@ func TestCertificateSelection(t *testing.T) {
+ 	if n := pointerToIndex(certificateForName("foo.example.com")); n != 2 {
+ 		t.Errorf("foo.example.com returned certificate %d, not 2", n)
+ 	}
+-	if n := pointerToIndex(certificateForName("foo.bar.example.com")); n != 3 {
+-		t.Errorf("foo.bar.example.com returned certificate %d, not 3", n)
+-	}
+-	if n := pointerToIndex(certificateForName("foo.bar.baz.example.com")); n != 0 {
+-		t.Errorf("foo.bar.baz.example.com returned certificate %d, not 0", n)
++	if n := pointerToIndex(certificateForName("foo.bar.example.com")); n != 0 {
++		t.Errorf("foo.bar.example.com returned certificate %d, not 0", n)
+ 	}
+ }
+ 
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 65988abf0e..59cbf908cc 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -227,7 +227,11 @@ func (hs *serverHandshakeState) processClientHello() error {
+ 
+ 	hs.cert, err = c.config.getCertificate(clientHelloInfo(c, hs.clientHello))
+ 	if err != nil {
+-		c.sendAlert(alertInternalError)
++		if err == errNoCertificates {
++			c.sendAlert(alertUnrecognizedName)
++		} else {
++			c.sendAlert(alertInternalError)
++		}
+ 		return err
+ 	}
+ 	if hs.clientHello.scts {
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 571f56f327..ffeaef312d 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"crypto"
+ 	"crypto/elliptic"
++	"crypto/x509"
+ 	"encoding/pem"
+ 	"errors"
+ 	"fmt"
+@@ -1662,3 +1663,26 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
+ 	serverConfig.MaxVersion = VersionTLS12
+ 	testHandshake(t, testConfig, serverConfig)
+ }
++
++func TestMultipleCertificates(t *testing.T) {
++	clientConfig := testConfig.Clone()
++	clientConfig.CipherSuites = []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256}
++	clientConfig.MaxVersion = VersionTLS12
++
++	serverConfig := testConfig.Clone()
++	serverConfig.Certificates = []Certificate{{
++		Certificate: [][]byte{testECDSACertificate},
++		PrivateKey:  testECDSAPrivateKey,
++	}, {
++		Certificate: [][]byte{testRSACertificate},
++		PrivateKey:  testRSAPrivateKey,
++	}}
++
++	_, clientState, err := testHandshake(t, clientConfig, serverConfig)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got := clientState.PeerCertificates[0].PublicKeyAlgorithm; got != x509.RSA {
++		t.Errorf("expected RSA certificate, got %v", got)
++	}
++}
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 9b05924571..5432145de4 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -361,16 +361,13 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
+ 		return c.sendAlert(alertMissingExtension)
+ 	}
+ 
+-	// This implements a very simplistic certificate selection strategy for now:
+-	// getCertificate delegates to the application Config.GetCertificate, or
+-	// selects based on the server_name only. If the selected certificate's
+-	// public key does not match the client signature_algorithms, the handshake
+-	// is aborted. No attention is given to signature_algorithms_cert, and it is
+-	// not passed to the application Config.GetCertificate. This will need to
+-	// improve according to RFC 8446, sections 4.4.2.2 and 4.2.3.
+ 	certificate, err := c.config.getCertificate(clientHelloInfo(c, hs.clientHello))
+ 	if err != nil {
+-		c.sendAlert(alertInternalError)
++		if err == errNoCertificates {
++			c.sendAlert(alertUnrecognizedName)
++		} else {
++			c.sendAlert(alertInternalError)
++		}
+ 		return err
+ 	}
+ 	hs.sigAlg, err = selectSignatureScheme(c.vers, certificate, hs.clientHello.supportedSignatureAlgorithms)
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 58c3a6b5ad..228f4a79ab 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -75,8 +75,9 @@ func NewListener(inner net.Listener, config *Config) net.Listener {
+ // The configuration config must be non-nil and must include
+ // at least one certificate or else set GetCertificate.
+ func Listen(network, laddr string, config *Config) (net.Listener, error) {
+-	if config == nil || (len(config.Certificates) == 0 && config.GetCertificate == nil) {
+-		return nil, errors.New("tls: neither Certificates nor GetCertificate set in Config")
++	if config == nil || len(config.Certificates) == 0 &&
++		config.GetCertificate == nil && config.GetConfigForClient == nil {
++		return nil, errors.New("tls: neither Certificates, GetCertificate, nor GetConfigForClient set in Config")
+ 	}
+ 	l, err := net.Listen(network, laddr)
+ 	if err != nil {

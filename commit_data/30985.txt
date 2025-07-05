@@ -9,6 +9,28 @@ Date:   Thu Jan 5 12:28:06 2017 -0800
     Change-Id: Ib6b84243a15ed921cc8960e5fa355fd7594181e6
     Reviewed-on: https://go-review.googlesource.com/34821
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/code.html | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 9978b523b4..703f38a21a 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -160,9 +160,13 @@ $ <b>export GOPATH=$(go env GOPATH)</b>
+ </pre>
+ 
+ <p>
+-To learn more about setting up the <code>GOPATH</code> environment variable,
+-please see
+-<a href="/cmd/go/#hdr-GOPATH_environment_variable"><code>'go help gopath'</code></a>
++To learn more about the <code>GOPATH</code> environment variable, see
++<a href="/cmd/go/#hdr-GOPATH_environment_variable"><code>'go help gopath'</code></a>.
++</p>
++
++<p>
++To use a custom workspace location,
++<a href="https://golang.org/wiki/EnvVariables#gopath">set the <code>GOPATH</code> environment variable</a>.
+ </p>
+ 
+ <h3 id="ImportPaths">Import paths</h3>

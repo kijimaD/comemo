@@ -9,7 +9,34 @@ Date:   Thu Aug 9 09:43:10 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6459060
-
+---
  src/pkg/exp/html/parse.go                           | 2 ++
  src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index be33245600..03c007e1cd 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -1618,6 +1618,8 @@ func inSelectIM(p *parser) bool {
+ 				return false
+ 			}
+ 			// Ignore the token.
++			// In order to properly ignore <textarea>, we need to change the tokenizer mode.
++			p.tokenizer.rawTag = ""
+ 			return true
+ 		case a.Script:
+ 			return inHeadIM(p)
+diff --git a/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log b/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
+index f34bb783ac..d3df267de9 100644
+--- a/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
++++ b/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
+@@ -79,7 +79,7 @@ PASS "<table><td><td>"
+ PASS "</select><option>"
+ PASS "<input><option>"
+ PASS "<keygen><option>"
+-FAIL "<textarea><option>"
++PASS "<textarea><option>"
+ FAIL "</html><!--abc-->"
+ PASS "</frameset><frame>"
+ PASS ""

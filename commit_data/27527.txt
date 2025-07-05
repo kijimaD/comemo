@@ -7,9 +7,131 @@ Date:   Thu Mar 31 12:30:20 2016 -0700
     Change-Id: Ib500ee92ae1a3d15f7c9f3f46d238b75184b4304
     Reviewed-on: https://go-review.googlesource.com/21382
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go    |  2 +-
  src/cmd/compile/internal/gc/subr.go      | 55 +++++++++++++++-----------------
  src/cmd/compile/internal/gc/type.go      |  4 +++
  src/cmd/compile/internal/gc/typecheck.go |  4 +--
  4 files changed, 33 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 3627461099..746af32b95 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -3018,7 +3018,7 @@ func (p *parser) hidden_type_misc() *Type {
+ 		p.want(']')
+ 		s5 := p.hidden_type()
+ 
+-		return maptype(s3, s5)
++		return typMap(s3, s5)
+ 
+ 	case LSTRUCT:
+ 		// LSTRUCT '{' ohidden_structdcl_list '}'
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 83888be6f7..c40cda0aee 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -372,40 +372,37 @@ func saveorignode(n *Node) {
+ 	n.Orig = norig
+ }
+ 
+-func maptype(key *Type, val *Type) *Type {
+-	if key != nil {
+-		var bad *Type
+-		atype := algtype1(key, &bad)
+-		var mtype EType
+-		if bad == nil {
+-			mtype = key.Etype
+-		} else {
+-			mtype = bad.Etype
++// checkMapKeyType checks that Type key is valid for use as a map key.
++func checkMapKeyType(key *Type) {
++	var bad *Type
++	atype := algtype1(key, &bad)
++	var mtype EType
++	if bad == nil {
++		mtype = key.Etype
++	} else {
++		mtype = bad.Etype
++	}
++	switch mtype {
++	default:
++		if atype == ANOEQ {
++			Yyerror("invalid map key type %v", key)
+ 		}
+-		switch mtype {
+-		default:
+-			if atype == ANOEQ {
+-				Yyerror("invalid map key type %v", key)
+-			}
+ 
+-		case TANY:
+-			// will be resolved later.
+-			break
++	case TANY:
++		// will be resolved later.
++		break
+ 
+-		case TFORW:
+-			// map[key] used during definition of key.
+-			// postpone check until key is fully defined.
+-			// if there are multiple uses of map[key]
+-			// before key is fully defined, the error
+-			// will only be printed for the first one.
+-			// good enough.
+-			if key.Maplineno == 0 {
+-				key.Maplineno = lineno
+-			}
++	case TFORW:
++		// map[key] used during definition of key.
++		// postpone check until key is fully defined.
++		// if there are multiple uses of map[key]
++		// before key is fully defined, the error
++		// will only be printed for the first one.
++		// good enough.
++		if key.Maplineno == 0 {
++			key.Maplineno = lineno
+ 		}
+ 	}
+-
+-	return typMap(key, val)
+ }
+ 
+ // methcmp sorts by symbol, then by package path for unexported symbols.
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index e94ec85e60..c452bcf301 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -275,6 +275,10 @@ func typChan(elem *Type, dir uint8) *Type {
+ 
+ // typMap returns a new map Type with key type k and element (aka value) type v.
+ func typMap(k, v *Type) *Type {
++	if k != nil {
++		checkMapKeyType(k)
++	}
++
+ 	t := typ(TMAP)
+ 	t.Down = k
+ 	t.Type = v
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 5bcc8c9616..043022ba97 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -402,7 +402,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 		n.Op = OTYPE
+-		n.Type = maptype(l.Type, r.Type)
++		n.Type = typMap(l.Type, r.Type)
+ 		n.Left = nil
+ 		n.Right = nil
+ 
+@@ -3595,7 +3595,7 @@ ret:
+ 
+ 		for _, n := range mapqueue {
+ 			lineno = n.Type.Maplineno
+-			maptype(n.Type, Types[TBOOL])
++			checkMapKeyType(n.Type)
+ 		}
+ 
+ 		lineno = lno

@@ -11,6 +11,20 @@ Date:   Sun Aug 29 02:38:38 2021 +0900
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/http/transport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 05a1659136..f2d2f79280 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2481,7 +2481,7 @@ type requestAndChan struct {
+ 	callerGone <-chan struct{} // closed when roundTrip caller has returned
+ }
+ 
+-// A writeRequest is sent by the readLoop's goroutine to the
++// A writeRequest is sent by the caller's goroutine to the
+ // writeLoop's goroutine to write a request while the read loop
+ // concurrently waits on both the write response and the server's
+ // reply.

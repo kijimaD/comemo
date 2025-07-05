@@ -17,8 +17,137 @@ Date:   Tue Mar 28 15:30:31 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 22 ++++++++++++
  src/cmd/compile/internal/gc/walk.go     | 62 ++++++++++++++++++++++++++++++---
  test/prove.go                           |  4 ++-
  3 files changed, 83 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 6c56b8d8e5..b340d07942 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -776,6 +776,28 @@ var linuxAMD64Tests = []*asmTest{
+ 		}`,
+ 		[]string{"\tADDSD\t"},
+ 	},
++	// Check that compare to constant string uses 2/4/8 byte compares
++	{
++		`
++		func f65(a string) bool {
++		    return a == "xx"
++		}`,
++		[]string{"\tCMPW\t[A-Z]"},
++	},
++	{
++		`
++		func f66(a string) bool {
++		    return a == "xxxx"
++		}`,
++		[]string{"\tCMPL\t[A-Z]"},
++	},
++	{
++		`
++		func f67(a string) bool {
++		    return a == "xxxxxxxx"
++		}`,
++		[]string{"\tCMPQ\t[A-Z]"},
++	},
+ }
+ 
+ var linux386Tests = []*asmTest{
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f1d1f573c7..84425622a1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1266,6 +1266,23 @@ opswitch:
+ 			// across most architectures.
+ 			// See the commit description for CL 26758 for details.
+ 			maxRewriteLen := 6
++			// Some architectures can load unaligned byte sequence as 1 word.
++			// So we can cover longer strings with the same amount of code.
++			canCombineLoads := false
++			combine64bit := false
++			// TODO: does this improve performance on any other architectures?
++			switch thearch.LinkArch.Family {
++			case sys.AMD64:
++				// Larger compare require longer instructions, so keep this reasonably low.
++				// Data from CL 26758 shows that longer strings are rare.
++				// If we really want we can do 16 byte SSE comparisons in the future.
++				maxRewriteLen = 16
++				canCombineLoads = true
++				combine64bit = true
++			case sys.I386:
++				maxRewriteLen = 8
++				canCombineLoads = true
++			}
+ 			var and Op
+ 			switch cmp {
+ 			case OEQ:
+@@ -1284,10 +1301,47 @@ opswitch:
+ 				}
+ 				// TODO(marvin): Fix Node.EType type union.
+ 				r := nod(cmp, nod(OLEN, ncs, nil), nodintconst(int64(len(s))))
+-				for i := 0; i < len(s); i++ {
+-					cb := nodintconst(int64(s[i]))
+-					ncb := nod(OINDEX, ncs, nodintconst(int64(i)))
+-					r = nod(and, r, nod(cmp, ncb, cb))
++				remains := len(s)
++				for i := 0; remains > 0; {
++					if remains == 1 || !canCombineLoads {
++						cb := nodintconst(int64(s[i]))
++						ncb := nod(OINDEX, ncs, nodintconst(int64(i)))
++						r = nod(and, r, nod(cmp, ncb, cb))
++						remains--
++						i++
++						continue
++					}
++					var step int
++					var convType *Type
++					switch {
++					case remains >= 8 && combine64bit:
++						convType = Types[TINT64]
++						step = 8
++					case remains >= 4:
++						convType = Types[TUINT32]
++						step = 4
++					case remains >= 2:
++						convType = Types[TUINT16]
++						step = 2
++					}
++					ncsubstr := nod(OINDEX, ncs, nodintconst(int64(i)))
++					ncsubstr = conv(ncsubstr, convType)
++					csubstr := int64(s[i])
++					// Calculate large constant from bytes as sequence of shifts and ors.
++					// Like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
++					// ssa will combine this into a single large load.
++					for offset := 1; offset < step; offset++ {
++						b := nod(OINDEX, ncs, nodintconst(int64(i+offset)))
++						b = conv(b, convType)
++						b = nod(OLSH, b, nodintconst(int64(8*offset)))
++						ncsubstr = nod(OOR, ncsubstr, b)
++						csubstr = csubstr | int64(s[i+offset])<<uint8(8*offset)
++					}
++					csubstrPart := nodintconst(csubstr)
++					// Compare "step" bytes as once
++					r = nod(and, r, nod(cmp, csubstrPart, ncsubstr))
++					remains -= step
++					i += step
+ 				}
+ 				r = typecheck(r, Erv)
+ 				r = walkexpr(r, init)
+diff --git a/test/prove.go b/test/prove.go
+index 5f4de604c6..e89ab3f8d8 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -250,7 +250,9 @@ func f9(a, b bool) int {
+ 
+ func f10(a string) int {
+ 	n := len(a)
+-	if a[:n>>1] == "aaaaaaaaaaaaaa" {
++	// We optimize comparisons with small constant strings (see cmd/compile/internal/gc/walk.go),
++	// so this string literal must be long.
++	if a[:n>>1] == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+ 		return 0
+ 	}
+ 	return 1

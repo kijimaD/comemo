@@ -7,7 +7,34 @@ Date:   Tue Mar 19 15:04:18 2013 -0700
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7856048
-
+---
  src/pkg/bytes/bytes.go     | 2 +-
  src/pkg/strings/strings.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 00ce37da08..e42f744394 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -464,7 +464,7 @@ func isSeparator(r rune) bool {
+ // Title returns a copy of s with all Unicode letters that begin words
+ // mapped to their title case.
+ //
+-// BUG(r): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
++// BUG: The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+ func Title(s []byte) []byte {
+ 	// Use a closure here to remember state.
+ 	// Hackish but effective. Depends on Map scanning in order and calling
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 2c893fcedd..986f6d61eb 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -495,7 +495,7 @@ func isSeparator(r rune) bool {
+ // Title returns a copy of the string s with all Unicode letters that begin words
+ // mapped to their title case.
+ //
+-// BUG(r): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
++// BUG: The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+ func Title(s string) string {
+ 	// Use a closure here to remember state.
+ 	// Hackish but effective. Depends on Map scanning in order and calling

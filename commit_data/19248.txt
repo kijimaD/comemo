@@ -10,6 +10,20 @@ Date:   Mon Apr 28 06:59:27 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/90790045
-
+---
  doc/install-source.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index c1ef4e7199..ee7eb62f38 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -95,7 +95,7 @@ have an <code>hg</code> command.)
+ <p>
+ If you do not have a working Mercurial installation,
+ follow the instructions on the
+-<a href="http://mercurial.selenic.com/downloads/">Mercurial downloads</a> page.
++<a href="http://mercurial.selenic.com/downloads">Mercurial downloads</a> page.
+ </p>
+ 
+ <p>

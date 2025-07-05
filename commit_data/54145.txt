@@ -17,6 +17,20 @@ Date:   Tue Sep 27 12:23:26 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/link/internal/ld/xcoff.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 7b4d506a00..133858c764 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1118,7 +1118,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
+ 				putaixsym(ctxt, s, TLSSym)
+ 			}
+ 
+-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER:
++		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER, st == sym.SCOVERAGE_COUNTER:
+ 			if ldr.AttrReachable(s) {
+ 				data := ldr.Data(s)
+ 				if len(data) > 0 {

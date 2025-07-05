@@ -7,7 +7,45 @@ Date:   Fri Apr 29 07:04:28 2011 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4433087
-
+---
  src/pkg/http/cgi/child.go      | 4 ++++
  src/pkg/http/cgi/child_test.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/pkg/http/cgi/child.go b/src/pkg/http/cgi/child.go
+index 760d1179b8..e1ad7ad322 100644
+--- a/src/pkg/http/cgi/child.go
++++ b/src/pkg/http/cgi/child.go
+@@ -84,6 +84,10 @@ func RequestFromMap(params map[string]string) (*http.Request, os.Error) {
+ 		r.ContentLength = clen
+ 	}
+ 
++	if ct := params["CONTENT_TYPE"]; ct != "" {
++		r.Header.Set("Content-Type", ct)
++	}
++
+ 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
+ 	for k, v := range params {
+ 		if !strings.HasPrefix(k, "HTTP_") || skipHeader[k] {
+diff --git a/src/pkg/http/cgi/child_test.go b/src/pkg/http/cgi/child_test.go
+index 87d3f79a0c..d12947814e 100644
+--- a/src/pkg/http/cgi/child_test.go
++++ b/src/pkg/http/cgi/child_test.go
+@@ -20,6 +20,7 @@ func TestRequest(t *testing.T) {
+ 		"HTTP_FOO_BAR":    "baz",
+ 		"REQUEST_URI":     "/path?a=b",
+ 		"CONTENT_LENGTH":  "123",
++		"CONTENT_TYPE":    "text/xml",
+ 		"HTTPS":           "1",
+ 		"REMOTE_ADDR":     "5.6.7.8",
+ 	}
+@@ -37,6 +38,9 @@ func TestRequest(t *testing.T) {
+ 		// Tests that we don't put recognized headers in the map
+ 		t.Errorf("expected User-Agent %q; got %q", e, g)
+ 	}
++	if g, e := req.Header.Get("Content-Type"), "text/xml"; e != g {
++		t.Errorf("expected Content-Type %q; got %q", e, g)
++	}
+ 	if g, e := req.ContentLength, int64(123); e != g {
+ 		t.Errorf("expected ContentLength %d; got %d", e, g)
+ 	}

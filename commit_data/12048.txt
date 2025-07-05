@@ -9,10 +9,162 @@ Date:   Sat Feb 18 21:18:13 2012 -0800
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/5675094
-
+---
  doc/go1.html                   |  7 +++++++
  doc/go1.tmpl                   |  7 +++++++
  misc/dashboard/builder/main.go | 20 ++++++++++++++++----
  src/pkg/os/env.go              | 23 ++---------------------
  test/env.go                    | 12 ++++--------
  5 files changed, 36 insertions(+), 33 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 59d8e25246..9e98a9782f 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1451,7 +1451,14 @@ with more Go-like names, such as
+ <a href="/pkg/os/#ErrPermission"><code>ErrPermission</code></a>
+ and
+ <a href="/pkg/os/#ErrNoEnv"><code>ErrNoEnv</code></a>.
++</p>
+ 
++<p>
++The <code>Getenverror</code> function has been removed. To distinguish
++between a non-existent environment variable and an empty string,
++use <a href="/pkg/os/#Environ"><code>os.Environ</code></a> or
++<a href="/pkg/syscall/#Getenv"><code>syscall.Getenv</code></a>.
++</p>
+ 
+ <p>
+ <em>Updating</em>:
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 58eb1073bd..6155fb41cf 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1354,7 +1354,14 @@ with more Go-like names, such as
+ <a href="/pkg/os/#ErrPermission"><code>ErrPermission</code></a>
+ and
+ <a href="/pkg/os/#ErrNoEnv"><code>ErrNoEnv</code></a>.
++</p>
+ 
++<p>
++The <code>Getenverror</code> function has been removed. To distinguish
++between a non-existent environment variable and an empty string,
++use <a href="/pkg/os/#Environ"><code>os.Environ</code></a> or
++<a href="/pkg/syscall/#Getenv"><code>syscall.Getenv</code></a>.
++</p>
+ 
+ <p>
+ <em>Updating</em>:
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 7ca627670b..5d0d6b2960 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -480,8 +480,7 @@ func (b *Builder) envv() []string {
+ 		"GOROOT_FINAL=/usr/local/go",
+ 	}
+ 	for _, k := range extraEnv {
+-		s, err := os.Getenverror(k)
+-		if err == nil {
++		if s, ok := getenvOk(k); ok {
+ 			e = append(e, k+"="+s)
+ 		}
+ 	}
+@@ -497,8 +496,7 @@ func (b *Builder) envvWindows() []string {
+ 		"GOBUILDEXIT":  "1", // exit all.bat with completion status.
+ 	}
+ 	for _, name := range extraEnv {
+-		s, err := os.Getenverror(name)
+-		if err == nil {
++		if s, ok := getenvOk(name); ok {
+ 			start[name] = s
+ 		}
+ 	}
+@@ -782,3 +780,17 @@ func defaultSuffix() string {
+ 	}
+ 	return ".bash"
+ }
++
++func getenvOk(k string) (v string, ok bool) {
++	v = os.Getenv(k)
++	if v != "" {
++		return v, true
++	}
++	keq := k + "="
++	for _, kv := range os.Environ() {
++		if kv == keq {
++			return "", true
++		}
++	}
++	return "", false
++}
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index 207e0a0ec7..eb265f2413 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -6,10 +6,7 @@
+ 
+ package os
+ 
+-import (
+-	"errors"
+-	"syscall"
+-)
++import "syscall"
+ 
+ // Expand replaces ${var} or $var in the string based on the mapping function.
+ // Invocations of undefined variables are replaced with the empty string.
+@@ -77,26 +74,10 @@ func getShellName(s string) (string, int) {
+ 	return s[:i], i
+ }
+ 
+-// ENOENV is the error indicating that an environment variable does not exist.
+-var ENOENV = errors.New("no such environment variable")
+-
+-// Getenverror retrieves the value of the environment variable named by the key.
+-// It returns the value and an error, if any.
+-func Getenverror(key string) (value string, err error) {
+-	if len(key) == 0 {
+-		return "", ErrInvalid
+-	}
+-	val, found := syscall.Getenv(key)
+-	if !found {
+-		return "", ENOENV
+-	}
+-	return val, nil
+-}
+-
+ // Getenv retrieves the value of the environment variable named by the key.
+ // It returns the value, which will be empty if the variable is not present.
+ func Getenv(key string) string {
+-	v, _ := Getenverror(key)
++	v, _ := syscall.Getenv(key)
+ 	return v
+ }
+ 
+diff --git a/test/env.go b/test/env.go
+index 4dcf4443a7..972374679a 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -15,18 +15,14 @@ import (
+ )
+ 
+ func main() {
+-	ga, e0 := os.Getenverror("GOARCH")
+-	if e0 != nil {
+-		print("$GOARCH: ", e0.Error(), "\n")
+-		os.Exit(1)
+-	}
++	ga := os.Getenv("GOARCH")
+ 	if ga != runtime.GOARCH {
+ 		print("$GOARCH=", ga, "!= runtime.GOARCH=", runtime.GOARCH, "\n")
+ 		os.Exit(1)
+ 	}
+-	xxx, e1 := os.Getenverror("DOES_NOT_EXIST")
+-	if e1 != os.ENOENV {
+-		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.Error(), "\n")
++	xxx := os.Getenv("DOES_NOT_EXIST")
++	if xxx != "" {
++		print("$DOES_NOT_EXIST=", xxx, "\n")
+ 		os.Exit(1)
+ 	}
+ }

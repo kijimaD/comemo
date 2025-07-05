@@ -25,10 +25,160 @@ Date:   Mon Sep 11 21:23:06 2017 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
  src/cmd/compile/internal/ssa/gen/S390XOps.go |  4 ++--
  src/cmd/compile/internal/ssa/gen/main.go     |  3 +++
  src/cmd/compile/internal/ssa/opGen.go        | 32 ++++++++++++----------------
  src/cmd/internal/obj/s390x/objz.go           | 20 ++++++++++++-----
  5 files changed, 36 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 23f7af587c..8390fd0c88 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -190,8 +190,8 @@ func init() {
+ 		// binary ops
+ 		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true, clobberFlags: true},                                                           // arg0 + arg1
+ 		{name: "ADDL", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true, clobberFlags: true},                                                           // arg0 + arg1
+-		{name: "ADDQconst", argLength: 1, reg: gp11sp, asm: "ADDQ", aux: "Int32", typ: "UInt64", clobberFlags: true, rematerializeable: true},                   // arg0 + auxint
+-		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", clobberFlags: true, rematerializeable: true},                                  // arg0 + auxint
++		{name: "ADDQconst", argLength: 1, reg: gp11sp, asm: "ADDQ", aux: "Int32", typ: "UInt64", clobberFlags: true},                                            // arg0 + auxint
++		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", clobberFlags: true},                                                           // arg0 + auxint
+ 		{name: "ADDQconstmem", argLength: 2, reg: gpstoreconst, asm: "ADDQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"}, // add ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+ 		{name: "ADDLconstmem", argLength: 2, reg: gpstoreconst, asm: "ADDL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"}, // add ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index b3303989d3..0d71dac87b 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -368,8 +368,8 @@ func init() {
+ 		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"},   // convert float64 to float32
+ 		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"},   // convert float32 to float64
+ 
+-		{name: "MOVDaddr", argLength: 1, reg: addr, aux: "SymOff", rematerializeable: true, clobberFlags: true, symEffect: "Read"}, // arg0 + auxint + offset encoded in aux
+-		{name: "MOVDaddridx", argLength: 2, reg: addridx, aux: "SymOff", clobberFlags: true, symEffect: "Read"},                    // arg0 + arg1 + auxint + aux
++		{name: "MOVDaddr", argLength: 1, reg: addr, aux: "SymOff", rematerializeable: true, symEffect: "Read"}, // arg0 + auxint + offset encoded in aux
++		{name: "MOVDaddridx", argLength: 2, reg: addridx, aux: "SymOff", symEffect: "Read"},                    // arg0 + arg1 + auxint + aux
+ 
+ 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
+ 		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 6562fdcf46..0966d4c39d 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -169,6 +169,9 @@ func genOp() {
+ 				if v.reg.clobbers != 0 {
+ 					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
+ 				}
++				if v.clobberFlags {
++					log.Fatalf("%s is rematerializeable and clobbers flags", v.name)
++				}
+ 				fmt.Fprintln(w, "rematerializeable: true,")
+ 			}
+ 			if v.commutative {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6cac15abcc..d85ab0aab5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4863,12 +4863,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:              "ADDQconst",
+-		auxType:           auxInt32,
+-		argLen:            1,
+-		rematerializeable: true,
+-		clobberFlags:      true,
+-		asm:               x86.AADDQ,
++		name:         "ADDQconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		clobberFlags: true,
++		asm:          x86.AADDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -4879,12 +4878,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:              "ADDLconst",
+-		auxType:           auxInt32,
+-		argLen:            1,
+-		rematerializeable: true,
+-		clobberFlags:      true,
+-		asm:               x86.AADDL,
++		name:         "ADDLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		clobberFlags: true,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -20304,7 +20302,6 @@ var opcodeTable = [...]opInfo{
+ 		auxType:           auxSymOff,
+ 		argLen:            1,
+ 		rematerializeable: true,
+-		clobberFlags:      true,
+ 		symEffect:         SymRead,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -20316,11 +20313,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVDaddridx",
+-		auxType:      auxSymOff,
+-		argLen:       2,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
++		name:      "MOVDaddridx",
++		auxType:   auxSymOff,
++		argLen:    2,
++		symEffect: SymRead,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295000064}, // SP SB
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index bf4dfd49d5..1539de67c8 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -122,9 +122,11 @@ func (c *ctxtz) rewriteToUseGot(p *obj.Prog) {
+ 	// We only care about global data: NAME_EXTERN means a global
+ 	// symbol in the Go sense, and p.Sym.Local is true for a few
+ 	// internally defined symbols.
++	// Rewrites must not clobber flags and therefore cannot use the
++	// ADD instruction.
+ 	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+ 		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
+-		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
++		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; MOVD $<off>(Rx or REGTMP2), Rx
+ 		if p.To.Type != obj.TYPE_REG || p.As != AMOVD {
+ 			c.ctxt.Diag("do not know how to handle LEA-type insn to non-register in %v with -dynlink", p)
+ 		}
+@@ -132,11 +134,19 @@ func (c *ctxtz) rewriteToUseGot(p *obj.Prog) {
+ 		p.From.Name = obj.NAME_GOTREF
+ 		q := p
+ 		if p.From.Offset != 0 {
+-			q = obj.Appendp(p, c.newprog)
+-			q.As = AADD
+-			q.From.Type = obj.TYPE_CONST
++			target := p.To.Reg
++			if target == REG_R0 {
++				// Cannot use R0 as input to address calculation.
++				// REGTMP might be used by the assembler.
++				p.To.Reg = REGTMP2
++			}
++			q = obj.Appendp(q, c.newprog)
++			q.As = AMOVD
++			q.From.Type = obj.TYPE_ADDR
+ 			q.From.Offset = p.From.Offset
+-			q.To = p.To
++			q.From.Reg = p.To.Reg
++			q.To.Type = obj.TYPE_REG
++			q.To.Reg = target
+ 			p.From.Offset = 0
+ 		}
+ 	}

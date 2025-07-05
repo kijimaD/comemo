@@ -8,6 +8,30 @@ Date:   Fri Sep 26 16:41:50 2008 -0700
     DELTA=10  (9 added, 0 deleted, 1 changed)
     OCL=16016
     CL=16016
-
+---
  doc/go_spec.txt | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.txt b/doc/go_spec.txt
+index 7b631ec04e..46f0bb830f 100644
+--- a/doc/go_spec.txt
++++ b/doc/go_spec.txt
+@@ -2499,8 +2499,17 @@ functions defined in its source. Since a package may contain more
+ than one source file, there may be more than one init() function, but
+ only one per source file.
+ 
++Initialization code may contain "go" statements, but the functions
++they invoke do not begin execution until initialization is complete.
++Therefore, all initialization code is run in a single thread of
++execution.
++
++Furthermore, an "init()" function cannot be referred to from anywhere
++in a program. In particular, "init()" cannot be called explicitly, nor
++can a pointer to "init" be assigned to a function variable).
++
+ If a package has imports, the imported packages are initialized
+-before initializing the package itself.    If multiple packages import
++before initializing the package itself. If multiple packages import
+ a package P, P will be initialized only once.
+ 
+ The importing of packages, by construction, guarantees that there can

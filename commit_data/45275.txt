@@ -21,7 +21,7 @@ Date:   Fri Oct 16 19:35:09 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/hook_cloexec.go        |  2 +-
  src/internal/poll/sock_cloexec.go        |  2 +-
  src/internal/poll/sys_cloexec.go         |  2 +-
@@ -32,3 +32,147 @@ Date:   Fri Oct 16 19:35:09 2020 +0200
  src/runtime/cgo/cgo.go                   |  1 +
  src/syscall/syscall_illumos.go           | 25 ++++++++++++++++++++++++-
  9 files changed, 32 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/poll/hook_cloexec.go b/src/internal/poll/hook_cloexec.go
+index 5c93bdaf6c..5fd5449bb0 100644
+--- a/src/internal/poll/hook_cloexec.go
++++ b/src/internal/poll/hook_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux netbsd openbsd
++// +build dragonfly freebsd illumos linux netbsd openbsd
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sock_cloexec.go b/src/internal/poll/sock_cloexec.go
+index 691cb8e36f..ff7982ca9e 100644
+--- a/src/internal/poll/sock_cloexec.go
++++ b/src/internal/poll/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build dragonfly freebsd linux netbsd openbsd
++// +build dragonfly freebsd illumos linux netbsd openbsd
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sys_cloexec.go b/src/internal/poll/sys_cloexec.go
+index 7b87f136df..4b3c642173 100644
+--- a/src/internal/poll/sys_cloexec.go
++++ b/src/internal/poll/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build aix darwin js,wasm solaris
++// +build aix darwin js,wasm solaris,!illumos
+ 
+ package poll
+ 
+diff --git a/src/net/internal/socktest/sys_cloexec.go b/src/net/internal/socktest/sys_cloexec.go
+index 986d89471b..421352c7b4 100644
+--- a/src/net/internal/socktest/sys_cloexec.go
++++ b/src/net/internal/socktest/sys_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux netbsd openbsd
++// +build dragonfly freebsd illumos linux netbsd openbsd
+ 
+ package socktest
+ 
+diff --git a/src/net/main_cloexec_test.go b/src/net/main_cloexec_test.go
+index 5398f9eae1..46b9ba5008 100644
+--- a/src/net/main_cloexec_test.go
++++ b/src/net/main_cloexec_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux netbsd openbsd
++// +build dragonfly freebsd illumos linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index 0c883dc338..5f345f0f4a 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build dragonfly freebsd linux netbsd openbsd
++// +build dragonfly freebsd illumos linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/net/sys_cloexec.go b/src/net/sys_cloexec.go
+index 89aad7066a..967b8bea9d 100644
+--- a/src/net/sys_cloexec.go
++++ b/src/net/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build aix darwin solaris
++// +build aix darwin solaris,!illumos
+ 
+ package net
+ 
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index c02b837978..4d2caf6c4f 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -21,6 +21,7 @@ package cgo
+ #cgo openbsd LDFLAGS: -lpthread
+ #cgo aix LDFLAGS: -Wl,-berok
+ #cgo solaris LDFLAGS: -lxnet
++#cgo illumos LDFLAGS: -lsocket
+ 
+ // Issue 35247.
+ #cgo darwin CFLAGS: -Wno-nullability-completeness
+diff --git a/src/syscall/syscall_illumos.go b/src/syscall/syscall_illumos.go
+index 1484337e1b..d70a436d13 100644
+--- a/src/syscall/syscall_illumos.go
++++ b/src/syscall/syscall_illumos.go
+@@ -10,11 +10,34 @@ package syscall
+ 
+ import "unsafe"
+ 
++//go:cgo_import_dynamic libc_accept4 accept4 "libsocket.so"
+ //go:cgo_import_dynamic libc_flock flock "libc.so"
+ 
++//go:linkname procAccept4 libc_accept4
+ //go:linkname procFlock libc_flock
+ 
+-var procFlock libcFunc
++var (
++	procAccept4,
++	procFlock libcFunc
++)
++
++func Accept4(fd int, flags int) (int, Sockaddr, error) {
++	var rsa RawSockaddrAny
++	var addrlen _Socklen = SizeofSockaddrAny
++	nfd, _, errno := sysvicall6(uintptr(unsafe.Pointer(&procAccept4)), 4, uintptr(fd), uintptr(unsafe.Pointer(&rsa)), uintptr(unsafe.Pointer(&addrlen)), uintptr(flags), 0, 0)
++	if errno != 0 {
++		return 0, nil, errno
++	}
++	if addrlen > SizeofSockaddrAny {
++		panic("RawSockaddrAny too small")
++	}
++	sa, err := anyToSockaddr(&rsa)
++	if err != nil {
++		Close(int(nfd))
++		return 0, nil, err
++	}
++	return int(nfd), sa, nil
++}
+ 
+ func Flock(fd int, how int) error {
+ 	_, _, errno := sysvicall6(uintptr(unsafe.Pointer(&procFlock)), 2, uintptr(fd), uintptr(how), 0, 0, 0, 0)

@@ -9,7 +9,40 @@ Date:   Thu Dec 15 17:38:47 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5495047
-
+---
  src/cmd/gc/fmt.c         |  2 +-
  test/fixedbugs/bug389.go | 12 ++++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 886488a368..c627adb34f 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -680,7 +680,7 @@ typefmt(Fmt *fp, Type *t)
+ 	case TSTRUCT:
+ 		if(t->funarg) {
+ 			fmtstrcpy(fp, "(");
+-			if(fmtmode == FTypeId) {	// no argument names on function signature, and no "noescape" tags
++			if(fmtmode == FTypeId || fmtmode == FErr) {	// no argument names on function signature, and no "noescape" tags
+ 				for(t1=t->type; t1!=T; t1=t1->down)
+ 					if(t1->down)
+ 						fmtprint(fp, "%hT, ", t1);
+diff --git a/test/fixedbugs/bug389.go b/test/fixedbugs/bug389.go
+new file mode 100644
+index 0000000000..40d6c419cf
+--- /dev/null
++++ b/test/fixedbugs/bug389.go
+@@ -0,0 +1,12 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2563
++package foo
++
++func fn(a float32) {}
++
++var f func(arg int) = fn  // ERROR "cannot use fn .type func.float32.. as type func.int. in assignment"
+\ No newline at end of file

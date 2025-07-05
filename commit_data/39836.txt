@@ -18,10 +18,223 @@ Date:   Tue Jan 15 14:50:09 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  misc/cgo/test/callback.go            |  2 +-
  src/cmd/compile/internal/gc/dwinl.go | 46 +++++++++++++-------------
  src/cmd/compile/internal/gc/ssa.go   | 64 ++++++++++++++++++++++++++++++++++--
  src/cmd/internal/src/pos.go          |  4 +++
  src/cmd/internal/src/xpos.go         |  6 ++++
  5 files changed, 96 insertions(+), 26 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index d48aeaabd9..e749650293 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -199,7 +199,7 @@ func testCallbackCallers(t *testing.T) {
+ 		t.Errorf("expected %d frames, got %d", len(name), n)
+ 	}
+ 	for i := 0; i < n; i++ {
+-		f := runtime.FuncForPC(pc[i])
++		f := runtime.FuncForPC(pc[i] - 1) // TODO: use runtime.CallersFrames
+ 		if f == nil {
+ 			t.Fatalf("expected non-nil Func for pc %d", pc[i])
+ 		}
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index cc42a04c64..27e2cbcd98 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -147,8 +147,8 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 
+ 	// Make a second pass through the progs to compute PC ranges for
+ 	// the various inlined calls.
++	start := int64(-1)
+ 	curii := -1
+-	var crange *dwarf.Range
+ 	var prevp *obj.Prog
+ 	for p := fnsym.Func.Text; p != nil; prevp, p = p, p.Link {
+ 		if prevp != nil && p.Pos == prevp.Pos {
+@@ -157,17 +157,17 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 		ii := posInlIndex(p.Pos)
+ 		if ii == curii {
+ 			continue
+-		} else {
+-			// Close out the current range
+-			endRange(crange, p)
+-
+-			// Begin new range
+-			crange = beginRange(inlcalls.Calls, p, ii, imap)
+-			curii = ii
+ 		}
++		// Close out the current range
++		if start != -1 {
++			addRange(inlcalls.Calls, start, p.Pc, curii, imap)
++		}
++		// Begin new range
++		start = p.Pc
++		curii = ii
+ 	}
+-	if crange != nil {
+-		crange.End = fnsym.Size
++	if start != -1 {
++		addRange(inlcalls.Calls, start, fnsym.Size, curii, imap)
+ 	}
+ 
+ 	// Debugging
+@@ -287,26 +287,26 @@ func posInlIndex(xpos src.XPos) int {
+ 	return -1
+ }
+ 
+-func endRange(crange *dwarf.Range, p *obj.Prog) {
+-	if crange == nil {
+-		return
++func addRange(calls []dwarf.InlCall, start, end int64, ii int, imap map[int]int) {
++	if start == -1 {
++		panic("bad range start")
++	}
++	if end == -1 {
++		panic("bad range end")
+ 	}
+-	crange.End = p.Pc
+-}
+-
+-func beginRange(calls []dwarf.InlCall, p *obj.Prog, ii int, imap map[int]int) *dwarf.Range {
+ 	if ii == -1 {
+-		return nil
++		return
+ 	}
++	if start == end {
++		return
++	}
++	// Append range to correct inlined call
+ 	callIdx, found := imap[ii]
+ 	if !found {
+-		Fatalf("can't find inlIndex %d in imap for prog at %d\n", ii, p.Pc)
++		Fatalf("can't find inlIndex %d in imap for prog at %d\n", ii, start)
+ 	}
+ 	call := &calls[callIdx]
+-
+-	// Set up range and append to correct inlined call
+-	call.Ranges = append(call.Ranges, dwarf.Range{Start: p.Pc, End: -1})
+-	return &call.Ranges[len(call.Ranges)-1]
++	call.Ranges = append(call.Ranges, dwarf.Range{Start: start, End: end})
+ }
+ 
+ func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 52515bdb1d..a7c1917ff1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5239,6 +5239,16 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		}
+ 	}
+ 
++	// inlMarks has an entry for each Prog that implements an inline mark.
++	// It maps from that Prog to the global inlining id of the inlined body
++	// which should unwind to this Prog's location.
++	var inlMarks map[*obj.Prog]int32
++	var inlMarkList []*obj.Prog
++
++	// inlMarksByPos maps from a (column 1) source position to the set of
++	// Progs that are in the set above and have that source position.
++	var inlMarksByPos map[src.XPos][]*obj.Prog
++
+ 	// Emit basic blocks
+ 	for i, b := range f.Blocks {
+ 		s.bstart[b.ID] = s.pp.next
+@@ -5276,8 +5286,14 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				}
+ 			case ssa.OpInlMark:
+ 				p := thearch.Ginsnop(s.pp)
+-				pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
+-				// TODO: if matching line number, merge somehow with previous instruction?
++				if inlMarks == nil {
++					inlMarks = map[*obj.Prog]int32{}
++					inlMarksByPos = map[src.XPos][]*obj.Prog{}
++				}
++				inlMarks[p] = v.AuxInt32()
++				inlMarkList = append(inlMarkList, p)
++				pos := v.Pos.AtColumn1()
++				inlMarksByPos[pos] = append(inlMarksByPos[pos], p)
+ 
+ 			default:
+ 				// let the backend handle it
+@@ -5318,6 +5334,50 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		}
+ 	}
+ 
++	if inlMarks != nil {
++		// We have some inline marks. Try to find other instructions we're
++		// going to emit anyway, and use those instructions instead of the
++		// inline marks.
++		for p := pp.Text; p != nil; p = p.Link {
++			if p.As == obj.ANOP || p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.APCALIGN || thearch.LinkArch.Family == sys.Wasm {
++				// Don't use 0-sized instructions as inline marks, because we need
++				// to identify inline mark instructions by pc offset.
++				// (Some of these instructions are sometimes zero-sized, sometimes not.
++				// We must not use anything that even might be zero-sized.)
++				// TODO: are there others?
++				continue
++			}
++			if _, ok := inlMarks[p]; ok {
++				// Don't use inline marks themselves. We don't know
++				// whether they will be zero-sized or not yet.
++				continue
++			}
++			pos := p.Pos.AtColumn1()
++			s := inlMarksByPos[pos]
++			if len(s) == 0 {
++				continue
++			}
++			for _, m := range s {
++				// We found an instruction with the same source position as
++				// some of the inline marks.
++				// Use this instruction instead.
++				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[m])
++				// Make the inline mark a real nop, so it doesn't generate any code.
++				m.As = obj.ANOP
++				m.Pos = src.NoXPos
++				m.From = obj.Addr{}
++				m.To = obj.Addr{}
++			}
++			delete(inlMarksByPos, pos)
++		}
++		// Any unmatched inline marks now need to be added to the inlining tree (and will generate a nop instruction).
++		for _, p := range inlMarkList {
++			if p.As != obj.ANOP {
++				pp.curfn.Func.lsym.Func.AddInlMark(p, inlMarks[p])
++			}
++		}
++	}
++
+ 	if Ctxt.Flag_locationlists {
+ 		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(Ctxt, f, Debug_locationlist > 1, stackOffset)
+ 		bstart := s.bstart
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 5063b133f3..a30b4b6e4a 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -430,3 +430,7 @@ func (x lico) lineNumberHTML() string {
+ 	}
+ 	return fmt.Sprintf("<%s>%s%d</%s>", style, pfx, x.Line(), style)
+ }
++
++func (x lico) atColumn1() lico {
++	return makeLico(x.Line(), 1)
++}
+diff --git a/src/cmd/internal/src/xpos.go b/src/cmd/internal/src/xpos.go
+index d7ec91f92c..c94f9e997b 100644
+--- a/src/cmd/internal/src/xpos.go
++++ b/src/cmd/internal/src/xpos.go
+@@ -80,6 +80,12 @@ func (p XPos) LineNumberHTML() string {
+ 	return p.lico.lineNumberHTML()
+ }
+ 
++// AtColumn1 returns the same location but shifted to column 1.
++func (p XPos) AtColumn1() XPos {
++	p.lico = p.lico.atColumn1()
++	return p
++}
++
+ // A PosTable tracks Pos -> XPos conversions and vice versa.
+ // Its zero value is a ready-to-use PosTable.
+ type PosTable struct {

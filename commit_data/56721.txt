@@ -15,7 +15,87 @@ Date:   Tue May 23 11:00:37 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/gover/latest.go        |  9 +++++++-
  src/cmd/go/testdata/script/gotoolchain.txt | 36 +++++++++++++++++++++++++++++-
  2 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/gover/latest.go b/src/cmd/go/internal/gover/latest.go
+index 7cfce47aef..05ee4401b5 100644
+--- a/src/cmd/go/internal/gover/latest.go
++++ b/src/cmd/go/internal/gover/latest.go
+@@ -23,7 +23,14 @@ func Local() string {
+ 		v = TestVersion
+ 	}
+ 	if strings.HasPrefix(v, "go") {
+-		return strings.TrimPrefix(v, "go")
++		v := strings.TrimPrefix(v, "go")
++		// Some builds use custom suffixes; strip them.
++		if i := strings.IndexAny(v, " \t+-"); i >= 0 {
++			v = v[:i]
++		}
++		if IsValid(v) {
++			return v
++		}
+ 	}
+ 	// Development branch. Use "Dev" version with just 1.N, no rc1 or .0 suffix.
+ 	return "1." + strconv.Itoa(goversion.Version)
+diff --git a/src/cmd/go/testdata/script/gotoolchain.txt b/src/cmd/go/testdata/script/gotoolchain.txt
+index a202901ef3..505317d283 100644
+--- a/src/cmd/go/testdata/script/gotoolchain.txt
++++ b/src/cmd/go/testdata/script/gotoolchain.txt
+@@ -87,6 +87,37 @@ go version
+ ! stdout go1.999
+ rm go.work
+ 
++# go1.999 should handle go1.998 without a download
++env TESTGO_VERSION=go1.999
++cp go1998 go.mod
++go version
++! stdout go1.998 # local toolchain instead
++
++# go1.998 should handle go1.998 without a download too
++env TESTGO_VERSION=go1.999
++go version
++! stdout go1.998 # local toolchain instead
++
++# go1.998+foo should handle go1.998 without a download too
++env TESTGO_VERSION=go1.998+foo
++go version
++! stdout go1.998 # local toolchain instead
++
++# go1.998-foo should handle go1.998 without a download too
++env TESTGO_VERSION=go1.998-foo
++go version
++! stdout go1.998 # local toolchain instead
++
++# 'go1.998 foo' should handle go1.998 without a download too
++env TESTGO_VERSION='go1.998 foo'
++go version
++! stdout go1.998 # local toolchain instead
++
++# go1.997-foo should download go1.998
++env TESTGO_VERSION=go1.997-foo
++! go version
++stderr go1.998
++
+ # GOTOOLCHAIN=auto+go1.1000 falls back to go1.1000 if newer than go line
+ env TESTGO_VERSION=go1.1
+ env GOTOOLCHAIN=auto+go1.1000
+@@ -132,6 +163,9 @@ stderr '^go: cannot find "go1.999mod" in PATH$'
+ -- go1999 --
+ go 1.999testpath
+ 
++-- go1998 --
++go 1.998
++
+ -- go1999mod --
+ go 1.999mod
+ 
+@@ -152,5 +186,5 @@ package main
+ import "os"
+ 
+ func main() {
+-	os.Stdout.WriteString("go1.999testpath here!")
++	os.Stdout.WriteString("go1.999testpath here!\n")
+ }

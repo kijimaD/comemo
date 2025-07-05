@@ -12,8 +12,61 @@ Date:   Sun Jun 10 01:01:27 2018 +0700
     Reviewed-on: https://go-review.googlesource.com/117635
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  api/except.txt                      | 2 ++
  src/syscall/security_windows.go     | 4 +++-
  src/syscall/syscall_windows_test.go | 6 ++++++
  3 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 997df042b6..b85003eda2 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -377,9 +377,11 @@ pkg syscall (windows-386), type CertContext struct, CertInfo uintptr
+ pkg syscall (windows-386), type CertRevocationInfo struct, CrlInfo uintptr
+ pkg syscall (windows-386), type CertRevocationInfo struct, OidSpecificInfo uintptr
+ pkg syscall (windows-386), type CertSimpleChain struct, TrustListInfo uintptr
++pkg syscall (windows-386), const TOKEN_ALL_ACCESS = 983295
+ pkg syscall (windows-amd64), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
+ pkg syscall (windows-amd64), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
+ pkg syscall (windows-amd64), type CertContext struct, CertInfo uintptr
+ pkg syscall (windows-amd64), type CertRevocationInfo struct, CrlInfo uintptr
+ pkg syscall (windows-amd64), type CertRevocationInfo struct, OidSpecificInfo uintptr
+ pkg syscall (windows-amd64), type CertSimpleChain struct, TrustListInfo uintptr
++pkg syscall (windows-amd64), const TOKEN_ALL_ACCESS = 983295
+diff --git a/src/syscall/security_windows.go b/src/syscall/security_windows.go
+index dbaf6d3264..ae8b3a17bf 100644
+--- a/src/syscall/security_windows.go
++++ b/src/syscall/security_windows.go
+@@ -221,6 +221,7 @@ const (
+ 	TOKEN_ADJUST_PRIVILEGES
+ 	TOKEN_ADJUST_GROUPS
+ 	TOKEN_ADJUST_DEFAULT
++	TOKEN_ADJUST_SESSIONID
+ 
+ 	TOKEN_ALL_ACCESS = STANDARD_RIGHTS_REQUIRED |
+ 		TOKEN_ASSIGN_PRIMARY |
+@@ -230,7 +231,8 @@ const (
+ 		TOKEN_QUERY_SOURCE |
+ 		TOKEN_ADJUST_PRIVILEGES |
+ 		TOKEN_ADJUST_GROUPS |
+-		TOKEN_ADJUST_DEFAULT
++		TOKEN_ADJUST_DEFAULT |
++		TOKEN_ADJUST_SESSIONID
+ 	TOKEN_READ  = STANDARD_RIGHTS_READ | TOKEN_QUERY
+ 	TOKEN_WRITE = STANDARD_RIGHTS_WRITE |
+ 		TOKEN_ADJUST_PRIVILEGES |
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 86842f2ad2..d146911073 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -70,3 +70,9 @@ func ExampleLoadLibrary() {
+ 	build := uint16(r >> 16)
+ 	print("windows version ", major, ".", minor, " (Build ", build, ")\n")
+ }
++
++func TestTOKEN_ALL_ACCESS(t *testing.T) {
++	if syscall.TOKEN_ALL_ACCESS != 0xF01FF {
++		t.Errorf("TOKEN_ALL_ACCESS = %x, want 0xF01FF", syscall.TOKEN_ALL_ACCESS)
++	}
++}

@@ -21,7 +21,7 @@ Date:   Wed Mar 1 15:50:57 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  13 ++-
  src/cmd/compile/internal/gc/builtin/runtime.go |   9 +-
  src/cmd/compile/internal/gc/plive.go           | 109 -------------------
@@ -40,3 +40,893 @@ Date:   Wed Mar 1 15:50:57 2017 -0800
  src/runtime/stubs.go                           |   3 -
  test/live.go                                   |  10 +-
  17 files changed, 124 insertions(+), 302 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index c1506f7874..e9b73244e1 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -100,11 +100,10 @@ var runtimeDecls = [...]struct {
+ 	{"selectnbrecv", funcTag, 82},
+ 	{"selectnbrecv2", funcTag, 84},
+ 	{"newselect", funcTag, 85},
+-	{"selectsend", funcTag, 81},
+-	{"selectrecv", funcTag, 72},
+-	{"selectrecv2", funcTag, 86},
+-	{"selectdefault", funcTag, 87},
+-	{"selectgo", funcTag, 56},
++	{"selectsend", funcTag, 74},
++	{"selectrecv", funcTag, 86},
++	{"selectdefault", funcTag, 56},
++	{"selectgo", funcTag, 87},
+ 	{"block", funcTag, 5},
+ 	{"makeslice", funcTag, 89},
+ 	{"makeslice64", funcTag, 90},
+@@ -227,8 +226,8 @@ func runtimeTypes() []*Type {
+ 	typs[83] = typPtr(typs[11])
+ 	typs[84] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[83]), anonfield(typs[70])}, []*Node{anonfield(typs[11])})
+ 	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
+-	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[70]), anonfield(typs[3]), anonfield(typs[83])}, []*Node{anonfield(typs[11])})
+-	typs[87] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[11])})
++	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[70]), anonfield(typs[3]), anonfield(typs[83])}, nil)
++	typs[87] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
+ 	typs[88] = typSlice(typs[2])
+ 	typs[89] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[88])})
+ 	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[88])})
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 2bc974387a..a3f6855081 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -134,11 +134,10 @@ func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
+ func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool
+ 
+ func newselect(sel *byte, selsize int64, size int32)
+-func selectsend(sel *byte, hchan chan<- any, elem *any) (selected bool)
+-func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
+-func selectrecv2(sel *byte, hchan <-chan any, elem *any, received *bool) (selected bool)
+-func selectdefault(sel *byte) (selected bool)
+-func selectgo(sel *byte)
++func selectsend(sel *byte, hchan chan<- any, elem *any)
++func selectrecv(sel *byte, hchan <-chan any, elem *any, received *bool)
++func selectdefault(sel *byte)
++func selectgo(sel *byte) int
+ func block()
+ 
+ func makeslice(typ *byte, len int, cap int) (ary []any)
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 6b8f0fe294..6aa11f4379 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -306,49 +306,6 @@ func iscall(prog *obj.Prog, name *obj.LSym) bool {
+ 	return name == prog.To.Sym
+ }
+ 
+-// Returns true for instructions that call a runtime function implementing a
+-// select communication clause.
+-
+-var selectNames [4]*obj.LSym
+-
+-func isselectcommcasecall(prog *obj.Prog) bool {
+-	if selectNames[0] == nil {
+-		selectNames[0] = Linksym(Pkglookup("selectsend", Runtimepkg))
+-		selectNames[1] = Linksym(Pkglookup("selectrecv", Runtimepkg))
+-		selectNames[2] = Linksym(Pkglookup("selectrecv2", Runtimepkg))
+-		selectNames[3] = Linksym(Pkglookup("selectdefault", Runtimepkg))
+-	}
+-
+-	for _, name := range selectNames {
+-		if iscall(prog, name) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// Returns true for call instructions that target runtime·newselect.
+-
+-var isnewselect_sym *obj.LSym
+-
+-func isnewselect(prog *obj.Prog) bool {
+-	if isnewselect_sym == nil {
+-		isnewselect_sym = Linksym(Pkglookup("newselect", Runtimepkg))
+-	}
+-	return iscall(prog, isnewselect_sym)
+-}
+-
+-// Returns true for call instructions that target runtime·selectgo.
+-
+-var isselectgocall_sym *obj.LSym
+-
+-func isselectgocall(prog *obj.Prog) bool {
+-	if isselectgocall_sym == nil {
+-		isselectgocall_sym = Linksym(Pkglookup("selectgo", Runtimepkg))
+-	}
+-	return iscall(prog, isselectgocall_sym)
+-}
+-
+ var isdeferreturn_sym *obj.LSym
+ 
+ func isdeferreturn(prog *obj.Prog) bool {
+@@ -358,52 +315,6 @@ func isdeferreturn(prog *obj.Prog) bool {
+ 	return iscall(prog, isdeferreturn_sym)
+ }
+ 
+-// Walk backwards from a runtime·selectgo call up to its immediately dominating
+-// runtime·newselect call. Any successor nodes of communication clause nodes
+-// are implicit successors of the runtime·selectgo call node. The goal of this
+-// analysis is to add these missing edges to complete the control flow graph.
+-func addselectgosucc(selectgo *BasicBlock) {
+-	pred := selectgo
+-	for {
+-		if len(pred.pred) == 0 {
+-			Fatalf("selectgo does not have a newselect")
+-		}
+-		pred = pred.pred[0]
+-		if blockany(pred, isselectcommcasecall) {
+-			// A select comm case block should have exactly one
+-			// successor.
+-			if len(pred.succ) != 1 {
+-				Fatalf("select comm case has too many successors")
+-			}
+-			succ := pred.succ[0]
+-
+-			// Its successor should have exactly two successors.
+-			// The drop through should flow to the selectgo block
+-			// and the branch should lead to the select case
+-			// statements block.
+-			if len(succ.succ) != 2 {
+-				Fatalf("select comm case successor has too many successors")
+-			}
+-
+-			// Add the block as a successor of the selectgo block.
+-			addedge(selectgo, succ)
+-		}
+-
+-		if blockany(pred, isnewselect) {
+-			// Reached the matching newselect.
+-			break
+-		}
+-	}
+-}
+-
+-// The entry point for the missing selectgo control flow algorithm. Takes a
+-// slice of *BasicBlocks containing selectgo calls.
+-func fixselectgo(selectgo []*BasicBlock) {
+-	for _, bb := range selectgo {
+-		addselectgosucc(bb)
+-	}
+-}
+-
+ // Constructs a control flow graph from a sequence of instructions. This
+ // procedure is complicated by various sources of implicit control flow that are
+ // not accounted for using the standard cfg construction algorithm. Returns a
+@@ -418,10 +329,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 		p.Opt = nil
+ 	}
+ 
+-	// Allocate a slice to remember where we have seen selectgo calls.
+-	// These blocks will be revisited to add successor control flow edges.
+-	var selectgo []*BasicBlock
+-
+ 	// Loop through all instructions identifying branch targets
+ 	// and fall-throughs and allocate basic blocks.
+ 	var cfg []*BasicBlock
+@@ -442,12 +349,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 				p.Link.Opt = newblock(p.Link)
+ 				cfg = append(cfg, p.Link.Opt.(*BasicBlock))
+ 			}
+-		} else if isselectcommcasecall(p) || isselectgocall(p) {
+-			// Accommodate implicit selectgo control flow.
+-			if p.Link.Opt == nil {
+-				p.Link.Opt = newblock(p.Link)
+-				cfg = append(cfg, p.Link.Opt.(*BasicBlock))
+-			}
+ 		}
+ 	}
+ 
+@@ -468,11 +369,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 				// generate any unreachable RET instructions.
+ 				break
+ 			}
+-
+-			// Collect basic blocks with selectgo calls.
+-			if isselectgocall(p) {
+-				selectgo = append(selectgo, bb)
+-			}
+ 		}
+ 
+ 		if bb.last.To.Type == obj.TYPE_BRANCH {
+@@ -502,11 +398,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 		}
+ 	}
+ 
+-	// Add missing successor edges to the selectgo blocks.
+-	if len(selectgo) != 0 {
+-		fixselectgo(selectgo)
+-	}
+-
+ 	// Find a depth-first order and assign a depth-first number to
+ 	// all basic blocks.
+ 	for _, bb := range cfg {
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index aeab64f5eb..5f0419d575 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -101,6 +101,7 @@ func walkselect(sel *Node) {
+ 	var n *Node
+ 	var var_ *Node
+ 	var selv *Node
++	var chosen *Node
+ 	if i == 0 {
+ 		sel.Nbody.Set1(mkcall("block", nil, nil))
+ 		goto out
+@@ -165,6 +166,7 @@ func walkselect(sel *Node) {
+ 		}
+ 
+ 		l = append(l, cas.Nbody.Slice()...)
++		l = append(l, nod(OBREAK, nil, nil))
+ 		sel.Nbody.Set(l)
+ 		goto out
+ 	}
+@@ -220,24 +222,21 @@ func walkselect(sel *Node) {
+ 		default:
+ 			Fatalf("select %v", n.Op)
+ 
+-			// if selectnbsend(c, v) { body } else { default body }
+ 		case OSEND:
++			// if selectnbsend(c, v) { body } else { default body }
+ 			ch := n.Left
+-
+ 			r.Left = mkcall1(chanfn("selectnbsend", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), ch, n.Right)
+ 
+-			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
+ 		case OSELRECV:
++			// if c != nil && selectnbrecv(&v, c) { body } else { default body }
+ 			r = nod(OIF, nil, nil)
+-
+ 			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+ 			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, ch)
+ 
+-			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
+ 		case OSELRECV2:
++			// if c != nil && selectnbrecv2(&v, c) { body } else { default body }
+ 			r = nod(OIF, nil, nil)
+-
+ 			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+ 			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.First(), ch)
+@@ -246,7 +245,7 @@ func walkselect(sel *Node) {
+ 		r.Left = typecheck(r.Left, Erv)
+ 		r.Nbody.Set(cas.Nbody.Slice())
+ 		r.Rlist.Set(append(dflt.Ninit.Slice(), dflt.Nbody.Slice()...))
+-		sel.Nbody.Set1(r)
++		sel.Nbody.Set2(r, nod(OBREAK, nil, nil))
+ 		goto out
+ 	}
+ 
+@@ -255,7 +254,6 @@ func walkselect(sel *Node) {
+ 
+ 	// generate sel-struct
+ 	setlineno(sel)
+-
+ 	selv = temp(selecttype(int32(sel.Xoffset)))
+ 	r = nod(OAS, selv, nil)
+ 	r = typecheck(r, Etop)
+@@ -264,52 +262,62 @@ func walkselect(sel *Node) {
+ 	r = mkcall("newselect", nil, nil, var_, nodintconst(selv.Type.Width), nodintconst(sel.Xoffset))
+ 	r = typecheck(r, Etop)
+ 	init = append(init, r)
++
+ 	// register cases
+ 	for _, cas := range sel.List.Slice() {
+ 		setlineno(cas)
+-		n = cas.Left
+-		r = nod(OIF, nil, nil)
+-		r.Ninit.Set(cas.Ninit.Slice())
++
++		init = append(init, cas.Ninit.Slice()...)
+ 		cas.Ninit.Set(nil)
+-		if n != nil {
+-			r.Ninit.AppendNodes(&n.Ninit)
+-			n.Ninit.Set(nil)
+-		}
+ 
+-		if n == nil {
+-			// selectdefault(sel *byte);
+-			r.Left = mkcall("selectdefault", Types[TBOOL], &r.Ninit, var_)
+-		} else {
++		var x *Node
++		if n := cas.Left; n != nil {
++			init = append(init, n.Ninit.Slice()...)
++
+ 			switch n.Op {
+ 			default:
+ 				Fatalf("select %v", n.Op)
+-
+-				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
+ 			case OSEND:
+-				r.Left = mkcall1(chanfn("selectsend", 2, n.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Left, n.Right)
+-
+-				// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
++				// selectsend(sel *byte, hchan *chan any, elem *any)
++				x = mkcall1(chanfn("selectsend", 2, n.Left.Type), nil, nil, var_, n.Left, n.Right)
+ 			case OSELRECV:
+-				r.Left = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left)
+-
+-				// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
++				// selectrecv(sel *byte, hchan *chan any, elem *any, received *bool)
++				x = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), nil, nil, var_, n.Right.Left, n.Left, nodnil())
+ 			case OSELRECV2:
+-				r.Left = mkcall1(chanfn("selectrecv2", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left, n.List.First())
++				// selectrecv(sel *byte, hchan *chan any, elem *any, received *bool)
++				x = mkcall1(chanfn("selectrecv", 2, n.Right.Left.Type), nil, nil, var_, n.Right.Left, n.Left, n.List.First())
+ 			}
++		} else {
++			// selectdefault(sel *byte)
++			x = mkcall("selectdefault", nil, nil, var_)
+ 		}
+ 
+-		// selv is no longer alive after use.
+-		r.Nbody.Append(nod(OVARKILL, selv, nil))
++		init = append(init, x)
++	}
++
++	// run the select
++	setlineno(sel)
++	chosen = temp(Types[TINT])
++	r = nod(OAS, chosen, mkcall("selectgo", Types[TINT], nil, var_))
++	r = typecheck(r, Etop)
++	init = append(init, r)
++
++	// selv is no longer alive after selectgo.
++	init = append(init, nod(OVARKILL, selv, nil))
++
++	// dispatch cases
++	for i, cas := range sel.List.Slice() {
++		setlineno(cas)
+ 
++		cond := nod(OEQ, chosen, nodintconst(int64(i)))
++		cond = typecheck(cond, Erv)
++
++		r = nod(OIF, cond, nil)
+ 		r.Nbody.AppendNodes(&cas.Nbody)
+ 		r.Nbody.Append(nod(OBREAK, nil, nil))
+ 		init = append(init, r)
+ 	}
+ 
+-	// run the select
+-	setlineno(sel)
+-
+-	init = append(init, mkcall("selectgo", nil, nil, var_))
+ 	sel.Nbody.Set(init)
+ 
+ out:
+@@ -328,7 +336,6 @@ func selecttype(size int32) *Type {
+ 	scase.List.Append(nod(ODCLFIELD, newname(lookup("chan")), typenod(ptrto(Types[TUINT8]))))
+ 	scase.List.Append(nod(ODCLFIELD, newname(lookup("pc")), typenod(Types[TUINTPTR])))
+ 	scase.List.Append(nod(ODCLFIELD, newname(lookup("kind")), typenod(Types[TUINT16])))
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("so")), typenod(Types[TUINT16])))
+ 	scase.List.Append(nod(ODCLFIELD, newname(lookup("receivedp")), typenod(ptrto(Types[TUINT8]))))
+ 	scase.List.Append(nod(ODCLFIELD, newname(lookup("releasetime")), typenod(Types[TUINT64])))
+ 	scase = typecheck(scase, Etype)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 95201b9a19..fd6cef9c8b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -527,7 +527,7 @@ func (s *state) stmt(n *Node) {
+ 		s.call(n, callNormal)
+ 		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC {
+ 			if fn := n.Left.Sym.Name; compiling_runtime && fn == "throw" ||
+-				n.Left.Sym.Pkg == Runtimepkg && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "selectgo" || fn == "block") {
++				n.Left.Sym.Pkg == Runtimepkg && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block") {
+ 				m := s.mem()
+ 				b := s.endBlock()
+ 				b.Kind = ssa.BlockExit
+@@ -921,12 +921,13 @@ func (s *state) stmt(n *Node) {
+ 			lab.breakTarget = nil
+ 		}
+ 
+-		// OSWITCH never falls through (s.curBlock == nil here).
+-		// OSELECT does not fall through if we're calling selectgo.
+-		// OSELECT does fall through if we're calling selectnb{send,recv}[2].
+-		// In those latter cases, go to the code after the select.
+-		if b := s.endBlock(); b != nil {
+-			b.AddEdgeTo(bEnd)
++		// walk adds explicit OBREAK nodes to the end of all reachable code paths.
++		// If we still have a current block here, then mark it unreachable.
++		if s.curBlock != nil {
++			m := s.mem()
++			b := s.endBlock()
++			b.Kind = ssa.BlockExit
++			b.SetControl(m)
+ 		}
+ 		s.startBlock(bEnd)
+ 
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 23f1f88192..5d80f13261 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -799,12 +799,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$4-8
+-	MOVL	argp+0(FP),AX		// addr of first arg
+-	MOVL	pc+4(FP), BX
+-	MOVL	BX, -4(AX)		// set calling pc
+-	RET
+-
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	TESTL	$0x4000000, runtime·cpuid_edx(SB) // no sse2, no mfence
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 0686449cf6..c6ff8379e6 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -822,12 +822,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+-	MOVQ	argp+0(FP),AX		// addr of first arg
+-	MOVQ	pc+8(FP), BX
+-	MOVQ	BX, -8(AX)		// set calling pc
+-	RET
+-
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index eaf60fff0e..a17219891a 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -507,12 +507,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$8-8
+-	MOVL	argp+0(FP),AX		// addr of first arg
+-	MOVL	pc+4(FP), BX		// pc to set
+-	MOVQ	BX, -8(AX)		// set calling pc
+-	RET
+-
+ // int64 runtime·cputicks(void)
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	RDTSC
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index d9f0c3e271..803cf8d4bf 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -682,11 +682,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$4-8
+-	MOVW	pc+4(FP), R0
+-	MOVW	R0, 8(R13)		// set LR in caller
+-	RET
+-
+ TEXT runtime·emptyfunc(SB),0,$0-0
+ 	RET
+ 
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 05d5ab20b0..30ecec7675 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -709,11 +709,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
+ 	MOVD	R0, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+-	MOVD	pc+8(FP), R0
+-	MOVD	R0, 16(RSP)		// set LR in caller
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT,$-8-0
+ 	B	(ZR)
+ 	UNDEF
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 34242f5536..57d45785f1 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -621,11 +621,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
+ 	MOVV	R1, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+-	MOVV	pc+8(FP), R1
+-	MOVV	R1, 16(R29)		// set LR in caller
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT,$-8-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index d479d97dbb..536c3156b5 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -624,11 +624,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
+ 	MOVW	R1, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$4-8
+-	MOVW	pc+4(FP), R1
+-	MOVW	R1, 8(R29)	// set LR in caller
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT,$0-0
+ 	UNDEF
+ 
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index c367518b2d..4ab5dec5cd 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -719,11 +719,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
+ 	MOVD	R3, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+-	MOVD	pc+8(FP), R3
+-	MOVD	R3, FIXED_FRAME+8(R1)		// set LR in caller
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 82eb03a8e1..20e740b927 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -661,11 +661,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
+ 	MOVD	R3, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+-	MOVD	pc+8(FP), R3
+-	MOVD	R3, 16(R15)		// set LR in caller
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 1ace6dc5c3..03b699796f 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -11,11 +11,12 @@ import (
+ 	"unsafe"
+ )
+ 
+-const (
+-	debugSelect = false
++const debugSelect = false
+ 
++const (
+ 	// scase.kind
+-	caseRecv = iota
++	caseNil = iota
++	caseRecv
+ 	caseSend
+ 	caseDefault
+ )
+@@ -37,10 +38,9 @@ type hselect struct {
+ type scase struct {
+ 	elem        unsafe.Pointer // data element
+ 	c           *hchan         // chan
+-	pc          uintptr        // return pc
++	pc          uintptr        // return pc (for race detector / msan)
+ 	kind        uint16
+-	so          uint16 // vararg of selected bool
+-	receivedp   *bool  // pointer to received bool (recv2)
++	receivedp   *bool // pointer to received bool, if any
+ 	releasetime int64
+ }
+ 
+@@ -72,92 +72,63 @@ func newselect(sel *hselect, selsize int64, size int32) {
+ 	}
+ }
+ 
+-//go:nosplit
+-func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) (selected bool) {
+-	// nil cases do not compete
+-	if c != nil {
+-		selectsendImpl(sel, c, getcallerpc(unsafe.Pointer(&sel)), elem, uintptr(unsafe.Pointer(&selected))-uintptr(unsafe.Pointer(&sel)))
+-	}
+-	return
+-}
+-
+-// cut in half to give stack a chance to split
+-func selectsendImpl(sel *hselect, c *hchan, pc uintptr, elem unsafe.Pointer, so uintptr) {
++func selectsend(sel *hselect, c *hchan, elem unsafe.Pointer) {
++	pc := getcallerpc(unsafe.Pointer(&sel))
+ 	i := sel.ncase
+ 	if i >= sel.tcase {
+ 		throw("selectsend: too many cases")
+ 	}
+ 	sel.ncase = i + 1
++	if c == nil {
++		return
++	}
+ 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
+-
+ 	cas.pc = pc
+ 	cas.c = c
+-	cas.so = uint16(so)
+ 	cas.kind = caseSend
+ 	cas.elem = elem
+ 
+ 	if debugSelect {
+-		print("selectsend s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, " so=", cas.so, "\n")
++		print("selectsend s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
+ 	}
+ }
+ 
+-//go:nosplit
+-func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer) (selected bool) {
+-	// nil cases do not compete
+-	if c != nil {
+-		selectrecvImpl(sel, c, getcallerpc(unsafe.Pointer(&sel)), elem, nil, uintptr(unsafe.Pointer(&selected))-uintptr(unsafe.Pointer(&sel)))
+-	}
+-	return
+-}
+-
+-//go:nosplit
+-func selectrecv2(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) (selected bool) {
+-	// nil cases do not compete
+-	if c != nil {
+-		selectrecvImpl(sel, c, getcallerpc(unsafe.Pointer(&sel)), elem, received, uintptr(unsafe.Pointer(&selected))-uintptr(unsafe.Pointer(&sel)))
+-	}
+-	return
+-}
+-
+-func selectrecvImpl(sel *hselect, c *hchan, pc uintptr, elem unsafe.Pointer, received *bool, so uintptr) {
++func selectrecv(sel *hselect, c *hchan, elem unsafe.Pointer, received *bool) {
++	pc := getcallerpc(unsafe.Pointer(&sel))
+ 	i := sel.ncase
+ 	if i >= sel.tcase {
+ 		throw("selectrecv: too many cases")
+ 	}
+ 	sel.ncase = i + 1
++	if c == nil {
++		return
++	}
+ 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
+ 	cas.pc = pc
+ 	cas.c = c
+-	cas.so = uint16(so)
+ 	cas.kind = caseRecv
+ 	cas.elem = elem
+ 	cas.receivedp = received
+ 
+ 	if debugSelect {
+-		print("selectrecv s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, " so=", cas.so, "\n")
++		print("selectrecv s=", sel, " pc=", hex(cas.pc), " chan=", cas.c, "\n")
+ 	}
+ }
+ 
+-//go:nosplit
+-func selectdefault(sel *hselect) (selected bool) {
+-	selectdefaultImpl(sel, getcallerpc(unsafe.Pointer(&sel)), uintptr(unsafe.Pointer(&selected))-uintptr(unsafe.Pointer(&sel)))
+-	return
+-}
+-
+-func selectdefaultImpl(sel *hselect, callerpc uintptr, so uintptr) {
++func selectdefault(sel *hselect) {
++	pc := getcallerpc(unsafe.Pointer(&sel))
+ 	i := sel.ncase
+ 	if i >= sel.tcase {
+ 		throw("selectdefault: too many cases")
+ 	}
+ 	sel.ncase = i + 1
+ 	cas := (*scase)(add(unsafe.Pointer(&sel.scase), uintptr(i)*unsafe.Sizeof(sel.scase[0])))
+-	cas.pc = callerpc
++	cas.pc = pc
+ 	cas.c = nil
+-	cas.so = uint16(so)
+ 	cas.kind = caseDefault
+ 
+ 	if debugSelect {
+-		print("selectdefault s=", sel, " pc=", hex(cas.pc), " so=", cas.so, "\n")
++		print("selectdefault s=", sel, " pc=", hex(cas.pc), "\n")
+ 	}
+ }
+ 
+@@ -181,14 +152,11 @@ func selunlock(scases []scase, lockorder []uint16) {
+ 	// the G that calls select runnable again and schedules it for execution.
+ 	// When the G runs on another M, it locks all the locks and frees sel.
+ 	// Now if the first M touches sel, it will access freed memory.
+-	n := len(scases)
+-	r := 0
+-	// skip the default case
+-	if n > 0 && scases[lockorder[0]].c == nil {
+-		r = 1
+-	}
+-	for i := n - 1; i >= r; i-- {
++	for i := len(scases) - 1; i >= 0; i-- {
+ 		c := scases[lockorder[i]].c
++		if c == nil {
++			break
++		}
+ 		if i > 0 && c == scases[lockorder[i-1]].c {
+ 			continue // will unlock it on the next iteration
+ 		}
+@@ -229,23 +197,21 @@ func block() {
+ // *sel is on the current goroutine's stack (regardless of any
+ // escaping in selectgo).
+ //
+-// selectgo does not return. Instead, it overwrites its return PC and
+-// returns directly to the triggered select case. Because of this, it
+-// cannot appear at the top of a split stack.
+-//
++// selectgo returns the index of the chosen scase, which matches the
++// ordinal position of its respective select{recv,send,default} call.
+ //go:nosplit
+-func selectgo(sel *hselect) {
+-	pc, offset := selectgoImpl(sel)
+-	*(*bool)(add(unsafe.Pointer(&sel), uintptr(offset))) = true
+-	setcallerpc(unsafe.Pointer(&sel), pc)
++func selectgo(sel *hselect) int {
++	return selectgoImpl(sel)
+ }
+ 
+-// selectgoImpl returns scase.pc and scase.so for the select
+-// case which fired.
+-func selectgoImpl(sel *hselect) (uintptr, uint16) {
++// Separate function to keep runtime/trace.TestTraceSymbolize happy.
++func selectgoImpl(sel *hselect) int {
+ 	if debugSelect {
+ 		print("select: sel=", sel, "\n")
+ 	}
++	if sel.ncase != sel.tcase {
++		throw("selectgo: case count mismatch")
++	}
+ 
+ 	scaseslice := slice{unsafe.Pointer(&sel.scase), int(sel.ncase), int(sel.ncase)}
+ 	scases := *(*[]scase)(unsafe.Pointer(&scaseslice))
+@@ -338,13 +304,19 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
+ 
+ loop:
+ 	// pass 1 - look for something already waiting
++	var dfli int
+ 	var dfl *scase
++	var casi int
+ 	var cas *scase
+ 	for i := 0; i < int(sel.ncase); i++ {
+-		cas = &scases[pollorder[i]]
++		casi = int(pollorder[i])
++		cas = &scases[casi]
+ 		c = cas.c
+ 
+ 		switch cas.kind {
++		case caseNil:
++			continue
++
+ 		case caseRecv:
+ 			sg = c.sendq.dequeue()
+ 			if sg != nil {
+@@ -373,12 +345,14 @@ loop:
+ 			}
+ 
+ 		case caseDefault:
++			dfli = casi
+ 			dfl = cas
+ 		}
+ 	}
+ 
+ 	if dfl != nil {
+ 		selunlock(scases, lockorder)
++		casi = dfli
+ 		cas = dfl
+ 		goto retc
+ 	}
+@@ -391,7 +365,11 @@ loop:
+ 	}
+ 	nextp = &gp.waiting
+ 	for _, casei := range lockorder {
+-		cas = &scases[casei]
++		casi = int(casei)
++		cas = &scases[casi]
++		if cas.kind == caseNil {
++			continue
++		}
+ 		c = cas.c
+ 		sg := acquireSudog()
+ 		sg.g = gp
+@@ -485,6 +463,7 @@ loop:
+ 	// otherwise they stack up on quiet channels
+ 	// record the successful case, if any.
+ 	// We singly-linked up the SudoGs in lock order.
++	casi = -1
+ 	cas = nil
+ 	sglist = gp.waiting
+ 	// Clear all elem before unlinking from gp.waiting.
+@@ -497,11 +476,15 @@ loop:
+ 
+ 	for _, casei := range lockorder {
+ 		k = &scases[casei]
++		if k.kind == caseNil {
++			continue
++		}
+ 		if sglist.releasetime > 0 {
+ 			k.releasetime = sglist.releasetime
+ 		}
+ 		if sg == sglist {
+ 			// sg has already been dequeued by the G that woke us up.
++			casi = int(casei)
+ 			cas = k
+ 		} else {
+ 			c = k.c
+@@ -650,7 +633,7 @@ retc:
+ 	if cas.releasetime > 0 {
+ 		blockevent(cas.releasetime-t0, 2)
+ 	}
+-	return cas.pc, cas.so
++	return casi
+ 
+ sclose:
+ 	// send on closed channel
+@@ -694,22 +677,15 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
+ 		rc := &cases[i]
+ 		switch rc.dir {
+ 		case selectDefault:
+-			selectdefaultImpl(sel, uintptr(i), 0)
++			selectdefault(sel)
+ 		case selectSend:
+-			if rc.ch == nil {
+-				break
+-			}
+-			selectsendImpl(sel, rc.ch, uintptr(i), rc.val, 0)
++			selectsend(sel, rc.ch, rc.val)
+ 		case selectRecv:
+-			if rc.ch == nil {
+-				break
+-			}
+-			selectrecvImpl(sel, rc.ch, uintptr(i), rc.val, r, 0)
++			selectrecv(sel, rc.ch, rc.val, r)
+ 		}
+ 	}
+ 
+-	pc, _ := selectgoImpl(sel)
+-	chosen = int(pc)
++	chosen = selectgo(sel)
+ 	recvOK = *r
+ 	return
+ }
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 5479a309b1..f2139c2a02 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -192,9 +192,6 @@ func cgocallback_gofunc(fv uintptr, frame uintptr, framesize, ctxt uintptr)
+ // data dependency ordering.
+ func publicationBarrier()
+ 
+-//go:noescape
+-func setcallerpc(argp unsafe.Pointer, pc uintptr)
+-
+ // getcallerpc returns the program counter (PC) of its caller's caller.
+ // getcallersp returns the stack pointer (SP) of its caller's caller.
+ // For both, the argp must be a pointer to the caller's first function argument.
+diff --git a/test/live.go b/test/live.go
+index 708786339d..c9f1479e12 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -589,14 +589,14 @@ func f38(b bool) {
+ 	// we care that the println lines have no live variables
+ 	// and therefore no output.
+ 	if b {
+-		select { // ERROR "live at call to newselect: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to selectgo: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$"
+-		case <-fc38(): // ERROR "live at call to selectrecv: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$"
++		select { // ERROR "live at call to newselect:( .autotmp_[0-9]+)+$" "live at call to selectgo:( .autotmp_[0-9]+)+$"
++		case <-fc38(): // ERROR "live at call to selectrecv:( .autotmp_[0-9]+)+$"
+ 			printnl()
+-		case fc38() <- *fi38(1): // ERROR "live at call to fc38: .autotmp_[0-9]+$" "live at call to fi38: .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to selectsend: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$"
++		case fc38() <- *fi38(1): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectsend:( .autotmp_[0-9]+)+$"
+ 			printnl()
+-		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to fi38: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to selectrecv: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$"
++		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectrecv:( .autotmp_[0-9]+)+$"
+ 			printnl()
+-		case *fi38(3), *fb38() = <-fc38(): // ERROR "live at call to fb38: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to fc38: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to fi38: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to selectrecv2: .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+ .autotmp_[0-9]+$"
++		case *fi38(3), *fb38() = <-fc38(): // ERROR "live at call to fb38:( .autotmp_[0-9]+)+$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "live at call to selectrecv:( .autotmp_[0-9]+)+$"
+ 			printnl()
+ 		}
+ 		printnl()

@@ -17,7 +17,7 @@ Date:   Tue Jun 4 11:06:44 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/602175
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  api/next/67813.txt                           | 14 ++++++
  doc/next/6-stdlib/99-minor/net/http/67813.md |  2 +
  src/net/http/http.go                         | 65 ++++++++++++++++++++++++++++
@@ -25,3 +25,162 @@ Date:   Tue Jun 4 11:06:44 2024 -0700
  src/net/http/transport.go                    | 10 +++++
  src/net/http/transport_test.go               |  1 +
  6 files changed, 98 insertions(+)
+
+diff --git a/api/next/67813.txt b/api/next/67813.txt
+new file mode 100644
+index 0000000000..82636f9501
+--- /dev/null
++++ b/api/next/67813.txt
+@@ -0,0 +1,14 @@
++pkg net/http, type HTTP2Config struct #67813
++pkg net/http, type HTTP2Config struct, CountError func(string) #67813
++pkg net/http, type HTTP2Config struct, MaxConcurrentStreams int #67813
++pkg net/http, type HTTP2Config struct, MaxDecoderHeaderTableSize int #67813
++pkg net/http, type HTTP2Config struct, MaxEncoderHeaderTableSize int #67813
++pkg net/http, type HTTP2Config struct, MaxReadFrameSize int #67813
++pkg net/http, type HTTP2Config struct, MaxReceiveBufferPerConnection int #67813
++pkg net/http, type HTTP2Config struct, MaxReceiveBufferPerStream int #67813
++pkg net/http, type HTTP2Config struct, PermitProhibitedCipherSuites bool #67813
++pkg net/http, type HTTP2Config struct, PingTimeout time.Duration #67813
++pkg net/http, type HTTP2Config struct, SendPingTimeout time.Duration #67813
++pkg net/http, type HTTP2Config struct, WriteByteTimeout time.Duration #67813
++pkg net/http, type Server struct, HTTP2 *HTTP2Config #67813
++pkg net/http, type Transport struct, HTTP2 *HTTP2Config #67813
+diff --git a/doc/next/6-stdlib/99-minor/net/http/67813.md b/doc/next/6-stdlib/99-minor/net/http/67813.md
+new file mode 100644
+index 0000000000..d7e9811674
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/http/67813.md
+@@ -0,0 +1,2 @@
++[Transport] and [Server] now have an HTTP2 field which permits
++configuring HTTP/2 protocol settings.
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 6e2259adbf..9dfc36c791 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -163,3 +163,68 @@ type Pusher interface {
+ 	// is not supported on the underlying connection.
+ 	Push(target string, opts *PushOptions) error
+ }
++
++// HTTP2Config defines HTTP/2 configuration parameters common to
++// both [Transport] and [Server].
++type HTTP2Config struct {
++	// MaxConcurrentStreams optionally specifies the number of
++	// concurrent streams that a peer may have open at a time.
++	// If zero, MaxConcurrentStreams defaults to at least 100.
++	MaxConcurrentStreams int
++
++	// MaxDecoderHeaderTableSize optionally specifies an upper limit for the
++	// size of the header compression table used for decoding headers sent
++	// by the peer.
++	// A valid value is less than 4MiB.
++	// If zero or invalid, a default value is used.
++	MaxDecoderHeaderTableSize int
++
++	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
++	// header compression table used for sending headers to the peer.
++	// A valid value is less than 4MiB.
++	// If zero or invalid, a default value is used.
++	MaxEncoderHeaderTableSize int
++
++	// MaxReadFrameSize optionally specifies the largest frame
++	// this endpoint is willing to read.
++	// A valid value is between 16KiB and 16MiB, inclusive.
++	// If zero or invalid, a default value is used.
++	MaxReadFrameSize int
++
++	// MaxReceiveBufferPerConnection is the maximum size of the
++	// flow control window for data received on a connection.
++	// A valid value is at least 64KiB and less than 4MiB.
++	// If invalid, a default value is used.
++	MaxReceiveBufferPerConnection int
++
++	// MaxReceiveBufferPerStream is the maximum size of
++	// the flow control window for data received on a stream (request).
++	// A valid value is less than 4MiB.
++	// If zero or invalid, a default value is used.
++	MaxReceiveBufferPerStream int
++
++	// SendPingTimeout is the timeout after which a health check using a ping
++	// frame will be carried out if no frame is received on a connection.
++	// If zero, no health check is performed.
++	SendPingTimeout time.Duration
++
++	// PingTimeout is the timeout after which a connection will be closed
++	// if a response to a ping is not received.
++	// If zero, a default of 15 seconds is used.
++	PingTimeout time.Duration
++
++	// WriteByteTimeout is the timeout after which a connection will be
++	// closed if no data can be written to it. The timeout begins when data is
++	// available to write, and is extended whenever any bytes are written.
++	WriteByteTimeout time.Duration
++
++	// PermitProhibitedCipherSuites, if true, permits the use of
++	// cipher suites prohibited by the HTTP/2 spec.
++	PermitProhibitedCipherSuites bool
++
++	// CountError, if non-nil, is called on HTTP/2 errors.
++	// It is intended to increment a metric for monitoring.
++	// The errType contains only lowercase letters, digits, and underscores
++	// (a-z, 0-9, _).
++	CountError func(errType string)
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 9cbc0c8186..371c660145 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2973,6 +2973,12 @@ type Server struct {
+ 	// value.
+ 	ConnContext func(ctx context.Context, c net.Conn) context.Context
+ 
++	// HTTP2 configures HTTP/2 connections.
++	//
++	// This field does not yet have any effect.
++	// See https://go.dev/issue/67813.
++	HTTP2 *HTTP2Config
++
+ 	inShutdown atomic.Bool // true when server is in shutdown
+ 
+ 	disableKeepAlives atomic.Bool
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index da9163a27a..26900620f1 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -293,6 +293,12 @@ type Transport struct {
+ 	// To use a custom dialer or TLS config and still attempt HTTP/2
+ 	// upgrades, set this to true.
+ 	ForceAttemptHTTP2 bool
++
++	// HTTP2 configures HTTP/2 connections.
++	//
++	// This field does not yet have any effect.
++	// See https://go.dev/issue/67813.
++	HTTP2 *HTTP2Config
+ }
+ 
+ func (t *Transport) writeBufferSize() int {
+@@ -338,6 +344,10 @@ func (t *Transport) Clone() *Transport {
+ 	if t.TLSClientConfig != nil {
+ 		t2.TLSClientConfig = t.TLSClientConfig.Clone()
+ 	}
++	if t.HTTP2 != nil {
++		t2.HTTP2 = &HTTP2Config{}
++		*t2.HTTP2 = *t.HTTP2
++	}
+ 	if !t.tlsNextProtoWasNil {
+ 		npm := map[string]func(authority string, c *tls.Conn) RoundTripper{}
+ 		for k, v := range t.TLSNextProto {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 2389284249..3c353ed253 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -6328,6 +6328,7 @@ func TestTransportClone(t *testing.T) {
+ 		GetProxyConnectHeader:  func(context.Context, *url.URL, string) (Header, error) { return nil, nil },
+ 		MaxResponseHeaderBytes: 1,
+ 		ForceAttemptHTTP2:      true,
++		HTTP2:                  &HTTP2Config{MaxConcurrentStreams: 1},
+ 		TLSNextProto: map[string]func(authority string, c *tls.Conn) RoundTripper{
+ 			"foo": func(authority string, c *tls.Conn) RoundTripper { panic("") },
+ 		},

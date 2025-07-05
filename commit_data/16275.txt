@@ -11,10 +11,136 @@ Date:   Mon May 6 16:15:03 2013 -0700
     R=bradfitz, dave, adg, iant, r, minux.ma
     CC=adonovan, golang-dev
     https://golang.org/cl/9226043
-
+---
  src/pkg/runtime/os_darwin.c  | 9 ++++++---
  src/pkg/runtime/os_freebsd.c | 9 ++++++---
  src/pkg/runtime/os_linux.c   | 9 ++++++---
  src/pkg/runtime/os_netbsd.c  | 9 ++++++---
  src/pkg/runtime/os_openbsd.c | 9 ++++++---
  5 files changed, 30 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index 390e76ec58..276362a97f 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -540,14 +540,17 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go:
+ void
+ runtime·badsignal(int32 sig)
+ {
++	int32 len;
++
+ 	if (sig == SIGPROF) {
+ 		return;  // Ignore SIGPROFs intended for a non-Go thread.
+ 	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
+ 	if (0 <= sig && sig < NSIG) {
+-		// Call runtime·findnull dynamically to circumvent static stack size check.
+-		static int32 (*findnull)(byte*) = runtime·findnull;
+-		runtime·write(2, runtime·sigtab[sig].name, findnull((byte*)runtime·sigtab[sig].name));
++		// Can't call findnull() because it will split stack.
++		for(len = 0; runtime·sigtab[sig].name[len]; len++)
++			;
++		runtime·write(2, runtime·sigtab[sig].name, len);
+ 	}
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 357ad80dc1..f454ab3497 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -252,14 +252,17 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go:
+ void
+ runtime·badsignal(int32 sig)
+ {
++	int32 len;
++
+ 	if (sig == SIGPROF) {
+ 		return;  // Ignore SIGPROFs intended for a non-Go thread.
+ 	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
+ 	if (0 <= sig && sig < NSIG) {
+-		// Call runtime·findnull dynamically to circumvent static stack size check.
+-		static int32 (*findnull)(byte*) = runtime·findnull;
+-		runtime·write(2, runtime·sigtab[sig].name, findnull((byte*)runtime·sigtab[sig].name));
++		// Can't call findnull() because it will split stack.
++		for(len = 0; runtime·sigtab[sig].name[len]; len++)
++			;
++		runtime·write(2, runtime·sigtab[sig].name, len);
+ 	}
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index e4ae1a5d80..6b86d2b177 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -300,14 +300,17 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go:
+ void
+ runtime·badsignal(int32 sig)
+ {
++	int32 len;
++
+ 	if (sig == SIGPROF) {
+ 		return;  // Ignore SIGPROFs intended for a non-Go thread.
+ 	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
+ 	if (0 <= sig && sig < NSIG) {
+-		// Call runtime·findnull dynamically to circumvent static stack size check.
+-		static int32 (*findnull)(byte*) = runtime·findnull;
+-		runtime·write(2, runtime·sigtab[sig].name, findnull((byte*)runtime·sigtab[sig].name));
++		// Can't call findnull() because it will split stack.
++		for(len = 0; runtime·sigtab[sig].name[len]; len++)
++			;
++		runtime·write(2, runtime·sigtab[sig].name, len);
+ 	}
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 936334cac6..7679ec2552 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -292,14 +292,17 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go:
+ void
+ runtime·badsignal(int32 sig)
+ {
++	int32 len;
++
+ 	if (sig == SIGPROF) {
+ 		return;  // Ignore SIGPROFs intended for a non-Go thread.
+ 	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
+ 	if (0 <= sig && sig < NSIG) {
+-		// Call runtime·findnull dynamically to circumvent static stack size check.
+-		static int32 (*findnull)(byte*) = runtime·findnull;
+-		runtime·write(2, runtime·sigtab[sig].name, findnull((byte*)runtime·sigtab[sig].name));
++		// Can't call findnull() because it will split stack.
++		for(len = 0; runtime·sigtab[sig].name[len]; len++)
++			;
++		runtime·write(2, runtime·sigtab[sig].name, len);
+ 	}
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 4ce64f9f2a..4ce102ec2c 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -274,14 +274,17 @@ static int8 badsignal[] = "runtime: signal received on thread not created by Go:
+ void
+ runtime·badsignal(int32 sig)
+ {
++	int32 len;
++
+ 	if (sig == SIGPROF) {
+ 		return;  // Ignore SIGPROFs intended for a non-Go thread.
+ 	}
+ 	runtime·write(2, badsignal, sizeof badsignal - 1);
+ 	if (0 <= sig && sig < NSIG) {
+-		// Call runtime·findnull dynamically to circumvent static stack size check.
+-		static int32 (*findnull)(byte*) = runtime·findnull;
+-		runtime·write(2, runtime·sigtab[sig].name, findnull((byte*)runtime·sigtab[sig].name));
++		// Can't call findnull() because it will split stack.
++		for(len = 0; runtime·sigtab[sig].name[len]; len++)
++			;
++		runtime·write(2, runtime·sigtab[sig].name, len);
+ 	}
+ 	runtime·write(2, "\n", 1);
+ 	runtime·exit(1);

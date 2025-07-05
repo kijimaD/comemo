@@ -7,6 +7,20 @@ Date:   Sun Apr 15 10:08:45 2018 +0300
     Change-Id: I2e58e20e26674175b3e35b6c8a05998a93db4646
     Reviewed-on: https://go-review.googlesource.com/107215
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7ad96a4874..f76e5156de 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -641,7 +641,7 @@ Ingo Krabbe <ikrabbe.ask@gmail.com>
+ Ingo Oeser <nightlyone@googlemail.com> <nightlyone@gmail.com>
+ Irieda Noboru <irieda@gmail.com>
+ Isaac Wagner <ibw@isaacwagner.me>
+-Iskander Sharipov <iskander.sharipov@intel.com>
++Iskander Sharipov <iskander.sharipov@intel.com> <quasilyte@gmail.com>
+ Ivan Babrou <ivan@cloudflare.com>
+ Ivan Bertona <ivan.bertona@gmail.com>
+ Ivan Krasin <krasin@golang.org>

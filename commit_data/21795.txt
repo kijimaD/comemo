@@ -11,7 +11,7 @@ Date:   Thu Jan 29 23:35:14 2015 -0500
     Change-Id: Idac36b9f6805f0451cb541d2338992ca5eaf3963
     Reviewed-on: https://go-review.googlesource.com/3801
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  include/link.h      |   3 +-
  src/cmd/5a/a.y      |   6 ++-
  src/cmd/5a/y.tab.c  | 140 +++++++++++++++++++++++++++-------------------------
@@ -42,3 +42,2249 @@ Date:   Thu Jan 29 23:35:14 2015 -0500
  src/liblink/obj5.c  |  16 +++---
  src/liblink/pass.c  |  81 ++++++++++++++++++++++++++++++
  29 files changed, 352 insertions(+), 225 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index d210e06e55..91993986b3 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -62,13 +62,11 @@ typedef	struct	Pciter	Pciter;
+ //
+ //	$<mem>
+ //		Effective address of memory reference <mem>, defined above.
+-//		NOTE: Today, on arm and ppc64, type = TYPE_CONST instead.
+ //		Encoding: same as memory reference, but type = TYPE_ADDR.
+ //
+ //	$<±integer value>
+ //		This is a special case of $<mem>, in which only ±offset is present.
+ //		It has a separate type for easy recognition.
+-//		NOTE: Today, on arm and ppc64, TYPE_CONST and TYPE_ADDR are merged into just TYPE_CONST.
+ //		Encoding:
+ //			type = TYPE_CONST
+ //			offset = ±integer value
+@@ -157,6 +155,7 @@ struct	Addr
+ 		float64	dval;
+ 		Prog*	branch;
+ 		int32	argsize;	// for 5l, 8l
++		uint64	bits; // raw union bits, for testing if anything has been written to any field
+ 	} u;
+ 
+ 	// gotype is the name of the Go type descriptor for sym.
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index f6b953eb07..429f7437c6 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -397,24 +397,28 @@ rel:
+ textsize:
+ 	LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = $1;
+ 		$$.u.argsize = ArgsSizeUnknown;
+ 	}
+ |	'-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = -$2;
+ 		$$.u.argsize = ArgsSizeUnknown;
+ 	}
+ |	LCONST '-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = $1;
+ 		$$.u.argsize = $3;
+ 	}
+ |	'-' LCONST '-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = -$2;
+ 		$$.u.argsize = $4;
+@@ -429,7 +433,7 @@ ximm:	'$' con
+ |	'$' oreg
+ 	{
+ 		$$ = $2;
+-		$$.type = TYPE_CONST;
++		$$.type = TYPE_ADDR;
+ 	}
+ |	'$' LSCONST
+ 	{
+diff --git a/src/cmd/5a/y.tab.c b/src/cmd/5a/y.tab.c
+index 8f6a5c1c72..d9af383d78 100644
+--- a/src/cmd/5a/y.tab.c
++++ b/src/cmd/5a/y.tab.c
+@@ -579,15 +579,15 @@ static const yytype_uint16 yyrline[] =
+      151,   158,   165,   172,   181,   193,   197,   201,   208,   215,
+      220,   232,   237,   249,   260,   267,   274,   278,   282,   286,
+      293,   315,   323,   332,   339,   348,   359,   365,   368,   372,
+-     377,   378,   381,   387,   398,   404,   410,   416,   423,   429,
+-     434,   440,   443,   449,   457,   461,   470,   476,   477,   478,
+-     479,   484,   490,   496,   502,   503,   506,   507,   515,   524,
+-     525,   534,   535,   541,   544,   545,   546,   548,   556,   564,
+-     573,   579,   585,   591,   599,   605,   613,   614,   618,   626,
+-     627,   633,   634,   642,   643,   646,   652,   660,   668,   676,
+-     686,   689,   693,   699,   700,   701,   704,   705,   709,   713,
+-     717,   721,   727,   730,   736,   737,   741,   745,   749,   753,
+-     757,   761,   765,   769,   773
++     377,   378,   381,   387,   398,   405,   412,   419,   427,   433,
++     438,   444,   447,   453,   461,   465,   474,   480,   481,   482,
++     483,   488,   494,   500,   506,   507,   510,   511,   519,   528,
++     529,   538,   539,   545,   548,   549,   550,   552,   560,   568,
++     577,   583,   589,   595,   603,   609,   617,   618,   622,   630,
++     631,   637,   638,   646,   647,   650,   656,   664,   672,   680,
++     690,   693,   697,   703,   704,   705,   708,   709,   713,   717,
++     721,   725,   731,   734,   740,   741,   745,   749,   753,   757,
++     761,   765,   769,   773,   777
+ };
+ #endif
+ 
+@@ -2139,6 +2139,7 @@ yyreduce:
+   case 54:
+ #line 399 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = (yyvsp[(1) - (1)].lval);
+ 		(yyval.addr).u.argsize = ArgsSizeUnknown;
+@@ -2146,8 +2147,9 @@ yyreduce:
+     break;
+ 
+   case 55:
+-#line 405 "a.y"
++#line 406 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = -(yyvsp[(2) - (2)].lval);
+ 		(yyval.addr).u.argsize = ArgsSizeUnknown;
+@@ -2155,8 +2157,9 @@ yyreduce:
+     break;
+ 
+   case 56:
+-#line 411 "a.y"
++#line 413 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = (yyvsp[(1) - (3)].lval);
+ 		(yyval.addr).u.argsize = (yyvsp[(3) - (3)].lval);
+@@ -2164,8 +2167,9 @@ yyreduce:
+     break;
+ 
+   case 57:
+-#line 417 "a.y"
++#line 420 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = -(yyvsp[(2) - (4)].lval);
+ 		(yyval.addr).u.argsize = (yyvsp[(4) - (4)].lval);
+@@ -2173,7 +2177,7 @@ yyreduce:
+     break;
+ 
+   case 58:
+-#line 424 "a.y"
++#line 428 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_CONST;
+@@ -2182,15 +2186,15 @@ yyreduce:
+     break;
+ 
+   case 59:
+-#line 430 "a.y"
++#line 434 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(2) - (2)].addr);
+-		(yyval.addr).type = TYPE_CONST;
++		(yyval.addr).type = TYPE_ADDR;
+ 	}
+     break;
+ 
+   case 60:
+-#line 435 "a.y"
++#line 439 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_SCONST;
+@@ -2199,7 +2203,7 @@ yyreduce:
+     break;
+ 
+   case 62:
+-#line 444 "a.y"
++#line 448 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_FCONST;
+@@ -2208,7 +2212,7 @@ yyreduce:
+     break;
+ 
+   case 63:
+-#line 450 "a.y"
++#line 454 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_FCONST;
+@@ -2217,14 +2221,14 @@ yyreduce:
+     break;
+ 
+   case 64:
+-#line 458 "a.y"
++#line 462 "a.y"
+     {
+ 		(yyval.lval) = 1 << (yyvsp[(1) - (1)].lval);
+ 	}
+     break;
+ 
+   case 65:
+-#line 462 "a.y"
++#line 466 "a.y"
+     {
+ 		int i;
+ 		(yyval.lval)=0;
+@@ -2236,14 +2240,14 @@ yyreduce:
+     break;
+ 
+   case 66:
+-#line 471 "a.y"
++#line 475 "a.y"
+     {
+ 		(yyval.lval) = (1<<(yyvsp[(1) - (3)].lval)) | (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 70:
+-#line 480 "a.y"
++#line 484 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(1) - (4)].addr);
+ 		(yyval.addr).reg = (yyvsp[(3) - (4)].lval);
+@@ -2251,7 +2255,7 @@ yyreduce:
+     break;
+ 
+   case 71:
+-#line 485 "a.y"
++#line 489 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_REG;
+@@ -2260,7 +2264,7 @@ yyreduce:
+     break;
+ 
+   case 72:
+-#line 491 "a.y"
++#line 495 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_REG;
+@@ -2269,7 +2273,7 @@ yyreduce:
+     break;
+ 
+   case 73:
+-#line 497 "a.y"
++#line 501 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2278,7 +2282,7 @@ yyreduce:
+     break;
+ 
+   case 77:
+-#line 508 "a.y"
++#line 512 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(1) - (1)].addr);
+ 		if((yyvsp[(1) - (1)].addr).name != NAME_EXTERN && (yyvsp[(1) - (1)].addr).name != NAME_STATIC) {
+@@ -2287,7 +2291,7 @@ yyreduce:
+     break;
+ 
+   case 78:
+-#line 516 "a.y"
++#line 520 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2297,7 +2301,7 @@ yyreduce:
+     break;
+ 
+   case 80:
+-#line 526 "a.y"
++#line 530 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2307,7 +2311,7 @@ yyreduce:
+     break;
+ 
+   case 82:
+-#line 536 "a.y"
++#line 540 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(1) - (4)].addr);
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2316,7 +2320,7 @@ yyreduce:
+     break;
+ 
+   case 87:
+-#line 549 "a.y"
++#line 553 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_CONST;
+@@ -2325,7 +2329,7 @@ yyreduce:
+     break;
+ 
+   case 88:
+-#line 557 "a.y"
++#line 561 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_REG;
+@@ -2334,7 +2338,7 @@ yyreduce:
+     break;
+ 
+   case 89:
+-#line 565 "a.y"
++#line 569 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_REGREG;
+@@ -2344,7 +2348,7 @@ yyreduce:
+     break;
+ 
+   case 90:
+-#line 574 "a.y"
++#line 578 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_SHIFT;
+@@ -2353,7 +2357,7 @@ yyreduce:
+     break;
+ 
+   case 91:
+-#line 580 "a.y"
++#line 584 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_SHIFT;
+@@ -2362,7 +2366,7 @@ yyreduce:
+     break;
+ 
+   case 92:
+-#line 586 "a.y"
++#line 590 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_SHIFT;
+@@ -2371,7 +2375,7 @@ yyreduce:
+     break;
+ 
+   case 93:
+-#line 592 "a.y"
++#line 596 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_SHIFT;
+@@ -2380,7 +2384,7 @@ yyreduce:
+     break;
+ 
+   case 94:
+-#line 600 "a.y"
++#line 604 "a.y"
+     {
+ 		if((yyval.lval) < REG_R0 || (yyval.lval) > REG_R15)
+ 			print("register value out of range in shift\n");
+@@ -2389,7 +2393,7 @@ yyreduce:
+     break;
+ 
+   case 95:
+-#line 606 "a.y"
++#line 610 "a.y"
+     {
+ 		if((yyval.lval) < 0 || (yyval.lval) >= 32)
+ 			print("shift value out of range\n");
+@@ -2398,14 +2402,14 @@ yyreduce:
+     break;
+ 
+   case 97:
+-#line 615 "a.y"
++#line 619 "a.y"
+     {
+ 		(yyval.lval) = REGPC;
+ 	}
+     break;
+ 
+   case 98:
+-#line 619 "a.y"
++#line 623 "a.y"
+     {
+ 		if((yyvsp[(3) - (4)].lval) < 0 || (yyvsp[(3) - (4)].lval) >= NREG)
+ 			print("register value out of range in R(...)\n");
+@@ -2414,14 +2418,14 @@ yyreduce:
+     break;
+ 
+   case 100:
+-#line 628 "a.y"
++#line 632 "a.y"
+     {
+ 		(yyval.lval) = REGSP;
+ 	}
+     break;
+ 
+   case 102:
+-#line 635 "a.y"
++#line 639 "a.y"
+     {
+ 		if((yyvsp[(3) - (4)].lval) < 0 || (yyvsp[(3) - (4)].lval) >= NREG)
+ 			print("register value out of range in C(...)\n");
+@@ -2430,7 +2434,7 @@ yyreduce:
+     break;
+ 
+   case 105:
+-#line 647 "a.y"
++#line 651 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_REG;
+@@ -2439,7 +2443,7 @@ yyreduce:
+     break;
+ 
+   case 106:
+-#line 653 "a.y"
++#line 657 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_REG;
+@@ -2448,7 +2452,7 @@ yyreduce:
+     break;
+ 
+   case 107:
+-#line 661 "a.y"
++#line 665 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2459,7 +2463,7 @@ yyreduce:
+     break;
+ 
+   case 108:
+-#line 669 "a.y"
++#line 673 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2470,7 +2474,7 @@ yyreduce:
+     break;
+ 
+   case 109:
+-#line 677 "a.y"
++#line 681 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2481,140 +2485,140 @@ yyreduce:
+     break;
+ 
+   case 110:
+-#line 686 "a.y"
++#line 690 "a.y"
+     {
+ 		(yyval.lval) = 0;
+ 	}
+     break;
+ 
+   case 111:
+-#line 690 "a.y"
++#line 694 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 112:
+-#line 694 "a.y"
++#line 698 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 117:
+-#line 706 "a.y"
++#line 710 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (1)].sym)->value;
+ 	}
+     break;
+ 
+   case 118:
+-#line 710 "a.y"
++#line 714 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 119:
+-#line 714 "a.y"
++#line 718 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 120:
+-#line 718 "a.y"
++#line 722 "a.y"
+     {
+ 		(yyval.lval) = ~(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 121:
+-#line 722 "a.y"
++#line 726 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (3)].lval);
+ 	}
+     break;
+ 
+   case 122:
+-#line 727 "a.y"
++#line 731 "a.y"
+     {
+ 		(yyval.lval) = 0;
+ 	}
+     break;
+ 
+   case 123:
+-#line 731 "a.y"
++#line 735 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 125:
+-#line 738 "a.y"
++#line 742 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) + (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 126:
+-#line 742 "a.y"
++#line 746 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) - (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 127:
+-#line 746 "a.y"
++#line 750 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) * (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 128:
+-#line 750 "a.y"
++#line 754 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) / (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 129:
+-#line 754 "a.y"
++#line 758 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) % (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 130:
+-#line 758 "a.y"
++#line 762 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) << (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 131:
+-#line 762 "a.y"
++#line 766 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) >> (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 132:
+-#line 766 "a.y"
++#line 770 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) & (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 133:
+-#line 770 "a.y"
++#line 774 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) ^ (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 134:
+-#line 774 "a.y"
++#line 778 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) | (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2622,7 +2626,7 @@ yyreduce:
+ 
+ 
+ /* Line 1267 of yacc.c.  */
+-#line 2626 "y.tab.c"
++#line 2630 "y.tab.c"
+       default: break;
+     }
+   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 3885172e52..6acf6dfdf0 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1029,7 +1029,7 @@ agenr(Node *n, Node *a, Node *res)
+ 			regalloc(&n3, types[tptr], res);
+ 			p1 = gins(AMOVW, N, &n3);
+ 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
+-			p1->from.type = TYPE_CONST;
++			p1->from.type = TYPE_ADDR;
+ 		} else
+ 		if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 			n1 = n3;
+@@ -1552,7 +1552,7 @@ sgen(Node *n, Node *res, int64 w)
+ 		regalloc(&nend, types[TUINT32], N);
+ 
+ 		p = gins(AMOVW, &src, &nend);
+-		p->from.type = TYPE_CONST;
++		p->from.type = TYPE_ADDR;
+ 		if(dir < 0)
+ 			p->from.offset = dir;
+ 		else
+@@ -1562,11 +1562,11 @@ sgen(Node *n, Node *res, int64 w)
+ 	// move src and dest to the end of block if necessary
+ 	if(dir < 0) {
+ 		p = gins(AMOVW, &src, &src);
+-		p->from.type = TYPE_CONST;
++		p->from.type = TYPE_ADDR;
+ 		p->from.offset = w + dir;
+ 
+ 		p = gins(AMOVW, &dst, &dst);
+-		p->from.type = TYPE_CONST;
++		p->from.type = TYPE_ADDR;
+ 		p->from.offset = w + dir;
+ 	}
+ 	
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index f772f03ce6..b7c621be32 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -333,7 +333,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	} else {
+ 		// go/defer. generate go func value.
+ 		p = gins(AMOVW, &nodo, &nodr);
+-		p->from.type = TYPE_CONST;	// REG = &(20+offset(REG)) -- i.tab->fun[f]
++		p->from.type = TYPE_ADDR;	// REG = &(20+offset(REG)) -- i.tab->fun[f]
+ 	}
+ 
+ 	nodr.type = n->left->type;
+@@ -481,7 +481,7 @@ cgen_ret(Node *n)
+ 	p = gins(ARET, N, N);
+ 	if(n != N && n->op == ORETJMP) {
+ 		p->to.name = NAME_EXTERN;
+-		p->to.type = TYPE_CONST;
++		p->to.type = TYPE_ADDR;
+ 		p->to.sym = linksym(n->left->sym);
+ 	}
+ }
+@@ -858,7 +858,7 @@ clearfat(Node *nl)
+ 	if(q > 128) {
+ 		regalloc(&end, types[tptr], N);
+ 		p = gins(AMOVW, &dst, &end);
+-		p->from.type = TYPE_CONST;
++		p->from.type = TYPE_ADDR;
+ 		p->from.offset = q*4;
+ 
+ 		p = gins(AMOVW, &nz, &dst);
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 710a5a2b9b..13d06efe55 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -247,7 +247,7 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ 	p->from.offset = off;
+ 	p->from3.type = TYPE_CONST;
+ 	p->from3.offset = widthptr;
+-	p->to.type = TYPE_CONST;
++	p->to.type = TYPE_ADDR;
+ 	p->to.name = NAME_EXTERN;
+ 	p->to.sym = linksym(x);
+ 	p->to.offset = xoff;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 194d590d2c..ef5a509147 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -254,7 +254,7 @@ isfat(Type *t)
+ void
+ afunclit(Addr *a, Node *n)
+ {
+-	if(a->type == TYPE_CONST && a->name == NAME_EXTERN || a->type == TYPE_REG) {
++	if(a->type == TYPE_ADDR && a->name == NAME_EXTERN || a->type == TYPE_REG) {
+ 		a->type = TYPE_MEM;
+ 		if(n->op == ONAME)
+ 			a->sym = linksym(n->sym);
+@@ -1222,7 +1222,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ //		if(a->type >= D_AX && a->type <= D_DI)
+ //			a->type += D_INDIR;
+ //		else
+-//		if(a->type == TYPE_CONST)
++//		if(a->type == TYPE_ADDR)
+ //			a->type = TYPE_NONE+D_INDIR;
+ //		else
+ //		if(a->type == TYPE_ADDR) {
+@@ -1307,7 +1307,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case PFUNC:
+ 			a->name = NAME_EXTERN;
+-			a->type = TYPE_CONST;
++			a->type = TYPE_ADDR;
+ 			s = funcsym(s);
+ 			break;
+ 		}
+@@ -1387,11 +1387,11 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->etype = tptr;
+ 		switch(a->type) {
+ 		case TYPE_MEM:
+-			a->type = TYPE_CONST;
++			a->type = TYPE_ADDR;
+ 			break;
+ 
+ 		case TYPE_REG:
+-		case TYPE_CONST:
++		case TYPE_ADDR:
+ 			break;
+ 		
+ 		default:
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index ce82e4c1ec..1a4df8d622 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -677,7 +677,6 @@ shiftprop(Flow *r)
+ 	}
+ 
+ 	/* make the substitution */
+-	p2->from.type = TYPE_SHIFT;
+ 	p2->from.reg = 0;
+ 	o = p->reg;
+ 	if(o == 0)
+@@ -703,6 +702,8 @@ shiftprop(Flow *r)
+ 		o |= 2<<5;
+ 		break;
+ 	}
++	p2->from = zprog.from;
++	p2->from.type = TYPE_SHIFT;
+ 	p2->from.offset = o;
+ 	if(debug['P'])
+ 		print("\t=>%P\tSUCCEED\n", p2);
+@@ -863,7 +864,7 @@ xtramodes(Graph *g, Flow *r, Adr *a)
+ 			if(p1->from.type == TYPE_REG ||
+ 			   (p1->from.type == TYPE_SHIFT && (p1->from.offset&(1<<4)) == 0 &&
+ 			    ((p->as != AMOVB && p->as != AMOVBS) || (a == &p->from && (p1->from.offset&~0xf) == 0))) ||
+-			   (p1->from.type == TYPE_CONST &&
++			   ((p1->from.type == TYPE_ADDR || p1->from.type == TYPE_CONST) &&
+ 			    p1->from.offset > -4096 && p1->from.offset < 4096))
+ 			if(nochange(uniqs(r1), r, p1)) {
+ 				if(a != &p->from || v.reg != p->to.reg)
+@@ -878,6 +879,7 @@ xtramodes(Graph *g, Flow *r, Adr *a)
+ 					/* register offset */
+ 					if(nacl)
+ 						return 0;
++					*a = zprog.from;
+ 					a->type = TYPE_SHIFT;
+ 					a->offset = p1->from.reg&15;
+ 					break;
+@@ -885,8 +887,10 @@ xtramodes(Graph *g, Flow *r, Adr *a)
+ 					/* scaled register offset */
+ 					if(nacl)
+ 						return 0;
++					*a = zprog.from;
+ 					a->type = TYPE_SHIFT;
+ 				case TYPE_CONST:
++				case TYPE_ADDR:
+ 					/* immediate offset */
+ 					a->offset = p1->from.offset;
+ 					break;
+@@ -1251,7 +1255,7 @@ copyau(Adr *a, Adr *v)
+ 	if(copyas(a, v))
+ 		return 1;
+ 	if(v->type == TYPE_REG) {
+-		if(a->type == TYPE_CONST && a->reg != 0) {
++		if(a->type == TYPE_ADDR && a->reg != 0) {
+ 			if(a->reg == v->reg)
+ 				return 1;
+ 		} else
+@@ -1546,9 +1550,7 @@ predicate(Graph *g)
+ static int
+ isdconst(Addr *a)
+ {
+-	if(a->type == TYPE_CONST && a->reg == 0)
+-		return 1;
+-	return 0;
++	return a->type == TYPE_CONST;
+ }
+ 
+ static int
+diff --git a/src/cmd/5g/prog.c b/src/cmd/5g/prog.c
+index ab771481fc..a77f2336e9 100644
+--- a/src/cmd/5g/prog.c
++++ b/src/cmd/5g/prog.c
+@@ -136,7 +136,7 @@ proginfo(ProgInfo *info, Prog *p)
+ 	if(info->flags == 0)
+ 		fatal("unknown instruction %P", p);
+ 
+-	if(p->from.type == TYPE_CONST && p->from.sym != nil && (info->flags & LeftRead)) {
++	if(p->from.type == TYPE_ADDR && p->from.sym != nil && (info->flags & LeftRead)) {
+ 		info->flags &= ~LeftRead;
+ 		info->flags |= LeftAddr;
+ 	}
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 04ea2c202d..93090ebe42 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -625,7 +625,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	// If there's a stack fixup coming (after BL newproc or BL deferproc),
+ 	// delay the load until after the fixup.
+ 	p2 = p->link;
+-	if(p2 && p2->as == AMOVW && p2->from.type == TYPE_CONST && p2->from.reg == REGSP && p2->to.reg == REGSP && p2->to.type == TYPE_REG)
++	if(p2 && p2->as == AMOVW && p2->from.type == TYPE_ADDR && p2->from.reg == REGSP && p2->to.reg == REGSP && p2->to.type == TYPE_REG)
+ 		p = p2;
+ 
+ 	p1->link = p->link;
+@@ -641,7 +641,9 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	a->offset = v->offset;
+ 	a->etype = v->etype;
+ 	a->type = TYPE_MEM;
+-	if(a->etype == TARRAY || a->sym == nil)
++	if(a->etype == TARRAY)
++		a->type = TYPE_ADDR;
++	else if(a->sym == nil)
+ 		a->type = TYPE_CONST;
+ 
+ 	if(v->addr)
+@@ -740,8 +742,13 @@ mkvar(Reg *r, Adr *a)
+ 		if(a->reg != 0)
+ 			bit.b[0] |= RtoB(a->reg);
+ 		return bit;
+-
++	
+ 	case TYPE_CONST:
++		if(a->reg != 0)
++			fatal("found CONST instead of ADDR: %D", a);
++		break;
++
++	case TYPE_ADDR:
+ 	case TYPE_REG:
+ 	case TYPE_SHIFT:
+ 		if(a->reg != 0) {
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index 80c4551cce..df3ca40b2c 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -651,24 +651,28 @@ con:
+ textsize:
+ 	LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = $1;
+ 		$$.u.argsize = ArgsSizeUnknown;
+ 	}
+ |	'-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = -$2;
+ 		$$.u.argsize = ArgsSizeUnknown;
+ 	}
+ |	LCONST '-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = $1;
+ 		$$.u.argsize = $3;
+ 	}
+ |	'-' LCONST '-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = -$2;
+ 		$$.u.argsize = $4;
+diff --git a/src/cmd/6a/y.tab.c b/src/cmd/6a/y.tab.c
+index 2054f8600c..a3ee581d69 100644
+--- a/src/cmd/6a/y.tab.c
++++ b/src/cmd/6a/y.tab.c
+@@ -552,8 +552,8 @@ static const yytype_uint16 yyrline[] =
+      486,   487,   490,   496,   503,   510,   517,   526,   536,   546,
+      552,   558,   566,   577,   581,   590,   598,   608,   611,   615,
+      621,   622,   626,   629,   630,   634,   638,   642,   646,   652,
+-     658,   664,   670,   678,   679,   683,   687,   691,   695,   699,
+-     703,   707,   711,   715
++     659,   666,   673,   682,   683,   687,   691,   695,   699,   703,
++     707,   711,   715,   719
+ };
+ #endif
+ 
+@@ -2474,6 +2474,7 @@ yyreduce:
+   case 119:
+ #line 653 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = (yyvsp[(1) - (1)].lval);
+ 		(yyval.addr).u.argsize = ArgsSizeUnknown;
+@@ -2481,8 +2482,9 @@ yyreduce:
+     break;
+ 
+   case 120:
+-#line 659 "a.y"
++#line 660 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = -(yyvsp[(2) - (2)].lval);
+ 		(yyval.addr).u.argsize = ArgsSizeUnknown;
+@@ -2490,8 +2492,9 @@ yyreduce:
+     break;
+ 
+   case 121:
+-#line 665 "a.y"
++#line 667 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = (yyvsp[(1) - (3)].lval);
+ 		(yyval.addr).u.argsize = (yyvsp[(3) - (3)].lval);
+@@ -2499,8 +2502,9 @@ yyreduce:
+     break;
+ 
+   case 122:
+-#line 671 "a.y"
++#line 674 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = -(yyvsp[(2) - (4)].lval);
+ 		(yyval.addr).u.argsize = (yyvsp[(4) - (4)].lval);
+@@ -2508,70 +2512,70 @@ yyreduce:
+     break;
+ 
+   case 124:
+-#line 680 "a.y"
++#line 684 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) + (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 125:
+-#line 684 "a.y"
++#line 688 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) - (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 126:
+-#line 688 "a.y"
++#line 692 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) * (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 127:
+-#line 692 "a.y"
++#line 696 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) / (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 128:
+-#line 696 "a.y"
++#line 700 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) % (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 129:
+-#line 700 "a.y"
++#line 704 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) << (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 130:
+-#line 704 "a.y"
++#line 708 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) >> (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 131:
+-#line 708 "a.y"
++#line 712 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) & (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 132:
+-#line 712 "a.y"
++#line 716 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) ^ (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 133:
+-#line 716 "a.y"
++#line 720 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) | (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2579,7 +2583,7 @@ yyreduce:
+ 
+ 
+ /* Line 1267 of yacc.c.  */
+-#line 2583 "y.tab.c"
++#line 2587 "y.tab.c"
+       default: break;
+     }
+   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
+diff --git a/src/cmd/8a/a.y b/src/cmd/8a/a.y
+index e02380daa8..1a3ab72ff2 100644
+--- a/src/cmd/8a/a.y
++++ b/src/cmd/8a/a.y
+@@ -472,24 +472,28 @@ imm:
+ textsize:
+ 	LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = $1;
+ 		$$.u.argsize = ArgsSizeUnknown;
+ 	}
+ |	'-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = -$2;
+ 		$$.u.argsize = ArgsSizeUnknown;
+ 	}
+ |	LCONST '-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = $1;
+ 		$$.u.argsize = $3;
+ 	}
+ |	'-' LCONST '-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = -$2;
+ 		$$.u.argsize = $4;
+diff --git a/src/cmd/8a/y.tab.c b/src/cmd/8a/y.tab.c
+index 10352b0b5e..d80f0ee4de 100644
+--- a/src/cmd/8a/y.tab.c
++++ b/src/cmd/8a/y.tab.c
+@@ -543,12 +543,12 @@ static const yytype_uint16 yyrline[] =
+      259,   262,   267,   277,   282,   292,   297,   302,   309,   317,
+      327,   336,   347,   348,   351,   352,   353,   357,   361,   362,
+      363,   366,   367,   370,   376,   387,   393,   399,   405,   411,
+-     417,   425,   431,   441,   447,   453,   459,   465,   473,   479,
+-     485,   491,   499,   500,   503,   510,   517,   524,   534,   544,
+-     554,   560,   566,   573,   582,   593,   597,   606,   614,   624,
+-     627,   631,   637,   638,   642,   645,   646,   650,   654,   658,
+-     662,   668,   669,   673,   677,   681,   685,   689,   693,   697,
+-     701,   705
++     417,   425,   431,   441,   447,   453,   459,   465,   473,   480,
++     487,   494,   503,   504,   507,   514,   521,   528,   538,   548,
++     558,   564,   570,   577,   586,   597,   601,   610,   618,   628,
++     631,   635,   641,   642,   646,   649,   650,   654,   658,   662,
++     666,   672,   673,   677,   681,   685,   689,   693,   697,   701,
++     705,   709
+ };
+ #endif
+ 
+@@ -2174,7 +2174,7 @@ yyreduce:
+ 		(yyval.addr) = (yyvsp[(2) - (2)].addr);
+ 		(yyval.addr).type = TYPE_ADDR;
+ 		/*
+-		if($2.name == D_AUTO || $2.name == D_PARAM)
++		if($2.name == NAME_AUTO || $2.name == NAME_PARAM)
+ 			yyerror("constant cannot be automatic: %s",
+ 				$2.sym->name);
+ 		 */
+@@ -2229,6 +2229,7 @@ yyreduce:
+   case 88:
+ #line 474 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = (yyvsp[(1) - (1)].lval);
+ 		(yyval.addr).u.argsize = ArgsSizeUnknown;
+@@ -2236,8 +2237,9 @@ yyreduce:
+     break;
+ 
+   case 89:
+-#line 480 "a.y"
++#line 481 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = -(yyvsp[(2) - (2)].lval);
+ 		(yyval.addr).u.argsize = ArgsSizeUnknown;
+@@ -2245,8 +2247,9 @@ yyreduce:
+     break;
+ 
+   case 90:
+-#line 486 "a.y"
++#line 488 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = (yyvsp[(1) - (3)].lval);
+ 		(yyval.addr).u.argsize = (yyvsp[(3) - (3)].lval);
+@@ -2254,8 +2257,9 @@ yyreduce:
+     break;
+ 
+   case 91:
+-#line 492 "a.y"
++#line 495 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = -(yyvsp[(2) - (4)].lval);
+ 		(yyval.addr).u.argsize = (yyvsp[(4) - (4)].lval);
+@@ -2263,7 +2267,7 @@ yyreduce:
+     break;
+ 
+   case 94:
+-#line 504 "a.y"
++#line 508 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2273,7 +2277,7 @@ yyreduce:
+     break;
+ 
+   case 95:
+-#line 511 "a.y"
++#line 515 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2283,7 +2287,7 @@ yyreduce:
+     break;
+ 
+   case 96:
+-#line 518 "a.y"
++#line 522 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2293,7 +2297,7 @@ yyreduce:
+     break;
+ 
+   case 97:
+-#line 525 "a.y"
++#line 529 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2306,7 +2310,7 @@ yyreduce:
+     break;
+ 
+   case 98:
+-#line 535 "a.y"
++#line 539 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2319,7 +2323,7 @@ yyreduce:
+     break;
+ 
+   case 99:
+-#line 545 "a.y"
++#line 549 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2332,7 +2336,7 @@ yyreduce:
+     break;
+ 
+   case 100:
+-#line 555 "a.y"
++#line 559 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2341,7 +2345,7 @@ yyreduce:
+     break;
+ 
+   case 101:
+-#line 561 "a.y"
++#line 565 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2350,7 +2354,7 @@ yyreduce:
+     break;
+ 
+   case 102:
+-#line 567 "a.y"
++#line 571 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2360,7 +2364,7 @@ yyreduce:
+     break;
+ 
+   case 103:
+-#line 574 "a.y"
++#line 578 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2372,7 +2376,7 @@ yyreduce:
+     break;
+ 
+   case 104:
+-#line 583 "a.y"
++#line 587 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2384,14 +2388,14 @@ yyreduce:
+     break;
+ 
+   case 105:
+-#line 594 "a.y"
++#line 598 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(1) - (1)].addr);
+ 	}
+     break;
+ 
+   case 106:
+-#line 598 "a.y"
++#line 602 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(1) - (6)].addr);
+ 		(yyval.addr).index = (yyvsp[(3) - (6)].lval);
+@@ -2401,7 +2405,7 @@ yyreduce:
+     break;
+ 
+   case 107:
+-#line 607 "a.y"
++#line 611 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2412,7 +2416,7 @@ yyreduce:
+     break;
+ 
+   case 108:
+-#line 615 "a.y"
++#line 619 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -2423,133 +2427,133 @@ yyreduce:
+     break;
+ 
+   case 109:
+-#line 624 "a.y"
++#line 628 "a.y"
+     {
+ 		(yyval.lval) = 0;
+ 	}
+     break;
+ 
+   case 110:
+-#line 628 "a.y"
++#line 632 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 111:
+-#line 632 "a.y"
++#line 636 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 113:
+-#line 639 "a.y"
++#line 643 "a.y"
+     {
+ 		(yyval.lval) = NAME_AUTO;
+ 	}
+     break;
+ 
+   case 116:
+-#line 647 "a.y"
++#line 651 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (1)].sym)->value;
+ 	}
+     break;
+ 
+   case 117:
+-#line 651 "a.y"
++#line 655 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 118:
+-#line 655 "a.y"
++#line 659 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 119:
+-#line 659 "a.y"
++#line 663 "a.y"
+     {
+ 		(yyval.lval) = ~(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 120:
+-#line 663 "a.y"
++#line 667 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (3)].lval);
+ 	}
+     break;
+ 
+   case 122:
+-#line 670 "a.y"
++#line 674 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) + (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 123:
+-#line 674 "a.y"
++#line 678 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) - (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 124:
+-#line 678 "a.y"
++#line 682 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) * (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 125:
+-#line 682 "a.y"
++#line 686 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) / (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 126:
+-#line 686 "a.y"
++#line 690 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) % (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 127:
+-#line 690 "a.y"
++#line 694 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) << (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 128:
+-#line 694 "a.y"
++#line 698 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) >> (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 129:
+-#line 698 "a.y"
++#line 702 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) & (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 130:
+-#line 702 "a.y"
++#line 706 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) ^ (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 131:
+-#line 706 "a.y"
++#line 710 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) | (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2557,7 +2561,7 @@ yyreduce:
+ 
+ 
+ /* Line 1267 of yacc.c.  */
+-#line 2561 "y.tab.c"
++#line 2565 "y.tab.c"
+       default: break;
+     }
+   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
+diff --git a/src/cmd/9a/a.y b/src/cmd/9a/a.y
+index c6d800f850..71d714b0d1 100644
+--- a/src/cmd/9a/a.y
++++ b/src/cmd/9a/a.y
+@@ -826,24 +826,28 @@ mask:
+ textsize:
+ 	LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = $1;
+ 		$$.u.argsize = ArgsSizeUnknown;
+ 	}
+ |	'-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = -$2;
+ 		$$.u.argsize = ArgsSizeUnknown;
+ 	}
+ |	LCONST '-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = $1;
+ 		$$.u.argsize = $3;
+ 	}
+ |	'-' LCONST '-' LCONST
+ 	{
++		$$ = nullgen;
+ 		$$.type = TYPE_TEXTSIZE;
+ 		$$.offset = -$2;
+ 		$$.u.argsize = $4;
+@@ -853,7 +857,7 @@ ximm:
+ 	'$' addr
+ 	{
+ 		$$ = $2;
+-		$$.type = TYPE_CONST;
++		$$.type = TYPE_ADDR;
+ 	}
+ |	'$' LSCONST
+ 	{
+diff --git a/src/cmd/9a/y.tab.c b/src/cmd/9a/y.tab.c
+index f45afbe650..178dfe1bca 100644
+--- a/src/cmd/9a/y.tab.c
++++ b/src/cmd/9a/y.tab.c
+@@ -651,11 +651,11 @@ static const yytype_uint16 yyrline[] =
+      567,   571,   578,   582,   589,   598,   609,   616,   621,   633,
+      638,   651,   659,   667,   678,   684,   690,   701,   709,   710,
+      713,   721,   729,   737,   745,   751,   759,   762,   770,   776,
+-     784,   790,   798,   806,   827,   833,   839,   845,   853,   858,
+-     866,   872,   879,   887,   888,   896,   903,   913,   914,   923,
+-     931,   939,   948,   949,   952,   955,   959,   965,   966,   967,
+-     970,   971,   975,   979,   983,   987,   993,   994,   998,  1002,
+-    1006,  1010,  1014,  1018,  1022,  1026,  1030
++     784,   790,   798,   806,   827,   834,   841,   848,   857,   862,
++     870,   876,   883,   891,   892,   900,   907,   917,   918,   927,
++     935,   943,   952,   953,   956,   959,   963,   969,   970,   971,
++     974,   975,   979,   983,   987,   991,   997,   998,  1002,  1006,
++    1010,  1014,  1018,  1022,  1026,  1030,  1034
+ };
+ #endif
+ 
+@@ -2970,6 +2970,7 @@ yyreduce:
+   case 144:
+ #line 828 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = (yyvsp[(1) - (1)].lval);
+ 		(yyval.addr).u.argsize = ArgsSizeUnknown;
+@@ -2977,8 +2978,9 @@ yyreduce:
+     break;
+ 
+   case 145:
+-#line 834 "a.y"
++#line 835 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = -(yyvsp[(2) - (2)].lval);
+ 		(yyval.addr).u.argsize = ArgsSizeUnknown;
+@@ -2986,8 +2988,9 @@ yyreduce:
+     break;
+ 
+   case 146:
+-#line 840 "a.y"
++#line 842 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = (yyvsp[(1) - (3)].lval);
+ 		(yyval.addr).u.argsize = (yyvsp[(3) - (3)].lval);
+@@ -2995,8 +2998,9 @@ yyreduce:
+     break;
+ 
+   case 147:
+-#line 846 "a.y"
++#line 849 "a.y"
+     {
++		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_TEXTSIZE;
+ 		(yyval.addr).offset = -(yyvsp[(2) - (4)].lval);
+ 		(yyval.addr).u.argsize = (yyvsp[(4) - (4)].lval);
+@@ -3004,15 +3008,15 @@ yyreduce:
+     break;
+ 
+   case 148:
+-#line 854 "a.y"
++#line 858 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(2) - (2)].addr);
+-		(yyval.addr).type = TYPE_CONST;
++		(yyval.addr).type = TYPE_ADDR;
+ 	}
+     break;
+ 
+   case 149:
+-#line 859 "a.y"
++#line 863 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_SCONST;
+@@ -3021,7 +3025,7 @@ yyreduce:
+     break;
+ 
+   case 150:
+-#line 867 "a.y"
++#line 871 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_FCONST;
+@@ -3030,7 +3034,7 @@ yyreduce:
+     break;
+ 
+   case 151:
+-#line 873 "a.y"
++#line 877 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_FCONST;
+@@ -3039,7 +3043,7 @@ yyreduce:
+     break;
+ 
+   case 152:
+-#line 880 "a.y"
++#line 884 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_CONST;
+@@ -3048,7 +3052,7 @@ yyreduce:
+     break;
+ 
+   case 154:
+-#line 889 "a.y"
++#line 893 "a.y"
+     {
+ 		if((yyval.lval) < 0 || (yyval.lval) >= NREG)
+ 			print("register value out of range\n");
+@@ -3057,7 +3061,7 @@ yyreduce:
+     break;
+ 
+   case 155:
+-#line 897 "a.y"
++#line 901 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -3067,7 +3071,7 @@ yyreduce:
+     break;
+ 
+   case 156:
+-#line 904 "a.y"
++#line 908 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -3078,7 +3082,7 @@ yyreduce:
+     break;
+ 
+   case 158:
+-#line 915 "a.y"
++#line 919 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -3088,7 +3092,7 @@ yyreduce:
+     break;
+ 
+   case 159:
+-#line 924 "a.y"
++#line 928 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -3099,7 +3103,7 @@ yyreduce:
+     break;
+ 
+   case 160:
+-#line 932 "a.y"
++#line 936 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -3110,7 +3114,7 @@ yyreduce:
+     break;
+ 
+   case 161:
+-#line 940 "a.y"
++#line 944 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+@@ -3121,126 +3125,126 @@ yyreduce:
+     break;
+ 
+   case 164:
+-#line 952 "a.y"
++#line 956 "a.y"
+     {
+ 		(yyval.lval) = 0;
+ 	}
+     break;
+ 
+   case 165:
+-#line 956 "a.y"
++#line 960 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 166:
+-#line 960 "a.y"
++#line 964 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 171:
+-#line 972 "a.y"
++#line 976 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (1)].sym)->value;
+ 	}
+     break;
+ 
+   case 172:
+-#line 976 "a.y"
++#line 980 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 173:
+-#line 980 "a.y"
++#line 984 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 174:
+-#line 984 "a.y"
++#line 988 "a.y"
+     {
+ 		(yyval.lval) = ~(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 175:
+-#line 988 "a.y"
++#line 992 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (3)].lval);
+ 	}
+     break;
+ 
+   case 177:
+-#line 995 "a.y"
++#line 999 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) + (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 178:
+-#line 999 "a.y"
++#line 1003 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) - (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 179:
+-#line 1003 "a.y"
++#line 1007 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) * (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 180:
+-#line 1007 "a.y"
++#line 1011 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) / (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 181:
+-#line 1011 "a.y"
++#line 1015 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) % (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 182:
+-#line 1015 "a.y"
++#line 1019 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) << (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 183:
+-#line 1019 "a.y"
++#line 1023 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) >> (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 184:
+-#line 1023 "a.y"
++#line 1027 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) & (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 185:
+-#line 1027 "a.y"
++#line 1031 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) ^ (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 186:
+-#line 1031 "a.y"
++#line 1035 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) | (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -3248,7 +3252,7 @@ yyreduce:
+ 
+ 
+ /* Line 1267 of yacc.c.  */
+-#line 3252 "y.tab.c"
++#line 3256 "y.tab.c"
+       default: break;
+     }
+   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
+diff --git a/src/cmd/9g/cgen.c b/src/cmd/9g/cgen.c
+index 2d76133543..706658de0e 100644
+--- a/src/cmd/9g/cgen.c
++++ b/src/cmd/9g/cgen.c
+@@ -749,7 +749,7 @@ agenr(Node *n, Node *a, Node *res)
+ 			regalloc(&n3, types[tptr], res);
+ 			p1 = gins(AMOVD, N, &n3);
+ 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
+-			p1->from.type = TYPE_CONST;
++			p1->from.type = TYPE_ADDR;
+ 		} else if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 			n1 = n3;
+ 			n1.op = OINDREG;
+@@ -1483,7 +1483,7 @@ sgen(Node *n, Node *ns, int64 w)
+ 		if(c >= 4) {
+ 			regalloc(&nend, types[tptr], N);
+ 			p = gins(AMOVD, &src, &nend);
+-			p->from.type = TYPE_CONST;
++			p->from.type = TYPE_ADDR;
+ 			p->from.offset = w;
+ 		}
+ 	}
+diff --git a/src/cmd/9g/ggen.c b/src/cmd/9g/ggen.c
+index f1bfb99b9a..3865051018 100644
+--- a/src/cmd/9g/ggen.c
++++ b/src/cmd/9g/ggen.c
+@@ -338,7 +338,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	} else {
+ 		// go/defer. generate go func value.
+ 		p = gins(AMOVD, &nodo, &nodr);	// REG = &(32+offset(REG)) -- i.tab->fun[f]
+-		p->from.type = TYPE_CONST;
++		p->from.type = TYPE_ADDR;
+ 	}
+ 
+ 	nodr.type = n->left->type;
+@@ -482,7 +482,7 @@ cgen_ret(Node *n)
+ 	p = gins(ARET, N, N);
+ 	if(n != N && n->op == ORETJMP) {
+ 		p->to.name = NAME_EXTERN;
+-		p->to.type = TYPE_CONST;
++		p->to.type = TYPE_ADDR;
+ 		p->to.sym = linksym(n->left->sym);
+ 	}
+ }
+@@ -923,7 +923,7 @@ clearfat(Node *nl)
+ 
+ 		regalloc(&end, types[tptr], N);
+ 		p = gins(AMOVD, &dst, &end);
+-		p->from.type = TYPE_CONST;
++		p->from.type = TYPE_ADDR;
+ 		p->from.offset = q*8;
+ 
+ 		p = gins(AMOVDU, &r0, &dst);
+diff --git a/src/cmd/9g/gobj.c b/src/cmd/9g/gobj.c
+index 50c4c435fc..35e4f458f1 100644
+--- a/src/cmd/9g/gobj.c
++++ b/src/cmd/9g/gobj.c
+@@ -144,7 +144,7 @@ gdatastring(Node *nam, Strlit *sval)
+ 	datastring(sval->s, sval->len, &p->to);
+ 	p->from3.type = TYPE_CONST;
+ 	p->from3.offset = types[tptr]->width;
+-	p->to.type = TYPE_CONST;
++	p->to.type = TYPE_ADDR;
+ 	p->to.etype = simtype[tptr];
+ 
+ 	nodconst(&nod1, types[TINT], sval->len);
+@@ -193,7 +193,7 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
+ 	p->from3.type = TYPE_CONST;
+ 	p->from3.offset = widthptr;
+ 	datagostring(lit, &p->to);
+-	p->to.type = TYPE_CONST;
++	p->to.type = TYPE_ADDR;
+ 	p->to.etype = simtype[TINT];
+ 	off += widthptr;
+ 
+@@ -230,7 +230,7 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ 	p->from.offset = off;
+ 	p->from3.type = TYPE_CONST;
+ 	p->from3.offset = widthptr;
+-	p->to.type = TYPE_CONST;
++	p->to.type = TYPE_ADDR;
+ 	p->to.name = NAME_EXTERN;
+ 	p->to.sym = linksym(x);
+ 	p->to.offset = xoff;
+diff --git a/src/cmd/9g/gsubr.c b/src/cmd/9g/gsubr.c
+index e58f58c704..49f184d51e 100644
+--- a/src/cmd/9g/gsubr.c
++++ b/src/cmd/9g/gsubr.c
+@@ -253,7 +253,7 @@ isfat(Type *t)
+ void
+ afunclit(Addr *a, Node *n)
+ {
+-	if(a->type == TYPE_CONST && a->name == NAME_EXTERN) {
++	if(a->type == TYPE_ADDR && a->name == NAME_EXTERN) {
+ 		a->type = TYPE_MEM;
+ 		a->sym = linksym(n->sym);
+ 	}
+@@ -1049,7 +1049,7 @@ gins(int as, Node *f, Node *t)
+ 		break;
+ 	case AMOVD:
+ 	case AMOVDU:
+-		if(af.type == TYPE_CONST)
++		if(af.type == TYPE_CONST || af.type == TYPE_ADDR)
+ 			break;
+ 		w = 8;
+ 		break;
+@@ -1153,7 +1153,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case PFUNC:
+ 			a->name = NAME_EXTERN;
+-			a->type = TYPE_CONST;
++			a->type = TYPE_ADDR;
+ 			a->width = widthptr;
+ 			s = funcsym(s);
+ 			break;
+@@ -1277,7 +1277,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->etype = tptr;
+ 		switch(a->type) {
+ 		case TYPE_MEM:
+-			a->type = TYPE_CONST;
++			a->type = TYPE_ADDR;
+ 			break;
+ 
+ 		case TYPE_REG:
+diff --git a/src/cmd/9g/peep.c b/src/cmd/9g/peep.c
+index 36ee095984..95ff0b4d58 100644
+--- a/src/cmd/9g/peep.c
++++ b/src/cmd/9g/peep.c
+@@ -185,7 +185,7 @@ loop1:
+ 			case AXOR:
+ 			case AOR:
+ 				/* irregular instructions */
+-				if(p1->from.type == TYPE_CONST)
++				if(p1->from.type == TYPE_CONST || p1->from.type == TYPE_ADDR)
+ 					continue;
+ 				break;
+ 			}
+@@ -342,7 +342,7 @@ excise(Flow *r)
+ static int
+ regzer(Addr *a)
+ {
+-	if(a->type == TYPE_CONST)
++	if(a->type == TYPE_CONST || a->type == TYPE_ADDR)
+ 		if(a->sym == nil && a->reg == 0)
+ 			if(a->offset == 0)
+ 				return 1;
+@@ -890,7 +890,7 @@ copyau(Addr *a, Addr *v)
+ 	if(copyas(a, v))
+ 		return 1;
+ 	if(v->type == TYPE_REG)
+-		if(a->type == TYPE_MEM || (a->type == TYPE_CONST && a->reg != 0))
++		if(a->type == TYPE_MEM || (a->type == TYPE_ADDR && a->reg != 0))
+ 			if(v->reg == a->reg)
+ 				return 1;
+ 	return 0;
+diff --git a/src/cmd/9g/prog.c b/src/cmd/9g/prog.c
+index 9bcf381d95..1775993a97 100644
+--- a/src/cmd/9g/prog.c
++++ b/src/cmd/9g/prog.c
+@@ -142,20 +142,20 @@ proginfo(ProgInfo *info, Prog *p)
+ 		info->flags |= /*CanRegRead |*/ RightRead;
+ 	}
+ 
+-	if((p->from.type == TYPE_MEM || p->from.type == TYPE_CONST) && p->from.reg != 0) {
++	if((p->from.type == TYPE_MEM || p->from.type == TYPE_ADDR) && p->from.reg != 0) {
+ 		info->regindex |= RtoB(p->from.reg);
+ 		if(info->flags & PostInc) {
+ 			info->regset |= RtoB(p->from.reg);
+ 		}
+ 	}
+-	if((p->to.type == TYPE_MEM || p->to.type == TYPE_CONST) && p->to.reg != 0) {
++	if((p->to.type == TYPE_MEM || p->to.type == TYPE_ADDR) && p->to.reg != 0) {
+ 		info->regindex |= RtoB(p->to.reg);
+ 		if(info->flags & PostInc) {
+ 			info->regset |= RtoB(p->to.reg);
+ 		}
+ 	}
+ 
+-	if(p->from.type == TYPE_CONST && p->from.sym != nil && (info->flags & LeftRead)) {
++	if(p->from.type == TYPE_ADDR && p->from.sym != nil && (info->flags & LeftRead)) {
+ 		info->flags &= ~LeftRead;
+ 		info->flags |= LeftAddr;
+ 	}
+diff --git a/src/cmd/9g/reg.c b/src/cmd/9g/reg.c
+index bb522d5485..a7ee07e547 100644
+--- a/src/cmd/9g/reg.c
++++ b/src/cmd/9g/reg.c
+@@ -568,7 +568,9 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	a->offset = v->offset;
+ 	a->etype = v->etype;
+ 	a->type = TYPE_MEM;
+-	if(a->etype == TARRAY || a->sym == nil)
++	if(a->etype == TARRAY)
++		a->type = TYPE_ADDR;
++	else if(a->sym == nil)
+ 		a->type = TYPE_CONST;
+ 
+ 	if(v->addr)
+@@ -669,6 +671,7 @@ mkvar(Reg *r, Adr *a)
+ 	case TYPE_FCONST:
+ 	case TYPE_SCONST:
+ 	case TYPE_MEM:
++	case TYPE_ADDR:
+ 		break;
+ 
+ 	case TYPE_REG:
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 5be4a87d7d..8d597750b7 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -588,7 +588,7 @@ asmoutnacl(Link *ctxt, int32 origPC, Prog *p, Optab *o, uint32 *out)
+ 				// make p into MOVW $X(R), R11
+ 				p->as = AMOVW;
+ 				p->from = *a;
+-				p->from.type = TYPE_CONST;
++				p->from.type = TYPE_ADDR;
+ 				p->to = zprog.to;
+ 				p->to.type = TYPE_REG;
+ 				p->to.reg = REG_R11;
+@@ -1125,6 +1125,7 @@ aclass(Link *ctxt, Addr *a)
+ 		return C_TEXTSIZE;
+ 
+ 	case TYPE_CONST:
++	case TYPE_ADDR:
+ 		switch(a->name) {
+ 
+ 		case TYPE_NONE:
+diff --git a/src/liblink/asm9.c b/src/liblink/asm9.c
+index 84aa14e7f5..742d204b5b 100644
+--- a/src/liblink/asm9.c
++++ b/src/liblink/asm9.c
+@@ -673,6 +673,7 @@ aclass(Link *ctxt, Addr *a)
+ 		return C_TEXTSIZE;
+ 
+ 	case TYPE_CONST:
++	case TYPE_ADDR:
+ 		switch(a->name) {
+ 		case TYPE_NONE:
+ 			ctxt->instoffset = a->offset;
+diff --git a/src/liblink/list5.c b/src/liblink/list5.c
+index b8451041ae..3d3e8e7d12 100644
+--- a/src/liblink/list5.c
++++ b/src/liblink/list5.c
+@@ -157,6 +157,7 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case TYPE_CONST:
++	case TYPE_ADDR:
+ 		if(a->reg != 0)
+ 			sprint(str, "$%M(%R)", a, a->reg);
+ 		else
+@@ -227,7 +228,6 @@ RAconv(Fmt *fp)
+ 	sprint(str, "GOK-reglist");
+ 	switch(a->type) {
+ 	case TYPE_CONST:
+-	case TYPE_TEXTSIZE:
+ 		if(a->reg != 0)
+ 			break;
+ 		if(a->sym != nil)
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index 1cd0cdb353..a45e73e61e 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -161,6 +161,7 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case TYPE_CONST:
++	case TYPE_ADDR:
+ 		if(a->reg != 0)
+ 			sprint(str, "$%M(%R)", a, a->reg);
+ 		else
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 805b2b921d..805d7a59c2 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -151,9 +151,9 @@ progedit(Link *ctxt, Prog *p)
+ 		if(ctxt->tlsg == nil)
+ 			ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
+ 
+-		if(p->from.type == TYPE_CONST && p->from.name == NAME_EXTERN && p->from.sym == ctxt->tlsg)
++		if(p->from.type == TYPE_ADDR && p->from.name == NAME_EXTERN && p->from.sym == ctxt->tlsg)
+ 			p->from.type = TYPE_MEM;
+-		if(p->to.type == TYPE_CONST && p->to.name == NAME_EXTERN && p->to.sym == ctxt->tlsg)
++		if(p->to.type == TYPE_ADDR && p->to.name == NAME_EXTERN && p->to.sym == ctxt->tlsg)
+ 			p->to.type = TYPE_MEM;
+ 	}
+ }
+@@ -227,7 +227,7 @@ preprocess(Link *ctxt, LSym *cursym)
+ 			// MOVW $4(R13), R1
+ 			p = appendp(ctxt, p);
+ 			p->as = AMOVW;
+-			p->from.type = TYPE_CONST;
++			p->from.type = TYPE_ADDR;
+ 			p->from.reg = REG_R13;
+ 			p->from.offset = 4;
+ 			p->to.type = TYPE_REG;
+@@ -236,7 +236,7 @@ preprocess(Link *ctxt, LSym *cursym)
+ 			// MOVW $n(R13), R2
+ 			p = appendp(ctxt, p);
+ 			p->as = AMOVW;
+-			p->from.type = TYPE_CONST;
++			p->from.type = TYPE_ADDR;
+ 			p->from.reg = REG_R13;
+ 			p->from.offset = 4 + autoffset;
+ 			p->to.type = TYPE_REG;
+@@ -631,7 +631,7 @@ preprocess(Link *ctxt, LSym *cursym)
+ 				p->spadj = -p->to.offset;
+ 			if((p->scond & C_PBIT) && p->from.type == TYPE_MEM && p->from.reg == REGSP && p->to.reg != REGPC)
+ 				p->spadj = -p->from.offset;
+-			if(p->from.type == TYPE_CONST && p->from.reg == REGSP && p->to.type == TYPE_REG && p->to.reg == REGSP)
++			if(p->from.type == TYPE_ADDR && p->from.reg == REGSP && p->to.type == TYPE_REG && p->to.reg == REGSP)
+ 				p->spadj = -p->from.offset;
+ 			break;
+ 		}
+@@ -747,7 +747,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ 		//	CMP stackguard, R2
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVW;
+-		p->from.type = TYPE_CONST;
++		p->from.type = TYPE_ADDR;
+ 		p->from.reg = REGSP;
+ 		p->from.offset = -framesize;
+ 		p->to.type = TYPE_REG;
+@@ -777,7 +777,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVW;
+-		p->from.type = TYPE_CONST;
++		p->from.type = TYPE_ADDR;
+ 		p->from.reg = REGSP;
+ 		p->from.offset = StackGuard;
+ 		p->to.type = TYPE_REG;
+@@ -794,7 +794,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ 		
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVW;
+-		p->from.type = TYPE_CONST;
++		p->from.type = TYPE_ADDR;
+ 		p->from.offset = framesize + (StackGuard - StackSmall);
+ 		p->to.type = TYPE_REG;
+ 		p->to.reg = REG_R3;
+diff --git a/src/liblink/pass.c b/src/liblink/pass.c
+index a8bf76f4d6..db5c4ebd13 100644
+--- a/src/liblink/pass.c
++++ b/src/liblink/pass.c
+@@ -67,6 +67,83 @@ brloop(Link *ctxt, Prog *p)
+ 	return q;
+ }
+ 
++static void
++checkaddr(Link *ctxt, Prog *p, Addr *a)
++{
++	// Check expected encoding, especially TYPE_CONST vs TYPE_ADDR.
++	switch(a->type) {
++	case TYPE_NONE:
++		return;
++
++	case TYPE_BRANCH:
++		if(a->reg != 0 || a->index != 0 || a->scale != 0 || a->name != 0)
++			break;
++		return;
++
++	case TYPE_TEXTSIZE:
++		if(a->reg != 0 || a->index != 0 || a->scale != 0 || a->name != 0)
++			break;
++		return;
++
++	case TYPE_MEM:
++		//if(a->u.bits != 0)
++		//	break;
++		return;
++
++	case TYPE_CONST:
++		// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
++		if(a->name != 0 || a->sym != 0 || a->reg != 0) {
++			ctxt->diag("argument %D is TYPE_CONST, should be TYPE_ADDR, in %P", a, p);
++			return;
++		}
++		if(a->reg != 0 || a->scale != 0 || a->name != 0 || a->sym != nil || a->u.bits != 0)
++			break;
++		return;
++
++	case TYPE_FCONST:
++	case TYPE_SCONST:
++		if(a->reg != 0 || a->index != 0 || a->scale != 0 || a->name != 0 || a->offset != 0 || a->sym != nil)
++			break;
++		return;
++
++	case TYPE_REG:
++		// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
++		// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
++		if(a->scale != 0 || a->name != 0 || a->sym != nil)
++			break;
++		return;
++
++	case TYPE_ADDR:
++		if(a->u.bits != 0)
++			break;
++		if(a->reg == 0 && a->index == 0 && a->scale == 0 && a->name == 0 && a->sym == nil)
++			ctxt->diag("argument %D is TYPE_ADDR, should be TYPE_CONST, in %P", a, p);
++		return;
++
++	case TYPE_SHIFT:
++		if(a->index != 0 || a->scale != 0 || a->name != 0 || a->sym != nil || a->u.bits != 0)
++			break;
++		return;
++
++	case TYPE_REGREG:
++		if(a->index != 0 || a->scale != 0 || a->name != 0 || a->sym != nil || a->u.bits != 0)
++			break;
++		return;
++
++	case TYPE_REGREG2:
++		return;
++
++	case TYPE_INDIR:
++		// Expect sym and name to be set, nothing else.
++		// Technically more is allowed, but this is only used for *name(SB).
++		if(a->reg != 0 || a->index != 0 || a->scale != 0 || a->name == 0 || a->offset != 0 || a->sym == nil || a->u.bits != 0)
++			break;
++		return;
++	}
++
++	ctxt->diag("invalid encoding for argument %D in %P", a, p);
++}
++
+ void
+ linkpatch(Link *ctxt, LSym *sym)
+ {
+@@ -77,6 +154,10 @@ linkpatch(Link *ctxt, LSym *sym)
+ 	ctxt->cursym = sym;
+ 	
+ 	for(p = sym->text; p != nil; p = p->link) {
++		checkaddr(ctxt, p, &p->from);
++		checkaddr(ctxt, p, &p->from3);
++		checkaddr(ctxt, p, &p->to);
++
+ 		if(ctxt->arch->progedit)
+ 			ctxt->arch->progedit(ctxt, p);
+ 		if(p->to.type != TYPE_BRANCH)

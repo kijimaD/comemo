@@ -8,6 +8,26 @@ Date:   Sun Nov 15 11:33:20 2009 -0800
     R=r
     CC=rsc
     https://golang.org/cl/155055
-
+---
  doc/go_spec.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9abebfbe73..c533f0af76 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4190,10 +4190,10 @@ buffered channels:
+ </p>
+ 
+ <pre>
+-s := make([]int, 10, 100);        # slice with len(s) == 10, cap(s) == 100
+-s := make([]int, 10);             # slice with len(s) == cap(s) == 10
+-c := make(chan int, 10);          # channel with a buffer size of 10
+-m := make(map[string] int, 100);  # map with initial space for 100 elements
++s := make([]int, 10, 100);        // slice with len(s) == 10, cap(s) == 100
++s := make([]int, 10);             // slice with len(s) == cap(s) == 10
++c := make(chan int, 10);          // channel with a buffer size of 10
++m := make(map[string] int, 100);  // map with initial space for 100 elements
+ </pre>
+ 
+ 

@@ -13,6 +13,35 @@ Date:   Mon Aug 16 14:49:45 2021 +0000
     Reviewed-by: Ben Shi <powerman1st@163.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 17 -----------------
  1 file changed, 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 3b90b8769c..3d978e7ac8 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1865,23 +1865,6 @@ func (s *regAllocState) regalloc(f *Func) {
+ }
+ 
+ func (s *regAllocState) placeSpills() {
+-	f := s.f
+-
+-	// Precompute some useful info.
+-	phiRegs := make([]regMask, f.NumBlocks())
+-	for _, b := range s.visitOrder {
+-		var m regMask
+-		for _, v := range b.Values {
+-			if v.Op != OpPhi {
+-				break
+-			}
+-			if r, ok := f.getHome(v.ID).(*Register); ok {
+-				m |= regMask(1) << uint(r.num)
+-			}
+-		}
+-		phiRegs[b.ID] = m
+-	}
+-
+ 	mustBeFirst := func(op Op) bool {
+ 		return op.isLoweredGetClosurePtr() || op == OpPhi || op == OpArgIntReg || op == OpArgFloatReg
+ 	}

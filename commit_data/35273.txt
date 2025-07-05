@@ -23,7 +23,38 @@ Date:   Tue Jan 30 13:49:48 2018 +1100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/vet/print.go          | 5 +++++
  src/cmd/vet/testdata/print.go | 6 ++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 456fbcc044..1c015913d5 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -569,6 +569,11 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
+ 			return false
+ 		}
+ 		for _, flag := range state.flags {
++			// TODO: Disable complaint about '0' for Go 1.10. To be fixed properly in 1.11.
++			// See issues 23598 and 23605.
++			if flag == '0' {
++				continue
++			}
+ 			if !strings.ContainsRune(v.flags, rune(flag)) {
+ 				f.Badf(call.Pos(), "%s format %s has unrecognized flag %c", state.name, state.format, flag)
+ 				return false
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 55ab84fae7..6725bafadf 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -533,3 +533,9 @@ func UnexportedStringerOrError() {
+ 	fmt.Println("foo\\n")       // not an error
+ 	fmt.Println(`foo\n`)        // not an error
+ }
++
++// TODO: Disable complaint about '0' for Go 1.10. To be fixed properly in 1.11.
++// See issues 23598 and 23605.
++func DisableErrorForFlag0() {
++	fmt.Printf("%0t", true)
++}

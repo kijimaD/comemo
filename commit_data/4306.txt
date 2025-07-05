@@ -12,7 +12,7 @@ Date:   Thu Dec 3 17:22:23 2009 -0800
     
     R=r
     https://golang.org/cl/165050
-
+---
  src/pkg/malloc/malloc.go   |  2 ++
  src/pkg/runtime/iface.c    |  4 +--
  src/pkg/runtime/malloc.cgo | 45 +++++++++-------------------------
@@ -22,3 +22,381 @@ Date:   Thu Dec 3 17:22:23 2009 -0800
  src/pkg/runtime/mheap.c    |  5 ++++
  src/pkg/runtime/runtime.h  |  9 -------
  8 files changed, 40 insertions(+), 110 deletions(-)
+
+diff --git a/src/pkg/malloc/malloc.go b/src/pkg/malloc/malloc.go
+index 66708a680e..ba15f04ab7 100644
+--- a/src/pkg/malloc/malloc.go
++++ b/src/pkg/malloc/malloc.go
+@@ -17,6 +17,8 @@ type Stats struct {
+ 	Stacks		uint64;
+ 	InusePages	uint64;
+ 	NextGC		uint64;
++	Lookups		uint64;
++	Mallocs		uint64;
+ 	EnableGC	bool;
+ }
+ 
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 7ae2a6da35..a48f504c29 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -590,12 +590,12 @@ unsafe·Reflect(Eface e, Eface rettype, void *retaddr)
+ 
+ 			// but then build pointer to x so that Reflect
+ 			// always returns pointer to data.
+-			p = mallocgc(sizeof(uintptr));
++			p = mal(sizeof(uintptr));
+ 			*p = x;
+ 		} else {
+ 			// Already a pointer, but still make a copy,
+ 			// to preserve value semantics for interface data.
+-			p = mallocgc(e.type->size);
++			p = mal(e.type->size);
+ 			algarray[e.type->alg].copy(e.type->size, p, e.data);
+ 		}
+ 		retaddr = p;
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index 3b755fc4ec..e34393a85b 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -5,7 +5,6 @@
+ // See malloc.h for overview.
+ //
+ // TODO(rsc): double-check stats.
+-// TODO(rsc): solve "stack overflow during malloc" problem.
+ 
+ package malloc
+ #include "runtime.h"
+@@ -19,7 +18,7 @@ MStats mstats;
+ // Small objects are allocated from the per-thread cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
+ void*
+-malloc(uintptr size)
++mallocgc(uintptr size, uint32 refflag, int32 dogc)
+ {
+ 	int32 sizeclass;
+ 	MCache *c;
+@@ -35,6 +34,7 @@ malloc(uintptr size)
+ 	if(size == 0)
+ 		size = 1;
+ 
++	mstats.nmalloc++;
+ 	if(size <= MaxSmallSize) {
+ 		// Allocate from mcache free lists.
+ 		sizeclass = SizeToClass(size);
+@@ -63,21 +63,19 @@ malloc(uintptr size)
+ 		printf("malloc %D; mlookup failed\n", (uint64)size);
+ 		throw("malloc mlookup");
+ 	}
+-	*ref = RefNone;
++	*ref = RefNone | refflag;
+ 
+ 	m->mallocing = 0;
++
++	if(dogc && mstats.inuse_pages > mstats.next_gc)
++		gc(0);
+ 	return v;
+ }
+ 
+ void*
+-mallocgc(uintptr size)
++malloc(uintptr size)
+ {
+-	void *v;
+-
+-	v = malloc(size);
+-	if(mstats.inuse_pages > mstats.next_gc)
+-		gc(0);
+-	return v;
++	return mallocgc(size, 0, 0);
+ }
+ 
+ // Free the object whose base pointer is v.
+@@ -138,6 +136,7 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
+ 	byte *p;
+ 	MSpan *s;
+ 
++	mstats.nlookup++;
+ 	s = MHeap_LookupMaybe(&mheap, (uintptr)v>>PageShift);
+ 	if(s == nil) {
+ 		if(base)
+@@ -209,6 +208,7 @@ void*
+ SysAlloc(uintptr n)
+ {
+ 	void *p;
++
+ 	mstats.sys += n;
+ 	p = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(p < (void*)4096) {
+@@ -241,30 +241,10 @@ SysFree(void *v, uintptr n)
+ 
+ // Runtime stubs.
+ 
+-extern void *oldmal(uint32);
+-
+ void*
+ mal(uint32 n)
+ {
+-//return oldmal(n);
+-	void *v;
+-
+-	v = mallocgc(n);
+-
+-	if(0) {
+-		byte *p;
+-		uint32 i;
+-		p = v;
+-		for(i=0; i<n; i++) {
+-			if(p[i] != 0) {
+-				printf("mal %d => %p: byte %d is non-zero\n", n, v, i);
+-				throw("mal");
+-			}
+-		}
+-	}
+-
+-//printf("mal %d %p\n", n, v);  // |checkmal to check for overlapping returns.
+-	return v;
++	return mallocgc(n, 0, 1);
+ }
+ 
+ // Stack allocator uses malloc/free most of the time,
+@@ -285,7 +265,6 @@ stackalloc(uint32 n)
+ 	void *v;
+ 	uint32 *ref;
+ 
+-//return oldmal(n);
+ 	if(m->mallocing || m->gcing) {
+ 		lock(&stacks);
+ 		if(stacks.size == 0)
+@@ -308,8 +287,6 @@ stackalloc(uint32 n)
+ void
+ stackfree(void *v)
+ {
+-//return;
+-
+ 	if(m->mallocing || m->gcing) {
+ 		lock(&stacks);
+ 		FixAlloc_Free(&stacks, v);
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 5b657a4953..2e0f1143dd 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -163,6 +163,8 @@ struct MStats
+ 	uint64	stacks;
+ 	uint64	inuse_pages;	// protected by mheap.Lock
+ 	uint64	next_gc;	// protected by mheap.Lock
++	uint64	nlookup;	// unprotected (approximate)
++	uint64	nmalloc;	// unprotected (approximate)
+ 	bool	enablegc;
+ };
+ extern MStats mstats;
+@@ -271,6 +273,10 @@ struct MHeap
+ 	// span lookup
+ 	MHeapMap map;
+ 	MHeapMapCache mapcache;
++	
++	// range of addresses we might see in the heap
++	byte *min;
++	byte *max;
+ 
+ 	// central free lists for small size classes.
+ 	// the union makes sure that the MCentrals are
+@@ -292,6 +298,7 @@ void	MHeap_Free(MHeap *h, MSpan *s);
+ MSpan*	MHeap_Lookup(MHeap *h, PageID p);
+ MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
+ 
++void*	mallocgc(uintptr size, uint32 flag, int32 dogc);
+ int32	mlookup(void *v, byte **base, uintptr *size, uint32 **ref);
+ void	gc(int32 force);
+ 
+@@ -300,9 +307,9 @@ enum
+ 	RefcountOverhead = 4,	// one uint32 per object
+ 
+ 	RefFree = 0,	// must be zero
+-	RefManual,	// manual allocation - don't free
+ 	RefStack,		// stack segment - don't free and don't scan for pointers
+ 	RefNone,		// no references
+ 	RefSome,		// some references
++	RefNoPointers = 0x80000000U,	// flag - no pointers here     
+ };
+ 
+diff --git a/src/pkg/runtime/mem.c b/src/pkg/runtime/mem.c
+index 3cb59700f8..f2796b7295 100644
+--- a/src/pkg/runtime/mem.c
++++ b/src/pkg/runtime/mem.c
+@@ -13,67 +13,6 @@ enum
+ 	NHUNK		= 20<<20,
+ };
+ 
+-// Convenient wrapper around mmap.
+-static void*
+-brk(uint32 n)
+-{
+-	byte *v;
+-
+-	v = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
+-	if(v < (void *)4096) {
+-		printf("mmap: errno=%p\n", v);
+-		exit(2);
+-	}
+-	m->mem.nmmap += n;
+-	return v;
+-}
+-
+-// Allocate n bytes of memory.  Note that this gets used
+-// to allocate new stack segments, so at each call to a function
+-// you have to ask yourself "would it be okay to call mal recursively
+-// right here?"  The answer is yes unless we're in the middle of
+-// editing the malloc state in m->mem.
+-void*
+-oldmal(uint32 n)
+-{
+-	byte* v;
+-
+-	// round to keep everything 64-bit aligned
+-	n = rnd(n, 8);
+-
+-	// be careful.  calling any function might invoke
+-	// mal to allocate more stack.
+-	if(n > NHUNK) {
+-		v = brk(n);
+-	} else {
+-		// allocate a new hunk if this one is too small
+-		if(n > m->mem.nhunk) {
+-			// here we're in the middle of editing m->mem
+-			// (we're about to overwrite m->mem.hunk),
+-			// so we can't call brk - it might call mal to grow the
+-			// stack, and the recursive call would allocate a new
+-			// hunk, and then once brk returned we'd immediately
+-			// overwrite that hunk with our own.
+-			// (the net result would be a memory leak, not a crash.)
+-			// so we have to call runtime_mmap directly - it is written
+-			// in assembly and tagged not to grow the stack.
+-			m->mem.hunk =
+-				runtime_mmap(nil, NHUNK, PROT_READ|PROT_WRITE|PROT_EXEC,
+-					MAP_ANON|MAP_PRIVATE, 0, 0);
+-			if(m->mem.hunk < (void*)4096) {
+-				*(uint32*)0xf1 = 0;
+-			}
+-			m->mem.nhunk = NHUNK;
+-			m->mem.nmmap += NHUNK;
+-		}
+-		v = m->mem.hunk;
+-		m->mem.hunk += n;
+-		m->mem.nhunk -= n;
+-	}
+-	m->mem.nmal += n;
+-	return v;
+-}
+-
+ void
+ runtime·mal(uint32 n, uint8 *ret)
+ {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index b5b2b48a3e..d01429f349 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -48,9 +48,16 @@ scanblock(int32 depth, byte *b, int64 n)
+ 	vp = (void**)b;
+ 	n /= PtrSize;
+ 	for(i=0; i<n; i++) {
+-		if(mlookup(vp[i], &obj, &size, &ref)) {
++		obj = vp[i];
++		if(obj == nil || (byte*)obj < mheap.min || (byte*)obj >= mheap.max)
++			continue;
++		if(mlookup(obj, &obj, &size, &ref)) {
+ 			if(*ref == RefFree || *ref == RefStack)
+ 				continue;
++			if(*ref == (RefNone|RefNoPointers)) {
++				*ref = RefSome|RefNoPointers;
++				continue;
++			}
+ 			if(*ref == RefNone) {
+ 				if(Debug)
+ 					printf("%d found at %p: ", depth, &vp[i]);
+@@ -125,15 +132,16 @@ sweepspan(MSpan *s)
+ 		default:
+ 			throw("bad 'ref count'");
+ 		case RefFree:
+-		case RefManual:
+ 		case RefStack:
+ 			break;
+ 		case RefNone:
++		case RefNone|RefNoPointers:
+ 			if(Debug)
+ 				printf("free %D at %p\n", (uint64)s->npages<<PageShift, p);
+ 			free(p);
+ 			break;
+ 		case RefSome:
++		case RefSome|RefNoPointers:
+ //printf("gc-mem 1 %D\n", (uint64)s->npages<<PageShift);
+ 			s->gcref0 = RefNone;	// set up for next mark phase
+ 			break;
+@@ -151,15 +159,16 @@ sweepspan(MSpan *s)
+ 		default:
+ 			throw("bad 'ref count'");
+ 		case RefFree:
+-		case RefManual:
+ 		case RefStack:
+ 			break;
+ 		case RefNone:
++		case RefNone|RefNoPointers:
+ 			if(Debug)
+ 				printf("free %d at %p\n", size, p+i*size);
+ 			free(p + i*size);
+ 			break;
+ 		case RefSome:
++		case RefSome|RefNoPointers:
+ 			s->gcref[i] = RefNone;	// set up for next mark phase
+ 			break;
+ 		}
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 8f85b5e091..8661bd2a1b 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -186,6 +186,11 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 			return false;
+ 	}
+ 
++	if((byte*)v < h->min || h->min == nil)
++		h->min = v;
++	if((byte*)v+ask > h->max)
++		h->max = (byte*)v+ask;
++
+ 	// NOTE(rsc): In tcmalloc, if we've accumulated enough
+ 	// system allocations, the heap map gets entirely allocated
+ 	// in 32-bit mode.  (In 64-bit mode that's not practical.)
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 11dc489f2b..54bc9d8f2d 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -175,13 +175,6 @@ struct	G
+ 	void	(*cgofn)(void*);	// for cgo/ffi
+ 	void	*cgoarg;
+ };
+-struct	Mem
+-{
+-	uint8*	hunk;
+-	uint32	nhunk;
+-	uint64	nmmap;
+-	uint64	nmal;
+-};
+ struct	M
+ {
+ 	// The offsets of these fields are known to (hard-coded in) libmach.
+@@ -208,7 +201,6 @@ struct	M
+ 	G*	nextg;
+ 	M*	alllink;	// on allm
+ 	M*	schedlink;
+-	Mem	mem;
+ 	uint32	machport;	// Return address for Mach IPC (OS X)
+ 	MCache	*mcache;
+ 	G*	lockedg;
+@@ -375,7 +367,6 @@ uintptr	efacehash(Eface);
+ uintptr	nohash(uint32, void*);
+ uint32	noequal(uint32, void*, void*);
+ void*	malloc(uintptr size);
+-void*	mallocgc(uintptr size);
+ void	free(void *v);
+ void	exit(int32);
+ void	breakpoint(void);

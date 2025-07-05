@@ -7,7 +7,7 @@ Date:   Fri Mar 26 09:56:57 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/778041
-
+---
  src/cmd/5c/swt.c | 6 +++---
  src/cmd/6c/swt.c | 2 +-
  src/cmd/8a/l.s   | 2 +-
@@ -16,3 +16,158 @@ Date:   Fri Mar 26 09:56:57 2010 -0700
  src/cmd/cc/cc.y  | 8 ++++----
  src/cmd/cc/dcl.c | 4 ++--
  7 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 75f768ddae..cefbf53d9c 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -625,7 +625,7 @@ align(int32 i, Type *t, int op)
+ 			w = packflg;
+ 		break;
+ 
+-	case Ael1:	/* initial allign of struct element */
++	case Ael1:	/* initial align of struct element */
+ 		for(v=t; v->etype==TARRAY; v=v->link)
+ 			;
+ 		w = ewidth[v->etype];
+@@ -646,7 +646,7 @@ align(int32 i, Type *t, int op)
+ 		}
+ 		break;
+ 
+-	case Aarg1:	/* initial allign of parameter */
++	case Aarg1:	/* initial align of parameter */
+ 		w = ewidth[t->etype];
+ 		if(w <= 0 || w >= SZ_LONG) {
+ 			w = SZ_LONG;
+@@ -660,7 +660,7 @@ align(int32 i, Type *t, int op)
+ 		w = SZ_LONG;
+ 		break;
+ 
+-	case Aaut3:	/* total allign of automatic */
++	case Aaut3:	/* total align of automatic */
+ 		o = align(o, t, Ael2);
+ 		o = align(o, t, Ael1);
+ 		w = SZ_LONG;	/* because of a pun in cc/dcl.c:contig() */
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index 0c83704688..668a1fdbcb 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -559,7 +559,7 @@ align(int32 i, Type *t, int op)
+ 			w = SZ_VLONG;
+ 		break;
+ 
+-	case Aaut3:	/* total allign of automatic */
++	case Aaut3:	/* total align of automatic */
+ 		o = align(o, t, Ael1);
+ 		o = align(o, t, Ael2);
+ 		break;
+diff --git a/src/cmd/8a/l.s b/src/cmd/8a/l.s
+index 94479b8928..4e193a31a3 100644
+--- a/src/cmd/8a/l.s
++++ b/src/cmd/8a/l.s
+@@ -251,7 +251,7 @@ TEXT	mode32bit(SB),$0
+ 	 *  16 meg of physical memory
+ 	 */
+ 	LEAL	tpt-KZERO(SB),AX	/* get phys addr of temporary page table */
+-	ADDL	$(BY2PG-1),AX		/* must be page alligned */
++	ADDL	$(BY2PG-1),AX		/* must be page aligned */
+ 	ANDL	$(~(BY2PG-1)),AX	/* ... */
+ 	MOVL	$(4*1024),CX		/* pte's per page */
+ 	MOVL	$((((4*1024)-1)<<PGSHIFT)|PTEVALID|PTEKERNEL|PTEWRITE),BX
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index 534b30fef3..1c502f5ff3 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -520,7 +520,7 @@ align(int32 i, Type *t, int op)
+ 			w = packflg;
+ 		break;
+ 
+-	case Ael1:	/* initial allign of struct element */
++	case Ael1:	/* initial align of struct element */
+ 		for(v=t; v->etype==TARRAY; v=v->link)
+ 			;
+ 		w = ewidth[v->etype];
+@@ -557,7 +557,7 @@ align(int32 i, Type *t, int op)
+ 			w = SZ_LONG;
+ 		break;
+ 
+-	case Aaut3:	/* total allign of automatic */
++	case Aaut3:	/* total align of automatic */
+ 		o = align(o, t, Ael1);
+ 		o = align(o, t, Ael2);
+ 		break;
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 944b79aa63..69adcccb00 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -658,7 +658,7 @@ int	rsametype(Type*, Type*, int, int);
+ int	sametype(Type*, Type*);
+ uint32	sign(Sym*);
+ uint32	signature(Type*);
+-void	suallign(Type*);
++void	sualign(Type*);
+ void	tmerge(Type*, Sym*);
+ void	walkparam(Node*, int);
+ void	xdecl(int, Type*, Sym*);
+diff --git a/src/cmd/cc/cc.y b/src/cmd/cc/cc.y
+index 2a34ca14d7..470fdae26f 100644
+--- a/src/cmd/cc/cc.y
++++ b/src/cmd/cc/cc.y
+@@ -1034,7 +1034,7 @@ complex:
+ 		if($$->link != T)
+ 			diag(Z, "redeclare tag: %s", $2->name);
+ 		$$->link = $4;
+-		suallign($$);
++		sualign($$);
+ 	}
+ |	LSTRUCT sbody
+ 	{
+@@ -1042,7 +1042,7 @@ complex:
+ 		sprint(symb, "_%d_", taggen);
+ 		$$ = dotag(lookup(), TSTRUCT, autobn);
+ 		$$->link = $2;
+-		suallign($$);
++		sualign($$);
+ 	}
+ |	LUNION ltag
+ 	{
+@@ -1059,7 +1059,7 @@ complex:
+ 		if($$->link != T)
+ 			diag(Z, "redeclare tag: %s", $2->name);
+ 		$$->link = $4;
+-		suallign($$);
++		sualign($$);
+ 	}
+ |	LUNION sbody
+ 	{
+@@ -1067,7 +1067,7 @@ complex:
+ 		sprint(symb, "_%d_", taggen);
+ 		$$ = dotag(lookup(), TUNION, autobn);
+ 		$$->link = $2;
+-		suallign($$);
++		sualign($$);
+ 	}
+ |	LENUM ltag
+ 	{
+diff --git a/src/cmd/cc/dcl.c b/src/cmd/cc/dcl.c
+index c07c5c80d0..b4d8c4d147 100644
+--- a/src/cmd/cc/dcl.c
++++ b/src/cmd/cc/dcl.c
+@@ -549,7 +549,7 @@ newlist(Node *l, Node *r)
+ }
+ 
+ void
+-suallign(Type *t)
++sualign(Type *t)
+ {
+ 	Type *l;
+ 	int32 o, w;
+@@ -611,7 +611,7 @@ suallign(Type *t)
+ 		return;
+ 
+ 	default:
+-		diag(Z, "unknown type in suallign: %T", t);
++		diag(Z, "unknown type in sualign: %T", t);
+ 		break;
+ 	}
+ }

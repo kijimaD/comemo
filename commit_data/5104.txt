@@ -7,7 +7,95 @@ Date:   Tue Mar 23 09:43:20 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/634042
-
+---
  src/pkg/xml/xml.go      | 28 ++++++++++++++++++++++++++--
  src/pkg/xml/xml_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 52 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index ab3a34b1f4..0d4729dda4 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -55,6 +55,13 @@ type StartElement struct {
+ 	Attr []Attr
+ }
+ 
++func (e StartElement) Copy() StartElement {
++	attrs := make([]Attr, len(e.Attr))
++	copy(e.Attr, attrs)
++	e.Attr = attrs
++	return e
++}
++
+ // An EndElement represents an XML end element.
+ type EndElement struct {
+ 	Name Name
+@@ -100,6 +107,23 @@ type readByter interface {
+ 	ReadByte() (b byte, err os.Error)
+ }
+ 
++// CopyToken returns a copy of a Token.
++func CopyToken(t Token) Token {
++	switch v := t.(type) {
++	case CharData:
++		return v.Copy()
++	case Comment:
++		return v.Copy()
++	case Directive:
++		return v.Copy()
++	case ProcInst:
++		return v.Copy()
++	case StartElement:
++		return v.Copy()
++	}
++	return t
++}
++
+ // A Parser represents an XML parser reading a particular input stream.
+ // The parser assumes that its input is encoded in UTF-8.
+ type Parser struct {
+@@ -180,8 +204,8 @@ func NewParser(r io.Reader) *Parser {
+ //
+ // Slices of bytes in the returned token data refer to the
+ // parser's internal buffer and remain valid only until the next
+-// call to Token.  To acquire a copy of the bytes, call the token's
+-// Copy method.
++// call to Token.  To acquire a copy of the bytes, call CopyToken
++// or the token's Copy method.
+ //
+ // Token expands self-closing elements such as <br/>
+ // into separate start and end elements returned by successive calls.
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index 3749a3a538..37538cbe9e 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -328,3 +328,29 @@ func TestUnquotedAttrs(t *testing.T) {
+ 		t.Errorf("Unexpected attribute name: %v", attr.Name.Local)
+ 	}
+ }
++
++func TestCopyTokenCharData(t *testing.T) {
++	data := []byte("same data")
++	var tok1 Token = CharData(data)
++	tok2 := CopyToken(tok1)
++	if !reflect.DeepEqual(tok1, tok2) {
++		t.Error("CopyToken(CharData) != CharData")
++	}
++	data[1] = 'o'
++	if reflect.DeepEqual(tok1, tok2) {
++		t.Error("CopyToken(CharData) uses same buffer.")
++	}
++}
++
++func TestCopyTokenStartElement(t *testing.T) {
++	elt := StartElement{Name{"", "hello"}, []Attr{Attr{Name{"", "lang"}, "en"}}}
++	var tok1 Token = elt
++	tok2 := CopyToken(tok1)
++	if !reflect.DeepEqual(tok1, tok2) {
++		t.Error("CopyToken(StartElement) != StartElement")
++	}
++	elt.Attr[0] = Attr{Name{"", "lang"}, "de"}
++	if reflect.DeepEqual(tok1, tok2) {
++		t.Error("CopyToken(CharData) uses same buffer.")
++	}
++}

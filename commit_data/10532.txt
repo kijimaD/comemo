@@ -9,9 +9,98 @@ Date:   Tue Nov 29 10:24:19 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev, jp
     https://golang.org/cl/5440050
-
+---
  src/pkg/runtime/windows/amd64/sys.s  |  2 +-
  src/pkg/runtime/windows/syscall.goc  | 26 ++++++++++++++++++++++++++
  src/pkg/syscall/dll_windows.go       |  7 +++++++
  src/pkg/syscall/mksyscall_windows.pl |  5 +++++
  4 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/windows/amd64/sys.s b/src/pkg/runtime/windows/amd64/sys.s
+index 113db2004b..04e3685546 100644
+--- a/src/pkg/runtime/windows/amd64/sys.s
++++ b/src/pkg/runtime/windows/amd64/sys.s
+@@ -4,7 +4,7 @@
+ 
+ #include "amd64/asm.h"
+ 
+-#define maxargs 12
++#define maxargs 15
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),7,$0
+diff --git a/src/pkg/runtime/windows/syscall.goc b/src/pkg/runtime/windows/syscall.goc
+index 8997fd3a44..d97a6cafd6 100644
+--- a/src/pkg/runtime/windows/syscall.goc
++++ b/src/pkg/runtime/windows/syscall.goc
+@@ -117,3 +117,29 @@ func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4
+ 	r1 = c.r1;
+ 	r2 = c.r2;
+ }
++
++func Syscall15(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr, a13 uintptr, a14 uintptr, a15 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	WinCall c;
++
++	USED(a2);
++	USED(a3);
++	USED(a4);
++	USED(a5);
++	USED(a6);
++	USED(a7);
++	USED(a8);
++	USED(a9);
++	USED(a10);
++	USED(a11);
++	USED(a12);
++	USED(a13);
++	USED(a14);
++	USED(a15);
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall(runtime·asmstdcall, &c);
++	err = c.err;
++	r1 = c.r1;
++	r2 = c.r2;
++}
+diff --git a/src/pkg/syscall/dll_windows.go b/src/pkg/syscall/dll_windows.go
+index c6acdfce2c..88f5a75777 100644
+--- a/src/pkg/syscall/dll_windows.go
++++ b/src/pkg/syscall/dll_windows.go
+@@ -37,6 +37,7 @@ func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2 uintptr, err Errno)
+ func loadlibrary(filename *uint16) (handle, err Errno)
+ func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err Errno)
+ 
+@@ -147,6 +148,12 @@ func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, err error) {
+ 		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], 0)
+ 	case 12:
+ 		return Syscall12(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11])
++	case 13:
++		return Syscall15(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], 0, 0)
++	case 14:
++		return Syscall15(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], 0)
++	case 15:
++		return Syscall15(p.Addr(), uintptr(len(a)), a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14])
+ 	default:
+ 		panic("Call " + p.Name + " with too many arguments " + itoa(len(a)) + ".")
+ 	}
+diff --git a/src/pkg/syscall/mksyscall_windows.pl b/src/pkg/syscall/mksyscall_windows.pl
+index 7ea227e631..3b3df92bb7 100755
+--- a/src/pkg/syscall/mksyscall_windows.pl
++++ b/src/pkg/syscall/mksyscall_windows.pl
+@@ -190,6 +190,11 @@ while(<>) {
+ 		while(@args < 12) {
+ 			push @args, "0";
+ 		}
++	} elsif(@args <= 15) {
++		$asm = "${syscalldot}Syscall15";
++		while(@args < 15) {
++			push @args, "0";
++		}
+ 	} else {
+ 		print STDERR "$ARGV:$.: too many arguments to system call\n";
+ 	}

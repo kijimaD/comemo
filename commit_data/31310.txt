@@ -7,7 +7,35 @@ Date:   Thu Feb 9 14:51:29 2017 -0500
     Change-Id: Ieb0808caa24c9a5e599084183ba5ee8a6536f7d8
     Reviewed-on: https://go-review.googlesource.com/36622
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/object.go      | 4 ++++
  src/go/types/object_test.go | 1 +
  2 files changed, 5 insertions(+)
+
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 3c44348696..6d05052c71 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -164,6 +164,10 @@ func (obj *TypeName) IsAlias() bool {
+ 	case nil:
+ 		return false
+ 	case *Basic:
++		// unsafe.Pointer is not an alias.
++		if obj.pkg == Unsafe {
++			return false
++		}
+ 		// Any user-defined type name for a basic type is an alias for a
+ 		// basic type (because basic types are pre-declared in the Universe
+ 		// scope, outside any package scope), and so is any type name with
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index 16d7d5c723..b0acdd91ba 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -14,6 +14,7 @@ func TestIsAlias(t *testing.T) {
+ 	}
+ 
+ 	// predeclared types
++	check(Unsafe.Scope().Lookup("Pointer").(*TypeName), false)
+ 	for _, name := range Universe.Names() {
+ 		if obj, _ := Universe.Lookup(name).(*TypeName); obj != nil {
+ 			check(obj, name == "byte" || name == "rune")

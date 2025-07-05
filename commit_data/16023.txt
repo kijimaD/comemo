@@ -7,6 +7,27 @@ Date:   Sat Mar 30 10:52:22 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/8187045
-
+---
  src/pkg/net/textproto/reader_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/net/textproto/reader_test.go b/src/pkg/net/textproto/reader_test.go
+index 26987f6113..f27042d4e9 100644
+--- a/src/pkg/net/textproto/reader_test.go
++++ b/src/pkg/net/textproto/reader_test.go
+@@ -290,6 +290,7 @@ Non-Interned: test
+ `, "\n", "\r\n", -1)
+ 
+ func BenchmarkReadMIMEHeader(b *testing.B) {
++	b.ReportAllocs()
+ 	var buf bytes.Buffer
+ 	br := bufio.NewReader(&buf)
+ 	r := NewReader(br)
+@@ -319,6 +320,7 @@ func BenchmarkReadMIMEHeader(b *testing.B) {
+ }
+ 
+ func BenchmarkUncommon(b *testing.B) {
++	b.ReportAllocs()
+ 	var buf bytes.Buffer
+ 	br := bufio.NewReader(&buf)
+ 	r := NewReader(br)

@@ -10,8 +10,239 @@ Date:   Mon Feb 9 21:05:14 2009 -0800
     R=r
     OCL=24728
     CL=24728
-
+---
  usr/gri/pretty/gds.go     | 132 ++++++++++++++++++++++++++++++++++++----------
  usr/gri/pretty/printer.go |   2 +-
  usr/gri/pretty/utils.go   |  28 ++++++++++
  3 files changed, 134 insertions(+), 28 deletions(-)
+
+diff --git a/usr/gri/pretty/gds.go b/usr/gri/pretty/gds.go
+index cdf2c7d1ab..d5637cc9df 100644
+--- a/usr/gri/pretty/gds.go
++++ b/usr/gri/pretty/gds.go
+@@ -14,6 +14,8 @@ import (
+ 	"io";
+ 	"net";
+ 	"os";
++	"sort";
++	"log";
+ 
+ 	Utils "utils";
+ 	Platform "platform";
+@@ -22,41 +24,86 @@ import (
+ )
+ 
+ 
+-var urlPrefix = "/gds"  // 6g BUG should be const
+-
+-
+ var (
+ 	verbose = flag.Bool("v", false, "verbose mode");
+ 	port = flag.String("port", "6060", "server port");
+-	//root = flag.String("root", Platform.GOROOT, "go root directory");
+-	root = &Platform.GOROOT;  // TODO cannot change root w/ passing it to printer
++	root = flag.String("root", Platform.GOROOT, "go root directory");
+ )
+ 
+ 
+-// TODO should factor this out - also used by the parser
+-func getFilename(url string) string {
+-	// strip URL prefix
+-	if url[0 : len(urlPrefix)] != urlPrefix {
+-		panic("server error - illegal URL prefix");
++// Support for directory sorting.
++type DirArray []os.Dir
++func (p DirArray) Len() int            { return len(p); }
++func (p DirArray) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
++func (p DirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++
++
++func isGoFile(dir *os.Dir) bool {
++	ext := ".go";  // TODO 6g bug - should be const
++	return dir.IsRegular() && Utils.Contains(dir.Name, ext, len(dir.Name) - len(ext));
++}
++
++
++func printLink(c *http.Conn, path, name string) {
++	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br>\n", path + name, name);
++}
++
++
++func serveDir(c *http.Conn, dirname string) {
++	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
++	if err1 != nil {
++		c.WriteHeader(http.StatusNotFound);
++		fmt.Fprintf(c, "Error: %v (%s)\n", err1, dirname);
++		return;
++	}
++
++	list, err2 := os.Readdir(fd, -1);
++	if err2 != nil {
++		c.WriteHeader(http.StatusNotFound);
++		fmt.Fprintf(c, "Error: %v (%s)\n", err2, dirname);
++		return;
+ 	}
+-	url = url[len(urlPrefix) : len(url)];
+ 	
+-	// sanitize source file name
+-	return *root + Utils.TrimExt(url, ".go") + ".go";
+-}
++	sort.Sort(DirArray(list));
+ 
++	c.SetHeader("content-type", "text/html; charset=utf-8");
++	path := dirname + "/";
++	fmt.Fprintf(c, "<b>%s</b>\n", path);
+ 
+-func docServer(c *http.Conn, req *http.Request) {
+-	if *verbose {
+-		fmt.Printf("URL path = %s\n", req.Url.Path);
++	// Print contents in 3 sections: directories, go files, everything else
++	
++	// 1) directories
++	fmt.Fprintln(c, "<p>");
++	for i, entry := range list {
++		if entry.IsDirectory() {
++			printLink(c, path, entry.Name);
++		}
++	}
++
++	// 2) .go files
++	fmt.Fprintln(c, "<p>");
++	for i, entry := range list {
++		if isGoFile(&entry) {
++			printLink(c, path, entry.Name);
++		}
++	}
++
++	// 3) everything else
++	fmt.Fprintln(c, "<p>");
++	for i, entry := range list {
++		if !entry.IsDirectory() && !isGoFile(&entry) {
++			fmt.Fprintf(c, "<font color=grey>%s</font><br>\n", entry.Name);
++		}
+ 	}
++}
++
+ 
+-	filename := getFilename(req.Url.Path);
++func serveFile(c *http.Conn, filename string) {
+ 	var flags Compilation.Flags;
+-	prog, nerrors := Compilation.Compile(filename, &flags);
++	prog, nerrors := Compilation.Compile(*root + filename, &flags);
+ 	if nerrors > 0 {
+ 		c.WriteHeader(http.StatusNotFound);
+-		fmt.Fprintf(c, "compilation errors: %s\n", filename);
++		fmt.Fprintf(c, "Error: File has compilation errors (%s)\n", filename);
+ 		return;
+ 	}
+ 	
+@@ -65,19 +112,50 @@ func docServer(c *http.Conn, req *http.Request) {
+ }
+ 
+ 
++func serve(c *http.Conn, req *http.Request) {
++	if *verbose {
++		log.Stdoutf("URL = %s\n", req.RawUrl);
++	}
++
++	path := Utils.SanitizePath(req.Url.Path);
++	dir, err := os.Stat(*root + path);
++	if err != nil {
++		c.WriteHeader(http.StatusNotFound);
++		fmt.Fprintf(c, "Error: %v (%s)\n", err, path);
++		return;
++	}
++
++	switch {
++	case dir.IsDirectory():
++		serveDir(c, path);
++	case isGoFile(dir):
++		serveFile(c, path);
++	default:
++		c.WriteHeader(http.StatusNotFound);
++		fmt.Fprintf(c, "Error: Not a directory or .go file (%s)\n", path);
++	}
++}
++
++
+ func main() {
+ 	flag.Parse();
+ 
++	*root = Utils.SanitizePath(*root);
++	dir, err1 := os.Stat(*root);
++	if err1 != nil || !dir.IsDirectory() {
++		log.Exitf("root not found or not a directory: ", *root);
++	}
++
+ 	if *verbose {
+-		fmt.Printf("Go Documentation Server\n");
+-		fmt.Printf("port = %s\n", *port);
+-		fmt.Printf("root = %s\n", *root);
++		log.Stdoutf("Go Documentation Server\n");
++		log.Stdoutf("port = %s\n", *port);
++		log.Stdoutf("root = %s\n", *root);
+ 	}
+ 
+-	http.Handle(urlPrefix + "/", http.HandlerFunc(docServer));
+-	err := http.ListenAndServe(":" + *port, nil);
+-	if err != nil {
+-		panic("ListenAndServe: ", err.String())
++	http.Handle("/", http.HandlerFunc(serve));
++	err2 := http.ListenAndServe(":" + *port, nil);
++	if err2 != nil {
++		log.Exitf("ListenAndServe: ", err2.String())
+ 	}
+ }
+ 
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index a985e6abc1..d29bfd1ee6 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -439,7 +439,7 @@ func (P *Printer) HtmlPackageName(pos int, name string) {
+ 	if P.html {
+ 		sname := name[1 : len(name)-1];  // strip quotes  TODO do this elsewhere eventually
+ 		// TODO CAPITAL HACK BELOW FIX THIS
+-		P.TaggedString(pos, `"<a href="http://localhost:6060/gds/src/lib/` + sname + `.go">`, sname, `</a>"`);
++		P.TaggedString(pos, `"<a href="/src/lib/` + sname + `.go">`, sname, `</a>"`);
+ 	} else {
+ 		P.String(pos, name);
+ 	}
+diff --git a/usr/gri/pretty/utils.go b/usr/gri/pretty/utils.go
+index 57a8d323a0..1b925b4833 100644
+--- a/usr/gri/pretty/utils.go
++++ b/usr/gri/pretty/utils.go
+@@ -18,6 +18,34 @@ func BaseName(s string) string {
+ }
+ 
+ 
++func cleanPath(s string) string {
++	for i := 0; i < len(s); i++ {
++		if s[i] == '/' {
++			i++;
++			j := i;
++			for j < len(s) && s[j] == '/' {
++				j++;
++			}
++			if j > i {  // more then one '/'
++				return s[0 : i] + cleanPath(s[j : len(s)]);
++			}
++		}
++	}
++	return s;
++}
++
++
++// Reduce sequences of multiple '/'s into a single '/' and
++// strip any trailing '/' (may result in the empty string).
++func SanitizePath(s string) string {
++	s = cleanPath(s);
++	if s[len(s)-1] == '/' {  // strip trailing '/'
++		s = s[0 : len(s)-1];
++	}
++	return s;
++}
++
++
+ func Contains(s, sub string, pos int) bool {
+ 	end := pos + len(sub);
+ 	return pos >= 0 && end <= len(s) && s[pos : end] == sub;

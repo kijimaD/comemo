@@ -12,6 +12,39 @@ Date:   Mon Mar 23 13:27:24 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8838
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/proc1.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 65f83e2caa..e3565a6d33 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2874,6 +2874,10 @@ var pdesc [_MaxGomaxprocs]struct {
+ 	syscallwhen int64
+ }
+ 
++// forcePreemptNS is the time slice given to a G before it is
++// preempted.
++const forcePreemptNS = 10 * 1000 * 1000 // 10ms
++
+ func retake(now int64) uint32 {
+ 	n := 0
+ 	for i := int32(0); i < gomaxprocs; i++ {
+@@ -2913,14 +2917,14 @@ func retake(now int64) uint32 {
+ 			}
+ 			incidlelocked(1)
+ 		} else if s == _Prunning {
+-			// Preempt G if it's running for more than 10ms.
++			// Preempt G if it's running for too long.
+ 			t := int64(_p_.schedtick)
+ 			if int64(pd.schedtick) != t {
+ 				pd.schedtick = uint32(t)
+ 				pd.schedwhen = now
+ 				continue
+ 			}
+-			if pd.schedwhen+10*1000*1000 > now {
++			if pd.schedwhen+forcePreemptNS > now {
+ 				continue
+ 			}
+ 			preemptone(_p_)

@@ -13,7 +13,7 @@ Date:   Wed Feb 8 10:33:54 2012 -0500
     R=golang-dev, r, dvyukov
     CC=golang-dev
     https://golang.org/cl/5639059
-
+---
  src/cmd/dist/build.c            |   6 +++
  src/cmd/prof/pprof              | 103 ++++++++++++++++++++++++++++++----------
  src/pkg/net/http/pprof/pprof.go |  16 ++++++-
@@ -24,3 +24,448 @@ Date:   Wed Feb 8 10:33:54 2012 -0500
  src/pkg/runtime/proc.c          |  16 ++++---
  src/pkg/runtime/runtime.h       |   1 +
  9 files changed, 198 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 951f1fd694..9aa1b0cce9 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -684,6 +684,12 @@ install(char *dir)
+ 		copy(bpathf(&b, "%s/signals_GOOS.h", workdir),
+ 			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos));
+ 	}
++	
++	// For cmd/prof, copy pprof into the tool directory.
++	if(streq(dir, "cmd/prof")) {
++		copy(bpathf(&b, "%s/bin/tool/pprof", goroot),
++			bpathf(&b, "%s/src/cmd/prof/pprof", goroot));
++	}
+ 
+ 	// Generate any missing files; regenerate existing ones.
+ 	for(i=0; i<files.len; i++) {
+diff --git a/src/cmd/prof/pprof b/src/cmd/prof/pprof
+index 49052ac064..777a45cb7c 100755
+--- a/src/cmd/prof/pprof
++++ b/src/cmd/prof/pprof
+@@ -103,6 +103,7 @@ my $CURL = "curl";
+ 
+ # These are the web pages that servers need to support for dynamic profiles
+ my $HEAP_PAGE = "/pprof/heap";
++my $THREAD_PAGE = "/pprof/thread";
+ my $PROFILE_PAGE = "/pprof/profile";   # must support cgi-param "?seconds=#"
+ my $PMUPROFILE_PAGE = "/pprof/pmuprofile(?:\\?.*)?"; # must support cgi-param
+                                                 # ?seconds=#&event=x&period=n
+@@ -149,7 +150,7 @@ pprof [options] <profile>
+ 
+    The /<service> can be $HEAP_PAGE, $PROFILE_PAGE, /pprof/pmuprofile,
+                          $GROWTH_PAGE, $CONTENTION_PAGE, /pprof/wall,
+-                         or /pprof/filteredprofile.
++                         $THREAD_PAGE, or /pprof/filteredprofile.
+    For instance:
+      pprof http://myserver.com:80$HEAP_PAGE
+    If /<service> is omitted, the service defaults to $PROFILE_PAGE (cpu profiling).
+@@ -2451,6 +2452,8 @@ sub Units {
+     }
+   } elsif ($main::profile_type eq 'contention' && !$main::opt_contentions) {
+     return "seconds";
++  } elsif ($main::profile_type eq 'thread') {
++    return "threads";
+   } else {
+     return "samples";
+   }
+@@ -2968,7 +2971,7 @@ sub IsProfileURL {
+ sub ParseProfileURL {
+   my $profile_name = shift;
+   if (defined($profile_name) &&
+-      $profile_name =~ m,^(http://|)([^/:]+):(\d+)(|\@\d+)(|/|(.*?)($PROFILE_PAGE|$PMUPROFILE_PAGE|$HEAP_PAGE|$GROWTH_PAGE|$CONTENTION_PAGE|$WALL_PAGE|$FILTEREDPROFILE_PAGE))$,o) {
++      $profile_name =~ m,^(http://|)([^/:]+):(\d+)(|\@\d+)(|/|(.*?)($PROFILE_PAGE|$PMUPROFILE_PAGE|$HEAP_PAGE|$GROWTH_PAGE|$THREAD_PAGE|$CONTENTION_PAGE|$WALL_PAGE|$FILTEREDPROFILE_PAGE))$,o) {
+     # $7 is $PROFILE_PAGE/$HEAP_PAGE/etc.  $5 is *everything* after
+     # the hostname, as long as that everything is the empty string,
+     # a slash, or something ending in $PROFILE_PAGE/$HEAP_PAGE/etc.
+@@ -3065,30 +3068,20 @@ sub FetchSymbols {
+ 
+   if (!defined($symbol_map)) {
+     $symbol_map = {};
+-    my @toask = @pcs;
+-    while (@toask > 0) {
+-      my $n = @toask;
+-      # NOTE(rsc): Limiting the number of PCs requested per round
+-      # used to be necessary, but I think it was a bug in
+-      # debug/pprof/symbol's implementation.  Leaving here
+-      # in case I am wrong.
+-      # 	if ($n > 49) { $n = 49; }
+-      my @thisround = @toask[0..$n];
+-      @toask = @toask[($n+1)..(@toask-1)];
+-      my $post_data = join("+", sort((map {"0x" . "$_"} @thisround)));
+-      open(POSTFILE, ">$main::tmpfile_sym");
+-      print POSTFILE $post_data;
+-      close(POSTFILE);
+-
+-      my $url = SymbolPageURL();
+-      $url = ResolveRedirectionForCurl($url);
+-      my $command_line = "$CURL -sd '\@$main::tmpfile_sym' '$url'";
+-      # We use c++filt in case $SYMBOL_PAGE gives us mangled symbols.
+-      my $cppfilt = $obj_tool_map{"c++filt"};
+-      open(SYMBOL, "$command_line | $cppfilt |") or error($command_line);
+-      ReadSymbols(*SYMBOL{IO}, $symbol_map);
+-      close(SYMBOL);
+-    }
++
++    my $post_data = join("+", sort((map {"0x" . "$_"} @pcs)));
++    open(POSTFILE, ">$main::tmpfile_sym");
++    print POSTFILE $post_data;
++    close(POSTFILE);
++
++    my $url = SymbolPageURL();
++    $url = ResolveRedirectionForCurl($url);
++    my $command_line = "$CURL -sd '\@$main::tmpfile_sym' '$url'";
++    # We use c++filt in case $SYMBOL_PAGE gives us mangled symbols.
++    my $cppfilt = $obj_tool_map{"c++filt"};
++    open(SYMBOL, "$command_line | $cppfilt |") or error($command_line);
++    ReadSymbols(*SYMBOL{IO}, $symbol_map);
++    close(SYMBOL);
+   }
+ 
+   my $symbols = {};
+@@ -3462,6 +3455,9 @@ sub ReadProfile {
+       "condition variable signals as lock contentions.\n";
+     $main::profile_type = 'contention';
+     $result = ReadSynchProfile($prog, $fname);
++  } elsif ($header =~ m/^thread creation profile:/) {
++    $main::profile_type = 'thread';
++    $result = ReadThreadProfile($prog, $fname);
+   } elsif ($header =~ m/^--- *$profile_marker/) {
+     # the binary cpu profile data starts immediately after this line
+     $main::profile_type = 'cpu';
+@@ -3777,6 +3773,61 @@ sub ReadHeapProfile {
+   return $r;
+ }
+ 
++sub ReadThreadProfile {
++  my $prog = shift;
++  my $fname = shift;
++
++  my $profile = {};
++  my $pcs = {};
++  my $map = "";
++
++  while (<PROFILE>) {
++    s/\r//g;         # turn windows-looking lines into unix-looking lines
++    if (/^MAPPED_LIBRARIES:/) {
++      # Read the /proc/self/maps data
++      while (<PROFILE>) {
++        s/\r//g;         # turn windows-looking lines into unix-looking lines
++        $map .= $_;
++      }
++      last;
++    }
++
++    if (/^--- Memory map:/) {
++      # Read /proc/self/maps data as formatted by DumpAddressMap()
++      my $buildvar = "";
++      while (<PROFILE>) {
++        s/\r//g;         # turn windows-looking lines into unix-looking lines
++        # Parse "build=<dir>" specification if supplied
++        if (m/^\s*build=(.*)\n/) {
++          $buildvar = $1;
++        }
++
++        # Expand "$build" variable if available
++        $_ =~ s/\$build\b/$buildvar/g;
++
++        $map .= $_;
++      }
++      last;
++    }
++
++    # Read entry of the form:
++    #  @ a1 a2 a3 ... an
++    s/^\s*//;
++    s/\s*$//;
++    if (m/^@\s+(.*)$/) {
++      AddEntries($profile, $pcs, FixCallerAddresses($1), 1);
++    }
++  }
++
++  my $r = {};
++  $r->{version} = "thread";
++  $r->{period} = 1;
++  $r->{profile} = $profile;
++  $r->{libs} = ParseLibraries($prog, $map, $pcs);
++  $r->{pcs} = $pcs;
++  return $r;
++}
++
+ sub ReadSynchProfile {
+   my ($prog, $fname, $header) = @_;
+ 
+diff --git a/src/pkg/net/http/pprof/pprof.go b/src/pkg/net/http/pprof/pprof.go
+index 21eac4743a..5ee9f319e5 100644
+--- a/src/pkg/net/http/pprof/pprof.go
++++ b/src/pkg/net/http/pprof/pprof.go
+@@ -16,11 +16,15 @@
+ //
+ // Then use the pprof tool to look at the heap profile:
+ //
+-//	pprof http://localhost:6060/debug/pprof/heap
++//	go tool pprof http://localhost:6060/debug/pprof/heap
+ //
+ // Or to look at a 30-second CPU profile:
+ //
+-//	pprof http://localhost:6060/debug/pprof/profile
++//	go tool pprof http://localhost:6060/debug/pprof/profile
++//
++// Or to look at the thread creation profile:
++//
++//	go tool pprof http://localhost:6060/debug/pprof/thread
+ //
+ package pprof
+ 
+@@ -43,6 +47,7 @@ func init() {
+ 	http.Handle("/debug/pprof/profile", http.HandlerFunc(Profile))
+ 	http.Handle("/debug/pprof/heap", http.HandlerFunc(Heap))
+ 	http.Handle("/debug/pprof/symbol", http.HandlerFunc(Symbol))
++	http.Handle("/debug/pprof/thread", http.HandlerFunc(Thread))
+ }
+ 
+ // Cmdline responds with the running program's
+@@ -60,6 +65,13 @@ func Heap(w http.ResponseWriter, r *http.Request) {
+ 	pprof.WriteHeapProfile(w)
+ }
+ 
++// Thread responds with the pprof-formatted thread creation profile.
++// The package initialization registers it as /debug/pprof/thread.
++func Thread(w http.ResponseWriter, r *http.Request) {
++	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
++	pprof.WriteThreadProfile(w)
++}
++
+ // Profile responds with the pprof-formatted cpu profile.
+ // The package initialization registers it as /debug/pprof/profile.
+ func Profile(w http.ResponseWriter, r *http.Request) {
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 2cded8b473..5827ce134c 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -2,42 +2,4 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
+-
+-AUTOHFILES=\
+-	arch_GOARCH.h\
+-	os_GOOS.h\
+-	signals_GOOS.h\
+-	defs_GOOS_GOARCH.h\
+-	zasm_GOOS_GOARCH.h\
+-
+-all:
+-	@echo use make install, make clean
+-
+-pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
+-
+-$(pkgdir)/%.h: %.h
+-	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
+-	cp $< "$@"
+-
+-install: $(pkgdir)/runtime.h $(pkgdir)/cgocall.h
+-
+-clean: clean-local
+-
+-clean-local:
+-	rm -f $(AUTOHFILES) runtime_defs.go version*.go asm_*.h
+-
+-arch_GOARCH.h: arch_$(GOARCH).h
+-	cp $^ $@
+-
+-defs_GOOS_GOARCH.h: defs_$(GOOS)_$(GOARCH).h
+-	cp $^ $@
+-
+-os_GOOS.h: os_$(GOOS).h
+-	cp $^ $@
+-
+-signals_GOOS.h: signals_$(GOOS).h
+-	cp $^ $@
+-
+-zasm_GOOS_GOARCH.h: zasm_$(GOOS)_$(GOARCH).h
+-	cp $^ $@
++include ../../Make.dist
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index 4f09146fac..bd6dcc971a 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -95,11 +95,37 @@ func (r *MemProfileRecord) Stack() []uintptr {
+ // where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
+ // These are sites where memory was allocated, but it has all
+ // been released back to the runtime.
++//
+ // Most clients should use the runtime/pprof package or
+ // the testing package's -test.memprofile flag instead
+ // of calling MemProfile directly.
+ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)
+ 
++// A ThreadProfileRecord describes the execution stack that
++// caused a new thread to be created.
++type ThreadProfileRecord struct {
++	Stack0 [32]uintptr // stack trace for this record; ends at first 0 entry
++}
++
++// Stack returns the stack trace associated with the record,
++// a prefix of r.Stack0.
++func (r *ThreadProfileRecord) Stack() []uintptr {
++	for i, v := range r.Stack0 {
++		if v == 0 {
++			return r.Stack0[0:i]
++		}
++	}
++	return r.Stack0[0:]
++}
++
++// ThreadProfile returns n, the number of records in the current thread profile.
++// If len(p) >= n, ThreadProfile copies the profile into p and returns n, true.
++// If len(p) < n, ThreadProfile does not change p and returns n, false.
++//
++// Most clients should use the runtime/pprof package instead
++// of calling ThreadProfile directly.
++func ThreadProfile(p []ThreadProfileRecord) (n int, ok bool)
++
+ // CPUProfile returns the next chunk of binary CPU profiling stack trace data,
+ // blocking until data is available.  If profiling is turned off and all the profile
+ // data accumulated while it was on has been returned, CPUProfile returns nil.
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index b297d41389..70e991b8bb 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -230,7 +230,7 @@ runtime·MProf_Free(void *p, uintptr size)
+ // Go interface to profile data.  (Declared in extern.go)
+ // Assumes Go sizeof(int) == sizeof(int32)
+ 
+-// Must match MemProfileRecord in extern.go.
++// Must match MemProfileRecord in debug.go.
+ typedef struct Record Record;
+ struct Record {
+ 	int64 alloc_bytes, free_bytes;
+@@ -273,3 +273,28 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int32, ok bool) {
+ 	}
+ 	runtime·unlock(&proflock);
+ }
++
++// Must match ThreadProfileRecord in debug.go.
++typedef struct TRecord TRecord;
++struct TRecord {
++	uintptr stk[32];
++};
++
++func ThreadProfile(p Slice) (n int32, ok bool) {
++	TRecord *r;
++	M *first, *m;
++	
++	first = runtime·atomicloadp(&runtime·allm);
++	n = 0;
++	for(m=first; m; m=m->alllink)
++		n++;
++	ok = false;
++	if(n <= p.len) {
++		ok = true;
++		r = (TRecord*)p.array;
++		for(m=first; m; m=m->alllink) {
++			runtime·memmove(r->stk, m->createstack, sizeof r->stk);
++			r++;
++		}
++	}
++}
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index a8e78e0ea7..42f04f320a 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -110,6 +110,44 @@ func WriteHeapProfile(w io.Writer) error {
+ 	return b.Flush()
+ }
+ 
++// WriteThreadProfile writes a pprof-formatted thread creation profile to w.
++// If a write to w returns an error, WriteThreadProfile returns that error.
++// Otherwise, WriteThreadProfile returns nil.
++func WriteThreadProfile(w io.Writer) error {
++	// Find out how many records there are (ThreadProfile(nil)),
++	// allocate that many records, and get the data.
++	// There's a race—more records (threads) might be added between
++	// the two calls—so allocate a few extra records for safety
++	// and also try again if we're very unlucky.
++	// The loop should only execute one iteration in the common case.
++	var p []runtime.ThreadProfileRecord
++	n, ok := runtime.ThreadProfile(nil)
++	for {
++		// Allocate room for a slightly bigger profile,
++		// in case a few more entries have been added
++		// since the call to ThreadProfile.
++		p = make([]runtime.ThreadProfileRecord, n+10)
++		n, ok = runtime.ThreadProfile(p)
++		if ok {
++			p = p[0:n]
++			break
++		}
++		// Profile grew; try again.
++	}
++
++	b := bufio.NewWriter(w)
++	fmt.Fprintf(b, "thread creation profile: %d threads\n", n)
++	for i := range p {
++		r := &p[i]
++		fmt.Fprintf(b, "@")
++		for _, pc := range r.Stack() {
++			fmt.Fprintf(b, " %#x", pc)
++		}
++		fmt.Fprintf(b, "\n")
++	}
++	return b.Flush()
++}
++
+ var cpu struct {
+ 	sync.Mutex
+ 	profiling bool
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5bb690aaa8..e008be9677 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -324,13 +324,6 @@ runtime·idlegoroutine(void)
+ static void
+ mcommoninit(M *m)
+ {
+-	// Add to runtime·allm so garbage collector doesn't free m
+-	// when it is just in a register or thread-local storage.
+-	m->alllink = runtime·allm;
+-	// runtime·Cgocalls() iterates over allm w/o schedlock,
+-	// so we need to publish it safely.
+-	runtime·atomicstorep(&runtime·allm, m);
+-
+ 	m->id = runtime·sched.mcount++;
+ 	m->fastrand = 0x49f6428aUL + m->id + runtime·cputicks();
+ 	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
+@@ -338,6 +331,15 @@ mcommoninit(M *m)
+ 
+ 	if(m->mcache == nil)
+ 		m->mcache = runtime·allocmcache();
++
++	runtime·callers(1, m->createstack, nelem(m->createstack));
++	
++	// Add to runtime·allm so garbage collector doesn't free m
++	// when it is just in a register or thread-local storage.
++	m->alllink = runtime·allm;
++	// runtime·Cgocalls() iterates over allm w/o schedlock,
++	// so we need to publish it safely.
++	runtime·atomicstorep(&runtime·allm, m);
+ }
+ 
+ // Try to increment mcpu.  Report whether succeeded.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 692992150a..3134dcfd75 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -233,6 +233,7 @@ struct	M
+ 	FixAlloc	*stackalloc;
+ 	G*	lockedg;
+ 	G*	idleg;
++	uintptr	createstack[32];	// Stack that created this thread.
+ 	uint32	freglo[16];	// D[i] lsb and F[i]
+ 	uint32	freghi[16];	// D[i] msb and F[i+16]
+ 	uint32	fflag;		// floating point compare flags

@@ -24,7 +24,7 @@ Date:   Fri Jun 5 16:08:08 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/addr2line/addr2line_test.go              | 14 +++++++++++---
  src/cmd/dist/test.go                             |  9 ---------
  src/cmd/go/go_test.go                            | 12 +++++++++---
@@ -35,3 +35,183 @@ Date:   Fri Jun 5 16:08:08 2020 -0400
  src/cmd/link/dwarf_test.go                       |  4 ++--
  src/cmd/objdump/objdump_test.go                  |  6 +++++-
  9 files changed, 40 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index 22bf1379bb..e12f0ae814 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -74,18 +74,26 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
+ 		t.Fatalf("Stat failed: %v", err)
+ 	}
+ 	fi2, err := os.Stat(srcPath)
++	if gorootFinal := os.Getenv("GOROOT_FINAL"); gorootFinal != "" && strings.HasPrefix(srcPath, gorootFinal) {
++		if os.IsNotExist(err) || (err == nil && !os.SameFile(fi1, fi2)) {
++			// srcPath has had GOROOT_FINAL substituted for GOROOT, and it doesn't
++			// match the actual file. GOROOT probably hasn't been moved to its final
++			// location yet, so try the original location instead.
++			fi2, err = os.Stat(runtime.GOROOT() + strings.TrimPrefix(srcPath, gorootFinal))
++		}
++	}
+ 	if err != nil {
+ 		t.Fatalf("Stat failed: %v", err)
+ 	}
+ 	if !os.SameFile(fi1, fi2) {
+ 		t.Fatalf("addr2line_test.go and %s are not same file", srcPath)
+ 	}
+-	if srcLineNo != "89" {
+-		t.Fatalf("line number = %v; want 89", srcLineNo)
++	if srcLineNo != "97" {
++		t.Fatalf("line number = %v; want 97", srcLineNo)
+ 	}
+ }
+ 
+-// This is line 88. The test depends on that.
++// This is line 96. The test depends on that.
+ func TestAddr2Line(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 08ef056164..e1cd4965c3 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -178,15 +178,6 @@ func (t *tester) run() {
+ 		return
+ 	}
+ 
+-	// We must unset GOROOT_FINAL before tests, because runtime/debug requires
+-	// correct access to source code, so if we have GOROOT_FINAL in effect,
+-	// at least runtime/debug test will fail.
+-	// If GOROOT_FINAL was set before, then now all the commands will appear stale.
+-	// Nothing we can do about that other than not checking them below.
+-	// (We call checkNotStale but only with "std" not "cmd".)
+-	os.Setenv("GOROOT_FINAL_OLD", os.Getenv("GOROOT_FINAL")) // for cmd/link test
+-	os.Unsetenv("GOROOT_FINAL")
+-
+ 	for _, name := range t.runNames {
+ 		if !t.isRegisteredTestName(name) {
+ 			fatalf("unknown test %q", name)
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 4c30de4781..021930a8a8 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -124,7 +124,6 @@ func TestMain(m *testing.M) {
+ 		fmt.Printf("SKIP\n")
+ 		return
+ 	}
+-	os.Unsetenv("GOROOT_FINAL")
+ 
+ 	flag.Parse()
+ 
+@@ -180,6 +179,11 @@ func TestMain(m *testing.M) {
+ 		}
+ 		testGOROOT = goEnv("GOROOT")
+ 		os.Setenv("TESTGO_GOROOT", testGOROOT)
++		// Ensure that GOROOT is set explicitly.
++		// Otherwise, if the toolchain was built with GOROOT_FINAL set but has not
++		// yet been moved to its final location, programs that invoke runtime.GOROOT
++		// may accidentally use the wrong path.
++		os.Setenv("GOROOT", testGOROOT)
+ 
+ 		// The whole GOROOT/pkg tree was installed using the GOHOSTOS/GOHOSTARCH
+ 		// toolchain (installed in GOROOT/pkg/tool/GOHOSTOS_GOHOSTARCH).
+@@ -216,8 +220,10 @@ func TestMain(m *testing.M) {
+ 		}
+ 		testCC = strings.TrimSpace(string(out))
+ 
+-		if out, err := exec.Command(testGo, "env", "CGO_ENABLED").Output(); err != nil {
+-			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n", err)
++		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
++		cmd.Stderr = new(strings.Builder)
++		if out, err := cmd.Output(); err != nil {
++			fmt.Fprintf(os.Stderr, "running testgo failed: %v\n%s", err, cmd.Stderr)
+ 			canRun = false
+ 		} else {
+ 			canCgo, err = strconv.ParseBool(strings.TrimSpace(string(out)))
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index a49a705fa6..2e8f18a897 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -130,6 +130,7 @@ func (ts *testScript) setup() {
+ 		"GOPROXY=" + proxyURL,
+ 		"GOPRIVATE=",
+ 		"GOROOT=" + testGOROOT,
++		"GOROOT_FINAL=" + os.Getenv("GOROOT_FINAL"), // causes spurious rebuilds and breaks the "stale" built-in if not propagated
+ 		"TESTGO_GOROOT=" + testGOROOT,
+ 		"GOSUMDB=" + testSumDBVerifierKey,
+ 		"GONOPROXY=",
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index c7fa7cfef5..76d6651718 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -34,6 +34,7 @@ Scripts also have access to these other environment variables:
+ 	GOPATH=$WORK/gopath
+ 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
+ 	GOROOT=<actual GOROOT>
++	GOROOT_FINAL=<actual GOROOT_FINAL>
+ 	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
+ 	HOME=/no-home
+ 	PATH=<actual PATH>
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index cfab80743e..ad78bcf2b2 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -1,5 +1,9 @@
+ [short] skip
+ 
++# If GOROOT_FINAL is set, 'go build -trimpath' bakes that into the resulting
++# binary instead of GOROOT. Explicitly unset it here.
++env GOROOT_FINAL=
++
+ # Set up two identical directories that can be used as GOPATH.
+ env GO111MODULE=on
+ mkdir $WORK/a/src/paths $WORK/b/src/paths
+diff --git a/src/cmd/go/testdata/script/goroot_executable.txt b/src/cmd/go/testdata/script/goroot_executable.txt
+index 4e04bad69b..fdbcde06cb 100644
+--- a/src/cmd/go/testdata/script/goroot_executable.txt
++++ b/src/cmd/go/testdata/script/goroot_executable.txt
+@@ -2,6 +2,13 @@
+ 
+ mkdir $WORK/new/bin
+ 
++# In this test, we are specifically checking the logic for deriving
++# the value of GOROOT from runtime.GOROOT.
++# GOROOT_FINAL changes the default behavior of runtime.GOROOT,
++# and will thus cause the test to fail if it is set when our
++# new cmd/go is built.
++env GOROOT_FINAL=
++
+ go build -o $WORK/new/bin/go$GOEXE cmd/go &
+ go build -o $WORK/bin/check$GOEXE check.go &
+ wait
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 5926f09e4a..a9f58db230 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -33,8 +33,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 		t.Fatalf("go list: %v\n%s", err, out)
+ 	}
+ 	if string(out) != "false\n" {
+-		if os.Getenv("GOROOT_FINAL_OLD") != "" {
+-			t.Skip("cmd/link is stale, but $GOROOT_FINAL_OLD is set")
++		if strings.HasPrefix(testenv.Builder(), "darwin-") {
++			t.Skipf("cmd/link is spuriously stale on Darwin builders - see #33598")
+ 		}
+ 		t.Fatalf("cmd/link is stale - run go install cmd/link")
+ 	}
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index c974d6707b..a9dc7d1a5e 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -138,7 +138,11 @@ func testDisasm(t *testing.T, printCode bool, printGnuAsm bool, flags ...string)
+ 	args = append(args, flags...)
+ 	args = append(args, "fmthello.go")
+ 	cmd := exec.Command(testenv.GoToolPath(t), args...)
+-	cmd.Dir = "testdata" // "Bad line" bug #36683 is sensitive to being run in the source directory
++	// "Bad line" bug #36683 is sensitive to being run in the source directory.
++	cmd.Dir = "testdata"
++	// Ensure that the source file location embedded in the binary matches our
++	// actual current GOROOT, instead of GOROOT_FINAL if set.
++	cmd.Env = append(os.Environ(), "GOROOT_FINAL=")
+ 	t.Logf("Running %v", cmd.Args)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {

@@ -20,10 +20,148 @@ Date:   Mon Mar 28 10:55:44 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21232
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go        | 14 +++++++-------
  src/cmd/compile/internal/gc/type.go       | 11 +++++++++++
  src/cmd/compile/internal/ssa/rewrite.go   |  2 +-
  src/cmd/compile/internal/ssa/type.go      |  4 ++--
  src/cmd/compile/internal/ssa/type_test.go |  2 +-
  5 files changed, 22 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3eb462ecb4..11a478add1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1512,14 +1512,14 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		// We don't want pointers accidentally classified
+ 		// as not-pointers or vice-versa because of copy
+ 		// elision.
+-		if to.IsPtr() != from.IsPtr() {
++		if to.IsPtrShaped() != from.IsPtrShaped() {
+ 			return s.newValue2(ssa.OpConvert, to, x, s.mem())
+ 		}
+ 
+ 		v := s.newValue1(ssa.OpCopy, to, x) // ensure that v has the right type
+ 
+ 		// CONVNOP closure
+-		if to.Etype == TFUNC && from.IsPtr() {
++		if to.Etype == TFUNC && from.IsPtrShaped() {
+ 			return v
+ 		}
+ 
+@@ -1999,7 +1999,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		// So here we ensure that we are selecting the underlying pointer
+ 		// when we build an eface.
+ 		// TODO: get rid of this now that structs can be SSA'd?
+-		for !data.Type.IsPtr() {
++		for !data.Type.IsPtrShaped() {
+ 			switch {
+ 			case data.Type.IsArray():
+ 				data = s.newValue1I(ssa.OpArrayIndex, data.Type.ElemType(), 0, data)
+@@ -2351,7 +2351,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 
+ 	case t.IsString():
+ 		return s.constEmptyString(t)
+-	case t.IsPtr():
++	case t.IsPtrShaped():
+ 		return s.constNil(t)
+ 	case t.IsBoolean():
+ 		return s.constBool(false)
+@@ -3026,7 +3026,7 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
+ 	switch {
+ 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), left, right, s.mem())
+-	case t.IsPtr() || t.IsMap() || t.IsChan():
++	case t.IsPtrShaped():
+ 		// no scalar fields.
+ 	case t.IsString():
+ 		if skip&skipLen != 0 {
+@@ -3066,7 +3066,7 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
+ // do *left = right for all pointer parts of t.
+ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+ 	switch {
+-	case t.IsPtr() || t.IsMap() || t.IsChan():
++	case t.IsPtrShaped():
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
+ 	case t.IsString():
+ 		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)
+@@ -3098,7 +3098,7 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+ // do *left = right with a write barrier for all pointer parts of t.
+ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
+ 	switch {
+-	case t.IsPtr() || t.IsMap() || t.IsChan():
++	case t.IsPtrShaped():
+ 		s.rtcall(writebarrierptr, true, nil, left, right)
+ 	case t.IsString():
+ 		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 2240a59c16..ca8e2a030b 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -810,7 +810,18 @@ func (t *Type) IsComplex() bool {
+ 	return t.Etype == TCOMPLEX64 || t.Etype == TCOMPLEX128
+ }
+ 
++// IsPtr reports whether t is a regular Go pointer type.
++// This does not include unsafe.Pointer.
+ func (t *Type) IsPtr() bool {
++	return t.Etype == TPTR32 || t.Etype == TPTR64
++}
++
++// IsPtrShaped reports whether t is represented by a single machine pointer.
++// In addition to regular Go pointer types, this includes map, channel, and
++// function types and unsafe.Pointer. It does not include array or struct types
++// that consist of a single pointer shaped type.
++// TODO(mdempsky): Should it? See golang.org/issue/15028.
++func (t *Type) IsPtrShaped() bool {
+ 	return t.Etype == TPTR32 || t.Etype == TPTR64 || t.Etype == TUNSAFEPTR ||
+ 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 76fc335e0d..3ee6b00d05 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -84,7 +84,7 @@ func is8BitInt(t Type) bool {
+ }
+ 
+ func isPtr(t Type) bool {
+-	return t.IsPtr()
++	return t.IsPtrShaped()
+ }
+ 
+ func isSigned(t Type) bool {
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 8851e35579..9643b07556 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -17,7 +17,7 @@ type Type interface {
+ 	IsSigned() bool
+ 	IsFloat() bool
+ 	IsComplex() bool
+-	IsPtr() bool
++	IsPtrShaped() bool
+ 	IsString() bool
+ 	IsSlice() bool
+ 	IsArray() bool
+@@ -60,7 +60,7 @@ func (t *CompilerType) IsInteger() bool      { return false }
+ func (t *CompilerType) IsSigned() bool       { return false }
+ func (t *CompilerType) IsFloat() bool        { return false }
+ func (t *CompilerType) IsComplex() bool      { return false }
+-func (t *CompilerType) IsPtr() bool          { return false }
++func (t *CompilerType) IsPtrShaped() bool    { return false }
+ func (t *CompilerType) IsString() bool       { return false }
+ func (t *CompilerType) IsSlice() bool        { return false }
+ func (t *CompilerType) IsArray() bool        { return false }
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index bc55f8e8d0..cd80abf03f 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -31,7 +31,7 @@ func (t *TypeImpl) IsInteger() bool      { return t.Integer }
+ func (t *TypeImpl) IsSigned() bool       { return t.Signed }
+ func (t *TypeImpl) IsFloat() bool        { return t.Float }
+ func (t *TypeImpl) IsComplex() bool      { return t.Complex }
+-func (t *TypeImpl) IsPtr() bool          { return t.Ptr }
++func (t *TypeImpl) IsPtrShaped() bool    { return t.Ptr }
+ func (t *TypeImpl) IsString() bool       { return t.string }
+ func (t *TypeImpl) IsSlice() bool        { return t.slice }
+ func (t *TypeImpl) IsArray() bool        { return t.array }

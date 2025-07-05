@@ -10,6 +10,24 @@ Date:   Tue May 5 21:55:09 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9787
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/lfstack_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/lfstack_test.go b/src/runtime/lfstack_test.go
+index 68f221d6ef..4da4d88619 100644
+--- a/src/runtime/lfstack_test.go
++++ b/src/runtime/lfstack_test.go
+@@ -24,8 +24,12 @@ func toMyNode(node *LFNode) *MyNode {
+ 	return (*MyNode)(unsafe.Pointer(node))
+ }
+ 
++var global interface{}
++
+ func TestLFStack(t *testing.T) {
+ 	stack := new(uint64)
++	global = stack // force heap allocation
++
+ 	// Need to keep additional referenfces to nodes, the stack is not all that type-safe.
+ 	var nodes []*MyNode
+ 

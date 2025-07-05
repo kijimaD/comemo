@@ -8,6 +8,24 @@ Date:   Fri Mar 27 13:43:50 2009 -0700
     DELTA=6  (6 added, 0 deleted, 0 changed)
     OCL=26836
     CL=26841
-
+---
  src/lib/reflect/all_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index 2ce669721d..590ce8d9fd 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -161,6 +161,12 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 		value := reflect.NewValue(tmp);
+ 		assert(reflect.valueToString(value), "123.4");
+ 	}
++	{
++		var tmp = byte(123);
++		value := reflect.NewValue(tmp);
++		assert(reflect.valueToString(value), "123");
++		assert(reflect.typeToString(value.Type(), false), "uint8");
++	}
+ 	{	var tmp = "abc";
+ 		value := reflect.NewValue(tmp);
+ 		assert(reflect.valueToString(value), "abc");

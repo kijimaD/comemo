@@ -8,7 +8,40 @@ Date:   Mon Mar 3 11:26:18 2014 +1100
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/69970047
-
+---
  doc/devel/release.html | 6 ++++++
  doc/install.html       | 4 ++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index ec17b5bdd6..31fac1c5f1 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -20,6 +20,12 @@ Go 1.2 is a major release of Go.
+ Read the <a href="/doc/go1.2">Go 1.2 Release Notes</a> for more information.
+ </p>
+ 
++<h3 id="go1.2.minor">Minor revisions</h3>
++
++<p>
++go1.2.1 (released 2014/03/02) includes bug fixes to the <code>runtime</code>, <code>net</code>, and <code>database/sql</code> packages.
++See the <a href="https://code.google.com/p/go/source/list?name=release-branch.go1.2&r=7ada9e760ce34e78aee5b476c9621556d0fa5d31">change history</a> for details.
++</p>
+ 
+ <h2 id="go1.1">go1.1 (released 2013/05/13)</h2>
+ 
+diff --git a/doc/install.html b/doc/install.html
+index b02324bdd3..c44efc4452 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -81,8 +81,8 @@ tar -C /usr/local -xzf go$VERSION.$OS-$ARCH.tar.gz
+ 
+ <p>
+ Choose the archive file appropriate for your installation.
+-For instance, if you are installing Go version 1.2 for 64-bit x86 on Linux,
+-the archive you want is called <code>go1.2.linux-amd64.tar.gz</code>.
++For instance, if you are installing Go version 1.2.1 for 64-bit x86 on Linux,
++the archive you want is called <code>go1.2.1.linux-amd64.tar.gz</code>.
+ </p>
+ 
+ <p>

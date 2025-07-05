@@ -19,6 +19,52 @@ Date:   Thu Mar 28 14:51:21 2013 -0700
     R=golang-dev, r, gri
     CC=golang-dev
     https://golang.org/cl/8094046
-
+---
  src/pkg/net/http/request.go | 24 +++++++++++++++++++++++-
  1 file changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index b42cc58a49..c1f862aadd 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -478,10 +478,31 @@ func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
+ 	return line[:s1], line[s1+1 : s2], line[s2+1:], true
+ }
+ 
++// TODO(bradfitz): use a sync.Cache when available
++var textprotoReaderCache = make(chan *textproto.Reader, 4)
++
++func newTextprotoReader(br *bufio.Reader) *textproto.Reader {
++	select {
++	case r := <-textprotoReaderCache:
++		r.R = br
++		return r
++	default:
++		return textproto.NewReader(br)
++	}
++}
++
++func putTextprotoReader(r *textproto.Reader) {
++	r.R = nil
++	select {
++	case textprotoReaderCache <- r:
++	default:
++	}
++}
++
+ // ReadRequest reads and parses a request from b.
+ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 
+-	tp := textproto.NewReader(b)
++	tp := newTextprotoReader(b)
+ 	req = new(Request)
+ 
+ 	// First line: GET /index.html HTTP/1.0
+@@ -490,6 +511,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 		return nil, err
+ 	}
+ 	defer func() {
++		putTextprotoReader(tp)
+ 		if err == io.EOF {
+ 			err = io.ErrUnexpectedEOF
+ 		}

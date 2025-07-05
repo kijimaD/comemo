@@ -8,6 +8,19 @@ Date:   Thu Aug 7 09:28:49 2014 +0900
     R=r, agl, minux
     CC=golang-codereviews
     https://golang.org/cl/121340043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 3ea1ca3c52..20d2a6b7ed 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -7,6 +7,7 @@ Please keep the list sorted (as in sort.Strings of the lines).
+ 
+ spec: permit for range x (CL 104680043)
+ 
++crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
+ encoding/gob: remove unsafe (CL 102680045)
+ misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)
+ os: implement symlink support for windows (CL 86160044)

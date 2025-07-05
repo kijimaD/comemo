@@ -19,7 +19,7 @@ Date:   Tue Nov 6 17:00:04 2018 +0100
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  5 +++--
  src/cmd/compile/internal/gc/builtin/runtime.go |  5 +++--
  src/cmd/compile/internal/gc/go.go              |  6 +++---
@@ -30,3 +30,207 @@ Date:   Tue Nov 6 17:00:04 2018 +0100
  src/runtime/runtime2.go                        |  6 ------
  test/codegen/mathbits.go                       |  8 ++++----
  9 files changed, 33 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 4e9f11c8b3..04f4cbfd58 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -144,8 +144,9 @@ var runtimeDecls = [...]struct {
+ 	{"racewriterange", funcTag, 113},
+ 	{"msanread", funcTag, 113},
+ 	{"msanwrite", funcTag, 113},
+-	{"support_popcnt", varTag, 11},
+-	{"support_sse41", varTag, 11},
++	{"x86HasPOPCNT", varTag, 11},
++	{"x86HasSSE41", varTag, 11},
++	{"arm64HasATOMICS", varTag, 11},
+ }
+ 
+ func runtimeTypes() []*types.Type {
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 1eaf332e50..fc879badb2 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -195,5 +195,6 @@ func msanread(addr, size uintptr)
+ func msanwrite(addr, size uintptr)
+ 
+ // architecture variants
+-var support_popcnt bool
+-var support_sse41 bool
++var x86HasPOPCNT bool
++var x86HasSSE41 bool
++var arm64HasATOMICS bool
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 471746ed7d..cb76398629 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -305,9 +305,9 @@ var (
+ 	racereadrange,
+ 	racewrite,
+ 	racewriterange,
+-	supportPopcnt,
+-	supportSSE41,
+-	arm64SupportAtomics,
++	x86HasPOPCNT,
++	x86HasSSE41,
++	arm64HasATOMICS,
+ 	typedmemclr,
+ 	typedmemmove,
+ 	Udiv,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9da45258f5..1c64c6437d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -86,9 +86,9 @@ func initssaconfig() {
+ 	racereadrange = sysfunc("racereadrange")
+ 	racewrite = sysfunc("racewrite")
+ 	racewriterange = sysfunc("racewriterange")
+-	supportPopcnt = sysvar("support_popcnt")              // bool
+-	supportSSE41 = sysvar("support_sse41")                // bool
+-	arm64SupportAtomics = sysvar("arm64_support_atomics") // bool
++	x86HasPOPCNT = sysvar("x86HasPOPCNT")       // bool
++	x86HasSSE41 = sysvar("x86HasSSE41")         // bool
++	arm64HasATOMICS = sysvar("arm64HasATOMICS") // bool
+ 	typedmemclr = sysfunc("typedmemclr")
+ 	typedmemmove = sysfunc("typedmemmove")
+ 	Udiv = sysvar("udiv")                 // asm func with special ABI
+@@ -3068,7 +3068,7 @@ func init() {
+ 	makeXaddARM64 := func(op0 ssa.Op, op1 ssa.Op, ty types.EType) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			// Target Atomic feature is identified by dynamic detection
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), arm64SupportAtomics, s.sb)
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), arm64HasATOMICS, s.sb)
+ 			v := s.load(types.Types[TBOOL], addr)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+@@ -3208,7 +3208,7 @@ func init() {
+ 
+ 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportSSE41, s.sb)
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasSSE41, s.sb)
+ 			v := s.load(types.Types[TBOOL], addr)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+@@ -3416,7 +3416,7 @@ func init() {
+ 
+ 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), supportPopcnt, s.sb)
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasPOPCNT, s.sb)
+ 			v := s.load(types.Types[TBOOL], addr)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index bd1339b43a..c2ed0ea1d9 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -467,14 +467,14 @@ func init() {
+ 		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
+ 
+ 		// POPCNT instructions aren't guaranteed to be on the target platform (they are SSE4).
+-		// Any use must be preceded by a successful check of runtime.support_popcnt.
++		// Any use must be preceded by a successful check of runtime.x86HasPOPCNT.
+ 		{name: "POPCNTQ", argLength: 1, reg: gp11, asm: "POPCNTQ", clobberFlags: true}, // count number of set bits in arg0
+ 		{name: "POPCNTL", argLength: 1, reg: gp11, asm: "POPCNTL", clobberFlags: true}, // count number of set bits in arg0
+ 
+ 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
+ 
+ 		// ROUNDSD instruction isn't guaranteed to be on the target platform (it is SSE4.1)
+-		// Any use must be preceded by a successful check of runtime.support_sse41.
++		// Any use must be preceded by a successful check of runtime.x86HasSSE41.
+ 		{name: "ROUNDSD", argLength: 1, reg: fp11, aux: "Int8", asm: "ROUNDSD"}, // rounds arg0 depending on auxint, 1 means math.Floor, 2 Ceil, 3 Trunc
+ 
+ 		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index b65523766a..1565afb93a 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -17,3 +17,12 @@ const (
+ 
+ 	offsetARMHasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
+ )
++
++var (
++	// Set in runtime.cpuinit.
++	// TODO: deprecate these; use internal/cpu directly.
++	x86HasPOPCNT bool
++	x86HasSSE41  bool
++
++	arm64HasATOMICS bool
++)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 837fa93bfa..41ac75d3dd 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -509,10 +509,10 @@ func cpuinit() {
+ 
+ 	// Support cpu feature variables are used in code generated by the compiler
+ 	// to guard execution of instructions that can not be assumed to be always supported.
+-	support_popcnt = cpu.X86.HasPOPCNT
+-	support_sse41 = cpu.X86.HasSSE41
++	x86HasPOPCNT = cpu.X86.HasPOPCNT
++	x86HasSSE41 = cpu.X86.HasSSE41
+ 
+-	arm64_support_atomics = cpu.ARM64.HasATOMICS
++	arm64HasATOMICS = cpu.ARM64.HasATOMICS
+ }
+ 
+ // The bootstrap sequence is:
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 66dd1b19c1..290a7bd311 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -858,12 +858,6 @@ var (
+ 	isIntel              bool
+ 	lfenceBeforeRdtsc    bool
+ 
+-	// Set in runtime.cpuinit.
+-	// TODO: deprecate these; use internal/cpu directly.
+-	support_popcnt        bool
+-	support_sse41         bool
+-	arm64_support_atomics bool
+-
+ 	goarm                uint8 // set by cmd/link on arm systems
+ 	framepointer_enabled bool  // set by cmd/link
+ )
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 977cbe6eb1..85d5bdea33 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -101,7 +101,7 @@ func Len8(n uint8) int {
+ // -------------------- //
+ 
+ func OnesCount(n uint) int {
+-	// amd64:"POPCNTQ",".*support_popcnt"
++	// amd64:"POPCNTQ",".*x86HasPOPCNT"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTD"
+@@ -110,7 +110,7 @@ func OnesCount(n uint) int {
+ }
+ 
+ func OnesCount64(n uint64) int {
+-	// amd64:"POPCNTQ",".*support_popcnt"
++	// amd64:"POPCNTQ",".*x86HasPOPCNT"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTD"
+@@ -119,7 +119,7 @@ func OnesCount64(n uint64) int {
+ }
+ 
+ func OnesCount32(n uint32) int {
+-	// amd64:"POPCNTL",".*support_popcnt"
++	// amd64:"POPCNTL",".*x86HasPOPCNT"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTW"
+@@ -128,7 +128,7 @@ func OnesCount32(n uint32) int {
+ }
+ 
+ func OnesCount16(n uint16) int {
+-	// amd64:"POPCNTL",".*support_popcnt"
++	// amd64:"POPCNTL",".*x86HasPOPCNT"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// s390x:"POPCNT"
+ 	// ppc64:"POPCNTW"

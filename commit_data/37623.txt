@@ -7,6 +7,19 @@ Date:   Mon Jul 30 18:59:08 2018 -0300
     Change-Id: I93bc5de6bcb23c2639d7c2f3f5252fb6f09ca6e4
     Reviewed-on: https://go-review.googlesource.com/126797
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c24ad750f2..449cfe5121 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3176,7 +3176,6 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 		w.WriteHeader(StatusServiceUnavailable)
+ 		io.WriteString(w, h.errorBody())
+ 		tw.timedOut = true
+-		return
+ 	}
+ }
+ 

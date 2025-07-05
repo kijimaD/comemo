@@ -10,7 +10,50 @@ Date:   Fri Oct 4 13:12:50 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14401043
-
+---
  src/pkg/reflect/all_test.go | 18 ++++++++++++++++++
  src/pkg/reflect/makefunc.go |  2 +-
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 6e485c1e6b..e9a20963fb 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1452,6 +1452,24 @@ func TestMakeFunc(t *testing.T) {
+ 	}
+ }
+ 
++func TestMakeFuncInterface(t *testing.T) {
++	fn := func(i int) int { return i }
++	incr := func(in []Value) []Value {
++		return []Value{ValueOf(int(in[0].Int() + 1))}
++	}
++	fv := MakeFunc(TypeOf(fn), incr)
++	ValueOf(&fn).Elem().Set(fv)
++	if r := fn(2); r != 3 {
++		t.Errorf("Call returned %d, want 3", r)
++	}
++	if r := fv.Call([]Value{ValueOf(14)})[0].Int(); r != 15 {
++		t.Errorf("Call returned %d, want 15", r)
++	}
++	if r := fv.Interface().(func(int) int)(26); r != 27 {
++		t.Errorf("Call returned %d, want 27", r)
++	}
++}
++
+ type Point struct {
+ 	x, y int
+ }
+diff --git a/src/pkg/reflect/makefunc.go b/src/pkg/reflect/makefunc.go
+index ccdd683a0c..e1608ea6c4 100644
+--- a/src/pkg/reflect/makefunc.go
++++ b/src/pkg/reflect/makefunc.go
+@@ -22,7 +22,7 @@ type makeFuncImpl struct {
+ // that wraps the function fn. When called, that new function
+ // does the following:
+ //
+-//	- converts its arguments to a list of Values args.
++//	- converts its arguments to a slice of Values.
+ //	- runs results := fn(args).
+ //	- returns the results as a slice of Values, one per formal result.
+ //

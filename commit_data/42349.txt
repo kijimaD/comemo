@@ -10,6 +10,20 @@ Date:   Wed Dec 4 17:31:59 2019 +0900
     Change-Id: Ic980c71a9f29f522bdeef4fce70a6c2dd136d791
     Reviewed-on: https://go-review.googlesource.com/c/go/+/209777
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 59128e8a29..5f13e60f4f 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -99,7 +99,7 @@
+ // line order:
+ //
+ //     func ExamplePerm() {
+-//         for _, value := range Perm(4) {
++//         for _, value := range Perm(5) {
+ //             fmt.Println(value)
+ //         }
+ //         // Unordered output: 4

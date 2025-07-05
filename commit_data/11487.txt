@@ -7,7 +7,273 @@ Date:   Tue Jan 31 12:09:56 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5595048
-
+---
  misc/dashboard/app/build/ui.go   |  57 +++++++++--------
  misc/dashboard/app/build/ui.html | 131 ++++++++++++++++++++++++---------------
  2 files changed, 112 insertions(+), 76 deletions(-)
+
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index bc5a703455..05bccdc294 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -53,12 +53,16 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
+ 		logErr(w, r, err)
+ 		return
+ 	}
+-	builders := commitBuilders(commits)
++	builders := commitBuilders(commits, "")
+ 
+-	tipState, err := TagState(c, "tip")
+-	if err != nil {
+-		logErr(w, r, err)
+-		return
++	var tipState *TagState
++	if page == 0 {
++		// only show sub-repo state on first page
++		tipState, err = TagStateByName(c, "tip")
++		if err != nil {
++			logErr(w, r, err)
++			return
++		}
+ 	}
+ 
+ 	p := &Pagination{}
+@@ -105,10 +109,10 @@ func goCommits(c appengine.Context, page int) ([]*Commit, os.Error) {
+ 
+ // commitBuilders returns the names of the builders that provided
+ // Results for the provided commits.
+-func commitBuilders(commits []*Commit) []string {
++func commitBuilders(commits []*Commit, goHash string) []string {
+ 	builders := make(map[string]bool)
+ 	for _, commit := range commits {
+-		for _, r := range commit.Results("") {
++		for _, r := range commit.Results(goHash) {
+ 			builders[r.Builder] = true
+ 		}
+ 	}
+@@ -123,16 +127,20 @@ func keys(m map[string]bool) (s []string) {
+ 	return
+ }
+ 
+-// PackageState represents the state of a Package at a tag.
++// TagState represents the state of all Packages at a Tag.
++type TagState struct {
++	Tag      *Commit
++	Packages []*PackageState
++}
++
++// PackageState represents the state of a Package at a Tag.
+ type PackageState struct {
+-	*Package
+-	*Commit
+-	Results []*Result
+-	OK      bool
++	Package *Package
++	Commit  *Commit
+ }
+ 
+-// TagState fetches the results for all Go subrepos at the specified tag.
+-func TagState(c appengine.Context, name string) ([]*PackageState, os.Error) {
++// TagStateByName fetches the results for all Go subrepos at the specified Tag.
++func TagStateByName(c appengine.Context, name string) (*TagState, os.Error) {
+ 	tag, err := GetTag(c, name)
+ 	if err != nil {
+ 		return nil, err
+@@ -141,29 +149,26 @@ func TagState(c appengine.Context, name string) ([]*PackageState, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	var states []*PackageState
++	var st TagState
+ 	for _, pkg := range pkgs {
+-		commit, err := pkg.LastCommit(c)
++		com, err := pkg.LastCommit(c)
+ 		if err != nil {
+ 			c.Warningf("%v: no Commit found: %v", pkg, err)
+ 			continue
+ 		}
+-		results := commit.Results(tag.Hash)
+-		ok := len(results) > 0
+-		for _, r := range results {
+-			ok = ok && r.OK
+-		}
+-		states = append(states, &PackageState{
+-			pkg, commit, results, ok,
+-		})
++		st.Packages = append(st.Packages, &PackageState{pkg, com})
++	}
++	st.Tag, err = tag.Commit(c)
++	if err != nil {
++		return nil, err
+ 	}
+-	return states, nil
++	return &st, nil
+ }
+ 
+ type uiTemplateData struct {
+ 	Commits    []*Commit
+ 	Builders   []string
+-	TipState   []*PackageState
++	TipState   *TagState
+ 	Pagination *Pagination
+ }
+ 
+diff --git a/misc/dashboard/app/build/ui.html b/misc/dashboard/app/build/ui.html
+index 678c95238a..a1ae772f7a 100644
+--- a/misc/dashboard/app/build/ui.html
++++ b/misc/dashboard/app/build/ui.html
+@@ -15,7 +15,7 @@
+         background: #eee;
+       }
+       h2 {
+-        margin-top: 10px;
++        margin-top: 20px;
+       }
+       .build, .packages {
+         margin: 5px;
+@@ -103,23 +103,23 @@
+       </tr>
+     {{range $c := $.Commits}}
+       <tr class="commit">
+-      <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
+-      {{range $.Builders}}
+-      <td class="result">
+-      {{with $c.Result . ""}}
+-        {{if .OK}}
+-        <span class="ok">ok</span>
+-        {{else}}
+-        <a href="/log/{{.LogHash}}" class="fail">fail</a>
++        <td class="hash"><a href="{{repoURL .Hash ""}}">{{shortHash .Hash}}</a></td>
++        {{range $.Builders}}
++          <td class="result">
++            {{with $c.Result . ""}}
++              {{if .OK}}
++                <span class="ok">ok</span>
++              {{else}}
++                <a href="/log/{{.LogHash}}" class="fail">fail</a>
++              {{end}}
++            {{else}}
++              &nbsp;
++            {{end}}
++          </td>
+         {{end}}
+-      {{else}}
+-        &nbsp;
+-      {{end}}
+-      </td>
+-      {{end}}
+-      <td class="user" title="{{.User}}">{{shortUser .User}}</td>
+-      <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
+-      <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
++        <td class="user" title="{{.User}}">{{shortUser .User}}</td>
++        <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
++        <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
+       </tr>
+     {{end}}
+     </table>
+@@ -136,41 +136,72 @@
+     <p>No commits to display. Hm.</p>
+   {{end}}
+ 
+-  {{if $.TipState}}
+-    <h2>Other packages</h2>
++  {{with $.TipState}}
++    {{$goHash := .Tag.Hash}}
++    <h2>
++      Sub-repositories at tip
++      <small>(<a href="{{repoURL .Tag.Hash ""}}">{{shortHash .Tag.Hash}}</a>)</small>
++    </h2>
+ 
+-    <table class="packages">
+-    <tr>
+-      <th>State</th>
+-      <th>Package</th>
+-      <th>&nbsp;</th>
+-    </tr>
+-  {{range $state := $.TipState}}
+-    <tr>
+-      <td>
+-    {{if .Results}}
+-        <img src="/static/status_{{if .OK}}good{{else}}alert{{end}}.gif" />
+-    {{else}}
+-        &nbsp;
+-    {{end}}
+-      </td>
+-      <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
+-      <td>
+-    {{range .Results}}
+-        <div>
+-          {{$h := $state.Commit.Hash}}
+-          <a href="{{repoURL $h $state.Commit.PackagePath}}">{{shortHash $h}}</a>
+-          {{if .OK}}
+-            ok
+-          {{else}}
+-            <a href="/log/{{.LogHash}}" class="fail">failed</a>
+-          {{end}}
+-          on {{.Builder}}/<a href="{{repoURL .GoHash ""}}">{{shortHash .GoHash}}</a>
+-        </a></div>
++    <table class="build">
++      <colgroup class="col-package"></colgroup>
++      <colgroup class="col-hash"></colgroup>
++      {{range $.Builders | builderSpans}}
++        <colgroup class="col-result" span="{{.N}}"></colgroup>
++      {{end}}
++      <colgroup class="col-user"></colgroup>
++      <colgroup class="col-time"></colgroup>
++      <colgroup class="col-desc"></colgroup>
++      <tr>
++        <!-- extra row to make alternating colors use dark for first result -->
++      </tr>
++      <tr>
++        <th></th>
++        <th></th>
++        {{range $.Builders | builderSpans}}
++          <th colspan="{{.N}}">{{.OS}}</th>
++        {{end}}
++        <th></th>
++        <th></th>
++        <th></th>
++      </tr>
++      <tr>
++        <th></th>
++        <th></th>
++        {{range $.Builders}}
++          <th class="result arch" title="{{.}}">{{builderArchShort .}}</th>
++        {{end}}
++        <th></th>
++        <th></th>
++        <th></th>
++      </tr>
++    {{range $pkg := .Packages}}
++      <tr class="commit">
++        <td><a title="{{.Package.Path}}">{{.Package.Name}}</a></td>
++        <td class="hash">
++          {{$h := $pkg.Commit.Hash}}
++          <a href="{{repoURL $h $pkg.Commit.PackagePath}}">{{shortHash $h}}</a>
++        </td>
++        {{range $.Builders}}
++          <td class="result">
++            {{with $pkg.Commit.Result . $goHash}}
++              {{if .OK}}
++                <span class="ok">ok</span>
++              {{else}}
++                <a href="/log/{{.LogHash}}" class="fail">fail</a>
++              {{end}}
++            {{else}}
++              &nbsp;
++            {{end}}
++          </td>
++        {{end}}
++        {{with $pkg.Commit}}
++          <td class="user" title="{{.User}}">{{shortUser .User}}</td>
++          <td class="time">{{.Time.Time.Format "Mon 02 Jan 15:04"}}</td>
++          <td class="desc" title="{{.Desc}}">{{shortDesc .Desc}}</td>
++        {{end}}
++      </tr>
+     {{end}}
+-      </td>
+-    </tr>
+-  {{end}}
+     </table>
+   {{end}}
+ 

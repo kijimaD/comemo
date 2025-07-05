@@ -7,6 +7,20 @@ Date:   Fri Nov 4 17:55:21 2011 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5340044
-
+---
  src/pkg/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index f7f2f03cd7..56306b0288 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -89,7 +89,7 @@ func Count(s, sep []byte) int {
+ }
+ 
+ // Contains returns whether subslice is within b.
+-func Contains(b, subslice []string) bool {
++func Contains(b, subslice []byte) bool {
+ 	return Index(b, subslice) != -1
+ }
+ 

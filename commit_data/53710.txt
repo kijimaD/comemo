@@ -13,7 +13,38 @@ Date:   Sun Jun 5 13:22:29 2022 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 3 +++
  test/prove.go                         | 5 +++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index cebadcb42c..20c967d098 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -842,6 +842,9 @@ func prove(f *Func) {
+ 			case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+ 				ft.update(b, v, v.Args[1], unsigned, lt|eq)
+ 				ft.update(b, v, v.Args[0], unsigned, lt|eq)
++			case OpOr64, OpOr32, OpOr16, OpOr8:
++				ft.update(b, v, v.Args[1], unsigned, gt|eq)
++				ft.update(b, v, v.Args[0], unsigned, gt|eq)
+ 			}
+ 		}
+ 	}
+diff --git a/test/prove.go b/test/prove.go
+index 5ccaff54ce..1be257f206 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1053,6 +1053,11 @@ func issue51622(b []byte) int {
+ 	return 0
+ }
+ 
++func issue45928(x int) {
++	combinedFrac := (x) / (x | (1 << 31)) // ERROR "Proved Neq64$"
++	useInt(combinedFrac)
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

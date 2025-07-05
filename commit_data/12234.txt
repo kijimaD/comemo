@@ -12,6 +12,19 @@ Date:   Mon Feb 27 12:22:10 2012 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/5698078
-
+---
  src/pkg/strings/example_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/strings/example_test.go b/src/pkg/strings/example_test.go
+index 0b58341133..daeb85ef6b 100644
+--- a/src/pkg/strings/example_test.go
++++ b/src/pkg/strings/example_test.go
+@@ -41,6 +41,7 @@ func ExampleContainsAny() {
+ func ExampleCount() {
+ 	fmt.Println(strings.Count("cheese", "e"))
+ 	fmt.Println(strings.Count("five", "")) // before & after each rune
++
+ 	// Output:
+ 	// 3
+ 	// 5

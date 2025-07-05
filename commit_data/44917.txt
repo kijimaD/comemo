@@ -13,10 +13,156 @@ Date:   Tue Sep 1 17:01:00 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  doc/go1.16.html                           | 10 ++++++++++
  misc/cgo/testgodefs/testdata/bitfields.go | 31 +++++++++++++++++++++++++++++++
  misc/cgo/testgodefs/testdata/main.go      | 28 ++++++++++++++++++++++++++++
  misc/cgo/testgodefs/testgodefs_test.go    |  1 +
  src/cmd/cgo/gcc.go                        | 20 +++++---------------
  5 files changed, 75 insertions(+), 15 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index f177226269..0167030ef8 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -86,6 +86,16 @@ Do not send CLs removing the interior tags from such phrases.
+   by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
+ </p>
+ 
++<h3 id="cgo">Cgo</h3>
++
++<p> <!-- CL 252378 -->
++  The <a href="/cmd/cgo">cgo</a> tool will no longer try to translate
++  C struct bitfields into Go struct fields, even if their size can be
++  represented in Go. The order in which C bitfields appear in memory
++  is implementation dependent, so in some cases the cgo tool produced
++  results that were silently incorrect.
++</p>
++
+ <p>
+   TODO
+ </p>
+diff --git a/misc/cgo/testgodefs/testdata/bitfields.go b/misc/cgo/testgodefs/testdata/bitfields.go
+new file mode 100644
+index 0000000000..6a9724dcd1
+--- /dev/null
++++ b/misc/cgo/testgodefs/testdata/bitfields.go
+@@ -0,0 +1,31 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ignore
++
++package main
++
++// This file tests that we don't generate an incorrect field location
++// for a bitfield that appears aligned.
++
++/*
++struct bitfields {
++    unsigned int B1     :  5;
++    unsigned int B2     :  1;
++    unsigned int B3     :  1;
++    unsigned int B4     :  1;
++    unsigned int Short1 : 16; // misaligned on 8 bit boundary
++    unsigned int B5     :  1;
++    unsigned int B6     :  1;
++    unsigned int B7     :  1;
++    unsigned int B8     :  1;
++    unsigned int B9     :  1;
++    unsigned int B10    :  3;
++    unsigned int Short2 : 16; // alignment is OK
++    unsigned int Short3 : 16; // alignment is OK
++};
++*/
++import "C"
++
++type bitfields C.struct_bitfields
+diff --git a/misc/cgo/testgodefs/testdata/main.go b/misc/cgo/testgodefs/testdata/main.go
+index 2e1ad3376a..4a3f6a701c 100644
+--- a/misc/cgo/testgodefs/testdata/main.go
++++ b/misc/cgo/testgodefs/testdata/main.go
+@@ -4,6 +4,12 @@
+ 
+ package main
+ 
++import (
++	"fmt"
++	"os"
++	"reflect"
++)
++
+ // Test that the struct field in anonunion.go was promoted.
+ var v1 T
+ var v2 = v1.L
+@@ -23,4 +29,26 @@ var v7 = S{}
+ var _ = issue38649{X: 0}
+ 
+ func main() {
++	pass := true
++
++	// The Go translation of bitfields should not have any of the
++	// bitfield types. The order in which bitfields are laid out
++	// in memory is implementation defined, so we can't easily
++	// know how a bitfield should correspond to a Go type, even if
++	// it appears to be aligned correctly.
++	bitfieldType := reflect.TypeOf(bitfields{})
++	check := func(name string) {
++		_, ok := bitfieldType.FieldByName(name)
++		if ok {
++			fmt.Fprintf(os.Stderr, "found unexpected bitfields field %s\n", name)
++			pass = false
++		}
++	}
++	check("Short1")
++	check("Short2")
++	check("Short3")
++
++	if !pass {
++		os.Exit(1)
++	}
+ }
+diff --git a/misc/cgo/testgodefs/testgodefs_test.go b/misc/cgo/testgodefs/testgodefs_test.go
+index e4085f9ca8..4c2312c1c8 100644
+--- a/misc/cgo/testgodefs/testgodefs_test.go
++++ b/misc/cgo/testgodefs/testgodefs_test.go
+@@ -19,6 +19,7 @@ import (
+ // import "C" block.  Add more tests here.
+ var filePrefixes = []string{
+ 	"anonunion",
++	"bitfields",
+ 	"issue8478",
+ 	"fieldtypedef",
+ 	"issue37479",
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 9179b5490e..eb6c1a5c89 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2831,21 +2831,11 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 		tgo := t.Go
+ 		size := t.Size
+ 		talign := t.Align
+-		if f.BitSize > 0 {
+-			switch f.BitSize {
+-			case 8, 16, 32, 64:
+-			default:
+-				continue
+-			}
+-			size = f.BitSize / 8
+-			name := tgo.(*ast.Ident).String()
+-			if strings.HasPrefix(name, "int") {
+-				name = "int"
+-			} else {
+-				name = "uint"
+-			}
+-			tgo = ast.NewIdent(name + fmt.Sprint(f.BitSize))
+-			talign = size
++		if f.BitOffset > 0 || f.BitSize > 0 {
++			// The layout of bitfields is implementation defined,
++			// so we don't know how they correspond to Go fields
++			// even if they are aligned at byte boundaries.
++			continue
+ 		}
+ 
+ 		if talign > 0 && f.ByteOffset%talign != 0 {

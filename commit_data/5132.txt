@@ -7,8 +7,52 @@ Date:   Wed Mar 24 22:36:38 2010 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/739042
-
+---
  src/pkg/syscall/syscall_darwin.go  | 3 +++
  src/pkg/syscall/syscall_freebsd.go | 3 +++
  src/pkg/syscall/syscall_linux.go   | 4 ++++
  3 files changed, 10 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 291ea557b0..cfac4295b6 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -342,6 +342,9 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
+ }
+ 
++func SetsockoptString(fd, level, opt int, s string) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), len(s))
++}
+ 
+ //sys recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
+ 
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index f5bb454124..a1a34b291a 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -342,6 +342,9 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
+ }
+ 
++func SetsockoptString(fd, level, opt int, s string) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), len(s))
++}
+ 
+ //sys recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
+ 
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 53ddf1c0e4..058a76d699 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -365,6 +365,10 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
+ }
+ 
++func SetsockoptString(fd, level, opt int, s string) (errno int) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), len(s))
++}
++
+ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
+ 	var rsa RawSockaddrAny
+ 	var len _Socklen = SizeofSockaddrAny

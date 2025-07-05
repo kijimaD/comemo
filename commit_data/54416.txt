@@ -27,7 +27,84 @@ Date:   Fri Oct 14 14:19:14 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/testasan/main.go | 56 -----------------------------------------------
  src/cmd/dist/test.go      |  3 ---
  2 files changed, 59 deletions(-)
+
+diff --git a/misc/cgo/testasan/main.go b/misc/cgo/testasan/main.go
+deleted file mode 100644
+index bc77678c25..0000000000
+--- a/misc/cgo/testasan/main.go
++++ /dev/null
+@@ -1,56 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-/*
+-#include <sys/mman.h>
+-#include <pthread.h>
+-#include <unistd.h>
+-
+-void ctor(void) __attribute__((constructor));
+-static void* thread(void*);
+-
+-void
+-ctor(void)
+-{
+-	// occupy memory where Go runtime would normally map heap
+-	mmap((void*)0x00c000000000, 64<<10, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
+-
+-	// allocate 4K every 10us
+-	pthread_t t;
+-	pthread_create(&t, 0, thread, 0);
+-}
+-
+-static void*
+-thread(void *p)
+-{
+-	for(;;) {
+-		usleep(10000);
+-		mmap(0, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+-	}
+-	return 0;
+-}
+-*/
+-import "C"
+-
+-import (
+-	"fmt"
+-	"os"
+-	"path/filepath"
+-	"time"
+-)
+-
+-func main() {
+-	start := time.Now()
+-
+-	// ensure that we can function normally
+-	var v [][]byte
+-	for i := 0; i < 1000; i++ {
+-		time.Sleep(10 * time.Microsecond)
+-		v = append(v, make([]byte, 64<<10))
+-	}
+-
+-	fmt.Printf("ok\t%s\t%s\n", filepath.Base(os.Args[0]), time.Since(start).Round(time.Millisecond))
+-}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5b8676c4c7..8f83aedd3e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -823,9 +823,6 @@ func (t *tester) registerTests() {
+ 		if t.supportedBuildmode("plugin") {
+ 			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
+ 		}
+-		if gohostos == "linux" && (goarch == "amd64" || goarch == "ppc64le") {
+-			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
+-		}
+ 		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
+ 			// because Pdeathsig of syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only
+ 			// supported on Linux and FreeBSD.

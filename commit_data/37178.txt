@@ -20,6 +20,38 @@ Date:   Sun Jul 8 00:21:27 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_test.go | 20 +++++++++++++-------
  1 file changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index f1229f154b..5c255efd26 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -648,13 +648,19 @@ func TestAbort(t *testing.T) {
+ 	if strings.Contains(output, "BAD") {
+ 		t.Errorf("output contains BAD:\n%s", output)
+ 	}
+-	// Check that it's a breakpoint traceback.
+-	want := "SIGTRAP"
+-	switch runtime.GOOS {
+-	case "plan9":
+-		want = "sys: breakpoint"
+-	case "windows":
+-		want = "Exception 0x80000003"
++	// Check that it's a signal traceback.
++	want := "PC="
++	// For systems that use a breakpoint, check specifically for that.
++	switch runtime.GOARCH {
++	case "386", "amd64":
++		switch runtime.GOOS {
++		case "plan9":
++			want = "sys: breakpoint"
++		case "windows":
++			want = "Exception 0x80000003"
++		default:
++			want = "SIGTRAP"
++		}
+ 	}
+ 	if !strings.Contains(output, want) {
+ 		t.Errorf("output does not contain %q:\n%s", want, output)

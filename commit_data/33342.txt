@@ -13,9 +13,166 @@ Date:   Thu Aug 10 11:31:11 2017 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/fs.go        |  2 +-
  src/net/http/request.go   | 30 +++++++++++++++---------------
  src/net/http/transfer.go  |  3 +--
  src/net/http/transport.go | 10 +++++-----
  4 files changed, 22 insertions(+), 23 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index a5881e98b3..aba08510dc 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -317,7 +317,7 @@ func scanETag(s string) (etag string, remain string) {
+ 		// Character values allowed in ETags.
+ 		case c == 0x21 || c >= 0x23 && c <= 0x7E || c >= 0x80:
+ 		case c == '"':
+-			return string(s[:i+1]), s[i+1:]
++			return s[:i+1], s[i+1:]
+ 		default:
+ 			return "", ""
+ 		}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 13f367c1a8..870af85e04 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -490,8 +490,8 @@ var errMissingHost = errors.New("http: Request.Write on Request with no Host or
+ 
+ // extraHeaders may be nil
+ // waitForContinue may be nil
+-func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) (err error) {
+-	trace := httptrace.ContextClientTrace(req.Context())
++func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) (err error) {
++	trace := httptrace.ContextClientTrace(r.Context())
+ 	if trace != nil && trace.WroteRequest != nil {
+ 		defer func() {
+ 			trace.WroteRequest(httptrace.WroteRequestInfo{
+@@ -504,12 +504,12 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ 	// is not given, use the host from the request URL.
+ 	//
+ 	// Clean the host, in case it arrives with unexpected stuff in it.
+-	host := cleanHost(req.Host)
++	host := cleanHost(r.Host)
+ 	if host == "" {
+-		if req.URL == nil {
++		if r.URL == nil {
+ 			return errMissingHost
+ 		}
+-		host = cleanHost(req.URL.Host)
++		host = cleanHost(r.URL.Host)
+ 	}
+ 
+ 	// According to RFC 6874, an HTTP client, proxy, or other
+@@ -517,10 +517,10 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ 	// to an outgoing URI.
+ 	host = removeZone(host)
+ 
+-	ruri := req.URL.RequestURI()
+-	if usingProxy && req.URL.Scheme != "" && req.URL.Opaque == "" {
+-		ruri = req.URL.Scheme + "://" + host + ruri
+-	} else if req.Method == "CONNECT" && req.URL.Path == "" {
++	ruri := r.URL.RequestURI()
++	if usingProxy && r.URL.Scheme != "" && r.URL.Opaque == "" {
++		ruri = r.URL.Scheme + "://" + host + ruri
++	} else if r.Method == "CONNECT" && r.URL.Path == "" {
+ 		// CONNECT requests normally give just the host and port, not a full URL.
+ 		ruri = host
+ 	}
+@@ -536,7 +536,7 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ 		w = bw
+ 	}
+ 
+-	_, err = fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
++	_, err = fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(r.Method, "GET"), ruri)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -550,8 +550,8 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ 	// Use the defaultUserAgent unless the Header contains one, which
+ 	// may be blank to not send the header.
+ 	userAgent := defaultUserAgent
+-	if _, ok := req.Header["User-Agent"]; ok {
+-		userAgent = req.Header.Get("User-Agent")
++	if _, ok := r.Header["User-Agent"]; ok {
++		userAgent = r.Header.Get("User-Agent")
+ 	}
+ 	if userAgent != "" {
+ 		_, err = fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)
+@@ -561,7 +561,7 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ 	}
+ 
+ 	// Process Body,ContentLength,Close,Trailer
+-	tw, err := newTransferWriter(req)
++	tw, err := newTransferWriter(r)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -570,7 +570,7 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ 		return err
+ 	}
+ 
+-	err = req.Header.WriteSubset(w, reqWriteExcludeHeader)
++	err = r.Header.WriteSubset(w, reqWriteExcludeHeader)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -603,7 +603,7 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ 			trace.Wait100Continue()
+ 		}
+ 		if !waitForContinue() {
+-			req.closeBody()
++			r.closeBody()
+ 			return nil
+ 		}
+ 	}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 8faff2d74a..2087ce5587 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -663,9 +663,8 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 			return -1, err
+ 		}
+ 		return n, nil
+-	} else {
+-		header.Del("Content-Length")
+ 	}
++	header.Del("Content-Length")
+ 
+ 	if isRequest {
+ 		// RFC 2616 neither explicitly permits nor forbids an
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 6a89392a99..b31b7805b9 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1224,8 +1224,8 @@ func useProxy(addr string) bool {
+ 		}
+ 	}
+ 
+-	no_proxy := noProxyEnv.Get()
+-	if no_proxy == "*" {
++	noProxy := noProxyEnv.Get()
++	if noProxy == "*" {
+ 		return false
+ 	}
+ 
+@@ -1234,7 +1234,7 @@ func useProxy(addr string) bool {
+ 		addr = addr[:strings.LastIndex(addr, ":")]
+ 	}
+ 
+-	for _, p := range strings.Split(no_proxy, ",") {
++	for _, p := range strings.Split(noProxy, ",") {
+ 		p = strings.ToLower(strings.TrimSpace(p))
+ 		if len(p) == 0 {
+ 			continue
+@@ -2021,8 +2021,8 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ // a t.Logf func. See export_test.go's Request.WithT method.
+ type tLogKey struct{}
+ 
+-func (r *transportRequest) logf(format string, args ...interface{}) {
+-	if logf, ok := r.Request.Context().Value(tLogKey{}).(func(string, ...interface{})); ok {
++func (tr *transportRequest) logf(format string, args ...interface{}) {
++	if logf, ok := tr.Request.Context().Value(tLogKey{}).(func(string, ...interface{})); ok {
+ 		logf(time.Now().Format(time.RFC3339Nano)+": "+format, args...)
+ 	}
+ }

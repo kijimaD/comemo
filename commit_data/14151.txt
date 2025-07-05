@@ -13,9 +13,389 @@ Date:   Tue Oct 16 07:22:33 2012 +0200
     R=dave, nigeltao, rsc, golang-dev
     CC=golang-dev
     https://golang.org/cl/6621061
-
+---
  src/cmd/5g/cgen.c | 91 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
  src/cmd/6g/cgen.c | 56 +++++++++++++++++++++++-----------
  src/cmd/8g/cgen.c | 18 +++++++++--
  test/torture.go   | 76 +++++++++++++++++++++++++++++++++++++++++++---
  4 files changed, 212 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 7db5e21346..ebb005d4a6 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -313,7 +313,7 @@ cgen(Node *n, Node *res)
+ 		regalloc(&n2, n->type, &n1);
+ 		n1.op = OINDREG;
+ 		n1.type = n->type;
+-		n1.xoffset = 0;
++		n1.xoffset += 0;
+ 		gmove(&n1, &n2);
+ 		gmove(&n2, res);
+ 		regfree(&n1);
+@@ -349,7 +349,7 @@ cgen(Node *n, Node *res)
+ 			regalloc(&n2, types[TUINT32], &n1);
+ 			n1.op = OINDREG;
+ 			n1.type = types[TUINT32];
+-			n1.xoffset = Array_nel;
++			n1.xoffset += Array_nel;
+ 			gmove(&n1, &n2);
+ 			gmove(&n2, res);
+ 			regfree(&n1);
+@@ -405,7 +405,7 @@ cgen(Node *n, Node *res)
+ 		// Pick it up again after the call.
+ 		rg = -1;
+ 		if(n->ullman >= UINF) {
+-			if(res->op == OREGISTER || res->op == OINDREG) {
++			if(res != N && (res->op == OREGISTER || res->op == OINDREG)) {
+ 				rg = res->val.u.reg;
+ 				reg[rg]--;
+ 			}
+@@ -890,6 +890,83 @@ ret:
+ void
+ igen(Node *n, Node *a, Node *res)
+ {
++	Node n1;
++	Prog *p1;
++	int r;
++
++	if(debug['g']) {
++		dump("\nigen-n", n);
++	}
++	switch(n->op) {
++	case ODOT:
++		igen(n->left, a, res);
++		a->xoffset += n->xoffset;
++		a->type = n->type;
++		return;
++
++	case ODOTPTR:
++		if(n->left->addable
++			|| n->left->op == OCALLFUNC
++			|| n->left->op == OCALLMETH
++			|| n->left->op == OCALLINTER) {
++			// igen-able nodes.
++			igen(n->left, &n1, res);
++			regalloc(a, types[tptr], &n1);
++			gmove(&n1, a);
++			regfree(&n1);
++		} else {
++			regalloc(a, types[tptr], res);
++			cgen(n->left, a);
++		}
++		if(n->xoffset != 0) {
++			// explicit check for nil if struct is large enough
++			// that we might derive too big a pointer.
++			if(n->left->type->type->width >= unmappedzero) {
++				regalloc(&n1, types[tptr], N);
++				gmove(a, &n1);
++				p1 = gins(AMOVW, &n1, &n1);
++				p1->from.type = D_OREG;
++				p1->from.offset = 0;
++				regfree(&n1);
++			}
++		}
++		a->op = OINDREG;
++		a->xoffset = n->xoffset;
++		a->type = n->type;
++		return;
++
++	case OCALLMETH:
++	case OCALLFUNC:
++	case OCALLINTER:
++		// Release res so that it is available for cgen_call.
++		// Pick it up again after the call.
++		r = -1;
++		if(n->ullman >= UINF) {
++			if(res != N && (res->op == OREGISTER || res->op == OINDREG)) {
++				r = res->val.u.reg;
++				reg[r]--;
++			}
++		}
++		switch(n->op) {
++		case OCALLMETH:
++			cgen_callmeth(n, 0);
++			break;
++		case OCALLFUNC:
++			cgen_call(n, 0);
++			break;
++		case OCALLINTER:
++			cgen_callinter(n, N, 0);
++			break;
++		}
++		if(r >= 0)
++			reg[r]++;
++		regalloc(a, types[tptr], res);
++		cgen_aret(n, a);
++		a->op = OINDREG;
++		a->type = n->type;
++		return;
++	}
++
+ 	regalloc(a, types[tptr], res);
+ 	agen(n, a);
+ 	a->op = OINDREG;
+@@ -905,8 +982,12 @@ igen(Node *n, Node *a, Node *res)
+ void
+ agenr(Node *n, Node *a, Node *res)
+ {
+-	regalloc(a, types[tptr], res);
+-	agen(n, a);
++	Node n1;
++
++	igen(n, &n1, res);
++	regalloc(a, types[tptr], N);
++	agen(&n1, a);
++	regfree(&n1);
+ }
+ 
+ void
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index f2be7d1ae9..0d8ce468a4 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -605,13 +605,14 @@ agen(Node *n, Node *res)
+ 				cgen(nr, &n1);
+ 			}
+ 			if(!isconst(nl, CTSTR)) {
+-				regalloc(&n3, types[tptr], res);
+-				if(isfixedarray(nl->type))
++				if(isfixedarray(nl->type)) {
++					regalloc(&n3, types[tptr], res);
+ 					agen(nl, &n3);
+-				else {
++				} else {
+ 					igen(nl, &nlen, res);
+ 					nlen.type = types[tptr];
+ 					nlen.xoffset += Array_array;
++					regalloc(&n3, types[tptr], res);
+ 					gmove(&nlen, &n3);
+ 					nlen.type = types[simtype[TUINT]];
+ 					nlen.xoffset += Array_nel-Array_array;
+@@ -624,10 +625,10 @@ agen(Node *n, Node *res)
+ 		nr = &tmp;
+ 	irad:
+ 		if(!isconst(nl, CTSTR)) {
+-			regalloc(&n3, types[tptr], res);
+-			if(isfixedarray(nl->type))
++			if(isfixedarray(nl->type)) {
++				regalloc(&n3, types[tptr], res);
+ 				agen(nl, &n3);
+-			else {
++			} else {
+ 				if(!nl->addable) {
+ 					// igen will need an addressable node.
+ 					tempname(&tmp2, nl->type);
+@@ -637,6 +638,7 @@ agen(Node *n, Node *res)
+ 				igen(nl, &nlen, res);
+ 				nlen.type = types[tptr];
+ 				nlen.xoffset += Array_array;
++				regalloc(&n3, types[tptr], res);
+ 				gmove(&nlen, &n3);
+ 				nlen.type = types[simtype[TUINT]];
+ 				nlen.xoffset += Array_nel-Array_array;
+@@ -814,8 +816,11 @@ igen(Node *n, Node *a, Node *res)
+ {
+ 	Type *fp;
+ 	Iter flist;
+-	Node n1, n2;
++	Node n1;
+ 
++	if(debug['g']) {
++		dump("\nigen-n", n);
++	}
+ 	switch(n->op) {
+ 	case ONAME:
+ 		if((n->class&PHEAP) || n->class == PPARAMREF)
+@@ -838,8 +843,19 @@ igen(Node *n, Node *a, Node *res)
+ 		return;
+ 
+ 	case ODOTPTR:
+-		regalloc(a, types[tptr], res);
+-		cgen(n->left, a);
++		if(n->left->addable
++			|| n->left->op == OCALLFUNC
++			|| n->left->op == OCALLMETH
++			|| n->left->op == OCALLINTER) {
++			// igen-able nodes.
++			igen(n->left, &n1, res);
++			regalloc(a, types[tptr], &n1);
++			gmove(&n1, a);
++			regfree(&n1);
++		} else {
++			regalloc(a, types[tptr], res);
++			cgen(n->left, a);
++		}
+ 		if(n->xoffset != 0) {
+ 			// explicit check for nil if struct is large enough
+ 			// that we might derive too big a pointer.
+@@ -878,7 +894,7 @@ igen(Node *n, Node *a, Node *res)
+ 		a->xoffset = fp->width;
+ 		a->type = n->type;
+ 		return;
+-	
++
+ 	case OINDEX:
+ 		// Index of fixed-size array by constant can
+ 		// put the offset in the addressing.
+@@ -887,18 +903,22 @@ igen(Node *n, Node *a, Node *res)
+ 		if(isfixedarray(n->left->type) ||
+ 		   (isptr[n->left->type->etype] && isfixedarray(n->left->left->type)))
+ 		if(isconst(n->right, CTINT)) {
+-			nodconst(&n1, types[TINT64], 0);
+-			n2 = *n;
+-			n2.right = &n1;
++			// Compute &a.
++			if(!isptr[n->left->type->etype])
++				igen(n->left, a, res);
++			else {
++				igen(n->left, &n1, res);
++				regalloc(a, types[tptr], res);
++				gmove(&n1, a);
++				regfree(&n1);
++				a->op = OINDREG;
++			}
+ 
+-			regalloc(a, types[tptr], res);
+-			agen(&n2, a);
+-			a->op = OINDREG;
+-			a->xoffset = mpgetfix(n->right->val.u.xval)*n->type->width;
++			// Compute &a[i] as &a + i*width.
+ 			a->type = n->type;
++			a->xoffset += mpgetfix(n->right->val.u.xval)*n->type->width;
+ 			return;
+ 		}
+-			
+ 	}
+ 
+ 	regalloc(a, types[tptr], res);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 708bc53189..04324b6495 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -802,6 +802,9 @@ igen(Node *n, Node *a, Node *res)
+ 	Iter flist;
+ 	Node n1;
+ 
++	if(debug['g']) {
++		dump("\nigen-n", n);
++	}
+ 	switch(n->op) {
+ 	case ONAME:
+ 		if((n->class&PHEAP) || n->class == PPARAMREF)
+@@ -824,8 +827,19 @@ igen(Node *n, Node *a, Node *res)
+ 		return;
+ 
+ 	case ODOTPTR:
+-		regalloc(a, types[tptr], res);
+-		cgen(n->left, a);
++		if(n->left->addable
++			|| n->left->op == OCALLFUNC
++			|| n->left->op == OCALLMETH
++			|| n->left->op == OCALLINTER) {
++			// igen-able nodes.
++			igen(n->left, &n1, res);
++			regalloc(a, types[tptr], &n1);
++			gmove(&n1, a);
++			regfree(&n1);
++		} else {
++			regalloc(a, types[tptr], res);
++			cgen(n->left, a);
++		}
+ 		if(n->xoffset != 0) {
+ 			// explicit check for nil if struct is large enough
+ 			// that we might derive too big a pointer.
+diff --git a/test/torture.go b/test/torture.go
+index dd8ff59a03..60870c3f47 100644
+--- a/test/torture.go
++++ b/test/torture.go
+@@ -170,6 +170,74 @@ func ChainUNoAssert(u *U) *U {
+ 		Child(0).(*U)
+ }
+ 
++// Type assertions and slice indexing. See issue 4207.
++func ChainAssertIndex(u *U) J {
++	return u.
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0].(*U).
++		Children[0]
++}
++
++type UArr struct {
++	Children [2]J
++}
++
++func (u *UArr) Child(n int) J { return u.Children[n] }
++
++func ChainAssertArrayIndex(u *UArr) J {
++	return u.
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		Children[0].(*UArr).
++		// Children[0].(*UArr).
++		// Children[0].(*UArr).
++		// Children[0].(*UArr).
++		// Children[0].(*UArr).
++		// Children[0].(*UArr).
++		// Children[0].(*UArr).
++		Children[0]
++}
++
++type UArrPtr struct {
++	Children *[2]J
++}
++
++func (u *UArrPtr) Child(n int) J { return u.Children[n] }
++
++func ChainAssertArrayptrIndex(u *UArrPtr) J {
++	// TODO: don't crash on longer chains.
++	return u.
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		Children[0].(*UArrPtr).
++		// Children[0].(*UArrPtr).
++		// Children[0].(*UArrPtr).
++		// Children[0].(*UArrPtr).
++		// Children[0].(*UArrPtr).
++		// Children[0].(*UArrPtr).
++		// Children[0].(*UArrPtr).
++		// Children[0].(*UArrPtr).
++		// Children[0].(*UArrPtr).
++		// Children[0].(*UArrPtr).
++		Children[0]
++}
++
+ // Chains of divisions. See issue 4201.
+ 
+ func ChainDiv(a, b int) int {
+@@ -180,10 +248,10 @@ func ChainDiv(a, b int) int {
+ 
+ func ChainDivRight(a, b int) int {
+ 	return a / (b / (a / (b /
+-            (a / (b / (a / (b /
+-            (a / (b / (a / (b /
+-            (a / (b / (a / (b /
+-            (a / (b / (a / b))))))))))))))))))
++		(a / (b / (a / (b /
++			(a / (b / (a / (b /
++				(a / (b / (a / (b /
++					(a / (b / (a / b))))))))))))))))))
+ }
+ 
+ func ChainDivConst(a int) int {

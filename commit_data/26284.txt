@@ -22,7 +22,43 @@ Date:   Fri Jan 8 01:06:00 2016 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go    | 8 ++------
  src/net/http/serve_test.go | 4 ++--
  2 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 28f05174c0..1a6a97d4d7 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1139,13 +1139,9 @@ func validHeaderName(v string) bool {
+ func validHeaderValue(v string) bool {
+ 	for i := 0; i < len(v); i++ {
+ 		b := v[i]
+-		if b == '\t' {
+-			continue
+-		}
+-		if ' ' <= b && b <= '~' {
+-			continue
++		if b < ' ' && b != '\t' {
++			return false
+ 		}
+-		return false
+ 	}
+ 	return true
+ }
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 34e2a4d670..be175f8420 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3798,8 +3798,8 @@ func TestServerValidatesHeaders(t *testing.T) {
+ 		{"foo\xffbar: foo\r\n", 400}, // binary in header
+ 		{"foo\x00bar: foo\r\n", 400}, // binary in header
+ 
+-		{"foo: foo\x00foo\r\n", 400}, // binary in value
+-		{"foo: foo\xfffoo\r\n", 400}, // binary in value
++		{"foo: foo\x00foo\r\n", 400}, // CTL in value is bad
++		{"foo: foo\xfffoo\r\n", 200}, // non-ASCII high octets in value are fine
+ 	}
+ 	for _, tt := range tests {
+ 		conn := &testConn{closec: make(chan bool)}

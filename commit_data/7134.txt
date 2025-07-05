@@ -7,6 +7,19 @@ Date:   Tue Jan 18 11:24:13 2011 -0500
     R=josv, r
     CC=golang-dev
     https://golang.org/cl/4065041
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index bb29f50dae..77874acd84 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -105,6 +105,7 @@ Jan Mercl <befelemepeseveze@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
++Jos Visser <josv@google.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Kai Backman <kaib@golang.org>

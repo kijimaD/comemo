@@ -13,6 +13,26 @@ Date:   Tue Jul 10 09:27:39 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/sym/reloc.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/sym/reloc.go b/src/cmd/link/internal/sym/reloc.go
+index fc62c385f4..da696d327b 100644
+--- a/src/cmd/link/internal/sym/reloc.go
++++ b/src/cmd/link/internal/sym/reloc.go
+@@ -83,11 +83,11 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
+ 		case sys.I386:
+ 			return elf.R_386(nr).String()
+ 		case sys.MIPS, sys.MIPS64:
+-			// return elf.R_MIPS(nr).String()
++			return elf.R_MIPS(nr).String()
+ 		case sys.PPC64:
+-			// return elf.R_PPC64(nr).String()
++			return elf.R_PPC64(nr).String()
+ 		case sys.S390X:
+-			// return elf.R_390(nr).String()
++			return elf.R_390(nr).String()
+ 		default:
+ 			panic("unreachable")
+ 		}

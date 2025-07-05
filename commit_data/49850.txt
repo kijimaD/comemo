@@ -14,10 +14,101 @@ Date:   Tue Sep 14 13:37:21 2021 +0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go      | 5 +++--
  src/cmd/compile/internal/noder/noder.go     | 8 ++++++--
  src/cmd/compile/internal/noder/stmt.go      | 2 +-
  src/cmd/compile/internal/noder/transform.go | 4 ++++
  test/run.go                                 | 2 --
  5 files changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 3e1960f7a4..9cd9545b75 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -390,9 +390,10 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+ 			} else {
+ 				key = g.expr(elem.Key)
+ 			}
+-			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, g.expr(elem.Value))
++			value := wrapname(g.pos(elem.Value), g.expr(elem.Value))
++			exprs[i] = ir.NewKeyExpr(g.pos(elem), key, value)
+ 		default:
+-			exprs[i] = g.expr(elem)
++			exprs[i] = wrapname(g.pos(elem), g.expr(elem))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 2f18a2f231..7c14fcf041 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1537,7 +1537,7 @@ func (p *noder) mkname(name *syntax.Name) ir.Node {
+ 	return mkname(p.name(name))
+ }
+ 
+-func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
++func wrapname(pos src.XPos, x ir.Node) ir.Node {
+ 	// These nodes do not carry line numbers.
+ 	// Introduce a wrapper node to give them the correct line.
+ 	switch x.Op() {
+@@ -1547,13 +1547,17 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
+ 		}
+ 		fallthrough
+ 	case ir.ONAME, ir.ONONAME, ir.OPACK:
+-		p := ir.NewParenExpr(p.pos(n), x)
++		p := ir.NewParenExpr(pos, x)
+ 		p.SetImplicit(true)
+ 		return p
+ 	}
+ 	return x
+ }
+ 
++func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
++	return wrapname(p.pos(n), x)
++}
++
+ func (p *noder) setlineno(n syntax.Node) {
+ 	if n != nil {
+ 		base.Pos = p.pos(n)
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index 1c366296fc..7f608bb91f 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -37,7 +37,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 	case *syntax.BlockStmt:
+ 		return ir.NewBlockStmt(g.pos(stmt), g.blockStmt(stmt))
+ 	case *syntax.ExprStmt:
+-		return g.expr(stmt.X)
++		return wrapname(g.pos(stmt.X), g.expr(stmt.X))
+ 	case *syntax.SendStmt:
+ 		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
+ 		if n.Chan.Type().HasTParam() || n.Value.Type().HasTParam() {
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 91374054b6..a117e310ea 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -404,6 +404,10 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
+ 		return n
+ 	}
+ 
++	if n.Op() == ir.OPAREN {
++		n = n.(*ir.ParenExpr).X
++	}
++
+ 	if types.IdenticalStrict(n.Type(), t) {
+ 		return n
+ 	}
+diff --git a/test/run.go b/test/run.go
+index 7317e8019e..0c9c8c5cb8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2184,8 +2184,6 @@ var types2Failures32Bit = setOf(
+ )
+ 
+ var g3Failures = setOf(
+-	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
+-
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ )
+ 

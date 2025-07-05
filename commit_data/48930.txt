@@ -13,6 +13,20 @@ Date:   Sun Jun 27 22:10:03 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/transform.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 660c4a19e6..c3fa8042f2 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -594,7 +594,7 @@ func transformDot(n *ir.SelectorExpr, isCall bool) ir.Node {
+ 			// Or did we successfully desugar all that at stencil time?
+ 			return n
+ 		}
+-		n.SetType(typecheck.MethodValueWrapper(n).Type())
++		n.SetType(typecheck.NewMethodType(n.Type(), nil))
+ 	}
+ 	return n
+ }

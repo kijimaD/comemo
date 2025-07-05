@@ -21,6 +21,25 @@ Date:   Sat Aug 4 12:04:52 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/zoneinfo_windows_test.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/time/zoneinfo_windows_test.go b/src/time/zoneinfo_windows_test.go
+index d0f2a444fe..f23d9dcecb 100644
+--- a/src/time/zoneinfo_windows_test.go
++++ b/src/time/zoneinfo_windows_test.go
+@@ -15,13 +15,6 @@ func testZoneAbbr(t *testing.T) {
+ 	// discard nsec
+ 	t1 = Date(t1.Year(), t1.Month(), t1.Day(), t1.Hour(), t1.Minute(), t1.Second(), 0, t1.Location())
+ 
+-	// Skip the test if we're in a timezone with no abbreviation.
+-	// Format will fallback to the numeric abbreviation, and
+-	// Parse(RFC1123, ..) will fail (see Issue 21183).
+-	if tz := t1.Format("MST"); tz[0] == '-' || tz[0] == '+' {
+-		t.Skip("No zone abbreviation")
+-	}
+-
+ 	t2, err := Parse(RFC1123, t1.Format(RFC1123))
+ 	if err != nil {
+ 		t.Fatalf("Parse failed: %v", err)

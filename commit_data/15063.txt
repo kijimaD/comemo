@@ -14,6 +14,25 @@ Date:   Thu Jan 31 12:54:37 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7228072
-
+---
  src/pkg/crypto/x509/x509.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 7983217696..005d36da88 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -660,6 +660,13 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
+ 			return nil, err
+ 		}
+ 
++		if p.N.Sign() <= 0 {
++			return nil, errors.New("x509: RSA modulus is not a positive number")
++		}
++		if p.E <= 0 {
++			return nil, errors.New("x509: RSA public exponent is not a positive number")
++		}
++
+ 		pub := &rsa.PublicKey{
+ 			E: p.E,
+ 			N: p.N,

@@ -30,6 +30,31 @@ Date:   Tue Sep 8 13:41:51 2015 -0700
     Change-Id: Ic151a5e3f131c2e8efa0c25c9218b431c55c1b30
     Reviewed-on: https://go-review.googlesource.com/14400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 314c3a91a6..48abcbaec9 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2854,12 +2854,17 @@ func keydup(n *Node, hash map[uint32][]*Node) {
+ 			if Eqtype(a.Left.Type, n.Type) {
+ 				cmp.Right = a.Left
+ 				evconst(&cmp)
+-				b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
++				if cmp.Op == OLITERAL {
++					// Sometimes evconst fails.  See issue 12536.
++					b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
++				}
+ 			}
+ 		} else if Eqtype(a.Type, n.Type) {
+ 			cmp.Right = a
+ 			evconst(&cmp)
+-			b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
++			if cmp.Op == OLITERAL {
++				b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
++			}
+ 		}
+ 
+ 		if b != 0 {

@@ -14,6 +14,31 @@ Date:   Thu Sep 29 18:46:24 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 13 -------------
  1 file changed, 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 39c662ffc8..756286b3fa 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -112,19 +112,6 @@ func (v Val) Interface() interface{} {
+ 
+ type NilVal struct{}
+ 
+-// IntLiteral returns the Node's literal value as an integer.
+-func (n *Node) IntLiteral() (x int64, ok bool) {
+-	switch {
+-	case n == nil:
+-		return
+-	case Isconst(n, CTINT):
+-		return n.Int64(), true
+-	case Isconst(n, CTBOOL):
+-		return int64(obj.Bool2int(n.Bool())), true
+-	}
+-	return
+-}
+-
+ // Int64 returns n as an int64.
+ // n must be an integer or rune constant.
+ func (n *Node) Int64() int64 {

@@ -13,7 +13,7 @@ Date:   Sun Feb 25 20:08:22 2018 +0900
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/arm64.go            | 16 +++----
  src/cmd/asm/internal/asm/parse.go             |  2 +-
  src/cmd/cgo/gcc.go                            |  2 +-
@@ -44,3 +44,1375 @@ Date:   Sun Feb 25 20:08:22 2018 +0900
  src/cmd/link/internal/ld/dwarf.go             |  2 +-
  src/cmd/link/internal/ppc64/asm.go            |  2 +-
  29 files changed, 166 insertions(+), 166 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 10458b01a0..0fc6c6a3ed 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -133,49 +133,49 @@ func ARM64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, i
+ 		if !isAmount {
+ 			return errors.New("invalid register extension")
+ 		}
+-		a.Reg = arm64.REG_UXTB + (reg & 31) + int16(num<<5)
++		a.Reg = arm64.REG_UXTB + (reg & 31) + num<<5
+ 		a.Offset = int64(((rm & 31) << 16) | (uint32(num) << 10))
+ 	case "UXTH":
+ 		if !isAmount {
+ 			return errors.New("invalid register extension")
+ 		}
+-		a.Reg = arm64.REG_UXTH + (reg & 31) + int16(num<<5)
++		a.Reg = arm64.REG_UXTH + (reg & 31) + num<<5
+ 		a.Offset = int64(((rm & 31) << 16) | (1 << 13) | (uint32(num) << 10))
+ 	case "UXTW":
+ 		if !isAmount {
+ 			return errors.New("invalid register extension")
+ 		}
+-		a.Reg = arm64.REG_UXTW + (reg & 31) + int16(num<<5)
++		a.Reg = arm64.REG_UXTW + (reg & 31) + num<<5
+ 		a.Offset = int64(((rm & 31) << 16) | (2 << 13) | (uint32(num) << 10))
+ 	case "UXTX":
+ 		if !isAmount {
+ 			return errors.New("invalid register extension")
+ 		}
+-		a.Reg = arm64.REG_UXTX + (reg & 31) + int16(num<<5)
++		a.Reg = arm64.REG_UXTX + (reg & 31) + num<<5
+ 		a.Offset = int64(((rm & 31) << 16) | (3 << 13) | (uint32(num) << 10))
+ 	case "SXTB":
+ 		if !isAmount {
+ 			return errors.New("invalid register extension")
+ 		}
+-		a.Reg = arm64.REG_SXTB + (reg & 31) + int16(num<<5)
++		a.Reg = arm64.REG_SXTB + (reg & 31) + num<<5
+ 		a.Offset = int64(((rm & 31) << 16) | (4 << 13) | (uint32(num) << 10))
+ 	case "SXTH":
+ 		if !isAmount {
+ 			return errors.New("invalid register extension")
+ 		}
+-		a.Reg = arm64.REG_SXTH + (reg & 31) + int16(num<<5)
++		a.Reg = arm64.REG_SXTH + (reg & 31) + num<<5
+ 		a.Offset = int64(((rm & 31) << 16) | (5 << 13) | (uint32(num) << 10))
+ 	case "SXTW":
+ 		if !isAmount {
+ 			return errors.New("invalid register extension")
+ 		}
+-		a.Reg = arm64.REG_SXTW + (reg & 31) + int16(num<<5)
++		a.Reg = arm64.REG_SXTW + (reg & 31) + num<<5
+ 		a.Offset = int64(((rm & 31) << 16) | (6 << 13) | (uint32(num) << 10))
+ 	case "SXTX":
+ 		if !isAmount {
+ 			return errors.New("invalid register extension")
+ 		}
+-		a.Reg = arm64.REG_SXTX + (reg & 31) + int16(num<<5)
++		a.Reg = arm64.REG_SXTX + (reg & 31) + num<<5
+ 		a.Offset = int64(((rm & 31) << 16) | (7 << 13) | (uint32(num) << 10))
+ 	case "B8":
+ 		if isIndex {
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 5a6a7b2db9..0c18613f52 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -585,7 +585,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
+ 		p.errorf("unexpected %s in register shift", tok.String())
+ 	}
+ 	if p.arch.Family == sys.ARM64 {
+-		return int64(int64(r1&31)<<16 | int64(op)<<22 | int64(uint16(count)))
++		return int64(r1&31)<<16 | int64(op)<<22 | int64(uint16(count))
+ 	} else {
+ 		return int64((r1 & 15) | op<<5 | count)
+ 	}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 2fb9fec5de..ae1df0d90f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1350,7 +1350,7 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
+ 			if len(data) <= strlen {
+ 				fatalf("invalid string literal")
+ 			}
+-			strs[n] = string(data[:strlen])
++			strs[n] = data[:strlen]
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index e4eae3e87f..9cb8eef759 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -246,8 +246,8 @@ func insertInlCall(dwcalls *dwarf.InlCalls, inlIdx int, imap map[int]int) int {
+ 	}
+ 
+ 	// Create new entry for this inline
+-	inlinedFn := Ctxt.InlTree.InlinedFunction(int(inlIdx))
+-	callXPos := Ctxt.InlTree.CallPos(int(inlIdx))
++	inlinedFn := Ctxt.InlTree.InlinedFunction(inlIdx)
++	callXPos := Ctxt.InlTree.CallPos(inlIdx)
+ 	absFnSym := Ctxt.DwFixups.AbsFuncDwarfSym(inlinedFn)
+ 	pb := Ctxt.PosTable.Pos(callXPos).Base()
+ 	callFileSym := Ctxt.Lookup(pb.SymFilename())
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 49d0229702..7d856cc59e 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1021,7 +1021,7 @@ Outer:
+ 		for _, v := range b.Values {
+ 			if issafepoint(v) {
+ 				lv.showlive(v, lv.livevars[remap[pos]])
+-				lv.stackMapIndex[v] = int(remap[pos])
++				lv.stackMapIndex[v] = remap[pos]
+ 				pos++
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5061c6eef1..af52933451 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4752,11 +4752,11 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		e.curfn.Func.DebugInfo.GetPC = func(b, v ssa.ID) int64 {
+ 			switch v {
+ 			case ssa.BlockStart.ID:
+-				return int64(bstart[b].Pc)
++				return bstart[b].Pc
+ 			case ssa.BlockEnd.ID:
+-				return int64(e.curfn.Func.lsym.Size)
++				return e.curfn.Func.lsym.Size
+ 			default:
+-				return int64(valueToProgAfter[v].Pc)
++				return valueToProgAfter[v].Pc
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a0b077b245..b0614219e6 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3409,31 +3409,31 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 			}
+ 			if step == 1 {
+ 				compare(
+-					nod(OINDEX, cmpl, nodintconst(int64(i))),
+-					nod(OINDEX, cmpr, nodintconst(int64(i))),
++					nod(OINDEX, cmpl, nodintconst(i)),
++					nod(OINDEX, cmpr, nodintconst(i)),
+ 				)
+ 				i++
+ 				remains -= t.Elem().Width
+ 			} else {
+ 				elemType := t.Elem().ToUnsigned()
+-				cmplw := nod(OINDEX, cmpl, nodintconst(int64(i)))
++				cmplw := nod(OINDEX, cmpl, nodintconst(i))
+ 				cmplw = conv(cmplw, elemType) // convert to unsigned
+ 				cmplw = conv(cmplw, convType) // widen
+-				cmprw := nod(OINDEX, cmpr, nodintconst(int64(i)))
++				cmprw := nod(OINDEX, cmpr, nodintconst(i))
+ 				cmprw = conv(cmprw, elemType)
+ 				cmprw = conv(cmprw, convType)
+ 				// For code like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
+ 				// ssa will generate a single large load.
+ 				for offset := int64(1); offset < step; offset++ {
+-					lb := nod(OINDEX, cmpl, nodintconst(int64(i+offset)))
++					lb := nod(OINDEX, cmpl, nodintconst(i+offset))
+ 					lb = conv(lb, elemType)
+ 					lb = conv(lb, convType)
+-					lb = nod(OLSH, lb, nodintconst(int64(8*t.Elem().Width*offset)))
++					lb = nod(OLSH, lb, nodintconst(8*t.Elem().Width*offset))
+ 					cmplw = nod(OOR, cmplw, lb)
+-					rb := nod(OINDEX, cmpr, nodintconst(int64(i+offset)))
++					rb := nod(OINDEX, cmpr, nodintconst(i+offset))
+ 					rb = conv(rb, elemType)
+ 					rb = conv(rb, convType)
+-					rb = nod(OLSH, rb, nodintconst(int64(8*t.Elem().Width*offset)))
++					rb = nod(OLSH, rb, nodintconst(8*t.Elem().Width*offset))
+ 					cmprw = nod(OOR, cmprw, rb)
+ 				}
+ 				compare(cmplw, cmprw)
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 1a26010436..68705aa9dd 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -95,7 +95,7 @@ func (state *stateAtPC) reset(live []liveSlot) {
+ 			reg := uint8(TrailingZeros64(mask))
+ 			mask &^= 1 << reg
+ 
+-			registers[reg] = append(registers[reg], SlotID(live.slot))
++			registers[reg] = append(registers[reg], live.slot)
+ 		}
+ 	}
+ 	state.slots, state.registers = slots, registers
+@@ -636,7 +636,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 				state.f.Fatalf("at %v: slot %v in register %v with no location entry", v, state.slots[slot], &state.registers[reg])
+ 				continue
+ 			}
+-			regs := last.Registers &^ (1 << uint8(reg))
++			regs := last.Registers &^ (1 << reg)
+ 			setSlot(slot, VarLoc{regs, last.StackOffset})
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 16cd4e1f97..bb15386f2d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -297,7 +297,7 @@
+ (Zero [s] {t} ptr mem)
+ 	&& s%4 == 0 && s > 4 && s <= 512
+ 	&& t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice ->
+-	(DUFFZERO [4 * (128 - int64(s/4))] ptr (MOVWconst [0]) mem)
++	(DUFFZERO [4 * (128 - s/4)] ptr (MOVWconst [0]) mem)
+ 
+ // Large zeroing uses a loop
+ (Zero [s] {t} ptr mem)
+@@ -337,7 +337,7 @@
+ (Move [s] {t} dst src mem)
+ 	&& s%4 == 0 && s > 4 && s <= 512
+ 	&& t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice ->
+-	(DUFFCOPY [8 * (128 - int64(s/4))] dst src mem)
++	(DUFFCOPY [8 * (128 - s/4)] dst src mem)
+ 
+ // Large move uses a loop
+ (Move [s] {t} dst src mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 5b4d8b04f9..c5774edbd3 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -409,7 +409,7 @@
+ (Zero [s] ptr mem)
+ 	&& s%16 == 0 && s > 64 && s <= 16*64
+ 	&& !config.noDuffDevice ->
+-	(DUFFZERO [4 * (64 - int64(s/16))] ptr mem)
++	(DUFFZERO [4 * (64 - s/16)] ptr mem)
+ 
+ // large zeroing uses a loop
+ (Zero [s] ptr mem)
+@@ -462,7 +462,7 @@
+ (Move [s] dst src mem)
+ 	&& s%8 == 0 && s > 24 && s <= 8*128
+ 	&& !config.noDuffDevice ->
+-	(DUFFCOPY [8 * (128 - int64(s/8))] dst src mem)
++	(DUFFCOPY [8 * (128 - s/8)] dst src mem)
+ 
+ // large move uses a loop
+ (Move [s] dst src mem)
+@@ -904,18 +904,18 @@
+ (SUBconst [c] (MOVDconst [d]))  -> (MOVDconst [d-c])
+ (SUBconst [c] (SUBconst [d] x)) -> (ADDconst [-c-d] x)
+ (SUBconst [c] (ADDconst [d] x)) -> (ADDconst [-c+d] x)
+-(SLLconst [c] (MOVDconst [d]))  -> (MOVDconst [int64(d)<<uint64(c)])
++(SLLconst [c] (MOVDconst [d]))  -> (MOVDconst [d<<uint64(c)])
+ (SRLconst [c] (MOVDconst [d]))  -> (MOVDconst [int64(uint64(d)>>uint64(c))])
+-(SRAconst [c] (MOVDconst [d]))  -> (MOVDconst [int64(d)>>uint64(c)])
++(SRAconst [c] (MOVDconst [d]))  -> (MOVDconst [d>>uint64(c)])
+ (MUL   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c*d])
+ (MULW  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(int32(c)*int32(d))])
+ (MNEG  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [-c*d])
+ (MNEGW (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [-int64(int32(c)*int32(d))])
+-(DIV   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(c)/int64(d)])
++(DIV   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c/d])
+ (UDIV  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(uint64(c)/uint64(d))])
+ (DIVW  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(int32(c)/int32(d))])
+ (UDIVW (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(uint32(c)/uint32(d))])
+-(MOD   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(c)%int64(d)])
++(MOD   (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c%d])
+ (UMOD  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(uint64(c)%uint64(d))])
+ (MODW  (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(int32(c)%int32(d))])
+ (UMODW (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [int64(uint32(c)%uint32(d))])
+@@ -938,10 +938,10 @@
+ 
+ // constant comparisons
+ (CMPconst  (MOVDconst [x]) [y]) && x==y -> (FlagEQ)
+-(CMPconst  (MOVDconst [x]) [y]) && int64(x)<int64(y) && uint64(x)<uint64(y) -> (FlagLT_ULT)
+-(CMPconst  (MOVDconst [x]) [y]) && int64(x)<int64(y) && uint64(x)>uint64(y) -> (FlagLT_UGT)
+-(CMPconst  (MOVDconst [x]) [y]) && int64(x)>int64(y) && uint64(x)<uint64(y) -> (FlagGT_ULT)
+-(CMPconst  (MOVDconst [x]) [y]) && int64(x)>int64(y) && uint64(x)>uint64(y) -> (FlagGT_UGT)
++(CMPconst  (MOVDconst [x]) [y]) && x<y && uint64(x)<uint64(y) -> (FlagLT_ULT)
++(CMPconst  (MOVDconst [x]) [y]) && x<y && uint64(x)>uint64(y) -> (FlagLT_UGT)
++(CMPconst  (MOVDconst [x]) [y]) && x>y && uint64(x)<uint64(y) -> (FlagGT_ULT)
++(CMPconst  (MOVDconst [x]) [y]) && x>y && uint64(x)>uint64(y) -> (FlagGT_UGT)
+ (CMPWconst (MOVDconst [x]) [y]) && int32(x)==int32(y) -> (FlagEQ)
+ (CMPWconst (MOVDconst [x]) [y]) && int32(x)<int32(y) && uint32(x)<uint32(y) -> (FlagLT_ULT)
+ (CMPWconst (MOVDconst [x]) [y]) && int32(x)<int32(y) && uint32(x)>uint32(y) -> (FlagLT_UGT)
+@@ -1182,25 +1182,25 @@
+ // constant folding in *shift ops
+ (ADDshiftLL x (MOVDconst [c]) [d]) -> (ADDconst x [int64(uint64(c)<<uint64(d))])
+ (ADDshiftRL x (MOVDconst [c]) [d]) -> (ADDconst x [int64(uint64(c)>>uint64(d))])
+-(ADDshiftRA x (MOVDconst [c]) [d]) -> (ADDconst x [int64(int64(c)>>uint64(d))])
++(ADDshiftRA x (MOVDconst [c]) [d]) -> (ADDconst x [c>>uint64(d)])
+ (SUBshiftLL x (MOVDconst [c]) [d]) -> (SUBconst x [int64(uint64(c)<<uint64(d))])
+ (SUBshiftRL x (MOVDconst [c]) [d]) -> (SUBconst x [int64(uint64(c)>>uint64(d))])
+-(SUBshiftRA x (MOVDconst [c]) [d]) -> (SUBconst x [int64(int64(c)>>uint64(d))])
++(SUBshiftRA x (MOVDconst [c]) [d]) -> (SUBconst x [c>>uint64(d)])
+ (ANDshiftLL x (MOVDconst [c]) [d]) -> (ANDconst x [int64(uint64(c)<<uint64(d))])
+ (ANDshiftRL x (MOVDconst [c]) [d]) -> (ANDconst x [int64(uint64(c)>>uint64(d))])
+-(ANDshiftRA x (MOVDconst [c]) [d]) -> (ANDconst x [int64(int64(c)>>uint64(d))])
++(ANDshiftRA x (MOVDconst [c]) [d]) -> (ANDconst x [c>>uint64(d)])
+ (ORshiftLL  x (MOVDconst [c]) [d]) -> (ORconst  x [int64(uint64(c)<<uint64(d))])
+ (ORshiftRL  x (MOVDconst [c]) [d]) -> (ORconst  x [int64(uint64(c)>>uint64(d))])
+-(ORshiftRA  x (MOVDconst [c]) [d]) -> (ORconst  x [int64(int64(c)>>uint64(d))])
++(ORshiftRA  x (MOVDconst [c]) [d]) -> (ORconst  x [c>>uint64(d)])
+ (XORshiftLL x (MOVDconst [c]) [d]) -> (XORconst x [int64(uint64(c)<<uint64(d))])
+ (XORshiftRL x (MOVDconst [c]) [d]) -> (XORconst x [int64(uint64(c)>>uint64(d))])
+-(XORshiftRA x (MOVDconst [c]) [d]) -> (XORconst x [int64(int64(c)>>uint64(d))])
++(XORshiftRA x (MOVDconst [c]) [d]) -> (XORconst x [c>>uint64(d)])
+ (BICshiftLL x (MOVDconst [c]) [d]) -> (BICconst x [int64(uint64(c)<<uint64(d))])
+ (BICshiftRL x (MOVDconst [c]) [d]) -> (BICconst x [int64(uint64(c)>>uint64(d))])
+-(BICshiftRA x (MOVDconst [c]) [d]) -> (BICconst x [int64(int64(c)>>uint64(d))])
++(BICshiftRA x (MOVDconst [c]) [d]) -> (BICconst x [c>>uint64(d)])
+ (CMPshiftLL x (MOVDconst [c]) [d]) -> (CMPconst x [int64(uint64(c)<<uint64(d))])
+ (CMPshiftRL x (MOVDconst [c]) [d]) -> (CMPconst x [int64(uint64(c)>>uint64(d))])
+-(CMPshiftRA x (MOVDconst [c]) [d]) -> (CMPconst x [int64(int64(c)>>uint64(d))])
++(CMPshiftRA x (MOVDconst [c]) [d]) -> (CMPconst x [c>>uint64(d)])
+ 
+ // simplification with *shift ops
+ (SUBshiftLL x (SLLconst x [c]) [d]) && c==d -> (MOVDconst [0])
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 4f7a54d09c..c34f5fd92a 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -304,7 +304,7 @@
+ (Zero [s] {t} ptr mem)
+ 	&& s%8 == 0 && s > 24 && s <= 8*128
+ 	&& t.(*types.Type).Alignment()%8 == 0 && !config.noDuffDevice ->
+-	(DUFFZERO [8 * (128 - int64(s/8))] ptr mem)
++	(DUFFZERO [8 * (128 - s/8)] ptr mem)
+ 
+ // large or unaligned zeroing uses a loop
+ (Zero [s] {t} ptr mem)
+@@ -618,13 +618,13 @@
+ (SUBVconst [c] (MOVVconst [d]))  -> (MOVVconst [d-c])
+ (SUBVconst [c] (SUBVconst [d] x)) && is32Bit(-c-d) -> (ADDVconst [-c-d] x)
+ (SUBVconst [c] (ADDVconst [d] x)) && is32Bit(-c+d) -> (ADDVconst [-c+d] x)
+-(SLLVconst [c] (MOVVconst [d]))  -> (MOVVconst [int64(d)<<uint64(c)])
++(SLLVconst [c] (MOVVconst [d]))  -> (MOVVconst [d<<uint64(c)])
+ (SRLVconst [c] (MOVVconst [d]))  -> (MOVVconst [int64(uint64(d)>>uint64(c))])
+-(SRAVconst [c] (MOVVconst [d]))  -> (MOVVconst [int64(d)>>uint64(c)])
++(SRAVconst [c] (MOVVconst [d]))  -> (MOVVconst [d>>uint64(c)])
+ (Select1 (MULVU (MOVVconst [c]) (MOVVconst [d]))) -> (MOVVconst [c*d])
+-(Select1 (DIVV  (MOVVconst [c]) (MOVVconst [d]))) -> (MOVVconst [int64(c)/int64(d)])
++(Select1 (DIVV  (MOVVconst [c]) (MOVVconst [d]))) -> (MOVVconst [c/d])
+ (Select1 (DIVVU (MOVVconst [c]) (MOVVconst [d]))) -> (MOVVconst [int64(uint64(c)/uint64(d))])
+-(Select0 (DIVV  (MOVVconst [c]) (MOVVconst [d]))) -> (MOVVconst [int64(c)%int64(d)])   // mod
++(Select0 (DIVV  (MOVVconst [c]) (MOVVconst [d]))) -> (MOVVconst [c%d])   // mod
+ (Select0 (DIVVU (MOVVconst [c]) (MOVVconst [d]))) -> (MOVVconst [int64(uint64(c)%uint64(d))]) // mod
+ (ANDconst [c] (MOVVconst [d])) -> (MOVVconst [c&d])
+ (ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c&d] x)
+@@ -647,23 +647,23 @@
+ (LoweredAtomicAdd64 ptr (MOVVconst [c]) mem) && is32Bit(c) -> (LoweredAtomicAddconst64 [c] ptr mem)
+ 
+ // constant comparisons
+-(SGTconst [c] (MOVVconst [d])) && int64(c)>int64(d) -> (MOVVconst [1])
+-(SGTconst [c] (MOVVconst [d])) && int64(c)<=int64(d) -> (MOVVconst [0])
++(SGTconst [c] (MOVVconst [d])) && c>d -> (MOVVconst [1])
++(SGTconst [c] (MOVVconst [d])) && c<=d -> (MOVVconst [0])
+ (SGTUconst [c] (MOVVconst [d])) && uint64(c)>uint64(d) -> (MOVVconst [1])
+ (SGTUconst [c] (MOVVconst [d])) && uint64(c)<=uint64(d) -> (MOVVconst [0])
+ 
+ // other known comparisons
+-(SGTconst [c] (MOVBreg _)) && 0x7f < int64(c) -> (MOVVconst [1])
+-(SGTconst [c] (MOVBreg _)) && int64(c) <= -0x80 -> (MOVVconst [0])
+-(SGTconst [c] (MOVBUreg _)) && 0xff < int64(c) -> (MOVVconst [1])
+-(SGTconst [c] (MOVBUreg _)) && int64(c) < 0 -> (MOVVconst [0])
++(SGTconst [c] (MOVBreg _)) && 0x7f < c -> (MOVVconst [1])
++(SGTconst [c] (MOVBreg _)) && c <= -0x80 -> (MOVVconst [0])
++(SGTconst [c] (MOVBUreg _)) && 0xff < c -> (MOVVconst [1])
++(SGTconst [c] (MOVBUreg _)) && c < 0 -> (MOVVconst [0])
+ (SGTUconst [c] (MOVBUreg _)) && 0xff < uint64(c) -> (MOVVconst [1])
+-(SGTconst [c] (MOVHreg _)) && 0x7fff < int64(c) -> (MOVVconst [1])
+-(SGTconst [c] (MOVHreg _)) && int64(c) <= -0x8000 -> (MOVVconst [0])
+-(SGTconst [c] (MOVHUreg _)) && 0xffff < int64(c) -> (MOVVconst [1])
+-(SGTconst [c] (MOVHUreg _)) && int64(c) < 0 -> (MOVVconst [0])
++(SGTconst [c] (MOVHreg _)) && 0x7fff < c -> (MOVVconst [1])
++(SGTconst [c] (MOVHreg _)) && c <= -0x8000 -> (MOVVconst [0])
++(SGTconst [c] (MOVHUreg _)) && 0xffff < c -> (MOVVconst [1])
++(SGTconst [c] (MOVHUreg _)) && c < 0 -> (MOVVconst [0])
+ (SGTUconst [c] (MOVHUreg _)) && 0xffff < uint64(c) -> (MOVVconst [1])
+-(SGTconst [c] (MOVWUreg _)) && int64(c) < 0 -> (MOVVconst [0])
++(SGTconst [c] (MOVWUreg _)) && c < 0 -> (MOVVconst [0])
+ (SGTconst [c] (ANDconst [m] _)) && 0 <= m && m < c -> (MOVVconst [1])
+ (SGTUconst [c] (ANDconst [m] _)) && uint64(m) < uint64(c) -> (MOVVconst [1])
+ (SGTconst [c] (SRLVconst _ [d])) && 0 <= c && 0 < d && d <= 63 && 1<<uint64(64-d) <= c -> (MOVVconst [1])
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index f8f6c1262b..c8ecb55703 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -444,15 +444,15 @@
+ (CMPWconst (MOVDconst [x]) [y]) && int32(x)<int32(y)  -> (FlagLT)
+ (CMPWconst (MOVDconst [x]) [y]) && int32(x)>int32(y)  -> (FlagGT)
+ 
+-(CMPconst (MOVDconst [x]) [y]) && int64(x)==int64(y) -> (FlagEQ)
+-(CMPconst (MOVDconst [x]) [y]) && int64(x)<int64(y)  -> (FlagLT)
+-(CMPconst (MOVDconst [x]) [y]) && int64(x)>int64(y)  -> (FlagGT)
++(CMPconst (MOVDconst [x]) [y]) && x==y -> (FlagEQ)
++(CMPconst (MOVDconst [x]) [y]) && x<y  -> (FlagLT)
++(CMPconst (MOVDconst [x]) [y]) && x>y  -> (FlagGT)
+ 
+ (CMPWUconst (MOVDconst [x]) [y]) && int32(x)==int32(y)  -> (FlagEQ)
+ (CMPWUconst (MOVDconst [x]) [y]) && uint32(x)<uint32(y) -> (FlagLT)
+ (CMPWUconst (MOVDconst [x]) [y]) && uint32(x)>uint32(y) -> (FlagGT)
+ 
+-(CMPUconst (MOVDconst [x]) [y]) && int64(x)==int64(y)  -> (FlagEQ)
++(CMPUconst (MOVDconst [x]) [y]) && x==y  -> (FlagEQ)
+ (CMPUconst (MOVDconst [x]) [y]) && uint64(x)<uint64(y) -> (FlagLT)
+ (CMPUconst (MOVDconst [x]) [y]) && uint64(x)>uint64(y) -> (FlagGT)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index e41bf930d3..945d053f8a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -20066,7 +20066,7 @@ func rewriteValueARM_OpMove_0(v *Value) bool {
+ 	}
+ 	// match: (Move [s] {t} dst src mem)
+ 	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice
+-	// result: (DUFFCOPY [8 * (128 - int64(s/4))] dst src mem)
++	// result: (DUFFCOPY [8 * (128 - s/4)] dst src mem)
+ 	for {
+ 		s := v.AuxInt
+ 		t := v.Aux
+@@ -20078,7 +20078,7 @@ func rewriteValueARM_OpMove_0(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMDUFFCOPY)
+-		v.AuxInt = 8 * (128 - int64(s/4))
++		v.AuxInt = 8 * (128 - s/4)
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v.AddArg(mem)
+@@ -21985,7 +21985,7 @@ func rewriteValueARM_OpZero_0(v *Value) bool {
+ 	}
+ 	// match: (Zero [s] {t} ptr mem)
+ 	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice
+-	// result: (DUFFZERO [4 * (128 - int64(s/4))] ptr (MOVWconst [0]) mem)
++	// result: (DUFFZERO [4 * (128 - s/4)] ptr (MOVWconst [0]) mem)
+ 	for {
+ 		s := v.AuxInt
+ 		t := v.Aux
+@@ -21996,7 +21996,7 @@ func rewriteValueARM_OpZero_0(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMDUFFZERO)
+-		v.AuxInt = 4 * (128 - int64(s/4))
++		v.AuxInt = 4 * (128 - s/4)
+ 		v.AddArg(ptr)
+ 		v0 := b.NewValue0(v.Pos, OpARMMOVWconst, typ.UInt32)
+ 		v0.AuxInt = 0
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 306b1339ee..81be85c63a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -1162,7 +1162,7 @@ func rewriteValueARM64_OpARM64ADDshiftRA_0(v *Value) bool {
+ 	}
+ 	// match: (ADDshiftRA x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (ADDconst x [int64(int64(c)>>uint64(d))])
++	// result: (ADDconst x [c>>uint64(d)])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -1173,7 +1173,7 @@ func rewriteValueARM64_OpARM64ADDshiftRA_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpARM64ADDconst)
+-		v.AuxInt = int64(int64(c) >> uint64(d))
++		v.AuxInt = c >> uint64(d)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1630,7 +1630,7 @@ func rewriteValueARM64_OpARM64ANDshiftRA_0(v *Value) bool {
+ 	}
+ 	// match: (ANDshiftRA x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (ANDconst x [int64(int64(c)>>uint64(d))])
++	// result: (ANDconst x [c>>uint64(d)])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -1641,7 +1641,7 @@ func rewriteValueARM64_OpARM64ANDshiftRA_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpARM64ANDconst)
+-		v.AuxInt = int64(int64(c) >> uint64(d))
++		v.AuxInt = c >> uint64(d)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1916,7 +1916,7 @@ func rewriteValueARM64_OpARM64BICshiftLL_0(v *Value) bool {
+ func rewriteValueARM64_OpARM64BICshiftRA_0(v *Value) bool {
+ 	// match: (BICshiftRA x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (BICconst x [int64(int64(c)>>uint64(d))])
++	// result: (BICconst x [c>>uint64(d)])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -1927,7 +1927,7 @@ func rewriteValueARM64_OpARM64BICshiftRA_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpARM64BICconst)
+-		v.AuxInt = int64(int64(c) >> uint64(d))
++		v.AuxInt = c >> uint64(d)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -2338,7 +2338,7 @@ func rewriteValueARM64_OpARM64CMPconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: int64(x)<int64(y) && uint64(x)<uint64(y)
++	// cond: x<y && uint64(x)<uint64(y)
+ 	// result: (FlagLT_ULT)
+ 	for {
+ 		y := v.AuxInt
+@@ -2347,14 +2347,14 @@ func rewriteValueARM64_OpARM64CMPconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0.AuxInt
+-		if !(int64(x) < int64(y) && uint64(x) < uint64(y)) {
++		if !(x < y && uint64(x) < uint64(y)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FlagLT_ULT)
+ 		return true
+ 	}
+ 	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: int64(x)<int64(y) && uint64(x)>uint64(y)
++	// cond: x<y && uint64(x)>uint64(y)
+ 	// result: (FlagLT_UGT)
+ 	for {
+ 		y := v.AuxInt
+@@ -2363,14 +2363,14 @@ func rewriteValueARM64_OpARM64CMPconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0.AuxInt
+-		if !(int64(x) < int64(y) && uint64(x) > uint64(y)) {
++		if !(x < y && uint64(x) > uint64(y)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FlagLT_UGT)
+ 		return true
+ 	}
+ 	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: int64(x)>int64(y) && uint64(x)<uint64(y)
++	// cond: x>y && uint64(x)<uint64(y)
+ 	// result: (FlagGT_ULT)
+ 	for {
+ 		y := v.AuxInt
+@@ -2379,14 +2379,14 @@ func rewriteValueARM64_OpARM64CMPconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0.AuxInt
+-		if !(int64(x) > int64(y) && uint64(x) < uint64(y)) {
++		if !(x > y && uint64(x) < uint64(y)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FlagGT_ULT)
+ 		return true
+ 	}
+ 	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: int64(x)>int64(y) && uint64(x)>uint64(y)
++	// cond: x>y && uint64(x)>uint64(y)
+ 	// result: (FlagGT_UGT)
+ 	for {
+ 		y := v.AuxInt
+@@ -2395,7 +2395,7 @@ func rewriteValueARM64_OpARM64CMPconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0.AuxInt
+-		if !(int64(x) > int64(y) && uint64(x) > uint64(y)) {
++		if !(x > y && uint64(x) > uint64(y)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FlagGT_UGT)
+@@ -2551,7 +2551,7 @@ func rewriteValueARM64_OpARM64CMPshiftRA_0(v *Value) bool {
+ 	}
+ 	// match: (CMPshiftRA x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (CMPconst x [int64(int64(c)>>uint64(d))])
++	// result: (CMPconst x [c>>uint64(d)])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -2562,7 +2562,7 @@ func rewriteValueARM64_OpARM64CMPshiftRA_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpARM64CMPconst)
+-		v.AuxInt = int64(int64(c) >> uint64(d))
++		v.AuxInt = c >> uint64(d)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -2863,7 +2863,7 @@ func rewriteValueARM64_OpARM64CSEL0_0(v *Value) bool {
+ func rewriteValueARM64_OpARM64DIV_0(v *Value) bool {
+ 	// match: (DIV (MOVDconst [c]) (MOVDconst [d]))
+ 	// cond:
+-	// result: (MOVDconst [int64(c)/int64(d)])
++	// result: (MOVDconst [c/d])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -2877,7 +2877,7 @@ func rewriteValueARM64_OpARM64DIV_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = int64(c) / int64(d)
++		v.AuxInt = c / d
+ 		return true
+ 	}
+ 	return false
+@@ -5379,7 +5379,7 @@ func rewriteValueARM64_OpARM64MNEGW_20(v *Value) bool {
+ func rewriteValueARM64_OpARM64MOD_0(v *Value) bool {
+ 	// match: (MOD (MOVDconst [c]) (MOVDconst [d]))
+ 	// cond:
+-	// result: (MOVDconst [int64(c)%int64(d)])
++	// result: (MOVDconst [c%d])
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -5393,7 +5393,7 @@ func rewriteValueARM64_OpARM64MOD_0(v *Value) bool {
+ 		}
+ 		d := v_1.AuxInt
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = int64(c) % int64(d)
++		v.AuxInt = c % d
+ 		return true
+ 	}
+ 	return false
+@@ -10807,7 +10807,7 @@ func rewriteValueARM64_OpARM64ORshiftRA_0(v *Value) bool {
+ 	}
+ 	// match: (ORshiftRA x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (ORconst x [int64(int64(c)>>uint64(d))])
++	// result: (ORconst x [c>>uint64(d)])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -10818,7 +10818,7 @@ func rewriteValueARM64_OpARM64ORshiftRA_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpARM64ORconst)
+-		v.AuxInt = int64(int64(c) >> uint64(d))
++		v.AuxInt = c >> uint64(d)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -10986,7 +10986,7 @@ func rewriteValueARM64_OpARM64SLL_0(v *Value) bool {
+ func rewriteValueARM64_OpARM64SLLconst_0(v *Value) bool {
+ 	// match: (SLLconst [c] (MOVDconst [d]))
+ 	// cond:
+-	// result: (MOVDconst [int64(d)<<uint64(c)])
++	// result: (MOVDconst [d<<uint64(c)])
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -10995,7 +10995,7 @@ func rewriteValueARM64_OpARM64SLLconst_0(v *Value) bool {
+ 		}
+ 		d := v_0.AuxInt
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = int64(d) << uint64(c)
++		v.AuxInt = d << uint64(c)
+ 		return true
+ 	}
+ 	// match: (SLLconst [c] (SRLconst [c] x))
+@@ -11043,7 +11043,7 @@ func rewriteValueARM64_OpARM64SRA_0(v *Value) bool {
+ func rewriteValueARM64_OpARM64SRAconst_0(v *Value) bool {
+ 	// match: (SRAconst [c] (MOVDconst [d]))
+ 	// cond:
+-	// result: (MOVDconst [int64(d)>>uint64(c)])
++	// result: (MOVDconst [d>>uint64(c)])
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -11052,7 +11052,7 @@ func rewriteValueARM64_OpARM64SRAconst_0(v *Value) bool {
+ 		}
+ 		d := v_0.AuxInt
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = int64(d) >> uint64(c)
++		v.AuxInt = d >> uint64(c)
+ 		return true
+ 	}
+ 	return false
+@@ -11454,7 +11454,7 @@ func rewriteValueARM64_OpARM64SUBshiftLL_0(v *Value) bool {
+ func rewriteValueARM64_OpARM64SUBshiftRA_0(v *Value) bool {
+ 	// match: (SUBshiftRA x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (SUBconst x [int64(int64(c)>>uint64(d))])
++	// result: (SUBconst x [c>>uint64(d)])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -11465,7 +11465,7 @@ func rewriteValueARM64_OpARM64SUBshiftRA_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpARM64SUBconst)
+-		v.AuxInt = int64(int64(c) >> uint64(d))
++		v.AuxInt = c >> uint64(d)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -12142,7 +12142,7 @@ func rewriteValueARM64_OpARM64XORshiftRA_0(v *Value) bool {
+ 	}
+ 	// match: (XORshiftRA x (MOVDconst [c]) [d])
+ 	// cond:
+-	// result: (XORconst x [int64(int64(c)>>uint64(d))])
++	// result: (XORconst x [c>>uint64(d)])
+ 	for {
+ 		d := v.AuxInt
+ 		_ = v.Args[1]
+@@ -12153,7 +12153,7 @@ func rewriteValueARM64_OpARM64XORshiftRA_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpARM64XORconst)
+-		v.AuxInt = int64(int64(c) >> uint64(d))
++		v.AuxInt = c >> uint64(d)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -15759,7 +15759,7 @@ func rewriteValueARM64_OpMove_10(v *Value) bool {
+ 	}
+ 	// match: (Move [s] dst src mem)
+ 	// cond: s%8 == 0 && s > 24 && s <= 8*128 && !config.noDuffDevice
+-	// result: (DUFFCOPY [8 * (128 - int64(s/8))] dst src mem)
++	// result: (DUFFCOPY [8 * (128 - s/8)] dst src mem)
+ 	for {
+ 		s := v.AuxInt
+ 		_ = v.Args[2]
+@@ -15770,7 +15770,7 @@ func rewriteValueARM64_OpMove_10(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpARM64DUFFCOPY)
+-		v.AuxInt = 8 * (128 - int64(s/8))
++		v.AuxInt = 8 * (128 - s/8)
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v.AddArg(mem)
+@@ -18460,7 +18460,7 @@ func rewriteValueARM64_OpZero_20(v *Value) bool {
+ 	}
+ 	// match: (Zero [s] ptr mem)
+ 	// cond: s%16 == 0 && s > 64 && s <= 16*64 && !config.noDuffDevice
+-	// result: (DUFFZERO [4 * (64 - int64(s/16))] ptr mem)
++	// result: (DUFFZERO [4 * (64 - s/16)] ptr mem)
+ 	for {
+ 		s := v.AuxInt
+ 		_ = v.Args[1]
+@@ -18470,7 +18470,7 @@ func rewriteValueARM64_OpZero_20(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpARM64DUFFZERO)
+-		v.AuxInt = 4 * (64 - int64(s/16))
++		v.AuxInt = 4 * (64 - s/16)
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 20a84c03d2..1e0fdcbc71 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -6012,7 +6012,7 @@ func rewriteValueMIPS64_OpMIPS64SGTUconst_0(v *Value) bool {
+ }
+ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 	// match: (SGTconst [c] (MOVVconst [d]))
+-	// cond: int64(c)>int64(d)
++	// cond: c>d
+ 	// result: (MOVVconst [1])
+ 	for {
+ 		c := v.AuxInt
+@@ -6021,7 +6021,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		d := v_0.AuxInt
+-		if !(int64(c) > int64(d)) {
++		if !(c > d) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6029,7 +6029,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (MOVVconst [d]))
+-	// cond: int64(c)<=int64(d)
++	// cond: c<=d
+ 	// result: (MOVVconst [0])
+ 	for {
+ 		c := v.AuxInt
+@@ -6038,7 +6038,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		d := v_0.AuxInt
+-		if !(int64(c) <= int64(d)) {
++		if !(c <= d) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6046,7 +6046,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (MOVBreg _))
+-	// cond: 0x7f < int64(c)
++	// cond: 0x7f < c
+ 	// result: (MOVVconst [1])
+ 	for {
+ 		c := v.AuxInt
+@@ -6054,7 +6054,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		if v_0.Op != OpMIPS64MOVBreg {
+ 			break
+ 		}
+-		if !(0x7f < int64(c)) {
++		if !(0x7f < c) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6062,7 +6062,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (MOVBreg _))
+-	// cond: int64(c) <= -0x80
++	// cond: c <= -0x80
+ 	// result: (MOVVconst [0])
+ 	for {
+ 		c := v.AuxInt
+@@ -6070,7 +6070,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		if v_0.Op != OpMIPS64MOVBreg {
+ 			break
+ 		}
+-		if !(int64(c) <= -0x80) {
++		if !(c <= -0x80) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6078,7 +6078,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (MOVBUreg _))
+-	// cond: 0xff < int64(c)
++	// cond: 0xff < c
+ 	// result: (MOVVconst [1])
+ 	for {
+ 		c := v.AuxInt
+@@ -6086,7 +6086,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		if v_0.Op != OpMIPS64MOVBUreg {
+ 			break
+ 		}
+-		if !(0xff < int64(c)) {
++		if !(0xff < c) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6094,7 +6094,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (MOVBUreg _))
+-	// cond: int64(c) < 0
++	// cond: c < 0
+ 	// result: (MOVVconst [0])
+ 	for {
+ 		c := v.AuxInt
+@@ -6102,7 +6102,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		if v_0.Op != OpMIPS64MOVBUreg {
+ 			break
+ 		}
+-		if !(int64(c) < 0) {
++		if !(c < 0) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6110,7 +6110,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (MOVHreg _))
+-	// cond: 0x7fff < int64(c)
++	// cond: 0x7fff < c
+ 	// result: (MOVVconst [1])
+ 	for {
+ 		c := v.AuxInt
+@@ -6118,7 +6118,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		if v_0.Op != OpMIPS64MOVHreg {
+ 			break
+ 		}
+-		if !(0x7fff < int64(c)) {
++		if !(0x7fff < c) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6126,7 +6126,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (MOVHreg _))
+-	// cond: int64(c) <= -0x8000
++	// cond: c <= -0x8000
+ 	// result: (MOVVconst [0])
+ 	for {
+ 		c := v.AuxInt
+@@ -6134,7 +6134,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		if v_0.Op != OpMIPS64MOVHreg {
+ 			break
+ 		}
+-		if !(int64(c) <= -0x8000) {
++		if !(c <= -0x8000) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6142,7 +6142,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (MOVHUreg _))
+-	// cond: 0xffff < int64(c)
++	// cond: 0xffff < c
+ 	// result: (MOVVconst [1])
+ 	for {
+ 		c := v.AuxInt
+@@ -6150,7 +6150,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		if v_0.Op != OpMIPS64MOVHUreg {
+ 			break
+ 		}
+-		if !(0xffff < int64(c)) {
++		if !(0xffff < c) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6158,7 +6158,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (MOVHUreg _))
+-	// cond: int64(c) < 0
++	// cond: c < 0
+ 	// result: (MOVVconst [0])
+ 	for {
+ 		c := v.AuxInt
+@@ -6166,7 +6166,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ 		if v_0.Op != OpMIPS64MOVHUreg {
+ 			break
+ 		}
+-		if !(int64(c) < 0) {
++		if !(c < 0) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6177,7 +6177,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_0(v *Value) bool {
+ }
+ func rewriteValueMIPS64_OpMIPS64SGTconst_10(v *Value) bool {
+ 	// match: (SGTconst [c] (MOVWUreg _))
+-	// cond: int64(c) < 0
++	// cond: c < 0
+ 	// result: (MOVVconst [0])
+ 	for {
+ 		c := v.AuxInt
+@@ -6185,7 +6185,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_10(v *Value) bool {
+ 		if v_0.Op != OpMIPS64MOVWUreg {
+ 			break
+ 		}
+-		if !(int64(c) < 0) {
++		if !(c < 0) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6267,7 +6267,7 @@ func rewriteValueMIPS64_OpMIPS64SLLV_0(v *Value) bool {
+ func rewriteValueMIPS64_OpMIPS64SLLVconst_0(v *Value) bool {
+ 	// match: (SLLVconst [c] (MOVVconst [d]))
+ 	// cond:
+-	// result: (MOVVconst [int64(d)<<uint64(c)])
++	// result: (MOVVconst [d<<uint64(c)])
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -6276,7 +6276,7 @@ func rewriteValueMIPS64_OpMIPS64SLLVconst_0(v *Value) bool {
+ 		}
+ 		d := v_0.AuxInt
+ 		v.reset(OpMIPS64MOVVconst)
+-		v.AuxInt = int64(d) << uint64(c)
++		v.AuxInt = d << uint64(c)
+ 		return true
+ 	}
+ 	return false
+@@ -6322,7 +6322,7 @@ func rewriteValueMIPS64_OpMIPS64SRAV_0(v *Value) bool {
+ func rewriteValueMIPS64_OpMIPS64SRAVconst_0(v *Value) bool {
+ 	// match: (SRAVconst [c] (MOVVconst [d]))
+ 	// cond:
+-	// result: (MOVVconst [int64(d)>>uint64(c)])
++	// result: (MOVVconst [d>>uint64(c)])
+ 	for {
+ 		c := v.AuxInt
+ 		v_0 := v.Args[0]
+@@ -6331,7 +6331,7 @@ func rewriteValueMIPS64_OpMIPS64SRAVconst_0(v *Value) bool {
+ 		}
+ 		d := v_0.AuxInt
+ 		v.reset(OpMIPS64MOVVconst)
+-		v.AuxInt = int64(d) >> uint64(c)
++		v.AuxInt = d >> uint64(c)
+ 		return true
+ 	}
+ 	return false
+@@ -8961,7 +8961,7 @@ func rewriteValueMIPS64_OpSelect0_0(v *Value) bool {
+ 	}
+ 	// match: (Select0 (DIVV (MOVVconst [c]) (MOVVconst [d])))
+ 	// cond:
+-	// result: (MOVVconst [int64(c)%int64(d)])
++	// result: (MOVVconst [c%d])
+ 	for {
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpMIPS64DIVV {
+@@ -8979,7 +8979,7 @@ func rewriteValueMIPS64_OpSelect0_0(v *Value) bool {
+ 		}
+ 		d := v_0_1.AuxInt
+ 		v.reset(OpMIPS64MOVVconst)
+-		v.AuxInt = int64(c) % int64(d)
++		v.AuxInt = c % d
+ 		return true
+ 	}
+ 	// match: (Select0 (DIVVU (MOVVconst [c]) (MOVVconst [d])))
+@@ -9451,7 +9451,7 @@ func rewriteValueMIPS64_OpSelect1_10(v *Value) bool {
+ func rewriteValueMIPS64_OpSelect1_20(v *Value) bool {
+ 	// match: (Select1 (DIVV (MOVVconst [c]) (MOVVconst [d])))
+ 	// cond:
+-	// result: (MOVVconst [int64(c)/int64(d)])
++	// result: (MOVVconst [c/d])
+ 	for {
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpMIPS64DIVV {
+@@ -9469,7 +9469,7 @@ func rewriteValueMIPS64_OpSelect1_20(v *Value) bool {
+ 		}
+ 		d := v_0_1.AuxInt
+ 		v.reset(OpMIPS64MOVVconst)
+-		v.AuxInt = int64(c) / int64(d)
++		v.AuxInt = c / d
+ 		return true
+ 	}
+ 	// match: (Select1 (DIVVU (MOVVconst [c]) (MOVVconst [d])))
+@@ -10419,7 +10419,7 @@ func rewriteValueMIPS64_OpZero_10(v *Value) bool {
+ 	}
+ 	// match: (Zero [s] {t} ptr mem)
+ 	// cond: s%8 == 0 && s > 24 && s <= 8*128 && t.(*types.Type).Alignment()%8 == 0 && !config.noDuffDevice
+-	// result: (DUFFZERO [8 * (128 - int64(s/8))] ptr mem)
++	// result: (DUFFZERO [8 * (128 - s/8)] ptr mem)
+ 	for {
+ 		s := v.AuxInt
+ 		t := v.Aux
+@@ -10430,7 +10430,7 @@ func rewriteValueMIPS64_OpZero_10(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64DUFFZERO)
+-		v.AuxInt = 8 * (128 - int64(s/8))
++		v.AuxInt = 8 * (128 - s/8)
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 72a81d4b31..db79d828de 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -5805,7 +5805,7 @@ func rewriteValuePPC64_OpPPC64CMPU_0(v *Value) bool {
+ }
+ func rewriteValuePPC64_OpPPC64CMPUconst_0(v *Value) bool {
+ 	// match: (CMPUconst (MOVDconst [x]) [y])
+-	// cond: int64(x)==int64(y)
++	// cond: x==y
+ 	// result: (FlagEQ)
+ 	for {
+ 		y := v.AuxInt
+@@ -5814,7 +5814,7 @@ func rewriteValuePPC64_OpPPC64CMPUconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0.AuxInt
+-		if !(int64(x) == int64(y)) {
++		if !(x == y) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64FlagEQ)
+@@ -6112,7 +6112,7 @@ func rewriteValuePPC64_OpPPC64CMPWconst_0(v *Value) bool {
+ }
+ func rewriteValuePPC64_OpPPC64CMPconst_0(v *Value) bool {
+ 	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: int64(x)==int64(y)
++	// cond: x==y
+ 	// result: (FlagEQ)
+ 	for {
+ 		y := v.AuxInt
+@@ -6121,14 +6121,14 @@ func rewriteValuePPC64_OpPPC64CMPconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0.AuxInt
+-		if !(int64(x) == int64(y)) {
++		if !(x == y) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64FlagEQ)
+ 		return true
+ 	}
+ 	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: int64(x)<int64(y)
++	// cond: x<y
+ 	// result: (FlagLT)
+ 	for {
+ 		y := v.AuxInt
+@@ -6137,14 +6137,14 @@ func rewriteValuePPC64_OpPPC64CMPconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0.AuxInt
+-		if !(int64(x) < int64(y)) {
++		if !(x < y) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64FlagLT)
+ 		return true
+ 	}
+ 	// match: (CMPconst (MOVDconst [x]) [y])
+-	// cond: int64(x)>int64(y)
++	// cond: x>y
+ 	// result: (FlagGT)
+ 	for {
+ 		y := v.AuxInt
+@@ -6153,7 +6153,7 @@ func rewriteValuePPC64_OpPPC64CMPconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0.AuxInt
+-		if !(int64(x) > int64(y)) {
++		if !(x > y) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64FlagGT)
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 11011de018..d1a844ea76 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -622,7 +622,7 @@ func (pkg *Package) symbolDoc(symbol string) bool {
+ 						// This a standalone identifier, as in the case of iota usage.
+ 						// Thus, assume the type comes from the previous type.
+ 						vspec.Type = &ast.Ident{
+-							Name:    string(pkg.oneLineNode(typ)),
++							Name:    pkg.oneLineNode(typ),
+ 							NamePos: vspec.End() - 1,
+ 						}
+ 					}
+diff --git a/src/cmd/internal/buildid/note.go b/src/cmd/internal/buildid/note.go
+index f0439fb0bf..5895da906a 100644
+--- a/src/cmd/internal/buildid/note.go
++++ b/src/cmd/internal/buildid/note.go
+@@ -147,7 +147,7 @@ func readELF(name string, f *os.File, data []byte) (buildid string, err error) {
+ 				break
+ 			}
+ 			off += notesz
+-			align := uint64(p.Align)
++			align := p.Align
+ 			alignedOff := (off + align - 1) &^ (align - 1)
+ 			notesz += alignedOff - off
+ 			off = alignedOff
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 478a75c4a7..b9cf95bf75 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -776,7 +776,7 @@ func GetAbbrev() []byte {
+ 		// See section 7.5.3
+ 		buf = AppendUleb128(buf, uint64(i))
+ 		buf = AppendUleb128(buf, uint64(abbrevs[i].tag))
+-		buf = append(buf, byte(abbrevs[i].children))
++		buf = append(buf, abbrevs[i].children)
+ 		for _, f := range abbrevs[i].attr {
+ 			buf = AppendUleb128(buf, uint64(f.attr))
+ 			buf = AppendUleb128(buf, uint64(f.form))
+@@ -1454,7 +1454,7 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
+ 	}
+ 
+ 	if abbrevUsesLoclist(abbrev) {
+-		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(s.Loc.Len()), s.Loc)
++		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Loc.Len(), s.Loc)
+ 		v.PutLocationList(s.Loc, s.StartPC)
+ 	} else {
+ 		loc := encbuf[:0]
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index ebdc37575f..e39180cad6 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -585,7 +585,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 				f.FuncData[i].Sym = r.readSymID()
+ 			}
+ 			for i := range f.FuncData {
+-				f.FuncData[i].Offset = int64(r.readInt()) // TODO
++				f.FuncData[i].Offset = r.readInt() // TODO
+ 			}
+ 			f.File = make([]string, r.readInt())
+ 			for i := range f.File {
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index f7d0f17168..2046649e38 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -346,7 +346,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		o := p.As
+ 		switch o {
+ 		case obj.ATEXT:
+-			autosize = int32(autoffset)
++			autosize = autoffset
+ 
+ 			if p.Mark&LEAF != 0 && autosize == 0 {
+ 				// A leaf function with no locals has no frame.
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 9d064806a1..a8b2e1d39e 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -861,7 +861,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
+ 	//	MOVD addr, REGTMP
+ 	//	MOVD REGTMP, R
+ 	// where addr is the address of the DWORD containing the address of foo.
+-	if p.As == AMOVD && a.Type != obj.TYPE_MEM || cls == C_ADDR || cls == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
++	if p.As == AMOVD && a.Type != obj.TYPE_MEM || cls == C_ADDR || cls == C_VCON || lit != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
+ 		// conservative: don't know if we want signed or unsigned extension.
+ 		// in case of ambiguity, store 64-bit
+ 		t.As = ADWORD
+@@ -2838,7 +2838,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if v == 0 {
+ 			c.ctxt.Diag("illegal system register:\n%v", p)
+ 		}
+-		if (o1 & uint32(v&^(3<<19))) != 0 {
++		if (o1 & (v &^ (3 << 19))) != 0 {
+ 			c.ctxt.Diag("MRS register value overlap\n%v", p)
+ 		}
+ 
+@@ -2858,7 +2858,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if v == 0 {
+ 			c.ctxt.Diag("illegal system register:\n%v", p)
+ 		}
+-		if (o1 & uint32(v&^(3<<19))) != 0 {
++		if (o1 & (v &^ (3 << 19))) != 0 {
+ 			c.ctxt.Diag("MSR register value overlap\n%v", p)
+ 		}
+ 
+@@ -3360,7 +3360,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			size = 2
+ 		} else if p.As == AVAND || p.As == AVEOR {
+ 			size = 0
+-		} else if (p.As == AVFMLA || p.As == AVFMLS) {
++		} else if p.As == AVFMLA || p.As == AVFMLS {
+ 			if af == ARNG_2D {
+ 				size = 1
+ 			} else {
+@@ -3512,7 +3512,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rt := int(p.To.Reg)
+ 		imm5 := 0
+ 		o1 = 1<<30 | 7<<25 | 7<<10
+-		index :=int(p.From.Index)
++		index := int(p.From.Index)
+ 		switch (p.To.Reg >> 5) & 15 {
+ 		case ARNG_B:
+ 			c.checkindex(p, index, 15)
+@@ -3662,7 +3662,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		default:
+ 			c.ctxt.Diag("invalid arrangement on VMOV Rn, Vd.<T>: %v\n", p)
+ 		}
+-		o1 |= (uint32(Q&1) << 30) | (uint32(imm5&0x1f) << 16)
++		o1 |= (Q & 1 << 30) | (imm5 & 0x1f << 16)
+ 		o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
+ 
+ 	case 83: /* vmov Vn.<T>, Vd.<T> */
+@@ -3883,7 +3883,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 
+ 		o1 = c.opldrpp(p, p.As)
+-		o1 |= (uint32(r&31) << 5) | (uint32((imm>>3)&0xfff) << 10) | (uint32(v & 31))
++		o1 |= (uint32(r&31) << 5) | ((imm >> 3) & 0xfff << 10) | (v & 31)
+ 
+ 	}
+ 	out[0] = o1
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index c50cd3b06c..c468ee93a4 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -524,7 +524,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q.To.Type = obj.TYPE_MEM
+ 					q.To.Offset = int64(-autosize)
+ 					q.To.Reg = REGSP
+-					q.Spadj = int32(autosize)
++					q.Spadj = autosize
+ 				} else {
+ 					// Frame size is too large for a MOVDU instruction.
+ 					// Store link register before decrementing SP, so if a signal comes
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index b14d1d232b..7c666e8f6e 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3930,7 +3930,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				} else {
+ 					regnum &= byte(p.GetFrom3().Reg - REG_Y0)
+ 				}
+-				asmbuf.Put1(byte(o.op[z+2]) | regnum)
++				asmbuf.Put1(o.op[z+2] | regnum)
+ 				asmbuf.Put1(byte(p.From.Offset))
+ 
+ 			case Zvex_i_rm_v_r:
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index 51fa6e873f..473e773ec2 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -64,7 +64,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
+ 	var syms []Sym
+ 	for _, s := range f.goobj.Syms {
+ 		seen[s.SymID] = true
+-		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: int64(s.Size), Type: s.Type.Name, Code: '?'}
++		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: s.Size, Type: s.Type.Name, Code: '?'}
+ 		switch s.Kind {
+ 		case objabi.STEXT:
+ 			sym.Code = 'T'
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 93c2a85690..d0bebce4bb 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -485,7 +485,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
+ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, tramp, target *sym.Symbol, offset int64) {
+ 	tramp.Size = 12 // 3 instructions
+ 	tramp.P = make([]byte, tramp.Size)
+-	t := ld.Symaddr(target) + int64(offset)
++	t := ld.Symaddr(target) + offset
+ 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16) // MOVW (R15), R11 // R15 is actual pc + 8
+ 	o2 := uint32(0xe12fff10 | 11)              // JMP  (R11)
+ 	o3 := uint32(t)                            // WORD $target
+@@ -538,8 +538,8 @@ func gentrampdyn(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
+ 		tramp.Size = 24 // 6 instructions
+ 		o6 = o5
+ 		o5 = o4
+-		o4 = uint32(0xe2800000 | 11<<12 | 11<<16 | immrot(uint32(offset))) // ADD $offset, R11, R11
+-		o1 = uint32(0xe5900000 | 11<<12 | 15<<16 | 12)                     // MOVW 12(R15), R11
++		o4 = 0xe2800000 | 11<<12 | 11<<16 | immrot(uint32(offset)) // ADD $offset, R11, R11
++		o1 = uint32(0xe5900000 | 11<<12 | 15<<16 | 12)             // MOVW 12(R15), R11
+ 	}
+ 	tramp.P = make([]byte, tramp.Size)
+ 	arch.ByteOrder.PutUint32(tramp.P, o1)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 7450dea6d5..65de24ef98 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -417,7 +417,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 						o -= int64(r.Off) // relative to section offset, not symbol
+ 					} else if ctxt.Arch.Family == sys.ARM {
+ 						// see ../arm/asm.go:/machoreloc1
+-						o += Symaddr(rs) - int64(s.Value) - int64(r.Off)
++						o += Symaddr(rs) - s.Value - int64(r.Off)
+ 					} else {
+ 						o += int64(r.Siz)
+ 					}
+@@ -2006,7 +2006,7 @@ func (ctxt *Link) address() {
+ 	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(*FlagRound)))
+ 	Segdwarf.Filelen = 0
+ 	if ctxt.HeadType == objabi.Hwindows {
+-		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
++		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), PEFILEALIGN))
+ 	}
+ 	for i, s := range Segdwarf.Sections {
+ 		vlen := int64(s.Length)
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 4642bdbe7a..ae0d3c07a3 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1013,7 +1013,7 @@ func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *sym.Symbol, deltaPC uin
+ 
+ 	// Subtract from deltaPC and deltaLC the amounts that the opcode will add.
+ 	deltaPC -= uint64((opcode - OPCODE_BASE) / LINE_RANGE)
+-	deltaLC -= int64((opcode-OPCODE_BASE)%LINE_RANGE + LINE_BASE)
++	deltaLC -= (opcode-OPCODE_BASE)%LINE_RANGE + LINE_BASE
+ 
+ 	// Encode deltaPC.
+ 	if deltaPC != 0 {
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 9f32415ae6..11fdf1fb05 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -575,7 +575,7 @@ func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
+ 					ld.Errorf(s, "unexpected trampoline for shared or dynamic linking\n")
+ 				} else {
+ 					ctxt.AddTramp(tramp)
+-					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, int64(r.Add))
++					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, r.Add)
+ 				}
+ 			}
+ 			r.Sym = tramp

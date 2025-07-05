@@ -15,6 +15,34 @@ Date:   Tue May 14 10:22:04 2019 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  doc/go_spec.html | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index dea3afe498..fb4341be1d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of May 13, 2019",
++	"Subtitle": "Version of May 14, 2019",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3262,6 +3262,14 @@ is a <code>nil</code> slice. Otherwise, if the result is a slice, it shares its
+ array with the operand.
+ </p>
+ 
++<pre>
++var a [10]int
++s1 := a[3:7]   // underlying array of s1 is array a; &s1[2] == &a[5]
++s2 := s1[1:4]  // underlying array of s2 is underlying array of s1 which is array a; &s2[1] == &a[5]
++s2[1] = 42     // s2[1] == s1[2] == a[5] == 42; they all refer to the same underlying array element
++</pre>
++
++
+ <h4>Full slice expressions</h4>
+ 
+ <p>

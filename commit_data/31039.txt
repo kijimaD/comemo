@@ -21,10 +21,140 @@ Date:   Fri Jan 13 22:08:27 2017 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go    |  6 ++----
  src/compress/bzip2/bzip2_test.go  | 24 +++++++++++++++---------
  src/go/doc/doc_test.go            |  5 ++++-
  src/go/parser/performance_test.go | 13 ++++---------
  src/os/os_test.go                 |  5 ++++-
  5 files changed, 29 insertions(+), 24 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 8bedc5dd95..3de341b9c5 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -515,13 +515,11 @@ func copyLocalData(dstbase string) (pkgpath string, err error) {
+ 
+ 	// Copy timezone file.
+ 	//
+-	// Typical apps have the zoneinfo.zip in the root of their app bundle,
++	// Apps have the zoneinfo.zip in the root of their app bundle,
+ 	// read by the time package as the working directory at initialization.
+-	// As we move the working directory to the GOROOT pkg directory, we
+-	// install the zoneinfo.zip file in the pkgpath.
+ 	if underGoRoot {
+ 		err := cp(
+-			filepath.Join(dstbase, pkgpath),
++			dstbase,
+ 			filepath.Join(cwd, "lib", "time", "zoneinfo.zip"),
+ 		)
+ 		if err != nil {
+diff --git a/src/compress/bzip2/bzip2_test.go b/src/compress/bzip2/bzip2_test.go
+index a6c3080db3..95fb189585 100644
+--- a/src/compress/bzip2/bzip2_test.go
++++ b/src/compress/bzip2/bzip2_test.go
+@@ -204,12 +204,6 @@ func TestMTF(t *testing.T) {
+ 	}
+ }
+ 
+-var (
+-	digits = mustLoadFile("testdata/e.txt.bz2")
+-	twain  = mustLoadFile("testdata/Mark.Twain-Tom.Sawyer.txt.bz2")
+-	random = mustLoadFile("testdata/random.data.bz2")
+-)
+-
+ func benchmarkDecode(b *testing.B, compressed []byte) {
+ 	// Determine the uncompressed size of testfile.
+ 	uncompressedSize, err := io.Copy(ioutil.Discard, NewReader(bytes.NewReader(compressed)))
+@@ -227,6 +221,18 @@ func benchmarkDecode(b *testing.B, compressed []byte) {
+ 	}
+ }
+ 
+-func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
+-func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
+-func BenchmarkDecodeRand(b *testing.B)   { benchmarkDecode(b, random) }
++func BenchmarkDecodeDigits(b *testing.B) {
++	digits := mustLoadFile("testdata/e.txt.bz2")
++	b.ResetTimer()
++	benchmarkDecode(b, digits)
++}
++func BenchmarkDecodeTwain(b *testing.B) {
++	twain := mustLoadFile("testdata/Mark.Twain-Tom.Sawyer.txt.bz2")
++	b.ResetTimer()
++	benchmarkDecode(b, twain)
++}
++func BenchmarkDecodeRand(b *testing.B) {
++	random := mustLoadFile("testdata/random.data.bz2")
++	b.ResetTimer()
++	benchmarkDecode(b, random)
++}
+diff --git a/src/go/doc/doc_test.go b/src/go/doc/doc_test.go
+index ad8ba5378f..82e63100d4 100644
+--- a/src/go/doc/doc_test.go
++++ b/src/go/doc/doc_test.go
+@@ -25,7 +25,7 @@ var files = flag.String("files", "", "consider only Go test files matching this
+ 
+ const dataDir = "testdata"
+ 
+-var templateTxt = readTemplate("template.txt")
++var templateTxt *template.Template
+ 
+ func readTemplate(filename string) *template.Template {
+ 	t := template.New(filename)
+@@ -96,6 +96,9 @@ func test(t *testing.T, mode Mode) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	if templateTxt == nil {
++		templateTxt = readTemplate("template.txt")
++	}
+ 
+ 	// test packages
+ 	for _, pkg := range pkgs {
+diff --git a/src/go/parser/performance_test.go b/src/go/parser/performance_test.go
+index f2732c0e2b..b2e1c11e9d 100644
+--- a/src/go/parser/performance_test.go
++++ b/src/go/parser/performance_test.go
+@@ -10,17 +10,12 @@ import (
+ 	"testing"
+ )
+ 
+-var src = readFile("parser.go")
+-
+-func readFile(filename string) []byte {
+-	data, err := ioutil.ReadFile(filename)
++func BenchmarkParse(b *testing.B) {
++	src, err := ioutil.ReadFile("parser.go")
+ 	if err != nil {
+-		panic(err)
++		b.Fatal(err)
+ 	}
+-	return data
+-}
+-
+-func BenchmarkParse(b *testing.B) {
++	b.ResetTimer()
+ 	b.SetBytes(int64(len(src)))
+ 	for i := 0; i < b.N; i++ {
+ 		if _, err := ParseFile(token.NewFileSet(), "", src, ParseComments); err != nil {
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index b7300cd38c..7ad9aac70e 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -54,12 +54,15 @@ var sysdir = func() *sysDir {
+ 	case "darwin":
+ 		switch runtime.GOARCH {
+ 		case "arm", "arm64":
++			/// At this point the test harness has not had a chance
++			// to move us into the ./src/os directory, so the
++			// current working directory is the root of the app.
+ 			wd, err := syscall.Getwd()
+ 			if err != nil {
+ 				wd = err.Error()
+ 			}
+ 			return &sysDir{
+-				filepath.Join(wd, "..", ".."),
++				wd,
+ 				[]string{
+ 					"ResourceRules.plist",
+ 					"Info.plist",

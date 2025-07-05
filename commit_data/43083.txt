@@ -174,3 +174,4 @@ Date:   Fri Mar 6 14:56:14 2020 -0500
  test/fixedbugs/issue37513.dir/sigill_amd64.s       |     7 +
  test/fixedbugs/issue37513.go                       |     9 +
  164 files changed, 19320 insertions(+), 26417 deletions(-)
+

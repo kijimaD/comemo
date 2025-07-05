@@ -16,8 +16,106 @@ Date:   Sat Jul 27 10:13:51 2019 -0700
     Change-Id: Icdd337ad2eb3c84f999db0850ec1d2ff2c146b6e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191197
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/internal/fmtsort/sort.go     | 14 +++++++++-----
  test/fixedbugs/issue33275.go     | 34 ++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue33275_run.go | 25 +++++++++++++++++++++++++
  3 files changed, 68 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/fmtsort/sort.go b/src/internal/fmtsort/sort.go
+index 70a305a3a1..b01229bd06 100644
+--- a/src/internal/fmtsort/sort.go
++++ b/src/internal/fmtsort/sort.go
+@@ -53,12 +53,16 @@ func Sort(mapValue reflect.Value) *SortedMap {
+ 	if mapValue.Type().Kind() != reflect.Map {
+ 		return nil
+ 	}
+-	key := make([]reflect.Value, mapValue.Len())
+-	value := make([]reflect.Value, len(key))
++	// Note: this code is arranged to not panic even in the presence
++	// of a concurrent map update. The runtime is responsible for
++	// yelling loudly if that happens. See issue 33275.
++	n := mapValue.Len()
++	key := make([]reflect.Value, 0, n)
++	value := make([]reflect.Value, 0, n)
+ 	iter := mapValue.MapRange()
+-	for i := 0; iter.Next(); i++ {
+-		key[i] = iter.Key()
+-		value[i] = iter.Value()
++	for iter.Next() {
++		key = append(key, iter.Key())
++		value = append(value, iter.Value())
+ 	}
+ 	sorted := &SortedMap{
+ 		Key:   key,
+diff --git a/test/fixedbugs/issue33275.go b/test/fixedbugs/issue33275.go
+new file mode 100644
+index 0000000000..f2ec24dbc2
+--- /dev/null
++++ b/test/fixedbugs/issue33275.go
+@@ -0,0 +1,34 @@
++// skip
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"time"
++)
++
++func main() {
++	// Make a big map.
++	m := map[int]int{}
++	for i := 0; i < 100000; i++ {
++		m[i] = i
++	}
++	c := make(chan string)
++	go func() {
++		// Print the map.
++		s := fmt.Sprintln(m)
++		c <- s
++	}()
++	go func() {
++		time.Sleep(1 * time.Millisecond)
++		// Add an extra item to the map while iterating.
++		m[-1] = -1
++		c <- ""
++	}()
++	<-c
++	<-c
++}
+diff --git a/test/fixedbugs/issue33275_run.go b/test/fixedbugs/issue33275_run.go
+new file mode 100644
+index 0000000000..f3e2e14f39
+--- /dev/null
++++ b/test/fixedbugs/issue33275_run.go
+@@ -0,0 +1,25 @@
++// +build !nacl,!js
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure we don't get an index out of bounds error
++// while trying to print a map that is concurrently modified.
++// The runtime might complain (throw) if it detects the modification,
++// so we have to run the test as a subprocess.
++
++package main
++
++import (
++	"os/exec"
++	"strings"
++)
++
++func main() {
++	out, _ := exec.Command("go", "run", "fixedbugs/issue33275.go").CombinedOutput()
++	if strings.Contains(string(out), "index out of range") {
++		panic(`go run issue33275.go reported "index out of range"`)
++	}
++}

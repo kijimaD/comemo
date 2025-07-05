@@ -9,6 +9,23 @@ Date:   Sat May 2 13:08:12 2015 +0100
     Change-Id: I22dc306ce6f398dd40010ac430928a718d67d466
     Reviewed-on: https://go-review.googlesource.com/9623
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/pprof/internal/profile/legacy_profile.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/pprof/internal/profile/legacy_profile.go b/src/cmd/pprof/internal/profile/legacy_profile.go
+index bfc8110e45..e4c92cdd19 100644
+--- a/src/cmd/pprof/internal/profile/legacy_profile.go
++++ b/src/cmd/pprof/internal/profile/legacy_profile.go
+@@ -554,9 +554,10 @@ func parseHeap(b []byte) (p *Profile, err error) {
+ 			}
+ 		}
+ 
+-		if l = strings.TrimSpace(l); l == "" {
++		if isSpaceOrComment(l) {
+ 			continue
+ 		}
++		l = strings.TrimSpace(l)
+ 
+ 		if sectionTrigger(l) != unrecognizedSection {
+ 			break

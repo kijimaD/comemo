@@ -36,7 +36,7 @@ Date:   Fri Oct 21 15:18:14 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/test/cgo_linux_test.go                    |  1 +
  misc/cgo/test/cgo_test.go                          |  6 ++
  misc/cgo/test/{testdata => }/gcc68255.go           |  2 +-
@@ -113,3 +113,783 @@ Date:   Fri Oct 21 15:18:14 2022 -0400
  misc/cgo/test/testdata/cgo_test.go                 | 18 -----
  src/go/internal/srcimporter/srcimporter_test.go    |  6 +-
  75 files changed, 43 insertions(+), 208 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index f7c07582a4..2b6fe558d5 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -32,4 +32,5 @@ func TestSetgidStress(t *testing.T) {
+ 
+ func Test1435(t *testing.T)    { test1435(t) }
+ func Test6997(t *testing.T)    { test6997(t) }
++func Test9400(t *testing.T)    { test9400(t) }
+ func TestBuildID(t *testing.T) { testBuildID(t) }
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index dee6164354..5b298954f5 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -34,7 +34,10 @@ func Test7978(t *testing.T)                  { test7978(t) }
+ func Test8092(t *testing.T)                  { test8092(t) }
+ func Test8517(t *testing.T)                  { test8517(t) }
+ func Test8694(t *testing.T)                  { test8694(t) }
++func Test8756(t *testing.T)                  { test8756(t) }
+ func Test8811(t *testing.T)                  { test8811(t) }
++func Test9026(t *testing.T)                  { test9026(t) }
++func Test9510(t *testing.T)                  { test9510(t) }
+ func Test9557(t *testing.T)                  { test9557(t) }
+ func Test10303(t *testing.T)                 { test10303(t, 10) }
+ func Test11925(t *testing.T)                 { test11925(t) }
+@@ -45,6 +48,7 @@ func Test17537(t *testing.T)                 { test17537(t) }
+ func Test18126(t *testing.T)                 { test18126(t) }
+ func Test18720(t *testing.T)                 { test18720(t) }
+ func Test20129(t *testing.T)                 { test20129(t) }
++func Test20266(t *testing.T)                 { test20266(t) }
+ func Test20369(t *testing.T)                 { test20369(t) }
+ func Test20910(t *testing.T)                 { test20910(t) }
+ func Test21708(t *testing.T)                 { test21708(t) }
+@@ -55,6 +59,7 @@ func Test23356(t *testing.T)                 { test23356(t) }
+ func Test24206(t *testing.T)                 { test24206(t) }
+ func Test25143(t *testing.T)                 { test25143(t) }
+ func Test26066(t *testing.T)                 { test26066(t) }
++func Test26213(t *testing.T)                 { test26213(t) }
+ func Test27660(t *testing.T)                 { test27660(t) }
+ func Test28896(t *testing.T)                 { test28896(t) }
+ func Test30065(t *testing.T)                 { test30065(t) }
+@@ -84,6 +89,7 @@ func TestNamedEnum(t *testing.T)             { testNamedEnum(t) }
+ func TestCastToEnum(t *testing.T)            { testCastToEnum(t) }
+ func TestErrno(t *testing.T)                 { testErrno(t) }
+ func TestFpVar(t *testing.T)                 { testFpVar(t) }
++func TestGCC68255(t *testing.T)              { testGCC68255(t) }
+ func TestHandle(t *testing.T)                { testHandle(t) }
+ func TestHelpers(t *testing.T)               { testHelpers(t) }
+ func TestLibgcc(t *testing.T)                { testLibgcc(t) }
+diff --git a/misc/cgo/test/testdata/gcc68255.go b/misc/cgo/test/gcc68255.go
+similarity index 92%
+rename from misc/cgo/test/testdata/gcc68255.go
+rename to misc/cgo/test/gcc68255.go
+index b431462349..7b25e02ad8 100644
+--- a/misc/cgo/test/testdata/gcc68255.go
++++ b/misc/cgo/test/gcc68255.go
+@@ -7,7 +7,7 @@ package cgotest
+ import (
+ 	"testing"
+ 
+-	"cgotest/gcc68255"
++	"misc/cgo/test/gcc68255"
+ )
+ 
+ func testGCC68255(t *testing.T) {
+diff --git a/misc/cgo/test/testdata/gcc68255/a.go b/misc/cgo/test/gcc68255/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/gcc68255/a.go
+rename to misc/cgo/test/gcc68255/a.go
+diff --git a/misc/cgo/test/testdata/gcc68255/c.c b/misc/cgo/test/gcc68255/c.c
+similarity index 100%
+rename from misc/cgo/test/testdata/gcc68255/c.c
+rename to misc/cgo/test/gcc68255/c.c
+diff --git a/misc/cgo/test/testdata/gcc68255/c.h b/misc/cgo/test/gcc68255/c.h
+similarity index 100%
+rename from misc/cgo/test/testdata/gcc68255/c.h
+rename to misc/cgo/test/gcc68255/c.h
+diff --git a/misc/cgo/test/testdata/issue20266.go b/misc/cgo/test/issue20266.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue20266.go
+rename to misc/cgo/test/issue20266.go
+diff --git a/misc/cgo/test/testdata/issue20266/issue20266.h b/misc/cgo/test/issue20266/issue20266.h
+similarity index 100%
+rename from misc/cgo/test/testdata/issue20266/issue20266.h
+rename to misc/cgo/test/issue20266/issue20266.h
+diff --git a/misc/cgo/test/testdata/issue23555.go b/misc/cgo/test/issue23555.go
+similarity index 80%
+rename from misc/cgo/test/testdata/issue23555.go
+rename to misc/cgo/test/issue23555.go
+index 4e944b5acd..e84c23cfd4 100644
+--- a/misc/cgo/test/testdata/issue23555.go
++++ b/misc/cgo/test/issue23555.go
+@@ -7,5 +7,7 @@
+ 
+ package cgotest
+ 
+-import _ "cgotest/issue23555a"
+-import _ "cgotest/issue23555b"
++import (
++	_ "misc/cgo/test/issue23555a"
++	_ "misc/cgo/test/issue23555b"
++)
+diff --git a/misc/cgo/test/testdata/issue23555a/a.go b/misc/cgo/test/issue23555a/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue23555a/a.go
+rename to misc/cgo/test/issue23555a/a.go
+diff --git a/misc/cgo/test/testdata/issue23555b/a.go b/misc/cgo/test/issue23555b/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue23555b/a.go
+rename to misc/cgo/test/issue23555b/a.go
+diff --git a/misc/cgo/test/testdata/issue24161_darwin_test.go b/misc/cgo/test/issue24161_darwin_test.go
+similarity index 76%
+rename from misc/cgo/test/testdata/issue24161_darwin_test.go
+rename to misc/cgo/test/issue24161_darwin_test.go
+index e60eb4e917..7bb2af69a5 100644
+--- a/misc/cgo/test/testdata/issue24161_darwin_test.go
++++ b/misc/cgo/test/issue24161_darwin_test.go
+@@ -7,11 +7,11 @@ package cgotest
+ import (
+ 	"testing"
+ 
+-	"cgotest/issue24161arg"
+-	"cgotest/issue24161e0"
+-	"cgotest/issue24161e1"
+-	"cgotest/issue24161e2"
+-	"cgotest/issue24161res"
++	"misc/cgo/test/issue24161arg"
++	"misc/cgo/test/issue24161e0"
++	"misc/cgo/test/issue24161e1"
++	"misc/cgo/test/issue24161e2"
++	"misc/cgo/test/issue24161res"
+ )
+ 
+ func Test24161Arg(t *testing.T) {
+diff --git a/misc/cgo/test/testdata/issue24161arg/def.go b/misc/cgo/test/issue24161arg/def.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue24161arg/def.go
+rename to misc/cgo/test/issue24161arg/def.go
+diff --git a/misc/cgo/test/testdata/issue24161arg/use.go b/misc/cgo/test/issue24161arg/use.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue24161arg/use.go
+rename to misc/cgo/test/issue24161arg/use.go
+diff --git a/misc/cgo/test/testdata/issue24161e0/main.go b/misc/cgo/test/issue24161e0/main.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue24161e0/main.go
+rename to misc/cgo/test/issue24161e0/main.go
+diff --git a/misc/cgo/test/testdata/issue24161e1/main.go b/misc/cgo/test/issue24161e1/main.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue24161e1/main.go
+rename to misc/cgo/test/issue24161e1/main.go
+diff --git a/misc/cgo/test/testdata/issue24161e2/main.go b/misc/cgo/test/issue24161e2/main.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue24161e2/main.go
+rename to misc/cgo/test/issue24161e2/main.go
+diff --git a/misc/cgo/test/testdata/issue24161res/restype.go b/misc/cgo/test/issue24161res/restype.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue24161res/restype.go
+rename to misc/cgo/test/issue24161res/restype.go
+diff --git a/misc/cgo/test/testdata/issue26213/jni.h b/misc/cgo/test/issue26213/jni.h
+similarity index 100%
+rename from misc/cgo/test/testdata/issue26213/jni.h
+rename to misc/cgo/test/issue26213/jni.h
+diff --git a/misc/cgo/test/testdata/issue26213/test26213.go b/misc/cgo/test/issue26213/test26213.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue26213/test26213.go
+rename to misc/cgo/test/issue26213/test26213.go
+diff --git a/misc/cgo/test/testdata/issue26430.go b/misc/cgo/test/issue26430.go
+similarity index 89%
+rename from misc/cgo/test/testdata/issue26430.go
+rename to misc/cgo/test/issue26430.go
+index 14c7a7c307..b55193973d 100644
+--- a/misc/cgo/test/testdata/issue26430.go
++++ b/misc/cgo/test/issue26430.go
+@@ -7,4 +7,4 @@
+ 
+ package cgotest
+ 
+-import _ "cgotest/issue26430"
++import _ "misc/cgo/test/issue26430"
+diff --git a/misc/cgo/test/testdata/issue26430/a.go b/misc/cgo/test/issue26430/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue26430/a.go
+rename to misc/cgo/test/issue26430/a.go
+diff --git a/misc/cgo/test/testdata/issue26430/b.go b/misc/cgo/test/issue26430/b.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue26430/b.go
+rename to misc/cgo/test/issue26430/b.go
+diff --git a/misc/cgo/test/testdata/issue26743.go b/misc/cgo/test/issue26743.go
+similarity index 89%
+rename from misc/cgo/test/testdata/issue26743.go
+rename to misc/cgo/test/issue26743.go
+index 000fb2bfdf..716f2e48d9 100644
+--- a/misc/cgo/test/testdata/issue26743.go
++++ b/misc/cgo/test/issue26743.go
+@@ -7,4 +7,4 @@
+ 
+ package cgotest
+ 
+-import _ "cgotest/issue26743"
++import _ "misc/cgo/test/issue26743"
+diff --git a/misc/cgo/test/testdata/issue26743/a.go b/misc/cgo/test/issue26743/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue26743/a.go
+rename to misc/cgo/test/issue26743/a.go
+diff --git a/misc/cgo/test/testdata/issue26743/b.go b/misc/cgo/test/issue26743/b.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue26743/b.go
+rename to misc/cgo/test/issue26743/b.go
+diff --git a/misc/cgo/test/testdata/issue27054/egl.h b/misc/cgo/test/issue27054/egl.h
+similarity index 100%
+rename from misc/cgo/test/testdata/issue27054/egl.h
+rename to misc/cgo/test/issue27054/egl.h
+diff --git a/misc/cgo/test/testdata/issue27054/test27054.go b/misc/cgo/test/issue27054/test27054.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue27054/test27054.go
+rename to misc/cgo/test/issue27054/test27054.go
+diff --git a/misc/cgo/test/testdata/issue27340.go b/misc/cgo/test/issue27340.go
+similarity index 90%
+rename from misc/cgo/test/testdata/issue27340.go
+rename to misc/cgo/test/issue27340.go
+index 337550f608..2c51088363 100644
+--- a/misc/cgo/test/testdata/issue27340.go
++++ b/misc/cgo/test/issue27340.go
+@@ -7,6 +7,6 @@
+ 
+ package cgotest
+ 
+-import "cgotest/issue27340"
++import "misc/cgo/test/issue27340"
+ 
+ var issue27340Var = issue27340.Issue27340GoFunc
+diff --git a/misc/cgo/test/testdata/issue27340/a.go b/misc/cgo/test/issue27340/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue27340/a.go
+rename to misc/cgo/test/issue27340/a.go
+diff --git a/misc/cgo/test/testdata/issue29563.go b/misc/cgo/test/issue29563.go
+similarity index 84%
+rename from misc/cgo/test/testdata/issue29563.go
+rename to misc/cgo/test/issue29563.go
+index 84def3ca44..9f29da4c75 100644
+--- a/misc/cgo/test/testdata/issue29563.go
++++ b/misc/cgo/test/issue29563.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !windows
+ // +build !windows
+ 
+ // Issue 29563: internal linker fails on duplicate weak symbols.
+@@ -9,4 +10,4 @@
+ 
+ package cgotest
+ 
+-import _ "cgotest/issue29563"
++import _ "misc/cgo/test/issue29563"
+diff --git a/misc/cgo/test/testdata/issue29563/weak.go b/misc/cgo/test/issue29563/weak.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue29563/weak.go
+rename to misc/cgo/test/issue29563/weak.go
+diff --git a/misc/cgo/test/testdata/issue29563/weak1.c b/misc/cgo/test/issue29563/weak1.c
+similarity index 100%
+rename from misc/cgo/test/testdata/issue29563/weak1.c
+rename to misc/cgo/test/issue29563/weak1.c
+diff --git a/misc/cgo/test/testdata/issue29563/weak2.c b/misc/cgo/test/issue29563/weak2.c
+similarity index 100%
+rename from misc/cgo/test/testdata/issue29563/weak2.c
+rename to misc/cgo/test/issue29563/weak2.c
+diff --git a/misc/cgo/test/testdata/issue30527.go b/misc/cgo/test/issue30527.go
+similarity index 90%
+rename from misc/cgo/test/testdata/issue30527.go
+rename to misc/cgo/test/issue30527.go
+index 4ea7d3177a..e0e18bebdf 100644
+--- a/misc/cgo/test/testdata/issue30527.go
++++ b/misc/cgo/test/issue30527.go
+@@ -7,7 +7,7 @@
+ 
+ package cgotest
+ 
+-import "cgotest/issue30527"
++import "misc/cgo/test/issue30527"
+ 
+ func issue30527G() {
+ 	issue30527.G(nil)
+diff --git a/misc/cgo/test/testdata/issue30527/a.go b/misc/cgo/test/issue30527/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue30527/a.go
+rename to misc/cgo/test/issue30527/a.go
+diff --git a/misc/cgo/test/testdata/issue30527/b.go b/misc/cgo/test/issue30527/b.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue30527/b.go
+rename to misc/cgo/test/issue30527/b.go
+diff --git a/misc/cgo/test/testdata/issue41761.go b/misc/cgo/test/issue41761.go
+similarity index 74%
+rename from misc/cgo/test/testdata/issue41761.go
+rename to misc/cgo/test/issue41761.go
+index 919c749251..ed45b46c46 100644
+--- a/misc/cgo/test/testdata/issue41761.go
++++ b/misc/cgo/test/issue41761.go
+@@ -5,16 +5,16 @@
+ package cgotest
+ 
+ /*
+-   typedef struct S S;
++   typedef struct S41761 S41761;
+ */
+ import "C"
+ 
+ import (
+-	"cgotest/issue41761a"
++	"misc/cgo/test/issue41761a"
+ 	"testing"
+ )
+ 
+ func test41761(t *testing.T) {
+ 	var x issue41761a.T
+-	_ = (*C.struct_S)(x.X)
++	_ = (*C.struct_S41761)(x.X)
+ }
+diff --git a/misc/cgo/test/testdata/issue41761a/a.go b/misc/cgo/test/issue41761a/a.go
+similarity index 82%
+rename from misc/cgo/test/testdata/issue41761a/a.go
+rename to misc/cgo/test/issue41761a/a.go
+index ca5c18191e..1c52782e05 100644
+--- a/misc/cgo/test/testdata/issue41761a/a.go
++++ b/misc/cgo/test/issue41761a/a.go
+@@ -5,10 +5,10 @@
+ package issue41761a
+ 
+ /*
+-   typedef struct S S;
++   typedef struct S41761 S41761;
+ */
+ import "C"
+ 
+ type T struct {
+-	X *C.S
++	X *C.S41761
+ }
+diff --git a/misc/cgo/test/testdata/issue43639.go b/misc/cgo/test/issue43639.go
+similarity index 57%
+rename from misc/cgo/test/testdata/issue43639.go
+rename to misc/cgo/test/issue43639.go
+index e755fbd4bc..41e1471059 100644
+--- a/misc/cgo/test/testdata/issue43639.go
++++ b/misc/cgo/test/issue43639.go
+@@ -4,6 +4,6 @@
+ 
+ package cgotest
+ 
+-// Issue 43639: No runtime test needed, make sure package cgotest/issue43639 compiles well.
++// Issue 43639: No runtime test needed, make sure package misc/cgo/test/issue43639 compiles well.
+ 
+-import _ "cgotest/issue43639"
++import _ "misc/cgo/test/issue43639"
+diff --git a/misc/cgo/test/testdata/issue43639/a.go b/misc/cgo/test/issue43639/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue43639/a.go
+rename to misc/cgo/test/issue43639/a.go
+diff --git a/misc/cgo/test/testdata/issue52611.go b/misc/cgo/test/issue52611.go
+similarity index 83%
+rename from misc/cgo/test/testdata/issue52611.go
+rename to misc/cgo/test/issue52611.go
+index 32d22403ab..2b59d521f7 100644
+--- a/misc/cgo/test/testdata/issue52611.go
++++ b/misc/cgo/test/issue52611.go
+@@ -8,6 +8,6 @@
+ package cgotest
+ 
+ import (
+-	_ "cgotest/issue52611a"
+-	_ "cgotest/issue52611b"
++	_ "misc/cgo/test/issue52611a"
++	_ "misc/cgo/test/issue52611b"
+ )
+diff --git a/misc/cgo/test/testdata/issue52611a/a.go b/misc/cgo/test/issue52611a/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue52611a/a.go
+rename to misc/cgo/test/issue52611a/a.go
+diff --git a/misc/cgo/test/testdata/issue52611a/b.go b/misc/cgo/test/issue52611a/b.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue52611a/b.go
+rename to misc/cgo/test/issue52611a/b.go
+diff --git a/misc/cgo/test/testdata/issue52611b/a.go b/misc/cgo/test/issue52611b/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue52611b/a.go
+rename to misc/cgo/test/issue52611b/a.go
+diff --git a/misc/cgo/test/testdata/issue52611b/b.go b/misc/cgo/test/issue52611b/b.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue52611b/b.go
+rename to misc/cgo/test/issue52611b/b.go
+diff --git a/misc/cgo/test/testdata/issue8756.go b/misc/cgo/test/issue8756.go
+similarity index 85%
+rename from misc/cgo/test/testdata/issue8756.go
+rename to misc/cgo/test/issue8756.go
+index 406c64c0f3..08099dc153 100644
+--- a/misc/cgo/test/testdata/issue8756.go
++++ b/misc/cgo/test/issue8756.go
+@@ -8,7 +8,7 @@ import "C"
+ import (
+ 	"testing"
+ 
+-	"cgotest/issue8756"
++	"misc/cgo/test/issue8756"
+ )
+ 
+ func test8756(t *testing.T) {
+diff --git a/misc/cgo/test/testdata/issue8756/issue8756.go b/misc/cgo/test/issue8756/issue8756.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue8756/issue8756.go
+rename to misc/cgo/test/issue8756/issue8756.go
+diff --git a/misc/cgo/test/testdata/issue8828.go b/misc/cgo/test/issue8828.go
+similarity index 91%
+rename from misc/cgo/test/testdata/issue8828.go
+rename to misc/cgo/test/issue8828.go
+index 0bca0f25cf..3b5765d306 100644
+--- a/misc/cgo/test/testdata/issue8828.go
++++ b/misc/cgo/test/issue8828.go
+@@ -9,7 +9,7 @@
+ 
+ package cgotest
+ 
+-import "cgotest/issue8828"
++import "misc/cgo/test/issue8828"
+ 
+ func p() {
+ 	issue8828.Bar()
+diff --git a/misc/cgo/test/testdata/issue8828/issue8828.c b/misc/cgo/test/issue8828/issue8828.c
+similarity index 100%
+rename from misc/cgo/test/testdata/issue8828/issue8828.c
+rename to misc/cgo/test/issue8828/issue8828.c
+diff --git a/misc/cgo/test/testdata/issue8828/trivial.go b/misc/cgo/test/issue8828/trivial.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue8828/trivial.go
+rename to misc/cgo/test/issue8828/trivial.go
+diff --git a/misc/cgo/test/testdata/issue9026.go b/misc/cgo/test/issue9026.go
+similarity index 77%
+rename from misc/cgo/test/testdata/issue9026.go
+rename to misc/cgo/test/issue9026.go
+index 3f48881655..a30196c99f 100644
+--- a/misc/cgo/test/testdata/issue9026.go
++++ b/misc/cgo/test/issue9026.go
+@@ -3,7 +3,7 @@ package cgotest
+ import (
+ 	"testing"
+ 
+-	"cgotest/issue9026"
++	"misc/cgo/test/issue9026"
+ )
+ 
+ func test9026(t *testing.T) { issue9026.Test(t) }
+diff --git a/misc/cgo/test/testdata/issue9026/issue9026.go b/misc/cgo/test/issue9026/issue9026.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9026/issue9026.go
+rename to misc/cgo/test/issue9026/issue9026.go
+diff --git a/misc/cgo/test/testdata/issue9400/asm_386.s b/misc/cgo/test/issue9400/asm_386.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_386.s
+rename to misc/cgo/test/issue9400/asm_386.s
+diff --git a/misc/cgo/test/testdata/issue9400/asm_amd64x.s b/misc/cgo/test/issue9400/asm_amd64x.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_amd64x.s
+rename to misc/cgo/test/issue9400/asm_amd64x.s
+diff --git a/misc/cgo/test/testdata/issue9400/asm_arm.s b/misc/cgo/test/issue9400/asm_arm.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_arm.s
+rename to misc/cgo/test/issue9400/asm_arm.s
+diff --git a/misc/cgo/test/testdata/issue9400/asm_arm64.s b/misc/cgo/test/issue9400/asm_arm64.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_arm64.s
+rename to misc/cgo/test/issue9400/asm_arm64.s
+diff --git a/misc/cgo/test/testdata/issue9400/asm_loong64.s b/misc/cgo/test/issue9400/asm_loong64.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_loong64.s
+rename to misc/cgo/test/issue9400/asm_loong64.s
+diff --git a/misc/cgo/test/testdata/issue9400/asm_mips64x.s b/misc/cgo/test/issue9400/asm_mips64x.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_mips64x.s
+rename to misc/cgo/test/issue9400/asm_mips64x.s
+diff --git a/misc/cgo/test/testdata/issue9400/asm_mipsx.s b/misc/cgo/test/issue9400/asm_mipsx.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_mipsx.s
+rename to misc/cgo/test/issue9400/asm_mipsx.s
+diff --git a/misc/cgo/test/testdata/issue9400/asm_ppc64x.s b/misc/cgo/test/issue9400/asm_ppc64x.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_ppc64x.s
+rename to misc/cgo/test/issue9400/asm_ppc64x.s
+diff --git a/misc/cgo/test/testdata/issue9400/asm_riscv64.s b/misc/cgo/test/issue9400/asm_riscv64.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_riscv64.s
+rename to misc/cgo/test/issue9400/asm_riscv64.s
+diff --git a/misc/cgo/test/testdata/issue9400/asm_s390x.s b/misc/cgo/test/issue9400/asm_s390x.s
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/asm_s390x.s
+rename to misc/cgo/test/issue9400/asm_s390x.s
+diff --git a/misc/cgo/test/testdata/issue9400/gccgo.go b/misc/cgo/test/issue9400/gccgo.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/gccgo.go
+rename to misc/cgo/test/issue9400/gccgo.go
+diff --git a/misc/cgo/test/testdata/issue9400/stubs.go b/misc/cgo/test/issue9400/stubs.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9400/stubs.go
+rename to misc/cgo/test/issue9400/stubs.go
+diff --git a/misc/cgo/test/testdata/issue9400_linux.go b/misc/cgo/test/issue9400_linux.go
+similarity index 98%
+rename from misc/cgo/test/testdata/issue9400_linux.go
+rename to misc/cgo/test/issue9400_linux.go
+index 051b9ab0bb..38fa9dd177 100644
+--- a/misc/cgo/test/testdata/issue9400_linux.go
++++ b/misc/cgo/test/issue9400_linux.go
+@@ -19,7 +19,7 @@ import (
+ 	"sync/atomic"
+ 	"testing"
+ 
+-	"cgotest/issue9400"
++	"misc/cgo/test/issue9400"
+ )
+ 
+ func test9400(t *testing.T) {
+diff --git a/misc/cgo/test/testdata/issue9510.go b/misc/cgo/test/issue9510.go
+similarity index 89%
+rename from misc/cgo/test/testdata/issue9510.go
+rename to misc/cgo/test/issue9510.go
+index 2c79fab97f..325b0cfb4a 100644
+--- a/misc/cgo/test/testdata/issue9510.go
++++ b/misc/cgo/test/issue9510.go
+@@ -11,8 +11,8 @@ import (
+ 	"runtime"
+ 	"testing"
+ 
+-	"cgotest/issue9510a"
+-	"cgotest/issue9510b"
++	"misc/cgo/test/issue9510a"
++	"misc/cgo/test/issue9510b"
+ )
+ 
+ func test9510(t *testing.T) {
+diff --git a/misc/cgo/test/testdata/issue9510a/a.go b/misc/cgo/test/issue9510a/a.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9510a/a.go
+rename to misc/cgo/test/issue9510a/a.go
+diff --git a/misc/cgo/test/testdata/issue9510b/b.go b/misc/cgo/test/issue9510b/b.go
+similarity index 100%
+rename from misc/cgo/test/testdata/issue9510b/b.go
+rename to misc/cgo/test/issue9510b/b.go
+diff --git a/misc/cgo/test/overlaydir_test.go b/misc/cgo/test/overlaydir_test.go
+deleted file mode 100644
+index f651979b65..0000000000
+--- a/misc/cgo/test/overlaydir_test.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cgotest
+-
+-import (
+-	"io"
+-	"os"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+-//
+-// TODO: Once we no longer need to support the misc module in GOPATH mode,
+-// factor this function out into a package to reduce duplication.
+-func overlayDir(dstRoot, srcRoot string) error {
+-	dstRoot = filepath.Clean(dstRoot)
+-	if err := os.MkdirAll(dstRoot, 0777); err != nil {
+-		return err
+-	}
+-
+-	srcRoot, err := filepath.Abs(srcRoot)
+-	if err != nil {
+-		return err
+-	}
+-
+-	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
+-		if err != nil || srcPath == srcRoot {
+-			return err
+-		}
+-
+-		suffix := strings.TrimPrefix(srcPath, srcRoot)
+-		for len(suffix) > 0 && suffix[0] == filepath.Separator {
+-			suffix = suffix[1:]
+-		}
+-		dstPath := filepath.Join(dstRoot, suffix)
+-
+-		perm := info.Mode() & os.ModePerm
+-		if info.Mode()&os.ModeSymlink != 0 {
+-			info, err = os.Stat(srcPath)
+-			if err != nil {
+-				return err
+-			}
+-			perm = info.Mode() & os.ModePerm
+-		}
+-
+-		// Always copy directories (don't symlink them).
+-		// If we add a file in the overlay, we don't want to add it in the original.
+-		if info.IsDir() {
+-			return os.MkdirAll(dstPath, perm|0200)
+-		}
+-
+-		// If the OS supports symlinks, use them instead of copying bytes.
+-		if err := os.Symlink(srcPath, dstPath); err == nil {
+-			return nil
+-		}
+-
+-		// Otherwise, copy the bytes.
+-		src, err := os.Open(srcPath)
+-		if err != nil {
+-			return err
+-		}
+-		defer src.Close()
+-
+-		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+-		if err != nil {
+-			return err
+-		}
+-
+-		_, err = io.Copy(dst, src)
+-		if closeErr := dst.Close(); err == nil {
+-			err = closeErr
+-		}
+-		return err
+-	})
+-}
+diff --git a/misc/cgo/test/pkg_test.go b/misc/cgo/test/pkg_test.go
+deleted file mode 100644
+index cbc80eee77..0000000000
+--- a/misc/cgo/test/pkg_test.go
++++ /dev/null
+@@ -1,72 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cgotest
+-
+-import (
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"runtime"
+-	"strings"
+-	"testing"
+-)
+-
+-// TestCrossPackageTests compiles and runs tests that depend on imports of other
+-// local packages, using source code stored in the testdata directory.
+-//
+-// The tests in the misc directory tree do not have a valid import path in
+-// GOPATH mode, so they previously used relative imports. However, relative
+-// imports do not work in module mode. In order to make the test work in both
+-// modes, we synthesize a GOPATH in which the module paths are equivalent, and
+-// run the tests as a subprocess.
+-//
+-// If and when we no longer support these tests in GOPATH mode, we can remove
+-// this shim and move the tests currently located in testdata back into the
+-// parent directory.
+-func TestCrossPackageTests(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "android":
+-		t.Skip("Can't exec cmd/go subprocess on Android.")
+-	case "ios":
+-		switch runtime.GOARCH {
+-		case "arm64":
+-			t.Skip("Can't exec cmd/go subprocess on iOS.")
+-		}
+-	case "linux":
+-		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+-			t.Skip("skipping failing test on alpine - go.dev/issue/39857")
+-		}
+-	}
+-
+-	GOPATH, err := os.MkdirTemp("", "cgotest")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(GOPATH)
+-
+-	modRoot := filepath.Join(GOPATH, "src", "cgotest")
+-	if err := overlayDir(modRoot, "testdata"); err != nil {
+-		t.Fatal(err)
+-	}
+-	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgotest\n"), 0666); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	cmd := exec.Command("go", "test")
+-	if testing.Verbose() {
+-		cmd.Args = append(cmd.Args, "-v")
+-	}
+-	if testing.Short() {
+-		cmd.Args = append(cmd.Args, "-short")
+-	}
+-	cmd.Dir = modRoot
+-	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH, "PWD="+cmd.Dir)
+-	out, err := cmd.CombinedOutput()
+-	if err == nil {
+-		t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+-	} else {
+-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+-	}
+-}
+diff --git a/misc/cgo/test/testdata/test26213.go b/misc/cgo/test/test26213.go
+similarity index 90%
+rename from misc/cgo/test/testdata/test26213.go
+rename to misc/cgo/test/test26213.go
+index c80032cb3b..f8149cd7c8 100644
+--- a/misc/cgo/test/testdata/test26213.go
++++ b/misc/cgo/test/test26213.go
+@@ -7,7 +7,7 @@ package cgotest
+ import (
+ 	"testing"
+ 
+-	"cgotest/issue26213"
++	"misc/cgo/test/issue26213"
+ )
+ 
+ func test26213(t *testing.T) {
+diff --git a/misc/cgo/test/testdata/cgo_linux_test.go b/misc/cgo/test/testdata/cgo_linux_test.go
+deleted file mode 100644
+index 5cef09fbe7..0000000000
+--- a/misc/cgo/test/testdata/cgo_linux_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cgotest
+-
+-import "testing"
+-
+-func Test9400(t *testing.T) { test9400(t) }
+diff --git a/misc/cgo/test/testdata/cgo_test.go b/misc/cgo/test/testdata/cgo_test.go
+deleted file mode 100644
+index ffa076f4ee..0000000000
+--- a/misc/cgo/test/testdata/cgo_test.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cgotest
+-
+-import "testing"
+-
+-// The actual test functions are in non-_test.go files
+-// so that they can use cgo (import "C").
+-// These wrappers are here for gotest to find.
+-
+-func Test8756(t *testing.T)     { test8756(t) }
+-func Test9026(t *testing.T)     { test9026(t) }
+-func Test9510(t *testing.T)     { test9510(t) }
+-func Test20266(t *testing.T)    { test20266(t) }
+-func Test26213(t *testing.T)    { test26213(t) }
+-func TestGCC68255(t *testing.T) { testGCC68255(t) }
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index af394665fa..e87745822b 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -243,8 +243,10 @@ func TestCgo(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 
+-	importer := New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
+-	_, err := importer.ImportFrom("./misc/cgo/test", testenv.GOROOT(t), 0)
++	buildCtx := build.Default
++	buildCtx.Dir = filepath.Join(testenv.GOROOT(t), "misc")
++	importer := New(&buildCtx, token.NewFileSet(), make(map[string]*types.Package))
++	_, err := importer.ImportFrom("./cgo/test", buildCtx.Dir, 0)
+ 	if err != nil {
+ 		t.Fatalf("Import failed: %v", err)
+ 	}

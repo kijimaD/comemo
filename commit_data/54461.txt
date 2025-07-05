@@ -12,6 +12,20 @@ Date:   Thu Oct 20 10:22:10 2022 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/import_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index 65a889ec52..eb4f5d64d3 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -27,7 +27,7 @@ var importTests = []struct {
+ 	},
+ 	{
+ 		path: "golang.org/x/net",
+-		err:  `module golang.org/x/net@.* found \(v0.0.0-.*\), but does not contain package golang.org/x/net`,
++		err:  `module golang.org/x/net@.* found \(v[01]\.\d+\.\d+\), but does not contain package golang.org/x/net`,
+ 	},
+ 	{
+ 		path: "golang.org/x/text",

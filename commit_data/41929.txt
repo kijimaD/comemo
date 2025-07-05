@@ -12,7 +12,43 @@ Date:   Fri Nov 1 15:46:47 2019 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204661
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/main_test.go      | 2 +-
  src/net/http/transport_test.go | 4 ----
  2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 7936fb3044..85aa9096c3 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -122,7 +122,7 @@ func afterTest(t testing.TB) {
+ 		").noteClientGone(":     "a closenotifier sender",
+ 	}
+ 	var stacks string
+-	for i := 0; i < 4; i++ {
++	for i := 0; i < 10; i++ {
+ 		bad = ""
+ 		stacks = strings.Join(interestingGoroutines(), "\n\n")
+ 		for substr, what := range badSubstring {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 0d63e46d4f..00d6b2608b 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -22,7 +22,6 @@ import (
+ 	"fmt"
+ 	"go/token"
+ 	"internal/nettrace"
+-	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+@@ -2355,9 +2354,6 @@ func TestCancelRequestWithChannel(t *testing.T) {
+ }
+ 
+ func TestCancelRequestWithChannelBeforeDo_Cancel(t *testing.T) {
+-	if os.Getenv("GO_BUILDER_NAME") == "windows-amd64-longtest" {
+-		testenv.SkipFlaky(t, 35122)
+-	}
+ 	testCancelRequestWithChannelBeforeDo(t, false)
+ }
+ func TestCancelRequestWithChannelBeforeDo_Context(t *testing.T) {

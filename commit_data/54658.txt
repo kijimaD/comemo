@@ -13,6 +13,23 @@ Date:   Tue Oct 18 03:49:04 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/asm/internal/asm/parse.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 037084fb8c..e26c945a8a 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -567,10 +567,7 @@ func (p *Parser) atRegisterExtension() bool {
+ 		return false
+ 	}
+ 	// R1.xxx
+-	if p.peek() == '.' {
+-		return true
+-	}
+-	return false
++	return p.peek() == '.'
+ }
+ 
+ // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).

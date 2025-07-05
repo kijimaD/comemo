@@ -11,6 +11,21 @@ Date:   Thu Apr 2 17:56:23 2009 -0700
     DELTA=4  (0 added, 0 deleted, 4 changed)
     OCL=27040
     CL=27046
-
+---
  src/cmd/ld/go.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index e8366e8252..e1b7acdad2 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -581,7 +581,7 @@ deadcode(void)
+ 	mark(lookup(INITENTRY, 0));
+ 	mark(lookup("sys·morestack", 0));
+ 
+-//	sweeplist(&firstp, &lastp);
+-//	sweeplist(&datap, &edatap);
++	sweeplist(&firstp, &lastp);
++	sweeplist(&datap, &edatap);
+ }
+ 

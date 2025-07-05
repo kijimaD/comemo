@@ -11,6 +11,20 @@ Date:   Fri Mar 29 13:25:15 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/race_arm64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index 48b119f8c4..192a847ad8 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -427,7 +427,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
+ 	load_g
+ 	MOVD	g_m(g), R0
+ 	MOVD	m_p(R0), R0
+-	MOVD	p_racectx(R0), R0
++	MOVD	p_raceprocctx(R0), R0
+ 	MOVD	R0, (R1)
+ 	MOVD	R13, g
+ 	JMP	(LR)

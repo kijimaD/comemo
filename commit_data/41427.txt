@@ -11,7 +11,60 @@ Date:   Wed Oct 2 15:41:13 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgocall.go |  6 +++---
  src/runtime/iface.go   | 10 +++++-----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 3595e49ed5..5f8ff8139a 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -411,7 +411,7 @@ func cgoCheckPointer(ptr interface{}, arg interface{}) {
+ 		return
+ 	}
+ 
+-	ep := (*eface)(unsafe.Pointer(&ptr))
++	ep := efaceOf(&ptr)
+ 	t := ep._type
+ 
+ 	top := true
+@@ -423,7 +423,7 @@ func cgoCheckPointer(ptr interface{}, arg interface{}) {
+ 		if p == nil || !cgoIsGoPointer(p) {
+ 			return
+ 		}
+-		aep := (*eface)(unsafe.Pointer(&arg))
++		aep := efaceOf(&arg)
+ 		switch aep._type.kind & kindMask {
+ 		case kindBool:
+ 			if t.kind&kindMask == kindUnsafePointer {
+@@ -650,7 +650,7 @@ func cgoCheckResult(val interface{}) {
+ 		return
+ 	}
+ 
+-	ep := (*eface)(unsafe.Pointer(&val))
++	ep := efaceOf(&val)
+ 	t := ep._type
+ 	cgoCheckArg(t, ep.data, t.kind&kindDirectIface == 0, false, cgoResultFail)
+ }
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index bb4eccc9bd..243e51fc48 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -295,11 +295,11 @@ var (
+ 	stringEface interface{} = stringInterfacePtr("")
+ 	sliceEface  interface{} = sliceInterfacePtr(nil)
+ 
+-	uint16Type *_type = (*eface)(unsafe.Pointer(&uint16Eface))._type
+-	uint32Type *_type = (*eface)(unsafe.Pointer(&uint32Eface))._type
+-	uint64Type *_type = (*eface)(unsafe.Pointer(&uint64Eface))._type
+-	stringType *_type = (*eface)(unsafe.Pointer(&stringEface))._type
+-	sliceType  *_type = (*eface)(unsafe.Pointer(&sliceEface))._type
++	uint16Type *_type = efaceOf(&uint16Eface)._type
++	uint32Type *_type = efaceOf(&uint32Eface)._type
++	uint64Type *_type = efaceOf(&uint64Eface)._type
++	stringType *_type = efaceOf(&stringEface)._type
++	sliceType  *_type = efaceOf(&sliceEface)._type
+ )
+ 
+ // The conv and assert functions below do very similar things.

@@ -18,8 +18,69 @@ Date:   Sat Feb 1 21:58:37 2020 -0800
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go           | 2 +-
  src/cmd/go/internal/modfetch/pseudo.go             | 4 +++-
  src/cmd/go/testdata/script/mod_invalid_version.txt | 6 +++---
  3 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 753f65b3de..d043903336 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -563,7 +563,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 		return err
+ 	}
+ 	if !t.Equal(info.Time.Truncate(time.Second)) {
+-		return fmt.Errorf("does not match version-control timestamp (%s)", info.Time.UTC().Format(time.RFC3339))
++		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(pseudoVersionTimestampFormat))
+ 	}
+ 
+ 	tagPrefix := ""
+diff --git a/src/cmd/go/internal/modfetch/pseudo.go b/src/cmd/go/internal/modfetch/pseudo.go
+index 57dee11d07..20c0b060ab 100644
+--- a/src/cmd/go/internal/modfetch/pseudo.go
++++ b/src/cmd/go/internal/modfetch/pseudo.go
+@@ -48,6 +48,8 @@ import (
+ 
+ var pseudoVersionRE = lazyregexp.New(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$`)
+ 
++const pseudoVersionTimestampFormat = "20060102150405"
++
+ // PseudoVersion returns a pseudo-version for the given major version ("v1")
+ // preexisting older tagged version ("" or "v1.2.3" or "v1.2.3-pre"), revision time,
+ // and revision identifier (usually a 12-byte commit hash prefix).
+@@ -55,7 +57,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
+ 	if major == "" {
+ 		major = "v0"
+ 	}
+-	segment := fmt.Sprintf("%s-%s", t.UTC().Format("20060102150405"), rev)
++	segment := fmt.Sprintf("%s-%s", t.UTC().Format(pseudoVersionTimestampFormat), rev)
+ 	build := semver.Build(older)
+ 	older = semver.Canonical(older)
+ 	if older == "" {
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index 76e0b43a73..7e1bc9ea4f 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -76,17 +76,17 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
+ cd ..
+ ! go list -m golang.org/x/text
+-stderr 'golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
++stderr 'golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
+ 
+ # A 'replace' directive in the main module can replace an invalid timestamp
+ # with a valid one.
+ go mod edit -replace golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c=golang.org/x/text@14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
+ cd ..
+ go list -m golang.org/x/text
+ stdout 'golang.org/x/text v0.1.1-0.20190915032832-14c0d48ead0c => golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'

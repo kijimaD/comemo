@@ -10,6 +10,20 @@ Date:   Tue Jul 15 10:27:36 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/111130045
-
+---
  src/pkg/runtime/chan.goc | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/chan.goc b/src/pkg/runtime/chan.goc
+index 7a584717bb..54b97697af 100644
+--- a/src/pkg/runtime/chan.goc
++++ b/src/pkg/runtime/chan.goc
+@@ -1105,6 +1105,8 @@ loop:
+ 	if(sgp == nil)
+ 		return nil;
+ 	q->first = sgp->link;
++	if(q->last == sgp)
++		q->last = nil;
+ 
+ 	// if sgp participates in a select and is already signaled, ignore it
+ 	if(sgp->selectdone != nil) {

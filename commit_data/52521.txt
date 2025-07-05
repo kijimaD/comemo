@@ -21,6 +21,28 @@ Date:   Mon Nov 29 07:22:15 2021 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/cgo/gcc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index a469afa8dd..855309edfa 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -811,6 +811,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 
+ 	params := name.FuncType.Params
+ 	args := call.Call.Args
++	end := call.Call.End()
+ 
+ 	// Avoid a crash if the number of arguments doesn't match
+ 	// the number of parameters.
+@@ -958,7 +959,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 	if nu {
+ 		needsUnsafe = true
+ 	}
+-	sb.WriteString(gofmtLine(m))
++	sb.WriteString(gofmtPos(m, end))
+ 
+ 	sb.WriteString("(")
+ 	for i := range params {

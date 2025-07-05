@@ -13,6 +13,21 @@ Date:   Fri May 7 10:05:36 2021 +0530
     Reviewed-on: https://go-review.googlesource.com/c/go/+/317910
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.17.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 97307bc508..48b5563602 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -428,7 +428,8 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+   <dd>
+     <p><!-- CL 268020 -->
+-      TODO: <a href="https://golang.org/cl/268020">https://golang.org/cl/268020</a>: avoid allocation in File.WriteString
++      The <a href="/pkg/os/#File.WriteString"><code>File.WriteString</code></a> method
++      has been optimized to no longer make a copy of the input string.
+     </p>
+   </dd>
+ </dl><!-- os -->

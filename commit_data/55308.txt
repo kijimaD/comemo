@@ -13,6 +13,20 @@ Date:   Sat Jan 14 22:03:38 2023 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index a9ba911aa3..c15f0f58cb 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2278,7 +2278,7 @@ func RedirectHandler(url string, code int) Handler {
+ // Longer patterns take precedence over shorter ones, so that
+ // if there are handlers registered for both "/images/"
+ // and "/images/thumbnails/", the latter handler will be
+-// called for paths beginning "/images/thumbnails/" and the
++// called for paths beginning with "/images/thumbnails/" and the
+ // former will receive requests for any other paths in the
+ // "/images/" subtree.
+ //

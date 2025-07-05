@@ -30,8 +30,141 @@ Date:   Thu Feb 18 18:06:01 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/typestring.go  | 36 ++++-----------------
  src/go/internal/gccgoimporter/importer_test.go |  2 +-
  src/go/types/typestring.go                     | 43 ++++----------------------
  3 files changed, 13 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 47b2c259e5..af44624d2c 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -126,19 +126,14 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 			if i > 0 {
+ 				buf.WriteString("; ")
+ 			}
+-			buf.WriteString(f.name)
+-			if f.embedded {
+-				// emphasize that the embedded field's name
+-				// doesn't match the field's type name
+-				if f.name != embeddedFieldName(f.typ) {
+-					buf.WriteString(" /* = ")
+-					writeType(buf, f.typ, qf, visited)
+-					buf.WriteString(" */")
+-				}
+-			} else {
++			// This doesn't do the right thing for embedded type
++			// aliases where we should print the alias name, not
++			// the aliased type (see issue #44410).
++			if !f.embedded {
++				buf.WriteString(f.name)
+ 				buf.WriteByte(' ')
+-				writeType(buf, f.typ, qf, visited)
+ 			}
++			writeType(buf, f.typ, qf, visited)
+ 			if tag := t.Tag(i); tag != "" {
+ 				fmt.Fprintf(buf, " %q", tag)
+ 			}
+@@ -423,25 +418,6 @@ func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []T
+ 	writeTuple(buf, sig.results, false, qf, visited)
+ }
+ 
+-// embeddedFieldName returns an embedded field's name given its type.
+-// The result is "" if the type doesn't have an embedded field name.
+-func embeddedFieldName(typ Type) string {
+-	switch t := typ.(type) {
+-	case *Basic:
+-		return t.name
+-	case *Named:
+-		return t.obj.name
+-	case *Pointer:
+-		// *T is ok, but **T is not
+-		if _, ok := t.base.(*Pointer); !ok {
+-			return embeddedFieldName(t.base)
+-		}
+-	case *instance:
+-		return t.base.obj.name
+-	}
+-	return "" // not a (pointer to) a defined type
+-}
+-
+ // subscript returns the decimal (utf8) representation of x using subscript digits.
+ func subscript(x uint64) string {
+ 	const w = len("₀") // all digits 0...9 have the same utf8 width
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index c5b520feb4..b3f39312be 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -94,7 +94,7 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "nointerface", name: "I", want: "type I int"},
+ 	{pkgpath: "issue29198", name: "FooServer", gccgoVersion: 7, want: "type FooServer struct{FooServer *FooServer; user string; ctx context.Context}"},
+ 	{pkgpath: "issue30628", name: "Apple", want: "type Apple struct{hey sync.RWMutex; x int; RQ [517]struct{Count uintptr; NumBytes uintptr; Last uintptr}}"},
+-	{pkgpath: "issue31540", name: "S", gccgoVersion: 7, want: "type S struct{b int; A2 /* = map[Y]Z */}"},
++	{pkgpath: "issue31540", name: "S", gccgoVersion: 7, want: "type S struct{b int; map[Y]Z}"}, // should want "type S struct{b int; A2}" (issue  #44410)
+ 	{pkgpath: "issue34182", name: "T1", want: "type T1 struct{f *T2}"},
+ 	{pkgpath: "notinheap", name: "S", want: "type S struct{}"},
+ }
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 6ddba08bdc..4697bd31e6 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -126,26 +126,14 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 			if i > 0 {
+ 				buf.WriteString("; ")
+ 			}
+-			// For compatibility with versions < go1.16, qualify the field name
+-			// of embedded fields with the package name. Various tests (such as
+-			// in x/tools/cmd/guru) depend on this output; and x/tools packages
+-			// are run against earlier versions of Go.
+-			if n, _ := f.typ.(*Named); f.embedded && n != nil && n.obj != nil && n.obj.pkg != nil {
+-				writePackage(buf, n.obj.pkg, qf)
+-			}
+-			buf.WriteString(f.name)
+-			if f.embedded {
+-				// emphasize that the embedded field's name
+-				// doesn't match the field's type name
+-				if f.name != embeddedFieldName(f.typ) {
+-					buf.WriteString(" /* = ")
+-					writeType(buf, f.typ, qf, visited)
+-					buf.WriteString(" */")
+-				}
+-			} else {
++			// This doesn't do the right thing for embedded type
++			// aliases where we should print the alias name, not
++			// the aliased type (see issue #44410).
++			if !f.embedded {
++				buf.WriteString(f.name)
+ 				buf.WriteByte(' ')
+-				writeType(buf, f.typ, qf, visited)
+ 			}
++			writeType(buf, f.typ, qf, visited)
+ 			if tag := t.Tag(i); tag != "" {
+ 				fmt.Fprintf(buf, " %q", tag)
+ 			}
+@@ -431,25 +419,6 @@ func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []T
+ 	writeTuple(buf, sig.results, false, qf, visited)
+ }
+ 
+-// embeddedFieldName returns an embedded field's name given its type.
+-// The result is "" if the type doesn't have an embedded field name.
+-func embeddedFieldName(typ Type) string {
+-	switch t := typ.(type) {
+-	case *Basic:
+-		return t.name
+-	case *Named:
+-		return t.obj.name
+-	case *Pointer:
+-		// *T is ok, but **T is not
+-		if _, ok := t.base.(*Pointer); !ok {
+-			return embeddedFieldName(t.base)
+-		}
+-	case *instance:
+-		return t.base.obj.name
+-	}
+-	return "" // not a (pointer to) a defined type
+-}
+-
+ // subscript returns the decimal (utf8) representation of x using subscript digits.
+ func subscript(x uint64) string {
+ 	const w = len("₀") // all digits 0...9 have the same utf8 width

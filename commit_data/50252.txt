@@ -20,7 +20,49 @@ Date:   Wed Oct 6 13:51:21 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/typeparam.go |  3 ++-
  src/go/types/typeparam.go                    | 13 +++----------
  2 files changed, 5 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 6bc9dbc24d..f7cdff0180 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -50,7 +50,8 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	return typ
+ }
+ 
+-// Index returns the index of the type param within its param list.
++// Index returns the index of the type param within its param list, or -1 if
++// the type parameter has not yet been bound to a type.
+ func (t *TypeParam) Index() int {
+ 	return t.index
+ }
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index e2755cbbda..af36266f11 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -50,19 +50,12 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	return typ
+ }
+ 
+-// TODO(rfindley): remove or export these placeholder APIs.
+-
+-// Index returns the index of the type param within its param list.
+-func (t *TypeParam) _Index() int {
++// Index returns the index of the type param within its param list, or -1 if
++// the type parameter has not yet been bound to a type.
++func (t *TypeParam) Index() int {
+ 	return t.index
+ }
+ 
+-// SetId sets the unique id of a type param. Should only be used for type params
+-// in imported generic types.
+-func (t *TypeParam) _SetId(id uint64) {
+-	t.id = id
+-}
+-
+ // Obj returns the type name for t.
+ func (t *TypeParam) Obj() *TypeName { return t.obj }
+ 

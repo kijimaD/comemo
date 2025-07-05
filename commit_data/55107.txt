@@ -12,6 +12,20 @@ Date:   Thu Jan 5 17:08:07 2023 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/crypto/tls/cache.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/cache.go b/src/crypto/tls/cache.go
+index 2bdf2d9a01..fc8f2c0844 100644
+--- a/src/crypto/tls/cache.go
++++ b/src/crypto/tls/cache.go
+@@ -27,7 +27,7 @@ type cacheEntry struct {
+ // to the certificate in the cache is decremented. Once the number of references
+ // reaches zero, the entry is evicted from the cache.
+ //
+-// The main difference between this implmentation and CRYPTO_BUFFER_POOL is that
++// The main difference between this implementation and CRYPTO_BUFFER_POOL is that
+ // CRYPTO_BUFFER_POOL is a more  generic structure which supports blobs of data,
+ // rather than specific structures. Since we only care about x509.Certificates,
+ // certCache is implemented as a specific cache, rather than a generic one.

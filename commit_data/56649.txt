@@ -10,9 +10,62 @@ Date:   Thu May 18 11:16:31 2023 +0300
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go  | 2 +-
  src/cmd/compile/internal/types2/infer.go | 2 +-
  src/go/types/call.go                     | 2 +-
  src/go/types/infer.go                    | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 0e8ace3325..301dc63477 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -473,7 +473,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand,
+ // are used together to infer any missing type arguments, and the callee and argument
+ // functions are instantiated as necessary.
+ // The result signature is the (possibly adjusted and instantiated) function signature.
+-// If an error occured, the result signature is the incoming sig.
++// If an error occurred, the result signature is the incoming sig.
+ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, xlist []syntax.Expr, args []*operand, atargs [][]Type, atxlist [][]syntax.Expr) (rsig *Signature) {
+ 	rsig = sig
+ 
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 77c594a722..097e9c7ddb 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -411,7 +411,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 			t0 := inferred[index]
+ 			if t1 := check.subst(nopos, t0, smap, nil, check.context()); t1 != t0 {
+ 				// t0 was simplified to t1.
+-				// If t0 was a generic function, but the simplifed signature t1 does
++				// If t0 was a generic function, but the simplified signature t1 does
+ 				// not contain any type parameters anymore, the function is not generic
+ 				// anymore. Remove it's type parameters. (go.dev/issue/59953)
+ 				// Note that if t0 was a signature, t1 must be a signature, and t1
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index b7bdb5a098..c8360dce57 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -478,7 +478,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
+ // are used together to infer any missing type arguments, and the callee and argument
+ // functions are instantiated as necessary.
+ // The result signature is the (possibly adjusted and instantiated) function signature.
+-// If an error occured, the result signature is the incoming sig.
++// If an error occurred, the result signature is the incoming sig.
+ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type, xlist []ast.Expr, args []*operand, atargs [][]Type, atxlist [][]ast.Expr) (rsig *Signature) {
+ 	rsig = sig
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index b376ce4a4a..ae1c2af1e4 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -413,7 +413,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 			t0 := inferred[index]
+ 			if t1 := check.subst(nopos, t0, smap, nil, check.context()); t1 != t0 {
+ 				// t0 was simplified to t1.
+-				// If t0 was a generic function, but the simplifed signature t1 does
++				// If t0 was a generic function, but the simplified signature t1 does
+ 				// not contain any type parameters anymore, the function is not generic
+ 				// anymore. Remove it's type parameters. (go.dev/issue/59953)
+ 				// Note that if t0 was a signature, t1 must be a signature, and t1

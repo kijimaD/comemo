@@ -13,6 +13,21 @@ Date:   Fri Feb 23 02:44:04 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/internal/fuzz/encoding_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/internal/fuzz/encoding_test.go b/src/internal/fuzz/encoding_test.go
+index 6f6173d7e0..a46a347403 100644
+--- a/src/internal/fuzz/encoding_test.go
++++ b/src/internal/fuzz/encoding_test.go
+@@ -233,9 +233,6 @@ uint(18446744073709551615)`
+ 				t.Fatalf("unmarshal unexpected error: %v", err)
+ 			}
+ 			newB := marshalCorpusFile(vals...)
+-			if err != nil {
+-				t.Fatalf("marshal unexpected error: %v", err)
+-			}
+ 			if newB[len(newB)-1] != '\n' {
+ 				t.Error("didn't write final newline to corpus file")
+ 			}

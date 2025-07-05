@@ -12,7 +12,7 @@ Date:   Mon Mar 6 07:32:37 2017 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/fmt_test.go         |  1 +
  src/cmd/compile/internal/gc/main.go |  1 +
  src/cmd/compile/internal/gc/pgen.go | 52 +++++++++++++++++++++---------
@@ -20,3 +20,242 @@ Date:   Mon Mar 6 07:32:37 2017 -0800
  src/cmd/internal/obj/objfile.go     | 63 +++++++++----------------------------
  src/cmd/internal/obj/plist.go       |  2 +-
  6 files changed, 57 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 544179e414..ab223aaed0 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -592,6 +592,7 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/ssa.Value %v":              "",
+ 	"*cmd/compile/internal/ssa.sparseTreeMapEntry %v": "",
+ 	"*cmd/internal/obj.Addr %v":                       "",
++	"*cmd/internal/obj.LSym %v":                       "",
+ 	"*cmd/internal/obj.Prog %p":                       "",
+ 	"*cmd/internal/obj.Prog %s":                       "",
+ 	"*cmd/internal/obj.Prog %v":                       "",
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 490ac7db40..2c4615cba1 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -113,6 +113,7 @@ func Main() {
+ 	defer hidePanic()
+ 
+ 	Ctxt = obj.Linknew(Thearch.LinkArch)
++	Ctxt.DebugInfo = debuginfo
+ 	Ctxt.DiagFunc = yyerror
+ 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 29d146c9cc..33811b80c2 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/ssa"
++	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+@@ -420,8 +421,6 @@ func compile(fn *Node) {
+ 	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
+ 	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
+ 
+-	gendebug(fnsym, fn.Func.Dcl)
+-
+ 	genssa(ssafn, ptxt, gcargs, gclocals)
+ 	ssafn.Free()
+ 
+@@ -431,42 +430,67 @@ func compile(fn *Node) {
+ 	fieldtrack(fnsym, fn.Func.FieldTrack)
+ }
+ 
+-func gendebug(fnsym *obj.LSym, decls []*Node) {
+-	if fnsym == nil {
+-		return
+-	}
+-
+-	if fnsym.FuncInfo == nil {
+-		fnsym.FuncInfo = new(obj.FuncInfo)
++func debuginfo(fnsym *obj.LSym) []*dwarf.Var {
++	if expect := Linksym(Curfn.Func.Nname.Sym); fnsym != expect {
++		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
+ 	}
+ 
+-	for _, n := range decls {
++	var vars []*dwarf.Var
++	for _, n := range Curfn.Func.Dcl {
+ 		if n.Op != ONAME { // might be OTYPE or OLITERAL
+ 			continue
+ 		}
+ 
+ 		var name obj.AddrName
++		var abbrev int
++		offs := n.Xoffset
++
+ 		switch n.Class {
+ 		case PAUTO:
+ 			if !n.Used() {
+ 				continue
+ 			}
+ 			name = obj.NAME_AUTO
++
++			abbrev = dwarf.DW_ABRV_AUTO
++			if Ctxt.FixedFrameSize() == 0 {
++				offs -= int64(Widthptr)
++			}
++			if obj.Framepointer_enabled(obj.GOOS, obj.GOARCH) {
++				offs -= int64(Widthptr)
++			}
++
+ 		case PPARAM, PPARAMOUT:
+ 			name = obj.NAME_PARAM
++
++			abbrev = dwarf.DW_ABRV_PARAM
++			offs += Ctxt.FixedFrameSize()
++
+ 		default:
+ 			continue
+ 		}
+ 
+-		a := &obj.Auto{
++		gotype := Linksym(ngotype(n))
++		fnsym.Autom = append(fnsym.Autom, &obj.Auto{
+ 			Asym:    obj.Linklookup(Ctxt, n.Sym.Name, 0),
+ 			Aoffset: int32(n.Xoffset),
+ 			Name:    name,
+-			Gotype:  Linksym(ngotype(n)),
+-		}
++			Gotype:  gotype,
++		})
+ 
+-		fnsym.Autom = append(fnsym.Autom, a)
++		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
++		vars = append(vars, &dwarf.Var{
++			Name:   n.Sym.Name,
++			Abbrev: abbrev,
++			Offset: int32(offs),
++			Type:   obj.Linklookup(Ctxt, typename, 0),
++		})
+ 	}
++
++	// Stable sort so that ties are broken with declaration order.
++	sort.Stable(dwarf.VarsByOffset(vars))
++
++	return vars
+ }
+ 
+ // fieldtrack adds R_USEFIELD relocations to fnsym to record any
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 62e9608954..e55af81c98 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -32,6 +32,7 @@ package obj
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/dwarf"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"fmt"
+@@ -752,6 +753,7 @@ type Link struct {
+ 	Armsize       int32
+ 	Pc            int64
+ 	DiagFunc      func(string, ...interface{})
++	DebugInfo     func(fn *LSym) []*dwarf.Var
+ 	Mode          int
+ 	Cursym        *LSym
+ 	Version       int
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 1bd4f53ae4..9a208b20b1 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -551,54 +551,19 @@ func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
+ 	r.Type = R_DWARFREF
+ }
+ 
+-func gendwarf(ctxt *Link, text []*LSym) []*LSym {
+-	dctxt := dwCtxt{ctxt}
+-	var dw []*LSym
+-
+-	for _, s := range text {
+-		dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
+-		if dsym.Size != 0 {
+-			continue
+-		}
+-		dw = append(dw, dsym)
+-		dsym.Type = SDWARFINFO
+-		dsym.Set(AttrDuplicateOK, s.DuplicateOK())
+-		var vars []*dwarf.Var
+-		var abbrev int
+-		var offs int32
+-		for _, a := range s.Autom {
+-			switch a.Name {
+-			case NAME_AUTO:
+-				abbrev = dwarf.DW_ABRV_AUTO
+-				offs = a.Aoffset
+-				if ctxt.FixedFrameSize() == 0 {
+-					offs -= int32(ctxt.Arch.PtrSize)
+-				}
+-				if Framepointer_enabled(GOOS, GOARCH) {
+-					offs -= int32(ctxt.Arch.PtrSize)
+-				}
+-
+-			case NAME_PARAM:
+-				abbrev = dwarf.DW_ABRV_PARAM
+-				offs = a.Aoffset + int32(ctxt.FixedFrameSize())
+-
+-			default:
+-				continue
+-			}
+-
+-			typename := dwarf.InfoPrefix + a.Gotype.Name[len("type."):]
+-			vars = append(vars, &dwarf.Var{
+-				Name:   a.Asym.Name,
+-				Abbrev: abbrev,
+-				Offset: offs,
+-				Type:   Linklookup(ctxt, typename, 0),
+-			})
+-		}
+-
+-		// Stable sort so that ties are broken with declaration order.
+-		sort.Stable(dwarf.VarsByOffset(vars))
+-
+-		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars)
++// makeFuncDebugEntry makes a DWARF Debugging Information Entry
++// for TEXT symbol s.
++func makeFuncDebugEntry(ctxt *Link, s *LSym) {
++	dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
++	if dsym.Size != 0 {
++		return
++	}
++	dsym.Type = SDWARFINFO
++	dsym.Set(AttrDuplicateOK, s.DuplicateOK())
++	var vars []*dwarf.Var
++	if ctxt.DebugInfo != nil {
++		vars = ctxt.DebugInfo(s)
+ 	}
+-	return dw
++	dwarf.PutFunc(dwCtxt{ctxt}, dsym, s.Name, s.Version == 0, s, s.Size, vars)
++	ctxt.Data = append(ctxt.Data, dsym)
+ }
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 8532bbc1d4..4ff71632a0 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -128,6 +128,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 		ctxt.Arch.Preprocess(ctxt, s)
+ 		ctxt.Arch.Assemble(ctxt, s)
+ 		linkpcln(ctxt, s)
++		makeFuncDebugEntry(ctxt, s)
+ 		if freeProgs {
+ 			s.Text = nil
+ 		}
+@@ -135,7 +136,6 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 
+ 	// Add to running list in ctxt.
+ 	ctxt.Text = append(ctxt.Text, text...)
+-	ctxt.Data = append(ctxt.Data, gendwarf(ctxt, text)...)
+ 	ctxt.Curp = nil
+ 	if freeProgs {
+ 		ctxt.freeProgs()

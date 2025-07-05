@@ -11,7 +11,35 @@ Date:   Wed Dec 14 13:24:21 2016 -0500
     Change-Id: Ic75ce2786ca4b25726babe3c4fe9cd30c85c34e2
     Reviewed-on: https://go-review.googlesource.com/34390
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pcln.go | 3 +++
  src/runtime/runtime2.go          | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index d317501d47..1ebd7de662 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -248,6 +248,9 @@ func (ctxt *Link) pclntab() {
+ 		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), s)
+ 		setuintxx(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart), int64(SysArch.PtrSize))
+ 
++		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
++		// and package debug/gosym.
++
+ 		// fixed size of struct, checked below
+ 		off := funcstart
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 696ea81e00..72524f53af 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -615,7 +615,7 @@ const (
+ 
+ // Layout of in-memory per-function information prepared by linker
+ // See https://golang.org/s/go12symtab.
+-// Keep in sync with linker
++// Keep in sync with linker (../cmd/link/internal/ld/pcln.go:/pclntab)
+ // and with package debug/gosym and with symtab.go in package runtime.
+ type _func struct {
+ 	entry   uintptr // start pc

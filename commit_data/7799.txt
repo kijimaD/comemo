@@ -7,6 +7,21 @@ Date:   Thu Mar 17 01:45:05 2011 -0400
     R=golang-dev, niemeyer, rsc1, rog, rsc
     CC=golang-dev
     https://golang.org/cl/4285047
-
+---
  .hgignore | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 9abdbf1ffb..4ac2a3af70 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -49,8 +49,7 @@ src/pkg/runtime/runtime_defs.go
+ src/pkg/runtime/version.go
+ src/pkg/runtime/version_*.go
+ src/pkg/unicode/maketables
+-src/pkg/github.com/
+-src/pkg/*.googlecode.com/
++src/pkg/*.*/
+ test/pass.out
+ test/run.out
+ test/times.out

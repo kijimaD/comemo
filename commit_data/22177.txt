@@ -9,8 +9,51 @@ Date:   Thu Feb 26 10:58:48 2015 -0800
     Change-Id: I84c057bb0ec72940201075f3e6078262fe4bce05
     Reviewed-on: https://go-review.googlesource.com/6120
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/operand_test.go  | 4 ++--
  src/cmd/asm/internal/asm/testdata/386.out | 2 +-
  src/cmd/internal/obj/util.go              | 3 +++
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index a02e5bfdb3..e1deea3985 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -244,8 +244,8 @@ var x86OperandTests = []operandTest{
+ 	{"(BP*8)", "0(BP*8)"},
+ 	{"(BX)", "(BX)"},
+ 	{"(SP)", "(SP)"},
+-	{"*AX", "AX"},                             // TODO: Should make * illegal here; a simple alias for JMP AX.
+-	{"*runtime·_GetStdHandle(SB)", "type=16"}, // TODO: bizarre
++	{"*AX", "AX"}, // TODO: Should make * illegal here; a simple alias for JMP AX.
++	{"*runtime·_GetStdHandle(SB)", "*runtime._GetStdHandle(SB)"},
+ 	{"-(4+12)(DI)", "-16(DI)"},
+ 	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},
+ 	{"-96(DI)(BX*1)", "-96(DI)(BX*1)"},
+diff --git a/src/cmd/asm/internal/asm/testdata/386.out b/src/cmd/asm/internal/asm/testdata/386.out
+index 6578f3e2b6..59c7f89e92 100644
+--- a/src/cmd/asm/internal/asm/testdata/386.out
++++ b/src/cmd/asm/internal/asm/testdata/386.out
+@@ -17,7 +17,7 @@
+ 32 00017 (testdata/386.s:32)	JCS	,16(PC)
+ 35 00018 (testdata/386.s:35)	CALL	,AX
+ 36 00019 (testdata/386.s:36)	JMP	,AX
+-37 00020 (testdata/386.s:37)	CALL	,type=16
++37 00020 (testdata/386.s:37)	CALL	,*foo(SB)
+ 38 00021 (testdata/386.s:38)	JMP	,$4
+ 39 00022 (testdata/386.s:39)	JMP	,16
+ 40 00023 (testdata/386.s:40)	CALL	,foo(SB)
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 740f664479..4dad7904db 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -312,6 +312,9 @@ func Dconv(p *Prog, Rconv func(int) string, a *Addr) string {
+ 			str = fmt.Sprintf("%d(PC)", a.Offset)
+ 		}
+ 
++	case TYPE_INDIR:
++		str = fmt.Sprintf("*%s", Mconv(Rconv, a))
++
+ 	case TYPE_MEM:
+ 		str = Mconv(Rconv, a)
+ 		if a.Index != REG_NONE {

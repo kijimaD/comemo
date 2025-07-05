@@ -17,6 +17,20 @@ Date:   Tue Feb 8 14:46:58 2022 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 4b67565430..d9eb9c3862 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1119,7 +1119,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 
+ 	// Skip internal linking cases on arm64 to support GCC-9.4 and above.
+ 	// See issue #39466.
+-	skipInternalLink := goarch == "arm64" && goos != "windows"
++	skipInternalLink := goarch == "arm64" && goos != "darwin"
+ 
+ 	if t.internalLink() && !skipInternalLink {
+ 		cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=internal")

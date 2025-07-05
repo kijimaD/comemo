@@ -9,6 +9,21 @@ Date:   Fri Nov 18 15:30:36 2011 +0300
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5410046
-
+---
  src/pkg/exp/terminal/Makefile | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/terminal/Makefile b/src/pkg/exp/terminal/Makefile
+index 24bf7ad75d..96fe910020 100644
+--- a/src/pkg/exp/terminal/Makefile
++++ b/src/pkg/exp/terminal/Makefile
+@@ -9,7 +9,8 @@ GOFILES=\
+ 	terminal.go\
+ 
+ ifneq ($(GOOS),windows)
+-GOFILES+=util.go
++GOFILES+=\
++	util.go
+ endif
+ 
+ include ../../../Make.pkg

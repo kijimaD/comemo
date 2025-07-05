@@ -9,6 +9,21 @@ Date:   Wed Mar 28 07:44:06 2018 -0700
     Change-Id: I876ac1b9d3615283f7b88cfa0b965ef81a57f056
     Reviewed-on: https://go-review.googlesource.com/102955
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/flag/flag.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index edde5282cf..358402345c 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -981,7 +981,8 @@ func commandLineUsage() {
+ }
+ 
+ // NewFlagSet returns a new, empty flag set with the specified name and
+-// error handling property.
++// error handling property. If the name is not empty, it will be printed
++// in the default usage message and in error messages.
+ func NewFlagSet(name string, errorHandling ErrorHandling) *FlagSet {
+ 	f := &FlagSet{
+ 		name:          name,

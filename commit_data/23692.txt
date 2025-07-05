@@ -17,7 +17,62 @@ Date:   Thu Jun 4 15:15:48 2015 -0400
     Change-Id: Iaa7ace703c4cf36392e752eea9b55e2ce49e9826
     Reviewed-on: https://go-review.googlesource.com/10708
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 24 ++++++++++++++++++++++++
  src/cmd/link/internal/ld/pobj.go |  1 +
  2 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index fd1cdd64bb..2ffba875c5 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -37,6 +37,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"os"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -1546,6 +1547,29 @@ func dodata() {
+ 	}
+ }
+ 
++// Add buildid to beginning of text segment, on non-ELF systems.
++// Non-ELF binary formats are not always flexible enough to
++// give us a place to put the Go build ID. On those systems, we put it
++// at the very beginning of the text segment.
++// This ``header'' is read by cmd/go.
++func textbuildid() {
++	if Iself || buildid == "" {
++		return
++	}
++
++	sym := Linklookup(Ctxt, "go.buildid", 0)
++	sym.Reachable = true
++	// The \xff is invalid UTF-8, meant to make it less likely
++	// to find one of these accidentally.
++	data := "\xff Go build ID: " + strconv.Quote(buildid) + "\n \xff"
++	sym.Type = obj.STEXT
++	sym.P = []byte(data)
++	sym.Size = int64(len(sym.P))
++
++	sym.Next = Ctxt.Textp
++	Ctxt.Textp = sym
++}
++
+ // assign addresses to text
+ func textaddress() {
+ 	var sub *LSym
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index b3252c181b..60d584fc73 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -231,6 +231,7 @@ func Ldmain() {
+ 	}
+ 	addexport()
+ 	Thearch.Gentext() // trampolines, call stubs, etc.
++	textbuildid()
+ 	textaddress()
+ 	pclntab()
+ 	findfunctab()

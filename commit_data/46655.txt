@@ -15,7 +15,53 @@ Date:   Tue Jan 19 10:38:33 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/irgen.go |  2 ++
  src/cmd/compile/internal/noder/types.go | 14 ++++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 694a6abb8e..e127348482 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -79,6 +79,7 @@ func check2(noders []*noder) {
+ 		info:   &info,
+ 		posMap: m,
+ 		objs:   make(map[types2.Object]*ir.Name),
++		typs:   make(map[types2.Type]*types.Type),
+ 	}
+ 	g.generate(noders)
+ 
+@@ -94,6 +95,7 @@ type irgen struct {
+ 
+ 	posMap
+ 	objs   map[types2.Object]*ir.Name
++	typs   map[types2.Type]*types.Type
+ 	marker dwarfgen.ScopeMarker
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 0635d76077..aec1846619 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -26,6 +26,20 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
+ }
+ 
+ func (g *irgen) typ(typ types2.Type) *types.Type {
++	// Caching type mappings isn't strictly needed, because typ0 preserves
++	// type identity; but caching minimizes memory blow-up from mapping the
++	// same composite type multiple times, and also plays better with the
++	// current state of cmd/compile (e.g., haphazard calculation of type
++	// sizes).
++	res, ok := g.typs[typ]
++	if !ok {
++		res = g.typ0(typ)
++		g.typs[typ] = res
++	}
++	return res
++}
++
++func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 	switch typ := typ.(type) {
+ 	case *types2.Basic:
+ 		return g.basic(typ)

@@ -19,6 +19,24 @@ Date:   Fri Nov 24 10:12:44 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8cb6e57a97..5912fc61d1 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -782,8 +782,10 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 		// _Grunning or _Grunning|_Gscan; either way,
+ 		// we own gp.gcscanvalid, so it's safe to read.
+ 		// gp.gcscanvalid must not be true when we are running.
+-		print("runtime: casgstatus ", hex(oldval), "->", hex(newval), " gp.status=", hex(gp.atomicstatus), " gp.gcscanvalid=true\n")
+-		throw("casgstatus")
++		systemstack(func() {
++			print("runtime: casgstatus ", hex(oldval), "->", hex(newval), " gp.status=", hex(gp.atomicstatus), " gp.gcscanvalid=true\n")
++			throw("casgstatus")
++		})
+ 	}
+ 
+ 	// See http://golang.org/cl/21503 for justification of the yield delay.

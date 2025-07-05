@@ -7,7 +7,58 @@ Date:   Fri Jun 10 08:47:27 2011 +1000
     R=rsc, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/4590047
-
+---
  src/pkg/mail/message.go      | 11 ++++++-----
  src/pkg/mail/message_test.go | 10 ++++++++++
  2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/mail/message.go b/src/pkg/mail/message.go
+index ca818ebde4..754b779bed 100644
+--- a/src/pkg/mail/message.go
++++ b/src/pkg/mail/message.go
+@@ -330,6 +330,12 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
+ 			// atom
+ 			word, err = p.consumeAtom(false)
+ 		}
++
++		// RFC 2047 encoded-word starts with =?, ends with ?=, and has two other ?s.
++		if err == nil && strings.HasPrefix(word, "=?") && strings.HasSuffix(word, "?=") && strings.Count(word, "?") == 4 {
++			word, err = decodeRFC2047Word(word)
++		}
++
+ 		if err != nil {
+ 			break
+ 		}
+@@ -342,11 +348,6 @@ func (p *addrParser) consumePhrase() (phrase string, err os.Error) {
+ 		return "", os.ErrorString("mail: missing word in phrase")
+ 	}
+ 	phrase = strings.Join(words, " ")
+-
+-	// RFC 2047 encoded-word starts with =?, ends with ?=, and has two other ?s.
+-	if strings.HasPrefix(phrase, "=?") && strings.HasSuffix(phrase, "?=") && strings.Count(phrase, "?") == 4 {
+-		return decodeRFC2047Word(phrase)
+-	}
+ 	return phrase, nil
+ }
+ 
+diff --git a/src/pkg/mail/message_test.go b/src/pkg/mail/message_test.go
+index 92e9ef8de7..1ff45d2c13 100644
+--- a/src/pkg/mail/message_test.go
++++ b/src/pkg/mail/message_test.go
+@@ -207,6 +207,16 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// RFC 2047, Section 8.
++		{
++			`=?ISO-8859-1?Q?Andr=E9?= Pirard <PIRARD@vm1.ulg.ac.be>`,
++			[]*Address{
++				&Address{
++					Name:    `André Pirard`,
++					Address: "PIRARD@vm1.ulg.ac.be",
++				},
++			},
++		},
+ 	}
+ 	for _, test := range tests {
+ 		addrs, err := newAddrParser(test.addrsStr).parseAddressList()

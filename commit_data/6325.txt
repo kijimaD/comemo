@@ -10,6 +10,20 @@ Date:   Tue Sep 21 16:43:31 2010 +1000
     R=golang-dev, r2
     CC=golang-dev
     https://golang.org/cl/2246042
-
+---
  src/env.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/env.bash b/src/env.bash
+index d96d50cb26..40a94d65fe 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -15,7 +15,7 @@ fi
+ # Various aspects of the build cd into $GOROOT-rooted paths,
+ # making it easy to jump to a different tree and get confused.
+ DIR1=$(cd ..; pwd)
+-DIR2=$(cd $GOROOT; pwd)
++DIR2=$(cd "$GOROOT"; pwd)
+ if [ "$DIR1" != "$DIR2" ]; then
+ 	echo 'Suspicious $GOROOT '$GOROOT': does not match current directory.' 1>&2
+ 	exit 1

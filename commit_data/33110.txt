@@ -8,6 +8,27 @@ Date:   Wed Jul 12 17:49:09 2017 -0600
     Reviewed-on: https://go-review.googlesource.com/48192
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.9.html | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 5df1e5cff7..db1d3ee58c 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -227,7 +227,14 @@ type T1 = T2
+ </p>
+ 
+ 
+-<h3 id="go-tool-pprof-proxy">Pprof</h3>
++<h3 id="go-tool-pprof">Pprof</h3>
++
++<p> <!-- CL 34192 -->
++  Profiles produced by the <code>runtime/pprof</code> package now
++  include symbol information, so they can be viewed
++  in <code>go</code> <code>tool</code> <code>pprof</code>
++  without binary that produced the profile.
++</p>
+ 
+ <p> <!-- CL 38343 -->
+   The <code>go</code> <code>tool</code> <code>pprof</code> command now

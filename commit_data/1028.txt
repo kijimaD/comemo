@@ -9,7 +9,62 @@ Date:   Sun Nov 2 12:32:14 2008 -0800
     DELTA=18  (18 added, 0 deleted, 0 changed)
     OCL=18315
     CL=18323
-
+---
  src/lib/reflect/test.go  |  2 ++
  src/lib/reflect/value.go | 16 ++++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/lib/reflect/test.go b/src/lib/reflect/test.go
+index 864220d4e2..49d97a6df4 100644
+--- a/src/lib/reflect/test.go
++++ b/src/lib/reflect/test.go
+@@ -91,6 +91,7 @@ func main() {
+ 	var s string;
+ 	var t reflect.Type;
+ 
++	typedump("missing", "$missing$");
+ 	typedump("int", "int");
+ 	typedump("int8", "int8");
+ 	typedump("int16", "int16");
+@@ -106,6 +107,7 @@ func main() {
+ 	typedump("float64", "float64");
+ 	typedump("float80", "float80");
+ 	typedump("int8", "int8");
++	typedump("whoknows.whatsthis", "$missing$");
+ 	typedump("**int8", "**int8");
+ 	typedump("**P.integer", "**P.integer");
+ 	typedump("[32]int32", "[32]int32");
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 554da2d53e..82ceb531a5 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -60,6 +60,21 @@ func AddrToPtrFloat80(Addr) *float80
+ func AddrToPtrString(Addr) *string
+ func AddrToPtrBool(Addr) *bool
+ 
++// -- Missing
++
++export type MissingValue interface {
++	Kind()	int;
++	Type()	Type;
++}
++
++type MissingValueStruct struct {
++	CommonV
++}
++
++func MissingCreator(typ Type, addr Addr) Value {
++	return &MissingValueStruct{ CommonV{IntKind, typ, addr} }
++}
++
+ // -- Int
+ 
+ export type IntValue interface {
+@@ -676,6 +691,7 @@ var creator *map[int] Creator
+ 
+ func init() {
+ 	creator = new(map[int] Creator);
++	creator[MissingKind] = &MissingCreator;
+ 	creator[IntKind] = &IntCreator;
+ 	creator[Int8Kind] = &Int8Creator;
+ 	creator[Int16Kind] = &Int16Creator;

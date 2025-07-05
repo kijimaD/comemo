@@ -28,7 +28,7 @@ Date:   Wed Nov 29 12:15:31 2017 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/math/all_test.go     |  2 +-
  src/math/dim.go          |  4 +---
  src/math/dim_386.s       |  3 ---
@@ -40,3 +40,205 @@ Date:   Wed Nov 29 12:15:31 2017 -0600
  src/math/stubs_ppc64x.s  |  3 ---
  src/math/stubs_s390x.s   |  3 ---
  10 files changed, 2 insertions(+), 89 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 7598d88570..0412c19e57 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -3210,7 +3210,7 @@ func BenchmarkAbs(b *testing.B) {
+ func BenchmarkDim(b *testing.B) {
+ 	x := 0.0
+ 	for i := 0; i < b.N; i++ {
+-		x = Dim(10, 3)
++		x = Dim(GlobalF, x)
+ 	}
+ 	GlobalF = x
+ }
+diff --git a/src/math/dim.go b/src/math/dim.go
+index ac0aa869d7..d2e5d47f5c 100644
+--- a/src/math/dim.go
++++ b/src/math/dim.go
+@@ -10,9 +10,7 @@ package math
+ //	Dim(+Inf, +Inf) = NaN
+ //	Dim(-Inf, -Inf) = NaN
+ //	Dim(x, NaN) = Dim(NaN, x) = NaN
+-func Dim(x, y float64) float64
+-
+-func dim(x, y float64) float64 {
++func Dim(x, y float64) float64 {
+ 	// The special cases result in NaN after the subtraction:
+ 	//      +Inf - +Inf = NaN
+ 	//      -Inf - -Inf = NaN
+diff --git a/src/math/dim_386.s b/src/math/dim_386.s
+index 22b8abb017..2ee13886d7 100644
+--- a/src/math/dim_386.s
++++ b/src/math/dim_386.s
+@@ -4,9 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	JMP ·dim(SB)
+-
+ TEXT ·Max(SB),NOSPLIT,$0
+ 	JMP ·max(SB)
+ 
+diff --git a/src/math/dim_amd64.s b/src/math/dim_amd64.s
+index 249f1b1569..85c02e6e52 100644
+--- a/src/math/dim_amd64.s
++++ b/src/math/dim_amd64.s
+@@ -8,44 +8,6 @@
+ #define NaN    0x7FF8000000000001
+ #define NegInf 0xFFF0000000000000
+ 
+-// func Dim(x, y float64) float64
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	// (+Inf, +Inf) special case
+-	MOVQ    x+0(FP), BX
+-	MOVQ    y+8(FP), CX
+-	MOVQ    $PosInf, AX
+-	CMPQ    AX, BX
+-	JNE     dim2
+-	CMPQ    AX, CX
+-	JEQ     bothInf
+-dim2:	// (-Inf, -Inf) special case
+-	MOVQ    $NegInf, AX
+-	CMPQ    AX, BX
+-	JNE     dim3
+-	CMPQ    AX, CX
+-	JEQ     bothInf
+-dim3:	// (NaN, x) or (x, NaN)
+-	MOVQ    $~(1<<63), DX
+-	MOVQ    $PosInf, AX
+-	ANDQ    DX, BX // x = |x|
+-	CMPQ    AX, BX
+-	JLT     isDimNaN
+-	ANDQ    DX, CX // y = |y|
+-	CMPQ    AX, CX
+-	JLT     isDimNaN
+-
+-	MOVSD x+0(FP), X0
+-	SUBSD y+8(FP), X0
+-	MOVSD $(0.0), X1
+-	MAXSD X1, X0
+-	MOVSD X0, ret+16(FP)
+-	RET
+-bothInf: // Dim(-Inf, -Inf) or Dim(+Inf, +Inf)
+-isDimNaN:
+-	MOVQ    $NaN, AX
+-	MOVQ    AX, ret+16(FP)
+-	RET
+-
+ // func ·Max(x, y float64) float64
+ TEXT ·Max(SB),NOSPLIT,$0
+ 	// +Inf special cases
+diff --git a/src/math/dim_arm.s b/src/math/dim_arm.s
+index 642e485bf9..c6f1d87fb5 100644
+--- a/src/math/dim_arm.s
++++ b/src/math/dim_arm.s
+@@ -4,9 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	B ·dim(SB)
+-
+ TEXT ·Min(SB),NOSPLIT,$0
+ 	B ·min(SB)
+ 
+diff --git a/src/math/dim_arm64.s b/src/math/dim_arm64.s
+index 4b6b5929cd..2cb866ff3e 100644
+--- a/src/math/dim_arm64.s
++++ b/src/math/dim_arm64.s
+@@ -8,35 +8,6 @@
+ #define NaN    0x7FF8000000000001
+ #define NegInf 0xFFF0000000000000
+ 
+-// func Dim(x, y float64) float64
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	// (+Inf, +Inf) special case
+-	MOVD	$PosInf, R0
+-	MOVD	x+0(FP), R1
+-	MOVD	y+8(FP), R2
+-	CMP	R0, R1
+-	BNE	dim2
+-	CMP	R0, R2
+-	BEQ	bothInf
+-dim2:	// (-Inf, -Inf) special case
+-	MOVD	$NegInf, R0
+-	CMP	R0, R1
+-	BNE	dim3
+-	CMP	R0, R2
+-	BEQ	bothInf
+-dim3:	// normal case
+-	FMOVD	R1, F0
+-	FMOVD	R2, F1
+-	FMOVD	$0.0, F2
+-	FSUBD	F1, F0
+-	FMAXD	F0, F2, F0
+-	FMOVD	F0, ret+16(FP)
+-	RET
+-bothInf:
+-	MOVD	$NaN, R0
+-	MOVD	R0, ret+16(FP)
+-	RET
+-
+ // func ·Max(x, y float64) float64
+ TEXT ·Max(SB),NOSPLIT,$0
+ 	// +Inf special cases
+diff --git a/src/math/stubs_mips64x.s b/src/math/stubs_mips64x.s
+index a0e0e38810..b3ffa5b21e 100644
+--- a/src/math/stubs_mips64x.s
++++ b/src/math/stubs_mips64x.s
+@@ -27,9 +27,6 @@ TEXT ·Atan(SB),NOSPLIT,$0
+ TEXT ·Atanh(SB),NOSPLIT,$0
+ 	JMP ·atanh(SB)
+ 
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	JMP ·dim(SB)
+-
+ TEXT ·Min(SB),NOSPLIT,$0
+ 	JMP ·min(SB)
+ 
+diff --git a/src/math/stubs_mipsx.s b/src/math/stubs_mipsx.s
+index e959f079bb..129898eb5f 100644
+--- a/src/math/stubs_mipsx.s
++++ b/src/math/stubs_mipsx.s
+@@ -27,9 +27,6 @@ TEXT ·Atan(SB),NOSPLIT,$0
+ TEXT ·Atanh(SB),NOSPLIT,$0
+ 	JMP	·atanh(SB)
+ 
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	JMP	·dim(SB)
+-
+ TEXT ·Min(SB),NOSPLIT,$0
+ 	JMP	·min(SB)
+ 
+diff --git a/src/math/stubs_ppc64x.s b/src/math/stubs_ppc64x.s
+index 30c51ddeaf..dc5d615088 100644
+--- a/src/math/stubs_ppc64x.s
++++ b/src/math/stubs_ppc64x.s
+@@ -27,9 +27,6 @@ TEXT ·Atan(SB),NOSPLIT,$0
+ TEXT ·Atanh(SB),NOSPLIT,$0
+ 	BR ·atanh(SB)
+ 
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	BR ·dim(SB)
+-
+ TEXT ·Min(SB),NOSPLIT,$0
+ 	BR ·min(SB)
+ 
+diff --git a/src/math/stubs_s390x.s b/src/math/stubs_s390x.s
+index 4dceddac63..889e248db9 100644
+--- a/src/math/stubs_s390x.s
++++ b/src/math/stubs_s390x.s
+@@ -4,9 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	BR ·dim(SB)
+-
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	BR ·exp2(SB)
+ 

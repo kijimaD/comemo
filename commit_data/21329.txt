@@ -7,6 +7,20 @@ Date:   Mon Dec 22 13:59:17 2014 -0800
     Change-Id: Icba46194bcbfd86b512eef2599242c715ad4e7d3
     Reviewed-on: https://go-review.googlesource.com/2041
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/go/build/build_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index abdad0c1f9..bdd4c05675 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -99,7 +99,7 @@ func TestMultiplePackageImport(t *testing.T) {
+ 		t.Fatal(`Import("testdata/multi") did not return MultiplePackageError.`)
+ 	}
+ 	want := &MultiplePackageError{
+-		Dir:      "testdata/multi",
++		Dir:      filepath.FromSlash("testdata/multi"),
+ 		Packages: []string{"main", "test_package"},
+ 		Files:    []string{"file.go", "file_appengine.go"},
+ 	}

@@ -9,6 +9,35 @@ Date:   Mon Feb 11 16:43:09 2019 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/fmtmap_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 81ba20ff0f..018447efa1 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -81,6 +81,7 @@ var knownFormats = map[string]string{
+ 	"bool %v":                                         "",
+ 	"byte %08b":                                       "",
+ 	"byte %c":                                         "",
++	"byte %q":                                         "",
+ 	"byte %v":                                         "",
+ 	"cmd/compile/internal/arm.shift %d":               "",
+ 	"cmd/compile/internal/gc.Class %d":                "",
+@@ -124,6 +125,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/ssa.relation %s":            "",
+ 	"cmd/compile/internal/syntax.Error %q":            "",
+ 	"cmd/compile/internal/syntax.Expr %#v":            "",
++	"cmd/compile/internal/syntax.LitKind %d":          "",
+ 	"cmd/compile/internal/syntax.Node %T":             "",
+ 	"cmd/compile/internal/syntax.Operator %s":         "",
+ 	"cmd/compile/internal/syntax.Pos %s":              "",
+@@ -175,6 +177,7 @@ var knownFormats = map[string]string{
+ 	"reflect.Type %s":                                                      "",
+ 	"rune %#U":                                                             "",
+ 	"rune %c":                                                              "",
++	"rune %q":                                                              "",
+ 	"string %-*s":                                                          "",
+ 	"string %-16s":                                                         "",
+ 	"string %-6s":                                                          "",

@@ -16,6 +16,41 @@ Date:   Wed Nov 20 14:18:58 2024 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/cgo/internal/testsanitizers/asan_test.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/asan_test.go b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+index 0d819f2797..19810aafb6 100644
+--- a/src/cmd/cgo/internal/testsanitizers/asan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"internal/platform"
+ 	"internal/testenv"
++	"os/exec"
+ 	"strings"
+ 	"testing"
+ )
+@@ -114,10 +115,20 @@ func TestASANFuzz(t *testing.T) {
+ 	dir := newTempDir(t)
+ 	defer dir.RemoveAll(t)
+ 
+-	cmd := config.goCmd("test", "-fuzz=Fuzz", srcPath("asan_fuzz_test.go"))
++	exe := dir.Join("asan_fuzz_test.exe")
++	cmd := config.goCmd("test", "-c", "-o", exe, srcPath("asan_fuzz_test.go"))
+ 	t.Logf("%v", cmd)
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cmd = exec.Command(exe, "-test.fuzz=Fuzz", "-test.fuzzcachedir="+dir.Base())
++	cmd.Dir = dir.Base()
++	t.Logf("%v", cmd)
++	out, err = cmd.CombinedOutput()
++	t.Logf("%s", out)
+ 	if err == nil {
+ 		t.Error("expected fuzzing failure")
+ 	}

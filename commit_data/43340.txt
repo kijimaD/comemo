@@ -28,8 +28,193 @@ Date:   Thu Mar 26 16:01:40 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/225917
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  5 ++
  src/cmd/compile/internal/ssa/rewritePPC64.go | 85 ++++++++++++++++++++++++++++
  test/codegen/shift.go                        | 23 ++++++++
  3 files changed, 113 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 740f9fbaa7..be7a9858ef 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -704,19 +704,24 @@
+ (MOVBZreg (SRDconst [c] x)) && c>=56 -> (SRDconst [c] x)
+ (MOVBreg (SRDconst [c] x)) && c>56 -> (SRDconst [c] x)
+ (MOVBreg (SRDconst [c] x)) && c==56 -> (SRADconst [c] x)
++(MOVBreg (SRADconst [c] x)) && c>=56 -> (SRADconst [c] x)
+ (MOVBZreg (SRWconst [c] x)) && c>=24 -> (SRWconst [c] x)
+ (MOVBreg (SRWconst [c] x)) && c>24 -> (SRWconst [c] x)
+ (MOVBreg (SRWconst [c] x)) && c==24 -> (SRAWconst [c] x)
++(MOVBreg (SRAWconst [c] x)) && c>=24 -> (SRAWconst [c] x)
+ 
+ (MOVHZreg (SRDconst [c] x)) && c>=48 -> (SRDconst [c] x)
+ (MOVHreg (SRDconst [c] x)) && c>48 -> (SRDconst [c] x)
+ (MOVHreg (SRDconst [c] x)) && c==48 -> (SRADconst [c] x)
++(MOVHreg (SRADconst [c] x)) && c>=48 -> (SRADconst [c] x)
+ (MOVHZreg (SRWconst [c] x)) && c>=16 -> (SRWconst [c] x)
+ (MOVHreg (SRWconst [c] x)) && c>16 -> (SRWconst [c] x)
++(MOVHreg (SRAWconst [c] x)) && c>=16 -> (SRAWconst [c] x)
+ (MOVHreg (SRWconst [c] x)) && c==16 -> (SRAWconst [c] x)
+ 
+ (MOVWZreg (SRDconst [c] x)) && c>=32 -> (SRDconst [c] x)
+ (MOVWreg (SRDconst [c] x)) && c>32 -> (SRDconst [c] x)
++(MOVWreg (SRADconst [c] x)) && c>=32 -> (SRADconst [c] x)
+ (MOVWreg (SRDconst [c] x)) && c==32 -> (SRADconst [c] x)
+ 
+ // Various redundant zero/sign extension combinations.
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 695445a8bd..d5568b696f 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -6427,6 +6427,23 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBreg (SRADconst [c] x))
++	// cond: c>=56
++	// result: (SRADconst [c] x)
++	for {
++		if v_0.Op != OpPPC64SRADconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v_0.Args[0]
++		if !(c >= 56) {
++			break
++		}
++		v.reset(OpPPC64SRADconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVBreg (SRWconst [c] x))
+ 	// cond: c>24
+ 	// result: (SRWconst [c] x)
+@@ -6461,6 +6478,23 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBreg (SRAWconst [c] x))
++	// cond: c>=24
++	// result: (SRAWconst [c] x)
++	for {
++		if v_0.Op != OpPPC64SRAWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v_0.Args[0]
++		if !(c >= 24) {
++			break
++		}
++		v.reset(OpPPC64SRAWconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVBreg y:(MOVBreg _))
+ 	// result: y
+ 	for {
+@@ -8487,6 +8521,23 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHreg (SRADconst [c] x))
++	// cond: c>=48
++	// result: (SRADconst [c] x)
++	for {
++		if v_0.Op != OpPPC64SRADconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v_0.Args[0]
++		if !(c >= 48) {
++			break
++		}
++		v.reset(OpPPC64SRADconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVHreg (SRWconst [c] x))
+ 	// cond: c>16
+ 	// result: (SRWconst [c] x)
+@@ -8504,6 +8555,23 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHreg (SRAWconst [c] x))
++	// cond: c>=16
++	// result: (SRAWconst [c] x)
++	for {
++		if v_0.Op != OpPPC64SRAWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v_0.Args[0]
++		if !(c >= 16) {
++			break
++		}
++		v.reset(OpPPC64SRAWconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVHreg (SRWconst [c] x))
+ 	// cond: c==16
+ 	// result: (SRAWconst [c] x)
+@@ -9648,6 +9716,23 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVWreg (SRADconst [c] x))
++	// cond: c>=32
++	// result: (SRADconst [c] x)
++	for {
++		if v_0.Op != OpPPC64SRADconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v_0.Args[0]
++		if !(c >= 32) {
++			break
++		}
++		v.reset(OpPPC64SRADconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVWreg (SRDconst [c] x))
+ 	// cond: c==32
+ 	// result: (SRADconst [c] x)
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index f287ca68b7..305c39a1d8 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -125,3 +125,26 @@ func lshGuarded64(v int64, s uint) int64 {
+ 	}
+ 	panic("shift too large")
+ }
++
++func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
++
++	// ppc64le:-".*MOVW"
++	f := int32(v>>32)
++	// ppc64le:".*MOVW"
++	f += int32(v>>31)
++	// ppc64le:-".*MOVH"
++	g := int16(v>>48)
++	// ppc64le:".*MOVH"
++	g += int16(v>>30)
++	// ppc64le:-".*MOVH"
++	g += int16(f>>16)
++	// ppc64le:-".*MOVB"
++	h := int8(v>>56)
++	// ppc64le:".*MOVB"
++	h += int8(v>>28)
++	// ppc64le:-".*MOVB"
++	h += int8(f>>24)
++	// ppc64le:".*MOVB"
++	h += int8(f>>16)
++	return int64(h),uint64(g)
++}

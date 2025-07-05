@@ -13,6 +13,29 @@ Date:   Tue May 9 10:26:08 2017 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/example_test.go b/src/net/example_test.go
+index bfab21c589..979d8170aa 100644
+--- a/src/net/example_test.go
++++ b/src/net/example_test.go
+@@ -44,7 +44,7 @@ func ExampleIPv4() {
+ }
+ 
+ func ExampleParseCIDR() {
+-	ipv4Addr, ipv4Net, err := net.ParseCIDR("192.0.2.1/16")
++	ipv4Addr, ipv4Net, err := net.ParseCIDR("192.0.2.1/24")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+@@ -60,7 +60,7 @@ func ExampleParseCIDR() {
+ 
+ 	// Output:
+ 	// 192.0.2.1
+-	// 192.0.0.0/16
++	// 192.0.2.0/24
+ 	// 2001:db8:a0b:12f0::1
+ 	// 2001:db8::/32
+ }

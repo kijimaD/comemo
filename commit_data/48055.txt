@@ -13,6 +13,21 @@ Date:   Wed Apr 14 12:44:04 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 141dd0ac68..d5331b3fef 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -771,6 +771,9 @@ func (l *Loader) SymName(i Sym) string {
+ 		return pp.name
+ 	}
+ 	r, li := l.toLocal(i)
++	if r == nil {
++		return "?"
++	}
+ 	name := r.Sym(li).Name(r.Reader)
+ 	if !r.NeedNameExpansion() {
+ 		return name

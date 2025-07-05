@@ -15,6 +15,20 @@ Date:   Wed Oct 10 20:49:18 2012 +0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6637060
-
+---
  src/pkg/runtime/debug/stack_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/debug/stack_test.go b/src/pkg/runtime/debug/stack_test.go
+index f33f5072b4..bbd662618f 100644
+--- a/src/pkg/runtime/debug/stack_test.go
++++ b/src/pkg/runtime/debug/stack_test.go
+@@ -36,7 +36,7 @@ func (t T) method() []byte {
+ func TestStack(t *testing.T) {
+ 	b := T(0).method()
+ 	lines := strings.Split(string(b), "\n")
+-	if len(lines) <= 6 {
++	if len(lines) < 6 {
+ 		t.Fatal("too few lines")
+ 	}
+ 	n := 0

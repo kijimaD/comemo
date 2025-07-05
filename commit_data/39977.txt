@@ -15,6 +15,20 @@ Date:   Sun Apr 7 20:00:39 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 1de46c29f5..b7e26f47b7 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1185,7 +1185,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 	// /usr/bin does not usually exist on Plan 9 or Android.
+ 	switch runtime.GOOS {
+ 	case "android":
+-		dirs = []string{"/", "/system/bin"}
++		dirs = []string{"/system/bin"}
+ 	case "plan9":
+ 		dirs = []string{"/", "/usr"}
+ 	case "darwin":

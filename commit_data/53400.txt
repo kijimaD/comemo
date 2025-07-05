@@ -29,6 +29,20 @@ Date:   Sat Aug 13 17:32:26 2022 +0000
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/make.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index 29a9cce888..fb3eba7c3b 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -93,7 +93,7 @@ setlocal
+ set GOOS=
+ set GOARCH=
+ set GOEXPERIMENT=
+-for /f "tokens=*" %%g IN ('%GOROOT_BOOTSTRAP%\bin\go version') do (set GOROOT_BOOTSTRAP_VERSION=%%g)
++for /f "tokens=*" %%g IN ('"%GOROOT_BOOTSTRAP%\bin\go" version') do (set GOROOT_BOOTSTRAP_VERSION=%%g)
+ set GOROOT_BOOTSTRAP_VERSION=%GOROOT_BOOTSTRAP_VERSION:go version =%
+ echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%. (%GOROOT_BOOTSTRAP_VERSION%)
+ if x%vflag==x-v echo cmd/dist

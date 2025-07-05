@@ -9,6 +9,36 @@ Date:   Thu Jul 21 15:31:56 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/bug498.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/test/fixedbugs/bug498.go b/test/fixedbugs/bug498.go
+new file mode 100644
+index 0000000000..91b5c2f688
+--- /dev/null
++++ b/test/fixedbugs/bug498.go
+@@ -0,0 +1,23 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo incorrectly rejected an assignment to multiple instances of
++// the same variable.
++
++package main
++
++var a int
++
++func F() {
++	a, a, a = 1, 2, 3
++}
++
++func main() {
++	F()
++	if a != 3 {
++		panic(a)
++	}
++}

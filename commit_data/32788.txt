@@ -11,9 +11,86 @@ Date:   Tue May 30 15:05:42 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go |  4 +++-
  src/cmd/compile/internal/gc/ssa.go  |  7 +++++--
  src/go/types/stdlib_test.go         |  1 +
  test/fixedbugs/issue20529.go        | 18 ++++++++++++++++++
  4 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 427146ffb0..66e4a10ee8 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -230,6 +230,8 @@ func compilenow() bool {
+ 	return nBackendWorkers == 1 && Debug_compilelater == 0
+ }
+ 
++const maxStackSize = 1 << 31
++
+ // compileSSA builds an SSA backend function,
+ // uses it to generate a plist,
+ // and flushes that plist to machine code.
+@@ -238,7 +240,7 @@ func compileSSA(fn *Node, worker int) {
+ 	ssafn := buildssa(fn, worker)
+ 	pp := newProgs(fn, worker)
+ 	genssa(ssafn, pp)
+-	if pp.Text.To.Offset < 1<<31 {
++	if pp.Text.To.Offset < maxStackSize {
+ 		pp.Flush()
+ 	} else {
+ 		largeStackFramesMu.Lock()
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 94c1bd5706..1497c5c2f5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4373,8 +4373,11 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 
+ 	e := f.Frontend().(*ssafn)
+ 
+-	// Generate GC bitmaps.
+-	s.stackMapIndex = liveness(e, f)
++	// Generate GC bitmaps, except if the stack is too large,
++	// in which compilation will fail later anyway (issue 20529).
++	if e.stksize < maxStackSize {
++		s.stackMapIndex = liveness(e, f)
++	}
+ 
+ 	// Remember where each block starts.
+ 	s.bstart = make([]*obj.Prog, f.NumBlocks())
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 3f02dd98ba..b9a6681e66 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -172,6 +172,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue18882.go", // go/types doesn't check validity of //go:xxx directives
+ 		"issue20232.go", // go/types handles larger constants than gc
+ 		"issue20227.go", // go/types does not handle this yet
++		"issue20529.go", // go/types does not have constraints on stack size
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue20529.go b/test/fixedbugs/issue20529.go
+new file mode 100644
+index 0000000000..cd0c23da03
+--- /dev/null
++++ b/test/fixedbugs/issue20529.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// +build amd64
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20529: Large stack frames caused compiler panics.
++// Only tested on amd64 because the test only makes sense
++// on a 64 bit system, and it is platform-agnostic,
++// so testing one suffices.
++
++package p
++
++func f() { // ERROR "stack frame too large"
++	_ = [][]int{1e9: []int{}}
++}

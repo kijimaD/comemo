@@ -11,6 +11,22 @@ Date:   Tue Jun 12 23:18:33 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/internal/gccgoimporter/parser.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 7b4cc06760..5e3c31745c 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -906,10 +906,3 @@ func (p *parser) parsePackage() *types.Package {
+ 	p.pkg.MarkComplete()
+ 	return p.pkg
+ }
+-
+-// InitData = { InitDataDirective } .
+-func (p *parser) parseInitData() {
+-	for p.tok != scanner.EOF {
+-		p.parseInitDataDirective()
+-	}
+-}

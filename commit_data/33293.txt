@@ -7,7 +7,38 @@ Date:   Tue Jul 11 17:31:29 2017 +0900
     Change-Id: Ib5356181c3204c8f9922eeb4da1c06bfdb18f443
     Reviewed-on: https://go-review.googlesource.com/54812
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_darwin_386.c   | 4 ++--
  src/runtime/cgo/gcc_darwin_amd64.c | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_darwin_386.c b/src/runtime/cgo/gcc_darwin_386.c
+index 4ab3267d64..9d1b942575 100644
+--- a/src/runtime/cgo/gcc_darwin_386.c
++++ b/src/runtime/cgo/gcc_darwin_386.c
+@@ -39,8 +39,8 @@ inittls(void)
+ 	 *
+ 	 * The linker and runtime hard-code this constant offset
+ 	 * from %gs where we expect to find g.
+-	 * Known to ../../../liblink/sym.c:/468
+-	 * and to ../sys_darwin_386.s:/468
++	 * Known to src/cmd/link/internal/ld/sym.go:/0x468
++	 * and to src/runtime/sys_darwin_386.s:/0x468
+ 	 *
+ 	 * This is truly disgusting and a bit fragile, but taking care
+ 	 * of it here protects the rest of the system from damage.
+diff --git a/src/runtime/cgo/gcc_darwin_amd64.c b/src/runtime/cgo/gcc_darwin_amd64.c
+index 181d0ab490..9c2de6b2cd 100644
+--- a/src/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/runtime/cgo/gcc_darwin_amd64.c
+@@ -28,8 +28,8 @@ inittls(void)
+ 	 *
+ 	 * The linker and runtime hard-code this constant offset
+ 	 * from %gs where we expect to find g.
+-	 * Known to ../../../liblink/sym.c:/8a0
+-	 * and to ../sys_darwin_amd64.s:/8a0
++	 * Known to src/cmd/link/internal/ld/sym.go:/0x8a0
++	 * and to src/runtime/sys_darwin_amd64.s:/0x8a0
+ 	 *
+ 	 * As disgusting as on the 386; same justification.
+ 	 */

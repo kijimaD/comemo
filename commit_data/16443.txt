@@ -12,6 +12,31 @@ Date:   Thu May 30 11:28:08 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/9837049
-
+---
  src/pkg/testing/allocs.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/testing/allocs.go b/src/pkg/testing/allocs.go
+index d142a330b0..9ec47bd460 100644
+--- a/src/pkg/testing/allocs.go
++++ b/src/pkg/testing/allocs.go
+@@ -9,6 +9,7 @@ import (
+ )
+ 
+ // AllocsPerRun returns the average number of allocations during calls to f.
++// Although the return value has type float64, it will always be an integral value.
+ //
+ // To compute the number of allocations, the function will first be run once as
+ // a warm-up.  The average number of allocations over the specified number of
+@@ -36,6 +37,9 @@ func AllocsPerRun(runs int, f func()) (avg float64) {
+ 	runtime.ReadMemStats(&memstats)
+ 	mallocs += memstats.Mallocs
+ 
+-	// Average the mallocs over the runs (not counting the warm-up)
+-	return float64(mallocs) / float64(runs)
++	// Average the mallocs over the runs (not counting the warm-up).
++	// We are forced to return a float64 because the API is silly, but do
++	// the division as integers so we can ask if AllocsPerRun()==1
++	// instead of AllocsPerRun()<2.
++	return float64(mallocs / uint64(runs))
+ }

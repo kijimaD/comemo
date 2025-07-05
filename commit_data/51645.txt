@@ -12,7 +12,7 @@ Date:   Mon Feb 28 14:09:47 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/base/flag.go           |   2 -
  src/cmd/compile/internal/noder/irgen.go         |   9 --
  src/cmd/compile/internal/noder/noder.go         | 109 +-----------------------
@@ -20,3 +20,259 @@ Date:   Mon Feb 28 14:09:47 2022 -0800
  src/cmd/compile/internal/typecheck/iexport.go   |   5 +-
  src/cmd/compile/internal/types/universe.go      |   4 -
  6 files changed, 5 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index d78f93b343..6377091ce0 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -55,7 +55,6 @@ type CmdFlags struct {
+ 	C CountFlag    "help:\"disable printing of columns in error messages\""
+ 	D string       "help:\"set relative `path` for local imports\""
+ 	E CountFlag    "help:\"debug symbol export\""
+-	G CountFlag    "help:\"accept generic code\""
+ 	I func(string) "help:\"add `directory` to import search path\""
+ 	K CountFlag    "help:\"debug missing line numbers\""
+ 	L CountFlag    "help:\"show full file names in error messages\""
+@@ -141,7 +140,6 @@ type CmdFlags struct {
+ 
+ // ParseFlags parses the command-line flags into Flag.
+ func ParseFlags() {
+-	Flag.G = 3
+ 	Flag.I = addImportDir
+ 
+ 	Flag.LowerC = 1
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 52224c4046..993c254218 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -6,7 +6,6 @@ package noder
+ 
+ import (
+ 	"fmt"
+-	"os"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/dwarfgen"
+@@ -77,10 +76,6 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ func check2(noders []*noder) {
+ 	m, pkg, info := checkFiles(noders)
+ 
+-	if base.Flag.G < 2 {
+-		os.Exit(0)
+-	}
+-
+ 	g := irgen{
+ 		target: typecheck.Target,
+ 		self:   pkg,
+@@ -90,10 +85,6 @@ func check2(noders []*noder) {
+ 		typs:   make(map[types2.Type]*types.Type),
+ 	}
+ 	g.generate(noders)
+-
+-	if base.Flag.G < 3 {
+-		os.Exit(0)
+-	}
+ }
+ 
+ // Information about sub-dictionary entries in a dictionary
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index b36db67a50..2cd7218c55 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
+-	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -31,13 +30,7 @@ import (
+ func LoadPackage(filenames []string) {
+ 	base.Timer.Start("fe", "parse")
+ 
+-	// -G=3 and unified expect generics syntax, but -G=0 does not.
+-	supportsGenerics := base.Flag.G != 0 || buildcfg.Experiment.Unified
+-
+-	mode := syntax.CheckBranches
+-	if supportsGenerics {
+-		mode |= syntax.AllowGenerics
+-	}
++	mode := syntax.CheckBranches | syntax.AllowGenerics
+ 
+ 	// Limit the number of simultaneously open files.
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+@@ -85,104 +78,8 @@ func LoadPackage(filenames []string) {
+ 		return
+ 	}
+ 
+-	if base.Flag.G != 0 {
+-		// Use types2 to type-check and possibly generate IR.
+-		check2(noders)
+-		return
+-	}
+-
+-	for _, p := range noders {
+-		p.node()
+-		p.file = nil // release memory
+-	}
+-
+-	if base.SyntaxErrors() != 0 {
+-		base.ErrorExit()
+-	}
+-	types.CheckDclstack()
+-
+-	for _, p := range noders {
+-		p.processPragmas()
+-	}
+-
+-	// Typecheck.
+-	types.LocalPkg.Height = myheight
+-	typecheck.DeclareUniverse()
+-	typecheck.TypecheckAllowed = true
+-
+-	// Process top-level declarations in phases.
+-
+-	// Phase 1: const, type, and names and types of funcs.
+-	//   This will gather all the information about types
+-	//   and methods but doesn't depend on any of it.
+-	//
+-	//   We also defer type alias declarations until phase 2
+-	//   to avoid cycles like #18640.
+-	//   TODO(gri) Remove this again once we have a fix for #25838.
+-	//
+-	// Phase 2: Variable assignments.
+-	//   To check interface assignments, depends on phase 1.
+-
+-	// Don't use range--typecheck can add closures to Target.Decls.
+-	for phase, name := range []string{"top1", "top2"} {
+-		base.Timer.Start("fe", "typecheck", name)
+-		for i := 0; i < len(typecheck.Target.Decls); i++ {
+-			n := typecheck.Target.Decls[i]
+-			op := n.Op()
+-
+-			// Closure function declarations are typechecked as part of the
+-			// closure expression.
+-			if fn, ok := n.(*ir.Func); ok && fn.OClosure != nil {
+-				continue
+-			}
+-
+-			// We don't actually add ir.ODCL nodes to Target.Decls. Make sure of that.
+-			if op == ir.ODCL {
+-				base.FatalfAt(n.Pos(), "unexpected top declaration: %v", op)
+-			}
+-
+-			// Identify declarations that should be deferred to the second
+-			// iteration.
+-			late := op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias()
+-
+-			if late == (phase == 1) {
+-				typecheck.Target.Decls[i] = typecheck.Stmt(n)
+-			}
+-		}
+-	}
+-
+-	// Phase 3: Type check function bodies.
+-	// Don't use range--typecheck can add closures to Target.Decls.
+-	base.Timer.Start("fe", "typecheck", "func")
+-	for i := 0; i < len(typecheck.Target.Decls); i++ {
+-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
+-			if base.Flag.W > 1 {
+-				s := fmt.Sprintf("\nbefore typecheck %v", fn)
+-				ir.Dump(s, fn)
+-			}
+-			typecheck.FuncBody(fn)
+-			if base.Flag.W > 1 {
+-				s := fmt.Sprintf("\nafter typecheck %v", fn)
+-				ir.Dump(s, fn)
+-			}
+-		}
+-	}
+-
+-	// Phase 4: Check external declarations.
+-	// TODO(mdempsky): This should be handled when type checking their
+-	// corresponding ODCL nodes.
+-	base.Timer.Start("fe", "typecheck", "externdcls")
+-	for i, n := range typecheck.Target.Externs {
+-		if n.Op() == ir.ONAME {
+-			typecheck.Target.Externs[i] = typecheck.Expr(typecheck.Target.Externs[i])
+-		}
+-	}
+-
+-	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
+-	// With all user code typechecked, it's now safe to verify unused dot imports.
+-	typecheck.CheckMapKeys()
+-	CheckDotImports()
+-	base.ExitIfErrors()
++	// Use types2 to type-check and generate IR.
++	check2(noders)
+ }
+ 
+ func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index bd55c91c38..0402c2d82c 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1397,9 +1397,7 @@ func WriteBasicTypes() {
+ 		}
+ 		writeType(types.NewPtr(types.Types[types.TSTRING]))
+ 		writeType(types.NewPtr(types.Types[types.TUNSAFEPTR]))
+-		if base.Flag.G > 0 {
+-			writeType(types.AnyType)
+-		}
++		writeType(types.AnyType)
+ 
+ 		// emit type structs for error and func(error) string.
+ 		// The latter is the type of an auto-generated wrapper.
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 947d029ae2..fe0c80ac58 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -607,7 +607,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			// Do same for ComparableType as for ErrorType.
+ 			underlying = types.ComparableType
+ 		}
+-		if base.Flag.G > 0 && underlying == types.AnyType.Underlying() {
++		if underlying == types.AnyType.Underlying() {
+ 			// Do same for AnyType as for ErrorType.
+ 			underlying = types.AnyType
+ 		}
+@@ -949,7 +949,6 @@ func (w *exportWriter) startType(k itag) {
+ func (w *exportWriter) doTyp(t *types.Type) {
+ 	s := t.Sym()
+ 	if s != nil && t.OrigSym() != nil {
+-		assert(base.Flag.G > 0)
+ 		// This is an instantiated type - could be a re-instantiation like
+ 		// Value[T2] or a full instantiation like Value[int].
+ 		if strings.Index(s.Name, "[") < 0 {
+@@ -974,7 +973,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 	// type, rather than a defined type with typeparam underlying type, like:
+ 	// type orderedAbs[T any] T
+ 	if t.IsTypeParam() && t.Underlying() == t {
+-		assert(base.Flag.G > 0)
+ 		if s.Pkg == types.BuiltinPkg || s.Pkg == types.UnsafePkg {
+ 			base.Fatalf("builtin type missing from typIndex: %v", t)
+ 		}
+@@ -1064,7 +1062,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 		}
+ 
+ 	case types.TUNION:
+-		assert(base.Flag.G > 0)
+ 		// TODO(danscales): possibly put out the tilde bools in more
+ 		// compact form.
+ 		w.startType(unionType)
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+index 55ed7bd6d0..4dff4548da 100644
+--- a/src/cmd/compile/internal/types/universe.go
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -115,10 +115,6 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	AnyType.SetUnderlying(NewInterface(BuiltinPkg, []*Field{}, false))
+ 	ResumeCheckSize()
+ 
+-	if base.Flag.G == 0 {
+-		ComparableType.Sym().Def = nil
+-	}
+-
+ 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
+ 
+ 	Types[TBLANK] = newType(TBLANK)

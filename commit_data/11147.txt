@@ -11,7 +11,7 @@ Date:   Thu Jan 12 16:05:05 2012 -0800
     R=rsc, golang-dev, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/5502074
-
+---
  src/pkg/go/doc/doc.go      |   2 +-
  src/pkg/go/doc/exports.go  |  39 +++++++++++------
  src/pkg/go/doc/reader.go   | 101 +++++++++++++++++++++++++++++--------------
@@ -19,3 +19,457 @@ Date:   Thu Jan 12 16:05:05 2012 -0800
  src/pkg/testing/testing.go |   2 +-
  src/pkg/testing/wrapper.go | 105 ---------------------------------------------
  6 files changed, 95 insertions(+), 155 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 044e996a9e..4011c1fc7a 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -56,7 +56,7 @@ type FuncDoc struct {
+ // included in the documentation.
+ func NewPackageDoc(pkg *ast.Package, importpath string, exportsOnly bool) *PackageDoc {
+ 	var r docReader
+-	r.init(pkg.Name)
++	r.init(pkg.Name, exportsOnly)
+ 	filenames := make([]string, len(pkg.Files))
+ 	i := 0
+ 	for filename, f := range pkg.Files {
+diff --git a/src/pkg/go/doc/exports.go b/src/pkg/go/doc/exports.go
+index 9cd186a9c7..994bf503b5 100644
+--- a/src/pkg/go/doc/exports.go
++++ b/src/pkg/go/doc/exports.go
+@@ -33,7 +33,7 @@ func baseName(x ast.Expr) *ast.Ident {
+ 	return nil
+ }
+ 
+-func (doc *docReader) filterFieldList(fields *ast.FieldList) (removedFields bool) {
++func (doc *docReader) filterFieldList(tinfo *typeInfo, fields *ast.FieldList) (removedFields bool) {
+ 	if fields == nil {
+ 		return false
+ 	}
+@@ -44,7 +44,18 @@ func (doc *docReader) filterFieldList(fields *ast.FieldList) (removedFields bool
+ 		if len(f.Names) == 0 {
+ 			// anonymous field
+ 			name := baseName(f.Type)
+-			keepField = name != nil && name.IsExported()
++			if name != nil && name.IsExported() {
++				// we keep the field - in this case doc.addDecl
++				// will take care of adding the embedded type
++				keepField = true
++			} else if tinfo != nil {
++				// we don't keep the field - add it as an embedded
++				// type so we won't loose its methods, if any
++				if embedded := doc.lookupTypeInfo(name.Name); embedded != nil {
++					_, ptr := f.Type.(*ast.StarExpr)
++					tinfo.addEmbeddedType(embedded, ptr)
++				}
++			}
+ 		} else {
+ 			n := len(f.Names)
+ 			f.Names = filterIdentList(f.Names)
+@@ -54,7 +65,7 @@ func (doc *docReader) filterFieldList(fields *ast.FieldList) (removedFields bool
+ 			keepField = len(f.Names) > 0
+ 		}
+ 		if keepField {
+-			doc.filterType(f.Type)
++			doc.filterType(nil, f.Type)
+ 			list[j] = f
+ 			j++
+ 		}
+@@ -72,23 +83,23 @@ func (doc *docReader) filterParamList(fields *ast.FieldList) bool {
+ 	}
+ 	var b bool
+ 	for _, f := range fields.List {
+-		if doc.filterType(f.Type) {
++		if doc.filterType(nil, f.Type) {
+ 			b = true
+ 		}
+ 	}
+ 	return b
+ }
+ 
+-func (doc *docReader) filterType(typ ast.Expr) bool {
++func (doc *docReader) filterType(tinfo *typeInfo, typ ast.Expr) bool {
+ 	switch t := typ.(type) {
+ 	case *ast.Ident:
+ 		return ast.IsExported(t.Name)
+ 	case *ast.ParenExpr:
+-		return doc.filterType(t.X)
++		return doc.filterType(nil, t.X)
+ 	case *ast.ArrayType:
+-		return doc.filterType(t.Elt)
++		return doc.filterType(nil, t.Elt)
+ 	case *ast.StructType:
+-		if doc.filterFieldList(t.Fields) {
++		if doc.filterFieldList(tinfo, t.Fields) {
+ 			t.Incomplete = true
+ 		}
+ 		return len(t.Fields.List) > 0
+@@ -97,16 +108,16 @@ func (doc *docReader) filterType(typ ast.Expr) bool {
+ 		b2 := doc.filterParamList(t.Results)
+ 		return b1 || b2
+ 	case *ast.InterfaceType:
+-		if doc.filterFieldList(t.Methods) {
++		if doc.filterFieldList(tinfo, t.Methods) {
+ 			t.Incomplete = true
+ 		}
+ 		return len(t.Methods.List) > 0
+ 	case *ast.MapType:
+-		b1 := doc.filterType(t.Key)
+-		b2 := doc.filterType(t.Value)
++		b1 := doc.filterType(nil, t.Key)
++		b2 := doc.filterType(nil, t.Value)
+ 		return b1 || b2
+ 	case *ast.ChanType:
+-		return doc.filterType(t.Value)
++		return doc.filterType(nil, t.Value)
+ 	}
+ 	return false
+ }
+@@ -116,12 +127,12 @@ func (doc *docReader) filterSpec(spec ast.Spec) bool {
+ 	case *ast.ValueSpec:
+ 		s.Names = filterIdentList(s.Names)
+ 		if len(s.Names) > 0 {
+-			doc.filterType(s.Type)
++			doc.filterType(nil, s.Type)
+ 			return true
+ 		}
+ 	case *ast.TypeSpec:
+ 		if ast.IsExported(s.Name.Name) {
+-			doc.filterType(s.Type)
++			doc.filterType(doc.lookupTypeInfo(s.Name.Name), s.Type)
+ 			return true
+ 		}
+ 	}
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 86448d044e..025fc85a10 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -23,6 +23,8 @@ type embeddedType struct {
+ }
+ 
+ type typeInfo struct {
++	name     string // base type name
++	isStruct bool
+ 	// len(decl.Specs) == 1, and the element type is *ast.TypeSpec
+ 	// if the type declaration hasn't been seen yet, decl is nil
+ 	decl     *ast.GenDecl
+@@ -35,6 +37,10 @@ type typeInfo struct {
+ 	methods   map[string]*ast.FuncDecl
+ }
+ 
++func (info *typeInfo) exported() bool {
++	return ast.IsExported(info.name)
++}
++
+ func (info *typeInfo) addEmbeddedType(embedded *typeInfo, isPtr bool) {
+ 	info.embedded = append(info.embedded, embeddedType{embedded, isPtr})
+ }
+@@ -47,17 +53,19 @@ func (info *typeInfo) addEmbeddedType(embedded *typeInfo, isPtr bool) {
+ // printing the corresponding AST node).
+ //
+ type docReader struct {
+-	doc      *ast.CommentGroup // package documentation, if any
+-	pkgName  string
+-	values   []*ast.GenDecl // consts and vars
+-	types    map[string]*typeInfo
+-	embedded map[string]*typeInfo // embedded types, possibly not exported
+-	funcs    map[string]*ast.FuncDecl
+-	bugs     []*ast.CommentGroup
++	doc         *ast.CommentGroup // package documentation, if any
++	pkgName     string
++	exportsOnly bool
++	values      []*ast.GenDecl // consts and vars
++	types       map[string]*typeInfo
++	embedded    map[string]*typeInfo // embedded types, possibly not exported
++	funcs       map[string]*ast.FuncDecl
++	bugs        []*ast.CommentGroup
+ }
+ 
+-func (doc *docReader) init(pkgName string) {
++func (doc *docReader) init(pkgName string, exportsOnly bool) {
+ 	doc.pkgName = pkgName
++	doc.exportsOnly = exportsOnly
+ 	doc.types = make(map[string]*typeInfo)
+ 	doc.embedded = make(map[string]*typeInfo)
+ 	doc.funcs = make(map[string]*ast.FuncDecl)
+@@ -86,6 +94,7 @@ func (doc *docReader) lookupTypeInfo(name string) *typeInfo {
+ 	}
+ 	// type wasn't found - add one without declaration
+ 	info := &typeInfo{
++		name:      name,
+ 		factories: make(map[string]*ast.FuncDecl),
+ 		methods:   make(map[string]*ast.FuncDecl),
+ 	}
+@@ -182,9 +191,23 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
+ 	// determine if it should be associated with a type
+ 	if fun.Recv != nil {
+ 		// method
+-		typ := doc.lookupTypeInfo(baseTypeName(fun.Recv.List[0].Type, false))
++		recvTypeName := baseTypeName(fun.Recv.List[0].Type, true /* exported or not */ )
++		var typ *typeInfo
++		if ast.IsExported(recvTypeName) {
++			// exported recv type: if not found, add it to doc.types
++			typ = doc.lookupTypeInfo(recvTypeName)
++		} else {
++			// unexported recv type: if not found, do not add it
++			// (unexported embedded types are added before this
++			// phase, so if the type doesn't exist yet, we don't
++			// care about this method)
++			typ = doc.types[recvTypeName]
++		}
+ 		if typ != nil {
+ 			// exported receiver type
++			// associate method with the type
++			// (if the type is not exported, it may be embedded
++			// somewhere so we need to collect the method anyway)
+ 			setFunc(typ.methods, fun)
+ 		}
+ 		// otherwise don't show the method
+@@ -256,6 +279,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
+ 					switch typ := spec.(*ast.TypeSpec).Type.(type) {
+ 					case *ast.StructType:
+ 						fields = typ.Fields
++						info.isStruct = true
+ 					case *ast.InterfaceType:
+ 						fields = typ.Methods
+ 					}
+@@ -439,21 +463,25 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
+ 	list := make([]*TypeDoc, len(m))
+ 	i := 0
+ 	for _, old := range m {
+-		// all typeInfos should have a declaration associated with
+-		// them after processing an entire package - be conservative
+-		// and check
+-		if decl := old.decl; decl != nil {
+-			typespec := decl.Specs[0].(*ast.TypeSpec)
++		// old typeInfos may not have a declaration associated with them
++		// if they are not exported but embedded, or because the package
++		// is incomplete.
++		if decl := old.decl; decl != nil || !old.exported() {
++			// process the type even if not exported so that we have
++			// its methods in case they are embedded somewhere
+ 			t := new(TypeDoc)
+-			doc := typespec.Doc
+-			typespec.Doc = nil // doc consumed - remove from ast.TypeSpec node
+-			if doc == nil {
+-				// no doc associated with the spec, use the declaration doc, if any
+-				doc = decl.Doc
++			if decl != nil {
++				typespec := decl.Specs[0].(*ast.TypeSpec)
++				doc := typespec.Doc
++				typespec.Doc = nil // doc consumed - remove from ast.TypeSpec node
++				if doc == nil {
++					// no doc associated with the spec, use the declaration doc, if any
++					doc = decl.Doc
++				}
++				decl.Doc = nil // doc consumed - remove from ast.Decl node
++				t.Doc = doc.Text()
++				t.Type = typespec
+ 			}
+-			decl.Doc = nil // doc consumed - remove from ast.Decl node
+-			t.Doc = doc.Text()
+-			t.Type = typespec
+ 			t.Consts = makeValueDocs(old.values, token.CONST)
+ 			t.Vars = makeValueDocs(old.values, token.VAR)
+ 			t.Factories = makeFuncDocs(old.factories)
+@@ -466,8 +494,12 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
+ 			t.Decl = old.decl
+ 			t.order = i
+ 			old.forward = t // old has been processed
+-			list[i] = t
+-			i++
++			// only add the type to the final type list if it
++			// is exported or if we want to see all types
++			if old.exported() || !doc.exportsOnly {
++				list[i] = t
++				i++
++			}
+ 		} else {
+ 			// no corresponding type declaration found - move any associated
+ 			// values, factory functions, and methods back to the top-level
+@@ -497,11 +529,10 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
+ 			// old has been processed into t; collect embedded
+ 			// methods for t from the list of processed embedded
+ 			// types in old (and thus for which the methods are known)
+-			typ := t.Type
+-			if _, ok := typ.Type.(*ast.StructType); ok {
++			if old.isStruct {
+ 				// struct
+ 				t.embedded = make(methodSet)
+-				collectEmbeddedMethods(t.embedded, old, typ.Name.Name)
++				collectEmbeddedMethods(t.embedded, old, old.name, false)
+ 			} else {
+ 				// interface
+ 				// TODO(gri) fix this
+@@ -541,13 +572,19 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
+ // deeply nested embedded methods with conflicting names are
+ // excluded.
+ //
+-func collectEmbeddedMethods(mset methodSet, info *typeInfo, recvTypeName string) {
++func collectEmbeddedMethods(mset methodSet, info *typeInfo, recvTypeName string, embeddedIsPtr bool) {
+ 	for _, e := range info.embedded {
+ 		if e.typ.forward != nil { // == e was processed
++			// Once an embedded type was embedded as a pointer type
++			// all embedded types in those types are treated like
++			// pointer types for the purpose of the receiver type
++			// computation; i.e., embeddedIsPtr is sticky for this
++			// embedding hierarchy.
++			thisEmbeddedIsPtr := embeddedIsPtr || e.ptr
+ 			for _, m := range e.typ.forward.methods {
+-				mset.add(customizeRecv(m, e.ptr, recvTypeName))
++				mset.add(customizeRecv(m, thisEmbeddedIsPtr, recvTypeName))
+ 			}
+-			collectEmbeddedMethods(mset, e.typ, recvTypeName)
++			collectEmbeddedMethods(mset, e.typ, recvTypeName, thisEmbeddedIsPtr)
+ 		}
+ 	}
+ }
+@@ -558,12 +595,10 @@ func customizeRecv(m *FuncDoc, embeddedIsPtr bool, recvTypeName string) *FuncDoc
+ 	}
+ 
+ 	// copy existing receiver field and set new type
+-	// TODO(gri) is receiver type computation correct?
+-	//           what about deeply nested embeddings?
+ 	newField := *m.Decl.Recv.List[0]
+ 	_, origRecvIsPtr := newField.Type.(*ast.StarExpr)
+ 	var typ ast.Expr = ast.NewIdent(recvTypeName)
+-	if embeddedIsPtr || origRecvIsPtr {
++	if !embeddedIsPtr && origRecvIsPtr {
+ 		typ = &ast.StarExpr{token.NoPos, typ}
+ 	}
+ 	newField.Type = typ
+diff --git a/src/pkg/testing/Makefile b/src/pkg/testing/Makefile
+index 4b148d9717..a0c1232e36 100644
+--- a/src/pkg/testing/Makefile
++++ b/src/pkg/testing/Makefile
+@@ -9,6 +9,5 @@ GOFILES=\
+ 	benchmark.go\
+ 	example.go\
+ 	testing.go\
+-	wrapper.go\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index d75dac8f60..cfe212dc1d 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -90,7 +90,7 @@ func Short() bool {
+ // If addFileLine is true, it also prefixes the string with the file and line of the call site.
+ func decorate(s string, addFileLine bool) string {
+ 	if addFileLine {
+-		_, file, line, ok := runtime.Caller(4) // decorate + log + public function.
++		_, file, line, ok := runtime.Caller(3) // decorate + log + public function.
+ 		if ok {
+ 			// Truncate file name at last file name separator.
+ 			if index := strings.LastIndex(file, "/"); index >= 0 {
+diff --git a/src/pkg/testing/wrapper.go b/src/pkg/testing/wrapper.go
+deleted file mode 100644
+index 2bef9df9c6..0000000000
+--- a/src/pkg/testing/wrapper.go
++++ /dev/null
+@@ -1,105 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains wrappers so t.Errorf etc. have documentation.
+-// TODO: delete when godoc shows exported methods for unexported embedded fields.
+-// TODO: need to change the argument to runtime.Caller in testing.go from 4 to 3 at that point.
+-
+-package testing
+-
+-// Fail marks the function as having failed but continues execution.
+-func (b *B) Fail() {
+-	b.common.Fail()
+-}
+-
+-// Failed returns whether the function has failed.
+-func (b *B) Failed() bool {
+-	return b.common.Failed()
+-}
+-
+-// FailNow marks the function as having failed and stops its execution.
+-// Execution will continue at the next Test.
+-func (b *B) FailNow() {
+-	b.common.FailNow()
+-}
+-
+-// Log formats its arguments using default formatting, analogous to Println(),
+-// and records the text in the error log.
+-func (b *B) Log(args ...interface{}) {
+-	b.common.Log(args...)
+-}
+-
+-// Logf formats its arguments according to the format, analogous to Printf(),
+-// and records the text in the error log.
+-func (b *B) Logf(format string, args ...interface{}) {
+-	b.common.Logf(format, args...)
+-}
+-
+-// Error is equivalent to Log() followed by Fail().
+-func (b *B) Error(args ...interface{}) {
+-	b.common.Error(args...)
+-}
+-
+-// Errorf is equivalent to Logf() followed by Fail().
+-func (b *B) Errorf(format string, args ...interface{}) {
+-	b.common.Errorf(format, args...)
+-}
+-
+-// Fatal is equivalent to Log() followed by FailNow().
+-func (b *B) Fatal(args ...interface{}) {
+-	b.common.Fatal(args...)
+-}
+-
+-// Fatalf is equivalent to Logf() followed by FailNow().
+-func (b *B) Fatalf(format string, args ...interface{}) {
+-	b.common.Fatalf(format, args...)
+-}
+-
+-// Fail marks the function as having failed but continues execution.
+-func (t *T) Fail() {
+-	t.common.Fail()
+-}
+-
+-// Failed returns whether the function has failed.
+-func (t *T) Failed() bool {
+-	return t.common.Failed()
+-}
+-
+-// FailNow marks the function as having failed and stops its execution.
+-// Execution will continue at the next Test.
+-func (t *T) FailNow() {
+-	t.common.FailNow()
+-}
+-
+-// Log formats its arguments using default formatting, analogous to Println(),
+-// and records the text in the error log.
+-func (t *T) Log(args ...interface{}) {
+-	t.common.Log(args...)
+-}
+-
+-// Logf formats its arguments according to the format, analogous to Printf(),
+-// and records the text in the error log.
+-func (t *T) Logf(format string, args ...interface{}) {
+-	t.common.Logf(format, args...)
+-}
+-
+-// Error is equivalent to Log() followed by Fail().
+-func (t *T) Error(args ...interface{}) {
+-	t.common.Error(args...)
+-}
+-
+-// Errorf is equivalent to Logf() followed by Fail().
+-func (t *T) Errorf(format string, args ...interface{}) {
+-	t.common.Errorf(format, args...)
+-}
+-
+-// Fatal is equivalent to Log() followed by FailNow().
+-func (t *T) Fatal(args ...interface{}) {
+-	t.common.Fatal(args...)
+-}
+-
+-// Fatalf is equivalent to Logf() followed by FailNow().
+-func (t *T) Fatalf(format string, args ...interface{}) {
+-	t.common.Fatalf(format, args...)
+-}

@@ -19,8 +19,136 @@ Date:   Fri Sep 17 12:18:19 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 25 ++++++++++++++++++++++---
  src/cmd/compile/internal/typecheck/iimport.go | 21 ++++++++++++++++++---
  src/cmd/compile/internal/walk/order.go        |  6 ++++++
  3 files changed, 46 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index f001017a86..a9522c3887 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1456,10 +1456,23 @@ func (w *exportWriter) node(n ir.Node) {
+ 	}
+ }
+ 
+-// Caution: stmt will emit more than one node for statement nodes n that have a non-empty
+-// n.Ninit and where n cannot have a natural init section (such as in "if", "for", etc.).
++func isNonEmptyAssign(n ir.Node) bool {
++	switch n.Op() {
++	case ir.OAS:
++		if n.(*ir.AssignStmt).Y != nil {
++			return true
++		}
++	case ir.OAS2, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
++		return true
++	}
++	return false
++}
++
++// Caution: stmt will emit more than one node for statement nodes n that have a
++// non-empty n.Ninit and where n is not a non-empty assignment or a node with a natural init
++// section (such as in "if", "for", etc.).
+ func (w *exportWriter) stmt(n ir.Node) {
+-	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) {
++	if len(n.Init()) > 0 && !ir.StmtWithInit(n.Op()) && !isNonEmptyAssign(n) {
+ 		// can't use stmtList here since we don't want the final OEND
+ 		for _, n := range n.Init() {
+ 			w.stmt(n)
+@@ -1495,8 +1508,10 @@ func (w *exportWriter) stmt(n ir.Node) {
+ 		if n.Y != nil {
+ 			w.op(ir.OAS)
+ 			w.pos(n.Pos())
++			w.stmtList(n.Init())
+ 			w.expr(n.X)
+ 			w.expr(n.Y)
++			w.bool(n.Def)
+ 		}
+ 
+ 	case ir.OASOP:
+@@ -1517,8 +1532,10 @@ func (w *exportWriter) stmt(n ir.Node) {
+ 			w.op(ir.OAS2)
+ 		}
+ 		w.pos(n.Pos())
++		w.stmtList(n.Init())
+ 		w.exprList(n.Lhs)
+ 		w.exprList(n.Rhs)
++		w.bool(n.Def)
+ 
+ 	case ir.ORETURN:
+ 		n := n.(*ir.ReturnStmt)
+@@ -2065,8 +2082,10 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		n := n.(*ir.AssignListStmt)
+ 		w.op(ir.OSELRECV2)
+ 		w.pos(n.Pos())
++		w.stmtList(n.Init())
+ 		w.exprList(n.Lhs)
+ 		w.exprList(n.Rhs)
++		w.bool(n.Def)
+ 
+ 	default:
+ 		base.Fatalf("cannot export %v (%d) node\n"+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index b3a0eb8871..3b3c2a2e2a 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1619,7 +1619,12 @@ func (r *importReader) node() ir.Node {
+ 	// 	unreachable - never exported
+ 
+ 	case ir.OAS:
+-		return ir.NewAssignStmt(r.pos(), r.expr(), r.expr())
++		pos := r.pos()
++		init := r.stmtList()
++		n := ir.NewAssignStmt(pos, r.expr(), r.expr())
++		n.SetInit(init)
++		n.Def = r.bool()
++		return n
+ 
+ 	case ir.OASOP:
+ 		n := ir.NewAssignOpStmt(r.pos(), r.op(), r.expr(), nil)
+@@ -1636,7 +1641,12 @@ func (r *importReader) node() ir.Node {
+ 			// unreachable - mapped to case OAS2 by exporter
+ 			goto error
+ 		}
+-		return ir.NewAssignListStmt(r.pos(), op, r.exprList(), r.exprList())
++		pos := r.pos()
++		init := r.stmtList()
++		n := ir.NewAssignListStmt(pos, op, r.exprList(), r.exprList())
++		n.SetInit(init)
++		n.Def = r.bool()
++		return n
+ 
+ 	case ir.ORETURN:
+ 		return ir.NewReturnStmt(r.pos(), r.exprList())
+@@ -1721,7 +1731,12 @@ func (r *importReader) node() ir.Node {
+ 		return n
+ 
+ 	case ir.OSELRECV2:
+-		return ir.NewAssignListStmt(r.pos(), ir.OSELRECV2, r.exprList(), r.exprList())
++		pos := r.pos()
++		init := r.stmtList()
++		n := ir.NewAssignListStmt(pos, ir.OSELRECV2, r.exprList(), r.exprList())
++		n.SetInit(init)
++		n.Def = r.bool()
++		return n
+ 
+ 	default:
+ 		base.Fatalf("cannot import %v (%d) node\n"+
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 4de8858f26..7ac1f75c8f 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -941,6 +941,12 @@ func (o *orderState) stmt(n ir.Node) {
+ 					if colas {
+ 						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).X == n {
+ 							init = init[1:]
++
++							// iimport may have added a default initialization assignment,
++							// due to how it handles ODCL statements.
++							if len(init) > 0 && init[0].Op() == ir.OAS && init[0].(*ir.AssignStmt).X == n {
++								init = init[1:]
++							}
+ 						}
+ 						dcl := typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, n.(*ir.Name)))
+ 						ncas.PtrInit().Append(dcl)

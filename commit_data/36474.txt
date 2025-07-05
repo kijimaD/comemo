@@ -16,7 +16,54 @@ Date:   Thu Apr 19 09:08:24 2018 -0600
     Reviewed-on: https://go-review.googlesource.com/108115
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/int.go      | 6 +++++-
  src/math/big/int_test.go | 6 ++++--
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index efd3e33bfa..caebde92fa 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -663,8 +663,12 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
+ // inverse in the ring ℤ/nℤ.  In this case, z is unchanged and the return value
+ // is nil.
+ func (z *Int) ModInverse(g, n *Int) *Int {
++	// GCD expects parameters a and b to be > 0.
++	if n.neg {
++		var n2 Int
++		n = n2.Neg(n)
++	}
+ 	if g.neg {
+-		// GCD expects parameters a and b to be > 0.
+ 		var g2 Int
+ 		g = g2.Mod(g, n)
+ 	}
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index dd587a8a9e..b660d53523 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1409,19 +1409,21 @@ var modInverseTests = []struct {
+ 	{"1234567", "458948883992"},
+ 	{"239487239847", "2410312426921032588552076022197566074856950548502459942654116941958108831682612228890093858261341614673227141477904012196503648957050582631942730706805009223062734745341073406696246014589361659774041027169249453200378729434170325843778659198143763193776859869524088940195577346119843545301547043747207749969763750084308926339295559968882457872412993810129130294592999947926365264059284647209730384947211681434464714438488520940127459844288859336526896320919633919"},
+ 	{"-10", "13"}, // issue #16984
++	{"10", "-13"},
++	{"-17", "-13"},
+ }
+ 
+ func TestModInverse(t *testing.T) {
+ 	var element, modulus, gcd, inverse Int
+ 	one := NewInt(1)
+-	for i, test := range modInverseTests {
++	for _, test := range modInverseTests {
+ 		(&element).SetString(test.element, 10)
+ 		(&modulus).SetString(test.modulus, 10)
+ 		(&inverse).ModInverse(&element, &modulus)
+ 		(&inverse).Mul(&inverse, &element)
+ 		(&inverse).Mod(&inverse, &modulus)
+ 		if (&inverse).Cmp(one) != 0 {
+-			t.Errorf("#%d: failed (e·e^(-1)=%s)", i, &inverse)
++			t.Errorf("ModInverse(%d,%d)*%d%%%d=%d, not 1", &element, &modulus, &element, &modulus, &inverse)
+ 		}
+ 	}
+ 	// exhaustive test for small values

@@ -7,8 +7,285 @@ Date:   Fri Jan 20 15:38:03 2012 -0800
     R=golang-dev, dsymonds, gri
     CC=golang-dev
     https://golang.org/cl/5557076
-
+---
  doc/go1.html     | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
  doc/go1.tmpl     | 62 ++++++++++++++++++++++++++++++++++++++++++---
  doc/progs/go1.go | 19 ++++++++++++++
  3 files changed, 149 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 34e4f9cd84..77bde0adac 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -564,15 +564,15 @@ Several packages have moved under <code>exp</code> at the time of Go 1's release
+ </ul>
+ 
+ <p>
+-Also, the <code>utf8.String</code> type has been moved to its own package, <code>exp/utf8string</code>.
++All these packages are available under the same names, with the prefix <code>exp/</code>: <code>exp/ebnf</code> etc.
+ </p>
+ 
+ <p>
+-All these packages are available under the same names, with <code>exp/</code> prefixed: <code>exp/ebnf</code> etc.
++Also, the <code>utf8.String</code> type has been moved to its own package, <code>exp/utf8string</code>.
+ </p>
+ 
+ <p>
+-Also, the <code>gotype</code> command now resides in <code>exp/gotype</code>, while
++Finally, the <code>gotype</code> command now resides in <code>exp/gotype</code>, while
+ <code>ebnflint</code> is now in <code>exp/ebnflint</code>
+ </p>
+ 
+@@ -850,6 +850,32 @@ to be implemented in the future.
+ No changes will be needed.
+ </p>
+ 
++<h3 id="flag">The flag package</h3>
++
++<p>
++In Go 1, the interface <a href="/pkg/flag/#Value"><code>flag.Value</code></a> has changed slightly.
++The <code>Set</code> method now returns an <code>error</code> instead of
++a <code>bool</code> to indicate success or failure.
++</p>
++
++<p>
++There is also a new kind of flag, <code>Duration</code>, to support argument
++values specifying time intervals.
++Values for such flags must be given units, just as <code>time.Duration</code>
++formats them: <code>10s</code>, <code>1h30m</code>, etc.
++</p>
++
++<pre><!--{{code "progs/go1.go" `/timeout/`}}
++-->var timeout = flag.Duration(&#34;timeout&#34;, 30*time.Second, &#34;how long to wait for completion&#34;)</pre>
++
++<p>
++<em>Updating</em>:
++Programs that implement their own flags will need minor manual fixes to update their
++<code>Set</code> methods.
++The <code>Duration</code> flag is new and affects no existing code.
++</p>
++
++
+ <h3 id="go">The go/* packages</h3>
+ 
+ <p>
+@@ -914,7 +940,6 @@ compiler will reject incorrect uses. Templates used in conjuction with any of th
+ to run-time errors.
+ </p>
+ 
+-
+ <h3 id="hash">The hash package</h3>
+ 
+ <p>
+@@ -1064,6 +1089,20 @@ and <code>os.FileMode</code> API.
+ Code that needs system-specific file details will need to be updated by hand.
+ </p>
+ 
++<h3 id="runtime">The runtime package</h3>
++
++<p>
++The <code>runtime</code> package in Go 1 includes a new niladic function,
++<a href="/pkg/runtime/#NumCPU"><code>runtime.NumCPU</code></a>, that returns the number of CPUs available
++for parallel execution, as reported by the operating system kernel.
++Its value can inform the setting of <code>GOMAXPROCS</code>.
++</p>
++
++<p>
++<em>Updating</em>:
++No existing code is affected.
++</p>
++
+ <h3 id="strconv">The strconv package</h3>
+ 
+ <p>
+@@ -1159,6 +1198,35 @@ a cast that must be added by hand; gofix will warn about it.
+ </p>
+ 
+ 
++<h3 id="testing">The testing package</h3>
++
++<p>
++The testing package has a type, <code>B</code>, passed as an argument to benchmark functions.
++In Go 1, <code>B</code> has new methods, analogous to those of <code>T</code>, enabling
++logging and failure reporting.
++</p>
++
++<pre><!--{{code "progs/go1.go" `/func.*Benchmark/` `/^}/`}}
++-->func BenchmarkSprintf(b *testing.B) {
++    // Verify correctness before running benchmark.
++    b.StopTimer()
++    got := fmt.Sprintf(&#34;%x&#34;, 23)
++    const expect = &#34;17&#34;
++    if expect != got {
++        b.Fatalf(&#34;expected %q; got %q&#34;, expect, got)
++    }
++    b.StartTimer()
++    for i := 0; i &lt; b.N; i++ {
++        fmt.Sprintf(&#34;%x&#34;, 23)
++    }
++}</pre>
++
++<p>
++<em>Updating</em>:
++Existing code is unaffected, although benchmarks that use <code>println</code>
++or <code>panic</code> should be updated to the new interface.
++</p>
++
+ <h2 id="go_command">The go command</h2>
+ 
+ <h2 id="releases">Packaged releases</h2>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 0518d08139..51dd0baca8 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -488,15 +488,15 @@ Several packages have moved under <code>exp</code> at the time of Go 1's release
+ </ul>
+ 
+ <p>
+-Also, the <code>utf8.String</code> type has been moved to its own package, <code>exp/utf8string</code>.
++All these packages are available under the same names, with the prefix <code>exp/</code>: <code>exp/ebnf</code> etc.
+ </p>
+ 
+ <p>
+-All these packages are available under the same names, with <code>exp/</code> prefixed: <code>exp/ebnf</code> etc.
++Also, the <code>utf8.String</code> type has been moved to its own package, <code>exp/utf8string</code>.
+ </p>
+ 
+ <p>
+-Also, the <code>gotype</code> command now resides in <code>exp/gotype</code>, while
++Finally, the <code>gotype</code> command now resides in <code>exp/gotype</code>, while
+ <code>ebnflint</code> is now in <code>exp/ebnflint</code>
+ </p>
+ 
+@@ -754,6 +754,31 @@ to be implemented in the future.
+ No changes will be needed.
+ </p>
+ 
++<h3 id="flag">The flag package</h3>
++
++<p>
++In Go 1, the interface <a href="/pkg/flag/#Value"><code>flag.Value</code></a> has changed slightly.
++The <code>Set</code> method now returns an <code>error</code> instead of
++a <code>bool</code> to indicate success or failure.
++</p>
++
++<p>
++There is also a new kind of flag, <code>Duration</code>, to support argument
++values specifying time intervals.
++Values for such flags must be given units, just as <code>time.Duration</code>
++formats them: <code>10s</code>, <code>1h30m</code>, etc.
++</p>
++
++{{code "progs/go1.go" `/timeout/`}}
++
++<p>
++<em>Updating</em>:
++Programs that implement their own flags will need minor manual fixes to update their
++<code>Set</code> methods.
++The <code>Duration</code> flag is new and affects no existing code.
++</p>
++
++
+ <h3 id="go">The go/* packages</h3>
+ 
+ <p>
+@@ -818,7 +843,6 @@ compiler will reject incorrect uses. Templates used in conjuction with any of th
+ to run-time errors.
+ </p>
+ 
+-
+ <h3 id="hash">The hash package</h3>
+ 
+ <p>
+@@ -968,6 +992,20 @@ and <code>os.FileMode</code> API.
+ Code that needs system-specific file details will need to be updated by hand.
+ </p>
+ 
++<h3 id="runtime">The runtime package</h3>
++
++<p>
++The <code>runtime</code> package in Go 1 includes a new niladic function,
++<a href="/pkg/runtime/#NumCPU"><code>runtime.NumCPU</code></a>, that returns the number of CPUs available
++for parallel execution, as reported by the operating system kernel.
++Its value can inform the setting of <code>GOMAXPROCS</code>.
++</p>
++
++<p>
++<em>Updating</em>:
++No existing code is affected.
++</p>
++
+ <h3 id="strconv">The strconv package</h3>
+ 
+ <p>
+@@ -1063,6 +1101,22 @@ a cast that must be added by hand; gofix will warn about it.
+ </p>
+ 
+ 
++<h3 id="testing">The testing package</h3>
++
++<p>
++The testing package has a type, <code>B</code>, passed as an argument to benchmark functions.
++In Go 1, <code>B</code> has new methods, analogous to those of <code>T</code>, enabling
++logging and failure reporting.
++</p>
++
++{{code "progs/go1.go" `/func.*Benchmark/` `/^}/`}}
++
++<p>
++<em>Updating</em>:
++Existing code is unaffected, although benchmarks that use <code>println</code>
++or <code>panic</code> should be updated to the new interface.
++</p>
++
+ <h2 id="go_command">The go command</h2>
+ 
+ <h2 id="releases">Packaged releases</h2>
+diff --git a/doc/progs/go1.go b/doc/progs/go1.go
+index 0eccca321b..0348aa315e 100644
+--- a/doc/progs/go1.go
++++ b/doc/progs/go1.go
+@@ -8,13 +8,16 @@ package main
+ 
+ import (
+ 	"errors"
++	"flag"
+ 	"fmt"
+ 	"log"
++	"testing"
+ 	"time"
+ 	"unicode"
+ )
+ 
+ func main() {
++	flag.Parse()
+ 	stringAppend()
+ 	mapDelete()
+ 	mapIteration()
+@@ -26,6 +29,8 @@ func main() {
+ 	timePackage()
+ }
+ 
++var timeout = flag.Duration("timeout", 30*time.Second, "how long to wait for completion")
++
+ func mapDelete() {
+ 	m := map[string]int{"7": 7, "23": 23}
+ 	k := "7"
+@@ -187,3 +192,17 @@ func init() {
+ 	go initializationFunction(c)
+ 	PackageGlobal = <-c
+ }
++
++func BenchmarkSprintf(b *testing.B) {
++	// Verify correctness before running benchmark.
++	b.StopTimer()
++	got := fmt.Sprintf("%x", 23)
++	const expect = "17"
++	if expect != got {
++		b.Fatalf("expected %q; got %q", expect, got)
++	}
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		fmt.Sprintf("%x", 23)
++	}
++}

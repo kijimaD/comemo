@@ -9,7 +9,41 @@ Date:   Wed Dec 12 08:47:09 2012 +0100
     R=golang-dev, dave, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/6903059
-
+---
  src/cmd/gc/go.h  |  1 +
  src/cmd/gc/lex.c | 10 ++++++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 0280c965c9..36bc4b2954 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -388,6 +388,7 @@ struct	Pkg
+ 	Sym*	pathsym;
+ 	char*	prefix;		// escaped path for use in symbol table
+ 	Pkg*	link;
++	uchar	imported;	// export data of this package was parsed
+ 	char	exported;	// import line written in export data
+ 	char	direct;	// imported directly
+ };
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 6481ceb1e1..eabeaeb646 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -690,6 +690,16 @@ importfile(Val *f, int line)
+ 	}
+ 	importpkg = mkpkg(path);
+ 
++	// If we already saw that package, feed a dummy statement
++	// to the lexer to avoid parsing export data twice.
++	if(importpkg->imported) {
++		file = strdup(namebuf);
++		p = smprint("package %s\n$$\n", importpkg->name);
++		cannedimports(file, p);
++		return;
++	}
++	importpkg->imported = 1;
++
+ 	imp = Bopen(namebuf, OREAD);
+ 	if(imp == nil) {
+ 		yyerror("can't open import: \"%Z\": %r", f->u.sval);

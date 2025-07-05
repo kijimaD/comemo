@@ -11,9 +11,161 @@ Date:   Mon Jan 7 11:15:53 2013 +1100
     R=golang-dev, dave, minux.ma, adg
     CC=golang-dev
     https://golang.org/cl/7029056
-
+---
  src/cmd/gofmt/gofmt_test.go |  4 +++-
  src/pkg/bufio/bufio.go      | 22 +++++++++++-----------
  src/pkg/bufio/bufio_test.go | 28 ++++++++++++++--------------
  src/pkg/image/format.go     |  2 +-
  4 files changed, 29 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 51d16bb648..202d0a50c4 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -62,7 +62,9 @@ func runTest(t *testing.T, in, out, flags string) {
+ 		if err == nil {
+ 			t.Errorf("%s", d)
+ 		}
+-		ioutil.WriteFile(in+".gofmt", got, 0666)
++		if err := ioutil.WriteFile(in+".gofmt", got, 0666); err != nil {
++			t.Error(err)
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 4b690192c6..33779014c9 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -76,13 +76,13 @@ func (b *Reader) fill() {
+ 	}
+ 
+ 	// Read new data.
+-	n, e := b.rd.Read(b.buf[b.w:])
++	n, err := b.rd.Read(b.buf[b.w:])
+ 	if n < 0 {
+ 		panic(errNegativeRead)
+ 	}
+ 	b.w += n
+-	if e != nil {
+-		b.err = e
++	if err != nil {
++		b.err = err
+ 	}
+ }
+ 
+@@ -379,8 +379,8 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
+ // ReadString returns err != nil if and only if the returned data does not end in
+ // delim.
+ func (b *Reader) ReadString(delim byte) (line string, err error) {
+-	bytes, e := b.ReadBytes(delim)
+-	return string(bytes), e
++	bytes, err := b.ReadBytes(delim)
++	return string(bytes), err
+ }
+ 
+ // WriteTo implements io.WriterTo.
+@@ -461,17 +461,17 @@ func (b *Writer) Flush() error {
+ 	if b.n == 0 {
+ 		return nil
+ 	}
+-	n, e := b.wr.Write(b.buf[0:b.n])
+-	if n < b.n && e == nil {
+-		e = io.ErrShortWrite
++	n, err := b.wr.Write(b.buf[0:b.n])
++	if n < b.n && err == nil {
++		err = io.ErrShortWrite
+ 	}
+-	if e != nil {
++	if err != nil {
+ 		if n > 0 && n < b.n {
+ 			copy(b.buf[0:b.n-n], b.buf[n:b.n])
+ 		}
+ 		b.n -= n
+-		b.err = e
+-		return e
++		b.err = err
++		return err
+ 	}
+ 	b.n = 0
+ 	return nil
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 4ffb29eaf0..418690aa45 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -28,9 +28,9 @@ func newRot13Reader(r io.Reader) *rot13Reader {
+ }
+ 
+ func (r13 *rot13Reader) Read(p []byte) (int, error) {
+-	n, e := r13.r.Read(p)
+-	if e != nil {
+-		return n, e
++	n, err := r13.r.Read(p)
++	if err != nil {
++		return n, err
+ 	}
+ 	for i := 0; i < n; i++ {
+ 		c := p[i] | 0x20 // lowercase byte
+@@ -48,15 +48,15 @@ func readBytes(buf *Reader) string {
+ 	var b [1000]byte
+ 	nb := 0
+ 	for {
+-		c, e := buf.ReadByte()
+-		if e == io.EOF {
++		c, err := buf.ReadByte()
++		if err == io.EOF {
+ 			break
+ 		}
+-		if e == nil {
++		if err == nil {
+ 			b[nb] = c
+ 			nb++
+-		} else if e != iotest.ErrTimeout {
+-			panic("Data: " + e.Error())
++		} else if err != iotest.ErrTimeout {
++			panic("Data: " + err.Error())
+ 		}
+ 	}
+ 	return string(b[0:nb])
+@@ -93,12 +93,12 @@ var readMakers = []readMaker{
+ func readLines(b *Reader) string {
+ 	s := ""
+ 	for {
+-		s1, e := b.ReadString('\n')
+-		if e == io.EOF {
++		s1, err := b.ReadString('\n')
++		if err == io.EOF {
+ 			break
+ 		}
+-		if e != nil && e != iotest.ErrTimeout {
+-			panic("GetLines: " + e.Error())
++		if err != nil && err != iotest.ErrTimeout {
++			panic("GetLines: " + err.Error())
+ 		}
+ 		s += s1
+ 	}
+@@ -110,9 +110,9 @@ func reads(buf *Reader, m int) string {
+ 	var b [1000]byte
+ 	nb := 0
+ 	for {
+-		n, e := buf.Read(b[nb : nb+m])
++		n, err := buf.Read(b[nb : nb+m])
+ 		nb += n
+-		if e == io.EOF {
++		if err == io.EOF {
+ 			break
+ 		}
+ 	}
+diff --git a/src/pkg/image/format.go b/src/pkg/image/format.go
+index f93d356b04..36635bcc53 100644
+--- a/src/pkg/image/format.go
++++ b/src/pkg/image/format.go
+@@ -39,7 +39,7 @@ type reader interface {
+ 	Peek(int) ([]byte, error)
+ }
+ 
+-// AsReader converts an io.Reader to a reader.
++// asReader converts an io.Reader to a reader.
+ func asReader(r io.Reader) reader {
+ 	if rr, ok := r.(reader); ok {
+ 		return rr

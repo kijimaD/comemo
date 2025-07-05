@@ -11,7 +11,7 @@ Date:   Sat Oct 14 01:24:33 2023 +0800
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: shuang cui <imcusg@gmail.com>
-
+---
  src/image/color/color.go           |  4 +--
  src/image/color/palette/palette.go |  2 +-
  src/image/color/ycbcr.go           |  8 ++---
@@ -27,3 +27,590 @@ Date:   Sat Oct 14 01:24:33 2023 +0800
  src/image/png/writer.go            |  6 ++--
  src/image/ycbcr.go                 |  2 +-
  14 files changed, 71 insertions(+), 71 deletions(-)
+
+diff --git a/src/image/color/color.go b/src/image/color/color.go
+index 8895839140..c700a5855b 100644
+--- a/src/image/color/color.go
++++ b/src/image/color/color.go
+@@ -137,13 +137,13 @@ func (c Gray16) RGBA() (r, g, b, a uint32) {
+ 	return y, y, y, 0xffff
+ }
+ 
+-// Model can convert any Color to one from its own color model. The conversion
++// Model can convert any [Color] to one from its own color model. The conversion
+ // may be lossy.
+ type Model interface {
+ 	Convert(c Color) Color
+ }
+ 
+-// ModelFunc returns a Model that invokes f to implement the conversion.
++// ModelFunc returns a [Model] that invokes f to implement the conversion.
+ func ModelFunc(f func(Color) Color) Model {
+ 	// Note: using *modelFunc as the implementation
+ 	// means that callers can still use comparisons
+diff --git a/src/image/color/palette/palette.go b/src/image/color/palette/palette.go
+index 2a4cdcb7df..f73d463da9 100644
+--- a/src/image/color/palette/palette.go
++++ b/src/image/color/palette/palette.go
+@@ -10,7 +10,7 @@ import "image/color"
+ 
+ // Plan9 is a 256-color palette that partitions the 24-bit RGB space
+ // into 4×4×4 subdivision, with 4 shades in each subcube. Compared to the
+-// WebSafe, the idea is to reduce the color resolution by dicing the
++// [WebSafe], the idea is to reduce the color resolution by dicing the
+ // color cube into fewer cells, and to use the extra space to increase the
+ // intensity resolution. This results in 16 gray shades (4 gray subcubes with
+ // 4 samples in each), 13 shades of each primary and secondary color (3
+diff --git a/src/image/color/ycbcr.go b/src/image/color/ycbcr.go
+index 8b6d508588..a6d17ab449 100644
+--- a/src/image/color/ycbcr.go
++++ b/src/image/color/ycbcr.go
+@@ -225,7 +225,7 @@ func (c YCbCr) RGBA() (uint32, uint32, uint32, uint32) {
+ 	return uint32(r), uint32(g), uint32(b), 0xffff
+ }
+ 
+-// YCbCrModel is the Model for Y'CbCr colors.
++// YCbCrModel is the [Model] for Y'CbCr colors.
+ var YCbCrModel Model = ModelFunc(yCbCrModel)
+ 
+ func yCbCrModel(c Color) Color {
+@@ -287,7 +287,7 @@ func (c NYCbCrA) RGBA() (uint32, uint32, uint32, uint32) {
+ 	return uint32(r) * a / 0xffff, uint32(g) * a / 0xffff, uint32(b) * a / 0xffff, a
+ }
+ 
+-// NYCbCrAModel is the Model for non-alpha-premultiplied Y'CbCr-with-alpha
++// NYCbCrAModel is the [Model] for non-alpha-premultiplied Y'CbCr-with-alpha
+ // colors.
+ var NYCbCrAModel Model = ModelFunc(nYCbCrAModel)
+ 
+@@ -332,7 +332,7 @@ func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
+ 	return uint8(c), uint8(m), uint8(y), uint8(0xff - w)
+ }
+ 
+-// CMYKToRGB converts a CMYK quadruple to an RGB triple.
++// CMYKToRGB converts a [CMYK] quadruple to an RGB triple.
+ func CMYKToRGB(c, m, y, k uint8) (uint8, uint8, uint8) {
+ 	w := 0xffff - uint32(k)*0x101
+ 	r := (0xffff - uint32(c)*0x101) * w / 0xffff
+@@ -360,7 +360,7 @@ func (c CMYK) RGBA() (uint32, uint32, uint32, uint32) {
+ 	return r, g, b, 0xffff
+ }
+ 
+-// CMYKModel is the Model for CMYK colors.
++// CMYKModel is the [Model] for CMYK colors.
+ var CMYKModel Model = ModelFunc(cmykModel)
+ 
+ func cmykModel(c Color) Color {
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 920ebb905e..1b7e90f249 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -23,10 +23,10 @@ type Image interface {
+ 	Set(x, y int, c color.Color)
+ }
+ 
+-// RGBA64Image extends both the Image and image.RGBA64Image interfaces with a
++// RGBA64Image extends both the [Image] and [image.RGBA64Image] interfaces with a
+ // SetRGBA64 method to change a single pixel. SetRGBA64 is equivalent to
+ // calling Set, but it can avoid allocations from converting concrete color
+-// types to the color.Color interface type.
++// types to the [color.Color] interface type.
+ type RGBA64Image interface {
+ 	image.RGBA64Image
+ 	Set(x, y int, c color.Color)
+@@ -50,20 +50,20 @@ const (
+ 	Src
+ )
+ 
+-// Draw implements the Drawer interface by calling the Draw function with this
+-// Op.
++// Draw implements the [Drawer] interface by calling the Draw function with this
++// [Op].
+ func (op Op) Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point) {
+ 	DrawMask(dst, r, src, sp, nil, image.Point{}, op)
+ }
+ 
+-// Drawer contains the Draw method.
++// Drawer contains the [Draw] method.
+ type Drawer interface {
+ 	// Draw aligns r.Min in dst with sp in src and then replaces the
+ 	// rectangle r in dst with the result of drawing src on dst.
+ 	Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point)
+ }
+ 
+-// FloydSteinberg is a Drawer that is the Src Op with Floyd-Steinberg error
++// FloydSteinberg is a [Drawer] that is the [Src] [Op] with Floyd-Steinberg error
+ // diffusion.
+ var FloydSteinberg Drawer = floydSteinberg{}
+ 
+@@ -106,7 +106,7 @@ func processBackward(dst image.Image, r image.Rectangle, src image.Image, sp ima
+ 		(sp.Y < r.Min.Y || (sp.Y == r.Min.Y && sp.X < r.Min.X))
+ }
+ 
+-// Draw calls DrawMask with a nil mask.
++// Draw calls [DrawMask] with a nil mask.
+ func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point, op Op) {
+ 	DrawMask(dst, r, src, sp, nil, image.Point{}, op)
+ }
+diff --git a/src/image/format.go b/src/image/format.go
+index 51d7ad9021..7426afb3e6 100644
+--- a/src/image/format.go
++++ b/src/image/format.go
+@@ -28,12 +28,12 @@ var (
+ 	atomicFormats atomic.Value
+ )
+ 
+-// RegisterFormat registers an image format for use by Decode.
++// RegisterFormat registers an image format for use by [Decode].
+ // Name is the name of the format, like "jpeg" or "png".
+ // Magic is the magic prefix that identifies the format's encoding. The magic
+ // string can contain "?" wildcards that each match any one byte.
+-// Decode is the function that decodes the encoded image.
+-// DecodeConfig is the function that decodes just its configuration.
++// [Decode] is the function that decodes the encoded image.
++// [DecodeConfig] is the function that decodes just its configuration.
+ func RegisterFormat(name, magic string, decode func(io.Reader) (Image, error), decodeConfig func(io.Reader) (Config, error)) {
+ 	formatsMu.Lock()
+ 	formats, _ := atomicFormats.Load().([]format)
+diff --git a/src/image/geom.go b/src/image/geom.go
+index e71aa61187..7731b6bad8 100644
+--- a/src/image/geom.go
++++ b/src/image/geom.go
+@@ -67,12 +67,12 @@ func (p Point) Eq(q Point) bool {
+ 	return p == q
+ }
+ 
+-// ZP is the zero Point.
++// ZP is the zero [Point].
+ //
+-// Deprecated: Use a literal image.Point{} instead.
++// Deprecated: Use a literal [image.Point] instead.
+ var ZP Point
+ 
+-// Pt is shorthand for Point{X, Y}.
++// Pt is shorthand for [Point]{X, Y}.
+ func Pt(X, Y int) Point {
+ 	return Point{X, Y}
+ }
+@@ -82,7 +82,7 @@ func Pt(X, Y int) Point {
+ // well-formed. A rectangle's methods always return well-formed outputs for
+ // well-formed inputs.
+ //
+-// A Rectangle is also an Image whose bounds are the rectangle itself. At
++// A Rectangle is also an [Image] whose bounds are the rectangle itself. At
+ // returns color.Opaque for points in the rectangle and color.Transparent
+ // otherwise.
+ type Rectangle struct {
+@@ -238,7 +238,7 @@ func (r Rectangle) Canon() Rectangle {
+ 	return r
+ }
+ 
+-// At implements the Image interface.
++// At implements the [Image] interface.
+ func (r Rectangle) At(x, y int) color.Color {
+ 	if (Point{x, y}).In(r) {
+ 		return color.Opaque
+@@ -246,7 +246,7 @@ func (r Rectangle) At(x, y int) color.Color {
+ 	return color.Transparent
+ }
+ 
+-// RGBA64At implements the RGBA64Image interface.
++// RGBA64At implements the [RGBA64Image] interface.
+ func (r Rectangle) RGBA64At(x, y int) color.RGBA64 {
+ 	if (Point{x, y}).In(r) {
+ 		return color.RGBA64{0xffff, 0xffff, 0xffff, 0xffff}
+@@ -254,22 +254,22 @@ func (r Rectangle) RGBA64At(x, y int) color.RGBA64 {
+ 	return color.RGBA64{}
+ }
+ 
+-// Bounds implements the Image interface.
++// Bounds implements the [Image] interface.
+ func (r Rectangle) Bounds() Rectangle {
+ 	return r
+ }
+ 
+-// ColorModel implements the Image interface.
++// ColorModel implements the [Image] interface.
+ func (r Rectangle) ColorModel() color.Model {
+ 	return color.Alpha16Model
+ }
+ 
+-// ZR is the zero Rectangle.
++// ZR is the zero [Rectangle].
+ //
+-// Deprecated: Use a literal image.Rectangle{} instead.
++// Deprecated: Use a literal [image.Rectangle] instead.
+ var ZR Rectangle
+ 
+-// Rect is shorthand for Rectangle{Pt(x0, y0), Pt(x1, y1)}. The returned
++// Rect is shorthand for [Rectangle]{Pt(x0, y0), [Pt](x1, y1)}. The returned
+ // rectangle has minimum and maximum coordinates swapped if necessary so that
+ // it is well-formed.
+ func Rect(x0, y0, x1, y1 int) Rectangle {
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index 0867b10295..b4ea4fdea1 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -156,7 +156,7 @@ func (b *blockReader) ReadByte() (byte, error) {
+ }
+ 
+ // blockReader must implement io.Reader, but its Read shouldn't ever actually
+-// be called in practice. The compress/lzw package will only call ReadByte.
++// be called in practice. The compress/lzw package will only call [blockReader.ReadByte].
+ func (b *blockReader) Read(p []byte) (int, error) {
+ 	if len(p) == 0 || b.err != nil {
+ 		return 0, b.err
+@@ -561,7 +561,7 @@ func uninterlace(m *image.Paletted) {
+ }
+ 
+ // Decode reads a GIF image from r and returns the first embedded
+-// image as an image.Image.
++// image as an [image.Image].
+ func Decode(r io.Reader) (image.Image, error) {
+ 	var d decoder
+ 	if err := d.decode(r, false, false); err != nil {
+diff --git a/src/image/image.go b/src/image/image.go
+index 4488a881e1..f08182ba06 100644
+--- a/src/image/image.go
++++ b/src/image/image.go
+@@ -4,11 +4,11 @@
+ 
+ // Package image implements a basic 2-D image library.
+ //
+-// The fundamental interface is called Image. An Image contains colors, which
++// The fundamental interface is called [Image]. An [Image] contains colors, which
+ // are described in the image/color package.
+ //
+-// Values of the Image interface are created either by calling functions such
+-// as NewRGBA and NewPaletted, or by calling Decode on an io.Reader containing
++// Values of the [Image] interface are created either by calling functions such
++// as [NewRGBA] and [NewPaletted], or by calling [Decode] on an [io.Reader] containing
+ // image data in a format such as GIF, JPEG or PNG. Decoding any particular
+ // image format requires the prior registration of a decoder function.
+ // Registration is typically automatic as a side effect of initializing that
+@@ -26,14 +26,14 @@
+ //
+ // The image package can be used to parse arbitrarily large images, which can
+ // cause resource exhaustion on machines which do not have enough memory to
+-// store them. When operating on arbitrary images, DecodeConfig should be called
+-// before Decode, so that the program can decide whether the image, as defined
++// store them. When operating on arbitrary images, [DecodeConfig] should be called
++// before [Decode], so that the program can decide whether the image, as defined
+ // in the returned header, can be safely decoded with the available resources. A
+-// call to Decode which produces an extremely large image, as defined in the
+-// header returned by DecodeConfig, is not considered a security issue,
++// call to [Decode] which produces an extremely large image, as defined in the
++// header returned by [DecodeConfig], is not considered a security issue,
+ // regardless of whether the image is itself malformed or not. A call to
+-// DecodeConfig which returns a header which does not match the image returned
+-// by Decode may be considered a security issue, and should be reported per the
++// [DecodeConfig] which returns a header which does not match the image returned
++// by [Decode] may be considered a security issue, and should be reported per the
+ // [Go Security Policy](https://go.dev/security/policy).
+ package image
+ 
+@@ -47,7 +47,7 @@ type Config struct {
+ 	Width, Height int
+ }
+ 
+-// Image is a finite rectangular grid of color.Color values taken from a color
++// Image is a finite rectangular grid of [color.Color] values taken from a color
+ // model.
+ type Image interface {
+ 	// ColorModel returns the Image's color model.
+@@ -61,7 +61,7 @@ type Image interface {
+ 	At(x, y int) color.Color
+ }
+ 
+-// RGBA64Image is an Image whose pixels can be converted directly to a
++// RGBA64Image is an [Image] whose pixels can be converted directly to a
+ // color.RGBA64.
+ type RGBA64Image interface {
+ 	// RGBA64At returns the RGBA64 color of the pixel at (x, y). It is
+@@ -73,7 +73,7 @@ type RGBA64Image interface {
+ }
+ 
+ // PalettedImage is an image whose colors may come from a limited palette.
+-// If m is a PalettedImage and m.ColorModel() returns a color.Palette p,
++// If m is a PalettedImage and m.ColorModel() returns a [color.Palette] p,
+ // then m.At(x, y) should be equivalent to p[m.ColorIndexAt(x, y)]. If m's
+ // color model is not a color.Palette, then ColorIndexAt's behavior is
+ // undefined.
+@@ -98,7 +98,7 @@ func pixelBufferLength(bytesPerPixel int, r Rectangle, imageTypeName string) int
+ 	return totalLength
+ }
+ 
+-// RGBA is an in-memory image whose At method returns color.RGBA values.
++// RGBA is an in-memory image whose At method returns [color.RGBA] values.
+ type RGBA struct {
+ 	// Pix holds the image's pixels, in R, G, B, A order. The pixel at
+ 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*4].
+@@ -223,7 +223,7 @@ func (p *RGBA) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewRGBA returns a new RGBA image with the given bounds.
++// NewRGBA returns a new [RGBA] image with the given bounds.
+ func NewRGBA(r Rectangle) *RGBA {
+ 	return &RGBA{
+ 		Pix:    make([]uint8, pixelBufferLength(4, r, "RGBA")),
+@@ -232,7 +232,7 @@ func NewRGBA(r Rectangle) *RGBA {
+ 	}
+ }
+ 
+-// RGBA64 is an in-memory image whose At method returns color.RGBA64 values.
++// RGBA64 is an in-memory image whose At method returns [color.RGBA64] values.
+ type RGBA64 struct {
+ 	// Pix holds the image's pixels, in R, G, B, A order and big-endian format. The pixel at
+ 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*8].
+@@ -340,7 +340,7 @@ func (p *RGBA64) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewRGBA64 returns a new RGBA64 image with the given bounds.
++// NewRGBA64 returns a new [RGBA64] image with the given bounds.
+ func NewRGBA64(r Rectangle) *RGBA64 {
+ 	return &RGBA64{
+ 		Pix:    make([]uint8, pixelBufferLength(8, r, "RGBA64")),
+@@ -349,7 +349,7 @@ func NewRGBA64(r Rectangle) *RGBA64 {
+ 	}
+ }
+ 
+-// NRGBA is an in-memory image whose At method returns color.NRGBA values.
++// NRGBA is an in-memory image whose At method returns [color.NRGBA] values.
+ type NRGBA struct {
+ 	// Pix holds the image's pixels, in R, G, B, A order. The pixel at
+ 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*4].
+@@ -467,7 +467,7 @@ func (p *NRGBA) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewNRGBA returns a new NRGBA image with the given bounds.
++// NewNRGBA returns a new [NRGBA] image with the given bounds.
+ func NewNRGBA(r Rectangle) *NRGBA {
+ 	return &NRGBA{
+ 		Pix:    make([]uint8, pixelBufferLength(4, r, "NRGBA")),
+@@ -476,7 +476,7 @@ func NewNRGBA(r Rectangle) *NRGBA {
+ 	}
+ }
+ 
+-// NRGBA64 is an in-memory image whose At method returns color.NRGBA64 values.
++// NRGBA64 is an in-memory image whose At method returns [color.NRGBA64] values.
+ type NRGBA64 struct {
+ 	// Pix holds the image's pixels, in R, G, B, A order and big-endian format. The pixel at
+ 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*8].
+@@ -611,7 +611,7 @@ func (p *NRGBA64) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewNRGBA64 returns a new NRGBA64 image with the given bounds.
++// NewNRGBA64 returns a new [NRGBA64] image with the given bounds.
+ func NewNRGBA64(r Rectangle) *NRGBA64 {
+ 	return &NRGBA64{
+ 		Pix:    make([]uint8, pixelBufferLength(8, r, "NRGBA64")),
+@@ -620,7 +620,7 @@ func NewNRGBA64(r Rectangle) *NRGBA64 {
+ 	}
+ }
+ 
+-// Alpha is an in-memory image whose At method returns color.Alpha values.
++// Alpha is an in-memory image whose At method returns [color.Alpha] values.
+ type Alpha struct {
+ 	// Pix holds the image's pixels, as alpha values. The pixel at
+ 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*1].
+@@ -719,7 +719,7 @@ func (p *Alpha) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewAlpha returns a new Alpha image with the given bounds.
++// NewAlpha returns a new [Alpha] image with the given bounds.
+ func NewAlpha(r Rectangle) *Alpha {
+ 	return &Alpha{
+ 		Pix:    make([]uint8, pixelBufferLength(1, r, "Alpha")),
+@@ -728,7 +728,7 @@ func NewAlpha(r Rectangle) *Alpha {
+ 	}
+ }
+ 
+-// Alpha16 is an in-memory image whose At method returns color.Alpha16 values.
++// Alpha16 is an in-memory image whose At method returns [color.Alpha16] values.
+ type Alpha16 struct {
+ 	// Pix holds the image's pixels, as alpha values in big-endian format. The pixel at
+ 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*2].
+@@ -830,7 +830,7 @@ func (p *Alpha16) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewAlpha16 returns a new Alpha16 image with the given bounds.
++// NewAlpha16 returns a new [Alpha16] image with the given bounds.
+ func NewAlpha16(r Rectangle) *Alpha16 {
+ 	return &Alpha16{
+ 		Pix:    make([]uint8, pixelBufferLength(2, r, "Alpha16")),
+@@ -839,7 +839,7 @@ func NewAlpha16(r Rectangle) *Alpha16 {
+ 	}
+ }
+ 
+-// Gray is an in-memory image whose At method returns color.Gray values.
++// Gray is an in-memory image whose At method returns [color.Gray] values.
+ type Gray struct {
+ 	// Pix holds the image's pixels, as gray values. The pixel at
+ 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*1].
+@@ -927,7 +927,7 @@ func (p *Gray) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewGray returns a new Gray image with the given bounds.
++// NewGray returns a new [Gray] image with the given bounds.
+ func NewGray(r Rectangle) *Gray {
+ 	return &Gray{
+ 		Pix:    make([]uint8, pixelBufferLength(1, r, "Gray")),
+@@ -936,7 +936,7 @@ func NewGray(r Rectangle) *Gray {
+ 	}
+ }
+ 
+-// Gray16 is an in-memory image whose At method returns color.Gray16 values.
++// Gray16 is an in-memory image whose At method returns [color.Gray16] values.
+ type Gray16 struct {
+ 	// Pix holds the image's pixels, as gray values in big-endian format. The pixel at
+ 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*2].
+@@ -1027,7 +1027,7 @@ func (p *Gray16) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewGray16 returns a new Gray16 image with the given bounds.
++// NewGray16 returns a new [Gray16] image with the given bounds.
+ func NewGray16(r Rectangle) *Gray16 {
+ 	return &Gray16{
+ 		Pix:    make([]uint8, pixelBufferLength(2, r, "Gray16")),
+@@ -1036,7 +1036,7 @@ func NewGray16(r Rectangle) *Gray16 {
+ 	}
+ }
+ 
+-// CMYK is an in-memory image whose At method returns color.CMYK values.
++// CMYK is an in-memory image whose At method returns [color.CMYK] values.
+ type CMYK struct {
+ 	// Pix holds the image's pixels, in C, M, Y, K order. The pixel at
+ 	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*4].
+@@ -1275,7 +1275,7 @@ func (p *Paletted) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewPaletted returns a new Paletted image with the given width, height and
++// NewPaletted returns a new [Paletted] image with the given width, height and
+ // palette.
+ func NewPaletted(r Rectangle, p color.Palette) *Paletted {
+ 	return &Paletted{
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 61f2b4020d..5aa51ad4af 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -86,7 +86,7 @@ var unzig = [blockSize]int{
+ 	53, 60, 61, 54, 47, 55, 62, 63,
+ }
+ 
+-// Deprecated: Reader is not used by the image/jpeg package and should
++// Deprecated: Reader is not used by the [image/jpeg] package and should
+ // not be used by others. It is kept for compatibility.
+ type Reader interface {
+ 	io.ByteReader
+@@ -767,7 +767,7 @@ func (d *decoder) convertToRGB() (image.Image, error) {
+ 	return img, nil
+ }
+ 
+-// Decode reads a JPEG image from r and returns it as an image.Image.
++// Decode reads a JPEG image from r and returns it as an [image.Image].
+ func Decode(r io.Reader) (image.Image, error) {
+ 	var d decoder
+ 	return d.decode(r, false)
+diff --git a/src/image/jpeg/writer.go b/src/image/jpeg/writer.go
+index f202d6549c..87c109ab77 100644
+--- a/src/image/jpeg/writer.go
++++ b/src/image/jpeg/writer.go
+@@ -563,7 +563,7 @@ type Options struct {
+ }
+ 
+ // Encode writes the Image m to w in JPEG 4:2:0 baseline format with the given
+-// options. Default parameters are used if a nil *Options is passed.
++// options. Default parameters are used if a nil *[Options] is passed.
+ func Encode(w io.Writer, m image.Image, o *Options) error {
+ 	b := m.Bounds()
+ 	if b.Dx() >= 1<<16 || b.Dy() >= 1<<16 {
+diff --git a/src/image/names.go b/src/image/names.go
+index 17b06588ac..a2968fabe2 100644
+--- a/src/image/names.go
++++ b/src/image/names.go
+@@ -19,8 +19,8 @@ var (
+ 	Opaque = NewUniform(color.Opaque)
+ )
+ 
+-// Uniform is an infinite-sized Image of uniform color.
+-// It implements the color.Color, color.Model, and Image interfaces.
++// Uniform is an infinite-sized [Image] of uniform color.
++// It implements the [color.Color], [color.Model], and [Image] interfaces.
+ type Uniform struct {
+ 	C color.Color
+ }
+@@ -52,7 +52,7 @@ func (c *Uniform) Opaque() bool {
+ 	return a == 0xffff
+ }
+ 
+-// NewUniform returns a new Uniform image of the given color.
++// NewUniform returns a new [Uniform] image of the given color.
+ func NewUniform(c color.Color) *Uniform {
+ 	return &Uniform{c}
+ }
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index e852bb28e8..020e91c94b 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -964,7 +964,7 @@ func (d *decoder) checkHeader() error {
+ 	return nil
+ }
+ 
+-// Decode reads a PNG image from r and returns it as an image.Image.
++// Decode reads a PNG image from r and returns it as an [image.Image].
+ // The type of Image returned depends on the PNG contents.
+ func Decode(r io.Reader) (image.Image, error) {
+ 	d := &decoder{
+diff --git a/src/image/png/writer.go b/src/image/png/writer.go
+index 0d747da170..9f92ad3d71 100644
+--- a/src/image/png/writer.go
++++ b/src/image/png/writer.go
+@@ -25,7 +25,7 @@ type Encoder struct {
+ }
+ 
+ // EncoderBufferPool is an interface for getting and returning temporary
+-// instances of the EncoderBuffer struct. This can be used to reuse buffers
++// instances of the [EncoderBuffer] struct. This can be used to reuse buffers
+ // when encoding multiple images.
+ type EncoderBufferPool interface {
+ 	Get() *EncoderBuffer
+@@ -190,7 +190,7 @@ func (e *encoder) writePLTEAndTRNS(p color.Palette) {
+ 
+ // An encoder is an io.Writer that satisfies writes by writing PNG IDAT chunks,
+ // including an 8-byte header and 4-byte CRC checksum per Write call. Such calls
+-// should be relatively infrequent, since writeIDATs uses a bufio.Writer.
++// should be relatively infrequent, since writeIDATs uses a [bufio.Writer].
+ //
+ // This method should only be called from writeIDATs (via writeImage).
+ // No other code should treat an encoder as an io.Writer.
+@@ -586,7 +586,7 @@ func levelToZlib(l CompressionLevel) int {
+ func (e *encoder) writeIEND() { e.writeChunk(nil, "IEND") }
+ 
+ // Encode writes the Image m to w in PNG format. Any Image may be
+-// encoded, but images that are not image.NRGBA might be encoded lossily.
++// encoded, but images that are not [image.NRGBA] might be encoded lossily.
+ func Encode(w io.Writer, m image.Image) error {
+ 	var e Encoder
+ 	return e.Encode(w, m)
+diff --git a/src/image/ycbcr.go b/src/image/ycbcr.go
+index 78f5ebe1d8..5433311943 100644
+--- a/src/image/ycbcr.go
++++ b/src/image/ycbcr.go
+@@ -294,7 +294,7 @@ func (p *NYCbCrA) Opaque() bool {
+ 	return true
+ }
+ 
+-// NewNYCbCrA returns a new NYCbCrA image with the given bounds and subsample
++// NewNYCbCrA returns a new [NYCbCrA] image with the given bounds and subsample
+ // ratio.
+ func NewNYCbCrA(r Rectangle, subsampleRatio YCbCrSubsampleRatio) *NYCbCrA {
+ 	w, h, cw, ch := yCbCrSize(r, subsampleRatio)

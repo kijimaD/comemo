@@ -42,10 +42,237 @@ Date:   Sat Feb 24 12:06:06 2018 +0000
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/deps_test.go                        |  2 +-
  src/internal/syscall/windows/security_windows.go |  2 +
  src/internal/syscall/windows/zsyscall_windows.go | 14 ++++
  src/os/user/lookup_windows.go                    | 94 +++++++++++++++++++++---
  src/os/user/user_test.go                         | 10 +--
  5 files changed, 104 insertions(+), 18 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 90553a8b2d..bc3cbd27bf 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -298,7 +298,7 @@ var pkgDeps = map[string][]string{
+ 	"runtime/msan": {"C"},
+ 
+ 	// Plan 9 alone needs io/ioutil and os.
+-	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
++	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall", "internal/syscall/windows", "internal/syscall/windows/registry"},
+ 
+ 	// Internal package used only for testing.
+ 	"os/signal/internal/pty": {"CGO", "fmt", "os", "syscall"},
+diff --git a/src/internal/syscall/windows/security_windows.go b/src/internal/syscall/windows/security_windows.go
+index 14ea425c05..741ae979ed 100644
+--- a/src/internal/syscall/windows/security_windows.go
++++ b/src/internal/syscall/windows/security_windows.go
+@@ -81,3 +81,5 @@ const (
+ 	TokenPrimary       TokenType = 1
+ 	TokenImpersonation TokenType = 2
+ )
++
++//sys	GetProfilesDirectory(dir *uint16, dirLen *uint32) (err error) = userenv.GetProfilesDirectoryW
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index bdca80c60d..fb1f0442cc 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -41,6 +41,7 @@ var (
+ 	modws2_32   = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
+ 	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
+ 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
++	moduserenv  = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
+ 	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
+ 
+ 	procGetAdaptersAddresses      = modiphlpapi.NewProc("GetAdaptersAddresses")
+@@ -62,6 +63,7 @@ var (
+ 	procAdjustTokenPrivileges     = modadvapi32.NewProc("AdjustTokenPrivileges")
+ 	procDuplicateTokenEx          = modadvapi32.NewProc("DuplicateTokenEx")
+ 	procSetTokenInformation       = modadvapi32.NewProc("SetTokenInformation")
++	procGetProfilesDirectoryW     = moduserenv.NewProc("GetProfilesDirectoryW")
+ 	procGetProcessMemoryInfo      = modpsapi.NewProc("GetProcessMemoryInfo")
+ )
+ 
+@@ -287,6 +289,18 @@ func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32
+ 	return
+ }
+ 
++func GetProfilesDirectory(dir *uint16, dirLen *uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procGetProfilesDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(unsafe.Pointer(dirLen)), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
++
+ func GetProcessMemoryInfo(handle syscall.Handle, memCounters *PROCESS_MEMORY_COUNTERS, cb uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procGetProcessMemoryInfo.Addr(), 3, uintptr(handle), uintptr(unsafe.Pointer(memCounters)), uintptr(cb))
+ 	if r1 == 0 {
+diff --git a/src/os/user/lookup_windows.go b/src/os/user/lookup_windows.go
+index 4e36a5c2bf..3a1ddd6fd5 100644
+--- a/src/os/user/lookup_windows.go
++++ b/src/os/user/lookup_windows.go
+@@ -7,6 +7,8 @@ package user
+ import (
+ 	"errors"
+ 	"fmt"
++	"internal/syscall/windows"
++	"internal/syscall/windows/registry"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -72,19 +74,53 @@ func lookupFullName(domain, username, domainAndUser string) (string, error) {
+ 	return username, nil
+ }
+ 
+-func newUser(usid *syscall.SID, gid, dir string) (*User, error) {
++// getProfilesDirectory retrieves the path to the root directory
++// where user profiles are stored.
++func getProfilesDirectory() (string, error) {
++	n := uint32(100)
++	for {
++		b := make([]uint16, n)
++		e := windows.GetProfilesDirectory(&b[0], &n)
++		if e == nil {
++			return syscall.UTF16ToString(b), nil
++		}
++		if e != syscall.ERROR_INSUFFICIENT_BUFFER {
++			return "", e
++		}
++		if n <= uint32(len(b)) {
++			return "", e
++		}
++	}
++}
++
++// lookupUsernameAndDomain obtains username and domain for usid.
++func lookupUsernameAndDomain(usid *syscall.SID) (username, domain string, e error) {
+ 	username, domain, t, e := usid.LookupAccount("")
+ 	if e != nil {
+-		return nil, e
++		return "", "", e
+ 	}
+ 	if t != syscall.SidTypeUser {
+-		return nil, fmt.Errorf("user: should be user account type, not %d", t)
++		return "", "", fmt.Errorf("user: should be user account type, not %d", t)
+ 	}
+-	domainAndUser := domain + `\` + username
+-	uid, e := usid.String()
++	return username, domain, nil
++}
++
++// findHomeDirInRegistry finds the user home path based on usid string
++func findHomeDirInRegistry(uid string) (dir string, e error) {
++	k, e := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\`+uid, registry.QUERY_VALUE)
+ 	if e != nil {
+-		return nil, e
++		return "", e
+ 	}
++	defer k.Close()
++	dir, _, e = k.GetStringValue("ProfileImagePath")
++	if e != nil {
++		return "", e
++	}
++	return dir, nil
++}
++
++func newUser(uid, gid, dir, username, domain string) (*User, error) {
++	domainAndUser := domain + `\` + username
+ 	name, e := lookupFullName(domain, username, domainAndUser)
+ 	if e != nil {
+ 		return nil, e
+@@ -113,6 +149,10 @@ func current() (*User, error) {
+ 	if e != nil {
+ 		return nil, e
+ 	}
++	uid, e := u.User.Sid.String()
++	if e != nil {
++		return nil, e
++	}
+ 	gid, e := pg.PrimaryGroup.String()
+ 	if e != nil {
+ 		return nil, e
+@@ -121,17 +161,47 @@ func current() (*User, error) {
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	return newUser(u.User.Sid, gid, dir)
++	username, domain, e := lookupUsernameAndDomain(u.User.Sid)
++	if e != nil {
++		return nil, e
++	}
++	return newUser(uid, gid, dir, username, domain)
+ }
+ 
+-// BUG(brainman): Lookup and LookupId functions do not set
+-// Gid and HomeDir fields in the User struct returned on windows.
++// TODO: The Gid field in the User struct is not set on Windows.
+ 
+ func newUserFromSid(usid *syscall.SID) (*User, error) {
+-	// TODO(brainman): do not know where to get gid and dir fields
+ 	gid := "unknown"
+-	dir := "Unknown directory"
+-	return newUser(usid, gid, dir)
++	username, domain, e := lookupUsernameAndDomain(usid)
++	if e != nil {
++		return nil, e
++	}
++	uid, e := usid.String()
++	if e != nil {
++		return nil, e
++	}
++	// if this user has logged at least once his home path should be stored
++	// in the registry under his SID. references:
++	// https://social.technet.microsoft.com/wiki/contents/articles/13895.how-to-remove-a-corrupted-user-profile-from-the-registry.aspx
++	// https://support.asperasoft.com/hc/en-us/articles/216127438-How-to-delete-Windows-user-profiles
++	//
++	// the registry is the most reliable way to find the home path as the user
++	// might have decided to move it outside of the default location
++	// (e.g. c:\users). reference:
++	// https://answers.microsoft.com/en-us/windows/forum/windows_7-security/how-do-i-set-a-home-directory-outside-cusers-for-a/aed68262-1bf4-4a4d-93dc-7495193a440f
++	dir, e := findHomeDirInRegistry(uid)
++	if e != nil {
++		// if the home path does not exists in the registry, the user might have
++		// not logged in yet; fall back to using getProfilesDirectory(). find the
++		// username based on a SID and append that to the result of
++		// getProfilesDirectory(). the domain is not of relevance here.
++		dir, e = getProfilesDirectory()
++		if e != nil {
++			return nil, e
++		}
++		dir += `\` + username
++	}
++	return newUser(uid, gid, dir, username, domain)
+ }
+ 
+ func lookupUser(username string) (*User, error) {
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index b3aeed883c..72b147d095 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -44,16 +44,16 @@ func compare(t *testing.T, want, got *User) {
+ 	if want.Name != got.Name {
+ 		t.Errorf("got Name=%q; want %q", got.Name, want.Name)
+ 	}
+-	// TODO(brainman): fix it once we know how.
++	if want.HomeDir != got.HomeDir {
++		t.Errorf("got HomeDir=%q; want %q", got.HomeDir, want.HomeDir)
++	}
++	// TODO: Gid is not set on Windows
+ 	if runtime.GOOS == "windows" {
+-		t.Skip("skipping Gid and HomeDir comparisons")
++		t.Skip("skipping Gid comparisons")
+ 	}
+ 	if want.Gid != got.Gid {
+ 		t.Errorf("got Gid=%q; want %q", got.Gid, want.Gid)
+ 	}
+-	if want.HomeDir != got.HomeDir {
+-		t.Errorf("got HomeDir=%q; want %q", got.HomeDir, want.HomeDir)
+-	}
+ }
+ 
+ func TestLookup(t *testing.T) {

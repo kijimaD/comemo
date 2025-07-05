@@ -16,7 +16,7 @@ Date:   Wed Mar 17 19:15:38 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go             |  7 +++++
  src/cmd/compile/internal/arm/ssa.go               |  2 +-
  src/cmd/compile/internal/arm64/ssa.go             |  2 +-
@@ -35,3 +35,347 @@ Date:   Wed Mar 17 19:15:38 2021 -0400
  src/runtime/sys_darwin_amd64.s                    |  2 +-
  test/codegen/clobberdeadreg.go                    | 33 +++++++++++++++++++++++
  17 files changed, 103 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index bdd9da77b0..2c767d36d7 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1242,6 +1242,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = x86.REG_SP
+ 		ssagen.AddAux(&p.To, v)
+ 		p.To.Offset += 4
++	case ssa.OpClobberReg:
++		x := uint64(0xdeaddeaddeaddead)
++		p := s.Prog(x86.AMOVQ)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = int64(x)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 7b2fec3765..832f940c26 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -861,7 +861,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		v.Fatalf("FlagConstant op should never make it to codegen %v", v.LongString())
+ 	case ssa.OpARMInvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+-	case ssa.OpClobber:
++	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 3250b49c92..afd0d66d72 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -1100,7 +1100,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		v.Fatalf("FlagConstant op should never make it to codegen %v", v.LongString())
+ 	case ssa.OpARM64InvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+-	case ssa.OpClobber:
++	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 751ab1b5c7..eb46ed99af 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -90,6 +90,7 @@ type CmdFlags struct {
+ 	CPUProfile         string       "help:\"write cpu profile to `file`\""
+ 	Complete           bool         "help:\"compiling complete package (no C or assembly)\""
+ 	ClobberDead        bool         "help:\"clobber dead stack slots (for debugging)\""
++	ClobberDeadReg     bool         "help:\"clobber dead registers (for debugging)\""
+ 	Dwarf              bool         "help:\"generate DWARF symbols\""
+ 	DwarfBASEntries    *bool        "help:\"use base address selection entries in DWARF\""                        // &Ctxt.UseBASEntries, set below
+ 	DwarfLocationLists *bool        "help:\"add location lists to DWARF in optimized mode\""                      // &Ctxt.Flag_locationlists, set below
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 13736d12b4..e0447f38cb 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -798,7 +798,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.AGETCALLERPC)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpClobber:
++	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index c5a3ca305a..e821a00876 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -765,7 +765,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.AGETCALLERPC)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpClobber:
++	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 899f5ee6af..a0ad69a68d 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1927,7 +1927,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+ 	case ssa.OpPPC64FlagEQ, ssa.OpPPC64FlagLT, ssa.OpPPC64FlagGT:
+ 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+-	case ssa.OpClobber:
++	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 4a858de191..64a9b3b33b 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -629,6 +629,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Sym = ir.Syms.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
++	case ssa.OpClobber, ssa.OpClobberReg:
++		// TODO: implement for clobberdead experiment. Nop is ok for now.
++
+ 	default:
+ 		v.Fatalf("Unhandled op %v", v.Op)
+ 	}
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 7646be6147..ddc05b36ad 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -844,7 +844,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		bne.To.SetTarget(cs)
+ 	case ssa.OpS390XSYNC:
+ 		s.Prog(s390x.ASYNC)
+-	case ssa.OpClobber:
++	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 85c58ef74c..c38d22e07f 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -613,6 +613,7 @@ var genericOps = []opData{
+ 
+ 	// Clobber experiment op
+ 	{name: "Clobber", argLength: 0, typ: "Void", aux: "SymOff", symEffect: "None"}, // write an invalid pointer value to the given pointer slot of a stack variable
++	{name: "ClobberReg", argLength: 0, typ: "Void"},                                // clobber a register
+ }
+ 
+ //     kind          controls        successors   implicit exit
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d572466b98..db51ed95c5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2921,6 +2921,7 @@ const (
+ 	OpAtomicOr8Variant
+ 	OpAtomicOr32Variant
+ 	OpClobber
++	OpClobberReg
+ )
+ 
+ var opcodeTable = [...]opInfo{
+@@ -36373,6 +36374,11 @@ var opcodeTable = [...]opInfo{
+ 		symEffect: SymNone,
+ 		generic:   true,
+ 	},
++	{
++		name:    "ClobberReg",
++		argLen:  0,
++		generic: true,
++	},
+ }
+ 
+ func (o Op) Asm() obj.As          { return opcodeTable[o].asm }
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 42df8387e4..1baff184b0 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -114,6 +114,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/objabi"
+@@ -301,6 +302,9 @@ type regAllocState struct {
+ 
+ 	// blockOrder[b.ID] corresponds to the index of block b in visitOrder.
+ 	blockOrder []int32
++
++	// whether to insert instructions that clobber dead registers at call sites
++	doClobber bool
+ }
+ 
+ type endReg struct {
+@@ -339,6 +343,17 @@ func (s *regAllocState) freeRegs(m regMask) {
+ 	}
+ }
+ 
++// clobberRegs inserts instructions that clobber registers listed in m.
++func (s *regAllocState) clobberRegs(m regMask) {
++	m &= s.allocatable & s.f.Config.gpRegMask // only integer register can contain pointers, only clobber them
++	for m != 0 {
++		r := pickReg(m)
++		m &^= 1 << r
++		x := s.curBlock.NewValue0(src.NoXPos, OpClobberReg, types.TypeVoid)
++		s.f.setHome(x, &s.registers[r])
++	}
++}
++
+ // setOrig records that c's original value is the same as
+ // v's original value.
+ func (s *regAllocState) setOrig(c *Value, v *Value) {
+@@ -700,6 +715,14 @@ func (s *regAllocState) init(f *Func) {
+ 			}
+ 		}
+ 	}
++
++	// The clobberdeadreg experiment inserts code to clobber dead registers
++	// at call sites.
++	// Ignore huge functions to avoid doing too much work.
++	if base.Flag.ClobberDeadReg && len(s.f.Blocks) <= 10000 {
++		// TODO: honor GOCLOBBERDEADHASH, or maybe GOSSAHASH.
++		s.doClobber = true
++	}
+ }
+ 
+ // Adds a use record for id at distance dist from the start of the block.
+@@ -1314,6 +1337,9 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			}
+ 			if len(regspec.inputs) == 0 && len(regspec.outputs) == 0 {
+ 				// No register allocation required (or none specified yet)
++				if s.doClobber && v.Op.IsCall() {
++					s.clobberRegs(regspec.clobbers)
++				}
+ 				s.freeRegs(regspec.clobbers)
+ 				b.Values = append(b.Values, v)
+ 				s.advanceUses(v)
+@@ -1475,6 +1501,11 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			}
+ 
+ 			// Dump any registers which will be clobbered
++			if s.doClobber && v.Op.IsCall() {
++				// clobber registers that are marked as clobber in regmask, but
++				// don't clobber inputs.
++				s.clobberRegs(regspec.clobbers &^ s.tmpused &^ s.nospill)
++			}
+ 			s.freeRegs(regspec.clobbers)
+ 			s.tmpused |= regspec.clobbers
+ 
+diff --git a/src/cmd/compile/internal/test/clobberdead_test.go b/src/cmd/compile/internal/test/clobberdead_test.go
+index 3e2aadcbf5..88b7d34623 100644
+--- a/src/cmd/compile/internal/test/clobberdead_test.go
++++ b/src/cmd/compile/internal/test/clobberdead_test.go
+@@ -20,7 +20,15 @@ func main() { fmt.Println("hello") }
+ 
+ func TestClobberDead(t *testing.T) {
+ 	// Test that clobberdead mode generates correct program.
++	runHello(t, "-clobberdead")
++}
++
++func TestClobberDeadReg(t *testing.T) {
++	// Test that clobberdeadreg mode generates correct program.
++	runHello(t, "-clobberdeadreg")
++}
+ 
++func runHello(t *testing.T, flag string) {
+ 	if testing.Short() {
+ 		// This test rebuilds the runtime with a special flag, which
+ 		// takes a while.
+@@ -36,7 +44,7 @@ func TestClobberDead(t *testing.T) {
+ 		t.Fatalf("write file failed: %v", err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all=-clobberdead", src)
++	cmd := exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all="+flag, src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go run failed: %v\n%s", err, out)
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index e4ef9d7c6a..904871b15f 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -190,6 +190,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(storeOp(v.Type))
+ 		ssagen.AddrAuto(&p.To, v)
+ 
++	case ssa.OpClobber, ssa.OpClobberReg:
++		// TODO: implement for clobberdead experiment. Nop is ok for now.
++
+ 	default:
+ 		if v.Type.IsMemory() {
+ 			return
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index e8c92c0f00..a06fdbcb71 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -832,6 +832,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = x86.REG_SP
+ 		ssagen.AddAux(&p.To, v)
++	case ssa.OpClobberReg:
++		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+ 		v.Fatalf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 0fe8c7e172..3e9eccf19e 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -434,7 +434,7 @@ TEXT runtime·fcntl_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ // mstart_stub is the first function executed on a new thread started by pthread_create.
+ // It just does some low-level setup and then calls mstart.
+ // Note: called with the C calling convention.
+-TEXT runtime·mstart_stub(SB),NOSPLIT,$0
++TEXT runtime·mstart_stub<ABIInternal>(SB),NOSPLIT,$0
+ 	// DI points to the m.
+ 	// We are already on m's g0 stack.
+ 
+diff --git a/test/codegen/clobberdeadreg.go b/test/codegen/clobberdeadreg.go
+new file mode 100644
+index 0000000000..026850afba
+--- /dev/null
++++ b/test/codegen/clobberdeadreg.go
+@@ -0,0 +1,33 @@
++// asmcheck -gcflags=-clobberdeadreg
++
++// +build amd64
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++type S struct {
++	a, b, c, d, e, f int
++}
++
++func F(a, b, c int, d S) {
++	// -2401018187971961171 is 0xdeaddeaddeaddead
++	// amd64:`MOVQ\t\$-2401018187971961171, AX`, `MOVQ\t\$-2401018187971961171, BX`, `MOVQ\t\$-2401018187971961171, CX`
++	// amd64:`MOVQ\t\$-2401018187971961171, DX`, `MOVQ\t\$-2401018187971961171, SI`, `MOVQ\t\$-2401018187971961171, DI`
++	// amd64:`MOVQ\t\$-2401018187971961171, R8`, `MOVQ\t\$-2401018187971961171, R9`, `MOVQ\t\$-2401018187971961171, R10`
++	// amd64:`MOVQ\t\$-2401018187971961171, R11`, `MOVQ\t\$-2401018187971961171, R12`, `MOVQ\t\$-2401018187971961171, R13`
++	// amd64:-`MOVQ\t\$-2401018187971961171, BP` // frame pointer is not clobbered
++	StackArgsCall(a, b, c, d)
++	// amd64:`MOVQ\t\$-2401018187971961171, R12`, `MOVQ\t\$-2401018187971961171, R13`, `MOVQ\t\$-2401018187971961171, DX`
++	// amd64:-`MOVQ\t\$-2401018187971961171, AX`, -`MOVQ\t\$-2401018187971961171, R11` // register args are not clobbered
++	RegArgsCall(a, b, c, d)
++}
++
++//go:noinline
++func StackArgsCall(int, int, int, S) {}
++
++//go:noinline
++//go:registerparams
++func RegArgsCall(int, int, int, S) {}

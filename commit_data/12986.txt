@@ -29,10 +29,624 @@ Date:   Fri Apr 27 22:17:08 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6098047
-
+---
  src/pkg/net/iprawsock_posix.go |  95 +----------------------------------
  src/pkg/net/net_posix.go       | 110 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/tcpsock_posix.go   |  95 +----------------------------------
  src/pkg/net/udpsock_posix.go   |  97 +-----------------------------------
  src/pkg/net/unixsock_posix.go  |  98 +-----------------------------------
  5 files changed, 118 insertions(+), 377 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 9fc7ecdb94..25b33da74f 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -9,9 +9,7 @@
+ package net
+ 
+ import (
+-	"os"
+ 	"syscall"
+-	"time"
+ )
+ 
+ func sockaddrToIP(sa syscall.Sockaddr) Addr {
+@@ -55,94 +53,10 @@ func (a *IPAddr) toAddr() sockaddr {
+ // IPConn is the implementation of the Conn and PacketConn
+ // interfaces for IP network connections.
+ type IPConn struct {
+-	fd *netFD
++	conn
+ }
+ 
+-func newIPConn(fd *netFD) *IPConn { return &IPConn{fd} }
+-
+-func (c *IPConn) ok() bool { return c != nil && c.fd != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the Conn Read method.
+-func (c *IPConn) Read(b []byte) (int, error) {
+-	n, _, err := c.ReadFrom(b)
+-	return n, err
+-}
+-
+-// Write implements the Conn Write method.
+-func (c *IPConn) Write(b []byte) (int, error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	return c.fd.Write(b)
+-}
+-
+-// Close closes the IP connection.
+-func (c *IPConn) Close() error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return c.fd.Close()
+-}
+-
+-// LocalAddr returns the local network address.
+-func (c *IPConn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.laddr
+-}
+-
+-// RemoteAddr returns the remote network address, a *IPAddr.
+-func (c *IPConn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.raddr
+-}
+-
+-// SetDeadline implements the Conn SetDeadline method.
+-func (c *IPConn) SetDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setDeadline(c.fd, t)
+-}
+-
+-// SetReadDeadline implements the Conn SetReadDeadline method.
+-func (c *IPConn) SetReadDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadDeadline(c.fd, t)
+-}
+-
+-// SetWriteDeadline implements the Conn SetWriteDeadline method.
+-func (c *IPConn) SetWriteDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteDeadline(c.fd, t)
+-}
+-
+-// SetReadBuffer sets the size of the operating system's
+-// receive buffer associated with the connection.
+-func (c *IPConn) SetReadBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadBuffer(c.fd, bytes)
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's
+-// transmit buffer associated with the connection.
+-func (c *IPConn) SetWriteBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteBuffer(c.fd, bytes)
+-}
++func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
+ 
+ // IP-specific methods.
+ 
+@@ -255,8 +169,3 @@ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+ 	}
+ 	return newIPConn(fd), nil
+ }
+-
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (c *IPConn) File() (f *os.File, err error) { return c.fd.dup() }
+diff --git a/src/pkg/net/net_posix.go b/src/pkg/net/net_posix.go
+new file mode 100644
+index 0000000000..8e126c14d7
+--- /dev/null
++++ b/src/pkg/net/net_posix.go
+@@ -0,0 +1,110 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd windows
++
++// Base posix socket functions.
++
++package net
++
++import (
++	"os"
++	"syscall"
++	"time"
++)
++
++type conn struct {
++	fd *netFD
++}
++
++func (c *conn) ok() bool { return c != nil && c.fd != nil }
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the Conn Read method.
++func (c *conn) Read(b []byte) (int, error) {
++	if !c.ok() {
++		return 0, syscall.EINVAL
++	}
++	return c.fd.Read(b)
++}
++
++// Write implements the Conn Write method.
++func (c *conn) Write(b []byte) (int, error) {
++	if !c.ok() {
++		return 0, syscall.EINVAL
++	}
++	return c.fd.Write(b)
++}
++
++// LocalAddr returns the local network address.
++func (c *conn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.laddr
++}
++
++// RemoteAddr returns the remote network address, a *UDPAddr.
++func (c *conn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.raddr
++}
++
++// SetDeadline implements the Conn SetDeadline method.
++func (c *conn) SetDeadline(t time.Time) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setDeadline(c.fd, t)
++}
++
++// SetReadDeadline implements the Conn SetReadDeadline method.
++func (c *conn) SetReadDeadline(t time.Time) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setReadDeadline(c.fd, t)
++}
++
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
++func (c *conn) SetWriteDeadline(t time.Time) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setWriteDeadline(c.fd, t)
++}
++
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *conn) SetReadBuffer(bytes int) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes)
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *conn) SetWriteBuffer(bytes int) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes)
++}
++
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *conn) File() (f *os.File, err error) { return c.fd.dup() }
++
++// Close closes the connection.
++func (c *conn) Close() error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return c.fd.Close()
++}
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index e6b1937fb2..b96531694e 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -66,27 +66,15 @@ func (a *TCPAddr) toAddr() sockaddr {
+ // TCPConn is an implementation of the Conn interface
+ // for TCP network connections.
+ type TCPConn struct {
+-	fd *netFD
++	conn
+ }
+ 
+ func newTCPConn(fd *netFD) *TCPConn {
+-	c := &TCPConn{fd}
++	c := &TCPConn{conn{fd}}
+ 	c.SetNoDelay(true)
+ 	return c
+ }
+ 
+-func (c *TCPConn) ok() bool { return c != nil && c.fd != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the Conn Read method.
+-func (c *TCPConn) Read(b []byte) (n int, err error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	return c.fd.Read(b)
+-}
+-
+ // ReadFrom implements the io.ReaderFrom ReadFrom method.
+ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
+ 	if n, err, handled := sendFile(c.fd, r); handled {
+@@ -95,22 +83,6 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
+ 	return genericReadFrom(c, r)
+ }
+ 
+-// Write implements the Conn Write method.
+-func (c *TCPConn) Write(b []byte) (n int, err error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	return c.fd.Write(b)
+-}
+-
+-// Close closes the TCP connection.
+-func (c *TCPConn) Close() error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return c.fd.Close()
+-}
+-
+ // CloseRead shuts down the reading side of the TCP connection.
+ // Most callers should just use Close.
+ func (c *TCPConn) CloseRead() error {
+@@ -129,64 +101,6 @@ func (c *TCPConn) CloseWrite() error {
+ 	return c.fd.CloseWrite()
+ }
+ 
+-// LocalAddr returns the local network address, a *TCPAddr.
+-func (c *TCPConn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.laddr
+-}
+-
+-// RemoteAddr returns the remote network address, a *TCPAddr.
+-func (c *TCPConn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.raddr
+-}
+-
+-// SetDeadline implements the Conn SetDeadline method.
+-func (c *TCPConn) SetDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setDeadline(c.fd, t)
+-}
+-
+-// SetReadDeadline implements the Conn SetReadDeadline method.
+-func (c *TCPConn) SetReadDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadDeadline(c.fd, t)
+-}
+-
+-// SetWriteDeadline implements the Conn SetWriteDeadline method.
+-func (c *TCPConn) SetWriteDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteDeadline(c.fd, t)
+-}
+-
+-// SetReadBuffer sets the size of the operating system's
+-// receive buffer associated with the connection.
+-func (c *TCPConn) SetReadBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadBuffer(c.fd, bytes)
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's
+-// transmit buffer associated with the connection.
+-func (c *TCPConn) SetWriteBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteBuffer(c.fd, bytes)
+-}
+-
+ // SetLinger sets the behavior of Close() on a connection
+ // which still has data waiting to be sent or to be acknowledged.
+ //
+@@ -225,11 +139,6 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
+ 	return setNoDelay(c.fd, noDelay)
+ }
+ 
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (c *TCPConn) File() (f *os.File, err error) { return c.fd.dup() }
+-
+ // DialTCP connects to the remote address raddr on the network net,
+ // which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
+ // as the local address for the connection.
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 9c6b6d3933..f29d570e1c 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -10,9 +10,7 @@ package net
+ 
+ import (
+ 	"errors"
+-	"os"
+ 	"syscall"
+-	"time"
+ )
+ 
+ var ErrWriteToConnected = errors.New("use of WriteTo with pre-connected UDP")
+@@ -58,96 +56,10 @@ func (a *UDPAddr) toAddr() sockaddr {
+ // UDPConn is the implementation of the Conn and PacketConn
+ // interfaces for UDP network connections.
+ type UDPConn struct {
+-	fd *netFD
++	conn
+ }
+ 
+-func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{fd} }
+-
+-func (c *UDPConn) ok() bool { return c != nil && c.fd != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the Conn Read method.
+-func (c *UDPConn) Read(b []byte) (int, error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	return c.fd.Read(b)
+-}
+-
+-// Write implements the Conn Write method.
+-func (c *UDPConn) Write(b []byte) (int, error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	return c.fd.Write(b)
+-}
+-
+-// Close closes the UDP connection.
+-func (c *UDPConn) Close() error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return c.fd.Close()
+-}
+-
+-// LocalAddr returns the local network address.
+-func (c *UDPConn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.laddr
+-}
+-
+-// RemoteAddr returns the remote network address, a *UDPAddr.
+-func (c *UDPConn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.raddr
+-}
+-
+-// SetDeadline implements the Conn SetDeadline method.
+-func (c *UDPConn) SetDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setDeadline(c.fd, t)
+-}
+-
+-// SetReadDeadline implements the Conn SetReadDeadline method.
+-func (c *UDPConn) SetReadDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadDeadline(c.fd, t)
+-}
+-
+-// SetWriteDeadline implements the Conn SetWriteDeadline method.
+-func (c *UDPConn) SetWriteDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteDeadline(c.fd, t)
+-}
+-
+-// SetReadBuffer sets the size of the operating system's
+-// receive buffer associated with the connection.
+-func (c *UDPConn) SetReadBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadBuffer(c.fd, bytes)
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's
+-// transmit buffer associated with the connection.
+-func (c *UDPConn) SetWriteBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteBuffer(c.fd, bytes)
+-}
++func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
+ 
+ // UDP-specific methods.
+ 
+@@ -212,11 +124,6 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	return c.WriteToUDP(b, a)
+ }
+ 
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (c *UDPConn) File() (f *os.File, err error) { return c.fd.dup() }
+-
+ // DialUDP connects to the remote address raddr on the network net,
+ // which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
+ // as the local address for the connection.
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 57d784c71c..1529201fa3 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -111,99 +111,10 @@ func sotypeToNet(sotype int) string {
+ // UnixConn is an implementation of the Conn interface
+ // for connections to Unix domain sockets.
+ type UnixConn struct {
+-	fd *netFD
++	conn
+ }
+ 
+-func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{fd} }
+-
+-func (c *UnixConn) ok() bool { return c != nil && c.fd != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the Conn Read method.
+-func (c *UnixConn) Read(b []byte) (n int, err error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	return c.fd.Read(b)
+-}
+-
+-// Write implements the Conn Write method.
+-func (c *UnixConn) Write(b []byte) (n int, err error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	return c.fd.Write(b)
+-}
+-
+-// Close closes the Unix domain connection.
+-func (c *UnixConn) Close() error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return c.fd.Close()
+-}
+-
+-// LocalAddr returns the local network address, a *UnixAddr.
+-// Unlike in other protocols, LocalAddr is usually nil for dialed connections.
+-func (c *UnixConn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.laddr
+-}
+-
+-// RemoteAddr returns the remote network address, a *UnixAddr.
+-// Unlike in other protocols, RemoteAddr is usually nil for connections
+-// accepted by a listener.
+-func (c *UnixConn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.raddr
+-}
+-
+-// SetDeadline implements the Conn SetDeadline method.
+-func (c *UnixConn) SetDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setDeadline(c.fd, t)
+-}
+-
+-// SetReadDeadline implements the Conn SetReadDeadline method.
+-func (c *UnixConn) SetReadDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadDeadline(c.fd, t)
+-}
+-
+-// SetWriteDeadline implements the Conn SetWriteDeadline method.
+-func (c *UnixConn) SetWriteDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteDeadline(c.fd, t)
+-}
+-
+-// SetReadBuffer sets the size of the operating system's
+-// receive buffer associated with the connection.
+-func (c *UnixConn) SetReadBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadBuffer(c.fd, bytes)
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's
+-// transmit buffer associated with the connection.
+-func (c *UnixConn) SetWriteBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteBuffer(c.fd, bytes)
+-}
++func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
+ 
+ // ReadFromUnix reads a packet from c, copying the payload into b.
+ // It returns the number of bytes copied into b and the source address
+@@ -296,11 +207,6 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
+ 	return c.fd.WriteMsg(b, oob, nil)
+ }
+ 
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (c *UnixConn) File() (f *os.File, err error) { return c.fd.dup() }
+-
+ // DialUnix connects to the remote address raddr on the network net,
+ // which must be "unix" or "unixgram".  If laddr is not nil, it is used
+ // as the local address for the connection.

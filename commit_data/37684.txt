@@ -12,7 +12,62 @@ Date:   Sat Aug 4 09:45:36 2018 +0100
     Change-Id: I0b122bdd95e9cb804c77efe20483fdf681c8154e
     Reviewed-on: https://go-review.googlesource.com/127756
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/bytes/bytes.go     | 6 +++---
  src/strings/strings.go | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 437a6e12df..77a7ce98e0 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -489,19 +489,19 @@ func ToTitle(s []byte) []byte { return Map(unicode.ToTitle, s) }
+ // ToUpperSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
+ // upper case, giving priority to the special casing rules.
+ func ToUpperSpecial(c unicode.SpecialCase, s []byte) []byte {
+-	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
++	return Map(c.ToUpper, s)
+ }
+ 
+ // ToLowerSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
+ // lower case, giving priority to the special casing rules.
+ func ToLowerSpecial(c unicode.SpecialCase, s []byte) []byte {
+-	return Map(func(r rune) rune { return c.ToLower(r) }, s)
++	return Map(c.ToLower, s)
+ }
+ 
+ // ToTitleSpecial treats s as UTF-8-encoded bytes and returns a copy with all the Unicode letters mapped to their
+ // title case, giving priority to the special casing rules.
+ func ToTitleSpecial(c unicode.SpecialCase, s []byte) []byte {
+-	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
++	return Map(c.ToTitle, s)
+ }
+ 
+ // isSeparator reports whether the rune could mark a word boundary.
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index e54f0c2bfa..97d83cfde1 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -606,19 +606,19 @@ func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
+ // ToUpperSpecial returns a copy of the string s with all Unicode letters mapped to their
+ // upper case using the case mapping specified by c.
+ func ToUpperSpecial(c unicode.SpecialCase, s string) string {
+-	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
++	return Map(c.ToUpper, s)
+ }
+ 
+ // ToLowerSpecial returns a copy of the string s with all Unicode letters mapped to their
+ // lower case using the case mapping specified by c.
+ func ToLowerSpecial(c unicode.SpecialCase, s string) string {
+-	return Map(func(r rune) rune { return c.ToLower(r) }, s)
++	return Map(c.ToLower, s)
+ }
+ 
+ // ToTitleSpecial returns a copy of the string s with all Unicode letters mapped to their
+ // title case, giving priority to the special casing rules.
+ func ToTitleSpecial(c unicode.SpecialCase, s string) string {
+-	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
++	return Map(c.ToTitle, s)
+ }
+ 
+ // isSeparator reports whether the rune could mark a word boundary.

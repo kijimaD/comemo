@@ -12,6 +12,37 @@ Date:   Tue Jun 2 14:43:38 2015 -0700
     Change-Id: Ibd60d87e09333964e2588340a2ca2b8804bbaa28
     Reviewed-on: https://go-review.googlesource.com/10643
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/doc/pkg.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 5c8976b663..17ee8cee4f 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -332,6 +332,25 @@ func (pkg *Package) symbolDoc(symbol string) {
+ 	values := pkg.findValues(symbol, pkg.doc.Consts)
+ 	values = append(values, pkg.findValues(symbol, pkg.doc.Vars)...)
+ 	for _, value := range values {
++		// Print each spec only if there is at least one exported symbol in it.
++		// (See issue 11008.)
++		// TODO: Should we elide unexported symbols from a single spec?
++		// It's an unlikely scenario, probably not worth the trouble.
++		// TODO: Would be nice if go/doc did this for us.
++		specs := make([]ast.Spec, 0, len(value.Decl.Specs))
++		for _, spec := range value.Decl.Specs {
++			vspec := spec.(*ast.ValueSpec)
++			for _, ident := range vspec.Names {
++				if isExported(ident.Name) {
++					specs = append(specs, vspec)
++					break
++				}
++			}
++		}
++		if len(specs) == 0 {
++			continue
++		}
++		value.Decl.Specs = specs
+ 		if !found {
+ 			pkg.packageClause(true)
+ 		}

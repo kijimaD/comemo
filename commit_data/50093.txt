@@ -31,7 +31,7 @@ Date:   Wed Sep 29 10:54:27 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 32 +++++-------------------
  src/cmd/compile/internal/noder/decl.go        | 17 +++++++++++++
  src/cmd/compile/internal/noder/irgen.go       |  6 +++++
@@ -40,3 +40,228 @@ Date:   Wed Sep 29 10:54:27 2021 -0700
  src/cmd/compile/internal/types2/typestring.go |  3 ---
  src/go/internal/gcimporter/iimport.go         | 36 ++++++---------------------
  7 files changed, 44 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index b9d2ecbdb5..cbc78539fd 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -362,13 +362,13 @@ func (r *importReader) obj(name string) {
+ 		if r.p.exportVersion < iexportVersionGenerics {
+ 			errorf("unexpected type param type")
+ 		}
+-		name0, sub := parseSubscript(name)
+-		tn := types2.NewTypeName(pos, r.currPkg, name0, nil)
+-		t := types2.NewTypeParam(tn, nil)
+-		if sub == 0 {
+-			errorf("missing subscript")
++		// Remove the "path" from the type param name that makes it unique
++		ix := strings.LastIndex(name, ".")
++		if ix < 0 {
++			errorf("missing path for type param")
+ 		}
+-		t.SetId(sub)
++		tn := types2.NewTypeName(pos, r.currPkg, name[ix+1:], nil)
++		t := types2.NewTypeParam(tn, nil)
+ 		// To handle recursive references to the typeparam within its
+ 		// bound, save the partial type in tparamIndex before reading the bounds.
+ 		id := ident{r.currPkg.Name(), name}
+@@ -752,23 +752,3 @@ func baseType(typ types2.Type) *types2.Named {
+ 	n, _ := typ.(*types2.Named)
+ 	return n
+ }
+-
+-func parseSubscript(name string) (string, uint64) {
+-	// Extract the subscript value from the type param name. We export
+-	// and import the subscript value, so that all type params have
+-	// unique names.
+-	sub := uint64(0)
+-	startsub := -1
+-	for i, r := range name {
+-		if '₀' <= r && r < '₀'+10 {
+-			if startsub == -1 {
+-				startsub = i
+-			}
+-			sub = sub*10 + uint64(r-'₀')
+-		}
+-	}
+-	if startsub >= 0 {
+-		name = name[:startsub]
+-	}
+-	return name, sub
+-}
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index c9ab31f203..f2dad9c302 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -86,6 +86,17 @@ func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
+ }
+ 
+ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
++	// Set g.curDecl to the function name, as context for the type params declared
++	// during types2-to-types1 translation if this is a generic function.
++	g.curDecl = decl.Name.Value
++	obj2 := g.info.Defs[decl.Name]
++	recv := types2.AsSignature(obj2.Type()).Recv()
++	if recv != nil {
++		t2 := deref2(recv.Type())
++		// This is a method, so set g.curDecl to recvTypeName.methName instead.
++		g.curDecl = types2.AsNamed(t2).Obj().Name() + "." + g.curDecl
++	}
++
+ 	fn := ir.NewFunc(g.pos(decl))
+ 	fn.Nname, _ = g.def(decl.Name)
+ 	fn.Nname.Func = fn
+@@ -143,6 +154,9 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ }
+ 
+ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
++	// Set g.curDecl to the type name, as context for the type params declared
++	// during types2-to-types1 translation if this is a generic type.
++	g.curDecl = decl.Name.Value
+ 	if decl.Alias {
+ 		name, _ := g.def(decl.Name)
+ 		g.pragmaFlags(decl.Pragma, 0)
+@@ -205,6 +219,9 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+ 		methods := make([]*types.Field, otyp.NumMethods())
+ 		for i := range methods {
+ 			m := otyp.Method(i)
++			// Set g.curDecl to recvTypeName.methName, as context for the
++			// method-specific type params in the receiver.
++			g.curDecl = decl.Name.Value + "." + m.Name()
+ 			meth := g.obj(m)
+ 			methods[i] = types.NewField(meth.Pos(), g.selector(m), meth.Type())
+ 			methods[i].Nname = meth
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index b0a4da3536..645ac2c214 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -170,6 +170,12 @@ type irgen struct {
+ 	// avoid adding closures of generic functions/methods to the target.Decls
+ 	// list.
+ 	topFuncIsGeneric bool
++
++	// The context during type/function/method declarations that is used to
++	// uniquely name type parameters. We need unique names for type params so we
++	// can be sure they match up correctly between types2-to-types1 translation
++	// and types1 importing.
++	curDecl string
+ }
+ 
+ func (g *irgen) later(fn func()) {
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index e1cfe4a9d8..1a7cef4aa3 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -219,7 +219,10 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 		// Save the name of the type parameter in the sym of the type.
+ 		// Include the types2 subscript in the sym name
+ 		pkg := g.tpkg(typ)
+-		sym := pkg.Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
++		// Create the unique types1 name for a type param, using its context with a
++		// function, type, or method declaration.
++		nm := g.curDecl + "." + typ.Obj().Name()
++		sym := pkg.Lookup(nm)
+ 		if sym.Def != nil {
+ 			// Make sure we use the same type param type for the same
+ 			// name, whether it is created during types1-import or
+@@ -318,6 +321,10 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
+ 				meth2 = ir.NewNameAt(meth.Pos(), newsym)
+ 				rparams := types2.AsSignature(m.Type()).RecvTypeParams()
+ 				tparams := make([]*types.Type, rparams.Len())
++				// Set g.curDecl to be the method context, so type
++				// params in the receiver of the method that we are
++				// translating gets the right unique name.
++				g.curDecl = typ.Obj().Name() + "." + m.Name()
+ 				for i := range tparams {
+ 					tparams[i] = g.typ1(rparams.At(i))
+ 				}
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 3ec4a641a6..6bc9dbc24d 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -55,12 +55,6 @@ func (t *TypeParam) Index() int {
+ 	return t.index
+ }
+ 
+-// SetId sets the unique id of a type param. Should only be used for type params
+-// in imported generic types.
+-func (t *TypeParam) SetId(id uint64) {
+-	t.id = id
+-}
+-
+ // Constraint returns the type constraint specified for t.
+ func (t *TypeParam) Constraint() Type {
+ 	return t.bound
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index c1feaa97cc..61c8a9158c 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -267,9 +267,6 @@ func (w *typeWriter) typ(typ Type) {
+ 			break
+ 		}
+ 		// Optionally write out package for typeparams (like Named).
+-		// TODO(danscales): this is required for import/export, so
+-		// we maybe need a separate function that won't be changed
+-		// for debugging purposes.
+ 		if t.obj.pkg != nil {
+ 			writePackage(w.buf, t.obj.pkg, w.qf)
+ 		}
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index e61a3a51a1..9aae2a31f3 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -18,6 +18,7 @@ import (
+ 	"io"
+ 	"math/big"
+ 	"sort"
++	"strings"
+ )
+ 
+ type intReader struct {
+@@ -353,16 +354,13 @@ func (r *importReader) obj(name string) {
+ 		if r.p.exportVersion < iexportVersionGenerics {
+ 			errorf("unexpected type param type")
+ 		}
+-		name0, sub := parseSubscript(name)
+-		tn := types.NewTypeName(pos, r.currPkg, name0, nil)
+-		t := types.NewTypeParam(tn, nil)
+-		if sub == 0 {
+-			errorf("missing subscript")
++		// Remove the "path" from the type param name that makes it unique
++		ix := strings.LastIndex(name, ".")
++		if ix < 0 {
++			errorf("missing path for type param")
+ 		}
+-
+-		// TODO(rfindley): can we use a different, stable ID?
+-		// t.SetId(sub)
+-
++		tn := types.NewTypeName(pos, r.currPkg, name[ix+1:], nil)
++		t := types.NewTypeParam(tn, nil)
+ 		// To handle recursive references to the typeparam within its
+ 		// bound, save the partial type in tparamIndex before reading the bounds.
+ 		id := ident{r.currPkg.Name(), name}
+@@ -743,23 +741,3 @@ func baseType(typ types.Type) *types.Named {
+ 	n, _ := typ.(*types.Named)
+ 	return n
+ }
+-
+-func parseSubscript(name string) (string, uint64) {
+-	// Extract the subscript value from the type param name. We export
+-	// and import the subscript value, so that all type params have
+-	// unique names.
+-	sub := uint64(0)
+-	startsub := -1
+-	for i, r := range name {
+-		if '₀' <= r && r < '₀'+10 {
+-			if startsub == -1 {
+-				startsub = i
+-			}
+-			sub = sub*10 + uint64(r-'₀')
+-		}
+-	}
+-	if startsub >= 0 {
+-		name = name[:startsub]
+-	}
+-	return name, sub
+-}

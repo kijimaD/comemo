@@ -27,7 +27,51 @@ Date:   Fri Aug 20 12:50:02 2021 -0700
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/strconv/quote.go      | 4 ++--
  src/strconv/quote_test.go | 3 +++
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index b3bbb1612b..d2814b92da 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -103,7 +103,7 @@ func appendEscapedRune(buf []byte, r rune, quote byte, ASCIIonly, graphicOnly bo
+ 			buf = append(buf, `\x`...)
+ 			buf = append(buf, lowerhex[byte(r)>>4])
+ 			buf = append(buf, lowerhex[byte(r)&0xF])
+-		case r > utf8.MaxRune:
++		case !utf8.ValidRune(r):
+ 			r = 0xFFFD
+ 			fallthrough
+ 		case r < 0x10000:
+@@ -322,7 +322,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 			value = v
+ 			break
+ 		}
+-		if v > utf8.MaxRune {
++		if !utf8.ValidRune(v) {
+ 			err = ErrSyntax
+ 			return
+ 		}
+diff --git a/src/strconv/quote_test.go b/src/strconv/quote_test.go
+index 4750be2740..81fc8f79e1 100644
+--- a/src/strconv/quote_test.go
++++ b/src/strconv/quote_test.go
+@@ -131,6 +131,7 @@ var quoterunetests = []quoteRuneTest{
+ 	{'\\', `'\\'`, `'\\'`, `'\\'`},
+ 	{0xFF, `'ÿ'`, `'\u00ff'`, `'ÿ'`},
+ 	{0x263a, `'☺'`, `'\u263a'`, `'☺'`},
++	{0xdead, `'�'`, `'\ufffd'`, `'�'`},
+ 	{0xfffd, `'�'`, `'\ufffd'`, `'�'`},
+ 	{0x0010ffff, `'\U0010ffff'`, `'\U0010ffff'`, `'\U0010ffff'`},
+ 	{0x0010ffff + 1, `'�'`, `'\ufffd'`, `'�'`},
+@@ -305,6 +306,8 @@ var misquoted = []string{
+ 	"\"\n\"",
+ 	"\"\\n\n\"",
+ 	"'\n'",
++	`"\udead"`,
++	`"\ud83d\ude4f"`,
+ }
+ 
+ func TestUnquote(t *testing.T) {

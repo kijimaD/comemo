@@ -7,6 +7,20 @@ Date:   Tue May 29 08:56:42 2018 +0000
     Change-Id: Ibdd1ca7bfc6fb2419621338f1f8e37c876ba89c0
     Reviewed-on: https://go-review.googlesource.com/114976
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/index/suffixarray/suffixarray.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/index/suffixarray/suffixarray.go b/src/index/suffixarray/suffixarray.go
+index c59ae6eef1..0961ac4fb2 100644
+--- a/src/index/suffixarray/suffixarray.go
++++ b/src/index/suffixarray/suffixarray.go
+@@ -107,7 +107,7 @@ func (x *Index) Read(r io.Reader) error {
+ 
+ 	// allocate space
+ 	if 2*n < cap(x.data) || cap(x.data) < n {
+-		// new data is significantly smaller or larger then
++		// new data is significantly smaller or larger than
+ 		// existing buffers - allocate new ones
+ 		x.data = make([]byte, n)
+ 		x.sa = make([]int, n)

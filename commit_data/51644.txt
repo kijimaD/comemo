@@ -13,7 +13,7 @@ Date:   Mon Feb 28 14:32:19 2022 -0800
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/debug_lines_test.go |   4 +-
  src/cmd/dist/test.go                             |  21 +--
  test/const7.go                                   |  10 +-
@@ -269,3 +269,3022 @@ Date:   Mon Feb 28 14:32:19 2022 -0800
  test/typeparam/valimp.go                         |   2 +-
  test/typeparam/value.go                          |   2 +-
  254 files changed, 297 insertions(+), 462 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index c0ccdb1c93..a76358967d 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -78,7 +78,7 @@ func TestDebugLinesPushback(t *testing.T) {
+ 			// Unified mangles differently
+ 			fn = "(*List[int]).PushBack"
+ 		}
+-		testDebugLines(t, "-N -l -G=3", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
++		testDebugLines(t, "-N -l", "pushback.go", fn, []int{17, 18, 19, 20, 21, 22, 24}, true)
+ 	}
+ }
+ 
+@@ -97,7 +97,7 @@ func TestDebugLinesConvert(t *testing.T) {
+ 			// Unified mangles differently
+ 			fn = "G[int]"
+ 		}
+-		testDebugLines(t, "-N -l -G=3", "convertline.go", fn, []int{9, 10, 11}, true)
++		testDebugLines(t, "-N -l", "convertline.go", fn, []int{9, 10, 11}, true)
+ 	}
+ }
+ 
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index d9eb9c3862..ab30089881 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -333,15 +333,10 @@ var (
+ 	benchMatches []string
+ )
+ 
+-func (t *tester) registerStdTest(pkg string, useG3 bool) {
++func (t *tester) registerStdTest(pkg string) {
+ 	heading := "Testing packages."
+ 	testPrefix := "go_test:"
+ 	gcflags := gogcflags
+-	if useG3 {
+-		heading = "Testing packages with -G=3."
+-		testPrefix = "go_test_g3:"
+-		gcflags += " -G=3"
+-	}
+ 
+ 	testName := testPrefix + pkg
+ 	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
+@@ -442,10 +437,7 @@ func (t *tester) registerTests() {
+ 	if len(t.runNames) > 0 {
+ 		for _, name := range t.runNames {
+ 			if strings.HasPrefix(name, "go_test:") {
+-				t.registerStdTest(strings.TrimPrefix(name, "go_test:"), false)
+-			}
+-			if strings.HasPrefix(name, "go_test_g3:") {
+-				t.registerStdTest(strings.TrimPrefix(name, "go_test_g3:"), true)
++				t.registerStdTest(strings.TrimPrefix(name, "go_test:"))
+ 			}
+ 			if strings.HasPrefix(name, "go_test_bench:") {
+ 				t.registerRaceBenchTest(strings.TrimPrefix(name, "go_test_bench:"))
+@@ -468,15 +460,8 @@ func (t *tester) registerTests() {
+ 			fatalf("Error running go list std cmd: %v:\n%s", err, cmd.Stderr)
+ 		}
+ 		pkgs := strings.Fields(string(all))
+-		if false {
+-			// Disable -G=3 option for standard tests for now, since
+-			// they are flaky on the builder.
+-			for _, pkg := range pkgs {
+-				t.registerStdTest(pkg, true /* -G=3 flag */)
+-			}
+-		}
+ 		for _, pkg := range pkgs {
+-			t.registerStdTest(pkg, false)
++			t.registerStdTest(pkg)
+ 		}
+ 		if t.race {
+ 			for _, pkg := range pkgs {
+diff --git a/test/const7.go b/test/const7.go
+index 9ffd678fc5..e625671278 100644
+--- a/test/const7.go
++++ b/test/const7.go
+@@ -24,7 +24,7 @@ import (
+ // which declares an untyped constant of the given length.
+ // testProg compiles this package and checks for the absence or
+ // presence of a constant literal error.
+-func testProg(dir, name string, G_option, length int, ok bool) {
++func testProg(dir, name string, length int, ok bool) {
+ 	var buf bytes.Buffer
+ 
+ 	fmt.Fprintf(&buf,
+@@ -37,7 +37,7 @@ func testProg(dir, name string, G_option, length int, ok bool) {
+ 		log.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command("go", "tool", "compile", fmt.Sprintf("-G=%d", G_option), filename)
++	cmd := exec.Command("go", "tool", "compile", filename)
+ 	cmd.Dir = dir
+ 	output, err := cmd.CombinedOutput()
+ 
+@@ -70,8 +70,6 @@ func main() {
+ 	defer os.RemoveAll(dir)
+ 
+ 	const limit = 10000 // compiler-internal constant length limit
+-	testProg(dir, "x1", 0, limit, true)    // -G=0
+-	testProg(dir, "x2", 0, limit+1, false) // -G=0
+-	testProg(dir, "x1", 1, limit, true)    // -G=1 (new type checker)
+-	testProg(dir, "x2", 1, limit+1, false) // -G=1 (new type checker)
++	testProg(dir, "x1", limit, true)
++	testProg(dir, "x2", limit+1, false)
+ }
+diff --git a/test/fixedbugs/issue14652.go b/test/fixedbugs/issue14652.go
+index 6dd2fbfbf6..586663b676 100644
+--- a/test/fixedbugs/issue14652.go
++++ b/test/fixedbugs/issue14652.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue44432.go b/test/fixedbugs/issue44432.go
+index eec53f3000..8628edd03e 100644
+--- a/test/fixedbugs/issue44432.go
++++ b/test/fixedbugs/issue44432.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=0 -d=panic
++// errorcheck -d=panic
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue48301.go b/test/fixedbugs/issue48301.go
+index 1ff9ffb9a0..94c9a5b6f9 100644
+--- a/test/fixedbugs/issue48301.go
++++ b/test/fixedbugs/issue48301.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=0
++// errorcheck
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue48471.go b/test/fixedbugs/issue48471.go
+index eaf8a9412c..1b843c8a16 100644
+--- a/test/fixedbugs/issue48471.go
++++ b/test/fixedbugs/issue48471.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=3
++// errorcheck
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue49143.go b/test/fixedbugs/issue49143.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/fixedbugs/issue49143.go
++++ b/test/fixedbugs/issue49143.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue49368.go b/test/fixedbugs/issue49368.go
+index 4cbf351ae0..2339048e3d 100644
+--- a/test/fixedbugs/issue49368.go
++++ b/test/fixedbugs/issue49368.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=3 -lang=go1.17
++// errorcheck -lang=go1.17
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue49619.go b/test/fixedbugs/issue49619.go
+index f34dfac192..c9f3cbc4ad 100644
+--- a/test/fixedbugs/issue49619.go
++++ b/test/fixedbugs/issue49619.go
+@@ -1,4 +1,4 @@
+-// build -gcflags=-G=3
++// build
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue49665.go b/test/fixedbugs/issue49665.go
+index 4a6593c454..c6c22a1b4e 100644
+--- a/test/fixedbugs/issue49665.go
++++ b/test/fixedbugs/issue49665.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue49814.go b/test/fixedbugs/issue49814.go
+index fd487d8ccb..9b9695d95d 100644
+--- a/test/fixedbugs/issue49814.go
++++ b/test/fixedbugs/issue49814.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=3
++// errorcheck
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue50372.go b/test/fixedbugs/issue50372.go
+index 30a171d5a6..116d843694 100644
+--- a/test/fixedbugs/issue50372.go
++++ b/test/fixedbugs/issue50372.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=3
++// errorcheck
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index ae5afc751d..fcd5d4875b 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -32,10 +32,6 @@ import (
+ 	"unicode"
+ )
+ 
+-// CompilerDefaultGLevel is the -G level used by default when not overridden by a
+-// command-line flag
+-const CompilerDefaultGLevel = 3
+-
+ var (
+ 	verbose        = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
+ 	keep           = flag.Bool("k", false, "keep. keep temporary directory.")
+@@ -48,7 +44,6 @@ var (
+ 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
+ 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
+ 	force          = flag.Bool("f", false, "ignore expected-failure test lists")
+-	generics       = flag.String("G", defaultGLevels, "a comma-separated list of -G compiler flags to test with")
+ 
+ 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
+ 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
+@@ -79,22 +74,10 @@ var env = func() (res envVars) {
+ 	return
+ }()
+ 
+-var unifiedEnabled, defaultGLevels = func() (bool, string) {
+-	// TODO(mdempsky): This will give false negatives if the unified
+-	// experiment is enabled by default, but presumably at that point we
+-	// won't need to disable tests for it anymore anyway.
+-	enabled := strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
+-
+-	// Test both -G=0 and -G=3 on the longtest builders, to make sure we
+-	// don't accidentally break -G=0 mode until we're ready to remove it
+-	// completely. But elsewhere, testing -G=3 alone should be enough.
+-	glevels := "3"
+-	if strings.Contains(os.Getenv("GO_BUILDER_NAME"), "longtest") {
+-		glevels = "0,3"
+-	}
+-
+-	return enabled, glevels
+-}()
++// TODO(mdempsky): This will give false negatives if the unified
++// experiment is enabled by default, but presumably at that point we
++// won't need to disable tests for it anymore anyway.
++var unifiedEnabled = strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
+ 
+ // defaultAllCodeGen returns the default value of the -all_codegen
+ // flag. By default, we prefer to be fast (returning false), except on
+@@ -132,15 +115,6 @@ const maxTests = 5000
+ func main() {
+ 	flag.Parse()
+ 
+-	var glevels []int
+-	for _, s := range strings.Split(*generics, ",") {
+-		glevel, err := strconv.Atoi(s)
+-		if err != nil {
+-			log.Fatalf("invalid -G flag: %v", err)
+-		}
+-		glevels = append(glevels, glevel)
+-	}
+-
+ 	findExecCmd()
+ 
+ 	// Disable parallelism if printing or if using a simulator.
+@@ -165,11 +139,11 @@ func main() {
+ 			}
+ 			if fi, err := os.Stat(arg); err == nil && fi.IsDir() {
+ 				for _, baseGoFile := range goFiles(arg) {
+-					tests = append(tests, startTests(arg, baseGoFile, glevels)...)
++					tests = append(tests, startTest(arg, baseGoFile))
+ 				}
+ 			} else if strings.HasSuffix(arg, ".go") {
+ 				dir, file := filepath.Split(arg)
+-				tests = append(tests, startTests(dir, file, glevels)...)
++				tests = append(tests, startTest(dir, file))
+ 			} else {
+ 				log.Fatalf("can't yet deal with non-directory and non-go file %q", arg)
+ 			}
+@@ -177,7 +151,7 @@ func main() {
+ 	} else {
+ 		for _, dir := range dirs {
+ 			for _, baseGoFile := range goFiles(dir) {
+-				tests = append(tests, startTests(dir, baseGoFile, glevels)...)
++				tests = append(tests, startTest(dir, baseGoFile))
+ 			}
+ 		}
+ 	}
+@@ -210,8 +184,7 @@ func main() {
+ 		resCount[status]++
+ 		dt := fmt.Sprintf("%.3fs", test.dt.Seconds())
+ 		if status == "FAIL" {
+-			fmt.Printf("# go run run.go -G=%v %s\n%s\nFAIL\t%s\t%s\n",
+-				test.glevel,
++			fmt.Printf("# go run run.go %s\n%s\nFAIL\t%s\t%s\n",
+ 				path.Join(test.dir, test.gofile),
+ 				errStr, test.goFileName(), dt)
+ 			continue
+@@ -330,7 +303,6 @@ type test struct {
+ 	dir, gofile string
+ 	donec       chan bool // closed when done
+ 	dt          time.Duration
+-	glevel      int // what -G level this test should use
+ 
+ 	src string
+ 
+@@ -345,30 +317,24 @@ type test struct {
+ 
+ // initExpectFail initializes t.expectFail based on the build+test
+ // configuration.
+-func (t *test) initExpectFail(hasGFlag bool) {
++func (t *test) initExpectFail() {
+ 	if *force {
+ 		return
+ 	}
+ 
+-	var failureSets []map[string]bool
+-
+-	if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
+-		failureSets = append(failureSets, g0Failures)
+-	} else {
+-		failureSets = append(failureSets, types2Failures)
++	failureSets := []map[string]bool{types2Failures}
+ 
+-		// Note: gccgo supports more 32-bit architectures than this, but
+-		// hopefully the 32-bit failures are fixed before this matters.
+-		switch goarch {
+-		case "386", "arm", "mips", "mipsle":
+-			failureSets = append(failureSets, types2Failures32Bit)
+-		}
++	// Note: gccgo supports more 32-bit architectures than this, but
++	// hopefully the 32-bit failures are fixed before this matters.
++	switch goarch {
++	case "386", "arm", "mips", "mipsle":
++		failureSets = append(failureSets, types2Failures32Bit)
++	}
+ 
+-		if unifiedEnabled {
+-			failureSets = append(failureSets, unifiedFailures)
+-		} else {
+-			failureSets = append(failureSets, g3Failures)
+-		}
++	if unifiedEnabled {
++		failureSets = append(failureSets, unifiedFailures)
++	} else {
++		failureSets = append(failureSets, g3Failures)
+ 	}
+ 
+ 	filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
+@@ -381,27 +347,22 @@ func (t *test) initExpectFail(hasGFlag bool) {
+ 	}
+ }
+ 
+-func startTests(dir, gofile string, glevels []int) []*test {
+-	tests := make([]*test, len(glevels))
+-	for i, glevel := range glevels {
+-		t := &test{
+-			dir:    dir,
+-			gofile: gofile,
+-			glevel: glevel,
+-			donec:  make(chan bool, 1),
+-		}
+-		if toRun == nil {
+-			toRun = make(chan *test, maxTests)
+-			go runTests()
+-		}
+-		select {
+-		case toRun <- t:
+-		default:
+-			panic("toRun buffer size (maxTests) is too small")
+-		}
+-		tests[i] = t
++func startTest(dir, gofile string) *test {
++	t := &test{
++		dir:    dir,
++		gofile: gofile,
++		donec:  make(chan bool, 1),
++	}
++	if toRun == nil {
++		toRun = make(chan *test, maxTests)
++		go runTests()
++	}
++	select {
++	case toRun <- t:
++	default:
++		panic("toRun buffer size (maxTests) is too small")
+ 	}
+-	return tests
++	return t
+ }
+ 
+ // runTests runs tests in parallel, but respecting the order they
+@@ -589,15 +550,11 @@ func init() { checkShouldTest() }
+ // or else the commands will rebuild any needed packages (like runtime)
+ // over and over.
+ func (t *test) goGcflags() string {
+-	flags := os.Getenv("GO_GCFLAGS")
+-	if t.glevel != CompilerDefaultGLevel {
+-		flags = fmt.Sprintf("%s -G=%v", flags, t.glevel)
+-	}
+-	return "-gcflags=all=" + flags
++	return "-gcflags=all=" + os.Getenv("GO_GCFLAGS")
+ }
+ 
+ func (t *test) goGcflagsIsEmpty() bool {
+-	return "" == os.Getenv("GO_GCFLAGS") && t.glevel == CompilerDefaultGLevel
++	return "" == os.Getenv("GO_GCFLAGS")
+ }
+ 
+ var errTimeout = errors.New("command exceeded time limit")
+@@ -744,60 +701,7 @@ func (t *test) run() {
+ 		}
+ 	}
+ 
+-	type Tool int
+-
+-	const (
+-		_ Tool = iota
+-		AsmCheck
+-		Build
+-		Run
+-		Compile
+-	)
+-
+-	// validForGLevel reports whether the current test is valid to run
+-	// at the specified -G level. If so, it may update flags as
+-	// necessary to test with -G.
+-	validForGLevel := func(tool Tool) bool {
+-		hasGFlag := false
+-		for _, flag := range flags {
+-			if strings.Contains(flag, "-G") {
+-				hasGFlag = true
+-			}
+-		}
+-
+-		// In unified IR mode, run the test regardless of explicit -G flag.
+-		if !unifiedEnabled && hasGFlag && t.glevel != CompilerDefaultGLevel {
+-			// test provides explicit -G flag already; don't run again
+-			if *verbose {
+-				fmt.Printf("excl\t%s\n", t.goFileName())
+-			}
+-			return false
+-		}
+-
+-		t.initExpectFail(hasGFlag)
+-
+-		switch tool {
+-		case Build, Run:
+-			// ok; handled in goGcflags
+-
+-		case Compile:
+-			if !hasGFlag {
+-				flags = append(flags, fmt.Sprintf("-G=%v", t.glevel))
+-			}
+-
+-		default:
+-			if t.glevel != CompilerDefaultGLevel {
+-				// we don't know how to add -G for this test yet
+-				if *verbose {
+-					fmt.Printf("excl\t%s\n", t.goFileName())
+-				}
+-				return false
+-			}
+-		}
+-
+-		return true
+-	}
+-
++	t.initExpectFail()
+ 	t.makeTempDir()
+ 	if !*keep {
+ 		defer os.RemoveAll(t.tempDir)
+@@ -881,10 +785,6 @@ func (t *test) run() {
+ 		t.err = fmt.Errorf("unimplemented action %q", action)
+ 
+ 	case "asmcheck":
+-		if !validForGLevel(AsmCheck) {
+-			return
+-		}
+-
+ 		// Compile Go file and match the generated assembly
+ 		// against a set of regexps in comments.
+ 		ops := t.wantedAsmOpcodes(long)
+@@ -939,10 +839,6 @@ func (t *test) run() {
+ 		return
+ 
+ 	case "errorcheck":
+-		if !validForGLevel(Compile) {
+-			return
+-		}
+-
+ 		// Compile Go file.
+ 		// Fail if wantError is true and compilation was successful and vice versa.
+ 		// Match errors produced by gc against errors in comments.
+@@ -973,18 +869,10 @@ func (t *test) run() {
+ 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
+ 
+ 	case "compile":
+-		if !validForGLevel(Compile) {
+-			return
+-		}
+-
+ 		// Compile Go file.
+ 		_, t.err = compileFile(runcmd, long, flags)
+ 
+ 	case "compiledir":
+-		if !validForGLevel(Compile) {
+-			return
+-		}
+-
+ 		// Compile all files in the directory as packages in lexicographic order.
+ 		longdir := filepath.Join(cwd, t.goDirName())
+ 		pkgs, err := goDirPackages(longdir, singlefilepkgs)
+@@ -1000,10 +888,6 @@ func (t *test) run() {
+ 		}
+ 
+ 	case "errorcheckdir", "errorcheckandrundir":
+-		if !validForGLevel(Compile) {
+-			return
+-		}
+-
+ 		flags = append(flags, "-d=panic")
+ 		// Compile and errorCheck all files in the directory as packages in lexicographic order.
+ 		// If errorcheckdir and wantError, compilation of the last package must fail.
+@@ -1049,10 +933,6 @@ func (t *test) run() {
+ 		fallthrough
+ 
+ 	case "rundir":
+-		if !validForGLevel(Run) {
+-			return
+-		}
+-
+ 		// Compile all files in the directory as packages in lexicographic order.
+ 		// In case of errorcheckandrundir, ignore failed compilation of the package before the last.
+ 		// Link as if the last file is the main package, run it.
+@@ -1111,10 +991,6 @@ func (t *test) run() {
+ 		}
+ 
+ 	case "runindir":
+-		if !validForGLevel(Run) {
+-			return
+-		}
+-
+ 		// Make a shallow copy of t.goDirName() in its own module and GOPATH, and
+ 		// run "go run ." in it. The module path (and hence import path prefix) of
+ 		// the copy is equal to the basename of the source directory.
+@@ -1154,10 +1030,6 @@ func (t *test) run() {
+ 		t.checkExpectedOutput(out)
+ 
+ 	case "build":
+-		if !validForGLevel(Build) {
+-			return
+-		}
+-
+ 		// Build Go file.
+ 		_, err := runcmd(goTool(), "build", t.goGcflags(), "-o", "a.exe", long)
+ 		if err != nil {
+@@ -1165,10 +1037,6 @@ func (t *test) run() {
+ 		}
+ 
+ 	case "builddir", "buildrundir":
+-		if !validForGLevel(Build) {
+-			return
+-		}
+-
+ 		// Build an executable from all the .go and .s files in a subdirectory.
+ 		// Run it and verify its output in the buildrundir case.
+ 		longdir := filepath.Join(cwd, t.goDirName())
+@@ -1248,10 +1116,6 @@ func (t *test) run() {
+ 		}
+ 
+ 	case "buildrun":
+-		if !validForGLevel(Build) {
+-			return
+-		}
+-
+ 		// Build an executable from Go file, then run it, verify its output.
+ 		// Useful for timeout tests where failure mode is infinite loop.
+ 		// TODO: not supported on NaCl
+@@ -1277,10 +1141,6 @@ func (t *test) run() {
+ 		t.checkExpectedOutput(out)
+ 
+ 	case "run":
+-		if !validForGLevel(Run) {
+-			return
+-		}
+-
+ 		// Run Go file if no special go command flags are provided;
+ 		// otherwise build an executable and run it.
+ 		// Verify the output.
+@@ -1324,10 +1184,6 @@ func (t *test) run() {
+ 		t.checkExpectedOutput(out)
+ 
+ 	case "runoutput":
+-		if !validForGLevel(Run) {
+-			return
+-		}
+-
+ 		// Run Go file and write its output into temporary Go file.
+ 		// Run generated Go file and verify its output.
+ 		rungatec <- true
+@@ -1363,10 +1219,6 @@ func (t *test) run() {
+ 		t.checkExpectedOutput(out)
+ 
+ 	case "errorcheckoutput":
+-		if !validForGLevel(Compile) {
+-			return
+-		}
+-
+ 		// Run Go file and write its output into temporary Go file.
+ 		// Compile and errorCheck generated Go file.
+ 		runInDir = ""
+diff --git a/test/typeparam/absdiff.go b/test/typeparam/absdiff.go
+index f1822831b2..9c83effbda 100644
+--- a/test/typeparam/absdiff.go
++++ b/test/typeparam/absdiff.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/absdiff2.go b/test/typeparam/absdiff2.go
+index 36de8ff2c9..f3e058d468 100644
+--- a/test/typeparam/absdiff2.go
++++ b/test/typeparam/absdiff2.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/absdiff3.go b/test/typeparam/absdiff3.go
+index 99fa6f11ab..c85cd1d6a5 100644
+--- a/test/typeparam/absdiff3.go
++++ b/test/typeparam/absdiff3.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/absdiffimp.go b/test/typeparam/absdiffimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/absdiffimp.go
++++ b/test/typeparam/absdiffimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/absdiffimp2.go b/test/typeparam/absdiffimp2.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/absdiffimp2.go
++++ b/test/typeparam/absdiffimp2.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/adder.go b/test/typeparam/adder.go
+index 79319bd236..fbb492514c 100644
+--- a/test/typeparam/adder.go
++++ b/test/typeparam/adder.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/aliasimp.go b/test/typeparam/aliasimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/aliasimp.go
++++ b/test/typeparam/aliasimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/append.go b/test/typeparam/append.go
+index 42b542ed78..61682625c1 100644
+--- a/test/typeparam/append.go
++++ b/test/typeparam/append.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/boundmethod.go b/test/typeparam/boundmethod.go
+index a14eb544ce..510519a274 100644
+--- a/test/typeparam/boundmethod.go
++++ b/test/typeparam/boundmethod.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/builtins.go b/test/typeparam/builtins.go
+index 73dda77e0e..763d7202d0 100644
+--- a/test/typeparam/builtins.go
++++ b/test/typeparam/builtins.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/chans.go b/test/typeparam/chans.go
+index c30c21c37b..d73ce6e531 100644
+--- a/test/typeparam/chans.go
++++ b/test/typeparam/chans.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/chansimp.go b/test/typeparam/chansimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/chansimp.go
++++ b/test/typeparam/chansimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/combine.go b/test/typeparam/combine.go
+index 5dfdb78442..361708f1eb 100644
+--- a/test/typeparam/combine.go
++++ b/test/typeparam/combine.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/cons.go b/test/typeparam/cons.go
+index 4750392a95..b7bace4423 100644
+--- a/test/typeparam/cons.go
++++ b/test/typeparam/cons.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/dedup.go b/test/typeparam/dedup.go
+index dca4cf3a84..3b98e03d9d 100644
+--- a/test/typeparam/dedup.go
++++ b/test/typeparam/dedup.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/dictionaryCapture-noinline.go b/test/typeparam/dictionaryCapture-noinline.go
+index ad5bfa008e..4c5e7ec7a6 100644
+--- a/test/typeparam/dictionaryCapture-noinline.go
++++ b/test/typeparam/dictionaryCapture-noinline.go
+@@ -1,4 +1,4 @@
+-// run -gcflags="-G=3 -l"
++// run -gcflags="-l"
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/dictionaryCapture.go b/test/typeparam/dictionaryCapture.go
+index 7c7948145a..b503abb18f 100644
+--- a/test/typeparam/dictionaryCapture.go
++++ b/test/typeparam/dictionaryCapture.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/dottype.go b/test/typeparam/dottype.go
+index c9c900c096..9f1630d19c 100644
+--- a/test/typeparam/dottype.go
++++ b/test/typeparam/dottype.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/double.go b/test/typeparam/double.go
+index 3dbdd1b05e..fbbe602d13 100644
+--- a/test/typeparam/double.go
++++ b/test/typeparam/double.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/eface.go b/test/typeparam/eface.go
+index 1421b7f49a..05d5503c82 100644
+--- a/test/typeparam/eface.go
++++ b/test/typeparam/eface.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/equal.go b/test/typeparam/equal.go
+index a1d3e8ae02..21e210345b 100644
+--- a/test/typeparam/equal.go
++++ b/test/typeparam/equal.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/fact.go b/test/typeparam/fact.go
+index e19cfe6956..3c9a13aa73 100644
+--- a/test/typeparam/fact.go
++++ b/test/typeparam/fact.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/factimp.go b/test/typeparam/factimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/factimp.go
++++ b/test/typeparam/factimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/gencrawler.go b/test/typeparam/gencrawler.go
+index 7c268aed51..66b5f43354 100644
+--- a/test/typeparam/gencrawler.go
++++ b/test/typeparam/gencrawler.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/genembed.go b/test/typeparam/genembed.go
+index 43ab3d6f4c..6a11be1cb6 100644
+--- a/test/typeparam/genembed.go
++++ b/test/typeparam/genembed.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/genembed2.go b/test/typeparam/genembed2.go
+index 6effd2e6bc..f75731fd51 100644
+--- a/test/typeparam/genembed2.go
++++ b/test/typeparam/genembed2.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/geninline.go b/test/typeparam/geninline.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/geninline.go
++++ b/test/typeparam/geninline.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/graph.go b/test/typeparam/graph.go
+index cecf349a9a..38a97bcfb1 100644
+--- a/test/typeparam/graph.go
++++ b/test/typeparam/graph.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/ifaceconv.go b/test/typeparam/ifaceconv.go
+index ee3a9e0dc3..4dfc68f6e4 100644
+--- a/test/typeparam/ifaceconv.go
++++ b/test/typeparam/ifaceconv.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/importtest.go b/test/typeparam/importtest.go
+index 9cb30e8a7c..a49dcd9ba1 100644
+--- a/test/typeparam/importtest.go
++++ b/test/typeparam/importtest.go
+@@ -1,4 +1,4 @@
+-// compile -G
++// compile
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/index.go b/test/typeparam/index.go
+index 906f76d325..064d33cfe7 100644
+--- a/test/typeparam/index.go
++++ b/test/typeparam/index.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/index2.go b/test/typeparam/index2.go
+index 683b76f76d..ae1b44a0e4 100644
+--- a/test/typeparam/index2.go
++++ b/test/typeparam/index2.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/interfacearg.go b/test/typeparam/interfacearg.go
+index 28ea3e3afb..0e1fd0075d 100644
+--- a/test/typeparam/interfacearg.go
++++ b/test/typeparam/interfacearg.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue23536.go b/test/typeparam/issue23536.go
+index a4f061802f..1d6d79b429 100644
+--- a/test/typeparam/issue23536.go
++++ b/test/typeparam/issue23536.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue376214.go b/test/typeparam/issue376214.go
+index 8f94f4107d..269b684b50 100644
+--- a/test/typeparam/issue376214.go
++++ b/test/typeparam/issue376214.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue39755.go b/test/typeparam/issue39755.go
+index c4b6902eea..52c7e7c652 100644
+--- a/test/typeparam/issue39755.go
++++ b/test/typeparam/issue39755.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue44688.go b/test/typeparam/issue44688.go
+index 98260694dc..48160e0730 100644
+--- a/test/typeparam/issue44688.go
++++ b/test/typeparam/issue44688.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue45547.go b/test/typeparam/issue45547.go
+index b354d4d7f6..0024f364ba 100644
+--- a/test/typeparam/issue45547.go
++++ b/test/typeparam/issue45547.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue45722.go b/test/typeparam/issue45722.go
+index 0d7c20c264..52a3c6359f 100644
+--- a/test/typeparam/issue45722.go
++++ b/test/typeparam/issue45722.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue45738.go b/test/typeparam/issue45738.go
+index 9f03e796a3..89b3b11dde 100644
+--- a/test/typeparam/issue45738.go
++++ b/test/typeparam/issue45738.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue45817.go b/test/typeparam/issue45817.go
+index 1efee3b0af..78e472f36a 100644
+--- a/test/typeparam/issue45817.go
++++ b/test/typeparam/issue45817.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue46461.go b/test/typeparam/issue46461.go
+index 8fdec1c073..4d4d4400c2 100644
+--- a/test/typeparam/issue46461.go
++++ b/test/typeparam/issue46461.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=3
++// errorcheck
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue46461b.go b/test/typeparam/issue46461b.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue46461b.go
++++ b/test/typeparam/issue46461b.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue46472.go b/test/typeparam/issue46472.go
+index cd4d923ef5..027a8aaec1 100644
+--- a/test/typeparam/issue46472.go
++++ b/test/typeparam/issue46472.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue46591.go b/test/typeparam/issue46591.go
+index e7b9fa2b48..9e2c31de5d 100644
+--- a/test/typeparam/issue46591.go
++++ b/test/typeparam/issue46591.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47258.go b/test/typeparam/issue47258.go
+index 717329471e..7b202c93df 100644
+--- a/test/typeparam/issue47258.go
++++ b/test/typeparam/issue47258.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47272.go b/test/typeparam/issue47272.go
+index 6771cb9901..79748ad1aa 100644
+--- a/test/typeparam/issue47272.go
++++ b/test/typeparam/issue47272.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47514.go b/test/typeparam/issue47514.go
+index 947f254003..1fc054ec35 100644
+--- a/test/typeparam/issue47514.go
++++ b/test/typeparam/issue47514.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47514b.go b/test/typeparam/issue47514b.go
+index 5428a0edc5..0609296501 100644
+--- a/test/typeparam/issue47514b.go
++++ b/test/typeparam/issue47514b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47514c.go b/test/typeparam/issue47514c.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue47514c.go
++++ b/test/typeparam/issue47514c.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47631.go b/test/typeparam/issue47631.go
+index 7f7cfa6abb..c2ce951cac 100644
+--- a/test/typeparam/issue47631.go
++++ b/test/typeparam/issue47631.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=3
++// errorcheck
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47676.go b/test/typeparam/issue47676.go
+index 1b01624ce0..8569378cd6 100644
+--- a/test/typeparam/issue47676.go
++++ b/test/typeparam/issue47676.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47684.go b/test/typeparam/issue47684.go
+index 2798b78ca8..f0e4ed05de 100644
+--- a/test/typeparam/issue47684.go
++++ b/test/typeparam/issue47684.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47684b.go b/test/typeparam/issue47684b.go
+index c43ef8d169..3e9fa93f34 100644
+--- a/test/typeparam/issue47684b.go
++++ b/test/typeparam/issue47684b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47684c.go b/test/typeparam/issue47684c.go
+index 32f1b66087..b1d45202f0 100644
+--- a/test/typeparam/issue47684c.go
++++ b/test/typeparam/issue47684c.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47708.go b/test/typeparam/issue47708.go
+index 35d57c8a64..d6140f3b4f 100644
+--- a/test/typeparam/issue47708.go
++++ b/test/typeparam/issue47708.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47710.go b/test/typeparam/issue47710.go
+index 0882cb4137..2263c8b88f 100644
+--- a/test/typeparam/issue47710.go
++++ b/test/typeparam/issue47710.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47713.go b/test/typeparam/issue47713.go
+index a38eea19eb..7e3b5a5d32 100644
+--- a/test/typeparam/issue47713.go
++++ b/test/typeparam/issue47713.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47716.go b/test/typeparam/issue47716.go
+index 7f34fcb21f..5024ac9b73 100644
+--- a/test/typeparam/issue47716.go
++++ b/test/typeparam/issue47716.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47723.go b/test/typeparam/issue47723.go
+index 9ef60402b2..44c55b6145 100644
+--- a/test/typeparam/issue47723.go
++++ b/test/typeparam/issue47723.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47740.go b/test/typeparam/issue47740.go
+index ea1168f4e6..f34394ce36 100644
+--- a/test/typeparam/issue47740.go
++++ b/test/typeparam/issue47740.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47740b.go b/test/typeparam/issue47740b.go
+index 2a91d35eb4..d46d05802e 100644
+--- a/test/typeparam/issue47740b.go
++++ b/test/typeparam/issue47740b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47775.go b/test/typeparam/issue47775.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue47775.go
++++ b/test/typeparam/issue47775.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47775b.go b/test/typeparam/issue47775b.go
+index 6d3fc8df97..e084e0316f 100644
+--- a/test/typeparam/issue47775b.go
++++ b/test/typeparam/issue47775b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47797.go b/test/typeparam/issue47797.go
+index 3e80d3c7a9..ad89bcce01 100644
+--- a/test/typeparam/issue47797.go
++++ b/test/typeparam/issue47797.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47877.go b/test/typeparam/issue47877.go
+index 0a834590dd..be5c5c08f6 100644
+--- a/test/typeparam/issue47877.go
++++ b/test/typeparam/issue47877.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47878.go b/test/typeparam/issue47878.go
+index 6ad183d221..25758cbe90 100644
+--- a/test/typeparam/issue47878.go
++++ b/test/typeparam/issue47878.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47892.go b/test/typeparam/issue47892.go
+index 572f680d3d..5bb6a746b3 100644
+--- a/test/typeparam/issue47892.go
++++ b/test/typeparam/issue47892.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47892b.go b/test/typeparam/issue47892b.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue47892b.go
++++ b/test/typeparam/issue47892b.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47896.go b/test/typeparam/issue47896.go
+index 1b2f265cc1..616e90714b 100644
+--- a/test/typeparam/issue47896.go
++++ b/test/typeparam/issue47896.go
+@@ -1,4 +1,4 @@
+-//  compile -G=3
++//  compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47901.go b/test/typeparam/issue47901.go
+index cd07973011..e005135185 100644
+--- a/test/typeparam/issue47901.go
++++ b/test/typeparam/issue47901.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47924.go b/test/typeparam/issue47924.go
+index 1d1bab3bf9..eea7acbdf0 100644
+--- a/test/typeparam/issue47924.go
++++ b/test/typeparam/issue47924.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47925.go b/test/typeparam/issue47925.go
+index 1b0719338d..c595e14a6f 100644
+--- a/test/typeparam/issue47925.go
++++ b/test/typeparam/issue47925.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47925b.go b/test/typeparam/issue47925b.go
+index f4a99ecdaa..bffbe4e3d4 100644
+--- a/test/typeparam/issue47925b.go
++++ b/test/typeparam/issue47925b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47925c.go b/test/typeparam/issue47925c.go
+index 0ba23e6245..9636b9d10d 100644
+--- a/test/typeparam/issue47925c.go
++++ b/test/typeparam/issue47925c.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47925d.go b/test/typeparam/issue47925d.go
+index 231961bd13..c5647f9a5b 100644
+--- a/test/typeparam/issue47925d.go
++++ b/test/typeparam/issue47925d.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47929.go b/test/typeparam/issue47929.go
+index a5636f2c7b..1aa6885bdd 100644
+--- a/test/typeparam/issue47929.go
++++ b/test/typeparam/issue47929.go
+@@ -1,4 +1,4 @@
+-// compile -G=3 -p=p
++// compile -p=p
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47948.go b/test/typeparam/issue47948.go
+index 8e5df81f6d..deab0efe57 100644
+--- a/test/typeparam/issue47948.go
++++ b/test/typeparam/issue47948.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue47966.go b/test/typeparam/issue47966.go
+index f431f7fc74..ec664783b0 100644
+--- a/test/typeparam/issue47966.go
++++ b/test/typeparam/issue47966.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48013.go b/test/typeparam/issue48013.go
+index 179d9f44e9..3fbf2490df 100644
+--- a/test/typeparam/issue48013.go
++++ b/test/typeparam/issue48013.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48016.go b/test/typeparam/issue48016.go
+index 582751e884..dbc87eccba 100644
+--- a/test/typeparam/issue48016.go
++++ b/test/typeparam/issue48016.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48030.go b/test/typeparam/issue48030.go
+index 9fc4428841..23494f90db 100644
+--- a/test/typeparam/issue48030.go
++++ b/test/typeparam/issue48030.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48042.go b/test/typeparam/issue48042.go
+index db5de3d8fa..1cfbfbe96c 100644
+--- a/test/typeparam/issue48042.go
++++ b/test/typeparam/issue48042.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48047.go b/test/typeparam/issue48047.go
+index 1bff65a949..06a2ebdb39 100644
+--- a/test/typeparam/issue48047.go
++++ b/test/typeparam/issue48047.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48049.go b/test/typeparam/issue48049.go
+index 3a005142df..3e87b387f0 100644
+--- a/test/typeparam/issue48049.go
++++ b/test/typeparam/issue48049.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48056.go b/test/typeparam/issue48056.go
+index 8d1c3eff64..e91d689d2b 100644
+--- a/test/typeparam/issue48056.go
++++ b/test/typeparam/issue48056.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48094.go b/test/typeparam/issue48094.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue48094.go
++++ b/test/typeparam/issue48094.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48094b.go b/test/typeparam/issue48094b.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue48094b.go
++++ b/test/typeparam/issue48094b.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48137.go b/test/typeparam/issue48137.go
+index 3dd7810482..84a0f6db6f 100644
+--- a/test/typeparam/issue48137.go
++++ b/test/typeparam/issue48137.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48185b.go b/test/typeparam/issue48185b.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue48185b.go
++++ b/test/typeparam/issue48185b.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48191.go b/test/typeparam/issue48191.go
+index 967004dd1a..9c3218b9fa 100644
+--- a/test/typeparam/issue48191.go
++++ b/test/typeparam/issue48191.go
+@@ -1,4 +1,4 @@
+-// compile -c=2 -G=3
++// compile -c=2
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48198.go b/test/typeparam/issue48198.go
+index 1d7e44e0c4..1ed29b89db 100644
+--- a/test/typeparam/issue48198.go
++++ b/test/typeparam/issue48198.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48225.go b/test/typeparam/issue48225.go
+index 887ffd8a84..702bc07799 100644
+--- a/test/typeparam/issue48225.go
++++ b/test/typeparam/issue48225.go
+@@ -1,4 +1,4 @@
+-// run -gcflags="-G=3"
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48253.go b/test/typeparam/issue48253.go
+index 7bd0234e57..20d5db662a 100644
+--- a/test/typeparam/issue48253.go
++++ b/test/typeparam/issue48253.go
+@@ -1,4 +1,4 @@
+-// run -gcflags="-G=3"
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48276a.go b/test/typeparam/issue48276a.go
+index 25e939f536..2a79268198 100644
+--- a/test/typeparam/issue48276a.go
++++ b/test/typeparam/issue48276a.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48276b.go b/test/typeparam/issue48276b.go
+index 67c3e3d9f5..774898d040 100644
+--- a/test/typeparam/issue48276b.go
++++ b/test/typeparam/issue48276b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48280.go b/test/typeparam/issue48280.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue48280.go
++++ b/test/typeparam/issue48280.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48306.go b/test/typeparam/issue48306.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue48306.go
++++ b/test/typeparam/issue48306.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48317.go b/test/typeparam/issue48317.go
+index c8f088dc7a..0220360ed8 100644
+--- a/test/typeparam/issue48317.go
++++ b/test/typeparam/issue48317.go
+@@ -1,4 +1,4 @@
+-// run -gcflags="-G=3"
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48318.go b/test/typeparam/issue48318.go
+index ae53a28dc5..b75c520c6e 100644
+--- a/test/typeparam/issue48318.go
++++ b/test/typeparam/issue48318.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48337a.go b/test/typeparam/issue48337a.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue48337a.go
++++ b/test/typeparam/issue48337a.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48337b.go b/test/typeparam/issue48337b.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue48337b.go
++++ b/test/typeparam/issue48337b.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48344.go b/test/typeparam/issue48344.go
+index 7ea539cfcc..220bce9484 100644
+--- a/test/typeparam/issue48344.go
++++ b/test/typeparam/issue48344.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48424.go b/test/typeparam/issue48424.go
+index 3253e6457b..b1238df697 100644
+--- a/test/typeparam/issue48424.go
++++ b/test/typeparam/issue48424.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48453.go b/test/typeparam/issue48453.go
+index 0f751d38ed..ef8c7f766f 100644
+--- a/test/typeparam/issue48453.go
++++ b/test/typeparam/issue48453.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48454.go b/test/typeparam/issue48454.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue48454.go
++++ b/test/typeparam/issue48454.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48462.go b/test/typeparam/issue48462.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue48462.go
++++ b/test/typeparam/issue48462.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48537.go b/test/typeparam/issue48537.go
+index a2dc5cf082..3ae85c794b 100644
+--- a/test/typeparam/issue48537.go
++++ b/test/typeparam/issue48537.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48538.go b/test/typeparam/issue48538.go
+index fed9b5e9a6..985f84ebc8 100644
+--- a/test/typeparam/issue48538.go
++++ b/test/typeparam/issue48538.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48598.go b/test/typeparam/issue48598.go
+index ea360f2135..945b33269b 100644
+--- a/test/typeparam/issue48598.go
++++ b/test/typeparam/issue48598.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48602.go b/test/typeparam/issue48602.go
+index 53ce20e6ea..c544697399 100644
+--- a/test/typeparam/issue48602.go
++++ b/test/typeparam/issue48602.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48604.go b/test/typeparam/issue48604.go
+index 1babd3f864..348abf7c90 100644
+--- a/test/typeparam/issue48604.go
++++ b/test/typeparam/issue48604.go
+@@ -1,4 +1,4 @@
+-// build -gcflags=-G=3
++// build
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48609.go b/test/typeparam/issue48609.go
+index 6cf6908291..53144d206a 100644
+--- a/test/typeparam/issue48609.go
++++ b/test/typeparam/issue48609.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48617.go b/test/typeparam/issue48617.go
+index 4b00570ba6..96978d4c9d 100644
+--- a/test/typeparam/issue48617.go
++++ b/test/typeparam/issue48617.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48645a.go b/test/typeparam/issue48645a.go
+index 8d5aac94c6..39267a9c2f 100644
+--- a/test/typeparam/issue48645a.go
++++ b/test/typeparam/issue48645a.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48645b.go b/test/typeparam/issue48645b.go
+index 0f3a7f230a..619e7ee8b5 100644
+--- a/test/typeparam/issue48645b.go
++++ b/test/typeparam/issue48645b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48711.go b/test/typeparam/issue48711.go
+index d09a72e576..477a5d5978 100644
+--- a/test/typeparam/issue48711.go
++++ b/test/typeparam/issue48711.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=3
++// errorcheck
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48716.go b/test/typeparam/issue48716.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue48716.go
++++ b/test/typeparam/issue48716.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48838.go b/test/typeparam/issue48838.go
+index ef2150d6a2..1711d0405d 100644
+--- a/test/typeparam/issue48838.go
++++ b/test/typeparam/issue48838.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue48962.go b/test/typeparam/issue48962.go
+index 326d67b49a..24d0eb002a 100644
+--- a/test/typeparam/issue48962.go
++++ b/test/typeparam/issue48962.go
+@@ -1,4 +1,4 @@
+-// errorcheckdir -G=3
++// errorcheckdir
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49027.go b/test/typeparam/issue49027.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue49027.go
++++ b/test/typeparam/issue49027.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49049.go b/test/typeparam/issue49049.go
+index f4fdd05d85..b4b3bae59b 100644
+--- a/test/typeparam/issue49049.go
++++ b/test/typeparam/issue49049.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49241.go b/test/typeparam/issue49241.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue49241.go
++++ b/test/typeparam/issue49241.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49246.go b/test/typeparam/issue49246.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue49246.go
++++ b/test/typeparam/issue49246.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49295.go b/test/typeparam/issue49295.go
+index 435b44d10c..f96c896eac 100644
+--- a/test/typeparam/issue49295.go
++++ b/test/typeparam/issue49295.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49309.go b/test/typeparam/issue49309.go
+index 36da86a9c3..265e0bf525 100644
+--- a/test/typeparam/issue49309.go
++++ b/test/typeparam/issue49309.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49421.go b/test/typeparam/issue49421.go
+index 526e038bec..65c32afbf4 100644
+--- a/test/typeparam/issue49421.go
++++ b/test/typeparam/issue49421.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49432.go b/test/typeparam/issue49432.go
+index 21d6ec4b70..d522b22810 100644
+--- a/test/typeparam/issue49432.go
++++ b/test/typeparam/issue49432.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49497.go b/test/typeparam/issue49497.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue49497.go
++++ b/test/typeparam/issue49497.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49516.go b/test/typeparam/issue49516.go
+index d6fab02463..11b460df92 100644
+--- a/test/typeparam/issue49516.go
++++ b/test/typeparam/issue49516.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49524.go b/test/typeparam/issue49524.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue49524.go
++++ b/test/typeparam/issue49524.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49538.go b/test/typeparam/issue49538.go
+index ac20a5423f..cb22a06e2d 100644
+--- a/test/typeparam/issue49538.go
++++ b/test/typeparam/issue49538.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49547.go b/test/typeparam/issue49547.go
+index 99c124d7ab..6d359baa31 100644
+--- a/test/typeparam/issue49547.go
++++ b/test/typeparam/issue49547.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49611.go b/test/typeparam/issue49611.go
+index 96c651e2b5..879e4d2e90 100644
+--- a/test/typeparam/issue49611.go
++++ b/test/typeparam/issue49611.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49659.go b/test/typeparam/issue49659.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue49659.go
++++ b/test/typeparam/issue49659.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49659b.go b/test/typeparam/issue49659b.go
+index a9a14af77d..7e1535e045 100644
+--- a/test/typeparam/issue49659b.go
++++ b/test/typeparam/issue49659b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49667.go b/test/typeparam/issue49667.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue49667.go
++++ b/test/typeparam/issue49667.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49875.go b/test/typeparam/issue49875.go
+index aece7deab1..3fbe48c8a0 100644
+--- a/test/typeparam/issue49875.go
++++ b/test/typeparam/issue49875.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue49893.go b/test/typeparam/issue49893.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue49893.go
++++ b/test/typeparam/issue49893.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50002.go b/test/typeparam/issue50002.go
+index 670fc2eae3..42d97f5482 100644
+--- a/test/typeparam/issue50002.go
++++ b/test/typeparam/issue50002.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50109.go b/test/typeparam/issue50109.go
+index a6913df843..30aebb2c94 100644
+--- a/test/typeparam/issue50109.go
++++ b/test/typeparam/issue50109.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50109b.go b/test/typeparam/issue50109b.go
+index 1d89efca88..ee494415ff 100644
+--- a/test/typeparam/issue50109b.go
++++ b/test/typeparam/issue50109b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50121.go b/test/typeparam/issue50121.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue50121.go
++++ b/test/typeparam/issue50121.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50121b.go b/test/typeparam/issue50121b.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/issue50121b.go
++++ b/test/typeparam/issue50121b.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50147.go b/test/typeparam/issue50147.go
+index 2bdce6c504..f97bace894 100644
+--- a/test/typeparam/issue50147.go
++++ b/test/typeparam/issue50147.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50177.go b/test/typeparam/issue50177.go
+index 5fd62ad4f6..c4858fc6dd 100644
+--- a/test/typeparam/issue50177.go
++++ b/test/typeparam/issue50177.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50193.go b/test/typeparam/issue50193.go
+index 76de588e74..8b4b84180f 100644
+--- a/test/typeparam/issue50193.go
++++ b/test/typeparam/issue50193.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50259.go b/test/typeparam/issue50259.go
+index 59611ef3ab..50edf8f737 100644
+--- a/test/typeparam/issue50259.go
++++ b/test/typeparam/issue50259.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50264.go b/test/typeparam/issue50264.go
+index ee3eedc358..1acab87f42 100644
+--- a/test/typeparam/issue50264.go
++++ b/test/typeparam/issue50264.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50317.go b/test/typeparam/issue50317.go
+index df879c1f01..c33c4f061c 100644
+--- a/test/typeparam/issue50317.go
++++ b/test/typeparam/issue50317.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=3
++// errorcheck
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50417.go b/test/typeparam/issue50417.go
+index 12dbd0efb7..3d5f2f2538 100644
+--- a/test/typeparam/issue50417.go
++++ b/test/typeparam/issue50417.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50417b.go b/test/typeparam/issue50417b.go
+index e6b205cb37..8c13a4ee36 100644
+--- a/test/typeparam/issue50417b.go
++++ b/test/typeparam/issue50417b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50419.go b/test/typeparam/issue50419.go
+index ff9d08d089..dfe55f9445 100644
+--- a/test/typeparam/issue50419.go
++++ b/test/typeparam/issue50419.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50437.go b/test/typeparam/issue50437.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue50437.go
++++ b/test/typeparam/issue50437.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50481b.go b/test/typeparam/issue50481b.go
+index 642f4bf49f..aefbe67310 100644
+--- a/test/typeparam/issue50481b.go
++++ b/test/typeparam/issue50481b.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50481c.go b/test/typeparam/issue50481c.go
+index 642f4bf49f..aefbe67310 100644
+--- a/test/typeparam/issue50481c.go
++++ b/test/typeparam/issue50481c.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50485.go b/test/typeparam/issue50485.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue50485.go
++++ b/test/typeparam/issue50485.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50486.go b/test/typeparam/issue50486.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue50486.go
++++ b/test/typeparam/issue50486.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50552.go b/test/typeparam/issue50552.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/issue50552.go
++++ b/test/typeparam/issue50552.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50561.go b/test/typeparam/issue50561.go
+index 060a1214cc..8bb5c3e213 100644
+--- a/test/typeparam/issue50561.go
++++ b/test/typeparam/issue50561.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50598.go b/test/typeparam/issue50598.go
+index 642f4bf49f..aefbe67310 100644
+--- a/test/typeparam/issue50598.go
++++ b/test/typeparam/issue50598.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50642.go b/test/typeparam/issue50642.go
+index 0cdbc360f9..d2d4a66907 100644
+--- a/test/typeparam/issue50642.go
++++ b/test/typeparam/issue50642.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50690a.go b/test/typeparam/issue50690a.go
+index 5af3c9ead8..35e8c20e07 100644
+--- a/test/typeparam/issue50690a.go
++++ b/test/typeparam/issue50690a.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50690b.go b/test/typeparam/issue50690b.go
+index 498b9d37e1..13e725ae0a 100644
+--- a/test/typeparam/issue50690b.go
++++ b/test/typeparam/issue50690b.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50690c.go b/test/typeparam/issue50690c.go
+index aa9258f932..75e772cccd 100644
+--- a/test/typeparam/issue50690c.go
++++ b/test/typeparam/issue50690c.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50833.go b/test/typeparam/issue50833.go
+index 07c1a86a6a..fe729b1f28 100644
+--- a/test/typeparam/issue50833.go
++++ b/test/typeparam/issue50833.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50841.go b/test/typeparam/issue50841.go
+index 060a1214cc..8bb5c3e213 100644
+--- a/test/typeparam/issue50841.go
++++ b/test/typeparam/issue50841.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue50993.go b/test/typeparam/issue50993.go
+index 39bdba0772..4d459fd04c 100644
+--- a/test/typeparam/issue50993.go
++++ b/test/typeparam/issue50993.go
+@@ -1,4 +1,4 @@
+-// compile -G=3 -d=checkptr
++// compile -d=checkptr
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue51219.go b/test/typeparam/issue51219.go
+index 642f4bf49f..aefbe67310 100644
+--- a/test/typeparam/issue51219.go
++++ b/test/typeparam/issue51219.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue51219b.go b/test/typeparam/issue51219b.go
+index 060a1214cc..8bb5c3e213 100644
+--- a/test/typeparam/issue51219b.go
++++ b/test/typeparam/issue51219b.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue51232.go b/test/typeparam/issue51232.go
+index 2272dcdfcd..44d114d235 100644
+--- a/test/typeparam/issue51232.go
++++ b/test/typeparam/issue51232.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue51233.go b/test/typeparam/issue51233.go
+index 523f0b34d6..9411f2e6b5 100644
+--- a/test/typeparam/issue51233.go
++++ b/test/typeparam/issue51233.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue51236.go b/test/typeparam/issue51236.go
+index 779c74ee6c..51fde1e9b6 100644
+--- a/test/typeparam/issue51236.go
++++ b/test/typeparam/issue51236.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue51245.go b/test/typeparam/issue51245.go
+index bd4f7c5dc9..425d51713f 100644
+--- a/test/typeparam/issue51245.go
++++ b/test/typeparam/issue51245.go
+@@ -1,4 +1,4 @@
+-// build -gcflags=-G=3
++// build
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue51303.go b/test/typeparam/issue51303.go
+index 5f4bdc0634..a3a784969b 100644
+--- a/test/typeparam/issue51303.go
++++ b/test/typeparam/issue51303.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue51355.go b/test/typeparam/issue51355.go
+index 15ffa4ba21..321d5ff96e 100644
+--- a/test/typeparam/issue51355.go
++++ b/test/typeparam/issue51355.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/issue51367.go b/test/typeparam/issue51367.go
+index 642f4bf49f..aefbe67310 100644
+--- a/test/typeparam/issue51367.go
++++ b/test/typeparam/issue51367.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/list.go b/test/typeparam/list.go
+index adfe72f1de..311207e892 100644
+--- a/test/typeparam/list.go
++++ b/test/typeparam/list.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/list2.go b/test/typeparam/list2.go
+index e7f346c78e..111ac787e5 100644
+--- a/test/typeparam/list2.go
++++ b/test/typeparam/list2.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/listimp.go b/test/typeparam/listimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/listimp.go
++++ b/test/typeparam/listimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/listimp2.go b/test/typeparam/listimp2.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/listimp2.go
++++ b/test/typeparam/listimp2.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/lockable.go b/test/typeparam/lockable.go
+index 9b20d87bb7..2b50e2c20e 100644
+--- a/test/typeparam/lockable.go
++++ b/test/typeparam/lockable.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/map.go b/test/typeparam/map.go
+index 72d05f0872..eb68fe5c33 100644
+--- a/test/typeparam/map.go
++++ b/test/typeparam/map.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mapimp.go b/test/typeparam/mapimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/mapimp.go
++++ b/test/typeparam/mapimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/maps.go b/test/typeparam/maps.go
+index d18dd59aed..d4be5dd0f4 100644
+--- a/test/typeparam/maps.go
++++ b/test/typeparam/maps.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mapsimp.go b/test/typeparam/mapsimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/mapsimp.go
++++ b/test/typeparam/mapsimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/1.go b/test/typeparam/mdempsky/1.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/mdempsky/1.go
++++ b/test/typeparam/mdempsky/1.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/10.go b/test/typeparam/mdempsky/10.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/mdempsky/10.go
++++ b/test/typeparam/mdempsky/10.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/12.go b/test/typeparam/mdempsky/12.go
+index a2dc4daacc..0316402a78 100644
+--- a/test/typeparam/mdempsky/12.go
++++ b/test/typeparam/mdempsky/12.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/13.go b/test/typeparam/mdempsky/13.go
+index b492774d3d..8e11352b51 100644
+--- a/test/typeparam/mdempsky/13.go
++++ b/test/typeparam/mdempsky/13.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/14.go b/test/typeparam/mdempsky/14.go
+index ba685bc35c..4af990c49a 100644
+--- a/test/typeparam/mdempsky/14.go
++++ b/test/typeparam/mdempsky/14.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/15.go b/test/typeparam/mdempsky/15.go
+index 4899fc75ee..b03ad6f210 100644
+--- a/test/typeparam/mdempsky/15.go
++++ b/test/typeparam/mdempsky/15.go
+@@ -1,4 +1,4 @@
+-// run -goexperiment fieldtrack -gcflags=-G=3
++// run -goexperiment fieldtrack
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/2.go b/test/typeparam/mdempsky/2.go
+index f09730f949..ad548e6a54 100644
+--- a/test/typeparam/mdempsky/2.go
++++ b/test/typeparam/mdempsky/2.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/3.go b/test/typeparam/mdempsky/3.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/mdempsky/3.go
++++ b/test/typeparam/mdempsky/3.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/4.go b/test/typeparam/mdempsky/4.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/mdempsky/4.go
++++ b/test/typeparam/mdempsky/4.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/5.go b/test/typeparam/mdempsky/5.go
+index 0d1ad39946..00d3b71be0 100644
+--- a/test/typeparam/mdempsky/5.go
++++ b/test/typeparam/mdempsky/5.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/6.go b/test/typeparam/mdempsky/6.go
+index a26ff62f6d..ed57009436 100644
+--- a/test/typeparam/mdempsky/6.go
++++ b/test/typeparam/mdempsky/6.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/7.go b/test/typeparam/mdempsky/7.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/mdempsky/7.go
++++ b/test/typeparam/mdempsky/7.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/8.go b/test/typeparam/mdempsky/8.go
+index 32cf4b830d..e3a470b419 100644
+--- a/test/typeparam/mdempsky/8.go
++++ b/test/typeparam/mdempsky/8.go
+@@ -1,4 +1,4 @@
+-// errorcheckdir -G=3
++// errorcheckdir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mdempsky/9.go b/test/typeparam/mdempsky/9.go
+index b72516c4ea..948a9e532e 100644
+--- a/test/typeparam/mdempsky/9.go
++++ b/test/typeparam/mdempsky/9.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/metrics.go b/test/typeparam/metrics.go
+index 8a39d9945d..dcc5737a66 100644
+--- a/test/typeparam/metrics.go
++++ b/test/typeparam/metrics.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/min.go b/test/typeparam/min.go
+index d6c65d68b7..a9224507df 100644
+--- a/test/typeparam/min.go
++++ b/test/typeparam/min.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mincheck.go b/test/typeparam/mincheck.go
+index 32cf4b830d..e3a470b419 100644
+--- a/test/typeparam/mincheck.go
++++ b/test/typeparam/mincheck.go
+@@ -1,4 +1,4 @@
+-// errorcheckdir -G=3
++// errorcheckdir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/minimp.go b/test/typeparam/minimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/minimp.go
++++ b/test/typeparam/minimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/mutualimp.go b/test/typeparam/mutualimp.go
+index 87b4ff46c1..b83fbd7af1 100644
+--- a/test/typeparam/mutualimp.go
++++ b/test/typeparam/mutualimp.go
+@@ -1,4 +1,4 @@
+-// compiledir -G=3
++// compiledir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/nested.go b/test/typeparam/nested.go
+index c0037a3e6e..cdb8bfb574 100644
+--- a/test/typeparam/nested.go
++++ b/test/typeparam/nested.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/ordered.go b/test/typeparam/ordered.go
+index 0f539d659c..d30429885c 100644
+--- a/test/typeparam/ordered.go
++++ b/test/typeparam/ordered.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/orderedmap.go b/test/typeparam/orderedmap.go
+index 1f077333b8..12456699a5 100644
+--- a/test/typeparam/orderedmap.go
++++ b/test/typeparam/orderedmap.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/orderedmapsimp.go b/test/typeparam/orderedmapsimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/orderedmapsimp.go
++++ b/test/typeparam/orderedmapsimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/pair.go b/test/typeparam/pair.go
+index c1427b9c52..dd0adb1840 100644
+--- a/test/typeparam/pair.go
++++ b/test/typeparam/pair.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/pairimp.go b/test/typeparam/pairimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/pairimp.go
++++ b/test/typeparam/pairimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/pragma.go b/test/typeparam/pragma.go
+index 6743e24ff3..59411ab6e6 100644
+--- a/test/typeparam/pragma.go
++++ b/test/typeparam/pragma.go
+@@ -1,4 +1,4 @@
+-// errorcheck -0 -m -G=3
++// errorcheck -0 -m
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/recoverimp.go b/test/typeparam/recoverimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/recoverimp.go
++++ b/test/typeparam/recoverimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/select.go b/test/typeparam/select.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/select.go
++++ b/test/typeparam/select.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/sets.go b/test/typeparam/sets.go
+index 4f07b590e3..bd08ad7b4b 100644
+--- a/test/typeparam/sets.go
++++ b/test/typeparam/sets.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/setsimp.go b/test/typeparam/setsimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/setsimp.go
++++ b/test/typeparam/setsimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/settable.go b/test/typeparam/settable.go
+index 412023b20a..1f7eba3558 100644
+--- a/test/typeparam/settable.go
++++ b/test/typeparam/settable.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/shape1.go b/test/typeparam/shape1.go
+index de1ea65ed2..2400f1c29a 100644
+--- a/test/typeparam/shape1.go
++++ b/test/typeparam/shape1.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/sliceimp.go b/test/typeparam/sliceimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/sliceimp.go
++++ b/test/typeparam/sliceimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/slices.go b/test/typeparam/slices.go
+index 4bdf10748e..b24817deb0 100644
+--- a/test/typeparam/slices.go
++++ b/test/typeparam/slices.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/smallest.go b/test/typeparam/smallest.go
+index af1d72d899..0ebd10ec3b 100644
+--- a/test/typeparam/smallest.go
++++ b/test/typeparam/smallest.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/smoketest.go b/test/typeparam/smoketest.go
+index f32b40062d..b720e04d4a 100644
+--- a/test/typeparam/smoketest.go
++++ b/test/typeparam/smoketest.go
+@@ -1,4 +1,4 @@
+-// compile -G=1
++// compile
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/stringable.go b/test/typeparam/stringable.go
+index 855a1edb3b..791b670a91 100644
+--- a/test/typeparam/stringable.go
++++ b/test/typeparam/stringable.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/stringer.go b/test/typeparam/stringer.go
+index 81290d599e..0892cd881d 100644
+--- a/test/typeparam/stringer.go
++++ b/test/typeparam/stringer.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/stringerimp.go b/test/typeparam/stringerimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/stringerimp.go
++++ b/test/typeparam/stringerimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/struct.go b/test/typeparam/struct.go
+index ad1b41ddac..2dad9087bc 100644
+--- a/test/typeparam/struct.go
++++ b/test/typeparam/struct.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/structinit.go b/test/typeparam/structinit.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/structinit.go
++++ b/test/typeparam/structinit.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/subdict.go b/test/typeparam/subdict.go
+index c519b4f51c..463c510484 100644
+--- a/test/typeparam/subdict.go
++++ b/test/typeparam/subdict.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/sum.go b/test/typeparam/sum.go
+index d444e007a3..25bac181aa 100644
+--- a/test/typeparam/sum.go
++++ b/test/typeparam/sum.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/tparam1.go b/test/typeparam/tparam1.go
+index ef024ce40f..a05f54265b 100644
+--- a/test/typeparam/tparam1.go
++++ b/test/typeparam/tparam1.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G
++// errorcheck
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+index 477778f8fb..27e1b60ab0 100644
+--- a/test/typeparam/typelist.go
++++ b/test/typeparam/typelist.go
+@@ -1,4 +1,4 @@
+-// compile -G=3
++// compile
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/typeswitch1.go b/test/typeparam/typeswitch1.go
+index 834302e37a..e971779982 100644
+--- a/test/typeparam/typeswitch1.go
++++ b/test/typeparam/typeswitch1.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/typeswitch2.go b/test/typeparam/typeswitch2.go
+index ce4af34f04..b2496fd1c4 100644
+--- a/test/typeparam/typeswitch2.go
++++ b/test/typeparam/typeswitch2.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/typeswitch3.go b/test/typeparam/typeswitch3.go
+index 0527a83eb0..83d81f37d0 100644
+--- a/test/typeparam/typeswitch3.go
++++ b/test/typeparam/typeswitch3.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/typeswitch4.go b/test/typeparam/typeswitch4.go
+index 08de2a1d41..43a6fc12fc 100644
+--- a/test/typeparam/typeswitch4.go
++++ b/test/typeparam/typeswitch4.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/typeswitch5.go b/test/typeparam/typeswitch5.go
+index 1fc6e0a14e..ac52adbdd0 100644
+--- a/test/typeparam/typeswitch5.go
++++ b/test/typeparam/typeswitch5.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/typeswitch6.go b/test/typeparam/typeswitch6.go
+index 574f4aa819..81d4f2082d 100644
+--- a/test/typeparam/typeswitch6.go
++++ b/test/typeparam/typeswitch6.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/typeswitch7.go b/test/typeparam/typeswitch7.go
+index f2e1279fb4..067bed7138 100644
+--- a/test/typeparam/typeswitch7.go
++++ b/test/typeparam/typeswitch7.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/valimp.go b/test/typeparam/valimp.go
+index 76930e5e4f..40df49f83b 100644
+--- a/test/typeparam/valimp.go
++++ b/test/typeparam/valimp.go
+@@ -1,4 +1,4 @@
+-// rundir -G=3
++// rundir
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/typeparam/value.go b/test/typeparam/value.go
+index 6c6dabcf7c..be25dcefb3 100644
+--- a/test/typeparam/value.go
++++ b/test/typeparam/value.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-G=3
++// run
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

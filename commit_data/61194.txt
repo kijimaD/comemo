@@ -14,6 +14,24 @@ Date:   Sat Oct 12 17:34:52 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/ast/ast.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 5291c0a93a..8d95eb12a9 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -305,6 +305,12 @@ type (
+ 	// first and the last rune in the Value field will be ". The
+ 	// [strconv.Unquote] and [strconv.UnquoteChar] functions can be
+ 	// used to unquote STRING and CHAR values, respectively.
++	//
++	// For raw string literals (Kind == token.STRING && Value[0] == '`'),
++	// the Value field contains the string text without carriage returns (\r) that
++	// may have been present in the source. Because the end position is
++	// computed using len(Value), the position reported by [BasicLit.End] does not match the
++	// true source end position for raw string literals containing carriage returns.
+ 	BasicLit struct {
+ 		ValuePos token.Pos   // literal position
+ 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING

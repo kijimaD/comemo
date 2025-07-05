@@ -19,9 +19,383 @@ Date:   Tue Aug 24 11:51:07 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/buildlist.go           | 68 +++++++++++++++++++---
  src/cmd/go/internal/modload/import.go              | 46 ++++++++-------
  src/cmd/go/internal/modload/load.go                | 12 ++--
  .../script/mod_tidy_downgrade_ambiguous.txt        | 58 ++++++++++++++++++
  4 files changed, 150 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 777e29af10..da9e6406b1 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -591,7 +591,7 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements,
+ // 	   selected at the same version or is upgraded by the dependencies of a
+ // 	   root.
+ //
+-// If any module that provided a package has been upgraded above its previous,
++// If any module that provided a package has been upgraded above its previous
+ // version, the caller may need to reload and recompute the package graph.
+ //
+ // To ensure that the loading process eventually converges, the caller should
+@@ -980,17 +980,37 @@ func spotCheckRoots(ctx context.Context, rs *Requirements, mods map[module.Versi
+ 	return true
+ }
+ 
+-// tidyUnprunedRoots returns a minimal set of root requirements that maintains the
+-// selected version of every module that provided a package in pkgs, and
+-// includes the selected version of every such module in direct as a root.
++// tidyUnprunedRoots returns a minimal set of root requirements that maintains
++// the selected version of every module that provided or lexically could have
++// provided a package in pkgs, and includes the selected version of every such
++// module in direct as a root.
+ func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
+ 	var (
++		// keep is a set of of modules that provide packages or are needed to
++		// disambiguate imports.
+ 		keep     []module.Version
+ 		keptPath = map[string]bool{}
+-	)
+-	var (
+-		rootPaths   []string // module paths that should be included as roots
++
++		// rootPaths is a list of module paths that provide packages directly
++		// imported from the main module. They should be included as roots.
++		rootPaths   []string
+ 		inRootPaths = map[string]bool{}
++
++		// altMods is a set of paths of modules that lexically could have provided
++		// imported packages. It may be okay to remove these from the list of
++		// explicit requirements if that removes them from the module graph. If they
++		// are present in the module graph reachable from rootPaths, they must not
++		// be at a lower version. That could cause a missing sum error or a new
++		// import ambiguity.
++		//
++		// For example, suppose a developer rewrites imports from example.com/m to
++		// example.com/m/v2, then runs 'go mod tidy'. Tidy may delete the
++		// requirement on example.com/m if there is no other transitive requirement
++		// on it. However, if example.com/m were downgraded to a version not in
++		// go.sum, when package example.com/m/v2/p is loaded, we'd get an error
++		// trying to disambiguate the import, since we can't check example.com/m
++		// without its sum. See #47738.
++		altMods = map[string]string{}
+ 	)
+ 	for _, pkg := range pkgs {
+ 		if !pkg.fromExternalModule() {
+@@ -1004,12 +1024,44 @@ func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct ma
+ 				inRootPaths[m.Path] = true
+ 			}
+ 		}
++		for _, m := range pkg.altMods {
++			altMods[m.Path] = m.Version
++		}
+ 	}
+ 
+-	min, err := mvs.Req(mainModule, rootPaths, &mvsReqs{roots: keep})
++	// Construct a build list with a minimal set of roots.
++	// This may remove or downgrade modules in altMods.
++	reqs := &mvsReqs{roots: keep}
++	min, err := mvs.Req(mainModule, rootPaths, reqs)
++	if err != nil {
++		return nil, err
++	}
++	buildList, err := mvs.BuildList([]module.Version{mainModule}, reqs)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
++	// Check if modules in altMods were downgraded but not removed.
++	// If so, add them to roots, which will retain an "// indirect" requirement
++	// in go.mod. See comment on altMods above.
++	keptAltMod := false
++	for _, m := range buildList {
++		if v, ok := altMods[m.Path]; ok && semver.Compare(m.Version, v) < 0 {
++			keep = append(keep, module.Version{Path: m.Path, Version: v})
++			keptAltMod = true
++		}
++	}
++	if keptAltMod {
++		// We must run mvs.Req again instead of simply adding altMods to min.
++		// It's possible that a requirement in altMods makes some other
++		// explicit indirect requirement unnecessary.
++		reqs.roots = keep
++		min, err = mvs.Req(mainModule, rootPaths, reqs)
++		if err != nil {
++			return nil, err
++		}
++	}
++
+ 	return newRequirements(unpruned, min, direct), nil
+ }
+ 
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index de47974b9b..e64677acd0 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -243,20 +243,24 @@ func (e *invalidImportError) Unwrap() error {
+ //
+ // If the package is not present in any module selected from the requirement
+ // graph, importFromModules returns an *ImportMissingError.
+-func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph) (m module.Version, dir string, err error) {
++//
++// If the package is present in exactly one module, importFromModules will
++// return the module, its root directory, and a list of other modules that
++// lexically could have provided the package but did not.
++func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph) (m module.Version, dir string, altMods []module.Version, err error) {
+ 	if strings.Contains(path, "@") {
+-		return module.Version{}, "", fmt.Errorf("import path should not have @version")
++		return module.Version{}, "", nil, fmt.Errorf("import path should not have @version")
+ 	}
+ 	if build.IsLocalImport(path) {
+-		return module.Version{}, "", fmt.Errorf("relative import not supported")
++		return module.Version{}, "", nil, fmt.Errorf("relative import not supported")
+ 	}
+ 	if path == "C" {
+ 		// There's no directory for import "C".
+-		return module.Version{}, "", nil
++		return module.Version{}, "", nil, nil
+ 	}
+ 	// Before any further lookup, check that the path is valid.
+ 	if err := module.CheckImportPath(path); err != nil {
+-		return module.Version{}, "", &invalidImportError{importPath: path, err: err}
++		return module.Version{}, "", nil, &invalidImportError{importPath: path, err: err}
+ 	}
+ 
+ 	// Is the package in the standard library?
+@@ -265,14 +269,14 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 		for _, mainModule := range MainModules.Versions() {
+ 			if MainModules.InGorootSrc(mainModule) {
+ 				if dir, ok, err := dirInModule(path, MainModules.PathPrefix(mainModule), MainModules.ModRoot(mainModule), true); err != nil {
+-					return module.Version{}, dir, err
++					return module.Version{}, dir, nil, err
+ 				} else if ok {
+-					return mainModule, dir, nil
++					return mainModule, dir, nil, nil
+ 				}
+ 			}
+ 		}
+ 		dir := filepath.Join(cfg.GOROOT, "src", path)
+-		return module.Version{}, dir, nil
++		return module.Version{}, dir, nil, nil
+ 	}
+ 
+ 	// -mod=vendor is special.
+@@ -283,19 +287,19 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 		mainDir, mainOK, mainErr := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
+ 		vendorDir, vendorOK, _ := dirInModule(path, "", filepath.Join(modRoot, "vendor"), false)
+ 		if mainOK && vendorOK {
+-			return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: []string{mainDir, vendorDir}}
++			return module.Version{}, "", nil, &AmbiguousImportError{importPath: path, Dirs: []string{mainDir, vendorDir}}
+ 		}
+ 		// Prefer to return main directory if there is one,
+ 		// Note that we're not checking that the package exists.
+ 		// We'll leave that for load.
+ 		if !vendorOK && mainDir != "" {
+-			return mainModule, mainDir, nil
++			return mainModule, mainDir, nil, nil
+ 		}
+ 		if mainErr != nil {
+-			return module.Version{}, "", mainErr
++			return module.Version{}, "", nil, mainErr
+ 		}
+ 		readVendorList(mainModule)
+-		return vendorPkgModule[path], vendorDir, nil
++		return vendorPkgModule[path], vendorDir, nil, nil
+ 	}
+ 
+ 	// Check each module on the build list.
+@@ -316,7 +320,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 	// already non-nil, then we attempt to load the package using the full
+ 	// requirements in mg.
+ 	for {
+-		var sumErrMods []module.Version
++		var sumErrMods, altMods []module.Version
+ 		for prefix := path; prefix != "."; prefix = pathpkg.Dir(prefix) {
+ 			var (
+ 				v  string
+@@ -350,13 +354,15 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 				// continue the loop and find the package in some other module,
+ 				// we need to look at this module to make sure the import is
+ 				// not ambiguous.
+-				return module.Version{}, "", err
++				return module.Version{}, "", nil, err
+ 			}
+ 			if dir, ok, err := dirInModule(path, m.Path, root, isLocal); err != nil {
+-				return module.Version{}, "", err
++				return module.Version{}, "", nil, err
+ 			} else if ok {
+ 				mods = append(mods, m)
+ 				dirs = append(dirs, dir)
++			} else {
++				altMods = append(altMods, m)
+ 			}
+ 		}
+ 
+@@ -369,7 +375,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 				mods[i], mods[j] = mods[j], mods[i]
+ 				dirs[i], dirs[j] = dirs[j], dirs[i]
+ 			}
+-			return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
++			return module.Version{}, "", nil, &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
+ 		}
+ 
+ 		if len(sumErrMods) > 0 {
+@@ -377,7 +383,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 				j := len(sumErrMods) - 1 - i
+ 				sumErrMods[i], sumErrMods[j] = sumErrMods[j], sumErrMods[i]
+ 			}
+-			return module.Version{}, "", &ImportMissingSumError{
++			return module.Version{}, "", nil, &ImportMissingSumError{
+ 				importPath: path,
+ 				mods:       sumErrMods,
+ 				found:      len(mods) > 0,
+@@ -385,7 +391,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 		}
+ 
+ 		if len(mods) == 1 {
+-			return mods[0], dirs[0], nil
++			return mods[0], dirs[0], altMods, nil
+ 		}
+ 
+ 		if mg != nil {
+@@ -395,7 +401,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 			if !HasModRoot() {
+ 				queryErr = ErrNoModRoot
+ 			}
+-			return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: queryErr, isStd: pathIsStd}
++			return module.Version{}, "", nil, &ImportMissingError{Path: path, QueryErr: queryErr, isStd: pathIsStd}
+ 		}
+ 
+ 		// So far we've checked the root dependencies.
+@@ -406,7 +412,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 			// the module graph, so we can't return an ImportMissingError here — one
+ 			// of the missing modules might actually contain the package in question,
+ 			// in which case we shouldn't go looking for it in some new dependency.
+-			return module.Version{}, "", err
++			return module.Version{}, "", nil, err
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 40e6b50ed4..48f268ce5f 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -862,6 +862,7 @@ type loadPkg struct {
+ 	imports     []*loadPkg     // packages imported by this one
+ 	testImports []string       // test-only imports, saved for use by pkg.test.
+ 	inStd       bool
++	altMods     []module.Version // modules that could have contained the package but did not
+ 
+ 	// Populated by (*loader).pkgTest:
+ 	testOnce sync.Once
+@@ -1184,8 +1185,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ }
+ 
+ // updateRequirements ensures that ld.requirements is consistent with the
+-// information gained from ld.pkgs and includes the modules in add as roots at
+-// at least the given versions.
++// information gained from ld.pkgs.
+ //
+ // In particular:
+ //
+@@ -1343,7 +1343,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
+ 				//
+ 				// In some sense, we can think of this as ‘upgraded the module providing
+ 				// pkg.path from "none" to a version higher than "none"’.
+-				if _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
++				if _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
+ 					changed = true
+ 					break
+ 				}
+@@ -1554,7 +1554,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
+ 			// If the main module is tidy and the package is in "all" — or if we're
+ 			// lucky — we can identify all of its imports without actually loading the
+ 			// full module graph.
+-			m, _, err := importFromModules(ctx, path, ld.requirements, nil)
++			m, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
+ 			if err != nil {
+ 				var missing *ImportMissingError
+ 				if errors.As(err, &missing) && ld.ResolveMissingImports {
+@@ -1659,7 +1659,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
+ 		}
+ 	}
+ 
+-	pkg.mod, pkg.dir, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
++	pkg.mod, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
+ 	if pkg.dir == "" {
+ 		return
+ 	}
+@@ -1918,7 +1918,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements)
+ 
+ 		pkg := pkg
+ 		ld.work.Add(func() {
+-			mod, _, err := importFromModules(ctx, pkg.path, rs, mg)
++			mod, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
+ 			if mod != pkg.mod {
+ 				mismatches := <-mismatchMu
+ 				mismatches[pkg] = mismatch{mod: mod, err: err}
+diff --git a/src/cmd/go/testdata/script/mod_tidy_downgrade_ambiguous.txt b/src/cmd/go/testdata/script/mod_tidy_downgrade_ambiguous.txt
+new file mode 100644
+index 0000000000..8b508c7ea8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_downgrade_ambiguous.txt
+@@ -0,0 +1,58 @@
++# Verifies golang.org/issue/47738.
++
++# In this test, the user has rewritten their imports to use rsc.io/quote/v3,
++# but their go.mod still requires rsc.io/quote@v1.5.2, and they indirectly
++# require rsc.io/quote@v1.5.1 but don't import anything from it.
++go list -m -f '{{.Path}}@{{.Version}}{{if .Indirect}} indirect{{end}}' all
++stdout '^rsc.io/quote@v1.5.2$'
++! stdout 'rsc.io/quote/v3'
++go list -e all
++! stdout '^rsc.io/quote$'
++
++# 'go mod tidy' should preserve the requirement on rsc.io/quote but mark it
++# indirect. This prevents a downgrade to v1.5.1, which could introduce
++# an ambiguity.
++go mod tidy
++go list -m -f '{{.Path}}@{{.Version}}{{if .Indirect}} indirect{{end}}' all
++stdout '^rsc.io/quote@v1.5.2 indirect$'
++stdout '^rsc.io/quote/v3@v3.0.0$'
++
++-- go.mod --
++module use
++
++go 1.16
++
++require (
++	old-indirect v0.0.0
++	rsc.io/quote v1.5.2
++)
++
++replace old-indirect v0.0.0 => ./old-indirect
++-- go.sum --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.1/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++-- use.go --
++package use
++
++import (
++	_ "old-indirect/empty"
++
++	_ "rsc.io/quote/v3"
++)
++-- old-indirect/empty/empty.go --
++package empty
++-- old-indirect/go.mod --
++module old-indirect
++
++go 1.16
++
++require rsc.io/quote v1.5.1
++-- old-indirect/go.sum --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=

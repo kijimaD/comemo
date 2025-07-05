@@ -12,6 +12,30 @@ Date:   Sat Jul 24 16:53:02 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index df256f0f0e..cc7ed6a561 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Jul 1, 2021",
++	"Subtitle": "Version of Jul 24, 2021",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -490,8 +490,8 @@ After a backslash, certain single-character escapes represent special values:
+ \n   U+000A line feed or newline
+ \r   U+000D carriage return
+ \t   U+0009 horizontal tab
+-\v   U+000b vertical tab
+-\\   U+005c backslash
++\v   U+000B vertical tab
++\\   U+005C backslash
+ \'   U+0027 single quote  (valid escape only within rune literals)
+ \"   U+0022 double quote  (valid escape only within string literals)
+ </pre>

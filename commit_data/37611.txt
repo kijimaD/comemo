@@ -11,6 +11,20 @@ Date:   Tue Jul 3 19:49:52 2018 +0000
     GitHub-Pull-Request: golang/go#26205
     Reviewed-on: https://go-review.googlesource.com/122156
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bufio/bufio.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 72545a7509..480e929f58 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -63,7 +63,7 @@ func NewReader(rd io.Reader) *Reader {
+ }
+ 
+ // Size returns the size of the underlying buffer in bytes.
+-func (r *Reader) Size() int { return len(r.buf) }
++func (b *Reader) Size() int { return len(b.buf) }
+ 
+ // Reset discards any buffered data, resets all state, and switches
+ // the buffered reader to read from r.

@@ -10,6 +10,22 @@ Date:   Mon Sep 22 15:35:25 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/144420043
-
+---
  src/fmt/doc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 5af8d3e717..b7eaedc11e 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -147,6 +147,10 @@
+ 		func (x X) String() string { return Sprintf("<%s>", x) }
+ 	convert the value before recurring:
+ 		func (x X) String() string { return Sprintf("<%s>", string(x)) }
++	Infinite recursion can also be triggered by self-referential data
++	structures, such as a slice that contains itself as an element, if
++	that type has a String method. Such pathologies are rare, however,
++	and the package does not protect against them.
+ 
+ 	Explicit argument indexes:
+ 

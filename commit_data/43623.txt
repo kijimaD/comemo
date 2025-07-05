@@ -12,7 +12,7 @@ Date:   Thu Apr 16 15:33:53 2020 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/signal_386.go         | 2 --
  src/runtime/signal_amd64.go       | 3 ---
  src/runtime/signal_arm.go         | 2 --
@@ -24,3 +24,147 @@ Date:   Thu Apr 16 15:33:53 2020 +1000
  src/runtime/signal_riscv64.go     | 2 --
  src/runtime/signal_unix.go        | 7 +------
  10 files changed, 1 insertion(+), 25 deletions(-)
+
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index 2f390f12f7..95749d2cb2 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -48,8 +48,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	}
+ }
+ 
+-const pushCallSupported = true
+-
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Make it look like the signaled instruction called target.
+ 	pc := uintptr(c.eip())
+diff --git a/src/runtime/signal_amd64.go b/src/runtime/signal_amd64.go
+index 29b6a9e7e6..63ffedbc87 100644
+--- a/src/runtime/signal_amd64.go
++++ b/src/runtime/signal_amd64.go
+@@ -73,9 +73,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	}
+ }
+ 
+-// TODO: Remove pushCallSupported once all platforms support it.
+-const pushCallSupported = true
+-
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Make it look like the signaled instruction called target.
+ 	pc := uintptr(c.rip())
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index e1d19244a9..b4b3ca458f 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -63,8 +63,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint32(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = true
+-
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index db2ab2720b..ef65f92aa3 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -79,8 +79,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = true
+-
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+diff --git a/src/runtime/signal_linux_s390x.go b/src/runtime/signal_linux_s390x.go
+index 424dc59c9e..15f50351bb 100644
+--- a/src/runtime/signal_linux_s390x.go
++++ b/src/runtime/signal_linux_s390x.go
+@@ -110,8 +110,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = true
+-
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+diff --git a/src/runtime/signal_mips64x.go b/src/runtime/signal_mips64x.go
+index 011db09727..6110b1c023 100644
+--- a/src/runtime/signal_mips64x.go
++++ b/src/runtime/signal_mips64x.go
+@@ -85,8 +85,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(sigpanicPC)
+ }
+ 
+-const pushCallSupported = true
+-
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+diff --git a/src/runtime/signal_mipsx.go b/src/runtime/signal_mipsx.go
+index edc38c043f..cdbe193501 100644
+--- a/src/runtime/signal_mipsx.go
++++ b/src/runtime/signal_mipsx.go
+@@ -80,8 +80,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint32(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = true
+-
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index b879ea5269..2da09d378a 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -86,8 +86,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = true
+-
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+diff --git a/src/runtime/signal_riscv64.go b/src/runtime/signal_riscv64.go
+index 7da69b287b..e2edaf3735 100644
+--- a/src/runtime/signal_riscv64.go
++++ b/src/runtime/signal_riscv64.go
+@@ -78,8 +78,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	c.set_pc(uint64(funcPC(sigpanic)))
+ }
+ 
+-const pushCallSupported = true
+-
+ func (c *sigctxt) pushCall(targetPC uintptr) {
+ 	// Push the LR to stack, as we'll clobber it in order to
+ 	// push the call. The function being pushed is responsible
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 5dbfbaf4b1..c33f88b046 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -336,7 +336,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
+ 	atomic.Store(&gp.m.signalPending, 0)
+ }
+ 
+-const preemptMSupported = pushCallSupported
++const preemptMSupported = true
+ 
+ // preemptM sends a preemption request to mp. This request may be
+ // handled asynchronously and may be coalesced with other requests to
+@@ -345,11 +345,6 @@ const preemptMSupported = pushCallSupported
+ // safe-point, it will preempt the goroutine. It always atomically
+ // increments mp.preemptGen after handling a preemption request.
+ func preemptM(mp *m) {
+-	if !pushCallSupported {
+-		// This architecture doesn't support ctxt.pushCall
+-		// yet, so doSigPreempt won't work.
+-		return
+-	}
+ 	if GOOS == "darwin" && GOARCH == "arm64" && !iscgo {
+ 		// On darwin, we use libc calls, and cgo is required on ARM64
+ 		// so we have TLS set up to save/restore G during C calls. If cgo is

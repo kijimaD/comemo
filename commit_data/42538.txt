@@ -12,6 +12,23 @@ Date:   Thu Dec 5 11:36:39 2019 -0800
     Change-Id: I8fff555e5b8fffe088e7e960e77fac9558cb74e4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210137
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.14.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 87d2fac1aa..1ff52dc497 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -56,6 +56,11 @@ TODO
+ 
+ <h3 id="darwin">Darwin</h3>
+ 
++<p>
++  Go 1.14 is the last release that will run on macOS 10.11 El Capitan.
++  Go 1.15 will require macOS 10.12 Sierra or later.
++</p>
++
+ <p><!-- golang.org/issue/34749 -->
+   Go 1.14 is the last Go release to support 32-bit binaries on
+   macOS (the <code>darwin/386</code> port). They are no longer

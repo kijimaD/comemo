@@ -11,9 +11,170 @@ Date:   Wed May 23 11:19:38 2012 -0700
     R=golang-dev, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/6213064
-
+---
  src/pkg/net/http/serve_test.go     | 14 +++++++++-----
  src/pkg/net/http/server.go         |  5 +++++
  src/pkg/net/http/transport.go      |  9 ++++++++-
  src/pkg/net/http/transport_test.go | 22 ++++++++++++----------
  4 files changed, 34 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 1b4dd8794d..d2c9a03751 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -386,17 +386,18 @@ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
+ 	}
+ 
+ 	r := bufio.NewReader(conn)
+-	_, err = ReadResponse(r, &Request{Method: "GET"})
++	res, err := ReadResponse(r, &Request{Method: "GET"})
+ 	if err != nil {
+ 		t.Fatal("ReadResponse error:", err)
+ 	}
+ 
+-	success := make(chan bool)
++	didReadAll := make(chan bool, 1)
+ 	go func() {
+ 		select {
+ 		case <-time.After(5 * time.Second):
+-			t.Fatal("body not closed after 5s")
+-		case <-success:
++			t.Error("body not closed after 5s")
++			return
++		case <-didReadAll:
+ 		}
+ 	}()
+ 
+@@ -404,8 +405,11 @@ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
+ 	if err != nil {
+ 		t.Fatal("read error:", err)
+ 	}
++	didReadAll <- true
+ 
+-	success <- true
++	if !res.Close {
++		t.Errorf("Response.Close = false; want true")
++	}
+ }
+ 
+ // TestServeHTTP10Close verifies that HTTP/1.0 requests won't be kept alive.
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index fb44b76361..54eaf6a121 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -389,6 +389,11 @@ func (w *response) WriteHeader(code int) {
+ 	if !w.req.ProtoAtLeast(1, 0) {
+ 		return
+ 	}
++
++	if w.closeAfterReply && !hasToken(w.header.Get("Connection"), "close") {
++		w.header.Set("Connection", "close")
++	}
++
+ 	proto := "HTTP/1.0"
+ 	if w.req.ProtoAtLeast(1, 1) {
+ 		proto = "HTTP/1.1"
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index fc06e207e5..483af556e4 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -480,6 +480,7 @@ type persistConn struct {
+ 	t        *Transport
+ 	cacheKey string // its connectMethod.String()
+ 	conn     net.Conn
++	closed   bool                // whether conn has been closed
+ 	br       *bufio.Reader       // from conn
+ 	bw       *bufio.Writer       // to conn
+ 	reqch    chan requestAndChan // written by roundTrip(); read by readLoop()
+@@ -574,6 +575,9 @@ func (pc *persistConn) readLoop() {
+ 				if alive && !pc.t.putIdleConn(pc) {
+ 					alive = false
+ 				}
++				if !alive {
++					pc.close()
++				}
+ 				waitForBodyRead <- true
+ 			}
+ 		}
+@@ -669,7 +673,10 @@ func (pc *persistConn) close() {
+ 
+ func (pc *persistConn) closeLocked() {
+ 	pc.broken = true
+-	pc.conn.Close()
++	if !pc.closed {
++		pc.conn.Close()
++		pc.closed = true
++	}
+ 	pc.mutateHeaderFunc = nil
+ }
+ 
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 3a6b6364d3..1312eb8988 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -37,17 +37,21 @@ var hostPortHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+ 	w.Write([]byte(r.RemoteAddr))
+ })
+ 
++// testCloseConn is a net.Conn tracked by a testConnSet.
+ type testCloseConn struct {
+ 	net.Conn
+ 	set *testConnSet
+ }
+ 
+-func (conn *testCloseConn) Close() error {
+-	conn.set.remove(conn)
+-	return conn.Conn.Close()
++func (c *testCloseConn) Close() error {
++	c.set.remove(c)
++	return c.Conn.Close()
+ }
+ 
++// testConnSet tracks a set of TCP connections and whether they've
++// been closed.
+ type testConnSet struct {
++	t      *testing.T
+ 	closed map[net.Conn]bool
+ 	list   []net.Conn // in order created
+ 	mutex  sync.Mutex
+@@ -67,8 +71,9 @@ func (tcs *testConnSet) remove(c net.Conn) {
+ }
+ 
+ // some tests use this to manage raw tcp connections for later inspection
+-func makeTestDial() (*testConnSet, func(n, addr string) (net.Conn, error)) {
++func makeTestDial(t *testing.T) (*testConnSet, func(n, addr string) (net.Conn, error)) {
+ 	connSet := &testConnSet{
++		t:      t,
+ 		closed: make(map[net.Conn]bool),
+ 	}
+ 	dial := func(n, addr string) (net.Conn, error) {
+@@ -89,10 +94,7 @@ func (tcs *testConnSet) check(t *testing.T) {
+ 
+ 	for i, c := range tcs.list {
+ 		if !tcs.closed[c] {
+-			// TODO(bradfitz,gustavo): make the following
+-			// line an Errorf, not Logf, once issue 3540
+-			// is fixed again.
+-			t.Logf("TCP connection #%d (of %d total) was not closed", i+1, len(tcs.list))
++			t.Errorf("TCP connection #%d, %p (of %d total) was not closed", i+1, c, len(tcs.list))
+ 		}
+ 	}
+ }
+@@ -134,7 +136,7 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
+ 	ts := httptest.NewServer(hostPortHandler)
+ 	defer ts.Close()
+ 
+-	connSet, testDial := makeTestDial()
++	connSet, testDial := makeTestDial(t)
+ 
+ 	for _, connectionClose := range []bool{false, true} {
+ 		tr := &Transport{
+@@ -184,7 +186,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
+ 	ts := httptest.NewServer(hostPortHandler)
+ 	defer ts.Close()
+ 
+-	connSet, testDial := makeTestDial()
++	connSet, testDial := makeTestDial(t)
+ 
+ 	for _, connectionClose := range []bool{false, true} {
+ 		tr := &Transport{

@@ -9,7 +9,32 @@ Date:   Wed Nov 25 14:27:26 2015 +1300
     Change-Id: Ie94bc0c85c7666fbb5ab6fc6d3dbb180407a9955
     Reviewed-on: https://go-review.googlesource.com/17212
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/asm_arm64.s  | 1 +
  src/runtime/asm_ppc64x.s | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 8931daa2cd..732abe13af 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -996,6 +996,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ 	MOVD	R0, runtime·lastmoduledatap(SB)
+ 	MOVD	8(RSP), R27
+ 	ADD	$0x10, RSP
++	RET
+ 
+ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVW	$1, R3
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 1ecdf3b2cd..f3b193ae31 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1079,6 +1079,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	R3, runtime·lastmoduledatap(SB)
+ 	MOVD	0(R1), R31
+ 	ADD	$8, R1
++	RET
+ 
+ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVW	$1, R3

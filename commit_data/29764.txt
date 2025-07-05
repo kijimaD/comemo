@@ -47,9 +47,155 @@ Date:   Thu Oct 6 15:50:47 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
  src/cmd/compile/internal/gc/subr.go        | 35 ------------------------------
  src/cmd/compile/internal/gc/type.go        | 23 ++++++++++++++++++--
  src/cmd/compile/internal/gc/typecheck.go   |  5 +++++
  4 files changed, 27 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 1a0e53057c..185b19135a 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -26,7 +26,7 @@ func TestSizeof(t *testing.T) {
+ 		{Name{}, 52, 80},
+ 		{Node{}, 92, 144},
+ 		{Sym{}, 60, 112},
+-		{Type{}, 52, 80},
++		{Type{}, 60, 96},
+ 		{MapType{}, 20, 40},
+ 		{ForwardType{}, 16, 32},
+ 		{FuncType{}, 28, 48},
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 39951ac05a..449a5a62cb 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1122,24 +1122,6 @@ func typehash(t *Type) uint32 {
+ 	return binary.LittleEndian.Uint32(h[:4])
+ }
+ 
+-var initPtrtoDone bool
+-
+-var (
+-	ptrToUint8  *Type
+-	ptrToAny    *Type
+-	ptrToString *Type
+-	ptrToBool   *Type
+-	ptrToInt32  *Type
+-)
+-
+-func initPtrto() {
+-	ptrToUint8 = typPtr(Types[TUINT8])
+-	ptrToAny = typPtr(Types[TANY])
+-	ptrToString = typPtr(Types[TSTRING])
+-	ptrToBool = typPtr(Types[TBOOL])
+-	ptrToInt32 = typPtr(Types[TINT32])
+-}
+-
+ // ptrto returns the Type *t.
+ // The returned struct must not be modified.
+ func ptrto(t *Type) *Type {
+@@ -1149,23 +1131,6 @@ func ptrto(t *Type) *Type {
+ 	if t == nil {
+ 		Fatalf("ptrto: nil ptr")
+ 	}
+-	// Reduce allocations by pre-creating common cases.
+-	if !initPtrtoDone {
+-		initPtrto()
+-		initPtrtoDone = true
+-	}
+-	switch t {
+-	case Types[TUINT8]:
+-		return ptrToUint8
+-	case Types[TINT32]:
+-		return ptrToInt32
+-	case Types[TANY]:
+-		return ptrToAny
+-	case Types[TSTRING]:
+-		return ptrToString
+-	case Types[TBOOL]:
+-		return ptrToBool
+-	}
+ 	return typPtr(t)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 4db2b255c8..2dd1184fff 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -146,6 +146,9 @@ type Type struct {
+ 	nod  *Node // canonical OTYPE node
+ 	Orig *Type // original type (type literal or predefined type)
+ 
++	sliceOf *Type
++	ptrTo   *Type
++
+ 	Sym    *Sym  // symbol containing name, for named types
+ 	Vargen int32 // unique name for OTYPE/ONAME
+ 	Lineno int32 // line at which this type was declared, implicitly or explicitly
+@@ -414,10 +417,18 @@ func typArray(elem *Type, bound int64) *Type {
+ 	return t
+ }
+ 
+-// typSlice returns a new slice Type.
++// typSlice returns the slice Type with element type elem.
+ func typSlice(elem *Type) *Type {
++	if t := elem.sliceOf; t != nil {
++		if t.Elem() != elem {
++			Fatalf("elem mismatch")
++		}
++		return t
++	}
++
+ 	t := typ(TSLICE)
+ 	t.Extra = SliceType{Elem: elem}
++	elem.sliceOf = t
+ 	return t
+ }
+ 
+@@ -446,12 +457,20 @@ func typMap(k, v *Type) *Type {
+ 	return t
+ }
+ 
+-// typPtr returns a new pointer type pointing to t.
++// typPtr returns the pointer type pointing to t.
+ func typPtr(elem *Type) *Type {
++	if t := elem.ptrTo; t != nil {
++		if t.Elem() != elem {
++			Fatalf("elem mismatch")
++		}
++		return t
++	}
++
+ 	t := typ(Tptr)
+ 	t.Extra = PtrType{Elem: elem}
+ 	t.Width = int64(Widthptr)
+ 	t.Align = uint8(Widthptr)
++	elem.ptrTo = t
+ 	return t
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f2c6f5a3e9..01ca8922d4 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3506,6 +3506,9 @@ func copytype(n *Node, t *Type) {
+ 	embedlineno := n.Type.ForwardType().Embedlineno
+ 	l := n.Type.ForwardType().Copyto
+ 
++	ptrTo := n.Type.ptrTo
++	sliceOf := n.Type.sliceOf
++
+ 	// TODO(mdempsky): Fix Type rekinding.
+ 	*n.Type = *t
+ 
+@@ -3519,6 +3522,8 @@ func copytype(n *Node, t *Type) {
+ 	t.allMethods = Fields{}
+ 	t.nod = nil
+ 	t.Deferwidth = false
++	t.ptrTo = ptrTo
++	t.sliceOf = sliceOf
+ 
+ 	// Update nodes waiting on this type.
+ 	for _, n := range l {

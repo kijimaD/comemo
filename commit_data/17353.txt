@@ -18,8 +18,196 @@ Date:   Wed Aug 21 14:20:28 2013 +0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13084043
-
+---
  src/cmd/5g/peep.c | 17 ++++++++++++-----
  src/cmd/6g/peep.c | 19 +++++++++++++------
  src/cmd/8g/peep.c | 17 ++++++++++++-----
  3 files changed, 37 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index f96804d73d..be13756a02 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -63,6 +63,8 @@ peep(Prog *firstp)
+ 	g = flowstart(firstp, sizeof(Flow));
+ 	if(g == nil)
+ 		return;
++	for(r=g->start, t=0; r!=nil; r=r->link, t++)
++		r->active = t;
+ 
+ loop1:
+ 	if(debug['P'] && debug['v'])
+@@ -343,6 +345,9 @@ gotit:
+ 	return 1;
+ }
+ 
++static uchar *active;
++static int nactive;
++
+ /*
+  * The idea is to remove redundant copies.
+  *	v1->v2	F=0
+@@ -360,15 +365,17 @@ copyprop(Graph *g, Flow *r0)
+ {
+ 	Prog *p;
+ 	Adr *v1, *v2;
+-	Flow *r;
+ 
+ 	p = r0->prog;
+ 	v1 = &p->from;
+ 	v2 = &p->to;
+ 	if(copyas(v1, v2))
+ 		return 1;
+-	for(r=g->start; r!=nil; r=r->link)
+-		r->active = 0;
++	if(nactive < g->num) {
++		nactive = g->num;
++		active = realloc(active, g->num);
++	}
++ 	memset(active, 0, g->num);
+ 	return copy1(v1, v2, r0->s1, 0);
+ }
+ 
+@@ -378,12 +385,12 @@ copy1(Adr *v1, Adr *v2, Flow *r, int f)
+ 	int t;
+ 	Prog *p;
+ 
+-	if(r->active) {
++	if(active[r->active]) {
+ 		if(debug['P'])
+ 			print("act set; return 1\n");
+ 		return 1;
+ 	}
+-	r->active = 1;
++	active[r->active] = 1;
+ 	if(debug['P'])
+ 		print("copy %D->%D f=%d\n", v1, v2, f);
+ 	for(; r != nil; r = r->s1) {
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 9b935ded8b..f03ab83d68 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -92,6 +92,8 @@ peep(Prog *firstp)
+ 	g = flowstart(firstp, sizeof(Flow));
+ 	if(g == nil)
+ 		return;
++	for(r=g->start, t=0; r!=nil; r=r->link, t++)
++		r->active = t;
+ 
+ 	// byte, word arithmetic elimination.
+ 	elimshortmov(g);
+@@ -286,7 +288,7 @@ loop1:
+ 				pushback(r);
+ 		}
+ 	}
+-	
++
+ 	flowend(g);
+ }
+ 
+@@ -626,6 +628,9 @@ gotit:
+ 	return 1;
+ }
+ 
++static uchar *active;
++static int nactive;
++
+ /*
+  * The idea is to remove redundant copies.
+  *	v1->v2	F=0
+@@ -643,7 +648,6 @@ copyprop(Graph *g, Flow *r0)
+ {
+ 	Prog *p;
+ 	Adr *v1, *v2;
+-	Flow *r;
+ 
+ 	if(debug['P'] && debug['v'])
+ 		print("copyprop %P\n", r0->prog);
+@@ -652,8 +656,11 @@ copyprop(Graph *g, Flow *r0)
+ 	v2 = &p->to;
+ 	if(copyas(v1, v2))
+ 		return 1;
+-	for(r=g->start; r!=nil; r=r->link)
+-		r->active = 0;
++	if(nactive < g->num) {
++		nactive = g->num;
++		active = realloc(active, g->num);
++	}
++ 	memset(active, 0, g->num);
+ 	return copy1(v1, v2, r0->s1, 0);
+ }
+ 
+@@ -663,12 +670,12 @@ copy1(Adr *v1, Adr *v2, Flow *r, int f)
+ 	int t;
+ 	Prog *p;
+ 
+-	if(r->active) {
++	if(active[r->active]) {
+ 		if(debug['P'])
+ 			print("act set; return 1\n");
+ 		return 1;
+ 	}
+-	r->active = 1;
++	active[r->active] = 1;
+ 	if(debug['P'])
+ 		print("copy %D->%D f=%d\n", v1, v2, f);
+ 	for(; r != nil; r = r->s1) {
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 6e4d8176c1..a9155c935e 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -91,6 +91,8 @@ peep(Prog *firstp)
+ 	g = flowstart(firstp, sizeof(Flow));
+ 	if(g == nil)
+ 		return;
++	for(r=g->start, t=0; r!=nil; r=r->link, t++)
++		r->active = t;
+ 
+ 	// byte, word arithmetic elimination.
+ 	elimshortmov(g);
+@@ -424,6 +426,9 @@ gotit:
+ 	return 1;
+ }
+ 
++static uchar *active;
++static int nactive;
++
+ /*
+  * The idea is to remove redundant copies.
+  *	v1->v2	F=0
+@@ -441,15 +446,17 @@ copyprop(Graph *g, Flow *r0)
+ {
+ 	Prog *p;
+ 	Adr *v1, *v2;
+-	Flow *r;
+ 
+ 	p = r0->prog;
+ 	v1 = &p->from;
+ 	v2 = &p->to;
+ 	if(copyas(v1, v2))
+ 		return 1;
+-	for(r=g->start; r!=nil; r=r->link)
+-		r->active = 0;
++	if(nactive < g->num) {
++		nactive = g->num;
++		active = realloc(active, g->num);
++	}
++ 	memset(active, 0, g->num);
+ 	return copy1(v1, v2, r0->s1, 0);
+ }
+ 
+@@ -459,12 +466,12 @@ copy1(Adr *v1, Adr *v2, Flow *r, int f)
+ 	int t;
+ 	Prog *p;
+ 
+-	if(r->active) {
++	if(active[r->active]) {
+ 		if(debug['P'])
+ 			print("act set; return 1\n");
+ 		return 1;
+ 	}
+-	r->active = 1;
++	active[r->active] = 1;
+ 	if(debug['P'])
+ 		print("copy %D->%D f=%d\n", v1, v2, f);
+ 	for(; r != nil; r = r->s1) {

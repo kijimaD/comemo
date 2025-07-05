@@ -16,9 +16,136 @@ Date:   Wed Sep 27 01:53:38 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  .../zstd/testdata/1890a371.gettysburg.txt-100x.zst | Bin 0 -> 826 bytes
  src/internal/zstd/testdata/README                  |  10 ++++++
  src/internal/zstd/zstd.go                          |  22 +++++++------
  src/internal/zstd/zstd_test.go                     |  35 +++++++++++++++++++++
  4 files changed, 58 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/zstd/testdata/1890a371.gettysburg.txt-100x.zst b/src/internal/zstd/testdata/1890a371.gettysburg.txt-100x.zst
+new file mode 100644
+index 0000000000..afb4a2769b
+Binary files /dev/null and b/src/internal/zstd/testdata/1890a371.gettysburg.txt-100x.zst differ
+diff --git a/src/internal/zstd/testdata/README b/src/internal/zstd/testdata/README
+new file mode 100644
+index 0000000000..1a6dbb3a8f
+--- /dev/null
++++ b/src/internal/zstd/testdata/README
+@@ -0,0 +1,10 @@
++This directory holds files for testing zstd.NewReader.
++
++Each one is a Zstandard compressed file named as hash.arbitrary-name.zst,
++where hash is the first eight hexadecimal digits of the SHA256 hash
++of the expected uncompressed content:
++
++	zstd -d < 1890a371.gettysburg.txt-100x.zst | sha256sum | head -c 8
++	1890a371
++
++The test uses hash value to verify decompression result.
+diff --git a/src/internal/zstd/zstd.go b/src/internal/zstd/zstd.go
+index 60551a4371..1a7a0a381b 100644
+--- a/src/internal/zstd/zstd.go
++++ b/src/internal/zstd/zstd.go
+@@ -235,10 +235,7 @@ retry:
+ 	// Figure out the maximum amount of data we need to retain
+ 	// for backreferences.
+ 	var windowSize int
+-	if singleSegment {
+-		// No window required, as all the data is in a single buffer.
+-		windowSize = 0
+-	} else {
++	if !singleSegment {
+ 		// Window descriptor. RFC 3.1.1.1.2.
+ 		windowDescriptor := r.scratch[0]
+ 		exponent := uint64(windowDescriptor >> 3)
+@@ -252,11 +249,6 @@ retry:
+ 		if fuzzing && (windowLog > 31 || windowSize > 1<<27) {
+ 			return r.makeError(relativeOffset, "windowSize too large")
+ 		}
+-
+-		// RFC 8878 permits us to set an 8M max on window size.
+-		if windowSize > 8<<20 {
+-			windowSize = 8 << 20
+-		}
+ 	}
+ 
+ 	// Frame_Content_Size. RFC 3.1.1.4.
+@@ -278,6 +270,18 @@ retry:
+ 		panic("unreachable")
+ 	}
+ 
++	// RFC 3.1.1.1.2.
++	// When Single_Segment_Flag is set, Window_Descriptor is not present.
++	// In this case, Window_Size is Frame_Content_Size.
++	if singleSegment {
++		windowSize = int(r.remainingFrameSize)
++	}
++
++	// RFC 8878 3.1.1.1.1.2. permits us to set an 8M max on window size.
++	if windowSize > 8<<20 {
++		windowSize = 8 << 20
++	}
++
+ 	relativeOffset += headerSize
+ 
+ 	r.sawFrameHeader = true
+diff --git a/src/internal/zstd/zstd_test.go b/src/internal/zstd/zstd_test.go
+index c2914bb1f4..e5c964c307 100644
+--- a/src/internal/zstd/zstd_test.go
++++ b/src/internal/zstd/zstd_test.go
+@@ -6,12 +6,14 @@ package zstd
+ 
+ import (
+ 	"bytes"
++	"crypto/sha256"
+ 	"fmt"
+ 	"internal/race"
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+ 	"os/exec"
++	"path/filepath"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -237,6 +239,39 @@ func TestAlloc(t *testing.T) {
+ 	}
+ }
+ 
++func TestFileSamples(t *testing.T) {
++	samples, err := os.ReadDir("testdata")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, sample := range samples {
++		name := sample.Name()
++		if !strings.HasSuffix(name, ".zst") {
++			continue
++		}
++
++		t.Run(name, func(t *testing.T) {
++			f, err := os.Open(filepath.Join("testdata", name))
++			if err != nil {
++				t.Fatal(err)
++			}
++
++			r := NewReader(f)
++			h := sha256.New()
++			if _, err := io.Copy(h, r); err != nil {
++				t.Fatal(err)
++			}
++			got := fmt.Sprintf("%x", h.Sum(nil))[:8]
++
++			want, _, _ := strings.Cut(name, ".")
++			if got != want {
++				t.Errorf("Wrong uncompressed content hash: got %s, want %s", got, want)
++			}
++		})
++	}
++}
++
+ func BenchmarkLarge(b *testing.B) {
+ 	b.StopTimer()
+ 	b.ReportAllocs()

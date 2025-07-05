@@ -14,9 +14,174 @@ Date:   Mon Sep 10 15:07:09 2018 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/link/internal/ld/lib.go    | 20 --------------------
  src/cmd/link/internal/ppc64/asm.go | 12 ++++++------
  src/compress/zlib/writer.go        | 12 +++---------
  src/image/png/writer.go            | 17 +++++------------
  4 files changed, 14 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 5e99149d25..60124e3212 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1757,26 +1757,6 @@ func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Sec
+ 	return sect
+ }
+ 
+-func Le16(b []byte) uint16 {
+-	return uint16(b[0]) | uint16(b[1])<<8
+-}
+-
+-func Le32(b []byte) uint32 {
+-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+-}
+-
+-func Le64(b []byte) uint64 {
+-	return uint64(Le32(b)) | uint64(Le32(b[4:]))<<32
+-}
+-
+-func Be16(b []byte) uint16 {
+-	return uint16(b[0])<<8 | uint16(b[1])
+-}
+-
+-func Be32(b []byte) uint32 {
+-	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+-}
+-
+ type chain struct {
+ 	sym   *sym.Symbol
+ 	up    *chain
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 9445fbebcb..3e833b686e 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -716,9 +716,9 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
+ 			// overflow depends on the instruction
+ 			var o1 uint32
+ 			if ctxt.Arch.ByteOrder == binary.BigEndian {
+-				o1 = ld.Be32(s.P[r.Off-2:])
++				o1 = binary.BigEndian.Uint32(s.P[r.Off-2:])
+ 			} else {
+-				o1 = ld.Le32(s.P[r.Off:])
++				o1 = binary.LittleEndian.Uint32(s.P[r.Off:])
+ 			}
+ 			switch o1 >> 26 {
+ 			case 24, // ori
+@@ -750,9 +750,9 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
+ 			// overflow depends on the instruction
+ 			var o1 uint32
+ 			if ctxt.Arch.ByteOrder == binary.BigEndian {
+-				o1 = ld.Be32(s.P[r.Off-2:])
++				o1 = binary.BigEndian.Uint32(s.P[r.Off-2:])
+ 			} else {
+-				o1 = ld.Le32(s.P[r.Off:])
++				o1 = binary.LittleEndian.Uint32(s.P[r.Off:])
+ 			}
+ 			switch o1 >> 26 {
+ 			case 25, // oris
+@@ -774,9 +774,9 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
+ 	case sym.RV_POWER_DS:
+ 		var o1 uint32
+ 		if ctxt.Arch.ByteOrder == binary.BigEndian {
+-			o1 = uint32(ld.Be16(s.P[r.Off:]))
++			o1 = uint32(binary.BigEndian.Uint16(s.P[r.Off:]))
+ 		} else {
+-			o1 = uint32(ld.Le16(s.P[r.Off:]))
++			o1 = uint32(binary.LittleEndian.Uint16(s.P[r.Off:]))
+ 		}
+ 		if t&3 != 0 {
+ 			ld.Errorf(s, "relocation for %s+%d is not aligned: %d", r.Sym.Name, r.Off, t)
+diff --git a/src/compress/zlib/writer.go b/src/compress/zlib/writer.go
+index a7b219467e..9986e3834d 100644
+--- a/src/compress/zlib/writer.go
++++ b/src/compress/zlib/writer.go
+@@ -6,6 +6,7 @@ package zlib
+ 
+ import (
+ 	"compress/flate"
++	"encoding/binary"
+ 	"fmt"
+ 	"hash"
+ 	"hash/adler32"
+@@ -120,11 +121,7 @@ func (z *Writer) writeHeader() (err error) {
+ 	}
+ 	if z.dict != nil {
+ 		// The next four bytes are the Adler-32 checksum of the dictionary.
+-		checksum := adler32.Checksum(z.dict)
+-		z.scratch[0] = uint8(checksum >> 24)
+-		z.scratch[1] = uint8(checksum >> 16)
+-		z.scratch[2] = uint8(checksum >> 8)
+-		z.scratch[3] = uint8(checksum >> 0)
++		binary.BigEndian.PutUint32(z.scratch[:], adler32.Checksum(z.dict))
+ 		if _, err = z.w.Write(z.scratch[0:4]); err != nil {
+ 			return err
+ 		}
+@@ -190,10 +187,7 @@ func (z *Writer) Close() error {
+ 	}
+ 	checksum := z.digest.Sum32()
+ 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
+-	z.scratch[0] = uint8(checksum >> 24)
+-	z.scratch[1] = uint8(checksum >> 16)
+-	z.scratch[2] = uint8(checksum >> 8)
+-	z.scratch[3] = uint8(checksum >> 0)
++	binary.BigEndian.PutUint32(z.scratch[:], checksum)
+ 	_, z.err = z.w.Write(z.scratch[0:4])
+ 	return z.err
+ }
+diff --git a/src/image/png/writer.go b/src/image/png/writer.go
+index 49f1ad2e7f..de8c28e919 100644
+--- a/src/image/png/writer.go
++++ b/src/image/png/writer.go
+@@ -7,6 +7,7 @@ package png
+ import (
+ 	"bufio"
+ 	"compress/zlib"
++	"encoding/binary"
+ 	"hash/crc32"
+ 	"image"
+ 	"image/color"
+@@ -62,14 +63,6 @@ const (
+ 	// compression level, although that is not implemented yet.
+ )
+ 
+-// Big-endian.
+-func writeUint32(b []uint8, u uint32) {
+-	b[0] = uint8(u >> 24)
+-	b[1] = uint8(u >> 16)
+-	b[2] = uint8(u >> 8)
+-	b[3] = uint8(u >> 0)
+-}
+-
+ type opaquer interface {
+ 	Opaque() bool
+ }
+@@ -108,7 +101,7 @@ func (e *encoder) writeChunk(b []byte, name string) {
+ 		e.err = UnsupportedError(name + " chunk is too large: " + strconv.Itoa(len(b)))
+ 		return
+ 	}
+-	writeUint32(e.header[:4], n)
++	binary.BigEndian.PutUint32(e.header[:4], n)
+ 	e.header[4] = name[0]
+ 	e.header[5] = name[1]
+ 	e.header[6] = name[2]
+@@ -116,7 +109,7 @@ func (e *encoder) writeChunk(b []byte, name string) {
+ 	crc := crc32.NewIEEE()
+ 	crc.Write(e.header[4:8])
+ 	crc.Write(b)
+-	writeUint32(e.footer[:4], crc.Sum32())
++	binary.BigEndian.PutUint32(e.footer[:4], crc.Sum32())
+ 
+ 	_, e.err = e.w.Write(e.header[:8])
+ 	if e.err != nil {
+@@ -131,8 +124,8 @@ func (e *encoder) writeChunk(b []byte, name string) {
+ 
+ func (e *encoder) writeIHDR() {
+ 	b := e.m.Bounds()
+-	writeUint32(e.tmp[0:4], uint32(b.Dx()))
+-	writeUint32(e.tmp[4:8], uint32(b.Dy()))
++	binary.BigEndian.PutUint32(e.tmp[0:4], uint32(b.Dx()))
++	binary.BigEndian.PutUint32(e.tmp[4:8], uint32(b.Dy()))
+ 	// Set bit depth and color type.
+ 	switch e.cb {
+ 	case cbG8:

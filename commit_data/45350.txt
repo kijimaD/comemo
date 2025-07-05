@@ -14,6 +14,20 @@ Date:   Tue Oct 20 18:18:21 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/test_cache_inputs.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_cache_inputs.txt b/src/cmd/go/testdata/script/test_cache_inputs.txt
+index 97ae4af51f..50486e1909 100644
+--- a/src/cmd/go/testdata/script/test_cache_inputs.txt
++++ b/src/cmd/go/testdata/script/test_cache_inputs.txt
+@@ -137,7 +137,7 @@ exit 0
+ package testcache
+ 
+ import (
+-	"io/ioutil"
++	"io"
+ 	"os"
+ 	"testing"
+ )

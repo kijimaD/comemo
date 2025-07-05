@@ -15,9 +15,116 @@ Date:   Mon Aug 31 21:15:29 2015 +1000
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     Run-TryBot: Aram Hăvărneanu <aram@mgk.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm64/a.out.go  |  2 --
  src/cmd/internal/obj/arm64/anames.go |  2 --
  src/cmd/internal/obj/arm64/asm7.go   | 27 ---------------------------
  src/cmd/internal/obj/arm64/obj7.go   |  3 +--
  4 files changed, 1 insertion(+), 33 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 67b37aae6f..eb2c947cad 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -647,8 +647,6 @@ const (
+ 	AWORD
+ 	ADYNT
+ 	AINIT
+-	ABCASE
+-	ACASE
+ 	ADWORD
+ 	ASIGNAME
+ 	AGOK
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index 28454189de..486d4698a1 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -317,8 +317,6 @@ var Anames = []string{
+ 	"WORD",
+ 	"DYNT",
+ 	"INIT",
+-	"BCASE",
+-	"CASE",
+ 	"DWORD",
+ 	"SIGNAME",
+ 	"GOK",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index ce0d3c1a2b..32f4a903aa 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -468,8 +468,6 @@ var optab = []Optab{
+ 	{AFCCMPS, C_COND, C_REG, C_VCON, 57, 4, 0, 0, 0},
+ 	{AFCSELD, C_COND, C_REG, C_FREG, 18, 4, 0, 0, 0},
+ 	{AFCVTSD, C_FREG, C_NONE, C_FREG, 29, 4, 0, 0, 0},
+-	{ACASE, C_REG, C_NONE, C_REG, 62, 4 * 4, 0, 0, 0},
+-	{ABCASE, C_NONE, C_NONE, C_SBRA, 63, 4, 0, 0, 0},
+ 	{ACLREX, C_NONE, C_NONE, C_VCON, 38, 4, 0, 0, 0},
+ 	{ACLREX, C_NONE, C_NONE, C_NONE, 38, 4, 0, 0, 0},
+ 	{ACBZ, C_REG, C_NONE, C_SBRA, 39, 4, 0, 0, 0},
+@@ -1570,8 +1568,6 @@ func buildop(ctxt *obj.Link) {
+ 			ADWORD,
+ 			obj.ARET,
+ 			obj.ATEXT,
+-			ACASE,
+-			ABCASE,
+ 			ASTP,
+ 			ALDP:
+ 			break
+@@ -1801,7 +1797,6 @@ func SYSARG4(op1 int, Cn int, Cm int, op2 int) int {
+ }
+ 
+ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+-	var lastcase *obj.Prog
+ 	o1 := uint32(0)
+ 	o2 := uint32(0)
+ 	o3 := uint32(0)
+@@ -2699,28 +2694,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 		o1 = ADR(0, uint32(d), uint32(p.To.Reg))
+ 
+-	case 62: /* case Rv, Rt -> adr tab, Rt; movw Rt[R<<2], Rl; add Rt, Rl; br (Rl) */
+-		// adr 4(pc), Rt
+-		o1 = ADR(0, 4*4, uint32(p.To.Reg))
+-		// movw Rt[Rv<<2], REGTMP
+-		o2 = (2 << 30) | (7 << 27) | (2 << 22) | (1 << 21) | (3 << 13) | (1 << 12) | (2 << 10) | (uint32(p.From.Reg&31) << 16) | (uint32(p.To.Reg&31) << 5) | REGTMP&31
+-		// add Rt, REGTMP
+-		o3 = oprrr(ctxt, AADD) | (uint32(p.To.Reg) << 16) | (REGTMP << 5) | REGTMP
+-		// br (REGTMP)
+-		o4 = (0x6b << 25) | (0x1F << 16) | (REGTMP & 31 << 5)
+-		lastcase = p
+-
+-	case 63: /* bcase */
+-		if lastcase == nil {
+-			ctxt.Diag("missing CASE\n%v", p)
+-			break
+-		}
+-
+-		if p.Pcond != nil {
+-			o1 = uint32(p.Pcond.Pc - (lastcase.Pc + 4*4))
+-			ctxt.Diag("FIXME: some relocation needed in bcase\n%v", p)
+-		}
+-
+ 		/* reloc ops */
+ 	case 64: /* movT R,addr -> adrp + add + movT R, (REGTMP) */
+ 		o1 = ADR(1, 0, REGTMP)
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index f43ce0374c..f6f8c71295 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -440,7 +440,7 @@ loop:
+ 	if p.Pcond != nil {
+ 		if a != ABL && p.Link != nil {
+ 			q = obj.Brchain(ctxt, p.Link)
+-			if a != obj.ATEXT && a != ABCASE {
++			if a != obj.ATEXT {
+ 				if q != nil && (q.Mark&FOLL != 0) {
+ 					p.As = int16(relinv(a))
+ 					p.Link = p.Pcond
+@@ -515,7 +515,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			ACBZW,
+ 			ATBZ,
+ 			ATBNZ,
+-			ABCASE,
+ 			AB,
+ 			ABEQ,
+ 			ABNE,

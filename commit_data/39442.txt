@@ -23,6 +23,38 @@ Date:   Sun Dec 30 19:03:02 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/load/test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index bd6f00bb66..0a9548e5c8 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -15,10 +15,10 @@ import (
+ 	"go/doc"
+ 	"go/parser"
+ 	"go/token"
++	"internal/lazytemplate"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+-	"text/template"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -556,7 +556,7 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
+ 	return nil
+ }
+ 
+-var testmainTmpl = template.Must(template.New("main").Parse(`
++var testmainTmpl = lazytemplate.New("main", `
+ package main
+ 
+ import (
+@@ -657,4 +657,4 @@ func main() {
+ {{end}}
+ }
+ 
+-`))
++`)

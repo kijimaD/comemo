@@ -12,6 +12,20 @@ Date:   Fri Nov 20 14:02:33 2015 -0500
     Change-Id: Iee2c394a0cf19fa0a24f6befbc70776b9e42d25a
     Reviewed-on: https://go-review.googlesource.com/17110
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/traceback.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 8d1b758271..1743a93507 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -190,7 +190,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	}
+ 
+ 	f := findfunc(frame.pc)
+-	if f.entry == stackBarrierPC {
++	if f != nil && f.entry == stackBarrierPC {
+ 		// We got caught in the middle of a stack barrier
+ 		// (presumably by a signal), so stkbar may be
+ 		// inconsistent with the barriers on the stack.

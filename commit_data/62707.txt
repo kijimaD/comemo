@@ -17,7 +17,7 @@ Date:   Tue Jun 18 23:36:43 2024 +1000
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s        | 317 +++++++++++++++++
  src/cmd/asm/internal/asm/testdata/riscv64error.s   | 165 +++++++++
  .../asm/internal/asm/testdata/riscv64validation.s  | 225 +++++++++++-
@@ -25,3 +25,1300 @@ Date:   Tue Jun 18 23:36:43 2024 +1000
  src/cmd/internal/obj/riscv/cpu.go                  |  13 +
  src/cmd/internal/obj/riscv/obj.go                  | 393 ++++++++++++++++++++-
  6 files changed, 1101 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index bb75169824..74632360e3 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -546,6 +546,323 @@ start:
+ 	VS4RV		V4, (X11)			// 27828562
+ 	VS8RV		V8, (X11)			// 278485e2
+ 
++	// 31.11.1: Vector Single-Width Integer Add and Subtract
++	VADDVV		V1, V2, V3			// d7812002
++	VADDVV		V1, V2, V0, V3			// d7812000
++	VADDVX		X10, V2, V3			// d7412502
++	VADDVX		X10, V2, V0, V3			// d7412500
++	VADDVI		$15, V2, V3			// d7b12702
++	VADDVI		$15, V2, V0, V3			// d7b12700
++	VADDVI		$-16, V2, V3			// d7312802
++	VADDVI		$-16, V2, V0, V3		// d7312800
++	VSUBVV		V1, V2, V3			// d781200a
++	VSUBVV		V1, V2, V0, V3			// d7812008
++	VSUBVX		X10, V2, V3			// d741250a
++	VSUBVX		X10, V2, V0, V3			// d7412508
++	VRSUBVX		X10, V2, V3			// d741250e
++	VRSUBVX		X10, V2, V0, V3			// d741250c
++	VRSUBVI		$15, V2, V0, V3			// d7b1270c
++	VRSUBVI		$-16, V2, V0, V3		// d731280c
++	VNEGV		V2, V3				// d741200e
++	VNEGV		V2, V0, V3			// d741200c
++
++	// 31.11.2: Vector Widening Integer Add/Subtract
++	VWADDUVV	V1, V2, V3			// d7a120c2
++	VWADDUVV	V1, V2, V0, V3			// d7a120c0
++	VWADDUVX	X10, V2, V3			// d76125c2
++	VWADDUVX	X10, V2, V0, V3			// d76125c0
++	VWSUBUVV	V1, V2, V3			// d7a120ca
++	VWSUBUVV	V1, V2, V0, V3			// d7a120c8
++	VWSUBUVX	X10, V2, V3			// d76125ca
++	VWSUBUVX	X10, V2, V0, V3			// d76125c8
++	VWADDVV		V1, V2, V3			// d7a120c6
++	VWADDVV		V1, V2, V0, V3			// d7a120c4
++	VWADDVX		X10, V2, V3			// d76125c6
++	VWADDVX		X10, V2, V0, V3			// d76125c4
++	VWSUBVV		V1, V2, V3			// d7a120ce
++	VWSUBVV		V1, V2, V0, V3			// d7a120cc
++	VWSUBVX		X10, V2, V3			// d76125ce
++	VWSUBVX		X10, V2, V0, V3			// d76125cc
++	VWADDUWV	V1, V2, V3			// d7a120d2
++	VWADDUWV	V1, V2, V0, V3			// d7a120d0
++	VWADDUWX	X10, V2, V3			// d76125d2
++	VWADDUWX	X10, V2, V0, V3			// d76125d0
++	VWSUBUWV	V1, V2, V3			// d7a120da
++	VWSUBUWV	V1, V2, V0, V3			// d7a120d8
++	VWSUBUWX	X10, V2, V3			// d76125da
++	VWSUBUWX	X10, V2, V0, V3			// d76125d8
++	VWADDWV		V1, V2, V3			// d7a120d6
++	VWADDWV		V1, V2, V0, V3			// d7a120d4
++	VWADDWX		X10, V2, V3			// d76125d6
++	VWADDWX		X10, V2, V0, V3			// d76125d4
++	VWSUBWV		V1, V2, V3			// d7a120de
++	VWSUBWV		V1, V2, V0, V3			// d7a120dc
++	VWSUBWX		X10, V2, V3			// d76125de
++	VWSUBWX		X10, V2, V0, V3			// d76125dc
++	VWCVTXXV	V2, V3				// d76120c6
++	VWCVTXXV	V2, V0, V3			// d76120c4
++	VWCVTUXXV	V2, V3				// d76120c2
++	VWCVTUXXV	V2, V0, V3			// d76120c0
++
++	// 31.11.3: Vector Integer Extension
++	VZEXTVF2	V2, V3				// d721234a
++	VZEXTVF2	V2, V0, V3			// d7212348
++	VSEXTVF2	V2, V3				// d7a1234a
++	VSEXTVF2	V2, V0, V3			// d7a12348
++	VZEXTVF4	V2, V3				// d721224a
++	VZEXTVF4	V2, V0, V3			// d7212248
++	VSEXTVF4	V2, V3				// d7a1224a
++	VSEXTVF4	V2, V0, V3			// d7a12248
++	VZEXTVF8	V2, V3				// d721214a
++	VZEXTVF8	V2, V0, V3			// d7212148
++	VSEXTVF8	V2, V3				// d7a1214a
++	VSEXTVF8	V2, V0, V3			// d7a12148
++
++	// 31.11.4: Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
++	VADCVVM		V1, V2, V0, V3			// d7812040
++	VADCVXM		X11, V2, V0, V3			// d7c12540
++	VADCVIM		$15, V2, V0, V3			// d7b12740
++	VMADCVVM	V1, V2, V0, V3			// d7812044
++	VMADCVXM	X11, V2, V0, V3			// d7c12544
++	VMADCVIM	$15, V2, V0, V3			// d7b12744
++	VMADCVV		V1, V2, V3			// d7812046
++	VMADCVX		X11, V2, V3			// d7c12546
++	VMADCVI		$15, V2, V3			// d7b12746
++	VSBCVVM		V1, V2, V0, V3			// d7812048
++	VSBCVXM		X11, V2, V0, V3			// d7c12548
++	VMSBCVVM	V1, V2, V0, V3			// d781204c
++	VMSBCVXM	X11, V2, V0, V3			// d7c1254c
++	VMSBCVV		V1, V2, V3			// d781204e
++	VMSBCVX		X11, V2, V3			// d7c1254e
++
++	// 31.11.5: Vector Bitwise Logical Instructions
++	VANDVV		V1, V2, V3			// d7812026
++	VANDVV		V1, V2, V0, V3			// d7812024
++	VANDVX		X11, V2, V3			// d7c12526
++	VANDVX		X11, V2, V0, V3			// d7c12524
++	VANDVI		$15, V2, V3			// d7b12726
++	VANDVI		$15, V2, V0, V3			// d7b12724
++	VORVV		V1, V2, V3			// d781202a
++	VORVV		V1, V2, V0, V3			// d7812028
++	VORVX		X11, V2, V3			// d7c1252a
++	VORVX		X11, V2, V0, V3			// d7c12528
++	VORVI		$15, V2, V3			// d7b1272a
++	VORVI		$15, V2, V0, V3			// d7b12728
++	VXORVV		V1, V2, V3			// d781202e
++	VXORVV		V1, V2, V0, V3			// d781202c
++	VXORVX		X11, V2, V3			// d7c1252e
++	VXORVX		X11, V2, V0, V3			// d7c1252c
++	VXORVI		$15, V2, V3			// d7b1272e
++	VXORVI		$15, V2, V0, V3			// d7b1272c
++	VNOTV		V2, V3				// d7b12f2e
++	VNOTV		V2, V0, V3			// d7b12f2c
++
++	// 31.11.6: Vector Single-Width Shift Instructions
++	VSLLVV		V1, V2, V3			// d7812096
++	VSLLVV		V1, V2, V0, V3			// d7812094
++	VSLLVX		X11, V2, V3			// d7c12596
++	VSLLVX		X11, V2, V0, V3			// d7c12594
++	VSLLVI		$15, V2, V3			// d7b12796
++	VSLLVI		$15, V2, V0, V3			// d7b12794
++	VSRLVV		V1, V2, V3			// d78120a2
++	VSRLVV		V1, V2, V0, V3			// d78120a0
++	VSRLVX		X11, V2, V3			// d7c125a2
++	VSRLVX		X11, V2, V0, V3			// d7c125a0
++	VSRLVI		$15, V2, V3			// d7b127a2
++	VSRLVI		$15, V2, V0, V3			// d7b127a0
++	VSRAVV		V1, V2, V3			// d78120a6
++	VSRAVV		V1, V2, V0, V3			// d78120a4
++	VSRAVX		X11, V2, V3			// d7c125a6
++	VSRAVX		X11, V2, V0, V3			// d7c125a4
++	VSRAVI		$15, V2, V3			// d7b127a6
++	VSRAVI		$15, V2, V0, V3			// d7b127a4
++
++	// 31.11.7: Vector Narrowing Integer Right Shift Instructions
++	VNSRLWV		V1, V2, V3			// d78120b2
++	VNSRLWV		V1, V2, V0, V3			// d78120b0
++	VNSRLWX		X10, V2, V3			// d74125b2
++	VNSRLWX		X10, V2, V0, V3			// d74125b0
++	VNSRLWI		$31, V2, V3			// d7b12fb2
++	VNSRLWI		$31, V2, V0, V3			// d7b12fb0
++	VNSRAWV		V1, V2, V3			// d78120b6
++	VNSRAWV		V1, V2, V0, V3			// d78120b4
++	VNSRAWX		X10, V2, V3			// d74125b6
++	VNSRAWX		X10, V2, V0, V3			// d74125b4
++	VNSRAWI		$31, V2, V3			// d7b12fb6
++	VNSRAWI		$31, V2, V0, V3			// d7b12fb4
++	VNCVTXXW	V2, V3				// d74120b2
++	VNCVTXXW	V2, V0, V3			// d74120b0
++
++	// 31.11.8: Vector Integer Compare Instructions
++	VMSEQVV		V1, V2, V3			// d7812062
++	VMSEQVV		V1, V2, V0, V3			// d7812060
++	VMSEQVX		X10, V2, V3			// d7412562
++	VMSEQVX		X10, V2, V0, V3			// d7412560
++	VMSEQVI		$15, V2, V3			// d7b12762
++	VMSEQVI		$15, V2, V0, V3			// d7b12760
++	VMSNEVV		V1, V2, V3			// d7812066
++	VMSNEVV		V1, V2, V0, V3			// d7812064
++	VMSNEVX		X10, V2, V3			// d7412566
++	VMSNEVX		X10, V2, V0, V3			// d7412564
++	VMSNEVI		$15, V2, V3			// d7b12766
++	VMSNEVI		$15, V2, V0, V3			// d7b12764
++	VMSLTUVV	V1, V2, V3			// d781206a
++	VMSLTUVV	V1, V2, V0, V3			// d7812068
++	VMSLTUVX	X10, V2, V3			// d741256a
++	VMSLTUVX	X10, V2, V0, V3			// d7412568
++	VMSLTVV		V1, V2, V3			// d781206e
++	VMSLTVV		V1, V2, V0, V3			// d781206c
++	VMSLTVX		X10, V2, V3			// d741256e
++	VMSLTVX		X10, V2, V0, V3			// d741256c
++	VMSLEUVV	V1, V2, V3			// d7812072
++	VMSLEUVV	V1, V2, V0, V3			// d7812070
++	VMSLEUVX	X10, V2, V3			// d7412572
++	VMSLEUVX	X10, V2, V0, V3			// d7412570
++	VMSLEUVI	$15, V2, V3			// d7b12772
++	VMSLEUVI	$15, V2, V0, V3			// d7b12770
++	VMSLEVV		V1, V2, V3			// d7812076
++	VMSLEVV		V1, V2, V0, V3			// d7812074
++	VMSLEVX		X10, V2, V3			// d7412576
++	VMSLEVX		X10, V2, V0, V3			// d7412574
++	VMSLEVI		$15, V2, V3			// d7b12776
++	VMSLEVI		$15, V2, V0, V3			// d7b12774
++	VMSGTUVX	X10, V2, V3			// d741257a
++	VMSGTUVX	X10, V2, V0, V3			// d7412578
++	VMSGTUVI	$15, V2, V3			// d7b1277a
++	VMSGTUVI	$15, V2, V0, V3			// d7b12778
++	VMSGTVX		X10, V2, V3			// d741257e
++	VMSGTVX		X10, V2, V0, V3			// d741257c
++	VMSGTVI		$15, V2, V3			// d7b1277e
++	VMSGTVI		$15, V2, V0, V3			// d7b1277c
++	VMSGTVV		V1, V2, V3			// d701116e
++	VMSGTVV		V1, V2, V0, V3			// d701116c
++	VMSGTUVV	V1, V2, V3			// d701116a
++	VMSGTUVV	V1, V2, V0, V3			// d7011168
++	VMSGEVV		V1, V2, V3			// d7011176
++	VMSGEVV		V1, V2, V0, V3			// d7011174
++	VMSGEUVV	V1, V2, V3			// d7011172
++	VMSGEUVV	V1, V2, V0, V3			// d7011170
++	VMSLTVI		$15, V2, V3			// d7312776
++	VMSLTVI		$15, V2, V0, V3			// d7312774
++	VMSLTUVI	$15, V2, V3			// d7312772
++	VMSLTUVI	$15, V2, V0, V3			// d7312770
++	VMSGEVI		$15, V2, V3			// d731277e
++	VMSGEVI		$15, V2, V0, V3			// d731277c
++	VMSGEUVI	$15, V2, V3			// d731277a
++	VMSGEUVI	$15, V2, V0, V3			// d7312778
++
++	// 31.11.9: Vector Integer Min/Max Instructions
++	VMINUVV		V1, V2, V3			// d7812012
++	VMINUVV		V1, V2, V0, V3			// d7812010
++	VMINUVX		X10, V2, V3			// d7412512
++	VMINUVX		X10, V2, V0, V3			// d7412510
++	VMINVV		V1, V2, V3			// d7812016
++	VMINVV		V1, V2, V0, V3			// d7812014
++	VMINVX		X10, V2, V3			// d7412516
++	VMINVX		X10, V2, V0, V3			// d7412514
++	VMAXUVV		V1, V2, V3			// d781201a
++	VMAXUVV		V1, V2, V0, V3			// d7812018
++	VMAXUVX		X10, V2, V3			// d741251a
++	VMAXUVX		X10, V2, V0, V3			// d7412518
++	VMAXVV		V1, V2, V3			// d781201e
++	VMAXVV		V1, V2, V0, V3			// d781201c
++	VMAXVX		X10, V2, V3			// d741251e
++	VMAXVX		X10, V2, V0, V3			// d741251c
++
++	// 31.11.10: Vector Single-Width Integer Multiply Instructions
++	VMULVV		V1, V2, V3			// d7a12096
++	VMULVV		V1, V2, V0, V3			// d7a12094
++	VMULVX		X10, V2, V3			// d7612596
++	VMULVX		X10, V2, V0, V3			// d7612594
++	VMULHVV		V1, V2, V3			// d7a1209e
++	VMULHVV		V1, V2, V0, V3			// d7a1209c
++	VMULHVX		X10, V2, V3			// d761259e
++	VMULHVX		X10, V2, V0, V3			// d761259c
++	VMULHUVV	V1, V2, V3			// d7a12092
++	VMULHUVV	V1, V2, V0, V3			// d7a12090
++	VMULHUVX	X10, V2, V3			// d7612592
++	VMULHUVX	X10, V2, V0, V3			// d7612590
++	VMULHSUVV	V1, V2, V3			// d7a1209a
++	VMULHSUVV	V1, V2, V0, V3			// d7a12098
++	VMULHSUVX	X10, V2, V3			// d761259a
++	VMULHSUVX	X10, V2, V0, V3			// d7612598
++
++	// 31.11.11: Vector Integer Divide Instructions
++	VDIVUVV		V1, V2, V3			// d7a12082
++	VDIVUVV		V1, V2, V0, V3			// d7a12080
++	VDIVUVX		X10, V2, V3			// d7612582
++	VDIVUVX		X10, V2, V0, V3			// d7612580
++	VDIVVV		V1, V2, V3			// d7a12086
++	VDIVVV		V1, V2, V0, V3			// d7a12084
++	VDIVVX		X10, V2, V3			// d7612586
++	VDIVVX		X10, V2, V0, V3			// d7612584
++	VREMUVV		V1, V2, V3			// d7a1208a
++	VREMUVV		V1, V2, V0, V3			// d7a12088
++	VREMUVX		X10, V2, V3			// d761258a
++	VREMUVX		X10, V2, V0, V3			// d7612588
++	VREMVV		V1, V2, V3			// d7a1208e
++	VREMVV		V1, V2, V0, V3			// d7a1208c
++	VREMVX		X10, V2, V3			// d761258e
++	VREMVX		X10, V2, V0, V3			// d761258c
++
++	// 31.11.12: Vector Widening Integer Multiply Instructions
++	VWMULVV		V1, V2, V3			// d7a120ee
++	VWMULVV		V1, V2, V0, V3			// d7a120ec
++	VWMULVX		X10, V2, V3			// d76125ee
++	VWMULVX		X10, V2, V0, V3			// d76125ec
++	VWMULUVV	V1, V2, V3			// d7a120e2
++	VWMULUVV	V1, V2, V0, V3			// d7a120e0
++	VWMULUVX	X10, V2, V3			// d76125e2
++	VWMULUVX	X10, V2, V0, V3			// d76125e0
++	VWMULSUVV	V1, V2, V3			// d7a120ea
++	VWMULSUVV	V1, V2, V0, V3			// d7a120e8
++	VWMULSUVX	X10, V2, V3			// d76125ea
++	VWMULSUVX	X10, V2, V0, V3			// d76125e8
++
++	// 31.11.13: Vector Single-Width Integer Multiply-Add Instructions
++	VMACCVV		V1, V2, V3			// d7a120b6
++	VMACCVV		V1, V2, V0, V3			// d7a120b4
++	VMACCVX		X10, V2, V3			// d76125b6
++	VMACCVX		X10, V2, V0, V3			// d76125b4
++	VNMSACVV	V1, V2, V3			// d7a120be
++	VNMSACVV	V1, V2, V0, V3			// d7a120bc
++	VNMSACVX	X10, V2, V3			// d76125be
++	VNMSACVX	X10, V2, V0, V3			// d76125bc
++	VMADDVV		V1, V2, V3			// d7a120a6
++	VMADDVV		V1, V2, V0, V3			// d7a120a4
++	VMADDVX		X10, V2, V3			// d76125a6
++	VMADDVX		X10, V2, V0, V3			// d76125a4
++	VNMSUBVV	V1, V2, V3			// d7a120ae
++	VNMSUBVV	V1, V2, V0, V3			// d7a120ac
++	VNMSUBVX	X10, V2, V3			// d76125ae
++	VNMSUBVX	X10, V2, V0, V3			// d76125ac
++
++	// 31.11.14: Vector Widening Integer Multiply-Add Instructions
++	VWMACCUVV	V1, V2, V3			// d7a120f2
++	VWMACCUVV	V1, V2, V0, V3			// d7a120f0
++	VWMACCUVX	X10, V2, V3			// d76125f2
++	VWMACCUVX	X10, V2, V0, V3			// d76125f0
++	VWMACCVV	V1, V2, V3			// d7a120f6
++	VWMACCVV	V1, V2, V0, V3			// d7a120f4
++	VWMACCVX	X10, V2, V3			// d76125f6
++	VWMACCVX	X10, V2, V0, V3			// d76125f4
++	VWMACCSUVV	V1, V2, V3			// d7a120fe
++	VWMACCSUVV	V1, V2, V0, V3			// d7a120fc
++	VWMACCSUVX	X10, V2, V3			// d76125fe
++	VWMACCSUVX	X10, V2, V0, V3			// d76125fc
++	VWMACCUSVX	X10, V2, V3			// d76125fa
++	VWMACCUSVX	X10, V2, V0, V3			// d76125f8
++
++	// 31.11.15: Vector Integer Merge Instructions
++	VMERGEVVM	V1, V2, V0, V3			// d781205c
++	VMERGEVXM	X10, V2, V0, V3			// d741255c
++	VMERGEVIM	$15, V2, V0, V3			// d7b1275c
++
++	// 31.11.16: Vector Integer Move Instructions
++	VMVVV		V2, V3				// d701015e
++	VMVVX		X10, V3				// d741055e
++	VMVVI		$15, V3				// d7b1075e
++
+ 	//
+ 	// Privileged ISA
+ 	//
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index 005b794612..025d63a15c 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -46,6 +46,10 @@ TEXT errors(SB),$0
+ 	SRAIW	$-1, X5, X6			// ERROR "immediate out of range 0 to 31"
+ 	SD	X5, 4294967296(X6)		// ERROR "constant 4294967296 too large"
+ 	FNES	F1, (X5)			// ERROR "needs an integer register output"
++
++	//
++	// "V" Standard Extension for Vector Operations, Version 1.0
++	//
+ 	VSETIVLI X10, E32, M2, TA, MA, X12	// ERROR "expected immediate value"
+ 	VLE8V	(X10), V1, V3			// ERROR "invalid vector mask register"
+ 	VSE8V	V3, V1, (X10)			// ERROR "invalid vector mask register"
+@@ -57,4 +61,165 @@ TEXT errors(SB),$0
+ 	VSOXEI8V V3, V2, V1, (X10)		// ERROR "invalid vector mask register"
+ 	VL1RV	(X10), V0, V3			// ERROR "too many operands for instruction"
+ 	VS1RV	V3, V0, (X11)			// ERROR "too many operands for instruction"
++	VADDVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VADDVX	X10, V2, V1, V3			// ERROR "invalid vector mask register"
++	VADDVI	$15, V4, V1, V2			// ERROR "invalid vector mask register"
++	VSUBVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSUBVX	X10, V2, V1, V3			// ERROR "invalid vector mask register"
++	VRSUBVX	X10, V2, V1, V3			// ERROR "invalid vector mask register"
++	VRSUBVI	$15, V4, V1, V2			// ERROR "invalid vector mask register"
++	VNEGV	V2, V3, V4			// ERROR "invalid vector mask register"
++	VWADDUVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWADDUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWSUBUVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWSUBUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWADDVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWADDVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWSUBVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWSUBVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWADDUWV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWADDUWX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWSUBUWV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWSUBUWX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWADDWV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWADDWX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWSUBWV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWSUBWX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWCVTXXV V2, V1, V3			// ERROR "invalid vector mask register"
++	VWCVTUXXV V2, V1, V3			// ERROR "invalid vector mask register"
++	VZEXTVF2 V2, V3, V4			// ERROR "invalid vector mask register"
++	VSEXTVF2 V2, V3, V4			// ERROR "invalid vector mask register"
++	VZEXTVF4 V2, V3, V4			// ERROR "invalid vector mask register"
++	VSEXTVF4 V2, V3, V4			// ERROR "invalid vector mask register"
++	VZEXTVF8 V2, V3, V4			// ERROR "invalid vector mask register"
++	VSEXTVF8 V2, V3, V4			// ERROR "invalid vector mask register"
++	VADCVVM	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VADCVVM	V1, V2, V3			// ERROR "invalid vector mask register"
++	VADCVXM	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VADCVXM	X10, V2, V3			// ERROR "invalid vector mask register"
++	VADCVIM	$15, V2, V1, V3			// ERROR "invalid vector mask register"
++	VADCVIM	$15, V2, V3			// ERROR "invalid vector mask register"
++	VMADCVVM V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMADCVVM V1, V2, V3			// ERROR "invalid vector mask register"
++	VMADCVXM X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMADCVXM X10, V2, V3			// ERROR "invalid vector mask register"
++	VMADCVIM $15, V2, V1, V3		// ERROR "invalid vector mask register"
++	VMADCVIM $15, V2, V3			// ERROR "invalid vector mask register"
++	VSBCVVM	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSBCVVM	V1, V2, V3			// ERROR "invalid vector mask register"
++	VSBCVXM	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSBCVXM	X10, V2, V3			// ERROR "invalid vector mask register"
++	VMSBCVVM V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSBCVVM V1, V2, V3			// ERROR "invalid vector mask register"
++	VMSBCVXM X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMSBCVXM X10, V2, V3			// ERROR "invalid vector mask register"
++	VANDVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VANDVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VANDVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VORVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VORVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VORVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VXORVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VXORVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VXORVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNOTV	V1, V2, V3			// ERROR "invalid vector mask register"
++	VSLLVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSLLVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSLLVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSRLVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSRLVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSRLVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSRAVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSRAVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSRAVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNSRLWV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNSRLWX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNSRLWI	$31, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNSRAWV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNSRAWX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNSRAWI	$31, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNCVTXXW V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSEQVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSEQVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSEQVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSNEVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSNEVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSNEVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSLTUVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSLTUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMSLTVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSLTVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSLEUVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSLEUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMSLEUVI $15, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMSLEVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSLEVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSLEVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSGTUVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSGTUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMSGTUVI $15, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMSGTVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSGTVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSGTVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSGEVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSGEUVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSLTVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSLTUVI $15, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMSGEVI	$15, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSGEUVI $15, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMINUVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMINUVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMINVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMINVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMAXUVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMAXUVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMAXVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMAXVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMULVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMULVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMULHVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMULHVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMULHUVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMULHUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMULHSUVV V1, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMULHSUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VDIVUVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VDIVUVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VDIVVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VDIVVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREMUVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREMUVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREMVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VREMVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWMULVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWMULVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWMULUVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWMULUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWMULSUVV V1, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWMULSUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMACCVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMACCVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNMSACVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNMSACVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMADDVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VMADDVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNMSUBVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VNMSUBVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWMACCUVV V1, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWMACCUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWMACCVV V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VWMACCVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWMACCSUVV V1, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWMACCSUVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VWMACCUSVX X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMERGEVVM V1, V2, V3			// ERROR "invalid vector mask register"
++	VMERGEVVM V1, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMERGEVXM X10, V2, V3			// ERROR "invalid vector mask register"
++	VMERGEVXM X10, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMERGEVIM $15, V2, V3			// ERROR "invalid vector mask register"
++	VMERGEVIM $15, V2, V4, V3		// ERROR "invalid vector mask register"
++	VMVVV	V1, V2, V3			// ERROR "too many operands for instruction"
++	VMVVX	X10, V2, V3			// ERROR "too many operands for instruction"
++	VMVVI	$15, V2, V3			// ERROR "too many operands for instruction"
++
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64validation.s b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+index 773f275dd3..602cab2c2e 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64validation.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+@@ -11,36 +11,231 @@
+ TEXT validation(SB),$0
+ 	SRLI	$1, X5, F1			// ERROR "expected integer register in rd position but got non-integer register F1"
+ 	SRLI	$1, F1, X5			// ERROR "expected integer register in rs1 position but got non-integer register F1"
++
++	//
++	// "V" Standard Extension for Vector Operations, Version 1.0
++	//
+ 	VSETVLI	$32, E16, M1, TU, MU, X12	// ERROR "must be in range [0, 31] (5 bits)"
+ 	VSETVLI	$-1, E32, M2, TA, MA, X12	// ERROR "must be in range [0, 31] (5 bits)"
+ 	VSETVL	X10, X11			// ERROR "expected integer register in rs1 position"
+-	VLE8V	(X10), X10			// ERROR "expected vector register in rd position"
++	VLE8V	(X10), X10			// ERROR "expected vector register in vd position"
+ 	VLE8V	(V1), V3			// ERROR "expected integer register in rs1 position"
+-	VSE8V	X10, (X10)			// ERROR "expected vector register in rs1 position"
++	VSE8V	X10, (X10)			// ERROR "expected vector register in vs1 position"
+ 	VSE8V	V3, (V1)			// ERROR "expected integer register in rd position"
+ 	VLSE8V	(X10), V3			// ERROR "expected integer register in rs2 position"
+-	VLSE8V	(X10), X10, X11			// ERROR "expected vector register in rd position"
++	VLSE8V	(X10), X10, X11			// ERROR "expected vector register in vd position"
+ 	VLSE8V	(V1), X10, V3			// ERROR "expected integer register in rs1 position"
+ 	VLSE8V	(X10), V1, V0, V3		// ERROR "expected integer register in rs2 position"
+ 	VSSE8V	V3, (X10)			// ERROR "expected integer register in rs2 position"
+-	VSSE8V	X10, X11, (X10)			// ERROR "expected vector register in rd position"
++	VSSE8V	X10, X11, (X10)			// ERROR "expected vector register in vd position"
+ 	VSSE8V	V3, X11, (V1)			// ERROR "expected integer register in rs1 position"
+ 	VSSE8V	V3, V1, V0, (X10)		// ERROR "expected integer register in rs2 position"
+-	VLUXEI8V (X10), V2, X11			// ERROR "expected vector register in rd position"
+-	VLUXEI8V (X10), V2, X11			// ERROR "expected vector register in rd position"
++	VLUXEI8V (X10), V2, X11			// ERROR "expected vector register in vd position"
++	VLUXEI8V (X10), V2, X11			// ERROR "expected vector register in vd position"
+ 	VLUXEI8V (V1), V2, V3			// ERROR "expected integer register in rs1 position"
+-	VLUXEI8V (X10), X11, V0, V3		// ERROR "expected vector register in rs2 position"
+-	VSUXEI8V X10, V2, (X10)			// ERROR "expected vector register in rd position"
++	VLUXEI8V (X10), X11, V0, V3		// ERROR "expected vector register in vs2 position"
++	VSUXEI8V X10, V2, (X10)			// ERROR "expected vector register in vd position"
+ 	VSUXEI8V V3, V2, (V1)			// ERROR "expected integer register in rs1 position"
+-	VSUXEI8V V3, X11, V0, (X10)		// ERROR "expected vector register in rs2 position"
+-	VLOXEI8V (X10), V2, X11			// ERROR "expected vector register in rd position"
++	VSUXEI8V V3, X11, V0, (X10)		// ERROR "expected vector register in vs2 position"
++	VLOXEI8V (X10), V2, X11			// ERROR "expected vector register in vd position"
+ 	VLOXEI8V (V1), V2, V3			// ERROR "expected integer register in rs1 position"
+-	VLOXEI8V (X10), X11, V0, V3		// ERROR "expected vector register in rs2 position"
+-	VSOXEI8V X10, V2, (X10)			// ERROR "expected vector register in rd position"
++	VLOXEI8V (X10), X11, V0, V3		// ERROR "expected vector register in vs2 position"
++	VSOXEI8V X10, V2, (X10)			// ERROR "expected vector register in vd position"
+ 	VSOXEI8V V3, V2, (V1)			// ERROR "expected integer register in rs1 position"
+-	VSOXEI8V V3, X11, V0, (X10)		// ERROR "expected vector register in rs2 position"
+-	VL1RV	(X10), X10			// ERROR "expected vector register in rd position"
++	VSOXEI8V V3, X11, V0, (X10)		// ERROR "expected vector register in vs2 position"
++	VL1RV	(X10), X10			// ERROR "expected vector register in vd position"
+ 	VL1RV	(V1), V3			// ERROR "expected integer register in rs1 position"
+-	VS1RV	X11, (X11)			// ERROR "expected vector register in rs1 position"
++	VS1RV	X11, (X11)			// ERROR "expected vector register in vs1 position"
+ 	VS1RV	V3, (V1)			// ERROR "expected integer register in rd position"
++	VADDVV	V1, X10, V3			// ERROR "expected vector register in vs2 position"
++	VADDVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VADDVI	$16, V4, V2			// ERROR "signed immediate 16 must be in range [-16, 15] (5 bits)"
++	VADDVI	$-17, V4, V2			// ERROR "signed immediate -17 must be in range [-16, 15] (5 bits)"
++	VSUBVV	V1, X10, V3			// ERROR "expected vector register in vs2 position"
++	VSUBVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VRSUBVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VRSUBVI	$16, V4, V2			// ERROR "signed immediate 16 must be in range [-16, 15] (5 bits)"
++	VRSUBVI	$-17, V4, V2			// ERROR "signed immediate -17 must be in range [-16, 15] (5 bits)"
++	VNEGV	X10, V3				// ERROR "expected vector register in vs2 position"
++	VNEGV	V2				// ERROR "expected vector register in vd position"
++	VWADDUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWADDUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWSUBUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWSUBUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWADDVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWADDVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWSUBVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWSUBVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWADDUWV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWADDUWX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWSUBUWV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWSUBUWX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWADDWV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWADDWX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWSUBWV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWSUBWX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWCVTXXV X10, V3			// ERROR "expected vector register in vs2 position"
++	VWCVTUXXV X10, V3			// ERROR "expected vector register in vs2 position"
++	VZEXTVF2 V2, V0, V3, V4			// ERROR "expected no register in rs3"
++	VZEXTVF2 X10, V3			// ERROR "expected vector register in vs2 position"
++	VSEXTVF2 V2, V0, V3, V4			// ERROR "expected no register in rs3"
++	VSEXTVF2 X10, V3			// ERROR "expected vector register in vs2 position"
++	VZEXTVF4 V2, V0, V3, V4			// ERROR "expected no register in rs3"
++	VZEXTVF4 X10, V3			// ERROR "expected vector register in vs2 position"
++	VSEXTVF4 V2, V0, V3, V4			// ERROR "expected no register in rs3"
++	VSEXTVF4 X10, V3			// ERROR "expected vector register in vs2 position"
++	VZEXTVF8 V2, V0, V3, V4			// ERROR "expected no register in rs3"
++	VZEXTVF8 X10, V3			// ERROR "expected vector register in vs2 position"
++	VSEXTVF8 V2, V0, V3, V4			// ERROR "expected no register in rs3"
++	VSEXTVF8 X10, V3			// ERROR "expected vector register in vs2 position"
++	VADCVVM	X10, V2, V0, V3			// ERROR "expected vector register in vs1 position"
++	VADCVXM	V1, V2, V0, V3			// ERROR "expected integer register in rs1 position"
++	VADCVIM	$16, V2, V0, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VADCVIM	$-17, V2, V0, V3		// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMADCVVM X10, V2, V0, V3		// ERROR "expected vector register in vs1 position"
++	VMADCVXM V1, V2, V0, V3			// ERROR "expected integer register in rs1 position"
++	VMADCVIM $16, V2, V0, V3		// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMADCVIM $-17, V2, V0, V3		// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMADCVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMADCVV	V1, V2, V0, V3			// ERROR "expected no register in rs3"
++	VMADCVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMADCVX	X10, V2, V0, V3			// ERROR "expected no register in rs3"
++	VMADCVI	$16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMADCVI	$-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMADCVI	$15, V2, V0, V3			// ERROR "expected no register in rs3"
++	VSBCVVM	X10, V2, V0, V3			// ERROR "expected vector register in vs1 position"
++	VSBCVXM	V1, V2, V0, V3			// ERROR "expected integer register in rs1 position"
++	VMSBCVVM X10, V2, V0, V3		// ERROR "expected vector register in vs1 position"
++	VMSBCVXM V1, V2, V0, V3			// ERROR "expected integer register in rs1 position"
++	VMSBCVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMSBCVV	V1, V2, V0, V3			// ERROR "expected no register in rs3"
++	VMSBCVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMSBCVX	X10, V2, V0, V3			// ERROR "expected no register in rs3"
++	VANDVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VANDVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VANDVI	$16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VANDVI	$-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VORVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VORVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VORVI	$16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VORVI	$-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VXORVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VXORVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VXORVI	$16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VXORVI	$-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VNOTV	V3				// ERROR "expected vector register in vd position"
++	VNOTV	X10, V3				// ERROR "expected vector register in vs2 position"
++	VSLLVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VSLLVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VSLLVI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
++	VSLLVI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
++	VSRLVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VSRLVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VSRLVI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
++	VSRLVI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
++	VSRAVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VSRAVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VSRAVI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
++	VSRAVI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
++	VNSRLWV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VNSRLWX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VNSRLWI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
++	VNSRLWI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
++	VNSRAWV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VNSRAWX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VNSRAWI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
++	VNSRAWI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
++	VNCVTXXW X10, V3			// ERROR "expected vector register in vs2 position"
++	VMSEQVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMSEQVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMSEQVI	$16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSEQVI	$-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMSNEVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMSNEVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMSNEVI	$16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSNEVI	$-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMSLTUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMSLTUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMSLTVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMSLTVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMSLEUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMSLEUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMSLEUVI $16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSLEUVI $-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMSLEVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMSLEVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMSLEVI	$16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSLEVI	$-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMSGTUVV X10, V2, V3			// ERROR "expected vector register in vs2 position"
++	VMSGTUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMSGTUVI $16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSGTUVI $-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMSGTVV	X10, V2, V3			// ERROR "expected vector register in vs2 position"
++	VMSGTVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMSGTVI	$16, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSGTVI	$-17, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMSGEVV	X10, V2, V3			// ERROR "expected vector register in vs2 position"
++	VMSGEUVV X10, V2, V3			// ERROR "expected vector register in vs2 position"
++	VMSLTVI	$17, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSLTVI	$-16, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMSLTUVI $17, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSLTUVI $-16, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMSGEVI	$17, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSGEVI	$-16, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMSGEUVI $17, V2, V3			// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMSGEUVI $-16, V2, V3			// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMINUVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMINUVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMINVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMINVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMAXUVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMAXUVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMAXVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMAXVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMULVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMULVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMULHVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMULHVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMULHUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMULHUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMULHSUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMULHSUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VDIVUVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VDIVUVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VDIVVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VDIVVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VREMUVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VREMUVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VREMVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VREMVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWMULVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWMULVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWMULUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWMULUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWMULSUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWMULSUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMACCVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMACCVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VNMSACVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VNMSACVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMADDVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMADDVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VNMSUBVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VNMSUBVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWMACCUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWMACCUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWMACCVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWMACCVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWMACCSUVV X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VWMACCSUVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VWMACCUSVX V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VMERGEVVM X10, V2, V0, V3		// ERROR "expected vector register in vs1 position"
++	VMERGEVXM V1, V2, V0, V3		// ERROR "expected integer register in rs1 position"
++	VMERGEVIM $16, V2, V0, V3		// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMERGEVIM $-17, V2, V0, V3		// ERROR "signed immediate -17 must be in range [-16, 15]"
++	VMVVV	X10, V3				// ERROR "expected vector register in vs1 position"
++	VMVVX	V1, V2				// ERROR "expected integer register in rs1 position"
++	VMVVI	$16, V2				// ERROR "signed immediate 16 must be in range [-16, 15]"
++	VMVVI	$-17, V2			// ERROR "signed immediate -17 must be in range [-16, 15]"
++
+ 	RET
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index 6df5f0a173..a65dfceea9 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -654,5 +654,18 @@ var Anames = []string{
+ 	"VL2RV",
+ 	"VL4RV",
+ 	"VL8RV",
++	"VMSGEUVI",
++	"VMSGEUVV",
++	"VMSGEVI",
++	"VMSGEVV",
++	"VMSGTUVV",
++	"VMSGTVV",
++	"VMSLTUVI",
++	"VMSLTVI",
++	"VNCVTXXW",
++	"VNEGV",
++	"VNOTV",
++	"VWCVTUXXV",
++	"VWCVTXXV",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 0ecf6dbae2..fa4c2cf372 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -1182,6 +1182,19 @@ const (
+ 	AVL2RV
+ 	AVL4RV
+ 	AVL8RV
++	AVMSGEUVI
++	AVMSGEUVV
++	AVMSGEVI
++	AVMSGEVV
++	AVMSGTUVV
++	AVMSGTVV
++	AVMSLTUVI
++	AVMSLTVI
++	AVNCVTXXW
++	AVNEGV
++	AVNOTV
++	AVWCVTUXXV
++	AVWCVTXXV
+ 
+ 	// End marker
+ 	ALAST
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 208550c7be..00b71de7cb 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1329,6 +1329,43 @@ func validateRFF(ctxt *obj.Link, ins *instruction) {
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
++func validateRVIV(ctxt *obj.Link, ins *instruction) {
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
++	wantIntReg(ctxt, ins, "rs1", ins.rs1)
++	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
++func validateRVV(ctxt *obj.Link, ins *instruction) {
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
++	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
++	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
++func validateRVVi(ctxt *obj.Link, ins *instruction) {
++	wantImmI(ctxt, ins, ins.imm, 5)
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
++	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
++	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
++func validateRVVu(ctxt *obj.Link, ins *instruction) {
++	wantImmU(ctxt, ins, ins.imm, 5)
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
++	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
++	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
++func validateRVVV(ctxt *obj.Link, ins *instruction) {
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
++	wantVectorReg(ctxt, ins, "vs1", ins.rs1)
++	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
+ func validateIII(ctxt *obj.Link, ins *instruction) {
+ 	wantImmI(ctxt, ins, ins.imm, 12)
+ 	wantIntReg(ctxt, ins, "rd", ins.rd)
+@@ -1346,23 +1383,23 @@ func validateIF(ctxt *obj.Link, ins *instruction) {
+ }
+ 
+ func validateIV(ctxt *obj.Link, ins *instruction) {
+-	wantVectorReg(ctxt, ins, "rd", ins.rd)
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
+ 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+ 	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
+ func validateIIIV(ctxt *obj.Link, ins *instruction) {
+-	wantVectorReg(ctxt, ins, "rd", ins.rd)
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
+ 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+ 	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
+ func validateIVIV(ctxt *obj.Link, ins *instruction) {
+-	wantVectorReg(ctxt, ins, "rd", ins.rd)
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
+ 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+-	wantVectorReg(ctxt, ins, "rs2", ins.rs2)
++	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
+@@ -1384,22 +1421,22 @@ func validateSF(ctxt *obj.Link, ins *instruction) {
+ 
+ func validateSV(ctxt *obj.Link, ins *instruction) {
+ 	wantIntReg(ctxt, ins, "rd", ins.rd)
+-	wantVectorReg(ctxt, ins, "rs1", ins.rs1)
++	wantVectorReg(ctxt, ins, "vs1", ins.rs1)
+ 	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
+ func validateSVII(ctxt *obj.Link, ins *instruction) {
+-	wantVectorReg(ctxt, ins, "rd", ins.rd)
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
+ 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+ 	wantIntReg(ctxt, ins, "rs2", ins.rs2)
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
+ func validateSVIV(ctxt *obj.Link, ins *instruction) {
+-	wantVectorReg(ctxt, ins, "rd", ins.rd)
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
+ 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+-	wantVectorReg(ctxt, ins, "rs2", ins.rs2)
++	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
+@@ -1476,11 +1513,15 @@ func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
+ 	if enc == nil {
+ 		panic("encodeR: could not encode instruction")
+ 	}
++	if enc.rs1 != 0 && rs1 != 0 {
++		panic("encodeR: instruction uses rs1, but rs1 is nonzero")
++	}
+ 	if enc.rs2 != 0 && rs2 != 0 {
+-		panic("encodeR: instruction uses rs2, but rs2 was nonzero")
++		panic("encodeR: instruction uses rs2, but rs2 is nonzero")
+ 	}
+ 	funct3 |= enc.funct3
+ 	funct7 |= enc.funct7
++	rs1 |= enc.rs1
+ 	rs2 |= enc.rs2
+ 	return funct7<<25 | rs2<<20 | rs1<<15 | funct3<<12 | rd<<7 | enc.opcode
+ }
+@@ -1533,6 +1574,26 @@ func encodeRFF(ins *instruction) uint32 {
+ 	return encodeR(ins.as, regF(ins.rs2), 0, regF(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
++func encodeRVV(ins *instruction) uint32 {
++	return encodeR(ins.as, 0, regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
++}
++
++func encodeRVVi(ins *instruction) uint32 {
++	return encodeR(ins.as, immI(ins.as, ins.imm, 5), regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
++}
++
++func encodeRVVu(ins *instruction) uint32 {
++	return encodeR(ins.as, immU(ins.as, ins.imm, 5), regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
++}
++
++func encodeRVIV(ins *instruction) uint32 {
++	return encodeR(ins.as, regI(ins.rs1), regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
++}
++
++func encodeRVVV(ins *instruction) uint32 {
++	return encodeR(ins.as, regV(ins.rs1), regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
++}
++
+ // encodeI encodes an I-type RISC-V instruction.
+ func encodeI(as obj.As, rs1, rd, imm, funct7 uint32) uint32 {
+ 	enc := encode(as)
+@@ -1816,6 +1877,11 @@ var (
+ 	rFIEncoding   = encoding{encode: encodeRFI, validate: validateRFI, length: 4}
+ 	rIFEncoding   = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
+ 	rFFEncoding   = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
++	rVVEncoding   = encoding{encode: encodeRVV, validate: validateRVV, length: 4}
++	rVViEncoding  = encoding{encode: encodeRVVi, validate: validateRVVi, length: 4}
++	rVVuEncoding  = encoding{encode: encodeRVVu, validate: validateRVVu, length: 4}
++	rVIVEncoding  = encoding{encode: encodeRVIV, validate: validateRVIV, length: 4}
++	rVVVEncoding  = encoding{encode: encodeRVVV, validate: validateRVVV, length: 4}
+ 
+ 	iIIEncoding  = encoding{encode: encodeIII, validate: validateIII, length: 4}
+ 	iFEncoding   = encoding{encode: encodeIF, validate: validateIF, length: 4}
+@@ -2153,7 +2219,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AVSOXEI32V & obj.AMask: {enc: sVIVEncoding},
+ 	AVSOXEI64V & obj.AMask: {enc: sVIVEncoding},
+ 
+-	// 31.7.9. Vector Load/Store Whole Register Instructions
++	// 31.7.9: Vector Load/Store Whole Register Instructions
+ 	AVL1RE8V & obj.AMask:  {enc: iVEncoding},
+ 	AVL1RE16V & obj.AMask: {enc: iVEncoding},
+ 	AVL1RE32V & obj.AMask: {enc: iVEncoding},
+@@ -2175,6 +2241,177 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AVS4RV & obj.AMask:    {enc: sVEncoding},
+ 	AVS8RV & obj.AMask:    {enc: sVEncoding},
+ 
++	// 31.11.1: Vector Single-Width Integer Add and Subtract
++	AVADDVV & obj.AMask:  {enc: rVVVEncoding},
++	AVADDVX & obj.AMask:  {enc: rVIVEncoding},
++	AVADDVI & obj.AMask:  {enc: rVViEncoding},
++	AVSUBVV & obj.AMask:  {enc: rVVVEncoding},
++	AVSUBVX & obj.AMask:  {enc: rVIVEncoding},
++	AVRSUBVX & obj.AMask: {enc: rVIVEncoding},
++	AVRSUBVI & obj.AMask: {enc: rVViEncoding},
++
++	// 31.11.2: Vector Widening Integer Add/Subtract
++	AVWADDUVV & obj.AMask: {enc: rVVVEncoding},
++	AVWADDUVX & obj.AMask: {enc: rVIVEncoding},
++	AVWSUBUVV & obj.AMask: {enc: rVVVEncoding},
++	AVWSUBUVX & obj.AMask: {enc: rVIVEncoding},
++	AVWADDVV & obj.AMask:  {enc: rVVVEncoding},
++	AVWADDVX & obj.AMask:  {enc: rVIVEncoding},
++	AVWSUBVV & obj.AMask:  {enc: rVVVEncoding},
++	AVWSUBVX & obj.AMask:  {enc: rVIVEncoding},
++	AVWADDUWV & obj.AMask: {enc: rVVVEncoding},
++	AVWADDUWX & obj.AMask: {enc: rVIVEncoding},
++	AVWSUBUWV & obj.AMask: {enc: rVVVEncoding},
++	AVWSUBUWX & obj.AMask: {enc: rVIVEncoding},
++	AVWADDWV & obj.AMask:  {enc: rVVVEncoding},
++	AVWADDWX & obj.AMask:  {enc: rVIVEncoding},
++	AVWSUBWV & obj.AMask:  {enc: rVVVEncoding},
++	AVWSUBWX & obj.AMask:  {enc: rVIVEncoding},
++
++	// 31.11.3: Vector Integer Extension
++	AVZEXTVF2 & obj.AMask: {enc: rVVEncoding},
++	AVSEXTVF2 & obj.AMask: {enc: rVVEncoding},
++	AVZEXTVF4 & obj.AMask: {enc: rVVEncoding},
++	AVSEXTVF4 & obj.AMask: {enc: rVVEncoding},
++	AVZEXTVF8 & obj.AMask: {enc: rVVEncoding},
++	AVSEXTVF8 & obj.AMask: {enc: rVVEncoding},
++
++	// 31.11.4: Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
++	AVADCVVM & obj.AMask:  {enc: rVVVEncoding},
++	AVADCVXM & obj.AMask:  {enc: rVIVEncoding},
++	AVADCVIM & obj.AMask:  {enc: rVViEncoding},
++	AVMADCVVM & obj.AMask: {enc: rVVVEncoding},
++	AVMADCVXM & obj.AMask: {enc: rVIVEncoding},
++	AVMADCVIM & obj.AMask: {enc: rVViEncoding},
++	AVMADCVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMADCVX & obj.AMask:  {enc: rVIVEncoding},
++	AVMADCVI & obj.AMask:  {enc: rVViEncoding},
++	AVSBCVVM & obj.AMask:  {enc: rVVVEncoding},
++	AVSBCVXM & obj.AMask:  {enc: rVIVEncoding},
++	AVMSBCVVM & obj.AMask: {enc: rVVVEncoding},
++	AVMSBCVXM & obj.AMask: {enc: rVIVEncoding},
++	AVMSBCVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMSBCVX & obj.AMask:  {enc: rVIVEncoding},
++
++	// 31.11.5: Vector Bitwise Logical Instructions
++	AVANDVV & obj.AMask: {enc: rVVVEncoding},
++	AVANDVX & obj.AMask: {enc: rVIVEncoding},
++	AVANDVI & obj.AMask: {enc: rVViEncoding},
++	AVORVV & obj.AMask:  {enc: rVVVEncoding},
++	AVORVX & obj.AMask:  {enc: rVIVEncoding},
++	AVORVI & obj.AMask:  {enc: rVViEncoding},
++	AVXORVV & obj.AMask: {enc: rVVVEncoding},
++	AVXORVX & obj.AMask: {enc: rVIVEncoding},
++	AVXORVI & obj.AMask: {enc: rVViEncoding},
++
++	// 31.11.6: Vector Single-Width Shift Instructions
++	AVSLLVV & obj.AMask: {enc: rVVVEncoding},
++	AVSLLVX & obj.AMask: {enc: rVIVEncoding},
++	AVSLLVI & obj.AMask: {enc: rVVuEncoding},
++	AVSRLVV & obj.AMask: {enc: rVVVEncoding},
++	AVSRLVX & obj.AMask: {enc: rVIVEncoding},
++	AVSRLVI & obj.AMask: {enc: rVVuEncoding},
++	AVSRAVV & obj.AMask: {enc: rVVVEncoding},
++	AVSRAVX & obj.AMask: {enc: rVIVEncoding},
++	AVSRAVI & obj.AMask: {enc: rVVuEncoding},
++
++	// 31.11.7: Vector Narrowing Integer Right Shift Instructions
++	AVNSRLWV & obj.AMask: {enc: rVVVEncoding},
++	AVNSRLWX & obj.AMask: {enc: rVIVEncoding},
++	AVNSRLWI & obj.AMask: {enc: rVVuEncoding},
++	AVNSRAWV & obj.AMask: {enc: rVVVEncoding},
++	AVNSRAWX & obj.AMask: {enc: rVIVEncoding},
++	AVNSRAWI & obj.AMask: {enc: rVVuEncoding},
++
++	// 31.11.8: Vector Integer Compare Instructions
++	AVMSEQVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMSEQVX & obj.AMask:  {enc: rVIVEncoding},
++	AVMSEQVI & obj.AMask:  {enc: rVViEncoding},
++	AVMSNEVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMSNEVX & obj.AMask:  {enc: rVIVEncoding},
++	AVMSNEVI & obj.AMask:  {enc: rVViEncoding},
++	AVMSLTUVV & obj.AMask: {enc: rVVVEncoding},
++	AVMSLTUVX & obj.AMask: {enc: rVIVEncoding},
++	AVMSLTVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMSLTVX & obj.AMask:  {enc: rVIVEncoding},
++	AVMSLEUVV & obj.AMask: {enc: rVVVEncoding},
++	AVMSLEUVX & obj.AMask: {enc: rVIVEncoding},
++	AVMSLEUVI & obj.AMask: {enc: rVViEncoding},
++	AVMSLEVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMSLEVX & obj.AMask:  {enc: rVIVEncoding},
++	AVMSLEVI & obj.AMask:  {enc: rVViEncoding},
++	AVMSGTUVX & obj.AMask: {enc: rVIVEncoding},
++	AVMSGTUVI & obj.AMask: {enc: rVViEncoding},
++	AVMSGTVX & obj.AMask:  {enc: rVIVEncoding},
++	AVMSGTVI & obj.AMask:  {enc: rVViEncoding},
++
++	// 31.11.9: Vector Integer Min/Max Instructions
++	AVMINUVV & obj.AMask: {enc: rVVVEncoding},
++	AVMINUVX & obj.AMask: {enc: rVIVEncoding},
++	AVMINVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMINVX & obj.AMask:  {enc: rVIVEncoding},
++	AVMAXUVV & obj.AMask: {enc: rVVVEncoding},
++	AVMAXUVX & obj.AMask: {enc: rVIVEncoding},
++	AVMAXVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMAXVX & obj.AMask:  {enc: rVIVEncoding},
++
++	// 31.11.10: Vector Single-Width Integer Multiply Instructions
++	AVMULVV & obj.AMask:    {enc: rVVVEncoding},
++	AVMULVX & obj.AMask:    {enc: rVIVEncoding},
++	AVMULHVV & obj.AMask:   {enc: rVVVEncoding},
++	AVMULHVX & obj.AMask:   {enc: rVIVEncoding},
++	AVMULHUVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMULHUVX & obj.AMask:  {enc: rVIVEncoding},
++	AVMULHSUVV & obj.AMask: {enc: rVVVEncoding},
++	AVMULHSUVX & obj.AMask: {enc: rVIVEncoding},
++
++	// 31.11.11: Vector Integer Divide Instructions
++	AVDIVUVV & obj.AMask: {enc: rVVVEncoding},
++	AVDIVUVX & obj.AMask: {enc: rVIVEncoding},
++	AVDIVVV & obj.AMask:  {enc: rVVVEncoding},
++	AVDIVVX & obj.AMask:  {enc: rVIVEncoding},
++	AVREMUVV & obj.AMask: {enc: rVVVEncoding},
++	AVREMUVX & obj.AMask: {enc: rVIVEncoding},
++	AVREMVV & obj.AMask:  {enc: rVVVEncoding},
++	AVREMVX & obj.AMask:  {enc: rVIVEncoding},
++
++	// 31.11.12: Vector Widening Integer Multiply Instructions
++	AVWMULVV & obj.AMask:   {enc: rVVVEncoding},
++	AVWMULVX & obj.AMask:   {enc: rVIVEncoding},
++	AVWMULUVV & obj.AMask:  {enc: rVVVEncoding},
++	AVWMULUVX & obj.AMask:  {enc: rVIVEncoding},
++	AVWMULSUVV & obj.AMask: {enc: rVVVEncoding},
++	AVWMULSUVX & obj.AMask: {enc: rVIVEncoding},
++
++	// 31.11.13: Vector Single-Width Integer Multiply-Add Instructions
++	AVMACCVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMACCVX & obj.AMask:  {enc: rVIVEncoding},
++	AVNMSACVV & obj.AMask: {enc: rVVVEncoding},
++	AVNMSACVX & obj.AMask: {enc: rVIVEncoding},
++	AVMADDVV & obj.AMask:  {enc: rVVVEncoding},
++	AVMADDVX & obj.AMask:  {enc: rVIVEncoding},
++	AVNMSUBVV & obj.AMask: {enc: rVVVEncoding},
++	AVNMSUBVX & obj.AMask: {enc: rVIVEncoding},
++
++	// 31.11.14: Vector Widening Integer Multiply-Add Instructions
++	AVWMACCUVV & obj.AMask:  {enc: rVVVEncoding},
++	AVWMACCUVX & obj.AMask:  {enc: rVIVEncoding},
++	AVWMACCVV & obj.AMask:   {enc: rVVVEncoding},
++	AVWMACCVX & obj.AMask:   {enc: rVIVEncoding},
++	AVWMACCSUVV & obj.AMask: {enc: rVVVEncoding},
++	AVWMACCSUVX & obj.AMask: {enc: rVIVEncoding},
++	AVWMACCUSVX & obj.AMask: {enc: rVIVEncoding},
++
++	// 31.11.15: Vector Integer Merge Instructions
++	AVMERGEVVM & obj.AMask: {enc: rVVVEncoding},
++	AVMERGEVXM & obj.AMask: {enc: rVIVEncoding},
++	AVMERGEVIM & obj.AMask: {enc: rVViEncoding},
++
++	// 31.11.16: Vector Integer Move Instructions
++	AVMVVV & obj.AMask: {enc: rVVVEncoding},
++	AVMVVX & obj.AMask: {enc: rVIVEncoding},
++	AVMVVI & obj.AMask: {enc: rVViEncoding},
++
+ 	//
+ 	// Privileged ISA
+ 	//
+@@ -3146,6 +3383,142 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 			p.Ctxt.Diag("%v: too many operands for instruction", p)
+ 		}
+ 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
++
++	case AVADDVV, AVADDVX, AVSUBVV, AVSUBVX, AVRSUBVX, AVWADDUVV, AVWADDUVX, AVWSUBUVV, AVWSUBUVX,
++		AVWADDVV, AVWADDVX, AVWSUBVV, AVWSUBVX, AVWADDUWV, AVWADDUWX, AVWSUBUWV, AVWSUBUWX,
++		AVWADDWV, AVWADDWX, AVWSUBWV, AVWSUBWX, AVANDVV, AVANDVX, AVORVV, AVORVX, AVXORVV, AVXORVX,
++		AVSLLVV, AVSLLVX, AVSRLVV, AVSRLVX, AVSRAVV, AVSRAVX,
++		AVMSEQVV, AVMSEQVX, AVMSNEVV, AVMSNEVX, AVMSLTUVV, AVMSLTUVX, AVMSLTVV, AVMSLTVX,
++		AVMSLEUVV, AVMSLEUVX, AVMSLEVV, AVMSLEVX, AVMSGTUVX, AVMSGTVX,
++		AVMINUVV, AVMINUVX, AVMINVV, AVMINVX, AVMAXUVV, AVMAXUVX, AVMAXVV, AVMAXVX,
++		AVMULVV, AVMULVX, AVMULHVV, AVMULHVX, AVMULHUVV, AVMULHUVX, AVMULHSUVV, AVMULHSUVX,
++		AVDIVUVV, AVDIVUVX, AVDIVVV, AVDIVVX, AVREMUVV, AVREMUVX, AVREMVV, AVREMVX,
++		AVWMULVV, AVWMULVX, AVWMULUVV, AVWMULUVX, AVWMULSUVV, AVWMULSUVX,
++		AVNSRLWV, AVNSRLWX, AVNSRAWV, AVNSRAWX,
++		AVMACCVV, AVMACCVX, AVNMSACVV, AVNMSACVX, AVMADDVV, AVMADDVX, AVNMSUBVV, AVNMSUBVX,
++		AVWMACCUVV, AVWMACCUVX, AVWMACCVV, AVWMACCVX, AVWMACCSUVV, AVWMACCSUVX, AVWMACCUSVX:
++		// Set mask bit
++		switch {
++		case ins.rs3 == obj.REG_NONE:
++			ins.funct7 |= 1 // unmasked
++		case ins.rs3 != REG_V0:
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), obj.REG_NONE
++
++	case AVADDVI, AVRSUBVI, AVANDVI, AVORVI, AVXORVI, AVMSEQVI, AVMSNEVI, AVMSLEUVI, AVMSLEVI, AVMSGTUVI, AVMSGTVI,
++		AVSLLVI, AVSRLVI, AVSRAVI, AVNSRLWI, AVNSRAWI:
++		// Set mask bit
++		switch {
++		case ins.rs3 == obj.REG_NONE:
++			ins.funct7 |= 1 // unmasked
++		case ins.rs3 != REG_V0:
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), obj.REG_NONE, uint32(p.Reg), obj.REG_NONE
++
++	case AVZEXTVF2, AVSEXTVF2, AVZEXTVF4, AVSEXTVF4, AVZEXTVF8, AVSEXTVF8:
++		// Set mask bit
++		switch {
++		case ins.rs1 == obj.REG_NONE:
++			ins.funct7 |= 1 // unmasked
++		case ins.rs1 != REG_V0:
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		ins.rs1 = obj.REG_NONE
++
++	case AVMVVV, AVMVVX:
++		if ins.rs1 != obj.REG_NONE {
++			p.Ctxt.Diag("%v: too many operands for instruction", p)
++		}
++		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), REG_V0
++
++	case AVMVVI:
++		if ins.rs1 != obj.REG_NONE {
++			p.Ctxt.Diag("%v: too many operands for instruction", p)
++		}
++		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), obj.REG_NONE, REG_V0
++
++	case AVADCVVM, AVADCVXM, AVMADCVVM, AVMADCVXM, AVSBCVVM, AVSBCVXM, AVMSBCVVM, AVMSBCVXM, AVADCVIM, AVMADCVIM,
++		AVMERGEVVM, AVMERGEVXM, AVMERGEVIM:
++		if ins.rs3 != REG_V0 {
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), obj.REG_NONE
++
++	case AVMADCVV, AVMADCVX, AVMSBCVV, AVMSBCVX, AVMADCVI:
++		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg)
++
++	case AVNEGV, AVWCVTXXV, AVWCVTUXXV, AVNCVTXXW:
++		// Set mask bit
++		switch {
++		case ins.rs1 == obj.REG_NONE:
++			ins.funct7 |= 1 // unmasked
++		case ins.rs1 != REG_V0:
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		switch ins.as {
++		case AVNEGV:
++			ins.as = AVRSUBVX
++		case AVWCVTXXV:
++			ins.as = AVWADDVX
++		case AVWCVTUXXV:
++			ins.as = AVWADDUVX
++		case AVNCVTXXW:
++			ins.as = AVNSRLWX
++		}
++		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), REG_X0, uint32(p.From.Reg)
++
++	case AVNOTV:
++		// Set mask bit
++		switch {
++		case ins.rs1 == obj.REG_NONE:
++			ins.funct7 |= 1 // unmasked
++		case ins.rs1 != REG_V0:
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		ins.as = AVXORVI
++		ins.rd, ins.rs1, ins.rs2, ins.imm = uint32(p.To.Reg), obj.REG_NONE, uint32(p.From.Reg), -1
++
++	case AVMSGTVV, AVMSGTUVV, AVMSGEVV, AVMSGEUVV:
++		// Set mask bit
++		switch {
++		case ins.rs3 == obj.REG_NONE:
++			ins.funct7 |= 1 // unmasked
++		case ins.rs3 != REG_V0:
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		switch ins.as {
++		case AVMSGTVV:
++			ins.as = AVMSLTVV
++		case AVMSGTUVV:
++			ins.as = AVMSLTUVV
++		case AVMSGEVV:
++			ins.as = AVMSLEVV
++		case AVMSGEUVV:
++			ins.as = AVMSLEUVV
++		}
++		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), uint32(p.Reg), uint32(p.From.Reg), obj.REG_NONE
++
++	case AVMSLTVI, AVMSLTUVI, AVMSGEVI, AVMSGEUVI:
++		// Set mask bit
++		switch {
++		case ins.rs3 == obj.REG_NONE:
++			ins.funct7 |= 1 // unmasked
++		case ins.rs3 != REG_V0:
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		switch ins.as {
++		case AVMSLTVI:
++			ins.as = AVMSLEVI
++		case AVMSLTUVI:
++			ins.as = AVMSLEUVI
++		case AVMSGEVI:
++			ins.as = AVMSGTVI
++		case AVMSGEUVI:
++			ins.as = AVMSGTUVI
++		}
++		ins.rd, ins.rs1, ins.rs2, ins.rs3, ins.imm = uint32(p.To.Reg), obj.REG_NONE, uint32(p.Reg), obj.REG_NONE, ins.imm-1
+ 	}
+ 
+ 	for _, ins := range inss {

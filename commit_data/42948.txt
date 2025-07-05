@@ -52,7 +52,7 @@ Date:   Sun Feb 16 17:00:52 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go         |  2 +-
  src/cmd/compile/internal/gc/sinit.go         | 10 +++---
  src/cmd/compile/internal/gc/syntax.go        | 13 ++++++++
@@ -69,3 +69,528 @@ Date:   Sun Feb 16 17:00:52 2020 -0800
  src/cmd/compile/internal/ssa/rewriteARM64.go | 12 +++----
  src/cmd/compile/internal/ssa/rewriteWasm.go  | 12 +++----
  15 files changed, 103 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 461f51b7c9..efac51e65b 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -207,7 +207,7 @@ func (o *Order) addrTemp(n *Node) *Node {
+ 		n = defaultlit(n, nil)
+ 		dowidth(n.Type)
+ 		vstat := staticname(n.Type)
+-		vstat.Name.SetReadonly(true)
++		vstat.MarkReadonly()
+ 		var s InitSchedule
+ 		s.staticassign(vstat, n)
+ 		if s.out != nil {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index d76201031c..630b3999d1 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -372,7 +372,7 @@ func (c initContext) String() string {
+ var statuniqgen int // name generator for static temps
+ 
+ // staticname returns a name backed by a static data symbol.
+-// Callers should call n.Name.SetReadonly(true) on the
++// Callers should call n.MarkReadonly on the
+ // returned node for readonly nodes.
+ func staticname(t *types.Type) *Node {
+ 	// Don't use lookupN; it interns the resulting string, but these are all unique.
+@@ -652,7 +652,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 	if mode&initConst != 0 && !isSmallSliceLit(n) {
+ 		vstat = staticname(t)
+ 		if ctxt == inInitFunction {
+-			vstat.Name.SetReadonly(true)
++			vstat.MarkReadonly()
+ 		}
+ 		fixedlit(ctxt, initKindStatic, n, vstat, init)
+ 	}
+@@ -795,9 +795,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
+ 
+ 		// make and initialize static arrays
+ 		vstatk := staticname(tk)
+-		vstatk.Name.SetReadonly(true)
++		vstatk.MarkReadonly()
+ 		vstate := staticname(te)
+-		vstate.Name.SetReadonly(true)
++		vstate.MarkReadonly()
+ 
+ 		datak := nod(OARRAYLIT, nil, nil)
+ 		datae := nod(OARRAYLIT, nil, nil)
+@@ -919,7 +919,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
+ 		if var_.isSimpleName() && n.List.Len() > 4 {
+ 			// lay out static data
+ 			vstat := staticname(t)
+-			vstat.Name.SetReadonly(true)
++			vstat.MarkReadonly()
+ 
+ 			ctxt := inInitFunction
+ 			if n.Op == OARRAYLIT {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index de187959fd..1b522ca8c0 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"sort"
+ )
+@@ -196,6 +197,18 @@ func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
+ func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
+ func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
+ 
++// MarkReadonly indicates that n is an ONAME with readonly contents.
++func (n *Node) MarkReadonly() {
++	if n.Op != ONAME {
++		Fatalf("Node.MarkReadonly %v", n.Op)
++	}
++	n.Name.SetReadonly(true)
++	// Mark the linksym as readonly immediately
++	// so that the SSA backend can use this information.
++	// It will be overridden later during dumpglobls.
++	n.Sym.Linksym().Type = objabi.SRODATA
++}
++
+ // Val returns the Val for the node.
+ func (n *Node) Val() Val {
+ 	if !n.HasVal() {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b8b954c4fc..9298d7b783 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1478,7 +1478,7 @@ opswitch:
+ 			// n can be directly represented in the read-only data section.
+ 			// Make direct reference to the static data. See issue 12841.
+ 			vstat := staticname(n.Type)
+-			vstat.Name.SetReadonly(true)
++			vstat.MarkReadonly()
+ 			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
+ 			n = vstat
+ 			n = typecheck(n, ctxExpr)
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index d73e9f8e5f..78916bebc3 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -1202,5 +1202,5 @@
+ (CMPBload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstload {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
+ 
+ (MOVBload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read8(sym, off))])
+-(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.BigEndian))])
+-(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(int32(read32(sym, off, config.BigEndian)))])
++(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
++(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 8fd998ec0e..16fba3f22f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -719,6 +719,7 @@
+ 
+ // fold constants into instructions
+ (ADDQ x (MOVQconst [c])) && is32Bit(c) -> (ADDQconst [c] x)
++(ADDQ x (MOVLconst [c])) && is32Bit(c) -> (ADDQconst [int64(int32(c))] x)
+ (ADDL x (MOVLconst [c])) -> (ADDLconst [c] x)
+ 
+ (SUBQ x (MOVQconst [c])) && is32Bit(c) -> (SUBQconst x [c])
+@@ -2424,6 +2425,6 @@
+   @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(0,off)] ptr mem)
+ 
+ (MOVBload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read8(sym, off))])
+-(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.BigEndian))])
+-(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read32(sym, off, config.BigEndian))])
+-(MOVQload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read64(sym, off, config.BigEndian))])
++(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVLconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
++(MOVLload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read32(sym, off, config.ctxt.Arch.ByteOrder))])
++(MOVQload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVQconst [int64(read64(sym, off, config.ctxt.Arch.ByteOrder))])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index f53b3c266f..77e7b477c6 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -1557,5 +1557,5 @@
+ (GE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) && l.Uses==1 -> (GE (TEQshiftRAreg x y z) yes no)
+ 
+ (MOVBUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read8(sym, off))])
+-(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read16(sym, off, config.BigEndian))])
+-(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(int32(read32(sym, off, config.BigEndian)))])
++(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
++(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 257c198bfc..b412d3a6b9 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -2853,6 +2853,6 @@
+ (FSUBD (FNMULD x y) a) -> (FNMADDD a x y)
+ 
+ (MOVBUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read8(sym, off))])
+-(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read16(sym, off, config.BigEndian))])
+-(MOVWUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read32(sym, off, config.BigEndian))])
+-(MOVDload  [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read64(sym, off, config.BigEndian))])
++(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
++(MOVWUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read32(sym, off, config.ctxt.Arch.ByteOrder))])
++(MOVDload  [off] {sym} (SB) _) && symIsRO(sym) -> (MOVDconst [int64(read64(sym, off, config.ctxt.Arch.ByteOrder))])
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index a89957c222..fefcc1976c 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -396,7 +396,7 @@
+ 	(LoweredAddr {sym} [off+off2] base)
+ 
+ // transforming readonly globals into constants
+-(I64Load [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read64(sym, off+off2, config.BigEndian))])
+-(I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read32(sym, off+off2, config.BigEndian))])
+-(I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read16(sym, off+off2, config.BigEndian))])
++(I64Load [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read64(sym, off+off2, config.ctxt.Arch.ByteOrder))])
++(I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read32(sym, off+off2, config.ctxt.Arch.ByteOrder))])
++(I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read16(sym, off+off2, config.ctxt.Arch.ByteOrder))])
+ (I64Load8U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read8(sym, off+off2))])
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 987970e879..fcbb76cf34 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1205,40 +1205,39 @@ func read8(sym interface{}, off int64) uint8 {
+ }
+ 
+ // read16 reads two bytes from the read-only global sym at offset off.
+-func read16(sym interface{}, off int64, bigEndian bool) uint16 {
++func read16(sym interface{}, off int64, byteorder binary.ByteOrder) uint16 {
+ 	lsym := sym.(*obj.LSym)
+-	if off >= int64(len(lsym.P))-1 || off < 0 {
+-		return 0
+-	}
+-	if bigEndian {
+-		return binary.BigEndian.Uint16(lsym.P[off:])
+-	} else {
+-		return binary.LittleEndian.Uint16(lsym.P[off:])
++	// lsym.P is written lazily.
++	// Bytes requested after the end of lsym.P are 0.
++	var src []byte
++	if 0 <= off && off < int64(len(lsym.P)) {
++		src = lsym.P[off:]
+ 	}
++	buf := make([]byte, 2)
++	copy(buf, src)
++	return byteorder.Uint16(buf)
+ }
+ 
+ // read32 reads four bytes from the read-only global sym at offset off.
+-func read32(sym interface{}, off int64, bigEndian bool) uint32 {
++func read32(sym interface{}, off int64, byteorder binary.ByteOrder) uint32 {
+ 	lsym := sym.(*obj.LSym)
+-	if off >= int64(len(lsym.P))-3 || off < 0 {
+-		return 0
+-	}
+-	if bigEndian {
+-		return binary.BigEndian.Uint32(lsym.P[off:])
+-	} else {
+-		return binary.LittleEndian.Uint32(lsym.P[off:])
++	var src []byte
++	if 0 <= off && off < int64(len(lsym.P)) {
++		src = lsym.P[off:]
+ 	}
++	buf := make([]byte, 4)
++	copy(buf, src)
++	return byteorder.Uint32(buf)
+ }
+ 
+ // read64 reads eight bytes from the read-only global sym at offset off.
+-func read64(sym interface{}, off int64, bigEndian bool) uint64 {
++func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
+ 	lsym := sym.(*obj.LSym)
+-	if off >= int64(len(lsym.P))-7 || off < 0 {
+-		return 0
+-	}
+-	if bigEndian {
+-		return binary.BigEndian.Uint64(lsym.P[off:])
+-	} else {
+-		return binary.LittleEndian.Uint64(lsym.P[off:])
++	var src []byte
++	if 0 <= off && off < int64(len(lsym.P)) {
++		src = lsym.P[off:]
+ 	}
++	buf := make([]byte, 8)
++	copy(buf, src)
++	return byteorder.Uint64(buf)
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 952c46d051..cf9a7362a2 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -5505,7 +5505,7 @@ func rewriteValue386_Op386MOVLload(v *Value) bool {
+ 	}
+ 	// match: (MOVLload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVLconst [int64(int32(read32(sym, off, config.BigEndian)))])
++	// result: (MOVLconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -5513,7 +5513,7 @@ func rewriteValue386_Op386MOVLload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(Op386MOVLconst)
+-		v.AuxInt = int64(int32(read32(sym, off, config.BigEndian)))
++		v.AuxInt = int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))
+ 		return true
+ 	}
+ 	return false
+@@ -8275,7 +8275,7 @@ func rewriteValue386_Op386MOVWload(v *Value) bool {
+ 	}
+ 	// match: (MOVWload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVLconst [int64(read16(sym, off, config.BigEndian))])
++	// result: (MOVLconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -8283,7 +8283,7 @@ func rewriteValue386_Op386MOVWload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(Op386MOVLconst)
+-		v.AuxInt = int64(read16(sym, off, config.BigEndian))
++		v.AuxInt = int64(read16(sym, off, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index ea537e444e..35010203e3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1973,6 +1973,26 @@ func rewriteValueAMD64_OpAMD64ADDQ(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (ADDQ x (MOVLconst [c]))
++	// cond: is32Bit(c)
++	// result: (ADDQconst [int64(int32(c))] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpAMD64MOVLconst {
++				continue
++			}
++			c := v_1.AuxInt
++			if !(is32Bit(c)) {
++				continue
++			}
++			v.reset(OpAMD64ADDQconst)
++			v.AuxInt = int64(int32(c))
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
+ 	// match: (ADDQ (SHLQconst x [c]) (SHRQconst x [d]))
+ 	// cond: d==64-c
+ 	// result: (ROLQconst x [c])
+@@ -13271,7 +13291,7 @@ func rewriteValueAMD64_OpAMD64MOVLload(v *Value) bool {
+ 	}
+ 	// match: (MOVLload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVQconst [int64(read32(sym, off, config.BigEndian))])
++	// result: (MOVQconst [int64(read32(sym, off, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -13279,7 +13299,7 @@ func rewriteValueAMD64_OpAMD64MOVLload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVQconst)
+-		v.AuxInt = int64(read32(sym, off, config.BigEndian))
++		v.AuxInt = int64(read32(sym, off, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+@@ -15902,7 +15922,7 @@ func rewriteValueAMD64_OpAMD64MOVQload(v *Value) bool {
+ 	}
+ 	// match: (MOVQload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVQconst [int64(read64(sym, off, config.BigEndian))])
++	// result: (MOVQconst [int64(read64(sym, off, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -15910,7 +15930,7 @@ func rewriteValueAMD64_OpAMD64MOVQload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVQconst)
+-		v.AuxInt = int64(read64(sym, off, config.BigEndian))
++		v.AuxInt = int64(read64(sym, off, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+@@ -19335,7 +19355,7 @@ func rewriteValueAMD64_OpAMD64MOVWload(v *Value) bool {
+ 	}
+ 	// match: (MOVWload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVLconst [int64(read16(sym, off, config.BigEndian))])
++	// result: (MOVLconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -19343,7 +19363,7 @@ func rewriteValueAMD64_OpAMD64MOVWload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVLconst)
+-		v.AuxInt = int64(read16(sym, off, config.BigEndian))
++		v.AuxInt = int64(read16(sym, off, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 77b71b148d..baa3c66e0f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -6314,7 +6314,7 @@ func rewriteValueARM_OpARMMOVHUload(v *Value) bool {
+ 	}
+ 	// match: (MOVHUload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVWconst [int64(read16(sym, off, config.BigEndian))])
++	// result: (MOVWconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -6322,7 +6322,7 @@ func rewriteValueARM_OpARMMOVHUload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(read16(sym, off, config.BigEndian))
++		v.AuxInt = int64(read16(sym, off, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+@@ -7089,7 +7089,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value) bool {
+ 	}
+ 	// match: (MOVWload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVWconst [int64(int32(read32(sym, off, config.BigEndian)))])
++	// result: (MOVWconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -7097,7 +7097,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(int32(read32(sym, off, config.BigEndian)))
++		v.AuxInt = int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index a4c66cee1a..3bb86f10bc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -9775,7 +9775,7 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value) bool {
+ 	}
+ 	// match: (MOVDload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVDconst [int64(read64(sym, off, config.BigEndian))])
++	// result: (MOVDconst [int64(read64(sym, off, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -9783,7 +9783,7 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = int64(read64(sym, off, config.BigEndian))
++		v.AuxInt = int64(read64(sym, off, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+@@ -10599,7 +10599,7 @@ func rewriteValueARM64_OpARM64MOVHUload(v *Value) bool {
+ 	}
+ 	// match: (MOVHUload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVDconst [int64(read16(sym, off, config.BigEndian))])
++	// result: (MOVDconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -10607,7 +10607,7 @@ func rewriteValueARM64_OpARM64MOVHUload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = int64(read16(sym, off, config.BigEndian))
++		v.AuxInt = int64(read16(sym, off, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+@@ -12798,7 +12798,7 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value) bool {
+ 	}
+ 	// match: (MOVWUload [off] {sym} (SB) _)
+ 	// cond: symIsRO(sym)
+-	// result: (MOVDconst [int64(read32(sym, off, config.BigEndian))])
++	// result: (MOVDconst [int64(read32(sym, off, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -12806,7 +12806,7 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = int64(read32(sym, off, config.BigEndian))
++		v.AuxInt = int64(read32(sym, off, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index f36457f679..65db3d9412 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -4010,7 +4010,7 @@ func rewriteValueWasm_OpWasmI64Load(v *Value) bool {
+ 	}
+ 	// match: (I64Load [off] (LoweredAddr {sym} [off2] (SB)) _)
+ 	// cond: symIsRO(sym) && isU32Bit(off+off2)
+-	// result: (I64Const [int64(read64(sym, off+off2, config.BigEndian))])
++	// result: (I64Const [int64(read64(sym, off+off2, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		if v_0.Op != OpWasmLoweredAddr {
+@@ -4023,7 +4023,7 @@ func rewriteValueWasm_OpWasmI64Load(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpWasmI64Const)
+-		v.AuxInt = int64(read64(sym, off+off2, config.BigEndian))
++		v.AuxInt = int64(read64(sym, off+off2, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+@@ -4080,7 +4080,7 @@ func rewriteValueWasm_OpWasmI64Load16U(v *Value) bool {
+ 	}
+ 	// match: (I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _)
+ 	// cond: symIsRO(sym) && isU32Bit(off+off2)
+-	// result: (I64Const [int64(read16(sym, off+off2, config.BigEndian))])
++	// result: (I64Const [int64(read16(sym, off+off2, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		if v_0.Op != OpWasmLoweredAddr {
+@@ -4093,7 +4093,7 @@ func rewriteValueWasm_OpWasmI64Load16U(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpWasmI64Const)
+-		v.AuxInt = int64(read16(sym, off+off2, config.BigEndian))
++		v.AuxInt = int64(read16(sym, off+off2, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false
+@@ -4150,7 +4150,7 @@ func rewriteValueWasm_OpWasmI64Load32U(v *Value) bool {
+ 	}
+ 	// match: (I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _)
+ 	// cond: symIsRO(sym) && isU32Bit(off+off2)
+-	// result: (I64Const [int64(read32(sym, off+off2, config.BigEndian))])
++	// result: (I64Const [int64(read32(sym, off+off2, config.ctxt.Arch.ByteOrder))])
+ 	for {
+ 		off := v.AuxInt
+ 		if v_0.Op != OpWasmLoweredAddr {
+@@ -4163,7 +4163,7 @@ func rewriteValueWasm_OpWasmI64Load32U(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpWasmI64Const)
+-		v.AuxInt = int64(read32(sym, off+off2, config.BigEndian))
++		v.AuxInt = int64(read32(sym, off+off2, config.ctxt.Arch.ByteOrder))
+ 		return true
+ 	}
+ 	return false

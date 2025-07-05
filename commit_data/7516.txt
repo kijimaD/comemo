@@ -8,6 +8,27 @@ Date:   Sat Feb 19 15:04:56 2011 -0800
     R=golang-dev, niemeyer, gri
     CC=golang-dev
     https://golang.org/cl/4173067
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 077085d601..72cfa63056 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of February 15, 2011 -->
++<!-- subtitle Version of February 19, 2011 -->
+ 
+ <!--
+ TODO
+@@ -2267,7 +2267,7 @@ If there is not exactly one <code>f</code> with shallowest depth, the selector
+ expression is illegal.
+ </li>
+ <li>
+-For a variable <code>x</code> of type <code>I</code> or <code>*I</code>
++For a variable <code>x</code> of type <code>I</code>
+ where <code>I</code> is an interface type,
+ <code>x.f</code> denotes the actual method with name <code>f</code> of the value assigned
+ to <code>x</code> if there is such a method.

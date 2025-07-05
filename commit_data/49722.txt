@@ -21,7 +21,7 @@ Date:   Wed Sep 8 09:58:45 2021 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +--
  .../x/tools/go/analysis/passes/printf/printf.go    |  7 ++---
@@ -29,3 +29,179 @@ Date:   Wed Sep 8 09:58:45 2021 -0400
  .../x/tools/internal/typeparams/typeparams.go      | 33 +++++++++++++++++-----
  src/cmd/vendor/modules.txt                         |  2 +-
  6 files changed, 60 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 4e0fa0bd74..c7b3b02c3b 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -10,6 +10,6 @@ require (
+ 	golang.org/x/mod v0.5.1-0.20210830214625-1b1db11ec8f4
+ 	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
+ 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+-	golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151
++	golang.org/x/tools v0.1.6-0.20210904010709-360456621443
+ 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index dab06fdf7d..987c236b02 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,7 +16,7 @@ golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e h1:XMgFehsDnnLGtjvjOfqWSUzt0
+ golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b h1:9zKuko04nR4gjZ4+DNjHqRlAJqbJETHwiNKDqTfOjfE=
+ golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151 h1:jHjT6WuVKEMzjJgrS1+r1wk54oxwqumUnvtn0QZXyXE=
+-golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
++golang.org/x/tools v0.1.6-0.20210904010709-360456621443 h1:7JswviZfk9Rtd4NOelZtuLUdkHdruludwWkfOE6sdZk=
++golang.org/x/tools v0.1.6-0.20210904010709-360456621443/go.mod h1:YD9qOF0M9xpSpdWTBbzEl5e/RnCefISl8E5Noe10jFM=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 6589478af0..de0369a428 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -490,7 +490,7 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
+ 		_, ok = isPrint[strings.ToLower(fn.Name())]
+ 	}
+ 	if ok {
+-		if fn.Name() == "Errorf" {
++		if fn.FullName() == "fmt.Errorf" {
+ 			kind = KindErrorf
+ 		} else if strings.HasSuffix(fn.Name(), "f") {
+ 			kind = KindPrintf
+@@ -590,12 +590,9 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 		}
+ 		if state.verb == 'w' {
+ 			switch kind {
+-			case KindNone, KindPrint:
++			case KindNone, KindPrint, KindPrintf:
+ 				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", state.name)
+ 				return
+-			case KindPrintf:
+-				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w, which is only supported for functions backed by fmt.Errorf", state.name)
+-				return
+ 			}
+ 			if anyW {
+ 				pass.Reportf(call.Pos(), "%s call has more than one error-wrapping directive %%w", state.name)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+index d2b9a5640d..ce05a56cca 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+@@ -119,11 +119,33 @@ func typeIsTestingDotTOrB(expr ast.Expr) (string, bool) {
+ 	return varTypeName, ok
+ }
+ 
++// goStmtFunc returns the ast.Node of a call expression
++// that was invoked as a go statement. Currently, only
++// function literals declared in the same function, and
++// static calls within the same package are supported.
++func goStmtFun(goStmt *ast.GoStmt) ast.Node {
++	switch goStmt.Call.Fun.(type) {
++	case *ast.Ident:
++		id := goStmt.Call.Fun.(*ast.Ident)
++		// TODO(cuonglm): improve this once golang/go#48141 resolved.
++		if id.Obj == nil {
++			break
++		}
++		if funDecl, ok := id.Obj.Decl.(ast.Node); ok {
++			return funDecl
++		}
++	case *ast.FuncLit:
++		return goStmt.Call.Fun
++	}
++	return goStmt.Call
++}
++
+ // checkGoStmt traverses the goroutine and checks for the
+ // use of the forbidden *testing.(B, T) methods.
+ func checkGoStmt(pass *analysis.Pass, goStmt *ast.GoStmt) {
++	fn := goStmtFun(goStmt)
+ 	// Otherwise examine the goroutine to check for the forbidden methods.
+-	ast.Inspect(goStmt, func(n ast.Node) bool {
++	ast.Inspect(fn, func(n ast.Node) bool {
+ 		selExpr, ok := n.(*ast.SelectorExpr)
+ 		if !ok {
+ 			return true
+@@ -147,7 +169,11 @@ func checkGoStmt(pass *analysis.Pass, goStmt *ast.GoStmt) {
+ 			return true
+ 		}
+ 		if typeName, ok := typeIsTestingDotTOrB(field.Type); ok {
+-			pass.ReportRangef(selExpr, "call to (*%s).%s from a non-test goroutine", typeName, selExpr.Sel)
++			var fnRange analysis.Range = goStmt
++			if _, ok := fn.(*ast.FuncLit); ok {
++				fnRange = selExpr
++			}
++			pass.ReportRangef(fnRange, "call to (*%s).%s from a non-test goroutine", typeName, selExpr.Sel)
+ 		}
+ 		return true
+ 	})
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go
+index be6b0525f6..d459b32cb3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go
+@@ -78,20 +78,31 @@ func ForNamed(named *types.Named) []*types.TypeName {
+ 	return tparamsSlice(named.TParams())
+ }
+ 
+-func tparamsSlice(tparams *types.TypeParams) []*types.TypeName {
+-	if tparams.Len() == 0 {
++func tparamsSlice(tparams *types.TParamList) []*types.TypeName {
++	length := tparams.Len()
++	if length == 0 {
+ 		return nil
+ 	}
+-	result := make([]*types.TypeName, tparams.Len())
+-	for i := 0; i < tparams.Len(); i++ {
+-		result[i] = tparams.At(i)
++
++	result := make([]*types.TypeName, length)
++	for i := 0; i < length; i++ {
++		result[i] = tparams.At(i).Obj()
+ 	}
++
+ 	return result
+ }
+ 
+ // NamedTArgs extracts the (possibly empty) type argument list from named.
+ func NamedTArgs(named *types.Named) []types.Type {
+-	return named.TArgs()
++	targs := named.TArgs()
++	numArgs := targs.Len()
++
++	typs := make([]types.Type, numArgs)
++	for i := 0; i < numArgs; i++ {
++		typs[i] = targs.At(i)
++	}
++
++	return typs
+ }
+ 
+ // InitInferred initializes info to record inferred type information.
+@@ -111,5 +122,13 @@ func GetInferred(info *types.Info, e ast.Expr) ([]types.Type, *types.Signature)
+ 		return nil, nil
+ 	}
+ 	inf := info.Inferred[e]
+-	return inf.TArgs, inf.Sig
++
++	length := inf.TArgs.Len()
++
++	typs := make([]types.Type, length)
++	for i := 0; i < length; i++ {
++		typs[i] = inf.TArgs.At(i)
++	}
++
++	return typs, inf.Sig
+ }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index ec75599d09..8a6497b5f2 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -48,7 +48,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.6-0.20210809225032-337cebd2c151
++# golang.org/x/tools v0.1.6-0.20210904010709-360456621443
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

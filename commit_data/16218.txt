@@ -9,6 +9,20 @@ Date:   Tue Apr 23 20:30:42 2013 +0900
     R=golang-dev, iant, r
     CC=golang-dev
     https://golang.org/cl/8663048
-
+---
  src/pkg/net/ipraw_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 6cdb5ab847..305a40e77c 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -28,7 +28,7 @@ var resolveIPAddrTests = []resolveIPAddrTest{
+ 
+ 	{"ip", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
+ 	{"ip6", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
+-	{"ip6:icmp", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
++	{"ip6:ipv6-icmp", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
+ 
+ 	{"ip", "::1%en0", &IPAddr{IP: ParseIP("::1"), Zone: "en0"}, nil},
+ 	{"ip6", "::1%911", &IPAddr{IP: ParseIP("::1"), Zone: "911"}, nil},

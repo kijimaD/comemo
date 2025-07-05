@@ -11,6 +11,22 @@ Date:   Mon Jan 22 11:30:51 2024 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/go1.22.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 686d42ebae..ae3ac728e3 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -419,10 +419,6 @@ We plan to include an API migration tool in a future release, likely Go 1.23.
+   There are also various performance improvements, not enumerated here.
+ </p>
+ 
+-<!-- <p> -->
+-<!--   TODO: complete this section -->
+-<!-- </p> -->
+-
+ <dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/58000, CL 513316 -->

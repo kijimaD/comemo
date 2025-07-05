@@ -17,6 +17,20 @@ Date:   Tue Jan 21 14:50:36 2020 -0800
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_get_test.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_get_test.txt b/src/cmd/go/testdata/script/mod_get_test.txt
+index f921168ad4..3680ca273d 100644
+--- a/src/cmd/go/testdata/script/mod_get_test.txt
++++ b/src/cmd/go/testdata/script/mod_get_test.txt
+@@ -33,7 +33,7 @@ grep 'rsc.io/quote v1.5.1$' go.mod
+ 
+ # 'go get all' should consider test dependencies with or without -t.
+ cp go.mod.empty go.mod
+-go get all
++go get -d all
+ grep 'rsc.io/quote v1.5.2$' go.mod
+ 
+ -- go.mod.empty --

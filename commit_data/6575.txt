@@ -9,8 +9,83 @@ Date:   Wed Oct 20 16:38:25 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2615041
-
+---
  src/cmd/gc/select.c      |  9 ++++++++-
  src/cmd/gc/subr.c        |  4 ++++
  test/fixedbugs/bug312.go | 22 ++++++++++++++++++++++
  3 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 2fa4353165..1a37713114 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -41,11 +41,18 @@ typecheckselect(Node *sel)
+ 			setlineno(n);
+ 			switch(n->op) {
+ 			default:
+-				yyerror("select case must be receive, send or assign recv");;
++				yyerror("select case must be receive, send or assign recv");
+ 				break;
+ 
+ 			case OAS:
+ 				// convert x = <-c into OSELRECV(x, c)
++				// assignment might have introduced a
++				// conversion.  throw it away.
++				// it will come back when the select code
++				// gets generated, because it always assigns
++				// through a temporary.
++				if((n->right->op == OCONVNOP || n->right->op == OCONVIFACE) && n->right->implicit)
++					n->right = n->right->left;
+ 				if(n->right->op != ORECV) {
+ 					yyerror("select assignment must have receive on right hand side");
+ 					break;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ea41a1b7c4..1fdc54e451 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1046,6 +1046,9 @@ Jconv(Fmt *fp)
+ 	if(n->isddd != 0)
+ 		fmtprint(fp, " isddd(%d)", n->isddd);
+ 
++	if(n->implicit != 0)
++		fmtprint(fp, " implicit(%d)", n->implicit);
++
+ 	return 0;
+ }
+ 
+@@ -2047,6 +2050,7 @@ assignconv(Node *n, Type *t, char *context)
+ 	r = nod(op, n, N);
+ 	r->type = t;
+ 	r->typecheck = 1;
++	r->implicit = 1;
+ 	return r;
+ }
+ 
+diff --git a/test/fixedbugs/bug312.go b/test/fixedbugs/bug312.go
+new file mode 100644
+index 0000000000..70888dd410
+--- /dev/null
++++ b/test/fixedbugs/bug312.go
+@@ -0,0 +1,22 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 1172
++
++package main
++
++func main() {
++	var i interface{}
++	c := make(chan int, 1)
++	c <- 1
++	select {
++	case i = <-c: // error on this line
++	}
++	if i != 1 {
++		println("bad i", i)
++		panic("BUG")
++	}
++}

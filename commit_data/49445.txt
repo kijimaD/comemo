@@ -14,7 +14,103 @@ Date:   Mon Aug 16 07:25:29 2021 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: eric fang <eric.fang@arm.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64error.s |  4 ++++
  src/cmd/internal/obj/arm64/asm7.go             | 29 ++++----------------------
  2 files changed, 8 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 145074347f..8b12b16680 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -419,4 +419,8 @@ TEXT errors(SB),$0
+ 	ADD	R1>>2, RSP, R3                                   // ERROR "illegal combination"
+ 	ADDS	R2<<3, R3, RSP                                   // ERROR "unexpected SP reference"
+ 	CMP	R1<<5, RSP                                       // ERROR "the left shift amount out of range 0 to 4"
++	MOVD.P  y+8(FP), R1                                      // ERROR "illegal combination"
++	MOVD.W  x-8(SP), R1                                      // ERROR "illegal combination"
++	LDP.P   x+8(FP), (R0, R1)                                // ERROR "illegal combination"
++	LDP.W   x+8(SP), (R0, R1)                                // ERROR "illegal combination"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 050add9aac..8db25cf967 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -694,13 +694,12 @@ var optab = []Optab{
+ 	{AFMOVD, C_FREG, C_NONE, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+ 
+ 	/* pre/post-indexed/signed-offset load/store register pair
+-	   (unscaled, signed 10-bit quad-aligned and long offset) */
++	   (unscaled, signed 10-bit quad-aligned and long offset).
++	The pre/post-indexed format only supports OREG cases because
++	the RSP and pseudo registers are not allowed to be modified
++	in this way. */
+ 	{AFLDPQ, C_NQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
+-	{AFLDPQ, C_NQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
+-	{AFLDPQ, C_NQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
+ 	{AFLDPQ, C_PQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
+-	{AFLDPQ, C_PQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
+-	{AFLDPQ, C_PQAUTO_16, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
+ 	{AFLDPQ, C_UAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
+ 	{AFLDPQ, C_NAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
+ 	{AFLDPQ, C_LAUTO, C_NONE, C_NONE, C_PAIR, 75, 12, REGSP, LFROM, 0},
+@@ -716,11 +715,7 @@ var optab = []Optab{
+ 	{AFLDPQ, C_ADDR, C_NONE, C_NONE, C_PAIR, 88, 12, 0, 0, 0},
+ 
+ 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NQAUTO_16, 67, 4, REGSP, 0, 0},
+-	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NQAUTO_16, 67, 4, REGSP, 0, C_XPRE},
+-	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NQAUTO_16, 67, 4, REGSP, 0, C_XPOST},
+ 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_PQAUTO_16, 67, 4, REGSP, 0, 0},
+-	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_PQAUTO_16, 67, 4, REGSP, 0, C_XPRE},
+-	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_PQAUTO_16, 67, 4, REGSP, 0, C_XPOST},
+ 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
+ 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 8, REGSP, 0, 0},
+ 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},
+@@ -736,11 +731,7 @@ var optab = []Optab{
+ 	{AFSTPQ, C_PAIR, C_NONE, C_NONE, C_ADDR, 87, 12, 0, 0, 0},
+ 
+ 	{ALDP, C_NPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
+-	{ALDP, C_NPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
+-	{ALDP, C_NPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
+ 	{ALDP, C_PPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
+-	{ALDP, C_PPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
+-	{ALDP, C_PPAUTO, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
+ 	{ALDP, C_UAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
+ 	{ALDP, C_NAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
+ 	{ALDP, C_LAUTO, C_NONE, C_NONE, C_PAIR, 75, 12, REGSP, LFROM, 0},
+@@ -756,11 +747,7 @@ var optab = []Optab{
+ 	{ALDP, C_ADDR, C_NONE, C_NONE, C_PAIR, 88, 12, 0, 0, 0},
+ 
+ 	{ASTP, C_PAIR, C_NONE, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, 0},
+-	{ASTP, C_PAIR, C_NONE, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPRE},
+-	{ASTP, C_PAIR, C_NONE, C_NONE, C_NPAUTO, 67, 4, REGSP, 0, C_XPOST},
+ 	{ASTP, C_PAIR, C_NONE, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, 0},
+-	{ASTP, C_PAIR, C_NONE, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPRE},
+-	{ASTP, C_PAIR, C_NONE, C_NONE, C_PPAUTO, 67, 4, REGSP, 0, C_XPOST},
+ 	{ASTP, C_PAIR, C_NONE, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
+ 	{ASTP, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 8, REGSP, 0, 0},
+ 	{ASTP, C_PAIR, C_NONE, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},
+@@ -777,11 +764,7 @@ var optab = []Optab{
+ 
+ 	// differ from LDP/STP for C_NSAUTO_4/C_PSAUTO_4/C_NSOREG_4/C_PSOREG_4
+ 	{ALDPW, C_NSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
+-	{ALDPW, C_NSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
+-	{ALDPW, C_NSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
+ 	{ALDPW, C_PSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, 0},
+-	{ALDPW, C_PSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPRE},
+-	{ALDPW, C_PSAUTO_4, C_NONE, C_NONE, C_PAIR, 66, 4, REGSP, 0, C_XPOST},
+ 	{ALDPW, C_UAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
+ 	{ALDPW, C_NAUTO4K, C_NONE, C_NONE, C_PAIR, 74, 8, REGSP, 0, 0},
+ 	{ALDPW, C_LAUTO, C_NONE, C_NONE, C_PAIR, 75, 12, REGSP, LFROM, 0},
+@@ -797,11 +780,7 @@ var optab = []Optab{
+ 	{ALDPW, C_ADDR, C_NONE, C_NONE, C_PAIR, 88, 12, 0, 0, 0},
+ 
+ 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NSAUTO_4, 67, 4, REGSP, 0, 0},
+-	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NSAUTO_4, 67, 4, REGSP, 0, C_XPRE},
+-	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NSAUTO_4, 67, 4, REGSP, 0, C_XPOST},
+ 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, 0},
+-	{ASTPW, C_PAIR, C_NONE, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, C_XPRE},
+-	{ASTPW, C_PAIR, C_NONE, C_NONE, C_PSAUTO_4, 67, 4, REGSP, 0, C_XPOST},
+ 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_UAUTO4K, 76, 8, REGSP, 0, 0},
+ 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_NAUTO4K, 76, 8, REGSP, 0, 0},
+ 	{ASTPW, C_PAIR, C_NONE, C_NONE, C_LAUTO, 77, 12, REGSP, LTO, 0},

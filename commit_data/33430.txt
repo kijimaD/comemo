@@ -39,7 +39,7 @@ Date:   Wed Aug 9 14:50:58 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ggen.go       |   6 +-
  src/cmd/compile/internal/amd64/ssa.go        |   9 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  45 +++---
@@ -49,3 +49,594 @@ Date:   Wed Aug 9 14:50:58 2017 -0500
  src/runtime/duff_amd64.s                     |  32 ++--
  src/runtime/mkduff.go                        |   2 +-
  8 files changed, 192 insertions(+), 113 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index e294bce66b..df0a69a441 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -14,14 +14,14 @@ import (
+ // no floating point in note handlers on Plan 9
+ var isPlan9 = objabi.GOOS == "plan9"
+ 
+-// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
++// DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
+ // See runtime/mkduff.go.
+ const (
+ 	dzBlocks    = 16 // number of MOV/ADD blocks
+ 	dzBlockLen  = 4  // number of clears per block
+ 	dzBlockSize = 19 // size of instructions in a single block
+ 	dzMovSize   = 4  // size of single MOV instruction w/ offset
+-	dzAddSize   = 4  // size of single ADD instruction
++	dzLeaqSize  = 4  // size of single LEAQ instruction
+ 	dzClearStep = 16 // number of bytes cleared by each MOV instruction
+ 
+ 	dzClearLen = dzClearStep * dzBlockLen // bytes cleared by one block
+@@ -35,7 +35,7 @@ func dzOff(b int64) int64 {
+ 	off -= b / dzClearLen * dzBlockSize
+ 	tailLen := b % dzClearLen
+ 	if tailLen >= dzClearStep {
+-		off -= dzAddSize + dzMovSize*(tailLen/dzClearStep)
++		off -= dzLeaqSize + dzMovSize*(tailLen/dzClearStep)
+ 	}
+ 	return off
+ }
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 2d7727b270..0b2b9c2003 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -117,7 +117,7 @@ func opregreg(s *gc.SSAGenState, op obj.As, dest, src int16) *obj.Prog {
+ 	return p
+ }
+ 
+-// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
++// DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
+ // See runtime/mkduff.go.
+ func duffStart(size int64) int64 {
+ 	x, _ := duff(size)
+@@ -140,7 +140,7 @@ func duff(size int64) (int64, int64) {
+ 	off := dzBlockSize * (dzBlocks - blocks)
+ 	var adj int64
+ 	if steps != 0 {
+-		off -= dzAddSize
++		off -= dzLeaqSize
+ 		off -= dzMovSize * steps
+ 		adj -= dzClearStep * (dzBlockLen - steps)
+ 	}
+@@ -673,9 +673,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		adj := duffAdj(v.AuxInt)
+ 		var p *obj.Prog
+ 		if adj != 0 {
+-			p = s.Prog(x86.AADDQ)
+-			p.From.Type = obj.TYPE_CONST
++			p = s.Prog(x86.ALEAQ)
++			p.From.Type = obj.TYPE_MEM
+ 			p.From.Offset = adj
++			p.From.Reg = x86.REG_DI
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = x86.REG_DI
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 1900f5e794..2f38a7d5cc 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -386,37 +386,42 @@
+ 	(MOVLstoreconst [makeValAndOff(0,3)] destptr
+ 		(MOVLstoreconst [0] destptr mem))
+ 
+-// Strip off any fractional word zeroing.
+-(Zero [s] destptr mem) && s%8 != 0 && s > 8 ->
+-	(Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
++(Zero [s] destptr mem) && s > 8 && s < 16 ->
++	(MOVQstoreconst [makeValAndOff(0,s-8)] destptr
+ 		(MOVQstoreconst [0] destptr mem))
+ 
+-// Zero small numbers of words directly.
+-(Zero [16] destptr mem) ->
+-	(MOVQstoreconst [makeValAndOff(0,8)] destptr
++// Adjust zeros to be a multiple of 16 bytes.
++(Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 > 8 ->
++	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
++		(MOVOstore destptr (MOVOconst [0]) mem))
++
++(Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 <= 8 ->
++	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
+ 		(MOVQstoreconst [0] destptr mem))
+-(Zero [24] destptr mem) ->
+-	(MOVQstoreconst [makeValAndOff(0,16)] destptr
+-		(MOVQstoreconst [makeValAndOff(0,8)] destptr
+-			(MOVQstoreconst [0] destptr mem)))
++
++(Zero [16] destptr mem) ->
++	(MOVOstore destptr (MOVOconst [0]) mem)
+ (Zero [32] destptr mem) ->
+-	(MOVQstoreconst [makeValAndOff(0,24)] destptr
+-		(MOVQstoreconst [makeValAndOff(0,16)] destptr
+-			(MOVQstoreconst [makeValAndOff(0,8)] destptr
+-				(MOVQstoreconst [0] destptr mem))))
++	(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
++		(MOVOstore destptr (MOVOconst [0]) mem))
++(Zero [48] destptr mem) ->
++	(MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0])
++		(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
++			(MOVOstore destptr (MOVOconst [0]) mem)))
++(Zero [64] destptr mem) ->
++	(MOVOstore (OffPtr <destptr.Type> destptr [48]) (MOVOconst [0])
++		(MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0])
++			(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
++				(MOVOstore destptr (MOVOconst [0]) mem))))
+ 
+ // Medium zeroing uses a duff device.
+ (Zero [s] destptr mem)
+-	&& s <= 1024 && s%8 == 0 && s%16 != 0
+-	&& !config.noDuffDevice ->
+-	(Zero [s-8] (OffPtr <destptr.Type> [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+-(Zero [s] destptr mem)
+-	&& s <= 1024 && s%16 == 0 && !config.noDuffDevice ->
++	&& s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice ->
+ 	(DUFFZERO [s] destptr (MOVOconst [0]) mem)
+ 
+ // Large zeroing uses REP STOSQ.
+ (Zero [s] destptr mem)
+-	&& (s > 1024 || (config.noDuffDevice && s > 32))
++	&& (s > 1024 || (config.noDuffDevice && s > 64))
+ 	&& s%8 == 0 ->
+ 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index df0d13c3f7..d4e5a6a225 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -458,7 +458,6 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI"), buildReg("X0")},
+ 				clobbers: buildReg("DI"),
+ 			},
+-			clobberFlags:   true,
+ 			faultOnNilArg0: true,
+ 		},
+ 		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", aux: "Int128", rematerializeable: true},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 711cba639c..ef2b6fdae9 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -7654,7 +7654,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "DUFFZERO",
+ 		auxType:        auxInt64,
+ 		argLen:         3,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 0f45c20102..437ca36064 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -42907,27 +42907,24 @@ func rewriteValueAMD64_OpZero_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+-	// cond: s%8 != 0 && s > 8
+-	// result: (Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8]) 		(MOVQstoreconst [0] destptr mem))
++	// cond: s > 8 && s < 16
++	// result: (MOVQstoreconst [makeValAndOff(0,s-8)] destptr 		(MOVQstoreconst [0] destptr mem))
+ 	for {
+ 		s := v.AuxInt
+ 		_ = v.Args[1]
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(s%8 != 0 && s > 8) {
++		if !(s > 8 && s < 16) {
+ 			break
+ 		}
+-		v.reset(OpZero)
+-		v.AuxInt = s - s%8
+-		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v0.AuxInt = s % 8
++		v.reset(OpAMD64MOVQstoreconst)
++		v.AuxInt = makeValAndOff(0, s-8)
++		v.AddArg(destptr)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
++		v0.AuxInt = 0
+ 		v0.AddArg(destptr)
++		v0.AddArg(mem)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
+-		v1.AuxInt = 0
+-		v1.AddArg(destptr)
+-		v1.AddArg(mem)
+-		v.AddArg(v1)
+ 		return true
+ 	}
+ 	return false
+@@ -42939,53 +42936,77 @@ func rewriteValueAMD64_OpZero_10(v *Value) bool {
+ 	_ = config
+ 	typ := &b.Func.Config.Types
+ 	_ = typ
+-	// match: (Zero [16] destptr mem)
+-	// cond:
+-	// result: (MOVQstoreconst [makeValAndOff(0,8)] destptr 		(MOVQstoreconst [0] destptr mem))
++	// match: (Zero [s] destptr mem)
++	// cond: s%16 != 0 && s > 16 && s%16 > 8
++	// result: (Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16]) 		(MOVOstore destptr (MOVOconst [0]) mem))
+ 	for {
+-		if v.AuxInt != 16 {
++		s := v.AuxInt
++		_ = v.Args[1]
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		if !(s%16 != 0 && s > 16 && s%16 > 8) {
+ 			break
+ 		}
++		v.reset(OpZero)
++		v.AuxInt = s - s%16
++		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v0.AuxInt = s % 16
++		v0.AddArg(destptr)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
++		v1.AddArg(destptr)
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v2.AuxInt = 0
++		v1.AddArg(v2)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Zero [s] destptr mem)
++	// cond: s%16 != 0 && s > 16 && s%16 <= 8
++	// result: (Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16]) 		(MOVQstoreconst [0] destptr mem))
++	for {
++		s := v.AuxInt
+ 		_ = v.Args[1]
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		v.reset(OpAMD64MOVQstoreconst)
+-		v.AuxInt = makeValAndOff(0, 8)
+-		v.AddArg(destptr)
+-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
+-		v0.AuxInt = 0
++		if !(s%16 != 0 && s > 16 && s%16 <= 8) {
++			break
++		}
++		v.reset(OpZero)
++		v.AuxInt = s - s%16
++		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v0.AuxInt = s % 16
+ 		v0.AddArg(destptr)
+-		v0.AddArg(mem)
+ 		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
++		v1.AuxInt = 0
++		v1.AddArg(destptr)
++		v1.AddArg(mem)
++		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Zero [24] destptr mem)
++	// match: (Zero [16] destptr mem)
+ 	// cond:
+-	// result: (MOVQstoreconst [makeValAndOff(0,16)] destptr 		(MOVQstoreconst [makeValAndOff(0,8)] destptr 			(MOVQstoreconst [0] destptr mem)))
++	// result: (MOVOstore destptr (MOVOconst [0]) mem)
+ 	for {
+-		if v.AuxInt != 24 {
++		if v.AuxInt != 16 {
+ 			break
+ 		}
+ 		_ = v.Args[1]
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		v.reset(OpAMD64MOVQstoreconst)
+-		v.AuxInt = makeValAndOff(0, 16)
++		v.reset(OpAMD64MOVOstore)
+ 		v.AddArg(destptr)
+-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
+-		v0.AuxInt = makeValAndOff(0, 8)
+-		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
+-		v1.AuxInt = 0
+-		v1.AddArg(destptr)
+-		v1.AddArg(mem)
+-		v0.AddArg(v1)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v0.AuxInt = 0
+ 		v.AddArg(v0)
++		v.AddArg(mem)
+ 		return true
+ 	}
+ 	// match: (Zero [32] destptr mem)
+ 	// cond:
+-	// result: (MOVQstoreconst [makeValAndOff(0,24)] destptr 		(MOVQstoreconst [makeValAndOff(0,16)] destptr 			(MOVQstoreconst [makeValAndOff(0,8)] destptr 				(MOVQstoreconst [0] destptr mem))))
++	// result: (MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0]) 		(MOVOstore destptr (MOVOconst [0]) mem))
+ 	for {
+ 		if v.AuxInt != 32 {
+ 			break
+@@ -42993,59 +43014,113 @@ func rewriteValueAMD64_OpZero_10(v *Value) bool {
+ 		_ = v.Args[1]
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		v.reset(OpAMD64MOVQstoreconst)
+-		v.AuxInt = makeValAndOff(0, 24)
+-		v.AddArg(destptr)
+-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
+-		v0.AuxInt = makeValAndOff(0, 16)
++		v.reset(OpAMD64MOVOstore)
++		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v0.AuxInt = 16
+ 		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
+-		v1.AuxInt = makeValAndOff(0, 8)
+-		v1.AddArg(destptr)
+-		v2 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
+-		v2.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v1.AuxInt = 0
++		v.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+ 		v2.AddArg(destptr)
++		v3 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v3.AuxInt = 0
++		v2.AddArg(v3)
+ 		v2.AddArg(mem)
+-		v1.AddArg(v2)
+-		v0.AddArg(v1)
+-		v.AddArg(v0)
++		v.AddArg(v2)
+ 		return true
+ 	}
+-	// match: (Zero [s] destptr mem)
+-	// cond: s <= 1024 && s%8 == 0 && s%16 != 0 	&& !config.noDuffDevice
+-	// result: (Zero [s-8] (OffPtr <destptr.Type> [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
++	// match: (Zero [48] destptr mem)
++	// cond:
++	// result: (MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0]) 		(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0]) 			(MOVOstore destptr (MOVOconst [0]) mem)))
+ 	for {
+-		s := v.AuxInt
++		if v.AuxInt != 48 {
++			break
++		}
+ 		_ = v.Args[1]
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(s <= 1024 && s%8 == 0 && s%16 != 0 && !config.noDuffDevice) {
++		v.reset(OpAMD64MOVOstore)
++		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v0.AuxInt = 32
++		v0.AddArg(destptr)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v1.AuxInt = 0
++		v.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
++		v3 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v3.AuxInt = 16
++		v3.AddArg(destptr)
++		v2.AddArg(v3)
++		v4 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v4.AuxInt = 0
++		v2.AddArg(v4)
++		v5 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
++		v5.AddArg(destptr)
++		v6 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v6.AuxInt = 0
++		v5.AddArg(v6)
++		v5.AddArg(mem)
++		v2.AddArg(v5)
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Zero [64] destptr mem)
++	// cond:
++	// result: (MOVOstore (OffPtr <destptr.Type> destptr [48]) (MOVOconst [0]) 		(MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0]) 			(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0]) 				(MOVOstore destptr (MOVOconst [0]) mem))))
++	for {
++		if v.AuxInt != 64 {
+ 			break
+ 		}
+-		v.reset(OpZero)
+-		v.AuxInt = s - 8
++		_ = v.Args[1]
++		destptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpAMD64MOVOstore)
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v0.AuxInt = 8
++		v0.AuxInt = 48
+ 		v0.AddArg(destptr)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstore, types.TypeMem)
+-		v1.AddArg(destptr)
+-		v2 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
+-		v2.AuxInt = 0
+-		v1.AddArg(v2)
+-		v1.AddArg(mem)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v1.AuxInt = 0
+ 		v.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
++		v3 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v3.AuxInt = 32
++		v3.AddArg(destptr)
++		v2.AddArg(v3)
++		v4 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v4.AuxInt = 0
++		v2.AddArg(v4)
++		v5 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
++		v6 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v6.AuxInt = 16
++		v6.AddArg(destptr)
++		v5.AddArg(v6)
++		v7 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v7.AuxInt = 0
++		v5.AddArg(v7)
++		v8 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
++		v8.AddArg(destptr)
++		v9 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
++		v9.AuxInt = 0
++		v8.AddArg(v9)
++		v8.AddArg(mem)
++		v5.AddArg(v8)
++		v2.AddArg(v5)
++		v.AddArg(v2)
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+-	// cond: s <= 1024 && s%16 == 0 && !config.noDuffDevice
++	// cond: s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice
+ 	// result: (DUFFZERO [s] destptr (MOVOconst [0]) mem)
+ 	for {
+ 		s := v.AuxInt
+ 		_ = v.Args[1]
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(s <= 1024 && s%16 == 0 && !config.noDuffDevice) {
++		if !(s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64DUFFZERO)
+@@ -43058,14 +43133,14 @@ func rewriteValueAMD64_OpZero_10(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+-	// cond: (s > 1024 || (config.noDuffDevice && s > 32)) 	&& s%8 == 0
++	// cond: (s > 1024 || (config.noDuffDevice && s > 64)) 	&& s%8 == 0
+ 	// result: (REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
+ 	for {
+ 		s := v.AuxInt
+ 		_ = v.Args[1]
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !((s > 1024 || (config.noDuffDevice && s > 32)) && s%8 == 0) {
++		if !((s > 1024 || (config.noDuffDevice && s > 64)) && s%8 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64REPSTOSQ)
+diff --git a/src/runtime/duff_amd64.s b/src/runtime/duff_amd64.s
+index a1112a4b59..44dc75d297 100644
+--- a/src/runtime/duff_amd64.s
++++ b/src/runtime/duff_amd64.s
+@@ -9,97 +9,97 @@ TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	MOVUPS	X0,(DI)
+ 	MOVUPS	X0,16(DI)
+ 	MOVUPS	X0,32(DI)
+ 	MOVUPS	X0,48(DI)
+-	ADDQ	$64,DI
++	LEAQ	64(DI),DI
+ 
+ 	RET
+ 
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index d15f1f7346..08dcf50859 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -70,7 +70,7 @@ func zeroAMD64(w io.Writer) {
+ 		fmt.Fprintln(w, "\tMOVUPS\tX0,16(DI)")
+ 		fmt.Fprintln(w, "\tMOVUPS\tX0,32(DI)")
+ 		fmt.Fprintln(w, "\tMOVUPS\tX0,48(DI)")
+-		fmt.Fprintln(w, "\tADDQ\t$64,DI")
++		fmt.Fprintln(w, "\tLEAQ\t64(DI),DI") // We use lea instead of add, to avoid clobbering flags
+ 		fmt.Fprintln(w)
+ 	}
+ 	fmt.Fprintln(w, "\tRET")

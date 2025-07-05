@@ -9,7 +9,7 @@ Date:   Thu Sep 10 11:32:49 2015 -0400
     Change-Id: Ie6074a8ff3ec13605b72028f2d60758034f87185
     Reviewed-on: https://go-review.googlesource.com/14444
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/link/internal/ld/arch.go    |  18 +++
  src/cmd/link/internal/ld/dwarf.go   |   4 +-
  src/cmd/link/internal/ld/elf.go     |  27 ++--
@@ -21,3 +21,739 @@ Date:   Thu Sep 10 11:32:49 2015 -0400
  src/cmd/link/internal/mips64/obj.go | 158 +++++++++++++++++++++++
  src/cmd/link/main.go                |   3 +
  10 files changed, 529 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/arch.go b/src/cmd/link/internal/ld/arch.go
+index 1b8e1b19ba..2fcfd6331a 100644
+--- a/src/cmd/link/internal/ld/arch.go
++++ b/src/cmd/link/internal/ld/arch.go
+@@ -68,3 +68,21 @@ var Linkppc64le = LinkArch{
+ 	Ptrsize:   8,
+ 	Regsize:   8,
+ }
++
++var Linkmips64 = LinkArch{
++	ByteOrder: binary.BigEndian,
++	Name:      "mips64",
++	Thechar:   '0',
++	Minlc:     4,
++	Ptrsize:   8,
++	Regsize:   8,
++}
++
++var Linkmips64le = LinkArch{
++	ByteOrder: binary.LittleEndian,
++	Name:      "mips64le",
++	Thechar:   '0',
++	Minlc:     4,
++	Ptrsize:   8,
++	Regsize:   8,
++}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 40b11b7917..bdfdaa0844 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -2309,7 +2309,7 @@ func dwarfaddshstrings(shstrtab *LSym) {
+ 	elfstrdbg[ElfStrGDBScripts] = Addstring(shstrtab, ".debug_gdb_scripts")
+ 	if Linkmode == LinkExternal {
+ 		switch Thearch.Thechar {
+-		case '6', '7', '9':
++		case '0', '6', '7', '9':
+ 			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rela.debug_info")
+ 			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rela.debug_aranges")
+ 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rela.debug_line")
+@@ -2362,7 +2362,7 @@ func dwarfaddelfsectionsyms() {
+ func dwarfaddelfrelocheader(elfstr int, shdata *ElfShdr, off int64, size int64) {
+ 	sh := newElfShdr(elfstrdbg[elfstr])
+ 	switch Thearch.Thechar {
+-	case '6', '7', '9':
++	case '0', '6', '7', '9':
+ 		sh.type_ = SHT_RELA
+ 	default:
+ 		sh.type_ = SHT_REL
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index b274e4524b..51552e3c15 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -804,7 +804,10 @@ func Elfinit() {
+ 		}
+ 		fallthrough
+ 
+-	case '6', '7':
++	case '0', '6', '7':
++		if Thearch.Thechar == '0' {
++			ehdr.flags = 0x20000000 /* MIPS 3 */
++		}
+ 		elf64 = true
+ 
+ 		ehdr.phoff = ELF64HDRSIZE      /* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
+@@ -1434,7 +1437,7 @@ func elfdynhash() {
+ 	}
+ 
+ 	switch Thearch.Thechar {
+-	case '6', '7', '9':
++	case '0', '6', '7', '9':
+ 		sy := Linklookup(Ctxt, ".rela.plt", 0)
+ 		if sy.Size > 0 {
+ 			Elfwritedynent(s, DT_PLTREL, DT_RELA)
+@@ -1574,7 +1577,7 @@ func elfshreloc(sect *Section) *ElfShdr {
+ 	var prefix string
+ 	var typ int
+ 	switch Thearch.Thechar {
+-	case '6', '7', '9':
++	case '0', '6', '7', '9':
+ 		prefix = ".rela"
+ 		typ = SHT_RELA
+ 	default:
+@@ -1747,7 +1750,7 @@ func doelf() {
+ 		Debug['d'] = 1
+ 
+ 		switch Thearch.Thechar {
+-		case '6', '7', '9':
++		case '0', '6', '7', '9':
+ 			Addstring(shstrtab, ".rela.text")
+ 			Addstring(shstrtab, ".rela.rodata")
+ 			Addstring(shstrtab, ".rela"+relro_prefix+".typelink")
+@@ -1793,7 +1796,7 @@ func doelf() {
+ 	if hasinitarr {
+ 		Addstring(shstrtab, ".init_array")
+ 		switch Thearch.Thechar {
+-		case '6', '7', '9':
++		case '0', '6', '7', '9':
+ 			Addstring(shstrtab, ".rela.init_array")
+ 		default:
+ 			Addstring(shstrtab, ".rel.init_array")
+@@ -1820,7 +1823,7 @@ func doelf() {
+ 		Addstring(shstrtab, ".dynsym")
+ 		Addstring(shstrtab, ".dynstr")
+ 		switch Thearch.Thechar {
+-		case '6', '7', '9':
++		case '0', '6', '7', '9':
+ 			Addstring(shstrtab, ".rela")
+ 			Addstring(shstrtab, ".rela.plt")
+ 		default:
+@@ -1838,7 +1841,7 @@ func doelf() {
+ 		s.Type = obj.SELFROSECT
+ 		s.Reachable = true
+ 		switch Thearch.Thechar {
+-		case '6', '7', '9':
++		case '0', '6', '7', '9':
+ 			s.Size += ELF64SYMSIZE
+ 		default:
+ 			s.Size += ELF32SYMSIZE
+@@ -1856,7 +1859,7 @@ func doelf() {
+ 
+ 		/* relocation table */
+ 		switch Thearch.Thechar {
+-		case '6', '7', '9':
++		case '0', '6', '7', '9':
+ 			s = Linklookup(Ctxt, ".rela", 0)
+ 		default:
+ 			s = Linklookup(Ctxt, ".rel", 0)
+@@ -1901,7 +1904,7 @@ func doelf() {
+ 		Thearch.Elfsetupplt()
+ 
+ 		switch Thearch.Thechar {
+-		case '6', '7', '9':
++		case '0', '6', '7', '9':
+ 			s = Linklookup(Ctxt, ".rela.plt", 0)
+ 		default:
+ 			s = Linklookup(Ctxt, ".rel.plt", 0)
+@@ -1930,7 +1933,7 @@ func doelf() {
+ 
+ 		elfwritedynentsym(s, DT_SYMTAB, Linklookup(Ctxt, ".dynsym", 0))
+ 		switch Thearch.Thechar {
+-		case '6', '7', '9':
++		case '0', '6', '7', '9':
+ 			Elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE)
+ 		default:
+ 			Elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE)
+@@ -1938,7 +1941,7 @@ func doelf() {
+ 		elfwritedynentsym(s, DT_STRTAB, Linklookup(Ctxt, ".dynstr", 0))
+ 		elfwritedynentsymsize(s, DT_STRSZ, Linklookup(Ctxt, ".dynstr", 0))
+ 		switch Thearch.Thechar {
+-		case '6', '7', '9':
++		case '0', '6', '7', '9':
+ 			elfwritedynentsym(s, DT_RELA, Linklookup(Ctxt, ".rela", 0))
+ 			elfwritedynentsymsize(s, DT_RELASZ, Linklookup(Ctxt, ".rela", 0))
+ 			Elfwritedynent(s, DT_RELAENT, ELF64RELASIZE)
+@@ -2037,6 +2040,8 @@ func Asmbelf(symo int64) {
+ 	switch Thearch.Thechar {
+ 	default:
+ 		Exitf("unknown architecture in asmbelf: %v", Thearch.Thechar)
++	case '0':
++		eh.machine = EM_MIPS
+ 	case '5':
+ 		eh.machine = EM_ARM
+ 	case '6':
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index c088b07e91..280edcdb39 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -551,6 +551,12 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		Diag("%s: elf %s unimplemented", pn, Thestring)
+ 		return
+ 
++	case '0':
++		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
++			Diag("%s: elf object but not mips64", pn)
++			return
++		}
++
+ 	case '5':
+ 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm || hdr.Ident[4] != ElfClass32 {
+ 			Diag("%s: elf object but not arm", pn)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e1be2630e9..d55c4e6a49 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1706,7 +1706,7 @@ func stkcheck(up *Chain, depth int) int {
+ 			r = &s.R[ri]
+ 			switch r.Type {
+ 			// Direct call.
+-			case obj.R_CALL, obj.R_CALLARM, obj.R_CALLARM64, obj.R_CALLPOWER:
++			case obj.R_CALL, obj.R_CALLARM, obj.R_CALLARM64, obj.R_CALLPOWER, obj.R_CALLMIPS:
+ 				ch.limit = int(int32(limit) - pcsp.value - int32(callsize()))
+ 				ch.sym = r.Sym
+ 				if stkcheck(&ch, depth+1) < 0 {
+@@ -2028,7 +2028,7 @@ func callgraph() {
+ 			if r.Sym == nil {
+ 				continue
+ 			}
+-			if (r.Type == obj.R_CALL || r.Type == obj.R_CALLARM || r.Type == obj.R_CALLPOWER) && r.Sym.Type == obj.STEXT {
++			if (r.Type == obj.R_CALL || r.Type == obj.R_CALLARM || r.Type == obj.R_CALLPOWER || r.Type == obj.R_CALLMIPS) && r.Sym.Type == obj.STEXT {
+ 				fmt.Fprintf(&Bso, "%s calls %s\n", s.Name, r.Sym.Name)
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 646968f584..b3ca1583a7 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -67,7 +67,7 @@ func putelfstr(s string) int {
+ 
+ func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
+ 	switch Thearch.Thechar {
+-	case '6', '7', '9':
++	case '0', '6', '7', '9':
+ 		Thearch.Lput(uint32(off))
+ 		Cput(uint8(info))
+ 		Cput(uint8(other))
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+new file mode 100644
+index 0000000000..8249c54e45
+--- /dev/null
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -0,0 +1,248 @@
++// Inferno utils/5l/asm.c
++// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++package mips64
++
++import (
++	"cmd/internal/obj"
++	"cmd/link/internal/ld"
++	"encoding/binary"
++	"fmt"
++	"log"
++)
++
++func gentext() {}
++
++func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
++	log.Fatalf("adddynrela not implemented")
++}
++
++func adddynrel(s *ld.LSym, r *ld.Reloc) {
++	log.Fatalf("adddynrel not implemented")
++}
++
++func elfreloc1(r *ld.Reloc, sectoff int64) int {
++	return -1
++}
++
++func elfsetupplt() {
++	return
++}
++
++func machoreloc1(r *ld.Reloc, sectoff int64) int {
++	return -1
++}
++
++func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
++	if ld.Linkmode == ld.LinkExternal {
++		return -1
++	}
++
++	switch r.Type {
++	case obj.R_CONST:
++		*val = r.Add
++		return 0
++
++	case obj.R_GOTOFF:
++		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
++		return 0
++
++	case obj.R_ADDRMIPS:
++		t := ld.Symaddr(r.Sym) + r.Add
++		if t >= 1<<32 || t < -1<<32 {
++			ld.Diag("program too large, address relocation = %v", t)
++		}
++
++		// the first instruction is always at the lower address, this is endian neutral;
++		// but note that o1 and o2 should still use the target endian.
++		o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off:])
++		o2 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4:])
++		o1 = o1&0xffff0000 | uint32(t>>16)&0xffff
++		o2 = o2&0xffff0000 | uint32(t)&0xffff
++
++		// when laid out, the instruction order must always be o1, o2.
++		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
++			*val = int64(o1)<<32 | int64(o2)
++		} else {
++			*val = int64(o2)<<32 | int64(o1)
++		}
++		return 0
++
++	case obj.R_CALLMIPS,
++		obj.R_JMPMIPS:
++		// Low 26 bits = (S + A) >> 2
++		t := ld.Symaddr(r.Sym) + r.Add
++		o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off:])
++		*val = int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000)
++		return 0
++	}
++
++	return -1
++}
++
++func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
++	return -1
++}
++
++func asmb() {
++	if ld.Debug['v'] != 0 {
++		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
++	}
++	ld.Bso.Flush()
++
++	if ld.Iself {
++		ld.Asmbelfsetup()
++	}
++
++	sect := ld.Segtext.Sect
++	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
++	ld.Codeblk(int64(sect.Vaddr), int64(sect.Length))
++	for sect = sect.Next; sect != nil; sect = sect.Next {
++		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
++		ld.Datblk(int64(sect.Vaddr), int64(sect.Length))
++	}
++
++	if ld.Segrodata.Filelen > 0 {
++		if ld.Debug['v'] != 0 {
++			fmt.Fprintf(&ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
++		}
++		ld.Bso.Flush()
++
++		ld.Cseek(int64(ld.Segrodata.Fileoff))
++		ld.Datblk(int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
++	}
++
++	if ld.Debug['v'] != 0 {
++		fmt.Fprintf(&ld.Bso, "%5.2f datblk\n", obj.Cputime())
++	}
++	ld.Bso.Flush()
++
++	ld.Cseek(int64(ld.Segdata.Fileoff))
++	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
++
++	/* output symbol table */
++	ld.Symsize = 0
++
++	ld.Lcsize = 0
++	symo := uint32(0)
++	if ld.Debug['s'] == 0 {
++		// TODO: rationalize
++		if ld.Debug['v'] != 0 {
++			fmt.Fprintf(&ld.Bso, "%5.2f sym\n", obj.Cputime())
++		}
++		ld.Bso.Flush()
++		switch ld.HEADTYPE {
++		default:
++			if ld.Iself {
++				symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
++				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
++			}
++
++		case obj.Hplan9:
++			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
++		}
++
++		ld.Cseek(int64(symo))
++		switch ld.HEADTYPE {
++		default:
++			if ld.Iself {
++				if ld.Debug['v'] != 0 {
++					fmt.Fprintf(&ld.Bso, "%5.2f elfsym\n", obj.Cputime())
++				}
++				ld.Asmelfsym()
++				ld.Cflush()
++				ld.Cwrite(ld.Elfstrdat)
++
++				if ld.Debug['v'] != 0 {
++					fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
++				}
++				ld.Dwarfemitdebugsections()
++
++				if ld.Linkmode == ld.LinkExternal {
++					ld.Elfemitreloc()
++				}
++			}
++
++		case obj.Hplan9:
++			ld.Asmplan9sym()
++			ld.Cflush()
++
++			sym := ld.Linklookup(ld.Ctxt, "pclntab", 0)
++			if sym != nil {
++				ld.Lcsize = int32(len(sym.P))
++				for i := 0; int32(i) < ld.Lcsize; i++ {
++					ld.Cput(uint8(sym.P[i]))
++				}
++
++				ld.Cflush()
++			}
++		}
++	}
++
++	ld.Ctxt.Cursym = nil
++	if ld.Debug['v'] != 0 {
++		fmt.Fprintf(&ld.Bso, "%5.2f header\n", obj.Cputime())
++	}
++	ld.Bso.Flush()
++	ld.Cseek(0)
++	switch ld.HEADTYPE {
++	default:
++	case obj.Hplan9: /* plan 9 */
++		magic := uint32(4*18*18 + 7)
++		if ld.Thestring == "mips64le" {
++			magic = uint32(4*26*26 + 7)
++		}
++		ld.Thearch.Lput(uint32(magic))              /* magic */
++		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
++		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
++		ld.Thearch.Lput(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
++		ld.Thearch.Lput(uint32(ld.Symsize))      /* nsyms */
++		ld.Thearch.Lput(uint32(ld.Entryvalue())) /* va of entry */
++		ld.Thearch.Lput(0)
++		ld.Thearch.Lput(uint32(ld.Lcsize))
++
++	case obj.Hlinux,
++		obj.Hfreebsd,
++		obj.Hnetbsd,
++		obj.Hopenbsd,
++		obj.Hnacl:
++		ld.Asmbelf(int64(symo))
++	}
++
++	ld.Cflush()
++	if ld.Debug['c'] != 0 {
++		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
++		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
++		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)
++		fmt.Printf("symsize=%d\n", ld.Symsize)
++		fmt.Printf("lcsize=%d\n", ld.Lcsize)
++		fmt.Printf("total=%d\n", ld.Segtext.Filelen+ld.Segdata.Length+uint64(ld.Symsize)+uint64(ld.Lcsize))
++	}
++}
+diff --git a/src/cmd/link/internal/mips64/l.go b/src/cmd/link/internal/mips64/l.go
+new file mode 100644
+index 0000000000..8ea1d8433c
+--- /dev/null
++++ b/src/cmd/link/internal/mips64/l.go
+@@ -0,0 +1,75 @@
++// Inferno utils/5l/asm.c
++// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++package mips64
++
++// Writing object files.
++
++// cmd/9l/l.h from Vita Nuova.
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2008 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2008 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++const (
++	thechar   = '0'
++	MaxAlign  = 32 // max data alignment
++	FuncAlign = 8
++	MINLC     = 4
++)
++
++/* Used by ../internal/ld/dwarf.go */
++const (
++	DWARFREGSP = 29
++	DWARFREGLR = 31
++)
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+new file mode 100644
+index 0000000000..ad686e9343
+--- /dev/null
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -0,0 +1,158 @@
++// Inferno utils/5l/obj.c
++// http://code.google.com/p/inferno-os/source/browse/utils/5l/obj.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++package mips64
++
++import (
++	"cmd/internal/obj"
++	"cmd/link/internal/ld"
++	"fmt"
++	"log"
++)
++
++// Reading object files.
++
++func Main() {
++	linkarchinit()
++	ld.Ldmain()
++}
++
++func linkarchinit() {
++	ld.Thestring = obj.Getgoarch()
++	if ld.Thestring == "mips64le" {
++		ld.Thelinkarch = &ld.Linkmips64le
++	} else {
++		ld.Thelinkarch = &ld.Linkmips64
++	}
++
++	ld.Thearch.Thechar = thechar
++	ld.Thearch.Ptrsize = ld.Thelinkarch.Ptrsize
++	ld.Thearch.Intsize = ld.Thelinkarch.Ptrsize
++	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
++	ld.Thearch.Funcalign = FuncAlign
++	ld.Thearch.Maxalign = MaxAlign
++	ld.Thearch.Minlc = MINLC
++	ld.Thearch.Dwarfregsp = DWARFREGSP
++	ld.Thearch.Dwarfreglr = DWARFREGLR
++
++	ld.Thearch.Adddynrel = adddynrel
++	ld.Thearch.Archinit = archinit
++	ld.Thearch.Archreloc = archreloc
++	ld.Thearch.Archrelocvariant = archrelocvariant
++	ld.Thearch.Asmb = asmb
++	ld.Thearch.Elfreloc1 = elfreloc1
++	ld.Thearch.Elfsetupplt = elfsetupplt
++	ld.Thearch.Gentext = gentext
++	ld.Thearch.Machoreloc1 = machoreloc1
++	if ld.Thelinkarch == &ld.Linkmips64le {
++		ld.Thearch.Lput = ld.Lputl
++		ld.Thearch.Wput = ld.Wputl
++		ld.Thearch.Vput = ld.Vputl
++	} else {
++		ld.Thearch.Lput = ld.Lputb
++		ld.Thearch.Wput = ld.Wputb
++		ld.Thearch.Vput = ld.Vputb
++	}
++
++	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"
++
++	ld.Thearch.Freebsddynld = "XXX"
++	ld.Thearch.Openbsddynld = "XXX"
++	ld.Thearch.Netbsddynld = "XXX"
++	ld.Thearch.Dragonflydynld = "XXX"
++	ld.Thearch.Solarisdynld = "XXX"
++}
++
++func archinit() {
++	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
++	// Go was built; see ../../make.bash.
++	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
++		ld.Linkmode = ld.LinkInternal
++	}
++
++	switch ld.HEADTYPE {
++	default:
++		if ld.Linkmode == ld.LinkAuto {
++			ld.Linkmode = ld.LinkInternal
++		}
++		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
++			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
++		}
++	}
++
++	switch ld.HEADTYPE {
++	default:
++		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
++
++	case obj.Hplan9: /* plan 9 */
++		ld.HEADR = 32
++
++		if ld.INITTEXT == -1 {
++			ld.INITTEXT = 16*1024 + int64(ld.HEADR)
++		}
++		if ld.INITDAT == -1 {
++			ld.INITDAT = 0
++		}
++		if ld.INITRND == -1 {
++			ld.INITRND = 16 * 1024
++		}
++
++	case obj.Hlinux: /* mips64 elf */
++		ld.Elfinit()
++		ld.HEADR = ld.ELFRESERVE
++		if ld.INITTEXT == -1 {
++			ld.INITTEXT = 0x10000 + int64(ld.HEADR)
++		}
++		if ld.INITDAT == -1 {
++			ld.INITDAT = 0
++		}
++		if ld.INITRND == -1 {
++			ld.INITRND = 0x10000
++		}
++
++	case obj.Hnacl:
++		ld.Elfinit()
++		ld.HEADR = 0x10000
++		ld.Funcalign = 16
++		if ld.INITTEXT == -1 {
++			ld.INITTEXT = 0x20000
++		}
++		if ld.INITDAT == -1 {
++			ld.INITDAT = 0
++		}
++		if ld.INITRND == -1 {
++			ld.INITRND = 0x10000
++		}
++	}
++
++	if ld.INITDAT != 0 && ld.INITRND != 0 {
++		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
++	}
++}
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+index 0e6c34ee0a..63df8dea6a 100644
+--- a/src/cmd/link/main.go
++++ b/src/cmd/link/main.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/link/internal/amd64"
+ 	"cmd/link/internal/arm"
+ 	"cmd/link/internal/arm64"
++	"cmd/link/internal/mips64"
+ 	"cmd/link/internal/ppc64"
+ 	"cmd/link/internal/x86"
+ 	"fmt"
+@@ -28,6 +29,8 @@ func main() {
+ 		arm.Main()
+ 	case "arm64":
+ 		arm64.Main()
++	case "mips64", "mips64le":
++		mips64.Main()
+ 	case "ppc64", "ppc64le":
+ 		ppc64.Main()
+ 	}

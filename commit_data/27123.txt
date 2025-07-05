@@ -10,7 +10,124 @@ Date:   Fri Mar 11 15:22:24 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/20603
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go  | 48 +++++++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/main.go | 46 -----------------------------------
  2 files changed, 48 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 23eb97a5e3..e95cb6f75c 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -137,6 +137,54 @@ const (
+ 	LIGNORE
+ )
+ 
++var lexn = map[rune]string{
++	LNAME:    "NAME",
++	LLITERAL: "LITERAL",
++
++	LOPER:  "OPER",
++	LASOP:  "ASOP",
++	LINCOP: "INCOP",
++
++	LCOLAS: "COLAS",
++	LCOMM:  "COMM",
++	LDDD:   "DDD",
++
++	LBREAK:     "BREAK",
++	LCASE:      "CASE",
++	LCHAN:      "CHAN",
++	LCONST:     "CONST",
++	LCONTINUE:  "CONTINUE",
++	LDEFAULT:   "DEFAULT",
++	LDEFER:     "DEFER",
++	LELSE:      "ELSE",
++	LFALL:      "FALL",
++	LFOR:       "FOR",
++	LFUNC:      "FUNC",
++	LGO:        "GO",
++	LGOTO:      "GOTO",
++	LIF:        "IF",
++	LIMPORT:    "IMPORT",
++	LINTERFACE: "INTERFACE",
++	LMAP:       "MAP",
++	LPACKAGE:   "PACKAGE",
++	LRANGE:     "RANGE",
++	LRETURN:    "RETURN",
++	LSELECT:    "SELECT",
++	LSTRUCT:    "STRUCT",
++	LSWITCH:    "SWITCH",
++	LTYPE:      "TYPE",
++	LVAR:       "VAR",
++
++	// LIGNORE is never escaping lexer.next
++}
++
++func lexname(lex rune) string {
++	if s, ok := lexn[lex]; ok {
++		return s
++	}
++	return fmt.Sprintf("LEX-%d", lex)
++}
++
+ func (l *lexer) next() {
+ 	nlsemi := l.nlsemi
+ 	l.nlsemi = false
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index fb6a940864..47531f5ff4 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1057,52 +1057,6 @@ func lexfini() {
+ 	nodfp.Sym = Lookup(".fp")
+ }
+ 
+-var lexn = map[rune]string{
+-	LNAME:    "NAME",
+-	LLITERAL: "LITERAL",
+-
+-	LOPER:  "OPER",
+-	LASOP:  "ASOP",
+-	LINCOP: "INCOP",
+-
+-	LCOLAS: "COLAS",
+-	LCOMM:  "COMM",
+-	LDDD:   "DDD",
+-
+-	LBREAK:     "BREAK",
+-	LCASE:      "CASE",
+-	LCHAN:      "CHAN",
+-	LCONST:     "CONST",
+-	LCONTINUE:  "CONTINUE",
+-	LDEFAULT:   "DEFAULT",
+-	LDEFER:     "DEFER",
+-	LELSE:      "ELSE",
+-	LFALL:      "FALL",
+-	LFOR:       "FOR",
+-	LFUNC:      "FUNC",
+-	LGO:        "GO",
+-	LGOTO:      "GOTO",
+-	LIF:        "IF",
+-	LIMPORT:    "IMPORT",
+-	LINTERFACE: "INTERFACE",
+-	LMAP:       "MAP",
+-	LPACKAGE:   "PACKAGE",
+-	LRANGE:     "RANGE",
+-	LRETURN:    "RETURN",
+-	LSELECT:    "SELECT",
+-	LSTRUCT:    "STRUCT",
+-	LSWITCH:    "SWITCH",
+-	LTYPE:      "TYPE",
+-	LVAR:       "VAR",
+-}
+-
+-func lexname(lex rune) string {
+-	if s, ok := lexn[lex]; ok {
+-		return s
+-	}
+-	return fmt.Sprintf("LEX-%d", lex)
+-}
+-
+ func pkgnotused(lineno int32, path string, name string) {
+ 	// If the package was imported with a name other than the final
+ 	// import path element, show it explicitly in the error message.

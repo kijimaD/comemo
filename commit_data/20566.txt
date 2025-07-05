@@ -10,8 +10,72 @@ Date:   Thu Sep 18 19:40:06 2014 -0400
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/138650044
-
+---
  src/syscall/export_test.go  |  7 +++++++
  src/syscall/str.go          |  6 +++++-
  src/syscall/syscall_test.go | 17 +++++++++++++++++
  3 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/export_test.go b/src/syscall/export_test.go
+new file mode 100644
+index 0000000000..c9774622c8
+--- /dev/null
++++ b/src/syscall/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++var Itoa = itoa
+diff --git a/src/syscall/str.go b/src/syscall/str.go
+index 0fce842e8c..2ddf04b227 100644
+--- a/src/syscall/str.go
++++ b/src/syscall/str.go
+@@ -6,8 +6,12 @@ package syscall
+ 
+ func itoa(val int) string { // do it here rather than with fmt to avoid dependency
+ 	if val < 0 {
+-		return "-" + itoa(-val)
++		return "-" + uitoa(uint(-val))
+ 	}
++	return uitoa(uint(val))
++}
++
++func uitoa(val uint) string {
+ 	var buf [32]byte // big enough for int64
+ 	i := len(buf) - 1
+ 	for val >= 10 {
+diff --git a/src/syscall/syscall_test.go b/src/syscall/syscall_test.go
+index 2a39b54f1b..846c4873d2 100644
+--- a/src/syscall/syscall_test.go
++++ b/src/syscall/syscall_test.go
+@@ -5,6 +5,7 @@
+ package syscall_test
+ 
+ import (
++	"fmt"
+ 	"syscall"
+ 	"testing"
+ )
+@@ -28,3 +29,19 @@ func TestEnv(t *testing.T) {
+ 	// make sure TESTENV gets set to "", not deleted
+ 	testSetGetenv(t, "TESTENV", "")
+ }
++
++func TestItoa(t *testing.T) {
++	// Make most negative integer: 0x8000...
++	i := 1
++	for i<<1 != 0 {
++		i <<= 1
++	}
++	if i >= 0 {
++		t.Fatal("bad math")
++	}
++	s := syscall.Itoa(i)
++	f := fmt.Sprint(i)
++	if s != f {
++		t.Fatalf("itoa(%d) = %s, want %s", i, s, f)
++	}
++}

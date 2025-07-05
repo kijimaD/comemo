@@ -19,7 +19,7 @@ Date:   Tue May 22 06:58:32 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |  2 ++
  src/cmd/compile/internal/gc/ssa.go           |  4 ++--
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  2 ++
@@ -28,3 +28,218 @@ Date:   Tue May 22 06:58:32 2018 +0000
  src/cmd/compile/internal/ssa/rewriteARM64.go | 26 ++++++++++++++++++++++++++
  test/codegen/math.go                         |  2 ++
  7 files changed, 64 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 1926541582..ce6d32f536 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -698,6 +698,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		fallthrough
+ 	case ssa.OpARM64MVN,
+ 		ssa.OpARM64NEG,
++		ssa.OpARM64FABSD,
+ 		ssa.OpARM64FMOVDfpgp,
+ 		ssa.OpARM64FMOVDgpfp,
+ 		ssa.OpARM64FNEGS,
+@@ -730,6 +731,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64CLZW,
+ 		ssa.OpARM64FRINTAD,
+ 		ssa.OpARM64FRINTMD,
++		ssa.OpARM64FRINTND,
+ 		ssa.OpARM64FRINTPD,
+ 		ssa.OpARM64FRINTZD:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index bb076f8708..2ee966d890 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3149,12 +3149,12 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpRoundToEven, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.S390X)
++		sys.ARM64, sys.S390X)
+ 	addF("math", "Abs",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpAbs, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.PPC64)
++		sys.ARM64, sys.PPC64)
+ 	addF("math", "Copysign",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 4c9d9a6f7a..b2ce875a05 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -83,10 +83,12 @@
+ (Com8 x) -> (MVN x)
+ 
+ // math package intrinsics
++(Abs x) -> (FABSD x)
+ (Sqrt x) -> (FSQRTD x)
+ (Ceil  x) -> (FRINTPD x)
+ (Floor x) -> (FRINTMD x)
+ (Round x) -> (FRINTAD x)
++(RoundToEven x) -> (FRINTND x)
+ (Trunc x) -> (FRINTZD x)
+ 
+ // lowering rotates
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 43230fbf70..da078517d4 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -212,6 +212,7 @@ func init() {
+ 		// unary ops
+ 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
+ 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},         // -arg0
++		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD"},     // abs(arg0), float64
+ 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},     // -arg0, float32
+ 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},     // -arg0, float64
+ 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},   // sqrt(arg0), float64
+@@ -424,6 +425,7 @@ func init() {
+ 		// floating-point round to integral
+ 		{name: "FRINTAD", argLength: 1, reg: fp11, asm: "FRINTAD"},
+ 		{name: "FRINTMD", argLength: 1, reg: fp11, asm: "FRINTMD"},
++		{name: "FRINTND", argLength: 1, reg: fp11, asm: "FRINTND"},
+ 		{name: "FRINTPD", argLength: 1, reg: fp11, asm: "FRINTPD"},
+ 		{name: "FRINTZD", argLength: 1, reg: fp11, asm: "FRINTZD"},
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 30c57874f6..b32dca4103 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1107,6 +1107,7 @@ const (
+ 	OpARM64LoweredMuluhilo
+ 	OpARM64MVN
+ 	OpARM64NEG
++	OpARM64FABSD
+ 	OpARM64FNEGS
+ 	OpARM64FNEGD
+ 	OpARM64FSQRTD
+@@ -1277,6 +1278,7 @@ const (
+ 	OpARM64FCVTDS
+ 	OpARM64FRINTAD
+ 	OpARM64FRINTMD
++	OpARM64FRINTND
+ 	OpARM64FRINTPD
+ 	OpARM64FRINTZD
+ 	OpARM64CSEL
+@@ -14658,6 +14660,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FABSD",
++		argLen: 1,
++		asm:    arm64.AFABSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "FNEGS",
+ 		argLen: 1,
+@@ -16965,6 +16980,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FRINTND",
++		argLen: 1,
++		asm:    arm64.AFRINTND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "FRINTPD",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 1dcbd93480..2108452c03 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -331,6 +331,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64XORshiftRA_0(v)
+ 	case OpARM64XORshiftRL:
+ 		return rewriteValueARM64_OpARM64XORshiftRL_0(v)
++	case OpAbs:
++		return rewriteValueARM64_OpAbs_0(v)
+ 	case OpAdd16:
+ 		return rewriteValueARM64_OpAdd16_0(v)
+ 	case OpAdd32:
+@@ -747,6 +749,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpRound32F_0(v)
+ 	case OpRound64F:
+ 		return rewriteValueARM64_OpRound64F_0(v)
++	case OpRoundToEven:
++		return rewriteValueARM64_OpRoundToEven_0(v)
+ 	case OpRsh16Ux16:
+ 		return rewriteValueARM64_OpRsh16Ux16_0(v)
+ 	case OpRsh16Ux32:
+@@ -29214,6 +29218,17 @@ func rewriteValueARM64_OpARM64XORshiftRL_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpAbs_0(v *Value) bool {
++	// match: (Abs x)
++	// cond:
++	// result: (FABSD x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARM64FABSD)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM64_OpAdd16_0(v *Value) bool {
+ 	// match: (Add16 x y)
+ 	// cond:
+@@ -33407,6 +33422,17 @@ func rewriteValueARM64_OpRound64F_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpRoundToEven_0(v *Value) bool {
++	// match: (RoundToEven x)
++	// cond:
++	// result: (FRINTND x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARM64FRINTND)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM64_OpRsh16Ux16_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 3d5f0917ef..6afe183345 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -32,6 +32,7 @@ func approx(x float64) {
+ 	sink64[3] = math.Trunc(x)
+ 
+ 	// s390x:"FIDBR\t[$]4"
++	// arm64:"FRINTND"
+ 	sink64[4] = math.RoundToEven(x)
+ }
+ 
+@@ -48,6 +49,7 @@ func sqrt(x float64) float64 {
+ // Check that it's using integer registers
+ func abs(x, y float64) {
+ 	// amd64:"BTRQ\t[$]63"
++	// arm64:"FABSD\t"
+ 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
+ 	// ppc64le:"FABS\t"
+ 	sink64[0] = math.Abs(x)

@@ -20,8 +20,81 @@ Date:   Tue Feb 23 13:29:40 2021 +0100
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/except.txt                  | 6 ++++++
  src/syscall/syscall_windows.go  | 6 +++---
  src/syscall/zsyscall_windows.go | 6 +++---
  3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 6f6f839ba6..1ddc397d11 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -471,6 +471,9 @@ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [4]uint8
+ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
+ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
+ pkg syscall (windows-386), const TOKEN_ALL_ACCESS = 983295
++pkg syscall (windows-386), func CreateIoCompletionPort(Handle, Handle, uint32, uint32) (Handle, error)
++pkg syscall (windows-386), func GetQueuedCompletionStatus(Handle, *uint32, *uint32, **Overlapped, uint32) error
++pkg syscall (windows-386), func PostQueuedCompletionStatus(Handle, uint32, uint32, *Overlapped) error
+ pkg syscall (windows-386), type AddrinfoW struct, Addr uintptr
+ pkg syscall (windows-386), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
+ pkg syscall (windows-386), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
+@@ -480,6 +483,9 @@ pkg syscall (windows-386), type CertRevocationInfo struct, OidSpecificInfo uintp
+ pkg syscall (windows-386), type CertSimpleChain struct, TrustListInfo uintptr
+ pkg syscall (windows-386), type RawSockaddrAny struct, Pad [96]int8
+ pkg syscall (windows-amd64), const TOKEN_ALL_ACCESS = 983295
++pkg syscall (windows-amd64), func CreateIoCompletionPort(Handle, Handle, uint32, uint32) (Handle, error)
++pkg syscall (windows-amd64), func GetQueuedCompletionStatus(Handle, *uint32, *uint32, **Overlapped, uint32) error
++pkg syscall (windows-amd64), func PostQueuedCompletionStatus(Handle, uint32, uint32, *Overlapped) error
+ pkg syscall (windows-amd64), type AddrinfoW struct, Addr uintptr
+ pkg syscall (windows-amd64), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
+ pkg syscall (windows-amd64), type CertChainPolicyStatus struct, ExtraPolicyStatus uintptr
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 4a576486d1..a958f7aa84 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -213,9 +213,9 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	SetEndOfFile(handle Handle) (err error)
+ //sys	GetSystemTimeAsFileTime(time *Filetime)
+ //sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, err error) [failretval==0xffffffff]
+-//sys	CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, err error)
+-//sys	GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (err error)
+-//sys	PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (err error)
++//sys	CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uintptr, threadcnt uint32) (handle Handle, err error)
++//sys	GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uintptr, overlapped **Overlapped, timeout uint32) (err error)
++//sys	PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uintptr, overlapped *Overlapped) (err error)
+ //sys	CancelIo(s Handle) (err error)
+ //sys	CancelIoEx(s Handle, o *Overlapped) (err error)
+ //sys	CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityAttributes, threadSecurity *SecurityAttributes, inheritHandles bool, creationFlags uint32, env *uint16, currentDir *uint16, startupInfo *StartupInfo, outProcInfo *ProcessInformation) (err error) = CreateProcessW
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 2166be595b..cc44e31a85 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -515,7 +515,7 @@ func CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr
+ 	return
+ }
+ 
+-func CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, err error) {
++func CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uintptr, threadcnt uint32) (handle Handle, err error) {
+ 	r0, _, e1 := Syscall6(procCreateIoCompletionPort.Addr(), 4, uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt), 0, 0)
+ 	handle = Handle(r0)
+ 	if handle == 0 {
+@@ -822,7 +822,7 @@ func GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime,
+ 	return
+ }
+ 
+-func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (err error) {
++func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uintptr, overlapped **Overlapped, timeout uint32) (err error) {
+ 	r1, _, e1 := Syscall6(procGetQueuedCompletionStatus.Addr(), 5, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
+ 	if r1 == 0 {
+ 		err = errnoErr(e1)
+@@ -954,7 +954,7 @@ func OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err
+ 	return
+ }
+ 
+-func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) (err error) {
++func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uintptr, overlapped *Overlapped) (err error) {
+ 	r1, _, e1 := Syscall6(procPostQueuedCompletionStatus.Addr(), 4, uintptr(cphandle), uintptr(qty), uintptr(key), uintptr(unsafe.Pointer(overlapped)), 0, 0)
+ 	if r1 == 0 {
+ 		err = errnoErr(e1)

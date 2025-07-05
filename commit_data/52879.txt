@@ -13,6 +13,20 @@ Date:   Tue Jun 7 13:54:53 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 4c7833b4d2..394a4a4383 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -871,7 +871,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
+ 			if !cfg.ModulesEnabled {
+ 				buildMode = build.ImportComment
+ 			}
+-			if modroot := modload.PackageModRoot(ctx, r.dir); modroot != "" {
++			if modroot := modload.PackageModRoot(ctx, r.path); modroot != "" {
+ 				if mi, err := modindex.Get(modroot); err == nil {
+ 					data.p, data.err = mi.Import(cfg.BuildContext, mi.RelPath(r.dir), buildMode)
+ 					goto Happy

@@ -9,8 +9,86 @@ Date:   Thu Feb 7 17:55:25 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7303061
-
+---
  src/cmd/8g/ggen.c          |  2 ++
  src/cmd/8g/gsubr.c         |  2 +-
  test/fixedbugs/issue887.go | 36 ++++++++++++++++++++++++++++++++++++
  3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 2921853f2d..465177f136 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -704,6 +704,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ 			regalloc(&n1, types[TUINT32], &n1);		// to hold the shift type in CX
+ 			split64(&nt, &lo, &hi);
+ 			gmove(&lo, &n1);
++			splitclean();
+ 		}
+ 	} else {
+ 		if(nr->type->width > 4) {
+@@ -716,6 +717,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ 			p2 = gbranch(optoas(ONE, types[TUINT32]), T, +1);
+ 			gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
+ 			p1 = gbranch(optoas(OLT, types[TUINT32]), T, +1);
++			splitclean();
+ 			patch(p2, pc);
+ 		} else {
+ 			gins(optoas(OCMP, nr->type), &n1, ncon(w));
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 4c86b7582e..c21c2022ed 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1168,9 +1168,9 @@ split64(Node *n, Node *lo, Node *hi)
+ 	if(!is64(n->type))
+ 		fatal("split64 %T", n->type);
+ 
+-	sclean[nsclean].op = OEMPTY;
+ 	if(nsclean >= nelem(sclean))
+ 		fatal("split64 clean");
++	sclean[nsclean].op = OEMPTY;
+ 	nsclean++;
+ 	switch(n->op) {
+ 	default:
+diff --git a/test/fixedbugs/issue887.go b/test/fixedbugs/issue887.go
+new file mode 100644
+index 0000000000..5bc193bf96
+--- /dev/null
++++ b/test/fixedbugs/issue887.go
+@@ -0,0 +1,36 @@
++// compile
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to leak registers on 8g.
++
++package p
++
++func f(x byte, y uint64) {
++	var r byte
++	switch y {
++	case 1:
++		r = x << y // '>>' triggers it too
++	case 2:
++		r = x << y
++	case 3:
++		r = x << y
++	case 4:
++		r = x << y
++	case 5:
++		r = x << y
++	case 6:
++		r = x << y
++	case 7:
++		r = x << y
++	case 8:
++		r = x << y
++	case 9:
++		r = x << y
++	case 10:
++		r = x << y
++	}
++	_ = r
++}

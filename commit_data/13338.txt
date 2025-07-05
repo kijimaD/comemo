@@ -7,6 +7,28 @@ Date:   Wed Jun 13 10:25:00 2012 -0400
     R=sameer
     CC=golang-dev
     https://golang.org/cl/6296060
-
+---
  misc/emacs/go-mode.el | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index c750696512..214c196850 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -817,13 +817,10 @@ Replace the current buffer on success; display errors on failure."
+ 
+ (defun gofmt-apply-patch (filename srcbuf patchbuf)
+   (require 'diff-mode)
+-  ;; apply all the patch hunks and restore the mark and point
++  ;; apply all the patch hunks
+   (with-current-buffer patchbuf
+-    (let ((filename (file-name-nondirectory filename))
+-          (min (point-min)))
+-      (replace-string gofmt-stdin-tag  filename nil min (point-max))
+-      (replace-regexp "^--- /tmp/gofmt[0-9]*" (concat "--- /tmp/" filename)
+-                      nil min (point-max)))
++    (replace-regexp "^--- /tmp/gofmt[0-9]*" (concat "--- " filename)
++                      nil (point-min) (point-max))
+     (condition-case nil
+         (while t
+           (diff-hunk-next)

@@ -29,6 +29,51 @@ Date:   Mon Nov 1 22:35:29 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_unix_test.go | 20 ++++++++++++++++----
  1 file changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 7cc78c2147..e4af0ba4a5 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -84,16 +84,24 @@ func TestFcntlFlock(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("Open failed: %v", err)
+ 		}
+-		defer syscall.Close(fd)
+-		if err := syscall.Ftruncate(fd, 1<<20); err != nil {
++		// f takes ownership of fd, and will close it.
++		//
++		// N.B. This defer is also necessary to keep f alive
++		// while we use its fd, preventing its finalizer from
++		// executing.
++		f := os.NewFile(uintptr(fd), name)
++		defer f.Close()
++
++		if err := syscall.Ftruncate(int(f.Fd()), 1<<20); err != nil {
+ 			t.Fatalf("Ftruncate(1<<20) failed: %v", err)
+ 		}
+-		if err := syscall.FcntlFlock(uintptr(fd), syscall.F_SETLK, &flock); err != nil {
++		if err := syscall.FcntlFlock(f.Fd(), syscall.F_SETLK, &flock); err != nil {
+ 			t.Fatalf("FcntlFlock(F_SETLK) failed: %v", err)
+ 		}
++
+ 		cmd := exec.Command(os.Args[0], "-test.run=^TestFcntlFlock$")
+ 		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+-		cmd.ExtraFiles = []*os.File{os.NewFile(uintptr(fd), name)}
++		cmd.ExtraFiles = []*os.File{f}
+ 		out, err := cmd.CombinedOutput()
+ 		if len(out) > 0 || err != nil {
+ 			t.Fatalf("child process: %q, %v", out, err)
+@@ -251,6 +259,10 @@ func passFDChild() {
+ 		fmt.Printf("TempFile: %v", err)
+ 		return
+ 	}
++	// N.B. This defer is also necessary to keep f alive
++	// while we use its fd, preventing its finalizer from
++	// executing.
++	defer f.Close()
+ 
+ 	f.Write([]byte("Hello from child process!\n"))
+ 	f.Seek(0, io.SeekStart)

@@ -11,7 +11,7 @@ Date:   Fri Mar 10 17:42:02 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  16 --
  src/cmd/compile/internal/arm/ssa.go            |  16 --
  src/cmd/compile/internal/arm64/ssa.go          |  16 --
@@ -50,3 +50,1350 @@ Date:   Fri Mar 10 17:42:02 2017 -0800
  src/cmd/compile/internal/x86/387.go            |   2 +-
  src/cmd/compile/internal/x86/ssa.go            |  16 --
  37 files changed, 8 insertions(+), 634 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 9940dcf520..68de874d32 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -769,22 +769,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpAMD64CALLdefer:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Deferproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpAMD64CALLgo:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Newproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+ 	case ssa.OpAMD64CALLinter:
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index cea0c96c68..5160a32ab8 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -652,22 +652,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpARMCALLdefer:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Deferproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpARMCALLgo:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Newproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+ 	case ssa.OpARMCALLinter:
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 158d2a4e8a..8954bebb10 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -649,22 +649,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpARM64CALLdefer:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Deferproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpARM64CALLgo:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Newproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+ 	case ssa.OpARM64CALLinter:
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index cc3f31455f..4fc5f32067 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3014,9 +3014,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	var call *ssa.Value
+ 	switch {
+ 	case k == callDefer:
+-		call = s.newValue1(ssa.OpDeferCall, ssa.TypeMem, s.mem())
++		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Deferproc, s.mem())
+ 	case k == callGo:
+-		call = s.newValue1(ssa.OpGoCall, ssa.TypeMem, s.mem())
++		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Newproc, s.mem())
+ 	case closure != nil:
+ 		codeptr = s.newValue2(ssa.OpLoad, Types[TUINTPTR], closure, s.mem())
+ 		call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, codeptr, closure, s.mem())
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 0d0e7eae96..0d5a2a2bc8 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -504,22 +504,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpMIPSCALLdefer:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Deferproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpMIPSCALLgo:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Newproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+ 	case ssa.OpMIPSCALLinter:
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index cd524f06c2..cc97f6865f 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -507,22 +507,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpMIPS64CALLdefer:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Deferproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpMIPS64CALLgo:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Newproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+ 	case ssa.OpMIPS64CALLinter:
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index c04172081f..7a6bed4f85 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1022,22 +1022,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+ 
+-	case ssa.OpPPC64CALLdefer:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Deferproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpPPC64CALLgo:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Newproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+ 	case ssa.OpPPC64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(ppc64.AMOVBZ)
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 65d7e8a9d5..bce63c550b 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -507,22 +507,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpS390XCALLdefer:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Deferproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpS390XCALLgo:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Newproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+ 	case ssa.OpS390XCALLinter:
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index c8e04237b9..10f07cefba 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -101,7 +101,7 @@ func (e Edge) Index() int {
+ //     Exit        return mem                []
+ //    Plain               nil            [next]
+ //       If   a boolean Value      [then, else]
+-//    Defer               mem  [nopanic, panic]  (control opcode should be OpDeferCall)
++//    Defer               mem  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
+ type BlockKind int8
+ 
+ // short form print
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 0ca1761b33..03002aadeb 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -375,8 +375,6 @@
+ // Lowering calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // Miscellaneous
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 2754e0dec0..a8fc3400fb 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -391,8 +391,6 @@ func init() {
+ 
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                             // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                               // call deferproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                                  // call newproc.  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// arg0 = destination pointer
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index fd2aa82143..3e68a2a732 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -426,8 +426,6 @@
+ // Lowering calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // Miscellaneous
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 476febdbb7..38b3db1781 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -464,8 +464,6 @@ func init() {
+ 
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                             // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                               // call deferproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                                  // call newproc.  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// arg0 = destination pointer
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 79f6f7b27f..c9d2b550bb 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -379,8 +379,6 @@
+ // calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // checks
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index deff9a4249..8b6ecba5e2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -447,8 +447,6 @@
+ // calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // checks
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 0986ac69f2..0f90c4d3a3 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -320,8 +320,6 @@ func init() {
+ 		// function calls
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                              // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                                // call deferproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                                   // call newproc.  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// pseudo-ops
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 6d9a90acb2..a29d6b5996 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -376,8 +376,6 @@ func init() {
+ 		// function calls
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                             // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R7"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                               // call deferproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                                  // call newproc.  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// pseudo-ops
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 4382fad59d..619771ce2c 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -375,8 +375,6 @@
+ // calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // atomic intrinsics
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 1bb33840f3..301ad26363 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -417,8 +417,6 @@
+ // calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // checks
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index 020d6930d7..2cd5ad13d6 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -266,8 +266,6 @@ func init() {
+ 		// function calls
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                              // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R22"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                                // call deferproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                                   // call newproc.  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// duffzero
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index 3d88b717ea..1612fa54e6 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -249,10 +249,8 @@ func init() {
+ 
+ 		// function calls
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                              // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R22"), 0}, clobbers: callerSave}, aux: "Int32", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int32", clobberFlags: true, call: true},                                                // call deferproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int32", clobberFlags: true, call: true},                                                   // call newproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int32", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
++		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R22"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
++		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// atomic ops
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index f7b6417d08..a72897981f 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -588,8 +588,6 @@
+ // Lowering calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // Miscellaneous
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 4af2cf854a..36ca1266ad 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -299,8 +299,6 @@ func init() {
+ 
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                      // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gp | sp, ctxt, 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                        // call deferproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                           // call newproc.  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                 // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// large or unaligned zeroing
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 5210d0abc0..c2d1578dee 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -410,8 +410,6 @@
+ // Lowering calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // Miscellaneous
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 11f6656197..9189b144fe 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -391,8 +391,6 @@ func init() {
+ 
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true},                                               // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{ptrsp, buildReg("R12"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                                 // call deferproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                                                    // call newproc.  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// (InvertFlags (CMP a b)) == (CMP b a)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index a90d3c8e62..000baa686b 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -303,8 +303,6 @@ var genericOps = []opData{
+ 	// as a phantom first argument.
+ 	{name: "ClosureCall", argLength: 3, aux: "Int64", call: true}, // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
+ 	{name: "StaticCall", argLength: 1, aux: "SymOff", call: true}, // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
+-	{name: "DeferCall", argLength: 1, aux: "Int64", call: true},   // defer call.  arg0=memory, auxint=arg size.  Returns memory.
+-	{name: "GoCall", argLength: 1, aux: "Int64", call: true},      // go call.  arg0=memory, auxint=arg size.  Returns memory.
+ 	{name: "InterCall", argLength: 2, aux: "Int64", call: true},   // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+ 
+ 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 421518ae4d..6fbead35d3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -387,8 +387,6 @@ const (
+ 	Op386REPSTOSL
+ 	Op386CALLstatic
+ 	Op386CALLclosure
+-	Op386CALLdefer
+-	Op386CALLgo
+ 	Op386CALLinter
+ 	Op386DUFFCOPY
+ 	Op386REPMOVSL
+@@ -626,8 +624,6 @@ const (
+ 	OpAMD64REPSTOSQ
+ 	OpAMD64CALLstatic
+ 	OpAMD64CALLclosure
+-	OpAMD64CALLdefer
+-	OpAMD64CALLgo
+ 	OpAMD64CALLinter
+ 	OpAMD64DUFFCOPY
+ 	OpAMD64REPMOVSQ
+@@ -853,8 +849,6 @@ const (
+ 	OpARMSRAcond
+ 	OpARMCALLstatic
+ 	OpARMCALLclosure
+-	OpARMCALLdefer
+-	OpARMCALLgo
+ 	OpARMCALLinter
+ 	OpARMLoweredNilCheck
+ 	OpARMEqual
+@@ -1018,8 +1012,6 @@ const (
+ 	OpARM64CSELULT0
+ 	OpARM64CALLstatic
+ 	OpARM64CALLclosure
+-	OpARM64CALLdefer
+-	OpARM64CALLgo
+ 	OpARM64CALLinter
+ 	OpARM64LoweredNilCheck
+ 	OpARM64Equal
+@@ -1140,8 +1132,6 @@ const (
+ 	OpMIPSMOVDF
+ 	OpMIPSCALLstatic
+ 	OpMIPSCALLclosure
+-	OpMIPSCALLdefer
+-	OpMIPSCALLgo
+ 	OpMIPSCALLinter
+ 	OpMIPSLoweredAtomicLoad
+ 	OpMIPSLoweredAtomicStore
+@@ -1246,8 +1236,6 @@ const (
+ 	OpMIPS64MOVDF
+ 	OpMIPS64CALLstatic
+ 	OpMIPS64CALLclosure
+-	OpMIPS64CALLdefer
+-	OpMIPS64CALLgo
+ 	OpMIPS64CALLinter
+ 	OpMIPS64DUFFZERO
+ 	OpMIPS64LoweredZero
+@@ -1366,8 +1354,6 @@ const (
+ 	OpPPC64MOVDconvert
+ 	OpPPC64CALLstatic
+ 	OpPPC64CALLclosure
+-	OpPPC64CALLdefer
+-	OpPPC64CALLgo
+ 	OpPPC64CALLinter
+ 	OpPPC64LoweredZero
+ 	OpPPC64LoweredMove
+@@ -1560,8 +1546,6 @@ const (
+ 	OpS390XCLEAR
+ 	OpS390XCALLstatic
+ 	OpS390XCALLclosure
+-	OpS390XCALLdefer
+-	OpS390XCALLgo
+ 	OpS390XCALLinter
+ 	OpS390XInvertFlags
+ 	OpS390XLoweredGetG
+@@ -1809,8 +1793,6 @@ const (
+ 	OpZeroWB
+ 	OpClosureCall
+ 	OpStaticCall
+-	OpDeferCall
+-	OpGoCall
+ 	OpInterCall
+ 	OpSignExt8to16
+ 	OpSignExt8to32
+@@ -4105,26 +4087,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
+ 		},
+ 	},
+-	{
+-		name:         "CALLdefer",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
+-		},
+-	},
+-	{
+-		name:         "CALLgo",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
+-		},
+-	},
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxInt64,
+@@ -7376,26 +7338,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+ 		},
+ 	},
+-	{
+-		name:         "CALLdefer",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-		},
+-	},
+-	{
+-		name:         "CALLgo",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-		},
+-	},
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxInt64,
+@@ -10534,26 +10476,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 4294924287, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 		},
+ 	},
+-	{
+-		name:         "CALLdefer",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 4294924287, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+-		},
+-	},
+-	{
+-		name:         "CALLgo",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 4294924287, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+-		},
+-	},
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxInt64,
+@@ -12654,26 +12576,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 9223372035512336383, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 		},
+ 	},
+-	{
+-		name:         "CALLdefer",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 9223372035512336383, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-		},
+-	},
+-	{
+-		name:         "CALLgo",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 9223372035512336383, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-		},
+-	},
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxInt64,
+@@ -14194,7 +14096,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "CALLclosure",
+-		auxType:      auxInt32,
++		auxType:      auxInt64,
+ 		argLen:       3,
+ 		clobberFlags: true,
+ 		call:         true,
+@@ -14206,29 +14108,9 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 140737421246462, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
+ 		},
+ 	},
+-	{
+-		name:         "CALLdefer",
+-		auxType:      auxInt32,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 140737421246462, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
+-		},
+-	},
+-	{
+-		name:         "CALLgo",
+-		auxType:      auxInt32,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 140737421246462, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
+-		},
+-	},
+ 	{
+ 		name:         "CALLinter",
+-		auxType:      auxInt32,
++		auxType:      auxInt64,
+ 		argLen:       2,
+ 		clobberFlags: true,
+ 		call:         true,
+@@ -15611,26 +15493,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 4611686018393833470, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
+ 		},
+ 	},
+-	{
+-		name:         "CALLdefer",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 4611686018393833470, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
+-		},
+-	},
+-	{
+-		name:         "CALLgo",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 4611686018393833470, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
+-		},
+-	},
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxInt64,
+@@ -17140,26 +17002,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 576460745860964344, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+ 		},
+ 	},
+-	{
+-		name:         "CALLdefer",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 576460745860964344, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-		},
+-	},
+-	{
+-		name:         "CALLgo",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 576460745860964344, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 g F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-		},
+-	},
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxInt64,
+@@ -19927,26 +19769,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 4294923263, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 		},
+ 	},
+-	{
+-		name:         "CALLdefer",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 4294923263, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+-		},
+-	},
+-	{
+-		name:         "CALLgo",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		call:         true,
+-		reg: regInfo{
+-			clobbers: 4294923263, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+-		},
+-	},
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxInt64,
+@@ -21490,20 +21312,6 @@ var opcodeTable = [...]opInfo{
+ 		call:    true,
+ 		generic: true,
+ 	},
+-	{
+-		name:    "DeferCall",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		call:    true,
+-		generic: true,
+-	},
+-	{
+-		name:    "GoCall",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		call:    true,
+-		generic: true,
+-	},
+ 	{
+ 		name:    "InterCall",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 0280bdd04c..881a956c8d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -276,8 +276,6 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_OpCvt64Fto32(v, config)
+ 	case OpCvt64Fto32F:
+ 		return rewriteValue386_OpCvt64Fto32F(v, config)
+-	case OpDeferCall:
+-		return rewriteValue386_OpDeferCall(v, config)
+ 	case OpDiv16:
+ 		return rewriteValue386_OpDiv16(v, config)
+ 	case OpDiv16u:
+@@ -328,8 +326,6 @@ func rewriteValue386(v *Value, config *Config) bool {
+ 		return rewriteValue386_OpGetClosurePtr(v, config)
+ 	case OpGetG:
+ 		return rewriteValue386_OpGetG(v, config)
+-	case OpGoCall:
+-		return rewriteValue386_OpGoCall(v, config)
+ 	case OpGreater16:
+ 		return rewriteValue386_OpGreater16(v, config)
+ 	case OpGreater16U:
+@@ -9983,21 +9979,6 @@ func rewriteValue386_OpCvt64Fto32F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValue386_OpDeferCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DeferCall [argwid] mem)
+-	// cond:
+-	// result: (CALLdefer [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(Op386CALLdefer)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValue386_OpDiv16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -10405,21 +10386,6 @@ func rewriteValue386_OpGetG(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValue386_OpGoCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (GoCall [argwid] mem)
+-	// cond:
+-	// result: (CALLgo [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(Op386CALLgo)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValue386_OpGreater16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 2a82ed9e2d..2a7291c502 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -426,8 +426,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpCvt64to32F(v, config)
+ 	case OpCvt64to64F:
+ 		return rewriteValueAMD64_OpCvt64to64F(v, config)
+-	case OpDeferCall:
+-		return rewriteValueAMD64_OpDeferCall(v, config)
+ 	case OpDiv128u:
+ 		return rewriteValueAMD64_OpDiv128u(v, config)
+ 	case OpDiv16:
+@@ -490,8 +488,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpGetClosurePtr(v, config)
+ 	case OpGetG:
+ 		return rewriteValueAMD64_OpGetG(v, config)
+-	case OpGoCall:
+-		return rewriteValueAMD64_OpGoCall(v, config)
+ 	case OpGreater16:
+ 		return rewriteValueAMD64_OpGreater16(v, config)
+ 	case OpGreater16U:
+@@ -18085,21 +18081,6 @@ func rewriteValueAMD64_OpCvt64to64F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueAMD64_OpDeferCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DeferCall [argwid] mem)
+-	// cond:
+-	// result: (CALLdefer [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpAMD64CALLdefer)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueAMD64_OpDiv128u(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -18641,21 +18622,6 @@ func rewriteValueAMD64_OpGetG(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueAMD64_OpGoCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (GoCall [argwid] mem)
+-	// cond:
+-	// result: (CALLgo [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpAMD64CALLgo)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueAMD64_OpGreater16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index eba480c62c..086d0577f7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -410,8 +410,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpCvt64Fto32F(v, config)
+ 	case OpCvt64Fto32U:
+ 		return rewriteValueARM_OpCvt64Fto32U(v, config)
+-	case OpDeferCall:
+-		return rewriteValueARM_OpDeferCall(v, config)
+ 	case OpDiv16:
+ 		return rewriteValueARM_OpDiv16(v, config)
+ 	case OpDiv16u:
+@@ -460,8 +458,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpGeq8U(v, config)
+ 	case OpGetClosurePtr:
+ 		return rewriteValueARM_OpGetClosurePtr(v, config)
+-	case OpGoCall:
+-		return rewriteValueARM_OpGoCall(v, config)
+ 	case OpGreater16:
+ 		return rewriteValueARM_OpGreater16(v, config)
+ 	case OpGreater16U:
+@@ -13388,21 +13384,6 @@ func rewriteValueARM_OpCvt64Fto32U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpDeferCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DeferCall [argwid] mem)
+-	// cond:
+-	// result: (CALLdefer [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpARMCALLdefer)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueARM_OpDiv16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -13871,21 +13852,6 @@ func rewriteValueARM_OpGetClosurePtr(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpGoCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (GoCall [argwid] mem)
+-	// cond:
+-	// result: (CALLgo [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpARMCALLgo)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueARM_OpGreater16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index afe3081cb1..e3405682f5 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -322,8 +322,6 @@ func rewriteValueARM64(v *Value, config *Config) bool {
+ 		return rewriteValueARM64_OpCvt64to32F(v, config)
+ 	case OpCvt64to64F:
+ 		return rewriteValueARM64_OpCvt64to64F(v, config)
+-	case OpDeferCall:
+-		return rewriteValueARM64_OpDeferCall(v, config)
+ 	case OpDiv16:
+ 		return rewriteValueARM64_OpDiv16(v, config)
+ 	case OpDiv16u:
+@@ -382,8 +380,6 @@ func rewriteValueARM64(v *Value, config *Config) bool {
+ 		return rewriteValueARM64_OpGeq8U(v, config)
+ 	case OpGetClosurePtr:
+ 		return rewriteValueARM64_OpGetClosurePtr(v, config)
+-	case OpGoCall:
+-		return rewriteValueARM64_OpGoCall(v, config)
+ 	case OpGreater16:
+ 		return rewriteValueARM64_OpGreater16(v, config)
+ 	case OpGreater16U:
+@@ -10141,21 +10137,6 @@ func rewriteValueARM64_OpCvt64to64F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM64_OpDeferCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DeferCall [argwid] mem)
+-	// cond:
+-	// result: (CALLdefer [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpARM64CALLdefer)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueARM64_OpDiv16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -10666,21 +10647,6 @@ func rewriteValueARM64_OpGetClosurePtr(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM64_OpGoCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (GoCall [argwid] mem)
+-	// cond:
+-	// result: (CALLgo [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpARM64CALLgo)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueARM64_OpGreater16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 5bfcb52273..8c16585d17 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -90,8 +90,6 @@ func rewriteValueMIPS(v *Value, config *Config) bool {
+ 		return rewriteValueMIPS_OpCvt64Fto32(v, config)
+ 	case OpCvt64Fto32F:
+ 		return rewriteValueMIPS_OpCvt64Fto32F(v, config)
+-	case OpDeferCall:
+-		return rewriteValueMIPS_OpDeferCall(v, config)
+ 	case OpDiv16:
+ 		return rewriteValueMIPS_OpDiv16(v, config)
+ 	case OpDiv16u:
+@@ -140,8 +138,6 @@ func rewriteValueMIPS(v *Value, config *Config) bool {
+ 		return rewriteValueMIPS_OpGeq8U(v, config)
+ 	case OpGetClosurePtr:
+ 		return rewriteValueMIPS_OpGetClosurePtr(v, config)
+-	case OpGoCall:
+-		return rewriteValueMIPS_OpGoCall(v, config)
+ 	case OpGreater16:
+ 		return rewriteValueMIPS_OpGreater16(v, config)
+ 	case OpGreater16U:
+@@ -1282,21 +1278,6 @@ func rewriteValueMIPS_OpCvt64Fto32F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS_OpDeferCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DeferCall [argwid] mem)
+-	// cond:
+-	// result: (CALLdefer [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpMIPSCALLdefer)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS_OpDiv16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1746,21 +1727,6 @@ func rewriteValueMIPS_OpGetClosurePtr(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS_OpGoCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (GoCall [argwid] mem)
+-	// cond:
+-	// result: (CALLgo [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpMIPSCALLgo)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS_OpGreater16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index a66f81115c..90ddf0207a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -84,8 +84,6 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
+ 		return rewriteValueMIPS64_OpCvt64to32F(v, config)
+ 	case OpCvt64to64F:
+ 		return rewriteValueMIPS64_OpCvt64to64F(v, config)
+-	case OpDeferCall:
+-		return rewriteValueMIPS64_OpDeferCall(v, config)
+ 	case OpDiv16:
+ 		return rewriteValueMIPS64_OpDiv16(v, config)
+ 	case OpDiv16u:
+@@ -144,8 +142,6 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
+ 		return rewriteValueMIPS64_OpGeq8U(v, config)
+ 	case OpGetClosurePtr:
+ 		return rewriteValueMIPS64_OpGetClosurePtr(v, config)
+-	case OpGoCall:
+-		return rewriteValueMIPS64_OpGoCall(v, config)
+ 	case OpGreater16:
+ 		return rewriteValueMIPS64_OpGreater16(v, config)
+ 	case OpGreater16U:
+@@ -1117,21 +1113,6 @@ func rewriteValueMIPS64_OpCvt64to64F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS64_OpDeferCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DeferCall [argwid] mem)
+-	// cond:
+-	// result: (CALLdefer [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpMIPS64CALLdefer)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS64_OpDiv16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1717,21 +1698,6 @@ func rewriteValueMIPS64_OpGetClosurePtr(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS64_OpGoCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (GoCall [argwid] mem)
+-	// cond:
+-	// result: (CALLgo [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpMIPS64CALLgo)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS64_OpGreater16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 2499d80464..8c2796f961 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -110,8 +110,6 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpCvt64to32F(v, config)
+ 	case OpCvt64to64F:
+ 		return rewriteValuePPC64_OpCvt64to64F(v, config)
+-	case OpDeferCall:
+-		return rewriteValuePPC64_OpDeferCall(v, config)
+ 	case OpDiv16:
+ 		return rewriteValuePPC64_OpDiv16(v, config)
+ 	case OpDiv16u:
+@@ -170,8 +168,6 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpGeq8U(v, config)
+ 	case OpGetClosurePtr:
+ 		return rewriteValuePPC64_OpGetClosurePtr(v, config)
+-	case OpGoCall:
+-		return rewriteValuePPC64_OpGoCall(v, config)
+ 	case OpGreater16:
+ 		return rewriteValuePPC64_OpGreater16(v, config)
+ 	case OpGreater16U:
+@@ -1379,21 +1375,6 @@ func rewriteValuePPC64_OpCvt64to64F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValuePPC64_OpDeferCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DeferCall [argwid] mem)
+-	// cond:
+-	// result: (CALLdefer [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpPPC64CALLdefer)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValuePPC64_OpDiv16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1942,21 +1923,6 @@ func rewriteValuePPC64_OpGetClosurePtr(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValuePPC64_OpGoCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (GoCall [argwid] mem)
+-	// cond:
+-	// result: (CALLgo [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpPPC64CALLgo)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValuePPC64_OpGreater16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 14770ca18d..7bf1b6b680 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -116,8 +116,6 @@ func rewriteValueS390X(v *Value, config *Config) bool {
+ 		return rewriteValueS390X_OpCvt64to32F(v, config)
+ 	case OpCvt64to64F:
+ 		return rewriteValueS390X_OpCvt64to64F(v, config)
+-	case OpDeferCall:
+-		return rewriteValueS390X_OpDeferCall(v, config)
+ 	case OpDiv16:
+ 		return rewriteValueS390X_OpDiv16(v, config)
+ 	case OpDiv16u:
+@@ -178,8 +176,6 @@ func rewriteValueS390X(v *Value, config *Config) bool {
+ 		return rewriteValueS390X_OpGetClosurePtr(v, config)
+ 	case OpGetG:
+ 		return rewriteValueS390X_OpGetG(v, config)
+-	case OpGoCall:
+-		return rewriteValueS390X_OpGoCall(v, config)
+ 	case OpGreater16:
+ 		return rewriteValueS390X_OpGreater16(v, config)
+ 	case OpGreater16U:
+@@ -1545,21 +1541,6 @@ func rewriteValueS390X_OpCvt64to64F(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueS390X_OpDeferCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DeferCall [argwid] mem)
+-	// cond:
+-	// result: (CALLdefer [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpS390XCALLdefer)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueS390X_OpDiv16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2196,21 +2177,6 @@ func rewriteValueS390X_OpGetG(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueS390X_OpGoCall(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (GoCall [argwid] mem)
+-	// cond:
+-	// result: (CALLgo [argwid] mem)
+-	for {
+-		argwid := v.AuxInt
+-		mem := v.Args[0]
+-		v.reset(OpS390XCALLgo)
+-		v.AuxInt = argwid
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueS390X_OpGreater16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+index a09ed8fa95..952292b096 100644
+--- a/src/cmd/compile/internal/x86/387.go
++++ b/src/cmd/compile/internal/x86/387.go
+@@ -298,7 +298,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
+ 		popAndSave(s, v)
+ 		return true
+ 
+-	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLdefer, ssa.Op386CALLgo, ssa.Op386CALLinter:
++	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
+ 		flush387(s)  // Calls must empty the FP stack.
+ 		return false // then issue the call as normal
+ 	}
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 1e37abb3f0..4cd908a94a 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -695,22 +695,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.Op386CALLdefer:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Deferproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.Op386CALLgo:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Newproc
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+ 	case ssa.Op386CALLinter:
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_REG

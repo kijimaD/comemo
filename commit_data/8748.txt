@@ -8,6 +8,10 @@ Date:   Thu Jun 16 16:03:24 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4637041
-
+---
  doc/GoCourseDay1.pdf | Bin 265989 -> 904237 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/GoCourseDay1.pdf b/doc/GoCourseDay1.pdf
+index 6d884979a8..c2c8c4a7dc 100644
+Binary files a/doc/GoCourseDay1.pdf and b/doc/GoCourseDay1.pdf differ

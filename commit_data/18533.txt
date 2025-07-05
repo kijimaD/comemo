@@ -18,6 +18,36 @@ Date:   Fri Feb 14 22:27:47 2014 +0100
     R=rsc
     CC=ality, golang-codereviews
     https://golang.org/cl/64140043
-
+---
  src/pkg/runtime/sys_plan9_386.s | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index bed0f7ebe0..2513af9cba 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -81,6 +81,10 @@ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+ 	
+ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	MOVL    $19, AX // rfork
++	MOVL	stack+8(SP), CX
++	MOVL	mm+12(SP), BX	// m
++	MOVL	gg+16(SP), DX	// g
++	MOVL	fn+20(SP), SI	// fn
+ 	INT     $64
+ 
+ 	// In parent, return.
+@@ -88,13 +92,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	JEQ	2(PC)
+ 	RET
+ 
+-	// In child on old stack.
+-	MOVL	mm+12(SP), BX	// m
+-	MOVL	gg+16(SP), DX	// g
+-	MOVL	fn+20(SP), SI	// fn
+-
+ 	// set SP to be on the new child stack
+-	MOVL	stack+8(SP), CX
+ 	MOVL	CX, SP
+ 
+ 	// Initialize m, g.

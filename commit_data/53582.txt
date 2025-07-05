@@ -32,10 +32,166 @@ Date:   Thu Aug 18 20:59:26 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go   |  1 +
  src/cmd/compile/internal/noder/codes.go  |  1 +
  src/cmd/compile/internal/noder/reader.go | 37 +++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/noder/writer.go | 15 +++++++++++++
  test/typeparam/issue54535.go             | 37 ++++++++++++++++++++++++++++++++
  5 files changed, 90 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index f1d020f342..5edb665e37 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -34,6 +34,7 @@ type DebugFlags struct {
+ 	NoRefName            int    `help:"do not include referenced symbol names in object file"`
+ 	PCTab                string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+ 	Panic                int    `help:"show all compiler panics"`
++	Reshape              int    `help:"print information about expression reshaping"`
+ 	Slice                int    `help:"print information about slice compilation"`
+ 	SoftFloat            int    `help:"force compiler to emit soft-float code"`
+ 	SyncFrames           int    `help:"how many writer stack frames to include at sync points in unified export data"`
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index fb4fb4a886..c1ee8d15c5 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -58,6 +58,7 @@ const (
+ 	exprNil
+ 	exprFuncInst
+ 	exprRecv
++	exprReshape
+ )
+ 
+ type codeAssign int
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 5f770166db..cf1e1440df 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -89,7 +89,7 @@ func (pr *pkgReader) newReader(k pkgbits.RelocKind, idx pkgbits.Index, marker pk
+ 	}
+ }
+ 
+-// A writer provides APIs for reading an individual element.
++// A reader provides APIs for reading an individual element.
+ type reader struct {
+ 	pkgbits.Decoder
+ 
+@@ -2367,6 +2367,41 @@ func (r *reader) expr() (res ir.Node) {
+ 		typ := r.exprType()
+ 		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
+ 
++	case exprReshape:
++		typ := r.typ()
++		x := r.expr()
++
++		if types.IdenticalStrict(x.Type(), typ) {
++			return x
++		}
++
++		// Comparison expressions are constructed as "untyped bool" still.
++		//
++		// TODO(mdempsky): It should be safe to reshape them here too, but
++		// maybe it's better to construct them with the proper type
++		// instead.
++		if x.Type() == types.UntypedBool && typ.IsBoolean() {
++			return x
++		}
++
++		base.AssertfAt(x.Type().HasShape() || typ.HasShape(), x.Pos(), "%L and %v are not shape types", x, typ)
++		base.AssertfAt(types.Identical(x.Type(), typ), x.Pos(), "%L is not shape-identical to %v", x, typ)
++
++		// We use ir.HasUniquePos here as a check that x only appears once
++		// in the AST, so it's okay for us to call SetType without
++		// breaking any other uses of it.
++		//
++		// Notably, any ONAMEs should already have the exactly right shape
++		// type and been caught by types.IdenticalStrict above.
++		base.AssertfAt(ir.HasUniquePos(x), x.Pos(), "cannot call SetType(%v) on %L", typ, x)
++
++		if base.Debug.Reshape != 0 {
++			base.WarnfAt(x.Pos(), "reshaping %L to %v", x, typ)
++		}
++
++		x.SetType(typ)
++		return x
++
+ 	case exprConvert:
+ 		implicit := r.Bool()
+ 		typ := r.typ()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index c2c3567220..75ff000249 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1629,6 +1629,16 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			w.typ(tv.Type)
+ 			return
+ 		}
++
++		// With shape types (and particular pointer shaping), we may have
++		// an expression of type "go.shape.*uint8", but need to reshape it
++		// to another shape-identical type to allow use in field
++		// selection, indexing, etc.
++		if typ := tv.Type; !tv.IsBuiltin() && !isTuple(typ) && !isUntyped(typ) {
++			w.Code(exprReshape)
++			w.typ(typ)
++			// fallthrough
++		}
+ 	}
+ 
+ 	if obj != nil {
+@@ -2199,6 +2209,11 @@ func isUntyped(typ types2.Type) bool {
+ 	return ok && basic.Info()&types2.IsUntyped != 0
+ }
+ 
++func isTuple(typ types2.Type) bool {
++	_, ok := typ.(*types2.Tuple)
++	return ok
++}
++
+ func (w *writer) itab(typ, iface types2.Type) {
+ 	typ = types2.Default(typ)
+ 	iface = types2.Default(iface)
+diff --git a/test/typeparam/issue54535.go b/test/typeparam/issue54535.go
+new file mode 100644
+index 0000000000..574b275598
+--- /dev/null
++++ b/test/typeparam/issue54535.go
+@@ -0,0 +1,37 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type node[T any] struct {
++	items    items[T]
++	children items[*node[T]]
++}
++
++func (n *node[T]) f(i int, j int) bool {
++	if len(n.children[i].items) < j {
++		return false
++	}
++	return true
++}
++
++type items[T any] []T
++
++func main() {
++	_ = node[int]{}
++	_ = f[int]
++}
++
++type s[T, U any] struct {
++	a T
++	c U
++}
++
++func f[T any]() {
++	var x s[*struct{ b T }, *struct{ d int }]
++	_ = x.a.b
++	_ = x.c.d
++}

@@ -7,6 +7,19 @@ Date:   Tue Nov 24 13:21:14 2009 -0800
     R=gri
     CC=r
     https://golang.org/cl/157149
-
+---
  src/cmd/godoc/godoc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 7cf5a85197..dd5278f8e7 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -859,6 +859,7 @@ func isTextFile(path string) bool {
+ 	if err != nil {
+ 		return false
+ 	}
++	defer f.Close();
+ 
+ 	var buf [1024]byte;
+ 	n, err := f.Read(&buf);

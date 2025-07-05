@@ -17,7 +17,84 @@ Date:   Tue Jan 31 09:14:16 2023 -0800
     Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/ecdh/ecdh.go      |  7 ++++++-
  src/crypto/ecdh/ecdh_test.go | 36 ++++++++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/ecdh/ecdh.go b/src/crypto/ecdh/ecdh.go
+index d78b4d4432..74420559b5 100644
+--- a/src/crypto/ecdh/ecdh.go
++++ b/src/crypto/ecdh/ecdh.go
+@@ -10,6 +10,7 @@ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
+ 	"crypto/subtle"
++	"errors"
+ 	"io"
+ 	"sync"
+ )
+@@ -109,7 +110,8 @@ type PrivateKey struct {
+ 	publicKeyOnce sync.Once
+ }
+ 
+-// ECDH performs a ECDH exchange and returns the shared secret.
++// ECDH performs a ECDH exchange and returns the shared secret. The PrivateKey
++// and PublicKey must use the same curve.
+ //
+ // For NIST curves, this performs ECDH as specified in SEC 1, Version 2.0,
+ // Section 3.3.1, and returns the x-coordinate encoded according to SEC 1,
+@@ -118,6 +120,9 @@ type PrivateKey struct {
+ // For X25519, this performs ECDH as specified in RFC 7748, Section 6.1. If
+ // the result is the all-zero value, ECDH returns an error.
+ func (k *PrivateKey) ECDH(remote *PublicKey) ([]byte, error) {
++	if k.curve != remote.curve {
++		return nil, errors.New("crypto/ecdh: private key and public key curves do not match")
++	}
+ 	return k.curve.ecdh(k, remote)
+ }
+ 
+diff --git a/src/crypto/ecdh/ecdh_test.go b/src/crypto/ecdh/ecdh_test.go
+index 426850a146..10da95afbb 100644
+--- a/src/crypto/ecdh/ecdh_test.go
++++ b/src/crypto/ecdh/ecdh_test.go
+@@ -487,3 +487,39 @@ func TestLinker(t *testing.T) {
+ 		t.Error("no P384 symbols found in program using ecdh.P384, test is broken")
+ 	}
+ }
++
++func TestMismatchedCurves(t *testing.T) {
++	curves := []struct {
++		name  string
++		curve ecdh.Curve
++	}{
++		{"P256", ecdh.P256()},
++		{"P384", ecdh.P384()},
++		{"P521", ecdh.P521()},
++		{"X25519", ecdh.X25519()},
++	}
++
++	for _, privCurve := range curves {
++		priv, err := privCurve.curve.GenerateKey(rand.Reader)
++		if err != nil {
++			t.Fatalf("failed to generate test key: %s", err)
++		}
++
++		for _, pubCurve := range curves {
++			if privCurve == pubCurve {
++				continue
++			}
++			t.Run(fmt.Sprintf("%s/%s", privCurve.name, pubCurve.name), func(t *testing.T) {
++				pub, err := pubCurve.curve.GenerateKey(rand.Reader)
++				if err != nil {
++					t.Fatalf("failed to generate test key: %s", err)
++				}
++				expected := "crypto/ecdh: private key and public key curves do not match"
++				_, err = priv.ECDH(pub.PublicKey())
++				if err.Error() != expected {
++					t.Fatalf("unexpected error: want %q, got %q", expected, err)
++				}
++			})
++		}
++	}
++}

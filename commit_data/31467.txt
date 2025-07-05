@@ -12,6 +12,43 @@ Date:   Sat Feb 18 16:56:45 2017 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/sort/example_test.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/src/sort/example_test.go b/src/sort/example_test.go
+index 980c0d0368..89ebe790c1 100644
+--- a/src/sort/example_test.go
++++ b/src/sort/example_test.go
+@@ -41,3 +41,31 @@ func ExampleSlice() {
+ 	// Output: By name: [{Alice 55} {Bob 75} {Gopher 7} {Vera 24}]
+ 	// By age: [{Gopher 7} {Vera 24} {Alice 55} {Bob 75}]
+ }
++
++func ExampleSliceStable() {
++
++	people := []struct {
++		Name string
++		Age  int
++	}{
++		{"Alice", 25},
++		{"Elizabeth", 75},
++		{"Alice", 75},
++		{"Bob", 75},
++		{"Alice", 75},
++		{"Bob", 25},
++		{"Colin", 25},
++		{"Elizabeth", 25},
++	}
++
++	// Sort by name, preserving original order
++	sort.SliceStable(people, func(i, j int) bool { return people[i].Name < people[j].Name })
++	fmt.Println("By name:", people)
++
++	// Sort by age preserving name order
++	sort.SliceStable(people, func(i, j int) bool { return people[i].Age < people[j].Age })
++	fmt.Println("By age,name:", people)
++
++	// Output: By name: [{Alice 25} {Alice 75} {Alice 75} {Bob 75} {Bob 25} {Colin 25} {Elizabeth 75} {Elizabeth 25}]
++	// By age,name: [{Alice 25} {Bob 25} {Colin 25} {Elizabeth 25} {Alice 75} {Alice 75} {Bob 75} {Elizabeth 75}]
++}

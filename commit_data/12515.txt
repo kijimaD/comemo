@@ -7,6 +7,31 @@ Date:   Thu Mar 8 22:22:36 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5781052
-
+---
  src/pkg/fmt/doc.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 7d4178da76..9660370c29 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -7,7 +7,8 @@
+ 	to C's printf and scanf.  The format 'verbs' are derived from C's but
+ 	are simpler.
+ 
+-	Printing:
++
++	Printing
+ 
+ 	The verbs:
+ 
+@@ -127,7 +128,8 @@
+ 	by a single character (the verb) and end with a parenthesized
+ 	description.
+ 
+-	Scanning:
++
++	Scanning
+ 
+ 	An analogous set of functions scans formatted text to yield
+ 	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,

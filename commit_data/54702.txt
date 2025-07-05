@@ -21,10 +21,244 @@ Date:   Thu Jul 21 11:19:42 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
-
+---
  api/next/19974.txt                      |  1 +
  src/crypto/internal/boring/notboring.go |  4 ++--
  src/crypto/internal/boring/rsa.go       | 29 ++++++++++++++++++-----------
  src/crypto/rsa/rsa.go                   | 23 ++++++++++++++++++-----
  src/crypto/rsa/rsa_test.go              | 28 ++++++++++++++++++++++++++--
  5 files changed, 65 insertions(+), 20 deletions(-)
+
+diff --git a/api/next/19974.txt b/api/next/19974.txt
+new file mode 100644
+index 0000000000..22893facba
+--- /dev/null
++++ b/api/next/19974.txt
+@@ -0,0 +1 @@
++pkg crypto/rsa, type OAEPOptions struct, MGFHash crypto.Hash #19974
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index e8eb76e1bb..2fa5eaf30f 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -73,7 +73,7 @@ func VerifyECDSA(pub *PublicKeyECDSA, hash []byte, sig []byte) bool {
+ type PublicKeyRSA struct{ _ int }
+ type PrivateKeyRSA struct{ _ int }
+ 
+-func DecryptRSAOAEP(h hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
++func DecryptRSAOAEP(h, mgfHash hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
+ 	panic("boringcrypto: not available")
+ }
+ func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
+@@ -82,7 +82,7 @@ func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
+ func DecryptRSANoPadding(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
+ 	panic("boringcrypto: not available")
+ }
+-func EncryptRSAOAEP(h hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
++func EncryptRSAOAEP(h, mgfHash hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
+ 	panic("boringcrypto: not available")
+ }
+ func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index a1f85591a7..fa693ea319 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -109,7 +109,7 @@ func (k *PrivateKeyRSA) withKey(f func(*C.GO_RSA) C.int) C.int {
+ }
+ 
+ func setupRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
+-	padding C.int, h hash.Hash, label []byte, saltLen int, ch crypto.Hash,
++	padding C.int, h, mgfHash hash.Hash, label []byte, saltLen int, ch crypto.Hash,
+ 	init func(*C.GO_EVP_PKEY_CTX) C.int) (pkey *C.GO_EVP_PKEY, ctx *C.GO_EVP_PKEY_CTX, err error) {
+ 	defer func() {
+ 		if err != nil {
+@@ -148,9 +148,16 @@ func setupRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
+ 		if md == nil {
+ 			return nil, nil, errors.New("crypto/rsa: unsupported hash function")
+ 		}
++		mgfMD := hashToMD(mgfHash)
++		if mgfMD == nil {
++			return nil, nil, errors.New("crypto/rsa: unsupported hash function")
++		}
+ 		if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_oaep_md(ctx, md) == 0 {
+ 			return nil, nil, fail("EVP_PKEY_set_rsa_oaep_md")
+ 		}
++		if C._goboringcrypto_EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, mgfMD) == 0 {
++			return nil, nil, fail("EVP_PKEY_set_rsa_mgf1_md")
++		}
+ 		// ctx takes ownership of label, so malloc a copy for BoringCrypto to free.
+ 		clabel := (*C.uint8_t)(C._goboringcrypto_OPENSSL_malloc(C.size_t(len(label))))
+ 		if clabel == nil {
+@@ -180,12 +187,12 @@ func setupRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
+ }
+ 
+ func cryptRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
+-	padding C.int, h hash.Hash, label []byte, saltLen int, ch crypto.Hash,
++	padding C.int, h, mgfHash hash.Hash, label []byte, saltLen int, ch crypto.Hash,
+ 	init func(*C.GO_EVP_PKEY_CTX) C.int,
+ 	crypt func(*C.GO_EVP_PKEY_CTX, *C.uint8_t, *C.size_t, *C.uint8_t, C.size_t) C.int,
+ 	in []byte) ([]byte, error) {
+ 
+-	pkey, ctx, err := setupRSA(withKey, padding, h, label, saltLen, ch, init)
++	pkey, ctx, err := setupRSA(withKey, padding, h, mgfHash, label, saltLen, ch, init)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -203,28 +210,28 @@ func cryptRSA(withKey func(func(*C.GO_RSA) C.int) C.int,
+ 	return out[:outLen], nil
+ }
+ 
+-func DecryptRSAOAEP(h hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
+-	return cryptRSA(priv.withKey, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, decryptInit, decrypt, ciphertext)
++func DecryptRSAOAEP(h, mgfHash hash.Hash, priv *PrivateKeyRSA, ciphertext, label []byte) ([]byte, error) {
++	return cryptRSA(priv.withKey, C.GO_RSA_PKCS1_OAEP_PADDING, h, mgfHash, label, 0, 0, decryptInit, decrypt, ciphertext)
+ }
+ 
+-func EncryptRSAOAEP(h hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
+-	return cryptRSA(pub.withKey, C.GO_RSA_PKCS1_OAEP_PADDING, h, label, 0, 0, encryptInit, encrypt, msg)
++func EncryptRSAOAEP(h, mgfHash hash.Hash, pub *PublicKeyRSA, msg, label []byte) ([]byte, error) {
++	return cryptRSA(pub.withKey, C.GO_RSA_PKCS1_OAEP_PADDING, h, mgfHash, label, 0, 0, encryptInit, encrypt, msg)
+ }
+ 
+ func DecryptRSAPKCS1(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
+-	return cryptRSA(priv.withKey, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
++	return cryptRSA(priv.withKey, C.GO_RSA_PKCS1_PADDING, nil, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
+ }
+ 
+ func EncryptRSAPKCS1(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
+-	return cryptRSA(pub.withKey, C.GO_RSA_PKCS1_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
++	return cryptRSA(pub.withKey, C.GO_RSA_PKCS1_PADDING, nil, nil, nil, 0, 0, encryptInit, encrypt, msg)
+ }
+ 
+ func DecryptRSANoPadding(priv *PrivateKeyRSA, ciphertext []byte) ([]byte, error) {
+-	return cryptRSA(priv.withKey, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
++	return cryptRSA(priv.withKey, C.GO_RSA_NO_PADDING, nil, nil, nil, 0, 0, decryptInit, decrypt, ciphertext)
+ }
+ 
+ func EncryptRSANoPadding(pub *PublicKeyRSA, msg []byte) ([]byte, error) {
+-	return cryptRSA(pub.withKey, C.GO_RSA_NO_PADDING, nil, nil, 0, 0, encryptInit, encrypt, msg)
++	return cryptRSA(pub.withKey, C.GO_RSA_NO_PADDING, nil, nil, nil, 0, 0, encryptInit, encrypt, msg)
+ }
+ 
+ // These dumb wrappers work around the fact that cgo functions cannot be used as values directly.
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index c941124fb2..9c57595dd1 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -68,6 +68,11 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+ type OAEPOptions struct {
+ 	// Hash is the hash function that will be used when generating the mask.
+ 	Hash crypto.Hash
++
++	// MGFHash is the hash function used for MGF1.
++	// If zero, Hash is used instead.
++	MGFHash crypto.Hash
++
+ 	// Label is an arbitrary byte string that must be equal to the value
+ 	// used when encrypting.
+ 	Label []byte
+@@ -160,7 +165,11 @@ func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.D
+ 
+ 	switch opts := opts.(type) {
+ 	case *OAEPOptions:
+-		return DecryptOAEP(opts.Hash.New(), rand, priv, ciphertext, opts.Label)
++		if opts.MGFHash == 0 {
++			return decryptOAEP(opts.Hash.New(), opts.Hash.New(), rand, priv, ciphertext, opts.Label)
++		} else {
++			return decryptOAEP(opts.Hash.New(), opts.MGFHash.New(), rand, priv, ciphertext, opts.Label)
++		}
+ 
+ 	case *PKCS1v15DecryptOptions:
+ 		if l := opts.SessionKeyLen; l > 0 {
+@@ -458,7 +467,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		return boring.EncryptRSAOAEP(hash, bkey, msg, label)
++		return boring.EncryptRSAOAEP(hash, hash, bkey, msg, label)
+ 	}
+ 	boring.UnreachableExceptTests()
+ 
+@@ -651,6 +660,10 @@ func decryptAndCheck(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int
+ // The label parameter must match the value given when encrypting. See
+ // EncryptOAEP for details.
+ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
++	return decryptOAEP(hash, hash, random, priv, ciphertext, label)
++}
++
++func decryptOAEP(hash, mgfHash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+ 	if err := checkPub(&priv.PublicKey); err != nil {
+ 		return nil, err
+ 	}
+@@ -665,7 +678,7 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		out, err := boring.DecryptRSAOAEP(hash, bkey, ciphertext, label)
++		out, err := boring.DecryptRSAOAEP(hash, mgfHash, bkey, ciphertext, label)
+ 		if err != nil {
+ 			return nil, ErrDecryption
+ 		}
+@@ -691,8 +704,8 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext
+ 	seed := em[1 : hash.Size()+1]
+ 	db := em[hash.Size()+1:]
+ 
+-	mgf1XOR(seed, hash, db)
+-	mgf1XOR(db, hash, seed)
++	mgf1XOR(seed, mgfHash, db)
++	mgf1XOR(db, mgfHash, seed)
+ 
+ 	lHash2 := db[0:hash.Size()]
+ 
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index 766d9a954f..99b2cf5ae8 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -7,6 +7,7 @@ package rsa
+ import (
+ 	"bytes"
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+@@ -15,8 +16,6 @@ import (
+ 	"testing"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ func TestKeyGeneration(t *testing.T) {
+ 	for _, size := range []int{128, 1024, 2048, 3072} {
+ 		priv, err := GenerateKey(rand.Reader, size)
+@@ -303,6 +302,31 @@ func TestDecryptOAEP(t *testing.T) {
+ 	}
+ }
+ 
++func Test2DecryptOAEP(t *testing.T) {
++	random := rand.Reader
++
++	msg := []byte{0xed, 0x36, 0x90, 0x8d, 0xbe, 0xfc, 0x35, 0x40, 0x70, 0x4f, 0xf5, 0x9d, 0x6e, 0xc2, 0xeb, 0xf5, 0x27, 0xae, 0x65, 0xb0, 0x59, 0x29, 0x45, 0x25, 0x8c, 0xc1, 0x91, 0x22}
++	in := []byte{0x72, 0x26, 0x84, 0xc9, 0xcf, 0xd6, 0xa8, 0x96, 0x04, 0x3e, 0x34, 0x07, 0x2c, 0x4f, 0xe6, 0x52, 0xbe, 0x46, 0x3c, 0xcf, 0x79, 0x21, 0x09, 0x64, 0xe7, 0x33, 0x66, 0x9b, 0xf8, 0x14, 0x22, 0x43, 0xfe, 0x8e, 0x52, 0x8b, 0xe0, 0x5f, 0x98, 0xef, 0x54, 0xac, 0x6b, 0xc6, 0x26, 0xac, 0x5b, 0x1b, 0x4b, 0x7d, 0x2e, 0xd7, 0x69, 0x28, 0x5a, 0x2f, 0x4a, 0x95, 0x89, 0x6c, 0xc7, 0x53, 0x95, 0xc7, 0xd2, 0x89, 0x04, 0x6f, 0x94, 0x74, 0x9b, 0x09, 0x0d, 0xf4, 0x61, 0x2e, 0xab, 0x48, 0x57, 0x4a, 0xbf, 0x95, 0xcb, 0xff, 0x15, 0xe2, 0xa0, 0x66, 0x58, 0xf7, 0x46, 0xf8, 0xc7, 0x0b, 0xb5, 0x1e, 0xa7, 0xba, 0x36, 0xce, 0xdd, 0x36, 0x41, 0x98, 0x6e, 0x10, 0xf9, 0x3b, 0x70, 0xbb, 0xa1, 0xda, 0x00, 0x40, 0xd5, 0xa5, 0x3f, 0x87, 0x64, 0x32, 0x7c, 0xbc, 0x50, 0x52, 0x0e, 0x4f, 0x21, 0xbd}
++
++	n := new(big.Int)
++	d := new(big.Int)
++	n.SetString(testEncryptOAEPData[0].modulus, 16)
++	d.SetString(testEncryptOAEPData[0].d, 16)
++	priv := new(PrivateKey)
++	priv.PublicKey = PublicKey{N: n, E: testEncryptOAEPData[0].e}
++	priv.D = d
++	sha1 := crypto.SHA1
++	sha256 := crypto.SHA256
++
++	out, err := priv.Decrypt(random, in, &OAEPOptions{MGFHash: sha1, Hash: sha256})
++
++	if err != nil {
++		t.Errorf("error: %s", err)
++	} else if !bytes.Equal(out, msg) {
++		t.Errorf("bad result %#v (want %#v)", out, msg)
++	}
++}
++
+ func TestEncryptDecryptOAEP(t *testing.T) {
+ 	sha256 := sha256.New()
+ 	n := new(big.Int)

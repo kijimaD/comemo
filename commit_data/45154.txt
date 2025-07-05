@@ -15,6 +15,30 @@ Date:   Wed Oct 7 14:39:47 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/arm64/asm7.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index ee4a33eef4..7c35fce106 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3120,12 +3120,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 6: /* b ,O(R); bl ,O(R) */
+ 		o1 = c.opbrr(p, p.As)
+-
+ 		o1 |= uint32(p.To.Reg&31) << 5
+-		rel := obj.Addrel(c.cursym)
+-		rel.Off = int32(c.pc)
+-		rel.Siz = 0
+-		rel.Type = objabi.R_CALLIND
++		if p.As == obj.ACALL {
++			rel := obj.Addrel(c.cursym)
++			rel.Off = int32(c.pc)
++			rel.Siz = 0
++			rel.Type = objabi.R_CALLIND
++		}
+ 
+ 	case 7: /* beq s */
+ 		o1 = c.opbra(p, p.As)

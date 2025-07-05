@@ -17,6 +17,23 @@ Date:   Fri Jul 14 07:49:03 2023 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/math/huge_test.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/math/huge_test.go b/src/math/huge_test.go
+index 568b0c85eb..2eadb7f89a 100644
+--- a/src/math/huge_test.go
++++ b/src/math/huge_test.go
+@@ -2,11 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Disabled for s390x because it uses assembly routines that are not
+-// accurate for huge arguments.
+-
+-//go:build !s390x
+-
+ package math_test
+ 
+ import (

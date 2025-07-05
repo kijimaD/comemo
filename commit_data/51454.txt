@@ -14,6 +14,23 @@ Date:   Tue Feb 1 08:37:05 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index c93c91ebbc..daf8755b28 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -97,6 +97,11 @@ Do not send CLs removing the interior tags from such phrases.
+       The Go compiler cannot currently handle type declarations inside generic functions
+       or methods. We hope to provide support for this feature in Go 1.19.
+     </li>
++    <li><!-- https://golang.org/issue/50937 -->
++      The Go compiler currently does not accept arguments of type parameter type with
++      the predeclared functions <code>real</code>, <code>imag</code>, and <code>complex</code>.
++      We hope to remove this restriction in Go 1.19.
++    </li>
+     <li><!-- https://golang.org/issue/49030 -->
+       Embedding a type parameter, or a pointer to a type parameter, as
+       an unnamed field in a struct type is not permitted. Similarly

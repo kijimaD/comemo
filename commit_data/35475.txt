@@ -55,7 +55,7 @@ Date:   Thu Nov 9 11:39:10 2017 -0500
     Change-Id: I59a937048294dafd23a75cf1723c6db461b193cd
     Reviewed-on: https://go-review.googlesource.com/63274
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/go/internal/work/gc.go  |   2 +-
  src/go/build/deps_test.go       |   2 +-
  src/internal/trace/parser.go    |  12 ++-
@@ -63,3 +63,447 @@ Date:   Thu Nov 9 11:39:10 2017 -0500
  src/runtime/trace/annotation.go | 166 ++++++++++++++++++++++++++++++++++++++++
  src/runtime/trace/trace.go      |  99 ++++++++++++++++++++++--
  6 files changed, 307 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 71b5337939..1fef707134 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -70,7 +70,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
+ 	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.FFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
+ 	if p.Standard {
+ 		switch p.ImportPath {
+-		case "bytes", "internal/poll", "net", "os", "runtime/pprof", "sync", "syscall", "time":
++		case "bytes", "internal/poll", "net", "os", "runtime/pprof", "runtime/trace", "sync", "syscall", "time":
+ 			extFiles++
+ 		}
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index db36a16450..90553a8b2d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -181,7 +181,7 @@ var pkgDeps = map[string][]string{
+ 	"regexp/syntax":  {"L2"},
+ 	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
+ 	"runtime/pprof":  {"L2", "compress/gzip", "context", "encoding/binary", "fmt", "io/ioutil", "os", "text/tabwriter", "time"},
+-	"runtime/trace":  {"L0"},
++	"runtime/trace":  {"L0", "context", "fmt"},
+ 	"text/tabwriter": {"L2"},
+ 
+ 	"testing":          {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index c7954f0d03..4e6ef02cc7 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -150,7 +150,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 		return
+ 	}
+ 	switch ver {
+-	case 1005, 1007, 1008, 1009, 1010:
++	case 1005, 1007, 1008, 1009, 1010, 1011:
+ 		// Note: When adding a new version, add canned traces
+ 		// from the old version to the test suite using mkcanned.bash.
+ 		break
+@@ -967,7 +967,11 @@ const (
+ 	EvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
+ 	EvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
+ 	EvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
+-	EvCount             = 45
++	EvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent id, stack, name string]
++	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
++	EvUserSpan          = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
++	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
++	EvCount             = 49
+ )
+ 
+ var EventDescriptions = [EvCount]struct {
+@@ -1021,4 +1025,8 @@ var EventDescriptions = [EvCount]struct {
+ 	EvGoBlockGC:         {"GoBlockGC", 1008, true, []string{}},
+ 	EvGCMarkAssistStart: {"GCMarkAssistStart", 1009, true, []string{}},
+ 	EvGCMarkAssistDone:  {"GCMarkAssistDone", 1009, false, []string{}},
++	EvUserTaskCreate:    {"UserTaskCreate", 1011, true, []string{"taskid", "pid", "nameid"}},
++	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}},
++	EvUserSpan:          {"UserSpan", 1011, true, []string{"taskid", "mode", "nameid"}},
++	EvUserLog:           {"UserLog", 1011, true, []string{"id", "key id"}},
+ }
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index fab797601b..b6c75ca6c2 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -64,7 +64,14 @@ const (
+ 	traceEvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
+ 	traceEvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
+ 	traceEvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
+-	traceEvCount             = 45
++	traceEvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent task id, stack, name string]
++	traceEvUserTaskEnd       = 46 // end of a task [timestamp, internal task id, stack]
++	traceEvUserSpan          = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
++	traceEvUserLog           = 48 // trace.Log [timestamp, internal task id, key string id, stack, value string]
++	traceEvCount             = 49
++	// Byte is used but only 6 bits are available for event type.
++	// The remaining 2 bits are used to specify the number of arguments.
++	// That means, the max event type value is 63.
+ )
+ 
+ const (
+@@ -378,7 +385,7 @@ func ReadTrace() []byte {
+ 		trace.headerWritten = true
+ 		trace.lockOwner = nil
+ 		unlock(&trace.lock)
+-		return []byte("go 1.10 trace\x00\x00\x00")
++		return []byte("go 1.11 trace\x00\x00\x00")
+ 	}
+ 	// Wait for new data.
+ 	if trace.fullHead == 0 && !trace.shutdown {
+@@ -1096,3 +1103,30 @@ func traceNextGC() {
+ 		traceEvent(traceEvNextGC, -1, memstats.next_gc)
+ 	}
+ }
++
++// To access runtime functions from runtime/trace.
++// See runtime/trace/annotation.go
++
++//go:linkname trace_userTaskCreate runtime/trace.userTaskCreate
++func trace_userTaskCreate(id, parentID uint64, taskType string) {
++	// TODO: traceEvUserTaskCreate
++	// TODO: truncate the name if too long.
++}
++
++//go:linkname trace_userTaskEnd runtime/trace.userTaskEnd
++func trace_userTaskEnd(id uint64) {
++	// TODO: traceEvUserSpan
++}
++
++//go:linkname trace_userSpan runtime/trace.userSpan
++func trace_userSpan(id, mode uint64, spanType string) {
++	// TODO: traceEvString for name.
++	// TODO: truncate the name if too long.
++	// TODO: traceEvSpan.
++}
++
++//go:linkname trace_userLog runtime/trace.userLog
++func trace_userLog(id uint64, category, message string) {
++	// TODO: traceEvString for key.
++	// TODO: traceEvUserLog.
++}
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+new file mode 100644
+index 0000000000..f34ec25f53
+--- /dev/null
++++ b/src/runtime/trace/annotation.go
+@@ -0,0 +1,166 @@
++package trace
++
++import (
++	"context"
++	"fmt"
++	"sync/atomic"
++	_ "unsafe"
++)
++
++type traceContextKey struct{}
++
++// NewContext creates a child context with a new task instance with
++// the type taskType. If the input context contains a task, the
++// new task is its subtask.
++//
++// The taskType is used to classify task instances. Analysis tools
++// like the Go execution tracer may assume there are only a bounded
++// number of unique task types in the system.
++//
++// The returned end function is used to mark the task's end.
++// The trace tool measures task latency as the time between task creation
++// and when the end function is called, and provides the latency
++// distribution per task type.
++// If the end function is called multiple times, only the first
++// call is used in the latency measurement.
++//
++//   ctx, taskEnd := trace.NewContext(ctx, "awesome task")
++//   trace.WithSpan(ctx, prepWork)
++//   // preparation of the task
++//   go func() {  // continue processing the task in a separate goroutine.
++//       defer taskEnd()
++//       trace.WithSpan(ctx, remainingWork)
++//   }
++func NewContext(pctx context.Context, taskType string) (ctx context.Context, end func()) {
++	pid := fromContext(pctx).id
++	id := newID()
++	userTaskCreate(id, pid, taskType)
++	s := &task{id: id}
++	return context.WithValue(pctx, traceContextKey{}, s), func() {
++		userTaskEnd(id)
++	}
++
++	// We allocate a new task and the end function even when
++	// the tracing is disabled because the context and the detach
++	// function can be used across trace enable/disable boundaries,
++	// which complicates the problem.
++	//
++	// For example, consider the following scenario:
++	//   - trace is enabled.
++	//   - trace.WithSpan is called, so a new context ctx
++	//     with a new span is created.
++	//   - trace is disabled.
++	//   - trace is enabled again.
++	//   - trace APIs with the ctx is called. Is the ID in the task
++	//   a valid one to use?
++	//
++	// TODO(hyangah): reduce the overhead at least when
++	// tracing is disabled. Maybe the id can embed a tracing
++	// round number and ignore ids generated from previous
++	// tracing round.
++}
++
++func fromContext(ctx context.Context) *task {
++	if s, ok := ctx.Value(traceContextKey{}).(*task); ok {
++		return s
++	}
++	return &bgTask
++}
++
++type task struct {
++	id uint64
++	// TODO(hyangah): record parent id?
++}
++
++func newID() uint64 {
++	// TODO(hyangah): implement
++	return 0
++}
++
++var bgTask = task{id: uint64(0)}
++
++// Log emits a one-off event with the given category and message.
++// Category can be empty and the API assumes there are only a handful of
++// unique categories in the system.
++func Log(ctx context.Context, category, message string) {
++	id := fromContext(ctx).id
++	userLog(id, category, message)
++}
++
++// Logf is like Log, but the value is formatted using the specified format spec.
++func Logf(ctx context.Context, category, format string, args ...interface{}) {
++	if IsEnabled() {
++		Log(ctx, category, fmt.Sprintf(format, args...))
++	}
++}
++
++const (
++	spanStartCode = uint64(0)
++	spanEndCode   = uint64(1)
++)
++
++// WithSpan starts a span associated with its calling goroutine, runs fn,
++// and then ends the span. If the context carries a task, the span is
++// attached to the task. Otherwise, the span is attached to the background
++// task.
++//
++// The spanType is used to classify spans, so there should be only a
++// handful of unique span types.
++func WithSpan(ctx context.Context, spanType string, fn func(context.Context)) {
++	// NOTE:
++	// WithSpan helps avoiding misuse of the API but in practice,
++	// this is very restrictive:
++	// - Use of WithSpan makes the stack traces captured from
++	//   span start and end are identical.
++	// - Refactoring the existing code to use WithSpan is sometimes
++	//   hard and makes the code less readable.
++	//     e.g. code block nested deep in the loop with various
++	//          exit point with return values
++	// - Refactoring the code to use this API with closure can
++	//   cause different GC behavior such as retaining some parameters
++	//   longer.
++	// This causes more churns in code than I hoped, and sometimes
++	// makes the code less readable.
++
++	id := fromContext(ctx).id
++	userSpan(id, spanStartCode, spanType)
++	defer userSpan(id, spanEndCode, spanType)
++	fn(ctx)
++}
++
++// StartSpan starts a span and returns a function for marking the
++// end of the span. The span end function must be called from the
++// same goroutine where the span was started.
++// Within each goroutine, spans must nest. That is, spans started
++// after this span must be ended before this span can be ended.
++// Callers are encouraged to instead use WithSpan when possible,
++// since it naturally satisfies these restrictions.
++func StartSpan(ctx context.Context, spanType string) func() {
++	id := fromContext(ctx).id
++	userSpan(id, spanStartCode, spanType)
++	return func() { userSpan(id, spanEndCode, spanType) }
++}
++
++// IsEnabled returns whether tracing is enabled.
++// The information is advisory only. The tracing status
++// may have changed by the time this function returns.
++func IsEnabled() bool {
++	enabled := atomic.LoadInt32(&tracing.enabled)
++	return enabled == 1
++}
++
++//
++// Function bodies are defined in runtime/trace.go
++//
++
++// emits UserTaskCreate event.
++func userTaskCreate(id, parentID uint64, taskType string)
++
++// emits UserTaskEnd event.
++func userTaskEnd(id uint64)
++
++// emits UserSpan event.
++func userSpan(id, mode uint64, spanType string)
++
++// emits UserLog event.
++func userLog(id uint64, category, message string)
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index 439f998c03..6cc9f8c7b9 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -5,6 +5,8 @@
+ // Package trace contains facilities for programs to generate trace
+ // for Go execution tracer.
+ //
++// Tracing runtime activities
++//
+ // The execution trace captures a wide range of execution events such as
+ // goroutine creation/blocking/unblocking, syscall enter/exit/block,
+ // GC-related events, changes of heap size, processor start/stop, etc.
+@@ -12,8 +14,6 @@
+ // captured for most events. The generated trace can be interpreted
+ // using `go tool trace`.
+ //
+-// Tracing a Go program
+-//
+ // Support for tracing tests and benchmarks built with the standard
+ // testing package is built into `go test`. For example, the following
+ // command runs the test in the current directory and writes the trace
+@@ -25,24 +25,101 @@
+ // support to a standalone program. See the Example that demonstrates
+ // how to use this API to enable tracing.
+ //
+-// There is also a standard HTTP interface to profiling data. Adding the
+-// following line will install handlers under the /debug/pprof/trace URL
+-// to download live profiles:
++// There is also a standard HTTP interface to trace data. Adding the
++// following line will install a handler under the /debug/pprof/trace URL
++// to download a live trace:
+ //
+ //     import _ "net/http/pprof"
+ //
+-// See the net/http/pprof package for more details.
++// See the net/http/pprof package for more details about all of the
++// debug endpoints installed by this import.
++//
++// User annotation
++//
++// Package trace provides user annotation APIs that can be used to
++// log interesting events during execution.
++//
++// There are three types of user annotations: log messages, spans,
++// and tasks.
++//
++// Log emits a timestamped message to the execution trace along with
++// additional information such as the category of the message and
++// which goroutine called Log. The execution tracer provides UIs to filter
++// and group goroutines using the log category and the message supplied
++// in Log.
++//
++// A span is for logging a time interval during a goroutine's execution.
++// By definition, a span starts and ends in the same goroutine.
++// Spans can be nested to represent subintervals.
++// For example, the following code records four spans in the execution
++// trace to trace the durations of sequential steps in a cappuccino making
++// operation.
++//
++//   trace.WithSpan(ctx, "makeCappuccino", func(ctx context.Context) {
++//
++//      // orderID allows to identify a specific order
++//      // among many cappuccino order span records.
++//      trace.Log(ctx, "orderID", orderID)
++//
++//      trace.WithSpan(ctx, "steamMilk", steamMilk)
++//      trace.WithSpan(ctx, "extractCoffee", extractCoffee)
++//      trace.WithSpan(ctx, "mixMilkCoffee", mixMilkCoffee)
++//   })
++//
++// A task is a higher-level component that aids tracing of logical
++// operations such as an RPC request, an HTTP request, or an
++// interesting local operation which may require multiple goroutines
++// working together. Since tasks can involve multiple goroutines,
++// they are tracked via a context.Context object. NewContext creates
++// a new task and embeds it in the the returned context.Context object.
++// Log messages and spans are attached to the task, if any, in the
++// Context passed to Log and WithSpan.
++//
++// For example, assume that we decided to froth milk, extract coffee,
++// and mix milk and coffee in separate goroutines. With a task,
++// the trace tool can identify the goroutines involved in a specific
++// cappuccino order.
++//
++//     ctx, taskEnd:= trace.NewContext(ctx, "makeCappuccino")
++//     trace.Log(ctx, "orderID", orderID)
++//
++//     milk := make(chan bool)
++//     espresso := make(chan bool)
++//
++//     go func() {
++//        trace.WithSpan(ctx, "steamMilk", steamMilk)
++//        milk<-true
++//     })()
++//     go func() {
++//        trace.WithSpan(ctx, "extractCoffee", extractCoffee)
++//        espresso<-true
++//     })()
++//     go func() {
++//        defer taskEnd()  // When assemble is done, the order is complete.
++//        <-espresso
++//        <-milk
++//        trace.WithSpan(ctx, "mixMilkCoffee", mixMilkCoffee)
++//     })()
++//
++// The trace tool computes the latency of a task by measuring the
++// time between the task creation and the task end and provides
++// latency distributions for each task type found in the trace.
+ package trace
+ 
+ import (
+ 	"io"
+ 	"runtime"
++	"sync"
++	"sync/atomic"
+ )
+ 
+ // Start enables tracing for the current program.
+ // While tracing, the trace will be buffered and written to w.
+ // Start returns an error if tracing is already enabled.
+ func Start(w io.Writer) error {
++	tracing.Lock()
++	defer tracing.Unlock()
++
+ 	if err := runtime.StartTrace(); err != nil {
+ 		return err
+ 	}
+@@ -55,11 +132,21 @@ func Start(w io.Writer) error {
+ 			w.Write(data)
+ 		}
+ 	}()
++	atomic.StoreInt32(&tracing.enabled, 1)
+ 	return nil
+ }
+ 
+ // Stop stops the current tracing, if any.
+ // Stop only returns after all the writes for the trace have completed.
+ func Stop() {
++	tracing.Lock()
++	defer tracing.Unlock()
++	atomic.StoreInt32(&tracing.enabled, 0)
++
+ 	runtime.StopTrace()
+ }
++
++var tracing struct {
++	sync.Mutex       // gate mutators (Start, Stop)
++	enabled    int32 // accessed via atomic
++}

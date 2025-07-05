@@ -10,6 +10,20 @@ Date:   Thu Dec 20 09:38:37 2018 +0100
     Change-Id: Ida647b8f9dd2f8460b019f5a23759f10a6da8e60
     Reviewed-on: https://go-review.googlesource.com/c/155277
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.12.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 0aee382aeb..356f678cbd 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -738,7 +738,7 @@ for {
+     </p>
+ 
+     <p><!-- CL 147117 -->
+-      The new function  <a href="/pkg/syscall/?GOOS=windows&GOARCH=armd64#Syscall18"><code>Syscall18</code></a>
++      The new function  <a href="/pkg/syscall/?GOOS=windows&GOARCH=amd64#Syscall18"><code>Syscall18</code></a>
+       has been introduced for Windows, allowing for calls with up to 18 arguments.
+     </p>
+ 

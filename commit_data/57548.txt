@@ -14,7 +14,43 @@ Date:   Mon Aug 7 15:52:18 2023 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Bypass: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go |  1 +
  src/runtime/internal/math/math.go      | 15 +++++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 1143d58bf3..171f99522d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4870,6 +4870,7 @@ func InitTables() {
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
+ 	alias("math/bits", "Add", "math/bits", "Add64", p8...)
++	alias("runtime/internal/math", "Add64", "math/bits", "Add64", all...)
+ 	addF("math/bits", "Sub64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
+diff --git a/src/runtime/internal/math/math.go b/src/runtime/internal/math/math.go
+index c3fac366be..b2e5508651 100644
+--- a/src/runtime/internal/math/math.go
++++ b/src/runtime/internal/math/math.go
+@@ -38,3 +38,18 @@ func Mul64(x, y uint64) (hi, lo uint64) {
+ 	lo = x * y
+ 	return
+ }
++
++// Add64 returns the sum with carry of x, y and carry: sum = x + y + carry.
++// The carry input must be 0 or 1; otherwise the behavior is undefined.
++// The carryOut output is guaranteed to be 0 or 1.
++//
++// This function's execution time does not depend on the inputs.
++// On supported platforms this is an intrinsic lowered by the compiler.
++func Add64(x, y, carry uint64) (sum, carryOut uint64) {
++	sum = x + y + carry
++	// The sum will overflow if both top bits are set (x & y) or if one of them
++	// is (x | y), and a carry from the lower place happened. If such a carry
++	// happens, the top bit will be 1 + 0 + 1 = 0 (&^ sum).
++	carryOut = ((x & y) | ((x | y) &^ sum)) >> 63
++	return
++}

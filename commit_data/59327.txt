@@ -16,7 +16,34 @@ Date:   Mon Mar 4 12:07:50 2024 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/walk/expr.go   | 2 +-
  src/cmd/compile/internal/walk/switch.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 268f793dc9..f73b5d9503 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -723,7 +723,7 @@ func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {
+ 	typeAssertGen++
+ 	c := rttype.NewCursor(lsym, 0, rttype.TypeAssert)
+ 	c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyTypeAssertCache"))
+-	c.Field("Inter").WritePtr(reflectdata.TypeSym(target).Linksym())
++	c.Field("Inter").WritePtr(reflectdata.TypeLinksym(target))
+ 	c.Field("CanFail").WriteBool(canFail)
+ 	objw.Global(lsym, int32(rttype.TypeAssert.Size()), obj.LOCAL)
+ 	lsym.Gotype = reflectdata.TypeLinksym(rttype.TypeAssert)
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index d008cbc3ef..119647912b 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -532,7 +532,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 			c.Field("NCases").WriteInt(int64(len(interfaceCases)))
+ 			array, sizeDelta := c.Field("Cases").ModifyArray(len(interfaceCases))
+ 			for i, c := range interfaceCases {
+-				array.Elem(i).WritePtr(reflectdata.TypeSym(c.typ.Type()).Linksym())
++				array.Elem(i).WritePtr(reflectdata.TypeLinksym(c.typ.Type()))
+ 			}
+ 			objw.Global(lsym, int32(rttype.InterfaceSwitch.Size()+sizeDelta), obj.LOCAL)
+ 			// The GC only needs to see the first pointer in the structure (all the others

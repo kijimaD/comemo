@@ -35,6 +35,20 @@ Date:   Wed Sep 27 23:30:43 2017 +0530
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 867db4f114..dc80159ef3 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2141,7 +2141,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 			if ss, ok := dwarfToName[s]; ok {
+ 				s = ss
+ 			}
+-			s = strings.Join(strings.Split(s, " "), "") // strip spaces
++			s = strings.Replace(s, " ", "", -1)
+ 			name := c.Ident("_Ctype_" + s)
+ 			tt := *t
+ 			typedef[name.Name] = &tt

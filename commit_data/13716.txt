@@ -11,7 +11,225 @@ Date:   Fri Aug 31 12:16:31 2012 -0400
     R=golang-dev, bradfitz, dsymonds
     CC=golang-dev
     https://golang.org/cl/6450165
-
+---
  src/pkg/net/http/server.go      | 58 ++++++++++++++++---------
  src/pkg/net/http/server_test.go | 95 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 133 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index bac5faed1b..ee57e01276 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -883,6 +883,7 @@ type ServeMux struct {
+ type muxEntry struct {
+ 	explicit bool
+ 	h        Handler
++	pattern  string
+ }
+ 
+ // NewServeMux allocates and returns a new ServeMux.
+@@ -923,8 +924,7 @@ func cleanPath(p string) string {
+ 
+ // Find a handler on a handler map given a path string
+ // Most-specific (longest) pattern wins
+-func (mux *ServeMux) match(path string) Handler {
+-	var h Handler
++func (mux *ServeMux) match(path string) (h Handler, pattern string) {
+ 	var n = 0
+ 	for k, v := range mux.m {
+ 		if !pathMatch(k, path) {
+@@ -933,41 +933,59 @@ func (mux *ServeMux) match(path string) Handler {
+ 		if h == nil || len(k) > n {
+ 			n = len(k)
+ 			h = v.h
++			pattern = v.pattern
+ 		}
+ 	}
+-	return h
++	return
++}
++
++// Handler returns the handler to use for the given request,
++// consulting r.Method, r.Host, and r.URL.Path. It always returns
++// a non-nil handler. If the path is not in its canonical form, the
++// handler will be an internally-generated handler that redirects
++// to the canonical path.
++//
++// Handler also returns the registered pattern that matches the
++// request or, in the case of internally-generated redirects,
++// the pattern that will match after following the redirect.
++//
++// If there is no registered handler that applies to the request,
++// Handler returns a ``page not found'' handler and an empty pattern.
++func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
++	if r.Method != "CONNECT" {
++		if p := cleanPath(r.URL.Path); p != r.URL.Path {
++			_, pattern = mux.handler(r.Host, p)
++			return RedirectHandler(p, StatusMovedPermanently), pattern
++		}
++	}
++
++	return mux.handler(r.Host, r.URL.Path)
+ }
+ 
+-// handler returns the handler to use for the request r.
+-func (mux *ServeMux) handler(r *Request) (h Handler) {
++// handler is the main implementation of Handler.
++// The path is known to be in canonical form, except for CONNECT methods.
++func (mux *ServeMux) handler(host, path string) (h Handler, pattern string) {
+ 	mux.mu.RLock()
+ 	defer mux.mu.RUnlock()
+ 
+ 	// Host-specific pattern takes precedence over generic ones
+ 	if mux.hosts {
+-		h = mux.match(r.Host + r.URL.Path)
++		h, pattern = mux.match(host + path)
+ 	}
+ 	if h == nil {
+-		h = mux.match(r.URL.Path)
++		h, pattern = mux.match(path)
+ 	}
+ 	if h == nil {
+-		h = NotFoundHandler()
++		h, pattern = NotFoundHandler(), ""
+ 	}
+-	return h
++	return
+ }
+ 
+ // ServeHTTP dispatches the request to the handler whose
+ // pattern most closely matches the request URL.
+ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
+-	if r.Method != "CONNECT" {
+-		// Clean path to canonical form and redirect.
+-		if p := cleanPath(r.URL.Path); p != r.URL.Path {
+-			w.Header().Set("Location", p)
+-			w.WriteHeader(StatusMovedPermanently)
+-			return
+-		}
+-	}
+-	mux.handler(r).ServeHTTP(w, r)
++	h, _ := mux.Handler(r)
++	h.ServeHTTP(w, r)
+ }
+ 
+ // Handle registers the handler for the given pattern.
+@@ -986,7 +1004,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 		panic("http: multiple registrations for " + pattern)
+ 	}
+ 
+-	mux.m[pattern] = muxEntry{explicit: true, h: handler}
++	mux.m[pattern] = muxEntry{explicit: true, h: handler, pattern: pattern}
+ 
+ 	if pattern[0] != '/' {
+ 		mux.hosts = true
+@@ -1005,7 +1023,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 			// strings.Index can't be -1.
+ 			path = pattern[strings.Index(pattern, "/"):]
+ 		}
+-		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(path, StatusMovedPermanently)}
++		mux.m[pattern[0:n-1]] = muxEntry{h: RedirectHandler(path, StatusMovedPermanently), pattern: pattern}
+ 	}
+ }
+ 
+diff --git a/src/pkg/net/http/server_test.go b/src/pkg/net/http/server_test.go
+new file mode 100644
+index 0000000000..8b4e8c6d6f
+--- /dev/null
++++ b/src/pkg/net/http/server_test.go
+@@ -0,0 +1,95 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package http
++
++import (
++	"net/url"
++	"testing"
++)
++
++var serveMuxRegister = []struct {
++	pattern string
++	h       Handler
++}{
++	{"/dir/", serve(200)},
++	{"/search", serve(201)},
++	{"codesearch.google.com/search", serve(202)},
++	{"codesearch.google.com/", serve(203)},
++}
++
++// serve returns a handler that sends a response with the given code.
++func serve(code int) HandlerFunc {
++	return func(w ResponseWriter, r *Request) {
++		w.WriteHeader(code)
++	}
++}
++
++var serveMuxTests = []struct {
++	method  string
++	host    string
++	path    string
++	code    int
++	pattern string
++}{
++	{"GET", "google.com", "/", 404, ""},
++	{"GET", "google.com", "/dir", 301, "/dir/"},
++	{"GET", "google.com", "/dir/", 200, "/dir/"},
++	{"GET", "google.com", "/dir/file", 200, "/dir/"},
++	{"GET", "google.com", "/search", 201, "/search"},
++	{"GET", "google.com", "/search/", 404, ""},
++	{"GET", "google.com", "/search/foo", 404, ""},
++	{"GET", "codesearch.google.com", "/search", 202, "codesearch.google.com/search"},
++	{"GET", "codesearch.google.com", "/search/", 203, "codesearch.google.com/"},
++	{"GET", "codesearch.google.com", "/search/foo", 203, "codesearch.google.com/"},
++	{"GET", "codesearch.google.com", "/", 203, "codesearch.google.com/"},
++	{"GET", "images.google.com", "/search", 201, "/search"},
++	{"GET", "images.google.com", "/search/", 404, ""},
++	{"GET", "images.google.com", "/search/foo", 404, ""},
++	{"GET", "google.com", "/../search", 301, "/search"},
++	{"GET", "google.com", "/dir/..", 301, ""},
++	{"GET", "google.com", "/dir/..", 301, ""},
++	{"GET", "google.com", "/dir/./file", 301, "/dir/"},
++
++	// The /foo -> /foo/ redirect applies to CONNECT requests
++	// but the path canonicalization does not.
++	{"CONNECT", "google.com", "/dir", 301, "/dir/"},
++	{"CONNECT", "google.com", "/../search", 404, ""},
++	{"CONNECT", "google.com", "/dir/..", 200, "/dir/"},
++	{"CONNECT", "google.com", "/dir/..", 200, "/dir/"},
++	{"CONNECT", "google.com", "/dir/./file", 200, "/dir/"},
++}
++
++func TestServeMuxHandler(t *testing.T) {
++	mux := NewServeMux()
++	for _, e := range serveMuxRegister {
++		mux.Handle(e.pattern, e.h)
++	}
++
++	for _, tt := range serveMuxTests {
++		r := &Request{
++			Method: tt.method,
++			Host:   tt.host,
++			URL: &url.URL{
++				Path: tt.path,
++			},
++		}
++		h, pattern := mux.Handler(r)
++		cs := &codeSaver{h: Header{}}
++		h.ServeHTTP(cs, r)
++		if pattern != tt.pattern || cs.code != tt.code {
++			t.Errorf("%s %s %s = %d, %q, want %d, %q", tt.method, tt.host, tt.path, cs.code, pattern, tt.code, tt.pattern)
++		}
++	}
++}
++
++// A codeSaver is a ResponseWriter that saves the code passed to WriteHeader.
++type codeSaver struct {
++	h    Header
++	code int
++}
++
++func (cs *codeSaver) Header() Header              { return cs.h }
++func (cs *codeSaver) Write(p []byte) (int, error) { return len(p), nil }
++func (cs *codeSaver) WriteHeader(code int)        { cs.code = code }

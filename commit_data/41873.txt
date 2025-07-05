@@ -20,6 +20,23 @@ Date:   Tue Oct 29 17:07:21 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 60a15c1e9c..fc8aa3330a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1190,6 +1190,11 @@ func mexit(osStack bool) {
+ 	// Free the gsignal stack.
+ 	if m.gsignal != nil {
+ 		stackfree(m.gsignal.stack)
++		// On some platforms, when calling into VDSO (e.g. nanotime)
++		// we store our g on the gsignal stack, if there is one.
++		// Now the stack is freed, unlink it from the m, so we
++		// won't write to it when calling VDSO code.
++		m.gsignal = nil
+ 	}
+ 
+ 	// Remove m from allm.

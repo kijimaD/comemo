@@ -18,7 +18,7 @@ Date:   Thu Aug 5 13:24:15 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 10 +++---
  src/cmd/compile/internal/noder/reader2.go     | 10 +++---
  src/cmd/compile/internal/noder/types.go       |  8 ++---
@@ -29,3 +29,265 @@ Date:   Thu Aug 5 13:24:15 2021 -0700
  src/cmd/compile/internal/types2/typestring.go |  2 +-
  src/cmd/compile/internal/types2/union.go      | 49 ++++++++++++++-------------
  9 files changed, 52 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 3dd28033a1..3aab32fc6b 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -677,13 +677,13 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 			errorf("unexpected instantiation type")
+ 		}
+ 		nt := int(r.uint64())
+-		terms := make([]types2.Type, nt)
+-		tildes := make([]bool, nt)
++		terms := make([]*types2.Term, nt)
+ 		for i := range terms {
+-			terms[i] = r.typ()
+-			tildes[i] = r.bool()
++			typ := r.typ()
++			tilde := r.bool()
++			terms[i] = types2.NewTerm(tilde, typ)
+ 		}
+-		return types2.NewUnion(terms, tildes)
++		return types2.NewUnion(terms)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index d183934900..0bea6675ea 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -281,13 +281,13 @@ func (r *reader2) structType() *types2.Struct {
+ }
+ 
+ func (r *reader2) unionType() *types2.Union {
+-	terms := make([]types2.Type, r.len())
+-	tildes := make([]bool, len(terms))
++	terms := make([]*types2.Term, r.len())
+ 	for i := range terms {
+-		terms[i] = r.typ()
+-		tildes[i] = r.bool()
++		typ := r.typ()
++		tilde := r.bool()
++		terms[i] = types2.NewTerm(tilde, typ)
+ 	}
+-	return types2.NewUnion(terms, tildes)
++	return types2.NewUnion(terms)
+ }
+ 
+ func (r *reader2) interfaceType() *types2.Interface {
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 3f7280a823..4e80b1a0ff 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -232,13 +232,13 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 		return tp
+ 
+ 	case *types2.Union:
+-		nt := typ.NumTerms()
++		nt := typ.Len()
+ 		tlist := make([]*types.Type, nt)
+ 		tildes := make([]bool, nt)
+ 		for i := range tlist {
+-			term, tilde := typ.Term(i)
+-			tlist[i] = g.typ1(term)
+-			tildes[i] = tilde
++			t := typ.Term(i)
++			tlist[i] = g.typ1(t.Type())
++			tildes[i] = t.Tilde()
+ 		}
+ 		return types.NewUnion(tlist, tildes)
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index eb1db623b4..8b65559d1a 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -394,11 +394,11 @@ func (w *writer) structType(typ *types2.Struct) {
+ }
+ 
+ func (w *writer) unionType(typ *types2.Union) {
+-	w.len(typ.NumTerms())
+-	for i := 0; i < typ.NumTerms(); i++ {
+-		term, tilde := typ.Term(i)
+-		w.typ(term)
+-		w.bool(tilde)
++	w.len(typ.Len())
++	for i := 0; i < typ.Len(); i++ {
++		t := typ.Term(i)
++		w.typ(t.Type())
++		w.bool(t.Tilde())
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 184cd027cb..eafe6e9eb8 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -797,12 +797,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 	if tp := asTypeParam(x); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+-		var rtypes []Type
+-		var tildes []bool
++		var terms []*Term
+ 		if !tp.iface().typeSet().is(func(t *term) bool {
+ 			if r := f(t.typ); r != nil {
+-				rtypes = append(rtypes, r)
+-				tildes = append(tildes, t.tilde)
++				terms = append(terms, NewTerm(t.tilde, r))
+ 				return true
+ 			}
+ 			return false
+@@ -819,7 +817,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// type param is placed in the current package so export/import
+ 		// works as expected.
+ 		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
+-		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{newUnion(rtypes, tildes)})) // assigns type to tpar as a side-effect
++		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
+ 		ptyp.index = tp.index
+ 
+ 		return ptyp
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 6c5f756491..26796fc604 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -387,19 +387,19 @@ func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
+ 	return
+ }
+ 
+-func (subst *subster) termlist(in []*term) (out []*term, copied bool) {
++func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
+ 	out = in
+ 	for i, t := range in {
+ 		if u := subst.typ(t.typ); u != t.typ {
+ 			if !copied {
+ 				// first function that got substituted => allocate new out slice
+ 				// and copy all functions
+-				new := make([]*term, len(in))
++				new := make([]*Term, len(in))
+ 				copy(new, out)
+ 				out = new
+ 				copied = true
+ 			}
+-			out[i] = &term{t.tilde, u}
++			out[i] = NewTerm(t.tilde, u)
+ 		}
+ 	}
+ 	return
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 83df51389b..da364699ce 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -359,7 +359,7 @@ func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *TypeSet {
+ 			// This case is handled during union parsing.
+ 			unreachable()
+ 		default:
+-			terms = termlist{t}
++			terms = termlist{(*term)(t)}
+ 		}
+ 		// The type set of a union expression is the union
+ 		// of the type sets of each term.
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index ead17ba2f3..cb7cf73a62 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -129,7 +129,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 	case *Union:
+ 		// Unions only appear as (syntactic) embedded elements
+ 		// in interfaces and syntactically cannot be empty.
+-		if t.NumTerms() == 0 {
++		if t.Len() == 0 {
+ 			panic("empty union")
+ 		}
+ 		for i, t := range t.terms {
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 0325c72dbb..102826947c 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -11,45 +11,46 @@ import "cmd/compile/internal/syntax"
+ 
+ // A Union represents a union of terms embedded in an interface.
+ type Union struct {
+-	terms []*term  // list of syntactical terms (not a canonicalized termlist)
++	terms []*Term  // list of syntactical terms (not a canonicalized termlist)
+ 	tset  *TypeSet // type set described by this union, computed lazily
+ }
+ 
+-// NewUnion returns a new Union type with the given terms (types[i], tilde[i]).
+-// The lengths of both arguments must match. It is an error to create an empty
+-// union; they are syntactically not possible.
+-func NewUnion(types []Type, tilde []bool) *Union { return newUnion(types, tilde) }
++// NewUnion returns a new Union type with the given terms.
++// It is an error to create an empty union; they are syntactically not possible.
++func NewUnion(terms []*Term) *Union {
++	if len(terms) == 0 {
++		panic("empty union")
++	}
++	return &Union{terms, nil}
++}
+ 
+-func (u *Union) NumTerms() int           { return len(u.terms) }
+-func (u *Union) Term(i int) (Type, bool) { t := u.terms[i]; return t.typ, t.tilde }
++func (u *Union) Len() int         { return len(u.terms) }
++func (u *Union) Term(i int) *Term { return u.terms[i] }
+ 
+ func (u *Union) Underlying() Type { return u }
+ func (u *Union) String() string   { return TypeString(u, nil) }
+ 
++// A Term represents a term in a Union.
++type Term term
++
++// NewTerm returns a new union term.
++func NewTerm(tilde bool, typ Type) *Term { return &Term{tilde, typ} }
++
++func (t *Term) Tilde() bool    { return t.tilde }
++func (t *Term) Type() Type     { return t.typ }
++func (t *Term) String() string { return (*term)(t).String() }
++
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-func newUnion(types []Type, tilde []bool) *Union {
+-	assert(len(types) == len(tilde))
+-	if len(types) == 0 {
+-		panic("empty union")
+-	}
+-	t := new(Union)
+-	t.terms = make([]*term, len(types))
+-	for i, typ := range types {
+-		t.terms[i] = &term{tilde[i], typ}
+-	}
+-	return t
+-}
+-
+ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
+-	var terms []*term
++	var terms []*Term
+ 	for _, x := range tlist {
+ 		tilde, typ := parseTilde(check, x)
+ 		if len(tlist) == 1 && !tilde {
+ 			return typ // single type
+ 		}
+-		terms = append(terms, &term{tilde, typ})
++		terms = append(terms, NewTerm(tilde, typ))
+ 	}
+ 
+ 	// Check validity of terms.
+@@ -124,7 +125,7 @@ func parseTilde(check *Checker, x syntax.Expr) (tilde bool, typ Type) {
+ // overlappingTerm reports the index of the term x in terms which is
+ // overlapping (not disjoint) from y. The result is < 0 if there is no
+ // such term.
+-func overlappingTerm(terms []*term, y *term) int {
++func overlappingTerm(terms []*Term, y *Term) int {
+ 	for i, x := range terms {
+ 		// disjoint requires non-nil, non-top arguments
+ 		if debug {
+@@ -132,7 +133,7 @@ func overlappingTerm(terms []*term, y *term) int {
+ 				panic("empty or top union term")
+ 			}
+ 		}
+-		if !x.disjoint(y) {
++		if !(*term)(x).disjoint((*term)(y)) {
+ 			return i
+ 		}
+ 	}

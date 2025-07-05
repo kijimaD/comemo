@@ -14,6 +14,28 @@ Date:   Tue Oct 13 11:36:11 2020 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/fsys/fsys_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 0c3069a6a2..6cf59fba47 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -5,6 +5,7 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -654,6 +655,8 @@ func TestWalk_Error(t *testing.T) {
+ }
+ 
+ func TestWalk_Symlink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
+ 	initOverlay(t, `{
+ 	"Replace": {"overlay_symlink": "symlink"}
+ }

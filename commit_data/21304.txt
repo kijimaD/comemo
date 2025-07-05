@@ -15,6 +15,55 @@ Date:   Thu Dec 18 13:22:53 2014 -0800
     Change-Id: I14e518ad49ecce3d1fc2b056e1acd5e5a2de8144
     Reviewed-on: https://go-review.googlesource.com/1821
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/sort/sort.go | 31 +++++++++++++------------------
  1 file changed, 13 insertions(+), 18 deletions(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index e980c295c3..63f8894a19 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -359,30 +359,25 @@ func symMerge(data Interface, a, m, b int) {
+ 
+ 	mid := a + (b-a)/2
+ 	n := mid + m
+-	start := 0
++	var start, r int
+ 	if m > mid {
+ 		start = n - b
+-		r, p := mid, n-1
+-		for start < r {
+-			c := start + (r-start)/2
+-			if !data.Less(p-c, c) {
+-				start = c + 1
+-			} else {
+-				r = c
+-			}
+-		}
++		r = mid
+ 	} else {
+ 		start = a
+-		r, p := m, n-1
+-		for start < r {
+-			c := start + (r-start)/2
+-			if !data.Less(p-c, c) {
+-				start = c + 1
+-			} else {
+-				r = c
+-			}
++		r = m
++	}
++	p := n - 1
++
++	for start < r {
++		c := start + (r-start)/2
++		if !data.Less(p-c, c) {
++			start = c + 1
++		} else {
++			r = c
+ 		}
+ 	}
++
+ 	end := n - start
+ 	rotate(data, start, m, end)
+ 	symMerge(data, a, start, mid)

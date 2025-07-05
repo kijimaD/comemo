@@ -9,6 +9,20 @@ Date:   Thu Aug 1 20:34:29 2019 +0000
     GitHub-Pull-Request: golang/go#33412
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188498
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/request.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index e53dde16b4..31d62083cb 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -450,7 +450,7 @@ func (r *Request) Referer() string {
+ 
+ // multipartByReader is a sentinel value.
+ // Its presence in Request.MultipartForm indicates that parsing of the request
+-// body has been handed off to a MultipartReader instead of ParseMultipartFrom.
++// body has been handed off to a MultipartReader instead of ParseMultipartForm.
+ var multipartByReader = &multipart.Form{
+ 	Value: make(map[string][]string),
+ 	File:  make(map[string][]*multipart.FileHeader),

@@ -16,6 +16,20 @@ Date:   Thu Aug 29 12:47:40 2024 +0000
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/image/geom.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/image/geom.go b/src/image/geom.go
+index 7731b6bad8..4ee14bff98 100644
+--- a/src/image/geom.go
++++ b/src/image/geom.go
+@@ -169,7 +169,7 @@ func (r Rectangle) Intersect(s Rectangle) Rectangle {
+ 	//
+ 	// if max(r0.Min.X, s0.Min.X) >= min(r0.Max.X, s0.Max.X) || likewiseForY { etc }
+ 	if r.Empty() {
+-		return ZR
++		return Rectangle{}
+ 	}
+ 	return r
+ }

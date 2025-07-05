@@ -9,6 +9,19 @@ Date:   Wed Nov 25 15:08:00 2015 -0800
     Change-Id: Ia7b729d81fb78206d214444911f2e6573b88717a
     Reviewed-on: https://go-review.googlesource.com/17240
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 4cba7f82c9..a586fbea61 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -7,6 +7,7 @@ cmd/go: add -msan option (https://golang.org/cl/16169)
+ cmd/go: use shallow clones for new git checkouts (https://golang.org/cl/16360)
+ cmd/compile: add -msan option (https://golang.org/cl/16160)
+ cmd/link: add -msan option (https://golang.org/cl/16161)
++cmd/cgo: fix C.complexfloat and C.complexdouble and treat as separate types from complex64 and complex128 (https://golang.org/cl/17208)
+ 
+ Ports:
+ 

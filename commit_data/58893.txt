@@ -23,10 +23,369 @@ Date:   Wed Jan 17 11:04:11 2024 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go |  9 ++--
  src/cmd/compile/internal/types2/stmt.go        | 34 +++++++++----
  src/go/types/assignments.go                    |  9 ++--
  src/go/types/stmt.go                           | 34 +++++++++----
  src/internal/types/testdata/spec/range_int.go  | 68 +++++++++++++++++++++++++-
  5 files changed, 123 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 338a114ff9..8abafdba1b 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -232,7 +232,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
+ // assignVar checks the assignment lhs = rhs (if x == nil), or lhs = x (if x != nil).
+ // If x != nil, it must be the evaluation of rhs (and rhs will be ignored).
+ // If the assignment check fails and x != nil, x.mode is set to invalid.
+-func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
++func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string) {
+ 	T := check.lhsVar(lhs) // nil if lhs is _
+ 	if !isValid(T) {
+ 		if x != nil {
+@@ -255,8 +255,7 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
+ 		check.expr(target, x, rhs)
+ 	}
+ 
+-	context := "assignment"
+-	if T == nil {
++	if T == nil && context == "assignment" {
+ 		context = "assignment to _ identifier"
+ 	}
+ 	check.assignment(x, T, context)
+@@ -454,7 +453,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	// each value can be assigned to its corresponding variable.
+ 	if l == r && !isCall {
+ 		for i, lhs := range lhs {
+-			check.assignVar(lhs, orig_rhs[i], nil)
++			check.assignVar(lhs, orig_rhs[i], nil, "assignment")
+ 		}
+ 		return
+ 	}
+@@ -475,7 +474,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	r = len(rhs)
+ 	if l == r {
+ 		for i, lhs := range lhs {
+-			check.assignVar(lhs, nil, rhs[i])
++			check.assignVar(lhs, nil, rhs[i], "assignment")
+ 		}
+ 		// Only record comma-ok expression if both assignments succeeded
+ 		// (go.dev/issue/59371).
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index a07bc9370a..c9713dac6f 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -455,7 +455,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 				check.errorf(s.Lhs, NonNumericIncDec, invalidOp+"%s%s%s (non-numeric type %s)", s.Lhs, s.Op, s.Op, x.typ)
+ 				return
+ 			}
+-			check.assignVar(s.Lhs, nil, &x)
++			check.assignVar(s.Lhs, nil, &x, "assignment")
+ 			return
+ 		}
+ 
+@@ -478,7 +478,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 
+ 		var x operand
+ 		check.binary(&x, nil, lhs[0], rhs[0], s.Op)
+-		check.assignVar(lhs[0], nil, &x)
++		check.assignVar(lhs[0], nil, &x, "assignment")
+ 
+ 	case *syntax.CallStmt:
+ 		kind := "go"
+@@ -826,7 +826,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 
+ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *syntax.RangeClause) {
+ 	// Convert syntax form to local variables.
+-	type expr = syntax.Expr
++	type Expr = syntax.Expr
+ 	type identType = syntax.Name
+ 	identName := func(n *identType) string { return n.Value }
+ 	sKey := rclause.Lhs // possibly nil
+@@ -899,8 +899,10 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	// (irregular assignment, cannot easily map to existing assignment checks)
+ 
+ 	// lhs expressions and initialization value (rhs) types
+-	lhs := [2]expr{sKey, sValue}
+-	rhs := [2]Type{key, val} // key, val may be nil
++	lhs := [2]Expr{sKey, sValue} // sKey, sValue may be nil
++	rhs := [2]Type{key, val}     // key, val may be nil
++
++	constIntRange := x.mode == constant_ && isInteger(x.typ)
+ 
+ 	if isDef {
+ 		// short variable declaration
+@@ -927,11 +929,13 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 			}
+ 
+ 			// initialize lhs variable
+-			if typ := rhs[i]; typ != nil {
++			if constIntRange {
++				check.initVar(obj, &x, "range clause")
++			} else if typ := rhs[i]; typ != nil {
+ 				x.mode = value
+ 				x.expr = lhs // we don't have a better rhs expression to use here
+ 				x.typ = typ
+-				check.initVar(obj, &x, "range clause")
++				check.initVar(obj, &x, "assignment") // error is on variable, use "assignment" not "range clause"
+ 			} else {
+ 				obj.typ = Typ[Invalid]
+ 				obj.used = true // don't complain about unused variable
+@@ -947,19 +951,29 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 		} else {
+ 			check.error(noNewVarPos, NoNewVar, "no new variables on left side of :=")
+ 		}
+-	} else {
++	} else if sKey != nil /* lhs[0] != nil */ {
+ 		// ordinary assignment
+ 		for i, lhs := range lhs {
+ 			if lhs == nil {
+ 				continue
+ 			}
+-			if typ := rhs[i]; typ != nil {
++
++			if constIntRange {
++				check.assignVar(lhs, nil, &x, "range clause")
++			} else if typ := rhs[i]; typ != nil {
+ 				x.mode = value
+ 				x.expr = lhs // we don't have a better rhs expression to use here
+ 				x.typ = typ
+-				check.assignVar(lhs, nil, &x)
++				check.assignVar(lhs, nil, &x, "assignment") // error is on variable, use "assignment" not "range clause"
+ 			}
+ 		}
++	} else if constIntRange {
++		// If we don't have any iteration variables, we still need to
++		// check that a (possibly untyped) integer range expression x
++		// is valid.
++		// We do this by checking the assignment _ = x. This ensures
++		// that an untyped x can be converted to a value of type int.
++		check.assignment(&x, nil, "range clause")
+ 	}
+ 
+ 	check.stmt(inner, s.Body)
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 3ea45699b1..ac9e7bda31 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -231,7 +231,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
+ // assignVar checks the assignment lhs = rhs (if x == nil), or lhs = x (if x != nil).
+ // If x != nil, it must be the evaluation of rhs (and rhs will be ignored).
+ // If the assignment check fails and x != nil, x.mode is set to invalid.
+-func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand) {
++func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand, context string) {
+ 	T := check.lhsVar(lhs) // nil if lhs is _
+ 	if !isValid(T) {
+ 		if x != nil {
+@@ -254,8 +254,7 @@ func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand) {
+ 		check.expr(target, x, rhs)
+ 	}
+ 
+-	context := "assignment"
+-	if T == nil {
++	if T == nil && context == "assignment" {
+ 		context = "assignment to _ identifier"
+ 	}
+ 	check.assignment(x, T, context)
+@@ -453,7 +452,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
+ 	// each value can be assigned to its corresponding variable.
+ 	if l == r && !isCall {
+ 		for i, lhs := range lhs {
+-			check.assignVar(lhs, orig_rhs[i], nil)
++			check.assignVar(lhs, orig_rhs[i], nil, "assignment")
+ 		}
+ 		return
+ 	}
+@@ -474,7 +473,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
+ 	r = len(rhs)
+ 	if l == r {
+ 		for i, lhs := range lhs {
+-			check.assignVar(lhs, nil, rhs[i])
++			check.assignVar(lhs, nil, rhs[i], "assignment")
+ 		}
+ 		// Only record comma-ok expression if both assignments succeeded
+ 		// (go.dev/issue/59371).
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 35c485827d..80f3ac75da 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -460,7 +460,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		if x.mode == invalid {
+ 			return
+ 		}
+-		check.assignVar(s.X, nil, &x)
++		check.assignVar(s.X, nil, &x, "assignment")
+ 
+ 	case *ast.AssignStmt:
+ 		switch s.Tok {
+@@ -492,7 +492,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			if x.mode == invalid {
+ 				return
+ 			}
+-			check.assignVar(s.Lhs[0], nil, &x)
++			check.assignVar(s.Lhs[0], nil, &x, "assignment")
+ 		}
+ 
+ 	case *ast.GoStmt:
+@@ -833,7 +833,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 
+ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 	// Convert go/ast form to local variables.
+-	type expr = ast.Expr
++	type Expr = ast.Expr
+ 	type identType = ast.Ident
+ 	identName := func(n *identType) string { return n.Name }
+ 	sKey, sValue := s.Key, s.Value
+@@ -890,8 +890,10 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 	// (irregular assignment, cannot easily map to existing assignment checks)
+ 
+ 	// lhs expressions and initialization value (rhs) types
+-	lhs := [2]expr{sKey, sValue}
+-	rhs := [2]Type{key, val} // key, val may be nil
++	lhs := [2]Expr{sKey, sValue} // sKey, sValue may be nil
++	rhs := [2]Type{key, val}     // key, val may be nil
++
++	constIntRange := x.mode == constant_ && isInteger(x.typ)
+ 
+ 	if isDef {
+ 		// short variable declaration
+@@ -918,11 +920,13 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 			}
+ 
+ 			// initialize lhs variable
+-			if typ := rhs[i]; typ != nil {
++			if constIntRange {
++				check.initVar(obj, &x, "range clause")
++			} else if typ := rhs[i]; typ != nil {
+ 				x.mode = value
+ 				x.expr = lhs // we don't have a better rhs expression to use here
+ 				x.typ = typ
+-				check.initVar(obj, &x, "range clause")
++				check.initVar(obj, &x, "assignment") // error is on variable, use "assignment" not "range clause"
+ 			} else {
+ 				obj.typ = Typ[Invalid]
+ 				obj.used = true // don't complain about unused variable
+@@ -938,19 +942,29 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 		} else {
+ 			check.error(noNewVarPos, NoNewVar, "no new variables on left side of :=")
+ 		}
+-	} else {
++	} else if sKey != nil /* lhs[0] != nil */ {
+ 		// ordinary assignment
+ 		for i, lhs := range lhs {
+ 			if lhs == nil {
+ 				continue
+ 			}
+-			if typ := rhs[i]; typ != nil {
++
++			if constIntRange {
++				check.assignVar(lhs, nil, &x, "range clause")
++			} else if typ := rhs[i]; typ != nil {
+ 				x.mode = value
+ 				x.expr = lhs // we don't have a better rhs expression to use here
+ 				x.typ = typ
+-				check.assignVar(lhs, nil, &x)
++				check.assignVar(lhs, nil, &x, "assignment") // error is on variable, use "assignment" not "range clause"
+ 			}
+ 		}
++	} else if constIntRange {
++		// If we don't have any iteration variables, we still need to
++		// check that a (possibly untyped) integer range expression x
++		// is valid.
++		// We do this by checking the assignment _ = x. This ensures
++		// that an untyped x can be converted to a value of type int.
++		check.assignment(&x, nil, "range clause")
+ 	}
+ 
+ 	check.stmt(inner, s.Body)
+diff --git a/src/internal/types/testdata/spec/range_int.go b/src/internal/types/testdata/spec/range_int.go
+index 178f01bae7..7f722e2d99 100644
+--- a/src/internal/types/testdata/spec/range_int.go
++++ b/src/internal/types/testdata/spec/range_int.go
+@@ -7,6 +7,12 @@
+ 
+ package p
+ 
++// test framework assumes 64-bit int/uint sizes by default
++const (
++	maxInt  = 1<<63 - 1
++	maxUint = 1<<64 - 1
++)
++
+ type MyInt int32
+ 
+ func _() {
+@@ -38,7 +44,7 @@ func _() {
+ 	for i, j /* ERROR "range over 10 (untyped int constant) permits only one iteration variable" */ := range 10 {
+ 		_, _ = i, j
+ 	}
+-	for i /* ERROR "cannot use i (value of type MyInt) as int value in assignment" */ = range MyInt(10) {
++	for i = range MyInt /* ERROR "cannot use MyInt(10) (constant 10 of type MyInt) as int value in range clause" */ (10) {
+ 		_ = i
+ 	}
+ 	for mi := range MyInt(10) {
+@@ -63,3 +69,63 @@ func _[T ~int](x T) {
+ 	for range x { // ok
+ 	}
+ }
++
++func issue65133() {
++	for range maxInt {
++	}
++	for range maxInt /* ERROR "cannot use maxInt + 1 (untyped int constant 9223372036854775808) as int value in range clause (overflows)" */ + 1 {
++	}
++	for range maxUint /* ERROR "cannot use maxUint (untyped int constant 18446744073709551615) as int value in range clause (overflows)" */ {
++	}
++
++	for i := range maxInt {
++		_ = i
++	}
++	for i := range maxInt /* ERROR "cannot use maxInt + 1 (untyped int constant 9223372036854775808) as int value in range clause (overflows)" */ + 1 {
++		_ = i
++	}
++	for i := range maxUint /* ERROR "cannot use maxUint (untyped int constant 18446744073709551615) as int value in range clause (overflows)" */ {
++		_ = i
++	}
++
++	var i int
++	_ = i
++	for i = range maxInt {
++	}
++	for i = range maxInt /* ERROR "cannot use maxInt + 1 (untyped int constant 9223372036854775808) as int value in range clause (overflows)" */ + 1 {
++	}
++	for i = range maxUint /* ERROR "cannot use maxUint (untyped int constant 18446744073709551615) as int value in range clause (overflows)" */ {
++	}
++
++	var j uint
++	_ = j
++	for j = range maxInt {
++	}
++	for j = range maxInt + 1 {
++	}
++	for j = range maxUint {
++	}
++	for j = range maxUint /* ERROR "cannot use maxUint + 1 (untyped int constant 18446744073709551616) as uint value in range clause (overflows)" */ + 1 {
++	}
++
++	for range 256 {
++	}
++	for _ = range 256 {
++	}
++	for i = range 256 {
++	}
++	for i := range 256 {
++		_ = i
++	}
++
++	var u8 uint8
++	_ = u8
++	for u8 = range - /* ERROR "cannot use -1 (untyped int constant) as uint8 value in range clause (overflows)" */ 1 {
++	}
++	for u8 = range 0 {
++	}
++	for u8 = range 255 {
++	}
++	for u8 = range 256 /* ERROR "cannot use 256 (untyped int constant) as uint8 value in range clause (overflows)" */ {
++	}
++}

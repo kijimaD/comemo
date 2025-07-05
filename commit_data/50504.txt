@@ -18,9 +18,189 @@ Date:   Thu May 13 10:44:47 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/sync/mutex.go        | 15 ++++++++++++
  src/sync/mutex_test.go   | 18 +++++++++++++++
  src/sync/rwmutex.go      | 59 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/sync/rwmutex_test.go | 28 +++++++++++++++++++++++
  4 files changed, 120 insertions(+)
+
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 3028552f74..9dd04d9470 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -81,6 +81,21 @@ func (m *Mutex) Lock() {
+ 	m.lockSlow()
+ }
+ 
++// TryLock tries to lock m and reports whether it succeeded.
++//
++// Note that while correct uses of TryLock do exist, they are rare,
++// and use of TryLock is often a sign of a deeper problem
++// in a particular use of mutexes.
++func (m *Mutex) TryLock() bool {
++	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
++		if race.Enabled {
++			race.Acquire(unsafe.Pointer(m))
++		}
++		return true
++	}
++	return false
++}
++
+ func (m *Mutex) lockSlow() {
+ 	var waitStartTime int64
+ 	starving := false
+diff --git a/src/sync/mutex_test.go b/src/sync/mutex_test.go
+index 98c1bf2a5f..cca0986a30 100644
+--- a/src/sync/mutex_test.go
++++ b/src/sync/mutex_test.go
+@@ -60,6 +60,12 @@ func BenchmarkContendedSemaphore(b *testing.B) {
+ 
+ func HammerMutex(m *Mutex, loops int, cdone chan bool) {
+ 	for i := 0; i < loops; i++ {
++		if i%3 == 0 {
++			if m.TryLock() {
++				m.Unlock()
++			}
++			continue
++		}
+ 		m.Lock()
+ 		m.Unlock()
+ 	}
+@@ -71,7 +77,19 @@ func TestMutex(t *testing.T) {
+ 		t.Logf("got mutexrate %d expected 0", n)
+ 	}
+ 	defer runtime.SetMutexProfileFraction(0)
++
+ 	m := new(Mutex)
++
++	m.Lock()
++	if m.TryLock() {
++		t.Fatalf("TryLock succeeded with mutex locked")
++	}
++	m.Unlock()
++	if !m.TryLock() {
++		t.Fatalf("TryLock failed with mutex unlocked")
++	}
++	m.Unlock()
++
+ 	c := make(chan bool)
+ 	for i := 0; i < 10; i++ {
+ 		go HammerMutex(m, 1000, c)
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 3012b5548e..f0d4c9771a 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -68,6 +68,34 @@ func (rw *RWMutex) RLock() {
+ 	}
+ }
+ 
++// TryRLock tries to lock rw for reading and reports whether it succeeded.
++//
++// Note that while correct uses of TryRLock do exist, they are rare,
++// and use of TryRLock is often a sign of a deeper problem
++// in a particular use of mutexes.
++func (rw *RWMutex) TryRLock() bool {
++	if race.Enabled {
++		_ = rw.w.state
++		race.Disable()
++	}
++	for {
++		c := atomic.LoadInt32(&rw.readerCount)
++		if c < 0 {
++			if race.Enabled {
++				race.Enable()
++			}
++			return false
++		}
++		if atomic.CompareAndSwapInt32(&rw.readerCount, c, c+1) {
++			if race.Enabled {
++				race.Enable()
++				race.Acquire(unsafe.Pointer(&rw.readerSem))
++			}
++			return true
++		}
++	}
++}
++
+ // RUnlock undoes a single RLock call;
+ // it does not affect other simultaneous readers.
+ // It is a run-time error if rw is not locked for reading
+@@ -122,6 +150,37 @@ func (rw *RWMutex) Lock() {
+ 	}
+ }
+ 
++// TryLock tries to lock rw for writing and reports whether it succeeded.
++//
++// Note that while correct uses of TryLock do exist, they are rare,
++// and use of TryLock is often a sign of a deeper problem
++// in a particular use of mutexes.
++func (rw *RWMutex) TryLock() bool {
++	if race.Enabled {
++		_ = rw.w.state
++		race.Disable()
++	}
++	if !rw.w.TryLock() {
++		if race.Enabled {
++			race.Enable()
++		}
++		return false
++	}
++	if !atomic.CompareAndSwapInt32(&rw.readerCount, 0, -rwmutexMaxReaders) {
++		rw.w.Unlock()
++		if race.Enabled {
++			race.Enable()
++		}
++		return false
++	}
++	if race.Enabled {
++		race.Enable()
++		race.Acquire(unsafe.Pointer(&rw.readerSem))
++		race.Acquire(unsafe.Pointer(&rw.writerSem))
++	}
++	return true
++}
++
+ // Unlock unlocks rw for writing. It is a run-time error if rw is
+ // not locked for writing on entry to Unlock.
+ //
+diff --git a/src/sync/rwmutex_test.go b/src/sync/rwmutex_test.go
+index c98e69fd07..dfbdd9bbee 100644
+--- a/src/sync/rwmutex_test.go
++++ b/src/sync/rwmutex_test.go
+@@ -108,6 +108,34 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
+ }
+ 
+ func TestRWMutex(t *testing.T) {
++	var m RWMutex
++
++	m.Lock()
++	if m.TryLock() {
++		t.Fatalf("TryLock succeeded with mutex locked")
++	}
++	if m.TryRLock() {
++		t.Fatalf("TryRLock succeeded with mutex locked")
++	}
++	m.Unlock()
++
++	if !m.TryLock() {
++		t.Fatalf("TryLock failed with mutex unlocked")
++	}
++	m.Unlock()
++
++	if !m.TryRLock() {
++		t.Fatalf("TryRLock failed with mutex unlocked")
++	}
++	if !m.TryRLock() {
++		t.Fatalf("TryRLock failed with mutex rlocked")
++	}
++	if m.TryLock() {
++		t.Fatalf("TryLock succeeded with mutex rlocked")
++	}
++	m.RUnlock()
++	m.RUnlock()
++
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
+ 	n := 1000
+ 	if testing.Short() {

@@ -12,7 +12,7 @@ Date:   Sun Aug 15 21:04:39 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/instantiate.go   |  2 +-
  src/go/types/interface.go     |  2 +-
  src/go/types/termlist.go      | 22 ++++++-------
@@ -22,3 +22,589 @@ Date:   Sun Aug 15 21:04:39 2021 -0400
  src/go/types/typeterm_test.go | 42 ++++++++++++------------
  src/go/types/universe.go      |  2 +-
  8 files changed, 97 insertions(+), 100 deletions(-)
+
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 6f10feb206..dc2b29a5f7 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -176,7 +176,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *TypeParam, smap
+ 	// if iface is comparable, targ must be comparable
+ 	// TODO(gri) the error messages needs to be better, here
+ 	if iface.IsComparable() && !Comparable(targ) {
+-		if tpar := asTypeParam(targ); tpar != nil && tpar.iface().typeSet().IsTop() {
++		if tpar := asTypeParam(targ); tpar != nil && tpar.iface().typeSet().IsAll() {
+ 			check.softErrorf(atPos(pos), _Todo, "%s has no constraints", targ)
+ 			return false
+ 		}
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index a5d19e8265..510c123e97 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -96,7 +96,7 @@ func (t *Interface) NumMethods() int { return t.typeSet().NumMethods() }
+ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
+ 
+ // Empty reports whether t is the empty interface.
+-func (t *Interface) Empty() bool { return t.typeSet().IsTop() }
++func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
+ 
+ // IsComparable reports whether each type in interface t's type set is comparable.
+ func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+diff --git a/src/go/types/termlist.go b/src/go/types/termlist.go
+index 044c6a9466..99114cbf4c 100644
+--- a/src/go/types/termlist.go
++++ b/src/go/types/termlist.go
+@@ -13,9 +13,9 @@ import "bytes"
+ // normal form.
+ type termlist []*term
+ 
+-// topTermlist represents the set of all types.
++// allTermlist represents the set of all types.
+ // It is in normal form.
+-var topTermlist = termlist{new(term)}
++var allTermlist = termlist{new(term)}
+ 
+ // String prints the termlist exactly (without normalization).
+ func (xl termlist) String() string {
+@@ -45,9 +45,9 @@ func (xl termlist) isEmpty() bool {
+ 	return true
+ }
+ 
+-// isTop reports whether the termlist xl represents the set of all types.
+-func (xl termlist) isTop() bool {
+-	// If there's a ⊤ (top) term, the entire list is ⊤ (top).
++// isAll reports whether the termlist xl represents the set of all types.
++func (xl termlist) isAll() bool {
++	// If there's a 𝓤 term, the entire list is 𝓤.
+ 	// If the termlist is in normal form, this requires at most
+ 	// one iteration.
+ 	for _, x := range xl {
+@@ -74,14 +74,14 @@ func (xl termlist) norm() termlist {
+ 				continue
+ 			}
+ 			if u1, u2 := xi.union(xj); u2 == nil {
+-				// If we encounter a ⊤ (top) term, the entire
+-				// list is ⊤ (top). Exit early.
++				// If we encounter a 𝓤 term, the entire list is 𝓤.
++				// Exit early.
+ 				// (Note that this is not just an optimization;
+-				// if we continue, we may end up with a ⊤ term
++				// if we continue, we may end up with a 𝓤 term
+ 				// and other terms and the result would not be
+ 				// in normal form.)
+ 				if u1.typ == nil {
+-					return topTermlist
++					return allTermlist
+ 				}
+ 				xi = u1
+ 				used[j] = true // xj is now unioned into xi - ignore it in future iterations
+@@ -92,11 +92,11 @@ func (xl termlist) norm() termlist {
+ 	return rl
+ }
+ 
+-// If the type set represented by xl is specified by a single (non-⊤) term,
++// If the type set represented by xl is specified by a single (non-𝓤) term,
+ // structuralType returns that type. Otherwise it returns nil.
+ func (xl termlist) structuralType() Type {
+ 	if nl := xl.norm(); len(nl) == 1 {
+-		return nl[0].typ // if nl.isTop() then typ is nil, which is ok
++		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
+ 	}
+ 	return nil
+ }
+diff --git a/src/go/types/termlist_test.go b/src/go/types/termlist_test.go
+index eeb820dfd2..92d49ffed8 100644
+--- a/src/go/types/termlist_test.go
++++ b/src/go/types/termlist_test.go
+@@ -21,7 +21,7 @@ func maketl(s string) termlist {
+ }
+ 
+ func TestTermlistTop(t *testing.T) {
+-	if !topTermlist.isTop() {
++	if !allTermlist.isAll() {
+ 		t.Errorf("topTermlist is not top")
+ 	}
+ }
+@@ -29,12 +29,12 @@ func TestTermlistTop(t *testing.T) {
+ func TestTermlistString(t *testing.T) {
+ 	for _, want := range []string{
+ 		"∅",
+-		"⊤",
++		"𝓤",
+ 		"int",
+ 		"~int",
+ 		"∅ ∪ ∅",
+-		"⊤ ∪ ⊤",
+-		"∅ ∪ ⊤ ∪ int",
++		"𝓤 ∪ 𝓤",
++		"∅ ∪ 𝓤 ∪ int",
+ 	} {
+ 		if got := maketl(want).String(); got != want {
+ 			t.Errorf("(%v).String() == %v", want, got)
+@@ -46,9 +46,9 @@ func TestTermlistIsEmpty(t *testing.T) {
+ 	for test, want := range map[string]bool{
+ 		"∅":         true,
+ 		"∅ ∪ ∅":     true,
+-		"∅ ∪ ∅ ∪ ⊤": false,
+-		"⊤":         false,
+-		"⊤ ∪ int":   false,
++		"∅ ∪ ∅ ∪ 𝓤": false,
++		"𝓤":         false,
++		"𝓤 ∪ int":   false,
+ 	} {
+ 		xl := maketl(test)
+ 		got := xl.isEmpty()
+@@ -58,19 +58,19 @@ func TestTermlistIsEmpty(t *testing.T) {
+ 	}
+ }
+ 
+-func TestTermlistIsTop(t *testing.T) {
++func TestTermlistIsAll(t *testing.T) {
+ 	for test, want := range map[string]bool{
+ 		"∅":             false,
+ 		"∅ ∪ ∅":         false,
+ 		"int ∪ ~string": false,
+-		"∅ ∪ ∅ ∪ ⊤":     true,
+-		"⊤":             true,
+-		"⊤ ∪ int":       true,
++		"∅ ∪ ∅ ∪ 𝓤":     true,
++		"𝓤":             true,
++		"𝓤 ∪ int":       true,
+ 	} {
+ 		xl := maketl(test)
+-		got := xl.isTop()
++		got := xl.isAll()
+ 		if got != want {
+-			t.Errorf("(%v).isTop() == %v; want %v", test, got, want)
++			t.Errorf("(%v).isAll() == %v; want %v", test, got, want)
+ 		}
+ 	}
+ }
+@@ -82,10 +82,10 @@ func TestTermlistNorm(t *testing.T) {
+ 		{"∅", "∅"},
+ 		{"∅ ∪ ∅", "∅"},
+ 		{"∅ ∪ int", "int"},
+-		{"⊤ ∪ int", "⊤"},
++		{"𝓤 ∪ int", "𝓤"},
+ 		{"~int ∪ int", "~int"},
+ 		{"int ∪ ~string ∪ int", "int ∪ ~string"},
+-		{"~int ∪ string ∪ ⊤ ∪ ~string ∪ int", "⊤"},
++		{"~int ∪ string ∪ 𝓤 ∪ ~string ∪ int", "𝓤"},
+ 	} {
+ 		xl := maketl(test.xl)
+ 		got := maketl(test.xl).norm()
+@@ -106,7 +106,7 @@ func TestTermlistStructuralType(t *testing.T) {
+ 
+ 	for test, want := range map[string]string{
+ 		"∅":                 "nil",
+-		"⊤":                 "nil",
++		"𝓤":                 "nil",
+ 		"int":               "int",
+ 		"~int":              "int",
+ 		"~int ∪ string":     "nil",
+@@ -128,15 +128,15 @@ func TestTermlistUnion(t *testing.T) {
+ 	}{
+ 
+ 		{"∅", "∅", "∅"},
+-		{"∅", "⊤", "⊤"},
++		{"∅", "𝓤", "𝓤"},
+ 		{"∅", "int", "int"},
+-		{"⊤", "~int", "⊤"},
++		{"𝓤", "~int", "𝓤"},
+ 		{"int", "~int", "~int"},
+ 		{"int", "string", "int ∪ string"},
+ 		{"int ∪ string", "~string", "int ∪ ~string"},
+ 		{"~int ∪ string", "~string ∪ int", "~int ∪ ~string"},
+ 		{"~int ∪ string ∪ ∅", "~string ∪ int", "~int ∪ ~string"},
+-		{"~int ∪ string ∪ ⊤", "~string ∪ int", "⊤"},
++		{"~int ∪ string ∪ 𝓤", "~string ∪ int", "𝓤"},
+ 	} {
+ 		xl := maketl(test.xl)
+ 		yl := maketl(test.yl)
+@@ -153,15 +153,15 @@ func TestTermlistIntersect(t *testing.T) {
+ 	}{
+ 
+ 		{"∅", "∅", "∅"},
+-		{"∅", "⊤", "∅"},
++		{"∅", "𝓤", "∅"},
+ 		{"∅", "int", "∅"},
+-		{"⊤", "~int", "~int"},
++		{"𝓤", "~int", "~int"},
+ 		{"int", "~int", "int"},
+ 		{"int", "string", "∅"},
+ 		{"int ∪ string", "~string", "string"},
+ 		{"~int ∪ string", "~string ∪ int", "int ∪ string"},
+ 		{"~int ∪ string ∪ ∅", "~string ∪ int", "int ∪ string"},
+-		{"~int ∪ string ∪ ⊤", "~string ∪ int", "int ∪ ~string"},
++		{"~int ∪ string ∪ 𝓤", "~string ∪ int", "int ∪ ~string"},
+ 	} {
+ 		xl := maketl(test.xl)
+ 		yl := maketl(test.yl)
+@@ -178,10 +178,10 @@ func TestTermlistEqual(t *testing.T) {
+ 		want   bool
+ 	}{
+ 		{"∅", "∅", true},
+-		{"∅", "⊤", false},
+-		{"⊤", "⊤", true},
+-		{"⊤ ∪ int", "⊤", true},
+-		{"⊤ ∪ int", "string ∪ ⊤", true},
++		{"∅", "𝓤", false},
++		{"𝓤", "𝓤", true},
++		{"𝓤 ∪ int", "𝓤", true},
++		{"𝓤 ∪ int", "string ∪ 𝓤", true},
+ 		{"int ∪ ~string", "string ∪ int", false},
+ 		{"int ∪ ~string ∪ ∅", "string ∪ int ∪ ~string", true},
+ 	} {
+@@ -200,14 +200,14 @@ func TestTermlistIncludes(t *testing.T) {
+ 		want    bool
+ 	}{
+ 		{"∅", "int", false},
+-		{"⊤", "int", true},
++		{"𝓤", "int", true},
+ 		{"~int", "int", true},
+ 		{"int", "string", false},
+ 		{"~int", "string", false},
+ 		{"int ∪ string", "string", true},
+ 		{"~int ∪ string", "int", true},
+ 		{"~int ∪ string ∪ ∅", "string", true},
+-		{"~string ∪ ∅ ∪ ⊤", "int", true},
++		{"~string ∪ ∅ ∪ 𝓤", "int", true},
+ 	} {
+ 		xl := maketl(test.xl)
+ 		yl := testTerm(test.typ).typ
+@@ -224,12 +224,12 @@ func TestTermlistSupersetOf(t *testing.T) {
+ 		want    bool
+ 	}{
+ 		{"∅", "∅", true},
+-		{"∅", "⊤", false},
++		{"∅", "𝓤", false},
+ 		{"∅", "int", false},
+-		{"⊤", "∅", true},
+-		{"⊤", "⊤", true},
+-		{"⊤", "int", true},
+-		{"⊤", "~int", true},
++		{"𝓤", "∅", true},
++		{"𝓤", "𝓤", true},
++		{"𝓤", "int", true},
++		{"𝓤", "~int", true},
+ 		{"~int", "int", true},
+ 		{"~int", "~int", true},
+ 		{"int", "~int", false},
+@@ -239,7 +239,7 @@ func TestTermlistSupersetOf(t *testing.T) {
+ 		{"int ∪ string", "~string", false},
+ 		{"~int ∪ string", "int", true},
+ 		{"~int ∪ string ∪ ∅", "string", true},
+-		{"~string ∪ ∅ ∪ ⊤", "int", true},
++		{"~string ∪ ∅ ∪ 𝓤", "int", true},
+ 	} {
+ 		xl := maketl(test.xl)
+ 		y := testTerm(test.typ)
+@@ -256,16 +256,16 @@ func TestTermlistSubsetOf(t *testing.T) {
+ 		want   bool
+ 	}{
+ 		{"∅", "∅", true},
+-		{"∅", "⊤", true},
+-		{"⊤", "∅", false},
+-		{"⊤", "⊤", true},
++		{"∅", "𝓤", true},
++		{"𝓤", "∅", false},
++		{"𝓤", "𝓤", true},
+ 		{"int", "int ∪ string", true},
+ 		{"~int", "int ∪ string", false},
+ 		{"~int", "string ∪ string ∪ int ∪ ~int", true},
+ 		{"int ∪ string", "string", false},
+ 		{"int ∪ string", "string ∪ int", true},
+ 		{"int ∪ ~string", "string ∪ int", false},
+-		{"int ∪ ~string", "string ∪ int ∪ ⊤", true},
++		{"int ∪ ~string", "string ∪ int ∪ 𝓤", true},
+ 		{"int ∪ ~string", "string ∪ int ∪ ∅ ∪ string", false},
+ 	} {
+ 		xl := maketl(test.xl)
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 307dae3aed..f0fce50263 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -25,17 +25,17 @@ type _TypeSet struct {
+ // IsEmpty reports whether type set s is the empty set.
+ func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
+ 
+-// IsTop reports whether type set s is the set of all types (corresponding to the empty interface).
+-func (s *_TypeSet) IsTop() bool { return !s.comparable && len(s.methods) == 0 && s.terms.isTop() }
++// IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
++func (s *_TypeSet) IsAll() bool { return !s.comparable && len(s.methods) == 0 && s.terms.isAll() }
+ 
+ // TODO(gri) IsMethodSet is not a great name for this predicate. Find a better one.
+ 
+ // IsMethodSet reports whether the type set s is described by a single set of methods.
+-func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isTop() }
++func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
+ 
+ // IsComparable reports whether each type in the set is comparable.
+ func (s *_TypeSet) IsComparable() bool {
+-	if s.terms.isTop() {
++	if s.terms.isAll() {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+@@ -67,8 +67,8 @@ func (s *_TypeSet) String() string {
+ 	switch {
+ 	case s.IsEmpty():
+ 		return "∅"
+-	case s.IsTop():
+-		return "⊤"
++	case s.IsAll():
++		return "𝓤"
+ 	}
+ 
+ 	hasMethods := len(s.methods) > 0
+@@ -103,7 +103,7 @@ func (s *_TypeSet) String() string {
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-func (s *_TypeSet) hasTerms() bool              { return !s.terms.isTop() }
++func (s *_TypeSet) hasTerms() bool              { return !s.terms.isAll() }
+ func (s *_TypeSet) structuralType() Type        { return s.terms.structuralType() }
+ func (s *_TypeSet) includes(t Type) bool        { return s.terms.includes(t) }
+ func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
+@@ -156,7 +156,7 @@ func (s *_TypeSet) underIs(f func(Type) bool) bool {
+ }
+ 
+ // topTypeSet may be used as type set for the empty interface.
+-var topTypeSet = _TypeSet{terms: topTermlist}
++var topTypeSet = _TypeSet{terms: allTermlist}
+ 
+ // computeInterfaceTypeSet may be called with check == nil.
+ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_TypeSet {
+@@ -199,7 +199,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 	// have valid interfaces. Mark the interface as complete to avoid
+ 	// infinite recursion if the validType check occurs later for some
+ 	// reason.
+-	ityp.tset = &_TypeSet{terms: topTermlist} // TODO(gri) is this sufficient?
++	ityp.tset = &_TypeSet{terms: allTermlist} // TODO(gri) is this sufficient?
+ 
+ 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
+ 	// of a method I.m's Func Object of an interface I is the same as that of
+@@ -256,7 +256,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 	}
+ 
+ 	// collect embedded elements
+-	var allTerms = topTermlist
++	var allTerms = allTermlist
+ 	for i, typ := range ityp.embeddeds {
+ 		// The embedding position is nil for imported interfaces
+ 		// and also for interface copies after substitution (but
+diff --git a/src/go/types/typeterm.go b/src/go/types/typeterm.go
+index dbd055a580..171e8f21b6 100644
+--- a/src/go/types/typeterm.go
++++ b/src/go/types/typeterm.go
+@@ -4,13 +4,10 @@
+ 
+ package types
+ 
+-// TODO(gri) use a different symbol instead of ⊤ for the set of all types
+-//           (⊤ is hard to distinguish from T in some fonts)
+-
+ // A term describes elementary type sets:
+ //
+ //   ∅:  (*term)(nil)     == ∅                      // set of no types (empty set)
+-//   ⊤:  &term{}          == ⊤                      // set of all types
++//   𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
+ //   T:  &term{false, T}  == {T}                    // set of type T
+ //  ~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
+ //
+@@ -24,7 +21,7 @@ func (x *term) String() string {
+ 	case x == nil:
+ 		return "∅"
+ 	case x.typ == nil:
+-		return "⊤"
++		return "𝓤"
+ 	case x.tilde:
+ 		return "~" + x.typ.String()
+ 	default:
+@@ -41,7 +38,7 @@ func (x *term) equal(y *term) bool {
+ 	case x.typ == nil || y.typ == nil:
+ 		return x.typ == y.typ
+ 	}
+-	// ∅ ⊂ x, y ⊂ ⊤
++	// ∅ ⊂ x, y ⊂ 𝓤
+ 
+ 	return x.tilde == y.tilde && Identical(x.typ, y.typ)
+ }
+@@ -57,11 +54,11 @@ func (x *term) union(y *term) (_, _ *term) {
+ 	case y == nil:
+ 		return x, nil // x ∪ ∅ == x
+ 	case x.typ == nil:
+-		return x, nil // ⊤ ∪ y == ⊤
++		return x, nil // 𝓤 ∪ y == 𝓤
+ 	case y.typ == nil:
+-		return y, nil // x ∪ ⊤ == ⊤
++		return y, nil // x ∪ 𝓤 == 𝓤
+ 	}
+-	// ∅ ⊂ x, y ⊂ ⊤
++	// ∅ ⊂ x, y ⊂ 𝓤
+ 
+ 	if x.disjoint(y) {
+ 		return x, y // x ∪ y == (x, y) if x ∩ y == ∅
+@@ -85,11 +82,11 @@ func (x *term) intersect(y *term) *term {
+ 	case x == nil || y == nil:
+ 		return nil // ∅ ∩ y == ∅ and ∩ ∅ == ∅
+ 	case x.typ == nil:
+-		return y // ⊤ ∩ y == y
++		return y // 𝓤 ∩ y == y
+ 	case y.typ == nil:
+-		return x // x ∩ ⊤ == x
++		return x // x ∩ 𝓤 == x
+ 	}
+-	// ∅ ⊂ x, y ⊂ ⊤
++	// ∅ ⊂ x, y ⊂ 𝓤
+ 
+ 	if x.disjoint(y) {
+ 		return nil // x ∩ y == ∅ if x ∩ y == ∅
+@@ -113,9 +110,9 @@ func (x *term) includes(t Type) bool {
+ 	case x == nil:
+ 		return false // t ∈ ∅ == false
+ 	case x.typ == nil:
+-		return true // t ∈ ⊤ == true
++		return true // t ∈ 𝓤 == true
+ 	}
+-	// ∅ ⊂ x ⊂ ⊤
++	// ∅ ⊂ x ⊂ 𝓤
+ 
+ 	u := t
+ 	if x.tilde {
+@@ -133,11 +130,11 @@ func (x *term) subsetOf(y *term) bool {
+ 	case y == nil:
+ 		return false // x ⊆ ∅ == false since x != ∅
+ 	case y.typ == nil:
+-		return true // x ⊆ ⊤ == true
++		return true // x ⊆ 𝓤 == true
+ 	case x.typ == nil:
+-		return false // ⊤ ⊆ y == false since y != ⊤
++		return false // 𝓤 ⊆ y == false since y != 𝓤
+ 	}
+-	// ∅ ⊂ x, y ⊂ ⊤
++	// ∅ ⊂ x, y ⊂ 𝓤
+ 
+ 	if x.disjoint(y) {
+ 		return false // x ⊆ y == false if x ∩ y == ∅
+diff --git a/src/go/types/typeterm_test.go b/src/go/types/typeterm_test.go
+index 391ff3e05f..26a679dd09 100644
+--- a/src/go/types/typeterm_test.go
++++ b/src/go/types/typeterm_test.go
+@@ -11,7 +11,7 @@ import (
+ 
+ var testTerms = map[string]*term{
+ 	"∅":       nil,
+-	"⊤":       {},
++	"𝓤":       {},
+ 	"int":     {false, Typ[Int]},
+ 	"~int":    {true, Typ[Int]},
+ 	"string":  {false, Typ[String]},
+@@ -46,14 +46,14 @@ func testTerm(name string) *term {
+ func TestTermEqual(t *testing.T) {
+ 	for _, test := range []string{
+ 		"∅ ∅ T",
+-		"⊤ ⊤ T",
++		"𝓤 𝓤 T",
+ 		"int int T",
+ 		"~int ~int T",
+-		"∅ ⊤ F",
++		"∅ 𝓤 F",
+ 		"∅ int F",
+ 		"∅ ~int F",
+-		"⊤ int F",
+-		"⊤ ~int F",
++		"𝓤 int F",
++		"𝓤 ~int F",
+ 		"int ~int F",
+ 	} {
+ 		args := split(test, 3)
+@@ -74,12 +74,12 @@ func TestTermEqual(t *testing.T) {
+ func TestTermUnion(t *testing.T) {
+ 	for _, test := range []string{
+ 		"∅ ∅ ∅ ∅",
+-		"∅ ⊤ ⊤ ∅",
++		"∅ 𝓤 𝓤 ∅",
+ 		"∅ int int ∅",
+ 		"∅ ~int ~int ∅",
+-		"⊤ ⊤ ⊤ ∅",
+-		"⊤ int ⊤ ∅",
+-		"⊤ ~int ⊤ ∅",
++		"𝓤 𝓤 𝓤 ∅",
++		"𝓤 int 𝓤 ∅",
++		"𝓤 ~int 𝓤 ∅",
+ 		"int int int ∅",
+ 		"int ~int ~int ∅",
+ 		"int string int string",
+@@ -87,11 +87,11 @@ func TestTermUnion(t *testing.T) {
+ 		"~int ~string ~int ~string",
+ 
+ 		// union is symmetric, but the result order isn't - repeat symmetric cases explictly
+-		"⊤ ∅ ⊤ ∅",
++		"𝓤 ∅ 𝓤 ∅",
+ 		"int ∅ int ∅",
+ 		"~int ∅ ~int ∅",
+-		"int ⊤ ⊤ ∅",
+-		"~int ⊤ ⊤ ∅",
++		"int 𝓤 𝓤 ∅",
++		"~int 𝓤 𝓤 ∅",
+ 		"~int int ~int ∅",
+ 		"string int string int",
+ 		"~string int ~string int",
+@@ -111,12 +111,12 @@ func TestTermUnion(t *testing.T) {
+ func TestTermIntersection(t *testing.T) {
+ 	for _, test := range []string{
+ 		"∅ ∅ ∅",
+-		"∅ ⊤ ∅",
++		"∅ 𝓤 ∅",
+ 		"∅ int ∅",
+ 		"∅ ~int ∅",
+-		"⊤ ⊤ ⊤",
+-		"⊤ int int",
+-		"⊤ ~int ~int",
++		"𝓤 𝓤 𝓤",
++		"𝓤 int int",
++		"𝓤 ~int ~int",
+ 		"int int int",
+ 		"int ~int int",
+ 		"int string ∅",
+@@ -141,7 +141,7 @@ func TestTermIntersection(t *testing.T) {
+ func TestTermIncludes(t *testing.T) {
+ 	for _, test := range []string{
+ 		"∅ int F",
+-		"⊤ int T",
++		"𝓤 int T",
+ 		"int int T",
+ 		"~int int T",
+ 		"string int F",
+@@ -160,14 +160,14 @@ func TestTermIncludes(t *testing.T) {
+ func TestTermSubsetOf(t *testing.T) {
+ 	for _, test := range []string{
+ 		"∅ ∅ T",
+-		"⊤ ⊤ T",
++		"𝓤 𝓤 T",
+ 		"int int T",
+ 		"~int ~int T",
+-		"∅ ⊤ T",
++		"∅ 𝓤 T",
+ 		"∅ int T",
+ 		"∅ ~int T",
+-		"⊤ int F",
+-		"⊤ ~int F",
++		"𝓤 int F",
++		"𝓤 ~int F",
+ 		"int ~int T",
+ 	} {
+ 		args := split(test, 3)
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index b8bf0a0db1..a2acfb5f69 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -100,7 +100,7 @@ func defPredeclaredTypes() {
+ 	{
+ 		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
+ 		obj.setColor(black)
+-		ityp := &Interface{obj, nil, nil, nil, true, &_TypeSet{true, nil, topTermlist}}
++		ityp := &Interface{obj, nil, nil, nil, true, &_TypeSet{true, nil, allTermlist}}
+ 		NewNamed(obj, ityp, nil)
+ 		def(obj)
+ 	}

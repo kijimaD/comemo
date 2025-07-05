@@ -11,6 +11,20 @@ Date:   Thu Sep 28 10:56:05 2017 +0530
     Change-Id: Ia884a22fd587860c7a6148103b2b474425e45284
     Reviewed-on: https://go-review.googlesource.com/66790
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/articles/wiki/index.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/wiki/index.html b/doc/articles/wiki/index.html
+index e5054f7bf7..3e0d532d7f 100644
+--- a/doc/articles/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -179,7 +179,7 @@ You can compile and run the program like this:
+ <pre>
+ $ go build wiki.go
+ $ ./wiki
+-This is a sample page.
++This is a sample Page.
+ </pre>
+ 
+ <p>

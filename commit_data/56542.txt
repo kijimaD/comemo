@@ -16,9 +16,68 @@ Date:   Fri Mar 17 13:30:22 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file_posix.go      | 2 --
  src/os/file_unix.go       | 2 ++
  src/runtime/os_plan9.go   | 5 -----
  src/runtime/os_windows.go | 5 -----
  4 files changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index e06ab1b7b9..5692657753 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -12,8 +12,6 @@ import (
+ 	"time"
+ )
+ 
+-func sigpipe() // implemented in package runtime
+-
+ // Close closes the File, rendering it unusable for I/O.
+ // On files that support SetDeadline, any pending I/O operations will
+ // be canceled and return immediately with an ErrClosed error.
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index f0e5d3cd4f..f7f942f5f5 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -210,6 +210,8 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
+ 	return f
+ }
+ 
++func sigpipe() // implemented in package runtime
++
+ // epipecheck raises SIGPIPE if we get an EPIPE error on standard
+ // output or standard error. See the SIGPIPE docs in os/signal, and
+ // issue 11845.
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 367a5c1cd1..f4ff4d5f45 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -69,11 +69,6 @@ func errstr() string
+ 
+ type _Plink uintptr
+ 
+-//go:linkname os_sigpipe os.sigpipe
+-func os_sigpipe() {
+-	throw("too many writes on closed pipe")
+-}
+-
+ func sigpanic() {
+ 	gp := getg()
+ 	if !canpanic() {
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index fb008f873a..f5c2429a05 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -200,11 +200,6 @@ type mOS struct {
+ 	preemptExtLock uint32
+ }
+ 
+-//go:linkname os_sigpipe os.sigpipe
+-func os_sigpipe() {
+-	throw("too many writes on closed pipe")
+-}
+-
+ // Stubs so tests can link correctly. These should never be called.
+ func open(name *byte, mode, perm int32) int32 {
+ 	throw("unimplemented")

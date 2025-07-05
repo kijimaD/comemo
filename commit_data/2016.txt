@@ -11,8 +11,297 @@ Date:   Tue Apr 14 20:31:31 2009 -0700
     DELTA=212  (199 added, 4 deleted, 9 changed)
     OCL=27467
     CL=27471
-
+---
  src/lib/http/Makefile  |  14 +++-
  src/lib/http/fs.go     | 184 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/lib/http/server.go |  24 ++++---
  3 files changed, 209 insertions(+), 13 deletions(-)
+
+diff --git a/src/lib/http/Makefile b/src/lib/http/Makefile
+index 24553ec34b..99da90816f 100644
+--- a/src/lib/http/Makefile
++++ b/src/lib/http/Makefile
+@@ -32,8 +32,8 @@ coverage: packages
+ 	$(AS) $*.s
+ 
+ O1=\
+-	url.$O\
+ 	status.$O\
++	url.$O\
+ 
+ O2=\
+ 	request.$O\
+@@ -41,10 +41,13 @@ O2=\
+ O3=\
+ 	server.$O\
+ 
+-http.a: a1 a2 a3
++O4=\
++	fs.$O\
++
++http.a: a1 a2 a3 a4
+ 
+ a1:	$(O1)
+-	$(AR) grc http.a url.$O status.$O
++	$(AR) grc http.a status.$O url.$O
+ 	rm -f $(O1)
+ 
+ a2:	$(O2)
+@@ -55,12 +58,17 @@ a3:	$(O3)
+ 	$(AR) grc http.a server.$O
+ 	rm -f $(O3)
+ 
++a4:	$(O4)
++	$(AR) grc http.a fs.$O
++	rm -f $(O4)
++
+ newpkg: clean
+ 	$(AR) grc http.a
+ 
+ $(O1): newpkg
+ $(O2): a1
+ $(O3): a2
++$(O4): a3
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg/http.a
+diff --git a/src/lib/http/fs.go b/src/lib/http/fs.go
+new file mode 100644
+index 0000000000..d93859dd25
+--- /dev/null
++++ b/src/lib/http/fs.go
+@@ -0,0 +1,184 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// HTTP file system request handler
++
++package http
++
++import (
++	"fmt";
++	"http";
++	"io";
++	"os";
++	"path";
++	"strings";
++	"utf8";
++)
++
++// TODO this should be in a mime package somewhere
++var contentByExt = map[string] string {
++	".css":	"text/css",
++	".gif":	"image/gif",
++	".html":	"text/html; charset=utf-8",
++	".jpg":	"image/jpeg",
++	".js":	"application/x-javascript",
++	".png":	"image/png",
++}
++
++// Heuristic: b is text if it is valid UTF-8 and doesn't
++// contain any unprintable ASCII or Unicode characters.
++func isText(b []byte) bool {
++	for len(b) > 0 && utf8.FullRune(b) {
++		rune, size := utf8.DecodeRune(b);
++		if size == 1 && rune == utf8.RuneError {
++			// decoding error
++			return false;
++		}
++		if 0x80 <= rune && rune <= 0x9F {
++			return false;
++		}
++		if rune < ' ' {
++			switch rune {
++			case '\n', '\r', '\t':
++				// okay
++			default:
++				// binary garbage
++				return false;
++			}
++		}
++		b = b[size:len(b)];
++	}
++	return true;
++}
++
++func dirList(c *Conn, f *os.File) {
++	fmt.Fprintf(c, "<pre>\n");
++	for {
++		dirs, err := f.Readdir(100);
++		if err != nil || len(dirs) == 0 {
++			break
++		}
++		for i, d := range dirs {
++			name := d.Name;
++			if d.IsDirectory() {
++				name += "/"
++			}
++			// TODO htmlescape
++			fmt.Fprintf(c, "<a href=\"%s\">%s</a>\n", name, name);
++		}
++	}
++	fmt.Fprintf(c, "</pre>\n");
++}
++
++
++func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
++	const indexPage = "/index.html";
++
++	// redirect to strip off any index.html
++	n := len(name) - len(indexPage);
++	if n >= 0 && name[n:len(name)] == indexPage {
++		http.Redirect(c, name[0:n+1]);
++		return;
++	}
++
++	f, err := os.Open(name, os.O_RDONLY, 0);
++	if err != nil {
++		// TODO expose actual error?
++		NotFound(c, r);
++		return;
++	}
++	defer f.Close();
++
++	d, err1 := f.Stat();
++	if err1 != nil {
++		// TODO expose actual error?
++		NotFound(c, r);
++		return;
++	}
++
++	if redirect {
++		// redirect to canonical path: / at end of directory url
++		// r.Url.Path always begins with /
++		url := r.Url.Path;
++		if d.IsDirectory() {
++			if url[len(url)-1] != '/' {
++				http.Redirect(c, url + "/");
++				return;
++			}
++		} else {
++			if url[len(url)-1] == '/' {
++				http.Redirect(c, url[0:len(url)-1]);
++				return;
++			}
++		}
++	}
++
++	// use contents of index.html for directory, if present
++	if d.IsDirectory() {
++		index := name + indexPage;
++		ff, err := os.Open(index, os.O_RDONLY, 0);
++		if err == nil {
++			defer ff.Close();
++			dd, err := ff.Stat();
++			if err == nil {
++				name = index;
++				d = dd;
++				f = ff;
++			}
++		}
++	}
++
++	if d.IsDirectory() {
++		dirList(c, f);
++		return;
++	}
++
++	// serve file
++	// use extension to find content type.
++	ext := path.Ext(name);
++	if ctype, ok := contentByExt[ext]; ok {
++		c.SetHeader("Content-Type", ctype);
++	} else {
++		// read first chunk to decide between utf-8 text and binary
++		var buf [1024]byte;
++		n, err := io.Readn(f, buf);
++		b := buf[0:n];
++		if isText(b) {
++			c.SetHeader("Content-Type", "text-plain; charset=utf-8");
++		} else {
++			c.SetHeader("Content-Type", "application/octet-stream");	// generic binary
++		}
++		c.Write(b);
++	}
++	io.Copy(f, c);
++}
++
++// ServeFile replies to the request with the contents of the named file or directory.
++func ServeFile(c *Conn, r *Request, name string) {
++	serveFileInternal(c, r, name, false);
++}
++
++type fileHandler struct {
++	root string;
++	prefix string;
++}
++
++// FileServer returns a handler that serves HTTP requests
++// with the contents of the file system rooted at root.
++// It strips prefix from the incoming requests before
++// looking up the file name in the file system.
++func FileServer(root, prefix string) Handler {
++	return &fileHandler{root, prefix};
++}
++
++func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
++	path := r.Url.Path;
++	if !strings.HasPrefix(path, f.prefix) {
++		NotFound(c, r);
++		return;
++	}
++	path = path[len(f.prefix):len(path)];
++	serveFileInternal(c, r, f.root + "/" + path, true);
++}
++
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index fa29e9bc1c..a8aef01f0e 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -253,8 +253,8 @@ func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
+ 
+ // Helper handlers
+ 
+-// 404 not found
+-func notFound(c *Conn, req *Request) {
++// NotFound replies to the request with an HTTP 404 not found error.
++func NotFound(c *Conn, req *Request) {
+ 	c.SetHeader("Content-Type", "text/plain; charset=utf-8");
+ 	c.WriteHeader(StatusNotFound);
+ 	io.WriteString(c, "404 page not found\n");
+@@ -263,22 +263,26 @@ func notFound(c *Conn, req *Request) {
+ // NotFoundHandler returns a simple request handler
+ // that replies to each request with a ``404 page not found'' reply.
+ func NotFoundHandler() Handler {
+-	return HandlerFunc(notFound)
++	return HandlerFunc(NotFound)
+ }
+ 
+-// Redirect to a fixed URL
+-type redirectHandler struct {
+-	to string;
+-}
+-func (h *redirectHandler) ServeHTTP(c *Conn, req *Request) {
+-	c.SetHeader("Location", h.to);
++// Redirect replies to the request with a redirect to url,
++// which may be a path relative to the request path.
++func Redirect(c *Conn, url string) {
++	c.SetHeader("Location", url);
+ 	c.WriteHeader(StatusMovedPermanently);
+ }
+ 
++// Redirect to a fixed URL
++type redirectHandler string
++func (url redirectHandler) ServeHTTP(c *Conn, req *Request) {
++	Redirect(c, url);
++}
++
+ // RedirectHandler returns a request handler that redirects
+ // each request it receives to the given url.
+ func RedirectHandler(url string) Handler {
+-	return &redirectHandler{url};
++	return redirectHandler(url);
+ }
+ 
+ // ServeMux is an HTTP request multiplexer.

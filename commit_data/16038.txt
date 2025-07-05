@@ -8,6 +8,19 @@ Date:   Mon Apr 1 14:21:15 2013 -0700
     R=gloang-dev, r
     CC=golang-dev
     https://golang.org/cl/8217043
-
+---
  src/cmd/cc/cc.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 866aeb0abb..c8de941208 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -800,6 +800,7 @@ int	machcap(Node*);
+ #pragma	varargck	type	"Q"	int32
+ #pragma	varargck	type	"O"	int
+ #pragma	varargck	type	"O"	uint
++#pragma	varargck	type	"S"	ushort*
+ #pragma	varargck	type	"T"	Type*
+ #pragma	varargck	type	"U"	char*
+ #pragma	varargck	type	"|"	int

@@ -10,7 +10,35 @@ Date:   Tue May 12 14:24:26 2015 -0700
     Change-Id: I88e640e4621c7a8cc266433f34a7b4be71543ec9
     Reviewed-on: https://go-review.googlesource.com/9966
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/syscall/mkall.sh          | 2 +-
  src/syscall/mksysnum_linux.pl | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index 739663ed9c..85fab4ff3e 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -179,7 +179,7 @@ linux_amd64)
+ linux_arm)
+ 	mkerrors="$mkerrors"
+ 	mksyscall="./mksyscall.pl -l32 -arm"
+-	mksysnum="curl -s 'http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/arch/arm/include/uapi/asm/unistd.h' | ./mksysnum_linux.pl"
++	mksysnum="curl -s 'http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/arch/arm/include/uapi/asm/unistd.h' | ./mksysnum_linux.pl -"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ linux_arm64)
+diff --git a/src/syscall/mksysnum_linux.pl b/src/syscall/mksysnum_linux.pl
+index 7a8add8bab..b6fbcb599b 100755
+--- a/src/syscall/mksysnum_linux.pl
++++ b/src/syscall/mksysnum_linux.pl
+@@ -28,7 +28,8 @@ sub fmt {
+ }
+ 
+ my $prev;
+-while(<>){
++open(GCC, "gcc -E -dD $ARGV[0] |") || die "can't run gcc";
++while(<GCC>){
+ 	if(/^#define __NR_syscalls\s+/) {
+ 		# ignore redefinitions of __NR_syscalls
+ 	}

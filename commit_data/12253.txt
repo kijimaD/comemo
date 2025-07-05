@@ -12,7 +12,47 @@ Date:   Mon Feb 27 21:35:26 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5703043
-
+---
  src/pkg/exp/gotype/doc.go    | 2 ++
  src/pkg/exp/gotype/gotype.go | 8 ++++++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/doc.go b/src/pkg/exp/gotype/doc.go
+index 1aa0faa751..1168086771 100644
+--- a/src/pkg/exp/gotype/doc.go
++++ b/src/pkg/exp/gotype/doc.go
+@@ -34,6 +34,8 @@ The flags are:
+ 		Verbose mode.
+ 
+ Debugging flags:
++	-comments
++		Parse comments (ignored if -ast not set).
+ 	-ast
+ 		Print AST (disables concurrent parsing).
+ 	-trace
+diff --git a/src/pkg/exp/gotype/gotype.go b/src/pkg/exp/gotype/gotype.go
+index a2a9361866..30eaf22fca 100644
+--- a/src/pkg/exp/gotype/gotype.go
++++ b/src/pkg/exp/gotype/gotype.go
+@@ -27,8 +27,9 @@ var (
+ 	allErrors = flag.Bool("e", false, "print all (including spurious) errors")
+ 
+ 	// debugging support
+-	printTrace = flag.Bool("trace", false, "print parse trace")
+-	printAST   = flag.Bool("ast", false, "print AST")
++	parseComments = flag.Bool("comments", false, "parse comments (ignored if -ast not set)")
++	printTrace    = flag.Bool("trace", false, "print parse trace")
++	printAST      = flag.Bool("ast", false, "print AST")
+ )
+ 
+ var exitCode = 0
+@@ -73,6 +74,9 @@ func parse(fset *token.FileSet, filename string, src []byte) *ast.File {
+ 	if *allErrors {
+ 		mode |= parser.SpuriousErrors
+ 	}
++	if *parseComments && *printAST {
++		mode |= parser.ParseComments
++	}
+ 	if *printTrace {
+ 		mode |= parser.Trace
+ 	}

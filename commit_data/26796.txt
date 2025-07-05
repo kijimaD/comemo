@@ -18,8 +18,89 @@ Date:   Sat Jan 2 20:50:57 2016 -0500
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rand/rand.go                         |  3 ++-
  src/crypto/rand/rand_openbsd.go                 | 28 +++++++++++++++++++++++++
  src/internal/syscall/unix/getentropy_openbsd.go | 25 ++++++++++++++++++++++
  3 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index ee32fa0bd6..5e48fc9cd9 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -11,8 +11,9 @@ import "io"
+ // Reader is a global, shared instance of a cryptographically
+ // strong pseudo-random generator.
+ //
+-// On Unix-like systems, Reader reads from /dev/urandom.
+ // On Linux, Reader uses getrandom(2) if available, /dev/urandom otherwise.
++// On OpenBSD, Reader uses getentropy(2).
++// On other Unix-like systems, Reader reads from /dev/urandom.
+ // On Windows systems, Reader uses the CryptGenRandom API.
+ var Reader io.Reader
+ 
+diff --git a/src/crypto/rand/rand_openbsd.go b/src/crypto/rand/rand_openbsd.go
+new file mode 100644
+index 0000000000..405c091060
+--- /dev/null
++++ b/src/crypto/rand/rand_openbsd.go
+@@ -0,0 +1,28 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++import (
++	"internal/syscall/unix"
++)
++
++func init() {
++	altGetRandom = getRandomOpenBSD
++}
++
++func getRandomOpenBSD(p []byte) (ok bool) {
++	// getentropy(2) returns a maximum of 256 bytes per call
++	for i := 0; i < len(p); i += 256 {
++		end := i + 256
++		if len(p) < end {
++			end = len(p)
++		}
++		err := unix.GetEntropy(p[i:end])
++		if err != nil {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/internal/syscall/unix/getentropy_openbsd.go b/src/internal/syscall/unix/getentropy_openbsd.go
+new file mode 100644
+index 0000000000..fd3dabc3f2
+--- /dev/null
++++ b/src/internal/syscall/unix/getentropy_openbsd.go
+@@ -0,0 +1,25 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++// getentropy(2)'s syscall number, from /usr/src/sys/kern/syscalls.master
++const entropyTrap uintptr = 7
++
++// GetEntropy calls the OpenBSD getentropy system call.
++func GetEntropy(p []byte) error {
++	_, _, errno := syscall.Syscall(entropyTrap,
++		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(len(p)),
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}

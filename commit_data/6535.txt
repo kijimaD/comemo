@@ -8,7 +8,35 @@ Date:   Fri Oct 15 15:29:25 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2515042
-
+---
  src/cmd/8l/obj.c | 2 +-
  src/cmd/ld/pe.c  | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 2a5b8ca479..722857e9be 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -268,7 +268,7 @@ main(int argc, char *argv[])
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+ 		if(INITRND == -1)
+-			INITRND = PEALIGN;
++			INITRND = 4096;
+ 		break;
+ 	case 11:
+ 		tlsoffset = 0;
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 6faa515d30..0821af2689 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -109,7 +109,8 @@ dope(void)
+ 	datsect = new_section(".data", segdata.filelen, 0);
+ 	datsect->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
+ 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
+-	INITDAT = PEBASE+datsect->VirtualAddress;
++	if(INITDAT != PEBASE+datsect->VirtualAddress)
++		diag("INITDAT = %#llux, want %#llux", (vlong)INITDAT, (vlong)(PEBASE+datsect->VirtualAddress));
+ 
+ 	bsssect = new_section(".bss", segdata.len - segdata.filelen, 1);
+ 	bsssect->Characteristics = IMAGE_SCN_CNT_UNINITIALIZED_DATA|

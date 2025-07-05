@@ -7,7 +7,214 @@ Date:   Wed Mar 18 12:13:42 2009 -0700
     R=r
     OCL=26480
     CL=26480
-
+---
  src/cmd/gc/swt.c   | 60 ++--------------------------------
  test/typeswitch.go | 96 +++++++++++++++++++++++++++---------------------------
  2 files changed, 51 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 82639a53e9..9d9977e78f 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -44,49 +44,15 @@ sw0(Node *c, Type *place, int arg)
+ 			return T;
+ 		}
+ 		walktype(c, Erv);
+-		return T;
++		break;
+ 	case OTYPESW:
+ 		if(arg != Stype)
+ 			yyerror("inappropriate type case");
+-		return T;
+-	case OAS:
+ 		break;
+-	}
+-	walktype(c->left, Elv);
+-
+-	r = c->right;
+-	if(c == N)
+-		return T;
+-
+-	switch(r->op) {
+-	default:
+-		goto bad;
+-	case ORECV:
+-		// <-chan
+-		walktype(r->left, Erv);
+-		if(!istype(r->left->type, TCHAN))
+-			goto bad;
+-		break;
+-	case OINDEX:
+-		// map[e]
+-		walktype(r->left, Erv);
+-		if(!istype(r->left->type, TMAP))
+-			goto bad;
+-		break;
+-	case ODOTTYPE:
+-		// interface.(type)
+-		walktype(r->left, Erv);
+-		if(!istype(r->left->type, TINTER))
+-			goto bad;
++	case OAS:
++		yyerror("inappropriate assignment in a case statement");
+ 		break;
+ 	}
+-	c->type = types[TBOOL];
+-	if(arg != Strue)
+-		goto bad;
+-	return T;
+-
+-bad:
+-	yyerror("inappropriate assignment in a case statement");
+ 	return T;
+ }
+ 
+@@ -311,26 +277,6 @@ loop:
+ 		t->ninit = N;
+ 	}
+ 
+-	if(t->left->op == OAS) {
+-		if(bool == N) {
+-			bool = nod(OXXX, N, N);
+-			tempname(bool, types[TBOOL]);
+-		}
+-		t->left->left = nod(OLIST, t->left->left, bool);
+-		cas = list(cas, t->left);		// v,bool = rhs
+-
+-		a = nod(OIF, N, N);
+-		a->nbody = t->right;			// then goto l
+-		a->ntest = bool;
+-		if(arg != Strue)
+-			a->ntest = nod(ONOT, bool, N);
+-		cas = list(cas, a);			// if bool goto l
+-
+-		t = listnext(&save);
+-		goto loop;
+-	}
+-
+-
+ 	switch(arg) {
+ 	default:
+ 		// not bool const
+diff --git a/test/typeswitch.go b/test/typeswitch.go
+index a28806d5ca..ed899e0989 100644
+--- a/test/typeswitch.go
++++ b/test/typeswitch.go
+@@ -62,30 +62,30 @@ func f(i int) interface{} {
+ 
+ func main() {
+ 	// type guard style
+-	for i := Bool; i < Last; i++ {
+-		switch v := f(i); true {
+-		case x := v.(bool):
+-			assert(x == true && i == Bool, "switch 1 bool");
+-		case x := v.(int):
+-			assert(x == 7 && i == Int, "switch 1 int");
+-		case x := v.(float):
+-			assert(x == 7.4 && i == Float, "switch 1 float");
+-		case x := v.(string):
+-			assert(x == "hello" && i == String, "switch 1 string");
+-		case x := v.(S):
+-			assert(x.a == 1234 && i == Struct, "switch 1 struct");
+-		case x := v.(chan int):
+-			assert(x == c && i == Chan, "switch 1 chan");
+-		case x := v.([]int):
+-			assert(x[3] == 3 && i == Array, "switch 1 array");
+-		case x := v.(map[string]int):
+-			assert(x == m && i == Map, "switch 1 map");
+-		case x := v.(func(i int) interface{}):
+-			assert(x == f && i == Func, "switch 1 fun");
+-		default:
+-			assert(false, "switch 1 unknown");
+-		}
+-	}
++//	for i := Bool; i < Last; i++ {
++//		switch v := f(i); true {
++//		case x := v.(bool):
++//			assert(x == true && i == Bool, "switch 1 bool");
++//		case x := v.(int):
++//			assert(x == 7 && i == Int, "switch 1 int");
++//		case x := v.(float):
++//			assert(x == 7.4 && i == Float, "switch 1 float");
++//		case x := v.(string):
++//			assert(x == "hello" && i == String, "switch 1 string");
++//		case x := v.(S):
++//			assert(x.a == 1234 && i == Struct, "switch 1 struct");
++//		case x := v.(chan int):
++//			assert(x == c && i == Chan, "switch 1 chan");
++//		case x := v.([]int):
++//			assert(x[3] == 3 && i == Array, "switch 1 array");
++//		case x := v.(map[string]int):
++//			assert(x == m && i == Map, "switch 1 map");
++//		case x := v.(func(i int) interface{}):
++//			assert(x == f && i == Func, "switch 1 fun");
++//		default:
++//			assert(false, "switch 1 unknown");
++//		}
++//	}
+ 
+ 	// type switch style
+ 	for i := Bool; i < Last; i++ {
+@@ -135,24 +135,24 @@ func main() {
+ 		assert(false, "switch 4 unknown");
+ 	}
+ 
+-	switch true {
+-	case x := f(Int).(float):
+-		assert(false, "switch 5 type guard wrong type");
+-	case x := f(Int).(int):
+-		assert(x == 7, "switch 5 type guard");
+-	default:
+-		assert(false, "switch 5 unknown");
+-	}
++//	switch true {
++//	case x := f(Int).(float):
++//		assert(false, "switch 5 type guard wrong type");
++//	case x := f(Int).(int):
++//		assert(x == 7, "switch 5 type guard");
++//	default:
++//		assert(false, "switch 5 unknown");
++//	}
+ 
+ 	m["7"] = 7;
+-	switch true {
+-	case x := m["6"]:
+-		assert(false, "switch 6 map reference wrong");
+-	case x := m["7"]:
+-		assert(x == 7, "switch 6 map reference");
+-	default:
+-		assert(false, "switch 6 unknown");
+-	}
++//	switch true {
++//	case x := m["6"]:
++//		assert(false, "switch 6 map reference wrong");
++//	case x := m["7"]:
++//		assert(x == 7, "switch 6 map reference");
++//	default:
++//		assert(false, "switch 6 unknown");
++//	}
+ 
+ 	go func() { <-c; c <- 77; } ();
+ 	// guarantee the channel is ready
+@@ -161,13 +161,13 @@ func main() {
+ 		sys.Gosched();
+ 	}
+ 	dummyc := make(chan int);
+-	switch true {
+-	case x := <-dummyc:
+-		assert(false, "switch 7 chan wrong");
+-	case x := <-c:
+-		assert(x == 77, "switch 7 chan");
+-	default:
+-		assert(false, "switch 7 unknown");
+-	}
++//	switch true {
++//	case x := <-dummyc:
++//		assert(false, "switch 7 chan wrong");
++//	case x := <-c:
++//		assert(x == 77, "switch 7 chan");
++//	default:
++//		assert(false, "switch 7 unknown");
++//	}
+ 
+ }

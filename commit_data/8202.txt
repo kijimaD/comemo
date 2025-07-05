@@ -7,6 +7,22 @@ Date:   Sat Apr 23 10:03:51 2011 -0400
     TBR=r
     CC=golang-dev
     https://golang.org/cl/4449051
-
+---
  src/pkg/runtime/proc_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index 5caaf69cd6..a15b2d80a4 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -20,6 +20,10 @@ func perpetuumMobile() {
+ }
+ 
+ func TestStopTheWorldDeadlock(t *testing.T) {
++	if testing.Short() {
++		t.Logf("skipping during short test")
++		return
++	}
+ 	runtime.GOMAXPROCS(3)
+ 	compl := make(chan int, 1)
+ 	go func() {

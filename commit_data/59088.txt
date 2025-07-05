@@ -28,7 +28,45 @@ Date:   Fri Jan 12 18:13:14 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/reflect/type.go      |  6 +++++-
  src/reflect/type_test.go | 14 ++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index a1a618ad59..9a2e41f0b2 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2920,5 +2920,9 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
+ 
+ // TypeFor returns the [Type] that represents the type argument T.
+ func TypeFor[T any]() Type {
+-	return TypeOf((*T)(nil)).Elem()
++	var v T
++	if t := TypeOf(v); t != nil {
++		return t // optimize for T being a non-interface kind
++	}
++	return TypeOf((*T)(nil)).Elem() // only for an interface kind
+ }
+diff --git a/src/reflect/type_test.go b/src/reflect/type_test.go
+index 4ba4536d66..200ecf6eca 100644
+--- a/src/reflect/type_test.go
++++ b/src/reflect/type_test.go
+@@ -103,3 +103,17 @@ func TestIsRegularMemory(t *testing.T) {
+ 		})
+ 	}
+ }
++
++var sinkType reflect.Type
++
++func BenchmarkTypeForString(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkType = reflect.TypeFor[string]()
++	}
++}
++
++func BenchmarkTypeForError(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkType = reflect.TypeFor[error]()
++	}
++}

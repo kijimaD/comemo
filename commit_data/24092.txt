@@ -13,6 +13,20 @@ Date:   Tue Jul 7 17:51:20 2015 -0400
     Change-Id: I74a9114cdd8ebafcc9d2a6f40bf500db19c6e825
     Reviewed-on: https://go-review.googlesource.com/11964
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/pkg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 51567b5afb..f949d4e9f2 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -355,7 +355,7 @@ func isDir(path string) bool {
+ // it searched along the way, to help prepare a useful error message should path turn
+ // out not to exist.
+ func vendoredImportPath(parent *Package, path string) (found string, searched []string) {
+-	if parent == nil || !go15VendorExperiment {
++	if parent == nil || parent.Root == "" || !go15VendorExperiment {
+ 		return path, nil
+ 	}
+ 	dir := filepath.Clean(parent.Dir)

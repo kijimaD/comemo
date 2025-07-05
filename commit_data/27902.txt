@@ -13,7 +13,178 @@ Date:   Tue Apr 19 11:27:52 2016 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/types/return.go          |  9 +++--
  src/go/types/testdata/stmt1.src | 76 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 83 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/return.go b/src/go/types/return.go
+index 6628985214..0c1447f89b 100644
+--- a/src/go/types/return.go
++++ b/src/go/types/return.go
+@@ -83,8 +83,13 @@ func (check *Checker) isTerminating(s ast.Stmt, label string) bool {
+ }
+ 
+ func (check *Checker) isTerminatingList(list []ast.Stmt, label string) bool {
+-	n := len(list)
+-	return n > 0 && check.isTerminating(list[n-1], label)
++	// trailing empty statements are permitted - skip them
++	for i := len(list) - 1; i >= 0; i-- {
++		if _, ok := list[i].(*ast.EmptyStmt); !ok {
++			return check.isTerminating(list[i], label)
++		}
++	}
++	return false // all statements are empty
+ }
+ 
+ func (check *Checker) isTerminatingSwitch(body *ast.BlockStmt, label string) bool {
+diff --git a/src/go/types/testdata/stmt1.src b/src/go/types/testdata/stmt1.src
+index a2955e6fd0..24ad6ebdf1 100644
+--- a/src/go/types/testdata/stmt1.src
++++ b/src/go/types/testdata/stmt1.src
+@@ -20,17 +20,41 @@ func _(x, y int) (z int) {
+ 	}
+ }
+ 
++func _(x, y int) (z int) {
++	{
++		return; ; ; // trailing empty statements are ok
++	}
++	; ; ;
++}
++
+ func _(x, y int) (z int) {
+ 	{
+ 	}
+ } /* ERROR "missing return" */
+ 
++func _(x, y int) (z int) {
++	{
++		; ; ;
++	}
++	; ; ;
++} /* ERROR "missing return" */
++
+ // if statements
+ func _(x, y int) (z int) {
+ 	if x < y { return }
+ 	return 1
+ }
+ 
++func _(x, y int) (z int) {
++	if x < y { return; ; ; ; }
++	return 1
++}
++
++func _(x, y int) (z int) {
++	if x < y { return }
++	return 1; ;
++}
++
+ func _(x, y int) (z int) {
+ 	if x < y { return }
+ } /* ERROR "missing return" */
+@@ -60,11 +84,18 @@ func _(x, y int) (z int) {
+ 	}
+ }
+ 
++func _(x, y int) (z int) {
++	for {
++		return; ; ; ;
++	}
++}
++
+ func _(x, y int) (z int) {
+ 	for {
+ 		return
+ 		break
+ 	}
++	; ; ;
+ } /* ERROR "missing return" */
+ 
+ func _(x, y int) (z int) {
+@@ -74,6 +105,14 @@ func _(x, y int) (z int) {
+ 	}
+ }
+ 
++func _(x, y int) (z int) {
++	for {
++		for { break }
++		return ; ;
++	}
++	;
++}
++
+ func _(x, y int) (z int) {
+ L:	for {
+ 		for { break L }
+@@ -89,6 +128,13 @@ func _(x, y int) (z int) {
+ 	}
+ }
+ 
++func _(x, y int) (z int) {
++	switch x {
++	case 0: return;
++	default: return; ; ;
++	}
++}
++
+ func _(x, y int) (z int) {
+ 	switch x {
+ 	case 0: return
+@@ -113,6 +159,18 @@ func _(x, y int) (z int) {
+ 	}
+ }
+ 
++func _(x, y int) (z int) {
++	switch x {
++	case 0: return
++	default:
++		switch y {
++		case 0: break
++		}
++		panic(0); ; ;
++	}
++	;
++}
++
+ func _(x, y int) (z int) {
+ L:	switch x {
+ 	case 0: return
+@@ -129,6 +187,11 @@ func _(ch chan int) (z int) {
+ 	select {}
+ } // nice!
+ 
++func _(ch chan int) (z int) {
++	select {}
++	; ;
++}
++
+ func _(ch chan int) (z int) {
+ 	select {
+ 	default: break
+@@ -153,6 +216,18 @@ func _(ch chan int) (z int) {
+ 	}
+ }
+ 
++func _(ch chan int) (z int) {
++	select {
++	case <-ch: return; ; ;
++	default:
++		for i := 0; i < 10; i++ {
++			break
++		}
++		return; ; ;
++	}
++	; ; ;
++}
++
+ func _(ch chan int) (z int) {
+ L:	select {
+ 	case <-ch: return
+@@ -162,4 +237,5 @@ L:	select {
+ 		}
+ 		return
+ 	}
++	; ; ;
+ } /* ERROR "missing return" */

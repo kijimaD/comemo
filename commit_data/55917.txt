@@ -31,8 +31,63 @@ Date:   Thu Mar 23 13:52:36 2023 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/extern.go   | 9 +++++++++
  src/runtime/panic.go    | 3 +++
  src/runtime/runtime1.go | 2 ++
  3 files changed, 14 insertions(+)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 55dfbff7c4..8b92108c70 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -55,6 +55,15 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	cgocheck mode can be enabled using GOEXPERIMENT (which
+ 	requires a rebuild), see https://pkg.go.dev/internal/goexperiment for details.
+ 
++	dontfreezetheworld: by default, the start of a fatal panic or throw
++	"freezes the world", stopping all goroutines, which makes it possible
++	to traceback all goroutines (running goroutines cannot be traced), and
++	keeps their state close to the point of panic. Setting
++	dontfreezetheworld=1 disables freeze, allowing goroutines to continue
++	executing during panic processing. This can be useful when debugging
++	the runtime scheduler, as freezetheworld perturbs scheduler state and
++	thus may hide problems.
++
+ 	efence: setting efence=1 causes the allocator to run in a mode
+ 	where each object is allocated on a unique page and addresses are
+ 	never recycled.
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index ccc4643711..89070d226c 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1242,6 +1242,9 @@ func startpanic_m() bool {
+ 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
+ 			schedtrace(true)
+ 		}
++		if debug.dontfreezetheworld > 0 {
++			return true
++		}
+ 		freezetheworld()
+ 		return true
+ 	case 1:
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 991b92a0af..02237685c7 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -309,6 +309,7 @@ type dbgVar struct {
+ var debug struct {
+ 	cgocheck           int32
+ 	clobberfree        int32
++	dontfreezetheworld int32
+ 	efence             int32
+ 	gccheckmark        int32
+ 	gcpacertrace       int32
+@@ -340,6 +341,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "allocfreetrace", value: &debug.allocfreetrace},
+ 	{name: "clobberfree", value: &debug.clobberfree},
+ 	{name: "cgocheck", value: &debug.cgocheck},
++	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
+ 	{name: "efence", value: &debug.efence},
+ 	{name: "gccheckmark", value: &debug.gccheckmark},
+ 	{name: "gcpacertrace", value: &debug.gcpacertrace},

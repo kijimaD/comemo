@@ -8,7 +8,7 @@ Date:   Thu Oct 22 10:59:27 2009 -0700
     R=r
     CC=go-dev
     http://go/go-review/1014004
-
+---
  src/clean.bash                    |    2 +-
  src/cmd/clean.bash                |    2 +-
  src/cmd/cov/Makefile              |    2 +-
@@ -27,3 +27,2300 @@ Date:   Thu Oct 22 10:59:27 2009 -0700
  src/run.bash                      |    6 -
  test/bench/fannkuch.go            |   35 +-
  17 files changed, 1997 insertions(+), 70 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 31cbdab86d..8acdb87224 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -5,7 +5,7 @@
+ 
+ rm -rf $GOROOT/pkg/${GOOS}_$GOARCH
+ rm -f $GOROOT/lib/*.a
+-for i in lib9 libbio libcgo libmach libregexp cmd pkg \
++for i in lib9 libbio libcgo libmach cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
+ 	../usr/r/rpc \
+ 	../test/bench
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index f686328105..4bcc7ecd0c 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack db nm acid cgo cov ebnflint godefs godoc gofmt prof gotest
++for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt prof gotest
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index a264fdc21c..2d849c6b8a 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -17,7 +17,7 @@ HFILES=\
+ 	tree.h\
+ 
+ $(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lregexp9 -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
+ 
+ clean:
+ 	rm -f *.$O $(TARG)
+diff --git a/src/cmd/cov/main.c b/src/cmd/cov/main.c
+index 294bb149f2..899d8163f4 100644
+--- a/src/cmd/cov/main.c
++++ b/src/cmd/cov/main.c
+@@ -11,7 +11,6 @@
+ #include <libc.h>
+ #include <bio.h>
+ #include <ctype.h>
+-#include <regexp9.h>
+ #include "tree.h"
+ 
+ #include <ureg_amd64.h>
+@@ -21,7 +20,7 @@ typedef struct Ureg Ureg;
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: cov [-lsv] [-g regexp] [-m minlines] [6.out args...]\n");
++	fprint(2, "usage: cov [-lsv] [-g substring] [-m minlines] [6.out args...]\n");
+ 	fprint(2, "-g specifies pattern of interesting functions or files\n");
+ 	exits("usage");
+ }
+@@ -41,7 +40,7 @@ int doshowsrc;
+ Map *mem;
+ Map *text;
+ Fhdr fhdr;
+-Reprog *grep;
++char *substring;
+ char cwd[1000];
+ int ncwd;
+ int minlines = -1000;
+@@ -329,7 +328,7 @@ cover(void)
+ 			lastfn = s.name;
+ 			buf[0] = 0;
+ 			fileline(buf, sizeof buf, s.value);
+-			if(grep == nil || regexec9(grep, buf, nil, 0) > 0 || regexec9(grep, s.name, nil, 0) > 0)
++			if(substring == nil || strstr(buf, substring) || strstr(s.name, substring))
+ 				lastpc = s.value;
+ 		}
+ 	}
+@@ -426,13 +425,10 @@ void
+ main(int argc, char **argv)
+ {
+ 	int n;
+-	char *regexp;
+ 
+ 	ARGBEGIN{
+ 	case 'g':
+-		regexp = EARGF(usage());
+-		if((grep = regcomp9(regexp)) == nil)
+-			sysfatal("bad regexp %s", regexp);
++		substring = EARGF(usage());
+ 		break;
+ 	case 'l':
+ 		longnames++;
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 25bcd38e79..3068096332 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -18,7 +18,7 @@ bash mkenam
+ make enam.o
+ cd ..
+ 
+-for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack db nm acid cov godefs prof gotest
++for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack nm cov godefs prof gotest
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+diff --git a/src/lib9/fmt/fltfmt.c b/src/lib9/fmt/fltfmt.c
+index 628011d6e1..9f3f3edab4 100644
+--- a/src/lib9/fmt/fltfmt.c
++++ b/src/lib9/fmt/fltfmt.c
+@@ -17,19 +17,10 @@
+  */
+ 
+ /* Copyright (c) 2002-2006 Lucent Technologies; see LICENSE */
+-#include <stdio.h>
+-#include <math.h>
+-#include <float.h>
+-#include <string.h>
+-#include <stdlib.h>
++#include <u.h>
+ #include <errno.h>
+-#include <stdarg.h>
+-#include <fmt.h>
+-#include <assert.h>
+-#include "plan9.h"
+-#include "fmt.h"
++#include <libc.h>
+ #include "fmtdef.h"
+-#include "nan.h"
+ 
+ enum
+ {
+@@ -61,6 +52,8 @@ static double pows10[] =
+ 	1e140, 1e141, 1e142, 1e143, 1e144, 1e145, 1e146, 1e147, 1e148, 1e149,
+ 	1e150, 1e151, 1e152, 1e153, 1e154, 1e155, 1e156, 1e157, 1e158, 1e159,
+ };
++
++#undef	pow10
+ #define	npows10 ((int)(sizeof(pows10)/sizeof(pows10[0])))
+ #define	pow10(x)  fmtpow10(x)
+ 
+diff --git a/src/lib9/fmt/fmtnull.c b/src/lib9/fmt/fmtnull.c
+index dbbf02f9d4..b8caacbf7b 100644
+--- a/src/lib9/fmt/fmtnull.c
++++ b/src/lib9/fmt/fmtnull.c
+@@ -16,11 +16,8 @@
+  * THE MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+ 
+-/* Copyright (c) 2004 Google Inc.; see LICENSE */
+-#include <stdarg.h>
+-#include <string.h>
+-#include "plan9.h"
+-#include "fmt.h"
++#include <u.h>
++#include <libc.h>
+ #include "fmtdef.h"
+ 
+ /*
+diff --git a/src/lib9/fmt/strtod.c b/src/lib9/fmt/strtod.c
+new file mode 100644
+index 0000000000..6bb56c112f
+--- /dev/null
++++ b/src/lib9/fmt/strtod.c
+@@ -0,0 +1,532 @@
++/*
++ * The authors of this software are Rob Pike and Ken Thompson,
++ * with contributions from Mike Burrows and Sean Dorward.
++ *
++ *     Copyright (c) 2002-2006 by Lucent Technologies.
++ *     Portions Copyright (c) 2004 Google Inc.
++ * 
++ * Permission to use, copy, modify, and distribute this software for any
++ * purpose without fee is hereby granted, provided that this entire notice
++ * is included in all copies of any software which is or includes a copy
++ * or modification of this software and in all copies of the supporting
++ * documentation for such software.
++ * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
++ * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES 
++ * NOR GOOGLE INC MAKE ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING 
++ * THE MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
++ */
++
++#include <u.h>
++#include <errno.h>
++#include <libc.h>
++#include "fmtdef.h"
++
++static ulong
++umuldiv(ulong a, ulong b, ulong c)
++{
++	double d;
++
++	d = ((double)a * (double)b) / (double)c;
++	if(d >= 4294967295.)
++		d = 4294967295.;
++	return (ulong)d;
++}
++
++/*
++ * This routine will convert to arbitrary precision
++ * floating point entirely in multi-precision fixed.
++ * The answer is the closest floating point number to
++ * the given decimal number. Exactly half way are
++ * rounded ala ieee rules.
++ * Method is to scale input decimal between .500 and .999...
++ * with external power of 2, then binary search for the
++ * closest mantissa to this decimal number.
++ * Nmant is is the required precision. (53 for ieee dp)
++ * Nbits is the max number of bits/word. (must be <= 28)
++ * Prec is calculated - the number of words of fixed mantissa.
++ */
++enum
++{
++	Nbits	= 28,				/* bits safely represented in a ulong */
++	Nmant	= 53,				/* bits of precision required */
++	Prec	= (Nmant+Nbits+1)/Nbits,	/* words of Nbits each to represent mantissa */
++	Sigbit	= 1<<(Prec*Nbits-Nmant),	/* first significant bit of Prec-th word */
++	Ndig	= 1500,
++	One	= (ulong)(1<<Nbits),
++	Half	= (ulong)(One>>1),
++	Maxe	= 310,
++
++	Fsign	= 1<<0,		/* found - */
++	Fesign	= 1<<1,		/* found e- */
++	Fdpoint	= 1<<2,		/* found . */
++
++	S0	= 0,		/* _		_S0	+S1	#S2	.S3 */
++	S1,			/* _+		#S2	.S3 */
++	S2,			/* _+#		#S2	.S4	eS5 */
++	S3,			/* _+.		#S4 */
++	S4,			/* _+#.#	#S4	eS5 */
++	S5,			/* _+#.#e	+S6	#S7 */
++	S6,			/* _+#.#e+	#S7 */
++	S7			/* _+#.#e+#	#S7 */
++};
++
++static	int	xcmp(char*, char*);
++static	int	fpcmp(char*, ulong*);
++static	void	frnorm(ulong*);
++static	void	divascii(char*, int*, int*, int*);
++static	void	mulascii(char*, int*, int*, int*);
++
++typedef	struct	Tab	Tab;
++struct	Tab
++{
++	int	bp;
++	int	siz;
++	char*	cmp;
++};
++
++double
++fmtstrtod(const char *as, char **aas)
++{
++	int na, ex, dp, bp, c, i, flag, state;
++	ulong low[Prec], hig[Prec], mid[Prec];
++	double d;
++	char *s, a[Ndig];
++
++	flag = 0;	/* Fsign, Fesign, Fdpoint */
++	na = 0;		/* number of digits of a[] */
++	dp = 0;		/* na of decimal point */
++	ex = 0;		/* exonent */
++
++	state = S0;
++	for(s=(char*)as;; s++) {
++		c = *s;
++		if(c >= '0' && c <= '9') {
++			switch(state) {
++			case S0:
++			case S1:
++			case S2:
++				state = S2;
++				break;
++			case S3:
++			case S4:
++				state = S4;
++				break;
++
++			case S5:
++			case S6:
++			case S7:
++				state = S7;
++				ex = ex*10 + (c-'0');
++				continue;
++			}
++			if(na == 0 && c == '0') {
++				dp--;
++				continue;
++			}
++			if(na < Ndig-50)
++				a[na++] = c;
++			continue;
++		}
++		switch(c) {
++		case '\t':
++		case '\n':
++		case '\v':
++		case '\f':
++		case '\r':
++		case ' ':
++			if(state == S0)
++				continue;
++			break;
++		case '-':
++			if(state == S0)
++				flag |= Fsign;
++			else
++				flag |= Fesign;
++		case '+':
++			if(state == S0)
++				state = S1;
++			else
++			if(state == S5)
++				state = S6;
++			else
++				break;	/* syntax */
++			continue;
++		case '.':
++			flag |= Fdpoint;
++			dp = na;
++			if(state == S0 || state == S1) {
++				state = S3;
++				continue;
++			}
++			if(state == S2) {
++				state = S4;
++				continue;
++			}
++			break;
++		case 'e':
++		case 'E':
++			if(state == S2 || state == S4) {
++				state = S5;
++				continue;
++			}
++			break;
++		}
++		break;
++	}
++
++	/*
++	 * clean up return char-pointer
++	 */
++	switch(state) {
++	case S0:
++		if(xcmp(s, "nan") == 0) {
++			if(aas != nil)
++				*aas = s+3;
++			goto retnan;
++		}
++	case S1:
++		if(xcmp(s, "infinity") == 0) {
++			if(aas != nil)
++				*aas = s+8;
++			goto retinf;
++		}
++		if(xcmp(s, "inf") == 0) {
++			if(aas != nil)
++				*aas = s+3;
++			goto retinf;
++		}
++	case S3:
++		if(aas != nil)
++			*aas = (char*)as;
++		goto ret0;	/* no digits found */
++	case S6:
++		s--;		/* back over +- */
++	case S5:
++		s--;		/* back over e */
++		break;
++	}
++	if(aas != nil)
++		*aas = s;
++
++	if(flag & Fdpoint)
++	while(na > 0 && a[na-1] == '0')
++		na--;
++	if(na == 0)
++		goto ret0;	/* zero */
++	a[na] = 0;
++	if(!(flag & Fdpoint))
++		dp = na;
++	if(flag & Fesign)
++		ex = -ex;
++	dp += ex;
++	if(dp < -Maxe){
++		errno = ERANGE;
++		goto ret0;	/* underflow by exp */
++	} else
++	if(dp > +Maxe)
++		goto retinf;	/* overflow by exp */
++
++	/*
++	 * normalize the decimal ascii number
++	 * to range .[5-9][0-9]* e0
++	 */
++	bp = 0;		/* binary exponent */
++	while(dp > 0)
++		divascii(a, &na, &dp, &bp);
++	while(dp < 0 || a[0] < '5')
++		mulascii(a, &na, &dp, &bp);
++
++	/* close approx by naive conversion */
++	mid[0] = 0;
++	mid[1] = 1;
++	for(i=0; (c=a[i]) != '\0'; i++) {
++		mid[0] = mid[0]*10 + (c-'0');
++		mid[1] = mid[1]*10;
++		if(i >= 8)
++			break;
++	}
++	low[0] = umuldiv(mid[0], One, mid[1]);
++	hig[0] = umuldiv(mid[0]+1, One, mid[1]);
++	for(i=1; i<Prec; i++) {
++		low[i] = 0;
++		hig[i] = One-1;
++	}
++
++	/* binary search for closest mantissa */
++	for(;;) {
++		/* mid = (hig + low) / 2 */
++		c = 0;
++		for(i=0; i<Prec; i++) {
++			mid[i] = hig[i] + low[i];
++			if(c)
++				mid[i] += One;
++			c = mid[i] & 1;
++			mid[i] >>= 1;
++		}
++		frnorm(mid);
++
++		/* compare */
++		c = fpcmp(a, mid);
++		if(c > 0) {
++			c = 1;
++			for(i=0; i<Prec; i++)
++				if(low[i] != mid[i]) {
++					c = 0;
++					low[i] = mid[i];
++				}
++			if(c)
++				break;	/* between mid and hig */
++			continue;
++		}
++		if(c < 0) {
++			for(i=0; i<Prec; i++)
++				hig[i] = mid[i];
++			continue;
++		}
++
++		/* only hard part is if even/odd roundings wants to go up */
++		c = mid[Prec-1] & (Sigbit-1);
++		if(c == Sigbit/2 && (mid[Prec-1]&Sigbit) == 0)
++			mid[Prec-1] -= c;
++		break;	/* exactly mid */
++	}
++
++	/* normal rounding applies */
++	c = mid[Prec-1] & (Sigbit-1);
++	mid[Prec-1] -= c;
++	if(c >= Sigbit/2) {
++		mid[Prec-1] += Sigbit;
++		frnorm(mid);
++	}
++	goto out;
++
++ret0:
++	return 0;
++
++retnan:
++	return __NaN();
++
++retinf:
++	/*
++	 * Unix strtod requires these.  Plan 9 would return Inf(0) or Inf(-1). */
++	errno = ERANGE;
++	if(flag & Fsign)
++		return -HUGE_VAL;
++	return HUGE_VAL;
++
++out:
++	d = 0;
++	for(i=0; i<Prec; i++)
++		d = d*One + mid[i];
++	if(flag & Fsign)
++		d = -d;
++	d = ldexp(d, bp - Prec*Nbits);
++	if(d == 0){	/* underflow */
++		errno = ERANGE;
++	}
++	return d;
++}
++
++static void
++frnorm(ulong *f)
++{
++	int i, c;
++
++	c = 0;
++	for(i=Prec-1; i>0; i--) {
++		f[i] += c;
++		c = f[i] >> Nbits;
++		f[i] &= One-1;
++	}
++	f[0] += c;
++}
++
++static int
++fpcmp(char *a, ulong* f)
++{
++	ulong tf[Prec];
++	int i, d, c;
++
++	for(i=0; i<Prec; i++)
++		tf[i] = f[i];
++
++	for(;;) {
++		/* tf *= 10 */
++		for(i=0; i<Prec; i++)
++			tf[i] = tf[i]*10;
++		frnorm(tf);
++		d = (tf[0] >> Nbits) + '0';
++		tf[0] &= One-1;
++
++		/* compare next digit */
++		c = *a;
++		if(c == 0) {
++			if('0' < d)
++				return -1;
++			if(tf[0] != 0)
++				goto cont;
++			for(i=1; i<Prec; i++)
++				if(tf[i] != 0)
++					goto cont;
++			return 0;
++		}
++		if(c > d)
++			return +1;
++		if(c < d)
++			return -1;
++		a++;
++	cont:;
++	}
++}
++
++static void
++divby(char *a, int *na, int b)
++{
++	int n, c;
++	char *p;
++
++	p = a;
++	n = 0;
++	while(n>>b == 0) {
++		c = *a++;
++		if(c == 0) {
++			while(n) {
++				c = n*10;
++				if(c>>b)
++					break;
++				n = c;
++			}
++			goto xx;
++		}
++		n = n*10 + c-'0';
++		(*na)--;
++	}
++	for(;;) {
++		c = n>>b;
++		n -= c<<b;
++		*p++ = c + '0';
++		c = *a++;
++		if(c == 0)
++			break;
++		n = n*10 + c-'0';
++	}
++	(*na)++;
++xx:
++	while(n) {
++		n = n*10;
++		c = n>>b;
++		n -= c<<b;
++		*p++ = c + '0';
++		(*na)++;
++	}
++	*p = 0;
++}
++
++static	Tab	tab1[] =
++{
++	 1,  0, "",
++	 3,  1, "7",
++	 6,  2, "63",
++	 9,  3, "511",
++	13,  4, "8191",
++	16,  5, "65535",
++	19,  6, "524287",
++	23,  7, "8388607",
++	26,  8, "67108863",
++	27,  9, "134217727",
++};
++
++static void
++divascii(char *a, int *na, int *dp, int *bp)
++{
++	int b, d;
++	Tab *t;
++
++	d = *dp;
++	if(d >= (int)(nelem(tab1)))
++		d = (int)(nelem(tab1))-1;
++	t = tab1 + d;
++	b = t->bp;
++	if(memcmp(a, t->cmp, t->siz) > 0)
++		d--;
++	*dp -= d;
++	*bp += b;
++	divby(a, na, b);
++}
++
++static void
++mulby(char *a, char *p, char *q, int b)
++{
++	int n, c;
++
++	n = 0;
++	*p = 0;
++	for(;;) {
++		q--;
++		if(q < a)
++			break;
++		c = *q - '0';
++		c = (c<<b) + n;
++		n = c/10;
++		c -= n*10;
++		p--;
++		*p = c + '0';
++	}
++	while(n) {
++		c = n;
++		n = c/10;
++		c -= n*10;
++		p--;
++		*p = c + '0';
++	}
++}
++
++static	Tab	tab2[] =
++{
++	 1,  1, "",				/* dp = 0-0 */
++	 3,  3, "125",
++	 6,  5, "15625",
++	 9,  7, "1953125",
++	13, 10, "1220703125",
++	16, 12, "152587890625",
++	19, 14, "19073486328125",
++	23, 17, "11920928955078125",
++	26, 19, "1490116119384765625",
++	27, 19, "7450580596923828125",		/* dp 8-9 */
++};
++
++static void
++mulascii(char *a, int *na, int *dp, int *bp)
++{
++	char *p;
++	int d, b;
++	Tab *t;
++
++	d = -*dp;
++	if(d >= (int)(nelem(tab2)))
++		d = (int)(nelem(tab2))-1;
++	t = tab2 + d;
++	b = t->bp;
++	if(memcmp(a, t->cmp, t->siz) < 0)
++		d--;
++	p = a + *na;
++	*bp -= b;
++	*dp += d;
++	*na += d;
++	mulby(a, p+d, p, b);
++}
++
++static int
++xcmp(char *a, char *b)
++{
++	int c1, c2;
++
++	while((c1 = *b++) != '\0') {
++		c2 = *a++;
++		if(isupper(c2))
++			c2 = tolower(c2);
++		if(c1 != c2)
++			return 1;
++	}
++	return 0;
++}
+diff --git a/src/lib9/nan.c b/src/lib9/nan.c
+index e799432199..fa2277f72f 100644
+--- a/src/lib9/nan.c
++++ b/src/lib9/nan.c
+@@ -25,7 +25,7 @@ THE SOFTWARE.
+ 
+ #include <u.h>
+ #include <libc.h>
+-#include "fmt/nan.h"
++#include "fmt/fmtdef.h"
+ 
+ double
+ NaN(void)
+diff --git a/src/lib9/time.c b/src/lib9/time.c
+new file mode 100644
+index 0000000000..ab1b905608
+--- /dev/null
++++ b/src/lib9/time.c
+@@ -0,0 +1,60 @@
++/*
++Plan 9 from User Space src/lib9/time.c
++http://code.swtch.com/plan9port/src/tip/src/lib9/time.c
++
++Copyright 2001-2007 Russ Cox.  All Rights Reserved.
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in
++all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++THE SOFTWARE.
++*/
++#include <u.h>
++#include <sys/time.h>
++#include <time.h>
++#include <sys/resource.h>
++#define NOPLAN9DEFINES
++#include <libc.h>
++
++long
++p9times(long *t)
++{
++	struct rusage ru, cru;
++
++	if(getrusage(0, &ru) < 0 || getrusage(-1, &cru) < 0)
++		return -1;
++
++	t[0] = ru.ru_utime.tv_sec*1000 + ru.ru_utime.tv_usec/1000;
++	t[1] = ru.ru_stime.tv_sec*1000 + ru.ru_stime.tv_usec/1000;
++	t[2] = cru.ru_utime.tv_sec*1000 + cru.ru_utime.tv_usec/1000;
++	t[3] = cru.ru_stime.tv_sec*1000 + cru.ru_stime.tv_usec/1000;
++
++	/* BUG */
++	return t[0]+t[1]+t[2]+t[3];
++}
++
++double
++p9cputime(void)
++{
++	long t[4];
++	double d;
++
++	if(p9times(t) < 0)
++		return -1.0;
++
++	d = (double)t[0]+(double)t[1]+(double)t[2]+(double)t[3];
++	return d/1000.0;
++}
+diff --git a/src/lib9/utf/runetypebody-5.0.0.c b/src/lib9/utf/runetypebody-5.0.0.c
+new file mode 100644
+index 0000000000..67a645d606
+--- /dev/null
++++ b/src/lib9/utf/runetypebody-5.0.0.c
+@@ -0,0 +1,1361 @@
++/* generated automatically by mkrunetype.c from UnicodeData-5.0.0.txt */
++
++static Rune __isspacer[] = {
++	0x0009, 0x000d,
++	0x0020, 0x0020,
++	0x0085, 0x0085,
++	0x00a0, 0x00a0,
++	0x1680, 0x1680,
++	0x180e, 0x180e,
++	0x2000, 0x200a,
++	0x2028, 0x2029,
++	0x202f, 0x202f,
++	0x205f, 0x205f,
++	0x3000, 0x3000,
++	0xfeff, 0xfeff,
++};
++
++int
++isspacerune(Rune c)
++{
++	Rune *p;
++
++	p = rbsearch(c, __isspacer, nelem(__isspacer)/2, 2);
++	if(p && c >= p[0] && c <= p[1])
++		return 1;
++	return 0;
++}
++
++static Rune __isdigitr[] = {
++	0x0030, 0x0039,
++	0x0660, 0x0669,
++	0x06f0, 0x06f9,
++	0x07c0, 0x07c9,
++	0x0966, 0x096f,
++	0x09e6, 0x09ef,
++	0x0a66, 0x0a6f,
++	0x0ae6, 0x0aef,
++	0x0b66, 0x0b6f,
++	0x0be6, 0x0bef,
++	0x0c66, 0x0c6f,
++	0x0ce6, 0x0cef,
++	0x0d66, 0x0d6f,
++	0x0e50, 0x0e59,
++	0x0ed0, 0x0ed9,
++	0x0f20, 0x0f29,
++	0x1040, 0x1049,
++	0x17e0, 0x17e9,
++	0x1810, 0x1819,
++	0x1946, 0x194f,
++	0x19d0, 0x19d9,
++	0x1b50, 0x1b59,
++	0xff10, 0xff19,
++	0x104a0, 0x104a9,
++	0x1d7ce, 0x1d7ff,
++};
++
++int
++isdigitrune(Rune c)
++{
++	Rune *p;
++
++	p = rbsearch(c, __isdigitr, nelem(__isdigitr)/2, 2);
++	if(p && c >= p[0] && c <= p[1])
++		return 1;
++	return 0;
++}
++
++static Rune __isalphar[] = {
++	0x0041, 0x005a,
++	0x0061, 0x007a,
++	0x00c0, 0x00d6,
++	0x00d8, 0x00f6,
++	0x00f8, 0x02c1,
++	0x02c6, 0x02d1,
++	0x02e0, 0x02e4,
++	0x037a, 0x037d,
++	0x0388, 0x038a,
++	0x038e, 0x03a1,
++	0x03a3, 0x03ce,
++	0x03d0, 0x03f5,
++	0x03f7, 0x0481,
++	0x048a, 0x0513,
++	0x0531, 0x0556,
++	0x0561, 0x0587,
++	0x05d0, 0x05ea,
++	0x05f0, 0x05f2,
++	0x0621, 0x063a,
++	0x0640, 0x064a,
++	0x066e, 0x066f,
++	0x0671, 0x06d3,
++	0x06e5, 0x06e6,
++	0x06ee, 0x06ef,
++	0x06fa, 0x06fc,
++	0x0712, 0x072f,
++	0x074d, 0x076d,
++	0x0780, 0x07a5,
++	0x07ca, 0x07ea,
++	0x07f4, 0x07f5,
++	0x0904, 0x0939,
++	0x0958, 0x0961,
++	0x097b, 0x097f,
++	0x0985, 0x098c,
++	0x098f, 0x0990,
++	0x0993, 0x09a8,
++	0x09aa, 0x09b0,
++	0x09b6, 0x09b9,
++	0x09dc, 0x09dd,
++	0x09df, 0x09e1,
++	0x09f0, 0x09f1,
++	0x0a05, 0x0a0a,
++	0x0a0f, 0x0a10,
++	0x0a13, 0x0a28,
++	0x0a2a, 0x0a30,
++	0x0a32, 0x0a33,
++	0x0a35, 0x0a36,
++	0x0a38, 0x0a39,
++	0x0a59, 0x0a5c,
++	0x0a72, 0x0a74,
++	0x0a85, 0x0a8d,
++	0x0a8f, 0x0a91,
++	0x0a93, 0x0aa8,
++	0x0aaa, 0x0ab0,
++	0x0ab2, 0x0ab3,
++	0x0ab5, 0x0ab9,
++	0x0ae0, 0x0ae1,
++	0x0b05, 0x0b0c,
++	0x0b0f, 0x0b10,
++	0x0b13, 0x0b28,
++	0x0b2a, 0x0b30,
++	0x0b32, 0x0b33,
++	0x0b35, 0x0b39,
++	0x0b5c, 0x0b5d,
++	0x0b5f, 0x0b61,
++	0x0b85, 0x0b8a,
++	0x0b8e, 0x0b90,
++	0x0b92, 0x0b95,
++	0x0b99, 0x0b9a,
++	0x0b9e, 0x0b9f,
++	0x0ba3, 0x0ba4,
++	0x0ba8, 0x0baa,
++	0x0bae, 0x0bb9,
++	0x0c05, 0x0c0c,
++	0x0c0e, 0x0c10,
++	0x0c12, 0x0c28,
++	0x0c2a, 0x0c33,
++	0x0c35, 0x0c39,
++	0x0c60, 0x0c61,
++	0x0c85, 0x0c8c,
++	0x0c8e, 0x0c90,
++	0x0c92, 0x0ca8,
++	0x0caa, 0x0cb3,
++	0x0cb5, 0x0cb9,
++	0x0ce0, 0x0ce1,
++	0x0d05, 0x0d0c,
++	0x0d0e, 0x0d10,
++	0x0d12, 0x0d28,
++	0x0d2a, 0x0d39,
++	0x0d60, 0x0d61,
++	0x0d85, 0x0d96,
++	0x0d9a, 0x0db1,
++	0x0db3, 0x0dbb,
++	0x0dc0, 0x0dc6,
++	0x0e01, 0x0e30,
++	0x0e32, 0x0e33,
++	0x0e40, 0x0e46,
++	0x0e81, 0x0e82,
++	0x0e87, 0x0e88,
++	0x0e94, 0x0e97,
++	0x0e99, 0x0e9f,
++	0x0ea1, 0x0ea3,
++	0x0eaa, 0x0eab,
++	0x0ead, 0x0eb0,
++	0x0eb2, 0x0eb3,
++	0x0ec0, 0x0ec4,
++	0x0edc, 0x0edd,
++	0x0f40, 0x0f47,
++	0x0f49, 0x0f6a,
++	0x0f88, 0x0f8b,
++	0x1000, 0x1021,
++	0x1023, 0x1027,
++	0x1029, 0x102a,
++	0x1050, 0x1055,
++	0x10a0, 0x10c5,
++	0x10d0, 0x10fa,
++	0x1100, 0x1159,
++	0x115f, 0x11a2,
++	0x11a8, 0x11f9,
++	0x1200, 0x1248,
++	0x124a, 0x124d,
++	0x1250, 0x1256,
++	0x125a, 0x125d,
++	0x1260, 0x1288,
++	0x128a, 0x128d,
++	0x1290, 0x12b0,
++	0x12b2, 0x12b5,
++	0x12b8, 0x12be,
++	0x12c2, 0x12c5,
++	0x12c8, 0x12d6,
++	0x12d8, 0x1310,
++	0x1312, 0x1315,
++	0x1318, 0x135a,
++	0x1380, 0x138f,
++	0x13a0, 0x13f4,
++	0x1401, 0x166c,
++	0x166f, 0x1676,
++	0x1681, 0x169a,
++	0x16a0, 0x16ea,
++	0x1700, 0x170c,
++	0x170e, 0x1711,
++	0x1720, 0x1731,
++	0x1740, 0x1751,
++	0x1760, 0x176c,
++	0x176e, 0x1770,
++	0x1780, 0x17b3,
++	0x1820, 0x1877,
++	0x1880, 0x18a8,
++	0x1900, 0x191c,
++	0x1950, 0x196d,
++	0x1970, 0x1974,
++	0x1980, 0x19a9,
++	0x19c1, 0x19c7,
++	0x1a00, 0x1a16,
++	0x1b05, 0x1b33,
++	0x1b45, 0x1b4b,
++	0x1d00, 0x1dbf,
++	0x1e00, 0x1e9b,
++	0x1ea0, 0x1ef9,
++	0x1f00, 0x1f15,
++	0x1f18, 0x1f1d,
++	0x1f20, 0x1f45,
++	0x1f48, 0x1f4d,
++	0x1f50, 0x1f57,
++	0x1f5f, 0x1f7d,
++	0x1f80, 0x1fb4,
++	0x1fb6, 0x1fbc,
++	0x1fc2, 0x1fc4,
++	0x1fc6, 0x1fcc,
++	0x1fd0, 0x1fd3,
++	0x1fd6, 0x1fdb,
++	0x1fe0, 0x1fec,
++	0x1ff2, 0x1ff4,
++	0x1ff6, 0x1ffc,
++	0x2090, 0x2094,
++	0x210a, 0x2113,
++	0x2119, 0x211d,
++	0x212a, 0x212d,
++	0x212f, 0x2139,
++	0x213c, 0x213f,
++	0x2145, 0x2149,
++	0x2183, 0x2184,
++	0x2c00, 0x2c2e,
++	0x2c30, 0x2c5e,
++	0x2c60, 0x2c6c,
++	0x2c74, 0x2c77,
++	0x2c80, 0x2ce4,
++	0x2d00, 0x2d25,
++	0x2d30, 0x2d65,
++	0x2d80, 0x2d96,
++	0x2da0, 0x2da6,
++	0x2da8, 0x2dae,
++	0x2db0, 0x2db6,
++	0x2db8, 0x2dbe,
++	0x2dc0, 0x2dc6,
++	0x2dc8, 0x2dce,
++	0x2dd0, 0x2dd6,
++	0x2dd8, 0x2dde,
++	0x3005, 0x3006,
++	0x3031, 0x3035,
++	0x303b, 0x303c,
++	0x3041, 0x3096,
++	0x309d, 0x309f,
++	0x30a1, 0x30fa,
++	0x30fc, 0x30ff,
++	0x3105, 0x312c,
++	0x3131, 0x318e,
++	0x31a0, 0x31b7,
++	0x31f0, 0x31ff,
++	0x3400, 0x4db5,
++	0x4e00, 0x9fbb,
++	0xa000, 0xa48c,
++	0xa717, 0xa71a,
++	0xa800, 0xa801,
++	0xa803, 0xa805,
++	0xa807, 0xa80a,
++	0xa80c, 0xa822,
++	0xa840, 0xa873,
++	0xac00, 0xd7a3,
++	0xf900, 0xfa2d,
++	0xfa30, 0xfa6a,
++	0xfa70, 0xfad9,
++	0xfb00, 0xfb06,
++	0xfb13, 0xfb17,
++	0xfb1f, 0xfb28,
++	0xfb2a, 0xfb36,
++	0xfb38, 0xfb3c,
++	0xfb40, 0xfb41,
++	0xfb43, 0xfb44,
++	0xfb46, 0xfbb1,
++	0xfbd3, 0xfd3d,
++	0xfd50, 0xfd8f,
++	0xfd92, 0xfdc7,
++	0xfdf0, 0xfdfb,
++	0xfe70, 0xfe74,
++	0xfe76, 0xfefc,
++	0xff21, 0xff3a,
++	0xff41, 0xff5a,
++	0xff66, 0xffbe,
++	0xffc2, 0xffc7,
++	0xffca, 0xffcf,
++	0xffd2, 0xffd7,
++	0xffda, 0xffdc,
++	0x10000, 0x1000b,
++	0x1000d, 0x10026,
++	0x10028, 0x1003a,
++	0x1003c, 0x1003d,
++	0x1003f, 0x1004d,
++	0x10050, 0x1005d,
++	0x10080, 0x100fa,
++	0x10300, 0x1031e,
++	0x10330, 0x10340,
++	0x10342, 0x10349,
++	0x10380, 0x1039d,
++	0x103a0, 0x103c3,
++	0x103c8, 0x103cf,
++	0x10400, 0x1049d,
++	0x10800, 0x10805,
++	0x1080a, 0x10835,
++	0x10837, 0x10838,
++	0x10900, 0x10915,
++	0x10a10, 0x10a13,
++	0x10a15, 0x10a17,
++	0x10a19, 0x10a33,
++	0x12000, 0x1236e,
++	0x1d400, 0x1d454,
++	0x1d456, 0x1d49c,
++	0x1d49e, 0x1d49f,
++	0x1d4a5, 0x1d4a6,
++	0x1d4a9, 0x1d4ac,
++	0x1d4ae, 0x1d4b9,
++	0x1d4bd, 0x1d4c3,
++	0x1d4c5, 0x1d505,
++	0x1d507, 0x1d50a,
++	0x1d50d, 0x1d514,
++	0x1d516, 0x1d51c,
++	0x1d51e, 0x1d539,
++	0x1d53b, 0x1d53e,
++	0x1d540, 0x1d544,
++	0x1d54a, 0x1d550,
++	0x1d552, 0x1d6a5,
++	0x1d6a8, 0x1d6c0,
++	0x1d6c2, 0x1d6da,
++	0x1d6dc, 0x1d6fa,
++	0x1d6fc, 0x1d714,
++	0x1d716, 0x1d734,
++	0x1d736, 0x1d74e,
++	0x1d750, 0x1d76e,
++	0x1d770, 0x1d788,
++	0x1d78a, 0x1d7a8,
++	0x1d7aa, 0x1d7c2,
++	0x1d7c4, 0x1d7cb,
++	0x20000, 0x2a6d6,
++	0x2f800, 0x2fa1d,
++};
++
++static Rune __isalphas[] = {
++	0x00aa,
++	0x00b5,
++	0x00ba,
++	0x02ee,
++	0x0386,
++	0x038c,
++	0x0559,
++	0x06d5,
++	0x06ff,
++	0x0710,
++	0x07b1,
++	0x07fa,
++	0x093d,
++	0x0950,
++	0x09b2,
++	0x09bd,
++	0x09ce,
++	0x0a5e,
++	0x0abd,
++	0x0ad0,
++	0x0b3d,
++	0x0b71,
++	0x0b83,
++	0x0b9c,
++	0x0cbd,
++	0x0cde,
++	0x0dbd,
++	0x0e84,
++	0x0e8a,
++	0x0e8d,
++	0x0ea5,
++	0x0ea7,
++	0x0ebd,
++	0x0ec6,
++	0x0f00,
++	0x10fc,
++	0x1258,
++	0x12c0,
++	0x17d7,
++	0x17dc,
++	0x1f59,
++	0x1f5b,
++	0x1f5d,
++	0x1fbe,
++	0x2071,
++	0x207f,
++	0x2102,
++	0x2107,
++	0x2115,
++	0x2124,
++	0x2126,
++	0x2128,
++	0x214e,
++	0x2d6f,
++	0xfb1d,
++	0xfb3e,
++	0x10808,
++	0x1083c,
++	0x1083f,
++	0x10a00,
++	0x1d4a2,
++	0x1d4bb,
++	0x1d546,
++};
++
++int
++isalpharune(Rune c)
++{
++	Rune *p;
++
++	p = rbsearch(c, __isalphar, nelem(__isalphar)/2, 2);
++	if(p && c >= p[0] && c <= p[1])
++		return 1;
++	p = rbsearch(c, __isalphas, nelem(__isalphas), 1);
++	if(p && c == p[0])
++		return 1;
++	return 0;
++}
++
++static Rune __isupperr[] = {
++	0x0041, 0x005a,
++	0x00c0, 0x00d6,
++	0x00d8, 0x00de,
++	0x0178, 0x0179,
++	0x0181, 0x0182,
++	0x0186, 0x0187,
++	0x0189, 0x018b,
++	0x018e, 0x0191,
++	0x0193, 0x0194,
++	0x0196, 0x0198,
++	0x019c, 0x019d,
++	0x019f, 0x01a0,
++	0x01a6, 0x01a7,
++	0x01ae, 0x01af,
++	0x01b1, 0x01b3,
++	0x01b7, 0x01b8,
++	0x01f6, 0x01f8,
++	0x023a, 0x023b,
++	0x023d, 0x023e,
++	0x0243, 0x0246,
++	0x0388, 0x038a,
++	0x038e, 0x038f,
++	0x0391, 0x03a1,
++	0x03a3, 0x03ab,
++	0x03d2, 0x03d4,
++	0x03f9, 0x03fa,
++	0x03fd, 0x042f,
++	0x04c0, 0x04c1,
++	0x0531, 0x0556,
++	0x10a0, 0x10c5,
++	0x1f08, 0x1f0f,
++	0x1f18, 0x1f1d,
++	0x1f28, 0x1f2f,
++	0x1f38, 0x1f3f,
++	0x1f48, 0x1f4d,
++	0x1f68, 0x1f6f,
++	0x1f88, 0x1f8f,
++	0x1f98, 0x1f9f,
++	0x1fa8, 0x1faf,
++	0x1fb8, 0x1fbc,
++	0x1fc8, 0x1fcc,
++	0x1fd8, 0x1fdb,
++	0x1fe8, 0x1fec,
++	0x1ff8, 0x1ffc,
++	0x210b, 0x210d,
++	0x2110, 0x2112,
++	0x2119, 0x211d,
++	0x212a, 0x212d,
++	0x2130, 0x2133,
++	0x213e, 0x213f,
++	0x2160, 0x216f,
++	0x24b6, 0x24cf,
++	0x2c00, 0x2c2e,
++	0x2c62, 0x2c64,
++	0xff21, 0xff3a,
++	0x10400, 0x10427,
++	0x1d400, 0x1d419,
++	0x1d434, 0x1d44d,
++	0x1d468, 0x1d481,
++	0x1d49e, 0x1d49f,
++	0x1d4a5, 0x1d4a6,
++	0x1d4a9, 0x1d4ac,
++	0x1d4ae, 0x1d4b5,
++	0x1d4d0, 0x1d4e9,
++	0x1d504, 0x1d505,
++	0x1d507, 0x1d50a,
++	0x1d50d, 0x1d514,
++	0x1d516, 0x1d51c,
++	0x1d538, 0x1d539,
++	0x1d53b, 0x1d53e,
++	0x1d540, 0x1d544,
++	0x1d54a, 0x1d550,
++	0x1d56c, 0x1d585,
++	0x1d5a0, 0x1d5b9,
++	0x1d5d4, 0x1d5ed,
++	0x1d608, 0x1d621,
++	0x1d63c, 0x1d655,
++	0x1d670, 0x1d689,
++	0x1d6a8, 0x1d6c0,
++	0x1d6e2, 0x1d6fa,
++	0x1d71c, 0x1d734,
++	0x1d756, 0x1d76e,
++	0x1d790, 0x1d7a8,
++};
++
++static Rune __isupperp[] = {
++	0x0100, 0x0136,
++	0x0139, 0x0147,
++	0x014a, 0x0176,
++	0x017b, 0x017d,
++	0x01a2, 0x01a4,
++	0x01cd, 0x01db,
++	0x01de, 0x01ee,
++	0x01fa, 0x0232,
++	0x0248, 0x024e,
++	0x03d8, 0x03ee,
++	0x0460, 0x0480,
++	0x048a, 0x04be,
++	0x04c3, 0x04cd,
++	0x04d0, 0x0512,
++	0x1e00, 0x1e94,
++	0x1ea0, 0x1ef8,
++	0x1f59, 0x1f5f,
++	0x2124, 0x2128,
++	0x2c67, 0x2c6b,
++	0x2c80, 0x2ce2,
++};
++
++static Rune __isuppers[] = {
++	0x0184,
++	0x01a9,
++	0x01ac,
++	0x01b5,
++	0x01bc,
++	0x01c4,
++	0x01c7,
++	0x01ca,
++	0x01f1,
++	0x01f4,
++	0x0241,
++	0x0386,
++	0x038c,
++	0x03f4,
++	0x03f7,
++	0x2102,
++	0x2107,
++	0x2115,
++	0x2145,
++	0x2183,
++	0x2c60,
++	0x2c75,
++	0x1d49c,
++	0x1d4a2,
++	0x1d546,
++	0x1d7ca,
++};
++
++int
++isupperrune(Rune c)
++{
++	Rune *p;
++
++	p = rbsearch(c, __isupperr, nelem(__isupperr)/2, 2);
++	if(p && c >= p[0] && c <= p[1])
++		return 1;
++	p = rbsearch(c, __isupperp, nelem(__isupperp)/2, 2);
++	if(p && c >= p[0] && c <= p[1] && !((c - p[0]) & 1))
++		return 1;
++	p = rbsearch(c, __isuppers, nelem(__isuppers), 1);
++	if(p && c == p[0])
++		return 1;
++	return 0;
++}
++
++static Rune __islowerr[] = {
++	0x0061, 0x007a,
++	0x00df, 0x00f6,
++	0x00f8, 0x00ff,
++	0x0137, 0x0138,
++	0x0148, 0x0149,
++	0x017e, 0x0180,
++	0x018c, 0x018d,
++	0x0199, 0x019b,
++	0x01aa, 0x01ab,
++	0x01b9, 0x01ba,
++	0x01bd, 0x01bf,
++	0x01dc, 0x01dd,
++	0x01ef, 0x01f0,
++	0x0233, 0x0239,
++	0x023f, 0x0240,
++	0x024f, 0x0293,
++	0x0295, 0x02af,
++	0x037b, 0x037d,
++	0x03ac, 0x03ce,
++	0x03d0, 0x03d1,
++	0x03d5, 0x03d7,
++	0x03ef, 0x03f3,
++	0x03fb, 0x03fc,
++	0x0430, 0x045f,
++	0x04ce, 0x04cf,
++	0x0561, 0x0587,
++	0x1d00, 0x1d2b,
++	0x1d62, 0x1d77,
++	0x1d79, 0x1d9a,
++	0x1e95, 0x1e9b,
++	0x1f00, 0x1f07,
++	0x1f10, 0x1f15,
++	0x1f20, 0x1f27,
++	0x1f30, 0x1f37,
++	0x1f40, 0x1f45,
++	0x1f50, 0x1f57,
++	0x1f60, 0x1f67,
++	0x1f70, 0x1f7d,
++	0x1f80, 0x1f87,
++	0x1f90, 0x1f97,
++	0x1fa0, 0x1fa7,
++	0x1fb0, 0x1fb4,
++	0x1fb6, 0x1fb7,
++	0x1fc2, 0x1fc4,
++	0x1fc6, 0x1fc7,
++	0x1fd0, 0x1fd3,
++	0x1fd6, 0x1fd7,
++	0x1fe0, 0x1fe7,
++	0x1ff2, 0x1ff4,
++	0x1ff6, 0x1ff7,
++	0x210e, 0x210f,
++	0x213c, 0x213d,
++	0x2146, 0x2149,
++	0x2170, 0x217f,
++	0x24d0, 0x24e9,
++	0x2c30, 0x2c5e,
++	0x2c65, 0x2c66,
++	0x2c76, 0x2c77,
++	0x2ce3, 0x2ce4,
++	0x2d00, 0x2d25,
++	0xfb00, 0xfb06,
++	0xfb13, 0xfb17,
++	0xff41, 0xff5a,
++	0x10428, 0x1044f,
++	0x1d41a, 0x1d433,
++	0x1d44e, 0x1d454,
++	0x1d456, 0x1d467,
++	0x1d482, 0x1d49b,
++	0x1d4b6, 0x1d4b9,
++	0x1d4bd, 0x1d4c3,
++	0x1d4c5, 0x1d4cf,
++	0x1d4ea, 0x1d503,
++	0x1d51e, 0x1d537,
++	0x1d552, 0x1d56b,
++	0x1d586, 0x1d59f,
++	0x1d5ba, 0x1d5d3,
++	0x1d5ee, 0x1d607,
++	0x1d622, 0x1d63b,
++	0x1d656, 0x1d66f,
++	0x1d68a, 0x1d6a5,
++	0x1d6c2, 0x1d6da,
++	0x1d6dc, 0x1d6e1,
++	0x1d6fc, 0x1d714,
++	0x1d716, 0x1d71b,
++	0x1d736, 0x1d74e,
++	0x1d750, 0x1d755,
++	0x1d770, 0x1d788,
++	0x1d78a, 0x1d78f,
++	0x1d7aa, 0x1d7c2,
++	0x1d7c4, 0x1d7c9,
++};
++
++static Rune __islowerp[] = {
++	0x0101, 0x0135,
++	0x013a, 0x0146,
++	0x014b, 0x0177,
++	0x017a, 0x017c,
++	0x0183, 0x0185,
++	0x01a1, 0x01a5,
++	0x01b4, 0x01b6,
++	0x01cc, 0x01da,
++	0x01df, 0x01ed,
++	0x01f3, 0x01f5,
++	0x01f9, 0x0231,
++	0x0247, 0x024d,
++	0x03d9, 0x03ed,
++	0x0461, 0x0481,
++	0x048b, 0x04bf,
++	0x04c2, 0x04cc,
++	0x04d1, 0x0513,
++	0x1e01, 0x1e93,
++	0x1ea1, 0x1ef9,
++	0x2c68, 0x2c6c,
++	0x2c81, 0x2ce1,
++};
++
++static Rune __islowers[] = {
++	0x00aa,
++	0x00b5,
++	0x00ba,
++	0x0188,
++	0x0192,
++	0x0195,
++	0x019e,
++	0x01a8,
++	0x01ad,
++	0x01b0,
++	0x01c6,
++	0x01c9,
++	0x023c,
++	0x0242,
++	0x0390,
++	0x03f5,
++	0x03f8,
++	0x1fbe,
++	0x2071,
++	0x207f,
++	0x210a,
++	0x2113,
++	0x212f,
++	0x2134,
++	0x2139,
++	0x214e,
++	0x2184,
++	0x2c61,
++	0x2c74,
++	0x1d4bb,
++	0x1d7cb,
++};
++
++int
++islowerrune(Rune c)
++{
++	Rune *p;
++
++	p = rbsearch(c, __islowerr, nelem(__islowerr)/2, 2);
++	if(p && c >= p[0] && c <= p[1])
++		return 1;
++	p = rbsearch(c, __islowerp, nelem(__islowerp)/2, 2);
++	if(p && c >= p[0] && c <= p[1] && !((c - p[0]) & 1))
++		return 1;
++	p = rbsearch(c, __islowers, nelem(__islowers), 1);
++	if(p && c == p[0])
++		return 1;
++	return 0;
++}
++
++static Rune __istitler[] = {
++	0x0041, 0x005a,
++	0x00c0, 0x00d6,
++	0x00d8, 0x00de,
++	0x0178, 0x0179,
++	0x0181, 0x0182,
++	0x0186, 0x0187,
++	0x0189, 0x018b,
++	0x018e, 0x0191,
++	0x0193, 0x0194,
++	0x0196, 0x0198,
++	0x019c, 0x019d,
++	0x019f, 0x01a0,
++	0x01a6, 0x01a7,
++	0x01ae, 0x01af,
++	0x01b1, 0x01b3,
++	0x01b7, 0x01b8,
++	0x01f6, 0x01f8,
++	0x023a, 0x023b,
++	0x023d, 0x023e,
++	0x0243, 0x0246,
++	0x0388, 0x038a,
++	0x038e, 0x038f,
++	0x0391, 0x03a1,
++	0x03a3, 0x03ab,
++	0x03f9, 0x03fa,
++	0x03fd, 0x042f,
++	0x04c0, 0x04c1,
++	0x0531, 0x0556,
++	0x10a0, 0x10c5,
++	0x1f08, 0x1f0f,
++	0x1f18, 0x1f1d,
++	0x1f28, 0x1f2f,
++	0x1f38, 0x1f3f,
++	0x1f48, 0x1f4d,
++	0x1f68, 0x1f6f,
++	0x1f88, 0x1f8f,
++	0x1f98, 0x1f9f,
++	0x1fa8, 0x1faf,
++	0x1fb8, 0x1fbc,
++	0x1fc8, 0x1fcc,
++	0x1fd8, 0x1fdb,
++	0x1fe8, 0x1fec,
++	0x1ff8, 0x1ffc,
++	0x2160, 0x216f,
++	0x24b6, 0x24cf,
++	0x2c00, 0x2c2e,
++	0x2c62, 0x2c64,
++	0xff21, 0xff3a,
++	0x10400, 0x10427,
++};
++
++static Rune __istitlep[] = {
++	0x0100, 0x012e,
++	0x0132, 0x0136,
++	0x0139, 0x0147,
++	0x014a, 0x0176,
++	0x017b, 0x017d,
++	0x01a2, 0x01a4,
++	0x01cb, 0x01db,
++	0x01de, 0x01ee,
++	0x01f2, 0x01f4,
++	0x01fa, 0x0232,
++	0x0248, 0x024e,
++	0x03d8, 0x03ee,
++	0x0460, 0x0480,
++	0x048a, 0x04be,
++	0x04c3, 0x04cd,
++	0x04d0, 0x0512,
++	0x1e00, 0x1e94,
++	0x1ea0, 0x1ef8,
++	0x1f59, 0x1f5f,
++	0x2c67, 0x2c6b,
++	0x2c80, 0x2ce2,
++};
++
++static Rune __istitles[] = {
++	0x0184,
++	0x01a9,
++	0x01ac,
++	0x01b5,
++	0x01bc,
++	0x01c5,
++	0x01c8,
++	0x0241,
++	0x0386,
++	0x038c,
++	0x03f7,
++	0x2132,
++	0x2183,
++	0x2c60,
++	0x2c75,
++};
++
++int
++istitlerune(Rune c)
++{
++	Rune *p;
++
++	p = rbsearch(c, __istitler, nelem(__istitler)/2, 2);
++	if(p && c >= p[0] && c <= p[1])
++		return 1;
++	p = rbsearch(c, __istitlep, nelem(__istitlep)/2, 2);
++	if(p && c >= p[0] && c <= p[1] && !((c - p[0]) & 1))
++		return 1;
++	p = rbsearch(c, __istitles, nelem(__istitles), 1);
++	if(p && c == p[0])
++		return 1;
++	return 0;
++}
++
++static Rune __toupperr[] = {
++	0x0061, 0x007a, 1048544,
++	0x00e0, 0x00f6, 1048544,
++	0x00f8, 0x00fe, 1048544,
++	0x0256, 0x0257, 1048371,
++	0x028a, 0x028b, 1048359,
++	0x037b, 0x037d, 1048706,
++	0x03ad, 0x03af, 1048539,
++	0x03b1, 0x03c1, 1048544,
++	0x03c3, 0x03cb, 1048544,
++	0x03cd, 0x03ce, 1048513,
++	0x0430, 0x044f, 1048544,
++	0x0450, 0x045f, 1048496,
++	0x0561, 0x0586, 1048528,
++	0x1f00, 0x1f07, 1048584,
++	0x1f10, 0x1f15, 1048584,
++	0x1f20, 0x1f27, 1048584,
++	0x1f30, 0x1f37, 1048584,
++	0x1f40, 0x1f45, 1048584,
++	0x1f60, 0x1f67, 1048584,
++	0x1f70, 0x1f71, 1048650,
++	0x1f72, 0x1f75, 1048662,
++	0x1f76, 0x1f77, 1048676,
++	0x1f78, 0x1f79, 1048704,
++	0x1f7a, 0x1f7b, 1048688,
++	0x1f7c, 0x1f7d, 1048702,
++	0x1f80, 0x1f87, 1048584,
++	0x1f90, 0x1f97, 1048584,
++	0x1fa0, 0x1fa7, 1048584,
++	0x1fb0, 0x1fb1, 1048584,
++	0x1fd0, 0x1fd1, 1048584,
++	0x1fe0, 0x1fe1, 1048584,
++	0x2170, 0x217f, 1048560,
++	0x24d0, 0x24e9, 1048550,
++	0x2c30, 0x2c5e, 1048528,
++	0x2d00, 0x2d25, 1041312,
++	0xff41, 0xff5a, 1048544,
++	0x10428, 0x1044f, 1048536,
++};
++
++static Rune __toupperp[] = {
++	0x0101, 0x012f, 1048575,
++	0x0133, 0x0137, 1048575,
++	0x013a, 0x0148, 1048575,
++	0x014b, 0x0177, 1048575,
++	0x017a, 0x017e, 1048575,
++	0x0183, 0x0185, 1048575,
++	0x01a1, 0x01a5, 1048575,
++	0x01b4, 0x01b6, 1048575,
++	0x01ce, 0x01dc, 1048575,
++	0x01df, 0x01ef, 1048575,
++	0x01f9, 0x021f, 1048575,
++	0x0223, 0x0233, 1048575,
++	0x0247, 0x024f, 1048575,
++	0x03d9, 0x03ef, 1048575,
++	0x0461, 0x0481, 1048575,
++	0x048b, 0x04bf, 1048575,
++	0x04c2, 0x04ce, 1048575,
++	0x04d1, 0x0513, 1048575,
++	0x1e01, 0x1e95, 1048575,
++	0x1ea1, 0x1ef9, 1048575,
++	0x1f51, 0x1f57, 1048584,
++	0x2c68, 0x2c6c, 1048575,
++	0x2c81, 0x2ce3, 1048575,
++};
++
++static Rune __touppers[] = {
++	0x00b5, 1049319,
++	0x00ff, 1048697,
++	0x0131, 1048344,
++	0x017f, 1048276,
++	0x0180, 1048771,
++	0x0188, 1048575,
++	0x018c, 1048575,
++	0x0192, 1048575,
++	0x0195, 1048673,
++	0x0199, 1048575,
++	0x019a, 1048739,
++	0x019e, 1048706,
++	0x01a8, 1048575,
++	0x01ad, 1048575,
++	0x01b0, 1048575,
++	0x01b9, 1048575,
++	0x01bd, 1048575,
++	0x01bf, 1048632,
++	0x01c5, 1048575,
++	0x01c6, 1048574,
++	0x01c8, 1048575,
++	0x01c9, 1048574,
++	0x01cb, 1048575,
++	0x01cc, 1048574,
++	0x01dd, 1048497,
++	0x01f2, 1048575,
++	0x01f3, 1048574,
++	0x01f5, 1048575,
++	0x023c, 1048575,
++	0x0242, 1048575,
++	0x0253, 1048366,
++	0x0254, 1048370,
++	0x0259, 1048374,
++	0x025b, 1048373,
++	0x0260, 1048371,
++	0x0263, 1048369,
++	0x0268, 1048367,
++	0x0269, 1048365,
++	0x026b, 1059319,
++	0x026f, 1048365,
++	0x0272, 1048363,
++	0x0275, 1048362,
++	0x027d, 1059303,
++	0x0280, 1048358,
++	0x0283, 1048358,
++	0x0288, 1048358,
++	0x0289, 1048507,
++	0x028c, 1048505,
++	0x0292, 1048357,
++	0x0345, 1048660,
++	0x03ac, 1048538,
++	0x03c2, 1048545,
++	0x03cc, 1048512,
++	0x03d0, 1048514,
++	0x03d1, 1048519,
++	0x03d5, 1048529,
++	0x03d6, 1048522,
++	0x03f0, 1048490,
++	0x03f1, 1048496,
++	0x03f2, 1048583,
++	0x03f5, 1048480,
++	0x03f8, 1048575,
++	0x03fb, 1048575,
++	0x04cf, 1048561,
++	0x1d7d, 1052390,
++	0x1e9b, 1048517,
++	0x1fb3, 1048585,
++	0x1fbe, 1041371,
++	0x1fc3, 1048585,
++	0x1fe5, 1048583,
++	0x1ff3, 1048585,
++	0x214e, 1048548,
++	0x2184, 1048575,
++	0x2c61, 1048575,
++	0x2c65, 1037781,
++	0x2c66, 1037784,
++	0x2c76, 1048575,
++};
++
++Rune
++toupperrune(Rune c)
++{
++	Rune *p;
++
++	p = rbsearch(c, __toupperr, nelem(__toupperr)/3, 3);
++	if(p && c >= p[0] && c <= p[1])
++		return c + p[2] - 1048576;
++	p = rbsearch(c, __toupperp, nelem(__toupperp)/3, 3);
++	if(p && c >= p[0] && c <= p[1] && !((c - p[0]) & 1))
++		return c + p[2] - 1048576;
++	p = rbsearch(c, __touppers, nelem(__touppers)/2, 2);
++	if(p && c == p[0])
++		return c + p[1] - 1048576;
++	return c;
++}
++
++static Rune __tolowerr[] = {
++	0x0041, 0x005a, 1048608,
++	0x00c0, 0x00d6, 1048608,
++	0x00d8, 0x00de, 1048608,
++	0x0189, 0x018a, 1048781,
++	0x01b1, 0x01b2, 1048793,
++	0x0388, 0x038a, 1048613,
++	0x038e, 0x038f, 1048639,
++	0x0391, 0x03a1, 1048608,
++	0x03a3, 0x03ab, 1048608,
++	0x03fd, 0x03ff, 1048446,
++	0x0400, 0x040f, 1048656,
++	0x0410, 0x042f, 1048608,
++	0x0531, 0x0556, 1048624,
++	0x10a0, 0x10c5, 1055840,
++	0x1f08, 0x1f0f, 1048568,
++	0x1f18, 0x1f1d, 1048568,
++	0x1f28, 0x1f2f, 1048568,
++	0x1f38, 0x1f3f, 1048568,
++	0x1f48, 0x1f4d, 1048568,
++	0x1f68, 0x1f6f, 1048568,
++	0x1f88, 0x1f8f, 1048568,
++	0x1f98, 0x1f9f, 1048568,
++	0x1fa8, 0x1faf, 1048568,
++	0x1fb8, 0x1fb9, 1048568,
++	0x1fba, 0x1fbb, 1048502,
++	0x1fc8, 0x1fcb, 1048490,
++	0x1fd8, 0x1fd9, 1048568,
++	0x1fda, 0x1fdb, 1048476,
++	0x1fe8, 0x1fe9, 1048568,
++	0x1fea, 0x1feb, 1048464,
++	0x1ff8, 0x1ff9, 1048448,
++	0x1ffa, 0x1ffb, 1048450,
++	0x2160, 0x216f, 1048592,
++	0x24b6, 0x24cf, 1048602,
++	0x2c00, 0x2c2e, 1048624,
++	0xff21, 0xff3a, 1048608,
++	0x10400, 0x10427, 1048616,
++};
++
++static Rune __tolowerp[] = {
++	0x0100, 0x012e, 1048577,
++	0x0132, 0x0136, 1048577,
++	0x0139, 0x0147, 1048577,
++	0x014a, 0x0176, 1048577,
++	0x017b, 0x017d, 1048577,
++	0x01a2, 0x01a4, 1048577,
++	0x01b3, 0x01b5, 1048577,
++	0x01cd, 0x01db, 1048577,
++	0x01de, 0x01ee, 1048577,
++	0x01f8, 0x021e, 1048577,
++	0x0222, 0x0232, 1048577,
++	0x0248, 0x024e, 1048577,
++	0x03d8, 0x03ee, 1048577,
++	0x0460, 0x0480, 1048577,
++	0x048a, 0x04be, 1048577,
++	0x04c3, 0x04cd, 1048577,
++	0x04d0, 0x0512, 1048577,
++	0x1e00, 0x1e94, 1048577,
++	0x1ea0, 0x1ef8, 1048577,
++	0x1f59, 0x1f5f, 1048568,
++	0x2c67, 0x2c6b, 1048577,
++	0x2c80, 0x2ce2, 1048577,
++};
++
++static Rune __tolowers[] = {
++	0x0130, 1048377,
++	0x0178, 1048455,
++	0x0179, 1048577,
++	0x0181, 1048786,
++	0x0182, 1048577,
++	0x0184, 1048577,
++	0x0186, 1048782,
++	0x0187, 1048577,
++	0x018b, 1048577,
++	0x018e, 1048655,
++	0x018f, 1048778,
++	0x0190, 1048779,
++	0x0191, 1048577,
++	0x0193, 1048781,
++	0x0194, 1048783,
++	0x0196, 1048787,
++	0x0197, 1048785,
++	0x0198, 1048577,
++	0x019c, 1048787,
++	0x019d, 1048789,
++	0x019f, 1048790,
++	0x01a0, 1048577,
++	0x01a6, 1048794,
++	0x01a7, 1048577,
++	0x01a9, 1048794,
++	0x01ac, 1048577,
++	0x01ae, 1048794,
++	0x01af, 1048577,
++	0x01b7, 1048795,
++	0x01b8, 1048577,
++	0x01bc, 1048577,
++	0x01c4, 1048578,
++	0x01c5, 1048577,
++	0x01c7, 1048578,
++	0x01c8, 1048577,
++	0x01ca, 1048578,
++	0x01cb, 1048577,
++	0x01f1, 1048578,
++	0x01f2, 1048577,
++	0x01f4, 1048577,
++	0x01f6, 1048479,
++	0x01f7, 1048520,
++	0x0220, 1048446,
++	0x023a, 1059371,
++	0x023b, 1048577,
++	0x023d, 1048413,
++	0x023e, 1059368,
++	0x0241, 1048577,
++	0x0243, 1048381,
++	0x0244, 1048645,
++	0x0245, 1048647,
++	0x0246, 1048577,
++	0x0386, 1048614,
++	0x038c, 1048640,
++	0x03f4, 1048516,
++	0x03f7, 1048577,
++	0x03f9, 1048569,
++	0x03fa, 1048577,
++	0x04c0, 1048591,
++	0x04c1, 1048577,
++	0x1fbc, 1048567,
++	0x1fcc, 1048567,
++	0x1fec, 1048569,
++	0x1ffc, 1048567,
++	0x2126, 1041059,
++	0x212a, 1040193,
++	0x212b, 1040314,
++	0x2132, 1048604,
++	0x2183, 1048577,
++	0x2c60, 1048577,
++	0x2c62, 1037833,
++	0x2c63, 1044762,
++	0x2c64, 1037849,
++	0x2c75, 1048577,
++};
++
++Rune
++tolowerrune(Rune c)
++{
++	Rune *p;
++
++	p = rbsearch(c, __tolowerr, nelem(__tolowerr)/3, 3);
++	if(p && c >= p[0] && c <= p[1])
++		return c + p[2] - 1048576;
++	p = rbsearch(c, __tolowerp, nelem(__tolowerp)/3, 3);
++	if(p && c >= p[0] && c <= p[1] && !((c - p[0]) & 1))
++		return c + p[2] - 1048576;
++	p = rbsearch(c, __tolowers, nelem(__tolowers)/2, 2);
++	if(p && c == p[0])
++		return c + p[1] - 1048576;
++	return c;
++}
++
++static Rune __totitler[] = {
++	0x0061, 0x007a, 1048544,
++	0x00e0, 0x00f6, 1048544,
++	0x00f8, 0x00fe, 1048544,
++	0x0256, 0x0257, 1048371,
++	0x028a, 0x028b, 1048359,
++	0x037b, 0x037d, 1048706,
++	0x03ad, 0x03af, 1048539,
++	0x03b1, 0x03c1, 1048544,
++	0x03c3, 0x03cb, 1048544,
++	0x03cd, 0x03ce, 1048513,
++	0x0430, 0x044f, 1048544,
++	0x0450, 0x045f, 1048496,
++	0x0561, 0x0586, 1048528,
++	0x1f00, 0x1f07, 1048584,
++	0x1f10, 0x1f15, 1048584,
++	0x1f20, 0x1f27, 1048584,
++	0x1f30, 0x1f37, 1048584,
++	0x1f40, 0x1f45, 1048584,
++	0x1f60, 0x1f67, 1048584,
++	0x1f70, 0x1f71, 1048650,
++	0x1f72, 0x1f75, 1048662,
++	0x1f76, 0x1f77, 1048676,
++	0x1f78, 0x1f79, 1048704,
++	0x1f7a, 0x1f7b, 1048688,
++	0x1f7c, 0x1f7d, 1048702,
++	0x1f80, 0x1f87, 1048584,
++	0x1f90, 0x1f97, 1048584,
++	0x1fa0, 0x1fa7, 1048584,
++	0x1fb0, 0x1fb1, 1048584,
++	0x1fd0, 0x1fd1, 1048584,
++	0x1fe0, 0x1fe1, 1048584,
++	0x2170, 0x217f, 1048560,
++	0x24d0, 0x24e9, 1048550,
++	0x2c30, 0x2c5e, 1048528,
++	0x2d00, 0x2d25, 1041312,
++	0xff41, 0xff5a, 1048544,
++	0x10428, 0x1044f, 1048536,
++};
++
++static Rune __totitlep[] = {
++	0x0101, 0x012f, 1048575,
++	0x0133, 0x0137, 1048575,
++	0x013a, 0x0148, 1048575,
++	0x014b, 0x0177, 1048575,
++	0x017a, 0x017e, 1048575,
++	0x0183, 0x0185, 1048575,
++	0x01a1, 0x01a5, 1048575,
++	0x01b4, 0x01b6, 1048575,
++	0x01cc, 0x01dc, 1048575,
++	0x01df, 0x01ef, 1048575,
++	0x01f3, 0x01f5, 1048575,
++	0x01f9, 0x021f, 1048575,
++	0x0223, 0x0233, 1048575,
++	0x0247, 0x024f, 1048575,
++	0x03d9, 0x03ef, 1048575,
++	0x0461, 0x0481, 1048575,
++	0x048b, 0x04bf, 1048575,
++	0x04c2, 0x04ce, 1048575,
++	0x04d1, 0x0513, 1048575,
++	0x1e01, 0x1e95, 1048575,
++	0x1ea1, 0x1ef9, 1048575,
++	0x1f51, 0x1f57, 1048584,
++	0x2c68, 0x2c6c, 1048575,
++	0x2c81, 0x2ce3, 1048575,
++};
++
++static Rune __totitles[] = {
++	0x00b5, 1049319,
++	0x00ff, 1048697,
++	0x0131, 1048344,
++	0x017f, 1048276,
++	0x0180, 1048771,
++	0x0188, 1048575,
++	0x018c, 1048575,
++	0x0192, 1048575,
++	0x0195, 1048673,
++	0x0199, 1048575,
++	0x019a, 1048739,
++	0x019e, 1048706,
++	0x01a8, 1048575,
++	0x01ad, 1048575,
++	0x01b0, 1048575,
++	0x01b9, 1048575,
++	0x01bd, 1048575,
++	0x01bf, 1048632,
++	0x01c4, 1048577,
++	0x01c6, 1048575,
++	0x01c7, 1048577,
++	0x01c9, 1048575,
++	0x01ca, 1048577,
++	0x01dd, 1048497,
++	0x01f1, 1048577,
++	0x023c, 1048575,
++	0x0242, 1048575,
++	0x0253, 1048366,
++	0x0254, 1048370,
++	0x0259, 1048374,
++	0x025b, 1048373,
++	0x0260, 1048371,
++	0x0263, 1048369,
++	0x0268, 1048367,
++	0x0269, 1048365,
++	0x026b, 1059319,
++	0x026f, 1048365,
++	0x0272, 1048363,
++	0x0275, 1048362,
++	0x027d, 1059303,
++	0x0280, 1048358,
++	0x0283, 1048358,
++	0x0288, 1048358,
++	0x0289, 1048507,
++	0x028c, 1048505,
++	0x0292, 1048357,
++	0x0345, 1048660,
++	0x03ac, 1048538,
++	0x03c2, 1048545,
++	0x03cc, 1048512,
++	0x03d0, 1048514,
++	0x03d1, 1048519,
++	0x03d5, 1048529,
++	0x03d6, 1048522,
++	0x03f0, 1048490,
++	0x03f1, 1048496,
++	0x03f2, 1048583,
++	0x03f5, 1048480,
++	0x03f8, 1048575,
++	0x03fb, 1048575,
++	0x04cf, 1048561,
++	0x1d7d, 1052390,
++	0x1e9b, 1048517,
++	0x1fb3, 1048585,
++	0x1fbe, 1041371,
++	0x1fc3, 1048585,
++	0x1fe5, 1048583,
++	0x1ff3, 1048585,
++	0x214e, 1048548,
++	0x2184, 1048575,
++	0x2c61, 1048575,
++	0x2c65, 1037781,
++	0x2c66, 1037784,
++	0x2c76, 1048575,
++};
++
++Rune
++totitlerune(Rune c)
++{
++	Rune *p;
++
++	p = rbsearch(c, __totitler, nelem(__totitler)/3, 3);
++	if(p && c >= p[0] && c <= p[1])
++		return c + p[2] - 1048576;
++	p = rbsearch(c, __totitlep, nelem(__totitlep)/3, 3);
++	if(p && c >= p[0] && c <= p[1] && !((c - p[0]) & 1))
++		return c + p[2] - 1048576;
++	p = rbsearch(c, __totitles, nelem(__totitles)/2, 2);
++	if(p && c == p[0])
++		return c + p[1] - 1048576;
++	return c;
++}
++
+diff --git a/src/libmach/8obj.c b/src/libmach/8obj.c
+index f8ca1c4c39..af4ebc877e 100644
+--- a/src/libmach/8obj.c
++++ b/src/libmach/8obj.c
+@@ -120,6 +120,7 @@ addr(Biobuf *bp)
+ 	long off;
+ 
+ 	off = 0;
++	a.gotype = 0;
+ 	a.sym = -1;
+ 	a.flags = Bgetc(bp);			/* flags */
+ 	if(a.flags & T_INDEX)
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index 6bde5b5a44..1455b100dd 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -514,7 +514,12 @@ commonllp64(int unused, Fhdr *fp, ExecHdr *hp)
+ 	 */
+ 	if((hp->e.exechdr.magic & ~DYN_MAGIC)>>16)
+ 		return 0;
+-	entry = beswav(*(uvlong*)&hp->e.exechdr);
++	union {
++		char *p;
++		uvlong *v;
++	} u;
++	u.p = (char*)&hp->e.exechdr;
++	entry = beswav(*u.v);
+ 
+ 	pgsize = mach->pgsize;
+ 	settext(fp, entry, pgsize+fp->hdrsz, hp->e.exechdr.text, fp->hdrsz);
+diff --git a/src/make.bash b/src/make.bash
+index 04054c4016..60e3f62dc8 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -19,7 +19,7 @@ rm -f $GOBIN/quietgcc
+ cp quietgcc.bash $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
+-for i in lib9 libbio libmach libregexp cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
++for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+ do
+ 	case "$i-$GOOS" in
+ 	libcgo-nacl)
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 69ca22530d..cfc65e88ad 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -82,9 +82,9 @@ include $(GOROOT)/src/Make.pkg
+ clean: clean-local
+ 
+ clean-local:
+-	rm -f runtime.acid cgo2c */asm.h
++	rm -f cgo2c */asm.h
+ 
+-$(GOARCH)/asm.h: runtime.acid mkasmh.sh
++$(GOARCH)/asm.h: mkasmh.sh
+ 	./mkasmh.sh >$@.x
+ 	mv -f $@.x $@
+ 
+@@ -111,18 +111,3 @@ cgo2c: cgo2c.c
+ 	$(AS) $<
+ 
+ 
+-# acid support files
+-
+-all: runtime.acid
+-
+-install: $(GOROOT)/acid/runtime.acid
+-
+-$(GOROOT)/acid/runtime.acid: runtime.acid
+-	cp runtime.acid $@
+-
+-runtime.acid: runtime.h proc.c
+-	$(CC) -a proc.c >runtime.acid
+-
+-chan.acid: runtime.h chan.c
+-	$(CC) -a chan.c >chan.acid
+-
+diff --git a/src/run.bash b/src/run.bash
+index d88ea7852b..9f1947c1da 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -53,12 +53,6 @@ make clean
+ ./test.bash
+ ) || exit $?
+ 
+-(xcd ../usr/r/rpc
+-make clean
+-time make
+-./chanrun
+-) || exit $?
+-
+ (xcd pkg/exp/ogle
+ make clean
+ time make ogle
+diff --git a/test/bench/fannkuch.go b/test/bench/fannkuch.go
+index 9092b492ea..711ace4119 100644
+--- a/test/bench/fannkuch.go
++++ b/test/bench/fannkuch.go
+@@ -78,34 +78,37 @@ func fannkuch(n int) int {
+ 			for i := 1; i < n; i++ {	// perm = perm1
+ 				perm[i] = perm1[i];
+ 			}
+-for perm[0] != 0 {
+-    for i, j := 0, perm[0]; i < j; i, j = i+1, j-1 {
+-        perm[i], perm[j] = perm[j], perm[i];
+-    }
+-    flips++;
+-}			if flipsMax < flips {
++			k := perm1[0];		// cache perm[0] in k
++			for {			// k!=0 ==> k>0
++				for i, j := 1, k-1; i < j; i, j = i+1, j-1 {
++					perm[i], perm[j] = perm[j], perm[i];
++				}
++				flips++;
++				// Now exchange k (caching perm[0]) and perm[k]... with care!
++				j := perm[k]; perm[k] = k; k = j;
++				if k == 0 {
++					break
++				}
++			}
++			if flipsMax < flips {
+ 				flipsMax = flips;
+ 			}
+ 		}
+ 
+-		for {
+-			if r == n {
+-				return flipsMax;
+-			}
++		for ; r < n; r++ {
+ 			// rotate down perm[0..r] by one
+ 			perm0 := perm1[0];
+-			i := 0;
+-			for i < r {
+-				k := i+1;
+-				perm1[i] = perm1[k];
+-				i = k;
++			for i := 0; i < r; i++ {
++				perm1[i] = perm1[i+1];
+ 			}
+ 			perm1[r] = perm0;
+ 			count[r]--;
+ 			if count[r] > 0 {
+ 				break;
+ 			}
+-			r++;
++		}
++		if r == n {
++			return flipsMax;
+ 		}
+ 	}
+ 	return 0

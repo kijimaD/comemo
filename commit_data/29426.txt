@@ -14,9 +14,121 @@ Date:   Wed Sep 14 18:44:59 2016 +0000
     Change-Id: I7065b39273f82edece385c0d67b3f2d83d4934b8
     Reviewed-on: https://go-review.googlesource.com/29163
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/math/big/arith_test.go   | 13 +++++++++++++
  src/math/big/gcd_test.go     |  3 +++
  src/math/big/int_test.go     |  6 ++++++
  src/math/big/natconv_test.go |  6 ++++++
  4 files changed, 28 insertions(+)
+
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index 75862b4951..f2b3083000 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -6,10 +6,14 @@ package big
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"math/rand"
++	"strings"
+ 	"testing"
+ )
+ 
++var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
++
+ type funWW func(x, y, c Word) (z1, z0 Word)
+ type argWW struct {
+ 	x, y, c, z1, z0 Word
+@@ -123,6 +127,9 @@ var benchSizes = []int{1, 2, 3, 4, 5, 1e1, 1e2, 1e3, 1e4, 1e5}
+ 
+ func BenchmarkAddVV(b *testing.B) {
+ 	for _, n := range benchSizes {
++		if isRaceBuilder && n > 1e3 {
++			continue
++		}
+ 		x := rndV(n)
+ 		y := rndV(n)
+ 		z := make([]Word, n)
+@@ -233,6 +240,9 @@ func TestFunVW(t *testing.T) {
+ 
+ func BenchmarkAddVW(b *testing.B) {
+ 	for _, n := range benchSizes {
++		if isRaceBuilder && n > 1e3 {
++			continue
++		}
+ 		x := rndV(n)
+ 		y := rndW()
+ 		z := make([]Word, n)
+@@ -371,6 +381,9 @@ func TestMulAddWWW(t *testing.T) {
+ 
+ func BenchmarkAddMulVVW(b *testing.B) {
+ 	for _, n := range benchSizes {
++		if isRaceBuilder && n > 1e3 {
++			continue
++		}
+ 		x := rndV(n)
+ 		y := rndW()
+ 		z := make([]Word, n)
+diff --git a/src/math/big/gcd_test.go b/src/math/big/gcd_test.go
+index a929bf597f..3cca2ecd0c 100644
+--- a/src/math/big/gcd_test.go
++++ b/src/math/big/gcd_test.go
+@@ -20,6 +20,9 @@ func randInt(r *rand.Rand, size uint) *Int {
+ }
+ 
+ func runGCD(b *testing.B, aSize, bSize uint) {
++	if isRaceBuilder && (aSize > 1000 || bSize > 1000) {
++		b.Skip("skipping on race builder")
++	}
+ 	b.Run("WithoutXY", func(b *testing.B) {
+ 		runGCDExt(b, aSize, bSize, false)
+ 	})
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 45a3765d3e..fcc2ebc9ba 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1229,6 +1229,9 @@ func BenchmarkModSqrt224_3Mod4(b *testing.B) {
+ }
+ 
+ func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
++	if isRaceBuilder {
++		b.Skip("skipping on race builder")
++	}
+ 	p := tri(5430)
+ 	x := new(Int).SetUint64(2)
+ 	for i := 0; i < b.N; i++ {
+@@ -1238,6 +1241,9 @@ func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
+ }
+ 
+ func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
++	if isRaceBuilder {
++		b.Skip("skipping on race builder")
++	}
+ 	p := tri(5430)
+ 	x := new(Int).SetUint64(2)
+ 	for i := 0; i < b.N; i++ {
+diff --git a/src/math/big/natconv_test.go b/src/math/big/natconv_test.go
+index 79901d1880..bdb60e68e0 100644
+--- a/src/math/big/natconv_test.go
++++ b/src/math/big/natconv_test.go
+@@ -278,6 +278,9 @@ func BenchmarkScan(b *testing.B) {
+ 	const x = 10
+ 	for _, base := range []int{2, 8, 10, 16} {
+ 		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
++			if isRaceBuilder && y > 1000 {
++				continue
++			}
+ 			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
+ 				b.StopTimer()
+ 				var z nat
+@@ -301,6 +304,9 @@ func BenchmarkString(b *testing.B) {
+ 	const x = 10
+ 	for _, base := range []int{2, 8, 10, 16} {
+ 		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
++			if isRaceBuilder && y > 1000 {
++				continue
++			}
+ 			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
+ 				b.StopTimer()
+ 				var z nat

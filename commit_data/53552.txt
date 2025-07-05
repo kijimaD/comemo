@@ -24,9 +24,409 @@ Date:   Fri Aug 19 14:43:47 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  misc/cgo/testcarchive/carchive_test.go          | 242 +++++++++++++++---------
  misc/cgo/testcarchive/testdata/libgo2/libgo2.go |   6 +
  misc/cgo/testcarchive/testdata/main5.c          |  13 +-
  src/runtime/signal_darwin_amd64.go              |   4 +
  4 files changed, 168 insertions(+), 97 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index b959bc6cfa..f8be3f9c0c 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -19,6 +19,7 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -526,38 +527,13 @@ func TestEarlySignalHandler(t *testing.T) {
+ 
+ func TestSignalForwarding(t *testing.T) {
+ 	checkSignalForwardingTest(t)
++	buildSignalForwardingTest(t)
+ 
+-	if !testWork {
+-		defer func() {
+-			os.Remove("libgo2.a")
+-			os.Remove("libgo2.h")
+-			os.Remove("testp" + exeSuffix)
+-			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
+-		}()
+-	}
+-
+-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Logf("%s", out)
+-		t.Fatal(err)
+-	}
+-	checkLineComments(t, "libgo2.h")
+-	checkArchive(t, "libgo2.a")
+-
+-	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
+-	if runtime.Compiler == "gccgo" {
+-		ccArgs = append(ccArgs, "-lgo")
+-	}
+-	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+-		t.Logf("%s", out)
+-		t.Fatal(err)
+-	}
+-
+-	cmd = exec.Command(bin[0], append(bin[1:], "1")...)
++	cmd := exec.Command(bin[0], append(bin[1:], "1")...)
+ 
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%v\n%s", cmd.Args, out)
+-	expectSignal(t, err, syscall.SIGSEGV)
++	expectSignal(t, err, syscall.SIGSEGV, 0)
+ 
+ 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
+ 	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
+@@ -568,7 +544,7 @@ func TestSignalForwarding(t *testing.T) {
+ 		if len(out) > 0 {
+ 			t.Logf("%s", out)
+ 		}
+-		expectSignal(t, err, syscall.SIGPIPE)
++		expectSignal(t, err, syscall.SIGPIPE, 0)
+ 	}
+ }
+ 
+@@ -579,21 +555,100 @@ func TestSignalForwardingExternal(t *testing.T) {
+ 		t.Skipf("skipping on %s/%s: runtime does not permit SI_USER SIGSEGV", GOOS, GOARCH)
+ 	}
+ 	checkSignalForwardingTest(t)
++	buildSignalForwardingTest(t)
+ 
++	// We want to send the process a signal and see if it dies.
++	// Normally the signal goes to the C thread, the Go signal
++	// handler picks it up, sees that it is running in a C thread,
++	// and the program dies. Unfortunately, occasionally the
++	// signal is delivered to a Go thread, which winds up
++	// discarding it because it was sent by another program and
++	// there is no Go handler for it. To avoid this, run the
++	// program several times in the hopes that it will eventually
++	// fail.
++	const tries = 20
++	for i := 0; i < tries; i++ {
++		err := runSignalForwardingTest(t, "2")
++		if err == nil {
++			continue
++		}
++
++		// If the signal is delivered to a C thread, as expected,
++		// the Go signal handler will disable itself and re-raise
++		// the signal, causing the program to die with SIGSEGV.
++		//
++		// It is also possible that the signal will be
++		// delivered to a Go thread, such as a GC thread.
++		// Currently when the Go runtime sees that a SIGSEGV was
++		// sent from a different program, it first tries to send
++		// the signal to the os/signal API. If nothing is looking
++		// for (or explicitly ignoring) SIGSEGV, then it crashes.
++		// Because the Go runtime is invoked via a c-archive,
++		// it treats this as GOTRACEBACK=crash, meaning that it
++		// dumps a stack trace for all goroutines, which it does
++		// by raising SIGQUIT. The effect is that we will see the
++		// program die with SIGQUIT in that case, not SIGSEGV.
++		if expectSignal(t, err, syscall.SIGSEGV, syscall.SIGQUIT) {
++			return
++		}
++	}
++
++	t.Errorf("program succeeded unexpectedly %d times", tries)
++}
++
++func TestSignalForwardingGo(t *testing.T) {
++	// This test fails on darwin-amd64 because of the special
++	// handling of user-generated SIGSEGV signals in fixsigcode in
++	// runtime/signal_darwin_amd64.go.
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "amd64" {
++		t.Skip("not supported on darwin-amd64")
++	}
++
++	checkSignalForwardingTest(t)
++	buildSignalForwardingTest(t)
++	err := runSignalForwardingTest(t, "4")
++
++	// Occasionally the signal will be delivered to a C thread,
++	// and the program will crash with SIGSEGV.
++	expectSignal(t, err, syscall.SIGQUIT, syscall.SIGSEGV)
++}
++
++// checkSignalForwardingTest calls t.Skip if the SignalForwarding test
++// doesn't work on this platform.
++func checkSignalForwardingTest(t *testing.T) {
++	switch GOOS {
++	case "darwin", "ios":
++		switch GOARCH {
++		case "arm64":
++			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
++		}
++	case "windows":
++		t.Skip("skipping signal test on Windows")
++	}
++}
++
++// buildSignalForwardingTest builds the executable used by the various
++// signal forwarding tests.
++func buildSignalForwardingTest(t *testing.T) {
+ 	if !testWork {
+-		defer func() {
++		t.Cleanup(func() {
+ 			os.Remove("libgo2.a")
+ 			os.Remove("libgo2.h")
+ 			os.Remove("testp" + exeSuffix)
+ 			os.RemoveAll(filepath.Join(GOPATH, "pkg"))
+-		}()
++		})
+ 	}
+ 
++	t.Log("go build -buildmode=c-archive -o libgo2.a ./libgo2")
+ 	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
+-	if out, err := cmd.CombinedOutput(); err != nil {
++	out, err := cmd.CombinedOutput()
++	if len(out) > 0 {
+ 		t.Logf("%s", out)
++	}
++	if err != nil {
+ 		t.Fatal(err)
+ 	}
++
+ 	checkLineComments(t, "libgo2.h")
+ 	checkArchive(t, "libgo2.a")
+ 
+@@ -601,91 +656,92 @@ func TestSignalForwardingExternal(t *testing.T) {
+ 	if runtime.Compiler == "gccgo" {
+ 		ccArgs = append(ccArgs, "-lgo")
+ 	}
+-	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++	t.Log(ccArgs)
++	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
++	if len(out) > 0 {
+ 		t.Logf("%s", out)
++	}
++	if err != nil {
+ 		t.Fatal(err)
+ 	}
++}
+ 
+-	// We want to send the process a signal and see if it dies.
+-	// Normally the signal goes to the C thread, the Go signal
+-	// handler picks it up, sees that it is running in a C thread,
+-	// and the program dies. Unfortunately, occasionally the
+-	// signal is delivered to a Go thread, which winds up
+-	// discarding it because it was sent by another program and
+-	// there is no Go handler for it. To avoid this, run the
+-	// program several times in the hopes that it will eventually
+-	// fail.
+-	const tries = 20
+-	for i := 0; i < tries; i++ {
+-		cmd = exec.Command(bin[0], append(bin[1:], "2")...)
++func runSignalForwardingTest(t *testing.T, arg string) error {
++	t.Logf("%v %s", bin, arg)
++	cmd := exec.Command(bin[0], append(bin[1:], arg)...)
+ 
+-		stderr, err := cmd.StderrPipe()
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		defer stderr.Close()
++	var out strings.Builder
++	cmd.Stdout = &out
+ 
+-		r := bufio.NewReader(stderr)
++	stderr, err := cmd.StderrPipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer stderr.Close()
+ 
+-		err = cmd.Start()
++	r := bufio.NewReader(stderr)
+ 
+-		if err != nil {
+-			t.Fatal(err)
+-		}
++	err = cmd.Start()
++	if err != nil {
++		t.Fatal(err)
++	}
+ 
+-		// Wait for trigger to ensure that the process is started.
+-		ok, err := r.ReadString('\n')
++	// Wait for trigger to ensure that process is started.
++	ok, err := r.ReadString('\n')
+ 
+-		// Verify trigger.
+-		if err != nil || ok != "OK\n" {
+-			t.Fatalf("Did not receive OK signal")
+-		}
++	// Verify trigger.
++	if err != nil || ok != "OK\n" {
++		t.Fatal("Did not receive OK signal")
++	}
+ 
+-		// Give the program a chance to enter the sleep function.
+-		time.Sleep(time.Millisecond)
++	var wg sync.WaitGroup
++	wg.Add(1)
++	var errsb strings.Builder
++	go func() {
++		defer wg.Done()
++		io.Copy(&errsb, r)
++	}()
+ 
+-		cmd.Process.Signal(syscall.SIGSEGV)
++	// Give the program a chance to enter the function.
++	// If the program doesn't get there the test will still
++	// pass, although it doesn't quite test what we intended.
++	// This is fine as long as the program normally makes it.
++	time.Sleep(time.Millisecond)
+ 
+-		err = cmd.Wait()
++	cmd.Process.Signal(syscall.SIGSEGV)
+ 
+-		if err == nil {
+-			continue
+-		}
++	err = cmd.Wait()
+ 
+-		if expectSignal(t, err, syscall.SIGSEGV) {
+-			return
+-		}
++	s := out.String()
++	if len(s) > 0 {
++		t.Log(s)
+ 	}
+-
+-	t.Errorf("program succeeded unexpectedly %d times", tries)
+-}
+-
+-// checkSignalForwardingTest calls t.Skip if the SignalForwarding test
+-// doesn't work on this platform.
+-func checkSignalForwardingTest(t *testing.T) {
+-	switch GOOS {
+-	case "darwin", "ios":
+-		switch GOARCH {
+-		case "arm64":
+-			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
+-		}
+-	case "windows":
+-		t.Skip("skipping signal test on Windows")
++	wg.Wait()
++	s = errsb.String()
++	if len(s) > 0 {
++		t.Log(s)
+ 	}
++
++	return err
+ }
+ 
+ // expectSignal checks that err, the exit status of a test program,
+-// shows a failure due to a specific signal. Returns whether we found
+-// the expected signal.
+-func expectSignal(t *testing.T, err error, sig syscall.Signal) bool {
++// shows a failure due to a specific signal or two. Returns whether we
++// found an expected signal.
++func expectSignal(t *testing.T, err error, sig1, sig2 syscall.Signal) bool {
++	t.Helper()
+ 	if err == nil {
+ 		t.Error("test program succeeded unexpectedly")
+ 	} else if ee, ok := err.(*exec.ExitError); !ok {
+ 		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
+ 	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
+ 		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
+-	} else if !ws.Signaled() || ws.Signal() != sig {
+-		t.Errorf("got %v; expected signal %v", ee, sig)
++	} else if !ws.Signaled() || (ws.Signal() != sig1 && ws.Signal() != sig2) {
++		if sig2 == 0 {
++			t.Errorf("got %q; expected signal %q", ee, sig1)
++		} else {
++			t.Errorf("got %q; expected signal %q or %q", ee, sig1, sig2)
++		}
+ 	} else {
+ 		return true
+ 	}
+@@ -1022,14 +1078,14 @@ func TestCompileWithoutShared(t *testing.T) {
+ 	binArgs := append(cmdToRun(exe), "1")
+ 	out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
+ 	t.Logf("%v\n%s", binArgs, out)
+-	expectSignal(t, err, syscall.SIGSEGV)
++	expectSignal(t, err, syscall.SIGSEGV, 0)
+ 
+ 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
+ 	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
+ 		binArgs := append(cmdToRun(exe), "3")
+ 		out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
+ 		t.Logf("%v\n%s", binArgs, out)
+-		expectSignal(t, err, syscall.SIGPIPE)
++		expectSignal(t, err, syscall.SIGPIPE, 0)
+ 	}
+ }
+ 
+diff --git a/misc/cgo/testcarchive/testdata/libgo2/libgo2.go b/misc/cgo/testcarchive/testdata/libgo2/libgo2.go
+index 19c8e1a6dc..35c89ae92b 100644
+--- a/misc/cgo/testcarchive/testdata/libgo2/libgo2.go
++++ b/misc/cgo/testcarchive/testdata/libgo2/libgo2.go
+@@ -49,6 +49,12 @@ func RunGoroutines() {
+ 	}
+ }
+ 
++// Block blocks the current thread while running Go code.
++//export Block
++func Block() {
++	select {}
++}
++
+ var P *byte
+ 
+ // TestSEGV makes sure that an invalid address turns into a run-time Go panic.
+diff --git a/misc/cgo/testcarchive/testdata/main5.c b/misc/cgo/testcarchive/testdata/main5.c
+index d431ce01ce..c64c246fde 100644
+--- a/misc/cgo/testcarchive/testdata/main5.c
++++ b/misc/cgo/testcarchive/testdata/main5.c
+@@ -29,10 +29,6 @@ int main(int argc, char** argv) {
+ 
+ 	verbose = (argc > 2);
+ 
+-	if (verbose) {
+-		printf("calling RunGoroutines\n");
+-	}
+-
+ 	Noop();
+ 
+ 	switch (test) {
+@@ -90,6 +86,15 @@ int main(int argc, char** argv) {
+ 			printf("did not receive SIGPIPE\n");
+ 			return 0;
+ 		}
++		case 4: {
++			fprintf(stderr, "OK\n");
++			fflush(stderr);
++
++			if (verbose) {
++				printf("calling Block\n");
++			}
++			Block();
++		}
+ 		default:
+ 			printf("Unknown test: %d\n", test);
+ 			return 0;
+diff --git a/src/runtime/signal_darwin_amd64.go b/src/runtime/signal_darwin_amd64.go
+index abc212ad51..20544d8489 100644
+--- a/src/runtime/signal_darwin_amd64.go
++++ b/src/runtime/signal_darwin_amd64.go
+@@ -84,6 +84,10 @@ func (c *sigctxt) fixsigcode(sig uint32) {
+ 		// in real life, people will probably search for it and find this code.
+ 		// There are no Google hits for b01dfacedebac1e or 0xb01dfacedebac1e
+ 		// as I type this comment.
++		//
++		// Note: if this code is removed, please consider
++		// enabling TestSignalForwardingGo for darwin-amd64 in
++		// misc/cgo/testcarchive/carchive_test.go.
+ 		if c.sigcode() == _SI_USER {
+ 			c.set_sigcode(_SI_USER + 1)
+ 			c.set_sigaddr(0xb01dfacedebac1e)

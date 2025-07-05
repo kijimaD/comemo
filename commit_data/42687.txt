@@ -12,7 +12,45 @@ Date:   Wed Feb 5 13:36:53 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/vet/vet.go           |  4 +++-
  src/cmd/go/testdata/script/vet_flags.txt | 11 +++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 660a739fbb..4e09c0fb9c 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -51,7 +51,9 @@ func runVet(cmd *base.Command, args []string) {
+ 
+ 	work.BuildInit()
+ 	work.VetFlags = vetFlags
+-	work.VetExplicit = true
++	if len(vetFlags) > 0 {
++		work.VetExplicit = true
++	}
+ 	if vetTool != "" {
+ 		var err error
+ 		work.VetTool, err = filepath.Abs(vetTool)
+diff --git a/src/cmd/go/testdata/script/vet_flags.txt b/src/cmd/go/testdata/script/vet_flags.txt
+index 6aa1413fa4..f2cf021f62 100644
+--- a/src/cmd/go/testdata/script/vet_flags.txt
++++ b/src/cmd/go/testdata/script/vet_flags.txt
+@@ -6,6 +6,17 @@ go vet -n -unreachable=false encoding/binary
+ stderr '-unreachable=false'
+ ! stderr '-unsafeptr=false'
+ 
++# Issue 37030: "go vet <std package>" without other flags should disable the
++# unsafeptr check by default.
++go vet -n encoding/binary
++stderr '-unsafeptr=false'
++! stderr '-unreachable=false'
++
++# However, it should be enabled if requested explicitly.
++go vet -n -unsafeptr encoding/binary
++stderr '-unsafeptr'
++! stderr '-unsafeptr=false'
++
+ [short] stop
+ env GOCACHE=$WORK/gocache
+ env GOTMPDIR=$WORK/tmp

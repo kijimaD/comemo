@@ -14,10 +14,86 @@ Date:   Tue Mar 4 10:31:02 2025 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asan.go         | 1 +
  src/runtime/asan0.go        | 1 +
  src/runtime/lock_spinbit.go | 2 +-
  src/runtime/proc.go         | 2 +-
  src/runtime/runtime2.go     | 9 +++++++--
  5 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+index 32d5f45225..ee070d3270 100644
+--- a/src/runtime/asan.go
++++ b/src/runtime/asan.go
+@@ -26,6 +26,7 @@ func ASanWrite(addr unsafe.Pointer, len int) {
+ 
+ // Private interface for the runtime.
+ const asanenabled = true
++const asanenabledBit = 1
+ 
+ // asan{read,write} are nosplit because they may be called between
+ // fork and exec, when the stack must not grow. See issue #50391.
+diff --git a/src/runtime/asan0.go b/src/runtime/asan0.go
+index 8331653982..f20eae0af7 100644
+--- a/src/runtime/asan0.go
++++ b/src/runtime/asan0.go
+@@ -13,6 +13,7 @@ import (
+ )
+ 
+ const asanenabled = false
++const asanenabledBit = 0
+ 
+ // Because asanenabled is false, none of these functions should be called.
+ 
+diff --git a/src/runtime/lock_spinbit.go b/src/runtime/lock_spinbit.go
+index 7e84f3e1c2..ba5268abdd 100644
+--- a/src/runtime/lock_spinbit.go
++++ b/src/runtime/lock_spinbit.go
+@@ -90,7 +90,7 @@ type mWaitList struct {
+ 
+ // lockVerifyMSize confirms that we can recreate the low bits of the M pointer.
+ func lockVerifyMSize() {
+-	size := roundupsize(unsafe.Sizeof(m{}), false) + mallocHeaderSize
++	size := roundupsize(unsafe.Sizeof(mPadded{}), false) + mallocHeaderSize
+ 	if size&mutexMMask != 0 {
+ 		print("M structure uses sizeclass ", size, "/", hex(size), " bytes; ",
+ 			"incompatible with mutex flag mask ", hex(mutexMMask), "\n")
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c7ae71a136..8f603021e5 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2256,7 +2256,7 @@ func allocm(pp *p, fn func(), id int64) *m {
+ 		unlock(&sched.lock)
+ 	}
+ 
+-	mp := new(m)
++	mp := &new(mPadded).m
+ 	mp.mstartfn = fn
+ 	mcommoninit(mp, id)
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 6b9f49d503..4318930d9c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -619,13 +619,18 @@ type m struct {
+ 	// Up to 10 locks held by this m, maintained by the lock ranking code.
+ 	locksHeldLen int
+ 	locksHeld    [10]heldLockInfo
++}
++
++const mRedZoneSize = (16 << 3) * asanenabledBit // redZoneSize(2048)
++
++type mPadded struct {
++	m
+ 
+ 	// Size the runtime.m structure so it fits in the 2048-byte size class, and
+ 	// not in the next-smallest (1792-byte) size class. That leaves the 11 low
+ 	// bits of muintptr values available for flags, as required for
+ 	// GOEXPERIMENT=spinbitmutex.
+-	_ [goexperiment.SpinbitMutexInt * 64 * goarch.PtrSize / 8]byte
+-	_ [goexperiment.SpinbitMutexInt * 700 * (2 - goarch.PtrSize/4)]byte
++	_ [goexperiment.SpinbitMutexInt * (2048 - mallocHeaderSize - mRedZoneSize - unsafe.Sizeof(m{}))]byte
+ }
+ 
+ type p struct {

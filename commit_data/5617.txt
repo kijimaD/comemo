@@ -7,7 +7,58 @@ Date:   Tue Jun 8 01:28:40 2010 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1581041
-
+---
  src/pkg/http/client.go      | 14 +++++++++++++-
  src/pkg/http/client_test.go | 10 ++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index fe61d20733..54487dac2f 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -130,7 +130,6 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
+ 	return
+ }
+ 
+-
+ // Post issues a POST to the specified URL.
+ //
+ // Caller should close r.Body when done reading it.
+@@ -154,6 +153,19 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
+ 	return send(&req)
+ }
+ 
++// Head issues a HEAD to the specified URL.
++func Head(url string) (r *Response, err os.Error) {
++	var req Request
++	req.Method = "HEAD"
++	if req.URL, err = ParseURL(url); err != nil {
++		return
++	}
++	if r, err = send(&req); err != nil {
++		return
++	}
++	return
++}
++
+ type nopCloser struct {
+ 	io.Reader
+ }
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 6787825d81..a916b12e24 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -28,3 +28,13 @@ func TestClient(t *testing.T) {
+ 		t.Errorf("Incorrect page body (did not begin with User-agent): %q", s)
+ 	}
+ }
++
++func TestClientHead(t *testing.T) {
++	r, err := Head("http://www.google.com/robots.txt")
++	if err != nil {
++		t.Error(err)
++	}
++	if _, ok := r.Header["Last-Modified"]; !ok {
++		t.Error("Last-Modified header not found.")
++	}
++}

@@ -20,8 +20,142 @@ Date:   Wed Jul 28 17:03:21 2021 +0300
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go                     |  7 +++++-
  src/cmd/go/internal/modcmd/vendor.go      | 21 +++++++++++++---
  src/cmd/go/testdata/script/mod_vendor.txt | 42 +++++++++++++++++++++++++++++++
  3 files changed, 66 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 81d2f7021d..ff144f9847 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1295,7 +1295,7 @@
+ //
+ // Usage:
+ //
+-// 	go mod vendor [-e] [-v]
++// 	go mod vendor [-e] [-v] [-o outdir]
+ //
+ // Vendor resets the main module's vendor directory to include all packages
+ // needed to build and test all the main module's packages.
+@@ -1307,6 +1307,11 @@
+ // The -e flag causes vendor to attempt to proceed despite errors
+ // encountered while loading packages.
+ //
++// The -o flag causes vendor to create the vendor directory at the given
++// path instead of "vendor". The go command can only use a vendor directory
++// named "vendor" within the module root directory, so this flag is
++// primarily useful for other tools.
++//
+ // See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
+ //
+ //
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 484e095cc7..ef123700aa 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -31,7 +31,7 @@ import (
+ )
+ 
+ var cmdVendor = &base.Command{
+-	UsageLine: "go mod vendor [-e] [-v]",
++	UsageLine: "go mod vendor [-e] [-v] [-o outdir]",
+ 	Short:     "make vendored copy of dependencies",
+ 	Long: `
+ Vendor resets the main module's vendor directory to include all packages
+@@ -44,16 +44,23 @@ modules and packages to standard error.
+ The -e flag causes vendor to attempt to proceed despite errors
+ encountered while loading packages.
+ 
++The -o flag causes vendor to create the vendor directory at the given
++path instead of "vendor". The go command can only use a vendor directory
++named "vendor" within the module root directory, so this flag is
++primarily useful for other tools.
++
+ See https://golang.org/ref/mod#go-mod-vendor for more about 'go mod vendor'.
+ 	`,
+ 	Run: runVendor,
+ }
+ 
+-var vendorE bool // if true, report errors but proceed anyway
++var vendorE bool   // if true, report errors but proceed anyway
++var vendorO string // if set, overrides the default output directory
+ 
+ func init() {
+ 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ 	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
++	cmdVendor.Flag.StringVar(&vendorO, "o", "", "")
+ 	base.AddModCommonFlags(&cmdVendor.Flag)
+ }
+ 
+@@ -74,7 +81,15 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
+ 
+-	vdir := filepath.Join(modload.VendorDir())
++	var vdir string
++	switch {
++	case filepath.IsAbs(vendorO):
++		vdir = vendorO
++	case vendorO != "":
++		vdir = filepath.Join(base.Cwd(), vendorO)
++	default:
++		vdir = filepath.Join(modload.VendorDir())
++	}
+ 	if err := os.RemoveAll(vdir); err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 4eb80c2332..a2727ddf7f 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -82,6 +82,48 @@ exists vendor/mysite/myname/mypkg/LICENSE.txt
+ ! exists vendor/x/x2
+ ! exists vendor/x/x2/LICENSE
+ 
++# 'go mod vendor' should work with an alternative vendor directory if the -o flag is provided.
++go mod vendor -v -o alternative-vendor-dir
++exists alternative-vendor-dir/modules.txt
++exists alternative-vendor-dir/a/foo/LICENSE
++
++# 'go mod vendor' should interpret paths relative to the current working directory when the -o flag is provided.
++mkdir dir1
++mkdir dir2
++
++cd dir1
++go mod vendor -v -o relative-vendor-dir
++
++go mod vendor -v -o ../dir2/relative-vendor-dir
++
++cd ..
++exists dir1/relative-vendor-dir/modules.txt
++exists dir1/relative-vendor-dir/a/foo/LICENSE
++exists dir2/relative-vendor-dir/modules.txt
++exists dir2/relative-vendor-dir/a/foo/LICENSE
++
++# 'go mod vendor' should fall back to the default 'vendor' directory when an empty argument is passed to the -o flag
++# the same behavior should be exhibited both on the module root directory, as well as nested subdirectories
++
++go mod vendor -v -o ''
++exists vendor/modules.txt
++
++env GOFLAGS=-o=foo
++go mod vendor -v -o ''
++exists vendor/modules.txt
++env GOFLAGS=''
++
++mkdir -p nested/dir
++cd nested/dir
++go mod vendor -v -o ''
++! exists vendor/
++exists ../../vendor/modules.txt
++cd ../..
++
++# 'go mod vendor' should work with absolute paths as well
++go mod vendor -v -o $WORK/tmp/absolute-vendor-dir
++exists $WORK/tmp/absolute-vendor-dir/modules.txt
++
+ [short] stop
+ 
+ # 'go build' and 'go test' using vendored packages should succeed.

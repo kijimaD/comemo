@@ -14,9 +14,70 @@ Date:   Wed Apr 28 11:10:07 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/314769
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/time_fake.go         | 7 +------
  src/runtime/time_nofake.go       | 4 ----
  src/runtime/timestub.go          | 2 +-
  src/runtime/write_err_android.go | 2 +-
  4 files changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/time_fake.go b/src/runtime/time_fake.go
+index 9d9a1e2ca6..c790faba3d 100644
+--- a/src/runtime/time_fake.go
++++ b/src/runtime/time_fake.go
+@@ -37,14 +37,9 @@ func nanotime() int64 {
+ 	return faketime
+ }
+ 
+-func walltime() (sec int64, nsec int32) {
+-	return faketime / 1000000000, int32(faketime % 1000000000)
+-}
+-
+ //go:linkname time_now time.now
+ func time_now() (sec int64, nsec int32, mono int64) {
+-	sec, nsec = walltime()
+-	return sec, nsec, nanotime()
++	return faketime / 1e9, int32(faketime % 1e9), faketime
+ }
+ 
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+diff --git a/src/runtime/time_nofake.go b/src/runtime/time_nofake.go
+index 13bf1c2d4f..5a4ceaf43d 100644
+--- a/src/runtime/time_nofake.go
++++ b/src/runtime/time_nofake.go
+@@ -20,10 +20,6 @@ func nanotime() int64 {
+ 	return nanotime1()
+ }
+ 
+-func walltime() (sec int64, nsec int32) {
+-	return walltime1()
+-}
+-
+ // write must be nosplit on Windows (see write1)
+ //
+ //go:nosplit
+diff --git a/src/runtime/timestub.go b/src/runtime/timestub.go
+index 6f16c70b81..44e65845cb 100644
+--- a/src/runtime/timestub.go
++++ b/src/runtime/timestub.go
+@@ -16,6 +16,6 @@ import _ "unsafe" // for go:linkname
+ 
+ //go:linkname time_now time.now
+ func time_now() (sec int64, nsec int32, mono int64) {
+-	sec, nsec = walltime()
++	sec, nsec = walltime1()
+ 	return sec, nsec, nanotime()
+ }
+diff --git a/src/runtime/write_err_android.go b/src/runtime/write_err_android.go
+index 2419fc8663..a876900c95 100644
+--- a/src/runtime/write_err_android.go
++++ b/src/runtime/write_err_android.go
+@@ -144,7 +144,7 @@ func writeLogdHeader() int {
+ 	//      hdr[3:7] sec unsigned uint32, little endian.
+ 	//      hdr[7:11] nsec unsigned uint32, little endian.
+ 	hdr[0] = 0 // LOG_ID_MAIN
+-	sec, nsec := walltime()
++	sec, nsec, _ := time_now()
+ 	packUint32(hdr[3:7], uint32(sec))
+ 	packUint32(hdr[7:11], uint32(nsec))
+ 

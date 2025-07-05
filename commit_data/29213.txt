@@ -14,9 +14,509 @@ Date:   Wed Aug 31 20:44:42 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/28274
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/cpuflags_amd64.go |  75 -------------
  src/runtime/cpuidlow_amd64.s  |  22 ----
  src/runtime/memmove_amd64.s   | 243 +-----------------------------------------
  src/runtime/memmove_test.go   | 104 ------------------
  4 files changed, 1 insertion(+), 443 deletions(-)
+
+diff --git a/src/runtime/cpuflags_amd64.go b/src/runtime/cpuflags_amd64.go
+deleted file mode 100644
+index 277b42c4a0..0000000000
+--- a/src/runtime/cpuflags_amd64.go
++++ /dev/null
+@@ -1,75 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-var vendorStringBytes [12]byte
+-var maxInputValue uint32
+-var featureFlags uint32
+-var processorVersionInfo uint32
+-
+-var useRepMovs bool
+-
+-func hasFeature(feature uint32) bool {
+-	return (featureFlags & feature) != 0
+-}
+-
+-func cpuid_low(arg1, arg2 uint32) (eax, ebx, ecx, edx uint32) // implemented in cpuidlow_amd64.s
+-func xgetbv_low(arg1 uint32) (eax, edx uint32)                // implemented in cpuidlow_amd64.s
+-
+-func init() {
+-	const cfOSXSAVE uint32 = 1 << 27
+-	const cfAVX uint32 = 1 << 28
+-
+-	leaf0()
+-	leaf1()
+-
+-	enabledAVX := false
+-	// Let's check if OS has set CR4.OSXSAVE[bit 18]
+-	// to enable XGETBV instruction.
+-	if hasFeature(cfOSXSAVE) {
+-		eax, _ := xgetbv_low(0)
+-		// Let's check that XCR0[2:1] = ‘11b’
+-		// i.e. XMM state and YMM state are enabled by OS.
+-		enabledAVX = (eax & 0x6) == 0x6
+-	}
+-
+-	isIntelBridgeFamily := (processorVersionInfo == 0x206A0 ||
+-		processorVersionInfo == 0x206D0 ||
+-		processorVersionInfo == 0x306A0 ||
+-		processorVersionInfo == 0x306E0) &&
+-		isIntel()
+-
+-	useRepMovs = !(hasFeature(cfAVX) && enabledAVX) || isIntelBridgeFamily
+-}
+-
+-func leaf0() {
+-	eax, ebx, ecx, edx := cpuid_low(0, 0)
+-	maxInputValue = eax
+-	int32ToBytes(ebx, vendorStringBytes[0:4])
+-	int32ToBytes(edx, vendorStringBytes[4:8])
+-	int32ToBytes(ecx, vendorStringBytes[8:12])
+-}
+-
+-func leaf1() {
+-	if maxInputValue < 1 {
+-		return
+-	}
+-	eax, _, ecx, _ := cpuid_low(1, 0)
+-	// Let's remove stepping and reserved fields
+-	processorVersionInfo = eax & 0x0FFF3FF0
+-	featureFlags = ecx
+-}
+-
+-func int32ToBytes(arg uint32, buffer []byte) {
+-	buffer[3] = byte(arg >> 24)
+-	buffer[2] = byte(arg >> 16)
+-	buffer[1] = byte(arg >> 8)
+-	buffer[0] = byte(arg)
+-}
+-
+-func isIntel() bool {
+-	intelSignature := [12]byte{'G', 'e', 'n', 'u', 'i', 'n', 'e', 'I', 'n', 't', 'e', 'l'}
+-	return vendorStringBytes == intelSignature
+-}
+diff --git a/src/runtime/cpuidlow_amd64.s b/src/runtime/cpuidlow_amd64.s
+deleted file mode 100644
+index 64316c9e9f..0000000000
+--- a/src/runtime/cpuidlow_amd64.s
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// func cpuid_low(arg1, arg2 uint32) (eax, ebx, ecx, edx uint32)
+-TEXT ·cpuid_low(SB), 4, $0-24
+-    MOVL    arg1+0(FP), AX
+-    MOVL    arg2+4(FP), CX
+-    CPUID
+-    MOVL AX, eax+8(FP)
+-    MOVL BX, ebx+12(FP)
+-    MOVL CX, ecx+16(FP)
+-    MOVL DX, edx+20(FP)
+-    RET
+-// func xgetbv_low(arg1 uint32) (eax, edx uint32)
+-TEXT ·xgetbv_low(SB), 4, $0-16
+-    MOVL arg1+0(FP), CX
+-    // XGETBV
+-    BYTE $0x0F; BYTE $0x01; BYTE $0xD0
+-    MOVL AX,eax+8(FP)
+-    MOVL DX,edx+12(FP)
+-    RET
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index ffcc6613cf..5d23ce3e6c 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -64,9 +64,6 @@ tail:
+ 	JBE	move_129through256
+ 	// TODO: use branch table and BSR to make this just a single dispatch
+ 
+-	TESTB	$1, runtime·useRepMovs(SB)
+-	JZ	avxUnaligned
+-
+ /*
+  * check and set for backwards
+  */
+@@ -111,6 +108,7 @@ back:
+ 	ADDQ	BX, CX
+ 	CMPQ	CX, DI
+ 	JLS	forward
++	
+ /*
+  * whole thing backwards has
+  * adjusted addresses
+@@ -275,242 +273,3 @@ move_256through2048:
+ 	LEAQ	256(DI), DI
+ 	JGE	move_256through2048
+ 	JMP	tail
+-
+-avxUnaligned:
+-	// There are two implementations of the move algorithm.
+-	// The first one for non-overlapped memory regions. It uses forward copying.
+-	// The second one for overlapped regions. It uses backward copying
+-	MOVQ	DI, CX
+-	SUBQ	SI, CX
+-	// Now CX contains distance between SRC and DEST
+-	CMPQ	CX, BX
+-	// If the distance lesser than region length it means that regions are overlapped
+-	JC	copy_backward
+-
+-	// Non-temporal copy would be better for big sizes.
+-	CMPQ	BX, $0x100000
+-	JAE	gobble_big_data_fwd
+-
+-	// Memory layout on the source side
+-	// SI                                       CX
+-	// |<---------BX before correction--------->|
+-	// |       |<--BX corrected-->|             |
+-	// |       |                  |<--- AX  --->|
+-	// |<-R11->|                  |<-128 bytes->|
+-	// +----------------------------------------+
+-	// | Head  | Body             | Tail        |
+-	// +-------+------------------+-------------+
+-	// ^       ^                  ^
+-	// |       |                  |
+-	// Save head into Y4          Save tail into X5..X12
+-	//         |
+-	//         SI+R11, where R11 = ((DI & -32) + 32) - DI
+-	// Algorithm:
+-	// 1. Unaligned save of the tail's 128 bytes
+-	// 2. Unaligned save of the head's 32  bytes
+-	// 3. Destination-aligned copying of body (128 bytes per iteration)
+-	// 4. Put head on the new place
+-	// 5. Put the tail on the new place
+-	// It can be important to satisfy processor's pipeline requirements for
+-	// small sizes as the cost of unaligned memory region copying is
+-	// comparable with the cost of main loop. So code is slightly messed there.
+-	// There is more clean implementation of that algorithm for bigger sizes
+-	// where the cost of unaligned part copying is negligible.
+-	// You can see it after gobble_big_data_fwd label.
+-	LEAQ	(SI)(BX*1), CX
+-	MOVQ	DI, R10
+-	// CX points to the end of buffer so we need go back slightly. We will use negative offsets there.
+-	MOVOU	-0x80(CX), X5
+-	MOVOU	-0x70(CX), X6
+-	MOVQ	$0x80, AX
+-	// Align destination address
+-	ANDQ	$-32, DI
+-	ADDQ	$32, DI
+-	// Continue tail saving.
+-	MOVOU	-0x60(CX), X7
+-	MOVOU	-0x50(CX), X8
+-	// Make R11 delta between aligned and unaligned destination addresses.
+-	MOVQ	DI, R11
+-	SUBQ	R10, R11
+-	// Continue tail saving.
+-	MOVOU	-0x40(CX), X9
+-	MOVOU	-0x30(CX), X10
+-	// Let's make bytes-to-copy value adjusted as we've prepared unaligned part for copying.
+-	SUBQ	R11, BX
+-	// Continue tail saving.
+-	MOVOU	-0x20(CX), X11
+-	MOVOU	-0x10(CX), X12
+-	// The tail will be put on it's place after main body copying.
+-	// It's time for the unaligned heading part.
+-	VMOVDQU	(SI), Y4
+-	// Adjust source address to point past head.
+-	ADDQ	R11, SI
+-	SUBQ	AX, BX
+-	// Aligned memory copying there
+-gobble_128_loop:
+-	VMOVDQU	(SI), Y0
+-	VMOVDQU	0x20(SI), Y1
+-	VMOVDQU	0x40(SI), Y2
+-	VMOVDQU	0x60(SI), Y3
+-	ADDQ	AX, SI
+-	VMOVDQA	Y0, (DI)
+-	VMOVDQA	Y1, 0x20(DI)
+-	VMOVDQA	Y2, 0x40(DI)
+-	VMOVDQA	Y3, 0x60(DI)
+-	ADDQ	AX, DI
+-	SUBQ	AX, BX
+-	JA	gobble_128_loop
+-	// Now we can store unaligned parts.
+-	ADDQ	AX, BX
+-	ADDQ	DI, BX
+-	VMOVDQU	Y4, (R10)
+-	VZEROUPPER
+-	MOVOU	X5, -0x80(BX)
+-	MOVOU	X6, -0x70(BX)
+-	MOVOU	X7, -0x60(BX)
+-	MOVOU	X8, -0x50(BX)
+-	MOVOU	X9, -0x40(BX)
+-	MOVOU	X10, -0x30(BX)
+-	MOVOU	X11, -0x20(BX)
+-	MOVOU	X12, -0x10(BX)
+-	RET
+-
+-gobble_big_data_fwd:
+-	// There is forward copying for big regions.
+-	// It uses non-temporal mov instructions.
+-	// Details of this algorithm are commented previously for small sizes.
+-	LEAQ	(SI)(BX*1), CX
+-	MOVOU	-0x80(SI)(BX*1), X5
+-	MOVOU	-0x70(CX), X6
+-	MOVOU	-0x60(CX), X7
+-	MOVOU	-0x50(CX), X8
+-	MOVOU	-0x40(CX), X9
+-	MOVOU	-0x30(CX), X10
+-	MOVOU	-0x20(CX), X11
+-	MOVOU	-0x10(CX), X12
+-	VMOVDQU	(SI), Y4
+-	MOVQ	DI, R8
+-	ANDQ	$-32, DI
+-	ADDQ	$32, DI
+-	MOVQ	DI, R10
+-	SUBQ	R8, R10
+-	SUBQ	R10, BX
+-	ADDQ	R10, SI
+-	LEAQ	(DI)(BX*1), CX
+-	SUBQ	$0x80, BX
+-gobble_mem_fwd_loop:
+-	PREFETCHNTA 0x1C0(SI)
+-	PREFETCHNTA 0x280(SI)
+-	// Prefetch values were choosen empirically.
+-	// Approach for prefetch usage as in 7.6.6 of [1]
+-	// [1] 64-ia-32-architectures-optimization-manual.pdf
+-	// http://www.intel.ru/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
+-	VMOVDQU	(SI), Y0
+-	VMOVDQU	0x20(SI), Y1
+-	VMOVDQU	0x40(SI), Y2
+-	VMOVDQU	0x60(SI), Y3
+-	ADDQ	$0x80, SI
+-	VMOVNTDQ Y0, (DI)
+-	VMOVNTDQ Y1, 0x20(DI)
+-	VMOVNTDQ Y2, 0x40(DI)
+-	VMOVNTDQ Y3, 0x60(DI)
+-	ADDQ	$0x80, DI
+-	SUBQ	$0x80, BX
+-	JA		gobble_mem_fwd_loop
+-	// NT instructions don't follow the normal cache-coherency rules.
+-	// We need SFENCE there to make copied data available timely.
+-	SFENCE
+-	VMOVDQU	Y4, (R8)
+-	VZEROUPPER
+-	MOVOU	X5, -0x80(CX)
+-	MOVOU	X6, -0x70(CX)
+-	MOVOU	X7, -0x60(CX)
+-	MOVOU	X8, -0x50(CX)
+-	MOVOU	X9, -0x40(CX)
+-	MOVOU	X10, -0x30(CX)
+-	MOVOU	X11, -0x20(CX)
+-	MOVOU	X12, -0x10(CX)
+-	RET
+-
+-copy_backward:
+-	MOVQ	DI, AX
+-	// Backward copying is about the same as the forward one.
+-	// Firstly we load unaligned tail in the beginning of region.
+-	MOVOU	(SI), X5
+-	MOVOU	0x10(SI), X6
+-	ADDQ	BX, DI
+-	MOVOU	0x20(SI), X7
+-	MOVOU	0x30(SI), X8
+-	LEAQ	-0x20(DI), R10
+-	MOVQ	DI, R11
+-	MOVOU	0x40(SI), X9
+-	MOVOU	0x50(SI), X10
+-	ANDQ	$0x1F, R11
+-	MOVOU	0x60(SI), X11
+-	MOVOU	0x70(SI), X12
+-	XORQ	R11, DI
+-	// Let's point SI to the end of region
+-	ADDQ	BX, SI
+-	// and load unaligned head into X4.
+-	VMOVDQU	-0x20(SI), Y4
+-	SUBQ	R11, SI
+-	SUBQ	R11, BX
+-	// If there is enough data for non-temporal moves go to special loop
+-	CMPQ	BX, $0x100000
+-	JA		gobble_big_data_bwd
+-	SUBQ	$0x80, BX
+-gobble_mem_bwd_loop:
+-	VMOVDQU	-0x20(SI), Y0
+-	VMOVDQU	-0x40(SI), Y1
+-	VMOVDQU	-0x60(SI), Y2
+-	VMOVDQU	-0x80(SI), Y3
+-	SUBQ	$0x80, SI
+-	VMOVDQA	Y0, -0x20(DI)
+-	VMOVDQA	Y1, -0x40(DI)
+-	VMOVDQA	Y2, -0x60(DI)
+-	VMOVDQA	Y3, -0x80(DI)
+-	SUBQ	$0x80, DI
+-	SUBQ	$0x80, BX
+-	JA		gobble_mem_bwd_loop
+-	// Let's store unaligned data
+-	VMOVDQU	Y4, (R10)
+-	VZEROUPPER
+-	MOVOU	X5, (AX)
+-	MOVOU	X6, 0x10(AX)
+-	MOVOU	X7, 0x20(AX)
+-	MOVOU	X8, 0x30(AX)
+-	MOVOU	X9, 0x40(AX)
+-	MOVOU	X10, 0x50(AX)
+-	MOVOU	X11, 0x60(AX)
+-	MOVOU	X12, 0x70(AX)
+-	RET
+-
+-gobble_big_data_bwd:
+-	SUBQ	$0x80, BX
+-gobble_big_mem_bwd_loop:
+-	PREFETCHNTA -0x1C0(SI)
+-	PREFETCHNTA -0x280(SI)
+-	VMOVDQU	-0x20(SI), Y0
+-	VMOVDQU	-0x40(SI), Y1
+-	VMOVDQU	-0x60(SI), Y2
+-	VMOVDQU	-0x80(SI), Y3
+-	SUBQ	$0x80, SI
+-	VMOVNTDQ	Y0, -0x20(DI)
+-	VMOVNTDQ	Y1, -0x40(DI)
+-	VMOVNTDQ	Y2, -0x60(DI)
+-	VMOVNTDQ	Y3, -0x80(DI)
+-	SUBQ	$0x80, DI
+-	SUBQ	$0x80, BX
+-	JA	gobble_big_mem_bwd_loop
+-	SFENCE
+-	VMOVDQU	Y4, (R10)
+-	VZEROUPPER
+-	MOVOU	X5, (AX)
+-	MOVOU	X6, 0x10(AX)
+-	MOVOU	X7, 0x20(AX)
+-	MOVOU	X8, 0x30(AX)
+-	MOVOU	X9, 0x40(AX)
+-	MOVOU	X10, 0x50(AX)
+-	MOVOU	X11, 0x60(AX)
+-	MOVOU	X12, 0x70(AX)
+-	RET
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+old mode 100755
+new mode 100644
+index 080ca28667..2124cb9d49
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -5,9 +5,7 @@
+ package runtime_test
+ 
+ import (
+-	"crypto/rand"
+ 	"fmt"
+-	"internal/race"
+ 	. "runtime"
+ 	"testing"
+ )
+@@ -84,108 +82,6 @@ func TestMemmoveAlias(t *testing.T) {
+ 	}
+ }
+ 
+-func TestMemmoveLarge0x180000(t *testing.T) {
+-	if race.Enabled {
+-		t.Skip("skipping large memmove test under race detector")
+-	}
+-	testSize(t, 0x180000)
+-}
+-
+-func TestMemmoveOverlapLarge0x120000(t *testing.T) {
+-	if race.Enabled {
+-		t.Skip("skipping large memmove test under race detector")
+-	}
+-	testOverlap(t, 0x120000)
+-}
+-
+-func testSize(t *testing.T, size int) {
+-	src := make([]byte, size)
+-	dst := make([]byte, size)
+-	_, _ = rand.Read(src)
+-	_, _ = rand.Read(dst)
+-
+-	ref := make([]byte, size)
+-	copyref(ref, dst)
+-
+-	for n := size - 50; n > 1; n >>= 1 {
+-		for x := 0; x <= size-n; x = x*7 + 1 { // offset in src
+-			for y := 0; y <= size-n; y = y*9 + 1 { // offset in dst
+-				copy(dst[y:y+n], src[x:x+n])
+-				copyref(ref[y:y+n], src[x:x+n])
+-				p := cmpb(dst, ref)
+-				if p >= 0 {
+-					t.Fatalf("Copy failed, copying from src[%d:%d] to dst[%d:%d].\nOffset %d is different, %v != %v", x, x+n, y, y+n, p, dst[p], ref[p])
+-				}
+-			}
+-		}
+-	}
+-}
+-
+-func testOverlap(t *testing.T, size int) {
+-	src := make([]byte, size)
+-	test := make([]byte, size)
+-	ref := make([]byte, size)
+-	_, _ = rand.Read(src)
+-
+-	for n := size - 50; n > 1; n >>= 1 {
+-		for x := 0; x <= size-n; x = x*7 + 1 { // offset in src
+-			for y := 0; y <= size-n; y = y*9 + 1 { // offset in dst
+-				// Reset input
+-				copyref(test, src)
+-				copyref(ref, src)
+-				copy(test[y:y+n], test[x:x+n])
+-				if y <= x {
+-					copyref(ref[y:y+n], ref[x:x+n])
+-				} else {
+-					copybw(ref[y:y+n], ref[x:x+n])
+-				}
+-				p := cmpb(test, ref)
+-				if p >= 0 {
+-					t.Fatalf("Copy failed, copying from src[%d:%d] to dst[%d:%d].\nOffset %d is different, %v != %v", x, x+n, y, y+n, p, test[p], ref[p])
+-				}
+-			}
+-		}
+-	}
+-
+-}
+-
+-// Forward copy.
+-func copyref(dst, src []byte) {
+-	for i, v := range src {
+-		dst[i] = v
+-	}
+-}
+-
+-// Backwards copy
+-func copybw(dst, src []byte) {
+-	if len(src) == 0 {
+-		return
+-	}
+-	for i := len(src) - 1; i >= 0; i-- {
+-		dst[i] = src[i]
+-	}
+-}
+-
+-// Returns offset of difference
+-func matchLen(a, b []byte, max int) int {
+-	a = a[:max]
+-	b = b[:max]
+-	for i, av := range a {
+-		if b[i] != av {
+-			return i
+-		}
+-	}
+-	return max
+-}
+-
+-func cmpb(a, b []byte) int {
+-	l := matchLen(a, b, len(a))
+-	if l == len(a) {
+-		return -1
+-	}
+-	return l
+-}
+-
+ func benchmarkSizes(b *testing.B, sizes []int, fn func(b *testing.B, n int)) {
+ 	for _, n := range sizes {
+ 		b.Run(fmt.Sprint(n), func(b *testing.B) {

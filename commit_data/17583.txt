@@ -9,7 +9,32 @@ Date:   Thu Sep 12 11:17:37 2013 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/13678043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 649e54b2b5..f0bc6bbe63 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -236,6 +236,7 @@ Môshe van der Sterre <moshevds@gmail.com>
+ Nan Deng <monnand@gmail.com>
+ ngmoco, LLC
+ Nicholas Presta <nick@nickpresta.ca> <nick1presta@gmail.com>
++Nicholas Sullivan <nicholas.sullivan@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+ Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
+ Nicolas Owens <mischief@offblast.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0e146e6802..9f51b17ee8 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -345,6 +345,7 @@ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Nan Deng <monnand@gmail.com>
+ Nicholas Presta <nick@nickpresta.ca> <nick1presta@gmail.com>
++Nicholas Sullivan <nicholas.sullivan@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+ Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
+ Nicolas Owens <mischief@offblast.org>

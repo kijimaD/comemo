@@ -19,7 +19,54 @@ Date:   Wed Nov 29 16:20:50 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/vet/testdata/copylock.go |  8 +++++---
  src/sync/atomic/value.go         | 12 ------------
  2 files changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/vet/testdata/copylock.go b/src/cmd/vet/testdata/copylock.go
+index d733488e62..e9902a27f1 100644
+--- a/src/cmd/vet/testdata/copylock.go
++++ b/src/cmd/vet/testdata/copylock.go
+@@ -178,9 +178,11 @@ func AtomicTypesCheck() {
+ 	var vX atomic.Value
+ 	var vXX = atomic.Value{}
+ 	vX1 := new(atomic.Value)
+-	vY := vX     // ERROR "assignment copies lock value to vY: sync/atomic.Value contains sync/atomic.noCopy"
+-	vY = vX      // ERROR "assignment copies lock value to vY: sync/atomic.Value contains sync/atomic.noCopy"
+-	var vYY = vX // ERROR "variable declaration copies lock value to vYY: sync/atomic.Value contains sync/atomic.noCopy"
++	// These are OK because the value has not been used yet.
++	// (And vet can't tell whether it has been used, so they're always OK.)
++	vY := vX
++	vY = vX
++	var vYY = vX
+ 	vP := &vX
+ 	vZ := &atomic.Value{}
+ }
+diff --git a/src/sync/atomic/value.go b/src/sync/atomic/value.go
+index ac5a9a5e72..eab7e70c9b 100644
+--- a/src/sync/atomic/value.go
++++ b/src/sync/atomic/value.go
+@@ -14,8 +14,6 @@ import (
+ //
+ // A Value must not be copied after first use.
+ type Value struct {
+-	noCopy noCopy
+-
+ 	v interface{}
+ }
+ 
+@@ -86,13 +84,3 @@ func (v *Value) Store(x interface{}) {
+ // Disable/enable preemption, implemented in runtime.
+ func runtime_procPin()
+ func runtime_procUnpin()
+-
+-// noCopy may be embedded into structs which must not be copied
+-// after the first use.
+-//
+-// See https://golang.org/issues/8005#issuecomment-190753527
+-// for details.
+-type noCopy struct{}
+-
+-// Lock is a no-op used by -copylocks checker from `go vet`.
+-func (*noCopy) Lock() {}

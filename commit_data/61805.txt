@@ -11,6 +11,20 @@ Date:   Tue Nov 26 16:43:04 2024 +0900
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 9e831a983e..01d6568828 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -235,7 +235,7 @@ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
+ //   - Anything else comes before CBC_SHA256
+ //
+ //     SHA-256 variants of the CBC ciphersuites don't implement any Lucky13
+-//     countermeasures. See http://www.isg.rhul.ac.uk/tls/Lucky13.html and
++//     countermeasures. See https://www.isg.rhul.ac.uk/tls/Lucky13.html and
+ //     https://www.imperialviolet.org/2013/02/04/luckythirteen.html.
+ //
+ //   - Anything else comes before 3DES

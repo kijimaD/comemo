@@ -10,6 +10,21 @@ Date:   Tue Feb 17 09:49:57 2015 -0800
     Change-Id: Ie0ea38ce7ef4d2cf4fcbe23b851a570fd312ce8d
     Reviewed-on: https://go-review.googlesource.com/4966
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/cgo/asm_arm.s | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/cgo/asm_arm.s b/src/runtime/cgo/asm_arm.s
+index 6e57432e35..fcd212eb8e 100644
+--- a/src/runtime/cgo/asm_arm.s
++++ b/src/runtime/cgo/asm_arm.s
+@@ -19,6 +19,6 @@ TEXT crosscall2(SB),NOSPLIT,$-4
+ 	 */
+ 	MOVM.WP	[R0, R1, R2, R4, R5, R6, R7, R8, R9, g, R11, R12, R14], (R13)
+ 	BL	runtime·load_g(SB)
+-	MOVW	PC, R14
+-	MOVW	0(R13), PC
+-	MOVM.IAW	(R13), [R0, R1, R2, R4, R5, R6, R7, R8, R9, g, R11, R12, PC]
++	MOVW	R15, R14 // R15 is PC.
++	MOVW	0(R13), R15
++	MOVM.IAW	(R13), [R0, R1, R2, R4, R5, R6, R7, R8, R9, g, R11, R12, R15]

@@ -22,8 +22,90 @@ Date:   Tue May 29 15:08:08 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6245068
-
+---
  src/pkg/fmt/fmt_test.go |  8 ++++++++
  src/pkg/fmt/format.go   | 16 ++++++++--------
  src/pkg/fmt/print.go    |  8 ++++----
  3 files changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index de0342967c..a7632de8ee 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -527,6 +527,14 @@ func BenchmarkSprintfFloat(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkManyArgs(b *testing.B) {
++	var buf bytes.Buffer
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		Fprintf(&buf, "%2d/%2d/%2d %d:%d:%d %s %s\n", 3, 4, 5, 11, 12, 13, "hello", "world")
++	}
++}
++
+ var mallocBuf bytes.Buffer
+ 
+ var mallocTest = []struct {
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index caf900d5c3..3c9cd0de69 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -110,11 +110,11 @@ func (f *fmt) writePadding(n int, padding []byte) {
+ // Append b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus)
+ // clear flags afterwards.
+ func (f *fmt) pad(b []byte) {
+-	var padding []byte
+-	var left, right int
+-	if f.widPresent && f.wid != 0 {
+-		padding, left, right = f.computePadding(len(b))
++	if !f.widPresent || f.wid == 0 {
++		f.buf.Write(b)
++		return
+ 	}
++	padding, left, right := f.computePadding(len(b))
+ 	if left > 0 {
+ 		f.writePadding(left, padding)
+ 	}
+@@ -127,11 +127,11 @@ func (f *fmt) pad(b []byte) {
+ // append s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
+ // clear flags afterwards.
+ func (f *fmt) padString(s string) {
+-	var padding []byte
+-	var left, right int
+-	if f.widPresent && f.wid != 0 {
+-		padding, left, right = f.computePadding(utf8.RuneCountInString(s))
++	if !f.widPresent || f.wid == 0 {
++		f.buf.WriteString(s)
++		return
+ 	}
++	padding, left, right := f.computePadding(utf8.RuneCountInString(s))
+ 	if left > 0 {
+ 		f.writePadding(left, padding)
+ 	}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 13438243cd..c730b18e9f 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -734,10 +734,6 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
+ 		return false
+ 	}
+ 
+-	if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
+-		return wasString
+-	}
+-
+ 	// Some types can be done without reflection.
+ 	switch f := field.(type) {
+ 	case bool:
+@@ -779,6 +775,10 @@ func (p *pp) printField(field interface{}, verb rune, plus, goSyntax bool, depth
+ 		p.fmtBytes(f, verb, goSyntax, depth)
+ 		wasString = verb == 's'
+ 	default:
++		// If the type is not simple, it might have methods.
++		if wasString, handled := p.handleMethods(verb, plus, goSyntax, depth); handled {
++			return wasString
++		}
+ 		// Need to use reflection
+ 		return p.printReflectValue(reflect.ValueOf(field), verb, plus, goSyntax, depth)
+ 	}

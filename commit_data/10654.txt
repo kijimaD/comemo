@@ -7,7 +7,64 @@ Date:   Thu Dec 8 08:08:00 2011 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5451112
-
+---
  src/pkg/exp/sql/convert.go      | 15 +++------------
  src/pkg/exp/sql/convert_test.go |  2 +-
  2 files changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/exp/sql/convert.go b/src/pkg/exp/sql/convert.go
+index 24315a0d35..feb79aeafe 100644
+--- a/src/pkg/exp/sql/convert.go
++++ b/src/pkg/exp/sql/convert.go
+@@ -95,35 +95,26 @@ func convertAssign(dest, src interface{}) error {
+ 	switch dv.Kind() {
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		s := asString(src)
+-		i64, err := strconv.ParseInt(s, 10, 64)
++		i64, err := strconv.ParseInt(s, 10, dv.Type().Bits())
+ 		if err != nil {
+ 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
+ 		}
+-		if dv.OverflowInt(i64) {
+-			return fmt.Errorf("string %q overflows %s", s, dv.Kind())
+-		}
+ 		dv.SetInt(i64)
+ 		return nil
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+ 		s := asString(src)
+-		u64, err := strconv.ParseUint(s, 10, 64)
++		u64, err := strconv.ParseUint(s, 10, dv.Type().Bits())
+ 		if err != nil {
+ 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
+ 		}
+-		if dv.OverflowUint(u64) {
+-			return fmt.Errorf("string %q overflows %s", s, dv.Kind())
+-		}
+ 		dv.SetUint(u64)
+ 		return nil
+ 	case reflect.Float32, reflect.Float64:
+ 		s := asString(src)
+-		f64, err := strconv.ParseFloat(s, 64)
++		f64, err := strconv.ParseFloat(s, dv.Type().Bits())
+ 		if err != nil {
+ 			return fmt.Errorf("converting string %q to a %s: %v", s, dv.Kind(), err)
+ 		}
+-		if dv.OverflowFloat(f64) {
+-			return fmt.Errorf("value %q overflows %s", s, dv.Kind())
+-		}
+ 		dv.SetFloat(f64)
+ 		return nil
+ 	}
+diff --git a/src/pkg/exp/sql/convert_test.go b/src/pkg/exp/sql/convert_test.go
+index 52cee92724..e40b08c710 100644
+--- a/src/pkg/exp/sql/convert_test.go
++++ b/src/pkg/exp/sql/convert_test.go
+@@ -55,7 +55,7 @@ var conversionTests = []conversionTest{
+ 
+ 	// Strings to integers
+ 	{s: "255", d: &scanuint8, wantuint: 255},
+-	{s: "256", d: &scanuint8, wanterr: `string "256" overflows uint8`},
++	{s: "256", d: &scanuint8, wanterr: `converting string "256" to a uint8: parsing "256": value out of range`},
+ 	{s: "256", d: &scanuint16, wantuint: 256},
+ 	{s: "-1", d: &scanint, wantint: -1},
+ 	{s: "foo", d: &scanint, wanterr: `converting string "foo" to a int: parsing "foo": invalid syntax`},

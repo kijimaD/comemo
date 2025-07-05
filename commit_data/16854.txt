@@ -9,9 +9,66 @@ Date:   Wed Jul 24 08:43:08 2013 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/11674044
-
+---
  src/pkg/net/ipsock_plan9.go |  3 ---
  src/pkg/net/net.go          |  2 ++
  src/pkg/net/sock_plan9.go   | 10 ++++++++++
  src/pkg/net/sock_posix.go   |  2 --
  4 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index c7d542dabc..5be57ad6ab 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -12,9 +12,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// /sys/include/ape/sys/socket.h:/SOMAXCONN
+-var listenerBacklog = 5
+-
+ // probeIPv6Stack returns two boolean values.  If the first boolean
+ // value is true, kernel supports basic IPv6 functionality.  If the
+ // second boolean value is true, kernel supports IPv6 IPv4-mapping.
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 72b2b646c4..c077b4cc48 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -259,6 +259,8 @@ type PacketConn interface {
+ 	SetWriteDeadline(t time.Time) error
+ }
+ 
++var listenerBacklog = maxListenerBacklog()
++
+ // A Listener is a generic network listener for stream-oriented protocols.
+ //
+ // Multiple goroutines may invoke methods on a Listener simultaneously.
+diff --git a/src/pkg/net/sock_plan9.go b/src/pkg/net/sock_plan9.go
+new file mode 100644
+index 0000000000..88d9ed15cf
+--- /dev/null
++++ b/src/pkg/net/sock_plan9.go
+@@ -0,0 +1,10 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++func maxListenerBacklog() int {
++	// /sys/include/ape/sys/socket.h:/SOMAXCONN
++	return 5
++}
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index beaa5c8b01..98d9cbe600 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -11,8 +11,6 @@ import (
+ 	"time"
+ )
+ 
+-var listenerBacklog = maxListenerBacklog()
+-
+ // Generic POSIX socket creation.
+ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	s, err := sysSocket(f, t, p)

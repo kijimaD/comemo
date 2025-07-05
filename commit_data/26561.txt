@@ -7,6 +7,29 @@ Date:   Fri Feb 5 09:37:13 2016 +0900
     Change-Id: I630d4d2d8a914d6c07f22351a56d5e44a937123e
     Reviewed-on: https://go-review.googlesource.com/19245
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/stack_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index fa073f19ad..928d1eca20 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -111,7 +111,8 @@ func TestStackGrowth(t *testing.T) {
+ 		select {
+ 		case <-done:
+ 		case <-time.After(20 * time.Second):
+-			t.Fatal("finalizer did not run")
++			t.Error("finalizer did not run")
++			return
+ 		}
+ 	}()
+ 	wg.Wait()
+@@ -191,7 +192,6 @@ func TestStackGrowthCallback(t *testing.T) {
+ 			<-done
+ 		})
+ 	}()
+-
+ 	wg.Wait()
+ }
+ 

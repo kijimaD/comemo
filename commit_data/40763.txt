@@ -23,6 +23,28 @@ Date:   Wed Jun 26 14:35:05 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/sync/pool_test.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index 814c4a6812..ad98350b2b 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -236,10 +236,12 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
+ 			t.Errorf("expected have[%d] = 1, got %d", i, count)
+ 		}
+ 	}
+-	if nPopHead == 0 {
+-		// In theory it's possible in a valid schedule for
+-		// popHead to never succeed, but in practice it almost
+-		// always succeeds, so this is unlikely to flake.
++	// Check that at least some PopHeads succeeded. We skip this
++	// check in short mode because it's common enough that the
++	// queue will stay nearly empty all the time and a PopTail
++	// will happen during the window between every PushHead and
++	// PopHead.
++	if !testing.Short() && nPopHead == 0 {
+ 		t.Errorf("popHead never succeeded")
+ 	}
+ }

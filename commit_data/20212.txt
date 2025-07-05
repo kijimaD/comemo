@@ -10,7 +10,40 @@ Date:   Mon Aug 25 13:31:55 2014 -0400
     R=dvyukov, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/133850043
-
+---
  src/pkg/runtime/chan.go | 4 ++--
  src/pkg/runtime/chan.h  | 3 ---
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.go b/src/pkg/runtime/chan.go
+index d3fcc6d13f..7a44afacec 100644
+--- a/src/pkg/runtime/chan.go
++++ b/src/pkg/runtime/chan.go
+@@ -11,11 +11,11 @@ import "unsafe"
+ 
+ const (
+ 	maxAlign  = 8
+-	hchanSize = unsafe.Sizeof(hchan{})
++	hchanSize = unsafe.Sizeof(hchan{}) + uintptr(-int(unsafe.Sizeof(hchan{}))&(maxAlign-1))
+ 	debugChan = false
+ )
+ 
+-// TODO: make hchan.buf an unsafe.Pointer, not a *uint8
++// TODO(khr): make hchan.buf an unsafe.Pointer, not a *uint8
+ 
+ func makechan(t *chantype, size int64) *hchan {
+ 	elem := t.elem
+diff --git a/src/pkg/runtime/chan.h b/src/pkg/runtime/chan.h
+index 30825eafad..52eb20099d 100644
+--- a/src/pkg/runtime/chan.h
++++ b/src/pkg/runtime/chan.h
+@@ -21,9 +21,6 @@ struct	Hchan
+ 	byte*	buf;
+ 	uint16	elemsize;
+ 	uint32	closed;
+-#ifndef GOARCH_amd64
+-	uint32	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
+-#endif
+ 	Type*	elemtype;		// element type
+ 	uintgo	sendx;			// send index
+ 	uintgo	recvx;			// receive index

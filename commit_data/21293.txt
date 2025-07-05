@@ -9,6 +9,23 @@ Date:   Wed Dec 17 23:52:39 2014 -0500
     Change-Id: Ic53757eba98fc43bcd24e25e03876fef917b4da1
     Reviewed-on: https://go-review.googlesource.com/1751
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/cgo/gcc_android_arm.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_android_arm.c b/src/runtime/cgo/gcc_android_arm.c
+index 07f7e72e3d..85cd244c02 100644
+--- a/src/runtime/cgo/gcc_android_arm.c
++++ b/src/runtime/cgo/gcc_android_arm.c
+@@ -12,8 +12,10 @@
+ 
+ // PTHREAD_KEYS_MAX has been added to sys/limits.h at head in bionic:
+ // https://android.googlesource.com/platform/bionic/+/master/libc/include/sys/limits.h
+-// TODO(crawshaw): remove this definition when a new NDK is released.
++// TODO(crawshaw): remove this definition when NDK r10d is required.
++#ifndef PTHREAD_KEYS_MAX
+ #define PTHREAD_KEYS_MAX 128
++#endif
+ 
+ // inittls allocates a thread-local storage slot for g.
+ //

@@ -16,6 +16,29 @@ Date:   Thu May 5 10:20:09 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/reflect/value.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index d8479c64ef..02add5a768 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2030,9 +2030,6 @@ func (v Value) OverflowUint(x uint64) bool {
+ // and make an exception.
+ 
+ // Pointer returns v's value as a uintptr.
+-// It returns uintptr instead of [unsafe.Pointer] so that
+-// code using reflect cannot obtain [unsafe.Pointer]s
+-// without importing the [unsafe] package explicitly.
+ // It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
+ //
+ // If v's Kind is Func, the returned pointer is an underlying
+@@ -2596,7 +2593,6 @@ func (v Value) Uint() uint64 {
+ // and make an exception.
+ 
+ // UnsafeAddr returns a pointer to v's data, as a uintptr.
+-// It is for advanced clients that also import the [unsafe] package.
+ // It panics if v is not addressable.
+ //
+ // It's preferred to use uintptr(Value.Addr().UnsafePointer()) to get the equivalent result.

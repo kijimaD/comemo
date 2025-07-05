@@ -13,9 +13,85 @@ Date:   Wed Aug 31 14:23:07 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/go/parser/parser.go               | 4 ++--
  src/go/parser/short_test.go           | 5 ++---
  src/go/parser/testdata/issue49175.go2 | 2 +-
  src/go/parser/testdata/tparams.go2    | 8 ++++----
  4 files changed, 9 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 6d1ab34815..159834172a 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -897,7 +897,7 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
+ 			}
+ 		}
+ 		if tparams {
+-			p.error(pos, "all type parameters must be named")
++			p.error(pos, "type parameters must be named")
+ 		}
+ 	} else if named != len(list) {
+ 		// some named => all must be named
+@@ -925,7 +925,7 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
+ 		}
+ 		if !ok {
+ 			if tparams {
+-				p.error(missingName, "all type parameters must be named")
++				p.error(missingName, "type parameters must be named")
+ 			} else {
+ 				p.error(pos, "mixed named and unnamed parameters")
+ 			}
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 298579ea6c..f9575e1d0f 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -196,10 +196,9 @@ var invalids = []string{
+ 	`package p; func _[]/* ERROR "empty type parameter list" */()`,
+ 
+ 	// TODO(rfindley) a better location would be after the ']'
+-	`package p; type _[A /* ERROR "all type parameters must be named" */ ,] struct{ A }`,
++	`package p; type _[A /* ERROR "type parameters must be named" */ ,] struct{ A }`,
+ 
+-	// TODO(rfindley) this error is confusing.
+-	`package p; func _[type /* ERROR "all type parameters must be named" */ P, *Q interface{}]()`,
++	`package p; func _[type /* ERROR "found 'type'" */ P, *Q interface{}]()`,
+ 
+ 	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B any](a A) B`,
+ 	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C](a A) B`,
+diff --git a/src/go/parser/testdata/issue49175.go2 b/src/go/parser/testdata/issue49175.go2
+index a5ad30f14c..cf1c83c633 100644
+--- a/src/go/parser/testdata/issue49175.go2
++++ b/src/go/parser/testdata/issue49175.go2
+@@ -10,4 +10,4 @@ type _[_ [1]t]t
+ func _[_ []t]() {}
+ func _[_ [1]t]() {}
+ 
+-type t [t /* ERROR "all type parameters must be named" */ [0]]t
++type t [t /* ERROR "type parameters must be named" */ [0]]t
+diff --git a/src/go/parser/testdata/tparams.go2 b/src/go/parser/testdata/tparams.go2
+index 28fd132243..abde5dc050 100644
+--- a/src/go/parser/testdata/tparams.go2
++++ b/src/go/parser/testdata/tparams.go2
+@@ -4,8 +4,8 @@
+ 
+ package p
+ 
+-type _[a /* ERROR "all type parameters must be named" */, b] struct{}
+-type _[a t, b t, c /* ERROR "all type parameters must be named" */ ] struct{}
++type _[a /* ERROR "type parameters must be named" */, b] struct{}
++type _[a t, b t, c /* ERROR "type parameters must be named" */ ] struct{}
+ type _ struct {
+ 	t [n]byte
+ 	t[a]
+@@ -18,8 +18,8 @@ type _ interface {
+ }
+ 
+ func _[] /* ERROR "empty type parameter list" */ ()
+-func _[a /* ERROR "all type parameters must be named" */, b ]()
+-func _[a t, b t, c /* ERROR "all type parameters must be named" */ ]()
++func _[a /* ERROR "type parameters must be named" */, b ]()
++func _[a t, b t, c /* ERROR "type parameters must be named" */ ]()
+ 
+ // TODO(rfindley) incorrect error message (see existing TODO in parser)
+ func f[a b, 0 /* ERROR "expected '\)', found 0" */ ] ()

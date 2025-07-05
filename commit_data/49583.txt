@@ -12,7 +12,65 @@ Date:   Sat Aug 28 17:11:51 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/345891
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/subst.go      | 19 +++++++------------
  src/cmd/compile/internal/types2/typestring.go |  6 +++++-
  2 files changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index f4891df664..9a4db6fddb 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -256,28 +256,23 @@ func (subst *subster) typ(typ Type) Type {
+ var instanceHashing = 0
+ 
+ func instantiatedHash(typ *Named, targs []Type) string {
++	var buf bytes.Buffer
++
+ 	assert(instanceHashing == 0)
+ 	instanceHashing++
+-	var buf bytes.Buffer
+ 	w := newTypeWriter(&buf, nil)
+ 	w.typeName(typ.obj)
+ 	w.typeList(targs)
+ 	instanceHashing--
+ 
+-	// With respect to the represented type, whether a
+-	// type is fully expanded or stored as instance
+-	// does not matter - they are the same types.
+-	// Remove the instanceMarkers printed for instances.
+-	res := buf.Bytes()
+-	i := 0
+-	for _, b := range res {
+-		if b != instanceMarker {
+-			res[i] = b
+-			i++
++	if debug {
++		// there should be no instance markers in type hashes
++		for _, b := range buf.Bytes() {
++			assert(b != instanceMarker)
+ 		}
+ 	}
+ 
+-	return string(res[:i])
++	return buf.String()
+ }
+ 
+ // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index d02f38a6ac..3b9981089e 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -203,7 +203,11 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 
+ 	case *Named:
+-		if t.instPos != nil {
++		// Instance markers indicate unexpanded instantiated
++		// types. Write them to aid debugging, but don't write
++		// them when we need an instance hash: whether a type
++		// is fully expanded or not doesn't matter for identity.
++		if instanceHashing == 0 && t.instPos != nil {
+ 			w.byte(instanceMarker)
+ 		}
+ 		w.typeName(t.obj)

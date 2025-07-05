@@ -7,7 +7,7 @@ Date:   Tue Mar 15 22:33:57 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/4274059
-
+---
  src/cmd/gofix/Makefile           |  1 +
  src/cmd/gofix/fix.go             |  5 +++
  src/cmd/gofix/httpserver_test.go |  4 +++
@@ -16,3 +16,289 @@ Date:   Tue Mar 15 22:33:57 2011 -0400
  src/cmd/gofix/procattr.go        | 61 ++++++++++++++++++++++++++++++++
  src/cmd/gofix/procattr_test.go   | 75 ++++++++++++++++++++++++++++++++++++++++
  7 files changed, 196 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 020a6a2920..9383f5ac64 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -9,6 +9,7 @@ GOFILES=\
+ 	fix.go\
+ 	main.go\
+ 	httpserver.go\
++	procattr.go\
+ 
+ include ../../Make.cmd
+ 
+diff --git a/src/cmd/gofix/fix.go b/src/cmd/gofix/fix.go
+index eadddbadc8..69af99179a 100644
+--- a/src/cmd/gofix/fix.go
++++ b/src/cmd/gofix/fix.go
+@@ -264,6 +264,11 @@ func isName(n ast.Expr, name string) bool {
+ 	return id.String() == name
+ }
+ 
++func isCall(t ast.Expr, pkg, name string) bool {
++	call, ok := t.(*ast.CallExpr)
++	return ok && isPkgDot(call.Fun, pkg, name)
++}
++
+ func refersTo(n ast.Node, x *ast.Ident) bool {
+ 	id, ok := n.(*ast.Ident)
+ 	if !ok {
+diff --git a/src/cmd/gofix/httpserver_test.go b/src/cmd/gofix/httpserver_test.go
+index 7e79056c50..eca2a76934 100644
+--- a/src/cmd/gofix/httpserver_test.go
++++ b/src/cmd/gofix/httpserver_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ func init() {
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index 40c86e8f21..9ca2ddb461 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -82,7 +82,7 @@ func main() {
+ const (
+ 	tabWidth    = 8
+ 	parserMode  = parser.ParseComments
+-	printerMode = printer.TabIndent
++	printerMode = printer.TabIndent | printer.UseSpaces
+ )
+ 
+ 
+diff --git a/src/cmd/gofix/main_test.go b/src/cmd/gofix/main_test.go
+index 597bff22ac..e4d0f60cce 100644
+--- a/src/cmd/gofix/main_test.go
++++ b/src/cmd/gofix/main_test.go
+@@ -6,9 +6,12 @@ package main
+ 
+ import (
+ 	"bytes"
++	"exec"
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/printer"
++	"io/ioutil"
++	"os"
+ 	"testing"
+ )
+ 
+@@ -42,6 +45,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string) (out
+ 	if s := buf.String(); in != s {
+ 		t.Errorf("%s: not gofmt-formatted.\n--- %s\n%s\n--- %s | gofmt\n%s",
+ 			desc, desc, in, desc, s)
++		tdiff(t, in, s)
+ 		return
+ 	}
+ 
+@@ -75,6 +79,7 @@ func TestRewrite(t *testing.T) {
+ 
+ 		if out != tt.Out {
+ 			t.Errorf("%s: incorrect output.\n--- have\n%s\n--- want\n%s", tt.Name, out, tt.Out)
++			tdiff(t, out, tt.Out)
+ 			continue
+ 		}
+ 
+@@ -97,6 +102,50 @@ func TestRewrite(t *testing.T) {
+ 		if out2 != out {
+ 			t.Errorf("%s: changed output after second round of fixes.\n--- output after first round\n%s\n--- output after second round\n%s",
+ 				tt.Name, out, out2)
++			tdiff(t, out, out2)
+ 		}
+ 	}
+ }
++
++func tdiff(t *testing.T, a, b string) {
++	f1, err := ioutil.TempFile("", "gofix")
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	defer os.Remove(f1.Name())
++	defer f1.Close()
++
++	f2, err := ioutil.TempFile("", "gofix")
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	defer os.Remove(f2.Name())
++	defer f2.Close()
++
++	f1.Write([]byte(a))
++	f2.Write([]byte(b))
++
++	diffcmd, err := exec.LookPath("diff")
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	c, err := exec.Run(diffcmd, []string{"diff", f1.Name(), f2.Name()}, nil, "",
++		exec.DevNull, exec.Pipe, exec.MergeWithStdout)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	defer c.Close()
++
++	data, err := ioutil.ReadAll(c.Stdout)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	t.Error(string(data))
++}
+diff --git a/src/cmd/gofix/procattr.go b/src/cmd/gofix/procattr.go
+new file mode 100644
+index 0000000000..3409776954
+--- /dev/null
++++ b/src/cmd/gofix/procattr.go
+@@ -0,0 +1,61 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++	"go/token"
++)
++
++var procattrFix = fix{
++	"procattr",
++	procattr,
++`Adapt calls to os.StartProcess to use new ProcAttr type.
++
++http://codereview.appspot.com/4253052
++`,
++}
++
++func init() {
++	register(httpserverFix)
++}
++
++func procattr(f *ast.File) bool {
++	if !imports(f, "os") && !imports(f, "syscall") {
++		return false
++	}
++
++	fixed := false
++	rewrite(f, func(n interface{}) {
++		call, ok := n.(*ast.CallExpr)
++		if !ok || len(call.Args) != 5 {
++			return
++		}
++		var pkg string
++		if isPkgDot(call.Fun, "os", "StartProcess") {
++			pkg = "os"
++		} else if isPkgDot(call.Fun, "syscall", "StartProcess") {
++			pkg = "syscall"
++		} else {
++			return
++		}
++		// os.StartProcess(a, b, c, d, e) -> os.StartProcess(a, b, &os.ProcAttr{Env: c, Dir: d, Files: e})
++		lit := &ast.CompositeLit{Type: ast.NewIdent(pkg + ".ProcAttr")}
++		env, dir, files := call.Args[2], call.Args[3], call.Args[4]
++		if !isName(env, "nil") && !isCall(env, "os", "Environ") {
++			lit.Elts = append(lit.Elts, &ast.KeyValueExpr{Key: ast.NewIdent("Env"), Value: env})
++		}
++		if !isEmptyString(dir) {
++			lit.Elts = append(lit.Elts, &ast.KeyValueExpr{Key: ast.NewIdent("Dir"), Value: dir})
++		}
++		if !isName(files, "nil") {
++			lit.Elts = append(lit.Elts, &ast.KeyValueExpr{Key: ast.NewIdent("Files"), Value: files})
++		}
++		call.Args[2] = &ast.UnaryExpr{Op: token.AND, X: lit}
++		call.Args = call.Args[:3]
++		fixed = true
++	})
++	return fixed
++}
+diff --git a/src/cmd/gofix/procattr_test.go b/src/cmd/gofix/procattr_test.go
+new file mode 100644
+index 0000000000..1a8eb86f23
+--- /dev/null
++++ b/src/cmd/gofix/procattr_test.go
+@@ -0,0 +1,75 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(procattrTests)
++}
++
++var procattrTests = []testCase{
++	{
++		Name: "procattr.0",
++		Fn:   procattr,
++		In: `package main
++
++import (
++	"os"
++	"syscall"
++)
++
++func f() {
++	os.StartProcess(a, b, c, d, e)
++	os.StartProcess(a, b, os.Environ(), d, e)
++	os.StartProcess(a, b, nil, d, e)
++	os.StartProcess(a, b, c, "", e)
++	os.StartProcess(a, b, c, d, nil)
++	os.StartProcess(a, b, nil, "", nil)
++
++	os.StartProcess(
++		a,
++		b,
++		c,
++		d,
++		e,
++	)
++
++	syscall.StartProcess(a, b, c, d, e)
++	syscall.StartProcess(a, b, os.Environ(), d, e)
++	syscall.StartProcess(a, b, nil, d, e)
++	syscall.StartProcess(a, b, c, "", e)
++	syscall.StartProcess(a, b, c, d, nil)
++	syscall.StartProcess(a, b, nil, "", nil)
++}
++`,
++		Out: `package main
++
++import (
++	"os"
++	"syscall"
++)
++
++func f() {
++	os.StartProcess(a, b, &os.ProcAttr{Env: c, Dir: d, Files: e})
++	os.StartProcess(a, b, &os.ProcAttr{Dir: d, Files: e})
++	os.StartProcess(a, b, &os.ProcAttr{Dir: d, Files: e})
++	os.StartProcess(a, b, &os.ProcAttr{Env: c, Files: e})
++	os.StartProcess(a, b, &os.ProcAttr{Env: c, Dir: d})
++	os.StartProcess(a, b, &os.ProcAttr{})
++
++	os.StartProcess(
++		a,
++		b, &os.ProcAttr{Env: c, Dir: d, Files: e},
++	)
++
++	syscall.StartProcess(a, b, &syscall.ProcAttr{Env: c, Dir: d, Files: e})
++	syscall.StartProcess(a, b, &syscall.ProcAttr{Dir: d, Files: e})
++	syscall.StartProcess(a, b, &syscall.ProcAttr{Dir: d, Files: e})
++	syscall.StartProcess(a, b, &syscall.ProcAttr{Env: c, Files: e})
++	syscall.StartProcess(a, b, &syscall.ProcAttr{Env: c, Dir: d})
++	syscall.StartProcess(a, b, &syscall.ProcAttr{})
++}
++`,
++	},
++}

@@ -9,6 +9,35 @@ Date:   Tue Jun 18 23:20:17 2013 +1000
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/10386043
-
+---
  src/cmd/cgo/gcc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index bc7a6472f3..8ca680abc9 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -716,6 +716,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
+ 	runGcc(stdin, p.gccCmd())
+ 
+ 	if f, err := macho.Open(gccTmp()); err == nil {
++		defer f.Close()
+ 		d, err := f.DWARF()
+ 		if err != nil {
+ 			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
+@@ -742,6 +743,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
+ 	}
+ 
+ 	if f, err := elf.Open(gccTmp()); err == nil {
++		defer f.Close()
+ 		d, err := f.DWARF()
+ 		if err != nil {
+ 			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
+@@ -768,6 +770,7 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
+ 	}
+ 
+ 	if f, err := pe.Open(gccTmp()); err == nil {
++		defer f.Close()
+ 		d, err := f.DWARF()
+ 		if err != nil {
+ 			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)

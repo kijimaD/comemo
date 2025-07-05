@@ -9,8 +9,120 @@ Date:   Mon Feb 6 14:02:12 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5616063
-
+---
  src/pkg/encoding/gob/codec_test.go | 59 ++++++++++++++++++++++++++++++++++++++
  src/pkg/encoding/gob/decode.go     |  6 +++-
  src/pkg/encoding/gob/error.go      |  6 +++-
  3 files changed, 69 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/codec_test.go b/src/pkg/encoding/gob/codec_test.go
+index 73844b920c..d365f82634 100644
+--- a/src/pkg/encoding/gob/codec_test.go
++++ b/src/pkg/encoding/gob/codec_test.go
+@@ -8,9 +8,11 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"math"
++	"math/rand"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -1407,3 +1409,60 @@ func TestDebugStruct(t *testing.T) {
+ 	}
+ 	debugFunc(debugBuffer)
+ }
++
++func encFuzzDec(rng *rand.Rand, in interface{}) error {
++	buf := new(bytes.Buffer)
++	enc := NewEncoder(buf)
++	if err := enc.Encode(&in); err != nil {
++		return err
++	}
++
++	b := buf.Bytes()
++	for i, bi := range b {
++		if rng.Intn(10) < 3 {
++			b[i] = bi + uint8(rng.Intn(256))
++		}
++	}
++
++	dec := NewDecoder(buf)
++	var e interface{}
++	if err := dec.Decode(&e); err != nil {
++		return err
++	}
++	return nil
++}
++
++// This does some "fuzz testing" by attempting to decode a sequence of random bytes.
++func TestFuzz(t *testing.T) {
++	if testing.Short() {
++		return
++	}
++
++	// all possible inputs
++	input := []interface{}{
++		new(int),
++		new(float32),
++		new(float64),
++		new(complex128),
++		&ByteStruct{255},
++		&ArrayStruct{},
++		&StringStruct{"hello"},
++		&GobTest1{0, &StringStruct{"hello"}},
++	}
++	testFuzz(t, time.Now().UnixNano(), 100, input...)
++}
++
++func TestFuzzRegressions(t *testing.T) {
++	// An instance triggering a type name of length ~102 GB.
++	testFuzz(t, 1328492090837718000, 100, new(float32))
++}
++
++func testFuzz(t *testing.T, seed int64, n int, input ...interface{}) {
++	t.Logf("seed=%d n=%d\n", seed, n)
++	for _, e := range input {
++		rng := rand.New(rand.NewSource(seed))
++		for i := 0; i < n; i++ {
++			encFuzzDec(rng, e)
++		}
++	}
++}
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index 4d1325d176..8191062d30 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -690,7 +690,11 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p ui
+ 	// Create a writable interface reflect.Value.  We need one even for the nil case.
+ 	ivalue := allocValue(ityp)
+ 	// Read the name of the concrete type.
+-	b := make([]byte, state.decodeUint())
++	nr := state.decodeUint()
++	if nr < 0 || nr > 1<<31 { // zero is permissible for anonymous types
++		errorf("invalid type name length %d", nr)
++	}
++	b := make([]byte, nr)
+ 	state.b.Read(b)
+ 	name := string(b)
+ 	if name == "" {
+diff --git a/src/pkg/encoding/gob/error.go b/src/pkg/encoding/gob/error.go
+index fbae8b683d..92cc0c615e 100644
+--- a/src/pkg/encoding/gob/error.go
++++ b/src/pkg/encoding/gob/error.go
+@@ -33,7 +33,11 @@ func error_(err error) {
+ // plain error.  It overwrites the error return of the function that deferred its call.
+ func catchError(err *error) {
+ 	if e := recover(); e != nil {
+-		*err = e.(gobError).err // Will re-panic if not one of our errors, such as a runtime error.
++		ge, ok := e.(gobError)
++		if !ok {
++			panic(e)
++		}
++		*err = ge.err
+ 	}
+ 	return
+ }

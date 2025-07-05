@@ -7,6 +7,20 @@ Date:   Wed Dec 6 16:15:08 2017 +0100
     Change-Id: If16f069f410d043fd11864a4c1a7d54b5b4922d2
     Reviewed-on: https://go-review.googlesource.com/82200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/editors.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/editors.html b/doc/editors.html
+index 84fb068918..8228eb2578 100644
+--- a/doc/editors.html
++++ b/doc/editors.html
+@@ -58,7 +58,7 @@ The following feature matrix lists and compares the most significant features.
+     <td class="yes">Yes</td>
+   </tr>
+   <tr>
+-    <td>Autocompletion of identifers (variable, method, and function names)</td>
++    <td>Autocompletion of identifiers (variable, method, and function names)</td>
+     <td class="yes">Yes</td>
+     <td class="yes">Yes</td>
+     <td class="yes">Yes</td>

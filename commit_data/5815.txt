@@ -9,6 +9,20 @@ Date:   Thu Jul 15 09:41:21 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1664051
-
+---
  src/Make.pkg | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 39c19611e3..ac1198e161 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -108,7 +108,7 @@ dir:
+ #
+ 
+ _cgo_defun.c _cgo_gotypes.go _cgo_export.c _cgo_export.h: $(CGOFILES)
+-	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo $(CGO_CFLAGS) $(CGOFILES)
++	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo -- $(CGO_CFLAGS) $(CGOFILES)
+ 
+ # Ugly but necessary
+ %.cgo1.go: _cgo_defun.c _cgo_gotypes.go

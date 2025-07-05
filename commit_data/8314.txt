@@ -7,7 +7,52 @@ Date:   Wed May 4 13:08:36 2011 +1000
     R=golang-dev, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4466041
-
+---
  src/pkg/net/dnsmsg_test.go    | 7 +++++++
  src/pkg/net/resolv_windows.go | 4 ++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/pkg/net/dnsmsg_test.go b/src/pkg/net/dnsmsg_test.go
+index 06152a01a2..20c9f02b0b 100644
+--- a/src/pkg/net/dnsmsg_test.go
++++ b/src/pkg/net/dnsmsg_test.go
+@@ -6,10 +6,14 @@ package net
+ 
+ import (
+ 	"encoding/hex"
++	"runtime"
+ 	"testing"
+ )
+ 
+ func TestDNSParseSRVReply(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		return
++	}
+ 	data, err := hex.DecodeString(dnsSRVReply)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -41,6 +45,9 @@ func TestDNSParseSRVReply(t *testing.T) {
+ }
+ 
+ func TestDNSParseCorruptSRVReply(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		return
++	}
+ 	data, err := hex.DecodeString(dnsSRVCorruptReply)
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/pkg/net/resolv_windows.go b/src/pkg/net/resolv_windows.go
+index 3506ea177f..f7c3f51bef 100644
+--- a/src/pkg/net/resolv_windows.go
++++ b/src/pkg/net/resolv_windows.go
+@@ -113,6 +113,10 @@ func reverseaddr(addr string) (arpa string, err os.Error) {
+ 	panic("unimplemented")
+ }
+ 
++func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err os.Error) {
++	panic("unimplemented")
++}
++
+ // DNSError represents a DNS lookup error.
+ type DNSError struct {
+ 	Error     string // description of the error

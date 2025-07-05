@@ -7,6 +7,22 @@ Date:   Fri Jun 24 11:19:48 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4630065
-
+---
  misc/emacs/go-mode.el | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 03f0a2a8bc..ba7f72397d 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -69,8 +69,8 @@
+ some syntax analysis.")
+ 
+ (defvar go-mode-font-lock-keywords
+-  (let ((builtins '("cap" "close" "closed" "len" "make" "new"
+-                    "panic" "panicln" "print" "println"))
++  (let ((builtins '("append" "cap" "close" "complex" "copy" "imag" "len"
++                    "make" "new" "panic" "print" "println" "real" "recover"))
+         (constants '("nil" "true" "false" "iota"))
+         (type-name "\\s *\\(?:[*(]\\s *\\)*\\(?:\\w+\\s *\\.\\s *\\)?\\(\\w+\\)")
+         )

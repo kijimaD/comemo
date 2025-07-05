@@ -11,6 +11,21 @@ Date:   Mon May 2 13:58:48 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a193704eb0..711945fbd1 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1091,6 +1091,9 @@ func hostlink() {
+ 			argv = append(argv, "-Wl,-pagezero_size,4000000")
+ 		}
+ 	case BuildmodePIE:
++		if UseRelro() {
++			argv = append(argv, "-Wl,-z,relro")
++		}
+ 		argv = append(argv, "-pie")
+ 	case BuildmodeCShared:
+ 		if HEADTYPE == obj.Hdarwin {

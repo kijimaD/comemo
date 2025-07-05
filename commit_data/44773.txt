@@ -13,7 +13,7 @@ Date:   Tue Aug 11 13:21:14 2020 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check_test.go                         | 32 ++++++++++++++++++----
  .../types/{testdata => fixedbugs}/issue23203a.src  |  0
  .../types/{testdata => fixedbugs}/issue23203b.src  |  0
@@ -21,3 +21,97 @@ Date:   Tue Aug 11 13:21:14 2020 -0400
  .../types/{testdata => fixedbugs}/issue28251.src   |  0
  src/go/types/{testdata => fixedbugs}/issue6977.src |  0
  6 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 89122d75ff..e01c3de13b 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -34,6 +34,7 @@ import (
+ 	"go/token"
+ 	"internal/testenv"
+ 	"io/ioutil"
++	"path/filepath"
+ 	"regexp"
+ 	"strings"
+ 	"testing"
+@@ -93,11 +94,6 @@ var tests = [][]string{
+ 	{"testdata/issues.src"},
+ 	{"testdata/blank.src"},
+ 	{"testdata/issue25008b.src", "testdata/issue25008a.src"}, // order (b before a) is crucial!
+-	{"testdata/issue26390.src"},                              // stand-alone test to ensure case is triggered
+-	{"testdata/issue23203a.src"},
+-	{"testdata/issue23203b.src"},
+-	{"testdata/issue28251.src"},
+-	{"testdata/issue6977.src"},
+ }
+ 
+ var fset = token.NewFileSet()
+@@ -259,7 +255,7 @@ func checkFiles(t *testing.T, testfiles []string) {
+ 	// typecheck and collect typechecker errors
+ 	var conf Config
+ 	// special case for importC.src
+-	if len(testfiles) == 1 && testfiles[0] == "testdata/importC.src" {
++	if len(testfiles) == 1 && strings.HasSuffix(testfiles[0], "importC.src") {
+ 		conf.FakeImportC = true
+ 	}
+ 	conf.Importer = importer.Default()
+@@ -316,3 +312,27 @@ func TestCheck(t *testing.T) {
+ 		checkFiles(t, files)
+ 	}
+ }
++
++func TestFixedBugs(t *testing.T) { testDir(t, "fixedbugs") }
++
++func testDir(t *testing.T, dir string) {
++	testenv.MustHaveGoBuild(t)
++
++	fis, err := ioutil.ReadDir(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, fi := range fis {
++		testname := filepath.Base(fi.Name())
++		testname = strings.TrimSuffix(testname, filepath.Ext(testname))
++		t.Run(testname, func(t *testing.T) {
++			filename := filepath.Join(dir, fi.Name())
++			if fi.IsDir() {
++				t.Errorf("skipped directory %q", filename)
++				return
++			}
++			checkFiles(t, []string{filename})
++		})
++	}
++}
+diff --git a/src/go/types/testdata/issue23203a.src b/src/go/types/fixedbugs/issue23203a.src
+similarity index 100%
+rename from src/go/types/testdata/issue23203a.src
+rename to src/go/types/fixedbugs/issue23203a.src
+diff --git a/src/go/types/testdata/issue23203b.src b/src/go/types/fixedbugs/issue23203b.src
+similarity index 100%
+rename from src/go/types/testdata/issue23203b.src
+rename to src/go/types/fixedbugs/issue23203b.src
+diff --git a/src/go/types/testdata/issue26390.src b/src/go/types/fixedbugs/issue26390.src
+similarity index 83%
+rename from src/go/types/testdata/issue26390.src
+rename to src/go/types/fixedbugs/issue26390.src
+index b8e67e9bdd..9e0101f581 100644
+--- a/src/go/types/testdata/issue26390.src
++++ b/src/go/types/fixedbugs/issue26390.src
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// stand-alone test to ensure case is triggered
++
+ package issue26390
+ 
+ type A = T
+diff --git a/src/go/types/testdata/issue28251.src b/src/go/types/fixedbugs/issue28251.src
+similarity index 100%
+rename from src/go/types/testdata/issue28251.src
+rename to src/go/types/fixedbugs/issue28251.src
+diff --git a/src/go/types/testdata/issue6977.src b/src/go/types/fixedbugs/issue6977.src
+similarity index 100%
+rename from src/go/types/testdata/issue6977.src
+rename to src/go/types/fixedbugs/issue6977.src

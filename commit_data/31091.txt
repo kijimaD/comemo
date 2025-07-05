@@ -18,7 +18,45 @@ Date:   Mon Jan 30 09:43:25 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/threadpprof.go | 2 +-
  src/runtime/testdata/testprogcgo/traceback.go   | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/threadpprof.go b/src/runtime/testdata/testprogcgo/threadpprof.go
+index 44afb91d96..3da82961b9 100644
+--- a/src/runtime/testdata/testprogcgo/threadpprof.go
++++ b/src/runtime/testdata/testprogcgo/threadpprof.go
+@@ -61,7 +61,7 @@ static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
+ 	return 0;
+ }
+ 
+-void runCPUHogThread() {
++void runCPUHogThread(void) {
+ 	pthread_t tid;
+ 	pthread_create(&tid, 0, cpuHogDriver, 0);
+ }
+diff --git a/src/runtime/testdata/testprogcgo/traceback.go b/src/runtime/testdata/testprogcgo/traceback.go
+index e8b0a04556..2a023f66ca 100644
+--- a/src/runtime/testdata/testprogcgo/traceback.go
++++ b/src/runtime/testdata/testprogcgo/traceback.go
+@@ -15,16 +15,16 @@ package main
+ 
+ char *p;
+ 
+-static int f3() {
++static int f3(void) {
+ 	*p = 0;
+ 	return 0;
+ }
+ 
+-static int f2() {
++static int f2(void) {
+ 	return f3();
+ }
+ 
+-static int f1() {
++static int f1(void) {
+ 	return f2();
+ }
+ 

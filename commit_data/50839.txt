@@ -20,6 +20,32 @@ Date:   Wed Nov 10 12:56:40 2021 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/traceback.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 36627a6735..73bd0e11a9 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -96,6 +96,20 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		}
+ 	}
+ 
++	// runtime/internal/atomic functions call into kernel helpers on
++	// arm < 7. See runtime/internal/atomic/sys_linux_arm.s.
++	//
++	// Start in the caller's frame.
++	if GOARCH == "arm" && goarm < 7 && GOOS == "linux" && frame.pc&0xffff0000 == 0xffff0000 {
++		// Note that the calls are simple BL without pushing the return
++		// address, so we use LR directly.
++		//
++		// The kernel helpers are frameless leaf functions, so SP and
++		// LR are not touched.
++		frame.pc = frame.lr
++		frame.lr = 0
++	}
++
+ 	f := findfunc(frame.pc)
+ 	if !f.valid() {
+ 		if callback != nil || printing {

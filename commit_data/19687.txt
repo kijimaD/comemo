@@ -12,6 +12,27 @@ Date:   Tue Jul 8 14:09:35 2014 -0700
     R=golang-codereviews, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/111980043
-
+---
  test/fixedbugs/bug486.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/test/fixedbugs/bug486.go b/test/fixedbugs/bug486.go
+new file mode 100644
+index 0000000000..c1a4723f9d
+--- /dev/null
++++ b/test/fixedbugs/bug486.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The gccgo lexer had a bug handling nested comments.
++// http://gcc.gnu.org/PR61746
++// http://code.google.com/p/gofrontend/issues/detail?id=35
++
++package main
++
++/*// comment
++*/

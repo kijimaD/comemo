@@ -5,7 +5,34 @@ Date:   Mon Jul 7 18:07:31 2008 -0700
     fixed three-way decl
     
     SVN=126254
-
+---
  test/{bugs => fixedbugs}/bug065.go | 0
  test/golden.out                    | 7 ++-----
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/test/bugs/bug065.go b/test/fixedbugs/bug065.go
+similarity index 100%
+rename from test/bugs/bug065.go
+rename to test/fixedbugs/bug065.go
+diff --git a/test/golden.out b/test/golden.out
+index eb99ab7a72..7aca318bec 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -237,11 +237,6 @@ bugs/bug064.go:15: illegal types for operand: CALL
+ 	({<u><int32>INT32;<v><int32>INT32;})
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug065.go
+-bugs/bug065.go:6: bad shape across assignment - cr=3 cl=2
+-
+-BUG: known to fail incorrectly
+-
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go
+@@ -328,3 +323,5 @@ fixedbugs/bug051.go:10: expression must be a constant
+ =========== fixedbugs/bug058.go
+ 
+ =========== fixedbugs/bug059.go
++
++=========== fixedbugs/bug065.go

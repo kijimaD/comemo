@@ -21,9 +21,97 @@ Date:   Sun Feb 6 09:43:39 2022 -0800
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go      |  5 ++++-
  src/cmd/compile/internal/walk/complit.go |  2 +-
  src/cmd/compile/internal/walk/order.go   |  9 +++++++++
  test/codegen/maps.go                     | 30 ++++++++++++++++++++++++++++++
  4 files changed, 44 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 68303c0581..156fe96493 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -202,7 +202,10 @@ type CompLitExpr struct {
+ 	Ntype    Ntype
+ 	List     Nodes // initialized values
+ 	Prealloc *Name
+-	Len      int64 // backing array length for OSLICELIT
++	// For OSLICELIT, Len is the backing array length.
++	// For OMAPLIT, Len is the number of entries that we've removed from List and
++	// generated explicit mapassign calls for. This is used to inform the map alloc hint.
++	Len int64
+ }
+ 
+ func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index b985b4caeb..e46f828d65 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -419,7 +419,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 	// make the map var
+ 	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil)
+ 	a.SetEsc(n.Esc())
+-	a.Args = []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(int64(len(n.List)))}
++	a.Args = []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
+ 	litas(m, a, init)
+ 
+ 	entries := n.List
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 861c122456..cc37f95764 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1433,6 +1433,15 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 			typecheck.Stmt(as) // Note: this converts the OINDEX to an OINDEXMAP
+ 			o.stmt(as)
+ 		}
++
++		// Remember that we issued these assignments so we can include that count
++		// in the map alloc hint.
++		// We're assuming here that all the keys in the map literal are distinct.
++		// If any are equal, this will be an overcount. Probably not worth accounting
++		// for that, as equal keys in map literals are rare, and at worst we waste
++		// a bit of space.
++		n.Len += int64(len(dynamics))
++
+ 		return m
+ 	}
+ 
+diff --git a/test/codegen/maps.go b/test/codegen/maps.go
+index dcb4a9381f..ea3a70d1f0 100644
+--- a/test/codegen/maps.go
++++ b/test/codegen/maps.go
+@@ -122,3 +122,33 @@ func MapClearSideEffect(m map[int]int) int {
+ 	}
+ 	return k
+ }
++
++func MapLiteralSizing(x int) (map[int]int, map[int]int) {
++	// amd64:"MOVL\t[$]10,"
++	m := map[int]int{
++		0: 0,
++		1: 1,
++		2: 2,
++		3: 3,
++		4: 4,
++		5: 5,
++		6: 6,
++		7: 7,
++		8: 8,
++		9: 9,
++	}
++	// amd64:"MOVL\t[$]10,"
++	n := map[int]int{
++		0: x,
++		1: x,
++		2: x,
++		3: x,
++		4: x,
++		5: x,
++		6: x,
++		7: x,
++		8: x,
++		9: x,
++	}
++	return m, n
++}

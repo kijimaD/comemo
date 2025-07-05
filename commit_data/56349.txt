@@ -13,6 +13,20 @@ Date:   Fri Apr 28 22:15:48 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 504072bb17..e895c452f2 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -195,7 +195,7 @@ func dumpGlobal(n *ir.Name) {
+ 	}
+ 	types.CalcSize(n.Type())
+ 	ggloblnod(n)
+-	if n.CoverageCounter() || n.CoverageAuxVar() {
++	if n.CoverageCounter() || n.CoverageAuxVar() || n.Linksym().Static() {
+ 		return
+ 	}
+ 	base.Ctxt.DwarfGlobal(base.Ctxt.Pkgpath, types.TypeSymName(n.Type()), n.Linksym())

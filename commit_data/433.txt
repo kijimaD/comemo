@@ -7,6 +7,24 @@ Date:   Sun Jul 27 13:30:53 2008 -0700
     R=ken
     OCL=13505
     CL=13505
-
+---
  test/bugs/bug057.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/bugs/bug057.go b/test/bugs/bug057.go
+index f68c797dad..cb23961cab 100644
+--- a/test/bugs/bug057.go
++++ b/test/bugs/bug057.go
+@@ -14,10 +14,11 @@ type T struct {
+ func main() {
+   s := "";
+   l1 := len(s);
++  var t T;
+   l2 := len(T.s);  // BUG: cannot take len() of a string field
+ }
+ 
+ /*
+ uetli:/home/gri/go/test/bugs gri$ 6g bug057.go 
+-bug057.go:13: syntax error
++bug057.go:14: syntax error
+ */

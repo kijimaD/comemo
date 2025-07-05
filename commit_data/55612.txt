@@ -46,9 +46,407 @@ Date:   Mon Feb 20 11:26:10 2023 -0800
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/json/decode.go    |  17 +----
  src/encoding/json/encode.go    |  20 +++---
  src/encoding/json/fold.go      | 147 ++++++++---------------------------------
  src/encoding/json/fold_test.go | 132 ++++++++++--------------------------
  4 files changed, 78 insertions(+), 238 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 0a1cadf42e..53470d8c88 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -690,20 +690,9 @@ func (d *decodeState) object(v reflect.Value) error {
+ 			}
+ 			subv = mapElem
+ 		} else {
+-			var f *field
+-			if i, ok := fields.nameIndex[string(key)]; ok {
+-				// Found an exact name match.
+-				f = &fields.list[i]
+-			} else {
+-				// Fall back to the expensive case-insensitive
+-				// linear search.
+-				for i := range fields.list {
+-					ff := &fields.list[i]
+-					if ff.equalFold(ff.nameBytes, key) {
+-						f = ff
+-						break
+-					}
+-				}
++			f := fields.byExactName[string(key)]
++			if f == nil {
++				f = fields.byFoldedName[string(foldName(key))]
+ 			}
+ 			if f != nil {
+ 				subv = v
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index de639aa008..f3c824d13e 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -672,8 +672,9 @@ type structEncoder struct {
+ }
+ 
+ type structFields struct {
+-	list      []field
+-	nameIndex map[string]int
++	list         []field
++	byExactName  map[string]*field
++	byFoldedName map[string]*field
+ }
+ 
+ func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+@@ -1033,8 +1034,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
+ // A field represents a single field found in a struct.
+ type field struct {
+ 	name      string
+-	nameBytes []byte                 // []byte(name)
+-	equalFold func(s, t []byte) bool // bytes.EqualFold or equivalent
++	nameBytes []byte // []byte(name)
+ 
+ 	nameNonEsc  string // `"` + name + `":`
+ 	nameEscHTML string // `"` + HTMLEscape(name) + `":`
+@@ -1161,7 +1161,6 @@ func typeFields(t reflect.Type) structFields {
+ 						quoted:    quoted,
+ 					}
+ 					field.nameBytes = []byte(field.name)
+-					field.equalFold = foldFunc(field.nameBytes)
+ 
+ 					// Build nameEscHTML and nameNonEsc ahead of time.
+ 					nameEscBuf = appendHTMLEscape(nameEscBuf[:0], field.nameBytes)
+@@ -1240,11 +1239,16 @@ func typeFields(t reflect.Type) structFields {
+ 		f := &fields[i]
+ 		f.encoder = typeEncoder(typeByIndex(t, f.index))
+ 	}
+-	nameIndex := make(map[string]int, len(fields))
++	exactNameIndex := make(map[string]*field, len(fields))
++	foldedNameIndex := make(map[string]*field, len(fields))
+ 	for i, field := range fields {
+-		nameIndex[field.name] = i
++		exactNameIndex[field.name] = &fields[i]
++		// For historical reasons, first folded match takes precedence.
++		if _, ok := foldedNameIndex[string(foldName(field.nameBytes))]; !ok {
++			foldedNameIndex[string(foldName(field.nameBytes))] = &fields[i]
++		}
+ 	}
+-	return structFields{fields, nameIndex}
++	return structFields{fields, exactNameIndex, foldedNameIndex}
+ }
+ 
+ // dominantField looks through the fields, all of which are known to
+diff --git a/src/encoding/json/fold.go b/src/encoding/json/fold.go
+index 0f9b09d712..c4c671b527 100644
+--- a/src/encoding/json/fold.go
++++ b/src/encoding/json/fold.go
+@@ -5,137 +5,44 @@
+ package json
+ 
+ import (
+-	"bytes"
++	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+-const (
+-	caseMask     = ^byte(0x20) // Mask to ignore case in ASCII.
+-	kelvin       = '\u212a'
+-	smallLongEss = '\u017f'
+-)
+-
+-// foldFunc returns one of four different case folding equivalence
+-// functions, from most general (and slow) to fastest:
+-//
+-// 1) bytes.EqualFold, if the key s contains any non-ASCII UTF-8
+-// 2) equalFoldRight, if s contains special folding ASCII ('k', 'K', 's', 'S')
+-// 3) asciiEqualFold, no special, but includes non-letters (including _)
+-// 4) simpleLetterEqualFold, no specials, no non-letters.
+-//
+-// The letters S and K are special because they map to 3 runes, not just 2:
+-//   - S maps to s and to U+017F 'ſ' Latin small letter long s
+-//   - k maps to K and to U+212A 'K' Kelvin sign
+-//
+-// See https://play.golang.org/p/tTxjOc0OGo
+-//
+-// The returned function is specialized for matching against s and
+-// should only be given s. It's not curried for performance reasons.
+-func foldFunc(s []byte) func(s, t []byte) bool {
+-	nonLetter := false
+-	special := false // special letter
+-	for _, b := range s {
+-		if b >= utf8.RuneSelf {
+-			return bytes.EqualFold
+-		}
+-		upper := b & caseMask
+-		if upper < 'A' || upper > 'Z' {
+-			nonLetter = true
+-		} else if upper == 'K' || upper == 'S' {
+-			// See above for why these letters are special.
+-			special = true
+-		}
+-	}
+-	if special {
+-		return equalFoldRight
+-	}
+-	if nonLetter {
+-		return asciiEqualFold
+-	}
+-	return simpleLetterEqualFold
++// foldName returns a folded string such that foldName(x) == foldName(y)
++// is identical to bytes.EqualFold(x, y).
++func foldName(in []byte) []byte {
++	// This is inlinable to take advantage of "function outlining".
++	var arr [32]byte // large enough for most JSON names
++	return appendFoldedName(arr[:0], in)
+ }
+ 
+-// equalFoldRight is a specialization of bytes.EqualFold when s is
+-// known to be all ASCII (including punctuation), but contains an 's',
+-// 'S', 'k', or 'K', requiring a Unicode fold on the bytes in t.
+-// See comments on foldFunc.
+-func equalFoldRight(s, t []byte) bool {
+-	for _, sb := range s {
+-		if len(t) == 0 {
+-			return false
+-		}
+-		tb := t[0]
+-		if tb < utf8.RuneSelf {
+-			if sb != tb {
+-				sbUpper := sb & caseMask
+-				if 'A' <= sbUpper && sbUpper <= 'Z' {
+-					if sbUpper != tb&caseMask {
+-						return false
+-					}
+-				} else {
+-					return false
+-				}
++func appendFoldedName(out, in []byte) []byte {
++	for i := 0; i < len(in); {
++		// Handle single-byte ASCII.
++		if c := in[i]; c < utf8.RuneSelf {
++			if 'a' <= c && c <= 'z' {
++				c -= 'a' - 'A'
+ 			}
+-			t = t[1:]
++			out = append(out, c)
++			i++
+ 			continue
+ 		}
+-		// sb is ASCII and t is not. t must be either kelvin
+-		// sign or long s; sb must be s, S, k, or K.
+-		tr, size := utf8.DecodeRune(t)
+-		switch sb {
+-		case 's', 'S':
+-			if tr != smallLongEss {
+-				return false
+-			}
+-		case 'k', 'K':
+-			if tr != kelvin {
+-				return false
+-			}
+-		default:
+-			return false
+-		}
+-		t = t[size:]
+-
+-	}
+-	return len(t) == 0
+-}
+-
+-// asciiEqualFold is a specialization of bytes.EqualFold for use when
+-// s is all ASCII (but may contain non-letters) and contains no
+-// special-folding letters.
+-// See comments on foldFunc.
+-func asciiEqualFold(s, t []byte) bool {
+-	if len(s) != len(t) {
+-		return false
+-	}
+-	for i, sb := range s {
+-		tb := t[i]
+-		if sb == tb {
+-			continue
+-		}
+-		if ('a' <= sb && sb <= 'z') || ('A' <= sb && sb <= 'Z') {
+-			if sb&caseMask != tb&caseMask {
+-				return false
+-			}
+-		} else {
+-			return false
+-		}
++		// Handle multi-byte Unicode.
++		r, n := utf8.DecodeRune(in[i:])
++		out = utf8.AppendRune(out, foldRune(r))
++		i += n
+ 	}
+-	return true
++	return out
+ }
+ 
+-// simpleLetterEqualFold is a specialization of bytes.EqualFold for
+-// use when s is all ASCII letters (no underscores, etc) and also
+-// doesn't contain 'k', 'K', 's', or 'S'.
+-// See comments on foldFunc.
+-func simpleLetterEqualFold(s, t []byte) bool {
+-	if len(s) != len(t) {
+-		return false
+-	}
+-	for i, b := range s {
+-		if b&caseMask != t[i]&caseMask {
+-			return false
++// foldRune is returns the smallest rune for all runes in the same fold set.
++func foldRune(r rune) rune {
++	for {
++		r2 := unicode.SimpleFold(r)
++		if r2 <= r {
++			return r2
+ 		}
++		r = r2
+ 	}
+-	return true
+ }
+diff --git a/src/encoding/json/fold_test.go b/src/encoding/json/fold_test.go
+index 4daa3590f5..9d6fd0559d 100644
+--- a/src/encoding/json/fold_test.go
++++ b/src/encoding/json/fold_test.go
+@@ -6,105 +6,45 @@ package json
+ 
+ import (
+ 	"bytes"
+-	"strings"
+ 	"testing"
+-	"unicode/utf8"
+ )
+ 
+-var foldTests = []struct {
+-	fn   func(s, t []byte) bool
+-	s, t string
+-	want bool
+-}{
+-	{equalFoldRight, "", "", true},
+-	{equalFoldRight, "a", "a", true},
+-	{equalFoldRight, "", "a", false},
+-	{equalFoldRight, "a", "", false},
+-	{equalFoldRight, "a", "A", true},
+-	{equalFoldRight, "AB", "ab", true},
+-	{equalFoldRight, "AB", "ac", false},
+-	{equalFoldRight, "sbkKc", "ſbKKc", true},
+-	{equalFoldRight, "SbKkc", "ſbKKc", true},
+-	{equalFoldRight, "SbKkc", "ſbKK", false},
+-	{equalFoldRight, "e", "é", false},
+-	{equalFoldRight, "s", "S", true},
+-
+-	{simpleLetterEqualFold, "", "", true},
+-	{simpleLetterEqualFold, "abc", "abc", true},
+-	{simpleLetterEqualFold, "abc", "ABC", true},
+-	{simpleLetterEqualFold, "abc", "ABCD", false},
+-	{simpleLetterEqualFold, "abc", "xxx", false},
+-
+-	{asciiEqualFold, "a_B", "A_b", true},
+-	{asciiEqualFold, "aa@", "aa`", false}, // verify 0x40 and 0x60 aren't case-equivalent
+-}
+-
+-func TestFold(t *testing.T) {
+-	for i, tt := range foldTests {
+-		if got := tt.fn([]byte(tt.s), []byte(tt.t)); got != tt.want {
+-			t.Errorf("%d. %q, %q = %v; want %v", i, tt.s, tt.t, got, tt.want)
+-		}
+-		truth := strings.EqualFold(tt.s, tt.t)
+-		if truth != tt.want {
+-			t.Errorf("strings.EqualFold doesn't agree with case %d", i)
+-		}
++func FuzzEqualFold(f *testing.F) {
++	for _, ss := range [][2]string{
++		{"", ""},
++		{"123abc", "123ABC"},
++		{"αβδ", "ΑΒΔ"},
++		{"abc", "xyz"},
++		{"abc", "XYZ"},
++		{"1", "2"},
++		{"hello, world!", "hello, world!"},
++		{"hello, world!", "Hello, World!"},
++		{"hello, world!", "HELLO, WORLD!"},
++		{"hello, world!", "jello, world!"},
++		{"γειά, κόσμε!", "γειά, κόσμε!"},
++		{"γειά, κόσμε!", "Γειά, Κόσμε!"},
++		{"γειά, κόσμε!", "ΓΕΙΆ, ΚΌΣΜΕ!"},
++		{"γειά, κόσμε!", "ΛΕΙΆ, ΚΌΣΜΕ!"},
++		{"AESKey", "aesKey"},
++		{"AESKEY", "aes_key"},
++		{"aes_key", "AES_KEY"},
++		{"AES_KEY", "aes-key"},
++		{"aes-key", "AES-KEY"},
++		{"AES-KEY", "aesKey"},
++		{"aesKey", "AesKey"},
++		{"AesKey", "AESKey"},
++		{"AESKey", "aeskey"},
++		{"DESKey", "aeskey"},
++		{"AES Key", "aeskey"},
++	} {
++		f.Add([]byte(ss[0]), []byte(ss[1]))
+ 	}
+-}
+-
+-func TestFoldAgainstUnicode(t *testing.T) {
+-	var buf1, buf2 []byte
+-	var runes []rune
+-	for i := 0x20; i <= 0x7f; i++ {
+-		runes = append(runes, rune(i))
+-	}
+-	runes = append(runes, kelvin, smallLongEss)
+-
+-	funcs := []struct {
+-		name   string
+-		fold   func(s, t []byte) bool
+-		letter bool // must be ASCII letter
+-		simple bool // must be simple ASCII letter (not 'S' or 'K')
+-	}{
+-		{
+-			name: "equalFoldRight",
+-			fold: equalFoldRight,
+-		},
+-		{
+-			name:   "asciiEqualFold",
+-			fold:   asciiEqualFold,
+-			simple: true,
+-		},
+-		{
+-			name:   "simpleLetterEqualFold",
+-			fold:   simpleLetterEqualFold,
+-			simple: true,
+-			letter: true,
+-		},
+-	}
+-
+-	for _, ff := range funcs {
+-		for _, r := range runes {
+-			if r >= utf8.RuneSelf {
+-				continue
+-			}
+-			if ff.letter && !isASCIILetter(byte(r)) {
+-				continue
+-			}
+-			if ff.simple && (r == 's' || r == 'S' || r == 'k' || r == 'K') {
+-				continue
+-			}
+-			for _, r2 := range runes {
+-				buf1 = append(utf8.AppendRune(append(buf1[:0], 'x'), r), 'x')
+-				buf2 = append(utf8.AppendRune(append(buf2[:0], 'x'), r2), 'x')
+-				want := bytes.EqualFold(buf1, buf2)
+-				if got := ff.fold(buf1, buf2); got != want {
+-					t.Errorf("%s(%q, %q) = %v; want %v", ff.name, buf1, buf2, got, want)
+-				}
+-			}
++	equalFold := func(x, y []byte) bool { return string(foldName(x)) == string(foldName(y)) }
++	f.Fuzz(func(t *testing.T, x, y []byte) {
++		got := equalFold(x, y)
++		want := bytes.EqualFold(x, y)
++		if got != want {
++			t.Errorf("equalFold(%q, %q) = %v, want %v", x, y, got, want)
+ 		}
+-	}
+-}
+-
+-func isASCIILetter(b byte) bool {
+-	return ('A' <= b && b <= 'Z') || ('a' <= b && b <= 'z')
++	})
+ }

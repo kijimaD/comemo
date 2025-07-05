@@ -57,9 +57,181 @@ Date:   Mon Sep 24 23:07:44 2012 +0200
     R=rsc, nigeltao
     CC=golang-dev, remy
     https://golang.org/cl/6494107
-
+---
  src/cmd/6g/cgen.c  | 35 ++++++++++++++++++++++++++++++++++-
  src/cmd/8g/cgen.c  | 40 ++++++++++++++++++++++++++++++++++++----
  src/cmd/8g/gsubr.c |  6 +++---
  src/cmd/gc/go.h    |  6 +++---
  4 files changed, 76 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index ce3a3eba9a..27ab1052c3 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -798,7 +798,7 @@ igen(Node *n, Node *a, Node *res)
+ 	Type *fp;
+ 	Iter flist;
+ 	Node n1, n2;
+- 
++
+ 	switch(n->op) {
+ 	case ONAME:
+ 		if((n->class&PHEAP) || n->class == PPARAMREF)
+@@ -806,6 +806,39 @@ igen(Node *n, Node *a, Node *res)
+ 		*a = *n;
+ 		return;
+ 
++	case OINDREG:
++		// Increase the refcount of the register so that igen's caller
++		// has to call regfree.
++		if(n->val.u.reg != D_SP)
++			reg[n->val.u.reg]++;
++		*a = *n;
++		return;
++
++	case ODOT:
++		igen(n->left, a, res);
++		a->xoffset += n->xoffset;
++		a->type = n->type;
++		return;
++
++	case ODOTPTR:
++		regalloc(a, types[tptr], res);
++		cgen(n->left, a);
++		if(n->xoffset != 0) {
++			// explicit check for nil if struct is large enough
++			// that we might derive too big a pointer.
++			if(n->left->type->type->width >= unmappedzero) {
++				n1 = *a;
++				n1.op = OINDREG;
++				n1.type = types[TUINT8];
++				n1.xoffset = 0;
++				gins(ATESTB, nodintconst(0), &n1);
++			}
++		}
++		a->op = OINDREG;
++		a->xoffset += n->xoffset;
++		a->type = n->type;
++		return;
++
+ 	case OCALLFUNC:
+ 		fp = structfirst(&flist, getoutarg(n->left->type));
+ 		cgen_call(n, 0);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index ed188fed62..6684bf94d5 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -342,9 +342,8 @@ cgen(Node *n, Node *res)
+ 		}
+ 		if(isslice(nl->type)) {
+ 			igen(nl, &n1, res);
+-			n1.op = OINDREG;
+ 			n1.type = types[TUINT32];
+-			n1.xoffset = Array_cap;
++			n1.xoffset += Array_cap;
+ 			gmove(&n1, res);
+ 			regfree(&n1);
+ 			break;
+@@ -781,10 +780,10 @@ agen(Node *n, Node *res)
+ void
+ igen(Node *n, Node *a, Node *res)
+ {
+-	Node n1;
+ 	Type *fp;
+ 	Iter flist;
+-  
++	Node n1;
++
+ 	switch(n->op) {
+ 	case ONAME:
+ 		if((n->class&PHEAP) || n->class == PPARAMREF)
+@@ -792,6 +791,39 @@ igen(Node *n, Node *a, Node *res)
+ 		*a = *n;
+ 		return;
+ 
++	case OINDREG:
++		// Increase the refcount of the register so that igen's caller
++		// has to call regfree.
++		if(n->val.u.reg != D_SP)
++			reg[n->val.u.reg]++;
++		*a = *n;
++		return;
++
++	case ODOT:
++		igen(n->left, a, res);
++		a->xoffset += n->xoffset;
++		a->type = n->type;
++		return;
++
++	case ODOTPTR:
++		regalloc(a, types[tptr], res);
++		cgen(n->left, a);
++		if(n->xoffset != 0) {
++			// explicit check for nil if struct is large enough
++			// that we might derive too big a pointer.
++			if(n->left->type->type->width >= unmappedzero) {
++				n1 = *a;
++				n1.op = OINDREG;
++				n1.type = types[TUINT8];
++				n1.xoffset = 0;
++				gins(ATESTB, nodintconst(0), &n1);
++			}
++		}
++		a->op = OINDREG;
++		a->xoffset += n->xoffset;
++		a->type = n->type;
++		return;
++
+ 	case OCALLFUNC:
+ 		fp = structfirst(&flist, getoutarg(n->left->type));
+ 		cgen_call(n, 0);
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index dcbd6dbcfa..a94086e7c1 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -766,7 +766,7 @@ ginit(void)
+ 
+ 	for(i=0; i<nelem(reg); i++)
+ 		reg[i] = 1;
+-	for(i=D_AL; i<=D_DI; i++)
++	for(i=D_AX; i<=D_DI; i++)
+ 		reg[i] = 0;
+ 	for(i=0; i<nelem(resvd); i++)
+ 		reg[resvd[i]]++;
+@@ -782,7 +782,7 @@ gclean(void)
+ 	for(i=0; i<nelem(resvd); i++)
+ 		reg[resvd[i]]--;
+ 
+-	for(i=D_AL; i<=D_DI; i++)
++	for(i=D_AX; i<=D_DI; i++)
+ 		if(reg[i])
+ 			yyerror("reg %R left allocated at %ux", i, regpc[i]);
+ }
+@@ -792,7 +792,7 @@ anyregalloc(void)
+ {
+ 	int i, j;
+ 
+-	for(i=D_AL; i<=D_DI; i++) {
++	for(i=D_AX; i<=D_DI; i++) {
+ 		if(reg[i] == 0)
+ 			goto ok;
+ 		for(j=0; j<nelem(resvd); j++)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 89b91f6665..326ede3063 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -170,11 +170,11 @@ struct	Type
+ 	vlong	argwid;
+ 
+ 	// most nodes
+-	Type*	type;
+-	vlong	width;		// offset in TFIELD, width in all others
++	Type*	type;   	// actual type for TFIELD, element type for TARRAY, TCHAN, TMAP, TPTRxx
++	vlong	width;  	// offset in TFIELD, width in all others
+ 
+ 	// TFIELD
+-	Type*	down;		// also used in TMAP
++	Type*	down;		// next struct field, also key type in TMAP
+ 	Strlit*	note;		// literal string annotation
+ 
+ 	// TARRAY

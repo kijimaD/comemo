@@ -10,6 +10,20 @@ Date:   Tue Aug 4 10:38:50 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/13098
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 658891e08f..fd47f10530 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3320,7 +3320,7 @@ to the type of the other operand.
+ The right operand in a shift expression must have unsigned integer type
+ or be an untyped constant that can be converted to unsigned integer type.
+ If the left operand of a non-constant shift expression is an untyped constant,
+-the type of the constant is what it would be if the shift expression were
++it is first converted to the type it would assume if the shift expression were
+ replaced by its left operand alone.
+ </p>
+ 

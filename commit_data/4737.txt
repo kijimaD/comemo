@@ -9,6 +9,19 @@ Date:   Sat Jan 30 11:31:06 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194156
-
+---
  test/fixedbugs/bug231.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug231.go b/test/fixedbugs/bug231.go
+index e11200b9c5..91996d313c 100644
+--- a/test/fixedbugs/bug231.go
++++ b/test/fixedbugs/bug231.go
+@@ -17,6 +17,6 @@ func main() {
+ 	var i I
+ 	
+ 	i = m
+-	i = t	// ERROR "not a method"
++	i = t	// ERROR "not a method|has no methods"
+ 	_ = i
+ }

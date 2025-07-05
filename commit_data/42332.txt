@@ -9,6 +9,20 @@ Date:   Mon Dec 2 19:27:51 2019 +0000
     GitHub-Pull-Request: golang/go#35934
     Reviewed-on: https://go-review.googlesource.com/c/go/+/209558
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec/exec.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 19c7e2406a..0c17b7a35d 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -369,6 +369,8 @@ func lookExtensions(path, dir string) (string, error) {
+ 
+ // Start starts the specified command but does not wait for it to complete.
+ //
++// If Start returns successfully, the c.Process field will be set.
++//
+ // The Wait method will return the exit code and release associated resources
+ // once the command exits.
+ func (c *Cmd) Start() error {

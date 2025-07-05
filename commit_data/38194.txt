@@ -15,6 +15,20 @@ Date:   Tue Oct 9 10:21:53 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/script_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 31c6ede2a5..8708dacd41 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -614,7 +614,7 @@ func scriptMatch(ts *testScript, neg bool, args []string, text, name string) {
+ 		want = 2
+ 	}
+ 	if len(args) != want {
+-		ts.fatalf("usage: %s [-count=N] 'pattern' file%s", name, extraUsage)
++		ts.fatalf("usage: %s [-count=N] 'pattern'%s", name, extraUsage)
+ 	}
+ 
+ 	pattern := args[0]

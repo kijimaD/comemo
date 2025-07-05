@@ -9,6 +9,20 @@ Date:   Fri Aug 16 21:04:05 2013 +0400
     R=golang-dev, bradfitz, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/12927045
-
+---
  src/pkg/runtime/proc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 690c1760eb..6950f4b179 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1676,7 +1676,7 @@ runtime·malg(int32 stacksize)
+ 			stk = g->param;
+ 			g->param = nil;
+ 		}
+-		g->stacksize = StackSystem + stacksize;
++		newg->stacksize = StackSystem + stacksize;
+ 		newg->stack0 = (uintptr)stk;
+ 		newg->stackguard = (uintptr)stk + StackGuard;
+ 		newg->stackguard0 = newg->stackguard;

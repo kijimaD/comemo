@@ -9,7 +9,102 @@ Date:   Wed Jan 5 10:11:34 2011 -0800
     R=rsc, Kyle C
     CC=golang-dev
     https://golang.org/cl/3749044
-
+---
  src/pkg/fmt/fmt_test.go |  8 +++++---
  src/pkg/fmt/print.go    | 20 +++++++++++---------
  2 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index d87b93a795..0234ad41d3 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -381,11 +381,13 @@ var fmttests = []fmtTest{
+ 	{"%p", 27, "%!p(int=27)"}, // not a pointer at all
+ 
+ 	// erroneous things
++	{"%s %", "hello", "hello %!(NOVERB)"},
++	{"%s %.2", "hello", "hello %!(NOVERB)"},
+ 	{"%d", "hello", "%!d(string=hello)"},
+ 	{"no args", "hello", "no args%!(EXTRA string=hello)"},
+ 	{"%s", nil, "%!s(<nil>)"},
+ 	{"%T", nil, "<nil>"},
+-	{"%-1", 100, "%!1(int=100)"},
++	{"%-1", 100, "%!(NOVERB)%!(EXTRA int=100)"},
+ }
+ 
+ func TestSprintf(t *testing.T) {
+@@ -638,7 +640,7 @@ var startests = []starTest{
+ 	{"%.*d", args(nil, 42), "%!(BADPREC)42"},
+ 	{"%*d", args(5, "foo"), "%!d(string=  foo)"},
+ 	{"%*% %d", args(20, 5), "% 5"},
+-	{"%*", args(4), "%!(BADWIDTH)%!*(int=4)"},
++	{"%*", args(4), "%!(NOVERB)"},
+ 	{"%*d", args(int32(4), 42), "%!(BADWIDTH)42"},
+ }
+ 
+@@ -655,7 +657,7 @@ func TestWidthAndPrecision(t *testing.T) {
+ 	for _, tt := range startests {
+ 		s := sprintf[len(tt.in)](tt.fmt, tt.in)
+ 		if s != tt.out {
+-			t.Errorf("got %q expected %q", s, tt.out)
++			t.Errorf("%q: got %q expected %q", tt.fmt, s, tt.out)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 7ac6648c70..8cc54ed8c6 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -26,6 +26,7 @@ var (
+ 	bytesBytes      = []byte("[]byte{")
+ 	widthBytes      = []byte("%!(BADWIDTH)")
+ 	precBytes       = []byte("%!(BADPREC)")
++	noVerbBytes     = []byte("%!(NOVERB)")
+ )
+ 
+ // State represents the printer state passed to custom formatters.
+@@ -821,19 +822,16 @@ func intFromArg(a []interface{}, end, i, fieldnum int) (num int, isInt bool, new
+ }
+ 
+ func (p *pp) doPrintf(format string, a []interface{}) {
+-	end := len(format) - 1
++	end := len(format)
+ 	fieldnum := 0 // we process one field per non-trivial format
+-	for i := 0; i <= end; {
++	for i := 0; i < end; {
+ 		c, w := utf8.DecodeRuneInString(format[i:])
+-		if c != '%' || i == end {
+-			if w == 1 {
+-				p.buf.WriteByte(byte(c))
+-			} else {
+-				p.buf.WriteString(format[i : i+w])
+-			}
++		if c != '%' {
++			p.buf.WriteRune(c)
+ 			i += w
+ 			continue
+ 		}
++		// Process one verb
+ 		i++
+ 		// flags and widths
+ 		p.fmt.clearflags()
+@@ -855,7 +853,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 			}
+ 		}
+ 		// do we have width?
+-		if format[i] == '*' {
++		if i < end && format[i] == '*' {
+ 			p.fmt.wid, p.fmt.widPresent, i, fieldnum = intFromArg(a, end, i, fieldnum)
+ 			if !p.fmt.widPresent {
+ 				p.buf.Write(widthBytes)
+@@ -874,6 +872,10 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
+ 			}
+ 		}
++		if i >= end {
++			p.buf.Write(noVerbBytes)
++			continue
++		}
+ 		c, w = utf8.DecodeRuneInString(format[i:])
+ 		i += w
+ 		// percent is special - absorbs no operand

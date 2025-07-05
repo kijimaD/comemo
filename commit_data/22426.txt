@@ -9,8 +9,90 @@ Date:   Fri Mar 13 18:08:33 2015 -0700
     Change-Id: I4a2e6748db609c6eed1d68c824b81c59bd7b875c
     Reviewed-on: https://go-review.googlesource.com/7590
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/debug/elf/file.go                              |  42 +++++++++++++++++++++
  src/debug/elf/file_test.go                         |   6 +++
  .../elf/testdata/go-relocation-test-gcc5-ppc.obj   | Bin 0 -> 2356 bytes
  3 files changed, 48 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 7e0dcc57a5..8e02c8bbd5 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -533,6 +533,8 @@ func (f *File) applyRelocations(dst []byte, rels []byte) error {
+ 		return f.applyRelocationsARM(dst, rels)
+ 	case f.Class == ELFCLASS64 && f.Machine == EM_AARCH64:
+ 		return f.applyRelocationsARM64(dst, rels)
++	case f.Class == ELFCLASS32 && f.Machine == EM_PPC:
++		return f.applyRelocationsPPC(dst, rels)
+ 	case f.Class == ELFCLASS64 && f.Machine == EM_PPC64:
+ 		return f.applyRelocationsPPC64(dst, rels)
+ 	default:
+@@ -713,6 +715,46 @@ func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
+ 	return nil
+ }
+ 
++func (f *File) applyRelocationsPPC(dst []byte, rels []byte) error {
++	// 12 is the size of Rela32.
++	if len(rels)%12 != 0 {
++		return errors.New("length of relocation section is not a multiple of 12")
++	}
++
++	symbols, _, err := f.getSymbols(SHT_SYMTAB)
++	if err != nil {
++		return err
++	}
++
++	b := bytes.NewReader(rels)
++	var rela Rela32
++
++	for b.Len() > 0 {
++		binary.Read(b, f.ByteOrder, &rela)
++		symNo := rela.Info >> 8
++		t := R_PPC(rela.Info & 0xff)
++
++		if symNo == 0 || symNo > uint32(len(symbols)) {
++			continue
++		}
++		sym := &symbols[symNo-1]
++		if SymType(sym.Info&0xf) != STT_SECTION {
++			// We don't handle non-section relocations for now.
++			continue
++		}
++
++		switch t {
++		case R_PPC_ADDR32:
++			if rela.Off+4 >= uint32(len(dst)) || rela.Addend < 0 {
++				continue
++			}
++			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
++		}
++	}
++
++	return nil
++}
++
+ func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
+ 	// 24 is the size of Rela64.
+ 	if len(rels)%24 != 0 {
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 3e908bb1d0..0d10ec51b1 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -272,6 +272,12 @@ var relocationTests = []relocationTest{
+ 			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 20141224 (prerelease) -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16 -mtls-dialect=gnu -g"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test-gcc492.c"}, {Attr: dwarf.AttrCompDir, Val: "/root/go/src/debug/elf/testdata"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: int64(0x28)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
+ 		},
+ 	},
++	{
++		"testdata/go-relocation-test-gcc5-ppc.obj",
++		[]relocationTestEntry{
++			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{dwarf.Field{Attr: dwarf.AttrProducer, Val: "GNU C11 5.0.0 20150116 (experimental) -Asystem=linux -Asystem=unix -Asystem=posix -g"}, dwarf.Field{Attr: dwarf.AttrLanguage, Val: int64(12)}, dwarf.Field{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc5-ppc.c"}, dwarf.Field{Attr: dwarf.AttrCompDir, Val: "/tmp"}, dwarf.Field{Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, dwarf.Field{Attr: dwarf.AttrHighpc, Val: int64(0x44)}, dwarf.Field{Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
++		},
++	},
+ 	{
+ 		"testdata/go-relocation-test-gcc482-ppc64le.obj",
+ 		[]relocationTestEntry{
+diff --git a/src/debug/elf/testdata/go-relocation-test-gcc5-ppc.obj b/src/debug/elf/testdata/go-relocation-test-gcc5-ppc.obj
+new file mode 100644
+index 0000000000..f4165af098
+Binary files /dev/null and b/src/debug/elf/testdata/go-relocation-test-gcc5-ppc.obj differ

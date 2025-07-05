@@ -18,7 +18,7 @@ Date:   Sat Oct 21 07:29:46 2017 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/issue22295.pkg/main.go   | 28 ++++++++++++++++++++
  misc/cgo/testplugin/src/issue22295.pkg/plugin.go | 16 ++++++++++++
  misc/cgo/testplugin/test.bash                    |  5 ++++
@@ -27,3 +27,167 @@ Date:   Sat Oct 21 07:29:46 2017 -0400
  src/cmd/link/internal/ld/symtab.go               |  2 +-
  src/plugin/plugin_dlopen.go                      | 33 +-----------------------
  7 files changed, 54 insertions(+), 35 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/issue22295.pkg/main.go b/misc/cgo/testplugin/src/issue22295.pkg/main.go
+new file mode 100644
+index 0000000000..6cb186e100
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue22295.pkg/main.go
+@@ -0,0 +1,28 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package main
++
++import (
++	"log"
++	"plugin"
++)
++
++func main() {
++	p, err := plugin.Open("issue.22295.so")
++	if err != nil {
++		log.Fatal(err)
++	}
++	f, err := p.Lookup("F")
++	if err != nil {
++		log.Fatal(err)
++	}
++	const want = 2503
++	got := f.(func() int)()
++	if got != want {
++		log.Fatalf("got %d, want %d", got, want)
++	}
++}
+diff --git a/misc/cgo/testplugin/src/issue22295.pkg/plugin.go b/misc/cgo/testplugin/src/issue22295.pkg/plugin.go
+new file mode 100644
+index 0000000000..46b08a405b
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue22295.pkg/plugin.go
+@@ -0,0 +1,16 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var f *int
++
++func init() {
++	f = new(int)
++	*f = 2503
++}
++
++func F() int { return *f }
++
++func main() {}
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index eed7fc451b..18e3803bf4 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -80,3 +80,8 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue22175_pl
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue22175_plugin2.so src/issue22175/plugin2.go
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22175 src/issue22175/main.go
+ ./issue22175
++
++# Test for issue 22295
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue.22295.so issue22295.pkg
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22295 src/issue22295.pkg/main.go
++./issue22295
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 3572d7309d..459a75e8ac 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -782,10 +782,11 @@ func addstrdata1(ctxt *Link, arg string) {
+ 	if eq < 0 || dot < 0 {
+ 		Exitf("-X flag requires argument of the form importpath.name=value")
+ 	}
+-	pkg := objabi.PathToPrefix(arg[:dot])
++	pkg := arg[:dot]
+ 	if ctxt.BuildMode == BuildModePlugin && pkg == "main" {
+ 		pkg = *flagPluginPath
+ 	}
++	pkg = objabi.PathToPrefix(pkg)
+ 	addstrdata(ctxt, pkg+arg[dot:eq], arg[eq+1:])
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index c065146fcd..600c49aa12 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -230,7 +230,7 @@ func (d *deadcodepass) init() {
+ 			}
+ 			names = append(names, *flagEntrySymbol)
+ 			if d.ctxt.BuildMode == BuildModePlugin {
+-				names = append(names, *flagPluginPath+".init", *flagPluginPath+".main", "go.plugin.tabs")
++				names = append(names, objabi.PathToPrefix(*flagPluginPath)+".init", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
+ 
+ 				// We don't keep the go.plugin.exports symbol,
+ 				// but we do keep the symbols it refers to.
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 20ac6b7139..bb8c1992ba 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -586,7 +586,7 @@ func (ctxt *Link) symtab() {
+ 		moduledata.AddUint(ctxt.Arch, 0)
+ 	}
+ 	if ctxt.BuildMode == BuildModePlugin {
+-		addgostring(ctxt, moduledata, "go.link.thispluginpath", *flagPluginPath)
++		addgostring(ctxt, moduledata, "go.link.thispluginpath", objabi.PathToPrefix(*flagPluginPath))
+ 
+ 		pkghashes := ctxt.Syms.Lookup("go.link.pkghashes", 0)
+ 		pkghashes.Attr |= sym.AttrReachable
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index 37380989d7..47f2b29a80 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -49,37 +49,6 @@ func lastIndexByte(s string, c byte) int {
+ 	return -1
+ }
+ 
+-// pathToPrefix converts raw string to the prefix that will be used in the symbol
+-// table. If modifying, modify the version in internal/obj/sym.go as well.
+-func pathToPrefix(s string) string {
+-	slash := lastIndexByte(s, '/')
+-	// check for chars that need escaping
+-	n := 0
+-	for r := 0; r < len(s); r++ {
+-		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
+-			n++
+-		}
+-	}
+-
+-	// quick exit
+-	if n == 0 {
+-		return s
+-	}
+-
+-	// escape
+-	const hex = "0123456789abcdef"
+-	p := make([]byte, 0, len(s)+2*n)
+-	for r := 0; r < len(s); r++ {
+-		if c := s[r]; c <= ' ' || (c == '.' && r > slash) || c == '%' || c == '"' || c >= 0x7F {
+-			p = append(p, '%', hex[c>>4], hex[c&0xF])
+-		} else {
+-			p = append(p, c)
+-		}
+-	}
+-
+-	return string(p)
+-}
+-
+ func open(name string) (*Plugin, error) {
+ 	cPath := make([]byte, C.PATH_MAX+1)
+ 	cRelName := make([]byte, len(name)+1)
+@@ -153,7 +122,7 @@ func open(name string) (*Plugin, error) {
+ 			symName = symName[1:]
+ 		}
+ 
+-		fullName := pathToPrefix(pluginpath) + "." + symName
++		fullName := pluginpath + "." + symName
+ 		cname := make([]byte, len(fullName)+1)
+ 		copy(cname, fullName)
+ 

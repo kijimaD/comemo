@@ -10,7 +10,36 @@ Date:   Thu Sep 3 10:55:20 2009 -0700
     DELTA=6  (6 added, 0 deleted, 0 changed)
     OCL=34288
     CL=34315
-
+---
  src/pkg/debug/proc/proc_linux.go  | 3 +++
  usr/austin/ptrace/ptrace_linux.go | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index 87d3bf1ef7..913b212a03 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -386,6 +386,9 @@ func (p *process) installBreakpoints() os.Error {
+ //
+ // Must be called from the monitor thread.
+ func (p *process) uninstallBreakpoints() os.Error {
++	if len(p.threads) == 0 {
++		return nil;
++	}
+ 	n := 0;
+ 	main := p.someStoppedThread();
+ 	for _, b := range p.breakpoints {
+diff --git a/usr/austin/ptrace/ptrace_linux.go b/usr/austin/ptrace/ptrace_linux.go
+index 115a29e5f2..06c02808f2 100644
+--- a/usr/austin/ptrace/ptrace_linux.go
++++ b/usr/austin/ptrace/ptrace_linux.go
+@@ -384,6 +384,9 @@ func (p *process) installBreakpoints() os.Error {
+ //
+ // Must be called from the monitor thread.
+ func (p *process) uninstallBreakpoints() os.Error {
++	if len(p.threads) == 0 {
++		return nil;
++	}
+ 	n := 0;
+ 	main := p.someStoppedThread();
+ 	for _, b := range p.breakpoints {

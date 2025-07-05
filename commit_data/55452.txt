@@ -13,6 +13,29 @@ Date:   Tue Feb 7 08:21:05 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9f0cbb09dc..d75421c02f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2759,7 +2759,7 @@ However, they <a href="#Satisfying_a_type_constraint">satisfy</a> <code>comparab
+ int                          // implements comparable (int is strictly comparable)
+ []byte                       // does not implement comparable (slices cannot be compared)
+ interface{}                  // does not implement comparable (see above)
+-interface{ ~int | ~string }  // type parameter only: implements comparable (int, string types are stricly comparable)
++interface{ ~int | ~string }  // type parameter only: implements comparable (int, string types are strictly comparable)
+ interface{ comparable }      // type parameter only: implements comparable (comparable implements itself)
+ interface{ ~int | ~[]byte }  // type parameter only: does not implement comparable (slices are not comparable)
+ interface{ ~struct{ any } }  // type parameter only: does not implement comparable (field any is not strictly comparable)
+@@ -2802,7 +2802,7 @@ A type T <i>satisfies</i> a constraint <code>C</code> if
+ type argument      type constraint                // constraint satisfaction
+ 
+ int                interface{ ~int }              // satisfied: int implements interface{ ~int }
+-string             comparable                     // satisfied: string implements comparable (string is stricty comparable)
++string             comparable                     // satisfied: string implements comparable (string is strictly comparable)
+ []byte             comparable                     // not satisfied: slices are not comparable
+ any                interface{ comparable; int }   // not satisfied: any does not implement interface{ int }
+ any                comparable                     // satisfied: any is comparable and implements the basic interface any

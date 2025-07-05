@@ -9,6 +9,19 @@ Date:   Sat Apr 25 19:37:24 2020 +0000
     GitHub-Pull-Request: golang/go#38659
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230197
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 97e2a5eb7b..174683264b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1144,6 +1144,7 @@ Pontus Leitzler <leitzler@gmail.com>
+ Prashant Varanasi <prashant@prashantv.com>
+ Pravendra Singh <hackpravj@gmail.com>
+ Preetam Jinka <pj@preet.am>
++Qais Patankar <qaisjp@gmail.com>
+ Qiuxuan Zhu <ilsh1022@gmail.com>
+ Qualcomm Data Center, Inc.
+ Quan Tran <qeed.quan@gmail.com>

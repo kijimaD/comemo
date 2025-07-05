@@ -9,7 +9,7 @@ Date:   Thu Jan 29 17:38:58 2009 -0800
     R=ken
     OCL=23849
     CL=23851
-
+---
  src/cmd/6g/cgen.c    |  17 ++++
  src/cmd/6g/gen.c     |  32 +++++++
  src/cmd/6g/gg.h      |   1 +
@@ -25,3 +25,1134 @@ Date:   Thu Jan 29 17:38:58 2009 -0800
  test/escape1.go      |  17 ++++
  test/golden.out      |   2 +-
  14 files changed, 515 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 43497adb21..2774456c0a 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -48,6 +48,11 @@ cgen(Node *n, Node *res)
+ 		if(n->ullman > res->ullman) {
+ 			regalloc(&n1, n->type, res);
+ 			cgen(n, &n1);
++			if(n1.ullman > res->ullman) {
++				dump("n1", &n1);
++				dump("res", res);
++				fatal("loop in cgen");
++			}
+ 			cgen(&n1, res);
+ 			regfree(&n1);
+ 			goto ret;
+@@ -198,6 +203,7 @@ cgen(Node *n, Node *res)
+ 	case ODOTPTR:
+ 	case OINDEX:
+ 	case OIND:
++	case ONAME:	// PHEAP var
+ 		igen(n, &n1, res);
+ 		gmove(&n1, res);
+ 		regfree(&n1);
+@@ -517,6 +523,17 @@ agen(Node *n, Node *res)
+ 		regfree(&n3);
+ 		break;
+ 
++	case ONAME:
++		// should only get here for heap vars
++		if(!(n->class & PHEAP))
++			fatal("agen: bad ONAME class %#x", n->class);
++		cgen(n->heapaddr, res);
++		if(n->xoffset != 0) {
++			nodconst(&n1, types[TINT64], n->xoffset);
++			gins(optoas(OADD, types[tptr]), &n1, res);
++		}
++		break;
++
+ 	case OIND:
+ 		cgen(nl, res);
+ 		break;
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index f01f1d8b54..e6a6850339 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -99,6 +99,7 @@ if(throwreturn == N) {
+ //	inarggen();
+ 
+ 	ginit();
++	gen(curfn->enter, L);
+ 	gen(curfn->nbody, L);
+ 	gclean();
+ 	checklabels();
+@@ -151,6 +152,8 @@ allocparams(void)
+ 
+ 		dowidth(n->type);
+ 		w = n->type->width;
++		if(n->class & PHEAP)
++			w = widthptr;
+ 		stksize += w;
+ 		stksize = rnd(stksize, w);
+ 
+@@ -345,6 +348,10 @@ loop:
+ 		cgen_asop(n);
+ 		break;
+ 
++	case ODCL:
++		cgen_dcl(n->left);
++		break;
++
+ 	case OAS:
+ 		cgen_as(n->left, n->right);
+ 		break;
+@@ -1114,6 +1121,26 @@ ret:
+ 	;
+ }
+ 
++/*
++ * generate declaration.
++ * nothing to do for on-stack automatics,
++ * but might have to allocate heap copy
++ * for escaped variables.
++ */
++void
++cgen_dcl(Node *n)
++{
++	if(debug['g'])
++		dump("\ncgen-dcl", n);
++	if(n->op != ONAME) {
++		dump("cgen_dcl", n);
++		fatal("cgen_dcl");
++	}
++	if(!(n->class & PHEAP))
++		return;
++	cgen_as(n->heapaddr, n->alloc);
++}
++
+ /*
+  * generate assignment:
+  *	nl = nr
+@@ -1130,6 +1157,11 @@ cgen_as(Node *nl, Node *nr)
+ 	if(nl == N)
+ 		return;
+ 
++	if(debug['g']) {
++		dump("cgen_as", nl);
++		dump("cgen_as = ", nr);
++	}
++
+ 	iszer = 0;
+ 	if(nr == N || isnil(nr)) {
+ 		if(nl->op == OLIST) {
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 881a230737..602de32b4f 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -158,6 +158,7 @@ void	cgen_callret(Node*, Node*);
+ void	cgen_div(int, Node*, Node*, Node*);
+ void	cgen_bmul(int, Node*, Node*, Node*);
+ void	cgen_shift(int, Node*, Node*, Node*);
++void	cgen_dcl(Node*);
+ void	genpanic(void);
+ int	needconvert(Type*, Type*);
+ void	genconv(Type*, Type*);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 86ba52c3fe..cd4f6e294d 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -547,6 +547,7 @@ gmove(Node *f, Node *t)
+ 				break;
+ 			case PAUTO:
+ 			case PPARAM:
++			case PPARAMOUT:
+ 				break;
+ 			}
+ 			break;
+@@ -1046,6 +1047,15 @@ naddr(Node *n, Addr *a)
+ 		a->offset = n->xoffset;
+ 		break;
+ 
++	case OPARAM:
++		// n->left is PHEAP ONAME for stack parameter.
++		// compute address of actual parameter on stack.
++		a->etype = n->left->type->etype;
++		a->offset = n->xoffset;
++		a->sym = n->left->sym;
++		a->type = D_PARAM;
++		break;
++
+ 	case ONAME:
+ 		a->etype = 0;
+ 		if(n->type != T)
+@@ -1071,6 +1081,7 @@ naddr(Node *n, Addr *a)
+ 			a->type = D_AUTO;
+ 			break;
+ 		case PPARAM:
++		case PPARAMOUT:
+ 			a->type = D_PARAM;
+ 			break;
+ 		}
+@@ -1749,6 +1760,7 @@ tempname(Node *n, Type *t)
+ 	n->class = PAUTO;
+ 	n->addable = 1;
+ 	n->ullman = 1;
++	n->noescape = 1;
+ 
+ 	dowidth(t);
+ 	w = t->width;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index edac4ca2c0..2ae8fd3083 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -36,6 +36,7 @@ dodclvar(Node *n, Type *t)
+ 
+ 	addvar(n, t, dclcontext);
+ 	autoexport(n->sym);
++	addtop = list(addtop, nod(ODCL, n, N));
+ }
+ 
+ void
+@@ -434,7 +435,7 @@ funcargs(Type *ft)
+ 		if(t->nname != N)
+ 			t->nname->xoffset = t->width;
+ 		if(t->nname != N) {
+-			addvar(t->nname, t->type, PPARAM);
++			addvar(t->nname, t->type, PPARAMOUT);
+ 			all |= 1;
+ 		} else
+ 			all |= 2;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ba2672390d..1e1f4b28fd 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -180,12 +180,13 @@ struct	Node
+ 	uchar	addable;	// type of addressability - 0 is not addressable
+ 	uchar	trecur;		// to detect loops
+ 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
+-	uchar	class;		// PPARAM, PAUTO, PEXTERN
++	uchar	class;		// PPARAM, PAUTO, PEXTERN, etc
+ 	uchar	method;		// OCALLMETH name
+ 	uchar	iota;		// OLITERAL made from iota
+ 	uchar	embedded;	// ODCLFIELD embedded type
+ 	uchar	colas;		// OAS resulting from :=
+ 	uchar	diag;		// already printed error about this
++	uchar	noescape;	// ONAME never move to heap
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -206,10 +207,17 @@ struct	Node
+ 
+ 	// func
+ 	Node*	nname;
++	Node*	enter;
++	Node*	exit;
+ 
+ 	// OLITERAL/OREGISTER
+ 	Val	val;
+ 
++	// ONAME func param with PHEAP
++	Node*	heapaddr;	// temp holding heap address of param
++	Node*	stackparam;	// OPARAM node referring to stack copy of param
++	Node*	alloc;	// allocation call
++
+ 	Sym*	osym;		// import
+ 	Sym*	psym;		// import
+ 	Sym*	sym;		// various
+@@ -287,7 +295,7 @@ enum
+ 
+ 	OTYPE, OCONST, OVAR, OIMPORT,
+ 
+-	ONAME, ONONAME,
++	ONAME, ONONAME, ODCL,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
+ 	ODCLFUNC, ODCLFIELD, ODCLARG,
+ 	OLIST, OCMP, OPTR, OARRAY, ORANGE,
+@@ -312,7 +320,7 @@ enum
+ 	OINDEX, OSLICE,
+ 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
+ 	OLITERAL, OREGISTER, OINDREG,
+-	OCONV, OCOMP, OKEY,
++	OCONV, OCOMP, OKEY, OPARAM,
+ 	OBAD,
+ 
+ 	OEXTEND,	// 6g internal
+@@ -405,6 +413,9 @@ enum
+ 	PEXTERN,	// declaration context
+ 	PAUTO,
+ 	PPARAM,
++	PPARAMOUT,
++
++	PHEAP = 1<<7,
+ };
+ 
+ enum
+@@ -654,6 +665,7 @@ Node*	treecopy(Node*);
+ int	isselect(Node*);
+ void	tempname(Node*, Type*);
+ int	iscomposite(Type*);
++Node*	callnew(Type*);
+ 
+ Type**	getthis(Type*);
+ Type**	getoutarg(Type*);
+@@ -812,11 +824,13 @@ Node*	reorder1(Node*);
+ Node*	reorder2(Node*);
+ Node*	reorder3(Node*);
+ Node*	reorder4(Node*);
+-Node*	structlit(Node*);
++Node*	structlit(Node*, Node*);
+ Node*	arraylit(Node*);
+ Node*	maplit(Node*);
+ Node*	selectas(Node*, Node*);
+ Node*	old2new(Node*, Type*);
++void	addrescapes(Node*);
++void	heapmoves(void);
+ 
+ /*
+  *	const.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index d04991dc47..29c9b29d9d 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -278,6 +278,7 @@ Avardcl:
+ 		dodclvar($$, $2);
+ 
+ 		$$ = nod(OAS, $$, N);
++		addtotop($$);
+ 	}
+ 
+ Bvardcl:
+@@ -287,6 +288,7 @@ Bvardcl:
+ 		dodclvar($$, $2);
+ 
+ 		$$ = nod(OAS, $$, N);
++		addtotop($$);
+ 	}
+ |	new_name_list_r type '=' expr_list
+ 	{
+@@ -478,6 +480,7 @@ complex_stmt:
+ 		poptodcl();
+ 		$$ = nod(OAS, selectas($2,$4), $4);
+ 		$$ = nod(OXCASE, $$, N);
++		addtotop($$);
+ 	}
+ |	LDEFAULT ':'
+ 	{
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 6cd0384126..d6fb251479 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -702,6 +702,8 @@ opnames[] =
+ 	[OPANICN]	= "PANICN",
+ 	[OPRINT]	= "PRINT",
+ 	[OPRINTN]	= "PRINTN",
++	[OPARAM]	= "PARAM",
++	[ODCL]	= "DCL",
+ 	[OXXX]		= "XXX",
+ };
+ 
+@@ -877,6 +879,16 @@ Jconv(Fmt *fp)
+ 		strncat(buf, buf1, sizeof(buf));
+ 	}
+ 
++	if(n->class != 0) {
++		snprint(buf1, sizeof(buf1), " class(%d)", n->class);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
++	if(n->colas != 0) {
++		snprint(buf1, sizeof(buf1), " colas(%d)", n->colas);
++		strncat(buf, buf1, sizeof(buf));
++	}
++
+ 	return fmtstrcpy(fp, buf);
+ }
+ 
+@@ -2031,6 +2043,7 @@ ullmancalc(Node *n)
+ 		return;
+ 
+ 	switch(n->op) {
++	case OREGISTER:
+ 	case OLITERAL:
+ 	case ONAME:
+ 		ul = 1;
+@@ -2281,7 +2294,7 @@ Type**
+ getthis(Type *t)
+ {
+ 	if(t->etype != TFUNC)
+-		fatal("getthis: not a func %N", t);
++		fatal("getthis: not a func %T", t);
+ 	return &t->type;
+ }
+ 
+@@ -2289,7 +2302,7 @@ Type**
+ getoutarg(Type *t)
+ {
+ 	if(t->etype != TFUNC)
+-		fatal("getoutarg: not a func %N", t);
++		fatal("getoutarg: not a func %T", t);
+ 	return &t->type->down;
+ }
+ 
+@@ -2297,7 +2310,7 @@ Type**
+ getinarg(Type *t)
+ {
+ 	if(t->etype != TFUNC)
+-		fatal("getinarg: not a func %N", t);
++		fatal("getinarg: not a func %T", t);
+ 	return &t->type->down->down;
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 780da14332..1b5ca4746c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -65,13 +65,20 @@ walk(Node *fn)
+ 	if(curfn->type->outtuple)
+ 		if(walkret(curfn->nbody))
+ 			yyerror("function ends without a return statement");
+-	if(addtop != N)
++	if(addtop != N) {
++		dump("addtop", addtop);
+ 		fatal("addtop in walk");
++	}
+ 	walkstate(curfn->nbody);
+ 	if(debug['W']) {
+-		snprint(s, sizeof(s), "after %S", curfn->nname->sym);
++		snprint(s, sizeof(s), "after walk %S", curfn->nname->sym);
+ 		dump(s, curfn->nbody);
+ 	}
++	heapmoves();
++	if(debug['W'] && curfn->enter != N) {
++		snprint(s, sizeof(s), "enter %S", curfn->nname->sym);
++		dump(s, curfn->enter);
++	}
+ }
+ 
+ void
+@@ -125,6 +132,7 @@ loop:
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+ 	case OCALL:
++	case ODCL:
+ 	case OSEND:
+ 	case ORECV:
+ 	case OPRINT:
+@@ -229,6 +237,9 @@ loop:
+ 		fatal("walktype: switch 1 unknown op %N", n);
+ 		goto ret;
+ 
++	case ODCL:
++		goto ret;
++
+ 	case OLIST:
+ 	case OKEY:
+ 		walktype(n->left, top);
+@@ -283,7 +294,8 @@ loop:
+ 	case ONAME:
+ 		if(top == Etop)
+ 			goto nottop;
+-		n->addable = 1;
++		if(!(n->class & PHEAP))
++			n->addable = 1;
+ 		if(n->type == T) {
+ 			s = n->sym;
+ 			if(s->undef == 0) {
+@@ -681,7 +693,7 @@ loop:
+ 
+ 		// structure literal
+ 		if(t->etype == TSTRUCT) {
+-			indir(n, structlit(n));
++			indir(n, structlit(n, nil));
+ 			goto ret;
+ 		}
+ 
+@@ -996,32 +1008,20 @@ loop:
+ 			//	nvar := new(*Point);
+ 			//	*nvar = Point{1, 2};
+ 			// and replace expression with nvar
++			Node *nvar, *nas;
+ 
+-			// TODO(rsc): might do a better job (fewer copies) later
+-			Node *nnew, *nvar, *nas;
+-
+-			t = ptrto(n->left->type);
+-			walktype(n->left, Elv);
+-			if(n->left == N)
+-				goto ret;
+-
+-			nvar = nod(0, N, N);
+-			tempname(nvar, t);
+-
+-			nnew = nod(ONEW, N, N);
+-			nnew->type = n->left->type;
+-			nnew = newcompat(nnew);
++			nvar = nod(OXXX, N, N);
++			tempname(nvar, ptrto(n->left->type));
+ 
+-			nas = nod(OAS, nvar, nnew);
+-			addtop = list(addtop, nas);
+-
+-			nas = nod(OAS, nod(OIND, nvar, N), n->left);
++			nas = nod(OAS, nvar, callnew(n->left->type));
+ 			addtop = list(addtop, nas);
+ 
++			structlit(n->left, nvar);
+ 			indir(n, nvar);
+ 			goto ret;
+ 		}
+ 		walktype(n->left, Elv);
++		addrescapes(n->left);
+ 		if(n->left == N)
+ 			goto ret;
+ 		t = n->left->type;
+@@ -1055,7 +1055,16 @@ loop:
+ 	case ONEW:
+ 		if(top != Erv)
+ 			goto nottop;
+-		indir(n, newcompat(n));
++		if(n->left != N) {
++			yyerror("cannot new(%T, expr)", t);
++			goto ret;
++		}
++		t = n->type;
++		if(t == T || t->etype == TFUNC) {
++			yyerror("cannot new(%T)", t);
++			goto ret;
++		}
++		indir(n, callnew(t));
+ 		goto ret;
+ 	}
+ 
+@@ -1455,8 +1464,8 @@ void
+ walkselect(Node *sel)
+ {
+ 	Iter iter;
+-	Node *n, *oc, *on, *r;
+-	Node *var, *bod, *res, *def;
++	Node *n, *l, *oc, *on, *r;
++	Node *var, *bod, *nbod, *res, *def;
+ 	int count, op;
+ 	int32 lno;
+ 
+@@ -1492,6 +1501,7 @@ walkselect(Node *sel)
+ 				def = n;
+ 			} else
+ 				op = n->left->op;
++			nbod = N;
+ 			switch(op) {
+ 			default:
+ 				yyerror("select cases must be send, recv or default");
+@@ -1499,14 +1509,32 @@ walkselect(Node *sel)
+ 
+ 			case OAS:
+ 				// convert new syntax (a=recv(chan)) to (recv(a,chan))
+-				if(n->left->right == N || n->left->right->op != ORECV) {
++				l = n->left;
++				if(l->right == N || l->right->op != ORECV) {
+ 					yyerror("select cases must be send, recv or default");
+ 					break;
+ 				}
+-				n->left->right->right = n->left->right->left;
+-				n->left->right->left = n->left->left;
+-				n->left = n->left->right;
++				r = l->right;	// rcv
++				r->right = r->left;
++				r->left = l->left;
++				n->left = r;
++
++				// convert case x := foo: body
++				// to case tmp := foo: x := tmp; body.
++				// if x escapes and must be allocated
++				// on the heap, this delays the allocation
++				// until after the select has chosen this branch.
++				if(n->ninit != N && n->ninit->op == ODCL) {
++					on = nod(OXXX, N, N);
++					tempname(on, l->left->type);
++					on->sym = lookup("!tmpselect!");
++					r->left = on;
++					nbod = nod(OAS, l->left, on);
++					nbod->ninit = n->ninit;
++					n->ninit = N;
++				}
+ 
++				// fall through
+ 			case OSEND:
+ 			case ORECV:
+ 				if(oc != N) {
+@@ -1516,10 +1544,8 @@ walkselect(Node *sel)
+ 				oc = selcase(n, var);
+ 				res = list(res, oc);
+ 				break;
+-
+-
+ 			}
+-			bod = N;
++			bod = nbod;
+ 			count++;
+ 			break;
+ 		}
+@@ -1610,6 +1636,7 @@ lookdot(Node *n, Type *t)
+ 			switch(op) {
+ 			case OADDR:
+ 				walktype(n->left, Elv);
++				addrescapes(n->left);
+ 				n->left = nod(OADDR, n->left, N);
+ 				n->left->type = ptrto(tt);
+ 				break;
+@@ -1781,7 +1808,7 @@ sigtype(Type *st)
+  * match a ... parameter into an
+  * automatic structure.
+  * then call the ... arg (interface)
+- * with a pointer to the structure
++ * with a pointer to the structure.
+  */
+ Node*
+ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
+@@ -1817,10 +1844,12 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
+ 
+ 	// make a named type for the struct
+ 	st = sigtype(st);
++	dowidth(st);
+ 
+ 	// now we have the size, make the struct
+ 	var = nod(OXXX, N, N);
+ 	tempname(var, st);
++	var->sym = lookup(".ddd");
+ 
+ 	// assign the fields to the struct.
+ 	// use addtop so that reorder1 doesn't reorder
+@@ -1840,8 +1869,7 @@ mkdotargs(Node *r, Node *rr, Iter *saver, Node *nn, Type *l, int fp)
+ 	}
+ 
+ 	// last thing is to put assignment
+-	// of a pointer to the structure to
+-	// the DDD parameter
++	// of the structure to the DDD parameter
+ 	a = nod(OAS, nodarg(l, fp), var);
+ 	nn = list(convas(a), nn);
+ 
+@@ -2081,26 +2109,17 @@ makecompat(Node *n)
+ }
+ 
+ Node*
+-newcompat(Node *n)
++callnew(Type *t)
+ {
+ 	Node *r, *on;
+-	Type *t;
+ 
+-	t = n->type;
+-	if(t != T && t->etype != TFUNC) {
+-		if(n->left != N)
+-			yyerror("cannot new(%T, expr)", t);
+-		dowidth(t);
+-		on = syslook("mal", 1);
+-		argtype(on, t);
+-		r = nodintconst(t->width);
+-		r = nod(OCALL, on, r);
+-		walktype(r, Erv);
+-		return r;
+-	}
+-
+-	yyerror("cannot new(%T)", t);
+-	return n;
++	dowidth(t);
++	on = syslook("mal", 1);
++	argtype(on, t);
++	r = nodintconst(t->width);
++	r = nod(OCALL, on, r);
++	walktype(r, Erv);
++	return r;
+ }
+ 
+ Node*
+@@ -2648,6 +2667,7 @@ arrayop(Node *n, int top)
+ 		r = a;
+ 
+ 		a = nod(OADDR, n->left, N);		// old
++		addrescapes(n->left);
+ 		r = list(a, r);
+ 
+ 		on = syslook("arrays2d", 1);
+@@ -2671,6 +2691,7 @@ arrayop(Node *n, int top)
+ 		r = a;
+ 
+ 		a = nod(OADDR, n->right, N);		// old
++		addrescapes(n->right);
+ 		r = list(a, r);
+ 
+ 		on = syslook("arrays2d", 1);
+@@ -3171,6 +3192,7 @@ ary:
+ 		n->nbody = list(n->nbody,
+ 			nod(OAS, v, nod(OINDEX, m, hk)) );
+ 	}
++	addtotop(n);
+ 	goto out;
+ 
+ map:
+@@ -3457,18 +3479,20 @@ reorder4(Node *n)
+ }
+ 
+ Node*
+-structlit(Node *n)
++structlit(Node *n, Node *var)
+ {
+ 	Iter savel, saver;
+ 	Type *l, *t;
+-	Node *var, *r, *a;
++	Node *r, *a;
+ 
+ 	t = n->type;
+ 	if(t->etype != TSTRUCT)
+ 		fatal("structlit: not struct");
+ 
+-	var = nod(OXXX, N, N);
+-	tempname(var, t);
++	if(var == N) {
++		var = nod(OXXX, N, N);
++		tempname(var, t);
++	}
+ 
+ 	l = structfirst(&savel, &n->type);
+ 	r = listfirst(&saver, &n->left);
+@@ -3488,6 +3512,7 @@ loop:
+ 
+ 	a = nod(ODOT, var, newname(l->sym));
+ 	a = nod(OAS, a, r);
++	walktype(a, Etop);	// add any assignments in r to addtop
+ 	addtop = list(addtop, a);
+ 
+ 	l = structnext(&savel);
+@@ -3605,3 +3630,115 @@ loop:
+ 	r = listnext(&saver);
+ 	goto loop;
+ }
++
++/*
++ * the address of n has been taken and might be used after
++ * the current function returns.  mark any local vars
++ * as needing to move to the heap.
++ */
++static char *pnames[] = {
++[PAUTO]	"auto",
++[PPARAM]	"param",
++[PPARAMOUT] "param_out",
++};
++
++void
++addrescapes(Node *n)
++{
++	char buf[100];
++	switch(n->op) {
++	default:
++		dump("addrescapes", n);
++		break;
++
++	case ONAME:
++		if(n->noescape)
++			break;
++		switch(n->class) {
++		case PPARAMOUT:
++			yyerror("cannot take address of out parameter %s", n->sym->name);
++			break;
++		case PAUTO:
++		case PPARAM:
++			if(debug['E'])
++				print("%L %s %S escapes %p\n", n->lineno, pnames[n->class], n->sym, n);
++			n->class |= PHEAP;
++			n->addable = 0;
++			n->ullman = 2;
++			n->alloc = callnew(n->type);
++
++			// if func param, need separate temporary
++			// to hold heap pointer.
++			if(n->class == PPARAM+PHEAP) {
++				// expression to refer to stack copy
++				n->stackparam = nod(OPARAM, n, N);
++				n->stackparam->type = n->type;
++				n->stackparam->addable = 1;
++				n->stackparam->xoffset = n->xoffset;
++				n->xoffset = 0;
++			}
++
++			// create stack variable to hold pointer to heap
++			n->heapaddr = nod(0, N, N);
++			tempname(n->heapaddr, ptrto(n->type));
++			snprint(buf, sizeof buf, "&%S", n->sym);
++			n->heapaddr->sym = lookup(buf);
++			break;
++		}
++		break;
++
++	case OIND:
++	case ODOTPTR:
++		break;
++
++	case ODOT:
++	case OINDEX:
++		// ODOTPTR has already been
++		// introduced, so these are the non-pointer
++		// ODOT and OINDEX.
++		addrescapes(n->left);
++		break;
++	}
++}
++
++/*
++ * walk through argin parameters.
++ * generate and return code to allocate
++ * copies of escaped parameters to the heap.
++ */
++Node*
++paramstoheap(Type **argin)
++{
++	Type *t;
++	Iter savet;
++	Node *v, *nn;
++
++	nn = N;
++	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
++		if(t->sym == S)
++			continue;
++		v = t->sym->oname;
++		if(v == N || !(v->class & PHEAP))
++			continue;
++
++		// generate allocation & copying code
++		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));
++		nn = list(nn, nod(OAS, v, v->stackparam));
++	}
++	return nn;
++}
++
++/*
++ * take care of migrating any function in/out args
++ * between the stack and the heap.  adds code to
++ * curfn's before and after lists.
++ */
++void
++heapmoves(void)
++{
++	Node *nn;
++
++	nn = paramstoheap(getthis(curfn->type));
++	nn = list(nn, paramstoheap(getinarg(curfn->type)));
++	curfn->enter = list(curfn->enter, nn);
++}
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index 6b0000e21f..bdd9abc955 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -237,8 +237,14 @@ sys·printpointer(void *p)
+ void
+ sys·printstring(string v)
+ {
+-	if(v != nil)
+-		sys·write(1, v->str, v->len);
++	extern int32 maxstring;
++
++	if(v != nil) {
++		if(v->len > maxstring)
++			sys·write(1, "[invalid string]", 16);
++		else
++			sys·write(1, v->str, v->len);
++	}
+ }
+ 
+ void
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index b31e7cc784..e708d0203d 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -17,6 +17,20 @@ findnull(byte *s)
+ 	return l;
+ }
+ 
++int32 maxstring;
++
++string
++gostringsize(int32 l)
++{
++	string s;
++
++	s = mal(sizeof(s->len)+l+1);
++	s->len = l;
++	if(l > maxstring)
++		maxstring = l;
++	return s;
++}
++
+ string
+ gostring(byte *str)
+ {
+@@ -24,8 +38,7 @@ gostring(byte *str)
+ 	string s;
+ 
+ 	l = findnull(str);
+-	s = mal(sizeof(s->len)+l+1);
+-	s->len = l;
++	s = gostringsize(l);
+ 	mcpy(s->str, str, l+1);
+ 	return s;
+ }
+@@ -46,8 +59,7 @@ sys·catstring(string s1, string s2, string s3)
+ 
+ 	l = s1->len + s2->len;
+ 
+-	s3 = mal(sizeof(s3->len)+l);
+-	s3->len = l;
++	s3 = gostringsize(l);
+ 	mcpy(s3->str, s1->str, s1->len);
+ 	mcpy(s3->str+s1->len, s2->str, s2->len);
+ 
+@@ -139,8 +151,7 @@ sys·slicestring(string si, int32 lindex, int32 hindex, string so)
+ 	}
+ 
+ 	l = hindex-lindex;
+-	so = mal(sizeof(so->len)+l);
+-	so->len = l;
++	so = gostringsize(l);
+ 	mcpy(so->str, si->str+lindex, l);
+ 	FLUSH(&so);
+ }
+@@ -164,7 +175,7 @@ sys·indexstring(string s, int32 i, byte b)
+ void
+ sys·intstring(int64 v, string s)
+ {
+-	s = mal(sizeof(s->len)+8);
++	s = gostringsize(8);
+ 	s->len = runetochar(s->str, v);
+ 	FLUSH(&s);
+ }
+@@ -172,8 +183,7 @@ sys·intstring(int64 v, string s)
+ void
+ sys·byteastring(byte *a, int32 l, string s)
+ {
+-	s = mal(sizeof(s->len)+l);
+-	s->len = l;
++	s = gostringsize(l);
+ 	mcpy(s->str, a, l);
+ 	FLUSH(&s);
+ }
+@@ -181,8 +191,7 @@ sys·byteastring(byte *a, int32 l, string s)
+ void
+ sys·arraystring(Array b, string s)
+ {
+-	s = mal(sizeof(s->len)+b.nel);
+-	s->len = b.nel;
++	s = gostringsize(b.nel);
+ 	mcpy(s->str, b.array, s->len);
+ 	FLUSH(&s);
+ }
+diff --git a/test/escape.go b/test/escape.go
+new file mode 100644
+index 0000000000..d2534c60dd
+--- /dev/null
++++ b/test/escape.go
+@@ -0,0 +1,175 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// check for correct heap-moving of escaped variables.
++// it is hard to check for the allocations, but it is easy
++// to check that if you call the function twice at the
++// same stack level, the pointers returned should be
++// different.
++
++var bad = false
++
++var allptr = make([]*int, 0, 100);
++
++func noalias(p, q *int, s string) {
++	n := len(allptr);
++	*p = -(n+1);
++	*q = -(n+2);
++	allptr = allptr[0:n+2];
++	allptr[n] = p;
++	allptr[n+1] = q;
++	n += 2;
++	for i := 0; i < n; i++ {
++		if allptr[i] != nil && *allptr[i] != -(i+1) {
++			println("aliased pointers", -(i+1), *allptr[i], "after", s);
++			allptr[i] = nil;
++			bad = true;
++		}
++	}
++}
++
++func val(p, q *int, v int, s string) {
++	if *p != v {
++		println("wrong value want", v, "got", *p, "after", s);
++		bad = true;
++	}
++	if *q != v+1 {
++		println("wrong value want", v+1, "got", *q, "after", s);
++		bad = true;
++	}
++}
++
++func chk(p, q *int, v int, s string) {
++	val(p, q, v, s);
++	noalias(p, q, s);
++}
++
++func chkalias(p, q *int, v int, s string) {
++	if p != q {
++		println("want aliased pointers but got different after", s);
++	}
++	if *q != v+1 {
++		println("wrong value want", v+1, "got", *q, "after", s);
++	}
++}
++
++func i_escapes(x int) *int {
++	var i int;
++	i = x;
++	return &i;
++}
++
++func j_escapes(x int) *int {
++	var j int = x;
++	j = x;
++	return &j;
++}
++
++func k_escapes(x int) *int {
++	k := x;
++	return &k;
++}
++
++func in_escapes(x int) *int {
++	return &x;
++}
++
++func send(c chan int, x int) {
++	c <- x;
++}
++
++func select_escapes(x int) *int {
++	c := make(chan int);
++	go send(c, x);
++	select {
++	case req := <-c:
++		return &req;
++	}
++	return nil;
++}
++
++func select_escapes1(x int, y int) (*int, *int) {
++	c := make(chan int);
++	var a [2]int;
++	var p [2]*int;
++	a[0] = x;
++	a[1] = y;
++	for i := 0; i < 2; i++ {
++		go send(c, a[i]);
++		select {
++		case req := <-c:
++			p[i] = &req;
++		}
++	}
++	return p[0], p[1]
++}
++
++func range_escapes(x int) *int {
++	var a [1]int;
++	a[0] = x;
++	for k, v := range a {
++		return &v;
++	}
++	return nil;
++}
++
++// *is* aliased
++func range_escapes2(x, y int) (*int, *int) {
++	var a [2]int;
++	var p [2]*int;
++	a[0] = x;
++	a[1] = y;
++	for k, v := range a {
++		p[k] = &v;
++	}
++	return p[0], p[1]
++}
++
++// *is* aliased
++func for_escapes2(x int, y int) (*int, *int) {
++	var p [2]*int;
++	n := 0;
++	for i := x; n < 2; i = y {
++		p[n] = &i;
++		n++;
++	}
++	return p[0], p[1]
++}
++
++func main() {
++	p, q := i_escapes(1), i_escapes(2);
++	chk(p, q, 1, "i_escapes");
++
++	p, q = j_escapes(3), j_escapes(4);
++	chk(p, q, 3, "j_escapes");
++
++	p, q = k_escapes(5), k_escapes(6);
++	chk(p, q, 5, "k_escapes");
++
++	p, q = in_escapes(7), in_escapes(8);
++	chk(p, q, 7, "in_escapes");
++
++	p, q = select_escapes(9), select_escapes(10);
++	chk(p, q, 9, "select_escapes");
++
++	p, q = select_escapes1(11, 12);
++	chk(p, q, 11, "select_escapes1");
++
++	p, q = range_escapes(13), range_escapes(14);
++	chk(p, q, 13, "range_escapes");
++
++	p, q = range_escapes2(101, 102);
++	chkalias(p, q, 101, "range_escapes2");
++
++	p, q = for_escapes2(103, 104);
++	chkalias(p, q, 103, "for_escapes2");
++
++	if bad {
++		panic("BUG: no escape");
++	}
++}
+diff --git a/test/escape1.go b/test/escape1.go
+new file mode 100644
+index 0000000000..28b5b1016e
+--- /dev/null
++++ b/test/escape1.go
+@@ -0,0 +1,17 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func out_escapes() (x int, p *int) {
++	p = &x;	// ERROR "address.*out parameter"
++	return;
++}
++
++func out_escapes() (x int, p *int) {
++	return 2, &x;	// ERROR "address.*out parameter"
++}
++
+diff --git a/test/golden.out b/test/golden.out
+index d70df181d3..80f325edc1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -172,7 +172,7 @@ bugs/bug129.go:6: syscall is package, not var
+ BUG129
+ 
+ =========== bugs/bug130.go
+-bugs/bug130.go:14: fatal error: getoutarg: not a func RANGE
++bugs/bug130.go:14: fatal error: getoutarg: not a func *<T>
+ BUG: should run
+ 
+ =========== bugs/bug131.go

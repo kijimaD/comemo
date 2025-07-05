@@ -11,6 +11,21 @@ Date:   Sat Jan 23 23:22:49 2016 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/xml/xml.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 70ff877172..45f4157318 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -227,7 +227,8 @@ func NewDecoder(r io.Reader) *Decoder {
+ //
+ // Token guarantees that the StartElement and EndElement
+ // tokens it returns are properly nested and matched:
+-// if Token encounters an unexpected end element,
++// if Token encounters an unexpected end element
++// or EOF before all expected end elements,
+ // it will return an error.
+ //
+ // Token implements XML name spaces as described by

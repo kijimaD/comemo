@@ -14,7 +14,87 @@ Date:   Thu Mar 28 13:32:31 2019 -0700
     Change-Id: Ic4f94dc5e29dd00b7ef6d53a80dded638e3cea80
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169958
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go          | 22 ++++++++++++++++++----
  .../internal/syntax/testdata/issue31092.src        | 16 ++++++++++++++++
  2 files changed, 34 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index e1cd8f9f5a..d4e9bf2f96 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -170,6 +170,20 @@ func (p *parser) want(tok token) {
+ 	}
+ }
+ 
++// gotAssign is like got(_Assign) but it also accepts ":="
++// (and reports an error) for better parser error recovery.
++func (p *parser) gotAssign() bool {
++	switch p.tok {
++	case _Define:
++		p.syntaxError("expecting =")
++		fallthrough
++	case _Assign:
++		p.next()
++		return true
++	}
++	return false
++}
++
+ // ----------------------------------------------------------------------------
+ // Error handling
+ 
+@@ -514,7 +528,7 @@ func (p *parser) constDecl(group *Group) Decl {
+ 	d.NameList = p.nameList(p.name())
+ 	if p.tok != _EOF && p.tok != _Semi && p.tok != _Rparen {
+ 		d.Type = p.typeOrNil()
+-		if p.got(_Assign) {
++		if p.gotAssign() {
+ 			d.Values = p.exprList()
+ 		}
+ 	}
+@@ -533,7 +547,7 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 	d.pos = p.pos()
+ 
+ 	d.Name = p.name()
+-	d.Alias = p.got(_Assign)
++	d.Alias = p.gotAssign()
+ 	d.Type = p.typeOrNil()
+ 	if d.Type == nil {
+ 		d.Type = p.bad()
+@@ -556,11 +570,11 @@ func (p *parser) varDecl(group *Group) Decl {
+ 	d.pos = p.pos()
+ 
+ 	d.NameList = p.nameList(p.name())
+-	if p.got(_Assign) {
++	if p.gotAssign() {
+ 		d.Values = p.exprList()
+ 	} else {
+ 		d.Type = p.type_()
+-		if p.got(_Assign) {
++		if p.gotAssign() {
+ 			d.Values = p.exprList()
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue31092.src b/src/cmd/compile/internal/syntax/testdata/issue31092.src
+new file mode 100644
+index 0000000000..b1839b8f46
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue31092.src
+@@ -0,0 +1,16 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test cases for issue 31092: Better synchronization of
++// parser after seeing an := rather than an = in a const,
++// type, or variable declaration.
++
++package p
++
++const _ /* ERROR unexpected := */ := 0
++type _ /* ERROR unexpected := */ := int
++var _ /* ERROR unexpected := */ := 0
++
++const _ int /* ERROR unexpected := */ := 0
++var _ int /* ERROR unexpected := */ := 0

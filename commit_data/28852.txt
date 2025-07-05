@@ -7,6 +7,29 @@ Date:   Mon Aug 15 12:01:23 2016 -0700
     Change-Id: Id83e0371b7232b01be83640ef1e47f9026cf2a23
     Reviewed-on: https://go-review.googlesource.com/27055
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/install-source.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 991be3f182..11c66adb39 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -203,7 +203,7 @@ To build without <code>cgo</code>, set the environment variable
+ Change to the directory that will be its parent
+ and make sure the <code>go</code> directory does not exist.
+ Then clone the repository and check out the latest release tag
+-(<code class="versionTag">go1.6</code>, for example):</p>
++(<code class="versionTag">go1.7</code>, for example):</p>
+ 
+ <pre>
+ $ git clone https://go.googlesource.com/go
+@@ -391,7 +391,7 @@ New releases are announced on the
+ <a href="//groups.google.com/group/golang-announce">golang-announce</a>
+ mailing list.
+ Each announcement mentions the latest release tag, for instance,
+-<code class="versionTag">go1.6</code>.
++<code class="versionTag">go1.7</code>.
+ </p>
+ 
+ <p>

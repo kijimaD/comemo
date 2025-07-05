@@ -7,6 +7,21 @@ Date:   Sat Oct 30 23:55:22 2010 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/2713043
-
+---
  src/pkg/syscall/syscall_windows.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 049e9e29b3..495855cf07 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -303,6 +303,9 @@ func getStdHandle(h int32) (fd int) {
+ }
+ 
+ func Stat(path string, stat *Stat_t) (errno int) {
++	if len(path) == 0 {
++		return ERROR_PATH_NOT_FOUND
++	}
+ 	// Remove trailing slash.
+ 	if path[len(path)-1] == '/' || path[len(path)-1] == '\\' {
+ 		// Check if we're given root directory ("\" or "c:\").

@@ -9,6 +9,30 @@ Date:   Wed Apr 25 12:46:16 2012 -0700
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/6117058
-
+---
  src/pkg/net/http/server.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 924ffd3481..00daef434c 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -917,11 +917,13 @@ func (mux *ServeMux) handler(r *Request) Handler {
+ // ServeHTTP dispatches the request to the handler whose
+ // pattern most closely matches the request URL.
+ func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
+-	// Clean path to canonical form and redirect.
+-	if p := cleanPath(r.URL.Path); p != r.URL.Path {
+-		w.Header().Set("Location", p)
+-		w.WriteHeader(StatusMovedPermanently)
+-		return
++	if r.Method != "CONNECT" {
++		// Clean path to canonical form and redirect.
++		if p := cleanPath(r.URL.Path); p != r.URL.Path {
++			w.Header().Set("Location", p)
++			w.WriteHeader(StatusMovedPermanently)
++			return
++		}
+ 	}
+ 	mux.handler(r).ServeHTTP(w, r)
+ }

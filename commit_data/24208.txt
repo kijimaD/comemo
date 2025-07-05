@@ -15,7 +15,7 @@ Date:   Tue Jul 14 22:17:41 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12241
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.y   |  2 +-
  src/cmd/compile/internal/gc/y.go   |  2 +-
  test/fixedbugs/issue10219.dir/a.go | 24 ++++++++++++++++++++++++
@@ -23,3 +23,111 @@ Date:   Tue Jul 14 22:17:41 2015 -0700
  test/fixedbugs/issue10219.dir/c.go | 12 ++++++++++++
  test/fixedbugs/issue10219.go       | 10 ++++++++++
  6 files changed, 59 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index 65601b43ee..113d473858 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -1632,7 +1632,7 @@ structdcl:
+ 
+ 		var n *Node
+ 		l = $1;
+-		if l == nil {
++		if l == nil || l.N.Sym.Name == "?" {
+ 			// ? symbol, during import (list1(nil) == nil)
+ 			n = $2;
+ 			if n.Op == OIND {
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index e5517e98a9..935a9b154a 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -2791,7 +2791,7 @@ yydefault:
+ 
+ 			var n *Node
+ 			l = yyDollar[1].list
+-			if l == nil {
++			if l == nil || l.N.Sym.Name == "?" {
+ 				// ? symbol, during import (list1(nil) == nil)
+ 				n = yyDollar[2].node
+ 				if n.Op == OIND {
+diff --git a/test/fixedbugs/issue10219.dir/a.go b/test/fixedbugs/issue10219.dir/a.go
+new file mode 100644
+index 0000000000..c61d02b66a
+--- /dev/null
++++ b/test/fixedbugs/issue10219.dir/a.go
+@@ -0,0 +1,24 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type m struct {
++	S string
++}
++
++var g = struct {
++	m
++	P string
++}{
++	m{"a"},
++	"",
++}
++
++type S struct{}
++
++func (s *S) M(p string) {
++	r := g
++	r.P = p
++}
+diff --git a/test/fixedbugs/issue10219.dir/b.go b/test/fixedbugs/issue10219.dir/b.go
+new file mode 100644
+index 0000000000..09d8911ff4
+--- /dev/null
++++ b/test/fixedbugs/issue10219.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func F() *a.S {
++	return &a.S{}
++}
+diff --git a/test/fixedbugs/issue10219.dir/c.go b/test/fixedbugs/issue10219.dir/c.go
+new file mode 100644
+index 0000000000..d331495df2
+--- /dev/null
++++ b/test/fixedbugs/issue10219.dir/c.go
+@@ -0,0 +1,12 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import "./b"
++
++func F() {
++	s := b.F()
++	s.M("c")
++}
+diff --git a/test/fixedbugs/issue10219.go b/test/fixedbugs/issue10219.go
+new file mode 100644
+index 0000000000..325818cff2
+--- /dev/null
++++ b/test/fixedbugs/issue10219.go
+@@ -0,0 +1,10 @@
++// compiledir
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 10219: failure of inlinable function that uses embedded types
++// in an anonymous struct via :=.
++
++package ignored

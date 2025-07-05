@@ -9,6 +9,23 @@ Date:   Fri May 6 23:16:15 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 6f16fc976f..13a4f90c30 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -36,9 +36,10 @@ var bootstrapDirs = []string{
+ 	"compile/internal/gc",
+ 	"compile/internal/mips64",
+ 	"compile/internal/ppc64",
++	"compile/internal/s390x",
+ 	"compile/internal/ssa",
++	"compile/internal/syntax",
+ 	"compile/internal/x86",
+-	"compile/internal/s390x",
+ 	"internal/bio",
+ 	"internal/gcprog",
+ 	"internal/dwarf",

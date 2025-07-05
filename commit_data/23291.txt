@@ -9,6 +9,26 @@ Date:   Wed May 6 00:02:30 2015 +0900
     Change-Id: I55c0f07625a0847fb27defa9891af6db6eb21f82
     Reviewed-on: https://go-review.googlesource.com/9714
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/creds_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/creds_test.go b/src/syscall/creds_test.go
+index b1894c66b0..b4a14ff4dd 100644
+--- a/src/syscall/creds_test.go
++++ b/src/syscall/creds_test.go
+@@ -56,7 +56,13 @@ func TestSCMCredentials(t *testing.T) {
+ 		ucred.Gid = 0
+ 		oob := syscall.UnixCredentials(&ucred)
+ 		_, _, err := cli.(*net.UnixConn).WriteMsgUnix(nil, oob, nil)
+-		if err.(*net.OpError).Err != syscall.EPERM {
++		if op, ok := err.(*net.OpError); ok {
++			err = op.Err
++		}
++		if sys, ok := err.(*os.SyscallError); ok {
++			err = sys.Err
++		}
++		if err != syscall.EPERM {
+ 			t.Fatalf("WriteMsgUnix failed with %v, want EPERM", err)
+ 		}
+ 	}

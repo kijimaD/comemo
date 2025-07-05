@@ -11,6 +11,30 @@ Date:   Fri Jan 11 14:26:24 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_test.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 1da0e49a28..6dc5f61728 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -237,11 +237,16 @@ func TestLookupGmailTXT(t *testing.T) {
+ 		if len(txts) == 0 {
+ 			t.Error("got no record")
+ 		}
++		found := false
+ 		for _, txt := range txts {
+-			if !strings.Contains(txt, tt.txt) || (!strings.HasSuffix(txt, tt.host) && !strings.HasSuffix(txt, tt.host+".")) {
+-				t.Errorf("got %s; want a record containing %s, %s", txt, tt.txt, tt.host)
++			if strings.Contains(txt, tt.txt) && (strings.HasSuffix(txt, tt.host) || strings.HasSuffix(txt, tt.host+".")) {
++				found = true
++				break
+ 			}
+ 		}
++		if !found {
++			t.Errorf("got %v; want a record containing %s, %s", txts, tt.txt, tt.host)
++		}
+ 	}
+ }
+ 

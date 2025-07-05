@@ -7,6 +7,25 @@ Date:   Mon Feb 25 21:33:12 2019 +0000
     Change-Id: I845375d2b3824211b80885228ba5b45503cba1a6
     Reviewed-on: https://go-review.googlesource.com/c/163722
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 73f7a0e304..58f9a585ed 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -23,6 +23,13 @@ in supported releases as needed by issuing minor revisions
+ (for example, Go 1.6.1, Go 1.6.2, and so on).
+ </p>
+ 
++<h2 id="go1.12">go1.12 (released 2019/02/25)</h2>
++
++<p>
++Go 1.12 is a major release of Go.
++Read the <a href="/doc/go1.12">Go 1.12 Release Notes</a> for more information.
++</p>
++
+ <h2 id="go1.11">go1.11 (released 2018/08/24)</h2>
+ 
+ <p>

@@ -13,8 +13,71 @@ Date:   Tue Aug 25 11:14:05 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/boring/boring.go      | 16 ++++++++++++++++
  src/crypto/boring/boring_test.go | 20 ++++++++++++++++++++
  src/go/build/deps_test.go        |  3 +++
  3 files changed, 39 insertions(+)
+
+diff --git a/src/crypto/boring/boring.go b/src/crypto/boring/boring.go
+new file mode 100644
+index 0000000000..31831d6412
+--- /dev/null
++++ b/src/crypto/boring/boring.go
+@@ -0,0 +1,16 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package boring exposes functions that are only available when building with
++// Go+BoringCrypto. This package is available on all targets as long as the
++// Go+BoringCrypto toolchain is used. Use the Enabled function to determine
++// whether the BoringCrypto core is actually in use.
++package boring
++
++import "crypto/internal/boring"
++
++// Enabled reports whether BoringCrypto handles supported crypto operations.
++func Enabled() bool {
++	return boring.Enabled
++}
+diff --git a/src/crypto/boring/boring_test.go b/src/crypto/boring/boring_test.go
+new file mode 100644
+index 0000000000..ace50de0c2
+--- /dev/null
++++ b/src/crypto/boring/boring_test.go
+@@ -0,0 +1,20 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package boring_test
++
++import (
++	"crypto/boring"
++	"runtime"
++	"testing"
++)
++
++func TestEnabled(t *testing.T) {
++	supportedPlatform := runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
++	if supportedPlatform && !boring.Enabled() {
++		t.Error("Enabled returned false on a supported platform")
++	} else if !supportedPlatform && boring.Enabled() {
++		t.Error("Enabled returned true on an unsupported platform")
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 62d6e6296b..dc2db2c0fe 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -393,6 +393,9 @@ var depsRules = `
+ 	crypto/internal/boring/sig, crypto/internal/boring/fipstls
+ 	< crypto/tls/fipsonly;
+ 
++	crypto/internal/boring
++	< crypto/boring;
++
+ 	# crypto-aware packages
+ 
+ 	NET, crypto/rand, mime/quotedprintable

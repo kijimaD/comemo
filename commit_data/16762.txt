@@ -9,7 +9,32 @@ Date:   Sun Jul 14 12:54:45 2013 +1000
     R=gobot
     CC=golang-dev
     https://golang.org/cl/11245043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 99135886cc..2e4a37b980 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -171,6 +171,7 @@ Jonathan Rudenberg <jonathan@titanous.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Jongmin Kim <atomaths@gmail.com>
+ Jose Luis Vázquez González <josvazg@gmail.com>
++Joseph Holsten <joseph@josephholsten.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Josh Holland <jrh@joshh.co.uk>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f436fcbbd9..1325680217 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -253,6 +253,7 @@ Jongmin Kim <atomaths@gmail.com>
+ Jos Visser <josv@google.com>
+ Jose Luis Vázquez González <josvazg@gmail.com>
+ Joseph Bonneau <jcb@google.com>
++Joseph Holsten <joseph@josephholsten.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Josh Hoak <jhoak@google.com>
+ Josh Holland <jrh@joshh.co.uk>

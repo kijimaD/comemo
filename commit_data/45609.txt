@@ -18,7 +18,7 @@ Date:   Fri Aug 21 11:59:55 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go | 61 +++++++++++++++++++++++++++++++++++++++++-----
  src/runtime/malloc.go      |  2 ++
  src/runtime/mgc.go         |  4 +++
@@ -28,3 +28,480 @@ Date:   Fri Aug 21 11:59:55 2020 -0400
  src/runtime/mpagecache.go  | 14 ++++++++++-
  src/runtime/proc.go        |  2 ++
  8 files changed, 139 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 4ca0420d2a..44551dcaf1 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -743,7 +743,16 @@ func (c *PageCache) Alloc(npages uintptr) (uintptr, uintptr) {
+ 	return (*pageCache)(c).alloc(npages)
+ }
+ func (c *PageCache) Flush(s *PageAlloc) {
+-	(*pageCache)(c).flush((*pageAlloc)(s))
++	cp := (*pageCache)(c)
++	sp := (*pageAlloc)(s)
++
++	systemstack(func() {
++		// None of the tests need any higher-level locking, so we just
++		// take the lock internally.
++		lock(sp.mheapLock)
++		cp.flush(sp)
++		unlock(sp.mheapLock)
++	})
+ }
+ 
+ // Expose chunk index type.
+@@ -754,13 +763,41 @@ type ChunkIdx chunkIdx
+ type PageAlloc pageAlloc
+ 
+ func (p *PageAlloc) Alloc(npages uintptr) (uintptr, uintptr) {
+-	return (*pageAlloc)(p).alloc(npages)
++	pp := (*pageAlloc)(p)
++
++	var addr, scav uintptr
++	systemstack(func() {
++		// None of the tests need any higher-level locking, so we just
++		// take the lock internally.
++		lock(pp.mheapLock)
++		addr, scav = pp.alloc(npages)
++		unlock(pp.mheapLock)
++	})
++	return addr, scav
+ }
+ func (p *PageAlloc) AllocToCache() PageCache {
+-	return PageCache((*pageAlloc)(p).allocToCache())
++	pp := (*pageAlloc)(p)
++
++	var c PageCache
++	systemstack(func() {
++		// None of the tests need any higher-level locking, so we just
++		// take the lock internally.
++		lock(pp.mheapLock)
++		c = PageCache(pp.allocToCache())
++		unlock(pp.mheapLock)
++	})
++	return c
+ }
+ func (p *PageAlloc) Free(base, npages uintptr) {
+-	(*pageAlloc)(p).free(base, npages)
++	pp := (*pageAlloc)(p)
++
++	systemstack(func() {
++		// None of the tests need any higher-level locking, so we just
++		// take the lock internally.
++		lock(pp.mheapLock)
++		pp.free(base, npages)
++		unlock(pp.mheapLock)
++	})
+ }
+ func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
+ 	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
+@@ -768,6 +805,8 @@ func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
+ func (p *PageAlloc) Scavenge(nbytes uintptr, mayUnlock bool) (r uintptr) {
+ 	pp := (*pageAlloc)(p)
+ 	systemstack(func() {
++		// None of the tests need any higher-level locking, so we just
++		// take the lock internally.
+ 		lock(pp.mheapLock)
+ 		r = pp.scavenge(nbytes, mayUnlock)
+ 		unlock(pp.mheapLock)
+@@ -926,7 +965,11 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
+ 		addr := chunkBase(chunkIdx(i))
+ 
+ 		// Mark the chunk's existence in the pageAlloc.
+-		p.grow(addr, pallocChunkBytes)
++		systemstack(func() {
++			lock(p.mheapLock)
++			p.grow(addr, pallocChunkBytes)
++			unlock(p.mheapLock)
++		})
+ 
+ 		// Initialize the bitmap and update pageAlloc metadata.
+ 		chunk := p.chunkOf(chunkIndex(addr))
+@@ -957,13 +1000,19 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
+ 		}
+ 
+ 		// Update heap metadata for the allocRange calls above.
+-		p.update(addr, pallocChunkPages, false, false)
++		systemstack(func() {
++			lock(p.mheapLock)
++			p.update(addr, pallocChunkPages, false, false)
++			unlock(p.mheapLock)
++		})
+ 	}
++
+ 	systemstack(func() {
+ 		lock(p.mheapLock)
+ 		p.scavengeStartGen()
+ 		unlock(p.mheapLock)
+ 	})
++
+ 	return (*PageAlloc)(p)
+ }
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 0563f49d17..4b798d129c 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -627,6 +627,8 @@ func mallocinit() {
+ //
+ // h must be locked.
+ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
++	assertLockHeld(&h.lock)
++
+ 	n = alignUp(n, heapArenaBytes)
+ 
+ 	// First, try the arena pre-reservation.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index fb3c149942..185d3201ca 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -821,6 +821,8 @@ func pollFractionalWorkerExit() bool {
+ //
+ // mheap_.lock must be held or the world must be stopped.
+ func gcSetTriggerRatio(triggerRatio float64) {
++	assertWorldStoppedOrLockHeld(&mheap_.lock)
++
+ 	// Compute the next GC goal, which is when the allocated heap
+ 	// has grown by GOGC/100 over the heap marked by the last
+ 	// cycle.
+@@ -960,6 +962,8 @@ func gcSetTriggerRatio(triggerRatio float64) {
+ //
+ // mheap_.lock must be held or the world must be stopped.
+ func gcEffectiveGrowthRatio() float64 {
++	assertWorldStoppedOrLockHeld(&mheap_.lock)
++
+ 	egogc := float64(atomic.Load64(&memstats.next_gc)-memstats.heap_marked) / float64(memstats.heap_marked)
+ 	if egogc < 0 {
+ 		// Shouldn't happen, but just in case.
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 5843ada981..a242577bd9 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -397,6 +397,8 @@ func bgscavenge(c chan int) {
+ //
+ //go:systemstack
+ func (p *pageAlloc) scavenge(nbytes uintptr, mayUnlock bool) uintptr {
++	assertLockHeld(p.mheapLock)
++
+ 	var (
+ 		addrs addrRange
+ 		gen   uint32
+@@ -446,6 +448,8 @@ func printScavTrace(gen uint32, released uintptr, forced bool) {
+ //
+ //go:systemstack
+ func (p *pageAlloc) scavengeStartGen() {
++	assertLockHeld(p.mheapLock)
++
+ 	if debug.scavtrace > 0 {
+ 		printScavTrace(p.scav.gen, p.scav.released, false)
+ 	}
+@@ -495,6 +499,8 @@ func (p *pageAlloc) scavengeStartGen() {
+ //
+ //go:systemstack
+ func (p *pageAlloc) scavengeReserve() (addrRange, uint32) {
++	assertLockHeld(p.mheapLock)
++
+ 	// Start by reserving the minimum.
+ 	r := p.scav.inUse.removeLast(p.scav.reservationBytes)
+ 
+@@ -525,6 +531,8 @@ func (p *pageAlloc) scavengeReserve() (addrRange, uint32) {
+ //
+ //go:systemstack
+ func (p *pageAlloc) scavengeUnreserve(r addrRange, gen uint32) {
++	assertLockHeld(p.mheapLock)
++
+ 	if r.size() == 0 || gen != p.scav.gen {
+ 		return
+ 	}
+@@ -552,6 +560,8 @@ func (p *pageAlloc) scavengeUnreserve(r addrRange, gen uint32) {
+ //
+ //go:systemstack
+ func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (uintptr, addrRange) {
++	assertLockHeld(p.mheapLock)
++
+ 	// Defensively check if we've recieved an empty address range.
+ 	// If so, just return.
+ 	if work.size() == 0 {
+@@ -610,6 +620,8 @@ func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
+ 		// If we found something, scavenge it and return!
+ 		if npages != 0 {
+ 			work.limit = offAddr{p.scavengeRangeLocked(maxChunk, base, npages)}
++
++			assertLockHeld(p.mheapLock) // Must be locked on return.
+ 			return uintptr(npages) * pageSize, work
+ 		}
+ 	}
+@@ -674,12 +686,16 @@ func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
+ 		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
+ 		if npages > 0 {
+ 			work.limit = offAddr{p.scavengeRangeLocked(candidateChunkIdx, base, npages)}
++
++			assertLockHeld(p.mheapLock) // Must be locked on return.
+ 			return uintptr(npages) * pageSize, work
+ 		}
+ 
+ 		// We were fooled, so let's continue from where we left off.
+ 		work.limit = offAddr{chunkBase(candidateChunkIdx)}
+ 	}
++
++	assertLockHeld(p.mheapLock) // Must be locked on return.
+ 	return 0, work
+ }
+ 
+@@ -692,6 +708,8 @@ func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (ui
+ //
+ // p.mheapLock must be held.
+ func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr {
++	assertLockHeld(p.mheapLock)
++
+ 	p.chunkOf(ci).scavenged.setRange(base, npages)
+ 
+ 	// Compute the full address for the start of the range.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 14a73c0491..66a59cb999 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -483,10 +483,15 @@ func (s *mspan) layout() (size, n, total uintptr) {
+ // indirect call from the fixalloc initializer, the compiler can't see
+ // this.
+ //
++// The heap lock must be held.
++//
+ //go:nowritebarrierrec
+ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 	h := (*mheap)(vh)
+ 	s := (*mspan)(p)
++
++	assertLockHeld(&h.lock)
++
+ 	if len(h.allspans) >= cap(h.allspans) {
+ 		n := 64 * 1024 / sys.PtrSize
+ 		if n < cap(h.allspans)*3/2 {
+@@ -721,7 +726,7 @@ func (h *mheap) init() {
+ //
+ // reclaim implements the page-reclaimer half of the sweeper.
+ //
+-// h must NOT be locked.
++// h.lock must NOT be held.
+ func (h *mheap) reclaim(npage uintptr) {
+ 	// TODO(austin): Half of the time spent freeing spans is in
+ 	// locking/unlocking the heap (even with low contention). We
+@@ -804,6 +809,8 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
+ 	// In particular, if a span were freed and merged concurrently
+ 	// with this probing heapArena.spans, it would be possible to
+ 	// observe arbitrary, stale span pointers.
++	assertLockHeld(&h.lock)
++
+ 	n0 := n
+ 	var nFreed uintptr
+ 	sg := h.sweepgen
+@@ -858,6 +865,8 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
+ 		traceGCSweepSpan((n0 - nFreed) * pageSize)
+ 		lock(&h.lock)
+ 	}
++
++	assertLockHeld(&h.lock) // Must be locked on return.
+ 	return nFreed
+ }
+ 
+@@ -1011,7 +1020,7 @@ func (h *mheap) allocNeedsZero(base, npage uintptr) (needZero bool) {
+ // tryAllocMSpan attempts to allocate an mspan object from
+ // the P-local cache, but may fail.
+ //
+-// h need not be locked.
++// h.lock need not be held.
+ //
+ // This caller must ensure that its P won't change underneath
+ // it during this function. Currently to ensure that we enforce
+@@ -1035,7 +1044,7 @@ func (h *mheap) tryAllocMSpan() *mspan {
+ 
+ // allocMSpanLocked allocates an mspan object.
+ //
+-// h must be locked.
++// h.lock must be held.
+ //
+ // allocMSpanLocked must be called on the system stack because
+ // its caller holds the heap lock. See mheap for details.
+@@ -1044,6 +1053,8 @@ func (h *mheap) tryAllocMSpan() *mspan {
+ //
+ //go:systemstack
+ func (h *mheap) allocMSpanLocked() *mspan {
++	assertLockHeld(&h.lock)
++
+ 	pp := getg().m.p.ptr()
+ 	if pp == nil {
+ 		// We don't have a p so just do the normal thing.
+@@ -1065,7 +1076,7 @@ func (h *mheap) allocMSpanLocked() *mspan {
+ 
+ // freeMSpanLocked free an mspan object.
+ //
+-// h must be locked.
++// h.lock must be held.
+ //
+ // freeMSpanLocked must be called on the system stack because
+ // its caller holds the heap lock. See mheap for details.
+@@ -1074,6 +1085,8 @@ func (h *mheap) allocMSpanLocked() *mspan {
+ //
+ //go:systemstack
+ func (h *mheap) freeMSpanLocked(s *mspan) {
++	assertLockHeld(&h.lock)
++
+ 	pp := getg().m.p.ptr()
+ 	// First try to free the mspan directly to the cache.
+ 	if pp != nil && pp.mspancache.len < len(pp.mspancache.buf) {
+@@ -1097,7 +1110,7 @@ func (h *mheap) freeMSpanLocked(s *mspan) {
+ //
+ // The returned span is fully initialized.
+ //
+-// h must not be locked.
++// h.lock must not be held.
+ //
+ // allocSpan must be called on the system stack both because it acquires
+ // the heap lock and because it must block GC transitions.
+@@ -1281,8 +1294,10 @@ HaveSpan:
+ // Try to add at least npage pages of memory to the heap,
+ // returning whether it worked.
+ //
+-// h must be locked.
++// h.lock must be held.
+ func (h *mheap) grow(npage uintptr) bool {
++	assertLockHeld(&h.lock)
++
+ 	// We must grow the heap in whole palloc chunks.
+ 	ask := alignUp(npage, pallocChunkPages) * pageSize
+ 
+@@ -1391,6 +1406,8 @@ func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
+ }
+ 
+ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
++	assertLockHeld(&h.lock)
++
+ 	switch s.state.get() {
+ 	case mSpanManual:
+ 		if s.allocCount != 0 {
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 2af1c97e0b..dac1f39969 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -349,6 +349,8 @@ func (p *pageAlloc) chunkOf(ci chunkIdx) *pallocData {
+ //
+ // p.mheapLock must be held.
+ func (p *pageAlloc) grow(base, size uintptr) {
++	assertLockHeld(p.mheapLock)
++
+ 	// Round up to chunks, since we can't deal with increments smaller
+ 	// than chunks. Also, sysGrow expects aligned values.
+ 	limit := alignUp(base+size, pallocChunkBytes)
+@@ -413,6 +415,8 @@ func (p *pageAlloc) grow(base, size uintptr) {
+ //
+ // p.mheapLock must be held.
+ func (p *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
++	assertLockHeld(p.mheapLock)
++
+ 	// base, limit, start, and end are inclusive.
+ 	limit := base + npages*pageSize - 1
+ 	sc, ec := chunkIndex(base), chunkIndex(limit)
+@@ -499,6 +503,8 @@ func (p *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
+ //
+ // p.mheapLock must be held.
+ func (p *pageAlloc) allocRange(base, npages uintptr) uintptr {
++	assertLockHeld(p.mheapLock)
++
+ 	limit := base + npages*pageSize - 1
+ 	sc, ec := chunkIndex(base), chunkIndex(limit)
+ 	si, ei := chunkPageIndex(base), chunkPageIndex(limit)
+@@ -534,6 +540,8 @@ func (p *pageAlloc) allocRange(base, npages uintptr) uintptr {
+ //
+ // p.mheapLock must be held.
+ func (p *pageAlloc) findMappedAddr(addr offAddr) offAddr {
++	assertLockHeld(p.mheapLock)
++
+ 	// If we're not in a test, validate first by checking mheap_.arenas.
+ 	// This is a fast path which is only safe to use outside of testing.
+ 	ai := arenaIndex(addr.addr())
+@@ -568,6 +576,8 @@ func (p *pageAlloc) findMappedAddr(addr offAddr) offAddr {
+ //
+ // p.mheapLock must be held.
+ func (p *pageAlloc) find(npages uintptr) (uintptr, offAddr) {
++	assertLockHeld(p.mheapLock)
++
+ 	// Search algorithm.
+ 	//
+ 	// This algorithm walks each level l of the radix tree from the root level
+@@ -786,7 +796,13 @@ nextLevel:
+ // should be ignored.
+ //
+ // p.mheapLock must be held.
++//
++// Must run on the system stack because p.mheapLock must be held.
++//
++//go:systemstack
+ func (p *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
++	assertLockHeld(p.mheapLock)
++
+ 	// If the searchAddr refers to a region which has a higher address than
+ 	// any known chunk, then we know we're out of memory.
+ 	if chunkIndex(p.searchAddr.addr()) >= p.end {
+@@ -841,7 +857,13 @@ Found:
+ // free returns npages worth of memory starting at base back to the page heap.
+ //
+ // p.mheapLock must be held.
++//
++// Must run on the system stack because p.mheapLock must be held.
++//
++//go:systemstack
+ func (p *pageAlloc) free(base, npages uintptr) {
++	assertLockHeld(p.mheapLock)
++
+ 	// If we're freeing pages below the p.searchAddr, update searchAddr.
+ 	if b := (offAddr{base}); b.lessThan(p.searchAddr) {
+ 		p.searchAddr = b
+diff --git a/src/runtime/mpagecache.go b/src/runtime/mpagecache.go
+index 5f76501a1c..4b5c66d8d6 100644
+--- a/src/runtime/mpagecache.go
++++ b/src/runtime/mpagecache.go
+@@ -71,8 +71,14 @@ func (c *pageCache) allocN(npages uintptr) (uintptr, uintptr) {
+ // into s. Then, it clears the cache, such that empty returns
+ // true.
+ //
+-// p.mheapLock must be held or the world must be stopped.
++// p.mheapLock must be held.
++//
++// Must run on the system stack because p.mheapLock must be held.
++//
++//go:systemstack
+ func (c *pageCache) flush(p *pageAlloc) {
++	assertLockHeld(p.mheapLock)
++
+ 	if c.empty() {
+ 		return
+ 	}
+@@ -103,7 +109,13 @@ func (c *pageCache) flush(p *pageAlloc) {
+ // chunk.
+ //
+ // p.mheapLock must be held.
++//
++// Must run on the system stack because p.mheapLock must be held.
++//
++//go:systemstack
+ func (p *pageAlloc) allocToCache() pageCache {
++	assertLockHeld(p.mheapLock)
++
+ 	// If the searchAddr refers to a region which has a higher address than
+ 	// any known chunk, then we know we're out of memory.
+ 	if chunkIndex(p.searchAddr.addr()) >= p.end {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 82284e6cd6..ced27ceb3a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4603,7 +4603,9 @@ func (pp *p) destroy() {
+ 			mheap_.spanalloc.free(unsafe.Pointer(pp.mspancache.buf[i]))
+ 		}
+ 		pp.mspancache.len = 0
++		lock(&mheap_.lock)
+ 		pp.pcache.flush(&mheap_.pages)
++		unlock(&mheap_.lock)
+ 	})
+ 	freemcache(pp.mcache)
+ 	pp.mcache = nil

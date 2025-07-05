@@ -18,6 +18,20 @@ Date:   Sat Apr 25 20:53:42 2020 +0000
     GitHub-Pull-Request: golang/go#38661
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230199
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/cmplx/sqrt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/cmplx/sqrt.go b/src/math/cmplx/sqrt.go
+index 0fbdcdedd3..741e5a8865 100644
+--- a/src/math/cmplx/sqrt.go
++++ b/src/math/cmplx/sqrt.go
+@@ -40,7 +40,7 @@ import "math"
+ //                       1/2
+ // Im w  =  [ (r - x)/2 ]   .
+ //
+-// Cancelation error in r-x or r+x is avoided by using the
++// Cancellation error in r-x or r+x is avoided by using the
+ // identity  2 Re w Im w  =  y.
+ //
+ // Note that -w is also a square root of z. The root chosen

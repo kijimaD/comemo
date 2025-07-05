@@ -18,6 +18,22 @@ Date:   Wed Jul 28 13:17:32 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 8f3d6cf4bb..db1b11c4cf 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -51,8 +51,8 @@ func FuncBody(n *ir.Func) {
+ 	Stmts(n.Body)
+ 	CheckUnused(n)
+ 	CheckReturn(n)
+-	if base.Errors() > errorsBefore {
+-		n.Body = nil // type errors; do not compile
++	if ir.IsBlank(n.Nname) || base.Errors() > errorsBefore {
++		n.Body = nil // blank function or type errors; do not compile
+ 	}
+ }
+ 

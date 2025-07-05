@@ -7,6 +7,20 @@ Date:   Fri Jun 11 16:17:47 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1627042
-
+---
  src/cmd/8l/pass.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 5dc8434777..ace640d221 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -647,7 +647,7 @@ dostkoff(void)
+ 					p->to.type = D_SP;
+ 
+ 					p = appendp(p);
+-					p->as = AJHI;
++					p->as = AJCC;
+ 					p->to.type = D_BRANCH;
+ 					p->to.offset = 4;
+ 					q1 = p;

@@ -18,7 +18,7 @@ Date:   Tue Dec 17 12:19:01 2013 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/43530043
-
+---
  src/pkg/os/file_unix.go              | 14 ++++---
  src/pkg/os/os_test.go                | 80 ++++++++++++++++++++++++++++++++++++
  src/pkg/os/os_unix_test.go           | 38 -----------------
@@ -26,3 +26,352 @@ Date:   Tue Dec 17 12:19:01 2013 -0800
  src/pkg/path/filepath/path.go        | 36 ++++++++--------
  src/pkg/path/filepath/path_test.go   | 58 ++++++++++++++++++++++++++
  6 files changed, 173 insertions(+), 60 deletions(-)
+
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index ff1a597e70..d49c70c546 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -162,14 +162,18 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ 	}
+ 	dirname += "/"
+ 	names, err := f.Readdirnames(n)
+-	fi = make([]FileInfo, len(names))
+-	for i, filename := range names {
++	fi = make([]FileInfo, 0, len(names))
++	for _, filename := range names {
+ 		fip, lerr := lstat(dirname + filename)
+-		if lerr != nil {
+-			fi[i] = &fileStat{name: filename}
++		if IsNotExist(lerr) {
++			// File disappeared between readdir + stat.
++			// Just treat it as if it didn't exist.
+ 			continue
+ 		}
+-		fi[i] = fip
++		if lerr != nil {
++			return fi, lerr
++		}
++		fi = append(fi, fip)
+ 	}
+ 	return fi, err
+ }
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 9462ebd42c..414e4e6243 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -6,6 +6,7 @@ package os_test
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+@@ -13,7 +14,9 @@ import (
+ 	. "os"
+ 	osexec "os/exec"
+ 	"path/filepath"
++	"reflect"
+ 	"runtime"
++	"sort"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -382,6 +385,83 @@ func TestReaddirNValues(t *testing.T) {
+ 	}
+ }
+ 
++func touch(t *testing.T, name string) {
++	f, err := Create(name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := f.Close(); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestReaddirStatFailures(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		// Windows already does this correctly, but is
++		// structured with different syscalls such that it
++		// doesn't use Lstat, so the hook below for testing it
++		// wouldn't work.
++		t.Skipf("skipping test on %v", runtime.GOOS)
++	}
++	dir, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatalf("TempDir: %v", err)
++	}
++	defer RemoveAll(dir)
++	touch(t, filepath.Join(dir, "good1"))
++	touch(t, filepath.Join(dir, "x")) // will disappear or have an error
++	touch(t, filepath.Join(dir, "good2"))
++	defer func() {
++		*LstatP = Lstat
++	}()
++	var xerr error // error to return for x
++	*LstatP = func(path string) (FileInfo, error) {
++		if xerr != nil && strings.HasSuffix(path, "x") {
++			return nil, xerr
++		}
++		return Lstat(path)
++	}
++	readDir := func() ([]FileInfo, error) {
++		d, err := Open(dir)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer d.Close()
++		return d.Readdir(-1)
++	}
++	mustReadDir := func(testName string) []FileInfo {
++		fis, err := readDir()
++		if err != nil {
++			t.Fatalf("%s: Readdir: %v", testName, err)
++		}
++		return fis
++	}
++	names := func(fis []FileInfo) []string {
++		s := make([]string, len(fis))
++		for i, fi := range fis {
++			s[i] = fi.Name()
++		}
++		sort.Strings(s)
++		return s
++	}
++
++	if got, want := names(mustReadDir("inital readdir")),
++		[]string{"good1", "good2", "x"}; !reflect.DeepEqual(got, want) {
++		t.Errorf("initial readdir got %q; want %q", got, want)
++	}
++
++	xerr = ErrNotExist
++	if got, want := names(mustReadDir("with x disappearing")),
++		[]string{"good1", "good2"}; !reflect.DeepEqual(got, want) {
++		t.Errorf("with x disappearing, got %q; want %q", got, want)
++	}
++
++	xerr = errors.New("some real error")
++	if _, err := readDir(); err != xerr {
++		t.Errorf("with a non-ErrNotExist error, got error %v; want %v", err, xerr)
++	}
++}
++
+ func TestHardLink(t *testing.T) {
+ 	// Hardlinks are not supported under windows or Plan 9.
+ 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+diff --git a/src/pkg/os/os_unix_test.go b/src/pkg/os/os_unix_test.go
+index b0fc0256de..1e8a661225 100644
+--- a/src/pkg/os/os_unix_test.go
++++ b/src/pkg/os/os_unix_test.go
+@@ -74,41 +74,3 @@ func TestChown(t *testing.T) {
+ 		checkUidGid(t, f.Name(), int(sys.Uid), gid)
+ 	}
+ }
+-
+-func TestReaddirWithBadLstat(t *testing.T) {
+-	handle, err := Open(sfdir)
+-	failfile := sfdir + "/" + sfname
+-	if err != nil {
+-		t.Fatalf("Couldn't open %s: %s", sfdir, err)
+-	}
+-
+-	*LstatP = func(file string) (FileInfo, error) {
+-		if file == failfile {
+-			var fi FileInfo
+-			return fi, ErrInvalid
+-		}
+-		return Lstat(file)
+-	}
+-	defer func() { *LstatP = Lstat }()
+-
+-	dirs, err := handle.Readdir(-1)
+-	if err != nil {
+-		t.Fatalf("Expected Readdir to return no error, got %v", err)
+-	}
+-	foundfail := false
+-	for _, dir := range dirs {
+-		if dir.Name() == sfname {
+-			foundfail = true
+-			if dir.Sys() != nil {
+-				t.Errorf("Expected Readdir for %s should not contain Sys", failfile)
+-			}
+-		} else {
+-			if dir.Sys() == nil {
+-				t.Errorf("Readdir for every file other than %s should contain Sys, but %s/%s didn't either", failfile, sfdir, dir.Name())
+-			}
+-		}
+-	}
+-	if !foundfail {
+-		t.Fatalf("Expected %s from Readdir, but didn't find it", failfile)
+-	}
+-}
+diff --git a/src/pkg/path/filepath/export_test.go b/src/pkg/path/filepath/export_test.go
+new file mode 100644
+index 0000000000..0cf9e3bca1
+--- /dev/null
++++ b/src/pkg/path/filepath/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filepath
++
++var LstatP = &lstat
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index f8c7e4b2f4..65d29bf9f9 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -336,6 +336,8 @@ var SkipDir = errors.New("skip this directory")
+ // the next file.
+ type WalkFunc func(path string, info os.FileInfo, err error) error
+ 
++var lstat = os.Lstat // for testing
++
+ // walk recursively descends path, calling w.
+ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
+ 	err := walkFn(path, info, nil)
+@@ -350,17 +352,25 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
+ 		return nil
+ 	}
+ 
+-	list, err := readDir(path)
++	names, err := readDirNames(path)
+ 	if err != nil {
+ 		return walkFn(path, info, err)
+ 	}
+ 
+-	for _, fileInfo := range list {
+-		err = walk(Join(path, fileInfo.Name()), fileInfo, walkFn)
++	for _, name := range names {
++		filename := Join(path, name)
++		fileInfo, err := lstat(filename)
+ 		if err != nil {
+-			if !fileInfo.IsDir() || err != SkipDir {
++			if err := walkFn(filename, fileInfo, err); err != nil && err != SkipDir {
+ 				return err
+ 			}
++		} else {
++			err = walk(filename, fileInfo, walkFn)
++			if err != nil {
++				if !fileInfo.IsDir() || err != SkipDir {
++					return err
++				}
++			}
+ 		}
+ 	}
+ 	return nil
+@@ -380,30 +390,22 @@ func Walk(root string, walkFn WalkFunc) error {
+ 	return walk(root, info, walkFn)
+ }
+ 
+-// readDir reads the directory named by dirname and returns
++// readDirNames reads the directory named by dirname and returns
+ // a sorted list of directory entries.
+-// Copied from io/ioutil to avoid the circular import.
+-func readDir(dirname string) ([]os.FileInfo, error) {
++func readDirNames(dirname string) ([]string, error) {
+ 	f, err := os.Open(dirname)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	list, err := f.Readdir(-1)
++	names, err := f.Readdirnames(-1)
+ 	f.Close()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	sort.Sort(byName(list))
+-	return list, nil
++	sort.Strings(names)
++	return names, nil
+ }
+ 
+-// byName implements sort.Interface.
+-type byName []os.FileInfo
+-
+-func (f byName) Len() int           { return len(f) }
+-func (f byName) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
+-func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+-
+ // Base returns the last element of path.
+ // Trailing path separators are removed before extracting the last element.
+ // If the path is empty, Base returns ".".
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index d32b70d6e2..1adc8cb072 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -5,6 +5,7 @@
+ package filepath_test
+ 
+ import (
++	"errors"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -458,6 +459,63 @@ func TestWalk(t *testing.T) {
+ 	}
+ }
+ 
++func touch(t *testing.T, name string) {
++	f, err := os.Create(name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := f.Close(); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestWalkFileError(t *testing.T) {
++	td, err := ioutil.TempDir("", "walktest")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(td)
++
++	touch(t, filepath.Join(td, "foo"))
++	touch(t, filepath.Join(td, "bar"))
++	dir := filepath.Join(td, "dir")
++	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
++		t.Fatal(err)
++	}
++	touch(t, filepath.Join(dir, "baz"))
++	touch(t, filepath.Join(dir, "stat-error"))
++	defer func() {
++		*filepath.LstatP = os.Lstat
++	}()
++	statErr := errors.New("some stat error")
++	*filepath.LstatP = func(path string) (os.FileInfo, error) {
++		if strings.HasSuffix(path, "stat-error") {
++			return nil, statErr
++		}
++		return os.Lstat(path)
++	}
++	got := map[string]error{}
++	err = filepath.Walk(td, func(path string, fi os.FileInfo, err error) error {
++		rel, _ := filepath.Rel(td, path)
++		got[filepath.ToSlash(rel)] = err
++		return nil
++	})
++	if err != nil {
++		t.Errorf("Walk error: %v", err)
++	}
++	want := map[string]error{
++		".":              nil,
++		"foo":            nil,
++		"bar":            nil,
++		"dir":            nil,
++		"dir/baz":        nil,
++		"dir/stat-error": statErr,
++	}
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("Walked %#v; want %#v", got, want)
++	}
++}
++
+ var basetests = []PathTest{
+ 	{"", "."},
+ 	{".", "."},

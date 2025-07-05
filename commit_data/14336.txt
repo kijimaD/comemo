@@ -9,6 +9,20 @@ Date:   Wed Nov 7 21:55:29 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6810093
-
+---
  src/pkg/net/ipraw_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index d37272c106..29d5984bdf 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -21,7 +21,7 @@ var icmpTests = []struct {
+ 	ipv6  bool // test with underlying AF_INET6 socket
+ }{
+ 	{"ip4:icmp", "", "127.0.0.1", false},
+-	{"ip6:icmp", "", "::1", true},
++	{"ip6:ipv6-icmp", "", "::1", true},
+ }
+ 
+ func TestICMP(t *testing.T) {

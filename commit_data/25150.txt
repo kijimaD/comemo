@@ -8,6 +8,20 @@ Date:   Thu Oct 1 15:06:20 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/15320
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index f02b0d0842..d2522594e7 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -142,7 +142,7 @@ type Info struct {
+ 	//
+ 	//	*ast.ImportSpec    *PkgName for dot-imports and imports without renames
+ 	//	*ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
+-	//      *ast.Field         anonymous struct field or parameter *Var
++	//      *ast.Field         anonymous parameter *Var
+ 	//
+ 	Implicits map[ast.Node]Object
+ 

@@ -7,7 +7,88 @@ Date:   Fri Sep 2 10:28:00 2011 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4962049
-
+---
  src/pkg/exp/template/html/js.go      |  6 ++----
  src/pkg/exp/template/html/js_test.go | 10 +++++++---
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/js.go b/src/pkg/exp/template/html/js.go
+index d29e0577ad..4480542535 100644
+--- a/src/pkg/exp/template/html/js.go
++++ b/src/pkg/exp/template/html/js.go
+@@ -179,7 +179,6 @@ func jsStrEscaper(args ...interface{}) string {
+ 	for i, r := range s {
+ 		var repl string
+ 		switch r {
+-		// All cases must appear in the IndexAny call above.
+ 		case 0:
+ 			repl = `\0`
+ 		case '\t':
+@@ -222,7 +221,7 @@ func jsStrEscaper(args ...interface{}) string {
+ 		b.WriteString(repl)
+ 		written = i + utf8.RuneLen(r)
+ 	}
+-	if b.Len() == 0 {
++	if written == 0 {
+ 		return s
+ 	}
+ 	b.WriteString(s[written:])
+@@ -247,7 +246,6 @@ func jsRegexpEscaper(args ...interface{}) string {
+ 	for i, r := range s {
+ 		var repl string
+ 		switch r {
+-		// All cases must appear in the IndexAny call above.
+ 		case 0:
+ 			repl = `\0`
+ 		case '\t':
+@@ -316,7 +314,7 @@ func jsRegexpEscaper(args ...interface{}) string {
+ 		b.WriteString(repl)
+ 		written = i + utf8.RuneLen(r)
+ 	}
+-	if b.Len() == 0 {
++	if written == 0 {
+ 		return s
+ 	}
+ 	b.WriteString(s[written:])
+diff --git a/src/pkg/exp/template/html/js_test.go b/src/pkg/exp/template/html/js_test.go
+index 0a51a21673..0ae70d1e2b 100644
+--- a/src/pkg/exp/template/html/js_test.go
++++ b/src/pkg/exp/template/html/js_test.go
+@@ -46,7 +46,7 @@ func TestNextJsCtx(t *testing.T) {
+ 		{jsCtxRegexp, "+"},
+ 		{jsCtxRegexp, "-"},
+ 		// An incr/decr op precedes a div operator.
+-		// This is not airtight.  In (g = ++/h/i) a regexp follows a
++		// This is not airtight. In (g = ++/h/i) a regexp follows a
+ 		// pre-increment operator, but in practice devs do not try to
+ 		// increment or decrement regular expressions.
+ 		// (g++/h/i) where ++ is a postfix operator on g is much more
+@@ -66,7 +66,7 @@ func TestNextJsCtx(t *testing.T) {
+ 		{jsCtxRegexp, "return\n"},
+ 		{jsCtxRegexp, "return\u2028"},
+ 		// Identifiers can be divided and cannot validly be preceded by
+-		// a regular expressions.  Semicolon insertion cannot happen
++		// a regular expressions. Semicolon insertion cannot happen
+ 		// between an identifier and a regular expression on a new line
+ 		// because the one token lookahead for semicolon insertion has
+ 		// to conclude that it could be a div binary op and treat it as
+@@ -136,7 +136,7 @@ func TestJSValEscaper(t *testing.T) {
+ 		{"", `""`},
+ 		{"foo", `"foo"`},
+ 		// Newlines.
+-		// {"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`}, // TODO: FAILING.  Maybe fix in json package.
++		// {"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`}, // TODO: FAILING. Maybe fix in json package.
+ 		// "\v" == "v" on IE 6 so use "\x0b" instead.
+ 		{"\t\x0b", `"\u0009\u000b"`},
+ 		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
+@@ -205,6 +205,10 @@ func TestJSStrEscaper(t *testing.T) {
+ 		{"+ADw-script+AD4-alert(1)+ADw-/script+AD4-",
+ 			`\x2bADw-script\x2bAD4-alert(1)\x2bADw-\/script\x2bAD4-`,
+ 		},
++		// Invalid UTF-8 sequence
++		{"foo\xA0bar", "foo\xA0bar"},
++		// Invalid unicode scalar value.
++		{"foo\xed\xa0\x80bar", "foo\xed\xa0\x80bar"},
+ 	}
+ 
+ 	for _, test := range tests {

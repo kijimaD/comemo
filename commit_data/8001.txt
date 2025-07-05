@@ -7,6 +7,20 @@ Date:   Wed Apr 6 15:13:18 2011 -0400
     TBR=r
     CC=golang-dev
     https://golang.org/cl/4378042
-
+---
  src/pkg/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index dd0dd9cd6c..1e066dcf95 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -231,7 +231,7 @@ bench.dirs: $(addsuffix .bench, $(BENCH))
+ 
+ %.install:
+ 	+@echo install $*
+-	+@$(MAKE) -C $* install >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out)
++	+@$(MAKE) -C $* install >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out; exit 1)
+ 
+ %.nuke:
+ 	+$(MAKE) -C $* nuke

@@ -13,7 +13,143 @@ Date:   Tue May 15 11:26:05 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6206062
-
+---
  src/pkg/runtime/sys_netbsd_386.s   | 20 +++++++++-----------
  src/pkg/runtime/sys_netbsd_amd64.s | 20 ++++++++------------
  2 files changed, 17 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 018f491978..139f20d0f7 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -12,14 +12,14 @@
+ TEXT runtime·exit(SB),7,$-4
+ 	MOVL	$1, AX
+ 	INT	$0x80
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-4
+ 	MOVL	$302, AX		// sys_threxit
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$-4
+@@ -79,7 +79,7 @@ TEXT runtime·munmap(SB),7,$-4
+ 	MOVL	$73, AX			// sys_munmap
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),7,$-4
+@@ -151,7 +151,7 @@ TEXT runtime·sigaction(SB),7,$24
+ 	MOVL	$340, AX		// sys___sigaction_sigtramp
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$44
+@@ -193,7 +193,7 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	MOVL	AX, 4(SP)		// arg 1 - sigcontext
+ 	MOVL	$103, AX		// sys_sigreturn
+ 	INT	$0x80
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ // int32 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+@@ -296,16 +296,14 @@ TEXT runtime·setldt(SB),7,$8
+ 
+ TEXT runtime·settls(SB),7,$16
+ 	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
+-	MOVL	20(SP), CX
++	MOVL	base+0(FP), CX
+ 	ADDL	$8, CX
+-	MOVL	CX, 0(CX)
+ 	MOVL	$0, 0(SP)		// syscall gap
+-	MOVL	$16, 4(SP)		// X86_SET_GSBASE (x86/sysarch.h)
+-	MOVL	CX, 8(SP)		// pointer to base
+-	MOVL	$165, AX		// sys_sysarch
++	MOVL	CX, 4(SP)		// arg 1 - ptr
++	MOVL	$317, AX		// sys__lwp_setprivate
+ 	INT	$0x80
+ 	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·osyield(SB),7,$-4
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index c0c60ef0ce..0f70f7cfa0 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -83,13 +83,13 @@ TEXT runtime·exit(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 - exit status
+ 	MOVL	$1, AX			// sys_exit
+ 	SYSCALL
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-8
+ 	MOVL	$302, AX		// sys_threxit
+ 	SYSCALL
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·write(SB),7,$-8
+@@ -179,10 +179,9 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	LEAQ	runtime·sigreturn_tramp(SB), R10
+ 	MOVQ	$3, R8			// arg 5 - version
+ 	MOVL	$340, AX		// sys___sigaction_sigtramp
+-
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),7,$64
+@@ -238,7 +237,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$73, AX			// sys_munmap
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),7,$-8
+@@ -247,20 +246,17 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	MOVQ	$281, AX		// sys___sigaltstack14
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ // set tls base to DI
+ TEXT runtime·settls(SB),7,$8
+ 	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+-	ADDQ	$16, DI
+-	MOVQ	DI, 0(SP)
+-	MOVQ	SP, SI
+-	MOVQ	$17, DI			// X86_64_SET_FSBASE (x86/sysarch.h)
+-	MOVQ	$165, AX		// sys_sysarch
++	ADDQ	$16, DI			// arg 1 - ptr
++	MOVQ	$317, AX		// sys__lwp_setprivate
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),7,$0

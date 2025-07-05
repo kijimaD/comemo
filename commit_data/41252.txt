@@ -11,7 +11,99 @@ Date:   Tue Sep 17 16:33:54 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/gccgo.go             |  9 +++++-
  src/cmd/go/testdata/script/build_trimpath.txt | 43 +++++++++++++++++++--------
  2 files changed, 38 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index cf5dba189e..4c1f36dbd6 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -91,6 +91,10 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg
+ 			args = append(args, "-I", root)
+ 		}
+ 	}
++	if cfg.BuildTrimpath && b.gccSupportsFlag(args[:1], "-ffile-prefix-map=a=b") {
++		args = append(args, "-ffile-prefix-map="+base.Cwd+"=.")
++		args = append(args, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
++	}
+ 	args = append(args, a.Package.Internal.Gccgoflags...)
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))
+@@ -535,7 +539,10 @@ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error
+ 		defs = append(defs, "-fsplit-stack")
+ 	}
+ 	defs = tools.maybePIC(defs)
+-	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
++	if b.gccSupportsFlag(compiler, "-ffile-prefix-map=a=b") {
++		defs = append(defs, "-ffile-prefix-map="+base.Cwd+"=.")
++		defs = append(defs, "-ffile-prefix-map="+b.WorkDir+"=/tmp/go-build")
++	} else if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
+ 		defs = append(defs, "-fdebug-prefix-map="+b.WorkDir+"=/tmp/go-build")
+ 	}
+ 	if b.gccSupportsFlag(compiler, "-gno-record-gcc-switches") {
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index 668f75599e..ec817a5ecd 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -16,10 +16,10 @@ grep -q $GOROOT_REGEXP hello.exe
+ go build -trimpath -o hello.exe hello.go
+ ! grep -q $GOROOT_REGEXP hello.exe
+ ! grep -q $WORK_REGEXP hello.exe
+-cd ..
+ 
+ # A binary from an external module built with -trimpath should not contain
+ # the current workspace or GOROOT.
++cd $WORK
+ env GO111MODULE=on
+ go build -trimpath -o fortune.exe rsc.io/fortune
+ ! grep -q $GOROOT_REGEXP fortune.exe
+@@ -27,18 +27,35 @@ go build -trimpath -o fortune.exe rsc.io/fortune
+ 
+ # Two binaries built from identical packages in different directories
+ # should be identical.
+-mkdir b
+-cp a/go.mod a/hello.go b
+-cd a
+-go build -trimpath -o ../a.exe .
+-cd ../b
+-go build -trimpath -o ../b.exe .
+-cd ..
+-cmp -q a.exe b.exe
++cd $GOPATH/src/a
++go build -trimpath -o $WORK/a-GOPATH.exe .
++cd $WORK/_alt/src/a
++go build -trimpath -o $WORK/a-alt.exe .
++cmp -q $WORK/a-GOPATH.exe $WORK/a-alt.exe
++
++[!exec:gccgo] stop
++
++# Binaries built using gccgo should also be identical to each other.
++env GO111MODULE=off # The current released gccgo does not support builds in module mode.
++cd $GOPATH/src/a
++go build -compiler=gccgo -trimpath -o $WORK/gccgo-GOPATH.exe .
++
++env old_gopath=$GOPATH
++env GOPATH=$WORK/_alt
++cd $WORK/_alt/src/a
++go build -compiler=gccgo -trimpath -o $WORK/gccgo-alt.exe .
++cd $WORK
++! grep -q $GOROOT_REGEXP gccgo-GOPATH.exe
++! grep -q $WORK_REGEXP gccgo-GOPATH.exe
++cmp -q gccgo-GOPATH.exe gccgo-alt.exe
+ 
+--- a/hello.go --
++-- $GOPATH/src/a/hello.go --
+ package main
+ func main() { println("hello") }
+-
+--- a/go.mod --
+-module m
++-- $GOPATH/src/a/go.mod --
++module example.com/a
++-- $WORK/_alt/src/a/hello.go --
++package main
++func main() { println("hello") }
++-- $WORK/_alt/src/a/go.mod --
++module example.com/a

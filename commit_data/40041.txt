@@ -12,6 +12,40 @@ Date:   Fri Apr 12 14:03:39 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go | 15 +++------------
  1 file changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index ee9c9f1c3f..16752977a8 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -206,6 +206,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMADDD,
+ 		ssa.OpARMSUBF,
+ 		ssa.OpARMSUBD,
++		ssa.OpARMSLL,
++		ssa.OpARMSRL,
++		ssa.OpARMSRA,
+ 		ssa.OpARMMULF,
+ 		ssa.OpARMMULD,
+ 		ssa.OpARMNMULF,
+@@ -247,18 +250,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpARMSLL,
+-		ssa.OpARMSRL,
+-		ssa.OpARMSRA:
+-		r := v.Reg()
+-		r1 := v.Args[0].Reg()
+-		r2 := v.Args[1].Reg()
+-		p := s.Prog(v.Op.Asm())
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = r2
+-		p.Reg = r1
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+ 	case ssa.OpARMSRAcond:
+ 		// ARM shift instructions uses only the low-order byte of the shift amount
+ 		// generate conditional instructions to deal with large shifts

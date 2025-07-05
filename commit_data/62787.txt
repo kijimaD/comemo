@@ -13,6 +13,23 @@ Date:   Thu Apr 10 21:52:32 2025 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index aed24feda2..e235659dc0 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -593,10 +593,7 @@ func (f *Func) computeZeroMap(select1 []*Value) map[ID]ZeroRegion {
+ 					continue
+ 				}
+ 
+-				nptr := v.Type.Elem().Size() / ptrSize
+-				if nptr > 64 {
+-					nptr = 64
+-				}
++				nptr := min(64, v.Type.Elem().Size()/ptrSize)
+ 				zeroes[mem.ID] = ZeroRegion{base: v, mask: 1<<uint(nptr) - 1}
+ 			}
+ 		}

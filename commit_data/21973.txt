@@ -15,6 +15,29 @@ Date:   Mon Feb 16 23:14:34 2015 +0900
     Change-Id: I499efd98338beff6a27c03f03273331ecb6fd698
     Reviewed-on: https://go-review.googlesource.com/4944
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/dist/util.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index e686e42fe1..f6f0b42e9e 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -376,7 +376,7 @@ func main() {
+ 
+ 	if gohostarch == "" {
+ 		// Default Unix system.
+-		out := run("", CheckExit, "uname", "-m", "-v")
++		out := run("", CheckExit, "uname", "-m")
+ 		switch {
+ 		case strings.Contains(out, "x86_64"), strings.Contains(out, "amd64"):
+ 			gohostarch = "amd64"
+@@ -389,7 +389,7 @@ func main() {
+ 		case strings.Contains(out, "ppc64"):
+ 			gohostarch = "ppc64"
+ 		case gohostos == "darwin":
+-			if strings.Contains(out, "RELEASE_ARM_") {
++			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM_") {
+ 				gohostarch = "arm"
+ 			}
+ 		default:

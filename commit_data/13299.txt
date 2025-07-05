@@ -7,6 +7,20 @@ Date:   Wed Jun 6 16:54:02 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6308046
-
+---
  src/pkg/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 9660370c29..a9b9c9d0c2 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -136,7 +136,7 @@
+ 	Fscanf and Fscanln read from a specified io.Reader; Sscan,
+ 	Sscanf and Sscanln read from an argument string.  Scanln,
+ 	Fscanln and Sscanln stop scanning at a newline and require that
+-	the items be followed by one; Sscanf, Fscanf and Sscanf require
++	the items be followed by one; Scanf, Fscanf and Sscanf require
+ 	newlines in the input to match newlines in the format; the other
+ 	routines treat newlines as spaces.
+ 

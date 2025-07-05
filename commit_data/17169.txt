@@ -16,7 +16,7 @@ Date:   Mon Aug 12 19:14:02 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/12789043
-
+---
  src/cmd/5g/gg.h      |   2 +-
  src/cmd/5g/opt.h     |  12 +++-
  src/cmd/5g/peep.c    |   2 +-
@@ -37,3 +37,1070 @@ Date:   Mon Aug 12 19:14:02 2013 -0400
  src/cmd/gc/popt.c    | 183 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gc/popt.h    |   6 ++
  19 files changed, 234 insertions(+), 471 deletions(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 90fcbe394c..c0d0393ae2 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -39,7 +39,7 @@ struct	Prog
+ 	uint32	loc;		// pc offset in this func
+ 	uint32	lineno;		// source line that generated this
+ 	Prog*	link;		// next instruction in this func
+-	void*	regp;		// points to enclosing Reg struct
++	void*	opt;		// for optimizer passes
+ 	short	as;		// opcode
+ 	uchar	reg;		// doubles as width in DATA op
+ 	uchar	scond;
+diff --git a/src/cmd/5g/opt.h b/src/cmd/5g/opt.h
+index 84c81c849b..0c120bd695 100644
+--- a/src/cmd/5g/opt.h
++++ b/src/cmd/5g/opt.h
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	"../gc/popt.h"
++
+ #define	Z	N
+ #define	Adr	Addr
+ 
+@@ -50,7 +52,7 @@ typedef	struct	Rgn	Rgn;
+ // A Reg is a wrapper around a single Prog (one instruction) that holds
+ // register optimization information while the optimizer runs.
+ // r->prog is the instruction.
+-// r->prog->regp points back to r.
++// r->prog->opt points back to r.
+ struct	Reg
+ {
+ 
+@@ -140,7 +142,6 @@ uint32	paint2(Reg*, int);
+ void	paint3(Reg*, int, int32, int);
+ void	addreg(Adr*, int);
+ void	dumpit(char *str, Reg *r0);
+-int	noreturn(Prog *p);
+ 
+ /*
+  * peep.c
+@@ -217,3 +218,10 @@ enum
+ };
+ 
+ void proginfo(ProgInfo*, Prog*);
++
++// To allow use of AJMP and ACALL in ../gc/popt.c.
++enum
++{
++	AJMP = AB,
++	ACALL = ABL,
++};
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 71c81ecc40..e850399d8e 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -69,7 +69,7 @@ peep(void)
+ 			r2->link = r1;
+ 
+ 			r2->prog = p;
+-			p->regp = r2;
++			p->opt = r2;
+ 
+ 			r2->p1 = r;
+ 			r->s1 = r2;
+diff --git a/src/cmd/5g/prog.c b/src/cmd/5g/prog.c
+index 63709fbee4..054461955f 100644
+--- a/src/cmd/5g/prog.c
++++ b/src/cmd/5g/prog.c
+@@ -26,6 +26,8 @@ static ProgInfo progtable[ALAST] = {
+ 	[ATEXT]=	{Pseudo},
+ 	[AFUNCDATA]=	{Pseudo},
+ 	[APCDATA]=	{Pseudo},
++	[AUNDEF]=	{OK},
++	[AUSEFIELD]=	{OK},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 368da58fe0..e748668f42 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -36,14 +36,10 @@
+ 
+ #define	NREGVAR	32
+ #define	REGBITS	((uint32)0xffffffff)
+-#define	P2R(p)	(Reg*)(p->reg)
+ 
+ 	void	addsplits(void);
+-	int	noreturn(Prog *p);
+ static	int	first	= 0;
+ 
+-static	void	fixjmp(Prog*);
+-
+ 
+ Reg*
+ rega(void)
+@@ -260,7 +256,7 @@ regopt(Prog *firstp)
+ 			lastr = r;
+ 		}
+ 		r->prog = p;
+-		p->regp = r;
++		p->opt = r;
+ 
+ 		r1 = r->p1;
+ 		if(r1 != R) {
+@@ -329,7 +325,7 @@ regopt(Prog *firstp)
+ 		if(p->to.type == D_BRANCH) {
+ 			if(p->to.u.branch == P)
+ 				fatal("pnil %P", p);
+-			r1 = p->to.u.branch->regp;
++			r1 = p->to.u.branch->opt;
+ 			if(r1 == R)
+ 				fatal("rnil %P", p);
+ 			if(r1 == r) {
+@@ -1467,31 +1463,6 @@ BtoF(int32 b)
+ 	return bitno(b) - 16;
+ }
+ 
+-static Sym*	symlist[10];
+-
+-int
+-noreturn(Prog *p)
+-{
+-	Sym *s;
+-	int i;
+-
+-	if(symlist[0] == S) {
+-		symlist[0] = pkglookup("panicindex", runtimepkg);
+-		symlist[1] = pkglookup("panicslice", runtimepkg);
+-		symlist[2] = pkglookup("throwinit", runtimepkg);
+-		symlist[3] = pkglookup("panic", runtimepkg);
+-		symlist[4] = pkglookup("panicwrap", runtimepkg);
+-	}
+-
+-	s = p->to.sym;
+-	if(s == S)
+-		return 0;
+-	for(i=0; symlist[i]!=S; i++)
+-		if(s == symlist[i])
+-			return 1;
+-	return 0;
+-}
+-
+ void
+ dumpone(Reg *r)
+ {
+@@ -1559,123 +1530,3 @@ dumpit(char *str, Reg *r0)
+ //		}
+ 	}
+ }
+-
+-/*
+- * the code generator depends on being able to write out JMP (B)
+- * instructions that it can jump to now but fill in later.
+- * the linker will resolve them nicely, but they make the code
+- * longer and more difficult to follow during debugging.
+- * remove them.
+- */
+-
+-/* what instruction does a JMP to p eventually land on? */
+-static Prog*
+-chasejmp(Prog *p, int *jmploop)
+-{
+-	int n;
+-
+-	n = 0;
+-	while(p != P && p->as == AB && p->to.type == D_BRANCH) {
+-		if(++n > 10) {
+-			*jmploop = 1;
+-			break;
+-		}
+-		p = p->to.u.branch;
+-	}
+-	return p;
+-}
+-
+-/*
+- * reuse reg pointer for mark/sweep state.
+- * leave reg==nil at end because alive==nil.
+- */
+-#define alive ((void*)0)
+-#define dead ((void*)1)
+-
+-/* mark all code reachable from firstp as alive */
+-static void
+-mark(Prog *firstp)
+-{
+-	Prog *p;
+-	
+-	for(p=firstp; p; p=p->link) {
+-		if(p->regp != dead)
+-			break;
+-		p->regp = alive;
+-		if(p->as != ABL && p->to.type == D_BRANCH && p->to.u.branch)
+-			mark(p->to.u.branch);
+-		if(p->as == AB || p->as == ARET || (p->as == ABL && noreturn(p)))
+-			break;
+-	}
+-}
+-
+-static void
+-fixjmp(Prog *firstp)
+-{
+-	int jmploop;
+-	Prog *p, *last;
+-	
+-	if(debug['R'] && debug['v'])
+-		print("\nfixjmp\n");
+-
+-	// pass 1: resolve jump to B, mark all code as dead.
+-	jmploop = 0;
+-	for(p=firstp; p; p=p->link) {
+-		if(debug['R'] && debug['v'])
+-			print("%P\n", p);
+-		if(p->as != ABL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AB) {
+-			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
+-			if(debug['R'] && debug['v'])
+-				print("->%P\n", p);
+-		}
+-		p->regp = dead;
+-	}
+-	if(debug['R'] && debug['v'])
+-		print("\n");
+-	
+-	// pass 2: mark all reachable code alive
+-	mark(firstp);
+-	
+-	// pass 3: delete dead code (mostly JMPs).
+-	last = nil;
+-	for(p=firstp; p; p=p->link) {
+-		if(p->regp == dead) {
+-			if(p->link == P && p->as == ARET && last && last->as != ARET) {
+-				// This is the final ARET, and the code so far doesn't have one.
+-				// Let it stay.
+-			} else {
+-				if(debug['R'] && debug['v'])
+-					print("del %P\n", p);
+-				continue;
+-			}
+-		}
+-		if(last)
+-			last->link = p;
+-		last = p;
+-	}
+-	last->link = P;
+-	
+-	// pass 4: elide JMP to next instruction.
+-	// only safe if there are no jumps to JMPs anymore.
+-	if(!jmploop) {
+-		last = nil;
+-		for(p=firstp; p; p=p->link) {
+-			if(p->as == AB && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
+-				if(debug['R'] && debug['v'])
+-					print("del %P\n", p);
+-				continue;
+-			}
+-			if(last)
+-				last->link = p;
+-			last = p;
+-		}
+-		last->link = P;
+-	}
+-	
+-	if(debug['R'] && debug['v']) {
+-		print("\n");
+-		for(p=firstp; p; p=p->link)
+-			print("%P\n", p);
+-		print("\n");
+-	}
+-}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 74382a248f..f2f3ac1c16 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -41,7 +41,7 @@ struct	Prog
+ 	Addr	from;		// src address
+ 	Addr	to;		// dst address
+ 	Prog*	link;		// next instruction in this func
+-	void*	reg;		// pointer to containing Reg struct
++	void*	opt;		// for optimizer passes
+ };
+ 
+ #define TEXTFLAG from.scale
+diff --git a/src/cmd/6g/opt.h b/src/cmd/6g/opt.h
+index 6fb6460dd5..2d98bded03 100644
+--- a/src/cmd/6g/opt.h
++++ b/src/cmd/6g/opt.h
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	"../gc/popt.h"
++
+ #define	Z	N
+ #define	Adr	Addr
+ 
+@@ -50,7 +52,7 @@ typedef	struct	Rgn	Rgn;
+ // A Reg is a wrapper around a single Prog (one instruction) that holds
+ // register optimization information while the optimizer runs.
+ // r->prog is the instruction.
+-// r->prog->regp points back to r.
++// r->prog->opt points back to r.
+ struct	Reg
+ {
+ 
+@@ -141,7 +143,6 @@ void	paint3(Reg*, int, int32, int);
+ void	addreg(Adr*, int);
+ void	dumpone(Reg*);
+ void	dumpit(char*, Reg*);
+-int	noreturn(Prog *p);
+ 
+ /*
+  * peep.c
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 6d9ee85f96..385750a643 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -102,7 +102,7 @@ peep(void)
+ 			r2->link = r1;
+ 
+ 			r2->prog = p;
+-			p->reg = r2;
++			p->opt = r2;
+ 
+ 			r2->p1 = r;
+ 			r->s1 = r2;
+diff --git a/src/cmd/6g/prog.c b/src/cmd/6g/prog.c
+index 23dde99c16..f3c4812654 100644
+--- a/src/cmd/6g/prog.c
++++ b/src/cmd/6g/prog.c
+@@ -38,12 +38,13 @@ static ProgInfo progtable[ALAST] = {
+ 	[ATEXT]=	{Pseudo},
+ 	[AFUNCDATA]=	{Pseudo},
+ 	[APCDATA]=	{Pseudo},
++	[AUNDEF]=	{OK},
++	[AUSEFIELD]=	{OK},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+ 	[ANOP]=		{LeftRead | RightWrite},
+ 
+-
+ 	[AADCL]=	{SizeL | LeftRead | RightRdwr | SetCarry | UseCarry},
+ 	[AADCQ]=	{SizeQ | LeftRead | RightRdwr | SetCarry | UseCarry},
+ 	[AADCW]=	{SizeW | LeftRead | RightRdwr | SetCarry | UseCarry},
+@@ -269,10 +270,6 @@ static ProgInfo progtable[ALAST] = {
+ 	[AUCOMISD]=	{SizeD | LeftRead | RightRead},
+ 	[AUCOMISS]=	{SizeF | LeftRead | RightRead},
+ 
+-	[AUNDEF]=	{OK},
+-
+-	[AUSEFIELD]=	{OK},
+-
+ 	[AXCHGB]=	{SizeB | LeftRdwr | RightRdwr},
+ 	[AXCHGL]=	{SizeL | LeftRdwr | RightRdwr},
+ 	[AXCHGQ]=	{SizeQ | LeftRdwr | RightRdwr},
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 549fd70a82..dd57f289f5 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -35,7 +35,6 @@
+ 
+ #define	NREGVAR	32	/* 16 general + 16 floating */
+ #define	REGBITS	((uint32)0xffffffff)
+-#define	P2R(p)	(Reg*)(p->reg)
+ 
+ static	int	first	= 1;
+ 
+@@ -153,8 +152,6 @@ static char* regname[] = {
+ 
+ static Node* regnodes[NREGVAR];
+ 
+-static void fixjmp(Prog*);
+-
+ void
+ regopt(Prog *firstp)
+ {
+@@ -234,7 +231,7 @@ regopt(Prog *firstp)
+ 			lastr = r;
+ 		}
+ 		r->prog = p;
+-		p->reg = r;
++		p->opt = r;
+ 
+ 		r1 = r->p1;
+ 		if(r1 != R) {
+@@ -305,7 +302,7 @@ regopt(Prog *firstp)
+ 		if(p->to.type == D_BRANCH) {
+ 			if(p->to.u.branch == P)
+ 				fatal("pnil %P", p);
+-			r1 = p->to.u.branch->reg;
++			r1 = p->to.u.branch->opt;
+ 			if(r1 == R)
+ 				fatal("rnil %P", p);
+ 			if(r1 == r) {
+@@ -1400,148 +1397,3 @@ dumpit(char *str, Reg *r0)
+ //		}
+ 	}
+ }
+-
+-static Sym*	symlist[10];
+-
+-int
+-noreturn(Prog *p)
+-{
+-	Sym *s;
+-	int i;
+-
+-	if(symlist[0] == S) {
+-		symlist[0] = pkglookup("panicindex", runtimepkg);
+-		symlist[1] = pkglookup("panicslice", runtimepkg);
+-		symlist[2] = pkglookup("throwinit", runtimepkg);
+-		symlist[3] = pkglookup("panic", runtimepkg);
+-		symlist[4] = pkglookup("panicwrap", runtimepkg);
+-	}
+-
+-	s = p->to.sym;
+-	if(s == S)
+-		return 0;
+-	for(i=0; symlist[i]!=S; i++)
+-		if(s == symlist[i])
+-			return 1;
+-	return 0;
+-}
+-
+-/*
+- * the code generator depends on being able to write out JMP
+- * instructions that it can jump to now but fill in later.
+- * the linker will resolve them nicely, but they make the code
+- * longer and more difficult to follow during debugging.
+- * remove them.
+- */
+-
+-/* what instruction does a JMP to p eventually land on? */
+-static Prog*
+-chasejmp(Prog *p, int *jmploop)
+-{
+-	int n;
+-
+-	n = 0;
+-	while(p != P && p->as == AJMP && p->to.type == D_BRANCH) {
+-		if(++n > 10) {
+-			*jmploop = 1;
+-			break;
+-		}
+-		p = p->to.u.branch;
+-	}
+-	return p;
+-}
+-
+-/*
+- * reuse reg pointer for mark/sweep state.
+- * leave reg==nil at end because alive==nil.
+- */
+-#define alive ((void*)0)
+-#define dead ((void*)1)
+-
+-/* mark all code reachable from firstp as alive */
+-static void
+-mark(Prog *firstp)
+-{
+-	Prog *p;
+-	
+-	for(p=firstp; p; p=p->link) {
+-		if(p->reg != dead)
+-			break;
+-		p->reg = alive;
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch)
+-			mark(p->to.u.branch);
+-		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
+-			break;
+-	}
+-}
+-
+-static void
+-fixjmp(Prog *firstp)
+-{
+-	int jmploop;
+-	Prog *p, *last;
+-	
+-	if(debug['R'] && debug['v'])
+-		print("\nfixjmp\n");
+-
+-	// pass 1: resolve jump to AJMP, mark all code as dead.
+-	jmploop = 0;
+-	for(p=firstp; p; p=p->link) {
+-		if(debug['R'] && debug['v'])
+-			print("%P\n", p);
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AJMP) {
+-			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
+-			if(debug['R'] && debug['v'])
+-				print("->%P\n", p);
+-		}
+-		p->reg = dead;
+-	}
+-	if(debug['R'] && debug['v'])
+-		print("\n");
+-
+-	// pass 2: mark all reachable code alive
+-	mark(firstp);
+-	
+-	// pass 3: delete dead code (mostly JMPs).
+-	last = nil;
+-	for(p=firstp; p; p=p->link) {
+-		if(p->reg == dead) {
+-			if(p->link == P && p->as == ARET && last && last->as != ARET) {
+-				// This is the final ARET, and the code so far doesn't have one.
+-				// Let it stay.
+-			} else {
+-				if(debug['R'] && debug['v'])
+-					print("del %P\n", p);
+-				continue;
+-			}
+-		}
+-		if(last)
+-			last->link = p;
+-		last = p;
+-	}
+-	last->link = P;
+-	
+-	// pass 4: elide JMP to next instruction.
+-	// only safe if there are no jumps to JMPs anymore.
+-	if(!jmploop) {
+-		last = nil;
+-		for(p=firstp; p; p=p->link) {
+-			if(p->as == AJMP && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
+-				if(debug['R'] && debug['v'])
+-					print("del %P\n", p);
+-				continue;
+-			}
+-			if(last)
+-				last->link = p;
+-			last = p;
+-		}
+-		last->link = P;
+-	}
+-	
+-	if(debug['R'] && debug['v']) {
+-		print("\n");
+-		for(p=firstp; p; p=p->link)
+-			print("%P\n", p);
+-		print("\n");
+-	}
+-}
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 6907d7ebb4..55fdded0b9 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -42,7 +42,7 @@ struct	Prog
+ 	Addr	from;		// src address
+ 	Addr	to;		// dst address
+ 	Prog*	link;		// next instruction in this func
+-	void*	reg;		// pointer to containing Reg struct
++	void*	opt;		// for optimizer passes
+ };
+ 
+ #define TEXTFLAG from.scale
+diff --git a/src/cmd/8g/opt.h b/src/cmd/8g/opt.h
+index dc2946108e..94a82124a1 100644
+--- a/src/cmd/8g/opt.h
++++ b/src/cmd/8g/opt.h
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	"../gc/popt.h"
++
+ #define	Z	N
+ #define	Adr	Addr
+ 
+@@ -50,7 +52,7 @@ typedef	struct	Rgn	Rgn;
+ // A Reg is a wrapper around a single Prog (one instruction) that holds
+ // register optimization information while the optimizer runs.
+ // r->prog is the instruction.
+-// r->prog->regp points back to r.
++// r->prog->opt points back to r.
+ struct	Reg
+ {
+ 
+@@ -141,7 +143,6 @@ void	paint3(Reg*, int, int32, int);
+ void	addreg(Adr*, int);
+ void	dumpone(Reg*);
+ void	dumpit(char*, Reg*);
+-int	noreturn(Prog *p);
+ 
+ /*
+  * peep.c
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 51eb687587..b4c092759a 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -99,7 +99,7 @@ peep(void)
+ 			r2->link = r1;
+ 
+ 			r2->prog = p;
+-			p->reg = r2;
++			p->opt = r2;
+ 
+ 			r2->p1 = r;
+ 			r->s1 = r2;
+diff --git a/src/cmd/8g/prog.c b/src/cmd/8g/prog.c
+index 80058ddf37..ca877ad128 100644
+--- a/src/cmd/8g/prog.c
++++ b/src/cmd/8g/prog.c
+@@ -38,6 +38,8 @@ static ProgInfo progtable[ALAST] = {
+ 	[ATEXT]=	{Pseudo},
+ 	[AFUNCDATA]=	{Pseudo},
+ 	[APCDATA]=	{Pseudo},
++	[AUNDEF]=	{OK},
++	[AUSEFIELD]=	{OK},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+@@ -287,10 +289,6 @@ static ProgInfo progtable[ALAST] = {
+ 	[AUCOMISD]=	{SizeD | LeftRead | RightRead},
+ 	[AUCOMISS]=	{SizeF | LeftRead | RightRead},
+ 
+-	[AUNDEF]=	{OK},
+-
+-	[AUSEFIELD]=	{OK},
+-
+ 	[AXCHGB]=	{SizeB | LeftRdwr | RightRdwr},
+ 	[AXCHGL]=	{SizeL | LeftRdwr | RightRdwr},
+ 	[AXCHGW]=	{SizeW | LeftRdwr | RightRdwr},
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 519ec774d1..042290cc5d 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -35,11 +35,9 @@
+ 
+ #define	NREGVAR	16	/* 8 integer + 8 floating */
+ #define	REGBITS	((uint32)0xffff)
+-#define	P2R(p)	(Reg*)(p->reg)
+ 
+ static	int	first	= 1;
+ 
+-static	void	fixjmp(Prog*);
+ static	void	fixtemp(Prog*);
+ 
+ Reg*
+@@ -206,7 +204,7 @@ regopt(Prog *firstp)
+ 			lastr = r;
+ 		}
+ 		r->prog = p;
+-		p->reg = r;
++		p->opt = r;
+ 
+ 		r1 = r->p1;
+ 		if(r1 != R) {
+@@ -277,7 +275,7 @@ regopt(Prog *firstp)
+ 		if(p->to.type == D_BRANCH) {
+ 			if(p->to.u.branch == P)
+ 				fatal("pnil %P", p);
+-			r1 = p->to.u.branch->reg;
++			r1 = p->to.u.branch->opt;
+ 			if(r1 == R)
+ 				fatal("rnil %P", p);
+ 			if(r1 == r) {
+@@ -1366,151 +1364,6 @@ dumpit(char *str, Reg *r0)
+ 	}
+ }
+ 
+-static Sym*	symlist[10];
+-
+-int
+-noreturn(Prog *p)
+-{
+-	Sym *s;
+-	int i;
+-
+-	if(symlist[0] == S) {
+-		symlist[0] = pkglookup("panicindex", runtimepkg);
+-		symlist[1] = pkglookup("panicslice", runtimepkg);
+-		symlist[2] = pkglookup("throwinit", runtimepkg);
+-		symlist[3] = pkglookup("panic", runtimepkg);
+-		symlist[4] = pkglookup("panicwrap", runtimepkg);
+-	}
+-
+-	s = p->to.sym;
+-	if(s == S)
+-		return 0;
+-	for(i=0; symlist[i]!=S; i++)
+-		if(s == symlist[i])
+-			return 1;
+-	return 0;
+-}
+-
+-/*
+- * the code generator depends on being able to write out JMP
+- * instructions that it can jump to now but fill in later.
+- * the linker will resolve them nicely, but they make the code
+- * longer and more difficult to follow during debugging.
+- * remove them.
+- */
+-
+-/* what instruction does a JMP to p eventually land on? */
+-static Prog*
+-chasejmp(Prog *p, int *jmploop)
+-{
+-	int n;
+-
+-	n = 0;
+-	while(p != P && p->as == AJMP && p->to.type == D_BRANCH) {
+-		if(++n > 10) {
+-			*jmploop = 1;
+-			break;
+-		}
+-		p = p->to.u.branch;
+-	}
+-	return p;
+-}
+-
+-/*
+- * reuse reg pointer for mark/sweep state.
+- * leave reg==nil at end because alive==nil.
+- */
+-#define alive ((void*)0)
+-#define dead ((void*)1)
+-
+-/* mark all code reachable from firstp as alive */
+-static void
+-mark(Prog *firstp)
+-{
+-	Prog *p;
+-	
+-	for(p=firstp; p; p=p->link) {
+-		if(p->reg != dead)
+-			break;
+-		p->reg = alive;
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch)
+-			mark(p->to.u.branch);
+-		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
+-			break;
+-	}
+-}
+-
+-static void
+-fixjmp(Prog *firstp)
+-{
+-	int jmploop;
+-	Prog *p, *last;
+-	
+-	if(debug['R'] && debug['v'])
+-		print("\nfixjmp\n");
+-
+-	// pass 1: resolve jump to AJMP, mark all code as dead.
+-	jmploop = 0;
+-	for(p=firstp; p; p=p->link) {
+-		if(debug['R'] && debug['v'])
+-			print("%P\n", p);
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AJMP) {
+-			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
+-			if(debug['R'] && debug['v'])
+-				print("->%P\n", p);
+-		}
+-		p->reg = dead;
+-	}
+-	if(debug['R'] && debug['v'])
+-		print("\n");
+-
+-	// pass 2: mark all reachable code alive
+-	mark(firstp);
+-	
+-	// pass 3: delete dead code (mostly JMPs).
+-	last = nil;
+-	for(p=firstp; p; p=p->link) {
+-		if(p->reg == dead) {
+-			if(p->link == P && p->as == ARET && last && last->as != ARET) {
+-				// This is the final ARET, and the code so far doesn't have one.
+-				// Let it stay.
+-			} else {
+-				if(debug['R'] && debug['v'])
+-					print("del %P\n", p);
+-				continue;
+-			}
+-		}
+-		if(last)
+-			last->link = p;
+-		last = p;
+-	}
+-	last->link = P;
+-	
+-	// pass 4: elide JMP to next instruction.
+-	// only safe if there are no jumps to JMPs anymore.
+-	if(!jmploop) {
+-		last = nil;
+-		for(p=firstp; p; p=p->link) {
+-			if(p->as == AJMP && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
+-				if(debug['R'] && debug['v'])
+-					print("del %P\n", p);
+-				continue;
+-			}
+-			if(last)
+-				last->link = p;
+-			last = p;
+-		}
+-		last->link = P;
+-	}
+-	
+-	if(debug['R'] && debug['v']) {
+-		print("\n");
+-		for(p=firstp; p; p=p->link)
+-			print("%P\n", p);
+-		print("\n");
+-	}
+-}
+-
+ static uint32
+ fnv1(Sym *sym)
+ {
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 4012744a58..07a47a3952 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -489,6 +489,7 @@ static struct {
+ 	{"cmd/gc", {
+ 		"-cplx.c",
+ 		"-pgen.c",
++		"-popt.c",
+ 		"-y1.tab.c",  // makefile dreg
+ 		"opnames.h",
+ 	}},
+@@ -513,18 +514,24 @@ static struct {
+ 	{"cmd/5g", {
+ 		"../gc/cplx.c",
+ 		"../gc/pgen.c",
++		"../gc/popt.c",
++		"../gc/popt.h",
+ 		"../5l/enam.c",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+ 	{"cmd/6g", {
+ 		"../gc/cplx.c",
+ 		"../gc/pgen.c",
++		"../gc/popt.c",
++		"../gc/popt.h",
+ 		"../6l/enam.c",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+ 	{"cmd/8g", {
+ 		"../gc/cplx.c",
+ 		"../gc/pgen.c",
++		"../gc/popt.c",
++		"../gc/popt.h",
+ 		"../8l/enam.c",
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index d465ab5c3c..f9ff41c1b0 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// "Portable" code generation.
++// Compiled separately for 5g, 6g, and 8g, so allowed to use gg.h, opt.h.
++// Must code to the intersection of the three back ends.
++
+ #include	<u.h>
+ #include	<libc.h>
+ #include	"gg.h"
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+new file mode 100644
+index 0000000000..f06587c644
+--- /dev/null
++++ b/src/cmd/gc/popt.c
+@@ -0,0 +1,183 @@
++// Derived from Inferno utils/6c/reg.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++// "Portable" optimizations.
++// Compiled separately for 5g, 6g, and 8g, so allowed to use gg.h, opt.h.
++// Must code to the intersection of the three back ends.
++
++#include	<u.h>
++#include	<libc.h>
++#include	"gg.h"
++#include	"opt.h"
++
++// p is a call instruction. Does the call fail to return?
++int
++noreturn(Prog *p)
++{
++	Sym *s;
++	int i;
++	static Sym*	symlist[10];
++
++	if(symlist[0] == S) {
++		symlist[0] = pkglookup("panicindex", runtimepkg);
++		symlist[1] = pkglookup("panicslice", runtimepkg);
++		symlist[2] = pkglookup("throwinit", runtimepkg);
++		symlist[3] = pkglookup("panic", runtimepkg);
++		symlist[4] = pkglookup("panicwrap", runtimepkg);
++	}
++
++	s = p->to.sym;
++	if(s == S)
++		return 0;
++	for(i=0; symlist[i]!=S; i++)
++		if(s == symlist[i])
++			return 1;
++	return 0;
++}
++
++// JMP chasing and removal.
++//
++// The code generator depends on being able to write out jump
++// instructions that it can jump to now but fill in later.
++// the linker will resolve them nicely, but they make the code
++// longer and more difficult to follow during debugging.
++// Remove them.
++
++/* what instruction does a JMP to p eventually land on? */
++static Prog*
++chasejmp(Prog *p, int *jmploop)
++{
++	int n;
++
++	n = 0;
++	while(p != P && p->as == AJMP && p->to.type == D_BRANCH) {
++		if(++n > 10) {
++			*jmploop = 1;
++			break;
++		}
++		p = p->to.u.branch;
++	}
++	return p;
++}
++
++/*
++ * reuse reg pointer for mark/sweep state.
++ * leave reg==nil at end because alive==nil.
++ */
++#define alive ((void*)0)
++#define dead ((void*)1)
++
++/* mark all code reachable from firstp as alive */
++static void
++mark(Prog *firstp)
++{
++	Prog *p;
++	
++	for(p=firstp; p; p=p->link) {
++		if(p->opt != dead)
++			break;
++		p->opt = alive;
++		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch)
++			mark(p->to.u.branch);
++		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
++			break;
++	}
++}
++
++void
++fixjmp(Prog *firstp)
++{
++	int jmploop;
++	Prog *p, *last;
++	
++	if(debug['R'] && debug['v'])
++		print("\nfixjmp\n");
++
++	// pass 1: resolve jump to jump, mark all code as dead.
++	jmploop = 0;
++	for(p=firstp; p; p=p->link) {
++		if(debug['R'] && debug['v'])
++			print("%P\n", p);
++		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AJMP) {
++			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
++			if(debug['R'] && debug['v'])
++				print("->%P\n", p);
++		}
++		p->opt = dead;
++	}
++	if(debug['R'] && debug['v'])
++		print("\n");
++
++	// pass 2: mark all reachable code alive
++	mark(firstp);
++	
++	// pass 3: delete dead code (mostly JMPs).
++	last = nil;
++	for(p=firstp; p; p=p->link) {
++		if(p->opt == dead) {
++			if(p->link == P && p->as == ARET && last && last->as != ARET) {
++				// This is the final ARET, and the code so far doesn't have one.
++				// Let it stay.
++			} else {
++				if(debug['R'] && debug['v'])
++					print("del %P\n", p);
++				continue;
++			}
++		}
++		if(last)
++			last->link = p;
++		last = p;
++	}
++	last->link = P;
++	
++	// pass 4: elide JMP to next instruction.
++	// only safe if there are no jumps to JMPs anymore.
++	if(!jmploop) {
++		last = nil;
++		for(p=firstp; p; p=p->link) {
++			if(p->as == AJMP && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
++				if(debug['R'] && debug['v'])
++					print("del %P\n", p);
++				continue;
++			}
++			if(last)
++				last->link = p;
++			last = p;
++		}
++		last->link = P;
++	}
++	
++	if(debug['R'] && debug['v']) {
++		print("\n");
++		for(p=firstp; p; p=p->link)
++			print("%P\n", p);
++		print("\n");
++	}
++}
+diff --git a/src/cmd/gc/popt.h b/src/cmd/gc/popt.h
+new file mode 100644
+index 0000000000..37875eaf48
+--- /dev/null
++++ b/src/cmd/gc/popt.h
+@@ -0,0 +1,6 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++void	fixjmp(Prog*);
++int	noreturn(Prog*);

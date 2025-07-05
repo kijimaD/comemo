@@ -7,6 +7,22 @@ Date:   Sun Aug 20 17:27:42 2017 -0700
     Change-Id: I159bd1313e617c929008f6ac54ec7d702293360b
     Reviewed-on: https://go-review.googlesource.com/57430
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/time_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 00ced4ba9b..fd464c0b18 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1203,8 +1203,8 @@ var defaultLocTests = []struct {
+ }
+ 
+ func TestDefaultLoc(t *testing.T) {
+-	//This test verifyes that all Time's methods behaves identical if loc is set
+-	//as nil or UTC
++	// Verify that all of Time's methods behave identically if loc is set to
++	// nil or UTC.
+ 	for _, tt := range defaultLocTests {
+ 		t1 := Time{}
+ 		t2 := Time{}.UTC()

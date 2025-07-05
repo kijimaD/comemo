@@ -20,6 +20,49 @@ Date:   Wed Oct 30 21:24:22 2019 -0400
     Change-Id: I01fa9b3cf0c9e9e66006040f6378a51fd78f0f39
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204437
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 22 +++++++++++++++-------
  1 file changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9f939e5c82..4c7451a114 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -384,7 +384,19 @@ func (ctxt *Link) loadlib() {
+ 	ctxt.cgo_export_static = make(map[string]bool)
+ 	ctxt.cgo_export_dynamic = make(map[string]bool)
+ 
+-	loadinternal(ctxt, "runtime")
++	// ctxt.Library grows during the loop, so not a range loop.
++	i := 0
++	for ; i < len(ctxt.Library); i++ {
++		lib := ctxt.Library[i]
++		if lib.Shlib == "" {
++			if ctxt.Debugvlog > 1 {
++				ctxt.Logf("autolib: %s (from %s)\n", lib.File, lib.Objref)
++			}
++			loadobjfile(ctxt, lib)
++		}
++	}
++
++	// load internal packages, if not already
+ 	if ctxt.Arch.Family == sys.ARM {
+ 		loadinternal(ctxt, "math")
+ 	}
+@@ -394,14 +406,10 @@ func (ctxt *Link) loadlib() {
+ 	if *flagMsan {
+ 		loadinternal(ctxt, "runtime/msan")
+ 	}
+-
+-	// ctxt.Library grows during the loop, so not a range loop.
+-	for i := 0; i < len(ctxt.Library); i++ {
++	loadinternal(ctxt, "runtime")
++	for ; i < len(ctxt.Library); i++ {
+ 		lib := ctxt.Library[i]
+ 		if lib.Shlib == "" {
+-			if ctxt.Debugvlog > 1 {
+-				ctxt.Logf("autolib: %s (from %s)\n", lib.File, lib.Objref)
+-			}
+ 			loadobjfile(ctxt, lib)
+ 		}
+ 	}

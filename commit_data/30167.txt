@@ -30,6 +30,29 @@ Date:   Wed Oct 26 14:31:48 2016 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/unicode/utf8/utf8.go | 12 +++++-------
  1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index 2ff79f6683..6ccd464373 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -516,12 +516,10 @@ func ValidString(s string) bool {
+ // Code points that are out of range or a surrogate half are illegal.
+ func ValidRune(r rune) bool {
+ 	switch {
+-	case r < 0:
+-		return false
+-	case surrogateMin <= r && r <= surrogateMax:
+-		return false
+-	case r > MaxRune:
+-		return false
++	case 0 <= r && r < surrogateMin:
++		return true
++	case surrogateMax < r && r <= MaxRune:
++		return true
+ 	}
+-	return true
++	return false
+ }

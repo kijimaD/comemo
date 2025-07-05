@@ -18,6 +18,20 @@ Date:   Fri Apr 23 22:20:55 2021 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/mgcscavenge.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 7e32348670..7578129f9d 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -372,7 +372,7 @@ func bgscavenge() {
+ 		// Due to OS-related anomalies we may "sleep" for an inordinate amount
+ 		// of time. Let's avoid letting the ratio get out of hand by bounding
+ 		// the sleep time we use in our EWMA.
+-		const minFraction = 1 / 1000
++		const minFraction = 1.0 / 1000.0
+ 		if fraction < minFraction {
+ 			fraction = minFraction
+ 		}

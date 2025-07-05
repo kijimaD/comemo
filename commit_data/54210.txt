@@ -11,6 +11,20 @@ Date:   Thu Sep 29 12:13:16 2022 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
+index 09354d2306..8568048507 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
+@@ -39,8 +39,6 @@ type inodeLock struct {
+ 	queue []<-chan File
+ }
+ 
+-type token struct{}
+-
+ var (
+ 	mu     sync.Mutex
+ 	inodes = map[File]inode{}

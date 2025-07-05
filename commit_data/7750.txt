@@ -15,6 +15,26 @@ Date:   Fri Mar 11 18:01:28 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4275042
-
+---
  src/pkg/net/fd.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 2ba9296f31..ad1a7c29a9 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -215,10 +215,10 @@ func (s *pollServer) Run() {
+ 			continue
+ 		}
+ 		if fd == s.pr.Fd() {
+-			// Drain our wakeup pipe.
+-			for nn, _ := s.pr.Read(scratch[0:]); nn > 0; {
+-				nn, _ = s.pr.Read(scratch[0:])
+-			}
++			// Drain our wakeup pipe (we could loop here,
++			// but it's unlikely that there are more than
++			// len(scratch) wakeup calls).
++			s.pr.Read(scratch[0:])
+ 			// Read from channels
+ 		Update:
+ 			for {

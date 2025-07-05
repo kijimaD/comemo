@@ -6,6 +6,20 @@ Date:   Tue Nov 17 20:44:35 2009 -0800
     
     R=rsc
     https://golang.org/cl/156056
-
+---
  src/pkg/runtime/slice.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 00d9724fbe..02839e27cc 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -189,7 +189,7 @@ runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret)
+ 	}
+ 
+ 	ret = fm.len;
+-	if(to.len > ret)
++	if(to.len < ret)
+ 		ret = to.len;
+ 
+ 	memmove(to.array, fm.array, ret*width);

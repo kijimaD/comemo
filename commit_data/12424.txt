@@ -7,6 +7,20 @@ Date:   Wed Mar 7 01:10:55 2012 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5752058
-
+---
  src/pkg/time/tick_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/tick_test.go b/src/pkg/time/tick_test.go
+index 914f02c861..d8a086ceb2 100644
+--- a/src/pkg/time/tick_test.go
++++ b/src/pkg/time/tick_test.go
+@@ -22,7 +22,7 @@ func TestTicker(t *testing.T) {
+ 	dt := t1.Sub(t0)
+ 	target := Delta * Count
+ 	slop := target * 2 / 10
+-	if dt < target-slop || dt > target+slop {
++	if dt < target-slop || (!testing.Short() && dt > target+slop) {
+ 		t.Fatalf("%d %s ticks took %s, expected [%s,%s]", Count, Delta, dt, target-slop, target+slop)
+ 	}
+ 	// Now test that the ticker stopped

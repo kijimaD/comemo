@@ -52,7 +52,50 @@ Date:   Wed May 8 18:26:42 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/hex/hex.go      |  8 +++-----
  src/encoding/hex/hex_test.go | 12 ++++++++++++
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index 791d2bd4ad..ba9cc0f967 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -136,11 +136,9 @@ func EncodeToString(src []byte) string {
+ // If the input is malformed, DecodeString returns
+ // the bytes decoded before the error.
+ func DecodeString(s string) ([]byte, error) {
+-	src := []byte(s)
+-	// We can use the source slice itself as the destination
+-	// because the decode loop increments by one and then the 'seen' byte is not used anymore.
+-	n, err := Decode(src, src)
+-	return src[:n], err
++	dst := make([]byte, DecodedLen(len(s)))
++	n, err := Decode(dst, []byte(s))
++	return dst[:n], err
+ }
+ 
+ // Dump returns a string that contains a hex dump of the given data. The format
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index 03331eaae5..f90dec5315 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -275,6 +275,18 @@ func BenchmarkDecode(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkDecodeString(b *testing.B) {
++	for _, size := range []int{256, 1024, 4096, 16384} {
++		src := strings.Repeat("2b744faa", size/8)
++		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
++			b.SetBytes(int64(size))
++			for i := 0; i < b.N; i++ {
++				sink, _ = DecodeString(src)
++			}
++		})
++	}
++}
++
+ func BenchmarkDump(b *testing.B) {
+ 	for _, size := range []int{256, 1024, 4096, 16384} {
+ 		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)

@@ -9,7 +9,32 @@ Date:   Wed Sep 17 16:52:01 2014 -0400
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/142200043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index a835bab0df..5d7b870459 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -226,6 +226,7 @@ John C Barstow <jbowtie@amathaine.com>
+ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ John Howard Palevich <jack.palevich@gmail.com>
+ John Shahid <jvshahid@gmail.com>
++John Tuley <john@tuley.org>
+ Jonathan Gold <jgold.bg@gmail.com>
+ Jonathan Mark <jhmark@xenops.com>
+ Jonathan Rudenberg <jonathan@titanous.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4f70a4d572..09fec9f7ae 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -318,6 +318,7 @@ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ John Howard Palevich <jack.palevich@gmail.com>
+ John Newlin <jnewlin@google.com>
+ John Shahid <jvshahid@gmail.com>
++John Tuley <john@tuley.org>
+ Jonathan Allie <jonallie@google.com>
+ Jonathan Feinberg <feinberg@google.com>
+ Jonathan Gold <jgold.bg@gmail.com>

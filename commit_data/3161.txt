@@ -9,6 +9,33 @@ Date:   Mon Aug 31 17:57:14 2009 -0700
     DELTA=7  (0 added, 2 deleted, 5 changed)
     OCL=34158
     CL=34161
-
+---
  doc/go_spec.html | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9eebc7a258..cc37512a74 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1503,19 +1503,17 @@ to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
+ <pre class="ebnf">
+ TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
+ TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
+-TypeSpec     = identifier ( Type | "struct" | "interface" ) .
++TypeSpec     = identifier Type .
+ </pre>
+ 
+ <pre>
+-type IntArray [16] int
++type IntArray [16]int
+ 
+ type (
+ 	Point struct { x, y float };
+ 	Polar Point
+ )
+ 
+-type Comparable interface
+-
+ type TreeNode struct {
+ 	left, right *TreeNode;
+ 	value *Comparable;

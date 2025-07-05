@@ -12,7 +12,7 @@ Date:   Sun Oct 31 23:13:18 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/common.go                 | 38 +++++++++++++++++++++++++-------
  src/crypto/tls/handshake_client.go       |  8 +++----
  src/crypto/tls/handshake_server.go       |  6 ++---
@@ -20,3 +20,231 @@ Date:   Sun Oct 31 23:13:18 2021 -0400
  src/crypto/tls/handshake_server_tls13.go |  2 +-
  src/crypto/tls/handshake_test.go         |  2 ++
  6 files changed, 59 insertions(+), 17 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 610a5162dd..bb5bec3c4d 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -18,6 +18,7 @@ import (
+ 	"crypto/x509"
+ 	"errors"
+ 	"fmt"
++	"internal/godebug"
+ 	"io"
+ 	"net"
+ 	"strings"
+@@ -682,11 +683,20 @@ type Config struct {
+ 	ClientSessionCache ClientSessionCache
+ 
+ 	// MinVersion contains the minimum TLS version that is acceptable.
+-	// If zero, TLS 1.0 is currently taken as the minimum.
++	//
++	// By default, TLS 1.2 is currently used as the minimum when acting as a
++	// client, and TLS 1.0 when acting as a server. TLS 1.0 is the minimum
++	// supported by this package, both as a client and as a server.
++	//
++	// The client-side default can temporarily be reverted to TLS 1.0 by
++	// including the value "x509sha1=1" in the GODEBUG environment variable.
++	// Note that this option will be removed in Go 1.19 (but it will still be
++	// possible to set this field to VersionTLS10 explicitly).
+ 	MinVersion uint16
+ 
+ 	// MaxVersion contains the maximum TLS version that is acceptable.
+-	// If zero, the maximum version supported by this package is used,
++	//
++	// By default, the maximum version supported by this package is used,
+ 	// which is currently TLS 1.3.
+ 	MaxVersion uint16
+ 
+@@ -964,9 +974,21 @@ var supportedVersions = []uint16{
+ 	VersionTLS10,
+ }
+ 
+-func (c *Config) supportedVersions() []uint16 {
++// debugEnableTLS10 enables TLS 1.0. See issue 45428.
++var debugEnableTLS10 = godebug.Get("tls10default") == "1"
++
++// roleClient and roleServer are meant to call supportedVersions and parents
++// with more readability at the callsite.
++const roleClient = true
++const roleServer = false
++
++func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 	versions := make([]uint16, 0, len(supportedVersions))
+ 	for _, v := range supportedVersions {
++		if (c == nil || c.MinVersion == 0) && !debugEnableTLS10 &&
++			isClient && v < VersionTLS12 {
++			continue
++		}
+ 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
+ 			continue
+ 		}
+@@ -978,8 +1000,8 @@ func (c *Config) supportedVersions() []uint16 {
+ 	return versions
+ }
+ 
+-func (c *Config) maxSupportedVersion() uint16 {
+-	supportedVersions := c.supportedVersions()
++func (c *Config) maxSupportedVersion(isClient bool) uint16 {
++	supportedVersions := c.supportedVersions(isClient)
+ 	if len(supportedVersions) == 0 {
+ 		return 0
+ 	}
+@@ -1020,8 +1042,8 @@ func (c *Config) supportsCurve(curve CurveID) bool {
+ 
+ // mutualVersion returns the protocol version to use given the advertised
+ // versions of the peer. Priority is given to the peer preference order.
+-func (c *Config) mutualVersion(peerVersions []uint16) (uint16, bool) {
+-	supportedVersions := c.supportedVersions()
++func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
++	supportedVersions := c.supportedVersions(isClient)
+ 	for _, peerVersion := range peerVersions {
+ 		for _, v := range supportedVersions {
+ 			if v == peerVersion {
+@@ -1100,7 +1122,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
+ 	if config == nil {
+ 		config = &Config{}
+ 	}
+-	vers, ok := config.mutualVersion(chi.SupportedVersions)
++	vers, ok := config.mutualVersion(roleServer, chi.SupportedVersions)
+ 	if !ok {
+ 		return errors.New("no mutually supported protocol versions")
+ 	}
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 4af3d998a3..2ae6f3f534 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -52,12 +52,12 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
+ 		return nil, nil, errors.New("tls: NextProtos values too large")
+ 	}
+ 
+-	supportedVersions := config.supportedVersions()
++	supportedVersions := config.supportedVersions(roleClient)
+ 	if len(supportedVersions) == 0 {
+ 		return nil, nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
+ 	}
+ 
+-	clientHelloVersion := config.maxSupportedVersion()
++	clientHelloVersion := config.maxSupportedVersion(roleClient)
+ 	// The version at the beginning of the ClientHello was capped at TLS 1.2
+ 	// for compatibility reasons. The supported_versions extension is used
+ 	// to negotiate versions now. See RFC 8446, Section 4.2.1.
+@@ -194,7 +194,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
+ 	// If we are negotiating a protocol version that's lower than what we
+ 	// support, check for the server downgrade canaries.
+ 	// See RFC 8446, Section 4.1.3.
+-	maxVers := c.config.maxSupportedVersion()
++	maxVers := c.config.maxSupportedVersion(roleClient)
+ 	tls12Downgrade := string(serverHello.random[24:]) == downgradeCanaryTLS12
+ 	tls11Downgrade := string(serverHello.random[24:]) == downgradeCanaryTLS11
+ 	if maxVers == VersionTLS13 && c.vers <= VersionTLS12 && (tls12Downgrade || tls11Downgrade) ||
+@@ -362,7 +362,7 @@ func (c *Conn) pickTLSVersion(serverHello *serverHelloMsg) error {
+ 		peerVersion = serverHello.supportedVersion
+ 	}
+ 
+-	vers, ok := c.config.mutualVersion([]uint16{peerVersion})
++	vers, ok := c.config.mutualVersion(roleClient, []uint16{peerVersion})
+ 	if !ok {
+ 		c.sendAlert(alertProtocolVersion)
+ 		return fmt.Errorf("tls: server selected unsupported protocol version %x", peerVersion)
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 43f30e2fef..5cb152755b 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -156,7 +156,7 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
+ 	if len(clientHello.supportedVersions) == 0 {
+ 		clientVersions = supportedVersionsFromMax(clientHello.vers)
+ 	}
+-	c.vers, ok = c.config.mutualVersion(clientVersions)
++	c.vers, ok = c.config.mutualVersion(roleServer, clientVersions)
+ 	if !ok {
+ 		c.sendAlert(alertProtocolVersion)
+ 		return nil, fmt.Errorf("tls: client offered only unsupported versions: %x", clientVersions)
+@@ -191,7 +191,7 @@ func (hs *serverHandshakeState) processClientHello() error {
+ 	hs.hello.random = make([]byte, 32)
+ 	serverRandom := hs.hello.random
+ 	// Downgrade protection canaries. See RFC 8446, Section 4.1.3.
+-	maxVers := c.config.maxSupportedVersion()
++	maxVers := c.config.maxSupportedVersion(roleServer)
+ 	if maxVers >= VersionTLS12 && c.vers < maxVers || testingOnlyForceDowngradeCanary {
+ 		if c.vers == VersionTLS12 {
+ 			copy(serverRandom[24:], downgradeCanaryTLS12)
+@@ -354,7 +354,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
+ 	for _, id := range hs.clientHello.cipherSuites {
+ 		if id == TLS_FALLBACK_SCSV {
+ 			// The client is doing a fallback connection. See RFC 7507.
+-			if hs.clientHello.vers < c.config.maxSupportedVersion() {
++			if hs.clientHello.vers < c.config.maxSupportedVersion(roleServer) {
+ 				c.sendAlert(alertInappropriateFallback)
+ 				return errors.New("tls: client using inappropriate protocol fallback")
+ 			}
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index f61b4c88ef..5fb2ebbbb3 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -385,13 +385,30 @@ func TestVersion(t *testing.T) {
+ 	}
+ 	clientConfig := &Config{
+ 		InsecureSkipVerify: true,
++		MinVersion:         VersionTLS10,
+ 	}
+ 	state, _, err := testHandshake(t, clientConfig, serverConfig)
+ 	if err != nil {
+ 		t.Fatalf("handshake failed: %s", err)
+ 	}
+ 	if state.Version != VersionTLS11 {
+-		t.Fatalf("Incorrect version %x, should be %x", state.Version, VersionTLS11)
++		t.Fatalf("incorrect version %x, should be %x", state.Version, VersionTLS11)
++	}
++
++	clientConfig.MinVersion = 0
++	_, _, err = testHandshake(t, clientConfig, serverConfig)
++	if err == nil {
++		t.Fatalf("expected failure to connect with TLS 1.0/1.1")
++	}
++
++	defer func(old bool) { debugEnableTLS10 = old }(debugEnableTLS10)
++	debugEnableTLS10 = true
++	_, _, err = testHandshake(t, clientConfig, serverConfig)
++	if err != nil {
++		t.Fatalf("handshake failed: %s", err)
++	}
++	if state.Version != VersionTLS11 {
++		t.Fatalf("incorrect version %x, should be %x", state.Version, VersionTLS11)
+ 	}
+ }
+ 
+@@ -472,6 +489,7 @@ func testCrossVersionResume(t *testing.T, version uint16) {
+ 		InsecureSkipVerify: true,
+ 		ClientSessionCache: NewLRUClientSessionCache(1),
+ 		ServerName:         "servername",
++		MinVersion:         VersionTLS10,
+ 	}
+ 
+ 	// Establish a session at TLS 1.1.
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 08251b84de..0b19502762 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -110,7 +110,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
+ 		if id == TLS_FALLBACK_SCSV {
+ 			// Use c.vers instead of max(supported_versions) because an attacker
+ 			// could defeat this by adding an arbitrary high version otherwise.
+-			if c.vers < c.config.maxSupportedVersion() {
++			if c.vers < c.config.maxSupportedVersion(roleServer) {
+ 				c.sendAlert(alertInappropriateFallback)
+ 				return errors.New("tls: client using inappropriate protocol fallback")
+ 			}
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index 90ac9bd11e..bacc8b7d4f 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -363,6 +363,8 @@ func runMain(m *testing.M) int {
+ 		Certificates:       make([]Certificate, 2),
+ 		InsecureSkipVerify: true,
+ 		CipherSuites:       allCipherSuites(),
++		MinVersion:         VersionTLS10,
++		MaxVersion:         VersionTLS13,
+ 	}
+ 	testConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
+ 	testConfig.Certificates[0].PrivateKey = testRSAPrivateKey

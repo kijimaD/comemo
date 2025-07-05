@@ -15,9 +15,179 @@ Date:   Fri Aug 29 11:08:10 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/136770043
-
+---
  src/pkg/runtime/mgc0.c    |  2 +-
  src/pkg/runtime/proc.c    | 44 +++++++++-----------------------------------
  src/pkg/runtime/proc.go   | 21 +++++++++++++++++++++
  src/pkg/runtime/runtime.h |  9 +++++++++
  4 files changed, 40 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 4933712571..03eb2d9866 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1450,7 +1450,7 @@ gc(struct gc_args *args)
+ 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*runtime·gcpercent/100;
+ 
+ 	t4 = runtime·nanotime();
+-	mstats.last_gc = runtime·unixnanotime();  // must be Unix time to make sense to user
++	runtime·atomicstore64(&mstats.last_gc, runtime·unixnanotime());  // must be Unix time to make sense to user
+ 	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t4 - t0;
+ 	mstats.pause_total_ns += t4 - t0;
+ 	mstats.numgc++;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 194928373c..66c5d475bb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -88,6 +88,7 @@ static	Mutex allglock;	// the following vars are protected by this lock or by st
+ G**	runtime·allg;
+ uintptr runtime·allglen;
+ static	uintptr allgcap;
++ForceGCState	runtime·forcegc;
+ 
+ void runtime·mstart(void);
+ static void runqput(P*, G*);
+@@ -130,15 +131,6 @@ static bool exitsyscallfast(void);
+ static bool haveexperiment(int8*);
+ static void allgadd(G*);
+ 
+-static void forcegchelper(void);
+-static struct
+-{
+-	Mutex	lock;
+-	G*	g;
+-	FuncVal	fv;
+-	uint32	idle;
+-} forcegc;
+-
+ extern String runtime·buildVersion;
+ 
+ // The bootstrap sequence is:
+@@ -254,8 +246,6 @@ runtime·main(void)
+ 
+ 	if(g->m != &runtime·m0)
+ 		runtime·throw("runtime·main not on m0");
+-	forcegc.fv.fn = forcegchelper;
+-	forcegc.g = runtime·newproc1(&forcegc.fv, nil, 0, 0, runtime·main);
+ 	main·init();
+ 
+ 	if(g->defer != &d || d.fn != &initDone)
+@@ -2779,7 +2769,7 @@ static void
+ sysmon(void)
+ {
+ 	uint32 idle, delay, nscavenge;
+-	int64 now, unixnow, lastpoll, lasttrace;
++	int64 now, unixnow, lastpoll, lasttrace, lastgc;
+ 	int64 forcegcperiod, scavengelimit, lastscavenge, maxsleep;
+ 	G *gp;
+ 
+@@ -2854,12 +2844,13 @@ sysmon(void)
+ 			idle++;
+ 
+ 		// check if we need to force a GC
+-		if(unixnow - mstats.last_gc > forcegcperiod && runtime·atomicload(&forcegc.idle)) {
+-			runtime·lock(&forcegc.lock);
+-			forcegc.idle = 0;
+-			forcegc.g->schedlink = nil;
+-			injectglist(forcegc.g);
+-			runtime·unlock(&forcegc.lock);
++		lastgc = runtime·atomicload64(&mstats.last_gc);
++		if(lastgc != 0 && unixnow - lastgc > forcegcperiod && runtime·atomicload(&runtime·forcegc.idle)) {
++			runtime·lock(&runtime·forcegc.lock);
++			runtime·forcegc.idle = 0;
++			runtime·forcegc.g->schedlink = nil;
++			injectglist(runtime·forcegc.g);
++			runtime·unlock(&runtime·forcegc.lock);
+ 		}
+ 
+ 		// scavenge heap once in a while
+@@ -2943,23 +2934,6 @@ retake(int64 now)
+ 	return n;
+ }
+ 
+-static void
+-forcegchelper(void)
+-{
+-	g->issystem = true;
+-	for(;;) {
+-		runtime·lock(&forcegc.lock);
+-		if(forcegc.idle)
+-			runtime·throw("forcegc: phase error");
+-		runtime·atomicstore(&forcegc.idle, 1);
+-		runtime·parkunlock(&forcegc.lock, runtime·gostringnocopy((byte*)"force gc (idle)"));
+-		// this goroutine is explicitly resumed by sysmon
+-		if(runtime·debug.gctrace > 0)
+-			runtime·printf("GC forced\n");
+-		runtime·gc(1);
+-	}
+-}
+-
+ // Tell all goroutines that they have been preempted and they should stop.
+ // This function is purely best-effort.  It can fail to inform a goroutine if a
+ // processor just started running it.
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index 32fe35e28c..6c295c7b18 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -29,6 +29,27 @@ const (
+ 
+ var parkunlock_c byte
+ 
++// start forcegc helper goroutine
++func init() {
++	go func() {
++		forcegc.g = getg()
++		forcegc.g.issystem = true
++		for {
++			lock(&forcegc.lock)
++			if forcegc.idle != 0 {
++				gothrow("forcegc: phase error")
++			}
++			atomicstore(&forcegc.idle, 1)
++			goparkunlock(&forcegc.lock, "force gc (idle)")
++			// this goroutine is explicitly resumed by sysmon
++			if debug.gctrace > 0 {
++				println("GC forced")
++			}
++			gogc(1)
++		}
++	}()
++}
++
+ // Gosched yields the processor, allowing other goroutines to run.  It does not
+ // suspend the current goroutine, so execution resumes automatically.
+ func Gosched() {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 4dfc4f2c42..21ccb76b3c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -92,6 +92,7 @@ typedef	struct	ParForThread	ParForThread;
+ typedef	struct	CgoMal		CgoMal;
+ typedef	struct	PollDesc	PollDesc;
+ typedef	struct	DebugVars	DebugVars;
++typedef struct	ForceGCState	ForceGCState;
+ 
+ /*
+  * Per-CPU declaration.
+@@ -572,6 +573,13 @@ struct DebugVars
+ 	int32	scavenge;
+ };
+ 
++struct ForceGCState
++{
++	Mutex	lock;
++	G*	g;
++	uint32	idle;
++};
++
+ extern bool runtime·precisestack;
+ extern bool runtime·copystack;
+ 
+@@ -774,6 +782,7 @@ extern	uint32	runtime·cpuid_edx;
+ extern	DebugVars	runtime·debug;
+ extern	uintptr	runtime·maxstacksize;
+ extern	Note	runtime·signote;
++extern	ForceGCState	runtime·forcegc;
+ 
+ /*
+  * common functions and data

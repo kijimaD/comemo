@@ -9,7 +9,33 @@ Date:   Sat Nov 14 10:28:53 2009 -0800
     
     R=agl1
     https://golang.org/cl/154136
-
+---
  src/pkg/crypto/subtle/constant_time.go | 2 +-
  src/pkg/encoding/binary/binary_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/subtle/constant_time.go b/src/pkg/crypto/subtle/constant_time.go
+index edbfa84fb2..79a96ec963 100644
+--- a/src/pkg/crypto/subtle/constant_time.go
++++ b/src/pkg/crypto/subtle/constant_time.go
+@@ -23,7 +23,7 @@ func ConstantTimeCompare(x, y []byte) int {
+ // Its behavior is undefined if v takes any other value.
+ func ConstantTimeSelect(v, x, y int) int	{ return ^(v-1)&x | (v-1)&y }
+ 
+-// ConstantTimeByteEq returns 1 if x == x and 0 otherwise.
++// ConstantTimeByteEq returns 1 if x == y and 0 otherwise.
+ func ConstantTimeByteEq(x, y uint8) int {
+ 	z := ^(x ^ y);
+ 	z &= z >> 4;
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index 078a13a530..71c6875cc9 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -81,6 +81,6 @@ little:
+ 		t.Errorf("Read little-endian: %v", err)
+ 	}
+ 	if !reflect.DeepEqual(sl, s) {
+-		t.Errorf("Read big-endian:\n\thave %+v\n\twant %+v", sl, s)
++		t.Errorf("Read little-endian:\n\thave %+v\n\twant %+v", sl, s)
+ 	}
+ }

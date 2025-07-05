@@ -7,6 +7,25 @@ Date:   Mon Sep 19 15:36:06 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5059046
-
+---
  doc/docs.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index ce833fdd1a..b6e8028e4d 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -122,6 +122,13 @@ Notable articles from the <a href="http://blog.golang.org/">Go Blog</a>.
+ <li><a href="http://code.google.com/p/ac-me/downloads/detail?name=fango.pdf">Effective Go and Tutorial</a></li>
+ </ul>
+ 
++<h3 id="docs_fr">French &mdash; Français</h3>
++
++<ul>
++<li>
++<a href="http://code.google.com/p/golang-france/">golang-france</a> - Go documentation.
++</ul>
++
+ <h3 id="docs_de">German &mdash; Deutsch</h3>
+ 
+ <ul>

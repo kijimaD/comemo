@@ -35,7 +35,7 @@ Date:   Thu Nov 1 12:25:41 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/vet/all/whitelist/386.txt |  3 ---
  src/runtime/asm.s                 |  8 ++++++++
  src/runtime/os_nacl.go            |  9 +++++++++
@@ -43,3 +43,94 @@ Date:   Thu Nov 1 12:25:41 2018 -0400
  src/runtime/stubs_386.go          |  8 ++++++++
  src/syscall/asm_windows.s         | 11 +++++++++++
  6 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 2495d831aa..3dbb340cbd 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -18,6 +18,3 @@ runtime/asm_386.s: [386] aeshashbody: function aeshashbody missing Go declaratio
+ runtime/asm_386.s: [386] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_386.s: [386] duffzero: function duffzero missing Go declaration
+ runtime/duff_386.s: [386] duffcopy: function duffcopy missing Go declaration
+-
+-runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go declaration
+-runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 6b209b2d1f..314f99d69b 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -38,3 +38,11 @@ GLOBL runtime·memstats(SB), NOPTR, $0
+ // This function must be sizeofSkipFunction bytes.
+ TEXT runtime·skipPleaseUseCallersFrames(SB),NOSPLIT,$0-0
+ 	SKIP64; SKIP64; SKIP64; SKIP64
++
++// abi0Syms is a dummy symbol that creates ABI0 wrappers for Go
++// functions called from assembly in other packages.
++TEXT abi0Syms<>(SB),NOSPLIT,$0-0
++	// obj assumes it can call morestack* using ABI0, but
++	// morestackc is actually defined in Go.
++	CALL ·morestackc(SB)
++	// References from syscall are automatically collected by cmd/go.
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index ac7bf69582..155b763c3d 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -317,3 +317,12 @@ int8 nacl_irt_thread_v0_1_str[] = "nacl-irt-thread-0.1";
+ void *nacl_irt_thread_v0_1[3]; // thread_create, thread_exit, thread_nice
+ int32 nacl_irt_thread_v0_1_size = sizeof(nacl_irt_thread_v0_1);
+ */
++
++// The following functions are implemented in runtime assembly.
++// Provide a Go declaration to go with its assembly definitions.
++
++//go:linkname syscall_naclWrite syscall.naclWrite
++func syscall_naclWrite(fd int, b []byte) int
++
++//go:linkname syscall_now syscall.now
++func syscall_now() (sec int64, nsec int32)
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 4420c5df2b..08d53a10d2 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -294,6 +294,10 @@ var racearenaend uintptr
+ func racefuncenter(uintptr)
+ func racefuncenterfp()
+ func racefuncexit()
++func raceread(uintptr)
++func racewrite(uintptr)
++func racereadrange(addr, size uintptr)
++func racewriterange(addr, size uintptr)
+ func racereadrangepc1(uintptr, uintptr, uintptr)
+ func racewriterangepc1(uintptr, uintptr, uintptr)
+ func racecallbackthunk(uintptr)
+diff --git a/src/runtime/stubs_386.go b/src/runtime/stubs_386.go
+new file mode 100644
+index 0000000000..01d92d399f
+--- /dev/null
++++ b/src/runtime/stubs_386.go
+@@ -0,0 +1,8 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++func float64touint32(a float64) uint32
++func uint32tofloat64(a uint32) float64
+diff --git a/src/syscall/asm_windows.s b/src/syscall/asm_windows.s
+new file mode 100644
+index 0000000000..e965914330
+--- /dev/null
++++ b/src/syscall/asm_windows.s
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// abi0Syms is a dummy symbol that creates ABI0 wrappers for Go
++// functions called from assembly in other packages.
++TEXT abi0Syms<>(SB),NOSPLIT,$0-0
++	CALL ·getprocaddress(SB)
++	CALL ·loadlibrary(SB)

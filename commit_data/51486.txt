@@ -10,6 +10,21 @@ Date:   Fri Feb 4 17:11:18 2022 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/testing/testing.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index a8c8122aa7..df4dfe4490 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -202,8 +202,7 @@
+ // mode, the fuzz test acts much like a regular test, with subtests started
+ // with F.Fuzz instead of T.Run.
+ //
+-// TODO(#48255): write and link to documentation that will be helpful to users
+-// who are unfamiliar with fuzzing.
++// See https://go.dev/doc/fuzz for documentation about fuzzing.
+ //
+ // Skipping
+ //

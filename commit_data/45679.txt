@@ -13,7 +13,7 @@ Date:   Tue Oct 20 19:52:21 2020 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/263997
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Filippo Valsorda <filippo@golang.org>
-
+---
  README.boringcrypto.md                             |   4 +-
  misc/boring/VERSION                                |   2 +-
  src/crypto/internal/boring/Dockerfile              |  42 ++++++++++++++
@@ -26,3 +26,338 @@ Date:   Tue Oct 20 19:52:21 2020 +0200
  src/crypto/internal/boring/goboringcrypto.h        |   4 +-
  .../boring/goboringcrypto_linux_amd64.syso         | Bin 9713384 -> 10865904 bytes
  11 files changed, 78 insertions(+), 132 deletions(-)
+
+diff --git a/README.boringcrypto.md b/README.boringcrypto.md
+index dc4fcc911a..54adda6569 100644
+--- a/README.boringcrypto.md
++++ b/README.boringcrypto.md
+@@ -2,13 +2,13 @@
+ 
+ We have been working inside Google on a fork of Go that uses
+ BoringCrypto (the core of [BoringSSL][]) for various crypto
+-primitives, in furtherance of some [work related to FIPS 140-2][3318].
++primitives, in furtherance of some [work related to FIPS 140-2][sp].
+ We have heard that some external users of Go would be interested in
+ this code as well, so this branch holds the patches to make Go use
+ BoringCrypto.
+ 
+ [BoringSSL]: https://boringssl.googlesource.com/boringssl/
+-[3318]: https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf
++[sp]: https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
+ 
+ Unlike typical dev branches, we do not intend any eventual merge of
+ this code into the master branch. Instead we intend to maintain in
+diff --git a/misc/boring/VERSION b/misc/boring/VERSION
+index 1e8b314962..7f8f011eb7 100644
+--- a/misc/boring/VERSION
++++ b/misc/boring/VERSION
+@@ -1 +1 @@
+-6
++7
+diff --git a/src/crypto/internal/boring/Dockerfile b/src/crypto/internal/boring/Dockerfile
+new file mode 100644
+index 0000000000..811a6dc379
+--- /dev/null
++++ b/src/crypto/internal/boring/Dockerfile
+@@ -0,0 +1,42 @@
++# Copyright 2020 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This Docker image builds goboringcrypto_linux_amd64.syso according to the
++# Security Policy. To use it, build the image, run it, and then extract
++# /boring/godriver/goboringcrypto_linux_amd64.syso.
++#
++#   $ docker build -t goboring:140sp3678 .
++#   $ docker run -it --name goboring-140sp3678 goboring:140sp3678
++#   $ docker cp goboring-140sp3678:/boring/godriver/goboringcrypto_linux_amd64.syso .
++#   $ sha256sum goboringcrypto_linux_amd64.syso # compare to docker output
++
++FROM ubuntu:focal
++
++RUN mkdir /boring
++WORKDIR /boring
++
++# Following 140sp3678.pdf [0] page 19, install clang 7.0.1, Go 1.12.7, and
++# Ninja 1.9.0, then download and verify BoringSSL.
++#
++# [0]: https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
++
++RUN apt-get update && \
++        apt-get install --no-install-recommends -y cmake xz-utils wget unzip ca-certificates clang-7
++RUN wget https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip && \
++        unzip ninja-linux.zip && \
++        rm ninja-linux.zip && \
++        mv ninja /usr/local/bin/
++RUN wget https://golang.org/dl/go1.12.7.linux-amd64.tar.gz && \
++        tar -C /usr/local -xzf go1.12.7.linux-amd64.tar.gz && \
++        rm go1.12.7.linux-amd64.tar.gz && \
++        ln -s /usr/local/go/bin/go /usr/local/bin/
++
++RUN wget https://commondatastorage.googleapis.com/chromium-boringssl-fips/boringssl-ae223d6138807a13006342edfeef32e813246b39.tar.xz
++RUN [ "$(sha256sum boringssl-ae223d6138807a13006342edfeef32e813246b39.tar.xz | awk '{print $1}')" = \
++        3b5fdf23274d4179c2077b5e8fa625d9debd7a390aac1d165b7e47234f648bb8 ]
++
++ADD goboringcrypto.h /boring/godriver/goboringcrypto.h
++ADD build.sh /boring/build.sh
++
++ENTRYPOINT ["/boring/build.sh"]
+diff --git a/src/crypto/internal/boring/LICENSE b/src/crypto/internal/boring/LICENSE
+index 58ce9601a3..fc103a79d4 100644
+--- a/src/crypto/internal/boring/LICENSE
++++ b/src/crypto/internal/boring/LICENSE
+@@ -4,7 +4,7 @@ are covered by the usual Go license (see ../../../../LICENSE).
+ The goboringcrypto_linux_amd64.syso object file is built
+ from BoringSSL source code by build/build.sh and is covered
+ by the BoringSSL license reproduced below and also at
+-https://boringssl.googlesource.com/boringssl/+/fips-20180730/LICENSE.
++https://boringssl.googlesource.com/boringssl/+/fips-20190808/LICENSE.
+ 
+ BoringSSL is a fork of OpenSSL. As such, large parts of it fall under OpenSSL
+ licensing. Files that are completely new have a Google copyright and an ISC
+diff --git a/src/crypto/internal/boring/build/build_in_chroot.sh b/src/crypto/internal/boring/build.sh
+similarity index 80%
+rename from src/crypto/internal/boring/build/build_in_chroot.sh
+rename to src/crypto/internal/boring/build.sh
+index 73597e11fd..ab8c45320b 100755
+--- a/src/crypto/internal/boring/build/build_in_chroot.sh
++++ b/src/crypto/internal/boring/build.sh
+@@ -1,50 +1,47 @@
+ #!/bin/bash
+-# Copyright 2017 The Go Authors. All rights reserved.
++# Copyright 2020 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-echo running build_in_chroot.sh
+ id
+ date
+ export LANG=C
+ unset LANGUAGE
+ 
+ # Build BoringCrypto libcrypto.a.
+-# Following https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf page 19.
+-if ! [ -e ./boringssl/build/tool/bssl ]; then
+-	export PATH=$PATH:/usr/lib/go-1.10/bin:/clangbin
+-
+-	# Go requires -fPIC for linux/amd64 cgo builds.
+-	# Setting -fPIC only affects the compilation of the non-module code in libcrypto.a,
+-	# because the FIPS module itself is already built with -fPIC.
+-	mkdir /clangbin
+-	echo '#!/bin/bash
+-	exec clang-6.0 -fPIC "$@"
+-	' >/clangbin/clang
+-	echo '#!/bin/bash
+-	exec clang++-6.0 -fPIC "$@"
+-	' >/clangbin/clang++
+-	chmod +x /clangbin/clang /clangbin/clang++
+-
+-	rm -rf boringssl
+-	tar xJf ../boringssl-*z
+-	cd boringssl
+-
+-	# Verbatim instructions from BoringCrypto build docs.
+-	printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
+-	mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
+-	ninja
+-	ninja run_tests
+-
+-	cd ../..
+-fi
++# Following https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf page 19.
++
++tar xJf boringssl-*z
++
++# Go requires -fPIC for linux/amd64 cgo builds.
++# Setting -fPIC only affects the compilation of the non-module code in libcrypto.a,
++# because the FIPS module itself is already built with -fPIC.
++echo '#!/bin/bash
++exec clang-7 -fPIC "$@"
++' >/usr/local/bin/clang
++echo '#!/bin/bash
++exec clang++-7 -fPIC "$@"
++' >/usr/local/bin/clang++
++chmod +x /usr/local/bin/clang /usr/local/bin/clang++
++
++# The BoringSSL tests use Go, and cgo would look for gcc.
++export CGO_ENABLED=0
++
++# Verbatim instructions from BoringCrypto build docs.
++printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
++cd boringssl
++mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
++ninja
++ninja run_tests
++
++cd ../..
++
+ if [ "$(./boringssl/build/tool/bssl isfips)" != 1 ]; then
+ 	echo "NOT FIPS"
+ 	exit 2
+ fi
+ 
+-
+ # Build and run test C++ program to make sure goboringcrypto.h matches openssl/*.h.
+ # Also collect list of checked symbols in syms.txt
+ set -x
+@@ -134,7 +131,7 @@ cat goboringcrypto.h | awk '
+ 	/typedef struct|enum ([a-z_]+ )?{|^[ \t]/ {print;next}
+ 	{gsub(/GO_/, ""); gsub(/enum go_/, "enum "); print}
+ ' >goboringcrypto1.h
+-clang++-6.0 -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
++clang++ -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
+ ./a.out || exit 2
+ 
+ # Prepare copy of libcrypto.a with only the checked functions renamed and exported.
+@@ -186,7 +183,7 @@ __umodti3:
+ 
+ .section .note.GNU-stack,"",@progbits
+ EOF
+-clang-6.0 -c -o umod.o umod.s
++clang -c -o umod.o umod.s
+ 
+ ld -r -nostdlib --whole-archive -o goboringcrypto.o libcrypto.a umod.o
+ echo __umodti3 _goboringcrypto___umodti3 >>renames.txt
+diff --git a/src/crypto/internal/boring/build/README b/src/crypto/internal/boring/build/README
+deleted file mode 100644
+index 22ce944a44..0000000000
+--- a/src/crypto/internal/boring/build/README
++++ /dev/null
+@@ -1,6 +0,0 @@
+-This is not a Go package. The directory must not contain Go sources,
+-to prevent it from being considered a Go package.
+-
+-This directory holds the script for building ../goboringcrypto_*.syso.
+-Run build.sh on an Ubuntu system.
+-See the comment at the top of build.sh for details.
+diff --git a/src/crypto/internal/boring/build/build.sh b/src/crypto/internal/boring/build/build.sh
+deleted file mode 100755
+index 5afbb426e2..0000000000
+--- a/src/crypto/internal/boring/build/build.sh
++++ /dev/null
+@@ -1,64 +0,0 @@
+-#!/bin/bash
+-# Copyright 2017 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# Run on Ubuntu system set up with:
+-#	sudo apt-get install debootstrap
+-#	sudo apt-get install squid-deb-proxy
+-#	sudo /etc/init.d/squid-deb-proxy start
+-#
+-# The script sets up an Ubuntu chroot and then runs the build
+-# in that chroot, to make sure we know exactly what software
+-# is being used for the build. To repeat the script reusing the
+-# chroot installation, run build.sh -quick. This mode is useful
+-# if all you've modified is goboringcrypto.c and ../goboringcrypto.h
+-# (or some of the setup scripts in this directory).
+-
+-# Comment this setting out if not using squid-deb-proxy,
+-# but it will be much slower to repeat the script.
+-http_proxy=http://127.0.0.1:8000
+-
+-chroot=/var/tmp/boringssl
+-
+-sudo umount -f $chroot/proc
+-sudo umount -f $chroot/sys
+-sudo umount -f $chroot/dev/pts
+-sudo umount -f $chroot/dev
+-
+-set -e
+-if [ "$1" != "-quick" ]; then
+-	sudo rm -rf $chroot
+-	sudo http_proxy=$http_proxy debootstrap --variant=minbase disco $chroot
+-fi
+-
+-sudo chown $(whoami) $chroot
+-sudo chmod u+w $chroot
+-
+-sudo mount -t proc proc $chroot/proc
+-sudo mount -t sysfs sys $chroot/sys
+-sudo mount -o bind /dev $chroot/dev
+-sudo mount -t devpts devpts $chroot/dev/pts
+-
+-sudo cp sources.list $chroot/etc/apt/sources.list
+-
+-cp *chroot.sh $chroot
+-
+-# Following https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf page 19.
+-if [ ! -e $chroot/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz ]; then
+-	wget -O $chroot/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz https://commondatastorage.googleapis.com/chromium-boringssl-docs/fips/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz
+-fi
+-if [ "$(sha256sum $chroot/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz | awk '{print $1}')" != b12ad676ee533824f698741bd127f6fbc82c46344398a6d78d25e62c6c418c73 ]; then
+-	echo WRONG SHA256SUM
+-	exit 2
+-fi
+-
+-rm -rf $chroot/godriver
+-mkdir $chroot/godriver
+-cp ../goboringcrypto.h $chroot/godriver
+-
+-sudo http_proxy=$http_proxy chroot $chroot /root_setup_in_chroot.sh
+-sudo chroot --userspec=$(id -u):$(id -g) $chroot /build_in_chroot.sh
+-cp $chroot/godriver/goboringcrypto_linux_amd64.syso ..
+-sha256sum ../goboringcrypto_linux_amd64.syso
+-echo DONE
+diff --git a/src/crypto/internal/boring/build/root_setup_in_chroot.sh b/src/crypto/internal/boring/build/root_setup_in_chroot.sh
+deleted file mode 100755
+index 90f0f266c3..0000000000
+--- a/src/crypto/internal/boring/build/root_setup_in_chroot.sh
++++ /dev/null
+@@ -1,13 +0,0 @@
+-#!/bin/bash
+-# Copyright 2017 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-id
+-date
+-echo http_proxy=$http_proxy
+-export LANG=C
+-unset LANGUAGE
+-apt-get update
+-apt-get install --no-install-recommends -y cmake clang-6.0 golang-1.10-go ninja-build xz-utils
+diff --git a/src/crypto/internal/boring/build/sources.list b/src/crypto/internal/boring/build/sources.list
+deleted file mode 100644
+index a5c31c0645..0000000000
+--- a/src/crypto/internal/boring/build/sources.list
++++ /dev/null
+@@ -1,10 +0,0 @@
+-deb http://archive.ubuntu.com/ubuntu/ disco main restricted
+-deb http://archive.ubuntu.com/ubuntu/ disco-updates main restricted
+-deb http://archive.ubuntu.com/ubuntu/ disco universe
+-deb http://archive.ubuntu.com/ubuntu/ disco-updates universe
+-deb http://archive.ubuntu.com/ubuntu/ disco multiverse
+-deb http://archive.ubuntu.com/ubuntu/ disco-updates multiverse
+-deb http://archive.ubuntu.com/ubuntu/ disco-backports main restricted universe multiverse
+-deb http://security.ubuntu.com/ubuntu disco-security main restricted
+-deb http://security.ubuntu.com/ubuntu disco-security universe
+-deb http://security.ubuntu.com/ubuntu disco-security multiverse
+diff --git a/src/crypto/internal/boring/goboringcrypto.h b/src/crypto/internal/boring/goboringcrypto.h
+index 744496c6ef..37b7917c04 100644
+--- a/src/crypto/internal/boring/goboringcrypto.h
++++ b/src/crypto/internal/boring/goboringcrypto.h
+@@ -118,7 +118,7 @@ size_t _goboringcrypto_EVP_AEAD_key_length(const GO_EVP_AEAD*);
+ size_t _goboringcrypto_EVP_AEAD_nonce_length(const GO_EVP_AEAD*);
+ size_t _goboringcrypto_EVP_AEAD_max_overhead(const GO_EVP_AEAD*);
+ size_t _goboringcrypto_EVP_AEAD_max_tag_len(const GO_EVP_AEAD*);
+-typedef struct GO_EVP_AEAD_CTX { char data[24]; } GO_EVP_AEAD_CTX;
++typedef struct GO_EVP_AEAD_CTX { char data[600]; } GO_EVP_AEAD_CTX;
+ void _goboringcrypto_EVP_AEAD_CTX_zero(GO_EVP_AEAD_CTX*);
+ int _goboringcrypto_EVP_AEAD_CTX_init(GO_EVP_AEAD_CTX*, const GO_EVP_AEAD*, const uint8_t*, size_t, size_t, GO_ENGINE*);
+ void _goboringcrypto_EVP_AEAD_CTX_cleanup(GO_EVP_AEAD_CTX*);
+@@ -188,7 +188,7 @@ void _goboringcrypto_RSA_free(GO_RSA*);
+ void _goboringcrypto_RSA_get0_key(const GO_RSA*, const GO_BIGNUM **n, const GO_BIGNUM **e, const GO_BIGNUM **d);
+ void _goboringcrypto_RSA_get0_factors(const GO_RSA*, const GO_BIGNUM **p, const GO_BIGNUM **q);
+ void _goboringcrypto_RSA_get0_crt_params(const GO_RSA*, const GO_BIGNUM **dmp1, const GO_BIGNUM **dmp2, const GO_BIGNUM **iqmp);
+-int _goboringcrypto_RSA_generate_key_ex(GO_RSA*, int, GO_BIGNUM*, GO_BN_GENCB*);
++int _goboringcrypto_RSA_generate_key_ex(GO_RSA*, int, const GO_BIGNUM*, GO_BN_GENCB*);
+ int _goboringcrypto_RSA_generate_key_fips(GO_RSA*, int, GO_BN_GENCB*);
+ enum {
+ 	GO_RSA_PKCS1_PADDING = 1,
+diff --git a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso
+index 4e301cc60d..ae08fcaa2f 100644
+Binary files a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso and b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso differ

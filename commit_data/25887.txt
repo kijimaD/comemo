@@ -11,7 +11,81 @@ Date:   Mon Nov 30 13:08:46 2015 +0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dnsclient_unix.go      |  6 +++---
  src/net/dnsclient_unix_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index ffea828c32..5e963d27cc 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -473,12 +473,12 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
+ 	}
+ 	sortByRFC6724(addrs)
+ 	if len(addrs) == 0 {
+-		if lastErr != nil {
+-			return nil, lastErr
+-		}
+ 		if order == hostLookupDNSFiles {
+ 			addrs = goLookupIPFiles(name)
+ 		}
++		if lastErr != nil {
++			return nil, lastErr
++		}
+ 	}
+ 	return addrs, nil
+ }
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index a999f8f060..a54f7b898d 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -378,6 +378,48 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
+ 	}
+ }
+ 
++// Test that goLookupIPOrder falls back to the host file when no DNS servers are available.
++func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
++	if testing.Short() || !*testExternal {
++		t.Skip("avoid external network")
++	}
++
++	// Add a config that simulates no dns servers being available.
++	conf, err := newResolvConfTest()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := conf.writeAndUpdate([]string{}); err != nil {
++		t.Fatal(err)
++	}
++	conf.tryUpdate(conf.path)
++	// Redirect host file lookups.
++	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
++	testHookHostsPath = "testdata/hosts"
++
++	for _, order := range []hostLookupOrder{hostLookupFilesDNS, hostLookupDNSFiles} {
++		name := fmt.Sprintf("order %v", order)
++
++		// First ensure that we get an error when contacting a non-existant host.
++		_, err := goLookupIPOrder("notarealhost", order)
++		if err == nil {
++			t.Errorf("%s: expected error while looking up name not in hosts file", name)
++			continue
++		}
++
++		// Now check that we get an address when the name appears in the hosts file.
++		addrs, err := goLookupIPOrder("thor", order) // entry is in "testdata/hosts"
++		if err != nil {
++			t.Errorf("%s: expected to successfully lookup host entry", name)
++			continue
++		}
++		if got, want := addrs, []IPAddr{IPAddr{IP: IP{127, 0, 0, 1}}}; !reflect.DeepEqual(got, want) {
++			t.Errorf("%s: address doesn't match expectation. got %v, want %v", name, got, want)
++		}
++	}
++	defer conf.teardown()
++}
++
+ func BenchmarkGoLookupIP(b *testing.B) {
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 

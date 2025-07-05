@@ -7,6 +7,17 @@ Date:   Fri Feb 22 10:28:03 2013 +1100
     R=jsing, mikioh.mikioh, bradfitz
     CC=golang-dev
     https://golang.org/cl/7390048
-
+---
  src/cmd/gc/dcl.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 431df2d690..c4990df072 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1453,4 +1453,3 @@ funcsym(Sym *s)
+ 	}
+ 	return s1;
+ }
+- 
+\ No newline at end of file

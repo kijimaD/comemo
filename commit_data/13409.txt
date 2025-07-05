@@ -14,6 +14,41 @@ Date:   Wed Jun 27 21:57:49 2012 +0400
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/6332054
-
+---
  src/pkg/runtime/proc_test.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index 32111080a5..1d51c5271e 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -123,3 +123,29 @@ func BenchmarkSyscallWork(b *testing.B) {
+ 		<-c
+ 	}
+ }
++
++func BenchmarkCreateGoroutines(b *testing.B) {
++	benchmarkCreateGoroutines(b, 1)
++}
++
++func BenchmarkCreateGoroutinesParallel(b *testing.B) {
++	benchmarkCreateGoroutines(b, runtime.GOMAXPROCS(-1))
++}
++
++func benchmarkCreateGoroutines(b *testing.B, procs int) {
++	c := make(chan bool)
++	var f func(n int)
++	f = func(n int) {
++		if n == 0 {
++			c <- true
++			return
++		}
++		go f(n - 1)
++	}
++	for i := 0; i < procs; i++ {
++		go f(b.N / procs)
++	}
++	for i := 0; i < procs; i++ {
++		<-c
++	}
++}

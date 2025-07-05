@@ -15,8 +15,186 @@ Date:   Mon Apr 20 09:51:21 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go       | 75 ++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/decodesym.go  |  8 ++--
  src/cmd/link/internal/ld/decodesym2.go | 43 +++++++++++++++++++
  3 files changed, 122 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 46fc6ec304..5cd7727cd0 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1257,6 +1257,81 @@ func (p *GCProg) AddSym(s *sym.Symbol) {
+ 	p.w.Append(prog[4:], nptr)
+ }
+ 
++type GCProg2 struct {
++	ctxt *Link
++	sym  *loader.SymbolBuilder
++	w    gcprog.Writer
++}
++
++func (p *GCProg2) Init(ctxt *Link, name string) {
++	p.ctxt = ctxt
++	symIdx := ctxt.loader.LookupOrCreateSym(name, 0)
++	p.sym = ctxt.loader.MakeSymbolUpdater(symIdx)
++	p.w.Init(p.writeByte())
++	if debugGCProg {
++		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
++		p.w.Debug(os.Stderr)
++	}
++}
++
++func (p *GCProg2) writeByte() func(x byte) {
++	return func(x byte) {
++		p.sym.AddUint8(x)
++	}
++}
++
++func (p *GCProg2) End(size int64) {
++	p.w.ZeroUntil(size / int64(p.ctxt.Arch.PtrSize))
++	p.w.End()
++	if debugGCProg {
++		fmt.Fprintf(os.Stderr, "ld: end GCProg\n")
++	}
++}
++
++func (p *GCProg2) AddSym(s loader.Sym) {
++	ldr := p.ctxt.loader
++	typ := ldr.SymGoType(s)
++
++	// Things without pointers should be in sym.SNOPTRDATA or sym.SNOPTRBSS;
++	// everything we see should have pointers and should therefore have a type.
++	if typ == 0 {
++		switch p.sym.Name() {
++		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss":
++			// Ignore special symbols that are sometimes laid out
++			// as real symbols. See comment about dyld on darwin in
++			// the address function.
++			return
++		}
++		p.ctxt.Errorf(p.sym.Sym(), "missing Go type information for global symbol: size %d", ldr.SymSize(s))
++		return
++	}
++
++	ptrsize := int64(p.ctxt.Arch.PtrSize)
++	typData := ldr.Data(typ)
++	nptr := decodetypePtrdata(p.ctxt.Arch, typData) / ptrsize
++
++	if debugGCProg {
++		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", ldr.SymName(s), ldr.SymValue(s), ldr.SymValue(s)/ptrsize, nptr)
++	}
++
++	sval := ldr.SymValue(s)
++	if decodetypeUsegcprog(p.ctxt.Arch, typData) == 0 {
++		// Copy pointers from mask into program.
++		mask := decodetypeGcmask2(p.ctxt, typ)
++		for i := int64(0); i < nptr; i++ {
++			if (mask[i/8]>>uint(i%8))&1 != 0 {
++				p.w.Ptr(sval/ptrsize + i)
++			}
++		}
++		return
++	}
++
++	// Copy program.
++	prog := decodetypeGcprog2(p.ctxt, typ)
++	p.w.ZeroUntil(sval / ptrsize)
++	p.w.Append(prog[4:], nptr)
++}
++
+ // dataSortKey is used to sort a slice of data symbol *sym.Symbol pointers.
+ // The sort keys are kept inline to improve cache behavior while sorting.
+ type dataSortKey struct {
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 50586081d3..8e248fc982 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -106,7 +106,7 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
+ // Type.commonType.gc
+ func decodetypeGcprog(ctxt *Link, s *sym.Symbol) []byte {
+ 	if s.Type == sym.SDYNIMPORT {
+-		addr := decodetypeGcprogShlib(ctxt, s)
++		addr := decodetypeGcprogShlib(ctxt, s.P)
+ 		sect := findShlibSection(ctxt, s.File, addr)
+ 		if sect != nil {
+ 			// A gcprog is a 4-byte uint32 indicating length, followed by
+@@ -123,16 +123,16 @@ func decodetypeGcprog(ctxt *Link, s *sym.Symbol) []byte {
+ 	return decodeRelocSym(s, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize)).P
+ }
+ 
+-func decodetypeGcprogShlib(ctxt *Link, s *sym.Symbol) uint64 {
++func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
+ 	if ctxt.Arch.Family == sys.ARM64 {
+ 		return 0
+ 	}
+-	return decodeInuxi(ctxt.Arch, s.P[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
++	return decodeInuxi(ctxt.Arch, data[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
+ }
+ 
+ func decodetypeGcmask(ctxt *Link, s *sym.Symbol) []byte {
+ 	if s.Type == sym.SDYNIMPORT {
+-		addr := decodetypeGcprogShlib(ctxt, s)
++		addr := decodetypeGcprogShlib(ctxt, s.P)
+ 		ptrdata := decodetypePtrdata(ctxt.Arch, s.P)
+ 		sect := findShlibSection(ctxt, s.File, addr)
+ 		if sect != nil {
+diff --git a/src/cmd/link/internal/ld/decodesym2.go b/src/cmd/link/internal/ld/decodesym2.go
+index 8b19afffa3..33b85f3dff 100644
+--- a/src/cmd/link/internal/ld/decodesym2.go
++++ b/src/cmd/link/internal/ld/decodesym2.go
+@@ -7,6 +7,7 @@ package ld
+ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
+ )
+ 
+ // This file contains utilities to decode type.* symbols, for
+@@ -129,3 +130,45 @@ func decodetypeStr2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) strin
+ 	}
+ 	return str
+ }
++
++func decodetypeGcmask2(ctxt *Link, s loader.Sym) []byte {
++	if ctxt.loader.SymType(s) == sym.SDYNIMPORT {
++		symData := ctxt.loader.Data(s)
++		addr := decodetypeGcprogShlib(ctxt, symData)
++		ptrdata := decodetypePtrdata(ctxt.Arch, symData)
++		sect := findShlibSection(ctxt, ctxt.loader.SymPkg(s), addr)
++		if sect != nil {
++			r := make([]byte, ptrdata/int64(ctxt.Arch.PtrSize))
++			sect.ReadAt(r, int64(addr-sect.Addr))
++			return r
++		}
++		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
++		return nil
++	}
++	relocs := ctxt.loader.Relocs(s)
++	mask := decodeRelocSym2(ctxt.loader, s, &relocs, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize))
++	return ctxt.loader.Data(mask)
++}
++
++// Type.commonType.gc
++func decodetypeGcprog2(ctxt *Link, s loader.Sym) []byte {
++	if ctxt.loader.SymType(s) == sym.SDYNIMPORT {
++		symData := ctxt.loader.Data(s)
++		addr := decodetypeGcprogShlib(ctxt, symData)
++		sect := findShlibSection(ctxt, ctxt.loader.SymPkg(s), addr)
++		if sect != nil {
++			// A gcprog is a 4-byte uint32 indicating length, followed by
++			// the actual program.
++			progsize := make([]byte, 4)
++			sect.ReadAt(progsize, int64(addr-sect.Addr))
++			progbytes := make([]byte, ctxt.Arch.ByteOrder.Uint32(progsize))
++			sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
++			return append(progsize, progbytes...)
++		}
++		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
++		return nil
++	}
++	relocs := ctxt.loader.Relocs(s)
++	rs := decodeRelocSym2(ctxt.loader, s, &relocs, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize))
++	return ctxt.loader.Data(rs)
++}

@@ -8,8 +8,106 @@ Date:   Mon Jun 1 19:00:07 2009 -0700
     DELTA=64  (63 added, 0 deleted, 1 changed)
     OCL=29702
     CL=29702
-
+---
  src/lib/io/Makefile      |  3 ++-
  src/lib/io/utils.go      | 27 +++++++++++++++++++++++++++
  src/lib/io/utils_test.go | 37 +++++++++++++++++++++++++++++++++++++
  3 files changed, 66 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/io/Makefile b/src/lib/io/Makefile
+index d9f8f30a26..2e82070143 100644
+--- a/src/lib/io/Makefile
++++ b/src/lib/io/Makefile
+@@ -45,6 +45,7 @@ O1=\
+ 
+ O2=\
+ 	pipe.$O\
++	utils.$O\
+ 
+ 
+ phases: a1 a2
+@@ -55,7 +56,7 @@ a1: $(O1)
+ 	rm -f $(O1)
+ 
+ a2: $(O2)
+-	$(AR) grc _obj$D/io.a pipe.$O
++	$(AR) grc _obj$D/io.a pipe.$O utils.$O
+ 	rm -f $(O2)
+ 
+ 
+diff --git a/src/lib/io/utils.go b/src/lib/io/utils.go
+new file mode 100644
+index 0000000000..736097946e
+--- /dev/null
++++ b/src/lib/io/utils.go
+@@ -0,0 +1,27 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Utility functions.
++
++package io
++
++import (
++	"io";
++	"os";
++)
++
++
++// ReadFile reads the file named by filename and returns
++// its contents if successful.
++//
++func ReadFile(filename string) ([]byte, os.Error) {
++	f, err := os.Open(filename, os.O_RDONLY, 0);
++	if err != nil {
++		return nil, err;
++	}
++	var b io.ByteBuffer;
++	_, err := io.Copy(f, &b);
++	f.Close();
++	return b.Data(), err;
++}
+diff --git a/src/lib/io/utils_test.go b/src/lib/io/utils_test.go
+new file mode 100644
+index 0000000000..f35dad60c9
+--- /dev/null
++++ b/src/lib/io/utils_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package io
++
++import (
++	"io";
++	"os";
++	"testing";
++)
++
++func checkSize(t *testing.T, path string, size uint64) {
++	dir, err := os.Stat(path);
++	if err != nil {
++		t.Fatalf("Stat %q (looking for size %d): %s", path, size, err);
++	}
++	if dir.Size != size {
++		t.Errorf("Stat %q: size %d want %d", path, dir.Size, size);
++	}
++}
++
++func TestReadFile(t *testing.T) {
++	filename := "rumpelstilzchen";
++	contents, err := ReadFile(filename);
++	if err == nil {
++		t.Fatalf("ReadFile %s: error expected, none found", filename);
++	}
++
++	filename = "utils_test.go";
++	contents, err = ReadFile(filename);
++	if err != nil {
++		t.Fatalf("ReadFile %s: %v", filename, err);
++	}
++
++	checkSize(t, filename, uint64(len(contents)));
++}

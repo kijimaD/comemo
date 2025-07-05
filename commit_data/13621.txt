@@ -14,8 +14,114 @@ Date:   Mon Aug 13 12:07:44 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6454131
-
+---
  src/pkg/exp/html/testlogs/webkit02.dat.log |  2 +-
  src/pkg/exp/html/token.go                  |  8 ++++++--
  src/pkg/exp/html/token_test.go             | 17 +++++++++++------
  3 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/exp/html/testlogs/webkit02.dat.log b/src/pkg/exp/html/testlogs/webkit02.dat.log
+index fd0ae38eb8..72c04376a3 100644
+--- a/src/pkg/exp/html/testlogs/webkit02.dat.log
++++ b/src/pkg/exp/html/testlogs/webkit02.dat.log
+@@ -1,7 +1,7 @@
+ PASS "<foo bar=qux/>"
+ PASS "<p id=\"status\"><noscript><strong>A</strong></noscript><span>B</span></p>"
+ PASS "<div><sarcasm><div></div></sarcasm></div>"
+-FAIL "<html><body><img src=\"\" border=\"0\" alt=\"><div>A</div></body></html>"
++PASS "<html><body><img src=\"\" border=\"0\" alt=\"><div>A</div></body></html>"
+ PASS "<table><td></tbody>A"
+ PASS "<table><td></thead>A"
+ PASS "<table><td></tfoot>A"
+diff --git a/src/pkg/exp/html/token.go b/src/pkg/exp/html/token.go
+index 38d8024e0e..7bc77329d8 100644
+--- a/src/pkg/exp/html/token.go
++++ b/src/pkg/exp/html/token.go
+@@ -692,7 +692,7 @@ loop:
+ // been consumed, where 'a' means anything in [A-Za-z].
+ func (z *Tokenizer) readStartTag() TokenType {
+ 	z.readTag(true)
+-	if z.err != nil && len(z.attr) == 0 {
++	if z.err != nil {
+ 		return ErrorToken
+ 	}
+ 	// Several tags flag the tokenizer's next token as raw.
+@@ -948,7 +948,11 @@ loop:
+ 			}
+ 			if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
+ 				z.readTag(false)
+-				z.tt = EndTagToken
++				if z.err != nil {
++					z.tt = ErrorToken
++				} else {
++					z.tt = EndTagToken
++				}
+ 				return z.tt
+ 			}
+ 			z.raw.end--
+diff --git a/src/pkg/exp/html/token_test.go b/src/pkg/exp/html/token_test.go
+index 5209d139bb..0f873f0fb1 100644
+--- a/src/pkg/exp/html/token_test.go
++++ b/src/pkg/exp/html/token_test.go
+@@ -128,7 +128,7 @@ var tokenTests = []tokenTest{
+ 	{
+ 		"tag name eof #4",
+ 		`<a x`,
+-		`<a x="">`,
++		``,
+ 	},
+ 	// Some malformed tags that are missing a '>'.
+ 	{
+@@ -144,12 +144,12 @@ var tokenTests = []tokenTest{
+ 	{
+ 		"malformed tag #2",
+ 		`<p id`,
+-		`<p id="">`,
++		``,
+ 	},
+ 	{
+ 		"malformed tag #3",
+ 		`<p id=`,
+-		`<p id="">`,
++		``,
+ 	},
+ 	{
+ 		"malformed tag #4",
+@@ -159,7 +159,7 @@ var tokenTests = []tokenTest{
+ 	{
+ 		"malformed tag #5",
+ 		`<p id=0`,
+-		`<p id="0">`,
++		``,
+ 	},
+ 	{
+ 		"malformed tag #6",
+@@ -169,13 +169,18 @@ var tokenTests = []tokenTest{
+ 	{
+ 		"malformed tag #7",
+ 		`<p id="0</p>`,
+-		`<p id="0&lt;/p&gt;">`,
++		``,
+ 	},
+ 	{
+ 		"malformed tag #8",
+ 		`<p id="0"</p>`,
+ 		`<p id="0" <="" p="">`,
+ 	},
++	{
++		"malformed tag #9",
++		`<p></p id`,
++		`<p>`,
++	},
+ 	// Raw text and RCDATA.
+ 	{
+ 		"basic raw text",
+@@ -205,7 +210,7 @@ var tokenTests = []tokenTest{
+ 	{
+ 		"' ' completes script end tag",
+ 		"<SCRIPT>a</SCRipt ",
+-		"<script>$a$</script>",
++		"<script>$a",
+ 	},
+ 	{
+ 		"'>' completes script end tag",

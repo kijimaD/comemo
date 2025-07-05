@@ -15,6 +15,38 @@ Date:   Thu Jun 2 16:58:28 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  doc/go1.19.html | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index b7d7a3466f..4de93d1565 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -81,8 +81,13 @@ Do not send CLs removing the interior tags from such phrases.
+ </p>
+ 
+ <h2 id="runtime">Runtime</h2>
+-<p>
+-  TODO: complete this section, or delete if not needed
++
++<p><!-- https://go.dev/issue/48409 -->
++  TODO: soft memory limit
++</p>
++
++<p><!-- https://go.dev/issue/44163 -->
++  TODO: idle mark workers
+ </p>
+ 
+ <p><!-- https://go.dev/issue/18138 --><!-- CL 345889 -->
+@@ -163,6 +168,10 @@ Do not send CLs removing the interior tags from such phrases.
+   atomics on these systems.
+ </p>
+ 
++<p>
++  TODO: <a href="https://go.dev/issue/51940">https://go.dev/issue/51940</a>: all: move dev.boringcrypto into main branch behind GOEXPERIMENT
++</p>
++
+ <p>
+   TODO: complete this section
+ </p>

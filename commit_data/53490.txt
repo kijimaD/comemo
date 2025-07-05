@@ -14,6 +14,45 @@ Date:   Mon Aug 15 11:04:03 2022 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/hash/crc32/crc32.go | 9 ++-------
  1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index f330fdb77a..1a24d980cc 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -76,16 +76,14 @@ type Table [256]uint32
+ // using this polynomial.
+ var castagnoliTable *Table
+ var castagnoliTable8 *slicing8Table
+-var castagnoliArchImpl bool
+ var updateCastagnoli func(crc uint32, p []byte) uint32
+ var castagnoliOnce sync.Once
+ var haveCastagnoli uint32
+ 
+ func castagnoliInit() {
+ 	castagnoliTable = simpleMakeTable(Castagnoli)
+-	castagnoliArchImpl = archAvailableCastagnoli()
+ 
+-	if castagnoliArchImpl {
++	if archAvailableCastagnoli() {
+ 		archInitCastagnoli()
+ 		updateCastagnoli = archUpdateCastagnoli
+ 	} else {
+@@ -104,14 +102,11 @@ var IEEETable = simpleMakeTable(IEEE)
+ 
+ // ieeeTable8 is the slicing8Table for IEEE
+ var ieeeTable8 *slicing8Table
+-var ieeeArchImpl bool
+ var updateIEEE func(crc uint32, p []byte) uint32
+ var ieeeOnce sync.Once
+ 
+ func ieeeInit() {
+-	ieeeArchImpl = archAvailableIEEE()
+-
+-	if ieeeArchImpl {
++	if archAvailableIEEE() {
+ 		archInitIEEE()
+ 		updateIEEE = archUpdateIEEE
+ 	} else {

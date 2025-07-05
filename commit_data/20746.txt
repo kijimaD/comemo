@@ -13,6 +13,38 @@ Date:   Mon Oct 6 15:49:33 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/151460043
-
+---
  src/os/path.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/path.go b/src/os/path.go
+index 24a3415b46..84a3be3348 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -17,7 +17,7 @@ import (
+ // If path is already a directory, MkdirAll does nothing
+ // and returns nil.
+ func MkdirAll(path string, perm FileMode) error {
+-	// If path exists, stop with success or error.
++	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
+ 	dir, err := Stat(path)
+ 	if err == nil {
+ 		if dir.IsDir() {
+@@ -26,7 +26,7 @@ func MkdirAll(path string, perm FileMode) error {
+ 		return &PathError{"mkdir", path, syscall.ENOTDIR}
+ 	}
+ 
+-	// Doesn't already exist; make sure parent does.
++	// Slow path: make sure parent exists and then call Mkdir for path.
+ 	i := len(path)
+ 	for i > 0 && IsPathSeparator(path[i-1]) { // Skip trailing path separator.
+ 		i--
+@@ -45,7 +45,7 @@ func MkdirAll(path string, perm FileMode) error {
+ 		}
+ 	}
+ 
+-	// Now parent exists, try to create.
++	// Parent now exists; invoke Mkdir and use its result.
+ 	err = Mkdir(path, perm)
+ 	if err != nil {
+ 		// Handle arguments like "foo/." by

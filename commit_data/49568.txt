@@ -21,7 +21,7 @@ Date:   Wed Aug 25 17:12:27 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/bexport.go | 3 +++
  src/cmd/compile/internal/typecheck/iexport.go | 8 ++++++++
  src/cmd/compile/internal/types/type.go        | 2 ++
@@ -29,3 +29,99 @@ Date:   Wed Aug 25 17:12:27 2021 -0700
  test/typeparam/issue47966.go                  | 9 +++++++++
  test/typeparam/subdict.go                     | 4 +++-
  6 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/bexport.go b/src/cmd/compile/internal/typecheck/bexport.go
+index cc7f91f937..352f7a96ad 100644
+--- a/src/cmd/compile/internal/typecheck/bexport.go
++++ b/src/cmd/compile/internal/typecheck/bexport.go
+@@ -99,6 +99,9 @@ func predeclared() []*types.Type {
+ 
+ 			// comparable
+ 			types.ComparableType,
++
++			// any
++			types.AnyType,
+ 		}
+ 	}
+ 	return predecl
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index dbdf8eda35..89eab4df16 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -566,6 +566,14 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			// for predeclared objects).
+ 			underlying = types.ErrorType
+ 		}
++		if underlying == types.ComparableType.Underlying() {
++			// Do same for ComparableType as for ErrorType.
++			underlying = types.ComparableType
++		}
++		if base.Flag.G > 0 && underlying == types.AnyType.Underlying() {
++			// Do same for AnyType as for ErrorType.
++			underlying = types.AnyType
++		}
+ 		w.typ(underlying)
+ 
+ 		t := n.Type()
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index f1fb93ad1b..60bb7b46fa 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -119,6 +119,8 @@ var (
+ 	ErrorType *Type
+ 	// Predeclared comparable interface type.
+ 	ComparableType *Type
++	// Predeclared any interface type.
++	AnyType *Type
+ 
+ 	// Types to represent untyped string and boolean constants.
+ 	UntypedString = newType(TSTRING)
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+index 1291b0e0fa..8fa4b7cd20 100644
+--- a/src/cmd/compile/internal/types/universe.go
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -107,6 +107,14 @@ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	ComparableType.SetUnderlying(makeComparableInterface())
+ 	ResumeCheckSize()
+ 
++	// any type (interface)
++	if base.Flag.G > 0 {
++		DeferCheckSize()
++		AnyType = defBasic(TFORW, BuiltinPkg, "any")
++		AnyType.SetUnderlying(NewInterface(NoPkg, []*Field{}))
++		ResumeCheckSize()
++	}
++
+ 	Types[TUNSAFEPTR] = defBasic(TUNSAFEPTR, UnsafePkg, "Pointer")
+ 
+ 	Types[TBLANK] = newType(TBLANK)
+diff --git a/test/typeparam/issue47966.go b/test/typeparam/issue47966.go
+new file mode 100644
+index 0000000000..f431f7fc74
+--- /dev/null
++++ b/test/typeparam/issue47966.go
+@@ -0,0 +1,9 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type C comparable
+diff --git a/test/typeparam/subdict.go b/test/typeparam/subdict.go
+index b4e84baf8a..c519b4f51c 100644
+--- a/test/typeparam/subdict.go
++++ b/test/typeparam/subdict.go
+@@ -14,7 +14,9 @@ import (
+ 	"fmt"
+ )
+ 
+-type value[T comparable] struct {
++type C comparable
++
++type value[T C] struct {
+ 	val T
+ }
+ 

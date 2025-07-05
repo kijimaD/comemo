@@ -15,8 +15,57 @@ Date:   Wed May 17 17:59:49 2023 -0400
     Auto-Submit: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/cmd/dist/test.go          | 4 +---
  src/cmd/dist/testjson.go      | 5 ++++-
  src/cmd/dist/testjson_test.go | 4 +---
  3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 04dfd22f88..0294a5babb 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -349,9 +349,7 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
+ 		// Rewrite Package in the JSON output to be pkg:variant. For sharded
+ 		// variants, pkg.TestName is already unambiguous, so we don't need to
+ 		// rewrite the Package field.
+-		if len(opts.pkgs) != 0 {
+-			panic("cannot combine multiple packages with variants")
+-		}
++		//
+ 		// We only want to process JSON on the child's stdout. Ideally if
+ 		// stdout==stderr, we would also use the same testJSONFilter for
+ 		// cmd.Stdout and cmd.Stderr in order to keep the underlying
+diff --git a/src/cmd/dist/testjson.go b/src/cmd/dist/testjson.go
+index 261b9584ce..542dc8493e 100644
+--- a/src/cmd/dist/testjson.go
++++ b/src/cmd/dist/testjson.go
+@@ -92,7 +92,10 @@ func (f *testJSONFilter) process(line []byte) {
+ 					// Should never happen.
+ 					panic(fmt.Sprintf("failed to round-trip JSON %q: %s", string(line), err))
+ 				}
+-				data = append(data, '\n')
++				// Copy any trailing text. We expect at most a "\n" here, but
++				// there could be other text and we want to feed that through.
++				extra, _ := io.ReadAll(dec.Buffered())
++				data = append(data, extra...)
+ 				f.w.Write(data)
+ 				return
+ 			}
+diff --git a/src/cmd/dist/testjson_test.go b/src/cmd/dist/testjson_test.go
+index 2ff7bf61f5..dbd1f27ea1 100644
+--- a/src/cmd/dist/testjson_test.go
++++ b/src/cmd/dist/testjson_test.go
+@@ -31,11 +31,9 @@ more text
+ 	const want = `unexpected text
+ {"Package":"abc:variant"}
+ more text
+-{"Package":"abc:variant"}
++{"Package":"abc:variant"}trailing text
+ {not json}
+ `
+-	// Note that currently we won't round-trip trailing text after a valid JSON
+-	// line. That might be a mistake.
+ 	checkJSONFilter(t, in, want)
+ }
+ 

@@ -19,10 +19,182 @@ Date:   Tue Jul 6 10:53:00 2021 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go     | 30 ++++++++++++++++-----------
  src/cmd/compile/internal/typecheck/iexport.go |  4 ++--
  src/cmd/compile/internal/typecheck/iimport.go |  4 ++--
  test/run.go                                   |  1 -
  test/typeparam/dictionaryCapture.go           | 12 +++++++++++
  5 files changed, 34 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index dbaebf7623..656cab84d1 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -94,7 +94,7 @@ func (g *irgen) stencil() {
+ 				// generic F, not immediately called
+ 				closureRequired = true
+ 			}
+-			if n.Op() == ir.OMETHEXPR && len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) {
++			if n.Op() == ir.OMETHEXPR && len(deref(n.(*ir.SelectorExpr).X.Type()).RParams()) > 0 && !types.IsInterfaceMethod(n.(*ir.SelectorExpr).Selection.Type) {
+ 				// T.M, T a type which is generic, not immediately
+ 				// called. Not necessary if the method selected is
+ 				// actually for an embedded interface field.
+@@ -229,6 +229,7 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 		outerInfo = g.instInfoMap[outer.Sym()]
+ 	}
+ 	usingSubdict := false
++	valueMethod := false
+ 	if x.Op() == ir.OFUNCINST {
+ 		inst := x.(*ir.InstExpr)
+ 
+@@ -269,16 +270,10 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 		}
+ 	} else { // ir.OMETHEXPR
+ 		// Method expression T.M where T is a generic type.
+-		// TODO: Is (*T).M right?
+ 		se := x.(*ir.SelectorExpr)
+-		targs := se.X.Type().RParams()
++		targs := deref(se.X.Type()).RParams()
+ 		if len(targs) == 0 {
+-			if se.X.Type().IsPtr() {
+-				targs = se.X.Type().Elem().RParams()
+-				if len(targs) == 0 {
+-					panic("bad")
+-				}
+-			}
++			panic("bad")
+ 		}
+ 
+ 		// se.X.Type() is the top-level type of the method expression. To
+@@ -295,6 +290,10 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 				break
+ 			}
+ 		}
++		if !gf.Type().Recv().Type.IsPtr() {
++			// Remember if value method, so we can detect (*T).M case.
++			valueMethod = true
++		}
+ 		target = g.getInstantiation(gf, targs, true)
+ 		dictValue, usingSubdict = g.getDictOrSubdict(outerInfo, x, gf, targs, true)
+ 		if infoPrintMode {
+@@ -446,8 +445,15 @@ func (g *irgen) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 			// If we are doing a method expression, we need to
+ 			// explicitly traverse any embedded fields in the receiver
+ 			// argument in order to call the method instantiation.
+-			dot := typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, formalParams[0].Nname.(*ir.Name), x.(*ir.SelectorExpr).Sel))
+-			args = append(args, dot.X)
++			arg0 := formalParams[0].Nname.(ir.Node)
++			arg0 = typecheck.AddImplicitDots(ir.NewSelectorExpr(base.Pos, ir.OXDOT, arg0, x.(*ir.SelectorExpr).Sel)).X
++			if valueMethod && arg0.Type().IsPtr() {
++				// For handling the (*T).M case: if we have a pointer
++				// receiver after following all the embedded fields,
++				// but it's a value method, add a star operator.
++				arg0 = ir.NewStarExpr(arg0.Pos(), arg0)
++			}
++			args = append(args, arg0)
+ 		} else {
+ 			args = append(args, formalParams[i].Nname.(*ir.Name))
+ 		}
+@@ -1342,7 +1348,7 @@ func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir
+ 	return newfields
+ }
+ 
+-// defer does a single defer of type t, if it is a pointer type.
++// deref does a single deref of type t, if it is a pointer type.
+ func deref(t *types.Type) *types.Type {
+ 	if t.IsPtr() {
+ 		return t.Elem()
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 82bbda5228..b717c373f5 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1957,7 +1957,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.typ(n.Type())
+ 
+ 	// unary expressions
+-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV:
++	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV, ir.OIDATA:
+ 		n := n.(*ir.UnaryExpr)
+ 		w.op(n.Op())
+ 		w.pos(n.Pos())
+@@ -1993,7 +1993,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 
+ 	// binary expressions
+ 	case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,
+-		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR:
++		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR, ir.OEFACE:
+ 		n := n.(*ir.BinaryExpr)
+ 		w.op(n.Op())
+ 		w.pos(n.Pos())
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 17e60effd6..f178869e28 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1497,7 +1497,7 @@ func (r *importReader) node() ir.Node {
+ 		return ir.NewLinksymOffsetExpr(pos, Lookup(name).Linksym(), int64(off), typ)
+ 
+ 	// unary expressions
+-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV:
++	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.ORECV, ir.OIDATA:
+ 		n := ir.NewUnaryExpr(r.pos(), op, r.expr())
+ 		if go117ExportTypes {
+ 			n.SetType(r.typ())
+@@ -1521,7 +1521,7 @@ func (r *importReader) node() ir.Node {
+ 
+ 	// binary expressions
+ 	case ir.OADD, ir.OAND, ir.OANDNOT, ir.ODIV, ir.OEQ, ir.OGE, ir.OGT, ir.OLE, ir.OLT,
+-		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR:
++		ir.OLSH, ir.OMOD, ir.OMUL, ir.ONE, ir.OOR, ir.ORSH, ir.OSUB, ir.OXOR, ir.OEFACE:
+ 		n := ir.NewBinaryExpr(r.pos(), op, r.expr(), r.expr())
+ 		if go117ExportTypes {
+ 			n.SetType(r.typ())
+diff --git a/test/run.go b/test/run.go
+index df3befbf21..7afad0ec09 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2215,7 +2215,6 @@ var g3Failures = setOf(
+ 	"typeparam/mdempsky/11.go",
+ 	"typeparam/mdempsky/12.go",
+ 	"typeparam/mdempsky/13.go",
+-	"typeparam/mdempsky/14.go",
+ )
+ 
+ var unifiedFailures = setOf(
+diff --git a/test/typeparam/dictionaryCapture.go b/test/typeparam/dictionaryCapture.go
+index af508859e1..26af7a09b0 100644
+--- a/test/typeparam/dictionaryCapture.go
++++ b/test/typeparam/dictionaryCapture.go
+@@ -73,20 +73,32 @@ func methodExpressions() {
+ 	x := s[int]{a:7}
+ 	f0 := s[int].g0
+ 	f0(x)
++	f0p := (*s[int]).g0
++	f0p(&x)
+ 	f1 := s[int].g1
+ 	is7(f1(x))
++	f1p := (*s[int]).g1
++	is7(f1p(&x))
+ 	f2 := s[int].g2
+ 	is77(f2(x))
++	f2p := (*s[int]).g2
++	is77(f2p(&x))
+ }
+ 
+ func genMethodExpressions[T comparable](want T) {
+ 	x := s[T]{a: want}
+ 	f0 := s[T].g0
+ 	f0(x)
++	f0p := (*s[T]).g0
++	f0p(&x)
+ 	f1 := s[T].g1
+ 	if got := f1(x); got != want {
+ 		panic(fmt.Sprintf("f1(x) == %d, want %d", got, want))
+ 	}
++	f1p := (*s[T]).g1
++	if got := f1p(&x); got != want {
++		panic(fmt.Sprintf("f1p(&x) == %d, want %d", got, want))
++	}
+ 	f2 := s[T].g2
+ 	if got1, got2 := f2(x); got1 != want || got2 != want {
+ 		panic(fmt.Sprintf("f2(x) == %d, %d, want %d, %d", got1, got2, want, want))

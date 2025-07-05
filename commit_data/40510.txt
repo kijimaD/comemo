@@ -12,6 +12,19 @@ Date:   Tue May 21 06:06:11 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/178317
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/type.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/mime/type.go b/src/mime/type.go
+index bf10de8d69..ad763133e6 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -69,6 +69,7 @@ var builtinTypesLower = map[string]string{
+ 	".png":  "image/png",
+ 	".svg":  "image/svg+xml",
+ 	".wasm": "application/wasm",
++	".webp": "image/webp",
+ 	".xml":  "text/xml; charset=utf-8",
+ }
+ 

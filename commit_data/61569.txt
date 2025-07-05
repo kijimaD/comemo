@@ -20,6 +20,25 @@ Date:   Mon Nov 18 11:07:07 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/os/user/user_windows_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/os/user/user_windows_test.go b/src/os/user/user_windows_test.go
+index 635b6f3513..c71503372e 100644
+--- a/src/os/user/user_windows_test.go
++++ b/src/os/user/user_windows_test.go
+@@ -24,6 +24,13 @@ import (
+ // If the user already exists, it will be deleted and recreated.
+ // The caller is responsible for closing the token.
+ func windowsTestAccount(t *testing.T) (syscall.Token, *User) {
++	if testenv.Builder() == "" {
++		// Adding and deleting users requires special permissions.
++		// Even if we have them, we don't want to create users on
++		// on dev machines, as they may not be cleaned up.
++		// See https://dev.go/issue/70396.
++		t.Skip("skipping non-hermetic test outside of Go builders")
++	}
+ 	const testUserName = "GoStdTestUser01"
+ 	var password [33]byte
+ 	rand.Read(password[:])

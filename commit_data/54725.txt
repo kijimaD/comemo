@@ -16,10 +16,227 @@ Date:   Wed Nov 9 15:43:54 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/syscall/unix/asm_darwin.s   | 12 ++++++
  src/internal/syscall/unix/pty_darwin.go  | 65 ++++++++++++++++++++++++++++++++
  src/os/signal/internal/pty/pty.go        | 25 +-----------
  src/os/signal/internal/pty/pty_cgo.go    | 34 +++++++++++++++++
  src/os/signal/internal/pty/pty_darwin.go | 32 ++++++++++++++++
  5 files changed, 145 insertions(+), 23 deletions(-)
+
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index a0710c5d8b..771f77186e 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -27,3 +27,15 @@ TEXT ·libresolv_res_9_nclose_trampoline(SB),NOSPLIT,$0-0
+ 
+ TEXT ·libresolv_res_9_nsearch_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libresolv_res_9_nsearch(SB)
++
++TEXT ·libc_grantpt_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_grantpt(SB)
++
++TEXT ·libc_unlockpt_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_unlockpt(SB)
++
++TEXT ·libc_ptsname_r_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_ptsname_r(SB)
++
++TEXT ·libc_posix_openpt_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_posix_openpt(SB)
+diff --git a/src/internal/syscall/unix/pty_darwin.go b/src/internal/syscall/unix/pty_darwin.go
+new file mode 100644
+index 0000000000..b43321a42e
+--- /dev/null
++++ b/src/internal/syscall/unix/pty_darwin.go
+@@ -0,0 +1,65 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"internal/abi"
++	"unsafe"
++)
++
++//go:cgo_import_dynamic libc_grantpt grantpt "/usr/lib/libSystem.B.dylib"
++func libc_grantpt_trampoline()
++
++func Grantpt(fd int) error {
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_grantpt_trampoline), uintptr(fd), 0, 0, 0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
++
++//go:cgo_import_dynamic libc_unlockpt unlockpt "/usr/lib/libSystem.B.dylib"
++func libc_unlockpt_trampoline()
++
++func Unlockpt(fd int) error {
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_unlockpt_trampoline), uintptr(fd), 0, 0, 0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
++
++//go:cgo_import_dynamic libc_ptsname_r ptsname_r "/usr/lib/libSystem.B.dylib"
++func libc_ptsname_r_trampoline()
++
++func Ptsname(fd int) (string, error) {
++	buf := make([]byte, 256)
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_ptsname_r_trampoline),
++		uintptr(fd),
++		uintptr(unsafe.Pointer(&buf[0])),
++		uintptr(len(buf)-1),
++		0, 0, 0)
++	if errno != 0 {
++		return "", errno
++	}
++	for i, c := range buf {
++		if c == 0 {
++			buf = buf[:i]
++			break
++		}
++	}
++	return string(buf), nil
++}
++
++//go:cgo_import_dynamic libc_posix_openpt posix_openpt "/usr/lib/libSystem.B.dylib"
++func libc_posix_openpt_trampoline()
++
++func PosixOpenpt(flag int) (fd int, err error) {
++	ufd, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_posix_openpt_trampoline), uintptr(flag), 0, 0, 0, 0, 0)
++	if errno != 0 {
++		return -1, errno
++	}
++	return int(ufd), nil
++}
+diff --git a/src/os/signal/internal/pty/pty.go b/src/os/signal/internal/pty/pty.go
+index 537febba55..4bb0391036 100644
+--- a/src/os/signal/internal/pty/pty.go
++++ b/src/os/signal/internal/pty/pty.go
+@@ -2,21 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (aix || darwin || dragonfly || freebsd || (linux && !android) || netbsd || openbsd) && cgo
++//go:build ((aix || dragonfly || freebsd || (linux && !android) || netbsd || openbsd) && cgo) || darwin
+ 
+ // Package pty is a simple pseudo-terminal package for Unix systems,
+ // implemented by calling C functions via cgo.
+ // This is only used for testing the os/signal package.
+ package pty
+ 
+-/*
+-#define _XOPEN_SOURCE 600
+-#include <fcntl.h>
+-#include <stdlib.h>
+-#include <unistd.h>
+-*/
+-import "C"
+-
+ import (
+ 	"fmt"
+ 	"os"
+@@ -41,18 +33,5 @@ func (e *PtyError) Unwrap() error { return e.Errno }
+ 
+ // Open returns a control pty and the name of the linked process tty.
+ func Open() (pty *os.File, processTTY string, err error) {
+-	m, err := C.posix_openpt(C.O_RDWR)
+-	if err != nil {
+-		return nil, "", ptyError("posix_openpt", err)
+-	}
+-	if _, err := C.grantpt(m); err != nil {
+-		C.close(m)
+-		return nil, "", ptyError("grantpt", err)
+-	}
+-	if _, err := C.unlockpt(m); err != nil {
+-		C.close(m)
+-		return nil, "", ptyError("unlockpt", err)
+-	}
+-	processTTY = C.GoString(C.ptsname(m))
+-	return os.NewFile(uintptr(m), "pty"), processTTY, nil
++	return open()
+ }
+diff --git a/src/os/signal/internal/pty/pty_cgo.go b/src/os/signal/internal/pty/pty_cgo.go
+new file mode 100644
+index 0000000000..47ca71bc65
+--- /dev/null
++++ b/src/os/signal/internal/pty/pty_cgo.go
+@@ -0,0 +1,34 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo && (aix || dragonfly || freebsd || (linux && !android) || netbsd || openbsd)
++
++package pty
++
++/*
++#define _XOPEN_SOURCE 600
++#include <fcntl.h>
++#include <stdlib.h>
++#include <unistd.h>
++*/
++import "C"
++
++import "os"
++
++func open() (pty *os.File, processTTY string, err error) {
++	m, err := C.posix_openpt(C.O_RDWR)
++	if err != nil {
++		return nil, "", ptyError("posix_openpt", err)
++	}
++	if _, err := C.grantpt(m); err != nil {
++		C.close(m)
++		return nil, "", ptyError("grantpt", err)
++	}
++	if _, err := C.unlockpt(m); err != nil {
++		C.close(m)
++		return nil, "", ptyError("unlockpt", err)
++	}
++	processTTY = C.GoString(C.ptsname(m))
++	return os.NewFile(uintptr(m), "pty"), processTTY, nil
++}
+diff --git a/src/os/signal/internal/pty/pty_darwin.go b/src/os/signal/internal/pty/pty_darwin.go
+new file mode 100644
+index 0000000000..6fc49f3c9a
+--- /dev/null
++++ b/src/os/signal/internal/pty/pty_darwin.go
+@@ -0,0 +1,32 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pty
++
++import (
++	"internal/syscall/unix"
++	"os"
++	"syscall"
++)
++
++func open() (pty *os.File, processTTY string, err error) {
++	m, err := unix.PosixOpenpt(syscall.O_RDWR)
++	if err != nil {
++		return nil, "", ptyError("posix_openpt", err)
++	}
++	if err := unix.Grantpt(m); err != nil {
++		syscall.Close(m)
++		return nil, "", ptyError("grantpt", err)
++	}
++	if err := unix.Unlockpt(m); err != nil {
++		syscall.Close(m)
++		return nil, "", ptyError("unlockpt", err)
++	}
++	processTTY, err = unix.Ptsname(m)
++	if err != nil {
++		syscall.Close(m)
++		return nil, "", ptyError("ptsname", err)
++	}
++	return os.NewFile(uintptr(m), "pty"), processTTY, nil
++}

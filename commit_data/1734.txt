@@ -8,6 +8,19 @@ Date:   Tue Mar 3 16:09:12 2009 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=25648
     CL=25654
-
+---
  test/fixedbugs/bug074.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug074.go b/test/fixedbugs/bug074.go
+index 87008f084d..d9865c579c 100644
+--- a/test/fixedbugs/bug074.go
++++ b/test/fixedbugs/bug074.go
+@@ -7,6 +7,6 @@
+ package main
+ 
+ func main() {
+-	x := string('a', 'b', '\n');
++	x := string{'a', 'b', '\n'};
+ 	print(x);
+ }

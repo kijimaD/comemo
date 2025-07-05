@@ -13,7 +13,142 @@ Date:   Thu Dec 6 20:54:35 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/153061
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/cover/cover.go      | 20 +++++++++++++
  src/cmd/cover/cover_test.go | 68 +++++++++++++++++++++++++++++++++++++++------
  2 files changed, 80 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 425bcbdd26..0348849578 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -646,9 +646,21 @@ func (f *File) addVariables(w io.Writer) {
+ 	// - 32-bit starting line number
+ 	// - 32-bit ending line number
+ 	// - (16 bit ending column number << 16) | (16-bit starting column number).
++	var lastStart, lastEnd token.Position
+ 	for i, block := range f.blocks {
+ 		start := f.fset.Position(block.startByte)
+ 		end := f.fset.Position(block.endByte)
++
++		// It is possible for positions to repeat when there is a
++		// line directive that does not specify column information
++		// and the input has not been passed through gofmt.
++		// See issue #27350 and TestHtmlUnformatted.
++		if samePos(start, lastStart) && samePos(end, lastEnd) {
++			end.Column++
++		}
++		lastStart = start
++		lastEnd = end
++
+ 		fmt.Fprintf(w, "\t\t%d, %d, %#x, // [%d]\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF), i)
+ 	}
+ 
+@@ -697,3 +709,11 @@ func isValidIdentifier(ident string) bool {
+ 	}
+ 	return true
+ }
++
++// samePos returns whether two positions have the same file/line/column.
++// We don't use p1 == p2 because token.Position also has an Offset field,
++// and when the input uses //line directives two Positions can have different
++// Offset values while having the same file/line/dolumn.
++func samePos(p1, p2 token.Position) bool {
++	return p1.Filename == p2.Filename && p1.Line == p2.Line && p1.Column == p2.Column
++}
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 3e5c076d36..3de9b0c12d 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -40,11 +40,16 @@ var (
+ 	htmlGolden = filepath.Join(testdata, "html", "html.golden")
+ 
+ 	// Temporary files.
+-	tmpTestMain string
+-	coverInput  string
+-	coverOutput string
+-	htmlProfile string
+-	htmlHTML    string
++	tmpTestMain  string
++	coverInput   string
++	coverOutput  string
++	htmlProfile  string
++	htmlHTML     string
++	htmlUDir     string
++	htmlU        string
++	htmlUTest    string
++	htmlUProfile string
++	htmlUHTML    string
+ )
+ 
+ var (
+@@ -85,6 +90,11 @@ func TestMain(m *testing.M) {
+ 	coverOutput = filepath.Join(dir, "test_cover.go")
+ 	htmlProfile = filepath.Join(dir, "html.cov")
+ 	htmlHTML = filepath.Join(dir, "html.html")
++	htmlUDir = filepath.Join(dir, "htmlunformatted")
++	htmlU = filepath.Join(htmlUDir, "htmlunformatted.go")
++	htmlUTest = filepath.Join(htmlUDir, "htmlunformatted_test.go")
++	htmlUProfile = filepath.Join(htmlUDir, "htmlunformatted.cov")
++	htmlUHTML = filepath.Join(htmlUDir, "htmlunformatted.html")
+ 
+ 	status := m.Run()
+ 
+@@ -427,12 +437,54 @@ func TestCoverHTML(t *testing.T) {
+ 	}
+ }
+ 
++// Test HTML processing with a source file not run through gofmt.
++// Issue #27350.
++func TestHtmlUnformatted(t *testing.T) {
++	t.Parallel()
++	testenv.MustHaveGoRun(t)
++	buildCover(t)
++
++	if err := os.Mkdir(htmlUDir, 0777); err != nil {
++		t.Fatal(err)
++	}
++
++	const htmlUContents = `
++package htmlunformatted
++
++var g int
++
++func F() {
++//line x.go:1
++	{ { F(); goto lab } }
++lab:
++}`
++
++	const htmlUTestContents = `package htmlunformatted`
++
++	if err := ioutil.WriteFile(htmlU, []byte(htmlUContents), 0444); err != nil {
++		t.Fatal(err)
++	}
++	if err := ioutil.WriteFile(htmlUTest, []byte(htmlUTestContents), 0444); err != nil {
++		t.Fatal(err)
++	}
++
++	// go test -covermode=count -coverprofile TMPDIR/htmlunformatted.cov
++	cmd := exec.Command(testenv.GoToolPath(t), "test", toolexecArg, "-covermode=count", "-coverprofile", htmlUProfile)
++	cmd.Dir = htmlUDir
++	run(cmd, t)
++
++	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
++	cmd = exec.Command(testcover, "-html", htmlUProfile, "-o", htmlUHTML)
++	run(cmd, t)
++}
++
+ func run(c *exec.Cmd, t *testing.T) {
+ 	t.Helper()
+ 	t.Log("running", c.Args)
+-	c.Stdout = os.Stdout
+-	c.Stderr = os.Stderr
+-	err := c.Run()
++	out, err := c.CombinedOutput()
++	if len(out) > 0 {
++		t.Logf("%s", out)
++	}
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

@@ -20,7 +20,35 @@ Date:   Thu Sep 17 11:47:16 2015 +0200
     Change-Id: I974cfc7e5ced682d4754ba09b0b102cb08a46567
     Reviewed-on: https://go-review.googlesource.com/14680
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go           | 2 ++
  src/cmd/asm/internal/asm/testdata/arm64.out | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index e6901ebfc2..04622e63ec 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -252,7 +252,9 @@ func archArm64() *Arch {
+ 	register["EQ"] = arm64.COND_EQ
+ 	register["NE"] = arm64.COND_NE
+ 	register["HS"] = arm64.COND_HS
++	register["CS"] = arm64.COND_HS
+ 	register["LO"] = arm64.COND_LO
++	register["CC"] = arm64.COND_LO
+ 	register["MI"] = arm64.COND_MI
+ 	register["PL"] = arm64.COND_PL
+ 	register["VS"] = arm64.COND_VS
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.out b/src/cmd/asm/internal/asm/testdata/arm64.out
+index 0b7b430f4c..37944bc75c 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.out
++++ b/src/cmd/asm/internal/asm/testdata/arm64.out
+@@ -37,7 +37,7 @@
+ 147 00037 (testdata/arm64.s:147)	CSEL	LT, R1, R2, ZR
+ 148 00038 (testdata/arm64.s:148)	CSINC	GT, R1, ZR, R3
+ 149 00039 (testdata/arm64.s:149)	CSNEG	MI, R1, R2, R3
+-150 00040 (testdata/arm64.s:150)	CSINV	0, R1, R2, R3
++150 00040 (testdata/arm64.s:150)	CSINV	HS, R1, R2, R3
+ 156 00041 (testdata/arm64.s:156)	CSEL	LT, R1, R2
+ 164 00042 (testdata/arm64.s:164)	CCMN	MI, ZR, R1, $4
+ 173 00043 (testdata/arm64.s:173)	FADDD	$(0.5), F1

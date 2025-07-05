@@ -10,6 +10,63 @@ Date:   Fri Apr 10 14:58:54 2020 -0400
     Change-Id: Ia9a0485456ac75cc6e706218a359f109cd8fce43
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228141
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/link_test.go | 48 +++++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 48 insertions(+)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index e665737cc3..f374e9322f 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -628,3 +628,51 @@ func TestFuncAlign(t *testing.T) {
+ 		t.Errorf("unexpected output: %s\n", out)
+ 	}
+ }
++
++const helloSrc = `
++package main
++import "fmt"
++func main() { fmt.Println("hello") }
++`
++
++func TestTrampoline(t *testing.T) {
++	// Test that trampoline insertion works as expected.
++	// For stress test, we set -debugtramp=2 flag, which sets a very low
++	// threshold for trampoline generation, and essentially all cross-package
++	// calls will use trampolines.
++	switch runtime.GOARCH {
++	case "arm", "ppc64", "ppc64le":
++	default:
++		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
++	}
++
++	testenv.MustHaveGoBuild(t)
++
++	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	src := filepath.Join(tmpdir, "hello.go")
++	err = ioutil.WriteFile(src, []byte(helloSrc), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++	exe := filepath.Join(tmpdir, "hello.exe")
++
++	// Build and run with old object file format.
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-debugtramp=2", "-o", exe, src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failed: %v\n%s", err, out)
++	}
++	cmd = exec.Command(exe)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("executable failed to run: %v\n%s", err, out)
++	}
++	if string(out) != "hello\n" {
++		t.Errorf("unexpected output:\n%s", out)
++	}
++}

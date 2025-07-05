@@ -17,6 +17,47 @@ Date:   Thu May 27 12:35:01 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/type.go | 22 ++++++++++------------
  1 file changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 3fdb2365a0..2660ce4408 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -661,11 +661,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	if _, ok := underlying.(*Named); ok {
+ 		panic("types.NewNamed: underlying type must not be *Named")
+ 	}
+-	typ := &Named{obj: obj, orig: underlying, underlying: underlying, methods: methods}
+-	if obj.typ == nil {
+-		obj.typ = typ
+-	}
+-	return typ
++	return (*Checker)(nil).newNamed(obj, underlying, methods)
+ }
+ 
+ func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+@@ -681,13 +677,15 @@ func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func)
+ 	//
+ 	// TODO(rFindley): clean this up so that under is the only function mutating
+ 	//                 named types.
+-	check.later(func() {
+-		switch typ.under().(type) {
+-		case *Named, *instance:
+-			panic("internal error: unexpanded underlying type")
+-		}
+-		typ.check = nil
+-	})
++	if check != nil {
++		check.later(func() {
++			switch typ.under().(type) {
++			case *Named, *instance:
++				panic("internal error: unexpanded underlying type")
++			}
++			typ.check = nil
++		})
++	}
+ 	return typ
+ }
+ 

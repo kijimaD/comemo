@@ -7,6 +7,20 @@ Date:   Mon Jun 18 17:43:05 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6301096
-
+---
  src/pkg/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 7d1426fb41..09b3c1a270 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -415,7 +415,7 @@ func Repeat(b []byte, count int) []byte {
+ // ToUpper returns a copy of the byte array s with all Unicode letters mapped to their upper case.
+ func ToUpper(s []byte) []byte { return Map(unicode.ToUpper, s) }
+ 
+-// ToUpper returns a copy of the byte array s with all Unicode letters mapped to their lower case.
++// ToLower returns a copy of the byte array s with all Unicode letters mapped to their lower case.
+ func ToLower(s []byte) []byte { return Map(unicode.ToLower, s) }
+ 
+ // ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.

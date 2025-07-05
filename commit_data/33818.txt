@@ -20,10 +20,132 @@ Date:   Mon Sep 4 21:23:29 2017 +0900
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testplugin/test.bash     | 12 +++++++++++-
  src/cmd/dist/test.go              |  2 ++
  src/cmd/go/internal/work/build.go |  3 +++
  src/cmd/link/internal/ld/macho.go |  6 +++++-
  src/runtime/symtab.go             | 25 -------------------------
  5 files changed, 21 insertions(+), 27 deletions(-)
+
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index f64be9b0ff..b532676eb6 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -40,11 +40,21 @@ GOPATH=$(pwd) go build -buildmode=plugin iface_b
+ GOPATH=$(pwd) go build iface
+ LD_LIBRARY_PATH=$(pwd) ./iface
+ 
++function _timeout() (
++	set -e
++	$2 &
++	p=$!
++	(sleep $1; kill $p 2>/dev/null) &
++	p2=$!
++	wait $p 2>/dev/null
++	kill -0 $p2 2>/dev/null
++)
++
+ # Test for issue 18676 - make sure we don't add the same itab twice.
+ # The buggy code hangs forever, so use a timeout to check for that.
+ GOPATH=$(pwd) go build -buildmode=plugin -o plugin.so src/issue18676/plugin.go
+ GOPATH=$(pwd) go build -o issue18676 src/issue18676/main.go
+-timeout 10s ./issue18676
++_timeout 10 ./issue18676
+ 
+ # Test for issue 19534 - that we can load a plugin built in a path with non-alpha
+ # characters
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 89014e5d0a..b9766019be 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -850,6 +850,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		switch pair {
+ 		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x":
+ 			return true
++		case "darwin-amd64":
++			return true
+ 		}
+ 		return false
+ 	default:
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index d2e2253512..e9c94015ea 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -358,6 +358,9 @@ func BuildModeInit() {
+ 			switch platform {
+ 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x",
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
++			case "darwin/amd64":
++				// Skip DWARF generation due to #21647
++				cfg.BuildLdflags = append(cfg.BuildLdflags, "-w")
+ 			default:
+ 				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
+ 			}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 10d50d5224..0d9b824638 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -5,6 +5,7 @@
+ package ld
+ 
+ import (
++	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"sort"
+ 	"strings"
+@@ -746,7 +747,10 @@ func machoShouldExport(ctxt *Link, s *Symbol) bool {
+ 	if !ctxt.DynlinkingGo() || s.Attr.Local() {
+ 		return false
+ 	}
+-	if Buildmode == BuildmodePlugin && strings.HasPrefix(s.Extname, *flagPluginPath) {
++	if Buildmode == BuildmodePlugin && strings.HasPrefix(s.Extname, objabi.PathToPrefix(*flagPluginPath)) {
++		return true
++	}
++	if strings.HasPrefix(s.Name, "go.itab.") {
+ 		return true
+ 	}
+ 	if strings.HasPrefix(s.Name, "type.") && !strings.HasPrefix(s.Name, "type..") {
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 4a68f4eaa0..7e001c96b1 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -526,7 +526,6 @@ func moduledataverify1(datap *moduledata) {
+ 
+ 	// ftab is lookup table for function by program counter.
+ 	nftab := len(datap.ftab) - 1
+-	var pcCache pcvalueCache
+ 	for i := 0; i < nftab; i++ {
+ 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
+ 		if datap.ftab[i].entry > datap.ftab[i+1].entry {
+@@ -542,30 +541,6 @@ func moduledataverify1(datap *moduledata) {
+ 			}
+ 			throw("invalid runtime symbol table")
+ 		}
+-
+-		if debugPcln || nftab-i < 5 {
+-			// Check a PC near but not at the very end.
+-			// The very end might be just padding that is not covered by the tables.
+-			// No architecture rounds function entries to more than 16 bytes,
+-			// but if one came along we'd need to subtract more here.
+-			// But don't use the next PC if it corresponds to a foreign object chunk
+-			// (no pcln table, f2.pcln == 0). That chunk might have an alignment
+-			// more than 16 bytes.
+-			f := funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff])), datap}
+-			end := f.entry
+-			if i+1 < nftab {
+-				f2 := funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i+1].funcoff])), datap}
+-				if f2.pcln != 0 {
+-					end = f2.entry - 16
+-					if end < f.entry {
+-						end = f.entry
+-					}
+-				}
+-			}
+-			pcvalue(f, f.pcfile, end, &pcCache, true)
+-			pcvalue(f, f.pcln, end, &pcCache, true)
+-			pcvalue(f, f.pcsp, end, &pcCache, true)
+-		}
+ 	}
+ 
+ 	if datap.minpc != datap.ftab[0].entry ||

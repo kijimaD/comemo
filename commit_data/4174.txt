@@ -10,7 +10,7 @@ Date:   Fri Nov 20 09:11:46 2009 -0800
     
     R=ken2
     https://golang.org/cl/157106
-
+---
  src/cmd/5g/gg.h           |   2 +
  src/cmd/5g/ggen.c         | 380 ++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/6g/ggen.c         | 121 +++++++--------
@@ -29,3 +29,1399 @@ Date:   Fri Nov 20 09:11:46 2009 -0800
  test/ken/slicearray.go    |   8 +
  test/ken/sliceslice.go    |   8 +
  17 files changed, 903 insertions(+), 145 deletions(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 98e52788f1..6477452b92 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -61,6 +61,7 @@ EXTERN	Node*	newproc;
+ EXTERN	Node*	deferproc;
+ EXTERN	Node*	deferreturn;
+ EXTERN	Node*	throwindex;
++EXTERN	Node*	throwslice;
+ EXTERN	Node*	throwreturn;
+ EXTERN	long	unmappedzero;
+ EXTERN	int	maxstksize;
+@@ -78,6 +79,7 @@ void	cgen_callinter(Node*, Node*, int);
+ void	cgen_proc(Node*, int);
+ void	cgen_callret(Node*, Node*);
+ void	cgen_dcl(Node*);
++int	cgen_inline(Node*, Node*);
+ int	needconvert(Type*, Type*);
+ void	genconv(Type*, Type*);
+ void	allocparams(void);
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index a22432009a..e859f0578c 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -22,6 +22,7 @@ compile(Node *fn)
+ 		deferproc = sysfunc("deferproc");
+ 		deferreturn = sysfunc("deferreturn");
+ 		throwindex = sysfunc("throwindex");
++		throwslice = sysfunc("throwslice");
+ 		throwreturn = sysfunc("throwreturn");
+ 	}
+ 
+@@ -685,3 +686,382 @@ clearfat(Node *nl)
+ 	regfree(&nz);
+ }
+ 
++static int
++regcmp(const void *va, const void *vb)
++{
++	Node *ra, *rb;
++
++	ra = (Node*)va;
++	rb = (Node*)vb;
++	return ra->local - rb->local;
++}
++
++static	Prog*	throwpc;
++
++void
++getargs(NodeList *nn, Node *reg, int n)
++{
++	NodeList *l;
++	int i;
++
++	throwpc = nil;
++
++	l = nn;
++	for(i=0; i<n; i++) {
++		if(!smallintconst(l->n->right) && !isslice(l->n->right->type)) {
++			regalloc(reg+i, l->n->right->type, N);
++			cgen(l->n->right, reg+i);
++		} else
++			reg[i] = *l->n->right;
++		if(reg[i].local != 0)
++			yyerror("local used");
++		reg[i].local = l->n->left->xoffset;
++		l = l->next;
++	}
++	qsort((void*)reg, n, sizeof(*reg), regcmp);
++	for(i=0; i<n; i++)
++		reg[i].local = 0;
++}
++
++void
++cmpandthrow(Node *nl, Node *nr)
++{
++	vlong cl, cr;
++	Prog *p1;
++	int op;
++	Node *c, n1, n2;
++
++	op = OLE;
++	if(smallintconst(nl)) {
++		cl = mpgetfix(nl->val.u.xval);
++		if(cl == 0)
++			return;
++		if(smallintconst(nr)) {
++			cr = mpgetfix(nr->val.u.xval);
++			if(cl > cr) {
++				if(throwpc == nil) {
++					throwpc = pc;
++					ginscall(throwslice, 0);
++				} else
++					patch(gbranch(AB, T), throwpc);
++			}
++			return;
++		}
++
++		// put the constant on the right
++		op = brrev(op);
++		c = nl;
++		nl = nr;
++		nr = c;
++	}
++
++	n1.op = OXXX;
++	if(nr->op != OREGISTER) {
++		regalloc(&n1, types[TUINT32], N);
++		gmove(nr, &n1);
++		nr = &n1;
++	}
++	n2.op = OXXX;
++	if(nl->op != OREGISTER) {
++		regalloc(&n2, types[TUINT32], N);
++		gmove(nl, &n2);
++		nl = &n2;
++	}
++	gcmp(optoas(OCMP, types[TUINT32]), nl, nr);
++	if(nr == &n1)
++		regfree(&n1);
++	if(nl == &n2)
++		regfree(&n2);
++	if(throwpc == nil) {
++		p1 = gbranch(optoas(op, types[TUINT32]), T);
++		throwpc = pc;
++		ginscall(throwslice, 0);
++		patch(p1, pc);
++	} else {
++		op = brcom(op);
++		p1 = gbranch(optoas(op, types[TUINT32]), T);
++		patch(p1, throwpc);
++	}
++}
++
++int
++sleasy(Node *n)
++{
++	if(n->op != ONAME)
++		return 0;
++	if(!n->addable)
++		return 0;
++	return 1;
++}
++
++// generate inline code for
++//	slicearray
++//	sliceslice
++//	arraytoslice
++int
++cgen_inline(Node *n, Node *res)
++{
++	Node nodes[5];
++	Node n1, n2, n3, nres, nnode0, ntemp;
++	vlong v;
++	int i, narg, bad;
++
++	if(n->op != OCALLFUNC)
++		goto no;
++	if(!n->left->addable)
++		goto no;
++	if(strcmp(n->left->sym->package, "runtime") != 0)
++		goto no;
++	if(strcmp(n->left->sym->name, "slicearray") == 0)
++		goto slicearray;
++	if(strcmp(n->left->sym->name, "sliceslice") == 0) {
++		narg = 4;
++		goto sliceslice;
++	}
++	if(strcmp(n->left->sym->name, "sliceslice1") == 0) {
++		narg = 3;
++		goto sliceslice;
++	}
++	goto no;
++
++slicearray:
++	if(!sleasy(res))
++		goto no;
++	getargs(n->list, nodes, 5);
++
++	// if(hb[3] > nel[1]) goto throw
++	cmpandthrow(&nodes[3], &nodes[1]);
++
++	// if(lb[2] > hb[3]) goto throw
++	cmpandthrow(&nodes[2], &nodes[3]);
++
++	// len = hb[3] - lb[2] (destroys hb)
++	n2 = *res;
++	n2.type = types[TUINT32];
++	n2.xoffset += Array_nel;
++
++	if(smallintconst(&nodes[3]) && smallintconst(&nodes[2])) {
++		v = mpgetfix(nodes[3].val.u.xval) -
++			mpgetfix(nodes[2].val.u.xval);
++		nodconst(&n1, types[TUINT32], v);
++		gmove(&n1, &n2);
++	} else {
++		regalloc(&n1, types[TUINT32], &nodes[3]);
++		gmove(&nodes[3], &n1);
++		if(!smallintconst(&nodes[2]) || mpgetfix(nodes[2].val.u.xval) != 0)
++			gins(optoas(OSUB, types[TUINT32]), &nodes[2], &n1);
++		gmove(&n1, &n2);
++		regfree(&n1);
++	}
++
++	// cap = nel[1] - lb[2] (destroys nel)
++	n2 = *res;
++	n2.type = types[TUINT32];
++	n2.xoffset += Array_cap;
++
++	if(smallintconst(&nodes[1]) && smallintconst(&nodes[2])) {
++		v = mpgetfix(nodes[1].val.u.xval) -
++			mpgetfix(nodes[2].val.u.xval);
++		nodconst(&n1, types[TUINT32], v);
++		gmove(&n1, &n2);
++	} else {
++		regalloc(&n1, types[TUINT32], &nodes[1]);
++		gmove(&nodes[1], &n1);
++		if(!smallintconst(&nodes[2]) || mpgetfix(nodes[2].val.u.xval) != 0)
++			gins(optoas(OSUB, types[TUINT32]), &nodes[2], &n1);
++		gmove(&n1, &n2);
++		regfree(&n1);
++	}
++
++	// if slice could be too big, dereference to
++	// catch nil array pointer.
++	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
++		n2 = nodes[0];
++		n2.xoffset = 0;
++		n2.op = OINDREG;
++		n2.type = types[TUINT8];
++		regalloc(&n1, types[TUINT32], N);
++		gins(AMOVB, &n2, &n1);
++		regfree(&n1);
++	}
++
++	// ary = old[0] + (lb[2] * width[4]) (destroys old)
++	n2 = *res;
++	n2.type = types[tptr];
++	n2.xoffset += Array_array;
++
++	if(smallintconst(&nodes[2]) && smallintconst(&nodes[4])) {
++		v = mpgetfix(nodes[2].val.u.xval) *
++			mpgetfix(nodes[4].val.u.xval);
++		if(v != 0) {
++			nodconst(&n1, types[tptr], v);
++			gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
++		}
++	} else {
++		regalloc(&n1, types[tptr], &nodes[2]);
++		gmove(&nodes[2], &n1);
++		if(!smallintconst(&nodes[4]) || mpgetfix(nodes[4].val.u.xval) != 1) {
++			regalloc(&n3, types[tptr], N);
++			gmove(&nodes[4], &n3);
++			gins(optoas(OMUL, types[tptr]), &n3, &n1);
++			regfree(&n3);
++		}
++		gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
++		regfree(&n1);
++	}
++	gmove(&nodes[0], &n2);
++
++	for(i=0; i<5; i++) {
++		if(nodes[i].op == OREGISTER)
++			regfree(&nodes[i]);
++	}
++	return 1;
++
++sliceslice:
++	getargs(n->list, nodes, narg);
++
++	nres = *res;		// result
++	nnode0 = nodes[0];	// input slice
++	if(!sleasy(res) || !sleasy(&nodes[0])) {
++		bad = 0;
++		if(res->ullman >= UINF)
++			bad = 1;
++		for(i=0; i<narg; i++) {
++			if(nodes[i].ullman >= UINF)
++				bad = 1;
++			if(nodes[i].op == OREGISTER)
++				regfree(&nodes[i]);
++		}
++
++		if(bad)
++			goto no;
++
++		tempname(&ntemp, res->type);
++		if(!sleasy(&nodes[0])) {
++			cgen(&nodes[0], &ntemp);
++			nnode0 = ntemp;
++		}
++		getargs(n->list, nodes, narg);
++		if(!sleasy(res))
++			nres = ntemp;
++	}
++	
++	if(narg == 3) {	// old[lb:]
++		// move width to where it would be for old[lb:hb]
++		nodes[3] = nodes[2];
++		nodes[2].op = OXXX;
++		
++		// if(lb[1] > old.nel[0]) goto throw;
++		n2 = nnode0;
++		n2.xoffset += Array_nel;
++		n2.type = types[TUINT32];
++		cmpandthrow(&nodes[1], &n2);
++
++		// ret.nel = old.nel[0]-lb[1];
++		n2 = nnode0;
++		n2.type = types[TUINT32];
++		n2.xoffset += Array_nel;
++	
++		regalloc(&n1, types[TUINT32], N);
++		gmove(&n2, &n1);
++		if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
++			gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
++	
++		n2 = nres;
++		n2.type = types[TUINT32];
++		n2.xoffset += Array_nel;
++		gmove(&n1, &n2);
++		regfree(&n1);
++	} else {	// old[lb:hb]
++		// if(hb[2] > old.cap[0]) goto throw;
++		n2 = nnode0;
++		n2.xoffset += Array_cap;
++		n2.type = types[TUINT32];
++		cmpandthrow(&nodes[2], &n2);
++
++		// if(lb[1] > hb[2]) goto throw;
++		cmpandthrow(&nodes[1], &nodes[2]);
++
++		// ret.len = hb[2]-lb[1]; (destroys hb[2])
++		n2 = nres;
++		n2.type = types[TUINT32];
++		n2.xoffset += Array_nel;
++	
++		if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
++			v = mpgetfix(nodes[2].val.u.xval) -
++				mpgetfix(nodes[1].val.u.xval);
++			nodconst(&n1, types[TUINT32], v);
++			gmove(&n1, &n2);
++		} else {
++			regalloc(&n1, types[TUINT32], &nodes[2]);
++			gmove(&nodes[2], &n1);
++			if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
++				gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
++			gmove(&n1, &n2);
++			regfree(&n1);
++		}
++	}
++
++	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
++	n2 = nnode0;
++	n2.type = types[TUINT32];
++	n2.xoffset += Array_cap;
++
++	regalloc(&n1, types[TUINT32], &nodes[2]);
++	gmove(&n2, &n1);
++	if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
++		gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
++
++	n2 = nres;
++	n2.type = types[TUINT32];
++	n2.xoffset += Array_cap;
++	gmove(&n1, &n2);
++	regfree(&n1);
++
++	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
++	n2 = nnode0;
++	n2.type = types[tptr];
++	n2.xoffset += Array_array;
++	regalloc(&n3, types[tptr], N);
++	gmove(&n2, &n3);
++
++	regalloc(&n1, types[tptr], &nodes[1]);
++	if(smallintconst(&nodes[1]) && smallintconst(&nodes[3])) {
++		gmove(&n2, &n1);
++		v = mpgetfix(nodes[1].val.u.xval) *
++			mpgetfix(nodes[3].val.u.xval);
++		if(v != 0) {
++			nodconst(&n2, types[tptr], v);
++			gins(optoas(OADD, types[tptr]), &n3, &n1);
++		}
++	} else {
++		gmove(&nodes[1], &n1);
++		if(!smallintconst(&nodes[3]) || mpgetfix(nodes[3].val.u.xval) != 1) {
++			regalloc(&n2, types[tptr], N);
++			gmove(&nodes[3], &n2);
++			gins(optoas(OMUL, types[tptr]), &n2, &n1);
++			regfree(&n2);
++		}
++		gins(optoas(OADD, types[tptr]), &n3, &n1);
++	}
++	regfree(&n3);
++
++	n2 = nres;
++	n2.type = types[tptr];
++	n2.xoffset += Array_array;
++	gmove(&n1, &n2);
++	regfree(&n1);
++
++	for(i=0; i<4; i++) {
++		if(nodes[i].op == OREGISTER)
++			regfree(&nodes[i]);
++	}
++
++	if(!sleasy(res)) {
++		cgen(&nres, res);
++	}
++	return 1;
++
++no:
++	return 0;
++}
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 5c0a22114f..cf56148616 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1131,7 +1131,7 @@ cgen_inline(Node *n, Node *res)
+ 	Node nodes[5];
+ 	Node n1, n2, nres, nnode0, ntemp;
+ 	vlong v;
+-	int i, bad;
++	int i, narg, bad;
+ 
+ 	if(n->op != OCALLFUNC)
+ 		goto no;
+@@ -1141,10 +1141,14 @@ cgen_inline(Node *n, Node *res)
+ 		goto no;
+ 	if(strcmp(n->left->sym->name, "slicearray") == 0)
+ 		goto slicearray;
+-	if(strcmp(n->left->sym->name, "sliceslice") == 0)
++	if(strcmp(n->left->sym->name, "sliceslice") == 0) {
++		narg = 4;
+ 		goto sliceslice;
+-	if(strcmp(n->left->sym->name, "arraytoslice") == 0)
+-		goto arraytoslice;
++	}
++	if(strcmp(n->left->sym->name, "sliceslice1") == 0) {
++		narg = 3;
++		goto sliceslice;
++	}
+ 	goto no;
+ 
+ slicearray:
+@@ -1231,44 +1235,8 @@ slicearray:
+ 	}
+ 	return 1;
+ 
+-arraytoslice:
+-	if(!sleasy(res))
+-		goto no;
+-	getargs(n->list, nodes, 2);
+-
+-	// ret.len = nel[1];
+-	n2 = *res;
+-	n2.xoffset += Array_nel;
+-	gins(optoas(OAS, types[TUINT32]), &nodes[1], &n2);
+-
+-	// ret.cap = nel[1];
+-	n2 = *res;
+-	n2.xoffset += Array_cap;
+-	gins(optoas(OAS, types[TUINT32]), &nodes[1], &n2);
+-
+-	// ret.array = old[0];
+-	n2 = *res;
+-	n2.xoffset += Array_array;
+-	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
+-
+-	// if slice could be too big, dereference to
+-	// catch nil array pointer.
+-	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
+-		n2 = nodes[0];
+-		n2.xoffset = 0;
+-		n2.op = OINDREG;
+-		n2.type = types[TUINT8];
+-		gins(ATESTB, nodintconst(0), &n2);
+-	}
+-
+-	for(i=0; i<2; i++) {
+-		if(nodes[i].op == OREGISTER)
+-			regfree(&nodes[i]);
+-	}
+-	return 1;
+-
+ sliceslice:
+-	getargs(n->list, nodes, 4);
++	getargs(n->list, nodes, narg);
+ 
+ 	nres = *res;		// result
+ 	nnode0 = nodes[0];	// input slice
+@@ -1276,7 +1244,7 @@ sliceslice:
+ 		bad = 0;
+ 		if(res->ullman >= UINF)
+ 			bad = 1;
+-		for(i=0; i<4; i++) {
++		for(i=0; i<narg; i++) {
+ 			if(nodes[i].ullman >= UINF)
+ 				bad = 1;
+ 			if(nodes[i].op == OREGISTER)
+@@ -1291,35 +1259,60 @@ sliceslice:
+ 			cgen(&nodes[0], &ntemp);
+ 			nnode0 = ntemp;
+ 		}
+-		getargs(n->list, nodes, 4);
++		getargs(n->list, nodes, narg);
+ 		if(!sleasy(res))
+ 			nres = ntemp;
+ 	}
+-
+-	// if(hb[2] > old.cap[0]) goto throw;
+-	n2 = nnode0;
+-	n2.xoffset += Array_cap;
+-	cmpandthrow(&nodes[2], &n2);
+-
+-	// if(lb[1] > hb[2]) goto throw;
+-	cmpandthrow(&nodes[1], &nodes[2]);
+-
+-	// ret.len = hb[2]-lb[1]; (destroys hb[2])
+-	n2 = nres;
+-	n2.xoffset += Array_nel;
+-
+-	if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
+-		v = mpgetfix(nodes[2].val.u.xval) -
+-			mpgetfix(nodes[1].val.u.xval);
+-		nodconst(&n1, types[TUINT32], v);
+-		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+-	} else {
+-		regalloc(&n1, types[TUINT32], &nodes[2]);
+-		gmove(&nodes[2], &n1);
++	
++	if(narg == 3) {	// old[lb:]
++		// move width to where it would be for old[lb:hb]
++		nodes[3] = nodes[2];
++		nodes[2].op = OXXX;
++		
++		// if(lb[1] > old.nel[0]) goto throw;
++		n2 = nnode0;
++		n2.xoffset += Array_nel;
++		cmpandthrow(&nodes[1], &n2);
++
++		// ret.nel = old.nel[0]-lb[1];
++		n2 = nnode0;
++		n2.xoffset += Array_nel;
++	
++		regalloc(&n1, types[TUINT32], N);
++		gins(optoas(OAS, types[TUINT32]), &n2, &n1);
+ 		if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
+ 			gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
++	
++		n2 = nres;
++		n2.xoffset += Array_nel;
+ 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+ 		regfree(&n1);
++	} else {	// old[lb:hb]
++		// if(hb[2] > old.cap[0]) goto throw;
++		n2 = nnode0;
++		n2.xoffset += Array_cap;
++		cmpandthrow(&nodes[2], &n2);
++
++		// if(lb[1] > hb[2]) goto throw;
++		cmpandthrow(&nodes[1], &nodes[2]);
++
++		// ret.len = hb[2]-lb[1]; (destroys hb[2])
++		n2 = nres;
++		n2.xoffset += Array_nel;
++	
++		if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
++			v = mpgetfix(nodes[2].val.u.xval) -
++				mpgetfix(nodes[1].val.u.xval);
++			nodconst(&n1, types[TUINT32], v);
++			gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++		} else {
++			regalloc(&n1, types[TUINT32], &nodes[2]);
++			gmove(&nodes[2], &n1);
++			if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
++				gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
++			gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++			regfree(&n1);
++		}
+ 	}
+ 
+ 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index ee4df870a1..b6b855de8b 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -61,6 +61,10 @@ cgen(Node *n, Node *res)
+ 	if(res == N || res->type == T)
+ 		fatal("cgen: res nil");
+ 
++	// inline slices
++	if(cgen_inline(n, res))
++		return;
++
+ 	while(n->op == OCONVNOP)
+ 		n = n->left;
+ 
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index b36d0730b7..3c0292cca8 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -65,6 +65,7 @@ EXTERN	Node*	newproc;
+ EXTERN	Node*	deferproc;
+ EXTERN	Node*	deferreturn;
+ EXTERN	Node*	throwindex;
++EXTERN	Node*	throwslice;
+ EXTERN	Node*	throwreturn;
+ EXTERN	int	maxstksize;
+ extern	uint32	unmappedzero;
+@@ -106,6 +107,7 @@ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
+ void	naddr(Node*, Addr*, int);
+ void	cgen_aret(Node*, Node*);
++int	cgen_inline(Node*, Node*);
+ Node*	ncon(uint32);
+ 
+ /*
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 7fc0aab70f..c0a917be29 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -22,6 +22,7 @@ compile(Node *fn)
+ 		deferproc = sysfunc("deferproc");
+ 		deferreturn = sysfunc("deferreturn");
+ 		throwindex = sysfunc("throwindex");
++		throwslice = sysfunc("throwslice");
+ 		throwreturn = sysfunc("throwreturn");
+ 	}
+ 
+@@ -740,4 +741,348 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+ 	regfree(&n2b);
+ }
+ 
++static int
++regcmp(const void *va, const void *vb)
++{
++	Node *ra, *rb;
++
++	ra = (Node*)va;
++	rb = (Node*)vb;
++	return ra->local - rb->local;
++}
++
++static	Prog*	throwpc;
++
++void
++getargs(NodeList *nn, Node *reg, int n)
++{
++	NodeList *l;
++	int i;
++
++	throwpc = nil;
++
++	l = nn;
++	for(i=0; i<n; i++) {
++		if(!smallintconst(l->n->right) && !isslice(l->n->right->type)) {
++			if(i < 3)	// AX CX DX
++				nodreg(reg+i, l->n->right->type, D_AX+i);
++			else
++				reg[i].op = OXXX;
++			regalloc(reg+i, l->n->right->type, reg+i);
++			cgen(l->n->right, reg+i);
++		} else
++			reg[i] = *l->n->right;
++		if(reg[i].local != 0)
++			yyerror("local used");
++		reg[i].local = l->n->left->xoffset;
++		l = l->next;
++	}
++	qsort((void*)reg, n, sizeof(*reg), regcmp);
++	for(i=0; i<n; i++)
++		reg[i].local = 0;
++}
++
++void
++cmpandthrow(Node *nl, Node *nr)
++{
++	vlong cl, cr;
++	Prog *p1;
++	int op;
++	Node *c;
++
++	op = OLE;
++	if(smallintconst(nl)) {
++		cl = mpgetfix(nl->val.u.xval);
++		if(cl == 0)
++			return;
++		if(smallintconst(nr)) {
++			cr = mpgetfix(nr->val.u.xval);
++			if(cl > cr) {
++				if(throwpc == nil) {
++					throwpc = pc;
++					ginscall(throwslice, 0);
++				} else
++					patch(gbranch(AJMP, T), throwpc);
++			}
++			return;
++		}
++
++		// put the constant on the right
++		op = brrev(op);
++		c = nl;
++		nl = nr;
++		nr = c;
++	}
++
++	gins(optoas(OCMP, types[TUINT32]), nl, nr);
++	if(throwpc == nil) {
++		p1 = gbranch(optoas(op, types[TUINT32]), T);
++		throwpc = pc;
++		ginscall(throwslice, 0);
++		patch(p1, pc);
++	} else {
++		op = brcom(op);
++		p1 = gbranch(optoas(op, types[TUINT32]), T);
++		patch(p1, throwpc);
++	}
++}
++
++int
++sleasy(Node *n)
++{
++	if(n->op != ONAME)
++		return 0;
++	if(!n->addable)
++		return 0;
++	return 1;
++}
++
++// generate inline code for
++//	slicearray
++//	sliceslice
++//	arraytoslice
++int
++cgen_inline(Node *n, Node *res)
++{
++	Node nodes[5];
++	Node n1, n2, nres, nnode0, ntemp;
++	vlong v;
++	int i, narg, bad;
++
++	if(n->op != OCALLFUNC)
++		goto no;
++	if(!n->left->addable)
++		goto no;
++	if(strcmp(n->left->sym->package, "runtime") != 0)
++		goto no;
++	if(strcmp(n->left->sym->name, "slicearray") == 0)
++		goto slicearray;
++	if(strcmp(n->left->sym->name, "sliceslice") == 0) {
++		narg = 4;
++		goto sliceslice;
++	}
++	if(strcmp(n->left->sym->name, "sliceslice1") == 0) {
++		narg = 3;
++		goto sliceslice;
++	}
++	goto no;
++
++slicearray:
++	if(!sleasy(res))
++		goto no;
++	getargs(n->list, nodes, 5);
++
++	// if(hb[3] > nel[1]) goto throw
++	cmpandthrow(&nodes[3], &nodes[1]);
++
++	// if(lb[2] > hb[3]) goto throw
++	cmpandthrow(&nodes[2], &nodes[3]);
++
++	// len = hb[3] - lb[2] (destroys hb)
++	n2 = *res;
++	n2.xoffset += Array_nel;
++
++	if(smallintconst(&nodes[3]) && smallintconst(&nodes[2])) {
++		v = mpgetfix(nodes[3].val.u.xval) -
++			mpgetfix(nodes[2].val.u.xval);
++		nodconst(&n1, types[TUINT32], v);
++		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++	} else {
++		regalloc(&n1, types[TUINT32], &nodes[3]);
++		gmove(&nodes[3], &n1);
++		if(!smallintconst(&nodes[2]) || mpgetfix(nodes[2].val.u.xval) != 0)
++			gins(optoas(OSUB, types[TUINT32]), &nodes[2], &n1);
++		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++		regfree(&n1);
++	}
+ 
++	// cap = nel[1] - lb[2] (destroys nel)
++	n2 = *res;
++	n2.xoffset += Array_cap;
++
++	if(smallintconst(&nodes[1]) && smallintconst(&nodes[2])) {
++		v = mpgetfix(nodes[1].val.u.xval) -
++			mpgetfix(nodes[2].val.u.xval);
++		nodconst(&n1, types[TUINT32], v);
++		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++	} else {
++		regalloc(&n1, types[TUINT32], &nodes[1]);
++		gmove(&nodes[1], &n1);
++		if(!smallintconst(&nodes[2]) || mpgetfix(nodes[2].val.u.xval) != 0)
++			gins(optoas(OSUB, types[TUINT32]), &nodes[2], &n1);
++		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++		regfree(&n1);
++	}
++
++	// if slice could be too big, dereference to
++	// catch nil array pointer.
++	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
++		n2 = nodes[0];
++		n2.xoffset = 0;
++		n2.op = OINDREG;
++		n2.type = types[TUINT8];
++		gins(ATESTB, nodintconst(0), &n2);
++	}
++
++	// ary = old[0] + (lb[2] * width[4]) (destroys old)
++	n2 = *res;
++	n2.xoffset += Array_array;
++
++	if(smallintconst(&nodes[2]) && smallintconst(&nodes[4])) {
++		v = mpgetfix(nodes[2].val.u.xval) *
++			mpgetfix(nodes[4].val.u.xval);
++		if(v != 0) {
++			nodconst(&n1, types[tptr], v);
++			gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
++		}
++	} else {
++		regalloc(&n1, types[tptr], &nodes[2]);
++		gmove(&nodes[2], &n1);
++		if(!smallintconst(&nodes[4]) || mpgetfix(nodes[4].val.u.xval) != 1)
++			gins(optoas(OMUL, types[tptr]), &nodes[4], &n1);
++		gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
++		regfree(&n1);
++	}
++	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
++
++	for(i=0; i<5; i++) {
++		if(nodes[i].op == OREGISTER)
++			regfree(&nodes[i]);
++	}
++	return 1;
++
++sliceslice:
++	getargs(n->list, nodes, narg);
++
++	nres = *res;		// result
++	nnode0 = nodes[0];	// input slice
++	ntemp.op = OXXX;
++	if(!sleasy(res) || !sleasy(&nodes[0])) {
++		bad = 0;
++		if(res->ullman >= UINF)
++			bad = 1;
++		for(i=0; i<narg; i++) {
++			if(nodes[i].ullman >= UINF)
++				bad = 1;
++			if(nodes[i].op == OREGISTER)
++				regfree(&nodes[i]);
++		}
++
++		if(bad)
++			goto no;
++
++		tempalloc(&ntemp, res->type);
++		if(!sleasy(&nodes[0])) {
++			cgen(&nodes[0], &ntemp);
++			nnode0 = ntemp;
++		}
++		getargs(n->list, nodes, narg);
++		if(!sleasy(res))
++			nres = ntemp;
++	}
++	
++	if(narg == 3) {	// old[lb:]
++		// move width to where it would be for old[lb:hb]
++		nodes[3] = nodes[2];
++		nodes[2].op = OXXX;
++		
++		// if(lb[1] > old.nel[0]) goto throw;
++		n2 = nnode0;
++		n2.xoffset += Array_nel;
++		cmpandthrow(&nodes[1], &n2);
++
++		// ret.nel = old.nel[0]-lb[1];
++		n2 = nnode0;
++		n2.xoffset += Array_nel;
++	
++		regalloc(&n1, types[TUINT32], N);
++		gins(optoas(OAS, types[TUINT32]), &n2, &n1);
++		if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
++			gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
++	
++		n2 = nres;
++		n2.xoffset += Array_nel;
++		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++		regfree(&n1);
++	} else {	// old[lb:hb]
++		// if(hb[2] > old.cap[0]) goto throw;
++		n2 = nnode0;
++		n2.xoffset += Array_cap;
++		cmpandthrow(&nodes[2], &n2);
++
++		// if(lb[1] > hb[2]) goto throw;
++		cmpandthrow(&nodes[1], &nodes[2]);
++
++		// ret.len = hb[2]-lb[1]; (destroys hb[2])
++		n2 = nres;
++		n2.xoffset += Array_nel;
++	
++		if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
++			v = mpgetfix(nodes[2].val.u.xval) -
++				mpgetfix(nodes[1].val.u.xval);
++			nodconst(&n1, types[TUINT32], v);
++			gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++		} else {
++			regalloc(&n1, types[TUINT32], &nodes[2]);
++			gmove(&nodes[2], &n1);
++			if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
++				gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
++			gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++			regfree(&n1);
++		}
++	}
++
++	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
++	n2 = nnode0;
++	n2.xoffset += Array_cap;
++
++	regalloc(&n1, types[TUINT32], &nodes[2]);
++	gins(optoas(OAS, types[TUINT32]), &n2, &n1);
++	if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
++		gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
++
++	n2 = nres;
++	n2.xoffset += Array_cap;
++	gins(optoas(OAS, types[TUINT32]), &n1, &n2);
++	regfree(&n1);
++
++	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
++	n2 = nnode0;
++	n2.xoffset += Array_array;
++
++	regalloc(&n1, types[tptr], &nodes[1]);
++	if(smallintconst(&nodes[1]) && smallintconst(&nodes[3])) {
++		gins(optoas(OAS, types[tptr]), &n2, &n1);
++		v = mpgetfix(nodes[1].val.u.xval) *
++			mpgetfix(nodes[3].val.u.xval);
++		if(v != 0) {
++			nodconst(&n2, types[tptr], v);
++			gins(optoas(OADD, types[tptr]), &n2, &n1);
++		}
++	} else {
++		gmove(&nodes[1], &n1);
++		if(!smallintconst(&nodes[3]) || mpgetfix(nodes[3].val.u.xval) != 1)
++			gins(optoas(OMUL, types[tptr]), &nodes[3], &n1);
++		gins(optoas(OADD, types[tptr]), &n2, &n1);
++	}
++
++	n2 = nres;
++	n2.xoffset += Array_array;
++	gins(optoas(OAS, types[tptr]), &n1, &n2);
++	regfree(&n1);
++
++	for(i=0; i<4; i++) {
++		if(nodes[i].op == OREGISTER)
++			regfree(&nodes[i]);
++	}
++
++	if(!sleasy(res)) {
++		cgen(&nres, res);
++	}
++	if(ntemp.op != OXXX)
++		tempfree(&ntemp);
++	return 1;
++
++no:
++	return 0;
++}
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 8b794efdb8..58d6f9e828 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -64,9 +64,9 @@ char *runtimeimport =
+ 	"func runtime.selectdefault (sel *uint8) (selected bool)\n"
+ 	"func runtime.selectgo (sel *uint8)\n"
+ 	"func runtime.makeslice (nel int, cap int, width int) (ary []any)\n"
++	"func runtime.sliceslice1 (old []any, lb int, width int) (ary []any)\n"
+ 	"func runtime.sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
+ 	"func runtime.slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+-	"func runtime.arraytoslice (old *any, nel int) (ary []any)\n"
+ 	"func runtime.closure ()\n"
+ 	"func runtime.int64div (? int64, ? int64) (? int64)\n"
+ 	"func runtime.uint64div (? uint64, ? uint64) (? uint64)\n"
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 921ff1ed46..8413df64fc 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -831,9 +831,13 @@ pexpr:
+ 	{
+ 		$$ = nod(OINDEX, $1, $3);
+ 	}
+-|	pexpr '[' keyval ']'
++|	pexpr '[' expr ':' ']'
+ 	{
+-		$$ = nod(OSLICE, $1, $3);
++		$$ = nod(OSLICE, $1, nod(OKEY, $3, N));
++	}
++|	pexpr '[' expr ':' expr ']'
++	{
++		$$ = nod(OSLICE, $1, nod(OKEY, $3, $5));
+ 	}
+ |	pseudocall
+ |	convtype '(' expr ')'
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 1f078f2da8..ea4084012c 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -79,9 +79,9 @@ func selectdefault(sel *byte) (selected bool)
+ func selectgo(sel *byte)
+ 
+ func makeslice(nel int, cap int, width int) (ary []any)
++func sliceslice1(old []any, lb int, width int) (ary []any)
+ func sliceslice(old []any, lb int, hb int, width int) (ary []any)
+ func slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
+-func arraytoslice(old *any, nel int) (ary []any)
+ 
+ func closure()	// has args, but compiler fills in
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 6dab9d7614..fb96221bd6 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -587,7 +587,7 @@ reswitch:
+ 		defaultlit(&n->right->left, types[TUINT]);
+ 		defaultlit(&n->right->right, types[TUINT]);
+ 		implicitstar(&n->left);
+-		if(n->right->left == N || n->right->right == N) {
++		if(n->right->left == N) {
+ 			yyerror("missing slice bounds?");
+ 			goto error;
+ 		}
+@@ -597,11 +597,13 @@ reswitch:
+ 			yyerror("invalid slice index %#N (type %T)", n->right->left, t);
+ 			goto error;
+ 		}
+-		if((t = n->right->right->type) == T)
+-			goto error;
+-		if(!isint[t->etype]) {
+-			yyerror("invalid slice index %#N (type %T)", n->right->right, t);
+-			goto error;
++		if(n->right->right != N) {
++			if((t = n->right->right->type) == T)
++				goto error;
++			if(!isint[t->etype]) {
++				yyerror("invalid slice index %#N (type %T)", n->right->right, t);
++				goto error;
++			}
+ 		}
+ 		l = n->left;
+ 		if((t = l->type) == T)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 9f3c81e194..bf35b38917 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -808,15 +808,26 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->right->right, init);
+ 		// dynamic slice
+ 		// sliceslice(old []any, lb int, hb int, width int) (ary []any)
++		// sliceslice1(old []any, lb int, width int) (ary []any)
+ 		t = n->type;
+-		fn = syslook("sliceslice", 1);
+-		argtype(fn, t->type);			// any-1
+-		argtype(fn, t->type);			// any-2
+-		n = mkcall1(fn, t, init,
+-			n->left,
+-			conv(n->right->left, types[TINT]),
+-			conv(n->right->right, types[TINT]),
+-			nodintconst(t->type->width));
++		if(n->right->right != N) {
++			fn = syslook("sliceslice", 1);
++			argtype(fn, t->type);			// any-1
++			argtype(fn, t->type);			// any-2
++			n = mkcall1(fn, t, init,
++				n->left,
++				conv(n->right->left, types[TINT]),
++				conv(n->right->right, types[TINT]),
++				nodintconst(t->type->width));
++		} else {
++			fn = syslook("sliceslice1", 1);
++			argtype(fn, t->type);			// any-1
++			argtype(fn, t->type);			// any-2
++			n = mkcall1(fn, t, init,
++				n->left,
++				conv(n->right->left, types[TINT]),
++				nodintconst(t->type->width));
++		}
+ 		goto ret;
+ 
+ 	case OSLICEARR:
+@@ -829,13 +840,29 @@ walkexpr(Node **np, NodeList **init)
+ 		fn = syslook("slicearray", 1);
+ 		argtype(fn, n->left->type);	// any-1
+ 		argtype(fn, t->type);			// any-2
++		if(n->right->right == N)
++			r = nodintconst(n->left->type->bound);
++		else
++			r = conv(n->right->right, types[TINT]);
+ 		n = mkcall1(fn, t, init,
+ 			nod(OADDR, n->left, N), nodintconst(n->left->type->bound),
+ 			conv(n->right->left, types[TINT]),
+-			conv(n->right->right, types[TINT]),
++			r,
+ 			nodintconst(t->type->width));
+ 		goto ret;
+ 
++	case OCONVSLICE:
++		// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
++		fn = syslook("slicearray", 1);
++		argtype(fn, n->left->type->type);		// any-1
++		argtype(fn, n->type->type);			// any-2
++		n = mkcall1(fn, n->type, init, n->left,
++			nodintconst(n->left->type->type->bound),
++			nodintconst(0),
++			nodintconst(n->left->type->type->bound),
++			nodintconst(n->type->type->width));
++		goto ret;
++
+ 	case OADDR:;
+ 		Node *nvar, *nstar;
+ 
+@@ -1014,14 +1041,6 @@ walkexpr(Node **np, NodeList **init)
+ 		n = ifacecvt(n->type, n->left, n->etype, init);
+ 		goto ret;
+ 
+-	case OCONVSLICE:
+-		// arraytoslice(old *any, nel int) (ary []any)
+-		fn = syslook("arraytoslice", 1);
+-		argtype(fn, n->left->type->type);		// any-1
+-		argtype(fn, n->type->type);			// any-2
+-		n = mkcall1(fn, n->type, init, n->left, nodintconst(n->left->type->type->bound));
+-		goto ret;
+-
+ 	case OCLOSURE:
+ 		n = walkclosure(n, init);
+ 		goto ret;
+diff --git a/src/pkg/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+index 984b80cbd6..9d821da6c5 100644
+--- a/src/pkg/runtime/hashmap.h
++++ b/src/pkg/runtime/hashmap.h
+@@ -67,7 +67,6 @@
+ #define	free(a)		USED(a)
+ #define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
+ #define	memset(a,b,c)	runtime·memclr((byte*)(a), (uint32)(c))
+-#define	memmove(a,b,c)	mmov((byte*)(a),(byte*)(b),(uint32)(c))
+ #define	memcpy(a,b,c)	mcpy((byte*)(a),(byte*)(b),(uint32)(c))
+ #define	assert(a)	if(!(a)) throw("assert")
+ 
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 39fda98283..4a0309e0c7 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -104,28 +104,6 @@ mcmp(byte *s1, byte *s2, uint32 n)
+ }
+ 
+ 
+-void
+-mmov(byte *t, byte *f, uint32 n)
+-{
+-	if(t < f) {
+-		while(n > 0) {
+-			*t = *f;
+-			t++;
+-			f++;
+-			n--;
+-		}
+-	} else {
+-		t += n;
+-		f += n;
+-		while(n > 0) {
+-			t--;
+-			f--;
+-			*t = *f;
+-			n--;
+-		}
+-	}
+-}
+-
+ byte*
+ mchr(byte *p, byte c, byte *ep)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index df1c45ae1f..11dc489f2b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -342,7 +342,7 @@ void	printf(int8*, ...);
+ byte*	mchr(byte*, byte, byte*);
+ void	mcpy(byte*, byte*, uint32);
+ int32	mcmp(byte*, byte*, uint32);
+-void	mmov(byte*, byte*, uint32);
++void	memmove(void*, void*, uint32);
+ void*	mal(uint32);
+ uint32	cmpstring(String, String);
+ String	gostring(byte*);
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 02839e27cc..17762ae269 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -52,7 +52,6 @@ throwslice(uint32 lb, uint32 hb, uint32 n)
+ void
+ runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
+ {
+-
+ 	if(hb > old.cap || lb > hb) {
+ 		if(debug) {
+ 			prints("runtime·sliceslice: old=");
+@@ -75,7 +74,7 @@ runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
+ 	}
+ 
+ 	// new array is inside old array
+-	ret.len = hb-lb;
++	ret.len = hb - lb;
+ 	ret.cap = old.cap - lb;
+ 	ret.array = old.array + lb*width;
+ 
+@@ -96,6 +95,49 @@ runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
+ 	}
+ }
+ 
++// sliceslice1(old []any, lb int, width int) (ary []any);
++void
++runtime·sliceslice1(Slice old, uint32 lb, uint32 width, Slice ret)
++{
++	if(lb > old.len) {
++		if(debug) {
++			prints("runtime·sliceslice: old=");
++			runtime·printslice(old);
++			prints("; lb=");
++			runtime·printint(lb);
++			prints("; width=");
++			runtime·printint(width);
++			prints("\n");
++
++			prints("oldarray: nel=");
++			runtime·printint(old.len);
++			prints("; cap=");
++			runtime·printint(old.cap);
++			prints("\n");
++		}
++		throwslice(lb, old.len, old.cap);
++	}
++
++	// new array is inside old array
++	ret.len = old.len - lb;
++	ret.cap = old.cap - lb;
++	ret.array = old.array + lb*width;
++
++	FLUSH(&ret);
++
++	if(debug) {
++		prints("runtime·sliceslice: old=");
++		runtime·printslice(old);
++		prints("; lb=");
++		runtime·printint(lb);
++		prints("; width=");
++		runtime·printint(width);
++		prints("; ret=");
++		runtime·printslice(ret);
++		prints("\n");
++	}
++}
++
+ // slicearray(old *any, nel int, lb int, hb int, width int) (ary []any);
+ void
+ runtime·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
+@@ -149,34 +191,6 @@ runtime·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, S
+ 	}
+ }
+ 
+-// arraytoslice(old *any, nel int) (ary []any)
+-void
+-runtime·arraytoslice(byte* old, uint32 nel, Slice ret)
+-{
+-	if(nel > 0 && old == nil) {
+-		// crash if old == nil.
+-		// could give a better message
+-		// but this is consistent with all the in-line checks
+-		// that the compiler inserts for other uses.
+-		*old = 0;
+-	}
+-
+-	// new dope to old array
+-	ret.len = nel;
+-	ret.cap = nel;
+-	ret.array = old;
+-
+-	FLUSH(&ret);
+-
+-	if(debug) {
+-		prints("runtime·slicearrayp: old=");
+-		runtime·printpointer(old);
+-		prints("; ret=");
+-		runtime·printslice(ret);
+-		prints("\n");
+-	}
+-}
+-
+ // slicecopy(to any, fr any, wid uint32) int
+ void
+ runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret)
+diff --git a/test/ken/slicearray.go b/test/ken/slicearray.go
+index 8e03cb3f40..a8f5ad928d 100644
+--- a/test/ken/slicearray.go
++++ b/test/ken/slicearray.go
+@@ -26,14 +26,18 @@ main()
+ 	lb = 0; hb = 10;
+ 	by = bx[lb:hb]; tstb();
+ 	by = bx[lb:10]; tstb();
++	by = bx[lb:]; tstb();
+ 	by = bx[0:hb]; tstb();
+ 	by = bx[0:10]; tstb();
++	by = bx[0:]; tstb();
+ 
+ 	lb = 2; hb = 10;
+ 	by = bx[lb:hb]; tstb();
+ 	by = bx[lb:10]; tstb();
++	by = bx[lb:]; tstb();
+ 	by = bx[2:hb]; tstb();
+ 	by = bx[2:10]; tstb();
++	by = bx[2:]; tstb();
+ 
+ 	lb = 0; hb = 8;
+ 	by = bx[lb:hb]; tstb();
+@@ -51,14 +55,18 @@ main()
+ 	lb = 0; hb = 10;
+ 	fy = fx[lb:hb]; tstf();
+ 	fy = fx[lb:10]; tstf();
++	fy = fx[lb:]; tstf();
+ 	fy = fx[0:hb]; tstf();
+ 	fy = fx[0:10]; tstf();
++	fy = fx[0:]; tstf();
+ 
+ 	lb = 2; hb = 10;
+ 	fy = fx[lb:hb]; tstf();
+ 	fy = fx[lb:10]; tstf();
++	fy = fx[lb:]; tstf();
+ 	fy = fx[2:hb]; tstf();
+ 	fy = fx[2:10]; tstf();
++	fy = fx[2:]; tstf();
+ 
+ 	lb = 0; hb = 8;
+ 	fy = fx[lb:hb]; tstf();
+diff --git a/test/ken/sliceslice.go b/test/ken/sliceslice.go
+index 3a8d5226c0..9c37dedbe4 100644
+--- a/test/ken/sliceslice.go
++++ b/test/ken/sliceslice.go
+@@ -21,14 +21,18 @@ main()
+ 	lb = 0; hb = 10;
+ 	by = bx[lb:hb]; tstb();
+ 	by = bx[lb:10]; tstb();
++	by = bx[lb:]; tstb();
+ 	by = bx[0:hb]; tstb();
+ 	by = bx[0:10]; tstb();
++	by = bx[0:]; tstb();
+ 
+ 	lb = 2; hb = 10;
+ 	by = bx[lb:hb]; tstb();
+ 	by = bx[lb:10]; tstb();
++	by = bx[lb:]; tstb();
+ 	by = bx[2:hb]; tstb();
+ 	by = bx[2:10]; tstb();
++	by = bx[2:]; tstb();
+ 
+ 	lb = 0; hb = 8;
+ 	by = bx[lb:hb]; tstb();
+@@ -46,14 +50,18 @@ main()
+ 	lb = 0; hb = 10;
+ 	fy = fx[lb:hb]; tstf();
+ 	fy = fx[lb:10]; tstf();
++	fy = fx[lb:]; tstf();
+ 	fy = fx[0:hb]; tstf();
+ 	fy = fx[0:10]; tstf();
++	fy = fx[0:]; tstf();
+ 
+ 	lb = 2; hb = 10;
+ 	fy = fx[lb:hb]; tstf();
+ 	fy = fx[lb:10]; tstf();
++	fy = fx[lb:]; tstf();
+ 	fy = fx[2:hb]; tstf();
+ 	fy = fx[2:10]; tstf();
++	fy = fx[2:]; tstf();
+ 
+ 	lb = 0; hb = 8;
+ 	fy = fx[lb:hb]; tstf();

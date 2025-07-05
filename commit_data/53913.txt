@@ -25,9 +25,64 @@ Date:   Tue Sep 6 19:30:30 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go   | 2 +-
  src/cmd/compile/internal/noder/writer.go   | 4 ++++
  src/cmd/compile/internal/typecheck/func.go | 2 +-
  test/run.go                                | 2 --
  4 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index fb9df3284f..b8df7c9773 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1957,7 +1957,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 		pos := r.pos()
+ 		if r.Bool() {
+ 			pos := r.pos()
+-			sym := typecheck.Lookup(r.String())
++			_, sym := r.localIdent()
+ 			ident = ir.NewIdent(pos, sym)
+ 		}
+ 		x := r.expr()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 0b1d41d750..198bae7190 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1484,6 +1484,10 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 		w.pos(guard)
+ 		if tag := guard.Lhs; w.Bool(tag != nil) {
+ 			w.pos(tag)
++
++			// Like w.localIdent, but we don't have a types2.Object.
++			w.Sync(pkgbits.SyncLocalIdent)
++			w.pkg(w.p.curpkg)
+ 			w.String(tag.Value)
+ 		}
+ 		w.expr(guard.X)
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index d62066f33c..7cf9d5cb40 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -105,7 +105,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
+ 			if pkg == nil {
+ 				pkg = v.Sym().Pkg
+ 			} else if pkg != v.Sym().Pkg {
+-				base.Fatalf("Closure variables from multiple packages")
++				base.Fatalf("Closure variables from multiple packages: %+v", clo)
+ 			}
+ 		}
+ 	}
+diff --git a/test/run.go b/test/run.go
+index ecb08ce834..3c5b10ad32 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2021,8 +2021,6 @@ var unifiedFailures = setOf(
+ 	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
+ 	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
+ 
+-	"fixedbugs/issue54912.go", // ICE when inlined type switch case variable captured in function literal
+-
+ 	"typeparam/issue47631.go", // unified IR can handle local type declarations
+ )
+ 

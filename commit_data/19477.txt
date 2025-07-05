@@ -11,7 +11,7 @@ Date:   Sat May 31 19:21:17 2014 -0400
     R=golang-codereviews, khr, rsc
     CC=golang-codereviews
     https://golang.org/cl/102040043
-
+---
  src/pkg/runtime/alg.goc        | 1 +
  src/pkg/runtime/heapdump.c     | 2 ++
  src/pkg/runtime/malloc.goc     | 1 +
@@ -24,3 +24,158 @@ Date:   Sat May 31 19:21:17 2014 -0400
  src/pkg/runtime/os_solaris.c   | 1 +
  src/pkg/runtime/proc.c         | 1 +
  11 files changed, 16 insertions(+)
+
+diff --git a/src/pkg/runtime/alg.goc b/src/pkg/runtime/alg.goc
+index 9fb54cac3f..f1b8d5982b 100644
+--- a/src/pkg/runtime/alg.goc
++++ b/src/pkg/runtime/alg.goc
+@@ -465,6 +465,7 @@ runtime·algarray[] =
+ // Runtime helpers.
+ 
+ // used in asm_{386,amd64}.s
++#pragma dataflag NOPTR
+ byte runtime·aeskeysched[HashRandomBytes];
+ 
+ void
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index 0799a102c4..744c59f9bc 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -17,6 +17,7 @@
+ #include "typekind.h"
+ #include "funcdata.h"
+ #include "zaexperiment.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ extern byte data[];
+ extern byte edata[];
+@@ -67,6 +68,7 @@ static uintptr dumpfd;
+ enum {
+ 	BufSize = 4096,
+ };
++#pragma dataflag NOPTR
+ static byte buf[BufSize];
+ static uintptr nbuf;
+ 
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 6e1068d93d..7b7e350d8d 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -19,6 +19,7 @@ package runtime
+ // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
+ #pragma dataflag NOPTR
+ MHeap runtime·mheap;
++#pragma dataflag NOPTR
+ MStats mstats;
+ 
+ int32	runtime·checking;
+diff --git a/src/pkg/runtime/msize.c b/src/pkg/runtime/msize.c
+index 63d5ef490e..2fbd5e1042 100644
+--- a/src/pkg/runtime/msize.c
++++ b/src/pkg/runtime/msize.c
+@@ -28,8 +28,11 @@
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
++#include "../../cmd/ld/textflag.h"
+ 
++#pragma dataflag NOPTR
+ int32 runtime·class_to_size[NumSizeClasses];
++#pragma dataflag NOPTR
+ int32 runtime·class_to_allocnpages[NumSizeClasses];
+ 
+ // The SizeToClass lookup is implemented using two arrays,
+@@ -41,7 +44,9 @@ int32 runtime·class_to_allocnpages[NumSizeClasses];
+ // size divided by 128 (rounded up).  The arrays are filled in
+ // by InitSizes.
+ 
++#pragma dataflag NOPTR
+ int8 runtime·size_to_class8[1024/8 + 1];
++#pragma dataflag NOPTR
+ int8 runtime·size_to_class128[(MaxSmallSize-1024)/128 + 1];
+ 
+ void runtime·testdefersizes(void);
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index a1165dd7be..33a2df958f 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -59,6 +59,7 @@ runtime·osinit(void)
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
++	#pragma dataflag NOPTR
+ 	static byte urandom_data[HashRandomBytes];
+ 	int32 fd;
+ 	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index 35a7de96fe..e7fd2cc06f 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -122,6 +122,7 @@ runtime·osinit(void)
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
++	#pragma dataflag NOPTR
+ 	static byte urandom_data[HashRandomBytes];
+ 	int32 fd;
+ 	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 9a8de4206b..02b13472c8 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -130,6 +130,7 @@ runtime·osinit(void)
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
++	#pragma dataflag NOPTR
+ 	static byte urandom_data[HashRandomBytes];
+ 	int32 fd;
+ 	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 7f4b97271c..93229bffeb 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -188,6 +188,7 @@ runtime·osinit(void)
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
++	#pragma dataflag NOPTR
+ 	static byte urandom_data[HashRandomBytes];
+ 	int32 fd;
+ 	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 0eec7956cf..08a290a055 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -167,6 +167,7 @@ runtime·osinit(void)
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
++	#pragma dataflag NOPTR
+ 	static byte urandom_data[HashRandomBytes];
+ 	int32 fd;
+ 	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index 75e7c18f4f..c6bbea3116 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -161,6 +161,7 @@ runtime·newosproc(M *mp, void *stk)
+ void
+ runtime·get_random_data(byte **rnd, int32 *rnd_len)
+ {
++	#pragma dataflag NOPTR
+ 	static byte urandom_data[HashRandomBytes];
+ 	int32 fd;
+ 	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 665d34a40e..da2e0f9fa4 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2597,6 +2597,7 @@ struct Pdesc
+ 	uint32	syscalltick;
+ 	int64	syscallwhen;
+ };
++#pragma dataflag NOPTR
+ static Pdesc pdesc[MaxGomaxprocs];
+ 
+ static uint32

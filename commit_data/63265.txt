@@ -9,8 +9,75 @@ Date:   Thu May 29 10:29:39 2025 -0400
     Reviewed-by: Matt Proud <mtp@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go/ast/ast.go       |  4 ++++
  src/go/parser/parser.go | 17 +++++++++++++----
  src/go/types/api.go     |  5 +++++
  3 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index afe0a750fe..a3dc0c3220 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -4,6 +4,10 @@
+ 
+ // Package ast declares the types used to represent syntax trees for Go
+ // packages.
++//
++// Syntax trees may be constructed directly, but they are typically
++// produced from Go source code by the parser; see the ParseFile
++// function in package [go/parser].
+ package ast
+ 
+ import (
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 38ee0de3bb..8a2f95976f 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2,10 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package parser implements a parser for Go source files. Input may be
+-// provided in a variety of forms (see the various Parse* functions); the
+-// output is an abstract syntax tree (AST) representing the Go source. The
+-// parser is invoked through one of the Parse* functions.
++// Package parser implements a parser for Go source files.
++//
++// The [ParseFile] function reads file input from a string, []byte, or
++// io.Reader, and produces an [ast.File] representing the complete
++// abstract syntax tree of the file.
++//
++// The [ParseExprFrom] function reads a single source-level expression and
++// produces an [ast.Expr], the syntax tree of the expression.
+ //
+ // The parser accepts a larger language than is syntactically permitted by
+ // the Go spec, for simplicity, and for improved robustness in the presence
+@@ -13,6 +17,11 @@
+ // treated like an ordinary parameter list and thus may contain multiple
+ // entries where the spec permits exactly one. Consequently, the corresponding
+ // field in the AST (ast.FuncDecl.Recv) field is not restricted to one entry.
++//
++// Applications that need to parse one or more complete packages of Go
++// source code may find it more convenient not to interact directly
++// with the parser but instead to use the Load function in package
++// [golang.org/x/tools/go/packages].
+ package parser
+ 
+ import (
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 00fac4a9a0..01fccbd649 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -26,6 +26,11 @@
+ // specification. Use the Types field of [Info] for the results of
+ // type deduction.
+ //
++// Applications that need to type-check one or more complete packages
++// of Go source code may find it more convenient not to invoke the
++// type checker directly but instead to use the Load function in
++// package [golang.org/x/tools/go/packages].
++//
+ // For a tutorial, see https://go.dev/s/types-tutorial.
+ package types
+ 

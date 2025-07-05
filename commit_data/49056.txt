@@ -14,7 +14,98 @@ Date:   Fri Jul 9 21:18:12 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/signature.go       | 32 ++++++++++++++--------
  .../internal/types2/testdata/examples/methods.go2  | 17 ++++++++++++
  2 files changed, 37 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index ab9a1c487e..fa5c3f7a9b 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -211,9 +211,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 
+ 		// spec: "The receiver type must be of the form T or *T where T is a type name."
+ 		// (ignore invalid types - error was reported before)
+-		if t := rtyp; t != Typ[Invalid] {
++		if rtyp != Typ[Invalid] {
+ 			var err string
+-			if T := asNamed(t); T != nil {
++			switch T := rtyp.(type) {
++			case *Named:
+ 				// spec: "The type denoted by T is called the receiver base type; it must not
+ 				// be a pointer or interface type and it must be declared in the same package
+ 				// as the method."
+@@ -224,23 +225,30 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 						err = ""
+ 					}
+ 				} else {
+-					switch u := optype(T).(type) {
+-					case *Basic:
+-						// unsafe.Pointer is treated like a regular pointer
+-						if u.kind == UnsafePointer {
+-							err = "unsafe.Pointer"
++					// The underlying type of a receiver base type can be a type parameter;
++					// e.g. for methods with a generic receiver T[P] with type T[P any] P.
++					underIs(T, func(u Type) bool {
++						switch u := u.(type) {
++						case *Basic:
++							// unsafe.Pointer is treated like a regular pointer
++							if u.kind == UnsafePointer {
++								err = "unsafe.Pointer"
++								return false
++							}
++						case *Pointer, *Interface:
++							err = "pointer or interface type"
++							return false
+ 						}
+-					case *Pointer, *Interface:
+-						err = "pointer or interface type"
+-					}
++						return true
++					})
+ 				}
+-			} else if T := asBasic(t); T != nil {
++			case *Basic:
+ 				err = "basic or unnamed type"
+ 				if check.conf.CompilerErrorMessages {
+ 					check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
+ 					err = ""
+ 				}
+-			} else {
++			default:
+ 				check.errorf(recv.pos, "invalid receiver type %s", recv.typ)
+ 			}
+ 			if err != "" {
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/methods.go2 b/src/cmd/compile/internal/types2/testdata/examples/methods.go2
+index 76c6539e1b..4e87041e54 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/methods.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/methods.go2
+@@ -6,6 +6,8 @@
+ 
+ package p
+ 
++import "unsafe"
++
+ // Parameterized types may have methods.
+ type T1[A any] struct{ a A }
+ 
+@@ -94,3 +96,18 @@ func (_ T2[_, _, _]) _() int { return 42 }
+ type T0 struct{}
+ func (T0) _() {}
+ func (T1[A]) _() {}
++
++// A generic receiver type may constrain its type parameter such
++// that it must be a pointer type. Such receiver types are not
++// permitted.
++type T3a[P interface{ ~int | ~string | ~float64 }] P
++
++func (T3a[_]) m() {} // this is ok
++
++type T3b[P interface{ ~unsafe.Pointer }] P
++
++func (T3b /* ERROR invalid receiver */ [_]) m() {}
++
++type T3c[P interface{ *int | *string }] P
++
++func (T3c /* ERROR invalid receiver */ [_]) m() {}

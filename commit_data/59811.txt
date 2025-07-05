@@ -10,7 +10,112 @@ Date:   Thu Apr 25 09:21:14 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/stmt.go | 23 ++++++++++++++++++-----
  src/go/types/stmt.go                    | 23 ++++++++++++++++++-----
  2 files changed, 36 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 7fd7009e13..1984777008 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -923,19 +923,26 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
+ 				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+ 			}
++			assert(obj.typ == nil)
++
++			// initialize lhs iteration variable, if any
++			typ := rhs[i]
++			if typ == nil {
++				obj.typ = Typ[Invalid]
++				obj.used = true // don't complain about unused variable
++				continue
++			}
+ 
+ 			// initialize lhs variable
+ 			if constIntRange {
+ 				check.initVar(obj, &x, "range clause")
+-			} else if typ := rhs[i]; typ != nil {
++			} else {
+ 				x.mode = value
+ 				x.expr = lhs // we don't have a better rhs expression to use here
+ 				x.typ = typ
+ 				check.initVar(obj, &x, "assignment") // error is on variable, use "assignment" not "range clause"
+-			} else {
+-				obj.typ = Typ[Invalid]
+-				obj.used = true // don't complain about unused variable
+ 			}
++			assert(obj.typ != nil)
+ 		}
+ 
+ 		// declare variables
+@@ -954,9 +961,15 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 				continue
+ 			}
+ 
++			// assign to lhs iteration variable, if any
++			typ := rhs[i]
++			if typ == nil {
++				continue
++			}
++
+ 			if constIntRange {
+ 				check.assignVar(lhs, nil, &x, "range clause")
+-			} else if typ := rhs[i]; typ != nil {
++			} else {
+ 				x.mode = value
+ 				x.expr = lhs // we don't have a better rhs expression to use here
+ 				x.typ = typ
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 30b4948216..bfb51fd2e5 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -923,19 +923,26 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
+ 				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+ 			}
++			assert(obj.typ == nil)
++
++			// initialize lhs iteration variable, if any
++			typ := rhs[i]
++			if typ == nil {
++				obj.typ = Typ[Invalid]
++				obj.used = true // don't complain about unused variable
++				continue
++			}
+ 
+ 			// initialize lhs variable
+ 			if constIntRange {
+ 				check.initVar(obj, &x, "range clause")
+-			} else if typ := rhs[i]; typ != nil {
++			} else {
+ 				x.mode = value
+ 				x.expr = lhs // we don't have a better rhs expression to use here
+ 				x.typ = typ
+ 				check.initVar(obj, &x, "assignment") // error is on variable, use "assignment" not "range clause"
+-			} else {
+-				obj.typ = Typ[Invalid]
+-				obj.used = true // don't complain about unused variable
+ 			}
++			assert(obj.typ != nil)
+ 		}
+ 
+ 		// declare variables
+@@ -954,9 +961,15 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 				continue
+ 			}
+ 
++			// assign to lhs iteration variable, if any
++			typ := rhs[i]
++			if typ == nil {
++				continue
++			}
++
+ 			if constIntRange {
+ 				check.assignVar(lhs, nil, &x, "range clause")
+-			} else if typ := rhs[i]; typ != nil {
++			} else {
+ 				x.mode = value
+ 				x.expr = lhs // we don't have a better rhs expression to use here
+ 				x.typ = typ

@@ -24,6 +24,20 @@ Date:   Wed Jan 18 10:54:17 2023 +0100
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/asm_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 5d163da132..0e72b540be 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -762,7 +762,7 @@ again:
+ 	RET
+ 
+ 
+-TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
++TEXT ·publicationBarrier<ABIInternal>(SB),NOSPLIT,$0-0
+ 	// Stores are already ordered on x86, so this is just a
+ 	// compile barrier.
+ 	RET

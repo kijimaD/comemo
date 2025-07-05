@@ -16,6 +16,20 @@ Date:   Tue Nov 1 16:57:56 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/vcweb/script.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/vcweb/script.go b/src/cmd/go/internal/vcweb/script.go
+index 6e8f158913..f58a0ac392 100644
+--- a/src/cmd/go/internal/vcweb/script.go
++++ b/src/cmd/go/internal/vcweb/script.go
+@@ -33,7 +33,7 @@ func newScriptEngine() *script.Engine {
+ 	conds := script.DefaultConds()
+ 
+ 	interrupt := func(cmd *exec.Cmd) error { return cmd.Process.Signal(os.Interrupt) }
+-	gracePeriod := 1 * time.Second // arbitrary
++	gracePeriod := 30 * time.Second // arbitrary
+ 
+ 	cmds := script.DefaultCmds()
+ 	cmds["at"] = scriptAt()

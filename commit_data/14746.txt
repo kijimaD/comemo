@@ -9,6 +9,21 @@ Date:   Mon Dec 24 21:06:57 2012 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6976054
-
+---
  src/pkg/runtime/lock_futex.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index b4465bff18..9b1f5f6db4 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -111,7 +111,8 @@ runtime·noteclear(Note *n)
+ void
+ runtime·notewakeup(Note *n)
+ {
+-	runtime·xchg(&n->key, 1);
++	if(runtime·xchg(&n->key, 1))
++		runtime·throw("notewakeup - double wakeup");
+ 	runtime·futexwakeup(&n->key, 1);
+ }
+ 

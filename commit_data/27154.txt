@@ -12,10 +12,131 @@ Date:   Sun Mar 13 15:44:00 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go       |  8 --------
  src/cmd/asm/internal/asm/parse.go       | 27 +++++++++++++--------------
  src/cmd/asm/internal/asm/pseudo_test.go |  5 +----
  src/cmd/internal/obj/link.go            |  1 -
  src/cmd/internal/obj/util.go            |  1 -
  5 files changed, 14 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index bff9177675..6159ede6c5 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -44,14 +44,6 @@ func nilRegisterNumber(name string, n int16) (int16, bool) {
+ 	return 0, false
+ }
+ 
+-var Pseudos = map[string]obj.As{
+-	"DATA":     obj.ADATA,
+-	"FUNCDATA": obj.AFUNCDATA,
+-	"GLOBL":    obj.AGLOBL,
+-	"PCDATA":   obj.APCDATA,
+-	"TEXT":     obj.ATEXT,
+-}
+-
+ // Set configures the architecture specified by GOARCH and returns its representation.
+ // It returns nil if GOARCH is not recognized.
+ func Set(GOARCH string) *Arch {
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index f4f204b2d3..ee37439962 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -183,12 +183,10 @@ func (p *Parser) line() bool {
+ 			p.errorf("missing operand")
+ 		}
+ 	}
+-	i, present := arch.Pseudos[word]
+-	if present {
+-		p.pseudo(i, word, operands)
++	if p.pseudo(word, operands) {
+ 		return true
+ 	}
+-	i, present = p.arch.Instructions[word]
++	i, present := p.arch.Instructions[word]
+ 	if present {
+ 		p.instruction(i, word, cond, operands)
+ 		return true
+@@ -214,21 +212,22 @@ func (p *Parser) instruction(op obj.As, word, cond string, operands [][]lex.Toke
+ 	p.asmInstruction(op, cond, p.addr)
+ }
+ 
+-func (p *Parser) pseudo(op obj.As, word string, operands [][]lex.Token) {
+-	switch op {
+-	case obj.ATEXT:
+-		p.asmText(word, operands)
+-	case obj.ADATA:
++func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
++	switch word {
++	case "DATA":
+ 		p.asmData(word, operands)
+-	case obj.AGLOBL:
++	case "FUNCDATA":
++		p.asmFuncData(word, operands)
++	case "GLOBL":
+ 		p.asmGlobl(word, operands)
+-	case obj.APCDATA:
++	case "PCDATA":
+ 		p.asmPCData(word, operands)
+-	case obj.AFUNCDATA:
+-		p.asmFuncData(word, operands)
++	case "TEXT":
++		p.asmText(word, operands)
+ 	default:
+-		p.errorf("unimplemented: %s", word)
++		return false
+ 	}
++	return true
+ }
+ 
+ func (p *Parser) start(operand []lex.Token) {
+diff --git a/src/cmd/asm/internal/asm/pseudo_test.go b/src/cmd/asm/internal/asm/pseudo_test.go
+index 2e6d6c8154..16979730e9 100644
+--- a/src/cmd/asm/internal/asm/pseudo_test.go
++++ b/src/cmd/asm/internal/asm/pseudo_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"strings"
+ 	"testing"
+ 
+-	"cmd/asm/internal/arch"
+ 	"cmd/asm/internal/lex"
+ )
+ 
+@@ -58,11 +57,9 @@ func TestErroneous(t *testing.T) {
+ 		parser.errorCount = 0
+ 		parser.lineNum++
+ 		parser.histLineNum++
+-		op, ok := arch.Pseudos[test.pseudo]
+-		if !ok {
++		if !parser.pseudo(test.pseudo, tokenize(test.operands)) {
+ 			t.Fatalf("Wrong pseudo-instruction: %s", test.pseudo)
+ 		}
+-		parser.pseudo(op, test.pseudo, tokenize(test.operands))
+ 		errorLine := buf.String()
+ 		if test.expected != errorLine {
+ 			t.Errorf("Unexpected error %q; expected %q", errorLine, test.expected)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index cfd4c73675..430fab3b3e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -266,7 +266,6 @@ const (
+ 	AXXX As = iota
+ 	ACALL
+ 	ACHECKNIL
+-	ADATA // used only by the assembler for parsing
+ 	ADUFFCOPY
+ 	ADUFFZERO
+ 	AEND
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 05cfd8c720..18450962ed 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -603,7 +603,6 @@ var Anames = []string{
+ 	"XXX",
+ 	"CALL",
+ 	"CHECKNIL",
+-	"DATA",
+ 	"DUFFCOPY",
+ 	"DUFFZERO",
+ 	"END",

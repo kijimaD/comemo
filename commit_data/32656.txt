@@ -75,6 +75,36 @@ Date:   Thu May 11 11:41:02 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d3079a2c0e..5feb8f3921 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -278,7 +278,8 @@ type state struct {
+ 
+ type funcLine struct {
+ 	f    *obj.LSym
+-	line src.XPos
++	file string
++	line uint
+ }
+ 
+ type ssaLabel struct {
+@@ -3455,10 +3456,12 @@ func (s *state) check(cmp *ssa.Value, fn *obj.LSym) {
+ 	b.Likely = ssa.BranchLikely
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
+ 	line := s.peekPos()
+-	bPanic := s.panics[funcLine{fn, line}]
++	pos := Ctxt.PosTable.Pos(line)
++	fl := funcLine{f: fn, file: pos.Filename(), line: pos.Line()}
++	bPanic := s.panics[fl]
+ 	if bPanic == nil {
+ 		bPanic = s.f.NewBlock(ssa.BlockPlain)
+-		s.panics[funcLine{fn, line}] = bPanic
++		s.panics[fl] = bPanic
+ 		s.startBlock(bPanic)
+ 		// The panic call takes/returns memory to ensure that the right
+ 		// memory state is observed if the panic happens.

@@ -14,8 +14,150 @@ Date:   Fri Mar 15 09:10:09 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/cache/cache.go      | 10 -------
  src/cmd/go/internal/cache/cache_test.go | 49 ---------------------------------
  src/cmd/go/internal/clean/clean.go      |  8 +++++-
  3 files changed, 7 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index ab84cf6302..3e386a0881 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -33,7 +33,6 @@ type OutputID [HashSize]byte
+ // A Cache is a package cache, backed by a file system directory tree.
+ type Cache struct {
+ 	dir string
+-	log *os.File
+ 	now func() time.Time
+ }
+ 
+@@ -63,13 +62,8 @@ func Open(dir string) (*Cache, error) {
+ 			return nil, err
+ 		}
+ 	}
+-	f, err := os.OpenFile(filepath.Join(dir, "log.txt"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+-	if err != nil {
+-		return nil, err
+-	}
+ 	c := &Cache{
+ 		dir: dir,
+-		log: f,
+ 		now: time.Now,
+ 	}
+ 	return c, nil
+@@ -141,7 +135,6 @@ type Entry struct {
+ // get is Get but does not respect verify mode, so that Put can use it.
+ func (c *Cache) get(id ActionID) (Entry, error) {
+ 	missing := func() (Entry, error) {
+-		fmt.Fprintf(c.log, "%d miss %x\n", c.now().Unix(), id)
+ 		return Entry{}, errMissing
+ 	}
+ 	f, err := os.Open(c.fileName(id, "a"))
+@@ -184,8 +177,6 @@ func (c *Cache) get(id ActionID) (Entry, error) {
+ 		return missing()
+ 	}
+ 
+-	fmt.Fprintf(c.log, "%d get %x\n", c.now().Unix(), id)
+-
+ 	c.used(c.fileName(id, "a"))
+ 
+ 	return Entry{buf, size, time.Unix(0, tm)}, nil
+@@ -349,7 +340,6 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify
+ 	}
+ 	os.Chtimes(file, c.now(), c.now()) // mainly for tests
+ 
+-	fmt.Fprintf(c.log, "%d put %x %x %d\n", c.now().Unix(), id, out, size)
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/go/internal/cache/cache_test.go b/src/cmd/go/internal/cache/cache_test.go
+index d3dafccd13..7229bc4cec 100644
+--- a/src/cmd/go/internal/cache/cache_test.go
++++ b/src/cmd/go/internal/cache/cache_test.go
+@@ -144,55 +144,6 @@ func TestVerifyPanic(t *testing.T) {
+ 	t.Fatal("mismatched Put did not panic in verify mode")
+ }
+ 
+-func TestCacheLog(t *testing.T) {
+-	dir, err := ioutil.TempDir("", "cachetest-")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	c, err := Open(dir)
+-	if err != nil {
+-		t.Fatalf("Open: %v", err)
+-	}
+-	c.now = func() time.Time { return time.Unix(1e9, 0) }
+-
+-	id := ActionID(dummyID(1))
+-	c.Get(id)
+-	c.PutBytes(id, []byte("abc"))
+-	c.Get(id)
+-
+-	c, err = Open(dir)
+-	if err != nil {
+-		t.Fatalf("Open #2: %v", err)
+-	}
+-	c.now = func() time.Time { return time.Unix(1e9+1, 0) }
+-	c.Get(id)
+-
+-	id2 := ActionID(dummyID(2))
+-	c.Get(id2)
+-	c.PutBytes(id2, []byte("abc"))
+-	c.Get(id2)
+-	c.Get(id)
+-
+-	data, err := ioutil.ReadFile(filepath.Join(dir, "log.txt"))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	want := `1000000000 miss 0100000000000000000000000000000000000000000000000000000000000000
+-1000000000 put 0100000000000000000000000000000000000000000000000000000000000000 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad 3
+-1000000000 get 0100000000000000000000000000000000000000000000000000000000000000
+-1000000001 get 0100000000000000000000000000000000000000000000000000000000000000
+-1000000001 miss 0200000000000000000000000000000000000000000000000000000000000000
+-1000000001 put 0200000000000000000000000000000000000000000000000000000000000000 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad 3
+-1000000001 get 0200000000000000000000000000000000000000000000000000000000000000
+-1000000001 get 0100000000000000000000000000000000000000000000000000000000000000
+-`
+-	if string(data) != want {
+-		t.Fatalf("log:\n%s\nwant:\n%s", string(data), want)
+-	}
+-}
+-
+ func dummyID(x int) [HashSize]byte {
+ 	var out [HashSize]byte
+ 	binary.LittleEndian.PutUint64(out[:], uint64(x))
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 3389d5f18b..f7d80ff6dc 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -132,11 +132,11 @@ func runClean(cmd *base.Command, args []string) {
+ 			// and not something that we want to remove. Also, we'd like to preserve
+ 			// the access log for future analysis, even if the cache is cleared.
+ 			subdirs, _ := filepath.Glob(filepath.Join(dir, "[0-9a-f][0-9a-f]"))
++			printedErrors := false
+ 			if len(subdirs) > 0 {
+ 				if cfg.BuildN || cfg.BuildX {
+ 					b.Showcmd("", "rm -r %s", strings.Join(subdirs, " "))
+ 				}
+-				printedErrors := false
+ 				for _, d := range subdirs {
+ 					// Only print the first error - there may be many.
+ 					// This also mimics what os.RemoveAll(dir) would do.
+@@ -146,6 +146,12 @@ func runClean(cmd *base.Command, args []string) {
+ 					}
+ 				}
+ 			}
++
++			logFile := filepath.Join(dir, "log.txt")
++			if err := os.RemoveAll(logFile); err != nil && !printedErrors {
++				printedErrors = true
++				base.Errorf("go clean -cache: %v", err)
++			}
+ 		}
+ 	}
+ 

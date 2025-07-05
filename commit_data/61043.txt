@@ -23,6 +23,27 @@ Date:   Tue Sep 24 03:06:38 2024 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/syscall/unix/getrandom.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/internal/syscall/unix/getrandom.go b/src/internal/syscall/unix/getrandom.go
+index e83f0cd6f9..4270898b7e 100644
+--- a/src/internal/syscall/unix/getrandom.go
++++ b/src/internal/syscall/unix/getrandom.go
+@@ -19,14 +19,11 @@ type GetRandomFlag uintptr
+ 
+ // GetRandom calls the getrandom system call.
+ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+-	if len(p) == 0 {
+-		return 0, nil
+-	}
+ 	if getrandomUnsupported.Load() {
+ 		return 0, syscall.ENOSYS
+ 	}
+ 	r1, _, errno := syscall.Syscall(getrandomTrap,
+-		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(unsafe.Pointer(unsafe.SliceData(p))),
+ 		uintptr(len(p)),
+ 		uintptr(flags))
+ 	if errno != 0 {

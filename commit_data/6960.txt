@@ -8,7 +8,60 @@ Date:   Tue Dec 14 15:04:52 2010 -0800
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/3641042
-
+---
  src/pkg/gob/encoder_test.go | 29 +++++++++++++++++++++++++++++
  src/pkg/gob/type.go         |  4 +++-
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 91d85bb7ad..e5fc80837e 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -354,3 +354,32 @@ func TestStructNonStruct(t *testing.T) {
+ 		t.Error("for non-struct/struct expected type error; got", err)
+ 	}
+ }
++
++type interfaceIndirectTestI interface {
++	F() bool
++}
++
++type interfaceIndirectTestT struct{}
++
++func (this *interfaceIndirectTestT) F() bool {
++	return true
++}
++
++// A version of a bug reported on golang-nuts.  Also tests top-level
++// slice of interfaces.  The issue was registering *T caused T to be
++// stored as the concrete type.
++func TestInterfaceIndirect(t *testing.T) {
++	Register(&interfaceIndirectTestT{})
++	b := new(bytes.Buffer)
++	w := []interfaceIndirectTestI{&interfaceIndirectTestT{}}
++	err := NewEncoder(b).Encode(w)
++	if err != nil {
++		t.Fatal("encode error:", err)
++	}
++
++	var r []interfaceIndirectTestI
++	err = NewDecoder(b).Decode(&r)
++	if err != nil {
++		t.Fatal("decode error:", err)
++	}
++}
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index d68c8773cf..1c2b2027ef 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -470,7 +470,9 @@ func RegisterName(name string, value interface{}) {
+ 	if n, ok := concreteTypeToName[rt]; ok && n != name {
+ 		panic("gob: registering duplicate names for " + rt.String())
+ 	}
+-	nameToConcreteType[name] = rt
++	// Store the name and type provided by the user....
++	nameToConcreteType[name] = reflect.Typeof(value)
++	// but the flattened type in the type table, since that's what decode needs.
+ 	concreteTypeToName[rt] = name
+ }
+ 

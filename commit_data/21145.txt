@@ -47,7 +47,142 @@ Date:   Wed Nov 19 14:16:12 2014 -0500
     R=dneil, minux
     CC=golang-codereviews, iant, michael.p.macinnis
     https://golang.org/cl/174450043
-
+---
  src/syscall/exec_bsd.go   | 40 ++--------------------------------------
  src/syscall/exec_linux.go | 36 +-----------------------------------
  2 files changed, 3 insertions(+), 73 deletions(-)
+
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 7c2c1f7071..ff78f197f1 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -19,8 +19,6 @@ type SysProcAttr struct {
+ 	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
+ 	Setctty    bool        // Set controlling terminal to fd 0
+ 	Noctty     bool        // Detach fd 0 from controlling terminal
+-	Foreground bool        // Set foreground process group to child's pid. (Implies Setpgid. Stdin should be a TTY)
+-	Joinpgrp   int         // If != 0, child's process group ID. (Setpgid must not be set)
+ }
+ 
+ // Implemented in runtime package.
+@@ -81,22 +79,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	if r1 != 0 {
+ 		// parent; return PID
+ 		runtime_AfterFork()
+-		pid = int(r1)
+-
+-		if sys.Joinpgrp != 0 {
+-			// Place the child in the specified process group.
+-			RawSyscall(SYS_SETPGID, r1, uintptr(sys.Joinpgrp), 0)
+-		} else if sys.Foreground || sys.Setpgid {
+-			// Place the child in a new process group.
+-			RawSyscall(SYS_SETPGID, 0, 0, 0)
+-
+-			if sys.Foreground {
+-				// Set new foreground process group.
+-				RawSyscall(SYS_IOCTL, uintptr(Stdin), TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
+-			}
+-		}
+-
+-		return pid, 0
++		return int(r1), 0
+ 	}
+ 
+ 	// Fork succeeded, now in child.
+@@ -118,30 +101,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Set process group
+-	if sys.Joinpgrp != 0 {
+-		// Place the child in the specified process group.
+-		_, _, err1 = RawSyscall(SYS_SETPGID, r1, uintptr(sys.Joinpgrp), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	} else if sys.Foreground || sys.Setpgid {
+-		// Place the child in a new process group.
++	if sys.Setpgid {
+ 		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+-
+-		if sys.Foreground {
+-			r1, _, _ = RawSyscall(SYS_GETPID, 0, 0, 0)
+-
+-			pid := int(r1)
+-
+-			// Set new foreground process group.
+-			_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(Stdin), TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
+-			if err1 != 0 {
+-				goto childerror
+-			}
+-		}
+ 	}
+ 
+ 	// Chroot
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 72e2f0b69c..042c20a468 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -29,8 +29,6 @@ type SysProcAttr struct {
+ 	Ctty        int            // Controlling TTY fd (Linux only)
+ 	Pdeathsig   Signal         // Signal that the process will get when its parent dies (Linux only)
+ 	Cloneflags  uintptr        // Flags for clone calls (Linux only)
+-	Foreground  bool           // Set foreground process group to child's pid. (Implies Setpgid. Stdin should be a TTY)
+-	Joinpgrp    int            // If != 0, child's process group ID. (Setpgid must not be set)
+ 	UidMappings []SysProcIDMap // User ID mappings for user namespaces.
+ 	GidMappings []SysProcIDMap // Group ID mappings for user namespaces.
+ }
+@@ -105,19 +103,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			Close(p[1])
+ 		}
+ 
+-		if sys.Joinpgrp != 0 {
+-			// Place the child in the specified process group.
+-			RawSyscall(SYS_SETPGID, r1, uintptr(sys.Joinpgrp), 0)
+-		} else if sys.Foreground || sys.Setpgid {
+-			// Place the child in a new process group.
+-			RawSyscall(SYS_SETPGID, 0, 0, 0)
+-
+-			if sys.Foreground {
+-				// Set new foreground process group.
+-				RawSyscall(SYS_IOCTL, uintptr(Stdin), TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
+-			}
+-		}
+-
+ 		return pid, 0
+ 	}
+ 
+@@ -179,30 +164,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 
+ 	// Set process group
+-	if sys.Joinpgrp != 0 {
+-		// Place the child in the specified process group.
+-		_, _, err1 = RawSyscall(SYS_SETPGID, r1, uintptr(sys.Joinpgrp), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	} else if sys.Foreground || sys.Setpgid {
+-		// Place the child in a new process group.
++	if sys.Setpgid {
+ 		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+-
+-		if sys.Foreground {
+-			r1, _, _ = RawSyscall(SYS_GETPID, 0, 0, 0)
+-
+-			pid := int(r1)
+-
+-			// Set new foreground process group.
+-			_, _, err1 = RawSyscall(SYS_IOCTL, uintptr(Stdin), TIOCSPGRP, uintptr(unsafe.Pointer(&pid)))
+-			if err1 != 0 {
+-				goto childerror
+-			}
+-		}
+ 	}
+ 
+ 	// Chroot

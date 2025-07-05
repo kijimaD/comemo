@@ -17,7 +17,33 @@ Date:   Wed Sep 12 21:30:09 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/except.txt  | 1 +
  src/os/types.go | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 850724196d..9f7f3fe934 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -3,6 +3,7 @@ pkg math/big, const MaxBase = 36
+ pkg math/big, type Word uintptr
+ pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
+ pkg os, const ModeType = 2399141888
++pkg os, const ModeType = 2399666176
+ pkg os (linux-arm), const O_SYNC = 4096
+ pkg os (linux-arm-cgo), const O_SYNC = 4096
+ pkg syscall (darwin-386), const ImplementsGetwd = false
+diff --git a/src/os/types.go b/src/os/types.go
+index b0b7d8d94d..4b6c084838 100644
+--- a/src/os/types.go
++++ b/src/os/types.go
+@@ -57,7 +57,7 @@ const (
+ 	ModeIrregular                                  // ?: non-regular file; nothing else is known about this file
+ 
+ 	// Mask for the type bits. For regular files, none will be set.
+-	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeIrregular
++	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeCharDevice | ModeIrregular
+ 
+ 	ModePerm FileMode = 0777 // Unix permission bits
+ )

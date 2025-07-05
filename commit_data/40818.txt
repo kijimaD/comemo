@@ -16,10 +16,203 @@ Date:   Tue Jul 9 17:41:37 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/load.go                | 66 ++++++++++++++++++----
  src/cmd/go/testdata/script/mod_dot.txt             | 36 ++++++++++++
  src/cmd/go/testdata/script/mod_fs_patterns.txt     |  4 +-
  src/cmd/go/testdata/script/mod_list_dir.txt        |  5 +-
  .../go/testdata/script/mod_list_replace_dir.txt    |  2 +-
  5 files changed, 96 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 992fa70b79..81fb8b346f 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -100,11 +100,31 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
+ 						dir = filepath.Clean(dir)
+ 					}
+ 
++					// golang.org/issue/32917: We should resolve a relative path to a
++					// package path only if the relative path actually contains the code
++					// for that package.
++					if !dirContainsPackage(dir) {
++						// If we're outside of a module, ensure that the failure mode
++						// indicates that.
++						ModRoot()
++
++						// If the directory is local but does not exist, don't return it
++						// while loader is iterating, since this might trigger a fetch.
++						// After loader is done iterating, we still need to return the
++						// path, so that "go list -e" produces valid output.
++						if !iterating {
++							// We don't have a valid path to resolve to, so report the
++							// unresolved path.
++							m.Pkgs = append(m.Pkgs, pkg)
++						}
++						continue
++					}
++
+ 					// Note: The checks for @ here are just to avoid misinterpreting
+ 					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
+ 					// It's not strictly necessary but helpful to keep the checks.
+ 					if modRoot != "" && dir == modRoot {
+-						pkg = Target.Path
++						pkg = targetPrefix
+ 					} else if modRoot != "" && strings.HasPrefix(dir, modRoot+string(filepath.Separator)) && !strings.Contains(dir[len(modRoot):], "@") {
+ 						suffix := filepath.ToSlash(dir[len(modRoot):])
+ 						if strings.HasPrefix(suffix, "/vendor/") {
+@@ -121,7 +141,13 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
+ 								continue
+ 							}
+ 						} else {
+-							pkg = Target.Path + suffix
++							modPkg := targetPrefix + suffix
++							if _, ok := dirInModule(modPkg, targetPrefix, modRoot, true); ok {
++								pkg = modPkg
++							} else if !iterating {
++								ModRoot()
++								base.Errorf("go: directory %s is outside main module", base.ShortPath(dir))
++							}
+ 						}
+ 					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
+ 						pkg = filepath.ToSlash(sub)
+@@ -134,16 +160,6 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
+ 							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
+ 						}
+ 					}
+-					info, err := os.Stat(dir)
+-					if err != nil || !info.IsDir() {
+-						// If the directory is local but does not exist, don't return it
+-						// while loader is iterating, since this would trigger a fetch.
+-						// After loader is done iterating, we still need to return the
+-						// path, so that "go list -e" produces valid output.
+-						if iterating {
+-							continue
+-						}
+-					}
+ 					m.Pkgs = append(m.Pkgs, pkg)
+ 				}
+ 
+@@ -247,6 +263,32 @@ func pathInModuleCache(dir string) string {
+ 	return ""
+ }
+ 
++var dirContainsPackageCache sync.Map // absolute dir → bool
++
++func dirContainsPackage(dir string) bool {
++	isPkg, ok := dirContainsPackageCache.Load(dir)
++	if !ok {
++		_, err := cfg.BuildContext.ImportDir(dir, 0)
++		if err == nil {
++			isPkg = true
++		} else {
++			if fi, statErr := os.Stat(dir); statErr != nil || !fi.IsDir() {
++				// A non-directory or inaccessible directory is not a Go package.
++				isPkg = false
++			} else if _, noGo := err.(*build.NoGoError); noGo {
++				// A directory containing no Go source files is not a Go package.
++				isPkg = false
++			} else {
++				// An error other than *build.NoGoError indicates that the package exists
++				// but has some other problem (such as a syntax error).
++				isPkg = true
++			}
++		}
++		isPkg, _ = dirContainsPackageCache.LoadOrStore(dir, isPkg)
++	}
++	return isPkg.(bool)
++}
++
+ // ImportFromFiles adds modules to the build list as needed
+ // to satisfy the imports in the named Go source files.
+ func ImportFromFiles(gofiles []string) {
+diff --git a/src/cmd/go/testdata/script/mod_dot.txt b/src/cmd/go/testdata/script/mod_dot.txt
+new file mode 100644
+index 0000000000..c90074d0a6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_dot.txt
+@@ -0,0 +1,36 @@
++env GO111MODULE=on
++
++# golang.org/issue/32917 and golang.org/issue/28459: 'go build' and 'go test'
++# in an empty directory should refer to the path '.' and should not attempt
++# to resolve an external module.
++cd dir
++! go get .
++stderr 'go get \.: path .* is not a package in module rooted at .*[/\\]dir$'
++! go list
++! stderr 'cannot find module providing package'
++stderr '^can.t load package: package \.: no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
++
++cd subdir
++! go list
++! stderr 'cannot find module providing package'
++stderr '^can.t load package: package \.: no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir$'
++cd ..
++
++# golang.org/issue/30590: if a package is found in the filesystem
++# but is not in the main module, the error message should not say
++# "cannot find module providing package", and we shouldn't try
++# to find a module providing the package.
++! go list ./othermodule
++! stderr 'cannot find module providing package'
++stderr 'go: directory othermodule is outside main module'
++
++-- dir/go.mod --
++module example.com
++go 1.13
++-- dir/subdir/README --
++There are no Go source files in this directory.
++-- dir/othermodule/go.mod --
++module example.com/othermodule
++go 1.13
++-- dir/othermodule/om.go --
++package othermodule
+diff --git a/src/cmd/go/testdata/script/mod_fs_patterns.txt b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+index 9341a1d083..fd7de13002 100644
+--- a/src/cmd/go/testdata/script/mod_fs_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+@@ -34,11 +34,11 @@ stderr 'import lookup disabled'
+ 
+ ! go build -mod=readonly ./nonexist
+ ! stderr 'import lookup disabled'
+-stderr 'unknown import path "m/nonexist": cannot find package'
++stderr '^can.t load package: package ./nonexist: cannot find package "." in:\n\t'$WORK'[/\\]gopath[/\\]src[/\\]x[/\\]nonexist$'
+ 
+ ! go build -mod=readonly ./go.mod
+ ! stderr 'import lookup disabled'
+-stderr 'unknown import path "m/go.mod": cannot find package'
++stderr 'can.t load package: package ./go.mod: cannot find package'
+ 
+ -- x/go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_list_dir.txt b/src/cmd/go/testdata/script/mod_list_dir.txt
+index c4db045631..a8023cce9c 100644
+--- a/src/cmd/go/testdata/script/mod_list_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_dir.txt
+@@ -12,9 +12,10 @@ stdout ^math$
+ go list -f '{{.ImportPath}}' .
+ stdout ^x$
+ ! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+-stderr 'unknown import path "rsc.io/quote": cannot find package'
++stderr '^can.t load package: package '$WORK'[/\\]gopath/pkg/mod/rsc.io/quote@v1.5.2: can only use path@version syntax with .go get.'
++
+ go list -e -f '{{with .Error}}{{.}}{{end}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+-stdout 'unknown import path "rsc.io/quote": cannot find package'
++stdout '^package '$WORK'[/\\]gopath/pkg/mod/rsc.io/quote@v1.5.2: can only use path@version syntax with .go get.'
+ go mod download rsc.io/quote@v1.5.2
+ go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+ stdout '^rsc.io/quote$'
+diff --git a/src/cmd/go/testdata/script/mod_list_replace_dir.txt b/src/cmd/go/testdata/script/mod_list_replace_dir.txt
+index 37de8825e0..d43bbe7f2b 100644
+--- a/src/cmd/go/testdata/script/mod_list_replace_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_replace_dir.txt
+@@ -6,7 +6,7 @@ env GO111MODULE=on
+ go mod download
+ 
+ ! go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+-stderr 'outside available modules'
++stderr 'can only use path@version syntax with .go get.'
+ 
+ go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.1
+ stdout 'rsc.io/quote'

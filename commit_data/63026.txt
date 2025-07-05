@@ -13,7 +13,119 @@ Date:   Thu May 15 11:16:34 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Jonathan Amsterdam <jba@google.com>
-
+---
  src/testing/sub_test.go | 24 ++++++++++++++++++++----
  src/testing/testing.go  | 19 ++++++++++++++-----
  2 files changed, 34 insertions(+), 9 deletions(-)
+
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 1a6cfed594..d3d383427d 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -280,7 +280,6 @@ func TestTRun(t *T) {
+ 					t.Run("c", func(t *T) {
+ 						t.Parallel()
+ 					})
+-
+ 				})
+ 			})
+ 		},
+@@ -305,7 +304,6 @@ func TestTRun(t *T) {
+ 									time.Sleep(time.Nanosecond)
+ 								})
+ 							}
+-
+ 						})
+ 					}
+ 				})
+@@ -841,7 +839,7 @@ func TestBenchmarkOutput(t *T) {
+ }
+ 
+ func TestBenchmarkStartsFrom1(t *T) {
+-	var first = true
++	first := true
+ 	Benchmark(func(b *B) {
+ 		if first && b.N != 1 {
+ 			panic(fmt.Sprintf("Benchmark() first N=%v; want 1", b.N))
+@@ -851,7 +849,7 @@ func TestBenchmarkStartsFrom1(t *T) {
+ }
+ 
+ func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
+-	var first = true
++	first := true
+ 	Benchmark(func(b *B) {
+ 		if first && (b.startAllocs == 0 || b.startBytes == 0) {
+ 			panic("ReadMemStats not called before first run")
+@@ -1250,3 +1248,21 @@ func TestOutputWriteAfterComplete(t *T) {
+ 		t.Error(s)
+ 	}
+ }
++
++// Verify that logging to an inactive top-level testing.T does not panic.
++// These tests can run in either order.
++
++func TestOutputEscape1(t *T) { testOutputEscape(t) }
++func TestOutputEscape2(t *T) { testOutputEscape(t) }
++
++var global *T
++
++func testOutputEscape(t *T) {
++	if global == nil {
++		// Store t in a global, to set up for the second execution.
++		global = t
++	} else {
++		// global is inactive here.
++		global.Log("hello")
++	}
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index efbcd59dc0..e0f8247e3b 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -904,8 +904,10 @@ type TB interface {
+ 	private()
+ }
+ 
+-var _ TB = (*T)(nil)
+-var _ TB = (*B)(nil)
++var (
++	_ TB = (*T)(nil)
++	_ TB = (*B)(nil)
++)
+ 
+ // T is a type passed to Test functions to manage test state and support formatted test logs.
+ //
+@@ -1119,6 +1121,11 @@ type outputWriter struct {
+ // Write writes a log message to the test's output stream, properly formatted and
+ // indented. It may not be called after a test function and all its parents return.
+ func (o *outputWriter) Write(p []byte) (int, error) {
++	// o can be nil if this is called from a top-level *TB that is no longer active.
++	// Just ignore the message in that case.
++	if o == nil || o.c == nil {
++		return 0, nil
++	}
+ 	if o.c.destination() == nil {
+ 		panic("Write called after " + o.c.name + " has completed")
+ 	}
+@@ -1369,7 +1376,7 @@ func (c *common) TempDir() string {
+ 	}
+ 
+ 	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
+-	if err := os.Mkdir(dir, 0777); err != nil {
++	if err := os.Mkdir(dir, 0o777); err != nil {
+ 		c.Fatalf("TempDir: %v", err)
+ 	}
+ 	return dir
+@@ -2132,8 +2139,10 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
+ 	}
+ }
+ 
+-var testingTesting bool
+-var realStderr *os.File
++var (
++	testingTesting bool
++	realStderr     *os.File
++)
+ 
+ // Run runs the tests. It returns an exit code to pass to os.Exit.
+ // The exit code is zero when all tests pass, and non-zero for any kind

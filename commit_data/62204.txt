@@ -13,8 +13,56 @@ Date:   Sat Feb 1 05:26:17 2025 +0000
     TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/trace/base.go                | 6 +-----
  src/internal/trace/tracev2/events.go      | 3 +++
  src/internal/trace/tracev2/events_test.go | 3 +++
  3 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/trace/base.go b/src/internal/trace/base.go
+index 5e11c6f049..693dbc6fa6 100644
+--- a/src/internal/trace/base.go
++++ b/src/internal/trace/base.go
+@@ -16,13 +16,9 @@ import (
+ 	"internal/trace/version"
+ )
+ 
+-// maxArgs is the maximum number of arguments for "plain" events,
+-// i.e. anything that could reasonably be represented as a baseEvent.
+-const maxArgs = 5
+-
+ // timedEventArgs is an array that is able to hold the arguments for any
+ // timed event.
+-type timedEventArgs [maxArgs - 1]uint64
++type timedEventArgs [tracev2.MaxTimedEventArgs - 1]uint64
+ 
+ // baseEvent is the basic unprocessed event. This serves as a common
+ // fundamental data structure across.
+diff --git a/src/internal/trace/tracev2/events.go b/src/internal/trace/tracev2/events.go
+index c6dd162a63..2f3581ab5b 100644
+--- a/src/internal/trace/tracev2/events.go
++++ b/src/internal/trace/tracev2/events.go
+@@ -133,6 +133,9 @@ const (
+ 
+ const NumExperimentalEvents = MaxExperimentalEvent - MaxEvent
+ 
++// MaxTimedEventArgs is the maximum number of arguments for timed events.
++const MaxTimedEventArgs = 5
++
+ func Specs() []EventSpec {
+ 	return specs[:]
+ }
+diff --git a/src/internal/trace/tracev2/events_test.go b/src/internal/trace/tracev2/events_test.go
+index 1f2fbf7610..60c4c08c34 100644
+--- a/src/internal/trace/tracev2/events_test.go
++++ b/src/internal/trace/tracev2/events_test.go
+@@ -38,6 +38,9 @@ func TestSpecs(t *testing.T) {
+ 		if spec.IsStack && spec.Name != "Stack" {
+ 			t.Errorf("%s listed as being a stack, but is not the Stack event (unsupported)", spec.Name)
+ 		}
++		if spec.IsTimedEvent && len(spec.Args) > tracev2.MaxTimedEventArgs {
++			t.Errorf("%s has too many timed event args: have %d, want %d at most", spec.Name, len(spec.Args), tracev2.MaxTimedEventArgs)
++		}
+ 		if ev.Experimental() && spec.Experiment == tracev2.NoExperiment {
+ 			t.Errorf("experimental event %s must have an experiment", spec.Name)
+ 		}

@@ -10,7 +10,35 @@ Date:   Tue Aug 20 23:30:43 2019 -0600
     Change-Id: I26f63cef57e5f0eec85b84554c82f6d47b4f41a1
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191078
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/strconv/atof.go | 2 +-
  src/strconv/atoi.go | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index 0903fa155a..190b25fbf5 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -643,7 +643,7 @@ func atof64(s string) (f float64, err error) {
+ // ParseFloat returns the nearest floating-point number rounded
+ // using IEEE754 unbiased rounding.
+ // (Parsing a hexadecimal floating-point value only rounds when
+-// there are more bits in the hexadecimal representatiton than
++// there are more bits in the hexadecimal representation than
+ // will fit in the mantissa.)
+ //
+ // The errors that ParseFloat returns have concrete type *NumError
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index 31774d0c9a..0233f14b40 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -154,7 +154,8 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
+ //
+ // If base == 0, the base is implied by the string's prefix:
+ // base 2 for "0b", base 8 for "0" or "0o", base 16 for "0x",
+-// and base 10 otherwise.
++// and base 10 otherwise. Also, for base == 0 only, underscore
++// characters are permitted per the Go integer literal syntax.
+ // If base is below 0, is 1, or is above 36, an error is returned.
+ //
+ // The bitSize argument specifies the integer type

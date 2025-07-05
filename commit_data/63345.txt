@@ -38,7 +38,111 @@ Date:   Fri Jun 27 10:59:44 2025 -0700
     Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/reflect/all_test.go |  5 ++++
  src/reflect/value.go    | 72 ++++++++++++++++++++++++-------------------------
  2 files changed, 41 insertions(+), 36 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index fb1a29d060..cd3e306a57 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -8719,6 +8719,11 @@ func TestTypeAssert(t *testing.T) {
+ 	testTypeAssert(t, any(int(1)), int(1), true)
+ 	testTypeAssert(t, any(int(1)), byte(0), false)
+ 	testTypeAssert(t, fmt.Stringer(vv), vv, true)
++
++	testTypeAssert(t, any(nil), any(nil), false)
++	testTypeAssert(t, any(nil), error(nil), false)
++	testTypeAssert(t, error(nil), any(nil), false)
++	testTypeAssert(t, error(nil), error(nil), false)
+ }
+ 
+ func testTypeAssert[T comparable, V any](t *testing.T, val V, wantVal T, wantOk bool) {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 68b97e9229..ffdf789648 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1514,46 +1514,46 @@ func TypeAssert[T any](v Value) (T, bool) {
+ 	}
+ 
+ 	typ := abi.TypeFor[T]()
+-	if typ != v.typ() {
+-		// We can't just return false here:
+-		//
+-		//	var zero T
+-		//	return zero, false
+-		//
+-		// since this function should work in the same manner as v.Interface().(T) does.
+-		// Thus we have to handle two cases specially.
+-
+-		// Return the element inside the interface.
+-		//
+-		// T is a concrete type and v is an interface. For example:
+-		//
+-		// var v any = int(1)
+-		// val := ValueOf(&v).Elem()
+-		// TypeAssert[int](val) == val.Interface().(int)
+-		//
+-		// T is a interface and v is an interface, but the iface types are different. For example:
+-		//
+-		// var v any = &someError{}
+-		// val := ValueOf(&v).Elem()
+-		// TypeAssert[error](val) == val.Interface().(error)
+-		if v.kind() == Interface {
+-			v, ok := packIfaceValueIntoEmptyIface(v).(T)
+-			return v, ok
+-		}
+-
+-		// T is an interface, v is a concrete type. For example:
+-		//
+-		// TypeAssert[any](ValueOf(1)) == ValueOf(1).Interface().(any)
+-		// TypeAssert[error](ValueOf(&someError{})) == ValueOf(&someError{}).Interface().(error)
+-		if typ.Kind() == abi.Interface {
+-			v, ok := packEface(v).(T)
+-			return v, ok
+-		}
+ 
++	// If v is an interface, return the element inside the interface.
++	//
++	// T is a concrete type and v is an interface. For example:
++	//
++	//	var v any = int(1)
++	//	val := ValueOf(&v).Elem()
++	//	TypeAssert[int](val) == val.Interface().(int)
++	//
++	// T is a interface and v is a non-nil interface value. For example:
++	//
++	//	var v any = &someError{}
++	//	val := ValueOf(&v).Elem()
++	//	TypeAssert[error](val) == val.Interface().(error)
++	//
++	// T is a interface and v is a nil interface value. For example:
++	//
++	//	var v error = nil
++	//	val := ValueOf(&v).Elem()
++	//	TypeAssert[error](val) == val.Interface().(error)
++	if v.kind() == Interface {
++		v, ok := packIfaceValueIntoEmptyIface(v).(T)
++		return v, ok
++	}
++
++	// If T is an interface and v is a concrete type. For example:
++	//
++	//	TypeAssert[any](ValueOf(1)) == ValueOf(1).Interface().(any)
++	//	TypeAssert[error](ValueOf(&someError{})) == ValueOf(&someError{}).Interface().(error)
++	if typ.Kind() == abi.Interface {
++		v, ok := packEface(v).(T)
++		return v, ok
++	}
++
++	// Both v and T must be concrete types.
++	// The only way for an type-assertion to match is if the types are equal.
++	if typ != v.typ() {
+ 		var zero T
+ 		return zero, false
+ 	}
+-
+ 	if v.flag&flagIndir == 0 {
+ 		return *(*T)(unsafe.Pointer(&v.ptr)), true
+ 	}

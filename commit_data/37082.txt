@@ -11,6 +11,42 @@ Date:   Fri Jun 22 18:36:17 2018 +0100
     Change-Id: I9d0e47dff2446c27a3df88fb9ccfefef7419470b
     Reviewed-on: https://go-review.googlesource.com/120556
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/ast.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index d73c323178..fd109507b8 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -153,10 +153,12 @@ func (g *CommentGroup) Text() string {
+ // A Field represents a Field declaration list in a struct type,
+ // a method list in an interface type, or a parameter/result declaration
+ // in a signature.
++// Field.Names is nil for unnamed parameters (parameter lists which only contain types)
++// and embedded struct fields. In the latter case, the field name is the type name.
+ //
+ type Field struct {
+ 	Doc     *CommentGroup // associated documentation; or nil
+-	Names   []*Ident      // field/method/parameter names; or nil if anonymous field
++	Names   []*Ident      // field/method/parameter names; or nil
+ 	Type    Expr          // field/method/parameter type
+ 	Tag     *BasicLit     // field tag; or nil
+ 	Comment *CommentGroup // line comments; or nil
+@@ -207,14 +209,14 @@ func (f *FieldList) End() token.Pos {
+ 	return token.NoPos
+ }
+ 
+-// NumFields returns the number of (named and anonymous fields) in a FieldList.
++// NumFields returns the number of parameters or struct fields represented by a FieldList.
+ func (f *FieldList) NumFields() int {
+ 	n := 0
+ 	if f != nil {
+ 		for _, g := range f.List {
+ 			m := len(g.Names)
+ 			if m == 0 {
+-				m = 1 // anonymous field
++				m = 1
+ 			}
+ 			n += m
+ 		}

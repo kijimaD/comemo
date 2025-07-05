@@ -12,7 +12,45 @@ Date:   Mon Dec 30 15:50:50 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/nonblocking.go                              | 2 +-
  .../syscall/unix/{nonblocking_darwin.go => nonblocking_libc.go}       | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/syscall/unix/nonblocking.go b/src/internal/syscall/unix/nonblocking.go
+index 545445204f..db25fcca98 100644
+--- a/src/internal/syscall/unix/nonblocking.go
++++ b/src/internal/syscall/unix/nonblocking.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix dragonfly freebsd linux netbsd openbsd solaris
++// +build dragonfly freebsd linux netbsd openbsd
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/nonblocking_darwin.go b/src/internal/syscall/unix/nonblocking_libc.go
+similarity index 87%
+rename from src/internal/syscall/unix/nonblocking_darwin.go
+rename to src/internal/syscall/unix/nonblocking_libc.go
+index e3dd3a06b0..37cc7943ee 100644
+--- a/src/internal/syscall/unix/nonblocking_darwin.go
++++ b/src/internal/syscall/unix/nonblocking_libc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin
++// +build aix darwin solaris
+ 
+ package unix
+ 
+@@ -19,6 +19,6 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
+ 	return flag&syscall.O_NONBLOCK != 0, nil
+ }
+ 
+-// Implemented in syscall/syscall_darwin.go.
++// Implemented in the syscall package.
+ //go:linkname fcntl syscall.fcntl
+ func fcntl(fd int, cmd int, arg int) (int, error)

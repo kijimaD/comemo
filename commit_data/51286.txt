@@ -22,8 +22,195 @@ Date:   Tue Jan 4 21:01:21 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go | 32 ++++---------------------------
  src/go/types/lookup.go                    | 26 ++++---------------------
  src/go/types/methodset.go                 | 12 +-----------
  3 files changed, 9 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index ee764c7d14..7bdf13b4b7 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -82,7 +82,7 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
+ 
+ 	typ, isPtr := deref(T)
+ 
+-	// *typ where typ is an interface has no methods.
++	// *typ where typ is an interface (incl. a type parameter) has no methods.
+ 	if isPtr {
+ 		if _, ok := under(typ).(*Interface); ok {
+ 			return
+@@ -106,7 +106,6 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
+ 		var next []embeddedType // embedded types found at current depth
+ 
+ 		// look for (pkg, name) in all types at current depth
+-		var tpar *TypeParam // set if obj receiver is a type parameter
+ 		for _, e := range current {
+ 			typ := e.typ
+ 
+@@ -139,13 +138,9 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
+ 					indirect = e.indirect
+ 					continue // we can't have a matching field or interface method
+ 				}
+-
+-				// continue with underlying type
+-				typ = named.under()
+ 			}
+ 
+-			tpar = nil
+-			switch t := typ.(type) {
++			switch t := under(typ).(type) {
+ 			case *Struct:
+ 				// look for a matching field and collect embedded types
+ 				for i, f := range t.fields {
+@@ -178,7 +173,7 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
+ 				}
+ 
+ 			case *Interface:
+-				// look for a matching method
++				// look for a matching method (interface may be a type parameter)
+ 				if i, m := lookupMethodFold(t.typeSet().methods, pkg, name, checkFold); m != nil {
+ 					assert(m.typ != nil)
+ 					index = concat(e.index, i)
+@@ -188,24 +183,6 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
+ 					obj = m
+ 					indirect = e.indirect
+ 				}
+-
+-			case *TypeParam:
+-				if i, m := lookupMethodFold(t.iface().typeSet().methods, pkg, name, checkFold); m != nil {
+-					assert(m.typ != nil)
+-					index = concat(e.index, i)
+-					if obj != nil || e.multiples {
+-						return nil, index, false // collision
+-					}
+-					tpar = t
+-					obj = m
+-					indirect = e.indirect
+-				}
+-				if obj == nil {
+-					// At this point we're not (yet) looking into methods
+-					// that any underlying type of the types in the type list
+-					// might have.
+-					// TODO(gri) Do we want to specify the language that way?
+-				}
+ 			}
+ 		}
+ 
+@@ -217,8 +194,7 @@ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name
+ 			//        is shorthand for (&x).m()".
+ 			if f, _ := obj.(*Func); f != nil {
+ 				// determine if method has a pointer receiver
+-				hasPtrRecv := tpar == nil && f.hasPtrRecv()
+-				if hasPtrRecv && !indirect && !addressable {
++				if f.hasPtrRecv() && !indirect && !addressable {
+ 					return nil, nil, true // pointer/addressable receiver required
+ 				}
+ 			}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index c787601a06..7f3fbd6929 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -80,7 +80,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 
+ 	typ, isPtr := deref(T)
+ 
+-	// *typ where typ is an interface has no methods.
++	// *typ where typ is an interface (incl. a type parameter) has no methods.
+ 	if isPtr {
+ 		if _, ok := under(typ).(*Interface); ok {
+ 			return
+@@ -104,7 +104,6 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 		var next []embeddedType // embedded types found at current depth
+ 
+ 		// look for (pkg, name) in all types at current depth
+-		var tpar *TypeParam // set if obj receiver is a type parameter
+ 		for _, e := range current {
+ 			typ := e.typ
+ 
+@@ -137,13 +136,9 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 					indirect = e.indirect
+ 					continue // we can't have a matching field or interface method
+ 				}
+-
+-				// continue with underlying type
+-				typ = named.under()
+ 			}
+ 
+-			tpar = nil
+-			switch t := typ.(type) {
++			switch t := under(typ).(type) {
+ 			case *Struct:
+ 				// look for a matching field and collect embedded types
+ 				for i, f := range t.fields {
+@@ -176,7 +171,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 				}
+ 
+ 			case *Interface:
+-				// look for a matching method
++				// look for a matching method (interface may be a type parameter)
+ 				if i, m := t.typeSet().LookupMethod(pkg, name); m != nil {
+ 					assert(m.typ != nil)
+ 					index = concat(e.index, i)
+@@ -186,18 +181,6 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 					obj = m
+ 					indirect = e.indirect
+ 				}
+-
+-			case *TypeParam:
+-				if i, m := t.iface().typeSet().LookupMethod(pkg, name); m != nil {
+-					assert(m.typ != nil)
+-					index = concat(e.index, i)
+-					if obj != nil || e.multiples {
+-						return nil, index, false // collision
+-					}
+-					tpar = t
+-					obj = m
+-					indirect = e.indirect
+-				}
+ 			}
+ 		}
+ 
+@@ -209,8 +192,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 			//        is shorthand for (&x).m()".
+ 			if f, _ := obj.(*Func); f != nil {
+ 				// determine if method has a pointer receiver
+-				hasPtrRecv := tpar == nil && f.hasPtrRecv()
+-				if hasPtrRecv && !indirect && !addressable {
++				if f.hasPtrRecv() && !indirect && !addressable {
+ 					return nil, nil, true // pointer/addressable receiver required
+ 				}
+ 			}
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index e17be7c41a..5c3bc39271 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -126,16 +126,9 @@ func NewMethodSet(T Type) *MethodSet {
+ 				seen[named] = true
+ 
+ 				mset = mset.add(named.methods, e.index, e.indirect, e.multiples)
+-
+-				// continue with underlying type, but only if it's not a type parameter
+-				// TODO(rFindley): should this use named.under()? Can there be a difference?
+-				typ = named.underlying
+-				if _, ok := typ.(*TypeParam); ok {
+-					continue
+-				}
+ 			}
+ 
+-			switch t := typ.(type) {
++			switch t := under(typ).(type) {
+ 			case *Struct:
+ 				for i, f := range t.fields {
+ 					if fset == nil {
+@@ -158,9 +151,6 @@ func NewMethodSet(T Type) *MethodSet {
+ 
+ 			case *Interface:
+ 				mset = mset.add(t.typeSet().methods, e.index, true, e.multiples)
+-
+-			case *TypeParam:
+-				mset = mset.add(t.iface().typeSet().methods, e.index, true, e.multiples)
+ 			}
+ 		}
+ 

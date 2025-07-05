@@ -11,6 +11,27 @@ Date:   Tue Oct 7 23:08:07 2014 -0400
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/152320044
-
+---
  src/net/rpc/client_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/rpc/client_test.go b/src/net/rpc/client_test.go
+index c138c06b8d..d116d2acc9 100644
+--- a/src/net/rpc/client_test.go
++++ b/src/net/rpc/client_test.go
+@@ -63,13 +63,13 @@ func TestGobError(t *testing.T) {
+ 	}()
+ 	Register(new(S))
+ 
+-	listen, err := net.Listen("tcp", ":5555")
++	listen, err := net.Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		panic(err)
+ 	}
+ 	go Accept(listen)
+ 
+-	client, err := Dial("tcp", ":5555")
++	client, err := Dial("tcp", listen.Addr().String())
+ 	if err != nil {
+ 		panic(err)
+ 	}

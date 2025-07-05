@@ -9,6 +9,20 @@ Date:   Tue Jan 3 12:41:18 2017 -0500
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index e825897545..7d5f79f339 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -704,7 +704,7 @@ func (t *tester) extLink() bool {
+ 		"darwin-arm", "darwin-arm64",
+ 		"dragonfly-386", "dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle",
++		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
+ 		"netbsd-386", "netbsd-amd64",
+ 		"openbsd-386", "openbsd-amd64",
+ 		"windows-386", "windows-amd64":

@@ -8,8 +8,97 @@ Date:   Thu Aug 8 00:31:52 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12609043
-
+---
  src/pkg/runtime/crash_cgo_test.go | 27 +++++++++++++++++++++++++++
  src/pkg/runtime/panic.c           |  2 ++
  src/pkg/runtime/proc.c            | 10 +++++++---
  3 files changed, 36 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/crash_cgo_test.go b/src/pkg/runtime/crash_cgo_test.go
+index d61de4469f..4ff0084c22 100644
+--- a/src/pkg/runtime/crash_cgo_test.go
++++ b/src/pkg/runtime/crash_cgo_test.go
+@@ -26,6 +26,14 @@ func TestCgoSignalDeadlock(t *testing.T) {
+ 	}
+ }
+ 
++func TestCgoTraceback(t *testing.T) {
++	got := executeTest(t, cgoTracebackSource, nil)
++	want := "OK\n"
++	if got != want {
++		t.Fatalf("expected %q, but got %q", want, got)
++	}
++}
++
+ const cgoSignalDeadlockSource = `
+ package main
+ 
+@@ -90,3 +98,22 @@ func main() {
+ 	fmt.Printf("OK\n")
+ }
+ `
++
++const cgoTracebackSource = `
++package main
++
++/* void foo(void) {} */
++import "C"
++
++import (
++	"fmt"
++	"runtime"
++)
++
++func main() {
++	C.foo()
++	buf := make([]byte, 1)
++	runtime.Stack(buf, true)
++	fmt.Printf("OK\n")
++}
++`
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 36a3c41ba7..3211415266 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -415,6 +415,8 @@ runtime·startpanic(void)
+ 		runtime·exit(3);
+ 	}
+ 	m->dying = 1;
++	if(g != nil)
++		g->writebuf = nil;
+ 	runtime·xadd(&runtime·panicking, 1);
+ 	runtime·lock(&paniclk);
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 4d74b570b3..6eab7dba1b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -712,11 +712,18 @@ runtime·newextram(void)
+ 	gp->sched.sp = gp->stackbase;
+ 	gp->sched.lr = 0;
+ 	gp->sched.g = gp;
++	gp->syscallpc = gp->sched.pc;
++	gp->syscallsp = gp->sched.sp;
++	gp->syscallstack = gp->stackbase;
++	gp->syscallguard = gp->stackguard;
+ 	gp->status = Gsyscall;
+ 	mp->curg = gp;
+ 	mp->locked = LockInternal;
+ 	mp->lockedg = gp;
+ 	gp->lockedm = mp;
++	gp->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
++	if(raceenabled)
++		gp->racectx = runtime·racegostart(runtime·newextram);
+ 	// put on allg for garbage collector
+ 	runtime·lock(&runtime·sched);
+ 	if(runtime·lastg == nil)
+@@ -725,9 +732,6 @@ runtime·newextram(void)
+ 		runtime·lastg->alllink = gp;
+ 	runtime·lastg = gp;
+ 	runtime·unlock(&runtime·sched);
+-	gp->goid = runtime·xadd64(&runtime·sched.goidgen, 1);
+-	if(raceenabled)
+-		gp->racectx = runtime·racegostart(runtime·newextram);
+ 
+ 	// Add m to the extra list.
+ 	mnext = lockextra(true);

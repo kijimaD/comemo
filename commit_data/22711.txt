@@ -32,7 +32,7 @@ Date:   Fri Apr 3 13:10:47 2015 -0700
     Change-Id: Id811e2b99dc05aff324d517faac113ef3c25293a
     Reviewed-on: https://go-review.googlesource.com/8462
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/html/template/template.go  | 23 +++++++++++++
  src/text/template/exec.go      | 13 +++++++-
  src/text/template/exec_test.go | 51 +++++++++++++++++++++++++++++
@@ -40,3 +40,225 @@ Date:   Fri Apr 3 13:10:47 2015 -0700
  src/text/template/option.go    | 73 ++++++++++++++++++++++++++++++++++++++++++
  src/text/template/template.go  |  1 +
  6 files changed, 161 insertions(+), 2 deletions(-)
+
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index 64c0041c9c..bb9140a4da 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -51,6 +51,29 @@ func (t *Template) Templates() []*Template {
+ 	return m
+ }
+ 
++// Option sets options for the template. Options are described by
++// strings, either a simple string or "key=value". There can be at
++// most one equals sign in an option string. If the option string
++// is unrecognized or otherwise invalid, Option panics.
++//
++// Known options:
++//
++// missingkey: Control the behavior during execution if a map is
++// indexed with a key that is not present in the map.
++//	"missingkey=default" or "missingkey=invalid"
++//		The default behavior: Do nothing and continue execution.
++//		If printed, the result of the index operation is the string
++//		"<no value>".
++//	"missingkey=zero"
++//		The operation returns the zero value for the map type's element.
++//	"missingkey=error"
++//		Execution stops immediately with an error.
++//
++func (t *Template) Option(opt ...string) *Template {
++	t.text.Option(opt...)
++	return t
++}
++
+ // escape escapes all associated templates.
+ func (t *Template) escape() error {
+ 	t.nameSpace.mu.Lock()
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 613a778188..e6e1287993 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -519,7 +519,18 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 			if hasArgs {
+ 				s.errorf("%s is not a method but has arguments", fieldName)
+ 			}
+-			return receiver.MapIndex(nameVal)
++			result := receiver.MapIndex(nameVal)
++			if !result.IsValid() {
++				switch s.tmpl.option.missingKey {
++				case mapInvalid:
++					// Just use the invalid value.
++				case mapZeroValue:
++					result = reflect.Zero(receiver.Type().Elem())
++				case mapError:
++					s.errorf("map has no entry for key %q", fieldName)
++				}
++			}
++			return result
+ 		}
+ 	}
+ 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index b1f778797b..8c4e165f2f 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1044,3 +1044,54 @@ func TestComparison(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestMissingMapKey(t *testing.T) {
++	data := map[string]int{
++		"x": 99,
++	}
++	tmpl, err := New("t1").Parse("{{.x}} {{.y}}")
++	if err != nil {
++		t.Fatal(err)
++	}
++	var b bytes.Buffer
++	// By default, just get "<no value>"
++	err = tmpl.Execute(&b, data)
++	if err != nil {
++		t.Fatal(err)
++	}
++	want := "99 <no value>"
++	got := b.String()
++	if got != want {
++		t.Errorf("got %q; expected %q", got, want)
++	}
++	// Same if we set the option explicitly to the default.
++	tmpl.Option("missingkey=default")
++	b.Reset()
++	err = tmpl.Execute(&b, data)
++	if err != nil {
++		t.Fatal("default:", err)
++	}
++	want = "99 <no value>"
++	got = b.String()
++	if got != want {
++		t.Errorf("got %q; expected %q", got, want)
++	}
++	// Next we ask for a zero value
++	tmpl.Option("missingkey=zero")
++	b.Reset()
++	err = tmpl.Execute(&b, data)
++	if err != nil {
++		t.Fatal("zero:", err)
++	}
++	want = "99 0"
++	got = b.String()
++	if got != want {
++		t.Errorf("got %q; expected %q", got, want)
++	}
++	// Now we ask for an error.
++	tmpl.Option("missingkey=error")
++	err = tmpl.Execute(&b, data)
++	if err == nil {
++		t.Errorf("expected error; got none")
++	}
++}
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 39ee5ed68f..cdd187bda2 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -590,7 +590,7 @@ func evalArgs(args []interface{}) string {
+ 			a, ok := printableValue(reflect.ValueOf(arg))
+ 			if ok {
+ 				args[i] = a
+-			} // else left fmt do its thing
++			} // else let fmt do its thing
+ 		}
+ 		s = fmt.Sprint(args...)
+ 	}
+diff --git a/src/text/template/option.go b/src/text/template/option.go
+new file mode 100644
+index 0000000000..fcdd8714a6
+--- /dev/null
++++ b/src/text/template/option.go
+@@ -0,0 +1,73 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains the code to handle template options.
++
++package template
++
++import "strings"
++
++// missingKeyAction defines how to respond to indexing a map with a key that is not present.
++type missingKeyAction int
++
++const (
++	mapInvalid   missingKeyAction = iota // Return an invalid reflect.Value.
++	mapZeroValue                         // Return the zero value for the map element.
++	mapError                             // Error out
++)
++
++type option struct {
++	missingKey missingKeyAction
++}
++
++// Option sets options for the template. Options are described by
++// strings, either a simple string or "key=value". There can be at
++// most one equals sign in an option string. If the option string
++// is unrecognized or otherwise invalid, Option panics.
++//
++// Known options:
++//
++// missingkey: Control the behavior during execution if a map is
++// indexed with a key that is not present in the map.
++//	"missingkey=default" or "missingkey=invalid"
++//		The default behavior: Do nothing and continue execution.
++//		If printed, the result of the index operation is the string
++//		"<no value>".
++//	"missingkey=zero"
++//		The operation returns the zero value for the map type's element.
++//	"missingkey=error"
++//		Execution stops immediately with an error.
++//
++func (t *Template) Option(opt ...string) *Template {
++	for _, s := range opt {
++		t.setOption(s)
++	}
++	return t
++}
++
++func (t *Template) setOption(opt string) {
++	if opt == "" {
++		panic("empty option string")
++	}
++	elems := strings.Split(opt, "=")
++	switch len(elems) {
++	case 2:
++		// key=value
++		switch elems[0] {
++		case "missingkey":
++			switch elems[1] {
++			case "invalid", "default":
++				t.option.missingKey = mapInvalid
++				return
++			case "zero":
++				t.option.missingKey = mapZeroValue
++				return
++			case "error":
++				t.option.missingKey = mapError
++				return
++			}
++		}
++	}
++	panic("unrecognized option: " + opt)
++}
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 249d0cbfb9..8611faad9f 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -18,6 +18,7 @@ type common struct {
+ 	// expose reflection to the client.
+ 	parseFuncs FuncMap
+ 	execFuncs  map[string]reflect.Value
++	option     option
+ }
+ 
+ // Template is the representation of a parsed template. The *parse.Tree

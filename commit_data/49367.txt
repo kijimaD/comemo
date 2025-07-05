@@ -26,7 +26,7 @@ Date:   Tue Jun 22 11:20:03 2021 +0000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Meng Zhuo <mzh@golangcn.org>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go        | 15 +++++++++++++++
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  1 +
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  3 +++
@@ -36,3 +36,152 @@ Date:   Tue Jun 22 11:20:03 2021 +0000
  test/codegen/mathbits.go                       |  1 +
  test/run.go                                    |  1 +
  8 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 64a9b3b33b..c635d93b71 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -282,6 +282,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpRISCV64LoweredMuluhilo:
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		p := s.Prog(riscv.AMULHU)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r1
++		p.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++		p1 := s.Prog(riscv.AMUL)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.Reg = r0
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = v.Reg1()
+ 	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
+ 		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVDX,
+ 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 9cdd62edbe..b21ebe6abb 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -29,6 +29,7 @@
+ (Sub64F ...) => (FSUBD ...)
+ 
+ (Mul64 ...) => (MUL  ...)
++(Mul64uhilo ...) => (LoweredMuluhilo ...)
+ (Mul32 ...) => (MULW ...)
+ (Mul16 x y) => (MULW (SignExt16to32 x) (SignExt16to32 y))
+ (Mul8 x y)  => (MULW (SignExt8to32 x)  (SignExt8to32 y))
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 0774d4c654..cb9051f954 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -123,6 +123,7 @@ func init() {
+ 		gp01     = regInfo{outputs: []regMask{gpMask}}
+ 		gp11     = regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}
+ 		gp21     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask}}
++		gp22     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask, gpMask}}
+ 		gpload   = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{gpMask}}
+ 		gp11sb   = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
+ 		gpxchg   = regInfo{inputs: []regMask{gpspsbgMask, gpgMask}, outputs: []regMask{gpMask}}
+@@ -157,6 +158,8 @@ func init() {
+ 		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true, typ: "Int32"},
+ 		{name: "MULH", argLength: 2, reg: gp21, asm: "MULH", commutative: true, typ: "Int64"},
+ 		{name: "MULHU", argLength: 2, reg: gp21, asm: "MULHU", commutative: true, typ: "UInt64"},
++		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (hi, lo)
++
+ 		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64"}, // arg0 / arg1
+ 		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64"},
+ 		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32"},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index df15c2edda..7893ce837e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2069,6 +2069,7 @@ const (
+ 	OpRISCV64MULW
+ 	OpRISCV64MULH
+ 	OpRISCV64MULHU
++	OpRISCV64LoweredMuluhilo
+ 	OpRISCV64DIV
+ 	OpRISCV64DIVU
+ 	OpRISCV64DIVW
+@@ -27603,6 +27604,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredMuluhilo",
++		argLen:          2,
++		resultNotInArgs: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:   "DIV",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 431fb1aaf6..f315c0d3a8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -356,6 +356,9 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpMul64F:
+ 		v.Op = OpRISCV64FMULD
+ 		return true
++	case OpMul64uhilo:
++		v.Op = OpRISCV64LoweredMuluhilo
++		return true
+ 	case OpMul8:
+ 		return rewriteValueRISCV64_OpMul8(v)
+ 	case OpNeg16:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index b0f2585e3a..237135d5c7 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4505,9 +4505,9 @@ func InitTables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.MIPS64)
+-	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchS390X, sys.ArchMIPS64, sys.ArchMIPS64LE)
+-	alias("runtime/internal/math", "Mul64", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchS390X, sys.ArchMIPS64, sys.ArchMIPS64LE)
++		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.MIPS64, sys.RISCV64)
++	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchS390X, sys.ArchMIPS64, sys.ArchMIPS64LE, sys.ArchRISCV64)
++	alias("runtime/internal/math", "Mul64", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchS390X, sys.ArchMIPS64, sys.ArchMIPS64LE, sys.ArchRISCV64)
+ 	addF("math/bits", "Add64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 03012eff5d..aecd84a78b 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -710,6 +710,7 @@ func Mul64(x, y uint64) (hi, lo uint64) {
+ 	// ppc64le:"MULHDU","MULLD"
+ 	// s390x:"MLGR"
+ 	// mips64: "MULVU"
++	// riscv64:"MULHU","MUL"
+ 	return bits.Mul64(x, y)
+ }
+ 
+diff --git a/test/run.go b/test/run.go
+index 6296234d56..5d5adc3623 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1756,6 +1756,7 @@ var (
+ 		"ppc64le": {"GOPPC64", "power8", "power9"},
+ 		"s390x":   {},
+ 		"wasm":    {},
++		"riscv64": {},
+ 	}
+ )
+ 

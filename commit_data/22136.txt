@@ -7,7 +7,107 @@ Date:   Tue Feb 24 21:05:12 2015 -0800
     Change-Id: I50e83248357928e56c94b88a8764de828f4f5c76
     Reviewed-on: https://go-review.googlesource.com/5890
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 26 +++++++++++++++++---------
  src/math/big/float_test.go | 13 +++++++++++--
  2 files changed, 28 insertions(+), 11 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 8fbe180499..717c24d36b 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -788,13 +788,14 @@ func (x *Float) Float64() (float64, Accuracy) {
+ // Int returns the result of truncating x towards zero; or nil
+ // if x is an infinity. The result is Exact if x.IsInt();
+ // otherwise it is Below for x > 0, and Above for x < 0.
+-func (x *Float) Int() (res *Int, acc Accuracy) {
+-	// TODO(gri) accept z argument for result storage (see Float.Rat below)
++// If a non-nil *Int argument z is provided, it is used to store
++// the result; otherwise a new Int is allocated.
++func (x *Float) Int(z *Int) (*Int, Accuracy) {
+ 	if debugFloat {
+ 		validate(x)
+ 	}
+ 	// accuracy for inexact results
+-	acc = Below // truncation
++	acc := Below // truncation
+ 	if x.neg {
+ 		acc = Above
+ 	}
+@@ -807,7 +808,11 @@ func (x *Float) Int() (res *Int, acc Accuracy) {
+ 		if len(x.mant) == 0 {
+ 			acc = Exact // ±0
+ 		}
+-		return new(Int), acc // ±0.xxx
++		// ±0.xxx
++		if z == nil {
++			return new(Int), acc
++		}
++		return z.SetUint64(0), acc
+ 	}
+ 	// x.exp > 0
+ 	// x.mant[len(x.mant)-1] != 0
+@@ -818,17 +823,20 @@ func (x *Float) Int() (res *Int, acc Accuracy) {
+ 		acc = Exact
+ 	}
+ 	// shift mantissa as needed
+-	res = &Int{neg: x.neg}
++	if z == nil {
++		z = new(Int)
++	}
++	z.neg = x.neg
+ 	// TODO(gri) should have a shift that takes positive and negative shift counts
+ 	switch {
+ 	case exp > allBits:
+-		res.abs = res.abs.shl(x.mant, exp-allBits)
++		z.abs = z.abs.shl(x.mant, exp-allBits)
+ 	default:
+-		res.abs = res.abs.set(x.mant)
++		z.abs = z.abs.set(x.mant)
+ 	case exp < allBits:
+-		res.abs = res.abs.shr(x.mant, allBits-exp)
++		z.abs = z.abs.shr(x.mant, allBits-exp)
+ 	}
+-	return
++	return z, acc
+ }
+ 
+ // Rat returns x converted into an exact fraction; or nil if x is an infinity.
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 69e88c3501..6391beea0b 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -714,7 +714,7 @@ func TestFloatInt(t *testing.T) {
+ 		{"1e+100", "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", Exact},
+ 	} {
+ 		x := makeFloat(test.x)
+-		res, acc := x.Int()
++		res, acc := x.Int(nil)
+ 		got := "nil"
+ 		if res != nil {
+ 			got = res.String()
+@@ -723,6 +723,15 @@ func TestFloatInt(t *testing.T) {
+ 			t.Errorf("%s: got %s (%s); want %s (%s)", test.x, got, acc, test.want, test.acc)
+ 		}
+ 	}
++
++	// check that supplied *Int is used
++	for _, f := range []string{"0", "1", "-1", "1234"} {
++		x := makeFloat(f)
++		i := new(Int)
++		if res, _ := x.Int(i); res != i {
++			t.Errorf("(%s).Int is not using supplied *Int", f)
++		}
++	}
+ }
+ 
+ func TestFloatRat(t *testing.T) {
+@@ -765,7 +774,7 @@ func TestFloatRat(t *testing.T) {
+ 	}
+ 
+ 	// check that supplied *Rat is used
+-	for _, f := range []string{"0", "1"} {
++	for _, f := range []string{"0", "1", "-1", "1234"} {
+ 		x := makeFloat(f)
+ 		r := new(Rat)
+ 		if res := x.Rat(r); res != r {

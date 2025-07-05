@@ -13,6 +13,20 @@ Date:   Mon Jul 25 13:45:44 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4800048
-
+---
  include/u.h | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/include/u.h b/include/u.h
+index 9ee7493b46..44bfcd63b2 100644
+--- a/include/u.h
++++ b/include/u.h
+@@ -194,6 +194,8 @@ typedef u64int uint64;
+ #undef _NEEDUINT
+ #undef _NEEDULONG
+ 
++#define getcallerpc(x)	__builtin_return_address(0)
++
+ #ifndef SIGBUS
+ #define SIGBUS SIGSEGV /* close enough */
+ #endif

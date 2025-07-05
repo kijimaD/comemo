@@ -9,7 +9,7 @@ Date:   Sat Dec 20 13:38:29 2008 -0800
     DELTA=13  (0 added, 0 deleted, 13 changed)
     OCL=21682
     CL=21682
-
+---
  test/fixedbugs/bug027.go | 2 +-
  test/fixedbugs/bug045.go | 2 +-
  test/fixedbugs/bug054.go | 2 +-
@@ -20,3 +20,142 @@ Date:   Sat Dec 20 13:38:29 2008 -0800
  test/ken/string.go       | 2 +-
  test/vectors.go          | 2 +-
  9 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/test/fixedbugs/bug027.go b/test/fixedbugs/bug027.go
+index 95bc064127..d15da9cd42 100644
+--- a/test/fixedbugs/bug027.go
++++ b/test/fixedbugs/bug027.go
+@@ -17,7 +17,7 @@ type Vector struct {
+ func New() *Vector {
+ 	v := new(*Vector);
+ 	v.nelem = 0;
+-	v.elem = new(*[10]Element);
++	v.elem = new([10]Element);
+ 	return v;
+ }
+ 
+diff --git a/test/fixedbugs/bug045.go b/test/fixedbugs/bug045.go
+index 9e94f44739..d8a712c6da 100644
+--- a/test/fixedbugs/bug045.go
++++ b/test/fixedbugs/bug045.go
+@@ -13,7 +13,7 @@ type T struct {
+ func main() {
+ 	var ta []*T;
+ 
+-	ta = new(*[1]*T);
++	ta = new([1]*T);
+ 	ta[0] = nil;
+ }
+ /*
+diff --git a/test/fixedbugs/bug054.go b/test/fixedbugs/bug054.go
+index f4d7c27faa..2caff0f0ca 100644
+--- a/test/fixedbugs/bug054.go
++++ b/test/fixedbugs/bug054.go
+@@ -31,7 +31,7 @@ func (s *TStruct) field(i int) *TStruct {
+ 
+ func main() {
+ 	v := new(*Vector);
+-	v.elem = new(*[10]Element);
++	v.elem = new([10]Element);
+ 	t := new(*TStruct);
+ 	t.name = "hi";
+ 	v.elem[0] = t;
+diff --git a/test/fixedbugs/bug059.go b/test/fixedbugs/bug059.go
+index 55c05f6806..5a29ed1f09 100644
+--- a/test/fixedbugs/bug059.go
++++ b/test/fixedbugs/bug059.go
+@@ -20,7 +20,7 @@ func P(a []string) string {
+ 
+ func main() {
+ 	m := new(map[string] []string);
+-	as := new(*[2]string);
++	as := new([2]string);
+ 	as[0] = "0";
+ 	as[1] = "1";
+ 	m["0"] = as;
+diff --git a/test/initcomma.go b/test/initcomma.go
+index d86ddbac43..da127d4b5f 100644
+--- a/test/initcomma.go
++++ b/test/initcomma.go
+@@ -13,5 +13,5 @@ var c = []int { 1 }
+ func main() {
+ 	if len(a) != 2 { panicln("len a", len(a)) }
+ 	if len(b) != 5 { panicln("len b", len(b)) }
+-	if len(c) != 1 { panicln("len a", len(a)) }
++	if len(c) != 1 { panicln("len a", len(c)) }
+ }
+diff --git a/test/ken/array.go b/test/ken/array.go
+index 2027a31fff..29b456dd9a 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -96,10 +96,10 @@ func
+ testpdpf1()
+ {
+ 	a := new(*[40]int);
+-	setpd(a);
+-	res(sumpd(a), 0, 40);
++	setpd(*a);
++	res(sumpd(*a), 0, 40);
+ 
+-	b := a[5:30];
++	b := (*a)[5:30];
+ 	res(sumpd(b), 5, 30);
+ }
+ 
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index 9cb2ff3dda..6e14bdae39 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -139,7 +139,7 @@ func Get() int
+ 		c = peekc;
+ 		peekc = -1;
+ 	} else {
+-		c = convert(int, input[inputindex]);
++		c = int(input[inputindex]);
+ 		inputindex++;
+ 		if c == '\n' {
+ 			lineno = lineno + 1;
+@@ -175,7 +175,7 @@ func NextToken()
+ 		break;
+ 	default:
+ 		for i = 0; i < 100 - 1; {	// sizeof tokenbuf - 1
+-			tokenbuf[i] = convert(byte, c);
++			tokenbuf[i] = byte(c);
+ 			i = i + 1;
+ 			c = Get();
+ 			if c == EOF {
+@@ -252,7 +252,7 @@ func atoi() int	// BUG: uses tokenbuf; should take argument
+ {
+ 	var v int = 0;
+ 	for i := 0; i < tokenlen && '0' <= tokenbuf[i] && tokenbuf[i] <= '9'; i = i + 1 {
+-		v = 10 * v + convert(int, tokenbuf[i] - '0');
++		v = 10 * v + int(tokenbuf[i] - '0');
+ 	}
+ 	return v;
+ }
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 7e3aa902b0..7bd402e1f0 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -96,7 +96,7 @@ main()
+ 	z2[0] = 'a';
+ 	z2[1] = 'b';
+ 	z2[2] = 'c';
+-	c = string(z2);
++	c = string(*z2);
+ 	if c != "abc" {
+ 		panic("create array pointer ", c);
+ 	}
+diff --git a/test/vectors.go b/test/vectors.go
+index abc59732e4..921bc28c2b 100644
+--- a/test/vectors.go
++++ b/test/vectors.go
+@@ -43,7 +43,7 @@ func test1() {
+ 	}
+ 
+ 	for i := 0; i < v.Len(); i++ {
+-		x := convert(*S, v.At(i));
++		x := v.At(i).(*S);
+ 		if x.val != v.Len() - i - 1 {
+ 			panic("expected ", i, ", found ", x.val, "\n");
+ 		}

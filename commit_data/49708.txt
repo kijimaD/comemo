@@ -24,7 +24,40 @@ Date:   Fri Sep 3 15:55:16 2021 +0800
     Trust: Joe Tsai <joetsai@digital-static.net>
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/encoding/gob/decode.go      | 2 +-
  src/encoding/gob/timing_test.go | 8 +++++++-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 4ef9ef7243..f92556f8ab 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -625,7 +625,7 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
+ 	if value.Cap() < n {
+ 		value.Set(reflect.MakeSlice(typ, n, n))
+ 	} else {
+-		value.Set(value.Slice(0, n))
++		value.SetLen(n)
+ 	}
+ 	dec.decodeArrayHelper(state, value, elemOp, n, ovfl, helper)
+ }
+diff --git a/src/encoding/gob/timing_test.go b/src/encoding/gob/timing_test.go
+index ceb21c4107..516aeea92c 100644
+--- a/src/encoding/gob/timing_test.go
++++ b/src/encoding/gob/timing_test.go
+@@ -279,7 +279,13 @@ func BenchmarkDecodeStringSlice(b *testing.B) {
+ 	}
+ 	benchmarkDecodeSlice(b, a)
+ }
+-
++func BenchmarkDecodeStringsSlice(b *testing.B) {
++	a := make([][]string, 1000)
++	for i := range a {
++		a[i] = []string{"now is the time"}
++	}
++	benchmarkDecodeSlice(b, a)
++}
+ func BenchmarkDecodeBytesSlice(b *testing.B) {
+ 	a := make([][]byte, 1000)
+ 	for i := range a {

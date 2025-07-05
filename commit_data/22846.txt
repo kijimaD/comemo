@@ -11,6 +11,31 @@ Date:   Sat Apr 11 14:04:17 2015 +1200
     Reviewed-on: https://go-review.googlesource.com/8772
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/symtab.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index 2b2ed9675c..c31f70abd1 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -367,9 +367,18 @@ func symtab() {
+ 	// just defined above will be first.
+ 	// hide the specific symbols.
+ 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+-		if !s.Reachable || s.Special != 0 || s.Type != SRODATA {
++		if !s.Reachable || s.Special != 0 {
+ 			continue
+ 		}
++
++		if strings.Contains(s.Name, "..gostring.") || strings.Contains(s.Name, "..gobytes.") {
++			s.Local = true
++		}
++
++		if s.Type != SRODATA {
++			continue
++		}
++
+ 		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
+ 			s.Type = STYPE
+ 			s.Hide = 1

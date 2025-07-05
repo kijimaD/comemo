@@ -20,8 +20,139 @@ Date:   Fri Oct 14 14:50:19 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go                               |  3 --
  src/runtime/crash_cgo_test.go                      | 13 +++++++++
  .../runtime/testdata/testprogcgo/sigfwd.go         | 34 +++++++++++++++++-----
  3 files changed, 39 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 8f83aedd3e..fa79e7e8ae 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -831,9 +831,6 @@ func (t *tester) registerTests() {
+ 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
+ 			t.registerHostTest("cgo_errors", "../misc/cgo/errors", "misc/cgo/errors", ".")
+ 		}
+-		if gohostos == "linux" && t.extLink() {
+-			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", ".")
+-		}
+ 	}
+ 
+ 	if goos != "android" && !t.iOS() {
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 1bf5d50b83..441a704ebe 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -8,6 +8,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/goos"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -753,3 +754,15 @@ func TestCgoTraceParserWithOneProc(t *testing.T) {
+ 		t.Fatalf("GOMAXPROCS=1, want %s, got %s\n", want, output)
+ 	}
+ }
++
++func TestCgoSigfwd(t *testing.T) {
++	t.Parallel()
++	if goos.IsLinux == 0 {
++		t.Skipf("only supported on Linux")
++	}
++
++	got := runTestProg(t, "testprogcgo", "CgoSigfwd", "GO_TEST_CGOSIGFWD=1")
++	if want := "OK\n"; got != want {
++		t.Fatalf("expected %q, but got:\n%s", want, got)
++	}
++}
+diff --git a/misc/cgo/testsigfwd/main.go b/src/runtime/testdata/testprogcgo/sigfwd.go
+similarity index 68%
+rename from misc/cgo/testsigfwd/main.go
+rename to src/runtime/testdata/testprogcgo/sigfwd.go
+index 1d8633971d..1694289700 100644
+--- a/misc/cgo/testsigfwd/main.go
++++ b/src/runtime/testdata/testprogcgo/sigfwd.go
+@@ -2,9 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux
++
+ package main
+ 
+-import "fmt"
++import (
++	"fmt"
++	"os"
++)
+ 
+ /*
+ #include <signal.h>
+@@ -12,21 +17,25 @@ import "fmt"
+ #include <stdio.h>
+ #include <string.h>
+ 
+-int *p;
++int *sigfwdP;
+ static void sigsegv() {
+-	*p = 1;
++	*sigfwdP = 1;
+ 	fprintf(stderr, "ERROR: C SIGSEGV not thrown on caught?.\n");
+ 	exit(2);
+ }
+ 
+ static void segvhandler(int signum) {
+ 	if (signum == SIGSEGV) {
+-		fprintf(stdout, "ok\ttestsigfwd\n");
++		fprintf(stdout, "OK\n");
+ 		exit(0);  // success
+ 	}
+ }
+ 
+ static void __attribute__ ((constructor)) sigsetup(void) {
++	if (getenv("GO_TEST_CGOSIGFWD") == NULL) {
++		return;
++	}
++
+ 	struct sigaction act;
+ 
+ 	memset(&act, 0, sizeof act);
+@@ -36,7 +45,11 @@ static void __attribute__ ((constructor)) sigsetup(void) {
+ */
+ import "C"
+ 
+-var p *byte
++func init() {
++	register("CgoSigfwd", CgoSigfwd)
++}
++
++var nilPtr *byte
+ 
+ func f() (ret bool) {
+ 	defer func() {
+@@ -46,14 +59,19 @@ func f() (ret bool) {
+ 		}
+ 		ret = true
+ 	}()
+-	*p = 1
++	*nilPtr = 1
+ 	return false
+ }
+ 
+-func main() {
++func CgoSigfwd() {
++	if os.Getenv("GO_TEST_CGOSIGFWD") == "" {
++		fmt.Fprintf(os.Stderr, "test must be run with GO_TEST_CGOSIGFWD set\n")
++		os.Exit(1)
++	}
++
+ 	// Test that the signal originating in Go is handled (and recovered) by Go.
+ 	if !f() {
+-		fmt.Errorf("couldn't recover from SIGSEGV in Go.")
++		fmt.Fprintf(os.Stderr, "couldn't recover from SIGSEGV in Go.\n")
+ 		C.exit(2)
+ 	}
+ 
